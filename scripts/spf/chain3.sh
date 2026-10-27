@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Lane spf: kernel admission (full + quick, 8B shapes for rope) and the planted rope mutants, one fleetq job each.
+cd "$(dirname "${BASH_SOURCE[0]}")/../.." || exit 1
+RAW=docs/results/2026-10-27-spf-cuda-prefill/raw
+fleetq run --host spark1 --quiet gpu,cpu --mem 20 --expect 15 --label "spf: kernels test (full + quick + rope 8B shapes), rope tree" -- ssh spark1 'B=~/intarsiaml-spf/rope/target/release/intarsia; M8=$(ls -d ~/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/* | head -1); export PATH=/usr/local/cuda/bin:$PATH; echo "== full"; $B kernels test --backend cuda 2>&1 | tail -4; echo "== quick"; $B kernels test --backend cuda --quick 2>&1 | tail -4; echo "== rope, 8B shapes"; $B kernels test --backend cuda --op rope -m $M8 2>&1 | tail -4; echo "== rope, 8B shapes, MULTI=0"; INTARSIA_CUDA_ROPE_MULTI=0 $B kernels test --backend cuda --op rope -m $M8 2>&1 | tail -4' > $RAW/ktest.log 2>&1
+fleetq run --host spark1 --quiet gpu,cpu --mem 20 --expect 30 --label "spf: rope mutants" -- ssh spark1 'M8=$(ls -d ~/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/* | head -1); KFLAGS="--op rope -m $M8" python3 - rope' < scripts/spf/mutants.py > $RAW/mutants.log 2>&1

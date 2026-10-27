@@ -1,0 +1,9 @@
+fleetq: #5893 running on endor: scripts/spf/metal-plan.sh
+    Finished `release` profile [optimized] target(s) in 22.98s
+    Finished `release` profile [optimized] target(s) in 21.68s
+PASS metal plan 8 json byte-identical (    8371 B)
+PASS metal plan 8 txt byte-identical (    1342 B)
+PASS metal plan 35 json byte-identical (   10605 B)
+PASS metal plan 35 txt byte-identical (    2404 B)
+metal plan fails=0
+fleetq: #5893 done (exit 0)

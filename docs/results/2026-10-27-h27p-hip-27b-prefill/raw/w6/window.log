@@ -1,0 +1,28 @@
+fleetq: #5987 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5987 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-h27p/scripts/h27p/win.sh chain2.sh'
+[h27p] radiance inactive 2026-10-27 02:37:50
+== mutant m1 (INTARSIA_PREFILL_PEEL=0): MUST FAIL
+FAIL ids 16k-3 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=99 proposed=198 accepted=155 (acceptance 78.3%, 2.57 tokens per pass)
+ids fails=1
+== mutant m4 (INTARSIA_TP_TEST_BUG=scale:1.003@1): MUST FAIL
+FAIL ids 4k-0 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=95 proposed=189 accepted=160 (acceptance 84.7%, 2.68 tokens per pass)
+FAIL ids 4k-3 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)
+FAIL ids 16k-0 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=97 proposed=194 accepted=158 (acceptance 81.4%, 2.63 tokens per pass)
+ids fails=3
+== mutant m5 (INTARSIA_TP_NO_COMM=1): MUST FAIL
+FAIL ids 4k-0 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=135 proposed=269 accepted=99 (acceptance 36.8%, 1.73 tokens per pass)
+ids fails=1
+== kernel admission (dev binary, kernels untouched)
+SKIPPED: kernel matmul_pair_bf16_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel rmsnorm_add_matmul_pair_bf16_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel matmul_fp8_pair_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel gated_rmsnorm_matmul_fp8_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel rmsnorm_add_matmul_fp8_pair_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel sigmoid_mul_matmul_fp8_wmma ran 0 cases on backend 'hip'
+ctx base max-batch 16: prefill chunk 256 prefill chunk 256 context 19847 tokens 
+ctx base max-batch 1: prefill chunk 256 context 262144 tokens 
+ctx dev max-batch 16: prefill chunk 2048 prefill chunk 2048 context 19547 tokens 
+ctx dev max-batch 1: prefill chunk 2048 context 262144 tokens 
+[h27p] chain2.sh done 2026-10-27 02:44:18
+[h27p] radiance active after 15 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793083465,"owned_by":"radiance"
+fleetq: #5987 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

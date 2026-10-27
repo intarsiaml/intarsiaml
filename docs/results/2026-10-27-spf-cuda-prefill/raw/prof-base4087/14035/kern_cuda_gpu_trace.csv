@@ -1,0 +1,1028 @@
+Start (ns),Duration (ns),CorrId,GrdX,GrdY,GrdZ,BlkX,BlkY,BlkZ,Reg/Trd,StcSMem (MB),DymSMem (MB),Bytes (MB),Throughput (MB/s),SrcMemKd,DstMemKd,Device,Ctx,GreenCtx,Strm,Name
+431825840,659328,1306,,,,,,,,,,134.218,203474.076,Device,,NVIDIA GB10 (0),1,,7,[CUDA memset]
+432486512,1223680,1309,,,,,,,,,,134.218,109655.884,Device,Device,NVIDIA GB10 (0),1,,7,[CUDA memcpy Device-to-Device]
+433712368,1207360,1311,,,,,,,,,,134.218,111132.279,Device,Device,NVIDIA GB10 (0),1,,7,[CUDA memcpy Device-to-Device]
+434922128,1196768,1312,,,,,,,,,,134.218,112071.803,Device,Device,NVIDIA GB10 (0),1,,7,[CUDA memcpy Device-to-Device]
+436121232,1197216,1313,,,,,,,,,,134.218,112071.803,Device,Device,NVIDIA GB10 (0),1,,7,[CUDA memcpy Device-to-Device]
+437320336,1202112,1314,,,,,,,,,,134.218,111534.932,Device,Device,NVIDIA GB10 (0),1,,7,[CUDA memcpy Device-to-Device]
+438523536,1199104,1315,,,,,,,,,,134.218,111803.367,Device,Device,NVIDIA GB10 (0),1,,7,[CUDA memcpy Device-to-Device]
+439724944,1201024,1316,,,,,,,,,,134.218,111669.150,Device,Device,NVIDIA GB10 (0),1,,7,[CUDA memcpy Device-to-Device]
+440927248,1197632,1317,,,,,,,,,,134.218,111937.585,Device,Device,NVIDIA GB10 (0),1,,7,[CUDA memcpy Device-to-Device]
+442127248,1202688,1318,,,,,,,,,,134.218,111534.932,Device,Device,NVIDIA GB10 (0),1,,7,[CUDA memcpy Device-to-Device]
+492182832,3534056320,1330,,,,,,,,,,1244.660,0.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+4026315568,6240,1334,,,,,,,,,,0.008,1312.817,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+4067308688,3509163360,1338,,,,,,,,,,1244.660,0.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7576648368,2560,1342,,,,,,,,,,0.008,3200.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7579601328,573664,1346,,,,,,,,,,33.554,58485.375,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7580839504,146432,1350,,,,,,,,,,8.389,57285.804,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7581291568,24232832,1354,,,,,,,,,,8.389,343.933,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7606934672,90832480,1358,,,,,,,,,,33.554,369.099,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7697796144,1632,1362,,,,,,,,,,0.000,156.863,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7697802864,256,1366,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7697861648,512,1370,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7705259472,2558464,1374,,,,,,,,,,100.663,39258.685,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7711120016,281978112,1378,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+7996410800,283654816,1382,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8280098704,2368,1386,,,,,,,,,,0.008,3459.457,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8284674160,578240,1390,,,,,,,,,,33.554,58015.613,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8286666800,974816,1394,,,,,,,,,,8.389,8598.323,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8287943312,23819360,1398,,,,,,,,,,8.389,343.933,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8312895440,91328896,1402,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8404248432,1440,1406,,,,,,,,,,0.000,177.778,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8404254832,192,1410,,,,,,,,,,0.000,1333.333,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8404263376,480,1414,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8419144144,1716608,1418,,,,,,,,,,100.663,58586.038,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8424163120,278567264,1422,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8706073680,286636928,1426,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8992742192,2624,1430,,,,,,,,,,0.008,3121.947,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8997905040,574656,1434,,,,,,,,,,33.554,58384.712,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+8999636080,145728,1438,,,,,,,,,,8.389,57562.628,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9000730960,146432,1442,,,,,,,,,,8.389,57285.804,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9006381136,571232,1446,,,,,,,,,,33.554,58720.256,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9006980912,2144,1450,,,,,,,,,,0.000,119.403,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9006985424,288,1454,,,,,,,,,,0.000,888.889,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9006994896,480,1458,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9020502512,1733664,1462,,,,,,,,,,100.663,57982.058,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9025593296,282148928,1466,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9311079728,281694560,1470,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9592817744,2112,1474,,,,,,,,,,0.008,3878.781,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9598280144,1395776,1478,,,,,,,,,,33.554,24024.973,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9601103920,935328,1482,,,,,,,,,,8.389,8967.422,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9602336624,23868864,1486,,,,,,,,,,8.389,343.933,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9627300656,95475872,1490,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9722801232,2624,1494,,,,,,,,,,0.000,97.561,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9722810288,192,1498,,,,,,,,,,0.000,1333.333,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9722822128,480,1502,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9738035984,2538592,1506,,,,,,,,,,100.663,39560.675,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+9743838832,282790912,1510,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10029842832,282431296,1514,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10312313008,2464,1518,,,,,,,,,,0.008,3324.674,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10317934352,1396928,1522,,,,,,,,,,33.554,23991.419,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10320739632,941632,1526,,,,,,,,,,8.389,8900.313,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10321980272,23546368,1530,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10346634512,90439648,1534,,,,,,,,,,33.554,369.099,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10437098512,2112,1538,,,,,,,,,,0.000,121.212,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10437104080,288,1542,,,,,,,,,,0.000,888.889,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10437118384,544,1546,,,,,,,,,,0.008,15058.821,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10453425904,1707264,1550,,,,,,,,,,100.663,58888.028,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10458381200,281714816,1554,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+10743365488,283030464,1558,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11026435344,2400,1562,,,,,,,,,,0.008,3413.328,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11030826928,572320,1566,,,,,,,,,,33.554,58619.593,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11032568816,148320,1570,,,,,,,,,,8.389,56555.995,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11033017360,24207392,1574,,,,,,,,,,8.389,343.933,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11058336752,92335200,1578,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11150695920,1664,1582,,,,,,,,,,0.000,153.846,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11150705168,256,1586,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11150714320,544,1590,,,,,,,,,,0.008,15058.821,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11163125808,1723968,1594,,,,,,,,,,100.663,58384.712,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11168075408,283087424,1598,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11454385904,279821568,1602,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11734325936,2272,1606,,,,,,,,,,0.008,3605.627,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11739306448,1340800,1610,,,,,,,,,,33.554,24998.052,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11742113552,822080,1614,,,,,,,,,,8.389,10200.547,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11743238480,27875584,1618,,,,,,,,,,8.389,293.601,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11772232432,99606432,1622,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11871864208,1856,1626,,,,,,,,,,0.000,137.931,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11871872240,256,1630,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11871881744,544,1634,,,,,,,,,,0.008,15058.821,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11887451120,2566912,1638,,,,,,,,,,100.663,39158.022,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+11893307696,314652448,1642,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12211260400,286669600,1646,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12497980432,6432,1650,,,,,,,,,,0.008,1273.627,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12503470672,1438464,1654,,,,,,,,,,33.554,23320.330,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12505243376,20016064,1658,,,,,,,,,,8.389,411.042,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12525557744,22908960,1662,,,,,,,,,,8.389,360.710,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12552806128,565632,1666,,,,,,,,,,33.554,59290.681,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12553396688,2016,1670,,,,,,,,,,0.000,126.984,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12553402416,256,1674,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12553413712,480,1678,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12566239056,1688480,1682,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12571275760,284702720,1686,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+12859277296,288121504,1690,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13147435888,2240,1694,,,,,,,,,,0.008,3657.138,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13152906672,595776,1698,,,,,,,,,,33.554,56304.337,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13154957904,805184,1702,,,,,,,,,,8.389,10410.263,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13156063792,24502528,1706,,,,,,,,,,8.389,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13181704208,96494880,1710,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13278225072,1952,1714,,,,,,,,,,0.000,131.148,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13278230928,256,1718,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13278244304,512,1722,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13293270256,1732160,1726,,,,,,,,,,100.663,58082.722,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13298305840,282440448,1730,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13584071696,285588928,1734,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13869701840,2624,1738,,,,,,,,,,0.008,3121.947,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13874283376,599776,1742,,,,,,,,,,33.554,55935.238,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13876109424,800928,1746,,,,,,,,,,8.389,10468.983,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13877207056,24183104,1750,,,,,,,,,,8.389,343.933,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13902511088,94478048,1754,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13997014032,1568,1758,,,,,,,,,,0.000,163.265,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13997024400,224,1762,,,,,,,,,,0.000,1142.857,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+13997033040,480,1766,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14012428240,1711360,1770,,,,,,,,,,100.663,58787.365,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14017355984,287836192,1774,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14308373264,284005696,1778,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14592418160,2816,1782,,,,,,,,,,0.008,2909.086,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14597798192,1221216,1786,,,,,,,,,,33.554,27447.525,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14600447856,749472,1790,,,,,,,,,,8.389,11190.403,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14601492208,23610272,1794,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14626232848,94280352,1798,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14720539792,2240,1802,,,,,,,,,,0.000,114.286,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14720546416,192,1806,,,,,,,,,,0.000,1333.333,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14720558768,1088,1810,,,,,,,,,,0.008,7529.406,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14736934672,2365536,1814,,,,,,,,,,100.663,42479.911,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+14742501680,287767392,1818,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15033512016,288771104,1822,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15322321584,2496,1826,,,,,,,,,,0.008,3282.051,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15326996112,1111040,1830,,,,,,,,,,33.554,30198.989,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15329040016,604800,1834,,,,,,,,,,8.389,13866.369,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15329946992,23395616,1838,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15354460272,94997920,1842,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15449483408,1920,1846,,,,,,,,,,0.000,133.333,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15449493264,224,1850,,,,,,,,,,0.000,1142.857,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15449504656,448,1854,,,,,,,,,,0.008,18285.707,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15466097776,2351360,1858,,,,,,,,,,100.663,42781.901,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15471744432,287841376,1862,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+15762812624,287105920,1866,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16049953648,2496,1870,,,,,,,,,,0.008,3282.051,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16055196368,1218208,1874,,,,,,,,,,33.554,27514.634,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16057604976,155840,1878,,,,,,,,,,8.389,53821.309,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16058920784,158944,1882,,,,,,,,,,8.389,52772.733,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16063651408,617088,1886,,,,,,,,,,33.554,54358.180,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16064298928,1664,1890,,,,,,,,,,0.000,153.846,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16064304912,256,1894,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16064316560,480,1898,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16077763600,1815776,1902,,,,,,,,,,100.663,55364.813,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16092885488,1783584,1906,,,,,,,,,,100.663,56371.446,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16108029648,1772000,1910,,,,,,,,,,100.663,56774.099,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16109846320,2080,1914,,,,,,,,,,0.008,3938.460,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16114375216,592928,1918,,,,,,,,,,33.554,56572.772,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16116145424,149312,1922,,,,,,,,,,8.389,56178.508,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16116589616,23742368,1926,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16141438352,95625760,1930,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16237092144,1632,1934,,,,,,,,,,0.000,156.863,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16237100176,384,1938,,,,,,,,,,0.000,666.666,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16237115952,480,1942,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16250369328,1776512,1946,,,,,,,,,,100.663,56572.772,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16255380912,286120416,1950,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16544697776,288801088,1954,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16833536272,2304,1958,,,,,,,,,,0.008,3555.549,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16838101744,588448,1962,,,,,,,,,,33.554,57008.980,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16839898800,153728,1966,,,,,,,,,,8.389,54559.506,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16840350640,23572608,1970,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16865066224,94900096,1974,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16959991280,2144,1978,,,,,,,,,,0.000,119.403,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16960000880,288,1982,,,,,,,,,,0.000,888.889,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16960011056,1120,1986,,,,,,,,,,0.008,7314.285,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16973327920,1760768,1990,,,,,,,,,,100.663,57076.089,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+16978316176,286792288,1994,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17268305264,284188256,1998,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17552531792,11808,2002,,,,,,,,,,0.008,693.764,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17557017072,583392,2006,,,,,,,,,,33.554,57512.296,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17558762096,149184,2010,,,,,,,,,,8.389,56228.839,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17559209456,23658944,2014,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17583985200,94657856,2018,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17678668368,1696,2022,,,,,,,,,,0.000,150.943,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17678676016,288,2026,,,,,,,,,,0.000,888.889,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17678690480,512,2030,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17685907920,2356736,2034,,,,,,,,,,100.663,42681.238,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17691567984,287262944,2038,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+17982086800,286693632,2042,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18268828688,2368,2046,,,,,,,,,,0.008,3459.457,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18273330608,1241120,2050,,,,,,,,,,33.554,27011.318,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18275745104,786848,2054,,,,,,,,,,8.389,10653.532,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18276835632,24300416,2058,,,,,,,,,,8.389,343.933,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18302265456,94763520,2062,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18397054160,1408,2066,,,,,,,,,,0.000,181.818,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18397065264,192,2070,,,,,,,,,,0.000,1333.333,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18397077840,480,2074,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18410463600,1745664,2078,,,,,,,,,,100.663,57579.405,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18425449168,1742240,2082,,,,,,,,,,100.663,57680.069,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18440586160,1746784,2086,,,,,,,,,,100.663,57579.405,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18442457680,2624,2090,,,,,,,,,,0.008,3121.947,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18447100016,1240416,2094,,,,,,,,,,33.554,27044.872,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18449501168,775072,2098,,,,,,,,,,8.389,10821.304,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18450585200,21417664,2102,,,,,,,,,,8.389,385.876,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18473114384,95222752,2106,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18568365840,1856,2110,,,,,,,,,,0.000,137.931,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18568371536,256,2114,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18568390480,512,2118,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18571568752,287481536,2122,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18870288240,1713184,2126,,,,,,,,,,100.663,58686.702,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+18875155152,283535040,2130,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19158728016,2272,2134,,,,,,,,,,0.008,3605.627,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19163155088,576768,2138,,,,,,,,,,33.554,58149.831,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19164932272,150816,2142,,,,,,,,,,8.389,55616.471,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19165373168,23458432,2146,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19189937296,97803872,2150,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19287767120,1984,2154,,,,,,,,,,0.000,129.032,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19287773456,288,2158,,,,,,,,,,0.000,888.889,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19287787536,480,2162,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19297453584,1725024,2166,,,,,,,,,,100.663,58284.048,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19302317520,292767232,2170,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19598210256,291879264,2174,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19890127696,2240,2178,,,,,,,,,,0.008,3657.138,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19894595472,572544,2182,,,,,,,,,,33.554,58586.038,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19896385904,147232,2186,,,,,,,,,,8.389,56975.426,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19897797360,152512,2190,,,,,,,,,,8.389,54995.714,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19902393840,575936,2194,,,,,,,,,,33.554,58250.494,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19902997360,1632,2198,,,,,,,,,,0.000,156.863,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19903006768,192,2202,,,,,,,,,,0.000,1333.333,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19903016368,480,2206,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19916237424,1714944,2210,,,,,,,,,,100.663,58686.702,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19929405680,1705280,2214,,,,,,,,,,100.663,58988.691,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19943293232,1710528,2218,,,,,,,,,,100.663,58787.365,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19945048208,2720,2222,,,,,,,,,,0.008,3011.764,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19949464144,569984,2226,,,,,,,,,,33.554,58854.474,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19951208240,157888,2230,,,,,,,,,,8.389,53125.054,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19951659440,23678528,2234,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+19976433104,94210688,2238,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20070669488,1856,2242,,,,,,,,,,0.000,137.931,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20070678448,224,2246,,,,,,,,,,0.000,1142.857,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20070691312,512,2250,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20084059216,2334688,2254,,,,,,,,,,100.663,43083.891,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20089505456,283850208,2258,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20376525648,286853408,2262,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20663417808,2208,2266,,,,,,,,,,0.008,3710.140,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20667899344,570336,2270,,,,,,,,,,33.554,58820.919,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20669111280,146016,2274,,,,,,,,,,8.389,57445.188,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20669549584,23644928,2278,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20694262224,96086080,2282,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20790372976,1472,2286,,,,,,,,,,0.000,173.913,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20790379504,256,2290,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20790393168,512,2294,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20803858608,1705312,2298,,,,,,,,,,100.663,58988.691,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+20808690928,284685248,2302,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21096496016,286067232,2306,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21382606384,2080,2310,,,,,,,,,,0.008,3938.460,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21387079472,570912,2314,,,,,,,,,,33.554,58753.810,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21388796592,146144,2318,,,,,,,,,,8.389,57394.856,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21389234032,23718976,2322,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21414049744,94092224,2326,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21508168688,1504,2330,,,,,,,,,,0.000,170.213,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21508174448,256,2334,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21508184240,544,2338,,,,,,,,,,0.008,15058.821,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21516229712,1688640,2342,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21521033360,287079168,2346,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+21811264176,285821600,2350,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22097125488,1856,2354,,,,,,,,,,0.008,4413.792,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22101445040,566560,2358,,,,,,,,,,33.554,59223.572,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22103147664,145024,2362,,,,,,,,,,8.389,57839.452,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22104385520,146144,2366,,,,,,,,,,8.389,57394.856,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22107534704,567296,2370,,,,,,,,,,33.554,59122.909,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22108127760,1440,2374,,,,,,,,,,0.000,177.778,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22108137232,256,2378,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22108146928,512,2382,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22115566832,1683680,2386,,,,,,,,,,100.663,59693.335,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22129597104,1687840,2390,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22143999952,1686144,2394,,,,,,,,,,100.663,59693.335,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22145727536,2176,2398,,,,,,,,,,0.008,3764.699,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22150039504,565824,2402,,,,,,,,,,33.554,59290.681,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22151730416,145600,2406,,,,,,,,,,8.389,57612.960,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22152167152,24299424,2410,,,,,,,,,,8.389,343.933,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22177542864,96432864,2414,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22274001136,1472,2418,,,,,,,,,,0.000,173.913,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22274010800,224,2422,,,,,,,,,,0.000,1142.857,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22274022896,480,2426,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22286747760,1685856,2430,,,,,,,,,,100.663,59693.335,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22291581200,287734304,2434,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22582468400,286767552,2438,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22869276464,1920,2442,,,,,,,,,,0.008,4266.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22873595088,564928,2446,,,,,,,,,,33.554,59391.345,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22875285168,146176,2450,,,,,,,,,,8.389,57386.467,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22875731472,24105920,2454,,,,,,,,,,8.389,343.933,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22900911440,94415264,2458,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22995350608,1600,2462,,,,,,,,,,0.000,160.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22995358640,192,2466,,,,,,,,,,0.000,1333.333,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+22995372528,1056,2470,,,,,,,,,,0.008,7757.570,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23002214352,1687712,2474,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23007016688,288679072,2478,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23298841776,284032480,2482,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23582914352,2240,2486,,,,,,,,,,0.008,3657.138,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23587222640,567584,2490,,,,,,,,,,33.554,59089.355,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23588914384,146144,2494,,,,,,,,,,8.389,57394.856,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23589353392,24370048,2498,,,,,,,,,,8.389,343.933,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23614823120,95667424,2502,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23710525232,2016,2506,,,,,,,,,,0.000,126.984,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23710528368,256,2510,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23710542576,480,2514,,,,,,,,,,0.008,17066.664,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23721296912,1689664,2518,,,,,,,,,,100.663,59492.008,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+23726141872,286236896,2522,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24015526896,289955360,2526,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24305527248,2208,2530,,,,,,,,,,0.008,3710.140,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24309852784,566880,2534,,,,,,,,,,33.554,59190.018,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24311546352,146464,2538,,,,,,,,,,8.389,57269.027,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24311987696,24776320,2542,,,,,,,,,,8.389,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24337875216,94844864,2546,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24432749680,1824,2550,,,,,,,,,,0.000,140.351,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24432755984,288,2554,,,,,,,,,,0.000,888.889,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24432775696,512,2558,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24435929328,286419360,2562,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+24725511792,286334912,2566,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25014977072,288425824,2570,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25303442800,5024,2574,,,,,,,,,,0.008,1630.568,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25307772496,561984,2578,,,,,,,,,,33.554,59693.335,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25309460656,146048,2582,,,,,,,,,,8.389,57436.799,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25309899984,23418048,2586,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25334405040,96086368,2590,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25430518064,1472,2594,,,,,,,,,,0.000,173.913,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25430528304,288,2598,,,,,,,,,,0.000,888.889,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25430541104,512,2602,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25443298064,1686432,2606,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25448101776,285362112,2610,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+25736608560,288505888,2614,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26025234320,2144,2618,,,,,,,,,,0.008,3820.888,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26029479024,566368,2622,,,,,,,,,,33.554,59223.572,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26031177360,146176,2626,,,,,,,,,,8.389,57386.467,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26032429648,145984,2630,,,,,,,,,,8.389,57461.965,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26036859440,566560,2634,,,,,,,,,,33.554,59223.572,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26037453712,1440,2638,,,,,,,,,,0.000,177.778,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26037459568,224,2642,,,,,,,,,,0.000,1142.857,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26037473008,1088,2646,,,,,,,,,,0.008,7529.406,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26050234064,1687648,2650,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26055062544,289881024,2654,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26348075504,287333664,2658,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26635450992,2464,2662,,,,,,,,,,0.008,3324.674,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26639753040,560928,2666,,,,,,,,,,33.554,59793.998,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26641439824,145696,2670,,,,,,,,,,8.389,57571.017,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26641887952,23467520,2674,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26666455952,94696544,2678,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26761178288,1664,2682,,,,,,,,,,0.000,153.846,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26761184720,192,2686,,,,,,,,,,0.000,1333.333,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26761200784,448,2690,,,,,,,,,,0.008,18285.707,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26773972752,2355776,2694,,,,,,,,,,100.663,42681.238,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+26779478288,286618944,2698,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27069280464,287857152,2702,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27357181552,2432,2706,,,,,,,,,,0.008,3368.419,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27361110800,565184,2710,,,,,,,,,,33.554,59357.790,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27362307408,145696,2714,,,,,,,,,,8.389,57571.017,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27362751248,23472736,2718,,,,,,,,,,8.389,352.322,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27387331728,94640512,2722,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27481997584,1600,2726,,,,,,,,,,0.000,160.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27482004336,256,2730,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27482016400,544,2734,,,,,,,,,,0.008,15058.821,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27494699472,1686784,2738,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27499539344,286898752,2742,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+27789548496,285827296,2746,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28075416240,2656,2750,,,,,,,,,,0.008,3084.337,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28079755600,565504,2754,,,,,,,,,,33.554,59324.236,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28081449584,146528,2758,,,,,,,,,,8.389,57243.861,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28081891024,22997312,2762,,,,,,,,,,8.389,360.710,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28105980272,94928640,2766,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28200937968,1632,2770,,,,,,,,,,0.000,156.863,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28200944304,192,2774,,,,,,,,,,0.000,1333.333,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28200956720,512,2778,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28212907888,1687552,2782,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28217720112,286626944,2786,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28507520944,287717440,2790,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28795277680,2208,2794,,,,,,,,,,0.008,3710.140,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28799618640,565696,2798,,,,,,,,,,33.554,59290.681,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28801308976,145600,2802,,,,,,,,,,8.389,57612.960,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28802556240,145312,2806,,,,,,,,,,8.389,57722.012,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28806973904,566912,2810,,,,,,,,,,33.554,59156.464,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28807570096,1504,2814,,,,,,,,,,0.000,170.213,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28807577552,256,2818,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28807589872,512,2822,,,,,,,,,,0.008,16000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28820107312,1683616,2826,,,,,,,,,,100.663,59693.335,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28834517680,1687936,2830,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28848873296,1688416,2834,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28850607568,2080,2838,,,,,,,,,,0.008,3938.460,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28854898704,563968,2842,,,,,,,,,,33.554,59492.008,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28856595888,145472,2846,,,,,,,,,,8.389,57663.291,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28857027728,24456448,2850,,,,,,,,,,8.389,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28882575088,94479232,2854,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28977079952,1536,2858,,,,,,,,,,0.000,166.666,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28977086928,256,2862,,,,,,,,,,0.000,1000.000,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28977100048,544,2866,,,,,,,,,,0.008,15058.821,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28989861456,1688064,2870,,,,,,,,,,100.663,59592.671,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+28994640208,290656704,2874,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29288396528,285570656,2878,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29574005424,2080,2882,,,,,,,,,,0.008,3938.460,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29578361456,566784,2886,,,,,,,,,,33.554,59190.018,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29580052304,145184,2890,,,,,,,,,,8.389,57772.343,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29580499024,24000960,2894,,,,,,,,,,8.389,343.933,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29605592944,95123488,2898,,,,,,,,,,33.554,335.544,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29700741776,1440,2902,,,,,,,,,,0.000,177.778,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29700748368,224,2906,,,,,,,,,,0.000,1142.857,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29700759152,544,2910,,,,,,,,,,0.008,15058.821,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29713472112,1685408,2914,,,,,,,,,,100.663,59693.335,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+29718314288,287010208,2918,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+30008444592,289165024,2922,,,,,,,,,,100.663,301.990,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+30790687120,2528,3110,,,,,,,,,,0.016,6473.091,Pageable,Device,NVIDIA GB10 (0),1,,13,[CUDA memcpy Host-to-Device]
+30791649680,195136,3115,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat16 *, long, long)"
+30792072944,263680,3121,4091,1,1,256,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31143096432,1557824,3189,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31144688432,399040,3196,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31145085392,421952,3199,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31145509808,284352,3202,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31145838224,1349600,3207,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31147190192,69376,3211,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31147260848,340576,3215,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31147644592,37984,3220,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31147683824,68096,3224,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31148087344,1958304,3230,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31150045520,1522944,3234,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31151592912,548384,3238,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31152141168,4804000,3242,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31156941232,4545632,3245,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31161514960,1206944,3249,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31162721744,5087744,3253,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31167811600,557568,3256,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31168369040,1557952,3260,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31169924912,408768,3263,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31170331824,410880,3266,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31170744336,277600,3269,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31171023888,1350400,3273,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31172376592,68864,3277,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31172448272,340608,3281,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31172790288,40160,3285,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31172833296,77984,3289,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31172914192,1957568,3294,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31174871600,1516512,3298,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31176390672,558720,3301,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31176949232,4666432,3305,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31181613072,5271328,3308,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31186886672,1223200,3311,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31188109584,5164416,3315,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31193276432,548544,3318,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31193824656,1636832,3322,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31195459408,430816,3325,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31195887440,412384,3328,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31196302384,258752,3331,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31196563472,1360160,3335,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31197925392,65184,3339,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31197991952,343200,3343,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31198338064,41184,3347,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31198381040,77536,3351,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31198460944,1966752,3356,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31200427536,1542752,3360,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31201972272,557568,3363,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31202529584,5477984,3367,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31208004016,4559232,3370,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31212564656,1221056,3373,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31213785520,5015104,3377,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31218802704,549184,3380,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31219351600,1632928,3384,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31220982544,417568,3387,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31221398000,412736,3390,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31221812272,258816,3393,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31222073360,1360608,3397,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31223436304,65056,3401,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31223503088,343104,3405,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31223848976,66112,3409,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31223916560,140224,3413,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31224059920,2375456,3418,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31226435184,1675200,3422,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31228112912,558304,3425,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31228671056,4637568,3429,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31233306128,4553184,3432,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31237861392,1217056,3435,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31239078192,5060384,3439,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31244140560,562080,3442,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31244701968,2005632,3446,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31246705680,583584,3449,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31247276208,482272,3452,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31247760400,257920,3455,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31248020624,1360448,3459,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31249383440,65408,3463,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31249452048,343232,3467,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31249798160,40736,3471,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31249841168,77856,3475,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31249922064,1969120,3480,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31251890992,1484064,3484,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31253377040,562240,3487,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31253939152,4540128,3491,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31258476112,4569248,3494,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31263046480,1266656,3497,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31264312912,5994656,3501,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31270309008,701504,3504,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31271010352,1745856,3508,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31272754128,419232,3511,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31273171440,421824,3514,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31273594896,258880,3517,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31273855184,1360160,3521,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31275216912,65120,3525,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31275283472,343264,3529,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31275629584,41248,3533,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31275672592,77536,3537,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31275751536,1975264,3542,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31277726640,1548736,3546,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31279277072,559168,3549,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31279836080,5066560,3553,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31284900208,4892736,3556,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31289794576,1220128,3559,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31291014544,5023552,3563,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31296039952,548032,3566,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31296587824,1675776,3570,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31298260432,407648,3573,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31298666544,413184,3576,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31299082256,258912,3579,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31299344400,1360384,3583,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31300706320,65312,3587,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31300773904,343072,3591,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31301120016,39712,3595,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31301161104,75232,3599,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31301237808,1965728,3604,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31303203376,2006208,3608,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31305211920,558016,3611,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31305769648,5102080,3615,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31310867824,4639936,3618,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31315510320,1221088,3621,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31316731248,6436032,3625,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31323169840,552736,3628,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31323721840,1673664,3632,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31325393328,421152,3635,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31325811728,407040,3638,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31326221328,259680,3641,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31326482416,1360256,3645,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31327844368,66592,3649,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31327912976,343104,3653,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31328259088,40864,3657,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31328303120,76640,3661,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31328382992,1987232,3666,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31330369840,1520256,3670,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31331892240,563776,3673,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31332455856,4679872,3677,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31337133328,4582240,3680,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31341717520,1218592,3683,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31342935952,5799584,3687,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31348738064,551296,3690,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31349289200,1617216,3694,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31350904304,415968,3697,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31351318608,439616,3700,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31351759888,258048,3703,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31352021008,1360416,3707,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31353382928,64288,3711,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31353448592,343136,3715,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31353794576,42528,3719,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31353838608,75360,3723,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31353916208,1979296,3728,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31355895344,1529184,3732,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31357426704,556128,3735,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31357982672,4666080,3739,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31362646320,5457408,3742,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31368106000,1221696,3745,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31369327568,6003712,3749,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31375334416,550624,3752,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31375884880,1612288,3756,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31377495184,407552,3759,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31377900624,409984,3762,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31378312208,259680,3765,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31378574384,1360224,3769,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31379936272,66080,3773,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31380004880,343328,3777,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31380350992,41120,3781,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31380394000,75776,3785,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31380472848,1963104,3790,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31382435792,1816544,3794,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31384254480,669568,3797,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31384923888,4935232,3801,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31389856816,4670976,3804,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31394530320,1221120,3807,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31395751216,5106080,3811,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31400859664,548352,3814,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31401407728,1615104,3818,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31403020752,401440,3821,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31403420048,418880,3824,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31403840560,300992,3827,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31404143760,1371168,3831,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31405517872,66368,3835,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31405587472,346048,3839,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31405935664,40736,3843,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31405977776,77056,3847,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31406056464,2212832,3852,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31408269136,1493216,3856,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31409764400,555648,3859,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31410319888,4583712,3863,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31414901296,4661728,3866,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31419566096,1225248,3869,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31420790896,5126592,3873,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31425920016,549088,3876,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31426468944,1701344,3880,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31428168240,406592,3883,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31428572944,400480,3886,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31428975664,258080,3889,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31429235728,1371104,3893,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31430609968,65024,3897,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31430677552,346144,3901,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31431025680,40512,3905,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31431068688,75296,3909,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31431146512,1986496,3914,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31433132848,1532672,3918,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31434668048,557280,3921,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31435225040,4685728,3925,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31439908368,4977856,3928,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31444888624,1223456,3931,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31446111856,5438368,3935,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31451552816,546400,3938,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31452098928,1717120,3942,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31453813904,438880,3945,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31454250992,424352,3948,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31454677008,258912,3951,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31454938160,1360352,3955,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31456300080,66112,3959,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31456368656,343296,3963,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31456713776,40448,3967,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31456756752,77376,3971,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31456836656,1975040,3976,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31458811536,1570976,3980,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31460384784,554720,3983,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31460939376,5298688,3987,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31466234064,4973920,3990,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31471209488,1218080,3993,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31472427344,5870304,3997,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31478299696,552544,4000,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31478851920,1615296,4004,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31480465136,442976,4007,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31480906352,432064,4010,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31481340976,259200,4013,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31481603088,1360448,4017,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31482966032,64992,4021,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31483032592,343104,4025,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31483378704,40960,4029,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31483421712,77120,4033,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31483500560,1965312,4038,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31485465744,1533696,4042,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31487002640,560480,4045,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31487562992,4740544,4049,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31492300720,4845184,4052,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31497148432,1234528,4055,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31498382672,7745856,4059,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31506129968,587936,4062,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31506717584,1827488,4066,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31508542032,655968,4069,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31509196016,431232,4072,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31509629040,261696,4075,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31509893136,1389344,4079,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31511283888,65088,4083,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31511350384,350464,4087,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31511702512,41504,4091,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31511746576,79488,4095,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31511828528,1982464,4100,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31513810864,1597056,4104,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31515410448,558784,4107,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31515969072,4781056,4111,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31520747376,5262240,4114,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31526011024,1230240,4117,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31527241072,6384288,4121,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31533628464,549856,4124,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31534178128,1671072,4128,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31535847152,426816,4131,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31536271920,414688,4134,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31536688176,261504,4137,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31536951312,1371200,4141,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31538325520,65472,4145,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31538393104,346016,4149,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31538742288,40288,4153,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31538784272,77824,4157,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31538865264,1975776,4162,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31540840848,1578400,4166,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31542421520,558720,4169,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31542979984,5507200,4173,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31548483216,4688800,4176,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31553174320,1217760,4179,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31554391952,6056608,4183,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31560450064,551328,4186,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31561001072,1682336,4190,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31562681712,428576,4193,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31563108304,420832,4196,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31563531280,258976,4199,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31563792400,1371072,4203,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31565166640,65344,4207,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31565233360,345792,4211,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31565581328,41056,4215,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31565625360,76576,4219,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31565703440,1966368,4224,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31567669488,1539360,4228,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31569211408,564128,4231,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31569775376,4804224,4235,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31574577168,4648480,4238,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31579228176,1215520,4241,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31580443568,5930528,4245,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31586375696,556896,4248,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31586932336,1631168,4252,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31588561296,430560,4255,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31588990000,436960,4258,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31589429264,259104,4261,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31589691408,1371456,4265,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31591064624,66048,4269,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31591133200,345888,4273,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31591481456,41920,4277,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31591526416,75296,4281,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31591604240,1958976,4286,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31593563088,1589440,4290,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31595154480,559072,4293,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31595713264,4644672,4297,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31600354832,5108064,4300,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31605466160,1224416,4303,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31606690416,5653792,4307,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31612346384,545568,4310,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31612891824,1634176,4314,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31614523504,406976,4317,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31614928624,413792,4320,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31615343824,261216,4323,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31615606800,1389376,4327,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31616997584,65376,4331,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31617065072,350528,4335,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31617417232,42368,4339,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31617461264,74272,4343,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31617538064,1974208,4348,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31619512112,1531104,4352,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31621045424,561088,4355,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31621606352,4609056,4359,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31626213232,4655392,4362,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31630870544,1218368,4365,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31632088720,5992000,4369,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31638082576,553472,4372,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31638635856,1614240,4376,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31640247984,427904,4379,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31640674096,399136,4382,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31641075728,260512,4385,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31641337872,1385984,4389,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31642726576,65920,4393,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31642795024,349600,4397,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31643147280,40192,4401,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31643189264,77056,4405,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31643268144,2342080,4410,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31645610064,1739296,4414,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31647351184,597184,4417,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31647938000,4859968,4421,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31652794704,4683968,4424,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31657481232,1221920,4427,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31658702864,5820608,4431,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31664525328,674432,4434,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31665199472,1833664,4438,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31667031024,652992,4441,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31667681360,420576,4444,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31668104240,260704,4447,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31668366352,1371296,4451,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31669739536,70912,4455,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31669812240,345984,4459,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31670160368,40800,4463,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31670203408,76000,4467,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31670281232,1980128,4472,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31672261200,1515072,4476,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31673778352,557952,4479,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31674336016,4706720,4483,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31679040432,4565056,4486,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31683607600,1218016,4489,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31684825200,5274048,4493,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31690101776,547424,4496,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31690649040,1557504,4500,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31692204464,421376,4503,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31692623696,424032,4506,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31693049872,261344,4509,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31693314064,1371104,4513,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31694687280,64544,4517,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31694753808,345824,4521,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31695101968,40992,4525,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31695144976,76256,4529,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31695222800,1985024,4534,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31697207696,1522656,4538,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31698732080,559104,4541,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31699291024,4981408,4545,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31704269488,5257568,4548,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31709529136,1219200,4551,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31710748048,5277856,4555,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31716028464,548032,4558,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31716576336,1678784,4562,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31718252400,515072,4565,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31718764848,470816,4568,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31719237648,296512,4571,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31719536400,1389536,4575,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31720927312,66272,4579,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31720995856,350464,4583,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31721348112,40928,4587,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31721391120,76384,4591,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31721469968,1992224,4596,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31723461776,1620864,4600,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31725084688,558592,4603,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31725643120,4804576,4607,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31730444688,4899680,4610,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31735346224,1218560,4613,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31736564624,6541120,4617,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31743107184,552576,4620,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31743659632,2121632,4624,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31745776240,418912,4627,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31746193264,456512,4630,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31746652176,277888,4633,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31746932752,1370912,4637,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31748305072,64896,4641,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31748372496,345856,4645,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31748720656,40128,4649,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31748763664,75392,4653,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31748840464,1986048,4658,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31750826384,1576128,4662,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31752403984,560416,4665,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31752964112,4614656,4669,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31757575664,4680768,4672,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31762258992,1217696,4675,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31763476528,6140992,4679,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31769619504,1000480,4682,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31770619696,1718432,4686,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31772336144,433792,4689,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31772767792,411392,4692,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31773180944,260000,4695,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31773444112,1360512,4699,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31774807088,66048,4703,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31774875664,343136,4707,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31775221776,40704,4711,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31775264784,76928,4715,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31775343632,1972768,4720,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31777316176,1543584,4724,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31778861136,557984,4727,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31779418832,4911264,4731,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31784323536,5241952,4734,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31789568016,1216832,4737,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31790784656,5236320,4741,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31796023312,549888,4744,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31796573072,1662080,4748,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31798233040,478240,4751,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31798708336,420800,4754,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31799131184,259616,4757,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31799393296,1371040,4761,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31800767536,64608,4765,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31800834064,345952,4769,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31801182224,40096,4773,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31801224240,76096,4777,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31801302032,1969248,4782,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31803271120,1996640,4786,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31805270064,562848,4789,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31805832752,5186560,4793,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31811016944,4823200,4796,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31815841808,1223072,4799,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31817064720,5208704,4803,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31822275600,544544,4806,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31822819984,2113792,4810,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31824928560,488608,4813,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31825415184,477664,4816,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31825894448,264032,4819,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31826160624,1371456,4823,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31827533872,66016,4827,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31827601424,345856,4831,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31827948656,40928,4835,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31827991568,77984,4839,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31828072464,1979488,4844,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31830051824,1557152,4848,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31831611440,556992,4851,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31832168272,4843232,4855,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31837008368,4637120,4858,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31841648656,1220416,4861,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31842868848,5920704,4865,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31848792080,550368,4868,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31849341936,1681760,4872,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31851021648,432448,4875,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31851452272,422624,4878,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31851876368,258592,4881,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31852137488,1360352,4885,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31853499408,64704,4889,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31853565968,343104,4893,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31853912080,41856,4897,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31853956112,75552,4901,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31854033968,1966144,4906,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31855999952,1582144,4910,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31857585200,560064,4913,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31858145136,4691648,4917,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31862833264,5496416,4920,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31868331088,1228480,4923,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31869559248,5333440,4927,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31874895888,548032,4930,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31875443728,1587744,4934,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31877029584,453440,4937,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31877480656,445664,4940,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31877927984,257728,4943,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31878187120,1389472,4947,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31879579664,65216,4951,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31879647248,350592,4955,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31879999504,40992,4959,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31880043536,79360,4963,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31880125488,1984000,4968,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31882109296,1586368,4972,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31883698192,595008,4975,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31884284208,5489888,4979,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31889771408,4699808,4982,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31894473776,1219552,4985,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31895693168,5197568,4989,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31900893200,548000,4992,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31901440976,1669024,4996,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31903107920,422304,4999,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31903526928,499232,5002,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31904028720,264192,5005,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31904294928,1371072,5009,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31905669136,66112,5013,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31905737776,349440,5017,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31906090000,41376,5021,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31906133008,76256,5025,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31906210832,2210912,5030,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31908421488,1644416,5034,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31910067312,554976,5037,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31910622096,4788096,5041,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31915407472,4737856,5044,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31920147504,1222688,5047,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31921370000,5282464,5051,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31926654992,547360,5054,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31927202064,1746208,5058,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31928945968,428288,5061,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31929372688,442752,5064,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31929817104,260768,5067,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31930079248,1371168,5071,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31931452432,65216,5075,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31931519056,345920,5079,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31931867152,41376,5083,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31931911184,77536,5087,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31931990128,1978368,5092,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31933968368,1573440,5096,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31935543312,561696,5099,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31936104848,4756608,5103,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31940858096,5167424,5106,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31946027024,1329536,5109,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31947354896,5449952,5113,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31952806960,547808,5116,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31953354448,1629408,5120,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31954981872,430240,5123,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31955410096,444800,5126,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31955857424,261856,5129,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31956120656,1378432,5133,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31957500976,64928,5137,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31957567504,347936,5141,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31957917712,41696,5145,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31957961744,76384,5149,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31958039568,1993344,5154,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31960032752,1575168,5158,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31961610256,556928,5161,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31962166864,5446368,5165,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31967609904,4677120,5168,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31972289584,1218144,5171,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31973507600,5158944,5175,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31978669072,544960,5178,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31979213744,1674880,5182,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31980886480,436320,5185,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31981320688,444480,5188,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+31981767696,260608,5191,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31982030864,1392576,5195,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31983425552,68736,5199,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31983495984,350560,5203,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+31983848432,43488,5207,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31983893520,75872,5211,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+31983972368,2303904,5216,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+31986270768,1886560,5220,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31988160528,555552,5223,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+31988715696,4899744,5227,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31993612880,4702368,5230,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+31998317584,1227104,5233,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+31999544560,6060896,5237,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32005607440,572160,5240,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32006176720,1817376,5244,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32007988912,620384,5247,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+32008606768,421568,5250,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+32009029744,290528,5253,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32009322512,1371008,5257,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+32010696720,65696,5261,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32010765328,345888,5265,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+32011113520,40992,5269,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+32011157520,74752,5273,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+32011234352,1984000,5278,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+32013218160,1520160,5282,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32014741520,554528,5285,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32015295632,4764256,5289,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32020057296,4840800,5292,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32024900688,1219680,5295,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+32026120240,5492032,5299,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32031613968,551616,5302,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32032165296,1733376,5306,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32033897040,457280,5309,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+32034351600,433952,5312,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+32034787344,259456,5315,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32035048464,1371072,5319,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+32036422704,65792,5323,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32036490288,345920,5327,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+32036838416,40608,5331,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+32036881424,76416,5335,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+32036960272,1993024,5340,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+32038953136,1590624,5344,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32040546320,557248,5347,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32041103248,5465760,5351,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32046565296,4854208,5354,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32051421200,1219232,5357,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+32052640240,5549472,5361,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32058191888,550400,5364,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32058742064,1638144,5368,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32060378096,457600,5371,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+32060832976,440416,5374,192,1,1,64,4,1,255,0.000,0.079,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+32061275152,260192,5377,130912,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32061538448,1389472,5381,1023,8,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+32062930960,65120,5385,32728,1,1,32,1,1,36,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32062997520,350944,5389,1023,2,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+32063349872,44480,5393,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+32063396880,78080,5397,2046,1,1,256,1,1,28,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+32063477776,2322976,5402,64,32,1,128,1,1,234,0.000,0.035,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+32065800496,1937664,5406,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32067739696,561280,5409,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32068300688,5172800,5413,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32073471120,4910592,5416,160,12,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32078383216,1220032,5419,24546,1,1,256,1,1,31,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+32079602960,5903648,5423,160,4,1,64,4,1,255,0.000,0.087,,,,,NVIDIA GB10 (0),1,,13,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+32085508880,543488,5426,4091,1,1,256,1,1,40,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+32087608400,5290176,5432,18992,1,1,256,1,1,44,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::gemv_kernel<(int)1, float, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *, long, long)"
+32092938416,19456,5438,1,1,1,1024,1,1,32,0.000,0.000,,,,,NVIDIA GB10 (0),1,,13,"void <unnamed>::argmax_kernel<float>(const T1 *, int *, long)"
+32092963344,6592,5441,,,,,,,,,,0.000,0.607,Device,Pageable,NVIDIA GB10 (0),1,,13,[CUDA memcpy Device-to-Host]

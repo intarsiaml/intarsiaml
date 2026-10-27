@@ -1,0 +1,10 @@
+WARNING: CPU IP/backtrace sampling not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+WARNING: CPU context switch tracing not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+prefill chunk 4096 (recipe qwen3, cuda)
+admission on plan shapes: 16 kernel(s) checked, 0 case(s) run, 277 cached
+loaded Qwen/Qwen3-8B on cuda (NVIDIA GB10) in 74.4s, context 20480 tokens
+intarsia server listening on http://127.0.0.1:8197

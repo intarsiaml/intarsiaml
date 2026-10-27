@@ -1,0 +1,9 @@
+This is a critical review of the technical report regarding Tensor Parallelism (TP) on R9700 GPUs. The document presents a rigorous, albeit complex, validation of a new TP=2 implementation for Qwen models. Below is an analysis of its strengths, weaknesses, and gaps.
+
+### 1. What is Convincing
+
+**A. The "Gate" Logic is Methodologically Sound**
+The most impressive aspect of this report is the explicit rejection of a naive accuracy gate.
+*   **Rejection of KL Divergence as a Gate:** The coordinator correctly identifies that KL divergence between TP=2 and TP=1 is too noisy to detect small numerical bugs (like a 0.3% partial-scale error). Relying on this would have led to false negatives.
+*   **Adoption of Direct Partial-Sum Checks:** Shifting the gate to **Check 1** (direct comparison of partial sums against deterministic/probabilistic bounds) is the correct engineering decision. It isolates the specific failure mode (reduction order/scale errors) from general model noise.
+*   **Use of Mutants:** The use of "mutants" (intentional bugs like `drop-captured-allreduce`, `

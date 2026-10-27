@@ -1,0 +1,11 @@
+fleetq: #5998 running on spark1: ssh spark1 'export PATH=/usr/local/cuda/bin:$PATH; cd ~/intarsiaml-spf/rope2; B=$(ls -t target/release/deps/rope_multi-* | grep -v "\.d$" | head -1); INTARSIA_REQUIRE_GPU=1 $B --nocapture 2>&1 | tail -6; target/release/intarsia kernels test --backend cuda --quick 2>&1 | tail -3'
+
+running 1 test
+test rope_multi_is_bitwise_the_group_kernel ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.96s
+
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+77 kernels, 531 cases in 5.9s
+fleetq: #5998 done (exit 0)

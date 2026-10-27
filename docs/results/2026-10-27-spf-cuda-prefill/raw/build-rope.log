@@ -1,0 +1,11 @@
+fleetq: #5894 waiting (#2 in line): in line behind #5890 "spf: alignment print + rope multi vs off ids" (claude-f31ccf91) on spark1
+fleetq:   #5890 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5890 set, or it will wait for #5890 to be released.
+fleetq: #5894 waiting (#2 in line): in line behind #5890 "spf: alignment print + rope multi vs off ids" (claude-f31ccf91) on spark1; #5890 has no estimated start, so nothing can go first by ending before it
+fleetq:   #5890 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5890 set, or it will wait for #5890 to be released.
+fleetq: #5894 waiting (#1 in line): #5890 "spf: alignment print + rope multi vs off ids" (claude-f31ccf91) needs cpu quiet on spark1, and this job loads it
+fleetq:   #5890 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5890 set, or it will wait for #5890 to be released.
+fleetq: #5894 running on spark1: scripts/spf/build.sh rope
+    Finished `release` profile [optimized] target(s) in 24.91s
+-rwxrwxr-x 2 nvidia nvidia 79852792 Oct 27 00:14 /home/nvidia/intarsiaml-spf/rope/target/release/intarsia
+intarsia 0.0.1
+fleetq: #5894 done (exit 0)

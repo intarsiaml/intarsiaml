@@ -1,0 +1,116 @@
+fleetq: #5912 waiting (#1 in line): needs gpu quiet on spark1, but #5900 "spf: gemm GemmEx vs cublasLt over M" (claude-f31ccf91) loads it
+fleetq:   #5900 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5900 set, or it will wait for #5900 to be released.
+fleetq: #5912 running on spark1: scripts/spf/prof-serve.sh rope serve-rope4087
+req 0 prompt_tokens 4092 wall 920 ms
+req 1 prompt_tokens 4092 wall 868 ms
+req 2 prompt_tokens 4092 wall 870 ms
+req 3 prompt_tokens 4092 wall 873 ms
+request 0: 7 kernels, span 81.1 ms, kernel time 0.1 ms
+request 1: 31 kernels, span 15.2 ms, kernel time 0.2 ms
+request 2: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 3: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 4: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 5: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 6: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 7: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 8: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 9: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 10: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 11: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 12: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 13: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 14: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 15: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 16: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 17: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 18: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 19: 21 kernels, span 62.3 ms, kernel time 0.0 ms
+request 20: 1 kernels, span 0.6 ms, kernel time 0.6 ms
+request 21: 1 kernels, span 0.5 ms, kernel time 0.5 ms
+request 22: 1 kernels, span 0.6 ms, kernel time 0.6 ms
+request 23: 1 kernels, span 0.6 ms, kernel time 0.6 ms
+request 24: 1 kernels, span 0.6 ms, kernel time 0.6 ms
+request 25: 1 kernels, span 0.6 ms, kernel time 0.6 ms
+request 26: 1 kernels, span 0.6 ms, kernel time 0.6 ms
+request 27: 1 kernels, span 0.5 ms, kernel time 0.5 ms
+request 28: 1 kernels, span 0.6 ms, kernel time 0.6 ms
+request 29: 1 kernels, span 0.5 ms, kernel time 0.5 ms
+request 30: 1 kernels, span 0.6 ms, kernel time 0.6 ms
+request 31: 1 kernels, span 0.6 ms, kernel time 0.6 ms
+request 32: 1 kernels, span 0.5 ms, kernel time 0.5 ms
+request 33: 1 kernels, span 0.5 ms, kernel time 0.5 ms
+request 34: 1 kernels, span 0.5 ms, kernel time 0.5 ms
+request 35: 1 kernels, span 0.5 ms, kernel time 0.5 ms
+request 36: 1 kernels, span 0.0 ms, kernel time 0.0 ms
+request 37: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 38: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 39: 2 kernels, span 69.5 ms, kernel time 0.1 ms
+request 40: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 41: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 42: 2 kernels, span 62.3 ms, kernel time 0.1 ms
+request 43: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 44: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 45: 2 kernels, span 62.6 ms, kernel time 0.1 ms
+request 46: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 47: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 48: 2 kernels, span 63.6 ms, kernel time 0.1 ms
+request 49: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 50: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 51: 2 kernels, span 62.7 ms, kernel time 0.1 ms
+request 52: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 53: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 54: 2 kernels, span 65.1 ms, kernel time 0.1 ms
+request 55: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 56: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 57: 2 kernels, span 67.7 ms, kernel time 0.2 ms
+request 58: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 59: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 60: 2 kernels, span 67.1 ms, kernel time 0.1 ms
+request 61: 1 kernels, span 0.5 ms, kernel time 0.5 ms
+request 62: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 63: 3 kernels, span 67.8 ms, kernel time 0.1 ms
+request 64: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 65: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 66: 3 kernels, span 73.7 ms, kernel time 0.1 ms
+request 67: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 68: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 69: 3 kernels, span 73.5 ms, kernel time 0.1 ms
+request 70: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 71: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 72: 2 kernels, span 73.7 ms, kernel time 0.1 ms
+request 73: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 74: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 75: 2 kernels, span 74.4 ms, kernel time 0.1 ms
+request 76: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 77: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 78: 1 kernels, span 0.1 ms, kernel time 0.1 ms
+request 79: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 80: 2 kernels, span 73.3 ms, kernel time 0.2 ms
+request 81: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 82: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 83: 2 kernels, span 73.6 ms, kernel time 0.2 ms
+request 84: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 85: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 86: 2 kernels, span 73.8 ms, kernel time 0.2 ms
+request 87: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 88: 1 kernels, span 0.4 ms, kernel time 0.4 ms
+request 89: 1 kernels, span 0.1 ms, kernel time 0.1 ms
+request 90: 1 kernels, span 0.1 ms, kernel time 0.1 ms
+request 91: 131 kernels, span 156.9 ms, kernel time 1.4 ms
+request 92: 616 kernels, span 886.6 ms, kernel time 884.3 ms
+request 93: 616 kernels, span 860.3 ms, kernel time 859.8 ms
+request 94: 616 kernels, span 862.4 ms, kernel time 862.0 ms
+request 95: 616 kernels, span 864.8 ms, kernel time 864.3 ms
+-- request 95: kernel total 864.3 ms
+nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN                              635.0 ms  73.5 %    180 calls    3527.7 us avg
+flash_kernel<                                                                          74.4 ms   8.6 %     36 calls    2068.0 us avg
+rmsnorm_kernel<                                                                        52.5 ms   6.1 %    145 calls     361.8 us avg
+silu_glu_kernel<                                                                       45.0 ms   5.2 %     36 calls    1249.7 us avg
+nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN                                29.4 ms   3.4 %     72 calls     408.6 us avg
+rope_multi_kernel                                                                      18.3 ms   2.1 %     72 calls     254.4 us avg
+gemv_kernel<                                                                            5.2 ms   0.6 %      1 calls    5245.5 us avg
+kv_append_kernel<__nv_bfloat16,                                                         4.2 ms   0.5 %     72 calls      58.8 us avg
+embedding_kernel<                                                                       0.2 ms   0.0 %      1 calls     197.6 us avg
+argmax_kernel<float>                                                                    0.0 ms   0.0 %      1 calls       9.8 us avg
+span 864.8 ms busy 864.0 ms idle 0.78 ms in 363 gaps; largest 11 us
+fleetq: #5912 done (exit 0)

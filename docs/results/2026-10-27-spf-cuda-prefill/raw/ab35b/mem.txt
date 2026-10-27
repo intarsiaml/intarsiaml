@@ -1,0 +1,6 @@
+def r1: MemAvailable 60529 MB with the server up
+off r1: MemAvailable 62148 MB with the server up
+off r2: MemAvailable 62101 MB with the server up
+def r2: MemAvailable 60603 MB with the server up
+def r3: MemAvailable 60574 MB with the server up
+off r3: MemAvailable 62128 MB with the server up

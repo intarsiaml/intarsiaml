@@ -1,0 +1,13 @@
+Time (%),Total Time (ns),Instances,Avg (ns),Med (ns),Min (ns),Max (ns),StdDev (ns),Name
+52.2,2308070112,684,3374371.5,4299184.0,335744,7498880,1836776.9,nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+24.3,1075795872,144,7470804.7,7748352.0,1957504,12757152,3908878.7,"void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat16 *, const T3 *, const T3 *, __nv_bfloat16 *, int, int, int, long, long, float)"
+6.7,295606208,108,2737094.5,1580832.0,1369664,6498016,1700714.3,nvjet_sm121_tst_mma_192x144x64_2_48x72x64_tmaAB_bz_TNNN
+5.5,242931200,288,843511.1,812592.0,313632,1414432,505427.3,"<unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, float, const int *, int)"
+4.0,176471872,144,1225499.1,1244240.0,1127392,1400704,56804.5,"void <unnamed>::silu_glu_kernel<(bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, long)"
+3.5,155946432,288,541480.7,548656.0,492416,672256,27529.8,"void <unnamed>::rmsnorm_kernel<(bool)1, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+2.1,92311168,216,427366.5,412640.0,383296,779936,54971.1,nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN
+1.1,47757024,292,163551.5,229952.0,60960,359008,95223.0,"void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, const __nv_bfloat16 *, __nv_bfloat16 *, __nv_bfloat16 *, long, float, float)"
+0.4,16968032,288,58916.8,68112.0,35552,129312,19349.1,"void <unnamed>::kv_append_kernel<__nv_bfloat16, (int)8>(const __nv_bfloat16 *, T1 *, long, long, long, long, long, const int *)"
+0.1,5398368,1,5398368.0,5398368.0,5398368,5398368,0.0,"void <unnamed>::gemv_kernel<(int)1, float, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat16 *, T2 *, long, long)"
+0.0,809120,4,202280.0,205952.0,184544,212672,12845.2,"void <unnamed>::embedding_kernel<(bool)1>(const int *, const __nv_bfloat16 *, __nv_bfloat16 *, long, long)"
+0.0,20384,1,20384.0,20384.0,20384,20384,0.0,"void <unnamed>::argmax_kernel<float>(const T1 *, int *, long)"

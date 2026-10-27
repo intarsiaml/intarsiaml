@@ -1,0 +1,17 @@
+request 91: 131 kernels, span 156.9 ms, kernel time 1.4 ms
+request 92: 616 kernels, span 886.6 ms, kernel time 884.3 ms
+request 93: 616 kernels, span 860.3 ms, kernel time 859.8 ms
+request 94: 616 kernels, span 862.4 ms, kernel time 862.0 ms
+request 95: 616 kernels, span 864.8 ms, kernel time 864.3 ms
+-- request 95: kernel total 864.3 ms
+nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN                              635.0 ms  73.5 %    180 calls    3527.7 us avg
+flash_kernel<                                                                          74.4 ms   8.6 %     36 calls    2068.0 us avg
+rmsnorm_kernel<                                                                        52.5 ms   6.1 %    145 calls     361.8 us avg
+silu_glu_kernel<                                                                       45.0 ms   5.2 %     36 calls    1249.7 us avg
+nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN                                29.4 ms   3.4 %     72 calls     408.6 us avg
+rope_multi_kernel                                                                      18.3 ms   2.1 %     72 calls     254.4 us avg
+gemv_kernel<                                                                            5.2 ms   0.6 %      1 calls    5245.5 us avg
+kv_append_kernel<__nv_bfloat16,                                                         4.2 ms   0.5 %     72 calls      58.8 us avg
+embedding_kernel<                                                                       0.2 ms   0.0 %      1 calls     197.6 us avg
+argmax_kernel<float>                                                                    0.0 ms   0.0 %      1 calls       9.8 us avg
+span 864.8 ms busy 864.0 ms idle 0.78 ms in 363 gaps; largest 11 us

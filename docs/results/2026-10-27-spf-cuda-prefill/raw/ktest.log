@@ -1,0 +1,24 @@
+fleetq: #5940 waiting (#1 in line): needs gpu quiet on spark1, but #5939 "spf: ids 8B base vs rope vs rope0" (claude-f31ccf91) loads it
+fleetq:   #5939 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5939 set, or it will wait for #5939 to be released.
+fleetq: #5940 running on spark1: ssh spark1 'B=~/intarsiaml-spf/rope/target/release/intarsia; M8=$(ls -d ~/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/* | head -1); export PATH=/usr/local/cuda/bin:$PATH; echo "== full"; $B kernels test --backend cuda 2>&1 | tail -4; echo "== quick"; $B kernels test --backend cuda --quick 2>&1 | tail -4; echo "== rope, 8B shapes"; $B kernels test --backend cuda --op rope -m $M8 2>&1 | tail -4; echo "== rope, 8B shapes, MULTI=0"; INTARSIA_CUDA_ROPE_MULTI=0 $B kernels test --backend cuda --op rope -m $M8 2>&1 | tail -4'
+== full
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv     12      0    2.706e-4    1.980e-5  ADMITTED
+matmul_exl3    matmul_exl3_gemv              242      0    6.993e-3    1.680e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               81      0    5.618e-3    9.393e-4  ADMITTED
+77 kernels, 1514 cases in 74.4s
+== quick
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+77 kernels, 531 cases in 5.5s
+== rope, 8B shapes
+op             kernel                      cases   fail     max_abs      rel_l2  result
+rope           rope_bf16                      36      0    8.503e-4    1.078e-5  ADMITTED
+rope           rope_prop_bf16                 54      0    8.503e-4    1.078e-5  ADMITTED
+2 kernels, 90 cases in 0.1s
+== rope, 8B shapes, MULTI=0
+op             kernel                      cases   fail     max_abs      rel_l2  result
+rope           rope_bf16                      36      0    8.503e-4    1.078e-5  ADMITTED
+rope           rope_prop_bf16                 54      0    8.503e-4    1.078e-5  ADMITTED
+2 kernels, 90 cases in 0.1s
+fleetq: #5940 done (exit 0)

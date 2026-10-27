@@ -1,5 +1,6 @@
 // Data-movement and elementwise launchers: embedding, add, silu_glu, kv_append, rope.
 #include "ik_launch.h"
+#include <stdlib.h>
 
 namespace {
 
@@ -135,6 +136,7 @@ __global__ void kv_append_rows_kernel(const ik_bf16* __restrict__ src, const uin
 // rotary dim RD < D the values RD..D-1 pass through unchanged (`rope_pass_kernel` copies them when
 // x and out are different buffers).
 constexpr int kRopeHeads = 4;
+constexpr int64_t kRopeMultiMinT = 5;  // rows from which rope_multi_kernel is used (prefill chunks; verify passes of 2-4 rows and decode keep rope_kernel)
 // pos_per_token (batched decode rows): `pos_dev` holds one position per token, token t sits at pos_dev[t] (each row is the
 // T = 1 call of its own sequence); otherwise token t sits at pos0 + t.
 __global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, int D, int RD, int64_t pos0_host,
@@ -166,6 +168,45 @@ __global__ void rope_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, in
             const int64_t base = (t * N + n0 + j) * D;
             out[base + k] = ik_f2b(a[j] * fc - b[j] * fs);
             out[base + k + half] = ik_f2b(b[j] * fc + a[j] * fs);
+        }
+    }
+}
+
+// Prefill variant of rope_kernel: one thread per (token, frequency) rotates ALL N heads of that token. rope_kernel recomputes the
+// double-precision pow / sincos of its (token, frequency) once per group of kRopeHeads heads (8x for a 32-head q), and double
+// precision runs at 1/64 of the f32 rate on the consumer-class parts (GB10), so on a 4k chunk it was 0.86 ms per call for about
+// 0.2 ms of traffic. Same expressions per element, so the bits are rope_kernel's. Only the non-per-token path (token t at
+// pos0 + t); the batched-decode rows (pos_per_token) keep rope_kernel.
+__global__ void rope_multi_kernel(const ik_bf16* x, ik_bf16* out, int64_t T, int N, int D, int RD, int64_t pos0_host,
+                                  float theta, const int32_t* pos_dev) {
+    const int64_t pos0 = pos_dev ? (int64_t)*pos_dev : pos0_host;
+    const int half = RD / 2;
+    const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= T * half) return;
+    const int k = (int)(i % half);
+    const int64_t t = i / half;
+    const int64_t pos = pos0 + t;
+    const double inv = pow((double)theta, -2.0 * (double)k / (double)RD);
+    double sd, cd;
+    sincos((double)pos * inv, &sd, &cd);
+    const float fs = (float)sd, fc = (float)cd;
+    for (int n0 = 0; n0 < N; n0 += kRopeHeads) {
+        float a[kRopeHeads], b[kRopeHeads];
+#pragma unroll
+        for (int j = 0; j < kRopeHeads; ++j) {
+            if (n0 + j < N) {
+                const int64_t base = (t * N + n0 + j) * D;
+                a[j] = ik_b2f(x[base + k]);
+                b[j] = ik_b2f(x[base + k + half]);
+            }
+        }
+#pragma unroll
+        for (int j = 0; j < kRopeHeads; ++j) {
+            if (n0 + j < N) {
+                const int64_t base = (t * N + n0 + j) * D;
+                out[base + k] = ik_f2b(a[j] * fc - b[j] * fs);
+                out[base + k + half] = ik_f2b(b[j] * fc + a[j] * fs);
+            }
         }
     }
 }
@@ -435,6 +476,15 @@ int ik_rope_bf16(const ik_tensor* x, int64_t pos0, float theta, int64_t rotary_d
         rope_pass_kernel<<<blocks(T * N * (D - RD)), kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data,
                                                                      T * N, (int)D, (int)RD);
     if (RD == 0) return ik_launch_status();
+    // INTARSIA_CUDA_ROPE_MULTI=0 restores the one-launch-per-head-group kernel (A/B and bisecting); else prefill-sized calls (T >= kRopeMultiMinT
+    // rows, one position per row) rotate every head in one thread
+    const char* mv = getenv("INTARSIA_CUDA_ROPE_MULTI");  // read per launch (tests/rope_multi.rs flips it between calls)
+    const bool multi_off = mv && mv[0] == '0';
+    if (!per_token && T >= kRopeMultiMinT && !multi_off) {
+        rope_multi_kernel<<<blocks(T * (RD / 2)), kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N,
+                                                                    (int)D, (int)RD, pos0, theta, pos_dev);
+        return ik_launch_status();
+    }
     dim3 grid(blocks(T * (RD / 2)), (unsigned)((N + kRopeHeads - 1) / kRopeHeads));
     rope_kernel<<<grid, kThreads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)out->data, T, (int)N, (int)D, (int)RD,
                                           pos0, theta, pos_dev, per_token ? 1 : 0);

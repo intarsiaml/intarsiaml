@@ -1,0 +1,18 @@
+kernel total 947.8 ms
+nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN                    674.2 ms  71.1 %    180 calls
+flash_kernel<                                                                73.0 ms   7.7 %     36 calls
+rope_kernel                                                                  61.8 ms   6.5 %     72 calls
+rmsnorm_kernel<                                                              53.0 ms   5.6 %    145 calls
+silu_glu_kernel<                                                             44.1 ms   4.7 %     36 calls
+nvjet_sm121_tst_mma_128x176x64_2_32x88x64_tmaAB_bz_TNNN                      31.8 ms   3.4 %     72 calls
+gemv_kernel<                                                                  5.3 ms   0.6 %      1 calls
+kv_append_kernel<__nv_bfloat16,                                               4.3 ms   0.5 %     72 calls
+embedding_kernel<                                                             0.2 ms   0.0 %      1 calls
+argmax_kernel<float>                                                          0.0 ms   0.0 %      1 calls
+window: 616 kernels, span 1301.31 ms, busy 947.44 ms, idle 353.87 ms
+gaps < 20 us: 355 totalling 0.78 ms (mean 2.2 us); >= 20 us: 10 totalling 353.09 ms
+  gap  350759.8 us before nvjet_sm121_tst_mma_128x208x64_2_32x104x64_tmaAB_bz_TNNN
+  gap    1556.0 us before void <unnamed>::gemv_kernel<(int)1, float, (bool)1>(const __nv_bfloat16 *, const __nv_bflo
+  gap     335.4 us before void <unnamed>::flash_kernel<(int)128, (int)64, __nv_bfloat16, (int)64>(const __nv_bfloat1
+  gap     228.1 us before void <unnamed>::rmsnorm_kernel<(bool)0, (bool)1>(const __nv_bfloat16 *, const __nv_bfloat1
+  gap      44.1 us before <unnamed>::rope_kernel(const __nv_bfloat16 *, __nv_bfloat16 *, long, int, int, int, long, 

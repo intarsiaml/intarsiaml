@@ -1,0 +1,15 @@
+02:24:50 guard: [guard] radiance stopped 2026-10-27 02:24:50
+02:24:50 round 1 arm base: starting server
+02:26:56 round 1 arm base sweep: exit 0 results/20261027-022607-h27p-base-h27p-w5-base-r1/result.json
+02:26:56 round 1 arm dev: starting server
+02:28:52 round 1 arm dev sweep: exit 0 results/20261027-022813-h27p-dev-h27p-w5-dev-r1/result.json
+02:28:52 round 2 arm dev: starting server
+02:30:48 round 2 arm dev sweep: exit 0 results/20261027-023009-h27p-dev-h27p-w5-dev-r2/result.json
+02:30:48 round 2 arm base: starting server
+02:32:54 round 2 arm base sweep: exit 0 results/20261027-023205-h27p-base-h27p-w5-base-r2/result.json
+02:32:54 round 3 arm base: starting server
+02:35:00 round 3 arm base sweep: exit 0 results/20261027-023411-h27p-base-h27p-w5-base-r3/result.json
+02:35:00 round 3 arm dev: starting server
+02:36:56 round 3 arm dev sweep: exit 0 results/20261027-023617-h27p-dev-h27p-w5-dev-r3/result.json
+02:36:56 done
+02:37:06 guard: [guard] radiance answers 2026-10-27 02:37:06 (after 15 s)

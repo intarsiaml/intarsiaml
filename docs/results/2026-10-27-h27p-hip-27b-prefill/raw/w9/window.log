@@ -1,0 +1,32 @@
+fleetq: #5990 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (8 in flight)
+fleetq: #5990 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-h27p/scripts/h27p/win.sh chain4.sh'
+[h27p] radiance inactive 2026-10-27 03:08:45
+[noop] base 8 short: 256 ids
+[noop] base 8 4k: 256 ids
+[noop] base 35 short: 256 ids
+[noop] base 35 4k: 256 ids
+[noop] dev 8 short: 256 ids
+[noop] dev 8 4k: 256 ids
+[noop] dev 35 short: 256 ids
+[noop] dev 35 4k: 256 ids
+ids 8 short: identical (256 ids, sha 5d882689)
+ids 8 4k: identical (256 ids, sha 6203ecdb)
+plan 8 json: byte-identical (8343 B)
+plan 8 txt: byte-identical (1346 B)
+ids 35 short: identical (256 ids, sha 0d079dea)
+ids 35 4k: identical (256 ids, sha d626e2f1)
+plan 35 json: byte-identical (12961 B)
+plan 35 txt: byte-identical (3184 B)
+== tp1 (card 0): base vs dev, 4k-0 prefill x3 and ids (4k-0, 4k-3, 16k-3), --spec off
+tp1 4k-0 base: prefill 2080 ms (1860.3 tok/s) prefill 2082 ms (1858.6 tok/s) prefill 2089 ms (1852.3 tok/s)  chunk: prefill chunk 256
+tp1 4k-0 dev: prefill 1745 ms (2218.4 tok/s) prefill 1740 ms (2224.7 tok/s) prefill 1738 ms (2226.7 tok/s)  chunk: prefill chunk 2048
+tp1 4k-0 ids identical
+tp1 4k-3 base: prefill 2016 ms (1895.0 tok/s)  chunk: prefill chunk 256
+tp1 4k-3 dev: prefill 1698 ms (2250.4 tok/s)  chunk: prefill chunk 2048
+tp1 4k-3 ids identical
+tp1 16k-3 base: prefill 9401 ms (1716.2 tok/s)  chunk: prefill chunk 256
+tp1 16k-3 dev: prefill 7575 ms (2129.9 tok/s)  chunk: prefill chunk 2048
+tp1 16k-3 ids identical
+[h27p] chain4.sh done 2026-10-27 03:11:04
+[h27p] radiance active after 55 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793085111,"owned_by":"radiance"
+fleetq: #5990 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

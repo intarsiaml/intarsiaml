@@ -1,0 +1,87 @@
+fleetq: #6006 running on spark1: env MODEL=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 SN=intarsia-35b MB=45 SIZES=1024,4096,16384 scripts/spf/le-window.sh ab35b 3 vllm def:rope off:rope:::--spec_off
+== round 1 arm vllm 03:43:23
+spf-vllm-r1: - result file: `results/20261027-034324-adhoc-spf-vllm-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034324-adhoc-spf-vllm-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.19 | 5323 (4543–5390) * | - | 80.1 (79.8–80.2) | 82.6 (82.5–84.4) | - | - | 128 |
+| 4090 | 0.63 | 6447 (6177–6481) | 6915 | 79.2 (79.2–79.8) | 81.2 (80.3–81.4) | - | - | 128 |
+| 16657 | 2.66 | 6265 (6127–6311) | 6209 | 77.6 (76.4–78.3) | 82.7 (77.4–102.0) | - | - | 128 |
+== round 1 arm def 03:43:50
+def r1: MemAvailable 60529 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_
+admission on plan shapes: 41 kernel(s) checked, 657 case(s) run, 0 cached
+spf-def-r1: - result file: `results/20261027-034451-adhoc-spf-def-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034451-adhoc-spf-def-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.19 | 5332 (5145–5334) * | - | 105.5 (104.1–108.7) | 134.5 (126.2–147.1) | - | - | 128 |
+| 4090 | 0.59 | 6916 (6842–6948) | 7652 | 106.5 (97.3–108.5) | 141.5 (110.0–142.9) | - | - | 128 |
+| 16654 | 2.50 | 6661 (6649–6664) | 6582 | 83.4 (76.0–84.9) | 117.4 (84.6–117.8) | - | - | 128 |
+== round 1 arm off 03:45:15
+off r1: MemAvailable 62148 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 501 cached
+spf-off-r1: - result file: `results/20261027-034553-adhoc-spf-off-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034553-adhoc-spf-off-r1/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.18 | 5355 (5278–5376) * | - | 82.8 (82.5–82.9) | 84.0 (83.5–86.8) | - | - | 128 |
+| 4112 | 0.63 | 6544 (6445–6928) | 7047 | 80.4 (80.4–80.4) | 81.7 (81.3–82.3) | - | - | 128 |
+| 16700 | 2.51 | 6662 (6660–6673) | 6703 | 73.1 (72.9–73.1) | 75.3 (74.0–77.7) | - | - | 128 |
+== round 2 arm off 03:46:21
+off r2: MemAvailable 62101 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 501 cached
+spf-off-r2: - result file: `results/20261027-034703-adhoc-spf-off-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034703-adhoc-spf-off-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.19 | 5330 (5268–5383) * | - | 83.1 (83.0–83.2) | 84.4 (84.2–86.5) | - | - | 128 |
+| 4090 | 0.58 | 7011 (6952–7015) | 7804 | 80.5 (80.5–80.7) | 81.5 (81.4–81.5) | - | - | 128 |
+| 16677 | 2.49 | 6692 (6664–6699) | 6590 | 73.3 (73.3–73.3) | 79.9 (76.0–80.3) | - | - | 128 |
+== round 2 arm def 03:47:30
+def r2: MemAvailable 60603 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_
+admission on plan shapes: 41 kernel(s) checked, 0 case(s) run, 657 cached
+spf-def-r2: - result file: `results/20261027-034826-adhoc-spf-def-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034826-adhoc-spf-def-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.19 | 5303 (5263–5342) * | - | 101.2 (98.0–106.7) | 136.2 (135.3–141.3) | - | - | 128 |
+| 4088 | 0.59 | 6943 (6934–6971) | 7702 | 104.2 (99.8–107.7) | 127.2 (121.0–141.9) | - | - | 128 |
+| 16681 | 2.52 | 6630 (6629–6634) | 6535 | 85.3 (76.6–85.4) | 110.2 (91.8–117.6) | - | - | 128 |
+== round 2 arm vllm 03:48:51
+spf-vllm-r2: - result file: `results/20261027-034851-adhoc-spf-vllm-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034851-adhoc-spf-vllm-r2/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 993 | 0.18 | 5420 (5232–5491) * | - | 80.5 (80.2–80.5) | 81.6 (81.4–83.0) | - | - | 128 |
+| 4087 | 0.64 | 6429 (6197–6467) | 6830 | 79.3 (79.2–79.8) | 81.2 (79.9–81.4) | - | - | 128 |
+| 16655 | 2.64 | 6313 (6304–6333) | 6275 | 76.5 (76.5–76.7) | 77.7 (77.1–77.7) | - | - | 128 |
+== round 3 arm vllm 03:49:18
+spf-vllm-r3: - result file: `results/20261027-034918-adhoc-spf-vllm-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-034918-adhoc-spf-vllm-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.18 | 5384 (4844–5441) * | - | 80.5 (80.0–80.7) | 82.7 (82.4–84.9) | - | - | 128 |
+| 4086 | 0.65 | 6327 (6308–6341) | 6701 | 79.2 (79.1–79.6) | 80.1 (80.0–83.1) | - | - | 128 |
+| 16655 | 2.64 | 6298 (6295–6345) | 6291 | 76.5 (76.5–76.7) | 77.9 (77.7–79.2) | - | - | 128 |
+== round 3 arm def 03:49:44
+def r3: MemAvailable 60574 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_
+admission on plan shapes: 41 kernel(s) checked, 0 case(s) run, 657 cached
+spf-def-r3: - result file: `results/20261027-035035-adhoc-spf-def-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-035035-adhoc-spf-def-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.18 | 5349 (5320–5389) * | - | 105.4 (99.0–112.4) | 150.2 (115.5–150.6) | - | - | 128 |
+| 4090 | 0.58 | 7004 (6974–7033) | 7764 | 101.6 (99.2–106.6) | 129.6 (119.9–142.6) | - | - | 128 |
+| 16678 | 2.51 | 6656 (6652–6660) | 6549 | 88.5 (85.0–89.1) | 116.9 (107.1–117.7) | - | - | 128 |
+== round 3 arm off 03:50:59
+off r3: MemAvailable 62128 MB with the server up
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+admission on plan shapes: 36 kernel(s) checked, 0 case(s) run, 501 cached
+spf-off-r3: - result file: `results/20261027-035137-adhoc-spf-off-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-035137-adhoc-spf-off-r3/result.json 
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 992 | 0.18 | 5352 (5349–5369) * | - | 83.5 (83.3–83.6) | 84.6 (84.5–88.2) | - | - | 128 |
+| 4090 | 0.58 | 7000 (6999–7041) | 7764 | 81.0 (80.8–81.0) | 82.2 (81.9–82.3) | - | - | 128 |
+| 16656 | 2.50 | 6678 (6675–6680) | 6576 | 73.7 (73.7–73.8) | 75.5 (74.6–78.4) | - | - | 128 |
+== done 03:52:04
+fleetq: #6006 done (exit 0)
