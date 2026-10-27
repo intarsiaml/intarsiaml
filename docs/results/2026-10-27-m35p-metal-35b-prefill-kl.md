@@ -188,6 +188,8 @@ primitive against the present `simdgroup_multiply_accumulate` chain.
 
 ## Reproduce
 
+Note: `raw/accuracy/meta.txt` and `raw/baseline-gate/meta.txt` carry a process count from the false-positive `pgrep -fl` check (673); it is not contention, and `accuracy.sh` now uses `pgrep -x`. The accuracy runs are not timings.
+
 `cargo build --release -p intarsia-cli --features metal`, then inside one fleetq slot `fleetq run --host endor --quiet gpu,cpu --mem 45 --expect 15 -- raw/scripts/speed.sh BIN OUT`
 (`ARMS="8b 35b-mb8 35b-b1"` selects arms), `raw/scripts/accuracy.sh`, `raw/scripts/baseline-gate.sh`, `raw/scripts/prof.sh BIN OUT PROMPT_DIR`. fleetq jobs: #5849 (first speed pass,
 discarded), #5854 (clean speed), #5858 (accuracy), #5859 (profile), #5868 (baseline gates).
