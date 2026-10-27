@@ -1,0 +1,146 @@
+{
+ "run_id": "20261024-014211-adhoc-c8k-i8192-conc4k-r2",
+ "kind": "speed",
+ "label": "c8k-i8192-conc4k-r2",
+ "started_at": "2026-10-24T01:42:11-04:00",
+ "finished_at": "2026-10-24T01:42:19-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8190/v1",
+  "model": "intarsia-35b",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "intarsia serve --backend cuda --max-seq 20480 --mem-budget 45 --prefill-chunk 8192 tree=c8k-main (lt default) --max-batch 4"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8190/v1 --model intarsia-35b --thinking off --label c8k-i8192-conc4k-r2 --recipe intarsia serve --backend cuda --max-seq 20480 --mem-budget 45 --prefill-chunk 8192 tree=c8k-main (lt default) --max-batch 4 --sizes 4096 --gen 128 --reps 1 --concurrency 4",
+  "git": "b1d91f6"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "intarsia-35b"
+   ],
+   "root": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "intarsia",
+   "max_model_len": 20480
+  },
+  "gen_tokens": 128,
+  "reps": 1,
+  "tokens_per_filler_sentence": 22.05,
+  "rows": [
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4088,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.578,
+     "min": 0.578,
+     "max": 0.578,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "prefill_tok_s": {
+     "median": 7066.763,
+     "min": 7066.763,
+     "max": 7066.763,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "decode_tok_s": {
+     "median": 82.049,
+     "min": 82.049,
+     "max": 82.049,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "peak_decode_tok_s": {
+     "median": 83.6,
+     "min": 83.6,
+     "max": 83.6,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 1,
+    "marginal_prefill_tok_s": null
+   }
+  ],
+  "skipped": [],
+  "concurrency": [
+   {
+    "streams": 4,
+    "target_prompt_tokens": 4096,
+    "aggregate_decode_tok_s": 99.2,
+    "per_stream_decode_tok_s": {
+     "median": 34.689,
+     "min": 28.037,
+     "max": 44.869,
+     "n": 4,
+     "spread_pct": 48.5
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 45.5,
+     "min": 45.3,
+     "max": 46.2,
+     "n": 4,
+     "spread_pct": 2.0
+    },
+    "ttft_s": {
+     "median": 1.45,
+     "min": 0.578,
+     "max": 2.322,
+     "n": 4,
+     "spread_pct": 120.3
+    },
+    "errors": []
+   }
+  ],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "intarsia-35b",
+  "activity_checks": {
+   "idle": 3,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

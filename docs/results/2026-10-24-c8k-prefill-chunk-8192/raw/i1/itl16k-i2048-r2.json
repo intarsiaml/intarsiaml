@@ -1,0 +1,183 @@
+{
+ "url": "http://spark-fa00:8190/v1",
+ "model": "intarsia-35b",
+ "prompt_tokens": 16384,
+ "runs": [
+  {
+   "scenario": "burst",
+   "streams": 4,
+   "errors": [],
+   "wall_s": 14.56,
+   "aggregate_decode_tok_s": 35.2,
+   "ttft_s": [
+    2.74,
+    5.58,
+    11.42,
+    8.48
+   ],
+   "per_stream_decode_tok_s": [
+    11.2,
+    14.6,
+    40.6,
+    21.4
+   ],
+   "per_stream_itl_p99_ms": [
+    376.2,
+    378.3,
+    29.9,
+    374.1
+   ],
+   "per_stream_itl_max_ms": [
+    381.1,
+    381.1,
+    30.5,
+    380.9
+   ],
+   "pooled_itl_ms": {
+    "n": 508,
+    "p50": 26.5,
+    "p99": 374.2,
+    "max": 381.1,
+    "gt_250ms": 48,
+    "gt_500ms": 0
+   },
+   "rep": 1
+  },
+  {
+   "scenario": "stagger",
+   "streams": 4,
+   "errors": [],
+   "wall_s": 26.72,
+   "aggregate_decode_tok_s": 71.9,
+   "ttft_s": [
+    2.75,
+    2.9,
+    2.96,
+    2.99
+   ],
+   "per_stream_decode_tok_s": [
+    32.0,
+    25.4,
+    30.4,
+    39.9
+   ],
+   "per_stream_itl_p99_ms": [
+    357.8,
+    370.1,
+    350.8,
+    29.6
+   ],
+   "per_stream_itl_max_ms": [
+    383.2,
+    383.3,
+    383.3,
+    31.0
+   ],
+   "pooled_itl_ms": {
+    "n": 1916,
+    "p50": 25.9,
+    "p99": 350.9,
+    "max": 383.3,
+    "gt_250ms": 48,
+    "gt_500ms": 0
+   },
+   "rep": 1
+  },
+  {
+   "scenario": "burst",
+   "streams": 4,
+   "errors": [],
+   "wall_s": 14.63,
+   "aggregate_decode_tok_s": 35.0,
+   "ttft_s": [
+    5.6,
+    2.75,
+    11.44,
+    8.5
+   ],
+   "per_stream_decode_tok_s": [
+    14.6,
+    11.2,
+    39.8,
+    21.2
+   ],
+   "per_stream_itl_p99_ms": [
+    378.6,
+    378.4,
+    29.1,
+    372.7
+   ],
+   "per_stream_itl_max_ms": [
+    383.3,
+    383.4,
+    29.5,
+    383.3
+   ],
+   "pooled_itl_ms": {
+    "n": 508,
+    "p50": 26.9,
+    "p99": 373.0,
+    "max": 383.4,
+    "gt_250ms": 48,
+    "gt_500ms": 0
+   },
+   "rep": 2
+  },
+  {
+   "scenario": "stagger",
+   "streams": 4,
+   "errors": [],
+   "wall_s": 26.64,
+   "aggregate_decode_tok_s": 72.1,
+   "ttft_s": [
+    2.74,
+    2.89,
+    2.94,
+    2.99
+   ],
+   "per_stream_decode_tok_s": [
+    32.1,
+    25.5,
+    30.6,
+    40.2
+   ],
+   "per_stream_itl_p99_ms": [
+    359.7,
+    365.3,
+    353.8,
+    30.0
+   ],
+   "per_stream_itl_max_ms": [
+    382.0,
+    382.2,
+    382.1,
+    32.1
+   ],
+   "pooled_itl_ms": {
+    "n": 1916,
+    "p50": 25.7,
+    "p99": 353.7,
+    "max": 382.2,
+    "gt_250ms": 48,
+    "gt_500ms": 0
+   },
+   "rep": 2
+  }
+ ],
+ "summary": {
+  "burst": {
+   "reps": 2,
+   "pooled_itl_p99_ms_median": 373.6,
+   "pooled_itl_max_ms_median": 382.25,
+   "pooled_itl_p50_ms_median": 26.7,
+   "aggregate_decode_tok_s_median": 35.1
+  },
+  "stagger": {
+   "reps": 2,
+   "pooled_itl_p99_ms_median": 352.29999999999995,
+   "pooled_itl_max_ms_median": 382.75,
+   "pooled_itl_p50_ms_median": 25.799999999999997,
+   "aggregate_decode_tok_s_median": 72.0
+  }
+ }
+}

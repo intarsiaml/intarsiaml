@@ -1,0 +1,147 @@
+{
+ "run_id": "20261024-014440-adhoc-c8k-i2048-conc1k-r2",
+ "kind": "speed",
+ "label": "c8k-i2048-conc1k-r2",
+ "started_at": "2026-10-24T01:44:40-04:00",
+ "finished_at": "2026-10-24T01:44:46-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8190/v1",
+  "model": "intarsia-35b",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "intarsia serve --backend cuda --max-seq 20480 --mem-budget 45 --prefill-chunk 2048 tree=c8k-main (lt default) --max-batch 4"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8190/v1 --model intarsia-35b --thinking off --label c8k-i2048-conc1k-r2 --recipe intarsia serve --backend cuda --max-seq 20480 --mem-budget 45 --prefill-chunk 2048 tree=c8k-main (lt default) --max-batch 4 --sizes 1024 --gen 128 --reps 1 --concurrency 4",
+  "git": "b1d91f6"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "intarsia-35b"
+   ],
+   "root": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "intarsia",
+   "max_model_len": 20480
+  },
+  "gen_tokens": 128,
+  "reps": 1,
+  "tokens_per_filler_sentence": 22.09,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 994,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.197,
+     "min": 0.197,
+     "max": 0.197,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "prefill_tok_s": {
+     "median": 5052.744,
+     "min": 5052.744,
+     "max": 5052.744,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "decode_tok_s": {
+     "median": 83.476,
+     "min": 83.476,
+     "max": 83.476,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "peak_decode_tok_s": {
+     "median": 85.2,
+     "min": 85.2,
+     "max": 85.2,
+     "n": 1,
+     "spread_pct": 0.0
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 1,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   }
+  ],
+  "skipped": [],
+  "concurrency": [
+   {
+    "streams": 4,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 142.8,
+    "per_stream_decode_tok_s": {
+     "median": 41.63,
+     "min": 38.091,
+     "max": 46.104,
+     "n": 4,
+     "spread_pct": 19.2
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 47.0,
+     "min": 47.0,
+     "max": 47.0,
+     "n": 4,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.505,
+     "min": 0.198,
+     "max": 0.823,
+     "n": 4,
+     "spread_pct": 123.9
+    },
+    "errors": []
+   }
+  ],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "intarsia-35b",
+  "activity_checks": {
+   "idle": 3,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

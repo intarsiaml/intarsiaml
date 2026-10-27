@@ -1,0 +1,7 @@
+prefill chunk 256 (default)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+loaded Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max in 2.6s: 40 layers, hidden 2048, act bf16, kv bf16, weights 20.83 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 973 tokens
+ids: [271, 248068, 271, 248069, 271, 27775, 383, 279, 5215, 303, 279, 1414, 11, 279, 8240, 10695, 264, 38495, 10458, 314, 2972, 22, 2756, 332, 318, 9857, 220, 15, 310, 5870, 220, 21, 681, 1238, 864, 279, 5975, 321, 14448, 12771, 303, 264, 3050, 1906, 13, 271, 9764, 579, 1387, 1441, 279, 10458, 25, 271, 9, 256, 2972, 9857, 220, 15, 64700, 27982, 21208, 772, 16384, 264, 2713, 314, 22561, 580, 6846, 624, 198, 9, 256, 2972, 9857, 220, 16, 64700, 10306, 324, 55965, 51624, 29014, 264, 5436, 314, 51544, 13640, 198, 9, 256, 2972, 9857, 220, 17, 64700, 27982, 21208, 772, 14936, 279, 6103, 40554, 506, 37119, 198, 9, 256, 2972, 9857, 220, 18, 64700, 10306, 324, 55965, 51624, 29014, 264, 2713, 314, 22561, 580, 6846, 624, 198, 9]
+finish=length prompt=973 (cached 0) completion=129 | prefill 1117 ms (871.0 tok/s) | decode 1092 ms (117.27 tok/s)
+steps=133 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/40 embedding=0ms/133 gate_split=0ms/1330

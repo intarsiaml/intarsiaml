@@ -1,0 +1,11 @@
+Thu Oct 22 08:54:08 EDT 2026
+ids35s-main: finish=length prompt=23 (cached 0) completion=256 | prefill 5554 ms (4.1 tok/s) | decode 4205 ms (60.64 tok/s)
+ids35l-main: finish=length prompt=4408 (cached 0) completion=256 | prefill 4875 ms (904.3 tok/s) | decode 4304 ms (59.25 tok/s)
+ids8b-main: finish=length prompt=23 (cached 0) completion=256 | prefill 251 ms (91.6 tok/s) | decode 13404 ms (19.02 tok/s)
+ids35s-head: finish=length prompt=23 (cached 0) completion=256 | prefill 1162 ms (19.8 tok/s) | decode 3797 ms (67.16 tok/s)
+ids35l-head: finish=length prompt=4408 (cached 0) completion=256 | prefill 4720 ms (933.9 tok/s) | decode 3876 ms (65.78 tok/s)
+ids8b-head: finish=length prompt=23 (cached 0) completion=256 | prefill 238 ms (96.7 tok/s) | decode 13467 ms (18.94 tok/s)
+IDENTICAL ids35s-main == ids35s-head (    1103 bytes)
+IDENTICAL ids35l-main == ids35l-head (     769 bytes)
+IDENTICAL ids8b-main == ids8b-head (    1341 bytes)
+Thu Oct 22 08:55:50 EDT 2026

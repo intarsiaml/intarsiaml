@@ -1,0 +1,443 @@
+{
+  "kind": "intarsia-qualify",
+  "schema_version": 1,
+  "section": "quick",
+  "model": "qwen36-35b-a3b-nvfp4",
+  "model_dir": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+  "backend": "cuda",
+  "tp": 1,
+  "reference": null,
+  "build_stamp": "head=6189466 code-tree=9cac1d016898 dirty=no",
+  "version": "0.0.1",
+  "generated_unix": 1792835688,
+  "verdict": "PASS",
+  "exit_code": 0,
+  "headline": {
+    "speed": [],
+    "accuracy": [
+      {
+        "stage": "acc-short",
+        "verdict": "PASS",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1441,
+            "top1_pct": 98.265093684941,
+            "mean_kl": 0.006825140985344362,
+            "mean_kl21": 0.006648477094239854,
+            "floor_pass": true
+          },
+          {
+            "mode": "decode",
+            "positions": 160,
+            "top1_pct": 99.375,
+            "mean_kl": 0.006986410812503033,
+            "mean_kl21": 0.0073435574910140815,
+            "floor_pass": true
+          }
+        ]
+      }
+    ],
+    "quick_gate": null
+  },
+  "failures": [],
+  "warnings": [],
+  "skipped": [
+    {
+      "stage": "doctor",
+      "reason": "skipped by --skip"
+    },
+    {
+      "stage": "recipe",
+      "reason": "skipped by --skip"
+    },
+    {
+      "stage": "plan",
+      "reason": "skipped by --skip"
+    },
+    {
+      "stage": "kernels",
+      "reason": "skipped by --skip"
+    },
+    {
+      "stage": "gate",
+      "reason": "skipped by --skip"
+    },
+    {
+      "stage": "acc-format",
+      "reason": "skipped by --skip"
+    },
+    {
+      "stage": "acc-oracle",
+      "reason": "skipped by --skip"
+    },
+    {
+      "stage": "bench",
+      "reason": "skipped by --skip"
+    }
+  ],
+  "wall_s": {
+    "quick": 42.6790533,
+    "full": -0.0,
+    "total": 42.6790533
+  },
+  "stages": [
+    {
+      "id": "doctor",
+      "title": "doctor: host and device fingerprint, known pitfalls",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=6189466 code-tree=9cac1d016898 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "4958"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "recipe",
+      "title": "recipe resolve",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=6189466 code-tree=9cac1d016898 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "4958"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "plan",
+      "title": "plan show: load the model, resolve a kernel per op",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=6189466 code-tree=9cac1d016898 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "4958"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "kernels",
+      "title": "kernels test on the model's shapes",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=6189466 code-tree=9cac1d016898 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "4958"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "gate",
+      "title": "quick gate: sanity prompts, perplexity, non-finite",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=6189466 code-tree=9cac1d016898 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "4958"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-format",
+      "title": "short accuracy against the format's own reference (same quantized weights)",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=6189466 code-tree=9cac1d016898 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [],
+        "env": {
+          "FLEETQ_JOB": "4958"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "acc-short",
+      "title": "short accuracy against a golden",
+      "section": "quick",
+      "verdict": "PASS",
+      "reason": "prefill top-1 98.27% KL 6.83e-3; decode top-1 99.38% KL 6.99e-3",
+      "wall_s": 42.6790533,
+      "started_unix": 1792835646,
+      "artifacts": [
+        "logs/acc-short.out",
+        "baselines/acc-short.baseline.json"
+      ],
+      "metrics": {
+        "golden": "/home/nvidia/intarsia-decfuse/pf-golden-c8k/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors",
+        "golden_how": "found by model name",
+        "golden_fingerprint": "fnv1a64:cd6ef94b3dcd4c82 size:246804",
+        "gate_class": "4bit",
+        "modes": [
+          {
+            "mode": "prefill",
+            "positions": 1441,
+            "top1_pct": 98.265093684941,
+            "mean_kl": 0.006825140985344362,
+            "mean_kl21": 0.006648477094239854,
+            "top5_pct": 91.5614156835531,
+            "tail_ref": 0.017574283359717616,
+            "tail_ours": 0.01759066641677184,
+            "max_kl": 1.0360282822599007,
+            "max_kl21": 1.0360258337962975,
+            "tail_abs": 0.0016229428514763311,
+            "nonfinite": 0,
+            "greedy_match_pct": 4.788341429562804,
+            "floor_pass": true,
+            "mean_kl_scored": 0.0056205854786795665,
+            "mean_kl21_scored": 0.005407517639482296,
+            "scored_positions": 1279,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.006648477094239854,
+                  "scored_rows_kl": 0.005407517639482296
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.006648477094239854,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.005407517639482296,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          },
+          {
+            "mode": "decode",
+            "positions": 160,
+            "top1_pct": 99.375,
+            "mean_kl": 0.006986410812503033,
+            "mean_kl21": 0.0073435574910140815,
+            "top5_pct": 93.5,
+            "tail_ref": 0.025770566161384394,
+            "tail_ours": 0.024157604782233992,
+            "max_kl": 0.10926337182436718,
+            "max_kl21": 0.10974876448836528,
+            "tail_abs": 0.0028931521806524526,
+            "nonfinite": 0,
+            "greedy_match_pct": 90.0,
+            "floor_pass": true,
+            "mean_kl_scored": 0.005924078365309494,
+            "mean_kl21_scored": 0.005833070189525908,
+            "scored_positions": 118,
+            "gate_definitions": [
+              {
+                "gate": "kl_floor",
+                "changed_on": "2026-10-21",
+                "log_ref": [
+                  "docs/decisions/LOG.md row 2026-10-21 10:43 \"The accuracy KL gate scores only the rows the model is asked to predict\"",
+                  "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
+                ],
+                "metrics": {
+                  "all_rows_kl": 0.0073435574910140815,
+                  "scored_rows_kl": 0.005833070189525908
+                },
+                "old_def": {
+                  "definition": "21-way KL over all rows <= static floor",
+                  "metric_name": "all_rows_kl",
+                  "metric": 0.0073435574910140815,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                },
+                "current_def": {
+                  "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
+                  "metric_name": "scored_rows_kl",
+                  "metric": 0.005833070189525908,
+                  "limit": 0.03,
+                  "verdict": "PASS"
+                }
+              }
+            ]
+          }
+        ],
+        "run_s": 42.676877675
+      },
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=6189466 code-tree=9cac1d016898 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 45 --golden /home/nvidia/intarsia-decfuse/pf-golden-c8k/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --write-baseline /home/nvidia/intarsia-decfuse/out/q2048/report/baselines/acc-short.baseline.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "4958"
+        }
+      },
+      "notes": [
+        "baseline /home/nvidia/intarsia-decfuse/pf-golden-c8k/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json not used (recorded at prefill chunk 2048, this run uses ?): KL, tail, prefix-reuse gates only, top-1 not gated"
+      ]
+    },
+    {
+      "id": "acc-oracle",
+      "title": "short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=6189466 code-tree=9cac1d016898 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 45 --golden /home/nvidia/intarsia-decfuse/pf-golden-c8k/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --write-baseline /home/nvidia/intarsia-decfuse/out/q2048/report/baselines/acc-short.baseline.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "4958"
+        }
+      },
+      "notes": []
+    },
+    {
+      "id": "bench",
+      "title": "bench speed 128 / 1024 / 4096 with the byte floor",
+      "section": "quick",
+      "verdict": "SKIP",
+      "reason": "skipped by --skip",
+      "wall_s": 0.0,
+      "started_unix": 0,
+      "artifacts": [],
+      "metrics": null,
+      "provenance": {
+        "intarsia_version": "0.0.1",
+        "build_stamp": "head=6189466 code-tree=9cac1d016898 dirty=no",
+        "binary": "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia",
+        "host": "spark-4e77",
+        "backend": "cuda",
+        "device": null,
+        "arch": null,
+        "model": "/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5",
+        "model_fingerprint": "fnv1a64:25b7234fc8ebc6ee",
+        "commands": [
+          "/home/nvidia/intarsia-decfuse/c8k-main/target/acc/release/intarsia accuracy --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --device 0 --mem-budget 45 --golden /home/nvidia/intarsia-decfuse/pf-golden-c8k/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors --mode both --decode-positions 16 --max-seq 4096 --write-baseline /home/nvidia/intarsia-decfuse/out/q2048/report/baselines/acc-short.baseline.json"
+        ],
+        "env": {
+          "FLEETQ_JOB": "4958"
+        }
+      },
+      "notes": []
+    }
+  ],
+  "hooks": []
+}

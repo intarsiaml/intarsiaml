@@ -1,0 +1,10 @@
+[qualify      0s] qwen36-35b-a3b-nvfp4 on cuda, report directory /home/nvidia/intarsia-decfuse/out/q8192/report
+[qualify      0s] == acc-short [short accuracy against a golden]
+[qualify     38s] acc-short: PASS in 38.0s (prefill top-1 98.27% KL 6.83e-3; decode top-1 99.38% KL 6.99e-3)
+QUICK DONE: /home/nvidia/intarsia-decfuse/out/q8192/report/quick-report.md
+[qualify     38s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    144s] acc-long: PASS in 106.1s (prefill top-1 94.35% KL 4.28e-2; decode top-1 97.50% KL 1.04e-2)
+[qualify    144s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    277s] acc-4k: FAIL in 132.5s (prefix reuse: nothing ran: no prompt can cross a chunk boundary at prefill chunk 8192, so no restore was tested and this is not a pass; prefix reuse differs from a cold run)
+FULL DONE: /home/nvidia/intarsia-decfuse/out/q8192/report/full-report.md
+[qualify    277s] exit code 1
