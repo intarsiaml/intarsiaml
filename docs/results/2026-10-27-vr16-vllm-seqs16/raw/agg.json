@@ -1,0 +1,148 @@
+{
+ "main": {
+  "1": {
+   "agg_rounds": [
+    77.5,
+    78.2
+   ],
+   "agg_median": 77.85,
+   "ttft_p50": 0.194,
+   "ttft_p95": 0.194,
+   "ttft_max_rounds": [
+    0.19,
+    0.198
+   ],
+   "per_stream_median": 82.7875
+  },
+  "4": {
+   "agg_rounds": [
+    164.4,
+    163.5
+   ],
+   "agg_median": 163.95,
+   "ttft_p50": 0.4975,
+   "ttft_p95": 0.7825,
+   "ttft_max_rounds": [
+    0.781,
+    0.784
+   ],
+   "per_stream_median": 44.4845
+  },
+  "8": {
+   "agg_rounds": [
+    213.0,
+    211.6
+   ],
+   "agg_median": 212.3,
+   "ttft_p50": 0.882,
+   "ttft_p95": 1.605,
+   "ttft_max_rounds": [
+    1.598,
+    1.612
+   ],
+   "per_stream_median": 29.347
+  },
+  "16": {
+   "agg_rounds": [
+    258.3,
+    260.1
+   ],
+   "agg_median": 259.20000000000005,
+   "ttft_p50": 1.6995,
+   "ttft_p95": 3.384,
+   "ttft_max_rounds": [
+    3.385,
+    3.383
+   ],
+   "per_stream_median": 18.345999999999997
+  },
+  "single": {
+   "1024": {
+    "decode_median": 83.053,
+    "decode_rounds": [
+     82.868,
+     83.238
+    ],
+    "prefill_median": 5146.960499999999,
+    "prefill_rounds": [
+     5202.36,
+     5091.561
+    ],
+    "ttft_median": 0.193
+   }
+  }
+ },
+ "vllm16": {
+  "1": {
+   "agg_rounds": [
+    73.7,
+    73.7
+   ],
+   "agg_median": 73.7,
+   "ttft_p50": 0.1885,
+   "ttft_p95": 0.1885,
+   "ttft_max_rounds": [
+    0.187,
+    0.19
+   ],
+   "per_stream_median": 78.0065
+  },
+  "4": {
+   "agg_rounds": [
+    175.1,
+    173.3
+   ],
+   "agg_median": 174.2,
+   "ttft_p50": 0.627,
+   "ttft_p95": 0.627,
+   "ttft_max_rounds": [
+    0.637,
+    0.617
+   ],
+   "per_stream_median": 48.6815
+  },
+  "8": {
+   "agg_rounds": [
+    249.2,
+    250.1
+   ],
+   "agg_median": 249.64999999999998,
+   "ttft_p50": 1.1115,
+   "ttft_p95": 1.1135000000000002,
+   "ttft_max_rounds": [
+    1.125,
+    1.102
+   ],
+   "per_stream_median": 36.057
+  },
+  "16": {
+   "agg_rounds": [
+    339.6,
+    340.7
+   ],
+   "agg_median": 340.15,
+   "ttft_p50": 1.6495,
+   "ttft_p95": 2.185,
+   "ttft_max_rounds": [
+    2.205,
+    2.165
+   ],
+   "per_stream_median": 24.638
+  },
+  "single": {
+   "1024": {
+    "decode_median": 78.017,
+    "decode_rounds": [
+     78.009,
+     78.025
+    ],
+    "prefill_median": 5092.841,
+    "prefill_rounds": [
+     5252.662,
+     4933.02
+    ],
+    "ttft_median": 0.1945
+   }
+  }
+ }
+}

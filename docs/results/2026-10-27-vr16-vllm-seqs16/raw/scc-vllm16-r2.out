@@ -1,0 +1,58 @@
+[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=131072
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.19s prefill=5096 tok/s decode=76.6 tok/s peak=92.2 tok/s out=256
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.20s prefill=4897 tok/s decode=78.1 tok/s peak=96.3 tok/s out=256
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.20s prefill=4933 tok/s decode=78.0 tok/s peak=94.2 tok/s out=256
+[localeval] 1 streams: aggregate 73.7 tok/s
+[localeval] 4 streams: aggregate 173.3 tok/s
+[localeval] 8 streams: aggregate 250.1 tok/s
+[localeval] 16 streams: aggregate 340.7 tok/s
+# localeval: adhoc — 2026-10-27T13:26
+
+- model: `guidance` on ? (?), url `http://spark-fa00:8000/v1`
+- thinking: off; run kind: speed; label: scc-vllm16-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8000/v1 --model guidance --thinking off --sizes 1024 --gen 256 --reps 3 --concurrency 1,4,8,16 --label scc-vllm16-r2 --no-unim --recipe spark2 vLLM (missioncntrl/vllm-openai:65b7662d) with ONLY --max-num-seqs 16 changed (flags in raw/vllm-seqs16-cmd.json)`
+- result file: `results/20261027-132648-adhoc-scc-vllm16-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+spark2 vLLM (missioncntrl/vllm-openai:65b7662d) with ONLY --max-num-seqs 16 changed (flags in raw/vllm-seqs16-cmd.json)
+````
+
+server-reported (version):
+
+````json
+{"version":{"version":"0.26.1rc1.dev602+g65b7662d3"}}
+````
+
+## Speed sweep
+
+served `guidance`, fingerprint `vllm-0.26.1rc1.dev602+g65b7662d3-abc8be59`, ctx 131072, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.20 | 4933 (4897–5096) * | - | 78.0 (76.6–78.1) | 94.2 (92.2–96.3) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 73.7 | 78.0 (78.0–78.0) | 0.19 |
+| 4 | 173.3 | 48.3 (46.2–48.3) | 0.62 |
+| 8 | 250.1 | 36.1 (33.5–36.1) | 1.10 |
+| 16 | 340.7 | 24.6 (22.5–25.9) | 1.63 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261027-132648-adhoc-scc-vllm16-r2/result.json
+[localeval] not logged to unanimis (--no-unim)

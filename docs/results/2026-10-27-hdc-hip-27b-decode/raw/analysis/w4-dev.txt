@@ -1,0 +1,44 @@
+
+== Agent 1: 109 steps, median period 19403 us, kernel-busy (union) 16401 us (84.5%), idle 3002 us, launches/step 808
+   act/other           150 us    0.8%     69 launches
+   allreduce          1503 us    7.7%    128 launches
+   attention           215 us    1.1%     32 launches
+   gdn                 342 us    1.8%     48 launches
+   gemv-logits        1985 us   10.2%      1 launches
+   gemv-mxfp4        11439 us   59.0%    320 launches
+   norm                594 us    3.1%    177 launches
+   other               177 us    0.9%     33 launches
+   sum of kernels    16405 us (overlap/sum check vs busy 16401)
+   top kernels (us/step, calls/step, avg us):
+        11441   320.0      35.8  void mxfp4_a8_rows_fused_kernel<1, >( *, unsigned char *, unsigned char *, *, long, unsign
+         1985     1.0    1985.4  void gemv_kernel<1, 1, 8, float>( *,  *, float*, long, long)
+         1493   128.0      11.7  void ar2_kernel<0>( *, void*, *, *, unsigned int*, unsigned int*, unsigned int*, int, int,
+          490   128.0       3.8  void rmsnorm_kernel<true, true>( *,  *,  *, *, *, long, float, float)
+          343    48.0       7.1  void gdn_conv_delta_kernel<128, 2, 1, 4>( *,  *,  *,  *,  *,  *, float, *, float*, float*,
+          200    16.0      12.5  void splitkv_kernel<8, 32, 2, false>( *,  *,  *, float*, *, int, int, long, long, float, i
+          101    48.0       2.1  void gated_rmsnorm_kernel<true>( *,  *,  *, *, long, float, float)
+           89    64.0       1.4  void silu_glu_kernel<true>( *,  *, *, long)
+           88    16.0       5.5  void gate_qk_norm_rope_kv_kernel<>( *,  *,  *,  *,  *, *, *, *, *, int, int, int, int, lon
+           55    16.0       3.4  void combine_kernel<256, 16, false>(float *,  *, *, int, int, int, long, int *, int)
+
+== Agent 2: 109 steps, median period 19402 us, kernel-busy (union) 16088 us (82.9%), idle 3315 us, launches/step 806
+   act/other            97 us    0.5%     67 launches
+   allreduce          1241 us    6.4%    128 launches
+   attention           215 us    1.1%     32 launches
+   gdn                 346 us    1.8%     48 launches
+   gemv-logits        1985 us   10.2%      1 launches
+   gemv-mxfp4        11439 us   59.0%    320 launches
+   norm                593 us    3.1%    177 launches
+   other               171 us    0.9%     33 launches
+   sum of kernels    16089 us (overlap/sum check vs busy 16088)
+   top kernels (us/step, calls/step, avg us):
+        11441   320.0      35.8  void mxfp4_a8_rows_fused_kernel<1, >( *, unsigned char *, unsigned char *, *, long, unsign
+         1985     1.0    1985.4  void gemv_kernel<1, 1, 8, float>( *,  *, float*, long, long)
+         1227   128.0       9.6  void ar2_kernel<0>( *, void*, *, *, unsigned int*, unsigned int*, unsigned int*, int, int,
+          489   128.0       3.8  void rmsnorm_kernel<true, true>( *,  *,  *, *, *, long, float, float)
+          346    48.0       7.2  void gdn_conv_delta_kernel<128, 2, 1, 4>( *,  *,  *,  *,  *,  *, float, *, float*, float*,
+          199    16.0      12.5  void splitkv_kernel<8, 32, 2, false>( *,  *,  *, float*, *, int, int, long, long, float, i
+          102    48.0       2.1  void gated_rmsnorm_kernel<true>( *,  *,  *, *, long, float, float)
+           89    64.0       1.4  void silu_glu_kernel<true>( *,  *, *, long)
+           89    16.0       5.5  void gate_qk_norm_rope_kv_kernel<>( *,  *,  *,  *,  *, *, *, *, *, int, int, int, int, lon
+           55    16.0       3.5  void combine_kernel<256, 16, false>(float *,  *, *, int, int, int, long, int *, int)

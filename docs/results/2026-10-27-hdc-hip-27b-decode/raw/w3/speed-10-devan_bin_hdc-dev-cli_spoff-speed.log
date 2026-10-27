@@ -1,0 +1,49 @@
+[localeval] calibrated: 22.1 tokens/sentence, 91 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.33s prefill=2984 tok/s decode=58.4 tok/s peak=67.0 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=988 ttft=0.28s prefill=3537 tok/s decode=56.6 tok/s peak=107.2 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.28s prefill=3557 tok/s decode=57.2 tok/s peak=74.3 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4105 ttft=1.11s prefill=3683 tok/s decode=56.4 tok/s peak=61.1 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4109 ttft=1.09s prefill=3753 tok/s decode=56.4 tok/s peak=61.2 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4109 ttft=1.10s prefill=3731 tok/s decode=56.4 tok/s peak=61.5 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16673 ttft=4.64s prefill=3595 tok/s decode=51.9 tok/s peak=60.3 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16671 ttft=4.69s prefill=3551 tok/s decode=54.3 tok/s peak=59.0 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16672 ttft=4.66s prefill=3576 tok/s decode=52.6 tok/s peak=62.3 tok/s out=128
+# localeval: hdc-devan_bin_hdc-dev-cli_spoff — 2026-10-27T14:41
+
+- model: `qwen38-27b-hdc` on ? (?), url `http://tatooine:8095/v1`
+- thinking: default; run kind: speed; label: hdc-w3-devan_bin_hdc-dev-cli_spoff-10
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed hdc-devan_bin_hdc-dev-cli_spoff --sizes 1024,4096,16384 --gen 128 --reps 3 --label hdc-w3-devan_bin_hdc-dev-cli_spoff-10 --recipe hdc-dev-cli serve tp2 mb1--specoff [devan] (lane hdc) --wait-idle 60`
+- result file: `results/20261027-144144-hdc-devan_bin_hdc-dev-cli_spoff-hdc-w3-devan_bin_hdc-dev-cli_spoff-10/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+hdc-dev-cli serve tp2 mb1--specoff [devan] (lane hdc)
+````
+
+## Speed sweep
+
+served `qwen38-27b-hdc`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 989 | 0.28 | 3537 (2984–3557) * | - | 57.2 (56.6–58.4) | 74.3 (67.0–107.2) | - | - | 128 |
+| 4109 | 1.10 | 3731 (3683–3753) | 3796 | 56.4 (56.4–56.4) | 61.2 (61.1–61.5) | - | - | 128 |
+| 16672 | 4.66 | 3576 (3551–3595) | 3528 | 52.6 (51.9–54.3) | 60.3 (59.0–62.3) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261027-144144-hdc-devan_bin_hdc-dev-cli_spoff-hdc-w3-devan_bin_hdc-dev-cli_spoff-10/result.json
+[localeval] logged to unanimis: 235cb64b-9bda-4072-9ab1-f40e39dde0fe

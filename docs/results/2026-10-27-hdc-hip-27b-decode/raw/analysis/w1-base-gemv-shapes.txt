@@ -1,0 +1,9 @@
+shape (rows)               calls/step  median us  ideal us  % of 640 GB/s  us/step
+gate+up pair (K 5120)              64       77.6      74.0            95%     4969
+down_proj (K 8704)                 64       40.6      37.0            91%     2599
+GDN out / attn o (K 3072)          64       15.5      13.1            84%      991
+GDN in_proj qkv+z (K 5120)         48       37.6      34.8            92%     1817
+attn q+gate (K 5120)               16       28.3      26.1            92%      454
+GDN in_proj a,b (K 5120)           48        3.4       0.2             6%      166
+attn k,v pair (K 5120)             16        6.1       4.4            72%       98
+total rows kernel                                                            11092

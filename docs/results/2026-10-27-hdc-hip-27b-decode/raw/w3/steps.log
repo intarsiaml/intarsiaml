@@ -1,0 +1,68 @@
+14:29:06 guard: [guard] radiance stopped 2026-10-27 14:29:06
+14:31:22 item 1 gates: == fuse off rc=0 test a8_fused_is_bitwise_the_unfused ... FUSEMODE INTARSIA_HIP_MXFP4_A8_FUSE=0 launches=512 FUSEHASH fac47447935a8383 test result: ok|== fuse all rc=0 test a8_fused_is_bitwise_the_unfused ... FUSEMODE INTARSIA_HIP_MXFP4_A8_FUSE=1 launches=512 FUSEHASH fac47447935a8383 test result: ok|== fuse default rc=0 test a8_fused_is_bitwise_the_unfused ... FUSEMODE INTARSIA_HIP_MXFP4_A8_FUSE= launches=512 FUSEHASH fac47447935a8383 test result:|== fuse hashes EQUAL in all three modes (FUSEHASH fac47447935a8383)|== rows_exact rc=0 test result: ok. 13 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 24.80s|== mxfp4_decode rc=0 test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s|== mxfp4_a8 rc=0 test result: ok. 6 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 19.43s|== a8_served rc=0 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s|== admission rc=0: 74 admitted rows; not admitted:|== plan 8B: byte-identical (1346 B)|== plan 35B: byte-identical (3184 B)|== plan 27B tp2: byte-identical (3331 B)|== time off rc=0 173 TIME lines|== time all rc=0 173 TIME lines|== time default rc=0 173 TIME lines|
+14:31:22 item 2: starting server base+spoff
+14:32:36 item 2 base+spoff speed: exit 0 results/20261027-143154-hdc-base_spoff-hdc-w3-base_spoff-2/result.json
+14:32:36 item 3: starting server dev+bin=hdc-dev-cli+spoff
+14:33:49 item 3 dev+bin=hdc-dev-cli+spoff speed: exit 0 results/20261027-143308-hdc-dev_bin_hdc-dev-cli_spoff-hdc-w3-dev_bin_hdc-dev-cli_spoff-3/result.json
+14:33:50 item 4: starting server devan+bin=hdc-dev-cli+spoff
+14:35:03 item 4 devan+bin=hdc-dev-cli+spoff speed: exit 0 results/20261027-143421-hdc-devan_bin_hdc-dev-cli_spoff-hdc-w3-devan_bin_hdc-dev-cli_spoff-4/result.json
+14:35:03 item 5: starting server both+spoff
+14:36:17 item 5 both+spoff speed: exit 0 results/20261027-143535-hdc-both_spoff-hdc-w3-both_spoff-5/result.json
+14:36:17 item 6: starting server base+spoff
+14:37:31 item 6 base+spoff speed: exit 0 results/20261027-143649-hdc-base_spoff-hdc-w3-base_spoff-6/result.json
+14:37:31 item 7: starting server both+spoff
+14:38:45 item 7 both+spoff speed: exit 0 results/20261027-143803-hdc-both_spoff-hdc-w3-both_spoff-7/result.json
+14:38:45 item 8: starting server devan+bin=hdc-dev-cli+spoff
+14:39:58 item 8 devan+bin=hdc-dev-cli+spoff speed: exit 0 results/20261027-143917-hdc-devan_bin_hdc-dev-cli_spoff-hdc-w3-devan_bin_hdc-dev-cli_spoff-8/result.json
+14:39:58 item 9: starting server dev+bin=hdc-dev-cli+spoff
+14:41:11 item 9 dev+bin=hdc-dev-cli+spoff speed: exit 0 results/20261027-144030-hdc-dev_bin_hdc-dev-cli_spoff-hdc-w3-dev_bin_hdc-dev-cli_spoff-9/result.json
+14:41:11 item 10: starting server devan+bin=hdc-dev-cli+spoff
+14:42:25 item 10 devan+bin=hdc-dev-cli+spoff speed: exit 0 results/20261027-144144-hdc-devan_bin_hdc-dev-cli_spoff-hdc-w3-devan_bin_hdc-dev-cli_spoff-10/result.json
+14:42:25 item 11: starting server both+spoff
+14:43:39 item 11 both+spoff speed: exit 0 results/20261027-144257-hdc-both_spoff-hdc-w3-both_spoff-11/result.json
+14:43:39 item 12: starting server base+spoff
+14:44:53 item 12 base+spoff speed: exit 0 results/20261027-144411-hdc-base_spoff-hdc-w3-base_spoff-12/result.json
+14:44:53 item 13: starting server dev+bin=hdc-dev-cli+spoff
+14:46:07 item 13 dev+bin=hdc-dev-cli+spoff speed: exit 0 results/20261027-144525-hdc-dev_bin_hdc-dev-cli_spoff-hdc-w3-dev_bin_hdc-dev-cli_spoff-13/result.json
+14:46:07 item 14: starting server devan+bin=hdc-dev-cli+spoff
+14:47:20 item 14 devan+bin=hdc-dev-cli+spoff speed: exit 0 results/20261027-144639-hdc-devan_bin_hdc-dev-cli_spoff-hdc-w3-devan_bin_hdc-dev-cli_spoff-14/result.json
+14:47:20 item 15: starting server dev+bin=hdc-dev-cli+spoff
+14:48:33 item 15 dev+bin=hdc-dev-cli+spoff speed: exit 0 results/20261027-144752-hdc-dev_bin_hdc-dev-cli_spoff-hdc-w3-dev_bin_hdc-dev-cli_spoff-15/result.json
+14:48:33 item 16: starting server base+spoff
+14:49:47 item 16 base+spoff speed: exit 0 results/20261027-144905-hdc-base_spoff-hdc-w3-base_spoff-16/result.json
+14:49:47 item 17: starting server both+spoff
+14:51:02 item 17 both+spoff speed: exit 0 results/20261027-145019-hdc-both_spoff-hdc-w3-both_spoff-17/result.json
+14:51:02 item 18: starting server base
+14:52:54 item 18 base speed: exit 0 results/20261027-145219-hdc-base-hdc-w3-base-18/result.json
+14:52:54 item 19: starting server dev+bin=hdc-dev-cli
+14:54:46 item 19 dev+bin=hdc-dev-cli speed: exit 0 results/20261027-145412-hdc-dev_bin_hdc-dev-cli-hdc-w3-dev_bin_hdc-dev-cli-19/result.json
+14:54:46 item 20: starting server devan+bin=hdc-dev-cli
+14:56:39 item 20 devan+bin=hdc-dev-cli speed: exit 0 results/20261027-145604-hdc-devan_bin_hdc-dev-cli-hdc-w3-devan_bin_hdc-dev-cli-20/result.json
+14:56:39 item 21: starting server dev+bin=hdc-dev-cli
+14:58:31 item 21 dev+bin=hdc-dev-cli speed: exit 0 results/20261027-145756-hdc-dev_bin_hdc-dev-cli-hdc-w3-dev_bin_hdc-dev-cli-21/result.json
+14:58:31 item 22: starting server devan+bin=hdc-dev-cli
+15:00:20 item 22 devan+bin=hdc-dev-cli speed: exit 0 results/20261027-145945-hdc-devan_bin_hdc-dev-cli-hdc-w3-devan_bin_hdc-dev-cli-22/result.json
+15:00:20 item 23: starting server base
+15:02:12 item 23 base speed: exit 0 results/20261027-150137-hdc-base-hdc-w3-base-23/result.json
+15:02:12 item 24: starting server devan+bin=hdc-dev-cli
+15:04:05 item 24 devan+bin=hdc-dev-cli speed: exit 0 results/20261027-150330-hdc-devan_bin_hdc-dev-cli-hdc-w3-devan_bin_hdc-dev-cli-24/result.json
+15:04:05 item 25: starting server base
+15:05:57 item 25 base speed: exit 0 results/20261027-150522-hdc-base-hdc-w3-base-25/result.json
+15:05:57 item 26: starting server dev+bin=hdc-dev-cli
+15:07:46 item 26 dev+bin=hdc-dev-cli speed: exit 0 results/20261027-150711-hdc-dev_bin_hdc-dev-cli-hdc-w3-dev_bin_hdc-dev-cli-26/result.json
+15:07:46 item 27: starting server dev+bin=hdc-dev-cli+spoff
+15:10:14 item 27 dev+bin=hdc-dev-cli+spoff texts: exit 0       18 lines
+15:10:14 item 28: starting server dev+bin=hdc-dev-cli
+15:12:55 item 28 dev+bin=hdc-dev-cli texts: exit 0       18 lines
+15:12:55 item 29: starting server devan+bin=hdc-dev-cli+spoff
+15:15:23 item 29 devan+bin=hdc-dev-cli+spoff texts: exit 0       18 lines
+15:15:23 item 30: starting server base+spoff+mb16
+15:16:37 item 30 base+spoff+mb16 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+15:16:37 item 31: starting server dev+bin=hdc-dev-cli+spoff+mb16
+15:17:50 item 31 dev+bin=hdc-dev-cli+spoff+mb16 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+15:17:50 item 32: starting server base+spoff
+15:18:42 item 32 base+spoff mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+15:18:42 item 33: starting server dev+bin=hdc-dev-cli+spoff
+15:19:33 item 33 dev+bin=hdc-dev-cli+spoff mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+15:19:33 done
+15:20:19 guard: [guard] radiance answers 2026-10-27 15:20:19 (after 50 s)

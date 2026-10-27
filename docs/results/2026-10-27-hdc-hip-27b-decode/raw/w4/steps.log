@@ -1,0 +1,23 @@
+15:21:19 guard: [guard] radiance stopped 2026-10-27 15:21:18
+15:22:01 item 1 attr: [hdc] gendev base r1 rc=0 decode 2373 ms (54.35 tok/s)|[hdc] gendev dev r1 rc=0 decode 2269 ms (56.84 tok/s)|[hdc] gendev base r2 rc=0 decode 2376 ms (54.29 tok/s)|[hdc] gendev dev r2 rc=0 decode 2269 ms (56.84 tok/s)|[hdc] gendev base r3 rc=0 decode 2378 ms (54.25 tok/s)|[hdc] gendev dev r3 rc=0 decode 2274 ms (56.72 tok/s)|[hdc] profdev dev rc=0 2026-10-27 15:21:59|[hdc] attr w4 done 2026-10-27 15:21:59|
+15:22:01 item 2: starting server base
+15:23:54 item 2 base speed: exit 0 results/20261027-152319-hdc-base-hdc-w4-base-2/result.json
+15:23:54 item 3: starting server dev+bin=hdc-dev-cli
+15:25:46 item 3 dev+bin=hdc-dev-cli speed: exit 0 results/20261027-152512-hdc-dev_bin_hdc-dev-cli-hdc-w4-dev_bin_hdc-dev-cli-3/result.json
+15:26:22 item 4 dev+bin=hdc-dev-cli speed: exit 0 results/20261027-152547-hdc-dev_bin_hdc-dev-cli-hdc-w4-dev_bin_hdc-dev-cli-4/result.json
+15:26:22 item 5: starting server base
+15:28:14 item 5 base speed: exit 0 results/20261027-152739-hdc-base-hdc-w4-base-5/result.json
+15:28:49 item 6 base speed: exit 0 results/20261027-152814-hdc-base-hdc-w4-base-6/result.json
+15:28:49 item 7: starting server dev+bin=hdc-dev-cli
+15:30:42 item 7 dev+bin=hdc-dev-cli speed: exit 0 results/20261027-153007-hdc-dev_bin_hdc-dev-cli-hdc-w4-dev_bin_hdc-dev-cli-7/result.json
+15:31:17 item 8 dev+bin=hdc-dev-cli speed: exit 0 results/20261027-153042-hdc-dev_bin_hdc-dev-cli-hdc-w4-dev_bin_hdc-dev-cli-8/result.json
+15:31:17 item 9: starting server base
+15:33:09 item 9 base speed: exit 0 results/20261027-153234-hdc-base-hdc-w4-base-9/result.json
+15:33:44 item 10 base speed: exit 0 results/20261027-153309-hdc-base-hdc-w4-base-10/result.json
+15:33:44 item 11: starting server dev+bin=hdc-dev-cli
+15:35:37 item 11 dev+bin=hdc-dev-cli speed: exit 0 results/20261027-153502-hdc-dev_bin_hdc-dev-cli-hdc-w4-dev_bin_hdc-dev-cli-11/result.json
+15:36:12 item 12 dev+bin=hdc-dev-cli speed: exit 0 results/20261027-153537-hdc-dev_bin_hdc-dev-cli-hdc-w4-dev_bin_hdc-dev-cli-12/result.json
+15:36:12 item 13: starting server base
+15:38:04 item 13 base speed: exit 0 results/20261027-153730-hdc-base-hdc-w4-base-13/result.json
+15:38:04 done
+15:38:14 guard: [guard] radiance answers 2026-10-27 15:38:14 (after 15 s)

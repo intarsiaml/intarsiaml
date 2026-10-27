@@ -1,0 +1,29 @@
+"Name","Calls","TotalDurationNs","AverageNs","Percentage","MinNs","MaxNs","StdDev"
+"void (anonymous namespace)::mxfp4_a8_rows_kernel<1, ik_bf16>(HIP_vector_type<unsigned int, 4u> const*, float const*, unsigned char const*, unsigned char const*, ik_bf16*, long, unsigned char const*, unsigned char const*, ik_bf16*, long, int)",83200,2883631124,34659.027933,59.63,3280,84121,25305.238255
+"void (anonymous namespace)::gemv_kernel<1, 1, 8, float>(ik_bf16 const*, ik_bf16 const*, float*, long, long)",260,516215479,1985444.150000,10.67,1984669,1991341,1187.652922
+"void ar2_norm_kernel<false>(HIP_vector_type<int, 4u> const*, ik_bf16*, ik_bf16 const*, ik_bf16 const*, ik_bf16*, ik_bf16*, HIP_vector_type<int, 4u>*, HIP_vector_type<int, 4u>*, unsigned int*, unsigned int*, unsigned int*, int, int, int, float, float, int)",33280,491016750,14754.109075,10.15,6400,2649039,26750.876681
+"void (anonymous namespace)::a8_gemm_kernel<true, 4, 4, 2, 4, 2, ik_bf16>((anonymous namespace)::A8Args, ik_bf16*)",736,245257675,333230.536685,5.07,154162,642409,129875.474197
+"mx_a8_quant_kernel(ik_bf16 const*, unsigned char*, float*, int)",84192,193488257,2298.178651,4.00,1520,43321,1680.961433
+"void ar2_kernel<0>(HIP_vector_type<int, 4u> const*, void*, HIP_vector_type<int, 4u>*, HIP_vector_type<int, 4u>*, unsigned int*, unsigned int*, unsigned int*, int, int, int)",768,124365375,161934.082031,2.57,91121,1356980,68183.445310
+"void (anonymous namespace)::gdn_conv_delta_kernel<128, 2, 1, 4>(ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, float, ik_bf16*, float*, float*, long, int, int, int, int, int)",12480,88969039,7128.929407,1.84,6560,8480,178.801952
+"void (anonymous namespace)::gdn_delta_rows_v3_kernel<128>(ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, float, ik_bf16*, float*, long, int, int, int)",96,53144511,553588.656250,1.10,518486,806571,34285.495794
+"void (anonymous namespace)::splitkv_kernel<8, 32, 2, false>(ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, float*, HIP_vector_type<float, 2u>*, int, int, long, long, float, int, int const*, unsigned char const*, long, long)",4160,51772028,12445.199038,1.07,12000,18480,210.688987
+"void (anonymous namespace)::gated_rmsnorm_kernel<true>(ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16*, long, float, float)",12576,30341550,2412.655057,0.6274,2040,42161,2892.898503
+"void (anonymous namespace)::silu_glu_kernel<true>(ik_bf16 const*, ik_bf16 const*, ik_bf16*, long)",16768,29972976,1787.510496,0.6198,1240,63241,4733.792870
+"void (anonymous namespace)::gate_qk_norm_rope_kv_kernel<ik_bf16>(ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16*, ik_bf16*, ik_bf16*, ik_bf16*, int, int, int, int, long, float, float, float, long, int const*)",4192,24774385,5909.920086,0.5123,5160,71161,5232.842252
+"__amd_rocclr_copyBuffer",2560,22177232,8662.981250,0.4586,1800,1361501,58497.964895
+"void (anonymous namespace)::combine_kernel<256, 16, false>(float const*, HIP_vector_type<float, 2u> const*, ik_bf16*, int, int, int, long, int const*, int)",4160,13943880,3351.894231,0.2883,2560,6000,383.513839
+"void (anonymous namespace)::a8_gemm_kernel<true, 4, 2, 2, 4, 2, ik_bf16>((anonymous namespace)::A8Args, ik_bf16*)",256,11540827,45081.355469,0.2387,39441,56321,4331.416576
+"void (anonymous namespace)::rmsnorm_kernel<true, true>(ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16*, ik_bf16*, long, float, float)",256,10522845,41104.863281,0.2176,39640,70282,1949.640844
+"ag2_kernel(HIP_vector_type<int, 4u> const*, HIP_vector_type<int, 4u>*, HIP_vector_type<int, 4u>*, HIP_vector_type<int, 4u>*, unsigned int*, unsigned int*, unsigned int*, int, int, int, int, int)",260,8068777,31033.757692,0.1669,23640,62880,7283.418213
+"__amd_rocclr_fillBufferAligned",1192,6924936,5809.510067,0.1432,1600,1299539,53653.597837
+"void (anonymous namespace)::argmax_kernel<float>(float const*, int*, long)",130,6797581,52289.084615,0.1406,50561,54200,784.573809
+"void (anonymous namespace)::flash_hpb_kernel<256, 32, 2, 5>(ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16*, int, int, int, long, long, float)",32,6122755,191336.093750,0.1266,179883,206723,8234.804764
+"(anonymous namespace)::sigmoid_mul_kernel(ik_bf16 const*, ik_bf16 const*, ik_bf16*, long)",4192,4882800,1164.790076,0.1010,920,23600,1849.475739
+"(anonymous namespace)::a8_wspan_kernel(unsigned char const*, unsigned char*, int*, long, int)",992,4249900,4284.173387,0.0879,1600,22240,2176.313453
+"void (anonymous namespace)::gdn_conv_kernel<false, false>(ik_bf16 const*, ik_bf16 const*, ik_bf16*, float*, long, int, int, unsigned char const*, long, long)",96,3892119,40542.906250,0.0805,36960,54721,3431.942320
+"void (anonymous namespace)::a8_gemm_kernel<false, 4, 4, 2, 4, 1, ik_bf16>((anonymous namespace)::A8Args, ik_bf16*)",736,1547867,2103.080163,0.0320,1480,7240,479.927155
+"void (anonymous namespace)::rmsnorm_kernel<false, true>(ik_bf16 const*, ik_bf16 const*, ik_bf16 const*, ik_bf16*, ik_bf16*, long, float, float)",262,965215,3684.026718,0.0200,3160,48760,3921.197568
+"void (anonymous namespace)::embedding_kernel<true>(int const*, ik_bf16 const*, ik_bf16*, long, long)",262,671845,2564.293893,0.0139,1800,39160,3215.561000
+"void (anonymous namespace)::a8_gemm_kernel<false, 4, 2, 2, 4, 1, ik_bf16>((anonymous namespace)::A8Args, ik_bf16*)",256,384845,1503.300781,7.958e-03,960,6800,783.126303
+"(anonymous namespace)::gdn_conv_state_kernel(ik_bf16 const*, float*, long, int, int)",96,207001,2156.260417,4.281e-03,1880,6560,641.472143
