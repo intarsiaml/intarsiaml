@@ -25,7 +25,7 @@ base build ran plain decode (the 35B has had a CUDA MTP default since lane cmtp/
 |---|---|---|---|---|---|
 | 1k (990 tok) | 13.6 (64) | 19.5 (64) | **22.7** (64) | 31.7 (n/a) | 52.0 |
 | 4k (4090 tok) | 13.5 (64), n=1 | 19.8 (64), n=1 | **23.7** (64), n=1 (explicit flags, same config) | 39.7 (578) | 50.9 (779) |
-| 16k (16.6k tok) | @@16K_BASE@@ | not run | **@@16K_DEV@@** | 37.1 (582) | 54.7 (727) |
+| 16k (16.6k tok) | 12.8 (65), n=1 | not run | **20.6** (65), n=1 | 37.1 (582) | 54.7 (727) |
 
 - Base and branch at 1k are medians of 6 interleaved rounds (`raw/gate6/`, paired ratios 1.709, 1.689, 1.652, 1.684, 1.645, 1.591;
   base 13.59-13.65, branch 21.63-23.21). The 4k row is one round of the first window (`raw/base-w1/`, explicit flags). 16k is a single
@@ -93,7 +93,7 @@ M=3 (bf16 GEMVs hold 233-239 GB/s); at most ~12 ms of 102 would come back if M=3
 | kernel admission, 3 planted mutants (new kernel only) | not applicable: no kernel added or changed | section 2 |
 | `plan show` byte-identical on 8B, 35B, Gemma-4 (CUDA) | **PASS**, json and text for all three, base vs branch binaries | `raw/plan/`; the 27B plan differs only by the MTP head's bf16 ops (`add_bf16`, `matmul_bf16`, `matmul_bf16_gemv`, `logits_bf16_gemv_rows`, `matmul_pair_bf16_gemv`), as intended |
 | Mac `cargo test --workspace` | **PASS**, 1039 passed, 0 failed (`--no-fail-fast`) | `raw/cargo-test-workspace-mac.log` |
-| CI green | @@CI@@ | PR #199 |
+| CI green | **PASS**, all six checks (cargo check linux, cuda cfgs, hip cfgs, macOS metal; cargo test linux; reproducible build) on the merged head | PR #199 |
 | new behaviour behind a knob | PASS: `--spec off`, `INTARSIA_SPEC_DEFAULT=0`, `--mtp-draft-vocab 0` | section 2 |
 
 ## 4. Measurement notes
@@ -132,12 +132,12 @@ Acceptance in the ids runs: 69.8 %, 62.8 %, 76.2 % (short), 80.5 % (4k); 2.26-2.
 - **Draft cost**: the two draft steps are 11 % of a pass (bf16 MTP layer + 65536-row head). Quantising the drafter's weights is output-invariant (only
   acceptance moves) and could save ~5 ms per pass; not tried.
 - **lm_head verify** reads 2.54 GB bf16 per pass (11 %); quantising it changes numerics (KL/MMLU gate; MMLU on this model needs the slow prefill).
-- 16k and 4k decode have one sample per arm (see section 0); 16k MTP with the full draft head was not run.
+- 16k and 4k decode have one sample per arm (see section 0; 16k: ttft 256.1 s base vs 255.7 s branch, decode 12.83 vs 20.55, x1.60); 16k MTP with the full draft head was not run.
 - The ids gate used a trimmed set (section 3 / 5), not the 18-prompt sets of lanes cmtp/mpf, for the same prefill-cost reason.
 
 ## 7. Fleet log
 
 Owner `claude-f31ccf91`, spark1 only (vLLM `flight/guidance/capcom` up the whole time, nothing taken down): copy of the checkpoint #6060/#6061
-(net,disk), builds #6066 (base), #6110 (dev), quiet GPU windows #6081 (w1), #6093 (nsys), #6111 (w2), #6132 (w3), #6146 (w4), #6147 (w5, 16k single-sample decode); shared
+(net,disk), builds #6066 (base), #6110 (dev), quiet GPU windows #6081 (w1), #6093 (nsys), #6111 (w2), #6132 (w3), #6146 (w4), #6154 (w5, 16k single-sample decode; #6147 was killed after its client crashed on a missing usage field and the script was fixed); shared
 functional smokes #6075, #6077, #6078. Trees `~/intarsiaml-s27d/trees/{base,dev}`, model `~/intarsiaml-s27d/models/Qwen3.8-27B-MXFP4`,
 worktree `.worktrees/s27d`: kept (see the report).
