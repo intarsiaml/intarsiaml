@@ -16,8 +16,8 @@ if [ $mode = write ]; then
 else
   name=$1; bin=$R/replay-out/$2; shift 2
   ENVS=("$@"); [ ${#ENVS[@]} -eq 0 ] && ENVS=(INTARSIA_X=0)
-  env "${ENVS[@]}" $bin accuracy "${COMMON[@]}" --golden $G --mode both --baseline $A/base.baseline.json "${PRE[@]}" > $A/$name.baseline.log 2>&1
-  echo "$name baseline exit $?"; grep -aE "baseline verdict|golden gate|^Error|baseline gate|exceeds|worse" $A/$name.baseline.log | cut -c1-300 | head -12
+  [ -n "${SELF_ONLY:-}" ] || env "${ENVS[@]}" $bin accuracy "${COMMON[@]}" --golden $G --mode both --baseline $A/base.baseline.json "${PRE[@]}" > $A/$name.baseline.log 2>&1
+  [ -n "${SELF_ONLY:-}" ] || { echo "$name baseline exit $?"; grep -aE "baseline verdict|golden gate|^Error|baseline gate|exceeds|worse" $A/$name.baseline.log | cut -c1-300 | head -12; }
   env "${ENVS[@]}" $bin accuracy "${COMMON[@]}" --self-golden $A/base.self.safetensors --self-vs-ref-noise --mode both "${PRE[@]}" > $A/$name.self.log 2>&1
   echo "$name self-golden exit $?"; grep -aE "SELF-STATS|self-golden gate|^Error|threshold|tightest|FAIL" $A/$name.self.log | cut -c1-300 | head -12
 fi
