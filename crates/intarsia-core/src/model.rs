@@ -526,7 +526,6 @@ impl TpRank {
     }
 }
 
-/// `INTARSIA_TP_TEST_BUG=scale:F[@RANK]` -> (rank, factor). Unset or empty: no bug.
 /// Clears [`Model::in_layers`] when a `run_layers` pass ends, however it ends.
 struct PipeScope<'a>(&'a std::sync::atomic::AtomicBool);
 
@@ -542,6 +541,7 @@ fn overlap_mutant() -> Option<&'static str> {
     M.get_or_init(|| std::env::var("INTARSIA_TP_OVERLAP_MUTANT").ok().filter(|v| !v.is_empty())).as_deref()
 }
 
+/// `INTARSIA_TP_TEST_BUG=scale:F[@RANK]` -> (rank, factor). Unset or empty: no bug.
 fn parse_tp_test_bug(v: Option<&str>) -> Result<Option<(usize, f32)>> {
     let Some(v) = v.map(str::trim).filter(|v| !v.is_empty()) else { return Ok(None) };
     let bad = || Error::invalid(format!("INTARSIA_TP_TEST_BUG={v} (expected scale:FACTOR[@RANK])"));
