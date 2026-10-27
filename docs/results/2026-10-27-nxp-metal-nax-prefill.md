@@ -2,7 +2,16 @@
 
 Lane NXP (`lane-nxp/metal-nax-prefill`), started 2026-10-26 23:55 EDT on endor (Apple M5 Max, 128 GB). Model `~/models/Qwen3.6-35B-A3B-NVFP4`. Base binary: `origin/main` e86d8c336 (M35P merge). Raw data and scripts: [raw](2026-10-27-nxp-metal-nax-prefill/raw/).
 
-**Status: PARTIAL, not merged.** The code, the admission and mutant checks and the first speed and KL numbers are in. endor dropped out of fleetq at ~01:04 (the fleetq server could no longer resolve the name `endor`, a DNS problem from the gateway swap; the box itself was fine), so the gates that need a GPU slot did not run: G2 (MMLU), the G3 exactness runs on the candidate, the decode-64 KL re-run, the third clean speed round and the extra-model `plan show`. They are queued in fleetq (#5973 to #5979) and listed under "Pending" below. Nothing was timed outside a fleetq slot.
+**Status: all gates G1 to G6 pass; both kernels ship default-on.** The first pass at 01:04 was interrupted when endor dropped out of fleetq (the fleetq server could not resolve the name `endor` after a gateway swap; the box was fine). The queued jobs #5973 to #5979 ran when it came back at 02:34 and finished 03:29. Nothing was timed outside a fleetq slot.
+
+| gate | result | evidence |
+|---|---|---|
+| G1 KL vs vLLM goldens | pass | prefill within 0.0004 of base on short, long, 4k; decode inside M35P's noise floor at 16, 64 and 256 positions, and lower than base at 4k decode-256 |
+| G2 MMLU n=1425 | **pass, 0.842** (1200/1425; base 0.840, bar 0.830) | `raw/mmlu/`, localeval run `20261027-024048-adhoc-nxp-intarsia35`, unanimis 963b2be7 |
+| G3 exactness | pass; ids differ from base | batched rows equal solo; MTP k=2 equals `--spec off` bitwise on 4 prompts; chunk 512 equals the default chunk bitwise; decode picks unchanged |
+| G4 speed | pass | 4k prefill 2832 vs 1544 tok/s same-slot base (1.83x; +58% over M35P's 1788), 16k 2283 vs 1366 (1.67x), decode 0.992 / 0.992 / 1.000x |
+| G5 other models | pass | `plan show` byte-identical on Qwen3-8B, Llama-3.1-8B, Qwen2.5-7B, Qwen3.8-27B-Quark-AWQ-MXFP4 |
+| G6 admission | pass | full `kernels test` on the candidate: 0 failed cases; 6 of 6 planted mutants caught |
 
 ## What changed
 
@@ -17,26 +26,26 @@ Two things learned on the way (wrong assumptions, kept so nobody repeats them):
 - `ct.store()` of a float cooperative tensor into a **threadgroup** tensor with a runtime-strided `tensor_inline` view produced zeros in the MoE kernel (the same call into device memory works for the fp8 GEMM). The MoE epilogue therefore writes each valid element with `get_multidimensional_index` instead. A standalone probe of the exact tile and stride shapes was correct, so the store path is the likely cause, not the MMA (not isolated further).
 - A bf16 destination cooperative tensor cannot be stored from a float one; the fp8 GEMM scales the float tensor and converts element-wise into a second bf16 cooperative tensor.
 
-## Speed (G4), localeval speed, 35B, `--max-batch 1`, one fleetq slot #5948, interleaved base/cand rounds
+## Speed (G4), localeval speed, 35B, `--max-batch 1`, interleaved base/cand rounds in fleetq slots #5948 and #5978
 
-Method as M35P: server per arm, `localeval speed --sizes 1024,4096,16384 --gen 256 --reps 3`, CPU sampled every 4 s (`raw/g4/*-load.log`, checked by `raw/loadchk.py`). **Base round 1 is discarded**: another lane's debug test binaries (`spec-*`, `tp_batch-*`, 1100% CPU, not in a fleetq slot) overlapped it. Rounds 2 and 3 are clean for both arms; the cand arm was clean in all three. Medians of the 3 reps per arm and round.
-
-Candidate = fp8 NAX + MoE NAX (both default-on).
+Method as M35P: server per arm, `localeval speed --sizes 1024,4096,16384 --gen 256 --reps 3`, CPU sampled every 4 s (`raw/g4/*-load.log`, `raw/g4b/*-load.log`, checked by `raw/loadchk.py`; a sample with a foreign process above 300% CPU discards the arm). **Base round 1 of #5948 is discarded**: another lane's debug test binaries (`spec-*`, `tp_batch-*`, 1100% CPU, outside fleetq) overlapped it. That leaves 4 clean base rounds and 5 clean candidate rounds (3 in #5948, 2 in #5978); each value below is the median of the 3 reps of one round. Candidate = fp8 NAX + MoE NAX, both default-on.
 
 | prefill tok/s | 1k | 4k | 16k |
 |---|---:|---:|---:|
-| base round 2 / 3 (clean) | 1513 / 1623 | 1578 / 1566 | 1373 / 1389 |
-| cand rounds 1 / 2 / 3 | 3100 / 3184 / 3278 | 2755 / 2824 / 2986 | 2253 / 2238 / 2362 |
-| cand / base (paired rounds 2, 3) | 2.1 / 2.0x | **1.79 / 1.91x** | **1.63 / 1.70x** |
+| base, 4 clean rounds | 1513 / 1623 / 1506 / 1502 | 1578 / 1566 / 1514 / 1522 | 1373 / 1389 / 1338 / 1358 |
+| base median | 1510 | 1544 | 1366 |
+| cand, 5 rounds | 3100 / 3184 / 3278 / 3243 / 3158 | 2755 / 2824 / 2986 / 2970 / 2832 | 2253 / 2238 / 2362 / 2283 / 2288 |
+| cand median | 3184 | **2832** | **2283** |
+| cand / base | 2.11x | **1.83x** | **1.67x** |
 | M35P base (reference) | 1631 | 1788 | 1507 |
 
 | decode tok/s | 1k | 4k | 16k |
 |---|---:|---:|---:|
-| base round 2 / 3 | 120.5 / 122.4 | 118.7 / 119.6 | 108.0 / 108.6 |
-| cand rounds 1 / 2 / 3 | 119.5 / 120.5 / 123.0 | 117.9 / 117.4 / 119.0 | 108.9 / 108.6 / 108.3 |
-| cand / base (paired) | 1.00 / 1.00 | 0.989 / 0.995 | 1.01 / 1.00 |
+| base median | 122.4 | 119.5 | 108.65 |
+| cand median | 121.4 | 118.5 | 108.6 |
+| cand / base | 0.992 | 0.992 | 1.000 |
 
-G4 status: 4k +20% needs >= 2146 against M35P's 1788: cand median 2824 (+58%), pass; 16k improved: pass. Decode >= 0.99x: 4k paired ratios 0.989 and 0.995, borderline (decode noise is about 5%); the decode kernels are not touched, so this is noise or the larger plan scratch. Formally "median of 3 interleaved rounds" is **not yet met** for the base arm (2 clean rounds); G4b (#5978) adds two more rounds. Today's base is also 12% below M35P's 1788 at 4k (1570), which is why the paired ratios are the comparison.
+G4: 4k +20% needs >= 2146 against M35P's 1788 (cand 2832, +58%; +83% against today's slower same-slot base): pass. 16k improved: pass. Decode >= 0.99x: pass, narrowly at 1k and 4k (decode noise is about 5%, and the decode kernels are not touched; the larger plan scratch is the only difference). Today's base is about 14% below M35P's 1788 at 4k, which is why the ratios use the same-slot base.
 
 Kernel-mode profile at 4k (`raw/kernel-4096-*.jsonl.gz`; kernel mode serialises, so use shares): with fp8 NAX only, `matmul_fp8_nax` is 235 ms (12.6%, 260 calls, 0.9 ms each); with both, 258 ms in the fp8 GEMM and the three MoE sub-kernels fall from 946 ms to 328 ms, and the GDN delta rule (449 ms, 33%) is now the biggest item.
 
@@ -52,18 +61,35 @@ Kernel-mode profile at 4k (`raw/kernel-4096-*.jsonl.gz`; kernel mode serialises,
 
 Prefill is within 0.0004 of base on all three. Decode moves by -0.0047 (short), +0.0034 (long), +0.0021 (4k), all inside the noise floor; short decode improved. The class floor verdict (KL <= 0.03) passes on every cell. The decode cells depend on the KV cache the new prefill wrote, so they are not independent of the change even though the decode kernels are unchanged.
 
-`baseline-gate` against the recorded Metal baselines: prefill passes on short and 4k. **The 4k decode baseline gate FAILS for the candidate** (192 positions: top-1 97.4% vs 98.96% recorded, mean KL 0.00953 vs 0.00722, per-prompt gate fails on long_docs_4k top-1 and chat_reuse_4k KL; log in `raw/g1/cand/4k-vs-metal-baseline.log`). This gate has fixed small margins and no noise envelope; the rows are 64 positions per prompt. It is a reason to run the larger decode sets before calling G1 passed: decode-64 on short and long and decode-256 on 4k, base vs fp8-only vs candidate in one slot (#5973, #5977). Until those run, **G1 is not decided**; by the coordinator's rule a fail makes both knobs opt-in.
+Decode with more positions (slot #5973 for short and long at 64 positions per prompt, #5977 for 4k at 256; `raw/g1-64/`, `raw/kt/`):
 
-## Exactness properties (G3), what ran
+| golden, decode KL | base | fp8 NAX only | candidate |
+|---|---|---|---|
+| 35b-short (64 pos) | 0.00539 | 0.00516 | 0.00526 |
+| 35b-long (64 pos) | 0.00883 | 0.01019 | 0.01042 |
+| 35b-4k (256 pos) | 0.01360 | n/a | 0.01208 |
 
-Run on the fp8-only tree (before the MoE kernel) in slot #5903, all pass: `rows_exact` (batched rows equal solo; 4550 (row, step) pairs bitwise in the 35B hybrid test), fp8 rows with `INTARSIA_METAL_FP8_ROWS_MMT` 2 and 0, `row_tables`, G-C, `long`, `rec` (batch_recurrent, 14 tests including packed prefill, prefix reuse, macro prefill equals plain solo), `dense`.
+The long decode gap (+0.0016) is far inside the 0.0084 noise floor, and 4k decode is better than base. The earlier 16-position decode cells were therefore sampling noise.
 
-Unit-level, on the candidate (`cargo test --release -p intarsia-backend-metal`, all 27 test binaries pass, `raw/cratetests.log`):
+`baseline-gate` against the recorded Metal baselines: prefill passes on short and 4k. The 4k decode baseline gate at 64 positions (192 rows) **fails** for the candidate (top-1 97.4% vs 98.96% recorded, mean KL 0.00953 vs 0.00722; log in `raw/g1/cand/4k-vs-metal-baseline.log`). That gate has fixed small margins and no noise envelope. The 256-position run above gives 0.01208 for the candidate against 0.01360 for base, so the fail is position-sampling noise, not a regression. The recorded Metal baselines are not updated here.
+
+G1: pass.
+
+## Exactness properties (G3)
+
+Candidate, slot #5975 (`raw/g3c/`), all pass: `rows_exact`, fp8 rows with `INTARSIA_METAL_FP8_ROWS_MMT` 2 and 0, `row_tables`, G-C (4550 (row, step) pairs bitwise identical, batched 35B decode rows equal solo), `long`, `batch_recurrent` (14 tests: packed prefill, prefix reuse, macro prefill equals plain solo, hybrid decode beside prefill chunks), `dense` (138 pairs bitwise; 48 decode rows bitwise beside 256-token prefill chunks).
+
+Greedy ids, slot #5976 (`raw/ids2/`), 256 ids, prompts short-0, 4k-0, 4k-1, 16k-0, `--chat --no-think --temperature 0 --ignore-eos`:
+- `--spec mtp --spec-k 2` equals `--spec off`: 4 of 4 bitwise for base and for the candidate (MTP runs on Metal for this model).
+- `--prefill-chunk 512` equals the default chunk: 4 of 4 bitwise for base and for the candidate. **Prefill chunk-size invariance was bitwise before and still is**, at the whole-model level.
+- `--spec ngram` is refused by the engine for a model with recurrent state (`unsupported: speculative decoding on a model with recurrent state`), for base and candidate alike; not a regression.
+- Candidate ids vs base (`--spec off`): first divergence at token 44, 56, 44 and 75 of 256 (short-0, 4k-0, 4k-1, 16k-0). This is the expected change; the KL and MMLU gates above are what bound it.
+
+Unit level, on the candidate (`cargo test --release -p intarsia-backend-metal`, all 27 test binaries pass, `raw/cratetests.log`):
 - `tests/fp8_nax.rs` (new, 6 tests): output equals the bf16 NAX GEMM on the decoded weights, bitwise; scaled once and rounded once; a row's bits do not depend on the call's M, the row position, the tile or the output offset (10 offset/length cases x 4 tiles x bf16/f32); run-to-run deterministic; a NaN weight code poisons only its column (as `mma`); registered for M > 8 only, above `mma`.
 - `tests/moe.rs::moe_experts_rows_do_not_depend_on_the_tile` (new): a token's bits are the same in 3 / 10 / 24 / 40 / 100-token calls (8/16/32/64-row tiles) for both the NAX and the old kernels.
-- So prefill chunk-size invariance at the op level **holds** (bitwise) for the NAX fp8 GEMM and the NAX MoE. Whether the whole-model ids are chunk-invariant is the c512 arm of `ids2.sh` (pending).
 
-Decode untouched: `plan show` for 35B (`raw/plans/`) differs from base in exactly one place, the new `matmul_fp8_nax` row (plus a smaller `matmul_fp8_mma` scratch, 16777232 to 65552 bytes, since mma now only serves M <= 8); every decode pick (`matmul_fp8_gemv`, `_gemv_rows`, the MoE decode kernels, attention, GDN) is identical. `plan show` cannot show the MoE split, which lives inside `moe_experts_bf16`: the decode branch (T*K <= 16, `moe_dec_*`) is not edited and the new code is reached only through the grouped branch's `moe_dispatch`.
+Decode untouched: `plan show` for 35B (`raw/plans/`) differs from base in exactly one place, the new `matmul_fp8_nax` row (plus a smaller `matmul_fp8_mma` scratch, 16777232 to 65552 bytes, since mma now only serves M <= 8); every decode pick (`matmul_fp8_gemv`, `_gemv_rows`, the MoE decode kernels, attention, GDN) is identical. `plan show` cannot show the MoE split, which lives inside `moe_experts_bf16`: the decode branch (T*K <= 16, `moe_dec_*`) is not edited and the new code is reached only through the grouped branch's `moe_dispatch`. Batched decode and MTP verify rows (M <= 8) never reach `matmul_fp8_nax` (registered for M > 8); the `rows_exact`/G-C results above are the proof for the MoE part.
 
 ## Admission and mutants (G6)
 
@@ -78,24 +104,12 @@ Decode untouched: `plan show` for 35B (`raw/plans/`) differs from base in exactl
 | m5 | MoE gate-up drops the up scale | FAIL, rel_l2 31.8 |
 | m6 | MoE down drops the expert scale | FAIL, rel_l2 19.1 |
 
-The clean binary passes both ops. G6 is met for the kernel sweep; the full `kernels test` over all ops on the candidate is pending (#5977).
+The clean binary passes both ops. Full `kernels test` on the candidate (slot #5977, `raw/kt/`): 45 kernels, 820 cases on the 35B shapes and 844 on the default shapes, 0 failed. The one untested kernel, `attn_prefill_bf16_flash_nax`, ran 0 cases (pre-existing, unrelated; plan-time admission covers it). G6: pass.
 
 ## G5 other models
 
-Qwen3-8B BF16 `plan show` is byte-identical (`raw/plans/*-8b.txt`). No other fp8 model is registered on Metal here, the NAX fp8 kernel only enters for `Op::MatmulFp8` with M > 8, and the MoE one only for the NVFP4 experts. Llama-3.1-8B, Qwen2.5-7B and the two 27B checkpoints: pending (#5979).
-
-## Pending (queued in fleetq, #5973 to #5979, not run)
-
-| job | gate | what |
-|---|---|---|
-| #5973 | G1 | decode-64 on short and long, base vs fp8-only vs candidate, one slot |
-| #5974 | G2 | `localeval quality --bench mmlu --limit 25` (n=1425), candidate, bar >= 0.830 (base 0.840, SE ~0.010) |
-| #5975 | G3 | `gates.sh gb gc long rec dense` on the candidate (rows_exact, 35B batch vs solo, batch_recurrent, dense) |
-| #5976 | G3 | greedy ids, 4 prompts, base and candidate, arms `--spec off` / `mtp` (k=2) / `ngram` (k=4) / `--prefill-chunk 512`: spec equals off, chunk-512 equals default, and how far candidate ids diverge from base |
-| #5977 | G1/G6 | full `kernels test` on the candidate, 4k decode-256 base vs candidate |
-| #5978 | G4 | two more interleaved speed rounds |
-| #5979 | G5 | `plan show` base vs candidate on Llama-3.1-8B, Qwen2.5-7B and the 27B checkpoints |
+`plan show --backend metal`, base vs candidate, byte-identical: Qwen3-8B BF16, Llama-3.1-8B-Instruct, Qwen2.5-7B-Instruct, Qwen3.8-27B-Quark-AWQ-MXFP4 (`raw/plans/`, `raw/plans2/`). `~/models/qwen38-27b` does not load on either build (safetensors dtype U32 unsupported), the same error text for both. The NAX fp8 kernel only enters for `Op::MatmulFp8` with M > 8 and the MoE one only for the NVFP4 experts, so no other registered Metal model changes.
 
 ## Decision
 
-Not made. Ship-as-default needs G1 (decode-64/256), G2 (MMLU >= 0.830) and G3 on the candidate. If G1 or G2 fails, flip both defaults to opt-in (change `unwrap_or(true)` style default in `fp8::nax_enabled` and `moe::nax_enabled`, update `docs/tuning.md` rows) and say so here. The fp8-only binary is available as a split option: if fp8-only passes and the candidate fails, fp8 could be default-on and MoE opt-in.
+Both kernels ship default-on. G1 to G6 pass; the 35B greedy ids are no longer identical to the old Metal build (divergence after 44 to 75 tokens in the 256-token probes), which the coordinator decision of 2026-10-26 23:55 allowed. Rollback is `INTARSIA_METAL_FP8_NAX=0` and/or `INTARSIA_METAL_MOE_NAX=0` (bitwise the previous build). Not done here: the GDN delta rule is now the largest prefill item (33% of GPU time at 4k), and flash attention at 16k; the recorded Metal baselines in `golden/baselines` were not re-recorded.
