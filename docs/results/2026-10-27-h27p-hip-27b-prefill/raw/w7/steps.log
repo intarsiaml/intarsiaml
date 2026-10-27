@@ -1,0 +1,21 @@
+02:45:19 guard: [guard] radiance stopped 2026-10-27 02:45:19
+02:45:19 round 1 arm dev: starting server
+02:47:15 round 1 arm dev sweep: exit 0 results/20261027-024636-h27p-dev-h27p-w7-dev-r1/result.json
+02:47:15 round 1 arm base: starting server
+02:49:21 round 1 arm base sweep: exit 0 results/20261027-024832-h27p-base-h27p-w7-base-r1/result.json
+02:49:21 round 1 arm bf16: starting server
+02:51:14 round 1 arm bf16 sweep: exit 0 results/20261027-025038-h27p-bf16-h27p-w7-bf16-r1/result.json
+02:51:14 round 2 arm bf16: starting server
+02:53:06 round 2 arm bf16 sweep: exit 0 results/20261027-025231-h27p-bf16-h27p-w7-bf16-r2/result.json
+02:53:06 round 2 arm base: starting server
+02:55:12 round 2 arm base sweep: exit 0 results/20261027-025423-h27p-base-h27p-w7-base-r2/result.json
+02:55:12 round 2 arm dev: starting server
+02:57:07 round 2 arm dev sweep: exit 0 results/20261027-025629-h27p-dev-h27p-w7-dev-r2/result.json
+02:57:08 round 3 arm base: starting server
+02:59:13 round 3 arm base sweep: exit 0 results/20261027-025825-h27p-base-h27p-w7-base-r3/result.json
+02:59:13 round 3 arm dev: starting server
+03:01:09 round 3 arm dev sweep: exit 0 results/20261027-030030-h27p-dev-h27p-w7-dev-r3/result.json
+03:01:09 round 3 arm bf16: starting server
+03:03:02 round 3 arm bf16 sweep: exit 0 results/20261027-030226-h27p-bf16-h27p-w7-bf16-r3/result.json
+03:03:02 done
+03:03:13 guard: [guard] radiance answers 2026-10-27 03:03:13 (after 15 s)

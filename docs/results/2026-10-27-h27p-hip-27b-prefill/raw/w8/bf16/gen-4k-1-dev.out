@@ -1,0 +1,14 @@
+Welcome to the project. This document is a technical specification and status report for a new feature branch: **`lane-dc/dflash-dcoco`**.
+
+Here is a detailed breakdown of what this feature is, how it works, and where we stand as of October 25, 2026.
+
+### 1. The Big Picture: What are we building?
+
+We are adding **Speculative Decoding** support for the **Qwen3-8B** model using a specific technique called **DFlash**, enhanced by a correction mechanism called **DCOCO**.
+
+*   **Goal:** Speed up text generation (inference) by drafting multiple tokens at once and verifying them in parallel.
+*   **Status:**
+    *   **Phase 1 (Scope):** Accepted.
+    *   **Phase 2 & 3 (Implementation):** **Done.**
+    *   **Cost Gate:** Tested. DFlash remains **opt-in** (off by default) because it is not yet faster than standard decoding in all scenarios.
+*   **Safety:** This feature is **opt-in only**. If the flags `--spec dflash` and `--dcoco` are not set, nothing is loaded, and the

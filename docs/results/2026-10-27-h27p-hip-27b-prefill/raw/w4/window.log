@@ -1,0 +1,70 @@
+fleetq: #5985 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-h27p/scripts/h27p/win.sh chain.sh'
+[h27p] radiance inactive 2026-10-27 02:10:27
+PASS ids short-0 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=104 proposed=208 accepted=151 (acceptance 72.6%, 2.45 tokens per pass)
+PASS ids short-1 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=115 proposed=229 accepted=140 (acceptance 61.1%, 2.22 tokens per pass)
+PASS ids short-2 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=101 proposed=201 accepted=154 (acceptance 76.6%, 2.52 tokens per pass)
+PASS ids short-3 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=114 proposed=227 accepted=140 (acceptance 61.7%, 2.23 tokens per pass)
+PASS ids short-4 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=94 proposed=188 accepted=161 (acceptance 85.6%, 2.71 tokens per pass)
+PASS ids short-5 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=125 proposed=250 accepted=130 (acceptance 52.0%, 2.04 tokens per pass)
+PASS ids 4k-0 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=97 proposed=194 accepted=157 (acceptance 80.9%, 2.62 tokens per pass)
+PASS ids 4k-1 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+PASS ids 4k-2 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=105 proposed=210 accepted=150 (acceptance 71.4%, 2.43 tokens per pass)
+PASS ids 4k-3 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=99 proposed=197 accepted=156 (acceptance 79.2%, 2.58 tokens per pass)
+PASS ids 4k-4 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=118 proposed=235 accepted=137 (acceptance 58.3%, 2.16 tokens per pass)
+PASS ids 4k-5 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)
+PASS ids 16k-0 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)
+PASS ids 16k-1 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=109 proposed=217 accepted=140 (acceptance 64.5%, 2.28 tokens per pass)
+PASS ids 16k-2 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=106 proposed=211 accepted=149 (acceptance 70.6%, 2.41 tokens per pass)
+PASS ids 16k-3 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=98 proposed=196 accepted=157 (acceptance 80.1%, 2.60 tokens per pass)
+PASS ids 16k-4 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=117 proposed=234 accepted=137 (acceptance 58.5%, 2.17 tokens per pass)
+PASS ids 16k-5 256 ids identical base=dev=auto | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=101 proposed=202 accepted=153 (acceptance 75.7%, 2.51 tokens per pass)
+ids fails=0
+PASS tail k=0 prompt=4129 mod256=33 peel=0
+PASS tail k=1 prompt=4129 mod256=33 peel=0
+PASS tail k=2 prompt=4128 mod256=32 peel=0
+PASS tail k=3 prompt=4127 mod256=31 peel=0
+PASS tail k=4 prompt=4126 mod256=30 peel=0
+PASS tail k=5 prompt=4126 mod256=30 peel=0
+PASS tail k=6 prompt=4125 mod256=29 peel=0
+PASS tail k=7 prompt=4124 mod256=28 peel=0
+PASS tail k=8 prompt=4123 mod256=27 peel=0
+PASS tail k=9 prompt=4123 mod256=27 peel=0
+PASS tail k=10 prompt=4122 mod256=26 peel=0
+PASS tail k=11 prompt=4120 mod256=24 peel=0
+PASS tail k=12 prompt=4120 mod256=24 peel=0
+PASS tail k=13 prompt=4119 mod256=23 peel=0
+PASS tail k=14 prompt=4118 mod256=22 peel=0
+PASS tail k=15 prompt=4117 mod256=21 peel=0
+PASS tail k=16 prompt=4117 mod256=21 peel=0
+PASS tail k=17 prompt=4117 mod256=21 peel=0
+PASS tail k=18 prompt=4115 mod256=19 peel=0
+PASS tail k=19 prompt=4116 mod256=20 peel=0
+PASS tail k=20 prompt=4114 mod256=18 peel=0
+PASS tail k=21 prompt=4113 mod256=17 peel=0
+PASS tail k=22 prompt=4112 mod256=16 peel=0
+PASS tail k=23 prompt=4112 mod256=16 peel=0
+PASS tail k=24 prompt=4111 mod256=15 peel=0
+PASS tail k=25 prompt=4110 mod256=14 peel=0
+PASS tail k=26 prompt=4110 mod256=14 peel=0
+PASS tail k=27 prompt=4108 mod256=12 peel=0
+PASS tail k=28 prompt=4106 mod256=10 peel=0
+PASS tail k=29 prompt=4102 mod256=6 peel=0
+PASS tail k=30 prompt=4101 mod256=5 peel=0
+PASS tail k=31 prompt=4100 mod256=4 peel=0
+PASS tail k=32 prompt=4099 mod256=3 peel=0
+PASS tail k=33 prompt=4097 mod256=1 peel=0
+PASS tail k=34 prompt=4097 mod256=1 peel=0
+PASS tail k=35 prompt=4096 mod256=0 peel=0
+PASS tail k=36 prompt=4096 mod256=0 peel=0
+PASS tail k=37 prompt=4095 mod256=255 peel=0
+PASS tail k=38 prompt=4096 mod256=0 peel=0
+PASS tail k=39 prompt=4096 mod256=0 peel=0
+PASS tail k=40 prompt=4094 mod256=254 peel=0
+PASS tail k=41 prompt=4094 mod256=254 peel=0
+PASS tail k=42 prompt=4091 mod256=251 peel=0
+PASS tail k=43 prompt=4089 mod256=249 peel=0
+PASS tail k=44 prompt=4088 mod256=248 peel=0
+tails pass=45 fail=0
+[h27p] chain.sh done 2026-10-27 02:24:02
+[h27p] radiance active after 15 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793082250,"owned_by":"radiance"
+fleetq: #5985 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -1,0 +1,10 @@
+03:20:17 guard: [guard] radiance stopped 2026-10-27 03:20:17
+03:20:17 round 1 arm dev: starting server
+03:21:34 round 1 arm dev mix: rep 0: B ttft 2.05 s | A gap before median 18 ms | during B: n=29 max 132 ms p99 132 ms | A tokens 300|rep 1: B ttft 2.06 s | A gap before median 18 ms | during B: n=28 max 134 ms p99 132 ms | A tokens 300|rep 2: B ttft 2.07 s | A gap before median 18 ms | during B: n=28 max 134 ms p99 132 ms | A tokens 300|
+03:21:34 round 1 arm base: starting server
+03:22:48 round 1 arm base mix: rep 0: B ttft 2.06 s | A gap before median 18 ms | during B: n=28 max 133 ms p99 133 ms | A tokens 300|rep 1: B ttft 2.07 s | A gap before median 18 ms | during B: n=28 max 134 ms p99 133 ms | A tokens 300|rep 2: B ttft 2.07 s | A gap before median 18 ms | during B: n=28 max 133 ms p99 132 ms | A tokens 300|
+03:22:49 round 2 arm base: starting server
+03:24:03 round 2 arm base mix: rep 0: B ttft 2.06 s | A gap before median 18 ms | during B: n=28 max 133 ms p99 133 ms | A tokens 300|rep 1: B ttft 2.08 s | A gap before median 18 ms | during B: n=28 max 134 ms p99 133 ms | A tokens 300|rep 2: B ttft 2.08 s | A gap before median 18 ms | during B: n=29 max 133 ms p99 133 ms | A tokens 300|
+03:24:03 round 2 arm dev: starting server
+03:25:20 round 2 arm dev mix: rep 0: B ttft 2.06 s | A gap before median 18 ms | during B: n=28 max 134 ms p99 132 ms | A tokens 300|rep 1: B ttft 2.06 s | A gap before median 18 ms | during B: n=28 max 140 ms p99 133 ms | A tokens 300|rep 2: B ttft 2.06 s | A gap before median 18 ms | during B: n=28 max 133 ms p99 133 ms | A tokens 300|
+03:25:31 guard: [guard] radiance answers 2026-10-27 03:25:31 (after 15 s)

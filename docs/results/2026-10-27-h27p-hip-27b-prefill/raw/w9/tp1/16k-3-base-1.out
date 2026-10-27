@@ -1,0 +1,6 @@
+Based on the technical documentation provided, here is a step-by-step checklist for implementing and validating MTP speculative decoding for Qwen3.6-35B-A3B.
+
+### Phase 1: Configuration & Loading
+1.  **Verify Opt-In Flag**: Ensure the feature is disabled by default. It must only activate when `--spec mtp` is passed.
+    *   *Check*: Without the flag, no `mtp.*` tensors are read, and the model plan/memory remains unchanged.
+2.  **Load MTP Head**: When `--spec mtp` is active, load the

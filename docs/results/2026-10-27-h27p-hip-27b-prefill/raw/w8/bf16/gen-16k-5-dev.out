@@ -1,0 +1,11 @@
+Here is the list of every number found in the document, categorized by what they measure, followed by commentary on the three most surprising findings.
+
+### List of Numbers and What They Measure
+
+#### **Performance Metrics (Throughput & Latency)**
+*   **84.0 vs 80.1 tok/s**: Spark decode (lane sk3) intarsia vs vLLM (1 stream, 35B, 1k context).
+*   **11.9 vs 12.5 ms**: ITL p50 (Intersia vs vLLM).
+*   **89.9 tok/s**: Spark decode with MTP (MTP gain +12.4%).
+*   **162 / 209 vs 116 / 116 tok/s**: Aggregate throughput at 4/8 streams (Intarsia vs vLLM).
+*   **+4.8 % / +9.4 %**: Macro prefill gain at 4k / 16k tokens (HIP/CUDA).
+*   **+5.6 % / +9.4 %**: CUDA prefill macro gain at 4k / 16k tokens

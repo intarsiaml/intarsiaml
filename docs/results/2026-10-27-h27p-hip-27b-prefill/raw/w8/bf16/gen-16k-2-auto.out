@@ -1,0 +1,11 @@
+This is a highly detailed, technically rigorous engineering log documenting the development, debugging, and validation of Tensor Parallelism (TP=2) for a specific LLM inference engine (`intarsia`) on AMD R9700 GPUs.
+
+Here is a critical review of the document, categorized by what is convincing, what is not, and what is missing.
+
+### 1. What is Convincing
+
+**A. The "Gate" Logic is Sound and Self-Correcting**
+The most impressive aspect of this document is the iterative refinement of the acceptance criteria (Section 1).
+*   **Initial Flaw:** The team initially tried to gate TP=2 accuracy against TP=1 using KL divergence.
+*   **Discovery:** They correctly identified that KL divergence between TP=2 and TP=1 is dominated by reduction-order noise, making it impossible to distinguish a real bug (0.3% scale error) from floating-point noise.
+*   **Correction:** They pivoted to a **direct partial-sum check** (Section 1.3) using deterministic and probabilistic bounds (Higham & Mary 2019). This is the mathematically correct way to verify tensor parallelism correctness. The fact that they explicitly

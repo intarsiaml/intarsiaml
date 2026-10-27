@@ -349,6 +349,9 @@ pub struct BackendTuning {
     pub prefill_peel: Option<usize>,
     /// Macro prefill pass size in rows for this backend (see [`Tuning::prefill_macro`]).
     pub prefill_macro: Option<usize>,
+    /// Prefill chunk in rows while other sequences are decoding (`serve --max-batch` > 1), for this backend ([`Recipe::resolve_busy_chunk`]);
+    /// `--busy-chunk` wins. Unset: the loader's rule (the model chunk for the batched recurrent models). Per backend only.
+    pub busy_chunk: Option<usize>,
     /// With tensor parallelism (in-process ranks, tp > 1) on this backend and no `--spec` given: run `--spec mtp` with this many
     /// drafts per pass ([`Recipe::resolve_mtp_default_tp`]). `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out. Per backend
     /// only, set only where measured (the Qwen3.8-27B on HIP, user decision 2026-10-26 11:07).
@@ -462,6 +465,12 @@ impl Recipe {
 }
 
 impl Recipe {
+    /// The recipe's busy prefill chunk for `backend` (`[tuning.<backend>] busy_chunk`): the rows of a prefill chunk that runs beside decoding
+    /// sequences under continuous batching. `None`: the loader's own rule.
+    pub fn resolve_busy_chunk(&self, backend: &str) -> Option<usize> {
+        self.tuning.backends.get(backend).and_then(|b| b.busy_chunk)
+    }
+
     /// Macro prefill pass size for `backend` (rows; [`crate::scheduler::effective_macro_rows`] rounds it to whole chunks): the
     /// recipe's value for that backend, then its base value, then 0 (off). `(rows, source)`.
     pub fn resolve_prefill_macro(&self, backend: &str) -> (usize, String) {
@@ -598,6 +607,9 @@ impl Recipe {
             return Err(Error::model(format!(
                 "recipe [tuning] prefill_peel must be below {DEFAULT_PREFILL_CHUNK} (rows of a tail)"
             )));
+        }
+        if self.tuning.backends.values().any(|b| b.busy_chunk == Some(0)) {
+            return Err(Error::model("recipe [tuning.<backend>] busy_chunk must be at least 1"));
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {

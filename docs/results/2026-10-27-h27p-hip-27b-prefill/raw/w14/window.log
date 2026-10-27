@@ -1,0 +1,22 @@
+fleetq: #5996 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-h27p/scripts/h27p/win.sh adm.sh'
+[h27p] radiance inactive 2026-10-27 03:32:24
+exit 0
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul         matmul_bf16_wmma                0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul         matmul_bf16_wmma_rows           0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_fp8     matmul_fp8_wmma                 0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_fp8     matmul_fp8_wmma_rows            0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_pair    matmul_pair_bf16_wmma           0      0     0.000e0     0.000e0  NO CASES (untested)
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_fp8_pair matmul_fp8_pair_wmma            0      0     0.000e0     0.000e0  NO CASES (untested)
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+84 kernels, 414 cases in 3.4s
+incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+admitted rows: 74
+[h27p] adm.sh done 2026-10-27 03:32:28
+[h27p] radiance active after 15 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793086356,"owned_by":"radiance"
+fleetq: #5996 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

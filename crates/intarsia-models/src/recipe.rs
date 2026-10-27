@@ -312,13 +312,15 @@ lm_head = { tensor = "h" }
     }
 
     #[test]
-    fn no_builtin_recipe_sets_a_prefill_peel() {
-        // the peel is opt-in (`INTARSIA_PREFILL_PEEL` with a larger `--prefill-chunk`): with chunk 4096 + peel 16 the 27B
-        // is bitwise chunk 256, but on HIP serve --max-batch 16 it costs context (4930 -> 4407 tokens) and runs 4096-row
-        // busy chunks, so its recipe keeps 256 (docs/results/2026-10-25-mx-hip-27b-prefill.md section 4)
+    fn only_the_hip_27b_recipe_sets_a_prefill_peel() {
+        // the peel is opt-in elsewhere (`INTARSIA_PREFILL_PEEL` with a larger `--prefill-chunk`). The 27B on HIP ships chunk 2048 + peel 16
+        // (lane H27P: ids identical to chunk 256 on all 18 gate prompts; the peel keeps a 1..16-row tail on the small-M row kernels as the
+        // 256 schedule does), see docs/results/2026-10-27-h27p-hip-27b-prefill.md
         let (_, vl) =
             select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForConditionalGeneration"]}), &[]).unwrap();
-        assert_eq!(vl.resolve_prefill_chunk(None, "hip").value, 256);
+        assert_eq!(vl.resolve_prefill_chunk(None, "hip").value, 2048);
+        assert_eq!(vl.resolve_prefill_peel("hip").0, 16);
+        assert_eq!(vl.resolve_prefill_chunk(None, "cuda").value, 256);
         let archs = [
             "Qwen3_5ForConditionalGeneration",
             "Qwen3_5ForCausalLM",
@@ -328,6 +330,9 @@ lm_head = { tensor = "h" }
         for arch in archs {
             let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
             for be in ["cuda", "hip", "metal", "cpu"] {
+                if arch == "Qwen3_5ForConditionalGeneration" && be == "hip" {
+                    continue;
+                }
                 assert_eq!(r.resolve_prefill_peel(be), (0, "default".to_string()), "{arch} {be}");
             }
         }

@@ -1,0 +1,10 @@
+Welcome to the project. This document is a comprehensive engineering log for a specific feature branch (`lane-dc/dflash-dcoco`) that implements **DFlash** (a speculative decoding method) and **DCOCO** (a correction mechanism for DFlash) into the `intarsia` inference engine.
+
+Here is a detailed breakdown of what was built, how it works, what the results were, and the current status of the feature.
+
+### 1. High-Level Summary
+
+*   **Goal:** Implement DFlash speculative decoding and the DCOCO corrector for the Qwen3-8B model.
+*   **Status:** **Phases 2 and 3 are complete.** The code is merged into the branch.
+*   **Default State:** **Opt-in only.** If you do not pass `--spec dflash`, nothing changes. The default behavior is bitwise identical to the main branch.
+*   **Key Finding:** DFlash provides significant speedups (up to 2.12x) on math/code tasks but can slightly regress performance on prose tasks. The DCOCO corrector, while mathematically sound, did not provide enough speedup to justify its overhead in our specific test suite, so it remains an experimental

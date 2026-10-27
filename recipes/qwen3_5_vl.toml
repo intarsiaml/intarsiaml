@@ -97,3 +97,17 @@ mtp_default_tp_k = 2
 # docs/results/2026-10-27-w4a8-hip-fp8-act.md. User decision 2026-10-26 20:24 (option 2). CUDA and Metal have no W4A8 kernels and keep the
 # [defaults] W4A16. `--mxfp4-act none` runs W4A16 on HIP, `dynamic` the declared W4A4.
 mxfp4_act = "fp8"
+# Prefill chunk 2048 rows (builtin default 256): at tp2 a 4k prefill is 16 chunks of 256 rows, each paying every launch, the small-M GEMM tiles and
+# the weight read again; 2048 is 2 chunks. 3858-token prompt, tp2, W4A8, interleaved: prefill 1724 -> 1258 ms (+37 %); every row-wise kernel is
+# row-independent (the a8 GEMM bitwise for M 1..4100) and the recurrence carries its state, so the ids are unchanged. 4096 (+33 %) and 1024 (+32 %)
+# are slower on this prompt. docs/results/2026-10-27-h27p-hip-27b-prefill.md. `--prefill-chunk N` overrides.
+prefill_chunk = 2048
+# Tail peel 16: a prompt whose length mod 256 is 1..16 ends in a pass of that many rows; chunk 256 runs it on the small-M row kernels
+# (rows_exact, M <= 16), a 2048 chunk would run the same rows inside the last big pass on the GEMM tiles, and one prompt in 18 of the ids
+# gate (16k-3, 6 tail rows) then flipped a token at position 88. The peel cuts those last rows off as their own pass, so the schedule of
+# the tail is the 256 one (the lane mx mechanism, docs/results/2026-10-25-mx-hip-27b-prefill.md section 4).
+prefill_peel = 16
+# Busy chunk 256: under `serve --max-batch` > 1 a prompt that arrives while other streams decode prefills in 256-row chunks (the loader's rule would
+# take the model chunk, 2048). A 2048-row chunk stalls the decoding streams for 650 ms (max inter-token gap, 4k prompt arriving beside one stream), 256 rows
+# for 135 ms, the base build's number. Alone, a prompt still prefills in 2048-row chunks.
+busy_chunk = 256

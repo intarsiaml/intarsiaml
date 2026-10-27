@@ -1,0 +1,22 @@
+p2pbw.hip:13:57: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   13 | static double ms(hipEvent_t a, hipEvent_t b) { float m; hipEventElapsedTime(&m, a, b); return m; }
+      |                                                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1 warning generated when compiling for gfx1201.
+p2pbw.hip:13:57: warning: ignoring return value of type 'hipError_t' declared with 'nodiscard' attribute [-Wunused-value]
+   13 | static double ms(hipEvent_t a, hipEvent_t b) { float m; hipEventElapsedTime(&m, a, b); return m; }
+      |                                                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+1 warning generated when compiling for host.
+memcpyPeer coarse 1dir       blocks   0:   1.202 ms    27.9 GB/s per direction
+memcpyPeer coarse 2dir       blocks   0:   1.218 ms    27.5 GB/s per direction
+kernel->coarse 1dir          blocks  16:   1.183 ms    28.4 GB/s per direction
+kernel->coarse 1dir          blocks  64:   1.189 ms    28.2 GB/s per direction
+kernel->coarse 1dir          blocks 256:   1.180 ms    28.4 GB/s per direction
+kernel->coarse 2dir          blocks  16:   1.202 ms    27.9 GB/s per direction
+kernel->coarse 2dir          blocks  64:   1.191 ms    28.2 GB/s per direction
+kernel->coarse 2dir          blocks 256:   1.193 ms    28.1 GB/s per direction
+kernel->finegrained 1dir     blocks  16:   1.188 ms    28.2 GB/s per direction
+kernel->finegrained 1dir     blocks  64:   1.188 ms    28.2 GB/s per direction
+kernel->finegrained 1dir     blocks 256:   1.180 ms    28.4 GB/s per direction
+kernel->finegrained 2dir     blocks  16:   1.202 ms    27.9 GB/s per direction
+kernel->finegrained 2dir     blocks  64:   1.191 ms    28.2 GB/s per direction
+kernel->finegrained 2dir     blocks 256:   1.193 ms    28.1 GB/s per direction
