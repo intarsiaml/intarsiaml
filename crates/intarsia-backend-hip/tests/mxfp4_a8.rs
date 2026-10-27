@@ -190,46 +190,69 @@ fn a8_flipped_weight_code_is_visible() {
 /// Prefill timing of the three MXFP4 GEMMs on the 27B's projection shapes: W4A4 `matmul_mxfp4_mma_fold` (the former default),
 /// W4A16 `matmul_mxfp4_mma` (act = none, bf16 WMMA, the current 27B default), W4A8 `matmul_mxfp4_a8_mma`. Prints `TIME` lines.
 ///   cargo test --release -p intarsia-backend-hip --test mxfp4_a8 -- --ignored --nocapture timing (quiet on the GPU)
+/// Mean microseconds of one launch of `kernel` on `hc` (5 warm-up launches, then `iters`).
+fn time_launch(hip: &Arc<dyn Backend>, kernel: &str, hc: &HostCall, iters: usize) -> f64 {
+    use intarsia_core::backend::MemKind;
+    use intarsia_core::{OpCall, ShapeInfo};
+    let put = |t: &HostTensor| {
+        let buf = hip.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
+        hip.upload(&buf, 0, &t.data, 0).unwrap();
+        intarsia_core::backend::TensorRef::new(buf, t.dtype, &t.shape)
+    };
+    let ins: Vec<_> = hc.inputs.iter().map(&put).collect();
+    let outs: Vec<_> = hc.outputs.iter().map(|o| put(&HostTensor::zeros(o.dtype, &o.shape))).collect();
+    let mut call = OpCall::new(hc.op, ins, outs, hc.attrs.clone());
+    call.check().unwrap();
+    let k = hip.kernels().into_iter().find(|k| k.name == kernel).unwrap_or_else(|| panic!("no kernel {kernel}"));
+    let need = k.scratch_bytes(&ShapeInfo::from_call(&call));
+    let buf = hip.alloc(need.max(16), MemKind::Device).unwrap();
+    call.scratch = Some(intarsia_core::backend::TensorRef::new(buf, DType::U8, &[need.max(16)]));
+    for _ in 0..5 {
+        hip.launch(kernel, &call, 0).unwrap();
+    }
+    hip.synchronize(0).unwrap();
+    let t0 = std::time::Instant::now();
+    for _ in 0..iters {
+        hip.launch(kernel, &call, 0).unwrap();
+    }
+    hip.synchronize(0).unwrap();
+    t0.elapsed().as_secs_f64() * 1e6 / iters as f64
+}
+
+/// Prefill timing of the three MXFP4 GEMMs on the 27B's projection shapes: W4A4 `matmul_mxfp4_mma_fold` (the former default),
+/// W4A16 `matmul_mxfp4_mma` (act = none, bf16 WMMA, the current 27B default), W4A8 `matmul_mxfp4_a8_mma`. Prints `TIME` lines.
+///   cargo test --release -p intarsia-backend-hip --test mxfp4_a8 -- --ignored --nocapture timing (quiet on the GPU)
 #[test]
 #[ignore = "micro-timing"]
 fn timing_mxfp4_prefill() {
-    use intarsia_core::backend::MemKind;
-    use intarsia_core::{OpCall, ShapeInfo};
     let Some(hip) = device() else { return };
     let mut rng = SplitMix64::new(96);
-    let time = |kernel: &str, hc: &HostCall| -> f64 {
-        let put = |t: &HostTensor| {
-            let buf = hip.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
-            hip.upload(&buf, 0, &t.data, 0).unwrap();
-            intarsia_core::backend::TensorRef::new(buf, t.dtype, &t.shape)
-        };
-        let ins: Vec<_> = hc.inputs.iter().map(&put).collect();
-        let outs: Vec<_> = hc.outputs.iter().map(|o| put(&HostTensor::zeros(o.dtype, &o.shape))).collect();
-        let mut call = OpCall::new(hc.op, ins, outs, hc.attrs.clone());
-        call.check().unwrap();
-        let k = hip.kernels().into_iter().find(|k| k.name == kernel).unwrap_or_else(|| panic!("no kernel {kernel}"));
-        let need = k.scratch_bytes(&ShapeInfo::from_call(&call));
-        let buf = hip.alloc(need.max(16), MemKind::Device).unwrap();
-        call.scratch = Some(intarsia_core::backend::TensorRef::new(buf, DType::U8, &[need.max(16)]));
-        for _ in 0..5 {
-            hip.launch(kernel, &call, 0).unwrap();
-        }
-        hip.synchronize(0).unwrap();
-        let t0 = std::time::Instant::now();
-        for _ in 0..20 {
-            hip.launch(kernel, &call, 0).unwrap();
-        }
-        hip.synchronize(0).unwrap();
-        t0.elapsed().as_secs_f64() * 1e6 / 20.0
-    };
     for (n, k) in [(17408usize, 5120usize), (5120, 17408), (10240, 5120), (6144, 5120), (5120, 6144), (12288, 5120)] {
         for m in [256usize, 1024, 4096] {
             let flops = 2.0 * m as f64 * n as f64 * k as f64;
             for (kernel, act) in [("matmul_mxfp4_mma_fold", Mxfp4Act::Dynamic), ("matmul_mxfp4_mma", Mxfp4Act::None), ("matmul_mxfp4_a8_mma", Mxfp4Act::Fp8)] {
                 let hc = matmul_mxfp4_case(&mut rng, m, n, k, act, DType::Bf16, DType::Bf16);
-                let us = time(kernel, &hc);
+                let us = time_launch(&hip, kernel, &hc, 20);
                 println!("TIME mxfp4 prefill {n}x{k:<6} M={m:<5} {kernel:<24} {us:10.1} us  {:6.1} TFLOPS", flops / us / 1e6);
             }
+        }
+    }
+}
+
+/// `matmul_mxfp4_a8_mma` only, at the Qwen3.8-27B tp2 per-rank projection shapes (gate+up pair, down, q+gate, z, o) and the prefill chunk
+/// rows 2048 / 4096, 100 launches each, bf16 out. Prints `TIME a8tp2` lines (microseconds include the activation pre-pass and span check).
+/// Env INTARSIA_HIP_MXFP4_A8_* of the kernel apply, so one run per knob value sweeps a variant.
+#[test]
+#[ignore = "micro-timing"]
+fn timing_a8_tp2() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(97);
+    for (name, n, k) in [("gate+up", 17408usize, 5120usize), ("down", 5120, 8704), ("q+gate", 6144, 5120), ("z", 3072, 5120), ("o", 5120, 3072)] {
+        for m in [2048usize, 4096] {
+            let flops = 2.0 * m as f64 * n as f64 * k as f64;
+            let hc = matmul_mxfp4_case(&mut rng, m, n, k, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+            let us = time_launch(&hip, "matmul_mxfp4_a8_mma", &hc, 100);
+            println!("TIME a8tp2 {name:<8} {n}x{k:<5} M={m:<5} {us:10.1} us  {:6.1} TFLOPS", flops / us / 1e6);
         }
     }
 }

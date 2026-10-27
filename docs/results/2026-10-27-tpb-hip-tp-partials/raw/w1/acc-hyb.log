@@ -1,0 +1,60 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_vl, hip)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'fp8' (the recipe's default on this backend, chosen for accuracy and speed (Qwen3.8-27B, full MMLU n=1425: W4A8 0.8204, W4A16 0.822, W4A4 0.802; against W4A16 prefill +48% and decode +11% at tp2, KL to the W4A16 golden 12x below W4A4's, docs/results/2026-10-27-w4a8-hip-fp8-act.md); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: fp8 (recipe qwen3_5_vl [tuning.hip] mxfp4_act)
+--spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_bf16 gated_rmsnorm=gated_rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_a8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split_qk_norm_rope_kv=gate_split_qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 logits=logits_bf16_gemv argmax=argmax_f32 logits=logits_bf16_gemv_rows
+accuracy: amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /work/golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf-transformers+quark-emulation transformers 5.19.0, torch 2.14.1, layer-streamed, MXFP4 weights dequantised to bf16, activations none (Quark even_round), 0 QDQ'd linears | model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 | revision not in the model path | dtype bfloat16 | KV dtype bf16 | template chatml
+  sampling/prompts: {"forward": "one full-sequence forward per prompt, layer by layer", "continuation": "none"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len - | launch flags: -
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 2048; longest prompt 700; prompts spanning more than one chunk: 0/10
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   3.186e-4   3.982e-4   3.982e-4   2.808e-3   0.0497   0.0490    96.32     38/38      0
+story                 39    39   100.00   1.519e-3   1.475e-3   1.475e-3   6.025e-3   0.0329   0.0331    97.95     39/39      0
+code                  87    87   100.00   4.654e-4   4.453e-4   4.453e-4   7.012e-3   0.0164   0.0164    97.70     87/87      0
+science               79    79   100.00   1.694e-3   1.681e-3   1.681e-3   9.406e-3   0.0284   0.0291    97.47     79/79      0
+chat_short            18    18   100.00   8.409e-4   8.208e-4   2.080e-3   6.590e-3   0.0296   0.0295    96.67     18/18      0
+chat_system           32    32    96.88   7.276e-3   6.963e-3   3.550e-4   5.966e-2   0.0426   0.0402    96.88      9/32      0
+chat_multiturn        58    58    98.28   1.185e-1   1.185e-1   3.566e-1    6.639e0   0.0161   0.0165    95.17     12/58      0
+chat_reasoning        90    90    94.44   4.542e-3   4.538e-3   2.360e-2   9.487e-2   0.0095   0.0095    98.00     18/90      0
+long_prose_300       300   300    99.67   4.610e-3   4.603e-3   4.603e-3   4.268e-1   0.0109   0.0110    93.40   158/300      0
+long_prose_700       700   700    98.57   6.327e-3   6.175e-3   6.175e-3   3.184e-1   0.0131   0.0132    93.37    18/700      0
+OVERALL                   1441    98.75   9.428e-3   9.345e-3   1.005e-2    6.639e0   0.0159   0.0160    94.55     33.0%      0
+prefill floor [4bit]: top-1 (all rows) 98.75% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 1.005e-2 (need <= 3.0e-2) ok [all rows, n=1441: 9.345e-3, reported only] | tail mass (all rows) ours 0.0160 vs ref 0.0159, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.005e-2 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 9.345e-3 (21-way KL over all rows <= static floor) | current def: PASS 1.005e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.392e-4   1.864e-4   1.864e-4   5.027e-4   0.0229   0.0230    95.00     16/16      0
+story                 39    16    87.50   2.085e-3   1.932e-3   1.932e-3   9.143e-3   0.0581   0.0584    97.50      3/16      0
+code                  87    16   100.00   5.241e-4   5.262e-4   5.262e-4   3.497e-3   0.0006   0.0006    95.00     16/16      0
+science               79    16   100.00   2.338e-3   2.295e-3   2.295e-3   7.613e-3   0.0474   0.0495    98.75     16/16      0
+chat_short            18    16   100.00   3.394e-4   3.437e-4   6.131e-4   2.915e-3   0.0333   0.0323    98.75     16/16      0
+chat_system           32    16   100.00   2.705e-3   2.563e-3   4.602e-5   2.116e-2   0.0523   0.0550    97.50     16/16      0
+chat_multiturn        58    16    93.75   3.269e-2   3.268e-2   3.312e-2   3.401e-1   0.0026   0.0027    97.50      6/16      0
+chat_reasoning        90    16    93.75   2.961e-3   2.961e-3   3.198e-3   1.287e-2   0.0001   0.0001    98.75      3/16      0
+long_prose_300       300    16   100.00   1.541e-3   1.544e-3   1.544e-3   1.678e-2   0.0001   0.0001    98.75     16/16      0
+long_prose_700       700    16    87.50   5.380e-2   5.306e-2   5.306e-2   3.959e-1   0.0156   0.0148    93.75      1/16      0
+OVERALL                    160    96.25   9.912e-3   9.809e-3   9.641e-3   3.959e-1   0.0233   0.0236    97.12     68.1%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 96.25% (not gated for this class) ok | 21-way KL (scored rows, n=118) 9.641e-3 (need <= 3.0e-2) ok [all rows, n=160: 9.809e-3, reported only] | tail mass (all rows) ours 0.0236 vs ref 0.0233, excess +0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 9.641e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 9.809e-3 (21-way KL over all rows <= static floor) | current def: PASS 9.641e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 62.4% of positions before the first argmax divergence, worst prompt 2.6% (informational)
+greedy-match [decode (teacher-forced)]: mean 68.1% of positions before the first argmax divergence, worst prompt 6.2% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=159

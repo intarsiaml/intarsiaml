@@ -1,0 +1,10 @@
+04:09:59 guard: [guard] radiance stopped 2026-10-27 04:09:58
+04:10:32 item 1 kl: == tp2 f32: exit 0|decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.12% (not gated for this class) ok | 21-way KL (scored rows, n=118) 5.669e-3 (need <= 3.0e-2) ok [all rows, n=160: 5.071e-3, reported only] | tail mass (all rows) |decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 5.669e-3 PASS|gate-definition: kl_floor [decode]: old def: PASS 5.071e-3 (21-way KL over all rows <= static floor) | 
+04:10:32 item 2: starting server hyb
+04:11:50 item 2 hyb mmlu: exit 1 
+04:11:50 item 3: starting server hyb+spoff
+04:14:23 item 3 hyb+spoff texts: exit 0       18 lines
+04:14:23 item 4: starting server hyb
+04:17:08 item 4 hyb texts: exit 0       18 lines
+04:17:22 item 5 gemm: 54 TIME lines
+04:17:32 guard: [guard] radiance answers 2026-10-27 04:17:32 (after 15 s)

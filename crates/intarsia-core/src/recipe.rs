@@ -364,6 +364,10 @@ pub struct BackendTuning {
     /// wins over `[defaults] mxfp4_act`, loses to the flag). For a mode only some backends implement: the Qwen3.8-27B sets `"fp8"`
     /// (W4A8) under `[tuning.hip]`, so CUDA and Metal keep the `[defaults]` W4A16.
     pub mxfp4_act: Option<crate::quant::Mxfp4Act>,
+    /// Tensor parallelism on this backend: the dtype of the row-parallel partials the all-reduce sums (`"f32"`: one rounding after the sum,
+    /// the unsharded matmul's; `"bf16"`: each rank rounds its partial first, half the all-reduce bytes) when `INTARSIA_TP_PARTIAL` is not
+    /// set ([`Recipe::resolve_tp_partial`]). Unset: `"f32"`. Per backend only, set only where an accuracy gate passed.
+    pub tp_partial: Option<String>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -465,6 +469,12 @@ impl Recipe {
 }
 
 impl Recipe {
+    /// The recipe's tensor-parallel partial dtype for `backend` (`[tuning.<backend>] tp_partial`, `"f32"` or `"bf16"`); `None`: the
+    /// engine's default (f32). `INTARSIA_TP_PARTIAL` wins over it.
+    pub fn resolve_tp_partial(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.tp_partial.as_deref())
+    }
+
     /// The recipe's busy prefill chunk for `backend` (`[tuning.<backend>] busy_chunk`): the rows of a prefill chunk that runs beside decoding
     /// sequences under continuous batching. `None`: the loader's own rule.
     pub fn resolve_busy_chunk(&self, backend: &str) -> Option<usize> {
@@ -610,6 +620,9 @@ impl Recipe {
         }
         if self.tuning.backends.values().any(|b| b.busy_chunk == Some(0)) {
             return Err(Error::model("recipe [tuning.<backend>] busy_chunk must be at least 1"));
+        }
+        if let Some(v) = self.tuning.backends.values().filter_map(|b| b.tp_partial.as_deref()).find(|v| !matches!(*v, "f32" | "bf16")) {
+            return Err(Error::model(format!("recipe [tuning.<backend>] tp_partial = \"{v}\" (f32 or bf16)")));
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {
