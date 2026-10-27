@@ -14,7 +14,8 @@
 //!    for calls of M on both sides of every tile cutover, gives the same bits as the solo row.
 //! 7. `a8_mma_hashes` (ignored; prints `HASH` lines): FNV-1a of the output bytes over shapes with every K and M tail; run once per
 //!    `INTARSIA_HIP_MXFP4_A8_PD` value (1 = the previous kernel and tile table; the kernel reads it once per process) and diff the lines: prefetch
-//!    distance 1 and 2, and the tile table of each, must agree bitwise.
+//!    distance 1 and 2, and the tile table of each, must agree bitwise. `INTARSIA_HIP_MXFP4_A8_LDS=0` (the padded LDS tile layout of the distance 2
+//!    kernels; lane LDF's swizzled layout is the default) must agree too.
 //!
 //! Needs a GPU: skips without one. INTARSIA_HIP_MXFP4_A8_PERGROUP=1 reruns 1-3 on the per-group path.
 #![cfg(ik_hip)]

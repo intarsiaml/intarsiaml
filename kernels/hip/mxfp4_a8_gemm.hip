@@ -17,8 +17,13 @@
 // INTARSIA_HIP_MXFP4_A8_PERGROUP=1 forces the per-group path (tests: real checkpoints never leave the fold path).
 // INTARSIA_HIP_MXFP4_A8_TILE=WN,WM,TN,TM[,PD] forces one tile (sweeps; the tiles of the table are accepted, PD 1 or 2, default 1).
 // INTARSIA_HIP_MXFP4_A8_PD=1 restores the previous kernel choice (global-load prefetch distance 1, the previous tile table).
+// INTARSIA_HIP_MXFP4_A8_LDS=0 restores the padded LDS tile layout (80 B rows) of the prefetch-distance-2 kernels; by default the tiles are 64 B per row with the
+// 16 B chunks XOR-swizzled by (row >> 1) & 3.
 // Block: WN x WM waves, each wave TN x TM fragments of 16 x 16 (weights x tokens); 64 k per stage, double-buffered through
-// registers (prefetch distance 2 by default: two register sets, the loads of stage k + 2 are in flight during stage k), LDS rows padded (ik_f8_gemm.h's layout). Fragments / k layout as ik_f8_gemm.h (both operands permute k alike).
+// registers (prefetch distance 2 by default: two register sets, the loads of stage k + 2 are in flight during stage k). LDS tile rows: 64 B with the four
+// 16 B chunks of row r stored at chunk position c ^ ((r >> 1) & 3) (SWZ, the default of the distance 2 kernels; the 16 B stores of a stage and the 16 B
+// fragment reads are both free of bank conflicts, and the tiles take 49152 B instead of 61440), or 80 B padded rows (ik_f8_gemm.h's layout; the
+// distance 1 and per-group kernels, and INTARSIA_HIP_MXFP4_A8_LDS=0). Fragments / k layout as ik_f8_gemm.h (both operands permute k alike).
 // K % 32 == 0 (a K % 64 == 32 tail stage is zero padded). Deterministic, fixed reduction order, independent of M.
 #include "ik_dq_gemm.h"
 #include "ik_mx_a8.h"
@@ -102,7 +107,8 @@ struct A8Args {
 // PD: global-load prefetch distance in stages. 1: the next stage's data is in flight while this stage's WMMAs run. 2: the stage after that as well
 // (two register sets): the loads have two stages of latency to hide instead of one, at +14 VGPRs (still 8 waves/SIMD on the 4 x 4 tiles). The k order
 // of every accumulator is the same for any PD (stages in ascending k, a stage's WMMAs in k order), so the output is bitwise the same.
-template <bool FOLD, int WN, int WM, int TN, int TM, int PD, typename OutT>
+// SWZ: the swizzled 64 B tile rows (above) instead of the padded 80 B ones. Only the byte offset of a 16 B chunk in LDS changes, so the output is bitwise the same.
+template <bool FOLD, int WN, int WM, int TN, int TM, int PD, bool SWZ, typename OutT>
 __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* __restrict__ out) {
     if ((*a.flag == 0) != FOLD) return;
     constexpr int NT = WN * WM * IK_WARP;
@@ -110,8 +116,9 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
     constexpr int CHW = BN * 2, CHX = BM * 4;  // 16-byte chunks of one stage: weights one group (32 codes), x 16 bytes
     constexpr int CW = (CHW + NT - 1) / NT, CX = (CHX + NT - 1) / NT;
     constexpr int SS = FOLD ? 4 : 4 * BN;  // per-group path: f32 scales [buf][group][n]
-    __shared__ __align__(16) uint8_t sw[2][BN * kA8LD];
-    __shared__ __align__(16) uint8_t sx[2][BM * kA8LD];
+    constexpr int LDR = SWZ ? kA8BK : kA8LD;  // LDS row stride in bytes
+    __shared__ __align__(16) uint8_t sw[2][BN * LDR];
+    __shared__ __align__(16) uint8_t sx[2][BM * LDR];
     __shared__ __align__(16) float sS[SS];
 
     const uint8_t* __restrict__ xq = a.xq;
@@ -124,6 +131,9 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
     const int m_blk = blockIdx.x * BM;
     const int64_t n_blk = (int64_t)blockIdx.y * BN;
     const int nk = (K + kA8BK - 1) / kA8BK, KG = K / kA8G;
+
+    // byte offset in a tile of 16 B chunk c (0..3, 16 k each) of row r
+    auto lo = [](int r, int c) { return SWZ ? r * kA8BK + ((c ^ ((r >> 1) & 3)) << 4) : r * kA8LD + c * 16; };
 
     struct Stage {
         uint4 rw[CW], rx[CX];
@@ -179,15 +189,15 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
                 }
                 const uint2 p0 = a8_fold8(st.rw[c].x, t0, t1), p1 = a8_fold8(st.rw[c].y, t0, t1);
                 const uint2 p2 = a8_fold8(st.rw[c].z, t0, t1), p3 = a8_fold8(st.rw[c].w, t0, t1);
-                uint8_t* p = &sw[buf][r * kA8LD + ch * kA8G];
-                *reinterpret_cast<uint4*>(p) = make_uint4(p0.x, p0.y, p1.x, p1.y);
-                *reinterpret_cast<uint4*>(p + 16) = make_uint4(p2.x, p2.y, p3.x, p3.y);
+                uint8_t* p = &sw[buf][0];
+                *reinterpret_cast<uint4*>(p + lo(r, ch * 2)) = make_uint4(p0.x, p0.y, p1.x, p1.y);
+                *reinterpret_cast<uint4*>(p + lo(r, ch * 2 + 1)) = make_uint4(p2.x, p2.y, p3.x, p3.y);
             }
         }
 #pragma unroll
         for (int c = 0; c < CX; ++c) {
             const int idx = tid + c * NT;
-            if (idx < CHX) *reinterpret_cast<uint4*>(&sx[buf][(idx >> 2) * kA8LD + (idx & 3) * 16]) = st.rx[c];
+            if (idx < CHX) *reinterpret_cast<uint4*>(&sx[buf][lo(idx >> 2, idx & 3)]) = st.rx[c];
         }
     };
 
@@ -216,11 +226,9 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
         for (int kk = 0; kk < kA8BK; kk += 32) {
             uint4 af[TN], bf[TM];
 #pragma unroll
-            for (int i = 0; i < TN; ++i)
-                af[i] = *reinterpret_cast<const uint4*>(&sw[buf][(wn * TN * 16 + i * 16 + lr) * kA8LD + kk + lh]);
+            for (int i = 0; i < TN; ++i) af[i] = *reinterpret_cast<const uint4*>(&sw[buf][lo(wn * TN * 16 + i * 16 + lr, (kk >> 4) + (lane >> 4))]);
 #pragma unroll
-            for (int j = 0; j < TM; ++j)
-                bf[j] = *reinterpret_cast<const uint4*>(&sx[buf][(wm * TM * 16 + j * 16 + lr) * kA8LD + kk + lh]);
+            for (int j = 0; j < TM; ++j) bf[j] = *reinterpret_cast<const uint4*>(&sx[buf][lo(wm * TM * 16 + j * 16 + lr, (kk >> 4) + (lane >> 4))]);
             if constexpr (FOLD) {
 #pragma unroll
                 for (int i = 0; i < TN; ++i)
@@ -303,10 +311,10 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_gemm_kernel(A8Args a, OutT* _
     }
 }
 
-template <bool FOLD, int WN, int WM, int TN, int TM, int PD = 1, typename OutT>
+template <bool FOLD, int WN, int WM, int TN, int TM, int PD = 1, bool SWZ = false, typename OutT>
 void a8_enqueue(const A8Args& a, OutT* out, hipStream_t s) {
     dim3 grid((unsigned)(((int64_t)a.M + WM * TM * 16 - 1) / (WM * TM * 16)), (unsigned)((a.N + WN * TN * 16 - 1) / (WN * TN * 16)));
-    a8_gemm_kernel<FOLD, WN, WM, TN, TM, PD, OutT><<<grid, WN * WM * 32, 0, s>>>(a, out);
+    a8_gemm_kernel<FOLD, WN, WM, TN, TM, PD, SWZ, OutT><<<grid, WN * WM * 32, 0, s>>>(a, out);
 }
 
 // INTARSIA_HIP_MXFP4_A8_TILE=WN,WM,TN,TM[,PD] forces one tile (PD 1 or 2, default 1), INTARSIA_HIP_MXFP4_A8_PERGROUP=1 forces the per-group path,
@@ -315,6 +323,7 @@ struct A8Cfg {
     int tile[5] = {0, 0, 0, 0, 1};
     int pergroup = 0;
     int pd = 2;
+    int lds = 1;
 };
 const A8Cfg& a8_cfg() {
     static const A8Cfg cfg = [] {
@@ -325,6 +334,8 @@ const A8Cfg& a8_cfg() {
         c.pergroup = (g && g[0] == '1') ? 1 : 0;
         const char* p = getenv("INTARSIA_HIP_MXFP4_A8_PD");
         c.pd = (p && p[0] == '1') ? 1 : 2;
+        const char* l = getenv("INTARSIA_HIP_MXFP4_A8_LDS");
+        c.lds = (l && l[0] == '0') ? 0 : 1;
         return c;
     }();
     return cfg;
@@ -340,6 +351,14 @@ void a8_run(const A8Args& a, OutT* out, hipStream_t s) {
         a8_enqueue<false, WN, WM, TN, TM>(a, out, s);       \
         return;                                             \
     }
+// the distance 2 fold kernel with the swizzled (default) or the padded LDS tiles, and the per-group kernel beside it
+#define IK_A8_TILE2(WN, WM, TN, TM)                                                   \
+    {                                                                                 \
+        if (a8_cfg().lds) a8_enqueue<true, WN, WM, TN, TM, 2, true>(a, out, s);      \
+        else a8_enqueue<true, WN, WM, TN, TM, 2, false>(a, out, s);                  \
+        a8_enqueue<false, WN, WM, TN, TM>(a, out, s);                                 \
+        return;                                                                       \
+    }
     const int* t = a8_cfg().tile;
     if (t[0] > 0) {
         const int key = t[0] * 1000 + t[1] * 100 + t[2] * 10 + t[3];
@@ -354,9 +373,9 @@ void a8_run(const A8Args& a, OutT* out, hipStream_t s) {
             return;
         }
         if (key == 4424 && t[4] == 1) IK_A8_TILE(4, 4, 2, 4, 1)
-        if (key == 4424 && t[4] == 2) IK_A8_TILE(4, 4, 2, 4, 2)
+        if (key == 4424 && t[4] == 2) IK_A8_TILE2(4, 4, 2, 4)
         if (key == 4224 && t[4] == 1) IK_A8_TILE(4, 2, 2, 4, 1)
-        if (key == 4224 && t[4] == 2) IK_A8_TILE(4, 2, 2, 4, 2)
+        if (key == 4224 && t[4] == 2) IK_A8_TILE2(4, 2, 2, 4)
         if (key == 2244 && t[4] == 1) IK_A8_TILE(2, 2, 4, 4, 1)
     }
     // ik_f8_gemm.h's f8_gemm_run table (weights x tokens), as the fold launch
@@ -373,8 +392,9 @@ void a8_run(const A8Args& a, OutT* out, hipStream_t s) {
     }
     // prefetch distance 2; the 128 x 256 tile for every M with a block per CU (it also wins below M = 2048 and for gate + up, where the 256 x 128 tile
     // was the choice), the 128 x 128 one for the small grids
-    if (blocks64) IK_A8_TILE(4, 4, 2, 4, 2)
-    IK_A8_TILE(4, 2, 2, 4, 2)
+    if (blocks64) IK_A8_TILE2(4, 4, 2, 4)
+    IK_A8_TILE2(4, 2, 2, 4)
+#undef IK_A8_TILE2
 #undef IK_A8_TILE
 }
 

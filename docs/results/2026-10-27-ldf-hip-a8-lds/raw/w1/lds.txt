@@ -1,0 +1,25 @@
+# AMD Radeon Graphics  CUs=32  clock=2350000 kHz  ldsPerBlockMax=65536
+base 4x4w 2x4f LD80 b128 bar st              lds= 61440    10.002 ms    241.5 TFLOP/s   5661.2 GB/s LDS read
+pipe 4x4w 2x4f LD80 b128 bar st              lds= 61440    10.029 ms    240.9 TFLOP/s   5645.9 GB/s LDS read
+nobar 4x4w 2x4f LD80 b128 st                 lds= 61440     8.451 ms    285.9 TFLOP/s   6700.0 GB/s LDS read
+nostore 4x4w 2x4f LD80 b128 bar              lds= 61440     7.746 ms    311.9 TFLOP/s   7309.9 GB/s LDS read
+pure 4x4w 2x4f LD80 b128 (nobar nost)        lds= 61440     7.344 ms    329.0 TFLOP/s   7709.8 GB/s LDS read
+pure-pipe 4x4w 2x4f LD80 b128                lds= 61440     7.226 ms    334.3 TFLOP/s   7835.6 GB/s LDS read
+b64 4x4w 2x4f LD80 bar st                    lds= 61440     9.111 ms    265.2 TFLOP/s   6214.8 GB/s LDS read
+ld64sw 4x4w 2x4f swz bar st                  lds= 49152     9.085 ms    265.9 TFLOP/s   6232.3 GB/s LDS read
+ld64sw-pure 4x4w 2x4f swz                    lds= 49152     6.804 ms    355.1 TFLOP/s   8321.8 GB/s LDS read
+ld64 4x4w 2x4f LD64 nopad pure               lds= 49152    16.048 ms    150.5 TFLOP/s   3528.4 GB/s LDS read
+ld72 4x4w 2x4f LD72 pure                     lds= 55296    31.034 ms     77.8 TFLOP/s   1824.6 GB/s LDS read
+2x4w 4x4f LD80 bar st                        lds= 61440     8.978 ms    269.1 TFLOP/s   4204.7 GB/s LDS read
+2x4w 4x4f LD80 pure                          lds= 61440     6.613 ms    365.4 TFLOP/s   5708.6 GB/s LDS read
+2x4w 4x4f LD80 pure-pipe                     lds= 61440     6.850 ms    352.7 TFLOP/s   5511.0 GB/s LDS read
+4x2w 2x4f(128x128) LD80 bar st               lds= 40960     4.878 ms    247.6 TFLOP/s   5803.8 GB/s LDS read
+4x4w 2x2f LD80 bar st                        lds= 40960     4.631 ms    260.9 TFLOP/s   8151.6 GB/s LDS read
+Areg 4x4w 2x4f LD80 bar st (weights from regs) lds= 61440     8.068 ms    299.4 TFLOP/s   7018.0 GB/s LDS read
+Areg 4x4w 2x4f LD80 pure                     lds= 61440     6.590 ms    366.6 TFLOP/s   8592.4 GB/s LDS read
+Areg-pipe 4x4w 2x4f LD80 pure                lds= 61440     7.078 ms    341.3 TFLOP/s   7999.6 GB/s LDS read
+READ 4x4w 2x4f LD80 b128                     lds= 61440     4.158 ms  (no WMMA)     0.0 TFLOP/s  13618.9 GB/s LDS read
+READ 4x4w 2x4f LD80 b64                      lds= 61440     4.149 ms  (no WMMA)     0.0 TFLOP/s  13648.2 GB/s LDS read
+READ 4x4w 2x4f swz b128                      lds= 49152     4.151 ms  (no WMMA)     0.0 TFLOP/s  13639.8 GB/s LDS read
+READ 4x4w 2x4f LD64 b128                     lds= 49152    15.306 ms  (no WMMA)     0.0 TFLOP/s   3699.4 GB/s LDS read
+READ 4x4w 2x4f LD72 b128                     lds= 55296    30.589 ms  (no WMMA)     0.0 TFLOP/s   1851.1 GB/s LDS read

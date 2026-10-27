@@ -1,0 +1,5 @@
+TIME a8tp2 gate+up  17408x5120  M=2048      2263.2 us   161.3 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1108.5 us   164.7 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       788.7 us   163.4 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       399.0 us   161.5 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       391.9 us   164.4 TFLOPS

@@ -1,0 +1,54 @@
+[localeval] calibrated: 22.0 tokens/sentence, 94 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=988 ttft=0.28s prefill=3525 tok/s decode=91.4 tok/s peak=119.7 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=992 ttft=0.28s prefill=3513 tok/s decode=93.5 tok/s peak=120.1 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.28s prefill=3533 tok/s decode=83.8 tok/s peak=120.4 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4109 ttft=1.10s prefill=3725 tok/s decode=92.8 tok/s peak=117.3 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4104 ttft=1.08s prefill=3788 tok/s decode=80.9 tok/s peak=97.2 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4107 ttft=1.10s prefill=3722 tok/s decode=85.4 tok/s peak=103.2 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16671 ttft=4.66s prefill=3578 tok/s decode=78.7 tok/s peak=107.7 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16672 ttft=4.67s prefill=3570 tok/s decode=84.5 tok/s peak=106.6 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16672 ttft=4.66s prefill=3574 tok/s decode=81.2 tok/s peak=107.2 tok/s out=128
+# localeval: ldf-rec_bin_ldf-dev-cli — 2026-10-27T10:15
+
+- model: `qwen38-27b-ldf` on ? (?), url `http://tatooine:8095/v1`
+- thinking: default; run kind: speed; label: ldf-w6-rec_bin_ldf-dev-cli-6
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed ldf-rec_bin_ldf-dev-cli --sizes 1024,4096,16384 --gen 128 --reps 3 --label ldf-w6-rec_bin_ldf-dev-cli-6 --recipe HIP_VISIBLE_DEVICES=0,1 ldf-dev-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 (; lane ldf) --wait-idle 60`
+- result file: `results/20261027-101512-ldf-rec_bin_ldf-dev-cli-ldf-w6-rec_bin_ldf-dev-cli-6/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 ldf-dev-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 (; lane ldf)
+````
+
+## Speed sweep
+
+served `qwen38-27b-ldf`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 989 | 0.28 | 3525 (3513–3533) * | - | 91.4 (83.8–93.5) | 120.1 (119.7–120.4) | - | - | 128 |
+| 4107 | 1.10 | 3725 (3722–3788) | 3789 | 85.4 (80.9–92.8) | 103.2 (97.2–117.3) | - | - | 128 |
+| 16672 | 4.67 | 3574 (3570–3578) | 3528 | 81.2 (78.7–84.5) | 107.2 (106.6–107.7) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 10.6% at 1024 tokens: noisy; rerun before comparing
+- decode spread 13.9% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261027-101512-ldf-rec_bin_ldf-dev-cli-ldf-w6-rec_bin_ldf-dev-cli-6/result.json
+[localeval] logged to unanimis: 5186e5f2-0d1f-4071-a7b8-d0502e2b1fa9

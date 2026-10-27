@@ -1,0 +1,30 @@
+mx_a8_quant_kernel(ik_bf16 const*, unsigned char*, float*, int) | VGPR 56 | scratch 0 | LDS 32 | occ 16
+a8_wspan_kernel(unsigned char const*, unsigned char*, int*, long, int) | VGPR 11 | scratch 0 | LDS 0 | occ 16
+a8_gemm_kernel<true, 4, 4, 4, 2, 1, false, float>(A8Args, float*) | VGPR 155 | scratch 0 | LDS 61440 | occ 8
+a8_gemm_kernel<false, 4, 4, 2, 4, 1, false, float>(A8Args, float*) | VGPR 195 | scratch 0 | LDS 63488 | occ 7
+a8_gemm_kernel<true, 4, 4, 4, 2, 2, false, float>(A8Args, float*) | VGPR 161 | scratch 0 | LDS 61440 | occ 8
+a8_gemm_kernel<true, 4, 4, 2, 4, 1, false, float>(A8Args, float*) | VGPR 161 | scratch 0 | LDS 61440 | occ 8
+a8_gemm_kernel<true, 4, 4, 2, 4, 2, true, float>(A8Args, float*) | VGPR 180 | scratch 0 | LDS 49152 | occ 8
+a8_gemm_kernel<true, 4, 4, 2, 4, 2, false, float>(A8Args, float*) | VGPR 175 | scratch 0 | LDS 61440 | occ 8
+a8_gemm_kernel<true, 4, 2, 2, 4, 1, false, float>(A8Args, float*) | VGPR 161 | scratch 0 | LDS 40960 | occ 6
+a8_gemm_kernel<false, 4, 2, 2, 4, 1, false, float>(A8Args, float*) | VGPR 197 | scratch 0 | LDS 43008 | occ 6
+a8_gemm_kernel<true, 4, 2, 2, 4, 2, true, float>(A8Args, float*) | VGPR 180 | scratch 0 | LDS 32768 | occ 8
+a8_gemm_kernel<true, 4, 2, 2, 4, 2, false, float>(A8Args, float*) | VGPR 175 | scratch 0 | LDS 40960 | occ 6
+a8_gemm_kernel<true, 2, 2, 4, 4, 1, false, float>(A8Args, float*) | VGPR 256 | scratch 48 | LDS 40960 | occ 3
+a8_gemm_kernel<false, 2, 2, 4, 4, 1, false, float>(A8Args, float*) | VGPR 256 | scratch 312 | LDS 43008 | occ 3
+a8_gemm_kernel<true, 4, 1, 2, 2, 1, false, float>(A8Args, float*) | VGPR 117 | scratch 0 | LDS 25600 | occ 5
+a8_gemm_kernel<false, 4, 1, 2, 2, 1, false, float>(A8Args, float*) | VGPR 152 | scratch 0 | LDS 27648 | occ 4
+a8_gemm_kernel<true, 4, 4, 4, 2, 1, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 155 | scratch 0 | LDS 61440 | occ 8
+a8_gemm_kernel<false, 4, 4, 2, 4, 1, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 195 | scratch 0 | LDS 63488 | occ 7
+a8_gemm_kernel<true, 4, 4, 4, 2, 2, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 161 | scratch 0 | LDS 61440 | occ 8
+a8_gemm_kernel<true, 4, 4, 2, 4, 1, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 161 | scratch 0 | LDS 61440 | occ 8
+a8_gemm_kernel<true, 4, 4, 2, 4, 2, true, ik_bf16>(A8Args, ik_bf16*) | VGPR 180 | scratch 0 | LDS 49152 | occ 8
+a8_gemm_kernel<true, 4, 4, 2, 4, 2, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 175 | scratch 0 | LDS 61440 | occ 8
+a8_gemm_kernel<true, 4, 2, 2, 4, 1, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 161 | scratch 0 | LDS 40960 | occ 6
+a8_gemm_kernel<false, 4, 2, 2, 4, 1, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 197 | scratch 0 | LDS 43008 | occ 6
+a8_gemm_kernel<true, 4, 2, 2, 4, 2, true, ik_bf16>(A8Args, ik_bf16*) | VGPR 180 | scratch 0 | LDS 32768 | occ 8
+a8_gemm_kernel<true, 4, 2, 2, 4, 2, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 175 | scratch 0 | LDS 40960 | occ 6
+a8_gemm_kernel<true, 2, 2, 4, 4, 1, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 256 | scratch 48 | LDS 40960 | occ 3
+a8_gemm_kernel<false, 2, 2, 4, 4, 1, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 256 | scratch 320 | LDS 43008 | occ 3
+a8_gemm_kernel<true, 4, 1, 2, 2, 1, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 117 | scratch 0 | LDS 25600 | occ 5
+a8_gemm_kernel<false, 4, 1, 2, 2, 1, false, ik_bf16>(A8Args, ik_bf16*) | VGPR 152 | scratch 0 | LDS 27648 | occ 4

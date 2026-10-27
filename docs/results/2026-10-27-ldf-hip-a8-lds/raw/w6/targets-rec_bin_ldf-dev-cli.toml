@@ -1,0 +1,3 @@
+[targets.ldf-rec_bin_ldf-dev-cli]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-ldf"
