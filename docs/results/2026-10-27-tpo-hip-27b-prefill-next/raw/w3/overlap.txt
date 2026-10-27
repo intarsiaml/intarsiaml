@@ -1,0 +1,21 @@
+AMD Radeon Graphics CUs 32 wall clock 100000 kHz GPU_MAX_HW_QUEUES=1
+  plain     comm stream, no comm (G G only)             80.581 ms for 40 iterations, 2.015 ms per iteration
+  plain     comm stream, comm in line on s1 (serial)    102.929 ms for 40 iterations, 2.573 ms per iteration
+  plain     comm stream, comm on s2 (overlap)           171.067 ms for 40 iterations, 4.277 ms per iteration
+  CU-masked comm stream, no comm (G G only)             79.372 ms for 40 iterations, 1.984 ms per iteration
+  CU-masked comm stream, comm in line on s1 (serial)    101.213 ms for 40 iterations, 2.530 ms per iteration
+  CU-masked comm stream, comm on s2 (overlap)           132.210 ms for 40 iterations, 3.305 ms per iteration
+AMD Radeon Graphics CUs 32 wall clock 100000 kHz GPU_MAX_HW_QUEUES=2
+  plain     comm stream, no comm (G G only)             78.971 ms for 40 iterations, 1.974 ms per iteration
+  plain     comm stream, comm in line on s1 (serial)    102.226 ms for 40 iterations, 2.556 ms per iteration
+  plain     comm stream, comm on s2 (overlap)           132.192 ms for 40 iterations, 3.305 ms per iteration
+  CU-masked comm stream, no comm (G G only)             78.967 ms for 40 iterations, 1.974 ms per iteration
+  CU-masked comm stream, comm in line on s1 (serial)    102.229 ms for 40 iterations, 2.556 ms per iteration
+  CU-masked comm stream, comm on s2 (overlap)           134.661 ms for 40 iterations, 3.367 ms per iteration
+AMD Radeon Graphics CUs 32 wall clock 100000 kHz GPU_MAX_HW_QUEUES=4
+  plain     comm stream, no comm (G G only)             78.881 ms for 40 iterations, 1.972 ms per iteration
+  plain     comm stream, comm in line on s1 (serial)    89.950 ms for 40 iterations, 2.249 ms per iteration
+  plain     comm stream, comm on s2 (overlap)           131.284 ms for 40 iterations, 3.282 ms per iteration
+  CU-masked comm stream, no comm (G G only)             78.965 ms for 40 iterations, 1.974 ms per iteration
+  CU-masked comm stream, comm in line on s1 (serial)    89.938 ms for 40 iterations, 2.248 ms per iteration
+  CU-masked comm stream, comm on s2 (overlap)           133.360 ms for 40 iterations, 3.334 ms per iteration

@@ -43,6 +43,7 @@ int ik_rt_host_alloc(void** p, size_t bytes);
 int ik_rt_host_free(void* p);
 int ik_rt_event_create_sync(void** ev); /* an event without timing, for waiting on */
 int ik_rt_event_sync(void* ev);
+int ik_rt_stream_wait_event(void* stream, void* ev); /* later work on `stream` waits for the work `ev` was recorded after */
 /* test seam (tests/staging.rs): a 1-thread kernel that spins on the wall clock for `us` microseconds */
 int ik_rt_spin(void* stream, unsigned us);
 int ik_rt_memcpy_d2d(void* dst, const void* src, size_t n, void* stream);

@@ -1,0 +1,21 @@
+AMD Radeon Graphics CUs 32 wall clock 100000 kHz GPU_MAX_HW_QUEUES=4
+  spin 1000 us  A alone (all CUs, 4 rounds of blocks) 8.035 ms
+overlap.hip:37 unknown error
+  spin 1000 us  B alone (16 blocks)                2.025 ms
+overlap.hip:37 unknown error
+  spin 1000 us  A then B, one stream               9.048 ms
+overlap.hip:37 unknown error
+  spin 1000 us  A on s1, B on s2 (B launched after A) 5.055 ms
+overlap.hip:37 unknown error
+  spin 1000 us  B on s2, A on s1 (B launched first) 8.312 ms
+overlap.hip:37 unknown error
+  spin 3000 us  A alone (all CUs, 4 rounds of blocks) 24.035 ms
+overlap.hip:37 unknown error
+  spin 3000 us  B alone (16 blocks)                6.025 ms
+overlap.hip:37 unknown error
+  spin 3000 us  A then B, one stream               27.054 ms
+overlap.hip:37 unknown error
+  spin 3000 us  A on s1, B on s2 (B launched after A) 24.313 ms
+overlap.hip:37 unknown error
+  spin 3000 us  B on s2, A on s1 (B launched first) 24.313 ms
+overlap.hip:37 unknown error

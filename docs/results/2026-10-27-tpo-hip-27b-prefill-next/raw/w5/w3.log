@@ -1,0 +1,50 @@
+fleetq: #6140 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'ARMS='"'"'base:tpo-base: ov2q1:tpo-dev1:INTARSIA_TP_OVERLAP=2,GPU_MAX_HW_QUEUES=1 ov2q2:tpo-dev1:INTARSIA_TP_OVERLAP=2,GPU_MAX_HW_QUEUES=2 ov2q4:tpo-dev1:INTARSIA_TP_OVERLAP=2,GPU_MAX_HW_QUEUES=4 ov4q2:tpo-dev1:INTARSIA_TP_OVERLAP=4,GPU_MAX_HW_QUEUES=2 base2:tpo-base:GPU_MAX_HW_QUEUES=2'"'"' O=$HOME/intarsiaml-tpo-logs/w3 bash ~/intarsiaml-tpo/scripts/tpo/w3.sh'
+[tpo] radiance inactive 2026-10-27 05:54:33
+AMD Radeon Graphics CUs 32 wall clock 100000 kHz GPU_MAX_HW_QUEUES=1
+  plain     comm stream, no comm (G G only)             80.581 ms for 40 iterations, 2.015 ms per iteration
+  plain     comm stream, comm in line on s1 (serial)    102.929 ms for 40 iterations, 2.573 ms per iteration
+  plain     comm stream, comm on s2 (overlap)           171.067 ms for 40 iterations, 4.277 ms per iteration
+  CU-masked comm stream, no comm (G G only)             79.372 ms for 40 iterations, 1.984 ms per iteration
+  CU-masked comm stream, comm in line on s1 (serial)    101.213 ms for 40 iterations, 2.530 ms per iteration
+  CU-masked comm stream, comm on s2 (overlap)           132.210 ms for 40 iterations, 3.305 ms per iteration
+AMD Radeon Graphics CUs 32 wall clock 100000 kHz GPU_MAX_HW_QUEUES=2
+  plain     comm stream, no comm (G G only)             78.971 ms for 40 iterations, 1.974 ms per iteration
+  plain     comm stream, comm in line on s1 (serial)    102.226 ms for 40 iterations, 2.556 ms per iteration
+  plain     comm stream, comm on s2 (overlap)           132.192 ms for 40 iterations, 3.305 ms per iteration
+  CU-masked comm stream, no comm (G G only)             78.967 ms for 40 iterations, 1.974 ms per iteration
+  CU-masked comm stream, comm in line on s1 (serial)    102.229 ms for 40 iterations, 2.556 ms per iteration
+  CU-masked comm stream, comm on s2 (overlap)           134.661 ms for 40 iterations, 3.367 ms per iteration
+AMD Radeon Graphics CUs 32 wall clock 100000 kHz GPU_MAX_HW_QUEUES=4
+  plain     comm stream, no comm (G G only)             78.881 ms for 40 iterations, 1.972 ms per iteration
+  plain     comm stream, comm in line on s1 (serial)    89.950 ms for 40 iterations, 2.249 ms per iteration
+  plain     comm stream, comm on s2 (overlap)           131.284 ms for 40 iterations, 3.282 ms per iteration
+  CU-masked comm stream, no comm (G G only)             78.965 ms for 40 iterations, 1.974 ms per iteration
+  CU-masked comm stream, comm in line on s1 (serial)    89.938 ms for 40 iterations, 2.248 ms per iteration
+  CU-masked comm stream, comm on s2 (overlap)           133.360 ms for 40 iterations, 3.334 ms per iteration
+T base rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1057 ms (3650.5 tok/s) | decode 0 ms (0.00 tok/s)
+T base rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1057 ms (3648.8 tok/s) | decode 0 ms (0.00 tok/s)
+T base rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1062 ms (3634.0 tok/s) | decode 0 ms (0.00 tok/s)
+I base: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1055 ms (3655.4 tok/s) | decode 885 ms (53.08 tok/s)
+T ov2q1 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1091 ms (3535.4 tok/s) | decode 0 ms (0.00 tok/s)
+T ov2q1 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1097 ms (3517.3 tok/s) | decode 1 ms (0.00 tok/s)
+T ov2q1 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1092 ms (3532.1 tok/s) | decode 0 ms (0.00 tok/s)
+I ov2q1: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1093 ms (3528.3 tok/s) | decode 884 ms (53.18 tok/s)
+T ov2q2 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1098 ms (3513.5 tok/s) | decode 1 ms (0.00 tok/s)
+T ov2q2 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1100 ms (3506.0 tok/s) | decode 1 ms (0.00 tok/s)
+T ov2q2 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1100 ms (3505.8 tok/s) | decode 0 ms (0.00 tok/s)
+I ov2q2: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1097 ms (3515.4 tok/s) | decode 883 ms (53.21 tok/s)
+T ov2q4 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1072 ms (3600.2 tok/s) | decode 0 ms (0.00 tok/s)
+T ov2q4 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1072 ms (3597.5 tok/s) | decode 0 ms (0.00 tok/s)
+T ov2q4 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1075 ms (3588.7 tok/s) | decode 0 ms (0.00 tok/s)
+I ov2q4: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1071 ms (3601.4 tok/s) | decode 884 ms (53.19 tok/s)
+T ov4q2 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1134 ms (3401.4 tok/s) | decode 1 ms (0.00 tok/s)
+T ov4q2 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1131 ms (3410.9 tok/s) | decode 1 ms (0.00 tok/s)
+T ov4q2 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1134 ms (3401.6 tok/s) | decode 1 ms (0.00 tok/s)
+I ov4q2: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1135 ms (3400.3 tok/s) | decode 885 ms (53.11 tok/s)
+T base2 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1070 ms (3606.1 tok/s) | decode 0 ms (0.00 tok/s)
+T base2 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1075 ms (3589.7 tok/s) | decode 0 ms (0.00 tok/s)
+T base2 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1075 ms (3587.3 tok/s) | decode 0 ms (0.00 tok/s)
+I base2: md5 d150c3504662 finish=length prompt=3858 (cached 0) completion=48 | prefill 1075 ms (3589.6 tok/s) | decode 882 ms (53.26 tok/s)
+[tpo] w3 done 2026-10-27 05:56:26
+[tpo] radiance active after 15 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793094995,"owned_by":"radiance"
+fleetq: #6140 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
