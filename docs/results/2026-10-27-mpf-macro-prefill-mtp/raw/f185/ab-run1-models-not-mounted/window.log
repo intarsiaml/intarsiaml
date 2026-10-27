@@ -1,0 +1,26 @@
+[window] job 5881 ab; stopping radiance 2026-10-26 23:53:54
+[window] radiance stopped 2026-10-26 23:53:56
+23:53:56 stages start, VRAM in use 57 MiB
+23:53:57 a-short-0-base exit 1: Error: loading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 with tp=2|    model error: reading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0/config.json: No such fi|
+23:53:57 a-short-0-dev exit 1: Error: loading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 with tp=2|    model error: reading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0/config.json: No such fi|
+23:53:57 DIFF (a) short-0: dev default ids == base default ids (a-short-0-dev.ids vs a-short-0-base.ids)
+23:53:57 DIFF spec stats (a) short-0: dev vs base default: [] vs []
+23:53:57 DIFF per-pass trace (a) short-0: dev vs base default: first difference at line  of 0 / 0
+23:53:58 a-4k-0-base exit 1: Error: loading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 with tp=2|    model error: reading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0/config.json: No such fi|
+23:53:58 a-4k-0-dev exit 1: Error: loading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 with tp=2|    model error: reading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0/config.json: No such fi|
+23:53:58 DIFF (a) 4k-0: dev default ids == base default ids (a-4k-0-dev.ids vs a-4k-0-base.ids)
+23:53:58 DIFF spec stats (a) 4k-0: dev vs base default: [] vs []
+23:53:58 DIFF per-pass trace (a) 4k-0: dev vs base default: first difference at line  of 0 / 0
+23:53:59 a-16k-0-base exit 1: Error: loading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 with tp=2|    model error: reading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0/config.json: No such fi|
+23:53:59 a-16k-0-dev exit 1: Error: loading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 with tp=2|    model error: reading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0/config.json: No such fi|
+23:53:59 DIFF (a) 16k-0: dev default ids == base default ids (a-16k-0-dev.ids vs a-16k-0-base.ids)
+23:53:59 DIFF spec stats (a) 16k-0: dev vs base default: [] vs []
+23:53:59 DIFF per-pass trace (a) 16k-0: dev vs base default: first difference at line  of 0 / 0
+23:54:00 b-16k-dev exit 1: Error: loading /models/intarsia/Qwen3.6-35B-A3B-NVFP4|    model error: reading /models/intarsia/Qwen3.6-35B-A3B-NVFP4/config.json: No such file or directory (os error 2)|
+23:54:00 b-16k-off exit 1: Error: loading /models/intarsia/Qwen3.6-35B-A3B-NVFP4|    model error: reading /models/intarsia/Qwen3.6-35B-A3B-NVFP4/config.json: No such file or directory (os error 2)|
+23:54:00 DIFF (b) 35B tp1 16k: dev --spec mtp ids == dev --spec off (b-16k-dev.ids vs b-16k-off.ids)
+23:54:00 (b) macro passes: off=[] dev-mtp=[]
+23:54:00 stages done (4 s)
+[window] stages done 2026-10-26 23:54:00 (exit 0)
+[window] starting radiance 2026-10-26 23:54:00
+[window] radiance answers 2026-10-26 23:54:10 (after 15 s)

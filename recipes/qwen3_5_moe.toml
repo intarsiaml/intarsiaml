@@ -77,7 +77,8 @@ prefill_chunk = 2048
 prefill_macro = 8192
 # `--spec mtp --spec-k 2` is the default at tp=1 on CUDA when no `--spec` is given (`--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out; `--max-batch`
 # above 1, a configured prefix store and checkpoints without the MTP head keep plain decode). The macro prefill pass runs with the head (lane mpf), so prefill
-# is within 1 % of `--spec off` and decode is 1.17-1.5x in every category (docs/results/2026-10-27-mpf-macro-prefill-mtp.md, lane cmtp before it).
+# is about 0.7 % below `--spec off` (the noise floor) and decode is 1.17-1.5x in every category on prompts under 4.8k, about 1.13x at 16k and 1.05x at 34k
+# (docs/results/2026-10-27-mpf-macro-prefill-mtp.md, section 9; lane cmtp before it).
 mtp_default_k = 2
 
 # 2048 on Metal (user-delegated 2026-10-22 19:41): at the 256 default, `qualify` on the 4k golden fails the prefix-reuse gate on
