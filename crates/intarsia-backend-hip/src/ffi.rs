@@ -119,6 +119,7 @@ extern "C" {
     pub fn ik_rt_host_alloc(p: *mut *mut c_void, bytes: usize) -> c_int;
     pub fn ik_rt_host_free(p: *mut c_void) -> c_int;
     pub fn ik_rt_event_create_sync(ev: *mut S) -> c_int;
+    pub fn ik_rt_stream_wait_event(stream: *mut c_void, ev: *mut c_void) -> c_int;
     pub fn ik_rt_event_sync(ev: S) -> c_int;
     pub fn ik_rt_spin(stream: S, us: u32) -> c_int;
 

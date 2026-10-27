@@ -133,6 +133,9 @@ pub struct HipBackend {
     driver_version: i32,
     /// `hipStream_t` handles (as usize), index = StreamId; grown on demand.
     streams: Mutex<Vec<usize>>,
+    /// `hipEvent_t` handles (as usize) for [`Backend::stream_wait`], used round robin: a wait takes the state of the event at the call, so an
+    /// event can be recorded again once the waits on it are queued. Created on the first use (no event exists unless the lane TPO overlap runs).
+    fork_events: Mutex<(Vec<usize>, usize)>,
     /// per-kernel GPU-time trace (INTARSIA_HIP_TRACE=1: start/stop event pair per launch), printed to stderr when the
     /// backend is dropped
     trace: Option<Mutex<Trace>>,
@@ -166,6 +169,7 @@ struct Staging {
     next: usize,
 }
 
+const FORK_EVENTS: usize = 16;
 const STAGE_SLOTS: usize = 8;
 const STAGE_SLOT: usize = 64 << 10;
 
@@ -373,6 +377,7 @@ impl HipBackend {
             runtime_version: info.runtime_version,
             driver_version: info.driver_version,
             streams: Mutex::new(Vec::new()),
+            fork_events: Mutex::new((Vec::new(), 0)),
             trace: std::env::var_os("INTARSIA_HIP_TRACE").filter(|v| v != "0").map(|_| Mutex::new(Trace::default())),
             capturing: AtomicBool::new(false),
             staging: Mutex::new(None),
@@ -991,6 +996,32 @@ impl Backend for HipBackend {
             )));
         }
         Ok(())
+    }
+
+    fn stream_overlap(&self) -> bool {
+        true
+    }
+
+    fn stream_wait(&self, waiter: StreamId, signal: StreamId) -> Result<()> {
+        self.bind()?;
+        let (w, s) = (self.stream(waiter)?, self.stream(signal)?);
+        let ev = {
+            let mut pool = self.fork_events.lock().unwrap();
+            if pool.0.is_empty() {
+                for _ in 0..FORK_EVENTS {
+                    let mut h: *mut c_void = std::ptr::null_mut();
+                    // SAFETY: valid out-pointer; the device is bound.
+                    check("hipEventCreate", unsafe { ffi::ik_rt_event_create_sync(&mut h) })?;
+                    pool.0.push(h as usize);
+                }
+            }
+            let i = pool.1;
+            pool.1 = (i + 1) % FORK_EVENTS;
+            pool.0[i] as *mut c_void
+        };
+        // SAFETY: a live event and two live streams of this device; the wait uses the event's state at this call.
+        check("hipEventRecord", unsafe { ffi::ik_rt_event_record(ev, s) })?;
+        check("hipStreamWaitEvent", unsafe { ffi::ik_rt_stream_wait_event(w, ev) })
     }
 
     fn synchronize(&self, stream: StreamId) -> Result<()> {

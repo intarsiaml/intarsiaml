@@ -3358,13 +3358,9 @@ impl Model {
         match &self.ws.part {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, d.hidden]);
-                self.proj(&o_in, &a.wo, &part, profile)?;
-                self.all_reduce(&part, out, profile)
+                self.proj_then_reduce(&o_in, &a.wo, &part, out, t, profile)
             }
-            None => {
-                self.proj(&o_in, &a.wo, out, profile)?;
-                self.all_reduce(out, out, profile)
-            }
+            None => self.proj_then_reduce(&o_in, &a.wo, out, out, t, profile),
         }
     }
 
@@ -3501,8 +3497,7 @@ impl Model {
                 if f.down.format == crate::quant::MXFP4 {
                     // the MXFP4 matmul writes the f32 partial itself (Qwen3.8-27B tp=2; the shard holds whole 32-groups of
                     // the intermediate columns, `Mxfp4::load`)
-                    self.proj(&a, &f.down, &part, profile)?;
-                    return self.all_reduce(&part, out, profile);
+                    return self.proj_then_reduce(&a, &f.down, &part, out, t, profile);
                 }
                 if !bf16(&f.down) {
                     return Err(Error::Unsupported(format!("tensor-parallel dense FFN with {} weights", f.down.format)));
@@ -3510,10 +3505,7 @@ impl Model {
                 self.exec(Op::Logits, vec![a, f.down.parts[0].clone()], vec![part.clone()], OpAttrs::default(), profile)?;
                 self.all_reduce(&part, out, profile)
             }
-            None => {
-                self.proj(&a, &f.down, out, profile)?;
-                self.all_reduce(out, out, profile)
-            }
+            None => self.proj_then_reduce(&a, &f.down, out, out, t, profile),
         }
     }
 
@@ -3524,14 +3516,61 @@ impl Model {
         match &self.ws.part {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
-                self.proj(x, w, &part, profile)?;
-                self.all_reduce(&part, out, profile)
+                self.proj_then_reduce(x, w, &part, out, t, profile)
             }
-            None => {
-                self.proj(x, w, out, profile)?;
-                self.all_reduce(out, out, profile)
-            }
+            None => self.proj_then_reduce(x, w, out, out, t, profile),
         }
+    }
+
+    /// Rows per piece when a row-parallel projection of `t` rows runs as pieces whose all-reduces overlap the next piece's GEMM (lane TPO,
+    /// `INTARSIA_TP_OVERLAP=K`, K >= 2 pieces, default off; needs a second hardware queue, `GPU_MAX_HW_QUEUES >= 2`, or the all-reduce waits in line
+    /// behind the GEMM). `None`: the projection runs whole, as before. Pieces are multiples of 256 rows (the GEMM's tile). Only an eager,
+    /// unprofiled, unrecorded pass of at least two tiles of rows on a two-rank group whose backend runs two streams side by side.
+    fn overlap_piece(&self, t: usize, profile: bool) -> Option<usize> {
+        static K: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+        let k = *K.get_or_init(|| std::env::var("INTARSIA_TP_OVERLAP").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(0));
+        if k < 2 || t < 512 || profile || self.stream != 0 || self.tp.world != 2 || self.tp.comm.is_none() || self.no_comm || self.test_bug.is_some() {
+            return None;
+        }
+        if !self.backend.stream_overlap() || self.recorder.lock().unwrap().is_some() || self.capture_ops.lock().unwrap().is_some() {
+            return None;
+        }
+        let piece = t.div_ceil(k).div_ceil(256) * 256;
+        (piece < t).then_some(piece)
+    }
+
+    /// `proj(x, w) -> dst`, then the all-reduce `dst -> out` (`dst` and `out` the same tensor for bf16 partials). With [`Model::overlap_piece`]
+    /// the rows go in pieces: after each piece's GEMM (stream 0) its all-reduce is queued on stream 1 behind an event, so it runs while stream 0
+    /// computes the next piece; stream 0 waits for stream 1 after the last piece. Every kernel is row-independent and the all-reduce is per
+    /// element, so the result is bitwise the whole-chunk one. The collectives stay on one stream in one order on both ranks.
+    fn proj_then_reduce(&self, x: &TensorRef, w: &QTensor, dst: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+        let Some(piece) = self.overlap_piece(t, profile) else {
+            self.proj(x, w, dst, profile)?;
+            return self.all_reduce(dst, out, profile);
+        };
+        let comm = self.tp.comm.as_ref().expect("overlap_piece checked the communicator");
+        if self.tp_arnorm {
+            self.flush_ar(profile)?; // a reduction still pending from the block before
+        }
+        let skip = self.take_dropped_collective();
+        let mut r0 = 0;
+        while r0 < t {
+            let n = piece.min(t - r0);
+            self.proj(&x.rows(r0, n), w, &dst.rows(r0, n), profile)?;
+            if !skip {
+                self.backend.stream_wait(1, self.stream)?;
+                comm.all_reduce_sum_into(&dst.rows(r0, n), &out.rows(r0, n), 1)?;
+                if self.coll_trace.on {
+                    self.coll_trace.issue();
+                }
+                self.telemetry.record_comm(None);
+            }
+            r0 += n;
+        }
+        if !skip {
+            self.backend.stream_wait(self.stream, 1)?;
+        }
+        Ok(())
     }
 
     /// Sum a row-parallel projection's partial results over the tensor-parallel group into `out` (in place when

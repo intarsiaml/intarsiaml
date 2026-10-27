@@ -303,6 +303,18 @@ pub trait Backend: Send + Sync {
     /// Wait for all work on `stream`.
     fn synchronize(&self, stream: StreamId) -> Result<()>;
 
+    /// Whether two streams of this backend can run side by side and [`Backend::stream_wait`] orders them (lane TPO: the tensor-parallel
+    /// all-reduce on a second stream beside the next rows' GEMM). `false` (the default): the engine never uses a second stream.
+    fn stream_overlap(&self) -> bool {
+        false
+    }
+
+    /// Order `waiter` after everything queued so far on `signal`: work launched on `waiter` from now on starts once that work is done. Only
+    /// when [`Backend::stream_overlap`] is `true`.
+    fn stream_wait(&self, _waiter: StreamId, _signal: StreamId) -> Result<()> {
+        Err(Error::Unsupported("stream_wait".into()))
+    }
+
     /// Device-side token feedback for greedy decode (`Model::feedback_step`): `(supported, on by default)`. Supported
     /// means [`Backend::fence`] commits without waiting and [`Backend::read_after`] waits only for the work up to its
     /// fence, so the engine can encode step N+1 (fed by step N's on-device argmax) before it reads step N's token.
