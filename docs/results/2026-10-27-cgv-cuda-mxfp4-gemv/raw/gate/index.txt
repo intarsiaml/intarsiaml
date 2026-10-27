@@ -1,0 +1,16 @@
+cgv-main-off-r1: - result file: `results/20261027-155702-adhoc-cgv-main-off-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-155702-adhoc-cgv-main-off-r1/result.json 
+cgv-dev-off-r1: - result file: `results/20261027-160110-adhoc-cgv-dev-off-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-160110-adhoc-cgv-dev-off-r1/result.json 
+cgv-main-on-r1: - result file: `results/20261027-160613-adhoc-cgv-main-on-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-160613-adhoc-cgv-main-on-r1/result.json 
+cgv-dev-on-r1: - result file: `results/20261027-161120-adhoc-cgv-dev-on-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-161120-adhoc-cgv-dev-on-r1/result.json 
+cgv-dev-on-r2: - result file: `results/20261027-161535-adhoc-cgv-dev-on-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-161535-adhoc-cgv-dev-on-r2/result.json 
+cgv-main-on-r2: - result file: `results/20261027-161951-adhoc-cgv-main-on-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-161951-adhoc-cgv-main-on-r2/result.json 
+cgv-dev-off-r2: - result file: `results/20261027-162310-adhoc-cgv-dev-off-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-162310-adhoc-cgv-dev-off-r2/result.json 
+cgv-main-off-r2: - result file: `results/20261027-162659-adhoc-cgv-main-off-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261027-162659-adhoc-cgv-main-off-r2/result.json 
+cgv-main-off-r3: - result file: `results/20261027-163102-adhoc-cgv-main-off-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-163102-adhoc-cgv-main-off-r3/result.json 
+cgv-dev-off-r3: - result file: `results/20261027-163502-adhoc-cgv-dev-off-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-163502-adhoc-cgv-dev-off-r3/result.json 
+cgv-main-on-r3: - result file: `results/20261027-163954-adhoc-cgv-main-on-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-163954-adhoc-cgv-main-on-r3/result.json 
+cgv-dev-on-r3: - result file: `results/20261027-164407-adhoc-cgv-dev-on-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261027-164407-adhoc-cgv-dev-on-r3/result.json 
+cgv-dev-on-r4: - result file: `results/20261027-164821-adhoc-cgv-dev-on-r4/result.json` [localeval] saved /opt/code/deepeval/results/20261027-164821-adhoc-cgv-dev-on-r4/result.json 
+cgv-main-on-r4: - result file: `results/20261027-165242-adhoc-cgv-main-on-r4/result.json` [localeval] saved /opt/code/deepeval/results/20261027-165242-adhoc-cgv-main-on-r4/result.json 
+cgv-dev-off-r4: - result file: `results/20261027-165558-adhoc-cgv-dev-off-r4/result.json` [localeval] saved /opt/code/deepeval/results/20261027-165558-adhoc-cgv-dev-off-r4/result.json 
+cgv-main-off-r4: - result file: `results/20261027-165953-adhoc-cgv-main-off-r4/result.json` [localeval] saved /opt/code/deepeval/results/20261027-165953-adhoc-cgv-main-off-r4/result.json 

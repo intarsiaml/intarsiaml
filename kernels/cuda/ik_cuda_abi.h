@@ -139,6 +139,13 @@ int ik_matmul_mxfp4_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor*
 int ik_matmul_mxfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                               ik_tensor* out, void* stream);
 
+/* matmul_mxfp4_gemv_mr / _mr_rows (kernels/cuda/mxfp4.cu): W4A16 multi-row GEMV for M = 1..4 (other M: IK_ERR_SHAPE), bitwise
+ * ik_matmul_mxfp4_gemv per element; `act` is not read (the caller routes W4A16 calls only). The _rows name is the rows_exact twin. */
+int ik_matmul_mxfp4_gemv_mr(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                            ik_tensor* out, void* stream);
+int ik_matmul_mxfp4_gemv_mr_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                                 ik_tensor* out, void* stream);
+
 /* matmul_exl3_gemv: x[M,K] (bf16 / f16 / f32), trellis i16 [K/16,N/16,8*k2] (k2 = 2 * bits: 2, 4, .., 16 with any codebook,
  * 3 / 5 / 7 with mul1), suh f16 [K], svh f16 [N], codebook i32 [1] ON THE DEVICE (0 = 3inst, 1 = mcg, 2 = mul1; any other
  * value, or a codebook that does not exist at the width, fills out with NaN) -> out[M,N] (bf16 / f16 / f32) =

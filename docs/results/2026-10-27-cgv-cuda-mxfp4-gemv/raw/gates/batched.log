@@ -1,0 +1,64 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1209:4
+     |
+1209 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
+warning: value assigned to `reason` is never read
+    --> crates/intarsia-models/tests/batch_cuda_real.rs:1076:45
+     |
+1076 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+     |                                             ^^^^^^
+     |
+     = help: maybe it is overwritten before being read?
+     = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:265:8
+    |
+265 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.08s
+     Running tests/batch_cuda_real.rs (target/release/deps/batch_cuda_real-a41e7f0f521d6475)
+
+running 1 test
+plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663231488, free_bytes: 72428875776, weights_bytes: 18027119552, workspace_bytes: 876715472, kv_bytes_per_token: 65536, kv_fraction: 0.95, kv_budget_bytes: 68807431123, kv_cap_tokens: 2048, kv_total_bytes: 134217728, notes: [] }
+recurrent bytes per state 156893184
+batch plan: 2048 KV tokens per sequence, 2147483648 KV bytes in all, 65536 bytes per token; notes ["2244 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 149 MiB per sequence)"]
+batch plan notes: ["2244 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 149 MiB per sequence)"]
+16 sequences prefilled twice in 5.9 s
+test real_35b_batched_decode_is_bitwise_the_solo_step has been running for over 60 seconds
+batch 2: 130 steps bitwise in 29.0 s (per step: 75.3 ms batched, 146.7 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 39.2 s (per step: 78.5 ms batched, 220.2 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 49.2 s (per step: 83.0 ms batched, 293.1 ms for the 4 solo steps)
+batch 8: 130 steps bitwise in 97.9 s (per step: 161.2 ms batched, 586.1 ms for the 8 solo steps)
+batch 16: 130 steps bitwise in 193.5 s (per step: 300.5 ms batched, 1177.1 ms for the 16 solo steps)
+4290 (row, step) pairs bitwise identical in 414.9 s
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 458.39s
+

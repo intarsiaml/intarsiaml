@@ -1,0 +1,19 @@
+kernels total 224578, prefill part 19062, decode part 205516
+decode span 14319.6 ms, kernel time 14205.9 ms, union busy 14205.6 ms, idle 114.0 ms
+mxfp4_gemv_kernel<__nv_bfloat16>                                                              11414.4 ms  80.3 %   94736 calls     120.5 us avg
+gemv_kernel<                                                                                   2059.6 ms  14.5 %     191 calls   10783.0 us avg
+splitkv_kernel<                                                                                 300.3 ms   2.1 %    3056 calls      98.3 us avg
+gdn_delta_split_kernel<                                                                         161.2 ms   1.1 %    9168 calls      17.6 us avg
+rmsnorm_kernel<                                                                                  97.2 ms   0.7 %   30751 calls       3.2 us avg
+gdn_conv_kernel                                                                                  39.1 ms   0.3 %    9168 calls       4.3 us avg
+rope_kernel                                                                                      32.2 ms   0.2 %    6112 calls       5.3 us avg
+kv_append_kernel<__nv_bfloat16,                                                                  19.0 ms   0.1 %    6112 calls       3.1 us avg
+gated_rmsnorm_kernel<                                                                            17.9 ms   0.1 %    9168 calls       2.0 us avg
+gdn_conv_state_kernel                                                                            17.6 ms   0.1 %    9168 calls       1.9 us avg
+silu_glu_kernel<                                                                                 16.2 ms   0.1 %   12224 calls       1.3 us avg
+combine_kernel<                                                                                  14.9 ms   0.1 %    3056 calls       4.9 us avg
+rope_pass_kernel                                                                                  5.3 ms   0.0 %    6112 calls       0.9 us avg
+argmax_kernel<float>                                                                              3.7 ms   0.0 %     191 calls      19.2 us avg
+gate_split_kernel                                                                                 3.1 ms   0.0 %    3056 calls       1.0 us avg
+sigmoid_mul_kernel                                                                                2.9 ms   0.0 %    3056 calls       0.9 us avg
+embedding_kernel<                                                                                 1.4 ms   0.0 %     191 calls       7.4 us avg

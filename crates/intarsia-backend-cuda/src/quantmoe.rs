@@ -6,7 +6,7 @@
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
 use crate::kernels::{
-    ROWS_MAX, mxfp4_mma_priority, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_gemm_lt_serves, fp8_pair_reg, fp8_pair_reg_yields_to_lt, moe_nvfp4_priority, moe_w4a16_priority,
+    ROWS_MAX, mxfp4_gemv_mr_priority, mxfp4_mma_priority, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_gemm_lt_serves, fp8_pair_reg, fp8_pair_reg_yields_to_lt, moe_nvfp4_priority, moe_w4a16_priority,
     nvfp4_reg, ARCH,
 };
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
@@ -34,6 +34,10 @@ pub const TABLE: &[(&str, Op)] = &[
     // prefill (M >= MXFP4_MMA_MIN_TOKENS, W4A16 calls): weights dequantised to bf16 in shared memory, bf16 tensor cores
     // (kernels/cuda/mxfp4_gemm.cu); INTARSIA_CUDA_MXFP4_MMA=0 keeps the GEMV
     ("matmul_mxfp4_mma", Op::MatmulMxfp4),
+    // decode / MTP-verify (M = 2..=4, W4A16 calls): the multi-row GEMV, bitwise the one-row GEMV per element (kernels/cuda/mxfp4.cu);
+    // `_rows` is its `rows_exact` twin; INTARSIA_CUDA_MXFP4_GEMV_MR=0 keeps the one-row GEMV
+    ("matmul_mxfp4_gemv_mr", Op::MatmulMxfp4),
+    ("matmul_mxfp4_gemv_mr_rows", Op::MatmulMxfp4),
     ("moe_topk_bf16", Op::MoeTopk),
     ("moe_experts_bf16", Op::MoeExperts),
     ("moe_experts_decode_bf16", Op::MoeExperts),
@@ -259,6 +263,25 @@ pub fn all() -> Vec<KernelImpl> {
                     .rows_exact(),
                 // W4A16 only (`ShapeInfo::mxfp4_w4a16`: the call's `act` input is 0): the kernel does not quantise x. ordinary
                 // calls only (see above). Above the GEMV (priority 10) from MXFP4_MMA_MIN_TOKENS rows; K % 128 for the 64-byte raw unit.
+                // M = 2..=4, W4A16 only (`act` is not read): above the GEMV (priority 10); bitwise the GEMV, so ordinary and exact_rows calls
+                // may both take it. M = 1 stays on the GEMV (the microbench shows no gain at one row).
+                "matmul_mxfp4_gemv_mr" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.mxfp4_w4a16 && !s.mxfp4_a8 && (2..=4).contains(&s.m) && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(mxfp4_gemv_mr_priority(20)),
+                "matmul_mxfp4_gemv_mr_rows" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.mxfp4_w4a16 && !s.mxfp4_a8 && (2..=4).contains(&s.m) && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(mxfp4_gemv_mr_priority(5))
+                    .rows_exact(),
                 "matmul_mxfp4_mma" => k
                     .acts(bf)
                     .weights([DType::U8])

@@ -1,0 +1,10 @@
+loaded Qwen3.8-27B-MXFP4 on NVIDIA GB10 in 36.6s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 4210 tokens
+finish=length prompt=4210 (cached 0) completion=192 | prefill 5011 ms (840.1 tok/s) | decode 14320 ms (13.34 tok/s)
+steps=209 graph replays=192 (captures 1) eager decode steps=0 (profiled 0) top ops: argmax=0ms/192 attn_decode=0ms/3072 attn_prefill=0ms/272 embedding=0ms/209 gate_split=0ms/3344
+gen.err
+gen.out
+nsys.nsys-rep
+nsys.sqlite
+prompt.txt
+trace_cuda_gpu_trace.csv

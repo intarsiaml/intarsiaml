@@ -105,6 +105,80 @@ mxfp4_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, 
     }
 }
 
+// W4A16 GEMV for M = 2..4 rows (the MTP verify pass and small batched steps), bitwise `mxfp4_gemv_kernel` per output element: the same
+// chain (32 fmaf over the group, then one fmaf with the group scale), groups in the same lane order (lane, lane + 32, ...), the same
+// warp_sum. Two changes, both measured in the microbench (docs/results/2026-10-27-cgv-cuda-mxfp4-gemv.md): the row count M is a template
+// parameter (the baseline loops to a run-time `mc` over an 8-entry accumulator array), which alone takes M = 3 from 205 to 182 us on the
+// 27B gate/up shape; and one warp owns R consecutive output rows (R = 2 at M = 2 and 3, 4 at M = 4), loading each activation group once for
+// all R and keeping the R rows' weights in flight together, a further 0 to 9 %. Activations stay packed bf16 in registers and are
+// unpacked at each use. Does not read `act` (W4A16 only; the registry routes only W4A16 calls here). When N is not a multiple of R the
+// tail warp re-reads the last row for the missing ones and does not store them.
+template <typename OutT, int MT, int R>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+mxfp4_gemv_mr_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
+                     OutT* __restrict__ out, int64_t N, int K) {
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t n0 = ((int64_t)blockIdx.x * kWarps + warp) * R;
+    if (n0 >= N) return;  // whole warp exits together
+    const uint4* wr[R];
+    const uint8_t* sr[R];
+#pragma unroll
+    for (int r = 0; r < R; ++r) {
+        const int64_t nr = n0 + r < N ? n0 + r : N - 1;
+        wr[r] = reinterpret_cast<const uint4*>(w + nr * (K / 2));
+        sr[r] = sc + nr * (K / kG);
+    }
+    float acc[R][MT];
+#pragma unroll
+    for (int r = 0; r < R; ++r)
+#pragma unroll
+        for (int m = 0; m < MT; ++m) acc[r][m] = 0.f;
+    for (int u = lane; u < K / kG; u += IK_WARP) {
+        uint4 wv[R];
+        uint32_t sb[R];
+#pragma unroll
+        for (int r = 0; r < R; ++r) {
+            wv[r] = __ldcs(wr[r] + u);
+            sb[r] = sr[r][u];
+        }
+        uint4 xv[MT][4];
+#pragma unroll
+        for (int m = 0; m < MT; ++m) {
+            const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + (int64_t)u * kG);
+#pragma unroll
+            for (int j = 0; j < 4; ++j) xv[m][j] = __ldg(xp + j);
+        }
+#pragma unroll
+        for (int r = 0; r < R; ++r) {
+            const float s = mx_e8m0(sb[r]);
+            float wf[kG];
+            ik_fp4x8_to_f32(wv[r].x, wf);
+            ik_fp4x8_to_f32(wv[r].y, wf + 8);
+            ik_fp4x8_to_f32(wv[r].z, wf + 16);
+            ik_fp4x8_to_f32(wv[r].w, wf + 24);
+#pragma unroll
+            for (int m = 0; m < MT; ++m) {
+                float xf[kG];
+                ik_unpack8(xv[m][0], xf);
+                ik_unpack8(xv[m][1], xf + 8);
+                ik_unpack8(xv[m][2], xf + 16);
+                ik_unpack8(xv[m][3], xf + 24);
+                float t = 0.f;
+#pragma unroll
+                for (int e = 0; e < kG; ++e) t = fmaf(wf[e], xf[e], t);
+                acc[r][m] = fmaf(t, s, acc[r][m]);
+            }
+        }
+    }
+#pragma unroll
+    for (int r = 0; r < R; ++r)
+#pragma unroll
+        for (int m = 0; m < MT; ++m) {
+            const float t = ik_warp_sum(acc[r][m]);
+            if (lane == 0 && n0 + r < N) ik_store(out + (int64_t)m * N + n0 + r, t);
+        }
+}
+
 int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik_tensor* act, ik_tensor* out, void* stream) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 16));
@@ -135,6 +209,51 @@ int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik
     return ik_launch_status();
 }
 
+template <typename OutT, int MT, int R>
+void launch_mr_t(const ik_bf16* x, const uint8_t* w, const uint8_t* sc, OutT* out, int64_t N, int K, cudaStream_t s) {
+    const dim3 grid((unsigned)(((N + R - 1) / R + kWarps - 1) / kWarps));
+    mxfp4_gemv_mr_kernel<OutT, MT, R><<<grid, kWarps * IK_WARP, 0, s>>>(x, w, sc, out, N, K);
+}
+
+// Rows per warp by M, from the microbench (docs/results/2026-10-27-cgv-cuda-mxfp4-gemv.md): R = 2 serves M = 2 and 3, R = 4 serves M = 4.
+template <typename OutT>
+void launch_mr_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* sc, OutT* out, int64_t N, int K, cudaStream_t s) {
+    switch (M) {
+        case 1: launch_mr_t<OutT, 1, 2>(x, w, sc, out, N, K, s); break;
+        case 2: launch_mr_t<OutT, 2, 2>(x, w, sc, out, N, K, s); break;
+        case 3: launch_mr_t<OutT, 3, 2>(x, w, sc, out, N, K, s); break;
+        default: launch_mr_t<OutT, 4, 4>(x, w, sc, out, N, K, s); break;
+    }
+}
+
+int launch_mr(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik_tensor* act, ik_tensor* out, void* stream) {
+    IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
+    IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 16));
+    IK_TRY(ik_check_a(sc, IK_DTYPE_U8, 2, 1));
+    IK_TRY(ik_check_a(act, IK_DTYPE_F32, 1, 4));
+    if (!out || (out->dtype != IK_DTYPE_BF16 && out->dtype != IK_DTYPE_F32)) return IK_ERR_DTYPE;
+    IK_TRY(ik_check(out, out->dtype, 2));
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (K % kG != 0 || w->shape[1] != K / 2 || sc->shape[0] != N || sc->shape[1] != K / kG || act->shape[0] != 1 ||
+        out->shape[0] != M || out->shape[1] != N || M < 1 || M > 4)
+        return IK_ERR_SHAPE;
+    if (N == 0) return IK_OK;
+    if (K == 0)
+        return cudaMemsetAsync(out->data, 0, ik_numel(out) * (out->dtype == IK_DTYPE_F32 ? 4 : 2), IK_STREAM(stream)) == cudaSuccess
+                   ? IK_OK
+                   : IK_ERR_LAUNCH;
+    if (K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    cudaStream_t s = IK_STREAM(stream);
+    const ik_bf16* xp = (const ik_bf16*)x->data;
+    const uint8_t* wp = (const uint8_t*)w->data;
+    const uint8_t* sp = (const uint8_t*)sc->data;
+    if (out->dtype == IK_DTYPE_F32)
+        launch_mr_m<float>((int)M, xp, wp, sp, (float*)out->data, N, (int)K, s);
+    else
+        launch_mr_m<ik_bf16>((int)M, xp, wp, sp, (ik_bf16*)out->data, N, (int)K, s);
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
@@ -151,6 +270,19 @@ int ik_matmul_mxfp4_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor
 int ik_matmul_mxfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                               ik_tensor* out, void* stream) {
     return launch(x, w, scales, act, out, stream);
+}
+
+// W4A16 multi-row GEMV for M = 1..4 (the registry uses it for 2..4): bitwise `ik_matmul_mxfp4_gemv` per element, faster at M >= 2 (see the kernel).
+// `act` is accepted for the matmul_mxfp4 signature and not read: the caller routes W4A16 calls only. The `_rows` twin is the same
+// launcher (the rows_exact registry entry, like the GEMV's).
+int ik_matmul_mxfp4_gemv_mr(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act, ik_tensor* out,
+                            void* stream) {
+    return launch_mr(x, w, scales, act, out, stream);
+}
+
+int ik_matmul_mxfp4_gemv_mr_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
+                                 ik_tensor* out, void* stream) {
+    return launch_mr(x, w, scales, act, out, stream);
 }
 
 }  // extern "C"

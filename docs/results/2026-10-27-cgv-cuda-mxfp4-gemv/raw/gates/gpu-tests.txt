@@ -1,0 +1,50 @@
+== unit tests 14:03:27
+rc=0
+test mr_rows_do_not_depend_on_m_or_position ... ok
+test mr_is_bitwise_the_one_row_gemv ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+test mxfp4_gemv_rows_is_the_gemv ... ok
+test mxfp4_mma_rows_do_not_depend_on_m_or_position ... ok
+test mxfp4_mma_agrees_with_the_gemv ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+test timing_gemv_rows ... ignored, micro-timing
+test row_parallel_ops_are_row_independent ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test result: ok. 6 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 12.49s
+test print_tables ... ignored, prints the pin tables
+test attn_decode_rows_kernel_is_selected_only_with_a_table_and_for_supported_shapes ... ok
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.47s
+== verify rows 14:03:47
+rc=101
+test verify_rows_are_bitwise_the_single_row_steps has been running for over 60 seconds
+thread 'verify_rows_are_bitwise_the_single_row_steps' panicked at crates/intarsia-models/tests/verify_rows_real.rs:182:5:
+assertion `left == right` failed: the verify pass is not bitwise the single-row steps
+test verify_rows_are_bitwise_the_single_row_steps ... FAILED
+    verify_rows_are_bitwise_the_single_row_steps
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 65.06s
+== batched decode == solo 14:04:52
+rc=0
+batch plan notes: ["2244 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 149 MiB per sequence)"]
+test real_35b_batched_decode_is_bitwise_the_solo_step has been running for over 60 seconds
+4290 (row, step) pairs bitwise identical in 414.9 s
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 458.39s
+== kernels test --op matmul_mxfp4 14:12:31
+rc=0
+matmul_mxfp4   matmul_mxfp4_gemv_mr            0      0     0.000e0     0.000e0  NO CASES (untested)
+matmul_mxfp4   matmul_mxfp4_gemv_mr_rows       0      0     0.000e0     0.000e0  NO CASES (untested)
+5 kernels, 136 cases in 3.6s
+SKIPPED: kernel matmul_mxfp4_gemv_mr ran 0 cases on backend 'cuda'
+SKIPPED: kernel matmul_mxfp4_gemv_mr_rows ran 0 cases on backend 'cuda'
+incomplete: 2 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them)
+== kernels test --quick 14:12:35
+rc=0
+81 kernels, 553 cases in 6.0s
+incomplete: 2 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+== done 14:12:41

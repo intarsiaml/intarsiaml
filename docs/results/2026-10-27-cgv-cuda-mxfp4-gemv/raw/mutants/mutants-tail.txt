@@ -1,0 +1,3 @@
+# Re-run after adding W4A16 N=1 / N=3 cases to the sweep (crates/intarsia-core/src/quant/cases.rs), dev2 tree:
+tail-store-guard: CAUGHT by the sweep (M=2 N=1 K=64 bf16 and f32 FAIL, rel_l2 5.6e-1 to 8.4e-1); before the N=1 cases it survived the sweep (races with the first warp's store at N=135) and was caught by tests/mxfp4_gemv_mr.rs (M=2 N=1 K=64: differs from the one-row GEMV).
+tail-row-clamp: memory-safety only (reads the weights of rows N.. past the allocation, result discarded by the store guard): passes every output check; compute-sanitizer --tool memcheck on tests/mxfp4_gemv_mr: clean tree 0 errors, mutant 15 errors (Invalid __global__ read of size 16 bytes), both tests FAILED under it.
