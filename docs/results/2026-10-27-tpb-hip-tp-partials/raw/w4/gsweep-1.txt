@@ -1,0 +1,134 @@
+== variant default
+test a8_mma_wide_scale_span_takes_the_group_path ... ok
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_kernels_match_the_reference ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 5.65s
+TIME a8tp2 gate+up  17408x5120  M=2048      2449.4 us   149.0 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      4725.8 us   154.5 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1148.1 us   159.0 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      2356.4 us   154.9 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       804.0 us   160.3 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      1789.2 us   144.0 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       408.1 us   157.9 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096       861.3 us   149.6 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       403.2 us   159.8 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096       842.9 us   152.9 TFLOPS
+== variant 4,4,4,4,32
+test a8_mma_wide_scale_span_takes_the_group_path ... ok
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_kernels_match_the_reference ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 4.88s
+TIME a8tp2 gate+up  17408x5120  M=2048      2554.3 us   142.9 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      4933.4 us   148.0 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1441.7 us   126.6 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      2595.2 us   140.7 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       901.3 us   143.0 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      1975.4 us   130.5 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       451.0 us   142.9 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096       962.9 us   133.8 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       452.8 us   142.3 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096       945.1 us   136.3 TFLOPS
+== variant 4,2,4,4,32
+test a8_mma_wide_scale_span_takes_the_group_path ... ok
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_kernels_match_the_reference ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 4.89s
+TIME a8tp2 gate+up  17408x5120  M=2048      2759.6 us   132.3 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      5351.3 us   136.4 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1593.1 us   114.6 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      2914.5 us   125.3 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       982.1 us   131.2 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      2095.4 us   123.0 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       501.8 us   128.4 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096      1030.8 us   125.0 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       476.2 us   135.3 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096       970.2 us   132.8 TFLOPS
+== variant 2,4,4,4,32
+test a8_mma_wide_scale_span_takes_the_group_path ... ok
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_kernels_match_the_reference ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 4.90s
+TIME a8tp2 gate+up  17408x5120  M=2048      2532.9 us   144.1 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      6495.6 us   112.4 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1435.0 us   127.2 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      2567.7 us   142.2 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       919.5 us   140.1 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      2523.2 us   102.1 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       464.1 us   138.8 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096      1067.8 us   120.7 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       451.6 us   142.7 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096       969.3 us   132.9 TFLOPS
+== variant 4,4,4,2,32
+test a8_mma_wide_scale_span_takes_the_group_path ... ok
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_kernels_match_the_reference ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 4.90s
+TIME a8tp2 gate+up  17408x5120  M=2048      2898.0 us   126.0 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      5615.8 us   130.0 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1675.4 us   108.9 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      3069.6 us   118.9 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048      1026.7 us   125.5 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      2193.1 us   117.5 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       522.4 us   123.3 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096      1077.9 us   119.5 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       500.2 us   128.8 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096      1014.7 us   127.0 TFLOPS
+== variant 4,4,2,4,32
+test a8_mma_wide_scale_span_takes_the_group_path ... ok
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_kernels_match_the_reference ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 4.90s
+TIME a8tp2 gate+up  17408x5120  M=2048      2744.0 us   133.0 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      5290.6 us   138.0 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1525.9 us   119.6 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      2768.5 us   131.9 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       991.0 us   130.0 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      2125.3 us   121.3 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       505.2 us   127.5 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096      1039.4 us   124.0 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       492.0 us   130.9 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096       999.2 us   129.0 TFLOPS
+== variant 4,4,2,4,64,1
+TIME a8tp2 gate+up  17408x5120  M=2048      2223.5 us   164.2 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      4224.6 us   172.8 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1108.3 us   164.7 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      2320.8 us   157.3 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       779.8 us   165.2 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      1756.4 us   146.7 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       396.0 us   162.7 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096       842.4 us   153.0 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       394.5 us   163.3 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096       821.6 us   156.8 TFLOPS
+== variant 4,4,2,4,64,2
+TIME a8tp2 gate+up  17408x5120  M=2048      2216.8 us   164.7 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      4113.5 us   177.5 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1133.8 us   161.0 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      2331.6 us   156.6 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       791.0 us   162.9 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      1750.9 us   147.2 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       410.3 us   157.0 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096       846.5 us   152.2 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       402.7 us   160.0 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096       817.5 us   157.6 TFLOPS
+== variant 4,4,4,4,32,1
+TIME a8tp2 gate+up  17408x5120  M=2048      2043.6 us   178.6 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      3839.2 us   190.2 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048       983.9 us   185.5 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      2095.8 us   174.2 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       715.5 us   180.1 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      1612.3 us   159.8 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       364.7 us   176.7 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096       765.5 us   168.3 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       358.9 us   179.5 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096       749.0 us   172.0 TFLOPS
+== variant 4,4,4,4,32,2
+TIME a8tp2 gate+up  17408x5120  M=2048      1711.1 us   213.3 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      3024.7 us   241.4 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048       879.2 us   207.6 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      1744.8 us   209.2 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       582.8 us   221.1 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      1129.0 us   228.3 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       353.3 us   182.3 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096       648.8 us   198.6 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       330.9 us   194.7 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096       610.5 us   211.1 TFLOPS

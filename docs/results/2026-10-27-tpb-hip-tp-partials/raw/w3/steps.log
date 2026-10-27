@@ -1,0 +1,21 @@
+04:37:30 guard: [guard] radiance stopped 2026-10-27 04:37:30
+04:37:30 item 1: starting server f32
+04:39:28 item 1 f32 speed: exit 0 results/20261027-043849-tpb-f32-tpb-w3-f32-1/result.json
+04:39:28 item 2: starting server bf16
+04:41:21 item 2 bf16 speed: exit 0 results/20261027-044045-tpb-bf16-tpb-w3-bf16-2/result.json
+04:41:57 item 3 bf16 speed: exit 0 results/20261027-044121-tpb-bf16-tpb-w3-bf16-3/result.json
+04:41:57 item 4: starting server f32
+04:43:53 item 4 f32 speed: exit 0 results/20261027-044315-tpb-f32-tpb-w3-f32-4/result.json
+04:44:33 item 5 f32 speed: exit 0 results/20261027-044354-tpb-f32-tpb-w3-f32-5/result.json
+04:44:33 item 6: starting server bf16
+04:46:26 item 6 bf16 speed: exit 0 results/20261027-044550-tpb-bf16-tpb-w3-bf16-6/result.json
+04:47:01 item 7 bf16 speed: exit 0 results/20261027-044626-tpb-bf16-tpb-w3-bf16-7/result.json
+04:47:01 item 8: starting server f32
+04:48:58 item 8 f32 speed: exit 0 results/20261027-044819-tpb-f32-tpb-w3-f32-8/result.json
+04:49:37 item 9 f32 speed: exit 0 results/20261027-044858-tpb-f32-tpb-w3-f32-9/result.json
+04:49:37 item 10: starting server bf16
+04:51:30 item 10 bf16 speed: exit 0 results/20261027-045055-tpb-bf16-tpb-w3-bf16-10/result.json
+04:52:07 item 11 bf16 speed: exit 0 results/20261027-045131-tpb-bf16-tpb-w3-bf16-11/result.json
+04:52:07 item 12: starting server f32
+04:54:03 item 12 f32 speed: exit 0 results/20261027-045324-tpb-f32-tpb-w3-f32-12/result.json
+04:54:14 guard: [guard] radiance answers 2026-10-27 04:54:14 (after 15 s)

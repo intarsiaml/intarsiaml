@@ -1,0 +1,24 @@
+Traceback (most recent call last):
+  File "/opt/code/deepeval/.venv/bin/localeval", line 10, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/code/deepeval/src/localeval/__init__.py", line 16, in main
+    cli_main()
+  File "/opt/code/deepeval/src/localeval/cli.py", line 412, in main
+    _run(args, "quality", False, True)
+  File "/opt/code/deepeval/src/localeval/cli.py", line 198, in _run
+    run = report.new_run(t, kind, args.label, sys.argv)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/code/deepeval/src/localeval/report.py", line 29, in new_run
+    recipe, warning = load_recipe(target.recipe)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/code/deepeval/src/localeval/recipe.py", line 55, in load_recipe
+    if path.is_file():
+       ^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 892, in is_file
+    return S_ISREG(self.stat().st_mode)
+                   ^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.15/Frameworks/Python.framework/Versions/3.12/lib/python3.12/pathlib.py", line 840, in stat
+    return os.stat(self, follow_symlinks=follow_symlinks)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+OSError: [Errno 63] File name too long: 'HIP_VISIBLE_DEVICES=0,1 tpb-intarsia serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (lane tpb, arm hyb, env -e INTARSIA_TP_PARTIAL=bf16-prefill, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)'
