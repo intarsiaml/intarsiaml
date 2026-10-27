@@ -1,0 +1,49 @@
+[localeval] calibrated: 22.1 tokens/sentence, 92 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=987 ttft=0.30s prefill=3314 tok/s decode=54.3 tok/s peak=54.6 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=986 ttft=0.30s prefill=3303 tok/s decode=54.5 tok/s peak=54.8 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.30s prefill=3306 tok/s decode=54.4 tok/s peak=54.7 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4086 ttft=1.16s prefill=3533 tok/s decode=53.6 tok/s peak=54.0 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4083 ttft=1.16s prefill=3521 tok/s decode=53.7 tok/s peak=54.1 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4085 ttft=1.17s prefill=3506 tok/s decode=53.7 tok/s peak=54.1 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16649 ttft=4.83s prefill=3444 tok/s decode=50.8 tok/s peak=51.2 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16648 ttft=4.87s prefill=3420 tok/s decode=50.8 tok/s peak=51.1 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16648 ttft=4.91s prefill=3391 tok/s decode=51.1 tok/s peak=51.8 tok/s out=128
+# localeval: glr-rec_bin_glr-base-cli_spoff — 2026-10-27T08:46
+
+- model: `qwen38-27b-glr` on ? (?), url `http://tatooine:8095/v1`
+- thinking: default; run kind: speed; label: glr-w6-rec_bin_glr-base-cli_spoff-6
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed glr-rec_bin_glr-base-cli_spoff --sizes 1024,4096,16384 --gen 128 --reps 3 --label glr-w6-rec_bin_glr-base-cli_spoff-6 --recipe HIP_VISIBLE_DEVICES=0,1 glr-base-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 --spec off (; lane glr) --wait-idle 60`
+- result file: `results/20261027-084642-glr-rec_bin_glr-base-cli_spoff-glr-w6-rec_bin_glr-base-cli_spoff-6/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 glr-base-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 --spec off (; lane glr)
+````
+
+## Speed sweep
+
+served `qwen38-27b-glr`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 987 | 0.30 | 3306 (3303–3314) * | - | 54.4 (54.3–54.5) | 54.7 (54.6–54.8) | - | - | 128 |
+| 4085 | 1.16 | 3521 (3506–3533) | 3594 | 53.7 (53.6–53.7) | 54.1 (54.0–54.1) | - | - | 128 |
+| 16648 | 4.87 | 3420 (3391–3444) | 3389 | 50.8 (50.8–51.1) | 51.2 (51.1–51.8) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261027-084642-glr-rec_bin_glr-base-cli_spoff-glr-w6-rec_bin_glr-base-cli_spoff-6/result.json
+[localeval] logged to unanimis: 8cfa3c29-e67e-4cf5-b33b-5dfd94424e5b

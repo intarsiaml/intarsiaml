@@ -49,6 +49,19 @@ use gdn_block::{ExtraWs, GdnBlock};
 use gemma::{GemmaLayer, GemmaWs};
 use graph_step::GraphState;
 
+/// The checkpoint tensors among a call's `inputs` that have dtype `dtype` (the weight dtype of a call no kernel took), as
+/// `'name' (dtype)`. Matched by buffer and offset against the tensors `Model::load_shard` read; activations and workspace
+/// buffers are not in the index. Empty when `dtype` is unknown or no input is a named checkpoint tensor.
+fn weights_named(index: &[(String, TensorRef)], inputs: &[TensorRef], dtype: Option<DType>) -> Vec<String> {
+    let Some(dt) = dtype else { return Vec::new() };
+    inputs
+        .iter()
+        .filter(|t| t.dtype == dt)
+        .filter_map(|t| index.iter().find(|(_, w)| w.buf.ptr_eq(&t.buf) && w.offset == t.offset))
+        .map(|(n, w)| format!("'{n}' ({})", w.dtype))
+        .collect()
+}
+
 /// `A_log` and the gated-norm weight are f32 in the original Hugging Face Qwen3.5 checkpoints (the MLX / ModelOpt conversions
 /// already store them bf16) and the GPU GatedDeltaNet kernels read them as bf16 (`weights(bf)`): without this the load stops at
 /// "no kernel for gdn_delta_rule" and then "metal w: expected bf16, got f32" (drill nmd, Qwen3.5-4B on Metal). Rounded once at
@@ -390,6 +403,9 @@ pub struct Model {
     profile_every: u32,
     /// Kernel scratch workspace shared by all ops (sized by plan resolution; ops run in stream order).
     scratch: Option<Buffer>,
+    /// Dense checkpoint tensors by name (`load` / `load_sharded`), to say which tensor an op without a kernel for its weight
+    /// dtype was given ([`weights_named`]); read on the plan error path only.
+    weight_names: Arc<Vec<(String, TensorRef)>>,
     /// Installed by [`Model::dry_run`]: `exec` records `(op, shape, kernel)` instead of launching.
     recorder: Mutex<Option<crate::plan::Recorder>>,
     /// Result of plan resolution (kernel of every op/shape the model needs).
@@ -409,6 +425,14 @@ pub struct Model {
     tp_arnorm: bool,
     /// The all-reduce deferred by `tp_arnorm`, until the next op decides how it runs.
     ar_defer: Mutex<Option<ar_norm::DeferredAr>>,
+    /// Lane TPO overlap: the all-reduces queued on stream 1 whose result the next op of stream 0 still has to wait for, as (first row, rows,
+    /// token of `Backend::stream_record`) in issue order. Any op [`Model::exec_call_one`] launches joins them first ([`Model::pipe_join`]);
+    /// the pipelined FFN takes them over per row range. `pipe_active` is the cheap test for "the list is not empty".
+    pipe: Mutex<Vec<(usize, usize, u64)>>,
+    pipe_active: std::sync::atomic::AtomicBool,
+    /// True while [`Model::run_layers`] runs a single-sequence pass: the only place the overlap may leave an all-reduce in flight (its end
+    /// joins). Other callers of the blocks (the MTP and DFlash heads) never split.
+    in_layers: std::sync::atomic::AtomicBool,
     /// Fused all-reduce + rmsnorm collectives run eagerly / recorded into a graph (printed when the model is dropped).
     ar_fused_eager: std::sync::atomic::AtomicU64,
     ar_fused_captured: std::sync::atomic::AtomicU64,
@@ -532,6 +556,21 @@ impl TpRank {
     }
 }
 
+/// Clears [`Model::in_layers`] when a `run_layers` pass ends, however it ends.
+struct PipeScope<'a>(&'a std::sync::atomic::AtomicBool);
+
+impl Drop for PipeScope<'_> {
+    fn drop(&mut self) {
+        self.0.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// `INTARSIA_TP_OVERLAP_MUTANT` (lane TPO, test only): which planted bug the row-piece overlap runs with (see `Model::reduce_rows_async`).
+fn overlap_mutant() -> Option<&'static str> {
+    static M: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    M.get_or_init(|| std::env::var("INTARSIA_TP_OVERLAP_MUTANT").ok().filter(|v| !v.is_empty())).as_deref()
+}
+
 /// `INTARSIA_TP_TEST_BUG=scale:F[@RANK]` -> (rank, factor). Unset or empty: no bug.
 fn parse_tp_test_bug(v: Option<&str>) -> Result<Option<(usize, f32)>> {
     let Some(v) = v.map(str::trim).filter(|v| !v.is_empty()) else { return Ok(None) };
@@ -633,10 +672,12 @@ impl Model {
         let dims = &local_dims;
         let b: &dyn Backend = &*backend;
         let weights_bytes = Cell::new(0u64);
+        let weight_names: std::cell::RefCell<Vec<(String, TensorRef)>> = Default::default();
         let load = |tmpl: &str, layer: usize, shape: Option<&[usize]>| -> Result<TensorRef> {
             let name = resolve(src, &Recipe::expand(tmpl, layer))?;
             let t = load_tensor(b, src, &name, shape)?;
             weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
+            weight_names.borrow_mut().push((name, t.clone()));
             Ok(t)
         };
         // a linear layer in whatever format the checkpoint holds it (bf16, fp8, ...), checked against `[n, k]`
@@ -678,6 +719,7 @@ impl Model {
                 return Err(Error::model(format!("tensor '{name}' shard is {:?}, expected {expect:?}", t.shape)));
             }
             weights_bytes.set(weights_bytes.get() + t.nbytes() as u64);
+            weight_names.borrow_mut().push((name, t.clone()));
             Ok(t)
         };
 
@@ -1299,6 +1341,7 @@ impl Model {
             kv,
             plan,
             weights_bytes: weights_bytes.get(),
+            weight_names: Arc::new(weight_names.into_inner()),
             embed,
             final_norm,
             lm_head,
@@ -1313,8 +1356,7 @@ impl Model {
             recorder: Mutex::new(None),
             resolved: Default::default(),
             // at world > 1 also gated on a capture-safe communicator (`GraphState::usable`)
-            // Gemma 4 runs its layers eagerly (no captured decode step yet)
-            graphs: GraphState::new(opts.graphs && dims.gemma.is_none()),
+            graphs: GraphState::new(opts.graphs),
             capture_ops: Mutex::new(None),
             capture_comms: std::sync::atomic::AtomicU64::new(0),
             rope_table,
@@ -1322,6 +1364,9 @@ impl Model {
             vocab_par,
             tp_arnorm: ar_norm::enabled(opts, &tp, no_comm, test_bug.is_some()),
             ar_defer: Mutex::new(None),
+            pipe: Mutex::new(Vec::new()),
+            pipe_active: std::sync::atomic::AtomicBool::new(false),
+            in_layers: std::sync::atomic::AtomicBool::new(false),
             ar_fused_eager: Default::default(),
             ar_fused_captured: Default::default(),
             tp,
@@ -2509,6 +2554,9 @@ impl Model {
         let op = call.op;
         call.exact_rows = self.verifying();
         call.check()?;
+        if self.pipe_active.load(std::sync::atomic::Ordering::Relaxed) {
+            self.pipe_join()?; // an all-reduce of the overlap is still in flight on stream 1: this op may read its result
+        }
         // a block-end all-reduce held back for this op (`model/ar_norm.rs`): fused with it, or issued before it
         if self.tp_arnorm && self.resolve_ar(&call, profile)? {
             return Ok(());
@@ -2530,6 +2578,7 @@ impl Model {
                         r.missing.push((
                             call.op,
                             format!("{e} (heads {}/{} head_dim {} kv_len {})", s.n_heads, s.n_kv_heads, s.head_dim, s.kv_len),
+                            weights_named(&self.weight_names, &call.inputs, s.weight),
                         ))
                     }
                 }
@@ -2592,6 +2641,10 @@ impl Model {
         ids_at: Option<&TensorRef>,
     ) -> Result<TensorRef> {
         let t = ids.len();
+        let _scope = (matches!(seqs, Seqs::One(_)) && dpos.is_none()).then(|| {
+            self.in_layers.store(true, std::sync::atomic::Ordering::Relaxed);
+            PipeScope(&self.in_layers)
+        });
         let _pass = if self.coll_trace.on {
             self.coll_trace.pass(if matches!(seqs, Seqs::Batch(_)) { "layers-batch" } else { "layers" }, t, self.capture_ops.lock().unwrap().is_some())
         } else {
@@ -2676,11 +2729,8 @@ impl Model {
                         let Seqs::One(st) = seqs else {
                             return Err(Error::Unsupported("batched decode of a Gemma 4 layer".into()));
                         };
-                        if dpos.is_some() {
-                            return Err(Error::Unsupported("captured decode steps of a Gemma 4 layer".into()));
-                        }
                         debug_assert!(!pending);
-                        self.gemma_layer(g, st, &hv(cur), &hv(1 - cur), t, pos0, profile)?;
+                        self.gemma_layer(g, st, &hv(cur), &hv(1 - cur), t, pos0, dpos, profile)?;
                         cur = 1 - cur;
                         continue;
                     }
@@ -2729,10 +2779,34 @@ impl Model {
                             self.gdn_block_segs(g, segs, &nv, &blkv, t, profile, f.as_ref())?;
                         }
                     },
-                    Block::Ffn(f) => {
-                        norm_in(&f.pre_norm, pending, &mut cur)?;
-                        self.ffn_block(f, &nv, &blkv, t, profile)?;
-                    }
+                    Block::Ffn(f) => match self.overlap_ffn(f, t, profile).filter(|_| matches!(seqs, Seqs::One(_)) && dpos.is_none()) {
+                        Some(piece) => {
+                            // lane TPO: the residual add + norm, gate, up, down and the all-reduce per row piece (the add writes the other
+                            // residual buffer, so `cur` flips once, as `norm_in` does)
+                            let (res, next) = (hv(cur), hv(1 - cur));
+                            let norm_rows = |r0: usize, n: usize| -> Result<()> {
+                                if pending {
+                                    self.exec(
+                                        Op::RmsNormAdd,
+                                        vec![blkv.rows(r0, n), res.rows(r0, n), f.pre_norm.clone()],
+                                        vec![nv.rows(r0, n), next.rows(r0, n)],
+                                        eps_attrs.clone(),
+                                        profile,
+                                    )
+                                } else {
+                                    self.exec(Op::RmsNorm, vec![res.rows(r0, n), f.pre_norm.clone()], vec![nv.rows(r0, n)], eps_attrs.clone(), profile)
+                                }
+                            };
+                            self.ffn_block_pieces(f, &blkv, t, piece, &norm_rows, &nv, profile)?;
+                            if pending {
+                                cur = 1 - cur;
+                            }
+                        }
+                        None => {
+                            norm_in(&f.pre_norm, pending, &mut cur)?;
+                            self.ffn_block(f, &nv, &blkv, t, profile)?;
+                        }
+                    },
                     Block::Moe(m) => {
                         if matches!(seqs, Seqs::Batch(_)) && !self.recurrent_batch {
                             norm_in(&m.pre_norm, pending, &mut cur)?;
@@ -2766,11 +2840,13 @@ impl Model {
         if dead_tail {
             // nothing reads the hidden state of a chunk that feeds no head
             self.flush_ar(profile)?;
+            self.pipe_join()?;
             return Ok(nv);
         }
         // final: h = h + block_out ; n = norm(h)
         norm_in(&self.final_norm, pending, &mut cur)?;
         self.flush_ar(profile)?;
+        self.pipe_join()?;
         Ok(nv)
     }
 
@@ -3372,13 +3448,9 @@ impl Model {
         match &self.ws.part {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, d.hidden]);
-                self.proj(&o_in, &a.wo, &part, profile)?;
-                self.all_reduce(&part, out, profile)
+                self.proj_then_reduce(&o_in, &a.wo, &part, out, t, profile)
             }
-            None => {
-                self.proj(&o_in, &a.wo, out, profile)?;
-                self.all_reduce(out, out, profile)
-            }
+            None => self.proj_then_reduce(&o_in, &a.wo, out, out, t, profile),
         }
     }
 
@@ -3484,13 +3556,19 @@ impl Model {
         }
     }
 
-    fn ffn_block(&self, f: &FfnBlock, n: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+    /// Gate, up and the gated activation of rows `[r0, r0 + rows)` of a `t`-row FFN pass (`n`: the `[t, hidden]` normed input); returns
+    /// those rows of the activation `a`.
+    fn ffn_act(&self, f: &FfnBlock, n: &TensorRef, t: usize, r0: usize, rows: usize, profile: bool) -> Result<TensorRef> {
         let act = self.act;
         let ws = &self.ws;
         let i = self.ldims.intermediate;
-        let g = self.view(&ws.g, act, &[t, i]);
-        let u = self.view(&ws.u, act, &[t, i]);
-        let a = self.view(&ws.a, act, &[t, i]);
+        let part_rows = |b: &Buffer| {
+            let v = self.view(b, act, &[t, i]);
+            if rows == t { v } else { v.rows(r0, rows) }
+        };
+        let (g, u, a) = (part_rows(&ws.g), part_rows(&ws.u), part_rows(&ws.a));
+        let n = if rows == t { n.clone() } else { n.rows(r0, rows) };
+        let n = &n;
         let bf16 = |q: &QTensor| q.format == crate::quant::BF16;
         // gate and up read the same activation: one launch for both when the backend has the fused bf16 / mxfp4 pair
         let gu_fused = (bf16(&f.gate)
@@ -3509,14 +3587,19 @@ impl Model {
             self.proj(n, &f.up, &u, profile)?;
         }
         self.exec(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default(), profile)?;
+        Ok(a)
+    }
+
+    fn ffn_block(&self, f: &FfnBlock, n: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+        let a = self.ffn_act(f, n, t, 0, t, profile)?;
+        let bf16 = |q: &QTensor| q.format == crate::quant::BF16;
         match &self.ws.part {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
                 if f.down.format == crate::quant::MXFP4 {
                     // the MXFP4 matmul writes the f32 partial itself (Qwen3.8-27B tp=2; the shard holds whole 32-groups of
                     // the intermediate columns, `Mxfp4::load`)
-                    self.proj(&a, &f.down, &part, profile)?;
-                    return self.all_reduce(&part, out, profile);
+                    return self.proj_then_reduce(&a, &f.down, &part, out, t, profile);
                 }
                 if !bf16(&f.down) {
                     return Err(Error::Unsupported(format!("tensor-parallel dense FFN with {} weights", f.down.format)));
@@ -3524,10 +3607,7 @@ impl Model {
                 self.exec(Op::Logits, vec![a, f.down.parts[0].clone()], vec![part.clone()], OpAttrs::default(), profile)?;
                 self.all_reduce(&part, out, profile)
             }
-            None => {
-                self.proj(&a, &f.down, out, profile)?;
-                self.all_reduce(out, out, profile)
-            }
+            None => self.proj_then_reduce(&a, &f.down, out, out, t, profile),
         }
     }
 
@@ -3538,14 +3618,191 @@ impl Model {
         match &self.ws.part {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
-                self.proj(x, w, &part, profile)?;
-                self.all_reduce(&part, out, profile)
+                self.proj_then_reduce(x, w, &part, out, t, profile)
             }
-            None => {
-                self.proj(x, w, out, profile)?;
-                self.all_reduce(out, out, profile)
+            None => self.proj_then_reduce(x, w, out, out, t, profile),
+        }
+    }
+
+    /// Rows per piece when a pass of `t` rows runs as row pieces whose all-reduces overlap the next piece's compute (lane TPO,
+    /// `INTARSIA_TP_OVERLAP=K`, K >= 2 pieces, default off; the all-reduce runs on a second stream, which needs a second hardware queue,
+    /// `GPU_MAX_HW_QUEUES >= 4` on the R9700s, or it waits in line behind the GEMM). `None`: everything runs whole, as before. Pieces are
+    /// multiples of 256 rows (the GEMM's tile). Only an eager, unprofiled, unrecorded pass of at least two tiles of rows on a two-rank group
+    /// whose backend runs two streams side by side. `INTARSIA_TP_OVERLAP_FFN=0` keeps the FFN whole (only the attention / GDN output
+    /// projections are pieces); `INTARSIA_TP_OVERLAP_MIN=rows` sets the smallest pass that splits (default 3072: a piece of fewer than 2048 rows
+    /// runs the GEMM on a smaller, slower tile). Only inside [`Model::run_layers`] of a single sequence.
+    fn overlap_piece(&self, t: usize, profile: bool) -> Option<usize> {
+        static CFG: std::sync::OnceLock<(usize, usize)> = std::sync::OnceLock::new();
+        let (k, min) = *CFG.get_or_init(|| {
+            let env = |n: &str| std::env::var(n).ok().and_then(|v| v.trim().parse::<usize>().ok());
+            (env("INTARSIA_TP_OVERLAP").unwrap_or(0), env("INTARSIA_TP_OVERLAP_MIN").unwrap_or(3072))
+        });
+        if k < 2 || t < min.max(512) || !self.in_layers.load(std::sync::atomic::Ordering::Relaxed) || profile || self.stream != 0 || self.tp.world != 2 || self.tp.comm.is_none() || self.no_comm || self.test_bug.is_some() {
+            return None;
+        }
+        if !self.backend.stream_overlap() || self.recorder.lock().unwrap().is_some() || self.capture_ops.lock().unwrap().is_some() {
+            return None;
+        }
+        let piece = t.div_ceil(k).div_ceil(256) * 256;
+        (Self::row_pieces(t, piece).len() >= 2).then_some(piece)
+    }
+
+    /// Whether the FFN of a pass of `t` rows runs as pieces (see [`Model::overlap_piece`]).
+    fn overlap_ffn(&self, f: &FfnBlock, t: usize, profile: bool) -> Option<usize> {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if !*ON.get_or_init(|| std::env::var("INTARSIA_TP_OVERLAP_FFN").map_or(true, |v| v != "0")) {
+            return None;
+        }
+        // the MXFP4 down projection writing the f32 partial, or any down projection into the (bf16) block output
+        if self.ws.part.is_some() && f.down.format != crate::quant::MXFP4 {
+            return None;
+        }
+        self.overlap_piece(t, profile)
+    }
+
+    /// The row ranges of a pass of `t` rows in pieces of `piece`; a remainder of fewer than 256 rows joins the last full piece (a pass that
+    /// small would take the small-M kernels, whose bits differ from the tile GEMM's: `prefill_peel`).
+    fn row_pieces(t: usize, piece: usize) -> Vec<(usize, usize)> {
+        let mut v: Vec<(usize, usize)> = (0..t).step_by(piece).map(|r0| (r0, piece.min(t - r0))).collect();
+        if v.len() >= 2 && v.last().is_some_and(|l| l.1 < 256) {
+            let l = v.pop().unwrap();
+            v.last_mut().unwrap().1 += l.1;
+        }
+        v
+    }
+
+    /// Queue the all-reduce `partial -> out` of one row range on stream 1, after everything queued so far on stream 0, and return the token
+    /// of its end (`None` when the collective is skipped by the batched-mutant test hook).
+    fn reduce_rows_async(&self, comm: &Arc<dyn Comm>, partial: &TensorRef, out: &TensorRef, skip: bool, piece_idx: (usize, usize)) -> Result<Option<u64>> {
+        if skip {
+            return Ok(None);
+        }
+        // `INTARSIA_TP_OVERLAP_MUTANT` (test only, the gate must fail on each): skip_last = no all-reduce for the last piece of a reduction,
+        // scale = rank 1 scales piece 1's partial by 1.003 first, offset = the first piece reduces rows shifted by one tile (256) into the next
+        let mutant = overlap_mutant();
+        if mutant == Some("skip_last") && piece_idx.0 + 1 == piece_idx.1 {
+            return Ok(None);
+        }
+        if mutant == Some("scale") && piece_idx.0 == 1 && self.tp.rank == 1 {
+            self.scale_partial(partial, 1.003)?;
+        }
+        if mutant == Some("offset") && piece_idx.0 == 0 {
+            let (p, o) = (partial.rows(0, 1), out.rows(0, 1)); // a single row instead of the piece: the rest of the piece is never reduced
+            self.backend.stream_wait(1, self.stream)?;
+            comm.all_reduce_sum_into(&p, &o, 1)?;
+            return Ok(Some(self.backend.stream_record(1)?));
+        }
+        self.backend.stream_wait(1, self.stream)?;
+        comm.all_reduce_sum_into(partial, out, 1)?;
+        if self.coll_trace.on {
+            self.coll_trace.issue();
+        }
+        self.telemetry.record_comm(None);
+        Ok(Some(self.backend.stream_record(1)?))
+    }
+
+    /// Make the tokens of all-reduces still in flight on stream 1 the ones the next op waits for.
+    fn pipe_publish(&self, toks: Vec<(usize, usize, u64)>) {
+        if toks.is_empty() {
+            return;
+        }
+        *self.pipe.lock().unwrap() = toks;
+        self.pipe_active.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Take the in-flight all-reduces over (the caller waits for them itself).
+    fn pipe_take(&self) -> Vec<(usize, usize, u64)> {
+        self.pipe_active.store(false, std::sync::atomic::Ordering::Relaxed);
+        std::mem::take(&mut *self.pipe.lock().unwrap())
+    }
+
+    /// Stream 0 waits for every all-reduce in flight on stream 1 (stream 1 is in order, so for the last one).
+    fn pipe_join(&self) -> Result<()> {
+        match self.pipe_take().last() {
+            Some(&(_, _, tok)) => self.backend.stream_wait_for(self.stream, tok),
+            None => Ok(()),
+        }
+    }
+
+    /// `proj(x, w) -> dst`, then the all-reduce `dst -> out` (`dst` and `out` the same tensor for bf16 partials). With [`Model::overlap_piece`]
+    /// the rows go in pieces: after each piece's GEMM (stream 0) its all-reduce is queued on stream 1 behind an event, so it runs while stream 0
+    /// computes the next piece; the last piece's all-reduce stays in flight until the next op ([`Model::pipe_join`]). Every kernel is
+    /// row-independent and the all-reduce is per element, so the result is bitwise the whole-chunk one. The collectives stay on one stream in one
+    /// order on both ranks.
+    fn proj_then_reduce(&self, x: &TensorRef, w: &QTensor, dst: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+        let Some(piece) = self.overlap_piece(t, profile) else {
+            self.proj(x, w, dst, profile)?;
+            return self.all_reduce(dst, out, profile);
+        };
+        let comm = self.tp.comm.as_ref().expect("overlap_piece checked the communicator");
+        if self.tp_arnorm {
+            self.flush_ar(profile)?; // a reduction still pending from the block before
+        }
+        self.pipe_join()?;
+        let skip = self.take_dropped_collective();
+        let mut toks = Vec::new();
+        let pieces = Self::row_pieces(t, piece);
+        for (pi, &(r0, n)) in pieces.iter().enumerate() {
+            self.proj(&x.rows(r0, n), w, &dst.rows(r0, n), profile)?;
+            if let Some(tok) = self.reduce_rows_async(comm, &dst.rows(r0, n), &out.rows(r0, n), skip, (pi, pieces.len()))? {
+                toks.push((r0, n, tok));
             }
         }
+        self.pipe_publish(toks);
+        Ok(())
+    }
+
+    /// The FFN block of a pass of `t` rows as row pieces (see [`Model::overlap_ffn`]): per piece the residual add + norm (`norm_rows`), gate, up,
+    /// the gated activation, down and the all-reduce on stream 1, so the all-reduce of piece i overlaps everything piece i + 1 computes, and the
+    /// norm of piece i waits only for the attention / GDN all-reduce of its own rows. Bitwise the whole-pass result (row-wise kernels).
+    #[allow(clippy::too_many_arguments)]
+    fn ffn_block_pieces(
+        &self,
+        f: &FfnBlock,
+        out: &TensorRef,
+        t: usize,
+        piece: usize,
+        norm_rows: &dyn Fn(usize, usize) -> Result<()>,
+        nv: &TensorRef,
+        profile: bool,
+    ) -> Result<()> {
+        let comm = self.tp.comm.as_ref().expect("overlap_piece checked the communicator");
+        if self.tp_arnorm {
+            self.flush_ar(profile)?;
+        }
+        let pieces = Self::row_pieces(t, piece);
+        let prev = self.pipe_take();
+        // the block before queued its all-reduces in the same pieces: wait for each one's own rows; else for all of them now
+        let same = !prev.is_empty() && prev.len() == pieces.len() && prev.iter().zip(&pieces).all(|(p, q)| (p.0, p.1) == *q);
+        if !prev.is_empty() && !same {
+            self.backend.stream_wait_for(self.stream, prev.last().unwrap().2)?;
+        }
+        let skip = self.take_dropped_collective();
+        let mut toks = Vec::new();
+        for (i, &(r0, n)) in pieces.iter().enumerate() {
+            if same {
+                self.backend.stream_wait_for(self.stream, prev[i].2)?;
+            }
+            norm_rows(r0, n)?;
+            let a = self.ffn_act(f, nv, t, r0, n, profile)?;
+            let tok = match &self.ws.part {
+                Some(part) => {
+                    let part = self.view(part, DType::F32, &[t, self.ldims.hidden]).rows(r0, n);
+                    self.proj(&a, &f.down, &part, profile)?;
+                    self.reduce_rows_async(comm, &part, &out.rows(r0, n), skip, (i, pieces.len()))?
+                }
+                None => {
+                    let o = out.rows(r0, n);
+                    self.proj(&a, &f.down, &o, profile)?;
+                    self.reduce_rows_async(comm, &o, &o, skip, (i, pieces.len()))?
+                }
+            };
+            if let Some(tok) = tok {
+                toks.push((r0, n, tok));
+            }
+        }
+        self.pipe_publish(toks);
+        Ok(())
     }
 
     /// Sum a row-parallel projection's partial results over the tensor-parallel group into `out` (in place when
@@ -3701,13 +3958,17 @@ impl Model {
                 }
             }
         }
-        // Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected
+        self.softcap_logits(&mut out);
+        Ok(out)
+    }
+
+    /// Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected.
+    pub(super) fn softcap_logits(&self, out: &mut [f32]) {
         if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).filter(|&c| c > 0.0) {
             for x in out.iter_mut() {
                 *x = cap * (*x / cap).tanh();
             }
         }
-        Ok(out)
     }
 
     /// lm_head + argmax of one row, left in `ws.logits` (`[1, V]` f32) and `ws.tok`; no host traffic.
@@ -3848,5 +4109,42 @@ impl Model {
     /// KV cache bytes one token occupies across all attention slots.
     pub fn kv_bytes_per_token(&self) -> u64 {
         self.plan.kv_bytes_per_token
+    }
+}
+
+#[cfg(test)]
+mod weights_named_tests {
+    use super::*;
+    use crate::backend::BufferImpl;
+
+    struct Buf(usize);
+    impl BufferImpl for Buf {
+        fn bytes(&self) -> usize {
+            self.0
+        }
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+    }
+
+    fn tensor(dtype: DType, shape: &[usize]) -> TensorRef {
+        TensorRef::new(Buffer::new(Buf(1024)), dtype, shape)
+    }
+
+    #[test]
+    fn a_call_without_a_kernel_for_its_weight_dtype_names_the_checkpoint_tensor() {
+        let a_log = tensor(DType::F32, &[32]);
+        let norm = tensor(DType::Bf16, &[128]);
+        let x = tensor(DType::Bf16, &[1, 128]);
+        let index = vec![("model.layers.0.linear_attn.A_log".to_string(), a_log.clone()), ("model.layers.0.linear_attn.norm.weight".to_string(), norm.clone())];
+        // the activation is no checkpoint tensor; only the f32 input is of the dtype no kernel took, and it is named with its dtype
+        let inputs = [x.clone(), a_log.clone(), norm.clone()];
+        assert_eq!(weights_named(&index, &inputs, Some(DType::F32)), vec!["'model.layers.0.linear_attn.A_log' (f32)".to_string()]);
+        // a view of the same buffer at another offset is another tensor, not the named one
+        let mut other = a_log.clone();
+        other.offset = 64;
+        assert!(weights_named(&index, &[other], Some(DType::F32)).is_empty());
+        // an unknown weight dtype names nothing
+        assert!(weights_named(&index, &inputs, None).is_empty());
     }
 }

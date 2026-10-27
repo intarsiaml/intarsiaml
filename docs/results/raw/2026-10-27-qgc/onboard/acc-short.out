@@ -1,0 +1,37 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   8.421e-5   7.167e-5   7.167e-5   1.355e-3   0.0359   0.0363   100.00     38/38      0
+story                 39    39   100.00   1.209e-4   1.036e-4   1.036e-4   7.045e-4   0.0530   0.0534    98.97     39/39      0
+code                  87    87    98.85   2.885e-5   2.452e-5   2.452e-5   2.912e-4   0.0144   0.0144    99.54     78/87      0
+science               79    79   100.00   8.110e-5   7.339e-5   7.339e-5   3.925e-4   0.0257   0.0255    99.75     79/79      0
+chat_short            18    18   100.00   1.114e-4   9.705e-5   3.925e-5   3.773e-4   0.1061   0.1064   100.00     18/18      0
+chat_system           32    32   100.00   1.994e-4   1.787e-4   3.896e-4   2.726e-3   0.0820   0.0821    98.75     32/32      0
+chat_multiturn        58    58   100.00   8.635e-5   7.440e-5   2.314e-5   5.495e-4   0.0632   0.0632    99.31     58/58      0
+chat_reasoning        90    90   100.00   2.651e-4   2.559e-4   7.255e-4   8.453e-3   0.0300   0.0300    99.11     90/90      0
+OVERALL                    441    99.77   1.226e-4   1.123e-4   7.773e-5   8.453e-3   0.0399   0.0400    99.41     98.0%      0
+prefill floor [bf16]: top-1 (all rows) 99.77% (need >= 97.86) ok | full-vocab KL (scored rows, n=279) 8.542e-5 (need <= 1.0e-3) ok [all rows, n=441: 1.226e-4, reported only] | tail mass (all rows) ours 0.0400 vs ref 0.0399, excess +0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [full-vocab KL]: static floor 1.000e-3 | no ref noise measured for this golden => effective 1.000e-3 bound by static floor; KL 8.542e-5 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 1.226e-4 (full-vocab KL over all rows <= static floor) | current def: PASS 8.542e-5 (full-vocab KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(full) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.238e-5   9.387e-6   9.387e-6   4.680e-5   0.0169   0.0170    97.50     16/16      0
+story                 39    16   100.00   1.561e-4   1.291e-4   1.291e-4   3.360e-4   0.0907   0.0913   100.00     16/16      0
+code                  87    16    93.75   7.325e-6   7.235e-6   7.235e-6   3.462e-5   0.0004   0.0004    98.75      7/16      0
+science               79    16   100.00   1.210e-4   1.082e-4   1.082e-4   2.372e-4   0.0471   0.0471    98.75     16/16      0
+chat_short            18    16   100.00   2.921e-4   2.788e-4   7.566e-4   3.622e-3   0.1194   0.1198    98.75     16/16      0
+chat_system           32    16   100.00   1.763e-4   1.562e-4   2.898e-4   2.027e-3   0.1086   0.1091    96.25     16/16      0
+chat_multiturn        58    16   100.00   4.544e-4   4.351e-4   9.909e-4   4.953e-3   0.0467   0.0467    98.75     16/16      0
+chat_reasoning        90    16   100.00   4.083e-4   4.007e-4   3.521e-4   3.635e-3   0.0109   0.0109    98.75     16/16      0
+OVERALL                    128    99.22   2.035e-4   1.906e-4   1.929e-4   4.953e-3   0.0551   0.0553    98.44     93.0%      0
+decode (teacher-forced) floor [bf16]: top-1 (all rows) 99.22% (need >= 96.99) ok | full-vocab KL (scored rows, n=86) 2.009e-4 (need <= 1.0e-3) ok [all rows, n=128: 2.035e-4, reported only] | tail mass (all rows) ours 0.0553 vs ref 0.0551, excess +0.0002 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [full-vocab KL]: static floor 1.000e-3 | no ref noise measured for this golden => effective 1.000e-3 bound by static floor; KL 2.009e-4 PASS
+gate-definition: kl_floor [decode]: old def: PASS 2.035e-4 (full-vocab KL over all rows <= static floor) | current def: PASS 2.009e-4 (full-vocab KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 98.7% of positions before the first argmax divergence, worst prompt 89.7% (informational)
+greedy-match [decode (teacher-forced)]: mean 93.0% of positions before the first argmax divergence, worst prompt 43.8% (informational)
+
+wrote baseline /opt/code/intarsiaml/.worktrees/qgc/runs/onboard-2/qualify/baselines/acc-short.baseline.json (2 mode(s); absolute floor passed)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS

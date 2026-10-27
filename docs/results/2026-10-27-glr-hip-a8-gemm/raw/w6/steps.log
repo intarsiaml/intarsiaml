@@ -1,0 +1,17 @@
+08:37:45 guard: [guard] radiance stopped 2026-10-27 08:37:44
+08:37:45 item 1: starting server rec+bin=glr-dev-cli
+08:41:33 item 1 gates: == corr A=1|== corr INTARSIA_HIP_MXFP4_A8_PD=1|== corr INTARSIA_HIP_MXFP4_A8_PERGROUP=1|== corr INTARSIA_HIP_MXFP4_A8_PD=1 INTARSIA_HIP_MXFP4_A8_PERGROUP=1|== hashes: 48 / 48 lines; differing: 0|== old: 30 lines 2026-10-27 08:40:04|== new: 30 lines 2026-10-27 08:40:11|== old2: 30 lines 2026-10-27 08:40:17|== new-r: 30 lines 2026-10-27 08:40:24|== old3: 30 lines 2026-10-27 08:40:30|== mutant clean: exit 0; failed: |== mutant m1-regsets: exit 101; failed: a8_mma_rows_do_not_depend_on_m a8_mma_rows_do_not_depend_on_position a8_kernels_match_the_reference result: FA|== mutant m2-prologue: exit 101; failed: a8_mma_rows_do_not_depend_on_m a8_mma_rows_do_not_depend_on_position a8_kernels_match_the_reference result: F|== mutant m3-gridtail: exit 101; failed: a8_mma_wide_scale_span_takes_the_group_path a8_kernels_match_the_reference a8_rows_are_bitwise_the_solo_kerne|== mutant m4-foldshift: exit 101; failed: a8_kernels_match_the_reference a8_rows_are_bitwise_the_solo_kernel result: FAILED. 4 passed; 2 failed; 2 ign|== mutant m5-row1: exit 101; failed: a8_mma_rows_do_not_depend_on_m a8_mma_rows_do_not_depend_on_position result: FAILED. 4 passed; 2 failed; 2 ignore|== mutant m6-loopbound: exit 101; failed: a8_kernels_match_the_reference a8_mma_rows_do_not_depend_on_position result: FAILED. 4 passed; 2 failed; 2 i|== admission exit 0: 74 admitted rows; not admitted:|== plan 8B: byte-identical (1346 B)|== plan 35B: byte-identical (3184 B)|
+08:41:34 item 2: starting server rec+bin=glr-dev-cli+mb16+spoff
+08:42:50 item 2 rec+bin=glr-dev-cli+mb16+spoff mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+08:42:50 item 3: starting server rec+bin=glr-dev-cli+spoff
+08:43:41 item 3 rec+bin=glr-dev-cli+spoff mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+08:43:41 item 4: starting server rec+bin=glr-base-cli+spoff
+08:44:56 item 4 rec+bin=glr-base-cli+spoff speed: exit 0 results/20261027-084413-glr-rec_bin_glr-base-cli_spoff-glr-w6-rec_bin_glr-base-cli_spoff-4/result.json
+08:44:56 item 5: starting server rec+bin=glr-dev-cli+spoff
+08:46:10 item 5 rec+bin=glr-dev-cli+spoff speed: exit 0 results/20261027-084528-glr-rec_bin_glr-dev-cli_spoff-glr-w6-rec_bin_glr-dev-cli_spoff-5/result.json
+08:46:10 item 6: starting server rec+bin=glr-base-cli+spoff
+08:47:25 item 6 rec+bin=glr-base-cli+spoff speed: exit 0 results/20261027-084642-glr-rec_bin_glr-base-cli_spoff-glr-w6-rec_bin_glr-base-cli_spoff-6/result.json
+08:47:25 item 7: starting server rec+bin=glr-dev-cli+spoff
+08:48:39 item 7 rec+bin=glr-dev-cli+spoff speed: exit 0 results/20261027-084757-glr-rec_bin_glr-dev-cli_spoff-glr-w6-rec_bin_glr-dev-cli_spoff-7/result.json
+08:48:39 done
+08:49:29 guard: [guard] radiance answers 2026-10-27 08:49:29 (after 55 s)

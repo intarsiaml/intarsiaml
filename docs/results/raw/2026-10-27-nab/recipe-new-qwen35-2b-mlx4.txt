@@ -1,0 +1,1 @@
+covered: builtin:qwen3_5_vl already handles this model (45/45 tensor templates resolve, quant: bf16 (MLX affine 4-bit dequantised at load)); no new recipe needed

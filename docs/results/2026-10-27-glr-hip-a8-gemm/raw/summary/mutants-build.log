@@ -1,0 +1,11 @@
+fleetq: #6240 running on tatooine-r9700: ssh -o BatchMode=yes tatooine 'bash ~/intarsiaml-glr/scripts/glr/mutants.sh'
+clean 54bf7270a74229bf
+m1-regsets daf61031ce5ef9d6
+m2-prologue 36e58f3a6b80267a
+m3-gridtail 1125922a6680ab89
+m4-foldshift 409aa45820c7568b
+m5-row1 a323b991eddcd902
+m6-loopbound f2303b8405eba8b8
+clean2 54bf7270a74229bf (equal to clean: yes)
+MUTANTS BUILT 08:13:49
+fleetq: #6240 done (exit 0)

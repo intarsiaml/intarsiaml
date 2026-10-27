@@ -1,0 +1,9 @@
+prefill chunk 4096 (--prefill-chunk)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'fp8' (the recipe's default on this backend, chosen for accuracy and speed (Qwen3.8-27B, full MMLU n=1425: W4A8 0.8204, W4A16 0.822, W4A4 0.802; against W4A16 prefill +48% and decode +11% at tp2, KL to the W4A16 golden 12x below W4A4's, docs/results/2026-10-27-w4a8-hip-fp8-act.md); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: fp8 (recipe qwen3_5_vl [tuning.hip] mxfp4_act)
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 2.6s: 64 layers, hidden 5120, act bf16, kv bf16, weights 10.29 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 3858 tokens
+finish=length prompt=3858 (cached 0) completion=48 | prefill 1019 ms (3787.0 tok/s) | decode 883 ms (53.24 tok/s)
+tensor parallel: 6448 all-reduces (131.6 per step), 0 timed, avg 0.0 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+steps=49 graph replays=48 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/6448 argmax=0ms/48 attn_decode=0ms/768 attn_prefill=0ms/16 embedding=0ms/49
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=48

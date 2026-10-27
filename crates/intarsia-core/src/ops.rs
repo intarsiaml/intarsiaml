@@ -827,6 +827,14 @@ impl ShapeInfo {
             Op::RmsNorm | Op::RmsNormAdd | Op::Add | Op::SiluGlu | Op::GeluGlu | Op::AddBias => {
                 s.m = i[0].shape[0];
                 s.k = i[0].shape[1];
+                // the norm weight `w` (x, w | x, res, w): a backend whose norm kernel reads one weight dtype declares it with
+                // `.weights(..)`, and a checkpoint tensor of another dtype then fails at plan time, naming the tensor
+                s.weight = match call.op {
+                    Op::RmsNorm => i.get(1),
+                    Op::RmsNormAdd => i.get(2),
+                    _ => None,
+                }
+                .map(|w| w.dtype);
             }
             Op::DynConv => {
                 s.m = i[0].shape[0];
@@ -837,7 +845,9 @@ impl ShapeInfo {
                 s.m = i[0].shape[0];
                 s.n_heads = i[0].shape[1];
                 s.head_dim = i[0].shape[2];
-                s.k = s.head_dim;
+                s.k = s.head_dim;                if call.op == Op::QkNorm {
+                    s.weight = i.get(1).map(|w| w.dtype); // the norm weight, as for RmsNorm
+                }
             }
             Op::Matmul | Op::Logits => {
                 s.m = i[0].shape[0];
@@ -918,6 +928,27 @@ mod tests {
     fn t(dtype: DType, shape: &[usize]) -> TensorRef {
         let n = shape.iter().product::<usize>() * dtype.size_bytes();
         TensorRef::new(Buffer::new(Dummy(n)), dtype, shape)
+    }
+
+    #[test]
+    fn norm_calls_report_the_norm_weight_dtype_so_a_kernel_can_declare_it() {
+        let call = |op: Op, inputs: Vec<TensorRef>, out: TensorRef| OpCall::new(op, inputs, vec![out], OpAttrs::default());
+        let x = t(DType::Bf16, &[4, 128]);
+        let rms = call(Op::RmsNorm, vec![x.clone(), t(DType::F32, &[128])], x.clone());
+        assert_eq!(ShapeInfo::from_call(&rms).weight, Some(DType::F32));
+        let add = call(Op::RmsNormAdd, vec![x.clone(), x.clone(), t(DType::Bf16, &[128])], x.clone());
+        assert_eq!(ShapeInfo::from_call(&add).weight, Some(DType::Bf16));
+        let qk = call(Op::QkNorm, vec![t(DType::Bf16, &[4, 8, 64]), t(DType::F32, &[64])], t(DType::Bf16, &[4, 8, 64]));
+        assert_eq!(ShapeInfo::from_call(&qk).weight, Some(DType::F32));
+        // ops without a norm weight stay as they were
+        let plain = call(Op::Add, vec![x.clone(), x.clone()], x.clone());
+        assert_eq!(ShapeInfo::from_call(&plain).weight, None);
+        // a kernel that declares bf16 weights takes the bf16 norm and refuses the f32 one (a backend that declares nothing takes both)
+        let k = crate::registry::KernelImpl::new(Op::RmsNorm, "rmsnorm_bf16", "metal").acts([DType::Bf16]).weights([DType::Bf16]);
+        let open = crate::registry::KernelImpl::new(Op::RmsNorm, "rmsnorm_any", "cuda").acts([DType::Bf16]);
+        let bf = call(Op::RmsNorm, vec![x.clone(), t(DType::Bf16, &[128])], x.clone());
+        assert!(k.accepts(&ShapeInfo::from_call(&bf)) && !k.accepts(&ShapeInfo::from_call(&rms)));
+        assert!(open.accepts(&ShapeInfo::from_call(&rms)));
     }
 
     #[test]

@@ -15,6 +15,7 @@
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Args, Subcommand};
+use intarsia_core::quant::mlx_affine::{fix_conv_shape, logical_cols, map_name as mlx_map_name, MlxAffineConfig};
 use intarsia_core::quant::scheme::{Algo, QuantScheme};
 use intarsia_core::quant::{BF16, EXL3, FP8_E4M3, MXFP4, NVFP4};
 use intarsia_core::recipe::{text_config, ConfigKeys, ModelDims, Recipe};
@@ -237,6 +238,7 @@ impl Inventory {
         }
         inv.add_exl3_views();
         inv.add_compressed_tensors_views();
+        inv.add_mlx_affine_views(dir);
         Ok(inv)
     }
 
@@ -273,6 +275,42 @@ impl Inventory {
                 self.info.insert(w, i);
             }
             self.info.insert(format!("{m}.weight_scale_2"), ("F32".to_string(), vec![1]));
+        }
+    }
+
+    /// An MLX affine checkpoint (`config.json` `quantization` without a `quant_method`) is read as bf16 by the loader
+    /// (`quant::mlx_affine`): show the same view here. Packed `u32` weights become bf16 `[.., cols]`, `.scales` / `.biases`
+    /// disappear, `mlx-vlm` names map to the HF names the recipes use, a `[C, K, 1]` conv to `[C, 1, K]`.
+    fn add_mlx_affine_views(&mut self, dir: &Path) {
+        let Some(cfg) = read_json(&dir.join("config.json")).ok().and_then(|c| MlxAffineConfig::from_config(&c).ok().flatten())
+        else {
+            return;
+        };
+        let (names, info) = (std::mem::take(&mut self.names), std::mem::take(&mut self.info));
+        let packed = |m: &str| names.contains(&format!("{m}.scales")) && names.contains(&format!("{m}.biases")) && names.contains(&format!("{m}.weight"));
+        for n in &names {
+            if n.strip_suffix(".scales").or_else(|| n.strip_suffix(".biases")).is_some_and(packed) {
+                continue;
+            }
+            let mut entry = info.get(n).cloned();
+            if let (Some(m), Some((d, sh))) = (n.strip_suffix(".weight").filter(|m| packed(m)), entry.as_mut()) {
+                let scales = info.get(&format!("{m}.scales"));
+                if let (true, Some((_, ss))) = (d == "U32" && !sh.is_empty(), scales) {
+                    let nd = sh.len();
+                    if let Ok((cols, _)) = logical_cols(m, sh[nd - 1], ss.get(nd - 1).copied().unwrap_or(0), cfg.params_for(m).0) {
+                        sh[nd - 1] = cols;
+                        *d = "BF16".to_string();
+                    }
+                }
+            }
+            if let Some((_, sh)) = entry.as_mut() {
+                *sh = fix_conv_shape(n, sh);
+            }
+            let mapped = mlx_map_name(n);
+            if let Some(e) = entry {
+                self.info.insert(mapped.clone(), e);
+            }
+            self.names.insert(mapped);
         }
     }
 
@@ -940,12 +978,24 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
         }
     }
     let qc = tc.get("quantization_config").or_else(|| cfg.get("quantization_config")).filter(|v| v.is_object());
+    let mlx = MlxAffineConfig::from_config(cfg).ok().flatten();
+    if let Some(m) = &mlx {
+        let extra = if m.overrides.is_empty() { String::new() } else { format!(", {} per-module override(s)", m.overrides.len()) };
+        notes.push(format!(
+            "config.json quantization: MLX affine, {}-bit, group {}{extra}; the loader dequantises to bf16 (w = scale * q + bias), \
+             so weights take {:.0}x their stored size in memory and bandwidth",
+            m.bits,
+            m.group_size,
+            16.0 / m.bits as f64
+        ));
+    }
     let method = qc.and_then(|q| q.get("quant_method")).and_then(Value::as_str).map(|s| s.to_ascii_lowercase());
     match (qc, method.as_deref()) {
         (None, _) => {}
         (Some(_), Some("modelopt")) => {}
         (Some(_), Some("quark")) => {} // parsed below (QuantScheme::parse_quark)
         (Some(_), Some("exl3")) => {} // parsed below (QuantScheme::parse_exl3)
+        (Some(q), None) if mlx.is_some() && q.get("group_size").is_some() && q.get("bits").is_some() => {} // MLX affine, noted below
         (Some(_), Some("compressed-tensors")) => {} // parsed below (QuantScheme::parse_compressed_tensors)
         (Some(q), None) if q.get("quant_algo").is_some() || q.get("quantized_layers").is_some() => {}
         (Some(q), Some("fp8")) => {
@@ -1108,6 +1158,9 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
         }
     }
     let mut label = if parts.is_empty() { cfg_float.to_string() } else { parts.join("+") };
+    if let Some(m) = &mlx {
+        label = format!("{label} (MLX affine {}-bit dequantised at load)", m.bits);
+    }
     // the float label alone would read as a plain bf16 checkpoint: say what the config declares and the engine does not read
     if let Some(m) = method.as_deref().filter(|m| !matches!(*m, "modelopt" | "quark" | "exl3")) {
         label = format!("{label} (config declares quant_method \"{m}\")");

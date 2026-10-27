@@ -1,0 +1,26 @@
+fleetq: #6215 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'BIN=/work/glr-bin/mxfp4_a8-v5 W=w4 SEC='"'"'time hashv ktrace'"'"' TVARS='"'"'base|A=1;pd2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0,0;wb1|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,1,0,0,0,1;wb2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0,1;wb2bar|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,1,1;wb2ord2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,2,0,1;base2|A=1;wb2ord2-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,2,0,1;wb2bar-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,1,1;wb2-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0,1;wb1-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,1,0,0,0,1;pd2-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0,0;base3|A=1'"'"' HVARS='"'"'wb1|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,1,0,0,0,1;wb2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0,1;wb2bar|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,1,1;wb2ord2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,2,0,1'"'"' KVARS='"'"'base|A=1;pd2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0,0;wb2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0,1'"'"' bash ~/intarsiaml-glr/scripts/glr/w1.sh'
+[glr] w4 stopping radiance 2026-10-27 07:50:00
+[glr] radiance stopped 2026-10-27 07:50:04; GPUs: 0 radiance containers
+== base: 30 lines 2026-10-27 07:50:11
+== pd2: 30 lines 2026-10-27 07:50:17
+== wb1: 30 lines 2026-10-27 07:50:24
+== wb2: 30 lines 2026-10-27 07:50:30
+== wb2bar: 30 lines 2026-10-27 07:50:37
+== wb2ord2: 30 lines 2026-10-27 07:50:43
+== base2: 30 lines 2026-10-27 07:50:50
+== wb2ord2-r: 30 lines 2026-10-27 07:50:56
+== wb2bar-r: 30 lines 2026-10-27 07:51:03
+== wb2-r: 30 lines 2026-10-27 07:51:09
+== wb1-r: 30 lines 2026-10-27 07:51:16
+== pd2-r: 30 lines 2026-10-27 07:51:22
+== base3: 30 lines 2026-10-27 07:51:29
+== hash wb1: 48 lines; differing from default: 0
+== hash wb2: 48 lines; differing from default: 0
+== hash wb2bar: 48 lines; differing from default: 0
+== hash wb2ord2: 48 lines; differing from default: 0
+[glr] ktrace base ok
+[glr] ktrace pd2 ok
+[glr] ktrace wb2 ok
+[glr] w4 done 2026-10-27 07:52:01, 2279 s of the window left
+[glr] radiance active after 15 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793101927,"owned_by":"radiance"
+fleetq: #6215 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

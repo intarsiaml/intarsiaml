@@ -7,6 +7,7 @@ use crate::tokenizer::HfCodec;
 use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::plan::PlanOptions;
 use intarsia_core::quant::compressed_tensors::CtNvfp4;
+use intarsia_core::quant::mlx_affine::{MlxAffine, MlxAffineConfig};
 use intarsia_core::quant::scheme::{QuantScheme, CT_NVFP4A16};
 use intarsia_core::recipe::{ModelDims, PrefillChunk, Recipe};
 use intarsia_core::backend::HostMemory;
@@ -159,18 +160,26 @@ pub struct SchemedSource {
 }
 
 /// The safetensors as stored, or, for a compressed-tensors NVFP4A16 checkpoint, read under the ModelOpt tensor names
-/// (`intarsia_core::quant::compressed_tensors`).
+/// (`intarsia_core::quant::compressed_tensors`), or, for an MLX affine checkpoint (`config.json` `quantization` without a
+/// `quant_method`), dequantised to bf16 on read (`intarsia_core::quant::mlx_affine`).
 enum Tensors {
     Plain(SafeTensors),
     CompressedTensors(CtNvfp4<SafeTensors>),
+    Mlx(MlxAffine<SafeTensors>),
 }
 
 impl SchemedSource {
     pub fn open(dir: &Path) -> Result<SchemedSource> {
         let scheme = read_quant_scheme(dir)?;
         let st = SafeTensors::open_dir(dir)?;
+        let mlx = match dir.join("config.json").exists() {
+            true => MlxAffineConfig::from_config(&read_json(&dir.join("config.json"))?)?,
+            false => None,
+        };
         let inner = if scheme.as_ref().and_then(|s| s.quant_algo.as_deref()) == Some(CT_NVFP4A16) {
             Tensors::CompressedTensors(CtNvfp4::new(st)?)
+        } else if let Some(mlx) = mlx {
+            Tensors::Mlx(MlxAffine::new(st, &mlx)?)
         } else {
             Tensors::Plain(st)
         };
@@ -183,6 +192,7 @@ impl SchemedSource {
         match &self.inner {
             Tensors::Plain(s) => s,
             Tensors::CompressedTensors(s) => s,
+            Tensors::Mlx(s) => s,
         }
     }
 }

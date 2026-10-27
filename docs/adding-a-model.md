@@ -87,24 +87,30 @@ every one stopped at `recipe new` on a quantisation format or tensor layout the 
 
 * **The binary must be built with the backend feature.** `cargo build --release --locked -p intarsia-cli --features metal` (or `cuda`, `hip`);
   a plain build stops `smoke` with "this binary was built without the Metal backend". `scripts/deploy.sh` adds the feature for the host.
-* **`qualify` makes no golden for a hybrid (GatedDeltaNet), MoE or quantised model, even a small bf16 one**: `acc-short` is SKIPPED until you
-  make one. Without a reference server, make the HF fp32 golden by hand and give its directory with `-- --golden-dir DIR` (the file is found
-  by the model's name, `Qwen3.5-4B` -> `qwen3.5-4b-fp32.safetensors`):
-  `uv run --project tools python tools/golden.py --model <dir> --out DIR/qwen3.5-4b-fp32.safetensors --device cpu --dtype float32`
-  (short and 700-token prompts: 1 min for a 4B) and, for the 4k set,
-  `... --out DIR/qwen3.5-4b-4k-fp32-top20.safetensors --topk 20 --prompts tools/prompts/golden_4k.jsonl` (34 min for the 4B on endor's CPU:
-  HF falls back to its PyTorch GatedDeltaNet loop without `flash-linear-attention`; it holds the CPU, so no timing run can share the box).
-  A 4k file given alone is used by `acc-long` as the long set and `acc-4k` then reads "covered by acc-long"
-  (`docs/results/2026-10-27-nmd-new-model-drill-metal.md`).
+* **`qualify` makes the short golden of a dense bf16 model itself, hybrid (GatedDeltaNet) included**, when none is found and the fp32 copy fits
+  in RAM (2 x the weights + 3 GB, within `--mem-budget`) and the weights are at most `--make-golden-max-gb` (16 GB): `tools/golden.py --dtype
+  float32` on the CPU, inside a fleetq slot on this machine (`fleetq run --load cpu`, taken for you unless the process already holds one; no
+  fleetq on the box: it just runs). About 1.5 min for the Qwen3.5-4B short set, bf16 spread pass included. A MoE or quantised model is skipped
+  with the reason (its golden comes from a reference server: `--reference URL` or `--golden FILE`), as is a model too large for the CPU run.
+  The **long** golden of a hybrid model and the **4k** golden of any model stay manual, because HF runs GatedDeltaNet as a PyTorch loop
+  without `flash-linear-attention` (4k set: 34 min for the 4B on endor's CPU for the fp32 pass alone, about twice that with the bf16 spread pass that calibrates the top-1 floor, `--no-bf16-spread` skips it; no timing run can share the box). `qualify` prints the exact
+  command in the stage's SKIPPED reason; it reads like
+  `uv run --project tools python tools/golden.py --model <dir> --out golden/qwen3.5-4b-4k-fp32-top20.safetensors --device cpu --dtype float32 --topk 20 --prompts tools/prompts/golden_4k.jsonl`
+  (the long one: `--out golden/qwen3.5-4b-long-fp32.safetensors --prompts tools/prompts/golden.jsonl tools/prompts/golden_long.jsonl`). Give the
+  directory with `-- --golden-dir DIR` (files are found by model name). A 4k file given alone is used by `acc-long` as the long set and
+  `acc-4k` then reads "covered by acc-long" (`docs/results/2026-10-27-nmd-new-model-drill-metal.md`).
 * **Original Hugging Face Qwen3.5 checkpoints store `A_log` and the gated-norm weight as f32** (the MLX and ModelOpt conversions store bf16).
   The GPU GatedDeltaNet kernels read bf16, so a 4B checkpoint stopped at "no kernel for gdn_delta_rule ... w=F32" and then at "metal w:
   expected bf16, got f32". Both tensors are now rounded to bf16 once at load on the GPU backends (`gpu_f32_to_bf16` in
   `crates/intarsia-core/src/model.rs`); the cpu reference keeps f32.
-* **A bf16 engine can FAIL the absolute top-1 floor (99.5 %) against an fp32 golden on reference noise alone.** Qwen3.5-4B on Metal: prefill
-  top-1 99.72 %, KL21 1.6e-4, yet `acc-short` FAILs on 2 of 160 decode rows (98.75 %). HF's own bf16 run agrees with its fp32 run on only
-  98.96 % of the same prefill rows (KL 3.2e-4), so the floor cannot be met by any bf16 run. Read the KL21 rows and compare with an HF bf16
-  golden (`tools/golden.py --dtype bfloat16`, 1.5 min for a 4B) before treating the FAIL as an engine fault.
-
+* **The top-1 floor of a bf16 model follows the golden's reference spread.** The class floor (99.5 %) cannot be met by a bf16 run against an
+  fp32 golden when HF's own bf16 forward disagrees with its fp32 one more often than that (Qwen3.5-4B: 98.96 % agreement over the 1441
+  short-set rows, KL 3.2e-4; the engine's 99.72 % prefill top-1 and 2 flips in 160 decode rows failed it in the drill). `tools/golden.py
+  --dtype float32` now runs a second bf16 pass and records that agreement (and the KL) in the golden's `ref_spread` metadata;
+  `intarsia accuracy` (and so `acc-short`, `acc-long`) then requires top-1 >= `agreement - 2 standard errors` at the number of rows judged
+  (0.27 points on 1441 rows, 0.8 on 160 decode rows), never above 99.5 %, **and** the unchanged KL floor. `--min-top1` still wins; a golden
+  without `ref_spread` (every golden made before this, every vLLM golden) keeps the 99.5 % floor exactly. The line `gates: ... top-1 floor
+  calibrated on the golden's reference spread` in the accuracy log says which applies. `--no-bf16-spread` skips the extra pass.
 * **Neither spark1 nor the tatooine dev image can make a golden.** `qualify` makes one with `uv run` or `python3` plus numpy
   and safetensors; spark1 has neither `uv` nor numpy, and the HIP dev image has no numpy. Make the goldens on a machine
   that has `uv` (`scripts/onboard/make-goldens.sh <dir> <model name> <vLLM url> <served model>`: short, long and 4k set,
@@ -193,6 +199,25 @@ stored as plain float). The same container with quantised activations (W4A4), `t
 status other than `compressed` is refused at `recipe new` and at load with the reason; another compressed-tensors format (INT4 `pack-quantized`, MXFP4, per-tensor FP8) is flagged by `recipe new` and, at load, keeps its old behaviour (no declared scheme, formats found by tensor names).
 No golden exists for a new model: `tools/golden_ct_nvfp4.py` makes one on a CPU from HF's Qwen3.5 decoder layers and the
 `compressed-tensors` package's own dequantisation (2 min for the 27B, a few GB of memory).
+
+**MLX affine quantisation** (`mlx-community/*`, `mlx_lm.convert -q`; `config.json` has `"quantization": {"group_size": 64, "bits": 4,
+"mode": "affine"}` and no `quant_method`) is accepted since 2026-10-27 (`docs/results/2026-10-27-nab-new-arch-drill-lfm2.md`): any of 2, 3, 4,
+5, 6 and 8 bits, and the per-module overrides the config lists (`"model.embed_tokens": {"bits": 6, ...}`). The loader
+(`quant/mlx_affine.rs`, `MlxAffine` around the safetensors source) **dequantises every packed module to bf16 at load**:
+`<m>.weight` is a `u32` bit stream, `<m>.scales` / `<m>.biases` are per group, `w = scale * q + bias` in f32 rounded once to bf16
+(bitwise `mx.dequantize`). So the recipe, the kernels and the gates see a plain bf16 checkpoint, `recipe new` says `quant: bf16 (MLX affine
+4-bit dequantised at load)`, and **memory and bandwidth are those of bf16: 4x the stored size for 4-bit** (Qwen3.5-2B 4-bit is 1.7 GB on
+disk, 3.76 GB loaded, 11.0 GB peak resident while loading because the dequantised copy and the device copy coexist; the decode byte floor counts 3.76 GB). A native MLX-quant GEMV that reads the 4-bit words is a later change. The
+loader also undoes three things `mlx_lm` does on conversion: `mlx-vlm` tensor names (`language_model.model.*` become `model.language_model.*`),
+the conv layout (`[C, K, 1]` becomes `[C, 1, K]`, same bytes), and, for Qwen3.5 / Qwen3-Next, the `+1` it bakes into the zero-centred
+RMSNorms (it gives back `w - 1` when layer 0's `input_layernorm` has mean above 0.5; without this the model is fluent nonsense because the recipe's
+`norm_offset` adds the 1 again). Safetensors files whose data starts at an odd byte (MLX writes unpadded headers) are copied to the device
+instead of mapped. Not read: MLX `mxfp4` / `nvfp4` / `mxfp8` modes (named in the error), stacked `switch_mlp` experts (the MoE block is
+NVFP4-only), the vision tower.
+No bf16 original of an MLX checkpoint on the box? Make the reference side from the MLX weights with an independent numpy dequantiser,
+`tools/mlx_to_hf_bf16.py --src <mlx dir> --out <dir>` (10 s for a 2B model), and pass it as `onboard --golden-from <dir>`:
+the golden then measures the engine against HF on the same dequantised weights (rounding only, KL about 1e-4), not the
+4-bit loss. The gate class of an MLX checkpoint follows its lowest bit width (`<= 5` bits: the 4-bit class, `6..8`: the FP8 class).
 
 The hand-written reference of the recipe format follows; `recipe new` produces exactly this.
 
@@ -353,9 +378,10 @@ What each stage needs and how it decides:
 * **Goldens** (`acc-short`, `acc-long`, `acc-4k`, `envelope`, `tp`): `--golden` / `--golden-long` / `--golden-4k`, else found by model name
   in `--golden-dir` (default `./golden`, `/models/golden`, `$INTARSIA_GOLDEN_DIR`; an fp32 file is preferred
   over others, `<name>-long...` is the long set), else made: from `--reference http://...` (a vLLM-style server:
-  `tools/golden_vllm.py`, top-20 `prompt_logprobs`) or, for a small dense bf16 model (at most `--make-golden-max-gb`
-  5 GB of weights, no MoE / hybrid / quantisation), an HF fp32 golden with `tools/golden.py` (needs `uv` or a
-  python with torch and transformers). Otherwise the stage is **skipped with the reason**; a model that no one can
+  `tools/golden_vllm.py`, top-20 `prompt_logprobs`) or, for a dense bf16 model (at most `--make-golden-max-gb`
+  16 GB of weights, no MoE / quantisation, an fp32 copy that fits in RAM; hybrid models get the short golden only), an HF fp32
+  golden with `tools/golden.py` in a fleetq slot (needs `uv` or a python with torch and transformers)
+  that also records the bf16 spread the top-1 floor follows. Otherwise the stage is **skipped with the reason**; a model that no one can
   make a golden for needs `--golden` or `--reference`. A reference server must implement vLLM's `prompt_logprobs`
   (radiance 1.9.0 ignores it and returns no rows). For an AMD Quark MXFP4 checkpoint with no reference server and no
   bf16 base, `tools/golden_quark_mxfp4.py` makes the golden from HF's own Qwen3.5 decoder layers, one layer in memory at a
@@ -475,6 +501,10 @@ compare the top logits of the last prompt position with transformers: `intarsia 
   against an independent decode of real tensor slices (`tools/gen_mxfp4_fixture.py`), then `intarsia kernels test`.
   Supported today: bf16, FP8 (per-tensor), NVFP4 (ModelOpt W4A16, compressed-tensors NVFP4A16), MXFP4 (Quark OCP MX, W4A4 by default as declared,
   `--mxfp4-act none` for W4A16). Dense FFN, attention and GatedDeltaNet projections take any of them.
+  A format that is only a different packing of bf16-representable values can skip all of that and be read as bf16: MLX affine is a
+  `WeightSource` wrapper that dequantises at load (`quant/mlx_affine.rs`, ~300 lines with tests, cpu-ref fixture from a numpy
+  reference: `tools/gen_mlx_affine_fixture.py`). That costs memory and bandwidth (16 / bits times the file), not correctness; do it
+  first to get a model through `onboard`, write the native kernels when the speed matters.
 * A multimodal wrapper of a known text family (`*ForConditionalGeneration`, text weights under
   `model.language_model.*`) needs a copy of the family's recipe with the prefix changed (`recipes/qwen3_5_vl.toml`):
   recipes have no prefix parameter or inheritance. `recipe new` then writes the scaffold to the first free

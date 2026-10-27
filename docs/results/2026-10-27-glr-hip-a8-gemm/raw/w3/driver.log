@@ -1,0 +1,41 @@
+fleetq: #6208 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'BIN=/work/glr-bin/mxfp4_a8-v4 W=w3 SEC='"'"'time hashv'"'"' TVARS='"'"'base|A=1;pd2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0;bar1|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,1,0,0,1;bar2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,1;ord2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,2,0;ord2b|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,2,1;ord3b|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,3,1;ord1b|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,1,1;bar2-4442|INTARSIA_HIP_MXFP4_A8_TILE=4,4,4,2,64,0,2,0,0,1;ord2b-4442|INTARSIA_HIP_MXFP4_A8_TILE=4,4,4,2,64,0,2,0,2,1;bar2-4224|INTARSIA_HIP_MXFP4_A8_TILE=4,2,2,4,64,0,2,0,0,1;base-4424|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4;base2|A=1;base-4424-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4;bar2-4224-r|INTARSIA_HIP_MXFP4_A8_TILE=4,2,2,4,64,0,2,0,0,1;ord2b-4442-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,4,2,64,0,2,0,2,1;bar2-4442-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,4,2,64,0,2,0,0,1;ord1b-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,1,1;ord3b-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,3,1;ord2b-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,2,1;ord2-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,2,0;bar2-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,1;bar1-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,1,0,0,1;pd2-r|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0;base3|A=1'"'"' HVARS='"'"'pd2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,0;bar1|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,1,0,0,1;bar2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,0,1;ord2|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,2,0;ord2b|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,2,1;ord3b|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,3,1;ord1b|INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4,64,0,2,0,1,1;bar2-4442|INTARSIA_HIP_MXFP4_A8_TILE=4,4,4,2,64,0,2,0,0,1;ord2b-4442|INTARSIA_HIP_MXFP4_A8_TILE=4,4,4,2,64,0,2,0,2,1;bar2-4224|INTARSIA_HIP_MXFP4_A8_TILE=4,2,2,4,64,0,2,0,0,1'"'"' bash ~/intarsiaml-glr/scripts/glr/w1.sh'
+[glr] w3 stopping radiance 2026-10-27 07:41:16
+[glr] radiance stopped 2026-10-27 07:41:20; GPUs: 0 radiance containers
+== base: 30 lines 2026-10-27 07:41:27
+== pd2: 30 lines 2026-10-27 07:41:33
+== bar1: 30 lines 2026-10-27 07:41:39
+== bar2: 30 lines 2026-10-27 07:41:46
+== ord2: 30 lines 2026-10-27 07:41:52
+== ord2b: 30 lines 2026-10-27 07:41:58
+== ord3b: 30 lines 2026-10-27 07:42:05
+== ord1b: 30 lines 2026-10-27 07:42:11
+== bar2-4442: 30 lines 2026-10-27 07:42:18
+== ord2b-4442: 30 lines 2026-10-27 07:42:25
+== bar2-4224: 30 lines 2026-10-27 07:42:31
+== base-4424: 30 lines 2026-10-27 07:42:38
+== base2: 30 lines 2026-10-27 07:42:44
+== base-4424-r: 30 lines 2026-10-27 07:42:51
+== bar2-4224-r: 30 lines 2026-10-27 07:42:58
+== ord2b-4442-r: 30 lines 2026-10-27 07:43:04
+== bar2-4442-r: 30 lines 2026-10-27 07:43:11
+== ord1b-r: 30 lines 2026-10-27 07:43:17
+== ord3b-r: 30 lines 2026-10-27 07:43:24
+== ord2b-r: 30 lines 2026-10-27 07:43:30
+== ord2-r: 30 lines 2026-10-27 07:43:37
+== bar2-r: 30 lines 2026-10-27 07:43:43
+== bar1-r: 30 lines 2026-10-27 07:43:49
+== pd2-r: 30 lines 2026-10-27 07:43:56
+== base3: 30 lines 2026-10-27 07:44:03
+== hash pd2: 48 lines; differing from default: 0
+== hash bar1: 48 lines; differing from default: 0
+== hash bar2: 48 lines; differing from default: 0
+== hash ord2: 48 lines; differing from default: 0
+== hash ord2b: 48 lines; differing from default: 0
+== hash ord3b: 48 lines; differing from default: 0
+== hash ord1b: 48 lines; differing from default: 0
+== hash bar2-4442: 48 lines; differing from default: 0
+== hash ord2b-4442: 48 lines; differing from default: 0
+== hash bar2-4224: 48 lines; differing from default: 0
+[glr] w3 done 2026-10-27 07:45:06, 2170 s of the window left
+[glr] radiance active after 15 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793101513,"owned_by":"radiance"
+fleetq: #6208 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
