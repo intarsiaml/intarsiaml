@@ -1,0 +1,5 @@
+[tpo] radiance inactive 2026-10-27 06:29:32
+I mut_skip_last: md5 2ba540f3009f finish=length prompt=3858 (cached 0) completion=48 | prefill 942 ms (4097.0 tok/s) | decode 883 ms (53.20 tok/s)
+I mut_scale: md5 a2b8dd259525 finish=length prompt=3858 (cached 0) completion=48 | prefill 1345 ms (2867.6 tok/s) | decode 883 ms (53.25 tok/s)
+I mut_offset: md5 5ac06c5f10f6 finish=length prompt=3858 (cached 0) completion=48 | prefill 947 ms (4075.2 tok/s) | decode 883 ms (53.20 tok/s)
+[tpo] w3 done 2026-10-27 06:29:47

@@ -1,0 +1,5 @@
+
+
+## 1. The engine: one host, many backends
+
+**Implemented** (2026-10-25). The host is `crates/intarsia-server` (HTTP, supervisor, metrics,

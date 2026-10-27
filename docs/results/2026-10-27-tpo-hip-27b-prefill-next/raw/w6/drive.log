@@ -1,0 +1,26 @@
+06:31:02 guard: [guard] radiance stopped 2026-10-27 06:31:01
+06:31:02 item 1: starting server rec
+06:32:55 item 1 rec speed: exit 0 results/20261027-063220-tpo-rec-tpo-w6d-rec-1/result.json
+06:32:55 item 2: starting server best+bin=tpo-dev4+chunk4096
+06:34:47 item 2 best+bin=tpo-dev4+chunk4096 speed: exit 0 results/20261027-063412-tpo-best_bin_tpo-dev4_chunk4096-tpo-w6d-best_bin_tpo-dev4_chunk4096-2/result.json
+06:35:22 item 3 best+bin=tpo-dev4+chunk4096 speed: exit 0 results/20261027-063448-tpo-best_bin_tpo-dev4_chunk4096-tpo-w6d-best_bin_tpo-dev4_chunk4096-3/result.json
+06:35:22 item 4: starting server rec
+06:37:15 item 4 rec speed: exit 0 results/20261027-063640-tpo-rec-tpo-w6d-rec-4/result.json
+06:37:51 item 5 rec speed: exit 0 results/20261027-063716-tpo-rec-tpo-w6d-rec-5/result.json
+06:37:51 item 6: starting server best+bin=tpo-dev4+chunk4096
+06:39:43 item 6 best+bin=tpo-dev4+chunk4096 speed: exit 0 results/20261027-063909-tpo-best_bin_tpo-dev4_chunk4096-tpo-w6d-best_bin_tpo-dev4_chunk4096-6/result.json
+06:40:18 item 7 best+bin=tpo-dev4+chunk4096 speed: exit 0 results/20261027-063944-tpo-best_bin_tpo-dev4_chunk4096-tpo-w6d-best_bin_tpo-dev4_chunk4096-7/result.json
+06:40:18 item 8: starting server rec
+06:42:11 item 8 rec speed: exit 0 results/20261027-064136-tpo-rec-tpo-w6d-rec-8/result.json
+06:42:11 item 9: starting server best+bin=tpo-dev4+chunk4096
+06:44:55 item 9 best+bin=tpo-dev4+chunk4096 texts: exit 0       18 lines
+06:44:55 item 10: starting server rec
+06:47:40 item 10 rec texts: exit 0       18 lines
+06:47:40 item 11: starting server best+bin=tpo-dev4+chunk4096+spoff
+06:50:12 item 11 best+bin=tpo-dev4+chunk4096+spoff texts: exit 0       18 lines
+06:50:12 item 12: starting server best+bin=tpo-dev4+chunk4096+mb16
+06:51:26 item 12 best+bin=tpo-dev4+chunk4096+mb16 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+06:51:26 item 13: starting server best+bin=tpo-dev4+chunk4096+spoff
+06:52:18 item 13 best+bin=tpo-dev4+chunk4096+spoff mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+06:52:18 done
+06:53:18 guard: [guard] radiance answers 2026-10-27 06:53:18 (after 65 s)
