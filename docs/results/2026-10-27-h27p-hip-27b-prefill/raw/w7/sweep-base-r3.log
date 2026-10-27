@@ -1,0 +1,53 @@
+[localeval] calibrated: 22.1 tokens/sentence, 94 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.45s prefill=2217 tok/s decode=92.3 tok/s peak=128.8 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=985 ttft=0.45s prefill=2183 tok/s decode=93.8 tok/s peak=120.6 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=988 ttft=0.46s prefill=2170 tok/s decode=99.5 tok/s peak=120.8 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4087 ttft=1.81s prefill=2257 tok/s decode=82.6 tok/s peak=106.9 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4084 ttft=1.83s prefill=2236 tok/s decode=85.2 tok/s peak=98.5 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4083 ttft=1.82s prefill=2246 tok/s decode=81.7 tok/s peak=97.7 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16648 ttft=8.28s prefill=2012 tok/s decode=71.8 tok/s peak=82.1 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16645 ttft=8.23s prefill=2024 tok/s decode=70.7 tok/s peak=88.9 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16650 ttft=8.19s prefill=2032 tok/s decode=83.3 tok/s peak=107.2 tok/s out=128
+# localeval: h27p-base — 2026-10-27T02:58
+
+- model: `qwen38-27b-base` on ? (?), url `http://tatooine:8095/v1`
+- thinking: default; run kind: speed; label: h27p-w7-base-r3
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed h27p-base --sizes 1024,4096,16384 --gen 128 --reps 3 --label h27p-w7-base-r3 --recipe HIP_VISIBLE_DEVICES=0,1 base-intarsia serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (lane h27p, arm base, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0) --wait-idle 60`
+- result file: `results/20261027-025825-h27p-base-h27p-w7-base-r3/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 base-intarsia serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (lane h27p, arm base, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0)
+````
+
+## Speed sweep
+
+served `qwen38-27b-base`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 988 | 0.45 | 2183 (2170–2217) * | - | 93.8 (92.3–99.5) | 120.8 (120.6–128.8) | - | - | 128 |
+| 4084 | 1.82 | 2246 (2236–2257) | 2265 | 82.6 (81.7–85.2) | 98.5 (97.7–106.9) | - | - | 128 |
+| 16648 | 8.23 | 2024 (2012–2032) | 1961 | 71.8 (70.7–83.3) | 88.9 (82.1–107.2) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 17.7% at 16384 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261027-025825-h27p-base-h27p-w7-base-r3/result.json
+[localeval] logged to unanimis: efa5692f-2c25-4fb6-a65b-3f020c0366ac

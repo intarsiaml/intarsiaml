@@ -725,6 +725,10 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         if let Some(n) = opts.busy_chunk {
             bo.busy_chunk = n;
+        } else if let Some(n) = recipe.resolve_busy_chunk(backend_name) {
+            // the recipe's own busy chunk (`[tuning.<backend>] busy_chunk`; the Qwen3.8-27B on HIP, lane H27P: a 2048-row chunk beside decoding
+            // streams stalls them 650 ms instead of 135 ms, and the chunk schedule does not change the rows' bits there)
+            bo.busy_chunk = n;
         } else if model.recurrent_batch() && matches!(backend_name, "cuda" | "hip" | "metal") {
             // The busy chunk is the solo chunk (2048 for the 35B on CUDA and Metal, 4096 on HIP, lane hb): then a request that prefills beside decoding sequences
             // runs the same chunk schedule as its solo run, and its state, and every token after it, is bitwise the solo

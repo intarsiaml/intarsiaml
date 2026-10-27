@@ -1,0 +1,7 @@
+Based on the document provided, here is a step-by-step checklist for implementing and validating MTP speculative decoding for `Qwen3.6-35B-A3B`.
+
+### Phase 1: Configuration & Loading
+1.  **Enable the Feature Flag**
+    *   [ ] Ensure the command line includes `--spec mtp`.
+    *   [ ] Optionally set the draft length with `--spec-k K` (default is 4, but tests sweep 1–3).
+    *   [ ] Verify that without this flag, no `mtp.*` tensors are loaded and memory/

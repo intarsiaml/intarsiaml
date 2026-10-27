@@ -1,0 +1,34 @@
+fleetq: #5989 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 57% busy with work fleetq does not track
+fleetq: #5989 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #5989 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/intarsiaml-h27p/scripts/h27p/win.sh chain3.sh'
+[h27p] radiance inactive 2026-10-27 03:03:50
+== kernel admission summary (dev binary)
+gated_rmsnorm  gated_rmsnorm_bf16              2      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_pair rmsnorm_add_matmul_pair_bf16_gemv      6      0     0.000e0     0.000e0  ADMITTED
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_gemv      9      0     0.000e0     0.000e0  ADMITTED
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_gemv      6      0     0.000e0     0.000e0  ADMITTED
+matmul_fp8_pair matmul_fp8_pair_wmma            0      0     0.000e0     0.000e0  NO CASES (untested)
+gated_rmsnorm_matmul_fp8 gated_rmsnorm_matmul_fp8_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+rmsnorm_add_matmul_fp8_pair rmsnorm_add_matmul_fp8_pair_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+84 kernels, 414 cases in 3.4s
+incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+== bf16 partials vs base ids (informational)
+FAIL ids 4k-0 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=95 proposed=189 accepted=160 (acceptance 84.7%, 2.68 tokens per pass)
+FAIL ids 4k-1 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=103 proposed=205 accepted=152 (acceptance 74.1%, 2.48 tokens per pass)
+FAIL ids 4k-2 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=110 proposed=220 accepted=144 (acceptance 65.5%, 2.31 tokens per pass)
+FAIL ids 4k-3 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=100 proposed=199 accepted=155 (acceptance 77.9%, 2.55 tokens per pass)
+FAIL ids 4k-4 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=118 proposed=236 accepted=137 (acceptance 58.1%, 2.16 tokens per pass)
+FAIL ids 4k-5 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)
+FAIL ids 16k-0 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=98 proposed=196 accepted=157 (acceptance 80.1%, 2.60 tokens per pass)
+FAIL ids 16k-1 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=105 proposed=210 accepted=150 (acceptance 71.4%, 2.43 tokens per pass)
+FAIL ids 16k-2 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=99 proposed=198 accepted=155 (acceptance 78.3%, 2.57 tokens per pass)
+FAIL ids 16k-3 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=101 proposed=202 accepted=154 (acceptance 76.2%, 2.52 tokens per pass)
+FAIL ids 16k-4 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=116 proposed=232 accepted=139 (acceptance 59.9%, 2.20 tokens per pass)
+FAIL ids 16k-5 | prefill chunk 2048 (recipe qwen3_5_vl, hip) | spec: verify passes=99 proposed=198 accepted=156 (acceptance 78.8%, 2.58 tokens per pass)
+ids fails=12
+[h27p] chain3.sh done 2026-10-27 03:07:50
+[h27p] radiance active after 15 s; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793084878,"owned_by":"radiance"
+fleetq: #5989 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

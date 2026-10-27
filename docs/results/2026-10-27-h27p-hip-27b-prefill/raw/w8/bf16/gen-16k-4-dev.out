@@ -1,0 +1,7 @@
+I am the R9700, a beast of silicon and heat, and I have learned that speed is a lie if the numbers are wrong.
+
+They call me "the fleet box," but I am just a collection of slots waiting for work. My life is governed by a simple rule: **if the math changes, the speed doesn’t count.**
+
+It started with the **Prefill Chunk**. They told me to chew through tokens in bites of 1024. At first, I thought it was just about how fast I could eat. But then they ran the `accuracy` gate. The chunk boundaries changed the order of my reductions. The KV writes shifted. The KL divergence ticked up. *Numerics: yes.* So, I learned: I can only quote my speed if I prove my math is still golden.
+
+Then came the **Tensor Parallelism**. They split my brain across two ranks. It felt powerful, but the partial sums were reduced across the wire. The summation order changed. *Numerics: yes.* I had to re-verify every bit. Even the **TP Partial Dtype** mattered; if they rounded the partials to `bf16` before the all-reduce, the bits shifted. I

@@ -1,0 +1,14 @@
+Here is a section-by-section summary of the **IntarsiaML architecture plan (v0.2)**, followed by a list of open questions and gaps identified from the "Status vs plan" tables and text.
+
+### Section-by-Section Summary
+
+**0. Goals, Honest Targets, Anti-Goals**
+*   **Priorities:** Modularity > Usability > Accuracy > Speed (Top 3 per platform) > Reproducibility > APIs > UI > Metrics > Diagrams.
+*   **Targets:**
+    *   **DGX Spark (GB10):** Beat llama.cpp/vLLM single-stream; within 10% of TensorFold.
+    *   **R9700 (gfx1201):** Beat llama.cpp Vulkan/HIP; beat vLLM-radiance (radiance is the long-term bar).
+    *   **Apple Silicon:** Correctness only for now.
+    *   **Intel Arc:** Out of scope.
+*   **Anti-Goals:** No per-family engines (use recipes over shared blocks), no Python in the serving path (native startup), no scope sprawl (text LLMs only), no kernels without reference tests.
+
+**1. Language and Build
