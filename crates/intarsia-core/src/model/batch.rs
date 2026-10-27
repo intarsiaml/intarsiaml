@@ -1100,6 +1100,8 @@ impl Model {
             vocab_par: self.vocab_par,
             tp_arnorm: false,
             ar_defer: Mutex::new(None),
+            pipe: Mutex::new(Vec::new()),
+            pipe_active: std::sync::atomic::AtomicBool::new(false),
             ar_fused_eager: Default::default(),
             ar_fused_captured: Default::default(),
             tp: self.tp.clone(),

@@ -169,7 +169,7 @@ struct Staging {
     next: usize,
 }
 
-const FORK_EVENTS: usize = 16;
+const FORK_EVENTS: usize = 64;
 const STAGE_SLOTS: usize = 8;
 const STAGE_SLOT: usize = 64 << 10;
 
@@ -1002,10 +1002,10 @@ impl Backend for HipBackend {
         true
     }
 
-    fn stream_wait(&self, waiter: StreamId, signal: StreamId) -> Result<()> {
+    fn stream_record(&self, signal: StreamId) -> Result<u64> {
         self.bind()?;
-        let (w, s) = (self.stream(waiter)?, self.stream(signal)?);
-        let ev = {
+        let s = self.stream(signal)?;
+        let (ev, i) = {
             let mut pool = self.fork_events.lock().unwrap();
             if pool.0.is_empty() {
                 for _ in 0..FORK_EVENTS {
@@ -1017,10 +1017,21 @@ impl Backend for HipBackend {
             }
             let i = pool.1;
             pool.1 = (i + 1) % FORK_EVENTS;
-            pool.0[i] as *mut c_void
+            (pool.0[i] as *mut c_void, i)
         };
-        // SAFETY: a live event and two live streams of this device; the wait uses the event's state at this call.
+        // SAFETY: a live event and a live stream of this device.
         check("hipEventRecord", unsafe { ffi::ik_rt_event_record(ev, s) })?;
+        Ok(i as u64)
+    }
+
+    fn stream_wait_for(&self, waiter: StreamId, token: u64) -> Result<()> {
+        self.bind()?;
+        let w = self.stream(waiter)?;
+        let ev = {
+            let pool = self.fork_events.lock().unwrap();
+            *pool.0.get(token as usize).ok_or_else(|| Error::backend("stream_wait_for: unknown token"))? as *mut c_void
+        };
+        // SAFETY: a live event and a live stream of this device; the wait takes the event's state at this call.
         check("hipStreamWaitEvent", unsafe { ffi::ik_rt_stream_wait_event(w, ev) })
     }
 

@@ -395,6 +395,11 @@ pub struct Model {
     tp_arnorm: bool,
     /// The all-reduce deferred by `tp_arnorm`, until the next op decides how it runs.
     ar_defer: Mutex<Option<ar_norm::DeferredAr>>,
+    /// Lane TPO overlap: the all-reduces queued on stream 1 whose result the next op of stream 0 still has to wait for, as (first row, rows,
+    /// token of `Backend::stream_record`) in issue order. Any op [`Model::exec_call_one`] launches joins them first ([`Model::pipe_join`]);
+    /// the pipelined FFN takes them over per row range. `pipe_active` is the cheap test for "the list is not empty".
+    pipe: Mutex<Vec<(usize, usize, u64)>>,
+    pipe_active: std::sync::atomic::AtomicBool,
     /// Fused all-reduce + rmsnorm collectives run eagerly / recorded into a graph (printed when the model is dropped).
     ar_fused_eager: std::sync::atomic::AtomicU64,
     ar_fused_captured: std::sync::atomic::AtomicU64,
@@ -1308,6 +1313,8 @@ impl Model {
             vocab_par,
             tp_arnorm: ar_norm::enabled(opts, &tp, no_comm, test_bug.is_some()),
             ar_defer: Mutex::new(None),
+            pipe: Mutex::new(Vec::new()),
+            pipe_active: std::sync::atomic::AtomicBool::new(false),
             ar_fused_eager: Default::default(),
             ar_fused_captured: Default::default(),
             tp,
@@ -2495,6 +2502,9 @@ impl Model {
         let op = call.op;
         call.exact_rows = self.verifying();
         call.check()?;
+        if self.pipe_active.load(std::sync::atomic::Ordering::Relaxed) {
+            self.pipe_join()?; // an all-reduce of the overlap is still in flight on stream 1: this op may read its result
+        }
         // a block-end all-reduce held back for this op (`model/ar_norm.rs`): fused with it, or issued before it
         if self.tp_arnorm && self.resolve_ar(&call, profile)? {
             return Ok(());
@@ -2715,10 +2725,34 @@ impl Model {
                             self.gdn_block_segs(g, segs, &nv, &blkv, t, profile, f.as_ref())?;
                         }
                     },
-                    Block::Ffn(f) => {
-                        norm_in(&f.pre_norm, pending, &mut cur)?;
-                        self.ffn_block(f, &nv, &blkv, t, profile)?;
-                    }
+                    Block::Ffn(f) => match self.overlap_ffn(f, t, profile).filter(|_| matches!(seqs, Seqs::One(_)) && dpos.is_none()) {
+                        Some(piece) => {
+                            // lane TPO: the residual add + norm, gate, up, down and the all-reduce per row piece (the add writes the other
+                            // residual buffer, so `cur` flips once, as `norm_in` does)
+                            let (res, next) = (hv(cur), hv(1 - cur));
+                            let norm_rows = |r0: usize, n: usize| -> Result<()> {
+                                if pending {
+                                    self.exec(
+                                        Op::RmsNormAdd,
+                                        vec![blkv.rows(r0, n), res.rows(r0, n), f.pre_norm.clone()],
+                                        vec![nv.rows(r0, n), next.rows(r0, n)],
+                                        eps_attrs.clone(),
+                                        profile,
+                                    )
+                                } else {
+                                    self.exec(Op::RmsNorm, vec![res.rows(r0, n), f.pre_norm.clone()], vec![nv.rows(r0, n)], eps_attrs.clone(), profile)
+                                }
+                            };
+                            self.ffn_block_pieces(f, &blkv, t, piece, &norm_rows, &nv, profile)?;
+                            if pending {
+                                cur = 1 - cur;
+                            }
+                        }
+                        None => {
+                            norm_in(&f.pre_norm, pending, &mut cur)?;
+                            self.ffn_block(f, &nv, &blkv, t, profile)?;
+                        }
+                    },
                     Block::Moe(m) => {
                         if matches!(seqs, Seqs::Batch(_)) && !self.recurrent_batch {
                             norm_in(&m.pre_norm, pending, &mut cur)?;
@@ -2752,11 +2786,13 @@ impl Model {
         if dead_tail {
             // nothing reads the hidden state of a chunk that feeds no head
             self.flush_ar(profile)?;
+            self.pipe_join()?;
             return Ok(nv);
         }
         // final: h = h + block_out ; n = norm(h)
         norm_in(&self.final_norm, pending, &mut cur)?;
         self.flush_ar(profile)?;
+        self.pipe_join()?;
         Ok(nv)
     }
 
@@ -3466,13 +3502,19 @@ impl Model {
         }
     }
 
-    fn ffn_block(&self, f: &FfnBlock, n: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+    /// Gate, up and the gated activation of rows `[r0, r0 + rows)` of a `t`-row FFN pass (`n`: the `[t, hidden]` normed input); returns
+    /// those rows of the activation `a`.
+    fn ffn_act(&self, f: &FfnBlock, n: &TensorRef, t: usize, r0: usize, rows: usize, profile: bool) -> Result<TensorRef> {
         let act = self.act;
         let ws = &self.ws;
         let i = self.ldims.intermediate;
-        let g = self.view(&ws.g, act, &[t, i]);
-        let u = self.view(&ws.u, act, &[t, i]);
-        let a = self.view(&ws.a, act, &[t, i]);
+        let part_rows = |b: &Buffer| {
+            let v = self.view(b, act, &[t, i]);
+            if rows == t { v } else { v.rows(r0, rows) }
+        };
+        let (g, u, a) = (part_rows(&ws.g), part_rows(&ws.u), part_rows(&ws.a));
+        let n = if rows == t { n.clone() } else { n.rows(r0, rows) };
+        let n = &n;
         let bf16 = |q: &QTensor| q.format == crate::quant::BF16;
         // gate and up read the same activation: one launch for both when the backend has the fused bf16 / mxfp4 pair
         let gu_fused = (bf16(&f.gate)
@@ -3491,6 +3533,12 @@ impl Model {
             self.proj(n, &f.up, &u, profile)?;
         }
         self.exec(Op::SiluGlu, vec![g, u], vec![a.clone()], OpAttrs::default(), profile)?;
+        Ok(a)
+    }
+
+    fn ffn_block(&self, f: &FfnBlock, n: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+        let a = self.ffn_act(f, n, t, 0, t, profile)?;
+        let bf16 = |q: &QTensor| q.format == crate::quant::BF16;
         match &self.ws.part {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, self.ldims.hidden]);
@@ -3522,14 +3570,19 @@ impl Model {
         }
     }
 
-    /// Rows per piece when a row-parallel projection of `t` rows runs as pieces whose all-reduces overlap the next piece's GEMM (lane TPO,
-    /// `INTARSIA_TP_OVERLAP=K`, K >= 2 pieces, default off; needs a second hardware queue, `GPU_MAX_HW_QUEUES >= 2`, or the all-reduce waits in line
-    /// behind the GEMM). `None`: the projection runs whole, as before. Pieces are multiples of 256 rows (the GEMM's tile). Only an eager,
-    /// unprofiled, unrecorded pass of at least two tiles of rows on a two-rank group whose backend runs two streams side by side.
+    /// Rows per piece when a pass of `t` rows runs as row pieces whose all-reduces overlap the next piece's compute (lane TPO,
+    /// `INTARSIA_TP_OVERLAP=K`, K >= 2 pieces, default off; the all-reduce runs on a second stream, which needs a second hardware queue,
+    /// `GPU_MAX_HW_QUEUES >= 4` on the R9700s, or it waits in line behind the GEMM). `None`: everything runs whole, as before. Pieces are
+    /// multiples of 256 rows (the GEMM's tile). Only an eager, unprofiled, unrecorded pass of at least two tiles of rows on a two-rank group
+    /// whose backend runs two streams side by side. `INTARSIA_TP_OVERLAP_FFN=0` keeps the FFN whole (only the attention / GDN output
+    /// projections are pieces); `INTARSIA_TP_OVERLAP_MIN=rows` raises the smallest pass that splits (default 512).
     fn overlap_piece(&self, t: usize, profile: bool) -> Option<usize> {
-        static K: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
-        let k = *K.get_or_init(|| std::env::var("INTARSIA_TP_OVERLAP").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(0));
-        if k < 2 || t < 512 || profile || self.stream != 0 || self.tp.world != 2 || self.tp.comm.is_none() || self.no_comm || self.test_bug.is_some() {
+        static CFG: std::sync::OnceLock<(usize, usize)> = std::sync::OnceLock::new();
+        let (k, min) = *CFG.get_or_init(|| {
+            let env = |n: &str| std::env::var(n).ok().and_then(|v| v.trim().parse::<usize>().ok());
+            (env("INTARSIA_TP_OVERLAP").unwrap_or(0), env("INTARSIA_TP_OVERLAP_MIN").unwrap_or(512))
+        });
+        if k < 2 || t < min.max(512) || profile || self.stream != 0 || self.tp.world != 2 || self.tp.comm.is_none() || self.no_comm || self.test_bug.is_some() {
             return None;
         }
         if !self.backend.stream_overlap() || self.recorder.lock().unwrap().is_some() || self.capture_ops.lock().unwrap().is_some() {
@@ -3539,10 +3592,66 @@ impl Model {
         (piece < t).then_some(piece)
     }
 
+    /// Whether the FFN of a pass of `t` rows runs as pieces (see [`Model::overlap_piece`]).
+    fn overlap_ffn(&self, f: &FfnBlock, t: usize, profile: bool) -> Option<usize> {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if !*ON.get_or_init(|| std::env::var("INTARSIA_TP_OVERLAP_FFN").map_or(true, |v| v != "0")) {
+            return None;
+        }
+        // the MXFP4 down projection writing the f32 partial, or any down projection into the (bf16) block output
+        if self.ws.part.is_some() && f.down.format != crate::quant::MXFP4 {
+            return None;
+        }
+        self.overlap_piece(t, profile)
+    }
+
+    fn row_pieces(t: usize, piece: usize) -> Vec<(usize, usize)> {
+        (0..t).step_by(piece).map(|r0| (r0, piece.min(t - r0))).collect()
+    }
+
+    /// Queue the all-reduce `partial -> out` of one row range on stream 1, after everything queued so far on stream 0, and return the token
+    /// of its end (`None` when the collective is skipped by the batched-mutant test hook).
+    fn reduce_rows_async(&self, comm: &Arc<dyn Comm>, partial: &TensorRef, out: &TensorRef, skip: bool) -> Result<Option<u64>> {
+        if skip {
+            return Ok(None);
+        }
+        self.backend.stream_wait(1, self.stream)?;
+        comm.all_reduce_sum_into(partial, out, 1)?;
+        if self.coll_trace.on {
+            self.coll_trace.issue();
+        }
+        self.telemetry.record_comm(None);
+        Ok(Some(self.backend.stream_record(1)?))
+    }
+
+    /// Make the tokens of all-reduces still in flight on stream 1 the ones the next op waits for.
+    fn pipe_publish(&self, toks: Vec<(usize, usize, u64)>) {
+        if toks.is_empty() {
+            return;
+        }
+        *self.pipe.lock().unwrap() = toks;
+        self.pipe_active.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Take the in-flight all-reduces over (the caller waits for them itself).
+    fn pipe_take(&self) -> Vec<(usize, usize, u64)> {
+        self.pipe_active.store(false, std::sync::atomic::Ordering::Relaxed);
+        std::mem::take(&mut *self.pipe.lock().unwrap())
+    }
+
+    /// Stream 0 waits for every all-reduce in flight on stream 1 (stream 1 is in order, so for the last one).
+    fn pipe_join(&self) -> Result<()> {
+        match self.pipe_take().last() {
+            Some(&(_, _, tok)) => self.backend.stream_wait_for(self.stream, tok),
+            None => Ok(()),
+        }
+    }
+
     /// `proj(x, w) -> dst`, then the all-reduce `dst -> out` (`dst` and `out` the same tensor for bf16 partials). With [`Model::overlap_piece`]
     /// the rows go in pieces: after each piece's GEMM (stream 0) its all-reduce is queued on stream 1 behind an event, so it runs while stream 0
-    /// computes the next piece; stream 0 waits for stream 1 after the last piece. Every kernel is row-independent and the all-reduce is per
-    /// element, so the result is bitwise the whole-chunk one. The collectives stay on one stream in one order on both ranks.
+    /// computes the next piece; the last piece's all-reduce stays in flight until the next op ([`Model::pipe_join`]). Every kernel is
+    /// row-independent and the all-reduce is per element, so the result is bitwise the whole-chunk one. The collectives stay on one stream in one
+    /// order on both ranks.
     fn proj_then_reduce(&self, x: &TensorRef, w: &QTensor, dst: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
         let Some(piece) = self.overlap_piece(t, profile) else {
             self.proj(x, w, dst, profile)?;
@@ -3552,24 +3661,69 @@ impl Model {
         if self.tp_arnorm {
             self.flush_ar(profile)?; // a reduction still pending from the block before
         }
+        self.pipe_join()?;
         let skip = self.take_dropped_collective();
-        let mut r0 = 0;
-        while r0 < t {
-            let n = piece.min(t - r0);
+        let mut toks = Vec::new();
+        for (r0, n) in Self::row_pieces(t, piece) {
             self.proj(&x.rows(r0, n), w, &dst.rows(r0, n), profile)?;
-            if !skip {
-                self.backend.stream_wait(1, self.stream)?;
-                comm.all_reduce_sum_into(&dst.rows(r0, n), &out.rows(r0, n), 1)?;
-                if self.coll_trace.on {
-                    self.coll_trace.issue();
-                }
-                self.telemetry.record_comm(None);
+            if let Some(tok) = self.reduce_rows_async(comm, &dst.rows(r0, n), &out.rows(r0, n), skip)? {
+                toks.push((r0, n, tok));
             }
-            r0 += n;
         }
-        if !skip {
-            self.backend.stream_wait(self.stream, 1)?;
+        self.pipe_publish(toks);
+        Ok(())
+    }
+
+    /// The FFN block of a pass of `t` rows as row pieces (see [`Model::overlap_ffn`]): per piece the residual add + norm (`norm_rows`), gate, up,
+    /// the gated activation, down and the all-reduce on stream 1, so the all-reduce of piece i overlaps everything piece i + 1 computes, and the
+    /// norm of piece i waits only for the attention / GDN all-reduce of its own rows. Bitwise the whole-pass result (row-wise kernels).
+    #[allow(clippy::too_many_arguments)]
+    fn ffn_block_pieces(
+        &self,
+        f: &FfnBlock,
+        out: &TensorRef,
+        t: usize,
+        piece: usize,
+        norm_rows: &dyn Fn(usize, usize) -> Result<()>,
+        nv: &TensorRef,
+        profile: bool,
+    ) -> Result<()> {
+        let comm = self.tp.comm.as_ref().expect("overlap_piece checked the communicator");
+        if self.tp_arnorm {
+            self.flush_ar(profile)?;
         }
+        let pieces = Self::row_pieces(t, piece);
+        let prev = self.pipe_take();
+        // the block before queued its all-reduces in the same pieces: wait for each one's own rows; else for all of them now
+        let same = !prev.is_empty() && prev.len() == pieces.len() && prev.iter().zip(&pieces).all(|(p, q)| (p.0, p.1) == *q);
+        if !prev.is_empty() && !same {
+            self.backend.stream_wait_for(self.stream, prev.last().unwrap().2)?;
+        }
+        let skip = self.take_dropped_collective();
+        let mut toks = Vec::new();
+        for (i, &(r0, n)) in pieces.iter().enumerate() {
+            if same {
+                self.backend.stream_wait_for(self.stream, prev[i].2)?;
+            }
+            norm_rows(r0, n)?;
+            let a = self.ffn_act(f, nv, t, r0, n, profile)?;
+            let tok = match &self.ws.part {
+                Some(part) => {
+                    let part = self.view(part, DType::F32, &[t, self.ldims.hidden]).rows(r0, n);
+                    self.proj(&a, &f.down, &part, profile)?;
+                    self.reduce_rows_async(comm, &part, &out.rows(r0, n), skip)?
+                }
+                None => {
+                    let o = out.rows(r0, n);
+                    self.proj(&a, &f.down, &o, profile)?;
+                    self.reduce_rows_async(comm, &o, &o, skip)?
+                }
+            };
+            if let Some(tok) = tok {
+                toks.push((r0, n, tok));
+            }
+        }
+        self.pipe_publish(toks);
         Ok(())
     }
 
