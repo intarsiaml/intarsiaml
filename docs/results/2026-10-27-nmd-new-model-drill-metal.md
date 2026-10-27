@@ -120,4 +120,4 @@ there and the in-depth report; it can run while the quick numbers are published,
   every Qwen3.5-family checkpoint on endor's disk that the fleet runs (`Qwen3.6-35B-A3B-NVFP4`, `Qwen3.8-27B-Quark-AWQ-MXFP4`, `qwen38-27b`)
   are all BF16, so for them the helper returns the tensor untouched; the CUDA and HIP `gdn_delta_rule` entries are registered `weights(bf)` like
   Metal's, so f32 `A_log` could not load there. Not checked: whether a CUDA or HIP gated-rmsnorm kernel accepts an f32 norm weight (a checkpoint
-  with bf16 `A_log` and f32 norm would then change numerics there); none is known. `cargo test --release -p intarsia-core`: see the PR.
+  with bf16 `A_log` and f32 norm would then change numerics there); none is known. `cargo test --release --locked -p intarsia-core` (fleetq #6143): 133 + 2 + 34 passed, 0 failed.
