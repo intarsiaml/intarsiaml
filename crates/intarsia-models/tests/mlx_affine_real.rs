@@ -2,7 +2,7 @@
 //! independent implementation) writes from it: every text tensor (the vision tower is left alone) must match bit for bit (names, shapes, dtypes, bytes).
 //! Needs both directories, so it is ignored by default:
 //!
-//!   INTARSIA_MLX_DIR=<mlx dir> INTARSIA_MLX_REF_DIR=<dequantised dir> cargo test --release -p intarsia-models \
+//!   MLX_CKPT_DIR=<mlx dir> MLX_REF_DIR=<dequantised dir> cargo test --release -p intarsia-models \
 //!       --test mlx_affine_real -- --ignored
 
 use intarsia_core::weights::WeightSource;
@@ -13,8 +13,8 @@ use std::path::PathBuf;
 #[test]
 #[ignore]
 fn mlx_checkpoint_reads_bit_for_bit_like_the_numpy_dequantiser() {
-    let (Some(mlx), Some(rf)) = (std::env::var_os("INTARSIA_MLX_DIR"), std::env::var_os("INTARSIA_MLX_REF_DIR")) else {
-        panic!("set INTARSIA_MLX_DIR and INTARSIA_MLX_REF_DIR");
+    let (Some(mlx), Some(rf)) = (std::env::var_os("MLX_CKPT_DIR"), std::env::var_os("MLX_REF_DIR")) else {
+        panic!("set MLX_CKPT_DIR and MLX_REF_DIR");
     };
     let (src, want) = (SchemedSource::open(&PathBuf::from(mlx)).unwrap(), SafeTensors::open_dir(&PathBuf::from(rf)).unwrap());
     let (mut n, mut bytes) = (0usize, 0usize);
