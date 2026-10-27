@@ -856,8 +856,8 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             i[0].shape[1],
             i[0].dtype,
             o[0].dtype,
-            // the act flag is a value, not visible at plan time; the case grades the declared W4A4 mode
-            "dynamic"
+            // the act flag is a value, not visible at plan time; the case grades W4A8 for a W4A8 call (`OpAttrs::mxfp4_a8`), else the declared W4A4 mode
+            plan_act(call).name()
         ),
         Op::MoeTopk => format!(
             "T={} E={} K={} {} norm={}",
@@ -915,8 +915,8 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             i[0].shape[1],
             i[0].dtype,
             o[0].dtype,
-            // the act flag is a value, not visible at plan time; the case grades the declared W4A4 mode
-            "dynamic"
+            // the act flag is a value, not visible at plan time; the case grades W4A8 for a W4A8 call (`OpAttrs::mxfp4_a8`), else the declared W4A4 mode
+            plan_act(call).name()
         ),
         Op::MatmulNvfp4Glu => format!(
             "M={} N={} K={} x={} out={}",
@@ -972,6 +972,15 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
 
 /// Host case that exercises the same kernel path as `call` (see [`label`]). The FP8 case alternates the
 /// activation mode with the row count's parity so a plan that uses either mode gets it tested.
+/// The MXFP4 activation mode a plan-time case grades: W4A8 for a call that carries `OpAttrs::mxfp4_a8`, else the declared W4A4.
+fn plan_act(call: &OpCall) -> Mxfp4Act {
+    if call.attrs.mxfp4_a8 {
+        Mxfp4Act::Fp8
+    } else {
+        Mxfp4Act::Dynamic
+    }
+}
+
 pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> Option<(HostCall, String)> {
     if call.op == Op::MatmulExl3 {
         return Some(crate::quant::exl3::case_from_call(call, caps, rng));
@@ -992,7 +1001,7 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
             i[0].shape[0].min(caps.rows),
             i[1].shape[0].min(caps.n),
             i[0].shape[1],
-            Mxfp4Act::Dynamic,
+            plan_act(call),
             i[0].dtype,
             o[0].dtype,
         ),
@@ -1038,7 +1047,7 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
             i[1].shape[0].min(caps.n),
             i[3].shape[0].min(caps.n),
             i[0].shape[1],
-            Mxfp4Act::Dynamic,
+            plan_act(call),
             i[0].dtype,
             o[0].dtype,
         ),
