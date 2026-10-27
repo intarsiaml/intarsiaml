@@ -1,0 +1,10 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=7.679e3 rel_l2=7.679e3 M=300 N=3080 K=256 x=bf16 out=f32 act_quant=true
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_fp8     matmul_fp8_gemv                34      0    2.252e-3    5.880e-5  ADMITTED
+matmul_fp8     matmul_fp8_mma                 63      0    3.030e-3    1.226e-4  ADMITTED
+matmul_fp8     matmul_fp8_nax                 27      1     7.679e3     7.679e3  REJECTED
+matmul_fp8     matmul_fp8_gemv_rows           24      0    2.252e-3    8.245e-5  ADMITTED
+4 kernels, 148 cases in 5.4s
+Error: kernel admission failed (1 kernel(s) REJECTED)

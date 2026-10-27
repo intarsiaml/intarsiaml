@@ -1,0 +1,35 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=5.618e-3 rel_l2=4.235e-3 M=9 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=5.988e-3 rel_l2=3.960e-3 M=9 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=5.650e-3 rel_l2=4.274e-3 M=9 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=5.348e-3 rel_l2=3.985e-3 M=9 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.167e-3 rel_l2=4.035e-3 M=9 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.000e-3 rel_l2=4.029e-3 M=9 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.608e-3 rel_l2=4.056e-3 M=9 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.505e-3 rel_l2=4.040e-3 M=9 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.785e-3 rel_l2=4.045e-3 M=9 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.673e-3 rel_l2=4.041e-3 M=9 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=5.495e-3 rel_l2=4.026e-3 M=9 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=5.000e-3 rel_l2=4.129e-3 M=9 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=5.025e-3 rel_l2=4.038e-3 M=40 N=64 K=64 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.566e-3 rel_l2=4.150e-3 M=40 N=64 K=64 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.926e-3 rel_l2=3.816e-3 M=40 N=40 K=96 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.902e-3 rel_l2=4.029e-3 M=40 N=40 K=96 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=3.968e-3 rel_l2=4.055e-3 M=40 N=8192 K=2048 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=7.634e-3 rel_l2=4.043e-3 M=40 N=8192 K=2048 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.184e-3 rel_l2=4.048e-3 M=40 N=4096 K=2048 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.082e-3 rel_l2=4.070e-3 M=40 N=4096 K=2048 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.484e-3 rel_l2=4.034e-3 M=40 N=2048 K=4096 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.065e-3 rel_l2=4.031e-3 M=40 N=2048 K=4096 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.255e-3 rel_l2=4.080e-3 M=40 N=512 K=2048 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=4.237e-3 rel_l2=4.046e-3 M=40 N=512 K=2048 x=bf16 out=bf16 act_quant=false
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=6.061e-3 rel_l2=4.045e-3 M=300 N=3080 K=256 x=bf16 out=bf16 act_quant=true
+  FAIL matmul_fp8     matmul_fp8_nax         max_abs=6.711e-3 rel_l2=4.050e-3 M=300 N=3080 K=256 x=bf16 out=bf16 act_quant=false
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_fp8     matmul_fp8_gemv                34      0    2.252e-3    5.880e-5  ADMITTED
+matmul_fp8     matmul_fp8_mma                 63      0    3.030e-3    1.226e-4  ADMITTED
+matmul_fp8     matmul_fp8_nax                 27     26    7.634e-3    4.274e-3  REJECTED
+matmul_fp8     matmul_fp8_gemv_rows           24      0    2.252e-3    8.245e-5  ADMITTED
+4 kernels, 148 cases in 2.7s
+Error: kernel admission failed (1 kernel(s) REJECTED)

@@ -1,0 +1,62 @@
+fleetq: #5895 running on endor: cargo test --release -p intarsia-backend-metal --test quant
+   Compiling serde_core v1.0.229
+   Compiling hashbrown v0.17.1
+   Compiling serde_json v1.0.154
+   Compiling serde v1.0.229
+   Compiling memchr v2.8.3
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling objc2-core-foundation v0.3.2
+   Compiling indexmap v2.14.2
+   Compiling objc2-foundation v0.3.2
+   Compiling bytemuck_derive v1.12.1
+   Compiling thiserror-impl v2.0.21
+   Compiling serde_derive v1.0.229
+   Compiling zerocopy-derive v0.8.62
+   Compiling bytemuck v1.25.2
+   Compiling thiserror v2.0.21
+   Compiling zerocopy v0.8.62
+   Compiling half v2.7.1
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/nxp/crates/intarsia-core)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1204:4
+     |
+1204 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling objc2-metal v0.3.2
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/nxp/crates/intarsia-backend-metal)
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 10.71s
+     Running tests/quant.rs (target/release/deps/quant-3edfe7ab933440cb)
+
+running 6 tests
+test weights_not_8_byte_aligned_are_refused ... ok
+test w8a8_quantiser_is_bit_exact_over_every_bf16_pattern ... ok
+test nvfp4_matches_the_oracle ... ok
+test fp8_matches_the_oracle ... ok
+test nvfp4_at_the_35b_projection_shapes ... ok
+test fp8_at_the_35b_projection_shapes ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.60s
+
+fleetq: #5895 done (exit 0)
+EXIT 0
