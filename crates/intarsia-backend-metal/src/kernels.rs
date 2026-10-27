@@ -275,6 +275,8 @@ pub const EXPERIMENT_SHADERS: &[&str] = &[
 pub fn metal4_shaders() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = crate::gemm_nax::NAX_VARIANTS.iter().flat_map(|v| [v.shader, v.pair_shader]).collect();
     v.extend(crate::flash_nax::NAX_FLASH_VARIANTS.iter().map(|f| f.name));
+    v.extend(crate::fp8::NAX_FP8_SHADERS.iter().flatten());
+    v.extend(crate::moe::NAX_MM_GU.iter().chain(&crate::moe::NAX_MM_DN));
     v
 }
 
@@ -288,7 +290,8 @@ pub const MATMUL_PAIR_BF16_NAX: &str = "matmul_pair_bf16_nax";
 /// `AttnPrefill` on the neural accelerators (attention_flash_nax.metal, launcher flash_nax.rs): head_dim 128; ranks above
 /// the P2 flash kernel and falls back to it for operands it cannot take.
 pub const ATTN_PREFILL_BF16_FLASH_NAX: &str = "attn_prefill_bf16_flash_nax";
-pub const NAX_KERNELS: &[&str] = &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX];
+pub const NAX_KERNELS: &[&str] =
+    &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX, crate::fp8::MATMUL_FP8_NAX];
 
 pub fn requires_metal4(kernel: &str) -> bool {
     NAX_KERNELS.contains(&kernel)
@@ -366,6 +369,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::moe::MOE_COMBINE_BF16, Op::MoeCombine),
     (crate::fp8::MATMUL_FP8_GEMV, Op::MatmulFp8),
     (crate::fp8::MATMUL_FP8_MMA, Op::MatmulFp8),
+    (crate::fp8::MATMUL_FP8_NAX, Op::MatmulFp8),
     (crate::nvfp4::MATMUL_NVFP4_GEMV, Op::MatmulNvfp4),
     (crate::nvfp4::MATMUL_NVFP4_MMA, Op::MatmulNvfp4),
     (crate::fp8::MATMUL_FP8_GEMV_ROWS, Op::MatmulFp8),
@@ -601,6 +605,20 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_TOL)
                     .scratch(crate::fp8::scratch)
                     .priority(0),
+                // fp8 GEMM on the neural accelerators (gemm_nax_fp8.metal, fp8.rs): M above the decode GEMV's 8 rows (the
+                // GEMV-class kernels and the M <= 8 `mma` calls are untouched), any K % 16 == 0. The weights are decoded to
+                // bf16 into the scratch per call and the product runs on matmul2d, so the K accumulation order differs from
+                // `matmul_fp8_mma` (KL-gated, docs/results/2026-10-27-nxp-metal-nax-prefill.md). `INTARSIA_METAL_FP8_NAX=0`
+                // hides it. Hidden when the metal4.0 library did not load, then `mma` runs.
+                crate::fp8::MATMUL_FP8_NAX => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(crate::fp8::nax_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(crate::fp8::nax_scratch)
+                    .priority(5),
                 // NVFP4 (kernels/metal/nvfp4.metal, nvfp4.rs): GEMV for M <= 8 (no scratch), GEMM for every other shape.
                 crate::nvfp4::MATMUL_NVFP4_GEMV => k
                     .acts(bf)
@@ -722,7 +740,13 @@ mod tests {
     #[test]
     fn metal4_shaders_are_the_nax_variants_and_not_metal3_shaders() {
         let m4 = metal4_shaders();
-        assert_eq!(m4.len(), 2 * crate::gemm_nax::NAX_VARIANTS.len() + crate::flash_nax::NAX_FLASH_VARIANTS.len());
+        assert_eq!(
+            m4.len(),
+            2 * crate::gemm_nax::NAX_VARIANTS.len()
+                + crate::flash_nax::NAX_FLASH_VARIANTS.len()
+                + 2 * crate::gemm_nax::NAX_VARIANTS.len()
+                + 8
+        );
         assert!(!shader_names().iter().any(|n| m4.contains(n)));
         let set: HashSet<_> = m4.iter().collect();
         assert_eq!(set.len(), m4.len());
@@ -829,6 +853,7 @@ mod tests {
         "matmul_fp8_gemv:matmul_fp8",
         "matmul_fp8_gemv_rows:matmul_fp8",
         "matmul_fp8_mma:matmul_fp8",
+        "matmul_fp8_nax:matmul_fp8",
         "matmul_mxfp4_gemv:matmul_mxfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",
         "matmul_nvfp4_gemv_rows:matmul_nvfp4",

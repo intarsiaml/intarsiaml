@@ -157,7 +157,14 @@ fn fp8_matches_the_oracle() {
                 let c = Fp8Case { m, n, k, is, f32_out };
                 let seed = 1000 + ci as u64 * 7;
                 // weights at 8 mod 16 (and 0 mod 16) of a larger buffer
-                for (kernel, w_off) in [("matmul_fp8_gemv", 8usize), ("matmul_fp8_gemv", 16), ("matmul_fp8_mma", 8), ("matmul_fp8_mma", 16)] {
+                for (kernel, w_off) in [
+                    ("matmul_fp8_gemv", 8usize),
+                    ("matmul_fp8_gemv", 16),
+                    ("matmul_fp8_mma", 8),
+                    ("matmul_fp8_mma", 16),
+                    ("matmul_fp8_nax", 8),
+                    ("matmul_fp8_nax", 16),
+                ] {
                     let probe = OpCall::new(
                         Op::MatmulFp8,
                         vec![
@@ -293,7 +300,7 @@ fn w8a8_quantiser_is_bit_exact_over_every_bf16_pattern() {
             })
             .collect();
         let (xb, wb, sb) = (upload_bytes(&be, 0, &bf16_bytes(&x)), upload_bytes(&be, 8, &w), upload_bytes(&be, 0, &f32_bytes(&[1.0, is])));
-        for kernel in ["matmul_fp8_mma", "matmul_fp8_gemv"] {
+        for kernel in ["matmul_fp8_mma", "matmul_fp8_nax", "matmul_fp8_gemv"] {
             let yb = be.alloc(rows * k * 4 + 16, MemKind::Device).unwrap();
             be.upload(&yb, 0, &vec![0xEEu8; rows * k * 4 + 16], 0).unwrap();
             let step = if kernel == "matmul_fp8_gemv" { 8 } else { rows };
@@ -346,7 +353,7 @@ fn fp8_at_the_35b_projection_shapes() {
     for (ci, &(m, n, k)) in REAL_SHAPES.iter().enumerate() {
         for f32_out in [false, true] {
             let c = Fp8Case { m, n, k, is: 0.37, f32_out };
-            for kernel in ["matmul_fp8_gemv", "matmul_fp8_mma"] {
+            for kernel in ["matmul_fp8_gemv", "matmul_fp8_mma", "matmul_fp8_nax"] {
                 if kernel.ends_with("gemv") && m > 8 {
                     continue; // the GEMV kernel serves M <= 8 only (GEMV_MB); larger batches take the MMA kernel
                 }

@@ -224,6 +224,33 @@ fn moe_experts_odd_scale_offsets_and_f32_output() {
     }
 }
 
+/// A token's output does not depend on the call it arrives in: the first `t` tokens of a 300-token call give the same bits in
+/// calls of 3 / 10 / 24 / 40 / 100 tokens, which pick the 8 / 8 / 16 / 32 / 64-row tiles (16 experts: mean rows per expert
+/// 1.5 / 5 / 12 / 20 / 50). Holds for the simdgroup_matrix kernels and the NAX ones (`INTARSIA_METAL_MOE_NAX`) alike.
+#[test]
+fn moe_experts_rows_do_not_depend_on_the_tile() {
+    let be = common::backend();
+    let mut rng = SplitMix64::new(0x35a40);
+    let e = 16usize;
+    let ex = random_experts(&mut rng, e, H, I);
+    let t_big = 300usize;
+    let xv = rng.normal_vec(t_big * H, 1.0);
+    let (ids, ws) = random_routing(&mut rng, t_big, e, K);
+    let (idv, wv) = (ids.to_i32().unwrap(), ws.to_f32());
+    let call = |t: usize| {
+        let x = HostTensor::from_f32_as(DType::Bf16, &[t, H], &xv[..t * H]);
+        let i = HostTensor::from_i32(&[t, K], &idv[..t * K]);
+        let w = HostTensor::from_f32_as(DType::F32, &[t, K], &wv[..t * K]);
+        run(&be, &x, &i, &w, &ex, 0).unwrap()
+    };
+    let big = call(t_big);
+    for t in [3usize, 10, 24, 40, 100] {
+        let small = call(t);
+        let same = small.iter().zip(&big[..t * H]).filter(|(a, b)| a.to_bits() == b.to_bits()).count();
+        assert_eq!(same, t * H, "T={t}: {} of {} outputs differ from the same tokens in the 300-token call", t * H - same, t * H);
+    }
+}
+
 /// `moe_topk_bf16` (bf16 and f32 logits) against `reference::moe_topk`: ids exactly (the logits are drawn from six values so
 /// every row is full of ties; the lowest index must win), weights within one rounding of the logits dtype.
 #[test]

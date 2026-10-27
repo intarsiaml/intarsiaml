@@ -1,0 +1,8 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_fp8     matmul_fp8_gemv                34      0    2.252e-3    5.880e-5  ADMITTED
+matmul_fp8     matmul_fp8_mma                 63      0    3.030e-3    1.226e-4  ADMITTED
+matmul_fp8     matmul_fp8_nax                 27      0    4.065e-3    7.780e-5  ADMITTED
+matmul_fp8     matmul_fp8_gemv_rows           24      0    2.252e-3    8.245e-5  ADMITTED
+4 kernels, 148 cases in 1.9s

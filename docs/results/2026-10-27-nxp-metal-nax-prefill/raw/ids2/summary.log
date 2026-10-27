@@ -1,0 +1,69 @@
+fleetq: #5976 waiting (#4 in line): in line behind #5973 "NXP G1 decode-64 base/fp8/cand" (claude-f31ccf91) on endor
+fleetq:   #5973 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5973 set, or it will wait for #5973 to be released.
+fleetq: #5976 waiting (#3 in line): in line behind #5974 "NXP G2 MMLU n=1425 cand (35B)" (claude-f31ccf91) on endor
+fleetq:   #5974 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5974 set, or it will wait for #5974 to be released.
+fleetq: #5976 waiting (#2 in line): in line behind #5975 "NXP G3 gates cand (gb gc long rec dense)" (claude-f31ccf91) on endor
+fleetq:   #5975 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=5975 set, or it will wait for #5975 to be released.
+fleetq: #5976 waiting (#1 in line): needs 45 GB on endor; 15 GB free of 110
+fleetq: #5976 running on endor: /opt/code/intarsiaml/.worktrees/nxp/.nxp-out/ids2.sh /opt/code/intarsiaml/.worktrees/nxp/.nxp-out/ids2 short-0 4k-0 4k-1 16k-0
+cand short-0 off rc=0 ids=     256 
+cand short-0 mtp rc=0 ids=     256 spec: verify passes=99 proposed=197 accepted=154 (acceptance 78.2%, 2.56 tokens per pass)
+cand short-0 ngram rc=1 ids=       0 
+cand short-0 c512 rc=0 ids=     256 
+cand 4k-0 off rc=0 ids=     256 
+cand 4k-0 mtp rc=0 ids=     256 spec: verify passes=106 proposed=211 accepted=149 (acceptance 70.6%, 2.41 tokens per pass)
+cand 4k-0 ngram rc=1 ids=       0 
+cand 4k-0 c512 rc=0 ids=     256 
+cand 4k-1 off rc=0 ids=     256 
+cand 4k-1 mtp rc=0 ids=     256 spec: verify passes=108 proposed=216 accepted=147 (acceptance 68.1%, 2.36 tokens per pass)
+cand 4k-1 ngram rc=1 ids=       0 
+cand 4k-1 c512 rc=0 ids=     256 
+cand 16k-0 off rc=0 ids=     256 
+cand 16k-0 mtp rc=0 ids=     256 spec: verify passes=106 proposed=212 accepted=148 (acceptance 69.8%, 2.40 tokens per pass)
+cand 16k-0 ngram rc=1 ids=       0 
+cand 16k-0 c512 rc=0 ids=     256 
+base short-0 off rc=0 ids=     256 
+base short-0 mtp rc=0 ids=     256 spec: verify passes=99 proposed=197 accepted=156 (acceptance 79.2%, 2.58 tokens per pass)
+base short-0 ngram rc=1 ids=       0 
+base short-0 c512 rc=0 ids=     256 
+base 4k-0 off rc=0 ids=     256 
+base 4k-0 mtp rc=0 ids=     256 spec: verify passes=104 proposed=207 accepted=151 (acceptance 72.9%, 2.45 tokens per pass)
+base 4k-0 ngram rc=1 ids=       0 
+base 4k-0 c512 rc=0 ids=     256 
+base 4k-1 off rc=0 ids=     256 
+base 4k-1 mtp rc=0 ids=     256 spec: verify passes=107 proposed=214 accepted=147 (acceptance 68.7%, 2.37 tokens per pass)
+base 4k-1 ngram rc=1 ids=       0 
+base 4k-1 c512 rc=0 ids=     256 
+base 16k-0 off rc=0 ids=     256 
+base 16k-0 mtp rc=0 ids=     256 spec: verify passes=107 proposed=213 accepted=148 (acceptance 69.5%, 2.38 tokens per pass)
+base 16k-0 ngram rc=1 ids=       0 
+base 16k-0 c512 rc=0 ids=     256 
+PASS base short-0 mtp == off 256 ids
+FAIL base short-0 ngram == off 256 ids
+PASS base short-0 c512 == off 256 ids
+PASS base 4k-0 mtp == off 256 ids
+FAIL base 4k-0 ngram == off 256 ids
+PASS base 4k-0 c512 == off 256 ids
+PASS base 4k-1 mtp == off 256 ids
+FAIL base 4k-1 ngram == off 256 ids
+PASS base 4k-1 c512 == off 256 ids
+PASS base 16k-0 mtp == off 256 ids
+FAIL base 16k-0 ngram == off 256 ids
+PASS base 16k-0 c512 == off 256 ids
+PASS cand short-0 mtp == off 256 ids
+FAIL cand short-0 ngram == off 256 ids
+PASS cand short-0 c512 == off 256 ids
+PASS cand 4k-0 mtp == off 256 ids
+FAIL cand 4k-0 ngram == off 256 ids
+PASS cand 4k-0 c512 == off 256 ids
+PASS cand 4k-1 mtp == off 256 ids
+FAIL cand 4k-1 ngram == off 256 ids
+PASS cand 4k-1 c512 == off 256 ids
+PASS cand 16k-0 mtp == off 256 ids
+FAIL cand 16k-0 ngram == off 256 ids
+PASS cand 16k-0 c512 == off 256 ids
+cand vs base (off): short-0 first divergence at id 44 of 256; equal ids 44/256
+cand vs base (off): 4k-0 first divergence at id 56 of 256; equal ids 57/256
+cand vs base (off): 4k-1 first divergence at id 44 of 256; equal ids 46/256
+cand vs base (off): 16k-0 first divergence at id 75 of 256; equal ids 77/256
+fleetq: #5976 done (exit 0)
