@@ -1297,8 +1297,7 @@ impl Model {
             recorder: Mutex::new(None),
             resolved: Default::default(),
             // at world > 1 also gated on a capture-safe communicator (`GraphState::usable`)
-            // Gemma 4 runs its layers eagerly (no captured decode step yet)
-            graphs: GraphState::new(opts.graphs && dims.gemma.is_none()),
+            graphs: GraphState::new(opts.graphs),
             capture_ops: Mutex::new(None),
             capture_comms: std::sync::atomic::AtomicU64::new(0),
             rope_table,
@@ -2660,11 +2659,8 @@ impl Model {
                         let Seqs::One(st) = seqs else {
                             return Err(Error::Unsupported("batched decode of a Gemma 4 layer".into()));
                         };
-                        if dpos.is_some() {
-                            return Err(Error::Unsupported("captured decode steps of a Gemma 4 layer".into()));
-                        }
                         debug_assert!(!pending);
-                        self.gemma_layer(g, st, &hv(cur), &hv(1 - cur), t, pos0, profile)?;
+                        self.gemma_layer(g, st, &hv(cur), &hv(1 - cur), t, pos0, dpos, profile)?;
                         cur = 1 - cur;
                         continue;
                     }
@@ -3685,13 +3681,17 @@ impl Model {
                 }
             }
         }
-        // Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected
+        self.softcap_logits(&mut out);
+        Ok(out)
+    }
+
+    /// Gemma 4 final logit soft-capping; monotonic, so the device argmax of `head_argmax` is unaffected.
+    pub(super) fn softcap_logits(&self, out: &mut [f32]) {
         if let Some(cap) = self.dims.gemma.as_ref().map(|g| g.softcap).filter(|&c| c > 0.0) {
             for x in out.iter_mut() {
                 *x = cap * (*x / cap).tanh();
             }
         }
-        Ok(out)
     }
 
     /// lm_head + argmax of one row, left in `ws.logits` (`[1, V]` f32) and `ws.tok`; no host traffic.

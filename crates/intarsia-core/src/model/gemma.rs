@@ -114,6 +114,7 @@ impl Model {
         h_out: &TensorRef,
         t: usize,
         pos0: usize,
+        dpos: Option<&TensorRef>,
         profile: bool,
     ) -> Result<()> {
         let ws = self.gemma.as_ref().ok_or_else(|| Error::invalid("gemma layer without its workspace"))?;
@@ -158,15 +159,15 @@ impl Model {
             ..Default::default()
         };
         self.exec(Op::QkNorm, vec![q0.clone(), g.q_norm.clone()], vec![q1.clone()], eps.clone(), profile)?;
-        self.exec(Op::Rope, vec![q1.clone()], vec![q0.clone()], rope.clone(), profile)?;
+        self.exec_pos(Op::Rope, vec![q1.clone()], vec![q0.clone()], rope.clone(), dpos, profile)?;
         self.exec(Op::QkNorm, vec![k0.clone(), g.k_norm.clone()], vec![k1.clone()], eps.clone(), profile)?;
-        self.exec(Op::Rope, vec![k1.clone()], vec![k0.clone()], rope, profile)?;
+        self.exec_pos(Op::Rope, vec![k1.clone()], vec![k0.clone()], rope, dpos, profile)?;
         let cache_shape = [nkv, slot.cap, hd];
         let kcache = self.view(&slot.k, slot.dtype, &cache_shape);
         let vcache = self.view(&slot.v, slot.dtype, &cache_shape);
         let append = OpAttrs { pos0, kv_cap: slot.cap, n_kv_heads: nkv, head_dim: hd, ..Default::default() };
-        self.exec(Op::KvAppend, vec![k0.clone()], vec![kcache.clone()], append.clone(), profile)?;
-        self.exec(Op::KvAppend, vec![v1.clone()], vec![vcache.clone()], append, profile)?;
+        self.exec_pos(Op::KvAppend, vec![k0.clone()], vec![kcache.clone()], append.clone(), dpos, profile)?;
+        self.exec_pos(Op::KvAppend, vec![v1.clone()], vec![vcache.clone()], append, dpos, profile)?;
         let attn = OpAttrs {
             pos0,
             scale: 1.0, // Gemma 4: no 1/sqrt(head_dim)
@@ -177,7 +178,14 @@ impl Model {
             window: g.window,
             ..Default::default()
         };
-        self.exec(if t == 1 { Op::AttnDecode } else { Op::AttnPrefill }, vec![q0, kcache, vcache], vec![q1.clone()], attn, profile)?;
+        self.exec_pos(
+            if t == 1 { Op::AttnDecode } else { Op::AttnPrefill },
+            vec![q0, kcache, vcache],
+            vec![q1.clone()],
+            attn,
+            if t == 1 { dpos } else { None },
+            profile,
+        )?;
         self.proj(&q1.reshaped(&[t, nh * hd]), &g.wo, &b1, profile)?;
         norm(&b1, &g.post_attn_norm, &b2)?;
         self.exec(Op::Add, vec![h_in.clone(), b2.clone()], vec![b3.clone()], OpAttrs::default(), profile)?; // h1 in B3
