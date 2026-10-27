@@ -1470,7 +1470,7 @@ impl Ctx {
             return Ok(self.have_golden(key, g, "found by model name".into()));
         }
         Ok(Golden::None(format!(
-            "no 4k golden for '{}' in {} (give --golden-4k FILE or --golden-dir DIR; qualify never makes it, build it by hand: {})",
+            "no 4k golden for '{}' in {} (give --golden-4k FILE or --golden-dir DIR; qualify never makes it, build it by hand: {}; the bf16 spread pass that calibrates the top-1 floor about doubles its time, --no-bf16-spread skips it)",
             self.name,
             dirs.iter().map(|d| d.display().to_string()).collect::<Vec<_>>().join(", "),
             match facts::repo_root() {
@@ -1533,7 +1533,7 @@ impl Ctx {
                     AutoGolden::Make { fp32_gb, expect_min } => (fp32_gb, expect_min),
                     AutoGolden::Manual(why) => {
                         let cmdline = manual_golden_command(&repo, &model_dir, &self.name, long);
-                        return Ok(Golden::None(format!("{why}; make it by hand (CPU, no timing run beside it): {cmdline}")));
+                        return Ok(Golden::None(format!("{why}; make it by hand (CPU, no timing run beside it; --no-bf16-spread drops the second pass that calibrates the top-1 floor): {cmdline}")));
                     }
                     AutoGolden::Skip(why) => return Ok(Golden::None(why)),
                 };

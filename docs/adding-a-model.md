@@ -93,7 +93,7 @@ every one stopped at `recipe new` on a quantisation format or tensor layout the 
   fleetq on the box: it just runs). About 1.5 min for the Qwen3.5-4B short set, bf16 spread pass included. A MoE or quantised model is skipped
   with the reason (its golden comes from a reference server: `--reference URL` or `--golden FILE`), as is a model too large for the CPU run.
   The **long** golden of a hybrid model and the **4k** golden of any model stay manual, because HF runs GatedDeltaNet as a PyTorch loop
-  without `flash-linear-attention` (4k set: 34 min for the 4B on endor's CPU, which no timing run can share). `qualify` prints the exact
+  without `flash-linear-attention` (4k set: 34 min for the 4B on endor's CPU for the fp32 pass alone, about twice that with the bf16 spread pass that calibrates the top-1 floor, `--no-bf16-spread` skips it; no timing run can share the box). `qualify` prints the exact
   command in the stage's SKIPPED reason; it reads like
   `uv run --project tools python tools/golden.py --model <dir> --out golden/qwen3.5-4b-4k-fp32-top20.safetensors --device cpu --dtype float32 --topk 20 --prompts tools/prompts/golden_4k.jsonl`
   (the long one: `--out golden/qwen3.5-4b-long-fp32.safetensors --prompts tools/prompts/golden.jsonl tools/prompts/golden_long.jsonl`). Give the

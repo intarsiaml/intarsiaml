@@ -8,7 +8,7 @@ Lane QGC, branch `lane-qgc/qualify-calibration`, build origin/main `d5810616c` p
 
     floor(n) = min(floor in force, agreement - 2 x sqrt(p (1 - p) / n)),   p = agreement / 100
 
-and keeps the KL floor as it was (`max(1e-3, factor x ref noise)`). Margin: two binomial standard errors at the rows judged. An engine exactly as noisy as HF's bf16 run is a draw from the reference's own distribution and falls under this floor in about 2 % of runs; the drill's engine, closer to fp32 than HF bf16 is (99.72 % against 98.96 %), almost never. The margin depends on `n` because a fixed one cannot serve both mode sizes: one decode flip is 0.6 points on 160 rows, so a fixed margin of a few tenths fails on one extra flip. Never above the floor in force (a 99.9 % reference does not raise the bar over 99.5 %), not used when the reference agrees with itself on under 95 % of rows (a broken golden, the class floor then fails loudly), `--min-top1` wins. Code: `crates/intarsia-cli/src/cmd/accuracy/top1ref.rs`, `Gates::top1_floor`.
+and keeps the KL floor as it was (`max(1e-3, factor x ref noise)`). `ref_spread` is measured over all rows of the golden, the gate's top-1 judges all rows too; decode mode reuses the same agreement with the standard error at its own row count, an approximation (not the agreement over the decode window alone). Making a golden with the spread pass about doubles its time (a 4k golden of the 4B: 34 min -> about an hour; `--no-bf16-spread` skips it). Margin: two binomial standard errors at the rows judged. An engine exactly as noisy as HF's bf16 run is a draw from the reference's own distribution and falls under this floor in about 2 % of runs; the drill's engine, closer to fp32 than HF bf16 is (99.72 % against 98.96 %), almost never. The margin depends on `n` because a fixed one cannot serve both mode sizes: one decode flip is 0.6 points on 160 rows, so a fixed margin of a few tenths fails on one extra flip. Never above the floor in force (a 99.9 % reference does not raise the bar over 99.5 %), not used when the reference agrees with itself on under 95 % of rows (a broken golden, the class floor then fails loudly), `--min-top1` wins. Code: `crates/intarsia-cli/src/cmd/accuracy/top1ref.rs`, `Gates::top1_floor`.
 
 Qwen3.5-4B, auto-made short golden (8 prompts, 441 rows, `golden.py` output: `ref_spread: bf16 vs fp32 top-1 agreement 98.87% (5 flips in 441 rows), full-vocab KL 4.957e-04`):
 
@@ -51,13 +51,28 @@ The 3 min 20 s is slower than the drill's one minute: the two passes are 8 promp
 
 ## 3. Load-time error names the tensor
 
-The plan-time `no kernel` error for an op whose weight dtype no kernel takes lists the checkpoint tensors, their dtype and the op. Reproduced on Qwen3.5-4B / Metal with the `gpu_f32_to_bf16` cast switched off for the test:
+The plan-time `no kernel` error for an op whose weight dtype no kernel takes lists the checkpoint tensors, their dtype and the op. Both errors of the drill are now plan-time. Reproduced on Qwen3.5-4B / Metal with the `gpu_f32_to_bf16` cast switched off for the test (temporary edit, reverted), `plan show`:
+
+A_log cast off:
 
     - gdn_delta_rule: 27 shape(s) without a kernel, e.g. no kernel for gdn_delta_rule on metal/applegpu_g17s (m=1 n=128 k=128 act=Some(Bf16) w=Some(F32)) ...; needed by Decode t=1, ...
         weight tensor(s) of a dtype no gdn_delta_rule kernel takes on metal/applegpu_g17s: 'model.language_model.layers.0.linear_attn.A_log' (f32), 'model.language_model.layers.1.linear_attn.A_log' (f32), ... (24 in all)
 
-`Model` keeps a name index of the dense tensors `load_shard` read (`weight_names`, matched by buffer and offset; read on the error path only). **Not covered:** a kernel registered without `.weights(..)` that accepts every dtype at plan time and rejects at launch (the Metal gated-norm `metal w: expected bf16, got f32` of the drill) still fails at the first launch, not at load: that needs the kernel registrations to declare their weight dtype.
+Gated-norm weight cast off (A_log cast kept); this was the drill's second error, `metal w: expected bf16, got f32` at the first launch:
+
+    - rmsnorm: 27 shape(s) without a kernel, e.g. no kernel for rmsnorm on metal/applegpu_g17s (m=32 n=0 k=128 act=Some(Bf16) w=Some(F32)) ...
+        weight tensor(s) of a dtype no rmsnorm kernel takes on metal/applegpu_g17s: 'model.language_model.layers.0.linear_attn.norm.weight' (f32), ... (24 in all)
+
+Two parts. (a) `Model` keeps a name index of the dense tensors `load_shard` read (`weight_names`, matched by buffer and offset; read on the error path only) and the plan error lists the tensors of the dtype the failed call asked for. (b) The Metal norm family (`rmsnorm_bf16`, `rmsnorm_add_bf16`, `qk_norm_bf16`) now declares `.weights(bf16)`, and `ShapeInfo` reports the norm weight dtype for `RmsNorm`, `RmsNormAdd` and `QkNorm` (it was empty there, so a `.weights(..)` list matched everything). Other backends register no weight dtype for these ops, so they are unchanged. Checked unchanged on Metal against the origin/main binary: `kernels test --backend metal --quick` 46 kernels / 219 cases, all admitted, both builds; `plan show` of Qwen3-8B and Qwen3.5-4B byte-identical (kernel per op).
+
+Still launch-time only: any other Metal kernel that binds a fixed dtype without declaring it. A grep of `bind(.., "w")` found the dense matmul / logits (already `.weights(bf)`), the norm family (now declared), and the fp8 / mxfp4 / nvfp4 / moe launchers, whose weight dtypes are fixed by the quantisation format and selected by op, not by dtype. No other dense bf16 op binds a weight.
+
+## Raw
+
+`raw/2026-10-27-qgc/onboard/` (quick.md, in-depth.md, golden.py output, acc-short log, onboard logs), `raw/2026-10-27-qgc/before-after/` (accuracy runs of the origin/main and branch binaries on the three existing goldens, `kernels test --backend metal --quick` of both).
+
+Full onboard: `ONBOARD PASS` after the resumed in-depth tier (71 s: `acc-long`, `acc-4k`, `ab`, `tp`, `acc-oracle`, `acc-format` SKIPPED with reasons and the exact golden commands; envelope, bench-long and the rest PASS). Final verdict PASS, not INCOMPLETE: only a missing *short* golden makes the run INCOMPLETE (#197).
 
 ## Tests
 
-`cargo test --workspace --release --locked` passes (fleetq #6167). New: `top1ref::tests` (5), `accuracy::tests::ref_spread_calibrates_the_top1_floor_and_its_absence_changes_nothing`, `qualify::tests` (auto-golden decision, manual commands and slot wrapper), `plan::tests::the_no_kernel_error_names_the_weight_tensors_their_dtype_and_the_op`, `model::weights_named_tests`.
+`cargo check --workspace --locked`, `cargo test --workspace --locked --release --no-fail-fast`, `cargo check -p intarsia-backend-metal` and `-p intarsia-cli --features metal` pass (fleetq #6195, the commands CI runs; CI runs no fmt / clippy). New: `top1ref::tests` (5), `accuracy::tests::ref_spread_calibrates_the_top1_floor_and_its_absence_changes_nothing`, `qualify::tests` (auto-golden decision, manual commands and slot wrapper), `plan::tests::the_no_kernel_error_names_the_weight_tensors_their_dtype_and_the_op`, `model::weights_named_tests`, `ops::tests::norm_calls_report_the_norm_weight_dtype_so_a_kernel_can_declare_it`.
