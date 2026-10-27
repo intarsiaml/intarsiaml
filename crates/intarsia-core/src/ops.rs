@@ -25,7 +25,7 @@
 //! | `MatmulFp8` | x `[M,K]`, w `[N,K]` fp8_e4m3, scales `[2]` f32 = (weight_scale, input_scale) | `[M,N]` (bf16/f16/f32) | see `quant::fp8` |
 //! | `MatmulExl3` | x `[M,K]`, trellis `[K/16,N/16,8*k2]` i16, suh `[K]` f16, svh `[N]` f16, codebook `[1]` i32 (0 3inst, 1 mcg, 2 mul1) | `[M,N]` (bf16/f16/f32) | see `quant::exl3` |
 //! | `MatmulNvfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), block scales `[N,K/16]` fp8_e4m3, global `[1]` f32 | `[M,N]` (bf16/f16/f32) | see `quant::nvfp4` |
-//! | `MatmulMxfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), scales `[N,K/32]` u8 (e8m0), act `[1]` f32 (0 = 16-bit x, 1 = dynamic MXFP4 QDQ of x) | `[M,N]` (bf16/f16/f32) | see `quant::mxfp4` |
+//! | `MatmulMxfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), scales `[N,K/32]` u8 (e8m0), act `[1]` f32 (0 = 16-bit x, 1 = dynamic MXFP4 QDQ of x, 2 = dynamic per-token fp8 e4m3 x) | `[M,N]` (bf16/f16/f32) | see `quant::mxfp4` |
 //! | `MatmulMxfp4Pair` | x `[M,K]`, (w0 `[N0,K/2]` u8, scales0 `[N0,K/32]` u8), (w1 `[N1,K/2]` u8, scales1 `[N1,K/32]` u8), act `[1]` f32 | `[M,N0]`, `[M,N1]` (= two `MatmulMxfp4`s of the same x and act) | fused, see `quant::mxfp4` |
 //! | `MoeTopk` | router logits `[T,E]` | weights `[T,K]` f32, expert ids `[T,K]` i32 | top_k, norm_topk |
 //! | `MoeExperts` | x `[T,H]`, ids `[T,K]`, weights `[T,K]`, gate_up w `[E,2I,H/2]` u8, gate_up scales `[E,2I,H/16]` fp8, down w `[E,H,I/2]` u8, down scales `[E,H,I/16]` fp8, global `[E,3]` f32 | `[T,H]` | see `quant::moe` |
@@ -322,6 +322,10 @@ pub struct OpAttrs {
     /// call's `act` input is 0). Read by kernel launch routing only (HIP: the `_rows` launchers keep the bf16 kernel for W4A16),
     /// never changes a result; false for W4A4 and for every other op.
     pub mxfp4_w4a16: bool,
+    /// `MatmulMxfp4` / `MatmulMxfp4Pair`: the call's `act` input is 2, W4A8 (dynamic per-token fp8 e4m3 activations,
+    /// `QTensor::act_fp8`). Read by kernel selection (`ShapeInfo::mxfp4_a8`): only kernels registered for W4A8 serve it, every
+    /// other MXFP4 kernel declines it, because they read any nonzero `act` as W4A4; false for every other op.
+    pub mxfp4_a8: bool,
 }
 
 impl Default for OpAttrs {
@@ -347,6 +351,7 @@ impl Default for OpAttrs {
             gelu: false,
             fp8_static_act: false,
             mxfp4_w4a16: false,
+            mxfp4_a8: false,
         }
     }
 }
@@ -778,6 +783,8 @@ pub struct ShapeInfo {
     pub ext: bool,
     /// `OpAttrs::fp8_static_act` of the call (fp8 matmuls: W8A8 with a static input scale).
     pub fp8_static_act: bool,
+    /// `OpAttrs::mxfp4_a8` of the call (MXFP4 matmuls: W4A8, dynamic per-token fp8 activations).
+    pub mxfp4_a8: bool,
     /// An input of the call is in a non-row-major layout (`backend::Layout`: HIP fragment-order fp8 weights). Only kernels registered
     /// `.frag_ok()` accept the call, so a kernel that reads row-major bytes can never be selected for it.
     pub frag: bool,
@@ -802,6 +809,7 @@ impl ShapeInfo {
                 || call.attrs.gelu
                 || (matches!(call.op, Op::Add | Op::Embedding) && call.attrs.scale != 1.0),
             fp8_static_act: call.attrs.fp8_static_act,
+            mxfp4_a8: call.attrs.mxfp4_a8,
             ..Default::default()
         };
         match call.op {

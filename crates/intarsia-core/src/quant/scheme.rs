@@ -292,6 +292,12 @@ impl QuantScheme {
         let declared = self.mxfp4_act()?;
         (declared != ours).then(|| {
             let why = match by {
+                ActSource::Recipe if ours == Mxfp4Act::Fp8 => format!(
+                    "the recipe's default on this backend, chosen for accuracy and speed (Qwen3.8-27B, full MMLU n=1425: W4A8 0.8204, \
+                     W4A16 0.822, W4A4 0.802; against W4A16 prefill +48% and decode +11% at tp2, KL to the W4A16 golden 12x below W4A4's, \
+                     docs/results/2026-10-27-w4a8-hip-fp8-act.md); --mxfp4-act {} runs the declared scheme",
+                    declared.name()
+                ),
                 ActSource::Recipe => format!(
                     "the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, \
                      docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); \

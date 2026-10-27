@@ -54,7 +54,7 @@ pub fn matmul_mxfp4_case(rng: &mut SplitMix64, m: usize, n: usize, k: usize, act
         op: Op::MatmulMxfp4,
         inputs: vec![x, parts.next().unwrap(), parts.next().unwrap(), parts.next().unwrap()],
         outputs: vec![OutSpec::new(odt, &[m, n])],
-        attrs: OpAttrs::default(),
+        attrs: OpAttrs { mxfp4_a8: act == Mxfp4Act::Fp8, ..OpAttrs::default() },
     }
 }
 
@@ -237,7 +237,7 @@ pub fn matmul_mxfp4_pair_case(
         op: Op::MatmulMxfp4Pair,
         inputs: vec![x, w0, s0, w1, s1, act0],
         outputs: vec![OutSpec::new(odt, &[m, n0]), OutSpec::new(odt, &[m, n1])],
-        attrs: OpAttrs::default(),
+        attrs: OpAttrs { mxfp4_a8: act == Mxfp4Act::Fp8, ..OpAttrs::default() },
     }
 }
 
@@ -504,6 +504,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     for (xdt, odt, act) in [
                         (DType::Bf16, DType::Bf16, Mxfp4Act::Dynamic),
                         (DType::Bf16, DType::Bf16, Mxfp4Act::None),
+                        (DType::Bf16, DType::Bf16, Mxfp4Act::Fp8),
                         (DType::F32, DType::F32, Mxfp4Act::Dynamic),
                     ] {
                         push(
@@ -515,7 +516,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
             }
             if !quick {
                 // the 27B gate/up projection, one row, both activation modes
-                for act in [Mxfp4Act::Dynamic, Mxfp4Act::None] {
+                for act in [Mxfp4Act::Dynamic, Mxfp4Act::None, Mxfp4Act::Fp8] {
                     push(
                         format!("M=1 N=17408 K=5120 x=bf16 out=bf16 act={}", act.name()),
                         matmul_mxfp4_case(&mut rng, 1, 17408, 5120, act, DType::Bf16, DType::Bf16),
@@ -523,6 +524,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 }
                 // a prefill-shaped batch with M and N tails
                 push("M=300 N=1000 K=512 x=bf16 out=bf16 act=dynamic".into(), matmul_mxfp4_case(&mut rng, 300, 1000, 512, Mxfp4Act::Dynamic, DType::Bf16, DType::Bf16));
+                push("M=300 N=1000 K=512 x=bf16 out=bf16 act=fp8".into(), matmul_mxfp4_case(&mut rng, 300, 1000, 512, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16));
             }
         }
         Op::MoeTopk => {
@@ -686,6 +688,7 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     for (xdt, odt, act) in [
                         (DType::Bf16, DType::Bf16, Mxfp4Act::Dynamic),
                         (DType::Bf16, DType::Bf16, Mxfp4Act::None),
+                        (DType::Bf16, DType::Bf16, Mxfp4Act::Fp8),
                         (DType::F32, DType::F32, Mxfp4Act::Dynamic),
                     ] {
                         // the real decode shapes are big: only a couple of row counts for them
@@ -853,8 +856,8 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             i[0].shape[1],
             i[0].dtype,
             o[0].dtype,
-            // the act flag is a value, not visible at plan time; the case grades the declared W4A4 mode
-            "dynamic"
+            // the act flag is a value, not visible at plan time; the case grades W4A8 for a W4A8 call (`OpAttrs::mxfp4_a8`), else the declared W4A4 mode
+            plan_act(call).name()
         ),
         Op::MoeTopk => format!(
             "T={} E={} K={} {} norm={}",
@@ -912,8 +915,8 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             i[0].shape[1],
             i[0].dtype,
             o[0].dtype,
-            // the act flag is a value, not visible at plan time; the case grades the declared W4A4 mode
-            "dynamic"
+            // the act flag is a value, not visible at plan time; the case grades W4A8 for a W4A8 call (`OpAttrs::mxfp4_a8`), else the declared W4A4 mode
+            plan_act(call).name()
         ),
         Op::MatmulNvfp4Glu => format!(
             "M={} N={} K={} x={} out={}",
@@ -969,6 +972,15 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
 
 /// Host case that exercises the same kernel path as `call` (see [`label`]). The FP8 case alternates the
 /// activation mode with the row count's parity so a plan that uses either mode gets it tested.
+/// The MXFP4 activation mode a plan-time case grades: W4A8 for a call that carries `OpAttrs::mxfp4_a8`, else the declared W4A4.
+fn plan_act(call: &OpCall) -> Mxfp4Act {
+    if call.attrs.mxfp4_a8 {
+        Mxfp4Act::Fp8
+    } else {
+        Mxfp4Act::Dynamic
+    }
+}
+
 pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> Option<(HostCall, String)> {
     if call.op == Op::MatmulExl3 {
         return Some(crate::quant::exl3::case_from_call(call, caps, rng));
@@ -989,7 +1001,7 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
             i[0].shape[0].min(caps.rows),
             i[1].shape[0].min(caps.n),
             i[0].shape[1],
-            Mxfp4Act::Dynamic,
+            plan_act(call),
             i[0].dtype,
             o[0].dtype,
         ),
@@ -1035,7 +1047,7 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
             i[1].shape[0].min(caps.n),
             i[3].shape[0].min(caps.n),
             i[0].shape[1],
-            Mxfp4Act::Dynamic,
+            plan_act(call),
             i[0].dtype,
             o[0].dtype,
         ),

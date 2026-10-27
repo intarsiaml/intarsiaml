@@ -1,0 +1,24 @@
+fleetq: #5846 running on tatooine-r9700, tatooine-r9700-2: ssh tatooine 'bash ~/w4a8-build.sh && bash ~/intarsiaml-w4a8/scripts/w4a8/prep-bin.sh && bash ~/intarsiaml-w4a8/scripts/w4a8/mutants.sh'
+== build release cli --features hip
+warning: function `hip_batch_needs_hybrid` is never used
+    Finished `release` profile [optimized] target(s) in 1m 02s
+rc=0
+== build hip tests (no run)
+    Finished `release` profile [optimized] target(s) in 2.73s
+  Executable unittests src/lib.rs (/target/release/deps/intarsia_backend_hip-818d9eec60198013)
+  Executable tests/admission.rs (/target/release/deps/admission-505212eeaca09fd4)
+  Executable tests/ar_norm.rs (/target/release/deps/ar_norm-24e80d49cfa1f593)
+  Executable tests/attention.rs (/target/release/deps/attention-3141cbf87c98b4a4)
+  Executable tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+  Executable tests/decode_v2.rs (/target/release/deps/decode_v2-9f28658bcd4a52c9)
+rc=0
+-rwxr-xr-x 1 josef josef 49024056 Oct 26 23:16 /home/josef/intarsiaml-w4a8/w4a8-intarsia
+clean 546b911d76e5a21c
+m1-table af4867cbd9de1906
+m2-noscale 47b51f946c9a0a0d
+m3-row1 dee1286ed138168f
+m4-noclamp 71eae1ad2997070e
+m5-exponent e607ff26f4593b78
+clean2 546b911d76e5a21c (equal to clean: yes)
+MUTANTS BUILT 23:21:47
+fleetq: #5846 done (exit 0)

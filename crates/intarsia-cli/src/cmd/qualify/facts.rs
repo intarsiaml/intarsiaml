@@ -50,7 +50,7 @@ fn key(s: &str) -> String {
 /// Find the golden file of `name` in `dirs`. `long` asks for the longer prompt set (`<name>-long...`, then `...-4k...`);
 /// otherwise the short one. A full-vocabulary fp32 reference outranks other sources. For a model whose MXFP4 activation mode is `act`
 /// (`None`: not an MXFP4 model, or unknown), of two goldens made from the same weights, the W4A16 one (`-w4a16` in the name) is taken for `Mxfp4Act::None` and never for
-/// `Mxfp4Act::Dynamic` (a W4A16 golden sits ~0.14 KL away from a W4A4 run, docs/results/2026-10-25-ac-27b-accuracy-gate.md).
+/// `Mxfp4Act::Dynamic` (W4A8, `Mxfp4Act::Fp8`, grades against the W4A16 golden too: it is the W4A16 model with fp8 activations, 12x closer to it than W4A4 is; a W4A16 golden sits ~0.14 KL away from a W4A4 run, docs/results/2026-10-25-ac-27b-accuracy-gate.md).
 pub fn find_golden_act(name: &str, dirs: &[PathBuf], long: bool, act: Option<Mxfp4Act>) -> Option<PathBuf> {
     find_scored(name, dirs, false, act, |is_long, is_4k| match (long, is_long, is_4k) {
         (false, false, false) => Some(100),
@@ -134,7 +134,7 @@ fn find_scored(
             let is_4k = rest.contains("-4k");
             let Some(mut score) = base(is_long, is_4k) else { continue };
             match (act, rest.contains("-w4a16")) {
-                (Some(Mxfp4Act::None), true) => score += 20,
+                (Some(Mxfp4Act::None | Mxfp4Act::Fp8), true) => score += 20,
                 (Some(Mxfp4Act::Dynamic), true) => continue,
                 _ => {}
             }
@@ -380,6 +380,7 @@ mod tests {
         // W4A16 effective (the Qwen3.8-27B recipe default): the W4A16 golden; W4A4 effective (`--mxfp4-act dynamic`): never it
         assert_eq!(n(find_golden_act(name, &dirs, false, Some(Mxfp4Act::None))).as_deref(), w4a16);
         assert_eq!(n(find_golden_act(name, &dirs, false, Some(Mxfp4Act::Dynamic))).as_deref(), w4a4);
+        assert_eq!(n(find_golden_act(name, &dirs, false, Some(Mxfp4Act::Fp8))).as_deref(), w4a16, "W4A8 takes the W4A16 golden");
         // not an MXFP4 model: a golden is not picked by its tag
         assert!(n(find_golden_act(name, &dirs, false, None)).is_some());
         // the mode a golden was made with: file name, else the metadata the golden tool writes

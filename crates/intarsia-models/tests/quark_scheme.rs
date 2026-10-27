@@ -44,3 +44,43 @@ fn the_27b_recipe_defaults_to_w4a16_and_no_other_recipe_sets_the_key() {
         }
     }
 }
+
+/// The per-backend activation mode (`[tuning.<backend>] mxfp4_act`) of the Qwen3.8-27B recipe: precedence `--mxfp4-act`, backend tuning,
+/// recipe `[defaults]`, checkpoint. HIP resolves to W4A8 with no flag; CUDA, Metal and cpu stay W4A16 and never resolve to fp8 unless the
+/// flag says so; no other recipe sets the key.
+#[test]
+fn the_27b_recipe_runs_w4a8_on_hip_only_and_the_flag_always_wins() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/qwen38_27b_quark_mxfp4");
+    let s = read_quant_scheme(&dir).unwrap().unwrap();
+    let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
+    let (_, recipe) = intarsia_models::recipe::select_recipe(&cfg, &[]).unwrap();
+    let declared = s.mxfp4_act();
+    assert_eq!(declared, Some(Mxfp4Act::Dynamic));
+    assert_eq!(recipe.defaults.mxfp4_act, Some(Mxfp4Act::None), "[defaults] stays W4A16");
+    for (backend, plain) in [("hip", Mxfp4Act::Fp8), ("cuda", Mxfp4Act::None), ("metal", Mxfp4Act::None), ("cpu", Mxfp4Act::None), ("unknown", Mxfp4Act::None)] {
+        let rec = recipe.mxfp4_act_for(backend);
+        assert_eq!(effective_act(None, rec, declared), plain, "{backend}: no flag");
+        for flag in [Mxfp4Act::None, Mxfp4Act::Dynamic, Mxfp4Act::Fp8] {
+            assert_eq!(effective_act(Some(flag), rec, declared), flag, "{backend}: --mxfp4-act {} wins", flag.name());
+        }
+        assert_eq!(recipe.mxfp4_act_is_backend_tuned(backend), backend == "hip", "{backend}");
+    }
+    // the deviation note names the right chooser and the way back
+    let note = s.mxfp4_act_note(Mxfp4Act::Fp8, intarsia_core::quant::mxfp4::ActSource::Recipe).unwrap();
+    assert!(note.contains("0.8204") && note.contains("--mxfp4-act dynamic"), "{note}");
+    // a backend table that sets only itself does not leak into the others, and "fp8" parses in both places
+    let r = intarsia_models::parse_recipe(&format!(
+        "{}\n[tuning.cuda]\nmxfp4_act = \"fp8\"\n",
+        include_str!("../../../recipes/qwen3_5_vl.toml")
+    ))
+    .unwrap();
+    assert_eq!(r.mxfp4_act_for("cuda"), Some(Mxfp4Act::Fp8));
+    assert_eq!(r.mxfp4_act_for("metal"), Some(Mxfp4Act::None));
+    for (name, r) in intarsia_models::recipe::all_recipes(&[]) {
+        if name != "builtin:qwen3_5_vl" {
+            for backend in ["cpu", "cuda", "hip", "metal"] {
+                assert_eq!(r.mxfp4_act_for(backend), None, "{name} must not set mxfp4_act ({backend})");
+            }
+        }
+    }
+}

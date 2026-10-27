@@ -60,7 +60,7 @@ fn cols(b: &dyn Backend, raw: &[u8], n: usize, k: usize, c0: usize, c1: usize) -
         part.extend_from_slice(&raw[(r * k + c0) * 2..(r * k + c1) * 2]);
     }
     let buf = crate::backend::upload_new(b, &part)?;
-    Ok(QTensor { format: crate::quant::BF16, n, k: w, parts: vec![TensorRef::new(buf, DType::Bf16, &[n, w])], act_quant: false })
+    Ok(QTensor { format: crate::quant::BF16, n, k: w, parts: vec![TensorRef::new(buf, DType::Bf16, &[n, w])], act_fp8: false, act_quant: false })
 }
 
 impl Corrector {

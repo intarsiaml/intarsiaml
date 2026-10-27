@@ -1,0 +1,35 @@
+acc w4a8 exit 0
+acc w4a16 exit 0
+== w4a16
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail exce
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [4bit]: top-1 (all rows) 99.38% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 1.484e-3 (need <= 3.0e-2) ok [all rows, n=1441: 1.381e-3, reported only] | tail mass (all 
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.484e-3 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 1.381e-3 (21-way KL over all rows <= static floor) | current def: PASS 1.484e-3 (21-way KL over scored rows <= max(static floor, factor x reference n
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 99.38% (not gated for this class) ok | 21-way KL (scored rows, n=118) 9.840e-4 (need <= 3.0e-2) ok [all rows, n=160: 8.252e-4, reported only] | t
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 9.840e-4 PASS
+gate-definition: kl_floor [decode]: old def: PASS 8.252e-4 (21-way KL over all rows <= static floor) | current def: PASS 9.840e-4 (21-way KL over scored rows <= max(static floor, factor x reference no
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== w4a8
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail exce
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+prefill floor [4bit]: top-1 (all rows) 98.20% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 1.153e-2 (need <= 3.0e-2) ok [all rows, n=1441: 1.118e-2, reported only] | tail mass (all 
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.153e-2 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 1.118e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.153e-2 (21-way KL over scored rows <= max(static floor, factor x reference n
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 97.50% (not gated for this class) ok | 21-way KL (scored rows, n=118) 5.626e-3 (need <= 3.0e-2) ok [all rows, n=160: 6.179e-3, reported only] | t
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 5.626e-3 PASS
+gate-definition: kl_floor [decode]: old def: PASS 6.179e-3 (21-way KL over all rows <= static floor) | current def: PASS 5.626e-3 (21-way KL over scored rows <= max(static floor, factor x reference no
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== batched == solo (27B tp1 fp8 act)
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 15047065600, weights_bytes: 18027119552, workspace_bytes: 879320544, kv_bytes_per_token: 65536, kv_fraction: 0.95, kv_budget_bytes: 14294712140, kv_cap_tokens: 2048, kv_total_bytes: 134217728, notes: [] }
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 636.01s

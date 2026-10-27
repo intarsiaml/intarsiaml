@@ -1,0 +1,32 @@
+00:14:58 guard: [guard] radiance stopped 2026-10-27 00:14:58
+00:14:58 pre: pre4
+00:21:50 pre: pre4 exit 0; # TYPE intarsia_spec_proposed_tokens_total counter|intarsia_spec_proposed_tokens_total 3769|# HELP intarsia_spec_accepted_tokens_total Draft tokens accepted by speculative verify passes.|
+00:21:50 round 1 arm a8: starting server
+00:23:34 round 1 arm a8 ho-chat: localeval exit 0 results/20261027-002309-w4a8-a8-w4a8-w4-a8-ho-chat-r1/result.json
+00:23:46 round 1 arm a8 ho-code: localeval exit 0 results/20261027-002335-w4a8-a8-w4a8-w4-a8-ho-code-r1/result.json
+00:24:14 round 1 arm a8 ho-prose: localeval exit 0 results/20261027-002346-w4a8-a8-w4a8-w4-a8-ho-prose-r1/result.json
+00:24:27 round 1 arm a8 ho-recall: localeval exit 0 results/20261027-002414-w4a8-a8-w4a8-w4-a8-ho-recall-r1/result.json
+00:25:09 round 1 arm a8 rcp-code: localeval exit 0 results/20261027-002427-w4a8-a8-w4a8-w4-a8-rcp-code-r1/result.json
+00:26:02 round 1 arm a8 rcp-prose: localeval exit 0 results/20261027-002509-w4a8-a8-w4a8-w4-a8-rcp-prose-r1/result.json
+00:26:49 round 1 arm a8 rcp-recall: localeval exit 0 results/20261027-002603-w4a8-a8-w4a8-w4-a8-rcp-recall-r1/result.json
+00:27:09 round 1 arm a8 sweep: exit 0 results/20261027-002649-w4a8-a8-w4a8-w4-a8-sweep-r1/result.json
+00:27:09 round 1 arm a16: starting server
+00:28:57 round 1 arm a16 ho-chat: localeval exit 0 results/20261027-002829-w4a8-a16-w4a8-w4-a16-ho-chat-r1/result.json
+00:29:10 round 1 arm a16 ho-code: localeval exit 0 results/20261027-002858-w4a8-a16-w4a8-w4-a16-ho-code-r1/result.json
+00:29:42 round 1 arm a16 ho-prose: localeval exit 0 results/20261027-002911-w4a8-a16-w4a8-w4-a16-ho-prose-r1/result.json
+00:29:56 round 1 arm a16 ho-recall: localeval exit 0 results/20261027-002942-w4a8-a16-w4a8-w4-a16-ho-recall-r1/result.json
+00:30:43 round 1 arm a16 rcp-code: localeval exit 0 results/20261027-002957-w4a8-a16-w4a8-w4-a16-rcp-code-r1/result.json
+00:31:45 round 1 arm a16 rcp-prose: localeval exit 0 results/20261027-003044-w4a8-a16-w4a8-w4-a16-rcp-prose-r1/result.json
+00:32:36 round 1 arm a16 rcp-recall: localeval exit 0 results/20261027-003145-w4a8-a16-w4a8-w4-a16-rcp-recall-r1/result.json
+00:33:02 round 1 arm a16 sweep: exit 0 results/20261027-003237-w4a8-a16-w4a8-w4-a16-sweep-r1/result.json
+00:33:02 round 1 arm a4: starting server
+00:34:44 round 1 arm a4 ho-chat: localeval exit 0 results/20261027-003419-w4a8-a4-w4a8-w4-a4-ho-chat-r1/result.json
+00:34:56 round 1 arm a4 ho-code: localeval exit 0 results/20261027-003445-w4a8-a4-w4a8-w4-a4-ho-code-r1/result.json
+00:35:25 round 1 arm a4 ho-prose: localeval exit 0 results/20261027-003457-w4a8-a4-w4a8-w4-a4-ho-prose-r1/result.json
+00:35:38 round 1 arm a4 ho-recall: localeval exit 0 results/20261027-003525-w4a8-a4-w4a8-w4-a4-ho-recall-r1/result.json
+00:36:21 round 1 arm a4 rcp-code: localeval exit 0 results/20261027-003539-w4a8-a4-w4a8-w4-a4-rcp-code-r1/result.json
+00:37:17 round 1 arm a4 rcp-prose: localeval exit 0 results/20261027-003622-w4a8-a4-w4a8-w4-a4-rcp-prose-r1/result.json
+00:38:06 round 1 arm a4 rcp-recall: localeval exit 0 results/20261027-003719-w4a8-a4-w4a8-w4-a4-rcp-recall-r1/result.json
+00:38:26 round 1 arm a4 sweep: exit 0 results/20261027-003807-w4a8-a4-w4a8-w4-a4-sweep-r1/result.json
+00:38:27 done, time left 1238s
+00:38:37 guard: [guard] radiance answers 2026-10-27 00:38:37 (after 15 s)

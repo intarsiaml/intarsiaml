@@ -582,7 +582,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let declared = weights.scheme().and_then(|s| s.mxfp4_act());
     {
         use intarsia_core::quant::mxfp4::{act_source, effective_act, ActSource};
-        let (cli, rec) = (opts.load.mxfp4_act, recipe.defaults.mxfp4_act);
+        let (cli, rec) = (opts.load.mxfp4_act, recipe.mxfp4_act_for(model.backend.name()));
         let eff = effective_act(cli, rec, declared);
         let by = act_source(cli, rec);
         if let Some(note) = weights.scheme().and_then(|s| s.mxfp4_act_note(eff, by)) {
@@ -591,6 +591,9 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         if declared.is_some() || cli.is_some() {
             let src = match by {
                 ActSource::Cli => "--mxfp4-act".to_string(),
+                ActSource::Recipe if recipe.mxfp4_act_is_backend_tuned(model.backend.name()) => {
+                    format!("recipe {} [tuning.{}] mxfp4_act", recipe.model.family, model.backend.name())
+                }
                 ActSource::Recipe => format!("recipe {} [defaults] mxfp4_act", recipe.model.family),
                 ActSource::Checkpoint => "declared by the checkpoint".to_string(),
             };

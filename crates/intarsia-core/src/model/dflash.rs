@@ -258,7 +258,7 @@ fn load_fc(src: &dyn WeightSource, b: &dyn Backend, add_bytes: &dyn Fn(u64), h: 
         }
         let buf = crate::backend::upload_new(b, &part)?;
         add_bytes(part.len() as u64);
-        fc.push(QTensor { format: crate::quant::BF16, n: h, k: h, parts: vec![TensorRef::new(buf, DType::Bf16, &[h, h])], act_quant: false });
+        fc.push(QTensor { format: crate::quant::BF16, n: h, k: h, parts: vec![TensorRef::new(buf, DType::Bf16, &[h, h])], act_fp8: false, act_quant: false });
     }
     Ok(fc)
 }

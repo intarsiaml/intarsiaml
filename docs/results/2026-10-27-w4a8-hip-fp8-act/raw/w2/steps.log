@@ -1,0 +1,7 @@
+23:27:30 guard: [guard] radiance stopped 2026-10-26 23:27:30
+23:27:30 pre: acc
+23:38:21 pre: acc exit 0; == batched == solo (27B tp1 fp8 act)|test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 15047065600, weights_bytes: 18027119552, workspace_bytes: 879320544, kv_bytes_per_token: 65536, kv_fr
+23:38:21 round 1 arm a8: starting server
+23:43:24 round 1 arm a8: server did not come up
+23:43:24 done, time left 1542s
+23:43:39 guard: [guard] radiance answers 2026-10-26 23:43:39 (after 20 s)

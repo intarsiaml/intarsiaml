@@ -546,7 +546,7 @@ pub fn all() -> Vec<KernelImpl> {
                 crate::mxfp4::MATMUL_MXFP4_GEMV => k
                     .acts(bf)
                     .weights([DType::U8])
-                    .when(|s| s.m >= 1 && s.k > 0 && s.k % 32 == 0)
+                    .when(|s| !s.mxfp4_a8 && s.m >= 1 && s.k > 0 && s.k % 32 == 0)
                     .exact(Exactness::Deterministic)
                     .tol(PAIR_TOL)
                     .tol_f32(F32_TOL)

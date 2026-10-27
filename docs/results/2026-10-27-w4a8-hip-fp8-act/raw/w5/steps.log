@@ -1,0 +1,35 @@
+01:14:24 guard: [guard] radiance stopped 2026-10-27 01:14:23
+01:14:24 round 2 arm a16: starting server
+01:16:15 round 2 arm a16 ho-chat: localeval exit 0 results/20261027-011546-w4a8-a16-w4a8-w5-a16-ho-chat-r2/result.json
+01:16:28 round 2 arm a16 ho-code: localeval exit 0 results/20261027-011616-w4a8-a16-w4a8-w5-a16-ho-code-r2/result.json
+01:17:00 round 2 arm a16 ho-prose: localeval exit 0 results/20261027-011628-w4a8-a16-w4a8-w5-a16-ho-prose-r2/result.json
+01:17:14 round 2 arm a16 ho-recall: localeval exit 0 results/20261027-011700-w4a8-a16-w4a8-w5-a16-ho-recall-r2/result.json
+01:18:01 round 2 arm a16 rcp-code: localeval exit 0 results/20261027-011714-w4a8-a16-w4a8-w5-a16-rcp-code-r2/result.json
+01:19:01 round 2 arm a16 rcp-prose: localeval exit 0 results/20261027-011801-w4a8-a16-w4a8-w5-a16-rcp-prose-r2/result.json
+01:19:53 round 2 arm a16 rcp-recall: localeval exit 0 results/20261027-011902-w4a8-a16-w4a8-w5-a16-rcp-recall-r2/result.json
+01:19:53 round 2 arm a8: starting server
+01:21:35 round 2 arm a8 ho-chat: localeval exit 0 results/20261027-012110-w4a8-a8-w4a8-w5-a8-ho-chat-r2/result.json
+01:21:46 round 2 arm a8 ho-code: localeval exit 0 results/20261027-012135-w4a8-a8-w4a8-w5-a8-ho-code-r2/result.json
+01:22:14 round 2 arm a8 ho-prose: localeval exit 0 results/20261027-012147-w4a8-a8-w4a8-w5-a8-ho-prose-r2/result.json
+01:22:27 round 2 arm a8 ho-recall: localeval exit 0 results/20261027-012215-w4a8-a8-w4a8-w5-a8-ho-recall-r2/result.json
+01:23:09 round 2 arm a8 rcp-code: localeval exit 0 results/20261027-012228-w4a8-a8-w4a8-w5-a8-rcp-code-r2/result.json
+01:24:03 round 2 arm a8 rcp-prose: localeval exit 0 results/20261027-012310-w4a8-a8-w4a8-w5-a8-rcp-prose-r2/result.json
+01:24:49 round 2 arm a8 rcp-recall: localeval exit 0 results/20261027-012403-w4a8-a8-w4a8-w5-a8-rcp-recall-r2/result.json
+01:24:50 round 3 arm a8: starting server
+01:26:31 round 3 arm a8 ho-chat: localeval exit 0 results/20261027-012607-w4a8-a8-w4a8-w5-a8-ho-chat-r3/result.json
+01:26:43 round 3 arm a8 ho-code: localeval exit 0 results/20261027-012632-w4a8-a8-w4a8-w5-a8-ho-code-r3/result.json
+01:27:11 round 3 arm a8 ho-prose: localeval exit 0 results/20261027-012643-w4a8-a8-w4a8-w5-a8-ho-prose-r3/result.json
+01:27:24 round 3 arm a8 ho-recall: localeval exit 0 results/20261027-012711-w4a8-a8-w4a8-w5-a8-ho-recall-r3/result.json
+01:28:06 round 3 arm a8 rcp-code: localeval exit 0 results/20261027-012725-w4a8-a8-w4a8-w5-a8-rcp-code-r3/result.json
+01:29:00 round 3 arm a8 rcp-prose: localeval exit 0 results/20261027-012807-w4a8-a8-w4a8-w5-a8-rcp-prose-r3/result.json
+01:29:47 round 3 arm a8 rcp-recall: localeval exit 0 results/20261027-012901-w4a8-a8-w4a8-w5-a8-rcp-recall-r3/result.json
+01:29:47 round 3 arm a16: starting server
+01:31:32 round 3 arm a16 ho-chat: localeval exit 0 results/20261027-013104-w4a8-a16-w4a8-w5-a16-ho-chat-r3/result.json
+01:31:45 round 3 arm a16 ho-code: localeval exit 0 results/20261027-013133-w4a8-a16-w4a8-w5-a16-ho-code-r3/result.json
+01:32:17 round 3 arm a16 ho-prose: localeval exit 0 results/20261027-013146-w4a8-a16-w4a8-w5-a16-ho-prose-r3/result.json
+01:32:31 round 3 arm a16 ho-recall: localeval exit 0 results/20261027-013217-w4a8-a16-w4a8-w5-a16-ho-recall-r3/result.json
+01:33:18 round 3 arm a16 rcp-code: localeval exit 0 results/20261027-013231-w4a8-a16-w4a8-w5-a16-rcp-code-r3/result.json
+01:34:18 round 3 arm a16 rcp-prose: localeval exit 0 results/20261027-013318-w4a8-a16-w4a8-w5-a16-rcp-prose-r3/result.json
+01:35:10 round 3 arm a16 rcp-recall: localeval exit 0 results/20261027-013419-w4a8-a16-w4a8-w5-a16-rcp-recall-r3/result.json
+01:35:10 done, time left 310s
+01:35:31 guard: [guard] radiance answers 2026-10-27 01:35:31 (after 25 s)
