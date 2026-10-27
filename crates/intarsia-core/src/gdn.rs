@@ -138,6 +138,26 @@ pub fn check(call: &OpCall) -> Result<()> {
                 return bad("recurrent state must be f32".into());
             }
         }
+        Op::ShortConv => {
+            rank(&i[0], 2, "bcx")?;
+            rank(&i[1], 2, "taps")?;
+            rank(&o[0], 2, "y")?;
+            rank(&o[1], 2, "state")?;
+            let (t, c3) = (i[0].shape[0], i[0].shape[1]);
+            let (c, k) = (i[1].shape[0], i[1].shape[1]);
+            if k < 2 || c3 != 3 * c || o[0].shape != [t, c] || o[1].shape != [c, k - 1] {
+                return bad(format!(
+                    "bcx {:?} taps {:?} y {:?} state {:?}: need bcx [T,3C], taps [C,K>=2], y [T,C], state [C,K-1]",
+                    i[0].shape, i[1].shape, o[0].shape, o[1].shape
+                ));
+            }
+            if o[1].dtype != DType::F32 {
+                return bad("conv state must be f32".into());
+            }
+            if i[0].dtype != o[0].dtype {
+                return bad(format!("bcx is {}, y is {} (one activation dtype)", i[0].dtype, o[0].dtype));
+            }
+        }
         // the two ops it composes, each checked as its own call (the conv output it never stores has x's shape)
         Op::GdnConvDelta => {
             let (conv, delta) = conv_delta_parts(call, &i[0]);
@@ -166,6 +186,13 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
         Op::GdnConv => {
             s.m = i[0].shape[0];
             s.n = i[0].shape[1];
+            s.k = i[1].shape[1];
+            s.weight = Some(i[1].dtype);
+        }
+        // as `GdnConv`, with `n` the channel count C (the projection is 3C wide)
+        Op::ShortConv => {
+            s.m = i[0].shape[0];
+            s.n = i[1].shape[0];
             s.k = i[1].shape[1];
             s.weight = Some(i[1].dtype);
         }
@@ -244,6 +271,29 @@ pub fn sigmoid_mul(a: &[f64], g: &[f64]) -> Vec<f64> {
 
 /// Reference `GdnConv`: `x [T,C]`, `w [C,K]`, `state [C,K-1]` (updated) -> `y [T,C]`.
 pub fn conv_silu(x: &[f64], w: &[f64], state: &mut [f64], t: usize, c: usize, k: usize) -> Vec<f64> {
+    causal_conv(x, w, state, t, c, k, silu)
+}
+
+/// Reference `ShortConv`: `bcx [T,3C]` (rows `[B | C | x]`), `w [C,K]`, `state [C,K-1]` (updated) -> `y [T,C]` =
+/// `C * causalconv(B * x)`. The `GdnConv` conv with the activation off (`B * x` is the conv input and what the state holds).
+pub fn short_conv(bcx: &[f64], w: &[f64], state: &mut [f64], t: usize, c: usize, k: usize) -> Vec<f64> {
+    let mut bx = vec![0f64; t * c];
+    for ti in 0..t {
+        for ch in 0..c {
+            bx[ti * c + ch] = bcx[ti * 3 * c + ch] * bcx[ti * 3 * c + 2 * c + ch];
+        }
+    }
+    let mut y = causal_conv(&bx, w, state, t, c, k, |v| v);
+    for ti in 0..t {
+        for ch in 0..c {
+            y[ti * c + ch] *= bcx[ti * 3 * c + c + ch];
+        }
+    }
+    y
+}
+
+/// The depthwise causal conv both ops share, `act` applied to every output.
+fn causal_conv(x: &[f64], w: &[f64], state: &mut [f64], t: usize, c: usize, k: usize, act: fn(f64) -> f64) -> Vec<f64> {
     let keep = k - 1;
     let mut y = vec![0f64; t * c];
     let mut ext = vec![0f64; keep + t];
@@ -257,7 +307,7 @@ pub fn conv_silu(x: &[f64], w: &[f64], state: &mut [f64], t: usize, c: usize, k:
             for j in 0..k {
                 acc += w[ch * k + j] * ext[ti + j];
             }
-            y[ti * c + ch] = silu(acc);
+            y[ti * c + ch] = act(acc);
         }
         state[ch * keep..(ch + 1) * keep].copy_from_slice(&ext[t..t + keep]);
     }
@@ -406,5 +456,46 @@ mod tests {
         assert_eq!(q, vec![0., 1., 2., 6., 7., 8.]);
         assert_eq!(g, vec![3., 4., 5., 9., 10., 11.]);
         assert_eq!(sigmoid_mul(&[2.0], &[0.0]), vec![1.0]);
+    }
+    /// `short_conv` against the literal HF `Lfm2ShortConv` formula (B, C, x chunks of the projection; `Bx = B * x`; a conv1d with
+    /// left zero padding K-1; `y = C * conv`), and chunk invariance: a sequence split anywhere gives the same y and state.
+    #[test]
+    fn short_conv_is_the_hf_formula_and_chunk_invariant() {
+        let (t, c, k) = (9usize, 3usize, 3usize);
+        let bcx: Vec<f64> = (0..t * 3 * c).map(|i| ((i * 37 % 23) as f64 - 11.0) / 7.0).collect();
+        let w: Vec<f64> = (0..c * k).map(|i| ((i * 11 % 13) as f64 - 6.0) / 5.0).collect();
+        // literal: per channel, Bx over time, zero history
+        let mut want = vec![0f64; t * c];
+        for ch in 0..c {
+            let bx: Vec<f64> = (0..t).map(|ti| bcx[ti * 3 * c + ch] * bcx[ti * 3 * c + 2 * c + ch]).collect();
+            for ti in 0..t {
+                let mut acc = 0.0;
+                for j in 0..k {
+                    // tap j multiplies Bx[ti - (K-1) + j]
+                    let src = ti as isize - (k as isize - 1) + j as isize;
+                    if src >= 0 {
+                        acc += w[ch * k + j] * bx[src as usize];
+                    }
+                }
+                want[ti * c + ch] = bcx[ti * 3 * c + c + ch] * acc;
+            }
+        }
+        let mut st = vec![0f64; c * (k - 1)];
+        let whole = short_conv(&bcx, &w, &mut st, t, c, k);
+        assert_eq!(whole, want);
+        // the state is the last K-1 values of Bx, oldest first
+        for ch in 0..c {
+            for j in 0..k - 1 {
+                let ti = t - (k - 1) + j;
+                assert_eq!(st[ch * (k - 1) + j], bcx[ti * 3 * c + ch] * bcx[ti * 3 * c + 2 * c + ch]);
+            }
+        }
+        for cut in [1usize, 2, 4, 8] {
+            let mut s2 = vec![0f64; c * (k - 1)];
+            let mut y = short_conv(&bcx[..cut * 3 * c], &w, &mut s2, cut, c, k);
+            y.extend(short_conv(&bcx[cut * 3 * c..], &w, &mut s2, t - cut, c, k));
+            assert_eq!(y, whole, "split at {cut}");
+            assert_eq!(s2, st, "split at {cut}: state");
+        }
     }
 }

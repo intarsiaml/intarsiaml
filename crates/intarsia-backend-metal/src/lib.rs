@@ -1004,6 +1004,7 @@ impl MetalBackend {
             (kernels::GATE_SPLIT_BF16, Op::GateSplit)
                 | (kernels::SIGMOID_MUL_BF16, Op::SigmoidMul)
                 | (kernels::GDN_CONV_BF16, Op::GdnConv)
+                | (kernels::SHORT_CONV_BF16, Op::ShortConv)
                 | (kernels::GDN_DELTA_RULE_BF16, Op::GdnDeltaRule)
                 | (kernels::GDN_DELTA_RULE_BF16_PRE, Op::GdnDeltaRule)
         ) {

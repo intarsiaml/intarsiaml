@@ -182,6 +182,8 @@ pub struct LayerSpec {
     pub by_type: BTreeMap<String, Vec<String>>,
     pub attn: Option<AttnSpec>,
     pub gdn: Option<GdnSpec>,
+    /// Gated short-conv block (LFM2): `y = out(C * causalconv(B * x))`, `[B | C | x] = in_proj(n)`.
+    pub conv: Option<ConvSpec>,
     pub ffn: Option<FfnSpec>,
     /// `pre_<block>` -> norm tensor prefix; the norm applied before that block.
     #[serde(default)]
@@ -241,6 +243,20 @@ pub struct GdnSpec {
     pub dt_bias: String,
     /// Gated RMSNorm weight `[dv]` (plain weight, never offset).
     pub norm: String,
+    pub out: String,
+}
+
+/// Gated short-conv block (Liquid LFM2, HF `Lfm2ShortConv`): tensor name templates. The conv kernel size is read from
+/// config.json (`[config] short_conv_kernel`, LFM2: `conv_L_cache`); the conv width is `hidden_size`.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConvSpec {
+    /// "short_conv".
+    pub kind: String,
+    /// `[3 * hidden, hidden]` projection whose rows split into `B`, `C`, `x`.
+    pub in_proj: String,
+    /// Depthwise causal conv taps `[hidden, 1, K]` (or `[hidden, K]`), no bias.
+    pub conv: String,
     pub out: String,
 }
 
@@ -543,6 +559,8 @@ pub struct ConfigKeys {
     pub linear_k_head_dim: String,
     pub linear_v_head_dim: String,
     pub linear_conv_kernel: String,
+    /// Kernel size of the gated short conv (LFM2 `conv_L_cache`); absent from the config = the model has no such block.
+    pub short_conv_kernel: String,
 }
 
 impl Default for ConfigKeys {
@@ -565,6 +583,7 @@ impl Default for ConfigKeys {
             linear_k_head_dim: "linear_key_head_dim".into(),
             linear_v_head_dim: "linear_value_head_dim".into(),
             linear_conv_kernel: "linear_conv_kernel_dim".into(),
+            short_conv_kernel: "conv_L_cache".into(),
         }
     }
 }
@@ -636,6 +655,7 @@ impl Recipe {
             let known = match b.as_str() {
                 "attn" => self.layer.attn.is_some(),
                 "gdn" => self.layer.gdn.is_some(),
+                "conv" => self.layer.conv.is_some(),
                 "ffn" => self.layer.ffn.is_some(),
                 other => self.layer.other.contains_key(other),
             };
@@ -692,6 +712,10 @@ pub struct ModelDims {
     pub layer_types: Vec<String>,
     /// GatedDeltaNet dimensions when the config carries them.
     pub linear: Option<LinearDims>,
+    /// Gated short-conv (LFM2) dimensions when the config carries them. Not serialised when absent, so the dims JSON of
+    /// every other model is unchanged.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub short_conv: Option<ShortConvDims>,
     /// Sparse MoE FFN dimensions when the config carries them.
     pub moe: Option<crate::quant::moe::MoeConfig>,
     /// Gemma 4 text-model dimensions (`model_type = "gemma4_text"`); `None` for every other family.
@@ -792,6 +816,29 @@ impl LinearDims {
     pub fn conv_dim(&self) -> usize {
         2 * self.k_heads * self.k_head_dim + self.v_heads * self.v_head_dim
     }
+}
+
+/// Dimensions of an LFM2 gated short-conv layer (its width is `ModelDims::hidden`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+pub struct ShortConvDims {
+    /// Conv taps `K` (HF `conv_L_cache`); the state holds `K - 1` columns.
+    pub kernel: usize,
+}
+
+/// FFN width of a config with `block_auto_adjust_ff_dim` (LFM2, HF `Lfm2MLP`): the config's `intermediate_size` is the
+/// nominal width, the weights are `int(2 * ff / 3)` scaled by `block_ffn_dim_multiplier` and rounded up to
+/// `block_multiple_of`. Any other config keeps `ff`.
+fn adjusted_ff_dim(tc: &serde_json::Value, ff: usize) -> usize {
+    if tc.get("block_auto_adjust_ff_dim").and_then(|v| v.as_bool()) != Some(true) {
+        return ff;
+    }
+    let mut n = 2 * ff / 3;
+    if let Some(m) = tc.get("block_ffn_dim_multiplier").and_then(|v| v.as_f64()) {
+        n = (m * n as f64) as usize;
+        let mo = tc.get("block_multiple_of").and_then(|v| v.as_u64()).unwrap_or(1).max(1) as usize;
+        n = mo * n.div_ceil(mo);
+    }
+    n
 }
 
 /// The sub-config holding the text model: `text_config` of multimodal wrappers
@@ -956,7 +1003,7 @@ impl ModelDims {
             })
         };
         let intermediate = match get_u(&keys.intermediate_size) {
-            Some(v) => v,
+            Some(v) => adjusted_ff_dim(tc, v),
             None if is_moe => 0,
             None => need_u(&keys.intermediate_size)?,
         };
@@ -1004,6 +1051,11 @@ impl ModelDims {
         } else {
             None
         };
+        let short_conv = match get_u(&keys.short_conv_kernel) {
+            Some(kernel) if kernel >= 2 => Some(ShortConvDims { kernel }),
+            Some(kernel) => return Err(Error::model(format!("config.json '{}' = {kernel}: the short conv needs at least 2 taps", keys.short_conv_kernel))),
+            None => None,
+        };
         Ok(ModelDims {
             hidden,
             n_layers,
@@ -1020,6 +1072,7 @@ impl ModelDims {
             max_positions,
             layer_types,
             linear,
+            short_conv,
             moe: if gemma.is_some() {
                 Some(gemma_moe()?)
             } else if is_moe {

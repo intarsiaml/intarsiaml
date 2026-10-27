@@ -350,9 +350,9 @@ fn no_kernel_message(backend: &str, arch: &str, ref_only: &str, missing: &BTreeM
 }
 
 /// Ops a batched step runs once per sequence (the attention core on that sequence's own cache, and with the hybrid opt-in
-/// `Model::allow_recurrent_batch` the GatedDeltaNet conv and delta rule on that sequence's own recurrent state); every
+/// `Model::allow_recurrent_batch` the GatedDeltaNet conv and delta rule and LFM2's `ShortConv` on that sequence's own recurrent state); every
 /// other op runs once for all rows. `GateSplitQkNormRopeKv` holds the per-row cache append like `QkNormRopeKv`.
-const PER_ROW_OPS: [Op; 10] = [
+const PER_ROW_OPS: [Op; 11] = [
     Op::QkNormRopeKv,
     Op::GateSplitQkNormRopeKv,
     Op::QkNorm,
@@ -363,6 +363,7 @@ const PER_ROW_OPS: [Op; 10] = [
     Op::GdnConv,
     Op::GdnDeltaRule,
     Op::GdnConvDelta,
+    Op::ShortConv,
 ];
 
 /// Ops whose every output row depends on its own input row alone (no reduction across rows, no per-token state): a call

@@ -58,6 +58,8 @@ pub(super) struct ExtraWs {
     qg: Option<Buffer>,
     gate: Option<Buffer>,
     pub(super) gdn: Option<GdnWs>,
+    /// LFM2's short-conv block (`model/short_conv.rs`).
+    pub(super) short: Option<super::short_conv::ShortConvWs>,
 }
 
 pub(super) fn alloc_extra(
@@ -67,6 +69,7 @@ pub(super) fn alloc_extra(
     dims: &ModelDims,
     has_gdn: bool,
     has_gated_attn: bool,
+    has_conv: bool,
 ) -> Result<ExtraWs> {
     let qdim = dims.n_heads * dims.head_dim;
     let (qg, gate) = if has_gated_attn {
@@ -89,7 +92,8 @@ pub(super) fn alloc_extra(
         }
         _ => None,
     };
-    Ok(ExtraWs { qg, gate, gdn })
+    let short = if has_conv { Some(super::short_conv::alloc_ws(wb, mt, esz, dims.hidden)?) } else { None };
+    Ok(ExtraWs { qg, gate, gdn, short })
 }
 
 impl Model {

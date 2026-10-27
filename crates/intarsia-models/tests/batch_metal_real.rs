@@ -115,6 +115,23 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     assert_eq!(n, 4 * 2 * 700usize.div_ceil(256));
 }
 
+/// LFM2.5-1.2B (lane nab2): the gated short-conv block's conv state is a `Recurrent` slot, and a batched step runs the conv once per
+/// row on that row's own slot (`Model::conv_block_batch`). `INTARSIA_LFM2_DIR` (the checkpoint directory; 2.4 GB, no default).
+#[test]
+fn real_lfm2_batched_decode_is_bitwise_the_solo_step() {
+    // `model_dir` would fall back to the 35B checkpoint under INTARSIA_TEST_REAL_MODEL=1: LFM2 has no default
+    if std::env::var_os("INTARSIA_LFM2_DIR").is_none() {
+        return skip("INTARSIA_LFM2_DIR not set");
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_LFM2_DIR"), metal()) else { return };
+    let m = load(&dir, be, 8, 2048);
+    eprintln!("batch plan notes: {:?}", m.plan.notes);
+    let lens = vec![5, 37, 130, 300, 17, 64, 9, 222];
+    gate(&m, lens, vec![2, 3, 4, 5, 6, 7, 8], 130, (1000, 30000));
+    let n = batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000));
+    assert_eq!(n, 4 * 2 * 700usize.div_ceil(256));
+}
+
 // ---- engine level ---------------------------------------------------------------------------------------------------
 
 #[derive(Debug, PartialEq)]

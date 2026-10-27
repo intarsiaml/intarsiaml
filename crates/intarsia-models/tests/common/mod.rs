@@ -36,6 +36,7 @@ pub fn dims() -> ModelDims {
         max_positions: 512,
         layer_types: Vec::new(),
         linear: None,
+        short_conv: None,
         moe: None,
         gemma: None,
     }

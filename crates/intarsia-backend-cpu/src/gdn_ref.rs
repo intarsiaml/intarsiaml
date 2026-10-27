@@ -32,6 +32,13 @@ pub fn run(call: &OpCall) -> Result<()> {
             wr(&o[0], &y)?;
             wr(&o[1], &state)
         }
+        Op::ShortConv => {
+            let (t, c, k) = (i[0].shape[0], i[1].shape[0], i[1].shape[1]);
+            let mut state = rd(&o[1])?;
+            let y = gdn::short_conv(&rd(&i[0])?, &rd(&i[1])?, &mut state, t, c, k);
+            wr(&o[0], &y)?;
+            wr(&o[1], &state)
+        }
         Op::GdnDeltaRule => {
             let d = DeltaDims::from_call(call);
             let mut state = rd(&o[1])?;

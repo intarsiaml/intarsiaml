@@ -89,7 +89,8 @@ fn test(a: TestArgs) -> Result<()> {
     let mut sweep = SweepConfig { quick: a.quick, ..Default::default() };
     if let Some(dir) = &a.model {
         let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json"))?)?;
-        let keys = intarsia_core::recipe::ConfigKeys::default();
+        // the model's recipe names its config keys (`[config]`: LFM2 spells `rms_norm_eps` as `norm_eps`); no recipe: the HF names
+        let keys = intarsia_models::recipe::select_recipe(&cfg, &[]).map(|(_, r)| r.config).unwrap_or_default();
         let d = intarsia_core::recipe::ModelDims::from_hf_config(&cfg, &keys).map_err(|e| anyhow::anyhow!("{e}"))?;
         sweep.hidden = d.hidden;
         sweep.n_heads = d.n_heads;

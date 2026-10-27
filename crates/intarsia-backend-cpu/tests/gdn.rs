@@ -10,7 +10,7 @@ use intarsia_core::Op;
 fn gdn_ops_and_variants_agree_between_ref_and_fast() {
     let cfg = SweepConfig { quick: false, ..Default::default() };
     let b = CpuBackend::new();
-    let ops = [Op::GateSplit, Op::SigmoidMul, Op::GdnConv, Op::GdnDeltaRule, Op::RmsNorm, Op::RmsNormAdd, Op::QkNorm, Op::Rope];
+    let ops = [Op::GateSplit, Op::SigmoidMul, Op::GdnConv, Op::GdnDeltaRule, Op::ShortConv, Op::RmsNorm, Op::RmsNormAdd, Op::QkNorm, Op::Rope];
     for op in ops {
         let cases = sweep(op, &cfg);
         assert!(!cases.is_empty(), "{op}: empty sweep");

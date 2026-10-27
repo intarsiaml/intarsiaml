@@ -66,7 +66,7 @@ impl Model {
     pub fn has_hybrid_blocks(&self) -> bool {
         self.layers.iter().flatten().any(|b| match b {
             Block::Attn(a) => a.gated,
-            Block::Gdn(_) | Block::Moe(_) => true,
+            Block::Gdn(_) | Block::Conv(_) | Block::Moe(_) => true,
             Block::Ffn(_) | Block::Gemma(_) => false,
         })
     }
@@ -139,7 +139,7 @@ impl Model {
         let dense = self.layers.iter().flatten().all(|b| match b {
             Block::Attn(a) => hybrid || !a.gated,
             Block::Ffn(_) => true,
-            Block::Gdn(_) | Block::Moe(_) => hybrid,
+            Block::Gdn(_) | Block::Conv(_) | Block::Moe(_) => hybrid,
             Block::Gemma(_) => false,
         });
         if !dense {
@@ -1041,7 +1041,8 @@ impl Model {
             Block::Attn(x) => (g, a || x.gated),
             _ => (g, a),
         });
-        let x = gdn_block::alloc_extra(&mut wb, mt, esz, d, has_gdn, has_gated)?;
+        let has_conv = self.layers.iter().flatten().any(|blk| matches!(blk, Block::Conv(_)));
+        let x = gdn_block::alloc_extra(&mut wb, mt, esz, d, has_gdn, has_gated, has_conv)?;
         let moe = match d.moe.as_ref().filter(|_| self.layers.iter().flatten().any(|bl| matches!(bl, Block::Moe(_)))) {
             Some(mc) => Some(MoeScratch::new(&*self.backend, mc, mt, act)?),
             None => None,

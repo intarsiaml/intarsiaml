@@ -1,0 +1,63 @@
+# Liquid LFM2 / LFM2.5 dense decoder (Lfm2ForCausalLM): gated short-conv layers (depthwise causal conv, kernel conv_L_cache, no
+# activation, state of K-1 columns in a `Recurrent` slot) interleaved with GQA layers (per-head qk-norm), SwiGLU FFN w1 / w3 / w2
+# (w1 = silu gate, w3 = up), plain RMSNorm. Scaffolded with `intarsia recipe new`, completed by hand (lane nab2,
+# docs/results/2026-10-27-nab2-lfm2-shortconv.md). Dimensions come from config.json under LFM2's key names (`[config]`); the FFN width
+# is `int(2 * intermediate_size / 3)` rounded up to block_multiple_of (config `block_auto_adjust_ff_dim`, applied by the loader).
+[model]
+match.architectures = ["Lfm2ForCausalLM"]
+family = "lfm2"
+chat_template = "hf"
+
+[config]
+rms_eps = "norm_eps"                   # LFM2 names it norm_eps
+tie_embeddings = "tie_embedding"       # and tie_embedding (the checkpoint has no lm_head tensor)
+short_conv_kernel = "conv_L_cache"
+
+[layer]
+pattern = ["attn", "ffn"]              # used only when a layer has no type
+pattern_by_layer = "layer_types"       # config.json key
+
+[layer.by_type]
+full_attention = ["attn", "ffn"]
+conv = ["conv", "ffn"]
+
+[layer.attn]
+kind = "gqa"
+q = "model.layers.{i}.self_attn.q_proj"
+k = "model.layers.{i}.self_attn.k_proj"
+v = "model.layers.{i}.self_attn.v_proj"
+o = "model.layers.{i}.self_attn.out_proj"
+q_norm = "model.layers.{i}.self_attn.q_layernorm"
+k_norm = "model.layers.{i}.self_attn.k_layernorm"
+rope = "default"
+
+[layer.conv]
+kind = "short_conv"
+in_proj = "model.layers.{i}.conv.in_proj"
+conv = "model.layers.{i}.conv.conv"
+out = "model.layers.{i}.conv.out_proj"
+
+[layer.ffn]
+kind = "dense"
+act = "silu_glu"
+gate = "model.layers.{i}.feed_forward.w1"
+up = "model.layers.{i}.feed_forward.w3"
+down = "model.layers.{i}.feed_forward.w2"
+
+[layer.norms]
+pre_attn = "model.layers.{i}.operator_norm"
+pre_conv = "model.layers.{i}.operator_norm"
+pre_ffn = "model.layers.{i}.ffn_norm"
+
+[top]
+embed = "model.embed_tokens"
+final_norm = "model.embedding_norm"    # applied to the last hidden state, after the layers (its name is misleading)
+lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
+
+[defaults]
+kv_dtype = "bf16"
+max_batch = 8
+
+# `intarsia accuracy` only. ChatML turns (LFM2's template is ChatML with <|im_start|> / <|im_end|>).
+[accuracy]
+chat_turns = "chatml"

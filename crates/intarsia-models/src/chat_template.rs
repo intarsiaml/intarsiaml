@@ -122,8 +122,38 @@ fn strftime_now(fmt: String) -> String {
     out
 }
 
+/// transformers' `{% generation %}` / `{% endgeneration %}` tags (LFM2's template) only mark the assistant span for
+/// `return_assistant_tokens_mask`; they print nothing. minijinja does not know them, so each becomes a comment with the same
+/// whitespace-control markers (`{%- generation -%}` -> `{#- generation -#}`), which trims exactly what the tag did.
+fn neutralize_generation_tags(template: &str) -> String {
+    let mut out = String::with_capacity(template.len());
+    let mut rest = template;
+    while let Some(i) = rest.find("{%") {
+        out.push_str(&rest[..i]);
+        let tag = &rest[i..];
+        let end = tag.find("%}").map(|e| e + 2);
+        let inner = end.map(|e| &tag[2..e - 2]);
+        match (end, inner) {
+            (Some(e), Some(inner)) if matches!(inner.trim_matches(|c| c == '-' || c == '+' || c == ' ' || c == '\t' || c == '\n'), "generation" | "endgeneration") => {
+                out.push_str("{#");
+                out.push_str(inner);
+                out.push_str("#}");
+                rest = &tag[e..];
+            }
+            _ => {
+                out.push_str("{%");
+                rest = &tag[2..];
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 impl ChatTemplate {
     pub fn from_source(template: &str, source: &str, bos: Json, eos: Json) -> Result<ChatTemplate> {
+        let template = neutralize_generation_tags(template);
+        let template = template.as_str();
         let mut env = Environment::new();
         env.set_trim_blocks(true);
         env.set_lstrip_blocks(true);
@@ -257,5 +287,13 @@ mod tests {
         let t = ChatTemplate::from_source("{{ raise_exception('boom') }}", "t", Json::Null, Json::Null).unwrap();
         let err = t.render(&[], &ChatOpts::default()).unwrap_err().to_string();
         assert!(err.contains("boom"), "{err}");
+    }
+    #[test]
+    fn generation_tags_print_nothing() {
+        // LFM2: the tags mark the assistant span for transformers' training mask and trim around themselves
+        let src = "a\n{%- generation -%}\nb{% endgeneration %}c{%- if true -%} d {%- endif %}";
+        assert_eq!(neutralize_generation_tags(src), "a\n{#- generation -#}\nb{# endgeneration #}c{%- if true -%} d {%- endif %}");
+        let t = ChatTemplate::from_source(src, "t", Json::Null, Json::Null).unwrap();
+        assert_eq!(t.render(&[], &ChatOpts::default()).unwrap(), "abcd");
     }
 }
