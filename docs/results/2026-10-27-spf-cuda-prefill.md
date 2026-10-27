@@ -112,7 +112,7 @@ Every round of every size is above the 3 % bar; decode x1.000 / 0.999 / 1.000.
 The environment variable was read once per process in the tree that produced every number above and is read per launch in the committed code (so that
 `tests/rope_multi.rs` can flip it); the kernels and arithmetic are the same.
 
-**Why two gates are open.** From about 00:52 EDT the fleetq server marked spark1 offline (it can no longer resolve `spark-4e77` after the gateway swap); jobs
+**Why two gates are open.** By 01:05 EDT (first seen; the last GPU job finished about 00:55) the fleetq server had marked spark1 offline (it can no longer resolve `spark-4e77` after the gateway swap); jobs
 for spark1 wait forever and the coordinator ruled out bypassing fleetq. Everything that needs the GPU after that point was not run. To finish, on spark1
 (trees `base`, `rope`, `rope2` are in `~/intarsiaml-spf/`): `scripts/spf/chain4.sh` (rope_multi test + quick admission on `rope2`) and `scripts/spf/chain3.sh`
 (second job: the mutants), then `scripts/spf/chain2.sh` (35B window) and `scripts/spf/chain5.sh` (35B 1k profile).
