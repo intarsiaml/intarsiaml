@@ -762,14 +762,28 @@ impl Ctx {
     /// The recipe's `[accuracy] decode_positions` (quick tier only): more teacher-forced decode rows for a model whose
     /// decode top-1 is too noisy at 16 per prompt. The recipe is the explicit `--recipe` or the one matched on `config.json`.
     fn recipe_decode_positions(&self) -> Option<usize> {
-        let r = match &self.a.recipe {
+        self.recipe()?.accuracy.decode_positions.filter(|n| *n > 0)
+    }
+    /// The explicit `--recipe`, else the one matched on `config.json`.
+    fn recipe(&self) -> Option<intarsia_core::recipe::Recipe> {
+        Some(match &self.a.recipe {
             Some(p) => intarsia_models::recipe::load_recipe_file(p).ok()?,
             None => {
                 let cfg: Value = serde_json::from_str(&std::fs::read_to_string(self.a.model.join("config.json")).ok()?).ok()?;
                 intarsia_models::recipe::select_recipe(&cfg, &self.a.recipe_dir).ok()?.1
             }
-        };
-        r.accuracy.decode_positions.filter(|n| *n > 0)
+        })
+    }
+    /// The MXFP4 activation mode a plain run of this model uses (no `--mxfp4-act`: the recipe's `[defaults] mxfp4_act`, else
+    /// what the checkpoint declares); `None` for a model without an MXFP4 scheme.
+    fn effective_mxfp4_act(&self) -> Option<intarsia_core::quant::Mxfp4Act> {
+        let declared = self.declared_mxfp4_act()?;
+        let recipe = self.recipe().and_then(|r| r.defaults.mxfp4_act);
+        Some(intarsia_core::quant::mxfp4::effective_act(None, recipe, Some(declared)))
+    }
+    /// The MXFP4 activation mode the checkpoint declares (Quark `input_tensors`); `None` for a model without an MXFP4 scheme.
+    fn declared_mxfp4_act(&self) -> Option<intarsia_core::quant::Mxfp4Act> {
+        intarsia_models::load::read_quant_scheme(&self.a.model).ok()??.mxfp4_act()
     }
     fn acc_max_seq(&self, long: bool) -> usize {
         if long && !self.smoke() {
@@ -1311,7 +1325,7 @@ impl Ctx {
             return Ok(self.have_golden(key, made, "made earlier in this report directory".into()));
         }
         let dirs = default_golden_dirs(&self.a);
-        if let Some(g) = facts::find_golden(&self.name, &dirs, long) {
+        if let Some(g) = facts::find_golden_act(&self.name, &dirs, long, self.effective_mxfp4_act()) {
             return Ok(self.have_golden(key, g, "found by model name".into()));
         }
         Ok(match self.make_golden(long)? {
@@ -1499,6 +1513,17 @@ impl Ctx {
             baseline.display().to_string(),
         ]);
         args.extend(extra.iter().cloned());
+        // An MXFP4 golden is a property of its activation mode: the engine is run in the mode the golden was made with (a W4A16
+        // golden against a W4A4 run, or the reverse, is a different model about 0.14 KL21 away, not an engine error). The
+        // recipe's default only decides which golden `golden()` finds by name. A golden that does not say (a reference server's, or
+        // made before the metadata) was made against the checkpoint's declared scheme; a self-golden dump is the engine's own and
+        // gets no flag.
+        if self.effective_mxfp4_act().is_some() && !args.iter().any(|a| a == "--mxfp4-act") {
+            let own = facts::golden_meta(golden, "self_golden").as_deref() == Some("1");
+            if let Some(act) = facts::golden_act(golden).or_else(|| if own { None } else { self.declared_mxfp4_act() }) {
+                args.extend(["--mxfp4-act".into(), act.name().into()]);
+            }
+        }
         let r = self.exec(stem, args)?;
         let text = r.stdout();
         let (verdict, reason) = if r.timed_out || r.code.is_none() {

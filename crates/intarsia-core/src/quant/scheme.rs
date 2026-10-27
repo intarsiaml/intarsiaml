@@ -30,6 +30,7 @@
 //! [`QuantScheme::parse_exl3`] records the global algorithm `EXL3`, under which every linear layer must be stored as
 //! EXL3 or plain float (a `head_bits = 16` head, unquantised modules), never FP8/NVFP4.
 
+use super::mxfp4::ActSource;
 use super::{Mxfp4Act, QuantId, BF16, EXL3, FP8_E4M3, MXFP4, NVFP4};
 
 use crate::dtype::DType;
@@ -286,12 +287,21 @@ impl QuantScheme {
         }
     }
 
-    /// A deviation note when the MXFP4 activation mode we run differs from the declared one.
-    pub fn mxfp4_act_note(&self, ours: Mxfp4Act) -> Option<String> {
+    /// A deviation note when the MXFP4 activation mode we run differs from the declared one; `by` says who chose it.
+    pub fn mxfp4_act_note(&self, ours: Mxfp4Act, by: ActSource) -> Option<String> {
         let declared = self.mxfp4_act()?;
         (declared != ours).then(|| {
+            let why = match by {
+                ActSource::Recipe => format!(
+                    "the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, \
+                     docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); \
+                     --mxfp4-act {} runs the declared scheme",
+                    declared.name()
+                ),
+                _ => "opt-in --mxfp4-act".to_string(),
+            };
             format!(
-                "checkpoint declares MXFP4 activations '{}' ({}); running '{}' (opt-in --mxfp4-act): a deviation from the declared \
+                "checkpoint declares MXFP4 activations '{}' ({}); running '{}' ({why}): a deviation from the declared \
                  scheme and from a reference that runs it",
                 declared.name(),
                 self.quant_algo.as_deref().unwrap_or(""),
@@ -482,8 +492,11 @@ mod tests {
         assert!(s.check_linear("model.language_model.layers.0.mlp.gate_proj", BF16).is_err());
         s.check_linear("lm_head", BF16).unwrap(); // excluded
         s.check_linear("mtp.fc", BF16).unwrap(); // excluded with its .weight suffix dropped
-        assert!(s.mxfp4_act_note(Mxfp4Act::Dynamic).is_none());
-        assert!(s.mxfp4_act_note(Mxfp4Act::None).unwrap().contains("deviation"));
+        assert!(s.mxfp4_act_note(Mxfp4Act::Dynamic, ActSource::Cli).is_none());
+        assert!(s.mxfp4_act_note(Mxfp4Act::None, ActSource::Cli).unwrap().contains("opt-in --mxfp4-act"));
+        let by_recipe = s.mxfp4_act_note(Mxfp4Act::None, ActSource::Recipe).unwrap();
+        assert!(by_recipe.contains("deviation") && by_recipe.contains("recipe's default") && by_recipe.contains("0.822 vs W4A4 0.802"));
+        assert!(by_recipe.contains("--mxfp4-act dynamic runs the declared scheme"));
         let s16 = QuantScheme::parse_quark(&quark("null")).unwrap();
         assert_eq!(s16.mxfp4_act(), Some(Mxfp4Act::None));
         s16.check_linear("model.language_model.layers.0.mlp.gate_proj", MXFP4).unwrap();

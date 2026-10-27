@@ -10,7 +10,7 @@
 //! Activations: Quark's MXFP4 export declares `input_tensors` as dynamic MXFP4 too (W4A4): at run time every
 //! group of 32 consecutive activations along K is quantised to e2m1 with its own e8m0 scale and dequantised again
 //! (QDQ) before the dot product. [`Mxfp4Act::Dynamic`] runs that declared scheme; [`Mxfp4Act::None`] keeps the
-//! activations 16-bit (W4A16, opt-in, a deviation from the checkpoint). The op carries the mode as its fourth input,
+//! activations 16-bit (W4A16, a deviation from the checkpoint: the choice of `--mxfp4-act none` or a recipe's `[defaults] mxfp4_act`). The op carries the mode as its fourth input,
 //! `act [1] f32` (0 = 16-bit activations, 1 = dynamic MXFP4 QDQ), like FP8's `input_scale`.
 //!
 //! Activation scale, Quark `scale_calculation_mode = "even"`: round the group's amax at the element's mantissa width
@@ -41,7 +41,7 @@ pub enum Mxfp4Act {
     /// W4A4 (Quark's declared scheme): activations are QDQ'd to MXFP4 per group of 32 at run time.
     #[default]
     Dynamic,
-    /// W4A16: activations stay 16-bit (opt-in; a deviation from a W4A4 checkpoint).
+    /// W4A16: activations stay 16-bit (a deviation from a W4A4 checkpoint: `--mxfp4-act none`, or a recipe's default as in the Qwen3.8-27B's).
     None,
 }
 
@@ -68,9 +68,29 @@ impl Mxfp4Act {
     }
 }
 
-/// The activation mode the MXFP4 projections run: the explicit option, else what the checkpoint declares, else W4A16.
-pub fn effective_act(opt: Option<Mxfp4Act>, declared: Option<Mxfp4Act>) -> Mxfp4Act {
-    opt.or(declared).unwrap_or(Mxfp4Act::None)
+/// The activation mode the MXFP4 projections run: `--mxfp4-act` (`cli`), else the recipe's `[defaults] mxfp4_act`, else what
+/// the checkpoint declares, else W4A16.
+pub fn effective_act(cli: Option<Mxfp4Act>, recipe: Option<Mxfp4Act>, declared: Option<Mxfp4Act>) -> Mxfp4Act {
+    cli.or(recipe).or(declared).unwrap_or(Mxfp4Act::None)
+}
+
+/// Which input of [`effective_act`] decided (for the load log): `--mxfp4-act`, the recipe, or the checkpoint.
+pub fn act_source(cli: Option<Mxfp4Act>, recipe: Option<Mxfp4Act>) -> ActSource {
+    if cli.is_some() {
+        ActSource::Cli
+    } else if recipe.is_some() {
+        ActSource::Recipe
+    } else {
+        ActSource::Checkpoint
+    }
+}
+
+/// Where the MXFP4 activation mode came from ([`act_source`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActSource {
+    Cli,
+    Recipe,
+    Checkpoint,
 }
 
 /// Value of an e8m0 scale byte: `2^(b-127)` (exact, including the subnormal `2^-127`); 255 is NaN.
@@ -288,6 +308,25 @@ pub fn random_rows(rng: &mut crate::rng::SplitMix64, n: usize, k: usize, act: Mx
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn act_precedence_is_cli_then_recipe_then_checkpoint() {
+        use Mxfp4Act::{Dynamic as D, None as N};
+        // (cli, recipe, declared) -> (mode, source)
+        let cases = [
+            ((Some(D), Some(N), Some(D)), (D, ActSource::Cli)),
+            ((Some(N), Some(D), Some(D)), (N, ActSource::Cli)),
+            ((None, Some(N), Some(D)), (N, ActSource::Recipe)),
+            ((None, Some(D), Some(N)), (D, ActSource::Recipe)),
+            ((None, None, Some(D)), (D, ActSource::Checkpoint)),
+            ((None, None, Some(N)), (N, ActSource::Checkpoint)),
+            ((None, None, None), (N, ActSource::Checkpoint)),
+        ];
+        for ((cli, recipe, declared), (mode, src)) in cases {
+            assert_eq!(effective_act(cli, recipe, declared), mode, "{cli:?} {recipe:?} {declared:?}");
+            assert_eq!(act_source(cli, recipe), src, "{cli:?} {recipe:?} {declared:?}");
+        }
+    }
 
     #[test]
     fn e8m0_decode() {

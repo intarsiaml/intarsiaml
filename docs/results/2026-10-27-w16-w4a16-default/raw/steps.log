@@ -1,0 +1,8 @@
+20:36:02 guard: [guard] radiance stopped 2026-10-26 20:36:02
+20:36:02 arm default: starting server
+20:37:31 arm default: mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+20:37:31 arm none: starting server
+20:39:00 arm none: mxfp4 activations: none (--mxfp4-act)
+20:39:01 arm dynamic: starting server
+20:40:29 arm dynamic: mxfp4 activations: dynamic (--mxfp4-act)
+20:40:39 guard: [guard] radiance answers 2026-10-26 20:40:39 (after 15 s)

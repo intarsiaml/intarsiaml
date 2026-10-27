@@ -51,7 +51,7 @@ pub struct ModelArgs {
     /// FP8 projections: `static` (W8A8, checkpoint input_scale) or `none` (W8A16); default: the recipe's.
     #[arg(long)]
     pub fp8_act: Option<String>,
-    /// MXFP4 projections: `dynamic` (W4A4, Quark's declared scheme) or `none` (W4A16, opt-in); default: what the checkpoint declares.
+    /// MXFP4 projections: `dynamic` (W4A4, Quark's declared scheme) or `none` (W4A16); default: the recipe's `[defaults] mxfp4_act` (the Qwen3.8-27B: `none`), else what the checkpoint declares.
     #[arg(long)]
     pub mxfp4_act: Option<String>,
     /// Tokens per forward pass (prefill chunk); default: the recipe's value for the backend, then its base value, then 256.

@@ -28,7 +28,7 @@ A16="--golden $G16 --mode both --decode-positions 16 --max-seq 4096 --mxfp4-act 
 need 90 "w4a16 base" && run base 300 a16-dump-base "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 $A16 --write-self-golden /work/mx-out/a16-base.safetensors --allow-unstamped --allow-dirty
 need 90 "w4a16 dev" && run dev 300 a16-gate "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 $A16 --baseline $B16 --noise-envelope $E16 $PROV --write-self-golden /work/mx-out/a16-dev.safetensors
 # 6. W4A4 golden: vs HF (prefill gate) and decode vs #150's baseline + envelope (expected to move: recorded, not a stop)
-A4="--golden $G27 --mode both --decode-positions 16 --max-seq 4096 --ref-noise $N27"
+A4="--mxfp4-act dynamic --golden $G27 --mode both --decode-positions 16 --max-seq 4096 --ref-noise $N27"
 need 90 "w4a4 dev" && run dev 300 a4-gate-old-baseline "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 $A4 --baseline $B4 --noise-envelope $E4 $PROV --write-self-golden /work/mx-out/a4-dev.safetensors
 need 60 "accg" && accg dev dev   # P1's settings (the 0.165 / 0.261 numbers of #144)
 # 7. 35B no-op: plan show + 256 ids short / 4k, branch vs main

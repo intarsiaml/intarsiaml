@@ -974,7 +974,8 @@ fn analyse_quant(model: &Path, cfg: &Value, tc: &Value, inv: &Inventory, modules
                 match Algo::parse(&a) {
                     Algo::Mxfp4W4A4 => notes.push(
                         "config.json quantization_config (quark) declares MXFP4 weights with dynamic MXFP4 activations (W4A4); \
-                         the engine runs that by default (--mxfp4-act none opts into W4A16)"
+                         the engine runs that unless the recipe sets `[defaults] mxfp4_act` (a scaffolded recipe does not; the \
+                         Qwen3.8-27B recipe sets `none`, W4A16, for accuracy); --mxfp4-act dynamic|none overrides either"
                             .into(),
                     ),
                     Algo::Mxfp4W4A16 => {}

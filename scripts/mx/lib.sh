@@ -153,7 +153,7 @@ acc() {
 accg() {
   local tree=$1 tag=$2; shift 2
   run "$tree" 600 "accg-$tag" "$HUB" accuracy --backend hip --model $M27 --mem-budget 29 --golden $G27 --mode both \
-    --ref-noise $N27 --write-self-golden /work/mx-out/accg-$tag.safetensors --allow-unstamped --allow-dirty "$@"
+    --mxfp4-act dynamic --ref-noise $N27 --write-self-golden /work/mx-out/accg-$tag.safetensors --allow-unstamped --allow-dirty "$@"
   cp "$(T "$tree")/mx-out/accg-$tag.safetensors" "$O/" 2>/dev/null
 }
 # accg35 <tree> <tag> [args]: 35B accuracy --mode both on the vLLM short golden + ref-noise sidecar, self-golden dump

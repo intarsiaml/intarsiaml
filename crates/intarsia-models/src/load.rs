@@ -568,17 +568,25 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     if let Some(note) = weights.scheme().and_then(|s| s.kv_note(model.kv)) {
         eprintln!("quantisation scheme note: {note}");
     }
-    if let (Some(s), Some(ours)) = (weights.scheme(), opts.load.mxfp4_act) {
-        if let Some(note) = s.mxfp4_act_note(ours) {
+    // the MXFP4 activation mode the projections run (same rule as Model::load: --mxfp4-act, the recipe, the checkpoint),
+    // so every report records it
+    let declared = weights.scheme().and_then(|s| s.mxfp4_act());
+    {
+        use intarsia_core::quant::mxfp4::{act_source, effective_act, ActSource};
+        let (cli, rec) = (opts.load.mxfp4_act, recipe.defaults.mxfp4_act);
+        let eff = effective_act(cli, rec, declared);
+        let by = act_source(cli, rec);
+        if let Some(note) = weights.scheme().and_then(|s| s.mxfp4_act_note(eff, by)) {
             eprintln!("quantisation scheme note: {note}");
         }
-    }
-    // the MXFP4 activation mode the projections run (same rule as Model::load), so every report records it
-    let declared = weights.scheme().and_then(|s| s.mxfp4_act());
-    if declared.is_some() || opts.load.mxfp4_act.is_some() {
-        let eff = intarsia_core::quant::mxfp4::effective_act(opts.load.mxfp4_act, declared);
-        let src = if opts.load.mxfp4_act.is_some() { "--mxfp4-act" } else { "declared by the checkpoint" };
-        eprintln!("mxfp4 activations: {} ({src})", eff.name());
+        if declared.is_some() || cli.is_some() {
+            let src = match by {
+                ActSource::Cli => "--mxfp4-act".to_string(),
+                ActSource::Recipe => format!("recipe {} [defaults] mxfp4_act", recipe.model.family),
+                ActSource::Checkpoint => "declared by the checkpoint".to_string(),
+            };
+            eprintln!("mxfp4 activations: {} ({src})", eff.name());
+        }
     }
     // the admission oracle is always the cpu backend (its `ref_*` kernels)
     let oracle = intarsia_backend_cpu::CpuBackend::arc();
