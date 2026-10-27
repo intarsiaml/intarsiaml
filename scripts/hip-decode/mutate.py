@@ -509,6 +509,31 @@ MUTATIONS.update({
                         "N, G > 1 ? G - 1 : G, cap, pos0_host, qscale, nsplit, pos_dev);  // (8 waves)")]),
 })
 
+# Lane htk (docs/results/2026-10-27-htk-hip-topk.md): the device top-k of sampling (kernels/hip/topk.hip), tests/topk.rs
+TK = "kernels/hip/topk.hip"
+HTK = {
+    # ties go to the highest index
+    "htk-tiebreak": (TK, [("return va > vb || (va == vb && ia < ib); }", "return va > vb || (va == vb && ia > ib); }")]),
+    # stage 1 drops the last element of every slice
+    "htk-slice-end": (TK, [("hi = min(lo + per, V);", "hi = min(lo + per - 1, V);")]),
+    # stage 2 merges all slices but the last one's candidates
+    "htk-stage2-n": (TK, [("for (int j = threadIdx.x; j < n; j += kThreads) {\n            if (ix[j] < 0) continue;",
+                           "for (int j = threadIdx.x; j < n - k; j += kThreads) {\n            if (ix[j] < 0) continue;")]),
+    # a NaN in the row is not flagged
+    "htk-nanflag": (TK, [("if (has_nan) atomicOr(nan_flag + row, 1);", "if (has_nan) { }")]),
+    # a pick may repeat an equal-valued earlier element (the round's bound is not strict in the total order)
+    "htk-nonstrict": (TK, [("if (prev.i >= 0 && !before(prev.v, prev.i, v, (int)j)) continue;  // not strictly after the previous pick",
+                            "if (prev.i >= 0 && v > prev.v) continue;  // not strictly after the previous pick")]),
+    # an exhausted slice's empty entries read as a candidate at index 0
+    "htk-exhausted": (TK, [("oi[u] = -1;", "oi[u] = 0;")]),
+    # the NaN flags are not cleared before the launch
+    "htk-nomemset": (TK, [("if (hipMemsetAsync(nan->data, 0, R * 4, s) != hipSuccess) return IK_ERR_LAUNCH;", "")]),
+    # the launcher accepts a k above V / a scratch one byte short
+    "htk-kv": (TK, [("if (k < 1 || k > kMaxK || k > V) return IK_ERR_SHAPE;", "if (k < 1 || k > kMaxK) return IK_ERR_SHAPE;")]),
+    "htk-scratch": (TK, [("scratch->bytes < need", "scratch->bytes < need - 1")]),
+}
+MUTATIONS.update(HTK)
+
 # the test target that must fail for each mutation (default decode_v2)
 TESTS = {n: "fused_decode" for n in ("pair-block", "fp8-pair-scale", "glu-scale", "glu-round", "gated-order", "gated-round", "pair-nb0", "pair-grid", "norm-skip-sum", "norm-skip-normed", "norm-sum-round", "norm-woff", "norm-order", "norm-pair-block", "norm-sync", "gn-round", "gn-woff", "gn-order", "gn-group", "gn-weight", "gn-silu")}
 TESTS.update({n: "fp8_f8" for n in ("f8-scale", "f8-kperm", "f8-actq", "f8-ktail", "f8-w16-always", "f8-w16-never", "f8-noexit")})
@@ -535,6 +560,8 @@ TESTS.update({n: "splitkv_r8" for n in ("r8-cb-skip", "r8-cb-ml")})
 TESTS.update({n: "staging" for n in ("r9-st-nowait", "r9-st-pageable", "r9-st-noadvance", "r9-st-noevent", "r9-st-dlorder")})
 TESTS.update({n: "split_trigger" for n in ("r9-trig-off", "r9-trig-incl", "r9-trig-def")})
 TESTS.update({n: "splitkv_occ" for n in ("r9-occ-def", "r9-occ-kv", "r9-occ-g")})
+
+TESTS.update({n: "topk" for n in HTK})
 
 tree, name = sys.argv[1], sys.argv[2]
 if name == "--test-of":  # mutate.py --test-of <mutation>: print the cargo test target
