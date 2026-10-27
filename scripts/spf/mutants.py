@@ -5,7 +5,7 @@
 
 Per mutant: copy the tree (target/ included) to ~/intarsiaml-spf/mut, change the kernel's source (the replacement is applied only
 inside rope_multi_kernel's body, the old text must occur there exactly once), cargo build --release --features cuda -p intarsia-cli,
-then `intarsia kernels test --backend cuda $KFLAGS` (default: the full set; KFLAGS=--quick) must FAIL for rope_bf16 (CAUGHT) or the mutant SURVIVED. The clean binary runs
+then `intarsia kernels test --backend cuda $KFLAGS` (default: the full set; KFLAGS=--quick) must report a REJECTED kernel (CAUGHT) or the mutant SURVIVED. The clean binary runs
 first and must pass.
 """
 import os, re, shutil, subprocess, sys
@@ -26,7 +26,7 @@ def run(cmd, cwd=None, timeout=1500):
     return r.returncode, (r.stdout + r.stderr)
 
 def ktest(binary):
-    rc, out = run(f"{binary} kernels test --backend cuda {os.environ.get('KFLAGS', '')} 2>&1 | tail -6", timeout=1700)
+    rc, out = run(f"{binary} kernels test --backend cuda {os.environ.get('KFLAGS', '')} 2>&1 | grep -E 'REJECTED|cases in|admission failed'", timeout=1700)
     return out.strip()
 
 print("clean:", ktest(f"{tree}/target/release/intarsia").replace("\n", " | "), flush=True)
@@ -48,7 +48,6 @@ for name in names:
     run(f"find {mut} -path {mut}/target -prune -o -name '*.cu' -print0 | xargs -0 touch")
     rc, out = run("cargo build --release --features cuda -p intarsia-cli 2>&1 | tail -3", cwd=mut)
     out_t = ktest(f"{mut}/target/release/intarsia")
-    fails = re.findall(r"(\d+) FAIL", out_t)
-    verdict = "CAUGHT" if (fails and int(fails[0]) > 0) else "SURVIVED"
+    verdict = "CAUGHT" if "REJECTED" in out_t else "SURVIVED"
     print(f"{name}: {verdict}: {out_t.replace(chr(10), ' | ')[:300]}", flush=True)
 shutil.rmtree(mut, ignore_errors=True)
