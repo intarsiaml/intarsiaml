@@ -7,19 +7,23 @@ Lane G4X, branch `lane-g4x/gemma4-decode` (PR with the CUDA graph and the head_d
 
 ## 1. Result
 
-| Gemma-4-26B-A4B-NVFP4, spark2, localeval `speed`, gen 128, thinking off, median of @@ROUNDS@@ interleaved rounds | base (main) | graph only (`g1b`) | this branch (`g2b`) |
+| Gemma-4-26B-A4B-NVFP4, spark2, localeval `speed`, gen 128, thinking off, median of 3 interleaved rounds | base (main) | graph only (`g1b`) | this branch (`g2b`) |
 |---|---|---|---|
-@@SPEEDTABLE@@
+| decode, 128-token prompt | 34.87 tok/s | 37.24 (+6.8%) | **37.93 (+8.8%)** |
+| decode, 1k prompt | 31.62 | 33.65 (+6.4%) | **36.90 (+16.7%)** |
+| decode, 4k prompt | 25.10 | 26.52 (+5.6%) | **36.25 (+44.4%)** |
+| decode, 16k prompt | 13.66 | 14.09 (+3.1%) | **33.26 (+143.5%)** |
+| prefill, 1k / 4k / 16k prompt | 524 / 370 / 211 tok/s | 524 / 370 / 211 (1.000x) | 523 / 370 / 212 (0.999x / 1.000x / 1.006x) |
 
 | gate | result |
 |---|---|
-| decode, median over the four sizes, at least +10% | @@DECODEGATE@@ |
-| prefill at least 0.99x of base at every size | @@PREFILLGATE@@ |
+| decode, median over the four sizes, at least +10% | **+30.6%** (per-size ratios 1.088, 1.167, 1.444, 2.435); graph only +6.0% |
+| prefill at least 0.99x of base at every size | **0.999x** at the worst size (128 / 1k / 4k / 16k: 1.010 / 0.999 / 1.000 / 1.006; graph only 1.000 to 1.025) |
 | CPU tests (`cargo test --workspace`, endor) and the docs/env tests | pass (section 6) |
 | `plan show` G0, Qwen3-8B and Qwen3.6-35B, CUDA (spark2) and Metal (endor), text and `--json` | byte-identical to main for both builds (8758 / 15095 B JSON on CUDA) |
-| greedy ids vs base, 7 prompts (3 short, 1k, 4k, 8k code, 16k) | graph only: **7 of 7 identical**; this branch: @@IDSGATE@@ (a numerics-changing kernel, section 5) |
+| greedy ids vs base, 7 prompts (3 short, 1k, 4k, 8k code, 16k) | graph only: **7 of 7 identical**; this branch: 1 of 7 identical (a numerics-changing kernel, section 5) |
 | accuracy vs the committed f32 golden (`gemma4-26b-a4b-nvfp4-fp32`, 10 prompts, prefill and decode) | prefill KL 2.384e-1 = base; decode KL **1.660e-1 vs 2.024e-1 base** (better); floor PASS (limit 2.598e-1) |
-| MMLU, 5-shot, n = 1425, thinking off | @@MMLU@@ |
+| MMLU, 5-shot, n = 1425, thinking off | **0.811 vs 0.812 base** (n = 1425, 0 truncated, run ids in section 4); gate: not below base - 0.01, delta -0.001 |
 | kernel admission + planted mutants (new D = 512 split-KV kernel) | admission 51 cases ADMITTED; **4 of 4 mutants killed**, section 4 |
 | rollback knob | `INTARSIA_CUDA_SPLITKV_512=0` (D = 512 back to the SIMT kernels); `--no-graphs` for the graph |
 | `max_batch` | not raised (section 7) |
@@ -45,7 +49,7 @@ nsys (`scripts/g4x/profile.sh`, `--cuda-graph-trace=node`, 64 greedy tokens afte
 * **Closed cause 2, short context: decode ran eagerly.** `GraphState::new(opts.graphs && dims.gemma.is_none())` and a
   `captured decode steps of a Gemma 4 layer` error kept Gemma off the CUDA graph: 964 launches per step with 2.6% host gaps. The Gemma layer now
   takes the device-side position (`dpos`) through rope, kv append and attention like the other architectures, and the soft-capped logits are
-  capped on the host after the graph's logits download. Graph only: +5.8% median (+3.0% at 16k, +7.2% at 128).
+  capped on the host after the graph's logits download. Graph only: +6.0% median (+3.1% at 16k, +6.8% at 128).
 * **Not closable here: the bytes.** The checkpoint quantises only the experts. Attention, the dense MLP, the router and the tied `lm_head` stay bf16:
   per token 3.31 GB dense bf16 + 1.48 GB `lm_head` + 0.80 GB of 8 active experts (fp4 + e4m3 scales) = **5.59 GB**, against about 1.6 GB for
   Qwen3.6-35B-A3B. At the measured 253 GB/s (the `lm_head` gemv reaches 253 GB/s, the 235 dense gemvs 229 GB/s) the floor is 22 ms, **45 tok/s**;
@@ -72,7 +76,22 @@ nsys (`scripts/g4x/profile.sh`, `--cuda-graph-trace=node`, 64 greedy tokens afte
 **Speed** (`scripts/g4x/le.sh`, localeval `speed`, `--sizes 128,1024,4096,16384 --gen 128 --reps 2` plus one warmup, a fresh `intarsia serve` per
 arm, one fleetq slot per round, arms in the order base, g1b, g2b each round):
 
-@@SPEEDDETAIL@@
+Per-round values (decode tok/s | prefill tok/s), rounds 1 2 3:
+
+| size | base (main) decode | base prefill | graph only decode | graph only prefill | this branch decode | this branch prefill |
+|---|---|---|---|---|---|---|
+| 128 | 34.9 34.6 34.9 | 568 578 564 | 37.4 37.2 37.2 | 572 582 582 | 38.0 37.9 37.9 | 580 569 573 |
+| 1024 | 31.6 31.5 31.6 | 524 521 524 | 33.7 33.7 33.6 | 523 524 524 | 37.4 36.8 36.9 | 513 524 523 |
+| 4096 | 25.3 25.0 25.1 | 370 370 371 | 26.5 26.4 26.8 | 371 370 368 | 36.3 36.2 36.2 | 370 370 371 |
+| 16384 | 13.7 13.7 13.7 | 211 211 211 | 14.1 14.1 14.0 | 211 211 211 | 33.2 33.3 33.6 | 212 211 212 |
+
+localeval run ids (`/opt/code/deepeval/results/<id>/`): round 1 `20261027-053411-adhoc-g4x-base2-r1`, `...053933-adhoc-g4x-g1b-r1`, `...054453-adhoc-g4x-g2b-r1`;
+round 2 `...071113-adhoc-g4x-base2-r2`, `...071616-adhoc-g4x-g1b-r2`, `...072122-adhoc-g4x-g2b-r2`; round 3 `...072608-adhoc-g4x-base2-r3`,
+`...073117-adhoc-g4x-g1b-r3`, `...073621-adhoc-g4x-g2b-r3`. MMLU: `20261027-065007-adhoc-g4x-base2-mmlu` (0.812, 1196 s) and
+`20261027-055755-adhoc-g4x-g2b-mmlu` (0.811, 1117 s), both n = 1425, 0 truncated, G4D's drill setting (`--limit 25`), same 5-shot questions. Spread between
+reps inside a run is under 1% (localeval noise on decode is quoted as +-5%; none of the gate ratios is inside it except the 128-token +8.8%, which is
+inside the 10% line only in that one size, the gate is on the median over sizes). The earlier `bench speed` rounds of `scripts/g4x/ab.sh` (base 34.9 / 31.6 /
+25.1 / 13.8, this branch 38.1 / 37.0 / 36.4 / 33.4 tok/s decode) agree and are not part of the gate.
 
 **Kernel admission and planted mutants** (`scripts/g4x/mutate.sh`, a copy of the tree with one planted bug, rebuilt, `intarsia kernels test --backend cuda
 --op attn_decode --kernel attn_decode_bf16_splitkv_ext`; the unmutated tree is ADMITTED with 51 cases first): all four killed.
@@ -104,9 +123,10 @@ base build at prefill chunk 256 moves decode self-KL to 1.17e-1.
 ## 5. Why the greedy ids change, and why that is allowed here
 
 The ids gate ("identical to the pre-change build") cannot hold for a new attention kernel: the split-KV kernel sums the keys in a different order than the
-one-block SIMT kernel it replaces, so near-ties flip. Measured on the 7 raw prompts (`scripts/g4x/ids.sh`, 96 tokens, `--ignore-eos`): @@IDSDETAIL@@
+one-block SIMT kernel it replaces, so near-ties flip. Measured on the 7 raw prompts (`scripts/g4x/ids.sh`, 96 tokens, `--ignore-eos`): the first differing generated token is 1, 4, 5, 5, 13 and 33 for six of the seven (the short2 prompt stays identical). These raw (non-chat) prompts
+make this instruction model loop on one token (`753` repeated 90 times in short1), so a flipped near-tie shows up immediately and then diverges.
 The graph alone is bitwise (7 of 7). The coordinator decision of this night applies the numerics-changing gate path (the Metal NAX precedent, #193):
-changed ids are allowed when decode KL against the f32 golden is inside or better than base (1.660e-1 vs 2.024e-1), MMLU holds (@@MMLUSHORT@@), the
+changed ids are allowed when decode KL against the f32 golden is inside or better than base (1.660e-1 vs 2.024e-1), MMLU holds (0.811 vs 0.812), the
 other gates pass, and the path stays behind a rollback knob (`INTARSIA_CUDA_SPLITKV_512=0`).
 
 ## 6. Tests
@@ -114,7 +134,7 @@ other gates pass, and the path stays behind a rollback knob (`INTARSIA_CUDA_SPLI
 * CPU: `cargo test --workspace --locked` on endor (all `test result: ok`), `cargo test -p intarsia-cli --test docs_env_vars` (the new knob has its row),
   `cargo test -p intarsia-backend-cuda --lib` (registry picks, 19 tests).
 * GPU (spark2): `cargo test --release -p intarsia-backend-cuda --test admission --test attention --test quantmoe` all pass.
-* `cargo fmt --check` reports differences in 2009 places across the workspace on main itself; the touched files were not reformatted.
+* `cargo fmt --check` reports differences across the workspace in files this change does not touch (about 2000 hunks); the touched files were not reformatted.
 
 ## 7. Not done, and what was tried and not shipped
 
@@ -129,10 +149,10 @@ other gates pass, and the path stays behind a rollback knob (`INTARSIA_CUDA_SPLI
   test and the admission sweep pass, but the accuracy gate does **not**: against the base build's logits the prefill self-KL is 0.26 with 14.8% top-1
   flips (limit 0.26), decode 0.39; each half alone is 0.21 to 0.30. Against the f32 golden the prefill KL is 2.586e-1 and the decode KL 3.563e-1 (limit
   2.598e-1; each half alone moves prefill KL 2.384e-1 to 2.455e-1 (flash) or 3.461e-1 (MoE tensor cores)). The kernels match the CPU reference on random
-  and Gemma-shaped data, so the divergence is real-data numerics (bf16 P and the bf16 roundings of the tensor-core epilogue on Gemma's large activations),
-  not a shape bug, but I could not show that within the lane and did not ship it. Speed of that branch was not measured (the run was cancelled for time).
-* The same bisection is the reason the PR carries no prefill change: prefill stays at 1.00x.
-* `INTARSIA_CUDA_W4A16` etc. are untouched; the w4a16 gelu kernel is not selected by default and so was not exercised by the model-level gates.
+  and Gemma-shaped data (admission, attention and quantmoe tests pass), so the likely cause is real-data numerics (bf16 P in the flash kernel, the bf16
+  roundings of the tensor-core MoE epilogue on Gemma's large activations) rather than a shape bug, but that is a hypothesis: the lane did not show it, and
+  did not ship the branch. Speed of that branch was not measured (the run was cancelled for time).
+* So the PR carries no prefill change: prefill stays at 1.00x. The w4a16 gelu kernel on that branch is opt-in and was not exercised by the model-level gates.
 
 ## 8. Method notes and hazards
 
