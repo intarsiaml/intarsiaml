@@ -35,12 +35,13 @@ armenv() { # armenv <base arm> -> docker -e args
   case $1 in
     f32) echo "-e INTARSIA_TP_PARTIAL=f32" ;;
     bf16) echo "-e INTARSIA_TP_PARTIAL=bf16" ;;
+    hyb) echo "-e INTARSIA_TP_PARTIAL=bf16-prefill" ;;
     rec) echo "" ;;
     *) local v="ENV_$1" e=""; for kv in ${!v:-}; do e="$e -e $kv"; done; echo "$e" ;;
   esac
 }
 serve() { # serve <arm+mods>
-  local full=$1 IFS='+' parts; read -ra parts <<< "$full"; local arm=${parts[0]} bin=tpb-intarsia mb=1 extra="" m
+  local full=$1 parts; IFS='+' read -ra parts <<< "$full"; local arm=${parts[0]} bin=tpb-intarsia mb=1 extra="" m
   for m in "${parts[@]:1}"; do
     case $m in
       spoff) extra="$extra --spec off" ;;
@@ -50,7 +51,7 @@ serve() { # serve <arm+mods>
     esac
   done
   local envs; envs=$(armenv "$arm")
-  RECIPE="HIP_VISIBLE_DEVICES=0,1 $bin serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch $mb --profile-every 0 --mem-budget 29 --max-seq $MS$extra (lane tpb, arm $full, env ${envs:-none}, docker $IMG)"
+  RECIPE="HIP_VISIBLE_DEVICES=0,1 $bin serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch $mb --mem-budget 29 --max-seq $MS$extra ($envs; lane tpb)"
   stop_serve
   $SSH "docker run -d --name tpb-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
@@ -65,7 +66,7 @@ tag() { echo "$1" | tr '+:=' '___'; }
 cur=""; n=0
 for item in $ITEMS; do
   n=$((n + 1)); full=${item%%:*}; act=${item#*:}; t="$n-$(tag "$full")-$act"
-  if [[ $full != "$cur" ]]; then
+  if [[ $act != kl && $act != gemm && $act != gsweep && $full != "$cur" ]]; then
     say "item $n: starting server $full"
     if ! serve "$full"; then say "item $n $full: server did not come up"; cur=""; continue; fi
     $SSH 'docker logs tpb-serve 2>&1 | head -80' < /dev/null > "$OUT/serve-$(tag "$full")-$n.log" 2>&1
@@ -93,6 +94,14 @@ for item in $ITEMS; do
       $SSH "O=\$HOME/intarsiaml-tpb-logs/acc2-$W ARMS='${KLARMS:-f32 bf16}' bash ~/intarsiaml-tpb/scripts/tpb/acc2.sh" < /dev/null > "$OUT/kl-$t.txt" 2>&1
       scp -q "tatooine:intarsiaml-tpb-logs/acc2-$W/acc-*.log" "$OUT/" < /dev/null
       say "item $n kl: $(tr '\n' '|' < "$OUT/kl-$t.txt" | cut -c1-500)" ;;
+    gemm)   # a8 GEMM micro-timing (tests/mxfp4_a8.rs timing_mxfp4_prefill); GEMMENV = extra env for the test, e.g. "INTARSIA_HIP_MXFP4_A8_TILE=4,4,2,4"
+      stop_serve; cur=""
+      $SSH "source ~/intarsiaml-tpb/scripts/tpb/lib.sh; G=0 gpu 900 env ${GEMMENV:-A=1} cargo test --release -p intarsia-backend-hip --test mxfp4_a8 -- --ignored --nocapture timing" < /dev/null > "$OUT/gemm-$n-${GEMMTAG:-base}.txt" 2>&1
+      say "item $n gemm: $(grep -ac '^TIME' "$OUT/gemm-$n-${GEMMTAG:-base}.txt") TIME lines" ;;
+    gsweep)   # a8 GEMM variant sweep (gsweep.sh): GEMMV=";"-separated tile knob values, CHECK=1 adds the correctness tests
+      stop_serve; cur=""
+      $SSH "source ~/intarsiaml-tpb/scripts/tpb/lib.sh; GEMMV='${GEMMV:-default}' CHECK='${CHECK:-0}' bash ~/intarsiaml-tpb/scripts/tpb/gsweep.sh" < /dev/null > "$OUT/gsweep-$n.txt" 2>&1
+      say "item $n gsweep: $(grep -ac '^TIME' "$OUT/gsweep-$n.txt") TIME lines" ;;
     *) say "item $n: unknown action $act" ;;
   esac
 done
