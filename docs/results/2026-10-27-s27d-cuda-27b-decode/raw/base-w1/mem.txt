@@ -1,0 +1,3 @@
+off r1: MemAvailable 63102 MB with the server up
+mtp2 r1: MemAvailable 63688 MB with the server up
+mtp2dv r1: MemAvailable 62992 MB with the server up

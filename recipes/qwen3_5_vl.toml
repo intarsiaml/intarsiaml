@@ -83,7 +83,7 @@ prefix = "mtp"
 # (`--mtp-draft-vocab`; `--mtp-draft-vocab 0` is the full head). Output is unchanged (the verify pass keeps the full head). Measured on
 # the Qwen3.8-27B MXFP4 on HIP, k=2: +8 to +12% decode on natural text (acceptance within about 4 points of the full head), Rust code
 # +11.6%; Chinese acceptance 65.9% -> 51.4% and 16% slower than the full head (docs/results/2026-10-25-sp-hip-spec.md sections 6 and 8).
-# User decision 2026-10-25 11:05. CUDA and Metal are not set here: not measured for the 27B.
+# User decision 2026-10-25 11:05. Metal is not set here: not measured for the 27B. CUDA has its own [tuning.cuda] below.
 [tuning.hip]
 mtp_draft_vocab = 65536
 # `--spec mtp --spec-k 2` without --spec at in-process tensor parallelism (--tp N, N > 1, one sequence): exact (27B ids 18/18 at tp=2
@@ -111,3 +111,12 @@ prefill_peel = 16
 # take the model chunk, 2048). A 2048-row chunk stalls the decoding streams for 650 ms (max inter-token gap, 4k prompt arriving beside one stream), 256 rows
 # for 135 ms, the base build's number. Alone, a prompt still prefills in 2048-row chunks.
 busy_chunk = 256
+
+
+# CUDA (DGX Spark GB10, tp=1): the 27B decodes at the memory roofline without speculation (13.7 tok/s: 18 GB of weights per token,
+# lane s27d), so the only decode lever is tokens per pass. `--spec mtp --spec-k 2` without --spec (`--spec off` or INTARSIA_SPEC_DEFAULT=0
+# opts out; the verify rows are row-exact, ids identical to `--spec off`) and the 65536-row draft head (`--mtp-draft-vocab 0` is the full
+# head) together: 13.7 -> 23.4 tok/s at 1k and 13.5 -> 23.7 at 4k in the first window (docs/results/2026-10-27-s27d-cuda-27b-decode.md).
+[tuning.cuda]
+mtp_default_k = 2
+mtp_draft_vocab = 65536

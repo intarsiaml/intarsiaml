@@ -1,0 +1,3 @@
+s27d-off-r1: - result file: `results/20261027-043728-adhoc-s27d-off-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-043728-adhoc-s27d-off-r1/result.json 
+s27d-mtp2-r1: - result file: `results/20261027-044621-adhoc-s27d-mtp2-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-044621-adhoc-s27d-mtp2-r1/result.json 
+s27d-mtp2dv-r1: - result file: `results/20261027-045413-adhoc-s27d-mtp2dv-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261027-045413-adhoc-s27d-mtp2dv-r1/result.json 

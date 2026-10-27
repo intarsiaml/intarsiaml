@@ -1,0 +1,8 @@
+base r1 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+dev r1 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+devk3 r1 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+devk1 r1 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+devk1 r2 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+devk3 r2 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+dev r2 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
+base r2 vllm generation_tokens_total 355856.0 -> 355856.0 (delta 0)
