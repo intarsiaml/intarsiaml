@@ -1,0 +1,158 @@
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: chatml (golden template): 162 of 1441 rows lie inside a system or user turn and are not scored by the KL floor
+golden: /opt/code/intarsiaml/golden/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors (10 prompts, 1441 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine vllm 0.26.1rc1.dev602+g65b7662d3 | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision not in the model root path | dtype server | KV dtype fp8 | template chatml
+  reference cache config: {"_block_size_resolved": "True", "block_size": "2096", "cache_dtype": "fp8", "enable_prefix_caching": "True", "engine": "0", "gpu_memory_utilization": "0.5", "is_attention_free": "False", "kv_cache_dtype_skip_layers": "[]", "kv_cache_max_concurrency": "80.22727272727273", "kv_cache_memory_bytes": "None", "kv_cache_size_tokens": "2628887", "kv_offloading_backend": "native", "kv_offloading_size": "None", "kv_sharing_fast_prefill": "False", "mamba_block_size": "16", "mamba_cache_dtype": "auto", "mamba_cache_mode": "align", "mamba_page_size_padded": "None", "mamba_ssm_cache_dtype": "float32", "num_cpu_blocks": "None", "num_gpu_blocks": "1765", "num_gpu_blocks_override": "None", "prefix_caching_hash_algo": "sha256", "prefix_match_unit": "None", "replayssm_buffer_len": "16", "skip_page_size_padded": "None", "sliding_window": "None", "use_replayssm": "False", "user_specified_block_size": "False", "user_specified_mamba_block_size": "False"}
+  sampling/prompts: {"prompt_logprobs": 20, "temperature": 0, "continuation": "greedy, ignore_eos, from the same server"} | prompt files ["golden.jsonl", "golden_long.jsonl"] | add_special_tokens true | max_model_len 32768 | launch flags: not observable through the API; note: guidance role on spark1: fp8 KV cache, prefix caching on (flags not visible)
+WARNING: KV dtype mismatch: the reference ran with a fp8_e4m3 KV cache, we run bf16. Part of the KL / top-1 gap is KV quantisation noise of the reference, not model error; rebuild the golden with a matching KV dtype to separate them
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 2048; longest prompt 700; prompts spanning more than one chunk: 0/10
+WARNING: no prompt crosses a prefill chunk boundary, so multi-chunk prefill is untested; use --prefill-chunk 233 or a golden with longer prompts
+reference noise [sidecar /opt/code/intarsiaml/golden/ref_noise/qwen36-35b-a3b-nvfp4-vllm-top20.safetensors.json]: run_to_run, KL21 all rows 3.161e-3 (n=1441), scored rows 3.010e-3 (n=1279), per-prompt values for 10 prompt(s); 2026-10-21; docs/results/2026-10-21-cuda-round7.md 3.1-3.2, raw/05-kl-table.txt (row 'vLLM re-run'); backfilled by the reference-noise gate lane (decision 2026-10-21 11:23 item 3, docs/decisions/LOG.md); estimator kl21-top20-vs-top20 (scripts/m3-accuracy/split.py rule); on our own rows it agrees with the tool-exact value to about 1e-4 relative (M3: 1.4198e-2 tool, 1.420e-2 setkl); factor 1 (default)
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this run differs from the baseline: model: baseline nvidia/Qwen3.6-35B-A3B-NVFP4, this run Qwen3.6-35B-A3B-NVFP4
+WARNING: this run differs from the baseline: backend: baseline cuda, this run metal
+WARNING: this run differs from the baseline: device: baseline NVIDIA GB10, this run Apple M5 Max
+WARNING: this binary was built without INTARSIA_BUILD_STAMP, so it cannot say which code it is; build through scripts/phase1b-acceptance.sh (or set the variable to the output of scripts/tree-stamp.sh) (--allow-unstamped)
+baseline recorded from: head c37a8d3 code-tree deb63e429db1 clean
+differences from the baseline's run (kernels per op, flags): attn_prefill: attn_prefill_bf16_flash+attn_prefill_bf16_splitkv -> attn_prefill_bf16_flash; gated_rmsnorm: gated_rmsnorm_bf16 -> (not in this plan); gated_rmsnorm_matmul_fp8: gated_rmsnorm_matmul_fp8_gemv -> (not in this plan); gdn_delta_rule: gdn_delta_rule_bf16_split -> gdn_delta_rule_bf16; kv_append: kv_append_bf16 -> (not in this plan); matmul: matmul_bf16+matmul_bf16_gemv -> (not in this plan); matmul_fp8: matmul_fp8_gemm_lt+matmul_fp8_gemv -> matmul_fp8_gemv+matmul_fp8_mma; matmul_fp8_pair: matmul_fp8_pair_gemv -> (not in this plan); matmul_nvfp4: matmul_nvfp4_gemm+matmul_nvfp4_gemm_reg+matmul_nvfp4_gemv+matmul_nvfp4_mma -> matmul_nvfp4_gemv+matmul_nvfp4_mma; matmul_nvfp4_glu: matmul_nvfp4_glu_gemm+matmul_nvfp4_glu_gemv -> (not in this plan); matmul_pair: matmul_pair_bf16_gemv -> matmul_pair_bf16_gemv+matmul_pair_bf16_nax; moe_experts: moe_experts_bf16+moe_experts_decode_v2_bf16+moe_experts_mma_bf16+moe_experts_w4a16_bf16 -> moe_experts_bf16; qk_norm: qk_norm_bf16 -> (not in this plan); rmsnorm_add_matmul_pair: rmsnorm_add_matmul_pair_bf16_gemv -> (not in this plan); rope: rope_bf16 -> (not in this plan); qk_norm_rope_kv: (not in the baseline's plan) -> qk_norm_rope_kv_bf16
+noise envelope /opt/code/intarsiaml/golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.envelope.json: 1 perturbation(s) [prefill chunk 2048 -> 512], measured on head c37a8d3 code-tree deb63e429db1 clean; per-prompt limit = baseline -/+ max(fixed margin, 2 x the prompt's envelope delta)
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    38   100.00   3.269e-3   3.475e-3   3.475e-3   3.249e-2   0.0455   0.0419    94.74     38/38      0
+story                 39    39    97.44   5.390e-3   5.163e-3   5.163e-3   3.829e-2   0.0495   0.0496    94.87      4/39      0
+code                  87    87    98.85   8.545e-4   8.260e-4   8.260e-4   7.779e-3   0.0179   0.0178    95.40     11/87      0
+science               79    79    97.47   1.078e-2   1.361e-2   1.361e-2   3.140e-1   0.0278   0.0324    96.71     22/79      0
+chat_short            18    18    94.44   6.350e-3   6.985e-3   1.162e-2   3.565e-2   0.0424   0.0396    95.56      2/18      0
+chat_system           32    32    93.75   3.078e-2   3.226e-2   7.315e-3   5.010e-1   0.0305   0.0234    87.50      9/32      0
+chat_multiturn        58    58    98.28   1.229e-2   1.235e-2   3.508e-2   5.558e-1   0.0262   0.0255    95.17      2/58      0
+chat_reasoning        90    90    94.44   1.702e-2   1.703e-2   1.249e-2   1.034e-1   0.0207   0.0201    94.44      2/90      0
+long_prose_300       300   300    99.33   2.543e-3   2.661e-3   2.661e-3   1.986e-1   0.0126   0.0133    89.13     5/300      0
+long_prose_700       700   700    98.71   6.826e-3   6.110e-3   6.110e-3   7.960e-1   0.0129   0.0126    90.06     0/700      0
+OVERALL                   1441    98.33   7.041e-3   6.914e-3   5.781e-3   7.960e-1   0.0176   0.0175    91.30      6.6%      0
+prefill floor [4bit]: top-1 (all rows) 98.33% (not gated for this class) ok | 21-way KL (scored rows, n=1279) 5.781e-3 (need <= 3.0e-2) ok [all rows, n=1441: 6.914e-3, reported only] | tail mass (all rows) ours 0.0175 vs ref 0.0176, excess -0.0001 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 5.781e-3 PASS | KL / ref noise = 1.921 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [prefill]: old def: PASS 6.914e-3 (21-way KL over all rows <= static floor) | current def: PASS 5.781e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+count                 38    16   100.00   1.959e-3   2.154e-3   2.154e-3   1.429e-2   0.0209   0.0217    88.75     16/16      0
+story                 39    16   100.00   7.992e-3   7.289e-3   7.289e-3   2.314e-2   0.0971   0.0990    97.50     16/16      0
+code                  87    16   100.00   6.144e-4   6.182e-4   6.182e-4   3.568e-3   0.0007   0.0007    95.00     16/16      0
+science               79    16    93.75   8.026e-3   7.614e-3   7.614e-3   2.514e-2   0.0460   0.0485    96.25     14/16      0
+chat_short            18    16    93.75   5.565e-3   6.372e-3   8.965e-3   3.297e-2   0.0476   0.0440    95.00      0/16      0
+chat_system           32    16   100.00   1.863e-2   2.368e-2   3.257e-2   2.208e-1   0.0421   0.0262    86.25     16/16      0
+chat_multiturn        58    16   100.00   3.080e-2   3.091e-2   9.304e-2   4.656e-1   0.0014   0.0009    93.75     16/16      0
+chat_reasoning        90    16   100.00   1.852e-2   1.873e-2   1.071e-2   1.334e-1   0.0011   0.0011    95.00     16/16      0
+long_prose_300       300    16   100.00   9.109e-5   9.393e-5   9.393e-5   5.113e-4   0.0002   0.0002    92.50     16/16      0
+long_prose_700       700    16   100.00   1.895e-2   1.897e-2   1.897e-2   2.643e-1   0.0007   0.0008    82.50     16/16      0
+OVERALL                    160    98.75   1.111e-2   1.164e-2   1.169e-2   4.656e-1   0.0258   0.0243    92.25     88.8%      0
+note: the reference noise was measured over 1441 positions, the decode mode compares 160: the noise is applied as measured, but the subset can differ
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.75% (not gated for this class) ok | 21-way KL (scored rows, n=118) 1.169e-2 (need <= 3.0e-2) ok [all rows, n=160: 1.164e-2, reported only] | tail mass (all rows) ours 0.0243 vs ref 0.0258, excess -0.0015 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 1.169e-2 PASS | KL / ref noise = 3.884 on scored rows (the factor at which the noise term passes)
+gate-definition: kl_floor [decode]: old def: PASS 1.164e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.169e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 19.7% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 88.8% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+baseline: /opt/code/intarsiaml/golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json (recorded 1792798340, golden qwen36-35b-a3b-nvfp4-vllm-top20.safetensors hash cd6ef94b3dcd4c82); margins: top-1 -0.3 pt (>= 1 position), KL x1.15 (+1e-6), top-5 -0.5 pt, tail +0.002
+
+baseline gate, prefill (1441 positions):
+  metric               baseline     this run        limit  
+  top-1 %             9.82651e1    9.83345e1    9.79651e1  >= ok
+  mean KL            6.82514e-3   7.04107e-3   7.84891e-3  <= ok
+  tail-bucket KL     6.64848e-3   6.91361e-3   7.64575e-3  <= ok
+  tail-bucket KL scored   5.40752e-3   5.78089e-3   6.21865e-3  <= ok
+  top-5 %             9.15614e1    9.12977e1    9.10614e1  >= ok
+  |tail excess|      1.63831e-5   8.14326e-5   2.01638e-3  <= ok
+  mean |tail diff|   1.62294e-3   1.75020e-3   3.62294e-3  <= ok
+  max KL(21-way)      1.03603e0   7.95939e-1    2.59106e0  <= ok
+  non-finite rows     0.00000e0    0.00000e0    0.00000e0  <= ok
+  per-prompt gate, 10 prompts (limit = baseline -/+ max(fixed margin, 2 x envelope delta of the prompt); fixed: KL x1.75 +1e-5, top-1 -1 pt or one position, |tail diff| +0.002):
+    prompt             check                  baseline    this run       limit  source    env delta k needed
+    count              prompt KL(21-way)     3.7182e-3   3.4747e-3 <=  6.517e-3  fixed        0.00e0       -  ok
+    count              prompt top-1 %         1.0000e2    1.0000e2 >=   9.737e1  fixed        0.00e0       -  ok
+    count              prompt |tail diff|    5.0720e-3   4.8854e-3 <=  7.072e-3  fixed        0.00e0       -  ok
+    story              prompt KL(21-way)     5.4322e-3   5.1626e-3 <=  9.516e-3  fixed        0.00e0       -  ok
+    story              prompt top-1 %         9.7436e1    9.7436e1 >=   9.487e1  fixed        0.00e0       -  ok
+    story              prompt |tail diff|    3.2336e-3   3.9931e-3 <=  5.234e-3  fixed        0.00e0       -  ok
+    code               prompt KL(21-way)     1.0176e-3   8.2599e-4 <=  1.791e-3  fixed        0.00e0       -  ok
+    code               prompt top-1 %         9.8851e1    9.8851e1 >=   9.770e1  fixed        0.00e0       -  ok
+    code               prompt |tail diff|    8.3466e-4   7.6153e-4 <=  2.835e-3  fixed        0.00e0       -  ok
+    science            prompt KL(21-way)     1.1800e-2   1.3610e-2 <=  2.066e-2  fixed        0.00e0       -  ok
+    science            prompt top-1 %         9.6203e1    9.7468e1 >=   9.494e1  fixed        0.00e0       -  ok
+    science            prompt |tail diff|    5.3247e-3   6.3697e-3 <=  7.325e-3  fixed        0.00e0       -  ok
+    chat_short         prompt KL(21-way)     8.3599e-3   6.9848e-3 <=  1.464e-2  fixed        0.00e0       -  ok
+    chat_short         prompt top-1 %         9.4444e1    9.4444e1 >=   8.889e1  fixed        0.00e0       -  ok
+    chat_short         prompt |tail diff|    2.0781e-3   2.9375e-3 <=  4.078e-3  fixed        0.00e0       -  ok
+    chat_system        prompt KL(21-way)     1.8963e-2   3.2261e-2 <=  3.320e-2  fixed        0.00e0       -  ok
+    chat_system        prompt top-1 %         9.6875e1    9.3750e1 >=   9.375e1  fixed        0.00e0       -  ok
+    chat_system        prompt |tail diff|    8.4261e-3   7.6563e-3 <=  1.043e-2  fixed        0.00e0       -  ok
+    chat_multiturn     prompt KL(21-way)     8.9365e-3   1.2348e-2 <=  1.565e-2  fixed        0.00e0       -  ok
+    chat_multiturn     prompt top-1 %         9.6552e1    9.8276e1 >=   9.483e1  fixed        0.00e0       -  ok
+    chat_multiturn     prompt |tail diff|    1.2749e-3   1.0282e-3 <=  3.275e-3  fixed        0.00e0       -  ok
+    chat_reasoning     prompt KL(21-way)     2.3718e-2   1.7030e-2 <=  4.152e-2  fixed        0.00e0       -  ok
+    chat_reasoning     prompt top-1 %         9.4444e1    9.4444e1 >=   9.333e1  fixed        0.00e0       -  ok
+    chat_reasoning     prompt |tail diff|    1.0421e-3   1.1396e-3 <=  3.042e-3  fixed        0.00e0       -  ok
+    long_prose_300     prompt KL(21-way)     2.8813e-3   2.6615e-3 <=  5.052e-3  fixed        0.00e0       -  ok
+    long_prose_300     prompt top-1 %         9.9000e1    9.9333e1 >=   9.800e1  fixed        0.00e0       -  ok
+    long_prose_300     prompt |tail diff|    1.4041e-3   1.4371e-3 <=  3.404e-3  fixed        0.00e0       -  ok
+    long_prose_700     prompt KL(21-way)     5.6170e-3   6.1096e-3 <=  9.840e-3  fixed       2.97e-5   16.58  ok
+    long_prose_700     prompt top-1 %         9.8857e1    9.8714e1 >=   9.786e1  fixed        0.00e0       -  ok
+    long_prose_700     prompt |tail diff|    9.0077e-4   1.0286e-3 <=  2.901e-3  fixed       6.29e-6   20.33  ok
+  note: no perturbation of the envelope moved 9 (count, story, code, science, chat_short, chat_system, chat_multiturn, chat_reasoning, long_prose_300): their delta is 0 and the fixed margin applies
+  per-prompt gate: ok
+  failing per-prompt checks by k (information): k=0: 0 prompt(s) / 0 check(s), k=1: 0 prompt(s) / 0 check(s), k=2: 0 prompt(s) / 0 check(s) <- used, k=3: 0 prompt(s) / 0 check(s), k=5: 0 prompt(s) / 0 check(s), k=10: 0 prompt(s) / 0 check(s)
+
+baseline gate, decode (teacher-forced) (160 positions):
+  metric               baseline     this run        limit  
+  top-1 %             9.93750e1    9.87500e1    9.87500e1  >= ok
+  mean KL            6.98641e-3   1.11148e-2   8.03437e-3  <= FAIL
+  tail-bucket KL     7.34356e-3   1.16428e-2   8.44509e-3  <= FAIL
+  tail-bucket KL scored   5.83307e-3   1.16896e-2   6.70803e-3  <= FAIL
+  top-5 %             9.35000e1    9.22500e1    9.28750e1  >= FAIL
+  |tail excess|      1.61296e-3   1.46493e-3   3.61296e-3  <= ok
+  mean |tail diff|   2.89315e-3   3.16028e-3   4.89315e-3  <= ok
+  max KL(21-way)     1.09749e-1   4.65137e-1   2.75372e-1  <= FAIL
+  non-finite rows     0.00000e0    0.00000e0    0.00000e0  <= ok
+  per-prompt gate, 10 prompts (limit = baseline -/+ max(fixed margin, 2 x envelope delta of the prompt); fixed: KL x1.75 +1e-5, top-1 -1 pt or one position, |tail diff| +0.002):
+    prompt             check                  baseline    this run       limit  source    env delta k needed
+    count              prompt KL(21-way)     2.3610e-3   2.1540e-3 <=  4.142e-3  fixed        0.00e0       -  ok
+    count              prompt top-1 %         1.0000e2    1.0000e2 >=   9.375e1  fixed        0.00e0       -  ok
+    count              prompt |tail diff|    3.2233e-3   2.5801e-3 <=  5.223e-3  fixed        0.00e0       -  ok
+    story              prompt KL(21-way)     8.5122e-3   7.2891e-3 <=  1.491e-2  fixed        0.00e0       -  ok
+    story              prompt top-1 %         1.0000e2    1.0000e2 >=   9.375e1  fixed        0.00e0       -  ok
+    story              prompt |tail diff|    6.4403e-3   4.5558e-3 <=  8.440e-3  fixed        0.00e0       -  ok
+    code               prompt KL(21-way)     7.8659e-4   6.1817e-4 <=  1.387e-3  fixed        0.00e0       -  ok
+    code               prompt top-1 %         1.0000e2    1.0000e2 >=   9.375e1  fixed        0.00e0       -  ok
+    code               prompt |tail diff|    8.0738e-5   7.2755e-5 <=  2.081e-3  fixed        0.00e0       -  ok
+    science            prompt KL(21-way)     7.1149e-3   7.6140e-3 <=  1.246e-2  fixed        0.00e0       -  ok
+    science            prompt top-1 %         1.0000e2    9.3750e1 >=   9.375e1  fixed        0.00e0       -  ok
+    science            prompt |tail diff|    3.2620e-3   3.4786e-3 <=  5.262e-3  fixed        0.00e0       -  ok
+    chat_short         prompt KL(21-way)     9.5482e-3   6.3724e-3 <=  1.672e-2  fixed        0.00e0       -  ok
+    chat_short         prompt top-1 %         9.3750e1    9.3750e1 >=   8.750e1  fixed        0.00e0       -  ok
+    chat_short         prompt |tail diff|    4.2536e-3   3.7416e-3 <=  6.254e-3  fixed        0.00e0       -  ok
+    chat_system        prompt KL(21-way)     1.0797e-2   2.3679e-2 <=  1.891e-2  fixed        0.00e0     n/a  FAIL
+    chat_system        prompt top-1 %         1.0000e2    1.0000e2 >=   9.375e1  fixed        0.00e0       -  ok
+    chat_system        prompt |tail diff|    1.0721e-2   1.5839e-2 <=  1.272e-2  fixed        0.00e0     n/a  FAIL
+    chat_multiturn     prompt KL(21-way)     7.1034e-3   3.0906e-2 <=  1.244e-2  fixed        0.00e0     n/a  FAIL
+    chat_multiturn     prompt top-1 %         1.0000e2    1.0000e2 >=   9.375e1  fixed        0.00e0       -  ok
+    chat_multiturn     prompt |tail diff|    3.3770e-4   4.6258e-4 <=  2.338e-3  fixed        0.00e0       -  ok
+    chat_reasoning     prompt KL(21-way)     1.9896e-2   1.8731e-2 <=  3.483e-2  fixed        0.00e0       -  ok
+    chat_reasoning     prompt top-1 %         1.0000e2    1.0000e2 >=   9.375e1  fixed        0.00e0       -  ok
+    chat_reasoning     prompt |tail diff|    3.8965e-4   7.2002e-4 <=  2.390e-3  fixed        0.00e0       -  ok
+    long_prose_300     prompt KL(21-way)     8.8093e-5   9.3928e-5 <=  1.642e-4  fixed        0.00e0       -  ok
+    long_prose_300     prompt top-1 %         1.0000e2    1.0000e2 >=   9.375e1  fixed        0.00e0       -  ok
+    long_prose_300     prompt |tail diff|    1.7650e-5   2.8926e-5 <=  2.018e-3  fixed        0.00e0       -  ok
+    long_prose_700     prompt KL(21-way)     7.2279e-3   1.8971e-2 <=  1.266e-2  fixed       1.81e-3    6.49  FAIL
+    long_prose_700     prompt top-1 %         1.0000e2    1.0000e2 >=   9.375e1  fixed        0.00e0       -  ok
+    long_prose_700     prompt |tail diff|    2.0595e-4   1.2377e-4 <=  2.206e-3  fixed       1.01e-5       -  ok
+  note: no perturbation of the envelope moved 9 (count, story, code, science, chat_short, chat_system, chat_multiturn, chat_reasoning, long_prose_300): their delta is 0 and the fixed margin applies
+  per-prompt gate: FAIL (3 of 10 prompts: chat_system, chat_multiturn, long_prose_700)
+  failing per-prompt checks by k (information): k=0: 3 prompt(s) / 4 check(s), k=1: 3 prompt(s) / 4 check(s), k=2: 3 prompt(s) / 4 check(s) <- used, k=3: 3 prompt(s) / 4 check(s), k=5: 3 prompt(s) / 4 check(s), k=10: 2 prompt(s) / 3 check(s)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits from the noise envelope, k = 2): FAIL
+golden gate: FAIL
+Error: accuracy gate FAILED
