@@ -174,6 +174,20 @@ fn wide_fp8_weights(rng: &mut SplitMix64, n: usize, k: usize) -> HostTensor {
     HostTensor::new(DType::Fp8E4m3, vec![n, k], data).unwrap()
 }
 
+/// Weights spanning six binades (e4m3 exponent field 5..=10, any sign and mantissa): between the model-like data, whose partial
+/// sums are mostly exact, and `wide_fp8_weights`, whose sums are dominated by the largest term. Here the f32 sums round and every
+/// term still counts, so a reordering across lanes (not only inside one lane's 16-long chain) shows in the last bit.
+fn mid_fp8_weights(rng: &mut SplitMix64, n: usize, k: usize) -> HostTensor {
+    let data: Vec<u8> = (0..n * k)
+        .map(|_| {
+            let b = rng.next_u64() as u8;
+            let e = 5 + ((b >> 3) & 0x0F) % 6;
+            (b & 0x87) | (e << 3)
+        })
+        .collect();
+    HostTensor::new(DType::Fp8E4m3, vec![n, k], data).unwrap()
+}
+
 /// NVFP4 with block scales over the whole finite positive e4m3 range (0x08 .. 0x7e: 2^-6 .. 448) instead of 0.5 .. 2.25.
 fn wide_nvfp4(rng: &mut SplitMix64, n: usize, k: usize) -> Vec<HostTensor> {
     let mut q = nvfp4::random_rows(rng, n, k);
@@ -322,11 +336,16 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
         let nt = format!("{mode}/{nt}/{full}");
         for (n, k) in shapes {
             // (act quant, input scale): W8A8 with a few scales (incl. one that makes everything saturate / underflow), W8A16
-            for (wide, aq, is) in [(false, true, 0.125f32), (true, true, 0.125), (true, true, 0.0117), (true, true, 3.0), (false, false, 0.0), (true, false, 0.0)] {
+            // weights: 0 model-like (narrow), 1 wide (40 binades), 2 mid (six binades)
+            for (wide, aq, is) in [(0u8, true, 0.125f32), (1, true, 0.125), (1, true, 0.0117), (1, true, 3.0), (2, true, 0.125), (2, true, 0.0117), (0, false, 0.0), (1, false, 0.0), (2, false, 0.0)] {
                 let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
                 let ws = hc.inputs[2].to_f32()[0];
-                let scales = scales_tensor(if wide { ws / 16.0 } else { ws }, if aq { is } else { 0.0 });
-                let w = rig.put(&if wide { wide_fp8_weights(&mut rng, n, k) } else { hc.inputs[1].clone() });
+                let scales = scales_tensor(if wide == 1 { ws / 16.0 } else { ws }, if aq { is } else { 0.0 });
+                let w = rig.put(&match wide {
+                    1 => wide_fp8_weights(&mut rng, n, k),
+                    2 => mid_fp8_weights(&mut rng, n, k),
+                    _ => hc.inputs[1].clone(),
+                });
                 let sc = rig.put(&scales);
                 let x_rows = nasty_rows(&mut rng, k, clip_of(&scales));
                 for out_dt in [DType::Bf16, DType::F32] {
