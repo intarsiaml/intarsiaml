@@ -36,7 +36,7 @@ mod host;
 pub mod kernels;
 pub mod multirow;
 mod moe;
-mod fp8;
+pub mod fp8;
 mod mxfp4;
 mod nvfp4;
 mod rowtab;
@@ -979,7 +979,7 @@ impl MetalBackend {
         if kernel == moe::MOE_COMBINE_BF16 && call.op == Op::MoeCombine {
             return self.launch_moe_combine(call);
         }
-        if matches!(kernel, fp8::MATMUL_FP8_GEMV | fp8::MATMUL_FP8_MMA | fp8::MATMUL_FP8_GEMV_ROWS) && call.op == Op::MatmulFp8 {
+        if matches!(kernel, fp8::MATMUL_FP8_GEMV | fp8::MATMUL_FP8_MMA | fp8::MATMUL_FP8_NAX | fp8::MATMUL_FP8_GEMV_ROWS) && call.op == Op::MatmulFp8 {
             return self.launch_fp8(kernel, call);
         }
         if matches!(kernel, nvfp4::MATMUL_NVFP4_GEMV | nvfp4::MATMUL_NVFP4_MMA | nvfp4::MATMUL_NVFP4_GEMV_ROWS)
