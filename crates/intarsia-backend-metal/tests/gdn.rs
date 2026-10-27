@@ -7,11 +7,11 @@
 mod common;
 use common::*;
 use intarsia_backend_metal::bench::{bf16_to_f32, f32_to_bf16};
-use intarsia_backend_metal::kernels::{GATE_SPLIT_BF16, GDN_CONV_BF16, GDN_DELTA_RULE_BF16, SIGMOID_MUL_BF16};
+use intarsia_backend_metal::kernels::{GATE_SPLIT_BF16, GDN_CONV_BF16, GDN_DELTA_RULE_BF16, GDN_DELTA_RULE_BF16_PRE, SIGMOID_MUL_BF16};
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
 use intarsia_core::gdn::{self, DeltaDims};
-use intarsia_core::{DType, Op, OpAttrs, OpCall};
+use intarsia_core::{DType, Op, OpAttrs, OpCall, ShapeInfo};
 
 /// Leading bf16 elements before every operand: byte offset 2, so `bind` hands the shader a skip of 1.
 const OFF: usize = 2;
@@ -142,6 +142,11 @@ const EPS: f32 = 1e-6;
 
 /// Runs the delta rule over `chunks` from a zero state; returns (o, final state).
 fn run_delta(be: &MetalBackend, i: &Delta, d: &DeltaDims, chunks: &[usize]) -> (Vec<f64>, Vec<f32>) {
+    run_delta_with(be, GDN_DELTA_RULE_BF16, i, d, chunks)
+}
+
+/// [`run_delta`] on kernel `kernel`, with the scratch workspace the registry would hand it (0xEE-filled).
+fn run_delta_with(be: &MetalBackend, kernel: &str, i: &Delta, d: &DeltaDims, chunks: &[usize]) -> (Vec<f64>, Vec<f32>) {
     let (t, c, hv, dv, dk) = (d.t, d.conv_dim(), d.hv, d.dv, d.dk);
     assert_eq!(chunks.iter().sum::<usize>(), t);
     let (qb, ab, bb) = (upload_off(be, &i.qkv), upload_off(be, &i.a), upload_off(be, &i.b));
@@ -150,7 +155,7 @@ fn run_delta(be: &MetalBackend, i: &Delta, d: &DeltaDims, chunks: &[usize]) -> (
     let sb = f32_buf(be, &vec![0.0; hv * dv * dk]);
     let mut lo = 0;
     for &n in chunks {
-        let call = OpCall::new(
+        let mut call = OpCall::new(
             Op::GdnDeltaRule,
             vec![
                 rows(&qb, c, lo, &[n, c]),
@@ -162,7 +167,13 @@ fn run_delta(be: &MetalBackend, i: &Delta, d: &DeltaDims, chunks: &[usize]) -> (
             vec![rows(&ob, hv * dv, lo, &[n, hv, dv]), f32_tref(&sb, &[hv, dv, dk])],
             OpAttrs { eps: EPS, ..OpAttrs::default() },
         );
-        be.launch(GDN_DELTA_RULE_BF16, &call, 0).unwrap();
+        let need = be.kernels().iter().find(|k| k.name == kernel).map_or(0, |k| k.scratch_bytes(&ShapeInfo::from_call(&call)));
+        if need > 0 {
+            let b = be.alloc(need, MemKind::Device).unwrap();
+            be.upload(&b, 0, &vec![0xEEu8; need], 0).unwrap();
+            call.scratch = Some(TensorRef { buf: b, offset: 0, dtype: DType::U8, shape: vec![need] });
+        }
+        be.launch(kernel, &call, 0).unwrap();
         lo += n;
     }
     be.synchronize(0).unwrap();
@@ -202,6 +213,29 @@ fn delta_rule_chunked_prefill_equals_one_call_and_the_reference() {
     for dk in [32, 64, 128, 256] {
         check_delta(&be, dk, 37, &[1, 20, 16], 1e-3, 1e-5);
         check_delta(&be, dk, 1, &[1], 1e-3, 1e-5);
+    }
+}
+
+/// `gdn_delta_rule_bf16_pre` (prep pass + recurrence, T >= 64) is bit-for-bit `gdn_delta_rule_bf16`: outputs and carried
+/// state, every dk, odd head groupings, one call and split at non-aligned boundaries, operands at a 2-byte offset.
+#[test]
+fn delta_rule_prep_form_is_bitwise_the_original() {
+    let be = backend();
+    for (hk, hv, dk, t, split) in [
+        (2usize, 4usize, 32usize, 64usize, vec![64usize]),
+        (2, 4, 64, 100, vec![64, 36]),
+        (2, 4, 128, 300, vec![100, 100, 100]),
+        (2, 4, 256, 130, vec![130]),
+        (3, 6, 128, 77, vec![77]),
+        (16, 32, 128, 512, vec![512]),
+        (16, 32, 128, 1031, vec![300, 731]),
+    ] {
+        let d = DeltaDims { t, hk, hv, dk, dv: 128 };
+        let i = delta_inputs(t, &d, 900 + t as u64);
+        let (o0, s0) = run_delta(&be, &i, &d, &split);
+        let (o1, s1) = run_delta_with(&be, GDN_DELTA_RULE_BF16_PRE, &i, &d, &split);
+        assert_eq!(o0, o1, "hk={hk} hv={hv} dk={dk} T={t} {split:?}: output differs from gdn_delta_rule_bf16");
+        assert_eq!(s0, s1, "hk={hk} hv={hv} dk={dk} T={t} {split:?}: state differs from gdn_delta_rule_bf16");
     }
 }
 

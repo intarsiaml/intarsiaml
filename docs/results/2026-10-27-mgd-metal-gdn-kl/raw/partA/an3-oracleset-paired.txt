@@ -1,0 +1,13 @@
+count            n=   38 prefill 2.398e-03 decode 3.304e-03  (same positions prefill 2.115e-03)
+story            n=   39 prefill 2.925e-03 decode 3.042e-03  (same positions prefill 2.951e-03)
+code             n=   87 prefill 8.153e-04 decode 6.313e-04  (same positions prefill 7.177e-04)
+science          n=   79 prefill 9.312e-03 decode 4.181e-03  (same positions prefill 4.171e-03)
+chat_short       n=   18 prefill 2.834e-03 decode 2.268e-03  (same positions prefill 3.001e-03)
+chat_system      n=   32 prefill 3.514e-02 decode 4.491e-02  (same positions prefill 3.627e-02)
+chat_multiturn   n=   58 prefill 6.853e-03 decode 4.292e-03  (same positions prefill 6.973e-03)
+chat_reasoning   n=   90 prefill 4.623e-03 decode 5.785e-03  (same positions prefill 4.675e-03)
+long_prose_300   n=  300 prefill 4.895e-03 decode 2.494e-03  (same positions prefill 4.902e-03)
+long_prose_700   n=  700 prefill 4.339e-03 decode 3.689e-03  (same positions prefill 4.337e-03)
+long_docs_4k     n= 4064 prefill 1.104e-02 decode 1.127e-02  (same positions prefill 1.105e-02)
+ALL same positions n=5494 prefill 9.456e-03 decode 9.451e-03 diff -4.69e-06
+paired diff decode-prefill: -4.69e-06  95% CI [-7.00e-04, 6.70e-04]
