@@ -16,7 +16,7 @@ through the quick and the in-depth tier. The LFM2 block itself (gaps 2-6) is sti
 | Gate | Result |
 |---|---|
 | (a) cpu-ref unit test against a numpy reference of `w = scale * q + bias`, bitwise to bf16 | **PASS.** `quant::mlx_affine::tests::dequant_matches_the_numpy_reference_bitwise`: 18 cases (2, 3, 4, 5, 6, 8 bits x group 32, 64, 128), expected values from numpy (`tools/gen_mlx_affine_fixture.py`, which also asserts numpy == `mx.dequantize` on every case, packed words from `mx.quantize`). 5 unit tests in all (also config parsing with per-module overrides, layout rejection, name / conv mapping, the norm shift). |
-| real checkpoints, beyond the fixture | **PASS.** Qwen3.5-2B-MLX-4bit through `SchemedSource` against the numpy dequantiser's bf16 directory (`tools/mlx_to_hf_bf16.py`): all 320 text tensors identical bit for bit, 3.76 GB (`tests/mlx_affine_real.rs`, ignored by default). LFM2.5-24B-A2B-MLX-4bit (4-bit body, **6-bit embedding via the config override**, stacked 3-D experts `[64, 1536, 256]` words) opens with the implied shapes, `[128000, 2048]` and `[64, 1536, 2048]`, and finite values; 6-bit rows of its embedding match `mx.dequantize` (0 of 131072 differ). |
+| real checkpoints, beyond the fixture | **PASS.** Qwen3.5-2B-MLX-4bit through `SchemedSource` against the numpy dequantiser's bf16 directory (`tools/mlx_to_hf_bf16.py`): all 320 text tensors identical bit for bit, 3.76 GB (`tests/mlx_affine_real.rs`, ignored by default). LFM2.5-24B-A2B-MLX-4bit (4-bit body, **6-bit embedding via the config override**, stacked 3-D experts `[64, 1536, 256]` words) opens with the implied shapes, `[128000, 2048]` and `[64, 1536, 2048]`, and finite values; the independent numpy decoder (the Rust reader's twin, tied to it by the 6-bit fixture cases) matches `mx.dequantize` on 64 real 6-bit embedding rows of that checkpoint (0 of 131072 differ); the Rust reader itself was not compared with MLX on real 6-bit data. |
 | (b) `intarsia onboard` PASS on Metal, auto golden | **PASS** both tiers (`raw/2026-10-27-nab/onboard2-*.md`): 4 min 16 s whole pass, 11 of 15 stages PASS, 4 skipped (below), **0 fail**. Reference used: **the MLX-dequantised HF reference** (no bf16 original: `Qwen/Qwen3.5-2B` is not in the HF cache; the 4B and 9B-Base are, the MLX 2B has no sibling). So the golden measures the engine against HF on the same dequantised weights (rounding), **not the 4-bit loss against the original**. Short golden made by `qualify` itself in 57 s (HF fp32, CPU, bf16 spread recorded). |
 | (c) `plan show` byte-identical, Qwen3-8B and Qwen3.5-4B, Metal | **PASS**, text and `--json`, base `e7e0845ec` binary against this branch (sha256 in `raw/.../plan-show/sha256.txt`). |
 | (d) Mac `cargo test --workspace` | **PASS** locally: 1061 passed, 0 failed (`--release --locked --no-fail-fast`, fleetq #6245). CI: see the PR. |
@@ -31,6 +31,18 @@ Numbers of the in-depth `onboard` (Qwen3.5-2B-MLX-4bit, Metal, bf16 after dequan
 | gate | perplexity 4.58, 5/5 prompts, no non-finite |
 | speed (`bench`, eager decode, 3.76 GB per token, byte floor 163 tok/s) | decode 129.6 / 132.2 / 131.2 tok/s at 128 / 1k / 4k (79-81 % of the floor), 127.5 at 16.7k; prefill 5.5k / 10.2k / 10.2k tok/s at 128 / 1k / 4k, 6.5k at 16.7k (TTFT 2.6 s) |
 | skipped | `acc-format` and `acc-oracle` (no format reference / CPU oracle golden), `ab` (reference is a directory), `tp` (not asked) |
+
+**Memory, measured** (`/usr/bin/time -l intarsia generate --backend metal`): the 4-bit checkpoint (1.7 GB on disk, 3.76 GB as bf16) peaks at
+**11.0 GB maximum resident set (10.1 GB footprint)** while loading; the same weights as a plain bf16 directory (mapped, not copied) peak at 2.4 GB. The excess is the dequantised host copy
+(`MlxAffine` caches each tensor in a `OnceLock`, 3.76 GB), the device copy `load_tensor` uploads (3.76 GB) and the file's pages (1.7 GB): **at load about 2x the bf16 size plus the file, not 1x**.
+`load_engine_group` drops the source when it returns, so the steady state is the device copy only (3.76 GB; not measured separately). Consequence for the 24B LFM2.5 4-bit: 48 GB as bf16, a load peak
+near 100 GB, which does not fit endor's 60 GB free next to `endor-kev` and `endor-tensorfold`; the next lane needs the cache dropped after upload (see friction item 8) or a native MLX-quant path.
+
+**What the accuracy gate cannot see.** `tools/mlx_to_hf_bf16.py` makes the same three conversion edits as the Rust reader (names, conv layout, the norm list for the `+1`), so a wrong
+norm list would be wrong on both sides and KL would stay at 1e-4; only the smoke completion ("Paris.") and perplexity 4.58 speak for it. The primary evidence is `mlx_lm` 0.32's own
+`qwen3_5.py` `sanitize` (`/opt/code/kev-serve/.venv/lib/python3.13/site-packages/mlx_lm/models/qwen3_5.py:307`): `norm_keys = (".input_layernorm.weight", ".post_attention_layernorm.weight", "model.norm.weight", ".q_norm.weight", ".k_norm.weight")`
+get `+ 1.0` when the input is an HF-format checkpoint (it has an MTP head or a `conv1d.weight` whose last axis is not 1), and `conv1d.weight` gets `moveaxis(2, 1)`: the same list and the same transpose.
+The reader keys on the stored values instead (layer 0 `input_layernorm` mean above 0.5), so a checkpoint converted from an already-sanitised source, which `mlx_lm` does not shift, is left alone.
 
 The first (quick-only) pass read 107 tok/s decode; the second, with the GPU quiet, 130. Not compared with mlx-lm (no time); not run: MMLU / GSM8K
 (not asked in this scope).
@@ -66,8 +78,8 @@ Part 1 is not counted: before the reader existed an MLX checkpoint stopped at `r
   the gate class of an MLX checkpoint is its lowest bit width (`<= 5` bits the 4-bit class, else FP8) instead of "unrecognised quantization metadata".
 * `tools/mlx_to_hf_bf16.py`, `tools/gen_mlx_affine_fixture.py`, `docs/adding-a-model.md` (MLX paragraph and the "new quantisation format" note).
 
-Cost, stated plainly: **dequantising to bf16 takes 4x the stored size in memory** (Qwen3.5-2B-4bit: 1.7 GB on disk, 3.76 GB loaded; the 24B LFM2 4-bit would
-be about 48 GB) and reads bf16 bytes per token, so decode runs at bf16 speed. A native MLX-quant GEMV is a later lane.
+Cost, stated plainly: **dequantising to bf16 takes 16 / bits times the stored size in memory** (Qwen3.5-2B-4bit: 1.7 GB on disk, 3.76 GB loaded, **11.0 GB peak resident at load**; the 24B LFM2 4-bit would
+be about 48 GB, a load peak near 100 GB) and reads bf16 bytes per token, so decode runs at bf16 speed. A native MLX-quant GEMV is a later lane.
 
 ### Friction list of part 2, ranked
 
@@ -78,6 +90,8 @@ be about 48 GB) and reads bf16 bytes per token, so decode runs at bf16 speed. A 
 5. **`cargo test --release` can leave `target/release/intarsia` built without `--features metal`**: onboard 2's first attempt died at smoke with "built without the Metal backend" (the error names the fix, `cargo build ... --features metal`, and a rebuild took seconds). One-line fix: keep the Metal binary in its own `--target-dir`, or have `onboard` check the feature before it takes a fleetq slot.
 6. **An env-var test**: the docs table test fails on any `INTARSIA_*` name in a test file; renamed. Fix: let `docs_env_vars` skip `tests/`.
 7. `qualify` treated a quantised checkpoint as "no golden can be made" and `weight_class` bailed on unknown metadata: both needed an MLX case (done). Fix for the next format: one `QuantFamily` enum instead of three string probes (`recipe.rs`, `facts.rs`, `accuracy.rs`).
+
+8. **The dequantised copy is cached for the life of the load** (`OnceLock` per tensor), so the load peak is 2x bf16 plus the file. Fix: a `WeightSource::release(name)` hook that `load_tensor` calls after the upload, with `MlxAffine` holding a `Mutex<Option<Box<[u8]>>>` it can clear.
 
 Not done: the LFM2 block and gaps 2-6 below; CUDA / HIP (the wrapper is host-side and backend-independent, nothing backend-specific was added); the MLX
 `mxfp4` / `nvfp4` / `mxfp8` modes (refused by name); stacked MoE experts (the MoE block is NVFP4-only); MMLU / GSM8K; mlx-lm speed comparison.

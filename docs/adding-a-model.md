@@ -207,7 +207,7 @@ No golden exists for a new model: `tools/golden_ct_nvfp4.py` makes one on a CPU 
 `<m>.weight` is a `u32` bit stream, `<m>.scales` / `<m>.biases` are per group, `w = scale * q + bias` in f32 rounded once to bf16
 (bitwise `mx.dequantize`). So the recipe, the kernels and the gates see a plain bf16 checkpoint, `recipe new` says `quant: bf16 (MLX affine
 4-bit dequantised at load)`, and **memory and bandwidth are those of bf16: 4x the stored size for 4-bit** (Qwen3.5-2B 4-bit is 1.7 GB on
-disk, 3.76 GB loaded; the decode byte floor counts 3.76 GB). A native MLX-quant GEMV that reads the 4-bit words is a later change. The
+disk, 3.76 GB loaded, 11.0 GB peak resident while loading because the dequantised copy and the device copy coexist; the decode byte floor counts 3.76 GB). A native MLX-quant GEMV that reads the 4-bit words is a later change. The
 loader also undoes three things `mlx_lm` does on conversion: `mlx-vlm` tensor names (`language_model.model.*` become `model.language_model.*`),
 the conv layout (`[C, K, 1]` becomes `[C, 1, K]`, same bytes), and, for Qwen3.5 / Qwen3-Next, the `+1` it bakes into the zero-centred
 RMSNorms (it gives back `w - 1` when layer 0's `input_layernorm` has mean above 0.5; without this the model is fluent nonsense because the recipe's
