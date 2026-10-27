@@ -569,8 +569,10 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
             // shape; the cpu reference is the arbiter.
             let mut gshapes: Vec<(usize, usize, usize, usize, usize)> =
                 vec![(1, 8, 2, 64, 32), (5, 16, 4, 128, 48), (36, 16, 4, 128, 128), (1024, 16, 8, 256, 128)];
+            // I = 64 mod 128 (Gemma-4-26B-A4B: I = 704): the grouped kernels' down projection ends in a half 128-k unit
+            gshapes.extend([(36, 16, 4, 256, 192), (1024, 16, 8, 256, 192)]);
             if !quick {
-                gshapes.extend([(1, 64, 8, 2048, 512), (40, 32, 8, 2048, 512)]);
+                gshapes.extend([(1, 64, 8, 2048, 512), (40, 32, 8, 2048, 512), (45, 16, 4, 640, 320), (40, 16, 8, 256, 64)]);
             }
             for (t, e, k, h, i) in gshapes {
                 for dt in ACT {
