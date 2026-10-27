@@ -52,11 +52,12 @@ serve() { # serve <arm+mods>
     esac
   done
   local envs; envs=$(armenv "$arm")
+  local QENV="-e GPU_MAX_HW_QUEUES=1"; [[ "$envs" == *GPU_MAX_HW_QUEUES* ]] && QENV=""
   RECIPE="HIP_VISIBLE_DEVICES=0,1 $bin serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch $mb --mem-budget 29 --max-seq $MS$extra ($envs; lane tpo)"
   stop_serve
   $SSH "docker run -d --name tpo-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
-    --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=0,1 $envs \
+    --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp $QENV -e HIP_VISIBLE_DEVICES=0,1 $envs \
     -v \$HOME/intarsiaml-tpo:/work -v /data/models:/models:ro -w /work $IMG /work/$bin serve --backend hip --model $M27 \
     --served-model-name qwen38-27b-tpo --tp 2 --devices 0,1 --max-batch $mb --profile-every 0 --mem-budget 29 --max-seq $MS$extra --no-supervisor --host 0.0.0.0 --port $PORT" \
     < /dev/null > "$OUT/docker-$full.id" 2>&1
@@ -70,7 +71,7 @@ for item in $ITEMS; do
   if [[ $act != kl && $act != gemm && $act != gsweep && $full != "$cur" ]]; then
     say "item $n: starting server $full"
     if ! serve "$full"; then say "item $n $full: server did not come up"; cur=""; continue; fi
-    $SSH 'docker logs tpo-serve 2>&1 | head -80' < /dev/null > "$OUT/serve-$(tag "$full")-$n.log" 2>&1
+    $SSH 'docker logs tpo-serve 2>&1 | head -80; echo queues=$(docker exec tpo-serve printenv GPU_MAX_HW_QUEUES)' < /dev/null > "$OUT/serve-$(tag "$full")-$n.log" 2>&1
     printf '[targets.tpo-%s]\nurl = "http://tatooine:%s/v1"\nmodel = "qwen38-27b-tpo"\n' "$(tag "$full")" "$PORT" > "$OUT/targets-$(tag "$full").toml"
     cur=$full
   fi

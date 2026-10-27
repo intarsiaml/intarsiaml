@@ -20,9 +20,7 @@ Q="GPU_MAX_HW_QUEUES=4"
 C4="--prefill-chunk,4096"
 MIN="INTARSIA_TP_OVERLAP_MIN=3072"
 SWEEP="base:tpo-base:: \
-base_spec:tpo-base::SPECON \
 v2c4096:tpo-dev4:INTARSIA_TP_OVERLAP=2,$MIN,$Q:$C4 \
-v2c4096_spec:tpo-dev4:INTARSIA_TP_OVERLAP=2,$MIN,$Q:--prefill-chunk,4096,SPECON \
 v1c4096:tpo-dev4:INTARSIA_TP_OVERLAP=2,INTARSIA_TP_OVERLAP_FFN=0,$MIN,$Q:$C4 \
 v3c4096:tpo-dev4:INTARSIA_TP_OVERLAP=3,$MIN,$Q:$C4 \
 ref4096q4:tpo-base:$Q:$C4"
@@ -51,6 +49,7 @@ print(min(c)[1] if c else 'none')
 EOF
 )
 say "best arm: $BEST"
+if [[ "$BEST" == none ]]; then say "no overlap arm has the base's ids (or none ran): skipping the rest, radiance is restored on exit"; exit 3; fi
 case "$BEST" in
   v1c4096) BE="INTARSIA_TP_OVERLAP=2,INTARSIA_TP_OVERLAP_FFN=0,$MIN,$Q"; BA="$C4" ;;
   v3c4096) BE="INTARSIA_TP_OVERLAP=3,$MIN,$Q"; BA="$C4" ;;
@@ -64,17 +63,18 @@ if (( $(el) < 1500 )); then
   run3 "I" "$MUT" w6-mut > "$RAW/mut.log" 2>&1; fetch w6-mut; grep -aE "^I " "$RAW/mut.log" | cut -c1-120 | tee -a "$RAW/steps.log"
 fi
 if (( $(el) < 1700 )); then
-  say "step 3 plan show g0"
+  say "step 3 plan show g0 + 6 interleaved 4k rounds"
   run3 "G" "" w6-g GBIN=tpo-dev4 "GENVS='${BE//,/ }'" > "$RAW/g0.log" 2>&1; fetch w6-g; grep -aE "^G " "$RAW/g0.log" | cut -c1-120 | tee -a "$RAW/steps.log"
+  run3 "R" "base:tpo-base:: best:tpo-dev4:$BE:$BA" w6-r ROUNDS=6 > "$RAW/rounds.log" 2>&1; fetch w6-r; grep -aE "^R " "$RAW/rounds.log" | cut -c1-120 | tee -a "$RAW/steps.log"
 fi
 
 if (( $(el) < 1500 )); then
   say "step 4 drive (texts, speed, mixids)"
   CH=""; [[ -n "$BA" ]] && CH="+chunk4096"
   export ENV_best="${BE//,/ }"
-  ITEMS="rec:texts best+bin=tpo-dev4$CH:texts best+bin=tpo-dev4$CH+spoff:texts"
   B="best+bin=tpo-dev4$CH:speed"
-  ITEMS="$ITEMS rec:speed $B $B rec:speed rec:speed $B $B rec:speed rec:speed $B $B rec:speed"
+  ITEMS="rec:speed $B $B rec:speed rec:speed $B $B rec:speed"
+  ITEMS="$ITEMS best+bin=tpo-dev4$CH:texts rec:texts best+bin=tpo-dev4$CH+spoff:texts"
   ITEMS="$ITEMS best+bin=tpo-dev4$CH+mb16:mixids best+bin=tpo-dev4$CH+spoff:mixids"
   W=w6d ITEMS="$ITEMS" "$HERE/drive.sh" > "$RAW/drive.log" 2>&1 &
   DP=$!
