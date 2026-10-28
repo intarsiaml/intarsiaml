@@ -87,7 +87,10 @@ collective, so the all-reduce counters cannot drift. What mtp does change before
 the head's KV, per-row recurrent copies, verify buffers, possibly a larger shared scratch. A read-before-write somewhere on the path would see different leftovers per process and
 the same in a repeat, which fits; w5's poison arm tests it.
 
-TODO: w6 (per-row tap, 70 mtp + 70 off fresh processes: first (layer, row) that differs), w5 (rate on `--spec mtp`: tp=2, tp=2 with capture and peer syncs, tp=1 per card).
+**w6 (per-row tap, 09:40-09:47): no event.** 70 fresh `--spec mtp` and 70 fresh `--spec off` processes, 8 tokens each: every id list and every tap file byte-identical within
+its arm (`raw/w6/`, one reference tap kept per arm). Fresh mtp processes so far: 2 events in 143 (w2 1/30, w4 1/43, w6 0/70); fresh off: 0 in ~450 here, 1 in vat's 5.
+
+TODO (superseded by the w6 line above): w6 (per-row tap, 70 mtp + 70 off fresh processes: first (layer, row) that differs), w5 (rate on `--spec mtp`: tp=2, tp=2 with capture and peer syncs, tp=1 per card).
 
 ## 4. Raw
 

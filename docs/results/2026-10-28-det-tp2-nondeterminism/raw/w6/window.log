@@ -1,0 +1,8 @@
+[window] job 6449 w6; stopping radiance 2026-10-28 09:40:36
+[window] radiance stopped 2026-10-28 09:40:39
+09:44:00 mtp: 70 processes, 70 distinct-count
+09:47:05 off: 70 processes, 70 distinct-count
+09:47:05 w6 done
+[window] stages done 2026-10-28 09:47:05 (exit 0)
+[window] starting radiance 2026-10-28 09:47:05
+[window] radiance answers 2026-10-28 09:47:15 (after 15 s)
