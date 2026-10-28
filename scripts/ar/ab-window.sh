@@ -55,6 +55,15 @@ serve() { # serve <phase> <arm>
   $SSH 'docker logs --tail 40 ars-serve' > "$OUT/serve-fail-$ph-$arm.log" 2>&1 < /dev/null; return 1
 }
 
+if [[ -n ${PRESTAGES:-} ]]; then
+  # stages-soak.sh stages (tests, rate, kt7, soak7, ids18 ...) inside this same radiance-down window, before the A/B phases
+  mkdir -p "$OUT/pre"; scp -q "$HERE/stages-soak.sh" tatooine:intarsiaml-ars/.ars/
+  say "prestages: $PRESTAGES"
+  $SSH "rm -rf ~/intarsiaml-ars/.ars/out/$W; N=${N:-250} REFN=${REFN:-0} DEFN=${DEFN:-1} DEFE='${DEFE:-}' DEFBIN=${DEFBIN:-} STAGES='$PRESTAGES' timeout ${PRECAP:-3000} bash ~/intarsiaml-ars/.ars/stages-soak.sh ~/intarsiaml-ars/.ars/out/$W" < /dev/null 2>&1 | tee "$OUT/pre/stages.log"
+  rsync -a "tatooine:intarsiaml-ars/.ars/out/$W/" "$OUT/pre/" 2>/dev/null
+  say "prestages done, time left $(left)s"
+fi
+
 for ph in $PHASES; do
   PNAME=${ph%%:*}; PR=${ph#*:}
   for r in $(seq "$R0" $(( R0 + PR - 1 ))); do
@@ -62,7 +71,7 @@ for ph in $PHASES; do
       if (( $(left) < 480 )); then say "SKIPPED $PNAME round $r arm $arm (time left $(left)s)"; continue; fi
       say "$PNAME round $r arm $arm: starting server"
       if ! serve "$PNAME" "$arm"; then say "$PNAME round $r arm $arm: server did not come up"; $SSH 'docker rm -f ars-serve' >/dev/null 2>&1 < /dev/null; continue; fi
-      printf '[targets.ars]\nurl = "http://tatooine:%s/v1"\nmodel = "%s"\n' "$PORT" "$SERVED" > "$OUT/targets-$PNAME-$arm.toml"
+      printf '[targets.ar]\nurl = "http://tatooine:%s/v1"\nmodel = "%s"\n' "$PORT" "$SERVED" > "$OUT/targets-$PNAME-$arm.toml"
       case $PNAME in
         speed27|speed35)
           sizes=1024,4096,16384; gen=128; [[ $PNAME == speed35 ]] && { sizes=1024,4096; gen=256; }

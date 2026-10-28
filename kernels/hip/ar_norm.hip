@@ -152,14 +152,25 @@ __global__ void ar2_norm_ll_kernel(const int4* x4, ik_bf16* out, const ik_bf16* 
     const int n16 = rows * wpr;
     const int nv = H / 8;
 
+    /* items are handled JB at a time per thread: all the loads of a batch first, then the pushes; all the peer words of a batch in one
+     * round of polling, then the arithmetic item by item in ascending order (the fence kernel's order of summation) */
+    constexpr int JB = 4, W = F32P ? 2 : 1;
     for (int row = r0; row < r1; ++row)
-        for (int i = tid; i < nv; i += nt) {
-            if (F32P) {
-                const int k = row * wpr + 2 * i;
-                ll_put(pl, n16, k, seq, x4[k]);
-                ll_put(pl, n16, k + 1, seq, x4[k + 1]);
-            } else {
-                ll_put(pl, n16, row * wpr + i, seq, x4[row * wpr + i]);
+        for (int base = 0; base < nv; base += JB * nt) {
+            int4 v[JB * W];
+#pragma unroll
+            for (int j = 0; j < JB; ++j) {
+                const int i = base + j * nt + tid;
+                if (i < nv)
+#pragma unroll
+                    for (int q = 0; q < W; ++q) v[j * W + q] = x4[row * wpr + W * i + q];
+            }
+#pragma unroll
+            for (int j = 0; j < JB; ++j) {
+                const int i = base + j * nt + tid;
+                if (i < nv)
+#pragma unroll
+                    for (int q = 0; q < W; ++q) ll_put(pl, n16, row * wpr + W * i + q, seq, v[j * W + q]);
             }
         }
 
@@ -169,34 +180,50 @@ __global__ void ar2_norm_ll_kernel(const int4* x4, ik_bf16* out, const ik_bf16* 
         const ik_bf16* rr = res + e0;
         ik_bf16* sr = sum + e0;
         float ss = 0.f;
-        for (int i = tid; i < nv; i += nt) {
-            float f[8], g[8];
-            if (F32P) {
-                const float4* pa = reinterpret_cast<const float4*>(reinterpret_cast<const float*>(x4) + e0) + 2 * i;
-                const int4 q0 = ll_get<CHECK>(ml, n16, row * wpr + 2 * i, seq), q1 = ll_get<CHECK>(ml, n16, row * wpr + 2 * i + 1, seq);
-                const float4 b0 = *reinterpret_cast<const float4*>(&q0), b1 = *reinterpret_cast<const float4*>(&q1);
-                float4 a0 = pa[0], a1 = pa[1];
-                f[0] = a0.x + b0.x; f[1] = a0.y + b0.y; f[2] = a0.z + b0.z; f[3] = a0.w + b0.w;
-                f[4] = a1.x + b1.x; f[5] = a1.y + b1.y; f[6] = a1.z + b1.z; f[7] = a1.w + b1.w;
-            } else {
-                float fb[8];
-                const int4 q = ll_get<CHECK>(ml, n16, row * wpr + i, seq);
-                ik_unpack8(reinterpret_cast<const uint4*>(reinterpret_cast<const uint16_t*>(x4) + e0)[i], f);
-                ik_unpack8(*reinterpret_cast<const uint4*>(&q), fb);
+        for (int base = 0; base < nv; base += JB * nt) {
+            int ks[JB * W];
+            int cnt = 0;
 #pragma unroll
-                for (int q2 = 0; q2 < 8; ++q2) f[q2] += fb[q2];
+            for (int j = 0; j < JB; ++j) {
+                const int i = base + j * nt + tid;
+                if (i < nv) {
+#pragma unroll
+                    for (int q = 0; q < W; ++q) ks[j * W + q] = row * wpr + W * i + q;
+                    cnt = (j + 1) * W;
+                }
             }
-            const uint4 y = ik_pack8(f); /* the all-reduce result, rounded: what the unfused pair stores to `out` */
-            reinterpret_cast<uint4*>(orow)[i] = y;
-            ik_unpack8(y, f);
-            ik_unpack8(reinterpret_cast<const uint4*>(rr)[i], g);
+            int4 pq[JB * W];
+            ll_get_n<CHECK, JB * W>(ml, n16, ks, cnt, seq, pq);
 #pragma unroll
-            for (int q = 0; q < 8; ++q) f[q] += g[q];
-            const uint4 p = ik_pack8(f); /* the new residual stream */
-            reinterpret_cast<uint4*>(sr)[i] = p;
-            ik_unpack8(p, f); /* continue from the bf16-rounded sum */
+            for (int j = 0; j < JB; ++j) {
+                const int i = base + j * nt + tid;
+                if (i >= nv) break;
+                float f[8], g[8];
+                if (F32P) {
+                    const float4* pa = reinterpret_cast<const float4*>(reinterpret_cast<const float*>(x4) + e0) + 2 * i;
+                    const float4 b0 = *reinterpret_cast<const float4*>(&pq[j * W]), b1 = *reinterpret_cast<const float4*>(&pq[j * W + 1]);
+                    float4 a0 = pa[0], a1 = pa[1];
+                    f[0] = a0.x + b0.x; f[1] = a0.y + b0.y; f[2] = a0.z + b0.z; f[3] = a0.w + b0.w;
+                    f[4] = a1.x + b1.x; f[5] = a1.y + b1.y; f[6] = a1.z + b1.z; f[7] = a1.w + b1.w;
+                } else {
+                    float fb[8];
+                    ik_unpack8(reinterpret_cast<const uint4*>(reinterpret_cast<const uint16_t*>(x4) + e0)[i], f);
+                    ik_unpack8(*reinterpret_cast<const uint4*>(&pq[j]), fb);
 #pragma unroll
-            for (int q = 0; q < 8; ++q) ss += f[q] * f[q];
+                    for (int q2 = 0; q2 < 8; ++q2) f[q2] += fb[q2];
+                }
+                const uint4 y = ik_pack8(f); /* the all-reduce result, rounded: what the unfused pair stores to `out` */
+                reinterpret_cast<uint4*>(orow)[i] = y;
+                ik_unpack8(y, f);
+                ik_unpack8(reinterpret_cast<const uint4*>(rr)[i], g);
+#pragma unroll
+                for (int q = 0; q < 8; ++q) f[q] += g[q];
+                const uint4 p = ik_pack8(f); /* the new residual stream */
+                reinterpret_cast<uint4*>(sr)[i] = p;
+                ik_unpack8(p, f); /* continue from the bf16-rounded sum */
+#pragma unroll
+                for (int q = 0; q < 8; ++q) ss += f[q] * f[q];
+            }
         }
         ss = ik_block_sum(ss, red);
         const float r = rsqrtf(ss / (float)H + eps);

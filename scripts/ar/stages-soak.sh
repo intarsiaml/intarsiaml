@@ -65,7 +65,7 @@ for st in ${STAGES:-kt ref soak ids}; do
            done ;;
     rate) for v in "1:" "3:" "7:" "7:2097152"; do d=${v%%:*}; m=${v#*:}
              INTARSIA_TARGET_VOL=intarsia-cargo-ars INTARSIA_REPO=$TREE/.ars/btree HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_DRAIN=$d INTARSIA_HIP_AR_LL_MAX=$m timeout 900 \
-               "$DEV" cargo test --release -p intarsia-backend-hip --test comm all_reduce_rate -- --ignored --nocapture --test-threads=1 > "$O/rate-d$d-${m:-default}.log" 2>&1 < /dev/null
+               "$DEV" cargo test --release -p intarsia-backend-hip --test comm rate -- --ignored --nocapture --test-threads=1 > "$O/rate-d$d-${m:-default}.log" 2>&1 < /dev/null
              log "rate drain=$d ll_max=${m:-default}: exit $?"
            done ;;
     ids) E="" g ids-default 256 --tp 2 --devices 0,1 $M; E="INTARSIA_HIP_AR_DRAIN=3" g ids-d3 256 --tp 2 --devices 0,1 $M

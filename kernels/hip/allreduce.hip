@@ -218,7 +218,10 @@ __global__ void ar2ll_kernel(const int4* x4, void* out, unsigned long long* peer
     const unsigned long long* ml = my_ll + (size_t)(seq & 1u) * ll_stride64;
     const int w = (n16 + nb - 1) / nb;
     const int start = min(b * w, n16), end = min(start + w, n16);
-    for (int k = start + tid; k < end; k += nt) ll_put(pl, n16, k, seq, x4[k]);
+    for (int k = start + tid; k < end; k += nt) {
+        const int4 v = x4[k];
+        ll_put(pl, n16, k, seq, v);
+    }
     if (KIND == 2) {
         uint2* o2 = (uint2*)out;
         for (int k = start + tid; k < end; k += nt) o2[k] = ar_add16_to_bf16(x4[k], ll_get<CHECK>(ml, n16, k, seq));
@@ -242,7 +245,10 @@ __global__ void ag2ll_kernel(const int4* x4, int4* out4, unsigned long long* pee
     int4* mine = out4 + (size_t)rank * out_stride16;
     int4* theirs = out4 + (size_t)(1 - rank) * out_stride16;
     const bool in_place = (const int4*)mine == x4;
-    for (int k = start + tid; k < end; k += nt) ll_put(pl, n16, k, seq, x4[k]);
+    for (int k = start + tid; k < end; k += nt) {
+        const int4 v = x4[k];
+        ll_put(pl, n16, k, seq, v);
+    }
     for (int k = start + tid; k < end; k += nt) {
         theirs[k] = ll_get<CHECK>(ml, n16, k, seq);
         if (!in_place) mine[k] = x4[k];

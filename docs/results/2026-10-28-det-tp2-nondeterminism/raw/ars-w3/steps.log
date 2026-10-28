@@ -1,0 +1,50 @@
+16:48:41 guard: [guard] radiance stopped 2026-10-28 16:48:41
+16:48:41 speed27 round 1 arm d1: starting server
+16:49:55 speed27 round 1 arm d1: localeval exit 0 results/20261028-164912-ar-ars-w3-speed27-d1-r1/result.json
+16:49:55 speed27 round 1 arm d3: starting server
+16:51:08 speed27 round 1 arm d3: localeval exit 0 results/20261028-165026-ar-ars-w3-speed27-d3-r1/result.json
+16:51:08 speed27 round 1 arm d7: starting server
+16:52:21 speed27 round 1 arm d7: localeval exit 0 results/20261028-165140-ar-ars-w3-speed27-d7-r1/result.json
+16:52:22 speed27 round 2 arm d7: starting server
+16:53:35 speed27 round 2 arm d7: localeval exit 0 results/20261028-165253-ar-ars-w3-speed27-d7-r2/result.json
+16:53:36 speed27 round 2 arm d3: starting server
+16:54:48 speed27 round 2 arm d3: localeval exit 0 results/20261028-165407-ar-ars-w3-speed27-d3-r2/result.json
+16:54:49 speed27 round 2 arm d1: starting server
+16:56:02 speed27 round 2 arm d1: localeval exit 0 results/20261028-165520-ar-ars-w3-speed27-d1-r2/result.json
+16:56:02 speed27 round 3 arm d3: starting server
+16:57:15 speed27 round 3 arm d3: localeval exit 0 results/20261028-165634-ar-ars-w3-speed27-d3-r3/result.json
+16:57:15 speed27 round 3 arm d7: starting server
+16:58:29 speed27 round 3 arm d7: localeval exit 0 results/20261028-165747-ar-ars-w3-speed27-d7-r3/result.json
+16:58:29 speed27 round 3 arm d1: starting server
+16:59:42 speed27 round 3 arm d1: localeval exit 0 results/20261028-165900-ar-ars-w3-speed27-d1-r3/result.json
+16:59:43 speed27 round 4 arm d1: starting server
+17:00:58 speed27 round 4 arm d1: localeval exit 0 results/20261028-170014-ar-ars-w3-speed27-d1-r4/result.json
+17:00:59 speed27 round 4 arm d7: starting server
+17:02:16 speed27 round 4 arm d7: localeval exit 0 results/20261028-170131-ar-ars-w3-speed27-d7-r4/result.json
+17:02:17 speed27 round 4 arm d3: starting server
+17:03:32 speed27 round 4 arm d3: localeval exit 0 results/20261028-170249-ar-ars-w3-speed27-d3-r4/result.json
+17:03:32 speed35 round 1 arm d1: starting server
+17:04:02 speed35 round 1 arm d1: localeval exit 0 results/20261028-170349-ar-ars-w3-speed35-d1-r1/result.json
+17:04:02 speed35 round 1 arm d3: starting server
+17:04:23 speed35 round 1 arm d3: localeval exit 0 results/20261028-170412-ar-ars-w3-speed35-d3-r1/result.json
+17:04:24 speed35 round 1 arm d7: starting server
+17:04:45 speed35 round 1 arm d7: localeval exit 0 results/20261028-170434-ar-ars-w3-speed35-d7-r1/result.json
+17:04:45 speed35 round 2 arm d7: starting server
+17:05:07 speed35 round 2 arm d7: localeval exit 0 results/20261028-170456-ar-ars-w3-speed35-d7-r2/result.json
+17:05:07 speed35 round 2 arm d3: starting server
+17:05:28 speed35 round 2 arm d3: localeval exit 0 results/20261028-170517-ar-ars-w3-speed35-d3-r2/result.json
+17:05:29 speed35 round 2 arm d1: starting server
+17:05:50 speed35 round 2 arm d1: localeval exit 0 results/20261028-170539-ar-ars-w3-speed35-d1-r2/result.json
+17:05:50 speed35 round 3 arm d3: starting server
+17:06:12 speed35 round 3 arm d3: localeval exit 0 results/20261028-170601-ar-ars-w3-speed35-d3-r3/result.json
+17:06:12 speed35 round 3 arm d7: starting server
+17:06:33 speed35 round 3 arm d7: localeval exit 0 results/20261028-170622-ar-ars-w3-speed35-d7-r3/result.json
+17:06:34 speed35 round 3 arm d1: starting server
+17:06:55 speed35 round 3 arm d1: localeval exit 0 results/20261028-170644-ar-ars-w3-speed35-d1-r3/result.json
+17:06:56 speed35 round 4 arm d1: starting server
+17:07:17 speed35 round 4 arm d1: localeval exit 0 results/20261028-170706-ar-ars-w3-speed35-d1-r4/result.json
+17:07:17 speed35 round 4 arm d7: starting server
+17:07:39 speed35 round 4 arm d7: localeval exit 0 results/20261028-170728-ar-ars-w3-speed35-d7-r4/result.json
+17:07:39 speed35 round 4 arm d3: starting server
+17:08:02 speed35 round 4 arm d3: localeval exit 0 results/20261028-170749-ar-ars-w3-speed35-d3-r4/result.json
+17:08:04 done, time left 1833s

@@ -551,3 +551,52 @@ fn ll_without_the_tag_check_is_caught_by_the_stress_test() {
     assert!(wrong > 0, "the tag check was removed and nothing went wrong: the stress test cannot see a stale read");
     eprintln!("negative control: {wrong} wrong results without the tag check");
 }
+
+/// `cargo test --release -p intarsia-backend-hip --test comm ar_norm_rate -- --ignored --nocapture`: us per fused all-reduce + add + rmsnorm
+/// call, back to back on both ranks, at the decode shapes (35B hidden 2048, 27B hidden 5120, one row and a 3-row verify step), whatever
+/// `INTARSIA_HIP_AR_DRAIN` says. Lane ars: the all-reduce rate test above does not touch this kernel.
+#[test]
+#[ignore]
+fn ar_norm_rate() {
+    use intarsia_core::comm::ArNorm;
+    let _one = serial();
+    let Some((be, comms)) = group() else { return };
+    println!("{:>6} {:>5} {:>5} {:>10} {:>10}", "H", "rows", "part", "us/call", "launches");
+    for (h, rows, dt) in [(2048usize, 1usize, DType::F32), (2048, 1, DType::Bf16), (5120, 1, DType::Bf16), (5120, 1, DType::F32), (5120, 3, DType::Bf16), (5120, 3, DType::F32)] {
+        let n = rows * h;
+        let z = vec![0f32; n];
+        let w = vec![0f32; h];
+        let mk = |r: usize| {
+            (
+                put(&*be[r], dt, &z),
+                put(&*be[r], DType::Bf16, &z),
+                put(&*be[r], DType::Bf16, &z),
+                put(&*be[r], DType::Bf16, &w),
+                put(&*be[r], DType::Bf16, &z),
+                put(&*be[r], DType::Bf16, &z),
+            )
+        };
+        let bufs = [mk(0), mk(1)];
+        let iters = 4000;
+        let run = |count: usize| {
+            std::thread::scope(|sc| {
+                for r in 0..2 {
+                    let (c, b, bufs) = (&comms[r], &be[r], &bufs);
+                    sc.spawn(move || {
+                        let (p, o, rs, w, nr, s) = &bufs[r];
+                        let a = ArNorm { partial: p, out: o, residual: rs, weight: w, norm: nr, sum: s, eps: 1e-6, w_offset: 0.0 };
+                        for _ in 0..count {
+                            c.all_reduce_add_rmsnorm(&a, 0).unwrap();
+                        }
+                        b.synchronize(0).unwrap();
+                    });
+                }
+            });
+        };
+        run(100);
+        let t0 = Instant::now();
+        run(iters);
+        let us = t0.elapsed().as_secs_f64() * 1e6 / iters as f64;
+        println!("{:>6} {:>5} {:>5} {:>10.1} {:>10}", h, rows, if dt == DType::F32 { "f32" } else { "bf16" }, us, iters);
+    }
+}
