@@ -7,8 +7,9 @@ code; `2026-10-26-dfh-hip-dflash.md` section 16), so the lever is the cost per p
 Setup as in `2026-10-26-spt-spec-retune.md`: tatooine, 2x R9700, `amd/Qwen3.8-27B-Quark-AWQ-MXFP4`, `serve --tp 2 --max-batch 1`, localeval
 `--judge none`, 512 forced tokens, temperature 0, the 7 category files of lane dfh, tables by `tools/dfh/cat_table.py`. Scripts:
 `scripts/dcp/` (copies of `scripts/spt/`; one tree `~/intarsiaml-dcp`, removed afterwards). Raw: `docs/results/2026-10-27-dcp-dflash-cost/raw/`.
-Five radiance-down fleetq windows (#6393 attribution, rows variants, ids x6, #6398 speed, ids x18) and three cpu-slot builds (#6391, #6394), radiance restored and `/v1/models`
-answering after each.
+Six radiance-down fleetq windows (attribution #6393; row-kernel and fp8 variants; ids x6; speed #6398; a ~15 s no-op #6400 where the
+stage name was wrong and nothing ran; ids x18), one over the brief's cap of five, and two cpu-slot builds plus a rebuild (#6391, #6394, #6396). Radiance was
+restored and `/v1/models` answering after each (checked by the window script, and by hand at the end).
 
 ## 1. Result in one paragraph
 
@@ -72,7 +73,7 @@ Acceptance and pass counts are equal to the unit (the two kernel families give t
 The brief asked for the draft's linears as fp8 with the HIP fp8 GEMV/rows kernels. The FP8 checkpoint (`Qwen3.8-27B-DFlash2-FP8`) is
 128x128 block-scaled (`weight_scale_inv`), which the loader does not read (per-tensor scale only), so I quantised the bf16 draft at load
 instead (per-tensor e4m3 W8A16 through `Fp8E4m3::quantize`: layers, fc, and a separate fp8 copy of the draft's head), behind a temporary
-env knob (not merged; the code is in git history of the branch only as the commit that was reverted):
+env knob (not merged: removed by hand in a later commit, its commits stay in the branch history):
 
 | arm (short-0, tp=2) | flush | block | head | draft total | ids | passes / accepted |
 |---|---|---|---|---|---|---|
@@ -98,16 +99,23 @@ first. Dropped, not shipped.
 
 - **ids**: `--spec dflash --spec-k 7` vs `--spec off` at tp=2, lane dfh's 18 prompts (6 short, 6 ~3k, 6 ~11k), 256 greedy ids, final head: **18 / 18
   identical** (`raw/ids/`; an earlier 6-prompt run at the same code, 6 / 6, `raw/ids6/`). The row-kernel runs of window 2 were also identical on 2 prompts.
-- **acceptance** (tokens per pass, from the speed window's counters): ho-chat 3.04, ho-code 5.32, ho-prose 2.50, ho-recall 3.66, rcp-code 5.30,
-  rcp-prose 2.62, rcp-recall 4.17; equal to the pre-change figures (3.22 / 5.32 / 2.50 / 3.60 / 5.20 / 2.54 / 3.89 of the spt doc) within prompt-state noise; the
-  paired A/B above shows identical accepted counts.
-- **`plan show`**: the diff against origin/main touches only `crates/intarsia-core/src/model/dflash.rs` (the draft's kernel-selection default and the trace),
+- **text, all categories** (`raw/speed/text-compare.txt`): in the speed window every `dfl7` and `mtp2` case (7 categories, 3 rounds) has the same output text
+  as the `off` case: 100% identical, which is category-level exactness beside the 18 / 18 ids.
+- **acceptance** (tokens per pass, speed window counters): ho-chat 3.04, ho-code 5.32, ho-prose 2.50, ho-recall 3.66, rcp-code 5.30, rcp-prose 2.62,
+  rcp-recall 4.17, against 3.22 / 5.32 / 2.50 / 3.60 / 5.20 / 2.54 / 3.89 in the spt window. Same-binary A/B (section 3.1, two prompts): identical
+  accepted counts. The category figures differ from the spt window because origin/main moved between the windows and the target's text changed with it
+  (0 of 4 to 8 of 8 cases are identical between the two windows' `off` arms, and between their `dfl7` arms, in every category; MTP k2 moved too, 2.32 to 2.29
+  on ho-chat); the ho-chat dip (-5.6%) therefore reflects different text, not the row kernels, whose paired A/B shows no change. Not proven on ho-chat itself
+  (no same-binary generic-kernel arm was run on the category files): the same-binary evidence is the two prompts.
+- **backends**: `--spec dflash` with a DFlash2 draft loads on cpu and HIP only (`load.rs` backend gate), so the default reaches no unmeasured GPU backend; the cpu
+  DFlash2 tests (`dflash2_cpu`, in the Mac workspace run) pass with it.
+- **`plan show`**: not run; argued from the diff: it against origin/main touches only `crates/intarsia-core/src/model/dflash.rs` (the draft's kernel-selection default and the trace),
   `docs/tuning.md` and docs/scripts; nothing a config without `--spec dflash` reads. `INTARSIA_DFLASH_ROWS_KERNELS` is read only when a draft is loaded.
 - **Mac** `cargo test --workspace --release`: green (199 test result lines ok, 0 failed; the first run failed only `docs_env_vars` on the since-removed fp8 knob).
 
 ## 5. Decode, tp=2, interleaved x3 (window speed, #6398)
 
-Arms `mtp2 dfl7; dfl7 off mtp2; mtp2 dfl7` (mtp2 and dfl7 three rounds, off one, as in the spt doc), 49 runs, 0 problems (`raw/speed/cat-table.txt`,
+Arms `mtp2 dfl7; dfl7 off mtp2; mtp2 dfl7`: mtp2 and dfl7 three interleaved rounds, **off one round (n=1)**, a deviation from the brief's three rounds that follows the spt doc (off measured under 0.4% spread there), 49 runs, 0 problems (`raw/speed/cat-table.txt`,
 per-round values and spread in `raw/speed/spread.txt`; round-to-round spread of dfl7 0.2-1.9%, mtp2 0.2-0.5%). tok/s, pooled per category:
 
 | category | off | MTP k2 | DFlash2 k7 after | DFlash2 k7 before (spt window B, other main) | dfl7 after vs mtp2 |

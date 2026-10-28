@@ -1,0 +1,59 @@
+A) dcp off (round 2) vs dcp dfl7 / mtp2, per case text identical:
+  ho-chat    dfl7 r1: 4/4 cases identical to off
+  ho-chat    dfl7 r2: 4/4 cases identical to off
+  ho-chat    dfl7 r3: 4/4 cases identical to off
+  ho-chat    mtp2 r1: 4/4 cases identical to off
+  ho-chat    mtp2 r2: 4/4 cases identical to off
+  ho-chat    mtp2 r3: 4/4 cases identical to off
+  ho-code    dfl7 r1: 2/2 cases identical to off
+  ho-code    dfl7 r2: 2/2 cases identical to off
+  ho-code    dfl7 r3: 2/2 cases identical to off
+  ho-code    mtp2 r1: 2/2 cases identical to off
+  ho-code    mtp2 r2: 2/2 cases identical to off
+  ho-code    mtp2 r3: 2/2 cases identical to off
+  ho-prose   dfl7 r1: 4/4 cases identical to off
+  ho-prose   dfl7 r2: 4/4 cases identical to off
+  ho-prose   dfl7 r3: 4/4 cases identical to off
+  ho-prose   mtp2 r1: 4/4 cases identical to off
+  ho-prose   mtp2 r2: 4/4 cases identical to off
+  ho-prose   mtp2 r3: 4/4 cases identical to off
+  ho-recall  dfl7 r1: 2/2 cases identical to off
+  ho-recall  dfl7 r2: 2/2 cases identical to off
+  ho-recall  dfl7 r3: 2/2 cases identical to off
+  ho-recall  mtp2 r1: 2/2 cases identical to off
+  ho-recall  mtp2 r2: 2/2 cases identical to off
+  ho-recall  mtp2 r3: 2/2 cases identical to off
+  rcp-code   dfl7 r1: 8/8 cases identical to off
+  rcp-code   dfl7 r2: 8/8 cases identical to off
+  rcp-code   dfl7 r3: 8/8 cases identical to off
+  rcp-code   mtp2 r1: 8/8 cases identical to off
+  rcp-code   mtp2 r2: 8/8 cases identical to off
+  rcp-code   mtp2 r3: 8/8 cases identical to off
+  rcp-prose  dfl7 r1: 8/8 cases identical to off
+  rcp-prose  dfl7 r2: 8/8 cases identical to off
+  rcp-prose  dfl7 r3: 8/8 cases identical to off
+  rcp-prose  mtp2 r1: 8/8 cases identical to off
+  rcp-prose  mtp2 r2: 8/8 cases identical to off
+  rcp-prose  mtp2 r3: 8/8 cases identical to off
+  rcp-recall dfl7 r1: 8/8 cases identical to off
+  rcp-recall dfl7 r2: 8/8 cases identical to off
+  rcp-recall dfl7 r3: 8/8 cases identical to off
+  rcp-recall mtp2 r1: 8/8 cases identical to off
+  rcp-recall mtp2 r2: 8/8 cases identical to off
+  rcp-recall mtp2 r3: 8/8 cases identical to off
+B) dcp dfl7 vs spt-window-B dfl7 (before #214 etc.), ho-chat and others, round 1:
+  ho-chat    0/4 identical to spt dfl7 r1
+  ho-code    0/2 identical to spt dfl7 r1
+  ho-prose   0/4 identical to spt dfl7 r1
+  ho-recall  0/2 identical to spt dfl7 r1
+  rcp-code   0/8 identical to spt dfl7 r1
+  rcp-prose  0/8 identical to spt dfl7 r1
+  rcp-recall 0/8 identical to spt dfl7 r1
+C) dcp off vs spt off:
+  ho-chat    0/4
+  ho-code    0/2
+  ho-prose   0/4
+  ho-recall  0/2
+  rcp-code   0/8
+  rcp-prose  0/8
+  rcp-recall 0/8
