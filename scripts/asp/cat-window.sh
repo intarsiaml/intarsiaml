@@ -73,6 +73,7 @@ serve() { # serve <arm>
   if [[ $arm == *-old ]]; then base=${arm%-old}; ENVX="${OLDENV:--e INTARSIA_HIP_GDN_VERIFY_FUSE=0}"; fi
   case $base in
     off) spec="--spec off" ;;
+    automtp) spec="--spec auto --spec-draft $DRAFT --spec-k 7"; ENVX="$ENVX -e INTARSIA_SPEC_AUTO=mtp,log" ;;
     auto) spec="--spec auto --spec-draft $DRAFT --spec-k 7"; ENVX="$ENVX -e INTARSIA_SPEC_AUTO=log" ;;
     mtp2) spec="--spec mtp --spec-k 2" ;;
     mtp*) spec="--spec mtp --spec-k ${base#mtp}" ;;
