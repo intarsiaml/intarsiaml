@@ -116,7 +116,43 @@ impl DflashHead {
 }
 
 /// bf16 `[n, k]` linear weight `prefix` of the draft checkpoint.
+/// Lane dcp: `INTARSIA_DFLASH2_FP8=1` quantises the DFlash2 draft's linear weights (q/k/v/o, gate/up/down, fc) and the
+/// draft's logits head to per-tensor fp8 e4m3 (W8A16) at load. Only drafts change (greedy verify decides every token); the
+/// draft reads half the bytes per pass.
+pub(super) fn draft_fp8() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_DFLASH2_FP8").is_ok_and(|v| v == "1"))
+}
+
+/// A bf16 host matrix `[n, k]` as an fp8 e4m3 device weight (one scale per tensor).
+pub(super) fn host_to_fp8(b: &dyn Backend, bytes: &dyn Fn(u64), t: &crate::tensor::HostTensor) -> Result<QTensor> {
+    use crate::quant::QuantFormat;
+    let hq = crate::quant::fp8::Fp8E4m3
+        .quantize(t, &crate::quant::QuantCfg::default())
+        .ok_or_else(|| Error::model("fp8 draft: weight is not a matrix"))?;
+    let q = hq.upload(b)?;
+    bytes(q.weight_bytes() as u64);
+    Ok(q)
+}
+
+/// The draft's logits head as fp8 (`draft_fp8`): `q` is the bf16 head; anything else is kept.
+pub(super) fn head_to_fp8(b: &dyn Backend, bytes: &dyn Fn(u64), q: QTensor) -> Result<QTensor> {
+    if q.format != crate::quant::BF16 {
+        return Ok(q);
+    }
+    let hq = q.download(b)?;
+    host_to_fp8(b, bytes, &hq.parts[0])
+}
+
 pub(super) fn lin(src: &dyn WeightSource, b: &dyn Backend, bytes: &dyn Fn(u64), prefix: &str, n: usize, k: usize) -> Result<QTensor> {
+    if draft_fp8() {
+        let name = resolve(src, &format!("{prefix}.weight"))?;
+        if let Some(info) = src.info(&name).filter(|i| i.dtype == DType::Bf16 && i.shape == [n, k]) {
+            let _ = info;
+            let t = crate::tensor::HostTensor::new(DType::Bf16, vec![n, k], src.bytes(&name)?.to_vec())?;
+            return host_to_fp8(b, bytes, &t);
+        }
+    }
     let q = crate::quant::load_linear(src, prefix, b, &QuantLoadOpts::default())?;
     if (q.n, q.k) != (n, k) || q.format != crate::quant::BF16 {
         return Err(Error::model(format!("draft tensor '{prefix}' is [{}, {}] {:?}, expected bf16 [{n}, {k}]", q.n, q.k, q.format)));
@@ -255,6 +291,10 @@ fn load_fc(src: &dyn WeightSource, b: &dyn Backend, add_bytes: &dyn Fn(u64), h: 
         for r in 0..h {
             let row = &raw[r * taps * h * 2..(r + 1) * taps * h * 2];
             part.extend_from_slice(&row[i * h * 2..(i + 1) * h * 2]);
+        }
+        if draft_fp8() {
+            fc.push(host_to_fp8(b, add_bytes, &crate::tensor::HostTensor::new(DType::Bf16, vec![h, h], part)?)?);
+            continue;
         }
         let buf = crate::backend::upload_new(b, &part)?;
         add_bytes(part.len() as u64);
@@ -483,6 +523,15 @@ impl Model {
         if d.active && !d.synced {
             return Ok(Vec::new()); // the context cache lost a pass: this request decodes plainly from here
         }
+        // lane dcp: INTARSIA_SPEC_TRACE=1 syncs between the phases of a DFlash2 draft and prints their host times
+        let tr = crate::spec::trace_enabled() && head.v2.is_some();
+        let sync = |tr: bool| -> Result<std::time::Instant> {
+            if tr {
+                self.backend.synchronize(self.stream)?;
+            }
+            Ok(std::time::Instant::now())
+        };
+        let t_start = std::time::Instant::now();
         if d.pending > 0 {
             let mut d = st.dflash.take().unwrap();
             let r = self.dflash_flush(head, &mut d, false);
@@ -492,6 +541,7 @@ impl Model {
             st.dflash = Some(d);
             r?;
         }
+        let t_flush = sync(tr)?;
         let d = st.dflash.as_ref().unwrap();
         if !d.active || !d.synced || d.kv.len != st.len {
             return Err(Error::invalid(format!(
@@ -522,6 +572,7 @@ impl Model {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
             }
             let x = self.dflash2_block(d2, &d.kv, t, profile);
+            let t_block = sync(tr)?;
             let n = self.view(&ws.n, act, &[t, hd]);
             // the draft's logits and argmax on this rank alone (the target's verify head would all-gather under a vocab-parallel head)
             let headed = x.and_then(|x| {
@@ -541,10 +592,13 @@ impl Model {
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
             }
             headed?;
+            let t_head = sync(tr)?;
             let sel = d2.selector.as_ref();
             if let Some(sl) = sel {
                 self.proj(&n.rows(1, t - 1), &sl.proj, &self.view(&d2.sel_out, act, &[t - 1, sl.rank]), profile)?;
             }
+            let t_proj = sync(tr)?;
+            let mut t_dl = t_proj;
             let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("--spec dflash needs verify passes enabled (Model::enable_verify)"))?;
             if self.recorder.lock().unwrap().is_some() {
                 return Ok(Vec::new());
@@ -560,6 +614,7 @@ impl Model {
                     let mut lb = vec![0u8; (t - 1) * v * 4];
                     self.backend.download(&ws.logits, 0, &mut lb, self.stream)?;
                     let logits: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+                    t_dl = std::time::Instant::now();
                     let mut hb = vec![0u8; (t - 1) * sl.rank * act.size_bytes()];
                     self.backend.download(&d2.sel_out, 0, &mut hb, self.stream)?;
                     let mut hp = vec![0f32; (t - 1) * sl.rank];
@@ -568,6 +623,20 @@ impl Model {
                 }
             };
             drafts.truncate(k);
+            if tr {
+                let ms = |a: std::time::Instant, b: std::time::Instant| b.duration_since(a).as_secs_f64() * 1e3;
+                let t_end = std::time::Instant::now();
+                eprintln!(
+                    "spec: dflash2 draft flush {:.3} block {:.3} head {:.3} selproj {:.3} dl {:.3} select {:.3} total {:.3} ms",
+                    ms(t_start, t_flush),
+                    ms(t_flush, t_block),
+                    ms(t_block, t_head),
+                    ms(t_head, t_proj),
+                    ms(t_proj, t_dl),
+                    ms(t_dl, t_end),
+                    ms(t_start, t_end)
+                );
+            }
             if let Some(f) = head.script.lock().unwrap().as_ref() {
                 let mut seq = st.tokens.clone();
                 seq.push(next);
