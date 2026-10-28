@@ -1,0 +1,45 @@
+fleetq: #6528 running on spark1: scripts/msd/le-window.sh w2 2 base:base::--max-batch_16 g2:dev2:INTARSIA_MOE_ROWS_GROUP_MIN=2:--max-batch_16 g8:dev2:INTARSIA_MOE_ROWS_GROUP_MIN=8:--max-batch_16
+== round 1 arm base 15:02:30
+base r1: MemAvailable 57054 MB with the server up
+msd-base-r1: - result file: `results/20261028-150308-adhoc-msd-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261028-150308-adhoc-msd-base-r1/result.json 
+[localeval] 1 streams: aggregate 81.1 tok/s
+[localeval] 4 streams: aggregate 166.4 tok/s
+[localeval] 8 streams: aggregate 220.4 tok/s
+[localeval] 16 streams: aggregate 264.9 tok/s
+== round 1 arm g2 15:03:55
+g2 r1: MemAvailable 56459 MB with the server up
+msd-g2-r1: - result file: `results/20261028-150440-adhoc-msd-g2-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261028-150440-adhoc-msd-g2-r1/result.json 
+[localeval] 1 streams: aggregate 79.9 tok/s
+[localeval] 4 streams: aggregate 162.2 tok/s
+[localeval] 8 streams: aggregate 211.9 tok/s
+[localeval] 16 streams: aggregate 271.9 tok/s
+== round 1 arm g8 15:05:27
+g8 r1: MemAvailable 57054 MB with the server up
+msd-g8-r1: - result file: `results/20261028-150603-adhoc-msd-g8-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261028-150603-adhoc-msd-g8-r1/result.json 
+[localeval] 1 streams: aggregate 80.5 tok/s
+[localeval] 4 streams: aggregate 171.7 tok/s
+[localeval] 8 streams: aggregate 211.6 tok/s
+[localeval] 16 streams: aggregate 261.6 tok/s
+== round 2 arm g8 15:06:50
+g8 r2: MemAvailable 57072 MB with the server up
+msd-g8-r2: - result file: `results/20261028-150733-adhoc-msd-g8-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261028-150733-adhoc-msd-g8-r2/result.json 
+[localeval] 1 streams: aggregate 81.0 tok/s
+[localeval] 4 streams: aggregate 168.3 tok/s
+[localeval] 8 streams: aggregate 212.1 tok/s
+[localeval] 16 streams: aggregate 264.0 tok/s
+== round 2 arm g2 15:08:20
+g2 r2: MemAvailable 57112 MB with the server up
+msd-g2-r2: - result file: `results/20261028-150901-adhoc-msd-g2-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261028-150901-adhoc-msd-g2-r2/result.json 
+[localeval] 1 streams: aggregate 81.7 tok/s
+[localeval] 4 streams: aggregate 165.0 tok/s
+[localeval] 8 streams: aggregate 213.9 tok/s
+[localeval] 16 streams: aggregate 261.5 tok/s
+== round 2 arm base 15:09:48
+base r2: MemAvailable 57111 MB with the server up
+msd-base-r2: - result file: `results/20261028-151026-adhoc-msd-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261028-151026-adhoc-msd-base-r2/result.json 
+[localeval] 1 streams: aggregate 81.9 tok/s
+[localeval] 4 streams: aggregate 167.0 tok/s
+[localeval] 8 streams: aggregate 218.0 tok/s
+[localeval] 16 streams: aggregate 267.5 tok/s
+== done 15:11:12
+fleetq: #6528 done (exit 0)

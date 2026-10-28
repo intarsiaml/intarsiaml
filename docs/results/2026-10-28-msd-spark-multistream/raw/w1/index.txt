@@ -1,0 +1,6 @@
+msd-base-r1: - result file: `results/20261028-141438-adhoc-msd-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261028-141438-adhoc-msd-base-r1/result.json 
+msd-g2-r1: - result file: `results/20261028-141613-adhoc-msd-g2-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261028-141613-adhoc-msd-g2-r1/result.json 
+msd-g5-r1: - result file: `results/20261028-141738-adhoc-msd-g5-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261028-141738-adhoc-msd-g5-r1/result.json 
+msd-g5-r2: - result file: `results/20261028-141908-adhoc-msd-g5-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261028-141908-adhoc-msd-g5-r2/result.json 
+msd-g2-r2: - result file: `results/20261028-142034-adhoc-msd-g2-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261028-142034-adhoc-msd-g2-r2/result.json 
+msd-base-r2: - result file: `results/20261028-142159-adhoc-msd-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261028-142159-adhoc-msd-base-r2/result.json 

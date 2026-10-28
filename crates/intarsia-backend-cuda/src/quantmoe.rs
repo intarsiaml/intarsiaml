@@ -137,6 +137,19 @@ pub const NVFP4_MIN_TOKENS: usize = 1024;
 /// docs/results/2026-10-18-cuda-moe-w4a16.md, which had them even at 1024 and 15 to 24 % apart at 2048 and 4096).
 pub const W4A16_MIN_TOKENS: usize = 768;
 
+/// Fewest rows for which the multi-token (rows) decode experts launchers hand the call to the row-grouped kernels of moe.cu
+/// (`INTARSIA_MOE_ROWS_GROUP_MIN`, read by the launcher at every call; 0 or unset: never). Bitwise the same per-pair arithmetic.
+pub fn moe_rows_group_min() -> usize {
+    std::env::var("INTARSIA_MOE_ROWS_GROUP_MIN").ok().and_then(|v| v.parse().ok()).unwrap_or(0)
+}
+
+/// Scratch bytes of the rows decode experts kernels: the two-launch kernels' `h`, or, when `INTARSIA_MOE_ROWS_GROUP_MIN` lets the
+/// launcher take the grouped path, the grouped kernels' (a superset, so a call of either kind fits).
+pub fn moe_experts_decode_rows_scratch(s: &ShapeInfo) -> usize {
+    let a = moe_experts_decode_scratch(s);
+    if moe_rows_group_min() > 0 { a.max(moe_experts_scratch(s)) } else { a }
+}
+
 /// Scratch bytes of `moe_experts_nvfp4_mma_bf16`: the grouped kernel's, plus the quantised activations
 /// (`xq` u8 `[T,H/2]`, `xs` e4m3 `[T,H/16]`, `xg` f32 `[T]`, and the same three for the sorted `h` `[P,I]`), each region
 /// rounded up to 256 bytes (kernels/cuda/moe_nvfp4_mma_sm120a.cu, `scratch_layout`).
@@ -375,7 +388,7 @@ pub fn all() -> Vec<KernelImpl> {
                     })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
-                    .scratch(moe_experts_decode_scratch)
+                    .scratch(moe_experts_decode_rows_scratch)
                     .priority(20)
                     .rows_exact(),
                 // grouped tensor-core experts for batches (prefill): H % 128, I % 128, at least 32 tokens so a typical
@@ -473,7 +486,7 @@ pub fn all() -> Vec<KernelImpl> {
                     })
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
-                    .scratch(moe_experts_decode_scratch)
+                    .scratch(moe_experts_decode_rows_scratch)
                     .priority(19)
                     .ext()
                     .rows_exact(),

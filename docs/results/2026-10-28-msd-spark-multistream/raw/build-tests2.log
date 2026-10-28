@@ -1,0 +1,8 @@
+fleetq: #6473 running on spark1: scripts/msd/test.sh build
+    |
+
+For more information about this error, try `rustc --explain E0716`.
+warning: `intarsia-backend-cuda` (test "rows_exact") generated 1 warning
+error: could not compile `intarsia-backend-cuda` (test "rows_exact") due to 1 previous error; 1 warning emitted
+warning: build failed, waiting for other jobs to finish...
+fleetq: #6473 done (exit 0)
