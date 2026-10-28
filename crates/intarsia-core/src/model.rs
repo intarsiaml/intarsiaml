@@ -1596,6 +1596,13 @@ impl Model {
     /// are committed; the caller truncates the rejected ones (attention reads keys `<= st.len + t` only, so rows
     /// past the accepted length are never seen and are overwritten by the next append).
     pub fn forward_verify(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<u32>> {
+        let pos = st.len;
+        let r = self.forward_verify_inner(st, ids)?;
+        self.det_tap_flush(pos, ids.len())?;
+        Ok(r)
+    }
+
+    fn forward_verify_inner(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<u32>> {
         Self::check_forward(st, ids, HeadMode::LastArgmax, false)?;
         let q = ids.len();
         let Some(tok) = &self.verify_tok else {
