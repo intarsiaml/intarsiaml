@@ -614,12 +614,6 @@ impl Drafter {
     fn idx(self) -> usize {
         self as usize
     }
-    fn other(self) -> Drafter {
-        match self {
-            Drafter::Mtp => Drafter::Dflash,
-            Drafter::Dflash => Drafter::Mtp,
-        }
-    }
 }
 
 /// `INTARSIA_SPEC_AUTO` override of [`AutoPolicy`]: pin one drafter, or switch every `n` passes (tests, A/B runs).
