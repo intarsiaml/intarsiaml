@@ -1,0 +1,9 @@
+fleetq: #6576 running on spark1: ssh -n -o BatchMode=yes spark1 'bash ~/intarsiaml-msd2/plan.sh'
+PASS plan 8 json byte-identical (8758 B, md5 b1a1150e)
+PASS plan 8 txt byte-identical (1478 B, md5 7742cef8)
+PASS plan 35 json byte-identical (15336 B, md5 8c7a3de5)
+PASS plan 35 txt byte-identical (3946 B, md5 7b9068be)
+PASS plan g json byte-identical (8408 B, md5 2a659412)
+PASS plan g txt byte-identical (1797 B, md5 ec4ef23e)
+plan fails=0
+fleetq: #6576 done (exit 0)
