@@ -971,9 +971,10 @@ fn timing_rows_evict() {
     };
     // fp8: the 35B's GDN in_qkv, in_z / attention q, k / v, GDN out / o_proj
     if only.is_empty() || only.contains("fp8") {
-        let forms: [(&str, &str, &str, &str); 10] = [
+        let forms: [(&str, &str, &str, &str); 11] = [
             ("base", "", "0", ""),
             ("auto", "", "1", ""),
+            ("unset", "", "", ""),
             ("full1x16", "1x16", "0", ""),
             ("full4x8", "4x8", "0", ""),
             ("q2x8", "", "all", ""),
@@ -1021,8 +1022,8 @@ fn timing_rows_evict() {
                     .iter()
                     .map(|w| OpCall::new(Op::Matmul, vec![x.rows(0, m), w.clone()], vec![rig.put(&HostTensor::zeros(DType::Bf16, &[m, n]))], a.clone()))
                     .collect();
-                for r in ["0", "auto", "1", "2", "4", "8"] {
-                    set(&[("INTARSIA_CUDA_BF16_ROWS_SPLIT", r)]);
+                for r in ["0", "unset", "auto", "1", "2", "4", "8"] {
+                    set(&[("INTARSIA_CUDA_BF16_ROWS_SPLIT", if r == "unset" { "" } else { r })]);
                     let us = time_pool("matmul_bf16_gemv_rows", Op::Matmul, &calls);
                     println!("EVT bf16 {n}x{k} split={r:<4} M={m:<2} {us:8.2} us {:7.1} GB/s", (n * k * 2) as f64 / us / 1e3);
                 }
@@ -1037,7 +1038,7 @@ fn timing_rows_evict() {
             let bytes = n * k / 2 + n * k / 16;
             let pools: Vec<Vec<TensorRef>> = (0..pool_of(bytes)).map(|_| q.parts.iter().map(|p| rig.put(p)).collect()).collect();
             let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
-            let splits: &[&str] = if n > 100000 { &["0", "auto", "f2x16", "f1x16", "f2x8", "f4x8"] } else { &["0", "auto", "1", "2", "4", "8"] };
+            let splits: &[&str] = if n > 100000 { &["0", "unset", "auto", "f2x16", "f1x16", "f2x8", "f4x8"] } else { &["0", "unset", "auto", "1", "2", "4", "8"] };
             for &m in &ms {
                 let calls: Vec<OpCall> = pools
                     .iter()
@@ -1049,6 +1050,7 @@ fn timing_rows_evict() {
                     .collect();
                 for r in splits {
                     match *r {
+                        "unset" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", ""), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "")]),
                         "0" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "0"), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "0")]),
                         "auto" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "auto"), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "auto")]),
                         f if f.starts_with('f') => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "auto"), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", &f[1..])]),

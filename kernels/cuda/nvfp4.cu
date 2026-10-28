@@ -277,14 +277,15 @@ void full_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const fl
     kern<<<(unsigned)(blocks < cap ? blocks : cap), W * IK_WARP, smem, s>>>(x, w, bs, gs, out, N, (int)K);
 }
 
-// INTARSIA_CUDA_NVFP4_ROWS_FULL (opt-in: the lane's serve A/B missed its merge gates): `auto` = the persistent kernel for M >= 5
-// when N >= 16384 and x fits 96 KB of shared memory, unset / `0` = never (the kernel of before), a shape NTxW (`2x16`, `1x16`, `2x8`, `4x8`) = that shape wherever x fits;
+// INTARSIA_CUDA_NVFP4_ROWS_FULL (default on, decided 2026-10-28 over the lane's speed gates): unset / `auto` = the persistent kernel for M >= 5
+// when N >= 16384 and x fits 96 KB of shared memory, `0` = never (the kernel of before), a shape NTxW (`2x16`, `1x16`, `2x8`, `4x8`) = that shape wherever x fits;
 // the default shape is 2x16 below 12 rows and 4x8 from 12 (16-row lm_head micro-timing, evicted: 2x16 2210 us, 4x8 1964, tile 2128)
 template <int M, typename OutT>
 bool full_run_m(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
     if ((size_t)M * K * 2 > kFullSmemMax) return false;
     const char* e = getenv("INTARSIA_CUDA_NVFP4_ROWS_FULL");
-    if (!e || (e[0] == '0' && e[1] == 0)) return false;
+    if (!e) e = "auto";  // default on
+    if (e[0] == '0' && e[1] == 0) return false;
     const bool forced = e && (!strcmp(e, "2x16") || !strcmp(e, "1x16") || !strcmp(e, "2x8") || !strcmp(e, "4x8"));
     if (!forced && (strcmp(e, "auto") || M < 5 || N < 16384)) return false;
     if (forced && !strcmp(e, "1x16")) full_launch<M, 1, 16>(x, w, bs, gs, out, N, K, s);
@@ -308,14 +309,15 @@ bool full_run(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float
     }
 }
 
-// Rows per group of the split (opt-in: the lane's serve A/B missed its merge gates): INTARSIA_CUDA_NVFP4_ROWS_SPLIT unset / 0 never
-// splits, 1 | 2 | 4 | 8 forces R, `auto` the largest R that leaves a grid of 96 blocks (no split when the unsplit tiling already
+// Rows per group of the split (default on, decided 2026-10-28 over the lane's speed gates): INTARSIA_CUDA_NVFP4_ROWS_SPLIT `0` never
+// splits, unset = `auto`, 1 | 2 | 4 | 8 forces R, `auto` the largest R that leaves a grid of 96 blocks (no split when the unsplit tiling already
 // has them). The split's
 // outputs per warp: 2 when that leaves 16 output blocks, else 1.
 constexpr int64_t kSplitMinBlocks = 96;
 inline int split_rows(int64_t M, int64_t gx) {
     const char* e = getenv("INTARSIA_CUDA_NVFP4_ROWS_SPLIT");
-    if (!e || (e[0] == '0' && e[1] == 0)) return (int)M;
+    if (!e) e = "auto";  // default on
+    if (e[0] == '0' && e[1] == 0) return (int)M;
     if (e && (e[0] == '1' || e[0] == '2' || e[0] == '4' || e[0] == '8') && e[1] == 0) return e[0] - '0' < M ? e[0] - '0' : (int)M;
     if (strcmp(e, "auto") || gx >= kSplitMinBlocks) return (int)M;
     for (int r = 8; r > 1; r /= 2)

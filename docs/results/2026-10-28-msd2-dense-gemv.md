@@ -85,7 +85,7 @@ Evicted micro-timing (`rows_exact` `timing_rows_evict`: each launch reads a diff
 ## 4. Serve A/B (W2, `scripts/msd/le-window.sh w2 3 base dev`, `raw/w2/`)
 
 localeval `speed --sizes 1024 --gen 256 --reps 3 --concurrency 1,4,8,16 --thinking off`, a fresh server per arm, arms interleaved (even rounds reversed), same harness as #213 / #222.
-Dev ran with the four knobs on (they were the default in that build; the opt-in flip after the A/B changes only the unset value).
+Dev ran with the four knobs on (they were the default in that build). The merged build has them on by default (see Decision).
 
 | streams | base tok/s (r1, r2, r3) | dev tok/s (r1, r2, r3) | median of paired ratios | gate |
 |---|---|---|---:|---|
@@ -107,6 +107,12 @@ Single-stream 1k: decode 84.0 -> 83.8 tok/s (0.998), prefill 5322 -> 5342 (1.004
 | Mac `cargo test --workspace --release` | pass (`raw/mac-cargo-test.log`, `raw/mac-cargo-test-final.log`) |
 | CI | see the PR |
 
+## Decision
+
+User decision 2026-10-28: #224 merges with the four knobs default ON (`INTARSIA_CUDA_FP8_ROWS_Q=1`, `INTARSIA_CUDA_BF16_ROWS_SPLIT=auto`, `INTARSIA_CUDA_NVFP4_ROWS_SPLIT=auto`,
+`INTARSIA_CUDA_NVFP4_ROWS_FULL=auto`; each set to `0` restores the old path), overriding the +5 % / +3 % speed gates. Reasons: +3.4 % decode at 16 streams, bitwise identical to
+main, and the shared-memory cap race fix. `docs/decisions/LOG.md` has the row.
+
 ## Not done, next
 
 1. What is left of the dense GEMVs is small: the fp8 K = 2048 calls run at about 1.07..1.23x their one-row time (0.5 ms at 16 streams) and the remaining small calls are at
@@ -114,5 +120,5 @@ Single-stream 1k: decode 84.0 -> 83.8 tok/s (0.998), prefill 5322 -> 5342 (1.004
    form of the pair ops (an engine change).
 2. The 16-stream gap to vLLM is now mostly the routed experts (22 ms, 45 %) and GDN (8.9 ms, at its f32-state ceiling). #222's row-grouped experts did not pay off
    (independent routing); bf16 GDN state is the only large lever left and changes numerics.
-3. The knobs can be turned on as a set (`INTARSIA_CUDA_FP8_ROWS_Q=1 INTARSIA_CUDA_BF16_ROWS_SPLIT=auto INTARSIA_CUDA_NVFP4_ROWS_SPLIT=auto INTARSIA_CUDA_NVFP4_ROWS_FULL=auto`)
+3. (Done by the Decision above: the knobs are on by default.) They were turned on as a set (`INTARSIA_CUDA_FP8_ROWS_Q=1 INTARSIA_CUDA_BF16_ROWS_SPLIT=auto INTARSIA_CUDA_NVFP4_ROWS_SPLIT=auto INTARSIA_CUDA_NVFP4_ROWS_FULL=auto`)
    for +3 % at 16 streams with identical tokens, should a later lane stack a further gain on them.
