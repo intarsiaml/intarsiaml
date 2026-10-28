@@ -40,7 +40,7 @@ if [[ ${DRY:-0} == 1 ]]; then
   exit 0
 fi
 FIFO=$(mktemp -u "$REPO/target/vrcguard.XXXXXX"); mkfifo "$FIFO"
-$SSH 'mkdir -p ~/intarsiaml-vrc/.vrc' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE/stages-ids.sh" tatooine:intarsiaml-vrc/.vrc/
+$SSH 'mkdir -p ~/intarsiaml-vrc/.vrc' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE/stages-ids.sh" "$HERE/stages-phase.sh" tatooine:intarsiaml-vrc/.vrc/
 $SSH 'bash ~/intarsiaml-vrc/.vrc/guard.sh' > "$OUT/guard.log" 2>&1 < "$FIFO" &
 GUARD=$!
 exec 9> "$FIFO"
@@ -53,9 +53,9 @@ trap cleanup EXIT
 
 # PRE=ids: first the 27B ids gate (scripts/vrc/stages-ids.sh ON tatooine, IDARMS / TPS passed through, at most PRE_CAP s), its
 # output fetched into raw/<W>/ids/
-if [[ ${PRE:-} == ids ]]; then
+if [[ ${PRE:-} == ids || ${PRE:-} == phase ]]; then
   say "pre: ids gate (arms ${IDARMS:-dfl mtp2}, ${TPS:-tp1 tp2}, cap ${PRE_CAP:-1200} s)"
-  $SSH "rm -rf ~/intarsiaml-vrc/.vrc/out/$W-ids; mkdir -p ~/intarsiaml-vrc/.vrc/out/$W-ids; IDARMS='${IDARMS:-dfl mtp2}' TPS='${TPS:-tp1 tp2}' IDNAMES='${IDNAMES:-}' VERIFY8='${VERIFY8:-0}' timeout ${PRE_CAP:-1200} bash ~/intarsiaml-vrc/.vrc/stages-ids.sh ~/intarsiaml-vrc/.vrc/out/$W-ids" \
+  $SSH "rm -rf ~/intarsiaml-vrc/.vrc/out/$W-ids; mkdir -p ~/intarsiaml-vrc/.vrc/out/$W-ids; IDARMS='${IDARMS:-dfl mtp2}' TPS='${TPS:-tp1 tp2}' IDNAMES='${IDNAMES:-}' VERIFY8='${VERIFY8:-0}' timeout ${PRE_CAP:-1200} bash ~/intarsiaml-vrc/.vrc/stages-${PRE}.sh ~/intarsiaml-vrc/.vrc/out/$W-ids" \
     < /dev/null > "$OUT/ids-pre.log" 2>&1
   say "pre: ids exit $?"
   mkdir -p "$OUT/ids"; scp -q "tatooine:intarsiaml-vrc/.vrc/out/$W-ids/*" "$OUT/ids/" 2>/dev/null
@@ -68,17 +68,19 @@ if [[ ${PROBE:-0} == 1 ]]; then
 fi
 
 serve() { # serve <arm>
-  local arm=$1 spec ENVX=""
-  case $arm in
+  local arm=$1 spec ENVX="" base=$1
+  # lane vrc: arm "<arm>-old" = the same arm with the lane's new paths off (OLDENV, default the GDN verify snapshot launch)
+  if [[ $arm == *-old ]]; then base=${arm%-old}; ENVX="${OLDENV:--e INTARSIA_HIP_GDN_VERIFY_FUSE=0}"; fi
+  case $base in
     off) spec="--spec off" ;;
     mtp2) spec="--spec mtp --spec-k 2" ;;
-    mtp*) spec="--spec mtp --spec-k ${arm#mtp}" ;;
-    dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${arm#dfl}" ;;
+    mtp*) spec="--spec mtp --spec-k ${base#mtp}" ;;
+    dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${base#dfl}" ;;
   esac
   RECIPE="HIP_VISIBLE_DEVICES=$GPUS vrc-intarsia serve --backend hip --model 27B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree $TREE, docker $IMG, lane vrc)"
   $SSH "docker rm -f vrc-serve >/dev/null 2>&1; docker run -d --name vrc-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
-    --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=$GPUS \
+    --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=$GPUS $ENVX \
     -v \$HOME/intarsiaml-vrc:/work -v /data/models:/models:ro -w /work $IMG /work/vrc-intarsia serve --backend hip --model $M27 \
     --served-model-name qwen38-27b-$arm $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 --no-supervisor --host 0.0.0.0 --port $PORT" \
     < /dev/null > "$OUT/docker-$arm.id" 2>&1
