@@ -165,6 +165,17 @@ so the logits move only slightly; and `INTARSIA_HIP_AR_DRAIN=5` (wait ~25 us aft
 the last one with the tap. It does not explain why `--spec off` is rarer, or why all three w7 events are at layer 2 (w4's last-row tap first
 differed at layer 1; both tap builds index layers from 0, but the last-row view cannot see where a non-last row first went wrong).
 
+**w8 (10:39-11:04, tapped, `--spec mtp`, 16 tokens, fresh processes): the P2P handshake hypothesis holds.**
+
+| arm | processes | taps different | if the arm changed nothing (baseline 3/200 tapped, w7) |
+|---|---|---|---|
+| `INTARSIA_HIP_AR_DRAIN=5` (~25 us wait after the peer's flag before reading its data) | 300 | 0; all 300 byte-equal to w7's baseline majority `tap-1` | P(0) ~ 1%; Fisher 0/300 vs 3/200 p ~ 0.06 |
+| `--comm host` (host-staged all-reduce, no P2P kernel) | 200 | 0 (all equal; own bits, same ids as P2P) | P(0) ~ 5% |
+
+With w7's untapped arms (drain5 0/200, host 0/150 at the id level, against mode 3's 5/400 in w5 and w7) this answers w7's question for (a): delaying
+the read until long after the flag removes the event without changing a single bit of the normal output, so the late part is the data, not a
+computation after the all-reduce (that would not care about a wait before the read), and a host all-reduce has no event either.
+
 ## 4. Raw
 
 - `raw/w4/` .. `raw/w9/`: per arm `<arm>.ids` (one line per fresh process), `steps.log`, `window.log`; taps only for the events and one reference
