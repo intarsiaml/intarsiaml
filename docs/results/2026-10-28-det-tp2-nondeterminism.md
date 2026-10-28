@@ -61,11 +61,23 @@ split count is a function of the KV length only (`kernels.rs` `splitkv_parts`), 
 | det w2 `soakA-mtp10` | `--spec mtp --spec-k 2`, fresh process (1 of 30) | 20 | 0.1240 |
 | vat w3 | serve dflash k7 round 3, chat-sleep (the first request of a fresh server) | char 74 | |
 | vat w3 | serve dflash k7 old path round 5, chat-sleep (first request) | char 107 | |
+| det w4 `mtptap20` | `--spec mtp --spec-k 2`, fresh process, tap on (1 of 43; off 0 of 43) | 38 | |
 
-Common to all: a fresh process, the first ~30 generated tokens, a flip at a margin (0.08, 0.12) well above the smallest margins before it (token 17 at 0.0123 did not flip). That is a discrete wrong value in
+Common to all: a fresh process, the first ~40 generated tokens, a flip at a margin (0.08, 0.12) well above the smallest margins before it (token 17 at 0.0123 did not flip). That is a discrete wrong value in
 one step, not rounding noise. Repeats inside one process (130 runs) never parted.
 
-TODO: w4 (tapped fresh processes: which pass and layer), w5 (rate, tp=1 per card), the explorer audit of work in flight at process start.
+**w4: the wrong value is already in the prefill.** `mtptap20`'s tap (`raw/w4/mtptap20.tap`, reference `mtptap18.tap`; the other 42 mtp and 43 off taps are equal to each other) differs
+from pass 0 on, the 38-row prefill (`pos=0 t=38`): layer 0's last row is equal, layer 1 (GatedDeltaNet) differs, and every later pass differs. Rank 0 equals rank 1 inside the run, so
+whatever went wrong went wrong before or inside an all-reduce and both ranks got the same wrong sum; that does not say which rank. The w4 tap hashed only the last row of each layer
+(the build predates `398c2c943`), and GDN's last row depends on every earlier row, so the bad value can be in any row of layer 0's output or inside layer 1. At t=38 the GDN layers run
+`gdn_conv_bf16` + `gdn_delta_rule_bf16_v2` (the fused conv+delta launch is for t <= 32, v3 for t >= 64). The token only flips 38 tokens later: a small prefill error that the
+greedy argmax absorbs until a near tie.
+
+**tatooine hard-reset at 08:02:40**, the second the next w4 process (`mtptap44`) started its container (the previous boot's journal stops mid-container-start with no shutdown, the next
+boot is at 08:03:03; `raw/w4/steps.log` ends at `offtap43`). ~600 det processes before it started cleanly. One event, cause unknown (power transient at load, PCIe, driver);
+noted because a marginal host is also a way to get rare, non-reproducible wrong values.
+
+TODO: w6 (per-row tap, 70 mtp + 70 off fresh processes: first (layer, row) that differs), w5 (rate on `--spec mtp`: tp=2, tp=2 with capture and peer syncs, tp=1 per card).
 
 ## 4. Raw
 
