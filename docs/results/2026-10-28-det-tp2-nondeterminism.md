@@ -77,6 +77,12 @@ greedy argmax absorbs until a near tie.
 boot is at 08:03:03; `raw/w4/steps.log` ends at `offtap43`). Every det process before it today (about 300) started cleanly. One event, cause unknown (power transient at load, PCIe, driver);
 noted because a marginal host is also a way to get rare, non-reproducible wrong values.
 
+**Audit of the t=38 prefill path (read-only, no kernel suspect).** Every kernel there zero-fills or clamps its tile tails and guards its stores; no float atomics, no split-K; the
+activation scale is per row (`ik_mx_a8.h:63-90`), so padded rows never enter it; kernel choice is env and shape only. `mxfp4_a8_gemm` at M=38 uses 128x32 tiles and the conv
+32-token tiles, so a tail bug would first show at rows 32..37, which w6 can see. A bug that repeats would also repeat inside one process, so a fresh-process-only event points at a
+race at start-up (load or MTP set-up work on another stream, not yet audited) or the host. Off has 0 events in ~380 fresh processes against mtp's 2 in 73: the mtp head's load and
+set-up is the obvious difference.
+
 TODO: w6 (per-row tap, 70 mtp + 70 off fresh processes: first (layer, row) that differs), w5 (rate on `--spec mtp`: tp=2, tp=2 with capture and peer syncs, tp=1 per card).
 
 ## 4. Raw
