@@ -1597,6 +1597,7 @@ impl Model {
     /// past the accepted length are never seen and are overwritten by the next append).
     pub fn forward_verify(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<u32>> {
         let pos = st.len;
+        self.det_tap_begin();
         let r = self.forward_verify_inner(st, ids)?;
         self.det_tap_flush(pos, ids.len())?;
         Ok(r)
@@ -2059,6 +2060,7 @@ impl Model {
         on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
         let pos = st.len;
+        self.det_tap_begin();
         let r = if self.remote.is_some() {
             self.forward_remote(st, ids, mode, on_row)
         } else if self.peers.is_empty() {

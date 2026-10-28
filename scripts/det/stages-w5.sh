@@ -6,19 +6,6 @@ set -uo pipefail
 export O=${1:?out dir}
 source "$(dirname "$0")/lib.sh"
 clear w5 || exit 2
-# loop <tag> <gpus> <n> [intarsia args]: n fresh processes in one container, stderr of each to $O/<tag>-<i>.err (ids line only kept)
-loop() {
-  local tag=$1 gpus=$2 n=$3; shift 3
-  local o=${O/#$TREE//work}
-  INTARSIA_REPO=$TREE HIP_VISIBLE_DEVICES=$gpus timeout 2400 "$TREE/deploy/tatooine/dev.sh" bash -c '
-    tag=$1 n=$2 o=$3 E=$4; shift 4
-    for i in $(seq 1 "$n"); do
-      env $E /work/det-intarsia generate -m "'"$M27"'" --backend hip --mem-budget 29 --max-seq 20480 --chat --no-think --profile-every 0 \
-        --ignore-eos --show-ids -p "$(cat /work/scripts/dfh/ids-prompts/short-5.txt)" --max-tokens 48 "$@" > /dev/null 2> "$o/$tag.tmp"
-      echo "rc=$? $(grep -a "^ids" "$o/$tag.tmp")" >> "$o/$tag.ids"
-    done; rm -f "$o/$tag.tmp"' _ "$tag" "$n" "$o" "${E:-}" "$@" < /dev/null
-  log "$tag: $(wc -l < "$O/$tag.ids") processes, $(cut -d' ' -f2- "$O/$tag.ids" | sort | uniq -c | sort -rn | awk '{print $1}' | tr '\n' ' ')distinct-count"
-}
 loop tp2 0,1 150 --tp 2 --devices 0,1 --spec off
 # the peer rank is never host-synced, so its first capture can start while its prefill is queued: sync before capture, after a peer step
 E="INTARSIA_GRAPH_SYNC_CAPTURE=1 INTARSIA_TP_PEER_SYNC=1" loop tp2sync 0,1 150 --tp 2 --devices 0,1 --spec off
