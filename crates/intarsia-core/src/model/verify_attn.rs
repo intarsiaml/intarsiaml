@@ -139,8 +139,10 @@ impl Model {
             tab.offset = POS_BYTES + a.slot * REGION_BYTES;
             (tab, self.view(&buf, DType::I32, &[t]))
         };
+        // the positions are the call's `pos` tensor; `attrs.pos0` stays 0 as in the batched row-table calls (`check` would otherwise
+        // bound `pos0 + t` by the cache capacity, which the last rows of a full cache exceed in the call's own terms)
         let mut at = attrs.clone();
-        at.pos0 = pos0 + t - 1;
+        at.pos0 = 0;
         let mut call = OpCall::new(Op::AttnDecode, vec![q.clone(), kcache.clone(), vcache.clone()], vec![out.clone()], at);
         call.pos = Some(pos);
         call.rows = Some(crate::ops::RowTab { ptrs: tab, rows: t, stride: 2, index: 0, byte_off: 0 });

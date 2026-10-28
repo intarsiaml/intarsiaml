@@ -135,7 +135,7 @@ fn verify_rows_launch_is_the_per_row_launches() {
             ptrs.offset = POS_BYTES + slot * REGION_BYTES;
             let pos = TensorRef::new(buf.clone(), DType::I32, &[t]);
             let o = rig.poison(t * nh * d * 2, &[t, nh, d]);
-            let attrs = OpAttrs { pos0: pos0 + t - 1, scale, n_heads: nh, n_kv_heads: nkv, head_dim: d, kv_cap: cap, ..Default::default() };
+            let attrs = OpAttrs { pos0: 0, scale, n_heads: nh, n_kv_heads: nkv, head_dim: d, kv_cap: cap, ..Default::default() };
             let mut call = OpCall::new(Op::AttnDecode, vec![q.clone(), kc.clone(), vc.clone()], vec![o.clone()], attrs);
             call.pos = Some(pos);
             call.rows = Some(RowTab { ptrs, rows: t, stride: 2, index: 0, byte_off: 0 });
