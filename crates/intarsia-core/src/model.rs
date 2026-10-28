@@ -31,6 +31,7 @@ use std::time::Instant;
 mod ar_norm;
 mod batch;
 mod coll_trace;
+mod det_tap;
 mod gdn_batch;
 mod gdn_block;
 mod short_conv;
@@ -2050,6 +2051,7 @@ impl Model {
         mode: HeadMode,
         on_row: Option<RowCallback<'_>>,
     ) -> Result<StepOut> {
+        let pos = st.len;
         let r = if self.remote.is_some() {
             self.forward_remote(st, ids, mode, on_row)
         } else if self.peers.is_empty() {
@@ -2057,6 +2059,7 @@ impl Model {
         } else {
             self.forward_tp(st, ids, mode, on_row)
         };
+        let r = r.and_then(|o| self.det_tap_flush(pos, ids.len()).map(|_| o));
         if r.is_err() && st.has_recurrent() {
             let _ = st.reset(&*self.backend);
         }
@@ -2889,6 +2892,10 @@ impl Model {
                     }
                 }
                 pending = true;
+            }
+            // lane det (INTARSIA_DET_TAP, off by default): this layer's output, last row
+            if matches!(seqs, Seqs::One(_)) && dpos.is_none() {
+                self.det_tap_layer(li, t, &hv(cur), pending.then_some(&blkv))?;
             }
             // DFlash: this layer's output (residual stream plus the pending block output) is a draft input
             if let Some(head) = &self.dflash {
