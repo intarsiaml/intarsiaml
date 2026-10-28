@@ -395,7 +395,7 @@ impl Model {
             if d.pending > 0 && d.pending + t > self.dflash_pend_max() {
                 self.dflash_flush(head, &mut d, profile)?;
             }
-            if t == 1 || d.pending > 0 || (d.lazy && t <= self.dflash_pend_max()) {
+            if t == 1 || d.pending > 0 || (d.lazy && t <= Self::VERIFY_MAX_ROWS) {
                 // single-token decode steps are stashed (a lazy state stashes every pass); any other pass behind pending rows
                 // goes in with them
                 self.dflash_stash(head, &mut d, t)?;

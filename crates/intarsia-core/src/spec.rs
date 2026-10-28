@@ -818,7 +818,8 @@ impl AutoPolicy {
         }
         let a = &mut self.stats[d.idx()];
         a.tokens.add(tokens as f64, w);
-        if !self.fresh || a.ms.0.is_none() {
+        // the pass after a switch pays the catch-up (and, at the start, the deferred prompt rows): its time is not the drafter's
+        if !self.fresh {
             a.ms.add(ms, w);
         }
         self.fresh = false;
