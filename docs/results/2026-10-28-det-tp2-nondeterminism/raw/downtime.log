@@ -7,3 +7,6 @@
 2026-10-28 fleetq #6451 w7 radiance stopped 10:10:02 answers 10:37:55 (window.log in raw/w7)
 2026-10-28 fleetq #6452 w8 radiance stopped 10:39:11 answers 11:04:04 (window.log in raw/w8)
 2026-10-28 fleetq #6455 w9 radiance stopped 11:06:32 answers 11:31:56 (window.log in raw/w9)
+2026-10-28 fleetq #6461 ar-a1 radiance stopped 13:56:43 answers NEVER (guard.log in raw/ar-a1)
+2026-10-28 fleetq #6461 ar-a2 radiance stopped 14:14:10 answers 14:42:44 (guard.log in raw/ar-a2)
+2026-10-28 fleetq #6461 ar-g1 radiance stopped 14:42:57 answers 14:43:11 (guard.log in raw/ar-g1)

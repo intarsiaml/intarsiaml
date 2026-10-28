@@ -1,0 +1,3 @@
+[targets.ar]
+url = "http://tatooine:8097/v1"
+model = "qwen36-35b-d1"

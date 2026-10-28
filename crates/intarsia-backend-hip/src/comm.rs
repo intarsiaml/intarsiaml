@@ -159,7 +159,8 @@ pub fn p2p_group(backends: &[Arc<HipBackend>]) -> Result<Vec<Arc<dyn Comm>>> {
     }
     // INTARSIA_HIP_AR_DRAIN: how a rank makes its pushed data visible before it raises the flag: 3 = wait for the
     // stores to complete (default, radiance's cheaper mode; the scratch is uncached memory), 1 = a system fence in
-    // every thread (safe baseline, about twice the latency)
+    // every thread (removes the rare stale peer read, 0/250 tapped fresh processes; costs 2% decode on the 27B at tp=2, see
+    // docs/results/2026-10-28-det-tp2-nondeterminism.md section 5, so it is opt-in)
     let drain = match std::env::var("INTARSIA_HIP_AR_DRAIN").ok().as_deref() {
         None | Some("") | Some("3") => 3,
         Some("1") => 1,

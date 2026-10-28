@@ -2,7 +2,7 @@
 
 Lane `lane-det/tp2-nondeterminism`, base `origin/main` `bb48df640`. tatooine, 2x R9700 (gfx1201), `amd/Qwen3.8-27B-Quark-AWQ-MXFP4`, `generate --tp 2 --devices 0,1`, W4A8 (recipe default),
 greedy, `--ignore-eos`. Raw logs: `2026-10-28-det-tp2-nondeterminism/raw/`. Scripts: `scripts/det/`. Comparison: `tools/det/detcmp.py`.
-Status: HANDED OFF 2026-10-28 ~12:00 (see Handoff). Draft PR intarsiaml/intarsiaml#221.
+Status: HANDED OFF 2026-10-28 ~12:00 (see Handoff); lane ar measured the speed cost 2026-10-28 14:00-14:45 (section 5): the default stays 3, mode 1 is the opt-in fix. PR intarsiaml/intarsiaml#221.
 
 Trigger: lane vat saw one plain `--spec off` run of ids prompt short-5 part from four other off runs (`2026-10-28-vat-verify-attn-rows/raw/w2/ids/gen-tp2-short-5-off.ids`,
 first different token 27), and ho-chat `chat-sleep` differ from the off text in 1 of 5 fresh-server rounds of each dflash arm; lane vrc saw one old-path dflash text (ho-recall round 1) part from off.
@@ -15,8 +15,9 @@ near ties, margins 0.01 to 0.3) and never repeats inside one process. tp=1 is cl
 graph capture, an order-dependent float reduction. The P2P all-reduce's flag can reach the peer before the pushed data: with
 the default `INTARSIA_HIP_AR_DRAIN=3` (wait for the store counter) about 1.5% of tapped fresh processes show it (3/200); waiting ~25 us after the
 flag (mode 5, 0/300), a host-staged all-reduce (`--comm host`, 0/200) and a system fence in every thread before the flag (mode 1, 0/250) each
-remove it, modes 1 and 5 with output bitwise equal to the normal run. **Fix candidate: make mode 1 the default** (the code calls it the safe
-baseline, at about twice the all-reduce latency; its decode cost is not measured here, so that is the user's call). Not changed in this branch.
+remove it, modes 1 and 5 with output bitwise equal to the normal run. **Fix: `INTARSIA_HIP_AR_DRAIN=1`, opt-in.** Lane ar
+measured its cost (section 5): decode -1.9 to -2.7% on the 27B (MTP off), -1.5% with MTP k2, -3.4 to -4.6% on the 35B; mode 5 costs -12% / -22%. Both
+are over the 1% bar for a new default, so the default stays 3 (rollback value unchanged) and the knob is documented in `docs/tuning.md`.
 
 ## Handoff (2026-10-28, lane det)
 
@@ -26,9 +27,9 @@ baseline, at about twice the all-reduce latency; its decode cost is not measured
 `INTARSIA_TP_PEER_SYNC=1`, eager decode, tp=1 on either card; float atomics or split-K on the prefill path (audit, section 3).
 
 **Open.**
-- Decision: default `INTARSIA_HIP_AR_DRAIN` to 1 (correct in 250/250 tapped runs here) after a `bench speed` A/B of mode 1 against 3 at
-  tp=2 (decode and prefill; the all-reduce is ~128 launches per pass). The all-gather (`ag2_kernel`, vocab-parallel logits) has the same
-  handshake and takes the same mode.
+- Decision (lane ar, section 5): the A/B of mode 1 against 3 costs 2% decode, so the default stays 3 and mode 1 is opt-in; whether to pay
+  2% for 0/250 instead of ~1.5% flips of near-tie tokens in fresh tp=2 processes is the user's call. The all-gather (`ag2_kernel`, vocab-parallel
+  logits) has the same handshake and takes the same mode.
 - Mode 6's both-ranks events (w9): unexplained; a second mechanism is not excluded. Rerun a tapped mode-1 arm of ~500 to bound it.
 - Why `--spec off` is rarer (0 in ~450 here, 1 in vat's 5) and why all three tapped events are at layer 2.
 - The 08:02:40 hard reset of tatooine during w4 (section 3): one event, cause unknown.
@@ -37,9 +38,8 @@ baseline, at about twice the all-reduce latency; its decode cost is not measured
 - vat's server-mode dflash misses (chat-sleep, recall-tls) were not reproduced in 51 localeval-style runs (w3); they are probably the same event
   in the first request of a fresh server, not shown.
 
-**Next step.** `bench speed --tp 2` A/B of `INTARSIA_HIP_AR_DRAIN=1` against the default on tatooine (one fleetq window, ~20 min), then
-either flip the default in `crates/intarsia-backend-hip/src/comm.rs:163` (and its `docs/tuning.md` row) or, if mode 1 is too slow, design a
-handshake that does not trust the store counter (for example a sequence number in every pushed 16-byte word, read until it matches, as NCCL's
+**Next step.** (A/B done, section 5.) Flipping the default to mode 1 in `crates/intarsia-backend-hip/src/comm.rs:163` (and its `docs/tuning.md` row)
+costs 2% decode; a cheaper fix is to design a handshake that does not trust the store counter (for example a sequence number in every pushed 16-byte word, read until it matches, as NCCL's
 LL protocol does) and test it with a 300-run tapped arm (`scripts/det/stages-w9.sh` as the model).
 
 **How to rerun.** `scripts/det/window.sh` under fleetq (header of the script), stages in `scripts/det/stages-w*.sh`, one fresh process per run via
@@ -204,3 +204,64 @@ other direction or the all-gather, or there is a second mechanism that mode 3 hi
   per arm (`raw/w4/mtptap20.tap` vs `mtptap18.tap`, `raw/w7/tap-{33,88,118}.tap` vs `tap-1.tap`, `raw/w9/drain6-{8,13,127,131}.tap`); the other
   taps were byte-identical to their arm's reference and are deleted. w1/w2 taps were dropped from the branch (all equal).
 - `raw/w1/` .. `raw/w3/`: per arm `<tag>.err` (ids, margins, stats), `<tag>.tap` (layer hashes), `steps.log`, `window.log`; `raw/downtime.log` (radiance windows).
+
+## 5. Speed A/B of `INTARSIA_HIP_AR_DRAIN` (lane ar, 2026-10-28 13:57-14:43)
+
+Question: is mode 1 (system fence in every thread) or mode 5 (~25 us wait) within 1% of the default (mode 3) on every metric, so that it can become
+the default? Setup: tatooine, both R9700s, `serve --tp 2 --devices 0,1 --max-batch 1`, one binary (`origin/main` `ff31c2081` + this branch, built
+once), a fresh server per arm and round, the only difference `INTARSIA_HIP_AR_DRAIN=<d>`. Rounds interleaved with a rotating arm order
+(`d3 d1 d5; d5 d1 d3; d1 d5 d3; d3 d5 d1`), fleetq #6461, driver `scripts/ar/ab-window.sh`, tables `scripts/ar/ab_table.py`,
+`scripts/ar/ab_cats.py`, raw `raw/ar-a1/` (speed) and `raw/ar-a2/` (categories), localeval results logged under the labels `ar-a1-*` / `ar-a2-*`.
+Each cell: mean of the per-round medians (3 reps and a warmup per call), (min-max over rounds); delta = mean of the paired same-round ratios
+vs d3, worst = the worst single round. d3's own round-to-round spread is 0.1 to 0.5%, so the deltas below are not noise.
+
+**27B MXFP4, `--spec off`, `localeval speed` (gen 128), 4 rounds.**
+
+
+ar-a1-speed27 decode tok/s: mean of per-round medians (min-max over rounds, n rounds); paired delta vs d3 (mean, worst round)
+| size | d3 | d1 | d5 |
+|---|---|---|---|
+| 1024 | 56.74 (56.67-56.79, n=4) | 55.19 (54.62-55.70, n=4) **-2.72%** (worst -3.77%) | 49.76 (49.62-49.93, n=4) **-12.30%** (worst -12.58%) |
+| 4096 | 56.03 (55.98-56.07, n=4) | 54.87 (54.86-54.89, n=4) **-2.07%** (worst -2.13%) | 49.22 (49.19-49.24, n=4) **-12.17%** (worst -12.24%) |
+| 16384 | 52.98 (52.93-53.03, n=4) | 51.96 (51.93-51.98, n=4) **-1.93%** (worst -2.08%) | 46.82 (46.81-46.83, n=4) **-11.63%** (worst -11.71%) |
+
+ar-a1-speed27 prefill tok/s: mean of per-round medians (min-max over rounds, n rounds); paired delta vs d3 (mean, worst round)
+| size | d3 | d1 | d5 |
+|---|---|---|---|
+| 1024 | 3579.79 (3567.60-3596.43, n=4) | 3543.48 (3522.50-3559.61, n=4) **-1.01%** (worst -1.43%) | 3456.39 (3448.39-3471.75, n=4) **-3.45%** (worst -4.06%) |
+| 4096 | 3888.26 (3881.73-3892.85, n=4) | 3866.12 (3861.06-3874.01, n=4) **-0.57%** (worst -0.82%) | 3792.15 (3786.80-3796.84, n=4) **-2.47%** (worst -2.55%) |
+| 16384 | 3557.48 (3552.74-3566.50, n=4) | 3539.47 (3533.73-3547.08, n=4) **-0.51%** (worst -0.92%) | 3483.02 (3473.05-3499.19, n=4) **-2.09%** (worst -2.24%) |
+
+**Qwen3.6-35B-A3B NVFP4, tp=2 (`INTARSIA_TP_FUSION` default on at HIP tp>1), `localeval speed` (gen 256), 2 rounds.**
+
+
+ar-a1-speed35 decode tok/s: mean of per-round medians (min-max over rounds, n rounds); paired delta vs d3 (mean, worst round)
+| size | d3 | d1 | d5 |
+|---|---|---|---|
+| 1024 | 191.58 (191.21-191.96, n=2) | 182.76 (180.42-185.11, n=2) **-4.60%** (worst -5.64%) | 148.90 (148.69-149.11, n=2) **-22.28%** (worst -22.32%) |
+| 4096 | 188.91 (188.91-188.92, n=2) | 182.57 (182.30-182.84, n=2) **-3.36%** (worst -3.50%) | 148.24 (146.35-150.12, n=2) **-21.53%** (worst -22.53%) |
+
+ar-a1-speed35 prefill tok/s: mean of per-round medians (min-max over rounds, n rounds); paired delta vs d3 (mean, worst round)
+| size | d3 | d1 | d5 |
+|---|---|---|---|
+| 1024 | 8833.38 (8731.25-8935.51, n=2) | 8809.47 (8798.23-8820.72, n=2) **-0.26%** (worst -1.54%) | 8588.01 (8586.04-8589.98, n=2) **-2.77%** (worst -3.87%) |
+| 4096 | 11996.07 (11930.18-12061.96, n=2) | 12091.00 (12060.09-12121.91, n=2) **+0.79%** (worst +0.50%) | 11135.70 (10513.69-11757.71, n=2) **-7.14%** (worst -12.84%) |
+
+**27B MXFP4, `--spec mtp --spec-k 2`, category harness (`scripts/dfh/cats/rcp-*.jsonl`, 8 rows each, 512 forced tokens, temperature 0), 4 rounds,
+arms d3 and d1 only (d5 was already -12% in the plain decode and was dropped from this phase).**
+
+ar-a2 MTP k2 decode tok/s per category (mean of rows; mean over rounds (min-max, n)); paired delta vs d3 (mean, worst round)
+| category | d3 | d1 |
+|---|---|---|
+| rcp-code | 108.68 (108.62-108.75, n=4) | 107.15 (106.90-107.29, n=4) **-1.40%** (worst -1.63%) |
+| rcp-prose | 83.60 (83.37-83.96, n=4) | 82.11 (82.06-82.17, n=4) **-1.78%** (worst -2.18%) |
+| rcp-recall | 99.05 (98.94-99.20, n=4) | 97.59 (97.50-97.62, n=4) **-1.47%** (worst -1.72%) |
+| all | 97.11 (96.99-97.23, n=4) | 95.62 (95.53-95.69, n=4) **-1.54%** (worst -1.62%) |
+
+**Decision.** Rule: pick the faster of 1 and 5 if no arm or metric is slower than the default by more than 1%. Mode 1 is slower by 1.9 to 2.7% (27B
+decode), 1.4 to 1.8% (MTP k2 categories) and 3.4 to 4.6% (35B decode); mode 5 by 11.6 to 12.3% (27B) and 21.5 to 22.3% (35B). Prefill moves by
+0.5 to 1.0% (d1) and 2.1 to 3.5% (d5) on the 27B. Both arms miss the bar, so the default stays `INTARSIA_HIP_AR_DRAIN=3`; `=1` is the documented
+opt-in for runs that need the 0/250 result (cost: ~2% decode on the 27B at tp=2, ~4% on the 35B). No determinism soak of a new default was run (none
+changed); `kernels test --backend hip --quick` passes on this branch (raw/ar-g1/kernels-test.log, exit 0, 10 kernels without cases in the quick sweep).
+The cost split is not measured: mode 1 adds a fence to every thread of the all-reduce block, so a cheaper sufficient variant
+(fence only in the threads that pushed the last word, or a sequence number in every pushed word as in the next-step note above) could close the gap.

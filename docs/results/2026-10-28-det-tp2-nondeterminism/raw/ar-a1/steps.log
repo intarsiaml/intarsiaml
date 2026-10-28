@@ -1,0 +1,39 @@
+13:56:43 guard: [guard] radiance stopped 2026-10-28 13:56:43
+13:56:43 speed27 round 1 arm d3: starting server
+13:57:56 speed27 round 1 arm d3: localeval exit 0 results/20261028-135714-ar-ar-a1-speed27-d3-r1/result.json
+13:57:56 speed27 round 1 arm d1: starting server
+13:59:09 speed27 round 1 arm d1: localeval exit 0 results/20261028-135828-ar-ar-a1-speed27-d1-r1/result.json
+13:59:10 speed27 round 1 arm d5: starting server
+14:00:26 speed27 round 1 arm d5: localeval exit 0 results/20261028-135941-ar-ar-a1-speed27-d5-r1/result.json
+14:00:26 speed27 round 2 arm d5: starting server
+14:01:42 speed27 round 2 arm d5: localeval exit 0 results/20261028-140058-ar-ar-a1-speed27-d5-r2/result.json
+14:01:42 speed27 round 2 arm d1: starting server
+14:02:55 speed27 round 2 arm d1: localeval exit 0 results/20261028-140214-ar-ar-a1-speed27-d1-r2/result.json
+14:02:56 speed27 round 2 arm d3: starting server
+14:04:08 speed27 round 2 arm d3: localeval exit 0 results/20261028-140327-ar-ar-a1-speed27-d3-r2/result.json
+14:04:08 speed27 round 3 arm d1: starting server
+14:05:22 speed27 round 3 arm d1: localeval exit 0 results/20261028-140440-ar-ar-a1-speed27-d1-r3/result.json
+14:05:22 speed27 round 3 arm d5: starting server
+14:06:38 speed27 round 3 arm d5: localeval exit 0 results/20261028-140553-ar-ar-a1-speed27-d5-r3/result.json
+14:06:38 speed27 round 3 arm d3: starting server
+14:07:51 speed27 round 3 arm d3: localeval exit 0 results/20261028-140709-ar-ar-a1-speed27-d3-r3/result.json
+14:07:51 speed27 round 4 arm d3: starting server
+14:09:03 speed27 round 4 arm d3: localeval exit 0 results/20261028-140822-ar-ar-a1-speed27-d3-r4/result.json
+14:09:04 speed27 round 4 arm d5: starting server
+14:10:20 speed27 round 4 arm d5: localeval exit 0 results/20261028-140935-ar-ar-a1-speed27-d5-r4/result.json
+14:10:20 speed27 round 4 arm d1: starting server
+14:11:33 speed27 round 4 arm d1: localeval exit 0 results/20261028-141051-ar-ar-a1-speed27-d1-r4/result.json
+14:11:34 speed35 round 1 arm d3: starting server
+14:12:01 speed35 round 1 arm d3: localeval exit 0 results/20261028-141150-ar-ar-a1-speed35-d3-r1/result.json
+14:12:01 speed35 round 1 arm d1: starting server
+14:12:23 speed35 round 1 arm d1: localeval exit 0 results/20261028-141211-ar-ar-a1-speed35-d1-r1/result.json
+14:12:23 speed35 round 1 arm d5: starting server
+14:12:47 speed35 round 1 arm d5: localeval exit 0 results/20261028-141233-ar-ar-a1-speed35-d5-r1/result.json
+14:12:47 speed35 round 2 arm d5: starting server
+14:13:10 speed35 round 2 arm d5: localeval exit 0 results/20261028-141257-ar-ar-a1-speed35-d5-r2/result.json
+14:13:11 speed35 round 2 arm d1: starting server
+14:13:32 speed35 round 2 arm d1: localeval exit 0 results/20261028-141321-ar-ar-a1-speed35-d1-r2/result.json
+14:13:32 speed35 round 2 arm d3: starting server
+14:13:54 speed35 round 2 arm d3: localeval exit 0 results/20261028-141343-ar-ar-a1-speed35-d3-r2/result.json
+14:13:54 done, time left 3765s
+14:17:55 guard: [guard] RADIANCE DID NOT ANSWER within 240 s 2026-10-28 14:17:55
