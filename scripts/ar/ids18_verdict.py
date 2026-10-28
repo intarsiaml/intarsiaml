@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Verdict of the ids18 stage (scripts/ar/stages-soak.sh): per prompt, the majority of the ref-<prompt>-<r>.ids files (INTARSIA_HIP_AR_DRAIN=3,
-main's behaviour) against every def-<prompt>-<r>.ids (the new default). Usage: ids18_verdict.py <dir>; exit 1 on any mismatch or missing file."""
+main's behaviour) against every def-<prompt>-<r>.ids (the new default). Usage: ids18_verdict.py <dir> [<dir of the def-* files, default the same>]; exit 1 on any mismatch or missing file."""
 import collections, glob, os, sys
 
 d = sys.argv[1]
+dd = sys.argv[2] if len(sys.argv) > 2 else d
 bad = 0
 for kp in ("short", "4k", "16k"):
     for i in range(6):
@@ -14,7 +15,7 @@ for kp in ("short", "4k", "16k"):
             except OSError:
                 return None
         refs = [rd(f) for f in sorted(glob.glob(os.path.join(d, f"ref-{n}-*.ids")))]
-        defs = [rd(f) for f in sorted(glob.glob(os.path.join(d, f"def-{n}-*.ids")))]
+        defs = [rd(f) for f in sorted(glob.glob(os.path.join(dd, f"def-{n}-*.ids")))]
         ok_refs = [r for r in refs if r and r.startswith("rc=0 ids")]
         if not ok_refs or not defs:
             print(f"FAIL {n}: no usable runs (refs {len(refs)}, defaults {len(defs)})"); bad += 1; continue

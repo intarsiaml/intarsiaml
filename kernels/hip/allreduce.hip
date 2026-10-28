@@ -22,8 +22,26 @@
  *    each other in any order as long as both ranks launch the same sequence.
  *  - A rank that never arrives (its thread died) would leave the other spinning: the wait gives up after a bounded
  *    number of polls and traps, which kills the process rather than hanging the GPU.
+ *
+ * Why the flag handshake needs a fence (lane det / ars): the data stores of the push and the flag store travel the PCIe
+ * fabric as posted writes with no ordering between them across threads and channels, and `s_wait_storecnt` (INTARSIA_HIP_AR_DRAIN=3) only
+ * waits until the stores left the CU, not until they landed at the peer. A peer that sees the flag can then still read stale
+ * scratch rows (a data race: ~1.5% of fresh tp=2 processes). The default (drain 1) puts a system fence in every thread.
+ *
+ * LL mode (drain 7, small messages): the handshake needs no fence and no flag because every 8-byte line the peer reads carries
+ * its own validity tag. A 16-byte data word k goes out as four 8-byte lines (dword j | seq << 32) at ll[j * n16 + k], each one a
+ * single 64-bit system-scope atomic store (an aligned 8-byte write reaches the peer whole, whatever order the lines arrive in);
+ * the reader polls a word's four lines until all four carry this launch's `seq`, so it only ever uses data that has landed.
+ * No block barrier and no flag are left on the path. The LL scratch is its own zero-filled region (never shared with the
+ * fence path's raw data, whose bit patterns could equal a tag), double buffered by the launch counter's parity like the fence
+ * scratch: a launch's lines are tagged with its counter value, the counters of the two ranks advance in lockstep, and a rank
+ * writes a slot again only after it saw a line of the previous launch, which says the peer's launch before that is over.
+ * Doubles the bytes on the wire, so only messages up to the group's LL limit use it (a pure function of the message size, so
+ * both ranks agree); larger ones run the fence path with drain 1. drain 8 is the same kernel without the tag check, a negative
+ * control for tests only (it must produce wrong sums).
  */
 #include "ik_hip.h"
+#include "ar_ll.h"
 
 #define AR_SPIN_MAX 480000000u /* polls (w27 diagnostic: 8x the old 60M, which trapped after ~6 s) */
 
@@ -187,15 +205,60 @@ __global__ void ag2_kernel(const int4* x4, int4* out4, int4* peer_scratch, int4*
     }
 }
 
+
+/* LL all-reduce. Each word is pushed and reduced by the same thread, so out may be x4 (in place). ll_stride64: u64s between
+ * the two parity slots. */
+template <int KIND, bool CHECK>
+__global__ void ar2ll_kernel(const int4* x4, void* out, unsigned long long* peer_ll, const unsigned long long* my_ll, unsigned int* ctrs,
+                             int n16, int ll_stride64) {
+    __shared__ unsigned int s_seq;
+    const unsigned int seq = ll_seq(ctrs, &s_seq);
+    const int b = blockIdx.x, nb = gridDim.x, tid = threadIdx.x, nt = blockDim.x;
+    unsigned long long* pl = peer_ll + (size_t)(seq & 1u) * ll_stride64;
+    const unsigned long long* ml = my_ll + (size_t)(seq & 1u) * ll_stride64;
+    const int w = (n16 + nb - 1) / nb;
+    const int start = min(b * w, n16), end = min(start + w, n16);
+    for (int k = start + tid; k < end; k += nt) ll_put(pl, n16, k, seq, x4[k]);
+    if (KIND == 2) {
+        uint2* o2 = (uint2*)out;
+        for (int k = start + tid; k < end; k += nt) o2[k] = ar_add16_to_bf16(x4[k], ll_get<CHECK>(ml, n16, k, seq));
+    } else {
+        int4* o4 = (int4*)out;
+        for (int k = start + tid; k < end; k += nt) o4[k] = ar_add16<KIND>(x4[k], ll_get<CHECK>(ml, n16, k, seq));
+    }
+}
+
+/* LL all-gather, ag2_kernel's layout and in-place rule */
+template <bool CHECK>
+__global__ void ag2ll_kernel(const int4* x4, int4* out4, unsigned long long* peer_ll, const unsigned long long* my_ll, unsigned int* ctrs,
+                             int n16, int ll_stride64, int out_stride16, int rank) {
+    __shared__ unsigned int s_seq;
+    const unsigned int seq = ll_seq(ctrs, &s_seq);
+    const int b = blockIdx.x, nb = gridDim.x, tid = threadIdx.x, nt = blockDim.x;
+    unsigned long long* pl = peer_ll + (size_t)(seq & 1u) * ll_stride64;
+    const unsigned long long* ml = my_ll + (size_t)(seq & 1u) * ll_stride64;
+    const int w = (n16 + nb - 1) / nb;
+    const int start = min(b * w, n16), end = min(start + w, n16);
+    int4* mine = out4 + (size_t)rank * out_stride16;
+    int4* theirs = out4 + (size_t)(1 - rank) * out_stride16;
+    const bool in_place = (const int4*)mine == x4;
+    for (int k = start + tid; k < end; k += nt) ll_put(pl, n16, k, seq, x4[k]);
+    for (int k = start + tid; k < end; k += nt) {
+        theirs[k] = ll_get<CHECK>(ml, n16, k, seq);
+        if (!in_place) mine[k] = x4[k];
+    }
+}
+
 extern "C" {
 
 /* out = sum with the same tensor on the peer rank; x: this rank's partial (bf16 or f32, n_elem elements, 16-byte
  * aligned, a whole number of 16-byte words), left unchanged. (dtype, out_dtype) is (bf16, bf16), (f32, f32) or
  * (f32, bf16); out may be x for the first two (in place). peer_scratch / my_scratch: 2 x slot_bytes each; flags /
- * ctrs: nblocks u32 each (zero at start; ctrs is ordinary device memory). */
+ * ctrs: nblocks u32 each (zero at start; ctrs is ordinary device memory). peer_ll / my_ll: the LL regions (2 x ll_slot_bytes each,
+ * fine-grained, zero at start; used when drain is 7 or 8 and the message is at most ll_slot_bytes / 2; may be null otherwise). */
 int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem, void* peer_scratch, void* my_scratch,
                    unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes,
-                   int nblocks, int drain, void* stream) {
+                   int nblocks, int drain, void* peer_ll, void* my_ll, int64_t ll_slot_bytes, void* stream) {
     if (!x || !out || !peer_scratch || !my_scratch || !peer_flags || !my_flags || !ctrs || nblocks < 1 || nblocks > 1024) return IK_ERR_INVALID_ARG;
     int kind;
     if (dtype == IK_DTYPE_BF16 && out_dtype == IK_DTYPE_BF16) kind = 0;
@@ -210,6 +273,24 @@ int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem,
     if (n_elem == 0) return IK_OK;
     hipStream_t s = IK_STREAM(stream);
     const int n16 = (int)(bytes / 16), stride16 = (int)(slot_bytes / 16);
+    if (drain >= 7) {
+        if (ll_fits(drain, bytes, peer_ll, my_ll, ll_slot_bytes)) {
+            const int ls = (int)(ll_slot_bytes / 8);
+            auto pl = (unsigned long long*)peer_ll;
+            auto ml = (const unsigned long long*)my_ll;
+            if (drain == 7) {
+                if (kind == 0) ar2ll_kernel<0, true><<<nblocks, 256, 0, s>>>((const int4*)x, out, pl, ml, ctrs, n16, ls);
+                else if (kind == 1) ar2ll_kernel<1, true><<<nblocks, 256, 0, s>>>((const int4*)x, out, pl, ml, ctrs, n16, ls);
+                else ar2ll_kernel<2, true><<<nblocks, 256, 0, s>>>((const int4*)x, out, pl, ml, ctrs, n16, ls);
+            } else {
+                if (kind == 0) ar2ll_kernel<0, false><<<nblocks, 256, 0, s>>>((const int4*)x, out, pl, ml, ctrs, n16, ls);
+                else if (kind == 1) ar2ll_kernel<1, false><<<nblocks, 256, 0, s>>>((const int4*)x, out, pl, ml, ctrs, n16, ls);
+                else ar2ll_kernel<2, false><<<nblocks, 256, 0, s>>>((const int4*)x, out, pl, ml, ctrs, n16, ls);
+            }
+            return ik_launch_status();
+        }
+        drain = 1; /* too big for the LL region: the fence path */
+    }
     if (kind == 0)
         ar2_kernel<0><<<nblocks, 256, 0, s>>>((const int4*)x, out, (int4*)peer_scratch, (int4*)my_scratch, peer_flags, my_flags, ctrs, n16, stride16, drain);
     else if (kind == 1)
@@ -224,7 +305,7 @@ int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem,
  * out. Scratch, flags and counters as ik_ar2_oneshot (the two share them). */
 int ik_ag2_gather(void* x, void* out, int64_t bytes, int64_t out_stride_bytes, void* peer_scratch, void* my_scratch,
                   unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks,
-                  int rank, int drain, void* stream) {
+                  int rank, int drain, void* peer_ll, void* my_ll, int64_t ll_slot_bytes, void* stream) {
     if (!x || !out || !peer_scratch || !my_scratch || !peer_flags || !my_flags || !ctrs || nblocks < 1 || nblocks > 1024) return IK_ERR_INVALID_ARG;
     if (rank != 0 && rank != 1) return IK_ERR_INVALID_ARG;
     if (bytes % 16 != 0 || out_stride_bytes % 16 != 0 || out_stride_bytes < bytes) return IK_ERR_SHAPE;
@@ -233,6 +314,17 @@ int ik_ag2_gather(void* x, void* out, int64_t bytes, int64_t out_stride_bytes, v
     if (bytes == 0) return IK_OK;
     hipStream_t s = IK_STREAM(stream);
     const int n16 = (int)(bytes / 16), stride16 = (int)(slot_bytes / 16), ostride16 = (int)(out_stride_bytes / 16);
+    if (drain >= 7) {
+        if (ll_fits(drain, bytes, peer_ll, my_ll, ll_slot_bytes)) {
+            const int ls = (int)(ll_slot_bytes / 8);
+            if (drain == 7)
+                ag2ll_kernel<true><<<nblocks, 256, 0, s>>>((const int4*)x, (int4*)out, (unsigned long long*)peer_ll, (const unsigned long long*)my_ll, ctrs, n16, ls, ostride16, rank);
+            else
+                ag2ll_kernel<false><<<nblocks, 256, 0, s>>>((const int4*)x, (int4*)out, (unsigned long long*)peer_ll, (const unsigned long long*)my_ll, ctrs, n16, ls, ostride16, rank);
+            return ik_launch_status();
+        }
+        drain = 1;
+    }
     ag2_kernel<<<nblocks, 256, 0, s>>>((const int4*)x, (int4*)out, (int4*)peer_scratch, (int4*)my_scratch, peer_flags, my_flags, ctrs, n16, stride16, ostride16, rank, drain);
     return ik_launch_status();
 }

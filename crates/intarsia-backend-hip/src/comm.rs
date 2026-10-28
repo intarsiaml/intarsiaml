@@ -24,6 +24,9 @@ use std::time::Duration;
 const NBLOCKS: i32 = 16;
 /// One scratch slot (there are two per rank). Larger messages are split.
 const SLOT_BYTES: usize = 4 << 20;
+/// Largest message (bytes) that takes the LL path when `INTARSIA_HIP_AR_DRAIN=7` (`INTARSIA_HIP_AR_LL_MAX` overrides): the LL lines
+/// double the bytes on the wire, so bigger messages keep the fence path.
+const LL_MAX_DEFAULT: usize = 64 << 10;
 
 fn rt(what: &str, rc: i32) -> Result<()> {
     if rc == 0 {
@@ -49,6 +52,8 @@ struct RankBuf {
     flags: *mut u32,
     /// NBLOCKS u32, ordinary device memory: this rank's launch counters
     ctrs: *mut u32,
+    /// 2 slots of `ll_slot_bytes`, fine-grained and zero-filled, the peer's tagged lines go here (null when LL is off)
+    ll: *mut c_void,
 }
 
 // SAFETY: plain device addresses; all access is from kernels launched on the owning/peer device.
@@ -56,15 +61,18 @@ unsafe impl Send for RankBuf {}
 unsafe impl Sync for RankBuf {}
 
 impl RankBuf {
-    fn new(backend: &HipBackend) -> Result<RankBuf> {
+    fn new(backend: &HipBackend, ll_slot_bytes: usize) -> Result<RankBuf> {
         backend.bind()?;
         let ordinal = backend.ordinal();
-        let (mut s, mut f, mut c): (*mut c_void, *mut c_void, *mut c_void) =
-            (std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut());
+        let (mut s, mut f, mut c, mut l): (*mut c_void, *mut c_void, *mut c_void, *mut c_void) =
+            (std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut(), std::ptr::null_mut());
         // SAFETY: valid out-pointers, device bound above.
         unsafe {
             rt("fine-grained scratch", ffi::ik_rt_malloc_finegrained(&mut s, 2 * SLOT_BYTES))?;
             rt("fine-grained flags", ffi::ik_rt_malloc_finegrained(&mut f, NBLOCKS as usize * 4))?;
+            if ll_slot_bytes > 0 {
+                rt("fine-grained LL scratch", ffi::ik_rt_malloc_finegrained(&mut l, 2 * ll_slot_bytes))?;
+            }
             if host_ctrs() {
                 // INTARSIA_HIP_CTRS_HOST=1 (debugging, w27): the launch counters live in pinned host memory (the kernels reach it through the unified
                 // address space), so the host can read them at a hang without any HIP call
@@ -74,7 +82,7 @@ impl RankBuf {
                 rt("counters", ffi::ik_rt_malloc(&mut c, NBLOCKS as usize * 4))?;
             }
         }
-        let rb = RankBuf { ordinal, scratch: s, flags: f as *mut u32, ctrs: c as *mut u32 };
+        let rb = RankBuf { ordinal, scratch: s, flags: f as *mut u32, ctrs: c as *mut u32, ll: l };
         let st = backend.stream(0)?;
         // SAFETY: freshly allocated ranges of the stated sizes.
         unsafe {
@@ -83,6 +91,10 @@ impl RankBuf {
                 rt("zero counters", ffi::ik_rt_memset(c, 0, NBLOCKS as usize * 4, st))?;
             }
             rt("zero scratch", ffi::ik_rt_memset(s, 0, 2 * SLOT_BYTES, st))?;
+            if ll_slot_bytes > 0 {
+                // zero tags: no line is valid before its launch writes it (the counters start at 1)
+                rt("zero LL scratch", ffi::ik_rt_memset(l, 0, 2 * ll_slot_bytes, st))?;
+            }
             rt("sync", ffi::ik_rt_stream_sync(st))?;
         }
         Ok(rb)
@@ -100,6 +112,9 @@ impl Drop for RankBuf {
             ffi::ik_rt_set_device(self.ordinal);
             ffi::ik_rt_free(self.scratch);
             ffi::ik_rt_free(self.flags as *mut c_void);
+            if !self.ll.is_null() {
+                ffi::ik_rt_free(self.ll);
+            }
             if host_ctrs() {
                 ffi::ik_rt_host_free(self.ctrs as *mut c_void);
             } else {
@@ -111,6 +126,8 @@ impl Drop for RankBuf {
 
 struct Group {
     bufs: [RankBuf; 2],
+    /// bytes of one LL slot (twice the largest LL message), 0 when the LL path is off
+    ll_slot_bytes: usize,
     aborted: AtomicBool,
     /// `INTARSIA_TP_COLL_TRACE=1` (debugging, w26): every collective launch of each rank, packed as `op << 60 | dtype << 56 | out dtype << 52 |
     /// blocks << 40 | elements` (op 1 all-reduce, 2 all-gather, 3 all-reduce + rmsnorm). `debug_state` reports the first launch where the ranks differ.
@@ -139,6 +156,12 @@ struct P2pComm {
 /// The two-rank peer-to-peer group over `backends` (rank `i` = `backends[i]`). Fails when the two devices cannot
 /// access each other's memory.
 pub fn p2p_group(backends: &[Arc<HipBackend>]) -> Result<Vec<Arc<dyn Comm>>> {
+    p2p_group_mode(backends, None, None)
+}
+
+/// [`p2p_group`] with the handshake mode given explicitly (tests): `drain` is `INTARSIA_HIP_AR_DRAIN`'s value and `ll_max` the
+/// `INTARSIA_HIP_AR_LL_MAX` bytes; `None` reads the environment like `p2p_group`.
+pub fn p2p_group_mode(backends: &[Arc<HipBackend>], drain: Option<i32>, ll_max: Option<usize>) -> Result<Vec<Arc<dyn Comm>>> {
     if backends.len() != 2 {
         return Err(Error::Unsupported(format!("the peer-to-peer all-reduce is a two-rank kernel, got {} ranks", backends.len())));
     }
@@ -162,18 +185,39 @@ pub fn p2p_group(backends: &[Arc<HipBackend>]) -> Result<Vec<Arc<dyn Comm>>> {
     // tp=2, see docs/results/2026-10-28-det-tp2-nondeterminism.md section 5), 3 = wait for the stores to complete
     // (radiance's cheaper mode, the scratch is uncached memory: ~1.5% of fresh tp=2 processes add a stale peer row, a data
     // race, so the sums are wrong)
-    let drain = match std::env::var("INTARSIA_HIP_AR_DRAIN").ok().as_deref() {
-        None | Some("") | Some("1") => 1,
-        Some("3") => 3,
-        // diagnostics (w26): 4 = mode 3 and the flag re-sent while waiting, 5 = mode 3 and ~25 us before the data is read
-        Some("4") => 4,
-        Some("5") => 5,
-        // lane det: 6 = mode 3, then every thread reads back the last word it pushed before the flag goes out
-        Some("6") => 6,
-        Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_DRAIN={v} (1, 3, 4, 5 or 6)"))),
+    let drain = match drain {
+        Some(d) => d,
+        None => match std::env::var("INTARSIA_HIP_AR_DRAIN").ok().as_deref() {
+            None | Some("") | Some("1") => 1,
+            Some("3") => 3,
+            // diagnostics (w26): 4 = mode 3 and the flag re-sent while waiting, 5 = mode 3 and ~25 us before the data is read
+            Some("4") => 4,
+            Some("5") => 5,
+            // lane det: 6 = mode 3, then every thread reads back the last word it pushed before the flag goes out
+            Some("6") => 6,
+            // lane ars: 7 = tagged-line (LL) handshake for small messages, mode 1 above INTARSIA_HIP_AR_LL_MAX; 8 = 7 without the tag
+            // check (a negative control for the tests, wrong sums)
+            Some("7") => 7,
+            Some("8") => 8,
+            Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_DRAIN={v} (1, 3, 4, 5, 6, 7 or 8)"))),
+        },
+    };
+    let ll_slot_bytes = if drain >= 7 {
+        let max = match ll_max {
+            Some(m) => m,
+            None => match std::env::var("INTARSIA_HIP_AR_LL_MAX").ok().as_deref() {
+                None | Some("") => LL_MAX_DEFAULT,
+                Some(v) => v.parse::<usize>().map_err(|_| Error::invalid(format!("INTARSIA_HIP_AR_LL_MAX={v} (a byte count)")))?,
+            },
+        };
+        // a message of m bytes takes 2 m bytes of lines; a multiple of 16 so the parity slots stay aligned
+        (2 * max.min(SLOT_BYTES / 2)).div_ceil(16) * 16
+    } else {
+        0
     };
     let group = Arc::new(Group {
-        bufs: [RankBuf::new(&backends[0])?, RankBuf::new(&backends[1])?],
+        bufs: [RankBuf::new(&backends[0], ll_slot_bytes)?, RankBuf::new(&backends[1], ll_slot_bytes)?],
+        ll_slot_bytes,
         aborted: AtomicBool::new(false),
         calls: std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1").then(|| std::sync::Mutex::new([Vec::new(), Vec::new()])),
     });
@@ -256,6 +300,9 @@ impl Comm for P2pComm {
                     SLOT_BYTES as i64,
                     NBLOCKS,
                     self.drain,
+                    peer.ll,
+                    me.ll,
+                    self.group.ll_slot_bytes as i64,
                     s,
                 )
             };
@@ -327,6 +374,9 @@ impl Comm for P2pComm {
                     NBLOCKS,
                     self.rank as i32,
                     self.drain,
+                    peer.ll,
+                    me.ll,
+                    self.group.ll_slot_bytes as i64,
                     s,
                 )
             };
@@ -507,6 +557,9 @@ impl P2pComm {
                 SLOT_BYTES as i64,
                 NBLOCKS,
                 self.drain,
+                peer.ll,
+                me.ll,
+                self.group.ll_slot_bytes as i64,
                 s,
             )
         };
