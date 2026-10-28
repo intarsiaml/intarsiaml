@@ -125,16 +125,20 @@ different reduction order). Fresh mtp processes in total: 6 events in 443 (1.4%)
 | `tap-88` | 38-row prefill | rows 31, 33, 34, 35 | equal | rows 31..37 both ranks |
 | `tap-118` | 38-row prefill | equal | rows 24, 35, 36 | rows 24..37 both ranks |
 
-The residual stream is replicated: after a layer's all-reduces both ranks must hold the same bits. At the end of layer 2 one rank, either one, holds a few
-rows that the other rank (and 197 other processes) does not, so that rank's all-reduce summed something other than the peer's partial for those rows.
-Layer 3 (full attention) then spreads it to every later row on both ranks, and the next all-reduce makes the ranks equal again, which is why w4's
-last-row tap showed rank 0 == rank 1. Scattered rows (31, 33, 34, 35 but not 32) fit per-block chunks of the all-reduce: `ar2_kernel`
-(`kernels/hip/allreduce.hip`) gives each block a contiguous range of 16-byte words, pushes it into the peer's scratch with posted PCIe writes, waits
-`s_wait_storecnt 0` (mode 3, the default), then raises the peer's flag with a system-scope release store; the peer reads its scratch once it sees the
-flag. The store counter only says the writes left this GPU; if a write lands at the peer after the flag, the peer adds the slot's old contents (the
-partial from two all-reduces earlier, the scratch is double buffered). That gives exactly a small, one-sided, few-rows, fresh-timing error; it does
-not repeat in a process because it depends on PCIe timing, and it is rarer with `--spec off` for a reason not established (different timing of
-the peer rank around the prefill). Why always layer 2 in these three is not known.
+The residual stream is replicated: after a layer's all-reduces both ranks must hold the same bits. At the end of layer 2 one rank, either one, holds a
+few rows that the other rank (and 197 other processes) does not. Layer 3 (full attention) then spreads it to every later row on both ranks, and the
+next all-reduce makes the ranks equal again, which is why w4's last-row tap showed rank 0 == rank 1. Two explanations fit w7 alone: (a) that rank's
+all-reduce summed something other than the peer's partial for those rows, or (b) a race in an op each rank runs on its own after the all-reduce
+(residual add, the next norm). w8's tapped `--comm host` arm separates them (no P2P kernel: (a) gives 0, (b) does not).
+
+Hypothesis (a), the P2P handshake: `ar2_kernel` (`kernels/hip/allreduce.hip`) gives each block a contiguous range of 16-byte words, pushes it into
+the peer's scratch with posted PCIe writes, waits `s_wait_storecnt 0` (mode 3, the default), then raises the peer's flag with a system-scope release
+store; the peer reads its scratch once it sees the flag. The store counter only says the writes left this GPU; if a write lands at the peer after the
+flag, the peer adds the slot's old contents (a partial from two all-reduces earlier: the scratch is double buffered). Predictions: per-block
+chunks (scattered rows such as 31, 33, 34, 35 but not 32 fit); the affected rows are badly wrong (a different tensor), and only a few prompt rows,
+so the logits move only slightly; and `INTARSIA_HIP_AR_DRAIN=5` (wait ~25 us after the flag, far longer than a PCIe write) removes it. w8 tests
+the last one with the tap. It does not explain why `--spec off` is rarer, or why all three w7 events are at layer 2 (w4's last-row tap first
+differed at layer 1; both tap builds index layers from 0, but the last-row view cannot see where a non-last row first went wrong).
 
 ## 4. Raw
 
