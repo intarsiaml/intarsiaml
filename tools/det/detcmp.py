@@ -49,7 +49,7 @@ def main(dirs):
     groups = collections.OrderedDict()
     for d in map(pathlib.Path, dirs):
         for err in sorted(d.glob("*.err")):
-            g = re.sub(r"\d+$", "", err.stem) if re.search(r"(tap|ids)\d+$", err.stem) else err.stem
+            g = re.sub(r"(?<=[a-z])\d+$", "", err.stem)
             groups.setdefault(g, []).append(err)
     for g, errs in groups.items():
         allids, allmar, alltap, names = [], [], [], []
