@@ -92,7 +92,7 @@ serve() { # serve <arm>
 metric() { curl -s -m 5 "http://tatooine:$PORT/metrics" | grep -E '^intarsia_spec_(steps|proposed_tokens|accepted_tokens|costgate_[a-z_]+)_total' | sed 's/{[^}]*}//' | tr '\n' ' '; }
 
 R0=${R0:-1}; SOAK=${SOAK:-0}; SOAK_ARMS=${SOAK_ARMS:-mtp2}; SOAK_REF=${SOAK_REF:-2}
-SOAK_P=("Write a long story about a robot who learns to paint." "Explain, step by step, how a hash map handles collisions, with code in Rust.")
+SOAK_P=("${SOAK_P0:-Write a long story about a robot who learns to paint.}" "Explain, step by step, how a hash map handles collisions, with code in Rust.")
 soak() { # soak <arm> <n>
   local arm=$1 n=$2 i p h
   for i in $(seq 1 "$n"); do

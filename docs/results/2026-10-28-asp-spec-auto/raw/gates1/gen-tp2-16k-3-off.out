@@ -1,0 +1,13 @@
+Based on the technical documentation provided, here is a step-by-step checklist for implementing, testing, and validating the MTP speculative decoding feature for Qwen3.6-35B-A3B.
+
+### Phase 1: Implementation & Architecture
+
+**1.1. Configure the MTP Head Loading**
+*   [ ] Ensure the feature is **opt-in only**. The model, plan, and memory must remain unchanged if `--spec mtp` is not passed.
+*   [ ] Implement loading logic for the recipe key `[mtp]` in `recipes/qwen3_5_moe.toml`.
+*   [ ] Verify `config.json` settings:
+    *   `mtp_num_hidden_layers = 1`
+    *   `mtp_use_dedicated_embeddings = false` (Head shares model embedding and `lm_head`).
+*   [ ] Load the 19 `mtp.*` tensors from the checkpoint (Shard 3).
+    *   Confirm all tensors are **bf16** (as per `hf_quant_config` ignoring `mtp*`).
+    *   Verify tensor shapes match the specification (e.g., `mtp.fc` [2048,
