@@ -1,0 +1,4 @@
+[targets.asa-mtp2]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-mtp2"
+extra_body = { ignore_eos = true, min_tokens = 512 }

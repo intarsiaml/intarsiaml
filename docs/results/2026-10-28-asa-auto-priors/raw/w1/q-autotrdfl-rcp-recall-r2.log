@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/asa/scripts/asa/../dfh/cats/rcp-recall.jsonl: 8 rows, judge=none
+# localeval: asa-autotrdfl — 2026-10-28T15:16
+
+- model: `qwen38-27b-autotrdfl` on ? (?), url `http://tatooine:8095/v1`
+- thinking: off; run kind: quality; label: asa-w1-autotrdfl-rcp-recall-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality asa-autotrdfl --thinking off --label asa-w1-autotrdfl-rcp-recall-r2 --recipe HIP_VISIBLE_DEVICES=0,1 asa-intarsia serve --backend hip --model 27B --spec auto --spec-draft /models/tensorfold/Qwen3.8-27B-DFlash2 --spec-k 7 --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane asa) --dataset /opt/code/intarsiaml/.worktrees/asa/scripts/asa/../dfh/cats/rcp-recall.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261028-151651-asa-autotrdfl-asa-w1-autotrdfl-rcp-recall-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 asa-intarsia serve --backend hip --model 27B --spec auto --spec-draft /models/tensorfold/Qwen3.8-27B-DFlash2 --spec-k 7 --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane asa)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/asa/scripts/asa/../dfh/cats/rcp-recall.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.079 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 112.0 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| recall-tcp-handshake | yes | 0.0 | 0.08 | 122.2 | The Transmission Control Protocol (TCP) is a connection-orie… |
+| recall-photosynthesis | yes | 0.0 | 0.08 | 136.9 | Photosynthesis is the process by which plants, algae, and so… |
+| recall-french-revolution | yes | 0.0 | 0.08 | 115.1 | The French Revolution (1789–1799) was a radical political an… |
+| recall-git-internals | yes | 0.0 | 0.08 | 104.4 | Git is a content-addressable file system. This means that ev… |
+| recall-vaccines | yes | 0.0 | 0.08 | 111.7 | Here is a detailed explanation of how mRNA, viral-vector, an… |
+| recall-cpu-caches | yes | 0.0 | 0.08 | 100.4 | CPU caches are a critical component of modern processor perf… |
+| recall-plate-tectonics | yes | 0.0 | 0.08 | 96.1 | Plate tectonics is the scientific theory that describes the … |
+| recall-http2 | yes | 0.0 | 0.08 | 109.4 | To understand the evolution from HTTP/1.1 to HTTP/3, it is h… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261028-151651-asa-autotrdfl-asa-w1-autotrdfl-rcp-recall-r2/result.json
+[localeval] logged to unanimis: c1d08fe4-1a8d-4442-abfc-9afbd5fd48b5
