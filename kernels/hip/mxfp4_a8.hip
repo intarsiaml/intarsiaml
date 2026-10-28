@@ -20,30 +20,32 @@ namespace {
 
 constexpr int kWarps = 8;
 constexpr int kG = 32;      // elements per e8m0 scale
-constexpr int kRowsR = 2;   // weight rows per warp
+constexpr int kRowsR = 2;   // weight rows per warp (default; the pre-pass kernel also has an R = kRowsWide form, lane vrc)
+constexpr int kRowsWide = 4;  // INTARSIA_HIP_MXFP4_A8_R: weight rows per warp of the wide form, M 2..kWideMaxM: the activation loads
+                              // of a (row, group) step are shared by 4 weight rows instead of 2, halving the activation traffic per weight byte
+constexpr int kWideMaxM = 8;
 constexpr int kXP = 2;      // activation steps in flight
 
 // M activation rows x the rows [0, N0) of (w0, s0, o0) then [0, N1) of (w1, s1, o1); N1 == 0: a single matmul.
 // xq: u8 [M, K] as uint4 (32 bytes = 2 uint4 per group), xs: f32 [M]; outputs [M, N0] / [M, N1] row-major.
 // the dot / accumulate / store loop shared by the pre-pass and the fused kernel; xq / xs are global (pre-pass) or LDS (fused)
 // The per-warp row pointers of a block: weight rows n0, n0 + 1 of the concatenation of both matrices.
-template <typename OutT>
+template <typename OutT, int R>
 struct A8Rows {
     int lane, G;
     int64_t n0, N;
     bool active;  // false: the warp has no rows (n0 >= N)
-    const uint4* wr[kRowsR];
-    const uint8_t* sr[kRowsR];
-    OutT* op[kRowsR];
-    int64_t ostride[kRowsR];
+    const uint4* wr[R];
+    const uint8_t* sr[R];
+    OutT* op[R];
+    int64_t ostride[R];
 };
 
-template <typename OutT>
-__device__ __forceinline__ A8Rows<OutT> a8_rows_setup(const uint8_t* __restrict__ w0, const uint8_t* __restrict__ s0,
+template <typename OutT, int R>
+__device__ __forceinline__ A8Rows<OutT, R> a8_rows_setup(const uint8_t* __restrict__ w0, const uint8_t* __restrict__ s0,
                                                       OutT* __restrict__ o0, int64_t N0, const uint8_t* __restrict__ w1,
                                                       const uint8_t* __restrict__ s1, OutT* __restrict__ o1, int64_t N1, int K) {
-    constexpr int R = kRowsR;
-    A8Rows<OutT> p;
+    A8Rows<OutT, R> p;
     // the warp index is wave-uniform: readfirstlane keeps the row pointers below in SGPRs
     const int warp = __builtin_amdgcn_readfirstlane(threadIdx.x / IK_WARP);
     p.lane = threadIdx.x % IK_WARP;
@@ -67,11 +69,11 @@ __device__ __forceinline__ A8Rows<OutT> a8_rows_setup(const uint8_t* __restrict_
 // The first weight group (u = lane) of the warp's two rows, loaded ahead of the activation quantisation of the fused kernel so
 // its DRAM latency overlaps the quantisation and the barrier. Loads exactly what the first iteration of the body would load.
 struct A8First {
-    uint4 wv[kRowsR];
-    uint8_t sc[kRowsR];
+    uint4 wv[kRowsWide];  // the fused kernel uses the first kRowsR
+    uint8_t sc[kRowsWide];
 };
 template <typename OutT>
-__device__ __forceinline__ A8First a8_first_load(const A8Rows<OutT>& p) {
+__device__ __forceinline__ A8First a8_first_load(const A8Rows<OutT, kRowsR>& p) {
     A8First f;
 #pragma unroll
     for (int r = 0; r < kRowsR; ++r) {
@@ -90,10 +92,10 @@ __device__ __forceinline__ A8First a8_first_load(const A8Rows<OutT>& p) {
 
 // the dot / accumulate / store loop shared by the pre-pass and the fused kernel; xq / xs are global (pre-pass) or LDS (fused).
 // PRE: the first group of this lane was already loaded into `first` (a8_first_load) by the fused kernel.
-template <int M, typename OutT, bool PRE>
-__device__ __forceinline__ void a8_rows_body(const A8Rows<OutT>& p, const A8First& first, const uint4* __restrict__ xq,
-                                             const float* __restrict__ xs, int K) {
-    constexpr int R = kRowsR;
+template <int M, typename OutT, bool PRE, int R>
+__device__ __forceinline__ void a8_rows_body(const A8Rows<OutT, R>& p, const A8First& first, const uint4* __restrict__ xq,
+                                             const float* __restrict__ xs, int K, int mut = 0) {
+    static_assert(!PRE || R == kRowsR, "the fused kernel's first-group prefetch is for the two-row form");
     constexpr int D = kXP < M ? kXP : M;
     static_assert(D >= 1, "kXP >= 1");
     if (!p.active) return;  // whole warp exits together
@@ -153,7 +155,13 @@ __device__ __forceinline__ void a8_rows_body(const A8Rows<OutT>& p, const A8Firs
                 qc[D - 1] = xq[2 * gi + 1];
             }
 #pragma unroll
-            for (int r = 0; r < R; ++r) acc[r][m] = fmaf(mx_a8_dot32(wd[r], xa, xc), s[r], acc[r][m]);
+            for (int r = 0; r < R; ++r) {
+                // planted faults of the wide form (INTARSIA_HIP_A8_MUT, tests/mxfp4_a8_fuse.rs must fail): 1 row 3 not accumulated,
+                // 2 row 1 scaled by row 0's scale
+                if (R == kRowsWide && mut == 1 && r == 3) continue;
+                const float scl = (R == kRowsWide && mut == 2 && r == 1) ? s[0] : s[r];
+                acc[r][m] = fmaf(mx_a8_dot32(wd[r], xa, xc), scl, acc[r][m]);
+            }
         }
     }
 #pragma unroll
@@ -162,19 +170,21 @@ __device__ __forceinline__ void a8_rows_body(const A8Rows<OutT>& p, const A8Firs
 #pragma unroll
         for (int r = 0; r < R; ++r) {
             const float t = ik_warp_sum(acc[r][m]) * xsm;
-            if (lane == 0 && n0 + r < N) ik_store(op[r] + (int64_t)m * ostride[r], t);
+            // 3 (wide form): row 2's result stored where row 3's belongs
+            const int rs = (R == kRowsWide && mut == 3 && r == 2) ? 3 : r;
+            if (lane == 0 && n0 + r < N && n0 + rs < N) ik_store(op[rs] + (int64_t)m * ostride[rs], t);
         }
     }
 }
 
-template <int M, typename OutT>
+template <int M, typename OutT, int R>
 __global__ void __launch_bounds__(kWarps * IK_WARP)
 mxfp4_a8_rows_kernel(const uint4* __restrict__ xq, const float* __restrict__ xs, const uint8_t* __restrict__ w0,
                      const uint8_t* __restrict__ s0, OutT* __restrict__ o0, int64_t N0, const uint8_t* __restrict__ w1,
-                     const uint8_t* __restrict__ s1, OutT* __restrict__ o1, int64_t N1, int K) {
-    const A8Rows<OutT> p = a8_rows_setup<OutT>(w0, s0, o0, N0, w1, s1, o1, N1, K);
+                     const uint8_t* __restrict__ s1, OutT* __restrict__ o1, int64_t N1, int K, int mut) {
+    const A8Rows<OutT, R> p = a8_rows_setup<OutT, R>(w0, s0, o0, N0, w1, s1, o1, N1, K);
     const A8First none{};
-    a8_rows_body<M, OutT, false>(p, none, xq, xs, K);
+    a8_rows_body<M, OutT, false, R>(p, none, xq, xs, K, mut);
 }
 
 // LDS layout of the fused kernel (dynamic shared memory, the scratch layout of ik_mx_a8.h without the slack): xq u8 [M, K] at
@@ -197,7 +207,7 @@ mxfp4_a8_rows_fused_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restr
     __shared__ float red[kWarps];
     uint8_t* lq = reinterpret_cast<uint8_t*>(a8_lds);
     float* lxs = reinterpret_cast<float*>(lq + a8_fuse_xs_off(M, K));
-    const A8Rows<OutT> p = a8_rows_setup<OutT>(w0, s0, o0, N0, w1, s1, o1, N1, K);
+    const A8Rows<OutT, kRowsR> p = a8_rows_setup<OutT, kRowsR>(w0, s0, o0, N0, w1, s1, o1, N1, K);
     const A8First first = a8_first_load<OutT>(p);  // in flight while the block quantises
     const int C = K >> 3;
 #pragma unroll 1
@@ -208,14 +218,14 @@ mxfp4_a8_rows_fused_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restr
         mx_a8_row_quant(xp, reinterpret_cast<uint2*>(lq + (size_t)m * K), C, s);
     }
     __syncthreads();  // every block thread takes part above; only now may a warp leave early (no rows in the body)
-    a8_rows_body<M, OutT, true>(p, first, reinterpret_cast<const uint4*>(lq), lxs, K);
+    a8_rows_body<M, OutT, true, kRowsR>(p, first, reinterpret_cast<const uint4*>(lq), lxs, K);
 }
 
-template <int M, typename OutT>
+template <int M, typename OutT, int R>
 void a8_launch(const uint4* xq, const float* xs, const uint8_t* w0, const uint8_t* s0, OutT* o0, int64_t N0, const uint8_t* w1,
-               const uint8_t* s1, OutT* o1, int64_t N1, int64_t K, hipStream_t s) {
-    const unsigned grid = (unsigned)((N0 + N1 + kWarps * kRowsR - 1) / (kWarps * kRowsR));
-    mxfp4_a8_rows_kernel<M, OutT><<<grid, kWarps * IK_WARP, 0, s>>>(xq, xs, w0, s0, o0, N0, w1, s1, o1, N1, (int)K);
+               const uint8_t* s1, OutT* o1, int64_t N1, int64_t K, hipStream_t s, int mut) {
+    const unsigned grid = (unsigned)((N0 + N1 + kWarps * R - 1) / (kWarps * R));
+    mxfp4_a8_rows_kernel<M, OutT, R><<<grid, kWarps * IK_WARP, 0, s>>>(xq, xs, w0, s0, o0, N0, w1, s1, o1, N1, (int)K, mut);
 }
 
 template <int M, typename OutT>
@@ -239,6 +249,24 @@ static int a8_fuse_mode() {
     return v;
 }
 static bool a8_fuse_takes(int M) { const int m = a8_fuse_mode(); return m == 2 || (m == 1 && M == 1); }
+
+// INTARSIA_HIP_MXFP4_A8_R (lane vrc): weight rows per warp of the pre-pass kernel. Unset / "4": the wide form (4) for M 2..8 whenever the
+// launch has at least kWideMinRows output rows; "2": always the two-row form (the lane's rollback knob). Bitwise the same outputs
+// either way (a (row, output) pair's arithmetic does not depend on which warp or which sibling rows it runs with). Read once per process.
+constexpr int64_t kWideMinRows = 2048;
+static int a8_wide_mode() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_HIP_MXFP4_A8_R");
+        if (!e) return 4;
+        return (e[0] == '2' && e[1] == '\0') ? 2 : 4;
+    }();
+    return v;
+}
+static int a8_mut() {  // test seam INTARSIA_HIP_A8_MUT (wide form only)
+    static const int v = [] { const char* e = getenv("INTARSIA_HIP_A8_MUT"); return e ? atoi(e) : 0; }();
+    return v;
+}
+static bool a8_wide_takes(int M, int64_t rows) { return a8_wide_mode() == 4 && M >= 2 && M <= kWideMaxM && rows >= kWideMinRows; }
 
 // one pre-pass (activation quantisation), then one launch over the rows of both matrices (N1 == 0: single). The scratch is
 // required (IK_ERR_INVALID_ARG when null, misaligned or smaller than mx_a8_scratch_bytes), also when the fused path (which
@@ -265,13 +293,23 @@ int a8_rows(int M, const ik_bf16* x, const uint8_t* w0, const uint8_t* s0, OutT*
     IK_TRY(mx_a8_quant_launch(x, scratch->data, M, K, s));
     const uint4* xq = reinterpret_cast<const uint4*>(scratch->data);
     const float* xs = reinterpret_cast<const float*>(static_cast<unsigned char*>(scratch->data) + mx_a8_xs_offset(M, K));
-#define IK_MX_A8(MM) case MM: a8_launch<MM, OutT>(xq, xs, w0, s0, o0, N0, w1, s1, o1, N1, K, s); break
-    switch (M) {
-        IK_MX_A8(1); IK_MX_A8(2); IK_MX_A8(3); IK_MX_A8(4); IK_MX_A8(5); IK_MX_A8(6); IK_MX_A8(7); IK_MX_A8(8);
-        IK_MX_A8(9); IK_MX_A8(10); IK_MX_A8(11); IK_MX_A8(12); IK_MX_A8(13); IK_MX_A8(14); IK_MX_A8(15); IK_MX_A8(16);
-        default: return IK_ERR_SHAPE;
+    const bool wide = a8_wide_takes(M, N0 + N1);
+#define IK_MX_A8(MM) case MM: a8_launch<MM, OutT, kRowsR>(xq, xs, w0, s0, o0, N0, w1, s1, o1, N1, K, s, 0); break
+#define IK_MX_A8W(MM) case MM: a8_launch<MM, OutT, kRowsWide>(xq, xs, w0, s0, o0, N0, w1, s1, o1, N1, K, s, a8_mut()); break
+    if (wide) {
+        switch (M) {
+            IK_MX_A8W(2); IK_MX_A8W(3); IK_MX_A8W(4); IK_MX_A8W(5); IK_MX_A8W(6); IK_MX_A8W(7); IK_MX_A8W(8);
+            default: return IK_ERR_SHAPE;
+        }
+    } else {
+        switch (M) {
+            IK_MX_A8(1); IK_MX_A8(2); IK_MX_A8(3); IK_MX_A8(4); IK_MX_A8(5); IK_MX_A8(6); IK_MX_A8(7); IK_MX_A8(8);
+            IK_MX_A8(9); IK_MX_A8(10); IK_MX_A8(11); IK_MX_A8(12); IK_MX_A8(13); IK_MX_A8(14); IK_MX_A8(15); IK_MX_A8(16);
+            default: return IK_ERR_SHAPE;
+        }
     }
 #undef IK_MX_A8
+#undef IK_MX_A8W
     return ik_launch_status();
 }
 

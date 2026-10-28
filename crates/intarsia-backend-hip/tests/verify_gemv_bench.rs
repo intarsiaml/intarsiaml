@@ -54,12 +54,13 @@ fn verify_gemv_microbench() {
     };
     let mut rng = SplitMix64::new(77);
     // (name, pair?, N0, N1, K): the 27B tp=2 per-rank decode shapes
-    let shapes: [(&str, bool, usize, usize, usize); 5] = [
+    let shapes: [(&str, bool, usize, usize, usize); 6] = [
         ("gate+up pair 8704+8704 K5120", true, 8704, 8704, 5120),
         ("down 5120 K8704", false, 5120, 0, 8704),
         ("qkv+z 8192 K5120", false, 8192, 0, 5120),
         ("q+gate 6144 K5120", false, 6144, 0, 5120),
         ("out/o 5120 K3072", false, 5120, 0, 3072),
+        ("k+v pair 512+512 K5120", true, 512, 512, 5120),
     ];
     let ms: Vec<usize> = std::env::var("VRC_MS").ok().map(|s| s.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 2, 3, 4, 8]);
     for (name, pair, n0, n1, k) in shapes {
