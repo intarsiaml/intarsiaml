@@ -2023,6 +2023,9 @@ impl Seq {
     /// Roll the KV back, release held-back text and report. Call once [`Seq::on_token`] returned true.
     pub(crate) fn finish(mut self, model: &Model, st: &mut SequenceState) -> Result<Outcome> {
         let mut reason = self.reason.expect("finish before the sequence ended");
+        if let Some(a) = self.auto.as_ref().filter(|a| a.params().log) {
+            eprintln!("spec auto: {} tokens, {}", self.generated, a.summary());
+        }
         if self.spec_on {
             // A stop inside an accepted run leaves KV rows of tokens that were never emitted: roll back to what sequential
             // decode holds at this point (every emitted token but the last fed), so a following request reuses the same

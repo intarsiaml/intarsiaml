@@ -73,7 +73,7 @@ serve() { # serve <arm>
   if [[ $arm == *-old ]]; then base=${arm%-old}; ENVX="${OLDENV:--e INTARSIA_HIP_GDN_VERIFY_FUSE=0}"; fi
   case $base in
     off) spec="--spec off" ;;
-    auto) spec="--spec auto --spec-draft $DRAFT --spec-k 7" ;;
+    auto) spec="--spec auto --spec-draft $DRAFT --spec-k 7"; ENVX="$ENVX -e INTARSIA_SPEC_AUTO=log" ;;
     mtp2) spec="--spec mtp --spec-k 2" ;;
     mtp*) spec="--spec mtp --spec-k ${base#mtp}" ;;
     dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${base#dfl}" ;;
@@ -127,7 +127,7 @@ for r in $(seq "$R0" $(( R0 + ROUNDS - 1 ))); do
     if (( SOAK > 0 && r == R0 )); then
       if [[ " $SOAK_ARMS " == *" $arm "* ]]; then soak "$arm" "$SOAK"; elif (( SOAK_REF > 0 )); then soak "$arm" "$SOAK_REF"; fi
     fi
-    $SSH 'docker logs asp-serve 2>&1 | grep -aE "speculative|dflash|mtp|graph|error" | tail -12' < /dev/null > "$OUT/serve-$arm-r$r.log" 2>&1
+    $SSH 'docker logs asp-serve 2>&1 | grep -aE "speculative|dflash|mtp|graph|error|spec auto" | tail -80' < /dev/null > "$OUT/serve-$arm-r$r.log" 2>&1
     $SSH 'docker rm -f asp-serve' >/dev/null 2>&1 < /dev/null
   done
 done

@@ -646,25 +646,31 @@ pub struct AutoParams {
     pub far_ratio: f64,
     pub probe_far: u32,
     pub force: Option<AutoForce>,
+    /// One stderr line per request: passes per drafter, switches, probes (`INTARSIA_SPEC_AUTO=...,log`).
+    pub log: bool,
 }
 
 impl Default for AutoParams {
     fn default() -> Self {
-        AutoParams { seed_passes: 2, alpha: 0.2, margin: 1.03, probe_every: 48, far_ratio: 1.3, probe_far: 2, force: None }
+        AutoParams { seed_passes: 2, alpha: 0.2, margin: 1.03, probe_every: 48, far_ratio: 1.3, probe_far: 2, force: None, log: false }
     }
 }
 
 impl AutoParams {
-    /// `INTARSIA_SPEC_AUTO`: `mtp`, `dflash`, `alt:N` (force), unset or empty (the defaults).
+    /// `INTARSIA_SPEC_AUTO`: comma-separated `mtp`, `dflash`, `alt:N` (force a drafter), `log` (a summary line per request); unset
+    /// or empty: the defaults.
     pub fn with_env(mut self, v: Option<&str>) -> AutoParams {
-        match v.map(str::trim) {
-            None | Some("") | Some("0") | Some("off") => {}
-            Some("mtp") => self.force = Some(AutoForce::Mtp),
-            Some("dflash") => self.force = Some(AutoForce::Dflash),
-            Some(x) => match x.strip_prefix("alt:").and_then(|n| n.parse::<u32>().ok()).filter(|&n| n > 0) {
-                Some(n) => self.force = Some(AutoForce::Alternate(n)),
-                None => eprintln!("spec auto: ignoring INTARSIA_SPEC_AUTO={x:?} (want mtp, dflash or alt:N)"),
-            },
+        for x in v.unwrap_or("").split(',').map(str::trim) {
+            match x {
+                "" | "0" | "off" => {}
+                "log" => self.log = true,
+                "mtp" => self.force = Some(AutoForce::Mtp),
+                "dflash" => self.force = Some(AutoForce::Dflash),
+                x => match x.strip_prefix("alt:").and_then(|n| n.parse::<u32>().ok()).filter(|&n| n > 0) {
+                    Some(n) => self.force = Some(AutoForce::Alternate(n)),
+                    None => eprintln!("spec auto: ignoring INTARSIA_SPEC_AUTO part {x:?} (want mtp, dflash, alt:N or log)"),
+                },
+            }
         }
         self
     }
@@ -733,6 +739,10 @@ impl AutoPolicy {
             switches: 0,
             probes: 0,
         }
+    }
+
+    pub fn params(&self) -> &AutoParams {
+        &self.p
     }
 
     /// Passes taken with `d` so far.
@@ -827,6 +837,19 @@ impl AutoPolicy {
     }
 
     /// Tokens per ms of each drafter (mtp, dflash), for the trace.
+    pub fn summary(&self) -> String {
+        let r = self.rates();
+        format!(
+            "passes mtp {} dflash {} switches {} probes {} (tokens/ms mtp {:.3} dflash {:.3})",
+            self.passes_of(Drafter::Mtp),
+            self.passes_of(Drafter::Dflash),
+            self.switches,
+            self.probes,
+            r.0.unwrap_or(0.0),
+            r.1.unwrap_or(0.0)
+        )
+    }
+
     pub fn rates(&self) -> (Option<f64>, Option<f64>) {
         (self.stats[0].rate(), self.stats[1].rate())
     }
