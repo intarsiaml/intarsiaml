@@ -1,0 +1,171 @@
+[window] job 6415 bench2; stopping radiance 2026-10-28 00:52:42
+[window] radiance stopped 2026-10-28 00:52:45
+00:52:47 htest bench-def exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s|
+def VRCBENCH gate+up pair 8704+8704 K5120     M=1      77.7 us     609 GB/s  x1.00 of M=1
+def VRCBENCH gate+up pair 8704+8704 K5120     M=2      81.2 us     583 GB/s  x1.04 of M=1
+def VRCBENCH gate+up pair 8704+8704 K5120     M=3      82.8 us     572 GB/s  x1.07 of M=1
+def VRCBENCH gate+up pair 8704+8704 K5120     M=4      86.2 us     549 GB/s  x1.11 of M=1
+def VRCBENCH gate+up pair 8704+8704 K5120     M=8     101.9 us     464 GB/s  x1.31 of M=1
+def VRCBENCH down 5120 K8704                  M=1      42.7 us     555 GB/s  x1.00 of M=1
+def VRCBENCH down 5120 K8704                  M=2      47.1 us     503 GB/s  x1.10 of M=1
+def VRCBENCH down 5120 K8704                  M=3      48.7 us     486 GB/s  x1.14 of M=1
+def VRCBENCH down 5120 K8704                  M=4      50.7 us     467 GB/s  x1.19 of M=1
+def VRCBENCH down 5120 K8704                  M=8      63.8 us     371 GB/s  x1.50 of M=1
+def VRCBENCH qkv+z 8192 K5120                 M=1      40.5 us     551 GB/s  x1.00 of M=1
+def VRCBENCH qkv+z 8192 K5120                 M=2      46.9 us     475 GB/s  x1.16 of M=1
+def VRCBENCH qkv+z 8192 K5120                 M=3      47.0 us     474 GB/s  x1.16 of M=1
+def VRCBENCH qkv+z 8192 K5120                 M=4      47.1 us     474 GB/s  x1.16 of M=1
+def VRCBENCH qkv+z 8192 K5120                 M=8      54.0 us     413 GB/s  x1.33 of M=1
+def VRCBENCH q+gate 6144 K5120                M=1      31.1 us     538 GB/s  x1.00 of M=1
+def VRCBENCH q+gate 6144 K5120                M=2      34.0 us     491 GB/s  x1.09 of M=1
+def VRCBENCH q+gate 6144 K5120                M=3      34.5 us     485 GB/s  x1.11 of M=1
+def VRCBENCH q+gate 6144 K5120                M=4      36.3 us     460 GB/s  x1.17 of M=1
+def VRCBENCH q+gate 6144 K5120                M=8      43.7 us     382 GB/s  x1.41 of M=1
+def VRCBENCH out/o 5120 K3072                 M=1      17.6 us     476 GB/s  x1.00 of M=1
+def VRCBENCH out/o 5120 K3072                 M=2      21.1 us     396 GB/s  x1.20 of M=1
+def VRCBENCH out/o 5120 K3072                 M=3      22.0 us     380 GB/s  x1.25 of M=1
+def VRCBENCH out/o 5120 K3072                 M=4      22.9 us     364 GB/s  x1.31 of M=1
+def VRCBENCH out/o 5120 K3072                 M=8      29.7 us     281 GB/s  x1.69 of M=1
+def VRCBENCH k+v pair 512+512 K5120           M=1       8.9 us     313 GB/s  x1.00 of M=1
+def VRCBENCH k+v pair 512+512 K5120           M=2      12.4 us     225 GB/s  x1.39 of M=1
+def VRCBENCH k+v pair 512+512 K5120           M=3      12.7 us     220 GB/s  x1.42 of M=1
+def VRCBENCH k+v pair 512+512 K5120           M=4      13.4 us     209 GB/s  x1.50 of M=1
+def VRCBENCH k+v pair 512+512 K5120           M=8      15.3 us     182 GB/s  x1.72 of M=1
+def VRCBENCH gdn_conv_delta T=1       7.4 us/launch
+def VRCBENCH gdn_conv_delta T=2       8.9 us/launch
+def VRCBENCH gdn_conv_delta T=3      10.0 us/launch
+def VRCBENCH gdn_conv_delta T=4      11.3 us/launch
+def VRCBENCH gdn_conv_delta T=8      16.3 us/launch
+00:52:49 htest bench-r2 exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s|
+r2 VRCBENCH gate+up pair 8704+8704 K5120     M=1      77.6 us     610 GB/s  x1.00 of M=1
+r2 VRCBENCH gate+up pair 8704+8704 K5120     M=2      80.8 us     586 GB/s  x1.04 of M=1
+r2 VRCBENCH gate+up pair 8704+8704 K5120     M=3      82.6 us     573 GB/s  x1.07 of M=1
+r2 VRCBENCH gate+up pair 8704+8704 K5120     M=4      84.5 us     560 GB/s  x1.09 of M=1
+r2 VRCBENCH gate+up pair 8704+8704 K5120     M=8      91.4 us     518 GB/s  x1.18 of M=1
+r2 VRCBENCH down 5120 K8704                  M=1      42.4 us     558 GB/s  x1.00 of M=1
+r2 VRCBENCH down 5120 K8704                  M=2      46.7 us     507 GB/s  x1.10 of M=1
+r2 VRCBENCH down 5120 K8704                  M=3      47.9 us     494 GB/s  x1.13 of M=1
+r2 VRCBENCH down 5120 K8704                  M=4      49.6 us     478 GB/s  x1.17 of M=1
+r2 VRCBENCH down 5120 K8704                  M=8      55.6 us     426 GB/s  x1.31 of M=1
+r2 VRCBENCH qkv+z 8192 K5120                 M=1      40.4 us     552 GB/s  x1.00 of M=1
+r2 VRCBENCH qkv+z 8192 K5120                 M=2      44.2 us     504 GB/s  x1.09 of M=1
+r2 VRCBENCH qkv+z 8192 K5120                 M=3      44.7 us     498 GB/s  x1.11 of M=1
+r2 VRCBENCH qkv+z 8192 K5120                 M=4      46.6 us     478 GB/s  x1.15 of M=1
+r2 VRCBENCH qkv+z 8192 K5120                 M=8      52.3 us     426 GB/s  x1.29 of M=1
+r2 VRCBENCH q+gate 6144 K5120                M=1      31.0 us     539 GB/s  x1.00 of M=1
+r2 VRCBENCH q+gate 6144 K5120                M=2      33.9 us     494 GB/s  x1.09 of M=1
+r2 VRCBENCH q+gate 6144 K5120                M=3      35.1 us     476 GB/s  x1.13 of M=1
+r2 VRCBENCH q+gate 6144 K5120                M=4      36.1 us     463 GB/s  x1.16 of M=1
+r2 VRCBENCH q+gate 6144 K5120                M=8      41.4 us     404 GB/s  x1.34 of M=1
+r2 VRCBENCH out/o 5120 K3072                 M=1      17.6 us     475 GB/s  x1.00 of M=1
+r2 VRCBENCH out/o 5120 K3072                 M=2      20.6 us     405 GB/s  x1.17 of M=1
+r2 VRCBENCH out/o 5120 K3072                 M=3      21.9 us     381 GB/s  x1.24 of M=1
+r2 VRCBENCH out/o 5120 K3072                 M=4      23.0 us     364 GB/s  x1.30 of M=1
+r2 VRCBENCH out/o 5120 K3072                 M=8      27.5 us     304 GB/s  x1.56 of M=1
+r2 VRCBENCH k+v pair 512+512 K5120           M=1       8.9 us     313 GB/s  x1.00 of M=1
+r2 VRCBENCH k+v pair 512+512 K5120           M=2      12.3 us     226 GB/s  x1.38 of M=1
+r2 VRCBENCH k+v pair 512+512 K5120           M=3      12.6 us     221 GB/s  x1.42 of M=1
+r2 VRCBENCH k+v pair 512+512 K5120           M=4      13.4 us     208 GB/s  x1.50 of M=1
+r2 VRCBENCH k+v pair 512+512 K5120           M=8      15.3 us     182 GB/s  x1.72 of M=1
+r2 VRCBENCH gdn_conv_delta T=1       7.4 us/launch
+r2 VRCBENCH gdn_conv_delta T=2       8.6 us/launch
+r2 VRCBENCH gdn_conv_delta T=3      10.1 us/launch
+r2 VRCBENCH gdn_conv_delta T=4      11.2 us/launch
+r2 VRCBENCH gdn_conv_delta T=8      16.4 us/launch
+00:52:51 htest bench-fuse exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s|
+fuse VRCBENCH gate+up pair 8704+8704 K5120     M=1      77.8 us     609 GB/s  x1.00 of M=1
+fuse VRCBENCH gate+up pair 8704+8704 K5120     M=2      80.4 us     589 GB/s  x1.03 of M=1
+fuse VRCBENCH gate+up pair 8704+8704 K5120     M=3      83.9 us     564 GB/s  x1.08 of M=1
+fuse VRCBENCH gate+up pair 8704+8704 K5120     M=4     100.1 us     473 GB/s  x1.29 of M=1
+fuse VRCBENCH gate+up pair 8704+8704 K5120     M=8     228.4 us     207 GB/s  x2.94 of M=1
+fuse VRCBENCH down 5120 K8704                  M=1      42.7 us     555 GB/s  x1.00 of M=1
+fuse VRCBENCH down 5120 K8704                  M=2      46.6 us     508 GB/s  x1.09 of M=1
+fuse VRCBENCH down 5120 K8704                  M=3      56.9 us     416 GB/s  x1.33 of M=1
+fuse VRCBENCH down 5120 K8704                  M=4      75.1 us     315 GB/s  x1.76 of M=1
+fuse VRCBENCH down 5120 K8704                  M=8      63.3 us     374 GB/s  x1.48 of M=1
+fuse VRCBENCH qkv+z 8192 K5120                 M=1      40.4 us     552 GB/s  x1.00 of M=1
+fuse VRCBENCH qkv+z 8192 K5120                 M=2      41.9 us     531 GB/s  x1.04 of M=1
+fuse VRCBENCH qkv+z 8192 K5120                 M=3      45.5 us     490 GB/s  x1.13 of M=1
+fuse VRCBENCH qkv+z 8192 K5120                 M=4      53.5 us     417 GB/s  x1.32 of M=1
+fuse VRCBENCH qkv+z 8192 K5120                 M=8     107.3 us     208 GB/s  x2.66 of M=1
+fuse VRCBENCH q+gate 6144 K5120                M=1      31.1 us     538 GB/s  x1.00 of M=1
+fuse VRCBENCH q+gate 6144 K5120                M=2      32.8 us     509 GB/s  x1.06 of M=1
+fuse VRCBENCH q+gate 6144 K5120                M=3      35.4 us     473 GB/s  x1.14 of M=1
+fuse VRCBENCH q+gate 6144 K5120                M=4      40.8 us     410 GB/s  x1.31 of M=1
+fuse VRCBENCH q+gate 6144 K5120                M=8      79.0 us     212 GB/s  x2.54 of M=1
+fuse VRCBENCH out/o 5120 K3072                 M=1      17.5 us     476 GB/s  x1.00 of M=1
+fuse VRCBENCH out/o 5120 K3072                 M=2      19.9 us     420 GB/s  x1.14 of M=1
+fuse VRCBENCH out/o 5120 K3072                 M=3      22.5 us     372 GB/s  x1.28 of M=1
+fuse VRCBENCH out/o 5120 K3072                 M=4      24.6 us     339 GB/s  x1.40 of M=1
+fuse VRCBENCH out/o 5120 K3072                 M=8      40.5 us     206 GB/s  x2.31 of M=1
+fuse VRCBENCH k+v pair 512+512 K5120           M=1       8.9 us     312 GB/s  x1.00 of M=1
+fuse VRCBENCH k+v pair 512+512 K5120           M=2      10.7 us     261 GB/s  x1.20 of M=1
+fuse VRCBENCH k+v pair 512+512 K5120           M=3      12.5 us     223 GB/s  x1.40 of M=1
+fuse VRCBENCH k+v pair 512+512 K5120           M=4      14.1 us     197 GB/s  x1.58 of M=1
+fuse VRCBENCH k+v pair 512+512 K5120           M=8      21.1 us     132 GB/s  x2.36 of M=1
+fuse VRCBENCH gdn_conv_delta T=1       7.3 us/launch
+fuse VRCBENCH gdn_conv_delta T=2       8.6 us/launch
+fuse VRCBENCH gdn_conv_delta T=3      10.2 us/launch
+fuse VRCBENCH gdn_conv_delta T=4      11.2 us/launch
+fuse VRCBENCH gdn_conv_delta T=8      16.4 us/launch
+00:52:53 htest bench-r2fuse exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s|
+r2fuse VRCBENCH gate+up pair 8704+8704 K5120     M=1      77.6 us     610 GB/s  x1.00 of M=1
+r2fuse VRCBENCH gate+up pair 8704+8704 K5120     M=2      80.3 us     590 GB/s  x1.03 of M=1
+r2fuse VRCBENCH gate+up pair 8704+8704 K5120     M=3      84.0 us     563 GB/s  x1.08 of M=1
+r2fuse VRCBENCH gate+up pair 8704+8704 K5120     M=4     100.1 us     473 GB/s  x1.29 of M=1
+r2fuse VRCBENCH gate+up pair 8704+8704 K5120     M=8     228.3 us     207 GB/s  x2.94 of M=1
+r2fuse VRCBENCH down 5120 K8704                  M=1      43.1 us     550 GB/s  x1.00 of M=1
+r2fuse VRCBENCH down 5120 K8704                  M=2      46.6 us     508 GB/s  x1.08 of M=1
+r2fuse VRCBENCH down 5120 K8704                  M=3      57.0 us     415 GB/s  x1.32 of M=1
+r2fuse VRCBENCH down 5120 K8704                  M=4      75.3 us     314 GB/s  x1.75 of M=1
+r2fuse VRCBENCH down 5120 K8704                  M=8      56.3 us     420 GB/s  x1.31 of M=1
+r2fuse VRCBENCH qkv+z 8192 K5120                 M=1      40.5 us     550 GB/s  x1.00 of M=1
+r2fuse VRCBENCH qkv+z 8192 K5120                 M=2      42.2 us     528 GB/s  x1.04 of M=1
+r2fuse VRCBENCH qkv+z 8192 K5120                 M=3      45.5 us     490 GB/s  x1.12 of M=1
+r2fuse VRCBENCH qkv+z 8192 K5120                 M=4      53.6 us     416 GB/s  x1.32 of M=1
+r2fuse VRCBENCH qkv+z 8192 K5120                 M=8     106.8 us     209 GB/s  x2.64 of M=1
+r2fuse VRCBENCH q+gate 6144 K5120                M=1      31.4 us     533 GB/s  x1.00 of M=1
+r2fuse VRCBENCH q+gate 6144 K5120                M=2      33.3 us     501 GB/s  x1.06 of M=1
+r2fuse VRCBENCH q+gate 6144 K5120                M=3      35.4 us     472 GB/s  x1.13 of M=1
+r2fuse VRCBENCH q+gate 6144 K5120                M=4      41.2 us     406 GB/s  x1.31 of M=1
+r2fuse VRCBENCH q+gate 6144 K5120                M=8      79.7 us     210 GB/s  x2.54 of M=1
+r2fuse VRCBENCH out/o 5120 K3072                 M=1      17.6 us     475 GB/s  x1.00 of M=1
+r2fuse VRCBENCH out/o 5120 K3072                 M=2      20.1 us     416 GB/s  x1.14 of M=1
+r2fuse VRCBENCH out/o 5120 K3072                 M=3      22.4 us     373 GB/s  x1.27 of M=1
+r2fuse VRCBENCH out/o 5120 K3072                 M=4      24.6 us     339 GB/s  x1.40 of M=1
+r2fuse VRCBENCH out/o 5120 K3072                 M=8      40.6 us     206 GB/s  x2.31 of M=1
+r2fuse VRCBENCH k+v pair 512+512 K5120           M=1       8.9 us     311 GB/s  x1.00 of M=1
+r2fuse VRCBENCH k+v pair 512+512 K5120           M=2      10.7 us     260 GB/s  x1.20 of M=1
+r2fuse VRCBENCH k+v pair 512+512 K5120           M=3      12.5 us     223 GB/s  x1.40 of M=1
+r2fuse VRCBENCH k+v pair 512+512 K5120           M=4      14.2 us     196 GB/s  x1.59 of M=1
+r2fuse VRCBENCH k+v pair 512+512 K5120           M=8      21.1 us     132 GB/s  x2.36 of M=1
+r2fuse VRCBENCH gdn_conv_delta T=1       7.3 us/launch
+r2fuse VRCBENCH gdn_conv_delta T=2       8.6 us/launch
+r2fuse VRCBENCH gdn_conv_delta T=3      10.2 us/launch
+r2fuse VRCBENCH gdn_conv_delta T=4      11.2 us/launch
+r2fuse VRCBENCH gdn_conv_delta T=8      16.3 us/launch
+00:53:00 htest hash-def exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.28s|
+def FUSEHASH fac47447935a8383
+00:53:06 htest hashd-def exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.26s|
+def default-fuse FUSEHASH fac47447935a8383
+00:53:13 htest hash-r2 exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.29s|
+r2 FUSEHASH fac47447935a8383
+00:53:19 htest hashd-r2 exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.28s|
+r2 default-fuse FUSEHASH fac47447935a8383
+00:53:25 htest mut1 exit 101: thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:|test a8_fused_is_bitwise_the_unfused ... FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s|
+thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:
+gemv_rows M=4 N=5120 K=17408: rel_l2 4.980e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s
+00:53:31 htest mut2 exit 101: thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:|test a8_fused_is_bitwise_the_unfused ... FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s|
+thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:
+gemv_rows M=4 N=5120 K=17408: rel_l2 4.116e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s
+00:53:37 htest mut3 exit 101: thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:|test a8_fused_is_bitwise_the_unfused ... FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s|
+thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:
+gemv_rows M=4 N=5120 K=17408: rel_l2 5.115e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s
+00:53:48 htest t-mxfp4_a8 exit 0: test result: ok. 6 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 10.87s|
+00:54:04 htest t-rows_exact exit 0: test result: ok. 13 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 16.23s|
+[window] stages done 2026-10-28 00:54:04 (exit 0)
+[window] starting radiance 2026-10-28 00:54:04
+[window] radiance answers 2026-10-28 00:54:14 (after 15 s)

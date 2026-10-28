@@ -1,0 +1,68 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1209:4
+     |
+1209 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/verify_gemv_bench.rs (/target/release/deps/verify_gemv_bench-3a98a5d9b211761c)
+
+running 1 test
+VRCBENCH gate+up pair 8704+8704 K5120     M=1      77.6 us     610 GB/s  x1.00 of M=1
+VRCBENCH gate+up pair 8704+8704 K5120     M=2      80.3 us     590 GB/s  x1.03 of M=1
+VRCBENCH gate+up pair 8704+8704 K5120     M=3      84.0 us     563 GB/s  x1.08 of M=1
+VRCBENCH gate+up pair 8704+8704 K5120     M=4     100.1 us     473 GB/s  x1.29 of M=1
+VRCBENCH gate+up pair 8704+8704 K5120     M=8     228.3 us     207 GB/s  x2.94 of M=1
+VRCBENCH down 5120 K8704                  M=1      43.1 us     550 GB/s  x1.00 of M=1
+VRCBENCH down 5120 K8704                  M=2      46.6 us     508 GB/s  x1.08 of M=1
+VRCBENCH down 5120 K8704                  M=3      57.0 us     415 GB/s  x1.32 of M=1
+VRCBENCH down 5120 K8704                  M=4      75.3 us     314 GB/s  x1.75 of M=1
+VRCBENCH down 5120 K8704                  M=8      56.3 us     420 GB/s  x1.31 of M=1
+VRCBENCH qkv+z 8192 K5120                 M=1      40.5 us     550 GB/s  x1.00 of M=1
+VRCBENCH qkv+z 8192 K5120                 M=2      42.2 us     528 GB/s  x1.04 of M=1
+VRCBENCH qkv+z 8192 K5120                 M=3      45.5 us     490 GB/s  x1.12 of M=1
+VRCBENCH qkv+z 8192 K5120                 M=4      53.6 us     416 GB/s  x1.32 of M=1
+VRCBENCH qkv+z 8192 K5120                 M=8     106.8 us     209 GB/s  x2.64 of M=1
+VRCBENCH q+gate 6144 K5120                M=1      31.4 us     533 GB/s  x1.00 of M=1
+VRCBENCH q+gate 6144 K5120                M=2      33.3 us     501 GB/s  x1.06 of M=1
+VRCBENCH q+gate 6144 K5120                M=3      35.4 us     472 GB/s  x1.13 of M=1
+VRCBENCH q+gate 6144 K5120                M=4      41.2 us     406 GB/s  x1.31 of M=1
+VRCBENCH q+gate 6144 K5120                M=8      79.7 us     210 GB/s  x2.54 of M=1
+VRCBENCH out/o 5120 K3072                 M=1      17.6 us     475 GB/s  x1.00 of M=1
+VRCBENCH out/o 5120 K3072                 M=2      20.1 us     416 GB/s  x1.14 of M=1
+VRCBENCH out/o 5120 K3072                 M=3      22.4 us     373 GB/s  x1.27 of M=1
+VRCBENCH out/o 5120 K3072                 M=4      24.6 us     339 GB/s  x1.40 of M=1
+VRCBENCH out/o 5120 K3072                 M=8      40.6 us     206 GB/s  x2.31 of M=1
+VRCBENCH k+v pair 512+512 K5120           M=1       8.9 us     311 GB/s  x1.00 of M=1
+VRCBENCH k+v pair 512+512 K5120           M=2      10.7 us     260 GB/s  x1.20 of M=1
+VRCBENCH k+v pair 512+512 K5120           M=3      12.5 us     223 GB/s  x1.40 of M=1
+VRCBENCH k+v pair 512+512 K5120           M=4      14.2 us     196 GB/s  x1.59 of M=1
+VRCBENCH k+v pair 512+512 K5120           M=8      21.1 us     132 GB/s  x2.36 of M=1
+VRCBENCH gdn_conv_delta T=1       7.3 us/launch
+VRCBENCH gdn_conv_delta T=2       8.6 us/launch
+VRCBENCH gdn_conv_delta T=3      10.2 us/launch
+VRCBENCH gdn_conv_delta T=4      11.2 us/launch
+VRCBENCH gdn_conv_delta T=8      16.3 us/launch
+test verify_gemv_microbench ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s
+

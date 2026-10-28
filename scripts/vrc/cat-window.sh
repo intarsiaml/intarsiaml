@@ -40,7 +40,7 @@ if [[ ${DRY:-0} == 1 ]]; then
   exit 0
 fi
 FIFO=$(mktemp -u "$REPO/target/vrcguard.XXXXXX"); mkfifo "$FIFO"
-$SSH 'mkdir -p ~/intarsiaml-vrc/.vrc' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE/stages-ids.sh" "$HERE/stages-phase.sh" tatooine:intarsiaml-vrc/.vrc/
+$SSH 'mkdir -p ~/intarsiaml-vrc/.vrc' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE/stages-ids.sh" "$HERE/stages-phase.sh" "$HERE/stages-gates.sh" "$HERE/stages-final.sh" tatooine:intarsiaml-vrc/.vrc/
 $SSH 'bash ~/intarsiaml-vrc/.vrc/guard.sh' > "$OUT/guard.log" 2>&1 < "$FIFO" &
 GUARD=$!
 exec 9> "$FIFO"
@@ -53,7 +53,7 @@ trap cleanup EXIT
 
 # PRE=ids: first the 27B ids gate (scripts/vrc/stages-ids.sh ON tatooine, IDARMS / TPS passed through, at most PRE_CAP s), its
 # output fetched into raw/<W>/ids/
-if [[ ${PRE:-} == ids || ${PRE:-} == phase ]]; then
+if [[ ${PRE:-} == ids || ${PRE:-} == phase || ${PRE:-} == final ]]; then
   say "pre: ids gate (arms ${IDARMS:-dfl mtp2}, ${TPS:-tp1 tp2}, cap ${PRE_CAP:-1200} s)"
   $SSH "rm -rf ~/intarsiaml-vrc/.vrc/out/$W-ids; mkdir -p ~/intarsiaml-vrc/.vrc/out/$W-ids; IDARMS='${IDARMS:-dfl mtp2}' TPS='${TPS:-tp1 tp2}' IDNAMES='${IDNAMES:-}' VERIFY8='${VERIFY8:-0}' timeout ${PRE_CAP:-1200} bash ~/intarsiaml-vrc/.vrc/stages-${PRE}.sh ~/intarsiaml-vrc/.vrc/out/$W-ids" \
     < /dev/null > "$OUT/ids-pre.log" 2>&1
