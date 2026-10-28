@@ -226,7 +226,29 @@ impl Model {
             // but the last saved for the rollback (`SequenceState::spec_rollback`)
             let save = st.spec_rows.bufs.len() >= t - 1 && self.recorder.lock().unwrap().is_none();
             let off = st.recurrent_offset(g.slot);
-            for r in 0..t {
+            // HIP (lane vrc): the T rows in one launch that also stores the state after every row but the last into the save
+            // buffers: bitwise the row-by-row calls and copies below, without their launches (INTARSIA_HIP_GDN_VERIFY_FUSE=0: off)
+            let mut done = false;
+            if save && self.gdn_verify_fuse_ok(t, off, rec.bytes, state_s_offset(l)) {
+                let snaps: Vec<TensorRef> = st.spec_rows.bufs[..t - 1]
+                    .iter()
+                    .map(|b| {
+                        let mut v = TensorRef::new(b.clone(), DType::F32, &[c, ks - 1]);
+                        v.offset = off;
+                        v
+                    })
+                    .collect();
+                let mut outs = vec![core.clone(), s_state.clone(), conv_state.clone()];
+                outs.extend(snaps);
+                done = self.try_fused(
+                    Op::GdnConvDelta,
+                    vec![qkv.clone(), g.conv.clone(), a.clone(), b.clone(), g.a_log.clone(), g.dt_bias.clone()],
+                    outs,
+                    delta_attrs.clone(),
+                    profile,
+                )?;
+            }
+            for r in 0..if done { 0 } else { t } {
                 let (qkv, a, b, conv, core) = (qkv.rows(r, 1), a.rows(r, 1), b.rows(r, 1), conv.rows(r, 1), core.rows(r, 1));
                 self.conv_delta(g, &qkv, &a, &b, &conv, &core, &s_state, &conv_state, &delta_attrs, profile)?;
                 if save && r + 1 < t {
@@ -316,5 +338,18 @@ impl Model {
             )?;
         }
         Ok(())
+    }
+
+    /// Whether a speculative-verify GatedDeltaNet block of `t` rows may take the one-launch snapshotting `GdnConvDelta` (HIP only):
+    /// `INTARSIA_HIP_GDN_VERIFY_FUSE` not `0`, `t - 1` snapshots within the kernel's table, and every address the kernel stores to
+    /// 16-byte aligned (the save buffers' slot offset, the slot size, the delta state's offset in the slot).
+    fn gdn_verify_fuse_ok(&self, t: usize, off: usize, slot_bytes: usize, s_off: usize) -> bool {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        *ON.get_or_init(|| std::env::var("INTARSIA_HIP_GDN_VERIFY_FUSE").map_or(true, |v| v != "0"))
+            && self.backend.name() == "hip"
+            && (2..=16).contains(&t)
+            && off % 16 == 0
+            && slot_bytes % 16 == 0
+            && s_off % 16 == 0
     }
 }

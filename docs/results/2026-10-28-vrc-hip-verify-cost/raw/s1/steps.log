@@ -1,0 +1,38 @@
+23:47:36 guard: [guard] radiance stopped 2026-10-27 23:47:36
+23:47:36 pre: ids gate (arms dfl mtp2, tp1 tp2, cap 1200 s)
+23:48:46 pre: ids exit 0
+23:48:48 pre: 
+23:48:48 round 1 arm mtp2: starting server
+23:50:29 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261027-235005-vrc-mtp2-vrc-s1-mtp2-ho-chat-r1/result.json
+23:50:41 round 1 arm mtp2 ho-code: localeval exit 0 results/20261027-235030-vrc-mtp2-vrc-s1-mtp2-ho-code-r1/result.json
+23:51:09 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261027-235041-vrc-mtp2-vrc-s1-mtp2-ho-prose-r1/result.json
+23:51:22 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261027-235110-vrc-mtp2-vrc-s1-mtp2-ho-recall-r1/result.json
+23:52:03 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261027-235122-vrc-mtp2-vrc-s1-mtp2-rcp-code-r1/result.json
+23:52:55 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261027-235203-vrc-mtp2-vrc-s1-mtp2-rcp-prose-r1/result.json
+23:53:40 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261027-235256-vrc-mtp2-vrc-s1-mtp2-rcp-recall-r1/result.json
+23:53:40 round 1 arm mtp2-old: starting server
+23:55:22 round 1 arm mtp2-old ho-chat: localeval exit 0 results/20261027-235457-vrc-mtp2-old-vrc-s1-mtp2-old-ho-chat-r1/result.json
+23:55:34 round 1 arm mtp2-old ho-code: localeval exit 0 results/20261027-235523-vrc-mtp2-old-vrc-s1-mtp2-old-ho-code-r1/result.json
+23:56:03 round 1 arm mtp2-old ho-prose: localeval exit 0 results/20261027-235535-vrc-mtp2-old-vrc-s1-mtp2-old-ho-prose-r1/result.json
+23:56:16 round 1 arm mtp2-old ho-recall: localeval exit 0 results/20261027-235603-vrc-mtp2-old-vrc-s1-mtp2-old-ho-recall-r1/result.json
+23:56:58 round 1 arm mtp2-old rcp-code: localeval exit 0 results/20261027-235616-vrc-mtp2-old-vrc-s1-mtp2-old-rcp-code-r1/result.json
+23:57:52 round 1 arm mtp2-old rcp-prose: localeval exit 0 results/20261027-235659-vrc-mtp2-old-vrc-s1-mtp2-old-rcp-prose-r1/result.json
+23:58:38 round 1 arm mtp2-old rcp-recall: localeval exit 0 results/20261027-235753-vrc-mtp2-old-vrc-s1-mtp2-old-rcp-recall-r1/result.json
+23:58:38 round 1 arm dfl7: starting server
+23:59:53 round 1 arm dfl7 ho-chat: localeval exit 0 results/20261027-235925-vrc-dfl7-vrc-s1-dfl7-ho-chat-r1/result.json
+00:00:03 round 1 arm dfl7 ho-code: localeval exit 0 results/20261027-235954-vrc-dfl7-vrc-s1-dfl7-ho-code-r1/result.json
+00:00:37 round 1 arm dfl7 ho-prose: localeval exit 0 results/20261028-000003-vrc-dfl7-vrc-s1-dfl7-ho-prose-r1/result.json
+00:00:50 round 1 arm dfl7 ho-recall: localeval exit 0 results/20261028-000038-vrc-dfl7-vrc-s1-dfl7-ho-recall-r1/result.json
+00:01:23 round 1 arm dfl7 rcp-code: localeval exit 0 results/20261028-000051-vrc-dfl7-vrc-s1-dfl7-rcp-code-r1/result.json
+00:02:28 round 1 arm dfl7 rcp-prose: localeval exit 0 results/20261028-000124-vrc-dfl7-vrc-s1-dfl7-rcp-prose-r1/result.json
+00:03:09 round 1 arm dfl7 rcp-recall: localeval exit 0 results/20261028-000228-vrc-dfl7-vrc-s1-dfl7-rcp-recall-r1/result.json
+00:03:09 round 1 arm dfl7-old: starting server
+00:04:23 round 1 arm dfl7-old ho-chat: localeval exit 0 results/20261028-000353-vrc-dfl7-old-vrc-s1-dfl7-old-ho-chat-r1/result.json
+00:04:34 round 1 arm dfl7-old ho-code: localeval exit 0 results/20261028-000424-vrc-dfl7-old-vrc-s1-dfl7-old-ho-code-r1/result.json
+00:05:11 round 1 arm dfl7-old ho-prose: localeval exit 0 results/20261028-000435-vrc-dfl7-old-vrc-s1-dfl7-old-ho-prose-r1/result.json
+00:05:25 round 1 arm dfl7-old ho-recall: localeval exit 0 results/20261028-000512-vrc-dfl7-old-vrc-s1-dfl7-old-ho-recall-r1/result.json
+00:06:02 round 1 arm dfl7-old rcp-code: localeval exit 0 results/20261028-000526-vrc-dfl7-old-vrc-s1-dfl7-old-rcp-code-r1/result.json
+00:07:11 round 1 arm dfl7-old rcp-prose: localeval exit 0 results/20261028-000602-vrc-dfl7-old-vrc-s1-dfl7-old-rcp-prose-r1/result.json
+00:07:56 round 1 arm dfl7-old rcp-recall: localeval exit 0 results/20261028-000712-vrc-dfl7-old-vrc-s1-dfl7-old-rcp-recall-r1/result.json
+00:07:56 done, time left 1676s
+00:08:07 guard: [guard] radiance answers 2026-10-28 00:08:07 (after 15 s)

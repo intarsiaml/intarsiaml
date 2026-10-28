@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/vrc/scripts/vrc/../dfh/cats/rcp-prose.jsonl: 8 rows, judge=none
+# localeval: vrc-dfl7-old — 2026-10-28T00:06
+
+- model: `qwen38-27b-dfl7-old` on ? (?), url `http://tatooine:8095/v1`
+- thinking: off; run kind: quality; label: vrc-s1-dfl7-old-rcp-prose-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality vrc-dfl7-old --thinking off --label vrc-s1-dfl7-old-rcp-prose-r1 --recipe HIP_VISIBLE_DEVICES=0,1 vrc-intarsia serve --backend hip --model 27B --spec dflash --spec-draft /models/tensorfold/Qwen3.8-27B-DFlash2 --spec-k 7 --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane vrc) --dataset /opt/code/intarsiaml/.worktrees/vrc/scripts/vrc/../dfh/cats/rcp-prose.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261028-000602-vrc-dfl7-old-vrc-s1-dfl7-old-rcp-prose-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 vrc-intarsia serve --backend hip --model 27B --spec dflash --spec-draft /models/tensorfold/Qwen3.8-27B-DFlash2 --spec-k 7 --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane vrc)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/vrc/scripts/vrc/../dfh/cats/rcp-prose.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.098 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 60.9 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| prose-lighthouse | yes | 0.0 | 0.08 | 65.2 | The wind on the Isle of Solitude did not merely blow; it scr… |
+| prose-city-essay | yes | 0.0 | 0.18 | 57.3 | Home is often mistaken for a physical structure—a set of wal… |
+| prose-product-launch | yes | 0.0 | 0.08 | 60.9 | **Fresh from the Oven, Straight to Your Door: Introducing Ou… |
+| prose-mountain-letter | yes | 0.0 | 0.08 | 61.1 | High Camp, 14,000 feet October 14th Dear Leo, The wind is ho… |
+| prose-ocean-poem | yes | 0.0 | 0.08 | 60.7 | The sun has surrendered its gold to the deep, leaving the ho… |
+| prose-robot-fable | yes | 0.0 | 0.14 | 59.8 | In the heart of the Rusty Valley, where the air smelled of o… |
+| prose-travel | yes | 0.0 | 0.08 | 62.7 | The fog has not yet fully lifted from the harbor, clinging t… |
+| prose-history-scene | yes | 0.0 | 0.08 | 59.7 | The air in the workshop tasted of iron and stale sweat. It w… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261028-000602-vrc-dfl7-old-vrc-s1-dfl7-old-rcp-prose-r1/result.json
+[localeval] logged to unanimis: 07d59c40-2fa1-44b1-ac37-0855cf518a05

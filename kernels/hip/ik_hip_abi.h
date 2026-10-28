@@ -189,6 +189,12 @@ int ik_gate_split_qk_norm_rope_kv_bf16(const ik_tensor* qg, const ik_tensor* k, 
 int ik_gdn_conv_delta_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* a, const ik_tensor* b,
                            const ik_tensor* a_log, const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state,
                            ik_tensor* cstate, void* stream);
+/* lane vrc: the same launch, T - 1 = n_snaps snapshot tensors (f32 [C, K-1], 16-byte aligned views of the buffers the per-row
+ * state save of a speculative verify copies into) also get the conv + delta state after tokens 0 .. T - 2, the delta state
+ * (state - cstate) bytes after the conv state in each, bitwise what that save would copy. */
+int ik_gdn_conv_delta_snap_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* a, const ik_tensor* b,
+                                const ik_tensor* a_log, const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state,
+                                ik_tensor* cstate, const ik_tensor* snaps, int n_snaps, void* stream);
 
 /* matmul_mxfp4 (M1 drill, kernels/hip/mxfp4.hip): Op::MatmulMxfp4, OCP MXFP4 weights (u8 e2m1 pairs [N, K/2], u8 e8m0
  * scales [N, K/32]) and act f32 [1] (0: bf16 activations, 1: dynamic MXFP4 QDQ of the activations, Quark "even").

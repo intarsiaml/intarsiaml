@@ -102,16 +102,27 @@ struct CdRaw {  // raw bf16 projection values (the conv's input) of one token fo
     ik_bf16 q[PL], k[PL], v;
 };
 
+// Verify-pass snapshots (lane vrc, INTARSIA_HIP_GDN_VERIFY_FUSE): the recurrent state after each of the first n < T tokens, stored
+// where the per-row save of a speculative verify would copy it: snapshot r holds the conv state at c[r] and the delta state at
+// c[r] + s_off floats (the same layout as the live pair cstate / state). Pure extra stores: nothing the walk computes depends on them.
+constexpr int kCdMaxSnaps = 15;
+struct CdSnaps {
+    float* c[kCdMaxSnaps];
+    int64_t s_off;
+    int n;
+    int mut;  // test seam INTARSIA_HIP_GDN_SNAP_MUT (planted faults the hash test must catch): 1 snapshot index + 1, 2 no v history, 3 no q / k history
+};
+
 constexpr int kCdSyncSlots = 16;
 constexpr int kCdSyncMaxHk = 64;  // key heads per slot (one counter each)
 __device__ unsigned int g_gdn_cd_sync[kCdSyncSlots * kCdSyncMaxHk];
 
-template <int DK, int SPLIT, int PD, int K>
+template <int DK, int SPLIT, int PD, int K, bool SNAP>
 __global__ void __launch_bounds__(32) gdn_conv_delta_kernel(
     const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ taps, const ik_bf16* __restrict__ a,
     const ik_bf16* __restrict__ b, const ik_bf16* __restrict__ a_log, const ik_bf16* __restrict__ dt_bias, float eps,
     ik_bf16* __restrict__ o, float* __restrict__ state, float* cstate, int64_t T, int Hk, int Hv, int dv, int slot,
-    int skew) {
+    int skew, CdSnaps snaps) {
     unsigned int* sync = slot >= 0 ? g_gdn_cd_sync + slot * kCdSyncMaxHk : nullptr;
     static_assert(SPLIT == 2, "the xor-1 partner of the row split is DPP row_xmask:1");
     static_assert(32 % PD == 0, "a 32-token gate batch starts at the first slot of the ring");
@@ -259,6 +270,31 @@ __global__ void __launch_bounds__(32) gdn_conv_delta_kernel(
         }
         out += gdn_xorrow<1>(out);
         if (valid && part == 0) o[(t * Hv + h) * dv + j] = ik_f2b(out);
+        if constexpr (SNAP) {
+            if (t < snaps.n) {  // t is wave-uniform
+                float* sc = snaps.c[snaps.mut == 1 && t + 1 < snaps.n ? t + 1 : t];
+                if (valid) {
+                    float4* dst = reinterpret_cast<float4*>(sc + snaps.s_off + ((int64_t)h * dv + j) * DK + part * EL);
+#pragma unroll
+                    for (int i = 0; i < EL / 4; ++i) dst[i] = sv[i];
+                    if (part == 0 && snaps.mut != 2)
+#pragma unroll
+                        for (int u = 0; u < KH; ++u) sc[(int64_t)cv * KH + u] = hv[u];
+                }
+                // the key head's q / k history: one block per key head (its first value head's first block) holds it in LDS
+                if (blockIdx.x == 0 && h % (Hv / Hk) == 0 && snaps.mut != 3) {
+#pragma unroll
+                    for (int i = 0; i < PL; ++i) {
+                        const int64_t cq = cq0 + 32 * i, ck = ck0 + 32 * i;
+#pragma unroll
+                        for (int u = 0; u < KH; ++u) {
+                            sc[cq * KH + u] = shq[u][lane + 32 * i];
+                            sc[ck * KH + u] = shk[u][lane + 32 * i];
+                        }
+                    }
+                }
+            }
+        }
     };
 
     auto gates = [&](int64_t t0) {
@@ -344,9 +380,9 @@ int env_int(const char* name) {
 extern "C" {
 
 // ik_gdn_conv_bf16's and ik_gdn_delta_rule_bf16_v2's checks; dk = 128, K = 4 and T <= 32 only (the registration's)
-int ik_gdn_conv_delta_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* a, const ik_tensor* b,
+static int conv_delta_impl(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* a, const ik_tensor* b,
                            const ik_tensor* a_log, const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state,
-                           ik_tensor* cstate, void* stream) {
+                           ik_tensor* cstate, const ik_tensor* snaps, int n_snaps, void* stream) {
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(taps, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(a, IK_DTYPE_BF16, 2));
@@ -368,6 +404,25 @@ int ik_gdn_conv_delta_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_t
     if (dk != 128 || K != 4 || T > 32) return IK_ERR_UNSUPPORTED;
     if (((uintptr_t)taps->data & 7) != 0) return IK_ERR_STRIDE;  // the packed tap loads
     if (T == 0) return IK_OK;
+    CdSnaps sn;
+    sn.n = 0;
+    sn.s_off = 0;
+    sn.mut = env_int("INTARSIA_HIP_GDN_SNAP_MUT");
+    for (int r = 0; r < kCdMaxSnaps; ++r) sn.c[r] = nullptr;
+    if (n_snaps > 0) {
+        // snapshot r (r < T - 1) is laid out as the live pair: conv state at its base, delta state s_off floats on
+        if (n_snaps != T - 1 || n_snaps > kCdMaxSnaps) return IK_ERR_SHAPE;
+        const int64_t sdiff = (const char*)state->data - (const char*)cstate->data;
+        if (sdiff < 0 || (sdiff & 15) != 0) return IK_ERR_STRIDE;
+        for (int r = 0; r < n_snaps; ++r) {
+            IK_TRY(ik_check(&snaps[r], IK_DTYPE_F32, 2));
+            if (snaps[r].shape[0] != C || snaps[r].shape[1] != K - 1) return IK_ERR_SHAPE;
+            if (((uintptr_t)snaps[r].data & 15) != 0) return IK_ERR_STRIDE;
+            sn.c[r] = (float*)snaps[r].data;
+        }
+        sn.s_off = sdiff / 4 + (sn.mut == 4 ? 4 : 0);
+        sn.n = n_snaps;
+    }
     constexpr int SPLIT = 2, ROWS = 32 / SPLIT;
     const dim3 grid((unsigned)((dv + ROWS - 1) / ROWS), (unsigned)Hv);
     // one token prefetched (PD = 1), whatever INTARSIA_HIP_GDN_PD says for gdn_delta_rule_bf16_v2: the prefetch depth does not
@@ -377,16 +432,35 @@ int ik_gdn_conv_delta_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_t
     const bool noslot = env_int("INTARSIA_HIP_GDN_CD_NOSLOT") == 1;  // read at every launch (test seam)
     const int slot = (Hk <= kCdSyncMaxHk && !noslot) ? gdn_cd_sync_slot(s) : -1;
     const int skew = env_int("INTARSIA_HIP_GDN_CD_SKEW");
-    gdn_conv_delta_kernel<128, SPLIT, 1, 4><<<grid, 32, 0, s>>>(
-        (const ik_bf16*)x->data, (const ik_bf16*)taps->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data,
-        (const ik_bf16*)a_log->data, (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data,
-        (float*)cstate->data, T, (int)Hk, (int)Hv, (int)dv, slot, skew);
+#define IK_CD_ARGS (const ik_bf16*)x->data, (const ik_bf16*)taps->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, \
+    (const ik_bf16*)a_log->data, (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data, \
+    (float*)cstate->data, T, (int)Hk, (int)Hv, (int)dv, slot, skew, sn
+    if (n_snaps > 0)
+        gdn_conv_delta_kernel<128, SPLIT, 1, 4, true><<<grid, 32, 0, s>>>(IK_CD_ARGS);
+    else
+        gdn_conv_delta_kernel<128, SPLIT, 1, 4, false><<<grid, 32, 0, s>>>(IK_CD_ARGS);
+#undef IK_CD_ARGS
     if (slot >= 0) return ik_launch_status();
     IK_TRY(ik_launch_status());
     const int threads = 128;
     gdn_cd_state_kernel<<<(unsigned)((C + threads - 1) / threads), threads, 0, s>>>((const ik_bf16*)x->data,
                                                                                    (float*)cstate->data, T, (int)C, (int)K);
     return ik_launch_status();
+}
+
+int ik_gdn_conv_delta_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* a, const ik_tensor* b,
+                           const ik_tensor* a_log, const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state,
+                           ik_tensor* cstate, void* stream) {
+    return conv_delta_impl(x, taps, a, b, a_log, dt_bias, eps, o, state, cstate, nullptr, 0, stream);
+}
+
+// The same launch with the state after each of the first T - 1 tokens also stored, into the n_snaps = T - 1 snapshot tensors
+// (f32 [C, K - 1] views at the base of a copy of the live state's buffer layout; see CdSnaps). Outputs, final states: bitwise the
+// plain launch's (the walk is the same code).
+int ik_gdn_conv_delta_snap_bf16(const ik_tensor* x, const ik_tensor* taps, const ik_tensor* a, const ik_tensor* b,
+                                const ik_tensor* a_log, const ik_tensor* dt_bias, float eps, ik_tensor* o, ik_tensor* state,
+                                ik_tensor* cstate, const ik_tensor* snaps, int n_snaps, void* stream) {
+    return conv_delta_impl(x, taps, a, b, a_log, dt_bias, eps, o, state, cstate, snaps, n_snaps, stream);
 }
 
 }  // extern "C"

@@ -1,0 +1,9 @@
+thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:
+gemv_rows M=4 N=5120 K=17408: rel_l2 4.980e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s
+thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:
+gemv_rows M=4 N=5120 K=17408: rel_l2 4.116e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s
+thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:
+gemv_rows M=4 N=5120 K=17408: rel_l2 5.115e-1
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s

@@ -1,0 +1,40 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1209:4
+     |
+1209 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/tp_mtp.rs (/target/release/deps/tp_mtp-b1fc22a44e54a6b7)
+
+running 7 tests
+test only_the_measured_recipe_backend_pairs_default_to_mtp ... ok
+test a_lone_spec_k_zero_is_refused_by_the_loader ... ok
+test mtp_tp2_drafts_equal_tp1_drafts ... ok
+test single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_no_opt_out ... ok
+test mtp_tp2_loads_through_the_engine_loader_and_matches_spec_off ... ok
+test tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out ... ok
+test mtp_tp2_greedy_ids_equal_spec_off ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.36s
+

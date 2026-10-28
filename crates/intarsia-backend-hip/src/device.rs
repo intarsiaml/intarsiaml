@@ -815,6 +815,22 @@ impl Backend for HipBackend {
                     pos,
                     s,
                 ),
+                // outputs 3.. are the verify pass's per-row state snapshots (lane vrc, `Model` gdn block); none: the plain launch
+                "gdn_conv_delta_bf16" if call.outputs.len() > 3 => ffi::ik_gdn_conv_delta_snap_bf16(
+                    i(0),
+                    i(1),
+                    i(2),
+                    i(3),
+                    i(4),
+                    i(5),
+                    a.eps,
+                    o,
+                    o.add(1),
+                    o.add(2),
+                    o.add(3) as *const IkTensor,
+                    (call.outputs.len() - 3) as c_int,
+                    s,
+                ),
                 "gdn_conv_delta_bf16" => {
                     ffi::ik_gdn_conv_delta_bf16(i(0), i(1), i(2), i(3), i(4), i(5), a.eps, o, o.add(1), o.add(2), s)
                 }

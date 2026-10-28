@@ -1,0 +1,13 @@
+00:52:47 htest bench-def exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s|
+00:52:49 htest bench-r2 exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.60s|
+00:52:51 htest bench-fuse exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s|
+00:52:53 htest bench-r2fuse exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s|
+00:53:00 htest hash-def exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.28s|
+00:53:06 htest hashd-def exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.26s|
+00:53:13 htest hash-r2 exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.29s|
+00:53:19 htest hashd-r2 exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.28s|
+00:53:25 htest mut1 exit 101: thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:|test a8_fused_is_bitwise_the_unfused ... FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s|
+00:53:31 htest mut2 exit 101: thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:|test a8_fused_is_bitwise_the_unfused ... FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s|
+00:53:37 htest mut3 exit 101: thread 'a8_fused_is_bitwise_the_unfused' panicked at crates/intarsia-backend-hip/tests/mxfp4_a8_fuse.rs:97:17:|test a8_fused_is_bitwise_the_unfused ... FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.38s|
+00:53:48 htest t-mxfp4_a8 exit 0: test result: ok. 6 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 10.87s|
+00:54:04 htest t-rows_exact exit 0: test result: ok. 13 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 16.23s|
