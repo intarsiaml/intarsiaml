@@ -2,7 +2,7 @@
 
 Lane `lane-det/tp2-nondeterminism`, base `origin/main` `bb48df640`. tatooine, 2x R9700 (gfx1201), `amd/Qwen3.8-27B-Quark-AWQ-MXFP4`, `generate --tp 2 --devices 0,1`, W4A8 (recipe default),
 greedy, `--ignore-eos`. Raw logs: `2026-10-28-det-tp2-nondeterminism/raw/`. Scripts: `scripts/det/`. Comparison: `tools/det/detcmp.py`.
-Status: HANDED OFF 2026-10-28 ~12:00 (see Handoff); lane ar measured the speed cost 2026-10-28 14:00-14:45 (section 5): the default stays 3, mode 1 is the opt-in fix. PR intarsiaml/intarsiaml#221.
+Status: HANDED OFF 2026-10-28 ~12:00 (see Handoff); lane ar measured the speed cost 2026-10-28 14:00-14:45 (section 5): coordinator decision 2026-10-28 (lane ars): correctness wins over ~2% decode, so **`INTARSIA_HIP_AR_DRAIN=1` is the default for HIP tp>1; `=3` restores the fast, racy mode.** PR intarsiaml/intarsiaml#221.
 
 Trigger: lane vat saw one plain `--spec off` run of ids prompt short-5 part from four other off runs (`2026-10-28-vat-verify-attn-rows/raw/w2/ids/gen-tp2-short-5-off.ids`,
 first different token 27), and ho-chat `chat-sleep` differ from the off text in 1 of 5 fresh-server rounds of each dflash arm; lane vrc saw one old-path dflash text (ho-recall round 1) part from off.
@@ -15,9 +15,9 @@ near ties, margins 0.01 to 0.3) and never repeats inside one process. tp=1 is cl
 graph capture, an order-dependent float reduction. The P2P all-reduce's flag can reach the peer before the pushed data: with
 the default `INTARSIA_HIP_AR_DRAIN=3` (wait for the store counter) about 1.5% of tapped fresh processes show it (3/200); waiting ~25 us after the
 flag (mode 5, 0/300), a host-staged all-reduce (`--comm host`, 0/200) and a system fence in every thread before the flag (mode 1, 0/250) each
-remove it, modes 1 and 5 with output bitwise equal to the normal run. **Fix: `INTARSIA_HIP_AR_DRAIN=1`, opt-in.** Lane ar
+remove it, modes 1 and 5 with output bitwise equal to the normal run. **Fix: `INTARSIA_HIP_AR_DRAIN=1`, now the default (`=3` restores the old, faster mode with the race).** Lane ar
 measured its cost (section 5): decode -1.9 to -2.7% on the 27B (MTP off), -1.5% with MTP k2, -3.4 to -4.6% on the 35B; mode 5 costs -12% / -22%. Both
-are over the 1% bar for a new default, so the default stays 3 (rollback value unchanged) and the knob is documented in `docs/tuning.md`.
+are over the 1% bar the lane set for a speed-only change, but this is a correctness fix: the coordinator decided (2026-10-28) that correctness wins over about 2% decode, so the default is now 1. `INTARSIA_HIP_AR_DRAIN=3` restores the fast mode (and the ~1.5% race); the knob is in `docs/tuning.md`.
 
 ## Handoff (2026-10-28, lane det)
 
@@ -27,8 +27,7 @@ are over the 1% bar for a new default, so the default stays 3 (rollback value un
 `INTARSIA_TP_PEER_SYNC=1`, eager decode, tp=1 on either card; float atomics or split-K on the prefill path (audit, section 3).
 
 **Open.**
-- Decision (lane ar, section 5): the A/B of mode 1 against 3 costs 2% decode, so the default stays 3 and mode 1 is opt-in; whether to pay
-  2% for 0/250 instead of ~1.5% flips of near-tie tokens in fresh tp=2 processes is the user's call. The all-gather (`ag2_kernel`, vocab-parallel
+- Decision (coordinator, 2026-10-28, lane ars): the A/B of mode 1 against 3 costs 2% decode; correctness wins, so the default is mode 1 and `=3` is the fast, racy opt-in. The all-gather (`ag2_kernel`, vocab-parallel
   logits) has the same handshake and takes the same mode.
 - Mode 6's both-ranks events (w9): unexplained; a second mechanism is not excluded. Rerun a tapped mode-1 arm of ~500 to bound it.
 - Why `--spec off` is rarer (0 in ~450 here, 1 in vat's 5) and why all three tapped events are at layer 2.
@@ -260,8 +259,6 @@ ar-a2 MTP k2 decode tok/s per category (mean of rows; mean over rounds (min-max,
 
 **Decision.** Rule: pick the faster of 1 and 5 if no arm or metric is slower than the default by more than 1%. Mode 1 is slower by 1.9 to 2.7% (27B
 decode), 1.4 to 1.8% (MTP k2 categories) and 3.4 to 4.6% (35B decode); mode 5 by 11.6 to 12.3% (27B) and 21.5 to 22.3% (35B). Prefill moves by
-0.5 to 1.0% (d1) and 2.1 to 3.5% (d5) on the 27B. Both arms miss the bar, so the default stays `INTARSIA_HIP_AR_DRAIN=3`; `=1` is the documented
-opt-in for runs that need the 0/250 result (cost: ~2% decode on the 27B at tp=2, ~4% on the 35B). No determinism soak of a new default was run (none
-changed); `kernels test --backend hip --quick` passes on this branch (raw/ar-g1/kernels-test.log, exit 0, 10 kernels without cases in the quick sweep).
+0.5 to 1.0% (d1) and 2.1 to 3.5% (d5) on the 27B. Both arms miss that speed bar, but the coordinator overruled it on correctness grounds (2026-10-28): the default is now `INTARSIA_HIP_AR_DRAIN=1` (cost: ~2% decode on the 27B at tp=2, ~4% on the 35B) and `=3` restores the old fast mode. The merge gates for the flip are in section 6; `kernels test --backend hip --quick` passes on this branch (raw/ar-g1/kernels-test.log, exit 0, 10 kernels without cases in the quick sweep).
 The cost split is not measured: mode 1 adds a fence to every thread of the all-reduce block, so a cheaper sufficient variant
 (fence only in the threads that pushed the last word, or a sequence number in every pushed word as in the next-step note above) could close the gap.

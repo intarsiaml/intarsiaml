@@ -2,7 +2,7 @@
 # Lane ar (copy of scripts/asp/guard.sh) (ON tatooine, run over ssh by ab-window.sh with its stdin on a fifo): stop radiance, restore it when
 # stdin closes (the Mac side ended or died); prints when radiance answers.
 restore() {
-  docker rm -f ar-serve >/dev/null 2>&1
+  docker rm -f ars-serve >/dev/null 2>&1
   echo "[guard] starting radiance $(date '+%F %T')"
   systemctl --user start radiance < /dev/null
   for i in $(seq 1 48); do
