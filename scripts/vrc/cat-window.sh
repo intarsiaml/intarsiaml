@@ -118,6 +118,11 @@ for r in $(seq "$R0" $(( R0 + ROUNDS - 1 ))); do
       echo "$arm $c r$r before: $m0" >> "$OUT/spec-metrics.txt"; echo "$arm $c r$r after:  $m1" >> "$OUT/spec-metrics.txt"
       say "round $r arm $arm $c: localeval exit $rc $(grep -aoE 'results/[^ ]+' "$OUT/q-$arm-$c-r$r.log" | tail -1)"
     done
+    if [[ -n ${SPEEDSIZES:-} && ${arm%-old} == off ]]; then  # lane vrc: plain decode at the given context sizes (the spec-off no-regression gate)
+      ( cd /opt/code/deepeval && LOCALEVAL_TARGETS="$OUT/targets-$arm.toml" uv run localeval speed "vrc-$arm" --sizes "$SPEEDSIZES" --gen 128 --reps 3 \
+          --label "vrc-$W-$arm-speed-r$r" --recipe "$RECIPE" --wait-idle 60 ) > "$OUT/speed-$arm-r$r.log" 2>&1 < /dev/null
+      say "round $r arm $arm speed $SPEEDSIZES: exit $? $(grep -aoE 'results/[^ ]+' "$OUT/speed-$arm-r$r.log" | tail -1)"
+    fi
     if (( SOAK > 0 && r == R0 )); then
       if [[ " $SOAK_ARMS " == *" $arm "* ]]; then soak "$arm" "$SOAK"; elif (( SOAK_REF > 0 )); then soak "$arm" "$SOAK_REF"; fi
     fi
