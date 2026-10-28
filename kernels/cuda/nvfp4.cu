@@ -61,12 +61,13 @@ nvfp4_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, 
 // The row-exact launcher's variant (M >= 4): a warp owns NT consecutive output rows and unpacks each x block once for all of
 // them (the kernel above re-reads and re-unpacks x for every output). Per (m, n) the arithmetic is the kernel above's: the same
 // lane-strided blocks, the same 16-long fmaf chain, the same `acc = fmaf(s, sc, acc)`, the same warp tree.
+// `blk`: the block's index along the outputs (blockIdx.x; the row-split kernel below runs this very body on its row group).
 template <int M, int NT, typename OutT>
-__global__ void __launch_bounds__(kWarps * IK_WARP)
-nvfp4_gemv_tile_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
-                       const float* __restrict__ gs, OutT* __restrict__ out, int64_t N, int K) {
+__device__ __forceinline__ void nvfp4_tile_body(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w,
+                                                const uint8_t* __restrict__ bs, const float* __restrict__ gs,
+                                                OutT* __restrict__ out, int64_t N, int K, int64_t blk) {
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
-    const int64_t nb = ((int64_t)blockIdx.x * kWarps + warp) * NT;  // this warp's outputs: nb .. nb + NT - 1
+    const int64_t nb = (blk * kWarps + warp) * NT;  // this warp's outputs: nb .. nb + NT - 1
     if (nb >= N) return;  // whole warp exits together
     const uint2* wr[NT];
     const uint8_t* sr[NT];
@@ -116,6 +117,45 @@ nvfp4_gemv_tile_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
         }
 }
 
+template <int M, int NT, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+nvfp4_gemv_tile_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
+                       const float* __restrict__ gs, OutT* __restrict__ out, int64_t N, int K) {
+    nvfp4_tile_body<M, NT, OutT>(x, w, bs, gs, out, N, K, (int64_t)blockIdx.x);
+}
+
+// Row-group split of the row-exact launcher (small N: the shared expert's gate / up / down): block (bx, g) runs rows
+// g * R .. g * R + R - 1 (fewer in the last group) through nvfp4_tile_body<rows, NT>, so every (m, n) keeps the arithmetic above
+// (NT = 1 is nvfp4_gemv_kernel's): the bits of the one-row call. Without it the call has a few dozen blocks whose warps chain
+// all M rows' activation loads.
+template <int R, int NT, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+nvfp4_gemv_split_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
+                        const float* __restrict__ gs, OutT* __restrict__ out, int64_t N, int K, int M) {
+    const int m0 = (int)blockIdx.y * R;
+    const int rows = M - m0 < R ? M - m0 : R;
+    const ik_bf16* xr = x + (int64_t)m0 * K;
+    OutT* orow = out + (int64_t)m0 * N;
+    const int64_t blk = (int64_t)blockIdx.x;
+    if (rows == R) {
+        nvfp4_tile_body<R, NT, OutT>(xr, w, bs, gs, orow, N, K, blk);
+        return;
+    }
+    if constexpr (R > 1) {
+        switch (rows) {  // the last group's remainder: rows < R
+            case 1: nvfp4_tile_body<1, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 2: if constexpr (R > 2) nvfp4_tile_body<2, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 3: if constexpr (R > 3) nvfp4_tile_body<3, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 4: if constexpr (R > 4) nvfp4_tile_body<4, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 5: if constexpr (R > 5) nvfp4_tile_body<5, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 6: if constexpr (R > 6) nvfp4_tile_body<6, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 7: if constexpr (R > 7) nvfp4_tile_body<7, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            default: break;
+        }
+    }
+}
+
+
 // Outputs per warp of the row-exact launcher's M-row call: INTARSIA_CUDA_NVFP4_ROWS_NT = 1 | 2 | 4 forces it (1 is the kernel above,
 // INTARSIA_CUDA_NVFP4_ROWS=0 forces that too); otherwise 4 when that leaves a grid of 96 blocks, else 2 when it leaves 32 (M < 4: 1).
 inline int rows_tile_nt(int M, int64_t N) {
@@ -127,6 +167,47 @@ inline int rows_tile_nt(int M, int64_t N) {
     if ((N + kWarps * 4 - 1) / (kWarps * 4) >= 96) return 4;
     if ((N + kWarps * 2 - 1) / (kWarps * 2) >= 32) return 2;
     return 1;
+}
+
+// Rows per group of the split: INTARSIA_CUDA_NVFP4_ROWS_SPLIT = 0 never splits (the switch that turns it off), 1 | 2 | 4 | 8 forces
+// R; unset: the largest R that leaves a grid of 96 blocks (no split when the unsplit tiling already has them). The split's
+// outputs per warp: 2 when that leaves 16 output blocks, else 1.
+constexpr int64_t kSplitMinBlocks = 96;
+inline int split_rows(int64_t M, int64_t gx) {
+    const char* e = getenv("INTARSIA_CUDA_NVFP4_ROWS_SPLIT");
+    if (e && e[0] == '0' && e[1] == 0) return (int)M;
+    if (e && (e[0] == '1' || e[0] == '2' || e[0] == '4' || e[0] == '8') && e[1] == 0) return e[0] - '0' < M ? e[0] - '0' : (int)M;
+    if (gx >= kSplitMinBlocks) return (int)M;
+    for (int r = 8; r > 1; r /= 2)
+        if (r < M && gx * ((M + r - 1) / r) >= kSplitMinBlocks) return r;
+    return 1;
+}
+
+template <int R, int NT, typename OutT>
+void split_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t M, int64_t N,
+                  int64_t K, cudaStream_t s) {
+    const dim3 grid((unsigned)((N + NT * kWarps - 1) / (NT * kWarps)), (unsigned)((M + R - 1) / R));
+    nvfp4_gemv_split_kernel<R, NT, OutT><<<grid, kWarps * IK_WARP, 0, s>>>(x, w, bs, gs, out, N, (int)K, (int)M);
+}
+
+// true when it launched the split (M > 1 row-exact calls whose tiling leaves too few blocks)
+template <typename OutT>
+bool split_run(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t M, int64_t N,
+               int64_t K, cudaStream_t s) {
+    if (M < 2) return false;
+    const int nt = (N + 2 * kWarps - 1) / (2 * kWarps) >= 16 ? 2 : 1;
+    const int nt_now = rows_tile_nt((int)M, N);
+    const int64_t gx_now = (N + nt_now * kWarps - 1) / (nt_now * kWarps);
+    const int r = split_rows(M, gx_now);
+    if (r >= M) return false;
+    const bool two = nt == 2;
+    switch (r) {
+        case 1: two ? split_launch<1, 2>(x, w, bs, gs, out, M, N, K, s) : split_launch<1, 1>(x, w, bs, gs, out, M, N, K, s); break;
+        case 2: two ? split_launch<2, 2>(x, w, bs, gs, out, M, N, K, s) : split_launch<2, 1>(x, w, bs, gs, out, M, N, K, s); break;
+        case 4: two ? split_launch<4, 2>(x, w, bs, gs, out, M, N, K, s) : split_launch<4, 1>(x, w, bs, gs, out, M, N, K, s); break;
+        default: two ? split_launch<8, 2>(x, w, bs, gs, out, M, N, K, s) : split_launch<8, 1>(x, w, bs, gs, out, M, N, K, s); break;
+    }
+    return true;
 }
 
 // Shared-expert gate + up + silu_glu in one launch (M == 1, bf16 out): a warp owns row n of BOTH the gate and the up matrix,
@@ -196,6 +277,7 @@ void gemv_run(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float
 template <typename OutT>
 int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N,
               int64_t K, cudaStream_t s, bool rows) {
+    if (rows && split_run(x, w, bs, gs, out, M, N, K, s)) return ik_launch_status();
     switch (M) {
         case 1: gemv_run<1>(x, w, bs, gs, out, N, K, s, rows); break;
         case 2: gemv_run<2>(x, w, bs, gs, out, N, K, s, rows); break;
