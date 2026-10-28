@@ -1,0 +1,94 @@
+17:08:19 guard: [guard] radiance stopped 2026-10-28 17:08:18
+17:08:19 pre: ids gate (arms auto, tp2, cap 900 s)
+17:13:09 pre: ids exit 0
+17:13:12 pre: ids summary auto tp2: 18 PASS, 0 FAIL|
+17:13:12 round 1 arm mtp2: starting server
+17:14:53 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261028-171429-asa-mtp2-asa-w3-mtp2-ho-chat-r1/result.json
+17:15:05 round 1 arm mtp2 ho-code: localeval exit 0 results/20261028-171454-asa-mtp2-asa-w3-mtp2-ho-code-r1/result.json
+17:15:33 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261028-171506-asa-mtp2-asa-w3-mtp2-ho-prose-r1/result.json
+17:15:45 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261028-171533-asa-mtp2-asa-w3-mtp2-ho-recall-r1/result.json
+17:16:25 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261028-171546-asa-mtp2-asa-w3-mtp2-rcp-code-r1/result.json
+17:17:17 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261028-171626-asa-mtp2-asa-w3-mtp2-rcp-prose-r1/result.json
+17:18:01 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261028-171718-asa-mtp2-asa-w3-mtp2-rcp-recall-r1/result.json
+17:18:01 round 1 arm dfl7: starting server
+17:19:12 round 1 arm dfl7 ho-chat: localeval exit 0 results/20261028-171845-asa-dfl7-asa-w3-dfl7-ho-chat-r1/result.json
+17:19:21 round 1 arm dfl7 ho-code: localeval exit 0 results/20261028-171912-asa-dfl7-asa-w3-dfl7-ho-code-r1/result.json
+17:19:54 round 1 arm dfl7 ho-prose: localeval exit 0 results/20261028-171922-asa-dfl7-asa-w3-dfl7-ho-prose-r1/result.json
+17:20:07 round 1 arm dfl7 ho-recall: localeval exit 0 results/20261028-171955-asa-dfl7-asa-w3-dfl7-ho-recall-r1/result.json
+17:20:39 round 1 arm dfl7 rcp-code: localeval exit 0 results/20261028-172008-asa-dfl7-asa-w3-dfl7-rcp-code-r1/result.json
+17:21:41 round 1 arm dfl7 rcp-prose: localeval exit 0 results/20261028-172040-asa-dfl7-asa-w3-dfl7-rcp-prose-r1/result.json
+17:22:21 round 1 arm dfl7 rcp-recall: localeval exit 0 results/20261028-172142-asa-dfl7-asa-w3-dfl7-rcp-recall-r1/result.json
+17:22:22 round 1 arm auto: starting server
+17:24:12 round 1 arm auto ho-chat: localeval exit 0 results/20261028-172348-asa-auto-asa-w3-auto-ho-chat-r1/result.json
+17:24:22 round 1 arm auto ho-code: localeval exit 0 results/20261028-172413-asa-auto-asa-w3-auto-ho-code-r1/result.json
+17:24:49 round 1 arm auto ho-prose: localeval exit 0 results/20261028-172422-asa-auto-asa-w3-auto-ho-prose-r1/result.json
+17:25:02 round 1 arm auto ho-recall: localeval exit 0 results/20261028-172450-asa-auto-asa-w3-auto-ho-recall-r1/result.json
+17:25:35 round 1 arm auto rcp-code: localeval exit 0 results/20261028-172502-asa-auto-asa-w3-auto-rcp-code-r1/result.json
+17:26:27 round 1 arm auto rcp-prose: localeval exit 0 results/20261028-172535-asa-auto-asa-w3-auto-rcp-prose-r1/result.json
+17:27:07 round 1 arm auto rcp-recall: localeval exit 0 results/20261028-172627-asa-auto-asa-w3-auto-rcp-recall-r1/result.json
+17:27:08 round 1 arm autob: starting server
+17:28:58 round 1 arm autob ho-chat: localeval exit 0 results/20261028-172834-asa-autob-asa-w3-autob-ho-chat-r1/result.json
+17:29:08 round 1 arm autob ho-code: localeval exit 0 results/20261028-172859-asa-autob-asa-w3-autob-ho-code-r1/result.json
+17:29:35 round 1 arm autob ho-prose: localeval exit 0 results/20261028-172908-asa-autob-asa-w3-autob-ho-prose-r1/result.json
+17:29:47 round 1 arm autob ho-recall: localeval exit 0 results/20261028-172936-asa-autob-asa-w3-autob-ho-recall-r1/result.json
+17:30:20 round 1 arm autob rcp-code: localeval exit 0 results/20261028-172948-asa-autob-asa-w3-autob-rcp-code-r1/result.json
+17:31:12 round 1 arm autob rcp-prose: localeval exit 0 results/20261028-173021-asa-autob-asa-w3-autob-rcp-prose-r1/result.json
+17:31:53 round 1 arm autob rcp-recall: localeval exit 0 results/20261028-173112-asa-autob-asa-w3-autob-rcp-recall-r1/result.json
+17:31:54 round 2 arm autob: starting server
+17:33:44 round 2 arm autob ho-chat: localeval exit 0 results/20261028-173320-asa-autob-asa-w3-autob-ho-chat-r2/result.json
+17:33:54 round 2 arm autob ho-code: localeval exit 0 results/20261028-173345-asa-autob-asa-w3-autob-ho-code-r2/result.json
+17:34:21 round 2 arm autob ho-prose: localeval exit 0 results/20261028-173354-asa-autob-asa-w3-autob-ho-prose-r2/result.json
+17:34:34 round 2 arm autob ho-recall: localeval exit 0 results/20261028-173422-asa-autob-asa-w3-autob-ho-recall-r2/result.json
+17:35:07 round 2 arm autob rcp-code: localeval exit 0 results/20261028-173434-asa-autob-asa-w3-autob-rcp-code-r2/result.json
+17:35:58 round 2 arm autob rcp-prose: localeval exit 0 results/20261028-173507-asa-autob-asa-w3-autob-rcp-prose-r2/result.json
+17:36:39 round 2 arm autob rcp-recall: localeval exit 0 results/20261028-173559-asa-autob-asa-w3-autob-rcp-recall-r2/result.json
+17:36:40 round 2 arm auto: starting server
+17:38:30 round 2 arm auto ho-chat: localeval exit 0 results/20261028-173806-asa-auto-asa-w3-auto-ho-chat-r2/result.json
+17:38:40 round 2 arm auto ho-code: localeval exit 0 results/20261028-173831-asa-auto-asa-w3-auto-ho-code-r2/result.json
+17:39:07 round 2 arm auto ho-prose: localeval exit 0 results/20261028-173840-asa-auto-asa-w3-auto-ho-prose-r2/result.json
+17:39:20 round 2 arm auto ho-recall: localeval exit 0 results/20261028-173908-asa-auto-asa-w3-auto-ho-recall-r2/result.json
+17:39:53 round 2 arm auto rcp-code: localeval exit 0 results/20261028-173920-asa-auto-asa-w3-auto-rcp-code-r2/result.json
+17:40:45 round 2 arm auto rcp-prose: localeval exit 0 results/20261028-173953-asa-auto-asa-w3-auto-rcp-prose-r2/result.json
+17:41:25 round 2 arm auto rcp-recall: localeval exit 0 results/20261028-174045-asa-auto-asa-w3-auto-rcp-recall-r2/result.json
+17:41:25 round 2 arm dfl7: starting server
+17:42:36 round 2 arm dfl7 ho-chat: localeval exit 0 results/20261028-174209-asa-dfl7-asa-w3-dfl7-ho-chat-r2/result.json
+17:42:45 round 2 arm dfl7 ho-code: localeval exit 0 results/20261028-174236-asa-dfl7-asa-w3-dfl7-ho-code-r2/result.json
+17:43:18 round 2 arm dfl7 ho-prose: localeval exit 0 results/20261028-174246-asa-dfl7-asa-w3-dfl7-ho-prose-r2/result.json
+17:43:31 round 2 arm dfl7 ho-recall: localeval exit 0 results/20261028-174319-asa-dfl7-asa-w3-dfl7-ho-recall-r2/result.json
+17:44:03 round 2 arm dfl7 rcp-code: localeval exit 0 results/20261028-174332-asa-dfl7-asa-w3-dfl7-rcp-code-r2/result.json
+17:45:06 round 2 arm dfl7 rcp-prose: localeval exit 0 results/20261028-174404-asa-dfl7-asa-w3-dfl7-rcp-prose-r2/result.json
+17:45:46 round 2 arm dfl7 rcp-recall: localeval exit 0 results/20261028-174506-asa-dfl7-asa-w3-dfl7-rcp-recall-r2/result.json
+17:45:47 round 2 arm mtp2: starting server
+17:47:28 round 2 arm mtp2 ho-chat: localeval exit 0 results/20261028-174704-asa-mtp2-asa-w3-mtp2-ho-chat-r2/result.json
+17:47:40 round 2 arm mtp2 ho-code: localeval exit 0 results/20261028-174729-asa-mtp2-asa-w3-mtp2-ho-code-r2/result.json
+17:48:08 round 2 arm mtp2 ho-prose: localeval exit 0 results/20261028-174741-asa-mtp2-asa-w3-mtp2-ho-prose-r2/result.json
+17:48:20 round 2 arm mtp2 ho-recall: localeval exit 0 results/20261028-174808-asa-mtp2-asa-w3-mtp2-ho-recall-r2/result.json
+17:49:01 round 2 arm mtp2 rcp-code: localeval exit 0 results/20261028-174821-asa-mtp2-asa-w3-mtp2-rcp-code-r2/result.json
+17:49:53 round 2 arm mtp2 rcp-prose: localeval exit 0 results/20261028-174901-asa-mtp2-asa-w3-mtp2-rcp-prose-r2/result.json
+17:50:37 round 2 arm mtp2 rcp-recall: localeval exit 0 results/20261028-174954-asa-mtp2-asa-w3-mtp2-rcp-recall-r2/result.json
+17:50:38 round 3 arm mtp2: starting server
+17:52:19 round 3 arm mtp2 ho-chat: localeval exit 0 results/20261028-175154-asa-mtp2-asa-w3-mtp2-ho-chat-r3/result.json
+17:52:30 round 3 arm mtp2 ho-code: localeval exit 0 results/20261028-175219-asa-mtp2-asa-w3-mtp2-ho-code-r3/result.json
+17:52:58 round 3 arm mtp2 ho-prose: localeval exit 0 results/20261028-175231-asa-mtp2-asa-w3-mtp2-ho-prose-r3/result.json
+17:53:10 round 3 arm mtp2 ho-recall: localeval exit 0 results/20261028-175258-asa-mtp2-asa-w3-mtp2-ho-recall-r3/result.json
+17:53:51 round 3 arm mtp2 rcp-code: localeval exit 0 results/20261028-175311-asa-mtp2-asa-w3-mtp2-rcp-code-r3/result.json
+17:54:43 round 3 arm mtp2 rcp-prose: localeval exit 0 results/20261028-175352-asa-mtp2-asa-w3-mtp2-rcp-prose-r3/result.json
+17:55:27 round 3 arm mtp2 rcp-recall: localeval exit 0 results/20261028-175443-asa-mtp2-asa-w3-mtp2-rcp-recall-r3/result.json
+17:55:27 round 3 arm dfl7: starting server
+17:56:38 round 3 arm dfl7 ho-chat: localeval exit 0 results/20261028-175611-asa-dfl7-asa-w3-dfl7-ho-chat-r3/result.json
+17:56:47 round 3 arm dfl7 ho-code: localeval exit 0 results/20261028-175639-asa-dfl7-asa-w3-dfl7-ho-code-r3/result.json
+17:57:21 round 3 arm dfl7 ho-prose: localeval exit 0 results/20261028-175648-asa-dfl7-asa-w3-dfl7-ho-prose-r3/result.json
+17:57:34 round 3 arm dfl7 ho-recall: localeval exit 0 results/20261028-175722-asa-dfl7-asa-w3-dfl7-ho-recall-r3/result.json
+17:58:05 round 3 arm dfl7 rcp-code: localeval exit 0 results/20261028-175734-asa-dfl7-asa-w3-dfl7-rcp-code-r3/result.json
+17:59:08 round 3 arm dfl7 rcp-prose: localeval exit 0 results/20261028-175806-asa-dfl7-asa-w3-dfl7-rcp-prose-r3/result.json
+17:59:48 round 3 arm dfl7 rcp-recall: localeval exit 0 results/20261028-175908-asa-dfl7-asa-w3-dfl7-rcp-recall-r3/result.json
+17:59:49 round 3 arm auto: starting server
+18:01:39 round 3 arm auto ho-chat: localeval exit 0 results/20261028-180114-asa-auto-asa-w3-auto-ho-chat-r3/result.json
+18:01:48 round 3 arm auto ho-code: localeval exit 0 results/20261028-180139-asa-auto-asa-w3-auto-ho-code-r3/result.json
+18:02:16 round 3 arm auto ho-prose: localeval exit 0 results/20261028-180149-asa-auto-asa-w3-auto-ho-prose-r3/result.json
+18:02:29 round 3 arm auto ho-recall: localeval exit 0 results/20261028-180217-asa-auto-asa-w3-auto-ho-recall-r3/result.json
+18:03:02 round 3 arm auto rcp-code: localeval exit 0 results/20261028-180229-asa-auto-asa-w3-auto-rcp-code-r3/result.json
+18:03:54 round 3 arm auto rcp-prose: localeval exit 0 results/20261028-180302-asa-auto-asa-w3-auto-rcp-prose-r3/result.json
+18:04:34 round 3 arm auto rcp-recall: localeval exit 0 results/20261028-180354-asa-auto-asa-w3-auto-rcp-recall-r3/result.json
+18:04:35 done, time left 2320s
+18:04:45 guard: [guard] radiance answers 2026-10-28 18:04:45 (after 15 s)
