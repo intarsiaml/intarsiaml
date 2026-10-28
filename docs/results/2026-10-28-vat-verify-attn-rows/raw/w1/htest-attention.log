@@ -1,0 +1,76 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1211:4
+     |
+1211 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: variable does not need to be mutable
+    --> crates/intarsia-backend-hip/tests/rows_exact.rs:1114:9
+     |
+1114 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+     |         ----^^^^
+     |         |
+     |         help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-backend-hip` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/attention.rs (/target/release/deps/attention-3141cbf87c98b4a4)
+
+running 3 tests
+test attention_throughput ... ignored
+test attention_kernels_match_reference_on_random_shapes ... ok
+test attention_causal_and_chunk_edges_are_exact ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 45.74s
+
+     Running tests/rows_exact.rs (/target/release/deps/rows_exact-43c3557e11c85b2e)
+
+running 15 tests
+test timing_gemv_rows ... ignored, micro-timing
+test timing_mxfp4_rows ... ignored, micro-timing
+test wmma_bf16_switch_from_the_gemv_is_not_bitwise ... ok
+test wmma_fp8_switch_from_the_gemv_reports_equality ... ok
+test row_parallel_ops_are_row_independent ... ok
+test wmma_fp8_matches_the_reference_sum ... ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test mxfp4_pair_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test wmma_bf16_rows_are_bitwise_the_one_row_call ... ok
+test mxfp4_rows_edge_inputs_are_bitwise ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test wmma_fp8_rows_are_bitwise_the_one_row_call ... ok
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+
+test result: ok. 13 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 15.75s
+
+     Running tests/rows_registry.rs (/target/release/deps/rows_registry-af40d2445d91e889)
+
+running 3 tests
+test print_tables ... ignored, prints the pin tables
+test exact_rows_calls_pick_the_rows_kernels_only ... ok
+test ordinary_calls_pick_what_they_picked_before_the_rows_kernels ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.12s
+

@@ -1,0 +1,132 @@
+03:08:30 htest vat exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s|
+vat verify_attn_rows: 2928640 bytes identical to the per-row launches (3 shapes, 14 passes each, t 2..=16)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+03:08:30 htest mut1 exit 101: thread 'verify_rows_launch_is_the_per_row_launches' panicked at crates/intarsia-backend-hip/tests/verify_attn_rows.rs:161:17:|test verify_rows_launch_is_the_per_row_launches ... FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s|
+nh=12 nkv=2 d=256 pos0=100 t=3: first differing byte 8192 of 18432 (row-table 0x93 vs per-row 0x3c)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+03:08:31 htest mut2 exit 101: thread 'verify_rows_launch_is_the_per_row_launches' panicked at crates/intarsia-backend-hip/tests/verify_attn_rows.rs:161:17:|test verify_rows_launch_is_the_per_row_launches ... FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s|
+nh=12 nkv=2 d=256 pos0=100 t=3: first differing byte 14336 of 18432 (row-table 0x8e vs per-row 0x90)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+03:08:31 htest mut3 exit 101: thread 'verify_rows_launch_is_the_per_row_launches' panicked at crates/intarsia-backend-hip/tests/verify_attn_rows.rs:161:17:|test verify_rows_launch_is_the_per_row_launches ... FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s|
+nh=12 nkv=2 d=256 pos0=100 t=3: first differing byte 6144 of 18432 (row-table 0x20 vs per-row 0x6c)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+03:08:32 htest mut4 exit 101: thread 'verify_rows_launch_is_the_per_row_launches' panicked at crates/intarsia-backend-hip/tests/verify_attn_rows.rs:161:17:|test verify_rows_launch_is_the_per_row_launches ... FAILED|test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s|
+nh=12 nkv=2 d=256 pos0=100 t=8: first differing byte 18432 of 49152 (row-table 0x59 vs per-row 0x7e)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+03:08:32 mut done
+03:08:32 ids start (arms mtp2 dfl, tp2), VRAM in use 57 MiB
+03:08:40 gen-tp2-short-0-off exit 0: finish=length prompt=41 (cached 0) completion=256 | prefill 84 ms (490.4 tok/s) | decode 4481 ms (56.91 tok/s)|
+03:08:45 gen-tp2-short-0-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 294 drafted 1 accepted 0 emits 1|spec: mtp draft 2.362 ms, verify + rollback 19.777 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 84 ms (489.7 tok/s) | decode 2627 ms (97.08 tok/s)|spec: verify passes=103 proposed=205 accepted=151 (acceptance 73.7%, 2.47 tokens per pass)|
+03:08:45 PASS ids mtp2 tp2 short-0 (prompt=41)
+03:08:52 gen-tp2-short-0-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 253 pos 292 drafted 3 accepted 2 emits 3|spec: mtp draft 13.861 ms, verify + rollback 21.705 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 88 ms (468.1 tok/s) | decode 2608 ms (97.76 tok/s)|spec: verify passes=67 proposed=464 accepted=185 (acceptance 39.9%, 3.76 tokens per pass)|
+03:08:52 PASS ids dfl tp2 short-0 (prompt=41)
+03:08:59 gen-tp2-short-1-off exit 0: finish=length prompt=34 (cached 0) completion=256 | prefill 77 ms (442.2 tok/s) | decode 4481 ms (56.90 tok/s)|
+03:09:06 gen-tp2-short-1-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 253 pos 285 drafted 2 accepted 2 emits 3|spec: mtp draft 5.087 ms, verify + rollback 20.337 ms|finish=length prompt=34 (cached 0) completion=256 | prefill 75 ms (452.7 tok/s) | decode 2974 ms (85.75 tok/s)|spec: verify passes=116 proposed=232 accepted=138 (acceptance 59.5%, 2.19 tokens per pass)|
+03:09:06 PASS ids mtp2 tp2 short-1 (prompt=34)
+03:09:13 gen-tp2-short-1-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 253 pos 285 drafted 3 accepted 2 emits 3|spec: mtp draft 14.253 ms, verify + rollback 21.668 ms|finish=length prompt=34 (cached 0) completion=256 | prefill 86 ms (394.5 tok/s) | decode 3720 ms (68.54 tok/s)|spec: verify passes=97 proposed=674 accepted=157 (acceptance 23.3%, 2.62 tokens per pass)|
+03:09:13 PASS ids dfl tp2 short-1 (prompt=34)
+03:09:21 gen-tp2-short-2-off exit 0: finish=length prompt=42 (cached 0) completion=256 | prefill 79 ms (528.8 tok/s) | decode 4487 ms (56.83 tok/s)|
+03:09:26 gen-tp2-short-2-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 295 drafted 1 accepted 0 emits 1|spec: mtp draft 2.607 ms, verify + rollback 19.833 ms|finish=length prompt=42 (cached 0) completion=256 | prefill 83 ms (508.1 tok/s) | decode 2496 ms (102.16 tok/s)|spec: verify passes=98 proposed=195 accepted=156 (acceptance 80.0%, 2.59 tokens per pass)|
+03:09:26 PASS ids mtp2 tp2 short-2 (prompt=42)
+03:09:32 gen-tp2-short-2-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 253 pos 293 drafted 3 accepted 2 emits 3|spec: mtp draft 13.624 ms, verify + rollback 21.691 ms|finish=length prompt=42 (cached 0) completion=256 | prefill 87 ms (481.1 tok/s) | decode 1616 ms (157.80 tok/s)|spec: verify passes=42 proposed=290 accepted=212 (acceptance 73.1%, 6.05 tokens per pass)|
+03:09:32 PASS ids dfl tp2 short-2 (prompt=42)
+03:09:39 gen-tp2-short-3-off exit 0: finish=length prompt=43 (cached 0) completion=256 | prefill 86 ms (500.4 tok/s) | decode 4483 ms (56.88 tok/s)|
+03:09:46 gen-tp2-short-3-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 296 drafted 1 accepted 0 emits 1|spec: mtp draft 2.636 ms, verify + rollback 19.823 ms|finish=length prompt=43 (cached 0) completion=256 | prefill 82 ms (526.8 tok/s) | decode 2910 ms (87.62 tok/s)|spec: verify passes=114 proposed=227 accepted=140 (acceptance 61.7%, 2.23 tokens per pass)|
+03:09:46 PASS ids mtp2 tp2 short-3 (prompt=43)
+03:09:52 gen-tp2-short-3-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 296 drafted 1 accepted 1 emits 2|spec: mtp draft 14.220 ms, verify + rollback 20.640 ms|finish=length prompt=43 (cached 0) completion=256 | prefill 88 ms (486.8 tok/s) | decode 2864 ms (89.05 tok/s)|spec: verify passes=75 proposed=516 accepted=180 (acceptance 34.9%, 3.40 tokens per pass)|
+03:09:52 PASS ids dfl tp2 short-3 (prompt=43)
+03:10:00 gen-tp2-short-4-off exit 0: finish=length prompt=69 (cached 0) completion=256 | prefill 93 ms (739.4 tok/s) | decode 4488 ms (56.82 tok/s)|
+03:10:05 gen-tp2-short-4-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 321 drafted 2 accepted 2 emits 3|spec: mtp draft 4.814 ms, verify + rollback 20.339 ms|finish=length prompt=69 (cached 0) completion=256 | prefill 94 ms (731.9 tok/s) | decode 2405 ms (106.04 tok/s)|spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)|
+03:10:05 PASS ids mtp2 tp2 short-4 (prompt=69)
+03:10:11 gen-tp2-short-4-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 251 pos 318 drafted 5 accepted 5 emits 6|spec: mtp draft 13.504 ms, verify + rollback 23.163 ms|finish=length prompt=69 (cached 0) completion=256 | prefill 103 ms (669.1 tok/s) | decode 1485 ms (171.67 tok/s)|spec: verify passes=39 proposed=271 accepted=216 (acceptance 79.7%, 6.54 tokens per pass)|
+03:10:11 PASS ids dfl tp2 short-4 (prompt=69)
+03:10:18 gen-tp2-short-5-off exit 0: finish=length prompt=39 (cached 0) completion=256 | prefill 79 ms (494.3 tok/s) | decode 4489 ms (56.80 tok/s)|
+03:10:25 gen-tp2-short-5-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 292 drafted 1 accepted 1 emits 2|spec: mtp draft 2.628 ms, verify + rollback 19.708 ms|finish=length prompt=39 (cached 0) completion=256 | prefill 81 ms (484.0 tok/s) | decode 3054 ms (83.49 tok/s)|spec: verify passes=120 proposed=239 accepted=135 (acceptance 56.5%, 2.12 tokens per pass)|
+03:10:25 FAIL ids mtp2 tp2 short-5
+03:10:32 gen-tp2-short-5-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 292 drafted 1 accepted 1 emits 2|spec: mtp draft 13.941 ms, verify + rollback 20.424 ms|finish=length prompt=39 (cached 0) completion=256 | prefill 87 ms (448.1 tok/s) | decode 3483 ms (73.20 tok/s)|spec: verify passes=91 proposed=630 accepted=164 (acceptance 26.0%, 2.80 tokens per pass)|
+03:10:32 FAIL ids dfl tp2 short-5
+03:10:40 gen-tp2-4k-0-off exit 0: finish=length prompt=2610 (cached 0) completion=256 | prefill 716 ms (3645.8 tok/s) | decode 4530 ms (56.29 tok/s)|
+03:10:46 gen-tp2-4k-0-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 2863 drafted 1 accepted 0 emits 1|spec: mtp draft 2.379 ms, verify + rollback 20.080 ms|finish=length prompt=2610 (cached 0) completion=256 | prefill 725 ms (3598.6 tok/s) | decode 2588 ms (98.55 tok/s)|spec: verify passes=99 proposed=197 accepted=155 (acceptance 78.7%, 2.57 tokens per pass)|
+03:10:46 PASS ids mtp2 tp2 4k-0 (prompt=2610)
+03:10:53 gen-tp2-4k-0-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 251 pos 2859 drafted 5 accepted 4 emits 5|spec: mtp draft 17.404 ms, verify + rollback 24.484 ms|finish=length prompt=2610 (cached 0) completion=256 | prefill 735 ms (3552.7 tok/s) | decode 2447 ms (104.22 tok/s)|spec: verify passes=56 proposed=390 accepted=198 (acceptance 50.8%, 4.54 tokens per pass)|
+03:10:53 PASS ids dfl tp2 4k-0 (prompt=2610)
+03:11:02 gen-tp2-4k-1-off exit 0: finish=length prompt=3135 (cached 0) completion=256 | prefill 845 ms (3708.1 tok/s) | decode 4563 ms (55.88 tok/s)|
+03:11:08 gen-tp2-4k-1-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 3387 drafted 2 accepted 2 emits 3|spec: mtp draft 4.856 ms, verify + rollback 21.110 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 851 ms (3684.6 tok/s) | decode 2697 ms (94.54 tok/s)|spec: verify passes=103 proposed=206 accepted=152 (acceptance 73.8%, 2.48 tokens per pass)|
+03:11:08 PASS ids mtp2 tp2 4k-1 (prompt=3135)
+03:11:16 gen-tp2-4k-1-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 251 pos 3384 drafted 5 accepted 4 emits 5|spec: mtp draft 17.076 ms, verify + rollback 24.915 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 867 ms (3614.0 tok/s) | decode 3069 ms (83.09 tok/s)|spec: verify passes=70 proposed=488 accepted=184 (acceptance 37.7%, 3.63 tokens per pass)|
+03:11:16 PASS ids dfl tp2 4k-1 (prompt=3135)
+03:11:24 gen-tp2-4k-2-off exit 0: finish=length prompt=3284 (cached 0) completion=256 | prefill 865 ms (3796.7 tok/s) | decode 4569 ms (55.81 tok/s)|
+03:11:31 gen-tp2-4k-2-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 253 pos 3535 drafted 2 accepted 2 emits 3|spec: mtp draft 4.838 ms, verify + rollback 21.121 ms|finish=length prompt=3284 (cached 0) completion=256 | prefill 872 ms (3766.6 tok/s) | decode 2744 ms (92.94 tok/s)|spec: verify passes=104 proposed=208 accepted=150 (acceptance 72.1%, 2.44 tokens per pass)|
+03:11:31 PASS ids mtp2 tp2 4k-2 (prompt=3284)
+03:11:39 gen-tp2-4k-2-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 252 pos 3534 drafted 4 accepted 4 emits 5|spec: mtp draft 17.407 ms, verify + rollback 23.696 ms|finish=length prompt=3284 (cached 0) completion=256 | prefill 889 ms (3695.0 tok/s) | decode 3368 ms (75.72 tok/s)|spec: verify passes=77 proposed=536 accepted=178 (acceptance 33.2%, 3.31 tokens per pass)|
+03:11:39 PASS ids dfl tp2 4k-2 (prompt=3284)
+03:11:47 gen-tp2-4k-3-off exit 0: finish=length prompt=2720 (cached 0) completion=256 | prefill 732 ms (3716.4 tok/s) | decode 4532 ms (56.27 tok/s)|
+03:11:54 gen-tp2-4k-3-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 2973 drafted 1 accepted 1 emits 2|spec: mtp draft 2.365 ms, verify + rollback 20.061 ms|finish=length prompt=2720 (cached 0) completion=256 | prefill 739 ms (3679.0 tok/s) | decode 2728 ms (93.46 tok/s)|spec: verify passes=105 proposed=209 accepted=150 (acceptance 71.8%, 2.43 tokens per pass)|
+03:11:54 PASS ids mtp2 tp2 4k-3 (prompt=2720)
+03:12:02 gen-tp2-4k-3-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 2972 drafted 2 accepted 2 emits 3|spec: mtp draft 17.026 ms, verify + rollback 21.692 ms|finish=length prompt=2720 (cached 0) completion=256 | prefill 747 ms (3639.6 tok/s) | decode 3150 ms (80.96 tok/s)|spec: verify passes=73 proposed=504 accepted=182 (acceptance 36.1%, 3.49 tokens per pass)|
+03:12:02 PASS ids dfl tp2 4k-3 (prompt=2720)
+03:12:10 gen-tp2-4k-4-off exit 0: finish=length prompt=2940 (cached 0) completion=256 | prefill 787 ms (3735.3 tok/s) | decode 4539 ms (56.18 tok/s)|
+03:12:17 gen-tp2-4k-4-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 3193 drafted 1 accepted 1 emits 2|spec: mtp draft 2.390 ms, verify + rollback 20.230 ms|finish=length prompt=2940 (cached 0) completion=256 | prefill 792 ms (3712.7 tok/s) | decode 3138 ms (81.27 tok/s)|spec: verify passes=120 proposed=239 accepted=135 (acceptance 56.5%, 2.12 tokens per pass)|
+03:12:17 PASS ids mtp2 tp2 4k-4 (prompt=2940)
+03:12:26 gen-tp2-4k-4-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 3192 drafted 2 accepted 2 emits 3|spec: mtp draft 17.070 ms, verify + rollback 21.784 ms|finish=length prompt=2940 (cached 0) completion=256 | prefill 808 ms (3639.3 tok/s) | decode 4128 ms (61.78 tok/s)|spec: verify passes=95 proposed=659 accepted=160 (acceptance 24.3%, 2.68 tokens per pass)|
+03:12:26 PASS ids dfl tp2 4k-4 (prompt=2940)
+03:12:34 gen-tp2-4k-5-off exit 0: finish=length prompt=3381 (cached 0) completion=256 | prefill 903 ms (3743.2 tok/s) | decode 4566 ms (55.84 tok/s)|
+03:12:41 gen-tp2-4k-5-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 3633 drafted 2 accepted 2 emits 3|spec: mtp draft 5.106 ms, verify + rollback 21.115 ms|finish=length prompt=3381 (cached 0) completion=256 | prefill 910 ms (3716.2 tok/s) | decode 2488 ms (102.51 tok/s)|spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)|
+03:12:41 PASS ids mtp2 tp2 4k-5 (prompt=3381)
+03:12:48 gen-tp2-4k-5-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 3634 drafted 1 accepted 1 emits 2|spec: mtp draft 17.094 ms, verify + rollback 21.086 ms|finish=length prompt=3381 (cached 0) completion=256 | prefill 925 ms (3656.9 tok/s) | decode 2353 ms (108.37 tok/s)|spec: verify passes=54 proposed=370 accepted=201 (acceptance 54.3%, 4.72 tokens per pass)|
+03:12:48 PASS ids dfl tp2 4k-5 (prompt=3381)
+03:12:58 gen-tp2-16k-0-off exit 0: finish=length prompt=10413 (cached 0) completion=256 | prefill 2812 ms (3703.2 tok/s) | decode 4691 ms (54.36 tok/s)|
+03:13:07 gen-tp2-16k-0-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 10666 drafted 1 accepted 1 emits 2|spec: mtp draft 2.725 ms, verify + rollback 22.314 ms|finish=length prompt=10413 (cached 0) completion=256 | prefill 2857 ms (3645.3 tok/s) | decode 2670 ms (95.50 tok/s)|spec: verify passes=97 proposed=193 accepted=158 (acceptance 81.9%, 2.63 tokens per pass)|
+03:13:07 PASS ids mtp2 tp2 16k-0 (prompt=10413)
+03:13:17 gen-tp2-16k-0-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 10666 drafted 1 accepted 1 emits 2|spec: mtp draft 17.022 ms, verify + rollback 22.178 ms|finish=length prompt=10413 (cached 0) completion=256 | prefill 2865 ms (3634.1 tok/s) | decode 3656 ms (69.75 tok/s)|spec: verify passes=78 proposed=532 accepted=177 (acceptance 33.3%, 3.27 tokens per pass)|
+03:13:17 PASS ids dfl tp2 16k-0 (prompt=10413)
+03:13:28 gen-tp2-16k-1-off exit 0: finish=length prompt=11862 (cached 0) completion=256 | prefill 3199 ms (3708.4 tok/s) | decode 4705 ms (54.19 tok/s)|
+03:13:38 gen-tp2-16k-1-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 12114 drafted 2 accepted 2 emits 3|spec: mtp draft 4.987 ms, verify + rollback 22.474 ms|finish=length prompt=11862 (cached 0) completion=256 | prefill 3240 ms (3660.6 tok/s) | decode 3073 ms (82.99 tok/s)|spec: verify passes=111 proposed=222 accepted=144 (acceptance 64.9%, 2.30 tokens per pass)|
+03:13:38 PASS ids mtp2 tp2 16k-1 (prompt=11862)
+03:13:48 gen-tp2-16k-1-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 251 pos 12111 drafted 5 accepted 5 emits 6|spec: mtp draft 16.720 ms, verify + rollback 27.866 ms|finish=length prompt=11862 (cached 0) completion=256 | prefill 3265 ms (3632.6 tok/s) | decode 3534 ms (72.16 tok/s)|spec: verify passes=74 proposed=516 accepted=181 (acceptance 35.1%, 3.45 tokens per pass)|
+03:13:48 PASS ids dfl tp2 16k-1 (prompt=11862)
+03:13:59 gen-tp2-16k-2-off exit 0: finish=length prompt=12552 (cached 0) completion=256 | prefill 3428 ms (3661.7 tok/s) | decode 4747 ms (53.72 tok/s)|
+03:14:09 gen-tp2-16k-2-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 12805 drafted 1 accepted 1 emits 2|spec: mtp draft 2.764 ms, verify + rollback 21.628 ms|finish=length prompt=12552 (cached 0) completion=256 | prefill 3458 ms (3629.8 tok/s) | decode 3089 ms (82.55 tok/s)|spec: verify passes=110 proposed=219 accepted=145 (acceptance 66.2%, 2.32 tokens per pass)|
+03:14:09 PASS ids mtp2 tp2 16k-2 (prompt=12552)
+03:14:20 gen-tp2-16k-2-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 12804 drafted 2 accepted 2 emits 3|spec: mtp draft 16.762 ms, verify + rollback 23.924 ms|finish=length prompt=12552 (cached 0) completion=256 | prefill 3495 ms (3591.8 tok/s) | decode 3789 ms (67.29 tok/s)|spec: verify passes=79 proposed=544 accepted=176 (acceptance 32.4%, 3.23 tokens per pass)|
+03:14:20 PASS ids dfl tp2 16k-2 (prompt=12552)
+03:14:31 gen-tp2-16k-3-off exit 0: finish=length prompt=11957 (cached 0) completion=256 | prefill 3212 ms (3722.2 tok/s) | decode 4703 ms (54.22 tok/s)|
+03:14:40 gen-tp2-16k-3-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 12209 drafted 2 accepted 2 emits 3|spec: mtp draft 4.994 ms, verify + rollback 22.453 ms|finish=length prompt=11957 (cached 0) completion=256 | prefill 3259 ms (3668.9 tok/s) | decode 2682 ms (95.07 tok/s)|spec: verify passes=97 proposed=194 accepted=158 (acceptance 81.4%, 2.63 tokens per pass)|
+03:14:40 PASS ids mtp2 tp2 16k-3 (prompt=11957)
+03:14:50 gen-tp2-16k-3-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 12210 drafted 1 accepted 1 emits 2|spec: mtp draft 17.424 ms, verify + rollback 22.222 ms|finish=length prompt=11957 (cached 0) completion=256 | prefill 3276 ms (3650.4 tok/s) | decode 3242 ms (78.65 tok/s)|spec: verify passes=68 proposed=467 accepted=187 (acceptance 40.0%, 3.75 tokens per pass)|
+03:14:50 PASS ids dfl tp2 16k-3 (prompt=11957)
+03:15:01 gen-tp2-16k-4-off exit 0: finish=length prompt=10946 (cached 0) completion=256 | prefill 2944 ms (3718.4 tok/s) | decode 4688 ms (54.40 tok/s)|
+03:15:11 gen-tp2-16k-4-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 11199 drafted 1 accepted 0 emits 1|spec: mtp draft 2.721 ms, verify + rollback 21.297 ms|finish=length prompt=10946 (cached 0) completion=256 | prefill 2983 ms (3669.3 tok/s) | decode 3417 ms (74.63 tok/s)|spec: verify passes=123 proposed=245 accepted=131 (acceptance 53.5%, 2.07 tokens per pass)|
+03:15:11 PASS ids mtp2 tp2 16k-4 (prompt=10946)
+03:15:22 gen-tp2-16k-4-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 11199 drafted 1 accepted 0 emits 1|spec: mtp draft 16.884 ms, verify + rollback 22.074 ms|finish=length prompt=10946 (cached 0) completion=256 | prefill 3010 ms (3636.7 tok/s) | decode 5017 ms (50.83 tok/s)|spec: verify passes=106 proposed=727 accepted=148 (acceptance 20.4%, 2.40 tokens per pass)|
+03:15:22 PASS ids dfl tp2 16k-4 (prompt=10946)
+03:15:33 gen-tp2-16k-5-off exit 0: finish=length prompt=12541 (cached 0) completion=256 | prefill 3402 ms (3686.7 tok/s) | decode 4749 ms (53.70 tok/s)|
+03:15:43 gen-tp2-16k-5-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 253 pos 12792 drafted 2 accepted 2 emits 3|spec: mtp draft 5.013 ms, verify + rollback 22.816 ms|finish=length prompt=12541 (cached 0) completion=256 | prefill 3450 ms (3635.5 tok/s) | decode 2685 ms (94.97 tok/s)|spec: verify passes=95 proposed=190 accepted=159 (acceptance 83.7%, 2.67 tokens per pass)|
+03:15:43 PASS ids mtp2 tp2 16k-5 (prompt=12541)
+03:15:53 gen-tp2-16k-5-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 253 pos 12792 drafted 3 accepted 3 emits 4|spec: mtp draft 17.358 ms, verify + rollback 25.267 ms|finish=length prompt=12541 (cached 0) completion=256 | prefill 3475 ms (3609.3 tok/s) | decode 3131 ms (81.45 tok/s)|spec: verify passes=65 proposed=450 accepted=190 (acceptance 42.2%, 3.92 tokens per pass)|
+03:15:53 PASS ids dfl tp2 16k-5 (prompt=12541)
+03:15:53 ids summary mtp2 tp2: 17 PASS, 1 FAIL
+03:15:53 ids summary dfl tp2: 17 PASS, 1 FAIL
+03:15:53 ids done
+03:16:10 plan-8b exit 0: 
+03:16:11 plantext-8b exit 0: 
+03:16:14 plan-27b-tp2 exit 0: --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|--spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|
+03:16:18 plantext-27b-tp2 exit 0: --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|--spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|
+03:16:26 plan-35b exit 0: 
+03:16:28 plantext-35b exit 0: 
+03:16:31 plan-27b-tp2-old exit 0 [INTARSIA_HIP_VERIFY_ATTN_ROWS=0]: --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|--spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|
+03:16:35 plantext-27b-tp2-old exit 0 [INTARSIA_HIP_VERIFY_ATTN_ROWS=0]: --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|--spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|
+03:16:35 DIFF 27B tp2 plan json, lane knobs on vs off (plan-27b-tp2.out != plan-27b-tp2-old.out)
+03:16:35 mtest batch exit 0: test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s|
+03:18:19 mtest batch_recurrent exit 0: test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 103.35s|
+03:18:37 mtest mtp exit 0: test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.05s|
+03:18:38 mtest hybrid exit 0: test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s|
+03:18:38 mtest fusion_p2 exit 0: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s|
+03:18:38 mtest graphs exit 0: test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s|
+03:18:39 mtest hybrid_mxfp4 exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s|
+03:18:45 mtest spec exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.49s|
+03:18:45 mtest tp_hybrid exit 0: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s|
+03:18:51 mtest tp_mtp exit 0: test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.37s|
+03:18:55 mtest tp_batch exit 0: test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.05s|
+03:18:56 mtest tp exit 0: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s|
+03:18:56 gates done

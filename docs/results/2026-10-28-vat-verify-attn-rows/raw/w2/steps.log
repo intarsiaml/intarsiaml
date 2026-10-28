@@ -1,0 +1,120 @@
+03:08:29 guard: [guard] radiance stopped 2026-10-28 03:08:28
+03:08:29 pre: ids gate (arms mtp2 dfl, tp2, cap 5400 s)
+03:18:56 pre: ids exit 0
+03:19:03 pre: ids summary mtp2 tp2: 17 PASS, 1 FAIL|ids summary dfl tp2: 17 PASS, 1 FAIL|
+03:19:03 round 1 arm off: starting server
+03:20:13 round 1 arm off ho-chat: localeval exit 0 results/20261028-031935-vat-off-vat-w2-off-ho-chat-r1/result.json
+03:20:33 round 1 arm off ho-code: localeval exit 0 results/20261028-032013-vat-off-vat-w2-off-ho-code-r1/result.json
+03:21:11 round 1 arm off ho-prose: localeval exit 0 results/20261028-032033-vat-off-vat-w2-off-ho-prose-r1/result.json
+03:21:31 round 1 arm off ho-recall: localeval exit 0 results/20261028-032111-vat-off-vat-w2-off-ho-recall-r1/result.json
+03:22:45 round 1 arm off rcp-code: localeval exit 0 results/20261028-032131-vat-off-vat-w2-off-rcp-code-r1/result.json
+03:24:00 round 1 arm off rcp-prose: localeval exit 0 results/20261028-032246-vat-off-vat-w2-off-rcp-prose-r1/result.json
+03:25:14 round 1 arm off rcp-recall: localeval exit 0 results/20261028-032400-vat-off-vat-w2-off-rcp-recall-r1/result.json
+03:25:35 round 1 arm off speed 1024,4096: exit 0 results/20261028-032514-vat-off-vat-w2-off-speed-r1/result.json
+03:25:35 round 1 arm mtp2: starting server
+03:27:13 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261028-032649-vat-mtp2-vat-w2-mtp2-ho-chat-r1/result.json
+03:27:25 round 1 arm mtp2 ho-code: localeval exit 0 results/20261028-032714-vat-mtp2-vat-w2-mtp2-ho-code-r1/result.json
+03:27:52 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261028-032725-vat-mtp2-vat-w2-mtp2-ho-prose-r1/result.json
+03:28:05 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261028-032753-vat-mtp2-vat-w2-mtp2-ho-recall-r1/result.json
+03:28:45 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261028-032806-vat-mtp2-vat-w2-mtp2-rcp-code-r1/result.json
+03:29:37 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261028-032846-vat-mtp2-vat-w2-mtp2-rcp-prose-r1/result.json
+03:30:21 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261028-032938-vat-mtp2-vat-w2-mtp2-rcp-recall-r1/result.json
+03:30:22 round 1 arm mtp2-old: starting server
+03:32:04 round 1 arm mtp2-old ho-chat: localeval exit 0 results/20261028-033139-vat-mtp2-old-vat-w2-mtp2-old-ho-chat-r1/result.json
+03:32:15 round 1 arm mtp2-old ho-code: localeval exit 0 results/20261028-033204-vat-mtp2-old-vat-w2-mtp2-old-ho-code-r1/result.json
+03:32:43 round 1 arm mtp2-old ho-prose: localeval exit 0 results/20261028-033216-vat-mtp2-old-vat-w2-mtp2-old-ho-prose-r1/result.json
+03:32:55 round 1 arm mtp2-old ho-recall: localeval exit 0 results/20261028-033243-vat-mtp2-old-vat-w2-mtp2-old-ho-recall-r1/result.json
+03:33:36 round 1 arm mtp2-old rcp-code: localeval exit 0 results/20261028-033256-vat-mtp2-old-vat-w2-mtp2-old-rcp-code-r1/result.json
+03:34:28 round 1 arm mtp2-old rcp-prose: localeval exit 0 results/20261028-033337-vat-mtp2-old-vat-w2-mtp2-old-rcp-prose-r1/result.json
+03:35:13 round 1 arm mtp2-old rcp-recall: localeval exit 0 results/20261028-033429-vat-mtp2-old-vat-w2-mtp2-old-rcp-recall-r1/result.json
+03:35:14 round 1 arm dfl7: starting server
+03:36:24 round 1 arm dfl7 ho-chat: localeval exit 0 results/20261028-033557-vat-dfl7-vat-w2-dfl7-ho-chat-r1/result.json
+03:36:34 round 1 arm dfl7 ho-code: localeval exit 0 results/20261028-033625-vat-dfl7-vat-w2-dfl7-ho-code-r1/result.json
+03:37:07 round 1 arm dfl7 ho-prose: localeval exit 0 results/20261028-033634-vat-dfl7-vat-w2-dfl7-ho-prose-r1/result.json
+03:37:19 round 1 arm dfl7 ho-recall: localeval exit 0 results/20261028-033708-vat-dfl7-vat-w2-dfl7-ho-recall-r1/result.json
+03:37:51 round 1 arm dfl7 rcp-code: localeval exit 0 results/20261028-033720-vat-dfl7-vat-w2-dfl7-rcp-code-r1/result.json
+03:38:54 round 1 arm dfl7 rcp-prose: localeval exit 0 results/20261028-033752-vat-dfl7-vat-w2-dfl7-rcp-prose-r1/result.json
+03:39:34 round 1 arm dfl7 rcp-recall: localeval exit 0 results/20261028-033854-vat-dfl7-vat-w2-dfl7-rcp-recall-r1/result.json
+03:39:34 round 1 arm dfl7-old: starting server
+03:40:46 round 1 arm dfl7-old ho-chat: localeval exit 0 results/20261028-034018-vat-dfl7-old-vat-w2-dfl7-old-ho-chat-r1/result.json
+03:40:55 round 1 arm dfl7-old ho-code: localeval exit 0 results/20261028-034046-vat-dfl7-old-vat-w2-dfl7-old-ho-code-r1/result.json
+03:41:30 round 1 arm dfl7-old ho-prose: localeval exit 0 results/20261028-034056-vat-dfl7-old-vat-w2-dfl7-old-ho-prose-r1/result.json
+03:41:43 round 1 arm dfl7-old ho-recall: localeval exit 0 results/20261028-034131-vat-dfl7-old-vat-w2-dfl7-old-ho-recall-r1/result.json
+03:42:16 round 1 arm dfl7-old rcp-code: localeval exit 0 results/20261028-034144-vat-dfl7-old-vat-w2-dfl7-old-rcp-code-r1/result.json
+03:43:21 round 1 arm dfl7-old rcp-prose: localeval exit 0 results/20261028-034217-vat-dfl7-old-vat-w2-dfl7-old-rcp-prose-r1/result.json
+03:44:02 round 1 arm dfl7-old rcp-recall: localeval exit 0 results/20261028-034321-vat-dfl7-old-vat-w2-dfl7-old-rcp-recall-r1/result.json
+03:44:03 round 1 arm off-old: starting server
+03:45:12 round 1 arm off-old ho-chat: localeval exit 0 results/20261028-034434-vat-off-old-vat-w2-off-old-ho-chat-r1/result.json
+03:45:32 round 1 arm off-old ho-code: localeval exit 0 results/20261028-034512-vat-off-old-vat-w2-off-old-ho-code-r1/result.json
+03:46:10 round 1 arm off-old ho-prose: localeval exit 0 results/20261028-034532-vat-off-old-vat-w2-off-old-ho-prose-r1/result.json
+03:46:30 round 1 arm off-old ho-recall: localeval exit 0 results/20261028-034610-vat-off-old-vat-w2-off-old-ho-recall-r1/result.json
+03:47:44 round 1 arm off-old rcp-code: localeval exit 0 results/20261028-034630-vat-off-old-vat-w2-off-old-rcp-code-r1/result.json
+03:48:58 round 1 arm off-old rcp-prose: localeval exit 0 results/20261028-034745-vat-off-old-vat-w2-off-old-rcp-prose-r1/result.json
+03:50:13 round 1 arm off-old rcp-recall: localeval exit 0 results/20261028-034859-vat-off-old-vat-w2-off-old-rcp-recall-r1/result.json
+03:50:34 round 1 arm off-old speed 1024,4096: exit 0 results/20261028-035014-vat-off-old-vat-w2-off-old-speed-r1/result.json
+03:50:34 round 2 arm dfl7-old: starting server
+03:51:46 round 2 arm dfl7-old ho-chat: localeval exit 0 results/20261028-035118-vat-dfl7-old-vat-w2-dfl7-old-ho-chat-r2/result.json
+03:51:56 round 2 arm dfl7-old ho-code: localeval exit 0 results/20261028-035147-vat-dfl7-old-vat-w2-dfl7-old-ho-code-r2/result.json
+03:52:31 round 2 arm dfl7-old ho-prose: localeval exit 0 results/20261028-035157-vat-dfl7-old-vat-w2-dfl7-old-ho-prose-r2/result.json
+03:52:44 round 2 arm dfl7-old ho-recall: localeval exit 0 results/20261028-035231-vat-dfl7-old-vat-w2-dfl7-old-ho-recall-r2/result.json
+03:53:17 round 2 arm dfl7-old rcp-code: localeval exit 0 results/20261028-035244-vat-dfl7-old-vat-w2-dfl7-old-rcp-code-r2/result.json
+03:54:21 round 2 arm dfl7-old rcp-prose: localeval exit 0 results/20261028-035317-vat-dfl7-old-vat-w2-dfl7-old-rcp-prose-r2/result.json
+03:55:03 round 2 arm dfl7-old rcp-recall: localeval exit 0 results/20261028-035422-vat-dfl7-old-vat-w2-dfl7-old-rcp-recall-r2/result.json
+03:55:04 round 2 arm dfl7: starting server
+03:56:14 round 2 arm dfl7 ho-chat: localeval exit 0 results/20261028-035547-vat-dfl7-vat-w2-dfl7-ho-chat-r2/result.json
+03:56:24 round 2 arm dfl7 ho-code: localeval exit 0 results/20261028-035615-vat-dfl7-vat-w2-dfl7-ho-code-r2/result.json
+03:56:57 round 2 arm dfl7 ho-prose: localeval exit 0 results/20261028-035624-vat-dfl7-vat-w2-dfl7-ho-prose-r2/result.json
+03:57:09 round 2 arm dfl7 ho-recall: localeval exit 0 results/20261028-035657-vat-dfl7-vat-w2-dfl7-ho-recall-r2/result.json
+03:57:41 round 2 arm dfl7 rcp-code: localeval exit 0 results/20261028-035710-vat-dfl7-vat-w2-dfl7-rcp-code-r2/result.json
+03:58:43 round 2 arm dfl7 rcp-prose: localeval exit 0 results/20261028-035742-vat-dfl7-vat-w2-dfl7-rcp-prose-r2/result.json
+03:59:23 round 2 arm dfl7 rcp-recall: localeval exit 0 results/20261028-035844-vat-dfl7-vat-w2-dfl7-rcp-recall-r2/result.json
+03:59:24 round 2 arm mtp2-old: starting server
+04:01:06 round 2 arm mtp2-old ho-chat: localeval exit 0 results/20261028-040041-vat-mtp2-old-vat-w2-mtp2-old-ho-chat-r2/result.json
+04:01:17 round 2 arm mtp2-old ho-code: localeval exit 0 results/20261028-040106-vat-mtp2-old-vat-w2-mtp2-old-ho-code-r2/result.json
+04:01:45 round 2 arm mtp2-old ho-prose: localeval exit 0 results/20261028-040118-vat-mtp2-old-vat-w2-mtp2-old-ho-prose-r2/result.json
+04:01:58 round 2 arm mtp2-old ho-recall: localeval exit 0 results/20261028-040145-vat-mtp2-old-vat-w2-mtp2-old-ho-recall-r2/result.json
+04:02:39 round 2 arm mtp2-old rcp-code: localeval exit 0 results/20261028-040158-vat-mtp2-old-vat-w2-mtp2-old-rcp-code-r2/result.json
+04:03:31 round 2 arm mtp2-old rcp-prose: localeval exit 0 results/20261028-040239-vat-mtp2-old-vat-w2-mtp2-old-rcp-prose-r2/result.json
+04:04:16 round 2 arm mtp2-old rcp-recall: localeval exit 0 results/20261028-040331-vat-mtp2-old-vat-w2-mtp2-old-rcp-recall-r2/result.json
+04:04:16 round 2 arm mtp2: starting server
+04:05:57 round 2 arm mtp2 ho-chat: localeval exit 0 results/20261028-040533-vat-mtp2-vat-w2-mtp2-ho-chat-r2/result.json
+04:06:09 round 2 arm mtp2 ho-code: localeval exit 0 results/20261028-040558-vat-mtp2-vat-w2-mtp2-ho-code-r2/result.json
+04:06:36 round 2 arm mtp2 ho-prose: localeval exit 0 results/20261028-040609-vat-mtp2-vat-w2-mtp2-ho-prose-r2/result.json
+04:06:49 round 2 arm mtp2 ho-recall: localeval exit 0 results/20261028-040637-vat-mtp2-vat-w2-mtp2-ho-recall-r2/result.json
+04:07:29 round 2 arm mtp2 rcp-code: localeval exit 0 results/20261028-040649-vat-mtp2-vat-w2-mtp2-rcp-code-r2/result.json
+04:08:20 round 2 arm mtp2 rcp-prose: localeval exit 0 results/20261028-040729-vat-mtp2-vat-w2-mtp2-rcp-prose-r2/result.json
+04:09:04 round 2 arm mtp2 rcp-recall: localeval exit 0 results/20261028-040821-vat-mtp2-vat-w2-mtp2-rcp-recall-r2/result.json
+04:09:05 round 3 arm mtp2: starting server
+04:10:46 round 3 arm mtp2 ho-chat: localeval exit 0 results/20261028-041022-vat-mtp2-vat-w2-mtp2-ho-chat-r3/result.json
+04:10:57 round 3 arm mtp2 ho-code: localeval exit 0 results/20261028-041046-vat-mtp2-vat-w2-mtp2-ho-code-r3/result.json
+04:11:25 round 3 arm mtp2 ho-prose: localeval exit 0 results/20261028-041058-vat-mtp2-vat-w2-mtp2-ho-prose-r3/result.json
+04:11:37 round 3 arm mtp2 ho-recall: localeval exit 0 results/20261028-041125-vat-mtp2-vat-w2-mtp2-ho-recall-r3/result.json
+04:12:17 round 3 arm mtp2 rcp-code: localeval exit 0 results/20261028-041138-vat-mtp2-vat-w2-mtp2-rcp-code-r3/result.json
+04:13:09 round 3 arm mtp2 rcp-prose: localeval exit 0 results/20261028-041218-vat-mtp2-vat-w2-mtp2-rcp-prose-r3/result.json
+04:13:52 round 3 arm mtp2 rcp-recall: localeval exit 0 results/20261028-041309-vat-mtp2-vat-w2-mtp2-rcp-recall-r3/result.json
+04:13:53 round 3 arm mtp2-old: starting server
+04:15:31 round 3 arm mtp2-old ho-chat: localeval exit 0 results/20261028-041507-vat-mtp2-old-vat-w2-mtp2-old-ho-chat-r3/result.json
+04:15:43 round 3 arm mtp2-old ho-code: localeval exit 0 results/20261028-041532-vat-mtp2-old-vat-w2-mtp2-old-ho-code-r3/result.json
+04:16:11 round 3 arm mtp2-old ho-prose: localeval exit 0 results/20261028-041543-vat-mtp2-old-vat-w2-mtp2-old-ho-prose-r3/result.json
+04:16:23 round 3 arm mtp2-old ho-recall: localeval exit 0 results/20261028-041611-vat-mtp2-old-vat-w2-mtp2-old-ho-recall-r3/result.json
+04:17:04 round 3 arm mtp2-old rcp-code: localeval exit 0 results/20261028-041624-vat-mtp2-old-vat-w2-mtp2-old-rcp-code-r3/result.json
+04:17:56 round 3 arm mtp2-old rcp-prose: localeval exit 0 results/20261028-041705-vat-mtp2-old-vat-w2-mtp2-old-rcp-prose-r3/result.json
+04:18:41 round 3 arm mtp2-old rcp-recall: localeval exit 0 results/20261028-041757-vat-mtp2-old-vat-w2-mtp2-old-rcp-recall-r3/result.json
+04:18:42 round 3 arm dfl7: starting server
+04:19:52 round 3 arm dfl7 ho-chat: localeval exit 0 results/20261028-041925-vat-dfl7-vat-w2-dfl7-ho-chat-r3/result.json
+04:20:01 round 3 arm dfl7 ho-code: localeval exit 0 results/20261028-041953-vat-dfl7-vat-w2-dfl7-ho-code-r3/result.json
+04:20:35 round 3 arm dfl7 ho-prose: localeval exit 0 results/20261028-042002-vat-dfl7-vat-w2-dfl7-ho-prose-r3/result.json
+04:20:47 round 3 arm dfl7 ho-recall: localeval exit 0 results/20261028-042035-vat-dfl7-vat-w2-dfl7-ho-recall-r3/result.json
+04:21:20 round 3 arm dfl7 rcp-code: localeval exit 0 results/20261028-042048-vat-dfl7-vat-w2-dfl7-rcp-code-r3/result.json
+04:22:22 round 3 arm dfl7 rcp-prose: localeval exit 0 results/20261028-042120-vat-dfl7-vat-w2-dfl7-rcp-prose-r3/result.json
+04:23:02 round 3 arm dfl7 rcp-recall: localeval exit 0 results/20261028-042222-vat-dfl7-vat-w2-dfl7-rcp-recall-r3/result.json
+04:23:02 round 3 arm dfl7-old: starting server
+04:24:14 round 3 arm dfl7-old ho-chat: localeval exit 0 results/20261028-042346-vat-dfl7-old-vat-w2-dfl7-old-ho-chat-r3/result.json
+04:24:23 round 3 arm dfl7-old ho-code: localeval exit 0 results/20261028-042415-vat-dfl7-old-vat-w2-dfl7-old-ho-code-r3/result.json
+04:24:58 round 3 arm dfl7-old ho-prose: localeval exit 0 results/20261028-042424-vat-dfl7-old-vat-w2-dfl7-old-ho-prose-r3/result.json
+04:25:11 round 3 arm dfl7-old ho-recall: localeval exit 0 results/20261028-042459-vat-dfl7-old-vat-w2-dfl7-old-ho-recall-r3/result.json
+04:25:44 round 3 arm dfl7-old rcp-code: localeval exit 0 results/20261028-042512-vat-dfl7-old-vat-w2-dfl7-old-rcp-code-r3/result.json
+04:26:49 round 3 arm dfl7-old rcp-prose: localeval exit 0 results/20261028-042545-vat-dfl7-old-vat-w2-dfl7-old-rcp-prose-r3/result.json
+04:27:31 round 3 arm dfl7-old rcp-recall: localeval exit 0 results/20261028-042650-vat-dfl7-old-vat-w2-dfl7-old-rcp-recall-r3/result.json
+04:27:31 done, time left 6054s
+04:27:47 guard: [guard] radiance answers 2026-10-28 04:27:47 (after 20 s)

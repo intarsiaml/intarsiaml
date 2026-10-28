@@ -1,0 +1,4 @@
+[targets.vat-off-old]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-off-old"
+extra_body = { ignore_eos = true, min_tokens = 512 }
