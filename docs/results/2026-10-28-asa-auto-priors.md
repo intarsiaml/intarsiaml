@@ -36,7 +36,7 @@ Old auto (ASP, other window): ho-prose 75.4, rcp-prose 77.9 (-6%): prose is fixe
 
 - Greedy ids `--spec auto` equal `--spec off`, tp=2, 18 prompts (6 short, 6 ~4k, 6 ~16k), 256 tokens: **18 / 18** (`raw/w3/ids/steps.log`).
 - Policy unit tests (`cargo test -p intarsia-core --lib spec::`, 34) and the CPU forced-switch test `spec_auto_greedy_ids_equal_spec_off_with_forced_switches_and_the_policy` (`dflash2_cpu`, 8 tests) pass.
-- Mac `cargo test --workspace --release`: 1081 passed, 0 failed (on the first policy commit; the later commits change `spec.rs` and tests only, spec tests re-run). CI green on the first push.
+- Mac `cargo test --workspace --release`: 1081 passed, 0 failed at the final head.
 
 ## 5. Default decision: no
 
