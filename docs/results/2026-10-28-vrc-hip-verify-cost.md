@@ -118,7 +118,7 @@ rcp-prose 66.1 vs 82.3 (dflash behind). Not >= in every category, so the 27B HIP
 * **batched == solo / spec paths** (GPU, `INTARSIA_BATCH_TEST_BACKEND=hip`, `raw/f1/ids/steps.log`): `batch`, `batch_recurrent` (14), `mtp` (21), `hybrid`, `fusion_p2`, `graphs`, `hybrid_mxfp4`, `spec` and the tp=2 `tp_hybrid`, `tp_mtp`, `tp_batch`, `tp`: all pass.
 * **`plan show`**: 8B (tp1), 27B (tp=2), 35B (tp1) printed (`raw/f1/ids/plan-*.out`, `plantext-*.out`; no base-binary comparison was run); the 27B plan JSON is byte-identical with the knob on and off. No planner code changed (`ops.rs` only relaxes the output count of `GdnConvDelta`,
   the pinned plan tests of the Mac workspace pass); the new path is a verify-time launch the plan does not list.
-* **Mac** `cargo test --workspace --release --no-fail-fast`: green (see the PR for the final count). **CI**: see the PR.
+* **Mac** `cargo test --workspace --release --no-fail-fast`: green, 1075 passed, 0 failed (final tree).
 
 ## 7. Not done / assumptions
 
