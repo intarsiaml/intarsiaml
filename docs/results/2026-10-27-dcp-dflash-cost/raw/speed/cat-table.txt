@@ -1,0 +1,9 @@
+window speed: 49 localeval runs; problems: 0
+category                        off                   dfl7                   mtp2
+ho-chat        56.9  1.00x            70.3  1.24x  3.04t/p   86.2  1.52x  2.29t/p
+ho-code        56.9  1.00x           123.3  2.17x  5.32t/p  103.2  1.81x  2.74t/p
+ho-prose       56.6  1.00x            57.8  1.02x  2.50t/p   76.6  1.35x  2.04t/p
+ho-recall      56.8  1.00x            84.7  1.49x  3.66t/p   91.0  1.60x  2.43t/p
+rcp-code       56.8  1.00x           122.4  2.16x  5.30t/p  103.4  1.82x  2.74t/p
+rcp-prose      57.0  1.00x            60.4  1.06x  2.62t/p   79.1  1.39x  2.12t/p
+rcp-recall     56.8  1.00x            96.6  1.70x  4.17t/p   94.0  1.65x  2.50t/p

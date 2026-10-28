@@ -104,7 +104,7 @@ pub(super) struct DflashHead {
     /// group's head is split across the ranks). `None`: the model's own head is whole.
     pub(super) full_head: Option<QTensor>,
     /// Run the DFlash2 block pass and its head on the row-exact (`_rows`) kernels (`INTARSIA_DFLASH_ROWS_KERNELS`, default
-    /// off; [`Model::dflash_set_rows_kernels`]): a speed choice only, the drafts never reach the output.
+    /// on for a DFlash2 draft, off for DFlash v1; [`Model::dflash_set_rows_kernels`]): a speed choice only, the drafts never reach the output.
     rows_kernels: std::sync::atomic::AtomicBool,
 }
 
@@ -312,7 +312,10 @@ fn load_head2(dl: &DflashLoad, b: &dyn Backend, dims: &ModelDims, add_bytes: &dy
         script: Mutex::new(None),
         profile: Default::default(),
         full_head: None,
-        rows_kernels: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DFLASH_ROWS_KERNELS").is_ok_and(|v| v == "1")),
+        // lane dcp: the DFlash2 draft runs its M = 7..8 matmuls and logits on the row kernels by default (drafts only change the
+        // proposals, greedy verify decides every token): draft 21.1 -> 13.8 ms at tp=2 (the generic WMMA GEMM ran at half the
+        // bandwidth). INTARSIA_DFLASH_ROWS_KERNELS=0 restores the generic kernels.
+        rows_kernels: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DFLASH_ROWS_KERNELS").map_or(true, |v| v != "0")),
     })
 }
 
@@ -483,6 +486,15 @@ impl Model {
         if d.active && !d.synced {
             return Ok(Vec::new()); // the context cache lost a pass: this request decodes plainly from here
         }
+        // lane dcp: INTARSIA_SPEC_TRACE=1 syncs between the phases of a DFlash2 draft and prints their host times
+        let tr = crate::spec::trace_enabled() && head.v2.is_some();
+        let sync = |tr: bool| -> Result<std::time::Instant> {
+            if tr {
+                self.backend.synchronize(self.stream)?;
+            }
+            Ok(std::time::Instant::now())
+        };
+        let t_start = std::time::Instant::now();
         if d.pending > 0 {
             let mut d = st.dflash.take().unwrap();
             let r = self.dflash_flush(head, &mut d, false);
@@ -492,6 +504,7 @@ impl Model {
             st.dflash = Some(d);
             r?;
         }
+        let t_flush = sync(tr)?;
         let d = st.dflash.as_ref().unwrap();
         if !d.active || !d.synced || d.kv.len != st.len {
             return Err(Error::invalid(format!(
@@ -522,6 +535,7 @@ impl Model {
                 self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
             }
             let x = self.dflash2_block(d2, &d.kv, t, profile);
+            let t_block = sync(tr)?;
             let n = self.view(&ws.n, act, &[t, hd]);
             // the draft's logits and argmax on this rank alone (the target's verify head would all-gather under a vocab-parallel head)
             let headed = x.and_then(|x| {
@@ -541,10 +555,13 @@ impl Model {
                 self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
             }
             headed?;
+            let t_head = sync(tr)?;
             let sel = d2.selector.as_ref();
             if let Some(sl) = sel {
                 self.proj(&n.rows(1, t - 1), &sl.proj, &self.view(&d2.sel_out, act, &[t - 1, sl.rank]), profile)?;
             }
+            let t_proj = sync(tr)?;
+            let mut t_dl = t_proj;
             let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("--spec dflash needs verify passes enabled (Model::enable_verify)"))?;
             if self.recorder.lock().unwrap().is_some() {
                 return Ok(Vec::new());
@@ -560,6 +577,7 @@ impl Model {
                     let mut lb = vec![0u8; (t - 1) * v * 4];
                     self.backend.download(&ws.logits, 0, &mut lb, self.stream)?;
                     let logits: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+                    t_dl = std::time::Instant::now();
                     let mut hb = vec![0u8; (t - 1) * sl.rank * act.size_bytes()];
                     self.backend.download(&d2.sel_out, 0, &mut hb, self.stream)?;
                     let mut hp = vec![0f32; (t - 1) * sl.rank];
@@ -568,6 +586,20 @@ impl Model {
                 }
             };
             drafts.truncate(k);
+            if tr {
+                let ms = |a: std::time::Instant, b: std::time::Instant| b.duration_since(a).as_secs_f64() * 1e3;
+                let t_end = std::time::Instant::now();
+                eprintln!(
+                    "spec: dflash2 draft flush {:.3} block {:.3} head {:.3} selproj {:.3} dl {:.3} select {:.3} total {:.3} ms",
+                    ms(t_start, t_flush),
+                    ms(t_flush, t_block),
+                    ms(t_block, t_head),
+                    ms(t_head, t_proj),
+                    ms(t_proj, t_dl),
+                    ms(t_dl, t_end),
+                    ms(t_start, t_end)
+                );
+            }
             if let Some(f) = head.script.lock().unwrap().as_ref() {
                 let mut seq = st.tokens.clone();
                 seq.push(next);
