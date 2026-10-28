@@ -107,7 +107,7 @@ its arm (`raw/w6/`, one reference tap kept per arm). Fresh mtp processes so far:
 Poison does not change it: a read of never-written memory would give a large or NaN value with 0xff fill, and turn the event always or never; it stays ~1%. The capture and peer syncs
 do not change it either, so it is not the peer rank's first capture racing its prefill. tp=1 is clean on both cards (0/200; tp=1's ids differ from tp=2's, as expected from a
 different reduction order). Fresh mtp processes in total: 6 events in 443 (1.4%); fresh off: 0 in ~450. With rates this low the arms show only what does not matter much
-(poison, syncs); tp=2 against tp=1 (6/443 against 0/200, p ~ 0.1 on its own) points at the two-GPU part, which brings the P2P all-reduce back.
+(poison, syncs); tp=2 against tp=1 (6/443 against 0/200, Fisher p ~ 0.15 on its own: suggestive, not proof) points at the two-GPU part, which brings the P2P all-reduce back.
 
 ## 4. Raw
 
