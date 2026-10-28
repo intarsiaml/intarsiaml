@@ -120,8 +120,18 @@ impl DflashHead {
 /// draft's logits head to per-tensor fp8 e4m3 (W8A16) at load. Only drafts change (greedy verify decides every token); the
 /// draft reads half the bytes per pass.
 pub(super) fn draft_fp8() -> bool {
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var("INTARSIA_DFLASH2_FP8").is_ok_and(|v| v == "1"))
+    fp8_mode() & 1 != 0
+}
+
+/// `INTARSIA_DFLASH2_FP8`: `1` layers + fc + head, `layers`, `head`.
+pub(super) fn fp8_mode() -> u8 {
+    static M: std::sync::OnceLock<u8> = std::sync::OnceLock::new();
+    *M.get_or_init(|| match std::env::var("INTARSIA_DFLASH2_FP8").as_deref() {
+        Ok("1") => 3,
+        Ok("layers") => 1,
+        Ok("head") => 2,
+        _ => 0,
+    })
 }
 
 /// A bf16 host matrix `[n, k]` as an fp8 e4m3 device weight (one scale per tensor).
