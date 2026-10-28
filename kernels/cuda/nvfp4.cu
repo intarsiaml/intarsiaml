@@ -265,7 +265,8 @@ void full_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const fl
 }
 
 // INTARSIA_CUDA_NVFP4_ROWS_FULL: unset = the persistent kernel for M >= 5 when N >= 16384 and x fits 96 KB of shared memory,
-// `0` = never (the switch that turns it off), a shape NTxW (`2x16` default, `1x16`, `2x8`, `4x8`) = that shape wherever x fits
+// `0` = never (the switch that turns it off), a shape NTxW (`2x16`, `1x16`, `2x8`, `4x8`) = that shape wherever x fits;
+// the default shape is 2x16 below 12 rows and 4x8 from 12 (16-row lm_head micro-timing, evicted: 2x16 2210 us, 4x8 1964, tile 2128)
 template <int M, typename OutT>
 bool full_run_m(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
     if ((size_t)M * K * 2 > kFullSmemMax) return false;
@@ -276,6 +277,8 @@ bool full_run_m(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const flo
     if (forced && !strcmp(e, "1x16")) full_launch<M, 1, 16>(x, w, bs, gs, out, N, K, s);
     else if (forced && !strcmp(e, "2x8")) full_launch<M, 2, 8>(x, w, bs, gs, out, N, K, s);
     else if (forced && !strcmp(e, "4x8")) full_launch<M, 4, 8>(x, w, bs, gs, out, N, K, s);
+    else if (forced && !strcmp(e, "2x16")) full_launch<M, 2, 16>(x, w, bs, gs, out, N, K, s);
+    else if (M >= 12) full_launch<M, 4, 8>(x, w, bs, gs, out, N, K, s);  // more rows: 4 outputs share each unpacked x block
     else full_launch<M, 2, 16>(x, w, bs, gs, out, N, K, s);
     return true;
 }
