@@ -1,0 +1,36 @@
+10:07:11 guard: [guard] radiance stopped 2026-10-27 10:07:11
+10:08:35 item 1 gates: == mutant clean: exit 0; failed: |== mutant m1-regsets: exit 101; failed: a8_mma_rows_do_not_depend_on_m a8_mma_rows_do_not_depend_on_position a8_kernels_match_the_reference result: FA|== mutant m2-prologue: exit 101; failed: a8_mma_rows_do_not_depend_on_m a8_mma_rows_do_not_depend_on_position a8_kernels_match_the_reference result: F|== mutant m3-gridtail: exit 101; failed: a8_mma_wide_scale_span_takes_the_group_path a8_kernels_match_the_reference a8_rows_are_bitwise_the_solo_kerne|== mutant m4-foldshift: exit 101; failed: a8_kernels_match_the_reference a8_rows_are_bitwise_the_solo_kernel result: FAILED. 4 passed; 2 failed; 2 ign|== mutant m5-row1: exit 101; failed: a8_mma_rows_do_not_depend_on_m a8_mma_rows_do_not_depend_on_position result: FAILED. 4 passed; 2 failed; 2 ignore|== mutant m6-loopbound: exit 101; failed: a8_kernels_match_the_reference a8_mma_rows_do_not_depend_on_position result: FAILED. 4 passed; 2 failed; 2 i|== mutant m7-wchunk: exit 101; failed: a8_mma_wide_scale_span_takes_the_group_path a8_flipped_weight_code_is_visible a8_kernels_match_the_reference a8|== mutant m8-fraglane: exit 101; failed: a8_mma_wide_scale_span_takes_the_group_path a8_kernels_match_the_reference a8_rows_are_bitwise_the_solo_kerne|== mutant m9-xchunk: exit 101; failed: a8_mma_wide_scale_span_takes_the_group_path a8_kernels_match_the_reference a8_rows_are_bitwise_the_solo_kernel |== admission exit 0: 74 admitted rows; not admitted:|== plan 8B: byte-identical (1346 B)|== plan 35B: byte-identical (3184 B)|
+10:08:35 item 2: starting server rec+bin=ldf-base-cli
+10:10:27 item 2 rec+bin=ldf-base-cli speed: exit 0 results/20261027-100952-ldf-rec_bin_ldf-base-cli-ldf-w6-rec_bin_ldf-base-cli-2/result.json
+10:11:54 item 3 rec+bin=ldf-base-cli texts: exit 0       18 lines
+10:11:54 item 4: starting server rec+bin=ldf-dev-cli
+10:13:46 item 4 rec+bin=ldf-dev-cli speed: exit 0 results/20261027-101311-ldf-rec_bin_ldf-dev-cli-ldf-w6-rec_bin_ldf-dev-cli-4/result.json
+10:15:12 item 5 rec+bin=ldf-dev-cli texts: exit 0       18 lines
+10:15:46 item 6 rec+bin=ldf-dev-cli speed: exit 0 results/20261027-101512-ldf-rec_bin_ldf-dev-cli-ldf-w6-rec_bin_ldf-dev-cli-6/result.json
+10:15:46 item 7: starting server rec+bin=ldf-base-cli
+10:17:39 item 7 rec+bin=ldf-base-cli speed: exit 0 results/20261027-101704-ldf-rec_bin_ldf-base-cli-ldf-w6-rec_bin_ldf-base-cli-7/result.json
+10:18:13 item 8 rec+bin=ldf-base-cli speed: exit 0 results/20261027-101739-ldf-rec_bin_ldf-base-cli-ldf-w6-rec_bin_ldf-base-cli-8/result.json
+10:18:13 item 9: starting server rec+bin=ldf-dev-cli
+10:20:05 item 9 rec+bin=ldf-dev-cli speed: exit 0 results/20261027-101931-ldf-rec_bin_ldf-dev-cli-ldf-w6-rec_bin_ldf-dev-cli-9/result.json
+10:20:40 item 10 rec+bin=ldf-dev-cli speed: exit 0 results/20261027-102006-ldf-rec_bin_ldf-dev-cli-ldf-w6-rec_bin_ldf-dev-cli-10/result.json
+10:20:40 item 11: starting server rec+bin=ldf-base-cli
+10:22:32 item 11 rec+bin=ldf-base-cli speed: exit 0 results/20261027-102158-ldf-rec_bin_ldf-base-cli-ldf-w6-rec_bin_ldf-base-cli-11/result.json
+10:23:08 item 12 rec+bin=ldf-base-cli speed: exit 0 results/20261027-102233-ldf-rec_bin_ldf-base-cli-ldf-w6-rec_bin_ldf-base-cli-12/result.json
+10:23:08 item 13: starting server rec+bin=ldf-dev-cli
+10:24:59 item 13 rec+bin=ldf-dev-cli speed: exit 0 results/20261027-102425-ldf-rec_bin_ldf-dev-cli-ldf-w6-rec_bin_ldf-dev-cli-13/result.json
+10:25:34 item 14 rec+bin=ldf-dev-cli speed: exit 0 results/20261027-102500-ldf-rec_bin_ldf-dev-cli-ldf-w6-rec_bin_ldf-dev-cli-14/result.json
+10:25:34 item 15: starting server rec+bin=ldf-base-cli
+10:27:26 item 15 rec+bin=ldf-base-cli speed: exit 0 results/20261027-102652-ldf-rec_bin_ldf-base-cli-ldf-w6-rec_bin_ldf-base-cli-15/result.json
+10:27:26 item 16: starting server rec+bin=ldf-base-cli+spoff
+10:28:40 item 16 rec+bin=ldf-base-cli+spoff speed: exit 0 results/20261027-102758-ldf-rec_bin_ldf-base-cli_spoff-ldf-w6-rec_bin_ldf-base-cli_spoff-16/result.json
+10:28:40 item 17: starting server rec+bin=ldf-dev-cli+spoff
+10:29:54 item 17 rec+bin=ldf-dev-cli+spoff speed: exit 0 results/20261027-102912-ldf-rec_bin_ldf-dev-cli_spoff-ldf-w6-rec_bin_ldf-dev-cli_spoff-17/result.json
+10:31:54 item 18 rec+bin=ldf-dev-cli+spoff texts: exit 0       18 lines
+10:32:15 item 19 rec+bin=ldf-dev-cli+spoff mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+10:32:57 item 20 rec+bin=ldf-dev-cli+spoff speed: exit 0 results/20261027-103215-ldf-rec_bin_ldf-dev-cli_spoff-ldf-w6-rec_bin_ldf-dev-cli_spoff-20/result.json
+10:32:57 item 21: starting server rec+bin=ldf-base-cli+spoff
+10:34:11 item 21 rec+bin=ldf-base-cli+spoff speed: exit 0 results/20261027-103329-ldf-rec_bin_ldf-base-cli_spoff-ldf-w6-rec_bin_ldf-base-cli_spoff-21/result.json
+10:34:11 item 22: starting server rec+bin=ldf-dev-cli+mb16+spoff
+10:35:25 item 22 rec+bin=ldf-dev-cli+mb16+spoff mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+10:35:25 done
+10:36:11 guard: [guard] radiance answers 2026-10-27 10:36:11 (after 50 s)

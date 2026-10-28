@@ -1,0 +1,15 @@
+TIME a8tp2 gate+up  17408x5120  M=1024      1089.0 us   167.6 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=2048      2268.8 us   160.9 TFLOPS
+TIME a8tp2 gate+up  17408x5120  M=4096      4287.2 us   170.3 TFLOPS
+TIME a8tp2 down     5120x8704  M=1024       539.6 us   169.1 TFLOPS
+TIME a8tp2 down     5120x8704  M=2048      1131.5 us   161.3 TFLOPS
+TIME a8tp2 down     5120x8704  M=4096      2363.0 us   154.5 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=1024       394.5 us   163.3 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=2048       786.9 us   163.7 TFLOPS
+TIME a8tp2 q+gate   6144x5120  M=4096      1790.5 us   143.9 TFLOPS
+TIME a8tp2 z        3072x5120  M=1024       204.5 us   157.5 TFLOPS
+TIME a8tp2 z        3072x5120  M=2048       397.4 us   162.1 TFLOPS
+TIME a8tp2 z        3072x5120  M=4096       849.2 us   151.7 TFLOPS
+TIME a8tp2 o        5120x3072  M=1024       200.6 us   160.6 TFLOPS
+TIME a8tp2 o        5120x3072  M=2048       393.0 us   163.9 TFLOPS
+TIME a8tp2 o        5120x3072  M=4096       834.6 us   154.4 TFLOPS

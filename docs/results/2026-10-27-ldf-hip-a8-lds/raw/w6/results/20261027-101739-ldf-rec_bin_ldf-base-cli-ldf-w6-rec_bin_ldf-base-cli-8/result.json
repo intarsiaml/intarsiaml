@@ -1,0 +1,217 @@
+{
+ "run_id": "20261027-101739-ldf-rec_bin_ldf-base-cli-ldf-w6-rec_bin_ldf-base-cli-8",
+ "kind": "speed",
+ "label": "ldf-w6-rec_bin_ldf-base-cli-8",
+ "started_at": "2026-10-27T10:17:39-04:00",
+ "finished_at": "2026-10-27T10:18:13-04:00",
+ "target": {
+  "name": "ldf-rec_bin_ldf-base-cli",
+  "url": "http://tatooine:8095/v1",
+  "model": "qwen38-27b-ldf",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "default",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "HIP_VISIBLE_DEVICES=0,1 ldf-base-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 (; lane ldf)"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed ldf-rec_bin_ldf-base-cli --sizes 1024,4096,16384 --gen 128 --reps 3 --label ldf-w6-rec_bin_ldf-base-cli-8 --recipe HIP_VISIBLE_DEVICES=0,1 ldf-base-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 (; lane ldf) --wait-idle 60",
+  "git": "d12b61c"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "qwen38-27b-ldf"
+   ],
+   "root": "amd/Qwen3.8-27B-Quark-AWQ-MXFP4",
+   "owned_by": "intarsia",
+   "max_model_len": 20480
+  },
+  "gen_tokens": 128,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 988,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.282,
+     "min": 0.281,
+     "max": 0.283,
+     "n": 3,
+     "spread_pct": 0.4
+    },
+    "prefill_tok_s": {
+     "median": 3507.727,
+     "min": 3504.739,
+     "max": 3509.147,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "decode_tok_s": {
+     "median": 92.887,
+     "min": 86.026,
+     "max": 93.816,
+     "n": 3,
+     "spread_pct": 8.4
+    },
+    "peak_decode_tok_s": {
+     "median": 121.2,
+     "min": 119.8,
+     "max": 121.3,
+     "n": 3,
+     "spread_pct": 1.2
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   },
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4085,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 1.065,
+     "min": 1.063,
+     "max": 1.066,
+     "n": 3,
+     "spread_pct": 0.3
+    },
+    "prefill_tok_s": {
+     "median": 3836.691,
+     "min": 3835.067,
+     "max": 3843.068,
+     "n": 3,
+     "spread_pct": 0.2
+    },
+    "decode_tok_s": {
+     "median": 83.07,
+     "min": 77.396,
+     "max": 89.658,
+     "n": 3,
+     "spread_pct": 14.8
+    },
+    "peak_decode_tok_s": {
+     "median": 106.1,
+     "min": 97.3,
+     "max": 117.0,
+     "n": 3,
+     "spread_pct": 18.6
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 3955.3
+   },
+   {
+    "target_prompt_tokens": 16384,
+    "prompt_tokens": 16648,
+    "completion_tokens": {
+     "median": 128,
+     "min": 128,
+     "max": 128,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 4.692,
+     "min": 4.69,
+     "max": 4.724,
+     "n": 3,
+     "spread_pct": 0.7
+    },
+    "prefill_tok_s": {
+     "median": 3547.77,
+     "min": 3524.326,
+     "max": 3549.572,
+     "n": 3,
+     "spread_pct": 0.7
+    },
+    "decode_tok_s": {
+     "median": 79.54,
+     "min": 73.797,
+     "max": 79.671,
+     "n": 3,
+     "spread_pct": 7.4
+    },
+    "peak_decode_tok_s": {
+     "median": 96.8,
+     "min": 88.8,
+     "max": 96.9,
+     "n": 3,
+     "spread_pct": 8.4
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": 3463.7
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "qwen38-27b-ldf",
+  "activity_checks": {
+   "idle": 10,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": [
+   "decode spread 14.8% at 4096 tokens: noisy; rerun before comparing"
+  ]
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "decode spread 14.8% at 4096 tokens: noisy; rerun before comparing"
+ ]
+}

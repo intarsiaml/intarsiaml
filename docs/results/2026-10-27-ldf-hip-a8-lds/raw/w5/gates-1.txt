@@ -1,0 +1,27 @@
+[ldf] radiance stopped 2026-10-27 09:55:44; GPUs: 0 radiance containers
+== corr A=1
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_mma_rows_do_not_depend_on_position ... ok
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 11.14s
+== corr INTARSIA_HIP_MXFP4_A8_LDS=0
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_mma_rows_do_not_depend_on_position ... ok
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 10.48s
+== corr INTARSIA_HIP_MXFP4_A8_PD=1
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_mma_rows_do_not_depend_on_position ... ok
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 11.08s
+== corr INTARSIA_HIP_MXFP4_A8_PERGROUP=1
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_mma_rows_do_not_depend_on_position ... ok
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 10.66s
+== corr INTARSIA_HIP_MXFP4_A8_LDS=0 INTARSIA_HIP_MXFP4_A8_PERGROUP=1
+test a8_mma_rows_do_not_depend_on_m ... ok
+test a8_mma_rows_do_not_depend_on_position ... ok
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 11.25s
+== hashes: 48 lines; differing from main: dev 0, lds0 0, pd1 0
+== dev: 30 lines 2026-10-27 09:57:09
+== lds0: 30 lines 2026-10-27 09:57:15
+== t128: 30 lines 2026-10-27 09:57:22
+== old: 30 lines 2026-10-27 09:57:28
+[ldf] w5-gates done 2026-10-27 09:57:28, 2296 s of the window left
