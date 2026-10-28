@@ -1,0 +1,101 @@
+fleetq: #6560 running on spark1: ssh -n -o BatchMode=yes spark1 'export PATH=/usr/local/cuda/bin:$PATH; cd ~/intarsiaml-msd2/src && T=$(ls -t target/release/deps/rows_exact-* | grep -v "\.d$" | head -1); date +%T; INTARSIA_REQUIRE_GPU=1 timeout 100 $T --test-threads=3 fp8_rows_q rows_split nvfp4_rows_full 2>&1 | grep -aE "^test |panicked|FAIL|result" | cut -c1-300; date +%T; MSD2_ONLY=nvfp4 INTARSIA_REQUIRE_GPU=1 timeout 60 $T --ignored --nocapture timing_rows_evict 2>&1 | grep -aE "^EVT|panicked"; date +%T'
+fleetq: #6560 went ahead of the line and must end within 87m (by Wed 18:26); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+16:59:02
+test rows_split_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_full_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_q_are_bitwise_the_one_row_gemv ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 6.10s
+16:59:08
+EVT nvfp4 512x2048 split=0    M=2      6.95 us    84.9 GB/s
+EVT nvfp4 512x2048 split=auto M=2      7.45 us    79.2 GB/s
+EVT nvfp4 512x2048 split=1    M=2      6.22 us    94.8 GB/s
+EVT nvfp4 512x2048 split=2    M=2      6.11 us    96.5 GB/s
+EVT nvfp4 512x2048 split=4    M=2      6.10 us    96.7 GB/s
+EVT nvfp4 512x2048 split=8    M=2      6.10 us    96.6 GB/s
+EVT nvfp4 512x2048 split=0    M=4      8.14 us    72.5 GB/s
+EVT nvfp4 512x2048 split=auto M=4      6.89 us    85.6 GB/s
+EVT nvfp4 512x2048 split=1    M=4      6.91 us    85.4 GB/s
+EVT nvfp4 512x2048 split=2    M=4      6.17 us    95.6 GB/s
+EVT nvfp4 512x2048 split=4    M=4      7.89 us    74.8 GB/s
+EVT nvfp4 512x2048 split=8    M=4      7.93 us    74.3 GB/s
+EVT nvfp4 512x2048 split=0    M=8     11.21 us    52.6 GB/s
+EVT nvfp4 512x2048 split=auto M=8      8.14 us    72.5 GB/s
+EVT nvfp4 512x2048 split=1    M=8     10.20 us    57.8 GB/s
+EVT nvfp4 512x2048 split=2    M=8      8.13 us    72.6 GB/s
+EVT nvfp4 512x2048 split=4    M=8      8.15 us    72.4 GB/s
+EVT nvfp4 512x2048 split=8    M=8     11.94 us    49.4 GB/s
+EVT nvfp4 512x2048 split=0    M=12    11.15 us    52.9 GB/s
+EVT nvfp4 512x2048 split=auto M=12     8.16 us    72.3 GB/s
+EVT nvfp4 512x2048 split=1    M=12    12.25 us    48.2 GB/s
+EVT nvfp4 512x2048 split=2    M=12    10.23 us    57.7 GB/s
+EVT nvfp4 512x2048 split=4    M=12     8.16 us    72.3 GB/s
+EVT nvfp4 512x2048 split=8    M=12    10.18 us    57.9 GB/s
+EVT nvfp4 512x2048 split=0    M=16    13.55 us    43.5 GB/s
+EVT nvfp4 512x2048 split=auto M=16    10.66 us    55.3 GB/s
+EVT nvfp4 512x2048 split=1    M=16    14.35 us    41.1 GB/s
+EVT nvfp4 512x2048 split=2    M=16    11.78 us    50.1 GB/s
+EVT nvfp4 512x2048 split=4    M=16    10.70 us    55.1 GB/s
+EVT nvfp4 512x2048 split=8    M=16    12.53 us    47.1 GB/s
+EVT nvfp4 2048x512 split=0    M=2      6.22 us    94.9 GB/s
+EVT nvfp4 2048x512 split=auto M=2      6.11 us    96.5 GB/s
+EVT nvfp4 2048x512 split=1    M=2      6.15 us    95.9 GB/s
+EVT nvfp4 2048x512 split=2    M=2      6.11 us    96.5 GB/s
+EVT nvfp4 2048x512 split=4    M=2      6.11 us    96.5 GB/s
+EVT nvfp4 2048x512 split=8    M=2      6.11 us    96.5 GB/s
+EVT nvfp4 2048x512 split=0    M=4      9.71 us    60.7 GB/s
+EVT nvfp4 2048x512 split=auto M=4      8.59 us    68.6 GB/s
+EVT nvfp4 2048x512 split=1    M=4      8.20 us    71.9 GB/s
+EVT nvfp4 2048x512 split=2    M=4      7.20 us    81.9 GB/s
+EVT nvfp4 2048x512 split=4    M=4      6.79 us    86.9 GB/s
+EVT nvfp4 2048x512 split=8    M=4      6.79 us    86.9 GB/s
+EVT nvfp4 2048x512 split=0    M=8      8.83 us    66.8 GB/s
+EVT nvfp4 2048x512 split=auto M=8      8.20 us    71.9 GB/s
+EVT nvfp4 2048x512 split=1    M=8     13.65 us    43.2 GB/s
+EVT nvfp4 2048x512 split=2    M=8     10.86 us    54.3 GB/s
+EVT nvfp4 2048x512 split=4    M=8      9.12 us    64.7 GB/s
+EVT nvfp4 2048x512 split=8    M=8      8.21 us    71.9 GB/s
+EVT nvfp4 2048x512 split=0    M=12    10.36 us    57.0 GB/s
+EVT nvfp4 2048x512 split=auto M=12    10.22 us    57.7 GB/s
+EVT nvfp4 2048x512 split=1    M=12    18.31 us    32.2 GB/s
+EVT nvfp4 2048x512 split=2    M=12    12.32 us    47.9 GB/s
+EVT nvfp4 2048x512 split=4    M=12    10.76 us    54.8 GB/s
+EVT nvfp4 2048x512 split=8    M=12    10.24 us    57.6 GB/s
+EVT nvfp4 2048x512 split=0    M=16    13.90 us    42.4 GB/s
+EVT nvfp4 2048x512 split=auto M=16    15.57 us    37.9 GB/s
+EVT nvfp4 2048x512 split=1    M=16    18.56 us    31.8 GB/s
+EVT nvfp4 2048x512 split=2    M=16    14.35 us    41.1 GB/s
+EVT nvfp4 2048x512 split=4    M=16    12.86 us    45.9 GB/s
+EVT nvfp4 2048x512 split=8    M=16    12.21 us    48.3 GB/s
+EVT nvfp4 248320x2048 split=0    M=2   1199.65 us   238.5 GB/s
+EVT nvfp4 248320x2048 split=auto M=2   1184.81 us   241.4 GB/s
+EVT nvfp4 248320x2048 split=f2x16 M=2   1282.85 us   223.0 GB/s
+EVT nvfp4 248320x2048 split=f1x16 M=2   1275.61 us   224.3 GB/s
+EVT nvfp4 248320x2048 split=f2x8 M=2   1284.14 us   222.8 GB/s
+EVT nvfp4 248320x2048 split=f4x8 M=2   1305.56 us   219.1 GB/s
+EVT nvfp4 248320x2048 split=0    M=4   1216.97 us   235.1 GB/s
+EVT nvfp4 248320x2048 split=auto M=4   1203.94 us   237.6 GB/s
+EVT nvfp4 248320x2048 split=f2x16 M=4   1300.48 us   220.0 GB/s
+EVT nvfp4 248320x2048 split=f1x16 M=4   1449.22 us   197.4 GB/s
+EVT nvfp4 248320x2048 split=f2x8 M=4   1296.68 us   220.6 GB/s
+EVT nvfp4 248320x2048 split=f4x8 M=4   1346.14 us   212.5 GB/s
+EVT nvfp4 248320x2048 split=0    M=8   1795.22 us   159.3 GB/s
+EVT nvfp4 248320x2048 split=auto M=8   1352.96 us   211.4 GB/s
+EVT nvfp4 248320x2048 split=f2x16 M=8   1330.85 us   214.9 GB/s
+EVT nvfp4 248320x2048 split=f1x16 M=8   1649.09 us   173.5 GB/s
+EVT nvfp4 248320x2048 split=f2x8 M=8   1446.99 us   197.7 GB/s
+EVT nvfp4 248320x2048 split=f4x8 M=8   1397.50 us   204.7 GB/s
+EVT nvfp4 248320x2048 split=0    M=12  1728.85 us   165.5 GB/s
+EVT nvfp4 248320x2048 split=auto M=12  1628.88 us   175.6 GB/s
+EVT nvfp4 248320x2048 split=f2x16 M=12  1626.59 us   175.9 GB/s
+EVT nvfp4 248320x2048 split=f1x16 M=12  2271.27 us   125.9 GB/s
+EVT nvfp4 248320x2048 split=f2x8 M=12  1804.78 us   158.5 GB/s
+EVT nvfp4 248320x2048 split=f4x8 M=12  1520.84 us   188.1 GB/s
+EVT nvfp4 248320x2048 split=0    M=16  2128.27 us   134.4 GB/s
+EVT nvfp4 248320x2048 split=auto M=16  2195.09 us   130.3 GB/s
+EVT nvfp4 248320x2048 split=f2x16 M=16  2209.58 us   129.5 GB/s
+EVT nvfp4 248320x2048 split=f1x16 M=16  3025.87 us    94.5 GB/s
+EVT nvfp4 248320x2048 split=f2x8 M=16  2266.28 us   126.2 GB/s
+EVT nvfp4 248320x2048 split=f4x8 M=16  1964.41 us   145.6 GB/s
+16:59:21
+fleetq: #6560 done (exit 0)

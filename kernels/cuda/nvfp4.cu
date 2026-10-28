@@ -61,12 +61,13 @@ nvfp4_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, 
 // The row-exact launcher's variant (M >= 4): a warp owns NT consecutive output rows and unpacks each x block once for all of
 // them (the kernel above re-reads and re-unpacks x for every output). Per (m, n) the arithmetic is the kernel above's: the same
 // lane-strided blocks, the same 16-long fmaf chain, the same `acc = fmaf(s, sc, acc)`, the same warp tree.
+// `blk`: the block's index along the outputs (blockIdx.x; the row-split kernel below runs this very body on its row group).
 template <int M, int NT, typename OutT>
-__global__ void __launch_bounds__(kWarps * IK_WARP)
-nvfp4_gemv_tile_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
-                       const float* __restrict__ gs, OutT* __restrict__ out, int64_t N, int K) {
+__device__ __forceinline__ void nvfp4_tile_body(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w,
+                                                const uint8_t* __restrict__ bs, const float* __restrict__ gs,
+                                                OutT* __restrict__ out, int64_t N, int K, int64_t blk) {
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
-    const int64_t nb = ((int64_t)blockIdx.x * kWarps + warp) * NT;  // this warp's outputs: nb .. nb + NT - 1
+    const int64_t nb = (blk * kWarps + warp) * NT;  // this warp's outputs: nb .. nb + NT - 1
     if (nb >= N) return;  // whole warp exits together
     const uint2* wr[NT];
     const uint8_t* sr[NT];
@@ -116,6 +117,45 @@ nvfp4_gemv_tile_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
         }
 }
 
+template <int M, int NT, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+nvfp4_gemv_tile_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
+                       const float* __restrict__ gs, OutT* __restrict__ out, int64_t N, int K) {
+    nvfp4_tile_body<M, NT, OutT>(x, w, bs, gs, out, N, K, (int64_t)blockIdx.x);
+}
+
+// Row-group split of the row-exact launcher (small N: the shared expert's gate / up / down): block (bx, g) runs rows
+// g * R .. g * R + R - 1 (fewer in the last group) through nvfp4_tile_body<rows, NT>, so every (m, n) keeps the arithmetic above
+// (NT = 1 is nvfp4_gemv_kernel's): the bits of the one-row call. Without it the call has a few dozen blocks whose warps chain
+// all M rows' activation loads.
+template <int R, int NT, typename OutT>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+nvfp4_gemv_split_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
+                        const float* __restrict__ gs, OutT* __restrict__ out, int64_t N, int K, int M) {
+    const int m0 = (int)blockIdx.y * R;
+    const int rows = M - m0 < R ? M - m0 : R;
+    const ik_bf16* xr = x + (int64_t)m0 * K;
+    OutT* orow = out + (int64_t)m0 * N;
+    const int64_t blk = (int64_t)blockIdx.x;
+    if (rows == R) {
+        nvfp4_tile_body<R, NT, OutT>(xr, w, bs, gs, orow, N, K, blk);
+        return;
+    }
+    if constexpr (R > 1) {
+        switch (rows) {  // the last group's remainder: rows < R
+            case 1: nvfp4_tile_body<1, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 2: if constexpr (R > 2) nvfp4_tile_body<2, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 3: if constexpr (R > 3) nvfp4_tile_body<3, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 4: if constexpr (R > 4) nvfp4_tile_body<4, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 5: if constexpr (R > 5) nvfp4_tile_body<5, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 6: if constexpr (R > 6) nvfp4_tile_body<6, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            case 7: if constexpr (R > 7) nvfp4_tile_body<7, NT, OutT>(xr, w, bs, gs, orow, N, K, blk); break;
+            default: break;
+        }
+    }
+}
+
+
 // Outputs per warp of the row-exact launcher's M-row call: INTARSIA_CUDA_NVFP4_ROWS_NT = 1 | 2 | 4 forces it (1 is the kernel above,
 // INTARSIA_CUDA_NVFP4_ROWS=0 forces that too); otherwise 4 when that leaves a grid of 96 blocks, else 2 when it leaves 32 (M < 4: 1).
 inline int rows_tile_nt(int M, int64_t N) {
@@ -127,6 +167,189 @@ inline int rows_tile_nt(int M, int64_t N) {
     if ((N + kWarps * 4 - 1) / (kWarps * 4) >= 96) return 4;
     if ((N + kWarps * 2 - 1) / (kWarps * 2) >= 32) return 2;
     return 1;
+}
+
+// Persistent variant of the row-exact launcher for wide calls (the lm_head, 248320 x 2048, at M >= 5): a block stages the M bf16
+// activation rows in shared memory once (M x K x 2 bytes; the tile kernel instead re-reads every row's x block from L2 for every
+// tile, which at M = 8..16 costs it 1.5x..1.8x the 4-row time) and its warps then walk NT-output tiles of the weight. Per (m, n)
+// the arithmetic is nvfp4_tile_body's: the same lane-strided 16-element blocks, 16-long fmaf chain, `acc = fmaf(s, sc, acc)`,
+// warp tree and scale, so the bits are the one-row kernel's.
+constexpr size_t kFullSmemMax = 96 * 1024;
+
+// Raise a kernel's dynamic shared-memory cap to `bytes` once per device (a per-call size would race between host threads
+// launching the kernel with different K: one shrinking the cap between another's set and launch fails that launch).
+template <auto Kern>  // one flag per kernel instantiation
+bool smem_cap_once(size_t bytes) {
+    static bool done[64];
+    int d = 0;
+    cudaGetDevice(&d);
+    if (d < 0 || d >= 64) d = 0;
+    if (!done[d]) done[d] = cudaFuncSetAttribute((const void*)Kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)bytes) == cudaSuccess;
+    return done[d];
+}
+
+template <int M, int NT, int W, typename OutT>
+__global__ void __launch_bounds__(W * IK_WARP, 1)
+nvfp4_gemv_full_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
+                       const float* __restrict__ gs, OutT* __restrict__ out, int64_t N, int K) {
+    extern __shared__ __align__(16) unsigned char smem[];
+    uint4* xs = reinterpret_cast<uint4*>(smem);  // [M][2][K / 16]: the 8-element halves of each 16-element block
+    const int KV = K / 16;
+    for (int i = threadIdx.x; i < M * (K / 8); i += blockDim.x) {
+        const int m = i / (K / 8), j = i % (K / 8);
+        xs[(m * 2 + (j & 1)) * KV + (j >> 1)] = __ldg(reinterpret_cast<const uint4*>(x + (int64_t)m * K) + j);
+    }
+    __syncthreads();
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t tiles = (N + NT - 1) / NT;
+    const float g = gs[0];
+    for (int64_t t = (int64_t)blockIdx.x * W + warp; t < tiles; t += (int64_t)gridDim.x * W) {
+        const int64_t nb = t * NT;  // this tile's outputs: nb .. nb + NT - 1
+        const uint2* wr[NT];
+        const uint8_t* sr[NT];
+#pragma unroll
+        for (int j = 0; j < NT; ++j) {
+            const int64_t n = nb + j < N ? nb + j : 0;  // a dead output reads row 0
+            wr[j] = reinterpret_cast<const uint2*>(w + n * (K / 2));
+            sr[j] = bs + n * (K / 16);
+        }
+        float acc[NT][M];
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
+#pragma unroll(NT == 1 ? 4 : 2)
+        for (int u = lane; u < KV; u += IK_WARP) {
+            float wf[NT][16], sc[NT];
+#pragma unroll
+            for (int j = 0; j < NT; ++j) {
+                const uint2 wv = __ldcs(wr[j] + u);
+                sc[j] = ik_e4m3_to_f(sr[j][u]);
+                ik_fp4x8_to_f32(wv.x, wf[j]);
+                ik_fp4x8_to_f32(wv.y, wf[j] + 8);
+            }
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                float xf[16];
+                ik_unpack8(xs[(m * 2) * KV + u], xf);
+                ik_unpack8(xs[(m * 2 + 1) * KV + u], xf + 8);
+#pragma unroll
+                for (int j = 0; j < NT; ++j) {
+                    float sd = 0.f;
+#pragma unroll
+                    for (int e = 0; e < 16; ++e) sd = fmaf(wf[j][e], xf[e], sd);
+                    acc[j][m] = fmaf(sd, sc[j], acc[j][m]);
+                }
+            }
+        }
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                const float r = ik_warp_sum(acc[j][m]);  // all 32 lanes call it (full-mask shuffles)
+                if (lane == 0 && nb + j < N) ik_store(out + (int64_t)m * N + nb + j, r * g);
+            }
+    }
+}
+
+inline int sm_count() {
+    static int cached[64];
+    int d = 0;
+    cudaGetDevice(&d);
+    if (d < 0 || d >= 64) d = 0;
+    if (!cached[d]) {
+        int v = 0;
+        cudaDeviceGetAttribute(&v, cudaDevAttrMultiProcessorCount, d);
+        cached[d] = v > 0 ? v : 48;
+    }
+    return cached[d];
+}
+
+template <int M, int NT, int W, typename OutT>
+void full_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+    const size_t smem = (size_t)M * K * 2;
+    auto kern = nvfp4_gemv_full_kernel<M, NT, W, OutT>;
+    const bool cap_set = smem_cap_once<nvfp4_gemv_full_kernel<M, NT, W, OutT>>(kFullSmemMax);
+    (void)cap_set;
+    int occ = 0;
+    if (cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, kern, W * IK_WARP, smem) != cudaSuccess || occ < 1) occ = 1;
+    const int64_t blocks = ((N + NT - 1) / NT + W - 1) / W, cap = (int64_t)sm_count() * occ;
+    kern<<<(unsigned)(blocks < cap ? blocks : cap), W * IK_WARP, smem, s>>>(x, w, bs, gs, out, N, (int)K);
+}
+
+// INTARSIA_CUDA_NVFP4_ROWS_FULL (default on, decided 2026-10-28 over the lane's speed gates): unset / `auto` = the persistent kernel for M >= 5
+// when N >= 16384 and x fits 96 KB of shared memory, `0` = never (the kernel of before), a shape NTxW (`2x16`, `1x16`, `2x8`, `4x8`) = that shape wherever x fits;
+// the default shape is 2x16 below 12 rows and 4x8 from 12 (16-row lm_head micro-timing, evicted: 2x16 2210 us, 4x8 1964, tile 2128)
+template <int M, typename OutT>
+bool full_run_m(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+    if ((size_t)M * K * 2 > kFullSmemMax) return false;
+    const char* e = getenv("INTARSIA_CUDA_NVFP4_ROWS_FULL");
+    if (!e) e = "auto";  // default on
+    if (e[0] == '0' && e[1] == 0) return false;
+    const bool forced = e && (!strcmp(e, "2x16") || !strcmp(e, "1x16") || !strcmp(e, "2x8") || !strcmp(e, "4x8"));
+    if (!forced && (strcmp(e, "auto") || M < 5 || N < 16384)) return false;
+    if (forced && !strcmp(e, "1x16")) full_launch<M, 1, 16>(x, w, bs, gs, out, N, K, s);
+    else if (forced && !strcmp(e, "2x8")) full_launch<M, 2, 8>(x, w, bs, gs, out, N, K, s);
+    else if (forced && !strcmp(e, "4x8")) full_launch<M, 4, 8>(x, w, bs, gs, out, N, K, s);
+    else if (forced && !strcmp(e, "2x16")) full_launch<M, 2, 16>(x, w, bs, gs, out, N, K, s);
+    else if (M >= 12) full_launch<M, 4, 8>(x, w, bs, gs, out, N, K, s);  // more rows: 4 outputs share each unpacked x block
+    else full_launch<M, 2, 16>(x, w, bs, gs, out, N, K, s);
+    return true;
+}
+
+template <typename OutT>
+bool full_run(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t M, int64_t N, int64_t K, cudaStream_t s) {
+    switch (M) {
+#define IK_NVFP4_FULL_CASE(m) case m: return full_run_m<m>(x, w, bs, gs, out, N, K, s);
+        IK_NVFP4_FULL_CASE(2) IK_NVFP4_FULL_CASE(3) IK_NVFP4_FULL_CASE(4) IK_NVFP4_FULL_CASE(5) IK_NVFP4_FULL_CASE(6)
+        IK_NVFP4_FULL_CASE(7) IK_NVFP4_FULL_CASE(8) IK_NVFP4_FULL_CASE(9) IK_NVFP4_FULL_CASE(10) IK_NVFP4_FULL_CASE(11)
+        IK_NVFP4_FULL_CASE(12) IK_NVFP4_FULL_CASE(13) IK_NVFP4_FULL_CASE(14) IK_NVFP4_FULL_CASE(15) IK_NVFP4_FULL_CASE(16)
+#undef IK_NVFP4_FULL_CASE
+        default: return false;
+    }
+}
+
+// Rows per group of the split (default on, decided 2026-10-28 over the lane's speed gates): INTARSIA_CUDA_NVFP4_ROWS_SPLIT `0` never
+// splits, unset = `auto`, 1 | 2 | 4 | 8 forces R, `auto` the largest R that leaves a grid of 96 blocks (no split when the unsplit tiling already
+// has them). The split's
+// outputs per warp: 2 when that leaves 16 output blocks, else 1.
+constexpr int64_t kSplitMinBlocks = 96;
+inline int split_rows(int64_t M, int64_t gx) {
+    const char* e = getenv("INTARSIA_CUDA_NVFP4_ROWS_SPLIT");
+    if (!e) e = "auto";  // default on
+    if (e[0] == '0' && e[1] == 0) return (int)M;
+    if (e && (e[0] == '1' || e[0] == '2' || e[0] == '4' || e[0] == '8') && e[1] == 0) return e[0] - '0' < M ? e[0] - '0' : (int)M;
+    if (strcmp(e, "auto") || gx >= kSplitMinBlocks) return (int)M;
+    for (int r = 8; r > 1; r /= 2)
+        if (r < M && gx * ((M + r - 1) / r) >= kSplitMinBlocks) return r;
+    return 1;
+}
+
+template <int R, int NT, typename OutT>
+void split_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t M, int64_t N,
+                  int64_t K, cudaStream_t s) {
+    const dim3 grid((unsigned)((N + NT * kWarps - 1) / (NT * kWarps)), (unsigned)((M + R - 1) / R));
+    nvfp4_gemv_split_kernel<R, NT, OutT><<<grid, kWarps * IK_WARP, 0, s>>>(x, w, bs, gs, out, N, (int)K, (int)M);
+}
+
+// true when it launched the split (M > 1 row-exact calls whose tiling leaves too few blocks)
+template <typename OutT>
+bool split_run(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t M, int64_t N,
+               int64_t K, cudaStream_t s) {
+    if (M < 2) return false;
+    const int nt = (N + 2 * kWarps - 1) / (2 * kWarps) >= 16 ? 2 : 1;
+    const int nt_now = rows_tile_nt((int)M, N);
+    const int64_t gx_now = (N + nt_now * kWarps - 1) / (nt_now * kWarps);
+    const int r = split_rows(M, gx_now);
+    if (r >= M) return false;
+    const bool two = nt == 2;
+    switch (r) {
+        case 1: two ? split_launch<1, 2>(x, w, bs, gs, out, M, N, K, s) : split_launch<1, 1>(x, w, bs, gs, out, M, N, K, s); break;
+        case 2: two ? split_launch<2, 2>(x, w, bs, gs, out, M, N, K, s) : split_launch<2, 1>(x, w, bs, gs, out, M, N, K, s); break;
+        case 4: two ? split_launch<4, 2>(x, w, bs, gs, out, M, N, K, s) : split_launch<4, 1>(x, w, bs, gs, out, M, N, K, s); break;
+        default: two ? split_launch<8, 2>(x, w, bs, gs, out, M, N, K, s) : split_launch<8, 1>(x, w, bs, gs, out, M, N, K, s); break;
+    }
+    return true;
 }
 
 // Shared-expert gate + up + silu_glu in one launch (M == 1, bf16 out): a warp owns row n of BOTH the gate and the up matrix,
@@ -196,6 +419,7 @@ void gemv_run(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float
 template <typename OutT>
 int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N,
               int64_t K, cudaStream_t s, bool rows) {
+    if (rows && (full_run(x, w, bs, gs, out, M, N, K, s) || split_run(x, w, bs, gs, out, M, N, K, s))) return ik_launch_status();
     switch (M) {
         case 1: gemv_run<1>(x, w, bs, gs, out, N, K, s, rows); break;
         case 2: gemv_run<2>(x, w, bs, gs, out, N, K, s, rows); break;

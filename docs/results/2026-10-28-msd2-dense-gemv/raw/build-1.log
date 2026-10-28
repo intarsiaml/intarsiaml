@@ -1,0 +1,21 @@
+fleetq: #6550 waiting (#1 in line): spark1 is offline
+fleetq: #6550 running on spark1: scripts/msd/cpu-build.sh
+Wed Oct 28 16:22:42 EDT 2026
+    Finished `release` profile [optimized] target(s) in 57.07s
+-rwxrwxr-x 1 nvidia nvidia 82764432 Oct 28 16:24 /home/nvidia/intarsiaml-msd2/bin/base
+intarsia 0.0.1
+Wed Oct 28 16:24:15 EDT 2026
+    Finished `release` profile [optimized] target(s) in 2m 02s
+-rwxrwxr-x 1 nvidia nvidia 99729736 Oct 28 16:26 /home/nvidia/intarsiaml-msd2/bin/dev
+intarsia 0.0.1
+Wed Oct 28 16:26:29 EDT 2026
+warning: function `hip_batch_needs_hybrid` is never used
+warning: field `max_tokens` is never read
+warning: field `state_id` is never read
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: variable does not need to be mutable
+warning: `intarsia-backend-cuda` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 8.98s
+  Executable tests/rows_exact.rs (target/release/deps/rows_exact-22d61bde1266dc5a)
+Wed Oct 28 16:26:38 EDT 2026
+fleetq: #6550 done (exit 0)

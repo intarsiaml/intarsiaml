@@ -8,7 +8,7 @@ Source keys are in the legend at the end (path + section). Competitor numbers ar
 ### 1a. DGX Spark GB10 (CUDA, 1 Spark unless stated)
 | model / quant | config | prefill 1k/4k/16k | decode 1k/4k/16k | TTFT@4k | multi-stream agg | src | changed today |
 |---|---|---|---|---|---|---|---|
-| Qwen3.6-35B-A3B NVFP4 | tp1, MTP on | 5332 / 6943 / 6656 | 105.4 / 104.2 / 85.3 | 0.59 s | 1: 78.0, 4: 159.9, 8: 208.6, 16: 258.1 (#208, 10-27, spark2, localeval burst incl. prefill, 256 gen; spark2 vLLM is capped at 2 seqs, not a ceiling); MTP unused when batched | S1, S9 | #185 (MTP default + macro prefill w/ MTP), #191 (rope_multi), #208 (fp8/nvfp4 rows GEMV: 16 streams 235.2 -> 258.1) |
+| Qwen3.6-35B-A3B NVFP4 | tp1, MTP on | 5332 / 6943 / 6656 | 105.4 / 104.2 / 85.3 | 0.59 s | 1: 78.9, 4: 165.1, 8: 216.9, 16: 268.2 (#224 dev arm medians of 3, 10-28, spark2; was #208 10-27: 78.0 / 159.9 / 208.6 / 258.1, localeval burst incl. prefill, 256 gen; spark2 vLLM is capped at 2 seqs, not a ceiling); MTP unused when batched | S1, S9 | #185 (MTP default + macro prefill w/ MTP), #191 (rope_multi), #208 (fp8/nvfp4 rows GEMV: 16 streams 235.2 -> 258.1), #224 (dense rows GEMVs on by default: 16 streams 260.2 -> 268.2) |
 | same | tp1, MTP off | 5352 / 7000 / 6678 | 83.1 / 80.5 / 73.3 | 0.58 s | as above | S1 | same |
 | same, 2 Sparks | tp2 NCCL, graphs, no MTP | 5272 / 7132 / 6857 **old** | 91.6 / 90.0 / 85.0 **old** | not measured | not measured | S7 | no |
 | Qwen3-8B BF16 | tp1, no MTP head | 4895 / 4486 / 3671 | 15.1 / 14.7 / 13.2 | 0.91 s | 15 / 15 / 15 at 1/4/16 streams (serial) **old** | S1; S6 | #191 (+5.7/+5.9/+3.1% prefill) |

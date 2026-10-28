@@ -361,6 +361,107 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
     rig.report("fp8");
 }
 
+/// The e4m3-staged persistent fp8 rows kernel (INTARSIA_CUDA_FP8_ROWS_Q = all, every INTARSIA_CUDA_FP8_ROWS_QSHAPE; `1` = the
+/// launcher's own policy; unset = off): the one-row kernel's bits for W8A8 (codes staged) and W8A16 (bf16 row groups).
+#[test]
+fn fp8_rows_q_are_bitwise_the_one_row_gemv() {
+    let Some(rig) = Rig::new("fp8_rows_q_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(811);
+    // the 35B's projections (GDN out / o_proj 2048x4096 is the launcher's own case), edges: n not a multiple of any tile, K = 16,
+    // a ragged lane tail, M * K at exactly the 96 KB the kernel may stage (6144 at M = 16), one output
+    let shapes = [(2048usize, 4096usize), (8192, 2048), (512, 2048), (300, 2048), (9, 16), (33, 2064), (64, 6144), (8, 1040), (1, 4096)];
+    let forms: [(&str, &str); 8] = [("", ""), ("1", ""), ("all", ""), ("all", "1x16"), ("all", "2x16"), ("all", "1x8"), ("all", "1x8x3"), ("all", "4x8")];
+    for (q, shape) in forms {
+        for (var, val) in [("INTARSIA_CUDA_FP8_ROWS_Q", q), ("INTARSIA_CUDA_FP8_ROWS_QSHAPE", shape)] {
+            if val.is_empty() {
+                std::env::remove_var(var);
+            } else {
+                std::env::set_var(var, val);
+            }
+        }
+        for (n, k) in shapes {
+            for (wide, aq, is) in [(0u8, true, 0.125f32), (1, true, 0.0117), (1, true, 3.0), (2, true, 0.125), (0, false, 0.0), (1, false, 0.0), (2, false, 0.0)] {
+                let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
+                let ws = hc.inputs[2].to_f32()[0];
+                let scales = scales_tensor(if wide == 1 { ws / 16.0 } else { ws }, if aq { is } else { 0.0 });
+                let w = rig.put(&match wide {
+                    1 => wide_fp8_weights(&mut rng, n, k),
+                    2 => mid_fp8_weights(&mut rng, n, k),
+                    _ => hc.inputs[1].clone(),
+                });
+                let sc = rig.put(&scales);
+                let x_rows = nasty_rows(&mut rng, k, clip_of(&scales));
+                for out_dt in [DType::Bf16, DType::F32] {
+                    let label = format!("fp8 q={q}/{shape} n={n} k={k} wide={wide} aq={aq} is={is} out={out_dt:?}");
+                    gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_gemv", "matmul_fp8_gemv_rows", &[w.clone(), sc.clone()], &x_rows, n, out_dt, &label, CAP);
+                }
+            }
+        }
+    }
+    std::env::remove_var("INTARSIA_CUDA_FP8_ROWS_Q");
+    std::env::remove_var("INTARSIA_CUDA_FP8_ROWS_QSHAPE");
+    rig.report("fp8-q");
+}
+
+/// The row-group split of the bf16 and nvfp4 row-exact launchers (INTARSIA_CUDA_BF16_ROWS_SPLIT / INTARSIA_CUDA_NVFP4_ROWS_SPLIT
+/// forced to every R, and `auto`: the launchers' own pick): the one-row kernel's bits, ragged last groups included.
+#[test]
+fn rows_split_are_bitwise_the_one_row_gemv() {
+    let Some(rig) = Rig::new("rows_split_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(812);
+    for r in ["1", "2", "4", "8", "auto"] {
+        std::env::set_var("INTARSIA_CUDA_BF16_ROWS_SPLIT", r);
+        std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", r);
+        // bf16: the 35B router, GDN b / a, shared-expert gate; edges (K = 8, odd n, a K not a multiple of 256, the scalar path)
+        for (n, k) in [(256usize, 2048usize), (32, 2048), (1, 2048), (130, 2056), (5, 8), (33, 7), (64, 4100)] {
+            for wide in [false, true] {
+                let w = rig.put(&if wide { wide_bf16(&mut rng, n, k) } else { fast_bf16(&mut rng, n, k) });
+                let x_rows = nasty_rows(&mut rng, k, 448.0);
+                gb_matmul(&rig, Op::Matmul, "matmul_bf16_gemv", "matmul_bf16_gemv_rows", &[w.clone()], &x_rows, n, DType::Bf16, &format!("split={r} bf16 n={n} k={k} wide={wide}"), CAP);
+                gb_matmul(&rig, Op::Logits, "logits_bf16_gemv", "logits_bf16_gemv_rows", &[w], &x_rows, n, DType::F32, &format!("split={r} logits n={n} k={k} wide={wide}"), CAP);
+            }
+        }
+        // nvfp4: the 35B shared expert gate / up (512x2048) and down (2048x512), edges
+        for (n, k) in [(512usize, 2048usize), (2048, 512), (300, 4112), (9, 16), (1030, 160), (1, 16)] {
+            for wide in [false, true] {
+                let parts = if wide { wide_nvfp4(&mut rng, n, k) } else { nvfp4::random_rows(&mut rng, n, k).parts };
+                let weights: Vec<TensorRef> = parts.iter().map(|p| rig.put(p)).collect();
+                let x_rows = nasty_rows(&mut rng, k, 448.0);
+                for out_dt in [DType::Bf16, DType::F32] {
+                    gb_matmul(&rig, Op::MatmulNvfp4, "matmul_nvfp4_gemv", "matmul_nvfp4_gemv_rows", &weights, &x_rows, n, out_dt, &format!("split={r} nvfp4 n={n} k={k} wide={wide} {out_dt:?}"), CAP);
+                }
+            }
+        }
+    }
+    std::env::remove_var("INTARSIA_CUDA_BF16_ROWS_SPLIT");
+    std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_SPLIT");
+    rig.report("split");
+}
+
+/// The persistent x-staged nvfp4 rows kernel (INTARSIA_CUDA_NVFP4_ROWS_FULL forced to each shape, and `auto`: the launcher's own
+/// use of it, N >= 16384 at M >= 5): the one-row kernel's bits, the lm_head included.
+#[test]
+fn nvfp4_rows_full_are_bitwise_the_one_row_gemv() {
+    let Some(rig) = Rig::new("nvfp4_rows_full_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(813);
+    let shapes = [(248320usize, 2048usize, DType::F32), (20000, 64, DType::F32), (512, 2048, DType::Bf16), (300, 4112, DType::Bf16), (9, 16, DType::F32), (1030, 160, DType::Bf16), (1, 16, DType::Bf16)];
+    for f in ["auto", "2x16", "1x16", "2x8", "4x8"] {
+        std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS_FULL", f);
+        for (n, k, model_out) in shapes {
+            for wide in [false, true] {
+                let parts = if wide { wide_nvfp4(&mut rng, n, k) } else { nvfp4::random_rows(&mut rng, n, k).parts };
+                let weights: Vec<TensorRef> = parts.iter().map(|p| rig.put(p)).collect();
+                let x_rows = nasty_rows(&mut rng, k, 448.0);
+                for out_dt in [model_out, if model_out == DType::F32 { DType::Bf16 } else { DType::F32 }] {
+                    gb_matmul(&rig, Op::MatmulNvfp4, "matmul_nvfp4_gemv", "matmul_nvfp4_gemv_rows", &weights, &x_rows, n, out_dt, &format!("nvfp4 full={f} n={n} k={k} wide={wide} {out_dt:?}"), CAP);
+                }
+            }
+        }
+    }
+    std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_FULL");
+    rig.report("nvfp4-full");
+}
+
 // ---- nvfp4 -----------------------------------------------------------------------------------------------------------
 
 #[test]
@@ -732,7 +833,7 @@ fn timing_gemv_rows() {
     let mut rng = SplitMix64::new(77);
     let a = OpAttrs::default();
     let iters = 400;
-    let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+    let line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
         println!("TIME {what:<28} {kernel:<26} M={m:<2} {us:8.2} us  {:7.1} GB/s", bytes as f64 / us / 1e3);
     };
     for (n, k) in [(2048usize, 4096usize), (2048, 2048), (8192, 2048), (4096, 2048), (512, 2048)] {
@@ -828,6 +929,138 @@ fn timing_gemv_rows() {
             ins.extend(w.iter().cloned());
             let us = rig.time_us(kernel, Op::MoeExperts, &ins, &[(DType::Bf16, vec![m, h])], &attrs, iters / 2);
             line("moe 64e top8 2048/512", kernel, m, us, m * topk * pair_bytes);
+        }
+    }
+}
+
+/// Evicted micro-timing of the row-exact launchers in their forms: each launch reads a different copy of the weights (a pool of
+/// about 192 MB, far past the L2), as in a decode step, where a projection's weights are long evicted by the next time it runs.
+/// `cargo test -p intarsia-backend-cuda --release --test rows_exact -- --ignored --nocapture timing_rows_evict` (inside a fleetq
+/// slot that is quiet on the GPU). Prints `EVT what form M us GB/s`.
+#[test]
+#[ignore = "micro-timing"]
+fn timing_rows_evict() {
+    let Some(rig) = Rig::new("timing_rows_evict") else { return };
+    let mut rng = SplitMix64::new(78);
+    let a = OpAttrs::default();
+    let ms = [2usize, 4, 8, 12, 16];
+    let only = std::env::var("MSD2_ONLY").unwrap_or_default();
+    let pool_of = |bytes: usize| ((192usize << 20) / bytes.max(1)).clamp(1, 256);
+    let time_pool = |kernel: &str, op: Op, calls: &[OpCall]| -> f64 {
+        for c in calls.iter().take(8) {
+            rig.be.launch(kernel, c, 0).unwrap();
+        }
+        rig.be.synchronize(0).unwrap();
+        let iters = calls.len().max(240).div_ceil(calls.len()) * calls.len();
+        let t0 = std::time::Instant::now();
+        for i in 0..iters {
+            rig.be.launch(kernel, &calls[i % calls.len()], 0).unwrap();
+        }
+        rig.be.synchronize(0).unwrap();
+        let _ = op;
+        t0.elapsed().as_secs_f64() * 1e6 / iters as f64
+    };
+    let set = |vars: &[(&str, &str)]| {
+        for (k, v) in vars {
+            if v.is_empty() {
+                std::env::remove_var(k);
+            } else {
+                std::env::set_var(k, v);
+            }
+        }
+    };
+    // fp8: the 35B's GDN in_qkv, in_z / attention q, k / v, GDN out / o_proj
+    if only.is_empty() || only.contains("fp8") {
+        let forms: [(&str, &str, &str, &str); 11] = [
+            ("base", "", "0", ""),
+            ("auto", "", "1", ""),
+            ("unset", "", "", ""),
+            ("full1x16", "1x16", "0", ""),
+            ("full4x8", "4x8", "0", ""),
+            ("q2x8", "", "all", ""),
+            ("q1x16", "", "all", "1x16"),
+            ("q2x16", "", "all", "2x16"),
+            ("q1x8", "", "all", "1x8"),
+            ("q1x8x3", "", "all", "1x8x3"),
+            ("q4x8", "", "all", "4x8"),
+        ];
+        for (n, k) in [(8192usize, 2048usize), (4096, 2048), (512, 2048), (2048, 4096)] {
+            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, true, DType::Bf16, DType::Bf16);
+            let sc = rig.put(&scales_tensor(hc.inputs[2].to_f32()[0], 0.125));
+            let ws: Vec<TensorRef> = (0..pool_of(n * k)).map(|_| rig.put(&hc.inputs[1])).collect();
+            let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
+            let mk = |m: usize| -> Vec<OpCall> {
+                ws.iter()
+                    .map(|w| {
+                        let o = rig.put(&HostTensor::zeros(DType::Bf16, &[m, n]));
+                        OpCall::new(Op::MatmulFp8, vec![x.rows(0, m), w.clone(), sc.clone()], vec![o], a.clone())
+                    })
+                    .collect()
+            };
+            let c1 = mk(1);
+            let us = time_pool("matmul_fp8_gemv", Op::MatmulFp8, &c1);
+            println!("EVT fp8 {n}x{k} {:<9} M=1  {us:8.2} us {:7.1} GB/s", "solo", (n * k) as f64 / us / 1e3);
+            for &m in &ms {
+                let calls = mk(m);
+                for (name, full, q, qs) in forms {
+                    set(&[("INTARSIA_CUDA_FP8_ROWS_FULL", full), ("INTARSIA_CUDA_FP8_ROWS_Q", q), ("INTARSIA_CUDA_FP8_ROWS_QSHAPE", qs)]);
+                    let us = time_pool("matmul_fp8_gemv_rows", Op::MatmulFp8, &calls);
+                    println!("EVT fp8 {n}x{k} {name:<9} M={m:<2} {us:8.2} us {:7.1} GB/s", (n * k) as f64 / us / 1e3);
+                }
+            }
+            set(&[("INTARSIA_CUDA_FP8_ROWS_FULL", ""), ("INTARSIA_CUDA_FP8_ROWS_Q", ""), ("INTARSIA_CUDA_FP8_ROWS_QSHAPE", "")]);
+        }
+    }
+    // bf16: the 35B's router, GDN b / a, shared-expert gate
+    if only.is_empty() || only.contains("bf16") {
+        for (n, k) in [(256usize, 2048usize), (32, 2048), (1, 2048)] {
+            let w0 = fast_bf16(&mut rng, n, k);
+            let ws: Vec<TensorRef> = (0..pool_of(n * k * 2)).map(|_| rig.put(&w0)).collect();
+            let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
+            for &m in &ms {
+                let calls: Vec<OpCall> = ws
+                    .iter()
+                    .map(|w| OpCall::new(Op::Matmul, vec![x.rows(0, m), w.clone()], vec![rig.put(&HostTensor::zeros(DType::Bf16, &[m, n]))], a.clone()))
+                    .collect();
+                for r in ["0", "unset", "auto", "1", "2", "4", "8"] {
+                    set(&[("INTARSIA_CUDA_BF16_ROWS_SPLIT", if r == "unset" { "" } else { r })]);
+                    let us = time_pool("matmul_bf16_gemv_rows", Op::Matmul, &calls);
+                    println!("EVT bf16 {n}x{k} split={r:<4} M={m:<2} {us:8.2} us {:7.1} GB/s", (n * k * 2) as f64 / us / 1e3);
+                }
+            }
+            set(&[("INTARSIA_CUDA_BF16_ROWS_SPLIT", "")]);
+        }
+    }
+    // nvfp4: the 35B's shared expert gate / up, down, and the lm_head (f32 logits; 286 MB, no pool needed)
+    if only.is_empty() || only.contains("nvfp4") {
+        for (n, k, odt) in [(512usize, 2048usize, DType::Bf16), (2048, 512, DType::Bf16), (248320, 2048, DType::F32)] {
+            let q = nvfp4::random_rows(&mut rng, n, k);
+            let bytes = n * k / 2 + n * k / 16;
+            let pools: Vec<Vec<TensorRef>> = (0..pool_of(bytes)).map(|_| q.parts.iter().map(|p| rig.put(p)).collect()).collect();
+            let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
+            let splits: &[&str] = if n > 100000 { &["0", "unset", "auto", "f2x16", "f1x16", "f2x8", "f4x8"] } else { &["0", "unset", "auto", "1", "2", "4", "8"] };
+            for &m in &ms {
+                let calls: Vec<OpCall> = pools
+                    .iter()
+                    .map(|ws| {
+                        let mut ins = vec![x.rows(0, m)];
+                        ins.extend(ws.iter().cloned());
+                        OpCall::new(Op::MatmulNvfp4, ins, vec![rig.put(&HostTensor::zeros(odt, &[m, n]))], a.clone())
+                    })
+                    .collect();
+                for r in splits {
+                    match *r {
+                        "unset" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", ""), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "")]),
+                        "0" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "0"), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "0")]),
+                        "auto" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "auto"), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "auto")]),
+                        f if f.starts_with('f') => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "auto"), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", &f[1..])]),
+                        r => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", r), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "auto")]),
+                    }
+                    let us = time_pool("matmul_nvfp4_gemv_rows", Op::MatmulNvfp4, &calls);
+                    println!("EVT nvfp4 {n}x{k} split={r:<4} M={m:<2} {us:8.2} us {:7.1} GB/s", bytes as f64 / us / 1e3);
+                }
+            }
+            set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", ""), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "")]);
         }
     }
 }
