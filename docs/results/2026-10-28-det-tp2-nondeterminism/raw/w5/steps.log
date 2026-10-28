@@ -1,0 +1,6 @@
+09:53:17 tp2: 100 processes, 98 1 1 distinct-count
+09:58:35 tp2poison: 100 processes, 99 1 distinct-count
+10:03:40 tp2sync: 100 processes, 99 1 distinct-count
+10:08:10 tp1c1: 100 processes, 100 distinct-count
+10:08:11 tp1c0: 100 processes, 100 distinct-count
+10:08:11 w5 done

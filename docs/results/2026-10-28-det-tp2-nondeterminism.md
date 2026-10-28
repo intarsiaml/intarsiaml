@@ -61,14 +61,19 @@ split count is a function of the KV length only (`kernels.rs` `splitkv_parts`), 
 | det w2 `soakA-mtp10` | `--spec mtp --spec-k 2`, fresh process (1 of 30) | 20 | 0.1240 |
 | vat w3 | serve dflash k7 round 3, chat-sleep (the first request of a fresh server) | char 74 | |
 | vat w3 | serve dflash k7 old path round 5, chat-sleep (first request) | char 107 | |
-| det w4 `mtptap20` | `--spec mtp --spec-k 2`, fresh process, tap on (1 of 43; off 0 of 43) | 38 | |
+| det w4 `mtptap20` | `--spec mtp --spec-k 2`, fresh process, tap on (1 of 43; off 0 of 43) | 38 | 0.3093 |
+| det w5 `tp2` #23, `tp2sync` #4 | mtp, fresh process | 7 (3775 -> 563, both) | 0.1898 |
+| det w5 `tp2` #51 | mtp, fresh process | 17 | 0.0123 |
+| det w5 `tp2poison` #39 | mtp, fresh process | 27 | 0.0777 |
 
-Common to all: a fresh process, the first ~40 generated tokens, a flip at a margin (0.08, 0.12) well above the smallest margins before it (token 17 at 0.0123 did not flip). That is a discrete wrong value in
-one step, not rounding noise. Repeats inside one process (130 runs) never parted.
+short-5's lowest off margins in its first 40 tokens are tokens 17 (0.012), 27 (0.078), 20 (0.124), 7 (0.190), 38 (0.309), 18 (0.357), 8 (0.378) (`raw/w1/base-tap1.err`). Every event parts at one of
+the first five. So an event is a small shift of the logits, of order 0.01 to 0.3, that flips whichever near tie it reaches first; sometimes 7 holds and 17 flips. It is not a large
+discrete wrong value (an earlier draft of this doc said so, from two events). Repeats inside one process (130 runs, all `--spec off`) never parted; at the mtp rate that is weak evidence.
 
 **w4: the wrong value is already in the prefill.** `mtptap20`'s tap (`raw/w4/mtptap20.tap`, reference `mtptap18.tap`; the other 42 mtp and 43 off taps are equal to each other) differs
-from pass 0 on, the 38-row prefill (`pos=0 t=38`): layer 0's last row is equal, layer 1 (GatedDeltaNet) differs, and every later pass differs. Rank 0 equals rank 1 inside the run, so
-whatever went wrong went wrong before or inside an all-reduce and both ranks got the same wrong sum; that does not say which rank. The w4 tap hashed only the last row of each layer
+from pass 0 on, the 38-row prefill (`pos=0 t=38`): layer 0's last row is equal, layer 1 (GatedDeltaNet) differs, and every later pass differs. Rank 0 equals rank 1 on that last row, which
+does NOT clear the all-reduce: if one rank read a stale peer value in an earlier row, its residual row differs from the other rank's, its GDN heads carry that into row 37, and the
+next all-reduce sums the shift into both ranks' row 37 equally. Only a per-row tap separates the cases. The w4 tap hashed only the last row of each layer
 (the build predates `398c2c943`), and GDN's last row depends on every earlier row, so the bad value can be in any row of layer 0's output or inside layer 1. At t=38 the GDN layers run
 `gdn_conv_bf16` + `gdn_delta_rule_bf16_v2` (the fused conv+delta launch is for t <= 32, v3 for t >= 64). The token only flips 38 tokens later: a small prefill error that the
 greedy argmax absorbs until a near tie.
@@ -90,7 +95,19 @@ the same in a repeat, which fits; w5's poison arm tests it.
 **w6 (per-row tap, 09:40-09:47): no event.** 70 fresh `--spec mtp` and 70 fresh `--spec off` processes, 8 tokens each: every id list and every tap file byte-identical within
 its arm (`raw/w6/`, one reference tap kept per arm). Fresh mtp processes so far: 2 events in 143 (w2 1/30, w4 1/43, w6 0/70); fresh off: 0 in ~450 here, 1 in vat's 5.
 
-TODO (superseded by the w6 line above): w6 (per-row tap, 70 mtp + 70 off fresh processes: first (layer, row) that differs), w5 (rate on `--spec mtp`: tp=2, tp=2 with capture and peer syncs, tp=1 per card).
+**w5 (09:48-10:08, rate, all `--spec mtp --spec-k 2`, 48 tokens, fresh processes, `raw/w5/<arm>.ids`):**
+
+| arm | processes | events |
+|---|---|---|
+| tp=2 | 100 | 2 (tokens 7, 17) |
+| tp=2, `INTARSIA_HIP_POISON=ff` (every allocation filled with 0xff) | 100 | 1 (token 27) |
+| tp=2, `INTARSIA_GRAPH_SYNC_CAPTURE=1 INTARSIA_TP_PEER_SYNC=1` | 100 | 1 (token 7) |
+| tp=1 on card 0 / card 1 (at the same time) | 100 / 100 | 0 / 0 (both cards the same ids) |
+
+Poison does not change it: a read of never-written memory would give a large or NaN value with 0xff fill, and turn the event always or never; it stays ~1%. The capture and peer syncs
+do not change it either, so it is not the peer rank's first capture racing its prefill. tp=1 is clean on both cards (0/200; tp=1's ids differ from tp=2's, as expected from a
+different reduction order). Fresh mtp processes in total: 6 events in 443 (1.4%); fresh off: 0 in ~450. With rates this low the arms show only what does not matter much
+(poison, syncs); tp=2 against tp=1 (6/443 against 0/200, p ~ 0.1 on its own) points at the two-GPU part, which brings the P2P all-reduce back.
 
 ## 4. Raw
 
