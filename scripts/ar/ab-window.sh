@@ -15,7 +15,8 @@ PHASES=${PHASES:-"speed27:4"}; CAP=${CAP:-4500}; PORT=8097; R0=${R0:-1}
 M27=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
 M35=/models/intarsia/Qwen3.6-35B-A3B-NVFP4
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
-ORD=("d3 d1 d5" "d5 d1 d3" "d1 d5 d3" "d3 d5 d1")
+ORD=("d1 d3 d7" "d7 d3 d1" "d3 d7 d1" "d1 d7 d3")
+# arms d<N> = INTARSIA_HIP_AR_DRAIN=<N> (d7 = lane ars LL handshake; every arm runs the B binary ars-intarsia-b, so only the knob differs)
 # ARMS="d3 d1": two arms, order alternating per round
 [[ -n ${ARMS:-} ]] && { rev=$(echo $ARMS | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}'); ORD=("$ARMS" "$rev" "$ARMS" "$rev"); }
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; REPO="$(cd "$HERE/../.." && pwd)"
@@ -47,7 +48,7 @@ serve() { # serve <phase> <arm>
   $SSH "docker rm -f ars-serve >/dev/null 2>&1; docker run -d --name ars-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
     --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=0,1 -e INTARSIA_HIP_AR_DRAIN=$drain \
-    -v \$HOME/intarsiaml-ars:/work -v /data/models:/models:ro -w /work $IMG /work/ars-intarsia serve --backend hip --model $model \
+    -v \$HOME/intarsiaml-ars:/work -v /data/models:/models:ro -w /work $IMG /work/${BIN:-ars-intarsia-b} serve --backend hip --model $model \
     --served-model-name $SERVED $spec --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq $maxseq --no-supervisor --host 0.0.0.0 --port $PORT" \
     < /dev/null > "$OUT/docker-$ph-$arm.id" 2>&1
   for i in $(seq 1 100); do curl -sf -m 3 "http://tatooine:$PORT/health" > /dev/null 2>&1 && return 0; sleep 3; done
