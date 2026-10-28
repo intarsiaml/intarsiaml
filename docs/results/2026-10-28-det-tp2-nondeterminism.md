@@ -109,6 +109,35 @@ do not change it either, so it is not the peer rank's first capture racing its p
 different reduction order). Fresh mtp processes in total: 6 events in 443 (1.4%); fresh off: 0 in ~450. With rates this low the arms show only what does not matter much
 (poison, syncs); tp=2 against tp=1 (6/443 against 0/200, Fisher p ~ 0.15 on its own: suggestive, not proof) points at the two-GPU part, which brings the P2P all-reduce back.
 
+**w7 (10:10-10:37, all `--spec mtp`, fresh processes): the per-row tap catches it, one rank, a few rows, in an all-reduce.**
+
+| arm | processes | id events (16 / 48 tokens) | taps different |
+|---|---|---|---|
+| per-row tap, 16 tokens | 200 | 0 | 3 (`tap-33`, `tap-88`, `tap-118`) |
+| `INTARSIA_HIP_AR_DRAIN=5` (~25 us wait after the flag before the peer's data is read), 48 tokens | 200 | 0 | (no tap) |
+| `--comm host` (host-staged all-reduce, no P2P kernel), 48 tokens | 150 | 0 | (no tap) |
+
+`tools/det/tapdiff.py raw/w7 tap` on the three (the other 197 taps byte-identical):
+
+| tap | pass | rank 0, layer 2 | rank 1, layer 2 | layer 3 |
+|---|---|---|---|---|
+| `tap-33` | 38-row prefill | equal | row 21 | rows 21..37 both ranks |
+| `tap-88` | 38-row prefill | rows 31, 33, 34, 35 | equal | rows 31..37 both ranks |
+| `tap-118` | 38-row prefill | equal | rows 24, 35, 36 | rows 24..37 both ranks |
+
+The residual stream is replicated: after a layer's all-reduces both ranks must hold the same bits. At the end of layer 2 one rank, either one, holds a few
+rows that the other rank (and 197 other processes) does not, so that rank's all-reduce summed something other than the peer's partial for those rows.
+Layer 3 (full attention) then spreads it to every later row on both ranks, and the next all-reduce makes the ranks equal again, which is why w4's
+last-row tap showed rank 0 == rank 1. Scattered rows (31, 33, 34, 35 but not 32) fit per-block chunks of the all-reduce: `ar2_kernel`
+(`kernels/hip/allreduce.hip`) gives each block a contiguous range of 16-byte words, pushes it into the peer's scratch with posted PCIe writes, waits
+`s_wait_storecnt 0` (mode 3, the default), then raises the peer's flag with a system-scope release store; the peer reads its scratch once it sees the
+flag. The store counter only says the writes left this GPU; if a write lands at the peer after the flag, the peer adds the slot's old contents (the
+partial from two all-reduces earlier, the scratch is double buffered). That gives exactly a small, one-sided, few-rows, fresh-timing error; it does
+not repeat in a process because it depends on PCIe timing, and it is rarer with `--spec off` for a reason not established (different timing of
+the peer rank around the prefill). Why always layer 2 in these three is not known.
+
 ## 4. Raw
 
+- `raw/w4/` .. `raw/w9/`: per arm `<arm>.ids` (one line per fresh process), `steps.log`, `window.log`; taps only for the events and one reference
+  (`raw/w4/mtptap20.tap` vs `mtptap18.tap`, `raw/w7/tap-{33,88,118}.tap` vs `tap-1.tap`); the rest stayed on tatooine and is deleted.
 - `raw/w1/` .. `raw/w3/`: per arm `<tag>.err` (ids, margins, stats), `<tag>.tap` (layer hashes), `steps.log`, `window.log`; `raw/downtime.log` (radiance windows).
