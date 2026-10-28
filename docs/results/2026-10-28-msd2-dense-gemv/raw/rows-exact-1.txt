@@ -1,0 +1,13 @@
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_q_are_bitwise_the_one_row_gemv ... ok
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_ops_are_row_independent ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... FAILED
+test timing_gemv_rows ... ignored, micro-timing
+test timing_rows_evict ... ignored, micro-timing
+test rows_split_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_full_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+thread 'nvfp4_rows_are_bitwise_the_one_row_gemv' panicked at crates/intarsia-backend-cuda/tests/rows_exact.rs:75:61:
+test result: FAILED. 8 passed; 1 failed; 2 ignored; 0 measured; 0 filtered out; finished in 15.12s
