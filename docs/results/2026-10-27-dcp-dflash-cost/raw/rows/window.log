@@ -1,0 +1,32 @@
+[window] job 6395 rows; stopping radiance 2026-10-27 22:12:47
+[window] radiance stopped 2026-10-27 22:12:50
+22:12:58 gen-short-0-off exit 0: finish=length prompt=41 (cached 0) completion=256 | prefill 82 ms (497.2 tok/s) | decode 4475 ms (56.99 tok/s)|
+22:13:05 gen-short-0-base exit 0 [INTARSIA_SPEC_TRACE=1 X=0]: spec: token 253 pos 292 drafted 3 accepted 2 emits 3|spec: mtp draft 20.959 ms, verify + rollback 23.841 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 89 ms (462.1 tok/s) | decode 3438 ms (74.17 tok/s)|spec: verify passes=67 proposed=464 accepted=185 (acceptance 39.9%, 3.76 tokens per pass)|
+22:13:05 PASS ids base tp2 short-0
+22:13:05 trace base short-0: flush 1.40 block 10.37 head 7.84 selproj 0.08 dl 0.69 select 0.74 total 21.12 (n=63) | verify+rollback 29.24 ms n=63 | verify passes=67 proposed=464 accepted=185 (acceptance 39.9%, 3.76 tokens per pass)
+22:13:12 gen-short-0-rows exit 0 [INTARSIA_SPEC_TRACE=1 INTARSIA_DFLASH_ROWS_KERNELS=1]: spec: token 253 pos 292 drafted 3 accepted 2 emits 3|spec: mtp draft 13.897 ms, verify + rollback 23.868 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 83 ms (496.4 tok/s) | decode 2934 ms (86.91 tok/s)|spec: verify passes=67 proposed=464 accepted=185 (acceptance 39.9%, 3.76 tokens per pass)|
+22:13:12 PASS ids rows tp2 short-0
+22:13:12 trace rows short-0: flush 1.44 block 6.47 head 4.44 selproj 0.08 dl 0.69 select 0.69 total 13.82 (n=63) | verify+rollback 29.05 ms n=63 | verify passes=67 proposed=464 accepted=185 (acceptance 39.9%, 3.76 tokens per pass)
+22:14:21 gen-short-0-rowsf exit 0 [INTARSIA_SPEC_TRACE=1 INTARSIA_DFLASH_ROWS_KERNELS=1 INTARSIA_DFLASH2_FP8=1]: spec: token 253 pos 292 drafted 3 accepted 2 emits 3|spec: mtp draft 22.586 ms, verify + rollback 23.986 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 84 ms (487.4 tok/s) | decode 3634 ms (70.16 tok/s)|spec: verify passes=69 proposed=478 accepted=183 (acceptance 38.3%, 3.65 tokens per pass)|
+22:14:21 PASS ids rowsf tp2 short-0
+22:14:21 trace rowsf short-0: flush 3.99 block 12.05 head 4.80 selproj 0.29 dl 0.70 select 0.71 total 22.53 (n=65) | verify+rollback 29.27 ms n=65 | verify passes=69 proposed=478 accepted=183 (acceptance 38.3%, 3.65 tokens per pass)
+22:14:54 gen-short-0-rowsh exit 0 [INTARSIA_SPEC_TRACE=1 INTARSIA_DFLASH_ROWS_KERNELS=1 INTARSIA_DFLASH2_FP8=head]: spec: token 253 pos 292 drafted 3 accepted 2 emits 3|spec: mtp draft 14.122 ms, verify + rollback 23.817 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 82 ms (501.5 tok/s) | decode 3020 ms (84.45 tok/s)|spec: verify passes=68 proposed=471 accepted=184 (acceptance 39.1%, 3.71 tokens per pass)|
+22:14:54 PASS ids rowsh tp2 short-0
+22:14:54 trace rowsh short-0: flush 1.39 block 6.47 head 4.77 selproj 0.08 dl 0.68 select 0.70 total 14.09 (n=64) | verify+rollback 29.23 ms n=64 | verify passes=68 proposed=471 accepted=184 (acceptance 39.1%, 3.71 tokens per pass)
+22:15:02 gen-4k-1-off exit 0: finish=length prompt=3135 (cached 0) completion=256 | prefill 831 ms (3774.2 tok/s) | decode 4557 ms (55.96 tok/s)|
+22:15:11 gen-4k-1-base exit 0 [INTARSIA_SPEC_TRACE=1 X=0]: spec: token 251 pos 3384 drafted 5 accepted 4 emits 5|spec: mtp draft 24.158 ms, verify + rollback 28.564 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 852 ms (3677.9 tok/s) | decode 3938 ms (64.76 tok/s)|spec: verify passes=70 proposed=488 accepted=184 (acceptance 37.7%, 3.63 tokens per pass)|
+22:15:11 PASS ids base tp2 4k-1
+22:15:11 trace base 4k-1: flush 1.45 block 13.49 head 7.84 selproj 0.08 dl 0.69 select 0.69 total 24.24 (n=66) | verify+rollback 31.63 ms n=66 | verify passes=70 proposed=488 accepted=184 (acceptance 37.7%, 3.63 tokens per pass)
+22:15:19 gen-4k-1-rows exit 0 [INTARSIA_SPEC_TRACE=1 INTARSIA_DFLASH_ROWS_KERNELS=1]: spec: token 251 pos 3384 drafted 5 accepted 4 emits 5|spec: mtp draft 16.919 ms, verify + rollback 28.664 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 857 ms (3657.3 tok/s) | decode 3426 ms (74.43 tok/s)|spec: verify passes=70 proposed=488 accepted=184 (acceptance 37.7%, 3.63 tokens per pass)|
+22:15:19 PASS ids rows tp2 4k-1
+22:15:19 trace rows 4k-1: flush 1.42 block 9.61 head 4.44 selproj 0.08 dl 0.69 select 0.69 total 16.94 (n=66) | verify+rollback 31.63 ms n=66 | verify passes=70 proposed=488 accepted=184 (acceptance 37.7%, 3.63 tokens per pass)
+22:16:29 gen-4k-1-rowsf exit 0 [INTARSIA_SPEC_TRACE=1 INTARSIA_DFLASH_ROWS_KERNELS=1 INTARSIA_DFLASH2_FP8=1]: spec: token 251 pos 3384 drafted 5 accepted 4 emits 5|spec: mtp draft 25.607 ms, verify + rollback 28.580 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 862 ms (3637.7 tok/s) | decode 4151 ms (61.43 tok/s)|spec: verify passes=72 proposed=502 accepted=182 (acceptance 36.3%, 3.53 tokens per pass)|
+22:16:29 PASS ids rowsf tp2 4k-1
+22:16:29 trace rowsf 4k-1: flush 4.00 block 15.19 head 4.80 selproj 0.29 dl 0.69 select 0.69 total 25.66 (n=68) | verify+rollback 31.65 ms n=68 | verify passes=72 proposed=502 accepted=182 (acceptance 36.3%, 3.53 tokens per pass)
+22:17:03 gen-4k-1-rowsh exit 0 [INTARSIA_SPEC_TRACE=1 INTARSIA_DFLASH_ROWS_KERNELS=1 INTARSIA_DFLASH2_FP8=head]: spec: token 251 pos 3384 drafted 5 accepted 4 emits 5|spec: mtp draft 17.214 ms, verify + rollback 28.603 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 851 ms (3682.3 tok/s) | decode 3460 ms (73.69 tok/s)|spec: verify passes=70 proposed=488 accepted=184 (acceptance 37.7%, 3.63 tokens per pass)|
+22:17:03 PASS ids rowsh tp2 4k-1
+22:17:03 trace rowsh 4k-1: flush 1.41 block 9.61 head 4.77 selproj 0.08 dl 0.68 select 0.69 total 17.25 (n=66) | verify+rollback 31.65 ms n=66 | verify passes=70 proposed=488 accepted=184 (acceptance 37.7%, 3.63 tokens per pass)
+22:17:03 rows done
+[window] stages done 2026-10-27 22:17:03 (exit 0)
+[window] starting radiance 2026-10-27 22:17:03
+[window] radiance answers 2026-10-27 22:17:13 (after 15 s)

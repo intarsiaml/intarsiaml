@@ -104,7 +104,7 @@ pub(super) struct DflashHead {
     /// group's head is split across the ranks). `None`: the model's own head is whole.
     pub(super) full_head: Option<QTensor>,
     /// Run the DFlash2 block pass and its head on the row-exact (`_rows`) kernels (`INTARSIA_DFLASH_ROWS_KERNELS`, default
-    /// off; [`Model::dflash_set_rows_kernels`]): a speed choice only, the drafts never reach the output.
+    /// on for a DFlash2 draft, off for DFlash v1; [`Model::dflash_set_rows_kernels`]): a speed choice only, the drafts never reach the output.
     rows_kernels: std::sync::atomic::AtomicBool,
 }
 
@@ -116,53 +116,7 @@ impl DflashHead {
 }
 
 /// bf16 `[n, k]` linear weight `prefix` of the draft checkpoint.
-/// Lane dcp: `INTARSIA_DFLASH2_FP8=1` quantises the DFlash2 draft's linear weights (q/k/v/o, gate/up/down, fc) and the
-/// draft's logits head to per-tensor fp8 e4m3 (W8A16) at load. Only drafts change (greedy verify decides every token); the
-/// draft reads half the bytes per pass.
-pub(super) fn draft_fp8() -> bool {
-    fp8_mode() & 1 != 0
-}
-
-/// `INTARSIA_DFLASH2_FP8`: `1` layers + fc + head, `layers`, `head`.
-pub(super) fn fp8_mode() -> u8 {
-    static M: std::sync::OnceLock<u8> = std::sync::OnceLock::new();
-    *M.get_or_init(|| match std::env::var("INTARSIA_DFLASH2_FP8").as_deref() {
-        Ok("1") => 3,
-        Ok("layers") => 1,
-        Ok("head") => 2,
-        _ => 0,
-    })
-}
-
-/// A bf16 host matrix `[n, k]` as an fp8 e4m3 device weight (one scale per tensor).
-pub(super) fn host_to_fp8(b: &dyn Backend, bytes: &dyn Fn(u64), t: &crate::tensor::HostTensor) -> Result<QTensor> {
-    use crate::quant::QuantFormat;
-    let hq = crate::quant::fp8::Fp8E4m3
-        .quantize(t, &crate::quant::QuantCfg::default())
-        .ok_or_else(|| Error::model("fp8 draft: weight is not a matrix"))?;
-    let q = hq.upload(b)?;
-    bytes(q.weight_bytes() as u64);
-    Ok(q)
-}
-
-/// The draft's logits head as fp8 (`draft_fp8`): `q` is the bf16 head; anything else is kept.
-pub(super) fn head_to_fp8(b: &dyn Backend, bytes: &dyn Fn(u64), q: QTensor) -> Result<QTensor> {
-    if q.format != crate::quant::BF16 {
-        return Ok(q);
-    }
-    let hq = q.download(b)?;
-    host_to_fp8(b, bytes, &hq.parts[0])
-}
-
 pub(super) fn lin(src: &dyn WeightSource, b: &dyn Backend, bytes: &dyn Fn(u64), prefix: &str, n: usize, k: usize) -> Result<QTensor> {
-    if draft_fp8() {
-        let name = resolve(src, &format!("{prefix}.weight"))?;
-        if let Some(info) = src.info(&name).filter(|i| i.dtype == DType::Bf16 && i.shape == [n, k]) {
-            let _ = info;
-            let t = crate::tensor::HostTensor::new(DType::Bf16, vec![n, k], src.bytes(&name)?.to_vec())?;
-            return host_to_fp8(b, bytes, &t);
-        }
-    }
     let q = crate::quant::load_linear(src, prefix, b, &QuantLoadOpts::default())?;
     if (q.n, q.k) != (n, k) || q.format != crate::quant::BF16 {
         return Err(Error::model(format!("draft tensor '{prefix}' is [{}, {}] {:?}, expected bf16 [{n}, {k}]", q.n, q.k, q.format)));
@@ -302,10 +256,6 @@ fn load_fc(src: &dyn WeightSource, b: &dyn Backend, add_bytes: &dyn Fn(u64), h: 
             let row = &raw[r * taps * h * 2..(r + 1) * taps * h * 2];
             part.extend_from_slice(&row[i * h * 2..(i + 1) * h * 2]);
         }
-        if draft_fp8() {
-            fc.push(host_to_fp8(b, add_bytes, &crate::tensor::HostTensor::new(DType::Bf16, vec![h, h], part)?)?);
-            continue;
-        }
         let buf = crate::backend::upload_new(b, &part)?;
         add_bytes(part.len() as u64);
         fc.push(QTensor { format: crate::quant::BF16, n: h, k: h, parts: vec![TensorRef::new(buf, DType::Bf16, &[h, h])], act_fp8: false, act_quant: false });
@@ -362,7 +312,10 @@ fn load_head2(dl: &DflashLoad, b: &dyn Backend, dims: &ModelDims, add_bytes: &dy
         script: Mutex::new(None),
         profile: Default::default(),
         full_head: None,
-        rows_kernels: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DFLASH_ROWS_KERNELS").is_ok_and(|v| v == "1")),
+        // lane dcp: the DFlash2 draft runs its M = 7..8 matmuls and logits on the row kernels by default (drafts only change the
+        // proposals, greedy verify decides every token): draft 21.1 -> 13.8 ms at tp=2 (the generic WMMA GEMM ran at half the
+        // bandwidth). INTARSIA_DFLASH_ROWS_KERNELS=0 restores the generic kernels.
+        rows_kernels: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DFLASH_ROWS_KERNELS").map_or(true, |v| v != "0")),
     })
 }
 

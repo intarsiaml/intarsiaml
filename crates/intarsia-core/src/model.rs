@@ -1212,11 +1212,6 @@ impl Model {
                 let mut head = head;
                 if vocab_par {
                     head.full_head = load_head(false)?;
-                    if dflash::fp8_mode() & 2 != 0 {
-                        // lane dcp: the draft's own fp8 copy of the head (half the bytes of the [7, V] logits pass)
-                        let bytes = |n: u64| weights_bytes.set(weights_bytes.get() + n);
-                        head.full_head = head.full_head.take().map(|q| dflash::head_to_fp8(b, &bytes, q)).transpose()?;
-                    }
                 }
                 Some(head)
             }
