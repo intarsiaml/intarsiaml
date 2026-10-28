@@ -12,7 +12,7 @@ DISTINCT = os.environ.get('DISTINCT') == '1'  # stream i gets its own 3700-char 
 def one(i, rnd, out):
     t0 = time.time()
     req = urllib.request.Request(f'http://127.0.0.1:{port}/v1/chat/completions', json.dumps({
-        'model': 'm', 'stream': True, 'max_tokens': gen, 'temperature': 0, 'min_tokens': gen,
+        'model': 'm', 'stream': True, 'max_tokens': gen, 'temperature': 0, 'ignore_eos': True, 'min_tokens': gen,
         'messages': [{'role': 'user', 'content': f'[{rnd}-{i}] ' + (corpus[(i * 3900) % max(1, len(corpus) - 3700):][:3700] if DISTINCT else body)}]}).encode(), {'content-type': 'application/json'})
     ttft = None; toks = 0
     for line in urllib.request.urlopen(req, timeout=600):
