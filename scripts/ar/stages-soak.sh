@@ -76,7 +76,7 @@ for st in ${STAGES:-kt ref soak ids}; do
         log "kernels test --backend hip --quick: exit $? $(tail -3 "$O/kernels-test.log" | tr '\n' '|' | cut -c1-300)" ;;
     ref) TAP=1 E="INTARSIA_HIP_AR_DRAIN=3" loop ref3 "${REF:-30}" $M ;;
     soak) TAP=1 loop soak "${N:-250}" $M ;;
-    soak7) BIN=ars-intarsia-b TAP=1 E="INTARSIA_HIP_AR_DRAIN=7" loop soak7 "${N:-250}" $M ;;
+    soak7) BIN=ars-intarsia-b TAP=1 E="${DEFE:-}" loop soak7 "${N:-250}" $M ;;
     tests) for v in "1:" "7:" "7:2097152"; do d=${v%%:*}; m=${v#*:}
              INTARSIA_TARGET_VOL=intarsia-cargo-ars INTARSIA_REPO=$TREE/.ars/btree HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_DRAIN=$d INTARSIA_HIP_AR_LL_MAX=$m timeout 1500 \
                "$DEV" cargo test --release -p intarsia-backend-hip --test comm --test ar_norm -- --test-threads=1 > "$O/tests-d$d-${m:-default}.log" 2>&1 < /dev/null
