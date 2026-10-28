@@ -7,6 +7,7 @@
 use intarsia_core::backend::{Backend, MemKind};
 use intarsia_core::exec::HostCall;
 use intarsia_core::ops::{OpCall, ShapeInfo};
+use intarsia_core::admission::gdn_conv_delta_case;
 use intarsia_core::quant::cases::{matmul_mxfp4_case, matmul_mxfp4_pair_case};
 use intarsia_core::quant::Mxfp4Act;
 use intarsia_core::rng::SplitMix64;
@@ -93,5 +94,27 @@ fn verify_gemv_microbench() {
                 best / base
             );
         }
+    }
+    // gdn_conv_delta_bf16 at the 27B tp=2 per-rank shape (8 key / 24 value heads of 128, 4 taps): one launch of T tokens
+    for t in [1usize, 2, 3, 4, 8] {
+        let hc = gdn_conv_delta_case(&mut rng, t, 8, 24, 128, 128, 4, DType::Bf16);
+        let kernel = "gdn_conv_delta_bf16";
+        let cs = calls(&*b, &hc, 4, kernel);
+        for c in &cs {
+            b.launch(kernel, c, 0).unwrap();
+        }
+        b.synchronize(0).unwrap();
+        let mut best = f64::MAX;
+        for _ in 0..5 {
+            let t0 = Instant::now();
+            for _ in 0..50 {
+                for c in &cs {
+                    b.launch(kernel, c, 0).unwrap();
+                }
+            }
+            b.synchronize(0).unwrap();
+            best = best.min(t0.elapsed().as_secs_f64() * 1e6 / (50 * cs.len()) as f64);
+        }
+        println!("VRCBENCH gdn_conv_delta T={t:<2} {best:>8.1} us/launch");
     }
 }
