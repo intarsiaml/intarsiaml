@@ -638,8 +638,18 @@ pub struct AutoParams {
     pub seed_passes: u32,
     /// EWMA weight of a new sample (the first `1 / alpha` samples average evenly).
     pub alpha: f64,
-    /// The other drafter must score this much better (ratio) to take over.
+    /// The other drafter must score this much better (ratio) to take over from DFlash.
     pub margin: f64,
+    /// Same, to take over from MTP (the cheap, steady default: DFlash has to be clearly ahead).
+    pub leave_mtp: f64,
+    /// Scored picks a drafter keeps the lead before the other may take over (no flapping on one lucky pass).
+    pub dwell: u32,
+    /// Weight (at least) of a probe pass's sample: one lucky DFlash pass of 8 tokens must not move the estimate far.
+    pub probe_w: f64,
+    /// Priors per drafter (tokens per pass, ms per pass) counting as `prior_w` earlier passes; `prior_w` 0 starts at the
+    /// first sample. Measured costs on the 27B tp=2 (docs/results/2026-10-28-asa-auto-priors.md).
+    pub prior: [(f64, f64); 2],
+    pub prior_w: f64,
     /// Passes between one-pass probes of the idle drafter.
     pub probe_every: u32,
     /// When the leader scores this ratio over the idle drafter, probe `probe_far` times as rarely.
@@ -654,7 +664,22 @@ pub struct AutoParams {
 
 impl Default for AutoParams {
     fn default() -> Self {
-        AutoParams { seed_passes: 2, alpha: 0.2, margin: 1.03, probe_every: 48, far_ratio: 1.3, probe_far: 2, force: None, log: false, log_pass: false }
+        AutoParams {
+            seed_passes: 2,
+            alpha: 0.1,
+            margin: 1.03,
+            leave_mtp: 1.08,
+            dwell: 8,
+            probe_w: 0.2,
+            prior: [(2.4, 25.5), (3.0, 38.0)],
+            prior_w: 3.0,
+            probe_every: 48,
+            far_ratio: 1.3,
+            probe_far: 4,
+            force: None,
+            log: false,
+            log_pass: false,
+        }
     }
 }
 
@@ -669,9 +694,26 @@ impl AutoParams {
                 "pass" => self.log_pass = true,
                 "mtp" => self.force = Some(AutoForce::Mtp),
                 "dflash" => self.force = Some(AutoForce::Dflash),
+                x if x.contains('=') => {
+                    // A/B knobs: alpha, margin, leave, dwell, w (probe weight), priorw, seed, probe, far, probe_far
+                    let (k, v) = x.split_once('=').unwrap();
+                    match (k, v.parse::<f64>()) {
+                        ("alpha", Ok(v)) => self.alpha = v,
+                        ("margin", Ok(v)) => self.margin = v,
+                        ("leave", Ok(v)) => self.leave_mtp = v,
+                        ("dwell", Ok(v)) => self.dwell = v as u32,
+                        ("w", Ok(v)) => self.probe_w = v,
+                        ("priorw", Ok(v)) => self.prior_w = v,
+                        ("seed", Ok(v)) => self.seed_passes = v as u32,
+                        ("probe", Ok(v)) if v >= 1.0 => self.probe_every = v as u32,
+                        ("far", Ok(v)) => self.far_ratio = v,
+                        ("probe_far", Ok(v)) if v >= 1.0 => self.probe_far = v as u32,
+                        _ => eprintln!("spec auto: ignoring INTARSIA_SPEC_AUTO part {x:?}"),
+                    }
+                }
                 x => match x.strip_prefix("alt:").and_then(|n| n.parse::<u32>().ok()).filter(|&n| n > 0) {
                     Some(n) => self.force = Some(AutoForce::Alternate(n)),
-                    None => eprintln!("spec auto: ignoring INTARSIA_SPEC_AUTO part {x:?} (want mtp, dflash, alt:N, log or pass)"),
+                    None => eprintln!("spec auto: ignoring INTARSIA_SPEC_AUTO part {x:?} (want mtp, dflash, alt:N, log, pass or key=value)"),
                 },
             }
         }
@@ -722,15 +764,24 @@ pub struct AutoPolicy {
     probe_pass: bool,
     /// The probe just taken beat the leader: probe once more before deciding.
     confirm: bool,
+    /// Scored picks since the lead last changed hands.
+    in_lead: u32,
     pub switches: u32,
     pub probes: u32,
 }
 
 impl AutoPolicy {
     pub fn new(p: AutoParams) -> AutoPolicy {
+        let mut stats = [AutoStat::default(); 2];
+        if p.prior_w > 0.0 {
+            for (s, (t, ms)) in stats.iter_mut().zip(p.prior) {
+                s.tokens = Ewma(Some(t));
+                s.ms = Ewma(Some(ms));
+            }
+        }
         AutoPolicy {
             p,
-            stats: [AutoStat::default(); 2],
+            stats,
             cur: Drafter::Mtp,
             passes: 0,
             since_probe: 0,
@@ -739,6 +790,7 @@ impl AutoPolicy {
             fresh: false,
             probe_pass: false,
             confirm: false,
+            in_lead: 0,
             switches: 0,
             probes: 0,
         }
@@ -793,10 +845,13 @@ impl AutoPolicy {
             return self.cur;
         }
         let (rc, ro) = (self.stats[self.cur.idx()].rate(), self.stats[self.cur.other().idx()].rate());
+        self.in_lead += 1;
         if let (Some(rc), Some(ro)) = (rc, ro) {
-            if ro > rc * self.p.margin {
+            let m = if self.cur == Drafter::Mtp { self.p.leave_mtp } else { self.p.margin };
+            if ro > rc * m && self.in_lead >= self.p.dwell {
                 self.cur = self.cur.other();
                 self.since_probe = 0;
+                self.in_lead = 0;
             }
         }
         let (lead, idle) = (self.stats[self.cur.idx()].rate(), self.stats[self.cur.other().idx()].rate());
@@ -822,8 +877,8 @@ impl AutoPolicy {
         let a = &mut self.stats[d.idx()];
         a.passes += 1;
         // the first samples average evenly, later ones with weight alpha
-        let w = (1.0 / a.passes as f64).max(self.p.alpha);
-        let w = if self.probe_pass { w.max(0.5) } else { w };
+        let w = (1.0 / (a.passes as f64 + self.p.prior_w)).max(self.p.alpha);
+        let w = if self.probe_pass { w.max(self.p.probe_w) } else { w };
         if self.probe_pass && !self.confirm {
             // a probe that alone beats the leader's average earns a second probe before the decision
             let lead = self.stats[d.other().idx()].rate();
@@ -1392,12 +1447,45 @@ mod tests {
         // code-like: dflash 5.3 t / 39.7 ms beats mtp 2.74 t / 25.7 ms
         let mut p = AutoPolicy::new(AutoParams::default());
         let (m, d) = drive_auto(&mut p, (3, 25.7), (6, 39.7), 200);
-        assert!(d > 190 - m.min(190) && d >= 180, "dflash leads: mtp {m} dflash {d}");
-        assert!(m >= 2 && m <= 8, "seed + a few probes only: {m}");
+        assert!(d >= 140, "dflash leads (after the seed, the dwell and the estimates settling): mtp {m} dflash {d}");
+        assert!(m >= 2 && m <= 60, "mtp only for the seed and until the priors give way: {m}");
         // prose-like: mtp 2.04 / 25.7 beats dflash 2.5 / 39.7
         let mut p = AutoPolicy::new(AutoParams::default());
         let (m, d) = drive_auto(&mut p, (2, 25.7), (2, 39.7), 200);
         assert!(m >= 180 && d <= 8, "mtp leads: mtp {m} dflash {d}");
+    }
+
+    /// Policy over 600 passes of a drafter-specific cycle of tokens per pass; returns the DFlash passes.
+    fn drive_noisy(mtp: &[usize], dfl: &[usize]) -> usize {
+        let mut p = AutoPolicy::new(AutoParams::default());
+        let mut n = 0;
+        for i in 0..600 {
+            let d = p.pick();
+            let (t, ms) = if d == Drafter::Mtp { (mtp[i % mtp.len()], 25.7) } else { (dfl[i % dfl.len()], 39.7) };
+            p.record(d, t, ms);
+            n += usize::from(d == Drafter::Dflash);
+        }
+        n
+    }
+
+    #[test]
+    fn auto_policy_stays_on_mtp_for_noisy_prose_and_on_dflash_for_noisy_code() {
+        // prose: mtp 2.0 tokens / 25.7 ms against dflash 2.5 (0..5) / 39.7 ms: mtp is 20% ahead per ms, dflash passes are lucky now and then
+        let dfl = drive_noisy(&[1, 2, 3, 2, 2, 2, 1, 3, 2, 2], &[0, 1, 2, 2, 3, 4, 5, 3, 2, 3]);
+        assert!(dfl <= 600 / 12, "prose stays on mtp: {dfl} dflash passes of 600");
+        // code: mtp 2.7 against dflash 5.3 (3..8)
+        let dfl = drive_noisy(&[2, 3, 3, 2, 4, 2, 3, 3, 2, 3], &[3, 8, 4, 6, 5, 7, 3, 8, 4, 5]);
+        assert!(dfl >= 600 * 85 / 100, "code moves to dflash: {dfl} dflash passes of 600");
+    }
+
+    #[test]
+    fn auto_policy_env_knobs_and_priors() {
+        let p = AutoParams::default().with_env(Some("alpha=0.05, dwell=4, leave=1.2, priorw=0, w=0.5, probe_far=2, log"));
+        assert_eq!((p.alpha, p.dwell, p.leave_mtp, p.prior_w, p.probe_w, p.probe_far, p.log), (0.05, 4, 1.2, 0.0, 0.5, 2, true));
+        assert_eq!(AutoParams::default().with_env(Some("alpha=x,nonsense=1")), AutoParams::default());
+        // priors seed both drafters' rates before any pass; without them nothing is known until a pass is timed
+        assert!(AutoPolicy::new(AutoParams::default()).rates().0.is_some());
+        assert_eq!(AutoPolicy::new(AutoParams { prior_w: 0.0, ..AutoParams::default() }).rates(), (None, None));
     }
 
     #[test]
