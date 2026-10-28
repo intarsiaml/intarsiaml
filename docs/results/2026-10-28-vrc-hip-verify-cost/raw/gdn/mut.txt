@@ -1,0 +1,8 @@
+hk=8 hv=24 T=3: snapshot 0 differs
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+hk=8 hv=24 T=2: snapshot 0 differs
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+hk=8 hv=24 T=2: snapshot 0 differs
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+hk=8 hv=24 T=2: snapshot 0 differs
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
