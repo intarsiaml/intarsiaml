@@ -1,0 +1,102 @@
+TLS 1.3 represents a significant overhaul of the Transport Layer Security protocol, designed to improve security, reduce latency, and simplify the implementation. Below is a detailed explanation of how the TLS 1.3 handshake works, covering key exchange, certificate verification, session resumption, and the key differences from TLS 1.2.
+
+### 1. The TLS 1.3 Handshake: Step-by-Step
+
+The TLS 1.3 handshake is designed to complete in **one round-trip time (1-RTT)** for full handshakes and **zero round-trip time (0-RTT)** for resumption.
+
+#### **Full Handshake (1-RTT)**
+
+**Client → Server:**
+1. **ClientHello**:
+   - The client sends a `ClientHello` message containing:
+     - Supported TLS version (1.3).
+     - Supported cipher suites (e.g., `TLS_AES_128_GCM_SHA256`).
+     - **Key Share**: A public key for the key exchange algorithm (e.g., X25519 for ECDHE). This is the critical change from TLS 1.2, where the client only sent a list of supported groups.
+     - Supported signature algorithms for certificate verification.
+     - Extensions (e.g., SNI, ALPN).
+
+**Server → Client:**
+2. **ServerHello**:
+   - The server responds with a `ServerHello` message containing:
+     - Selected cipher suite.
+     - **Key Share**: The server’s public key for the key exchange algorithm.
+     - Selected signature algorithm.
+     - **Encrypted Extensions**: The server immediately sends encrypted data (using the handshake secret derived from the key exchange) containing:
+       - Certificate request (if mutual TLS is required).
+       - Key share (if the client’s key share was not acceptable, though rare in 1.3).
+       - Other extensions.
+3. **Certificate & CertificateVerify**:
+   - The server sends its **certificate chain** (signed by a trusted CA).
+   - The server sends a **CertificateVerify** message, which is a digital signature over the handshake transcript so far, proving possession of the private key corresponding to the certificate.
+4. **Finished**:
+   - The server sends a `Finished` message, which is a hash of the handshake transcript encrypted with the handshake secret. This ensures integrity.
+
+
+TLS 1.3 represents a significant overhaul of the Transport Layer Security protocol, designed to improve security, reduce latency, and simplify the implementation. Below is a detailed explanation of how the TLS 1.3 handshake works, covering key exchange, certificate verification, session resumption, and the key differences from TLS 1.2.
+
+### 1. The TLS 1.3 Handshake: Step-by-Step
+
+The TLS 1.3 handshake is designed to complete in **one round-trip time (1-RTT)** for full handshakes and **zero round-trip time (0-RTT)** for resumption.
+
+#### **Full Handshake (1-RTT)**
+
+**Client → Server:**
+1. **ClientHello**:
+   - The client sends a `ClientHello` message containing:
+     - Supported TLS version (1.3).
+     - Supported cipher suites (e.g., `TLS_AES_128_GCM_SHA256`).
+     - **Key Share**: A public key for the key exchange algorithm (e.g., X25519 for ECDHE). This is the critical change from TLS 1.2, where the client only sent a list of supported groups.
+     - Supported signature algorithms for certificate verification.
+     - Extensions (e.g., SNI, ALPN).
+
+**Server → Client:**
+2. **ServerHello**:
+   - The server responds with a `ServerHello` message containing:
+     - Selected cipher suite.
+     - **Key Share**: The server’s public key for the key exchange algorithm.
+     - Selected signature algorithm.
+     - **Encrypted Extensions**: The server immediately sends encrypted data (using the handshake secret derived from the key exchange) containing:
+       - Certificate request (if mutual TLS is required).
+       - Key share (if the client’s key share was not acceptable, though rare in 1.3).
+       - Other extensions.
+3. **Certificate & CertificateVerify**:
+   - The server sends its **certificate chain** (signed by a trusted CA).
+   - The server sends a **CertificateVerify** message, which is a digital signature over the handshake transcript so far, proving possession of the private key corresponding to the certificate.
+4. **Finished**:
+   - The server sends a `Finished` message, which is a hash of the handshake transcript encrypted with the handshake secret. This ensures integrity.
+
+
+TLS 1.3 represents a significant overhaul of the Transport Layer Security protocol, designed to improve security, reduce latency, and simplify the implementation. Below is a detailed explanation of how the TLS 1.3 handshake works, covering key exchange, certificate verification, session resumption, and the key differences from TLS 1.2.
+
+### 1. The TLS 1.3 Handshake: Step-by-Step
+
+The TLS 1.3 handshake is designed to complete in **one round-trip time (1-RTT)** for full handshakes and **zero round-trip time (0-RTT)** for resumption.
+
+#### **Full Handshake (1-RTT)**
+
+**Client → Server:**
+1. **ClientHello**:
+   - The client sends a `ClientHello` message containing:
+     - Supported TLS version (1.3).
+     - Supported cipher suites (e.g., `TLS_AES_128_GCM_SHA256`).
+     - **Key Share**: A public key for the key exchange algorithm (e.g., X25519 for ECDHE). This is the critical change from TLS 1.2, where the client only sent a list of supported groups.
+     - Supported signature algorithms for certificate verification.
+     - Extensions (e.g., SNI, ALPN).
+
+**Server → Client:**
+2. **ServerHello**:
+   - The server responds with a `ServerHello` message containing:
+     - Selected cipher suite.
+     - **Key Share**: The server’s public key for the key exchange algorithm.
+     - Selected signature algorithm.
+     - **Encrypted Extensions**: The server immediately sends encrypted data (using the handshake secret derived from the key exchange) containing:
+       - Certificate request (if mutual TLS is required).
+       - Key share (if the client’s key share was not acceptable, though rare in 1.3).
+       - Other extensions.
+3. **Certificate & CertificateVerify**:
+   - The server sends its **certificate chain** (signed by a trusted CA).
+   - The server sends a **CertificateVerify** message, which is a digital signature over the handshake transcript so far, proving possession of the private key corresponding to the certificate.
+4. **Finished**:
+   - The server sends a `Finished` message, which is a hash of the handshake transcript encrypted with the handshake secret. This ensures integrity.
+
+
