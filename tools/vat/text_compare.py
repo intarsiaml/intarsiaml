@@ -9,8 +9,8 @@ raw = sys.argv[1].rstrip("/")
 res = "/opt/code/deepeval/results"
 steps = open(os.path.join(raw, "steps.log")).read()
 cases = {}  # (arm, cat, round) -> {case name: text}
-for r, arm, cat, rc, path in re.findall(r"round (\d+) arm (\S+) (\S+): localeval (\d+) (results/\S+)", steps):
-    d = json.load(open(os.path.join(os.path.dirname(res), path, "result.json")))["datasets"][0]["cases"]
+for r, arm, cat, rc, path in re.findall(r"round (\d+) arm (\S+) (\S+): localeval exit (\d+) (results/\S+)", steps):
+    d = json.load(open(os.path.join(os.path.dirname(res), path)))["datasets"][0]["cases"]
     cases[(arm, cat, int(r))] = {c["name"]: c["actual_output"] for c in d}
 ref = {}
 for (arm, cat, r), v in sorted(cases.items(), key=lambda kv: kv[0][2]):

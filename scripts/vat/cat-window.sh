@@ -40,7 +40,7 @@ if [[ ${DRY:-0} == 1 ]]; then
   exit 0
 fi
 FIFO=$(mktemp -u "$REPO/target/vatguard.XXXXXX"); mkfifo "$FIFO"
-$SSH 'mkdir -p ~/intarsiaml-vat/.vat' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE/stages-ids.sh" "$HERE/stages-phase.sh" "$HERE/stages-gates.sh" "$HERE/stages-final.sh" "$HERE/stages-mut.sh" tatooine:intarsiaml-vat/.vat/
+$SSH 'mkdir -p ~/intarsiaml-vat/.vat' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE/stages-ids.sh" "$HERE/stages-phase.sh" "$HERE/stages-gates.sh" "$HERE/stages-final.sh" "$HERE/stages-mut.sh" "$HERE/stages-ids2.sh" tatooine:intarsiaml-vat/.vat/
 $SSH 'bash ~/intarsiaml-vat/.vat/guard.sh' > "$OUT/guard.log" 2>&1 < "$FIFO" &
 GUARD=$!
 exec 9> "$FIFO"
@@ -53,7 +53,7 @@ trap cleanup EXIT
 
 # PRE=ids: first the 27B ids gate (scripts/vat/stages-ids.sh ON tatooine, IDARMS / TPS passed through, at most PRE_CAP s), its
 # output fetched into raw/<W>/ids/
-if [[ ${PRE:-} == ids || ${PRE:-} == phase || ${PRE:-} == final ]]; then
+if [[ ${PRE:-} == ids || ${PRE:-} == ids2 || ${PRE:-} == phase || ${PRE:-} == final ]]; then
   say "pre: ids gate (arms ${IDARMS:-dfl mtp2}, ${TPS:-tp1 tp2}, cap ${PRE_CAP:-1200} s)"
   $SSH "rm -rf ~/intarsiaml-vat/.vat/out/$W-ids; mkdir -p ~/intarsiaml-vat/.vat/out/$W-ids; IDARMS='${IDARMS:-dfl mtp2}' TPS='${TPS:-tp1 tp2}' IDNAMES='${IDNAMES:-}' VERIFY8='${VERIFY8:-0}' timeout ${PRE_CAP:-1200} bash ~/intarsiaml-vat/.vat/stages-${PRE}.sh ~/intarsiaml-vat/.vat/out/$W-ids" \
     < /dev/null > "$OUT/ids-pre.log" 2>&1
@@ -110,7 +110,7 @@ for r in $(seq "$R0" $(( R0 + ROUNDS - 1 ))); do
     say "round $r arm $arm: starting server"
     if ! serve "$arm"; then say "round $r arm $arm: server did not come up"; continue; fi
     printf '[targets.vat-%s]\nurl = "http://tatooine:%s/v1"\nmodel = "qwen38-27b-%s"\nextra_body = { ignore_eos = true, min_tokens = %s }\n' "$arm" "$PORT" "$arm" "$GEN" > "$OUT/targets-$arm.toml"
-    for f in "$HERE"/../dfh/cats/*.jsonl; do
+    for f in "$HERE"/../dfh/cats/${CATS:-*}.jsonl; do
       c=$(basename "$f" .jsonl); m0=$(metric)
       ( cd /opt/code/deepeval && LOCALEVAL_TARGETS="$OUT/targets-$arm.toml" uv run localeval quality "vat-$arm" --thinking off --label "vat-$W-$arm-$c-r$r" \
           --recipe "$RECIPE" --dataset "$f" --judge none --max-tokens "$GEN" --wait-idle 60 ) > "$OUT/q-$arm-$c-r$r.log" 2>&1 < /dev/null
