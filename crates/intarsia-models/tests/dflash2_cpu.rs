@@ -20,7 +20,7 @@ use intarsia_core::model::{DflashConfig, DflashLoad, DraftScript, HeadMode, Load
 use intarsia_core::recipe::ModelDims;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::spec::{SpecConfig, SpecMode};
-use intarsia_core::weights::MemWeights;
+use intarsia_core::weights::{MemWeights, WeightSource};
 use intarsia_core::{DType, Engine, EngineMeta, FinishReason, GenEvent, GenRequest, HostTensor, LocalEngine, Telemetry};
 use intarsia_models::SafeTensors;
 use std::collections::BTreeMap;
@@ -630,6 +630,130 @@ fn dflash2_tp2_greedy_ids_equal_spec_off() {
             assert!(t.spec_steps > 0, "the verify path ran at tp=2");
             if script {
                 assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "partial acceptance exercised at tp=2");
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// `--spec auto` (lane asp): the MTP head and the DFlash2 draft on one model, the drafter chosen per pass
+// ------------------------------------------------------------------------------------------------------------------
+
+/// The hybrid target's weights plus a random MTP head with a dense MLP (the layout `tests/mtp.rs` uses).
+fn auto_weights(seed: u64) -> MemWeights {
+    let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+    let mut w = MemWeights::new();
+    for name in src.names() {
+        let info = src.info(&name).unwrap();
+        w.insert(&name, HostTensor::new(info.dtype, info.shape.clone(), src.bytes(&name).unwrap().to_vec()).unwrap());
+    }
+    let mut rng = SplitMix64::new(seed);
+    let bf16 = |rng: &mut SplitMix64, shape: &[usize], scale: f32| {
+        HostTensor::from_f32_as(DType::Bf16, shape, &rng.normal_vec(shape.iter().product(), scale))
+    };
+    const NH: usize = 4;
+    const NKV: usize = 2;
+    const HD: usize = 32;
+    const FFN: usize = 96;
+    let (m, l) = ("mtp", "mtp.layers.0");
+    w.insert(&format!("{m}.fc.weight"), bf16(&mut rng, &[H, 2 * H], 0.15));
+    for n in [
+        format!("{m}.pre_fc_norm_embedding"),
+        format!("{m}.pre_fc_norm_hidden"),
+        format!("{m}.norm"),
+        format!("{l}.input_layernorm"),
+        format!("{l}.post_attention_layernorm"),
+    ] {
+        w.insert(&format!("{n}.weight"), bf16(&mut rng, &[H], 0.2));
+    }
+    w.insert(&format!("{l}.self_attn.q_proj.weight"), bf16(&mut rng, &[NH * HD * 2, H], 0.15));
+    w.insert(&format!("{l}.self_attn.k_proj.weight"), bf16(&mut rng, &[NKV * HD, H], 0.15));
+    w.insert(&format!("{l}.self_attn.v_proj.weight"), bf16(&mut rng, &[NKV * HD, H], 0.15));
+    w.insert(&format!("{l}.self_attn.o_proj.weight"), bf16(&mut rng, &[H, NH * HD], 0.15));
+    w.insert(&format!("{l}.self_attn.q_norm.weight"), bf16(&mut rng, &[HD], 0.2));
+    w.insert(&format!("{l}.self_attn.k_norm.weight"), bf16(&mut rng, &[HD], 0.2));
+    w.insert(&format!("{l}.mlp.gate_proj.weight"), bf16(&mut rng, &[FFN, H], 0.15));
+    w.insert(&format!("{l}.mlp.up_proj.weight"), bf16(&mut rng, &[FFN, H], 0.15));
+    w.insert(&format!("{l}.mlp.down_proj.weight"), bf16(&mut rng, &[H, FFN], 0.15));
+    w
+}
+
+/// `auto: Some((k, params, script))`: `--spec auto` with `k` DFlash drafts (the MTP head drafts 2); `None`: `--spec off`. `chunk`
+/// is the prefill chunk (small: the MTP queue is only chunk + k + 1 rows, so DFlash-driven stretches overflow it without the catch-up).
+fn auto_engine(
+    auto: Option<(usize, intarsia_core::spec::AutoParams, Option<Arc<Mutex<Vec<Vec<u32>>>>>)>,
+    chunk: usize,
+) -> (LocalEngine, Arc<Telemetry>) {
+    let (recipe, dims) = target_spec();
+    let w = auto_weights(21);
+    let tel = Arc::new(Telemetry::new());
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: chunk,
+        act_dtype: Some(DType::F32),
+        kv_dtype: Some(DType::F32),
+        profile_every: 0,
+        dflash: auto.as_ref().map(|_| dflash_load(draft_weights(5))),
+        mtp: auto.is_some(),
+        mtp_k: 2,
+        ..Default::default()
+    };
+    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts, tel.clone()).unwrap();
+    let spec = match auto {
+        Some((k, params, script)) => {
+            m.enable_verify(k + 1).unwrap();
+            m.configure_plan(&Default::default(), None).unwrap();
+            m.set_spec_auto_params(params);
+            if let Some(truth) = script {
+                // both drafters follow the true continuation with mistakes: every pass accepts all, some or none of its drafts
+                m.dflash_script(Some(scripted(truth.clone(), 3))).unwrap();
+                m.mtp_script(Some(scripted(truth, 4))).unwrap();
+            }
+            SpecConfig { mode: SpecMode::Auto, k }
+        }
+        None => SpecConfig::default(),
+    };
+    let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-auto".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+        .unwrap();
+    (e, tel)
+}
+
+#[test]
+fn spec_auto_greedy_ids_equal_spec_off_with_forced_switches_and_the_policy() {
+    use intarsia_core::spec::AutoParams;
+    let (off, _) = auto_engine(None, 8);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for p in PROMPTS {
+        let o = run(&off, req(p, 140));
+        let mut s = p.to_vec();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    // every drafter alone, then switching every pass / every 2 / every 5 passes, then the scored policy; with the head's and
+    // the draft's own (random, rarely right) drafts and with scripted ones that hit every acceptance pattern
+    let modes = ["mtp", "dflash", "alt:1", "alt:2", "alt:5", ""];
+    for scripted_drafts in [false, true] {
+        for m in modes {
+            for chunk in if scripted_drafts { vec![8usize, 64] } else { vec![8usize] } {
+                let params = AutoParams::default().with_env(Some(m));
+                let script = scripted_drafts.then(|| truth.clone());
+                let (on, tel) = auto_engine(Some((3, params, script)), chunk);
+                for p in PROMPTS {
+                    assert_eq!(run(&off, req(p, 120)), run(&on, req(p, 120)), "mode {m:?} scripted {scripted_drafts} chunk {chunk} prompt {p:?}");
+                    for n in [1usize, 3, 8] {
+                        let (a, b) = (run(&off, req(p, n)), run(&on, req(p, n)));
+                        assert_eq!(a, b, "mode {m:?} max_tokens {n}");
+                        let mut next = p.to_vec();
+                        next.extend(&a.ids);
+                        next.push(11);
+                        assert_eq!(run(&off, req(&next, 9)), run(&on, req(&next, 9)), "mode {m:?} follow-up after max_tokens {n}");
+                    }
+                }
+                let t = tel.snapshot();
+                assert!(t.spec_steps > 0, "mode {m:?}: passes ran");
+                if scripted_drafts && m == "alt:2" {
+                    assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "partial acceptance exercised");
+                }
             }
         }
     }
