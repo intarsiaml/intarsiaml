@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lane dcp (ON tatooine, radiance down): DFlash2 draft kernel variants at tp=2 (INTARSIA_DFLASH_ROWS_KERNELS, INTARSIA_DFLASH2_FP8),
+# Lane dcp (ON tatooine, radiance down): DFlash2 draft kernel variants at tp=2 (INTARSIA_DFLASH_ROWS_KERNELS),
 # phase trace + ids against --spec off on two prompts. Arms in ARMS as tag=ENV (ENV with commas), run by window.sh (STAGES=rows).
 set -uo pipefail
 export O=${1:?out dir}
@@ -7,7 +7,7 @@ source "$HOME/intarsiaml-dcp/.dcp/lib.sh"
 D=dev
 clear "rows" || exit 2
 TRK="$(T "$D")/scripts/dfh/ids-prompts"
-ARMS=${ARMS:-"base=X=0 rows=INTARSIA_DFLASH_ROWS_KERNELS=1 rowsf=INTARSIA_DFLASH_ROWS_KERNELS=1,INTARSIA_DFLASH2_FP8=1 rowsh=INTARSIA_DFLASH_ROWS_KERNELS=1,INTARSIA_DFLASH2_FP8=head"}
+ARMS=${ARMS:-"base=X=0 rows=INTARSIA_DFLASH_ROWS_KERNELS=1"}
 for n in short-0 4k-1; do
   P=$(cat "$TRK/$n.txt")
   g() { local tag=$1 e=$2; shift 2

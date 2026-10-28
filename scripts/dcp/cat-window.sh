@@ -33,7 +33,6 @@ if [[ ${DRY:-0} == 1 ]]; then
     # ARMSEQ (lane dcp): explicit arm order per round, rounds separated by ";" (overrides ARMS and ROUNDS), e.g. "mtp2 mtp3;mtp3 off mtp2"
     [[ -n ${ARMSEQ:-} ]] && order=$(echo "$ARMSEQ" | cut -d';' -f$(( r - R0 + 1 )))
     for arm in $order; do
-      case $arm in off) spec="--spec off" ;; mtp*) spec="--spec mtp --spec-k ${arm#mtp}" ;; dflf*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${arm#dflf} (INTARSIA_DFLASH2_FP8=1)" ;; dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${arm#dfl}" ;; esac
       echo "DRY round $r arm $arm: HIP_VISIBLE_DEVICES=$GPUS serve --backend hip --model $M27 $spec $TPA --max-batch 1 --mem-budget 29 --max-seq 8192, files: $(ls "$HERE"/../dfh/cats/*.jsonl | xargs -n1 basename | tr '\n' ' ')"
     done
   done
@@ -74,13 +73,12 @@ serve() { # serve <arm>
     off) spec="--spec off" ;;
     mtp2) spec="--spec mtp --spec-k 2" ;;
     mtp*) spec="--spec mtp --spec-k ${arm#mtp}" ;;
-    dflf*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${arm#dflf}"; ENVX="-e INTARSIA_DFLASH2_FP8=1" ;;
     dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${arm#dfl}" ;;
   esac
   RECIPE="HIP_VISIBLE_DEVICES=$GPUS dcp-intarsia serve --backend hip --model 27B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree $TREE, docker $IMG, lane dcp)"
   $SSH "docker rm -f dcp-serve >/dev/null 2>&1; docker run -d --name dcp-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
-    --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=$GPUS $ENVX \
+    --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=$GPUS \
     -v \$HOME/intarsiaml-dcp:/work -v /data/models:/models:ro -w /work $IMG /work/dcp-intarsia serve --backend hip --model $M27 \
     --served-model-name qwen38-27b-$arm $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 --no-supervisor --host 0.0.0.0 --port $PORT" \
     < /dev/null > "$OUT/docker-$arm.id" 2>&1
