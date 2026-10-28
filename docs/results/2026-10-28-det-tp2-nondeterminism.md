@@ -81,7 +81,11 @@ noted because a marginal host is also a way to get rare, non-reproducible wrong 
 activation scale is per row (`ik_mx_a8.h:63-90`), so padded rows never enter it; kernel choice is env and shape only. `mxfp4_a8_gemm` at M=38 uses 128x32 tiles and the conv
 32-token tiles, so a tail bug would first show at rows 32..37, which w6 can see. A bug that repeats would also repeat inside one process, so a fresh-process-only event points at a
 race at start-up (load or MTP set-up work on another stream, not yet audited) or the host. Off has 0 events in ~380 fresh processes against mtp's 2 in 73: the mtp head's load and
-set-up is the obvious difference.
+set-up is the obvious difference. Both arms run the same 38 + 1 prefill (no prefix store, recurrent snapshot) with equal hashes. A second audit (MTP load, state and first
+step) found nothing of the head queued before or during the 38-row pass on either rank: its first kernels follow the pass on stream 0, and its prompt catch-up is K/V only with no
+collective, so the all-reduce counters cannot drift. What mtp does change before the pass is the number, size and order of the (never zeroed, `device.rs:500-521`) allocations:
+the head's KV, per-row recurrent copies, verify buffers, possibly a larger shared scratch. A read-before-write somewhere on the path would see different leftovers per process and
+the same in a repeat, which fits; w5's poison arm tests it.
 
 TODO: w6 (per-row tap, 70 mtp + 70 off fresh processes: first (layer, row) that differs), w5 (rate on `--spec mtp`: tp=2, tp=2 with capture and peer syncs, tp=1 per card).
 
