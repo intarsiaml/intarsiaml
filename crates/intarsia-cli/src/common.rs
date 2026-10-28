@@ -105,6 +105,10 @@ pub struct ModelArgs {
     /// backend (`[tuning.<backend>] mtp_default_tp_k` under tensor parallelism: the Qwen3.8-27B on HIP at `--tp 2`; `mtp_default_k`
     /// on one rank: the Qwen3.6-35B-A3B on CUDA); `--spec off`
     /// or `INTARSIA_SPEC_DEFAULT=0` opts out.
+    ///
+    /// `--spec auto --spec-draft DIR` (lane asp): loads both the MTP head (2 drafts per pass) and the DFlash2 draft (`--spec-k`, default 7)
+    /// and picks the drafter per pass by measured tokens per ms (running acceptance times the pass cost, an idle drafter probed now and
+    /// then); the greedy output is `--spec off`'s. `INTARSIA_SPEC_AUTO=mtp|dflash|alt:N` pins a drafter or switches every N passes.
     #[arg(long)]
     pub spec: Option<String>,
     /// Most draft tokens per verify pass with `--spec ngram` / `mtp` (1..=6).
@@ -354,6 +358,8 @@ impl ModelArgs {
                     intarsia_core::spec::MTP_K_DEFAULT
                 } else if self.spec_mode() == "dflash" {
                     intarsia_core::spec::DFLASH_K_DEFAULT
+                } else if self.spec_mode() == "auto" {
+                    intarsia_core::spec::AUTO_DFLASH_K_DEFAULT
                 } else {
                     intarsia_core::spec::SPEC_K_DEFAULT
                 }),

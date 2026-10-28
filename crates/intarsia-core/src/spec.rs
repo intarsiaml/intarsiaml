@@ -23,6 +23,10 @@ pub enum SpecMode {
     /// reads the target's hidden states at five layers and proposes up to [`DFLASH_K_MAX`] tokens in one pass; verified
     /// by the same multi-row pass (attention one decode call per row where the backend's multi-row call is not bitwise).
     Dflash,
+    /// Both model drafters, chosen per pass by measured tokens per ms (`--spec auto --spec-draft DIR`, lane asp,
+    /// [`AutoPolicy`]): the MTP head ([`AUTO_MTP_K`] drafts) and the DFlash draft (`--spec-k`, default
+    /// [`AUTO_DFLASH_K_DEFAULT`]). Greedy output is the same as `--spec off`: the verify pass decides every token.
+    Auto,
 }
 
 /// Longest suffix the drafter matches.
@@ -37,6 +41,10 @@ pub const SPEC_K_MAX: usize = 6;
 pub const DFLASH_K_MAX: usize = 15;
 /// `--spec-k` default with `--spec dflash` (the checkpoint's block).
 pub const DFLASH_K_DEFAULT: usize = 15;
+/// `--spec auto`: drafts per DFlash pass by default (Qwen3.8-27B tp=2 HIP sweet spot, docs/results/2026-10-27-dcp-dflash-cost.md).
+pub const AUTO_DFLASH_K_DEFAULT: usize = 7;
+/// `--spec auto`: drafts per MTP pass (the recipe's k for the 27B, [`MTP_K_DEFAULT`]).
+pub const AUTO_MTP_K: usize = MTP_K_DEFAULT;
 /// Default `--spec-k`.
 pub const SPEC_K_DEFAULT: usize = 4;
 /// Default `--spec-k` for `--spec mtp` when none is given: the k = 1..3 sweep on spark1
@@ -73,9 +81,10 @@ impl SpecConfig {
             "ngram" => SpecMode::Ngram,
             "mtp" => SpecMode::Mtp,
             "dflash" => SpecMode::Dflash,
-            other => return Err(crate::error::Error::invalid(format!("--spec {other} (off, ngram, mtp or dflash)"))),
+            "auto" => SpecMode::Auto,
+            other => return Err(crate::error::Error::invalid(format!("--spec {other} (off, ngram, mtp, dflash or auto)"))),
         };
-        let kmax = if mode == SpecMode::Dflash { DFLASH_K_MAX } else { SPEC_K_MAX };
+        let kmax = if matches!(mode, SpecMode::Dflash | SpecMode::Auto) { DFLASH_K_MAX } else { SPEC_K_MAX };
         if !(1..=kmax).contains(&k) {
             return Err(crate::error::Error::invalid(format!("--spec-k {k} outside 1..={kmax}")));
         }
@@ -594,6 +603,234 @@ impl SpecGate {
     }
 }
 
+/// Which model drafter proposes a pass of `--spec auto`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Drafter {
+    Mtp,
+    Dflash,
+}
+
+impl Drafter {
+    fn idx(self) -> usize {
+        self as usize
+    }
+    fn other(self) -> Drafter {
+        match self {
+            Drafter::Mtp => Drafter::Dflash,
+            Drafter::Dflash => Drafter::Mtp,
+        }
+    }
+}
+
+/// `INTARSIA_SPEC_AUTO` override of [`AutoPolicy`]: pin one drafter, or switch every `n` passes (tests, A/B runs).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AutoForce {
+    Mtp,
+    Dflash,
+    /// MTP for `n` passes, then DFlash for `n`, and so on.
+    Alternate(u32),
+}
+
+/// Parameters of [`AutoPolicy`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct AutoParams {
+    /// Passes each drafter gets at the start of a request before the scores decide.
+    pub seed_passes: u32,
+    /// EWMA weight of a new sample (the first `1 / alpha` samples average evenly).
+    pub alpha: f64,
+    /// The other drafter must score this much better (ratio) to take over.
+    pub margin: f64,
+    /// Passes between one-pass probes of the idle drafter.
+    pub probe_every: u32,
+    /// When the leader scores this ratio over the idle drafter, probe `probe_far` times as rarely.
+    pub far_ratio: f64,
+    pub probe_far: u32,
+    pub force: Option<AutoForce>,
+}
+
+impl Default for AutoParams {
+    fn default() -> Self {
+        AutoParams { seed_passes: 2, alpha: 0.2, margin: 1.03, probe_every: 48, far_ratio: 1.3, probe_far: 2, force: None }
+    }
+}
+
+impl AutoParams {
+    /// `INTARSIA_SPEC_AUTO`: `mtp`, `dflash`, `alt:N` (force), unset or empty (the defaults).
+    pub fn with_env(mut self, v: Option<&str>) -> AutoParams {
+        match v.map(str::trim) {
+            None | Some("") | Some("0") | Some("off") => {}
+            Some("mtp") => self.force = Some(AutoForce::Mtp),
+            Some("dflash") => self.force = Some(AutoForce::Dflash),
+            Some(x) => match x.strip_prefix("alt:").and_then(|n| n.parse::<u32>().ok()).filter(|&n| n > 0) {
+                Some(n) => self.force = Some(AutoForce::Alternate(n)),
+                None => eprintln!("spec auto: ignoring INTARSIA_SPEC_AUTO={x:?} (want mtp, dflash or alt:N)"),
+            },
+        }
+        self
+    }
+
+    pub fn from_env() -> AutoParams {
+        AutoParams::default().with_env(std::env::var("INTARSIA_SPEC_AUTO").ok().as_deref())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct AutoStat {
+    tokens: Ewma,
+    ms: Ewma,
+    passes: u32,
+}
+
+impl AutoStat {
+    /// Tokens per ms; `None` until a pass of the drafter has been timed.
+    fn rate(&self) -> Option<f64> {
+        match (self.tokens.0, self.ms.0) {
+            (Some(t), Some(ms)) if ms > 0.0 => Some(t / ms),
+            _ => None,
+        }
+    }
+}
+
+/// `--spec auto`: which drafter proposes the next pass. Per drafter an EWMA of the tokens a pass yields and of the
+/// measured milliseconds of a pass (draft + verify + rollback); the better tokens-per-ms wins. Deterministic given the
+/// samples. The first pass after a switch pays the new drafter's catch-up and is not timed (its tokens count); the idle
+/// drafter is probed for one pass now and then, rarely when the leader is far ahead.
+#[derive(Clone, Debug)]
+pub struct AutoPolicy {
+    p: AutoParams,
+    stats: [AutoStat; 2],
+    cur: Drafter,
+    /// Passes planned so far (the `Alternate` clock).
+    passes: u32,
+    /// Passes since the last probe (or switch).
+    since_probe: u32,
+    /// The last pick was a probe of the idle drafter: the next one returns to the leader.
+    probing: bool,
+    last: Option<Drafter>,
+    /// The pass in flight is the first after a switch.
+    fresh: bool,
+    /// The pass in flight is a probe of the idle drafter (its sample weighs more: the estimate is stale).
+    probe_pass: bool,
+    /// The probe just taken beat the leader: probe once more before deciding.
+    confirm: bool,
+    pub switches: u32,
+    pub probes: u32,
+}
+
+impl AutoPolicy {
+    pub fn new(p: AutoParams) -> AutoPolicy {
+        AutoPolicy {
+            p,
+            stats: [AutoStat::default(); 2],
+            cur: Drafter::Mtp,
+            passes: 0,
+            since_probe: 0,
+            probing: false,
+            last: None,
+            fresh: false,
+            probe_pass: false,
+            confirm: false,
+            switches: 0,
+            probes: 0,
+        }
+    }
+
+    /// Passes taken with `d` so far.
+    pub fn passes_of(&self, d: Drafter) -> u32 {
+        self.stats[d.idx()].passes
+    }
+
+    /// The drafter of the next pass.
+    pub fn pick(&mut self) -> Drafter {
+        let n = self.passes;
+        self.passes += 1;
+        let d = match self.p.force {
+            Some(AutoForce::Mtp) => Drafter::Mtp,
+            Some(AutoForce::Dflash) => Drafter::Dflash,
+            Some(AutoForce::Alternate(k)) => {
+                if (n / k) % 2 == 0 {
+                    Drafter::Mtp
+                } else {
+                    Drafter::Dflash
+                }
+            }
+            None => self.pick_scored(),
+        };
+        if self.last.is_some_and(|l| l != d) {
+            self.switches += 1;
+        }
+        self.fresh = self.last != Some(d);
+        self.probe_pass = self.probing && d != self.cur;
+        self.last = Some(d);
+        d
+    }
+
+    fn pick_scored(&mut self) -> Drafter {
+        let seed = self.p.seed_passes;
+        for d in [Drafter::Mtp, Drafter::Dflash] {
+            if self.stats[d.idx()].passes < seed {
+                return d;
+            }
+        }
+        if self.probing {
+            if std::mem::take(&mut self.confirm) {
+                return self.cur.other();
+            }
+            self.probing = false;
+            return self.cur;
+        }
+        let (rc, ro) = (self.stats[self.cur.idx()].rate(), self.stats[self.cur.other().idx()].rate());
+        if let (Some(rc), Some(ro)) = (rc, ro) {
+            if ro > rc * self.p.margin {
+                self.cur = self.cur.other();
+                self.since_probe = 0;
+            }
+        }
+        let (lead, idle) = (self.stats[self.cur.idx()].rate(), self.stats[self.cur.other().idx()].rate());
+        let every = match (lead, idle) {
+            (Some(l), Some(i)) if l > i * self.p.far_ratio => self.p.probe_every * self.p.probe_far,
+            _ => self.p.probe_every,
+        };
+        self.since_probe += 1;
+        if self.since_probe >= every {
+            self.since_probe = 0;
+            self.probing = true;
+            self.probes += 1;
+            return self.cur.other();
+        }
+        self.cur
+    }
+
+    /// The pass picked last yielded `tokens` in `ms` (draft + verify + rollback).
+    pub fn record(&mut self, d: Drafter, tokens: usize, ms: f64) {
+        let a = &mut self.stats[d.idx()];
+        a.passes += 1;
+        // the first samples average evenly, later ones with weight alpha
+        let w = (1.0 / a.passes as f64).max(self.p.alpha);
+        let w = if self.probe_pass { w.max(0.5) } else { w };
+        if self.probe_pass && !self.confirm {
+            // a probe that alone beats the leader's average earns a second probe before the decision
+            let lead = self.stats[d.other().idx()].rate();
+            let ms_est = self.stats[d.idx()].ms.0.unwrap_or(ms);
+            self.confirm = lead.is_some_and(|l| tokens as f64 / ms_est > l * self.p.margin);
+        } else {
+            self.confirm = false;
+        }
+        let a = &mut self.stats[d.idx()];
+        a.tokens.add(tokens as f64, w);
+        if !self.fresh || a.ms.0.is_none() {
+            a.ms.add(ms, w);
+        }
+        self.fresh = false;
+        self.probe_pass = false;
+    }
+
+    /// Tokens per ms of each drafter (mtp, dflash), for the trace.
+    pub fn rates(&self) -> (Option<f64>, Option<f64>) {
+        (self.stats[0].rate(), self.stats[1].rate())
+    }
+}
+
 /// Per-step trace (`INTARSIA_SPEC_TRACE=1`, stderr): drafted / accepted counts and where a run was cut.
 pub fn trace_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
@@ -1108,5 +1345,66 @@ mod tests {
         assert_eq!(e.warmup, d.warmup);
         assert_eq!(d.with_env(Some("1.1,4")), d, "malformed values are ignored");
         assert_eq!(d.with_env(Some("x,4,8,100")), d);
+    }
+
+    /// Run the policy against fixed (tokens, ms) per drafter.
+    fn drive_auto(p: &mut AutoPolicy, mtp: (usize, f64), dfl: (usize, f64), n: usize) -> (u32, u32) {
+        for _ in 0..n {
+            let d = p.pick();
+            let (t, ms) = if d == Drafter::Mtp { mtp } else { dfl };
+            p.record(d, t, ms);
+        }
+        (p.passes_of(Drafter::Mtp), p.passes_of(Drafter::Dflash))
+    }
+
+    #[test]
+    fn auto_policy_follows_tokens_per_ms_and_probes_rarely() {
+        // code-like: dflash 5.3 t / 39.7 ms beats mtp 2.74 t / 25.7 ms
+        let mut p = AutoPolicy::new(AutoParams::default());
+        let (m, d) = drive_auto(&mut p, (3, 25.7), (5, 39.7), 200);
+        assert!(d > 190 - m.min(190) && d >= 180, "dflash leads: mtp {m} dflash {d}");
+        assert!(m >= 2 && m <= 8, "seed + a few probes only: {m}");
+        // prose-like: mtp 2.04 / 25.7 beats dflash 2.5 / 39.7
+        let mut p = AutoPolicy::new(AutoParams::default());
+        let (m, d) = drive_auto(&mut p, (2, 25.7), (2, 39.7), 200);
+        assert!(m >= 180 && d <= 8, "mtp leads: mtp {m} dflash {d}");
+    }
+
+    #[test]
+    fn auto_policy_switches_when_the_content_changes() {
+        let mut p = AutoPolicy::new(AutoParams::default());
+        drive_auto(&mut p, (2, 25.7), (2, 39.7), 100);
+        // the text turns into code: dflash accepts 6 per pass now, found by a probe
+        let (m0, d0) = (p.passes_of(Drafter::Mtp), p.passes_of(Drafter::Dflash));
+        drive_auto(&mut p, (3, 25.7), (6, 39.7), 400);
+        let (m1, d1) = (p.passes_of(Drafter::Mtp) - m0, p.passes_of(Drafter::Dflash) - d0);
+        assert!(d1 > 250, "took over after the change: mtp {m1} dflash {d1}");
+    }
+
+    #[test]
+    fn auto_policy_is_deterministic_and_forced_modes_hold() {
+        let run = || {
+            let mut p = AutoPolicy::new(AutoParams::default());
+            (0..150)
+                .map(|i| {
+                    let d = p.pick();
+                    p.record(d, 2 + (i % 3), if d == Drafter::Mtp { 25.0 } else { 40.0 });
+                    d
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(run(), run());
+        let mut p = AutoPolicy::new(AutoParams::default().with_env(Some("alt:3")));
+        let seq: Vec<_> = (0..12)
+            .map(|_| {
+                let d = p.pick();
+                p.record(d, 2, 30.0);
+                d
+            })
+            .collect();
+        assert_eq!(&seq[..7], &[Drafter::Mtp, Drafter::Mtp, Drafter::Mtp, Drafter::Dflash, Drafter::Dflash, Drafter::Dflash, Drafter::Mtp]);
+        let mut p = AutoPolicy::new(AutoParams::default().with_env(Some("dflash")));
+        assert!((0..9).all(|_| p.pick() == Drafter::Dflash));
+        assert_eq!(SpecConfig::parse("auto", 7).unwrap(), SpecConfig { mode: SpecMode::Auto, k: 7 });
     }
 }

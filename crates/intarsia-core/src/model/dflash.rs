@@ -334,7 +334,7 @@ impl Model {
     pub(super) fn new_dflash_state(&self, cap: usize) -> Result<Option<Box<DflashState>>> {
         let Some(head) = &self.dflash else { return Ok(None) };
         let specs = self.dflash_slot_specs(head);
-        Ok(Some(Box::new(DflashState { kv: SequenceState::new(&*self.backend, &specs, cap)?, active: true, synced: true, pending: 0, store: Vec::new() })))
+        Ok(Some(Box::new(DflashState { kv: SequenceState::new(&*self.backend, &specs, cap)?, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false })))
     }
 
     /// The draft's context cache slots: one attention slot per draft layer, in the draft's own geometry for DFlash2 (activation
@@ -395,10 +395,11 @@ impl Model {
             if d.pending > 0 && d.pending + t > self.dflash_pend_max() {
                 self.dflash_flush(head, &mut d, profile)?;
             }
-            if t == 1 || d.pending > 0 {
-                // single-token decode steps are stashed; any other pass behind pending rows goes in with them
+            if t == 1 || d.pending > 0 || (d.lazy && t <= self.dflash_pend_max()) {
+                // single-token decode steps are stashed (a lazy state stashes every pass); any other pass behind pending rows
+                // goes in with them
                 self.dflash_stash(head, &mut d, t)?;
-                if t != 1 {
+                if t != 1 && !d.lazy {
                     self.dflash_flush(head, &mut d, profile)?;
                 }
                 Ok(())
@@ -742,7 +743,7 @@ impl Model {
         let t = head.block;
         let r = self.dflash_ingest(head, &mut kv, &head.feat, t, false).and_then(|_| {
             let mut st = crate::plan::phantom_state(&[], self.plan.kv_cap_tokens, kv.len);
-            st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new() }));
+            st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false }));
             self.dflash_draft(&mut st, 0, t).map(|_| ())
         });
         self.exact_rows.store(exact, std::sync::atomic::Ordering::Relaxed);

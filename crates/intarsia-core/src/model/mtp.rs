@@ -410,6 +410,77 @@ impl Model {
         r
     }
 
+    /// Rows the MTP queue can still take before a pass would overflow it (`--spec auto`: while the DFlash draft proposes, the
+    /// head only queues).
+    pub fn mtp_queue_room(&self, st: &SequenceState) -> usize {
+        st.mtp.as_ref().map_or(usize::MAX, |m| m.cap_rows.saturating_sub(m.pending_rows))
+    }
+
+    /// Run the head over every queued row whose next token is known (all but the newest), on every rank in lockstep, so the
+    /// queue holds one row again (`--spec auto`, lane asp: before a pass could overflow the queue, which would run the head's
+    /// collectives inside a peer's verify pass). Exact as any catch-up: drafts only propose.
+    pub fn mtp_catch_up(&self, st: &mut SequenceState) -> Result<()> {
+        if self.peers.is_empty() {
+            return self.mtp_catch_up_rank(st);
+        }
+        if st.peers.len() != self.peers.len() {
+            return Err(Error::invalid("this sequence state does not belong to a tensor-parallel model (use Model::new_state)"));
+        }
+        let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
+        let mut peers = std::mem::take(&mut st.peers);
+        let out = std::thread::scope(|sc| {
+            let handles: Vec<_> = self
+                .peers
+                .iter()
+                .zip(peers.iter_mut())
+                .map(|(m, ps)| {
+                    sc.spawn(move || {
+                        let r = m.mtp_catch_up_rank(&mut ps.st);
+                        if r.is_err() {
+                            if let Some(c) = &m.tp.comm {
+                                c.abort();
+                            }
+                        }
+                        r
+                    })
+                })
+                .collect();
+            let r0 = self.mtp_catch_up_rank(st);
+            if r0.is_err() {
+                comm0.abort();
+            }
+            let mut res = r0;
+            for h in handles {
+                let e = match h.join() {
+                    Ok(Ok(())) => continue,
+                    Ok(Err(e)) => e,
+                    Err(_) => Error::backend("a tensor-parallel rank panicked"),
+                };
+                if res.is_ok() {
+                    res = Err(e);
+                }
+            }
+            res
+        });
+        st.peers = peers;
+        out
+    }
+
+    fn mtp_catch_up_rank(&self, st: &mut SequenceState) -> Result<()> {
+        let Some(m) = st.mtp.as_ref() else { return Ok(()) };
+        if !m.active || !m.synced || m.pending_rows < 2 {
+            return Ok(());
+        }
+        let n = m.pending_rows - 1;
+        let r = self.mtp_run_pending(st, n, None, false);
+        if r.is_err() {
+            if let Some(m) = st.mtp.as_mut() {
+                m.synced = false;
+            }
+        }
+        r.map(|_| ())
+    }
+
     /// Up to `k` greedy drafts after `next` (the token the main model emits at position `st.len`): the head catches up
     /// over the queued rows (the last of which pairs with `next`), its argmax is draft 1; drafts 2.. chain the head on its
     /// own output. Afterwards the head's cache holds the committed positions only (`kv.len == st.len`, empty queue).

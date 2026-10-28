@@ -442,7 +442,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     // `--spec mtp` under tensor parallelism (lane dfh): in-process ranks only. Every rank loads its shard of the head and runs it in
     // lockstep with rank 0, which drafts (from its share of a vocab-parallel head, or a whole copy) and verifies across the group; a
     // rank in another process is not driven through the drafting passes, so that group is refused before any weight is read.
-    if matches!(group, Group::Remote { .. }) && (opts.spec.mode == intarsia_core::spec::SpecMode::Mtp || opts.load.mtp) {
+    if matches!(group, Group::Remote { .. }) && (matches!(opts.spec.mode, intarsia_core::spec::SpecMode::Mtp | intarsia_core::spec::SpecMode::Auto) || opts.load.mtp) {
         return Err(Error::Unsupported(
             "--spec mtp with a tensor-parallel rank in another process: the MTP drafter runs on in-process ranks only (--tp N on one host)"
                 .into(),
@@ -524,12 +524,13 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         }
         // MTP drafting and the prefix store stay at one sequence (needs per-row hidden outputs and k x 63 MB of spec rows per
         // sequence): refuse before the weights are read, not after
-        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp {
-            return Err(Error::Unsupported("--spec mtp with the batching engine (use --max-batch 1)".into()));
+        if matches!(opts.spec.mode, intarsia_core::spec::SpecMode::Mtp | intarsia_core::spec::SpecMode::Auto) {
+            return Err(Error::Unsupported("--spec mtp/auto with the batching engine (use --max-batch 1)".into()));
         }
     }
     // `--spec dflash`: the draft checkpoint, read and checked before the target's weights
-    let dflash = if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
+    let spec_auto = opts.spec.mode == intarsia_core::spec::SpecMode::Auto;
+    let dflash = if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash || spec_auto {
         if max_batch.value > 1 {
             return Err(Error::Unsupported("--spec dflash with the batching engine (use --max-batch 1)".into()));
         }
@@ -546,7 +547,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         Some(dl)
     } else {
         if opts.spec_draft.is_some() || opts.dcoco {
-            return Err(Error::invalid("--spec-draft and --dcoco need --spec dflash"));
+            return Err(Error::invalid("--spec-draft and --dcoco need --spec dflash (or --spec auto)"));
         }
         None
     };
@@ -555,10 +556,11 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backends.first().map_or("cpu", |b| b.name()));
     eprintln!("prefill chunk {}", prefill_chunk.describe());
     let mtp = opts.spec.mode == intarsia_core::spec::SpecMode::Mtp;
+    // `--spec auto` (lane asp) loads the MTP head beside the DFlash draft
     let load_opts = LoadOptions {
         prefill_chunk: prefill_chunk.value,
-        mtp: opts.load.mtp || mtp,
-        mtp_k: if mtp { opts.spec.k } else { opts.load.mtp_k },
+        mtp: opts.load.mtp || mtp || spec_auto,
+        mtp_k: if mtp { opts.spec.k } else if spec_auto { intarsia_core::spec::AUTO_MTP_K } else { opts.load.mtp_k },
         dflash,
         ..opts.load.clone()
     };
@@ -616,7 +618,10 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         // G1: the row-exact verify kernels (bitwise the 1-row decode launches per row) exist on Metal only. `--spec mtp`
         // also runs elsewhere (opt-in, measured): there a verify row's argmax can differ from the 1-row decode's, and the
         // emitted token is the verify row's (docs/results/2026-10-22-mtp-spec-decode.md).
-        if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash || spec_auto {
+            if spec_auto && !model.has_mtp() {
+                return Err(Error::Unsupported("--spec auto without the MTP head (the recipe has no usable [mtp])".into()));
+            }
             if model.tp_world() != 1 && !model.has_dflash() {
                 return Err(Error::Unsupported("--spec dflash under tensor parallelism without the draft on rank 0".into()));
             }
