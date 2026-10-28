@@ -89,6 +89,21 @@ fn nasty(rng: &mut SplitMix64, n: usize) -> Vec<f32> {
         .collect()
 }
 
+/// Keys with scores of order one (`q . k / sqrt(d)` has a standard deviation of about 1.4) so that every key of the prefix carries weight:
+/// with the outliers of `nasty` the softmax is dominated by one key and a row that sees one key too few or too many gives the same bytes.
+fn kgen(rng: &mut SplitMix64, n: usize) -> Vec<f32> {
+    (0..n)
+        .map(|i| {
+            let v = rng.normal_vec(1, 1.0)[0];
+            match i % 17 {
+                0 => v * 4.0,
+                5 => v * 1e-3,
+                _ => v,
+            }
+        })
+        .collect()
+}
+
 #[test]
 fn verify_rows_launch_is_the_per_row_launches() {
     let Some(rig) = Rig::new("verify_attn_rows") else { return };
@@ -97,7 +112,7 @@ fn verify_rows_launch_is_the_per_row_launches() {
     let mut total = 0usize;
     // 27B-like per-rank shapes (12 q / 2 kv heads and 24 / 4, head_dim 256), the 8B (32, 8, 128)
     for (nh, nkv, d) in [(12usize, 2usize, 256usize), (24, 4, 256), (32, 8, 128)] {
-        let kc = rig.bf16(&nasty(&mut rng, nkv * cap * d), &[nkv, cap, d]);
+        let kc = rig.bf16(&kgen(&mut rng, nkv * cap * d), &[nkv, cap, d]);
         let vc = rig.bf16(&nasty(&mut rng, nkv * cap * d), &[nkv, cap, d]);
         let (ka, va) = (rig.be.device_address(&kc.buf).unwrap(), rig.be.device_address(&vc.buf).unwrap());
         // the model's buffer: positions at 0, layer 0's region after them (layer 3's region is used here, to cover the offset)

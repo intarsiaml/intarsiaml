@@ -40,7 +40,7 @@ if [[ ${DRY:-0} == 1 ]]; then
   exit 0
 fi
 FIFO=$(mktemp -u "$REPO/target/vatguard.XXXXXX"); mkfifo "$FIFO"
-$SSH 'mkdir -p ~/intarsiaml-vat/.vat' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE/stages-ids.sh" "$HERE/stages-phase.sh" "$HERE/stages-gates.sh" "$HERE/stages-final.sh" tatooine:intarsiaml-vat/.vat/
+$SSH 'mkdir -p ~/intarsiaml-vat/.vat' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE/stages-ids.sh" "$HERE/stages-phase.sh" "$HERE/stages-gates.sh" "$HERE/stages-final.sh" "$HERE/stages-mut.sh" tatooine:intarsiaml-vat/.vat/
 $SSH 'bash ~/intarsiaml-vat/.vat/guard.sh' > "$OUT/guard.log" 2>&1 < "$FIFO" &
 GUARD=$!
 exec 9> "$FIFO"
