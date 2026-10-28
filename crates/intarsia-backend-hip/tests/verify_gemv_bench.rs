@@ -30,7 +30,8 @@ fn calls(b: &dyn Backend, hc: &HostCall, copies: usize, kernel: &str) -> Vec<OpC
         let outputs: Vec<TensorRef> = hc.outputs.iter().map(|o| put(b, &intarsia_core::HostTensor::zeros(o.dtype, &o.shape))).collect();
         let mut call = OpCall::new(hc.op, inputs, outputs, hc.attrs.clone());
         call.check().unwrap();
-        let k = b.kernels().iter().find(|k| k.name == kernel && k.op == hc.op).unwrap();
+        let kernels = b.kernels();
+        let k = kernels.iter().find(|k| k.name == kernel && k.op == hc.op).unwrap();
         let need = k.scratch_bytes(&ShapeInfo::from_call(&call));
         if need > 0 {
             let buf = b.alloc(need.max(16), MemKind::Device).unwrap();
