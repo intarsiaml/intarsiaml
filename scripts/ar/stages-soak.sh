@@ -10,6 +10,7 @@
 #          stress, tag-check negative control) run in each pass
 #   rate : `all_reduce_rate` (us per call by size) under modes 1, 3, 7 and 7 with LL up to 2 MiB
 #   plan : `plan show` of the 27B and 35B at tp=2 (all-reduce calls and bytes per decode step, fused with the rmsnorm)
+#   diag : decode tok/s by mode on plain generations (see the stage); graphrate: ar_graph_rate under modes 1, 3, 7
 #   kt7  : kernels test --quick with the B binary (ars-intarsia-b) under INTARSIA_HIP_AR_DRAIN=7
 #   soak7: like soak, with the B binary and, with INTARSIA_HIP_AR_DRAIN=7
 #   ids18: the det lane's 18 prompts (short/4k/16k x 0-5), plain decode (--spec off) at tp=2, 256 greedy tokens: REFN (3) fresh runs with
@@ -58,6 +59,17 @@ for st in ${STAGES:-kt ref soak ids}; do
               --mem-budget 29 --max-seq 8192 > "$O/plan-${mm%%:*}.txt" 2> "$O/plan-${mm%%:*}.err" < /dev/null
             log "plan ${mm%%:*}: exit $? $(grep -a -E 'all-reduce|fused' "$O/plan-${mm%%:*}.txt" | tr '\n' '|' | cut -c1-260)"
           done ;;
+    diag) # decode tok/s of plain 256-token generations at tp=2 by mode, 3 interleaved rounds: d7 with LL off (INTARSIA_HIP_AR_LL_MAX=0 = the fence path) and
+          # mode 8 (LL without the tag check, wrong tokens but the same kernels) tell whether the LL kernels run in the 27B's decode and what they cost
+          for rd in 1 2 3; do for v in "1:" "3:" "7:" "7:0" "8:"; do d=${v%%:*}; m=${v#*:}; tag="diag-d$d${m:+-ll$m}-r$rd"
+            BIN=ars-intarsia-b E="INTARSIA_HIP_AR_DRAIN=$d ${m:+INTARSIA_HIP_AR_LL_MAX=$m}" g "$tag" 256 --spec off --tp 2 --devices 0,1
+            log "$tag: $(grep -aoE 'decode [0-9]+ ms \([0-9.]+ tok/s\)' "$O/$tag.err" | tail -1) $(grep -aoE 'all_reduce=[0-9]+ms/[0-9]+' "$O/$tag.err" | tail -1)"
+          done; done ;;
+    graphrate) for v in "1:" "3:" "7:"; do d=${v%%:*}
+             INTARSIA_TARGET_VOL=intarsia-cargo-ars INTARSIA_REPO=$TREE/.ars/btree HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_DRAIN=$d timeout 900 \
+               "$DEV" cargo test --release -p intarsia-backend-hip --test comm graph_rate -- --ignored --nocapture --test-threads=1 > "$O/graphrate-d$d.log" 2>&1 < /dev/null
+             log "graphrate drain=$d: exit $?"
+           done ;;
     kt7) BIN=ars-intarsia-b INTARSIA_REPO=$TREE HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_DRAIN=7 timeout 1500 "$DEV" "/work/ars-intarsia-b" kernels test --backend hip --quick > "$O/kernels-test-d7.log" 2>&1 < /dev/null
         log "kernels test --backend hip --quick (B binary, drain 7): exit $? $(tail -3 "$O/kernels-test-d7.log" | tr '\n' '|' | cut -c1-300)" ;;
     kt) INTARSIA_REPO=$TREE HIP_VISIBLE_DEVICES=0,1 timeout 1500 "$DEV" "/work/$BIN" kernels test --backend hip --quick > "$O/kernels-test.log" 2>&1 < /dev/null

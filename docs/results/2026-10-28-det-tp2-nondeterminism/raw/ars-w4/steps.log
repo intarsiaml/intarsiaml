@@ -1,2 +1,27 @@
 18:06:47 guard: [guard] radiance stopped 2026-10-28 18:06:46
 18:06:48 prestages: plan tests rate kt7 soak7 ids18
+18:23:12 prestages done, time left 5611s
+18:23:12 speed27 round 1 arm d1: starting server
+18:24:27 speed27 round 1 arm d1: localeval exit 0 results/20261028-182344-ar-ars-w4-speed27-d1-r1/result.json
+18:24:28 speed27 round 1 arm d3: starting server
+18:25:41 speed27 round 1 arm d3: localeval exit 0 results/20261028-182459-ar-ars-w4-speed27-d3-r1/result.json
+18:25:41 speed27 round 1 arm d7: starting server
+18:26:54 speed27 round 1 arm d7: localeval exit 0 results/20261028-182612-ar-ars-w4-speed27-d7-r1/result.json
+18:26:55 speed27 round 2 arm d7: starting server
+18:28:08 speed27 round 2 arm d7: localeval exit 0 results/20261028-182726-ar-ars-w4-speed27-d7-r2/result.json
+18:28:08 speed27 round 2 arm d3: starting server
+18:29:21 speed27 round 2 arm d3: localeval exit 0 results/20261028-182839-ar-ars-w4-speed27-d3-r2/result.json
+18:29:22 speed27 round 2 arm d1: starting server
+18:30:35 speed27 round 2 arm d1: localeval exit 0 results/20261028-182953-ar-ars-w4-speed27-d1-r2/result.json
+18:30:36 speed27 round 3 arm d3: starting server
+18:31:49 speed27 round 3 arm d3: localeval exit 0 results/20261028-183107-ar-ars-w4-speed27-d3-r3/result.json
+18:31:49 speed27 round 3 arm d7: starting server
+18:33:03 speed27 round 3 arm d7: localeval exit 0 results/20261028-183221-ar-ars-w4-speed27-d7-r3/result.json
+18:33:04 speed27 round 3 arm d1: starting server
+18:34:18 speed27 round 3 arm d1: localeval exit 0 results/20261028-183335-ar-ars-w4-speed27-d1-r3/result.json
+18:34:18 speed27 round 4 arm d1: starting server
+18:35:32 speed27 round 4 arm d1: localeval exit 0 results/20261028-183450-ar-ars-w4-speed27-d1-r4/result.json
+18:35:32 speed27 round 4 arm d7: starting server
+18:36:46 speed27 round 4 arm d7: localeval exit 0 results/20261028-183604-ar-ars-w4-speed27-d7-r4/result.json
+18:36:47 speed27 round 4 arm d3: starting server
+18:38:00 speed27 round 4 arm d3: localeval exit 0 results/20261028-183719-ar-ars-w4-speed27-d3-r4/result.json
