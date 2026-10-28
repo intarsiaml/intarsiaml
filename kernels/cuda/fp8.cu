@@ -512,14 +512,14 @@ int rows_run_q_shape(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
     return rows_run_q<M, 2, 8, 2>(x, w, sc, out, N, K, s);
 }
 
-// INTARSIA_CUDA_FP8_ROWS_Q: unset = the e4m3-staged kernel where the bf16 activations do not fit the persistent kernel
-// (M * K * 2 > 96 KB, i.e. K = 4096 at M >= 13), for every call at M >= 12, and for N <= 1024 at M >= 4 (shape 1x16), `0` = never (the switch that turns it off), `all` = wherever M >= 2 and
-// M * K bytes fit
+// INTARSIA_CUDA_FP8_ROWS_Q (opt-in): `1` = the e4m3-staged kernel where the bf16 activations do not fit the persistent kernel
+// (M * K * 2 > 96 KB, i.e. K = 4096 at M >= 13), for every call at M >= 12, and for N <= 1024 at M >= 4 (shape 1x16), unset / `0` = never (the kernels of before), `all` = wherever
+// M >= 2 and M * K bytes fit
 inline int rows_q_mode() {
     const char* e = getenv("INTARSIA_CUDA_FP8_ROWS_Q");
-    if (e && e[0] == '0' && e[1] == 0) return 0;
     if (e && !strcmp(e, "all")) return 2;
-    return 1;
+    if (e && e[0] == '1' && e[1] == 0) return 1;
+    return 0;  // opt-in: the lane's serve A/B missed its merge gates (docs/results/2026-10-28-msd2-dense-gemv.md)
 }
 
 // Which kernel runs an M-row call over N outputs and K inputs. INTARSIA_CUDA_FP8_ROWS = 0 is the original kernel (the switch that

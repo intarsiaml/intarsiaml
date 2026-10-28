@@ -361,8 +361,8 @@ fn fp8_rows_are_bitwise_the_one_row_gemv() {
     rig.report("fp8");
 }
 
-/// The e4m3-staged persistent fp8 rows kernel (INTARSIA_CUDA_FP8_ROWS_Q = all, every INTARSIA_CUDA_FP8_ROWS_QSHAPE; unset = the
-/// launcher's own use of it, K = 4096 at M >= 13): the one-row kernel's bits for W8A8 (codes staged) and W8A16 (bf16 row groups).
+/// The e4m3-staged persistent fp8 rows kernel (INTARSIA_CUDA_FP8_ROWS_Q = all, every INTARSIA_CUDA_FP8_ROWS_QSHAPE; `1` = the
+/// launcher's own policy; unset = off): the one-row kernel's bits for W8A8 (codes staged) and W8A16 (bf16 row groups).
 #[test]
 fn fp8_rows_q_are_bitwise_the_one_row_gemv() {
     let Some(rig) = Rig::new("fp8_rows_q_are_bitwise_the_one_row_gemv") else { return };
@@ -370,7 +370,7 @@ fn fp8_rows_q_are_bitwise_the_one_row_gemv() {
     // the 35B's projections (GDN out / o_proj 2048x4096 is the launcher's own case), edges: n not a multiple of any tile, K = 16,
     // a ragged lane tail, M * K at exactly the 96 KB the kernel may stage (6144 at M = 16), one output
     let shapes = [(2048usize, 4096usize), (8192, 2048), (512, 2048), (300, 2048), (9, 16), (33, 2064), (64, 6144), (8, 1040), (1, 4096)];
-    let forms: [(&str, &str); 7] = [("", ""), ("all", ""), ("all", "1x16"), ("all", "2x16"), ("all", "1x8"), ("all", "1x8x3"), ("all", "4x8")];
+    let forms: [(&str, &str); 8] = [("", ""), ("1", ""), ("all", ""), ("all", "1x16"), ("all", "2x16"), ("all", "1x8"), ("all", "1x8x3"), ("all", "4x8")];
     for (q, shape) in forms {
         for (var, val) in [("INTARSIA_CUDA_FP8_ROWS_Q", q), ("INTARSIA_CUDA_FP8_ROWS_QSHAPE", shape)] {
             if val.is_empty() {
@@ -404,19 +404,14 @@ fn fp8_rows_q_are_bitwise_the_one_row_gemv() {
 }
 
 /// The row-group split of the bf16 and nvfp4 row-exact launchers (INTARSIA_CUDA_BF16_ROWS_SPLIT / INTARSIA_CUDA_NVFP4_ROWS_SPLIT
-/// forced to every R, and unset: the launchers' own pick): the one-row kernel's bits, ragged last groups included.
+/// forced to every R, and `auto`: the launchers' own pick): the one-row kernel's bits, ragged last groups included.
 #[test]
 fn rows_split_are_bitwise_the_one_row_gemv() {
     let Some(rig) = Rig::new("rows_split_are_bitwise_the_one_row_gemv") else { return };
     let mut rng = SplitMix64::new(812);
     for r in ["1", "2", "4", "8", "auto"] {
-        if r == "auto" {
-            std::env::remove_var("INTARSIA_CUDA_BF16_ROWS_SPLIT");
-            std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_SPLIT");
-        } else {
-            std::env::set_var("INTARSIA_CUDA_BF16_ROWS_SPLIT", r);
-            std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", r);
-        }
+        std::env::set_var("INTARSIA_CUDA_BF16_ROWS_SPLIT", r);
+        std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", r);
         // bf16: the 35B router, GDN b / a, shared-expert gate; edges (K = 8, odd n, a K not a multiple of 256, the scalar path)
         for (n, k) in [(256usize, 2048usize), (32, 2048), (1, 2048), (130, 2056), (5, 8), (33, 7), (64, 4100)] {
             for wide in [false, true] {
@@ -443,7 +438,7 @@ fn rows_split_are_bitwise_the_one_row_gemv() {
     rig.report("split");
 }
 
-/// The persistent x-staged nvfp4 rows kernel (INTARSIA_CUDA_NVFP4_ROWS_FULL forced to each shape, and unset: the launcher's own
+/// The persistent x-staged nvfp4 rows kernel (INTARSIA_CUDA_NVFP4_ROWS_FULL forced to each shape, and `auto`: the launcher's own
 /// use of it, N >= 16384 at M >= 5): the one-row kernel's bits, the lm_head included.
 #[test]
 fn nvfp4_rows_full_are_bitwise_the_one_row_gemv() {
@@ -451,11 +446,7 @@ fn nvfp4_rows_full_are_bitwise_the_one_row_gemv() {
     let mut rng = SplitMix64::new(813);
     let shapes = [(248320usize, 2048usize, DType::F32), (20000, 64, DType::F32), (512, 2048, DType::Bf16), (300, 4112, DType::Bf16), (9, 16, DType::F32), (1030, 160, DType::Bf16), (1, 16, DType::Bf16)];
     for f in ["auto", "2x16", "1x16", "2x8", "4x8"] {
-        if f == "auto" {
-            std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_FULL");
-        } else {
-            std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS_FULL", f);
-        }
+        std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS_FULL", f);
         for (n, k, model_out) in shapes {
             for wide in [false, true] {
                 let parts = if wide { wide_nvfp4(&mut rng, n, k) } else { nvfp4::random_rows(&mut rng, n, k).parts };
@@ -982,7 +973,7 @@ fn timing_rows_evict() {
     if only.is_empty() || only.contains("fp8") {
         let forms: [(&str, &str, &str, &str); 10] = [
             ("base", "", "0", ""),
-            ("auto", "", "", ""),
+            ("auto", "", "1", ""),
             ("full1x16", "1x16", "0", ""),
             ("full4x8", "4x8", "0", ""),
             ("q2x8", "", "all", ""),
@@ -1031,7 +1022,7 @@ fn timing_rows_evict() {
                     .map(|w| OpCall::new(Op::Matmul, vec![x.rows(0, m), w.clone()], vec![rig.put(&HostTensor::zeros(DType::Bf16, &[m, n]))], a.clone()))
                     .collect();
                 for r in ["0", "auto", "1", "2", "4", "8"] {
-                    set(&[("INTARSIA_CUDA_BF16_ROWS_SPLIT", if r == "auto" { "" } else { r })]);
+                    set(&[("INTARSIA_CUDA_BF16_ROWS_SPLIT", r)]);
                     let us = time_pool("matmul_bf16_gemv_rows", Op::Matmul, &calls);
                     println!("EVT bf16 {n}x{k} split={r:<4} M={m:<2} {us:8.2} us {:7.1} GB/s", (n * k * 2) as f64 / us / 1e3);
                 }
@@ -1059,9 +1050,9 @@ fn timing_rows_evict() {
                 for r in splits {
                     match *r {
                         "0" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "0"), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "0")]),
-                        "auto" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", ""), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "")]),
-                        f if f.starts_with('f') => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", ""), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", &f[1..])]),
-                        r => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", r), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "")]),
+                        "auto" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "auto"), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "auto")]),
+                        f if f.starts_with('f') => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "auto"), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", &f[1..])]),
+                        r => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", r), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "auto")]),
                     }
                     let us = time_pool("matmul_nvfp4_gemv_rows", Op::MatmulNvfp4, &calls);
                     println!("EVT nvfp4 {n}x{k} split={r:<4} M={m:<2} {us:8.2} us {:7.1} GB/s", bytes as f64 / us / 1e3);

@@ -5,6 +5,7 @@
 //                 each weight row exactly once with 16-byte loads.
 // logits is the same math with an f32 output tensor.
 #include <cstdlib>
+#include <cstring>
 
 #include "ik_launch.h"
 #include "ik_internal.h"
@@ -196,14 +197,15 @@ gemv_split_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, 
     }
 }
 
-// Rows per group of the split: INTARSIA_CUDA_BF16_ROWS_SPLIT = 0 never splits (the switch that turns it off), 1 | 2 | 4 | 8 forces
-// R; unset: the largest R that leaves a grid of kSplitMinBlocks blocks (no split when the plain grid already has them).
+// Rows per group of the split (opt-in: the lane's serve A/B missed its merge gates): INTARSIA_CUDA_BF16_ROWS_SPLIT unset / 0 never
+// splits, 1 | 2 | 4 | 8 forces R, `auto` the largest R that leaves a grid of kSplitMinBlocks blocks (no split when the plain grid
+// already has them).
 constexpr int64_t kSplitMinBlocks = 96;
 inline int split_rows(int64_t M, int64_t gx) {
     const char* e = getenv("INTARSIA_CUDA_BF16_ROWS_SPLIT");
-    if (e && e[0] == '0' && e[1] == 0) return (int)M;
+    if (!e || (e[0] == '0' && e[1] == 0)) return (int)M;
     if (e && (e[0] == '1' || e[0] == '2' || e[0] == '4' || e[0] == '8') && e[1] == 0) return e[0] - '0' < M ? e[0] - '0' : (int)M;
-    if (gx >= kSplitMinBlocks) return (int)M;
+    if (strcmp(e, "auto") || gx >= kSplitMinBlocks) return (int)M;
     for (int r = 8; r > 1; r /= 2)
         if (r < M && gx * ((M + r - 1) / r) >= kSplitMinBlocks) return r;
     return 1;
