@@ -27,6 +27,8 @@ restore() {
   done
   echo "[window] RADIANCE DID NOT ANSWER within 240 s $(now)"; return 1
 }
+# no binary from the build that ran before this window (it failed or has not run): no downtime
+[[ -x $T/det-intarsia && $T/det-intarsia -nt $T/Cargo.toml ]] || { echo "[window] NO FRESH $T/det-intarsia: radiance left up"; exit 3; }
 trap restore EXIT
 echo "[window] job $FLEETQ_JOB $W; stopping radiance $(now)"
 systemctl --user stop radiance < /dev/null
