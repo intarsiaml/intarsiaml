@@ -181,23 +181,25 @@ pub fn p2p_group_mode(backends: &[Arc<HipBackend>], drain: Option<i32>, ll_max: 
         rt("hipDeviceEnablePeerAccess", unsafe { ffi::ik_rt_enable_peer_access(a.ordinal(), b.ordinal()) })?;
     }
     // INTARSIA_HIP_AR_DRAIN: how a rank makes its pushed data visible before it raises the flag: 1 = a system fence in
-    // every thread (default: removes the rare stale peer read, 0/250 tapped fresh processes; costs ~2% decode on the 27B at
-    // tp=2, see docs/results/2026-10-28-det-tp2-nondeterminism.md section 5), 3 = wait for the stores to complete
+    // every thread (removes the rare stale peer read, 0/250 tapped fresh processes; costs ~2% decode on the 27B at
+    // tp=2, see docs/results/2026-10-28-det-tp2-nondeterminism.md section 5; the fallback), 7 = (default) tagged-line (LL)
+    // handshake for small messages: the reader validates the data itself, no flag, no fence (docs/results/2026-10-28-ars-ll-handshake.md),
+    // 3 = wait for the stores to complete
     // (radiance's cheaper mode, the scratch is uncached memory: ~1.5% of fresh tp=2 processes add a stale peer row, a data
     // race, so the sums are wrong)
     let drain = match drain {
         Some(d) => d,
         None => match std::env::var("INTARSIA_HIP_AR_DRAIN").ok().as_deref() {
-            None | Some("") | Some("1") => 1,
+            None | Some("") | Some("7") => 7,
+            Some("1") => 1,
             Some("3") => 3,
             // diagnostics (w26): 4 = mode 3 and the flag re-sent while waiting, 5 = mode 3 and ~25 us before the data is read
             Some("4") => 4,
             Some("5") => 5,
             // lane det: 6 = mode 3, then every thread reads back the last word it pushed before the flag goes out
             Some("6") => 6,
-            // lane ars: 7 = tagged-line (LL) handshake for small messages, mode 1 above INTARSIA_HIP_AR_LL_MAX; 8 = 7 without the tag
-            // check (a negative control for the tests, wrong sums)
-            Some("7") => 7,
+            // lane ars: 7 = tagged-line (LL) handshake for small messages, mode 1 above INTARSIA_HIP_AR_LL_MAX and for the fused
+            // f32 hidden >= 4096 all-reduce+norm; 8 = 7 without the tag check (a negative control for the tests, wrong sums)
             Some("8") => 8,
             Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_DRAIN={v} (1, 3, 4, 5, 6, 7 or 8)"))),
         },
