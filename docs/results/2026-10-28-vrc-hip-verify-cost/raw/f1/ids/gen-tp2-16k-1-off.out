@@ -1,0 +1,15 @@
+This document is a **technical status report and engineering log** for a specific feature branch (`lane-dc/dflash-dcoco`) in a machine learning inference engine called **Intarsia** (or TensorFold).
+
+The goal of this branch was to implement **DFlash** (a speculative decoding method) and **DCOCO** (a correction algorithm to improve DFlash) for the **Qwen3-8B** model.
+
+Here is a detailed breakdown for a new engineer, structured by context, technical implementation, results, and final decisions.
+
+---
+
+### 1. Executive Summary & Status
+
+*   **Goal:** Add `--spec dflash` and `--dcoco` flags to the inference engine to speed up text generation using speculative decoding.
+*   **Status:**
+    *   **DFlash:** Successfully implemented and verified. It provides a **~1.4x to 1.9x speedup** on specific workloads (math/code) but can slightly regress performance on prose.
+    *   **DCOCO:** Implemented, but **failed the performance gate**. It did not provide the expected speedup over plain DFlash in our specific test environment.
+    *   **Final Decision:** Both features remain

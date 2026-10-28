@@ -1,0 +1,35 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1209:4
+     |
+1209 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/fusion_p2.rs (/target/release/deps/fusion_p2-80233f8ca1ddb00a)
+
+running 2 tests
+test gate_split_and_gdn_conv_folds_are_bitwise_the_unfused_chain ... ok
+test gate_split_fold_composes_with_the_phase1_attention_folds ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+

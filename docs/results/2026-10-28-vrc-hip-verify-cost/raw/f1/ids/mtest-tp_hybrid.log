@@ -1,0 +1,41 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1209:4
+     |
+1209 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/tp_hybrid.rs (/target/release/deps/tp_hybrid-3c06f2c3e265cef3)
+
+running 8 tests
+test hybrid_moe_tp2_arnorm_next_to_the_folds_is_bitwise_and_only_takes_the_standalone_norms ... ok
+test hybrid_moe_tp1_unchanged_by_shard_path ... ok
+test hybrid_moe_tp2_matches_tp1_f32 ... ok
+test hybrid_moe_tp2_rank_shapes_and_bytes ... ok
+test hybrid_moe_tp2_snapshot_rollback_is_exact ... ok
+test hybrid_moe_tp2_catches_a_one_percent_partial_scale_bug ... ok
+test hybrid_moe_tp2_remote_rank_is_bitwise_the_in_process_group ... ok
+test hybrid_moe_tp2_row_local_fusion_matches_tp1_f32 ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+

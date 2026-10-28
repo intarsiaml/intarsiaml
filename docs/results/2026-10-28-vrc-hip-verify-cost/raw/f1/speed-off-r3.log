@@ -1,0 +1,45 @@
+[localeval] calibrated: 22.1 tokens/sentence, 91 base tokens, ctx=8192
+[localeval]   1024 tok rep 1/3: prompt=992 ttft=0.28s prefill=3491 tok/s decode=56.7 tok/s peak=71.1 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=990 ttft=0.28s prefill=3535 tok/s decode=56.8 tok/s peak=69.2 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.29s prefill=3434 tok/s decode=57.1 tok/s peak=65.6 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4082 ttft=1.08s prefill=3789 tok/s decode=56.4 tok/s peak=67.4 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4081 ttft=1.06s prefill=3838 tok/s decode=55.9 tok/s peak=67.2 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4087 ttft=1.07s prefill=3835 tok/s decode=56.0 tok/s peak=68.1 tok/s out=128
+# localeval: vrc-off — 2026-10-28T02:26
+
+- model: `qwen38-27b-off` on ? (?), url `http://tatooine:8095/v1`
+- thinking: default; run kind: speed; label: vrc-f1-off-speed-r3
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed vrc-off --sizes 1024,4096 --gen 128 --reps 3 --label vrc-f1-off-speed-r3 --recipe HIP_VISIBLE_DEVICES=0,1 vrc-intarsia serve --backend hip --model 27B --spec off --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane vrc) --wait-idle 60`
+- result file: `results/20261028-022647-vrc-off-vrc-f1-off-speed-r3/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 vrc-intarsia serve --backend hip --model 27B --spec off --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane vrc)
+````
+
+## Speed sweep
+
+served `qwen38-27b-off`, fingerprint `None`, ctx 8192, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.28 | 3491 (3434–3535) * | - | 56.8 (56.7–57.1) | 69.2 (65.6–71.1) | - | - | 128 |
+| 4082 | 1.07 | 3835 (3789–3838) | 3954 | 56.0 (55.9–56.4) | 67.4 (67.2–68.1) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261028-022647-vrc-off-vrc-f1-off-speed-r3/result.json
+[localeval] logged to unanimis: a64639bd-7762-4c80-ad79-357dc7ebb9cb

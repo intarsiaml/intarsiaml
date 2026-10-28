@@ -1,0 +1,33 @@
+```python
+from functools import lru_cache
+from typing import Optional
+
+
+@lru_cache(maxsize=None)
+def fibonacci(n: int) -> int:
+    """Return the n-th Fibonacci number using memoization.
+
+    Args:
+        n: A non-negative integer representing the position in the Fibonacci sequence.
+
+    Returns:
+        The n-th Fibonacci number.
+    """
+    if n < 0:
+        raise ValueError("n must be a non-negative integer")
+    if n == 0:
+        return 0
+    if n == 1:
+        return 1
+    return fibonacci(n - 1) + fibonacci(n - 2)
+```
+
+**Time Complexity Explanation:**
+
+The time complexity of this function is **O(n)**.
+
+Here's why:
+
+1. **Without memoization**, the naive recursive approach has a time complexity of **O(2^n)** because it recomputes the same subproblems exponentially many times.
+
+2. **With memoization** (via `@lru_cache`), each unique value of `n` is computed only once. The function is called for each distinct value from `0` to `n`, and each call does O(
