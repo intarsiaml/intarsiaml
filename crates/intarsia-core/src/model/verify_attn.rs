@@ -31,7 +31,7 @@ pub(super) struct VerifyAttnTab {
 }
 
 /// Planted faults for the byte-equality test (`INTARSIA_HIP_VAT_MUT`): 1 = every row reads `pos0` (no `+ r`); 2 = the last row's
-/// position is one too small; 3 = the region's rows past the first hold a zero V address; 4 = the position vector is not rewritten
+/// position is one too small; 3 = the region's rows past the first hold the K address as their V address; 4 = the position vector is not rewritten
 /// when only `t` changes. Unset (every real run): none.
 fn mutant() -> u32 {
     std::env::var("INTARSIA_HIP_VAT_MUT").ok().and_then(|v| v.parse().ok()).unwrap_or(0)
@@ -58,7 +58,7 @@ pub fn verify_rows_tab_bytes(k: u64, v: u64, t: usize) -> Vec<u8> {
     let mut out = Vec::with_capacity(t * 16);
     for r in 0..t {
         out.extend_from_slice(&k.to_le_bytes());
-        out.extend_from_slice(&(if m == 3 && r > 0 { 0 } else { v }).to_le_bytes());
+        out.extend_from_slice(&(if m == 3 && r > 0 { k } else { v }).to_le_bytes());
     }
     out
 }
