@@ -648,11 +648,13 @@ pub struct AutoParams {
     pub force: Option<AutoForce>,
     /// One stderr line per request: passes per drafter, switches, probes (`INTARSIA_SPEC_AUTO=...,log`).
     pub log: bool,
+    /// One stderr line per pass: drafter, emitted tokens, ms, first-after-switch (`INTARSIA_SPEC_AUTO=...,pass`; lane asa replay).
+    pub log_pass: bool,
 }
 
 impl Default for AutoParams {
     fn default() -> Self {
-        AutoParams { seed_passes: 2, alpha: 0.2, margin: 1.03, probe_every: 48, far_ratio: 1.3, probe_far: 2, force: None, log: false }
+        AutoParams { seed_passes: 2, alpha: 0.2, margin: 1.03, probe_every: 48, far_ratio: 1.3, probe_far: 2, force: None, log: false, log_pass: false }
     }
 }
 
@@ -664,11 +666,12 @@ impl AutoParams {
             match x {
                 "" | "0" | "off" => {}
                 "log" => self.log = true,
+                "pass" => self.log_pass = true,
                 "mtp" => self.force = Some(AutoForce::Mtp),
                 "dflash" => self.force = Some(AutoForce::Dflash),
                 x => match x.strip_prefix("alt:").and_then(|n| n.parse::<u32>().ok()).filter(|&n| n > 0) {
                     Some(n) => self.force = Some(AutoForce::Alternate(n)),
-                    None => eprintln!("spec auto: ignoring INTARSIA_SPEC_AUTO part {x:?} (want mtp, dflash, alt:N or log)"),
+                    None => eprintln!("spec auto: ignoring INTARSIA_SPEC_AUTO part {x:?} (want mtp, dflash, alt:N, log or pass)"),
                 },
             }
         }
@@ -813,6 +816,9 @@ impl AutoPolicy {
 
     /// The pass picked last yielded `tokens` in `ms` (draft + verify + rollback).
     pub fn record(&mut self, d: Drafter, tokens: usize, ms: f64) {
+        if self.p.log_pass {
+            eprintln!("spec pass {} {tokens} {ms:.3} {}", if d == Drafter::Mtp { 'M' } else { 'D' }, u8::from(self.fresh));
+        }
         let a = &mut self.stats[d.idx()];
         a.passes += 1;
         // the first samples average evenly, later ones with weight alpha
