@@ -1,0 +1,26 @@
+[window] job 6397 ids; stopping radiance 2026-10-27 22:20:43
+[window] radiance stopped 2026-10-27 22:20:45
+22:20:45 ids start (arms dfl, tp2), VRAM in use 57 MiB
+22:20:53 gen-tp2-short-0-off exit 0: finish=length prompt=41 (cached 0) completion=256 | prefill 80 ms (514.8 tok/s) | decode 4485 ms (56.85 tok/s)|
+22:21:00 gen-tp2-short-0-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 253 pos 292 drafted 3 accepted 2 emits 3|spec: mtp draft 13.884 ms, verify + rollback 23.888 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 82 ms (502.2 tok/s) | decode 2949 ms (86.48 tok/s)|spec: verify passes=67 proposed=464 accepted=185 (acceptance 39.9%, 3.76 tokens per pass)|
+22:21:00 PASS ids dfl tp2 short-0 (prompt=41)
+22:21:07 gen-tp2-short-3-off exit 0: finish=length prompt=43 (cached 0) completion=256 | prefill 80 ms (536.2 tok/s) | decode 4468 ms (57.07 tok/s)|
+22:21:14 gen-tp2-short-3-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 296 drafted 1 accepted 1 emits 2|spec: mtp draft 14.125 ms, verify + rollback 21.071 ms|finish=length prompt=43 (cached 0) completion=256 | prefill 83 ms (520.8 tok/s) | decode 3233 ms (78.86 tok/s)|spec: verify passes=75 proposed=516 accepted=180 (acceptance 34.9%, 3.40 tokens per pass)|
+22:21:14 PASS ids dfl tp2 short-3 (prompt=43)
+22:21:23 gen-tp2-4k-1-off exit 0: finish=length prompt=3135 (cached 0) completion=256 | prefill 838 ms (3742.0 tok/s) | decode 4553 ms (56.01 tok/s)|
+22:21:30 gen-tp2-4k-1-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 251 pos 3384 drafted 5 accepted 4 emits 5|spec: mtp draft 17.214 ms, verify + rollback 28.651 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 857 ms (3656.6 tok/s) | decode 3433 ms (74.28 tok/s)|spec: verify passes=70 proposed=488 accepted=184 (acceptance 37.7%, 3.63 tokens per pass)|
+22:21:30 PASS ids dfl tp2 4k-1 (prompt=3135)
+22:21:39 gen-tp2-4k-4-off exit 0: finish=length prompt=2940 (cached 0) completion=256 | prefill 783 ms (3756.7 tok/s) | decode 4539 ms (56.18 tok/s)|
+22:21:48 gen-tp2-4k-4-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 3192 drafted 2 accepted 2 emits 3|spec: mtp draft 17.163 ms, verify + rollback 23.290 ms|finish=length prompt=2940 (cached 0) completion=256 | prefill 797 ms (3687.0 tok/s) | decode 4571 ms (55.78 tok/s)|spec: verify passes=95 proposed=659 accepted=160 (acceptance 24.3%, 2.68 tokens per pass)|
+22:21:48 PASS ids dfl tp2 4k-4 (prompt=2940)
+22:21:58 gen-tp2-16k-0-off exit 0: finish=length prompt=10413 (cached 0) completion=256 | prefill 2802 ms (3716.1 tok/s) | decode 4683 ms (54.46 tok/s)|
+22:22:09 gen-tp2-16k-0-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 10666 drafted 1 accepted 1 emits 2|spec: mtp draft 16.559 ms, verify + rollback 22.667 ms|finish=length prompt=10413 (cached 0) completion=256 | prefill 2865 ms (3635.0 tok/s) | decode 4039 ms (63.13 tok/s)|spec: verify passes=78 proposed=532 accepted=177 (acceptance 33.3%, 3.27 tokens per pass)|
+22:22:09 PASS ids dfl tp2 16k-0 (prompt=10413)
+22:22:20 gen-tp2-16k-3-off exit 0: finish=length prompt=11957 (cached 0) completion=256 | prefill 3208 ms (3727.5 tok/s) | decode 4691 ms (54.36 tok/s)|
+22:22:30 gen-tp2-16k-3-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 12210 drafted 1 accepted 1 emits 2|spec: mtp draft 17.205 ms, verify + rollback 22.805 ms|finish=length prompt=11957 (cached 0) completion=256 | prefill 3275 ms (3650.9 tok/s) | decode 3546 ms (71.91 tok/s)|spec: verify passes=68 proposed=467 accepted=187 (acceptance 40.0%, 3.75 tokens per pass)|
+22:22:30 PASS ids dfl tp2 16k-3 (prompt=11957)
+22:22:30 ids summary dfl tp2: 6 PASS, 0 FAIL
+22:22:30 ids done
+[window] stages done 2026-10-27 22:22:30 (exit 0)
+[window] starting radiance 2026-10-27 22:22:30
+[window] radiance answers 2026-10-27 22:22:40 (after 15 s)

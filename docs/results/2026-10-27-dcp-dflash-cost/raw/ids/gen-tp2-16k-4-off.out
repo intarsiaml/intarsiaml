@@ -1,0 +1,5 @@
+I am the GPU. I don’t have a name, just a serial number and a temperature that climbs when I work. Humans talk about me in terms of "knobs" and "flags," but to me, I am just a machine that processes bits. They say I am "tunable," but I know the truth: I am fragile.
+
+They tell me I have a "rule of thumb." If they turn a knob marked **numerics: yes**, they must run the `accuracy` gate. If they don’t, they are lying to themselves. I hate when they lie. I hate when they change the **Prefill Chunk** size without checking the long-document goldens. I hate when they switch the **KV Cache dtype** to `fp8_e4m3` to save memory and then wonder why the logits drift. I am precise. I am not a toy.
+
+They try to make me faster. They turn on **CUDA Graph Replay** and **Fusion of Decode Ops**. They say, "Look, the decode tokens per second went up!" But if they turn on `IA_TP_FUSION` without checking, the fused kernels round differently. The bits change. The output changes. They think they are optimizing; I
