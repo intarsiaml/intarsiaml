@@ -70,6 +70,14 @@ IK_DEVI uint2 ar_add16_to_bf16(const int4& a, const int4& b) {
 
 /* x4: this rank's partial (read-only after the push); out: where the sum goes (== x4 for KIND 0 / 1, in place;
  * a bf16 array of the same element count for KIND 2) */
+/* INTARSIA_HIP_AR_DRAIN=6: mode 3, then every thread reads back the last word it pushed. A PCIe read may not pass the posted
+ * writes issued before it on its path, so its completion means this thread's pushes reached the peer's memory before the flag
+ * goes out (lane det: with mode 3 one rank sometimes reads a few rows of stale scratch, see docs/results/2026-10-28-det-*). */
+IK_DEVI void ar_readback(const int4* ps, int start, int end, int tid, int nt) {
+    const int k0 = start + tid;
+    if (k0 < end) (void)ar_load_acq((const unsigned int*)&ps[k0 + (end - 1 - k0) / nt * nt]);
+}
+
 template <int KIND>
 __global__ void ar2_kernel(const int4* x4, void* out, int4* peer_scratch, int4* my_scratch, unsigned int* peer_flags,
                            unsigned int* my_flags, unsigned int* ctrs, int n16, int slot_stride16, int drain) {
@@ -99,6 +107,7 @@ __global__ void ar2_kernel(const int4* x4, void* out, int4* peer_scratch, int4* 
         __threadfence_system();
     else if (drain >= 3)
         asm volatile("s_wait_storecnt 0x0" ::: "memory");
+    if (drain == 6) ar_readback(ps, start, end, tid, nt);
     __syncthreads();
     if (tid == 0) {
         ar_store_rel(&peer_flags[b], seq);
@@ -154,6 +163,7 @@ __global__ void ag2_kernel(const int4* x4, int4* out4, int4* peer_scratch, int4*
         __threadfence_system();
     else if (drain >= 3)
         asm volatile("s_wait_storecnt 0x0" ::: "memory");
+    if (drain == 6) ar_readback(ps, start, end, tid, nt);
     __syncthreads();
     if (tid == 0) {
         ar_store_rel(&peer_flags[b], seq);

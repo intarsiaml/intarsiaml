@@ -166,7 +166,9 @@ pub fn p2p_group(backends: &[Arc<HipBackend>]) -> Result<Vec<Arc<dyn Comm>>> {
         // diagnostics (w26): 4 = mode 3 and the flag re-sent while waiting, 5 = mode 3 and ~25 us before the data is read
         Some("4") => 4,
         Some("5") => 5,
-        Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_DRAIN={v} (1, 3, 4 or 5)"))),
+        // lane det: 6 = mode 3, then every thread reads back the last word it pushed before the flag goes out
+        Some("6") => 6,
+        Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_DRAIN={v} (1, 3, 4, 5 or 6)"))),
     };
     let group = Arc::new(Group {
         bufs: [RankBuf::new(&backends[0])?, RankBuf::new(&backends[1])?],
