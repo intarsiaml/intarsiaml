@@ -12,7 +12,11 @@ first different token 27), and ho-chat `chat-sleep` differ from the off text in 
 In about 1.5% of fresh tp=2 processes (`--spec mtp`; rarer with `--spec off`), one rank ends a layer of the prompt prefill holding a few rows that
 the other rank does not: a one-sided wrong read at or right after a TP all-reduce. The shift is small at the logits (it flips only the prompt's
 near ties, margins 0.01 to 0.3) and never repeats inside one process. tp=1 is clean (0/200). Not the cause: never-written memory, the peer rank's
-graph capture, an order-dependent float reduction. Hypothesis: the P2P all-reduce's flag can reach the peer before the pushed data. W8_W9_VERDICT
+graph capture, an order-dependent float reduction. The P2P all-reduce's flag can reach the peer before the pushed data: with
+the default `INTARSIA_HIP_AR_DRAIN=3` (wait for the store counter) about 1.5% of tapped fresh processes show it (3/200); waiting ~25 us after the
+flag (mode 5, 0/300), a host-staged all-reduce (`--comm host`, 0/200) and a system fence in every thread before the flag (mode 1, 0/250) each
+remove it, modes 1 and 5 with output bitwise equal to the normal run. **Fix candidate: make mode 1 the default** (the code calls it the safe
+baseline, at about twice the all-reduce latency; its decode cost is not measured here, so that is the user's call). Not changed in this branch.
 
 ## Handoff (2026-10-28, lane det)
 
@@ -22,7 +26,10 @@ graph capture, an order-dependent float reduction. Hypothesis: the P2P all-reduc
 `INTARSIA_TP_PEER_SYNC=1`, eager decode, tp=1 on either card; float atomics or split-K on the prefill path (audit, section 3).
 
 **Open.**
-- OPEN_ITEMS
+- Decision: default `INTARSIA_HIP_AR_DRAIN` to 1 (correct in 250/250 tapped runs here) after a `bench speed` A/B of mode 1 against 3 at
+  tp=2 (decode and prefill; the all-reduce is ~128 launches per pass). The all-gather (`ag2_kernel`, vocab-parallel logits) has the same
+  handshake and takes the same mode.
+- Mode 6's both-ranks events (w9): unexplained; a second mechanism is not excluded. Rerun a tapped mode-1 arm of ~500 to bound it.
 - Why `--spec off` is rarer (0 in ~450 here, 1 in vat's 5) and why all three tapped events are at layer 2.
 - The 08:02:40 hard reset of tatooine during w4 (section 3): one event, cause unknown.
 - Knobs from the brief never bisected (the event was found without them): `INTARSIA_TP_PARTIAL`, `INTARSIA_TP_ARNORM`,
@@ -30,7 +37,10 @@ graph capture, an order-dependent float reduction. Hypothesis: the P2P all-reduc
 - vat's server-mode dflash misses (chat-sleep, recall-tls) were not reproduced in 51 localeval-style runs (w3); they are probably the same event
   in the first request of a fresh server, not shown.
 
-**Next step.** NEXT_STEP
+**Next step.** `bench speed --tp 2` A/B of `INTARSIA_HIP_AR_DRAIN=1` against the default on tatooine (one fleetq window, ~20 min), then
+either flip the default in `crates/intarsia-backend-hip/src/comm.rs:163` (and its `docs/tuning.md` row) or, if mode 1 is too slow, design a
+handshake that does not trust the store counter (for example a sequence number in every pushed 16-byte word, read until it matches, as NCCL's
+LL protocol does) and test it with a 300-run tapped arm (`scripts/det/stages-w9.sh` as the model).
 
 **How to rerun.** `scripts/det/window.sh` under fleetq (header of the script), stages in `scripts/det/stages-w*.sh`, one fresh process per run via
 `loop` in `scripts/det/lib.sh`; `TAP=1` writes per-process taps; `python3 tools/det/tapdiff.py <raw dir> <arm>` lists the taps that differ.
@@ -176,8 +186,21 @@ With w7's untapped arms (drain5 0/200, host 0/150 at the id level, against mode 
 the read until long after the flag removes the event without changing a single bit of the normal output, so the late part is the data, not a
 computation after the all-reduce (that would not care about a wait before the read), and a host all-reduce has no event either.
 
+**w9 (11:06-11:31, tapped, `--spec mtp`, 16 tokens, fresh processes): mode 1 fixes it; the new mode 6 does not.**
+
+| arm | processes | taps different | first difference |
+|---|---|---|---|
+| `INTARSIA_HIP_AR_DRAIN=1` (existing: `__threadfence_system()` in every thread before the flag) | 250 | 0; all 250 byte-equal to w7's baseline majority | P(0) ~ 2.4% if it changed nothing |
+| `INTARSIA_HIP_AR_DRAIN=6` (new: mode 3, then each thread reads back its last pushed word) | 250 | 4 | `drain6-8`: rank 1 only, layer 2, row 31 (the w7 pattern); `drain6-13`: both ranks the same, layer 0, rows 0, 2, 4, 19; `drain6-131`: both ranks, layer 0, row 33; `drain6-127`: both ranks, layer 2, rows 14, 16 |
+
+Mode 6 is no fix (4/250 against mode 3's 3/200), and three of its events are a pattern not seen with mode 3: both ranks hold the same wrong rows,
+from layer 0. Same wrong bits on both ranks means the sum itself was wrong, i.e. one rank's partial (or the data both read) was wrong before the
+reduction; a one-sided late read cannot do that. Not explained: the extra PCIe reads may change the timing so that the late data hits the
+other direction or the all-gather, or there is a second mechanism that mode 3 hides. Mode 6 stays an opt-in diagnostic; do not use it.
+
 ## 4. Raw
 
 - `raw/w4/` .. `raw/w9/`: per arm `<arm>.ids` (one line per fresh process), `steps.log`, `window.log`; taps only for the events and one reference
-  (`raw/w4/mtptap20.tap` vs `mtptap18.tap`, `raw/w7/tap-{33,88,118}.tap` vs `tap-1.tap`); the rest stayed on tatooine and is deleted.
+  per arm (`raw/w4/mtptap20.tap` vs `mtptap18.tap`, `raw/w7/tap-{33,88,118}.tap` vs `tap-1.tap`, `raw/w9/drain6-{8,13,127,131}.tap`); the other
+  taps were byte-identical to their arm's reference and are deleted. w1/w2 taps were dropped from the branch (all equal).
 - `raw/w1/` .. `raw/w3/`: per arm `<tag>.err` (ids, margins, stats), `<tag>.tap` (layer hashes), `steps.log`, `window.log`; `raw/downtime.log` (radiance windows).
