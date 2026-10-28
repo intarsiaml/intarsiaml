@@ -1,0 +1,119 @@
+# IntarsiaML scoreboard, 2026-10-28 (origin/main 171fef96a)
+
+Read-only compile from repo records and /opt/code/model-benchmarks (MB). No benchmark run, no fleet box touched.
+Conventions: prefill = prompt tok / TTFT; decode = single stream, greedy, 128-256 forced tokens (localeval `speed`; prompts ~1k/4k/16k; "1k" is ~990 tokens). **old** = source dated before 2026-10-24. "not measured" = no record; nothing is estimated. Ratio = ours / theirs (>1 = we are faster). Rank = our place among distinct engines (best config each) in the same lane, ours included. MTP/DFlash/drafter runs are a spec lane and are never compared with plain decode. MTP numbers on repetitive filler prompts are acceptance-inflated.
+Source keys are in the legend at the end (path + section). Competitor numbers are MB records (run ids in legend), nearly all **old**.
+
+## 1. Our latest numbers
+### 1a. DGX Spark GB10 (CUDA, 1 Spark unless stated)
+| model / quant | config | prefill 1k/4k/16k | decode 1k/4k/16k | TTFT@4k | multi-stream agg | src | changed today |
+|---|---|---|---|---|---|---|---|
+| Qwen3.6-35B-A3B NVFP4 | tp1, MTP on | 5332 / 6943 / 6656 | 105.4 / 104.2 / 85.3 | 0.59 s | 1: 78.0, 4: 159.9, 8: 208.6, 16: 258.1 (#208, 10-27, spark2, localeval burst incl. prefill, 256 gen; spark2 vLLM is capped at 2 seqs, not a ceiling); MTP unused when batched | S1, S9 | #185 (MTP default + macro prefill w/ MTP), #191 (rope_multi), #208 (fp8/nvfp4 rows GEMV: 16 streams 235.2 -> 258.1) |
+| same | tp1, MTP off | 5352 / 7000 / 6678 | 83.1 / 80.5 / 73.3 | 0.58 s | as above | S1 | same |
+| same, 2 Sparks | tp2 NCCL, graphs, no MTP | 5272 / 7132 / 6857 **old** | 91.6 / 90.0 / 85.0 **old** | not measured | not measured | S7 | no |
+| Qwen3-8B BF16 | tp1, no MTP head | 4895 / 4486 / 3671 | 15.1 / 14.7 / 13.2 | 0.91 s | 15 / 15 / 15 at 1/4/16 streams (serial) **old** | S1; S6 | #191 (+5.7/+5.9/+3.1% prefill) |
+| Qwen3.8-27B MXFP4 (W4A16) | tp1, MTP on | 786 / 841 / 838 | 24.7 / 24.9 / 23.7 (16k n=1; derived from the #215 A/B ratios) | 4.9 s (16k 19.8 s) | not measured | S2, S10 | #209 (CUDA MXFP4 W4A16 prefill GEMM: 4k 64 -> 841); #199 (MTP default; 1k decode 13.6 -> 22.7); #215 A/B ratios 1.088 / 1.074 / 1.139 applied to the old 22.7 / 23.2 / 20.8 (2026-10-27-cgv-cuda-mxfp4-gemv.md) |
+| same | tp1, MTP off | 790 / 841 / 65 **old** (1k, 4k: #209 spec-off control; 16k not re-run) | 13.7 / 13.4 (#209 spec-off, 1k / 4k); 12.8 (16k n=1, old) | ~64 s (base) | not measured | S2, S10 | baseline for #199; #209 (spec-off control) |
+| Gemma-4 26B-A4B NVFP4 | tp1, no MTP (no mtp tensors) | 523 / 370 / 212 | 36.90 / 36.25 / 33.26 (pre-#204: 31.62 / 25.10 / 13.66) | not measured | 4 and 8 streams: 21.6 each (serial, max_batch=1, pre-#204) | S3 | #204 (decode +30.6% median, 16k x2.4; G4X recorded the greedy-identical gate as failed, 1 of 7 prompts, MMLU unchanged), #192 (drill) |
+| ThinkingCap-27B NVFP4 / MiniCPM-V-35B-A3B NVFP4A16 | tp1, quick bench, 1k/4k | 742 / 765 / n.m. ; 2411 / 2489 / n.m. | 12.9 / 12.7 / n.m. ; 49.7 / 48.9 / n.m. | not measured | not measured | S8 | no |
+| Qwen3.5-4B, Qwen3.5-2B | CUDA | not measured (4B drilled on Metal only; 2B only as MLX 4-bit on Metal) | | | | | |
+
+### 1b. 2x AMD R9700 (gfx1201, HIP, tatooine)
+| model / quant | config | prefill 1k/4k/16k | decode 1k/4k/16k | TTFT@4k | multi-stream agg | src | changed today |
+|---|---|---|---|---|---|---|---|
+| Qwen3.8-27B MXFP4 W4A8 (default) | TP=2, MTP k2 on | 3533 / 3828 / 3554 | 88.9 / 79.9 / 74.0 | 1.05 s | not measured at W4A8 | H1 | #186 (W4A8), #194 (chunk 2048), #198 (bf16 partials), #206 (a8 GEMM) |
+| same | TP=2, MTP off | 3584 / 3825 / 3582 | 56.9 / 56.1 / 53.0 | not measured | not measured | H1 | #214 MTP-off decode, "with this change" column (2026-10-27-hdc-hip-27b-decode.md); was 54.5 / 53.7 / 50.8 |
+| same, opt-in overlap | TP=2, MTP on, `INTARSIA_TP_OVERLAP=2`, chunk 4096 | 3256 / 3755 / 3545 | 90.1 / 85.5 / 75.4 | not measured | not measured | H4 | #202 (default off, gate +4.5% < +5% bar) |
+| 27B W4A4 (opt-in now) | TP=2, MTP on, chunk 256 (pre-#194) | 2082 / 2126 / n.m. | 86.6 / 84.9 / n.m. | not measured | 4/8/16 streams: 154.4 / 241.8 / 310.2 (no spec, 10-26) | H5; H0 | #186 made W4A8 default |
+| Qwen3.6-35B-A3B NVFP4 | TP=2, spec off (MTP refused under tp for this MoE) | 8654 / 11938 / 11378 | 191.9 / 189.4 / 180.5 | 0.34-0.35 s | 4: 358.5, 16: 530.0 (1k, 512 gen) | H2 | none (#190 device top-k opt-in) |
+| same | TP=1, spec off, macro prefill 8192 | 7214 / 10348 / 9441 | 163.6 / 159.3 / 144.9 | 0.39-0.41 s | 4: 214.9, 16: 259.7 (1k, 128 gen, 10-25) | H3 | none |
+| same | TP=1, MTP k2 opt-in, captured step | not measured | 168.0 / 163.1 / 150.9 | not measured | not measured | H9 | none |
+| Qwen3-8B BF16 | TP=1, spec off | 4570 / 4327 / 3379 **old** | 38.3 / 37.1 / 33.2 **old** | not measured (927 ms generate-prefill at 3997 tok, 10-22 **old**, H7, is not a served TTFT) | served: not measured | H6; H7 | none |
+| Gemma-4, Qwen3.5-4B/2B, LFM2 | HIP | not measured (HIP does not run Gemma-4; drills were Metal) | | | | | |
+
+### 1c. Apple M5 Max (Metal, endor, max-batch 1)
+| model / quant | config | prefill 1k/4k/16k | decode 1k/4k/16k | TTFT@4k | multi-stream agg | src | changed today |
+|---|---|---|---|---|---|---|---|
+| Qwen3.6-35B-A3B NVFP4 | MTP off (default) | 4072 / 4084 / 2868 | 122.5 / 118.5 / 108.8 | 1.00 s | N=1/4/8/16: 123.5 / 216.3 / 267.7 / 266.4 (10-25, not re-run after #193/#196) | M1; M3 | #193 (NAX fp8+MoE prefill), #196 (GDN prefill kernel) |
+| same | MTP on (opt-in), 10-25 build | not measured | 1k 159.3 / 4k 142.9 / 16k not measured (128-tok prompt 187.5) | not measured | MTP refused at batch > 1 | M2 | none |
+| Qwen3-8B BF16 | no MTP | 3997 / 3914 / 2630 | 35.9 / 35.1 / 31.6 | 1.04 s | N=8: 187 (10-15 **old**) | M4; M7 | none |
+| Qwen3.5-4B BF16 | first Metal run | 4835 / 4623 / 2767 | 61.5 / 61.0 / 57.6 | 0.89 s | not measured | M5 | #200 (model now loads) |
+| Qwen3.5-2B MLX-4bit (dequantised to bf16) | onboard `intarsia bench` | 11144 / 10003 / 6530 | 129.3 / 131.9 / 127.5 | 0.411 s | not measured | M6 | #205 (MLX reader) |
+| LFM2.5-1.2B-Instruct bf16 (short-conv) | Metal, `intarsia serve` max-seq 6144, 3 reps | 16327 (1k prompt) / 16579 (4k prompt) / not measured | 195.5 (1k) / 188.8 (4k) / not measured | 0.06 s (1k) / 0.25 s (4k) | not measured | M8 (#210, 10-27) | #210 (new `ShortConv` block; onboard PASS at +22 min quick, +32 min in-depth) |
+| Qwen3.8-27B, Gemma-4 | Metal | not measured (27B ckpt does not load; Gemma refused 10-22 **old**) | | | | M6 | none |
+
+## 2. Best same-quant competitor, ratio, rank (same box and model; MB = model-benchmarks)
+Rule: ratio and rank use only engines on the same quant as ours (BF16 for 8B, NVFP4 for Spark 35B, MXFP4 for 27B). Cross-quant engines are listed in the notes under each platform and never ranked. SGLang's quant is not recorded in MB; it is included and flagged "q?". Our column is the newest record. Rank = place among engines with a record in that cell (ours included).
+| platform / model (ours) | metric | ours | best same-quant competitor (engine, value, run, date) | ratio | rank |
+|---|---|---|---|---|---|
+| Spark 35B NVFP4, plain | prefill 4k | 7000 | vLLM 7951 (R24, 10-15 **old**, build 0.32rc1); vLLM same-window 6429 (S1 §5, 10-27); SGLang q? 6828 (R30); llama.cpp 2409 (R32) | 0.88x; 1.09x vs 10-27 vLLM | 2/4 |
+| same | decode 1k/4k/16k | 83.1 / 80.5 / 73.3 | vLLM 80.7 / 81.4 / 76.6 (R25, R26, R27 **old**); vLLM 10-27 80.5 / 79.2 / 76.5 (S1 §5); SGLang q? 75 / 73.8 / 71.4 (R28, R31); llama.cpp 55.6 / 55.5 / 52 (R32) | vs vLLM-old 1.03 / 0.99 / 0.96x; vs vLLM 10-27 1.03 / 1.02 / 0.96x | 4k: 2/4 (tie with vLLM within noise) |
+| same, spec lane | decode 4k | 104.2 (MTP, filler prompts) | vLLM DFlash2 92.8 (R34 **old**); vLLM MTP 91~ noisy (R42 **old**) | 1.12x | 1/2 |
+| same | multi-stream 4 / 16 | 163.9 / 259.2 (vr16 window, 10-27) | vLLM `--max-num-seqs 16` 174.2 / 340.1 (vr16, same window; the production service at seqs 2 is a queue of two, 114 tok/s); vLLM 161.4 / 295.6 (R22 **old**, seqs16 run, gen 128); SGLang q? 157.5 / 219.9 (R28, R29 **old**) | 4: 0.94x vs vLLM, 1.04x vs SGLang; 16: 0.76x vs vLLM, 1.18x vs SGLang | 4: 2/3; 16: 2/3 |
+| Spark 27B MXFP4 | all | see 1a | same-quant competitor: not measured (only TensorFold MLX-4bit exists) | n/a | n/a |
+| Spark 8B BF16 | decode 1k/4k/16k | 15.1 / 14.7 / 13.2 | llama.cpp BF16 15.5 / 15.0 / 13.4 (R49, R160 **old**); vLLM 13.9 / 13.5 / 12.2 (R53); SGLang q? 13.8 / 13.5 / 12.2 (R57) | 0.97 / 0.98 / 0.99x | 2/4 |
+| same | prefill 4k / 16k | 4486 / 3671 | vLLM 4763 / 3913 (R52 **old**); SGLang q? 4317 / 3851 (R55, R56); llama.cpp 2987 / 2449 (R48, R160) | 0.94x / 0.94x | 4k: 2/4; 16k: 3/4 |
+| same | multi-stream 4 / 16 | 15 / 15 (**old**, serial) | vLLM 52.2 / 156.9 (R51, R50 **old**); SGLang q? 52.1 / 153.6 (R54); llama.cpp 48.1 / 114.3 (R47) | 0.29x / 0.10x | 4/4 |
+| Spark Gemma-4 NVFP4 | all | see 1a | not measured (no Spark competitor record, recall confirms; G4D: "vLLM on the same box not run") | n/a | n/a |
+| R9700 35B NVFP4, TP2 | all | see 1b | same-quant (NVFP4) competitor: not measured. Cross-quant only (all **old**, TP not recorded): vLLM-Radiance-fork MXFP4 prefill 10568 / 8960 (4k/16k, R61), decode 157.3 / 163.1~ / 135.9 (R59, R61), 16 streams 442.4 (R60); hipfire MQ4R 2346 prefill 4k, 142.6 decode 4k (R62, R63); llama.cpp MXFP4 3394, 112.5 (R64, R66) | n/a (for scale only: ours is 1.13x / 1.16x the MXFP4 vLLM-fork at 4k prefill / decode) | not rankable |
+| R9700 27B MXFP4 W4A8, TP2 | prefill 1k/4k/16k | 3533 / 3828 / 3554 | Radiance 1.12.0 5214 / 5994 / 5869 (R3, 10-25); vLLM-fork TP2 4k 5399, 16k 5305 (R123, R126 **old**) | 0.68 / 0.64 / 0.61x | 3/3 |
+| same, spec lane | decode 1k/4k/16k (MTP vs DFlash) | 88.9 / 79.9 / 74.0 | Radiance dflash 212.4 (R3), 4k 179.4 and 16k 142.3 dflash2 (verdicts.json, 10-25; natural-v1); vLLM-fork TP2 4k 149.6 (R128 **old**) | 0.42 / 0.45 / 0.52x | 3/3 |
+| same | TTFT@4k | 1.05 s | Radiance 0.678 s (R3) | 1.55x slower | n/a |
+| same | multi-stream | W4A4-era 4 / 16: 154.4 / 310.2 (no spec) | Radiance 4n / 16n: 426.5 / 682.4 (R3, spec lane; lane-mismatched, not a ratio) | n/a | n/a |
+| same, plain lane | decode | 54.5 / 53.7 / 50.8 (MTP off) | same-quant plain competitor: not measured (Radiance plain not recorded) | n/a | n/a |
+| Metal 35B NVFP4 | all | see 1c | same-quant competitor: not measured (no mlx-lm / mlx-serve / TensorFold 35B record; M35P: llama.cpp "not same weights"). Cross-quant only: llama.cpp Q4_K_M (R147, 10-22 **old**) prefill 2392 / 2261 (4k/16k), decode 91.8 / 96.7 / 89.9, TTFT 1.711 s | n/a (for scale: ours is 1.71x / 1.27x prefill 4k/16k and 1.23x decode 4k) | not rankable |
+| Metal 8B BF16 | prefill 4k / 16k | 3914 / 2630 | mlx-lm 3103 / 2419 (R162, R163 **old**); llama.cpp 2495 / 1633 (R159, R160 **old**) | 1.26x / 1.09x | 1/3 |
+| same | decode 1k/4k/16k | 35.9 / 35.1 / 31.6 | llama.cpp 35.1 / 34.0 / 29.7 (R161, R160 **old**); mlx-lm 34 / 32.7 / 28 (R164, R163 **old**) | 1.02 / 1.03 / 1.06x | 1/3 |
+| Metal 27B; 4B; 2B; Gemma-4; LFM2 | all | 27B, Gemma, LFM2 not measured; 4B, 2B in 1c | 4B/2B: no competitor record for any engine; 27B: TensorFold MLX-4bit only (R148 **old**) and ours is not measured | n/a | n/a |
+Cross-quant notes (never ranked): Spark 35B TensorFold MLX-4bit plain 4k prefill 6948, decode 87.5 (R20 **old**, serial); its MTP/draft rows (R39-R41, up to 173.5) were run with `--concurrency 2` in the record command, so they are not single-stream and are excluded. Spark 27B TensorFold MLX-4bit DFlash2 decode 31.7~ / 39.7 / 37.1~ (R43 **old**, ours is 0.72 / 0.60 / 0.56x), prefill 4k 578 (ours 1.45x since #209: 841 vs 578); a later TF run shows 4k 56.9~ and prefill 1920 (R44, 09-29 **old**, version unrecorded; ours 0.42x / 0.44x). R9700 27B TensorFold MLX-4bit plain TP2 decode 82.3~ / 88.2 / 83 (R103-R105 **old**; ours MTP-off 0.66 / 0.61 / 0.61x), spec TF TP2 4k prefill 3500, decode 144.1 (R132, R134 **old**).
+Recall check (unanimis, 5 queries: vLLM/SGLang 35B runs 10-26/27, Gemma-4 vLLM on Spark, mlx-lm 35B on Metal, Qwen3.5-4B/2B competitors): no competitor record newer than the MB 10-25 data was found, so the "not measured" cells above stand.
+
+Goal check (ARCHITECTURE.md §0 "top 3 per platform"; Phase-2 gate = beat llama.cpp and vLLM single-stream on the same quant; Phase-4 = within 10% of TensorFold on Spark, beat vLLM-Radiance on R9700). Same-quant only, and the competitors are mostly **old**:
+- Spark 35B: plain decode is a tie with vLLM (0.99x vs old best, 1.02x vs same-window 10-27) and ahead of SGLang (1.09x) and llama.cpp (1.45x); prefill 4k is 0.88x of the old vLLM best, 1.09x of 10-27 vLLM; MTP lane 1.12x vLLM; multi-stream (#208): 4 streams 0.99x vLLM (old seqs16 run), 16 streams 0.87x vLLM and 1.17x SGLang. 8B: within 2-3% of llama.cpp decode, 6% behind vLLM prefill, last in multi-stream. 27B: prefill 4k 1.45x TensorFold (cross-quant, 578, #209), decode still 0.60x; same-quant not measured.
+- R9700: 27B is behind Radiance (0.64x prefill, 0.45x decode) and behind vLLM-fork on both, so ranked 3/3 on same-quant. 35B: no same-quant competitor; against MXFP4 vLLM-fork it leads, but that is a 10-02 run on another quant, so no top-3 claim is made.
+- Metal: 8B is #1 of 3 (BF16). 35B has no same-quant competitor; 27B not run.
+
+## 3. Accuracy per model (MMLU n=1425, 5-shot, thinking off, SE ~0.010, unless stated; KL = 21-way gated, mean, scored rows)
+| model / quant | backend | MMLU | GSM8K | KL vs golden prefill / decode | top-1 prefill / decode | src |
+|---|---|---|---|---|---|---|
+| Qwen3.8-27B MXFP4 W4A8 (default) | HIP tp2 | 0.8218 | not measured | 1.005e-2 / 7.011e-3 (vs W4A16 HF+Quark golden) | 98.75% / 97.50% | A1 |
+| 27B W4A16 | HIP tp2 | 0.822 | not measured | 1.484e-3 / 9.84e-4 | 99.38% / 99.38% | A2 |
+| 27B W4A4 dynamic | HIP tp2 | 0.802 | 0.360 flexible, n=25 (SE ~0.1) | 1.799e-1 / 3.397e-1 (vs W4A4 golden) | 91.95% / 88.12% | A3 |
+| 27B, competitor Radiance (same ckpt) | HIP tp2 | 0.830 (10-21 **old**) | 0.783 flexible n=1319 (10-25) | n/a | n/a | A3 note |
+| Qwen3.8-27B MXFP4 W4A16 | CUDA (#209, spark1) | 0.818 (10-27, n=1425, thinking off; HIP W4A16 0.822) | not measured | 4.39e-3 / 6.34e-4 (vs W4A16 HF+Quark golden, 10 prompts; base 5.60e-4 / 1.08e-3) | 99.58% combined, not split (branch) | A11 |
+| 27B | Metal, cpu-ref | not measured | not measured | not measured | not measured | A1 |
+| Qwen3.6-35B-A3B NVFP4 | CUDA | 0.840 **old** (10-22) | 0.683 flexible n=1319 **old** | 6.648e-3 / 7.344e-3 **old** (golden = vLLM top-20) | 98.27% / 99.38% **old** | A4 |
+| same | HIP | 0.846 **old** | not measured | 7.417e-3 / 1.172e-2 **old** | 98.61% / 98.75% **old** | A4 |
+| same | Metal (post #193/#196) | 0.842 (10-27) | 0.64 flexible n=25 **old** | 5.59e-3 / 6.95e-3 | post-NAX not measured (pre-NAX 98.33% / 98.75% **old**) | A5 |
+| 35B competitors (same ckpt, **old**) | CUDA | vLLM 0.840, SGLang 0.833, llama.cpp 0.836 | vLLM 0.582 n=1319 | n/a | n/a | A4 note |
+| Qwen3-8B BF16 | CUDA | 0.676 **old** | not measured | 2.90e-4 / 3.24e-4 **old** (HF fp32) | 100% / 100% **old** | A6 |
+| same | Metal | 0.673 **old** | 0.92 flexible n=25 **old** | 2.197e-4 / 2.982e-4 **old** | 100% / 100% (10-27 rerun PASS, KL not printed) | A6 |
+| 8B competitors **old** | CUDA / Metal | vLLM 0.676, SGLang 0.674, llama.cpp 0.676 / mlx-lm 0.679 | mlx-lm 0.92, llama.cpp 0.88 (n=25) | n/a | n/a | A6 note |
+| Gemma-4 26B-A4B NVFP4 | CUDA | 0.811 (10-27) | 0.470 default prompt; 0.973 with few-shot CoT, flexible n=400 | 2.384e-1 / 1.660e-1 (vs HF f32; pre-#204 G4D 2.12e-1 / 1.57e-1) | 86.65% / 89.38% (G4D) | A7 |
+| Qwen3.5-4B BF16 | Metal | 0.751 (n=570, `--limit 10`) | not measured | 1.43e-4 / 1.70e-4 | 99.72% / 98.75% | A8 |
+| Qwen3.5-2B-MLX-4bit | Metal | not measured | not measured | 1.39e-4 / 9.74e-5 (vs HF fp32 of the same dequantised weights) | 99.55% / 100% | A9 |
+| ThinkingCap-27B NVFP4 / MiniCPM-V-35B | CUDA | not measured | not measured | 4.54e-4 / 4.53e-4 ; 2.34e-3 / 2.51e-3 | 99.55/100% ; 98.41/98.44% | A10 |
+| LFM2.5-1.2B-Instruct bf16 | Metal | 0.314 (MMLU `--limit 10`, n=570; not a valid score: the model answers B for 455 of 570, engine vs HF agree on 96.5%, 110/114) | not measured | 5.88e-4 / 6.97e-4 (quick, vs HF fp32 golden) | 99.55% / 99.22% (quick); in-depth long 99.31 / 98.41, 4k 98.80 / 99.48 | A12 |
+Not measured anywhere: p99 KL (the gate reports mean and max only), thinking-on MMLU for intarsia, LFM2 beyond the one MMLU run (A12), LFM2 on CUDA/HIP (no kernel), 27B GSM8K at n >= 100, 8B on HIP. 8B MMLU shot count is labelled 0-shot in A6 but 5-shot in the 27B docs (unreconciled).
+
+## Legend (paths relative to /opt/code/intarsiaml docs/results/ unless stated)
+S1 2026-10-27-spf-cuda-prefill.md §5 table + raw/ab35b, raw/ab8b (TTFT medians); S2 2026-10-27-s27d-cuda-27b-decode.md §0, §6; S3 2026-10-27-g4x-gemma4-cuda-decode.md §1 + 2026-10-27-g4d-gemma4-drill.md Result; S4 2026-10-26-sk3-spark-decode.md "Numbers" (4/8 streams) and 2026-10-23-rb3-batching-r3.md §1 (16 streams); S6 2026-10-22-fx3-spark-standings.md §0; S7 2026-10-21-tp2-cuda-graphs.md §1; S8 2026-10-26-ct-compressed-tensors.md "Real models"; S9 2026-10-27-scc-cuda-35b-concurrency.md §1; S10 2026-10-27-cmx-cuda-mxfp4-prefill.md Result, Gates.
+H0 2026-10-26-mxr-hip-mxfp4-rows.md "Served (w5)"; H1 2026-10-27-glr-hip-a8-gemm.md "Speed, localeval" + raw/w5; H2 2026-10-25-tp2-hip.md §10.1 + raw/speed-final-35b; H3 2026-10-26-l7m-hip-macro-prefill.md "Speed", 2026-10-26-lb-lds-barrier.md "Result", 2026-10-25-hg-hip-serve-gap.md §5.1; H4 2026-10-27-tpo-hip-27b-prefill-next.md §4; H5 2026-10-27-w4a8-hip-fp8-act.md "W4 sweep"; H6 2026-10-19-hip-round6.md "8B"; H7 2026-10-22-hp-hip-prefill-roofline.md; H9 2026-10-25-sp-hip-spec.md §11.
+M1 2026-10-27-mgd-metal-gdn-kl.md Gates + raw speed-summary; M2 2026-10-25-sp-hip-spec.md §12; M3 2026-10-25-mm-metal-fp8-mmt.md Result; M4 2026-10-27-m35p-metal-35b-prefill-kl.md §2; M5 2026-10-27-nmd-new-model-drill-metal.md Numbers; M6 2026-10-27-nab-new-arch-drill-lfm2.md Part 2; M7 2026-10-15-metal-cb-m1-step2.md §0; M8 2026-10-27-nab2-lfm2-shortconv.md Speed accuracy.
+A1 2026-10-27-tpb-hip-tp-partials.md §2; A2 2026-10-27-act27-27b-w4a16-mmlu.md + 2026-10-25-ac-27b-accuracy-gate.md §6; A3 2026-10-27-mmlu27-27b-quality.md + ac-27b §3-§6; A4 2026-10-22-fx3-spark-standings.md, 2026-10-22-qg-35b-gsm8k.md, golden/baselines/*.baseline.json; A5 2026-10-27-nxp-metal-nax-prefill.md G1/G2 + mgd Gates; A6 docs/accuracy.md "Reading the numbers", 2026-10-22-mq-metal-quality.md, 2026-10-27-qgc-qualify-calibration.md §1; A7 g4x §1, §4 + g4d Verdict; A8 nmd Numbers + qgc §1; A9 nab Part 2(b); A10 ct-compressed-tensors.md; A11 2026-10-27-cmx-cuda-mxfp4-prefill.md Gates; A12 2026-10-27-nab2-lfm2-shortconv.md Gates, MMLU section.
+MB (/opt/code/model-benchmarks site/data/{speed,conc,verdicts}.json, built 2026-10-25, no newer record): R3 20261025-141435-adhoc-suite-v1; R20 20261013-003923-adhoc-tf-qwen36-mlx4-serial; R22 20261023-125940-adhoc-vr-35b-vllm-seqs16-p2-conc; R24 20261015-212943-adhoc-qwen36-3f1bcfd8-none; R25-27 20261022-220038-spark-guidance-k1029-drv173-spark1-pre / 20261015-122034-spark-guidance-bolt-ab-qwen36-off / 20261022-222802-adhoc-k1032-drv178-spark2; R28-29 20261022-055557-adhoc-fx3-35b-sglang-r24-conc / -055053-...-r23-conc; R34 20261015-214542-adhoc-qwen36-3f1bcfd8-dflash2; R42 20261015-213458-adhoc-qwen36-3f1bcfd8-mtp; R41 20261013-004715-adhoc-tf-qwen36-mlx4-mtp-parallel2; R43 20260926-143519-spark2-tensorfold-1spark; R44 20260929-192418-adhoc-gb10-main-A; R30-R32 20261022-055522-adhoc-fx3-35b-sglang-r24-speed / -054309-...-r21-speed / 20261022-051926-adhoc-fx3-35b-llamacpp-p2-speed; R39-R41 20261013-003815 / -004022 / -004715 (tf-qwen36-mlx4-mtp*, all `--concurrency 2`); R47 20261022-053111-adhoc-fx3-8b-llamacpp16-p5-conc; R53-57 20261022-050501-...-vllm-p3-speed / -060015-...-sglang-p6-conc / -055758-...-p6-speed / -090812-...-p7-speed / -053746-...-p5-speed; R62-66 20261022-014135-adhoc-fx6-hipfire-p3 / -013145-...-hipfire-p1 / -014038-...-llama-hip-p3 / -015341-...-llama-hip-p6 / -013049-...-llama-vk-p1; R49/R48/R160 20261022-043951-...-llamacpp-p1-speed / -060127-...-p6-speed / 20261021-131205-adhoc-gate-llamacpp; R50-52 20261022-050715 / -054641 / -091452 (fx3-8b-vllm); R59-61 20261002-130410 / -130308 / -130506 (cmp-q36-vllm); R103-105 20260928-221504 / 20261004-231556 / 20261005-091810 (TensorFold ROCm); R123/R126/R128 20261006-212327 / 20261004-152712 / 20261008-021427 (vLLM-fork TP2 27B); R132/R134 20261011-233439 / 20260929-121328 (TF TP2); R147 20261022-142322-adhoc-qwen36-35b-udq4km-lcpp060; R148 20261002-153619-adhoc-old-a; R159/R161 20261015-045548 / 20261015-024739 (llama.cpp 8B Metal); R162-164 20261015-050907 / 20261021-130950 / 20261015-024608 (mlx-lm 8B). Radiance 27B 4k decode 179.4 and 16k 142.3: verdicts.json cells (10-25).
+Caveats: MB's own IntarsiaML rows (10-21..10-25) are not used; ours come from the repo docs above. 35B Metal NXP's run (3184/2832/2283 prefill) vs MGD's later run on the same code is a +-10% slot spread; MGD is used. Radiance TP2 competitor rows are spec-lane only; TF R9700 "TP2 plain" rows are ROCm-port runs with quant MLX 4-bit.
+
+## Spec by category: R9700 x2 Qwen3.8-27B MXFP4 tp2 decode (10-28)
+
+Decode tok/s, HIP tp=2, one row per category. Spec off is the MTP-off baseline (56.9 at 1k, #214). The MTP k2, DFlash2 k7 and auto columns are from #219 (2026-10-28-asp-spec-auto.md, table at line 37). Spec-off 56.9 agrees with #217 (2026-10-28-vrc-hip-verify-cost.md) and #218 (2026-10-28-vat-verify-attn-rows.md). The #216 DFlash cost doc (2026-10-27-dcp-dflash-cost.md) covers the same categories.
+
+| category | spec off | MTP k2 (default) | DFlash2 k7 | auto |
+|---|---:|---:|---:|---:|
+| ho-chat | 56.9 | 90.3 | 79.8 | 89.5 |
+| ho-code | 56.9 | 107.5 | 139.7 | 137.4 |
+| ho-prose | 56.9 | 80.4 | 65.6 | 75.4 |
+| ho-recall | 56.9 | 95.7 | 95.9 | 94.8 |
+| rcp-code | 56.9 | 108.6 | 139.1 | 135.0 |
+| rcp-prose | 56.9 | 83.3 | 68.5 | 77.9 |
+| rcp-recall | 56.9 | 98.8 | 109.4 | 106.9 |
