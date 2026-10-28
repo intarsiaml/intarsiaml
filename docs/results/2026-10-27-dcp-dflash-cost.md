@@ -104,7 +104,7 @@ first. Dropped, not shipped.
 - **acceptance** (tokens per pass, speed window counters): ho-chat 3.04, ho-code 5.32, ho-prose 2.50, ho-recall 3.66, rcp-code 5.30, rcp-prose 2.62,
   rcp-recall 4.17, against 3.22 / 5.32 / 2.50 / 3.60 / 5.20 / 2.54 / 3.89 in the spt window. Same-binary A/B (section 3.1, two prompts): identical
   accepted counts. The category figures differ from the spt window because origin/main moved between the windows and the target's text changed with it
-  (0 of 4 to 8 of 8 cases are identical between the two windows' `off` arms, and between their `dfl7` arms, in every category; MTP k2 moved too, 2.32 to 2.29
+  (no case text is identical between the two windows' `off` arms, nor between their `dfl7` arms, in any category; MTP k2 moved too, 2.32 to 2.29
   on ho-chat); the ho-chat dip (-5.6%) therefore reflects different text, not the row kernels, whose paired A/B shows no change. Not proven on ho-chat itself
   (no same-binary generic-kernel arm was run on the category files): the same-binary evidence is the two prompts.
 - **backends**: `--spec dflash` with a DFlash2 draft loads on cpu and HIP only (`load.rs` backend gate), so the default reaches no unmeasured GPU backend; the cpu
