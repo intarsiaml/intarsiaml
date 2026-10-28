@@ -2,14 +2,39 @@
 
 Lane `lane-det/tp2-nondeterminism`, base `origin/main` `bb48df640`. tatooine, 2x R9700 (gfx1201), `amd/Qwen3.8-27B-Quark-AWQ-MXFP4`, `generate --tp 2 --devices 0,1`, W4A8 (recipe default),
 greedy, `--ignore-eos`. Raw logs: `2026-10-28-det-tp2-nondeterminism/raw/`. Scripts: `scripts/det/`. Comparison: `tools/det/detcmp.py`.
-Status: IN PROGRESS (sections marked TODO are filled as windows land).
+Status: HANDED OFF 2026-10-28 ~12:00 (see Handoff). Draft PR intarsiaml/intarsiaml#221.
 
 Trigger: lane vat saw one plain `--spec off` run of ids prompt short-5 part from four other off runs (`2026-10-28-vat-verify-attn-rows/raw/w2/ids/gen-tp2-short-5-off.ids`,
 first different token 27), and ho-chat `chat-sleep` differ from the off text in 1 of 5 fresh-server rounds of each dflash arm; lane vrc saw one old-path dflash text (ho-recall round 1) part from off.
 
 ## Headline
 
-TODO
+In about 1.5% of fresh tp=2 processes (`--spec mtp`; rarer with `--spec off`), one rank ends a layer of the prompt prefill holding a few rows that
+the other rank does not: a one-sided wrong read at or right after a TP all-reduce. The shift is small at the logits (it flips only the prompt's
+near ties, margins 0.01 to 0.3) and never repeats inside one process. tp=1 is clean (0/200). Not the cause: never-written memory, the peer rank's
+graph capture, an order-dependent float reduction. Hypothesis: the P2P all-reduce's flag can reach the peer before the pushed data. W8_W9_VERDICT
+
+## Handoff (2026-10-28, lane det)
+
+**Found.** See Headline; evidence in section 3, w5 and w7 (`raw/w7/tap-{33,88,118}.tap`, `tools/det/tapdiff.py`).
+
+**Ruled out** (by rate, ~100-450 fresh processes each): poisoned allocations (`INTARSIA_HIP_POISON=ff`), `INTARSIA_GRAPH_SYNC_CAPTURE=1` +
+`INTARSIA_TP_PEER_SYNC=1`, eager decode, tp=1 on either card; float atomics or split-K on the prefill path (audit, section 3).
+
+**Open.**
+- OPEN_ITEMS
+- Why `--spec off` is rarer (0 in ~450 here, 1 in vat's 5) and why all three tapped events are at layer 2.
+- The 08:02:40 hard reset of tatooine during w4 (section 3): one event, cause unknown.
+- Knobs from the brief never bisected (the event was found without them): `INTARSIA_TP_PARTIAL`, `INTARSIA_TP_ARNORM`,
+  `INTARSIA_HIP_MXFP4_A8_FUSE`, `INTARSIA_HIP_GDN_VERIFY_FUSE`, `INTARSIA_HIP_VERIFY_ATTN_ROWS`, `GPU_MAX_HW_QUEUES`.
+- vat's server-mode dflash misses (chat-sleep, recall-tls) were not reproduced in 51 localeval-style runs (w3); they are probably the same event
+  in the first request of a fresh server, not shown.
+
+**Next step.** NEXT_STEP
+
+**How to rerun.** `scripts/det/window.sh` under fleetq (header of the script), stages in `scripts/det/stages-w*.sh`, one fresh process per run via
+`loop` in `scripts/det/lib.sh`; `TAP=1` writes per-process taps; `python3 tools/det/tapdiff.py <raw dir> <arm>` lists the taps that differ.
+A tapped arm of 200 fresh `--spec mtp --spec-k 2` processes, 16 tokens, takes ~10 min with radiance down.
 
 ## 1. Tools added
 
