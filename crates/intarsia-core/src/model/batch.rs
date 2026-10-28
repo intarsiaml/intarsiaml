@@ -1117,6 +1117,8 @@ impl Model {
             kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),
             verify_rows_attn: false,
+            verify_attn_rows: false,
+            verify_tab: Mutex::new(Default::default()),
             verify_tok: None,
             verify_tile: None,
             verify_rows: 0,
