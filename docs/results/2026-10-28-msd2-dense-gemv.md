@@ -65,8 +65,9 @@ show the same scatter, 8-stream deltas +1.0 / +1.8 / +4.5 %).
 | `INTARSIA_CUDA_NVFP4_ROWS_FULL=auto` | `nvfp4_gemv_full_kernel`: persistent, x staged once in shared memory, for M >= 5 and N >= 16384 (the lm_head); 2x16 below 12 rows, 4x8 from 12 | same arithmetic as the tile body; x read from shared memory instead of L2 |
 
 Also: the dynamic shared-memory cap of the persistent kernels (`fp8_gemv_rows_full_kernel` on main too) is now raised once per kernel and device to 96 KB instead of to each
-call's size. Setting it per call raced between host threads launching the same kernel at different K (one thread shrinking the cap between another's set and launch); it
-showed as one intermittent launch error in W1's `rows_exact` run and never again after the fix.
+call's size. Setting it per call is a real race between host threads launching the same kernel at different K (one thread can shrink the cap between another's set
+and launch), and the likely cause of the one launch error W1's `rows_exact` run hit in `nvfp4_rows_are_bitwise_the_one_row_gemv` (4 threads). Its message was not captured,
+and the same test passed on that build before the fix too (#6570), so the cause is not proven; the parallel tests also set and read environment variables concurrently.
 
 Evicted micro-timing (`rows_exact` `timing_rows_evict`: each launch reads a different weight copy from a pool of about 192 MB; `raw/micro-evict-1.tab`, W1, quiet GPU), 16 rows, us:
 
