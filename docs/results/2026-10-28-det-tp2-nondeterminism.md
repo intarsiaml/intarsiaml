@@ -74,7 +74,7 @@ whatever went wrong went wrong before or inside an all-reduce and both ranks got
 greedy argmax absorbs until a near tie.
 
 **tatooine hard-reset at 08:02:40**, the second the next w4 process (`mtptap44`) started its container (the previous boot's journal stops mid-container-start with no shutdown, the next
-boot is at 08:03:03; `raw/w4/steps.log` ends at `offtap43`). ~600 det processes before it started cleanly. One event, cause unknown (power transient at load, PCIe, driver);
+boot is at 08:03:03; `raw/w4/steps.log` ends at `offtap43`). Every det process before it today (about 300) started cleanly. One event, cause unknown (power transient at load, PCIe, driver);
 noted because a marginal host is also a way to get rare, non-reproducible wrong values.
 
 TODO: w6 (per-row tap, 70 mtp + 70 off fresh processes: first (layer, row) that differs), w5 (rate on `--spec mtp`: tp=2, tp=2 with capture and peer syncs, tp=1 per card).
