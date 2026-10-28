@@ -1,0 +1,9 @@
+[window] job 6451 w7; stopping radiance 2026-10-28 10:09:59
+[window] radiance stopped 2026-10-28 10:10:02
+10:20:04 tap: 200 processes, 200 distinct-count
+10:30:20 drain5: 200 processes, 200 distinct-count
+10:37:45 host: 150 processes, 150 distinct-count
+10:37:45 w7 done
+[window] stages done 2026-10-28 10:37:45 (exit 0)
+[window] starting radiance 2026-10-28 10:37:45
+[window] radiance answers 2026-10-28 10:37:55 (after 15 s)

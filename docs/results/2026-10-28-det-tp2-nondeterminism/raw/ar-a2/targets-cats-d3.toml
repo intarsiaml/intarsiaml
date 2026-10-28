@@ -1,0 +1,4 @@
+[targets.ar]
+url = "http://tatooine:8097/v1"
+model = "qwen38-27b-d3"
+extra_body = { ignore_eos = true, min_tokens = 512 }

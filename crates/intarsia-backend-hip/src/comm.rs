@@ -157,16 +157,20 @@ pub fn p2p_group(backends: &[Arc<HipBackend>]) -> Result<Vec<Arc<dyn Comm>>> {
         // SAFETY: plain FFI.
         rt("hipDeviceEnablePeerAccess", unsafe { ffi::ik_rt_enable_peer_access(a.ordinal(), b.ordinal()) })?;
     }
-    // INTARSIA_HIP_AR_DRAIN: how a rank makes its pushed data visible before it raises the flag: 3 = wait for the
-    // stores to complete (default, radiance's cheaper mode; the scratch is uncached memory), 1 = a system fence in
-    // every thread (safe baseline, about twice the latency)
+    // INTARSIA_HIP_AR_DRAIN: how a rank makes its pushed data visible before it raises the flag: 1 = a system fence in
+    // every thread (default: removes the rare stale peer read, 0/250 tapped fresh processes; costs ~2% decode on the 27B at
+    // tp=2, see docs/results/2026-10-28-det-tp2-nondeterminism.md section 5), 3 = wait for the stores to complete
+    // (radiance's cheaper mode, the scratch is uncached memory: ~1.5% of fresh tp=2 processes add a stale peer row, a data
+    // race, so the sums are wrong)
     let drain = match std::env::var("INTARSIA_HIP_AR_DRAIN").ok().as_deref() {
-        None | Some("") | Some("3") => 3,
-        Some("1") => 1,
+        None | Some("") | Some("1") => 1,
+        Some("3") => 3,
         // diagnostics (w26): 4 = mode 3 and the flag re-sent while waiting, 5 = mode 3 and ~25 us before the data is read
         Some("4") => 4,
         Some("5") => 5,
-        Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_DRAIN={v} (1, 3, 4 or 5)"))),
+        // lane det: 6 = mode 3, then every thread reads back the last word it pushed before the flag goes out
+        Some("6") => 6,
+        Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_DRAIN={v} (1, 3, 4, 5 or 6)"))),
     };
     let group = Arc::new(Group {
         bufs: [RankBuf::new(&backends[0])?, RankBuf::new(&backends[1])?],

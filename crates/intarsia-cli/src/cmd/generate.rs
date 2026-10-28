@@ -55,6 +55,32 @@ pub struct GenerateArgs {
     /// and `--max-tokens 1` for a pure prefill profile).
     #[arg(long)]
     pub op_table: bool,
+    /// Debug (run-to-run determinism): run the request this many times in one process, the sequence reset to empty
+    /// before each run (no prefix reuse), and print each run's ids as `ids[r]: ...` (with --show-ids) and its text.
+    #[arg(long, default_value_t = 1)]
+    pub repeat: usize,
+    /// Debug: take the host-logits path and print, per generated token, its id, its logit margin over the runner-up and
+    /// a hash of the whole logits row to stderr (`margins[r]: id:margin:hash ...`).
+    #[arg(long)]
+    pub trace_margins: bool,
+}
+
+/// `id:margin:hash` for each traced logits row: the argmax (lowest id on a tie, as the device argmax), top-1 minus top-2,
+/// and an FNV-1a 64 hash of the row's f32 bits (a bitwise fingerprint that shows differences no token shows).
+fn margins(rows: &[Vec<f32>]) -> String {
+    let one = |row: &Vec<f32>| {
+        let (mut b, mut b1, mut b2) = (0usize, f32::NEG_INFINITY, f32::NEG_INFINITY);
+        for (i, &x) in row.iter().enumerate() {
+            if x > b1 {
+                (b2, b1, b) = (b1, x, i);
+            } else if x > b2 {
+                b2 = x;
+            }
+        }
+        let hash = row.iter().flat_map(|x| x.to_bits().to_le_bytes()).fold(0xcbf2_9ce4_8422_2325u64, |h, x| (h ^ x as u64).wrapping_mul(0x0100_0000_01b3));
+        format!("{b}:{:.4}:{hash:016x}", b1 - b2)
+    };
+    rows.iter().map(one).collect::<Vec<_>>().join(" ")
 }
 
 pub fn run(args: GenerateArgs) -> Result<()> {
@@ -118,47 +144,59 @@ pub fn run(args: GenerateArgs) -> Result<()> {
         let top: Vec<String> = idx.iter().take(n).map(|i| format!("{i}:{:.4}", last[*i])).collect();
         eprintln!("top logits (id:value): {}", top.join(" "));
     }
-    let req = GenRequest {
-        prompt: ids,
-        max_tokens: args.max_tokens,
-        min_tokens: args.min_tokens,
-        ignore_eos: args.ignore_eos,
-        temperature: args.temperature,
-        top_p: args.top_p,
-        top_k: args.top_k,
-        seed: args.seed,
-        stop: args.stop.clone(),
-        stop_ids: vec![],
-        cancel: None,
-        trace_logits: None,
-        constraint: None,
-        prewarm: None,
-    };
     let stdout = std::io::stdout();
     let mut out = stdout.lock();
-    if args.echo {
-        write!(out, "{text}")?;
-    }
-    let mut generated: Vec<u32> = vec![];
     let mut done = None;
-    let mut err = None;
-    engine
-        .generate(req, &mut |ev| match ev {
-            GenEvent::Token { id, text } => {
-                generated.push(id);
-                let _ = write!(out, "{text}");
-                let _ = out.flush();
-            }
-            GenEvent::Done { .. } => done = Some(ev),
-            GenEvent::Error { message } => err = Some(message),
-        })
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
-    writeln!(out)?;
-    if let Some(m) = err {
-        bail!("generation failed: {m}");
-    }
-    if args.show_ids {
-        eprintln!("ids: {generated:?}");
+    for r in 0..args.repeat.max(1) {
+        if r > 0 {
+            // an empty script resets the sequence, so the next run prefills from scratch like the first
+            engine.forward_script(&[]).map_err(|e| anyhow::anyhow!("{e}"))?;
+        }
+        let trace = args.trace_margins.then(|| std::sync::Arc::new(std::sync::Mutex::new(Vec::new())));
+        let req = GenRequest {
+            prompt: ids.clone(),
+            max_tokens: args.max_tokens,
+            min_tokens: args.min_tokens,
+            ignore_eos: args.ignore_eos,
+            temperature: args.temperature,
+            top_p: args.top_p,
+            top_k: args.top_k,
+            seed: args.seed,
+            stop: args.stop.clone(),
+            stop_ids: vec![],
+            cancel: None,
+            trace_logits: trace.clone(),
+            constraint: None,
+            prewarm: None,
+        };
+        if args.echo {
+            write!(out, "{text}")?;
+        }
+        let mut generated: Vec<u32> = vec![];
+        let mut err = None;
+        done = None;
+        engine
+            .generate(req, &mut |ev| match ev {
+                GenEvent::Token { id, text } => {
+                    generated.push(id);
+                    let _ = write!(out, "{text}");
+                    let _ = out.flush();
+                }
+                GenEvent::Done { .. } => done = Some(ev),
+                GenEvent::Error { message } => err = Some(message),
+            })
+            .map_err(|e| anyhow::anyhow!("{e}"))?;
+        writeln!(out)?;
+        if let Some(m) = err {
+            bail!("generation failed: {m}");
+        }
+        let tag = if args.repeat > 1 { format!("[{r}]") } else { String::new() };
+        if args.show_ids {
+            eprintln!("ids{tag}: {generated:?}");
+        }
+        if let Some(t) = trace {
+            eprintln!("margins{tag}: {}", margins(&t.lock().unwrap()));
+        }
     }
     if let Some(GenEvent::Done {
         finish_reason,
