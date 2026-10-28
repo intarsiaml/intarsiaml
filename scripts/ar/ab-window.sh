@@ -66,6 +66,9 @@ fi
 
 for ph in $PHASES; do
   PNAME=${ph%%:*}; PR=${ph#*:}
+  if [[ $PNAME == speed35 && -n ${ARMS35:-} ]]; then # arms for the 35B phase only (e.g. a d3 reference beside d1 and d7)
+    rev35=$(echo $ARMS35 | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}'); ORD=("$ARMS35" "$rev35" "$ARMS35" "$rev35")
+  elif [[ -n ${ARMS:-} ]]; then ORD=("$ARMS" "$rev" "$ARMS" "$rev"); fi
   for r in $(seq "$R0" $(( R0 + PR - 1 ))); do
     for arm in ${ORD[$(( r - 1 ))]}; do
       if (( $(left) < 480 )); then say "SKIPPED $PNAME round $r arm $arm (time left $(left)s)"; continue; fi

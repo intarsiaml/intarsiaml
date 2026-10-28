@@ -262,6 +262,10 @@ int ik_ar2_add_rmsnorm(void* x, void* out, const void* res, const void* w, void*
     const int64_t items = H / 8;
     const unsigned bd = ik_round_up((unsigned)(items < 256 ? items : 256), 32); /* rmsnorm_kernel's block size */
     const int stride16 = (int)(slot_bytes / 16);
+    /* lane ars: the LL kernel loses to the fence kernel when the partial is f32 and the hidden size is large (27B, H=5120: 19.5 us against 16.0,
+     * 3 rows 40.3 against 16.7; the 35B at H=2048 gains), so there the LL modes run the fence kernel. A pure function of dtype and H, so both
+     * ranks take the same path (the launch counters are shared, so LL and fence launches may be mixed freely). */
+    if (drain >= 7 && dtype == IK_DTYPE_F32 && H >= 4096) drain = 1;
     if (drain >= 7) {
         if (ll_fits(drain, bytes, peer_ll, my_ll, ll_slot_bytes)) {
             const int ls = (int)(ll_slot_bytes / 8);
