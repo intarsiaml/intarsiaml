@@ -1,0 +1,8 @@
+nh=12 nkv=2 d=256 pos0=100 t=3: first differing byte 8192 of 18432 (row-table 0x93 vs per-row 0x3c)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+nh=12 nkv=2 d=256 pos0=100 t=3: first differing byte 14336 of 18432 (row-table 0x8e vs per-row 0x90)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+nh=12 nkv=2 d=256 pos0=100 t=3: first differing byte 6144 of 18432 (row-table 0x20 vs per-row 0x6c)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+nh=12 nkv=2 d=256 pos0=100 t=8: first differing byte 18432 of 49152 (row-table 0x59 vs per-row 0x7e)
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s

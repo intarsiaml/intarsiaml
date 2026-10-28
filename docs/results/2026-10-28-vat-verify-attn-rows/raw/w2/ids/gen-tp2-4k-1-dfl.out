@@ -1,0 +1,14 @@
+Welcome to the project. This document is a technical specification and status report for a new feature branch: **`lane-dc/dflash-dcoco`**.
+
+Here is a detailed breakdown of what this feature is, how it works, and where we currently stand.
+
+### 1. The Big Picture: What are we building?
+
+We are implementing a **Speculative Decoding** system for the **Qwen3-8B** model.
+
+*   **The Goal:** Speed up inference. Instead of generating one token at a time (which is slow due to memory bandwidth), we use a smaller "Draft" model to guess the next 15 tokens at once. Then, the large "Target" model verifies those guesses in a single parallel pass.
+*   **The Components:**
+    1.  **DFlash:** The draft model. It’s a lightweight 5-layer model that predicts 15 tokens in parallel.
+    2.  **DCOCO (Contextual Correction of Parallel Drafts):** A "corrector" module that sits on top of DFlash. It refines the draft’s predictions using contextual information before the target model verifies them.
+*   **Status:**
+    *   **Phase 

@@ -1,0 +1,70 @@
+model amd/Qwen3.8-27B-Quark-AWQ-MXFP4  backend hip  device AMD Radeon Graphics (32624 MiB)  exactness deterministic
+act bf16  kv bf16  prefill chunk 2048 (recipe qwen3_5_vl, hip)  scratch 17839184 B  require_admitted false  reference_only false
+prefill tail peel 16 rows (a pass's last 1..=16 rows past a multiple of 256 run alone, as at chunk 256)
+tensor parallel x2 (hip-p2p collective)  per rank: 12 heads, 2 kv heads, ffn 8704 (model: 24/4/17408)  all-reduce 129 calls/decode step, 1807360 B/rank
+  rank 0: AMD Radeon Graphics (32624 MiB)  weights 10264 MiB  kv cap 4096 tokens  + lm_head
+  rank 1: AMD Radeon Graphics (32624 MiB)  weights 10264 MiB  kv cap 4096 tokens  + lm_head
+
+layers (64):
+    0..2   gated_delta_net+dense_ffn
+    3..3   attention+dense_ffn
+    4..6   gated_delta_net+dense_ffn
+    7..7   attention+dense_ffn
+    8..10  gated_delta_net+dense_ffn
+   11..11  attention+dense_ffn
+   12..14  gated_delta_net+dense_ffn
+   15..15  attention+dense_ffn
+   16..18  gated_delta_net+dense_ffn
+   19..19  attention+dense_ffn
+   20..22  gated_delta_net+dense_ffn
+   23..23  attention+dense_ffn
+   24..26  gated_delta_net+dense_ffn
+   27..27  attention+dense_ffn
+   28..30  gated_delta_net+dense_ffn
+   31..31  attention+dense_ffn
+   32..34  gated_delta_net+dense_ffn
+   35..35  attention+dense_ffn
+   36..38  gated_delta_net+dense_ffn
+   39..39  attention+dense_ffn
+   40..42  gated_delta_net+dense_ffn
+   43..43  attention+dense_ffn
+   44..46  gated_delta_net+dense_ffn
+   47..47  attention+dense_ffn
+   48..50  gated_delta_net+dense_ffn
+   51..51  attention+dense_ffn
+   52..54  gated_delta_net+dense_ffn
+   55..55  attention+dense_ffn
+   56..58  gated_delta_net+dense_ffn
+   59..59  attention+dense_ffn
+   60..62  gated_delta_net+dense_ffn
+   63..63  attention+dense_ffn
+
+op             kernel                     exactness     admitted  calls/step   scratch
+embedding      embedding_bf16             exact         no        1 0
+rmsnorm        rmsnorm_bf16               deterministic no        1 0
+rmsnorm_add    rmsnorm_add_bf16           deterministic no        128 0
+add            add_bf16                   deterministic no        0 0
+matmul         matmul_bf16                deterministic no        0 0
+matmul         matmul_bf16_gemv           deterministic no        0 0
+logits         logits_bf16                deterministic no        0 0
+logits         logits_bf16_gemv           deterministic no        1 0
+logits         logits_bf16_gemv_rows      deterministic no        0 0
+attn_prefill   attn_prefill_bf16_flash_v2 deterministic no        0 0
+attn_prefill   attn_prefill_bf16_splitkv  deterministic no        0 1733760
+attn_decode    attn_decode_bf16_splitkv   deterministic no        16 792576
+attn_decode    attn_decode_bf16_splitkv_rows deterministic no        0 12681216
+silu_glu       silu_glu_bf16              deterministic no        64 0
+argmax         argmax_f32                 exact         no        1 0
+sigmoid_mul    sigmoid_mul_bf16           deterministic no        16 0
+gdn_conv       gdn_conv_bf16              deterministic no        0 0
+gdn_delta_rule gdn_delta_rule_bf16_v2     deterministic no        0 0
+gdn_delta_rule gdn_delta_rule_bf16_v3     deterministic no        0 0
+matmul_pair    matmul_pair_bf16_gemv      deterministic no        0 0
+gated_rmsnorm  gated_rmsnorm_bf16         deterministic no        48 0
+gate_split_qk_norm_rope_kv gate_split_qk_norm_rope_kv_bf16 deterministic no        16 0
+gdn_conv_delta gdn_conv_delta_bf16        deterministic no        48 0
+matmul_mxfp4   matmul_mxfp4_a8_gemv       deterministic no        144 69680
+matmul_mxfp4   matmul_mxfp4_a8_gemv_rows  deterministic no        0 26144
+matmul_mxfp4   matmul_mxfp4_a8_mma        deterministic no        0 17839184
+matmul_mxfp4_pair matmul_mxfp4_pair_a8_gemv  deterministic no        176 41008
+matmul_mxfp4_pair matmul_mxfp4_pair_a8_gemv_rows deterministic no        0 15392

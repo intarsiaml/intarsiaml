@@ -1,0 +1,6 @@
+DIFF dfl7 ho-chat r3 chat-sleep: first differing char 145
+dfl7: 107 / 108 cases identical to off
+dfl7-old: 108 / 108 cases identical to off
+mtp2: 108 / 108 cases identical to off
+mtp2-old: 108 / 108 cases identical to off
+off-old: 36 / 36 cases identical to off

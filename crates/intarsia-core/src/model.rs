@@ -38,7 +38,9 @@ mod gemma;
 pub(crate) mod feedback;
 mod graph_step;
 mod spec_graph;
+mod verify_attn;
 pub use spec_graph::SpecPass;
+pub use verify_attn::{verify_rows_pos_bytes, verify_rows_pos_stale, verify_rows_tab_bytes};
 pub(crate) mod dcoco;
 pub(crate) mod dflash;
 mod dflash2;
@@ -468,6 +470,10 @@ pub struct Model {
     /// `Backend::verify_attn_per_row`: set with the DFlash drafter, whose 16-row passes the multi-row call is not bitwise for
     /// on CUDA (docs/results/2026-10-25-dc-dflash-dcoco.md section 10.1).
     verify_rows_attn: bool,
+    /// Lane vat: the verify pass's attention rows as one row-table launch per layer (`INTARSIA_HIP_VERIFY_ATTN_ROWS`, default on; `0`
+    /// keeps the per-row launches) and the tables it reads ([`verify_attn`]).
+    verify_attn_rows: bool,
+    verify_tab: Mutex<verify_attn::VerifyAttnTab>,
     /// `i32 [max rows]` argmax output of a verify pass; allocated by [`Model::enable_verify`] (spec on only).
     verify_tok: Option<Buffer>,
     /// Verify passes with a vocab-parallel head (every rank): the gather tile `f32 [world, VERIFY_MAX_ROWS * V / world]`,
@@ -1412,6 +1418,8 @@ impl Model {
             kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),
             verify_rows_attn: dflash_head.is_some(),
+            verify_attn_rows: std::env::var("INTARSIA_HIP_VERIFY_ATTN_ROWS").map_or(true, |v| v != "0"),
+            verify_tab: Mutex::new(Default::default()),
             verify_tok: None,
             verify_tile: None,
             verify_rows: 0,
@@ -3408,6 +3416,12 @@ impl Model {
             && (self.verifying() || dpos.is_some() || self.head_rows_attn.load(std::sync::atomic::Ordering::Relaxed))
             && (self.backend.verify_attn_per_row() || self.verify_rows_attn)
         {
+            // lane vat: all rows of the layer in one row-table launch (bitwise the per-row launches below); eager passes only
+            if dpos.is_none()
+                && self.verify_attn_rows(a, slot, &bufs.q[qc], &kcache, &vcache, &attn_out, &attrs, t, pos0, profile)?
+            {
+                return Ok((attn_out, qc));
+            }
             // verify pass (eager or captured) on a backend whose multi-row attention is not bitwise the decode step's (HIP: its split-KV
             // partition follows the call's row count, and it takes no device position): one decode call per row
             // (row r at position pos0 + r; the keys it sees are the cache rows already appended). `dpos`, when given, is a

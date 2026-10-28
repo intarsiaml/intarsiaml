@@ -1,0 +1,10 @@
+This is a highly technical, internal engineering document describing a specific validation lane for Tensor Parallelism (TP=2) on AMD R9700 GPUs (gfx1201) using the `intarsia` backend. It reads like a "post-mortem" or "status report" for a specific software release candidate.
+
+Here is a critical review of the document, categorized by what is convincing, what is not, and what is missing.
+
+### 1. What is Convincing
+
+**A. The "Gate" Logic is Rigorous and Self-Correcting**
+The most impressive aspect of this document is the iterative refinement of the acceptance criteria (Section 0 and 1).
+*   **Initial Failure:** The team initially tried to gate TP=2 against TP=1 using KL divergence. They correctly identified that this failed because reduction-order noise in floating-point arithmetic (especially in BF16/FP4) creates noise that masks small bugs (like the 0.3% partial-scale bug).
+*   **Pivot to Direct Verification:** Instead of relying on statistical similarity (which is noisy), they pivoted to **direct partial-sum checks** (Check 1) and **mutant testing** (Check 
