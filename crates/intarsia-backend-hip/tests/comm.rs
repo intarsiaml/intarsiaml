@@ -600,3 +600,51 @@ fn ar_norm_rate() {
         println!("{:>6} {:>5} {:>5} {:>10.1} {:>10}", h, rows, if dt == DType::F32 { "f32" } else { "bf16" }, us, iters);
     }
 }
+
+/// `cargo test --release -p intarsia-backend-hip --test comm ar_graph_rate -- --ignored --nocapture`: us per all-reduce with 64 of them
+/// recorded back to back in one hipGraph per rank and replayed (what the tp=2 decode graph does), whatever `INTARSIA_HIP_AR_DRAIN` says.
+/// The eager rate tests above are limited by the host's launch rate (about 5 us per call), which hides a kernel that is shorter than that;
+/// a replayed graph has no launch gaps, so this is the kernel's own critical path. Lane ars.
+#[test]
+#[ignore]
+fn ar_graph_rate() {
+    let _one = serial();
+    let Some((be, comms)) = group() else { return };
+    println!("{:>8} {:>6} {:>10}", "bytes", "dtype", "us/call");
+    for (dt, n) in [(DType::Bf16, 2048usize), (DType::Bf16, 5120), (DType::Bf16, 3 * 5120), (DType::Bf16, 16 * 5120), (DType::F32, 5120)] {
+        let z = vec![0f32; n];
+        let t = [put(&*be[0], dt, &z), put(&*be[1], dt, &z)];
+        const K: usize = 64;
+        let graphs: Vec<_> = (0..2)
+            .map(|r| {
+                be[r]
+                    .graph_capture(0, &mut || {
+                        for _ in 0..K {
+                            comms[r].all_reduce_sum(&t[r], 0)?;
+                        }
+                        Ok(())
+                    })
+                    .unwrap()
+            })
+            .collect();
+        let run = |reps: usize| {
+            std::thread::scope(|sc| {
+                for r in 0..2 {
+                    let (b, g) = (&be[r], &graphs[r]);
+                    sc.spawn(move || {
+                        for _ in 0..reps {
+                            b.graph_replay(g, 0).unwrap();
+                        }
+                        b.synchronize(0).unwrap();
+                    });
+                }
+            });
+        };
+        run(5);
+        let reps = 200;
+        let t0 = Instant::now();
+        run(reps);
+        let us = t0.elapsed().as_secs_f64() * 1e6 / (reps * K) as f64;
+        println!("{:>8} {:>6} {:>10.2}", n * dt.size_bytes(), if dt == DType::F32 { "f32" } else { "bf16" }, us);
+    }
+}
