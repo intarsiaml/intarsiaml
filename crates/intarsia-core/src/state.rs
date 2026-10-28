@@ -118,6 +118,10 @@ pub struct DflashState {
     pub pending: usize,
     /// Per-tap feature rows `[PEND_MAX, H]` of the pending rows (allocated at the first stash).
     pub store: Vec<crate::backend::Buffer>,
+    /// `--spec auto` (lane asp): every pass stashes its feature rows instead of ingesting them, so a pass the MTP head
+    /// drafted costs the draft only a copy; the rows (a prefix of the stash survives a rollback) go in as one batch before the
+    /// next DFlash draft.
+    pub lazy: bool,
 }
 
 impl DflashState {

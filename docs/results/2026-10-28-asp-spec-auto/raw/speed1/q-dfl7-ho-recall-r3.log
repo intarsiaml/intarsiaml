@@ -1,0 +1,39 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/asp/scripts/asp/../dfh/cats/ho-recall.jsonl: 2 rows, judge=none
+# localeval: asp-dfl7 — 2026-10-28T06:16
+
+- model: `qwen38-27b-dfl7` on ? (?), url `http://tatooine:8095/v1`
+- thinking: off; run kind: quality; label: asp-speed1-dfl7-ho-recall-r3
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality asp-dfl7 --thinking off --label asp-speed1-dfl7-ho-recall-r3 --recipe HIP_VISIBLE_DEVICES=0,1 asp-intarsia serve --backend hip --model 27B --spec dflash --spec-draft /models/tensorfold/Qwen3.8-27B-DFlash2 --spec-k 7 --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane asp) --dataset /opt/code/intarsiaml/.worktrees/asp/scripts/asp/../dfh/cats/ho-recall.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261028-061601-asp-dfl7-asp-speed1-dfl7-ho-recall-r3/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 asp-intarsia serve --backend hip --model 27B --spec dflash --spec-draft /models/tensorfold/Qwen3.8-27B-DFlash2 --spec-k 7 --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane asp)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/asp/scripts/asp/../dfh/cats/ho-recall.jsonl` (2 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 2 | 0 |
+| TTFT (s) | 0.077 | 1.0 | 2 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 2 | 0 |
+| Decode (tok/s) | 96.2 | 1.0 | 2 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| recall-tls | yes | 0.0 | 0.08 | 102.0 | TLS 1.3 represents a significant overhaul of the Transport L… |
+| recall-raft | yes | 0.0 | 0.08 | 90.5 | The **Raft** consensus algorithm is a method for managing a … |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261028-061601-asp-dfl7-asp-speed1-dfl7-ho-recall-r3/result.json
+[localeval] logged to unanimis: 52168a5f-6881-49e3-829a-b1f104457afd

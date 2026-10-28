@@ -702,11 +702,12 @@ impl LocalEngine {
                     model.verify_rows()
                 )));
             }
-            let mtp = meta.spec.mode == crate::spec::SpecMode::Mtp;
+            let auto = meta.spec.mode == crate::spec::SpecMode::Auto;
+            let mtp = meta.spec.mode == crate::spec::SpecMode::Mtp || auto;
             if mtp && (!model.has_mtp() || state.mtp.is_none()) {
                 return Err(Error::invalid("--spec mtp needs the model loaded with its MTP head (LoadOptions::mtp)"));
             }
-            if meta.spec.mode == crate::spec::SpecMode::Dflash && (!model.has_dflash() || state.dflash.is_none()) {
+            if (meta.spec.mode == crate::spec::SpecMode::Dflash || auto) && (!model.has_dflash() || state.dflash.is_none()) {
                 return Err(Error::invalid("--spec dflash needs the model loaded with its draft (LoadOptions::dflash)"));
             }
             // the MTP and DFlash paths keep per-row recurrent states in their verify passes (`SpecRows`); n-gram drafting does not
@@ -1133,6 +1134,10 @@ pub(crate) struct Seq {
     /// The model-based drafter is the DFlash block draft (`--spec dflash`), not the MTP head.
     spec_dflash: bool,
     spec_k: usize,
+    /// `--spec auto` (lane asp): picks the drafter of every pass; `None` for every other mode.
+    auto: Option<crate::spec::AutoPolicy>,
+    /// The drafter of the pass [`Seq::plan_step`] planned last (`--spec auto`; the fixed one otherwise).
+    drafter: crate::spec::Drafter,
     /// The batching scheduler withholds drafting (batch too large); set per step by [`Seq::set_spec_allowed`].
     spec_paused: bool,
     /// Other sequences decode in the same scheduler step; set per step by [`Seq::set_spec_allowed`] (solo: false).
@@ -1182,6 +1187,9 @@ impl Seq {
         if seq.spec_mtp {
             // the single-sequence loop times its own steps; the batched scheduler shares one step among sequences
             seq.gate.set_cost(model.spec_cost_params());
+        }
+        if seq.spec_on && sh.env().spec.mode == crate::spec::SpecMode::Auto {
+            seq.auto = Some(crate::spec::AutoPolicy::new(model.spec_auto_params()));
         }
         // `--spec mtp`: only a drafting request runs the head. After a request that did not, the head's cache no
         // longer covers the sequence, so a drafting request then starts from an empty sequence (no prefix reuse).
@@ -1242,6 +1250,7 @@ impl Seq {
         }
         if let Some(d) = st.dflash.as_mut() {
             d.active = drafting;
+            d.lazy = drafting && seq.auto.is_some();
         }
         if seq.req.prewarm.is_some() {
             // a prewarm is admitted for its prefill only
@@ -1279,8 +1288,9 @@ impl Seq {
             .as_ref()
             .map(|c| c.start().map(crate::constrain::ConstraintRun::new).map_err(|e| e.to_string()));
         // constrained requests take plain steps only (drafts would bypass the mask)
+        let spec_auto = env.spec.mode == crate::spec::SpecMode::Auto;
         let spec_dflash = env.spec.mode == crate::spec::SpecMode::Dflash;
-        let spec_mtp = env.spec.mode == crate::spec::SpecMode::Mtp || spec_dflash;
+        let spec_mtp = env.spec.mode == crate::spec::SpecMode::Mtp || spec_dflash || spec_auto;
         let spec_on = env.spec.enabled()
             && greedy
             && req.trace_logits.is_none()
@@ -1312,6 +1322,8 @@ impl Seq {
             spec_mtp,
             spec_dflash,
             spec_k,
+            auto: None,
+            drafter: if spec_dflash { crate::spec::Drafter::Dflash } else { crate::spec::Drafter::Mtp },
             spec_paused: false,
             spec_busy: false,
             pending: std::collections::VecDeque::new(),
@@ -1752,7 +1764,14 @@ impl Seq {
                 // MTP drafts are always available. Not inside a min_tokens window that masks stop ids (a masked stop on
                 // row 0 would have to roll the recurrent state back to before the pass; with no stop ids, e.g.
                 // ignore_eos, nothing is masked), and no drafts past max_tokens (a pass emits up to k + 1 tokens).
-                let k = self.spec_k.min(room).min(self.max_new.saturating_sub(self.generated + 1));
+                let mut k = self.spec_k;
+                if let Some(a) = self.auto.as_mut() {
+                    self.drafter = a.pick();
+                    if self.drafter == crate::spec::Drafter::Mtp {
+                        k = k.min(crate::spec::AUTO_MTP_K);
+                    }
+                }
+                let k = k.min(room).min(self.max_new.saturating_sub(self.generated + 1));
                 if k > 0 && (self.generated >= self.req.min_tokens || self.stop_ids.is_empty()) {
                     return Next::Draft(k);
                 }
@@ -1840,7 +1859,7 @@ impl Seq {
                     return Ok(None);
                 }
             }
-            Next::Draft(k) if !mtp_verify_check() && model.spec_step_ok(st, self.tok, k) => {
+            Next::Draft(k) if self.auto.is_none() && !mtp_verify_check() && model.spec_step_ok(st, self.tok, k) => {
                 // draft and verify as one replay of a captured graph (`Model::spec_step`), then the same acceptance
                 self.cost_begin(true);
                 let t0 = Instant::now();
@@ -1869,7 +1888,14 @@ impl Seq {
             Next::Draft(k) => {
                 self.cost_begin(true);
                 let t0 = Instant::now();
-                let drafts = if self.spec_dflash { model.dflash_draft(st, self.tok, k)? } else { model.mtp_draft(st, self.tok, k)? };
+                let drafter = self.drafter;
+                if self.auto.is_some() && drafter == crate::spec::Drafter::Dflash {
+                    // the head only queued the rows of the passes the DFlash draft proposed: catch it up before the queue could overflow
+                    if model.mtp_queue_room(st) < 2 * (self.spec_k + 1) {
+                        model.mtp_catch_up(st)?;
+                    }
+                }
+                let drafts = if drafter == crate::spec::Drafter::Dflash { model.dflash_draft(st, self.tok, k)? } else { model.mtp_draft(st, self.tok, k)? };
                 if drafts.is_empty() {
                     // no room for a draft block near the end of the context window: a plain step
                     self.cost_begin(false);
@@ -1890,7 +1916,14 @@ impl Seq {
                 }
                 let t1 = Instant::now();
                 self.verify(model, st, &drafts)?;
-                if crate::spec::trace_enabled() {
+                if let Some(a) = self.auto.as_mut() {
+                    let ms = t0.elapsed().as_secs_f64() * 1e3;
+                    a.record(drafter, self.pending.len(), ms);
+                    if crate::spec::trace_enabled() {
+                        eprintln!("spec: auto {drafter:?} k {} emits {} {ms:.2} ms (mtp, dflash tok/ms {:?})", drafts.len(), self.pending.len(), a.rates());
+                    }
+                }
+                if crate::spec::trace_enabled() && self.auto.is_none() {
                     // both phases end in a token download, so host time is device time here
                     eprintln!(
                         "spec: mtp draft {:.3} ms, verify + rollback {:.3} ms",
@@ -1990,6 +2023,9 @@ impl Seq {
     /// Roll the KV back, release held-back text and report. Call once [`Seq::on_token`] returned true.
     pub(crate) fn finish(mut self, model: &Model, st: &mut SequenceState) -> Result<Outcome> {
         let mut reason = self.reason.expect("finish before the sequence ended");
+        if let Some(a) = self.auto.as_ref().filter(|a| a.params().log) {
+            eprintln!("spec auto: {} tokens, {}", self.generated, a.summary());
+        }
         if self.spec_on {
             // A stop inside an accepted run leaves KV rows of tokens that were never emitted: roll back to what sequential
             // decode holds at this point (every emitted token but the last fed), so a following request reuses the same

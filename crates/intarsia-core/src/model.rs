@@ -550,6 +550,8 @@ pub struct Model {
     mtp_k: usize,
     /// Measured-cost gate of `--spec mtp` (`spec::CostParams`): backend default, recipe `[mtp]`, `INTARSIA_SPEC_COSTGATE`.
     spec_cost: crate::spec::CostParams,
+    /// `--spec auto` policy parameters ([`crate::spec::AutoParams`]): the environment's at load, replaceable by tests.
+    spec_auto: std::sync::Mutex<crate::spec::AutoParams>,
 }
 
 /// A rank's place in a tensor-parallel group and its handle for collectives.
@@ -1445,6 +1447,7 @@ impl Model {
             skip_dead: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_PREFILL_SKIP_DEAD").is_ok_and(|v| v == "1")),
             tail_dead: std::sync::atomic::AtomicBool::new(false),
             spec_cost,
+            spec_auto: std::sync::Mutex::new(crate::spec::AutoParams::from_env()),
             mtp: mtp_head,
             dflash: dflash_head,
             mtp_k,
@@ -1569,6 +1572,16 @@ impl Model {
     /// The measured-cost gate parameters for `--spec mtp` requests (single-sequence engine).
     pub fn spec_cost_params(&self) -> crate::spec::CostParams {
         self.spec_cost
+    }
+
+    /// The `--spec auto` policy parameters new requests start with.
+    pub fn spec_auto_params(&self) -> crate::spec::AutoParams {
+        *self.spec_auto.lock().unwrap()
+    }
+
+    /// Replace the `--spec auto` policy parameters (tests, A/B runs); requests started afterwards use them.
+    pub fn set_spec_auto_params(&self, p: crate::spec::AutoParams) {
+        *self.spec_auto.lock().unwrap() = p;
     }
 
     pub fn verify_rows(&self) -> usize {

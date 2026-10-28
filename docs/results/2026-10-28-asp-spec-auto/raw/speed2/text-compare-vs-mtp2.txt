@@ -1,0 +1,2 @@
+auto: 108 / 108 texts equal to off
+automtp: 108 / 108 texts equal to off

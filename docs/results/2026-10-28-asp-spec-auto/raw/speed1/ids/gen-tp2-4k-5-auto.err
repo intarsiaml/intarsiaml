@@ -1,0 +1,211 @@
+prefill chunk 2048 (recipe qwen3_5_vl, hip)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+dflash: draft of 5 layers (taps [5, 19, 33, 47, 61], block 8, DFlash2) loaded in 0.3 s
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+verify attention rows: engaged (one row-table attention launch per layer)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'fp8' (the recipe's default on this backend, chosen for accuracy and speed (Qwen3.8-27B, full MMLU n=1425: W4A8 0.8204, W4A16 0.822, W4A4 0.802; against W4A16 prefill +48% and decode +11% at tp2, KL to the W4A16 golden 12x below W4A4's, docs/results/2026-10-27-w4a8-hip-fp8-act.md); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: fp8 (recipe qwen3_5_vl [tuning.hip] mxfp4_act)
+--spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Auto, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_bf16 gated_rmsnorm=gated_rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_a8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split_qk_norm_rope_kv=gate_split_qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 add=add_bf16 matmul=matmul_bf16 logits=logits_bf16_gemv argmax=argmax_f32 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 matmul=matmul_bf16_gemv_rows dyn_conv=dyn_conv_bf16 attn_decode=attn_decode_bf16_splitkv logits=logits_bf16_gemv_rows
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 3.3s: 64 layers, hidden 5120, act bf16, kv bf16, weights 17.02 GB, context 20480 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 3381 tokens
+spec: token 2 pos 3381 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.58 ms (mtp, dflash tok/ms (None, None))
+spec: token 5 pos 3384 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.16 ms (mtp, dflash tok/ms (Some(0.11466571866146733), None))
+spec: dflash2 draft flush 1.306 block 10.373 head 4.451 selproj 0.082 dl 2.252 select 0.984 total 19.447 ms
+spec: token 8 pos 3387 drafted 7 accepted 3 emits 4
+spec: auto Dflash k 7 emits 4 47.99 ms (mtp, dflash tok/ms (Some(0.11466571866146733), None))
+spec: dflash2 draft flush 1.137 block 9.738 head 4.451 selproj 0.082 dl 0.712 select 0.695 total 16.815 ms
+spec: token 12 pos 3391 drafted 7 accepted 0 emits 1
+spec: auto Dflash k 7 emits 1 43.27 ms (mtp, dflash tok/ms (Some(0.11466571866146733), Some(0.05777272643869919)))
+spec: token 13 pos 3392 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 27.25 ms (mtp, dflash tok/ms (Some(0.10192508325463762), Some(0.05777272643869919)))
+spec: token 15 pos 3394 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.49 ms (mtp, dflash tok/ms (Some(0.10478465201293317), Some(0.05777272643869919)))
+spec: token 18 pos 3397 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.21 ms (mtp, dflash tok/ms (Some(0.10671989895881932), Some(0.05777272643869919)))
+spec: token 21 pos 3400 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 26.15 ms (mtp, dflash tok/ms (Some(0.10068963812987712), Some(0.05777272643869919)))
+spec: token 23 pos 3402 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.52 ms (mtp, dflash tok/ms (Some(0.10320113474780312), Some(0.05777272643869919)))
+spec: token 26 pos 3405 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.11 ms (mtp, dflash tok/ms (Some(0.10552460211187056), Some(0.05777272643869919)))
+spec: token 29 pos 3408 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.20 ms (mtp, dflash tok/ms (Some(0.10732047222774815), Some(0.05777272643869919)))
+spec: token 32 pos 3411 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 26.26 ms (mtp, dflash tok/ms (Some(0.09346166867798347), Some(0.05777272643869919)))
+spec: token 33 pos 3412 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.45 ms (mtp, dflash tok/ms (Some(0.09747559569076575), Some(0.05777272643869919)))
+spec: token 36 pos 3415 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 26.21 ms (mtp, dflash tok/ms (Some(0.08564052900752524), Some(0.05777272643869919)))
+spec: token 37 pos 3416 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.47 ms (mtp, dflash tok/ms (Some(0.09121567004299809), Some(0.05777272643869919)))
+spec: token 40 pos 3419 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 26.19 ms (mtp, dflash tok/ms (Some(0.08825366576162232), Some(0.05777272643869919)))
+spec: token 42 pos 3421 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 26.59 ms (mtp, dflash tok/ms (Some(0.07803362776365406), Some(0.05777272643869919)))
+spec: token 43 pos 3422 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.43 ms (mtp, dflash tok/ms (Some(0.0851483751059843), Some(0.05777272643869919)))
+spec: token 46 pos 3425 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.14 ms (mtp, dflash tok/ms (Some(0.09103210577225486), Some(0.05777272643869919)))
+spec: token 49 pos 3428 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.21 ms (mtp, dflash tok/ms (Some(0.09569995201372353), Some(0.05777272643869919)))
+spec: token 52 pos 3431 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.17 ms (mtp, dflash tok/ms (Some(0.0994725268727283), Some(0.05777272643869919)))
+spec: token 55 pos 3434 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.12 ms (mtp, dflash tok/ms (Some(0.10253745329719213), Some(0.05777272643869919)))
+spec: token 58 pos 3437 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.16 ms (mtp, dflash tok/ms (Some(0.10496323479985253), Some(0.05777272643869919)))
+spec: token 61 pos 3440 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 26.26 ms (mtp, dflash tok/ms (Some(0.09919650180415016), Some(0.05777272643869919)))
+spec: token 63 pos 3442 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.44 ms (mtp, dflash tok/ms (Some(0.10206823193264082), Some(0.05777272643869919)))
+spec: token 66 pos 3445 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.11 ms (mtp, dflash tok/ms (Some(0.10462501776492528), Some(0.05777272643869919)))
+spec: token 69 pos 3448 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.24 ms (mtp, dflash tok/ms (Some(0.1065649126319281), Some(0.05777272643869919)))
+spec: token 72 pos 3451 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.10 ms (mtp, dflash tok/ms (Some(0.10823642232720805), Some(0.05777272643869919)))
+spec: token 75 pos 3454 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.09 ms (mtp, dflash tok/ms (Some(0.10958205581750857), Some(0.05777272643869919)))
+spec: token 78 pos 3457 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.12 ms (mtp, dflash tok/ms (Some(0.11063060045939083), Some(0.05777272643869919)))
+spec: token 81 pos 3460 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.14 ms (mtp, dflash tok/ms (Some(0.11145833566478179), Some(0.05777272643869919)))
+spec: token 84 pos 3463 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 26.11 ms (mtp, dflash tok/ms (Some(0.09685143171076634), Some(0.05777272643869919)))
+spec: token 85 pos 3464 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.44 ms (mtp, dflash tok/ms (Some(0.10020371619344924), Some(0.05777272643869919)))
+spec: token 88 pos 3467 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.08 ms (mtp, dflash tok/ms (Some(0.10315998351064584), Some(0.05777272643869919)))
+spec: token 91 pos 3470 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.07 ms (mtp, dflash tok/ms (Some(0.10553706357941903), Some(0.05777272643869919)))
+spec: token 94 pos 3473 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 26.13 ms (mtp, dflash tok/ms (Some(0.09974007210315003), Some(0.05777272643869919)))
+spec: token 96 pos 3475 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.48 ms (mtp, dflash tok/ms (Some(0.10247528056441149), Some(0.05777272643869919)))
+spec: token 99 pos 3478 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 26.20 ms (mtp, dflash tok/ms (Some(0.09725052954599094), Some(0.05777272643869919)))
+spec: token 101 pos 3480 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 26.51 ms (mtp, dflash tok/ms (Some(0.08524177810542406), Some(0.05777272643869919)))
+spec: token 102 pos 3481 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.35 ms (mtp, dflash tok/ms (Some(0.09097619205432608), Some(0.05777272643869919)))
+spec: token 105 pos 3484 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.22 ms (mtp, dflash tok/ms (Some(0.0956564085619063), Some(0.05777272643869919)))
+spec: token 108 pos 3487 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.15 ms (mtp, dflash tok/ms (Some(0.0994534953957029), Some(0.05777272643869919)))
+spec: token 111 pos 3490 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.17 ms (mtp, dflash tok/ms (Some(0.10248234296674123), Some(0.05777272643869919)))
+spec: token 114 pos 3493 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.09 ms (mtp, dflash tok/ms (Some(0.10497587818384457), Some(0.05777272643869919)))
+spec: token 117 pos 3496 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.10 ms (mtp, dflash tok/ms (Some(0.10696184904887616), Some(0.05777272643869919)))
+spec: token 120 pos 3499 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.12 ms (mtp, dflash tok/ms (Some(0.1085331558556485), Some(0.05777272643869919)))
+spec: token 123 pos 3502 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.10 ms (mtp, dflash tok/ms (Some(0.10980833879048112), Some(0.05777272643869919)))
+spec: token 126 pos 3505 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 26.19 ms (mtp, dflash tok/ms (Some(0.09547311258304603), Some(0.05777272643869919)))
+spec: token 127 pos 3506 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 26.44 ms (mtp, dflash tok/ms (Some(0.09147517696971245), Some(0.05777272643869919)))
+spec: token 129 pos 3508 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 26.46 ms (mtp, dflash tok/ms (Some(0.08827420143851696), Some(0.05777272643869919)))
+spec: token 131 pos 3510 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 26.50 ms (mtp, dflash tok/ms (Some(0.07809337257828071), Some(0.05777272643869919)))
+spec: token 132 pos 3511 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.36 ms (mtp, dflash tok/ms (Some(0.08524756207387883), Some(0.05777272643869919)))
+spec: token 135 pos 3514 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.10 ms (mtp, dflash tok/ms (Some(0.09114768648139507), Some(0.05777272643869919)))
+spec: token 138 pos 3517 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.02 ms (mtp, dflash tok/ms (Some(0.0959369705980149), Some(0.05777272643869919)))
+spec: token 141 pos 3520 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.05 ms (mtp, dflash tok/ms (Some(0.09976009699719066), Some(0.05777272643869919)))
+spec: token 144 pos 3523 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.05 ms (mtp, dflash tok/ms (Some(0.10282582311232348), Some(0.05777272643869919)))
+spec: token 147 pos 3526 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.05 ms (mtp, dflash tok/ms (Some(0.10528650745279533), Some(0.05777272643869919)))
+spec: token 150 pos 3529 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.98 ms (mtp, dflash tok/ms (Some(0.10731042009161149), Some(0.05777272643869919)))
+spec: token 153 pos 3532 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.96 ms (mtp, dflash tok/ms (Some(0.10895302906885018), Some(0.05777272643869919)))
+spec: token 156 pos 3535 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 26.06 ms (mtp, dflash tok/ms (Some(0.10251933034925315), Some(0.05777272643869919)))
+spec: token 158 pos 3537 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.31 ms (mtp, dflash tok/ms (Some(0.10484020056363269), Some(0.05777272643869919)))
+spec: token 161 pos 3540 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.97 ms (mtp, dflash tok/ms (Some(0.10696613638503154), Some(0.05777272643869919)))
+spec: token 164 pos 3543 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.97 ms (mtp, dflash tok/ms (Some(0.1086725242061115), Some(0.05777272643869919)))
+spec: token 167 pos 3546 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.06 ms (mtp, dflash tok/ms (Some(0.10996250342421915), Some(0.05777272643869919)))
+spec: token 170 pos 3549 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.02 ms (mtp, dflash tok/ms (Some(0.11103185490573925), Some(0.05777272643869919)))
+spec: token 173 pos 3552 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.95 ms (mtp, dflash tok/ms (Some(0.11194773919823864), Some(0.05777272643869919)))
+spec: token 176 pos 3555 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.04 ms (mtp, dflash tok/ms (Some(0.11259837478686206), Some(0.05777272643869919)))
+spec: token 179 pos 3558 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.02 ms (mtp, dflash tok/ms (Some(0.11313418492705828), Some(0.05777272643869919)))
+spec: token 182 pos 3561 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.03 ms (mtp, dflash tok/ms (Some(0.11356151756844464), Some(0.05777272643869919)))
+spec: token 185 pos 3564 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.93 ms (mtp, dflash tok/ms (Some(0.11398927322376218), Some(0.05777272643869919)))
+spec: token 188 pos 3567 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.97 ms (mtp, dflash tok/ms (Some(0.11429804131102027), Some(0.05777272643869919)))
+spec: token 191 pos 3570 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 26.09 ms (mtp, dflash tok/ms (Some(0.09906194309982239), Some(0.05777272643869919)))
+spec: token 192 pos 3571 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.24 ms (mtp, dflash tok/ms (Some(0.10213582040370717), Some(0.05777272643869919)))
+spec: token 195 pos 3574 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.00 ms (mtp, dflash tok/ms (Some(0.10478242133550639), Some(0.05777272643869919)))
+spec: token 198 pos 3577 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.95 ms (mtp, dflash tok/ms (Some(0.1069416721344583), Some(0.05777272643869919)))
+spec: token 201 pos 3580 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.95 ms (mtp, dflash tok/ms (Some(0.10867116805693329), Some(0.05777272643869919)))
+spec: token 204 pos 3583 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.11 ms (mtp, dflash tok/ms (Some(0.1099177832134313), Some(0.05777272643869919)))
+spec: token 207 pos 3586 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.95 ms (mtp, dflash tok/ms (Some(0.11105429927051673), Some(0.05777272643869919)))
+spec: token 210 pos 3589 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.05 ms (mtp, dflash tok/ms (Some(0.11187836775312245), Some(0.05777272643869919)))
+spec: token 213 pos 3592 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.92 ms (mtp, dflash tok/ms (Some(0.1126477998240584), Some(0.05777272643869919)))
+spec: token 216 pos 3595 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.95 ms (mtp, dflash tok/ms (Some(0.1132359969989427), Some(0.05777272643869919)))
+spec: token 219 pos 3598 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 26.03 ms (mtp, dflash tok/ms (Some(0.09825388167651651), Some(0.05777272643869919)))
+spec: token 220 pos 3599 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.23 ms (mtp, dflash tok/ms (Some(0.10149659667883576), Some(0.05777272643869919)))
+spec: token 223 pos 3602 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.96 ms (mtp, dflash tok/ms (Some(0.10430244534073706), Some(0.05777272643869919)))
+spec: token 226 pos 3605 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.05 ms (mtp, dflash tok/ms (Some(0.10647431815497659), Some(0.05777272643869919)))
+spec: token 229 pos 3608 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.88 ms (mtp, dflash tok/ms (Some(0.1083558105225545), Some(0.05777272643869919)))
+spec: token 232 pos 3611 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.99 ms (mtp, dflash tok/ms (Some(0.10977062714981284), Some(0.05777272643869919)))
+spec: token 235 pos 3614 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.88 ms (mtp, dflash tok/ms (Some(0.11099513892222897), Some(0.05777272643869919)))
+spec: token 238 pos 3617 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.96 ms (mtp, dflash tok/ms (Some(0.11190851208333294), Some(0.05777272643869919)))
+spec: token 241 pos 3620 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.90 ms (mtp, dflash tok/ms (Some(0.11269434229214795), Some(0.05777272643869919)))
+spec: token 244 pos 3623 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.98 ms (mtp, dflash tok/ms (Some(0.11325266656142839), Some(0.05777272643869919)))
+spec: token 247 pos 3626 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.95 ms (mtp, dflash tok/ms (Some(0.11372570948637829), Some(0.05777272643869919)))
+spec: token 250 pos 3629 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 25.95 ms (mtp, dflash tok/ms (Some(0.11410131863333364), Some(0.05777272643869919)))
+spec: token 253 pos 3632 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 25.99 ms (mtp, dflash tok/ms (Some(0.09895832608869921), Some(0.05777272643869919)))
+spec: token 254 pos 3633 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 26.28 ms (mtp, dflash tok/ms (Some(0.10202991695532126), Some(0.05777272643869919)))
+ids: [8160, 369, 279, 1103, 314, 1396, 1324, 1669, 303, 279, 3766, 1414, 11, 68471, 539, 1092, 781, 6420, 11, 7854, 539, 29611, 383, 279, 2250, 1379, 14431, 14192, 13, 271, 13962, 1697, 314, 33565, 321, 3437, 2302, 32975, 271, 332, 53383, 321, 8261, 318, 1425, 51, 31230, 198, 9, 256, 2972, 17, 15, 17, 21, 12, 16, 15, 12, 16, 17, 92217, 4980, 2321, 314, 26679, 220, 15, 13, 198, 9, 256, 2972, 17, 15, 17, 21, 12, 16, 15, 12, 17, 16, 92217, 2544, 314, 279, 40652, 1402, 392, 3019, 26, 2321, 279, 5307, 1433, 557, 5617, 26, 2321, 1724, 10856, 998, 9770, 13, 198, 9, 256, 2972, 17, 15, 17, 21, 12, 16, 15, 12, 17, 21, 220, 15, 15, 25, 20, 17, 92217, 31672, 364, 279, 77528, 69107, 14934, 2424, 21419, 5307, 13, 198, 9, 256, 2972, 17, 15, 17, 21, 12, 16, 15, 12, 17, 21, 220, 15, 21, 25, 20, 16, 92217, 31672, 364, 279, 52965, 220, 18, 20, 33, 829, 7320, 11540, 5307, 13, 198, 9, 256, 2972, 17, 15, 17, 21, 12, 16, 15, 12, 17, 21, 220, 15, 15, 25, 16, 20, 92217, 31672, 364, 279, 25621, 16401, 5307, 13, 198, 9, 256, 2972, 17, 15, 17, 21, 12, 16, 15, 12, 17, 20, 220, 17, 17, 25, 16, 15, 92217, 31672, 364, 279, 51527, 829, 7320, 8626, 5307, 13, 198, 9, 256, 2972, 17, 15, 17, 21, 12, 16, 15, 12, 17, 20, 220, 17, 16, 25, 18, 15, 92217, 31672, 364, 279, 77528, 27044, 11665, 23]
+finish=length prompt=3381 (cached 0) completion=256 | prefill 932 ms (3629.1 tok/s) | decode 2525 ms (101.00 tok/s)
+tensor parallel: 13012 all-reduces (132.8 per step), 0 timed, avg 0.0 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+spec: verify passes=95 proposed=200 accepted=160 (acceptance 80.0%, 2.68 tokens per pass)
+steps=98 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: add=0ms/715 all_reduce=0ms/13012 argmax=0ms/284 attn_decode=0ms/1802 attn_prefill=0ms/32
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1

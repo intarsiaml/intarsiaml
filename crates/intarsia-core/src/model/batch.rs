@@ -1147,6 +1147,7 @@ impl Model {
             dflash: None,
             mtp_k: self.mtp_k,
             spec_cost: self.spec_cost,
+            spec_auto: std::sync::Mutex::new(self.spec_auto_params()),
         };
         t.enable_batch(rows)?;
         crate::plan::resolve(&mut t)?;

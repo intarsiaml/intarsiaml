@@ -1,0 +1,4 @@
+auto: 71 / 72 texts equal to off
+dfl7: 108 / 108 texts equal to off
+mtp2: 108 / 108 texts equal to off
+MISS speed1 r1 auto ho-prose prose-bakery
