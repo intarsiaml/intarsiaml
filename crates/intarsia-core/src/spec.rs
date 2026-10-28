@@ -652,7 +652,7 @@ pub struct AutoParams {
 
 impl Default for AutoParams {
     fn default() -> Self {
-        AutoParams { seed_passes: 2, alpha: 0.08, margin: 1.12, probe_every: 64, far_ratio: 1.3, probe_far: 3, force: None, log: false }
+        AutoParams { seed_passes: 2, alpha: 0.2, margin: 1.03, probe_every: 48, far_ratio: 1.3, probe_far: 2, force: None, log: false }
     }
 }
 
@@ -1383,7 +1383,7 @@ mod tests {
 
     #[test]
     fn auto_policy_follows_tokens_per_ms_and_probes_rarely() {
-        // code-like: dflash 5.3 t / 39.7 ms beats mtp 2.74 t / 25.7 ms (a 12% margin: noise inside it does not switch)
+        // code-like: dflash 5.3 t / 39.7 ms beats mtp 2.74 t / 25.7 ms
         let mut p = AutoPolicy::new(AutoParams::default());
         let (m, d) = drive_auto(&mut p, (3, 25.7), (6, 39.7), 200);
         assert!(d > 190 - m.min(190) && d >= 180, "dflash leads: mtp {m} dflash {d}");

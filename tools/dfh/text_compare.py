@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Lane asp: category texts of a cat-window against `off`: every case of every arm and round vs the same case of the same
-round's `off` run. usage: python3 -I tools/dfh/text_compare.py <raw window dir> [more raw dirs]; prints per arm matches / total and the
+round's `off` run. usage: REF=off python3 -I tools/dfh/text_compare.py <raw window dir> [more raw dirs] (REF: the reference arm); prints per arm matches / total and the
 misses."""
 import json, os, re, sys, collections
+REF = os.environ.get("REF", "off")
 res = "/opt/code/deepeval"
 runs = []
 for raw in sys.argv[1:]:
@@ -14,9 +15,9 @@ for w, r, arm, cat, rc, path in runs:
         txt[(w, r, arm, cat, c["name"])] = c["actual_output"]
 ok, tot, miss = collections.Counter(), collections.Counter(), []
 for (w, r, arm, cat, name), t in sorted(txt.items()):
-    if arm == "off":
+    if arm == REF:
         continue
-    ref = txt.get((w, r, "off", cat, name))
+    ref = txt.get((w, r, REF, cat, name))
     if ref is None:
         continue
     tot[arm] += 1
@@ -25,6 +26,6 @@ for (w, r, arm, cat, name), t in sorted(txt.items()):
     else:
         miss.append(f"{w} r{r} {arm} {cat} {name}")
 for a in sorted(tot):
-    print(f"{a}: {ok[a]} / {tot[a]} texts equal to off")
+    print(f"{a}: {ok[a]} / {tot[a]} texts equal to {REF}")
 for m in miss:
     print("MISS", m)

@@ -1,0 +1,81 @@
+06:23:03 guard: [guard] radiance stopped 2026-10-28 06:23:03
+06:23:03 pre: ids gate (arms auto, tp2, cap 600 s)
+06:28:09 pre: ids exit 0
+06:28:12 pre: ids summary auto tp2: 18 PASS, 0 FAIL|
+06:28:12 round 1 arm mtp2: starting server
+06:29:53 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261028-062929-asp-mtp2-asp-speed2-mtp2-ho-chat-r1/result.json
+06:30:04 round 1 arm mtp2 ho-code: localeval exit 0 results/20261028-062953-asp-mtp2-asp-speed2-mtp2-ho-code-r1/result.json
+06:30:32 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261028-063005-asp-mtp2-asp-speed2-mtp2-ho-prose-r1/result.json
+06:30:44 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261028-063032-asp-mtp2-asp-speed2-mtp2-ho-recall-r1/result.json
+06:31:24 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261028-063045-asp-mtp2-asp-speed2-mtp2-rcp-code-r1/result.json
+06:32:16 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261028-063125-asp-mtp2-asp-speed2-mtp2-rcp-prose-r1/result.json
+06:32:59 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261028-063216-asp-mtp2-asp-speed2-mtp2-rcp-recall-r1/result.json
+06:33:05 soak mtp2: 2 requests, distinct answers per prompt: 1 (p0) 1 (p1)
+06:33:06 round 1 arm automtp: starting server
+06:34:59 round 1 arm automtp ho-chat: localeval exit 0 results/20261028-063435-asp-automtp-asp-speed2-automtp-ho-chat-r1/result.json
+06:35:10 round 1 arm automtp ho-code: localeval exit 0 results/20261028-063500-asp-automtp-asp-speed2-automtp-ho-code-r1/result.json
+06:35:38 round 1 arm automtp ho-prose: localeval exit 0 results/20261028-063511-asp-automtp-asp-speed2-automtp-ho-prose-r1/result.json
+06:35:50 round 1 arm automtp ho-recall: localeval exit 0 results/20261028-063538-asp-automtp-asp-speed2-automtp-ho-recall-r1/result.json
+06:36:30 round 1 arm automtp rcp-code: localeval exit 0 results/20261028-063551-asp-automtp-asp-speed2-automtp-rcp-code-r1/result.json
+06:37:22 round 1 arm automtp rcp-prose: localeval exit 0 results/20261028-063631-asp-automtp-asp-speed2-automtp-rcp-prose-r1/result.json
+06:38:06 round 1 arm automtp rcp-recall: localeval exit 0 results/20261028-063722-asp-automtp-asp-speed2-automtp-rcp-recall-r1/result.json
+06:38:55 soak automtp: 16 requests, distinct answers per prompt: 1 (p0) 1 (p1)
+06:38:56 round 1 arm auto: starting server
+06:40:50 round 1 arm auto ho-chat: localeval exit 0 results/20261028-064025-asp-auto-asp-speed2-auto-ho-chat-r1/result.json
+06:41:00 round 1 arm auto ho-code: localeval exit 0 results/20261028-064051-asp-auto-asp-speed2-auto-ho-code-r1/result.json
+06:41:31 round 1 arm auto ho-prose: localeval exit 0 results/20261028-064100-asp-auto-asp-speed2-auto-ho-prose-r1/result.json
+06:41:43 round 1 arm auto ho-recall: localeval exit 0 results/20261028-064132-asp-auto-asp-speed2-auto-ho-recall-r1/result.json
+06:42:17 round 1 arm auto rcp-code: localeval exit 0 results/20261028-064144-asp-auto-asp-speed2-auto-rcp-code-r1/result.json
+06:43:12 round 1 arm auto rcp-prose: localeval exit 0 results/20261028-064218-asp-auto-asp-speed2-auto-rcp-prose-r1/result.json
+06:43:53 round 1 arm auto rcp-recall: localeval exit 0 results/20261028-064313-asp-auto-asp-speed2-auto-rcp-recall-r1/result.json
+06:44:42 soak auto: 16 requests, distinct answers per prompt: 1 (p0) 1 (p1)
+06:44:43 round 2 arm auto: starting server
+06:46:38 round 2 arm auto ho-chat: localeval exit 0 results/20261028-064612-asp-auto-asp-speed2-auto-ho-chat-r2/result.json
+06:46:47 round 2 arm auto ho-code: localeval exit 0 results/20261028-064638-asp-auto-asp-speed2-auto-ho-code-r2/result.json
+06:47:18 round 2 arm auto ho-prose: localeval exit 0 results/20261028-064647-asp-auto-asp-speed2-auto-ho-prose-r2/result.json
+06:47:31 round 2 arm auto ho-recall: localeval exit 0 results/20261028-064719-asp-auto-asp-speed2-auto-ho-recall-r2/result.json
+06:48:04 round 2 arm auto rcp-code: localeval exit 0 results/20261028-064731-asp-auto-asp-speed2-auto-rcp-code-r2/result.json
+06:49:00 round 2 arm auto rcp-prose: localeval exit 0 results/20261028-064805-asp-auto-asp-speed2-auto-rcp-prose-r2/result.json
+06:49:41 round 2 arm auto rcp-recall: localeval exit 0 results/20261028-064900-asp-auto-asp-speed2-auto-rcp-recall-r2/result.json
+06:49:41 round 2 arm automtp: starting server
+06:51:35 round 2 arm automtp ho-chat: localeval exit 0 results/20261028-065111-asp-automtp-asp-speed2-automtp-ho-chat-r2/result.json
+06:51:47 round 2 arm automtp ho-code: localeval exit 0 results/20261028-065136-asp-automtp-asp-speed2-automtp-ho-code-r2/result.json
+06:52:15 round 2 arm automtp ho-prose: localeval exit 0 results/20261028-065147-asp-automtp-asp-speed2-automtp-ho-prose-r2/result.json
+06:52:27 round 2 arm automtp ho-recall: localeval exit 0 results/20261028-065215-asp-automtp-asp-speed2-automtp-ho-recall-r2/result.json
+06:53:08 round 2 arm automtp rcp-code: localeval exit 0 results/20261028-065228-asp-automtp-asp-speed2-automtp-rcp-code-r2/result.json
+06:53:59 round 2 arm automtp rcp-prose: localeval exit 0 results/20261028-065308-asp-automtp-asp-speed2-automtp-rcp-prose-r2/result.json
+06:54:44 round 2 arm automtp rcp-recall: localeval exit 0 results/20261028-065400-asp-automtp-asp-speed2-automtp-rcp-recall-r2/result.json
+06:54:44 round 2 arm mtp2: starting server
+06:56:26 round 2 arm mtp2 ho-chat: localeval exit 0 results/20261028-065601-asp-mtp2-asp-speed2-mtp2-ho-chat-r2/result.json
+06:56:37 round 2 arm mtp2 ho-code: localeval exit 0 results/20261028-065626-asp-mtp2-asp-speed2-mtp2-ho-code-r2/result.json
+06:57:04 round 2 arm mtp2 ho-prose: localeval exit 0 results/20261028-065638-asp-mtp2-asp-speed2-mtp2-ho-prose-r2/result.json
+06:57:17 round 2 arm mtp2 ho-recall: localeval exit 0 results/20261028-065705-asp-mtp2-asp-speed2-mtp2-ho-recall-r2/result.json
+06:57:57 round 2 arm mtp2 rcp-code: localeval exit 0 results/20261028-065718-asp-mtp2-asp-speed2-mtp2-rcp-code-r2/result.json
+06:58:49 round 2 arm mtp2 rcp-prose: localeval exit 0 results/20261028-065758-asp-mtp2-asp-speed2-mtp2-rcp-prose-r2/result.json
+06:59:33 round 2 arm mtp2 rcp-recall: localeval exit 0 results/20261028-065850-asp-mtp2-asp-speed2-mtp2-rcp-recall-r2/result.json
+06:59:34 round 3 arm mtp2: starting server
+07:01:15 round 3 arm mtp2 ho-chat: localeval exit 0 results/20261028-070051-asp-mtp2-asp-speed2-mtp2-ho-chat-r3/result.json
+07:01:27 round 3 arm mtp2 ho-code: localeval exit 0 results/20261028-070116-asp-mtp2-asp-speed2-mtp2-ho-code-r3/result.json
+07:01:55 round 3 arm mtp2 ho-prose: localeval exit 0 results/20261028-070127-asp-mtp2-asp-speed2-mtp2-ho-prose-r3/result.json
+07:02:07 round 3 arm mtp2 ho-recall: localeval exit 0 results/20261028-070155-asp-mtp2-asp-speed2-mtp2-ho-recall-r3/result.json
+07:02:48 round 3 arm mtp2 rcp-code: localeval exit 0 results/20261028-070208-asp-mtp2-asp-speed2-mtp2-rcp-code-r3/result.json
+07:03:39 round 3 arm mtp2 rcp-prose: localeval exit 0 results/20261028-070248-asp-mtp2-asp-speed2-mtp2-rcp-prose-r3/result.json
+07:04:23 round 3 arm mtp2 rcp-recall: localeval exit 0 results/20261028-070340-asp-mtp2-asp-speed2-mtp2-rcp-recall-r3/result.json
+07:04:24 round 3 arm automtp: starting server
+07:06:18 round 3 arm automtp ho-chat: localeval exit 0 results/20261028-070553-asp-automtp-asp-speed2-automtp-ho-chat-r3/result.json
+07:06:29 round 3 arm automtp ho-code: localeval exit 0 results/20261028-070618-asp-automtp-asp-speed2-automtp-ho-code-r3/result.json
+07:06:57 round 3 arm automtp ho-prose: localeval exit 0 results/20261028-070630-asp-automtp-asp-speed2-automtp-ho-prose-r3/result.json
+07:07:10 round 3 arm automtp ho-recall: localeval exit 0 results/20261028-070658-asp-automtp-asp-speed2-automtp-ho-recall-r3/result.json
+07:07:50 round 3 arm automtp rcp-code: localeval exit 0 results/20261028-070710-asp-automtp-asp-speed2-automtp-rcp-code-r3/result.json
+07:08:42 round 3 arm automtp rcp-prose: localeval exit 0 results/20261028-070751-asp-automtp-asp-speed2-automtp-rcp-prose-r3/result.json
+07:09:26 round 3 arm automtp rcp-recall: localeval exit 0 results/20261028-070842-asp-automtp-asp-speed2-automtp-rcp-recall-r3/result.json
+07:09:26 round 3 arm auto: starting server
+07:11:22 round 3 arm auto ho-chat: localeval exit 0 results/20261028-071056-asp-auto-asp-speed2-auto-ho-chat-r3/result.json
+07:11:32 round 3 arm auto ho-code: localeval exit 0 results/20261028-071123-asp-auto-asp-speed2-auto-ho-code-r3/result.json
+07:12:05 round 3 arm auto ho-prose: localeval exit 0 results/20261028-071133-asp-auto-asp-speed2-auto-ho-prose-r3/result.json
+07:12:17 round 3 arm auto ho-recall: localeval exit 0 results/20261028-071205-asp-auto-asp-speed2-auto-ho-recall-r3/result.json
+07:12:52 round 3 arm auto rcp-code: localeval exit 0 results/20261028-071218-asp-auto-asp-speed2-auto-rcp-code-r3/result.json
+07:13:47 round 3 arm auto rcp-prose: localeval exit 0 results/20261028-071252-asp-auto-asp-speed2-auto-rcp-prose-r3/result.json
+07:14:28 round 3 arm auto rcp-recall: localeval exit 0 results/20261028-071348-asp-auto-asp-speed2-auto-rcp-recall-r3/result.json
+07:14:29 done, time left 710s
+07:14:39 guard: [guard] radiance answers 2026-10-28 07:14:39 (after 15 s)

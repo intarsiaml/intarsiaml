@@ -1,0 +1,29 @@
+window speed2: 63 localeval runs; problems: 21
+  PROBLEM auto ho-chat: rows differ from off (4 vs 0)
+  PROBLEM automtp ho-chat: rows differ from off (4 vs 0)
+  PROBLEM mtp2 ho-chat: rows differ from off (4 vs 0)
+  PROBLEM auto ho-code: rows differ from off (2 vs 0)
+  PROBLEM automtp ho-code: rows differ from off (2 vs 0)
+  PROBLEM mtp2 ho-code: rows differ from off (2 vs 0)
+  PROBLEM auto ho-prose: rows differ from off (4 vs 0)
+  PROBLEM automtp ho-prose: rows differ from off (4 vs 0)
+  PROBLEM mtp2 ho-prose: rows differ from off (4 vs 0)
+  PROBLEM auto ho-recall: rows differ from off (2 vs 0)
+  PROBLEM automtp ho-recall: rows differ from off (2 vs 0)
+  PROBLEM mtp2 ho-recall: rows differ from off (2 vs 0)
+  PROBLEM auto rcp-code: rows differ from off (8 vs 0)
+  PROBLEM automtp rcp-code: rows differ from off (8 vs 0)
+  PROBLEM mtp2 rcp-code: rows differ from off (8 vs 0)
+  PROBLEM auto rcp-prose: rows differ from off (8 vs 0)
+  PROBLEM automtp rcp-prose: rows differ from off (8 vs 0)
+  PROBLEM mtp2 rcp-prose: rows differ from off (8 vs 0)
+  PROBLEM auto rcp-recall: rows differ from off (8 vs 0)
+  PROBLEM automtp rcp-recall: rows differ from off (8 vs 0)
+category                       auto                automtp                   mtp2
+ho-chat                        84.4                   89.9                   90.5
+ho-code                       136.4                  107.7                  108.4
+ho-prose                       69.4                   80.3                   80.5
+ho-recall                      97.5                   95.1                   95.5
+rcp-code                      129.8                  108.6                  108.3
+rcp-prose                      77.3                   83.3                   83.1
+rcp-recall                    106.1                   98.5                   98.8
