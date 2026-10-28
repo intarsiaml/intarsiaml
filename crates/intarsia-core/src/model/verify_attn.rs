@@ -71,6 +71,16 @@ pub fn verify_rows_pos_stale(held: Option<(usize, usize)>, pos0: usize, t: usize
     held != Some((pos0, t))
 }
 
+/// Said once per reason on stderr (`grep 'verify attention rows' ` in a run's log tells whether the path engaged or fell back).
+fn note_once(what: &str) {
+    static SEEN: Mutex<Vec<String>> = Mutex::new(Vec::new());
+    let mut seen = SEEN.lock().unwrap();
+    if !seen.iter().any(|w| w == what) {
+        eprintln!("verify attention rows: {what}");
+        seen.push(what.to_string());
+    }
+}
+
 impl Model {
     /// The verify pass's `t` attention rows of layer `a` as one row-table launch. `Ok(false)` (nothing launched): the knob is off, the
     /// backend has no such kernel, or the pass is captured or exceeds the table; the caller launches per row.
@@ -112,7 +122,10 @@ impl Model {
             let buf = st.buf.clone().expect("allocated above");
             if !recording {
                 let addr = |b: &Buffer| self.backend.device_address(b);
-                let (Some(ka), Some(va)) = (addr(&slot.k), addr(&slot.v)) else { return Ok(false) };
+                let (Some(ka), Some(va)) = (addr(&slot.k), addr(&slot.v)) else {
+                    note_once("no device address for a KV cache buffer");
+                    return Ok(false);
+                };
                 if st.filled[a.slot] != Some((ka, va)) {
                     self.backend.upload(&buf, POS_BYTES + a.slot * REGION_BYTES, &verify_rows_tab_bytes(ka, va, VERIFY_ATTN_ROWS_MAX), self.stream)?;
                     st.filled[a.slot] = Some((ka, va));
@@ -132,9 +145,19 @@ impl Model {
         call.pos = Some(pos);
         call.rows = Some(crate::ops::RowTab { ptrs: tab, rows: t, stride: 2, index: 0, byte_off: 0 });
         call.exact_rows = self.verifying();
-        if call.check().and_then(|_| self.registry.select(&call).map(|_| ())).is_err() {
+        let need = match call.check().and_then(|_| self.registry.select(&call).map(|k| k.scratch_bytes(&ShapeInfo::from_call(&call)))) {
+            Ok(n) => n,
+            Err(e) => {
+                note_once(&format!("no kernel for the row-table call: {e}"));
+                return Ok(false);
+            }
+        };
+        // the plan sizes the scratch from the verify probes it recorded with this path; a pass it did not see falls back
+        if !recording && need > self.scratch.as_ref().map_or(0, |b| b.bytes()) {
+            note_once("scratch smaller than the row-table call needs");
             return Ok(false);
         }
+        note_once("engaged (one row-table attention launch per layer)");
         self.exec_call(call, profile)?;
         Ok(true)
     }

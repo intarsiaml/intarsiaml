@@ -23,6 +23,7 @@ for n in short-0 4k-1; do
   g "$n-dfl7old" "$OLD" --spec dflash --spec-draft "$DRAFT" --spec-k 7
   for a in mtp2 mtp2old dfl7 dfl7old; do
     if cmp -s "$O/gen-$n-off.ids" "$O/gen-$n-$a.ids" && [[ -s "$O/gen-$n-off.ids" ]]; then log "PASS ids $a tp2 $n"; else log "FAIL ids $a tp2 $n"; fi
+    log "note $a $n: $(grep -ah 'verify attention rows' "$O/gen-$n-$a.err" | sort -u | tr '\n' '|')"
     log "verify $a $n: $(grep -a 'verify + rollback' "$O/gen-$n-$a.err" | tail -n +5 | awk '{s+=$(NF-1); c++} END{if(c)printf "mean verify+rollback %.2f ms n=%d", s/c, c}') | $(grep -aE 'decode .*tok/s' "$O/gen-$n-$a.err" | tail -1 | cut -c1-120)"
   done
 done

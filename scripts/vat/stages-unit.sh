@@ -20,3 +20,4 @@ plan "$D" 0 35b "$M35"
 E="INTARSIA_HIP_VERIFY_ATTN_ROWS=0" plan "$D" 0,1 27b-tp2-old "$M27" $TP2
 same plan-27b-tp2.out plan-27b-tp2-old.out "27B tp2 plan json, knob on vs off"
 log "unit done"
+bash "$HOME/intarsiaml-vat/.vat/stages-phase.sh" "$O"
