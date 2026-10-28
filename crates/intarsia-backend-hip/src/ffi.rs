@@ -433,6 +433,23 @@ extern "C" {
     ) -> c_int;
     #[allow(clippy::too_many_arguments)]
     pub fn ik_gdn_conv_delta_bf16(x: T, taps: T, a: T, b: T, a_log: T, dt_bias: T, eps: f32, o: TM, state: TM, cstate: TM, s: S) -> c_int;
+    /// `ik_gdn_conv_delta_bf16` that also stores the state after tokens `0..n_snaps` into the `n_snaps = T - 1` snapshot tensors
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_gdn_conv_delta_snap_bf16(
+        x: T,
+        taps: T,
+        a: T,
+        b: T,
+        a_log: T,
+        dt_bias: T,
+        eps: f32,
+        o: TM,
+        state: TM,
+        cstate: TM,
+        snaps: T,
+        n_snaps: c_int,
+        s: S,
+    ) -> c_int;
 
     /// `kernels/hip/ar_norm.hip`: `ik_ar2_oneshot` fused with the residual add + rmsnorm after it
     #[allow(clippy::too_many_arguments)]

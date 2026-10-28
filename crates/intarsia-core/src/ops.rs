@@ -480,7 +480,9 @@ impl OpCall {
     pub fn check(&self) -> Result<()> {
         let (ni, no) = self.op.arity();
         let bad = |m: String| Err(Error::invalid(format!("{}: {m}", self.op)));
-        if self.inputs.len() != ni || self.outputs.len() != no {
+        // `GdnConvDelta` may carry per-row state snapshots after its three outputs (HIP's speculative-verify launch, lane vrc)
+        let extra_outputs = self.op == Op::GdnConvDelta && self.outputs.len() > no;
+        if self.inputs.len() != ni || (self.outputs.len() != no && !extra_outputs) {
             return bad(format!(
                 "expected {ni} inputs / {no} outputs, got {} / {}",
                 self.inputs.len(),
