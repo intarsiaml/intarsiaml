@@ -176,6 +176,18 @@ inline int rows_tile_nt(int M, int64_t N) {
 // warp tree and scale, so the bits are the one-row kernel's.
 constexpr size_t kFullSmemMax = 96 * 1024;
 
+// Raise a kernel's dynamic shared-memory cap to `bytes` once per device (a per-call size would race between host threads
+// launching the kernel with different K: one shrinking the cap between another's set and launch fails that launch).
+template <auto Kern>  // one flag per kernel instantiation
+bool smem_cap_once(size_t bytes) {
+    static bool done[64];
+    int d = 0;
+    cudaGetDevice(&d);
+    if (d < 0 || d >= 64) d = 0;
+    if (!done[d]) done[d] = cudaFuncSetAttribute((const void*)Kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)bytes) == cudaSuccess;
+    return done[d];
+}
+
 template <int M, int NT, int W, typename OutT>
 __global__ void __launch_bounds__(W * IK_WARP, 1)
 nvfp4_gemv_full_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
@@ -257,7 +269,8 @@ template <int M, int NT, int W, typename OutT>
 void full_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
     const size_t smem = (size_t)M * K * 2;
     auto kern = nvfp4_gemv_full_kernel<M, NT, W, OutT>;
-    cudaFuncSetAttribute((const void*)kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
+    const bool cap_set = smem_cap_once<nvfp4_gemv_full_kernel<M, NT, W, OutT>>(kFullSmemMax);
+    (void)cap_set;
     int occ = 0;
     if (cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, kern, W * IK_WARP, smem) != cudaSuccess || occ < 1) occ = 1;
     const int64_t blocks = ((N + NT - 1) / NT + W - 1) / W, cap = (int64_t)sm_count() * occ;

@@ -261,6 +261,18 @@ fp8_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ 
 // (m, n) is again the one-row kernel's: the same lane-strided 16-element blocks, fmaf chain, `acc += s` and warp tree.
 constexpr size_t kFullSmemMax = 96 * 1024;
 
+// Raise a kernel's dynamic shared-memory cap to `bytes` once per device (a per-call size would race between host threads
+// launching the kernel with different K: one shrinking the cap between another's set and launch fails that launch).
+template <auto Kern>  // one flag per kernel instantiation
+bool smem_cap_once(size_t bytes) {
+    static bool done[64];
+    int d = 0;
+    cudaGetDevice(&d);
+    if (d < 0 || d >= 64) d = 0;
+    if (!done[d]) done[d] = cudaFuncSetAttribute((const void*)Kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)bytes) == cudaSuccess;
+    return done[d];
+}
+
 template <int M, int NT, int W, typename OutT>
 __global__ void __launch_bounds__(W * IK_WARP, 1)
 fp8_gemv_rows_full_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
@@ -342,7 +354,8 @@ template <int M, int NT, int W, typename OutT>
 int rows_run_full(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
     const size_t smem = (size_t)M * K * 2;
     auto kern = fp8_gemv_rows_full_kernel<M, NT, W, OutT>;
-    if (cudaFuncSetAttribute((const void*)kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem) != cudaSuccess) return IK_ERR_LAUNCH;
+    const bool cap_set = smem_cap_once<fp8_gemv_rows_full_kernel<M, NT, W, OutT>>(kFullSmemMax);
+    if (!cap_set) return IK_ERR_LAUNCH;
     const int64_t tiles = (N + NT - 1) / NT;
     const int64_t blocks = (tiles + W - 1) / W;
     const unsigned grid = (unsigned)(blocks < sm_count() ? blocks : sm_count());
@@ -470,7 +483,8 @@ template <int M, int NT, int W, int MINB, typename OutT>
 int rows_run_q(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
     const size_t smem = (size_t)M * K;
     auto kern = fp8_gemv_rows_q_kernel<M, NT, W, MINB, OutT>;
-    if (cudaFuncSetAttribute((const void*)kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem) != cudaSuccess) return IK_ERR_LAUNCH;
+    const bool cap_set = smem_cap_once<fp8_gemv_rows_q_kernel<M, NT, W, MINB, OutT>>(kQSmemMax);
+    if (!cap_set) return IK_ERR_LAUNCH;
     int occ = 0;
     if (cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, kern, W * IK_WARP, smem) != cudaSuccess || occ < 1) occ = 1;
     const int64_t tiles = (N + NT - 1) / NT;
@@ -499,7 +513,7 @@ int rows_run_q_shape(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
 }
 
 // INTARSIA_CUDA_FP8_ROWS_Q: unset = the e4m3-staged kernel where the bf16 activations do not fit the persistent kernel
-// (M * K * 2 > 96 KB, i.e. K = 4096 at M >= 13) and for N <= 1024 at M >= 4 (shape 1x16), `0` = never (the switch that turns it off), `all` = wherever M >= 2 and
+// (M * K * 2 > 96 KB, i.e. K = 4096 at M >= 13), for every call at M >= 12, and for N <= 1024 at M >= 4 (shape 1x16), `0` = never (the switch that turns it off), `all` = wherever M >= 2 and
 // M * K bytes fit
 inline int rows_q_mode() {
     const char* e = getenv("INTARSIA_CUDA_FP8_ROWS_Q");
@@ -538,7 +552,9 @@ int rows_run(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int
         const int q = off || tile ? 0 : rows_q_mode();
         const bool fits_q = (size_t)M * K <= kQSmemMax, fits_full = (size_t)M * K * 2 <= kFullSmemMax;
         const bool small_n = N <= kQSmallN && M >= 4;  // k / v: the persistent kernel's 2x16 grid is a third of the SMs
-        if (fits_q && (q == 2 || (q == 1 && (!fits_full || small_n)))) return rows_run_q_shape<M>(x, w, sc, out, N, K, s);
+        // from 12 rows the codes' half-size staging (2 blocks per SM) beats the bf16 one at K = 2048 too (evicted 16-row
+        // micro-timing 8192x2048: 88.7 -> 82.5 us, 4096x2048: 50.7 -> 49.0)
+        if (fits_q && (q == 2 || (q == 1 && (!fits_full || small_n || M >= 12)))) return rows_run_q_shape<M>(x, w, sc, out, N, K, s);
     }
     if (!off && !tile && (size_t)M * K * 2 <= kFullSmemMax) {
         const char* f = getenv("INTARSIA_CUDA_FP8_ROWS_FULL");
