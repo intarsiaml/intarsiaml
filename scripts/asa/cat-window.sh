@@ -74,7 +74,6 @@ serve() { # serve <arm>
   case $base in
     off) spec="--spec off" ;;
     automtp) spec="--spec auto --spec-draft $DRAFT --spec-k 7"; ENVX="$ENVX -e INTARSIA_SPEC_AUTO=mtp,log" ;;
-    autoold) spec="--spec auto --spec-draft $DRAFT --spec-k 7"; ENVX="$ENVX -e INTARSIA_SPEC_AUTO=log,alpha=0.2,leave=1.03,dwell=0,w=0.5,priorw=0,probe_far=2" ;;
     autob) spec="--spec auto --spec-draft $DRAFT --spec-k 7"; ENVX="$ENVX -e INTARSIA_SPEC_AUTO=log,${AUTOB:-dwell=16,w=0.1}" ;;
     autotr) spec="--spec auto --spec-draft $DRAFT --spec-k 7"; ENVX="$ENVX -e INTARSIA_SPEC_AUTO=log,pass" ;;
     autotrmtp) spec="--spec auto --spec-draft $DRAFT --spec-k 7"; ENVX="$ENVX -e INTARSIA_SPEC_AUTO=mtp,log,pass" ;;

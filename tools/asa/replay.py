@@ -9,6 +9,7 @@ Usage: replay.py <raw/W> [--grid]
 """
 import sys, glob, re, itertools, statistics, os
 
+NEAREST = os.environ.get('NEAREST', '1') == '1'
 CATS = [("ho-chat", 4), ("ho-code", 2), ("ho-prose", 4), ("ho-recall", 2), ("rcp-code", 8), ("rcp-prose", 8), ("rcp-recall", 8)]
 
 
@@ -52,6 +53,10 @@ class Seq:
                 hi = mid
             else:
                 lo = mid + 1
+        if NEAREST and lo + 1 < len(self.p):
+            start = self.cum[lo] - self.p[lo][1]
+            if 2 * (pos - start) > self.p[lo][1]:
+                lo += 1  # nearest pass start instead of the covering pass: the covering one is length-biased
         return self.p[lo]
 
 
@@ -276,11 +281,33 @@ def main():
     for n, kw in cands.items():
         table(n, evaluate(lambda kw=kw: Policy(**kw)), ref)
 
+    if "--c" in sys.argv:
+        C = dict(theta=2.5, alpha_m=0.06, dwell_m=4, dwell_d=16, hyst=1.1, probe_mtp=8, alpha_d=0.1, probe_w=0.3)
+        for n, kw in [("C", C), ("theta2.4", dict(C, theta=2.4)), ("theta2.6", dict(C, theta=2.6)), ("probe_w.15", dict(C, probe_w=0.15)),
+                      ("probe_w.5", dict(C, probe_w=0.5)), ("pm12", dict(C, probe_mtp=12)), ("pm6", dict(C, probe_mtp=6)), ("am.1", dict(C, alpha_m=0.1)),
+                      ("am.04", dict(C, alpha_m=0.04)), ("dd8", dict(C, dwell_d=8)), ("dd24", dict(C, dwell_d=24)), ("hyst1.0", dict(C, hyst=1.0)),
+                      ("hyst1.2", dict(C, hyst=1.2)), ("bump.3 dec.005", dict(C, bump=0.3)), ("bump.3 dec.02", dict(C, bump=0.3, decay=0.02)),
+                      ("bump.5 dec.01", dict(C, bump=0.5, decay=0.01)), ("bump.2 dec.002", dict(C, bump=0.2, decay=0.002)), ("bump.5 dec.003", dict(C, bump=0.5, decay=0.003)), ("dm8", dict(C, dwell_m=8)), ("ad.15", dict(C, alpha_d=0.15))]:
+            table(n, evaluate(lambda kw=kw: Policy2(**kw)), ref)
+        return
+    if "--p2" in sys.argv:
+        out = []
+        for th, am, dwm, dwd, hy, pm, ad in itertools.product((2.5, 2.6, 2.7, 2.8), (0.05, 0.08, 0.12), (4, 8), (4, 8, 16), (1.0, 1.1, 1.2), (8, 16, 24), (0.08, 0.15)):
+            kw = dict(theta=th, alpha_m=am, dwell_m=dwm, dwell_d=dwd, hyst=hy, probe_mtp=pm, alpha_d=ad)
+            res = evaluate(lambda kw=kw: Policy2(**kw))
+            vb = [res[c][0] / max(ref["mtp"][c][0], ref["dfl"][c][0]) * 100 - 100 for c, _ in CATS]
+            vm = [res[c][0] / ref["mtp"][c][0] * 100 - 100 for c, _ in CATS]
+            out.append((min(vb) + sum(vb) / 7, min(vb), sum(vb) / 7, min(vm), kw, vb))
+        out.sort(key=lambda r: -r[0])
+        for o in out[:12]:
+            print(f"score {o[0]:+.2f} minVsBest {o[1]:+.1f} mean {o[2]:+.1f} minVsMTP {o[3]:+.1f}", o[4], " ".join(f"{x:+.1f}" for x in o[5]))
+        return
     if "--grid" in sys.argv:
         rounds = ROUNDS_G
-        PAR = int(os.environ.get("PAR", "0"))
+        PAR = int(os.environ.get("PAR", "-1"))
+        PAR = None if PAR < 0 else PAR
         rp = {"mtp": evaluate(pure(0), [rounds[0]], PAR), "dfl": evaluate(pure(1), [rounds[0]], PAR)}
-        rt = {"mtp": evaluate(pure(0), [rounds[0]], 1 - PAR), "dfl": evaluate(pure(1), [rounds[0]], 1 - PAR)}
+        rt = {"mtp": evaluate(pure(0), [rounds[0]], None if PAR is None else 1 - PAR), "dfl": evaluate(pure(1), [rounds[0]], None if PAR is None else 1 - PAR)}
         FX = {0: 25.5, 1: 38.0}
         rows = []
         for alpha, mg, ml, pe, pf, seed, pw, fx, pwt, dw in itertools.product(
@@ -295,11 +322,88 @@ def main():
             rows.append((min(vb), sum(vb) / 7, min(vm), kw))
         rows.sort(key=lambda r: -(r[0] + r[1]))
         for mn, mean, mm, kw in rows[:8]:
-            tr = evaluate(lambda kw=kw: Policy(**kw), [rounds[0]], 1 - PAR)
+            tr = evaluate(lambda kw=kw: Policy(**kw), [rounds[0]], None if PAR is None else 1 - PAR)
             tv = [tr[c][0] / max(rt["mtp"][c][0], rt["dfl"][c][0]) for c, _ in CATS]
             tm = [tr[c][0] / rt["mtp"][c][0] for c, _ in CATS]
             print(f"  heldout: minVsBest {min(tv) * 100 - 100:+.1f} meanVsBest {sum(tv) / 7 * 100 - 100:+.1f} minVsMTP {min(tm) * 100 - 100:+.1f}")
             print(f"minVsBest {mn * 100 - 100:+.1f} meanVsBest {mean * 100 - 100:+.1f} minVsMTP {mm * 100 - 100:+.1f}", {k: v for k, v in kw.items() if v not in (None, False)})
+
+
+
+class Policy2:
+    """MTP acceptance as the free covariate: DFlash is entered when MTP's tokens per pass reach `theta` (DFlash wins 96% of the
+    time above 2.6 and loses 87% below 2.4 per 96-token block), left when its measured rate falls under MTP's (last known) rate."""
+    def __init__(self, theta=2.5, alpha_m=0.12, alpha_d=0.12, dwell_m=8, dwell_d=8, hyst=1.0, probe_mtp=24, probe_w=0.3,
+                 m0=(2.2, 25.5), d0=(3.6, 38.0), prior_w=2.0, seed_m=2, probe_dfl=0, dfl_win=1.6, bump=0.0, decay=0.005):
+        self.__dict__.update(locals())
+        del self.__dict__["self"]
+        self.n = [0, 0]
+        self.tok = [m0[0], d0[0]]
+        self.ms = [m0[1], d0[1]]
+        self.cur = 0
+        self.in_cur = 0
+        self.since = 0
+        self.fresh = False
+        self.last = None
+        self.probe_pass = False
+        self.probing = False
+        self.dpr = 0
+        self.extra = 0.0
+
+    def rate(self, d):
+        return self.tok[d] / self.ms[d]
+
+    def pick(self):
+        d = self._pick()
+        self.fresh = self.last != d
+        self.probe_pass = self.probing and d != self.cur
+        self.last = d
+        return d
+
+    def _pick(self):
+        if self.n[0] < self.seed_m:
+            return 0
+        if self.probing:
+            self.probing = False
+            return self.cur
+        self.in_cur += 1
+        if self.cur == 0:
+            self.extra = max(0.0, self.extra - self.decay)
+            if self.tok[0] >= self.theta + self.extra and self.in_cur >= self.dwell_m:
+                self.cur, self.in_cur, self.since = 1, 0, 0
+                if self.n[1] == 0:
+                    self.tok[1] = 1.5 * self.tok[0] * self.ms[1] / self.ms[0]  # enter neutral-ish: win needs real tokens
+                return 1
+            if self.probe_dfl:
+                self.since += 1
+                if self.since >= self.probe_dfl:
+                    self.since = 0
+                    self.probing = True
+                    return 1
+            return 0
+        # on DFlash
+        if self.rate(1) < self.rate(0) / self.hyst and self.in_cur >= self.dwell_d:
+            self.cur, self.in_cur, self.since = 0, 0, 0
+            self.extra = self.bump
+            return 0
+        self.since += 1
+        if self.since >= self.probe_mtp:
+            self.since = 0
+            self.probing = True
+            return 0
+        return 1
+
+    def record(self, d, tokens, ms):
+        self.n[d] += 1
+        a = self.alpha_m if d == 0 else self.alpha_d
+        w = max(1.0 / (self.n[d] + self.prior_w), a)
+        if self.probe_pass:
+            w = max(w, self.probe_w)
+        self.tok[d] += w * (tokens - self.tok[d])
+        if not self.fresh:
+            self.ms[d] += w * (ms - self.ms[d])
+        self.fresh = False
+        self.probe_pass = False
 
 
 if __name__ == '__main__':

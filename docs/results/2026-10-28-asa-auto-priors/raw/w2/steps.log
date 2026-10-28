@@ -1,0 +1,37 @@
+15:50:52 guard: [guard] radiance stopped 2026-10-28 15:50:52
+15:50:52 round 1 arm mtp2: starting server
+15:52:33 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261028-155209-asa-mtp2-asa-w2-mtp2-ho-chat-r1/result.json
+15:52:45 round 1 arm mtp2 ho-code: localeval exit 0 results/20261028-155234-asa-mtp2-asa-w2-mtp2-ho-code-r1/result.json
+15:53:12 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261028-155245-asa-mtp2-asa-w2-mtp2-ho-prose-r1/result.json
+15:53:25 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261028-155313-asa-mtp2-asa-w2-mtp2-ho-recall-r1/result.json
+15:54:05 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261028-155325-asa-mtp2-asa-w2-mtp2-rcp-code-r1/result.json
+15:54:56 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261028-155405-asa-mtp2-asa-w2-mtp2-rcp-prose-r1/result.json
+15:55:40 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261028-155457-asa-mtp2-asa-w2-mtp2-rcp-recall-r1/result.json
+15:55:41 round 1 arm dfl7: starting server
+15:56:52 round 1 arm dfl7 ho-chat: localeval exit 0 results/20261028-155625-asa-dfl7-asa-w2-dfl7-ho-chat-r1/result.json
+15:57:01 round 1 arm dfl7 ho-code: localeval exit 0 results/20261028-155652-asa-dfl7-asa-w2-dfl7-ho-code-r1/result.json
+15:57:34 round 1 arm dfl7 ho-prose: localeval exit 0 results/20261028-155701-asa-dfl7-asa-w2-dfl7-ho-prose-r1/result.json
+15:57:46 round 1 arm dfl7 ho-recall: localeval exit 0 results/20261028-155734-asa-dfl7-asa-w2-dfl7-ho-recall-r1/result.json
+15:58:18 round 1 arm dfl7 rcp-code: localeval exit 0 results/20261028-155747-asa-dfl7-asa-w2-dfl7-rcp-code-r1/result.json
+15:59:20 round 1 arm dfl7 rcp-prose: localeval exit 0 results/20261028-155819-asa-dfl7-asa-w2-dfl7-rcp-prose-r1/result.json
+16:00:00 round 1 arm dfl7 rcp-recall: localeval exit 0 results/20261028-155921-asa-dfl7-asa-w2-dfl7-rcp-recall-r1/result.json
+16:00:00 round 1 arm auto: starting server
+16:01:51 round 1 arm auto ho-chat: localeval exit 0 results/20261028-160126-asa-auto-asa-w2-auto-ho-chat-r1/result.json
+16:02:00 round 1 arm auto ho-code: localeval exit 0 results/20261028-160151-asa-auto-asa-w2-auto-ho-code-r1/result.json
+16:02:28 round 1 arm auto ho-prose: localeval exit 0 results/20261028-160201-asa-auto-asa-w2-auto-ho-prose-r1/result.json
+16:02:41 round 1 arm auto ho-recall: localeval exit 0 results/20261028-160229-asa-auto-asa-w2-auto-ho-recall-r1/result.json
+16:03:13 round 1 arm auto rcp-code: localeval exit 0 results/20261028-160241-asa-auto-asa-w2-auto-rcp-code-r1/result.json
+16:04:05 round 1 arm auto rcp-prose: localeval exit 0 results/20261028-160314-asa-auto-asa-w2-auto-rcp-prose-r1/result.json
+16:04:47 round 1 arm auto rcp-recall: localeval exit 0 results/20261028-160406-asa-auto-asa-w2-auto-rcp-recall-r1/result.json
+16:04:48 round 1 arm autoold: starting server
+16:06:38 round 1 arm autoold ho-chat: localeval exit 0 results/20261028-160614-asa-autoold-asa-w2-autoold-ho-chat-r1/result.json
+16:06:48 round 1 arm autoold ho-code: localeval exit 0 results/20261028-160639-asa-autoold-asa-w2-autoold-ho-code-r1/result.json
+16:07:17 round 1 arm autoold ho-prose: localeval exit 0 results/20261028-160648-asa-autoold-asa-w2-autoold-ho-prose-r1/result.json
+16:07:29 round 1 arm autoold ho-recall: localeval exit 0 results/20261028-160717-asa-autoold-asa-w2-autoold-ho-recall-r1/result.json
+16:08:02 round 1 arm autoold rcp-code: localeval exit 0 results/20261028-160730-asa-autoold-asa-w2-autoold-rcp-code-r1/result.json
+16:08:57 round 1 arm autoold rcp-prose: localeval exit 0 results/20261028-160803-asa-autoold-asa-w2-autoold-rcp-prose-r1/result.json
+16:09:37 round 1 arm autoold rcp-recall: localeval exit 0 results/20261028-160857-asa-autoold-asa-w2-autoold-rcp-recall-r1/result.json
+16:09:38 round 2 arm autoold: starting server
+16:11:28 round 2 arm autoold ho-chat: localeval exit 0 results/20261028-161104-asa-autoold-asa-w2-autoold-ho-chat-r2/result.json
+16:11:37 round 2 arm autoold ho-code: localeval exit 0 results/20261028-161129-asa-autoold-asa-w2-autoold-ho-code-r2/result.json
+16:12:02 guard: [guard] radiance answers 2026-10-28 16:12:02 (after 15 s)
