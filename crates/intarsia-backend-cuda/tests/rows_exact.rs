@@ -443,6 +443,34 @@ fn rows_split_are_bitwise_the_one_row_gemv() {
     rig.report("split");
 }
 
+/// The persistent x-staged nvfp4 rows kernel (INTARSIA_CUDA_NVFP4_ROWS_FULL forced to each shape, and unset: the launcher's own
+/// use of it, N >= 16384 at M >= 5): the one-row kernel's bits, the lm_head included.
+#[test]
+fn nvfp4_rows_full_are_bitwise_the_one_row_gemv() {
+    let Some(rig) = Rig::new("nvfp4_rows_full_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(813);
+    let shapes = [(248320usize, 2048usize, DType::F32), (20000, 64, DType::F32), (512, 2048, DType::Bf16), (300, 4112, DType::Bf16), (9, 16, DType::F32), (1030, 160, DType::Bf16), (1, 16, DType::Bf16)];
+    for f in ["auto", "2x16", "1x16", "2x8", "4x8"] {
+        if f == "auto" {
+            std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_FULL");
+        } else {
+            std::env::set_var("INTARSIA_CUDA_NVFP4_ROWS_FULL", f);
+        }
+        for (n, k, model_out) in shapes {
+            for wide in [false, true] {
+                let parts = if wide { wide_nvfp4(&mut rng, n, k) } else { nvfp4::random_rows(&mut rng, n, k).parts };
+                let weights: Vec<TensorRef> = parts.iter().map(|p| rig.put(p)).collect();
+                let x_rows = nasty_rows(&mut rng, k, 448.0);
+                for out_dt in [model_out, if model_out == DType::F32 { DType::Bf16 } else { DType::F32 }] {
+                    gb_matmul(&rig, Op::MatmulNvfp4, "matmul_nvfp4_gemv", "matmul_nvfp4_gemv_rows", &weights, &x_rows, n, out_dt, &format!("nvfp4 full={f} n={n} k={k} wide={wide} {out_dt:?}"), CAP);
+                }
+            }
+        }
+    }
+    std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_FULL");
+    rig.report("nvfp4-full");
+}
+
 // ---- nvfp4 -----------------------------------------------------------------------------------------------------------
 
 #[test]
@@ -1017,7 +1045,7 @@ fn timing_rows_evict() {
             let bytes = n * k / 2 + n * k / 16;
             let pools: Vec<Vec<TensorRef>> = (0..pool_of(bytes)).map(|_| q.parts.iter().map(|p| rig.put(p)).collect()).collect();
             let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
-            let splits: &[&str] = if n > 100000 { &["0", "auto"] } else { &["0", "auto", "1", "2", "4", "8"] };
+            let splits: &[&str] = if n > 100000 { &["0", "auto", "f2x16", "f1x16", "f2x8", "f4x8"] } else { &["0", "auto", "1", "2", "4", "8"] };
             for &m in &ms {
                 let calls: Vec<OpCall> = pools
                     .iter()
@@ -1028,12 +1056,17 @@ fn timing_rows_evict() {
                     })
                     .collect();
                 for r in splits {
-                    set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", if *r == "auto" { "" } else { r })]);
+                    match *r {
+                        "0" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "0"), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "0")]),
+                        "auto" => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", ""), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "")]),
+                        f if f.starts_with('f') => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", ""), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", &f[1..])]),
+                        r => set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", r), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "")]),
+                    }
                     let us = time_pool("matmul_nvfp4_gemv_rows", Op::MatmulNvfp4, &calls);
                     println!("EVT nvfp4 {n}x{k} split={r:<4} M={m:<2} {us:8.2} us {:7.1} GB/s", bytes as f64 / us / 1e3);
                 }
             }
-            set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", "")]);
+            set(&[("INTARSIA_CUDA_NVFP4_ROWS_SPLIT", ""), ("INTARSIA_CUDA_NVFP4_ROWS_FULL", "")]);
         }
     }
 }

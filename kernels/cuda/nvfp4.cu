@@ -169,6 +169,129 @@ inline int rows_tile_nt(int M, int64_t N) {
     return 1;
 }
 
+// Persistent variant of the row-exact launcher for wide calls (the lm_head, 248320 x 2048, at M >= 5): a block stages the M bf16
+// activation rows in shared memory once (M x K x 2 bytes; the tile kernel instead re-reads every row's x block from L2 for every
+// tile, which at M = 8..16 costs it 1.5x..1.8x the 4-row time) and its warps then walk NT-output tiles of the weight. Per (m, n)
+// the arithmetic is nvfp4_tile_body's: the same lane-strided 16-element blocks, 16-long fmaf chain, `acc = fmaf(s, sc, acc)`,
+// warp tree and scale, so the bits are the one-row kernel's.
+constexpr size_t kFullSmemMax = 96 * 1024;
+
+template <int M, int NT, int W, typename OutT>
+__global__ void __launch_bounds__(W * IK_WARP, 1)
+nvfp4_gemv_full_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
+                       const float* __restrict__ gs, OutT* __restrict__ out, int64_t N, int K) {
+    extern __shared__ __align__(16) unsigned char smem[];
+    uint4* xs = reinterpret_cast<uint4*>(smem);  // [M][2][K / 16]: the 8-element halves of each 16-element block
+    const int KV = K / 16;
+    for (int i = threadIdx.x; i < M * (K / 8); i += blockDim.x) {
+        const int m = i / (K / 8), j = i % (K / 8);
+        xs[(m * 2 + (j & 1)) * KV + (j >> 1)] = __ldg(reinterpret_cast<const uint4*>(x + (int64_t)m * K) + j);
+    }
+    __syncthreads();
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t tiles = (N + NT - 1) / NT;
+    const float g = gs[0];
+    for (int64_t t = (int64_t)blockIdx.x * W + warp; t < tiles; t += (int64_t)gridDim.x * W) {
+        const int64_t nb = t * NT;  // this tile's outputs: nb .. nb + NT - 1
+        const uint2* wr[NT];
+        const uint8_t* sr[NT];
+#pragma unroll
+        for (int j = 0; j < NT; ++j) {
+            const int64_t n = nb + j < N ? nb + j : 0;  // a dead output reads row 0
+            wr[j] = reinterpret_cast<const uint2*>(w + n * (K / 2));
+            sr[j] = bs + n * (K / 16);
+        }
+        float acc[NT][M];
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
+#pragma unroll(NT == 1 ? 4 : 2)
+        for (int u = lane; u < KV; u += IK_WARP) {
+            float wf[NT][16], sc[NT];
+#pragma unroll
+            for (int j = 0; j < NT; ++j) {
+                const uint2 wv = __ldcs(wr[j] + u);
+                sc[j] = ik_e4m3_to_f(sr[j][u]);
+                ik_fp4x8_to_f32(wv.x, wf[j]);
+                ik_fp4x8_to_f32(wv.y, wf[j] + 8);
+            }
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                float xf[16];
+                ik_unpack8(xs[(m * 2) * KV + u], xf);
+                ik_unpack8(xs[(m * 2 + 1) * KV + u], xf + 8);
+#pragma unroll
+                for (int j = 0; j < NT; ++j) {
+                    float sd = 0.f;
+#pragma unroll
+                    for (int e = 0; e < 16; ++e) sd = fmaf(wf[j][e], xf[e], sd);
+                    acc[j][m] = fmaf(sd, sc[j], acc[j][m]);
+                }
+            }
+        }
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                const float r = ik_warp_sum(acc[j][m]);  // all 32 lanes call it (full-mask shuffles)
+                if (lane == 0 && nb + j < N) ik_store(out + (int64_t)m * N + nb + j, r * g);
+            }
+    }
+}
+
+inline int sm_count() {
+    static int cached[64];
+    int d = 0;
+    cudaGetDevice(&d);
+    if (d < 0 || d >= 64) d = 0;
+    if (!cached[d]) {
+        int v = 0;
+        cudaDeviceGetAttribute(&v, cudaDevAttrMultiProcessorCount, d);
+        cached[d] = v > 0 ? v : 48;
+    }
+    return cached[d];
+}
+
+template <int M, int NT, int W, typename OutT>
+void full_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+    const size_t smem = (size_t)M * K * 2;
+    auto kern = nvfp4_gemv_full_kernel<M, NT, W, OutT>;
+    cudaFuncSetAttribute((const void*)kern, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
+    int occ = 0;
+    if (cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, kern, W * IK_WARP, smem) != cudaSuccess || occ < 1) occ = 1;
+    const int64_t blocks = ((N + NT - 1) / NT + W - 1) / W, cap = (int64_t)sm_count() * occ;
+    kern<<<(unsigned)(blocks < cap ? blocks : cap), W * IK_WARP, smem, s>>>(x, w, bs, gs, out, N, (int)K);
+}
+
+// INTARSIA_CUDA_NVFP4_ROWS_FULL: unset = the persistent kernel for M >= 5 when N >= 16384 and x fits 96 KB of shared memory,
+// `0` = never (the switch that turns it off), a shape NTxW (`2x16` default, `1x16`, `2x8`, `4x8`) = that shape wherever x fits
+template <int M, typename OutT>
+bool full_run_m(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+    if ((size_t)M * K * 2 > kFullSmemMax) return false;
+    const char* e = getenv("INTARSIA_CUDA_NVFP4_ROWS_FULL");
+    if (e && e[0] == '0' && e[1] == 0) return false;
+    const bool forced = e && (!strcmp(e, "2x16") || !strcmp(e, "1x16") || !strcmp(e, "2x8") || !strcmp(e, "4x8"));
+    if (!forced && (M < 5 || N < 16384)) return false;
+    if (forced && !strcmp(e, "1x16")) full_launch<M, 1, 16>(x, w, bs, gs, out, N, K, s);
+    else if (forced && !strcmp(e, "2x8")) full_launch<M, 2, 8>(x, w, bs, gs, out, N, K, s);
+    else if (forced && !strcmp(e, "4x8")) full_launch<M, 4, 8>(x, w, bs, gs, out, N, K, s);
+    else full_launch<M, 2, 16>(x, w, bs, gs, out, N, K, s);
+    return true;
+}
+
+template <typename OutT>
+bool full_run(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t M, int64_t N, int64_t K, cudaStream_t s) {
+    switch (M) {
+#define IK_NVFP4_FULL_CASE(m) case m: return full_run_m<m>(x, w, bs, gs, out, N, K, s);
+        IK_NVFP4_FULL_CASE(2) IK_NVFP4_FULL_CASE(3) IK_NVFP4_FULL_CASE(4) IK_NVFP4_FULL_CASE(5) IK_NVFP4_FULL_CASE(6)
+        IK_NVFP4_FULL_CASE(7) IK_NVFP4_FULL_CASE(8) IK_NVFP4_FULL_CASE(9) IK_NVFP4_FULL_CASE(10) IK_NVFP4_FULL_CASE(11)
+        IK_NVFP4_FULL_CASE(12) IK_NVFP4_FULL_CASE(13) IK_NVFP4_FULL_CASE(14) IK_NVFP4_FULL_CASE(15) IK_NVFP4_FULL_CASE(16)
+#undef IK_NVFP4_FULL_CASE
+        default: return false;
+    }
+}
+
 // Rows per group of the split: INTARSIA_CUDA_NVFP4_ROWS_SPLIT = 0 never splits (the switch that turns it off), 1 | 2 | 4 | 8 forces
 // R; unset: the largest R that leaves a grid of 96 blocks (no split when the unsplit tiling already has them). The split's
 // outputs per warp: 2 when that leaves 16 output blocks, else 1.
@@ -277,7 +400,7 @@ void gemv_run(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float
 template <typename OutT>
 int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N,
               int64_t K, cudaStream_t s, bool rows) {
-    if (rows && split_run(x, w, bs, gs, out, M, N, K, s)) return ik_launch_status();
+    if (rows && (full_run(x, w, bs, gs, out, M, N, K, s) || split_run(x, w, bs, gs, out, M, N, K, s))) return ik_launch_status();
     switch (M) {
         case 1: gemv_run<1>(x, w, bs, gs, out, N, K, s, rows); break;
         case 2: gemv_run<2>(x, w, bs, gs, out, N, K, s, rows); break;
