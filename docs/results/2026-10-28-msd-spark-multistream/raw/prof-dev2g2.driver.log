@@ -1,0 +1,3 @@
+fleetq: #6531 waiting (#1 in line): needs spark1 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #6531 running on spark1: scripts/msd/prof.sh dev2 dev2g2-b16 INTARSIA_MOE_ROWS_GROUP_MIN=2
+round 0 streams 2 wall 1.44s ttft_med 0.91 ttft_max 0.91 chunks [32, 32]

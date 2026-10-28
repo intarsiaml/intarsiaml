@@ -1,0 +1,5 @@
+fleetq: #6472 running on spark1: scripts/msd/build.sh dev2
+    Finished `release` profile [optimized] target(s) in 54.20s
+-rwxrwxr-x 1 nvidia nvidia 82684504 Oct 28 14:25 /home/nvidia/intarsiaml-msd/bin/dev2
+intarsia 0.0.1
+fleetq: #6472 done (exit 0)

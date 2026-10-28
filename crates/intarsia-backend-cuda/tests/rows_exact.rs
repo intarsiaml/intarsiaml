@@ -607,17 +607,27 @@ fn gb_moe(rig: &Rig, solo: &str, rows: &str, attrs: &OpAttrs, e: usize, topk: us
 fn moe_decode_rows_are_bitwise_the_one_token_kernel() {
     let Some(rig) = Rig::new("moe_decode_rows_are_bitwise_the_one_token_kernel") else { return };
     let silu = OpAttrs { top_k: 8, ..OpAttrs::default() };
-    // the 35B layer (hidden 2048, routed intermediate 512, top-8) over 64 of its 256 experts (the kernels only index by
-    // expert id; 256 would be 400 MB of random weights per case), and a small shape with top-4
-    for wide in [false, true] {
-        gb_moe(&rig, "moe_experts_decode_v2_bf16", "moe_experts_decode_v2_rows_bf16", &silu, 64, 8, 2048, 512, 901, wide);
-        gb_moe(&rig, "moe_experts_decode_v2_bf16", "moe_experts_decode_v2_rows_bf16", &OpAttrs { top_k: 4, ..OpAttrs::default() }, 8, 4, 128, 64, 902, wide);
+    // INTARSIA_MOE_ROWS_GROUP_MIN (lane msd): the rows launchers' row-grouped path (moe.cu's counting sort + per-expert kernels) from
+    // that many rows on; "" = the per-pair kernels (the default). Both must be bitwise the one-token kernel on every row.
+    for group_min in ["", "2", "5"] {
+        if group_min.is_empty() {
+            std::env::remove_var("INTARSIA_MOE_ROWS_GROUP_MIN");
+        } else {
+            std::env::set_var("INTARSIA_MOE_ROWS_GROUP_MIN", group_min);
+        }
+        // the 35B layer (hidden 2048, routed intermediate 512, top-8) over 64 of its 256 experts (the kernels only index by
+        // expert id; 256 would be 400 MB of random weights per case), and a small shape with top-4
+        for wide in [false, true] {
+            gb_moe(&rig, "moe_experts_decode_v2_bf16", "moe_experts_decode_v2_rows_bf16", &silu, 64, 8, 2048, 512, 901, wide);
+            gb_moe(&rig, "moe_experts_decode_v2_bf16", "moe_experts_decode_v2_rows_bf16", &OpAttrs { top_k: 4, ..OpAttrs::default() }, 8, 4, 128, 64, 902, wide);
+        }
+        // Gemma-style gelu twin
+        let gelu = OpAttrs { top_k: 8, gelu: true, ..OpAttrs::default() };
+        for wide in [false, true] {
+            gb_moe(&rig, "moe_experts_decode_v2_gelu_bf16", "moe_experts_decode_v2_gelu_rows_bf16", &gelu, 32, 8, 256, 128, 903, wide);
+        }
     }
-    // Gemma-style gelu twin
-    let gelu = OpAttrs { top_k: 8, gelu: true, ..OpAttrs::default() };
-    for wide in [false, true] {
-        gb_moe(&rig, "moe_experts_decode_v2_gelu_bf16", "moe_experts_decode_v2_gelu_rows_bf16", &gelu, 32, 8, 256, 128, 903, wide);
-    }
+    std::env::remove_var("INTARSIA_MOE_ROWS_GROUP_MIN");
     rig.report("moe");
 }
 
@@ -830,4 +840,90 @@ fn timing_gemv_rows() {
             line("moe 64e top8 2048/512", kernel, m, us, m * topk * pair_bytes);
         }
     }
+}
+
+/// Lane msd: the rows MoE experts launcher on the 35B layer (256 experts, top-8, hidden 2048, routed intermediate 512) with the
+/// weights cold in L2: the call rotates over `SETS` prepared routings so that an expert's weights are evicted by the other
+/// calls before they are read again (a decode step reads 40 layers' experts between two reads of the same ones). Routings:
+/// `same` (every token on the same 8 experts, the localeval burst of identical prompts), `distinct` (independent random
+/// top-8 per token), `half` (tokens in two groups of identical experts). The per-pair kernels (INTARSIA_MOE_ROWS_GROUP_MIN
+/// unset) against the row-grouped path (set to 2). Prints `TIME routing T mode us`.
+///   cargo test -p intarsia-backend-cuda --release --test rows_exact -- --ignored --nocapture timing_moe_rows
+#[test]
+#[ignore = "micro-timing"]
+fn timing_moe_rows() {
+    let Some(rig) = Rig::new("timing_moe_rows") else { return };
+    let mut rng = SplitMix64::new(4242);
+    let (e, topk, h, i) = (256usize, 8usize, 2048usize, 512usize);
+    let ex = random_experts(&mut rng, e, h, i);
+    let w: Vec<TensorRef> = [&ex.gate_up_w, &ex.gate_up_s, &ex.down_w, &ex.down_s, &ex.gscales].iter().map(|t| rig.put(t)).collect();
+    let attrs = OpAttrs { top_k: topk, ..OpAttrs::default() };
+    const SETS: usize = 16;
+    let kernel = "moe_experts_decode_v2_rows_bf16";
+    let only_routing = std::env::var("MSD_ROUTING").ok();
+    let only_t: Option<usize> = std::env::var("MSD_T").ok().and_then(|v| v.parse().ok());
+    for routing in ["same", "half", "distinct"] {
+        if only_routing.as_deref().is_some_and(|r| r != routing) {
+            continue;
+        }
+        // SETS routings of CAP tokens each
+        let mut sets: Vec<(Vec<i32>, Vec<f32>)> = Vec::new();
+        for s in 0..SETS {
+            let (rid, rw) = random_routing(&mut rng, CAP, e, topk);
+            let (rid, rw) = (rid.to_i32().unwrap(), rw.to_f32());
+            let ids: Vec<i32> = match routing {
+                "same" => (0..CAP).flat_map(|_| (0..topk).map(|j| ((s * topk + j) % e) as i32)).collect(),
+                "half" => (0..CAP).flat_map(|t| (0..topk).map(move |j| (((s * 2 + t % 2) * topk + j) % e) as i32)).collect(),
+                _ => rid,
+            };
+            sets.push((ids, rw));
+        }
+        let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, h], &rng.normal_vec(CAP * h, 1.0)));
+        for m in [2usize, 4, 5, 8, 12, 16] {
+            if only_t.is_some_and(|t| t != m) {
+                continue;
+            }
+            let mut res = Vec::new();
+            for group_min in ["", "2"] {
+                if group_min.is_empty() {
+                    std::env::remove_var("INTARSIA_MOE_ROWS_GROUP_MIN");
+                } else {
+                    std::env::set_var("INTARSIA_MOE_ROWS_GROUP_MIN", "2");
+                }
+                let calls: Vec<OpCall> = sets
+                    .iter()
+                    .map(|(ids, ws)| {
+                        let mut ins = vec![
+                            x.rows(0, m),
+                            rig.put(&HostTensor::from_i32(&[m, topk], &ids[..m * topk])),
+                            rig.put(&HostTensor::from_f32(&[m, topk], &ws[..m * topk])),
+                        ];
+                        ins.extend(w.iter().cloned());
+                        let outs = vec![rig.put(&HostTensor::zeros(DType::Bf16, &[m, h]))];
+                        let mut call = OpCall::new(Op::MoeExperts, ins, outs, attrs.clone());
+                        call.check().unwrap();
+                        let ks = rig.be.kernels();
+                        let k = ks.iter().find(|k| k.name == kernel && k.op == Op::MoeExperts).unwrap();
+                        let need = k.scratch_bytes(&ShapeInfo::from_call(&call));
+                        let buf = rig.be.alloc(need.max(16), MemKind::Device).unwrap();
+                        call.scratch = Some(TensorRef::new(buf, DType::U8, &[need]));
+                        call
+                    })
+                    .collect();
+                for it in 0..SETS * 4 {
+                    rig.be.launch(kernel, &calls[it % SETS], 0).unwrap();
+                }
+                rig.be.synchronize(0).unwrap();
+                let iters = SETS * 40;
+                let t0 = std::time::Instant::now();
+                for it in 0..iters {
+                    rig.be.launch(kernel, &calls[it % SETS], 0).unwrap();
+                }
+                rig.be.synchronize(0).unwrap();
+                res.push(t0.elapsed().as_secs_f64() * 1e6 / iters as f64);
+            }
+            println!("TIME {routing:<9} T={m:<2} per-pair {:7.1} us   grouped {:7.1} us   ({:+.0} %)", res[0], res[1], 100.0 * (res[1] / res[0] - 1.0));
+        }
+    }
+    std::env::remove_var("INTARSIA_MOE_ROWS_GROUP_MIN");
 }

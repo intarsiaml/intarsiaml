@@ -1,0 +1,7 @@
+fleetq: #6465 waiting (#1 in line): #6464 "msd: nsys base B=16,8" (claude-f31ccf91) needs cpu quiet on spark1, and this job loads it
+fleetq:   #6464 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6464 set, or it will wait for #6464 to be released.
+fleetq: #6465 running on spark1: scripts/msd/build.sh dev1
+    Finished `release` profile [optimized] target(s) in 53.08s
+-rwxrwxr-x 1 nvidia nvidia 82684160 Oct 28 14:09 /home/nvidia/intarsiaml-msd/bin/dev1
+intarsia 0.0.1
+fleetq: #6465 done (exit 0)

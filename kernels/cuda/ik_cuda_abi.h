@@ -21,6 +21,17 @@ int ik_moe_experts_w4a16_bf16(const ik_tensor* x, const ik_tensor* ids, const ik
  * moe_experts_w4a16_gelu_bf16: the same launchers without the _gelu (same inputs, scratch and shape limits), with gelu_tanh
  * instead of SiLU in the expert activation: h = bf16(round_bf16(gelu_tanh(g)) * u) (OpAttrs::gelu, Gemma-4). Registered with
  * `.ext()`; the plain launchers are unchanged. kernels/cuda/moe.cu, moe_decode.cu, moe_grouped.cu, moe_w4a16.cu. */
+/* Row-grouped decode experts, 1..16 tokens (kernels/cuda/moe.cu): bitwise the per-pair rows kernels of moe_decode.cu, an expert's
+ * weights read once per up to 16 pairs. Scratch as ik_moe_experts_bf16's. Not registered; ik_moe_experts_decode_v2_rows_bf16
+ * calls it when INTARSIA_MOE_ROWS_GROUP_MIN lets it. */
+int ik_moe_experts_rows_grouped_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                     const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                     const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                     const ik_scratch* scratch, void* stream);
+int ik_moe_experts_rows_grouped_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                          const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                          const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                          const ik_scratch* scratch, void* stream);
 int ik_moe_experts_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
                              const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
                              const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,

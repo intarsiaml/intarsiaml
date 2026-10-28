@@ -1,0 +1,19 @@
+TIME same T=2 per-pair 71.7 us grouped 90.7 us (+26 %) grouped-capped-grid 90.6 us
+TIME same T=4 per-pair 99.0 us grouped 129.9 us (+31 %) grouped-capped-grid 122.6 us
+TIME same T=5 per-pair 120.0 us grouped 146.9 us (+22 %) grouped-capped-grid 136.9 us
+TIME same T=8 per-pair 183.6 us grouped 215.5 us (+17 %) grouped-capped-grid 198.5 us
+TIME same T=12 per-pair 272.9 us grouped 311.1 us (+14 %) grouped-capped-grid 283.7 us
+TIME same T=16 per-pair 362.5 us grouped 402.8 us (+11 %) grouped-capped-grid 375.2 us
+TIME half T=2 per-pair 130.7 us grouped 144.7 us (+11 %) grouped-capped-grid 143.6 us
+TIME half T=4 per-pair 138.8 us grouped 164.9 us (+19 %) grouped-capped-grid 162.2 us
+TIME half T=5 per-pair 148.0 us grouped 180.5 us (+22 %) grouped-capped-grid 171.7 us
+TIME half T=8 per-pair 192.2 us grouped 237.5 us (+24 %) grouped-capped-grid 224.5 us
+TIME half T=12 per-pair 279.4 us grouped 309.9 us (+11 %) grouped-capped-grid 286.5 us
+TIME half T=16 per-pair 373.8 us grouped 402.3 us (+8 %) grouped-capped-grid 370.7 us
+TIME distinct T=2 per-pair 122.5 us grouped 139.3 us (+14 %) grouped-capped-grid 137.4 us
+TIME distinct T=4 per-pair 224.2 us grouped 255.6 us (+14 %) grouped-capped-grid 253.6 us
+TIME distinct T=5 per-pair 273.0 us grouped 309.7 us (+13 %) grouped-capped-grid 307.7 us
+TIME distinct T=8 per-pair 414.9 us grouped 469.2 us (+13 %) grouped-capped-grid 468.0 us
+TIME distinct T=12 per-pair 585.4 us grouped 660.4 us (+13 %) grouped-capped-grid 660.4 us
+TIME distinct T=16 per-pair 744.4 us grouped 841.5 us (+13 %) grouped-capped-grid 841.5 us
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 11.55s

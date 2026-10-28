@@ -9,6 +9,7 @@
 //
 // Per-pair arithmetic is identical to moe.cu (same lane-strided f32 accumulation, same rounding points).
 // Scratch (intarsia_core::quant::ops::moe_experts_decode_scratch): h bf16[T*K, I], rounded to 256 bytes.
+#include "ik_cuda_abi.h"
 #include "ik_launch.h"
 #include "ik_quant.cuh"
 
@@ -211,6 +212,17 @@ int knob(const char* name, int dflt, int a, int b, int c, int d) {
     return dflt;
 }
 
+// Row-grouped experts for the multi-token (rows) launchers: from INTARSIA_MOE_ROWS_GROUP_MIN rows on (0 = never, the default while
+// measuring) the rows launchers hand the call to the grouping kernels of moe.cu (counting sort by expert, each expert's weights read once
+// per 8 pairs, per-pair arithmetic and the k-ordered reduce unchanged), bitwise the per-pair kernels above. The scratch of the call is
+// then moe_experts_scratch's (crates/intarsia-backend-cuda/src/quantmoe.rs `moe_experts_decode_rows_scratch` sizes for either).
+bool rows_grouped(const ik_tensor* x) {
+    if (!x || x->ndim < 2) return false;
+    const char* v = getenv("INTARSIA_MOE_ROWS_GROUP_MIN");
+    const int n = v ? atoi(v) : 0;
+    return n > 0 && x->shape[0] >= n;
+}
+
 template <int U, bool GELU>
 void launch_gate_up(const ik_tensor* x, const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* gscales,
                     const ik_tensor* ids, ik_bf16* hbuf, int64_t P, int64_t E, int64_t H, int64_t I, int64_t K,
@@ -338,6 +350,7 @@ int ik_moe_experts_decode_v2_rows_bf16(const ik_tensor* x, const ik_tensor* ids,
                                        const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
                                        const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
                                        const ik_scratch* scratch, void* stream) {
+    if (rows_grouped(x)) return ik_moe_experts_rows_grouped_bf16(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream);
     return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true, false, 16);
 }
 
@@ -345,6 +358,7 @@ int ik_moe_experts_decode_v2_gelu_rows_bf16(const ik_tensor* x, const ik_tensor*
                                             const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
                                             const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
                                             const ik_scratch* scratch, void* stream) {
+    if (rows_grouped(x)) return ik_moe_experts_rows_grouped_gelu_bf16(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream);
     return decode_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true, true, 16);
 }
 

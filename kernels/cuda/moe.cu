@@ -315,6 +315,355 @@ moe_reduce_kernel(const ik_bf16* __restrict__ y, const int* __restrict__ ids, co
     ik_store(out + (int64_t)t * H + c, acc);
 }
 
+// ---- row-grouped decode experts (lane msd) ---------------------------------------------------------------------------
+//
+// The multi-token (rows) decode launchers, 2..16 tokens: tokens grouped by expert (moe_group_kernel above), each expert's weights
+// read and dequantised once per up to kGrpPairs pairs, instead of once per pair as in moe_decode.cu's per-pair kernels (which spend
+// most of their time re-dequantising the same fp4 weights when tokens share experts). Per-pair arithmetic is the per-pair kernels':
+// lane-strided f32 accumulation (the same u order, the same 16-element fma chain, the block scale applied per chunk), the same
+// roundings. The cross-lane sum is the same xor butterfly (16, 8, 4, 2, 1) on every value, computed with fewer shuffles
+// (grp_warp_sum), so a pair's result does not depend on which other pairs share the expert or on how many there are.
+
+constexpr int kGrpPairs = 16;  // most pairs of one expert per pass (= the most rows of a rows launch)
+constexpr unsigned kGrpSlotBlocks = 12;  // slot-group blocks of the grouped launches (x row groups: a few waves of blocks)
+
+// ik_warp_sum on each of the NV values (NV a power of two, <= 32) at once, with NV - 1 + log2(32 / NV) shuffles instead of
+// NV * 5: at each xor offset o (16, 8, 4, ..) a lane keeps one half of its values and sends the other to its partner, who keeps
+// that half: the sums are the butterfly's (v_l + v_{l ^ o} of the same value, commutative), the lane just does not compute the
+// ones it would not use. Lane l returns the total of value (l >> (5 - log2 NV)).
+template <int NV>
+IK_DEVI float grp_warp_sum(float (&v)[NV], int lane) {
+    int o = IK_WARP / 2;
+#pragma unroll
+    for (int n = NV; n > 1; n >>= 1, o >>= 1) {
+        const bool hi = (lane & o) != 0;
+#pragma unroll
+        for (int i = 0; i < n / 2; ++i) {
+            const float send = hi ? v[i] : v[i + n / 2];
+            const float keep = hi ? v[i + n / 2] : v[i];
+            v[i] = keep + __shfl_xor_sync(0xffffffffu, send, o);
+        }
+    }
+#pragma unroll
+    for (; o > 0; o >>= 1) v[0] += __shfl_xor_sync(0xffffffffu, v[0], o);
+    return v[0];
+}
+
+// 5 - log2(NQ): a lane of grp_warp_sum<NQ> owns value (lane >> kGrpShift<NQ>::v)
+template <int NQ>
+struct GrpShift {
+    static constexpr int v = NQ == 16 ? 1 : NQ == 8 ? 2 : NQ == 4 ? 3 : NQ == 2 ? 4 : 5;
+};
+
+// word k (0..3) of a uint4, k a compile-time constant after unrolling
+IK_DEVI uint32_t grp_u4(const uint4& v, int k) { return k == 0 ? v.x : k == 1 ? v.y : k == 2 ? v.z : v.w; }
+
+// One pass of one gate/up row pair over NQ pairs. The activations are read straight from global memory (L1/L2 hits: a layer's
+// activations are 16 tokens x H bf16), no staging and no block barriers: every warp is independent, so the latency of the loads
+// is hidden by the other warps of the SM and by the loads of the next u iteration, not paid per block.
+template <bool GELU, int NQ, int GW>
+IK_DEVI void grp_gate_up_pass(const ik_bf16* __restrict__ x, int H, int I, const uint2* __restrict__ wg,
+                              const uint2* __restrict__ wu, const uint8_t* __restrict__ sg, const uint8_t* __restrict__ su,
+                              float gg, float gu, const int* __restrict__ pair_ids, int pc, unsigned kmagic, int lane, int r,
+                              ik_bf16* __restrict__ h) {
+    float ag[NQ], au[NQ];
+    const uint4* xrow[NQ];
+#pragma unroll
+    for (int q = 0; q < NQ; ++q) {
+        ag[q] = au[q] = 0.f;
+        xrow[q] = reinterpret_cast<const uint4*>(x + (int64_t)(q < pc ? __umulhi((unsigned)pair_ids[q], kmagic) : 0) * H);
+    }
+#pragma unroll 2
+    for (int u = lane; u < H / 16; u += IK_WARP) {
+        const uint2 wgv = __ldcs(wg + u), wuv = __ldcs(wu + u);
+        const float sgv = ik_e4m3_to_f(sg[u]), suv = ik_e4m3_to_f(su[u]);
+        float fg[16], fu[16];
+        ik_fp4x8_to_f32(wgv.x, fg);
+        ik_fp4x8_to_f32(wgv.y, fg + 8);
+        ik_fp4x8_to_f32(wuv.x, fu);
+        ik_fp4x8_to_f32(wuv.y, fu + 8);
+        // groups of four pairs, no branch inside a group: the 16-long fma chains of the four pairs (and of the gate and the up
+        // row) are independent, so they interleave; a pair >= pc reads token 0 and its sums are never used
+#pragma unroll
+        for (int g0 = 0; g0 < NQ; g0 += GW) {
+            if (g0 < pc) {  // warp-uniform
+                uint4 xr[GW][2];
+#pragma unroll
+                for (int j = 0; j < GW; ++j) {
+                    xr[j][0] = __ldg(xrow[g0 + j] + 2 * u);
+                    xr[j][1] = __ldg(xrow[g0 + j] + 2 * u + 1);
+                }
+                float pg[GW], pu[GW];
+#pragma unroll
+                for (int j = 0; j < GW; ++j) pg[j] = pu[j] = 0.f;
+#pragma unroll
+                for (int i = 0; i < 16; ++i) {
+#pragma unroll
+                    for (int j = 0; j < GW; ++j) {
+                        const uint32_t w = grp_u4(xr[j][i >> 3], (i & 7) >> 1);
+                        const float xv = (i & 1) ? __uint_as_float(w & 0xffff0000u) : __uint_as_float(w << 16);  // bf16 -> f32, exact
+                        pg[j] = fmaf(fg[i], xv, pg[j]);
+                        pu[j] = fmaf(fu[i], xv, pu[j]);
+                    }
+                }
+#pragma unroll
+                for (int j = 0; j < GW; ++j) {
+                    ag[g0 + j] = fmaf(pg[j], sgv, ag[g0 + j]);
+                    au[g0 + j] = fmaf(pu[j], suv, au[g0 + j]);
+                }
+            }
+        }
+    }
+    float v[2 * NQ];
+#pragma unroll
+    for (int q = 0; q < NQ; ++q) {
+        v[q] = ag[q];
+        v[NQ + q] = au[q];
+    }
+    const float tot = grp_warp_sum<2 * NQ>(v, lane);  // lane l: value (l >> sh), the gate sums of pairs 0..NQ-1 then the up sums
+    const float other = __shfl_xor_sync(0xffffffffu, tot, 16);  // lane l < 16 holds a gate sum, l + 16 the same pair's up sum
+    constexpr int sh = GrpShift<NQ>::v - 1;
+    const int q = lane >> sh;
+    if (lane < 16 && (lane & ((1 << sh) - 1)) == 0 && q < pc) {
+        const float g = round_bf16(tot * gg);
+        const float u = round_bf16(other * gu);
+        const float a = round_bf16(GELU ? ik_gelu_tanh(g) : g / (1.f + expf(-g)));
+        h[(int64_t)pair_ids[q] * I + r] = ik_f2b(a * u);
+    }
+}
+
+// The single-pair gate/up pass for two rows at once (see grp_down_lean): rows r0 and r0 + 8.
+template <bool GELU>
+IK_DEVI void grp_gate_up_lean(const ik_bf16* __restrict__ x, int H, int I, const uint8_t* __restrict__ guw,
+                              const uint8_t* __restrict__ gus, int e, float gg, float gu, int pair, unsigned kmagic, int lane,
+                              int r0, ik_bf16* __restrict__ h) {
+    constexpr int R = 2;
+    const uint4* xrow = reinterpret_cast<const uint4*>(x + (int64_t)__umulhi((unsigned)pair, kmagic) * H);
+    float ag[R], au[R];
+#pragma unroll
+    for (int j = 0; j < R; ++j) ag[j] = au[j] = 0.f;
+#pragma unroll 1
+    for (int u = lane; u < H / 16; u += IK_WARP) {
+        uint2 wgv[R], wuv[R];
+        float sgv[R], suv[R];
+#pragma unroll
+        for (int j = 0; j < R; ++j) {
+            const int rr = r0 + 8 * j < I ? r0 + 8 * j : r0;  // a row past I reads row r0 and is not stored
+            const int64_t rg = (int64_t)e * 2 * I + rr, ru = (int64_t)e * 2 * I + I + rr;
+            wgv[j] = __ldcs(reinterpret_cast<const uint2*>(guw + rg * (H / 2)) + u);
+            wuv[j] = __ldcs(reinterpret_cast<const uint2*>(guw + ru * (H / 2)) + u);
+            sgv[j] = ik_e4m3_to_f(gus[rg * (H / 16) + u]);
+            suv[j] = ik_e4m3_to_f(gus[ru * (H / 16) + u]);
+        }
+        const uint4 x0 = __ldg(xrow + 2 * u), x1 = __ldg(xrow + 2 * u + 1);
+        float xf[16];
+        ik_unpack8(x0, xf);
+        ik_unpack8(x1, xf + 8);
+#pragma unroll
+        for (int j = 0; j < R; ++j) {
+            float fg[16], fu[16];
+            ik_fp4x8_to_f32(wgv[j].x, fg);
+            ik_fp4x8_to_f32(wgv[j].y, fg + 8);
+            ik_fp4x8_to_f32(wuv[j].x, fu);
+            ik_fp4x8_to_f32(wuv[j].y, fu + 8);
+            float pg = 0.f, pu = 0.f;
+#pragma unroll
+            for (int i = 0; i < 16; ++i) {
+                pg = fmaf(fg[i], xf[i], pg);
+                pu = fmaf(fu[i], xf[i], pu);
+            }
+            ag[j] = fmaf(pg, sgv[j], ag[j]);
+            au[j] = fmaf(pu, suv[j], au[j]);
+        }
+    }
+    float v[2 * R] = {ag[0], au[0], ag[1], au[1]};
+    const float tot = grp_warp_sum<2 * R>(v, lane);  // lane l: value (l >> 3): gate row 0, up row 0, gate row 1, up row 1
+    const float other = __shfl_xor_sync(0xffffffffu, tot, 8);
+    const int j = lane >> 4;
+    const int row = r0 + 8 * j;
+    if ((lane & 15) == 0 && row < I) {
+        const float g = round_bf16(tot * gg);
+        const float u = round_bf16(other * gu);
+        const float a = round_bf16(GELU ? ik_gelu_tanh(g) : g / (1.f + expf(-g)));
+        h[(int64_t)pair * I + row] = ik_f2b(a * u);
+    }
+}
+
+// grid (slot groups, I / 8 row groups): block (g, t) walks the active experts g, g + gridDim.x, .. against 8 gate/up rows (a warp per
+// row). The grid is a few waves, not one block per possible expert: a block that finds no expert costs a latency chain of dependent
+// loads (active, offsets), and a launch of mostly such blocks was most of the time of the sparse routings.
+template <bool GELU>
+__global__ void __launch_bounds__(kRowWarps * IK_WARP)
+moe_gate_up_grp_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ guw, const uint8_t* __restrict__ gus,
+                       const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
+                       const int* __restrict__ active, ik_bf16* __restrict__ h, int E, int H, int I, unsigned kmagic) {
+    const int nactive = active[E];
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int r0 = blockIdx.y * (2 * kRowWarps) + warp;  // the warp's rows: r0 and r0 + 8
+    for (int slot = blockIdx.x; slot < nactive; slot += gridDim.x) {
+        const int e = active[slot];
+        const int begin = offsets[e], cnt = offsets[e + 1] - begin;
+        const float gg = gscales[e * 3 + 0], gu = gscales[e * 3 + 1];
+        if (cnt == 1) {
+            grp_gate_up_lean<GELU>(x, H, I, guw, gus, e, gg, gu, pairs[begin], kmagic, lane, r0, h);
+            continue;
+        }
+#pragma unroll 1
+        for (int j = 0; j < 2; ++j) {
+            const int r = r0 + 8 * j;
+            if (r >= I) break;
+            const uint2* wg = reinterpret_cast<const uint2*>(guw + ((int64_t)e * 2 * I + r) * (H / 2));
+            const uint2* wu = reinterpret_cast<const uint2*>(guw + ((int64_t)e * 2 * I + I + r) * (H / 2));
+            const uint8_t* sg = gus + ((int64_t)e * 2 * I + r) * (H / 16);
+            const uint8_t* su = gus + ((int64_t)e * 2 * I + I + r) * (H / 16);
+            for (int c0 = 0; c0 < cnt; c0 += kGrpPairs) {
+                const int pc = min(kGrpPairs, cnt - c0);
+                // the pass width follows the pairs of this expert: 16 pairs on one expert (tokens on the same experts) are one pass
+                // over the weights
+                const int* pi = pairs + begin + c0;
+                if (pc == 2) {
+                    grp_gate_up_pass<GELU, 2, 2>(x, H, I, wg, wu, sg, su, gg, gu, pi, pc, kmagic, lane, r, h);
+                } else if (pc <= 4) {
+                    grp_gate_up_pass<GELU, 4, 4>(x, H, I, wg, wu, sg, su, gg, gu, pi, pc, kmagic, lane, r, h);
+                } else if (pc <= 8) {
+                    grp_gate_up_pass<GELU, 8, 4>(x, H, I, wg, wu, sg, su, gg, gu, pi, pc, kmagic, lane, r, h);
+                } else {
+                    grp_gate_up_pass<GELU, kGrpPairs, 4>(x, H, I, wg, wu, sg, su, gg, gu, pi, pc, kmagic, lane, r, h);
+                }
+            }
+        }
+    }
+}
+
+template <int NQ, int GW>
+IK_DEVI void grp_down_pass(const ik_bf16* __restrict__ h, int I, const uint2* __restrict__ wd, const uint8_t* __restrict__ sd,
+                           float gd, const int* __restrict__ pair_ids, int pc, int lane, int H, int r, ik_bf16* __restrict__ y) {
+    float acc[NQ];
+    const uint4* hrow[NQ];
+#pragma unroll
+    for (int q = 0; q < NQ; ++q) {
+        acc[q] = 0.f;
+        hrow[q] = reinterpret_cast<const uint4*>(h + (int64_t)(q < pc ? pair_ids[q] : 0) * I);
+    }
+#pragma unroll 2
+    for (int u = lane; u < I / 16; u += IK_WARP) {
+        const uint2 wv = __ldcs(wd + u);
+        const float sv = ik_e4m3_to_f(sd[u]);
+        float fw[16];
+        ik_fp4x8_to_f32(wv.x, fw);
+        ik_fp4x8_to_f32(wv.y, fw + 8);
+#pragma unroll
+        for (int g0 = 0; g0 < NQ; g0 += GW) {
+            if (g0 < pc) {  // warp-uniform; a pair >= pc reads the pair 0 row and its sum is never used
+                uint4 hr[GW][2];
+#pragma unroll
+                for (int j = 0; j < GW; ++j) {
+                    hr[j][0] = __ldg(hrow[g0 + j] + 2 * u);
+                    hr[j][1] = __ldg(hrow[g0 + j] + 2 * u + 1);
+                }
+                float p[GW];
+#pragma unroll
+                for (int j = 0; j < GW; ++j) p[j] = 0.f;
+#pragma unroll
+                for (int i = 0; i < 16; ++i) {
+#pragma unroll
+                    for (int j = 0; j < GW; ++j) {
+                        const uint32_t w = grp_u4(hr[j][i >> 3], (i & 7) >> 1);
+                        const float hv = (i & 1) ? __uint_as_float(w & 0xffff0000u) : __uint_as_float(w << 16);
+                        p[j] = fmaf(fw[i], hv, p[j]);
+                    }
+                }
+#pragma unroll
+                for (int j = 0; j < GW; ++j) acc[g0 + j] = fmaf(p[j], sv, acc[g0 + j]);
+            }
+        }
+    }
+    const float tot = grp_warp_sum<NQ>(acc, lane);  // lane l: pair (l >> sh)
+    constexpr int sh = GrpShift<NQ>::v;
+    const int q = lane >> sh;
+    if ((lane & ((1 << sh) - 1)) == 0 && q < pc) y[(int64_t)pair_ids[q] * H + r] = ik_f2b(tot * gd);
+}
+
+// One pair against R rows at once (the per-pair kernels' shape: R independent loads and fma chains per warp, the activation row
+// loaded once): used when an expert has a single pair, where the work is the weights' DRAM stream and the latency hiding of the
+// loads matters, not the pairs. Row r of the warp's rows: r0 + 8 * j.
+template <int R>
+IK_DEVI void grp_down_lean(const ik_bf16* __restrict__ h, int I, const uint8_t* __restrict__ dnw, const uint8_t* __restrict__ dns,
+                           int e, int H, float gd, int pair, int lane, int r0, ik_bf16* __restrict__ y) {
+    const uint4* hrow = reinterpret_cast<const uint4*>(h + (int64_t)pair * I);
+    float acc[R];
+#pragma unroll
+    for (int j = 0; j < R; ++j) acc[j] = 0.f;
+#pragma unroll 1
+    for (int u = lane; u < I / 16; u += IK_WARP) {
+        uint2 wv[R];
+        float sv[R];
+#pragma unroll
+        for (int j = 0; j < R; ++j) {
+            const int rr = r0 + 8 * j < H ? r0 + 8 * j : r0;  // a row past H reads row r0 and is not stored
+            wv[j] = __ldcs(reinterpret_cast<const uint2*>(dnw + ((int64_t)e * H + rr) * (I / 2)) + u);
+            sv[j] = ik_e4m3_to_f(dns[((int64_t)e * H + rr) * (I / 16) + u]);
+        }
+        const uint4 h0 = __ldg(hrow + 2 * u), h1 = __ldg(hrow + 2 * u + 1);
+        float hf[16];
+        ik_unpack8(h0, hf);
+        ik_unpack8(h1, hf + 8);
+#pragma unroll
+        for (int j = 0; j < R; ++j) {
+            float fw[16];
+            ik_fp4x8_to_f32(wv[j].x, fw);
+            ik_fp4x8_to_f32(wv[j].y, fw + 8);
+            float p = 0.f;
+#pragma unroll
+            for (int i = 0; i < 16; ++i) p = fmaf(fw[i], hf[i], p);
+            acc[j] = fmaf(p, sv[j], acc[j]);
+        }
+    }
+    const float tot = grp_warp_sum<R>(acc, lane);  // lane l: row j = l >> (5 - log2 R)
+    constexpr int sh = GrpShift<R>::v;
+    const int j = lane >> sh;
+    const int row = r0 + 8 * j;
+    if ((lane & ((1 << sh) - 1)) == 0 && row < H) y[(int64_t)pair * H + row] = ik_f2b(tot * gd);
+}
+
+__global__ void __launch_bounds__(kRowWarps * IK_WARP)
+moe_down_grp_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dnw, const uint8_t* __restrict__ dns,
+                    const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
+                    const int* __restrict__ active, ik_bf16* __restrict__ y, int E, int H, int I) {
+    const int nactive = active[E];
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int r0 = blockIdx.y * (4 * kRowWarps) + warp;  // the warp's rows: r0, r0 + 8, r0 + 16, r0 + 24
+    for (int slot = blockIdx.x; slot < nactive; slot += gridDim.x) {
+        const int e = active[slot];
+        const int begin = offsets[e], cnt = offsets[e + 1] - begin;
+        const float gd = gscales[e * 3 + 2];
+        if (cnt == 1) {
+            grp_down_lean<4>(h, I, dnw, dns, e, H, gd, pairs[begin], lane, r0, y);
+            continue;
+        }
+#pragma unroll 1
+        for (int j = 0; j < 4; ++j) {
+            const int r = r0 + 8 * j;
+            if (r >= H) break;
+            const uint2* wd = reinterpret_cast<const uint2*>(dnw + ((int64_t)e * H + r) * (I / 2));
+            const uint8_t* sd = dns + ((int64_t)e * H + r) * (I / 16);
+            for (int c0 = 0; c0 < cnt; c0 += kGrpPairs) {
+                const int pc = min(kGrpPairs, cnt - c0);
+                const int* pi = pairs + begin + c0;
+                if (pc == 2) {
+                    grp_down_pass<2, 2>(h, I, wd, sd, gd, pi, pc, lane, H, r, y);
+                } else if (pc <= 4) {
+                    grp_down_pass<4, 4>(h, I, wd, sd, gd, pi, pc, lane, H, r, y);
+                } else if (pc <= 8) {
+                    grp_down_pass<8, 4>(h, I, wd, sd, gd, pi, pc, lane, H, r, y);
+                } else {
+                    grp_down_pass<kGrpPairs, 4>(h, I, wd, sd, gd, pi, pc, lane, H, r, y);
+                }
+            }
+        }
+    }
+}
+
 // ---- combine -------------------------------------------------------------------------------------------------------
 
 template <typename OutT>
@@ -373,7 +722,7 @@ int ik_moe_topk_bf16(const ik_tensor* logits, int top_k, int norm, ik_tensor* we
 static int moe_experts_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
                               const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
                               const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
-                              const ik_scratch* scratch, void* stream, bool gelu) {
+                              const ik_scratch* scratch, void* stream, bool gelu, bool grp = false) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(ids, IK_DTYPE_I32, 2, 4));
     IK_TRY(ik_check_a(weights, IK_DTYPE_F32, 2, 4));
@@ -415,6 +764,31 @@ static int moe_experts_launch(const ik_tensor* x, const ik_tensor* ids, const ik
 
     moe_group_kernel<<<1, 1024, (2 * E + 32) * sizeof(int), s>>>((const int*)ids->data, (int)P, (int)E, pairs, offsets, active);
     IK_TRY(ik_launch_status());
+    if (grp) {
+        // row-grouped decode kernels (T <= kGrpPairs): one pass over an expert's weights per up to kGrpPairs pairs
+        if (T > kGrpPairs || P > 0xffff || H % 16 != 0 || I % 16 != 0) return IK_ERR_SHAPE;
+        const unsigned kmagic = (unsigned)(0x100000000ULL / (uint64_t)K + 1);  // pair / K == __umulhi(pair, kmagic) for pair < 2^16
+        const unsigned gslots = slots < kGrpSlotBlocks ? slots : kGrpSlotBlocks;
+        const dim3 gu_grid(gslots, (unsigned)((I + 2 * kRowWarps - 1) / (2 * kRowWarps)));
+        const dim3 dn_grid(gslots, (unsigned)((H + 4 * kRowWarps - 1) / (4 * kRowWarps)));
+        const ik_bf16* xp = (const ik_bf16*)x->data;
+        const uint8_t* guw = (const uint8_t*)gate_up_w->data;
+        const uint8_t* gus = (const uint8_t*)gate_up_s->data;
+        const float* gsc = (const float*)gscales->data;
+        const uint8_t* dnw = (const uint8_t*)down_w->data;
+        const uint8_t* dns = (const uint8_t*)down_s->data;
+        if (gelu) {
+            moe_gate_up_grp_kernel<true><<<gu_grid, kRowWarps * IK_WARP, 0, s>>>(xp, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, kmagic);
+        } else {
+            moe_gate_up_grp_kernel<false><<<gu_grid, kRowWarps * IK_WARP, 0, s>>>(xp, guw, gus, gsc, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, kmagic);
+        }
+        IK_TRY(ik_launch_status());
+        moe_down_grp_kernel<<<dn_grid, kRowWarps * IK_WARP, 0, s>>>(hbuf, dnw, dns, gsc, pairs, offsets, active, ybuf, (int)E, (int)H, (int)I);
+        IK_TRY(ik_launch_status());
+        moe_reduce_kernel<ik_bf16><<<dim3((unsigned)T, (unsigned)((H + 255) / 256)), 256, 0, s>>>(
+            ybuf, (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)K);
+        return ik_launch_status();
+    }
     if (gelu) {
         moe_gate_up_kernel<true><<<dim3(slots, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
                                    (size_t)PC * H * 2, s>>>((const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
@@ -441,6 +815,22 @@ int ik_moe_experts_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tenso
                         const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s,
                         const ik_tensor* gscales, ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return moe_experts_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, false);
+}
+
+// Row-grouped decode experts for 1..16 tokens (see "row-grouped decode experts" above): bitwise the per-pair rows kernels of
+// moe_decode.cu. Scratch as ik_moe_experts_bf16's. Called by ik_moe_experts_decode_v2_rows_bf16 (INTARSIA_MOE_ROWS_GROUP_MIN).
+int ik_moe_experts_rows_grouped_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                     const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                     const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                     const ik_scratch* scratch, void* stream) {
+    return moe_experts_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, false, true);
+}
+
+int ik_moe_experts_rows_grouped_gelu_bf16(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights,
+                                          const ik_tensor* gate_up_w, const ik_tensor* gate_up_s, const ik_tensor* down_w,
+                                          const ik_tensor* down_s, const ik_tensor* gscales, ik_tensor* out,
+                                          const ik_scratch* scratch, void* stream) {
+    return moe_experts_launch(x, ids, weights, gate_up_w, gate_up_s, down_w, down_s, gscales, out, scratch, stream, true, true);
 }
 
 // gelu_tanh in the expert activation (OpAttrs::gelu); otherwise the same bits as ik_moe_experts_bf16.
