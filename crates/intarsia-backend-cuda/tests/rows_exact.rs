@@ -842,7 +842,7 @@ fn timing_gemv_rows() {
     let mut rng = SplitMix64::new(77);
     let a = OpAttrs::default();
     let iters = 400;
-    let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+    let line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
         println!("TIME {what:<28} {kernel:<26} M={m:<2} {us:8.2} us  {:7.1} GB/s", bytes as f64 / us / 1e3);
     };
     for (n, k) in [(2048usize, 4096usize), (2048, 2048), (8192, 2048), (4096, 2048), (512, 2048)] {
@@ -980,8 +980,9 @@ fn timing_rows_evict() {
     };
     // fp8: the 35B's GDN in_qkv, in_z / attention q, k / v, GDN out / o_proj
     if only.is_empty() || only.contains("fp8") {
-        let forms: [(&str, &str, &str, &str); 9] = [
+        let forms: [(&str, &str, &str, &str); 10] = [
             ("base", "", "0", ""),
+            ("auto", "", "", ""),
             ("full1x16", "1x16", "0", ""),
             ("full4x8", "4x8", "0", ""),
             ("q2x8", "", "all", ""),

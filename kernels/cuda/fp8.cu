@@ -481,6 +481,8 @@ int rows_run_q(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, i
     return ik_launch_status();
 }
 
+constexpr int64_t kQSmallN = 1024;
+
 // INTARSIA_CUDA_FP8_ROWS_QSHAPE = NTxW or NTxWxB (B: blocks per SM the register budget is sized for): the e4m3-staged kernel's shape
 template <int M, typename OutT>
 int rows_run_q_shape(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
@@ -492,11 +494,12 @@ int rows_run_q_shape(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
         if (!strcmp(f, "1x8x3")) return rows_run_q<M, 1, 8, 3>(x, w, sc, out, N, K, s);
         if (!strcmp(f, "4x8")) return rows_run_q<M, 4, 8, 1>(x, w, sc, out, N, K, s);
     }
+    if (N <= kQSmallN) return rows_run_q<M, 1, 16, 1>(x, w, sc, out, N, K, s);
     return rows_run_q<M, 2, 8, 2>(x, w, sc, out, N, K, s);
 }
 
 // INTARSIA_CUDA_FP8_ROWS_Q: unset = the e4m3-staged kernel where the bf16 activations do not fit the persistent kernel
-// (M * K * 2 > 96 KB, i.e. K = 4096 at M >= 13), `0` = never (the switch that turns it off), `all` = wherever M >= 2 and
+// (M * K * 2 > 96 KB, i.e. K = 4096 at M >= 13) and for N <= 1024 at M >= 4 (shape 1x16), `0` = never (the switch that turns it off), `all` = wherever M >= 2 and
 // M * K bytes fit
 inline int rows_q_mode() {
     const char* e = getenv("INTARSIA_CUDA_FP8_ROWS_Q");
@@ -534,7 +537,8 @@ int rows_run(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int
     if constexpr (M >= 2) {
         const int q = off || tile ? 0 : rows_q_mode();
         const bool fits_q = (size_t)M * K <= kQSmemMax, fits_full = (size_t)M * K * 2 <= kFullSmemMax;
-        if (fits_q && (q == 2 || (q == 1 && !fits_full))) return rows_run_q_shape<M>(x, w, sc, out, N, K, s);
+        const bool small_n = N <= kQSmallN && M >= 4;  // k / v: the persistent kernel's 2x16 grid is a third of the SMs
+        if (fits_q && (q == 2 || (q == 1 && (!fits_full || small_n)))) return rows_run_q_shape<M>(x, w, sc, out, N, K, s);
     }
     if (!off && !tile && (size_t)M * K * 2 <= kFullSmemMax) {
         const char* f = getenv("INTARSIA_CUDA_FP8_ROWS_FULL");
