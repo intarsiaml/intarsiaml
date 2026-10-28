@@ -1,0 +1,95 @@
+15:29:58 kernels test --backend hip --quick: exit 0 SKIPPED: kernel gated_rmsnorm_matmul_fp8_wmma ran 0 cases on backend 'hip'|SKIPPED: kernel rmsnorm_add_matmul_fp8_pair_wmma ran 0 cases on backend 'hip'|SKIPPED: kernel sigmoid_mul_matmul_fp8_wmma ran 0 cases on backend 'hip'|
+15:30:05 ref-short-0-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:30:12 ref-short-0-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:30:20 ref-short-0-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:30:27 def-short-0-1 exit 0
+15:30:34 def-short-0-2 exit 0
+15:30:41 ref-short-1-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:30:48 ref-short-1-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:30:56 ref-short-1-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:31:03 def-short-1-1 exit 0
+15:31:10 def-short-1-2 exit 0
+15:31:17 ref-short-2-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:31:24 ref-short-2-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:31:31 ref-short-2-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:31:39 def-short-2-1 exit 0
+15:31:46 def-short-2-2 exit 0
+15:31:53 ref-short-3-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:32:00 ref-short-3-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:32:07 ref-short-3-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:32:15 def-short-3-1 exit 0
+15:32:22 def-short-3-2 exit 0
+15:32:29 ref-short-4-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:32:36 ref-short-4-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:32:43 ref-short-4-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:32:51 def-short-4-1 exit 0
+15:32:58 def-short-4-2 exit 0
+15:33:05 ref-short-5-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:33:12 ref-short-5-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:33:19 ref-short-5-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:33:26 def-short-5-1 exit 0
+15:33:34 def-short-5-2 exit 0
+15:33:42 ref-4k-0-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:33:49 ref-4k-0-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:33:57 ref-4k-0-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:34:05 def-4k-0-1 exit 0
+15:34:13 def-4k-0-2 exit 0
+15:34:21 ref-4k-1-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:34:29 ref-4k-1-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:34:37 ref-4k-1-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:34:45 def-4k-1-1 exit 0
+15:34:53 def-4k-1-2 exit 0
+15:35:01 ref-4k-2-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:35:09 ref-4k-2-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:35:17 ref-4k-2-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:35:25 def-4k-2-1 exit 0
+15:35:34 def-4k-2-2 exit 0
+15:35:41 ref-4k-3-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:35:49 ref-4k-3-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:35:57 ref-4k-3-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:36:05 def-4k-3-1 exit 0
+15:36:13 def-4k-3-2 exit 0
+15:36:21 ref-4k-4-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:36:29 ref-4k-4-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:36:37 ref-4k-4-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:36:45 def-4k-4-1 exit 0
+15:36:53 def-4k-4-2 exit 0
+15:37:01 ref-4k-5-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:37:09 ref-4k-5-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:37:17 ref-4k-5-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:37:25 def-4k-5-1 exit 0
+15:37:33 def-4k-5-2 exit 0
+15:37:43 ref-16k-0-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:37:53 ref-16k-0-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:38:03 ref-16k-0-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:38:14 def-16k-0-1 exit 0
+15:38:24 def-16k-0-2 exit 0
+15:38:34 ref-16k-1-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:38:45 ref-16k-1-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:38:55 ref-16k-1-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:39:06 def-16k-1-1 exit 0
+15:39:16 def-16k-1-2 exit 0
+15:39:27 ref-16k-2-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:39:38 ref-16k-2-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:39:49 ref-16k-2-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:40:00 def-16k-2-1 exit 0
+15:40:11 def-16k-2-2 exit 0
+15:40:21 ref-16k-3-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:40:32 ref-16k-3-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:40:42 ref-16k-3-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:40:53 def-16k-3-1 exit 0
+15:41:03 def-16k-3-2 exit 0
+15:41:14 ref-16k-4-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:41:24 ref-16k-4-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:41:34 ref-16k-4-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:41:44 def-16k-4-1 exit 0
+15:41:55 def-16k-4-2 exit 0
+15:42:05 ref-16k-5-1 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:42:16 ref-16k-5-2 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:42:27 ref-16k-5-3 exit 0 [INTARSIA_HIP_AR_DRAIN=3]
+15:42:38 def-16k-5-1 exit 0
+15:42:49 def-16k-5-2 exit 0
+15:48:58 soak: 120 processes; ids-line counts 120 
+15:48:58 soak stages done
+15:48:59 stages done
+15:49:09 guard: [guard] radiance answers 2026-10-28 15:49:09 (after 15 s)

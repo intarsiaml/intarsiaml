@@ -262,3 +262,21 @@ decode), 1.4 to 1.8% (MTP k2 categories) and 3.4 to 4.6% (35B decode); mode 5 by
 0.5 to 1.0% (d1) and 2.1 to 3.5% (d5) on the 27B. Both arms miss that speed bar, but the coordinator overruled it on correctness grounds (2026-10-28): the default is now `INTARSIA_HIP_AR_DRAIN=1` (cost: ~2% decode on the 27B at tp=2, ~4% on the 35B) and `=3` restores the old fast mode. The merge gates for the flip are in section 6; `kernels test --backend hip --quick` passes on this branch (raw/ar-g1/kernels-test.log, exit 0, 10 kernels without cases in the quick sweep).
 The cost split is not measured: mode 1 adds a fence to every thread of the all-reduce block, so a cheaper sufficient variant
 (fence only in the threads that pushed the last word, or a sequence number in every pushed word as in the next-step note above) could close the gap.
+
+## 6. Default flip to `INTARSIA_HIP_AR_DRAIN=1`: merge gates (lane ars, 2026-10-28)
+
+Coordinator decision: correctness wins over about 2% decode. Mode 3 (the old default) can let a rank add stale peer rows, a data race, so the sums are wrong,
+in about 1.5% of fresh tp=2 processes. `INTARSIA_HIP_AR_DRAIN=1` is now the default for HIP tp>1; **`INTARSIA_HIP_AR_DRAIN=3` restores the fast, racy mode**
+(`docs/tuning.md`). One window on tatooine (fleetq #6537, radiance down 15:29:54, answering again 15:49:09), tree `~/intarsiaml-ars` at `1d96bc0`,
+27B `amd/Qwen3.8-27B-Quark-AWQ-MXFP4`, `generate --tp 2 --devices 0,1`. Scripts `scripts/ar/stages-soak.sh` (stages `kt ids18 soak`), `scripts/ar/ids18_verdict.py`;
+raw files in `raw/ars-w1/`.
+
+| gate | result |
+|---|---|
+| greedy ids vs main (`ids18`): the 18 prompts of `scripts/dfh/ids-prompts` (short, 4k, 16k x 0-5), plain decode (`--spec off`), 256 tokens; 3 fresh runs with `INTARSIA_HIP_AR_DRAIN=3` (main's behaviour) give the reference (majority), 2 fresh runs with the default must equal it | 18/18 equal (`ids18_verdict.py raw/ars-w1`); all 18 prompts: 3/3 main runs agreed with each other |
+| confirm soak: 120 fresh tapped processes, short-5, `--spec mtp --spec-k 2`, 16 tokens, default mode, per-row layer taps (`INTARSIA_DET_TAP`) | 0 divergent: 120 of 120 taps byte-identical (`tapdiff.py`), 120 of 120 id lines equal, all exit 0 (mode 1 already had 0/250 tapped in w9) |
+| `kernels test --backend hip --quick` | exit 0 |
+| Mac `cargo test --workspace --release` | green (202 result lines, 0 failed) |
+
+Cost of the flip, measured in section 5 (same binary, 4 interleaved rounds): decode -1.9 to -2.7% on the 27B (MTP off), -1.4 to -1.8% with MTP k2, -3.4 to -4.6%
+on the 35B NVFP4 (2 rounds). `docs/results/2026-10-28-scoreboard.md` carries the new numbers ("after #221 fence default").

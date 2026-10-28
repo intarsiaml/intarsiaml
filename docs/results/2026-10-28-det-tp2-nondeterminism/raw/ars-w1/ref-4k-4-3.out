@@ -1,0 +1,7 @@
+I am the GPU. I sit in the rack, humming at a steady clock, waiting for the operator to tell me how to work. They call this "tuning," but to me, it is just a matter of how I choose to sweat.
+
+There are two kinds of changes they make. Some are just about *how* I move—scheduling, memory, logging. These don’t change the numbers I produce; they just change how fast I get there. But other changes? Those alter the math itself. They change the logits. If they touch those, they have to run the accuracy gates again, or the numbers they quote are worthless.
+
+The most common knob is the **Prefill Chunk**. They decide how many tokens I process in one forward pass. It’s a delicate balance. If they change the chunk size, the order of my reductions and KV writes shifts. It’s subtle—just a KL-level difference—but for long documents, it matters. So, if they tweak the chunk, they must re-run the accuracy tests on the long and 4k goldens. I don’t mind; I just want to know if the math has changed.
+
+Then there’s the **KV Cache dtype**. By default, I use `bf1

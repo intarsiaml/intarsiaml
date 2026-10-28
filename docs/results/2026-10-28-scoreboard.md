@@ -23,9 +23,11 @@ Source keys are in the legend at the end (path + section). Competitor numbers ar
 |---|---|---|---|---|---|---|---|
 | Qwen3.8-27B MXFP4 W4A8 (default) | TP=2, MTP k2 on | 3533 / 3828 / 3554 | 88.9 / 79.9 / 74.0 | 1.05 s | not measured at W4A8 | H1 | #186 (W4A8), #194 (chunk 2048), #198 (bf16 partials), #206 (a8 GEMM) |
 | same | TP=2, MTP off | 3584 / 3825 / 3582 | 56.9 / 56.1 / 53.0 | not measured | not measured | H1 | #214 MTP-off decode, "with this change" column (2026-10-27-hdc-hip-27b-decode.md); was 54.5 / 53.7 / 50.8 |
+| same, after #221 fence default | TP=2, MTP off, `INTARSIA_HIP_AR_DRAIN=1` (default since #221) | 3543 / 3866 / 3539 | 55.19 / 54.87 / 51.96 | not measured | not measured | lane ar A/B d1, 4 rounds (2026-10-28-det-tp2-nondeterminism.md section 5) | #221 makes mode 1 the default: -1.9 to -2.7% decode vs the old mode 3 (`=3` restores it, with a ~1.5% stale-read race in fresh tp=2 processes); absolute numbers are from the A/B window's binary, not H1's |
 | same, opt-in overlap | TP=2, MTP on, `INTARSIA_TP_OVERLAP=2`, chunk 4096 | 3256 / 3755 / 3545 | 90.1 / 85.5 / 75.4 | not measured | not measured | H4 | #202 (default off, gate +4.5% < +5% bar) |
 | 27B W4A4 (opt-in now) | TP=2, MTP on, chunk 256 (pre-#194) | 2082 / 2126 / n.m. | 86.6 / 84.9 / n.m. | not measured | 4/8/16 streams: 154.4 / 241.8 / 310.2 (no spec, 10-26) | H5; H0 | #186 made W4A8 default |
 | Qwen3.6-35B-A3B NVFP4 | TP=2, spec off (MTP refused under tp for this MoE) | 8654 / 11938 / 11378 | 191.9 / 189.4 / 180.5 | 0.34-0.35 s | 4: 358.5, 16: 530.0 (1k, 512 gen) | H2 | none (#190 device top-k opt-in) |
+| same, after #221 fence default | TP=2, spec off, `INTARSIA_HIP_AR_DRAIN=1` (default since #221) | 8809 / 12091 / n.m. | 182.76 / 182.57 / n.m. | not measured | not measured | lane ar A/B d1, 2 rounds (1k/4k only) | #221: -3.4 to -4.6% decode vs the old mode 3 (191.58 / 188.91 in the same window) |
 | same | TP=1, spec off, macro prefill 8192 | 7214 / 10348 / 9441 | 163.6 / 159.3 / 144.9 | 0.39-0.41 s | 4: 214.9, 16: 259.7 (1k, 128 gen, 10-25) | H3 | none |
 | same | TP=1, MTP k2 opt-in, captured step | not measured | 168.0 / 163.1 / 150.9 | not measured | not measured | H9 | none |
 | Qwen3-8B BF16 | TP=1, spec off | 4570 / 4327 / 3379 **old** | 38.3 / 37.1 / 33.2 **old** | not measured (927 ms generate-prefill at 3997 tok, 10-22 **old**, H7, is not a served TTFT) | served: not measured | H6; H7 | none |
@@ -117,3 +119,5 @@ Decode tok/s, HIP tp=2, one row per category. Spec off is the MTP-off baseline (
 | rcp-code | 56.9 | 108.6 | 139.1 | 135.0 |
 | rcp-prose | 56.9 | 83.3 | 68.5 | 77.9 |
 | rcp-recall | 56.9 | 98.8 | 109.4 | 106.9 |
+
+After #221 (fence default, `INTARSIA_HIP_AR_DRAIN=1`), MTP k2 decode measured in the lane ar A/B window (4 rounds, same binary, vs the old mode 3 in the same window): rcp-code 107.15 (was 108.68, -1.40%), rcp-prose 82.11 (83.60, -1.78%), rcp-recall 97.59 (99.05, -1.47%), all 95.62 (97.11, -1.54%). The MTP k2 column above predates #221.
