@@ -9,6 +9,7 @@
 #          INTARSIA_HIP_AR_LL_MAX=2097152 (every test on the LL path); the tests with an explicit mode (LL vs fence bitwise, delayed-rank
 #          stress, tag-check negative control) run in each pass
 #   rate : `all_reduce_rate` (us per call by size) under modes 1, 3, 7 and 7 with LL up to 2 MiB
+#   plan : `plan show` of the 27B and 35B at tp=2 (all-reduce calls and bytes per decode step, fused with the rmsnorm)
 #   kt7  : kernels test --quick with the B binary (ars-intarsia-b) under INTARSIA_HIP_AR_DRAIN=7
 #   soak7: like soak, with the B binary and, with INTARSIA_HIP_AR_DRAIN=7
 #   ids18: the det lane's 18 prompts (short/4k/16k x 0-5), plain decode (--spec off) at tp=2, 256 greedy tokens: REFN (3) fresh runs with
@@ -51,6 +52,12 @@ for i in 1 2 3 4 5 6; do (( $(vram) < 1073741824 )) && break; sleep 10; done
 M="--spec mtp --spec-k 2"
 for st in ${STAGES:-kt ref soak ids}; do
   case $st in
+    plan) # how many all-reduces per decode step, of which sizes, and how many fused with the rmsnorm (no run, but it loads the weights)
+          for mm in "27b:$M27" "35b:/models/intarsia/Qwen3.6-35B-A3B-NVFP4"; do
+            INTARSIA_REPO=$TREE HIP_VISIBLE_DEVICES=0,1 timeout 600 "$DEV" "/work/ars-intarsia-b" plan show --backend hip --model "${mm#*:}" --tp 2 --devices 0,1 \
+              --mem-budget 29 --max-seq 8192 > "$O/plan-${mm%%:*}.txt" 2> "$O/plan-${mm%%:*}.err" < /dev/null
+            log "plan ${mm%%:*}: exit $? $(grep -a -E 'all-reduce|fused' "$O/plan-${mm%%:*}.txt" | tr '\n' '|' | cut -c1-260)"
+          done ;;
     kt7) BIN=ars-intarsia-b INTARSIA_REPO=$TREE HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_DRAIN=7 timeout 1500 "$DEV" "/work/ars-intarsia-b" kernels test --backend hip --quick > "$O/kernels-test-d7.log" 2>&1 < /dev/null
         log "kernels test --backend hip --quick (B binary, drain 7): exit $? $(tail -3 "$O/kernels-test-d7.log" | tr '\n' '|' | cut -c1-300)" ;;
     kt) INTARSIA_REPO=$TREE HIP_VISIBLE_DEVICES=0,1 timeout 1500 "$DEV" "/work/$BIN" kernels test --backend hip --quick > "$O/kernels-test.log" 2>&1 < /dev/null
