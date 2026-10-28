@@ -106,7 +106,7 @@ fn gdn_verify_snapshots_are_bitwise_the_row_by_row_save() {
             call.check().unwrap();
             b.launch(kernel, &call, 0).unwrap();
             b.synchronize(0).unwrap();
-            let dl = |buf: &_, off: usize, n: usize| {
+            let dl = |buf: &intarsia_core::backend::Buffer, off: usize, n: usize| {
                 let mut v = vec![0u8; n];
                 b.download(buf, off, &mut v, 0).unwrap();
                 v
