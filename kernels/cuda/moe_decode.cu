@@ -11,6 +11,10 @@
 // Scratch (intarsia_core::quant::ops::moe_experts_decode_scratch): h bf16[T*K, I], rounded to 256 bytes.
 #include "ik_launch.h"
 #include "ik_quant.cuh"
+#include <cstdio>
+#include <cstdlib>
+#include <mutex>
+#include <vector>
 
 namespace {
 
@@ -231,6 +235,36 @@ void launch_down_v2(const ik_bf16* hbuf, const ik_tensor* down_w, const ik_tenso
         (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)I, (int)K);
 }
 
+// Diagnostic, lane moe16 (INTARSIA_MOE_ROUTE_STATS=1; off by default, no effect on results): distinct experts per call of the
+// multi-token (rows) launchers, by row count T. Reads the ids back with a stream sync, so it only runs on eager launches: a
+// launch recorded into a CUDA graph is skipped (batched steps are graph-recorded unless INTARSIA_BATCH_GRAPHS=0). Prints one
+// stderr line per T every 400 calls (10 steps of a 40-layer model): calls, mean / min / max distinct experts, pairs per call.
+void route_stats(const ik_tensor* ids, int64_t T, int64_t K, int64_t E, cudaStream_t s) {
+    static const bool on = [] { const char* v = getenv("INTARSIA_MOE_ROUTE_STATS"); return v && v[0] == '1'; }();
+    if (!on || T < 1 || T > 16) return;
+    cudaStreamCaptureStatus cs = cudaStreamCaptureStatusNone;
+    if (cudaStreamIsCapturing(s, &cs) != cudaSuccess || cs != cudaStreamCaptureStatusNone) return;
+    std::vector<int> h((size_t)(T * K));
+    if (cudaMemcpyAsync(h.data(), ids->data, h.size() * sizeof(int), cudaMemcpyDeviceToHost, s) != cudaSuccess ||
+        cudaStreamSynchronize(s) != cudaSuccess)
+        return;
+    std::vector<char> seen((size_t)E, 0);
+    int d = 0;
+    for (int v : h)
+        if (v >= 0 && v < E && !seen[(size_t)v]) seen[(size_t)v] = 1, ++d;
+    static std::mutex mu;
+    static long long calls[17], sum[17];
+    static int mn[17], mx[17];
+    std::lock_guard<std::mutex> g(mu);
+    if (calls[T] == 0 || d < mn[T]) mn[T] = d;
+    if (d > mx[T]) mx[T] = d;
+    ++calls[T];
+    sum[T] += d;
+    if (calls[T] % 400 == 0)
+        fprintf(stderr, "moe-route T=%lld K=%lld calls=%lld mean_distinct=%.2f min=%d max=%d pairs=%lld\n", (long long)T,
+                (long long)K, calls[T], (double)sum[T] / (double)calls[T], mn[T], mx[T], (long long)(T * K));
+}
+
 // Shared by both entry points: validation, scratch, and the two launches. v2 selects the restructured down kernel.
 int decode_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* weights, const ik_tensor* gate_up_w,
                   const ik_tensor* gate_up_s, const ik_tensor* down_w, const ik_tensor* down_s, const ik_tensor* gscales,
@@ -262,6 +296,7 @@ int decode_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wei
     if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
     ik_bf16* hbuf = (ik_bf16*)scratch->data;
     cudaStream_t s = IK_STREAM(stream);
+    if (max_t > 0) route_stats(ids, T, K, E, s);
     const int gu_unroll = v2 ? knob("INTARSIA_MOE_GU_UNROLL", 2, 1, 2, 4, 4) : 2;
     if (gelu) {
         switch (gu_unroll) {
