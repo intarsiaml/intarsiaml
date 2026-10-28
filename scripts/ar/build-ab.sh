@@ -6,6 +6,6 @@ set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SSH="ssh -o BatchMode=yes tatooine"
 "$HERE/hipcheck.sh"
-$SSH "STAMP=${STAMPA:-a} bash -s" < "$HERE/build.sh"
+[[ ${ONLY:-} == b ]] || $SSH "STAMP=${STAMPA:-a} bash -s" < "$HERE/build.sh"
 $SSH "STAMP=${STAMPB:-b} TREE=\$HOME/intarsiaml-ars/.ars/btree TESTS=1 bash -s" < "$HERE/build.sh"
 $SSH 'cp ~/intarsiaml-ars/.ars/btree/ars-intarsia ~/intarsiaml-ars/ars-intarsia-b && ls -la ~/intarsiaml-ars/ars-intarsia-b' < /dev/null

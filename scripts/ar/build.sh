@@ -16,6 +16,8 @@ if ! docker volume inspect "$INTARSIA_TARGET_VOL" > /dev/null 2>&1; then
 fi
 stamp=${STAMP:-}; stamp=${stamp//_/ }
 echo "== ars: $TREE $stamp $(date +%T)"
+# git archive stamps every file with the commit time; a tree built after another one from the same target volume would look fresh to cargo
+find "$TREE/crates" "$TREE/kernels" "$TREE/Cargo.toml" -type f -exec touch {} +
 $D env INTARSIA_BUILD_STAMP="$stamp" CARGO_BUILD_JOBS=${JOBS:-20} cargo build --release -p intarsia-cli --features hip > "$LOG" 2>&1 < /dev/null
 echo "build exit $? $(date +%T)"; grep -E '^error|Finished' "$LOG" | tail -5
 $D cp /target/release/intarsia /work/ars-intarsia < /dev/null
