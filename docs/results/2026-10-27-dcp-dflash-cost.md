@@ -7,7 +7,7 @@ code; `2026-10-26-dfh-hip-dflash.md` section 16), so the lever is the cost per p
 Setup as in `2026-10-26-spt-spec-retune.md`: tatooine, 2x R9700, `amd/Qwen3.8-27B-Quark-AWQ-MXFP4`, `serve --tp 2 --max-batch 1`, localeval
 `--judge none`, 512 forced tokens, temperature 0, the 7 category files of lane dfh, tables by `tools/dfh/cat_table.py`. Scripts:
 `scripts/dcp/` (copies of `scripts/spt/`; one tree `~/intarsiaml-dcp`, removed afterwards). Raw: `docs/results/2026-10-27-dcp-dflash-cost/raw/`.
-Five fleetq windows (#6393 attr, #6394/6397 builds on cpu slots, rows, ids, speed, ids x18), radiance restored and `/v1/models`
+Five radiance-down fleetq windows (#6393 attribution, rows variants, ids x6, #6398 speed, ids x18) and three cpu-slot builds (#6391, #6394), radiance restored and `/v1/models`
 answering after each.
 
 ## 1. Result in one paragraph
@@ -103,7 +103,7 @@ first. Dropped, not shipped.
   paired A/B above shows identical accepted counts.
 - **`plan show`**: the diff against origin/main touches only `crates/intarsia-core/src/model/dflash.rs` (the draft's kernel-selection default and the trace),
   `docs/tuning.md` and docs/scripts; nothing a config without `--spec dflash` reads. `INTARSIA_DFLASH_ROWS_KERNELS` is read only when a draft is loaded.
-- **Mac** `cargo test --workspace --release`: see the PR (the first run failed only `docs_env_vars` on the since-removed fp8 knob; rerun green).
+- **Mac** `cargo test --workspace --release`: green (199 test result lines ok, 0 failed; the first run failed only `docs_env_vars` on the since-removed fp8 knob).
 
 ## 5. Decode, tp=2, interleaved x3 (window speed, #6398)
 
