@@ -474,6 +474,12 @@ fn long_engine(control_only: bool) {
     let mut failures = Vec::new();
     let identity_cases: Vec<(usize, Vec<usize>)> =
         if control_only { vec![] } else { vec![(2, vec![0, 1]), (4, vec![0, 1, 2, 3]), (4, vec![0, 2, 3, 1])] };
+    // `INTARSIA_LONGENG_CASE=N` runs only identity case N (0-based) in this process: after three engines in one process the
+    // free-memory plan of the fourth is short of the 16384-token prompt by a few tokens (the 4096-row Metal chunk reserves more
+    // scratch), so the CI-style run executes each case in its own process.
+    let only: Option<usize> = std::env::var("INTARSIA_LONGENG_CASE").ok().and_then(|v| v.parse().ok());
+    let identity_cases: Vec<_> =
+        identity_cases.into_iter().enumerate().filter(|(i, _)| only.is_none_or(|o| o == *i)).map(|(_, c)| c).collect();
     for (slots, which) in identity_cases {
         let (outs, m) = scenario(slots, &which, None);
         let hist: Vec<String> =
