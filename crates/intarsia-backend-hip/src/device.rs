@@ -484,6 +484,15 @@ impl Backend for HipBackend {
         "hip"
     }
 
+    /// A held KV prefix is not cut at any row: on HIP too a request that resumed with its prompt's last token alone (a 1-row
+    /// pass) got other logits than its cold prefill, by 0.10-0.30 on Qwen3-8B BF16 in every equal.py prompt, flipping greedy
+    /// tokens, and served repeats differed from the cold reference (lane arx, lane prb's probe on the R9700,
+    /// docs/results/2026-10-29-arx-hip-prefix-reuse.md). So reuse resumes only where the prompt's own cold chunk schedule cuts,
+    /// as on CUDA and Metal (`Model::reuse_len`).
+    fn prefix_reuse_any_cut(&self) -> bool {
+        false
+    }
+
     fn info(&self) -> DeviceInfo {
         let _ = self.bind();
         let (mut free, mut total) = (0u64, 0u64);
