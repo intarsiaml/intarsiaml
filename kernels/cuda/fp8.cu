@@ -378,13 +378,17 @@ constexpr size_t kQSmemMax = 96 * 1024;
 
 // rows m0 .. m0 + RM - 1 of the call, staged in xs: XQ as codes [RM][KV] (16 codes per uint4, element order), else as bf16
 // halves [RM][2][KV] (the persistent kernel's layout)
+// `base`: the first of this call's tiles in the launch-wide tile sequence the warps stride over (a pair launch walks the second
+// matrix's tiles after the first's; 0 for a single matrix)
 template <int RM, int NT, int W, bool XQ, typename OutT>
 __device__ __forceinline__ void rows_q_tiles(const uint4* __restrict__ xs, const uint8_t* __restrict__ w, float s_out,
-                                             OutT* __restrict__ out, int m0, int N, int K) {
+                                             OutT* __restrict__ out, int m0, int N, int K, int64_t base = 0) {
     const int KV = K / 16;
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int64_t tiles = ((int64_t)N + NT - 1) / NT;
-    for (int64_t t = (int64_t)blockIdx.x * W + warp; t < tiles; t += (int64_t)gridDim.x * W) {
+    const int64_t stride = (int64_t)gridDim.x * W, g0 = (int64_t)blockIdx.x * W + warp;
+    const int64_t first = g0 >= base ? g0 : g0 + (base - g0 + stride - 1) / stride * stride;
+    for (int64_t t = first - base; t < tiles; t += stride) {
         const int64_t nb = t * NT;  // this tile's outputs: nb .. nb + NT - 1
         const uint4* wr[NT];
 #pragma unroll
@@ -452,47 +456,76 @@ IK_DEVI void rows_q_stage_bf16(const ik_bf16* __restrict__ x, uint4* __restrict_
     }
 }
 
-template <int M, int NT, int W, int MINB, typename OutT>
-__global__ void __launch_bounds__(W * IK_WARP, MINB)
-fp8_gemv_rows_q_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
-                       OutT* __restrict__ out, int N, int K) {
+// One matrix of an e4m3-staged call: its tiles from `base` of the launch-wide sequence. `staged` is the input scale whose codes xs
+// holds (block-uniform; negative: none), so a pair whose matrices share the input scale stages x once.
+template <int M, int NT, int W, typename OutT>
+__device__ __forceinline__ void rows_q_seg(const ik_bf16* __restrict__ x, uint4* __restrict__ xs, const uint8_t* __restrict__ w,
+                                           const float* __restrict__ sc, OutT* __restrict__ out, int N, int K, int64_t base,
+                                           float& staged) {
     static_assert(M >= 2, "one bf16 row is 2 K bytes, more than the M * K the block holds at M = 1");
-    extern __shared__ __align__(16) unsigned char smem[];
-    uint4* xs = reinterpret_cast<uint4*>(smem);
     const int KV = K / 16;
     if (sc[1] > 0.f) {  // W8A8: codes [M][KV]
         const float s_in = sc[1];
-        for (int i = threadIdx.x; i < M * KV; i += blockDim.x) {
-            const int m = i / KV, u = i % KV;
-            const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K) + 2 * u;
-            float f[16];
-            ik_unpack8(__ldg(xp), f);
-            ik_unpack8(__ldg(xp + 1), f + 8);
-            uint32_t c[4];
+        if (staged != s_in) {
+            __syncthreads();  // the previous matrix is done with xs
+            for (int i = threadIdx.x; i < M * KV; i += blockDim.x) {
+                const int m = i / KV, u = i % KV;
+                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K) + 2 * u;
+                float f[16];
+                ik_unpack8(__ldg(xp), f);
+                ik_unpack8(__ldg(xp + 1), f + 8);
+                uint32_t c[4];
 #pragma unroll
-            for (int q = 0; q < 4; ++q)
-                c[q] = (uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q], s_in)) | ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 1], s_in)) << 8) |
-                       ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 2], s_in)) << 16) | ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 3], s_in)) << 24);
-            xs[i] = make_uint4(c[0], c[1], c[2], c[3]);
+                for (int q = 0; q < 4; ++q)
+                    c[q] = (uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q], s_in)) | ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 1], s_in)) << 8) |
+                           ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 2], s_in)) << 16) | ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 3], s_in)) << 24);
+                xs[i] = make_uint4(c[0], c[1], c[2], c[3]);
+            }
+            __syncthreads();
+            staged = s_in;
         }
-        __syncthreads();
-        rows_q_tiles<M, NT, W, true>(xs, w, sc[0] * s_in, out, 0, N, K);
+        rows_q_tiles<M, NT, W, true>(xs, w, sc[0] * s_in, out, 0, N, K, base);
         return;
     }
+    staged = -1.f;  // the bf16 groups below overwrite xs
     constexpr int G = M / 2;  // W8A16: bf16 rows, G at a time (G * K * 2 <= M * K bytes)
 #pragma unroll 1
     for (int g = 0; g < 2; ++g) {
         __syncthreads();  // the previous group is consumed
         rows_q_stage_bf16(x, xs, g * G, G, K);
         __syncthreads();
-        rows_q_tiles<G, NT, W, false>(xs, w, sc[0], out, g * G, N, K);
+        rows_q_tiles<G, NT, W, false>(xs, w, sc[0], out, g * G, N, K, base);
     }
     if constexpr (M % 2 == 1) {
         __syncthreads();
         rows_q_stage_bf16(x, xs, M - 1, 1, K);
         __syncthreads();
-        rows_q_tiles<1, NT, W, false>(xs, w, sc[0], out, M - 1, N, K);
+        rows_q_tiles<1, NT, W, false>(xs, w, sc[0], out, M - 1, N, K, base);
     }
+}
+
+template <int M, int NT, int W, int MINB, typename OutT>
+__global__ void __launch_bounds__(W * IK_WARP, MINB)
+fp8_gemv_rows_q_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                       OutT* __restrict__ out, int N, int K) {
+    extern __shared__ __align__(16) unsigned char smem[];
+    float staged = -1.f;
+    rows_q_seg<M, NT, W>(x, reinterpret_cast<uint4*>(smem), w, sc, out, N, K, 0, staged);
+}
+
+// Two matrices of one activation block in one launch (GDN qkv + z, attention k + v at 2..16 rows): the warps stride over the
+// first matrix's tiles, then the second's, each with its own scales (x is staged again only if the input scales differ). Every
+// (m, n) is the single kernel's arithmetic, so the pair is bitwise two fp8_gemv_rows_q_kernel launches (and the M = 1 pair).
+template <int M, int NT, int W, int MINB, typename OutT>
+__global__ void __launch_bounds__(W * IK_WARP, MINB)
+fp8_gemv_rows_q_pair_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w0, const float* __restrict__ sc0,
+                            OutT* __restrict__ o0, int N0, const uint8_t* __restrict__ w1, const float* __restrict__ sc1,
+                            OutT* __restrict__ o1, int N1, int K) {
+    extern __shared__ __align__(16) unsigned char smem[];
+    uint4* xs = reinterpret_cast<uint4*>(smem);
+    float staged = -1.f;
+    rows_q_seg<M, NT, W>(x, xs, w0, sc0, o0, N0, K, 0, staged);
+    rows_q_seg<M, NT, W>(x, xs, w1, sc1, o1, N1, K, ((int64_t)N0 + NT - 1) / NT, staged);
 }
 
 template <int M, int NT, int W, int MINB, typename OutT>
@@ -596,6 +629,64 @@ int rows_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
         IK_FP8_ROWS_CASE(9) IK_FP8_ROWS_CASE(10) IK_FP8_ROWS_CASE(11) IK_FP8_ROWS_CASE(12)
         IK_FP8_ROWS_CASE(13) IK_FP8_ROWS_CASE(14) IK_FP8_ROWS_CASE(15) IK_FP8_ROWS_CASE(16)
 #undef IK_FP8_ROWS_CASE
+        default: return IK_ERR_SHAPE;
+    }
+}
+
+template <int M, int NT, int W, int MINB>
+int rows_run_q_pair(const ik_bf16* x, const uint8_t* w0, const float* sc0, ik_bf16* o0, int64_t N0, const uint8_t* w1,
+                    const float* sc1, ik_bf16* o1, int64_t N1, int64_t K, cudaStream_t s) {
+    const size_t smem = (size_t)M * K;
+    auto kern = fp8_gemv_rows_q_pair_kernel<M, NT, W, MINB, ik_bf16>;
+    if (!smem_cap_once<fp8_gemv_rows_q_pair_kernel<M, NT, W, MINB, ik_bf16>>(kQSmemMax)) return IK_ERR_LAUNCH;
+    int occ = 0;
+    if (cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, kern, W * IK_WARP, smem) != cudaSuccess || occ < 1) occ = 1;
+    const int64_t tiles = (N0 + NT - 1) / NT + (N1 + NT - 1) / NT;
+    const int64_t blocks = (tiles + W - 1) / W;
+    const int64_t cap = (int64_t)sm_count() * occ;
+    const unsigned grid = (unsigned)(blocks < cap ? blocks : cap);
+    kern<<<grid, W * IK_WARP, smem, s>>>(x, w0, sc0, o0, (int)N0, w1, sc1, o1, (int)N1, (int)K);
+    return ik_launch_status();
+}
+
+// INTARSIA_CUDA_FP8_PAIR_ROWS = 0: the 2..16-row pair runs as the two single row-exact calls (A/B; the same bits)
+inline bool fp8_pair_rows_on() {
+    static const bool on = [] {
+        const char* e = getenv("INTARSIA_CUDA_FP8_PAIR_ROWS");
+        return !(e && e[0] == '0' && e[1] == 0);
+    }();
+    return on;
+}
+
+// The pair at M rows: one launch of the e4m3-staged pair kernel where the single calls would both take the e4m3-staged kernel
+// (M >= 12, or both under kQSmallN outputs at M >= 4; shapes as rows_run_q_shape picks for the pair's N0 + N1 outputs), else the
+// two single calls.
+template <int M>
+int rows_pair_run(const ik_bf16* x, const uint8_t* w0, const float* sc0, ik_bf16* o0, int64_t N0, const uint8_t* w1,
+                  const float* sc1, ik_bf16* o1, int64_t N1, int64_t K, cudaStream_t s) {
+    if constexpr (M >= 2) {
+        const char* mode = getenv("INTARSIA_CUDA_FP8_ROWS");
+        const bool plain = (mode && mode[0] == '0' && mode[1] == 0) || (mode && !strcmp(mode, "tile"));
+        const bool small_n = N0 <= kQSmallN && N1 <= kQSmallN && M >= 4;
+        if (fp8_pair_rows_on() && !plain && rows_q_mode() != 0 && (size_t)M * K <= kQSmemMax && (M >= 12 || small_n) &&
+            !getenv("INTARSIA_CUDA_FP8_ROWS_QSHAPE")) {
+            if (N0 + N1 <= kQSmallN) return rows_run_q_pair<M, 1, 16, 1>(x, w0, sc0, o0, N0, w1, sc1, o1, N1, K, s);
+            return rows_run_q_pair<M, 2, 8, 2>(x, w0, sc0, o0, N0, w1, sc1, o1, N1, K, s);
+        }
+    }
+    IK_TRY(rows_run<M>(x, w0, sc0, o0, N0, K, s));
+    return rows_run<M>(x, w1, sc1, o1, N1, K, s);
+}
+
+int rows_pair_by_m(int M, const ik_bf16* x, const uint8_t* w0, const float* sc0, ik_bf16* o0, int64_t N0, const uint8_t* w1,
+                   const float* sc1, ik_bf16* o1, int64_t N1, int64_t K, cudaStream_t s) {
+    switch (M) {
+#define IK_FP8_PAIR_CASE(m) case m: return rows_pair_run<m>(x, w0, sc0, o0, N0, w1, sc1, o1, N1, K, s);
+        IK_FP8_PAIR_CASE(1) IK_FP8_PAIR_CASE(2) IK_FP8_PAIR_CASE(3) IK_FP8_PAIR_CASE(4)
+        IK_FP8_PAIR_CASE(5) IK_FP8_PAIR_CASE(6) IK_FP8_PAIR_CASE(7) IK_FP8_PAIR_CASE(8)
+        IK_FP8_PAIR_CASE(9) IK_FP8_PAIR_CASE(10) IK_FP8_PAIR_CASE(11) IK_FP8_PAIR_CASE(12)
+        IK_FP8_PAIR_CASE(13) IK_FP8_PAIR_CASE(14) IK_FP8_PAIR_CASE(15) IK_FP8_PAIR_CASE(16)
+#undef IK_FP8_PAIR_CASE
         default: return IK_ERR_SHAPE;
     }
 }
@@ -769,6 +860,26 @@ int pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik
     return ik_launch_status();
 }
 
+// M <= kRowsMax rows, bf16 outputs: row m of each output is bitwise the M = 1 pair (and the single row-exact calls) on row m.
+int pair_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1,
+              ik_tensor* o0, ik_tensor* o1, void* stream) {
+    IK_TRY(check(x, w0, sc0, o0));
+    IK_TRY(check(x, w1, sc1, o1));
+    if (o0->dtype != IK_DTYPE_BF16 || o1->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (M > kRowsMax) return IK_ERR_SHAPE;
+    if (M == 0 || (N0 == 0 && N1 == 0)) return IK_OK;
+    cudaStream_t s = IK_STREAM(stream);
+    if (K == 0 || N0 == 0 || N1 == 0) {  // (nothing the model produces) the single calls
+        IK_TRY(launch(x, w0, sc0, o0, stream, false, true));
+        return launch(x, w1, sc1, o1, stream, false, true);
+    }
+    if (N0 > 0x7fffffffLL || N1 > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    if (!ik_aligned16(x->data) || !ik_aligned16(w0->data) || !ik_aligned16(w1->data)) return IK_ERR_SHAPE;
+    return rows_pair_by_m((int)M, (const ik_bf16*)x->data, (const uint8_t*)w0->data, (const float*)sc0->data, (ik_bf16*)o0->data,
+                          N0, (const uint8_t*)w1->data, (const float*)sc1->data, (ik_bf16*)o1->data, N1, K, s);
+}
+
 // x / z [R, 128] (R * 128 == K), nw [128], w [N, K] fp8, out [1, N] bf16.
 int gated_matmul(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, float eps, float woff, const ik_tensor* w,
                  const ik_tensor* scales, ik_tensor* out, void* stream) {
@@ -808,6 +919,12 @@ int ik_gated_rmsnorm_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* z, con
 int ik_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
                             const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream) {
     return pair(x, w0, scales0, w1, scales1, out0, out1, stream);
+}
+
+// The pair at M <= 16 rows (row-exact): bitwise the two `ik_matmul_fp8_gemv_rows` calls, and row m the M = 1 pair on row m.
+int ik_matmul_fp8_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                                 const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream) {
+    return pair_rows(x, w0, scales0, w1, scales1, out0, out1, stream);
 }
 
 int ik_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {

@@ -404,3 +404,66 @@ fn device_topk_is_the_host_candidate_order() {
     assert_eq!((i32::from_le_bytes(gn[0..4].try_into().unwrap()), i32::from_le_bytes(gn[4..8].try_into().unwrap())), (0, 1));
     println!("G-B topk_f32: {checked} (id, value) pairs equal to the host order (V 248320 / 151936 / 1000 / 70, R <= 16, k <= 64), NaN row flagged");
 }
+
+/// Timing (ignored; `--ignored --nocapture timing_gdn_rows`): the batched-decode GDN launches at the 35B shape for M rows,
+/// cycling over 30 layers' own recurrent buffers (conv state, then the delta state) so the states come from DRAM as in the
+/// decode step. Prints `GDNT kernel M us/call`. Env knobs of the launchers (INTARSIA_GDN_DEC, INTARSIA_GDN_DEC_WPB, INTARSIA_GDN_SPLIT_LPR)
+/// apply as in the engine.
+#[test]
+#[ignore]
+fn timing_gdn_rows() {
+    let Some(rig) = Rig::new("timing_gdn_rows") else { return };
+    let mut rng = SplitMix64::new(14);
+    let (hk, hv, dk, dv, c, ks, layers) = (16usize, 32usize, 128usize, 128usize, 8192usize, 4usize, 30usize);
+    let qc = 2 * hk * dk + hv * dv;
+    let off = c * (ks - 1) * 4;
+    let bytes = off + hv * dv * dk * 4;
+    let ms: Vec<usize> = std::env::var("GDNT_M").ok().map(|v| v.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 4, 8, 16]);
+    let cap = *ms.iter().max().unwrap();
+    // one buffer per (layer, row), small random states
+    let init = HostTensor::from_f32_as(DType::F32, &[bytes / 4], &rng.normal_vec(bytes / 4, 0.1)).data;
+    let bufs: Vec<Vec<TensorRef>> = (0..layers).map(|_| (0..cap).map(|_| rig.put_bytes(&init, DType::U8, &[bytes])).collect()).collect();
+    let attrs = OpAttrs { eps: 1e-6, ..Default::default() };
+    for &m in &ms {
+        let qkv = rig.bf16(&rng.normal_vec(m * qc, 1.0), &[m, qc]);
+        let x = rig.bf16(&rng.normal_vec(m * c, 1.0), &[m, c]);
+        let w = rig.bf16(&rng.normal_vec(c * ks, 0.5), &[c, ks]);
+        let y = rig.poison(m * c * 2, DType::Bf16, &[m, c]);
+        let (at, bt) = (rig.bf16(&rng.normal_vec(m * hv, 1.0), &[m, hv]), rig.bf16(&rng.normal_vec(m * hv, 1.0), &[m, hv]));
+        let (alt, dtt) = (rig.bf16(&rng.normal_vec(hv, 0.5), &[hv]), rig.bf16(&rng.normal_vec(hv, 0.5), &[hv]));
+        let o = rig.poison(m * hv * dv * 2, DType::Bf16, &[m, hv, dv]);
+        let mut convs = Vec::new();
+        let mut deltas = Vec::new();
+        for l in 0..layers {
+            let entries: Vec<Vec<&TensorRef>> = bufs[l][..m].iter().map(|s| vec![s]).collect();
+            let ptrs = rig.table(&entries, 1);
+            let cs = TensorRef::new(bufs[l][0].buf.clone(), DType::F32, &[c, ks - 1]);
+            let mut call = OpCall::new(Op::GdnConv, vec![x.clone(), w.clone()], vec![y.clone(), cs], OpAttrs::default());
+            call.rows = Some(rig.tab(ptrs.clone(), 0, 0));
+            call.check().unwrap();
+            convs.push(call);
+            let mut ds = TensorRef::new(bufs[l][0].buf.clone(), DType::F32, &[hv, dv, dk]);
+            ds.offset = off;
+            let mut call = OpCall::new(Op::GdnDeltaRule, vec![qkv.clone(), at.clone(), bt.clone(), alt.clone(), dtt.clone()], vec![o.clone(), ds], attrs.clone());
+            call.rows = Some(rig.tab(ptrs, 0, off));
+            call.check().unwrap();
+            deltas.push(call);
+        }
+        for (name, calls) in [("gdn_conv_bf16_rows", &convs), ("gdn_delta_rule_bf16_split_rows", &deltas)] {
+            let mut best = f64::MAX;
+            for rep in 0..16 {
+                rig.be.synchronize(0).unwrap();
+                let t0 = std::time::Instant::now();
+                for call in calls.iter() {
+                    rig.be.launch(name, call, 0).unwrap();
+                }
+                rig.be.synchronize(0).unwrap();
+                let us = t0.elapsed().as_secs_f64() * 1e6 / calls.len() as f64;
+                if rep > 0 {
+                    best = best.min(us);
+                }
+            }
+            println!("GDNT {name} M={m} {best:.1} us/call");
+        }
+    }
+}

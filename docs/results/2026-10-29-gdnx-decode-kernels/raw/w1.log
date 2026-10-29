@@ -1,0 +1,60 @@
+fleetq: #6886 running on spark1: scripts/gdnx/w1.sh
+05:56:19
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663231488, free_bytes: 64659210240, weights_bytes: 20825033460, workspace_bytes: 694874000, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 61426248957, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+4290 (row, step) pairs bitwise identical in 76.1 s
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 21 filtered out; finished in 270.89s
+== INTARSIA_GDN_DEC=0,INTARSIA_CUDA_FP8_PAIR_ROWS=0 06:00:51
+STEP B=8 ms 26.740 27.788 28.928
+STEP B=16 ms 43.130 44.489 45.778
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.46s
+== - 06:01:39
+STEP B=8 ms 26.546 27.545 28.778
+STEP B=16 ms 42.414 43.906 45.263
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 49.28s
+== INTARSIA_CUDA_FP8_PAIR_ROWS=0 06:02:29
+STEP B=8 ms 26.525 27.617 28.838
+STEP B=16 ms 42.830 44.161 45.595
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 50.29s
+== INTARSIA_GDN_DEC=0 06:03:20
+STEP B=8 ms 26.614 27.662 28.978
+STEP B=16 ms 42.608 44.117 45.613
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 52.87s
+== INTARSIA_SIDE_PROJ=0 06:04:13
+STEP B=8 ms 26.646 27.843 28.879
+STEP B=16 ms 42.482 44.061 45.423
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 52.38s
+== INTARSIA_SIDE_PROJ=0,INTARSIA_CUDA_FP8_PAIR_ROWS=0 06:05:07
+STEP B=8 ms 26.929 28.036 29.149
+STEP B=16 ms 43.115 44.378 45.764
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 50.96s
+== INTARSIA_SIDE_PROJ=0,INTARSIA_CUDA_FP8_PAIR_ROWS=0 06:05:58
+STEP B=8 ms 26.897 27.986 29.084
+STEP B=16 ms 43.242 44.542 45.765
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 52.33s
+== INTARSIA_SIDE_PROJ=0 06:06:51
+STEP B=8 ms 26.700 27.958 29.076
+STEP B=16 ms 42.789 44.104 45.382
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 51.34s
+== INTARSIA_GDN_DEC=0 06:07:43
+STEP B=8 ms 26.712 27.864 29.043
+STEP B=16 ms 42.706 44.117 45.543
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.73s
+== INTARSIA_CUDA_FP8_PAIR_ROWS=0 06:08:32
+STEP B=8 ms 26.612 27.583 28.893
+STEP B=16 ms 42.840 44.158 45.445
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.35s
+== - 06:09:20
+STEP B=8 ms 26.533 27.636 28.750
+STEP B=16 ms 42.532 43.952 45.472
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 61.21s
+== INTARSIA_GDN_DEC=0,INTARSIA_CUDA_FP8_PAIR_ROWS=0 06:10:22
+STEP B=8 ms 26.662 27.803 28.991
+STEP B=16 ms 43.100 44.482 46.035
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 59.15s
+== done 06:11:22
+06:11:22
+fleetq: #6886 done (exit 0)
+exit 0
