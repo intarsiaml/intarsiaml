@@ -234,6 +234,13 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     // equals the prompt prefilled alone with the same chunks
     let n = batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000));
     assert_eq!(n, 4 * 2 * 700usize.div_ceil(256));
+    // lane moe16c: with neither side-stream knob set (both default on), a single-rank CUDA run must take the side-stream forks
+    let forks = intarsia_core::model::SIDE_FORKS_TOTAL.load(std::sync::atomic::Ordering::Relaxed);
+    let unset = ["INTARSIA_MOE_SHARED_STREAM", "INTARSIA_SIDE_PROJ"].iter().all(|k| std::env::var_os(k).is_none());
+    eprintln!("side-stream forks: {forks} (knobs unset: {unset})");
+    if unset && !hip && tp() == 1 {
+        assert!(forks > 0, "the default-on side-stream knobs took no fork");
+    }
     if tp() == 2 {
         // the batched steps ran through recordings on BOTH ranks, in lockstep (graphs are on by default, as in serve)
         let (g0, g1) = (m.graph_stats(), m.rank_model(1).unwrap().graph_stats());

@@ -3,7 +3,7 @@
 Lane moe16b, 2026-10-28, branch `lane-moe16b/step-overlap` from `origin/main` 318d508fb (#224). spark1 (spark-4e77, GB10 sm_121),
 Qwen3.6-35B-A3B NVFP4, `serve --backend cuda --max-batch 16 --max-seq 8192 --mem-budget 40`.
 
-**Status: draft PR. The merge gates are not met.**
+**Status: merged, both knobs default on, by coordinator decision (see Decision below). The lane's own speed gates were not met.**
 - 16 streams: +1.3 % (gate +5 %).
 - 8 streams: +3.3 % (gate +3 %, met).
 - 1 stream: +2.6 % (gate: within 1 %, met).
@@ -19,8 +19,8 @@ Every exactness gate passes:
 
 The change is exact: it runs the same kernels on the same inputs in the same issue order. Only the stream of some launches changes.
 
-**Both knobs are opt-in on this branch** (`INTARSIA_MOE_SHARED_STREAM=1`, `INTARSIA_SIDE_PROJ=1`; unset = main's single stream),
-because the speed gates fail.
+**Both knobs are default on at merge** (lane moe16c; `INTARSIA_MOE_SHARED_STREAM=0` / `INTARSIA_SIDE_PROJ=0` opt out to
+main's single stream). During the lane they were opt-in (`=1`), because the speed gates failed.
 - W1 (identity, `batch_cuda_real`, the serve A/B, nsys) and W2 ran the build where both were on by default (1e2db288c). That is the
   same code path as setting both to `1` now.
 - The step micro-timings of section 3 ran a temporary build with extra variant knobs, in which the shared expert forked before the
@@ -259,3 +259,14 @@ job started. That job's off variant matched the other two off runs to 0.1 ms.
    - Otherwise, take a batch-invariant mma path with a KL check, opt-in.
    - An ncu run with counter access would settle which pipe is the limit.
 3. **lm_head nvfp4 at B=16** (1.86 ms against a 1.24 ms floor) has the same structure as point 2.
+
+## Decision
+
+Merged with both knobs default on (`INTARSIA_MOE_SHARED_STREAM`, `INTARSIA_SIDE_PROJ`; `=0` opts out) by coordinator
+decision, 2026-10-28, lane moe16c. Reason: the change is bitwise exact (served greedy 21/21 cells, `batch_cuda_real` on the 35B
+and the 8B, `rows_exact`, `plan show` identical) and positive at every stream count (+2.6 / +3.2 / +3.3 / +1.3 % at
+1 / 4 / 8 / 16 streams, 3 rounds). It missed only the +5 % gate at 16 streams.
+
+Lane moe16c re-checked the merged tree on spark1 with no knob variables set, so the defaults engage: `rows_exact` and
+`batch_cuda_real` on the 35B (`raw/moe16c-defaults.txt`).
+

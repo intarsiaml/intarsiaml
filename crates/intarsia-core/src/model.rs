@@ -83,6 +83,10 @@ fn gpu_f32_to_bf16(b: &dyn Backend, t: TensorRef, act: DType) -> Result<TensorRe
 
 /// Macro prefill passes run by any model of the process (diagnostics and tests; [`Model::macro_passes`] is the per-model count).
 pub static MACRO_PASSES_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// Lane moe16c: side-stream fork points taken by [`Model::side_fork`] in this process (every model), so a test can show the
+/// default-on knobs `INTARSIA_MOE_SHARED_STREAM` / `INTARSIA_SIDE_PROJ` engage. A captured graph replays its forks without
+/// counting them again.
+pub static SIDE_FORKS_TOTAL: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// The ops a macro pass runs once per chunk ([`Model::macro_split`]): `INTARSIA_PREFILL_MACRO_SPLIT=<op,op,..>` (op names as
 /// `Op::parse`; `none` = nothing) replaces the default, the vendor-GEMM matmul family. A diagnostic knob for bisecting a row-variant op.
@@ -2576,9 +2580,10 @@ impl Model {
     }
 
     /// Lane moe16b: a fork point on `self.stream` for [`Model::side_run`], or `None` (everything in order on one stream). `proj`
-    /// false: the MoE block's shared expert beside the routed experts (`INTARSIA_MOE_SHARED_STREAM=1`, opt-in); true: the attention
-    /// block's k / v and the GatedDeltaNet block's z / b / a projections beside its q / qkv projection (`INTARSIA_SIDE_PROJ=1`,
-    /// opt-in). Only for a decode step: one row, or a row-exact pass of up to `SIDE_MAX_ROWS` rows (a batched step, a verify),
+    /// false: the MoE block's shared expert beside the routed experts (`INTARSIA_MOE_SHARED_STREAM`, default on, `0` off);
+    /// true: the attention block's k / v and the GatedDeltaNet block's z / b / a projections beside its q / qkv projection
+    /// (`INTARSIA_SIDE_PROJ`, default on, `0` off). Only for a decode step: one row, or a row-exact pass of up to
+    /// `SIDE_MAX_ROWS` rows (a batched step, a verify),
     /// whose kernels are GEMVs that take no plan scratch (the routed experts own it); a short prefill chunk would pick the
     /// scratch-using cuBLASLt GEMMs from 5 rows. And only on a backend that forks inside a graph capture, single rank, not
     /// profiled (per-op timing synchronises one stream) and not in a plan dry run (the recorded calls and their order are the
@@ -2587,8 +2592,9 @@ impl Model {
         const SIDE_MAX_ROWS: usize = 16;
         static MOE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
         static PROJ: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        // opt-in (lane moe16b's serve A/B fell short of its 16-stream gate): `1` on, unset / anything else off
-        let knob = |name: &str| std::env::var(name).is_ok_and(|v| v.trim() == "1");
+        // default on (lane moe16c, coordinator decision: exact, and +1.3 to +3.3 % at 1 / 4 / 8 / 16 streams): `0` off,
+        // unset / anything else on
+        let knob = |name: &str| !std::env::var(name).is_ok_and(|v| v.trim() == "0");
         let on = if proj {
             *PROJ.get_or_init(|| knob("INTARSIA_SIDE_PROJ"))
         } else {
@@ -2606,6 +2612,7 @@ impl Model {
         {
             return Ok(None);
         }
+        SIDE_FORKS_TOTAL.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         Ok(Some(self.backend.stream_record(self.stream)?))
     }
 
