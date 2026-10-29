@@ -2578,9 +2578,9 @@ impl Model {
     /// Lane moe16b: a fork point on `self.stream` for [`Model::side_run`], or `None` (everything in order on one stream). `proj`
     /// false: the MoE block's shared expert beside the routed experts (`INTARSIA_MOE_SHARED_STREAM`, default on, `0` off); true: the
     /// attention block's k / v and the GatedDeltaNet block's z / b / a projections beside its q / qkv projection
-    /// (`INTARSIA_SIDE_PROJ`, default on, `0` off). Only for a decode-sized pass (`rows <= SIDE_MAX_ROWS`: no kernel there takes the
-    /// plan scratch the routed experts use, and no prefill GEMM shares cuBLAS's workspace), on a backend that forks inside a graph
-    /// capture, single rank, not profiled (per-op timing synchronises one stream) and not in a plan dry run (the recorded calls and
+    /// (`INTARSIA_SIDE_PROJ`, default on, `0` off). Only for a decode step: one row, or a row-exact pass of up to `SIDE_MAX_ROWS` rows (a
+    /// batched step, a verify): its kernels are GEMVs that take no plan scratch (the routed experts own it); a short prefill chunk
+    /// would pick the scratch-using cuBLASLt GEMMs from 5 rows. And only on a backend that forks inside a graph capture, single rank, not profiled (per-op timing synchronises one stream) and not in a plan dry run (the recorded calls and
     /// their order are the same either way: only the stream of the shared-expert launches changes).
     pub(crate) fn side_fork(&self, proj: bool, rows: usize, profile: bool) -> Result<Option<u64>> {
         const SIDE_MAX_ROWS: usize = 16;
@@ -2594,6 +2594,7 @@ impl Model {
         };
         if !on
             || rows > SIDE_MAX_ROWS
+            || (rows > 1 && !self.verifying())
             || profile
             || self.tp.world != 1
             || !self.backend.stream_fork()
