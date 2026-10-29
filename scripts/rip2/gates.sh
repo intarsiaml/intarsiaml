@@ -33,6 +33,7 @@ start() { # name bin model args
 }
 F='^test |test result|panicked|FINDING|RIP|bi8 engine|pairs bitwise|left|right|row-invariant|assert'
 P=${PARTS:-model served shared}
+[[ " $P " == *" shared "* ]] && P="$P kern s35"  # rip2: shared = kern (rows_exact, row_invariance, plan show) + s35 (35B)
 if [[ " $P " == *" model "* ]]; then
   echo "== probe (cold reference)"
   rsh "$RPATH $CT INTARSIA_ROW_INVARIANT_PREFILL=1 INTARSIA_BI8_PROBE=1 INTARSIA_QWEN3_DIR=$M8 cargo test --release -p intarsia-models --test batch_cuda_real real_qwen3_8b_prefix_reuse_probe -- --test-threads=1 --nocapture 2>&1 | grep -aE '^test |test result|panicked|COLD|SELFREUSE|SPLIT|CROSS'" > "$OUT/probe.log"
@@ -59,14 +60,16 @@ if [[ " $P " == *" served "* ]]; then
   done
   python3 "$D/../htk/equal.py" compare "$OUT/eq-solo.json" "$OUT/eq-mb16.json" | tee "$OUT/eq-compare.log" | tail -1
 fi
-if [[ " $P " == *" shared "* ]]; then
+if [[ " $P " == *" kern "* ]]; then
   echo "== rows_exact + row_invariance + cuda unit tests"
   rsh "$RPATH $CT cargo test --release -p intarsia-backend-cuda --test rows_exact --test row_invariance 2>&1 | grep -aE '^test result|FAILED|panicked' | tail -6" | tee "$OUT/rows_exact.log"
-  echo "== batch_cuda_real 35B"
-  rsh "$RPATH $CT INTARSIA_QWEN36_DIR=$M35 cargo test --release -p intarsia-models --test batch_cuda_real real_35b_batched -- --test-threads=1 --nocapture 2>&1 | grep -aE '^test |test result|panicked|pairs bitwise'" | tee "$OUT/batch35.log"
   echo "== plan show base vs fix (fix default, and fix with INTARSIA_ROW_INVARIANT_PREFILL=0)"
   rsh "O=~/intarsiaml-rip2/out/plan; mkdir -p \$O; for mm in 8:$M8 35:$M35 g:$MG; do m=\${mm%%:*}; M=\${mm#*:}; for t in base intarsia off; do b=\$t; e=; [ \$t = off ] && { b=intarsia; e=INTARSIA_ROW_INVARIANT_PREFILL=0; }; for k in json txt; do j=; [ \$k = json ] && j=--json; env \$e $B/\$b plan show --backend cuda --model \$M --max-seq 8192 --mem-budget 40 \$j < /dev/null > \$O/\$m-\$t.\$k 2> \$O/\$m-\$t.\$k.err; done; done; for t in intarsia off; do for k in json txt; do if [ -s \$O/\$m-base.\$k ] && cmp -s \$O/\$m-base.\$k \$O/\$m-\$t.\$k; then echo \"SAME plan \$m \$t \$k byte-identical to base (\$(wc -c < \$O/\$m-\$t.\$k) B)\"; else echo \"DIFF plan \$m \$t \$k (\$(wc -c < \$O/\$m-base.\$k) -> \$(wc -c < \$O/\$m-\$t.\$k) B)\"; fi; done; done; grep -h row-invariant \$O/\$m-intarsia.txt.err | head -2; diff \$O/\$m-base.txt \$O/\$m-intarsia.txt | head -8; done" | tee "$OUT/plan.log"
   mkdir -p "$OUT/plan"; scp -q -o BatchMode=yes "$H:intarsiaml-rip2/out/plan/*" "$OUT/plan/" || true
+fi
+if [[ " $P " == *" s35 "* ]]; then
+  echo "== batch_cuda_real 35B"
+  rsh "$RPATH $CT INTARSIA_QWEN36_DIR=$M35 cargo test --release -p intarsia-models --test batch_cuda_real real_35b_batched -- --test-threads=1 --nocapture 2>&1 | grep -aE '^test |test result|panicked|pairs bitwise'" | tee "$OUT/batch35.log"
   echo "== 35B served identity, base vs fix, --max-batch 16"
   for bin in base intarsia; do
     start "ident35-$bin" "$bin" "$M35" "--max-batch 16" || continue
