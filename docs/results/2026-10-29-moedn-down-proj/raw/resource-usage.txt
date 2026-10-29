@@ -1,24 +1,24 @@
-Function moe_dec_down_v2_kernelILi4ELb0EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiii:	REG:64 STACK:0 SHARED:1280 LOCAL:0 CONSTANT[0]:968 TEXT
-Function moe_dec_down_v2_kernelILi4ELb1EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiii:	REG:64 STACK:0 SHARED:1280 LOCAL:0 CONSTANT[0]:968 TEXT
-Function moe_dec_down_v2_kernelILi8ELb0EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiii:	REG:94 STACK:0 SHARED:1536 LOCAL:0 CONSTANT[0]:968 TEXT
-Function moe_dec_down_v2_kernelILi8ELb1EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiii:	REG:80 STACK:8 SHARED:1536 LOCAL:0 CONSTANT[0]:968 TEXT
-Function moe_dec_down_v2_kernelILi2ELb0EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiii:	REG:64 STACK:0 SHARED:1152 LOCAL:0 CONSTANT[0]:968 TEXT
-Function moe_dec_down_v2_kernelILi2ELb1EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiii:	REG:64 STACK:0 SHARED:1152 LOCAL:0 CONSTANT[0]:968 TEXT
-Function moe_dec_down_v2_kernelILi1ELb0EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiii:	REG:48 STACK:0 SHARED:1088 LOCAL:0 CONSTANT[0]:968 TEXT
-Function moe_dec_down_v2_kernelILi1ELb1EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiii:	REG:48 STACK:0 SHARED:1088 LOCAL:0 CONSTANT[0]:968 TEXT
-Function moe_dec_gate_up_kernelILi2ELb0EEEvPK13__nv_bfloat16PKhS5_PKfPKiPS1_iiii:	REG:48 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:960 TEXTURE
-Function moe_dec_gate_up_kernelILi4ELb0EEEvPK13__nv_bfloat16PKhS5_PKfPKiPS1_iiii:	REG:50 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:960 TEXTURE
-Function moe_dec_gate_up_kernelILi1ELb0EEEvPK13__nv_bfloat16PKhS5_PKfPKiPS1_iiii:	REG:40 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:960 TEXTURE
-Function moe_dec_gate_up_kernelILi2ELb1EEEvPK13__nv_bfloat16PKhS5_PKfPKiPS1_iiii:	REG:48 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:960 TEXTURE
-Function moe_dec_gate_up_kernelILi4ELb1EEEvPK13__nv_bfloat16PKhS5_PKfPKiPS1_iiii:	REG:48 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:960 TEXTURE
-Function moe_dec_gate_up_kernelILi1ELb1EEEvPK13__nv_bfloat16PKhS5_PKfPKiPS1_iiii:	REG:40 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:960 TEXTURE
-Function moe_dec_down_dd_kernelILi8ELi4EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiiii:	REG:104 STACK:0 SHARED:1040 LOCAL:0 CONSTANT[0]:972 TE
-Function moe_dec_down_dd_kernelILi4ELi8EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiiii:	REG:72 STACK:0 SHARED:1040 LOCAL:0 CONSTANT[0]:972 TEX
-Function moe_dec_down_dd_kernelILi2ELi16EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiiii:	REG:54 STACK:0 SHARED:1040 LOCAL:0 CONSTANT[0]:972 TE
-Function moe_dec_down_dd_kernelILi8ELi2EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiiii:	REG:104 STACK:0 SHARED:1040 LOCAL:0 CONSTANT[0]:972 TE
-Function moe_dec_down_dd_kernelILi4ELi4EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiiii:	REG:64 STACK:0 SHARED:1040 LOCAL:0 CONSTANT[0]:972 TEX
-Function moe_dec_down_dd_kernelILi2ELi8EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiiii:	REG:54 STACK:0 SHARED:1040 LOCAL:0 CONSTANT[0]:972 TEX
-Function moe_dec_down_dd_kernelILi8ELi1EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiiii:	REG:123 STACK:0 SHARED:1040 LOCAL:0 CONSTANT[0]:972 TE
-Function moe_dec_down_dd_kernelILi4ELi2EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiiii:	REG:64 STACK:0 SHARED:1040 LOCAL:0 CONSTANT[0]:972 TEX
-Function moe_dec_down_dd_kernelILi2ELi4EEEvPK13__nv_bfloat16PKhS5_PKfPKiS7_PS1_iiiii:	REG:54 STACK:0 SHARED:1040 LOCAL:0 CONSTANT[0]:972 TEX
-Function moe_dec_down_kernelEPK13__nv_bfloat16PKhS4_PKfPKiS6_PS0_iiii:	REG:160 STACK:0 SHARED:1024 LOCAL:0 CONSTANT[0]:968 TEXTURE:0 SURFACE
+Function moe_dec_down_v2_kernelILi4ELb0:	REG:64 STACK:0 SHARED:1280 LOCAL:0
+Function moe_dec_down_v2_kernelILi4ELb1:	REG:64 STACK:0 SHARED:1280 LOCAL:0
+Function moe_dec_down_v2_kernelILi8ELb0:	REG:94 STACK:0 SHARED:1536 LOCAL:0
+Function moe_dec_down_v2_kernelILi8ELb1:	REG:80 STACK:8 SHARED:1536 LOCAL:0
+Function moe_dec_down_v2_kernelILi2ELb0:	REG:64 STACK:0 SHARED:1152 LOCAL:0
+Function moe_dec_down_v2_kernelILi2ELb1:	REG:64 STACK:0 SHARED:1152 LOCAL:0
+Function moe_dec_down_v2_kernelILi1ELb0:	REG:48 STACK:0 SHARED:1088 LOCAL:0
+Function moe_dec_down_v2_kernelILi1ELb1:	REG:48 STACK:0 SHARED:1088 LOCAL:0
+Function moe_dec_gate_up_kernelILi2ELb0:	REG:48 STACK:0 SHARED:1024 LOCAL:0
+Function moe_dec_gate_up_kernelILi4ELb0:	REG:50 STACK:0 SHARED:1024 LOCAL:0
+Function moe_dec_gate_up_kernelILi1ELb0:	REG:40 STACK:0 SHARED:1024 LOCAL:0
+Function moe_dec_gate_up_kernelILi2ELb1:	REG:48 STACK:0 SHARED:1024 LOCAL:0
+Function moe_dec_gate_up_kernelILi4ELb1:	REG:48 STACK:0 SHARED:1024 LOCAL:0
+Function moe_dec_gate_up_kernelILi1ELb1:	REG:40 STACK:0 SHARED:1024 LOCAL:0
+Function moe_dec_down_dd_kernelILi8ELi4:	REG:80 STACK:168 SHARED:1040 LOCAL:0
+Function moe_dec_down_dd_kernelILi4ELi8:	REG:80 STACK:8 SHARED:1040 LOCAL:0
+Function moe_dec_down_dd_kernelILi2ELi16:	REG:72 STACK:0 SHARED:1040 LOCAL:0
+Function moe_dec_down_dd_kernelILi8ELi2:	REG:80 STACK:168 SHARED:1040 LOCAL:0
+Function moe_dec_down_dd_kernelILi4ELi4:	REG:80 STACK:8 SHARED:1040 LOCAL:0
+Function moe_dec_down_dd_kernelILi2ELi8:	REG:72 STACK:0 SHARED:1040 LOCAL:0
+Function moe_dec_down_dd_kernelILi8ELi1:	REG:80 STACK:160 SHARED:1040 LOCAL:0
+Function moe_dec_down_dd_kernelILi4ELi2:	REG:80 STACK:8 SHARED:1040 LOCAL:0
+Function moe_dec_down_dd_kernelILi2ELi4:	REG:72 STACK:0 SHARED:1040 LOCAL:0
+Function moe_dec_down_kernelEPK13__nv_bfloat16PKhS4_PKfPKiS6_PS0_iiii:	REG:160 STACK:0 SHARED:1024 LOCAL:0

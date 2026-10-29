@@ -1,0 +1,17 @@
+== INTARSIA_MOE_DOWN_DD=0 09:50:37
+STEP B=8 ms 26.422 27.537 28.883
+STEP B=16 ms 42.473 43.725 45.275
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.99s
+== - 09:51:26
+STEP B=8 ms 25.943 27.039 28.388
+STEP B=16 ms 41.106 42.466 44.079
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.10s
+== - 09:52:14
+STEP B=8 ms 25.901 27.054 28.565
+STEP B=16 ms 41.130 42.616 44.028
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 46.14s
+== INTARSIA_MOE_DOWN_DD=0 09:53:00
+STEP B=8 ms 26.609 27.801 29.005
+STEP B=16 ms 42.370 43.892 45.154
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.77s
+== done 09:53:49

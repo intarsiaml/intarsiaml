@@ -1,0 +1,7 @@
+test bench_moe_nvfp4_real_shapes ... ignored
+test moe_nvfp4_at_the_real_prefill_shape ... ok
+test moe_nvfp4_handles_range_zero_rows_and_odd_routing ... ok
+test moe_nvfp4_is_independent_of_tile_height ... ok
+test moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference ... ok
+test moe_nvfp4_matches_the_quantised_reference ... ok
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.07s
