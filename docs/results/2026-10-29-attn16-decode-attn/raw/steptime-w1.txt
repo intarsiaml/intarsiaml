@@ -1,0 +1,36 @@
+== prompt 64
+== INTARSIA_STEP_PROMPT=64 08:07:17
+STEP B=8 ms 26.812 27.886 29.212
+STEP B=16 ms 43.116 44.365 45.864
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 49.09s
+== INTARSIA_STEP_PROMPT=64,INTARSIA_ATTN_ROWS_PERSIST=0 08:08:07
+STEP B=8 ms 26.949 28.113 29.251
+STEP B=16 ms 43.114 44.391 45.887
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 49.69s
+== INTARSIA_STEP_PROMPT=64,INTARSIA_ATTN_ROWS_PERSIST=0 08:08:57
+STEP B=8 ms 26.907 28.042 29.233
+STEP B=16 ms 43.206 44.435 45.728
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 55.24s
+== INTARSIA_STEP_PROMPT=64 08:09:53
+STEP B=8 ms 26.773 28.004 29.270
+STEP B=16 ms 42.874 44.148 45.622
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 48.69s
+== done 08:10:43
+== prompt 1024
+== INTARSIA_STEP_PROMPT=1024 08:10:43
+STEP B=8 ms 29.467 29.760 29.645
+STEP B=16 ms 44.388 46.195 45.538
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 59.79s
+== INTARSIA_STEP_PROMPT=1024,INTARSIA_ATTN_ROWS_PERSIST=0 08:11:43
+STEP B=8 ms 29.687 29.968 29.800
+STEP B=16 ms 44.737 46.525 45.962
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 59.00s
+== INTARSIA_STEP_PROMPT=1024,INTARSIA_ATTN_ROWS_PERSIST=0 08:12:43
+STEP B=8 ms 29.629 29.933 29.769
+STEP B=16 ms 44.787 46.558 46.085
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 53.54s
+== INTARSIA_STEP_PROMPT=1024 08:13:37
+STEP B=8 ms 29.432 29.759 29.604
+STEP B=16 ms 44.375 46.196 45.684
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 60.03s
+== done 08:14:38

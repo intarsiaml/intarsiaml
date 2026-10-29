@@ -1,0 +1,20 @@
+base == INTARSIA_STEP_PROMPT=1024 08:45:43
+base STEP B=8 ms 26.838 27.877 29.237
+base STEP B=16 ms 42.731 44.244 45.621
+base test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 56.14s
+base == done 08:46:40
+dev == INTARSIA_STEP_PROMPT=1024 08:46:40
+dev STEP B=8 ms 29.326 29.670 29.463
+dev STEP B=16 ms 44.252 46.118 45.591
+dev test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 56.68s
+dev == done 08:47:37
+dev == INTARSIA_STEP_PROMPT=1024 08:47:37
+dev STEP B=8 ms 29.364 29.621 29.477
+dev STEP B=16 ms 44.232 46.017 45.488
+dev test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 54.38s
+dev == done 08:48:33
+base == INTARSIA_STEP_PROMPT=1024 08:48:33
+base STEP B=8 ms 26.809 27.847 29.105
+base STEP B=16 ms 42.833 44.208 45.580
+base test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 50.51s
+base == done 08:49:24

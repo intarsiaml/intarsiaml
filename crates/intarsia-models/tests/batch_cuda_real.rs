@@ -193,18 +193,20 @@ fn gate(m: &Model, lens: Vec<usize>, batches: Vec<usize>, steps: usize, vocab_ra
 
 /// Lane moe16b: wall time of the 35B's batched decode step (graphs on, device argmax, as in serve) at B = 8 and 16, three runs of 60
 /// steps after 20 warm-up steps. `--ignored`, inside a fleetq slot quiet on the GPU; prints `STEP B=.. ms ..`. The side-stream knobs
-/// (`INTARSIA_MOE_SHARED_STREAM`, `INTARSIA_SIDE_PROJ`) are read once per process: one variant per run.
+/// (`INTARSIA_MOE_SHARED_STREAM`, `INTARSIA_SIDE_PROJ`) are read once per process: one variant per run. `INTARSIA_STEP_PROMPT`
+/// (default 64, at most 1800) is the prompt length of every row, so the step runs at that context plus 0..200.
 #[test]
 #[ignore = "micro-timing"]
 fn timing_35b_batched_step() {
     let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
+    let plen: usize = std::env::var("INTARSIA_STEP_PROMPT").ok().and_then(|v| v.parse().ok()).unwrap_or(64).clamp(1, 1800);
     for b in [8usize, 16] {
         let mut sts: Vec<_> = (0..b)
             .map(|i| {
                 let mut st = m.new_state().unwrap();
-                let p: Vec<u32> = (0..64).map(|k| 1000 + ((i * 977 + k * 131) % 29000) as u32).collect();
+                let p: Vec<u32> = (0..plen).map(|k| 1000 + ((i * 977 + k * 131) % 29000) as u32).collect();
                 m.forward(&mut st, &p, HeadMode::None, None).unwrap();
                 st
             })

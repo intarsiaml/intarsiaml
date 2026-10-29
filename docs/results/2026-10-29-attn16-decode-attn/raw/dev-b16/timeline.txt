@@ -1,0 +1,6 @@
+burst wall 14141 ms, 262 passes, GPU kernel time 14423 ms
+  decode   passes  246  span   10897 ms ( 77.1 %)  mean  44.30 ms
+  prefill  passes   16  span    3059 ms ( 21.6 %)  mean 191.17 ms
+  idle gaps (>= 300 us)     185 ms (  1.3 %)  mean 707 us
+prefill phase 14141 ms: prefill 3059 ms, decode 246 passes 10897 ms
+prefill pass spans ms: 12 12 12 12 13 13 13 13 238 338 353 363 367 369 371 559
