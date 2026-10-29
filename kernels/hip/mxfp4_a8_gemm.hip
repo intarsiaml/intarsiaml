@@ -65,9 +65,17 @@ IK_DEVI uint2 a8_fold8(uint32_t w, uint32_t t0, uint32_t t1) {
 // Pre-pass over the weight scales, one warp per row: wref[n] = largest scale byte of row n; flag |= 1 when some row cannot be
 // folded exactly (span > 14 octaves, or a 255 = NaN scale). flag is zeroed before (hipMemsetAsync).
 __global__ void __launch_bounds__(256) a8_wspan_kernel(const uint8_t* __restrict__ ws, uint8_t* __restrict__ wref,
-                                                       int* __restrict__ flag, int64_t N, int KG) {
-    const int64_t n = (int64_t)blockIdx.x * (blockDim.x >> 5) + (threadIdx.x >> 5);
-    if (n >= N) return;  // whole warp
+                                                       int* __restrict__ flag, int64_t N, int KG, const uint8_t* __restrict__ ws1,
+                                                       uint8_t* __restrict__ wref1, int* __restrict__ flag1, int64_t N1) {
+    int64_t n = (int64_t)blockIdx.x * (blockDim.x >> 5) + (threadIdx.x >> 5);
+    // lane pf27b: rows [N, N + N1) are a pair's second weight (its own wref and flag); N1 = 0 for one GEMM
+    if (n >= N) {  // whole warp
+        n -= N;
+        if (n >= N1) return;
+        ws = ws1;
+        wref = wref1;
+        flag = flag1;
+    }
     const int lane = threadIdx.x & 31;
     const uint8_t* p = ws + n * KG;
     int mx = 0, mn = 255;
@@ -635,6 +643,9 @@ void a8_direct_run(const A8Args& a, OutT* out, hipStream_t s) {
     }
     // 64 features x 512 tokens (16 waves) from M = 768, else 64 x 256 (8 waves): lane PF27's sweep (raw/m5) over the 27B tp2 shapes at
     // M = 130 .. 2048 (the 512-token tile ties at M = 512 and wins from M = 1000; below it pads too many tokens)
+    // lane pf27b: one 64-feature tile column (N <= 64: the 27B's GDN b / a gates, 24 rows per rank) takes the 128-token tile, 16 blocks at
+    // M = 2048 instead of 4 (call level 92 -> 79 us; every tile gives the same bits, the a8_mma_hashes of each DTILE agree)
+    if (a.N <= 64) IK_A8_DTILE(2, 2, 2, 4)
     if (a.M >= 768) IK_A8_DTILE(2, 8, 2, 4)
     IK_A8_DTILE(2, 4, 2, 4)
 #undef IK_A8_DTILE
@@ -655,8 +666,8 @@ bool a8_use_direct(int64_t M) {
     return c.direct && M > 64 && c.tile[0] == 0 && c.pd == 2;
 }
 
-int launch_a8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, const ik_scratch* scratch,
-              void* stream) {
+// the shape / dtype checks of one GEMM of launch_a8 (x [M, K] bf16, w [N, K/2], sc [N, K/32], out [M, N] bf16 or f32)
+int a8_check(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* out) {
     IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
     IK_TRY(ik_check_a(w, IK_DTYPE_U8, 2, 16));
     IK_TRY(ik_check_a(sc, IK_DTYPE_U8, 2, 1));
@@ -667,42 +678,51 @@ int launch_a8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_te
     if (w->shape[1] != K / 2 || sc->shape[0] != N || sc->shape[1] != K / kA8G || out->shape[0] != M || out->shape[1] != N)
         return IK_ERR_SHAPE;
     if (M > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
-    if (M == 0 || N == 0) return IK_OK;
-    hipStream_t s = IK_STREAM(stream);
-    if (K == 0)
-        return hipMemsetAsync(out->data, 0, ik_numel(out) * (out->dtype == IK_DTYPE_F32 ? 4 : 2), s) == hipSuccess ? IK_OK
-                                                                                                                      : IK_ERR_LAUNCH;
-    if (!scratch || !scratch->data || scratch->bytes < (int64_t)a8_scratch_total(M, K, N)) return IK_ERR_INVALID_ARG;
-    if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
-    uint8_t* base = (uint8_t*)scratch->data;
-    const int64_t Mp = (M + 15) & ~(int64_t)15, Kp = (K + 63) & ~(int64_t)63;
-    const size_t off = a8_round16(mx_a8_scratch_bytes(Mp, Kp));
-    uint8_t* wref = base + off;
-    int* flag = reinterpret_cast<int*>(wref + a8_round16((size_t)N));
-    const uint8_t* wp = (const uint8_t*)w->data;
-    const uint8_t* sp = (const uint8_t*)sc->data;
-    const bool direct = a8_use_direct(M);
+    return IK_OK;
+}
 
+// the activation quant pre-pass into the scratch base (the direct kernel's fragment-ordered tokens when `direct`); the direct path's pre-pass
+// also zeroes `nzero` fold flags at `flags` (lane pf27b; the staged path's GEMM zeroes its flag with a memset as before)
+int a8_quant(const ik_tensor* x, uint8_t* base, int64_t M, int64_t K, bool direct, int* flags, int nzero, hipStream_t s) {
+    const int64_t Mp = (M + 15) & ~(int64_t)15, Kp = (K + 63) & ~(int64_t)63;
     if (direct) {
         if (reinterpret_cast<uintptr_t>(x->data) & 15u) return IK_ERR_INVALID_ARG;
         mx_a8_quant_tiled_kernel<<<(unsigned)Mp, 256, 0, s>>>((const ik_bf16*)x->data, base, reinterpret_cast<float*>(base + mx_a8_xs_offset(Mp, Kp)),
-                                                            (int)M, (int)K);
-        IK_TRY(ik_launch_status());
-    } else {
-        IK_TRY(mx_a8_quant_launch((const ik_bf16*)x->data, base, M, K, s));
+                                                            (int)M, (int)K, flags, nzero);
+        return ik_launch_status();
     }
-    if (a8_cfg().pergroup) {
-        if (hipMemsetAsync(flag, 1, sizeof(int), s) != hipSuccess) return IK_ERR_LAUNCH;  // flag = 0x01010101: never folds
-    } else {
-        if (hipMemsetAsync(flag, 0, sizeof(int), s) != hipSuccess) return IK_ERR_LAUNCH;
-        a8_wspan_kernel<<<(unsigned)((N + 7) / 8), 256, 0, s>>>(sp, wref, flag, N, (int)(K / kA8G));
-        IK_TRY(ik_launch_status());
+    return mx_a8_quant_launch((const ik_bf16*)x->data, base, M, K, s);
+}
+
+// the fold flags and weight-span passes of one GEMM (w1 null) or a pair (both weights in one launch, each its own wref and flag): the
+// flags are zero on entry when `zeroed` (the direct pre-pass did it), else memset here; the per-group knob sets them to 0x01010101.
+int a8_spans(const ik_tensor* w0, const ik_tensor* s0, uint8_t* wref0, int* flag0, const ik_tensor* w1, const ik_tensor* s1, uint8_t* wref1,
+             int* flag1, int64_t K, bool zeroed, hipStream_t s) {
+    const int64_t N0 = w0->shape[0], N1 = w1 ? w1->shape[0] : 0;
+    if (a8_cfg().pergroup) {  // flag = 0x01010101: never folds
+        if (hipMemsetAsync(flag0, 1, sizeof(int), s) != hipSuccess) return IK_ERR_LAUNCH;
+        if (w1 && hipMemsetAsync(flag1, 1, sizeof(int), s) != hipSuccess) return IK_ERR_LAUNCH;
+        return IK_OK;
     }
+    if (!zeroed) {
+        if (hipMemsetAsync(flag0, 0, sizeof(int), s) != hipSuccess) return IK_ERR_LAUNCH;
+        if (w1 && hipMemsetAsync(flag1, 0, sizeof(int), s) != hipSuccess) return IK_ERR_LAUNCH;
+    }
+    a8_wspan_kernel<<<(unsigned)((N0 + N1 + 7) / 8), 256, 0, s>>>((const uint8_t*)s0->data, wref0, flag0, N0, (int)(K / kA8G),
+                                                                 w1 ? (const uint8_t*)s1->data : nullptr, wref1, flag1, N1);
+    return ik_launch_status();
+}
+
+// one GEMM on the quantised activations in the scratch base, after its span pass (wref, flag)
+int a8_gemm(const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, uint8_t* base, const uint8_t* wref, const int* flag, int64_t M, int64_t K,
+            bool direct, hipStream_t s) {
+    const int64_t N = w->shape[0];
+    const int64_t Mp = (M + 15) & ~(int64_t)15, Kp = (K + 63) & ~(int64_t)63;
     A8Args a;
     a.xq = base;
     a.xs = reinterpret_cast<const float*>(base + (direct ? mx_a8_xs_offset(Mp, Kp) : mx_a8_xs_offset(M, K)));
-    a.w = wp;
-    a.ws = sp;
+    a.w = (const uint8_t*)w->data;
+    a.ws = (const uint8_t*)sc->data;
     a.wref = wref;
     a.flag = flag;
     a.M = (int)M;
@@ -720,6 +740,57 @@ int launch_a8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_te
     return ik_launch_status();
 }
 
+int launch_a8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, const ik_scratch* scratch,
+              void* stream) {
+    IK_TRY(a8_check(x, w, sc, out));
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (M == 0 || N == 0) return IK_OK;
+    hipStream_t s = IK_STREAM(stream);
+    if (K == 0)
+        return hipMemsetAsync(out->data, 0, ik_numel(out) * (out->dtype == IK_DTYPE_F32 ? 4 : 2), s) == hipSuccess ? IK_OK
+                                                                                                                      : IK_ERR_LAUNCH;
+    if (!scratch || !scratch->data || scratch->bytes < (int64_t)a8_scratch_total(M, K, N)) return IK_ERR_INVALID_ARG;
+    if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
+    uint8_t* base = (uint8_t*)scratch->data;
+    const int64_t Mp = (M + 15) & ~(int64_t)15, Kp = (K + 63) & ~(int64_t)63;
+    uint8_t* wref = base + a8_round16(mx_a8_scratch_bytes(Mp, Kp));
+    int* flag = reinterpret_cast<int*>(wref + a8_round16((size_t)N));
+    const bool direct = a8_use_direct(M);
+    IK_TRY(a8_quant(x, base, M, K, direct, flag, 1, s));
+    IK_TRY(a8_spans(w, sc, wref, flag, nullptr, nullptr, nullptr, nullptr, K, direct, s));
+    return a8_gemm(w, sc, out, base, wref, flag, M, K, direct, s);
+}
+
+// Lane pf27b: two projections of one activation (GDN qkv | z and b | a, attention k | v, FFN gate | up) on ONE quant pre-pass and one span
+// launch. Each GEMM is exactly launch_a8's (its own weight-span result and fold flag, the same kernel and tile for this M), and the pre-pass
+// is a pure function of x, so both outputs are bitwise two launch_a8 calls. Scratch: a8_scratch_total(M, K, round16(N0) + N1) (the
+// matmul_mxfp4_pair_a8_mma registration in quantmoe.rs): wref0 [round16(N0)], wref1 [round16(N1)], then the two flags.
+int launch_a8_pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1, ik_tensor* out0,
+                   ik_tensor* out1, const ik_scratch* scratch, void* stream) {
+    IK_TRY(a8_check(x, w0, s0, out0));
+    IK_TRY(a8_check(x, w1, s1, out1));
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (M == 0 || K == 0 || N0 == 0 || N1 == 0) {
+        IK_TRY(launch_a8(x, w0, s0, out0, scratch, stream));
+        return launch_a8(x, w1, s1, out1, scratch, stream);
+    }
+    hipStream_t s = IK_STREAM(stream);
+    const int64_t NN = (int64_t)a8_round16((size_t)N0) + N1;
+    if (!scratch || !scratch->data || scratch->bytes < (int64_t)a8_scratch_total(M, K, NN)) return IK_ERR_INVALID_ARG;
+    if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
+    uint8_t* base = (uint8_t*)scratch->data;
+    const int64_t Mp = (M + 15) & ~(int64_t)15, Kp = (K + 63) & ~(int64_t)63;
+    uint8_t* wref0 = base + a8_round16(mx_a8_scratch_bytes(Mp, Kp));
+    uint8_t* wref1 = wref0 + a8_round16((size_t)N0);
+    int* flag0 = reinterpret_cast<int*>(wref0 + a8_round16((size_t)NN));
+    int* flag1 = flag0 + 1;
+    const bool direct = a8_use_direct(M);
+    IK_TRY(a8_quant(x, base, M, K, direct, flag0, 2, s));
+    IK_TRY(a8_spans(w0, s0, wref0, flag0, w1, s1, wref1, flag1, K, direct, s));
+    IK_TRY(a8_gemm(w0, s0, out0, base, wref0, flag0, M, K, direct, s));
+    return a8_gemm(w1, s1, out1, base, wref1, flag1, M, K, direct, s);
+}
+
 }  // namespace
 
 extern "C" {
@@ -730,6 +801,14 @@ int ik_matmul_mxfp4_a8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tens
                            ik_tensor* out, const ik_scratch* scratch, void* stream) {
     (void)act;
     return launch_a8(x, w, scales, out, scratch, stream);
+}
+
+// matmul_mxfp4_pair_a8_mma (lane pf27b): MatmulMxfp4Pair at prefill M, one quant pre-pass for both GEMMs (launch_a8_pair). `act` is not read.
+// Scratch: a8_scratch_total(M, K, round16(N0) + N1).
+int ik_matmul_mxfp4_pair_a8_mma(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1,
+                                const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, const ik_scratch* scratch, void* stream) {
+    (void)act;
+    return launch_a8_pair(x, w0, s0, w1, s1, out0, out1, scratch, stream);
 }
 
 }  // extern "C"

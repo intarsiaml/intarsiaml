@@ -1,0 +1,96 @@
+
+running 1 test
+test p2p_link_rate ... P2P copy both                       4194304 B     155.7 us   26.95 GB/s
+P2P copy rank0                      4194304 B     153.9 us   27.26 GB/s
+P2P push+fence both nb=16           4194304 B     158.8 us   26.41 GB/s
+P2P push nofence both nb=16         4194304 B     150.8 us   27.82 GB/s
+P2P push+fence rank0 nb=16          4194304 B     164.2 us   25.55 GB/s
+P2P reduce local nb=16              4194304 B      28.2 us  148.83 GB/s
+P2P push+fence both nb=32           4194304 B     160.3 us   26.17 GB/s
+P2P push nofence both nb=32         4194304 B     148.9 us   28.16 GB/s
+P2P push+fence rank0 nb=32          4194304 B     157.5 us   26.63 GB/s
+P2P reduce local nb=32              4194304 B      15.6 us  269.56 GB/s
+P2P push+fence both nb=64           4194304 B     180.2 us   23.27 GB/s
+P2P push nofence both nb=64         4194304 B     146.5 us   28.62 GB/s
+P2P push+fence rank0 nb=64          4194304 B     178.8 us   23.46 GB/s
+P2P reduce local nb=64              4194304 B      11.1 us  379.24 GB/s
+P2P push+fence both nb=128          4194304 B     192.0 us   21.84 GB/s
+P2P push nofence both nb=128        4194304 B     150.0 us   27.96 GB/s
+P2P push+fence rank0 nb=128         4194304 B     191.7 us   21.88 GB/s
+P2P reduce local nb=128             4194304 B      10.2 us  410.75 GB/s
+P2P push+fence both nb=256          4194304 B     212.7 us   19.72 GB/s
+P2P push nofence both nb=256        4194304 B     146.1 us   28.71 GB/s
+P2P push+fence rank0 nb=256         4194304 B     201.2 us   20.85 GB/s
+P2P reduce local nb=256             4194304 B      12.9 us  324.65 GB/s
+P2P copy both                      18534400 B     673.0 us   27.54 GB/s
+P2P copy rank0                     18534400 B     663.1 us   27.95 GB/s
+P2P push+fence both nb=16          18534400 B     664.5 us   27.89 GB/s
+P2P push nofence both nb=16        18534400 B     666.3 us   27.82 GB/s
+P2P push+fence rank0 nb=16         18534400 B     666.7 us   27.80 GB/s
+P2P reduce local nb=16             18534400 B     111.3 us  166.55 GB/s
+P2P push+fence both nb=32          18534400 B     672.3 us   27.57 GB/s
+P2P push nofence both nb=32        18534400 B     662.6 us   27.97 GB/s
+P2P push+fence rank0 nb=32         18534400 B     663.2 us   27.95 GB/s
+P2P reduce local nb=32             18534400 B      55.9 us  331.28 GB/s
+P2P push+fence both nb=64          18534400 B     697.3 us   26.58 GB/s
+P2P push nofence both nb=64        18534400 B     681.2 us   27.21 GB/s
+P2P push+fence rank0 nb=64         18534400 B     687.7 us   26.95 GB/s
+P2P reduce local nb=64             18534400 B      33.8 us  547.76 GB/s
+P2P push+fence both nb=128         18534400 B     724.4 us   25.59 GB/s
+P2P push nofence both nb=128       18534400 B     661.0 us   28.04 GB/s
+P2P push+fence rank0 nb=128        18534400 B     716.0 us   25.89 GB/s
+P2P reduce local nb=128            18534400 B      32.7 us  567.11 GB/s
+P2P push+fence both nb=256         18534400 B     739.7 us   25.06 GB/s
+P2P push nofence both nb=256       18534400 B     669.7 us   27.68 GB/s
+P2P push+fence rank0 nb=256        18534400 B     722.5 us   25.65 GB/s
+P2P reduce local nb=256            18534400 B      32.9 us  562.87 GB/s
+P2P copy both                      20971520 B     761.5 us   27.54 GB/s
+P2P copy rank0                     20971520 B     749.7 us   27.97 GB/s
+P2P push+fence both nb=16          20971520 B     750.9 us   27.93 GB/s
+P2P push nofence both nb=16        20971520 B     746.3 us   28.10 GB/s
+P2P push+fence rank0 nb=16         20971520 B     752.2 us   27.88 GB/s
+P2P reduce local nb=16             20971520 B     123.4 us  169.91 GB/s
+P2P push+fence both nb=32          20971520 B     752.2 us   27.88 GB/s
+P2P push nofence both nb=32        20971520 B     741.8 us   28.27 GB/s
+P2P push+fence rank0 nb=32         20971520 B     744.6 us   28.17 GB/s
+P2P reduce local nb=32             20971520 B      61.9 us  338.79 GB/s
+P2P push+fence both nb=64          20971520 B     753.2 us   27.84 GB/s
+P2P push nofence both nb=64        20971520 B     741.4 us   28.28 GB/s
+P2P push+fence rank0 nb=64         20971520 B     744.6 us   28.17 GB/s
+P2P reduce local nb=64             20971520 B      38.4 us  546.63 GB/s
+P2P push+fence both nb=128         20971520 B     771.0 us   27.20 GB/s
+P2P push nofence both nb=128       20971520 B     741.2 us   28.29 GB/s
+P2P push+fence rank0 nb=128        20971520 B     761.9 us   27.53 GB/s
+P2P reduce local nb=128            20971520 B      37.3 us  562.00 GB/s
+P2P push+fence both nb=256         20971520 B     765.3 us   27.40 GB/s
+P2P push nofence both nb=256       20971520 B     743.7 us   28.20 GB/s
+P2P push+fence rank0 nb=256        20971520 B     751.7 us   27.90 GB/s
+P2P reduce local nb=256            20971520 B      41.4 us  506.45 GB/s
+AR wide=None                4194304 B     204.2 us   20.54 GB/s
+AR wide=None               18534400 B     908.8 us   20.40 GB/s
+AR wide=None               20971520 B    1020.0 us   20.56 GB/s
+AR wide=Some((16, 20971520))    4194304 B     196.4 us   21.36 GB/s
+AR wide=Some((16, 20971520))   18534400 B     817.6 us   22.67 GB/s
+AR wide=Some((16, 20971520))   20971520 B     917.3 us   22.86 GB/s
+AR wide=Some((32, 20971520))    4194304 B     192.0 us   21.84 GB/s
+AR wide=Some((32, 20971520))   18534400 B     774.1 us   23.94 GB/s
+AR wide=Some((32, 20971520))   20971520 B     854.9 us   24.53 GB/s
+AR wide=Some((64, 20971520))    4194304 B     199.0 us   21.08 GB/s
+AR wide=Some((64, 20971520))   18534400 B     797.7 us   23.24 GB/s
+AR wide=Some((64, 20971520))   20971520 B     840.0 us   24.96 GB/s
+AR wide=Some((128, 20971520))    4194304 B     214.6 us   19.55 GB/s
+AR wide=Some((128, 20971520))   18534400 B     814.8 us   22.75 GB/s
+AR wide=Some((128, 20971520))   20971520 B     856.2 us   24.49 GB/s
+AR wide=Some((256, 20971520))    4194304 B     230.2 us   18.22 GB/s
+AR wide=Some((256, 20971520))   18534400 B     838.0 us   22.12 GB/s
+AR wide=Some((256, 20971520))   20971520 B     858.8 us   24.42 GB/s
+AR wide=Some((64, 4194304))    4194304 B     198.3 us   21.15 GB/s
+AR wide=Some((64, 4194304))   18534400 B     905.1 us   20.48 GB/s
+AR wide=Some((64, 4194304))   20971520 B     999.3 us   20.99 GB/s
+AR wide=Some((128, 4194304))    4194304 B     213.8 us   19.61 GB/s
+AR wide=Some((128, 4194304))   18534400 B     989.6 us   18.73 GB/s
+AR wide=Some((128, 4194304))   20971520 B    1079.9 us   19.42 GB/s
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 2.41s
+

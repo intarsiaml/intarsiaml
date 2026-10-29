@@ -1,0 +1,50 @@
+fleetq: #6674 running on spark1: ./bjob.sh
+22:38:33
+    Finished `release` profile [optimized] target(s) in 2m 06s
+intarsia 0.0.1
+/dev/nvme0n1p2  3.7T  3.3T  260G  93% /
+2.8G	/home/nvidia/intarsiaml-moe16c
+22:40:41
+22:40:55
+    Finished `release` profile [optimized] target(s) in 1m 48s
+intarsia 0.0.1
+22:42:44
+    Finished `release` profile [optimized] target(s) in 9.29s
+22:42:54
+== /home/nvidia/intarsiaml-moe16c/bin/rows_exact-base
+fp8_gemv_rows_q_kernelILi16ELi2ELi8ELi2E13__nv_bfloat16EEv total  8080 FFMA 2396 FHFMA 0 HADD2 960 F2FP 590 PRMT 210 LDS 96 LDG 18 IMAD 96 SHF 429 LOP3 63 FADD 624 SHFL 480
+fp8_gemv_rows_q_kernelILi16ELi1ELi16ELi1E13__nv_bfloat16EE total  5448 FFMA 1244 FHFMA 0 HADD2 864 F2FP 473 PRMT 200 LDS 96 LDG 12 IMAD 65 SHF 425 LOP3 51 FADD 291 SHFL 240
+fp8_gemv_rows_q_kernelILi16ELi2ELi8ELi2EfEEvPK13__nv_bfloa total  8000 FFMA 2396 FHFMA 0 HADD2 960 F2FP 496 PRMT 200 LDS 96 LDG 18 IMAD 96 SHF 429 LOP3 65 FADD 624 SHFL 480
+fp8_gemv_rows_q_kernelILi16ELi1ELi16ELi1EfEEvPK13__nv_bflo total  5448 FFMA 1244 FHFMA 0 HADD2 864 F2FP 448 PRMT 200 LDS 96 LDG 12 IMAD 65 SHF 425 LOP3 51 FADD 298 SHFL 240
+nvfp4_gemv_tile_kernelILi16ELi4E13__nv_bfloat16EEvPKS1_PKh total  6576 FFMA 3264 FHFMA 0 HADD2 204 F2FP 172 PRMT 432 LDS 0 LDG 121 IMAD 103 SHF 970 LOP3 303 FADD 320 SHFL 320
+nvfp4_gemv_split_kernelILi8ELi1E13__nv_bfloat16EEvPKS1_PKh total 12632 FFMA 3060 FHFMA 0 HADD2 680 F2FP 396 PRMT 1604 LDS 0 LDG 448 IMAD 1810 SHF 1896 LOP3 1009 FADD 180 SHFL 180
+nvfp4_gemv_full_kernelILi16ELi2ELi16E13__nv_bfloat16EEvPKS total  5432 FFMA 1632 FHFMA 0 HADD2 102 F2FP 117 PRMT 408 LDS 96 LDG 14 IMAD 121 SHF 830 LOP3 155 FADD 319 SHFL 320
+nvfp4_gemv_tile_kernelILi16ELi4EfEEvPK13__nv_bfloat16PKhS5 total  6512 FFMA 3264 FHFMA 0 HADD2 204 F2FP 108 PRMT 432 LDS 0 LDG 121 IMAD 103 SHF 970 LOP3 303 FADD 320 SHFL 320
+nvfp4_gemv_split_kernelILi8ELi1EfEEvPK13__nv_bfloat16PKhS5 total 12568 FFMA 3060 FHFMA 0 HADD2 680 F2FP 360 PRMT 1600 LDS 0 LDG 448 IMAD 1790 SHF 1916 LOP3 1009 FADD 180 SHFL 180
+nvfp4_gemv_full_kernelILi16ELi2ELi16EfEEvPK13__nv_bfloat16 total  5368 FFMA 1632 FHFMA 0 HADD2 102 F2FP 54 PRMT 408 LDS 96 LDG 14 IMAD 90 SHF 859 LOP3 155 FADD 319 SHFL 320
+== /home/nvidia/intarsiaml-moe16c/bin/rows_exact-dev
+fp8_gemv_rows_q_kernelILi16ELi2ELi8ELi2E13__nv_bfloat16EEv total  7192 FFMA 860 FHFMA 1536 HADD2 96 F2FP 590 PRMT 217 LDS 96 LDG 18 IMAD 96 SHF 430 LOP3 55 FADD 624 SHFL 480
+fp8_gemv_rows_q_kernelILi16ELi1ELi16ELi1E13__nv_bfloat16EE total  4616 FFMA 476 FHFMA 768 HADD2 48 F2FP 473 PRMT 200 LDS 96 LDG 12 IMAD 156 SHF 332 LOP3 51 FADD 291 SHFL 240
+fp8_gemv_rows_q_kernelILi16ELi2ELi8ELi2EfEEvPK13__nv_bfloa total  7080 FFMA 860 FHFMA 1536 HADD2 96 F2FP 496 PRMT 200 LDS 96 LDG 18 IMAD 96 SHF 430 LOP3 55 FADD 624 SHFL 480
+fp8_gemv_rows_q_kernelILi16ELi1ELi16ELi1EfEEvPK13__nv_bflo total  4624 FFMA 476 FHFMA 768 HADD2 48 F2FP 448 PRMT 200 LDS 96 LDG 12 IMAD 169 SHF 319 LOP3 51 FADD 298 SHFL 240
+nvfp4_gemv_tile_kernelILi16ELi4E13__nv_bfloat16EEvPKS1_PKh total  5328 FFMA 192 FHFMA 3072 HADD2 12 F2FP 76 PRMT 192 LDS 0 LDG 121 IMAD 108 SHF 202 LOP3 295 FADD 320 SHFL 320
+nvfp4_gemv_split_kernelILi8ELi1E13__nv_bfloat16EEvPKS1_PKh total  7960 FFMA 180 FHFMA 2880 HADD2 40 F2FP 76 PRMT 641 LDS 0 LDG 448 IMAD 176 SHF 665 LOP3 1006 FADD 180 SHFL 180
+nvfp4_gemv_full_kernelILi16ELi2ELi16E13__nv_bfloat16EEvPKS total  4168 FFMA 96 FHFMA 1536 HADD2 6 F2FP 69 PRMT 98 LDS 96 LDG 14 IMAD 74 SHF 107 LOP3 156 FADD 319 SHFL 320
+nvfp4_gemv_tile_kernelILi16ELi4EfEEvPK13__nv_bfloat16PKhS5 total  5264 FFMA 192 FHFMA 3072 HADD2 12 F2FP 12 PRMT 192 LDS 0 LDG 121 IMAD 108 SHF 202 LOP3 295 FADD 320 SHFL 320
+nvfp4_gemv_split_kernelILi8ELi1EfEEvPK13__nv_bfloat16PKhS5 total  7896 FFMA 180 FHFMA 2880 HADD2 40 F2FP 40 PRMT 640 LDS 0 LDG 448 IMAD 176 SHF 665 LOP3 1006 FADD 180 SHFL 180
+nvfp4_gemv_full_kernelILi16ELi2ELi16EfEEvPK13__nv_bfloat16 total  4096 FFMA 96 FHFMA 1536 HADD2 6 F2FP 6 PRMT 96 LDS 96 LDG 14 IMAD 74 SHF 107 LOP3 156 FADD 319 SHFL 320
+/dev/nvme0n1p2  3.7T  3.3T  260G  93% /
+2.9G	/home/nvidia/intarsiaml-moe16c
+22:44:01
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 10.61s
+  Executable tests/batch_cuda_real.rs (target/release/deps/batch_cuda_real-a41e7f0f521d6475)
+PASS plan 8 json byte-identical (8758 B, md5 b1a1150e)
+PASS plan 8 txt byte-identical (1478 B, md5 7742cef8)
+PASS plan 35 json byte-identical (15336 B, md5 8c7a3de5)
+PASS plan 35 txt byte-identical (3946 B, md5 7b9068be)
+PASS plan g json byte-identical (8408 B, md5 2a659412)
+PASS plan g txt byte-identical (1797 B, md5 ec4ef23e)
+plan fails=0
+fleetq: #6674 done (exit 0)

@@ -74,6 +74,80 @@ IK_DEVI void ik_fp4x8_to_f32(uint32_t w, float* f) {
     }
 }
 
+/* ---- mixed-precision products (lane moe16c) ------------------------------------------------------------------
+ * The row-exact kernels at M = 16 were instruction-bound on unpacking: every staged e4m3 activation went e4m3 -> f16 (F2FP, two
+ * per instruction) -> f32 (HADD2.F32, one per instruction), and every bf16 activation took a shift per element, once per output
+ * tile. `fma.rn.f32.f16` / `fma.rn.f32.bf16` (PTX 8.6, sm_100 and later; FHFMA on sm_121) multiply two f16 / bf16 operands and add
+ * an f32, rounding once. An f16 / bf16 value is exact in f32, so the result is bitwise fmaf(float(a), float(b), c): the f32
+ * conversions fold into the multiply. (Checked exhaustively on spark1 against fmaf: every e4m3 x e4m3 as f16 and every bf16 x
+ * signed e2m1 as bf16, with 16 addends including subnormals, infinities and the largest finite values: 0 of 18.8 M differ.)
+ * Elsewhere the fallbacks run the f32 fmaf of the same images. */
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 1000
+#define IK_MIXED_FMA 1
+#endif
+
+/* c = fma(lo(a), lo(b), c), then fma(hi(a), hi(b), c): two f16 pairs, low half (the lower element index) first */
+IK_DEVI float ik_fma2_f16(uint32_t a, uint32_t b, float c) {
+#ifdef IK_MIXED_FMA
+    asm("{\n\t.reg .b16 al, ah, bl, bh;\n\tmov.b32 {al, ah}, %1;\n\tmov.b32 {bl, bh}, %2;\n\t"
+        "fma.rn.f32.f16 %0, al, bl, %0;\n\tfma.rn.f32.f16 %0, ah, bh, %0;\n\t}"
+        : "+f"(c)
+        : "r"(a), "r"(b));
+    return c;
+#else
+    const float2 fa = __half22float2(*reinterpret_cast<const __half2*>(&a));
+    const float2 fb = __half22float2(*reinterpret_cast<const __half2*>(&b));
+    return fmaf(fa.y, fb.y, fmaf(fa.x, fb.x, c));
+#endif
+}
+
+/* the same for two bf16 pairs */
+IK_DEVI float ik_fma2_bf16(uint32_t a, uint32_t b, float c) {
+#ifdef IK_MIXED_FMA
+    asm("{\n\t.reg .b16 al, ah, bl, bh;\n\tmov.b32 {al, ah}, %1;\n\tmov.b32 {bl, bh}, %2;\n\t"
+        "fma.rn.f32.bf16 %0, al, bl, %0;\n\tfma.rn.f32.bf16 %0, ah, bh, %0;\n\t}"
+        : "+f"(c)
+        : "r"(a), "r"(b));
+    return c;
+#else
+    c = fmaf(__uint_as_float(a << 16), __uint_as_float(b << 16), c);
+    return fmaf(__uint_as_float(a & 0xFFFF0000u), __uint_as_float(b & 0xFFFF0000u), c);
+#endif
+}
+
+/* 16 e4m3 bytes -> 8 f16 pairs, exact: h[p] holds elements 2p (low half) and 2p + 1 */
+IK_DEVI void ik_fp8x16_to_h2(const uint4& u, uint32_t* h) {
+    const uint32_t w[4] = {u.x, u.y, u.z, u.w};
+#pragma unroll
+    for (int i = 0; i < 4; ++i) {
+        __half2_raw a = __nv_cvt_fp8x2_to_halfraw2(static_cast<__nv_fp8x2_storage_t>(w[i] & 0xFFFFu), __NV_E4M3);
+        __half2_raw b = __nv_cvt_fp8x2_to_halfraw2(static_cast<__nv_fp8x2_storage_t>(w[i] >> 16), __NV_E4M3);
+        h[2 * i] = *reinterpret_cast<uint32_t*>(&a);
+        h[2 * i + 1] = *reinterpret_cast<uint32_t*>(&b);
+    }
+}
+
+/* e2m1 magnitudes 0 .5 1 1.5 2 3 4 6 as bf16: high bytes and low bytes, for `prmt` (selector nibble = 3-bit magnitude code) */
+#define IK_FP4_BF_HI_LO 0x3F3F3F00u
+#define IK_FP4_BF_HI_HI 0x40404040u
+#define IK_FP4_BF_LO_LO 0xC0800000u
+#define IK_FP4_BF_LO_HI 0xC0804000u
+
+/* 8 fp4 nibbles of a 32-bit word (element j = nibble j, as ik_fp4x8_to_f32) -> 4 bf16 pairs (unscaled, exact): h[p] holds
+ * elements 2p (low half) and 2p + 1 */
+IK_DEVI void ik_fp4x8_to_bf2(uint32_t w, uint32_t* h) {
+#pragma unroll
+    for (int q = 0; q < 2; ++q) {
+        const uint32_t sel16 = q ? (w >> 16) : (w & 0xFFFFu);
+        const uint32_t s = sel16 & 0x8888u;
+        const uint32_t sign = ((s & 0x8u) << 4) | ((s & 0x80u) << 8) | ((s & 0x800u) << 12) | ((s & 0x8000u) << 16);
+        const uint32_t hi = __byte_perm(IK_FP4_BF_HI_LO, IK_FP4_BF_HI_HI, sel16 & 0x7777u) | sign;  // byte j: element j's high byte
+        const uint32_t lo = __byte_perm(IK_FP4_BF_LO_LO, IK_FP4_BF_LO_HI, sel16 & 0x7777u);         // byte j: its low byte
+        h[2 * q] = __byte_perm(lo, hi, 0x5140u);      // elements 0, 1 of this group of 4
+        h[2 * q + 1] = __byte_perm(lo, hi, 0x7362u);  // elements 2, 3
+    }
+}
+
 /* 8 bf16 / 8 half in a uint4 -> floats */
 IK_DEVI void ik_half8_to_f32(const uint4& u, float* f) {
     const uint32_t w[4] = {u.x, u.y, u.z, u.w};

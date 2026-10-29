@@ -84,25 +84,27 @@ __device__ __forceinline__ void nvfp4_tile_body(const ik_bf16* __restrict__ x, c
         for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
 #pragma unroll(NT == 1 ? 4 : 2)
     for (int u = lane; u < K / 16; u += IK_WARP) {
-        float wf[NT][16], sc[NT];
+        // lane moe16c: weights to bf16 pairs, activations stay bf16 pairs; the bf16 x bf16 + f32 fma takes them (ik_fma2_bf16:
+        // the same 16-long chain, element order, f32 products and roundings as fmaf on the f32 images)
+        uint32_t wb[NT][8];
+        float sc[NT];
 #pragma unroll
         for (int j = 0; j < NT; ++j) {
             const uint2 wv = __ldcs(wr[j] + u);
             sc[j] = ik_e4m3_to_f(sr[j][u]);
-            ik_fp4x8_to_f32(wv.x, wf[j]);
-            ik_fp4x8_to_f32(wv.y, wf[j] + 8);
+            ik_fp4x8_to_bf2(wv.x, wb[j]);
+            ik_fp4x8_to_bf2(wv.y, wb[j] + 4);
         }
 #pragma unroll
         for (int m = 0; m < M; ++m) {
             const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + (int64_t)u * 16);
-            float xf[16];
-            ik_unpack8(__ldg(xp), xf);
-            ik_unpack8(__ldg(xp + 1), xf + 8);
+            const uint4 x0 = __ldg(xp), x1 = __ldg(xp + 1);
+            const uint32_t xb[8] = {x0.x, x0.y, x0.z, x0.w, x1.x, x1.y, x1.z, x1.w};
 #pragma unroll
             for (int j = 0; j < NT; ++j) {
                 float s = 0.f;
 #pragma unroll
-                for (int e = 0; e < 16; ++e) s = fmaf(wf[j][e], xf[e], s);
+                for (int p = 0; p < 8; ++p) s = ik_fma2_bf16(wb[j][p], xb[p], s);
                 acc[j][m] = fmaf(s, sc[j], acc[j][m]);
             }
         }
@@ -220,24 +222,25 @@ nvfp4_gemv_full_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
             for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
 #pragma unroll(NT == 1 ? 4 : 2)
         for (int u = lane; u < KV; u += IK_WARP) {
-            float wf[NT][16], sc[NT];
+            // lane moe16c: as nvfp4_tile_body, bf16 pairs into the bf16 x bf16 + f32 fma
+            uint32_t wb[NT][8];
+            float sc[NT];
 #pragma unroll
             for (int j = 0; j < NT; ++j) {
                 const uint2 wv = __ldcs(wr[j] + u);
                 sc[j] = ik_e4m3_to_f(sr[j][u]);
-                ik_fp4x8_to_f32(wv.x, wf[j]);
-                ik_fp4x8_to_f32(wv.y, wf[j] + 8);
+                ik_fp4x8_to_bf2(wv.x, wb[j]);
+                ik_fp4x8_to_bf2(wv.y, wb[j] + 4);
             }
 #pragma unroll
             for (int m = 0; m < M; ++m) {
-                float xf[16];
-                ik_unpack8(xs[(m * 2) * KV + u], xf);
-                ik_unpack8(xs[(m * 2 + 1) * KV + u], xf + 8);
+                const uint4 x0 = xs[(m * 2) * KV + u], x1 = xs[(m * 2 + 1) * KV + u];
+                const uint32_t xb[8] = {x0.x, x0.y, x0.z, x0.w, x1.x, x1.y, x1.z, x1.w};
 #pragma unroll
                 for (int j = 0; j < NT; ++j) {
                     float sd = 0.f;
 #pragma unroll
-                    for (int e = 0; e < 16; ++e) sd = fmaf(wf[j][e], xf[e], sd);
+                    for (int p = 0; p < 8; ++p) sd = ik_fma2_bf16(wb[j][p], xb[p], sd);
                     acc[j][m] = fmaf(sd, sc[j], acc[j][m]);
                 }
             }

@@ -45,6 +45,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_mxfp4_a8_mma", Op::MatmulMxfp4),
     ("matmul_mxfp4_pair_a8_gemv", Op::MatmulMxfp4Pair),
     ("matmul_mxfp4_pair_a8_gemv_rows", Op::MatmulMxfp4Pair),
+    // lane pf27b: the pair at prefill M, one activation quant pre-pass for both GEMMs (bitwise two `matmul_mxfp4_a8_mma` calls)
+    ("matmul_mxfp4_pair_a8_mma", Op::MatmulMxfp4Pair),
     ("moe_topk_bf16", Op::MoeTopk),
     ("moe_topk_bf16_v2", Op::MoeTopk),
     ("moe_experts_bf16", Op::MoeExperts),
@@ -630,6 +632,17 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
                     .scratch(|s| mx_a8_scratch(s.m.div_ceil(16) * 16, s.k.div_ceil(64) * 64) + s.n.div_ceil(16) * 16 + 64),
+                // lane pf27b: MatmulMxfp4Pair at the same M as matmul_mxfp4_a8_mma (same predicate, exactness and priority, so a pair
+                // selects it exactly where each single call selects matmul_mxfp4_a8_mma): one quant pre-pass, then the two GEMMs, each with
+                // its own weight-span result and fold flag (one span launch for both). Scratch: a8_scratch_total(M, K, round16(N0) + N1).
+                "matmul_mxfp4_pair_a8_mma" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| s.mxfp4_a8 && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(|s| mx_a8_scratch(s.m.div_ceil(16) * 16, s.k.div_ceil(64) * 64) + (s.n.div_ceil(16) * 16 + s.n1).div_ceil(16) * 16 + 64),
                 "moe_topk_bf16" => k
                     .acts(bf)
                     .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))
