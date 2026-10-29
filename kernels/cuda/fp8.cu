@@ -273,72 +273,6 @@ bool smem_cap_once(size_t bytes) {
     return done[d];
 }
 
-// The persistent kernel's tiles over xs [M][2][KV]. H16 (W8A8, lane step16): xs holds the f16 images of the e4m3 values and
-// the f16 x f16 + f32 fma takes them with the weights' f16 pairs (ik_fma2_f16: the same 16-long chain, element order, f32
-// products and roundings as the fmaf on f32 images in the bf16 form, as in the e4m3-staged kernel, lane moe16c).
-template <int M, int NT, int W, bool H16, typename OutT>
-__device__ __forceinline__ void rows_full_tiles(const uint4* __restrict__ xs, const uint8_t* __restrict__ w, float s_out,
-                                                OutT* __restrict__ out, int N, int K) {
-    const int KV = K / 16;
-    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
-    const int64_t tiles = ((int64_t)N + NT - 1) / NT;
-    for (int64_t t = (int64_t)blockIdx.x * W + warp; t < tiles; t += (int64_t)gridDim.x * W) {
-        const int64_t nb = t * NT;  // this tile's outputs: nb .. nb + NT - 1
-        const uint4* wr[NT];
-#pragma unroll
-        for (int j = 0; j < NT; ++j) wr[j] = reinterpret_cast<const uint4*>(w + (nb + j < N ? nb + j : 0) * K);  // a dead output reads row 0
-        float acc[NT][M];
-#pragma unroll
-        for (int j = 0; j < NT; ++j)
-#pragma unroll
-            for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
-#pragma unroll 2
-        for (int u = lane; u < KV; u += IK_WARP) {
-            if constexpr (H16) {
-                uint32_t wh[NT][8];
-#pragma unroll
-                for (int j = 0; j < NT; ++j) ik_fp8x16_to_h2(__ldcs(wr[j] + u), wh[j]);
-#pragma unroll
-                for (int m = 0; m < M; ++m) {
-                    const uint4 lo = xs[(m * 2) * KV + u], hi = xs[(m * 2 + 1) * KV + u];
-                    const uint32_t xh[8] = {lo.x, lo.y, lo.z, lo.w, hi.x, hi.y, hi.z, hi.w};
-#pragma unroll
-                    for (int j = 0; j < NT; ++j) {
-                        float sdot = 0.f;
-#pragma unroll
-                        for (int p = 0; p < 8; ++p) sdot = ik_fma2_f16(wh[j][p], xh[p], sdot);
-                        acc[j][m] += sdot;
-                    }
-                }
-            } else {
-                float wf[NT][16];
-#pragma unroll
-                for (int j = 0; j < NT; ++j) ik_fp8x16_to_f32(__ldcs(wr[j] + u), wf[j]);
-#pragma unroll
-                for (int m = 0; m < M; ++m) {
-                    float xf[16];
-                    ik_unpack8(xs[(m * 2) * KV + u], xf);
-                    ik_unpack8(xs[(m * 2 + 1) * KV + u], xf + 8);
-#pragma unroll
-                    for (int j = 0; j < NT; ++j) {
-                        float sdot = 0.f;
-#pragma unroll
-                        for (int e = 0; e < 16; ++e) sdot = fmaf(wf[j][e], xf[e], sdot);
-                        acc[j][m] += sdot;
-                    }
-                }
-            }
-        }
-#pragma unroll
-        for (int j = 0; j < NT; ++j)
-#pragma unroll
-            for (int m = 0; m < M; ++m) {
-                const float r = ik_warp_sum(acc[j][m]);  // all 32 lanes call it (full-mask shuffles)
-                if (lane == 0 && nb + j < N) ik_store(out + (int64_t)m * N + nb + j, r * s_out);
-            }
-    }
-}
-
 template <int M, int NT, int W, typename OutT>
 __global__ void __launch_bounds__(W * IK_WARP, 1)
 fp8_gemv_rows_full_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
@@ -357,13 +291,50 @@ fp8_gemv_rows_full_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restri
             ik_unpack8(v, f);
 #pragma unroll
             for (int e = 0; e < 8; ++e) f[e] = ik_e4m3_to_f(ik_f_to_e4m3(__fdiv_rn(f[e], s_in)));
-            v = ik_pack8_f16(f);  // fp8 values are exact in f16
+            v = ik_pack8(f);  // fp8 values are exact in bf16
         }
         xs[(m * 2 + (j & 1)) * KV + (j >> 1)] = v;
     }
     __syncthreads();
-    if (actq) rows_full_tiles<M, NT, W, true>(xs, w, s_out, out, N, K);
-    else rows_full_tiles<M, NT, W, false>(xs, w, s_out, out, N, K);
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t tiles = ((int64_t)N + NT - 1) / NT;
+    for (int64_t t = (int64_t)blockIdx.x * W + warp; t < tiles; t += (int64_t)gridDim.x * W) {
+        const int64_t nb = t * NT;  // this tile's outputs: nb .. nb + NT - 1
+        const uint4* wr[NT];
+#pragma unroll
+        for (int j = 0; j < NT; ++j) wr[j] = reinterpret_cast<const uint4*>(w + (nb + j < N ? nb + j : 0) * K);  // a dead output reads row 0
+        float acc[NT][M];
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
+#pragma unroll 2
+        for (int u = lane; u < KV; u += IK_WARP) {
+            float wf[NT][16];
+#pragma unroll
+            for (int j = 0; j < NT; ++j) ik_fp8x16_to_f32(__ldcs(wr[j] + u), wf[j]);
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                float xf[16];
+                ik_unpack8(xs[(m * 2) * KV + u], xf);
+                ik_unpack8(xs[(m * 2 + 1) * KV + u], xf + 8);
+#pragma unroll
+                for (int j = 0; j < NT; ++j) {
+                    float sdot = 0.f;
+#pragma unroll
+                    for (int e = 0; e < 16; ++e) sdot = fmaf(wf[j][e], xf[e], sdot);
+                    acc[j][m] += sdot;
+                }
+            }
+        }
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                const float r = ik_warp_sum(acc[j][m]);  // all 32 lanes call it (full-mask shuffles)
+                if (lane == 0 && nb + j < N) ik_store(out + (int64_t)m * N + nb + j, r * s_out);
+            }
+    }
 }
 
 inline int sm_count() {

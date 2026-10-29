@@ -281,3 +281,7 @@ spark1-vllm stayed up throughout, no `--takes-down`. No lane process was left on
 3. **Non-exact, not tried:** a bf16 GDN state would halve the 8.4 ms delta-rule traffic (~4 ms per step). Neither vLLM nor the
    checkpoint does that (`mamba_ssm_dtype: float32`), so it would be an accuracy trade beyond the reference. Opt-in with a KL
    check at most.
+
+## Coordinator decision (2026-10-29 04:10)
+
+Merged as docs and scripts only. The `fp8_gemv_rows_full_kernel` FHFMA change is exact but not faster inside the engine (B = 8 nsys 66.1 vs 66.3 us per call) and adds ~4.4 MB per binary, so `kernels/cuda/fp8.cu` and `kernels/cuda/ik_quant.cuh` were reverted to main before the merge. The kernel diff is in the branch history of `lane-step16/decode-step` (PR #240). Next lane: profile vLLM's own B = 16 step on spark1 to locate the ~4 ms gap (routed MoE is the likely place).
