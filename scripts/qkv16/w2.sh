@@ -2,7 +2,7 @@
 # Lane qkv16, GPU window 2 (one fleetq slot on spark1, quiet on GPU and CPU):
 #   1. served-token identity base vs dev (ident.sh: 21 cells, both `serve --max-batch 16`);
 #   2. the interleaved serve A/B base vs dev, 3 rounds at 1 / 4 / 8 / 16 streams (le-window.sh, step16's settings).
-# Stops before the A/B if (1) fails. base = main 867b97145 (~/intarsiaml-qkv16/bin/base), dev = this branch (bin/dev).
+# Stops before the A/B if (1) fails. base = main 7aebefb83 (~/intarsiaml-qkv16/bin/base), dev = this branch (bin/dev).
 #   fleetq run --host spark1 --quiet gpu,cpu --mem 50 --expect 40 --label "qkv16: W2 identity + serve A/B" -- scripts/qkv16/w2.sh
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"

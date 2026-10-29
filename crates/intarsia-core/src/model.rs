@@ -3305,9 +3305,11 @@ impl Model {
     /// q (with the output gate of a gated block), k and v read the same activation: one launch for all three when the backend has
     /// the row-exact fp8 triple (`Op::MatmulFp8Triple`, CUDA, `rows_exact` and from 12 rows only: it is bitwise the three single
     /// projections, which a batched step otherwise runs as q beside the k / v pair on the side stream). Returns whether it ran
-    /// (then `q_out`, `k_out` and `v_out` hold the projections, before any bias); `false` leaves all three to the caller.
-    fn qkv_triple(&self, a: &AttnBlock, n: &TensorRef, q_out: &TensorRef, k_out: &TensorRef, v_out: &TensorRef, profile: bool) -> Result<bool> {
-        if [a.wq.format, a.wk.format, a.wv.format] != [crate::quant::FP8_E4M3; 3] {
+    /// (then `q_out`, `k_out` and `v_out` hold the projections, before any bias); `false` leaves all three to the caller. `t`: the rows of `n`.
+    fn qkv_triple(&self, a: &AttnBlock, n: &TensorRef, t: usize, q_out: &TensorRef, k_out: &TensorRef, v_out: &TensorRef, profile: bool) -> Result<bool> {
+        // a row-exact multi-row call only (a batched or verify step): the solo step and a prefill chunk keep q and the k + v pair, so a
+        // backend whose reference accepts the op for any call (cpu) keeps its op counts
+        if !self.verifying() || t < 2 || [a.wq.format, a.wk.format, a.wv.format] != [crate::quant::FP8_E4M3; 3] {
             return Ok(false);
         }
         self.try_fused(
@@ -3526,7 +3528,7 @@ impl Model {
         };
         // lane qkv16: q, k and v of one row-exact batched step as one launch (`Op::MatmulFp8Triple`), instead of q beside the k / v
         // pair on the side stream; the k / v biases and the gate split below are unchanged
-        let triple = !kv_done && !skip_q && self.qkv_triple(a, n, &q_out, &k_out, &v_out, profile)?;
+        let triple = !kv_done && !skip_q && self.qkv_triple(a, n, t, &q_out, &k_out, &v_out, profile)?;
         // lane moe16b: k / v (they read only `n`) on the side stream beside q, forked here and joined before this returns
         let fork = if !kv_done && !skip_q && !triple { self.side_fork(true, t, profile)? } else { None };
         if let Some(gate) = &gate {
