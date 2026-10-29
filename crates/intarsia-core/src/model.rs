@@ -1046,7 +1046,7 @@ impl Model {
                         })?;
                         let (c, vdim, hv) = (lin.conv_dim(), lin.v_heads * lin.v_head_dim, lin.v_heads);
                         let slot = slot_specs.len();
-                        slot_specs.push(SlotSpec::Recurrent { bytes: gdn_block::state_bytes(&lin) });
+                        slot_specs.push(SlotSpec::Recurrent { bytes: gdn_block::state_bytes(&lin, b.gdn_conv_dtype()) });
                         // tensor parallelism (docs/design/35b-tp2.md): by key-head group. `lin` is this rank's (heads
                         // divided); the fused q/k/v projection and the conv channels are `[q | k | v]` of the checkpoint's
                         // widths, each group split on its own. v head h reads k head h / (Hv / Hk), so a contiguous run of

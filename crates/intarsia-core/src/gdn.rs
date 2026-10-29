@@ -11,7 +11,7 @@
 //! * `SigmoidMul`: `a`, `g` of equal shape -> `a * sigmoid(g)` (the attention output gate).
 //! * `GdnConv`: depthwise causal conv over the token axis, per channel `c` with taps `w [C,K]`
 //!   (tap `K-1` multiplies the current token, tap `0` the token `K-1` steps back), no bias, then
-//!   SiLU. `state [C,K-1]` f32 holds the last `K-1` inputs of the channel (index 0 = oldest) and is
+//!   SiLU. `state [C,K-1]` (f32, or bf16 on CUDA: `Backend::gdn_conv_dtype`) holds the last `K-1` inputs of the channel (index 0 = oldest) and is
 //!   updated in place; a zeroed state is HF's left zero padding. Sequences are processed in any
 //!   chunking: carrying the state across calls gives the same result as one call.
 //! * `GdnDeltaRule`: the gated delta rule recurrence. Input `qkv [T,C]` is the conv output with rows
@@ -104,8 +104,9 @@ pub fn check(call: &OpCall) -> Result<()> {
                     i[0].shape, i[1].shape, o[0].shape, o[1].shape
                 ));
             }
-            if o[1].dtype != DType::F32 {
-                return bad("conv state must be f32".into());
+            // bf16 where the backend stores it so (`Backend::gdn_conv_dtype`): the state only holds past bf16 inputs
+            if !matches!(o[1].dtype, DType::F32 | DType::Bf16) {
+                return bad("conv state must be f32 or bf16".into());
             }
         }
         Op::GdnDeltaRule => {
