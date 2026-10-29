@@ -1,0 +1,37 @@
+WARNING: CPU IP/backtrace sampling not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+WARNING: CPU context switch tracing not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+running 1 test
+test bench_moe_rows_cold ... variant (rows, 256 experts top-8)     T        D    us/call       GB/s
+v2 down (DD=0)                        1      8.0       66.8  211810443
+dd RT=8 R=4                           1      8.0       67.8  208802840
+dd RT=16 R=2                          1      8.0       64.8  218349929
+dd RT=16 R=4                          1      8.0       64.3  220102950
+dd RT=16 R=8                          1      8.0       68.8  205773208
+dd RT=32 R=4                          1      8.0       64.8  218391502
+dd RT=32 R=8                          1      8.0       66.5  213023149
+v2 down (DD=0)                        4     23.1      183.6  222680898
+dd RT=8 R=4                           4     23.1      185.5  220429205
+dd RT=16 R=2                          4     23.1      181.6  225147750
+dd RT=16 R=4                          4     23.1      179.5  227715371
+dd RT=16 R=8                          4     23.1      190.0  215206213
+dd RT=32 R=4                          4     23.1      183.8  222480301
+dd RT=32 R=8                          4     23.1      182.3  224290594
+v2 down (DD=0)                        8     38.2      302.4  223462907
+dd RT=8 R=4                           8     38.2      308.6  218950667
+dd RT=16 R=2                          8     38.2      299.1  225892196
+dd RT=16 R=4                          8     38.2      296.0  228258988
+dd RT=16 R=8                          8     38.2      312.7  216095759
+dd RT=32 R=4                          8     38.2      302.6  223280128
+dd RT=32 R=8                          8     38.2      300.9  224583188
+v2 down (DD=0)                       16     59.5      492.9  213676750
+dd RT=8 R=4                          16     59.5      482.7  218199085
+dd RT=16 R=2                         16     59.5      489.8  215011161
+dd RT=16 R=4                         16     59.5      474.8  221829773
+dd RT=16 R=8                         16     59.5      498.6  211226982
+dd RT=32 R=4                         16     59.5      498.2  211394633
+dd RT=32 R=8                         16     59.5      495.7  212471450
+ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 17.10s
+Generated:

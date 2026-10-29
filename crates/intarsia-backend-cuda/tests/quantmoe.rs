@@ -324,6 +324,113 @@ fn bench_moe_decode_cold() {
     std::env::remove_var("INTARSIA_MOE_GU_UNROLL");
 }
 
+/// Cold-weight timing of the multi-token (rows) routed experts at the real layer shape, T = 1 / 4 / 8 / 16 tokens per call, lane
+/// moedn. As bench_moe_decode_cold (96 routings over one weight set, one CUDA graph), but each token's top-8 is drawn from a Zipf
+/// (exponent 1.15) over a per-call random permutation of the 256 experts: about 61 distinct experts at T = 16 and 38 at T = 8,
+/// as measured in serve (moe16: 61.45 / 37.91), where uniform routing would give 102 / 57. GB/s over the distinct experts'
+/// bytes. Variants: INTARSIA_MOE_DOWN_DD (0 = v2 down kernel) and INTARSIA_MOE_DOWN_DD_R; gate_up is the same in all.
+#[test]
+#[ignore]
+fn bench_moe_rows_cold() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(10);
+    const N: usize = 96;
+    let (e, k, hd, id) = (256usize, 8usize, 2048usize, 512usize);
+    let zipf: Vec<f64> = (0..e).map(|j| 1.0 / ((j + 1) as f64).powf(1.15)).collect();
+    let zsum: f64 = zipf.iter().sum();
+    let mut pick = |rng: &mut SplitMix64| {
+        let mut r = (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64 * zsum;
+        for (j, w) in zipf.iter().enumerate() {
+            r -= w;
+            if r <= 0.0 {
+                return j;
+            }
+        }
+        e - 1
+    };
+    let per_expert = (2 * id * hd + hd * id) as f64 * (0.5 + 1.0 / 16.0);
+    println!("{:<34} {:>4} {:>8} {:>10} {:>10}", "variant (rows, 256 experts top-8)", "T", "D", "us/call", "GB/s");
+    let big = experts_case(&mut rng, N * 16, e, k, hd, id, DType::Bf16);
+    let weights: Vec<TensorRef> = big.inputs[3..8].iter().map(|x| dev_tensor(&*cuda, x)).collect();
+    for t in [1usize, 4, 8, 16] {
+        let mut calls = Vec::new();
+        let mut distinct = 0usize;
+        for c in 0..N {
+            let mut perm: Vec<usize> = (0..e).collect();
+            for j in (1..e).rev() {
+                perm.swap(j, (rng.next_u64() % (j as u64 + 1)) as usize);
+            }
+            let mut ids = Vec::new();
+            let mut seen = vec![false; e];
+            for _ in 0..t {
+                let mut mine: Vec<i32> = Vec::new();
+                while mine.len() < k {
+                    let x = perm[pick(&mut rng)] as i32;
+                    if !mine.contains(&x) {
+                        mine.push(x);
+                    }
+                }
+                for &x in &mine {
+                    distinct += !seen[x as usize] as usize;
+                    seen[x as usize] = true;
+                }
+                ids.extend(mine);
+            }
+            let x = HostTensor {
+                shape: vec![t, hd],
+                data: big.inputs[0].data[c * t * hd * 2..(c + 1) * t * hd * 2].to_vec(),
+                ..big.inputs[0].clone()
+            };
+            let w = HostTensor { shape: vec![t, k], data: big.inputs[2].data[c * t * k * 4..(c + 1) * t * k * 4].to_vec(), ..big.inputs[2].clone() };
+            let mut inputs = vec![dev_tensor(&*cuda, &x), dev_tensor(&*cuda, &HostTensor::from_i32(&[t, k], &ids)), dev_tensor(&*cuda, &w)];
+            inputs.extend(weights.iter().cloned());
+            let out = dev_tensor(&*cuda, &HostTensor::zeros(DType::Bf16, &[t, hd]));
+            calls.push(OpCall::new(Op::MoeExperts, inputs, vec![out], big.attrs.clone()));
+        }
+        let d = distinct as f64 / N as f64;
+        let kernel = "moe_experts_decode_v2_rows_bf16";
+        let need = cuda.kernels().iter().find(|x| x.name == kernel).unwrap().scratch_bytes(&ShapeInfo::from_call(&calls[0]));
+        let scratch = TensorRef::new(cuda.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]);
+        for c in &mut calls {
+            c.scratch = Some(scratch.clone());
+        }
+        for (label, dd, r) in [
+            ("v2 down (DD=0)", "0", ""),
+            ("dd RT=8 R=4", "8", "4"),
+            ("dd RT=16 R=2", "16", "2"),
+            ("dd RT=16 R=4", "16", "4"),
+            ("dd RT=16 R=8", "16", "8"),
+            ("dd RT=32 R=4", "32", "4"),
+            ("dd RT=32 R=8", "32", "8"),
+        ] {
+            std::env::set_var("INTARSIA_MOE_DOWN_DD", dd);
+            std::env::set_var("INTARSIA_MOE_DOWN_DD_R", r);
+            let g = cuda
+                .graph_capture(0, &mut || {
+                    for c in &calls {
+                        cuda.launch(kernel, c, 0)?;
+                    }
+                    Ok(())
+                })
+                .unwrap();
+            for _ in 0..3 {
+                cuda.graph_replay(&g, 0).unwrap();
+            }
+            cuda.synchronize(0).unwrap();
+            let reps = 20;
+            let t0 = Instant::now();
+            for _ in 0..reps {
+                cuda.graph_replay(&g, 0).unwrap();
+            }
+            cuda.synchronize(0).unwrap();
+            let s = t0.elapsed().as_secs_f64() / (reps * N) as f64;
+            println!("{:<34} {:>4} {:>8.1} {:>10.1} {:>10.0}", label, t, d, s * 1e6, d * per_expert / 1e9 / s);
+        }
+    }
+    std::env::remove_var("INTARSIA_MOE_DOWN_DD");
+    std::env::remove_var("INTARSIA_MOE_DOWN_DD_R");
+}
+
 #[test]
 #[ignore]
 fn bench_real_shapes() {
