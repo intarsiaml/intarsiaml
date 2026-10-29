@@ -130,7 +130,9 @@ __global__ void ar2_kernel(const int4* x4, void* out, int4* peer_scratch, int4* 
     if (tid == 0) {
         ar_store_rel(&peer_flags[b], seq);
         unsigned int spins = 0;
-        while ((int)(ar_load_acq(&my_flags[b]) - seq) < 0) {
+        /* drain 9 (tests only, lane pf27b): the fence path without its wait, a negative control for the large-message stress test
+           (the reduce reads whatever the scratch holds when this block's own push is done: it must produce wrong sums) */
+        while (drain != 9 && (int)(ar_load_acq(&my_flags[b]) - seq) < 0) {
             __builtin_amdgcn_s_sleep(1);
             if (drain == 4) ar_store_rel(&peer_flags[b], seq); /* INTARSIA_HIP_AR_DRAIN=4 (diagnostic): re-send the flag while waiting; hang gone = a flag store was lost */
             if (++spins > AR_SPIN_MAX) __builtin_trap();
@@ -279,7 +281,7 @@ int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem,
     if (n_elem == 0) return IK_OK;
     hipStream_t s = IK_STREAM(stream);
     const int n16 = (int)(bytes / 16), stride16 = (int)(slot_bytes / 16);
-    if (drain >= 7) {
+    if (drain == 7 || drain == 8) {
         if (ll_fits(drain, bytes, peer_ll, my_ll, ll_slot_bytes)) {
             const int ls = (int)(ll_slot_bytes / 8);
             auto pl = (unsigned long long*)peer_ll;
@@ -303,6 +305,35 @@ int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem,
         ar2_kernel<1><<<nblocks, 256, 0, s>>>((const int4*)x, out, (int4*)peer_scratch, (int4*)my_scratch, peer_flags, my_flags, ctrs, n16, stride16, drain);
     else
         ar2_kernel<2><<<nblocks, 256, 0, s>>>((const int4*)x, out, (int4*)peer_scratch, (int4*)my_scratch, peer_flags, my_flags, ctrs, n16, stride16, drain);
+    return ik_launch_status();
+}
+
+/* Benchmarks only (lane pf27b, comm.rs `p2p_bench`): one phase of ar2_kernel<0> alone, no handshake. mode 0: the push (this rank's
+ * n16 words into the peer's scratch, nblocks blocks, then the system fence, as drain 1); mode 1: the reduce (x + my scratch -> out,
+ * bf16); mode 2: the push without the fence. */
+__global__ void ar2_bench_kernel(const int4* x4, int4* out, int4* ps, const int4* ms, int n16, int mode) {
+    const int b = blockIdx.x, nb = gridDim.x, tid = threadIdx.x, nt = blockDim.x;
+    const int w = (n16 + nb - 1) / nb;
+    const int start = min(b * w, n16), end = min(start + w, n16);
+    if (mode == 1) {
+        for (int k = start + tid; k < end; k += nt) out[k] = ar_add16<0>(x4[k], ms[k]);
+        return;
+    }
+    int k = start + tid;
+    for (; k + 3 * nt < end; k += 4 * nt) {
+        int4 v0 = x4[k], v1 = x4[k + nt], v2 = x4[k + 2 * nt], v3 = x4[k + 3 * nt];
+        ps[k] = v0;
+        ps[k + nt] = v1;
+        ps[k + 2 * nt] = v2;
+        ps[k + 3 * nt] = v3;
+    }
+    for (; k < end; k += nt) ps[k] = x4[k];
+    if (mode == 0) __threadfence_system();
+}
+
+int ik_ar2_bench(int mode, void* x, void* out, void* peer_scratch, void* my_scratch, int64_t n16, int nblocks, void* stream) {
+    if (!x || !out || !peer_scratch || !my_scratch || nblocks < 1 || nblocks > 4096 || n16 < 1 || n16 > 0x7fffffffLL) return IK_ERR_INVALID_ARG;
+    ar2_bench_kernel<<<nblocks, 256, 0, IK_STREAM(stream)>>>((const int4*)x, (int4*)out, (int4*)peer_scratch, (const int4*)my_scratch, (int)n16, mode);
     return ik_launch_status();
 }
 

@@ -1,0 +1,24 @@
+
+running 17 tests
+test all_gather_captured_in_a_graph_replays_exactly_between_all_reduces ... ok
+test all_gather_is_rank_major_exact_in_place_and_disjoint ... ok
+test all_reduce_is_exact_and_identical_on_both_ranks ... ok
+test all_reduce_rate ... ignored
+test an_aborted_group_refuses_collectives_instead_of_waiting ... ok
+test ar_graph_rate ... ignored
+test ar_norm_rate ... ignored
+test collectives_captured_into_a_graph_replay_exactly_and_interleave_with_eager_ones ... ok
+test f32_partials_reduce_into_bf16_with_one_rounding ... ok
+test ll_handshake_is_bitwise_the_fence_mode_across_ops_and_sizes ... ok
+test ll_handshake_survives_a_delayed_rank ... ok
+test ll_without_the_tag_check_is_caught_by_the_stress_test ... negative control: 1380 wrong results without the tag check
+ok
+test many_back_to_back_launches_keep_both_scratch_parities_straight ... ok
+test p2p_link_rate ... ignored
+test wide_path_is_bitwise_the_old_path_at_prefill_sizes ... ok
+test wide_path_survives_a_delayed_rank ... ok
+test wide_path_without_the_wait_is_caught_by_the_stress_test ... negative control (wide, no wait): 243 wrong results
+ok
+
+test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 18.94s
+

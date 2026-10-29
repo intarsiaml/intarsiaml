@@ -771,6 +771,8 @@ pub struct ShapeInfo {
     pub m: usize,
     /// Output features (matmul N, vocab for argmax).
     pub n: usize,
+    /// The pair matmuls (`MatmulPair`, `MatmulFp8Pair`, `MatmulMxfp4Pair`): the second output's width (`n` is the first's); 0 otherwise.
+    pub n1: usize,
     /// Reduction dim (matmul K, hidden for norms, head_dim for attention).
     pub k: usize,
     pub n_heads: usize,

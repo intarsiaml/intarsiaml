@@ -1,0 +1,8 @@
+
+running 3 tests
+test wide_path_is_bitwise_the_old_path_at_prefill_sizes ... ok
+test wide_path_survives_a_delayed_rank ... ok
+test wide_path_without_the_wait_is_caught_by_the_stress_test ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 12.81s
+
