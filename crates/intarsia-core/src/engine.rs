@@ -1946,7 +1946,9 @@ impl Seq {
     /// Produce the next `self.tok` on this sequence alone (plan, run the forward pass, sample).
     pub(crate) fn advance(&mut self, model: &Model, st: &mut SequenceState) -> Result<()> {
         if let Some((tok, mode)) = self.prepare(model, st)? {
+            let pos = st.len;
             let out = model.forward(st, &[tok], mode, None)?;
+            st.tag_passes(pos, crate::state::PassKind::Decode);
             self.accept_plain(out)?;
         }
         Ok(())

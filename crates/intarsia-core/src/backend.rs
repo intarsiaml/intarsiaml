@@ -203,10 +203,21 @@ pub trait Backend: Send + Sync {
     /// True when a dense prefill may resume from any held KV row and still compute the bits a cold prefill of the whole prompt
     /// computes, so prefix reuse may cut anywhere (`Model::reuse_len`). False where a pass's bits depend on its row count or
     /// its first row (CUDA, measured on Qwen3-8B: every split of a prompt changed its logits; Metal, same model: the splits
-    /// with a 1-row pass, a repeated prompt's last token alone among them): reuse then resumes only where the prompt's own
-    /// cold chunk schedule cuts. Default true (cpu, whose kernels are row-count invariant; HIP not yet measured).
+    /// with a 1-row pass, a repeated prompt's last token alone among them; HIP, same model on an R9700, the same): reuse then
+    /// resumes only where the prompt's own cold chunk schedule cuts. Default true (cpu, whose kernels are row-count invariant).
     fn prefix_reuse_any_cut(&self) -> bool {
         true
+    }
+
+    /// Where [`Backend::prefix_reuse_any_cut`] is false: the fewest rows a forward pass may have for its rows to be bitwise what
+    /// every other split of the same prompt into passes of at least that many rows writes, a one-pass prefill's among
+    /// them. `Some(n)`: a prefix then needs no cold cut to be reusable (`Model::reuse_len`), only rows written by passes of
+    /// `n` rows or more (a decode step is a 1-row pass) and a remainder prefilled in passes of `n` or more. Metal: `Some(2)`,
+    /// only a 1-row pass differs. `None` (default; CUDA, whose ordinary passes differ at any size; with row-invariant prefill
+    /// on, [`Backend::row_invariant_prefill`], CUDA's rule is that one's instead): only the prompt's own cold chunk schedule is
+    /// a safe cut.
+    fn prefix_reuse_min_pass_rows(&self) -> Option<usize> {
+        None
     }
 
     /// True when the backend registers `row_invariant` kernels for a whole dense prefill pass (lane rip): a pass run through

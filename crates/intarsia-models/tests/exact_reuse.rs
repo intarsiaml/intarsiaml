@@ -1,8 +1,10 @@
 //! Exact prefix reuse (lane bi8, docs/results/2026-10-29-bi8-serve-batch-invariance.md): on a backend whose dense prefill
-//! bits depend on a pass's row count (`Backend::prefix_reuse_any_cut` false: CUDA, and Metal since lane prb) a request resumes from a held KV prefix
+//! bits depend on a pass's row count (`Backend::prefix_reuse_any_cut` false: CUDA, Metal since lane prb, HIP since lane arx) a request resumes from a held KV prefix
 //! only where its own cold chunk schedule cuts, and only over rows the held sequence wrote with exactly those passes, in the
 //! single-sequence engine and in the batched engine's slot choice alike. The cpu kernels are chunk-invariant, so here the
 //! bits agree either way: these tests pin the policy (which prefix is reused), the CUDA gates in `batch_cuda_real.rs` the bits.
+//! Lane prc (docs/results/2026-10-29-prc-metal-cheap-reuse.md): a backend that also says passes of >= 2 rows agree
+//! (`Backend::prefix_reuse_min_pass_rows`, Metal) resumes at any row of a prefix written by such passes, `Mode::Wide` below.
 //!
 //! Lane rip (docs/results/2026-10-29-rip-row-invariant-prefill.md): on a backend with row-invariant prefill
 //! (`Backend::row_invariant_prefill`; CUDA with `INTARSIA_ROW_INVARIANT_PREFILL=1`) a request resumes at any row a row-invariant prefill pass wrote, never inside rows
@@ -22,12 +24,14 @@ const CHUNK: usize = 8;
 
 /// The cpu backend, reporting a chunk-sensitive prefill as CUDA did before lane rip (`inv` false), or a chunk-sensitive ordinary
 /// prefill with row-invariant prefill passes, as CUDA with `INTARSIA_ROW_INVARIANT_PREFILL=1` (`inv` true: every cpu kernel is marked `row_invariant`; the cpu
-/// kernels compute each row alone).
+/// kernels compute each row alone); with `min_rows` what Metal reports (passes of that many rows or more agree, a 1-row pass
+/// is kept out of prefill chunking).
 struct Strict {
     inner: Arc<dyn Backend>,
     inv: bool,
     /// with `inv`: leave the matmuls untagged, as a CUDA checkpoint whose GEMMs have no `row_invariant` kernel (fp8, NVFP4, MoE)
     partial: bool,
+    min_rows: Option<usize>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -41,6 +45,8 @@ enum Mode {
     /// the backend asks for row-invariant prefill but an op of the pass (the matmul) has no `row_invariant` kernel: the plan
     /// switches it off and reuse falls back to the ladder (Gemma-4 / quantised checkpoints on CUDA)
     Partial,
+    /// chunk-sensitive, passes of >= 2 rows agree (Metal, lane prc): any cut inside rows such passes wrote
+    Wide,
 }
 
 impl Backend for Strict {
@@ -81,15 +87,23 @@ impl Backend for Strict {
     fn row_invariant_prefill(&self) -> bool {
         self.inv
     }
+    fn avoid_single_row_prefill(&self) -> bool {
+        self.min_rows.is_some()
+    }
+    fn prefix_reuse_min_pass_rows(&self) -> Option<usize> {
+        self.min_rows
+    }
 }
 
 fn model(mode: Mode, rows: usize) -> (Model, Arc<Telemetry>) {
     let cpu = intarsia_backend_cpu::CpuBackend::arc();
+    let strict = |inv, partial, min_rows| -> Arc<dyn Backend> { Arc::new(Strict { inner: cpu.clone(), inv, partial, min_rows }) };
     let backend: Arc<dyn Backend> = match mode {
-        Mode::Any => cpu,
-        Mode::Ladder => Arc::new(Strict { inner: cpu, inv: false, partial: false }),
-        Mode::Invariant => Arc::new(Strict { inner: cpu, inv: true, partial: false }),
-        Mode::Partial => Arc::new(Strict { inner: cpu, inv: true, partial: true }),
+        Mode::Any => cpu.clone(),
+        Mode::Ladder => strict(false, false, None),
+        Mode::Invariant => strict(true, false, None),
+        Mode::Partial => strict(true, true, None),
+        Mode::Wide => strict(false, false, Some(2)),
     };
     let t = tiny_weights(DType::Bf16, 5);
     let tel = Arc::new(Telemetry::new());
@@ -182,6 +196,7 @@ fn single_sequence_engine_resumes_only_at_the_cold_schedule() {
             Mode::Ladder | Mode::Partial => 24,
             Mode::Any => any_cut,
             Mode::Invariant => LONG.len(),
+            Mode::Wide => unreachable!(),
         };
         assert_eq!(cached, w, "follow-up turn {mode:?}");
         // the next turn's prompt holds the follow-up turn whole: every row of it a prefill row now
@@ -291,4 +306,125 @@ fn cpu_prefill_is_bitwise_row_count_invariant() {
             assert!(run(k) == cold, "{dt:?}: split ({k}, {}) differs from the one-pass prefill", p.len() - k);
         }
     }
+}
+
+/// What `Wide` (Metal's report) resumes at, per request of `cases()`: a repeat cuts two rows before its end (the remainder is not
+/// a 1-row pass), a shared prefix at the shared row.
+const WIDE_CACHED: [usize; 5] = [0, SHORT.len() - 2, 0, LONG.len() - 2, 20];
+
+#[test]
+fn single_sequence_engine_resumes_at_any_row_of_wide_passes() {
+    let (m, tel) = model(Mode::Wide, 1);
+    let e = LocalEngine::new(m, Arc::new(ByteCodec), meta(), tel).unwrap();
+    let cold = |p: &str| {
+        let (m, tel) = model(Mode::Wide, 1);
+        collect(&LocalEngine::new(m, Arc::new(ByteCodec), meta(), tel).unwrap().submit(req(p)).unwrap()).0
+    };
+    for ((p, ..), want) in cases().into_iter().zip(WIDE_CACHED) {
+        let (ids, cached) = collect(&e.submit(req(p)).unwrap());
+        assert_eq!(cached, want, "{p:?}");
+        assert_eq!(ids, cold(p), "{p:?}: the warm request computes its cold output");
+    }
+    // a follow-up turn: LONG, its generated tokens, more text. Rows from 30 on were written by decode steps (1-row passes):
+    // the resume point is the end of the prefill's rows, not the end of the shared tokens
+    let (first, _) = collect(&e.submit(req(LONG)).unwrap());
+    let mut follow = req(LONG);
+    follow.prompt.extend(&first);
+    follow.prompt.extend("and more text here".bytes().map(|b| b as u32));
+    let (_, cached) = collect(&e.submit(follow).unwrap());
+    assert_eq!(cached, LONG.len());
+}
+
+#[test]
+fn batched_engine_picks_slots_by_wide_passes() {
+    let (m, tel) = model(Mode::Wide, 2);
+    let mut o = BatchedOptions::new(2, 16);
+    o.prefix_reuse = true;
+    let e = BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel, o).unwrap();
+    for ((p, ..), want) in cases().into_iter().zip(WIDE_CACHED) {
+        let (_, cached) = collect(&e.submit(req(p)).unwrap());
+        assert_eq!(cached, want, "{p:?}");
+    }
+}
+
+/// `Model::reuse_len` and `SequenceState::wide_reuse_len` on hand-built histories (Wide: passes of >= 2 rows agree).
+#[test]
+fn wide_reuse_len_reads_the_pass_history() {
+    use intarsia_core::model::HeadMode;
+    let (m, _) = model(Mode::Wide, 1);
+    let p: Vec<u32> = LONG.bytes().map(|b| b as u32).collect();
+    let mut st = m.new_state().unwrap();
+    m.forward(&mut st, &p, HeadMode::None, None).unwrap();
+    for t in [7u32, 8, 9] {
+        m.forward(&mut st, &[t], HeadMode::None, None).unwrap();
+    }
+    let n = p.len();
+    // the prompt again: rows 0..30 are wide, the decode rows are not; the last token alone would be a 1-row pass
+    assert_eq!(st.wide_reuse_len(n - 1, 2), n - 1);
+    assert_eq!(m.reuse_len(&st, n, n - 1), n - 2);
+    // a longer prompt sharing everything held: stops where the decode rows begin
+    assert_eq!(st.wide_reuse_len(n + 3, 2), n);
+    assert_eq!(m.reuse_len(&st, n + 20, n + 3), n);
+    // a truncate that cuts through the prompt's last pass keeps it as a wide pass: the next repeat reuses just as much
+    st.truncate(n - 2, &*m.backend).unwrap();
+    m.forward(&mut st, &p[n - 2..], HeadMode::None, None).unwrap();
+    assert_eq!(st.passes.iter().map(|q| q.rows).collect::<Vec<_>>(), [8, 8, 8, 6, 2]);
+    assert_eq!(m.reuse_len(&st, n, n - 1), n - 2);
+    // a row-exact verify pass is 1-row work whatever its row count
+    st.commit_verify(&[1, 2, 3]);
+    assert_eq!(st.wide_reuse_len(n + 3, 2), n);
+    // a 2-token prompt repeated: its last token alone would be a 1-row pass, so nothing
+    let mut s2 = m.new_state().unwrap();
+    m.forward(&mut s2, &p[..2], HeadMode::None, None).unwrap();
+    assert_eq!(m.reuse_len(&s2, 2, 1), 0);
+    // rows restored from a prefix store were written by no pass of this state
+    s2.load_prefix(&p[..10]);
+    assert_eq!(m.reuse_len(&s2, 20, 10), 0);
+    // CUDA's report (no min) keeps the cold-schedule rule, cpu's any cut
+    let (c, _) = model(Mode::Ladder, 1);
+    let mut s3 = c.new_state().unwrap();
+    c.forward(&mut s3, &p, HeadMode::None, None).unwrap();
+    assert_eq!(c.reuse_len(&s3, n + 20, n), 24);
+    let (cpu, _) = model(Mode::Any, 1);
+    let mut s4 = cpu.new_state().unwrap();
+    cpu.forward(&mut s4, &p, HeadMode::None, None).unwrap();
+    assert_eq!(cpu.reuse_len(&s4, n + 20, n), n);
+}
+
+/// The one pass record serves every rule: on `Invariant` the row-invariant prefix is the unbroken run of row-invariant prefill
+/// passes from row 0, a truncate through one clips it (the rows below the cut stay row-invariant), and a decode step, a verify
+/// pass or an ordinary pass ends it.
+#[test]
+fn pass_record_carries_the_row_invariant_prefix() {
+    use intarsia_core::model::HeadMode;
+    use intarsia_core::state::PassKind;
+    let (m, _) = model(Mode::Invariant, 1);
+    let p: Vec<u32> = LONG.bytes().map(|b| b as u32).collect();
+    let n = p.len();
+    let mut st = m.new_state().unwrap();
+    m.forward_prefill(&mut st, &p[..20], HeadMode::None, None).unwrap();
+    m.forward_prefill(&mut st, &p[20..], HeadMode::None, None).unwrap();
+    assert!(st.passes.iter().all(|q| q.kind == PassKind::RowInvariant), "{:?}", st.passes);
+    assert_eq!(st.inv_len(), n);
+    assert_eq!(m.reuse_len(&st, n + 5, n), n);
+    // a truncate through the last pass clips it: rows 0..25 are still row-invariant
+    st.truncate(25, &*m.backend).unwrap();
+    assert_eq!(st.inv_len(), 25);
+    // a decode step ends the run; a row-invariant pass after it does not join
+    st.commit_decode(&[1]);
+    m.forward_prefill(&mut st, &p[26..], HeadMode::None, None).unwrap();
+    assert_eq!(st.inv_len(), 25);
+    assert_eq!(m.reuse_len(&st, n + 5, n), 25);
+    assert_eq!(st.passes.iter().map(|q| q.kind).collect::<Vec<_>>()[st.passes.len() - 2..], [PassKind::Decode, PassKind::RowInvariant]);
+    // a verify pass, an ordinary pass: the same
+    for f in [|st: &mut intarsia_core::state::SequenceState| st.commit_verify(&[1, 2]), |st: &mut intarsia_core::state::SequenceState| st.commit(&[1, 2])] {
+        let mut s2 = m.new_state().unwrap();
+        m.forward_prefill(&mut s2, &p[..10], HeadMode::None, None).unwrap();
+        f(&mut s2);
+        m.forward_prefill(&mut s2, &p[12..], HeadMode::None, None).unwrap();
+        assert_eq!(s2.inv_len(), 10);
+    }
+    // a prefix-store restore: no pass wrote the rows
+    st.load_prefix(&p[..10]);
+    assert_eq!(st.inv_len(), 0);
 }

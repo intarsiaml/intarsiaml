@@ -213,7 +213,7 @@ impl Model {
             m.kv.commit(&catch);
             m.pending_rows = q;
         }
-        st.commit(&vids);
+        st.commit_verify(&vids);
         if recurrent {
             st.spec_rows.saved = q - 1;
         }

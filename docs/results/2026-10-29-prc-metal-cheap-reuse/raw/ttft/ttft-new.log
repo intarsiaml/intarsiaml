@@ -1,0 +1,4 @@
+== new
+run 0: turn 1 prompt 1785 cached 182 ttft 414 ms; turn 2 prompt 1853 cached 1781 ttft 57 ms
+run 1: turn 1 prompt 1736 cached 7 ttft 427 ms; turn 2 prompt 1804 cached 1732 ttft 57 ms
+run 2: turn 1 prompt 1734 cached 7 ttft 427 ms; turn 2 prompt 1802 cached 1730 ttft 57 ms

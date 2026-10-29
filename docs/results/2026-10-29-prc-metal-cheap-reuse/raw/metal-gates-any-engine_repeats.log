@@ -1,0 +1,124 @@
+warning: field `spec_dflash` is never read
+    --> crates/intarsia-core/src/engine.rs:1135:5
+     |
+1102 | pub(crate) struct Seq {
+     |                   --- field in this struct
+...
+1135 |     spec_dflash: bool,
+     |     ^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1213:4
+     |
+1213 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: unreachable pattern
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:390:13
+    |
+390 |             _ => {}
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:390:13
+    |
+387 |             GenEvent::Token { id, .. } => ids.push(id),
+    |             -------------------------- matches some of the same values
+388 |             GenEvent::Done { finish_reason, cached_tokens, .. } => return (Out { ids, reason: Some(finish_reason) }, cached_tokens),
+    |             --------------------------------------------------- matches some of the same values
+389 |             GenEvent::Error { message, .. } => panic!("request failed: {message}"),
+    |             ------------------------------- matches some of the same values
+390 |             _ => {}
+    |             ^ collectively making this unreachable
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "prefix_reuse_real") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/prefix_reuse_real.rs (target/release/deps/prefix_reuse_real-87d86364fad22268)
+
+running 1 test
+test engine_repeats_equal_the_cold_reference ... prefill chunk 2048 (recipe qwen3, metal)
+prefill chunk 2048 (recipe qwen3, metal)
+single-sequence engine, request 0 (prompt 4): cached 0, = cold
+single-sequence engine, request 1 (prompt 4): cached 14, DIFFERS from cold
+single-sequence engine, request 2 (prompt 5): cached 0, = cold
+single-sequence engine, request 3 (prompt 0): cached 1, = cold
+single-sequence engine, request 4 (prompt 5): cached 1, = cold
+single-sequence engine, request 5 (prompt 8): cached 0, = cold
+single-sequence engine, request 6 (prompt 8): cached 12, = cold
+single-sequence engine, request 7 (prompt 7): cached 0, = cold
+single-sequence engine, request 8 (prompt 12): cached 1, = cold
+single-sequence engine, request 9 (prompt 5): cached 1, = cold
+single-sequence engine, request 10 (prompt 14): cached 1, = cold
+single-sequence engine, request 11 (prompt 1): cached 0, = cold
+single-sequence engine, request 12 (prompt 1): cached 12, = cold
+single-sequence engine, request 13 (prompt 9): cached 0, = cold
+single-sequence engine, request 14 (prompt 9): cached 5, DIFFERS from cold
+single-sequence engine, request 15 (prompt 13): cached 0, = cold
+single-sequence engine, request 16 (prompt 13): cached 5, DIFFERS from cold
+single-sequence engine, request 17 (prompt 15): cached 0, = cold
+single-sequence engine, request 18 (prompt 15): cached 5, DIFFERS from cold
+single-sequence engine, request 19 (prompt 3): cached 0, = cold
+single-sequence engine, request 20 (prompt 3): cached 12, DIFFERS from cold
+single-sequence engine, request 21 (prompt 3): cached 12, DIFFERS from cold
+prefill chunk 2048 (recipe qwen3, metal)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+4-slot batched engine, round 0, prompt 3: cached 0, = cold
+4-slot batched engine, round 0, prompt 4: cached 0, = cold
+4-slot batched engine, round 0, prompt 5: cached 0, = cold
+4-slot batched engine, round 0, prompt 9: cached 0, = cold
+4-slot batched engine, round 1, prompt 3: cached 12, DIFFERS from cold
+4-slot batched engine, round 1, prompt 4: cached 14, DIFFERS from cold
+4-slot batched engine, round 1, prompt 5: cached 7, DIFFERS from cold
+4-slot batched engine, round 1, prompt 9: cached 5, DIFFERS from cold
+4-slot batched engine, round 2, prompt 9: cached 5, DIFFERS from cold
+4-slot batched engine, round 2, prompt 5: cached 7, DIFFERS from cold
+4-slot batched engine, round 2, prompt 4: cached 14, DIFFERS from cold
+4-slot batched engine, round 2, prompt 3: cached 12, DIFFERS from cold
+4-slot batched engine, round 3, prompt 13: cached 0, = cold
+4-slot batched engine, round 3, prompt 15: cached 0, = cold
+4-slot batched engine, round 3, prompt 13: cached 0, = cold
+4-slot batched engine, round 3, prompt 15: cached 0, = cold
+4-slot batched engine, round 4, prompt 13: cached 5, DIFFERS from cold
+4-slot batched engine, round 4, prompt 15: cached 5, DIFFERS from cold
+4-slot batched engine, round 4, prompt 3: cached 0, = cold
+4-slot batched engine, round 4, prompt 9: cached 0, = cold
+4-slot batched engine, round 5, prompt 4: cached 0, = cold
+4-slot batched engine, round 5, prompt 5: cached 0, = cold
+4-slot batched engine, round 5, prompt 8: cached 0, = cold
+4-slot batched engine, round 5, prompt 4: cached 0, = cold
+4-slot batched engine, round 5, prompt 5: cached 0, = cold
+4-slot batched engine, round 5, prompt 8: cached 0, = cold
+
+thread 'engine_repeats_equal_the_cold_reference' (41113809) panicked at crates/intarsia-models/tests/prefix_reuse_real.rs:453:5:
+requests whose tokens differ from the cold reference: ["single-sequence engine, request 1 (prompt 4)", "single-sequence engine, request 14 (prompt 9)", "single-sequence engine, request 16 (prompt 13)", "single-sequence engine, request 18 (prompt 15)", "single-sequence engine, request 20 (prompt 3)", "single-sequence engine, request 21 (prompt 3)", "4-slot batched engine, round 1, prompt 3", "4-slot batched engine, round 1, prompt 4", "4-slot batched engine, round 1, prompt 5", "4-slot batched engine, round 1, prompt 9", "4-slot batched engine, round 2, prompt 9", "4-slot batched engine, round 2, prompt 5", "4-slot batched engine, round 2, prompt 4", "4-slot batched engine, round 2, prompt 3", "4-slot batched engine, round 4, prompt 13", "4-slot batched engine, round 4, prompt 15"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    engine_repeats_equal_the_cold_reference
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 249.11s
+
+error: test failed, to rerun pass `-p intarsia-models --test prefix_reuse_real`

@@ -1,0 +1,22 @@
+fleetq: #6780 running on spark1: bash -c 'scripts/srv16b/build.sh dev && scripts/srv16b/batch-real.sh build && scripts/srv16b/test.sh build && ssh spark1 '"'"'bash -s'"'"' < scripts/srv16b/plan.sh'
+    Finished `release` profile [optimized] target(s) in 1m 54s
+-rwxrwxr-x 1 nvidia nvidia 100618280 Oct 29 01:50 /home/nvidia/intarsiaml-srv16b/bin/dev
+intarsia 0.0.1
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 14.78s
+  Executable tests/batch_cuda_real.rs (target/release/deps/batch_cuda_real-a41e7f0f521d6475)
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsiaml-srv16b/src/crates/intarsia-backend-cpu)
+warning: `intarsia-core` (lib) generated 4 warnings
+    Finished `release` profile [optimized] target(s) in 12.55s
+  Executable tests/quick_coverage.rs (target/release/deps/quick_coverage-8772f20b462ceef5)
+  Executable tests/rows_exact.rs (target/release/deps/rows_exact-22d61bde1266dc5a)
+  Executable tests/rows_registry.rs (target/release/deps/rows_registry-6ff4c958b8241abd)
+PASS plan 8 json byte-identical (8758 B, md5 b1a1150e)
+PASS plan 8 txt byte-identical (1478 B, md5 7742cef8)
+PASS plan 35 json byte-identical (15336 B, md5 8c7a3de5)
+PASS plan 35 txt byte-identical (3946 B, md5 7b9068be)
+PASS plan g json byte-identical (8408 B, md5 2a659412)
+PASS plan g txt byte-identical (1797 B, md5 ec4ef23e)
+plan fails=0
+fleetq: #6780 done (exit 0)

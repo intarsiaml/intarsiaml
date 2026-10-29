@@ -13,6 +13,14 @@
 //!   `Seq::new` do; the logits of the resumed prefill and of four teacher-forced decode steps must be the cold run's, bit for bit.
 //! * `engine_repeats_equal_the_cold_reference`: the same through the engines. A single-sequence engine and a batched one run the
 //!   prompts in an order full of repeats; every request's tokens must be the cold reference's.
+//!
+//! Lane prc (docs/results/2026-10-29-prc-metal-cheap-reuse.md): a backend that reports `prefix_reuse_min_pass_rows` (Metal: 2)
+//! resumes at any row of a prefix written by passes of >= 2 rows, with a remainder of >= 2 rows. With `INTARSIA_PREFIX_REUSE`
+//! unset the tests also pin the cuts (a repeat cuts at `plen - 2`, a next chat turn at the previous prompt's end: the decode
+//! rows of its answer are 1-row passes) and that the engines report cached tokens, so they fail if reuse silently stops.
+//! * `multi_turn_resumes_with_cold_bits`: turn 2 = turn 1's prompt + its answer + new text, resumed from turn 1's state; also
+//!   prints whether reusing the answer's decode rows would have been exact (`DECODEROWS`).
+//! * `engine_multi_turn_equals_cold_reference`: the same through the engines.
 use intarsia_core::model::{HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::{Engine, FinishReason, GenEvent, GenRequest, Telemetry};
 use intarsia_models::load::SchemedSource;
@@ -103,6 +111,11 @@ const EQ_PROMPTS: [&str; 16] = [
     "The difference between TCP and UDP is",
     "Quantum entanglement is",
 ];
+
+/// Whether `Model::reuse_len` runs lane prc's rule here: the backend reports a minimum pass size and nothing overrides it.
+fn wide_rule(be: &Be) -> bool {
+    be.prefix_reuse_min_pass_rows().is_some() && !be.prefix_reuse_any_cut() && std::env::var_os("INTARSIA_PREFIX_REUSE").is_none()
+}
 
 fn logits_of(o: StepOut) -> Vec<f32> {
     match o {
@@ -288,6 +301,76 @@ fn reuse_rule_resumes_with_cold_bits() {
     }
     eprintln!("reuse cuts (plen, resumed at) of the repeated prompts: {cuts:?}");
     assert!(bad.is_empty(), "{} resumed prefills differ from the cold run:\n{}", bad.len(), bad.join("\n"));
+    if wide_rule(&m.backend) {
+        // a repeat resumes two rows before its end (the last token alone would be a 1-row pass), whatever the chunk
+        for &(plen, r) in &cuts {
+            assert_eq!(r, plen.saturating_sub(2), "repeat of a {plen}-token prompt resumed at {r}");
+        }
+    }
+}
+
+fn encode(dir: &PathBuf, text: &str) -> Vec<u32> {
+    use intarsia_core::engine::TextCodec;
+    intarsia_models::HfCodec::load(dir, &intarsia_models::ChatTemplateSource::Auto).unwrap().encode(text, false).unwrap()
+}
+
+/// The new user text of turn 2 (>= 2 tokens, so a failure under `INTARSIA_PREFIX_REUSE=any` comes from the answer's decode rows
+/// and not from a 1-row remainder).
+const MORE: &str = " Please continue, and explain it in more detail.";
+const ANSWER: usize = 24;
+
+/// A chat in two turns: turn 2 = turn 1's prompt + its answer (greedy, `ANSWER` tokens) + new text. The slot that served turn 1
+/// resumes turn 2 at `Model::reuse_len`; the logits of the resumed prefill and of `FORCED` teacher-forced decode steps must be
+/// the cold run's. Also the measurement behind the rule: resuming over the answer's decode rows (cut at `plen - 2` whatever
+/// wrote the rows), is it exact? Printed as `DECODEROWS`; it decides whether the rule may count decode rows as reusable.
+#[test]
+fn multi_turn_resumes_with_cold_bits() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir(), backend()) else { return };
+    let m = load(&dir, be, 2048);
+    let more = encode(&dir, MORE);
+    assert!(more.len() >= 2);
+    let turn1 = |p: &[u32]| {
+        let mut st = m.new_state().unwrap();
+        let l = logits_of(m.forward(&mut st, p, HeadMode::LastLogits, None).unwrap());
+        let (toks, _) = greedy(&m, &mut st, l, ANSWER);
+        (st, toks)
+    };
+    let (mut bad, mut cuts) = (Vec::new(), Vec::new());
+    let (mut decode_diff, mut decode_n) = (0, 0);
+    for (i, p) in ids_of(&dir).iter().enumerate() {
+        let (mut st, toks) = turn1(p);
+        let mut p2 = p.clone();
+        p2.extend(&toks);
+        p2.extend(&more);
+        let cold = cold_runs(&m, &[p2.clone()], FORCED).remove(0);
+        let (r, rows) = resume(&m, &mut st, &p2, &cold);
+        cuts.push((p.len(), r));
+        if let Some(row) = first_diff(&rows, &cold.rows[..=FORCED]) {
+            bad.push(format!("turn 2 of prompt {i} (turn 1 prompt {}, resumed at {r} of {}): first differing row {row}, maxabs {:.3e}", p.len(), p2.len(), maxabs(&rows[row], &cold.rows[row])));
+        }
+        // the same turn 2 resumed over the answer's decode rows
+        let (mut st, _) = turn1(p);
+        let cut = (p.len() + ANSWER).min(p2.len() - 2);
+        st.truncate(cut, &*m.backend).unwrap();
+        let mut rows = vec![logits_of(m.forward(&mut st, &p2[cut..], HeadMode::LastLogits, None).unwrap())];
+        for &t in &cold.toks[..FORCED] {
+            rows.push(logits_of(m.forward(&mut st, &[t], HeadMode::LastLogits, None).unwrap()));
+        }
+        let fd = first_diff(&rows, &cold.rows[..=FORCED]);
+        decode_n += 1;
+        decode_diff += fd.is_some() as usize;
+        eprintln!("DECODEROWS {i} (prompt {}, resumed at {cut} of {}, {ANSWER} decode rows reused): {}", p.len(), p2.len(), fd.map_or("EQUAL".to_string(), |r| format!("DIFFER at row {r}, maxabs {:.3e}", maxabs(&rows[r], &cold.rows[r]))));
+    }
+    eprintln!("DECODEROWS summary: {decode_diff} / {decode_n} turn-2 prefills over reused decode rows differ from cold");
+    eprintln!("turn 2 cuts (turn 1 prompt length, resumed at): {cuts:?}");
+    assert!(bad.is_empty(), "{} turn-2 prefills differ from the cold run:\n{}", bad.len(), bad.join("\n"));
+    if wide_rule(&m.backend) {
+        // the answer's decode rows are 1-row passes: turn 2 resumes where turn 1's prompt ended
+        for &(plen, r) in &cuts {
+            assert_eq!(r, plen, "turn 2 resumed at {r}, turn 1's prompt had {plen} tokens");
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -333,11 +416,19 @@ fn engine_repeats_equal_the_cold_reference() {
     let mut bad = Vec::new();
     {
         let l = load_engine(&dir, be.clone(), &mk(None)).unwrap();
-        for (n, &i) in [4usize, 4, 5, 0, 5, 8, 8, 7, 12, 5, 14, 1, 1, 9, 9, 13, 13, 15, 15, 3, 3, 3].iter().enumerate() {
+        let seq = [4usize, 4, 5, 0, 5, 8, 8, 7, 12, 5, 14, 1, 1, 9, 9, 13, 13, 15, 15, 3, 3, 3];
+        for (n, &i) in seq.iter().enumerate() {
             let (got, cached) = collect(&l.engine.submit(req(&*l.engine, i)).unwrap());
             eprintln!("single-sequence engine, request {n} (prompt {i}): cached {cached}, {}", if got == reference[i] { "= cold" } else { "DIFFERS from cold" });
             if got != reference[i] {
                 bad.push(format!("single-sequence engine, request {n} (prompt {i})"));
+            }
+            // a repeat of the previous request's prompt must find its KV: two rows short of the prompt
+            if wide_rule(&be) && n > 0 && seq[n - 1] == i {
+                let plen = l.engine.tokenize(EQ_PROMPTS[i], false).unwrap().len();
+                if cached != plen - 2 {
+                    bad.push(format!("single-sequence engine, request {n} (prompt {i}): cached {cached}, wanted {}", plen - 2));
+                }
             }
         }
     }
@@ -351,6 +442,10 @@ fn engine_repeats_equal_the_cold_reference() {
                 eprintln!("4-slot batched engine, round {round}, prompt {i}: cached {cached}, {}", if got == reference[i] { "= cold" } else { "DIFFERS from cold" });
                 if got != reference[i] {
                     bad.push(format!("4-slot batched engine, round {round}, prompt {i}"));
+                }
+                // rounds 1 and 2 run the four distinct prompts of round 0 again: each finds its own slot
+                if wide_rule(&be) && (1..=2).contains(&round) && cached == 0 {
+                    bad.push(format!("4-slot batched engine, round {round}, prompt {i}: nothing cached"));
                 }
             }
         }
@@ -411,4 +506,76 @@ fn prefix_reuse_long_splits() {
     if std::env::var("INTARSIA_PROBE_LONG_ASSERT").is_ok_and(|v| v == "1") {
         assert!(bad.is_empty(), "{bad:?}");
     }
+}
+
+/// Chats in two turns through the engines: turn 2 = turn 1's prompt + its answer + new text. The reference runs turn 2 alone on a
+/// fresh single-sequence engine (nothing cached); the single-sequence engine and a 4-slot batched engine, which served turn 1
+/// just before, must give its tokens, and (lane prc's rule) find turn 1's prompt cached, no more: the answer's rows are decode rows.
+#[test]
+fn engine_multi_turn_equals_cold_reference() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir(), backend()) else { return };
+    const GEN: usize = 32;
+    let mk = |max_batch: Option<usize>| EngineOptions { load: LoadOptions { max_seq: 2048, kv_fraction: 0.5, ..Default::default() }, max_batch, prefill_chunk: probe_chunk(), ..Default::default() };
+    let more = encode(&dir, MORE);
+    // distinct first tokens, so no slot shares a prefix with another prompt
+    let which = [3usize, 4, 5, 9];
+    let req = |prompt: Vec<u32>| GenRequest { prompt, max_tokens: GEN, ignore_eos: true, ..Default::default() };
+    let first = |e: &dyn Engine, i: usize| e.tokenize(EQ_PROMPTS[i], false).unwrap();
+    let second = |p: &[u32], out: &Out| {
+        let mut q = p.to_vec();
+        q.extend(&out.ids);
+        q.extend(&more);
+        q
+    };
+    // turn 1 outputs and the cold reference of every turn 2, on one fresh engine: no two consecutive requests share a first token
+    let mut turn1 = Vec::new();
+    let mut reference = Vec::new();
+    {
+        let l = load_engine(&dir, be.clone(), &mk(None)).unwrap();
+        let ps: Vec<Vec<u32>> = which.iter().map(|&i| first(&*l.engine, i)).collect();
+        for p in &ps {
+            turn1.push(collect(&l.engine.submit(req(p.clone())).unwrap()).0);
+        }
+        for (p, o1) in ps.iter().zip(&turn1) {
+            let (o2, cached) = collect(&l.engine.submit(req(second(p, o1))).unwrap());
+            assert_eq!(cached, 0);
+            reference.push(o2);
+        }
+    }
+    let mut bad = Vec::new();
+    {
+        let l = load_engine(&dir, be.clone(), &mk(None)).unwrap();
+        for (k, &i) in which.iter().enumerate() {
+            let p = first(&*l.engine, i);
+            let (o1, _) = collect(&l.engine.submit(req(p.clone())).unwrap());
+            assert_eq!(o1, turn1[k], "turn 1 of prompt {i}");
+            let (o2, cached) = collect(&l.engine.submit(req(second(&p, &o1))).unwrap());
+            eprintln!("single-sequence engine, prompt {i} turn 2 (turn 1 prompt {} tokens): cached {cached}, {}", p.len(), if o2 == reference[k] { "= cold" } else { "DIFFERS from cold" });
+            if o2 != reference[k] {
+                bad.push(format!("single-sequence engine, prompt {i} turn 2"));
+            }
+            if wide_rule(&be) && cached != p.len() {
+                bad.push(format!("single-sequence engine, prompt {i} turn 2: cached {cached}, wanted {}", p.len()));
+            }
+        }
+    }
+    {
+        let l = load_engine(&dir, be.clone(), &mk(Some(4))).unwrap();
+        let ps: Vec<Vec<u32>> = which.iter().map(|&i| first(&*l.engine, i)).collect();
+        let rxs: Vec<_> = ps.iter().map(|p| l.engine.submit(req(p.clone())).unwrap()).collect();
+        let o1: Vec<Out> = rxs.iter().map(|rx| collect(rx).0).collect();
+        let rxs: Vec<_> = ps.iter().zip(&o1).map(|(p, o)| l.engine.submit(req(second(p, o))).unwrap()).collect();
+        for (k, rx) in rxs.iter().enumerate() {
+            let (o2, cached) = collect(rx);
+            eprintln!("4-slot batched engine, prompt {} turn 2 (turn 1 prompt {} tokens): cached {cached}, {}", which[k], ps[k].len(), if o2 == reference[k] { "= cold" } else { "DIFFERS from cold" });
+            if o2 != reference[k] {
+                bad.push(format!("4-slot batched engine, prompt {} turn 2", which[k]));
+            }
+            if wide_rule(&be) && cached != ps[k].len() {
+                bad.push(format!("4-slot batched engine, prompt {} turn 2: cached {cached}, wanted {}", which[k], ps[k].len()));
+            }
+        }
+    }
+    assert!(bad.is_empty(), "turn-2 requests that differ from the cold reference or missed the cache: {bad:?}");
 }
