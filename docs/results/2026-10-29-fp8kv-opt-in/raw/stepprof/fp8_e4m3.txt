@@ -1,0 +1,4 @@
+STEP B=16 ms 43.284 45.253 44.962
+    1.019 ms/step    2000 calls  void <unnamed>::splitkv_rows_persist_kernel<(int)32, unsigned char>(const __nv_bfloat16 *, float *, float2 *, 
+    0.095 ms/step    4000 calls  void <unnamed>::kv_append_rows_kernel<unsigned char, (int)1>(const __nv_bfloat16 *, const unsigned char *, lon
+BUCKET decode attention (rows split-KV + combine + KV append): 1.114 ms per step (200 steps)

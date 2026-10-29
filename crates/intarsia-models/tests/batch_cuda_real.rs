@@ -99,12 +99,21 @@ fn hip_group() -> (Vec<Arc<dyn intarsia_core::backend::Backend>>, Vec<Arc<dyn in
 
 /// `load_engine`, or at tp=2 `load_engine_tp` over the HIP group (`be` is then unused).
 fn engine(dir: &PathBuf, be: &Arc<dyn intarsia_core::backend::Backend>, opts: &EngineOptions) -> Loaded {
+    let mut o = opts.clone();
+    o.load.kv_dtype = o.load.kv_dtype.or_else(test_kv_dtype);
+    let opts = &o;
     if tp() == 1 {
         return load_engine(dir, be.clone(), opts).unwrap();
     }
     let (bs, comms) = hip_group();
     let opts = EngineOptions { load: with_tp(opts.load.clone()), ..opts.clone() };
     load_engine_tp(dir, bs, comms, &opts).unwrap()
+}
+
+/// INTARSIA_TEST_KV_DTYPE=fp8_e4m3 (lane fp8kv): the KV cache dtype of every model these tests load (default: the recipe's, bf16),
+/// so the identity gates run on the opt-in fp8 cache too.
+fn test_kv_dtype() -> Option<intarsia_core::DType> {
+    std::env::var("INTARSIA_TEST_KV_DTYPE").ok().map(|v| intarsia_core::DType::parse(&v).unwrap())
 }
 
 fn load(dir: &PathBuf, backend: Arc<dyn intarsia_core::backend::Backend>, rows: usize, max_seq: usize) -> Model {
@@ -152,6 +161,7 @@ fn try_load_with(
         // INTARSIA_TEST_MXFP4_ACT=fp8|none|dynamic: the MXFP4 activation mode (default: the recipe's / the checkpoint's)
         mxfp4_act: std::env::var("INTARSIA_TEST_MXFP4_ACT").ok().map(|v| intarsia_core::quant::Mxfp4Act::parse(&v).unwrap()),
         row_invariant_prefill: LOAD_INV.load(std::sync::atomic::Ordering::Relaxed).then_some(true),
+        kv_dtype: test_kv_dtype(),
         ..Default::default()
     });
     let tel = Arc::new(Telemetry::new());
@@ -202,7 +212,9 @@ fn timing_35b_batched_step() {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
     let plen: usize = std::env::var("INTARSIA_STEP_PROMPT").ok().and_then(|v| v.parse().ok()).unwrap_or(64).clamp(1, 1800);
-    for b in [8usize, 16] {
+    // INTARSIA_STEP_BATCH (default "8,16"): the batch sizes timed, e.g. `16` alone under nsys (lane fp8kv)
+    let sizes: Vec<usize> = std::env::var("INTARSIA_STEP_BATCH").ok().map(|v| v.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![8, 16]);
+    for b in sizes {
         let mut sts: Vec<_> = (0..b)
             .map(|i| {
                 let mut st = m.new_state().unwrap();
@@ -255,6 +267,7 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     if unset && !hip && tp() == 1 {
         assert!(forks > 0, "the default-on side-stream knobs took no fork");
     }
+    eprintln!("kv {}, graphs {:?}", m.kv, m.graph_stats());
     if tp() == 2 {
         // the batched steps ran through recordings on BOTH ranks, in lockstep (graphs are on by default, as in serve)
         let (g0, g1) = (m.graph_stats(), m.rank_model(1).unwrap().graph_stats());

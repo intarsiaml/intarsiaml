@@ -1,0 +1,1 @@
+      1 verify attention rows: engaged (one row-table attention launch per layer)

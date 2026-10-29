@@ -1,0 +1,9 @@
+# compare: 20261029-125916-adhoc-fp8kv-bf16-mmlu → 20261029-130646-adhoc-fp8kv-fp8-mmlu
+Speed differences under 10% are marked noise (fleet finding 6a7efe40). Quality differences inside ~2 standard errors are marked noise.
+| benchmark | A | B | Δ | 2·SE | verdict |
+| mmlu | 0.846 (n=570) | 0.851 (n=570) | +0.005 | ±0.043 | noise |
+# compare: 20261029-130444-adhoc-fp8kv-bf16-gsm8k → 20261029-131210-adhoc-fp8kv-fp8-gsm8k
+Speed differences under 10% are marked noise (fleet finding 6a7efe40). Quality differences inside ~2 standard errors are marked noise.
+| benchmark | A | B | Δ | 2·SE | verdict |
+| gsm8k_flexible | 0.500 (n=100) | 0.500 (n=100) | +0.000 | ±0.141 | noise |
+| gsm8k_bare_number | 0.500 (n=100) | 0.500 (n=100) | +0.000 | ±0.141 | noise |
