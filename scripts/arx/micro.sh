@@ -165,6 +165,17 @@ if has push; then
   gpu 200 /work/arx-bin/ar_push-dev --test-threads 1 --nocapture > "$O/push.txt" 2>&1
   echo "== push rc=$? $(grep -a '^test result' "$O/push.txt") $(grep -a 'negative control\|panicked' "$O/push.txt" | head -3 | tr '\n' ' ')"
 fi
+#   probe  lane arx (coordinator): lane PRB's prefix-reuse probe on HIP (Qwen3-8B BF16), INTARSIA_PREFIX_REUSE=any on card 0 beside the default
+#          on card 1
+if has probe; then
+  for v in any:0 def:1; do
+    e=A=1; [[ ${v%%:*} == any ]] && e=INTARSIA_PREFIX_REUSE=any
+    G=${v#*:} MODELS=/data/models/intarsia gpu 175 env $e INTARSIA_PROBE_DIR=/models/Qwen3-8B INTARSIA_PROBE_BACKEND=hip INTARSIA_REQUIRE_GPU=1 \
+      /work/arx-bin/prefix_reuse_real-dev --test-threads 1 --nocapture ${PROBET:-prefix_reuse_probe engine_repeats_equal_the_cold_reference reuse_rule_resumes} > "$O/probe-${v%%:*}.txt" 2>&1 &
+  done
+  wait
+  for v in any def; do echo "== probe $v: $(grep -a '^test result\|summary\|^test ' "$O/probe-$v.txt" | tr '\n' ' ' | cut -c1-600)"; done
+fi
 if has arrate; then
   for b in base dev; do gpu 60 /work/arx-bin/comm-$b --ignored --nocapture all_reduce_rate > "$O/arrate-$b.txt" 2>&1; done
 fi
