@@ -1,0 +1,193 @@
+fleetq: #6736 running on spark1: scripts/srv16/w2.sh
+00:20:34
+== packed gate
+test real_35b_packed_prefill_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+8 slots: 9 packed passes carried 24 chunks (24 chunks in all)
+16 slots: 8 packed passes carried 24 chunks (24 chunks in all)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 150.72s
+00:23:06
+== batched gate
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663231488, free_bytes: 70630797312, weights_bytes: 20825033460, workspace_bytes: 694874000, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 67099256604, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+4290 (row, step) pairs bitwise identical in 75.9 s
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 17 filtered out; finished in 272.04s
+00:27:39
+== rows_exact
+    --> crates/intarsia-core/src/model/batch.rs:1213:4
+     |
+1213 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/rows_exact.rs (target/release/deps/rows_exact-22d61bde1266dc5a)
+
+running 11 tests
+test timing_gemv_rows ... ignored, micro-timing
+test timing_rows_evict ... ignored, micro-timing
+test row_parallel_ops_are_row_independent ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test rows_split_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_full_are_bitwise_the_one_row_gemv ... ok
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_q_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+
+test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 17.11s
+
+00:27:57
+== identity
+greedy n=16: 1024 tokens
+t0.8-k40-p0.95 n=16: 1024 tokens, prompts [1326, 376, 916, 713, 1116, 490, 1269, 811, 1203, 339, 1217, 859, 1030, 702, 1270, 1053]
+intarsia_batch_iterations_total 1762
+intarsia_batch_decode_steps_total 1737
+intarsia_batch_prefill_chunks_total 187
+intarsia_batch_prefill_tokens_total 37149
+intarsia_batch_mixed_iterations_total 162
+intarsia_batch_step_ewma_ms 34.55382671557714
+greedy n=16: 1024 tokens
+t0.8-k40-p0.95 n=16: 1024 tokens, prompts [1326, 376, 916, 713, 1116, 490, 1269, 811, 1203, 339, 1217, 859, 1030, 702, 1270, 1053]
+intarsia_batch_iterations_total 1732
+intarsia_batch_decode_steps_total 1707
+intarsia_batch_prefill_chunks_total 187
+intarsia_batch_prefill_tokens_total 37149
+intarsia_batch_mixed_iterations_total 132
+intarsia_batch_step_ewma_ms 56.706377144853796
+21/21 cells identical, 9408 token ids compared
+4/4 long-prompt cells identical, 2560 token ids compared
+identity exit 0
+00:31:40
+== A/B
+== round 1 arm base 00:31:40
+base r1: MemAvailable 62484 MB with the server up
+srv16-base-r1: - result file: `results/20261029-003226-adhoc-srv16-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-003226-adhoc-srv16-base-r1/result.json 
+[localeval] 1 streams: aggregate 79.9 tok/s
+[localeval] 4 streams: aggregate 169.5 tok/s
+[localeval] 8 streams: aggregate 223.7 tok/s
+[localeval] 16 streams: aggregate 278.7 tok/s
+== round 1 arm dev3 00:33:12
+dev3 r1: MemAvailable 62510 MB with the server up
+srv16-dev3-r1: - result file: `results/20261029-003355-adhoc-srv16-dev3-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-003355-adhoc-srv16-dev3-r1/result.json 
+[localeval] 1 streams: aggregate 79.6 tok/s
+[localeval] 4 streams: aggregate 173.1 tok/s
+[localeval] 8 streams: aggregate 235.0 tok/s
+[localeval] 16 streams: aggregate 295.9 tok/s
+== round 2 arm dev3 00:34:39
+dev3 r2: MemAvailable 62496 MB with the server up
+srv16-dev3-r2: - result file: `results/20261029-003523-adhoc-srv16-dev3-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-003523-adhoc-srv16-dev3-r2/result.json 
+[localeval] 1 streams: aggregate 79.8 tok/s
+[localeval] 4 streams: aggregate 174.4 tok/s
+[localeval] 8 streams: aggregate 233.1 tok/s
+[localeval] 16 streams: aggregate 296.7 tok/s
+== round 2 arm base 00:36:08
+base r2: MemAvailable 62506 MB with the server up
+srv16-base-r2: - result file: `results/20261029-003656-adhoc-srv16-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-003656-adhoc-srv16-base-r2/result.json 
+[localeval] 1 streams: aggregate 80.5 tok/s
+[localeval] 4 streams: aggregate 177.8 tok/s
+[localeval] 8 streams: aggregate 224.0 tok/s
+[localeval] 16 streams: aggregate 277.5 tok/s
+== round 3 arm base 00:37:42
+base r3: MemAvailable 62501 MB with the server up
+srv16-base-r3: - result file: `results/20261029-003822-adhoc-srv16-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-003822-adhoc-srv16-base-r3/result.json 
+[localeval] 1 streams: aggregate 78.3 tok/s
+[localeval] 4 streams: aggregate 169.5 tok/s
+[localeval] 8 streams: aggregate 221.7 tok/s
+[localeval] 16 streams: aggregate 275.8 tok/s
+== round 3 arm dev3 00:39:08
+dev3 r3: MemAvailable 62504 MB with the server up
+srv16-dev3-r3: - result file: `results/20261029-003943-adhoc-srv16-dev3-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-003943-adhoc-srv16-dev3-r3/result.json 
+[localeval] 1 streams: aggregate 80.1 tok/s
+[localeval] 4 streams: aggregate 176.4 tok/s
+[localeval] 8 streams: aggregate 236.0 tok/s
+[localeval] 16 streams: aggregate 294.8 tok/s
+== done 00:40:28
+00:40:28
+== prof dev3
+round 0 streams 2 wall 1.47s ttft_med 0.99 ttft_max 0.99 chunks [32, 32]
+round 0 streams 16 wall 13.86s ttft_med 2.87 ttft_max 3.11 chunks [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+clusters: [(31344, 1.4), (250842, 13.5)]
+-- whole burst: span 13520 ms, 250842 kernels, kernel sum 13744 ms, union busy 13271 ms, GPU idle 1.8 %
+moe_dec_gate_up_kernel<                                                              3058.1 ms  22.3 %  10960 calls     279.0 us avg
+gdn_delta_split_kernel<                                                              2620.2 ms  19.1 %   8700 calls     301.2 us avg
+fp8_gemv_rows_q_kernel<                                                              2002.7 ms  14.6 %  33060 calls      60.6 us avg
+moe_dec_down_v2_kernel<                                                              1970.4 ms  14.3 %  10960 calls     179.8 us avg
+moe_w4a16_kernel<                                                                     870.1 ms   6.3 %    320 calls    2719.1 us avg
+splitkv_kernel<                                                                       550.9 ms   4.0 %   2740 calls     201.1 us avg
+nvfp4_gemv_full_kernel<                                                               389.4 ms   2.8 %    256 calls    1521.2 us avg
+nvfp4_gemv_split_kernel<                                                              288.1 ms   2.1 %  20480 calls      14.1 us avg
+gemv_split_kernel<                                                                    177.5 ms   1.3 %  35840 calls       5.0 us avg
+nvjet_sm121_qqtst_mma_192x176x128_2_48x88x128_tmaAB_bz_TNNN                           175.4 ms   1.3 %    640 calls     274.1 us avg
+rmsnorm_kernel<                                                                       172.3 ms   1.3 %  27076 calls       6.4 us avg
+gdn_conv_rows_kernel                                                                  139.2 ms   1.0 %   7680 calls      18.1 us avg
+moe_reduce_kernel<__nv_bfloat16>                                                      122.2 ms   0.9 %    160 calls     763.7 us avg
+nvfp4_gemv_tile_kernel<                                                               113.6 ms   0.8 %  10240 calls      11.1 us avg
+gdn_conv_kernel                                                                       101.7 ms   0.7 %   1020 calls      99.7 us avg
+gated_rmsnorm_kernel<                                                                  88.1 ms   0.6 %   7800 calls      11.3 us avg
+nvjet_sm121_qqtst_mma_192x160x128_2_48x80x128_tmaAB_bz_TNNN                            84.8 ms   0.6 %    640 calls     132.6 us avg
+nvfp4_reg_kernel<                                                                      70.1 ms   0.5 %    320 calls     218.9 us avg
+fp8_gemv_pair_kernel<__nv_bfloat16>                                                    64.9 ms   0.5 %    720 calls      90.1 us avg
+sm89_xmma_gemm_e4m3bf16_e4m3f32_f32_tn_n_tilesize128x128x64_stage3_warpsize2x2x1       58.3 ms   0.4 %    480 calls     121.5 us avg
+moe_topk_kernel                                                                        56.8 ms   0.4 %  11120 calls       5.1 us avg
+lt_actq8_kernel                                                                        56.7 ms   0.4 %   2080 calls      27.2 us avg
+moe_combine_kernel<__nv_bfloat16>                                                      52.4 ms   0.4 %  11120 calls       4.7 us avg
+rope_kernel                                                                            50.9 ms   0.4 %   5480 calls       9.3 us avg
+flash_kernel<                                                                          36.7 ms   0.3 %    160 calls     229.2 us avg
+gate_split_kernel                                                                      35.6 ms   0.3 %   2900 calls      12.3 us avg
+nvfp4_gemv_kernel<                                                                     32.8 ms   0.2 %    738 calls      44.4 us avg
+kv_append_rows_kernel<__nv_bfloat16,                                                   26.9 ms   0.2 %   5120 calls       5.3 us avg
+-- decode window 5.0s..13.2s: span 8220 ms, 167196 kernels, kernel sum 8459 ms, union busy 8122 ms, GPU idle 1.2 %
+moe_dec_gate_up_kernel<                                                              2428.3 ms  28.7 %   7565 calls     321.0 us avg
+gdn_delta_split_kernel<                                                              1584.2 ms  18.7 %   5673 calls     279.3 us avg
+moe_dec_down_v2_kernel<                                                              1496.7 ms  17.7 %   7565 calls     197.8 us avg
+fp8_gemv_rows_q_kernel<                                                              1490.4 ms  17.6 %  24587 calls      60.6 us avg
+splitkv_kernel<                                                                       410.0 ms   4.8 %   1892 calls     216.7 us avg
+nvfp4_gemv_full_kernel<                                                               287.9 ms   3.4 %    189 calls    1523.5 us avg
+nvfp4_gemv_split_kernel<                                                              221.4 ms   2.6 %  15131 calls      14.6 us avg
+gemv_split_kernel<                                                                    131.2 ms   1.6 %  26477 calls       5.0 us avg
+gdn_conv_rows_kernel                                                                   99.2 ms   1.2 %   5673 calls      17.5 us avg
+nvfp4_gemv_tile_kernel<                                                                84.1 ms   1.0 %   7565 calls      11.1 us avg
+rmsnorm_kernel<                                                                        44.8 ms   0.5 %  19104 calls       2.3 us avg
+rope_kernel                                                                            36.1 ms   0.4 %   3784 calls       9.5 us avg
+moe_topk_kernel                                                                        36.1 ms   0.4 %   7566 calls       4.8 us avg
+gated_rmsnorm_kernel<                                                                  24.4 ms   0.3 %   5673 calls       4.3 us avg
+kv_append_rows_kernel<__nv_bfloat16,                                                   20.2 ms   0.2 %   3784 calls       5.3 us avg
+silu_glu_kernel<                                                                       18.2 ms   0.2 %   7565 calls       2.4 us avg
+combine_kernel<                                                                        14.2 ms   0.2 %   1892 calls       7.5 us avg
+moe_combine_kernel<__nv_bfloat16>                                                       9.5 ms   0.1 %   7565 calls       1.3 us avg
+gate_split_kernel                                                                       7.8 ms   0.1 %   1892 calls       4.1 us avg
+argmax_kernel<float>                                                                    7.2 ms   0.1 %    189 calls      37.9 us avg
+rope_pass_kernel                                                                        3.7 ms   0.0 %   3784 calls       1.0 us avg
+sigmoid_mul_kernel                                                                      3.0 ms   0.0 %   1892 calls       1.6 us avg
+embedding_kernel<                                                                       0.8 ms   0.0 %    189 calls       4.4 us avg
+steps 166  mean step span 42.27 ms  mean gap 0.40 ms  (0.9 %)
+gap us: p10 378 p50 390 p90 414 max 723
+non-kernel op '[CUDA memcpy Device-to-Host]': per step 0.000 MB, 2.3 us GPU time
+non-kernel op '[CUDA memcpy Host-to-Device]': per step 0.010 MB, 1.2 us GPU time
+burst wall 13520 ms, 268 passes, GPU kernel time 13758 ms
+  decode   passes  252  span   10623 ms ( 78.6 %)  mean  42.15 ms
+  prefill  passes   16  span    2717 ms ( 20.1 %)  mean 169.79 ms
+  idle gaps (>= 300 us)     181 ms (  1.3 %)  mean 678 us
+prefill phase 13520 ms: prefill 2717 ms, decode 252 passes 10623 ms
+prefill pass spans ms: 12 12 12 12 13 13 13 13 13 13 13 13 13 237 1060 1254
+00:41:46
+fleetq: #6736 done (exit 0)

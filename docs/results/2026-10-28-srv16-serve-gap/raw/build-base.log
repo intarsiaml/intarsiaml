@@ -1,0 +1,5 @@
+fleetq: #6700 running on spark1: scripts/srv16/build.sh base
+    Finished `release` profile [optimized] target(s) in 2m 05s
+-rwxrwxr-x 1 nvidia nvidia 100605200 Oct 28 23:38 /home/nvidia/intarsiaml-srv16/bin/base
+intarsia 0.0.1
+fleetq: #6700 done (exit 0)
