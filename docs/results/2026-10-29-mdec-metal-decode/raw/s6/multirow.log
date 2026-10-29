@@ -1,0 +1,54 @@
+warning: field `spec_dflash` is never read
+    --> crates/intarsia-core/src/engine.rs:1135:5
+     |
+1102 | pub(crate) struct Seq {
+     |                   --- field in this struct
+...
+1135 |     spec_dflash: bool,
+     |     ^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1215:4
+     |
+1215 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/mdec/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 0.62s
+     Running tests/multirow.rs (.lane/target/release/deps/multirow-856d8fe765ca58f4)
+
+running 12 tests
+test real_qwen3_8b_weights_bitwise ... ok
+test every_instance_exists ... ok
+test matmul_k_tails_and_odd_n ... ok
+test serving_selection_unchanged ... ok
+test matmul_qwen3_8b_shapes_all_rows ... ok
+test matmul_a8_alignment_and_scalar_fallback ... ok
+test pair_mixed_family_halves_all_rows ... ok
+test all_variants_matmul ... ok
+test pair_qwen3_8b_shapes_all_rows ... ok
+test all_variants_pair ... ok
+test logits_qwen3_8b_shapes_all_rows ... ok
+test all_variants_logits ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.82s
+

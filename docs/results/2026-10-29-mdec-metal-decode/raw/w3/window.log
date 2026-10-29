@@ -1,0 +1,53 @@
+fleetq: #7061 running on endor: .lane/scripts/w3.sh /opt/code/intarsiaml/.worktrees/mdec/.lane/w3
+## rows_exact 12:11:35
+rows_exact exit 0
+test bf16_pair_rows_at_the_35b_pairs ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_experts_rows_are_bitwise_the_one_token_call ... ok
+test negative_controls_differ_from_the_one_row_calls ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_kernels_do_not_depend_on_the_row_count ... ok
+test rows_exact_registrations_are_pinned ... ok
+test timing_rows ... ignored
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.89s
+neg fp8_mmt exit 101 (expect fail)
+## M=1 xd A/B 12:11:40
+x1-off decode 2090 ms (122.46 tok/s) md5 018c2368403749b34e768686d6bf6f91
+x1-xd decode 2138 ms (119.76 tok/s) md5 018c2368403749b34e768686d6bf6f91
+x2-off decode 2097 ms (122.06 tok/s) md5 018c2368403749b34e768686d6bf6f91
+x2-xd decode 2135 ms (119.89 tok/s) md5 018c2368403749b34e768686d6bf6f91
+x3-off decode 2093 ms (122.29 tok/s) md5 018c2368403749b34e768686d6bf6f91
+x3-xd decode 2137 ms (119.79 tok/s) md5 018c2368403749b34e768686d6bf6f91
+ce1-off decode 2226 ms (115.02 tok/s) md5 018c2368403749b34e768686d6bf6f91
+ce1-xd decode 2322 ms (110.26 tok/s) md5 018c2368403749b34e768686d6bf6f91
+## batched step profile 12:12:28
+REALTRAFFIC B= 8: 19.51 ms/step, 410.0 tok/s aggregate
+REALTRAFFIC B= 8: 20.82 ms/step, 384.2 tok/s aggregate
+REALTRAFFIC B=16: 37.44 ms/step, 427.3 tok/s aggregate
+REALTRAFFIC B=16: 38.68 ms/step, 413.6 tok/s aggregate
+## r1-mb8 12:13:02
+localeval exit 0
+| 16 | 309.3 | 40.6 (39.4–46.8) | 7.88 |
+
+## r1-mb16 12:13:58
+localeval exit 0
+| 16 | 294.5 | 20.5 (18.9–22.6) | 2.71 |
+
+## r2-mb16 12:14:55
+localeval exit 0
+| 16 | 298.1 | 20.7 (19.1–22.9) | 2.68 |
+
+## r2-mb8 12:15:51
+localeval exit 0
+| 16 | 288.0 | 37.7 (36.9–43.6) | 8.50 |
+
+## r3-mb8 12:16:47
+localeval exit 0
+| 16 | 289.8 | 37.8 (37.0–44.0) | 8.45 |
+
+## r3-mb16 12:17:42
+localeval exit 0
+| 16 | 304.9 | 21.2 (19.5–23.4) | 2.63 |
+
+## done 12:18:38
+fleetq: #7061 done (exit 0)

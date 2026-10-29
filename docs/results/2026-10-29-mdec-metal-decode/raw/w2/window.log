@@ -1,0 +1,65 @@
+fleetq: #7058 waiting (#1 in line): needs gpu quiet on endor, but #7056 "mpre short check 5: quant + flash_nax tests, kernels test 35B nvfp4/attn" (claude-f31ccf91) loads it
+fleetq:   #7056 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7056 set, or it will wait for #7056 to be released.
+fleetq: #7058 running on endor: .lane/scripts/w2.sh /opt/code/intarsiaml/.worktrees/mdec/.lane/w2
+## rows_exact 12:05:14
+rows_exact exit 101
+test fp8_rows_are_bitwise_the_one_row_gemv ... FAILED
+thread 'fp8_rows_are_bitwise_the_one_row_gemv' (45341388) panicked at crates/intarsia-backend-metal/tests/rows_exact.rs:182:53:
+test result: FAILED. 6 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.14s
+## step timing 12:05:18
+step exit 0
+TIMING solo step 17.45 ms (57.3 tok/s)
+TIMING batch B= 2: 9.97 ms/step, 200.5 tok/s aggregate (0.57x solo step)
+TIMING batch B= 4: 13.83 ms/step, 289.3 tok/s aggregate (0.79x solo step)
+TIMING batch B= 8: 19.08 ms/step, 419.3 tok/s aggregate (1.09x solo step)
+TIMING batch B=12: 31.89 ms/step, 376.3 tok/s aggregate (1.83x solo step)
+TIMING batch B=16: 38.24 ms/step, 418.4 tok/s aggregate (2.19x solo step)
+## fp8 narrow A/B 12:05:50
+n1-off decode 2131 ms (120.14 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n1-r2u4 decode 2120 ms (120.74 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n1-r1u8 decode 2156 ms (118.74 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n1-r2u8 decode 2198 ms (116.44 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n2-off decode 2126 ms (120.43 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n2-r2u4 decode 2136 ms (119.87 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n2-r1u8 decode 2123 ms (120.59 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n2-r2u8 decode 2206 ms (116.06 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n3-off decode 2152 ms (118.95 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n3-r2u4 decode 2139 ms (119.70 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n3-r1u8 decode 2133 ms (120.02 tok/s) md5 018c2368403749b34e768686d6bf6f91
+n3-r2u8 decode 2241 ms (114.25 tok/s) md5 018c2368403749b34e768686d6bf6f91
+ce1-off decode 2909 ms (87.99 tok/s) md5 018c2368403749b34e768686d6bf6f91
+ce1-r2u4 decode 2813 ms (91.00 tok/s) md5 018c2368403749b34e768686d6bf6f91
+ce1-r1u8 decode 2724 ms (93.99 tok/s) md5 018c2368403749b34e768686d6bf6f91
+## mb8 12:07:25
+localeval exit 0
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 115.8 | 122.2 (122.2–122.2) | 0.24 |
+| 4 | 232.5 | 63.4 (60.0–67.4) | 0.73 |
+| 8 | 295.1 | 41.0 (37.9–44.8) | 1.38 |
+| 16 | 309.3 | 40.2 (39.3–47.3) | 7.99 |
+
+## mb16 12:08:36
+localeval exit 0
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 117.7 | 124.3 (124.3–124.3) | 0.24 |
+| 4 | 254.7 | 69.0 (65.8–72.5) | 0.61 |
+| 8 | 326.5 | 45.1 (41.9–49.1) | 1.18 |
+| 16 | 337.9 | 23.4 (21.6–25.8) | 2.30 |
+
+## mb16h 12:09:41
+localeval exit 0
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 16 | 339.5 | 23.5 (21.7–25.9) | 2.27 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+host-profile decode-only    iters    256 rows  1.00 wall   8.052 ms | reap+admit 0.000 prepare 0.000 step-setup 8.047 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on
+host-profile decode-only    iters    255 rows  1.00 wall   8.099 ms | reap+admit 0.000 prepare 0.000 step-setup 8.093 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on
+host-profile decode-only    iters    256 rows 16.00 wall  38.622 ms | reap+admit 0.000 prepare 0.000 step-setup 0.004 upload 0.000 launch 1.534 sync 37.024 step-tail 0.000 accept 0.002 metrics 0.001 o
+host-profile decode-only    iters    255 rows 15.53 wall  38.502 ms | reap+admit 0.000 prepare 0.000 step-setup 0.037 upload 0.000 launch 1.518 sync 36.887 step-tail 0.000 accept 0.002 metrics 0.001 o
+## done 12:10:19
+fleetq: #7058 done (exit 0)
