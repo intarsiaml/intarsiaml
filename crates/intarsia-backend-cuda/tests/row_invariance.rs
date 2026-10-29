@@ -17,8 +17,9 @@ mod common;
 
 use intarsia_core::exec::{run_host, HostCall, OutSpec};
 use intarsia_core::rng::SplitMix64;
-use intarsia_core::{Backend, DType, HostTensor, Op, OpAttrs};
+use intarsia_core::{Backend, DType, HostTensor, MemKind, Op, OpAttrs, OpCall, TensorRef};
 use std::sync::Arc;
+use std::time::Instant;
 
 fn device(test: &str) -> Option<Arc<dyn Backend>> {
     let ord = std::env::var("INTARSIA_CUDA_DEVICE").ok().and_then(|v| v.parse().ok()).unwrap_or(0);
@@ -309,5 +310,45 @@ fn row_wise_ops_do_not_depend_on_m() {
             &[0],
             at,
         );
+    }
+}
+
+/// Timing (not a gate; `--ignored`): the 8B's seven projection GEMMs of one layer (q, k, v, o, gate, up, down) at prefill row
+/// counts, cuBLAS `matmul_bf16` vs the row-invariant `matmul_bf16_inv`; prints microseconds per layer and the ratio.
+/// `INTARSIA_INV_REF_M` picks the row count `matmul_bf16_inv` chooses its one algorithm for (with `INTARSIA_LT_DEBUG=1`: which).
+#[test]
+#[ignore]
+fn gemm_inv_timing_at_8b_shapes() {
+    let Some(be) = device("gemm_inv_timing_at_8b_shapes") else { return };
+    let t = |shape: &[usize]| {
+        let n: usize = shape.iter().product();
+        let buf = be.alloc(n * 2, MemKind::Device).unwrap();
+        be.zero(&buf, 0).unwrap();
+        TensorRef::new(buf, DType::Bf16, shape)
+    };
+    let layer: [(usize, usize); 7] = [(4096, 4096), (1024, 4096), (1024, 4096), (4096, 4096), (12288, 4096), (12288, 4096), (4096, 12288)];
+    let refm = std::env::var("INTARSIA_INV_REF_M").unwrap_or_else(|_| "4096".into());
+    for m in [991usize, 1024, 2048, 4096] {
+        let calls: Vec<OpCall> = layer
+            .iter()
+            .map(|&(n, k)| OpCall::new(Op::Matmul, vec![t(&[m, k]), t(&[n, k])], vec![t(&[m, n])], OpAttrs::default()))
+            .collect();
+        let mut us = Vec::new();
+        for name in ["matmul_bf16", "matmul_bf16_inv"] {
+            for c in &calls {
+                be.launch(name, c, 0).unwrap();
+            }
+            be.synchronize(0).unwrap();
+            let iters = 10;
+            let t0 = Instant::now();
+            for _ in 0..iters {
+                for c in &calls {
+                    be.launch(name, c, 0).unwrap();
+                }
+            }
+            be.synchronize(0).unwrap();
+            us.push(t0.elapsed().as_secs_f64() * 1e6 / iters as f64);
+        }
+        println!("TIMING ref_m {refm} M {m:>5}: cublas {:>8.1} us/layer  inv {:>8.1} us/layer  inv/cublas {:.3}", us[0], us[1], us[1] / us[0]);
     }
 }

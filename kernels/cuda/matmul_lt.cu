@@ -4,7 +4,7 @@
 // matmul_bf16 calls cublasGemmEx with the default heuristic, which picks its algorithm (tile, split-K, kernel) from (M, N, K):
 // the same row computed in a call of another row count can come out with other bits (a prefix-reuse resume, a 256-row busy
 // chunk, a short tail). Here, as in fp8_gemm_lt.cu, ONE cuBLASLt algorithm per (N, K) is chosen once (heuristic at M = kRefM, the
-// CUDA prefill chunk; no workspace; split-K forced to 1, no reduction scheme) and run for every M, M = 1 included. With one
+// CUDA prefill chunk, INTARSIA_INV_REF_M; no workspace; split-K forced to 1, no reduction scheme) and run for every M, M = 1 included. With one
 // algorithm and no split-K, each output element is one CTA's K loop in one fixed order whatever M is, so row m of an M-row call
 // is bitwise row m of any other call over the same row (tests/row_invariance.rs).
 //
@@ -23,7 +23,16 @@
 namespace {
 
 constexpr int kMaxDevices = 16;
-constexpr int kRefM = 4096;  // the CUDA prefill chunk of the dense Qwen3 recipe: the algorithm is chosen for it
+// The row count the one algorithm per (N, K) is chosen for (heuristic at M = ref_m()): INTARSIA_INV_REF_M, default 4096 (the CUDA
+// prefill chunk of the dense Qwen3 recipe). Read once per process, so every call of the process runs one algorithm per shape.
+int ref_m() {
+    static const int m = [] {
+        const char* v = getenv("INTARSIA_INV_REF_M");
+        const long x = v ? strtol(v, nullptr, 10) : 0;
+        return (x >= 16 && x <= 65536) ? (int)x : 4096;
+    }();
+    return m;
+}
 
 struct Plan {
     cublasLtMatmulAlgo_t algo;
@@ -69,7 +78,7 @@ int make_desc(Desc& ds, int64_t M, int64_t N, int64_t K) {
     return IK_OK;
 }
 
-// One algorithm per (N, K): heuristic at M = kRefM without workspace, 16-byte aligned operands, split-K pinned to 1. The
+// One algorithm per (N, K): heuristic at M = ref_m() without workspace, 16-byte aligned operands, split-K pinned to 1. The
 // algorithm must also pass cublasLtMatmulAlgoCheck at M = 1 (the smallest call it will serve). Caller holds the lock.
 int get_plan(LtState& st, int64_t N, int64_t K, Plan** out) {
     const auto key = std::make_pair(N, K);
@@ -81,7 +90,7 @@ int get_plan(LtState& st, int64_t N, int64_t K, Plan** out) {
     Plan& p = st.plans[key];
     *out = &p;
     Desc ds, d1;
-    IK_TRY(make_desc(ds, kRefM, N, K));
+    IK_TRY(make_desc(ds, ref_m(), N, K));
     IK_TRY(make_desc(d1, 1, N, K));
     auto opd = reinterpret_cast<cublasLtMatmulDesc_t>(&ds.op);
     auto la = reinterpret_cast<cublasLtMatrixLayout_t>(&ds.a);
@@ -135,8 +144,8 @@ int get_plan(LtState& st, int64_t N, int64_t K, Plan** out) {
             cublasLtMatmulAlgoConfigGetAttribute(&a, CUBLASLT_ALGO_CONFIG_ID, &id, sizeof id, &w);
             cublasLtMatmulAlgoConfigGetAttribute(&a, CUBLASLT_ALGO_CONFIG_TILE_ID, &tile, sizeof tile, &w);
             cublasLtMatmulAlgoConfigGetAttribute(&a, CUBLASLT_ALGO_CONFIG_STAGES_ID, &stages, sizeof stages, &w);
-            fprintf(stderr, "matmul_bf16_inv: N=%lld K=%lld -> heuristic #%d algo %d tile %d stages %d (of %d)\n", (long long)N,
-                    (long long)K, i, id, tile, stages, got);
+            fprintf(stderr, "matmul_bf16_inv: N=%lld K=%lld ref M %d -> heuristic #%d algo %d tile %d stages %d (of %d)\n",
+                    (long long)N, (long long)K, ref_m(), i, id, tile, stages, got);
         }
         return IK_OK;
     }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane rip GPU job (spark2, --quiet gpu,cpu): the correctness gates.
 #  1. 8B model/engine gates: the probe (new cold reference, every split / reuse equal), the engine reuse + busy-chunk test, BI8's
-#     batched == solo and engine == cold reference; the mutant (INTARSIA_PREFIX_REUSE=any must fail the multi-turn test)
+#     batched == solo and engine == cold reference; decode-written rows are not prefill rows (bitwise); an ordinary short pass fits
 #  2. served greedy vs the cold reference: solo 1/4/16 x 3 reps, --max-batch 16 1/4/8/16 x 3 reps (reps on one server); equal.py
 #     21 cells solo vs --max-batch 16
 #  3. shared paths: rows_exact, row_invariance, batch_cuda_real on the 35B, `plan show` base vs fix (8B / 35B / Gemma-4), the 35B
@@ -38,8 +38,8 @@ if [[ " $P " == *" model "* ]]; then
   echo "SELFREUSE equal: $(grep -c 'logits row0 EQUAL' "$OUT/probe.log") / $(grep -c SELFREUSE "$OUT/probe.log"); SPLIT with a differing split: $(grep SPLIT "$OUT/probe.log" | grep -c ':x'); CROSS differing: $(grep CROSS "$OUT/probe.log" | grep -vc 'None')"
   echo "== engine gates"
   rsh "$RPATH $CT INTARSIA_QWEN3_DIR=$M8 cargo test --release -p intarsia-models --test batch_cuda_real -- real_qwen3_8b_reuse_and_busy real_qwen3_8b_batched --test-threads=1 --nocapture 2>&1 | grep -aE '$F'" | tee "$OUT/engine.log" | grep -aE '^test |test result|RIP'
-  echo "== mutant: INTARSIA_PREFIX_REUSE=any (reuse decode-written rows) must change turn 2 or 3"
-  rsh "$RPATH $CT INTARSIA_PREFIX_REUSE=any INTARSIA_RIP_EXPECT_ANY_FAILS=1 INTARSIA_QWEN3_DIR=$M8 cargo test --release -p intarsia-models --test batch_cuda_real -- real_qwen3_8b_reuse_and_busy --test-threads=1 --nocapture 2>&1 | grep -aE '$F'" | tee "$OUT/mutant.log" | grep -aE '^test |RIP'
+  echo "== decode-written rows vs prefill rows (bitwise), ordinary short pass deep in the context"
+  rsh "$RPATH $CT INTARSIA_QWEN3_DIR=$M8 cargo test --release -p intarsia-models --test batch_cuda_real -- real_qwen3_8b_decode_written_rows real_qwen3_8b_ordinary_short_pass --test-threads=1 --nocapture 2>&1 | grep -aE '$F'" | tee "$OUT/decoderows.log" | grep -aE '^test |RIP|test result'
 fi
 if [[ " $P " == *" served "* ]]; then
   REF=${REF:-$OUT/cold.json}
