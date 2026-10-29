@@ -1,0 +1,12 @@
+WARNING: CPU IP/backtrace sampling not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+WARNING: CPU context switch tracing not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 679 cached
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 38.8s, context 8192 tokens
+intarsia server listening on http://127.0.0.1:8197

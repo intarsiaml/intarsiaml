@@ -1,0 +1,11 @@
+fleetq: #6831 waiting (#1 in line): #6828 "prc-merge: cuda gates + plan" (claude-f31ccf91) needs cpu quiet on spark1, and this job loads it
+fleetq:   #6828 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6828 set, or it will wait for #6828 to be released.
+fleetq: #6831 running on spark1: bash -c 'ssh -o BatchMode=yes spark1 "export FLEETQ_JOB=$FLEETQ_JOB; bash -s" < scripts/step16/plan.sh'
+PASS plan 8 json byte-identical (8758 B, md5 b1a1150e)
+PASS plan 8 txt byte-identical (1478 B, md5 7742cef8)
+PASS plan 35 json byte-identical (15336 B, md5 8c7a3de5)
+PASS plan 35 txt byte-identical (3946 B, md5 7b9068be)
+PASS plan g json byte-identical (8408 B, md5 2a659412)
+PASS plan g txt byte-identical (1797 B, md5 ec4ef23e)
+plan fails=0
+fleetq: #6831 done (exit 0)

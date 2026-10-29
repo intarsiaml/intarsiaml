@@ -1,0 +1,121 @@
+--- kernels/cuda/fp8.cu	2026-10-29 02:57:39
++++ /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/fp8-with-qh.cu	2026-10-29 02:57:06
+@@ -406,11 +406,15 @@
+ constexpr size_t kQSmemMax = 96 * 1024;
+ 
+ // rows m0 .. m0 + RM - 1 of the call, staged in xs: XQ as codes [RM][KV] (16 codes per uint4, element order), else as bf16
+-// halves [RM][2][KV] (the persistent kernel's layout)
+-template <int RM, int NT, int W, bool XQ, typename OutT>
++// halves [RM][2][KV] (the persistent kernel's layout). XQ with MH > 0 (lane step16): rows 0 .. MH - 1 are staged as their f16
++// pairs instead ([MH][2][KV], 8 f16 per uint4: the ik_fp8x16_to_h2 image of the codes, the same bits the tile loop would make),
++// the codes of rows MH .. RM - 1 follow ([RM - MH][KV]); the f16 rows skip the per-tile e4m3 -> f16 conversion.
++template <int RM, int NT, int W, bool XQ, typename OutT, int MH = 0>
+ __device__ __forceinline__ void rows_q_tiles(const uint4* __restrict__ xs, const uint8_t* __restrict__ w, float s_out,
+                                              OutT* __restrict__ out, int m0, int N, int K) {
++    static_assert(MH >= 0 && MH <= RM && (XQ || MH == 0), "f16-staged rows are a W8A8 form");
+     const int KV = K / 16;
++    const uint4* __restrict__ xc = xs + 2 * MH * KV;  // XQ: the code rows MH .. RM - 1
+     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+     const int64_t tiles = ((int64_t)N + NT - 1) / NT;
+     for (int64_t t = (int64_t)blockIdx.x * W + warp; t < tiles; t += (int64_t)gridDim.x * W) {
+@@ -434,7 +438,13 @@
+ #pragma unroll
+                 for (int m = 0; m < RM; ++m) {
+                     uint32_t xh[8];
+-                    ik_fp8x16_to_h2(xs[m * KV + u], xh);
++                    if (m < MH) {
++                        const uint4 lo = xs[(m * 2) * KV + u], hi = xs[(m * 2 + 1) * KV + u];
++                        xh[0] = lo.x; xh[1] = lo.y; xh[2] = lo.z; xh[3] = lo.w;
++                        xh[4] = hi.x; xh[5] = hi.y; xh[6] = hi.z; xh[7] = hi.w;
++                    } else {
++                        ik_fp8x16_to_h2(xc[(m - MH) * KV + u], xh);
++                    }
+ #pragma unroll
+                     for (int j = 0; j < NT; ++j) {
+                         float sdot = 0.f;
+@@ -481,7 +491,8 @@
+     }
+ }
+ 
+-template <int M, int NT, int W, int MINB, typename OutT>
++// MH: W8A8 rows staged as f16 (rows_q_tiles); the block holds (M + MH) * K bytes
++template <int M, int NT, int W, int MINB, typename OutT, int MH = 0>
+ __global__ void __launch_bounds__(W * IK_WARP, MINB)
+ fp8_gemv_rows_q_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                        OutT* __restrict__ out, int N, int K) {
+@@ -489,7 +500,7 @@
+     extern __shared__ __align__(16) unsigned char smem[];
+     uint4* xs = reinterpret_cast<uint4*>(smem);
+     const int KV = K / 16;
+-    if (sc[1] > 0.f) {  // W8A8: codes [M][KV]
++    if (sc[1] > 0.f) {  // W8A8: f16 pairs [MH][2][KV], then codes [M - MH][KV]
+         const float s_in = sc[1];
+         for (int i = threadIdx.x; i < M * KV; i += blockDim.x) {
+             const int m = i / KV, u = i % KV;
+@@ -502,10 +513,18 @@
+             for (int q = 0; q < 4; ++q)
+                 c[q] = (uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q], s_in)) | ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 1], s_in)) << 8) |
+                        ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 2], s_in)) << 16) | ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 3], s_in)) << 24);
+-            xs[i] = make_uint4(c[0], c[1], c[2], c[3]);
++            const uint4 codes = make_uint4(c[0], c[1], c[2], c[3]);
++            if (MH > 0 && m < MH) {
++                uint32_t h[8];
++                ik_fp8x16_to_h2(codes, h);
++                xs[(m * 2) * KV + u] = make_uint4(h[0], h[1], h[2], h[3]);
++                xs[(m * 2 + 1) * KV + u] = make_uint4(h[4], h[5], h[6], h[7]);
++            } else {
++                xs[2 * MH * KV + (m - MH) * KV + u] = codes;
++            }
+         }
+         __syncthreads();
+-        rows_q_tiles<M, NT, W, true>(xs, w, sc[0] * s_in, out, 0, N, K);
++        rows_q_tiles<M, NT, W, true, OutT, MH>(xs, w, sc[0] * s_in, out, 0, N, K);
+         return;
+     }
+     constexpr int G = M / 2;  // W8A16: bf16 rows, G at a time (G * K * 2 <= M * K bytes)
+@@ -524,11 +543,11 @@
+     }
+ }
+ 
+-template <int M, int NT, int W, int MINB, typename OutT>
++template <int M, int NT, int W, int MINB, typename OutT, int MH = 0>
+ int rows_run_q(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+-    const size_t smem = (size_t)M * K;
+-    auto kern = fp8_gemv_rows_q_kernel<M, NT, W, MINB, OutT>;
+-    const bool cap_set = smem_cap_once<fp8_gemv_rows_q_kernel<M, NT, W, MINB, OutT>>(kQSmemMax);
++    const size_t smem = (size_t)(M + MH) * K;
++    auto kern = fp8_gemv_rows_q_kernel<M, NT, W, MINB, OutT, MH>;
++    const bool cap_set = smem_cap_once<fp8_gemv_rows_q_kernel<M, NT, W, MINB, OutT, MH>>(kQSmemMax);
+     if (!cap_set) return IK_ERR_LAUNCH;
+     int occ = 0;
+     if (cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, kern, W * IK_WARP, smem) != cudaSuccess || occ < 1) occ = 1;
+@@ -553,6 +572,29 @@
+         if (!strcmp(f, "1x8x3")) return rows_run_q<M, 1, 8, 3>(x, w, sc, out, N, K, s);
+         if (!strcmp(f, "4x8")) return rows_run_q<M, 4, 8, 1>(x, w, sc, out, N, K, s);
+     }
++    // step16 A/B (temporary): INTARSIA_CUDA_FP8_ROWS_QH = half | full stages M / 2 | M rows as f16 where (M + MH) * K fits,
++    // QHSHAPE = 2x8x2 | 2x8x1 | 2x16x1 | 1x16x1 the shape it runs with (N > kQSmallN; small N keeps 1x16)
++    if constexpr (M >= 12) {
++        const char* h = getenv("INTARSIA_CUDA_FP8_ROWS_QH");
++        if (h && (!strcmp(h, "half") || !strcmp(h, "full"))) {
++            const bool full = !strcmp(h, "full") && (size_t)(2 * M) * K <= kQSmemMax;
++            const bool half = (size_t)(M + M / 2) * K <= kQSmemMax;
++            if (full || half) {
++                const char* sh = getenv("INTARSIA_CUDA_FP8_ROWS_QHSHAPE");
++                const int mode = !sh ? 0 : !strcmp(sh, "2x8x1") ? 1 : !strcmp(sh, "2x16x1") ? 2 : !strcmp(sh, "1x16x1") ? 3 : 0;
++#define IK_QH(MHV)                                                                         \
++    do {                                                                                   \
++        if (N <= kQSmallN || mode == 3) return rows_run_q<M, 1, 16, 1, OutT, MHV>(x, w, sc, out, N, K, s); \
++        if (mode == 1) return rows_run_q<M, 2, 8, 1, OutT, MHV>(x, w, sc, out, N, K, s);   \
++        if (mode == 2) return rows_run_q<M, 2, 16, 1, OutT, MHV>(x, w, sc, out, N, K, s);  \
++        return rows_run_q<M, 2, 8, 2, OutT, MHV>(x, w, sc, out, N, K, s);                  \
++    } while (0)
++                if (full) IK_QH(M);
++                IK_QH(M / 2);
++#undef IK_QH
++            }
++        }
++    }
+     if (N <= kQSmallN) return rows_run_q<M, 1, 16, 1>(x, w, sc, out, N, K, s);
+     return rows_run_q<M, 2, 8, 2>(x, w, sc, out, N, K, s);
+ }

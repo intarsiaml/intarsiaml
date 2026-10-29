@@ -1,0 +1,173 @@
+fleetq: #6838 running on spark1: scripts/step16/w2.sh
+03:44:35
+== steptime
+== base 03:44:35
+STEP B=8 ms 26.510 27.565 28.892
+STEP B=16 ms 42.995 44.403 45.888
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 47.03s
+== dev 03:45:23
+STEP B=8 ms 26.590 27.646 28.862
+STEP B=16 ms 43.071 44.453 45.908
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 50.15s
+== dev 03:46:14
+STEP B=8 ms 26.588 27.601 28.866
+STEP B=16 ms 43.042 44.512 45.815
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 51.05s
+== base 03:47:06
+STEP B=8 ms 26.638 27.823 29.023
+STEP B=16 ms 43.178 44.525 45.892
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 52.16s
+== done 03:47:58
+03:47:58
+== prof base-b16
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/base-b16/burst.py", line 9, in <module>
+    corpus = open('/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt').read()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt'
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/base-b16/burst.py", line 9, in <module>
+    corpus = open('/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt').read()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt'
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/base-b16/rank.py", line 35, in <module>
+    t0 = q[0][0]
+         ~^^^
+IndexError: list index out of range
+steps 1  mean step span 0.00 ms  mean gap 0.00 ms  (0.0 %)
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/base-b16/gaps.py", line 38, in <module>
+    print(f"gap us: p10 {gaps[n//10]/1e3:.0f} p50 {gaps[n//2]/1e3:.0f} p90 {gaps[9*n//10]/1e3:.0f} max {gaps[-1]/1e3:.0f}")
+                         ~~~~^^^^^^^
+IndexError: list index out of range
+burst wall 158 ms, 160 passes, GPU kernel time 7 ms
+  decode   passes  160  span      44 ms ( 28.0 %)  mean   0.28 ms
+  prefill  passes    0  span       0 ms (  0.0 %)  mean   0.00 ms
+  idle gaps (>= 300 us)     114 ms ( 72.0 %)  mean 715 us
+03:48:49
+== prof dev-b16
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/dev-b16/burst.py", line 9, in <module>
+    corpus = open('/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt').read()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt'
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/dev-b16/burst.py", line 9, in <module>
+    corpus = open('/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt').read()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt'
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/dev-b16/rank.py", line 35, in <module>
+    t0 = q[0][0]
+         ~^^^
+IndexError: list index out of range
+steps 1  mean step span 0.00 ms  mean gap 0.00 ms  (0.0 %)
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/dev-b16/gaps.py", line 38, in <module>
+    print(f"gap us: p10 {gaps[n//10]/1e3:.0f} p50 {gaps[n//2]/1e3:.0f} p90 {gaps[9*n//10]/1e3:.0f} max {gaps[-1]/1e3:.0f}")
+                         ~~~~^^^^^^^
+IndexError: list index out of range
+burst wall 156 ms, 160 passes, GPU kernel time 7 ms
+  decode   passes  160  span      44 ms ( 28.0 %)  mean   0.27 ms
+  prefill  passes    0  span       0 ms (  0.0 %)  mean   0.00 ms
+  idle gaps (>= 300 us)     113 ms ( 72.0 %)  mean 708 us
+03:49:43
+== prof dev-b8
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/dev-b8/burst.py", line 9, in <module>
+    corpus = open('/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt').read()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt'
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/dev-b8/burst.py", line 9, in <module>
+    corpus = open('/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt').read()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nvidia/intarsiaml-srv16/src/tools/prompts/corpus_docs.txt'
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/dev-b8/rank.py", line 35, in <module>
+    t0 = q[0][0]
+         ~^^^
+IndexError: list index out of range
+steps 1  mean step span 0.00 ms  mean gap 0.00 ms  (0.0 %)
+Traceback (most recent call last):
+  File "/home/nvidia/intarsiaml-step16/out/dev-b8/gaps.py", line 38, in <module>
+    print(f"gap us: p10 {gaps[n//10]/1e3:.0f} p50 {gaps[n//2]/1e3:.0f} p90 {gaps[9*n//10]/1e3:.0f} max {gaps[-1]/1e3:.0f}")
+                         ~~~~^^^^^^^
+IndexError: list index out of range
+burst wall 191 ms, 160 passes, GPU kernel time 7 ms
+  decode   passes  160  span      52 ms ( 27.4 %)  mean   0.33 ms
+  prefill  passes    0  span       0 ms (  0.0 %)  mean   0.00 ms
+  idle gaps (>= 300 us)     139 ms ( 72.6 %)  mean 873 us
+03:50:46
+== prof base-b8
+round 0 streams 2 wall 1.46s ttft_med 0.99 ttft_max 0.99 chunks [32, 32]
+round 0 streams 8 wall 8.38s ttft_med 1.52 ttft_max 1.52 chunks [256, 256, 256, 256, 256, 256, 256, 256]
+clusters: [(31344, 1.4), (237689, 8.2)]
+-- whole burst: span 8221 ms, 237689 kernels, kernel sum 8588 ms, union busy 8029 ms, GPU idle 2.3 %
+fp8_gemv_rows_full_kernel<                                                           1837.8 ms  21.4 %  28050 calls      65.5 us avg
+moe_dec_gate_up_kernel<                                                              1802.6 ms  21.0 %  10560 calls     170.7 us avg
+gdn_delta_split_kernel<                                                              1279.5 ms  14.9 %   8160 calls     156.8 us avg
+moe_dec_down_v2_kernel<                                                              1087.4 ms  12.7 %  10560 calls     103.0 us avg
+moe_w4a16_kernel<                                                                     436.0 ms   5.1 %    160 calls    2724.9 us avg
+nvfp4_gemv_full_kernel<                                                               338.8 ms   3.9 %    255 calls    1328.7 us avg
+splitkv_kernel<                                                                       307.5 ms   3.6 %   2640 calls     116.5 us avg
+nvfp4_gemv_split_kernel<                                                              217.6 ms   2.5 %  20400 calls      10.7 us avg
+gemv_split_kernel<                                                                    172.5 ms   2.0 %  35700 calls       4.8 us avg
+rmsnorm_kernel<                                                                       109.0 ms   1.3 %  26365 calls       4.1 us avg
+nvjet_sm121_qqtst_mma_192x176x128_2_48x88x128_tmaAB_bz_TNNN                            86.8 ms   1.0 %    320 calls     271.4 us avg
+fp8_gemv_rows_q_kernel<                                                                84.1 ms   1.0 %   5100 calls      16.5 us avg
+gdn_conv_rows_kernel                                                                   81.4 ms   0.9 %   7650 calls      10.6 us avg
+nvfp4_gemv_tile_kernel<                                                                70.2 ms   0.8 %  10200 calls       6.9 us avg
+moe_reduce_kernel<__nv_bfloat16>                                                       59.7 ms   0.7 %     80 calls     746.2 us avg
+gdn_conv_kernel                                                                        51.3 ms   0.6 %    510 calls     100.6 us avg
+rope_kernel                                                                            49.0 ms   0.6 %   5280 calls       9.3 us avg
+moe_topk_kernel                                                                        49.0 ms   0.6 %  10640 calls       4.6 us avg
+gated_rmsnorm_kernel<                                                                  45.3 ms   0.5 %   7710 calls       5.9 us avg
+nvjet_sm121_qqtst_mma_192x160x128_2_48x80x128_tmaAB_bz_TNNN                            42.9 ms   0.5 %    320 calls     134.0 us avg
+nvfp4_reg_kernel<                                                                      34.8 ms   0.4 %    160 calls     217.7 us avg
+moe_combine_kernel<__nv_bfloat16>                                                      33.5 ms   0.4 %  10640 calls       3.1 us avg
+fp8_gemv_pair_kernel<__nv_bfloat16>                                                    32.1 ms   0.4 %    360 calls      89.1 us avg
+sm89_xmma_gemm_e4m3bf16_e4m3f32_f32_tn_n_tilesize128x128x64_stage3_warpsize2x2x1       29.1 ms   0.3 %    240 calls     121.3 us avg
+lt_actq8_kernel                                                                        28.2 ms   0.3 %   1040 calls      27.1 us avg
+silu_glu_kernel<                                                                       22.8 ms   0.3 %  10200 calls       2.2 us avg
+gate_split_kernel                                                                      20.2 ms   0.2 %   2720 calls       7.4 us avg
+kv_append_rows_kernel<__nv_bfloat16,                                                   19.3 ms   0.2 %   5100 calls       3.8 us avg
+-- decode window 5.0s..7.9s: span 2921 ms, 90375 kernels, kernel sum 3094 ms, union busy 2869 ms, GPU idle 1.8 %
+moe_dec_gate_up_kernel<                                                               851.2 ms  27.5 %   4089 calls     208.2 us avg
+fp8_gemv_rows_full_kernel<                                                            741.3 ms  24.0 %  11244 calls      65.9 us avg
+moe_dec_down_v2_kernel<                                                               472.7 ms  15.3 %   4089 calls     115.6 us avg
+gdn_delta_split_kernel<                                                               413.7 ms  13.4 %   3067 calls     134.9 us avg
+nvfp4_gemv_full_kernel<                                                               135.1 ms   4.4 %    102 calls    1325.0 us avg
+splitkv_kernel<                                                                       123.5 ms   4.0 %   1023 calls     120.8 us avg
+nvfp4_gemv_split_kernel<                                                               90.9 ms   2.9 %   8178 calls      11.1 us avg
+gemv_split_kernel<                                                                     69.7 ms   2.3 %  14312 calls       4.9 us avg
+fp8_gemv_rows_q_kernel<                                                                34.1 ms   1.1 %   2046 calls      16.7 us avg
+gdn_conv_rows_kernel                                                                   30.8 ms   1.0 %   3067 calls      10.0 us avg
+nvfp4_gemv_tile_kernel<                                                                28.3 ms   0.9 %   4089 calls       6.9 us avg
+rmsnorm_kernel<                                                                        21.8 ms   0.7 %  10326 calls       2.1 us avg
+rope_kernel                                                                            19.3 ms   0.6 %   2046 calls       9.4 us avg
+moe_topk_kernel                                                                        18.0 ms   0.6 %   4089 calls       4.4 us avg
+silu_glu_kernel<                                                                        9.6 ms   0.3 %   4089 calls       2.4 us avg
+kv_append_rows_kernel<__nv_bfloat16,                                                    7.9 ms   0.3 %   2046 calls       3.9 us avg
+gated_rmsnorm_kernel<                                                                   7.2 ms   0.2 %   3067 calls       2.3 us avg
+moe_combine_kernel<__nv_bfloat16>                                                       5.6 ms   0.2 %   4089 calls       1.4 us avg
+combine_kernel<                                                                         4.8 ms   0.2 %   1022 calls       4.7 us avg
+gate_split_kernel                                                                       2.9 ms   0.1 %   1023 calls       2.8 us avg
+argmax_kernel<float>                                                                    2.0 ms   0.1 %    102 calls      19.7 us avg
+rope_pass_kernel                                                                        1.9 ms   0.1 %   2046 calls       0.9 us avg
+sigmoid_mul_kernel                                                                      1.0 ms   0.0 %   1022 calls       1.0 us avg
+embedding_kernel<                                                                       0.4 ms   0.0 %    102 calls       3.9 us avg
+steps 137  mean step span 30.84 ms  mean gap 0.46 ms  (1.5 %)
+gap us: p10 386 p50 394 p90 416 max 7200
+non-kernel op '[CUDA memcpy Device-to-Host]': per step 0.000 MB, 2.3 us GPU time
+non-kernel op '[CUDA memcpy Host-to-Device]': per step 0.005 MB, 1.0 us GPU time
+burst wall 8221 ms, 245 passes, GPU kernel time 8592 ms
+  decode   passes  238  span    6752 ms ( 82.1 %)  mean  28.37 ms
+  prefill  passes    7  span    1324 ms ( 16.1 %)  mean 189.09 ms
+  idle gaps (>= 300 us)     146 ms (  1.8 %)  mean 597 us
+prefill phase 1359 ms: prefill 1324 ms, decode 1 passes 0 ms
+decode after the last prefill, mean span by thirds (ms): 25.44 / 30.53 / 29.50 (237 passes)
+prefill pass spans ms: 12 12 12 12 13 13 1249
+03:51:57
+fleetq: #6838 done (exit 0)

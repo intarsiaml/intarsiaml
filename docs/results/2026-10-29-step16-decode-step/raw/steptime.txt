@@ -1,0 +1,17 @@
+== base 03:44:35
+STEP B=8 ms 26.510 27.565 28.892
+STEP B=16 ms 42.995 44.403 45.888
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 47.03s
+== dev 03:45:23
+STEP B=8 ms 26.590 27.646 28.862
+STEP B=16 ms 43.071 44.453 45.908
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 50.15s
+== dev 03:46:14
+STEP B=8 ms 26.588 27.601 28.866
+STEP B=16 ms 43.042 44.512 45.815
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 51.05s
+== base 03:47:06
+STEP B=8 ms 26.638 27.823 29.023
+STEP B=16 ms 43.178 44.525 45.892
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 52.16s
+== done 03:47:58

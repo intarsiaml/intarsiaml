@@ -1,0 +1,65 @@
+fleetq: #6837 running on spark1: scripts/step16/w1.sh
+03:27:11
+test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 33.17s
+03:27:45
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663231488, free_bytes: 70485278720, weights_bytes: 20825033460, workspace_bytes: 694874000, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 66961013943, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+4290 (row, step) pairs bitwise identical in 75.2 s
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 17 filtered out; finished in 262.77s
+03:32:08
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+EQUAL  greedy/n4
+EQUAL  greedy/n16
+21/21 cells identical, 9408 token ids compared
+identity exit 0
+03:35:32
+== round 1 arm base 03:35:32
+base r1: MemAvailable 62456 MB with the server up
+step16-base-r1: - result file: `results/20261029-033612-adhoc-step16-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-033612-adhoc-step16-base-r1/result.json 
+[localeval] 1 streams: aggregate 81.0 tok/s
+[localeval] 4 streams: aggregate 187.5 tok/s
+[localeval] 8 streams: aggregate 233.2 tok/s
+[localeval] 16 streams: aggregate 298.0 tok/s
+== round 1 arm dev 03:36:56
+dev r1: MemAvailable 62446 MB with the server up
+step16-dev-r1: - result file: `results/20261029-033736-adhoc-step16-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-033736-adhoc-step16-dev-r1/result.json 
+[localeval] 1 streams: aggregate 80.1 tok/s
+[localeval] 4 streams: aggregate 175.0 tok/s
+[localeval] 8 streams: aggregate 239.4 tok/s
+[localeval] 16 streams: aggregate 298.7 tok/s
+== round 2 arm dev 03:38:20
+dev r2: MemAvailable 62435 MB with the server up
+step16-dev-r2: - result file: `results/20261029-033856-adhoc-step16-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-033856-adhoc-step16-dev-r2/result.json 
+[localeval] 1 streams: aggregate 81.0 tok/s
+[localeval] 4 streams: aggregate 175.3 tok/s
+[localeval] 8 streams: aggregate 235.8 tok/s
+[localeval] 16 streams: aggregate 298.8 tok/s
+== round 2 arm base 03:39:40
+base r2: MemAvailable 62447 MB with the server up
+step16-base-r2: - result file: `results/20261029-034020-adhoc-step16-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-034020-adhoc-step16-base-r2/result.json 
+[localeval] 1 streams: aggregate 79.9 tok/s
+[localeval] 4 streams: aggregate 174.5 tok/s
+[localeval] 8 streams: aggregate 232.9 tok/s
+[localeval] 16 streams: aggregate 296.3 tok/s
+== round 3 arm base 03:41:05
+base r3: MemAvailable 62438 MB with the server up
+step16-base-r3: - result file: `results/20261029-034145-adhoc-step16-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-034145-adhoc-step16-base-r3/result.json 
+[localeval] 1 streams: aggregate 80.7 tok/s
+[localeval] 4 streams: aggregate 172.9 tok/s
+[localeval] 8 streams: aggregate 234.6 tok/s
+[localeval] 16 streams: aggregate 296.9 tok/s
+== round 3 arm dev 03:42:29
+dev r3: MemAvailable 62448 MB with the server up
+step16-dev-r3: - result file: `results/20261029-034305-adhoc-step16-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-034305-adhoc-step16-dev-r3/result.json 
+[localeval] 1 streams: aggregate 80.3 tok/s
+[localeval] 4 streams: aggregate 174.6 tok/s
+[localeval] 8 streams: aggregate 236.7 tok/s
+[localeval] 16 streams: aggregate 296.5 tok/s
+== done 03:43:49
+03:43:49
+fleetq: #6837 done (exit 0)
