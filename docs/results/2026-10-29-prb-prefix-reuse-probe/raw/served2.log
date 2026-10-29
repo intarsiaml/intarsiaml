@@ -1,0 +1,106 @@
+fleetq: #6717 running on endor: env ENGS=single scripts/prb/served.sh bin/fix docs/results/2026-10-29-prb-prefix-reuse-probe/raw/served
+== batch4-old vs cold reference (batch4 --no-reuse)
+SEQ    prompt 13 cached 0: IDENTICAL
+SEQ    prompt 15 cached 0: IDENTICAL
+SEQ    prompt  3 cached 0: IDENTICAL
+SEQ    prompt  4 cached 0: IDENTICAL
+SEQ    prompt  5 cached 0: IDENTICAL
+SEQ    prompt  9 cached 0: IDENTICAL
+SEQ    prompt 13 cached 0: IDENTICAL
+SEQ    prompt 15 cached 0: IDENTICAL
+SEQ    prompt  3 cached 0: IDENTICAL
+SEQ    prompt  3 cached 12: DIFFER at token 37
+SEQ    prompt  9 cached 5: DIFFER at token 9
+SEQ    prompt  9 cached 5: DIFFER at token 9
+CONC0  prompt  3 cached 12: DIFFER at token 37
+CONC0  prompt  4 cached 0: IDENTICAL
+CONC0  prompt  5 cached 0: IDENTICAL
+CONC0  prompt  9 cached 5: DIFFER at token 9
+CONC1  prompt  3 cached 12: DIFFER at token 37
+CONC1  prompt  4 cached 14: DIFFER at token 49
+CONC1  prompt  5 cached 7: DIFFER at token 63
+CONC1  prompt  9 cached 5: DIFFER at token 9
+CONC2  prompt  3 cached 12: DIFFER at token 37
+CONC2  prompt  4 cached 14: DIFFER at token 49
+CONC2  prompt  5 cached 7: DIFFER at token 63
+CONC2  prompt  9 cached 5: DIFFER at token 9
+15/28 requests identical to the cold reference
+== batch4-new vs cold reference (batch4 --no-reuse)
+SEQ    prompt 13 cached 0: IDENTICAL
+SEQ    prompt 15 cached 0: IDENTICAL
+SEQ    prompt  3 cached 0: IDENTICAL
+SEQ    prompt  4 cached 0: IDENTICAL
+SEQ    prompt  5 cached 0: IDENTICAL
+SEQ    prompt  9 cached 0: IDENTICAL
+SEQ    prompt 13 cached 0: IDENTICAL
+SEQ    prompt 15 cached 0: IDENTICAL
+SEQ    prompt  3 cached 0: IDENTICAL
+SEQ    prompt  3 cached 0: IDENTICAL
+SEQ    prompt  9 cached 0: IDENTICAL
+SEQ    prompt  9 cached 0: IDENTICAL
+CONC0  prompt  3 cached 0: IDENTICAL
+CONC0  prompt  4 cached 0: IDENTICAL
+CONC0  prompt  5 cached 0: IDENTICAL
+CONC0  prompt  9 cached 0: IDENTICAL
+CONC1  prompt  3 cached 0: IDENTICAL
+CONC1  prompt  4 cached 0: IDENTICAL
+CONC1  prompt  5 cached 0: IDENTICAL
+CONC1  prompt  9 cached 0: IDENTICAL
+CONC2  prompt  3 cached 0: IDENTICAL
+CONC2  prompt  4 cached 0: IDENTICAL
+CONC2  prompt  5 cached 0: IDENTICAL
+CONC2  prompt  9 cached 0: IDENTICAL
+28/28 requests identical to the cold reference
+== single-old vs cold reference (batch4 --no-reuse)
+SEQ    prompt 13 cached 0: IDENTICAL
+SEQ    prompt 15 cached 0: IDENTICAL
+SEQ    prompt  3 cached 0: IDENTICAL
+SEQ    prompt  4 cached 0: IDENTICAL
+SEQ    prompt  5 cached 0: IDENTICAL
+SEQ    prompt  9 cached 0: IDENTICAL
+SEQ    prompt 13 cached 0: IDENTICAL
+SEQ    prompt 15 cached 0: IDENTICAL
+SEQ    prompt  3 cached 0: IDENTICAL
+SEQ    prompt  3 cached 12: DIFFER at token 37
+SEQ    prompt  9 cached 0: IDENTICAL
+SEQ    prompt  9 cached 5: DIFFER at token 9
+CONC0  prompt  3 cached 0: IDENTICAL
+CONC0  prompt  4 cached 0: IDENTICAL
+CONC0  prompt  5 cached 0: IDENTICAL
+CONC0  prompt  9 cached 0: IDENTICAL
+CONC1  prompt  3 cached 0: IDENTICAL
+CONC1  prompt  4 cached 0: IDENTICAL
+CONC1  prompt  5 cached 0: IDENTICAL
+CONC1  prompt  9 cached 0: IDENTICAL
+CONC2  prompt  3 cached 0: IDENTICAL
+CONC2  prompt  4 cached 0: IDENTICAL
+CONC2  prompt  5 cached 0: IDENTICAL
+CONC2  prompt  9 cached 0: IDENTICAL
+26/28 requests identical to the cold reference
+== single-new vs cold reference (batch4 --no-reuse)
+SEQ    prompt 13 cached 0: IDENTICAL
+SEQ    prompt 15 cached 0: IDENTICAL
+SEQ    prompt  3 cached 0: IDENTICAL
+SEQ    prompt  4 cached 0: IDENTICAL
+SEQ    prompt  5 cached 0: IDENTICAL
+SEQ    prompt  9 cached 0: IDENTICAL
+SEQ    prompt 13 cached 0: IDENTICAL
+SEQ    prompt 15 cached 0: IDENTICAL
+SEQ    prompt  3 cached 0: IDENTICAL
+SEQ    prompt  3 cached 0: IDENTICAL
+SEQ    prompt  9 cached 0: IDENTICAL
+SEQ    prompt  9 cached 0: IDENTICAL
+CONC0  prompt  3 cached 0: IDENTICAL
+CONC0  prompt  4 cached 0: IDENTICAL
+CONC0  prompt  5 cached 0: IDENTICAL
+CONC0  prompt  9 cached 0: IDENTICAL
+CONC1  prompt  3 cached 0: IDENTICAL
+CONC1  prompt  4 cached 0: IDENTICAL
+CONC1  prompt  5 cached 0: IDENTICAL
+CONC1  prompt  9 cached 0: IDENTICAL
+CONC2  prompt  3 cached 0: IDENTICAL
+CONC2  prompt  4 cached 0: IDENTICAL
+CONC2  prompt  5 cached 0: IDENTICAL
+CONC2  prompt  9 cached 0: IDENTICAL
+28/28 requests identical to the cold reference
+fleetq: #6717 done (exit 0)
