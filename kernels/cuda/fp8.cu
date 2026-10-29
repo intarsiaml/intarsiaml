@@ -7,6 +7,7 @@
 //   *_mma   any M: 64-column tiles, weights dequantised to bf16 in shared memory (exact), bf16 tensor-core MMA,
 //           f32 accumulate. Used for prefill and as the correct path for every shape.
 // Both are deterministic (fixed reduction order). Activations bf16; output bf16 or f32.
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <type_traits>
