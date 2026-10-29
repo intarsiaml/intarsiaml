@@ -255,6 +255,111 @@ nvfp4_gemv_full_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
     }
 }
 
+// Streaming variant of the persistent kernel (lane stream16; the lm_head at M >= 12): the same staging, tiles, u order and
+// per-(m, n) arithmetic as nvfp4_gemv_full_kernel (so the same bits), with K = 512 * KPL known at compile time and the warp's
+// next chunk of CH u blocks (the next tile's first chunk at a tile's end) loaded before the current chunk's math, a register
+// double buffer across tile boundaries (docs/results/2026-10-29-stream16-gemv-stream.md).
+template <int M, int NT, int W, int KPL, int CH, typename OutT>
+__global__ void __launch_bounds__(W * IK_WARP, 1)
+nvfp4_gemv_pipe_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ bs,
+                       const float* __restrict__ gs, OutT* __restrict__ out, int64_t N) {
+    static_assert(KPL % CH == 0, "the chunks tile a lane's u blocks");
+    constexpr int NC = KPL / CH, KV = 32 * KPL, K = 16 * KV;
+    extern __shared__ __align__(16) unsigned char smem[];
+    uint4* xs = reinterpret_cast<uint4*>(smem);  // [M][2][K / 16], as the persistent kernel
+    for (int i = threadIdx.x; i < M * (K / 8); i += blockDim.x) {
+        const int m = i / (K / 8), j = i % (K / 8);
+        xs[(m * 2 + (j & 1)) * KV + (j >> 1)] = __ldg(reinterpret_cast<const uint4*>(x + (int64_t)m * K) + j);
+    }
+    __syncthreads();
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t tiles = (N + NT - 1) / NT, stride = (int64_t)gridDim.x * W;
+    const float g = gs[0];
+    int64_t t = (int64_t)blockIdx.x * W + warp;
+    if (t >= tiles) return;
+    auto wrow = [&](int64_t tt, int j) {
+        const int64_t n = tt * NT + j < N ? tt * NT + j : 0;  // a dead output reads row 0
+        return reinterpret_cast<const uint2*>(w + n * (K / 2));
+    };
+    auto srow = [&](int64_t tt, int j) {
+        const int64_t n = tt * NT + j < N ? tt * NT + j : 0;
+        return bs + n * (K / 16);
+    };
+    uint2 cur[CH][NT], nxt[CH][NT];
+    uint8_t cs[CH][NT], ns[CH][NT];
+#pragma unroll
+    for (int i = 0; i < CH; ++i)
+#pragma unroll
+        for (int j = 0; j < NT; ++j) {
+            cur[i][j] = __ldcs(wrow(t, j) + lane + 32 * i);
+            cs[i][j] = srow(t, j)[lane + 32 * i];
+        }
+    for (;;) {
+        float acc[NT][M];
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
+        const int64_t tn = t + stride;
+#pragma unroll
+        for (int c = 0; c < NC; ++c) {
+            const int64_t tl = c + 1 == NC ? tn : t;  // the next chunk: this tile's, or the next tile's first
+            const int cb = c + 1 == NC ? 0 : (c + 1) * CH;
+            if (tl < tiles) {
+#pragma unroll
+                for (int i = 0; i < CH; ++i)
+#pragma unroll
+                    for (int j = 0; j < NT; ++j) {
+                        nxt[i][j] = __ldcs(wrow(tl, j) + lane + 32 * (cb + i));
+                        ns[i][j] = srow(tl, j)[lane + 32 * (cb + i)];
+                    }
+            }
+#pragma unroll
+            for (int i = 0; i < CH; ++i) {
+                const int u = lane + 32 * (c * CH + i);
+                // nvfp4_gemv_full_kernel's body for block u
+                uint32_t wb[NT][8];
+                float sc[NT];
+#pragma unroll
+                for (int j = 0; j < NT; ++j) {
+                    sc[j] = ik_e4m3_to_f(cs[i][j]);
+                    ik_fp4x8_to_bf2(cur[i][j].x, wb[j]);
+                    ik_fp4x8_to_bf2(cur[i][j].y, wb[j] + 4);
+                }
+#pragma unroll
+                for (int m = 0; m < M; ++m) {
+                    const uint4 x0 = xs[(m * 2) * KV + u], x1 = xs[(m * 2 + 1) * KV + u];
+                    const uint32_t xb[8] = {x0.x, x0.y, x0.z, x0.w, x1.x, x1.y, x1.z, x1.w};
+#pragma unroll
+                    for (int j = 0; j < NT; ++j) {
+                        float sd = 0.f;
+#pragma unroll
+                        for (int p = 0; p < 8; ++p) sd = ik_fma2_bf16(wb[j][p], xb[p], sd);
+                        acc[j][m] = fmaf(sd, sc[j], acc[j][m]);
+                    }
+                }
+            }
+#pragma unroll
+            for (int i = 0; i < CH; ++i)
+#pragma unroll
+                for (int j = 0; j < NT; ++j) {
+                    cur[i][j] = nxt[i][j];
+                    cs[i][j] = ns[i][j];
+                }
+        }
+        const int64_t nb = t * NT;
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                const float r = ik_warp_sum(acc[j][m]);  // all 32 lanes call it (full-mask shuffles)
+                if (lane == 0 && nb + j < N) ik_store(out + (int64_t)m * N + nb + j, r * g);
+            }
+        t = tn;
+        if (t >= tiles) break;
+    }
+}
+
 inline int sm_count() {
     static int cached[64];
     int d = 0;
@@ -280,6 +385,34 @@ void full_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const fl
     kern<<<(unsigned)(blocks < cap ? blocks : cap), W * IK_WARP, smem, s>>>(x, w, bs, gs, out, N, (int)K);
 }
 
+template <int M, int NT, int W, int KPL, int CH, typename OutT>
+void pipe_launch(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, cudaStream_t s) {
+    const size_t smem = (size_t)M * 512 * KPL * 2;
+    auto kern = nvfp4_gemv_pipe_kernel<M, NT, W, KPL, CH, OutT>;
+    (void)smem_cap_once<nvfp4_gemv_pipe_kernel<M, NT, W, KPL, CH, OutT>>(kFullSmemMax);
+    int occ = 0;
+    if (cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, kern, W * IK_WARP, smem) != cudaSuccess || occ < 1) occ = 1;
+    const int64_t blocks = ((N + NT - 1) / NT + W - 1) / W, cap = (int64_t)sm_count() * occ;
+    kern<<<(unsigned)(blocks < cap ? blocks : cap), W * IK_WARP, smem, s>>>(x, w, bs, gs, out, N);
+}
+
+// INTARSIA_CUDA_NVFP4_ROWS_PIPE (lane stream16, default on): where the persistent kernel runs by default at K = 2048 (the lm_head),
+// unset / `auto` = the streaming variant above from 12 rows, `all` = from 5 rows (every M the persistent kernel takes), `0` = never;
+// INTARSIA_CUDA_NVFP4_ROWS_PIPE_SHAPE = NTxW:CH (2x8:4 default, 2x8:2, 1x16:4, 1x8:4) its shape
+template <int M, typename OutT>
+bool pipe_run_m(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const float* gs, OutT* out, int64_t N, cudaStream_t s) {
+    const char* e = getenv("INTARSIA_CUDA_NVFP4_ROWS_PIPE");
+    if (e && e[0] == '0' && e[1] == 0) return false;
+    const bool all = e && !strcmp(e, "all");
+    if (M < (all ? 5 : 12)) return false;
+    const char* f = getenv("INTARSIA_CUDA_NVFP4_ROWS_PIPE_SHAPE");
+    if (f && !strcmp(f, "2x8:2")) pipe_launch<M, 2, 8, 4, 2>(x, w, bs, gs, out, N, s);
+    else if (f && !strcmp(f, "1x16:4")) pipe_launch<M, 1, 16, 4, 4>(x, w, bs, gs, out, N, s);
+    else if (f && !strcmp(f, "1x8:4")) pipe_launch<M, 1, 8, 4, 4>(x, w, bs, gs, out, N, s);
+    else pipe_launch<M, 2, 8, 4, 4>(x, w, bs, gs, out, N, s);
+    return true;
+}
+
 // INTARSIA_CUDA_NVFP4_ROWS_FULL (default on, decided 2026-10-28 over the lane's speed gates): unset / `auto` = the persistent kernel for M >= 5
 // when N >= 16384 and x fits 96 KB of shared memory, `0` = never (the kernel of before), a shape NTxW (`2x16`, `1x16`, `2x8`, `4x8`) = that shape wherever x fits;
 // the default shape is 2x16 below 12 rows and 4x8 from 12 (16-row lm_head micro-timing, evicted: 2x16 2210 us, 4x8 1964, tile 2128)
@@ -291,6 +424,7 @@ bool full_run_m(const ik_bf16* x, const uint8_t* w, const uint8_t* bs, const flo
     if (e[0] == '0' && e[1] == 0) return false;
     const bool forced = e && (!strcmp(e, "2x16") || !strcmp(e, "1x16") || !strcmp(e, "2x8") || !strcmp(e, "4x8"));
     if (!forced && (strcmp(e, "auto") || M < 5 || N < 16384)) return false;
+    if (!forced && K == 2048 && pipe_run_m<M>(x, w, bs, gs, out, N, s)) return true;
     if (forced && !strcmp(e, "1x16")) full_launch<M, 1, 16>(x, w, bs, gs, out, N, K, s);
     else if (forced && !strcmp(e, "2x8")) full_launch<M, 2, 8>(x, w, bs, gs, out, N, K, s);
     else if (forced && !strcmp(e, "4x8")) full_launch<M, 4, 8>(x, w, bs, gs, out, N, K, s);

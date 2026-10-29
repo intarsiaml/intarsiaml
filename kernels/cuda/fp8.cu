@@ -9,6 +9,7 @@
 // Both are deterministic (fixed reduction order). Activations bf16; output bf16 or f32.
 #include <cstdlib>
 #include <cstring>
+#include <type_traits>
 
 #include "ik_launch.h"
 #include "ik_quant.cuh"
@@ -528,6 +529,167 @@ fp8_gemv_rows_q_pair_kernel(const ik_bf16* __restrict__ x, const uint8_t* __rest
     rows_q_seg<M, NT, W>(x, xs, w1, sc1, o1, N1, K, ((int64_t)N0 + NT - 1) / NT, staged);
 }
 
+// ---- e4m3-staged GEMV, streaming variant (lane stream16) ---------------------------------------------------------------
+//
+// The same tiles, u order and arithmetic as rows_q_tiles<M, NT, W, true> (every (m, n): lane-strided 16-element blocks
+// u = lane, lane + 32, ..., the f16-pair fma chain, `acc += s`, the warp tree, the scale), so the bits are the e4m3-staged
+// kernel's. What changes is when the weights are in flight: K = 512 * KPL is known at compile time, the warp walks its (tile,
+// chunk of CH u blocks) sequence with the next chunk's loads (the next tile's first chunk at a tile's end) issued before the
+// current chunk's math (a register double buffer across tile boundaries), lanes j < NT bulk-prefetch row j of the tile `pf`
+// strides ahead into L2, and before the block quantises x every warp bulk-prefetches its first `ep` tiles into L2, so the
+// weight stream starts while the prologue runs (docs/results/2026-10-29-stream16-gemv-stream.md).
+IK_DEVI void ik_prefetch_l2_bulk(const void* p, uint32_t bytes) {
+    asm volatile("cp.async.bulk.prefetch.L2.global [%0], %1;" ::"l"(p), "r"(bytes) : "memory");
+}
+
+template <int M, int NT>
+IK_DEVI void rows_qp_u(const uint4* __restrict__ xs, const uint4 (&wv)[NT], int u, int KV, float (&acc)[NT][M]) {
+    uint32_t wh[NT][8];
+#pragma unroll
+    for (int j = 0; j < NT; ++j) ik_fp8x16_to_h2(wv[j], wh[j]);
+#pragma unroll
+    for (int m = 0; m < M; ++m) {
+        uint32_t xh[8];
+        ik_fp8x16_to_h2(xs[m * KV + u], xh);
+#pragma unroll
+        for (int j = 0; j < NT; ++j) {
+            float sdot = 0.f;
+#pragma unroll
+            for (int p = 0; p < 8; ++p) sdot = ik_fma2_f16(wh[j][p], xh[p], sdot);
+            acc[j][m] += sdot;
+        }
+    }
+}
+
+// the warp's first tile of a matrix whose tiles start at `base` of the launch-wide sequence (rows_q_tiles' `first - base`)
+template <int W>
+IK_DEVI int64_t rows_qp_first(int64_t base, int64_t& stride) {
+    const int warp = threadIdx.x / IK_WARP;
+    stride = (int64_t)gridDim.x * W;
+    const int64_t g0 = (int64_t)blockIdx.x * W + warp;
+    return (g0 >= base ? g0 : g0 + (base - g0 + stride - 1) / stride * stride) - base;
+}
+
+template <int M, int NT, int W, int KPL, int CH, typename OutT>
+__device__ __forceinline__ void rows_qp_tiles(const uint4* __restrict__ xs, const uint8_t* __restrict__ w, float s_out,
+                                              OutT* __restrict__ out, int N, int64_t base, int pf) {
+    static_assert(KPL % CH == 0, "the chunks tile a lane's u blocks");
+    constexpr int NC = KPL / CH, KV = 32 * KPL, K = 16 * KV;
+    const int lane = threadIdx.x % IK_WARP;
+    const int64_t tiles = ((int64_t)N + NT - 1) / NT;
+    int64_t stride;
+    int64_t t = rows_qp_first<W>(base, stride);
+    if (t >= tiles) return;
+    auto row = [&](int64_t tt, int j) {
+        const int64_t n = tt * NT + j;
+        return reinterpret_cast<const uint4*>(w + (n < N ? n : 0) * (int64_t)K);  // a dead output reads row 0
+    };
+    uint4 cur[CH][NT], nxt[CH][NT];
+#pragma unroll
+    for (int i = 0; i < CH; ++i)
+#pragma unroll
+        for (int j = 0; j < NT; ++j) cur[i][j] = __ldcs(row(t, j) + lane + 32 * i);
+    for (;;) {
+        if (pf > 0 && lane < NT && t + pf * stride < tiles) ik_prefetch_l2_bulk(row(t + pf * stride, lane), (uint32_t)K);
+        float acc[NT][M];
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) acc[j][m] = 0.f;
+        const int64_t tn = t + stride;
+#pragma unroll
+        for (int c = 0; c < NC; ++c) {
+            const int64_t tl = c + 1 == NC ? tn : t;  // the next chunk: this tile's, or the next tile's first
+            const int cb = c + 1 == NC ? 0 : (c + 1) * CH;
+            if (tl < tiles) {
+#pragma unroll
+                for (int i = 0; i < CH; ++i)
+#pragma unroll
+                    for (int j = 0; j < NT; ++j) nxt[i][j] = __ldcs(row(tl, j) + lane + 32 * (cb + i));
+            }
+#pragma unroll
+            for (int i = 0; i < CH; ++i) rows_qp_u<M, NT>(xs, cur[i], lane + 32 * (c * CH + i), KV, acc);
+#pragma unroll
+            for (int i = 0; i < CH; ++i)
+#pragma unroll
+                for (int j = 0; j < NT; ++j) cur[i][j] = nxt[i][j];
+        }
+        const int64_t nb = t * NT;
+#pragma unroll
+        for (int j = 0; j < NT; ++j)
+#pragma unroll
+            for (int m = 0; m < M; ++m) {
+                const float r = ik_warp_sum(acc[j][m]);  // all 32 lanes call it (full-mask shuffles)
+                if (lane == 0 && nb + j < N) ik_store(out + (int64_t)m * N + nb + j, r * s_out);
+            }
+        t = tn;
+        if (t >= tiles) break;
+    }
+}
+
+// One matrix of a streaming call: W8A8 as above (the staging is rows_q_seg's, byte for byte), W8A16 rows_q_seg itself
+template <int M, int NT, int W, int KPL, int CH, typename OutT>
+__device__ __forceinline__ void rows_qp_seg(const ik_bf16* __restrict__ x, uint4* __restrict__ xs, const uint8_t* __restrict__ w,
+                                            const float* __restrict__ sc, OutT* __restrict__ out, int N, int64_t base,
+                                            float& staged, int pf, int ep) {
+    constexpr int KV = 32 * KPL, K = 16 * KV;
+    if (!(sc[1] > 0.f)) {
+        rows_q_seg<M, NT, W>(x, xs, w, sc, out, N, K, base, staged);
+        return;
+    }
+    const float s_in = sc[1];
+    if (ep > 0) {
+        const int lane = threadIdx.x % IK_WARP;
+        int64_t stride;
+        const int64_t t = rows_qp_first<W>(base, stride), tiles = ((int64_t)N + NT - 1) / NT;
+        if (lane < NT)
+            for (int e = 0; e < ep && t + e * stride < tiles; ++e) {
+                const int64_t n = (t + e * stride) * NT + lane;
+                if (n < N) ik_prefetch_l2_bulk(w + n * (int64_t)K, (uint32_t)K);
+            }
+    }
+    if (staged != s_in) {
+        __syncthreads();  // the previous matrix is done with xs
+        for (int i = threadIdx.x; i < M * KV; i += blockDim.x) {
+            const int m = i / KV, u = i % KV;
+            const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K) + 2 * u;
+            float f[16];
+            ik_unpack8(__ldg(xp), f);
+            ik_unpack8(__ldg(xp + 1), f + 8);
+            uint32_t c[4];
+#pragma unroll
+            for (int q = 0; q < 4; ++q)
+                c[q] = (uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q], s_in)) | ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 1], s_in)) << 8) |
+                       ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 2], s_in)) << 16) | ((uint32_t)ik_f_to_e4m3(__fdiv_rn(f[4 * q + 3], s_in)) << 24);
+            xs[i] = make_uint4(c[0], c[1], c[2], c[3]);
+        }
+        __syncthreads();
+        staged = s_in;
+    }
+    rows_qp_tiles<M, NT, W, KPL, CH>(xs, w, sc[0] * s_in, out, N, base, pf);
+}
+
+template <int M, int NT, int W, int MINB, int KPL, int CH, typename OutT>
+__global__ void __launch_bounds__(W * IK_WARP, MINB)
+fp8_gemv_rows_qp_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                        OutT* __restrict__ out, int N, int pf, int ep) {
+    extern __shared__ __align__(16) unsigned char smem[];
+    float staged = -1.f;
+    rows_qp_seg<M, NT, W, KPL, CH>(x, reinterpret_cast<uint4*>(smem), w, sc, out, N, 0, staged, pf, ep);
+}
+
+template <int M, int NT, int W, int MINB, int KPL, int CH, typename OutT>
+__global__ void __launch_bounds__(W * IK_WARP, MINB)
+fp8_gemv_rows_qp_pair_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w0, const float* __restrict__ sc0,
+                             OutT* __restrict__ o0, int N0, const uint8_t* __restrict__ w1, const float* __restrict__ sc1,
+                             OutT* __restrict__ o1, int N1, int pf, int ep) {
+    extern __shared__ __align__(16) unsigned char smem[];
+    uint4* xs = reinterpret_cast<uint4*>(smem);
+    float staged = -1.f;
+    rows_qp_seg<M, NT, W, KPL, CH>(x, xs, w0, sc0, o0, N0, 0, staged, pf, ep);
+    rows_qp_seg<M, NT, W, KPL, CH>(x, xs, w1, sc1, o1, N1, ((int64_t)N0 + NT - 1) / NT, staged, pf, ep);
+}
+
 template <int M, int NT, int W, int MINB, typename OutT>
 int rows_run_q(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
     const size_t smem = (size_t)M * K;
@@ -545,6 +707,69 @@ int rows_run_q(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, i
 }
 
 constexpr int64_t kQSmallN = 1024;
+
+// INTARSIA_CUDA_FP8_ROWS_QPIPE (lane stream16, default on): the streaming variant above for the e4m3-staged calls at M >= 12 over
+// more than kQSmallN outputs with K = 2048 or 4096 (W8A8; W8A16 takes rows_q_seg inside it). `0` = main's e4m3-staged kernel.
+// INTARSIA_CUDA_FP8_ROWS_QPIPE_K2 / _K4 = `NTxWxB:CH:PF:EP` picks the shape at K = 2048 / 4096 among the compiled ones below
+// (NTxWxB as INTARSIA_CUDA_FP8_ROWS_QSHAPE, CH u blocks per chunk, PF the L2 prefetch distance in strides, EP the prologue's
+// prefetched tiles; PF / EP 0 = none). An explicit INTARSIA_CUDA_FP8_ROWS_QSHAPE turns it off (that knob's shapes are main's kernel).
+struct QPipe {
+    int nt, w, minb, ch, pf, ep;
+};
+inline bool qpipe_on() {
+    const char* e = getenv("INTARSIA_CUDA_FP8_ROWS_QPIPE");
+    return !(e && e[0] == '0' && e[1] == 0) && !getenv("INTARSIA_CUDA_FP8_ROWS_QSHAPE");
+}
+inline QPipe qpipe_shape(int64_t K) {
+    QPipe q = K == 4096 ? QPipe{1, 16, 1, 2, 4, 2} : QPipe{2, 16, 1, 1, 0, 2};  // defaults (results doc, probe and step A/B)
+    const char* e = getenv(K == 4096 ? "INTARSIA_CUDA_FP8_ROWS_QPIPE_K4" : "INTARSIA_CUDA_FP8_ROWS_QPIPE_K2");
+    QPipe v{};
+    if (e && sscanf(e, "%dx%dx%d:%d:%d:%d", &v.nt, &v.w, &v.minb, &v.ch, &v.pf, &v.ep) == 6) q = v;
+    return q;
+}
+
+template <int M, int NT, int W, int MINB, int KPL, int CH>
+int rows_run_qp(const ik_bf16* x, const uint8_t* w, const float* sc, ik_bf16* out, int64_t N, const uint8_t* w1,
+                const float* sc1, ik_bf16* o1, int64_t N1, int pf, int ep, cudaStream_t s) {
+    const size_t smem = (size_t)M * 512 * KPL;
+    const bool pair = w1 != nullptr;
+    auto k1 = fp8_gemv_rows_qp_kernel<M, NT, W, MINB, KPL, CH, ik_bf16>;
+    auto k2 = fp8_gemv_rows_qp_pair_kernel<M, NT, W, MINB, KPL, CH, ik_bf16>;
+    const bool cap_set = pair ? smem_cap_once<fp8_gemv_rows_qp_pair_kernel<M, NT, W, MINB, KPL, CH, ik_bf16>>(kQSmemMax)
+                              : smem_cap_once<fp8_gemv_rows_qp_kernel<M, NT, W, MINB, KPL, CH, ik_bf16>>(kQSmemMax);
+    if (!cap_set) return IK_ERR_LAUNCH;
+    int occ = 0;
+    const cudaError_t oe = pair ? cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, k2, W * IK_WARP, smem)
+                                : cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, k1, W * IK_WARP, smem);
+    if (oe != cudaSuccess || occ < 1) occ = 1;
+    const int64_t tiles = (N + NT - 1) / NT + (pair ? (N1 + NT - 1) / NT : 0);
+    const int64_t blocks = (tiles + W - 1) / W;
+    const int64_t cap = (int64_t)sm_count() * occ;
+    const unsigned grid = (unsigned)(blocks < cap ? blocks : cap);
+    if (pair) k2<<<grid, W * IK_WARP, smem, s>>>(x, w, sc, out, (int)N, w1, sc1, o1, (int)N1, pf, ep);
+    else k1<<<grid, W * IK_WARP, smem, s>>>(x, w, sc, out, (int)N, pf, ep);
+    return ik_launch_status();
+}
+
+constexpr int kQPipeNo = 1 << 30;  // "not taken": the caller runs main's kernel
+
+// the streaming variant for one matrix (w1 == nullptr) or a pair, bf16 out, or kQPipeNo when it does not apply
+template <int M>
+int rows_qp_try(const ik_bf16* x, const uint8_t* w, const float* sc, ik_bf16* out, int64_t N, const uint8_t* w1,
+                const float* sc1, ik_bf16* o1, int64_t N1, int64_t K, cudaStream_t s) {
+    if constexpr (M >= 12) {
+        if ((K != 2048 && K != 4096) || !qpipe_on()) return kQPipeNo;
+        const QPipe q = qpipe_shape(K);
+        const int pf = q.pf, ep = q.ep;
+#define IK_QP(NT, W, MINB, KPL, CH)                                                                                        \
+        if (q.nt == NT && q.w == W && q.minb == MINB && q.ch == CH && K == 512 * KPL)                                       \
+            return rows_run_qp<M, NT, W, MINB, KPL, CH>(x, w, sc, out, N, w1, sc1, o1, N1, pf, ep, s);
+        IK_QP(2, 16, 1, 4, 1) IK_QP(2, 8, 2, 4, 1) IK_QP(1, 16, 1, 4, 1)
+        IK_QP(1, 16, 1, 8, 2) IK_QP(1, 16, 1, 8, 1) IK_QP(2, 16, 1, 8, 1) IK_QP(1, 16, 1, 8, 4)
+#undef IK_QP
+    }
+    return kQPipeNo;
+}
 
 // INTARSIA_CUDA_FP8_ROWS_QSHAPE = NTxW or NTxWxB (B: blocks per SM the register budget is sized for): the e4m3-staged kernel's shape
 template <int M, typename OutT>
@@ -603,7 +828,15 @@ int rows_run(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int
         const bool small_n = N <= kQSmallN && M >= 4;  // k / v: the persistent kernel's 2x16 grid is a third of the SMs
         // from 12 rows the codes' half-size staging (2 blocks per SM) beats the bf16 one at K = 2048 too (evicted 16-row
         // micro-timing 8192x2048: 88.7 -> 82.5 us, 4096x2048: 50.7 -> 49.0)
-        if (fits_q && (q == 2 || (q == 1 && (!fits_full || small_n || M >= 12)))) return rows_run_q_shape<M>(x, w, sc, out, N, K, s);
+        if (fits_q && (q == 2 || (q == 1 && (!fits_full || small_n || M >= 12)))) {
+            if constexpr (std::is_same<OutT, ik_bf16>::value) {
+                if (N > kQSmallN) {
+                    const int r = rows_qp_try<M>(x, w, sc, out, N, nullptr, nullptr, nullptr, 0, K, s);
+                    if (r != kQPipeNo) return r;
+                }
+            }
+            return rows_run_q_shape<M>(x, w, sc, out, N, K, s);
+        }
     }
     if (!off && !tile && (size_t)M * K * 2 <= kFullSmemMax) {
         const char* f = getenv("INTARSIA_CUDA_FP8_ROWS_FULL");
@@ -671,6 +904,8 @@ int rows_pair_run(const ik_bf16* x, const uint8_t* w0, const float* sc0, ik_bf16
         if (fp8_pair_rows_on() && !plain && rows_q_mode() != 0 && (size_t)M * K <= kQSmemMax && (M >= 12 || small_n) &&
             !getenv("INTARSIA_CUDA_FP8_ROWS_QSHAPE")) {
             if (N0 + N1 <= kQSmallN) return rows_run_q_pair<M, 1, 16, 1>(x, w0, sc0, o0, N0, w1, sc1, o1, N1, K, s);
+            const int r = rows_qp_try<M>(x, w0, sc0, o0, N0, w1, sc1, o1, N1, K, s);
+            if (r != kQPipeNo) return r;
             return rows_run_q_pair<M, 2, 8, 2>(x, w0, sc0, o0, N0, w1, sc1, o1, N1, K, s);
         }
     }
