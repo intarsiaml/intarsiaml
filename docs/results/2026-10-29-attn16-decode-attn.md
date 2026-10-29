@@ -91,7 +91,9 @@ K / V are streaming loads (evict first, so the partials survive until the combin
 ## 2. The change
 
 `splitkv_rows_persist_kernel<TPK>` (default on; `INTARSIA_ATTN_ROWS_PERSIST=0` restores main) serves the row-table decode
-launch for groups of 5 to 8 heads (KB = 2, the 35B). Other groups (the 8B's 4) keep main's grid.
+launch for groups of 5 to 8 heads (KB = 2, the 35B). Other groups (the 8B's 4) keep main's grid. Gemma-4's D = 512 global layers cannot reach this launcher (it takes D <= 256);
+its sliding layers (8 KV heads, D = 256) take the new kernel only if they group 5 or more query heads per KV head, which was
+not checked against the checkpoint. Exactness for any such group is covered by the G-B test at G = 5 / 8.
 
 - **Items.** It enumerates exactly the items whose blocks do work in main's grid: (row, KV head, split < the row's split
   count), row by row. They are dealt round-robin to a grid of SMs x resident blocks (48 x 1).
@@ -189,8 +191,8 @@ micro, nsys micro, plan show, one step check), about 25.
 
 ## 5. Caveats
 
-- **The brief says vLLM's KV is bf16; it is not.** VPROF's startup log shows FlashInfer decode on an `float8_e4m3fn` KV
-  cache: 19.7 MB per layer against our 39 MB. Most of the 1.2 ms "attention gap" is bytes. An exact bf16 kernel's floor at
+- **The brief says vLLM's KV is bf16; it is not.** `docs/results/2026-10-29-vprof-vllm-step.md:52` records FlashInfer decode on a
+  `float8_e4m3fn` KV cache (raw: `2026-10-29-vprof-vllm-step/raw/vllm-startup.log`): 19.7 MB per layer against our 39 MB. Most of the 1.2 ms "attention gap" is bytes. An exact bf16 kernel's floor at
   B = 16, about 1.1k keys, is about 166 us per layer (the pattern probe), so the exact headroom from main's 214.6 us is
   about 0.5 ms per step, of which this PR takes 0.2 ms served (0.4 ms on the micro-timing step, 0.5 ms on the isolated kernel).
 - **Gemma-4 `plan show` was not run.** The checkpoint is not on spark2, and lanes may only use spark2. All pre-existing
