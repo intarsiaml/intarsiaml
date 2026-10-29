@@ -1,0 +1,17 @@
+== INTARSIA_CUDA_CONV_BF16=0 07:40:35
+STEP B=8 ms 26.719 27.831 29.106
+STEP B=16 ms 42.874 44.299 45.622
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.94s
+== - 07:41:24
+STEP B=8 ms 26.648 27.711 29.103
+STEP B=16 ms 42.543 43.975 45.436
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.96s
+== - 07:42:13
+STEP B=8 ms 26.426 27.563 28.796
+STEP B=16 ms 42.570 43.998 45.483
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.67s
+== INTARSIA_CUDA_CONV_BF16=0 07:43:01
+STEP B=8 ms 26.703 27.801 29.176
+STEP B=16 ms 42.838 44.443 45.916
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 48.06s
+== done 07:43:50

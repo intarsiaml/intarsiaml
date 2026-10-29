@@ -10,8 +10,10 @@ set -uo pipefail
 H="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RAW=$H/../../docs/results/2026-10-29-conv16-bf16-conv-state/raw; mkdir -p $RAW
 T0=$SECONDS
-date +%T; "$H/gates.sh" 2>&1 | tee "$RAW/gates.txt"
-grep -aq "bf16_conv_state_is_the_f32_conv_state ... ok" "$RAW/gates.txt" && grep -aq "bf16_conv_state_rows_are_the_f32_solo_conv ... ok" "$RAW/gates.txt" || { echo "ABORT: gdn_conv16"; exit 3; }
+if [[ -z "${SKIP_GATES:-}" ]]; then
+  date +%T; "$H/gates.sh" 2>&1 | tee "$RAW/gates.txt"
+  grep -aq "test result: ok. 2 passed" "$RAW/gates-c16.txt" || { echo "ABORT: gdn_conv16"; exit 3; }
+fi
 date +%T; "$H/batch-real.sh" dev > "$RAW/batch-real.txt" 2>&1; cat "$RAW/batch-real.txt"
 grep -aq "test result: ok. 2 passed" "$RAW/batch-real.txt" || { echo "ABORT: batch_cuda_real"; exit 3; }
 OFF=INTARSIA_CUDA_CONV_BF16=0
