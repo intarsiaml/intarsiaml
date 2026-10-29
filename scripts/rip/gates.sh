@@ -25,7 +25,8 @@ rsh() { ssh -n -o BatchMode=yes $H "$@"; }
 stop_server() { [[ -n "$SPID" ]] && { rsh "kill $SPID 2>/dev/null; for i in \$(seq 1 15); do kill -0 $SPID 2>/dev/null || exit 0; sleep 1; done; kill -9 $SPID 2>/dev/null; sleep 2"; SPID=""; }; }
 trap stop_server EXIT INT TERM
 start() { # name bin model args
-  SPID=$(rsh "nohup $B/$2 serve --backend cuda --model $3 --port $PORT --host 0.0.0.0 --served-model-name intarsia --max-seq 8192 --mem-budget 40 --profile-every 0 $4 > ~/intarsiaml-rip/out/serve-$1.log 2>&1 < /dev/null & echo \$!")
+  # the knob is opt-in (default off since the speed A/B); the base binary ignores it, and the 35B / Gemma-4 switch it off
+  SPID=$(rsh "nohup env INTARSIA_ROW_INVARIANT_PREFILL=1 $B/$2 serve --backend cuda --model $3 --port $PORT --host 0.0.0.0 --served-model-name intarsia --max-seq 8192 --mem-budget 40 --profile-every 0 $4 > ~/intarsiaml-rip/out/serve-$1.log 2>&1 < /dev/null & echo \$!")
   for i in $(seq 1 150); do curl -sf "http://$HN:$PORT/health" >/dev/null && return 0; sleep 2; done
   echo "server $1 did not come up"; stop_server; return 1
 }
@@ -33,7 +34,7 @@ F='^test |test result|panicked|FINDING|RIP|bi8 engine|pairs bitwise|left|right|r
 P=${PARTS:-model served shared}
 if [[ " $P " == *" model "* ]]; then
   echo "== probe (cold reference)"
-  rsh "$RPATH $CT INTARSIA_BI8_PROBE=1 INTARSIA_QWEN3_DIR=$M8 cargo test --release -p intarsia-models --test batch_cuda_real real_qwen3_8b_prefix_reuse_probe -- --test-threads=1 --nocapture 2>&1 | grep -aE '^test |test result|panicked|COLD|SELFREUSE|SPLIT|CROSS'" > "$OUT/probe.log"
+  rsh "$RPATH $CT INTARSIA_ROW_INVARIANT_PREFILL=1 INTARSIA_BI8_PROBE=1 INTARSIA_QWEN3_DIR=$M8 cargo test --release -p intarsia-models --test batch_cuda_real real_qwen3_8b_prefix_reuse_probe -- --test-threads=1 --nocapture 2>&1 | grep -aE '^test |test result|panicked|COLD|SELFREUSE|SPLIT|CROSS'" > "$OUT/probe.log"
   python3 "$D/../bi8/cold-ref.py" "$OUT/probe.log" "$OUT/cold.json"
   echo "SELFREUSE equal: $(grep -c 'logits row0 EQUAL' "$OUT/probe.log") / $(grep -c SELFREUSE "$OUT/probe.log"); SPLIT with a differing split: $(grep SPLIT "$OUT/probe.log" | grep -c ':x'); CROSS differing: $(grep CROSS "$OUT/probe.log" | grep -vc 'None')"
   echo "== engine gates"

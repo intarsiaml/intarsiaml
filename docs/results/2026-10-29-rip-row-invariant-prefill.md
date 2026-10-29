@@ -169,7 +169,8 @@ cell, every prompt led by a nonce.
 - **16-stream decode cell:** per-stream decode is -1.0% (11.17 -> 11.08 tok/s) and TTFT +11% (2.22 -> 2.46 s). The cell's 16 1k
   prefills interleave with decode, so the cost is the 1k prefill again. 1-stream decode (`forward` with decode kernels, unchanged) is
   -0.1%.
-- **35B:** within noise, as expected for unchanged kernels.
+- **35B:** within noise, as expected for unchanged kernels. It ran 1 round, not 3: the knob does nothing on the 35B (auto-off), so
+  only a base-vs-fix regression check was needed there.
 
 **GEMM ref-M sweep** (`gemm_inv_timing_at_8b_shapes`, `--ignored`, the 8B's 7 projection GEMMs of one layer on random operands, us per
 layer, the final tree). `INTARSIA_INV_REF_M` is the row count cuBLASLt's heuristic picks the one algorithm for (`raw/final/timing.log`):

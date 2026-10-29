@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Lane rip GPU job (spark2, --quiet gpu,cpu): the speed A/B of row-invariant prefill, same binary, arm A =
-# INTARSIA_ROW_INVARIANT_PREFILL=0 (the ordinary prefill, BI8's reuse rule), arm B = the default (row-invariant prefill).
+# INTARSIA_ROW_INVARIANT_PREFILL=0 (the ordinary prefill, BI8's reuse rule), arm B = INTARSIA_ROW_INVARIANT_PREFILL=1 (opt-in; the
+# measured run had it as the default, `0f94ac8`).
 # Per round and arm: prefill on a solo server (localeval speed --sizes 1024,4096,16384 --gen 16 --reps 3, one stream), then the
 # 16-stream decode cell on a --max-batch 16 server (BI8 / SB8's cell: --sizes 1024 --gen 256 --reps 3 --concurrency 16).
 # ROUNDS (default 3) rounds A B for the 8B. The 35B has row-invariant prefill off (the plan finds no row-invariant MoE / NVFP4
@@ -34,7 +35,7 @@ arm() { # model-tag model round arm
   SBIN=$BIN
   if [[ $tag == 35b ]]; then
     env="INTARSIA_ROW_INVARIANT_PREFILL=default"; [[ $a == A ]] && SBIN=$BINDIR/base
-  elif [[ $a == A ]]; then env="INTARSIA_ROW_INVARIANT_PREFILL=0"; else env="INTARSIA_ROW_INVARIANT_PREFILL=default"; fi
+  elif [[ $a == A ]]; then env="INTARSIA_ROW_INVARIANT_PREFILL=0"; else env="INTARSIA_ROW_INVARIANT_PREFILL=1"; fi
   args="--backend cuda --model $M --port $PORT --host 0.0.0.0 --served-model-name intarsia --profile-every 0"
   local solo="$args --max-seq 17408 --mem-budget 40" mb="$args --max-seq 8192 --mem-budget 40 --max-batch 16"
   if start "$tag-prefill-$a-r$r" "$env" "$solo"; then
