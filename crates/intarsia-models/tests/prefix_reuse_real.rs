@@ -78,7 +78,7 @@ fn serial() -> MutexGuard<'static, ()> {
     SERIAL.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// `INTARSIA_PROBE_CHUNK=N`: a prefill chunk of N rows instead of the recipe's (2048 on Metal), so short prompts have cold chunk
+/// `INTARSIA_PROBE_CHUNK=N`: a prefill chunk of N rows instead of the recipe's (2048 on Metal for the 8B), so short prompts have cold chunk
 /// boundaries and a reuse rule that cuts only there reuses something (the default chunk is longer than every prompt here).
 fn probe_chunk() -> Option<usize> {
     std::env::var("INTARSIA_PROBE_CHUNK").ok().and_then(|v| v.parse().ok())

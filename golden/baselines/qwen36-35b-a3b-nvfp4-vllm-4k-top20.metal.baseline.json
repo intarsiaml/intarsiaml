@@ -1,6 +1,6 @@
 {
   "format": "intarsia-accuracy-baseline-v2",
-  "created_unix": 1792720779,
+  "created_unix": 1793298569,
   "tool_version": "0.0.1",
   "code": {
     "head": "",
@@ -10,7 +10,7 @@
   },
   "exec": {
     "cmdline": [
-      "/opt/code/wt-gc-target/release/intarsia",
+      "/opt/code/intarsiaml/.worktrees/chunk4k/.lane/intarsia-metal",
       "accuracy",
       "--model",
       "/Users/josef/Models/Qwen3.6-35B-A3B-NVFP4",
@@ -29,7 +29,7 @@
       "--max-seq",
       "8192",
       "--write-baseline",
-      "/opt/code/wt-gc/docs/results/2026-10-22-gc2-metal-35b-chunk2048/raw/q-0-record/baselines/acc-4k.baseline.json",
+      "/opt/code/intarsiaml/.worktrees/chunk4k/.lane/w1/q-0-record/baselines/acc-4k.baseline.json",
       "--min-top1",
       "0"
     ],
@@ -38,13 +38,13 @@
     "kernels": {
       "argmax": "argmax_f32",
       "attn_decode": "attn_decode_bf16_splitkv",
-      "attn_prefill": "attn_prefill_bf16_flash",
+      "attn_prefill": "attn_prefill_bf16_flash_nax",
       "embedding": "embedding_bf16",
       "gate_split": "gate_split_bf16",
       "gdn_conv": "gdn_conv_bf16",
-      "gdn_delta_rule": "gdn_delta_rule_bf16",
-      "matmul_fp8": "matmul_fp8_gemv+matmul_fp8_mma",
-      "matmul_nvfp4": "matmul_nvfp4_gemv+matmul_nvfp4_mma",
+      "gdn_delta_rule": "gdn_delta_rule_bf16+gdn_delta_rule_bf16_pre",
+      "matmul_fp8": "matmul_fp8_gemv+matmul_fp8_mma+matmul_fp8_nax",
+      "matmul_nvfp4": "matmul_nvfp4_gemv+matmul_nvfp4_mma+matmul_nvfp4_nax",
       "matmul_pair": "matmul_pair_bf16_gemv+matmul_pair_bf16_nax",
       "moe_combine": "moe_combine_bf16",
       "moe_experts": "moe_experts_bf16",
@@ -77,7 +77,7 @@
     "kv_dtype": "bf16",
     "act_dtype": "bf16",
     "fp8_act": "recipe default",
-    "prefill_chunk": 2048,
+    "prefill_chunk": 4096,
     "prefill_chunk_source": "recipe qwen3_5_moe, metal",
     "decode_positions": 64,
     "gate_class": "4bit"
@@ -87,20 +87,20 @@
       "overall": {
         "mode": "prefill",
         "positions": 12759,
-        "top1_pct": 93.142095775531,
-        "mean_kl": 0.08138691639189179,
-        "mean_kl21": 0.09088838734745672,
-        "top5_pct": 90.18261619249158,
+        "top1_pct": 92.65616427619719,
+        "mean_kl": 0.08157298675870346,
+        "mean_kl21": 0.09456440870059504,
+        "top5_pct": 89.92397523316875,
         "tail_ref": 0.06709213063970995,
-        "tail_ours": 0.07299916957933715,
-        "max_kl": 20.673896443508795,
-        "max_kl21": 22.10225226797241,
-        "tail_abs": 0.011468557269132493,
+        "tail_ours": 0.07408745694481549,
+        "max_kl": 19.80112950002072,
+        "max_kl21": 25.323075635905592,
+        "tail_abs": 0.011945313806550392,
         "nonfinite": 0,
-        "greedy_match_pct": 0.8307861117642449,
+        "greedy_match_pct": 0.25080335449486635,
         "floor_pass": true,
-        "mean_kl_scored": 0.013935535146567344,
-        "mean_kl21_scored": 0.012435983909215992,
+        "mean_kl_scored": 0.014005413096939147,
+        "mean_kl21_scored": 0.01253634866756357,
         "scored_positions": 8221,
         "gate_definitions": [
           {
@@ -111,20 +111,20 @@
               "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
             ],
             "metrics": {
-              "all_rows_kl": 0.09088838734745672,
-              "scored_rows_kl": 0.012435983909215992
+              "all_rows_kl": 0.09456440870059504,
+              "scored_rows_kl": 0.01253634866756357
             },
             "old_def": {
               "definition": "21-way KL over all rows <= static floor",
               "metric_name": "all_rows_kl",
-              "metric": 0.09088838734745672,
+              "metric": 0.09456440870059504,
               "limit": 0.03,
               "verdict": "FAIL"
             },
             "current_def": {
               "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
               "metric_name": "scored_rows_kl",
-              "metric": 0.012435983909215992,
+              "metric": 0.01253634866756357,
               "limit": 0.03,
               "verdict": "PASS"
             }
@@ -135,40 +135,40 @@
         {
           "name": "long_docs_4k",
           "positions": 4064,
-          "top1_pct": 93.82381889763779,
-          "mean_kl": 0.020097707856012368,
-          "mean_kl21": 0.017672277872149072,
-          "top5_pct": 90.69389763779527,
-          "tail_excess": 0.001571481738292681,
-          "max_kl21": 4.486574404969684,
-          "tail_abs": 0.00815832640515373,
-          "mean_kl21_scored": 0.017672277872149072,
+          "top1_pct": 93.62696850393701,
+          "mean_kl": 0.019439973964298272,
+          "mean_kl21": 0.017357600424438232,
+          "top5_pct": 90.84645669291339,
+          "tail_excess": 0.0021679242640168968,
+          "max_kl21": 4.379430773739971,
+          "tail_abs": 0.008320625946433647,
+          "mean_kl21_scored": 0.017357600424438232,
           "scored_positions": 4064
         },
         {
           "name": "long_code_4k",
           "positions": 4064,
-          "top1_pct": 96.89960629921259,
-          "mean_kl": 0.007802154322146852,
-          "mean_kl21": 0.007194716941089826,
-          "top5_pct": 91.75688976377953,
-          "tail_excess": 0.0010345704964253117,
-          "max_kl21": 0.3690186753617419,
-          "tail_abs": 0.002902747425934688,
-          "mean_kl21_scored": 0.007194716941089826,
+          "top1_pct": 96.7765748031496,
+          "mean_kl": 0.008255770858079442,
+          "mean_kl21": 0.007367539743154604,
+          "top5_pct": 91.77165354330708,
+          "tail_excess": 0.0011472793837065233,
+          "max_kl21": 0.3952930201860017,
+          "tail_abs": 0.0030018043064227746,
+          "mean_kl21_scored": 0.007367539743154604,
           "scored_positions": 4064
         },
         {
           "name": "chat_reuse_4k",
           "positions": 4631,
-          "top1_pct": 89.2463830706111,
-          "mean_kl": 0.19974749003500503,
-          "mean_kl21": 0.22858679923238984,
-          "top5_pct": 88.35240768732456,
-          "tail_excess": 0.013987672975342173,
-          "max_kl21": 22.10225226797241,
-          "tail_abs": 0.021890545918228924,
-          "mean_kl21_scored": 0.012653298888836402,
+          "top1_pct": 88.18829626430576,
+          "mean_kl": 0.20043926389465655,
+          "mean_kl21": 0.23883919692718525,
+          "top5_pct": 87.49298207730511,
+          "tail_excess": 0.01636371857104156,
+          "max_kl21": 25.323075635905592,
+          "tail_abs": 0.022974714383538753,
+          "mean_kl21_scored": 0.027724223171428183,
           "scored_positions": 93
         }
       ]
@@ -178,19 +178,19 @@
         "mode": "decode",
         "positions": 192,
         "top1_pct": 98.95833333333333,
-        "mean_kl": 0.00722336544635151,
-        "mean_kl21": 0.006904209972490877,
-        "top5_pct": 90.625,
+        "mean_kl": 0.009688425051553429,
+        "mean_kl21": 0.009000962946315597,
+        "top5_pct": 90.10416666666667,
         "tail_ref": 0.01432701461854899,
-        "tail_ours": 0.014911656084680217,
-        "max_kl": 0.11931975711270659,
-        "max_kl21": 0.1116882935698078,
-        "tail_abs": 0.0017948568105848872,
+        "tail_ours": 0.01453625313913639,
+        "max_kl": 0.20501086696385917,
+        "max_kl21": 0.13139000380692614,
+        "tail_abs": 0.0018700063632634282,
         "nonfinite": 0,
-        "greedy_match_pct": 91.66666666666667,
+        "greedy_match_pct": 93.75,
         "floor_pass": true,
-        "mean_kl_scored": 0.00722336544635151,
-        "mean_kl21_scored": 0.006904209972490877,
+        "mean_kl_scored": 0.009688425051553429,
+        "mean_kl21_scored": 0.009000962946315597,
         "scored_positions": 192,
         "gate_definitions": [
           {
@@ -201,20 +201,20 @@
               "docs/decisions/LOG.md row 2026-10-21 11:23 \"Item 3 below (KL gate restated against vLLM's own run-to-run KL)\""
             ],
             "metrics": {
-              "all_rows_kl": 0.006904209972490877,
-              "scored_rows_kl": 0.006904209972490877
+              "all_rows_kl": 0.009000962946315597,
+              "scored_rows_kl": 0.009000962946315597
             },
             "old_def": {
               "definition": "21-way KL over all rows <= static floor",
               "metric_name": "all_rows_kl",
-              "metric": 0.006904209972490877,
+              "metric": 0.009000962946315597,
               "limit": 0.03,
               "verdict": "PASS"
             },
             "current_def": {
               "definition": "21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor",
               "metric_name": "scored_rows_kl",
-              "metric": 0.006904209972490877,
+              "metric": 0.009000962946315597,
               "limit": 0.03,
               "verdict": "PASS"
             }
@@ -226,53 +226,54 @@
           "name": "long_docs_4k",
           "positions": 64,
           "top1_pct": 98.4375,
-          "mean_kl": 0.014799638223943621,
-          "mean_kl21": 0.01416769339957824,
-          "top5_pct": 90.3125,
-          "tail_excess": -0.00007962576275823315,
-          "max_kl21": 0.1116882935698078,
-          "tail_abs": 0.002176154416487211,
-          "mean_kl21_scored": 0.01416769339957824,
+          "mean_kl": 0.016310277671690684,
+          "mean_kl21": 0.01564097959505283,
+          "top5_pct": 89.375,
+          "tail_excess": 0.000464384142845704,
+          "max_kl21": 0.13139000380692614,
+          "tail_abs": 0.0020019965865111116,
+          "mean_kl21_scored": 0.01564097959505283,
           "scored_positions": 64
         },
         {
           "name": "long_code_4k",
           "positions": 64,
           "top1_pct": 98.4375,
-          "mean_kl": 0.0051176910209263324,
-          "mean_kl21": 0.0047918506141959895,
-          "top5_pct": 89.6875,
-          "tail_excess": 0.001830051959866616,
-          "max_kl21": 0.02527056441425037,
-          "tail_abs": 0.0032045373401814892,
-          "mean_kl21_scored": 0.0047918506141959895,
+          "mean_kl": 0.008182959933199396,
+          "mean_kl21": 0.00679014835332885,
+          "top5_pct": 90.9375,
+          "tail_excess": 0.000160597097730069,
+          "max_kl21": 0.1304270373440363,
+          "tail_abs": 0.0036050791916317024,
+          "mean_kl21_scored": 0.00679014835332885,
           "scored_positions": 64
         },
         {
           "name": "chat_reuse_4k",
           "positions": 64,
           "top1_pct": 100.0,
-          "mean_kl": 0.0017527670941845758,
-          "mean_kl21": 0.001753085903698399,
-          "top5_pct": 91.875,
-          "tail_excess": 3.498201285289522e-6,
-          "max_kl21": 0.02776937240419593,
-          "tail_abs": 3.878675085961506e-6,
-          "mean_kl21_scored": 0.001753085903698399,
+          "mean_kl": 0.004572037549770205,
+          "mean_kl21": 0.004571760890565107,
+          "top5_pct": 90.0,
+          "tail_excess": 2.7343211864278412e-6,
+          "max_kl21": 0.06560259099261033,
+          "tail_abs": 2.943311647470711e-6,
+          "mean_kl21_scored": 0.004571760890565107,
           "scored_positions": 64
         }
       ]
     }
   ],
   "reuse": {
-    "passed": false,
-    "prefill_chunk": 2048,
+    "passed": true,
+    "prefill_chunk": 4096,
     "prefill_chunk_source": "recipe qwen3_5_moe, metal",
     "ran": [
-      "long_docs_4k",
-      "long_code_4k",
       "chat_reuse_4k"
     ],
-    "skipped": []
+    "skipped": [
+      "long_docs_4k",
+      "long_code_4k"
+    ]
   }
 }

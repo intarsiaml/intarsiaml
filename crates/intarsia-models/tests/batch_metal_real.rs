@@ -376,11 +376,11 @@ fn corpus_tokens(dir: &std::path::Path) -> Vec<u32> {
 }
 // ---- engine identity on prompts longer than the solo chunk ----------------------------------------------------------------
 
-/// The busy chunk of the batching engine defaults to the solo chunk (2048 for the 35B on Metal too) for the hybrid 35B, so a request that prefills while
+/// The busy chunk of the batching engine defaults to the solo chunk (4096 for the 35B on Metal, 2048 on CUDA) for the hybrid 35B, so a request that prefills while
 /// others decode runs the solo chunk schedule: its output must be token for token the `LocalEngine` run, for prompts of 2.6k, 4k
-/// and 16k tokens (more than one chunk), with 2 and 4 slots. The decoding neighbour (R0, a short prompt, 900 tokens) is still
+/// and 16k tokens (at the 4096-row Metal chunk only the 16k prompt spans several chunks; the 2.6k and 4k ones prefill whole), with 2 and 4 slots. The decoding neighbour (R0, a short prompt, 900 tokens) is still
 /// generating while the long prompts prefill (checked from the scheduler's mixed-iteration counter). Control, printed and not
-/// asserted: the same scenario with `--busy-chunk 64` (smaller than the solo chunk, 2048), to show the test can see a schedule mismatch.
+/// asserted: the same scenario with `--busy-chunk 64` (smaller than the solo chunk, 4096), to show the test can see a schedule mismatch.
 #[test]
 #[ignore]
 fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
