@@ -1,0 +1,21 @@
+10:19:18 guard: [guard] radiance stopped 2026-10-29 10:19:17
+10:19:18 item 1: starting server rec
+10:21:10 item 1 rec speed: exit 0 results/20261029-102038-fuse27-rec-fuse27-w2-rec-1/result.json
+10:22:29 item 2 rec texts: exit 0       18 lines
+10:22:29 item 3: starting server rec+bin=fuse27-dev-cli
+10:24:20 item 3 rec+bin=fuse27-dev-cli speed: exit 0 results/20261029-102350-fuse27-rec_bin_fuse27-dev-cli-fuse27-w2-rec_bin_fuse27-dev-cli-3/result.json
+10:25:40 item 4 rec+bin=fuse27-dev-cli texts: exit 0       18 lines
+10:25:40 item 5: starting server rec+r2
+10:27:31 item 5 rec+r2 speed: exit 0 results/20261029-102700-fuse27-rec_r2-fuse27-w2-rec_r2-5/result.json
+10:27:31 item 6: starting server rec+bin=fuse27-dev-cli+r2
+10:29:23 item 6 rec+bin=fuse27-dev-cli+r2 speed: exit 0 results/20261029-102852-fuse27-rec_bin_fuse27-dev-cli_r2-fuse27-w2-rec_bin_fuse27-dev-cli_r2-6/result.json
+10:29:23 item 7: starting server rec+r3
+10:31:14 item 7 rec+r3 speed: exit 0 results/20261029-103043-fuse27-rec_r3-fuse27-w2-rec_r3-7/result.json
+10:31:14 item 8: starting server rec+bin=fuse27-dev-cli+r3
+10:33:06 item 8 rec+bin=fuse27-dev-cli+r3 speed: exit 0 results/20261029-103235-fuse27-rec_bin_fuse27-dev-cli_r3-fuse27-w2-rec_bin_fuse27-dev-cli_r3-8/result.json
+10:33:06 item 9: starting server rec+spoff
+10:34:16 item 9 rec+spoff speed: exit 0 results/20261029-103338-fuse27-rec_spoff-fuse27-w2-rec_spoff-9/result.json
+10:34:16 item 10: starting server rec+bin=fuse27-dev-cli+spoff
+10:35:26 item 10 rec+bin=fuse27-dev-cli+spoff speed: exit 0 results/20261029-103448-fuse27-rec_bin_fuse27-dev-cli_spoff-fuse27-w2-rec_bin_fuse27-dev-cli_spoff-10/result.json
+10:35:26 done
+10:35:37 guard: [guard] radiance answers 2026-10-29 10:35:36 (after 15 s)

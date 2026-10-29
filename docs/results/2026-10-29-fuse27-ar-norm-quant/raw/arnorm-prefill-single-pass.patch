@@ -1,0 +1,1404 @@
+diff --git a/crates/intarsia-backend-hip/src/comm.rs b/crates/intarsia-backend-hip/src/comm.rs
+index 8260a9390..371375148 100644
+--- a/crates/intarsia-backend-hip/src/comm.rs
++++ b/crates/intarsia-backend-hip/src/comm.rs
+@@ -158,6 +158,9 @@ struct Group {
+     ll_slot_bytes: usize,
+     /// lane arx, `INTARSIA_HIP_AR_PUSH=1`: the wide all-reduce of a partial whose GEMM can push it (`Comm::prepush`) skips its own push
+     push: bool,
++    /// lane fuse27, `INTARSIA_HIP_AR_NORM_PREFILL` (on unless `0`; needs `push`): a pushed partial's reduce takes the residual add of the
++    /// rmsnorm_add after it (`Comm::ar_norm_prefill_supported`)
++    norm_prefill: bool,
+     aborted: AtomicBool,
+     /// `INTARSIA_TP_COLL_TRACE=1` (debugging, w26): every collective launch of each rank, packed as `op << 60 | dtype << 56 | out dtype << 52 |
+     /// blocks << 40 | elements` (op 1 all-reduce, 2 all-gather, 3 all-reduce + rmsnorm). `debug_state` reports the first launch where the ranks differ.
+@@ -321,12 +324,19 @@ pub fn p2p_group_push(
+         },
+     } && wide.is_some();
+     let wide_min = if ll_slot_bytes > 0 { ll_slot_bytes / 2 } else { LL_MAX_DEFAULT };
++    let norm_prefill = push
++        && match std::env::var("INTARSIA_HIP_AR_NORM_PREFILL").ok().as_deref() {
++            Some("0") => false,
++            None | Some("") | Some("1") => true,
++            Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_NORM_PREFILL={v} (0 or 1)"))),
++        };
+     let group = Arc::new(Group {
+         bufs: [RankBuf::new(&backends[0], ll_slot_bytes)?, RankBuf::new(&backends[1], ll_slot_bytes)?],
+         wide,
+         wide_min,
+         ll_slot_bytes,
+         push,
++        norm_prefill,
+         aborted: AtomicBool::new(false),
+         calls: std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1").then(|| std::sync::Mutex::new([Vec::new(), Vec::new()])),
+     });
+@@ -386,6 +396,7 @@ impl Comm for P2pComm {
+         self.counters.call(total);
+         self.backend.bind()?;
+         let s = self.backend.stream(stream)?;
++        HipBackend::touch_tensor(out); // lane fuse27: the backend's derived-data caches see the write
+         let pbase = HipBackend::ptr(&partial.buf, partial.offset, total)?;
+         let obase = HipBackend::ptr(&out.buf, out.offset, out.nbytes())?;
+         // above the LL limit the wide fence path, when on (a pure function of the message size, so both ranks agree)
+@@ -649,10 +660,25 @@ impl Comm for P2pComm {
+     }
+     fn all_reduce_add_rmsnorm(&self, a: &ArNorm<'_>, stream: StreamId) -> Result<()> {
+         if self.group.push {
+-            self.backend.swap_push_arm(None); // an armed push is spent by the next collective (lane arx)
++            // an armed push is spent by the next collective (lane arx); lane fuse27: a pushed prefill partial reduces with the add
++            let arm = self.backend.swap_push_arm(None);
++            if let Some(arm) = arm.filter(|arm| self.group.norm_prefill && self.pushed_arm_is(arm, a.partial) && self.ar_norm_prefill_shape(a, arm)) {
++                return self.ar_norm_pushed(a, &arm, stream);
++            }
+         }
+         self.all_reduce_add_rmsnorm_impl(a, stream)
+     }
++
++    fn fuses_ar_norm_prefill(&self) -> bool {
++        self.group.norm_prefill
++    }
++    fn ar_norm_prefill_armed(&self, partial: &TensorRef) -> bool {
++        self.group.norm_prefill && self.backend.peek_push_arm().is_some_and(|arm| self.pushed_arm_is(&arm, partial))
++    }
++    fn ar_norm_prefill_supported(&self, a: &ArNorm<'_>) -> bool {
++        self.group.norm_prefill
++            && self.backend.peek_push_arm().is_some_and(|arm| self.pushed_arm_is(&arm, a.partial) && self.ar_norm_prefill_shape(a, &arm))
++    }
+ }
+ 
+ impl P2pComm {
+@@ -691,6 +717,98 @@ impl P2pComm {
+         Some((rows, h))
+     }
+ 
++    /// Lane fuse27: `arm` is the push of a GEMM that wrote exactly `partial` (bf16) and pushed it: `all_reduce_sum_into` would only reduce.
++    fn pushed_arm_is(&self, arm: &PushArm, partial: &TensorRef) -> bool {
++        let total = partial.nbytes();
++        arm.lay.pushed == 1
++            && partial.dtype == DType::Bf16
++            && arm.bytes == total
++            && self.group.wide.as_ref().is_some_and(|_| total > self.group.wide_min)
++            && HipBackend::ptr(&partial.buf, partial.offset, total).is_ok_and(|p| p as usize == arm.out)
++    }
++
++    /// Lane fuse27: operands the pushed reduce fused with the norm (`ik_ar2_pushed_norm`) takes, bitwise the unfused pair (wide all-reduce,
++    /// rmsnorm_add): bf16 `[rows, H]` everywhere with rows and H the pushed layout's M and N, H within the kernel's rmsnorm block
++    /// (2048 ..= 6144, a multiple of 16), 16-byte aligned, the reduced rows not wanted (`keep_out` false: they are not stored), and
++    /// residual, sum and norm disjoint from each other and from the partial.
++    fn ar_norm_prefill_shape(&self, a: &ArNorm<'_>, arm: &PushArm) -> bool {
++        let act = [a.partial, a.out, a.residual, a.weight, a.norm, a.sum];
++        if a.keep_out || act.iter().any(|t| t.dtype != DType::Bf16 || t.check_bounds().is_err() || t.offset % 16 != 0) {
++            return false;
++        }
++        let h = a.weight.numel();
++        if h % 16 != 0 || !(2048..=6144).contains(&h) || h as i64 != arm.lay.n || a.partial.numel() != h * arm.lay.m.max(0) as usize {
++            return false;
++        }
++        let n = a.partial.numel();
++        if [a.out, a.residual, a.norm, a.sum].iter().any(|t| t.numel() != n || t.shape.last() != Some(&h)) {
++            return false;
++        }
++        let range = |t: &TensorRef| HipBackend::ptr(&t.buf, t.offset, t.nbytes()).map(|p| (p as usize, p as usize + t.nbytes()));
++        let Ok(r) = [a.partial, a.residual, a.norm, a.sum].map(range).into_iter().collect::<Result<Vec<_>>>() else { return false };
++        let apart = |x: (usize, usize), y: (usize, usize)| x.1 <= y.0 || y.1 <= x.0;
++        (0..4).all(|i| (i + 1..4).all(|j| apart(r[i], r[j])))
++    }
++
++    /// Lane fuse27: the all-reduce of a partial its GEMM pushed (`arm`) fused with the residual add + rmsnorm after it and, when the backend
++    /// wants it (`PreQuant`), the W4A8 GEMMs' activation quant of the norm: `ik_ar2_pushed_norm` (the handshake, then one pass per 16 rows
++    /// that keeps every rounding of the reduce, rmsnorm_add and the quant pre-pass). `a.out` is not written.
++    fn ar_norm_pushed(&self, a: &ArNorm<'_>, arm: &PushArm, stream: StreamId) -> Result<()> {
++        if self.group.aborted.load(Ordering::Acquire) {
++            return Err(Error::backend("communicator aborted (another rank failed)"));
++        }
++        let w = self.group.wide.as_ref().ok_or_else(|| Error::backend("hip all_reduce_add_rmsnorm: a pushed partial without the wide path"))?;
++        let total = a.partial.nbytes();
++        self.counters.call(total);
++        self.backend.bind()?;
++        let s = self.backend.stream(stream)?;
++        let ptr = |t: &TensorRef| HipBackend::ptr(&t.buf, t.offset, t.nbytes());
++        let n = w.launches[self.rank].fetch_add(1, Ordering::Relaxed);
++        if n != arm.launch {
++            return Err(Error::backend(format!("hip all_reduce_add_rmsnorm: GEMM pushed for wide launch {} but this is launch {n}", arm.launch)));
++        }
++        self.group.note(self.rank, 6, a.partial.dtype as i32, a.out.dtype as i32, a.partial.numel());
++        HipBackend::touch_tensor(a.sum);
++        HipBackend::touch_tensor(a.norm);
++        let h = a.weight.numel();
++        let mut nv = a.norm.clone();
++        nv.shape = vec![a.partial.numel() / h, h];
++        let pq = self.backend.prequant_slot(&nv, stream)?;
++        let (me, peer) = (&w.bufs[self.rank], &w.bufs[1 - self.rank]);
++        // SAFETY: every range is inside its tensor (`ar_norm_prefill_shape` bounds-checked them); `arm.lay` is what the GEMM launch
++        // returned for exactly this partial; the quant slot holds the layout's bytes (`prequant_slot`); scratch / flags / counters live as
++        // long as the group.
++        let rc = unsafe {
++            ffi::ik_ar2_pushed_norm(
++                ptr(a.partial)? as *mut c_void,
++                ptr(a.residual)? as *const c_void,
++                ptr(a.weight)? as *const c_void,
++                a.eps,
++                a.w_offset,
++                ptr(a.sum)? as *mut c_void,
++                ptr(a.norm)? as *mut c_void,
++                pq.map_or(std::ptr::null_mut(), |q| q.0),
++                me.scratch,
++                peer.flags,
++                me.flags,
++                me.ctrs,
++                w.slot_bytes as i64,
++                w.nblocks,
++                self.drain,
++                &arm.lay,
++                s,
++            )
++        };
++        if let Some((_, key)) = pq {
++            self.backend.prequant_done(key, rc == 0);
++        }
++        if rc != 0 {
++            return Err(Error::backend(format!("ik_ar2_pushed_norm returned {} ({rc})", ffi::status_name(rc))));
++        }
++        w.pushed.fetch_add(1, Ordering::Relaxed);
++        Ok(())
++    }
++
+     fn all_reduce_add_rmsnorm_impl(&self, a: &ArNorm<'_>, stream: StreamId) -> Result<()> {
+         if self.group.aborted.load(Ordering::Acquire) {
+             return Err(Error::backend("communicator aborted (another rank failed)"));
+@@ -702,6 +820,9 @@ impl P2pComm {
+         self.counters.call(total);
+         self.backend.bind()?;
+         let s = self.backend.stream(stream)?;
++        for t in [a.out, a.norm, a.sum] {
++            HipBackend::touch_tensor(t); // lane fuse27: the backend's derived-data caches see the writes
++        }
+         let ptr = |t: &TensorRef| HipBackend::ptr(&t.buf, t.offset, t.nbytes());
+         let (me, peer) = (&self.group.bufs[self.rank], &self.group.bufs[1 - self.rank]);
+         self.group.note(self.rank, 3, a.partial.dtype as i32, a.partial.dtype as i32, rows * h);
+diff --git a/crates/intarsia-backend-hip/src/device.rs b/crates/intarsia-backend-hip/src/device.rs
+index 1958b842c..8ff80be8c 100644
+--- a/crates/intarsia-backend-hip/src/device.rs
++++ b/crates/intarsia-backend-hip/src/device.rs
+@@ -46,7 +46,7 @@ static NEXT_BUFFER_ID: AtomicU64 = AtomicU64::new(1);
+ 
+ impl HipBuffer {
+     /// a write through the backend is queued: cached results derived from the old bytes are stale
+-    fn touch(buf: &Buffer) {
++    pub(crate) fn touch(buf: &Buffer) {
+         if let Some(h) = buf.downcast::<HipBuffer>() {
+             h.gen.fetch_add(1, Ordering::Relaxed);
+         }
+@@ -167,6 +167,54 @@ pub struct HipBackend {
+     push_arm: Mutex<Option<PushArm>>,
+     /// lane pf27c: the W4A8 direct path's span results per weight (`INTARSIA_HIP_MXFP4_A8_SPANCACHE`)
+     spans: Mutex<SpanCache>,
++    /// lane fuse27: the quantised activations a prefill norm wrote for the W4A8 GEMMs that read its output (`INTARSIA_HIP_NORM_QUANT`)
++    prequant: Mutex<PreQuant>,
++}
++
++/// Lane fuse27: a prefill rmsnorm / rmsnorm_add (eager, stream 0, rows that take the W4A8 direct kernel) whose output the W4A8 GEMMs read
++/// next (FFN gate | up, GDN qkv | z and b | a, attention q and k | v: up to three pre-passes of the same rows) also writes those GEMMs'
++/// quantised activations (`ik_rmsnorm_quant_bf16`: the e4m3 bytes and row scales of the direct pre-pass, from the bf16 values it stores) into
++/// `buf`; a cached-span call (`HipBackend::span` Some) whose `x` is exactly that output, not written since (`HipBuffer::gen`), reads them
++/// instead of running its pre-pass. Producer and readers are on stream 0, so a later norm rewrites `buf` only after the readers before it.
++/// The norm quantises only once a direct GEMM was seen to read a norm output (`wanted`), so a model whose norms feed no W4A8 GEMM (the
++/// NVFP4 35B) never pays for it. Same kernels, same bytes: bitwise the pre-pass. `INTARSIA_HIP_NORM_QUANT=0` turns it off.
++struct PreQuant {
++    /// what `buf` holds: the norm output's (buffer id, offset, rows, H, write count after the norm)
++    key: Option<PqKey>,
++    /// the last prefill-shaped norm output (quantised or not): a direct W4A8 call that reads it sets `wanted`
++    last: Option<PqKey>,
++    wanted: bool,
++    buf: Option<(Buffer, usize)>,
++    /// buffers outgrown by a larger chunk: a queued launch may still read them, so they live as long as the backend
++    old: Vec<Buffer>,
++    off: bool,
++}
++
++pub(crate) type PqKey = (u64, usize, usize, usize, u64);
++
++/// calls that read a norm's quantised activations (`crate::prequant_hits`)
++pub(crate) static PQ_HITS: AtomicU64 = AtomicU64::new(0);
++
++impl PreQuant {
++    fn new() -> Self {
++        let off = std::env::var("INTARSIA_HIP_NORM_QUANT").is_ok_and(|v| v == "0");
++        PreQuant { key: None, last: None, wanted: false, buf: None, old: Vec::new(), off }
++    }
++
++    /// the key of a bf16 `[rows, H]` tensor in a backend buffer, at its current write count
++    fn key_of(t: &TensorRef) -> Option<PqKey> {
++        let hb = t.buf.downcast::<HipBuffer>()?;
++        match (t.dtype, &t.shape[..]) {
++            (DType::Bf16, [m, h]) => Some((hb.id, t.offset, *m, *h, hb.gen.load(Ordering::Relaxed))),
++            _ => None,
++        }
++    }
++}
++
++/// bytes of the direct pre-pass's activations for `m` rows of `k` (ik_mx_a8.h `mx_a8_scratch_bytes` of the 16-padded M and 64-padded K)
++fn a8_xq_bytes(m: usize, k: usize) -> usize {
++    let (mp, kp) = (m.div_ceil(16) * 16, k.div_ceil(64) * 64);
++    (mp * kp).div_ceil(16) * 16 + (mp * 4).div_ceil(16) * 16 + 16
+ }
+ 
+ /// Lane pf27c: the span pass of `matmul_mxfp4_a8_mma` (wref [N] = each row's largest scale byte, and the fold flag) is a pure function of the
+@@ -466,6 +514,7 @@ impl HipBackend {
+             relayout: (AtomicU64::new(0), AtomicU64::new(0)),
+             push_arm: Mutex::new(None),
+             spans: Mutex::new(SpanCache::new()),
++            prequant: Mutex::new(PreQuant::new()),
+         };
+         be.stream(0)?; // create the default stream now so failures surface here
+         Ok(be)
+@@ -476,6 +525,83 @@ impl HipBackend {
+         std::mem::replace(&mut *self.push_arm.lock().unwrap(), arm)
+     }
+ 
++    /// lane fuse27: a collective (comm.rs) writes `t`: what the backend derived from its old bytes is stale (`HipBuffer::gen`)
++    pub(crate) fn touch_tensor(t: &TensorRef) {
++        HipBuffer::touch(&t.buf);
++    }
++
++    /// lane fuse27: the armed push, left in place (the communicator asks whether the GEMM of a deferred all-reduce pushed)
++    pub(crate) fn peek_push_arm(&self) -> Option<PushArm> {
++        *self.push_arm.lock().unwrap()
++    }
++
++    /// Lane fuse27 ([`PreQuant`]): where a norm writing `out` (touched already) writes the W4A8 activations of it, and the key they will hold
++    /// once [`HipBackend::prequant_done`] says the launch ran; None = the plain norm (off, not wanted yet, a side stream or capture, rows that
++    /// do not take the direct kernel).
++    pub(crate) fn prequant_slot(&self, out: &TensorRef, stream: StreamId) -> Result<Option<(*mut c_void, PqKey)>> {
++        if stream != 0 || self.capturing.load(Ordering::Relaxed) {
++            return Ok(None);
++        }
++        let Some(key) = PreQuant::key_of(out) else { return Ok(None) };
++        let (m, h) = (key.2, key.3);
++        // SAFETY: plain FFI query of the launcher's static configuration
++        if h == 0 || h % 32 != 0 || unsafe { ffi::ik_mxfp4_a8_use_direct(m as i64) } == 0 {
++            return Ok(None);
++        }
++        let mut c = self.prequant.lock().unwrap();
++        if c.off {
++            return Ok(None);
++        }
++        c.last = Some(key);
++        if !c.wanted {
++            return Ok(None);
++        }
++        let need = a8_xq_bytes(m, h);
++        if c.buf.as_ref().is_none_or(|b| b.1 < need) {
++            match self.alloc(need, MemKind::Device) {
++                Ok(b) => {
++                    if let Some(old) = c.buf.replace((b, need)) {
++                        c.old.push(old.0);
++                    }
++                    c.key = None; // the new buffer holds nothing yet
++                }
++                Err(_) => {
++                    c.off = true;
++                    return Ok(None);
++                }
++            }
++        }
++        let b = &c.buf.as_ref().unwrap().0;
++        Ok(Some((Self::ptr(b, 0, need)? as *mut c_void, key)))
++    }
++
++    /// Lane fuse27: a launch that wrote the slot of [`HipBackend::prequant_slot`] was queued (`ok`) or failed (it may have half-written it)
++    pub(crate) fn prequant_done(&self, key: PqKey, ok: bool) {
++        self.prequant.lock().unwrap().key = ok.then_some(key);
++    }
++
++    /// Lane fuse27: the W4A8 activations of `x` written by the norm that produced it, if `buf` still holds them (else null: the call runs its
++    /// own pre-pass). Only for a call that took the cached span path (stream 0, no capture, direct kernel).
++    fn prequant_get(&self, x: &TensorRef) -> *const c_void {
++        let Some(key) = PreQuant::key_of(x) else { return std::ptr::null() };
++        let mut c = self.prequant.lock().unwrap();
++        if c.off {
++            return std::ptr::null();
++        }
++        if c.key == Some(key) {
++            if let Some((b, n)) = &c.buf {
++                if let Ok(p) = Self::ptr(b, 0, *n) {
++                    PQ_HITS.fetch_add(1, Ordering::Relaxed);
++                    return p as *const c_void;
++                }
++            }
++        }
++        if c.last == Some(key) {
++            c.wanted = true;
++        }
++        std::ptr::null()
++    }
++
+     /// Lane pf27c: the cached span result of the W4A8 weight whose scales are `sc` ([N, K/32]) for a call of `m` rows on `stream`, filled on
+     /// first use: (wref, flag, fold) with fold 1 / 0 = the flag selects the fold / per-group path, -1 = not read back yet. None: the call
+     /// takes the uncached path (the cache is off, a graph is being captured, a side stream, the staged kernel, or the cache is full).
+@@ -917,6 +1043,18 @@ impl Backend for HipBackend {
+             "matmul_mxfp4_pair_a8_mma" if span0.is_some() => span(4)?,
+             _ => None,
+         };
++        // lane fuse27 (`PreQuant`): a prefill norm's quant target, and a cached-span W4A8 call's activations quantised by that norm
++        let pq = match kernel {
++            "rmsnorm_bf16" | "rmsnorm_add_bf16" => self.prequant_slot(&call.outputs[0], stream)?,
++            _ => None,
++        };
++        let mut pq_ran = false;
++        let xq_in = match kernel {
++            "matmul_mxfp4_a8_mma" | "matmul_mxfp4_pair_a8_mma" if span0.is_some() && (kernel == "matmul_mxfp4_a8_mma" || span1.is_some()) => {
++                self.prequant_get(&call.inputs[0])
++            }
++            _ => std::ptr::null(),
++        };
+         let inp: Vec<IkTensor> = call.inputs.iter().map(Self::tensor).collect::<Result<_>>()?;
+         let mut out: Vec<IkTensor> = call.outputs.iter().map(Self::tensor).collect::<Result<_>>()?;
+         let a = &call.attrs;
+@@ -956,8 +1094,27 @@ impl Backend for HipBackend {
+         let rc = unsafe {
+             match kernel {
+                 "embedding_bf16" => ffi::ik_embedding_bf16(i(0), i(1), o, s),
+-                "rmsnorm_bf16" => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
+-                "rmsnorm_add_bf16" => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), s),
++                // lane fuse27: the prefill norm also quantises its output for the W4A8 GEMMs (`PreQuant`); IK_ERR_UNSUPPORTED = not this path
++                "rmsnorm_bf16" => match pq {
++                    Some((xq, _)) => match ffi::ik_rmsnorm_quant_bf16(i(0), std::ptr::null(), i(1), a.eps, a.w_offset, o, std::ptr::null_mut(), xq, s) {
++                        5 => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
++                        rc => {
++                            pq_ran = true;
++                            rc
++                        }
++                    },
++                    None => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
++                },
++                "rmsnorm_add_bf16" => match pq {
++                    Some((xq, _)) => match ffi::ik_rmsnorm_quant_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), xq, s) {
++                        5 => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), s),
++                        rc => {
++                            pq_ran = true;
++                            rc
++                        }
++                    },
++                    None => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), s),
++                },
+                 "add_bf16" => ffi::ik_add_bf16(i(0), i(1), o, s),
+                 "qk_norm_bf16" => ffi::ik_qk_norm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
+                 "rope_bf16" => ffi::ik_rope_bf16(i(0), a.pos0 as i64, a.theta, a.rotary_dim as i64, o, pos, s),
+@@ -1105,7 +1262,7 @@ impl Backend for HipBackend {
+                             let mut lay = ffi::IkArPush { cap: a.lay.cap, ..Default::default() };
+                             let rc = match span0 {
+                                 Some((wr, fl, fo)) => {
+-                                    ffi::ik_matmul_mxfp4_a8_mma_cached(i(0), i(1), i(2), i(3), o, sc, wr, fl, fo, a.peer as *mut c_void, &mut lay, s)
++                                    ffi::ik_matmul_mxfp4_a8_mma_cached(i(0), i(1), i(2), i(3), o, sc, wr, fl, fo, a.peer as *mut c_void, &mut lay, xq_in, s)
+                                 }
+                                 None => ffi::ik_matmul_mxfp4_a8_mma_push(i(0), i(1), i(2), i(3), o, sc, a.peer as *mut c_void, &mut lay, s),
+                             };
+@@ -1115,7 +1272,7 @@ impl Backend for HipBackend {
+                         }
+                         None => match span0 {
+                             Some((wr, fl, fo)) => {
+-                                ffi::ik_matmul_mxfp4_a8_mma_cached(i(0), i(1), i(2), i(3), o, sc, wr, fl, fo, std::ptr::null_mut(), std::ptr::null_mut(), s)
++                                ffi::ik_matmul_mxfp4_a8_mma_cached(i(0), i(1), i(2), i(3), o, sc, wr, fl, fo, std::ptr::null_mut(), std::ptr::null_mut(), xq_in, s)
+                             }
+                             None => ffi::ik_matmul_mxfp4_a8_mma(i(0), i(1), i(2), i(3), o, sc, s),
+                         },
+@@ -1129,7 +1286,7 @@ impl Backend for HipBackend {
+                 "matmul_mxfp4_pair_a8_gemv" => ffi::ik_matmul_mxfp4_pair_a8_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
+                 "matmul_mxfp4_pair_a8_mma" => match (span0, span1) {
+                     (Some((w0, f0, d0)), Some((w1, f1, d1))) => {
+-                        ffi::ik_matmul_mxfp4_pair_a8_mma_cached(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, w0, f0, d0, w1, f1, d1, s)
++                        ffi::ik_matmul_mxfp4_pair_a8_mma_cached(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, w0, f0, d0, w1, f1, d1, xq_in, s)
+                     }
+                     _ => ffi::ik_matmul_mxfp4_pair_a8_mma(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
+                 },
+@@ -1231,6 +1388,9 @@ impl Backend for HipBackend {
+                 tr.pool.push(a);
+             }
+         }
++        if let (true, Some((_, key))) = (pq_ran, pq) {
++            self.prequant_done(key, rc == 0);
++        }
+         if rc != 0 {
+             let dts: Vec<DType> = call.inputs.iter().map(|t| t.dtype).collect();
+             return Err(Error::backend(format!(
+diff --git a/crates/intarsia-backend-hip/src/ffi.rs b/crates/intarsia-backend-hip/src/ffi.rs
+index 08c92d253..d8c6e885d 100644
+--- a/crates/intarsia-backend-hip/src/ffi.rs
++++ b/crates/intarsia-backend-hip/src/ffi.rs
+@@ -130,6 +130,28 @@ extern "C" {
+         lay: *const IkArPush,
+         stream: S,
+     ) -> c_int;
++    /// lane fuse27: `ik_ar2_pushed` fused with the rmsnorm_add after it and (xq non-null) the W4A8 GEMM's activation quant of the norm:
++    /// sum = round(round(x + peer) + res), norm = rmsnorm(sum); the reduced rows are not stored (kernels/hip/allreduce.hip)
++    #[allow(clippy::too_many_arguments)]
++    pub fn ik_ar2_pushed_norm(
++        x: *mut c_void,
++        res: *const c_void,
++        w: *const c_void,
++        eps: f32,
++        w_offset: f32,
++        sum: *mut c_void,
++        norm: *mut c_void,
++        xq: *mut c_void,
++        my_scratch: *mut c_void,
++        peer_flags: *mut u32,
++        my_flags: *mut u32,
++        ctrs: *mut u32,
++        slot_bytes: i64,
++        nblocks: c_int,
++        drain: c_int,
++        lay: *const IkArPush,
++        stream: S,
++    ) -> c_int;
+     #[allow(clippy::too_many_arguments)]
+     pub fn ik_ag2_gather(
+         x: *mut c_void,
+@@ -170,6 +192,10 @@ extern "C" {
+     pub fn ik_embedding_bf16(ids: T, table: T, out: TM, s: S) -> c_int;
+     pub fn ik_rmsnorm_bf16(x: T, w: T, eps: f32, w_offset: f32, out: TM, s: S) -> c_int;
+     pub fn ik_rmsnorm_add_bf16(x: T, res: T, w: T, eps: f32, w_offset: f32, out: TM, sum: TM, s: S) -> c_int;
++    /// lane fuse27: rmsnorm (res / sum null) or rmsnorm_add that also writes the W4A8 direct GEMM's quantised `out` into `xq`
++    /// (kernels/hip/norm.hip); IK_ERR_UNSUPPORTED = not this path, nothing launched
++    #[allow(clippy::too_many_arguments)]
++    pub fn ik_rmsnorm_quant_bf16(x: T, res: T, w: T, eps: f32, w_offset: f32, out: TM, sum: TM, xq: *mut c_void, s: S) -> c_int;
+     pub fn ik_add_bf16(a: T, b: T, out: TM, s: S) -> c_int;
+     pub fn ik_qk_norm_bf16(x: T, w: T, eps: f32, w_offset: f32, out: TM, s: S) -> c_int;
+     pub fn ik_rope_bf16(x: T, pos0: i64, theta: f32, rotary_dim: i64, out: TM, pos: T, s: S) -> c_int;
+@@ -354,6 +380,7 @@ extern "C" {
+         fold: c_int,
+         peer: *mut c_void,
+         lay: *mut IkArPush,
++        xq: *const c_void,
+         s: S,
+     ) -> c_int;
+     #[allow(clippy::too_many_arguments)]
+@@ -373,6 +400,7 @@ extern "C" {
+         wref1: *const c_void,
+         flag1: *const c_void,
+         fold1: c_int,
++        xq: *const c_void,
+         s: S,
+     ) -> c_int;
+     pub fn ik_matmul_mxfp4_gemv_rows_bf16(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
+diff --git a/crates/intarsia-backend-hip/src/lib.rs b/crates/intarsia-backend-hip/src/lib.rs
+index a7460d35c..099209d32 100644
+--- a/crates/intarsia-backend-hip/src/lib.rs
++++ b/crates/intarsia-backend-hip/src/lib.rs
+@@ -64,6 +64,13 @@ pub fn split_pieces(est_us: f64, max_pieces: i64) -> i32 {
+     unsafe { ffi::ik_hip_split_pieces(est_us, max_pieces) }
+ }
+ 
++/// Lane fuse27: W4A8 GEMM calls in this process that read the activations their norm had quantised (`INTARSIA_HIP_NORM_QUANT`) instead
++/// of running their own pre-pass (tests, diagnostics).
++#[cfg(ik_hip)]
++pub fn prequant_hits() -> u64 {
++    device::PQ_HITS.load(std::sync::atomic::Ordering::Relaxed)
++}
++
+ /// Open HIP device `ordinal`.
+ #[cfg(ik_hip)]
+ pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {
+diff --git a/crates/intarsia-backend-hip/tests/ar_norm.rs b/crates/intarsia-backend-hip/tests/ar_norm.rs
+index 44ba2f6c3..df24242e1 100644
+--- a/crates/intarsia-backend-hip/tests/ar_norm.rs
++++ b/crates/intarsia-backend-hip/tests/ar_norm.rs
+@@ -85,7 +85,7 @@ fn call_unfused(be: &dyn Backend, x: &TensorRef, res: &TensorRef, w: &TensorRef,
+ }
+ 
+ fn ar_norm<'a>(p: &'a TensorRef, out: &'a TensorRef, res: &'a TensorRef, w: &'a TensorRef, nrm: &'a TensorRef, sum: &'a TensorRef, eps: f32, woff: f32) -> ArNorm<'a> {
+-    ArNorm { partial: p, out, residual: res, weight: w, norm: nrm, sum, eps, w_offset: woff }
++    ArNorm { partial: p, out, residual: res, weight: w, norm: nrm, sum, eps, w_offset: woff, keep_out: true }
+ }
+ 
+ /// One trial: random operands, the fused collective on both ranks, then the unfused pair, bit-compared on both ranks.
+diff --git a/crates/intarsia-backend-hip/tests/ar_push.rs b/crates/intarsia-backend-hip/tests/ar_push.rs
+index 0ee1fdab2..c4e9fa4dd 100644
+--- a/crates/intarsia-backend-hip/tests/ar_push.rs
++++ b/crates/intarsia-backend-hip/tests/ar_push.rs
+@@ -9,6 +9,10 @@
+ //!    interleaved with plain wide all-reduces on the same buffers, every round against the reference bits.
+ //! 3. Negative control: drain 9 (the reduce without its wait) under the same stress must give wrong sums, or test 2 could not see a
+ //!    missing handshake.
++//! 4. `pushed_all_reduce_add_rmsnorm_is_bitwise_the_plain_chain` (lane fuse27): the pushed partial's reduce fused with the residual add,
++//!    rmsnorm and W4A8 activation quant (`Comm::all_reduce_add_rmsnorm` on a pushed partial, `INTARSIA_HIP_AR_NORM_PREFILL`) and the W4A8
++//!    GEMM that reads the norm (from the activations the fused pass quantised): norm, sum and GEMM bitwise the plain chain, both ranks,
++//!    at the 27B's chunk rows (with the 16-row tail tiles); not offered unpushed.
+ 
+ #![cfg(ik_hip)]
+ 
+@@ -17,7 +21,8 @@ use intarsia_core::exec::HostCall;
+ use intarsia_core::quant::cases::matmul_mxfp4_case;
+ use intarsia_core::quant::Mxfp4Act;
+ use intarsia_core::rng::SplitMix64;
+-use intarsia_core::{Backend, Comm, DType, HostTensor, OpCall, ShapeInfo};
++use intarsia_core::comm::ArNorm;
++use intarsia_core::{Backend, Comm, DType, HostTensor, Op, OpAttrs, OpCall, ShapeInfo};
+ use std::sync::Arc;
+ 
+ type Group = (Vec<Arc<dyn Backend>>, Vec<Arc<dyn Comm>>);
+@@ -218,6 +223,116 @@ fn pushed_all_reduce_is_bitwise_the_plain_pair_over_m() {
+     assert!(bad.is_empty(), "pushed all-reduce differs from the plain pair (first (row, feature) per rank): {bad:?}");
+ }
+ 
++#[test]
++fn pushed_all_reduce_add_rmsnorm_is_bitwise_the_plain_chain() {
++    let _one = serial();
++    let (h, n2) = (5120usize, 1024usize);
++    let ms = [2048usize, 1810, 1144, 511, 130, 1599];
++    let shapes: Vec<(usize, usize, usize, bool)> = ms.iter().map(|&m| (m, h, 3072, true)).collect();
++    // per case: the residual and norm weight (the same on both ranks, as in the model) and per rank the next GEMM (a column shard, K = H)
++    // on the normed rows; the same bytes in every group
++    let mut rng = SplitMix64::new(29);
++    let host: Vec<[(HostTensor, HostTensor, HostCall); 2]> = ms
++        .iter()
++        .map(|&m| {
++            let res = HostTensor::from_f32_as(DType::Bf16, &[m, h], &rng.normal_vec(m * h, 4.0));
++            let w = HostTensor::from_f32_as(DType::Bf16, &[h], &rng.normal_vec(h, 0.2));
++            [0, 1].map(|_| (res.clone(), w.clone(), matmul_mxfp4_case(&mut rng, m, n2, h, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16)))
++        })
++        .collect();
++    let attrs = &OpAttrs { eps: 1e-6, w_offset: 1.0, ..Default::default() };
++    // [rank] (out, norm, sum, next GEMM out) per case and round (the fused chain does not store the reduced rows: `out` keeps the partial)
++    let chain = |g: &Group, fused: bool, rounds: usize| -> Vec<Vec<[[Vec<u8>; 4]; 2]>> {
++        let cs = calls(&g.0, 31, &shapes);
++        let ops: Vec<[(TensorRef, TensorRef, TensorRef, TensorRef, OpCall); 2]> = host
++            .iter()
++            .map(|c| {
++                [0, 1].map(|r| {
++                    let b = &*g.0[r];
++                    let (res, w) = (put(b, &c[r].0), put(b, &c[r].1));
++                    let m = c[r].0.shape[0];
++                    let (nrm, sum) = (put(b, &HostTensor::zeros(DType::Bf16, &[m, h])), put(b, &HostTensor::zeros(DType::Bf16, &[m, h])));
++                    let hc = &c[r].2;
++                    let mut ins: Vec<_> = hc.inputs.iter().map(|t| put(b, t)).collect();
++                    ins[0] = nrm.clone();
++                    let outs: Vec<_> = hc.outputs.iter().map(|o| put(b, &HostTensor::zeros(o.dtype, &o.shape))).collect();
++                    let mut next = OpCall::new(hc.op, ins, outs, hc.attrs.clone());
++                    let kern = b.kernels().into_iter().find(|x| x.name == "matmul_mxfp4_a8_mma").unwrap();
++                    let need = kern.scratch_bytes(&ShapeInfo::from_call(&next)).max(16);
++                    next.scratch = Some(TensorRef::new(b.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
++                    (res, w, nrm, sum, next)
++                })
++            })
++            .collect();
++        (0..rounds)
++            .map(|_| {
++                std::thread::scope(|sc| {
++                    for r in 0..2 {
++                        let (b, c, cs, ops) = (&g.0[r], &g.1[r], &cs, &ops);
++                        sc.spawn(move || {
++                            for (call, op) in cs.iter().zip(ops) {
++                                let (res, w, nrm, sum, next) = &op[r];
++                                let out = &call[r].outputs[0];
++                                if fused {
++                                    c.prepush(out).unwrap();
++                                }
++                                b.launch("matmul_mxfp4_a8_mma", &call[r], 0).unwrap();
++                                let a = ArNorm { partial: out, out, residual: res, weight: w, norm: nrm, sum, eps: attrs.eps, w_offset: attrs.w_offset, keep_out: false };
++                                if fused {
++                                    assert!(c.ar_norm_prefill_supported(&a), "rank {r}: a pushed partial was not offered the fused all-reduce + norm");
++                                    c.all_reduce_add_rmsnorm(&a, 0).unwrap();
++                                } else {
++                                    assert!(!c.ar_norm_prefill_supported(&a), "rank {r}: an unpushed partial was offered the fused all-reduce + norm");
++                                    c.all_reduce_sum(out, 0).unwrap();
++                                    let call = OpCall::new(Op::RmsNormAdd, vec![out.clone(), res.clone(), w.clone()], vec![nrm.clone(), sum.clone()], attrs.clone());
++                                    b.launch("rmsnorm_add_bf16", &call, 0).unwrap();
++                                }
++                                b.launch("matmul_mxfp4_a8_mma", next, 0).unwrap();
++                            }
++                        });
++                    }
++                });
++                cs.iter()
++                    .zip(&ops)
++                    .map(|(call, op)| {
++                        [0, 1].map(|r| {
++                            let b = &*g.0[r];
++                            [bits(b, &call[r].outputs[0]), bits(b, &op[r].2), bits(b, &op[r].3), bits(b, &op[r].4.outputs[0])]
++                        })
++                    })
++                    .collect()
++            })
++            .collect()
++    };
++    let Some(g) = group(7, false) else { return };
++    let want = chain(&g, false, 1).remove(0);
++    drop(g);
++    for (i, o) in want.iter().enumerate() {
++        assert!(o[0][..3] == o[1][..3], "reference: M {}: the reduced rows, norm or sum differ between the ranks", ms[i]);
++    }
++    let g = group(7, true).unwrap();
++    let hits0 = intarsia_backend_hip::prequant_hits();
++    let p0 = pushed(&g.1[0]);
++    // the push group unarmed: the plain chain, nothing offered
++    let plain = chain(&g, false, 1).remove(0);
++    assert_eq!(pushed(&g.1[0]), p0);
++    // armed, two rounds: the first quantises in the norm from the second case on, the second throughout
++    let got = chain(&g, true, 2);
++    assert_eq!(pushed(&g.1[0]), p0 + 2 * 2 * ms.len() as u64, "{:?}", g.1[0].debug_state());
++    let names = ["all-reduce out", "norm", "sum", "next GEMM"];
++    for (i, w) in want.iter().enumerate() {
++        for r in 0..2 {
++            for (j, name) in names.iter().enumerate() {
++                assert!(plain[i][r][j] == w[r][j], "push group unarmed: M {} rank {r}: {name} differs from the plain chain", ms[i]);
++                for (round, gr) in got.iter().enumerate().filter(|_| j > 0) {
++                    assert!(gr[i][r][j] == w[r][j], "fused: round {round}, M {} rank {r}: {name} differs from the plain chain", ms[i]);
++                }
++            }
++        }
++    }
++    assert!(intarsia_backend_hip::prequant_hits() >= hits0 + 2 * ms.len() as u64, "the next GEMMs did not read the norm's quantised rows");
++}
++
+ /// Rounds of the chain with one rank (alternating) delayed by up to `max_us` before a third of its GEMMs; the number of wrong outputs
+ /// (rank x case x round) against the reference.
+ fn stress(drain: i32, rounds: usize, max_us: u64) -> usize {
+diff --git a/crates/intarsia-backend-hip/tests/comm.rs b/crates/intarsia-backend-hip/tests/comm.rs
+index ddc18eabc..28c7a2b04 100644
+--- a/crates/intarsia-backend-hip/tests/comm.rs
++++ b/crates/intarsia-backend-hip/tests/comm.rs
+@@ -462,7 +462,7 @@ fn ll_suite(drain: i32, ll_max: usize) -> Option<Vec<Vec<u8>>> {
+         let bufs = [mk(0), mk(1)];
+         run2(&|r| {
+             let (p, o, rs, w, nr, s) = &bufs[r];
+-            let a = ArNorm { partial: p, out: o, residual: rs, weight: w, norm: nr, sum: s, eps: 1e-6, w_offset: 0.0 };
++            let a = ArNorm { partial: p, out: o, residual: rs, weight: w, norm: nr, sum: s, eps: 1e-6, w_offset: 0.0, keep_out: true };
+             assert!(comms[r].ar_norm_supported(&a));
+             comms[r].all_reduce_add_rmsnorm(&a, 0).unwrap();
+         });
+@@ -584,7 +584,7 @@ fn ar_norm_rate() {
+                     let (c, b, bufs) = (&comms[r], &be[r], &bufs);
+                     sc.spawn(move || {
+                         let (p, o, rs, w, nr, s) = &bufs[r];
+-                        let a = ArNorm { partial: p, out: o, residual: rs, weight: w, norm: nr, sum: s, eps: 1e-6, w_offset: 0.0 };
++                        let a = ArNorm { partial: p, out: o, residual: rs, weight: w, norm: nr, sum: s, eps: 1e-6, w_offset: 0.0, keep_out: true };
+                         for _ in 0..count {
+                             c.all_reduce_add_rmsnorm(&a, 0).unwrap();
+                         }
+diff --git a/crates/intarsia-backend-hip/tests/mxfp4_a8.rs b/crates/intarsia-backend-hip/tests/mxfp4_a8.rs
+index 2b01590d6..0163acb01 100644
+--- a/crates/intarsia-backend-hip/tests/mxfp4_a8.rs
++++ b/crates/intarsia-backend-hip/tests/mxfp4_a8.rs
+@@ -19,6 +19,10 @@
+ //! 8. `a8_span_cache_reuses_and_refills` (lane pf27c): calls that reuse one weight's buffers (the backend's span cache: the fold flag read back
+ //!    after the first call, later calls launch only the selected path's kernel) give the bits of fresh-buffer calls, foldable and wide-span
+ //!    weights, single and pair; a weight rewritten in place gives the new weight's bits.
++//! 9. `a8_norm_quant_is_bitwise_the_pre_pass` (lane fuse27): a prefill rmsnorm / rmsnorm_add whose output the W4A8 GEMMs read quantises it
++//!    for them (`INTARSIA_HIP_NORM_QUANT`): the norm's outputs, and the GEMMs (single and pair) that read its quantised activations, are
++//!    bitwise the plain norm and GEMMs on a copy of the normed rows; the reads are taken (`prequant_hits`); a rewrite of the normed rows
++//!    in place is seen (the next GEMM runs its own pre-pass on the new rows).
+ //!
+ //! Needs a GPU: skips without one. INTARSIA_HIP_MXFP4_A8_PERGROUP=1 reruns 1-3 on the per-group path.
+ #![cfg(ik_hip)]
+@@ -29,7 +33,7 @@ use intarsia_core::quant::cases::{matmul_mxfp4_case, matmul_mxfp4_pair_case};
+ use intarsia_core::quant::reference::matmul_mxfp4_a8;
+ use intarsia_core::quant::Mxfp4Act;
+ use intarsia_core::rng::SplitMix64;
+-use intarsia_core::{DType, HostTensor, OpCall, ShapeInfo, TensorRef};
++use intarsia_core::{DType, HostTensor, Op, OpAttrs, OpCall, ShapeInfo, TensorRef};
+ use std::sync::Arc;
+ 
+ fn device() -> Option<Arc<dyn Backend>> {
+@@ -290,6 +294,83 @@ fn a8_span_cache_reuses_and_refills() {
+     }
+ }
+ 
++#[test]
++fn a8_norm_quant_is_bitwise_the_pre_pass() {
++    let Some(hip) = device() else { return };
++    let mut rng = SplitMix64::new(113);
++    let put = |t: &HostTensor| {
++        let b = hip.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
++        hip.upload(&b, 0, &t.data, 0).unwrap();
++        TensorRef::new(b, t.dtype, &t.shape)
++    };
++    let get = |t: &TensorRef| {
++        hip.synchronize(0).unwrap();
++        let mut v = vec![0u8; t.nbytes()];
++        hip.download(&t.buf, t.offset, &mut v, 0).unwrap();
++        v
++    };
++    // a GEMM call (its scratch, fresh outputs) of `hc`'s weights on the activation `x`
++    let gemm = |kernel: &str, hc: &HostCall, x: &TensorRef| -> Vec<Vec<u8>> {
++        let mut ins: Vec<TensorRef> = hc.inputs.iter().map(put).collect();
++        ins[0] = x.clone();
++        let outs: Vec<TensorRef> = hc.outputs.iter().map(|o| put(&HostTensor::zeros(o.dtype, &o.shape))).collect();
++        let mut call = OpCall::new(hc.op, ins, outs.clone(), hc.attrs.clone());
++        let kern = hip.kernels().into_iter().find(|k| k.name == kernel).unwrap();
++        let need = kern.scratch_bytes(&ShapeInfo::from_call(&call)).max(16);
++        call.scratch = Some(TensorRef::new(hip.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
++        hip.launch(kernel, &call, 0).unwrap();
++        outs.iter().map(get).collect()
++    };
++    let bf = |rng: &mut SplitMix64, shape: &[usize], scale: f32| {
++        HostTensor::from_f32_as(DType::Bf16, shape, &rng.normal_vec(shape.iter().product(), scale))
++    };
++    // (rows, H, N0, N1, residual add): the 27B tp2 points (FFN gate | up, GDN b | a, a 1810-row chunk), a K % 64 == 32 tail, the
++    // smallest direct M
++    for (m, h, n0, n1, add) in
++        [(2048usize, 5120usize, 8704usize, 8704usize, true), (1810, 5120, 24, 24, true), (2048, 5120, 1024, 512, false), (300, 4128, 640, 200, true), (65, 2080, 512, 64, false)]
++    {
++        let what = format!("M={m} H={h} N={n0}|{n1} add={add}");
++        let (x, res) = (put(&bf(&mut rng, &[m, h], 1.0)), put(&bf(&mut rng, &[m, h], 3.0)));
++        let w = put(&bf(&mut rng, &[h], 0.2));
++        let (n, sum) = (put(&HostTensor::zeros(DType::Bf16, &[m, h])), put(&HostTensor::zeros(DType::Bf16, &[m, h])));
++        let attrs = OpAttrs { eps: 1e-6, w_offset: 1.0, ..Default::default() };
++        let norm = || {
++            let (op, kernel, ins, outs) = if add {
++                (Op::RmsNormAdd, "rmsnorm_add_bf16", vec![x.clone(), res.clone(), w.clone()], vec![n.clone(), sum.clone()])
++            } else {
++                (Op::RmsNorm, "rmsnorm_bf16", vec![x.clone(), w.clone()], vec![n.clone()])
++            };
++            hip.launch(kernel, &OpCall::new(op, ins, outs, attrs.clone()), 0).unwrap();
++        };
++        let single = matmul_mxfp4_case(&mut rng, m, n0, h, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
++        let pair = matmul_mxfp4_pair_case(&mut rng, m, n0, n1, h, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
++        // the reference: the GEMMs on a copy of the normed rows (no norm produced that buffer: their own pre-pass)
++        norm();
++        let (n_want, sum_want) = (get(&n), get(&sum));
++        let copy = put(&HostTensor::new(DType::Bf16, vec![m, h], n_want.clone()).unwrap());
++        let want_single = gemm("matmul_mxfp4_a8_mma", &single, &copy);
++        let want_pair = gemm("matmul_mxfp4_pair_a8_mma", &pair, &copy);
++        let hits0 = intarsia_backend_hip::prequant_hits();
++        for round in 0..3 {
++            norm();
++            assert!(get(&n) == n_want, "{what}: round {round}, the normed rows differ from the plain norm");
++            if add {
++                assert!(get(&sum) == sum_want, "{what}: round {round}, the residual sum differs from the plain norm");
++            }
++            assert!(gemm("matmul_mxfp4_a8_mma", &single, &n) == want_single, "{what}: round {round}, the single GEMM differs");
++            assert!(gemm("matmul_mxfp4_pair_a8_mma", &pair, &n) == want_pair, "{what}: round {round}, the pair GEMM differs");
++        }
++        // every round after the first quantises in the norm (the first GEMM read of round 0 asks for it, if no earlier case did)
++        assert!(intarsia_backend_hip::prequant_hits() >= hits0 + 4, "{what}: the GEMMs did not read the norm's quantised rows");
++        // the normed rows rewritten in place: the GEMMs see the new rows
++        norm();
++        let other = bf(&mut rng, &[m, h], 1.0);
++        hip.upload(&n.buf, n.offset, &other.data, 0).unwrap();
++        let copy2 = put(&other);
++        assert!(gemm("matmul_mxfp4_pair_a8_mma", &pair, &n) == gemm("matmul_mxfp4_pair_a8_mma", &pair, &copy2), "{what}: a rewrite of the normed rows was not seen");
++    }
++}
++
+ #[test]
+ fn a8_rows_are_bitwise_the_solo_kernel() {
+     let Some(hip) = device() else { return };
+diff --git a/crates/intarsia-core/src/comm.rs b/crates/intarsia-core/src/comm.rs
+index f5a040509..25d42293a 100644
+--- a/crates/intarsia-core/src/comm.rs
++++ b/crates/intarsia-core/src/comm.rs
+@@ -151,6 +151,26 @@ pub trait Comm: Send + Sync {
+         Err(Error::Unsupported(format!("{} has no fused all-reduce + rmsnorm", self.name())))
+     }
+ 
++    /// Lane fuse27: does this communicator fuse a prefill chunk's all-reduce whose GEMM pushed its partial ([`Comm::prepush`]) with the
++    /// residual add + rmsnorm after it ([`Comm::ar_norm_prefill_supported`])? The model then defers exactly those reductions, whether or
++    /// not it defers the others (`tp_arnorm`). Default false.
++    fn fuses_ar_norm_prefill(&self) -> bool {
++        false
++    }
++
++    /// Lane fuse27: was the GEMM that wrote `partial` armed by [`Comm::prepush`], and did it push? Decided when the GEMM was enqueued, from
++    /// its shape and the environment only, so every rank answers alike for the same call; an unarmed call (a plan recording, a capture, a
++    /// decode step) says no. Default false.
++    fn ar_norm_prefill_armed(&self, _partial: &TensorRef) -> bool {
++        false
++    }
++
++    /// Lane fuse27: [`Comm::ar_norm_prefill_armed`] for `a.partial` and the operands are ones [`Comm::all_reduce_add_rmsnorm`] takes for a
++    /// pushed partial (bitwise the unfused pair, like the decode-sized fusion of [`Comm::ar_norm_supported`]). Default false.
++    fn ar_norm_prefill_supported(&self, _a: &ArNorm<'_>) -> bool {
++        false
++    }
++
+     /// Lane arx: the next op is the GEMM that writes `partial` and the next collective is its all-reduce
+     /// ([`Comm::all_reduce_sum_into`] with this `partial`), both on the rank's stream; the communicator may let the GEMM push
+     /// the partial to the peer as its tiles finish, so the all-reduce only reduces (HIP: `INTARSIA_HIP_AR_PUSH`). Only for an
+@@ -177,6 +197,10 @@ pub struct ArNorm<'a> {
+     pub sum: &'a TensorRef,
+     pub eps: f32,
+     pub w_offset: f32,
++    /// Lane fuse27: false when nothing reads `out` after the norm (the model's block output: the next block overwrites it). The fusion of
++    /// a pushed prefill partial ([`Comm::ar_norm_prefill_supported`]) needs it false and does not store the reduced rows (`out` keeps
++    /// whatever it held, e.g. this rank's partial); `norm` and `sum` are the same either way. The decode fusion always stores `out`.
++    pub keep_out: bool,
+ }
+ 
+ fn check_reducible(x: &TensorRef) -> Result<usize> {
+diff --git a/crates/intarsia-core/src/model.rs b/crates/intarsia-core/src/model.rs
+index 08e549527..6086666d7 100644
+--- a/crates/intarsia-core/src/model.rs
++++ b/crates/intarsia-core/src/model.rs
+@@ -467,6 +467,9 @@ pub struct Model {
+     tp_fusion: bool,
+     /// Block-end all-reduces are deferred to the norm that follows (`model/ar_norm.rs`).
+     tp_arnorm: bool,
++    /// Lane fuse27: the block-end all-reduces whose GEMM pushed its partial (prefill) are deferred to the norm that follows, independent
++    /// of `tp_arnorm` (`model/ar_norm.rs`).
++    tp_arnorm_prefill: bool,
+     /// The all-reduce deferred by `tp_arnorm`, until the next op decides how it runs.
+     ar_defer: Mutex<Option<ar_norm::DeferredAr>>,
+     /// Lane TPO overlap: the all-reduces queued on stream 1 whose result the next op of stream 0 still has to wait for, as (first row, rows,
+@@ -1520,6 +1523,7 @@ impl Model {
+             tp_fusion: opts.tp_fusion && tp.world > 1,
+             vocab_par,
+             tp_arnorm: ar_norm::enabled(opts, &tp, no_comm, test_bug.is_some()),
++            tp_arnorm_prefill: ar_norm::enabled_prefill(opts, &tp, no_comm, test_bug.is_some()),
+             ar_defer: Mutex::new(None),
+             pipe: Mutex::new(Vec::new()),
+             pipe_active: std::sync::atomic::AtomicBool::new(false),
+@@ -2850,7 +2854,7 @@ impl Model {
+             self.pipe_join()?; // an all-reduce of the overlap is still in flight on stream 1: this op may read its result
+         }
+         // a block-end all-reduce held back for this op (`model/ar_norm.rs`): fused with it, or issued before it
+-        if self.tp_arnorm && self.resolve_ar(&call, profile)? {
++        if (self.tp_arnorm || self.tp_arnorm_prefill) && self.resolve_ar(&call, profile)? {
+             return Ok(());
+         }
+         {
+@@ -4076,7 +4080,7 @@ impl Model {
+             return self.all_reduce(dst, out, profile);
+         };
+         let comm = self.tp.comm.as_ref().expect("overlap_piece checked the communicator");
+-        if self.tp_arnorm {
++        if self.tp_arnorm || self.tp_arnorm_prefill {
+             self.flush_ar(profile)?; // a reduction still pending from the block before
+         }
+         self.pipe_join()?;
+@@ -4108,7 +4112,7 @@ impl Model {
+         profile: bool,
+     ) -> Result<()> {
+         let comm = self.tp.comm.as_ref().expect("overlap_piece checked the communicator");
+-        if self.tp_arnorm {
++        if self.tp_arnorm || self.tp_arnorm_prefill {
+             self.flush_ar(profile)?;
+         }
+         let pieces = Self::row_pieces(t, piece);
+@@ -4167,7 +4171,7 @@ impl Model {
+     /// nothing runs: the call is counted instead (it would otherwise wait for ranks that are not running).
+     fn all_reduce(&self, partial: &TensorRef, out: &TensorRef, profile: bool) -> Result<()> {
+         let Some(comm) = &self.tp.comm else { return Ok(()) };
+-        if self.tp_arnorm {
++        if self.tp_arnorm || self.tp_arnorm_prefill {
+             self.flush_ar(profile)?; // a reduction still pending (nothing between two block-end reductions emits an op, but be exact)
+         }
+         if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+@@ -4195,7 +4199,8 @@ impl Model {
+                 self.scale_partial(partial, f)?;
+             }
+         }
+-        if self.tp_arnorm {
++        // lane fuse27: with only `tp_arnorm_prefill`, just a partial its GEMM pushed (the same call on every rank)
++        if self.tp_arnorm || (self.tp_arnorm_prefill && comm.ar_norm_prefill_armed(partial)) {
+             // deferred whether or not this rank profiles the step: rank 1 never does, and the ranks must issue the same collectives
+             self.defer_ar(partial, out, None);
+             return Ok(());
+diff --git a/crates/intarsia-core/src/model/ar_norm.rs b/crates/intarsia-core/src/model/ar_norm.rs
+index 9cc0800a7..d23fd8b4a 100644
+--- a/crates/intarsia-core/src/model/ar_norm.rs
++++ b/crates/intarsia-core/src/model/ar_norm.rs
+@@ -21,6 +21,12 @@
+ //! difference; `plan show` prints how many collectives fuse.
+ //!
+ //! Off (the default, `Model::tp_arnorm` false) nothing here runs and `all_reduce` is the code it always was.
++//!
++//! Lane fuse27 (`Model::tp_arnorm_prefill`, a communicator with [`Comm::fuses_ar_norm_prefill`]): independent of `tp_arnorm`, only the
++//! reductions whose row-parallel GEMM pushed its partial ([`Comm::ar_norm_prefill_armed`]: prefill chunks) are deferred, and the next op
++//! fuses with them when [`Comm::ar_norm_prefill_supported`] says so; every other reduction runs where it always did. The arm is a pure
++//! function of the GEMM's shape and the environment, so both ranks defer and fuse the same calls. A plan recording or a capture never
++//! arms a push, so neither ever sees one of these deferrals.
+ 
+ use super::*;
+ use crate::comm::ArNorm;
+@@ -36,14 +42,21 @@ pub(super) struct DeferredAr {
+ /// Whether a model loaded with `opts` as rank `tp` defers its block-end reductions. Needs row-local fusion on at world 2, a
+ /// communicator that fuses, fusion not disabled (`INTARSIA_NO_FUSION`) and no collective-skipping test hook.
+ pub(super) fn enabled(opts: &LoadOptions, tp: &TpRank, no_comm: bool, test_bug: bool) -> bool {
++    opts.tp_arnorm && can_defer(opts, tp, no_comm, test_bug) && tp.comm.as_ref().is_some_and(|c| c.fuses_ar_norm())
++}
++
++/// Lane fuse27: whether it defers the reductions of pushed partials (see the module docs). The same conditions without `tp_arnorm`.
++pub(super) fn enabled_prefill(opts: &LoadOptions, tp: &TpRank, no_comm: bool, test_bug: bool) -> bool {
++    can_defer(opts, tp, no_comm, test_bug) && tp.comm.as_ref().is_some_and(|c| c.fuses_ar_norm_prefill())
++}
++
++fn can_defer(opts: &LoadOptions, tp: &TpRank, no_comm: bool, test_bug: bool) -> bool {
+     static NO_FUSION: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+-    opts.tp_arnorm
+-        && opts.tp_fusion
++    opts.tp_fusion
+         && tp.world == 2
+         && !no_comm
+         && !test_bug
+         && !*NO_FUSION.get_or_init(|| std::env::var_os("INTARSIA_NO_FUSION").is_some_and(|v| v != "0"))
+-        && tp.comm.as_ref().is_some_and(|c| c.fuses_ar_norm())
+ }
+ 
+ fn same_tensor(a: &TensorRef, b: &TensorRef) -> bool {
+@@ -98,8 +111,12 @@ impl Model {
+                 sum: &call.outputs[1],
+                 eps: call.attrs.eps,
+                 w_offset: call.attrs.w_offset,
++                // the block output is read only by its RmsNormAdd (the next block overwrites it; the det tap and the DFlash
++                // taps read it before this point, after flushing)
++                keep_out: false,
+             };
+-            if comm.ar_norm_supported(&a) {
++            // lane fuse27: a pushed prefill partial first (it is never one the decode-sized fusion takes), then `tp_arnorm`'s
++            if comm.ar_norm_prefill_supported(&a) || (self.tp_arnorm && comm.ar_norm_supported(&a)) {
+                 if let Some(idx) = d.plan_idx {
+                     if let Some(r) = self.recorder.lock().unwrap().as_mut() {
+                         r.comm[idx].fused_norm = true;
+diff --git a/crates/intarsia-core/src/model/batch.rs b/crates/intarsia-core/src/model/batch.rs
+index 6bdb87c9e..0c0c5c922 100644
+--- a/crates/intarsia-core/src/model/batch.rs
++++ b/crates/intarsia-core/src/model/batch.rs
+@@ -1101,6 +1101,7 @@ impl Model {
+             tp_fusion: false,
+             vocab_par: self.vocab_par,
+             tp_arnorm: false,
++            tp_arnorm_prefill: false,
+             ar_defer: Mutex::new(None),
+             pipe: Mutex::new(Vec::new()),
+             pipe_active: std::sync::atomic::AtomicBool::new(false),
+diff --git a/crates/intarsia-core/src/model/det_tap.rs b/crates/intarsia-core/src/model/det_tap.rs
+index c8ad2f1e6..be6ebc304 100644
+--- a/crates/intarsia-core/src/model/det_tap.rs
++++ b/crates/intarsia-core/src/model/det_tap.rs
+@@ -53,6 +53,8 @@ impl Model {
+     /// pass's earlier chunks (the first [`ROWS`] rows of a pass are kept; no-op when off).
+     pub(super) fn det_tap_layer(&self, li: usize, t: usize, res: &TensorRef, blk: Option<&TensorRef>) -> Result<()> {
+         let Some(tp) = tap() else { return Ok(()) };
++        // lane fuse27: a block-end all-reduce deferred to the next norm (`model/ar_norm.rs`) runs now: the tap copies `blk` directly
++        self.flush_ar(false)?;
+         let h = self.dims.hidden;
+         let buf = self.det_tap_buf(tp)?;
+         let c = tp.rows.lock().unwrap()[self.tp.rank];
+diff --git a/crates/intarsia-core/src/model/graph_step.rs b/crates/intarsia-core/src/model/graph_step.rs
+index fa0844756..f0122ac69 100644
+--- a/crates/intarsia-core/src/model/graph_step.rs
++++ b/crates/intarsia-core/src/model/graph_step.rs
+@@ -134,7 +134,7 @@ impl GraphState {
+ /// that the other ranks replayed in lockstep (a rank that ran eagerly while rank 0 replayed gives the same bits).
+ impl Drop for Model {
+     fn drop(&mut self) {
+-        if self.tp_arnorm {
++        if self.tp_arnorm || self.tp_arnorm_prefill {
+             // evidence that the fused all-reduce + rmsnorm ran (eager calls, and calls recorded into a graph: each replay runs those)
+             for m in std::iter::once(&*self).chain(self.peers.iter()) {
+                 eprintln!("tensor-parallel rank {}: fused all-reduce+rmsnorm {}", m.tp.rank, m.ar_fused_counts());
+diff --git a/docs/tuning.md b/docs/tuning.md
+index d8de24072..fac7b556e 100644
+--- a/docs/tuning.md
++++ b/docs/tuning.md
+@@ -180,6 +180,7 @@ numerics (`INTARSIA_CUDA_FAST_PREFILL`, `INTARSIA_CUDA_MOE_NVFP4`, `INTARSIA_TP_
+ | `INTARSIA_HIP_AR_LL_MAX` | `crates/intarsia-backend-hip/src/comm.rs:210` | 65536 (unset or empty) | Largest TP all-reduce / all-gather / fused all-reduce+norm message, in bytes, that `INTARSIA_HIP_AR_DRAIN=7` sends on the tagged-line path (it doubles the bytes on the wire); bigger messages use mode 1. At most 2097152 (2 MiB); 0 turns the LL path off. Read at group creation, so both ranks agree. | no (bitwise equal to mode 1 on both paths) |
+ | `INTARSIA_HIP_AR_WIDE` | `crates/intarsia-backend-hip/src/comm.rs:193` | 64 blocks, 20 MiB slot (unset or empty) | Lane pf27b: TP all-reduces above the LL limit (`INTARSIA_HIP_AR_LL_MAX`, 64 KiB by default; every prefill all-reduce) run the mode-1 fence kernel on their own scratch, flags and counters with `BLOCKS` blocks and a `SLOT_MIB` slot (`BLOCKS[,SLOT_MIB]`, 1..=1024 blocks, 1..=256 MiB), so a 2048-row x 5120 bf16 partial is one launch on 64 blocks instead of five 4 MiB launches on 16; `0` restores the old path (16 blocks, 4 MiB). Costs 2 x 20 MiB of fine-grained memory per rank. 27B tp2 4k prefill (`generate`, 3 rounds): 936 -> 887 ms with the pair below (`=0`: 928); the all-reduce is 840 us per 20 MiB vs 1020 (link floor ~750 us at 28 GB/s per direction, PCIe 5.0 x8 upstream ports). 32 / 64 / 128 blocks tie end to end. Read at group creation, a pure function of the message size, so both ranks agree (`docs/results/2026-10-28-pf27b-hip-27b-prefill-ar.md`). | no (bitwise equal to the old path, `tests/comm.rs` `wide_path_is_bitwise_the_old_path_at_prefill_sizes`) |
+ | `INTARSIA_HIP_AR_PUSH` | `crates/intarsia-backend-hip/src/comm.rs:317` | 1 (unset or empty) | TP all-reduce, default on since lane arx2 (`0` opts out): it lets a row-parallel W4A8 GEMM (`matmul_mxfp4_a8_mma`, direct kernel, bf16 out, M > 64, partial > 64 KiB and <= one wide slot) push its partial into the peer's wide all-reduce slot while its later tiles compute (persistent grid, each tile pushed during the next one from registers); the all-reduce then only raises its flag and adds (`ik_ar2_pushed`). Needs the wide path (`INTARSIA_HIP_AR_WIDE` not 0); eager passes only (never recorded or captured). Bitwise the plain pair (tests/ar_push.rs, 27 Ms). 27B tp2 prefill: see docs/results/2026-10-29-arx-hip-ar-overlap.md; decode never pushes | no (bitwise the plain GEMM + all-reduce, `tests/ar_push.rs` `pushed_all_reduce_is_bitwise_the_plain_pair_over_m`) |
++| `INTARSIA_HIP_AR_NORM_PREFILL` | `crates/intarsia-backend-hip/src/comm.rs:p2p_group_push` | unset: on (lane fuse27, 2026-10-29; needs the push) | `0` turns off the prefill all-reduce + residual add + rmsnorm fusion: a block-end all-reduce whose row-parallel GEMM pushed its partial (`INTARSIA_HIP_AR_PUSH`) is deferred by the model (`model/ar_norm.rs`, independent of `INTARSIA_TP_ARNORM`) and, when the next op is its `RmsNormAdd`, runs as `ik_ar2_pushed_add` (the reduce plus the residual add: out and sum in one pass) and `rmsnorm_bf16` on the sum (which also quantises for the W4A8 GEMMs, `INTARSIA_HIP_NORM_QUANT`): one launch and a full read of the reduced rows fewer per point. Bitwise the unfused pair (`tests/ar_push.rs` `pushed_all_reduce_add_rmsnorm_is_bitwise_the_plain_chain`). | no (same roundings in the same order: bitwise) |
+ | `INTARSIA_HIP_BW` | `crates/intarsia-backend-hip/tests/matmul_bench.rs:72` | 627 (GB/s, R9700 roofline) | matmul_bench roofline bandwidth in GB/s used to report percent of peak. | n/a (bench harness) |
+ | `INTARSIA_HIP_CHECK_ONLY` | `crates/intarsia-backend-hip/build.rs:65` | unset | CI only: exactly `1` enables the `ik_hip` cfg without compiling or linking kernels, so `cargo check --all-targets` type-checks the HIP Rust code on a runner with no hipcc. The result cannot link or run; never set it for a build you will run. | n/a |
+ | `INTARSIA_HIP_DEVICE` | `crates/intarsia-backend-hip/tests/matmul_bench.rs:12` | 0 | GPU ordinal the HIP integration tests and benches run on (same read in every tests/*.rs). | n/a (test harness) |
+@@ -239,6 +240,7 @@ numerics (`INTARSIA_CUDA_FAST_PREFILL`, `INTARSIA_CUDA_MOE_NVFP4`, `INTARSIA_TP_
+ | `INTARSIA_HIP_MXFP4_A8_DIRECT` | `kernels/hip/mxfp4_a8_gemm.hip:a8_cfg` | unset: the direct kernel for M > 64 (lane PF27, 2026-10-28) | The W4A8 prefill GEMM (`matmul_mxfp4_a8_mma`) loads the token fragments straight from global memory (the activation pre-pass writes them in fragment order, `mx_a8_quant_tiled_kernel`) instead of staging them through LDS; only the weights go through LDS, and the stage barrier is LDS-only. `0` restores the staged kernel (tokens through LDS, PR #206). Not used when `INTARSIA_HIP_MXFP4_A8_TILE` or `INTARSIA_HIP_MXFP4_A8_PD=1` is set. Read once per process. | no (same WMMA operands in the same order and the same epilogue: output bitwise equal) |
+ | `INTARSIA_HIP_MXFP4_A8_DTILE` | `kernels/hip/mxfp4_a8_gemm.hip:a8_direct_run` | unset (the table) | `WN,WM,TN,TM`: force one tile of the direct W4A8 prefill GEMM for sweeps: `2,8,2,4`, `2,4,2,4`, `2,2,2,4`, `4,4,2,4`, `4,2,2,4`; others fall back to the table (M >= 768: `2,8,2,4`, 64 features x 512 tokens; else `2,4,2,4`). Read once per process. | no (every tile gives the same bits) |
+ | `INTARSIA_HIP_MXFP4_A8_SPANCACHE` | `crates/intarsia-backend-hip/src/device.rs:SpanCache` | unset: on (lane pf27c, 2026-10-29) | `0` turns off the W4A8 span cache: the direct prefill GEMM (`matmul_mxfp4_a8_mma`, `_pair_`, M > 64, eager, stream 0) runs its weight-span pre-pass (`a8_wspan_kernel`: wref and the fold flag, a pure function of the scales) once per scale tensor into a backend buffer instead of once per call, and once the flag has been read back (async, page-locked) launches only the kernel of the fold path it selects. Same kernels and values, bitwise the uncached call (`tests/mxfp4_a8.rs` `a8_span_cache_reuses_and_refills`, `a8_mma_hashes`). Off: the per-call pass as before. | no (same kernels, same wref and flag: bitwise) |
++| `INTARSIA_HIP_NORM_QUANT` | `crates/intarsia-backend-hip/src/device.rs:PreQuant` | unset: on (lane fuse27, 2026-10-29) | `0` turns off the prefill norm's W4A8 quant: a prefill `rmsnorm_bf16` / `rmsnorm_add_bf16` (eager, stream 0, rows that take the direct kernel, H % 32 == 0) whose output the cached-span W4A8 GEMMs read (FFN gate \| up, GDN qkv \| z and b \| a, attention q and k \| v) also writes their quantised activations (`ik_rmsnorm_quant_bf16`, kernels/hip/norm.hip: the direct pre-pass's e4m3 bytes and row scales from the bf16 values it stores) into a backend buffer, and those GEMMs skip their pre-pass (`mx_a8_quant_tiled`). Starts after the first GEMM that read a norm output, so a model with no W4A8 GEMM after its norms never quantises. Bitwise the pre-pass (`tests/mxfp4_a8.rs` `a8_norm_quant_is_bitwise_the_pre_pass`). | no (same bytes as the pre-pass: bitwise) |
+ | `INTARSIA_HIP_MXFP4_A8_PERGROUP` | `kernels/hip/mxfp4_a8_gemm.hip:305` | unset (fold path unless a row's scale span is over 14 octaves) | `1` forces the W4A8 prefill GEMM's per-group-rescale path instead of the folded-scale path (tests; real checkpoints stay on the fold path). Read once per process. | yes (the group scale is applied per 32-k group instead of once; last-bit fp32 rounding differs) |
+ | `INTARSIA_HIP_MXFP4_A8_FUSE` | `kernels/hip/mxfp4_a8.hip:a8_fuse_mode` | unset: fused for single-row calls (M = 1), pre-pass for M >= 2 (lane hdc, 2026-10-27) | The W4A8 decode GEMVs (`matmul_mxfp4_a8_gemv`, `_gemv_rows`, `matmul_mxfp4_pair_a8_gemv`, `_gemv_rows`) quantise the activation rows inside each block into LDS (`mxfp4_a8_rows_fused_kernel`) instead of running the separate `mx_a8_quant_kernel` launch first (the first weight group of each warp is loaded before the quantisation, so its latency overlaps it); used where `al16(M*K) + al16(4*M) <= 60000` bytes of LDS (K = 5120: M <= 11; K = 6144: M <= 9; K = 17408: M <= 3; K = 2080: all M), larger M keep the pre-pass. Unset: only M = 1 (plain decode, MTP draft pass); `1`: every M the LDS allows (the multi-row blocks quantise all M rows each and lose from about M = 3 at the big shapes); `0` or anything else: the pre-pass path (kill switch). Read once per process. | no (the fused kernel runs the pre-pass's own quantisation helpers and the same dot loop: the bits equal the pre-pass path) |
+ | `INTARSIA_HIP_MXFP4_FOLD` | `crates/intarsia-backend-hip/src/quantmoe.rs:124` | **on** (default since 2026-10-25, user decision 13:14) | `matmul_mxfp4_mma_fold` is the default W4A4 MXFP4 prefill GEMM (M >= 9, K % 64 == 0): both operands folded into e4m3 against the row's largest group scale, one fp8 WMMA GEMM (2.1-2.5x the v2 GEMM rate). `0` is the kill switch: back to `matmul_mxfp4_mma` (v2), main's bits before the change. W4A16 calls (`--mxfp4-act none`) run v2 inside either way (bitwise); since the Qwen3.8-27B recipe defaults to W4A16 (2026-10-26) this knob is inert on the 27B unless `--mxfp4-act dynamic` is set. Read once per process. | yes (fp8 WMMA sums, rounded tiny activation groups). 27B vs the HF Quark W4A4 golden: prefill KL 0.165 (v2 0.180, bound 0.197), decode-mode KL 0.261 (v2 0.340); 27B W4A4 baseline + envelope re-recorded from the fold build. docs/results/2026-10-25-mx-fold-default.md; decision in docs/decisions/LOG.md |
+diff --git a/kernels/hip/allreduce.hip b/kernels/hip/allreduce.hip
+index 30f47260c..1626defe7 100644
+--- a/kernels/hip/allreduce.hip
++++ b/kernels/hip/allreduce.hip
+@@ -43,6 +43,7 @@
+ #include "ik_hip.h"
+ #include "ar_ll.h"
+ #include "ar_push.h"
++#include "ik_mx_a8.h"  // lane fuse27: ar2p_norm_kernel quantises the normed rows for the W4A8 GEMMs
+ 
+ #define AR_SPIN_MAX 480000000u /* polls (w27 diagnostic: 8x the old 60M, which trapped after ~6 s) */
+ 
+@@ -199,6 +200,133 @@ __global__ void ar2p_kernel(const int4* x4, int4* out4, const int4* my_scratch,
+     }
+ }
+ 
++/* Lane fuse27: ar2p_kernel's handshake alone (counters, flag out, wait for the peer's flag; one thread per block, the wide path's block
++ * count), for ar2p_norm_kernel, which reads the peer's pushed words in the next launch on the stream. The slot argument of ar2p_kernel
++ * holds with the reader in that next launch: this rank raises its flag for launch k + 1 only after the reader of launch k ended. */
++__global__ void ar2p_wait_kernel(unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int drain) {
++    const int b = blockIdx.x;
++    if (threadIdx.x != 0) return;
++    const unsigned int seq = atomicAdd(&ctrs[b], 1u) + 1u;
++    ar_store_rel(&peer_flags[b], seq);
++    unsigned int spins = 0;
++    while (drain != 9 && (int)(ar_load_acq(&my_flags[b]) - seq) < 0) {
++        __builtin_amdgcn_s_sleep(1);
++        if (++spins > AR_SPIN_MAX) __builtin_trap();
++    }
++}
++
++/* Lane fuse27: the reduce of a pushed partial (ar2p_kernel), the residual add and the rmsnorm of rmsnorm_add (norm.hip rmsnorm_kernel<true,
++ * true> at its block size of 256, H / 8 >= 256) and, with QUANT, the W4A8 direct GEMM's activation quant of the normed rows
++ * (mx_a8_quant_tiled_kernel), in one pass. Block = 16 rows (one 16-token tile of the push layout) x 1024 threads; lane l of a wave owns row
++ * l & 15 and, of the 256 threads the rmsnorm block would run per row, thread t = 2 * pair + (l >> 4) for kArnPairs pairs, so one wave load
++ * of the pushed words is one 512-byte fragment group. Each element keeps its arithmetic order:
++ *   out = round(x + peer) (ar_add16<0>), sum = round(out + res), stored;
++ *   ss of (row, t) = the sum's f32 squares over chunks t, t + 256, t + 512 in that order (rmsnorm's per-thread loop), then rmsnorm's
++ *   ik_block_sum: the 32 t of each of its warps through ik_warp_sum (lane 0's value), the 8 warp sums added in warp order;
++ *   norm = round(sum * r * (w + woff)); xs = max(amax / 448, min) over the stored norm (order-free), xq = e4m3(norm / xs).
++ * The reduced rows themselves are not stored (the model reads only sum and norm after the norm). The slot is ctrs[0]'s parity after
++ * ar2p_wait_kernel (every block's counter is the same seq). Grid: the 16-padded rows / 16; rows >= M write only their zero quant rows. */
++constexpr int kArnThreads = 1024, kArnVt = 256, kArnPairs = kArnVt / 2 / (kArnThreads / 32), kArnSteps = 3;
++template <bool QUANT>
++__global__ void __launch_bounds__(kArnThreads)
++ar2p_norm_kernel(const int4* x4, const int4* my_scratch, const unsigned int* ctrs, int slot_stride16, ik_ar_push lay, const int4* res4,
++                 const ik_bf16* w, int4* sum4, int4* nrm4, float eps, float woff, uint8_t* xt, float* xs, int H) {
++    __shared__ float ssv[16][kArnVt];
++    __shared__ float red[16][kArnVt / 32];
++    __shared__ float amx[kArnThreads / 32][16];
++    const int lane = threadIdx.x & 31, wv = threadIdx.x >> 5, rr = lane & 15, half = lane >> 4;
++    const int64_t m = (int64_t)blockIdx.x * 16 + rr;
++    const bool live = m < lay.M;
++    const int C = H >> 3;
++    const int4* ms = my_scratch + (size_t)(ctrs[0] & 1u) * (size_t)slot_stride16;
++    // the row's part of the fragment index (ar2p_kernel's mapping inverted; the same for the 16 rows of the tile)
++    const int bm = (lay.nw / lay.wn) * lay.tm * 16, bn = lay.wn * lay.tn * 16;
++    const int64_t bx = m / bm;
++    const int rm = (int)(m % bm), wr = rm / (lay.tm * 16), j = (rm >> 4) % lay.tm;
++    uint4 keep[kArnPairs][kArnSteps];
++#pragma unroll
++    for (int p = 0; p < kArnPairs; ++p) {
++        const int t = 2 * (wv * kArnPairs + p) + half;
++        float ss = 0.f;
++#pragma unroll
++        for (int s = 0; s < kArnSteps; ++s) {
++            const int c = t + kArnVt * s;
++            if (live && c < C) {
++                const int64_t n = 8 * (int64_t)c, o = (m * H + n) >> 3;
++                const int64_t by = n / bn;
++                const int rn = (int)(n % bn), wc = rn / (lay.tn * 16), i = (rn >> 4) % lay.tn;
++                const int64_t k = ((((by * lay.gx + bx) * lay.nw + (wr * lay.wn + wc)) * lay.tn + i) * lay.tm + j) * 32 + rr + 16 * (c & 1);
++                const int4 sm = ar_add16<0>(ar_add16<0>(x4[o], ms[k]), res4[o]);
++                sum4[o] = sm;
++                keep[p][s] = *reinterpret_cast<const uint4*>(&sm);
++                float f[8];
++                ik_unpack8(keep[p][s], f);
++#pragma unroll
++                for (int e = 0; e < 8; ++e) ss += f[e] * f[e];
++            }
++        }
++        ssv[rr][t] = ss;
++    }
++    __syncthreads();
++    // rmsnorm's ik_block_sum per row: (row, its warp q) = one ik_warp_sum over that warp's 32 threads, lane 0's value
++    for (int q = wv; q < 16 * (kArnVt / 32); q += kArnThreads / 32) {
++        const int row = q / (kArnVt / 32), vw = q % (kArnVt / 32);
++        const float v = ik_warp_sum(ssv[row][vw * 32 + lane]);
++        if (lane == 0) red[row][vw] = v;
++    }
++    __syncthreads();
++    float tot = 0.f;
++    for (int i = 0; i < kArnVt / 32; ++i) tot += red[rr][i];  // fixed order, as ik_block_sum
++    const float r = rsqrtf(tot / (float)H + eps);
++    float amax = 0.f;
++#pragma unroll
++    for (int p = 0; p < kArnPairs; ++p) {
++        const int t = 2 * (wv * kArnPairs + p) + half;
++#pragma unroll
++        for (int s = 0; s < kArnSteps; ++s) {
++            const int c = t + kArnVt * s;
++            if (live && c < C) {
++                float f[8], g[8];
++                ik_unpack8(keep[p][s], f);
++                ik_unpack8(reinterpret_cast<const uint4*>(w)[c], g);
++#pragma unroll
++                for (int e = 0; e < 8; ++e) f[e] = f[e] * r * (g[e] + woff);
++                keep[p][s] = ik_pack8(f);
++                nrm4[(m * H + 8 * (int64_t)c) >> 3] = *reinterpret_cast<const int4*>(&keep[p][s]);
++                if (QUANT) {
++                    ik_unpack8(keep[p][s], f);  // the stored bf16 values, as mx_a8_row_scale reads them back
++#pragma unroll
++                    for (int e = 0; e < 8; ++e) amax = fmaxf(amax, fabsf(f[e]));
++                }
++            }
++        }
++    }
++    if (!QUANT) return;
++    amax = fmaxf(amax, __shfl_xor(amax, 16, 32));  // the lanes of the same row
++    if (half == 0) amx[wv][rr] = amax;
++    __syncthreads();
++    float a = amx[0][rr];
++    for (int i = 1; i < kArnThreads / 32; ++i) a = fmaxf(a, amx[i][rr]);
++    const float sc = fmaxf(__fdiv_rn(a, kMxA8Max), kMxA8MinScale);
++    if (live && wv == 0 && half == 0) xs[m] = sc;
++    // chunk c of the row: group c >> 2, half (c >> 1) & 1, byte (c & 1) * 8 of the lane's 16 (mx_a8_quant_tiled_kernel); rows >= M and the
++    // K % 64 == 32 pad group are zeros
++    const int CP = ((H + 63) >> 6) * 8;
++    uint8_t* tile = xt + (m >> 4) * (int64_t)(CP / 4) * 512 + (m & 15) * 16;
++#pragma unroll
++    for (int p = 0; p < kArnPairs; ++p) {
++        const int t = 2 * (wv * kArnPairs + p) + half;
++#pragma unroll
++        for (int s = 0; s < kArnSteps; ++s) {
++            const int c = t + kArnVt * s;
++            if (c < C)
++                *reinterpret_cast<uint2*>(tile + (c >> 2) * 512 + ((c >> 1) & 1) * 256 + (c & 1) * 8) =
++                    live ? mx_a8_quant8(keep[p][s], sc) : make_uint2(0u, 0u);
++        }
++        for (int c = C + t; c < CP; c += kArnVt) *reinterpret_cast<uint2*>(tile + (c >> 2) * 512 + ((c >> 1) & 1) * 256 + (c & 1) * 8) = make_uint2(0u, 0u);
++    }
++}
++
+ /* Two-rank all-gather, the same push handshake as ar2_kernel (same scratch, flags, counters and parity, so the per-block
+  * counters of both ranks stay in lockstep and an all-gather and an all-reduce launch can follow each other in any order).
+  * x: this rank's n16 words; out: rank-major, rank r's words at out[r * out_stride16 ..]. Both ranks wait for the peer's flag
+@@ -369,6 +497,35 @@ int ik_ar2_pushed(void* x, void* out, void* my_scratch, unsigned int* peer_flags
+     return ik_launch_status();
+ }
+ 
++/* Lane fuse27: the all-reduce of a partial its GEMM pushed (ik_ar2_pushed) fused with the rmsnorm_add after it and, xq non-null, the W4A8
++ * direct GEMM's activation quant of the normed rows (ar2p_wait_kernel, then ar2p_norm_kernel): sum = round(round(x + peer) + res) and
++ * norm = rmsnorm(sum) * (w + woff), bitwise rmsnorm_add on the plain reduce, both [M, H] bf16 with H = lay->N; xq in the direct pre-pass's
++ * layout (16-padded M, 64-padded K: e4m3 at 0, scales at mx_a8_xs_offset). The reduced rows are not stored. IK_ERR_UNSUPPORTED when H is
++ * outside the kernel's rmsnorm block (2048 <= H <= 6144, H % 16 == 0). */
++int ik_ar2_pushed_norm(void* x, const void* res, const void* w, float eps, float woff, void* sum, void* nrm, void* xq, void* my_scratch,
++                       unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes, int nblocks, int drain,
++                       const ik_ar_push* lay, void* stream) {
++    if (!x || !res || !w || !sum || !nrm || !my_scratch || !peer_flags || !my_flags || !ctrs || !lay || nblocks < 1 || nblocks > 1024)
++        return IK_ERR_INVALID_ARG;
++    if (!lay->pushed || lay->words * 16 > slot_bytes || lay->words > (1 << 24) || slot_bytes % 16 != 0 || lay->M <= 0) return IK_ERR_SHAPE;
++    const int64_t H = lay->N;
++    if (H % 16 != 0 || H / 8 < kArnVt || H / 8 > kArnVt * kArnSteps) return IK_ERR_UNSUPPORTED;
++    if ((((uintptr_t)x | (uintptr_t)res | (uintptr_t)w | (uintptr_t)sum | (uintptr_t)nrm | (uintptr_t)xq) & 15) != 0) return IK_ERR_SHAPE;
++    hipStream_t s = IK_STREAM(stream);
++    ar2p_wait_kernel<<<nblocks, 32, 0, s>>>(peer_flags, my_flags, ctrs, drain);
++    const int64_t Mp = ((int64_t)lay->M + 15) & ~(int64_t)15, Kp = (H + 63) & ~(int64_t)63;
++    uint8_t* xt = static_cast<uint8_t*>(xq);
++    float* xsp = xq ? reinterpret_cast<float*>(xt + mx_a8_xs_offset(Mp, Kp)) : nullptr;
++    const int st = (int)(slot_bytes / 16);
++    if (xq)
++        ar2p_norm_kernel<true><<<(unsigned)(Mp / 16), kArnThreads, 0, s>>>((const int4*)x, (const int4*)my_scratch, ctrs, st, *lay, (const int4*)res,
++                                                                         (const ik_bf16*)w, (int4*)sum, (int4*)nrm, eps, woff, xt, xsp, (int)H);
++    else
++        ar2p_norm_kernel<false><<<(unsigned)(Mp / 16), kArnThreads, 0, s>>>((const int4*)x, (const int4*)my_scratch, ctrs, st, *lay, (const int4*)res,
++                                                                          (const ik_bf16*)w, (int4*)sum, (int4*)nrm, eps, woff, nullptr, nullptr, (int)H);
++    return ik_launch_status();
++}
++
+ /* Benchmarks only (lane pf27b, comm.rs `p2p_bench`): one phase of ar2_kernel<0> alone, no handshake. mode 0: the push (this rank's
+  * n16 words into the peer's scratch, nblocks blocks, then the system fence, as drain 1); mode 1: the reduce (x + my scratch -> out,
+  * bf16); mode 2: the push without the fence. */
+diff --git a/kernels/hip/mxfp4_a8_gemm.hip b/kernels/hip/mxfp4_a8_gemm.hip
+index 12e8e0b5f..49391d5db 100644
+--- a/kernels/hip/mxfp4_a8_gemm.hip
++++ b/kernels/hip/mxfp4_a8_gemm.hip
+@@ -900,9 +900,10 @@ int launch_a8_pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0,
+ 
+ // Lane pf27c: the direct path with the weight's span result cached by the caller (wref [N], flag; ik_mxfp4_a8_spans): the quant pre-pass,
+ // then the GEMM(s), no span launch and no flag fill; `fold` 1 / 0 = the flag is known to select the fold / per-group path (only that
+-// kernel is launched), -1 = unknown (both, the flag picks). The caller checks a8_use_direct(M) first.
++// kernel is launched), -1 = unknown (both, the flag picks). The caller checks a8_use_direct(M) first. xq non-null (lane fuse27): x's
++// quantised activations in the direct pre-pass's layout, already written by the norm that produced x (ik_rmsnorm_quant_bf16): no pre-pass.
+ int launch_a8_cached(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, const ik_scratch* scratch, void* stream,
+-                     const uint8_t* wref, const int* flag, int fold, void* peer = nullptr, ik_ar_push* lay = nullptr) {
++                     const uint8_t* wref, const int* flag, int fold, const uint8_t* xq, void* peer = nullptr, ik_ar_push* lay = nullptr) {
+     if (lay) lay->pushed = 0;
+     IK_TRY(a8_check(x, w, sc, out));
+     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+@@ -910,14 +911,14 @@ int launch_a8_cached(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc
+     hipStream_t s = IK_STREAM(stream);
+     if (!scratch || !scratch->data || scratch->bytes < (int64_t)a8_scratch_total(M, K, N)) return IK_ERR_INVALID_ARG;
+     if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
+-    uint8_t* base = (uint8_t*)scratch->data;
+-    IK_TRY(a8_quant(x, base, M, K, true, nullptr, 0, s));
++    uint8_t* base = xq ? const_cast<uint8_t*>(xq) : (uint8_t*)scratch->data;
++    if (!xq) IK_TRY(a8_quant(x, base, M, K, true, nullptr, 0, s));
+     return a8_gemm(w, sc, out, base, wref, flag, M, K, true, s, peer, lay, fold);
+ }
+ 
+ int launch_a8_pair_cached(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1, ik_tensor* out0,
+                           ik_tensor* out1, const ik_scratch* scratch, void* stream, const uint8_t* wref0, const int* flag0, int fold0,
+-                          const uint8_t* wref1, const int* flag1, int fold1) {
++                          const uint8_t* wref1, const int* flag1, int fold1, const uint8_t* xq) {
+     IK_TRY(a8_check(x, w0, s0, out0));
+     IK_TRY(a8_check(x, w1, s1, out1));
+     const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+@@ -926,8 +927,8 @@ int launch_a8_pair_cached(const ik_tensor* x, const ik_tensor* w0, const ik_tens
+     const int64_t NN = (int64_t)a8_round16((size_t)N0) + N1;
+     if (!scratch || !scratch->data || scratch->bytes < (int64_t)a8_scratch_total(M, K, NN)) return IK_ERR_INVALID_ARG;
+     if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
+-    uint8_t* base = (uint8_t*)scratch->data;
+-    IK_TRY(a8_quant(x, base, M, K, true, nullptr, 0, s));
++    uint8_t* base = xq ? const_cast<uint8_t*>(xq) : (uint8_t*)scratch->data;
++    if (!xq) IK_TRY(a8_quant(x, base, M, K, true, nullptr, 0, s));
+     IK_TRY(a8_gemm(w0, s0, out0, base, wref0, flag0, M, K, true, s, nullptr, nullptr, fold0));
+     return a8_gemm(w1, s1, out1, base, wref1, flag1, M, K, true, s, nullptr, nullptr, fold1);
+ }
+@@ -979,19 +980,21 @@ int ik_mxfp4_a8_spans(const ik_tensor* scales, int64_t K, void* wref, void* flag
+ int ik_mxfp4_a8_use_direct(int64_t M) { return a8_use_direct(M) ? 1 : 0; }
+ 
+ // lane pf27c: ik_matmul_mxfp4_a8_mma{,_push} / ik_matmul_mxfp4_pair_a8_mma with the weights' span results from ik_mxfp4_a8_spans (the direct
+-// path only; `fold` as launch_a8_cached). `lay` null: no push. Bitwise the uncached calls.
++// path only; `fold` as launch_a8_cached). `lay` null: no push. `xq` (lane fuse27): null, or x's activations quantised by ik_rmsnorm_quant_bf16
++// (no pre-pass). Bitwise the uncached calls.
+ int ik_matmul_mxfp4_a8_mma_cached(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act, ik_tensor* out,
+-                                  const ik_scratch* scratch, const void* wref, const void* flag, int fold, void* peer, ik_ar_push* lay, void* stream) {
++                                  const ik_scratch* scratch, const void* wref, const void* flag, int fold, void* peer, ik_ar_push* lay, const void* xq,
++                                  void* stream) {
+     (void)act;
+-    return launch_a8_cached(x, w, scales, out, scratch, stream, (const uint8_t*)wref, (const int*)flag, fold, peer, lay);
++    return launch_a8_cached(x, w, scales, out, scratch, stream, (const uint8_t*)wref, (const int*)flag, fold, (const uint8_t*)xq, peer, lay);
+ }
+ 
+ int ik_matmul_mxfp4_pair_a8_mma_cached(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1,
+                                        const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, const ik_scratch* scratch, const void* wref0,
+-                                       const void* flag0, int fold0, const void* wref1, const void* flag1, int fold1, void* stream) {
++                                       const void* flag0, int fold0, const void* wref1, const void* flag1, int fold1, const void* xq, void* stream) {
+     (void)act;
+     return launch_a8_pair_cached(x, w0, s0, w1, s1, out0, out1, scratch, stream, (const uint8_t*)wref0, (const int*)flag0, fold0,
+-                                 (const uint8_t*)wref1, (const int*)flag1, fold1);
++                                 (const uint8_t*)wref1, (const int*)flag1, fold1, (const uint8_t*)xq);
+ }
+ 
+ }  // extern "C"
+diff --git a/kernels/hip/norm.hip b/kernels/hip/norm.hip
+index 1def70602..9fe0d30f3 100644
+--- a/kernels/hip/norm.hip
++++ b/kernels/hip/norm.hip
+@@ -1,5 +1,6 @@
+ // RMSNorm family: rmsnorm, rmsnorm_add (residual add fused), qk_norm (per-head rmsnorm).
+ #include "ik_hip.h"
++#include "ik_mx_a8.h"  // lane fuse27: the W4A8 activation quant of the normed rows (rmsnorm_kernel<.., true>)
+ 
+ namespace {
+ 
+@@ -7,12 +8,33 @@ namespace {
+ // norms (Qwen3.5), added in f32 so the weight keeps its full precision. With ADD the row is first
+ // summed with `res`, rounded to bf16 (that rounded sum is what the next layer carries) and written
+ // to `sum`; the normalisation then reads the rounded sum, exactly like the reference.
+-template <bool ADD, bool VEC>
++//
++// Lane fuse27, QUANT (VEC only, H / 8 <= kNqKeep * blockDim.x): the block also quantises its normed row for the W4A8 prefill GEMM's
++// direct kernel, exactly as mx_a8_quant_tiled_kernel (ik_mx_a8.h) would from `out`: the same bf16 values (kept in registers as stored),
++// the same per-row scale (an order-independent max) and the same e4m3 bytes, written in its fragment order into xt with the scales at xs.
++// The grid is the 16-padded row count: blocks row >= M write their tile row as zeros (and the K % 64 == 32 pad group of every row) and
++// touch nothing else. The norm itself (the ss loop, the block sum, the normed values) is the same code as without QUANT.
++constexpr int kNqKeep = 4;
++template <bool ADD, bool VEC, bool QUANT = false>
+ __global__ void rmsnorm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ res,
+                                const ik_bf16* __restrict__ w, ik_bf16* __restrict__ out, ik_bf16* __restrict__ sum,
+-                               int64_t H, float eps, float woff) {
++                               int64_t H, float eps, float woff, uint8_t* __restrict__ xt = nullptr, float* __restrict__ xs = nullptr,
++                               int64_t M = 0) {
+     __shared__ float red[32];
+     const int64_t row = blockIdx.x;
++    uint8_t* tile = nullptr;
++    if (QUANT) {
++        // chunk c (k = 8 c) of the row: group c >> 2, half (c >> 1) & 1, byte (c & 1) * 8 of the lane's 16 (mx_a8_quant_tiled_kernel)
++        const int C = (int)(H >> 3), CP = (int)((H + 63) >> 6) * 8;
++        tile = xt + (row >> 4) * (int64_t)(CP / 4) * 512 + (row & 15) * 16;
++        for (int c = C + threadIdx.x; c < CP; c += blockDim.x)
++            *reinterpret_cast<uint2*>(tile + (c >> 2) * 512 + ((c >> 1) & 1) * 256 + (c & 1) * 8) = make_uint2(0u, 0u);
++        if (row >= M) {  // block-uniform
++            for (int c = threadIdx.x; c < C; c += blockDim.x)
++                *reinterpret_cast<uint2*>(tile + (c >> 2) * 512 + ((c >> 1) & 1) * 256 + (c & 1) * 8) = make_uint2(0u, 0u);
++            return;
++        }
++    }
+     const ik_bf16* xr = x + row * H;
+     const ik_bf16* rr = ADD ? res + row * H : nullptr;
+     ik_bf16* orow = out + row * H;
+@@ -52,7 +74,39 @@ __global__ void rmsnorm_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __r
+     ss = ik_block_sum(ss, red);
+     const float r = rsqrtf(ss / (float)H + eps);
+ 
+-    if (VEC) {
++    if (QUANT) {
++        // the normed chunks this thread stores (each element's value does not depend on the loop's shape), kept for the quant
++        const int64_t nv = H / 8;
++        uint4 keep[kNqKeep];
++        float amax = 0.f;
++#pragma unroll
++        for (int j = 0; j < kNqKeep; ++j) {
++            const int64_t i = threadIdx.x + (int64_t)j * blockDim.x;
++            if (i < nv) {
++                float f[8], g[8];
++                ik_unpack8(reinterpret_cast<const uint4*>(src)[i], f);
++                ik_unpack8(reinterpret_cast<const uint4*>(w)[i], g);
++#pragma unroll
++                for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);
++                keep[j] = ik_pack8(f);
++                reinterpret_cast<uint4*>(orow)[i] = keep[j];
++                ik_unpack8(keep[j], f);  // the stored bf16 values, as mx_a8_row_scale reads them back
++#pragma unroll
++                for (int k = 0; k < 8; ++k) amax = fmaxf(amax, fabsf(f[k]));
++            }
++        }
++        amax = ik_block_max(amax, red);
++        const float s = fmaxf(__fdiv_rn(amax, kMxA8Max), kMxA8MinScale);
++        if (threadIdx.x == 0) xs[row] = s;
++#pragma unroll
++        for (int j = 0; j < kNqKeep; ++j) {
++            const int64_t i = threadIdx.x + (int64_t)j * blockDim.x;
++            if (i < nv) {
++                const int c = (int)i;
++                *reinterpret_cast<uint2*>(tile + (c >> 2) * 512 + ((c >> 1) & 1) * 256 + (c & 1) * 8) = mx_a8_quant8(keep[j], s);
++            }
++        }
++    } else if (VEC) {
+         const int64_t nv = H / 8;
+         for (int64_t i = threadIdx.x; i < nv; i += blockDim.x) {
+             float f[8], g[8];
+@@ -153,10 +207,49 @@ int launch_gated(const ik_bf16* x, const ik_bf16* z, const ik_bf16* w, ik_bf16*
+     return ik_launch_status();
+ }
+ 
++// Lane fuse27: launch_rows for the vector path plus the W4A8 quant of `out` (rmsnorm_kernel<ADD, true, true>), the same block size;
++// IK_ERR_UNSUPPORTED when these operands do not take the vector path or the row does not fit the kept chunks (the caller runs the plain launch).
++int launch_rows_quant(const ik_bf16* x, const ik_bf16* res, const ik_bf16* w, ik_bf16* out, ik_bf16* sum, int64_t rows, int64_t H, float eps,
++                      float woff, void* xq, hipStream_t s) {
++    const bool add = res != nullptr;
++    bool vec = H % 8 == 0 && ik_aligned16(x) && ik_aligned16(w) && ik_aligned16(out) && ik_aligned16(xq);
++    if (add) vec = vec && ik_aligned16(res) && ik_aligned16(sum);
++    const int64_t items = H / 8;
++    const unsigned bd = ik_round_up((unsigned)(items < 256 ? items : 256), 32);
++    if (!vec || rows <= 0 || H % 32 != 0 || items > (int64_t)kNqKeep * bd || rows > 0x7fffffe0LL || H > 0x7fffffffLL) return IK_ERR_UNSUPPORTED;
++    const int64_t Mp = (rows + 15) & ~(int64_t)15, Kp = (H + 63) & ~(int64_t)63;
++    uint8_t* xt = static_cast<uint8_t*>(xq);
++    float* xs = reinterpret_cast<float*>(xt + mx_a8_xs_offset(Mp, Kp));
++    if (add) rmsnorm_kernel<true, true, true><<<(unsigned)Mp, bd, 0, s>>>(x, res, w, out, sum, H, eps, woff, xt, xs, rows);
++    else rmsnorm_kernel<false, true, true><<<(unsigned)Mp, bd, 0, s>>>(x, nullptr, w, out, nullptr, H, eps, woff, xt, xs, rows);
++    return ik_launch_status();
++}
++
+ }  // namespace
+ 
+ extern "C" {
+ 
++// Lane fuse27: ik_rmsnorm_add_bf16 (sum_out non-null, res read) or ik_rmsnorm_bf16 (res and sum_out null) that also writes the W4A8 prefill
++// GEMM's quantised activations of `out` into xq (the direct pre-pass's layout: Mp = round16(rows), Kp = round64(H); fragment-ordered e4m3 at
++// 0, the f32 row scales at mx_a8_xs_offset(Mp, Kp); mx_a8_scratch_bytes(Mp, Kp) bytes). out / sum_out are bitwise the plain launch's.
++// Returns IK_ERR_UNSUPPORTED (nothing launched) when the operands do not take the vector path at the plain launch's block size.
++int ik_rmsnorm_quant_bf16(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, float w_offset, ik_tensor* out,
++                          ik_tensor* sum_out, void* xq, void* stream) {
++    IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
++    IK_TRY(ik_check(w, IK_DTYPE_BF16, 1));
++    IK_TRY(ik_check(out, IK_DTYPE_BF16, 2));
++    const int64_t R = x->shape[0], H = x->shape[1];
++    if (w->shape[0] != H || out->shape[0] != R || out->shape[1] != H) return IK_ERR_SHAPE;
++    if ((res == nullptr) != (sum_out == nullptr) || !xq) return IK_ERR_INVALID_ARG;
++    if (res) {
++        IK_TRY(ik_check(res, IK_DTYPE_BF16, 2));
++        IK_TRY(ik_check(sum_out, IK_DTYPE_BF16, 2));
++        if (res->shape[0] != R || res->shape[1] != H || sum_out->shape[0] != R || sum_out->shape[1] != H) return IK_ERR_SHAPE;
++    }
++    return launch_rows_quant((const ik_bf16*)x->data, res ? (const ik_bf16*)res->data : nullptr, (const ik_bf16*)w->data, (ik_bf16*)out->data,
++                             sum_out ? (ik_bf16*)sum_out->data : nullptr, R, H, eps, w_offset, xq, IK_STREAM(stream));
++}
++
+ int ik_gated_rmsnorm_bf16(const ik_tensor* x, const ik_tensor* z, const ik_tensor* w, float eps, float w_offset,
+                           ik_tensor* out, void* stream) {
+     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
