@@ -17,7 +17,7 @@ use intarsia_core::{GenEvent, GenRequest, Telemetry};
 use intarsia_models::load::SchemedSource;
 use intarsia_models::{load_engine, read_model_spec, EngineOptions};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 type Be = Arc<dyn intarsia_core::backend::Backend>;
@@ -63,6 +63,12 @@ fn backend() -> Option<Be> {
             None
         }
     }
+}
+
+/// One test at a time: each loads the 35B.
+fn serial() -> MutexGuard<'static, ()> {
+    static SERIAL: Mutex<()> = Mutex::new(());
+    SERIAL.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 fn prompt_text() -> String {
@@ -185,6 +191,7 @@ fn load(dir: &PathBuf, backend: Be) -> Model {
 
 #[test]
 fn hybrid_reuse_shapes() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir(), backend()) else { return };
     let m = load(&dir, be);
     let (a, b) = prompts(&dir);
@@ -195,7 +202,6 @@ fn hybrid_reuse_shapes() {
     assert!(common == na && na <= chunk && nb > chunk, "the repro needs B = A + suffix, A within one chunk, B over it");
 
     // cold B (the engine's recurrent schedule): [0, chunk) + [chunk, nb - 1) + last
-    let cold0 = fresh(&m, &b, &[chunk, nb - 1], &[]);
     let forced: Vec<u32> = {
         let mut st = m.new_state().unwrap();
         let mut f = Vec::new();
@@ -210,7 +216,6 @@ fn hybrid_reuse_shapes() {
     };
     let cold = fresh(&m, &b, &[chunk, nb - 1], &forced);
     let mut ok = compare("cold repeat (determinism)", &cold, &fresh(&m, &b, &[chunk, nb - 1], &forced));
-    let _ = cold0;
     // warm B's shape from a fresh state: [0, na - 1) + [na - 1, nb - 1) + last
     let warm = fresh(&m, &b, &[na - 1, nb - 1], &forced);
     ok &= compare("warm shape [0,4095)+[4095,4104)+1 vs cold", &cold, &warm);
@@ -263,6 +268,7 @@ fn collect(rx: &std::sync::mpsc::Receiver<GenEvent>) -> (Vec<u32>, usize) {
 
 #[test]
 fn engine_hybrid_reuse_equals_cold() {
+    let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir(), backend()) else { return };
     let (a, b) = prompts(&dir);
     let opts = EngineOptions { load: LoadOptions { max_seq: MAX_SEQ, kv_fraction: 0.5, ..Default::default() }, ..Default::default() };

@@ -86,6 +86,16 @@ inside a chunk. The prefix store (`--prefix-store`) cuts recurrent prefill at me
   above (`INTARSIA_PROBE_ASSERT=1` makes it a gate on the shapes). `engine_hybrid_reuse_equals_cold` is the gate: A then B on
   one engine equals a fresh engine's B. A after B and A repeated equal cold A, with the cached counts above.
 
+## Not run: qualify's reuse gate
+
+`accuracy --mode reuse` (qualify's `acc-4k` / `acc-4k-reuse` on the 35B) has a `continue` case that requires
+`cached >= split`: turn 2 must reuse the whole of turn 1. The rule here resumes a hybrid at the last chunk cut below turn 1's
+end. At chunk 1024 with a 4k prompt split near the middle that is 1024 < ~2032. Read from the code, that case will report
+"reuse covered X < the S tokens of turn 1" on Metal, HIP and CUDA. The `restore` / `aligned` cases (snapshots at chunk
+boundaries) keep passing. On `main` the 35B Metal `acc-4k` already FAILS on `long_code_4k continue`, for another reason
+(docs/results/2026-10-29-chunk4k-metal.md). Not re-run here. Either the `continue` case accepts the last cold cut on a
+chunk-sensitive backend (as it would have to for a dense model under the bi8 ladder), or this rule needs an opt-out for it.
+
 ## Follow-up (not done here)
 
 The small-pass splits above differ with 2+ rows per pass on this NVFP4 MoE model. Lane prc's Metal
