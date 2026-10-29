@@ -1,0 +1,2 @@
+burst a steps 254 mean all 38.25 thirds [34.84, 40.0, 40.0]
+burst b steps 254 mean all 41.26 thirds [39.14, 42.08, 42.65]
