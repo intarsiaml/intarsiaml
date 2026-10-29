@@ -480,6 +480,97 @@ fn fp8_pair_rows_are_bitwise_the_one_row_gemvs() {
     rig.report("fp8-pair");
 }
 
+/// The row-exact fp8 triple (`matmul_fp8_triple_gemv_rows`, lane qkv16: the attention q + gate, k and v of a batched step): the three
+/// outputs of every M-row call are, row by row, the bits of the one-row `matmul_fp8_gemv` on each matrix alone, with the input
+/// scales equal, with each pair of matrices differing (restaged between segments), W8A16 segments, and the 35B's 8192 + 512 + 512
+/// shapes. Run at the launcher's own bar (one launch from 12 rows, the single calls below) and with the bar at 2 (the one
+/// launch at every M).
+#[test]
+fn fp8_triple_rows_are_bitwise_the_one_row_gemvs() {
+    let Some(rig) = Rig::new("fp8_triple_rows_are_bitwise_the_one_row_gemvs") else { return };
+    let mut rng = SplitMix64::new(831);
+    let shapes = [([8192usize, 512, 512], 2048usize), ([4096, 300, 9], 2048), ([33, 70, 17], 2064), ([9, 8, 7], 16)];
+    // input scale of matrix 0, 1, 2: 0 = W8A16
+    let scales = [
+        [0.125f32, 0.125, 0.125],
+        [0.125, 0.125, 0.0117],
+        [0.125, 0.0117, 0.125],
+        [0.0117, 0.125, 0.125],
+        [0.125, 0.0117, 3.0],
+        [0.0, 0.125, 0.125],
+        [0.125, 0.0, 0.125],
+        [0.125, 0.125, 0.0],
+        [0.0, 0.0, 0.0],
+    ];
+    let a = OpAttrs::default();
+    for (bar, q) in [("", ""), ("2", ""), ("2", "all"), ("0", "")] {
+        for (var, val) in [("INTARSIA_CUDA_FP8_TRIPLE_ROWS", bar), ("INTARSIA_CUDA_FP8_ROWS_Q", q)] {
+            if val.is_empty() {
+                std::env::remove_var(var);
+            } else {
+                std::env::set_var(var, val);
+            }
+        }
+        for (n, k) in shapes {
+            for is in scales {
+                let mats: Vec<(TensorRef, TensorRef)> = (0..3)
+                    .map(|j| {
+                        let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n[j], k, is[j] > 0.0, DType::Bf16, DType::Bf16);
+                        let ws = hc.inputs[2].to_f32()[0];
+                        (rig.put(&hc.inputs[1]), rig.put(&scales_tensor(ws, is[j])))
+                    })
+                    .collect();
+                let clip = 448.0 * is.iter().copied().fold(1.0 / 448.0, f32::max);
+                let x_rows = nasty_rows(&mut rng, k, clip);
+                let label = format!("fp8 triple bar={bar} q={q} n={}+{}+{} k={k} is={:?}", n[0], n[1], n[2], is);
+                // the solo references: every row alone through the one-row GEMV, per matrix
+                let want: Vec<[Vec<u8>; 3]> = (0..CAP)
+                    .map(|r| {
+                        let x = rig.put(&bf16_row(&x_rows[r]));
+                        let one = |j: usize| {
+                            rig.run("matmul_fp8_gemv", Op::MatmulFp8, &[x.clone(), mats[j].0.clone(), mats[j].1.clone()], &[(DType::Bf16, vec![1, n[j]])], &a)[0].data.clone()
+                        };
+                        [one(0), one(1), one(2)]
+                    })
+                    .collect();
+                let all: Vec<f32> = x_rows[..CAP].iter().flatten().copied().collect();
+                let x_all = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &all));
+                for m in 1..=CAP {
+                    let o = rig.run(
+                        "matmul_fp8_triple_gemv_rows",
+                        Op::MatmulFp8Triple,
+                        &[
+                            x_all.rows(0, m),
+                            mats[0].0.clone(),
+                            mats[0].1.clone(),
+                            mats[1].0.clone(),
+                            mats[1].1.clone(),
+                            mats[2].0.clone(),
+                            mats[2].1.clone(),
+                        ],
+                        &[(DType::Bf16, vec![m, n[0]]), (DType::Bf16, vec![m, n[1]]), (DType::Bf16, vec![m, n[2]])],
+                        &a,
+                    );
+                    for j in 0..3 {
+                        for r in 0..m {
+                            let got = &o[j].data[r * n[j] * 2..(r + 1) * n[j] * 2];
+                            if got != &want[r][j][..] {
+                                let first = got.chunks(2).zip(want[r][j].chunks(2)).position(|(g, w)| g != w).unwrap();
+                                panic!("G-B FAIL {label}: M={m} output {j} row {r} differs from the one-row GEMV (first at col {first})");
+                            }
+                        }
+                    }
+                    rig.note("matmul_fp8_triple_gemv_rows", m, m, m * (n[0] + n[1] + n[2]) * 2);
+                }
+            }
+        }
+    }
+    for var in ["INTARSIA_CUDA_FP8_TRIPLE_ROWS", "INTARSIA_CUDA_FP8_ROWS_Q"] {
+        std::env::remove_var(var);
+    }
+    rig.report("fp8-triple");
+}
+
 /// The row-group split of the bf16 and nvfp4 row-exact launchers (INTARSIA_CUDA_BF16_ROWS_SPLIT / INTARSIA_CUDA_NVFP4_ROWS_SPLIT
 /// forced to every R, and `auto`: the launchers' own pick): the one-row kernel's bits, ragged last groups included.
 #[test]

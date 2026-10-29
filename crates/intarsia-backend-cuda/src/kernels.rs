@@ -210,6 +210,20 @@ pub fn fp8_gemm_reg_priority(on: i32) -> i32 {
     }
 }
 
+/// `INTARSIA_CUDA_FP8_TRIPLE_ROWS`: the fewest rows at which `matmul_fp8_triple_gemv_rows` (`Op::MatmulFp8Triple`, the attention
+/// q + gate / k / v fp8 projections as one row-exact launch, lane qkv16) is registered. Default 12: from there the single q and
+/// k + v calls both take the e4m3-staged kernel, and below it q takes the persistent bf16-staged one and the model's side stream
+/// overlaps k + v with it. `0` switches the triple off (the model keeps q and the k + v pair); `2` makes it serve every batched
+/// step. The launcher reads the same variable (kernels/cuda/fp8.cu `fp8_triple_min_rows`).
+pub fn fp8_triple_min_rows() -> usize {
+    static N: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *N.get_or_init(|| match std::env::var("INTARSIA_CUDA_FP8_TRIPLE_ROWS").ok().and_then(|v| v.trim().parse::<usize>().ok()) {
+        Some(0) => usize::MAX,
+        Some(n) => n,
+        None => 12,
+    })
+}
+
 /// `matmul_fp8_pair_gemm_reg` (Op::MatmulFp8Pair at prefill, bitwise the two `matmul_fp8_gemm_reg` calls it replaces,
 /// docs/results/2026-10-22-s1-spark-prefill.md) serves exactly where `matmul_fp8_gemm_reg` would serve both halves: the reg
 /// GEMM on and neither opt-in e4m3 GEMM (`INTARSIA_CUDA_FP8_GEMM_F8` / `_LT` / `FAST_PREFILL`, which then serve the single
@@ -1153,6 +1167,7 @@ mod tests {
         "matmul_fp8_pair_gemm_reg:matmul_fp8_pair",
         "matmul_fp8_pair_gemv:matmul_fp8_pair",
         "matmul_fp8_pair_gemv_rows:matmul_fp8_pair",
+        "matmul_fp8_triple_gemv_rows:matmul_fp8_triple",
         "matmul_mxfp4_gemv:matmul_mxfp4", // M1 drill (2026-10-21): OCP MXFP4, a new op, no change to existing candidates
         "matmul_mxfp4_gemv_mr:matmul_mxfp4",
         "matmul_mxfp4_gemv_mr_rows:matmul_mxfp4",
@@ -1186,7 +1201,7 @@ mod tests {
 
     /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
     /// origin/main's (`4962d8fa`), so the plan has the same candidates as before. Round 5 adds the three fp8-KV attention
-    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them). Lane rip adds `matmul_bf16_inv`
+    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them). Lane qkv16 adds `matmul_fp8_triple_gemv_rows` (`rows_exact`: only a batched, verify or row-exact call selects it). Lane rip adds `matmul_bf16_inv`
     /// (priority -5: only a row-invariant prefill pass, `OpCall::prefill_inv`, selects it).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {

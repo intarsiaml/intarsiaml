@@ -17,6 +17,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::MatmulExl3 => crate::exl3_ref::run(call),
         Op::MatmulPair
         | Op::MatmulFp8Pair
+        | Op::MatmulFp8Triple
         | Op::MatmulMxfp4Pair
         | Op::MatmulNvfp4Glu
         | Op::GatedRmsnorm

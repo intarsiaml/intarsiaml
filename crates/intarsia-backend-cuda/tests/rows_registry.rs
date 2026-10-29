@@ -18,7 +18,7 @@ use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::backend::{Backend, MemKind, TensorRef};
 use intarsia_core::exec::{HostCall, OutSpec};
 use intarsia_core::quant::cases::{
-    combine_case, experts_case, gated_rmsnorm_case, matmul_fp8_case, matmul_fp8_pair_case, matmul_mxfp4_case,
+    combine_case, experts_case, gated_rmsnorm_case, matmul_fp8_case, matmul_fp8_pair_case, matmul_fp8_triple_case, matmul_mxfp4_case,
     matmul_mxfp4_w4a16_case, matmul_nvfp4_case, matmul_nvfp4_glu_case, matmul_pair_case, topk_case,
 };
 use intarsia_core::quant::Mxfp4Act;
@@ -95,6 +95,10 @@ fn cases() -> Vec<(&'static str, Builder)> {
             "matmul_fp8_pair k=2048",
             Box::new(|r, m| matmul_fp8_pair_case(r, m, 128, 128, 2048, true, true, DType::Bf16, DType::Bf16)),
         ),
+        (
+            "matmul_fp8_triple k=2048",
+            Box::new(|r, m| matmul_fp8_triple_case(r, m, [128, 32, 32], 2048, [true; 3], DType::Bf16, DType::Bf16)),
+        ),
         ("matmul_nvfp4_glu k=2048", Box::new(|r, m| matmul_nvfp4_glu_case(r, m, 128, 2048, DType::Bf16, DType::Bf16))),
         ("gated_rmsnorm r=4", Box::new(|r, m| gated_rmsnorm_case(r, m.max(1) * 4, 128, DType::Bf16))),
     ]
@@ -157,6 +161,7 @@ moe_topk e=16 k=8: 1..=4096 moe_topk_bf16;
 moe_combine h=256: 1..=4096 moe_combine_bf16;
 matmul_pair bf16 k=2048: 1..=1 matmul_pair_bf16_gemv; 2..=4096 -;
 matmul_fp8_pair k=2048: 1..=1 matmul_fp8_pair_gemv; 2..=4096 -;
+matmul_fp8_triple k=2048: 1..=4096 -;
 matmul_nvfp4_glu k=2048: 1..=1 matmul_nvfp4_glu_gemv; 2..=255 -; 256..=4096 matmul_nvfp4_glu_gemm;
 gated_rmsnorm r=4: 1..=4096 gated_rmsnorm_bf16;
 ";
@@ -164,7 +169,8 @@ gated_rmsnorm r=4: 1..=4096 gated_rmsnorm_bf16;
 /// `exact_rows` calls: the row-exact kernel for M = 1..=16 (M = 1 included), none above 16; ops without a row-exact kernel
 /// are unchanged (moe_topk, moe_combine, gated_rmsnorm) and the fused ops have none by policy (m >= 2: no kernel, so the
 /// model runs the unfused chain, which is made of the row-exact ops above), except the fp8 pair, whose row-exact twin is
-/// bitwise the two single row-exact calls (lane gdnx: the batched step's GDN qkv + z and attention k + v).
+/// bitwise the two single row-exact calls (lane gdnx: the batched step's GDN qkv + z and attention k + v), and the fp8 triple (lane qkv16:
+/// attention q + k + v, from 12 rows).
 const ROWS_PINS: &str = "matmul bf16 k=2048 -> bf16: 1..=16 matmul_bf16_gemv_rows; 17..=4096 -;
 matmul bf16 k=4104 -> bf16: 1..=16 matmul_bf16_gemv_rows; 17..=4096 -;
 logits bf16 k=4096 -> f32: 1..=16 logits_bf16_gemv_rows; 17..=4096 -;
@@ -183,6 +189,7 @@ moe_topk e=16 k=8: 1..=4096 moe_topk_bf16;
 moe_combine h=256: 1..=4096 moe_combine_bf16;
 matmul_pair bf16 k=2048: 1..=1 matmul_pair_bf16_gemv; 2..=4096 -;
 matmul_fp8_pair k=2048: 1..=16 matmul_fp8_pair_gemv_rows; 17..=4096 -;
+matmul_fp8_triple k=2048: 1..=9 -; 12..=16 matmul_fp8_triple_gemv_rows; 17..=4096 -;
 matmul_nvfp4_glu k=2048: 1..=1 matmul_nvfp4_glu_gemv; 2..=255 -; 256..=4096 matmul_nvfp4_glu_gemm;
 gated_rmsnorm r=4: 1..=4096 gated_rmsnorm_bf16;
 ";

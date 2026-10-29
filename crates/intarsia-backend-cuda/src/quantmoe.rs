@@ -6,7 +6,7 @@
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
 use crate::kernels::{
-    ROWS_MAX, mxfp4_gemv_mr_priority, mxfp4_mma_priority, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_gemm_lt_serves, fp8_pair_reg, fp8_pair_reg_yields_to_lt, moe_nvfp4_priority, moe_w4a16_priority,
+    ROWS_MAX, mxfp4_gemv_mr_priority, mxfp4_mma_priority, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_gemm_lt_serves, fp8_pair_reg, fp8_pair_reg_yields_to_lt, fp8_triple_min_rows, moe_nvfp4_priority, moe_w4a16_priority,
     nvfp4_reg, ARCH,
 };
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
@@ -61,6 +61,8 @@ pub const TABLE: &[(&str, Op)] = &[
     // row-exact twin (`rows_exact`, M = 1..=16): bitwise two `matmul_fp8_gemv_rows` calls, one launch where both take the
     // e4m3-staged kernel (lane gdnx: the batched-decode GDN qkv + z and attention k + v)
     ("matmul_fp8_pair_gemv_rows", Op::MatmulFp8Pair),
+    // row-exact attention q + k + v (lane qkv16): bitwise three `matmul_fp8_gemv_rows` calls, one launch from 12 rows
+    ("matmul_fp8_triple_gemv_rows", Op::MatmulFp8Triple),
     // prefill (M >= 256): the gemm_reg GEMM on cuBLAS's bf16 kernels over exactly expanded e4m3 operands, the same bytes
     // at the 35B shapes on sm_121 / CUDA 13.0 (INTARSIA_CUDA_FP8_CUBLAS; docs/results/2026-10-22-s1-spark-prefill.md)
     ("matmul_fp8_gemm_cublas", Op::MatmulFp8),
@@ -520,6 +522,16 @@ pub fn all() -> Vec<KernelImpl> {
                     .acts(bf)
                     .weights([DType::Fp8E4m3])
                     .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(-1)
+                    .rows_exact(),
+                // INTARSIA_CUDA_FP8_TRIPLE_ROWS=0 (or INTARSIA_NO_FUSION=1) keeps q and the k + v pair; no ordinary twin: the solo
+                // step and a prefill chunk never take this op (registered for `rows_exact` calls only)
+                "matmul_fp8_triple_gemv_rows" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| (fp8_triple_min_rows()..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(-1)

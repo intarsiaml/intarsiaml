@@ -3302,6 +3302,31 @@ impl Model {
         }
     }
 
+    /// q (with the output gate of a gated block), k and v read the same activation: one launch for all three when the backend has
+    /// the row-exact fp8 triple (`Op::MatmulFp8Triple`, CUDA, `rows_exact` and from 12 rows only: it is bitwise the three single
+    /// projections, which a batched step otherwise runs as q beside the k / v pair on the side stream). Returns whether it ran
+    /// (then `q_out`, `k_out` and `v_out` hold the projections, before any bias); `false` leaves all three to the caller.
+    fn qkv_triple(&self, a: &AttnBlock, n: &TensorRef, q_out: &TensorRef, k_out: &TensorRef, v_out: &TensorRef, profile: bool) -> Result<bool> {
+        if [a.wq.format, a.wk.format, a.wv.format] != [crate::quant::FP8_E4M3; 3] {
+            return Ok(false);
+        }
+        self.try_fused(
+            Op::MatmulFp8Triple,
+            vec![
+                n.clone(),
+                a.wq.parts[0].clone(),
+                a.wq.parts[1].clone(),
+                a.wk.parts[0].clone(),
+                a.wk.parts[1].clone(),
+                a.wv.parts[0].clone(),
+                a.wv.parts[1].clone(),
+            ],
+            vec![q_out.clone(), k_out.clone(), v_out.clone()],
+            OpAttrs { fp8_static_act: a.wq.act_quant && a.wk.act_quant && a.wv.act_quant, ..OpAttrs::default() },
+            profile,
+        )
+    }
+
     /// The attention block's input norm (`RmsNormAdd(blk, res, pre_norm) -> (n, sum)`) folded into its fp8 k / v projections
     /// (`Op::RmsNormAddMatmulFp8Pair`, the fp8 twin of `RmsNormAddMatmulPair`): on `true` `n` and `sum` hold the norm's
     /// outputs and `ws.k[0]` / `ws.v` the k and v projections of the `t` rows of `n`, so the caller flips the residual
@@ -3491,40 +3516,46 @@ impl Model {
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
         let qc = 0usize;
         let skip_q = self.kv_only_skip_q.load(std::sync::atomic::Ordering::Relaxed);
-        // lane moe16b: k / v (they read only `n`) on the side stream beside q, forked here and joined before this returns
-        let fork = if !kv_done && !skip_q { self.side_fork(true, t, profile)? } else { None };
-        let gate = if a.gated {
+        let (k_out, v_out) = (self.view(&ws.k[0], act, &[t, nkv * hd]), self.view(&ws.v, act, &[t, nkv * hd]));
+        // the q projection's output (the q+gate projection of a gated block) and the gate buffer it feeds
+        let (q_out, gate) = if a.gated {
             let (qg, gate) = self.gated_q_buffers(t);
-            if !skip_q {
-                self.proj(n, &a.wq, &qg, profile)?;
+            (qg, Some(gate))
+        } else {
+            (self.view(&ws.q[qc], act, &[t, nh * hd]), None)
+        };
+        // lane qkv16: q, k and v of one row-exact batched step as one launch (`Op::MatmulFp8Triple`), instead of q beside the k / v
+        // pair on the side stream; the k / v biases and the gate split below are unchanged
+        let triple = !kv_done && !skip_q && self.qkv_triple(a, n, &q_out, &k_out, &v_out, profile)?;
+        // lane moe16b: k / v (they read only `n`) on the side stream beside q, forked here and joined before this returns
+        let fork = if !kv_done && !skip_q && !triple { self.side_fork(true, t, profile)? } else { None };
+        if let Some(gate) = &gate {
+            if !skip_q && !triple {
+                self.proj(n, &a.wq, &q_out, profile)?;
             }
             if !split_folded && !skip_q {
                 self.exec(
                     Op::GateSplit,
-                    vec![qg.reshaped(&[t, nh, 2 * hd])],
+                    vec![q_out.reshaped(&[t, nh, 2 * hd])],
                     vec![self.view(&ws.q[qc], act, &[t, nh, hd]), gate.clone()],
                     OpAttrs::default(),
                     profile,
                 )?;
             }
-            Some(gate)
-        } else {
-            let qv = self.view(&ws.q[qc], act, &[t, nh * hd]);
-            if !skip_q {
-                self.proj(n, &a.wq, &qv, profile)?;
-                if let Some(bias) = &a.q_bias {
-                    self.add_bias(&qv, bias, profile)?;
-                }
+        } else if !skip_q {
+            if !triple {
+                self.proj(n, &a.wq, &q_out, profile)?;
             }
-            None
-        };
+            if let Some(bias) = &a.q_bias {
+                self.add_bias(&q_out, bias, profile)?;
+            }
+        }
         // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
-        let (k_out, v_out) = (self.view(&ws.k[0], act, &[t, nkv * hd]), self.view(&ws.v, act, &[t, nkv * hd]));
         let mut kv = || -> Result<()> {
             if kv_done {
                 return Ok(());
             }
-            if !self.kv_pair(a, n, &k_out, &v_out, profile)? {
+            if !triple && !self.kv_pair(a, n, &k_out, &v_out, profile)? {
                 self.proj(n, &a.wk, &k_out, profile)?;
                 self.proj(n, &a.wv, &v_out, profile)?;
             }

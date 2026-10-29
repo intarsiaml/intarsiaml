@@ -219,13 +219,13 @@ pub fn check(call: &OpCall) -> Result<()> {
                 }
             }
         }
-        Op::MatmulFp8Pair => {
+        Op::MatmulFp8Pair | Op::MatmulFp8Triple => {
             rank(&i[0], 2, "x")?;
             let (m, k) = (i[0].shape[0], i[0].shape[1]);
             if !act(&i[0]) {
                 return bad(op, "x must be bf16/f16/f32".into());
             }
-            for j in 0..2 {
+            for j in 0..o.len() {
                 let (w, sc, out) = (&i[1 + 2 * j], &i[2 + 2 * j], &o[j]);
                 rank(w, 2, "w")?;
                 let n = w.shape[0];
@@ -470,7 +470,7 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.k = i[0].shape[1];
         }
         // the fused decode ops: m rows, k reduction (or row width), n the first (or only) output width
-        Op::MatmulPair | Op::MatmulFp8Pair | Op::MatmulMxfp4Pair => {
+        Op::MatmulPair | Op::MatmulFp8Pair | Op::MatmulMxfp4Pair | Op::MatmulFp8Triple => {
             s.m = i[0].shape[0];
             s.k = i[0].shape[1];
             s.n = i[1].shape[0];

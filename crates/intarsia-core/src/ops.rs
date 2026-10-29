@@ -38,6 +38,7 @@
 //!
 //! | `MatmulPair` | x `[M,K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | `[M,N0]`, `[M,N1]` (= two `Matmul`s of one x) | fused decode GEMV pair, see `quant::fused` |
 //! | `MatmulFp8Pair` | x `[M,K]`, (w0 `[N0,K]`, scales0 `[2]`), (w1 `[N1,K]`, scales1 `[2]`) fp8 | `[M,N0]`, `[M,N1]` (= two `MatmulFp8`s) | fused, see `quant::fused` |
+//! | `MatmulFp8Triple` | x `[M,K]`, (w0 `[N0,K]`, scales0 `[2]`), (w1 `[N1,K]`, scales1 `[2]`), (w2 `[N2,K]`, scales2 `[2]`) fp8 | `[M,N0]`, `[M,N1]`, `[M,N2]` (= three `MatmulFp8`s) | attention q (+ gate) / k / v, row-exact CUDA kernel only (lane qkv16), see `quant::fused` |
 //! | `MatmulNvfp4Glu` | x `[M,K]`, gate (w, block scales, global), up (w, block scales, global), nvfp4 `[N,K]` each | `[M,N]` (= `SiluGlu(MatmulNvfp4(gate), MatmulNvfp4(up))`) | fused, see `quant::fused` |
 //! | `GatedRmsnorm` | x `[R,D]`, z `[R,D]`, w `[D]` | `[R,D]` (= `SiluGlu(z, RmsNorm(x, w))`) | eps, w_offset; fused, see `quant::fused` |
 //! | `RmsNormAddMatmulPair` | x `[1,K]`, res `[1,K]`, norm w `[K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | normed `[1,K]`, sum `[1,K]`, `[1,N0]`, `[1,N1]` (= `RmsNormAdd(x, res, w)`, then `MatmulPair` of the normed row) | eps, w_offset; fused decode norm + GEMV pair, see `quant::fused` |
@@ -124,10 +125,12 @@ pub enum Op {
     DynConv,
     // appended (2026-10-27, nab2 LFM2.5): the gated short conv of Liquid's LFM2 (no activation, state in a `Recurrent` slot), for the same reason
     ShortConv,
+    // appended (2026-10-29, qkv16): the attention q / k / v fp8 projections of one x as one launch (a `MatmulFp8Pair` with a third matrix), for the same reason
+    MatmulFp8Triple,
 }
 
 impl Op {
-    pub const ALL: [Op; 44] = [
+    pub const ALL: [Op; 45] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -172,6 +175,7 @@ impl Op {
         Op::GeluGlu,
         Op::DynConv,
         Op::ShortConv,
+        Op::MatmulFp8Triple,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -220,6 +224,7 @@ impl Op {
             Op::AddBias => "add_bias",
             Op::GeluGlu => "gelu_glu",
             Op::DynConv => "dyn_conv",
+            Op::MatmulFp8Triple => "matmul_fp8_triple",
             Op::ShortConv => "short_conv",
         }
     }
@@ -273,6 +278,7 @@ impl Op {
             Op::GeluGlu => (2, 1),
             Op::DynConv => (3, 1),
             Op::ShortConv => (2, 2),
+            Op::MatmulFp8Triple => (7, 3),
         }
     }
 }
@@ -762,7 +768,8 @@ impl OpCall {
             | Op::SharedDownCombine
             | Op::MoeBlock
             | Op::MatmulMxfp4
-            | Op::MatmulMxfp4Pair => crate::quant::ops::check(self)?,
+            | Op::MatmulMxfp4Pair
+            | Op::MatmulFp8Triple => crate::quant::ops::check(self)?,
             Op::MatmulExl3 => crate::quant::exl3::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
         }
@@ -777,7 +784,7 @@ pub struct ShapeInfo {
     pub m: usize,
     /// Output features (matmul N, vocab for argmax).
     pub n: usize,
-    /// The pair matmuls (`MatmulPair`, `MatmulFp8Pair`, `MatmulMxfp4Pair`): the second output's width (`n` is the first's); 0 otherwise.
+    /// The pair and triple matmuls (`MatmulPair`, `MatmulFp8Pair`, `MatmulMxfp4Pair`, `MatmulFp8Triple`): the second output's width (`n` is the first's); 0 otherwise.
     pub n1: usize,
     /// Reduction dim (matmul K, hidden for norms, head_dim for attention).
     pub k: usize,
@@ -921,7 +928,8 @@ impl ShapeInfo {
             | Op::SharedDownCombine
             | Op::MoeBlock
             | Op::MatmulMxfp4
-            | Op::MatmulMxfp4Pair => crate::quant::ops::shape(call, &mut s),
+            | Op::MatmulMxfp4Pair
+            | Op::MatmulFp8Triple => crate::quant::ops::shape(call, &mut s),
             Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
         }
@@ -1158,15 +1166,16 @@ mod tests {
         );
         assert_eq!(Op::MoeBlock.arity(), (17, 1));
         assert_eq!(Op::MoeBlock.as_str(), "moe_block");
-        assert_eq!(Op::ALL[Op::ALL.len() - 9], Op::MoeBlock, "appended at the end");
-        assert_eq!(Op::ALL[Op::ALL.len() - 8], Op::MatmulMxfp4, "appended after MoeBlock");
-        assert_eq!(Op::ALL[Op::ALL.len() - 7], Op::MatmulExl3, "appended after MatmulMxfp4");
-        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
-        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::RopeScaled, "appended after MatmulMxfp4Pair");
-        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::AddBias, "appended after RopeScaled");
-        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::GeluGlu, "appended after AddBias");
-        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::DynConv, "appended after GeluGlu");
-        assert_eq!(Op::ALL.last(), Some(&Op::ShortConv), "appended after DynConv");
+        assert_eq!(Op::ALL[Op::ALL.len() - 10], Op::MoeBlock, "appended at the end");
+        assert_eq!(Op::ALL[Op::ALL.len() - 9], Op::MatmulMxfp4, "appended after MoeBlock");
+        assert_eq!(Op::ALL[Op::ALL.len() - 8], Op::MatmulExl3, "appended after MatmulMxfp4");
+        assert_eq!(Op::ALL[Op::ALL.len() - 7], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
+        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::RopeScaled, "appended after MatmulMxfp4Pair");
+        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::AddBias, "appended after RopeScaled");
+        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::GeluGlu, "appended after AddBias");
+        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::DynConv, "appended after GeluGlu");
+        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::ShortConv, "appended after DynConv");
+        assert_eq!(Op::ALL.last(), Some(&Op::MatmulFp8Triple), "appended after ShortConv");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

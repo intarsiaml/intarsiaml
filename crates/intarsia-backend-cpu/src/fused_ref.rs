@@ -1,4 +1,4 @@
-//! cpu implementations of the fused decode ops (`MatmulPair`, `MatmulFp8Pair`, `MatmulMxfp4Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`,
+//! cpu implementations of the fused decode ops (`MatmulPair`, `MatmulFp8Pair`, `MatmulFp8Triple`, `MatmulMxfp4Pair`, `MatmulNvfp4Glu`, `GatedRmsnorm`,
 //! `QkNormRopeKv`, `RmsNormAddMatmulPair`, `GatedRmsnormMatmulFp8`, `RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`,
 //! `SharedDownCombine`, `GateSplitQkNormRopeKv`, `GdnConvDelta`, `MoeBlock`).
 //! Each is defined as the composition of the ops it replaces, so the oracle of a fused kernel is exactly "the
@@ -35,6 +35,12 @@ pub fn run(call: &OpCall, sub: fn(&OpCall) -> Result<()>) -> Result<()> {
         Op::MatmulFp8Pair => {
             step(sub, Op::MatmulFp8, vec![i[0].clone(), i[1].clone(), i[2].clone()], vec![o[0].clone()], d())?;
             step(sub, Op::MatmulFp8, vec![i[0].clone(), i[3].clone(), i[4].clone()], vec![o[1].clone()], d())
+        }
+        Op::MatmulFp8Triple => {
+            for j in 0..3 {
+                step(sub, Op::MatmulFp8, vec![i[0].clone(), i[1 + 2 * j].clone(), i[2 + 2 * j].clone()], vec![o[j].clone()], d())?;
+            }
+            Ok(())
         }
         Op::MatmulMxfp4Pair => {
             step(sub, Op::MatmulMxfp4, vec![i[0].clone(), i[1].clone(), i[2].clone(), i[5].clone()], vec![o[0].clone()], d())?;

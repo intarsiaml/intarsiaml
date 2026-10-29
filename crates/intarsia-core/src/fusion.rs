@@ -32,6 +32,12 @@ macro_rules! cuda_test {
     };
 }
 
+macro_rules! cuda_rows_test {
+    ($f:literal) => {
+        concat!("crates/intarsia-backend-cuda/tests/rows_exact.rs::", $f)
+    };
+}
+
 macro_rules! hip_test {
     ($f:literal) => {
         concat!("crates/intarsia-backend-hip/tests/fused_decode.rs::", $f)
@@ -57,6 +63,14 @@ pub const FUSIONS: &[Fusion] = &[
         fused: Op::MatmulFp8Pair,
         chain: &[Op::MatmulFp8, Op::MatmulFp8],
         tests: &[cuda_test!("matmul_fp8_pair_is_bitwise_two_gemvs")],
+    },
+    // CUDA's row-exact attention q + k + v (lane qkv16, rows_exact only, 12..=16 rows): the batched step's one launch for what the
+    // solo step runs as the q projection and the k + v pair; the test compares every M with the one-row GEMV on each matrix
+    Fusion {
+        backend: "cuda",
+        fused: Op::MatmulFp8Triple,
+        chain: &[Op::MatmulFp8, Op::MatmulFp8, Op::MatmulFp8],
+        tests: &[cuda_rows_test!("fp8_triple_rows_are_bitwise_the_one_row_gemvs")],
     },
     Fusion {
         backend: "cuda",

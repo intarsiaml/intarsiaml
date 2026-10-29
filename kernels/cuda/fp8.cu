@@ -513,19 +513,34 @@ fp8_gemv_rows_q_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
     rows_q_seg<M, NT, W>(x, reinterpret_cast<uint4*>(smem), w, sc, out, N, K, 0, staged);
 }
 
-// Two matrices of one activation block in one launch (GDN qkv + z, attention k + v at 2..16 rows): the warps stride over the
-// first matrix's tiles, then the second's, each with its own scales (x is staged again only if the input scales differ). Every
-// (m, n) is the single kernel's arithmetic, so the pair is bitwise two fp8_gemv_rows_q_kernel launches (and the M = 1 pair).
-template <int M, int NT, int W, int MINB, typename OutT>
+// NSEG matrices of one activation block in one launch (GDN qkv + z and attention k + v: 2; attention q + k + v at 12..16 rows: 3):
+// the warps stride over the first matrix's tiles, then the second's, ..., each with its own scales (x is staged again only if the
+// input scales differ). Every (m, n) is the single kernel's arithmetic, so the launch is bitwise NSEG fp8_gemv_rows_q_kernel
+// launches (and the M = 1 pair).
+template <typename OutT>
+struct QSeg {
+    const uint8_t* w;
+    const float* sc;
+    OutT* o;
+    int N;
+};
+template <int NSEG, typename OutT>
+struct QSegs {
+    QSeg<OutT> s[NSEG];
+};
+
+template <int M, int NT, int W, int MINB, int NSEG, typename OutT>
 __global__ void __launch_bounds__(W * IK_WARP, MINB)
-fp8_gemv_rows_q_pair_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w0, const float* __restrict__ sc0,
-                            OutT* __restrict__ o0, int N0, const uint8_t* __restrict__ w1, const float* __restrict__ sc1,
-                            OutT* __restrict__ o1, int N1, int K) {
+fp8_gemv_rows_q_multi_kernel(const ik_bf16* __restrict__ x, const QSegs<NSEG, OutT> g, int K) {
     extern __shared__ __align__(16) unsigned char smem[];
     uint4* xs = reinterpret_cast<uint4*>(smem);
     float staged = -1.f;
-    rows_q_seg<M, NT, W>(x, xs, w0, sc0, o0, N0, K, 0, staged);
-    rows_q_seg<M, NT, W>(x, xs, w1, sc1, o1, N1, K, ((int64_t)N0 + NT - 1) / NT, staged);
+    int64_t base = 0;
+#pragma unroll
+    for (int i = 0; i < NSEG; ++i) {
+        rows_q_seg<M, NT, W>(x, xs, g.s[i].w, g.s[i].sc, g.s[i].o, g.s[i].N, K, base, staged);
+        base += ((int64_t)g.s[i].N + NT - 1) / NT;
+    }
 }
 
 template <int M, int NT, int W, int MINB, typename OutT>
@@ -633,19 +648,19 @@ int rows_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
     }
 }
 
-template <int M, int NT, int W, int MINB>
-int rows_run_q_pair(const ik_bf16* x, const uint8_t* w0, const float* sc0, ik_bf16* o0, int64_t N0, const uint8_t* w1,
-                    const float* sc1, ik_bf16* o1, int64_t N1, int64_t K, cudaStream_t s) {
+template <int M, int NT, int W, int MINB, int NSEG>
+int rows_run_q_multi(const ik_bf16* x, const QSegs<NSEG, ik_bf16>& g, int64_t K, cudaStream_t s) {
     const size_t smem = (size_t)M * K;
-    auto kern = fp8_gemv_rows_q_pair_kernel<M, NT, W, MINB, ik_bf16>;
-    if (!smem_cap_once<fp8_gemv_rows_q_pair_kernel<M, NT, W, MINB, ik_bf16>>(kQSmemMax)) return IK_ERR_LAUNCH;
+    auto kern = fp8_gemv_rows_q_multi_kernel<M, NT, W, MINB, NSEG, ik_bf16>;
+    if (!smem_cap_once<fp8_gemv_rows_q_multi_kernel<M, NT, W, MINB, NSEG, ik_bf16>>(kQSmemMax)) return IK_ERR_LAUNCH;
     int occ = 0;
     if (cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, kern, W * IK_WARP, smem) != cudaSuccess || occ < 1) occ = 1;
-    const int64_t tiles = (N0 + NT - 1) / NT + (N1 + NT - 1) / NT;
+    int64_t tiles = 0;
+    for (int i = 0; i < NSEG; ++i) tiles += ((int64_t)g.s[i].N + NT - 1) / NT;
     const int64_t blocks = (tiles + W - 1) / W;
     const int64_t cap = (int64_t)sm_count() * occ;
     const unsigned grid = (unsigned)(blocks < cap ? blocks : cap);
-    kern<<<grid, W * IK_WARP, smem, s>>>(x, w0, sc0, o0, (int)N0, w1, sc1, o1, (int)N1, (int)K);
+    kern<<<grid, W * IK_WARP, smem, s>>>(x, g, (int)K);
     return ik_launch_status();
 }
 
@@ -670,8 +685,9 @@ int rows_pair_run(const ik_bf16* x, const uint8_t* w0, const float* sc0, ik_bf16
         const bool small_n = N0 <= kQSmallN && N1 <= kQSmallN && M >= 4;
         if (fp8_pair_rows_on() && !plain && rows_q_mode() != 0 && (size_t)M * K <= kQSmemMax && (M >= 12 || small_n) &&
             !getenv("INTARSIA_CUDA_FP8_ROWS_QSHAPE")) {
-            if (N0 + N1 <= kQSmallN) return rows_run_q_pair<M, 1, 16, 1>(x, w0, sc0, o0, N0, w1, sc1, o1, N1, K, s);
-            return rows_run_q_pair<M, 2, 8, 2>(x, w0, sc0, o0, N0, w1, sc1, o1, N1, K, s);
+            const QSegs<2, ik_bf16> g = {{{w0, sc0, o0, (int)N0}, {w1, sc1, o1, (int)N1}}};
+            if (N0 + N1 <= kQSmallN) return rows_run_q_multi<M, 1, 16, 1, 2>(x, g, K, s);
+            return rows_run_q_multi<M, 2, 8, 2, 2>(x, g, K, s);
         }
     }
     IK_TRY(rows_run<M>(x, w0, sc0, o0, N0, K, s));
@@ -687,6 +703,43 @@ int rows_pair_by_m(int M, const ik_bf16* x, const uint8_t* w0, const float* sc0,
         IK_FP8_PAIR_CASE(9) IK_FP8_PAIR_CASE(10) IK_FP8_PAIR_CASE(11) IK_FP8_PAIR_CASE(12)
         IK_FP8_PAIR_CASE(13) IK_FP8_PAIR_CASE(14) IK_FP8_PAIR_CASE(15) IK_FP8_PAIR_CASE(16)
 #undef IK_FP8_PAIR_CASE
+        default: return IK_ERR_SHAPE;
+    }
+}
+
+// INTARSIA_CUDA_FP8_TRIPLE_ROWS (default 12; the registry reads the same variable): the fewest rows at which the q + k + v triple
+// is one launch. Below it the single calls are faster (q takes the persistent bf16-staged kernel under 12 rows, and the model's
+// side stream overlaps k + v with it); `0` = the triple is never registered, and the launcher runs the single calls.
+inline int fp8_triple_min_rows() {
+    const char* e = getenv("INTARSIA_CUDA_FP8_TRIPLE_ROWS");
+    if (!e || !*e) return 12;
+    const int n = atoi(e);
+    return n <= 0 ? 1 << 30 : n;
+}
+
+// The triple at M rows: one launch of the e4m3-staged multi kernel where the single calls would all take the e4m3-staged kernel
+// (M >= 12) or the knob lowers the bar, else the three single calls (launcher fallback, the same bits).
+template <int M>
+int rows_triple_run(const ik_bf16* x, const QSegs<3, ik_bf16>& g, int64_t K, cudaStream_t s) {
+    if constexpr (M >= 2) {
+        const char* mode = getenv("INTARSIA_CUDA_FP8_ROWS");
+        const bool plain = (mode && mode[0] == '0' && mode[1] == 0) || (mode && !strcmp(mode, "tile"));
+        if (M >= fp8_triple_min_rows() && fp8_pair_rows_on() && !plain && rows_q_mode() != 0 && (size_t)M * K <= kQSmemMax &&
+            !getenv("INTARSIA_CUDA_FP8_ROWS_QSHAPE"))
+            return rows_run_q_multi<M, 2, 8, 2, 3>(x, g, K, s);
+    }
+    for (int i = 0; i < 3; ++i) IK_TRY(rows_run<M>(x, g.s[i].w, g.s[i].sc, g.s[i].o, g.s[i].N, K, s));
+    return IK_OK;
+}
+
+int rows_triple_by_m(int M, const ik_bf16* x, const QSegs<3, ik_bf16>& g, int64_t K, cudaStream_t s) {
+    switch (M) {
+#define IK_FP8_TRIPLE_CASE(m) case m: return rows_triple_run<m>(x, g, K, s);
+        IK_FP8_TRIPLE_CASE(1) IK_FP8_TRIPLE_CASE(2) IK_FP8_TRIPLE_CASE(3) IK_FP8_TRIPLE_CASE(4)
+        IK_FP8_TRIPLE_CASE(5) IK_FP8_TRIPLE_CASE(6) IK_FP8_TRIPLE_CASE(7) IK_FP8_TRIPLE_CASE(8)
+        IK_FP8_TRIPLE_CASE(9) IK_FP8_TRIPLE_CASE(10) IK_FP8_TRIPLE_CASE(11) IK_FP8_TRIPLE_CASE(12)
+        IK_FP8_TRIPLE_CASE(13) IK_FP8_TRIPLE_CASE(14) IK_FP8_TRIPLE_CASE(15) IK_FP8_TRIPLE_CASE(16)
+#undef IK_FP8_TRIPLE_CASE
         default: return IK_ERR_SHAPE;
     }
 }
@@ -880,6 +933,30 @@ int pair_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, con
                           N0, (const uint8_t*)w1->data, (const float*)sc1->data, (ik_bf16*)o1->data, N1, K, s);
 }
 
+// Three matrices of one activation (attention q + gate, k, v), M <= kRowsMax rows, bf16 outputs: bitwise the three single row-exact
+// calls (and so row m the M = 1 call on row m).
+int triple_rows(const ik_tensor* x, const ik_tensor* const w[3], const ik_tensor* const sc[3], ik_tensor* const o[3], void* stream) {
+    for (int i = 0; i < 3; ++i) {
+        IK_TRY(check(x, w[i], sc[i], o[i]));
+        if (o[i]->dtype != IK_DTYPE_BF16) return IK_ERR_DTYPE;
+    }
+    const int64_t M = x->shape[0], K = x->shape[1];
+    if (M > kRowsMax) return IK_ERR_SHAPE;
+    int64_t n[3] = {w[0]->shape[0], w[1]->shape[0], w[2]->shape[0]};
+    if (M == 0 || (n[0] == 0 && n[1] == 0 && n[2] == 0)) return IK_OK;
+    cudaStream_t s = IK_STREAM(stream);
+    if (K == 0 || n[0] == 0 || n[1] == 0 || n[2] == 0) {  // (nothing the model produces) the single calls
+        for (int i = 0; i < 3; ++i) IK_TRY(launch(x, w[i], sc[i], o[i], stream, false, true));
+        return IK_OK;
+    }
+    if (n[0] > 0x7fffffffLL || n[1] > 0x7fffffffLL || n[2] > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    if (!ik_aligned16(x->data) || !ik_aligned16(w[0]->data) || !ik_aligned16(w[1]->data) || !ik_aligned16(w[2]->data)) return IK_ERR_SHAPE;
+    QSegs<3, ik_bf16> g;
+    for (int i = 0; i < 3; ++i)
+        g.s[i] = {(const uint8_t*)w[i]->data, (const float*)sc[i]->data, (ik_bf16*)o[i]->data, (int)n[i]};
+    return rows_triple_by_m((int)M, (const ik_bf16*)x->data, g, K, s);
+}
+
 // x / z [R, 128] (R * 128 == K), nw [128], w [N, K] fp8, out [1, N] bf16.
 int gated_matmul(const ik_tensor* x, const ik_tensor* z, const ik_tensor* nw, float eps, float woff, const ik_tensor* w,
                  const ik_tensor* scales, ik_tensor* out, void* stream) {
@@ -925,6 +1002,16 @@ int ik_matmul_fp8_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_te
 int ik_matmul_fp8_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
                                  const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream) {
     return pair_rows(x, w0, scales0, w1, scales1, out0, out1, stream);
+}
+
+// The attention q + gate, k and v projections at M <= 16 rows (row-exact): bitwise the three `ik_matmul_fp8_gemv_rows` calls.
+int ik_matmul_fp8_triple_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                                   const ik_tensor* scales1, const ik_tensor* w2, const ik_tensor* scales2, ik_tensor* out0,
+                                   ik_tensor* out1, ik_tensor* out2, void* stream) {
+    const ik_tensor* const w[3] = {w0, w1, w2};
+    const ik_tensor* const sc[3] = {scales0, scales1, scales2};
+    ik_tensor* const o[3] = {out0, out1, out2};
+    return triple_rows(x, w, sc, o, stream);
 }
 
 int ik_matmul_fp8_gemv(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream) {

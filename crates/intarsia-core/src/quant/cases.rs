@@ -224,6 +224,23 @@ pub fn matmul_fp8_pair_case(
     }
 }
 
+/// `MatmulFp8Triple`: three fp8 projections of one `x` (attention q + gate, k, v); `aq[j]` selects W8A8 (static input scale) per segment.
+#[allow(clippy::too_many_arguments)]
+pub fn matmul_fp8_triple_case(rng: &mut SplitMix64, m: usize, n: [usize; 3], k: usize, aq: [bool; 3], xdt: DType, odt: DType) -> HostCall {
+    let mats = [0, 1, 2].map(|j| fp8::random_rows(rng, n[j], k, aq[j]));
+    let x = rand_t(rng, xdt, &[m, k], 1.0);
+    let mut inputs = vec![x];
+    for mat in mats {
+        inputs.extend(mat.parts);
+    }
+    HostCall {
+        op: Op::MatmulFp8Triple,
+        inputs,
+        outputs: n.iter().map(|&n| OutSpec::new(odt, &[m, n])).collect(),
+        attrs: OpAttrs { fp8_static_act: aq.iter().all(|&a| a), ..OpAttrs::default() },
+    }
+}
+
 /// `MatmulMxfp4Pair`: two MXFP4 projections of one `x` sharing one `act` mode (the op's single `act` input).
 #[allow(clippy::too_many_arguments)]
 pub fn matmul_mxfp4_pair_case(
@@ -709,6 +726,24 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                 }
             }
         }
+        Op::MatmulFp8Triple => {
+            let ms: &[usize] = if quick { &[1, 5, 12] } else { &[1, 3, 5, 12, 16] };
+            let mut nnk = vec![([64usize, 48, 40], 64usize), ([17, 33, 9], 48)];
+            if !quick {
+                // Qwen3.6-35B-A3B attention: q + gate, k, v
+                nnk.push(([8192, 512, 512], 2048));
+            }
+            for &m in ms {
+                for &(n, k) in &nnk {
+                    for aq in [[true; 3], [false; 3], [true, false, true]] {
+                        push(
+                            format!("M={m} N={}+{}+{} K={k} x=bf16 out=bf16 act_quant={}/{}/{}", n[0], n[1], n[2], aq[0], aq[1], aq[2]),
+                            matmul_fp8_triple_case(&mut rng, m, n, k, aq, DType::Bf16, DType::Bf16),
+                        );
+                    }
+                }
+            }
+        }
         Op::MatmulMxfp4Pair => {
             let ms: &[usize] = if quick { &[1, 5] } else { &[1, 2, 3, 4, 5, 6, 7, 8] };
             let mut nnk = vec![(64usize, 48usize, 64usize), (40, 96, 96), (17, 33, 64)];
@@ -940,6 +975,17 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
             o[0].dtype,
             "static/static"
         ),
+        Op::MatmulFp8Triple => format!(
+            "M={} N0={} N1={} N2={} K={} x={} out={} act_quant={}",
+            i[0].shape[0].min(caps.rows),
+            i[1].shape[0].min(caps.n),
+            i[3].shape[0].min(caps.n),
+            i[5].shape[0].min(caps.n),
+            i[0].shape[1],
+            i[0].dtype,
+            o[0].dtype,
+            "static/static/static"
+        ),
         Op::MatmulMxfp4Pair => format!(
             "M={} N0={} N1={} K={} x={} out={} act={}",
             i[0].shape[0].min(caps.rows),
@@ -1084,6 +1130,15 @@ pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> 
             i[0].dtype,
             o[0].dtype,
         ),
+        Op::MatmulFp8Triple => matmul_fp8_triple_case(
+            rng,
+            i[0].shape[0].min(caps.rows),
+            [i[1].shape[0].min(caps.n), i[3].shape[0].min(caps.n), i[5].shape[0].min(caps.n)],
+            i[0].shape[1],
+            [true; 3],
+            i[0].dtype,
+            o[0].dtype,
+        ),
         Op::MatmulMxfp4Pair => matmul_mxfp4_pair_case(
             rng,
             i[0].shape[0].min(caps.rows),
@@ -1168,6 +1223,7 @@ mod tests {
             Op::MoeBlock,
             Op::MatmulMxfp4,
             Op::MatmulMxfp4Pair,
+            Op::MatmulFp8Triple,
         ] {
             let cases = sweep(op, &SweepConfig { quick: true, ..SweepConfig::default() }).unwrap();
             assert!(!cases.is_empty());

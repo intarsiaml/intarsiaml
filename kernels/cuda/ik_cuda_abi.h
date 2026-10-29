@@ -171,6 +171,11 @@ int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_ten
 /* = ik_matmul_fp8_pair_gemv (bf16 outputs); also bitwise the two ik_matmul_fp8_gemv_rows calls */
 int ik_matmul_fp8_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
                                  const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream);
+/* attention q + gate, k, v on one x (bf16 outputs): bitwise the three ik_matmul_fp8_gemv_rows calls; one launch from
+ * INTARSIA_CUDA_FP8_TRIPLE_ROWS (default 12) rows, the three calls below it */
+int ik_matmul_fp8_triple_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                                   const ik_tensor* scales1, const ik_tensor* w2, const ik_tensor* scales2, ik_tensor* out0,
+                                   ik_tensor* out1, ik_tensor* out2, void* stream);
 /* = ik_matmul_nvfp4_gemv */
 int ik_matmul_nvfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
                               const ik_tensor* global_scale, ik_tensor* out, void* stream);

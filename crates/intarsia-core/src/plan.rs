@@ -1121,6 +1121,23 @@ mod tests {
         assert!(check_batch_ops("cuda", &rows, &decode, &batch(2), 3).is_err());
     }
 
+    /// Lane qkv16: CUDA's row-exact attention q + k + v triple is one launch in a batched step for what the solo step runs as the q
+    /// projection and the k + v pair; the fusion entry makes them the same work (three single projections), and only on CUDA.
+    #[test]
+    fn batch_check_accepts_the_qkv_triple_for_q_and_the_kv_pair() {
+        let solo = calls(&[(Op::MatmulFp8, "matmul_fp8_gemv"), (Op::MatmulFp8Pair, "matmul_fp8_pair_gemv")]);
+        let triple = calls(&[(Op::MatmulFp8Triple, "matmul_fp8_triple_gemv_rows")]);
+        let rows = |k: &str| k.ends_with("_rows");
+        check_batch_ops("cuda", &rows, &solo, &triple, 16).unwrap();
+        check_batch_ops("metal", &rows, &solo, &triple, 16).unwrap_err();
+        // a triple beside the solo step's q (the model would then project q twice) is not the same work
+        let twice = calls(&[(Op::MatmulFp8, "matmul_fp8_gemv_rows"), (Op::MatmulFp8Triple, "matmul_fp8_triple_gemv_rows")]);
+        check_batch_ops("cuda", &rows, &solo, &twice, 16).unwrap_err();
+        // and the triple is picked only as a `rows_exact` registration: an ordinary kernel under that op is refused
+        let plain = |_: &str| false;
+        check_batch_ops("cuda", &plain, &solo, &triple, 16).unwrap_err();
+    }
+
     /// HIP's attention prologue fold (lane hr3): the solo step runs `GateSplitQkNormRopeKv` and `GdnConvDelta`; a batched step with row
     /// tables runs their chains (one gate split over all rows, the per-row norms / rope / appends / GDN calls), a step without runs the
     /// folds once per row. Both are the same work; a missing row is not.
