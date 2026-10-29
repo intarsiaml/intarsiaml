@@ -201,13 +201,14 @@ impl Backend for CudaBackend {
     fn prefix_reuse_any_cut(&self) -> bool {
         false
     }
-    /// Not by default, though supported (lane rip, docs/results/2026-10-29-rip-row-invariant-prefill.md): with
-    /// `INTARSIA_ROW_INVARIANT_PREFILL=1` (or `LoadOptions::row_invariant_prefill`) a `Model::forward_prefill` pass runs the pinned
-    /// cuBLASLt GEMM (`matmul_bf16_inv`) and the flash attention at every row count, so a row's bits do not depend on the pass and
-    /// reuse resumes from any row such a pass wrote. Off because the pinned GEMM is ~17-24% slower than cuBLAS at M ~ 1000
-    /// (Qwen3-8B 1k-token prefill -10.4%, 4k +1.4%, 16k +0.2%); the user decides the default.
+    /// Yes (lane rip, docs/results/2026-10-29-rip-row-invariant-prefill.md; default since lane rip2,
+    /// docs/results/2026-10-29-rip2-row-invariant-gemm.md): a `Model::forward_prefill` pass runs the row-invariant cuBLASLt GEMM
+    /// (`matmul_bf16_inv`: per row count the heuristic's pick, proven bitwise equal to one primary algorithm per shape) and the
+    /// flash attention at every row count, so a row's bits do not depend on the pass and reuse resumes from any row such a pass
+    /// wrote. The load-time rule still switches it off for models it cannot cover (hybrid, MoE, fp8 / NVFP4, several ranks);
+    /// `INTARSIA_ROW_INVARIANT_PREFILL=0` (or `LoadOptions::row_invariant_prefill`) opts out.
     fn row_invariant_prefill(&self) -> bool {
-        false
+        true
     }
     /// Lane srv16: cuBLASLt fp8 and cuBLAS bf16 GEMMs pick tiling / split-K by row count (lane sk's macro pass), so a packed
     /// prefill runs them per prompt; without it `real_35b_packed_prefill_equals_the_local_engine` fails.

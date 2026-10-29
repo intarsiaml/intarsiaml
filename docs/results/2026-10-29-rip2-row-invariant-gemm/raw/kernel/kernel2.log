@@ -1,0 +1,31 @@
+fleetq: #6888 running on spark2: ssh -n -o BatchMode=yes spark2 'cd ~/intarsiaml-rip2/src && export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; INTARSIA_REQUIRE_GPU=1 INTARSIA_LT_DEBUG=1 timeout 150 cargo test -p intarsia-backend-cuda --release --test row_invariance -- --test-threads=1 --nocapture 2>&1 | grep -aE "^test result|panicked|matmul_bf16_inv N|DIFFERS"; INTARSIA_REQUIRE_GPU=1 timeout 60 cargo test -p intarsia-backend-cuda --release --test row_invariance gemm_inv_timing -- --ignored --nocapture 2>&1 | grep -aE "TIMING|panicked"'
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 15 stages 35 cust 22 (first at M 17): DIFFERS
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 15 stages 35 cust 31 (first at M 17): DIFFERS
+matmul_bf16_inv N4096 K4096: M 1..=4352: 0 row counts differ from the 4352-row pass (4.3 s)
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 11 stages 35 cust 7 (first at M 17): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 13 stages 35 cust 29 (first at M 17): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 11 stages 35 cust 17 (first at M 17): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 13 stages 35 cust 19 (first at M 33): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 13 stages 35 cust 28 (first at M 33): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 15 stages 35 cust 22 (first at M 65): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 15 stages 35 cust 31 (first at M 65): DIFFERS
+matmul_bf16_inv N1024 K4096: M 1..=4352: 0 row counts differ from the 4352-row pass (1.3 s)
+matmul_bf16_inv N12288 K4096: M 1..=4352: 0 row counts differ from the 4352-row pass (11.4 s)
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 15 stages 35 cust 22 (first at M 17): DIFFERS
+matmul_bf16_inv N4096 K12288: M 1..=4352: 0 row counts differ from the 4352-row pass (11.9 s)
+matmul_bf16_inv N4096 K4096: every window identical
+matmul_bf16_inv N1024 K4096: every window identical
+matmul_bf16_inv N12288 K4096: every window identical
+matmul_bf16_inv N4096 K12288: every window identical
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 55.38s
+TIMING ref_m 4096 M    16: cublas   1746.0 us/layer  inv   1750.3 us/layer  inv/cublas 1.002
+TIMING ref_m 4096 M    64: cublas   1818.9 us/layer  inv   1824.0 us/layer  inv/cublas 1.003
+TIMING ref_m 4096 M   256: cublas   2134.1 us/layer  inv   2139.0 us/layer  inv/cublas 1.002
+TIMING ref_m 4096 M   512: cublas   2928.6 us/layer  inv   2985.8 us/layer  inv/cublas 1.020
+TIMING ref_m 4096 M   991: cublas   4201.3 us/layer  inv   4196.8 us/layer  inv/cublas 0.999
+TIMING ref_m 4096 M  1024: cublas   4497.3 us/layer  inv   4580.1 us/layer  inv/cublas 1.018
+TIMING ref_m 4096 M  1536: cublas   6874.5 us/layer  inv   6761.2 us/layer  inv/cublas 0.984
+TIMING ref_m 4096 M  2048: cublas   8831.4 us/layer  inv   8692.0 us/layer  inv/cublas 0.984
+TIMING ref_m 4096 M  3000: cublas  12705.7 us/layer  inv  12584.5 us/layer  inv/cublas 0.990
+TIMING ref_m 4096 M  4096: cublas  17189.7 us/layer  inv  16486.8 us/layer  inv/cublas 0.959
+fleetq: #6888 done (exit 0)
