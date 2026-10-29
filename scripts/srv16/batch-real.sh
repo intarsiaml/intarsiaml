@@ -7,7 +7,10 @@ set -uo pipefail
 HOST=${HOST:-spark1}; MODE=$1
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
-if [ "$MODE" = build ]; then
+if [ "$MODE" = packed ]; then
+  # lane srv16: the packed-prefill gate (ignored by default): every request of a packed burst equals the single-sequence engine
+  ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; cd ~/intarsiaml-srv16/src && INTARSIA_QWEN36_DIR=$M35 INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_35b_packed_prefill -- --ignored --test-threads=1 --nocapture 2>&1 | grep -aE '^test |test result|panicked|FAIL|pack|assert' | tail -30"
+elif [ "$MODE" = build ]; then
   ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; cd ~/intarsiaml-srv16/src && CARGO_BUILD_JOBS=16 cargo test -p intarsia-models --release --test batch_cuda_real --no-run 2>&1 | tail -4"
 else
   ssh -n -o BatchMode=yes "$HOST" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; cd ~/intarsiaml-srv16/src && INTARSIA_QWEN36_DIR=$M35 INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_35b_batched -- --test-threads=1 --nocapture 2>&1 | grep -aE '^test |test result|panicked|FAIL|identical|pairs' | tail -30"

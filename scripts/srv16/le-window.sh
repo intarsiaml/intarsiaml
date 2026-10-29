@@ -27,7 +27,7 @@ run_arm() { # run_arm <round> <spec>
   IFS=: read -r name bin envs xargs <<< "$spec"; envs=${envs//,/ }; xargs=${xargs//_/ }
   echo "== round $r arm $name $(date +%T)"
   if [[ $name == vllm ]]; then
-    le "msd-vllm-r$r" "http://$HN:8000/v1" guidance "spark1 production vLLM (role retro, served as guidance/capcom): vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --quantization modelopt_fp4 --max-model-len 131072 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --gpu-memory-utilization 0.32 --enable-prefix-caching --enable-chunked-prefill"
+    le "srv16-vllm-r$r" "http://$HN:8000/v1" guidance "spark1 production vLLM (role retro, served as guidance/capcom): vllm serve nvidia/Qwen3.6-35B-A3B-NVFP4 --quantization modelopt_fp4 --max-model-len 131072 --max-num-seqs 2 --max-num-batched-tokens 8192 --kv-cache-dtype fp8 --gpu-memory-utilization 0.32 --enable-prefix-caching --enable-chunked-prefill"
     return
   fi
   SPID=$(rsh "mkdir -p ~/intarsiaml-srv16/out; nohup env $envs ~/intarsiaml-srv16/bin/$bin serve --backend cuda --model $M35 --port $PORT --host 0.0.0.0 --served-model-name $SN --max-seq $MS --mem-budget $MB --profile-every 0 $xargs > ~/intarsiaml-srv16/out/serve-$name-r$r.log 2>&1 < /dev/null & echo \$!")
@@ -35,7 +35,7 @@ run_arm() { # run_arm <round> <spec>
   for i in $(seq 1 150); do curl -sf "http://$HN:$PORT/health" >/dev/null && { up=1; break; }; sleep 2; done
   if [[ $up != 1 ]]; then echo "server $name did not come up"; rsh "tail -5 ~/intarsiaml-srv16/out/serve-$name-r$r.log"; stop_server; return; fi
   echo "$name r$r: MemAvailable $(rsh "awk '/MemAvailable/ {print int(\$2/1024)}' /proc/meminfo") MB with the server up" | tee -a $OUT/mem.txt
-  le "msd-$name-r$r" "http://$HN:$PORT/v1" $SN "intarsia serve --backend cuda --max-seq $MS --mem-budget $MB bin=$bin env='$envs' $xargs"
+  le "srv16-$name-r$r" "http://$HN:$PORT/v1" $SN "intarsia serve --backend cuda --max-seq $MS --mem-budget $MB bin=$bin env='$envs' $xargs"
   stop_server
 }
 ARMS=("$@")
