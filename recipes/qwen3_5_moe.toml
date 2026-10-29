@@ -84,13 +84,15 @@ prefill_macro = 8192
 mtp_default_k = 2
 
 # 4096 on Metal (lane chunk4k, 2026-10-29): 4096-row chunks give the MoE expert GEMMs 128 rows per expert (64 at 2048) and
-# amortise the fp8 weight decode over twice the rows: served 35B prefill +6 % at 4k and 16k over 2048, decode and burst
-# unchanged, greedy ids bitwise equal (docs/results/2026-10-29-chunk4k-metal.md). Before that 2048 (user-delegated 2026-10-22
+# amortise the fp8 weight decode over twice the rows: served 35B prefill +17 % at 4k and +9 % at 16k over 2048 (medians of 6
+# interleaved rounds, endor), decode and 1-16 stream burst unchanged, greedy ids bitwise equal
+# (docs/results/2026-10-29-chunk4k-metal.md). Before that 2048 (user-delegated 2026-10-22
 # 19:41): at the 256 default `qualify` on the 4k golden fails the prefix-reuse gate on long_docs_4k `continue` (streams diverge at
 # token 8, docs/results/2026-10-22-gc-gate-coverage.md); 2048 amortises the expert reads the same way as on CUDA
 # (docs/results/2026-10-22-gc2-metal-35b-chunk2048.md). The chunk is part of the accuracy baseline identity:
 # golden/baselines/qwen36-35b*.metal.* were re-recorded with it. At 4096 the 4k documents (4064 tokens) cannot cross a chunk
-# boundary, so the prefix-reuse gate judges only chat_reuse_4k there (as on HIP, below).
+# boundary, so `accuracy --mode all` judges prefix reuse only on chat_reuse_4k (as on HIP, below); `qualify` also runs the
+# reuse check at chunk 1024, which judges all three.
 [tuning.metal]
 prefill_chunk = 4096
 
