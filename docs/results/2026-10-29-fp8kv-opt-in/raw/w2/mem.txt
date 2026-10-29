@@ -1,0 +1,12 @@
+srv-bf16 r1: MemAvailable 58201 MB with the server up
+srv-fp8 r1: MemAvailable 59491 MB with the server up
+single-bf16 r1: MemAvailable 59139 MB with the server up
+single-fp8 r1: MemAvailable 60096 MB with the server up
+single-fp8 r2: MemAvailable 60112 MB with the server up
+single-bf16 r2: MemAvailable 59774 MB with the server up
+srv-fp8 r2: MemAvailable 59497 MB with the server up
+srv-bf16 r2: MemAvailable 58206 MB with the server up
+srv-bf16 r3: MemAvailable 58213 MB with the server up
+srv-fp8 r3: MemAvailable 59511 MB with the server up
+single-bf16 r3: MemAvailable 59880 MB with the server up
+single-fp8 r3: MemAvailable 60113 MB with the server up

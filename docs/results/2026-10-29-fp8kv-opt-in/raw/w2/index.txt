@@ -1,0 +1,12 @@
+fp8kv-srv-bf16-r1: - result file: `results/20261029-124041-adhoc-fp8kv-srv-bf16-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-124041-adhoc-fp8kv-srv-bf16-r1/result.json 
+fp8kv-srv-fp8-r1: - result file: `results/20261029-124204-adhoc-fp8kv-srv-fp8-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-124204-adhoc-fp8kv-srv-fp8-r1/result.json 
+fp8kv-single-bf16-r1: - result file: `results/20261029-124340-adhoc-fp8kv-single-bf16-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-124340-adhoc-fp8kv-single-bf16-r1/result.json 
+fp8kv-single-fp8-r1: - result file: `results/20261029-124456-adhoc-fp8kv-single-fp8-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-124456-adhoc-fp8kv-single-fp8-r1/result.json 
+fp8kv-single-fp8-r2: - result file: `results/20261029-124610-adhoc-fp8kv-single-fp8-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-124610-adhoc-fp8kv-single-fp8-r2/result.json 
+fp8kv-single-bf16-r2: - result file: `results/20261029-124727-adhoc-fp8kv-single-bf16-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-124727-adhoc-fp8kv-single-bf16-r2/result.json 
+fp8kv-srv-fp8-r2: - result file: `results/20261029-124834-adhoc-fp8kv-srv-fp8-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-124834-adhoc-fp8kv-srv-fp8-r2/result.json 
+fp8kv-srv-bf16-r2: - result file: `results/20261029-125000-adhoc-fp8kv-srv-bf16-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-125000-adhoc-fp8kv-srv-bf16-r2/result.json 
+fp8kv-srv-bf16-r3: - result file: `results/20261029-125123-adhoc-fp8kv-srv-bf16-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-125123-adhoc-fp8kv-srv-bf16-r3/result.json 
+fp8kv-srv-fp8-r3: - result file: `results/20261029-125249-adhoc-fp8kv-srv-fp8-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-125249-adhoc-fp8kv-srv-fp8-r3/result.json 
+fp8kv-single-bf16-r3: - result file: `results/20261029-125417-adhoc-fp8kv-single-bf16-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-125417-adhoc-fp8kv-single-bf16-r3/result.json 
+fp8kv-single-fp8-r3: - result file: `results/20261029-125527-adhoc-fp8kv-single-fp8-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-125527-adhoc-fp8kv-single-fp8-r3/result.json 

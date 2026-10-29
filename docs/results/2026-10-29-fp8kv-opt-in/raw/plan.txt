@@ -1,0 +1,6 @@
+PASS plan 8 json byte-identical (8973 B, md5 5bb00f3e)
+PASS plan 8 txt byte-identical (1548 B, md5 dfb75d7b)
+PASS plan 35 json byte-identical (15570 B, md5 d4815ce2)
+PASS plan 35 txt byte-identical (4017 B, md5 68b03467)
+PASS plan g4 json byte-identical (8408 B, md5 2a659412)  (spark1)
+PASS plan g4 txt byte-identical (1797 B, md5 ec4ef23e)  (spark1)
