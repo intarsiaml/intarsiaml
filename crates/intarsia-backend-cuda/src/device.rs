@@ -462,6 +462,9 @@ impl Backend for CudaBackend {
                 "attn_decode_bf16_splitkv_rows" => {
                     ffi::ik_attn_decode_bf16_splitkv_rows(i(0), i(1), i(2), a.scale, o, sc, tab, tab_stride, tab_index, pos, s)
                 }
+                "attn_decode_f8kv_splitkv_rows" => {
+                    ffi::ik_attn_decode_f8kv_splitkv_rows(i(0), i(1), i(2), a.scale, o, sc, tab, tab_stride, tab_index, pos, s)
+                }
                 "matmul_bf16" => ffi::ik_matmul_bf16(i(0), i(1), o, s),
                 "matmul_bf16_gemv" => ffi::ik_matmul_bf16_gemv(i(0), i(1), o, s),
                 "matmul_bf16_inv" => ffi::ik_matmul_bf16_inv(i(0), i(1), o, s),

@@ -122,6 +122,19 @@ extern "C" {
         pos: T,
         s: S,
     ) -> c_int;
+    pub fn ik_attn_decode_f8kv_splitkv_rows(
+        q: T,
+        kc0: T,
+        vc0: T,
+        scale: f32,
+        out: TM,
+        scratch: SC,
+        tab: T,
+        stride: i64,
+        index: i64,
+        pos: T,
+        s: S,
+    ) -> c_int;
     pub fn ik_attn_prefill_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, s: S) -> c_int;
     pub fn ik_attn_decode_bf16(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, pos: T, s: S) -> c_int;
     pub fn ik_attn_decode_bf16_splitkv(q: T, kc: T, vc: T, pos0: i64, scale: f32, out: TM, scratch: SC, pos: T, s: S) -> c_int;

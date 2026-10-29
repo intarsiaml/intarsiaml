@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Lane fp8kv (from score29): sync this worktree to spark2 ~/intarsiaml-fp8kv/src and build, inside a fleetq slot (--load cpu):
+#   fleetq run --host spark2 --load cpu --mem 16 --expect 30 --label "fp8kv: build" -- scripts/fp8kv/build.sh <what>...
+# what: rows-<name> (the rows_exact test binary -> bin/rows_exact-<name>), cli-<name> (the CUDA CLI -> bin/<name>),
+#       breal-<name> (the batch_cuda_real test binary -> bin/batch_cuda_real-<name>),
+#       rt-<name> (the row_tables test binary -> bin/row_tables-<name>), qm-<name> (quantmoe -> bin/quantmoe-<name>),
+#       mn-<name> (moe_nvfp4 -> bin/moe_nvfp4-<name>), af-<name> (attn_f8kv -> bin/attn_f8kv-<name>), psc-<name> (prefix_store_cuda -> bin/prefix_store_cuda-<name>),
+#       sass (SASS of kernels/cuda/attention_splitkv.cu, main 867b97145 vs this tree, scripts/fp8kv/sass.sh),
+#       res (register / shared-memory use of the MoE decode kernels).
+# REF=<git ref> syncs that commit (git archive) instead of the working tree. One cargo target (spark2 disk is tight).
+set -euo pipefail
+: "${FLEETQ_JOB:?run under fleetq run}"
+REPO="$(git -C "$(dirname "${BASH_SOURCE[0]}")" rev-parse --show-toplevel)"; H="$(cd "$(dirname "${BASH_SOURCE[0]}")/../step16" && pwd)"
+L='~/intarsiaml-fp8kv'; R="$L/src"
+RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
+rsh() { ssh -n -o BatchMode=yes spark2 "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
+rsh "mkdir -p $R $L/bin"
+if [[ -n "${REF:-}" ]]; then
+  SHA=$(git -C "$REPO" rev-parse "$REF"); STAMP="ref-${SHA:0:12}"
+  rsh "rm -rf $L/stage && mkdir -p $L/stage"
+  git -C "$REPO" archive "$SHA" | ssh -o BatchMode=yes spark2 "tar -x -C $L/stage"
+  rsh "rsync -a --delete --exclude target --exclude golden --exclude tools/.venv --exclude out $L/stage/ $R/ && rm -rf $L/stage"
+else
+  STAMP="$("$REPO/scripts/tree-stamp.sh")"
+  rsync -a --delete --exclude target --exclude .git --exclude golden --exclude tools/.venv --exclude .claude --exclude .worktrees --exclude out "$REPO/" "spark2:intarsiaml-fp8kv/src/"
+fi
+# fresh mtimes: rsync -a keeps the Mac's, which can be older than the last build from another tree (cargo would skip it)
+rsh "cd $R && find . -path ./target -prune -o -type f \( -name '*.rs' -o -name '*.cu' -o -name '*.cuh' -o -name '*.h' -o -name '*.toml' \) -print0 | xargs -0 touch"
+for what in "$@"; do
+  date +%T
+  case $what in
+    rows-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test rows_exact --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/rows_exact-* | grep -v '\.d$' | head -1) $L/bin/rows_exact-${what#rows-}" ;;
+    rt-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test row_tables --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/row_tables-* | grep -v '\.d$' | head -1) $L/bin/row_tables-${what#rt-}" ;;
+    qm-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test quantmoe --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/quantmoe-* | grep -v '\.d$' | head -1) $L/bin/quantmoe-${what#qm-}" ;;
+    mn-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test moe_nvfp4 --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/moe_nvfp4-* | grep -v '\.d$' | head -1) $L/bin/moe_nvfp4-${what#mn-}" ;;
+    sass) rsh "rm -rf $L/kchk && mkdir -p $L/kchk/kernels && cp -r $R/kernels/cuda $L/kchk/kernels/"
+          git -C "$REPO" show 867b97145:kernels/cuda/attention_splitkv.cu | ssh -o BatchMode=yes spark2 "cat > $L/kchk/kernels/cuda/attention_splitkv_base.cu"
+          ssh -o BatchMode=yes spark2 'bash -s' < "$REPO/scripts/fp8kv/sass.sh" ;;
+    res) rsh "cd $R && for o in \$(find target/release/build -name 'moe_decode*.o' | head -1); do cuobjdump --dump-resource-usage \$o | grep -E 'Function|REG' | sed 's/^ *//' | paste - - | grep -E 'down|gate_up' | cut -c1-240; done" ;;
+    cli-*) rsh "rm -f $R/target/release/intarsia; cd $R && env INTARSIA_BUILD_STAMP='$STAMP' CARGO_BUILD_JOBS=16 cargo build --release --features cuda -p intarsia-cli 2>&1 | grep -E '^error|Finished' | tail -4; cp $R/target/release/intarsia $L/bin/${what#cli-}; $L/bin/${what#cli-} --version | head -1" ;;
+    af-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test attn_f8kv --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/attn_f8kv-* | grep -v '\.d$' | head -1) $L/bin/attn_f8kv-${what#af-}" ;;
+    psc-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-models --release --test prefix_store_cuda --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/prefix_store_cuda-* | grep -v '\.d$' | head -1) $L/bin/prefix_store_cuda-${what#psc-}" ;;
+    breal-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-models --release --test batch_cuda_real --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/batch_cuda_real-* | grep -v '\.d$' | head -1) $L/bin/batch_cuda_real-${what#breal-}" ;;
+  esac
+done
+rsh "df -h ~ | tail -1; du -sh $L"
+date +%T
