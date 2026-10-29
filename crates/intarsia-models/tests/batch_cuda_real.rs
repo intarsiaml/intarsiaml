@@ -212,7 +212,9 @@ fn timing_35b_batched_step() {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
     let plen: usize = std::env::var("INTARSIA_STEP_PROMPT").ok().and_then(|v| v.parse().ok()).unwrap_or(64).clamp(1, 1800);
-    for b in [8usize, 16] {
+    // INTARSIA_STEP_BATCH (default "8,16"): the batch sizes timed, e.g. `16` alone under nsys (lane fp8kv)
+    let sizes: Vec<usize> = std::env::var("INTARSIA_STEP_BATCH").ok().map(|v| v.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![8, 16]);
+    for b in sizes {
         let mut sts: Vec<_> = (0..b)
             .map(|i| {
                 let mut st = m.new_state().unwrap();

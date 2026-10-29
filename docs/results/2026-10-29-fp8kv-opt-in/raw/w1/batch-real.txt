@@ -1,0 +1,16 @@
+== batch_cuda_real real_35b_batched kv=bf16 12:05:34
+      1 test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 21 filtered out; finished in 280.63s
+      1 test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+      1 test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+      1 test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+      1 test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663002112, free_bytes: 66174623744, weights_bytes: 20825033460, workspace_bytes: 687501200, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 62865891767, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+      1 kv bf16, graphs GraphStats { enabled: true, captures: 22, replays: 4320, batch_captures: 5, batch_replays: 656, spec_captures: 0, spec_replays: 0 }
+      1 4290 (row, step) pairs bitwise identical in 75.3 s
+== batch_cuda_real real_35b_batched kv=fp8_e4m3 12:10:16
+      1 test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 21 filtered out; finished in 278.32s
+      1 test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+      1 test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+      1 test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+      1 test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663002112, free_bytes: 66180067328, weights_bytes: 20825033460, workspace_bytes: 687501200, kv_bytes_per_token: 10240, kv_fraction: 0.95, kv_budget_bytes: 62871063172, kv_cap_tokens: 2048, kv_total_bytes: 20971520, notes: [] }
+      1 kv fp8_e4m3, graphs GraphStats { enabled: true, captures: 22, replays: 4320, batch_captures: 5, batch_replays: 656, spec_captures: 0, spec_replays: 0 }
+      1 4290 (row, step) pairs bitwise identical in 75.3 s

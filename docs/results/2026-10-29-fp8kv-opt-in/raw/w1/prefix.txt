@@ -1,0 +1,6 @@
+== prefix_store_cuda kv=fp8_e4m3
+PREFIX-STORE-CUDA model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 turn1 1873 tok (2200 ms), other 878 tok, turn2 2531 tok: restored 1871 cached in 1027 ms vs cold 1756 ms (store on) / 972 ms (store off)
+PREFIX-STORE-CUDA restored vs cold(store on): bitwise true (first differing step None)
+PREFIX-STORE-CUDA restored vs cold(store off): bitwise false (first differing step Some(0)); ids equal true
+PREFIX-STORE-CUDA store: {"build":"b163b633b8416097","entries":4,"pinned_entries":0,"lookups":3,"hits":1,"misses":2,"local_wins":0,"tokens_saved":1871,"bytes_restored":83548160,"restore_seconds_total":0.003226394,"last_restore_ms":3.226394,"inserts":4,"insert_bytes":294584320,"insert_seconds_total":0.7502102820000002,"settle_seconds_total":0.6382646530000001,"rejected":0,"ttft_saved_seconds_total"
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 105.97s

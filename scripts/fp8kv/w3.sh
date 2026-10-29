@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lane fp8kv, GPU window 3 (one fleetq slot on spark2, quiet on GPU and CPU), dev binary, one `intarsia serve` per arm
-# (--max-seq 20480 --mem-budget 40, recipe defaults: MTP k=2 at one stream):
+# (--max-seq 20480 --mem-budget 40, recipe defaults: MTP k=2 at one stream), after stepprof.sh (the B = 16 attention bucket):
 #   bf16      : greedy.py (1k / 4k / 16k, 2 prompts each, 256 greedy tokens), localeval quality mmlu (10 per task) + gsm8k (100)
 #   fp8       : the same on --kv-dtype fp8, greedy.py run twice (run-to-run determinism; the second run restores the prefixes)
 #   fp8-nospec: the fp8 cache set by the RECIPE (a copy of recipes/qwen3_5_moe.toml with kv_dtype = "fp8_e4m3", `--recipe`) and
@@ -30,6 +30,7 @@ quality() { # quality <name> <recipe text>
   grep -aE 'run_id|Run id|results/|mmlu|gsm8k' $RAW/quality-$1-*.out | tail -12
 }
 echo "commit $(git -C "$H" rev-parse --short HEAD) $(date +%T)"
+"$H/stepprof.sh" bf16 fp8_e4m3   # the B = 16 decode-attention bucket under nsys, first (nothing else loaded)
 rsh "sed 's/^kv_dtype = \"bf16\"/kv_dtype = \"fp8_e4m3\"/' ~/intarsiaml-fp8kv/src/recipes/qwen3_5_moe.toml > ~/intarsiaml-fp8kv/out/qwen3_5_moe-fp8.toml; grep -n '^kv_dtype' ~/intarsiaml-fp8kv/out/qwen3_5_moe-fp8.toml"
 for arm in bf16 fp8 fp8-nospec; do
   case $arm in bf16) X="" ;; fp8) X="--kv-dtype fp8" ;; fp8-nospec) X="--recipe ~/intarsiaml-fp8kv/out/qwen3_5_moe-fp8.toml --spec off" ;; esac
