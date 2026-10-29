@@ -1,0 +1,3 @@
+[targets.nq27-rec]
+url = "http://tatooine:8095/v1"
+model = "qwen-nq27"
