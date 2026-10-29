@@ -1,0 +1,1 @@
+fleetq: #6553 waiting (#1 in line): needs gpu quiet on spark1, but #6552 "khronicle: Nemotron-3.5-Transcribe 30B FP8 vLLM + ASR bake-off (memguard on)" (claude-4631e94b) loads it

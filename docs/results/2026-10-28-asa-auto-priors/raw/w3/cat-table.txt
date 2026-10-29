@@ -1,0 +1,29 @@
+window w3: 77 localeval runs; problems: 28
+  PROBLEM auto ho-chat: rows differ from off (4 vs 0)
+  PROBLEM autob ho-chat: rows differ from off (4 vs 0)
+  PROBLEM dfl7 ho-chat: rows differ from off (4 vs 0)
+  PROBLEM mtp2 ho-chat: rows differ from off (4 vs 0)
+  PROBLEM auto ho-code: rows differ from off (2 vs 0)
+  PROBLEM autob ho-code: rows differ from off (2 vs 0)
+  PROBLEM dfl7 ho-code: rows differ from off (2 vs 0)
+  PROBLEM mtp2 ho-code: rows differ from off (2 vs 0)
+  PROBLEM auto ho-prose: rows differ from off (4 vs 0)
+  PROBLEM autob ho-prose: rows differ from off (4 vs 0)
+  PROBLEM dfl7 ho-prose: rows differ from off (4 vs 0)
+  PROBLEM mtp2 ho-prose: rows differ from off (4 vs 0)
+  PROBLEM auto ho-recall: rows differ from off (2 vs 0)
+  PROBLEM autob ho-recall: rows differ from off (2 vs 0)
+  PROBLEM dfl7 ho-recall: rows differ from off (2 vs 0)
+  PROBLEM mtp2 ho-recall: rows differ from off (2 vs 0)
+  PROBLEM auto rcp-code: rows differ from off (8 vs 0)
+  PROBLEM autob rcp-code: rows differ from off (8 vs 0)
+  PROBLEM dfl7 rcp-code: rows differ from off (8 vs 0)
+  PROBLEM mtp2 rcp-code: rows differ from off (8 vs 0)
+category                       auto                  autob                   dfl7                   mtp2
+ho-chat                        89.3                   89.0                   79.8                   90.3
+ho-code                       135.4                  132.5                  139.5                  108.3
+ho-prose                       80.4                   80.2                   65.5                   80.3
+ho-recall                      96.2                   97.2                   95.9                   95.9
+rcp-code                      133.9                  134.4                  139.4                  108.1
+rcp-prose                      83.0                   83.1                   68.4                   83.3
+rcp-recall                    108.2                  105.6                  109.3                   98.8

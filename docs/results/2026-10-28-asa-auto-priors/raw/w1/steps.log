@@ -1,0 +1,51 @@
+14:57:43 guard: [guard] radiance stopped 2026-10-28 14:57:43
+14:57:43 round 1 arm autotr: starting server
+14:59:33 round 1 arm autotr ho-chat: localeval exit 0 results/20261028-145909-asa-autotr-asa-w1-autotr-ho-chat-r1/result.json
+14:59:43 round 1 arm autotr ho-code: localeval exit 0 results/20261028-145934-asa-autotr-asa-w1-autotr-ho-code-r1/result.json
+15:00:11 round 1 arm autotr ho-prose: localeval exit 0 results/20261028-145943-asa-autotr-asa-w1-autotr-ho-prose-r1/result.json
+15:00:24 round 1 arm autotr ho-recall: localeval exit 0 results/20261028-150012-asa-autotr-asa-w1-autotr-ho-recall-r1/result.json
+15:00:57 round 1 arm autotr rcp-code: localeval exit 0 results/20261028-150024-asa-autotr-asa-w1-autotr-rcp-code-r1/result.json
+15:01:51 round 1 arm autotr rcp-prose: localeval exit 0 results/20261028-150057-asa-autotr-asa-w1-autotr-rcp-prose-r1/result.json
+15:02:32 round 1 arm autotr rcp-recall: localeval exit 0 results/20261028-150152-asa-autotr-asa-w1-autotr-rcp-recall-r1/result.json
+15:02:33 round 1 arm autotrmtp: starting server
+15:04:23 round 1 arm autotrmtp ho-chat: localeval exit 0 results/20261028-150359-asa-autotrmtp-asa-w1-autotrmtp-ho-chat-r1/result.json
+15:04:34 round 1 arm autotrmtp ho-code: localeval exit 0 results/20261028-150423-asa-autotrmtp-asa-w1-autotrmtp-ho-code-r1/result.json
+15:05:02 round 1 arm autotrmtp ho-prose: localeval exit 0 results/20261028-150435-asa-autotrmtp-asa-w1-autotrmtp-ho-prose-r1/result.json
+15:05:14 round 1 arm autotrmtp ho-recall: localeval exit 0 results/20261028-150502-asa-autotrmtp-asa-w1-autotrmtp-ho-recall-r1/result.json
+15:05:54 round 1 arm autotrmtp rcp-code: localeval exit 0 results/20261028-150515-asa-autotrmtp-asa-w1-autotrmtp-rcp-code-r1/result.json
+15:06:46 round 1 arm autotrmtp rcp-prose: localeval exit 0 results/20261028-150555-asa-autotrmtp-asa-w1-autotrmtp-rcp-prose-r1/result.json
+15:07:30 round 1 arm autotrmtp rcp-recall: localeval exit 0 results/20261028-150647-asa-autotrmtp-asa-w1-autotrmtp-rcp-recall-r1/result.json
+15:07:31 round 1 arm autotrdfl: starting server
+15:09:23 round 1 arm autotrdfl ho-chat: localeval exit 0 results/20261028-150857-asa-autotrdfl-asa-w1-autotrdfl-ho-chat-r1/result.json
+15:09:32 round 1 arm autotrdfl ho-code: localeval exit 0 results/20261028-150924-asa-autotrdfl-asa-w1-autotrdfl-ho-code-r1/result.json
+15:10:05 round 1 arm autotrdfl ho-prose: localeval exit 0 results/20261028-150933-asa-autotrdfl-asa-w1-autotrdfl-ho-prose-r1/result.json
+15:10:18 round 1 arm autotrdfl ho-recall: localeval exit 0 results/20261028-151006-asa-autotrdfl-asa-w1-autotrdfl-ho-recall-r1/result.json
+15:10:49 round 1 arm autotrdfl rcp-code: localeval exit 0 results/20261028-151018-asa-autotrdfl-asa-w1-autotrdfl-rcp-code-r1/result.json
+15:11:50 round 1 arm autotrdfl rcp-prose: localeval exit 0 results/20261028-151050-asa-autotrdfl-asa-w1-autotrdfl-rcp-prose-r1/result.json
+15:12:30 round 1 arm autotrdfl rcp-recall: localeval exit 0 results/20261028-151151-asa-autotrdfl-asa-w1-autotrdfl-rcp-recall-r1/result.json
+15:12:31 round 2 arm autotrdfl: starting server
+15:14:23 round 2 arm autotrdfl ho-chat: localeval exit 0 results/20261028-151356-asa-autotrdfl-asa-w1-autotrdfl-ho-chat-r2/result.json
+15:14:32 round 2 arm autotrdfl ho-code: localeval exit 0 results/20261028-151424-asa-autotrdfl-asa-w1-autotrdfl-ho-code-r2/result.json
+15:15:05 round 2 arm autotrdfl ho-prose: localeval exit 0 results/20261028-151433-asa-autotrdfl-asa-w1-autotrdfl-ho-prose-r2/result.json
+15:15:18 round 2 arm autotrdfl ho-recall: localeval exit 0 results/20261028-151506-asa-autotrdfl-asa-w1-autotrdfl-ho-recall-r2/result.json
+15:15:50 round 2 arm autotrdfl rcp-code: localeval exit 0 results/20261028-151518-asa-autotrdfl-asa-w1-autotrdfl-rcp-code-r2/result.json
+15:16:51 round 2 arm autotrdfl rcp-prose: localeval exit 0 results/20261028-151550-asa-autotrdfl-asa-w1-autotrdfl-rcp-prose-r2/result.json
+15:17:30 round 2 arm autotrdfl rcp-recall: localeval exit 0 results/20261028-151651-asa-autotrdfl-asa-w1-autotrdfl-rcp-recall-r2/result.json
+15:17:31 round 2 arm autotrmtp: starting server
+15:19:21 round 2 arm autotrmtp ho-chat: localeval exit 0 results/20261028-151857-asa-autotrmtp-asa-w1-autotrmtp-ho-chat-r2/result.json
+15:19:33 round 2 arm autotrmtp ho-code: localeval exit 0 results/20261028-151922-asa-autotrmtp-asa-w1-autotrmtp-ho-code-r2/result.json
+15:20:00 round 2 arm autotrmtp ho-prose: localeval exit 0 results/20261028-151933-asa-autotrmtp-asa-w1-autotrmtp-ho-prose-r2/result.json
+15:20:13 round 2 arm autotrmtp ho-recall: localeval exit 0 results/20261028-152001-asa-autotrmtp-asa-w1-autotrmtp-ho-recall-r2/result.json
+15:20:53 round 2 arm autotrmtp rcp-code: localeval exit 0 results/20261028-152013-asa-autotrmtp-asa-w1-autotrmtp-rcp-code-r2/result.json
+15:21:44 round 2 arm autotrmtp rcp-prose: localeval exit 0 results/20261028-152053-asa-autotrmtp-asa-w1-autotrmtp-rcp-prose-r2/result.json
+15:22:28 round 2 arm autotrmtp rcp-recall: localeval exit 0 results/20261028-152145-asa-autotrmtp-asa-w1-autotrmtp-rcp-recall-r2/result.json
+15:22:29 round 2 arm autotr: starting server
+15:24:19 round 2 arm autotr ho-chat: localeval exit 0 results/20261028-152355-asa-autotr-asa-w1-autotr-ho-chat-r2/result.json
+15:24:28 round 2 arm autotr ho-code: localeval exit 0 results/20261028-152419-asa-autotr-asa-w1-autotr-ho-code-r2/result.json
+15:24:57 round 2 arm autotr ho-prose: localeval exit 0 results/20261028-152429-asa-autotr-asa-w1-autotr-ho-prose-r2/result.json
+15:25:09 round 2 arm autotr ho-recall: localeval exit 0 results/20261028-152457-asa-autotr-asa-w1-autotr-ho-recall-r2/result.json
+15:25:42 round 2 arm autotr rcp-code: localeval exit 0 results/20261028-152510-asa-autotr-asa-w1-autotr-rcp-code-r2/result.json
+15:26:37 round 2 arm autotr rcp-prose: localeval exit 0 results/20261028-152543-asa-autotr-asa-w1-autotr-rcp-prose-r2/result.json
+15:27:17 round 2 arm autotr rcp-recall: localeval exit 0 results/20261028-152637-asa-autotr-asa-w1-autotr-rcp-recall-r2/result.json
+15:27:18 done, time left 1221s
+15:27:33 guard: [guard] radiance answers 2026-10-28 15:27:33 (after 20 s)

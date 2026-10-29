@@ -1,0 +1,41 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/asa/scripts/asa/../dfh/cats/ho-prose.jsonl: 4 rows, judge=none
+# localeval: asa-autoold — 2026-10-28T16:11
+
+- model: `qwen38-27b-autoold` on ? (?), url `http://tatooine:8095/v1`
+- thinking: off; run kind: quality; label: asa-w2-autoold-ho-prose-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality asa-autoold --thinking off --label asa-w2-autoold-ho-prose-r2 --recipe HIP_VISIBLE_DEVICES=0,1 asa-intarsia serve --backend hip --model 27B --spec auto --spec-draft /models/tensorfold/Qwen3.8-27B-DFlash2 --spec-k 7 --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane asa) --dataset /opt/code/intarsiaml/.worktrees/asa/scripts/asa/../dfh/cats/ho-prose.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261028-161138-asa-autoold-asa-w2-autoold-ho-prose-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 asa-intarsia serve --backend hip --model 27B --spec auto --spec-draft /models/tensorfold/Qwen3.8-27B-DFlash2 --spec-k 7 --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane asa)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/asa/scripts/asa/../dfh/cats/ho-prose.jsonl` (4 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 4 | 0 |
+| TTFT (s) | 0.080 | 1.0 | 2 | 2 | 0 |
+| Prefill (tok/s) | - | - | 0 | 4 | 0 |
+| Decode (tok/s) | 76.8 | 1.0 | 1 | 3 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| prose-bakery | yes | 0.0 | 0.08 | 76.8 | The 3:00 AM shift at *Crust & Crumb* was usually defined by … |
+| prose-glacier | yes | 0.0 | 0.08 | - | The alarm doesn’t ring; it vibrates. It’s 04:30, and the wor… |
+| prose-market | yes | 0.0 | - | - | ConnectionRefusedError: [Errno 61] Connection refused |
+| prose-duel | yes | 0.0 | - | - | ConnectionRefusedError: [Errno 61] Connection refused |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261028-161138-asa-autoold-asa-w2-autoold-ho-prose-r2/result.json
+[localeval] logged to unanimis: ed34a4a1-2c24-404c-94c0-8c63d80b4aec

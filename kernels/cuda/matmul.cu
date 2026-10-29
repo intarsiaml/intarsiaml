@@ -4,6 +4,9 @@
 //                 reduction order, identical results for identical inputs. Memory bound: it streams
 //                 each weight row exactly once with 16-byte loads.
 // logits is the same math with an f32 output tensor.
+#include <cstdlib>
+#include <cstring>
+
 #include "ik_launch.h"
 #include "ik_internal.h"
 #include <cublas_v2.h>
@@ -163,6 +166,64 @@ void gemv_dispatch(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t N, int
     else gemv_kernel<M, OutT, false><<<grid, block, 0, s>>>(x, w, out, N, K);
 }
 
+// Row-group split of the row-exact twin: block (bx, g) runs rows g * R .. g * R + R - 1 of the call (fewer in the last group)
+// through gemv_body<rows> itself, so each warp keeps its output row n, its lane-strided 8-element blocks, its `acc += w * x`
+// sequence and its warp tree for every (m, n): the bits of the one-row call. A small-N call (the GDN b / a gates, the router, the
+// shared-expert gate) otherwise has a handful of blocks whose warps each chain all M rows' activation loads.
+template <int R, typename OutT>
+__global__ void __launch_bounds__(kWarpsPerBlock * IK_WARP)
+gemv_split_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, OutT* __restrict__ out, int64_t N, int64_t K,
+                  int M) {
+    const int m0 = (int)blockIdx.y * R;
+    const int rows = M - m0 < R ? M - m0 : R;
+    const ik_bf16* xr = x + (int64_t)m0 * K;
+    OutT* orow = out + (int64_t)m0 * N;
+    const int64_t blk = (int64_t)blockIdx.x;
+    if (rows == R) {
+        gemv_body<R, OutT, true>(xr, w, orow, N, K, blk);
+        return;
+    }
+    if constexpr (R > 1) {
+        switch (rows) {  // the last group's remainder: rows < R
+            case 1: gemv_body<1, OutT, true>(xr, w, orow, N, K, blk); break;
+            case 2: if constexpr (R > 2) gemv_body<2, OutT, true>(xr, w, orow, N, K, blk); break;
+            case 3: if constexpr (R > 3) gemv_body<3, OutT, true>(xr, w, orow, N, K, blk); break;
+            case 4: if constexpr (R > 4) gemv_body<4, OutT, true>(xr, w, orow, N, K, blk); break;
+            case 5: if constexpr (R > 5) gemv_body<5, OutT, true>(xr, w, orow, N, K, blk); break;
+            case 6: if constexpr (R > 6) gemv_body<6, OutT, true>(xr, w, orow, N, K, blk); break;
+            case 7: if constexpr (R > 7) gemv_body<7, OutT, true>(xr, w, orow, N, K, blk); break;
+            default: break;
+        }
+    }
+}
+
+// Rows per group of the split (default on, decided 2026-10-28 over the lane's speed gates): INTARSIA_CUDA_BF16_ROWS_SPLIT `0` never
+// splits, unset = `auto`, 1 | 2 | 4 | 8 forces R, `auto` the largest R that leaves a grid of kSplitMinBlocks blocks (no split when the plain grid
+// already has them).
+constexpr int64_t kSplitMinBlocks = 96;
+inline int split_rows(int64_t M, int64_t gx) {
+    const char* e = getenv("INTARSIA_CUDA_BF16_ROWS_SPLIT");
+    if (!e) e = "auto";  // default on
+    if (e[0] == '0' && e[1] == 0) return (int)M;
+    if (e && (e[0] == '1' || e[0] == '2' || e[0] == '4' || e[0] == '8') && e[1] == 0) return e[0] - '0' < M ? e[0] - '0' : (int)M;
+    if (strcmp(e, "auto") || gx >= kSplitMinBlocks) return (int)M;
+    for (int r = 8; r > 1; r /= 2)
+        if (r < M && gx * ((M + r - 1) / r) >= kSplitMinBlocks) return r;
+    return 1;
+}
+
+template <typename OutT>
+void gemv_split(const ik_bf16* x, const ik_bf16* w, OutT* out, int64_t M, int64_t N, int64_t K, int r, cudaStream_t s) {
+    const dim3 grid((unsigned)((N + kWarpsPerBlock - 1) / kWarpsPerBlock), (unsigned)((M + r - 1) / r));
+    const unsigned block = kWarpsPerBlock * IK_WARP;
+    switch (r) {
+        case 1: gemv_split_kernel<1, OutT><<<grid, block, 0, s>>>(x, w, out, N, K, (int)M); break;
+        case 2: gemv_split_kernel<2, OutT><<<grid, block, 0, s>>>(x, w, out, N, K, (int)M); break;
+        case 4: gemv_split_kernel<4, OutT><<<grid, block, 0, s>>>(x, w, out, N, K, (int)M); break;
+        default: gemv_split_kernel<8, OutT><<<grid, block, 0, s>>>(x, w, out, N, K, (int)M); break;
+    }
+}
+
 // max_rows: 4 for the decode GEMV, 16 for the row-exact twin (same kernel template, more accumulators)
 template <typename OutT>
 int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream, int64_t max_rows = 4) {
@@ -173,6 +234,13 @@ int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* st
     const ik_bf16* xp = (const ik_bf16*)x->data;
     const ik_bf16* wp = (const ik_bf16*)w->data;
     OutT* op = (OutT*)out->data;
+    if (max_rows > 4 && M > 1 && vec) {  // the row-exact twin only; the decode GEMV keeps its single launch shape
+        const int r = split_rows(M, (N + kWarpsPerBlock - 1) / kWarpsPerBlock);
+        if (r < M) {
+            gemv_split<OutT>(xp, wp, op, M, N, K, r, s);
+            return ik_launch_status();
+        }
+    }
     switch (M) {
         case 1: gemv_dispatch<1, OutT>(xp, wp, op, N, K, vec, s); break;
         case 2: gemv_dispatch<2, OutT>(xp, wp, op, N, K, vec, s); break;

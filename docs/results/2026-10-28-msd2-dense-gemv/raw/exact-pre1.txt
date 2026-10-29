@@ -1,0 +1,9 @@
+fleetq: #6557 running on spark1: ssh -n -o BatchMode=yes spark1 'export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; cd ~/intarsiaml-msd2/src && T=$(ls -t target/release/deps/rows_exact-* | grep -v "\.d$" | head -1); date +%T; INTARSIA_REQUIRE_GPU=1 timeout 170 $T --test-threads=2 fp8_rows_q rows_split 2>&1 | grep -aE "^test |G-B|panicked|FAIL|result" | cut -c1-300 | tail -30; date +%T'
+fleetq: #6557 went ahead of the line and must end within 1h32m (by Wed 18:26); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+16:53:29
+test rows_split_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_q_are_bitwise_the_one_row_gemv ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 4.50s
+16:53:34
+fleetq: #6557 done (exit 0)

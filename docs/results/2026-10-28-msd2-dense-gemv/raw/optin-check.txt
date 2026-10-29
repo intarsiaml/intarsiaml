@@ -1,0 +1,10 @@
+fleetq: #6575 running on spark1: ssh -n -o BatchMode=yes spark1 'cd ~/intarsiaml-msd2/src && T=$(ls -t target/release/deps/rows_exact-* | grep -v "\.d$" | head -1); INTARSIA_REQUIRE_GPU=1 timeout 90 $T --test-threads=4 2>&1 | grep -aE "panicked|FAIL|test result" -A3 | cut -c1-300; MSD2_ONLY=bf16 INTARSIA_REQUIRE_GPU=1 timeout 40 $T --ignored --nocapture timing_rows_evict 2>&1 | grep -aE "^EVT bf16 32x2048.*M=16"'
+test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 15.13s
+
+EVT bf16 32x2048 split=0    M=16    14.30 us     9.2 GB/s
+EVT bf16 32x2048 split=auto M=16     4.70 us    27.9 GB/s
+EVT bf16 32x2048 split=1    M=16     4.74 us    27.6 GB/s
+EVT bf16 32x2048 split=2    M=16     6.10 us    21.5 GB/s
+EVT bf16 32x2048 split=4    M=16     8.68 us    15.1 GB/s
+EVT bf16 32x2048 split=8    M=16    10.22 us    12.8 GB/s
+fleetq: #6575 done (exit 0)

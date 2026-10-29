@@ -1,0 +1,4 @@
+[targets.asa-auto]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-auto"
+extra_body = { ignore_eos = true, min_tokens = 512 }
