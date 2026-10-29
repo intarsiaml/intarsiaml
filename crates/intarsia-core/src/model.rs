@@ -686,7 +686,10 @@ impl Model {
     }
 
     /// The KV prefix of `st` a request for a prompt of `plen` tokens may resume from, at most `want` (the prefix the two
-    /// share, already below `plen`). Recurrent state: what it can return to ([`SequenceState::restorable_len`]). Attention
+    /// share, already below `plen`). Recurrent state: what it can return to ([`SequenceState::restorable_len`]) where the
+    /// backend's prefill is bitwise the same whatever row a pass starts at (cpu); elsewhere only a snapshot at a cut of the
+    /// prompt's own cold recurrent schedule, written by that schedule's passes ([`SequenceState::recurrent_reuse_len`], lane
+    /// hrr: a resume at the previous prompt's `plen - 1` changed the 35B's greedy text on Metal). Attention
     /// only: any length where the backend's prefill is bitwise the same whatever row a pass starts at
     /// (`Backend::prefix_reuse_any_cut`, cpu); elsewhere (CUDA, Metal, HIP) a prefix that gives a request the bits of its
     /// cold prefill whatever its slot held before (lane bi8: a repeated prompt resuming with its last token alone, a 1-row
@@ -701,10 +704,15 @@ impl Model {
     /// `INTARSIA_PREFIX_REUSE=any|exact` overrides the backend's choice (`any`: any held row; `exact`: the cold schedule's
     /// cuts everywhere, row-invariant prefill or not).
     pub fn reuse_len(&self, st: &SequenceState, plen: usize, want: usize) -> usize {
-        if st.has_recurrent() {
-            return st.restorable_len(want);
-        }
         let over = prefix_reuse_override();
+        if st.has_recurrent() {
+            if over == Some(true) || (over.is_none() && self.backend.prefix_reuse_any_cut()) {
+                return st.restorable_len(want);
+            }
+            // only where the prompt's own cold prefill leaves its state, written by that schedule's passes (lane hrr)
+            let cuts = crate::scheduler::recurrent_schedule_cuts(plen, self.prefill_chunk().max(1), self.tail_merge());
+            return st.recurrent_reuse_len(want, &cuts);
+        }
         match over {
             Some(true) => return want.min(st.len),
             Some(false) => {}

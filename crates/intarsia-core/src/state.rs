@@ -492,6 +492,30 @@ impl SequenceState {
         best
     }
 
+    /// Exact prefix reuse of a recurrent state on a backend whose prefill bits depend on a pass's row count
+    /// (`Backend::prefix_reuse_any_cut` false): the longest `L <= want` the state can return to
+    /// ([`SequenceState::restorable_len`]) that is one of `cuts` (where the prompt's own cold prefill leaves its state,
+    /// `scheduler::recurrent_schedule_cuts`) and whose rows `0..L` prefill passes wrote in an unbroken run from row 0, each
+    /// ending at one of `cuts`. The rows then came from the cold schedule's own passes, so the state at `L` and the remainder's
+    /// passes are the cold run's. Anywhere else the cold run has no state at `L` and its passes cut elsewhere: lane hrr
+    /// (docs/results/2026-10-29-hrr-hybrid-reuse.md) measured a resume at the previous prompt's `plen - 1` changing the
+    /// 35B's greedy text on Metal. Rows a decode step, a verify pass or a prefix-store restore (no pass) wrote end the run.
+    pub fn recurrent_reuse_len(&self, want: usize, cuts: &[usize]) -> usize {
+        let want = want.min(self.len);
+        let mut best = 0;
+        let mut end = 0;
+        for p in &self.passes {
+            if p.start != end || p.end > want || !matches!(p.kind, PassKind::Plain | PassKind::RowInvariant) || !cuts.contains(&p.end) {
+                break;
+            }
+            end = p.end;
+            if self.restorable_len(end) == end {
+                best = end;
+            }
+        }
+        best
+    }
+
     /// Exact prefix reuse on a backend whose passes of `min_rows` rows or more write rows bitwise equal to each other's and
     /// to a one-pass prefill's, whatever the split (`Backend::prefix_reuse_min_pass_rows`; Metal: only a 1-row pass
     /// differs): the longest prefix `<= want` whose rows this state wrote with such passes only, in an unbroken run from
