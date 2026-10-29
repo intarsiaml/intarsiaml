@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/ars/b/scripts/dfh/cats/rcp-recall.jsonl: 8 rows, judge=none
+# localeval: ar — 2026-10-28T20:04
+
+- model: `qwen38-27b-d7` on ? (?), url `http://tatooine:8097/v1`
+- thinking: off; run kind: quality; label: ars-w5-d7-rcp-recall-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval quality ar --thinking off --label ars-w5-d7-rcp-recall-r1 --recipe HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_DRAIN=7 ars-intarsia serve --backend hip --model /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 --spec mtp --spec-k 2 --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree ~/intarsiaml-ars, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane ar) --dataset /opt/code/intarsiaml/.worktrees/ars/b/scripts/dfh/cats/rcp-recall.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261028-200435-ar-ars-w5-d7-rcp-recall-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_DRAIN=7 ars-intarsia serve --backend hip --model /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 --spec mtp --spec-k 2 --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree ~/intarsiaml-ars, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane ar)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/ars/b/scripts/dfh/cats/rcp-recall.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.084 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 97.4 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| recall-tcp-handshake | yes | 0.0 | 0.08 | 102.7 | The Transmission Control Protocol (TCP) is a connection-orie… |
+| recall-photosynthesis | yes | 0.0 | 0.08 | 104.1 | Photosynthesis is the process by which plants, algae, and so… |
+| recall-french-revolution | yes | 0.0 | 0.08 | 91.4 | The French Revolution (1789–1799) was a radical political an… |
+| recall-git-internals | yes | 0.0 | 0.08 | 95.1 | Git is a content-addressable file system. This means that ev… |
+| recall-vaccines | yes | 0.0 | 0.09 | 96.2 | Here is a detailed explanation of how mRNA, viral-vector, an… |
+| recall-cpu-caches | yes | 0.0 | 0.08 | 96.3 | CPU caches are a critical component of modern processor perf… |
+| recall-plate-tectonics | yes | 0.0 | 0.08 | 96.0 | Plate tectonics is the scientific theory that describes the … |
+| recall-http2 | yes | 0.0 | 0.12 | 97.0 | To understand the evolution from HTTP/1.1 to HTTP/3, it is h… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261028-200435-ar-ars-w5-d7-rcp-recall-r1/result.json
+[localeval] logged to unanimis: c9c2d1e0-bc3e-4bc4-bba5-d3bd870a9f6c

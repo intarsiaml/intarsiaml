@@ -122,6 +122,25 @@ pub fn create_group(
     Ok((backends, comms))
 }
 
+/// [`create_group`] for exactly two devices with the all-reduce handshake mode given explicitly instead of read from
+/// `INTARSIA_HIP_AR_DRAIN` / `INTARSIA_HIP_AR_LL_MAX` (tests that compare modes in one process).
+#[cfg(ik_hip)]
+#[doc(hidden)]
+pub fn create_group_mode(
+    ordinals: &[usize],
+    drain: i32,
+    ll_max: usize,
+) -> intarsia_core::Result<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn intarsia_core::Comm>>)> {
+    disable::check_env()?;
+    let hips = ordinals
+        .iter()
+        .map(|&o| device::HipBackend::new(o).map(Arc::new))
+        .collect::<intarsia_core::Result<Vec<_>>>()?;
+    let backends: Vec<Arc<dyn Backend>> = hips.iter().map(|h| h.clone() as Arc<dyn Backend>).collect();
+    let comms = comm::p2p_group_mode(&hips, Some(drain), Some(ll_max))?;
+    Ok((backends, comms))
+}
+
 /// Open HIP devices as a tensor-parallel group (stub: this build has no ROCm toolchain).
 #[cfg(not(ik_hip))]
 pub fn create_group(

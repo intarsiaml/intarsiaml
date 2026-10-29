@@ -90,6 +90,9 @@ extern "C" {
         slot_bytes: i64,
         nblocks: c_int,
         drain: c_int,
+        peer_ll: *mut c_void,
+        my_ll: *mut c_void,
+        ll_slot_bytes: i64,
         stream: S,
     ) -> c_int;
     #[allow(clippy::too_many_arguments)]
@@ -107,6 +110,9 @@ extern "C" {
         nblocks: c_int,
         rank: c_int,
         drain: c_int,
+        peer_ll: *mut c_void,
+        my_ll: *mut c_void,
+        ll_slot_bytes: i64,
         stream: S,
     ) -> c_int;
     pub fn ik_rt_measure_bandwidth(gbs: *mut c_double) -> c_int;
@@ -473,6 +479,9 @@ extern "C" {
         slot_bytes: i64,
         nblocks: c_int,
         drain: c_int,
+        peer_ll: *mut c_void,
+        my_ll: *mut c_void,
+        ll_slot_bytes: i64,
         stream: S,
     ) -> c_int;
 }

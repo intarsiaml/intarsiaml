@@ -39,3 +39,20 @@ for metric in ('decode', 'prefill'):
                     c += f' **{statistics.mean(dl):+.2f}%** (worst {min(dl):+.2f}%)'
             cells.append(c)
         print(f'| {s} | ' + ' | '.join(cells) + ' |')
+
+# lane ars: how much of mode 1's cost does the new arm win back? recovery = (new - d1) / (d3 - d1) per round and size, then the mean over rounds
+new = next((a for a in arms if a not in ('d1', 'd3', 'd5')), None)
+if new and 'd1' in arms:
+    print(f'\nRecovery of {new} vs d1 (1 = as fast as d3, 0 = as slow as d1): mean over rounds of (new-d1)/(d3-d1); and the paired delta of {new} vs d1')
+    print('| metric | size | recovery | ' + new + ' vs d1 |'); print('|---|---|---|---|')
+    for metric in ('decode', 'prefill'):
+        for s in sizes:
+            rec, dv = [], []
+            for r, x in data.get((new, s), {}).items():
+                a, b = data.get(('d1', s), {}).get(r), data.get(('d3', s), {}).get(r)
+                if a and b and x[metric] and a[metric] and b[metric]:
+                    dv.append((x[metric] / a[metric] - 1) * 100)
+                    if abs(b[metric] - a[metric]) > 1e-9:
+                        rec.append((x[metric] - a[metric]) / (b[metric] - a[metric]))
+            if rec:
+                print(f'| {metric} | {s} | {statistics.mean(rec):.2f} (rounds {min(rec):.2f} to {max(rec):.2f}, n={len(rec)}) | {statistics.mean(dv):+.2f}% |')

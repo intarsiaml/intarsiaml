@@ -1,0 +1,101 @@
+18:06:47 guard: [guard] radiance stopped 2026-10-28 18:06:46
+18:06:48 prestages: plan tests rate kt7 soak7 ids18
+18:23:12 prestages done, time left 5611s
+18:23:12 speed27 round 1 arm d1: starting server
+18:24:27 speed27 round 1 arm d1: localeval exit 0 results/20261028-182344-ar-ars-w4-speed27-d1-r1/result.json
+18:24:28 speed27 round 1 arm d3: starting server
+18:25:41 speed27 round 1 arm d3: localeval exit 0 results/20261028-182459-ar-ars-w4-speed27-d3-r1/result.json
+18:25:41 speed27 round 1 arm d7: starting server
+18:26:54 speed27 round 1 arm d7: localeval exit 0 results/20261028-182612-ar-ars-w4-speed27-d7-r1/result.json
+18:26:55 speed27 round 2 arm d7: starting server
+18:28:08 speed27 round 2 arm d7: localeval exit 0 results/20261028-182726-ar-ars-w4-speed27-d7-r2/result.json
+18:28:08 speed27 round 2 arm d3: starting server
+18:29:21 speed27 round 2 arm d3: localeval exit 0 results/20261028-182839-ar-ars-w4-speed27-d3-r2/result.json
+18:29:22 speed27 round 2 arm d1: starting server
+18:30:35 speed27 round 2 arm d1: localeval exit 0 results/20261028-182953-ar-ars-w4-speed27-d1-r2/result.json
+18:30:36 speed27 round 3 arm d3: starting server
+18:31:49 speed27 round 3 arm d3: localeval exit 0 results/20261028-183107-ar-ars-w4-speed27-d3-r3/result.json
+18:31:49 speed27 round 3 arm d7: starting server
+18:33:03 speed27 round 3 arm d7: localeval exit 0 results/20261028-183221-ar-ars-w4-speed27-d7-r3/result.json
+18:33:04 speed27 round 3 arm d1: starting server
+18:34:18 speed27 round 3 arm d1: localeval exit 0 results/20261028-183335-ar-ars-w4-speed27-d1-r3/result.json
+18:34:18 speed27 round 4 arm d1: starting server
+18:35:32 speed27 round 4 arm d1: localeval exit 0 results/20261028-183450-ar-ars-w4-speed27-d1-r4/result.json
+18:35:32 speed27 round 4 arm d7: starting server
+18:36:46 speed27 round 4 arm d7: localeval exit 0 results/20261028-183604-ar-ars-w4-speed27-d7-r4/result.json
+18:36:47 speed27 round 4 arm d3: starting server
+18:38:00 speed27 round 4 arm d3: localeval exit 0 results/20261028-183719-ar-ars-w4-speed27-d3-r4/result.json
+18:38:01 speed35 round 1 arm d1: starting server
+18:38:26 speed35 round 1 arm d1: localeval exit 0 results/20261028-183813-ar-ars-w4-speed35-d1-r1/result.json
+18:38:28 speed35 round 1 arm d3: starting server
+18:38:51 speed35 round 1 arm d3: localeval exit 0 results/20261028-183839-ar-ars-w4-speed35-d3-r1/result.json
+18:38:51 speed35 round 1 arm d7: starting server
+18:39:14 speed35 round 1 arm d7: localeval exit 0 results/20261028-183903-ar-ars-w4-speed35-d7-r1/result.json
+18:39:14 speed35 round 2 arm d7: starting server
+18:39:36 speed35 round 2 arm d7: localeval exit 0 results/20261028-183924-ar-ars-w4-speed35-d7-r2/result.json
+18:39:36 speed35 round 2 arm d3: starting server
+18:39:57 speed35 round 2 arm d3: localeval exit 0 results/20261028-183946-ar-ars-w4-speed35-d3-r2/result.json
+18:39:58 speed35 round 2 arm d1: starting server
+18:40:19 speed35 round 2 arm d1: localeval exit 0 results/20261028-184008-ar-ars-w4-speed35-d1-r2/result.json
+18:40:20 speed35 round 3 arm d3: starting server
+18:40:41 speed35 round 3 arm d3: localeval exit 0 results/20261028-184030-ar-ars-w4-speed35-d3-r3/result.json
+18:40:41 speed35 round 3 arm d7: starting server
+18:41:02 speed35 round 3 arm d7: localeval exit 0 results/20261028-184051-ar-ars-w4-speed35-d7-r3/result.json
+18:41:03 speed35 round 3 arm d1: starting server
+18:41:24 speed35 round 3 arm d1: localeval exit 0 results/20261028-184113-ar-ars-w4-speed35-d1-r3/result.json
+18:41:25 speed35 round 4 arm d1: starting server
+18:41:46 speed35 round 4 arm d1: localeval exit 0 results/20261028-184135-ar-ars-w4-speed35-d1-r4/result.json
+18:41:47 speed35 round 4 arm d7: starting server
+18:42:08 speed35 round 4 arm d7: localeval exit 0 results/20261028-184157-ar-ars-w4-speed35-d7-r4/result.json
+18:42:08 speed35 round 4 arm d3: starting server
+18:42:29 speed35 round 4 arm d3: localeval exit 0 results/20261028-184218-ar-ars-w4-speed35-d3-r4/result.json
+18:42:30 cats round 1 arm d1: starting server
+18:44:23 cats round 1 arm d1 rcp-code: localeval exit 0 results/20261028-184343-ar-ars-w4-d1-rcp-code-r1/result.json
+18:45:16 cats round 1 arm d1 rcp-prose: localeval exit 0 results/20261028-184424-ar-ars-w4-d1-rcp-prose-r1/result.json
+18:46:00 cats round 1 arm d1 rcp-recall: localeval exit 0 results/20261028-184516-ar-ars-w4-d1-rcp-recall-r1/result.json
+18:46:01 cats round 1 arm d3: starting server
+18:47:54 cats round 1 arm d3 rcp-code: localeval exit 0 results/20261028-184715-ar-ars-w4-d3-rcp-code-r1/result.json
+18:48:46 cats round 1 arm d3 rcp-prose: localeval exit 0 results/20261028-184755-ar-ars-w4-d3-rcp-prose-r1/result.json
+18:49:30 cats round 1 arm d3 rcp-recall: localeval exit 0 results/20261028-184847-ar-ars-w4-d3-rcp-recall-r1/result.json
+18:49:30 cats round 1 arm d7: starting server
+18:51:24 cats round 1 arm d7 rcp-code: localeval exit 0 results/20261028-185044-ar-ars-w4-d7-rcp-code-r1/result.json
+18:52:16 cats round 1 arm d7 rcp-prose: localeval exit 0 results/20261028-185125-ar-ars-w4-d7-rcp-prose-r1/result.json
+18:53:01 cats round 1 arm d7 rcp-recall: localeval exit 0 results/20261028-185217-ar-ars-w4-d7-rcp-recall-r1/result.json
+18:53:01 cats round 2 arm d7: starting server
+18:54:55 cats round 2 arm d7 rcp-code: localeval exit 0 results/20261028-185415-ar-ars-w4-d7-rcp-code-r2/result.json
+18:55:48 cats round 2 arm d7 rcp-prose: localeval exit 0 results/20261028-185456-ar-ars-w4-d7-rcp-prose-r2/result.json
+18:56:32 cats round 2 arm d7 rcp-recall: localeval exit 0 results/20261028-185548-ar-ars-w4-d7-rcp-recall-r2/result.json
+18:56:33 cats round 2 arm d3: starting server
+18:58:29 cats round 2 arm d3 rcp-code: localeval exit 0 results/20261028-185750-ar-ars-w4-d3-rcp-code-r2/result.json
+18:59:20 cats round 2 arm d3 rcp-prose: localeval exit 0 results/20261028-185829-ar-ars-w4-d3-rcp-prose-r2/result.json
+19:00:05 cats round 2 arm d3 rcp-recall: localeval exit 0 results/20261028-185921-ar-ars-w4-d3-rcp-recall-r2/result.json
+19:00:05 cats round 2 arm d1: starting server
+19:02:00 cats round 2 arm d1 rcp-code: localeval exit 0 results/20261028-190120-ar-ars-w4-d1-rcp-code-r2/result.json
+19:02:52 cats round 2 arm d1 rcp-prose: localeval exit 0 results/20261028-190200-ar-ars-w4-d1-rcp-prose-r2/result.json
+19:03:36 cats round 2 arm d1 rcp-recall: localeval exit 0 results/20261028-190253-ar-ars-w4-d1-rcp-recall-r2/result.json
+19:03:37 cats round 3 arm d3: starting server
+19:05:30 cats round 3 arm d3 rcp-code: localeval exit 0 results/20261028-190450-ar-ars-w4-d3-rcp-code-r3/result.json
+19:06:21 cats round 3 arm d3 rcp-prose: localeval exit 0 results/20261028-190530-ar-ars-w4-d3-rcp-prose-r3/result.json
+19:07:05 cats round 3 arm d3 rcp-recall: localeval exit 0 results/20261028-190622-ar-ars-w4-d3-rcp-recall-r3/result.json
+19:07:06 cats round 3 arm d7: starting server
+19:09:00 cats round 3 arm d7 rcp-code: localeval exit 0 results/20261028-190820-ar-ars-w4-d7-rcp-code-r3/result.json
+19:09:52 cats round 3 arm d7 rcp-prose: localeval exit 0 results/20261028-190900-ar-ars-w4-d7-rcp-prose-r3/result.json
+19:10:37 cats round 3 arm d7 rcp-recall: localeval exit 0 results/20261028-190952-ar-ars-w4-d7-rcp-recall-r3/result.json
+19:10:37 cats round 3 arm d1: starting server
+19:12:34 cats round 3 arm d1 rcp-code: localeval exit 0 results/20261028-191153-ar-ars-w4-d1-rcp-code-r3/result.json
+19:13:26 cats round 3 arm d1 rcp-prose: localeval exit 0 results/20261028-191235-ar-ars-w4-d1-rcp-prose-r3/result.json
+19:14:11 cats round 3 arm d1 rcp-recall: localeval exit 0 results/20261028-191327-ar-ars-w4-d1-rcp-recall-r3/result.json
+19:14:12 cats round 4 arm d1: starting server
+19:16:05 cats round 4 arm d1 rcp-code: localeval exit 0 results/20261028-191525-ar-ars-w4-d1-rcp-code-r4/result.json
+19:16:57 cats round 4 arm d1 rcp-prose: localeval exit 0 results/20261028-191606-ar-ars-w4-d1-rcp-prose-r4/result.json
+19:17:42 cats round 4 arm d1 rcp-recall: localeval exit 0 results/20261028-191658-ar-ars-w4-d1-rcp-recall-r4/result.json
+19:17:42 cats round 4 arm d7: starting server
+19:19:36 cats round 4 arm d7 rcp-code: localeval exit 0 results/20261028-191856-ar-ars-w4-d7-rcp-code-r4/result.json
+19:20:28 cats round 4 arm d7 rcp-prose: localeval exit 0 results/20261028-191937-ar-ars-w4-d7-rcp-prose-r4/result.json
+19:21:13 cats round 4 arm d7 rcp-recall: localeval exit 0 results/20261028-192029-ar-ars-w4-d7-rcp-recall-r4/result.json
+19:21:13 cats round 4 arm d3: starting server
+19:23:06 cats round 4 arm d3 rcp-code: localeval exit 0 results/20261028-192227-ar-ars-w4-d3-rcp-code-r4/result.json
+19:23:57 cats round 4 arm d3 rcp-prose: localeval exit 0 results/20261028-192306-ar-ars-w4-d3-rcp-prose-r4/result.json
+19:24:41 cats round 4 arm d3 rcp-recall: localeval exit 0 results/20261028-192358-ar-ars-w4-d3-rcp-recall-r4/result.json
+19:24:42 done, time left 1921s
+19:25:02 guard: [guard] radiance answers 2026-10-28 19:25:02 (after 25 s)

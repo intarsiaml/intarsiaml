@@ -1,0 +1,41 @@
+diff --git a/crates/intarsia-models/tests/batch.rs b/crates/intarsia-models/tests/batch.rs
+index 030102a0c..78a45d228 100644
+--- a/crates/intarsia-models/tests/batch.rs
++++ b/crates/intarsia-models/tests/batch.rs
+@@ -126,15 +126,16 @@ fn kv_budget_is_shared_by_the_sequences() {
+ fn max_batch_resolution() {
+     use intarsia_models::select_recipe;
+     let q3 = select_recipe(&serde_json::json!({"architectures": ["Qwen3ForCausalLM"]}), &[]).unwrap().1;
+-    // the recipe's max_batch (8) is the cap of an explicit flag; `load_engine` resolves "no flag" with
++    // the recipe's max_batch (16) is the cap of an explicit flag; `load_engine` resolves "no flag" with
+     // `supported = 1`, which is what makes batching opt-in
+     let d = q3.resolve_max_batch(None, 1).unwrap();
+     assert_eq!(d.value, 1);
+     assert_eq!(q3.resolve_max_batch(Some(8), 8).unwrap().value, 8);
++    assert_eq!(q3.resolve_max_batch(Some(16), 16).unwrap().value, 16);
+     assert!(q3.resolve_max_batch(Some(1), 8).is_ok());
+     assert!(q3.resolve_max_batch(Some(0), 8).is_err());
+     // above the recipe's max_batch
+-    assert!(q3.resolve_max_batch(Some(9), 16).unwrap_err().to_string().contains("exceeds"));
++    assert!(q3.resolve_max_batch(Some(17), 32).unwrap_err().to_string().contains("exceeds"));
+     // above what the engine implements
+     assert!(q3.resolve_max_batch(Some(2), 1).unwrap_err().to_string().contains("not implemented yet"));
+     // a recipe that declares more than the engine does (qwen3_5: 32): the default is clamped, not an error
+diff --git a/recipes/qwen3.toml b/recipes/qwen3.toml
+index dedfba15d..b65589a3a 100644
+--- a/recipes/qwen3.toml
++++ b/recipes/qwen3.toml
+@@ -44,9 +44,10 @@ lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
+ # but not yet by the GPU kernels.
+ kv_dtype = "bf16"
+ # Most sequences `--max-batch` may decode together (continuous batching on Metal, CUDA and HIP; the row-exact kernels
+-# take 8 rows on Metal, 16 on CUDA and HIP). Batching is opt-in: without `--max-batch` the engine serves one sequence at a
+-# time.
+-max_batch = 8
++# take 8 rows on Metal, 16 on CUDA and HIP; the backend's own cap applies on top, so Metal still stops at 8). Batching is
++# opt-in: without `--max-batch` the engine serves one sequence at a time. 16, not 8: the 8 capped CUDA `--max-batch 16` with
++# "exceeds the max_batch 8" and left the Qwen3-8B 16-stream scoreboard cell at 8 rows (docs/results/2026-10-29-sb8-spark-8b-multistream.md).
++max_batch = 16
+ 
+ # Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256, so CPU is unchanged).
+ # 2048 on Metal: plain prefill on Qwen3-8B BF16 / M5 Max goes 459 -> 386 ms at 1k (973 tokens), 1725 -> 1448 ms at 4k
