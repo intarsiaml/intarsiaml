@@ -16,7 +16,8 @@ chunks, and resumed from a held prefix at 1, 1000 and plen - 1. With the ordinar
 resumes at **any row a row-invariant prefill pass wrote** (`SequenceState::inv_len`), at any length, not only at its cold chunk
 cuts. It does **not** reuse rows a decode step wrote: decode runs the M <= 4 GEMV and the split-KV decode attention, whose bits differ
 from the prefill kernels' (findings 1 and 3 below), so a cold prefill of a previous reply gives other bits. The literal old rule
-(`INTARSIA_PREFIX_REUSE=any`, reuse up to the common prefix) is the mutant the multi-turn gate catches.
+(`INTARSIA_PREFIX_REUSE=any`, reuse up to the common prefix) stays available as an override. It is not bitwise:
+`real_qwen3_8b_decode_written_rows_are_not_prefill_rows`, section 3.
 
 - **Multi-turn chat:** turn 2 resumes from turn 1's whole prompt and re-prefills only turn 1's reply plus the new message (BI8: on
   CUDA a < 4096-token history was never reused, so the whole history re-prefilled every turn).
@@ -73,17 +74,49 @@ Selection-level, no new attention kernel; one new GEMM launcher.
 - **`SequenceState::inv_len`** (`crates/intarsia-core/src/state.rs:186`): rows `0..inv_len` were all written by row-invariant
   prefill passes. Advanced by `forward_prefill` when its pass extends it; lowered by `truncate` and spec rollback; zeroed by
   `load_prefix`; never advanced by decode. `Model::reuse_len` (`model.rs:695`) resumes at `want.min(inv_len)`.
+- **The plan covers both prefills** (`crates/intarsia-core/src/plan.rs`): with row-invariant prefill on, each multi-row prefill
+  probe is recorded twice, once row-invariant and once ordinary. Kernels and scratch for prompt passes that skip `forward_prefill`
+  stay reserved. A 1-row prefill probe is added, since a resumed prompt's last token now runs `AttnPrefill`.
 - **When it is on** (`model.rs:1458`, `crates/intarsia-core/src/plan.rs:266`): the backend asks for it
   (`Backend::row_invariant_prefill`, default false; CUDA true, `crates/intarsia-backend-cuda/src/device.rs:207`;
   `INTARSIA_ROW_INVARIANT_PREFILL=0/1` overrides), the model is attention-only on one rank, and a plan probe (1-row and
   chunk-row prefill dry runs) finds a `row_invariant` kernel for every op. Otherwise it switches off with a one-line notice naming
   the ops, and reuse keeps the backend's rule (BI8's exact ladder on CUDA).
 
-PLAN_SECTION
-
 ## 3. Gates
 
-GATES_SECTION
+All on spark2, the branch at `0f94ac8` (before the `origin/main` merge and the plan fix in section 2; see the re-check at the
+end of this section). Raw logs in `raw/`.
+
+| Gate | Result |
+|---|---|
+| Kernel level (`tests/row_invariance.rs`): `matmul_bf16_inv` on the four 8B projections, the flash prefill at 32/8 and 8/8 x 128, every row-wise op, the 1-row head GEMV, 25-30 windows each | **pass**, every window byte-identical (4 / 4 tests) |
+| Model level, new (`real_qwen3_8b_prefill_is_row_invariant`): 2164- and 7172-token prompts; one pass vs split at k = 1, 7, 255, 256, 1000, plen - 1 (+ 4095, 4096, 4097), vs 256-row busy chunks, vs resume from a held prefix at 1, 1000, plen - 1; last-row logits, every KV row, 8 greedy steps and their KV | **pass**, 24 / 24 cases bitwise equal. Ordinary prefill (`INTARSIA_RIP_PLAIN=1`): 10 / 24 differ |
+| BI8's probe (`real_qwen3_8b_prefix_reuse_probe`, the 16 equal.py prompts): every split, self reuse at plen - 1, cross-prompt reuse | **pass**: self reuse 16 / 16 EQUAL, 0 splits differ, 0 cross reuses differ (BI8's base: every split `x0`) |
+| Multi-turn chat (`real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference`): three turns of ~2.8k tokens, 48 greedy tokens each, single-sequence and `--max-batch 16` engines; then a ~1.7k-token prompt admitted while 4 streams decode | **pass**: turns 2 and 3 resume from the whole previous prompt (cached 2802, 2872) and equal turn 2 / 3 cold on both engines; the busy-chunked prompt equals its cold run |
+| BI8's 8B gates: batched decode == solo step (N 2..16), batched engine == cold reference | **pass** |
+| Served greedy vs the cold reference (BI8 harness, the probe's cold ids), reuse at its new default, 64 tokens | **pass**: solo 1 / 4 / 16 streams x 3 reps **9 / 9**, `--max-batch 16` 1 / 4 / 8 / 16 x 3 reps **12 / 12** identical (reps 2+ resume every prompt at plen - 1) |
+| equal.py 21 cells (7 sampling settings x 1 / 4 / 16 streams), solo vs `--max-batch 16` | **pass**, 21 / 21, 9408 ids |
+| `rows_exact`, `row_invariance`, CUDA unit tests | **pass** (9 + 2 ignored, as on main; 4) |
+| `batch_cuda_real` 35B (`real_35b_batched*`) | **pass**: 4290 (row, step) pairs bitwise, batched engine == local engine (2 opt-in tests ignored, as on main) |
+| 35B 21-cell served identity, base (`origin/main` `f2bb3410f`) vs fix, `--max-batch 16` | **pass**, 21 / 21, 9408 ids |
+| `plan show` (txt and json) base vs fix | 35B and Gemma-4 **byte-identical**; 8B changes, see below |
+| Mac `cargo test --workspace --release` (after the merge) | **pass**, 1094 passed, 0 failed |
+
+**`plan show` on the 8B** changes by design. With `0f94ac8` it lost `matmul_bf16` and `attn_prefill_bf16_splitkv` and its scratch
+fell from 748800 to 532480 B: the plan's prefill probes recorded only the row-invariant pass. That diff exposed a gap. A prompt pass
+that does not go through `forward_prefill` (accuracy's all-logits passes, direct `Model::forward` callers) still takes split-KV for
+<= 16 rows, and deep in the context it would have needed more scratch than the plan reserved: an error, not wrong bits. Fix
+(`crates/intarsia-core/src/plan.rs`): with row-invariant prefill on, every prefill probe of more than one row also runs as the
+ordinary prefill. The 8B plan then differs from base only by the added `matmul_bf16_inv` row. Pinned by
+`real_qwen3_8b_ordinary_short_pass_fits_the_plan` (16 / 9 / 5-row ordinary passes at row 8176). PLAN_RECHECK
+
+**The token-level mutant was not a valid test, so it was replaced.** `INTARSIA_PREFIX_REUSE=any` (resume inside the previous reply's
+decode-written rows; turn 2 cached 2849 instead of 2802) still gave the same 48 greedy tokens per turn. Token equality cannot tell
+whether the bits match. The bitwise version is `real_qwen3_8b_decode_written_rows_are_not_prefill_rows`: hold a ~600-token prompt
+plus 16 decode steps, cold-prefill the same tokens, then compare. The prompt rows must be equal, and the decode-written rows or the
+next logits must differ, else the `inv_len` limit is needless. Resuming at `inv_len` must equal the cold prefill. DECODE_ROWS
+
 
 ## 4. Speed
 
@@ -91,7 +124,26 @@ SPEED_SECTION
 
 ## 5. The 35B hybrid and Gemma-4
 
-HYBRID_SECTION
+Row-invariant prefill is **off** for both, by the load-time rule (`model.rs:1458`, `plan.rs:266`). Their plans are
+byte-identical to base, and the 35B's served identity and batched gates pass unchanged.
+
+- **Qwen3.6-35B-A3B (GDN + attention, NVFP4 MoE):** a recurrent state disqualifies it before any probe. Its reuse stays
+  snapshot-based (`restorable_len`), and its cold schedule runs the last prompt token alone, so a repeated prompt resumes at a point of
+  its own schedule (BI8). **Its busy-chunk prefill is still not bitwise its solo prefill.** The existing check
+  `real_35b_busy_chunk_prefill_kl_gate` is a KL gate, not a bitwise one. Making it bitwise needs row-invariant NVFP4 / MoE GEMMs and a
+  row-invariant GDN chunked scan, which is out of this lane's scope.
+- **Gemma-4 (the only checkpoint on spark2 is `Gemma-4-26B-A4B-NVFP4`, MoE):** the plan probe lists the ops without a row-invariant
+  kernel. All are ops the 8B does not use:
+  - `add_scaled_bf16` and `embedding_scaled_bf16` (`kernels.rs:490`)
+  - `gelu_glu_bf16` (`:481`)
+  - `rope_prop_bf16`, partial rotary (`:483`)
+  - the head_dim 256 / 512 attention `attn_prefill_bf16_ext` / `attn_decode_bf16_ext` (`:494`)
+  - the NVFP4 MoE experts and top-k
+
+  The row-wise ones are very likely invariant (one row per block) and only need the tag plus a kernel test. The `_ext` attention
+  needs the same window test as the flash kernel. Gemma's attention also has its own 1-row path in `model/gemma.rs`, which
+  `forward_prefill`'s `AttnPrefill`-for-one-row rule does not reach yet. No dense Gemma-4 checkpoint is on spark2.
+
 
 ## 6. Not done / follow-ups
 
