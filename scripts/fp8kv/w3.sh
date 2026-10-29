@@ -2,7 +2,7 @@
 # Lane fp8kv, GPU window 3 (one fleetq slot on spark2, quiet on GPU and CPU), dev binary, one `intarsia serve` per arm
 # (--max-seq 20480 --mem-budget 40, recipe defaults: MTP k=2 at one stream), after stepprof.sh (the B = 16 attention bucket):
 #   bf16      : greedy.py (1k / 4k / 16k, 2 prompts each, 256 greedy tokens), localeval quality mmlu (10 per task) + gsm8k (100)
-#   fp8       : the same on --kv-dtype fp8, greedy.py run twice (run-to-run determinism; the second run restores the prefixes)
+#   fp8       : the same on --kv-dtype fp8, greedy.py run twice (run-to-run determinism)
 #   fp8-nospec: the fp8 cache set by the RECIPE (a copy of recipes/qwen3_5_moe.toml with kv_dtype = "fp8_e4m3", `--recipe`) and
 #               --spec off, greedy.py once (MTP drafted == serial on the fp8 cache; /metrics must say kv_dtype="fp8_e4m3")
 #   fleetq run --host spark2 --quiet gpu,cpu --mem 50 --expect 45 --label "fp8kv: W3 accuracy bf16 vs fp8 KV" -- scripts/fp8kv/w3.sh
