@@ -1,0 +1,21 @@
+11:22:47 guard: [guard] radiance stopped 2026-10-29 11:22:47
+11:22:47 item 1: starting server rec
+11:24:39 item 1 rec speed: exit 0 results/20261029-112408-nq27-rec-nq27-w2-rec-1/result.json
+11:25:59 item 2 rec texts: exit 0       18 lines
+11:25:59 item 3: starting server rec+bin=nq27-dev-cli
+11:27:46 item 3 rec+bin=nq27-dev-cli speed: exit 0 results/20261029-112716-nq27-rec_bin_nq27-dev-cli-nq27-w2-rec_bin_nq27-dev-cli-3/result.json
+11:29:05 item 4 rec+bin=nq27-dev-cli texts: exit 0       18 lines
+11:29:05 item 5: starting server rec+r2
+11:30:56 item 5 rec+r2 speed: exit 0 results/20261029-113026-nq27-rec_r2-nq27-w2-rec_r2-5/result.json
+11:30:56 item 6: starting server rec+bin=nq27-dev-cli+r2
+11:32:44 item 6 rec+bin=nq27-dev-cli+r2 speed: exit 0 results/20261029-113213-nq27-rec_bin_nq27-dev-cli_r2-nq27-w2-rec_bin_nq27-dev-cli_r2-6/result.json
+11:32:44 item 7: starting server rec+r3
+11:34:35 item 7 rec+r3 speed: exit 0 results/20261029-113405-nq27-rec_r3-nq27-w2-rec_r3-7/result.json
+11:34:35 item 8: starting server rec+bin=nq27-dev-cli+r3
+11:36:24 item 8 rec+bin=nq27-dev-cli+r3 speed: exit 0 results/20261029-113553-nq27-rec_bin_nq27-dev-cli_r3-nq27-w2-rec_bin_nq27-dev-cli_r3-8/result.json
+11:36:24 item 9: starting server rec+spoff
+11:37:34 item 9 rec+spoff speed: exit 0 results/20261029-113656-nq27-rec_spoff-nq27-w2-rec_spoff-9/result.json
+11:37:34 item 10: starting server rec+bin=nq27-dev-cli+spoff
+11:38:43 item 10 rec+bin=nq27-dev-cli+spoff speed: exit 0 results/20261029-113806-nq27-rec_bin_nq27-dev-cli_spoff-nq27-w2-rec_bin_nq27-dev-cli_spoff-10/result.json
+11:38:43 done
+11:38:54 guard: [guard] radiance answers 2026-10-29 11:38:54 (after 15 s)
