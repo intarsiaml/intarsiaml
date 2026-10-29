@@ -21,7 +21,7 @@
 
 use intarsia_core::backend::Backend;
 use intarsia_core::exec::{run_host, HostCall, OutSpec};
-use intarsia_core::quant::cases::matmul_mxfp4_case;
+use intarsia_core::quant::cases::{matmul_mxfp4_case, matmul_mxfp4_pair_case};
 use intarsia_core::quant::reference::matmul_mxfp4_a8;
 use intarsia_core::quant::Mxfp4Act;
 use intarsia_core::rng::SplitMix64;
@@ -186,6 +186,33 @@ fn a8_mma_hashes() {
     }
 }
 
+/// Lane pf27b: `matmul_mxfp4_pair_a8_mma` (one quant pre-pass for both GEMMs) is bitwise two `matmul_mxfp4_a8_mma` calls, at the 27B tp2
+/// pair shapes (GDN qkv | z and b | a, attention k | v, FFN gate | up, the 2048- and 1810-row chunks), both kernels' M ranges (staged
+/// M <= 64, direct above), N1 above N0 (the shared wref region sized by the larger), f32 and bf16 out; and the pair with the per-group
+/// path (INTARSIA_HIP_MXFP4_A8_PERGROUP=1 reruns this test on it).
+#[test]
+fn a8_pair_is_bitwise_two_single_calls() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(97);
+    for (m, n0, n1, k) in [
+        (2048usize, 5120usize, 3072usize, 5120usize), (2048, 24, 24, 5120), (1810, 8704, 8704, 5120), (2048, 512, 512, 5120),
+        (1810, 5120, 3072, 5120), (130, 512, 512, 5120), (17, 640, 640, 5120), (64, 1024, 300, 5120), (65, 100, 1000, 512), (300, 777, 2049, 4160),
+    ] {
+        for odt in [DType::Bf16, DType::F32] {
+            let hc = matmul_mxfp4_pair_case(&mut rng, m, n0, n1, k, Mxfp4Act::Fp8, DType::Bf16, odt);
+            let pair = run_host(&*hip, "matmul_mxfp4_pair_a8_mma", &hc).unwrap();
+            for (j, (wi, n)) in [(1usize, n0), (3, n1)].into_iter().enumerate() {
+                let mut one = hc.clone();
+                one.op = intarsia_core::Op::MatmulMxfp4;
+                one.inputs = vec![hc.inputs[0].clone(), hc.inputs[wi].clone(), hc.inputs[wi + 1].clone(), hc.inputs[5].clone()];
+                one.outputs = vec![OutSpec::new(odt, &[m, n])];
+                let single = run_host(&*hip, "matmul_mxfp4_a8_mma", &one).unwrap();
+                assert!(pair[j].data == single[0].data, "M={m} N0={n0} N1={n1} K={k} {odt:?}: pair output {j} differs from the single call");
+            }
+        }
+    }
+}
+
 #[test]
 fn a8_rows_are_bitwise_the_solo_kernel() {
     let Some(hip) = device() else { return };
@@ -303,7 +330,12 @@ fn timing_a8_tp2() {
     // GLR_TIMING_ONLY=q+gate,o restricts the shapes, GLR_TIMING_ITERS the launches per case (profiler passes)
     let only: Vec<String> = std::env::var("GLR_TIMING_ONLY").ok().map(|v| v.split(',').map(str::to_string).collect()).unwrap_or_default();
     let iters: usize = std::env::var("GLR_TIMING_ITERS").ok().and_then(|v| v.parse().ok()).unwrap_or(100);
-    for (name, n, k) in [("gate+up", 17408usize, 5120usize), ("down", 5120, 8704), ("q+gate", 6144, 5120), ("z", 3072, 5120), ("o", 5120, 3072)] {
+    let mut shapes = vec![("gate+up", 17408usize, 5120usize), ("down", 5120, 8704), ("q+gate", 6144, 5120), ("z", 3072, 5120), ("o", 5120, 3072)];
+    // PF27B_SMALL=1 (lane pf27b): the small-N projections instead (attention k / v, GDN b / a), whose grids under-fill the card
+    if std::env::var("PF27B_SMALL").is_ok_and(|v| v == "1") {
+        shapes = vec![("k/v", 512, 5120), ("b/a", 24, 5120), ("gate", 8704, 5120), ("qkv", 5120, 5120)];
+    }
+    for (name, n, k) in shapes {
         if !only.is_empty() && !only.iter().any(|o| o == name) {
             continue;
         }

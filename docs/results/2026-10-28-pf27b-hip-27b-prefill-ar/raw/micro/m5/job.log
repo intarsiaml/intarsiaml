@@ -1,0 +1,21 @@
+fleetq: #6656 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m5 SEC='"'"'pair hash gen'"'"' GREPS=3 GARMS='"'"'pf27b-base-cli pf27b-dev-cli pf27b-dev-cli:INTARSIA_HIP_AR_WIDE=32 pf27b-dev-cli:INTARSIA_HIP_AR_WIDE=128'"'"' bash ~/intarsiaml-pf27b/scripts/pf27b/micro.sh'
+[pf27b] stopping radiance 2026-10-28 22:09:02
+[pf27b] radiance inactive 2026-10-28 22:09:06
+== pair rc=0 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 1.91s
+== gen pf27b-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 929 ms (4155.0 tok/s) | decode 0 ms (0.00 tok/s) (10 s)
+== gen pf27b-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 886 ms (4352.7 tok/s) | decode 0 ms (0.00 tok/s) (14 s)
+== gen pf27b-dev-cli:INTARSIA_HIP_AR_WIDE=32: finish=length prompt=3858 (cached 0) completion=1 | prefill 891 ms (4331.3 tok/s) | decode 0 ms (0.00 tok/s) (17 s)
+== gen pf27b-dev-cli:INTARSIA_HIP_AR_WIDE=128: finish=length prompt=3858 (cached 0) completion=1 | prefill 887 ms (4348.7 tok/s) | decode 0 ms (0.00 tok/s) (21 s)
+== gen pf27b-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 936 ms (4121.7 tok/s) | decode 0 ms (0.00 tok/s) (25 s)
+== gen pf27b-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 888 ms (4342.8 tok/s) | decode 0 ms (0.00 tok/s) (29 s)
+== gen pf27b-dev-cli:INTARSIA_HIP_AR_WIDE=32: finish=length prompt=3858 (cached 0) completion=1 | prefill 886 ms (4354.2 tok/s) | decode 0 ms (0.00 tok/s) (32 s)
+== gen pf27b-dev-cli:INTARSIA_HIP_AR_WIDE=128: finish=length prompt=3858 (cached 0) completion=1 | prefill 888 ms (4342.3 tok/s) | decode 0 ms (0.00 tok/s) (36 s)
+== gen pf27b-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 939 ms (4109.6 tok/s) | decode 0 ms (0.00 tok/s) (40 s)
+== gen pf27b-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 886 ms (4354.6 tok/s) | decode 0 ms (0.00 tok/s) (44 s)
+== gen pf27b-dev-cli:INTARSIA_HIP_AR_WIDE=32: finish=length prompt=3858 (cached 0) completion=1 | prefill 887 ms (4348.9 tok/s) | decode 0 ms (0.00 tok/s) (47 s)
+== gen pf27b-dev-cli:INTARSIA_HIP_AR_WIDE=128: finish=length prompt=3858 (cached 0) completion=1 | prefill 892 ms (4325.3 tok/s) | decode 0 ms (0.00 tok/s) (51 s)
+== hash: base 48 lines, dev 48, differing: 0
+[pf27b] micro done 2026-10-28 22:10:04, 62 s
+[pf27b] starting radiance 2026-10-28 22:10:04
+[pf27b] RADIANCE-RESTORE active after 10 s at 2026-10-28 22:10:14; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793239812,"owned_by":"radiance"
+fleetq: #6656 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

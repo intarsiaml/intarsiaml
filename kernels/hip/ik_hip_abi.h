@@ -216,6 +216,11 @@ int ik_matmul_mxfp4_mma_fold(const ik_tensor* x, const ik_tensor* w, const ik_te
  * round16(N) + 16 bytes, 16-byte aligned. */
 int ik_matmul_mxfp4_a8_mma(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                            ik_tensor* out, const ik_scratch* scratch, void* stream);
+/* matmul_mxfp4_pair_a8_mma (lane pf27b): Op::MatmulMxfp4Pair at prefill M, one activation quant pre-pass for both GEMMs, each GEMM
+ * exactly matmul_mxfp4_a8_mma's (own weight-span result and fold flag; one span launch for both): bitwise two single calls. Scratch as
+ * matmul_mxfp4_a8_mma with N = round16(N0) + N1. */
+int ik_matmul_mxfp4_pair_a8_mma(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1,
+                                const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, const ik_scratch* scratch, void* stream);
 /* matmul_mxfp4_pair_gemv (lane P1): Op::MatmulMxfp4Pair, two MXFP4 projections of one x with one act input; M == 1 one launch
  * (x staged once), else the two single gemvs (scratch as matmul_mxfp4_gemv). */
 int ik_matmul_mxfp4_pair_gemv(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1,

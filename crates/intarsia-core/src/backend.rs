@@ -202,8 +202,9 @@ pub trait Backend: Send + Sync {
 
     /// True when a dense prefill may resume from any held KV row and still compute the bits a cold prefill of the whole prompt
     /// computes, so prefix reuse may cut anywhere (`Model::reuse_len`). False where a pass's bits depend on its row count or
-    /// its first row (CUDA, measured on Qwen3-8B: every split of a prompt changed its logits): reuse then
-    /// resumes only where the prompt's own cold chunk schedule cuts. Default true (cpu; Metal and HIP keep their reuse).
+    /// its first row (CUDA, measured on Qwen3-8B: every split of a prompt changed its logits; Metal, same model: the splits
+    /// with a 1-row pass, a repeated prompt's last token alone among them): reuse then resumes only where the prompt's own
+    /// cold chunk schedule cuts. Default true (cpu, whose kernels are row-count invariant; HIP not yet measured).
     fn prefix_reuse_any_cut(&self) -> bool {
         true
     }

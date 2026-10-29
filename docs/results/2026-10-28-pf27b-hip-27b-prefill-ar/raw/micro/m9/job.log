@@ -1,0 +1,9 @@
+fleetq: #6679 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m9 SEC='"'"'plan'"'"' bash ~/intarsiaml-pf27b/scripts/pf27b/micro.sh'
+[pf27b] stopping radiance 2026-10-28 23:04:41
+[pf27b] radiance inactive 2026-10-28 23:04:45
+== plan 8B: byte-identical (1346 B)
+== plan 35B: byte-identical (3184 B)
+[pf27b] micro done 2026-10-28 23:04:58, 17 s
+[pf27b] starting radiance 2026-10-28 23:04:58
+[pf27b] RADIANCE-RESTORE active after 25 s at 2026-10-28 23:05:23; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793243120,"owned_by":"radiance"
+fleetq: #6679 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

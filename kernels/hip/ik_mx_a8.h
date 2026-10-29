@@ -97,9 +97,13 @@ mx_a8_quant_kernel(const ik_bf16* __restrict__ x, uint8_t* __restrict__ xq, floa
  * (a K % 64 == 32 tail adds one zero group per tile). One block per row of the 16-padded M (gridDim.x = Mp); rows M .. Mp - 1 are
  * written as zeros (no xs). K % 32 == 0. */
 static __global__ void __launch_bounds__(256)
-mx_a8_quant_tiled_kernel(const ik_bf16* __restrict__ x, uint8_t* __restrict__ xt, float* __restrict__ xs, int M, int K) {
+mx_a8_quant_tiled_kernel(const ik_bf16* __restrict__ x, uint8_t* __restrict__ xt, float* __restrict__ xs, int M, int K, int* __restrict__ zero,
+                         int nzero) {
     __shared__ float red[256 / IK_WARP];
     const int64_t row = blockIdx.x;
+    // lane pf27b: the GEMMs' fold flags (a8_wspan_kernel ORs into them, which runs after this kernel on the stream), zeroed here instead of
+    // by one hipMemsetAsync per GEMM
+    if (row == 0 && threadIdx.x < nzero) zero[threadIdx.x] = 0;
     const int C = K >> 3, KGP = ((K + 63) >> 6) * 2;  // 8-element chunks; 32-k groups per tile, K padded to 64
     const int CP = KGP * 4;                            // chunks including the pad group
     uint8_t* tile = xt + (row >> 4) * (int64_t)KGP * 512 + (row & 15) * 16;
