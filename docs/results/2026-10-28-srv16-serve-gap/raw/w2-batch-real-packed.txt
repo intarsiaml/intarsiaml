@@ -1,0 +1,4 @@
+test real_35b_packed_prefill_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+8 slots: 9 packed passes carried 24 chunks (24 chunks in all)
+16 slots: 8 packed passes carried 24 chunks (24 chunks in all)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 20 filtered out; finished in 150.72s

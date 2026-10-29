@@ -124,6 +124,11 @@ pub trait BatchModel {
     fn pack_min_rows(&self) -> usize {
         usize::MAX
     }
+    /// Pack only a prompt that prefills whole in one chunk from row 0 (lane srv16: CUDA, where packed later chunks of a multi-chunk
+    /// prompt, or a prompt resumed from a reused prefix, were not the solo bits in the served identity check). Default false.
+    fn pack_whole_prompts(&self) -> bool {
+        false
+    }
     /// One chunk each of several prompts (`(slot, tokens, mode)`, distinct slots, the exact chunks [`BatchModel::prefill_chunk`]
     /// would run) in one pass; returns what `prefill_chunk` returns for each, in order. Each slot ends bitwise as its own
     /// `prefill_chunk` leaves it. The default runs them one by one.
@@ -1225,6 +1230,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
         let chunk = chunk.unwrap_or(if n_decoding > 0 { self.cfg.busy_chunk } else { self.cfg.solo_chunk });
         let plen = self.active[i].seq.prompt().len();
         let len = next_prefill_chunk_tm(plen - pos, chunk, self.model.avoid_single_row_prefill(), self.model.tail_merge());
+        if self.model.pack_whole_prompts() && (pos != 0 || len != plen) {
+            // lane srv16: only a whole prompt from row 0 packs where that is all that was proven bitwise (CUDA)
+            return None;
+        }
         Some(if len == plen - pos { len - 1 } else { len })
     }
 

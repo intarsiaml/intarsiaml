@@ -1,0 +1,18 @@
+WARNING: CPU IP/backtrace sampling not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+WARNING: CPU context switch tracing not supported, disabling.
+Try the 'nsys status --environment' command to learn more.
+
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 40 kernel(s) checked, 0 case(s) run, 679 cached
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10) in 38.7s, context 8192 tokens
+intarsia server listening on http://127.0.0.1:8197
+host-profile decode-only    iters     31 rows  1.97 wall  15.331 ms | reap+admit 0.000 prepare 0.000 step-setup 0.398 upload 0.010 launch 0.597 sync 14.319 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.000 detok 0.002 send 0.003 finish 0.001 prefill 0.000 | other 0.001 | gpu-idle-gap 0.007 ms (29 gaps)
+host-profile decode+prefill iters      1 rows  1.00 wall 214.420 ms | reap+admit 0.153 prepare 0.002 step-setup 12.436 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.001 detok 0.007 send 0.007 finish 0.000 prefill 201.809 | other 0.005
+host-profile prefill-only   iters      1 rows  0.00 wall 739.113 ms | reap+admit 0.555 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.001 detok 0.017 send 0.007 finish 0.000 prefill 738.527 | other 0.006
+host-profile decode-only    iters    255 rows 15.53 wall  44.492 ms | reap+admit 0.000 prepare 0.000 step-setup 0.056 upload 0.024 launch 0.453 sync 43.923 step-tail 0.000 accept 0.001 metrics 0.001 on_token 0.002 detok 0.010 send 0.021 finish 0.000 prefill 0.000 | other 0.002 | gpu-idle-gap 0.041 ms (253 gaps)
+host-profile decode+prefill iters     15 rows  8.00 wall 234.001 ms | reap+admit 0.134 prepare 0.001 step-setup 1.198 upload 0.027 launch 6.390 sync 26.530 step-tail 0.000 accept 0.001 metrics 0.001 on_token 0.002 detok 0.019 send 0.027 finish 0.000 prefill 199.666 | other 0.006
+host-profile prefill-only   iters      1 rows  0.00 wall 201.676 ms | reap+admit 0.200 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.001 detok 0.005 send 0.005 finish 0.000 prefill 201.455 | other 0.009

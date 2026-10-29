@@ -557,7 +557,8 @@ pub struct Model {
     /// tiling, and so their summation order, by the row count), whose bits a chunk-sized call must reproduce. Everything else a
     /// macro pass batches is row-wise bitwise (norms, the pinned expert and shared-expert kernels, quantisers, top-k).
     macro_split: Vec<Op>,
-    /// The rows of the macro pass being run, `(lo, len)` per chunk, `Some` only inside [`Model::run_macro_group`].
+    /// The rows of the macro pass being run, `(lo, len)` per chunk, `Some` only inside [`Model::run_macro_group`]
+    /// (and, per prompt, inside [`Model::forward_packed`] on a [`Backend::pack_split_gemms`] backend).
     macro_ctx: Mutex<Option<Vec<(usize, usize)>>>,
     /// Macro passes run (groups of two or more chunks), for tests and the serve log.
     macro_passes: std::sync::atomic::AtomicU64,
@@ -2154,8 +2155,12 @@ impl Model {
 
     /// Most rows one packed pass holds: the workspace's, and no more than the KV capacity: plan resolution sizes the kernel scratch
     /// for chunks that fit the context, and a packed pass of several prompts must not need more than a solo chunk could.
+    /// Lane srv16: where the vendor GEMMs run per prompt ([`Backend::pack_split_gemms`]) a packed pass is a macro pass with one
+    /// segment per prompt (each at most a chunk for attention, the recurrence and the GEMMs; only the row-wise kernels see every
+    /// row), so it may fill what the workspace holds for a macro pass ([`Model::macro_rows`]).
     pub fn pack_rows_max(&self) -> usize {
-        self.ws.max_tokens.min(self.plan.kv_cap_tokens.max(1))
+        let ws = if self.backend.pack_split_gemms() { self.ws.max_tokens.max(self.macro_rows) } else { self.ws.max_tokens };
+        ws.min(self.plan.kv_cap_tokens.max(1))
     }
 
     /// Whether this model can run [`Model::forward_packed`]: a single rank, no Gemma layers, no plan recording.
@@ -2220,7 +2225,18 @@ impl Model {
                 })
                 .collect();
             self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
-            self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None)?;
+            // lane srv16: where the vendor GEMMs ([`Model::macro_split`]) pick their tiling by row count (CUDA,
+            // `Backend::pack_split_gemms`) they run once per prompt on its own rows, as in a macro pass, so each prompt keeps the
+            // bits of its solo prefill
+            let split = self.backend.pack_split_gemms();
+            if split {
+                *self.macro_ctx.lock().unwrap() = Some(segs.iter().map(|s| (s.lo, s.len)).collect());
+            }
+            let r = self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None);
+            if split {
+                *self.macro_ctx.lock().unwrap() = None;
+            }
+            r?;
         }
         for (st, ids) in items.iter_mut() {
             st.commit(ids);
