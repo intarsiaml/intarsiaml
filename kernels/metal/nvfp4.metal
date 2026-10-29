@@ -252,3 +252,32 @@ inline void nv_mma_impl(device const ushort* X, device const uchar* W, device co
 
 NV_MMA(nv_mma_bf16, ushort)
 NV_MMA(nv_mma_f32, float)
+
+// ---- weight decode for the NAX GEMM (matmul_nvfp4_nax: gemm_nax_fp8.metal's GEMM, launcher nvfp4.rs) --------------------
+// `nv_w_to_bf16`: W[N,K/2] codes * e4m3 block scales -> bf16 [N,K] (exactly the B tile `nv_mma_impl` stages: code * block
+// scale, at most 5 significant bits, so the bf16 is exact; NaN block scales give NaN), and the GEMM's scale pair [gs, 0]
+// (no input scale) after the weights. p.b = N, p.c = K (K % 16 == 0), p.s1 = block-scale skip; one thread decodes one
+// 16-weight block. bind 0 W (8-byte aligned), 1 block scales, 2 global scale, 3 Wb (16-byte aligned), 4 scale pair, 5 OpP.
+kernel void nv_w_to_bf16(device const uchar* w [[buffer(0)]], device const uchar* bs [[buffer(1)]],
+                         device const float* gs [[buffer(2)]], device uint4* wb [[buffer(3)]], device float* sc [[buffer(4)]],
+                         constant OpP& p [[buffer(5)]], uint g [[thread_position_in_grid]]) {
+    if (g == 0) {
+        sc[0] = gs[0];
+        sc[1] = 0.0f;
+    }
+    if ((ulong)g >= (ulong)p.b * p.c / 16) return;
+    const uint2 v = *(device const uint2*)(w + (ulong)g * 8);
+    const float s = nv_scale(bs[p.s1 + (ulong)g]) * NV_FOLD;
+    const uint w2[2] = {v.x, v.y};
+    uint o[8];
+    for (int i = 0; i < 2; ++i) {
+        float2 c[4];  // c[k]: elements k and k + 4 of the word
+        for (int k = 0; k < 4; ++k) c[k] = nv_x2((w2[i] >> (4 * k)) & 0x000F000Fu) * s;
+        o[4 * i] = nv_pack(c[0].x, c[1].x);
+        o[4 * i + 1] = nv_pack(c[2].x, c[3].x);
+        o[4 * i + 2] = nv_pack(c[0].y, c[1].y);
+        o[4 * i + 3] = nv_pack(c[2].y, c[3].y);
+    }
+    wb[2 * (ulong)g] = uint4(o[0], o[1], o[2], o[3]);
+    wb[2 * (ulong)g + 1] = uint4(o[4], o[5], o[6], o[7]);
+}

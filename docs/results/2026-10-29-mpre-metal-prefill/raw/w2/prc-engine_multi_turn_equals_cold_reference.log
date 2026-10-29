@@ -1,0 +1,19 @@
+
+running 1 test
+prefill chunk 2048 (recipe qwen3, metal)
+prefill chunk 2048 (recipe qwen3, metal)
+single-sequence engine, prompt 3 turn 2 (turn 1 prompt 13 tokens): cached 13, = cold
+single-sequence engine, prompt 4 turn 2 (turn 1 prompt 15 tokens): cached 15, = cold
+single-sequence engine, prompt 5 turn 2 (turn 1 prompt 8 tokens): cached 8, = cold
+test engine_multi_turn_equals_cold_reference has been running for over 60 seconds
+single-sequence engine, prompt 9 turn 2 (turn 1 prompt 6 tokens): cached 6, = cold
+prefill chunk 2048 (recipe qwen3, metal)
+continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 256
+4-slot batched engine, prompt 3 turn 2 (turn 1 prompt 13 tokens): cached 13, = cold
+4-slot batched engine, prompt 4 turn 2 (turn 1 prompt 15 tokens): cached 15, = cold
+4-slot batched engine, prompt 5 turn 2 (turn 1 prompt 8 tokens): cached 8, = cold
+4-slot batched engine, prompt 9 turn 2 (turn 1 prompt 6 tokens): cached 6, = cold
+test engine_multi_turn_equals_cold_reference ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 69.74s
+

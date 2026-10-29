@@ -1,0 +1,4 @@
+13:23:31 start rustc=       0
+13:28:52 mmlu exit 0: Overall MMLU Accuracy: 0.8428070175438597 
+13:29:27 self 4k exit 0: SELF-STATS mode=prefill positions=12759 mean_kl21=7.135941e-2 max_kl21=2.570153e1 flips=700 flip_pct=5.4863 tail_abs=6.549695e-3 worst_prompt_kl21=1.819747e-1 SELF-STATS mode=decode positions=192 mean_kl21=6.580135e-3 max_kl21=2.680872e-1 flips=5 flip_pct=2.6042 tail_abs=9.891249e-4 worst_prompt_kl21=1.131879e-2 
+13:30:57 self long exit 0: SELF-STATS mode=prefill positions=36887 mean_kl21=3.094444e-2 max_kl21=2.570153e1 flips=1574 flip_pct=4.2671 tail_abs=3.814148e-3 worst_prompt_kl21=1.819747e-1 SELF-STATS mode=decode positions=80 mean_kl21=8.643442e-3 max_kl21=8.924875e-2 flips=2 flip_pct=2.5000 tail_abs=1.526880e-3 worst_prompt_kl21=1.934451e-2 

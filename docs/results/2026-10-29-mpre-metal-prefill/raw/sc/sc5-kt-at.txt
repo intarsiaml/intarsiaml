@@ -1,0 +1,8 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+attn_prefill   attn_prefill_bf16              31      0    1.953e-3    1.279e-4  ADMITTED
+attn_prefill   attn_prefill_bf16_flash        24      0    5.076e-3    2.438e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_flash_nax     19      0    5.076e-3    2.439e-3  ADMITTED
+attn_prefill   attn_prefill_bf16_splitkv_rows     13      0    5.682e-4    2.949e-5  ADMITTED
+4 kernels, 87 cases in 8.6s

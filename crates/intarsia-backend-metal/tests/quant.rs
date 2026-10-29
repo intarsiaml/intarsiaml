@@ -184,7 +184,10 @@ fn fp8_matches_the_oracle() {
     }
 }
 
-fn run_nvfp4(be: &MetalBackend, kernel: &str, m: usize, n: usize, k: usize, f32_out: bool, w_off: usize, seed: u64) {
+/// One NVFP4 GEMM against the oracle, x at byte `xo` of its buffer (2: a leading element skip, which the NAX form hands to
+/// `mma`).
+#[allow(clippy::too_many_arguments)]
+fn run_nvfp4_x(be: &MetalBackend, kernel: &str, m: usize, n: usize, k: usize, f32_out: bool, w_off: usize, xo: usize, seed: u64) {
     let x = rand_bf16(m * k, seed);
     let w = rand_bytes(n * k / 2, seed + 1);
     let bs = rand_block_scales(n * k / 16, seed + 2);
@@ -195,7 +198,7 @@ fn run_nvfp4(be: &MetalBackend, kernel: &str, m: usize, n: usize, k: usize, f32_
     let wa: Vec<u8> = w.iter().map(|b| b & 0x77).collect();
     let ba: Vec<u8> = bs.iter().map(|b| b & 0x7F).collect();
     let l1 = matmul_nvfp4(&xa, m, k, &wa, &ba, gs, n);
-    let (xo, bo, go) = (2usize, 3usize, 4usize);
+    let (bo, go) = (3usize, 4usize);
     let xb = upload_bytes(be, xo, &bf16_bytes(&x));
     let (wb, bb, gb) = (upload_bytes(be, w_off, &w), upload_bytes(be, bo, &bs), upload_bytes(be, go, &gs.to_le_bytes()));
     let ysz = m * n * 4 + 32;
@@ -213,13 +216,15 @@ fn run_nvfp4(be: &MetalBackend, kernel: &str, m: usize, n: usize, k: usize, f32_
         vec![t(&yb, yo, odt, &[m, n])],
         OpAttrs::default(),
     );
+    let mut cl = cl;
     if !accepts(be, kernel, &cl) {
         return;
     }
+    attach_scratch(be, kernel, &mut cl);
     be.launch(kernel, &cl, 0).unwrap();
     be.synchronize(0).unwrap();
     let got = read_out(be, &yb, yo, m * n, f32_out);
-    check(&got, &want, &l1, f32_out, &format!("{kernel} m={m} n={n} k={k} f32_out={f32_out} w_off={w_off}"));
+    check(&got, &want, &l1, f32_out, &format!("{kernel} m={m} n={n} k={k} f32_out={f32_out} w_off={w_off} xo={xo}"));
 }
 
 #[test]
@@ -231,9 +236,11 @@ fn nvfp4_matches_the_oracle() {
             .enumerate()
     {
         for f32_out in [false, true] {
-            for kernel in ["matmul_nvfp4_gemv", "matmul_nvfp4_mma"] {
+            for kernel in ["matmul_nvfp4_gemv", "matmul_nvfp4_mma", "matmul_nvfp4_nax"] {
                 for w_off in [8usize, 16] {
-                    run_nvfp4(&be, kernel, m, n, k, f32_out, w_off, 5000 + ci as u64 * 11);
+                    for xo in [2usize, 16] {
+                        run_nvfp4_x(&be, kernel, m, n, k, f32_out, w_off, xo, 5000 + ci as u64 * 11);
+                    }
                 }
             }
         }
@@ -368,9 +375,67 @@ fn nvfp4_at_the_35b_projection_shapes() {
     let be = backend();
     for (ci, &(m, n, k)) in REAL_SHAPES.iter().enumerate() {
         for f32_out in [false, true] {
-            for kernel in ["matmul_nvfp4_gemv", "matmul_nvfp4_mma"] {
-                run_nvfp4(&be, kernel, m, n, k, f32_out, 8, 9500 + ci as u64 * 13);
+            for kernel in ["matmul_nvfp4_gemv", "matmul_nvfp4_mma", "matmul_nvfp4_nax"] {
+                run_nvfp4_x(&be, kernel, m, n, k, f32_out, 8, 16, 9500 + ci as u64 * 13);
             }
+        }
+    }
+}
+
+/// `matmul_nvfp4_nax`: a row's bits do not depend on the call's M, the row's position or the tile (rows of a 9..2100-row
+/// call equal the same rows of a 300-row call, every `gemm_nax::NAX_VARIANTS` tile), and two runs are bitwise equal.
+#[test]
+fn nvfp4_nax_rows_do_not_depend_on_the_call() {
+    use intarsia_backend_metal::gemm_nax::NAX_VARIANTS;
+    let be = backend();
+    for &(n, k) in &[(512usize, 2048usize), (2048, 512), (130, 80)] {
+        let mtot = 2100usize;
+        let x = rand_bf16(mtot * k, 77);
+        let (w, bs) = (rand_bytes(n * k / 2, 78), rand_block_scales(n * k / 16, 79));
+        let xb = upload_bytes(&be, 0, &bf16_bytes(&x));
+        let (wb, bb, gb) =
+            (upload_bytes(&be, 0, &w), upload_bytes(&be, 0, &bs), upload_bytes(&be, 0, &0.0013f32.to_le_bytes()));
+        let run = |r0: usize, m: usize, tile: Option<usize>| -> Vec<u8> {
+            let yb = be.alloc(m * n * 2, MemKind::Device).unwrap();
+            let mut cl = OpCall::new(
+                Op::MatmulNvfp4,
+                vec![
+                    t(&xb, r0 * k * 2, DType::Bf16, &[m, k]),
+                    t(&wb, 0, DType::U8, &[n, k / 2]),
+                    t(&bb, 0, DType::Fp8E4m3, &[n, k / 16]),
+                    t(&gb, 0, DType::F32, &[1]),
+                ],
+                vec![t(&yb, 0, DType::Bf16, &[m, n])],
+                OpAttrs::default(),
+            );
+            attach_scratch(&be, "matmul_nvfp4_nax", &mut cl);
+            let before = intarsia_backend_metal::nvfp4::nax_fallbacks();
+            let go = || be.launch("matmul_nvfp4_nax", &cl, 0).unwrap();
+            match tile {
+                Some(i) => intarsia_backend_metal::nvfp4::with_nax_tile(i, go),
+                None => go(),
+            }
+            be.synchronize(0).unwrap();
+            assert_eq!(intarsia_backend_metal::nvfp4::nax_fallbacks(), before, "aligned x must not fall back");
+            let mut out = vec![0u8; m * n * 2];
+            be.download(&yb, 0, &mut out, 0).unwrap();
+            out
+        };
+        // rows 8 .. 308 in one call
+        let base = run(8, 300, None);
+        assert_eq!(base, run(8, 300, None), "run to run, n={n} k={k}");
+        let rows = |o: &[u8], r: usize| o[r * n * 2..(r + 1) * n * 2].to_vec();
+        for (r0, m) in [(8usize, 9usize), (40, 17), (100, 64), (8, 2100 - 8), (200, 108)] {
+            let o = run(r0, m, None);
+            for r in 0..m {
+                let g = r0 + r;
+                if (8..308).contains(&g) {
+                    assert_eq!(rows(&o, r), rows(&base, g - 8), "n={n} k={k}: row {g} of a {m}-row call at {r0}");
+                }
+            }
+        }
+        for i in 0..NAX_VARIANTS.len() {
+            assert_eq!(run(8, 300, Some(i)), base, "n={n} k={k}: tile {}", NAX_VARIANTS[i].shader);
         }
     }
 }
