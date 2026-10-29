@@ -458,6 +458,19 @@ fn engine_cost(
     draft_vocab: usize,
     cost: Option<(f64, u32, u32, u32)>,
 ) -> (LocalEngine, Arc<Telemetry>) {
+    engine_pipe(backend, w, k, script, draft_vocab, cost, None)
+}
+
+/// [`engine_cost`] with the pipelined MTP step (`Model::set_spec_pipe`) forced on or off.
+fn engine_pipe(
+    backend: Arc<dyn Backend>,
+    w: &MemWeights,
+    k: Option<usize>,
+    script: Option<DraftScript>,
+    draft_vocab: usize,
+    cost: Option<(f64, u32, u32, u32)>,
+    pipe: Option<bool>,
+) -> (LocalEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let (mut recipe, dims) = dims();
     if let Some((sp, win, probe, re)) = cost {
@@ -477,6 +490,7 @@ fn engine_cost(
         ..Default::default()
     };
     let mut m = Model::load(backend, &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    m.set_spec_pipe(pipe);
     let spec = match k {
         Some(k) => {
             m.enable_verify(k + 1).unwrap();
@@ -599,6 +613,72 @@ fn scripted_drafts_hit_every_acceptance_pattern_and_stay_identical() {
         }
         let t = tel.snapshot();
         eprintln!("scripted k {k}: {} passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
+        assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: partial acceptance exercised");
+    }
+}
+
+/// The pipelined MTP step (lane mmtp, `model/spec_pipe.rs`: drafts on the device, one wait per pass, the next pass's draft
+/// submitted before the tokens go out) against the eager draft + verify: the same output as MTP off, and the same drafts
+/// (equal verify passes, proposals and acceptances), with the head's own drafts.
+#[test]
+fn pipelined_mtp_step_keeps_output_and_drafts_of_the_eager_step() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    for k in 1..=3 {
+        let (eager, te) = engine_pipe(CpuBackend::arc(), &w, Some(k), None, 0, None, Some(false));
+        let (pipe, tp) = engine_pipe(CpuBackend::arc(), &w, Some(k), None, 0, None, Some(true));
+        for p in PROMPTS {
+            let a = run(&off, req(p, 256));
+            assert_eq!(a, run(&eager, req(p, 256)), "k {k} prompt {p:?}: eager");
+            assert_eq!(a, run(&pipe, req(p, 256)), "k {k} prompt {p:?}: pipelined");
+        }
+        let (e, t) = (te.snapshot(), tp.snapshot());
+        assert!(t.spec_steps > 0 && t.spec_proposed > 0, "k {k}: the head drafted");
+        assert_eq!(
+            (e.spec_steps, e.spec_proposed, e.spec_accepted),
+            (t.spec_steps, t.spec_proposed, t.spec_accepted),
+            "k {k}: same drafts"
+        );
+        eprintln!("pipelined k {k}: {} verify passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
+    }
+}
+
+/// The pipelined step through every acceptance pattern (scripted drafts: all, some or none accepted, so the next pass's
+/// draft is submitted ahead and used, or submitted and dropped), `max_tokens` and stop ids inside an accepted run, and a
+/// follow-up request reusing the prefix.
+#[test]
+fn pipelined_mtp_step_with_scripted_drafts_stays_identical() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for p in PROMPTS {
+        let o = run(&off, req(p, 300));
+        let mut s = p.to_vec();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    for k in 1..=3 {
+        let script = Some(scripted(truth.clone(), k as u64));
+        let (on, tel) = engine_pipe(CpuBackend::arc(), &w, Some(k), script, 0, None, Some(true));
+        for p in PROMPTS {
+            assert_eq!(run(&off, req(p, 256)), run(&on, req(p, 256)), "k {k} prompt {p:?}");
+            for n in [1usize, 2, 3, 5, 8, 13] {
+                let (a, b) = (run(&off, req(p, n)), run(&on, req(p, n)));
+                assert_eq!(a, b, "k {k} max_tokens {n}");
+                let mut next = p.to_vec();
+                next.extend(&a.ids);
+                next.push(11);
+                assert_eq!(run(&off, req(&next, 9)), run(&on, req(&next, 9)), "k {k} follow-up after max_tokens {n}");
+            }
+            let full = run(&off, req(p, 40));
+            for at in [3usize, 10, 21] {
+                let stop = full.ids[at];
+                let r = || GenRequest { stop_ids: vec![stop], ..req(p, 40) };
+                assert_eq!(run(&off, r()), run(&on, r()), "k {k} stop id {stop}");
+            }
+        }
+        let t = tel.snapshot();
+        eprintln!("pipelined scripted k {k}: {} passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
         assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: partial acceptance exercised");
     }
 }
