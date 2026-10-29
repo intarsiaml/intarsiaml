@@ -80,15 +80,15 @@ while the queue is still empty, so that submission needs no drain either.
 | gate | result |
 |---|---|
 | greedy ids, 256 tokens, 4 prompts (short 19 tok, 4k a 4096, 4k b 4171, 16k 16384), `generate` | `--spec off` == MTP `=0` == MTP `=1` on all 4 (md5 of the `ids:` lines: b4ca5abeaa, bda48660a1, 3c7cb036eb, 9687832874). Acceptance counts identical between `=0` and `=1` on every prompt (short 153/203, 4k a 155/198, 4k b 160/190, 16k 156/197) |
-| main's MTP | `=0` runs main's code path (additions only); main's own binary (`0d02d3f36`) gives the same served cold and warm texts as `=1` (raw/diag2) |
+| main's MTP | main's own binary (`0d02d3f36`, `generate --spec mtp`) on the same 4 prompts: MAINMTP_RESULT (raw/diag3); its served cold and warm texts equal `=1`'s (raw/diag2). `=0` runs the eager branches of `Seq::prepare` as on main; the only change on that path is that `prepare` computes the plan first and clears the pipelined fields on non-pipelined branches |
 | batched MTP == solo | not applicable: Metal refuses `--spec mtp` with `--max-batch` > 1 (raw/w3/srv-batch.err); the pipelined path is solo-only |
-| prefix reuse | warm (resumed at 4095 of 4105 tokens) == warm across `=1`, `=0`, main and `--spec off`; **warm != cold in every arm, including main with `--spec off`** (raw/diag2): a pre-existing reuse issue on the hybrid 35B, not from this lane (flagged as a separate task). Repeating the same prompt (warm A == A) is identical |
+| prefix reuse == cold | **FAIL, on main as well, unchanged by this lane.** A served request resumed at 4095 of its 4105 tokens (the previous prompt + a suffix) gives different greedy text from the same request on a cold server, in every arm: `=1`, `=0`, main's binary and `--spec off` (raw/diag2). The warm text is identical across all four arms, so this lane does not change reuse; the cut itself is the issue (flagged as a separate task). Repeating the same prompt (warm A == cold A) is identical. REUSE_TESTS |
 | `batch_metal_real` (35B, `INTARSIA_TEST_REAL_MODEL=1`) | 3 passed, 5 ignored |
 | `batch_recurrent` | 14 passed |
 | `kernels test --backend metal` (default and `--model` 35B) | exit 0 |
 | `plan show --spec mtp` diff vs main | one line: the head's load time (0.4 s vs 0.3 s). No op or kernel change, as expected (no new op) |
 | new tests (`crates/intarsia-models/tests/mtp.rs`, cpu) | `pipelined_mtp_step_keeps_output_and_drafts_of_the_eager_step` (k 1..3: output == MTP off, same passes / drafts / acceptances as the eager step), `pipelined_mtp_step_with_scripted_drafts_stays_identical` (all / some / no drafts accepted, max_tokens and stop ids inside accepted runs, follow-up requests reusing the prefix); 1533 of 1681 pipelined steps found a draft submitted ahead (scripted run, trace) |
-| `cargo test --workspace --release` (Mac) | see section 7 |
+| `cargo test --workspace --release` (Mac) | pass: 207 test binaries, 1107 passed, 0 failed, 28 ignored (#7216, commit `813c7f94a`; later commits change tests and docs only, `tests/mtp.rs` re-run after them: 25 passed, 0 failed, including the 4 pipelined tests) |
 
 ## 5. A/B (served, localeval)
 

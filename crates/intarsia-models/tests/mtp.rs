@@ -685,6 +685,16 @@ fn pipelined_mtp_step_with_scripted_drafts_stays_identical() {
 
 #[test]
 fn min_tokens_requests_stay_identical_and_still_speculate_without_stop_ids() {
+    min_tokens_identical(None);
+}
+
+/// [`min_tokens_requests_stay_identical_and_still_speculate_without_stop_ids`] on the pipelined MTP step (lane mmtp).
+#[test]
+fn min_tokens_requests_stay_identical_on_the_pipelined_step() {
+    min_tokens_identical(Some(true));
+}
+
+fn min_tokens_identical(pipe: Option<bool>) {
     let w = weights(11);
     let (off, _) = engine(&w, None);
     let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
@@ -703,7 +713,7 @@ fn min_tokens_requests_stay_identical_and_still_speculate_without_stop_ids() {
             rec.lock().unwrap().push(ctx.len());
             inner(ctx, k)
         });
-        let (on, tel) = engine_with(&w, Some(k), Some(script));
+        let (on, tel) = engine_pipe(CpuBackend::arc(), &w, Some(k), Some(script), 0, None, pipe);
         for p in PROMPTS {
             // localeval speed's request shape: ignore_eos + min_tokens = max_tokens; nothing to mask, so spec runs
             let before = tel.snapshot().spec_steps;
@@ -1352,10 +1362,20 @@ fn short_scripted_drafts_behave_alike_on_both_paths() {
 /// for scripted drafts that hit every acceptance pattern.
 #[test]
 fn cost_gate_flipping_between_speculation_and_plain_decode_keeps_output_identical() {
+    cost_gate_flipping(None);
+}
+
+/// The cost gate flipping on the pipelined MTP step (lane mmtp): a plain stretch drops the draft submitted ahead.
+#[test]
+fn cost_gate_flipping_on_the_pipelined_step_keeps_output_identical() {
+    cost_gate_flipping(Some(true));
+}
+
+fn cost_gate_flipping(pipe: Option<bool>) {
     let w = weights(11);
     let (off, _) = engine(&w, None);
     for k in 1..=3 {
-        let (on, tel) = engine_cost(CpuBackend::arc(), &w, Some(k), None, 0, Some((1e9, 1, 2, 5)));
+        let (on, tel) = engine_pipe(CpuBackend::arc(), &w, Some(k), None, 0, Some((1e9, 1, 2, 5)), pipe);
         for p in PROMPTS {
             let (a, b) = (run(&off, req(p, 256)), run(&on, req(p, 256)));
             assert_eq!(a, b, "k {k} prompt {p:?}");
