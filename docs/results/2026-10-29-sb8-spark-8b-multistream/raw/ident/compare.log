@@ -1,0 +1,22 @@
+EQUAL  t0.7-k20-p1.0/n1
+DIFFER t0.7-k20-p1.0/n4
+DIFFER t0.7-k20-p1.0/n16
+DIFFER t1.0-k40-p0.9/n1
+DIFFER t1.0-k40-p0.9/n4
+DIFFER t1.0-k40-p0.9/n16
+EQUAL  t0.8-k64-p0.5/n1
+DIFFER t0.8-k64-p0.5/n4
+DIFFER t0.8-k64-p0.5/n16
+EQUAL  t1.3-k8-p0.95/n1
+DIFFER t1.3-k8-p0.95/n4
+DIFFER t1.3-k8-p0.95/n16
+EQUAL  t0.6-k1-p1.0/n1
+EQUAL  t0.6-k1-p1.0/n4
+DIFFER t0.6-k1-p1.0/n16
+DIFFER t0.8-p0.9-nok/n1
+DIFFER t0.8-p0.9-nok/n4
+DIFFER t0.8-p0.9-nok/n16
+EQUAL  greedy/n1
+EQUAL  greedy/n4
+DIFFER greedy/n16
+7/21 cells identical, 9408 token ids compared

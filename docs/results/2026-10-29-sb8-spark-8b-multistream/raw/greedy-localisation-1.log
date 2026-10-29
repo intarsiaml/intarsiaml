@@ -1,0 +1,26 @@
+fleetq: #6623 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/sb8-greedy.sh
+== mb16 env[X=1] args[--recipe /home/nvidia/intarsiaml-sb8/qwen3-mb16.toml --max-batch 16]
+n=4 rep=0: IDENTICAL
+n=4 rep=1: IDENTICAL
+n=5 rep=0: IDENTICAL
+n=5 rep=1: DIFFER (stream, first diff pos) [(4, 48)]
+n=8 rep=0: DIFFER (stream, first diff pos) [(4, 48), (5, 3)]
+n=8 rep=1: DIFFER (stream, first diff pos) [(4, 48), (5, 62)]
+n=9 rep=0: DIFFER (stream, first diff pos) [(4, 48), (5, 62)]
+n=9 rep=1: DIFFER (stream, first diff pos) [(4, 48), (5, 62), (8, 3)]
+n=12 rep=0: DIFFER (stream, first diff pos) [(4, 48), (5, 62), (8, 3)]
+n=12 rep=1: DIFFER (stream, first diff pos) [(4, 48), (5, 62), (8, 3)]
+n=16 rep=0: DIFFER (stream, first diff pos) [(4, 48), (8, 3)]
+n=16 rep=1: DIFFER (stream, first diff pos) [(4, 48), (5, 3), (8, 3)]
+== mb16-knobs0 env[INTARSIA_CUDA_FP8_ROWS_Q=0 INTARSIA_CUDA_BF16_ROWS_SPLIT=0 INTARSIA_CUDA_NVFP4_ROWS_SPLIT=0 INTARSIA_CUDA_NVFP4_ROWS_FULL=0] args[--recipe /home/nvidia/intarsiaml-sb8/qwen3-mb16.toml --max-batch 16]
+n=8 rep=0: IDENTICAL
+n=8 rep=1: DIFFER (stream, first diff pos) [(4, 48), (5, 3)]
+n=16 rep=0: DIFFER (stream, first diff pos) [(4, 48), (5, 3)]
+n=16 rep=1: DIFFER (stream, first diff pos) [(4, 48), (5, 3), (8, 3)]
+== mb8 env[X=1] args[--max-batch 8]
+n=4 rep=0: IDENTICAL
+n=4 rep=1: IDENTICAL
+n=8 rep=0: IDENTICAL
+n=8 rep=1: DIFFER (stream, first diff pos) [(4, 48), (5, 3)]
+== done
+fleetq: #6623 done (exit 0)
