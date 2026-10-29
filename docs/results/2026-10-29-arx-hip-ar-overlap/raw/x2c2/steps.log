@@ -1,0 +1,17 @@
+04:45:16 guard: [guard] radiance stopped 2026-10-29 04:45:16
+04:45:16 item 1: starting server rec+spoff+m35
+04:45:46 item 1 rec+spoff+m35 speed: exit 0 results/20261029-044533-arx-rec_spoff_m35-arx-x2c2-rec_spoff_m35-1/result.json
+04:45:52 item 2 rec+spoff+m35 texts2: short-0 bb1f3acae6de 1030 chars, 256 tokens, 1.4s|4k-0 f71dc2314b31 1109 chars, 256 tokens, 1.7s|16k-3 690670ba1f7e 911 chars, 256 tokens, 2.7s|
+04:45:52 item 3: starting server p1+bin=arx-dev-cli+spoff+m35
+04:46:16 item 3 p1+bin=arx-dev-cli+spoff+m35 speed: exit 0 results/20261029-044603-arx-p1_bin_arx-dev-cli_spoff_m35-arx-x2c2-p1_bin_arx-dev-cli_spoff_m35-3/result.json
+04:46:22 item 4 p1+bin=arx-dev-cli+spoff+m35 texts2: short-0 bb1f3acae6de 1030 chars, 256 tokens, 1.4s|4k-0 f71dc2314b31 1109 chars, 256 tokens, 1.7s|16k-3 690670ba1f7e 911 chars, 256 tokens, 2.7s|
+04:46:22 item 5: starting server p1+bin=arx-dev-cli+m35+r2
+04:46:46 item 5 p1+bin=arx-dev-cli+m35+r2 speed: exit 0 results/20261029-044633-arx-p1_bin_arx-dev-cli_m35_r2-arx-x2c2-p1_bin_arx-dev-cli_m35_r2-5/result.json
+04:46:46 item 6: starting server rec+m35+r2
+04:47:10 item 6 rec+m35+r2 speed: exit 0 results/20261029-044657-arx-rec_m35_r2-arx-x2c2-rec_m35_r2-6/result.json
+04:47:10 item 7: starting server rec+m35+r3
+04:47:35 item 7 rec+m35+r3 speed: exit 0 results/20261029-044721-arx-rec_m35_r3-arx-x2c2-rec_m35_r3-7/result.json
+04:47:35 item 8: starting server p1+bin=arx-dev-cli+m35+r3
+04:47:59 item 8 p1+bin=arx-dev-cli+m35+r3 speed: exit 0 results/20261029-044745-arx-p1_bin_arx-dev-cli_m35_r3-arx-x2c2-p1_bin_arx-dev-cli_m35_r3-8/result.json
+04:47:59 done
+04:48:14 guard: [guard] radiance answers 2026-10-29 04:48:14 (after 20 s)

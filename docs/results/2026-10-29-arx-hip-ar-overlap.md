@@ -124,13 +124,78 @@ Notes:
 | decode within 0.5 % | spec off: identical. MTP: not measurable (±5 % between rounds in both arms); decode never pushes |
 | prefill +5 % at 4k | **met**: +9.6 % (MTP), +9.2 % (spec off); 1k +6.0 %, 16k +6.5 % |
 | no prompt length slower | met (1k, 4k, 16k, MTP and spec off) |
-| 120-process soak byte-identical | **not run**: no GPU window left |
+| 120-process soak byte-identical | **met** (ARX2, below): 120 / 120 taps byte-identical to each other and to main's |
 | Mac `cargo test --workspace --release` | 205 suites, 1090 passed, 0 failed (also after merging main `ebf8192a0`, #235); after merging `bfbee3cb6` (#237): 206 suites, 1096 passed, 0 failed |
 | merged tree on tatooine (m15 #6795) | HIP build ok; `tests/ar_push.rs` 4 / 4; 4k CLI prefill 886 -> 813 ms with push (+9.0 %) |
 
-**Verdict: opt-in (`INTARSIA_HIP_AR_PUSH=1`, default off), draft PR.** Correctness and the prefill gate pass. Two things still stand
-between it and default-on: the 120-process soak, and an MTP decode A/B with enough rounds to resolve 0.5 %. To check next: why a
-4107-token prompt (2048 + 2048 + 11) gained only +1.9 % in its one sample.
+**Verdict (ARX2 below): still opt-in (`INTARSIA_HIP_AR_PUSH=1`, default off), draft PR.** The soak and the 27B gates now pass; the default-on rule also asks for
+35B and spec-off decode medians within 0.5 % and prefill not slower anywhere, which the GPU budget could not resolve (see Phase 3).
+
+## Phase 3 (ARX2, 2026-10-29): soak, 27B MTP A/B with a paired nonce, 35B, the 4107-token prompt
+
+Merged `origin/main` (`69fc170ed`, #234 / #235 / #237 / #238) into the branch (LOG.md conflict only: both rows kept in time order); Mac
+`cargo test --workspace --release`: 206 suites, 1098 passed, 0 failed (fleetq #6841). Tatooine tree `~/intarsiaml-arx2`; main = `arx-base-cli`
+(`origin/main`), push = `arx-dev-cli` + `INTARSIA_HIP_AR_PUSH=1`. Scripts: `scripts/arx/` (now for the `-arx2` tree), new `leval.py` (localeval
+with a seeded request nonce: both arms see the same prompts in the same order, so MTP's text-dependent acceptance cancels; before, the uuid nonce
+made MTP decode scatter +-5 % between rounds), `p4107.py`, `speedtab2.py`. Raw: `raw/x2w` (window 1), `raw/x2w2` (window 2), `raw/x2c1`, `raw/x2c2`,
+tables `raw/x2-speedtab.txt`.
+
+**Soak (window 1, `raw/x2w/gates-1`):** 120 fresh tp2 processes of the dev CLI with `INTARSIA_HIP_AR_PUSH=1`, prompt `4k-0` (2610 tokens), MTP k2, 16
+tokens, `INTARSIA_DET_TAP`: 120 / 120 rc 0, 1 distinct id line, **120 / 120 taps byte-identical**, equal to main's (3 base processes, tap md5
+`c006426589a15146614139e4dca54ffb`, the same as PF27b's soak). Push was taken: prefill of the 2610 tokens 917-939 ms (median 929) with push vs 979-982 ms
+on main (-5.4 %).
+
+**27B MTP A/B** (5 interleaved rounds per arm, order alternating; the first main round ran in window 1, the other 9 runs in window 2; median of the
+per-run medians, [min-max] over the 5 runs):
+
+| 27B tp2, MTP | main | push | change |
+|---|---:|---:|---:|
+| prefill 1k (tok/s) | 3983 [3378-3993] | 4242 [3738-4258] | +6.5 % |
+| prefill 4k | 4374 [4330-4384] | 4741 [4450-4748] | +8.4 % |
+| prefill 16k | 3969 [3940-3976] | 4246 [4220-4248] | +7.0 % |
+| decode 1k | 93.0 [93.0-97.5] | 93.3 [93.0-95.3] | +0.3 % |
+| decode 4k | 88.3 [86.7-88.3] | 88.4 [88.3-90.0] | +0.1 % |
+| decode 16k | 75.1 [74.9-78.2] | 75.0 [74.9-79.1] | -0.1 % |
+
+With the paired nonce MTP decode is steady (rounds 93.0 / 88.3 / 75.0 in both arms except round 4, where both arms read high, 95.3-97.5 / 79 / 78). The
+decode medians are within 0.3 %. Prefill is faster at every size in every round (the slowest push round, round 4's 1k at 3738, is still above main's
+3378 in the same round; main's low rounds are a clock/ordering effect, not push). Served texts (256 greedy tokens, `short-0`, `4k-0`, `16k-3`):
+identical push vs main with MTP: `f01c64c1b9ce`, `a36fcaedc82c`, `dec43e3a9546` (the earlier 18 / 18 and 36 / 36 runs were on the pre-merge head).
+
+**The 4107-token prompt** (localeval's 4k filler at 182 sentences = 4106-4108 tokens, chunks 2048 + 2048 + ~11; 181 sentences = 4084 tokens), 3 requests
+per arm in each of 3 rounds (`raw/x2w*/p4107-*`), prefill tok/s, median of the 3 round medians: 182 sentences main 4135 (4120 / 4135 / 4141), push 4465
+(4465 / 4457 / 4568) = **+8.0 %**; 181 sentences main 4322, push 4698 = **+8.7 %**. So the earlier +1.9 % was one noisy sample: the 4107-token prompt
+gains as much as the 4084-token one (the tiny third chunk costs both arms about 3 %).
+
+**35B tp2 (NVFP4)** (`raw/x2c1`, `raw/x2c2`; 3 interleaved rounds per arm for the default spec, 1 pair spec off): the push is a no-op here (the 35B
+does not use `matmul_mxfp4_a8_mma`, the only GEMM that arms the push), so the differences below are noise:
+
+| 35B tp2 | main | push | change |
+|---|---:|---:|---:|
+| prefill 1k / 4k / 16k, default spec | 8849 / 12388 / 11718 | 8791 / 12493 / 11718 | -0.7 / +0.8 / 0.0 % |
+| decode 1k / 4k / 16k, default spec | 190.9 / 188.3 / 179.4 | 191.3 / 187.3 / 179.0 | +0.2 / -0.6 / -0.2 % |
+| prefill 1k / 4k / 16k, spec off (1 pair) | 9022 / 12646 / 11437 | 8931 / 12523 / 11773 | -1.0 / -1.0 / +2.9 % |
+| decode 1k / 4k / 16k, spec off (1 pair) | 191.7 / 180.9 / 190.8 | 190.8 / 188.8 / 178.9 | -0.5 / +4.4 / -6.3 % |
+
+The 35B's own decode reps scatter 175-192 tok/s (peaks to 242) in both arms, so 0.5 % is not resolvable on it with these rounds. Served texts
+(256 greedy tokens, `short-0`, `4k-0`, `16k-3`): identical push vs main with the default spec and with spec off: `bb1f3acae6de`, `f71dc2314b31`,
+`690670ba1f7e`.
+
+**Default-on rule:**
+
+| gate | result |
+|---|---|
+| soak 120 / 120 identical | **met** |
+| ids identical, 27B and 35B | met on the 3 served prompts per model and mode run here (27B MTP, 35B default spec and spec off); the 27B spec-off texts were not re-run on the merged head (18 / 18 on the pre-merge head) |
+| decode medians within 0.5 %, MTP and spec off, both models | 27B MTP **met** (+0.3 / +0.1 / -0.1 %); 27B spec off **not re-measured** on the merged head (W3: identical, push never runs in decode); 35B default spec -0.6 % at 4k (noise: the push does not run on the 35B), 35B spec off one pair at +-4 % scatter: **not resolved** |
+| prefill not slower anywhere, both models | 27B **met**; 35B -0.7 % at 1k (default spec) and -1.0 % (spec off, one pair): noise on a no-op, but **not strictly met** |
+
+**Decision: stays opt-in, draft.** The strict rule fails on the 35B (noise on a path the push does not take) and the 27B spec-off decode was not
+re-run within the GPU cap (window 1 lost about 10 minutes: four items were built with the zsh expansion `$P:speed`, which is a history modifier, so
+the server of item 5 got a binary named `arx-dev-clieed` and waited out its health timeout; the window was stopped at 04:24 and window 2 ran the
+remaining 27B items). If the coordinator accepts "the 35B and spec-off decode cannot differ because the push never runs there", the flip is one line
+(`INTARSIA_HIP_AR_PUSH` default 1 in `comm.rs:317`, `0` opts out, tuning.md row, scoreboard 27B prefill/TTFT rows) and the numbers above (27B prefill
++6.5 / +8.4 / +7.0 %) are the ones for the scoreboard.
 
 ## Coordinator no-op check: #237 (row-invariant CUDA prefill) on HIP
 
@@ -149,6 +214,9 @@ Both cards in one fleetq job, Radiance down and restored (`curl tatooine:8080/v1
 - W2 #6762 (01:02-01:29, 27B push A/B, read-back variant). A first W2 attempt #6759 was stopped after 2 min (its item list was split
   wrongly by zsh); Radiance was restored by #6760.
 - W3 #6784 (01:55-02:29, register variant: A/B, texts, ids, hashes, mixids).
+- ARX2: window 1 #6849 (04:03-04:24, soak 120 + the first 27B round; stopped by SIGTERM, Radiance answered after 20 s), window 2 #6857 (04:25-04:42, 27B MTP rounds,
+  p4107), check 1 #6860 (04:43-04:44, 35B default spec round 1), check 2 (04:45-04:48, 35B spec off, rounds 2-3). Builds #6843 (dev CLI + `ar_push`) and
+  #6842 (main CLI), Mac tests #6841. Radiance answered on :8080 after every job.
 
 Short checks (< 3 min each, both cards): m1 #6725, m2 #6726, m3 #6732, m4 #6733, m5 #6735, m6 #6738, m7 #6743, m8 #6749, m9 #6766,
 m10 #6771, m11 #6773, m12 #6775, m13 #6777, m14 #6779, m15 #6795 (merged tree), #6812 (#237 no-op), m16 #6817 (merged with #237). Builds and Mac tests ran as `--load cpu` jobs.

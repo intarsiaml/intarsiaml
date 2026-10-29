@@ -1,0 +1,53 @@
+[localeval] calibrated: 22.1 tokens/sentence, 92 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.25s prefill=3916 tok/s decode=93.3 tok/s peak=123.7 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=988 ttft=0.23s prefill=4242 tok/s decode=98.6 tok/s peak=125.8 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.23s prefill=4261 tok/s decode=93.0 tok/s peak=134.9 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4085 ttft=0.86s prefill=4755 tok/s decode=72.7 tok/s peak=126.0 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4087 ttft=0.86s prefill=4748 tok/s decode=88.3 tok/s peak=139.2 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4085 ttft=0.86s prefill=4744 tok/s decode=89.9 tok/s peak=148.5 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16651 ttft=3.93s prefill=4240 tok/s decode=76.0 tok/s peak=99.5 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16652 ttft=3.92s prefill=4251 tok/s decode=73.5 tok/s peak=91.9 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16650 ttft=3.92s prefill=4246 tok/s decode=79.1 tok/s peak=104.5 tok/s out=128
+# localeval: arx-p1_bin_arx-dev-cli_r5 — 2026-10-29T04:41
+
+- model: `qwen-arx` on ? (?), url `http://tatooine:8095/v1`
+- thinking: default; run kind: speed; label: arx-x2w2-p1_bin_arx-dev-cli_r5-14
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/intarsiaml/.worktrees/arx2/scripts/arx/leval.py speed arx-p1_bin_arx-dev-cli_r5 --sizes 1024,4096,16384 --gen 128 --reps 3 --label arx-x2w2-p1_bin_arx-dev-cli_r5-14 --recipe HIP_VISIBLE_DEVICES=0,1 arx-dev-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 ( -e INTARSIA_HIP_AR_PUSH=1; lane arx) --wait-idle 60`
+- result file: `results/20261029-044144-arx-p1_bin_arx-dev-cli_r5-arx-x2w2-p1_bin_arx-dev-cli_r5-14/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 arx-dev-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 ( -e INTARSIA_HIP_AR_PUSH=1; lane arx)
+````
+
+## Speed sweep
+
+served `qwen-arx`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 989 | 0.23 | 4242 (3916–4261) * | - | 93.3 (93.0–98.5) | 125.8 (123.7–134.9) | - | - | 128 |
+| 4085 | 0.86 | 4748 (4744–4755) | 4930 | 88.3 (72.7–89.9) | 139.2 (126.0–148.5) | - | - | 128 |
+| 16651 | 3.92 | 4246 (4240–4251) | 4105 | 76.0 (73.5–79.1) | 99.5 (91.9–104.5) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 19.4% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261029-044144-arx-p1_bin_arx-dev-cli_r5-arx-x2w2-p1_bin_arx-dev-cli_r5-14/result.json
+[localeval] logged to unanimis: 14bfd05c-71b4-4929-a86d-fbd28a5571de
