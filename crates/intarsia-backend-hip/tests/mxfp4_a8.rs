@@ -19,6 +19,10 @@
 //! 8. `a8_span_cache_reuses_and_refills` (lane pf27c): calls that reuse one weight's buffers (the backend's span cache: the fold flag read back
 //!    after the first call, later calls launch only the selected path's kernel) give the bits of fresh-buffer calls, foldable and wide-span
 //!    weights, single and pair; a weight rewritten in place gives the new weight's bits.
+//! 9. `a8_norm_quant_is_bitwise_the_pre_pass` (lane fuse27): a prefill rmsnorm / rmsnorm_add whose output the W4A8 GEMMs read quantises it
+//!    for them (`INTARSIA_HIP_NORM_QUANT`): the norm's outputs, and the GEMMs (single and pair) that read its quantised activations, are
+//!    bitwise the plain norm and GEMMs on a copy of the normed rows; the reads are taken (`prequant_hits`); a rewrite of the normed rows
+//!    in place is seen (the next GEMM runs its own pre-pass on the new rows).
 //!
 //! Needs a GPU: skips without one. INTARSIA_HIP_MXFP4_A8_PERGROUP=1 reruns 1-3 on the per-group path.
 #![cfg(ik_hip)]
@@ -29,7 +33,7 @@ use intarsia_core::quant::cases::{matmul_mxfp4_case, matmul_mxfp4_pair_case};
 use intarsia_core::quant::reference::matmul_mxfp4_a8;
 use intarsia_core::quant::Mxfp4Act;
 use intarsia_core::rng::SplitMix64;
-use intarsia_core::{DType, HostTensor, OpCall, ShapeInfo, TensorRef};
+use intarsia_core::{DType, HostTensor, Op, OpAttrs, OpCall, ShapeInfo, TensorRef};
 use std::sync::Arc;
 
 fn device() -> Option<Arc<dyn Backend>> {
@@ -287,6 +291,89 @@ fn a8_span_cache_reuses_and_refills() {
             widen(&mut a, 4, k); // the second weight takes the per-group path, the first the fold path
         }
         check("matmul_mxfp4_pair_a8_mma", &a, &b, &format!("M={m} N0={n0} N1={n1} K={k} wide={wide}"));
+    }
+}
+
+#[test]
+fn a8_norm_quant_is_bitwise_the_pre_pass() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(113);
+    let put = |t: &HostTensor| {
+        let b = hip.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
+        hip.upload(&b, 0, &t.data, 0).unwrap();
+        TensorRef::new(b, t.dtype, &t.shape)
+    };
+    let get = |t: &TensorRef| {
+        hip.synchronize(0).unwrap();
+        let mut v = vec![0u8; t.nbytes()];
+        hip.download(&t.buf, t.offset, &mut v, 0).unwrap();
+        v
+    };
+    // a GEMM call (its scratch, fresh outputs) of `hc`'s weights on the activation `x`
+    let gemm = |kernel: &str, hc: &HostCall, x: &TensorRef| -> Vec<Vec<u8>> {
+        let mut ins: Vec<TensorRef> = hc.inputs.iter().map(put).collect();
+        ins[0] = x.clone();
+        let outs: Vec<TensorRef> = hc.outputs.iter().map(|o| put(&HostTensor::zeros(o.dtype, &o.shape))).collect();
+        let mut call = OpCall::new(hc.op, ins, outs.clone(), hc.attrs.clone());
+        let kern = hip.kernels().into_iter().find(|k| k.name == kernel).unwrap();
+        let need = kern.scratch_bytes(&ShapeInfo::from_call(&call)).max(16);
+        call.scratch = Some(TensorRef::new(hip.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
+        hip.launch(kernel, &call, 0).unwrap();
+        outs.iter().map(get).collect()
+    };
+    let bf = |rng: &mut SplitMix64, shape: &[usize], scale: f32| {
+        HostTensor::from_f32_as(DType::Bf16, shape, &rng.normal_vec(shape.iter().product(), scale))
+    };
+    // (rows, H, N0, N1, residual add): the 27B tp2 points (FFN gate | up, GDN b | a, a 1810-row chunk), a K % 64 == 32 tail, the
+    // smallest direct M
+    for (m, h, n0, n1, add) in
+        [(2048usize, 5120usize, 8704usize, 8704usize, true), (1810, 5120, 24, 24, true), (2048, 5120, 1024, 512, false), (300, 4128, 640, 200, true), (65, 2080, 512, 64, false)]
+    {
+        let what = format!("M={m} H={h} N={n0}|{n1} add={add}");
+        let (x, res) = (put(&bf(&mut rng, &[m, h], 1.0)), put(&bf(&mut rng, &[m, h], 3.0)));
+        let w = put(&bf(&mut rng, &[h], 0.2));
+        let (n, sum) = (put(&HostTensor::zeros(DType::Bf16, &[m, h])), put(&HostTensor::zeros(DType::Bf16, &[m, h])));
+        let attrs = OpAttrs { eps: 1e-6, w_offset: 1.0, ..Default::default() };
+        let norm = || {
+            let (op, kernel, ins, outs) = if add {
+                (Op::RmsNormAdd, "rmsnorm_add_bf16", vec![x.clone(), res.clone(), w.clone()], vec![n.clone(), sum.clone()])
+            } else {
+                (Op::RmsNorm, "rmsnorm_bf16", vec![x.clone(), w.clone()], vec![n.clone()])
+            };
+            hip.launch(kernel, &OpCall::new(op, ins, outs, attrs.clone()), 0).unwrap();
+        };
+        let single = matmul_mxfp4_case(&mut rng, m, n0, h, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+        let pair = matmul_mxfp4_pair_case(&mut rng, m, n0, n1, h, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+        // the reference: the GEMMs on a copy of the normed rows (no norm produced that buffer: their own pre-pass)
+        norm();
+        let (n_want, sum_want) = (get(&n), get(&sum));
+        let copy = put(&HostTensor::new(DType::Bf16, vec![m, h], n_want.clone()).unwrap());
+        let want_single = gemm("matmul_mxfp4_a8_mma", &single, &copy);
+        let want_pair = gemm("matmul_mxfp4_pair_a8_mma", &pair, &copy);
+        let hits0 = intarsia_backend_hip::prequant_hits();
+        for round in 0..3 {
+            norm();
+            assert!(get(&n) == n_want, "{what}: round {round}, the normed rows differ from the plain norm");
+            if add {
+                assert!(get(&sum) == sum_want, "{what}: round {round}, the residual sum differs from the plain norm");
+            }
+            assert!(gemm("matmul_mxfp4_a8_mma", &single, &n) == want_single, "{what}: round {round}, the single GEMM differs");
+            assert!(gemm("matmul_mxfp4_pair_a8_mma", &pair, &n) == want_pair, "{what}: round {round}, the pair GEMM differs");
+        }
+        // every round after the first quantises in the norm (the first GEMM read of round 0 asks for it, if no earlier case did); with the
+        // direct kernel off (INTARSIA_HIP_MXFP4_A8_DIRECT=0) nothing takes the cached path, so nothing reads them
+        let hits = intarsia_backend_hip::prequant_hits() - hits0;
+        if std::env::var("INTARSIA_HIP_MXFP4_A8_DIRECT").is_ok_and(|v| v == "0") || std::env::var("INTARSIA_HIP_NORM_QUANT").is_ok_and(|v| v == "0") {
+            assert_eq!(hits, 0, "{what}: quantised rows read with the direct kernel or the knob off");
+        } else {
+            assert!(hits >= 4, "{what}: the GEMMs did not read the norm's quantised rows ({hits} reads)");
+        }
+        // the normed rows rewritten in place: the GEMMs see the new rows
+        norm();
+        let other = bf(&mut rng, &[m, h], 1.0);
+        hip.upload(&n.buf, n.offset, &other.data, 0).unwrap();
+        let copy2 = put(&other);
+        assert!(gemm("matmul_mxfp4_pair_a8_mma", &pair, &n) == gemm("matmul_mxfp4_pair_a8_mma", &pair, &copy2), "{what}: a rewrite of the normed rows was not seen");
     }
 }
 
