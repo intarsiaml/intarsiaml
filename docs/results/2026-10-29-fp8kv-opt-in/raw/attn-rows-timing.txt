@@ -1,0 +1,14 @@
+fleetq: #7068 running on spark2: bash -c 'ssh -n -o BatchMode=yes spark2 "export FLEETQ_JOB=$FLEETQ_JOB; for p in 1100 4000 16000; do for kv in bf16 fp8_e4m3; do ATTNT_M=8,16 ATTNT_POS=\$p ATTNT_KV=\$kv timeout 50 ~/intarsiaml-fp8kv/bin/row_tables-dev --ignored --exact timing_attn_rows --nocapture 2>&1 | grep -a ^ATTNT; done; done"'
+ATTNT attn_decode_bf16_splitkv_rows M=8 pos~1100 97.1 us/call 199 GB/s
+ATTNT attn_decode_bf16_splitkv_rows M=16 pos~1100 186.8 us/call 209 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=8 pos~1100 65.7 us/call 147 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=16 pos~1100 112.2 us/call 174 GB/s
+ATTNT attn_decode_bf16_splitkv_rows M=8 pos~4000 317.3 us/call 211 GB/s
+ATTNT attn_decode_bf16_splitkv_rows M=16 pos~4000 637.8 us/call 210 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=8 pos~4000 190.8 us/call 175 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=16 pos~4000 372.8 us/call 180 GB/s
+ATTNT attn_decode_bf16_splitkv_rows M=8 pos~16000 1143.5 us/call 230 GB/s
+ATTNT attn_decode_bf16_splitkv_rows M=16 pos~16000 2295.0 us/call 230 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=8 pos~16000 603.0 us/call 218 GB/s
+ATTNT attn_decode_f8kv_splitkv_rows M=16 pos~16000 1196.3 us/call 220 GB/s
+fleetq: #7068 done (exit 0)

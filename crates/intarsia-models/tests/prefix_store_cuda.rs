@@ -39,7 +39,13 @@ fn model_dir() -> PathBuf {
 fn engine(store: bool) -> Arc<dyn Engine> {
     let backend = intarsia_backend_cuda::create(0).unwrap();
     let opts = EngineOptions {
-        load: LoadOptions { max_seq: 8192, profile_every: 0, ..Default::default() },
+        // INTARSIA_TEST_KV_DTYPE=fp8_e4m3 (lane fp8kv): the opt-in fp8 cache (default: the recipe's bf16)
+        load: LoadOptions {
+            max_seq: 8192,
+            profile_every: 0,
+            kv_dtype: std::env::var("INTARSIA_TEST_KV_DTYPE").ok().map(|v| intarsia_core::DType::parse(&v).unwrap()),
+            ..Default::default()
+        },
         prefix_store: store.then(|| PrefixStoreConfig { host_bytes: 16 << 30, ..Default::default() }),
         max_batch: Some(1),
         ..Default::default()

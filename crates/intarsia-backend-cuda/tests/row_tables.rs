@@ -1,6 +1,6 @@
 //! G-B for the row-table kernels of batched decode (R3a, `OpCall::rows`): row r of one row-table launch is BITWISE equal to the
 //! one-row (T = 1) launch of the solo decode step on sequence r alone, for `gdn_conv_bf16_rows`, `gdn_delta_rule_bf16_split_rows`,
-//! `kv_append_bf16_rows`, `attn_decode_bf16_splitkv_rows`, and `rope_bf16` with one position per token. Every row count from 1
+//! `kv_append_bf16_rows`, `attn_decode_bf16_splitkv_rows` (and its fp8_e4m3-cache twin), and `rope_bf16` with one position per token. Every row count from 1
 //! to 16, on the Qwen3.6-35B-A3B and Qwen3-8B shapes (and the dk = 64 delta rule), with states, caches and positions that differ
 //! per row. States and caches are compared as bytes after the launch (the in-place update is part of the contract); no tolerance.
 //!
@@ -257,12 +257,12 @@ fn kv_append_rows_are_the_solo_append() {
     println!("G-B kv_append_bf16_rows: {total} bytes identical to the solo launches (M 1..=16, 2 shapes)");
 }
 
-#[test]
-fn attn_decode_rows_are_the_solo_decode() {
-    let Some(rig) = Rig::new("attn_decode_rows") else { return };
-    let mut rng = SplitMix64::new(14);
+/// Row r of the row-table decode attention `rows_kernel` over caches of `kv` dtype is the solo launch `solo` on row r alone.
+fn attn_rows_case(rig: &Rig, seed: u64, kv: DType, solo: &str, rows_kernel: &str) -> usize {
+    let mut rng = SplitMix64::new(seed);
     let cap = 1200usize;
     let mut total = 0;
+    let cache = |vals: &[f32], shape: &[usize]| rig.put(&HostTensor::from_f32_as(kv, shape, vals));
     // 35B attention (16 q heads, 2 kv heads, 256), Qwen3-8B (32, 8, 128), and the other head dims / group sizes the kernel's
     // `when` admits (D = 32 / 64, a MHA group of 1, non power of two groups 3 and 5, the largest group 8), which no model here runs
     // but the registry would select
@@ -272,18 +272,18 @@ fn attn_decode_rows_are_the_solo_decode() {
             let q = nasty(&mut rng, m * nh * d, 1.0);
             let qt = rig.bf16(&q, &[m, nh, d]);
             let pos: Vec<usize> = (0..m).map(|r| ps[(r * 7 + m) % ps.len()]).collect();
-            let kv: Vec<(Vec<f32>, Vec<f32>)> = (0..m).map(|_| (nasty(&mut rng, nkv * cap * d, 1.0), nasty(&mut rng, nkv * cap * d, 1.0))).collect();
+            let kvs: Vec<(Vec<f32>, Vec<f32>)> = (0..m).map(|_| (nasty(&mut rng, nkv * cap * d, 1.0), nasty(&mut rng, nkv * cap * d, 1.0))).collect();
             let scale = 1.0 / (d as f32).sqrt();
             let mut want = Vec::new();
             for r in 0..m {
-                let (kc, vc) = (rig.bf16(&kv[r].0, &[nkv, cap, d]), rig.bf16(&kv[r].1, &[nkv, cap, d]));
+                let (kc, vc) = (cache(&kvs[r].0, &[nkv, cap, d]), cache(&kvs[r].1, &[nkv, cap, d]));
                 let o = rig.poison(nh * d * 2, DType::Bf16, &[1, nh, d]);
                 let attrs = OpAttrs { pos0: pos[r], scale, n_heads: nh, n_kv_heads: nkv, head_dim: d, kv_cap: cap, ..Default::default() };
-                rig.launch("attn_decode_bf16_splitkv", OpCall::new(Op::AttnDecode, vec![rows_of(&qt, r), kc, vc], vec![o.clone()], attrs));
+                rig.launch(solo, OpCall::new(Op::AttnDecode, vec![rows_of(&qt, r), kc, vc], vec![o.clone()], attrs));
                 want.extend(rig.down(&o));
             }
-            let kcs: Vec<TensorRef> = (0..m).map(|r| rig.bf16(&kv[r].0, &[nkv, cap, d])).collect();
-            let vcs: Vec<TensorRef> = (0..m).map(|r| rig.bf16(&kv[r].1, &[nkv, cap, d])).collect();
+            let kcs: Vec<TensorRef> = (0..m).map(|r| cache(&kvs[r].0, &[nkv, cap, d])).collect();
+            let vcs: Vec<TensorRef> = (0..m).map(|r| cache(&kvs[r].1, &[nkv, cap, d])).collect();
             let entries: Vec<Vec<&TensorRef>> = (0..m).map(|r| vec![&kcs[r], &vcs[r]]).collect();
             let ptrs = rig.table(&entries, 2);
             let pt: Vec<u8> = pos.iter().flat_map(|p| (*p as i32).to_le_bytes()).collect();
@@ -293,11 +293,27 @@ fn attn_decode_rows_are_the_solo_decode() {
             let mut call = OpCall::new(Op::AttnDecode, vec![qt.clone(), kcs[0].clone(), vcs[0].clone()], vec![o.clone()], attrs);
             call.rows = Some(rig.tab(ptrs, 0, 0));
             call.pos = Some(post);
-            rig.launch("attn_decode_bf16_splitkv_rows", call);
-            total += same(&format!("attn nh={nh} nkv={nkv} d={d} m={m}"), &rig.down(&o), &want);
+            rig.launch(rows_kernel, call);
+            total += same(&format!("attn {kv} nh={nh} nkv={nkv} d={d} m={m}"), &rig.down(&o), &want);
         }
     }
+    total
+}
+
+#[test]
+fn attn_decode_rows_are_the_solo_decode() {
+    let Some(rig) = Rig::new("attn_decode_rows") else { return };
+    let total = attn_rows_case(&rig, 14, DType::Bf16, "attn_decode_bf16_splitkv", "attn_decode_bf16_splitkv_rows");
     println!("G-B attn_decode_bf16_splitkv_rows: {total} bytes identical to the solo launches (M 1..=16, 7 shapes, positions 0..1199)");
+}
+
+/// The fp8_e4m3-cache twin (opt-in `--kv-dtype fp8_e4m3`): the same contract against `attn_decode_f8kv_splitkv`, so a batched
+/// fp8 step is batch-invariant exactly as the bf16 one (run once more under INTARSIA_ATTN_ROWS_PERSIST=0 for the full grid).
+#[test]
+fn attn_decode_f8kv_rows_are_the_solo_decode() {
+    let Some(rig) = Rig::new("attn_decode_f8kv_rows") else { return };
+    let total = attn_rows_case(&rig, 15, DType::Fp8E4m3, "attn_decode_f8kv_splitkv", "attn_decode_f8kv_splitkv_rows");
+    println!("G-B attn_decode_f8kv_splitkv_rows: {total} bytes identical to the solo launches (M 1..=16, 7 shapes, positions 0..1199)");
 }
 
 #[test]
@@ -472,21 +488,24 @@ fn timing_gdn_rows() {
 /// stage 1 + combine) at the 35B shape (16 q heads, 2 kv heads of 256) for M rows, cycling over 10 layers' own K / V caches per
 /// row so the caches come from DRAM as in the decode step. Row r attends ATTNT_POS + 37 * r % 200 keys (default 1100, the
 /// served ~1k-token prompts). Prints `ATTNT M us/call GB/s` (K + V bytes read). INTARSIA_ATTN_ROWS_PERSIST applies as in the engine.
+/// ATTNT_KV=fp8_e4m3 times the fp8-cache twin `attn_decode_f8kv_splitkv_rows` on e4m3 caches instead (lane fp8kv).
 #[test]
 #[ignore]
 fn timing_attn_rows() {
     let Some(rig) = Rig::new("timing_attn_rows") else { return };
     let mut rng = SplitMix64::new(15);
-    let (nh, nkv, d, layers, cap) = (16usize, 2usize, 256usize, 10usize, 1400usize);
     let ms: Vec<usize> = std::env::var("ATTNT_M").ok().map(|v| v.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 4, 8, 16]);
     let base: usize = std::env::var("ATTNT_POS").ok().map(|v| v.parse().unwrap()).unwrap_or(1100);
+    let (nh, nkv, d, layers, cap) = (16usize, 2usize, 256usize, 10usize, (base + 300).max(1400));
     let mmax = *ms.iter().max().unwrap();
-    let init = HostTensor::from_f32_as(DType::Bf16, &[nkv * cap * d], &rng.normal_vec(nkv * cap * d, 1.0)).data;
+    let kv = std::env::var("ATTNT_KV").ok().map(|v| DType::parse(&v).unwrap()).unwrap_or(DType::Bf16);
+    let name = if kv == DType::Bf16 { "attn_decode_bf16_splitkv_rows" } else { "attn_decode_f8kv_splitkv_rows" };
+    let init = HostTensor::from_f32_as(kv, &[nkv * cap * d], &rng.normal_vec(nkv * cap * d, 1.0)).data;
     let caches: Vec<Vec<(TensorRef, TensorRef)>> = (0..layers)
-        .map(|_| (0..mmax).map(|_| (rig.put_bytes(&init, DType::Bf16, &[nkv, cap, d]), rig.put_bytes(&init, DType::Bf16, &[nkv, cap, d]))).collect())
+        .map(|_| (0..mmax).map(|_| (rig.put_bytes(&init, kv, &[nkv, cap, d]), rig.put_bytes(&init, kv, &[nkv, cap, d]))).collect())
         .collect();
     let scale = 1.0 / (d as f32).sqrt();
-    let k = rig.be.kernels().into_iter().find(|k| k.name == "attn_decode_bf16_splitkv_rows" && k.op == Op::AttnDecode).expect("registered");
+    let k = rig.be.kernels().into_iter().find(|k| k.name == name && k.op == Op::AttnDecode).expect("registered");
     for &m in &ms {
         let pos: Vec<usize> = (0..m).map(|r| (base + 37 * r % 200).min(cap - 1)).collect();
         let pt: Vec<u8> = pos.iter().flat_map(|p| (*p as i32).to_le_bytes()).collect();
@@ -512,7 +531,7 @@ fn timing_attn_rows() {
             rig.be.synchronize(0).unwrap();
             let t0 = std::time::Instant::now();
             for call in calls.iter() {
-                rig.be.launch("attn_decode_bf16_splitkv_rows", call, 0).unwrap();
+                rig.be.launch(name, call, 0).unwrap();
             }
             rig.be.synchronize(0).unwrap();
             let us = t0.elapsed().as_secs_f64() * 1e6 / calls.len() as f64;
@@ -520,7 +539,7 @@ fn timing_attn_rows() {
                 best = best.min(us);
             }
         }
-        let bytes: usize = pos.iter().map(|p| 2 * nkv * (p + 1) * d * 2).sum();
-        println!("ATTNT attn_decode_bf16_splitkv_rows M={m} pos~{base} {best:.1} us/call {:.0} GB/s", bytes as f64 / best / 1e3);
+        let bytes: usize = pos.iter().map(|p| 2 * nkv * (p + 1) * d * kv.size_bytes()).sum();
+        println!("ATTNT {name} M={m} pos~{base} {best:.1} us/call {:.0} GB/s", bytes as f64 / best / 1e3);
     }
 }

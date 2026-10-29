@@ -40,8 +40,8 @@ final_norm = "model.norm"
 lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
 
 [defaults]
-# Phase 0 CPU/CUDA support bf16 KV. fp8_e4m3 KV is accepted by the cpu oracle and the registry
-# but not yet by the GPU kernels.
+# bf16 KV cache. fp8_e4m3 (`--kv-dtype fp8_e4m3`, or this key) is an opt-in on the cpu oracle, CUDA and HIP: it halves KV
+# memory and traffic and changes outputs (docs/tuning.md).
 kv_dtype = "bf16"
 # Most sequences `--max-batch` may decode together (continuous batching on Metal, CUDA and HIP; the row-exact kernels
 # take 8 rows on Metal, 16 on CUDA and HIP; the backend's own cap applies on top, so Metal still stops at 8). Batching is

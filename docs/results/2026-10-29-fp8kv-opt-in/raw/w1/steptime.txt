@@ -1,0 +1,16 @@
+== step kv=bf16 12:16:42
+STEP B=8 ms 28.924 29.220 29.117
+STEP B=16 ms 43.078 44.989 44.369
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 51.54s
+== step kv=fp8_e4m3 12:17:34
+STEP B=8 ms 28.367 30.782 30.702
+STEP B=16 ms 42.528 44.502 44.309
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 51.62s
+== step kv=fp8_e4m3 12:18:26
+STEP B=8 ms 28.308 30.646 30.727
+STEP B=16 ms 42.558 44.680 44.401
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 52.07s
+== step kv=bf16 12:19:19
+STEP B=8 ms 28.916 29.252 29.129
+STEP B=16 ms 42.950 44.865 44.029
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 50.11s

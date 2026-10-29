@@ -115,6 +115,9 @@ int ik_gdn_delta_rule_bf16_split_rows(const ik_tensor* qkv, const ik_tensor* a, 
                                       const ik_tensor* tab, int64_t stride, int64_t index, int64_t byte_off, void* stream);
 int ik_kv_append_bf16_rows(const ik_tensor* new_kv, const ik_tensor* cache0, const ik_tensor* tab, int64_t stride,
                            int64_t index, const ik_tensor* pos, void* stream);
+int ik_attn_decode_f8kv_splitkv_rows(const ik_tensor* q, const ik_tensor* kc0, const ik_tensor* vc0, float scale, ik_tensor* out,
+                                     const ik_scratch* scratch, const ik_tensor* tab, int64_t stride, int64_t index,
+                                     const ik_tensor* pos, void* stream);
 int ik_attn_decode_bf16_splitkv_rows(const ik_tensor* q, const ik_tensor* kc0, const ik_tensor* vc0, float scale, ik_tensor* out,
                                      const ik_scratch* scratch, const ik_tensor* tab, int64_t stride, int64_t index,
                                      const ik_tensor* pos, void* stream);
