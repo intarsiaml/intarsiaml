@@ -11,7 +11,7 @@ Branch `lane-pf27/prefill`, built on origin/main `318d508fb` (PR #224). Host tat
 | Lever | The W4A8 prefill GEMM (`matmul_mxfp4_a8_mma`). New `a8_direct_kernel`: the activation pre-pass writes the fp8 tokens in WMMA fragment order, each wave loads its token fragments straight from global memory (scalar base + lane offset, one stage ahead, LDS-only stage barrier), only the weights go through LDS. Tile 64 features x 512 tokens (M >= 768), else 64 x 256. **Bitwise equal output** (same WMMA operands in the same order, same epilogue). |
 | GEMM | Call time (kernel + pre-passes) over the five 27B tp2 shapes **-16.3% at M = 2048** (4895 -> 4098 us), -17.6% at 1024, -15.3% at 4096; 164 -> 193..200 TFLOP/s per shape. |
 | Prefill, localeval (W2) | 3 interleaved rounds, MTP on: **1k / 4k / 16k x1.063 / x1.076 / x1.067** (3483 / 3789 / 3543 -> 3703 / 4076 / 3782 tok/s). MTP off, 2 rounds: x1.024 / x1.069 / x1.059. Decode MTP off x1.010 / x1.004 / x1.004. |
-| Gap | 4k: 0.64x -> 0.68x the vLLM-fork (5994), target 0.80x **not reached**. |
+| Gap | vs the scoreboard's best same-quant numbers (Radiance 1.12.0 5214 / 5994 / 5869, R3): 0.68 / 0.64 / 0.61x -> **0.71 / 0.68 / 0.64x**; vs the vLLM-fork (4k 5399, 16k 5305, R123 / R126 **old**): 4k 0.71 -> 0.75x, 16k 0.67 -> 0.71x. Target 0.80x at 4k (~4800) **not reached**; still rank 3/3. |
 | Gates | All met (table below). |
 | Windows | 3 of 3 (W1 attribution + kernel gates, W2 A/B, W3 ids gate); 5 kernel micro-benchmark jobs under 3 min (not windows). Radiance restored and `/v1/models` on :8080 confirmed before each release: 30 s, 35 s, see W3. |
 
@@ -99,9 +99,13 @@ MTP off (decode check: the decode kernels are unchanged, M <= 64 keeps the old p
 | 4k | 3861 | 4128 | 1.069 | 54.6 | 54.8 | 1.004 |
 | 16k | 3558 | 3770 | 1.059 | 52.0 | 52.2 | 1.004 |
 
+TTFT at 4k (localeval `ttft_s`, median of runs): MTP on 1.078 -> **1.002 s** (runs 1.078 1.058 1.117 / 0.990 1.002 1.029), MTP off 1.058 -> 0.990 s. Radiance native: 0.678 s.
+
 MTP-on decode varies 5-10% run to run (as in GLR / LDF); the 16k x0.969 and 4k x1.075 are that spread, the MTP-off decode is flat.
 
-Competitors at 4k: vLLM-fork 5994 (R126 **old**) -> 0.68x (was 0.64x); Radiance 1.12.0 6133 (TTFT 0.678 s) -> 0.66x.
+Base and branch are both built on `318d508fb`, which predates #225 (all-reduce mode 7 default; lane ARS measured the 27B unchanged by it). The branch is merged with main after #225 for the PR; the GEMM change and the all-reduce mode touch disjoint kernels, and no window was left to re-measure the merged tree.
+
+Competitors (scoreboard row "R9700 27B MXFP4 W4A8, TP2"): Radiance 1.12.0 5214 / 5994 / 5869 (R3, 10-25) -> 0.71 / 0.68 / 0.64x (was 0.68 / 0.64 / 0.61x); vLLM-fork TP2 4k 5399, 16k 5305 (R123, R126 **old**) -> 0.75 / 0.71x. The lane brief called the 5214 / 5994 / 5869 figures the vLLM-fork's; the scoreboard attributes them to Radiance. Either way the 4k target (0.80x of 5994 = 4795) is not reached.
 
 ## 5. Gates
 
@@ -125,7 +129,7 @@ Competitors at 4k: vLLM-fork 5994 (R126 **old**) -> 0.68x (was 0.64x); Radiance 
 | job | kind | what | radiance answered after |
 |---|---|---|---|
 | #6598 | **W1** | attribution traces (base, first direct build), 4k generate timing, a8 tests, hashes, tile timing, kernel traces, admission, plan show | 30 s |
-| m1 | micro, 55 s | 64 x 512 / 256 x 256 / 64 x 512 tiles: timing + hashes | 10 s |
+| m1 | micro, 55 s | 128 x 512 / 256 x 256 / 64 x 512 tiles (features x tokens): timing + hashes | 10 s |
 | m2 | micro | diagnostic builds (timing only) | 10 s |
 | m3 | micro | interleaved WMMA order: timing + hashes | 10 s |
 | m4 | micro | scalar token addressing: timing + hashes | 10 s |
