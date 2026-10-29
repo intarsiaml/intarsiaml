@@ -5,7 +5,7 @@
 #       breal-<name> (the batch_cuda_real test binary -> bin/batch_cuda_real-<name>),
 #       rt-<name> (the row_tables test binary -> bin/row_tables-<name>), qm-<name> (quantmoe -> bin/quantmoe-<name>),
 #       mn-<name> (moe_nvfp4 -> bin/moe_nvfp4-<name>), af-<name> (attn_f8kv -> bin/attn_f8kv-<name>), psc-<name> (prefix_store_cuda -> bin/prefix_store_cuda-<name>),
-#       sass (SASS of kernels/cuda/attention_splitkv.cu, main 867b97145 vs this tree, scripts/fp8kv/sass.sh),
+#       sass (SASS of kernels/cuda/attention_splitkv.cu, BASE_REF (default origin/main) vs this tree, scripts/fp8kv/sass.sh),
 #       res (register / shared-memory use of the MoE decode kernels).
 # REF=<git ref> syncs that commit (git archive) instead of the working tree. One cargo target (spark2 disk is tight).
 set -euo pipefail
@@ -33,8 +33,8 @@ for what in "$@"; do
     rt-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test row_tables --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/row_tables-* | grep -v '\.d$' | head -1) $L/bin/row_tables-${what#rt-}" ;;
     qm-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test quantmoe --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/quantmoe-* | grep -v '\.d$' | head -1) $L/bin/quantmoe-${what#qm-}" ;;
     mn-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test moe_nvfp4 --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/moe_nvfp4-* | grep -v '\.d$' | head -1) $L/bin/moe_nvfp4-${what#mn-}" ;;
-    sass) rsh "rm -rf $L/kchk && mkdir -p $L/kchk/kernels && cp -r $R/kernels/cuda $L/kchk/kernels/"
-          git -C "$REPO" show 867b97145:kernels/cuda/attention_splitkv.cu | ssh -o BatchMode=yes spark2 "cat > $L/kchk/kernels/cuda/attention_splitkv_base.cu"
+    sass) rsh "rm -rf $L/kchk && mkdir -p $L/kchk/kernels && cp -r $R/kernels/cuda $R/kernels/abi $L/kchk/kernels/"
+          git -C "$REPO" show "${BASE_REF:-origin/main}":kernels/cuda/attention_splitkv.cu | ssh -o BatchMode=yes spark2 "cat > $L/kchk/kernels/cuda/attention_splitkv_base.cu"
           ssh -o BatchMode=yes spark2 'bash -s' < "$REPO/scripts/fp8kv/sass.sh" ;;
     res) rsh "cd $R && for o in \$(find target/release/build -name 'moe_decode*.o' | head -1); do cuobjdump --dump-resource-usage \$o | grep -E 'Function|REG' | sed 's/^ *//' | paste - - | grep -E 'down|gate_up' | cut -c1-240; done" ;;
     cli-*) rsh "rm -f $R/target/release/intarsia; cd $R && env INTARSIA_BUILD_STAMP='$STAMP' CARGO_BUILD_JOBS=16 cargo build --release --features cuda -p intarsia-cli 2>&1 | grep -E '^error|Finished' | tail -4; cp $R/target/release/intarsia $L/bin/${what#cli-}; $L/bin/${what#cli-} --version | head -1" ;;
