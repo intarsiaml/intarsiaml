@@ -28,7 +28,7 @@ start() { # log env args
 }
 le() { # label sizes gen conc recipe
   (cd /opt/code/deepeval && uv run localeval speed --url "http://$HN:$PORT/v1" --model intarsia --thinking off --sizes "$2" --gen "$3" --reps 3 \
-    --concurrency "$4" --label "rip2-$1" --recipe "$5" 2>&1 | grep -E "saved|unim|tok/s|cached|^\|" | tail -16)
+    --concurrency "$4" --label "${LPRE:-rip2}-$1" --recipe "$5" 2>&1 | grep -E "saved|unim|tok/s|cached|^\|" | tail -16)
 }
 arm() { # model-tag model round arm
   local tag=$1 M=$2 r=$3 a=$4 env args
@@ -38,15 +38,15 @@ arm() { # model-tag model round arm
   elif [[ $a == A ]]; then env="INTARSIA_ROW_INVARIANT_PREFILL=0"; else env="INTARSIA_ROW_INVARIANT_PREFILL=1"; fi
   args="--backend cuda --model $M --port $PORT --host 0.0.0.0 --served-model-name intarsia --profile-every 0"
   local solo="$args --max-seq 17408 --mem-budget 40" mb="$args --max-seq 8192 --mem-budget 40 --max-batch 16"
-  if start "$tag-prefill-$a-r$r" "$env" "$solo"; then
-    le "$tag-prefill-$a-r$r" 1024,4096,16384 16 1 "env $env $SBIN serve $solo" | tee "$OUT/$tag-prefill-$a-r$r.log"
+  if [[ " ${CELLS:-prefill decode} " == *" prefill "* ]] && start "$tag-prefill-$a-r$r" "$env" "$solo"; then
+    le "$tag-prefill-$a-r$r" "${SIZES:-1024,4096,16384}" 16 1 "env $env $SBIN serve $solo" | tee "$OUT/$tag-prefill-$a-r$r.log"
     stop_server
   fi
-  if start "$tag-decode-$a-r$r" "$env" "$mb"; then
+  if [[ " ${CELLS:-prefill decode} " == *" decode "* ]] && start "$tag-decode-$a-r$r" "$env" "$mb"; then
     le "$tag-decode-$a-r$r" 1024 256 16 "env $env $SBIN serve $mb" | tee "$OUT/$tag-decode-$a-r$r.log"
     stop_server
   fi
 }
-for r in $(seq 1 "${ROUNDS:-3}"); do for a in A B; do arm 8b "$M8" "$r" "$a"; done; done
-for r in $(seq 1 "${ROUNDS35:-0}"); do for a in A B; do arm 35b "$M35" "$r" "$a"; done; done
+for ((r = 1; r <= ${ROUNDS:-3}; r++)); do for a in A B; do arm 8b "$M8" "$r" "$a"; done; done
+for ((r = 1; r <= ${ROUNDS35:-0}; r++)); do for a in A B; do arm 35b "$M35" "$r" "$a"; done; done
 echo "== done"

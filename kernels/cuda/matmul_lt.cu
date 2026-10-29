@@ -9,14 +9,14 @@
 // With one algorithm and no split-K, each output element is one CTA's K loop in one fixed order whatever M is, so row m of an
 // M-row call is bitwise row m of any other call over the same row (tests/row_invariance.rs).
 //
-// The primary is slow at some row counts (~1k rows: 1.24x cuBLAS, its tile wastes a wave). Each call of M rows therefore runs
-// the algorithm cuBLASLt's heuristic picks for M (32 MB workspace preference, as cublasGemmEx) when that pick has split-K 1, no
-// workspace, and is PROVEN bitwise equal to the primary: once per (N, K, algorithm), on a fixed random probe (kProbeRows rows of
-// wide-magnitude bf16 against the call's own weights). Most split-K-1 cuBLASLt kernels on sm_121 (mma.sync, one sequential K
-// loop per output) are equal to each other whatever their tile; the others (sliced-K, a different MMA shape) differ in almost
-// every output and fail the probe, and M then runs the primary. A row's bits are thus the primary's at every M. A call inside a
-// stream capture, which cannot run the probe, runs the primary unless its M is already decided. INTARSIA_INV_SINGLE=1 runs the
-// primary at every M (lane rip's behaviour).
+// The primary is slow at some row counts (~1k rows: 1.24x cuBLAS, its tile wastes a wave). Each call of fewer than ref_m() / 2
+// rows therefore runs the algorithm cuBLASLt's heuristic picks for M (32 MB workspace preference, as cublasGemmEx) when that
+// pick has split-K 1, no workspace, and is PROVEN bitwise equal to the primary: once per (N, K, algorithm), on a fixed random
+// probe (kProbeRows rows of wide-magnitude bf16 against the call's own weights). Most split-K-1 cuBLASLt kernels on sm_121
+// (mma.sync, one sequential K loop per output) are equal to each other whatever their tile; the others (sliced-K, a different
+// MMA shape) differ in almost every output and fail the probe, and M then runs the primary. A row's bits are thus the primary's
+// at every M. A call inside a stream capture, which cannot run the probe, runs the primary unless its M is already decided.
+// INTARSIA_INV_SINGLE=1 runs the primary at every M (lane rip's behaviour).
 //
 // The prefill of a row-invariant pass selects it (OpCall::prefill_inv); ordinary calls keep matmul_bf16 / matmul_bf16_gemv.
 // INTARSIA_LT_DEBUG=1 prints the primary per shape and each probed algorithm.
@@ -272,7 +272,10 @@ bool probe_equal(LtState& st, Plan& p, const cublasLtMatmulAlgo_t& a, int64_t N,
 // The algorithm an M-row call runs (index in p.equal): the heuristic's first pick for M that is split-K 1, workspace-free,
 // checks at M and is proven equal to the primary; else the primary. Caller holds the lock.
 int pick(LtState& st, Plan& p, int64_t M, int64_t N, int64_t K, const void* w, cudaStream_t s) {
-    if (single()) return 0;
+    // From ref_m() / 2 rows up the primary itself runs: it is the heuristic's workspace-free choice at ref_m(), and there it beat
+    // the per-M picks (8B layer at 2048 / 3000 / 4096 rows: 0.956 / 0.973 / 0.959 of cuBLAS vs 1.011 / 0.993 / 0.993; with the
+    // picks, 4k-token prefill was -3.5%, docs/results/2026-10-29-rip2-row-invariant-gemm.md).
+    if (single() || M >= ref_m() / 2) return 0;
     auto it = p.by_m.find(M);
     if (it != p.by_m.end()) return it->second;
     cudaStreamCaptureStatus cs = cudaStreamCaptureStatusNone;
