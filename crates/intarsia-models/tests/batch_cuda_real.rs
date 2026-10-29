@@ -1008,7 +1008,7 @@ fn real_qwen3_8b_decode_written_rows_are_not_prefill_rows() {
         l = logits_of(m.forward(&mut held, &[t], HeadMode::LastLogits, None).unwrap());
     }
     assert_eq!(held.len, q.len());
-    assert_eq!(held.inv_len, p.len(), "decode steps advanced the row-invariant prefix");
+    assert_eq!(held.inv_len(), p.len(), "decode steps advanced the row-invariant prefix");
     // the next turn's prompt holds q whole: reuse resumes at the prompt, not at q
     assert_eq!(m.reuse_len(&held, q.len() + 8, q.len()), p.len());
     let mut cold = m.new_state().unwrap();
@@ -1027,7 +1027,7 @@ fn real_qwen3_8b_decode_written_rows_are_not_prefill_rows() {
     assert!(prompt_rows, "the held prompt rows are not the cold prefill rows");
     assert!(!(all_rows && next), "decode-written rows are bitwise prefill rows: the inv_len limit is stricter than needed");
     // what reuse does: back to inv_len, then the rest as a prefill pass
-    held.truncate(held.inv_len, &*m.backend).unwrap();
+    held.truncate(held.inv_len(), &*m.backend).unwrap();
     let lr = logits_of(m.forward_prefill(&mut held, &q[p.len()..], HeadMode::LastLogits, None).unwrap());
     let exact = lr == lc && kv_rows(&m, &held, q.len()) == kv_rows(&m, &cold, q.len());
     eprintln!("RIP resume at inv_len {} then prefill the {GEN} reply tokens: logits and KV {}", p.len(), eq(exact));

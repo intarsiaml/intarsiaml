@@ -1,0 +1,116 @@
+warning: field `spec_dflash` is never read
+    --> crates/intarsia-core/src/engine.rs:1135:5
+     |
+1102 | pub(crate) struct Seq {
+     |                   --- field in this struct
+...
+1135 |     spec_dflash: bool,
+     |     ^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1213:4
+     |
+1213 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: unreachable pattern
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:390:13
+    |
+390 |             _ => {}
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:390:13
+    |
+387 |             GenEvent::Token { id, .. } => ids.push(id),
+    |             -------------------------- matches some of the same values
+388 |             GenEvent::Done { finish_reason, cached_tokens, .. } => return (Out { ids, reason: Some(finish_reason) }, cached_tokens),
+    |             --------------------------------------------------- matches some of the same values
+389 |             GenEvent::Error { message, .. } => panic!("request failed: {message}"),
+    |             ------------------------------- matches some of the same values
+390 |             _ => {}
+    |             ^ collectively making this unreachable
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "prefix_reuse_real") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/prefix_reuse_real.rs (target/release/deps/prefix_reuse_real-87d86364fad22268)
+
+running 1 test
+test prefix_reuse_probe ... backend metal prefix_reuse_any_cut false avoid_single_row_prefill true prefill_chunk 2048
+OLDRULE 0 plen 7: logits row0 DIFFER (maxabs 1.913e-1), first logits diff row Some(0), first token flip None
+OLDRULE 1 plen 13: logits row0 DIFFER (maxabs 1.268e-1), first logits diff row Some(0), first token flip None
+OLDRULE 2 plen 7: logits row0 DIFFER (maxabs 1.321e-1), first logits diff row Some(0), first token flip None
+OLDRULE 3 plen 13: logits row0 DIFFER (maxabs 1.152e-1), first logits diff row Some(0), first token flip Some(37)
+OLDRULE 4 plen 15: logits row0 DIFFER (maxabs 1.064e-1), first logits diff row Some(0), first token flip Some(49)
+OLDRULE 5 plen 8: logits row0 DIFFER (maxabs 2.371e-1), first logits diff row Some(0), first token flip Some(63)
+OLDRULE 6 plen 8: logits row0 DIFFER (maxabs 1.750e-1), first logits diff row Some(0), first token flip None
+OLDRULE 7 plen 5: logits row0 DIFFER (maxabs 1.248e-1), first logits diff row Some(0), first token flip None
+OLDRULE 8 plen 13: logits row0 DIFFER (maxabs 1.760e-1), first logits diff row Some(0), first token flip None
+OLDRULE 9 plen 6: logits row0 DIFFER (maxabs 1.573e-1), first logits diff row Some(0), first token flip Some(9)
+OLDRULE 10 plen 6: logits row0 DIFFER (maxabs 1.596e-1), first logits diff row Some(0), first token flip None
+OLDRULE 11 plen 9: logits row0 DIFFER (maxabs 1.383e-1), first logits diff row Some(0), first token flip None
+OLDRULE 12 plen 5: logits row0 DIFFER (maxabs 1.919e-1), first logits diff row Some(0), first token flip None
+OLDRULE 13 plen 6: logits row0 DIFFER (maxabs 1.190e-1), first logits diff row Some(0), first token flip Some(11)
+OLDRULE 14 plen 7: logits row0 DIFFER (maxabs 1.383e-1), first logits diff row Some(0), first token flip None
+OLDRULE 15 plen 6: logits row0 DIFFER (maxabs 1.739e-1), first logits diff row Some(0), first token flip Some(28)
+OLDRULE summary: 16 / 16 prompts' row 0 differ from cold
+SPLIT summary: tail 1 (the (plen-1, 1) split): 16 / 16 differ from one pass; every other split: 16 / 102 differ
+CROSS 0<-5 shared 1 of 7: first logits diff row None
+CROSS 0<-7 shared 1 of 7: first logits diff row None
+CROSS 0<-10 shared 1 of 7: first logits diff row None
+CROSS 0<-12 shared 1 of 7: first logits diff row None
+CROSS 0<-14 shared 1 of 7: first logits diff row None
+CROSS 3<-11 shared 1 of 13: first logits diff row None
+CROSS 5<-0 shared 1 of 8: first logits diff row None
+CROSS 5<-7 shared 1 of 8: first logits diff row None
+CROSS 5<-10 shared 1 of 8: first logits diff row None
+CROSS 5<-12 shared 1 of 8: first logits diff row None
+CROSS 5<-14 shared 1 of 8: first logits diff row None
+CROSS 6<-13 shared 1 of 8: first logits diff row None
+CROSS 7<-0 shared 1 of 5: first logits diff row None
+CROSS 7<-5 shared 1 of 5: first logits diff row None
+CROSS 7<-10 shared 1 of 5: first logits diff row None
+CROSS 7<-12 shared 1 of 5: first logits diff row None
+CROSS 7<-14 shared 1 of 5: first logits diff row None
+CROSS 10<-0 shared 1 of 6: first logits diff row None
+CROSS 10<-5 shared 1 of 6: first logits diff row None
+CROSS 10<-7 shared 1 of 6: first logits diff row None
+CROSS 10<-12 shared 1 of 6: first logits diff row None
+CROSS 10<-14 shared 1 of 6: first logits diff row None
+CROSS 11<-3 shared 1 of 9: first logits diff row None
+CROSS 12<-0 shared 1 of 5: first logits diff row None
+CROSS 12<-5 shared 1 of 5: first logits diff row None
+CROSS 12<-7 shared 1 of 5: first logits diff row None
+CROSS 12<-10 shared 1 of 5: first logits diff row None
+CROSS 12<-14 shared 1 of 5: first logits diff row None
+CROSS 13<-6 shared 1 of 6: first logits diff row None
+CROSS 14<-0 shared 1 of 7: first logits diff row None
+CROSS 14<-5 shared 1 of 7: first logits diff row None
+CROSS 14<-7 shared 1 of 7: first logits diff row None
+CROSS 14<-10 shared 1 of 7: first logits diff row None
+CROSS 14<-12 shared 1 of 7: first logits diff row None
+CROSS summary: 0 / 34 differ
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 375.21s
+

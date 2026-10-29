@@ -1,0 +1,89 @@
+warning: field `spec_dflash` is never read
+    --> crates/intarsia-core/src/engine.rs:1135:5
+     |
+1102 | pub(crate) struct Seq {
+     |                   --- field in this struct
+...
+1135 |     spec_dflash: bool,
+     |     ^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1213:4
+     |
+1213 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: unreachable pattern
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:390:13
+    |
+390 |             _ => {}
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:390:13
+    |
+387 |             GenEvent::Token { id, .. } => ids.push(id),
+    |             -------------------------- matches some of the same values
+388 |             GenEvent::Done { finish_reason, cached_tokens, .. } => return (Out { ids, reason: Some(finish_reason) }, cached_tokens),
+    |             --------------------------------------------------- matches some of the same values
+389 |             GenEvent::Error { message, .. } => panic!("request failed: {message}"),
+    |             ------------------------------- matches some of the same values
+390 |             _ => {}
+    |             ^ collectively making this unreachable
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "prefix_reuse_real") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/prefix_reuse_real.rs (target/release/deps/prefix_reuse_real-87d86364fad22268)
+
+running 1 test
+test reuse_rule_resumes_with_cold_bits ... reuse cuts (plen, resumed at) of the repeated prompts: [(7, 6), (13, 12), (7, 6), (13, 12), (15, 14), (8, 7), (8, 7), (5, 4), (13, 12), (6, 5), (6, 5), (9, 8), (5, 4), (6, 5), (7, 6), (6, 5)]
+
+thread 'reuse_rule_resumes_with_cold_bits' (41107328) panicked at crates/intarsia-models/tests/prefix_reuse_real.rs:303:5:
+16 resumed prefills differ from the cold run:
+repeat of prompt 0 (plen 7, resumed at 6): first differing row 0, maxabs 1.913e-1
+repeat of prompt 1 (plen 13, resumed at 12): first differing row 0, maxabs 1.268e-1
+repeat of prompt 2 (plen 7, resumed at 6): first differing row 0, maxabs 1.321e-1
+repeat of prompt 3 (plen 13, resumed at 12): first differing row 0, maxabs 1.152e-1
+repeat of prompt 4 (plen 15, resumed at 14): first differing row 0, maxabs 1.064e-1
+repeat of prompt 5 (plen 8, resumed at 7): first differing row 0, maxabs 2.371e-1
+repeat of prompt 6 (plen 8, resumed at 7): first differing row 0, maxabs 1.750e-1
+repeat of prompt 7 (plen 5, resumed at 4): first differing row 0, maxabs 1.248e-1
+repeat of prompt 8 (plen 13, resumed at 12): first differing row 0, maxabs 1.760e-1
+repeat of prompt 9 (plen 6, resumed at 5): first differing row 0, maxabs 1.573e-1
+repeat of prompt 10 (plen 6, resumed at 5): first differing row 0, maxabs 1.596e-1
+repeat of prompt 11 (plen 9, resumed at 8): first differing row 0, maxabs 1.383e-1
+repeat of prompt 12 (plen 5, resumed at 4): first differing row 0, maxabs 1.919e-1
+repeat of prompt 13 (plen 6, resumed at 5): first differing row 0, maxabs 1.190e-1
+repeat of prompt 14 (plen 7, resumed at 6): first differing row 0, maxabs 1.383e-1
+repeat of prompt 15 (plen 6, resumed at 5): first differing row 0, maxabs 1.739e-1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    reuse_rule_resumes_with_cold_bits
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 51.65s
+
+error: test failed, to rerun pass `-p intarsia-models --test prefix_reuse_real`

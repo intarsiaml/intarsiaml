@@ -1,0 +1,58 @@
+fleetq: #6768 waiting (#4 in line): in line behind #6763 "prc: plan show 8B base vs new" (claude-f31ccf91) on endor
+fleetq:   #6763 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6763 set, or it will wait for #6763 to be released.
+fleetq: #6768 waiting (#3 in line): in line behind #6764 "noop: build #235" (claude-f31ccf91) on endor
+fleetq:   #6764 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6764 set, or it will wait for #6764 to be released.
+fleetq: #6768 waiting (#2 in line): in line behind #6767 "prc: turn-2 TTFT new vs exact (8B, 1.5k chat)" (claude-f31ccf91) on endor
+fleetq:   #6767 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6767 set, or it will wait for #6767 to be released.
+fleetq: #6768 waiting (#1 in line): needs gpu quiet on endor, but #6767 "prc: turn-2 TTFT new vs exact (8B, 1.5k chat)" (claude-f31ccf91) loads it
+fleetq:   #6767 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6767 set, or it will wait for #6767 to be released.
+fleetq: #6768 running on endor: scripts/prc/served.sh /opt/code/intarsiaml/.worktrees/prc/target/new-intarsia docs/results/2026-10-29-prc-metal-cheap-reuse/raw/served
+== batch4-exact completions vs cold reference (batch4 --no-reuse)
+CONC2  prompt  5 cached 0: IDENTICAL
+CONC2  prompt  9 cached 0: IDENTICAL
+28/28 requests identical to the cold reference
+== batch4-exact chats vs cold reference (batch4 --no-reuse)
+CONC1   chat 3 turn 1 prompt   19 cached 0: IDENTICAL
+CONC1   chat 3 turn 2 prompt   87 cached 0: IDENTICAL
+32/32 requests identical to the cold reference
+== batch4-new completions vs cold reference (batch4 --no-reuse)
+CONC2  prompt  5 cached 6: IDENTICAL
+CONC2  prompt  9 cached 4: IDENTICAL
+28/28 requests identical to the cold reference
+== batch4-new chats vs cold reference (batch4 --no-reuse)
+CONC1   chat 3 turn 1 prompt   19 cached 15: IDENTICAL
+CONC1   chat 3 turn 2 prompt   87 cached 15: IDENTICAL
+32/32 requests identical to the cold reference
+== batch4-old completions vs cold reference (batch4 --no-reuse)
+CONC2  prompt  5 cached 7: DIFFER at token 63
+CONC2  prompt  9 cached 5: DIFFER at token 9
+15/28 requests identical to the cold reference
+== batch4-old chats vs cold reference (batch4 --no-reuse)
+CONC1   chat 3 turn 1 prompt   19 cached 15: IDENTICAL
+CONC1   chat 3 turn 2 prompt   87 cached 15: IDENTICAL
+32/32 requests identical to the cold reference
+== single-exact completions vs cold reference (batch4 --no-reuse)
+CONC2  prompt  5 cached 0: IDENTICAL
+CONC2  prompt  9 cached 0: IDENTICAL
+28/28 requests identical to the cold reference
+== single-exact chats vs cold reference (batch4 --no-reuse)
+CONC1   chat 3 turn 1 prompt   19 cached 0: IDENTICAL
+CONC1   chat 3 turn 2 prompt   87 cached 0: IDENTICAL
+32/32 requests identical to the cold reference
+== single-new completions vs cold reference (batch4 --no-reuse)
+CONC2  prompt  5 cached 0: IDENTICAL
+CONC2  prompt  9 cached 0: IDENTICAL
+28/28 requests identical to the cold reference
+== single-new chats vs cold reference (batch4 --no-reuse)
+CONC1   chat 3 turn 1 prompt   19 cached 3: IDENTICAL
+CONC1   chat 3 turn 2 prompt   87 cached 3: IDENTICAL
+32/32 requests identical to the cold reference
+== single-old completions vs cold reference (batch4 --no-reuse)
+CONC2  prompt  5 cached 0: IDENTICAL
+CONC2  prompt  9 cached 0: IDENTICAL
+26/28 requests identical to the cold reference
+== single-old chats vs cold reference (batch4 --no-reuse)
+CONC1   chat 3 turn 1 prompt   19 cached 3: IDENTICAL
+CONC1   chat 3 turn 2 prompt   87 cached 3: IDENTICAL
+32/32 requests identical to the cold reference
+fleetq: #6768 done (exit 0)
