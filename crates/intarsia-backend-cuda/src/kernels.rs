@@ -55,6 +55,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("gdn_delta_rule_bf16_split_rows", Op::GdnDeltaRule),
     ("kv_append_bf16_rows", Op::KvAppend),
     ("attn_decode_bf16_splitkv_rows", Op::AttnDecode),
+    ("attn_decode_f8kv_splitkv_rows", Op::AttnDecode),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
 ];
@@ -587,6 +588,17 @@ pub fn all() -> Vec<KernelImpl> {
                 .scratch(splitkv_rows_scratch)
                 .priority(-1)
                 .row_table(),
+            // the fp8_e4m3-cache twin (opt-in cache): the rows of `attn_decode_f8kv_splitkv`, which an fp8 cache selects for
+            // one row wherever splitkv_ok holds, so batched decode and the row-table verify keep one launch and the step graph
+            "attn_decode_f8kv_splitkv_rows" => k
+                .acts(bf)
+                .weights([DType::Fp8E4m3])
+                .when(|s| splitkv_ok(s) && (1..=ROWS_MAX).contains(&s.m))
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .scratch(splitkv_rows_scratch)
+                .priority(-1)
+                .row_table(),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT).row_invariant(),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT).row_invariant(),
             other => unreachable!("kernel {other} has no registration"),
@@ -940,10 +952,20 @@ mod tests {
                 assert_eq!(pick(Op::AttnPrefill, m, n, nkv, d, f8).as_deref(), Some("attn_prefill_f8kv_flash"), "T={m}");
             }
         }
-        for name in ["attn_prefill_f8kv_flash", "attn_prefill_f8kv_splitkv", "attn_decode_f8kv_splitkv"] {
+        for name in ["attn_prefill_f8kv_flash", "attn_prefill_f8kv_splitkv", "attn_decode_f8kv_splitkv", "attn_decode_f8kv_splitkv_rows"] {
             let k = all().into_iter().find(|k| k.name == name).unwrap();
             let s = ShapeInfo { m: 1, n_heads: 16, n_kv_heads: 2, head_dim: 256, k: 256, act: Some(DType::Bf16), weight: Some(DType::Bf16), ..Default::default() };
             assert!(!k.accepts(&s), "{name} must not take a bf16 cache");
+        }
+        // the row-table (batched decode) attention follows the cache dtype too, at every row count, and only a rows call takes it
+        let rows_pick = |m: usize, kv: DType| {
+            let s = ShapeInfo { m, n_heads: 16, n_kv_heads: 2, head_dim: 256, k: 256, kv_len: 4096, act: Some(DType::Bf16), weight: Some(kv), ..Default::default() };
+            let ks: Vec<_> = all().into_iter().filter(|k| k.op == Op::AttnDecode && k.row_table && k.accepts(&s)).map(|k| k.name).collect();
+            ks
+        };
+        for m in [1, 8, 16] {
+            assert_eq!(rows_pick(m, DType::Bf16), ["attn_decode_bf16_splitkv_rows"], "B={m}");
+            assert_eq!(rows_pick(m, DType::Fp8E4m3), ["attn_decode_f8kv_splitkv_rows"], "B={m}");
         }
     }
 
@@ -1116,6 +1138,7 @@ mod tests {
         "attn_decode_bf16_splitkv:attn_decode",
         "attn_decode_bf16_splitkv_rows:attn_decode",
         "attn_decode_f8kv_splitkv:attn_decode",
+        "attn_decode_f8kv_splitkv_rows:attn_decode",
         "attn_prefill_bf16:attn_prefill",
         "attn_prefill_bf16_flash:attn_prefill",
         "attn_prefill_bf16_splitkv:attn_prefill",
@@ -1186,7 +1209,8 @@ mod tests {
 
     /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
     /// origin/main's (`4962d8fa`), so the plan has the same candidates as before. Round 5 adds the three fp8-KV attention
-    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them). Lane rip adds `matmul_bf16_inv`
+    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them); lane fp8kv the
+    /// fp8-cache attention twin `attn_decode_f8kv_splitkv_rows`. Lane rip adds `matmul_bf16_inv`
     /// (priority -5: only a row-invariant prefill pass, `OpCall::prefill_inv`, selects it).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {

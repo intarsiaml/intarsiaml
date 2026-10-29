@@ -1,0 +1,10 @@
+== row_tables
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 69.15s
+== row_tables f8kv, INTARSIA_ATTN_ROWS_PERSIST=0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 66.03s
+== attn_f8kv
+test f8kv_graph_replay_is_bitwise_the_eager_bf16_kernel ... ok
+test f8kv_kernels_are_bitwise_the_bf16_kernels_on_the_upcast_cache ... bitwise cases: {"attn_decode_f8kv_splitkv": 128, "attn_prefill_f8kv_flash": 56, "attn_prefill_f8kv_splitkv": 104}
+test f8kv_matches_with_nan_past_the_end ... ok
+test f8kv_timing ... ignored
+test result: ok. 3 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 20.70s

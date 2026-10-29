@@ -61,5 +61,5 @@ lm_head = { tensor = "lm_head", tied_to = "model.language_model.embed_tokens" } 
 # ignored (not part of the text decoder): model.merger.* (6), model.vision_tower.* (453)
 
 [defaults]
-kv_dtype = "bf16"                               # default: bf16 KV cache (fp8_e4m3 KV is accepted by the cpu oracle only)
+kv_dtype = "bf16"                               # default: bf16 KV cache (fp8_e4m3 is an opt-in, `--kv-dtype fp8_e4m3`; docs/tuning.md)
 max_batch = 32                                  # from closest recipe builtin:qwen3_5_moe (same block set)

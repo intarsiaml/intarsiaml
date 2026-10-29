@@ -1,0 +1,2 @@
+mmlu: 570 items, 12 predictions differ bf16 vs fp8 (2.1%): fp8 right where bf16 wrong 6, fp8 wrong where bf16 right 3
+gsm8k: 100 items, 22 predictions differ bf16 vs fp8 (22.0%): fp8 right where bf16 wrong 2, fp8 wrong where bf16 right 2
