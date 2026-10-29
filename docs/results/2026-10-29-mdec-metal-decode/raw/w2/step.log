@@ -1,0 +1,14 @@
+
+running 1 test
+plan before batching: MemoryPlan { device: "Apple M5 Max", total_bytes: 115448725504, free_bytes: 73617293312, weights_bytes: 20825033460, workspace_bytes: 694864784, kv_bytes_per_token: 20480, kv_fraction: 0.5, kv_budget_bytes: 36808646656, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+TIMING solo step 17.45 ms (57.3 tok/s)
+TIMING batch B= 2: 9.97 ms/step, 200.5 tok/s aggregate (0.57x solo step)
+TIMING batch B= 4: 13.83 ms/step, 289.3 tok/s aggregate (0.79x solo step)
+TIMING batch B= 8: 19.08 ms/step, 419.3 tok/s aggregate (1.09x solo step)
+TIMING batch B=12: 31.89 ms/step, 376.3 tok/s aggregate (1.83x solo step)
+TIMING batch B=16: 38.24 ms/step, 418.4 tok/s aggregate (2.19x solo step)
+test real_35b_batch_step_timing ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 31.98s
+

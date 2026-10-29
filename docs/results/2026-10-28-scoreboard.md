@@ -37,7 +37,7 @@ Source keys are in the legend at the end (path + section). Competitor numbers ar
 ### 1c. Apple M5 Max (Metal, endor, max-batch 1)
 | model / quant | config | prefill 1k/4k/16k | decode 1k/4k/16k | TTFT@4k | multi-stream agg | src | changed today |
 |---|---|---|---|---|---|---|---|
-| Qwen3.6-35B-A3B NVFP4 | MTP off (default) | 4072 / 4084 / 2868 | 122.5 / 118.5 / 108.8 | 1.00 s | N=1/4/8/16: 123.5 / 216.3 / 267.7 / 266.4 (10-25, not re-run after #193/#196) | M1; M3 | #193 (NAX fp8+MoE prefill), #196 (GDN prefill kernel) |
+| Qwen3.6-35B-A3B NVFP4 | MTP off (default) | 4072 / 4084 / 2868 | 122.5 / 118.5 / 108.8 | 1.00 s | N=1/4/8/16: 123.5 / 216.3 / 267.7 / 266.4 (10-25, not re-run after #193/#196); `--max-batch 16` (MDEC, 10-29): N=16 298.2 vs 281.7 at `--max-batch 8`, same slot, 3 interleaved rounds | M1; M3 | #193 (NAX fp8+MoE prefill), #196 (GDN prefill kernel) |
 | same | MTP on (opt-in), 10-25 build | not measured | 1k 159.3 / 4k 142.9 / 16k not measured (128-tok prompt 187.5) | not measured | MTP refused at batch > 1 | M2 | none |
 | Qwen3-8B BF16 | no MTP | 3997 / 3914 / 2630 | 35.9 / 35.1 / 31.6 | 1.04 s | N=8: 187 (10-15 **old**) | M4; M7 | none |
 | Qwen3.5-4B BF16 | first Metal run | 4835 / 4623 / 2767 | 61.5 / 61.0 / 57.6 | 0.89 s | not measured | M5 | #200 (model now loads) |

@@ -1,0 +1,25 @@
+
+running 8 tests
+test bf16_pair_rows_at_the_35b_pairs ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... FAILED
+test moe_experts_rows_are_bitwise_the_one_token_call ... ok
+test negative_controls_differ_from_the_one_row_calls ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_kernels_do_not_depend_on_the_row_count ... ok
+test rows_exact_registrations_are_pinned ... ok
+test timing_rows ... ignored
+
+failures:
+
+---- fp8_rows_are_bitwise_the_one_row_gemv stdout ----
+
+thread 'fp8_rows_are_bitwise_the_one_row_gemv' (45341388) panicked at crates/intarsia-backend-metal/tests/rows_exact.rs:182:53:
+called `Result::unwrap()` on an `Err` value: InvalidCall("metal matmul_fp8_gemv_rows: scratch of 36880 bytes at offset 4, need 65548 (4-byte aligned)")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    fp8_rows_are_bitwise_the_one_row_gemv
+
+test result: FAILED. 6 passed; 1 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.14s
+

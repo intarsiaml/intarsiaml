@@ -73,7 +73,7 @@ pub fn gemv_ok(s: &ShapeInfo) -> bool {
 /// The row-exact multi-row GEMV serves 2..=8 rows; 4 rows of activations must fit threadgroup memory (K <= 4096), 8 rows
 /// are staged in one pass up to K = 2048 and in two passes of 4 (the `_m4` shader) above.
 pub fn rows_ok(s: &ShapeInfo) -> bool {
-    (2..=GEMV_MB).contains(&s.m) && s.k % 16 == 0 && 4 * s.k * 2 <= GEMV_TG_BYTES
+    (2..=crate::CHUNK_ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && 4 * s.k * 2 <= GEMV_TG_BYTES
 }
 
 /// GEMM scratch: the QDQ'd activations as bf16 `[M,K]`.

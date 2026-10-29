@@ -1,0 +1,18 @@
+
+running 1 test
+test fp8_rows_are_bitwise_the_one_row_gemv ... FAILED
+
+failures:
+
+---- fp8_rows_are_bitwise_the_one_row_gemv stdout ----
+
+thread 'fp8_rows_are_bitwise_the_one_row_gemv' (45376564) panicked at crates/intarsia-backend-metal/tests/rows_exact.rs:72:9:
+matmul_fp8 N=8192 K=2048 M=5 is=0 f32_out=false w_off=8 x_off=2 xd=true: first differing byte 9028 of 81944 (one-row launches 0x44, M-row launch 0x45)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    fp8_rows_are_bitwise_the_one_row_gemv
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.10s
+
