@@ -1,0 +1,134 @@
+device NVIDIA GB10, 48 SMs, L2 24 MB
+FP8  8192x2048  base 2x8x2 (main)                  grid   96    81.59 us  205.6 GB/s 
+FP8  8192x2048  base 1x16x1                        grid   48    83.17 us  201.7 GB/s bitwise
+FP8  8192x2048  base 2x16x1                        grid   48    81.56 us  205.7 GB/s bitwise
+FP8  8192x2048  pipe 2x8x2 ch1 pf0 ep0 er0 noq1    grid   96    76.14 us  220.3 GB/s bitwise
+FP8  8192x2048  pipe 2x16x1 ch1 pf0 ep0 er0 noq1   grid   48    78.78 us  213.0 GB/s bitwise
+FP8  8192x2048  pipe 1x16x1 ch1 pf0 ep0 er0 noq1   grid   48    75.01 us  223.7 GB/s bitwise
+FP8  8192x2048  pipe 2x8x2 ch1 pf0 ep0 er0 noq0    grid   96    81.89 us  204.9 GB/s bitwise
+FP8  8192x2048  pipe 2x8x2 ch1 pf0 ep1 er0 noq0    grid   96    78.81 us  212.9 GB/s bitwise
+FP8  8192x2048  pipe 2x8x2 ch1 pf0 ep2 er0 noq0    grid   96    79.23 us  211.8 GB/s bitwise
+FP8  8192x2048  pipe 2x8x2 ch1 pf0 ep0 er1 noq0    grid   96    79.49 us  211.1 GB/s bitwise
+FP8  8192x2048  pipe 2x8x2 ch1 pf0 ep1 er1 noq0    grid   96    78.95 us  212.5 GB/s bitwise
+FP8  8192x2048  pipe 2x8x2 ch1 pf0 ep3 er1 noq0    grid   96    78.67 us  213.3 GB/s bitwise
+FP8  8192x2048  pipe 2x16x1 ch1 pf0 ep0 er0 noq0   grid   48    81.31 us  206.3 GB/s bitwise
+FP8  8192x2048  pipe 2x16x1 ch1 pf0 ep1 er0 noq0   grid   48    78.44 us  213.9 GB/s bitwise
+FP8  8192x2048  pipe 2x16x1 ch1 pf0 ep2 er0 noq0   grid   48    78.50 us  213.7 GB/s bitwise
+FP8  8192x2048  pipe 2x16x1 ch1 pf0 ep1 er1 noq0   grid   48    80.73 us  207.8 GB/s bitwise
+FP8  8192x2048  pipe 1x16x1 ch1 pf0 ep0 er0 noq0   grid   48    78.00 us  215.1 GB/s bitwise
+FP8  8192x2048  pipe 1x16x1 ch1 pf0 ep2 er0 noq0   grid   48    78.10 us  214.8 GB/s bitwise
+FP8  8192x2048  pipe 1x16x1 ch1 pf0 ep2 er1 noq0   grid   48    80.98 us  207.2 GB/s bitwise
+FP8  8192x2048  pipe 1x16x1 ch4 pf0 ep2 er1 noq0   grid   48    85.11 us  197.1 GB/s bitwise
+FP8  8192x2048  pipe 2x8x2 ch2 pf0 ep2 er1 noq0    grid   96    84.07 us  199.6 GB/s bitwise
+FP8  8192x2048  pipe 1x8x3 ch1 pf0 ep2 er1 noq0    grid  144    88.29 us  190.0 GB/s bitwise
+FP8  8192x2048  prologue only                      grid   96    12.98 us (codes staged into global, 256 threads)
+FP8  8192x2048  prologue only                      grid   48     8.17 us (codes staged into global, 512 threads)
+FP8  4096x2048  base 2x8x2 (main)                  grid   96    47.25 us  177.5 GB/s 
+FP8  4096x2048  base 1x16x1                        grid   48    51.28 us  163.6 GB/s bitwise
+FP8  4096x2048  base 2x16x1                        grid   48    44.60 us  188.1 GB/s bitwise
+FP8  4096x2048  pipe 2x8x2 ch1 pf0 ep0 er0 noq1    grid   96    41.87 us  200.3 GB/s bitwise
+FP8  4096x2048  pipe 2x16x1 ch1 pf0 ep0 er0 noq1   grid   48    41.63 us  201.5 GB/s bitwise
+FP8  4096x2048  pipe 1x16x1 ch1 pf0 ep0 er0 noq1   grid   48    41.96 us  199.9 GB/s bitwise
+FP8  4096x2048  pipe 2x8x2 ch1 pf0 ep0 er0 noq0    grid   96    46.98 us  178.6 GB/s bitwise
+FP8  4096x2048  pipe 2x8x2 ch1 pf0 ep1 er0 noq0    grid   96    44.47 us  188.7 GB/s bitwise
+FP8  4096x2048  pipe 2x8x2 ch1 pf0 ep2 er0 noq0    grid   96    44.69 us  187.7 GB/s bitwise
+FP8  4096x2048  pipe 2x8x2 ch1 pf0 ep0 er1 noq0    grid   96    45.08 us  186.1 GB/s bitwise
+FP8  4096x2048  pipe 2x8x2 ch1 pf0 ep1 er1 noq0    grid   96    45.59 us  184.0 GB/s bitwise
+FP8  4096x2048  pipe 2x8x2 ch1 pf0 ep3 er1 noq0    grid   96    48.12 us  174.3 GB/s bitwise
+FP8  4096x2048  pipe 2x16x1 ch1 pf0 ep0 er0 noq0   grid   48    44.38 us  189.0 GB/s bitwise
+FP8  4096x2048  pipe 2x16x1 ch1 pf0 ep1 er0 noq0   grid   48    41.93 us  200.1 GB/s bitwise
+FP8  4096x2048  pipe 2x16x1 ch1 pf0 ep2 er0 noq0   grid   48    42.12 us  199.2 GB/s bitwise
+FP8  4096x2048  pipe 2x16x1 ch1 pf0 ep1 er1 noq0   grid   48    44.10 us  190.2 GB/s bitwise
+FP8  4096x2048  pipe 1x16x1 ch1 pf0 ep0 er0 noq0   grid   48    44.39 us  189.0 GB/s bitwise
+FP8  4096x2048  pipe 1x16x1 ch1 pf0 ep2 er0 noq0   grid   48    43.98 us  190.7 GB/s bitwise
+FP8  4096x2048  pipe 1x16x1 ch1 pf0 ep2 er1 noq0   grid   48    47.79 us  175.5 GB/s bitwise
+FP8  4096x2048  pipe 1x16x1 ch4 pf0 ep2 er1 noq0   grid   48    50.57 us  165.9 GB/s bitwise
+FP8  4096x2048  pipe 2x8x2 ch2 pf0 ep2 er1 noq0    grid   96    50.11 us  167.4 GB/s bitwise
+FP8  4096x2048  pipe 1x8x3 ch1 pf0 ep2 er1 noq0    grid  144    52.88 us  158.6 GB/s bitwise
+FP8  4096x2048  prologue only                      grid   96    12.30 us (codes staged into global, 256 threads)
+FP8  4096x2048  prologue only                      grid   48     8.16 us (codes staged into global, 512 threads)
+FP8 12288x2048  base 2x8x2 (main)                  grid   96   115.61 us  217.7 GB/s 
+FP8 12288x2048  base 1x16x1                        grid   48   119.59 us  210.4 GB/s bitwise
+FP8 12288x2048  base 2x16x1                        grid   48   112.78 us  223.1 GB/s bitwise
+FP8 12288x2048  pipe 2x8x2 ch1 pf0 ep0 er0 noq1    grid   96   110.33 us  228.1 GB/s bitwise
+FP8 12288x2048  pipe 2x16x1 ch1 pf0 ep0 er0 noq1   grid   48   109.95 us  228.9 GB/s bitwise
+FP8 12288x2048  pipe 1x16x1 ch1 pf0 ep0 er0 noq1   grid   48   108.58 us  231.8 GB/s bitwise
+FP8 12288x2048  pipe 2x8x2 ch1 pf0 ep0 er0 noq0    grid   96   115.63 us  217.6 GB/s bitwise
+FP8 12288x2048  pipe 2x8x2 ch1 pf0 ep1 er0 noq0    grid   96   113.49 us  221.7 GB/s bitwise
+FP8 12288x2048  pipe 2x8x2 ch1 pf0 ep2 er0 noq0    grid   96   113.22 us  222.3 GB/s bitwise
+FP8 12288x2048  pipe 2x8x2 ch1 pf0 ep0 er1 noq0    grid   96   113.45 us  221.8 GB/s bitwise
+FP8 12288x2048  pipe 2x8x2 ch1 pf0 ep1 er1 noq0    grid   96   112.30 us  224.1 GB/s bitwise
+FP8 12288x2048  pipe 2x8x2 ch1 pf0 ep3 er1 noq0    grid   96   112.53 us  223.6 GB/s bitwise
+FP8 12288x2048  pipe 2x16x1 ch1 pf0 ep0 er0 noq0   grid   48   112.27 us  224.2 GB/s bitwise
+FP8 12288x2048  pipe 2x16x1 ch1 pf0 ep1 er0 noq0   grid   48   109.48 us  229.9 GB/s bitwise
+FP8 12288x2048  pipe 2x16x1 ch1 pf0 ep2 er0 noq0   grid   48   109.83 us  229.1 GB/s bitwise
+FP8 12288x2048  pipe 2x16x1 ch1 pf0 ep1 er1 noq0   grid   48   111.06 us  226.6 GB/s bitwise
+FP8 12288x2048  pipe 1x16x1 ch1 pf0 ep0 er0 noq0   grid   48   110.71 us  227.3 GB/s bitwise
+FP8 12288x2048  pipe 1x16x1 ch1 pf0 ep2 er0 noq0   grid   48   110.60 us  227.5 GB/s bitwise
+FP8 12288x2048  pipe 1x16x1 ch1 pf0 ep2 er1 noq0   grid   48   113.86 us  221.0 GB/s bitwise
+FP8 12288x2048  pipe 1x16x1 ch4 pf0 ep2 er1 noq0   grid   48   117.85 us  213.5 GB/s bitwise
+FP8 12288x2048  pipe 2x8x2 ch2 pf0 ep2 er1 noq0    grid   96   114.09 us  220.6 GB/s bitwise
+FP8 12288x2048  pipe 1x8x3 ch1 pf0 ep2 er1 noq0    grid  144   121.46 us  207.2 GB/s bitwise
+FP8 12288x2048  prologue only                      grid   96    12.29 us (codes staged into global, 256 threads)
+FP8 12288x2048  prologue only                      grid   48     8.13 us (codes staged into global, 512 threads)
+FP8  2048x4096  base 2x8x2 (main)                  grid   48    51.62 us  162.5 GB/s 
+FP8  2048x4096  base 1x16x1                        grid   48    49.59 us  169.1 GB/s bitwise
+FP8  2048x4096  base 2x16x1                        grid   48    51.31 us  163.5 GB/s bitwise
+FP8  2048x4096  pipe 2x8x1 ch1 pf0 ep0 er0 noq1    grid   48    42.59 us  197.0 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch1 pf0 ep0 er0 noq1   grid   48    41.19 us  203.6 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch2 pf4 ep0 er0 noq1   grid   48    41.63 us  201.5 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch2 pf4 ep0 er0 noq0   grid   48    46.54 us  180.2 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch2 pf4 ep1 er0 noq0   grid   48    43.81 us  191.5 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch2 pf4 ep2 er0 noq0   grid   48    45.38 us  184.8 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch2 pf4 ep2 er1 noq0   grid   48    52.24 us  160.6 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch2 pf4 ep4 er1 noq0   grid   48    57.56 us  145.7 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch2 pf2 ep2 er1 noq0   grid   48    53.81 us  155.9 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch2 pf8 ep2 er1 noq0   grid   48    52.50 us  159.8 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch1 pf0 ep2 er1 noq0   grid   48    51.91 us  161.6 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch1 pf4 ep2 er1 noq0   grid   48    50.68 us  165.5 GB/s bitwise
+FP8  2048x4096  pipe 1x16x1 ch4 pf4 ep2 er1 noq0   grid   48    57.69 us  145.4 GB/s bitwise
+FP8  2048x4096  pipe 2x16x1 ch1 pf0 ep2 er1 noq0   grid   48    59.82 us  140.2 GB/s bitwise
+FP8  2048x4096  pipe 2x16x1 ch2 pf4 ep2 er1 noq0   grid   48    61.83 us  135.7 GB/s bitwise
+FP8  2048x4096  pipe 2x8x1 ch1 pf0 ep2 er1 noq0    grid   48    51.82 us  161.9 GB/s bitwise
+FP8  2048x4096  pipe 1x32x1 ch1 pf0 ep2 er1 noq0   grid   48    77.89 us  107.7 GB/s bitwise
+FP8  2048x4096  pipe 1x32x1 ch2 pf4 ep2 er1 noq0   grid   48    89.83 us   93.4 GB/s bitwise
+FP8  2048x4096  prologue only                      grid   48    15.79 us (codes staged into global, 256 threads)
+FP8  2048x4096  prologue only                      grid   48    10.60 us (codes staged into global, 512 threads)
+NV  248320x2048  base 4x8 (main)                    grid   48 occ 1  1569.31 us  182.3 GB/s 
+NV  248320x2048  base 2x16                          grid   48 occ 1  1482.86 us  192.9 GB/s bitwise
+NV  248320x2048  pipe 2x8 ch4 pf0                   grid   48 occ 1  1397.40 us  204.7 GB/s bitwise
+NV  248320x2048  pipe 2x8 ch4 pf2                   grid   48 occ 1  1433.53 us  199.6 GB/s bitwise
+NV  248320x2048  pipe 2x8 ch2 pf0                   grid   48 occ 1  1565.64 us  182.7 GB/s bitwise
+NV  248320x2048  pipe 1x8 ch4 pf0                   grid   48 occ 1  1797.81 us  159.1 GB/s bitwise
+NV  248320x2048  pipe 1x16 ch4 pf0                  grid   48 occ 1  1792.02 us  159.6 GB/s bitwise
+NV  248320x2048  pipe 1x16 ch2 pf0                  grid   48 occ 1  1878.93 us  152.2 GB/s bitwise
+NV  248320x2048  pipe 3x8 ch4 pf0                   grid   48 occ 1  1558.03 us  183.6 GB/s bitwise
+NV  248320x2048  pipe 2x12 ch4 pf0                  grid   48 occ 1  1519.14 us  188.3 GB/s bitwise
+NV  248320x2048  pipe 1x12 ch4 pf0                  grid   48 occ 1  1856.21 us  154.1 GB/s bitwise
+NV  248320x2048  pipe 4x8 ch1 pf0                   grid   48 occ 1  1575.62 us  181.6 GB/s bitwise
+device NVIDIA GB10, 48 SMs, L2 24 MB
+NV  248320x2048  base 4x8 (main)                    grid   48 occ 1  1380.91 us  207.2 GB/s 
+NV  248320x2048  base 2x16                          grid   48 occ 1  1376.33 us  207.8 GB/s bitwise
+NV  248320x2048  pipe 2x8 ch4 pf0                   grid   48 occ 1  1337.29 us  213.9 GB/s bitwise
+NV  248320x2048  pipe 2x8 ch4 pf2                   grid   48 occ 1  1351.43 us  211.7 GB/s bitwise
+NV  248320x2048  pipe 2x8 ch2 pf0                   grid   48 occ 1  1343.79 us  212.9 GB/s bitwise
+NV  248320x2048  pipe 1x8 ch4 pf0                   grid   48 occ 1  1385.32 us  206.5 GB/s bitwise
+NV  248320x2048  pipe 1x16 ch4 pf0                  grid   48 occ 1  1453.06 us  196.9 GB/s bitwise
+NV  248320x2048  pipe 1x16 ch2 pf0                  grid   48 occ 1  1411.52 us  202.7 GB/s bitwise
+NV  248320x2048  pipe 3x8 ch4 pf0                   grid   48 occ 1  1359.69 us  210.4 GB/s bitwise
+NV  248320x2048  pipe 2x12 ch4 pf0                  grid   48 occ 1  1353.59 us  211.3 GB/s bitwise
+NV  248320x2048  pipe 1x12 ch4 pf0                  grid   48 occ 1  1367.11 us  209.2 GB/s bitwise
+NV  248320x2048  pipe 4x8 ch1 pf0                   grid   48 occ 1  1415.26 us  202.1 GB/s bitwise
+device NVIDIA GB10, 48 SMs, L2 24 MB
+NV  248320x2048  base 2x16 (main)                   grid   48 occ 1  1355.57 us  211.0 GB/s 
+NV  248320x2048  base 2x16                          grid   48 occ 1  1353.92 us  211.3 GB/s bitwise
+NV  248320x2048  pipe 2x8 ch4 pf0                   grid   48 occ 1  1293.25 us  221.2 GB/s bitwise
+NV  248320x2048  pipe 2x8 ch4 pf2                   grid   48 occ 1  1310.42 us  218.3 GB/s bitwise
+NV  248320x2048  pipe 2x8 ch2 pf0                   grid   48 occ 1  1284.84 us  222.6 GB/s bitwise
+NV  248320x2048  pipe 1x8 ch4 pf0                   grid   48 occ 1  1288.98 us  221.9 GB/s bitwise
+NV  248320x2048  pipe 1x16 ch4 pf0                  grid   48 occ 1  1315.47 us  217.5 GB/s bitwise
+NV  248320x2048  pipe 1x16 ch2 pf0                  grid   48 occ 1  1295.76 us  220.8 GB/s bitwise
+NV  248320x2048  pipe 3x8 ch4 pf0                   grid   48 occ 1  1321.24 us  216.5 GB/s bitwise
+NV  248320x2048  pipe 2x12 ch4 pf0                  grid   48 occ 1  1307.08 us  218.9 GB/s bitwise
+NV  248320x2048  pipe 1x12 ch4 pf0                  grid   48 occ 1  1303.05 us  219.5 GB/s bitwise
+NV  248320x2048  pipe 4x8 ch1 pf0                   grid   48 occ 1  1372.71 us  208.4 GB/s bitwise

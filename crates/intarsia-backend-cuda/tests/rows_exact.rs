@@ -539,6 +539,118 @@ fn nvfp4_rows_full_are_bitwise_the_one_row_gemv() {
     rig.report("nvfp4-full");
 }
 
+/// The streaming e4m3-staged fp8 kernel (lane stream16, INTARSIA_CUDA_FP8_ROWS_QPIPE: M >= 12, more than 1024 outputs, K = 2048 /
+/// 4096), every compiled shape forced through INTARSIA_CUDA_FP8_ROWS_QPIPE_K2 / _K4 with and without the L2 prefetches, single
+/// matrices and pairs: the one-row kernel's bits for W8A8 and W8A16, ragged tile counts and dead outputs included.
+#[test]
+fn fp8_rows_qpipe_are_bitwise_the_one_row_gemv() {
+    let Some(rig) = Rig::new("fp8_rows_qpipe_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(831);
+    let a = OpAttrs::default();
+    std::env::remove_var("INTARSIA_CUDA_FP8_ROWS_Q");
+    std::env::remove_var("INTARSIA_CUDA_FP8_ROWS_QSHAPE");
+    std::env::remove_var("INTARSIA_CUDA_FP8_ROWS_QPIPE");
+    let k2 = ["", "2x16x1:1:0:2", "2x16x1:1:3:0", "2x8x2:1:0:0", "2x8x2:1:2:1", "1x16x1:1:0:2"];
+    let k4 = ["", "1x16x1:2:4:2", "1x16x1:2:0:0", "1x16x1:1:4:2", "2x16x1:1:0:2", "1x16x1:4:2:3"];
+    for (shape_var, k, shapes) in [("INTARSIA_CUDA_FP8_ROWS_QPIPE_K2", 2048usize, &k2), ("INTARSIA_CUDA_FP8_ROWS_QPIPE_K4", 4096, &k4)] {
+        for shape in shapes.iter() {
+            if shape.is_empty() {
+                std::env::remove_var(shape_var);
+            } else {
+                std::env::set_var(shape_var, shape);
+            }
+            for n in [4096usize, 1027, 2050] {
+                for (aq, is) in [(true, 0.125f32), (true, 0.0117), (false, 0.0)] {
+                    let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, aq, DType::Bf16, DType::Bf16);
+                    let scales = scales_tensor(hc.inputs[2].to_f32()[0], if aq { is } else { 0.0 });
+                    let w = rig.put(&if n == 2050 { wide_fp8_weights(&mut rng, n, k) } else { hc.inputs[1].clone() });
+                    let sc = rig.put(&scales);
+                    let x_rows = nasty_rows(&mut rng, k, clip_of(&scales));
+                    let label = format!("fp8 qpipe {shape_var}={shape} n={n} k={k} aq={aq} is={is}");
+                    gb_matmul(&rig, Op::MatmulFp8, "matmul_fp8_gemv", "matmul_fp8_gemv_rows", &[w, sc], &x_rows, n, DType::Bf16, &label, CAP);
+                }
+            }
+            // pairs (the GDN qkv + z shape at K = 2048, a ragged one at both K), equal and different input scales, W8A16 halves
+            for (n0, n1) in [(8192usize, 4096usize), (1031, 517)] {
+                if k == 4096 && n0 == 8192 {
+                    continue;
+                }
+                for (is0, is1) in [(0.125f32, 0.125f32), (0.125, 0.0117), (0.0, 0.125)] {
+                    let mats: Vec<(TensorRef, TensorRef)> = [(n0, is0), (n1, is1)]
+                        .iter()
+                        .map(|&(n, is)| {
+                            let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, is > 0.0, DType::Bf16, DType::Bf16);
+                            (rig.put(&hc.inputs[1]), rig.put(&scales_tensor(hc.inputs[2].to_f32()[0], is)))
+                        })
+                        .collect();
+                    let x_rows = nasty_rows(&mut rng, k, 448.0 * is0.max(is1).max(1.0 / 448.0));
+                    let label = format!("fp8 qpipe pair {shape_var}={shape} n={n0}+{n1} k={k} is={is0}/{is1}");
+                    let want: Vec<[Vec<u8>; 2]> = (0..CAP)
+                        .map(|r| {
+                            let x = rig.put(&bf16_row(&x_rows[r]));
+                            let one = |i: usize, n: usize| {
+                                rig.run("matmul_fp8_gemv", Op::MatmulFp8, &[x.clone(), mats[i].0.clone(), mats[i].1.clone()], &[(DType::Bf16, vec![1, n])], &a)[0].data.clone()
+                            };
+                            [one(0, n0), one(1, n1)]
+                        })
+                        .collect();
+                    let all: Vec<f32> = x_rows[..CAP].iter().flatten().copied().collect();
+                    let x_all = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &all));
+                    for m in 12..=CAP {
+                        let o = rig.run(
+                            "matmul_fp8_pair_gemv_rows",
+                            Op::MatmulFp8Pair,
+                            &[x_all.rows(0, m), mats[0].0.clone(), mats[0].1.clone(), mats[1].0.clone(), mats[1].1.clone()],
+                            &[(DType::Bf16, vec![m, n0]), (DType::Bf16, vec![m, n1])],
+                            &a,
+                        );
+                        for (i, n) in [(0usize, n0), (1, n1)] {
+                            for r in 0..m {
+                                assert!(o[i].data[r * n * 2..(r + 1) * n * 2] == want[r][i][..], "G-B FAIL {label}: M={m} output {i} row {r} differs from the one-row GEMV");
+                            }
+                        }
+                        rig.note("matmul_fp8_pair_gemv_rows", m, m, m * (n0 + n1) * 2);
+                    }
+                }
+            }
+        }
+        std::env::remove_var(shape_var);
+    }
+    rig.report("fp8-qpipe");
+}
+
+/// The streaming lm_head kernel (lane stream16, INTARSIA_CUDA_NVFP4_ROWS_PIPE `all` = from 5 rows, every shape of
+/// INTARSIA_CUDA_NVFP4_ROWS_PIPE_SHAPE, and the default from 12 rows): the one-row kernel's bits, a ragged tile count included.
+#[test]
+fn nvfp4_rows_pipe_are_bitwise_the_one_row_gemv() {
+    let Some(rig) = Rig::new("nvfp4_rows_pipe_are_bitwise_the_one_row_gemv") else { return };
+    let mut rng = SplitMix64::new(832);
+    std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_FULL");
+    for (mode, shape) in [("", ""), ("all", ""), ("all", "2x8:2"), ("all", "1x16:4"), ("all", "1x8:4")] {
+        for (var, val) in [("INTARSIA_CUDA_NVFP4_ROWS_PIPE", mode), ("INTARSIA_CUDA_NVFP4_ROWS_PIPE_SHAPE", shape)] {
+            if val.is_empty() {
+                std::env::remove_var(var);
+            } else {
+                std::env::set_var(var, val);
+            }
+        }
+        for (n, out_dt) in [(248320usize, DType::F32), (16391, DType::Bf16)] {
+            for wide in [false, true] {
+                if n == 248320 && wide && !mode.is_empty() {
+                    continue;  // the full-vocab wide case once (default policy) keeps the test short
+                }
+                let parts = if wide { wide_nvfp4(&mut rng, n, 2048) } else { nvfp4::random_rows(&mut rng, n, 2048).parts };
+                let weights: Vec<TensorRef> = parts.iter().map(|p| rig.put(p)).collect();
+                let x_rows = nasty_rows(&mut rng, 2048, 448.0);
+                gb_matmul(&rig, Op::MatmulNvfp4, "matmul_nvfp4_gemv", "matmul_nvfp4_gemv_rows", &weights, &x_rows, n, out_dt, &format!("nvfp4 pipe={mode}/{shape} n={n} wide={wide} {out_dt:?}"), CAP);
+            }
+        }
+    }
+    std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_PIPE");
+    std::env::remove_var("INTARSIA_CUDA_NVFP4_ROWS_PIPE_SHAPE");
+    rig.report("nvfp4-pipe");
+}
+
 // ---- nvfp4 -----------------------------------------------------------------------------------------------------------
 
 #[test]

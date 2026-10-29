@@ -1,0 +1,43 @@
+== base@- 13:49:23
+STEP B=1 ms 11.647 11.685 11.645
+STEP B=4 ms 18.744 19.256 19.432
+STEP B=8 ms 25.938 27.080 28.480
+STEP B=16 ms 41.220 42.802 44.431
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 66.29s
+== dev@- 13:50:30
+STEP B=1 ms 11.583 11.547 11.561
+STEP B=4 ms 18.669 19.184 19.379
+STEP B=8 ms 25.860 27.015 28.423
+STEP B=16 ms 40.979 42.496 44.087
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 63.78s
+== base@- 13:51:35
+STEP B=1 ms 11.571 11.559 11.572
+STEP B=4 ms 18.706 19.203 19.417
+STEP B=8 ms 25.938 27.244 28.467
+STEP B=16 ms 41.145 42.594 44.118
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 59.42s
+== dev@- 13:52:35
+STEP B=1 ms 11.578 11.573 11.594
+STEP B=4 ms 18.754 19.330 19.453
+STEP B=8 ms 25.922 27.131 28.457
+STEP B=16 ms 41.136 42.404 44.012
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 54.05s
+== dev@INTARSIA_CUDA_FP8_ROWS_QPIPE=0+INTARSIA_CUDA_NVFP4_ROWS_PIPE=0 13:53:30
+STEP B=1 ms 11.542 11.534 11.537
+STEP B=4 ms 18.718 19.203 19.381
+STEP B=8 ms 25.918 27.137 28.579
+STEP B=16 ms 41.357 42.718 44.350
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 54.52s
+== dev@- 13:54:25
+STEP B=1 ms 11.567 11.560 11.556
+STEP B=4 ms 18.714 19.205 19.409
+STEP B=8 ms 25.950 27.101 28.465
+STEP B=16 ms 41.141 42.503 44.065
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 55.93s
+== base@- 13:55:22
+STEP B=1 ms 11.576 11.586 11.567
+STEP B=4 ms 18.730 19.208 19.423
+STEP B=8 ms 26.001 27.228 28.647
+STEP B=16 ms 41.392 42.835 44.489
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 57.26s
+== done 13:56:19

@@ -1,0 +1,6 @@
+stream16-base-r1: - result file: `results/20261029-141301-adhoc-stream16-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-141301-adhoc-stream16-base-r1/result.json 
+stream16-dev-r1: - result file: `results/20261029-141436-adhoc-stream16-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-141436-adhoc-stream16-dev-r1/result.json 
+stream16-dev-r2: - result file: `results/20261029-141558-adhoc-stream16-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-141558-adhoc-stream16-dev-r2/result.json 
+stream16-base-r2: - result file: `results/20261029-141720-adhoc-stream16-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-141720-adhoc-stream16-base-r2/result.json 
+stream16-base-r3: - result file: `results/20261029-141844-adhoc-stream16-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-141844-adhoc-stream16-base-r3/result.json 
+stream16-dev-r3: - result file: `results/20261029-142011-adhoc-stream16-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-142011-adhoc-stream16-dev-r3/result.json 
