@@ -790,11 +790,15 @@ fn moe_decode_rows_are_bitwise_the_one_token_kernel() {
     for wide in [false, true] {
         gb_moe(&rig, "moe_experts_decode_v2_bf16", "moe_experts_decode_v2_rows_bf16", &silu, 64, 8, 2048, 512, 901, wide);
         gb_moe(&rig, "moe_experts_decode_v2_bf16", "moe_experts_decode_v2_rows_bf16", &OpAttrs { top_k: 4, ..OpAttrs::default() }, 8, 4, 128, 64, 902, wide);
+        // Gemma-4's routed intermediate 704 (I / 16 = 44 > 32: the dedup down kernel's general u loop), hidden 400 (a partial
+        // last row block)
+        gb_moe(&rig, "moe_experts_decode_v2_bf16", "moe_experts_decode_v2_rows_bf16", &silu, 16, 8, 400, 704, 904, wide);
     }
     // Gemma-style gelu twin
     let gelu = OpAttrs { top_k: 8, gelu: true, ..OpAttrs::default() };
     for wide in [false, true] {
         gb_moe(&rig, "moe_experts_decode_v2_gelu_bf16", "moe_experts_decode_v2_gelu_rows_bf16", &gelu, 32, 8, 256, 128, 903, wide);
+        gb_moe(&rig, "moe_experts_decode_v2_gelu_bf16", "moe_experts_decode_v2_gelu_rows_bf16", &gelu, 16, 8, 400, 704, 905, wide);
     }
     rig.report("moe");
 }

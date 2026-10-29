@@ -24,7 +24,9 @@ Serve A/B (localeval, 3 interleaved rounds, aggregate decode tok/s): **+0.6 / -0
 
 Gates: `batch_cuda_real` 35B 4290 (row, step) pairs bitwise. rows_exact (incl. `moe_decode_rows_are_bitwise_the_one_token_kernel`:
 the dd kernel at T = 1..16 against the v2 T = 1 kernel, with distinct, same-expert, shared-pair, invalid-id and wide-weight
-routings, the 35B shape, a top-4 shape and the gelu twin with I / 16 = 8). row_tables, quantmoe and moe_nvfp4 pass.
+routings, the 35B shape, a top-4 shape, the gelu twin with I / 16 = 8, and Gemma-4's routed intermediate 704 for both twins at hidden 400:
+I / 16 = 44 runs the kernel's general u loop, and 400 leaves a partial last row block). The gate passes under all 9
+`INTARSIA_MOE_DOWN_DD` x `_DD_R` geometries and DD = 0 (`raw/knobs.txt`). row_tables, quantmoe and moe_nvfp4 pass.
 `plan show` is byte-identical for the 8B, 35B and Gemma-4 (json and text). Served `equal.py` base vs dev: 21/21 cells identical. Mac
 `cargo test --workspace --release` is green.
 
@@ -138,7 +140,8 @@ is about the step's -2.8 %. The 1- and 4-stream cells sit inside this A/B's roun
 ## GPU use
 
 Two GPU windows: W1 (#6995, 12 min: gates, batch_cuda_real, step timing, two nsys bursts) and W2 (#7006, 13 min: served identity + 3-round serve A/B).
-Short checks (< 3 min each): #6986, #6987 and #6989 (the micro, the last two under nsys). Builds and `plan show` ran as
+Short checks (< 3 min each): #6986, #6987 and #6989 (the micro, the last two under nsys), #7012 (rows_exact under every knob
+geometry) and #7013 (a rerun confirming the I = 704 cases ran). Builds and `plan show` ran as
 `--load cpu` slots. spark1-vllm stayed up; no `--takes-down`.
 
 Scripts: `scripts/moedn/` (from conv16 / step16: build, gates, batch-real, steptime, prof, ident, plan, le-window, w1, w2;
