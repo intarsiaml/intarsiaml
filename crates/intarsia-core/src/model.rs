@@ -184,7 +184,7 @@ pub struct LoadOptions {
     /// Macro prefill pass size in rows (see [`Model::macro_rows`]): `None` = `INTARSIA_PREFILL_MACRO` (unset = off); `Some(0)` off.
     pub prefill_macro: Option<usize>,
     /// Row-invariant prefill ([`Model::row_invariant_prefill`], lane rip): `Some` wins over `INTARSIA_ROW_INVARIANT_PREFILL`,
-    /// which wins over `Backend::row_invariant_prefill` (off everywhere by default: on CUDA it costs ~10% at 1k-token prefill).
+    /// which wins over `Backend::row_invariant_prefill` (on CUDA by default since lane rip2, off on the other backends).
     pub row_invariant_prefill: Option<bool>,
 }
 
@@ -687,7 +687,7 @@ impl Model {
     /// cold prefill whatever its slot held before (lane bi8: a repeated prompt resuming with its last token alone, a 1-row
     /// pass, moved logits by up to 0.23 and flipped greedy tokens on Qwen3-8B;
     /// docs/results/2026-10-29-bi8-serve-batch-invariance.md). In that case, first match wins: with row-invariant prefill on
-    /// ([`Model::row_invariant_prefill`], CUDA with `INTARSIA_ROW_INVARIANT_PREFILL=1`, lane rip) any prefix of the rows
+    /// ([`Model::row_invariant_prefill`], CUDA dense models by default, lane rip / rip2) any prefix of the rows
     /// row-invariant prefill passes wrote ([`SequenceState::inv_len`]; a decode step's rows are not). Where the backend's
     /// passes of `n` rows or more agree (`Backend::prefix_reuse_min_pass_rows`, Metal: 2, lane prc): a prefix written by such
     /// passes only ([`SequenceState::wide_reuse_len`]; a decode step's rows are not), cut back until the remainder's passes

@@ -1,21 +1,34 @@
 // matmul_bf16_inv: out[M,N] = x[M,K] w[N,K]^T, bf16 in, f32 accumulate, bf16 out, with every row's bits independent of M
-// (lane rip, row-invariant prefill: docs/results/2026-10-29-rip-row-invariant-prefill.md).
+// (lane rip, row-invariant prefill: docs/results/2026-10-29-rip-row-invariant-prefill.md; lane rip2, per-M algorithms:
+// docs/results/2026-10-29-rip2-row-invariant-gemm.md).
 //
 // matmul_bf16 calls cublasGemmEx with the default heuristic, which picks its algorithm (tile, split-K, kernel) from (M, N, K):
 // the same row computed in a call of another row count can come out with other bits (a prefix-reuse resume, a 256-row busy
-// chunk, a short tail). Here, as in fp8_gemm_lt.cu, ONE cuBLASLt algorithm per (N, K) is chosen once (heuristic at M = kRefM, the
-// CUDA prefill chunk, INTARSIA_INV_REF_M; no workspace; split-K forced to 1, no reduction scheme) and run for every M, M = 1 included. With one
-// algorithm and no split-K, each output element is one CTA's K loop in one fixed order whatever M is, so row m of an M-row call
-// is bitwise row m of any other call over the same row (tests/row_invariance.rs).
+// chunk, a short tail). Here, as in fp8_gemm_lt.cu, ONE cuBLASLt algorithm per (N, K), the primary, defines the bits: chosen once
+// (heuristic at M = kRefM, the CUDA prefill chunk, INTARSIA_INV_REF_M; no workspace; split-K forced to 1, no reduction scheme).
+// With one algorithm and no split-K, each output element is one CTA's K loop in one fixed order whatever M is, so row m of an
+// M-row call is bitwise row m of any other call over the same row (tests/row_invariance.rs).
+//
+// The primary is slow at some row counts (~1k rows: 1.24x cuBLAS, its tile wastes a wave). Each call of fewer than ref_m() / 2
+// rows therefore runs the algorithm cuBLASLt's heuristic picks for M (32 MB workspace preference, as cublasGemmEx) when that
+// pick has split-K 1, no workspace, and is PROVEN bitwise equal to the primary: once per (N, K, algorithm), on a fixed random
+// probe (kProbeRows rows of wide-magnitude bf16 against the call's own weights). Most split-K-1 cuBLASLt kernels on sm_121
+// (mma.sync, one sequential K loop per output) are equal to each other whatever their tile; the others (sliced-K, a different
+// MMA shape) differ in almost every output and fail the probe, and M then runs the primary. A row's bits are thus the primary's
+// at every M. A call inside a stream capture, which cannot run the probe, runs the primary unless its M is already decided.
+// INTARSIA_INV_SINGLE=1 runs the primary at every M (lane rip's behaviour).
 //
 // The prefill of a row-invariant pass selects it (OpCall::prefill_inv); ordinary calls keep matmul_bf16 / matmul_bf16_gemv.
-// INTARSIA_LT_DEBUG=1 prints the chosen algorithm per shape.
+// INTARSIA_LT_DEBUG=1 prints the primary per shape and each probed algorithm.
 #include "ik_launch.h"
 #include "ik_internal.h"
 #include "ik_quant.cuh"
 #include <cublasLt.h>
 #include <map>
 #include <mutex>
+#include <string.h>
+#include <tuple>
+#include <vector>
 #include <stdio.h>
 #include <stdlib.h>
 #include <utility>
@@ -34,15 +47,52 @@ int ref_m() {
     return m;
 }
 
+bool single() {
+    static const bool on = [] {
+        const char* v = getenv("INTARSIA_INV_SINGLE");
+        return v && v[0] == '1';
+    }();
+    return on;
+}
+
+constexpr int kProbeRows = 256;
+constexpr size_t kHeurWorkspace = 32u << 20;  // matmul.cu kWorkspaceBytes: the heuristic is asked as cublasGemmEx's would be
+
+// An algorithm's configuration (id, tile, stages, split-K, reduction, swizzle, custom option, inner / cluster shape).
+using AlgoKey = std::tuple<int32_t, uint32_t, uint32_t, int32_t, uint32_t, uint32_t, uint32_t, uint16_t, uint16_t>;
+
+template <class T>
+T algo_cfg(const cublasLtMatmulAlgo_t& a, cublasLtMatmulAlgoConfigAttributes_t at, T dflt) {
+    T v = dflt;
+    size_t w = 0;
+    cublasLtMatmulAlgoConfigGetAttribute(&a, at, &v, sizeof v, &w);
+    return v;
+}
+
+AlgoKey algo_key(const cublasLtMatmulAlgo_t& a) {
+    return AlgoKey(algo_cfg<int32_t>(a, CUBLASLT_ALGO_CONFIG_ID, -1), algo_cfg<uint32_t>(a, CUBLASLT_ALGO_CONFIG_TILE_ID, 0),
+                   algo_cfg<uint32_t>(a, CUBLASLT_ALGO_CONFIG_STAGES_ID, 0), algo_cfg<int32_t>(a, CUBLASLT_ALGO_CONFIG_SPLITK_NUM, 1),
+                   algo_cfg<uint32_t>(a, CUBLASLT_ALGO_CONFIG_REDUCTION_SCHEME, 0),
+                   algo_cfg<uint32_t>(a, CUBLASLT_ALGO_CONFIG_CTA_SWIZZLING, 0), algo_cfg<uint32_t>(a, CUBLASLT_ALGO_CONFIG_CUSTOM_OPTION, 0),
+                   algo_cfg<uint16_t>(a, CUBLASLT_ALGO_CONFIG_INNER_SHAPE_ID, 0),
+                   algo_cfg<uint16_t>(a, CUBLASLT_ALGO_CONFIG_CLUSTER_SHAPE_ID, 0));
+}
+
 struct Plan {
-    cublasLtMatmulAlgo_t algo;
+    cublasLtMatmulAlgo_t algo;  // the primary
     bool ok = false;
+    std::vector<cublasLtMatmulAlgo_t> equal;  // algorithms proven bitwise equal to the primary (the primary first)
+    std::map<AlgoKey, int> probed;            // algorithm -> index in `equal`, or -1 (differs / unusable)
+    std::map<int64_t, int> by_m;              // M -> index in `equal`
 };
 
 struct LtState {
     cublasLtHandle_t h = nullptr;
     std::mutex mu;
     std::map<std::pair<int64_t, int64_t>, Plan> plans;  // (N, K)
+    std::map<int64_t, void*> probe_x;                    // K -> kProbeRows x K random bf16
+    void* probe_out = nullptr;                           // 2 x kProbeRows x probe_n bf16
+    int64_t probe_n = 0;
 };
 LtState g_lt[kMaxDevices];
 
@@ -139,6 +189,8 @@ int get_plan(LtState& st, int64_t N, int64_t K, Plan** out) {
             continue;
         p.algo = a;
         p.ok = true;
+        p.equal.push_back(a);
+        p.probed[algo_key(a)] = 0;
         if (lt_debug()) {
             int32_t id = -1, tile = -1, stages = -1;
             cublasLtMatmulAlgoConfigGetAttribute(&a, CUBLASLT_ALGO_CONFIG_ID, &id, sizeof id, &w);
@@ -151,6 +203,144 @@ int get_plan(LtState& st, int64_t N, int64_t K, Plan** out) {
     }
     fprintf(stderr, "matmul_bf16_inv: no workspace-free split-K-1 algorithm for N=%lld K=%lld\n", (long long)N, (long long)K);
     return IK_ERR_UNSUPPORTED;
+}
+
+int lt_run(LtState& st, const cublasLtMatmulAlgo_t& a, int64_t M, int64_t N, int64_t K, const void* x, const void* w, void* out,
+           cudaStream_t s) {
+    Desc ds;
+    IK_TRY(make_desc(ds, M, N, K));
+    const float alpha = 1.f, beta = 0.f;
+    const cublasStatus_t rs = cublasLtMatmul(st.h, reinterpret_cast<cublasLtMatmulDesc_t>(&ds.op), &alpha, w,
+                                             reinterpret_cast<cublasLtMatrixLayout_t>(&ds.a), x,
+                                             reinterpret_cast<cublasLtMatrixLayout_t>(&ds.b), &beta, out,
+                                             reinterpret_cast<cublasLtMatrixLayout_t>(&ds.d), out,
+                                             reinterpret_cast<cublasLtMatrixLayout_t>(&ds.d), &a, nullptr, 0, s);
+    if (rs != CUBLAS_STATUS_SUCCESS) {
+        fprintf(stderr, "matmul_bf16_inv: cublasLtMatmul M=%lld N=%lld K=%lld failed (%d)\n", (long long)M, (long long)N, (long long)K,
+                (int)rs);
+        return IK_ERR_LAUNCH;
+    }
+    return IK_OK;
+}
+
+// Is `a` bitwise the primary? Both run over the probe rows (fixed-seed wide-magnitude bf16: normal * 2^U(-6, 6), so another
+// summation order shows in nearly every output) against the call's weights; every output compared. Synchronizes `s`.
+bool probe_equal(LtState& st, Plan& p, const cublasLtMatmulAlgo_t& a, int64_t N, int64_t K, const void* w, cudaStream_t s) {
+    void*& px = st.probe_x[K];
+    if (!px) {
+        std::vector<uint16_t> h((size_t)kProbeRows * K);
+        uint64_t z = 0x9e3779b97f4a7c15ull ^ (uint64_t)K;
+        auto next = [&] {  // splitmix64
+            z += 0x9e3779b97f4a7c15ull;
+            uint64_t r = z;
+            r = (r ^ (r >> 30)) * 0xbf58476d1ce4e5b9ull;
+            r = (r ^ (r >> 27)) * 0x94d049bb133111ebull;
+            return r ^ (r >> 31);
+        };
+        for (auto& e : h) {
+            const uint64_t r = next();
+            // sign, exponent 2^(-6..6) around 1, 7 random mantissa bits: bf16 bit pattern
+            const uint32_t sign = (uint32_t)(r & 1), ex = 127 - 6 + (uint32_t)((r >> 1) % 13), man = (uint32_t)((r >> 8) & 0x7f);
+            e = (uint16_t)((sign << 15) | (ex << 7) | man);
+        }
+        if (cudaMalloc(&px, h.size() * 2) != cudaSuccess) {
+            px = nullptr;
+            return false;
+        }
+        if (cudaMemcpy(px, h.data(), h.size() * 2, cudaMemcpyHostToDevice) != cudaSuccess) return false;
+    }
+    if (st.probe_n < N) {
+        if (st.probe_out) cudaFree(st.probe_out);
+        st.probe_out = nullptr;
+        st.probe_n = 0;
+        if (cudaMalloc(&st.probe_out, (size_t)2 * kProbeRows * N * 2) != cudaSuccess) {
+            st.probe_out = nullptr;
+            return false;
+        }
+        st.probe_n = N;
+    }
+    const size_t n = (size_t)kProbeRows * N;
+    uint16_t* o0 = (uint16_t*)st.probe_out;
+    uint16_t* o1 = o0 + n;
+    if (lt_run(st, p.algo, kProbeRows, N, K, px, w, o0, s) != IK_OK || lt_run(st, a, kProbeRows, N, K, px, w, o1, s) != IK_OK) return false;
+    std::vector<uint16_t> h(2 * n);
+    if (cudaMemcpyAsync(h.data(), o0, 2 * n * 2, cudaMemcpyDeviceToHost, s) != cudaSuccess || cudaStreamSynchronize(s) != cudaSuccess)
+        return false;
+    return memcmp(h.data(), h.data() + n, n * 2) == 0;
+}
+
+// The algorithm an M-row call runs (index in p.equal): the heuristic's first pick for M that is split-K 1, workspace-free,
+// checks at M and is proven equal to the primary; else the primary. Caller holds the lock.
+int pick(LtState& st, Plan& p, int64_t M, int64_t N, int64_t K, const void* w, cudaStream_t s) {
+    // From ref_m() / 2 rows up the primary itself runs: it is the heuristic's workspace-free choice at ref_m(), and there it beat
+    // the per-M picks (8B layer at 2048 / 3000 / 4096 rows: 0.956 / 0.973 / 0.959 of cuBLAS vs 1.011 / 0.993 / 0.993; with the
+    // picks, 4k-token prefill was -3.5%, docs/results/2026-10-29-rip2-row-invariant-gemm.md).
+    if (single() || M >= ref_m() / 2) return 0;
+    auto it = p.by_m.find(M);
+    if (it != p.by_m.end()) return it->second;
+    cudaStreamCaptureStatus cs = cudaStreamCaptureStatusNone;
+    if (cudaStreamIsCapturing(s, &cs) != cudaSuccess || cs != cudaStreamCaptureStatusNone) return 0;  // cannot probe; not cached
+    int chosen = 0;
+    Desc ds;
+    if (make_desc(ds, M, N, K) == IK_OK) {
+        auto opd = reinterpret_cast<cublasLtMatmulDesc_t>(&ds.op);
+        auto la = reinterpret_cast<cublasLtMatrixLayout_t>(&ds.a);
+        auto lb = reinterpret_cast<cublasLtMatrixLayout_t>(&ds.b);
+        auto ld = reinterpret_cast<cublasLtMatrixLayout_t>(&ds.d);
+        cublasLtMatmulPreference_t pref = nullptr;
+        constexpr int kWant = 8;
+        cublasLtMatmulHeuristicResult_t res[kWant] = {};
+        int got = 0;
+        if (cublasLtMatmulPreferenceCreate(&pref) == CUBLAS_STATUS_SUCCESS) {
+            const size_t ws = kHeurWorkspace;
+            const uint32_t align = 16;
+            cublasLtMatmulPreferenceSetAttribute(pref, CUBLASLT_MATMUL_PREF_MAX_WORKSPACE_BYTES, &ws, sizeof ws);
+            cublasLtMatmulPreferenceSetAttribute(pref, CUBLASLT_MATMUL_PREF_MIN_ALIGNMENT_A_BYTES, &align, sizeof align);
+            cublasLtMatmulPreferenceSetAttribute(pref, CUBLASLT_MATMUL_PREF_MIN_ALIGNMENT_B_BYTES, &align, sizeof align);
+            cublasLtMatmulPreferenceSetAttribute(pref, CUBLASLT_MATMUL_PREF_MIN_ALIGNMENT_C_BYTES, &align, sizeof align);
+            cublasLtMatmulPreferenceSetAttribute(pref, CUBLASLT_MATMUL_PREF_MIN_ALIGNMENT_D_BYTES, &align, sizeof align);
+            if (cublasLtMatmulAlgoGetHeuristic(st.h, opd, la, lb, ld, ld, pref, kWant, res, &got) != CUBLAS_STATUS_SUCCESS) got = 0;
+            cublasLtMatmulPreferenceDestroy(pref);
+        }
+        for (int i = 0; i < got; ++i) {
+            const cublasLtMatmulAlgo_t& a = res[i].algo;
+            if (res[i].state != CUBLAS_STATUS_SUCCESS || res[i].workspaceSize != 0) continue;
+            if (algo_cfg<int32_t>(a, CUBLASLT_ALGO_CONFIG_SPLITK_NUM, 1) != 1) continue;
+            const AlgoKey key = algo_key(a);
+            auto pr = p.probed.find(key);
+            int idx;
+            if (pr != p.probed.end()) {
+                idx = pr->second;
+            } else {
+                // the probe's row count must also be one the algorithm serves
+                Desc dp;
+                cublasLtMatmulHeuristicResult_t chk = {};
+                const bool runs = make_desc(dp, kProbeRows, N, K) == IK_OK &&
+                                  cublasLtMatmulAlgoCheck(st.h, reinterpret_cast<cublasLtMatmulDesc_t>(&dp.op),
+                                                          reinterpret_cast<cublasLtMatrixLayout_t>(&dp.a),
+                                                          reinterpret_cast<cublasLtMatrixLayout_t>(&dp.b),
+                                                          reinterpret_cast<cublasLtMatrixLayout_t>(&dp.d),
+                                                          reinterpret_cast<cublasLtMatrixLayout_t>(&dp.d), &a, &chk) == CUBLAS_STATUS_SUCCESS &&
+                                  chk.workspaceSize == 0;
+                const bool eq = runs && probe_equal(st, p, a, N, K, w, s);
+                idx = eq ? (int)p.equal.size() : -1;
+                if (eq) p.equal.push_back(a);
+                p.probed[key] = idx;
+                if (lt_debug())
+                    fprintf(stderr, "matmul_bf16_inv: N=%lld K=%lld probe algo %d tile %u stages %u cust %u (first at M %lld): %s\n",
+                            (long long)N, (long long)K, std::get<0>(key), std::get<1>(key), std::get<2>(key), std::get<6>(key),
+                            (long long)M, eq ? "equal to the primary" : (runs ? "DIFFERS" : "unusable"));
+            }
+            if (idx < 0) continue;
+            cublasLtMatmulHeuristicResult_t chk = {};
+            if (cublasLtMatmulAlgoCheck(st.h, opd, la, lb, ld, ld, &p.equal[idx], &chk) != CUBLAS_STATUS_SUCCESS || chk.workspaceSize != 0)
+                continue;
+            chosen = idx;
+            break;
+        }
+    }
+    p.by_m[M] = chosen;
+    return chosen;
 }
 
 }  // namespace
@@ -175,18 +365,7 @@ extern "C" int ik_matmul_bf16_inv(const ik_tensor* x, const ik_tensor* w, ik_ten
     }
     Plan* p = nullptr;
     IK_TRY(get_plan(st, N, K, &p));
-    Desc ds;
-    IK_TRY(make_desc(ds, M, N, K));
-    const float alpha = 1.f, beta = 0.f;
-    const cublasStatus_t rs = cublasLtMatmul(
-        st.h, reinterpret_cast<cublasLtMatmulDesc_t>(&ds.op), &alpha, w->data, reinterpret_cast<cublasLtMatrixLayout_t>(&ds.a),
-        x->data, reinterpret_cast<cublasLtMatrixLayout_t>(&ds.b), &beta, out->data,
-        reinterpret_cast<cublasLtMatrixLayout_t>(&ds.d), out->data, reinterpret_cast<cublasLtMatrixLayout_t>(&ds.d), &p->algo,
-        nullptr, 0, IK_STREAM(stream));
-    if (rs != CUBLAS_STATUS_SUCCESS) {
-        fprintf(stderr, "matmul_bf16_inv: cublasLtMatmul M=%lld N=%lld K=%lld failed (%d)\n", (long long)M, (long long)N,
-                (long long)K, (int)rs);
-        return IK_ERR_LAUNCH;
-    }
-    return IK_OK;
+    cudaStream_t s = IK_STREAM(stream);
+    const int idx = pick(st, *p, M, N, K, w->data, s);
+    return lt_run(st, p->equal[idx], M, N, K, x->data, w->data, out->data, s);
 }

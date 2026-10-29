@@ -1,0 +1,817 @@
+cublasLt version 130101
+== shape N 4096 K 4096
+GEMMEX N 4096 K 4096 M 991 us 349.4
+HEUR M 991 #0 id 67 tile 409 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 350.3
+HEUR M 991 #1 id 67 tile 463 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 416.0
+HEUR M 991 #2 id 21 tile 20 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 413.3
+HEUR M 991 #3 id 21 tile 24 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 535.0
+GEMMEX N 4096 K 4096 M 1024 us 352.3
+HEUR M 1024 #0 id 67 tile 409 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 363.5
+HEUR M 1024 #1 id 67 tile 463 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 414.2
+HEUR M 1024 #2 id 21 tile 20 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 419.9
+HEUR M 1024 #3 id 21 tile 24 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 540.6
+GEMMEX N 4096 K 4096 M 2048 us 769.2
+HEUR M 2048 #0 id 67 tile 463 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 751.8
+HEUR M 2048 #1 id 67 tile 412 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 768.5
+HEUR M 2048 #2 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 925.0
+GEMMEX N 4096 K 4096 M 4096 us 1461.5
+HEUR M 4096 #0 id 67 tile 412 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 1462.7
+HEUR M 4096 #1 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 1634.6
+HEUR M 4096 #2 id 67 tile 324 stages 35 splitk 1 red 0 swz 0 cust 16 inner 0 cluster 0 ws 0 us 2956.5
+REF id 67 tile 416 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0
+ALGO id 5 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 6 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 11 tiles 1 stages 1 swz 0 splitk 0 custmax 1
+ALGO id 12 tiles 1 stages 1 swz 0 splitk 0 custmax 1
+ALGO id 13 tiles 1 stages 1 swz 0 splitk 1 custmax 115
+ALGO id 14 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 16 tiles 1 stages 1 swz 0 splitk 0 custmax 0
+CAND N 4096 K 4096 id 16 tile 0 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 1 us 991:3704.2 1024:3728.6 2048:7254.4 4096:14455.1
+ALGO id 21 tiles 10 stages 15 swz 0 splitk 1 custmax 0
+CAND N 4096 K 4096 id 21 tile 5 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2146.2 1024:2121.0 2048:4243.5 4096:10743.2
+CAND N 4096 K 4096 id 21 tile 5 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2034.8 1024:2104.4 2048:4200.8 4096:8333.0
+CAND N 4096 K 4096 id 21 tile 5 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2046.5 1024:2073.8 2048:4154.4 4096:8293.5
+CAND N 4096 K 4096 id 21 tile 5 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2026.9 1024:2094.4 2048:4188.2 4096:8361.2
+CAND N 4096 K 4096 id 21 tile 5 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2050.8 1024:2133.2 2048:4235.5 4096:8513.9
+CAND N 4096 K 4096 id 21 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1225.6 1024:1368.2 2048:2530.4 4096:5902.6
+CAND N 4096 K 4096 id 21 tile 11 stages 8 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1178.5 1024:1207.6 2048:2438.3 4096:5781.0
+CAND N 4096 K 4096 id 21 tile 11 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1053.8 1024:1086.5 2048:2230.8 4096:4542.7
+CAND N 4096 K 4096 id 21 tile 11 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1037.6 1024:1099.2 2048:2233.1 4096:4531.6
+CAND N 4096 K 4096 id 21 tile 11 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1117.6 1024:1154.9 2048:2303.2 4096:4807.0
+CAND N 4096 K 4096 id 21 tile 11 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1148.3 1024:1176.8 2048:2348.4 4096:5036.4
+CAND N 4096 K 4096 id 21 tile 15 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:534.3 1024:546.0 2048:1144.4 4096:2331.2
+CAND N 4096 K 4096 id 21 tile 15 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:684.2 1024:687.3 2048:1367.1 4096:2726.8
+CAND N 4096 K 4096 id 21 tile 15 stages 18 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:578.8 1024:587.0 2048:1178.9 4096:2360.4
+CAND N 4096 K 4096 id 21 tile 15 stages 25 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:546.2 1024:561.3 2048:1158.4 4096:2396.2
+CAND N 4096 K 4096 id 21 tile 17 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:425.1 1024:427.4 2048:984.2 4096:2151.9
+CAND N 4096 K 4096 id 21 tile 17 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:447.9 1024:449.6 2048:948.4 4096:2010.5
+CAND N 4096 K 4096 id 21 tile 17 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:443.5 1024:494.3 2048:909.9 4096:1933.7
+CAND N 4096 K 4096 id 21 tile 19 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:421.9 1024:432.3 2048:901.5 4096:2211.0
+CAND N 4096 K 4096 id 21 tile 18 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:538.6 1024:513.3 2048:961.6 4096:1928.1
+CAND N 4096 K 4096 id 21 tile 18 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:496.8 1024:500.1 2048:963.8 4096:1858.9
+CAND N 4096 K 4096 id 21 tile 18 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:482.6 1024:494.0 2048:953.3 4096:1871.0
+CAND N 4096 K 4096 id 21 tile 20 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:485.9 1024:552.1 2048:896.4 4096:1637.7
+CAND N 4096 K 4096 id 21 tile 20 stages 11 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:467.7 1024:472.3 2048:860.5 4096:1614.0
+CAND N 4096 K 4096 id 21 tile 20 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:451.7 1024:533.1 2048:854.3 4096:1538.8
+CAND N 4096 K 4096 id 21 tile 20 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:412.8 1024:419.3 2048:789.7 4096:1553.6
+CAND N 4096 K 4096 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:432.0 1024:442.8 2048:921.9 4096:1634.5
+CAND N 4096 K 4096 id 21 tile 24 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:550.8 1024:584.3 2048:958.7 4096:1764.4
+CAND N 4096 K 4096 id 21 tile 21 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:612.6 1024:616.1 2048:1020.7 4096:1814.4
+ALGO id 23 tiles 10 stages 15 swz 0 splitk 1 custmax 0
+CAND N 4096 K 4096 id 23 tile 5 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3280.1 1024:3394.8 2048:6754.6 4096:13512.9
+CAND N 4096 K 4096 id 23 tile 5 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2087.4 1024:2158.8 2048:4291.6 4096:8720.6
+CAND N 4096 K 4096 id 23 tile 5 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2047.2 1024:2120.8 2048:4263.3 4096:8632.3
+CAND N 4096 K 4096 id 23 tile 5 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2039.5 1024:2104.5 2048:4236.6 4096:8570.9
+CAND N 4096 K 4096 id 23 tile 5 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2106.1 1024:2184.5 2048:4389.0 4096:9159.5
+CAND N 4096 K 4096 id 23 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1912.6 1024:1970.6 2048:3890.5 4096:8115.4
+CAND N 4096 K 4096 id 23 tile 11 stages 8 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1858.8 1024:1921.6 2048:3816.7 4096:7859.2
+CAND N 4096 K 4096 id 23 tile 11 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1365.3 1024:1411.7 2048:2809.1 4096:5681.3
+CAND N 4096 K 4096 id 23 tile 11 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1343.7 1024:1380.1 2048:2738.5 4096:5640.2
+CAND N 4096 K 4096 id 23 tile 11 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1287.4 1024:1330.5 2048:2668.7 4096:5528.9
+CAND N 4096 K 4096 id 23 tile 11 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1392.4 1024:1437.9 2048:2865.5 4096:5887.3
+CAND N 4096 K 4096 id 23 tile 15 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:885.1 1024:897.0 2048:1862.9 4096:3681.6
+CAND N 4096 K 4096 id 23 tile 15 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:854.4 1024:862.7 2048:1701.3 4096:3404.8
+CAND N 4096 K 4096 id 23 tile 15 stages 18 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:767.0 1024:775.8 2048:1553.5 4096:3121.2
+CAND N 4096 K 4096 id 23 tile 15 stages 25 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:926.1 1024:936.3 2048:1921.3 4096:3979.0
+CAND N 4096 K 4096 id 23 tile 17 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:675.0 1024:679.0 2048:1460.5 4096:3065.1
+CAND N 4096 K 4096 id 23 tile 17 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:554.5 1024:562.6 2048:1146.5 4096:2325.7
+CAND N 4096 K 4096 id 23 tile 17 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:570.7 1024:577.2 2048:1242.1 4096:2348.4
+CAND N 4096 K 4096 id 23 tile 19 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:585.0 1024:607.4 2048:1206.5 4096:2790.6
+CAND N 4096 K 4096 id 23 tile 18 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:744.4 1024:754.6 2048:1480.0 4096:2817.3
+CAND N 4096 K 4096 id 23 tile 18 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:593.9 1024:709.5 2048:1185.2 4096:2359.6
+CAND N 4096 K 4096 id 23 tile 18 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:602.3 1024:679.1 2048:1215.9 4096:2392.4
+CAND N 4096 K 4096 id 23 tile 20 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:585.4 1024:804.6 2048:1164.6 4096:2219.0
+CAND N 4096 K 4096 id 23 tile 20 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:487.9 1024:496.7 2048:925.1 4096:1882.3
+CAND N 4096 K 4096 id 23 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:469.3 1024:478.4 2048:995.8 4096:1839.5
+CAND N 4096 K 4096 id 23 tile 24 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:574.3 1024:697.2 2048:1056.0 4096:1895.9
+CAND N 4096 K 4096 id 23 tile 21 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:791.0 1024:828.7 2048:1377.6 4096:2577.7
+ALGO id 24 tiles 8 stages 2 swz 0 splitk 1 custmax 0
+CAND N 4096 K 4096 id 24 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2976.8 1024:3081.9 2048:6111.4 4096:12392.3
+CAND N 4096 K 4096 id 24 tile 15 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:1490.3 1024:1585.0 2048:2943.8 4096:5850.1
+CAND N 4096 K 4096 id 24 tile 17 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:1094.9 1024:1218.5 2048:2204.0 4096:4295.9
+CAND N 4096 K 4096 id 24 tile 18 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:1107.1 1024:1130.8 2048:2228.5 4096:4306.3
+CAND N 4096 K 4096 id 24 tile 20 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:887.8 1024:909.6 2048:1661.4 4096:3284.8
+CAND N 4096 K 4096 id 24 tile 23 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:767.0 1024:768.4 2048:1568.2 4096:2912.2
+CAND N 4096 K 4096 id 24 tile 24 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:832.6 1024:827.8 2048:1709.6 4096:2936.1
+ALGO id 30 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 31 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 39 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 41 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 42 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 58 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 66 tiles 634 stages 1 swz 0 splitk 1 custmax 7
+ALGO id 67 tiles 627 stages 5 swz 0 splitk 1 custmax 152
+CAND N 4096 K 4096 id 67 tile 3 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:4648.8 1024:4754.4 2048:9477.9 4096:18923.7
+CAND N 4096 K 4096 id 67 tile 3 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 4 us 991:3462.2 1024:3536.8 2048:7056.5 4096:14630.8
+CAND N 4096 K 4096 id 67 tile 3 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 5 us 991:5201.1 1024:5514.0 2048:10700.4 4096:21382.2
+CAND N 4096 K 4096 id 67 tile 3 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 6 us 991:4458.2 1024:4579.7 2048:9585.5 4096:18283.6
+CAND N 4096 K 4096 id 67 tile 3 stages 38 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 7 us 991:5269.2 1024:5415.1 2048:10835.3 4096:21658.7
+CAND N 4096 K 4096 id 67 tile 5 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:3217.6 1024:3309.9 2048:6606.0 4096:13187.6
+CAND N 4096 K 4096 id 67 tile 5 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 8 us 991:3586.1 1024:3697.0 2048:7385.1 4096:14760.5
+CAND N 4096 K 4096 id 67 tile 5 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 9 us 991:3030.3 1024:3127.2 2048:6236.6 4096:12465.5
+CAND N 4096 K 4096 id 67 tile 5 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 10 us 991:2667.9 1024:2751.7 2048:5474.8 4096:10941.7
+CAND N 4096 K 4096 id 67 tile 5 stages 38 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 11 us 991:3435.6 1024:3543.4 2048:7056.7 4096:14111.5
+CAND N 4096 K 4096 id 67 tile 6 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:3585.9 1024:3647.7 2048:7280.5 4096:14502.3
+CAND N 4096 K 4096 id 67 tile 6 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 8 us 991:3735.9 1024:3830.3 2048:7650.6 4096:15281.6
+CAND N 4096 K 4096 id 67 tile 6 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 9 us 991:3231.2 1024:3289.3 2048:6559.8 4096:13115.7
+CAND N 4096 K 4096 id 67 tile 6 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 10 us 991:3059.0 1024:3111.2 2048:6203.7 4096:12392.3
+CAND N 4096 K 4096 id 67 tile 8 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:1980.5 1024:2047.2 2048:4061.4 4096:8102.1
+CAND N 4096 K 4096 id 67 tile 8 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 12 us 991:2431.2 1024:2507.1 2048:4998.5 4096:9977.2
+CAND N 4096 K 4096 id 67 tile 8 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 13 us 991:2158.0 1024:2083.0 2048:4150.5 4096:8303.6
+CAND N 4096 K 4096 id 67 tile 8 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 14 us 991:1885.3 1024:1954.2 2048:3892.6 4096:7768.3
+CAND N 4096 K 4096 id 67 tile 9 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:2051.2 1024:2105.7 2048:4181.7 4096:8329.0
+CAND N 4096 K 4096 id 67 tile 9 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 15 us 991:2475.3 1024:2556.4 2048:5100.6 4096:10177.9
+CAND N 4096 K 4096 id 67 tile 9 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 16 us 991:2129.1 1024:2196.9 2048:4378.9 4096:8744.6
+CAND N 4096 K 4096 id 67 tile 9 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 17 us 991:1897.5 1024:1967.4 2048:4254.8 4096:7806.6
+CAND N 4096 K 4096 id 67 tile 10 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:4121.1 1024:4231.6 2048:8463.8 4096:16882.0
+CAND N 4096 K 4096 id 67 tile 10 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 18 us 991:2658.3 1024:2699.5 2048:5369.0 4096:10889.7
+CAND N 4096 K 4096 id 67 tile 10 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 19 us 991:2547.9 1024:2577.4 2048:5140.0 4096:10283.1
+CAND N 4096 K 4096 id 67 tile 10 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 20 us 991:2853.2 1024:2910.8 2048:5807.3 4096:11612.9
+CAND N 4096 K 4096 id 67 tile 11 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2595.2 1024:2685.3 2048:5340.5 4096:10666.3
+CAND N 4096 K 4096 id 67 tile 11 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1905.0 1024:1968.4 2048:3907.9 4096:7795.2
+CAND N 4096 K 4096 id 67 tile 11 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1676.5 1024:1733.0 2048:3447.0 4096:6861.2
+CAND N 4096 K 4096 id 67 tile 11 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1665.1 1024:1595.8 2048:3176.9 4096:6341.0
+CAND N 4096 K 4096 id 67 tile 12 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2005.7 1024:2013.3 2048:3993.8 4096:7939.1
+CAND N 4096 K 4096 id 67 tile 12 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1587.5 1024:1586.7 2048:3164.4 4096:6274.3
+CAND N 4096 K 4096 id 67 tile 12 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1467.6 1024:1465.4 2048:2916.7 4096:5797.2
+CAND N 4096 K 4096 id 67 tile 12 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1403.1 1024:1403.2 2048:2793.8 4096:5561.9
+CAND N 4096 K 4096 id 67 tile 13 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1959.0 1024:2009.5 2048:4000.1 4096:7954.6
+CAND N 4096 K 4096 id 67 tile 13 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1534.8 1024:1573.3 2048:3135.7 4096:6229.2
+CAND N 4096 K 4096 id 67 tile 13 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1424.1 1024:1537.9 2048:2907.2 4096:5774.7
+CAND N 4096 K 4096 id 67 tile 13 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1387.7 1024:1421.7 2048:2832.7 4096:5634.7
+CAND N 4096 K 4096 id 67 tile 14 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1707.2 1024:1706.3 2048:3330.3 4096:6643.8
+CAND N 4096 K 4096 id 67 tile 14 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1466.6 1024:1464.7 2048:2863.4 4096:5705.1
+CAND N 4096 K 4096 id 67 tile 14 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1409.4 1024:1410.2 2048:2752.7 4096:5485.8
+CAND N 4096 K 4096 id 67 tile 15 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1725.2 1024:1673.6 2048:3264.7 4096:6511.0
+CAND N 4096 K 4096 id 67 tile 15 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1552.8 1024:1440.9 2048:2812.1 4096:5584.1
+CAND N 4096 K 4096 id 67 tile 15 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1373.5 1024:1372.6 2048:2678.9 4096:5342.4
+CAND N 4096 K 4096 id 67 tile 16 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1634.7 1024:1709.2 2048:3336.4 4096:6656.2
+CAND N 4096 K 4096 id 67 tile 16 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1379.6 1024:1440.1 2048:2812.3 4096:5606.8
+CAND N 4096 K 4096 id 67 tile 16 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1337.9 1024:1590.6 2048:2728.2 4096:5440.8
+CAND N 4096 K 4096 id 67 tile 47 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2751.3 1024:2750.9 2048:5465.2 4096:10922.3
+CAND N 4096 K 4096 id 67 tile 47 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1918.4 1024:1924.3 2048:3807.6 4096:7600.3
+CAND N 4096 K 4096 id 67 tile 47 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1658.2 1024:1757.7 2048:3289.2 4096:6558.0
+CAND N 4096 K 4096 id 67 tile 47 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1616.0 1024:1624.4 2048:3328.5 4096:6406.5
+CAND N 4096 K 4096 id 67 tile 48 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2146.8 1024:2109.9 2048:4210.0 4096:8372.5
+CAND N 4096 K 4096 id 67 tile 48 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1599.9 1024:1597.8 2048:3194.5 4096:6353.6
+CAND N 4096 K 4096 id 67 tile 48 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1616.4 1024:1526.0 2048:3033.3 4096:6034.0
+CAND N 4096 K 4096 id 67 tile 49 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2130.8 1024:2136.4 2048:3928.5 4096:7833.9
+CAND N 4096 K 4096 id 67 tile 49 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1684.3 1024:1683.8 2048:3102.8 4096:6175.4
+CAND N 4096 K 4096 id 67 tile 92 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1782.4 1024:1783.0 2048:3547.6 4096:7029.0
+CAND N 4096 K 4096 id 67 tile 92 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1520.4 1024:1482.0 2048:2949.5 4096:5844.2
+CAND N 4096 K 4096 id 67 tile 92 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1404.1 1024:1403.3 2048:2793.8 4096:5539.1
+CAND N 4096 K 4096 id 67 tile 134 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1633.4 1024:1632.4 2048:3168.4 4096:6320.4
+CAND N 4096 K 4096 id 67 tile 134 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1430.8 1024:1429.9 2048:2775.5 4096:5537.2
+CAND N 4096 K 4096 id 67 tile 134 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1391.4 1024:1391.0 2048:2699.7 4096:5389.6
+CAND N 4096 K 4096 id 67 tile 312 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2677.0 1024:2765.3 2048:5500.9 4096:10992.4
+CAND N 4096 K 4096 id 67 tile 312 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1892.6 1024:1956.3 2048:3885.5 4096:7762.1
+CAND N 4096 K 4096 id 67 tile 312 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1679.2 1024:1735.1 2048:3443.3 4096:7202.8
+CAND N 4096 K 4096 id 67 tile 312 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1674.4 1024:1721.6 2048:3424.6 4096:6809.7
+CAND N 4096 K 4096 id 67 tile 313 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2263.6 1024:2293.9 2048:4523.1 4096:8985.7
+CAND N 4096 K 4096 id 67 tile 313 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1720.6 1024:1738.1 2048:3390.2 4096:6749.2
+CAND N 4096 K 4096 id 67 tile 313 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1619.9 1024:1590.6 2048:3088.7 4096:6163.6
+CAND N 4096 K 4096 id 67 tile 313 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1589.5 1024:1547.4 2048:3004.7 4096:5996.9
+CAND N 4096 K 4096 id 67 tile 314 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1953.1 1024:1922.3 2048:3776.8 4096:7434.9
+CAND N 4096 K 4096 id 67 tile 314 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1546.8 1024:1560.9 2048:3047.7 4096:5997.6
+CAND N 4096 K 4096 id 67 tile 314 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1453.4 1024:1466.5 2048:2859.4 4096:5627.3
+CAND N 4096 K 4096 id 67 tile 315 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1725.7 1024:1840.4 2048:3551.7 4096:7035.2
+CAND N 4096 K 4096 id 67 tile 315 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1430.8 1024:1525.0 2048:2941.2 4096:5825.9
+CAND N 4096 K 4096 id 67 tile 315 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1356.3 1024:1448.3 2048:2793.5 4096:5526.8
+CAND N 4096 K 4096 id 67 tile 316 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1661.7 1024:1787.5 2048:3424.5 4096:6784.4
+CAND N 4096 K 4096 id 67 tile 316 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1450.6 1024:1511.7 2048:2894.1 4096:5730.7
+CAND N 4096 K 4096 id 67 tile 316 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1341.6 1024:1440.2 2048:2759.6 4096:5470.5
+CAND N 4096 K 4096 id 67 tile 317 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1587.6 1024:1672.4 2048:3246.3 4096:6362.2
+CAND N 4096 K 4096 id 67 tile 317 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1382.6 1024:1457.3 2048:2824.5 4096:5534.1
+CAND N 4096 K 4096 id 67 tile 317 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1339.1 1024:1507.4 2048:2744.6 4096:5360.9
+CAND N 4096 K 4096 id 67 tile 318 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1634.6 1024:1634.4 2048:3170.7 4096:6324.4
+CAND N 4096 K 4096 id 67 tile 318 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1468.3 1024:1436.0 2048:2787.6 4096:5555.5
+CAND N 4096 K 4096 id 67 tile 318 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1408.1 1024:1395.0 2048:2705.7 4096:5393.7
+CAND N 4096 K 4096 id 67 tile 393 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3097.3 1024:3144.9 2048:6281.9 4096:12539.9
+CAND N 4096 K 4096 id 67 tile 393 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2563.3 1024:2589.1 2048:5178.3 4096:10289.5
+CAND N 4096 K 4096 id 67 tile 393 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2847.1 1024:2908.5 2048:5780.9 4096:11524.3
+CAND N 4096 K 4096 id 67 tile 394 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2125.9 1024:2118.1 2048:4226.3 4096:8400.2
+CAND N 4096 K 4096 id 67 tile 394 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1592.5 1024:1621.2 2048:3231.9 4096:6429.0
+CAND N 4096 K 4096 id 67 tile 394 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1621.0 1024:1763.7 2048:3291.3 4096:6576.8
+CAND N 4096 K 4096 id 67 tile 395 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1840.4 1024:1868.2 2048:3676.4 4096:7266.4
+CAND N 4096 K 4096 id 67 tile 395 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1505.5 1024:1523.0 2048:2982.6 4096:5913.9
+CAND N 4096 K 4096 id 67 tile 395 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1447.4 1024:1468.8 2048:2875.6 4096:5686.6
+CAND N 4096 K 4096 id 67 tile 448 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3166.6 1024:3187.0 2048:6338.7 4096:12932.2
+CAND N 4096 K 4096 id 67 tile 448 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2791.6 1024:2802.4 2048:5424.2 4096:10854.5
+CAND N 4096 K 4096 id 67 tile 449 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1948.6 1024:2005.4 2048:3950.7 4096:7887.0
+CAND N 4096 K 4096 id 67 tile 449 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1577.9 1024:1623.3 2048:3232.2 4096:6367.9
+CAND N 4096 K 4096 id 67 tile 486 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3154.3 1024:3219.9 2048:6451.8 4096:12879.6
+CAND N 4096 K 4096 id 67 tile 486 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2994.5 1024:3087.8 2048:6040.8 4096:11994.8
+ALGO id 70 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 71 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+== shape N 1024 K 4096
+GEMMEX N 1024 K 4096 M 991 us 103.8
+HEUR M 991 #0 id 67 tile 32 stages 35 splitk 1 red 0 swz 0 cust 22 inner 0 cluster 0 ws 0 us 103.7
+HEUR M 991 #1 id 67 tile 412 stages 34 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 108.7
+HEUR M 991 #2 id 67 tile 33 stages 35 splitk 1 red 0 swz 0 cust 22 inner 0 cluster 0 ws 0 us 108.9
+HEUR M 991 #3 id 67 tile 30 stages 35 splitk 1 red 0 swz 0 cust 23 inner 0 cluster 0 ws 0 us 159.7
+GEMMEX N 1024 K 4096 M 1024 us 103.8
+HEUR M 1024 #0 id 67 tile 32 stages 35 splitk 1 red 0 swz 0 cust 22 inner 0 cluster 0 ws 0 us 102.6
+HEUR M 1024 #1 id 67 tile 412 stages 34 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 108.9
+HEUR M 1024 #2 id 67 tile 33 stages 35 splitk 1 red 0 swz 0 cust 22 inner 0 cluster 0 ws 0 us 109.9
+HEUR M 1024 #3 id 67 tile 30 stages 35 splitk 1 red 0 swz 0 cust 23 inner 0 cluster 0 ws 0 us 160.9
+GEMMEX N 1024 K 4096 M 2048 us 204.2
+HEUR M 2048 #0 id 67 tile 32 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 194.8
+HEUR M 2048 #1 id 67 tile 406 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 217.4
+HEUR M 2048 #2 id 67 tile 29 stages 35 splitk 1 red 0 swz 0 cust 22 inner 0 cluster 0 ws 0 us 243.9
+HEUR M 2048 #3 id 67 tile 29 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 237.8
+GEMMEX N 1024 K 4096 M 4096 us 354.5
+HEUR M 4096 #0 id 67 tile 409 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 360.8
+HEUR M 4096 #1 id 67 tile 406 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 360.7
+HEUR M 4096 #2 id 67 tile 20 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 385.4
+HEUR M 4096 #3 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 371.4
+REF id 67 tile 409 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0
+ALGO id 5 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 6 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 11 tiles 1 stages 1 swz 0 splitk 0 custmax 1
+ALGO id 12 tiles 1 stages 1 swz 0 splitk 0 custmax 1
+ALGO id 13 tiles 1 stages 1 swz 0 splitk 1 custmax 115
+ALGO id 14 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 16 tiles 1 stages 1 swz 0 splitk 0 custmax 0
+CAND N 1024 K 4096 id 16 tile 0 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 1 us 991:742.5 1024:744.7 2048:1578.1 4096:3143.0
+ALGO id 21 tiles 10 stages 15 swz 0 splitk 1 custmax 0
+CAND N 1024 K 4096 id 21 tile 5 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:644.8 1024:537.9 2048:1066.8 4096:2362.7
+CAND N 1024 K 4096 id 21 tile 5 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:497.4 1024:513.8 2048:1030.3 4096:2063.4
+CAND N 1024 K 4096 id 21 tile 5 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:493.9 1024:503.5 2048:1018.0 4096:2065.7
+CAND N 1024 K 4096 id 21 tile 5 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:503.1 1024:517.4 2048:1037.6 4096:2092.2
+CAND N 1024 K 4096 id 21 tile 5 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:501.2 1024:515.5 2048:1047.9 4096:2112.9
+CAND N 1024 K 4096 id 21 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:323.4 1024:325.1 2048:650.5 4096:1467.3
+CAND N 1024 K 4096 id 21 tile 11 stages 8 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:317.8 1024:320.5 2048:630.1 4096:1527.1
+CAND N 1024 K 4096 id 21 tile 11 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:270.6 1024:281.8 2048:546.0 4096:1223.8
+CAND N 1024 K 4096 id 21 tile 11 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:264.5 1024:275.7 2048:540.1 4096:1082.4
+CAND N 1024 K 4096 id 21 tile 11 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:290.1 1024:302.2 2048:586.9 4096:1186.0
+CAND N 1024 K 4096 id 21 tile 11 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:289.2 1024:295.1 2048:596.5 4096:1254.8
+CAND N 1024 K 4096 id 21 tile 15 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:146.5 1024:177.6 2048:278.6 4096:576.6
+CAND N 1024 K 4096 id 21 tile 15 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:189.8 1024:190.8 2048:348.3 4096:696.3
+CAND N 1024 K 4096 id 21 tile 15 stages 18 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:160.2 1024:175.3 2048:300.3 4096:597.4
+CAND N 1024 K 4096 id 21 tile 15 stages 25 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:152.9 1024:159.1 2048:284.8 4096:576.6
+CAND N 1024 K 4096 id 21 tile 17 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:120.8 1024:118.8 2048:236.8 4096:512.1
+CAND N 1024 K 4096 id 21 tile 17 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:126.2 1024:126.5 2048:241.8 4096:487.6
+CAND N 1024 K 4096 id 21 tile 17 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:123.0 1024:155.1 2048:240.6 4096:470.3
+CAND N 1024 K 4096 id 21 tile 19 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:131.4 1024:130.4 2048:213.2 4096:532.7
+CAND N 1024 K 4096 id 21 tile 18 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:121.2 1024:118.9 2048:233.7 4096:453.7
+CAND N 1024 K 4096 id 21 tile 18 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:130.4 1024:128.4 2048:241.0 4096:473.4
+CAND N 1024 K 4096 id 21 tile 18 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:126.1 1024:124.3 2048:236.7 4096:465.8
+CAND N 1024 K 4096 id 21 tile 20 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:130.4 1024:206.7 2048:201.7 4096:404.7
+CAND N 1024 K 4096 id 21 tile 20 stages 11 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:132.3 1024:132.5 2048:195.9 4096:389.4
+CAND N 1024 K 4096 id 21 tile 20 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:132.5 1024:133.3 2048:202.8 4096:388.3
+CAND N 1024 K 4096 id 21 tile 20 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:130.4 1024:131.5 2048:193.8 4096:382.3
+CAND N 1024 K 4096 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:121.3 1024:120.1 2048:244.0 4096:379.2
+CAND N 1024 K 4096 id 21 tile 24 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:122.1 1024:120.7 2048:244.8 4096:455.4
+CAND N 1024 K 4096 id 21 tile 21 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:134.5 1024:133.4 2048:201.9 4096:402.8
+ALGO id 23 tiles 10 stages 15 swz 0 splitk 1 custmax 0
+CAND N 1024 K 4096 id 23 tile 5 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:832.6 1024:874.7 2048:1703.1 4096:3400.1
+CAND N 1024 K 4096 id 23 tile 5 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:527.5 1024:542.7 2048:1074.4 4096:2125.0
+CAND N 1024 K 4096 id 23 tile 5 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:645.6 1024:529.6 2048:1054.0 4096:2102.5
+CAND N 1024 K 4096 id 23 tile 5 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:515.2 1024:526.4 2048:1051.8 4096:2133.0
+CAND N 1024 K 4096 id 23 tile 5 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:531.7 1024:546.3 2048:1101.2 4096:2288.8
+CAND N 1024 K 4096 id 23 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:494.8 1024:511.2 2048:1023.6 4096:2057.6
+CAND N 1024 K 4096 id 23 tile 11 stages 8 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:481.4 1024:502.1 2048:975.3 4096:1985.8
+CAND N 1024 K 4096 id 23 tile 11 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:353.5 1024:369.9 2048:718.3 4096:1442.0
+CAND N 1024 K 4096 id 23 tile 11 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:344.2 1024:360.9 2048:702.8 4096:1520.4
+CAND N 1024 K 4096 id 23 tile 11 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:333.0 1024:347.6 2048:681.3 4096:1373.4
+CAND N 1024 K 4096 id 23 tile 11 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:357.6 1024:372.0 2048:733.8 4096:1477.2
+CAND N 1024 K 4096 id 23 tile 15 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:244.2 1024:248.0 2048:455.7 4096:930.2
+CAND N 1024 K 4096 id 23 tile 15 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:239.0 1024:241.0 2048:439.5 4096:871.7
+CAND N 1024 K 4096 id 23 tile 15 stages 18 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:212.2 1024:214.4 2048:391.5 4096:787.9
+CAND N 1024 K 4096 id 23 tile 15 stages 25 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:251.3 1024:254.1 2048:478.4 4096:998.6
+CAND N 1024 K 4096 id 23 tile 17 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:185.8 1024:184.6 2048:374.0 4096:747.6
+CAND N 1024 K 4096 id 23 tile 17 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:155.1 1024:156.8 2048:310.4 4096:582.0
+CAND N 1024 K 4096 id 23 tile 17 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:160.2 1024:160.1 2048:317.6 4096:606.7
+CAND N 1024 K 4096 id 23 tile 19 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:189.7 1024:193.9 2048:313.7 4096:706.8
+CAND N 1024 K 4096 id 23 tile 18 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:184.6 1024:184.6 2048:372.0 4096:693.5
+CAND N 1024 K 4096 id 23 tile 18 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:155.7 1024:155.0 2048:309.3 4096:565.5
+CAND N 1024 K 4096 id 23 tile 18 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:160.5 1024:160.5 2048:317.8 4096:593.2
+CAND N 1024 K 4096 id 23 tile 20 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:165.2 1024:163.1 2048:262.5 4096:569.3
+CAND N 1024 K 4096 id 23 tile 20 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:165.0 1024:165.9 2048:245.3 4096:480.4
+CAND N 1024 K 4096 id 23 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:133.2 1024:133.1 2048:273.7 4096:440.5
+CAND N 1024 K 4096 id 23 tile 24 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:133.5 1024:134.8 2048:276.5 4096:442.3
+CAND N 1024 K 4096 id 23 tile 21 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:202.4 1024:195.8 2048:317.4 4096:650.5
+ALGO id 24 tiles 8 stages 2 swz 0 splitk 1 custmax 0
+CAND N 1024 K 4096 id 24 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:763.0 1024:801.1 2048:1549.3 4096:3131.9
+CAND N 1024 K 4096 id 24 tile 15 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:483.6 1024:491.5 2048:829.7 4096:1509.7
+CAND N 1024 K 4096 id 24 tile 17 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:312.5 1024:311.5 2048:613.6 4096:1120.1
+CAND N 1024 K 4096 id 24 tile 18 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:313.2 1024:313.7 2048:630.1 4096:1123.7
+CAND N 1024 K 4096 id 24 tile 20 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:301.1 1024:309.2 2048:473.5 4096:914.4
+CAND N 1024 K 4096 id 24 tile 23 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:252.0 1024:251.5 2048:512.4 4096:773.6
+CAND N 1024 K 4096 id 24 tile 24 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:254.1 1024:253.2 2048:578.0 4096:786.7
+ALGO id 30 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 31 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 39 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 41 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 42 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 58 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 66 tiles 634 stages 1 swz 0 splitk 1 custmax 7
+ALGO id 67 tiles 627 stages 5 swz 0 splitk 1 custmax 152
+CAND N 1024 K 4096 id 67 tile 3 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:1055.5 1024:970.1 2048:1991.3 4096:3863.8
+CAND N 1024 K 4096 id 67 tile 3 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 4 us 991:856.5 1024:829.9 2048:1651.8 4096:3289.3
+CAND N 1024 K 4096 id 67 tile 3 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 5 us 991:1276.5 1024:1210.8 2048:2431.1 4096:4821.4
+CAND N 1024 K 4096 id 67 tile 3 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 6 us 991:955.0 1024:1025.2 2048:1958.6 4096:3907.2
+CAND N 1024 K 4096 id 67 tile 3 stages 38 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 7 us 991:1073.3 1024:1106.2 2048:2205.9 4096:4409.4
+CAND N 1024 K 4096 id 67 tile 5 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:780.6 1024:800.9 2048:1589.8 4096:3162.5
+CAND N 1024 K 4096 id 67 tile 5 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 8 us 991:885.0 1024:915.7 2048:1816.8 4096:3620.2
+CAND N 1024 K 4096 id 67 tile 5 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 9 us 991:729.5 1024:754.0 2048:1493.2 4096:2973.0
+CAND N 1024 K 4096 id 67 tile 5 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 10 us 991:645.6 1024:690.5 2048:1370.3 4096:2633.0
+CAND N 1024 K 4096 id 67 tile 5 stages 38 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 11 us 991:739.8 1024:762.9 2048:1514.9 4096:3006.5
+CAND N 1024 K 4096 id 67 tile 6 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:805.4 1024:827.8 2048:1644.7 4096:3269.5
+CAND N 1024 K 4096 id 67 tile 6 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 8 us 991:917.7 1024:948.5 2048:1882.2 4096:3749.1
+CAND N 1024 K 4096 id 67 tile 6 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 9 us 991:773.2 1024:797.0 2048:1583.3 4096:3153.4
+CAND N 1024 K 4096 id 67 tile 6 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 10 us 991:707.1 1024:729.4 2048:1450.3 4096:2884.9
+CAND N 1024 K 4096 id 67 tile 8 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:494.7 1024:514.0 2048:1005.8 4096:1986.3
+CAND N 1024 K 4096 id 67 tile 8 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 12 us 991:616.7 1024:633.0 2048:1278.0 4096:2492.6
+CAND N 1024 K 4096 id 67 tile 8 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 13 us 991:510.3 1024:524.5 2048:1142.9 4096:2062.6
+CAND N 1024 K 4096 id 67 tile 8 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 14 us 991:473.6 1024:489.8 2048:966.9 4096:1923.3
+CAND N 1024 K 4096 id 67 tile 9 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:516.4 1024:514.4 2048:1001.6 4096:2003.1
+CAND N 1024 K 4096 id 67 tile 9 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 15 us 991:629.0 1024:692.7 2048:1278.2 4096:2534.8
+CAND N 1024 K 4096 id 67 tile 9 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 16 us 991:538.8 1024:553.3 2048:1091.9 4096:2201.9
+CAND N 1024 K 4096 id 67 tile 9 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 17 us 991:480.7 1024:495.4 2048:977.2 4096:1939.6
+CAND N 1024 K 4096 id 67 tile 10 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:1022.3 1024:1099.4 2048:2082.3 4096:4136.3
+CAND N 1024 K 4096 id 67 tile 10 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 18 us 991:637.1 1024:702.8 2048:1294.6 4096:2587.8
+CAND N 1024 K 4096 id 67 tile 10 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 19 us 991:650.4 1024:637.2 2048:1257.8 4096:2499.9
+CAND N 1024 K 4096 id 67 tile 10 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 20 us 991:651.6 1024:672.0 2048:1331.6 4096:2645.2
+CAND N 1024 K 4096 id 67 tile 11 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:655.7 1024:686.5 2048:1335.7 4096:2658.6
+CAND N 1024 K 4096 id 67 tile 11 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:514.8 1024:508.2 2048:987.5 4096:1962.2
+CAND N 1024 K 4096 id 67 tile 11 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:432.5 1024:448.7 2048:870.7 4096:1726.8
+CAND N 1024 K 4096 id 67 tile 11 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:395.6 1024:412.0 2048:801.1 4096:1589.5
+CAND N 1024 K 4096 id 67 tile 12 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:520.6 1024:520.5 2048:1026.4 4096:2003.3
+CAND N 1024 K 4096 id 67 tile 12 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:411.9 1024:412.8 2048:837.8 4096:1587.6
+CAND N 1024 K 4096 id 67 tile 12 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:381.2 1024:381.2 2048:751.9 4096:1465.4
+CAND N 1024 K 4096 id 67 tile 12 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:364.9 1024:364.7 2048:719.2 4096:1405.2
+CAND N 1024 K 4096 id 67 tile 13 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:518.4 1024:520.4 2048:1028.5 4096:2001.6
+CAND N 1024 K 4096 id 67 tile 13 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:406.7 1024:434.1 2048:807.2 4096:1572.9
+CAND N 1024 K 4096 id 67 tile 13 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:377.0 1024:379.1 2048:747.7 4096:1456.4
+CAND N 1024 K 4096 id 67 tile 13 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:366.8 1024:369.0 2048:727.4 4096:1417.5
+CAND N 1024 K 4096 id 67 tile 14 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:471.4 1024:471.4 2048:858.2 4096:1706.4
+CAND N 1024 K 4096 id 67 tile 14 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:405.9 1024:404.5 2048:746.8 4096:1466.9
+CAND N 1024 K 4096 id 67 tile 14 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:391.4 1024:389.4 2048:710.9 4096:1411.2
+CAND N 1024 K 4096 id 67 tile 15 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:463.1 1024:463.0 2048:840.2 4096:1671.5
+CAND N 1024 K 4096 id 67 tile 15 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:395.5 1024:393.7 2048:723.2 4096:1431.9
+CAND N 1024 K 4096 id 67 tile 15 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:379.1 1024:378.9 2048:692.4 4096:1372.5
+CAND N 1024 K 4096 id 67 tile 16 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:472.0 1024:471.4 2048:858.6 4096:1708.3
+CAND N 1024 K 4096 id 67 tile 16 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:395.5 1024:397.6 2048:725.3 4096:1438.0
+CAND N 1024 K 4096 id 67 tile 16 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:385.2 1024:387.3 2048:702.9 4096:1395.0
+CAND N 1024 K 4096 id 67 tile 47 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:708.9 1024:707.6 2048:1414.8 4096:2745.6
+CAND N 1024 K 4096 id 67 tile 47 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:494.0 1024:493.9 2048:962.8 4096:1911.2
+CAND N 1024 K 4096 id 67 tile 47 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:426.9 1024:471.3 2048:831.7 4096:1653.1
+CAND N 1024 K 4096 id 67 tile 47 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:416.1 1024:414.2 2048:810.3 4096:1616.4
+CAND N 1024 K 4096 id 67 tile 48 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:547.1 1024:546.9 2048:1120.6 4096:2114.8
+CAND N 1024 K 4096 id 67 tile 48 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:416.0 1024:416.1 2048:863.4 4096:1616.3
+CAND N 1024 K 4096 id 67 tile 48 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:395.5 1024:396.8 2048:782.7 4096:1544.2
+CAND N 1024 K 4096 id 67 tile 49 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:540.9 1024:540.7 2048:1003.9 4096:2025.6
+CAND N 1024 K 4096 id 67 tile 49 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:428.4 1024:427.6 2048:790.8 4096:1678.6
+CAND N 1024 K 4096 id 67 tile 92 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:497.9 1024:497.9 2048:926.0 4096:1839.5
+CAND N 1024 K 4096 id 67 tile 92 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:443.7 1024:412.3 2048:770.3 4096:1528.1
+CAND N 1024 K 4096 id 67 tile 92 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:391.6 1024:390.7 2048:729.4 4096:1475.8
+CAND N 1024 K 4096 id 67 tile 134 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:459.1 1024:459.0 2048:821.5 4096:1630.6
+CAND N 1024 K 4096 id 67 tile 134 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:401.5 1024:401.7 2048:721.2 4096:1427.8
+CAND N 1024 K 4096 id 67 tile 134 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:391.4 1024:391.2 2048:702.7 4096:1389.9
+CAND N 1024 K 4096 id 67 tile 312 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:678.1 1024:708.9 2048:1378.6 4096:2745.7
+CAND N 1024 K 4096 id 67 tile 312 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:483.7 1024:504.0 2048:981.3 4096:1948.1
+CAND N 1024 K 4096 id 67 tile 312 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:426.2 1024:444.4 2048:910.9 4096:1712.4
+CAND N 1024 K 4096 id 67 tile 312 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:470.5 1024:428.2 2048:833.8 4096:1655.9
+CAND N 1024 K 4096 id 67 tile 313 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:559.5 1024:594.0 2048:1143.0 4096:2237.8
+CAND N 1024 K 4096 id 67 tile 313 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:438.0 1024:446.7 2048:858.6 4096:1683.8
+CAND N 1024 K 4096 id 67 tile 313 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:385.3 1024:407.8 2048:782.7 4096:1532.2
+CAND N 1024 K 4096 id 67 tile 313 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:373.1 1024:393.3 2048:762.0 4096:1487.2
+CAND N 1024 K 4096 id 67 tile 314 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:494.0 1024:495.7 2048:977.2 4096:1893.5
+CAND N 1024 K 4096 id 67 tile 314 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:397.7 1024:399.6 2048:788.9 4096:1524.0
+CAND N 1024 K 4096 id 67 tile 314 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:374.9 1024:375.0 2048:739.6 4096:1429.8
+CAND N 1024 K 4096 id 67 tile 315 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:438.5 1024:497.9 2048:925.9 4096:1782.1
+CAND N 1024 K 4096 id 67 tile 315 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:378.6 1024:411.8 2048:766.2 4096:1474.8
+CAND N 1024 K 4096 id 67 tile 315 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:344.4 1024:389.7 2048:726.3 4096:1399.1
+CAND N 1024 K 4096 id 67 tile 316 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:422.2 1024:487.7 2048:897.3 4096:1718.7
+CAND N 1024 K 4096 id 67 tile 316 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:356.8 1024:409.9 2048:756.2 4096:1451.6
+CAND N 1024 K 4096 id 67 tile 316 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:340.5 1024:391.7 2048:722.6 4096:1384.8
+CAND N 1024 K 4096 id 67 tile 317 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:424.2 1024:424.3 2048:838.0 4096:1591.7
+CAND N 1024 K 4096 id 67 tile 317 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:369.0 1024:370.5 2048:729.5 4096:1386.8
+CAND N 1024 K 4096 id 67 tile 317 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:358.7 1024:358.6 2048:708.9 4096:1345.8
+CAND N 1024 K 4096 id 67 tile 318 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:459.0 1024:459.0 2048:821.5 4096:1632.5
+CAND N 1024 K 4096 id 67 tile 318 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:403.6 1024:401.7 2048:723.1 4096:1433.1
+CAND N 1024 K 4096 id 67 tile 318 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:391.5 1024:391.5 2048:702.8 4096:1392.9
+CAND N 1024 K 4096 id 67 tile 393 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:747.7 1024:778.6 2048:1516.5 4096:3021.1
+CAND N 1024 K 4096 id 67 tile 393 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:592.3 1024:623.1 2048:1204.5 4096:2389.4
+CAND N 1024 K 4096 id 67 tile 393 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:674.0 1024:697.8 2048:1456.1 4096:2693.3
+CAND N 1024 K 4096 id 67 tile 394 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:546.9 1024:547.1 2048:1083.7 4096:2115.8
+CAND N 1024 K 4096 id 67 tile 394 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:443.8 1024:418.1 2048:824.7 4096:1609.0
+CAND N 1024 K 4096 id 67 tile 394 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:401.6 1024:403.7 2048:795.1 4096:1576.9
+CAND N 1024 K 4096 id 67 tile 395 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:454.5 1024:512.3 2048:954.7 4096:1839.4
+CAND N 1024 K 4096 id 67 tile 395 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:381.9 1024:428.0 2048:772.4 4096:1491.2
+CAND N 1024 K 4096 id 67 tile 395 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:356.5 1024:401.7 2048:745.9 4096:1436.0
+CAND N 1024 K 4096 id 67 tile 448 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:733.4 1024:735.6 2048:1460.6 4096:2913.7
+CAND N 1024 K 4096 id 67 tile 448 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:674.1 1024:686.5 2048:1337.8 4096:2627.1
+CAND N 1024 K 4096 id 67 tile 449 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:539.1 1024:541.0 2048:1071.7 4096:2134.5
+CAND N 1024 K 4096 id 67 tile 449 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:428.3 1024:430.2 2048:849.3 4096:1683.8
+CAND N 1024 K 4096 id 67 tile 486 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:618.7 1024:620.9 2048:1229.1 4096:2395.5
+CAND N 1024 K 4096 id 67 tile 486 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:713.0 1024:724.4 2048:1404.4 4096:2715.0
+ALGO id 70 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 71 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+== shape N 12288 K 4096
+GEMMEX N 12288 K 4096 M 991 us 1035.5
+HEUR M 991 #0 id 67 tile 463 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 1035.0
+HEUR M 991 #1 id 67 tile 412 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 1116.5
+HEUR M 991 #2 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 1261.2
+GEMMEX N 12288 K 4096 M 1024 us 1135.8
+HEUR M 1024 #0 id 67 tile 412 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 1142.9
+HEUR M 1024 #1 id 67 tile 463 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 1130.9
+HEUR M 1024 #2 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 1287.4
+GEMMEX N 12288 K 4096 M 2048 us 2211.9
+HEUR M 2048 #0 id 67 tile 412 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 2226.3
+HEUR M 2048 #1 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 2558.3
+HEUR M 2048 #2 id 67 tile 324 stages 35 splitk 1 red 0 swz 0 cust 16 inner 0 cluster 0 ws 0 us 4564.4
+GEMMEX N 12288 K 4096 M 4096 us 4240.6
+HEUR M 4096 #0 id 67 tile 412 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 4479.3
+HEUR M 4096 #1 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 4757.2
+HEUR M 4096 #2 id 67 tile 324 stages 35 splitk 1 red 0 swz 0 cust 16 inner 0 cluster 0 ws 0 us 8818.3
+REF id 67 tile 416 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0
+ALGO id 5 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 6 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 11 tiles 1 stages 1 swz 0 splitk 0 custmax 1
+ALGO id 12 tiles 1 stages 1 swz 0 splitk 0 custmax 1
+ALGO id 13 tiles 1 stages 1 swz 0 splitk 1 custmax 115
+ALGO id 14 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 16 tiles 1 stages 1 swz 0 splitk 0 custmax 0
+CAND N 12288 K 4096 id 16 tile 0 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 1 us 991:17123.3 1024:16313.6 2048:32500.7 4096:64833.5
+ALGO id 21 tiles 10 stages 15 swz 0 splitk 1 custmax 0
+CAND N 12288 K 4096 id 21 tile 5 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6137.0 1024:6335.7 2048:12959.0 4096:29388.9
+CAND N 12288 K 4096 id 21 tile 5 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6269.1 1024:6309.1 2048:12514.2 4096:25048.1
+CAND N 12288 K 4096 id 21 tile 5 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6013.9 1024:6211.8 2048:12364.7 4096:25075.5
+CAND N 12288 K 4096 id 21 tile 5 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6109.3 1024:6263.6 2048:12640.7 4096:25123.9
+CAND N 12288 K 4096 id 21 tile 5 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6073.0 1024:6291.6 2048:12487.8 4096:25547.2
+CAND N 12288 K 4096 id 21 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3630.2 1024:3753.0 2048:7876.3 4096:17694.9
+CAND N 12288 K 4096 id 21 tile 11 stages 8 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3487.6 1024:3825.7 2048:7812.7 4096:17469.5
+CAND N 12288 K 4096 id 21 tile 11 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3107.6 1024:3359.3 2048:6698.1 4096:13793.3
+CAND N 12288 K 4096 id 21 tile 11 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3062.8 1024:3338.9 2048:6669.6 4096:13613.1
+CAND N 12288 K 4096 id 21 tile 11 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3322.9 1024:3431.5 2048:7118.0 4096:14569.9
+CAND N 12288 K 4096 id 21 tile 11 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3390.5 1024:3492.9 2048:7181.5 4096:15105.3
+CAND N 12288 K 4096 id 21 tile 15 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1547.5 1024:1613.7 2048:3386.4 4096:7072.7
+CAND N 12288 K 4096 id 21 tile 15 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2001.0 1024:2007.4 2048:4093.7 4096:8135.7
+CAND N 12288 K 4096 id 21 tile 15 stages 18 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1670.8 1024:1701.9 2048:3585.0 4096:7238.7
+CAND N 12288 K 4096 id 21 tile 15 stages 25 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1585.1 1024:1783.0 2048:3557.0 4096:7119.2
+CAND N 12288 K 4096 id 21 tile 17 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1214.0 1024:1236.2 2048:2933.8 4096:6374.6
+CAND N 12288 K 4096 id 21 tile 17 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1388.9 1024:1277.1 2048:3174.9 4096:5970.6
+CAND N 12288 K 4096 id 21 tile 17 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1245.9 1024:1273.1 2048:2874.1 4096:5814.1
+CAND N 12288 K 4096 id 21 tile 19 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1149.1 1024:1164.5 2048:2665.3 4096:6425.7
+CAND N 12288 K 4096 id 21 tile 18 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1462.2 1024:1495.5 2048:2927.6 4096:5580.7
+CAND N 12288 K 4096 id 21 tile 18 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1438.7 1024:1463.7 2048:2820.1 4096:5631.0
+CAND N 12288 K 4096 id 21 tile 18 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1572.2 1024:1454.1 2048:2902.5 4096:5671.5
+CAND N 12288 K 4096 id 21 tile 20 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1323.0 1024:1411.0 2048:2594.3 4096:5220.2
+CAND N 12288 K 4096 id 21 tile 20 stages 11 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1376.9 1024:1289.3 2048:2466.8 4096:4818.6
+CAND N 12288 K 4096 id 21 tile 20 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1276.3 1024:1283.4 2048:2468.9 4096:4823.1
+CAND N 12288 K 4096 id 21 tile 20 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1147.9 1024:1182.4 2048:2390.1 4096:4628.4
+CAND N 12288 K 4096 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1264.8 1024:1294.2 2048:2554.0 4096:4740.3
+CAND N 12288 K 4096 id 21 tile 24 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1537.1 1024:1553.5 2048:2722.2 4096:5336.9
+CAND N 12288 K 4096 id 21 tile 21 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1791.1 1024:1977.8 2048:2956.5 4096:5476.4
+ALGO id 23 tiles 10 stages 15 swz 0 splitk 1 custmax 0
+CAND N 12288 K 4096 id 23 tile 5 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:9822.2 1024:10135.8 2048:20268.3 4096:40563.8
+CAND N 12288 K 4096 id 23 tile 5 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6360.3 1024:6583.3 2048:13164.2 4096:26489.0
+CAND N 12288 K 4096 id 23 tile 5 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6085.3 1024:6450.0 2048:12847.3 4096:26153.8
+CAND N 12288 K 4096 id 23 tile 5 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6074.9 1024:6341.8 2048:12591.2 4096:25834.1
+CAND N 12288 K 4096 id 23 tile 5 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6195.8 1024:6578.8 2048:13203.2 4096:27723.1
+CAND N 12288 K 4096 id 23 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5675.3 1024:5847.3 2048:11701.5 4096:24255.5
+CAND N 12288 K 4096 id 23 tile 11 stages 8 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5550.0 1024:5724.2 2048:11451.6 4096:23487.7
+CAND N 12288 K 4096 id 23 tile 11 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4073.2 1024:4204.7 2048:8610.0 4096:17504.0
+CAND N 12288 K 4096 id 23 tile 11 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3986.6 1024:4111.4 2048:8472.8 4096:17221.7
+CAND N 12288 K 4096 id 23 tile 11 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3843.8 1024:4070.7 2048:8229.4 4096:16818.0
+CAND N 12288 K 4096 id 23 tile 11 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4156.4 1024:4292.4 2048:8753.3 4096:17893.6
+CAND N 12288 K 4096 id 23 tile 15 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2584.0 1024:2612.4 2048:5445.8 4096:11197.6
+CAND N 12288 K 4096 id 23 tile 15 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2505.9 1024:2522.2 2048:5074.9 4096:10174.9
+CAND N 12288 K 4096 id 23 tile 15 stages 18 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2233.5 1024:2258.0 2048:4774.0 4096:9613.3
+CAND N 12288 K 4096 id 23 tile 15 stages 25 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2706.5 1024:2737.3 2048:5767.3 4096:11887.6
+CAND N 12288 K 4096 id 23 tile 17 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1946.8 1024:1973.5 2048:4321.3 4096:9185.4
+CAND N 12288 K 4096 id 23 tile 17 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1632.9 1024:1628.9 2048:3558.5 4096:7277.7
+CAND N 12288 K 4096 id 23 tile 17 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1654.0 1024:1666.2 2048:3603.7 4096:7349.2
+CAND N 12288 K 4096 id 23 tile 19 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1595.4 1024:1655.9 2048:3624.2 4096:8159.2
+CAND N 12288 K 4096 id 23 tile 18 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2155.2 1024:2197.3 2048:4339.8 4096:8597.6
+CAND N 12288 K 4096 id 23 tile 18 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1888.4 1024:1756.2 2048:3653.9 4096:7187.4
+CAND N 12288 K 4096 id 23 tile 18 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1916.8 1024:1775.8 2048:3693.3 4096:7269.6
+CAND N 12288 K 4096 id 23 tile 20 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1610.8 1024:1666.2 2048:3402.4 4096:6589.7
+CAND N 12288 K 4096 id 23 tile 20 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1331.0 1024:1361.9 2048:2864.3 4096:5624.0
+CAND N 12288 K 4096 id 23 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1359.1 1024:1384.1 2048:2848.2 4096:5515.5
+CAND N 12288 K 4096 id 23 tile 24 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1641.7 1024:1657.9 2048:2981.2 4096:5681.3
+CAND N 12288 K 4096 id 23 tile 21 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2243.8 1024:2276.4 2048:4067.5 4096:7683.2
+ALGO id 24 tiles 8 stages 2 swz 0 splitk 1 custmax 0
+CAND N 12288 K 4096 id 24 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:8925.7 1024:9175.1 2048:18334.0 4096:37156.0
+CAND N 12288 K 4096 id 24 tile 15 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:4356.4 1024:4401.3 2048:8826.2 4096:18247.9
+CAND N 12288 K 4096 id 24 tile 17 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:3869.8 1024:3197.2 2048:6391.0 4096:12781.9
+CAND N 12288 K 4096 id 24 tile 18 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:3192.2 1024:3216.9 2048:6415.8 4096:12811.6
+CAND N 12288 K 4096 id 24 tile 20 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:2352.4 1024:2378.8 2048:4783.5 4096:9648.9
+CAND N 12288 K 4096 id 24 tile 23 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:2054.5 1024:2142.5 2048:4321.8 4096:9220.4
+CAND N 12288 K 4096 id 24 tile 24 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:2239.9 1024:2259.9 2048:4415.1 4096:9419.7
+ALGO id 30 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 31 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 39 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 41 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 42 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 58 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 66 tiles 634 stages 1 swz 0 splitk 1 custmax 7
+ALGO id 67 tiles 627 stages 5 swz 0 splitk 1 custmax 152
+CAND N 12288 K 4096 id 67 tile 3 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:14359.1 1024:14154.5 2048:28276.9 4096:56554.5
+CAND N 12288 K 4096 id 67 tile 3 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 4 us 991:10329.4 1024:10967.1 2048:21070.8 4096:42116.8
+CAND N 12288 K 4096 id 67 tile 3 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 5 us 991:16420.3 1024:16065.2 2048:32109.2 4096:64199.7
+CAND N 12288 K 4096 id 67 tile 3 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 6 us 991:13894.5 1024:13810.3 2048:27615.6 4096:55209.6
+CAND N 12288 K 4096 id 67 tile 3 stages 38 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 7 us 991:16106.9 1024:16321.9 2048:32625.3 4096:65247.3
+CAND N 12288 K 4096 id 67 tile 5 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:9556.8 1024:9847.9 2048:19669.3 4096:39312.4
+CAND N 12288 K 4096 id 67 tile 5 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 8 us 991:10706.8 1024:11044.2 2048:22063.6 4096:44128.5
+CAND N 12288 K 4096 id 67 tile 5 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 9 us 991:9056.4 1024:9352.5 2048:18678.9 4096:37312.7
+CAND N 12288 K 4096 id 67 tile 5 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 10 us 991:7942.2 1024:8182.2 2048:16340.1 4096:32668.8
+CAND N 12288 K 4096 id 67 tile 5 stages 38 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 11 us 991:10647.3 1024:10594.9 2048:21182.7 4096:42333.8
+CAND N 12288 K 4096 id 67 tile 6 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:11579.5 1024:11065.4 2048:21747.1 4096:43469.9
+CAND N 12288 K 4096 id 67 tile 6 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 8 us 991:11164.9 1024:11438.1 2048:22862.5 4096:45682.5
+CAND N 12288 K 4096 id 67 tile 6 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 9 us 991:10063.9 1024:9852.1 2048:19687.5 4096:39357.2
+CAND N 12288 K 4096 id 67 tile 6 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 10 us 991:9591.7 1024:9310.9 2048:18608.5 4096:37229.9
+CAND N 12288 K 4096 id 67 tile 8 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:5854.4 1024:6065.5 2048:12110.2 4096:24197.7
+CAND N 12288 K 4096 id 67 tile 8 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 12 us 991:7236.0 1024:7470.4 2048:14918.9 4096:29819.1
+CAND N 12288 K 4096 id 67 tile 8 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 13 us 991:6002.2 1024:6200.5 2048:12398.0 4096:24856.8
+CAND N 12288 K 4096 id 67 tile 8 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 14 us 991:5623.0 1024:5819.6 2048:11616.5 4096:24006.6
+CAND N 12288 K 4096 id 67 tile 9 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:6242.5 1024:6223.1 2048:12408.5 4096:24791.0
+CAND N 12288 K 4096 id 67 tile 9 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 15 us 991:7399.4 1024:7610.3 2048:15229.2 4096:30443.2
+CAND N 12288 K 4096 id 67 tile 9 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 16 us 991:6491.8 1024:6550.9 2048:13083.9 4096:26172.7
+CAND N 12288 K 4096 id 67 tile 9 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 17 us 991:5653.3 1024:5966.6 2048:12056.2 4096:23298.3
+CAND N 12288 K 4096 id 67 tile 10 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:12329.3 1024:12715.4 2048:25590.8 4096:50443.7
+CAND N 12288 K 4096 id 67 tile 10 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 18 us 991:8524.8 1024:8578.1 2048:16489.3 4096:32657.1
+CAND N 12288 K 4096 id 67 tile 10 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 19 us 991:8238.3 1024:8228.0 2048:15734.6 4096:31427.7
+CAND N 12288 K 4096 id 67 tile 10 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 20 us 991:8874.7 1024:8993.1 2048:17901.2 4096:35836.6
+CAND N 12288 K 4096 id 67 tile 11 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:7726.2 1024:7979.3 2048:15942.6 4096:31872.0
+CAND N 12288 K 4096 id 67 tile 11 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5736.4 1024:5845.0 2048:11664.5 4096:23299.0
+CAND N 12288 K 4096 id 67 tile 11 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4993.2 1024:5143.7 2048:10265.8 4096:20516.9
+CAND N 12288 K 4096 id 67 tile 11 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4619.5 1024:4767.9 2048:9522.9 4096:19534.2
+CAND N 12288 K 4096 id 67 tile 12 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5999.7 1024:5965.7 2048:11917.0 4096:23804.2
+CAND N 12288 K 4096 id 67 tile 12 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4730.9 1024:4720.7 2048:9411.4 4096:18803.8
+CAND N 12288 K 4096 id 67 tile 12 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4357.4 1024:4355.2 2048:8733.2 4096:17379.2
+CAND N 12288 K 4096 id 67 tile 12 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4168.4 1024:4167.9 2048:8325.2 4096:16646.3
+CAND N 12288 K 4096 id 67 tile 13 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6056.4 1024:5973.2 2048:11934.0 4096:23859.5
+CAND N 12288 K 4096 id 67 tile 13 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4534.5 1024:4677.8 2048:9353.3 4096:18681.1
+CAND N 12288 K 4096 id 67 tile 13 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4206.1 1024:4337.7 2048:8662.2 4096:17321.2
+CAND N 12288 K 4096 id 67 tile 13 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4109.4 1024:4227.2 2048:8449.9 4096:16881.3
+CAND N 12288 K 4096 id 67 tile 14 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4966.3 1024:4963.6 2048:9913.6 4096:19814.5
+CAND N 12288 K 4096 id 67 tile 14 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4274.1 1024:4272.1 2048:8521.9 4096:17022.1
+CAND N 12288 K 4096 id 67 tile 14 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4103.2 1024:4101.3 2048:8186.2 4096:16357.6
+CAND N 12288 K 4096 id 67 tile 15 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4866.2 1024:4862.0 2048:9709.6 4096:19407.0
+CAND N 12288 K 4096 id 67 tile 15 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4170.8 1024:4172.7 2048:8334.4 4096:16651.4
+CAND N 12288 K 4096 id 67 tile 15 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3995.9 1024:3996.7 2048:7975.2 4096:15939.8
+CAND N 12288 K 4096 id 67 tile 16 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4812.1 1024:4973.8 2048:9934.0 4096:19855.5
+CAND N 12288 K 4096 id 67 tile 16 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4067.6 1024:4197.5 2048:8373.4 4096:16736.6
+CAND N 12288 K 4096 id 67 tile 16 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3941.4 1024:4069.6 2048:8124.6 4096:16228.6
+CAND N 12288 K 4096 id 67 tile 47 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:8468.7 1024:8194.3 2048:16372.0 4096:32740.4
+CAND N 12288 K 4096 id 67 tile 47 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5707.7 1024:5705.9 2048:11625.3 4096:22766.3
+CAND N 12288 K 4096 id 67 tile 47 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5252.7 1024:4926.8 2048:9836.4 4096:19645.4
+CAND N 12288 K 4096 id 67 tile 47 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4790.0 1024:4795.5 2048:9578.2 4096:19153.8
+CAND N 12288 K 4096 id 67 tile 48 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6273.0 1024:6269.6 2048:12540.2 4096:25067.9
+CAND N 12288 K 4096 id 67 tile 48 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4753.6 1024:4752.6 2048:9499.7 4096:18964.4
+CAND N 12288 K 4096 id 67 tile 48 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4661.1 1024:4497.3 2048:9006.6 4096:17988.9
+CAND N 12288 K 4096 id 67 tile 49 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6378.5 1024:6376.5 2048:11698.5 4096:23349.5
+CAND N 12288 K 4096 id 67 tile 49 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5023.6 1024:5013.6 2048:9196.8 4096:18382.1
+CAND N 12288 K 4096 id 67 tile 92 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5275.8 1024:5267.5 2048:10466.4 4096:20917.0
+CAND N 12288 K 4096 id 67 tile 92 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4380.9 1024:4378.9 2048:8703.2 4096:17390.9
+CAND N 12288 K 4096 id 67 tile 92 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4147.4 1024:4146.4 2048:8240.9 4096:16464.1
+CAND N 12288 K 4096 id 67 tile 134 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4709.6 1024:4707.8 2048:9321.7 4096:18623.8
+CAND N 12288 K 4096 id 67 tile 134 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4131.1 1024:4125.9 2048:8167.7 4096:16318.6
+CAND N 12288 K 4096 id 67 tile 134 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4014.3 1024:4015.7 2048:7940.6 4096:15866.0
+CAND N 12288 K 4096 id 67 tile 312 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:8344.8 1024:8259.8 2048:16505.2 4096:32999.7
+CAND N 12288 K 4096 id 67 tile 312 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5662.9 1024:5838.1 2048:11661.5 4096:23294.6
+CAND N 12288 K 4096 id 67 tile 312 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5030.5 1024:5175.4 2048:10345.8 4096:20689.2
+CAND N 12288 K 4096 id 67 tile 312 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5016.6 1024:5134.2 2048:10631.4 4096:20467.8
+CAND N 12288 K 4096 id 67 tile 313 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6818.0 1024:6831.8 2048:13542.8 4096:27409.5
+CAND N 12288 K 4096 id 67 tile 313 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5193.0 1024:5186.6 2048:10154.6 4096:20265.7
+CAND N 12288 K 4096 id 67 tile 313 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4753.8 1024:4755.6 2048:9257.2 4096:18509.0
+CAND N 12288 K 4096 id 67 tile 313 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4629.7 1024:4624.6 2048:9002.2 4096:18004.1
+CAND N 12288 K 4096 id 67 tile 314 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5794.6 1024:5725.4 2048:11242.0 4096:22245.1
+CAND N 12288 K 4096 id 67 tile 314 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4658.2 1024:4668.0 2048:9075.8 4096:17949.2
+CAND N 12288 K 4096 id 67 tile 314 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4384.0 1024:4384.8 2048:8508.5 4096:16833.9
+CAND N 12288 K 4096 id 67 tile 315 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5160.4 1024:5432.5 2048:10552.7 4096:21066.7
+CAND N 12288 K 4096 id 67 tile 315 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4269.8 1024:4478.1 2048:8740.0 4096:17454.9
+CAND N 12288 K 4096 id 67 tile 315 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4056.8 1024:4247.7 2048:8295.6 4096:16554.7
+CAND N 12288 K 4096 id 67 tile 316 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4974.8 1024:5225.7 2048:10147.9 4096:20305.0
+CAND N 12288 K 4096 id 67 tile 316 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4212.7 1024:4417.6 2048:8574.2 4096:17158.3
+CAND N 12288 K 4096 id 67 tile 316 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4012.1 1024:4213.4 2048:8178.7 4096:16359.6
+CAND N 12288 K 4096 id 67 tile 317 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4669.6 1024:5000.4 2048:9652.2 4096:19169.4
+CAND N 12288 K 4096 id 67 tile 317 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4062.3 1024:4349.2 2048:8393.0 4096:16672.1
+CAND N 12288 K 4096 id 67 tile 317 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3951.6 1024:4217.0 2048:8136.9 4096:16163.0
+CAND N 12288 K 4096 id 67 tile 318 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4716.4 1024:4715.7 2048:9419.9 4096:18812.0
+CAND N 12288 K 4096 id 67 tile 318 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4149.4 1024:4148.2 2048:8280.3 4096:16533.1
+CAND N 12288 K 4096 id 67 tile 318 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4027.2 1024:4028.7 2048:8038.7 4096:16056.4
+CAND N 12288 K 4096 id 67 tile 393 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:9476.2 1024:9573.1 2048:19087.7 4096:38131.8
+CAND N 12288 K 4096 id 67 tile 393 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:8068.4 1024:8005.8 2048:15934.6 4096:31885.3
+CAND N 12288 K 4096 id 67 tile 393 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:9041.9 1024:8758.6 2048:17527.5 4096:34996.1
+CAND N 12288 K 4096 id 67 tile 394 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6130.0 1024:6314.4 2048:12615.8 4096:25215.0
+CAND N 12288 K 4096 id 67 tile 394 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4851.5 1024:4838.5 2048:9658.4 4096:19312.8
+CAND N 12288 K 4096 id 67 tile 394 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4888.3 1024:4997.2 2048:9956.5 4096:19845.1
+CAND N 12288 K 4096 id 67 tile 395 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5892.6 1024:5625.4 2048:10928.3 4096:21847.5
+CAND N 12288 K 4096 id 67 tile 395 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4596.9 1024:4606.3 2048:8866.0 4096:17757.3
+CAND N 12288 K 4096 id 67 tile 395 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4422.0 1024:4421.5 2048:8535.8 4096:17089.8
+CAND N 12288 K 4096 id 67 tile 448 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:9683.1 1024:9748.8 2048:19443.5 4096:38785.8
+CAND N 12288 K 4096 id 67 tile 448 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:8334.4 1024:8372.4 2048:16695.3 4096:33434.7
+CAND N 12288 K 4096 id 67 tile 449 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5611.7 1024:5767.3 2048:11476.6 4096:22937.4
+CAND N 12288 K 4096 id 67 tile 449 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4998.7 1024:4699.5 2048:9342.7 4096:18681.9
+CAND N 12288 K 4096 id 67 tile 486 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:9946.6 1024:10055.8 2048:19989.5 4096:39858.4
+CAND N 12288 K 4096 id 67 tile 486 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:9289.0 1024:9420.9 2048:18819.2 4096:37634.9
+ALGO id 70 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 71 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+== shape N 4096 K 12288
+GEMMEX N 4096 K 12288 M 991 us 1100.2
+HEUR M 991 #0 id 67 tile 409 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 1117.5
+HEUR M 991 #1 id 67 tile 20 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 1252.0
+HEUR M 991 #2 id 67 tile 414 stages 35 splitk 1 red 0 swz 0 cust 22 inner 0 cluster 0 ws 0 us 1247.2
+HEUR M 991 #3 id 67 tile 416 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 1304.7
+GEMMEX N 4096 K 12288 M 1024 us 1118.0
+HEUR M 1024 #0 id 67 tile 409 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 1110.3
+HEUR M 1024 #1 id 67 tile 20 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 1296.5
+HEUR M 1024 #2 id 67 tile 414 stages 35 splitk 1 red 0 swz 0 cust 22 inner 0 cluster 0 ws 0 us 1253.4
+HEUR M 1024 #3 id 67 tile 416 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 1306.7
+GEMMEX N 4096 K 12288 M 2048 us 2250.9
+HEUR M 2048 #0 id 67 tile 463 stages 35 splitk 1 red 0 swz 0 cust 30 inner 0 cluster 0 ws 0 us 2346.3
+HEUR M 2048 #1 id 67 tile 412 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 2388.1
+HEUR M 2048 #2 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 2739.2
+GEMMEX N 4096 K 12288 M 4096 us 4621.5
+HEUR M 4096 #0 id 67 tile 412 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0 ws 0 us 4619.6
+HEUR M 4096 #1 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 us 5030.1
+HEUR M 4096 #2 id 67 tile 324 stages 35 splitk 1 red 0 swz 0 cust 16 inner 0 cluster 0 ws 0 us 8970.9
+REF id 67 tile 416 stages 35 splitk 1 red 0 swz 0 cust 31 inner 0 cluster 0
+ALGO id 5 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 6 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 11 tiles 1 stages 1 swz 0 splitk 0 custmax 1
+ALGO id 12 tiles 1 stages 1 swz 0 splitk 0 custmax 1
+ALGO id 13 tiles 1 stages 1 swz 0 splitk 1 custmax 115
+ALGO id 14 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 16 tiles 1 stages 1 swz 0 splitk 0 custmax 0
+CAND N 4096 K 12288 id 16 tile 0 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 1 us 991:12331.0 1024:11475.7 2048:21997.6 4096:43294.7
+ALGO id 21 tiles 10 stages 15 swz 0 splitk 1 custmax 0
+CAND N 4096 K 12288 id 21 tile 5 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:8540.4 1024:8812.8 2048:17511.9 4096:34581.8
+CAND N 4096 K 12288 id 21 tile 5 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6201.5 1024:6450.2 2048:12857.6 4096:25739.3
+CAND N 4096 K 12288 id 21 tile 5 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6273.0 1024:6483.2 2048:12982.6 4096:25923.9
+CAND N 4096 K 12288 id 21 tile 5 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6293.6 1024:6533.3 2048:13041.4 4096:26007.9
+CAND N 4096 K 12288 id 21 tile 5 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6387.0 1024:6624.4 2048:13327.0 4096:26763.4
+CAND N 4096 K 12288 id 21 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4665.6 1024:4818.7 2048:9685.3 4096:19211.6
+CAND N 4096 K 12288 id 21 tile 11 stages 8 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4651.1 1024:4847.6 2048:9670.8 4096:19115.3
+CAND N 4096 K 12288 id 21 tile 11 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3529.9 1024:3663.6 2048:7227.5 4096:14373.2
+CAND N 4096 K 12288 id 21 tile 11 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3482.8 1024:3605.9 2048:7131.1 4096:14192.8
+CAND N 4096 K 12288 id 21 tile 11 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3601.7 1024:3730.8 2048:7402.8 4096:14732.2
+CAND N 4096 K 12288 id 21 tile 11 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3894.4 1024:4057.4 2048:7854.1 4096:15502.7
+CAND N 4096 K 12288 id 21 tile 15 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2072.0 1024:2145.3 2048:3880.2 4096:7378.0
+CAND N 4096 K 12288 id 21 tile 15 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2365.4 1024:2343.9 2048:4255.5 4096:8148.3
+CAND N 4096 K 12288 id 21 tile 15 stages 18 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2061.3 1024:2108.7 2048:3804.4 4096:7210.0
+CAND N 4096 K 12288 id 21 tile 15 stages 25 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2062.8 1024:2145.6 2048:3878.2 4096:7369.5
+CAND N 4096 K 12288 id 21 tile 17 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2184.5 1024:2215.3 2048:3959.8 4096:7527.7
+CAND N 4096 K 12288 id 21 tile 17 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1978.5 1024:2016.8 2048:3713.3 4096:6919.3
+CAND N 4096 K 12288 id 21 tile 17 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1865.7 1024:1909.9 2048:3426.4 4096:6295.8
+CAND N 4096 K 12288 id 21 tile 19 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1797.4 1024:1819.8 2048:3715.5 4096:7224.7
+CAND N 4096 K 12288 id 21 tile 18 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2315.7 1024:2334.0 2048:4391.1 4096:8361.4
+CAND N 4096 K 12288 id 21 tile 18 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2075.9 1024:2093.3 2048:3929.2 4096:7481.4
+CAND N 4096 K 12288 id 21 tile 18 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1977.3 1024:1992.5 2048:3714.4 4096:7043.1
+CAND N 4096 K 12288 id 21 tile 20 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1846.4 1024:1860.7 2048:3288.3 4096:6409.5
+CAND N 4096 K 12288 id 21 tile 20 stages 11 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1762.4 1024:1778.1 2048:3156.4 4096:6074.6
+CAND N 4096 K 12288 id 21 tile 20 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1690.4 1024:1715.4 2048:3013.8 4096:5785.7
+CAND N 4096 K 12288 id 21 tile 20 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1481.9 1024:1500.1 2048:2650.9 4096:5100.7
+CAND N 4096 K 12288 id 21 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1369.2 1024:1387.8 2048:2757.8 4096:5046.5
+CAND N 4096 K 12288 id 21 tile 24 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1600.3 1024:1605.8 2048:2977.1 4096:5384.5
+CAND N 4096 K 12288 id 21 tile 21 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2376.5 1024:2389.1 2048:4182.4 4096:8160.4
+ALGO id 23 tiles 10 stages 15 swz 0 splitk 1 custmax 0
+CAND N 4096 K 12288 id 23 tile 5 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:10412.2 1024:10610.0 2048:21139.2 4096:42057.7
+CAND N 4096 K 12288 id 23 tile 5 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6415.7 1024:6618.5 2048:13271.4 4096:26536.4
+CAND N 4096 K 12288 id 23 tile 5 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6446.5 1024:6673.6 2048:13363.5 4096:26647.0
+CAND N 4096 K 12288 id 23 tile 5 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6476.3 1024:6692.1 2048:13360.1 4096:26647.3
+CAND N 4096 K 12288 id 23 tile 5 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6958.2 1024:7184.1 2048:14435.3 4096:28638.2
+CAND N 4096 K 12288 id 23 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6107.5 1024:6364.4 2048:12529.0 4096:24970.3
+CAND N 4096 K 12288 id 23 tile 11 stages 8 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5827.8 1024:6108.5 2048:12057.8 4096:24028.3
+CAND N 4096 K 12288 id 23 tile 11 stages 13 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4083.8 1024:4223.2 2048:8365.0 4096:16615.7
+CAND N 4096 K 12288 id 23 tile 11 stages 14 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3986.5 1024:4116.5 2048:8191.8 4096:16310.3
+CAND N 4096 K 12288 id 23 tile 11 stages 19 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4303.1 1024:4457.9 2048:8865.0 4096:17676.3
+CAND N 4096 K 12288 id 23 tile 11 stages 20 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4532.5 1024:4741.3 2048:9301.2 4096:18737.5
+CAND N 4096 K 12288 id 23 tile 15 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3420.9 1024:3561.0 2048:6543.3 4096:12826.3
+CAND N 4096 K 12288 id 23 tile 15 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2596.2 1024:2708.8 2048:5108.0 4096:9869.6
+CAND N 4096 K 12288 id 23 tile 15 stages 18 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2481.5 1024:2657.6 2048:4901.1 4096:9388.3
+CAND N 4096 K 12288 id 23 tile 15 stages 25 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3431.2 1024:3711.3 2048:6665.2 4096:12817.4
+CAND N 4096 K 12288 id 23 tile 17 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3081.2 1024:3161.4 2048:5900.6 4096:11419.8
+CAND N 4096 K 12288 id 23 tile 17 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2094.3 1024:2122.8 2048:4027.9 4096:7643.9
+CAND N 4096 K 12288 id 23 tile 17 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2080.8 1024:2129.2 2048:4022.2 4096:7650.4
+CAND N 4096 K 12288 id 23 tile 19 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2432.1 1024:2479.4 2048:4855.6 4096:9523.5
+CAND N 4096 K 12288 id 23 tile 18 stages 12 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3210.6 1024:3247.4 2048:6197.5 4096:11890.2
+CAND N 4096 K 12288 id 23 tile 18 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2188.5 1024:2211.2 2048:4225.2 4096:8071.3
+CAND N 4096 K 12288 id 23 tile 18 stages 16 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2176.0 1024:2209.9 2048:4204.5 4096:8031.5
+CAND N 4096 K 12288 id 23 tile 20 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:2278.1 1024:2311.4 2048:4071.5 4096:7982.2
+CAND N 4096 K 12288 id 23 tile 20 stages 15 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1653.0 1024:1693.0 2048:3028.9 4096:5892.2
+CAND N 4096 K 12288 id 23 tile 23 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1576.2 1024:1616.2 2048:3257.4 4096:5990.9
+CAND N 4096 K 12288 id 23 tile 24 stages 9 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:1828.1 1024:1850.8 2048:3450.1 4096:6281.4
+CAND N 4096 K 12288 id 23 tile 21 stages 10 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3046.8 1024:3065.2 2048:5390.4 4096:10554.6
+ALGO id 24 tiles 8 stages 2 swz 0 splitk 1 custmax 0
+CAND N 4096 K 12288 id 24 tile 11 stages 7 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:9340.9 1024:9666.7 2048:19139.8 4096:38166.5
+CAND N 4096 K 12288 id 24 tile 15 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:5187.4 1024:4917.5 2048:9472.4 4096:18978.1
+CAND N 4096 K 12288 id 24 tile 17 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:3405.2 1024:3468.7 2048:6830.2 4096:13634.7
+CAND N 4096 K 12288 id 24 tile 18 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:3562.5 1024:3629.2 2048:7030.8 4096:13896.1
+CAND N 4096 K 12288 id 24 tile 20 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:2909.2 1024:2955.7 2048:5287.3 4096:10671.1
+CAND N 4096 K 12288 id 24 tile 23 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:2636.6 1024:2639.1 2048:5336.2 4096:9817.3
+CAND N 4096 K 12288 id 24 tile 24 stages 0 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 2 us 991:2770.2 1024:2793.9 2048:5437.8 4096:10026.5
+ALGO id 30 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 31 tiles 1 stages 1 swz 1 splitk 1 custmax 0
+ALGO id 39 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 41 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 42 tiles 1 stages 1 swz 1 splitk 1 custmax 2
+ALGO id 58 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 66 tiles 634 stages 1 swz 0 splitk 1 custmax 7
+ALGO id 67 tiles 627 stages 5 swz 0 splitk 1 custmax 152
+CAND N 4096 K 12288 id 67 tile 3 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:14779.0 1024:14074.3 2048:29057.9 4096:56009.7
+CAND N 4096 K 12288 id 67 tile 3 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 4 us 991:11003.2 1024:10813.9 2048:21574.7 4096:43070.4
+CAND N 4096 K 12288 id 67 tile 3 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 5 us 991:13439.4 1024:13780.1 2048:27547.0 4096:55063.1
+CAND N 4096 K 12288 id 67 tile 3 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 6 us 991:12723.5 1024:13001.9 2048:25980.1 4096:51933.1
+CAND N 4096 K 12288 id 67 tile 3 stages 38 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 7 us 991:14630.0 1024:14991.4 2048:29953.6 4096:59876.5
+CAND N 4096 K 12288 id 67 tile 5 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:10118.8 1024:9455.4 2048:18826.3 4096:37564.7
+CAND N 4096 K 12288 id 67 tile 5 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 8 us 991:10046.7 1024:10370.5 2048:20703.5 4096:41402.0
+CAND N 4096 K 12288 id 67 tile 5 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 9 us 991:8102.0 1024:8351.3 2048:16685.1 4096:33353.1
+CAND N 4096 K 12288 id 67 tile 5 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 10 us 991:7499.7 1024:7708.7 2048:15418.7 4096:30785.6
+CAND N 4096 K 12288 id 67 tile 5 stages 38 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 11 us 991:9305.2 1024:9567.5 2048:19132.8 4096:38260.0
+CAND N 4096 K 12288 id 67 tile 6 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:10857.0 1024:10975.3 2048:21814.3 4096:43374.2
+CAND N 4096 K 12288 id 67 tile 6 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 8 us 991:10478.9 1024:10695.9 2048:21366.0 4096:42731.1
+CAND N 4096 K 12288 id 67 tile 6 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 9 us 991:9774.8 1024:9509.0 2048:19869.8 4096:37905.7
+CAND N 4096 K 12288 id 67 tile 6 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 10 us 991:9344.0 1024:9490.1 2048:18924.8 4096:37846.1
+CAND N 4096 K 12288 id 67 tile 8 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:5682.5 1024:5883.2 2048:11667.4 4096:23302.4
+CAND N 4096 K 12288 id 67 tile 8 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 12 us 991:7135.3 1024:7065.8 2048:14123.4 4096:28215.6
+CAND N 4096 K 12288 id 67 tile 8 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 13 us 991:5612.7 1024:5782.6 2048:11535.2 4096:23042.2
+CAND N 4096 K 12288 id 67 tile 8 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 14 us 991:5156.6 1024:5323.7 2048:10606.8 4096:21183.3
+CAND N 4096 K 12288 id 67 tile 9 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:6250.2 1024:6153.5 2048:12458.7 4096:24214.1
+CAND N 4096 K 12288 id 67 tile 9 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 15 us 991:7063.5 1024:7201.1 2048:14394.0 4096:28767.9
+CAND N 4096 K 12288 id 67 tile 9 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 16 us 991:6031.5 1024:6132.9 2048:12244.4 4096:24447.2
+CAND N 4096 K 12288 id 67 tile 9 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 17 us 991:5441.3 1024:5599.5 2048:11166.3 4096:22326.5
+CAND N 4096 K 12288 id 67 tile 10 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 3 us 991:12378.2 1024:12235.2 2048:24437.0 4096:48814.7
+CAND N 4096 K 12288 id 67 tile 10 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 18 us 991:8497.9 1024:8186.0 2048:16308.4 4096:32603.3
+CAND N 4096 K 12288 id 67 tile 10 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 19 us 991:8009.5 1024:7929.1 2048:15851.9 4096:31699.3
+CAND N 4096 K 12288 id 67 tile 10 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 20 us 991:8735.8 1024:8868.8 2048:17698.0 4096:35386.4
+CAND N 4096 K 12288 id 67 tile 11 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:7832.6 1024:7823.7 2048:15561.0 4096:31100.3
+CAND N 4096 K 12288 id 67 tile 11 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5481.9 1024:5665.8 2048:11261.6 4096:22500.7
+CAND N 4096 K 12288 id 67 tile 11 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4787.3 1024:4953.3 2048:9846.2 4096:19675.2
+CAND N 4096 K 12288 id 67 tile 11 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4357.5 1024:4511.1 2048:8974.0 4096:17937.5
+CAND N 4096 K 12288 id 67 tile 12 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6406.3 1024:5887.2 2048:12075.6 4096:23382.3
+CAND N 4096 K 12288 id 67 tile 12 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4635.9 1024:4638.4 2048:9436.3 4096:18408.6
+CAND N 4096 K 12288 id 67 tile 12 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4263.2 1024:4267.3 2048:8512.6 4096:16934.1
+CAND N 4096 K 12288 id 67 tile 12 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4063.7 1024:4070.6 2048:8116.6 4096:16153.0
+CAND N 4096 K 12288 id 67 tile 13 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5741.7 1024:5881.0 2048:11752.1 4096:23355.7
+CAND N 4096 K 12288 id 67 tile 13 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4480.7 1024:4588.9 2048:9164.2 4096:18222.2
+CAND N 4096 K 12288 id 67 tile 13 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4137.3 1024:4238.7 2048:8466.0 4096:16831.8
+CAND N 4096 K 12288 id 67 tile 13 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4020.4 1024:4116.8 2048:8218.8 4096:16343.1
+CAND N 4096 K 12288 id 67 tile 14 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5045.3 1024:5047.7 2048:9911.7 4096:19810.5
+CAND N 4096 K 12288 id 67 tile 14 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4310.9 1024:4310.3 2048:8471.7 4096:16926.4
+CAND N 4096 K 12288 id 67 tile 14 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4127.1 1024:4127.0 2048:8116.3 4096:16215.9
+CAND N 4096 K 12288 id 67 tile 15 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4939.0 1024:4938.9 2048:9645.3 4096:19284.4
+CAND N 4096 K 12288 id 67 tile 15 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4214.2 1024:4214.1 2048:8237.2 4096:16453.6
+CAND N 4096 K 12288 id 67 tile 15 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4022.7 1024:4022.7 2048:7856.4 4096:15704.5
+CAND N 4096 K 12288 id 67 tile 16 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4818.3 1024:5043.4 2048:9852.2 4096:19694.0
+CAND N 4096 K 12288 id 67 tile 16 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4034.9 1024:4224.2 2048:8249.8 4096:16490.9
+CAND N 4096 K 12288 id 67 tile 16 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3901.7 1024:4084.0 2048:7977.3 4096:15945.8
+CAND N 4096 K 12288 id 67 tile 47 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:8059.2 1024:8061.3 2048:16040.4 4096:32065.9
+CAND N 4096 K 12288 id 67 tile 47 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5563.8 1024:5565.8 2048:11057.4 4096:22107.9
+CAND N 4096 K 12288 id 67 tile 47 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5045.4 1024:4779.5 2048:9498.2 4096:18985.7
+CAND N 4096 K 12288 id 67 tile 47 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4738.3 1024:4744.5 2048:9337.7 4096:18572.4
+CAND N 4096 K 12288 id 67 tile 48 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6531.4 1024:6219.1 2048:12566.7 4096:24967.6
+CAND N 4096 K 12288 id 67 tile 48 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4682.0 1024:4662.6 2048:9461.4 4096:18863.3
+CAND N 4096 K 12288 id 67 tile 48 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4844.8 1024:4791.6 2048:10005.9 4096:19566.8
+CAND N 4096 K 12288 id 67 tile 49 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6289.4 1024:6294.8 2048:12668.4 4096:26126.8
+CAND N 4096 K 12288 id 67 tile 49 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4908.5 1024:4928.1 2048:10839.4 4096:21803.1
+CAND N 4096 K 12288 id 67 tile 92 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5244.3 1024:5244.3 2048:10482.8 4096:20781.6
+CAND N 4096 K 12288 id 67 tile 92 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4341.2 1024:4341.0 2048:8670.7 4096:17186.1
+CAND N 4096 K 12288 id 67 tile 92 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4096.3 1024:4096.4 2048:8182.0 4096:16220.4
+CAND N 4096 K 12288 id 67 tile 134 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4824.2 1024:4820.2 2048:9889.4 4096:18722.0
+CAND N 4096 K 12288 id 67 tile 134 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4207.9 1024:4208.0 2048:8351.6 4096:16597.1
+CAND N 4096 K 12288 id 67 tile 134 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4083.1 1024:4082.0 2048:7932.3 4096:15858.0
+CAND N 4096 K 12288 id 67 tile 312 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:7801.2 1024:8068.8 2048:16050.8 4096:32080.2
+CAND N 4096 K 12288 id 67 tile 312 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5470.8 1024:5657.9 2048:11258.0 4096:22494.5
+CAND N 4096 K 12288 id 67 tile 312 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4853.8 1024:4998.5 2048:9952.4 4096:19859.8
+CAND N 4096 K 12288 id 67 tile 312 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4980.0 1024:5119.2 2048:10177.1 4096:20339.1
+CAND N 4096 K 12288 id 67 tile 313 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6724.9 1024:6777.2 2048:13229.3 4096:26310.1
+CAND N 4096 K 12288 id 67 tile 313 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5043.0 1024:5118.1 2048:9868.6 4096:19698.2
+CAND N 4096 K 12288 id 67 tile 313 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4606.4 1024:4670.7 2048:8953.5 4096:17896.8
+CAND N 4096 K 12288 id 67 tile 313 stages 37 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4463.9 1024:4508.4 2048:8654.2 4096:17307.3
+CAND N 4096 K 12288 id 67 tile 314 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5730.3 1024:5674.2 2048:11130.9 4096:21919.2
+CAND N 4096 K 12288 id 67 tile 314 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4562.8 1024:4584.6 2048:8933.7 4096:17603.6
+CAND N 4096 K 12288 id 67 tile 314 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4279.5 1024:4293.9 2048:8347.9 4096:16447.9
+CAND N 4096 K 12288 id 67 tile 315 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5074.0 1024:5422.4 2048:10483.0 4096:20774.3
+CAND N 4096 K 12288 id 67 tile 315 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4178.3 1024:4470.0 2048:8633.7 4096:17112.2
+CAND N 4096 K 12288 id 67 tile 315 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3953.1 1024:4226.5 2048:8171.2 4096:16183.7
+CAND N 4096 K 12288 id 67 tile 316 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4904.4 1024:5268.8 2048:10122.6 4096:20055.5
+CAND N 4096 K 12288 id 67 tile 316 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4140.4 1024:4429.7 2048:8506.8 4096:16858.5
+CAND N 4096 K 12288 id 67 tile 316 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3936.6 1024:4210.0 2048:8089.5 4096:16024.8
+CAND N 4096 K 12288 id 67 tile 317 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4681.7 1024:4926.7 2048:9600.2 4096:18867.4
+CAND N 4096 K 12288 id 67 tile 317 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4049.4 1024:4271.5 2048:8303.0 4096:16329.2
+CAND N 4096 K 12288 id 67 tile 317 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:3920.4 1024:4129.0 2048:8036.0 4096:15797.0
+CAND N 4096 K 12288 id 67 tile 318 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4822.9 1024:4824.4 2048:9371.0 4096:18724.3
+CAND N 4096 K 12288 id 67 tile 318 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4218.2 1024:4218.2 2048:8198.5 4096:16446.0
+CAND N 4096 K 12288 id 67 tile 318 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4088.8 1024:4090.1 2048:7946.7 4096:15876.4
+CAND N 4096 K 12288 id 67 tile 393 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:9676.0 1024:9832.2 2048:19456.0 4096:38837.8
+CAND N 4096 K 12288 id 67 tile 393 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:8134.5 1024:8205.5 2048:16314.4 4096:32598.1
+CAND N 4096 K 12288 id 67 tile 393 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:8903.8 1024:9023.4 2048:17938.2 4096:35705.3
+CAND N 4096 K 12288 id 67 tile 394 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:6202.9 1024:6231.4 2048:12448.0 4096:24742.5
+CAND N 4096 K 12288 id 67 tile 394 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4818.4 1024:4758.8 2048:9499.8 4096:18905.5
+CAND N 4096 K 12288 id 67 tile 394 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4904.1 1024:4978.4 2048:9882.8 4096:19623.7
+CAND N 4096 K 12288 id 67 tile 395 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5516.7 1024:5571.8 2048:10835.6 4096:21469.6
+CAND N 4096 K 12288 id 67 tile 395 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4473.3 1024:4511.0 2048:8723.9 4096:17313.2
+CAND N 4096 K 12288 id 67 tile 395 stages 36 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4301.8 1024:4353.5 2048:8412.5 4096:16661.2
+CAND N 4096 K 12288 id 67 tile 448 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:10126.9 1024:10263.9 2048:20522.5 4096:40619.0
+CAND N 4096 K 12288 id 67 tile 448 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:8682.8 1024:8746.2 2048:17407.3 4096:34773.1
+CAND N 4096 K 12288 id 67 tile 449 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:5879.0 1024:5985.7 2048:11774.4 4096:23464.2
+CAND N 4096 K 12288 id 67 tile 449 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:4867.4 1024:5299.2 2048:9623.2 4096:19937.7
+CAND N 4096 K 12288 id 67 tile 486 stages 34 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:10381.4 1024:10526.9 2048:20920.5 4096:41752.9
+CAND N 4096 K 12288 id 67 tile 486 stages 35 splitk 1 red 0 swz 0 cust 0 inner 0 cluster 0 ws 0 class 0 us 991:9674.0 1024:9858.3 2048:19546.1 4096:39073.1
+ALGO id 70 tiles 1 stages 1 swz 0 splitk 1 custmax 0
+ALGO id 71 tiles 1 stages 1 swz 0 splitk 1 custmax 0

@@ -163,7 +163,8 @@ gated_rmsnorm r=4: 1..=4096 gated_rmsnorm_bf16;
 
 /// `exact_rows` calls: the row-exact kernel for M = 1..=16 (M = 1 included), none above 16; ops without a row-exact kernel
 /// are unchanged (moe_topk, moe_combine, gated_rmsnorm) and the fused ops have none by policy (m >= 2: no kernel, so the
-/// model runs the unfused chain, which is made of the row-exact ops above).
+/// model runs the unfused chain, which is made of the row-exact ops above), except the fp8 pair, whose row-exact twin is
+/// bitwise the two single row-exact calls (lane gdnx: the batched step's GDN qkv + z and attention k + v).
 const ROWS_PINS: &str = "matmul bf16 k=2048 -> bf16: 1..=16 matmul_bf16_gemv_rows; 17..=4096 -;
 matmul bf16 k=4104 -> bf16: 1..=16 matmul_bf16_gemv_rows; 17..=4096 -;
 logits bf16 k=4096 -> f32: 1..=16 logits_bf16_gemv_rows; 17..=4096 -;
@@ -181,7 +182,7 @@ moe_experts gelu top8: 1..=16 moe_experts_decode_v2_gelu_rows_bf16; 17..=4096 -;
 moe_topk e=16 k=8: 1..=4096 moe_topk_bf16;
 moe_combine h=256: 1..=4096 moe_combine_bf16;
 matmul_pair bf16 k=2048: 1..=1 matmul_pair_bf16_gemv; 2..=4096 -;
-matmul_fp8_pair k=2048: 1..=1 matmul_fp8_pair_gemv; 2..=4096 -;
+matmul_fp8_pair k=2048: 1..=16 matmul_fp8_pair_gemv_rows; 17..=4096 -;
 matmul_nvfp4_glu k=2048: 1..=1 matmul_nvfp4_glu_gemv; 2..=255 -; 256..=4096 matmul_nvfp4_glu_gemm;
 gated_rmsnorm r=4: 1..=4096 gated_rmsnorm_bf16;
 ";

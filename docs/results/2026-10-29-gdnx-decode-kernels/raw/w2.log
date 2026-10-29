@@ -1,0 +1,57 @@
+fleetq: #6897 running on spark1: scripts/gdnx/w2.sh
+06:18:52
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+EQUAL  greedy/n4
+EQUAL  greedy/n16
+21/21 cells identical, 9408 token ids compared
+identity exit 0
+06:22:14
+== round 1 arm base 06:22:14
+base r1: MemAvailable 56678 MB with the server up
+gdnx-base-r1: - result file: `results/20261029-062252-adhoc-gdnx-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-062252-adhoc-gdnx-base-r1/result.json 
+[localeval] 1 streams: aggregate 79.1 tok/s
+[localeval] 4 streams: aggregate 170.3 tok/s
+[localeval] 8 streams: aggregate 226.9 tok/s
+[localeval] 16 streams: aggregate 287.0 tok/s
+== round 1 arm dev 06:23:37
+dev r1: MemAvailable 56789 MB with the server up
+gdnx-dev-r1: - result file: `results/20261029-062421-adhoc-gdnx-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-062421-adhoc-gdnx-dev-r1/result.json 
+[localeval] 1 streams: aggregate 81.0 tok/s
+[localeval] 4 streams: aggregate 174.7 tok/s
+[localeval] 8 streams: aggregate 229.9 tok/s
+[localeval] 16 streams: aggregate 295.4 tok/s
+== round 2 arm dev 06:25:05
+dev r2: MemAvailable 56793 MB with the server up
+gdnx-dev-r2: - result file: `results/20261029-062545-adhoc-gdnx-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-062545-adhoc-gdnx-dev-r2/result.json 
+[localeval] 1 streams: aggregate 81.0 tok/s
+[localeval] 4 streams: aggregate 175.4 tok/s
+[localeval] 8 streams: aggregate 230.7 tok/s
+[localeval] 16 streams: aggregate 292.0 tok/s
+== round 2 arm base 06:26:29
+base r2: MemAvailable 56790 MB with the server up
+gdnx-base-r2: - result file: `results/20261029-062717-adhoc-gdnx-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-062717-adhoc-gdnx-base-r2/result.json 
+[localeval] 1 streams: aggregate 81.1 tok/s
+[localeval] 4 streams: aggregate 173.4 tok/s
+[localeval] 8 streams: aggregate 227.5 tok/s
+[localeval] 16 streams: aggregate 292.7 tok/s
+== round 3 arm base 06:28:02
+base r3: MemAvailable 56793 MB with the server up
+gdnx-base-r3: - result file: `results/20261029-062840-adhoc-gdnx-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-062840-adhoc-gdnx-base-r3/result.json 
+[localeval] 1 streams: aggregate 81.1 tok/s
+[localeval] 4 streams: aggregate 177.8 tok/s
+[localeval] 8 streams: aggregate 228.6 tok/s
+[localeval] 16 streams: aggregate 293.0 tok/s
+== round 3 arm dev 06:29:24
+dev r3: MemAvailable 56791 MB with the server up
+gdnx-dev-r3: - result file: `results/20261029-063008-adhoc-gdnx-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-063008-adhoc-gdnx-dev-r3/result.json 
+[localeval] 1 streams: aggregate 81.5 tok/s
+[localeval] 4 streams: aggregate 173.8 tok/s
+[localeval] 8 streams: aggregate 236.8 tok/s
+[localeval] 16 streams: aggregate 293.6 tok/s
+== done 06:30:52
+06:30:52
+fleetq: #6897 done (exit 0)
+exit 0

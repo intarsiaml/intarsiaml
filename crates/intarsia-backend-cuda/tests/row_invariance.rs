@@ -174,6 +174,72 @@ fn gemm_rows_do_not_depend_on_m() {
     }
 }
 
+/// Lane rip2: `matmul_bf16_inv` runs, per row count, the cuBLASLt heuristic's pick when a probe proves it bitwise equal to the
+/// shape's primary algorithm. Every row count 1..=4352 of each 8B projection, against one 4352-row pass: rows 0, M / 2 and M - 1
+/// of every call (all rows up to M = 64) byte for byte. An algorithm with another summation order would differ in nearly every
+/// output, so three rows per call cover the call's algorithm.
+#[test]
+fn gemm_inv_rows_equal_at_every_m() {
+    let Some(be) = device("gemm_inv_rows_equal_at_every_m") else { return };
+    let mut rng = SplitMix64::new(0x72a);
+    let total = 4352;
+    let max_m = total;
+    for (n, k) in PROJ {
+        let t0 = Instant::now();
+        let up = |h: &HostTensor| {
+            let buf = be.alloc(h.nbytes(), MemKind::Device).unwrap();
+            be.upload(&buf, 0, &h.data, 0).unwrap();
+            buf
+        };
+        let xb = up(&bf(&mut rng, &[total, k], 1.0));
+        let wt = TensorRef::new(up(&bf(&mut rng, &[n, k], 1.0 / (k as f32).sqrt())), DType::Bf16, &[n, k]);
+        let ob = be.alloc(total * n * 2, MemKind::Device).unwrap();
+        let call = |m: usize| {
+            let c = OpCall::new(
+                Op::Matmul,
+                vec![TensorRef::new(xb.clone(), DType::Bf16, &[m, k]), wt.clone()],
+                vec![TensorRef::new(ob.clone(), DType::Bf16, &[m, n])],
+                OpAttrs::default(),
+            );
+            be.launch("matmul_bf16_inv", &c, 0).unwrap();
+            be.synchronize(0).unwrap();
+        };
+        call(total);
+        let row = n * 2;
+        let mut full = vec![0u8; total * row];
+        be.download(&ob, 0, &mut full, 0).unwrap();
+        let mut bad = Vec::new();
+        let mut got = vec![0u8; 64 * row];
+        for m in 1..=max_m {
+            call(m);
+            let check: Vec<usize> = if m <= 64 { (0..m).collect() } else { vec![0, m / 2, m - 1] };
+            if m <= 64 {
+                be.download(&ob, 0, &mut got[..m * row], 0).unwrap();
+            }
+            for &r in &check {
+                let mut one = vec![0u8; row];
+                let have: &[u8] = if m <= 64 {
+                    &got[r * row..(r + 1) * row]
+                } else {
+                    be.download(&ob, r * row, &mut one, 0).unwrap();
+                    &one
+                };
+                if have != &full[r * row..(r + 1) * row] {
+                    bad.push((m, r));
+                    break;
+                }
+            }
+        }
+        eprintln!(
+            "matmul_bf16_inv N{n} K{k}: M 1..={max_m}: {} row counts differ from the {total}-row pass ({:.1} s){}",
+            bad.len(),
+            t0.elapsed().as_secs_f64(),
+            if bad.is_empty() { String::new() } else { format!(": first (M, row) {:?}", &bad[..bad.len().min(8)]) }
+        );
+        assert!(bad.is_empty(), "matmul_bf16_inv N{n} K{k}: rows depend on M at {} row counts", bad.len());
+    }
+}
+
 /// The head of a prefill pass: one row (`LastLogits`); rows of an M <= 4 GEMV call run the one-row loop.
 #[test]
 fn head_gemv_rows_do_not_depend_on_m() {
@@ -335,7 +401,7 @@ fn gemm_inv_timing_at_8b_shapes() {
     };
     let layer: [(usize, usize); 7] = [(4096, 4096), (1024, 4096), (1024, 4096), (4096, 4096), (12288, 4096), (12288, 4096), (4096, 12288)];
     let refm = std::env::var("INTARSIA_INV_REF_M").unwrap_or_else(|_| "4096".into());
-    for m in [991usize, 1024, 2048, 4096] {
+    for m in [16usize, 64, 256, 512, 991, 1024, 1536, 2048, 3000, 4096] {
         let calls: Vec<OpCall> = layer
             .iter()
             .map(|&(n, k)| OpCall::new(Op::Matmul, vec![t(&[m, k], true), t(&[n, k], true)], vec![t(&[m, n], false)], OpAttrs::default()))
