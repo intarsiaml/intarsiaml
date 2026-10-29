@@ -69,7 +69,7 @@ of about 5 %, so no cell is slower beyond noise. **The 16-stream number on curre
 | other recipes | `plan show` on the other local checkpoints: Qwen3-8B 2048 (recipe qwen3), Llama-3.1-8B 256, Qwen2.5-7B 256, Qwen3.8-27B-Quark 256, all unchanged; MiniCPM-V-4.7 and Kolibri-1 do not load on Metal on main (as in MPRE). Only the `qwen3_5_moe` recipe changed |
 | `batch_recurrent` (`INTARSIA_REQUIRE_GPU=1`) | 14 passed. It uses synthetic fixtures, so it does not exercise the recipe chunk |
 | `batch_metal_real` 35B (`INTARSIA_TEST_REAL_MODEL=1`) | `real_35b_batched_decode_is_bitwise_the_solo_step` and `real_35b_batched_engine_equals_the_local_engine` pass; `real_lfm2_batched_decode_is_bitwise_the_solo_step` fails only because `INTARSIA_LFM2_DIR` is unset (as in MPRE) |
-| `batch_metal_real` `--ignored real_35b_batched_engine_long_prompts_equal_the_local_engine` (2.6k / 4k / 16k prompts, 2 and 4 slots, busy chunk default = 4096) | in one process the third identity case failed with `prompt of 16384 tokens does not fit the context window of 16377 tokens`: the fourth engine in the process plans its KV from the free memory left after three engines, and most likely because the bigger 4096-row scratch leaves it 7 tokens short (inferred, not measured against main). Cases 1 and 2 had passed (2 slots: 2/2 IDENTICAL; 4 slots: 4/4 IDENTICAL, including the 16384-token prompt). Fix in the test only: `INTARSIA_LONGENG_CASE=N` runs one case per process (row in `docs/tuning.md`); after the merge all three cases pass, 2 + 4 + 4 requests IDENTICAL to the LocalEngine run, 0 DIFFERS (`raw/tests/post-merge/long-*.log`) |
+| `batch_metal_real` `--ignored real_35b_batched_engine_long_prompts_equal_the_local_engine` (2.6k / 4k / 16k prompts, 2 and 4 slots) | passes in its default invocation after the follow-up (section 5): 10 of 10 requests IDENTICAL to the LocalEngine run, 0 DIFFERS, with the recipe's busy chunk 2048 against the solo 4096. In the first PR commit it failed in one process (`prompt of 16384 tokens does not fit the context window of 16377 tokens` in the fourth engine); the cause was not the scratch (section 5) |
 | prefix reuse equals cold | the 35B prefix-reuse gate is `qualify`'s `acc-4k`, which runs `accuracy --mode all` at the plan chunk (4096) and `--mode reuse` at chunk 1024. At 4096 `--mode all`: continue case on chat_reuse_4k oracle-relative PASS (warm/cold 0.71x), restore / aligned bit-identical; long_docs_4k and long_code_4k are skipped there because their 4064 tokens cannot cross a 4096 boundary (judged 1, skipped 2, as on HIP). The chunk-1024 `--mode reuse` run judges all three and FAILS on `long_code_4k continue` (streams diverge at token 3, "the golden's prompt token ids differ from the ones it was made for", no committed oracle applies): **this failure is not caused by the change**, the same command with a binary built from `main`'s recipe (2048) fails identically (`raw/control/`), and it never reads the recipe chunk. `qualify` therefore reports `acc-4k` FAIL both before and after. The PRC probe tests (`prefix_reuse_real`, `reuse_rule_resumes_with_cold_bits` ...) need a dense checkpoint and the 8B recipe is unchanged, so they were not re-run |
 | `cargo test --workspace --release --locked` (endor, after merging #255, no GPU-required env) | **1105 passed, 0 failed, 28 ignored** (`raw/tests/post-merge/ws.log`). A first run in the same job as the real-model tests left `INTARSIA_REQUIRE_GPU=1` exported and reported 15 failures that are all the CUDA / real-model tests refusing to skip (`gpu_tests_were_not_built`, `real_*` on a Mac); that log is kept as `raw/tests/w3-ws-REQUIRE_GPU-env-leak.log` and is a script error, not a result |
 
@@ -99,12 +99,7 @@ decode 98.44 % / 9.54e-3), `acc-4k` FAIL for the pre-existing reason in the gate
 
 ## 4. Caveats
 
-* **Decode stall beside a long prefill (not measured).** For the hybrid 35B the batching engine's busy chunk defaults to the solo
-  chunk, so with `--max-batch` > 1 a long prompt arriving beside decoding streams now prefills in 4096-row steps. At about 5800
-  tok/s a 4096-row chunk takes about 0.7 s of GPU time against about 0.4 s for 2048 rows, so a decoding neighbour waits up to that
-  long per mixed iteration (twice the previous worst step). None of the tables above exercises it (1k prompts are one chunk,
-  single stream has no neighbour). `[tuning.metal] busy_chunk = 2048` would keep the old step, at the price of a busy schedule
-  different from the solo one (the exactness tests assert busy == solo); this was not tried.
+* **Decode stall beside a long prefill**: addressed by `busy_chunk = 2048` (section 5); the stall itself was derived from the prefill rate, not measured (no ITL harness).
 * The 2048 arm's 4k prefill varies between server starts (4511-5451 tok/s) and the 4096 arm's does not, so the +17 % median is
   partly a variance effect; the best-against-best figure is +7.5 %.
 * Prefix reuse at 4096: the 4064-token documents of the 4k golden cannot be judged by `accuracy --mode all` (see gates).
@@ -126,3 +121,44 @@ decode 98.44 % / 9.54e-3), `acc-4k` FAIL for the pre-existing reason in the gate
 | #7127 | 3 extra single-stream rounds (4.3 min) | `--quiet gpu,cpu` |
 | #7129 | `docs_env_vars` test | `--load cpu` |
 | #7130 | final binary (recipe comment edited after the re-record) rebuilt; `qualify` acc-short grades against the installed baseline: PASS (97.85 % / 7.93e-3, not MISSING-BASELINE) | `--quiet gpu,cpu` |
+
+## 5. Follow-up: busy chunk 2048 and the long-prompt test (coordinator request)
+
+**Busy chunk.** `[tuning.metal] busy_chunk = 2048`. Where it is used: `Scheduler::prefill_plan` (`crates/intarsia-core/src/scheduler.rs`,
+the `chunk` of a request's first prefill step: `if n_decoding > 0 { cfg.busy_chunk } else { cfg.solo_chunk }`; the same rule in
+`pack_body_rows`) takes the busy chunk only when a stream is decoding at that moment, and the solo chunk otherwise. The recipe value
+reaches the scheduler through `load.rs` (`recipe.resolve_busy_chunk(backend)` into `BatchedOptions::busy_chunk`, clamped to the solo
+chunk by `scheduler_config`). Nothing else reads it: the single-sequence engine (default serve, no `--max-batch`) and an idle batching
+server prefill at 4096. A prompt that starts prefilling beside a decoder keeps 2048-row steps for its whole prefill (the chunk is
+fixed on its first step).
+
+| check | result |
+|---|---|
+| server log at `--max-batch 4` | `prefill chunk 4096 (recipe qwen3_5_moe, metal)` and `continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048` (`raw/followup/w5-job.log`) |
+| single-stream 4k prefill (default serve, `--sizes 1024,4096 --gen 128 --reps 3`, order default / `--prefill-chunk 2048` / default) | 5844, 5381, 5548 tok/s: +8.6 % and +3.1 % over 2048 (the 2048-start variance of section 1 again); 1k 4568 / 4585 / 4579 (flat), decode 124.3 / 124.9 / 124.4 and 120.9 / 121.2 / 118.8 (flat) |
+| greedy ids (256 tokens, `generate`, short-0 and 4k-0) | identical to the saved 2048 runs. `generate` is the single-sequence path, so it does not exercise `busy_chunk`; the busy path is checked by the next row |
+| batched engine vs LocalEngine with busy 2048 and solo 4096 (long-prompt test, 2.6k / 4k / 16k prompts, 2 and 4 slots, 3 cases) | 10 of 10 requests IDENTICAL, so on Metal the busy schedule differs from the solo one without changing a bit (mixed iterations 2 / 12 / 12 against 1 / 6 / 6 at busy 4096: the long prefills now take twice as many, half-size, steps beside the decoder) |
+| `plan show` (35B, `--max-seq 20480`) against the commit without `busy_chunk` | no diff (0 lines): `plan show` reports only the solo `prefill_chunk`; the busy chunk is an engine option and shows in the serve log line above |
+
+The decode stall itself (the worst step of a decoding neighbour while a long prompt prefills) was not measured: there is no ITL
+harness in this lane. It is back to the 2048-row step it was before this PR, by construction.
+
+**Long-prompt test.** The shortfall was not the larger scratch and not a race. Instrumenting the test (`drop_and_settle`: drop the
+engine, wait for `MetalBackend::info().free_mem` to return) showed that the free memory never came back: 110094 MiB at the start,
+87755 after the reference engine was dropped, 65416 after the 2-slot engine, 43077 after the next one, exactly 22339 MiB (the
+weights) per engine (`raw/followup/w4-long-default-first-failure-with-settle-helper.log`). The cause is `host::HostCache` in
+`crates/intarsia-backend-metal`: it maps every model file's mapping address to a whole-file no-copy buffer plus an `Arc` of the
+mapping, and nothing ever removed an entry, so a backend that loads a second model in the same process kept the first one's weights
+allocated, and the next engine's free-memory plan started from that much less (at the 2048 chunk the fourth engine still fit by a
+few tokens; at 4096 its larger workspace pushed it 7 tokens under 16384). Fix: `HostCache::prune()` drops the entries whose mapping
+nothing else holds (`Arc::strong_count == 1`; every `Buffer` handed out keeps its own `Arc`), called on a cache miss and at the start
+of `MetalBackend::info()`, which is what the memory plan reads. A process with one model is unaffected. After the fix `free_mem` is
+back at 110094 MiB 0.1 s after each drop and the test passes in its default invocation (66.8 s, 10 of 10 IDENTICAL,
+`raw/followup/w7-long-default-final.log`); the test now calls `drop_and_settle` between engines (it reports the free memory and
+waits at most 10 s). `INTARSIA_LONGENG_CASE` is removed, with its `docs/tuning.md` row. Other checks: `cargo test -p
+intarsia-backend-metal` 166 passed, 0 failed, 1 ignored; `docs_env_vars` 2 passed. The full workspace run was not repeated after this
+fix (it predates it, 1105 / 0); the change is 12 lines in one backend.
+
+follow-up fleetq jobs: #7131 (first test run with the settle helper, still failing), #7132, #7137, #7138 (builds; #7137 failed to
+compile: a misplaced `impl`), #7133 (busy-chunk checks, long test, ids, serve), #7139 (long test default invocation after the
+prune, backend-metal tests), #7145 (final long test, `docs_env_vars`). GPU time of the follow-up: about 13 min.

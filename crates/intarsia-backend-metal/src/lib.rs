@@ -752,6 +752,8 @@ impl Backend for MetalBackend {
     }
 
     fn info(&self) -> DeviceInfo {
+        // released models' weight mappings go first, so `free_mem` is what a new load can really use
+        self.hosts.lock().unwrap().prune();
         let total = self.device.recommendedMaxWorkingSetSize();
         let used = self.device.currentAllocatedSize() as u64;
         let bandwidth = *self.bandwidth.get_or_init(|| bench::measure_copy_gbs(self, 1 << 30, 3, 7).ok());
