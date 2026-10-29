@@ -25,6 +25,11 @@ bits depend on its row count, so that request computed other logits than its col
 
 The batch width was never the problem: batched decode is bitwise the solo step at every N 2..16 (gate below).
 
+**Scope of the identity result:** the served checks use equal.py's prompts (5-15 tokens), which prefill in one pass either way. A
+prompt over 256 tokens that is admitted while others decode still prefills in 256-row busy chunks, which are not bitwise the solo
+4096-row chunk (`2026-10-23-rb2-cuda-batching.md` item 9, `2026-10-22-ck-cuda8b-chunk.md`); the 16-stream speed cell (990-token
+prompts under load) runs that path. This PR does not change it.
+
 ### Evidence (before the fix)
 
 Model level, `real_qwen3_8b_prefix_reuse_probe` (`raw/run1/probe.log`, 8B on CUDA, the 16 equal.py prompts):
@@ -129,8 +134,11 @@ runs `20261028-221552-adhoc-bi8-base-r1`, `-221854-...-fix-r1`, `-222157-...-bas
   `real_qwen3_8b_prefix_reuse_probe` shows it.
 - A request that prefills while others decode runs 256-row chunks, which are not bitwise the solo 4096-row chunk for prompts above
   256 tokens (known, `2026-10-23-rb2-cuda-batching.md` item 9): unchanged, and not exercised by the short equal.py prompts.
-- Multi-turn chat on CUDA now re-prefills the previous turn's tail and reply instead of reusing them (time to first token, not
-  decode); `--prefix-store` restores message prefixes exactly and is the tool for that case.
+- **The trade-off (two options).** (a) This PR, exact reuse on CUDA: bitwise, 16-stream speed unchanged, but a dense prompt under
+  one 4096-row chunk is never resumed, so multi-turn chat re-prefills its whole history every turn. Estimate, not measured: a
+  2k-token history costs about +0.4 s time to first token per turn at the 8B's ~4.9k tok/s prefill (more under load, in busy
+  chunks). (b) `INTARSIA_PREFIX_REUSE=any`: the old reuse and its time to first token, but a request's bits depend on what its slot
+  held before (the SB8 failure). For chat, `--prefix-store` (single-sequence engine) restores message prefixes exactly.
 
 ## Commands
 
