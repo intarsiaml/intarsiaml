@@ -1,0 +1,1 @@
+{"rep": 0, "streams": 1, "wall": 10.806, "ttft_med": 0.413, "dec_toks_per_s_per_stream_med": 115.38, "chunks": [1200]}

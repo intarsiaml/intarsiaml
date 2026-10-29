@@ -1,0 +1,12 @@
+graph kernels 294132, passes 248, kernels/pass med 1212
+pass span mean 20.675 ms; kernel-busy 20.121 ms; inside-graph idle 0.554 ms = 2.68 % of the graph span
+inter-kernel gaps: n 204794, median 0.10 us, p90 0.51 us, sum/pass 554.4 us
+kernels most often after a >5 us gap (name: gaps/pass, us/pass):
+  gdn_conv_kernel                                               41.23    343.1
+  embedding_kernel                                               0.01      0.1
+  gdn_delta_dec_kernel                                           0.01      0.1
+  gemv_split_kernel                                              0.01      0.1
+  sigmoid_mul_kernel                                             0.01      0.1
+  rmsnorm_kernel                                                 0.01      0.0
+  gdn_conv_state_kernel                                          0.00      0.0
+  kv_append_kernel                                               0.00      0.0

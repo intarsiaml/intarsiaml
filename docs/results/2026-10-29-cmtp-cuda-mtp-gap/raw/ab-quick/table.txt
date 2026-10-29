@@ -1,0 +1,2 @@
+cell     metric               base        dev  dev/base  worst round
+dec4k    tok/s/stream        114.9      112.4    0.9782       0.9635   rounds [1, 2]
