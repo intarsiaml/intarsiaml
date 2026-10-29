@@ -80,9 +80,9 @@ while the queue is still empty, so that submission needs no drain either.
 | gate | result |
 |---|---|
 | greedy ids, 256 tokens, 4 prompts (short 19 tok, 4k a 4096, 4k b 4171, 16k 16384), `generate` | `--spec off` == MTP `=0` == MTP `=1` on all 4 (md5 of the `ids:` lines: b4ca5abeaa, bda48660a1, 3c7cb036eb, 9687832874). Acceptance counts identical between `=0` and `=1` on every prompt (short 153/203, 4k a 155/198, 4k b 160/190, 16k 156/197) |
-| main's MTP | main's own binary (`0d02d3f36`, `generate --spec mtp`) on the same 4 prompts: MAINMTP_RESULT (raw/diag3); its served cold and warm texts equal `=1`'s (raw/diag2). `=0` runs the eager branches of `Seq::prepare` as on main; the only change on that path is that `prepare` computes the plan first and clears the pipelined fields on non-pipelined branches |
+| main's MTP | main's own binary (`0d02d3f36`, `generate --spec mtp`) on the same 4 prompts: ids identical to this branch's `=1` on all 4 (same md5s), with the same acceptance counts (raw/diag3); its served cold and warm texts equal `=1`'s (raw/diag2). `=0` runs the eager branches of `Seq::prepare` as on main; the only change on that path is that `prepare` computes the plan first and clears the pipelined fields on non-pipelined branches |
 | batched MTP == solo | not applicable: Metal refuses `--spec mtp` with `--max-batch` > 1 (raw/w3/srv-batch.err); the pipelined path is solo-only |
-| prefix reuse == cold | **FAIL, on main as well, unchanged by this lane.** A served request resumed at 4095 of its 4105 tokens (the previous prompt + a suffix) gives different greedy text from the same request on a cold server, in every arm: `=1`, `=0`, main's binary and `--spec off` (raw/diag2). The warm text is identical across all four arms, so this lane does not change reuse; the cut itself is the issue (flagged as a separate task). Repeating the same prompt (warm A == cold A) is identical. REUSE_TESTS |
+| prefix reuse == cold | **FAIL, on main as well, unchanged by this lane.** A served request resumed at 4095 of its 4105 tokens (the previous prompt + a suffix) gives different greedy text from the same request on a cold server, in every arm: `=1`, `=0`, main's binary and `--spec off` (raw/diag2). The warm text is identical across all four arms, so this lane does not change reuse; the cut itself is the issue (flagged as a separate task). Repeating the same prompt (warm A == cold A) is identical. `exact_reuse` (8) and `prefix_reuse_real` (6) pass, but these are the cpu / dense-model encodings of #236's rules (`prefix_reuse_real` ran in 0.09 s, without a real model) and do not cover this hybrid case |
 | `batch_metal_real` (35B, `INTARSIA_TEST_REAL_MODEL=1`) | 3 passed, 5 ignored |
 | `batch_recurrent` | 14 passed |
 | `kernels test --backend metal` (default and `--model` 35B) | exit 0 |
@@ -145,9 +145,9 @@ The cause of the profiler's slowdown was not found.
 
 fleetq jobs: #7185 (build), #7186 (window 1: ids + cb), #7187 (main baseline build), #7197 (window 2: served A/B, 4 arms),
 #7200 (test build), #7204 (served trace diagnostic), #7205 (build), #7206 (window 3: gates), #7212 (prefix reuse
-diagnostic), #7215 (window 4: final A/B), #7216 (`cargo test --workspace --release`).
+diagnostic), #7215 (window 4: final A/B), #7216 (`cargo test --workspace --release`), #7219 (`tests/mtp.rs` after the test additions), #7220 (main binary MTP ids, reuse tests).
 
-`raw/`: `w1` (generate logs with ids, cb traces), `w2` and `w4` (localeval outputs, server logs), `w3` (plan show, kernels
+`raw/`: `diag3` (main binary MTP ids, reuse tests), `ws-test-results.txt`, `w1` (generate logs with ids, cb traces), `w2` and `w4` (localeval outputs, server logs), `w3` (plan show, kernels
 test, real-model tests, served gate texts), `diag1` (spec traces of one request per arm), `diag2` (prefix reuse texts per
 arm), `scripts` (window scripts, trace analysers), `localeval-run-ids.txt` (result directories and unanimis records),
 `ab-w2.md`, `ab-w4.md`.
