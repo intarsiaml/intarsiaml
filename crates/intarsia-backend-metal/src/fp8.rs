@@ -22,7 +22,7 @@ pub const MATMUL_FP8_GEMV_ROWS: &str = "matmul_fp8_gemv_rows";
 const XPREP: &str = "fp8_xprep_bf16";
 const XPREP_T: &str = "fp8_xprep_t";
 /// Shader entry points (kernels/metal/fp8.metal).
-pub const SHADERS: [&str; 19] = [
+pub const SHADERS: [&str; 21] = [
     XPREP,
     "fp8_gemv_bf16_m1",
     "fp8_gemv_bf16_m8",
@@ -42,6 +42,8 @@ pub const SHADERS: [&str; 19] = [
     "fp8_rows_mmt_bf16_neg",
     "fp8_rows_mmt_f32_neg",
     W_TO_BF16,
+    "fp8_gemv_bf16_m1_xd",
+    "fp8_gemv_f32_m1_xd",
 ];
 
 const W_TO_BF16: &str = "fp8_w_to_bf16";
@@ -156,6 +158,12 @@ impl MetalBackend {
         if kernel == MATMUL_FP8_GEMV_ROWS && call.scratch.is_some() && xd_on() {
             return self.launch_fp8_rows_xd(call, (&xb, &wb, &sb, &ob), pdims, f32_out);
         }
+        // lane mnq: x's producer wrote q(x) (`prequant`): the one-row GEMV reads it instead of staging x
+        if kernel == MATMUL_FP8_GEMV && m == 1 && !(k % 16 != 0) {
+            if let Some(slot) = self.pq_claim(x, sc, &sb) {
+                return self.launch_fp8_m1_xd(&slot, (&wb, &sb, &ob), pdims, (n, f32_out));
+            }
+        }
         if kernel == MATMUL_FP8_GEMV || kernel == MATMUL_FP8_GEMV_ROWS {
             let rows = kernel == MATMUL_FP8_GEMV_ROWS;
             if m > GEMV_MB || m * k * 2 > GEMV_TG_BYTES && !(rows && 4 * k * 2 <= GEMV_TG_BYTES) {
@@ -256,6 +264,38 @@ impl MetalBackend {
             enc.dispatchThreadgroups_threadsPerThreadgroup(
                 MTLSize { width: n.div_ceil(TILE), height: m.div_ceil(TILE), depth: 1 },
                 MTLSize { width: MMA_THREADS, height: 1, depth: 1 },
+            );
+        })
+    }
+
+    /// The one-row GEMV over q(x) that the producer of x wrote into `slot` (`fp8_gemv_*_m1_xd`, `prequant`): the staging
+    /// GEMV's grid, no threadgroup memory, no skip on x.
+    fn launch_fp8_m1_xd(
+        &self,
+        slot: &crate::MtlBuffer,
+        (wb, sb, ob): (&crate::dense::Bind, &crate::dense::Bind, &crate::dense::Bind),
+        pdims: [u32; 8],
+        (n, f32_out): (usize, bool),
+    ) -> Result<()> {
+        let name = SHADERS[19 + f32_out as usize];
+        let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
+        if pso.maxTotalThreadsPerThreadgroup() < GEMV_SG * 32 {
+            return Err(Error::backend(format!("metal: '{name}' cannot run {} threads", GEMV_SG * 32)));
+        }
+        let p = OpP { dims: pdims, skips: [0, ob.skip, 0, 0, 0], ..Default::default() };
+        self.with_encoder(|enc| {
+            // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`; the slot holds a row).
+            unsafe {
+                enc.setComputePipelineState(pso);
+                enc.setBuffer_offset_atIndex(Some(slot), 0, 0);
+                for (i, b) in [wb, sb, ob].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i + 1);
+                }
+            }
+            set_bytes(enc, &p, 4);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: n.div_ceil(GEMV_SG * GEMV_RS[0]), height: 1, depth: 1 },
+                MTLSize { width: GEMV_SG * 32, height: 1, depth: 1 },
             );
         })
     }

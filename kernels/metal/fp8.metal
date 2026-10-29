@@ -23,44 +23,10 @@
 
 // ---- e4m3 ----------------------------------------------------------------------------------------------------------
 
-// two e4m3 bytes at bits 0..7 and 16..23 of t (the other bits are ignored) -> value / 256
-inline float2 fp8_x2(uint t) {
-    const uint h = ((t & 0x007F007Fu) << 7) | ((t & 0x00800080u) << 8);
-    return float2(as_type<half2>(h));
-}
-
 // a word holds a NaN code (0x7F / 0xFF) in some byte
 inline bool fp8_word_nan(uint w) {
     const uint t = (w & 0x7F7F7F7Fu) ^ 0x7F7F7F7Fu;  // a zero byte <=> NaN code
     return ((t - 0x01010101u) & ~t & 0x80808080u) != 0u;
-}
-
-// exact value of an e4m3 code
-inline float fp8_dec(uint b) {
-    if ((b & 0x7Fu) == 0x7Fu) return as_type<float>(0x7FC00000u);
-    return fp8_x2(b).x * 256.0f;
-}
-
-// intarsia_core::dtype::f32_to_fp8_e4m3: round to nearest, ties to the even code, saturating at +-448, NaN -> 0x7F
-inline uint fp8_enc(float v) {
-    const uint s = (as_type<uint>(v) >> 24) & 0x80u;
-    const float a = fabs(v);
-    if (!(a == a)) return 0x7Fu;
-    if (a >= 448.0f) return s | 0x7Eu;
-    uint code;
-    if (a < 0.015625f) {
-        code = (uint)rint(a * 512.0f);  // subnormal grid 2^-9, rint = ties to even
-    } else {
-        uint b = as_type<uint>(a);  // 3 mantissa bits kept: round to nearest even on bit 20
-        b += 0x7FFFFu + ((b >> 20) & 1u);
-        code = (b >> 20) - 960u;  // re-bias the exponent: (127 - 7) << 3
-    }
-    return s | code;
-}
-
-// q(x) for one element: static W8A8 (is > 0) or the activation itself
-inline float fp8_qx(float x, float is) {
-    return is > 0.0f ? fp8_dec(fp8_enc(precise::divide(x, is))) : x;
 }
 
 // 16 e4m3 bytes (4 words) . 16 activations; the result is the dot / 256, NaN when the chunk holds a NaN code
@@ -204,9 +170,19 @@ inline void fp8_gemv_impl(device const ushort* x, device const uchar* w, device 
             } else {
                 for (int m = 0; m < MB; ++m) {
                     if (m >= (int)rows) break;
-                    threadgroup const uint4* xp = (threadgroup const uint4*)(xs + (ulong)m * K + (ulong)u * 16);
+                    uint4 x0, x1;
+                    if constexpr (XD) {
+                        // one row, q(x) already in device memory (written by the producer of x, lane mnq): the same values
+                        // the staging loop would put in threadgroup memory, read from there instead
+                        device const uint4* xp = (device const uint4*)(xd + (ulong)m * K + (ulong)u * 16);
+                        x0 = xp[0];
+                        x1 = xp[1];
+                    } else {
+                        threadgroup const uint4* xp = (threadgroup const uint4*)(xs + (ulong)m * K + (ulong)u * 16);
+                        x0 = xp[0];
+                        x1 = xp[1];
+                    }
                     float xf[16];
-                    const uint4 x0 = xp[0], x1 = xp[1];
                     fp8_unpack2(x0.x, xf);
                     fp8_unpack2(x0.y, xf + 2);
                     fp8_unpack2(x0.z, xf + 4);
@@ -256,6 +232,10 @@ FP8_GEMV(fp8_gemv_f32_m8, 8, 2, 2, float)
 // K = 2048); `matmul_fp8_gemv_rows` takes it past M = 4 at K = 4096 (the 35B's GDN / attention output projections)
 FP8_GEMV(fp8_gemv_bf16_m4, 4, 2, 2, ushort)
 FP8_GEMV(fp8_gemv_f32_m4, 4, 2, 2, float)
+// _m1_xd (lane mnq): the one-row GEMV over a q(x) row the producer of x wrote ([1, K] bf16, no skip): no staging pass and no
+// threadgroup memory. Same fma chain as `_m1`, so the same bits.
+FP8_GEMV_XD(fp8_gemv_bf16_m1_xd, 1, 4, 4, ushort)
+FP8_GEMV_XD(fp8_gemv_f32_m1_xd, 1, 4, 4, float)
 // `matmul_fp8_gemv_rows` over the q(x) prep buffer (lane mm, docs/results/2026-10-25-mm-metal-moe-grouped.md): 4 rows per
 // threadgroup (2..8 rows: one or two threadgroup rows; with no staging the tile is free of the threadgroup-memory limit, and
 // 4 measured faster than 8 or 2 at every 35B shape); _neg is the negative control (INTARSIA_METAL_NEGCTL=fp8_xd)

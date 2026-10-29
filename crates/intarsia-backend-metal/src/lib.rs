@@ -38,6 +38,8 @@ pub mod multirow;
 mod moe;
 pub mod fp8;
 mod mxfp4;
+mod prequant;
+pub use prequant::{enabled as norm_fp8_enabled, level as norm_fp8_level};
 pub mod nvfp4;
 mod rowtab;
 pub mod profile;
@@ -202,6 +204,8 @@ struct Stream {
     hold_after: Option<usize>,
     /// `Backend::hold`: no automatic commit until `release` / `discard` / `fence` / `synchronize`.
     holding: bool,
+    /// Lane mnq: the held producer launch and the q(x) slot ([`prequant`]).
+    pq: prequant::Pq,
 }
 
 /// Fences kept for `read_after` (the engine has at most two outstanding).
@@ -435,6 +439,7 @@ impl MetalBackend {
 
     /// End the open encoder and commit its command buffer (not waited on).
     fn flush_locked(st: &mut Stream) {
+        Self::drain_pending(st);
         if let Some((cb, enc)) = st.open.take() {
             enc.endEncoding();
             let commit = st.prof.is_some().then(profile::host_now);
@@ -458,7 +463,36 @@ impl MetalBackend {
 
     /// Dispatches encoded into the open command buffer and not yet committed (0 after a flush / synchronize).
     pub fn pending_dispatches(&self) -> usize {
-        self.stream.lock().unwrap().dispatches
+        let st = self.stream.lock().unwrap();
+        st.dispatches + st.pq.pending.is_some() as usize
+    }
+
+    /// Encode the held producer launch (lane mnq, [`prequant`]) into the open encoder. Every path that encodes another
+    /// dispatch or commits calls this first, so the held launch keeps its place in the stream order. A held launch always has
+    /// an open encoder (`open_locked` before it was held; `open` is taken only by `flush_locked` and `discard`).
+    fn drain_pending(st: &mut Stream) {
+        if let Some(p) = st.pq.pending.take() {
+            if let Some((_, enc)) = &st.open {
+                p.encode(enc);
+                st.dispatches += 1;
+            }
+        }
+    }
+
+    /// Open a command buffer and encoder when none is open.
+    fn open_locked(&self, st: &mut Stream) -> Result<()> {
+        if st.open.is_none() {
+            let cb = self.queue.commandBuffer().ok_or_else(|| Error::backend("metal: commandBuffer failed"))?;
+            let enc = cb
+                .computeCommandEncoderWithDispatchType(MTLDispatchType::Serial)
+                .ok_or_else(|| Error::backend("metal: computeCommandEncoder failed"))?;
+            st.open = Some((cb, enc));
+            st.ind_ver = 0;
+            if st.prof.is_some() {
+                st.opened = profile::host_now();
+            }
+        }
+        Ok(())
     }
 
     /// Commit everything encoded so far without waiting for it.
@@ -480,17 +514,8 @@ impl MetalBackend {
 
     fn with_encoder_opt(&self, indirect: bool, f: impl FnOnce(&ProtocolObject<dyn MTLComputeCommandEncoder>)) -> Result<()> {
         let mut st = self.stream.lock().unwrap();
-        if st.open.is_none() {
-            let cb = self.queue.commandBuffer().ok_or_else(|| Error::backend("metal: commandBuffer failed"))?;
-            let enc = cb
-                .computeCommandEncoderWithDispatchType(MTLDispatchType::Serial)
-                .ok_or_else(|| Error::backend("metal: computeCommandEncoder failed"))?;
-            st.open = Some((cb, enc));
-            st.ind_ver = 0;
-            if st.prof.is_some() {
-                st.opened = profile::host_now();
-            }
-        }
+        self.open_locked(&mut st)?;
+        Self::drain_pending(&mut st);
         if indirect {
             self.declare_indirect(&mut st);
         }
@@ -694,6 +719,7 @@ impl Drop for MetalBackend {
         // an open encoder must be ended before it is released (Metal aborts otherwise); this also waits for the queue,
         // which writes the last trace records when INTARSIA_METAL_PROFILE is set. A no-op when nothing is pending.
         let _ = self.synchronize(0);
+        self.pq_report();
         // the keep-warm touches read the weight mappings too
         self.stop_keepwarm();
     }
@@ -794,6 +820,7 @@ impl Backend for MetalBackend {
     }
 
     fn upload(&self, dst: &Buffer, dst_offset: usize, src: &[u8], _s: StreamId) -> Result<()> {
+        self.pq_kill();
         self.synchronize(0)?;
         let (mb, p) = self.host_range(dst, dst_offset, src.len())?;
         if mb.read_only {
@@ -821,6 +848,7 @@ impl Backend for MetalBackend {
         bytes: usize,
         _s: StreamId,
     ) -> Result<()> {
+        self.pq_kill();
         if bytes == 0 || self.gpu_copy(dst, dst_offset, src, src_offset, bytes)? {
             return Ok(());
         }
@@ -848,6 +876,7 @@ impl Backend for MetalBackend {
     }
 
     fn zero(&self, dst: &Buffer, _s: StreamId) -> Result<()> {
+        self.pq_kill();
         self.gpu_zero(dst)
     }
 
@@ -930,6 +959,7 @@ impl Backend for MetalBackend {
         st.hold_after = None;
         st.holding = false;
         if held {
+            st.pq.drop_all();
             if let Some((cb, enc)) = st.open.take() {
                 enc.endEncoding();
                 drop(cb);
@@ -1010,6 +1040,7 @@ impl Backend for MetalBackend {
 impl MetalBackend {
     /// The launch itself (`Backend::launch` wraps it with the profile labels).
     fn launch_call(&self, kernel: &str, call: &OpCall, _s: StreamId) -> Result<()> {
+        self.pq_note_writes(call);
         if kernel == kernels::MATMUL_BF16_GEMV && call.op == Op::Matmul {
             let plan = self.plan_gemv(call)?;
             let pso =

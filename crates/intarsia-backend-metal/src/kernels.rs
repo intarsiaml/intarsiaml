@@ -186,6 +186,26 @@ pub const RMSNORM_ADD_EX: [&str; 6] = [
     "rmsnorm_add_bf16_ex16_f",
     "rmsnorm_add_bf16_ex32_f",
 ];
+/// Lane mnq (`prequant.rs`): the same norms that also write q(x) of their output for the fp8 GEMV that reads it, index for
+/// index with the lists above. Chosen by `prequant`, not registry entries.
+pub const RMSNORM_EX_Q: [&str; 6] = [
+    "rmsnorm_bf16_exq1",
+    "rmsnorm_bf16_exq16",
+    "rmsnorm_bf16_exq32",
+    "rmsnorm_bf16_exq1_f",
+    "rmsnorm_bf16_exq16_f",
+    "rmsnorm_bf16_exq32_f",
+];
+pub const RMSNORM_ADD_EX_Q: [&str; 6] = [
+    "rmsnorm_add_bf16_exq1",
+    "rmsnorm_add_bf16_exq16",
+    "rmsnorm_add_bf16_exq32",
+    "rmsnorm_add_bf16_exq1_f",
+    "rmsnorm_add_bf16_exq16_f",
+    "rmsnorm_add_bf16_exq32_f",
+];
+pub const SILU_GLU_BF16_Q: &str = "silu_glu_bf16_q";
+pub const SIGMOID_MUL_BF16_Q: &str = "sigmoid_mul_bf16_q";
 pub const ARGMAX_F32_V4: &str = "argmax_f32_v4";
 
 pub const ATTN_PREFILL_BF16: &str = "attn_prefill_bf16";
@@ -323,6 +343,9 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend([GEMV_PAIR_BF16, GEMV_PAIR_BF16_A8, GEMV_PAIR_BF16_R1, GEMV_PAIR_BF16_R1_A8]);
     v.extend(RMSNORM_EX);
     v.extend(RMSNORM_ADD_EX);
+    v.extend(RMSNORM_EX_Q);
+    v.extend(RMSNORM_ADD_EX_Q);
+    v.extend([SILU_GLU_BF16_Q, SIGMOID_MUL_BF16_Q]);
     v.push(ARGMAX_F32_V4);
     v.extend(EXPERIMENT_SHADERS);
     v.extend(crate::multirow::shader_names());

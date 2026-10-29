@@ -55,6 +55,7 @@ fn qk_pf_disabled() -> bool {
 }
 
 /// One tensor bound to a shader argument: the MTLBuffer, the 4-byte aligned byte offset, the leftover elements.
+#[derive(Clone)]
 pub(crate) struct Bind {
     pub(crate) mtl: MtlBuffer,
     pub(crate) off: usize,
@@ -76,6 +77,7 @@ const ATTN_THREADS: usize = 256;
 /// threadgroup arrays are sized by it).
 const ATTN_DEC_SG: usize = 16;
 
+#[derive(Clone, Copy)]
 pub(crate) enum Grid {
     /// `n` threads in a line (`dispatchThreads`: the last threadgroup may be partial).
     Threads(usize),
@@ -192,7 +194,14 @@ impl MetalBackend {
                     pad: 0,
                 };
                 if let Some((names, threads)) = self.norm_ex(h, &RMSNORM_EX) {
-                    return self.dispatch(names, &[&x, &w, &out], &p, Grid::Groups { x: rows, y: 1, threads });
+                    let grid = Grid::Groups { x: rows, y: 1, threads };
+                    // lane mnq: a one-row norm may also write q(x) for the fp8 GEMV that reads it
+                    if rows == 1 && kernel == RMSNORM_BF16 && crate::prequant::norm_producers() {
+                        if let Some(q) = RMSNORM_EX.iter().position(|n| *n == names).map(|j| RMSNORM_EX_Q[j]) {
+                            return self.pq_launch(&o[0], names, q, &[&x, &w, &out], &p, grid, threads);
+                        }
+                    }
+                    return self.dispatch(names, &[&x, &w, &out], &p, grid);
                 }
                 self.dispatch(
                     // qk_norm is rmsnorm over rows = T*N of width D
@@ -221,12 +230,13 @@ impl MetalBackend {
                     pad: 0,
                 };
                 if let Some((names, threads)) = self.norm_ex(h, &RMSNORM_ADD_EX) {
-                    return self.dispatch(
-                        names,
-                        &[&x, &res, &w, &normed, &sum],
-                        &p,
-                        Grid::Groups { x: rows, y: 1, threads },
-                    );
+                    let grid = Grid::Groups { x: rows, y: 1, threads };
+                    if rows == 1 && crate::prequant::norm_producers() {
+                        if let Some(q) = RMSNORM_ADD_EX.iter().position(|n| *n == names).map(|j| RMSNORM_ADD_EX_Q[j]) {
+                            return self.pq_launch(&o[0], names, q, &[&x, &res, &w, &normed, &sum], &p, grid, threads);
+                        }
+                    }
+                    return self.dispatch(names, &[&x, &res, &w, &normed, &sum], &p, grid);
                 }
                 self.dispatch(
                     kernel,
@@ -250,6 +260,10 @@ impl MetalBackend {
                     skips: [x.skip, y.skip, out.skip, 0, 0],
                     ..Default::default()
                 };
+                // lane mnq: silu_glu may also write q(x) for the one-row fp8 GEMV that reads it (the GDN out projection reads the gated norm's [heads, dv] rows as [1, heads * dv]; a GEMV claims by address and element count)
+                if kernel == SILU_GLU_BF16 {
+                    return self.pq_launch(&o[0], kernel, SILU_GLU_BF16_Q, &[&x, &y, &out], &p, Grid::Threads(n), 1);
+                }
                 self.dispatch(kernel, &[&x, &y, &out], &p, Grid::Threads(n))
             }
             ROPE_BF16 => {

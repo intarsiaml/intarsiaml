@@ -40,6 +40,7 @@ const LAUNCHER_SOURCES: &[&str] = &[
     "src/multirow.rs",
     "src/mxfp4.rs",
     "src/fp8.rs",
+    "src/prequant.rs",
     "src/nvfp4.rs",
     "src/gdn.rs",
     "src/moe.rs",

@@ -46,6 +46,21 @@ kernel void sigmoid_mul_bf16(device const ushort* a [[buffer(0)]],
     out[p.s2 + gid] = f2bf(bf2f(a[p.s0 + gid]) * gdn_sigmoid(bf2f(g[p.s1 + gid])));
 }
 
+// SigmoidMulQ (lane mnq): `sigmoid_mul_bf16` that also writes q(x) of its output for the fp8 GEMV that reads it (the o_proj).
+// bind: 0 a, 1 g, 2 out, 3 q (bf16, no skip), 4 scales (f32 [2], sc[1] = the GEMV's input scale). a = element count.
+kernel void sigmoid_mul_bf16_q(device const ushort* a [[buffer(0)]],
+                               device const ushort* g [[buffer(1)]],
+                               device ushort* out [[buffer(2)]],
+                               device ushort* q [[buffer(3)]],
+                               device const float* sc [[buffer(4)]],
+                               constant OpP& p [[buffer(5)]],
+                               uint gid [[thread_position_in_grid]]) {
+    if (gid >= p.a) return;
+    const ushort ob = f2bf(bf2f(a[p.s0 + gid]) * gdn_sigmoid(bf2f(g[p.s1 + gid])));
+    out[p.s2 + gid] = ob;
+    q[gid] = fp8_q_bf16(ob, sc[1]);
+}
+
 // ---- GdnConv: depthwise causal conv over tokens (taps w [C,K], tap K-1 = current token) + SiLU ---------------------------
 // ---- ShortConv (LFM2): the same conv with the activation off over the product B * x of a [T,3C] projection, times C -------
 // `SHORT` selects the second form (host names short_conv_bf16_k*): x is the in_proj output with rows [B | C | x] (row

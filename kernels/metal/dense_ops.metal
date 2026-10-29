@@ -113,6 +113,22 @@ kernel void silu_glu_bf16(device const ushort* g [[buffer(0)]],
     out[p.s2 + gid] = f2bf(gv / (1.0f + precise::exp(-gv)) * bf2f(u[p.s1 + gid]));
 }
 
+// SiluGluQ (lane mnq): `silu_glu_bf16` that also writes q(x) of its output for the fp8 GEMV that reads it. bind: 0 gate, 1 up,
+// 2 out, 3 q (bf16, no skip), 4 scales (f32 [2], sc[1] = the GEMV's input scale). a = element count.
+kernel void silu_glu_bf16_q(device const ushort* g [[buffer(0)]],
+                            device const ushort* u [[buffer(1)]],
+                            device ushort* out [[buffer(2)]],
+                            device ushort* q [[buffer(3)]],
+                            device const float* sc [[buffer(4)]],
+                            constant OpP& p [[buffer(5)]],
+                            uint gid [[thread_position_in_grid]]) {
+    if (gid >= p.a) return;
+    const float gv = bf2f(g[p.s0 + gid]);
+    const ushort ob = f2bf(gv / (1.0f + precise::exp(-gv)) * bf2f(u[p.s1 + gid]));
+    out[p.s2 + gid] = ob;
+    q[gid] = fp8_q_bf16(ob, sc[1]);
+}
+
 // ---- Rope: neox / rotate-half over the first `rd` values of each head, the rest copied ------------------------------------
 // bind: 0 x [T,N,D], 1 out, 2 pos (i32 [1], read when `e` != 0). a = T, b = N, c = D, d = rd (rotary dim, resolved),
 // e = use device position, f = host pos0, f0 = theta. s0 / s1 skips of x / out.
@@ -354,6 +370,112 @@ kernel void rmsnorm_add_bf16_ex_t(device const ushort* x [[buffer(0)]],
     }
 }
 
+// Lane mnq: the same two norms that also write q(x) of their output for the fp8 GEMV that reads it (static W8A8: the bf16 that
+// GEMV stages, `fp8_q_bf16` of the stored bf16 value with the input scale sc[1] of that GEMV; the host binds its scales). `q`
+// is [rows, H] bf16 with no skip. The bf16 output is written as before (other readers). One extra pointer pair; the
+// arithmetic of the norm is the `_ex` kernels'.
+template <int NIT, bool FULL>
+kernel void rmsnorm_bf16_exq_t(device const ushort* x [[buffer(0)]],
+                               device const ushort* w [[buffer(1)]],
+                               device ushort* out [[buffer(2)]],
+                               device ushort* q [[buffer(3)]],
+                               device const float* sc [[buffer(4)]],
+                               constant OpP& p [[buffer(5)]],
+                               uint row [[threadgroup_position_in_grid]],
+                               uint tid [[thread_position_in_threadgroup]],
+                               uint tgs [[threads_per_threadgroup]],
+                               uint lane [[thread_index_in_simdgroup]],
+                               uint sg [[simdgroup_index_in_threadgroup]],
+                               uint nsg [[simdgroups_per_threadgroup]]) {
+    threadgroup float part[32];
+    const uint h = p.a;
+    device const ushort* xr = x + p.s0 + (ulong)row * h;
+    device const ushort* wr = w + p.s1;
+    device ushort* orow = out + p.s2 + (ulong)row * h;
+    device ushort* qrow = q + (ulong)row * h;
+    const float is = sc[1];
+    float xf[NIT];
+    float wf[NIT];
+    for (int j = 0; j < NIT; ++j) {
+        const uint i = tid + (uint)j * tgs;
+        if (FULL || i < h) {
+            xf[j] = bf2f(xr[i]);
+            wf[j] = bf2f(wr[i]);
+        }
+    }
+    float ss = 0.0f;
+    for (int j = 0; j < NIT; ++j) {
+        if (FULL || tid + (uint)j * tgs < h) ss = fma(xf[j], xf[j], ss);
+    }
+    const float tot = tg_sum1(ss, part, lane, sg, nsg);
+    const float r = 1.0f / precise::sqrt(tot / (float)h + p.f0);
+    for (int j = 0; j < NIT; ++j) {
+        const uint i = tid + (uint)j * tgs;
+        if (FULL || i < h) {
+            const ushort ob = f2bf(xf[j] * r * (wf[j] + p.f1));
+            orow[i] = ob;
+            qrow[i] = fp8_q_bf16(ob, is);
+        }
+    }
+}
+
+template <int NIT, bool FULL>
+kernel void rmsnorm_add_bf16_exq_t(device const ushort* x [[buffer(0)]],
+                                   device const ushort* res [[buffer(1)]],
+                                   device const ushort* w [[buffer(2)]],
+                                   device ushort* normed [[buffer(3)]],
+                                   device ushort* sum [[buffer(4)]],
+                                   device ushort* q [[buffer(5)]],
+                                   device const float* sc [[buffer(6)]],
+                                   constant OpP& p [[buffer(7)]],
+                                   uint row [[threadgroup_position_in_grid]],
+                                   uint tid [[thread_position_in_threadgroup]],
+                                   uint tgs [[threads_per_threadgroup]],
+                                   uint lane [[thread_index_in_simdgroup]],
+                                   uint sg [[simdgroup_index_in_threadgroup]],
+                                   uint nsg [[simdgroups_per_threadgroup]]) {
+    threadgroup float part[32];
+    const uint h = p.a;
+    const ulong base = (ulong)row * h;
+    device const ushort* xr = x + p.s0 + base;
+    device const ushort* rr = res + p.s1 + base;
+    device const ushort* wr = w + p.s2;
+    device ushort* nr = normed + p.s3 + base;
+    device ushort* sr = sum + p.s4 + base;
+    device ushort* qr = q + base;
+    const float is = sc[1];
+    float xf[NIT];
+    float rf[NIT];
+    float wf[NIT];
+    for (int j = 0; j < NIT; ++j) {
+        const uint i = tid + (uint)j * tgs;
+        if (FULL || i < h) {
+            xf[j] = bf2f(xr[i]);
+            rf[j] = bf2f(rr[i]);
+            wf[j] = bf2f(wr[i]);
+        }
+    }
+    float sb[NIT];
+    float ss = 0.0f;
+    for (int j = 0; j < NIT; ++j) {
+        if (FULL || tid + (uint)j * tgs < h) {
+            sb[j] = bf2f(f2bf(xf[j] + rf[j]));
+            ss = fma(sb[j], sb[j], ss);
+        }
+    }
+    const float tot = tg_sum1(ss, part, lane, sg, nsg);
+    const float r = 1.0f / precise::sqrt(tot / (float)h + p.f0);
+    for (int j = 0; j < NIT; ++j) {
+        const uint i = tid + (uint)j * tgs;
+        if (FULL || i < h) {
+            sr[i] = f2bf(sb[j]);
+            const ushort ob = f2bf(sb[j] * r * (wf[j] + p.f1));
+            nr[i] = ob;
+            qr[i] = fp8_q_bf16(ob, is);
+        }
+    }
+}
+
 // `_f` variants: H == NIT * threads (every thread owns exactly NIT elements, e.g. H = 4096 = 16 x 256), so the bounds
 // selects are gone. The host picks them; same arithmetic, same results.
 #define INST_NORM_EX(NAME, NIT, FULL)                                                                                 \
@@ -375,6 +497,27 @@ INST_NORM_ADD_EX("rmsnorm_add_bf16_ex32", 32, false)
 INST_NORM_ADD_EX("rmsnorm_add_bf16_ex1_f", 1, true)
 INST_NORM_ADD_EX("rmsnorm_add_bf16_ex16_f", 16, true)
 INST_NORM_ADD_EX("rmsnorm_add_bf16_ex32_f", 32, true)
+
+#define INST_NORM_EXQ(NAME, NIT, FULL)                                                                                \
+    template [[host_name(NAME)]] kernel void rmsnorm_bf16_exq_t<NIT, FULL>(                                          \
+        device const ushort*, device const ushort*, device ushort*, device ushort*, device const float*, constant OpP&, \
+        uint, uint, uint, uint, uint, uint);
+#define INST_NORM_ADD_EXQ(NAME, NIT, FULL)                                                                            \
+    template [[host_name(NAME)]] kernel void rmsnorm_add_bf16_exq_t<NIT, FULL>(                                      \
+        device const ushort*, device const ushort*, device const ushort*, device ushort*, device ushort*,          \
+        device ushort*, device const float*, constant OpP&, uint, uint, uint, uint, uint, uint);
+INST_NORM_EXQ("rmsnorm_bf16_exq1", 1, false)
+INST_NORM_EXQ("rmsnorm_bf16_exq16", 16, false)
+INST_NORM_EXQ("rmsnorm_bf16_exq32", 32, false)
+INST_NORM_EXQ("rmsnorm_bf16_exq1_f", 1, true)
+INST_NORM_EXQ("rmsnorm_bf16_exq16_f", 16, true)
+INST_NORM_EXQ("rmsnorm_bf16_exq32_f", 32, true)
+INST_NORM_ADD_EXQ("rmsnorm_add_bf16_exq1", 1, false)
+INST_NORM_ADD_EXQ("rmsnorm_add_bf16_exq16", 16, false)
+INST_NORM_ADD_EXQ("rmsnorm_add_bf16_exq32", 32, false)
+INST_NORM_ADD_EXQ("rmsnorm_add_bf16_exq1_f", 1, true)
+INST_NORM_ADD_EXQ("rmsnorm_add_bf16_exq16_f", 16, true)
+INST_NORM_ADD_EXQ("rmsnorm_add_bf16_exq32_f", 32, true)
 
 // Argmax over f32 logits, vector form: V % 4 == 0 and the row 16-byte aligned (no skip). Same result as `argmax_f32`
 // (lowest index of the maximum, NaN never wins, empty / all -inf row gives 0). One threadgroup per row of up to 1024 threads;

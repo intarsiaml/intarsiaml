@@ -149,7 +149,8 @@ impl MetalBackend {
                     skips: [a.skip, g.skip, out.skip, 0, 0],
                     ..Default::default()
                 };
-                self.dispatch(kernel, &[&a, &g, &out], &p, Grid::Threads(n))
+                // lane mnq: sigmoid_mul may also write q(x) for the one-row fp8 o_proj that reads it
+                return self.pq_launch(&o[0], kernel, SIGMOID_MUL_BF16_Q, &[&a, &g, &out], &p, Grid::Threads(n), 1);
             }
             (GDN_CONV_BF16, Op::GdnConv) | (SHORT_CONV_BF16, Op::ShortConv) => {
                 // ShortConv reads the [T,3C] projection (B | C | x per row): the channel count is the taps' leading dim
