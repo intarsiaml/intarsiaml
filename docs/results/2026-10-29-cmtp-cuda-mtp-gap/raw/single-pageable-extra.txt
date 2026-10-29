@@ -1,0 +1,9 @@
+window 10942.5 ms, passes 495, busy 10896.7 ms, idle 45.8 ms = 0.42%
+D2H n 495 med us 0.992 mean 649.5191272727285 max 4627.488 bytes {4, 76}
+D2D n 5647 med us 19.072 bytes 2146304
+H2D n 995 med us 0.224 mean 0.31922814070351685 bytes [4, 12, 384, 2268, 8192, 10464]
+gap us histogram (100us bins): [(0, 184), (100, 39), (300, 1), (600, 111), (700, 2), (800, 5), (1000, 6), (1100, 3), (1200, 3), (1300, 1), (1400, 6), (1500, 7), (1600, 14), (1700, 3), (1800, 13)]
+D2D copies/pass histogram: [(0, 306), (2, 1), (30, 187)]
+  copies   0: n  306 gap med    96.5 us
+  copies   2: n    1 gap med   316.7 us
+  copies  30: n  187 gap med   632.1 us

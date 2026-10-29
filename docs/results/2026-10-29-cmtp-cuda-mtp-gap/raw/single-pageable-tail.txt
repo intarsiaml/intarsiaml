@@ -1,0 +1,28 @@
+gaps >1ms: 152 sum ms 376.15184
+--- gap us 3708.448
+  GPU memcpy kind2 76B start +3.5 dur 3606.3
+  GPU memcpy kind1 4B start +3630.2 dur 0.9
+  GPU memcpy kind1 384B start +3632.3 dur 0.2
+  D2D copies 0
+  API cudaGraphLaunch_v10000 start +3634.1 dur 71.6
+--- gap us 3883.712
+  GPU memcpy kind2 76B start +7.7 dur 3196.7
+  GPU memcpy kind1 4B start +3878.3 dur 0.4
+  GPU memcpy kind1 384B start +3879.6 dur 0.5
+  D2D copies 30
+  API cudaGraphLaunch_v10000 start +3340.9 dur 92.2
+  API cudaMemcpyAsync_v3020 start +3447.2 dur 21840.1
+--- gap us 3943.584
+  GPU memcpy kind2 76B start +2.2 dur 3262.8
+  GPU memcpy kind1 4B start +3938.7 dur 0.4
+  GPU memcpy kind1 384B start +3939.6 dur 0.4
+  D2D copies 30
+  API cudaGraphLaunch_v10000 start +3406.8 dur 79.2
+  API cudaMemcpyAsync_v3020 start +3499.3 dur 24088.8
+D2H >100us: 157 sum ms 320.965888
+long D2H starting inside a big graph interval: 0
+  D2H start 20975.1 us after graph start (graph dur 20971.7), dur 3606.3
+  D2H start 20390.2 us after graph start (graph dur 20382.5), dur 3196.7
+  D2H start 21038.4 us after graph start (graph dur 21036.2), dur 3262.8
+  D2H start 20881.5 us after graph start (graph dur 20873.7), dur 2751.6
+  D2H start 21906.7 us after graph start (graph dur 21904.9), dur 4171.5

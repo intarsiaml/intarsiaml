@@ -1,0 +1,10 @@
+engine thread 316213311805589
+long D2H 139
+pass idx of first 40 stalls: [14, 19, 21, 22, 26, 30, 34, 37, 38, 40, 45, 49, 52, 55, 62, 66, 71, 72, 76, 77, 80, 83, 86, 89, 101, 102, 105, 107, 108, 110, 112, 114, 115, 117, 124, 125, 126, 128, 130, 131]
+diffs: [(1, 46), (2, 25), (3, 18), (4, 16), (5, 14), (6, 6), (7, 4), (12, 2)]
+dur ms hist: [(1, 81), (2, 18), (3, 36), (4, 4)]
+--- stall 3606.304 us; OSRT calls on engine thread overlapping:
+   futex                          start    3621.9 dur       1.1
+--- stall 3196.704 us; OSRT calls on engine thread overlapping:
+--- stall 3262.816 us; OSRT calls on engine thread overlapping:
+OSRT during stalls: []
