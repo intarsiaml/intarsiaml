@@ -1,0 +1,12 @@
+fleetq: #6808 running on spark1: bash -c 'REF=ebf8192a0 scripts/step16/build.sh rows-base && scripts/step16/build.sh rows-dev'
+02:49:50
+    Finished `release` profile [optimized] target(s) in 1m 48s
+/dev/nvme0n1p2  3.7T  3.3T  261G  93% /
+1.6G	/home/nvidia/intarsiaml-step16
+02:51:39
+02:51:55
+    Finished `release` profile [optimized] target(s) in 2m 25s
+/dev/nvme0n1p2  3.7T  3.3T  261G  93% /
+1.7G	/home/nvidia/intarsiaml-step16
+02:54:21
+fleetq: #6808 done (exit 0)
