@@ -557,7 +557,8 @@ pub struct Model {
     /// tiling, and so their summation order, by the row count), whose bits a chunk-sized call must reproduce. Everything else a
     /// macro pass batches is row-wise bitwise (norms, the pinned expert and shared-expert kernels, quantisers, top-k).
     macro_split: Vec<Op>,
-    /// The rows of the macro pass being run, `(lo, len)` per chunk, `Some` only inside [`Model::run_macro_group`].
+    /// The rows of the macro pass being run, `(lo, len)` per chunk, `Some` only inside [`Model::run_macro_group`]
+    /// (and, per prompt, inside [`Model::forward_packed`]).
     macro_ctx: Mutex<Option<Vec<(usize, usize)>>>,
     /// Macro passes run (groups of two or more chunks), for tests and the serve log.
     macro_passes: std::sync::atomic::AtomicU64,
@@ -2220,7 +2221,12 @@ impl Model {
                 })
                 .collect();
             self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
-            self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None)?;
+            // lane srv16: the vendor GEMMs ([`Model::macro_split`]) run once per prompt on its own rows, as in a macro pass:
+            // cuBLAS / cuBLASLt pick their tiling by row count, so one call over every prompt's rows is not the solo prefill's bits
+            *self.macro_ctx.lock().unwrap() = Some(segs.iter().map(|s| (s.lo, s.len)).collect());
+            let r = self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None);
+            *self.macro_ctx.lock().unwrap() = None;
+            r?;
         }
         for (st, ids) in items.iter_mut() {
             st.commit(ids);
