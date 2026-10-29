@@ -890,6 +890,7 @@ mod tests {
         "matmul_nvfp4_gemv:matmul_nvfp4",
         "matmul_nvfp4_gemv_rows:matmul_nvfp4",
         "matmul_nvfp4_mma:matmul_nvfp4",
+        "matmul_nvfp4_nax:matmul_nvfp4",
         "matmul_pair_bf16_gemv:matmul_pair",
         "matmul_pair_bf16_gemv_rows:matmul_pair",
         "matmul_pair_bf16_nax:matmul_pair",
