@@ -1,0 +1,9 @@
+intarsia_graph_replays_total 545
+intarsia_graph_captures_total 4
+intarsia_spec_steps_total 541
+intarsia_spec_proposed_tokens_total 1081
+intarsia_spec_accepted_tokens_total 782
+intarsia_spec_costgate_off_total 0
+intarsia_spec_costgate_on_total 0
+intarsia_spec_costgate_plain_steps_total 0
+intarsia_spec_costgate_probe_steps_total 0

@@ -1,0 +1,72 @@
+graph replays 523; duration ms: min 11.713 med 40.993 max 46.858
+  graphId 70: n 491 med 41.253 ms
+  graphId 1: n 2 med 11.971 ms
+  graphId 10: n 2 med 17.024 ms
+  graphId 19: n 2 med 21.310 ms
+  graphId 28: n 2 med 24.992 ms
+  graphId 37: n 2 med 27.916 ms
+  graphId 46: n 2 med 31.766 ms
+  graphId 55: n 2 med 34.247 ms
+  graphId 64: n 2 med 37.478 ms
+  graphId 67: n 2 med 12.419 ms
+  graphId 4: n 1 med 12.144 ms
+  graphId 7: n 1 med 12.002 ms
+  graphId 13: n 1 med 11.817 ms
+  graphId 16: n 1 med 12.339 ms
+  graphId 22: n 1 med 12.434 ms
+  graphId 25: n 1 med 11.778 ms
+  graphId 31: n 1 med 12.146 ms
+  graphId 34: n 1 med 11.796 ms
+  graphId 40: n 1 med 11.876 ms
+  graphId 43: n 1 med 11.713 ms
+  graphId 49: n 1 med 12.438 ms
+  graphId 52: n 1 med 11.748 ms
+  graphId 58: n 1 med 11.890 ms
+  graphId 61: n 1 med 11.836 ms
+kernels total 15498; eager (outside graph replay) 15498; memcpy 2083; memset 480
+
+passes 501 (graph >= 20.50 ms)
+  period      mean  43.611 ms  med  41.352  p10  35.795  p90  44.596
+  graph       mean  40.335 ms  med  41.177  p10  35.538  p90  44.326
+  gap         mean   3.276 ms  med   0.102  p10   0.097  p90   0.110
+  gpu_in_gap  mean   3.144 ms  med   0.003  p10   0.002  p90   0.005
+  idle        mean   0.132 ms  med   0.099  p10   0.094  p90   0.107
+  idle share of pass period: 0.30 %   (gap incl. eager GPU work: 7.51 %)
+  eager activity per gap: mean 21.4
+
+GPU work in the gaps (name: count/pass, total us/pass):
+  memcpy1                                                        3.05      1.57 us
+  k:lt_actq8_kernel                                              2.34     57.79 us
+  k:wq_gemm_kernel                                               2.34     11.50 us
+  k:rmsnorm_kernel                                               1.17    108.45 us
+  k:nvjet_sm121_tst_mma_32x64x64_8_16x32x64_tmaAB_bz_TNNN        1.08     19.85 us
+  memcpy2                                                        1.02      1.41 us
+  k:moe_w4a16_kernel                                             0.80   1279.74 us
+  k:nvfp4_reg_kernel                                             0.80     80.79 us
+  k:nvjet_sm121_qqtst_mma_192x176x128_2_48x88x128_tmaAB_bz_TNN   0.72    194.66 us
+  k:nvjet_sm121_qqtst_mma_192x160x128_2_48x80x128_tmaAB_bz_TNN   0.72     94.27 us
+  k:nvjet_sm121_tst_mma_64x104x64_4_16x104x64_tmaAB_bz_TNNN      0.72     16.41 us
+  k:kernel                                                       0.72      8.19 us
+
+CUDA runtime API calls in the gaps (name: count/pass, total us/pass on the host):
+  cuKernelGetName                                     13.21      0.52 us
+  cudaLaunchKernel_v7000                              13.21    678.13 us
+  cuLaunchKernelEx                                     3.59    511.23 us
+  cudaMemcpyAsync_v3020                                3.07   2070.72 us
+  cudaStreamSynchronize_v3020                          1.02      0.43 us
+  cudaGraphLaunch_v10000                               1.02     51.08 us
+  cudaLaunchKernelExC_v11060                           0.54     14.79 us
+  cudaMemGetInfo_v3020                                 0.01      0.78 us
+
+median-ish pass timeline (us from previous graph end):
+  +     4.4 dur      0.6  GPU memcpy2:64B
+  +    12.3 dur      0.4  API cudaStreamSynchronize_v3020
+  +    12.4 dur      0.3  SYNC
+  +    42.0 dur      0.2  GPU memcpy1:64B
+  +    43.1 dur      2.0  API cudaMemcpyAsync_v3020
+  +    48.4 dur      2.5  GPU memcpy1:10240B
+  +    49.4 dur      2.1  API cudaMemcpyAsync_v3020
+  +    51.4 dur      0.2  GPU memcpy1:64B
+  +    51.8 dur      1.8  API cudaMemcpyAsync_v3020
+  +    54.0 dur     45.6  API cudaGraphLaunch_v10000
+  next graph starts +97.3
