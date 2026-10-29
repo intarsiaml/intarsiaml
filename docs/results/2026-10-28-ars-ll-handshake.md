@@ -1,6 +1,8 @@
 ars: sequence-tagged (LL) all-reduce handshake, HIP tp=2, 2026-10-28. Lane `lane-ars/ll-handshake`, base `origin/main` after #221. tatooine, 2x R9700 (gfx1201), `serve`/`generate --tp 2 --devices 0,1`, 27B `amd/Qwen3.8-27B-Quark-AWQ-MXFP4` and 35B `Qwen3.6-35B-A3B-NVFP4`. Raw: `docs/results/2026-10-28-det-tp2-nondeterminism/raw/ars-w2` (v1 kernels), `ars-w3` (v1 A/B), `ars-w4` (v2 kernels, the numbers below).
 
-Status: DRAFT PR, not the default. `INTARSIA_HIP_AR_DRAIN=1` (fence, #221) stays the default; `=7` is the opt-in. Mode 7 is safe (0 divergent, bitwise equal to mode 1) and recovers all of mode 1's cost on the 35B (and a bit more), but none of it on the 27B or on MTP k2 decode. The merge bar was "safe and recovers at least half of mode 1's cost"; the 27B misses it, so it is not merged as the default.
+Status: window 5 (below, section 6) made mode 7 the default; sections 1-5 are the draft-time findings (window 4).
+
+Superseded status line (window 4): DRAFT PR, not the default. `INTARSIA_HIP_AR_DRAIN=1` (fence, #221) stays the default; `=7` is the opt-in. Mode 7 is safe (0 divergent, bitwise equal to mode 1) and recovers all of mode 1's cost on the 35B (and a bit more), but none of it on the 27B or on MTP k2 decode. The merge bar was "safe and recovers at least half of mode 1's cost"; the 27B misses it, so it is not merged as the default.
 
 ## 1. Design
 
@@ -112,3 +114,36 @@ Not done (the lane's four GPU windows are used): an LL variant for the fused pat
 ## 5. Knobs
 
 `INTARSIA_HIP_AR_DRAIN=7` (LL up to `INTARSIA_HIP_AR_LL_MAX` bytes, default 65536, at most 2 MiB; mode 1 above), `=8` (tests only). Default unchanged (1). `docs/tuning.md` has the rows.
+
+## 6. Window 5: fused-norm fallback, and mode 7 as the default (coordinator-approved last window)
+
+Change: in mode 7 (and 8) the fused all-reduce+add+rmsnorm runs the mode 1 fence kernel when the partials are f32 and hidden >= 4096 (the 27B, H=5120); LL stays for everything else. A pure function of dtype and H, so both ranks agree; LL and fence launches mix freely (shared counters). The default of `INTARSIA_HIP_AR_DRAIN` is 7. Window 5 (fleetq #6586, radiance down 19:37:53, answering again 20:19:48), tree built from `0b96816`; raw in `raw/ars-w5` (a first start of this window was killed within 2 minutes and restarted, because a stale soak loop from it kept running in a container and contended the cards; the `downtime.log` has both entries and none of the first start's data is used).
+
+Gates (all pass):
+
+| gate | result |
+|---|---|
+| GPU tests, bitwise vs mode 1 (all collectives, below / at / above the LL limit, fused 2048 and 5120 f32 / bf16), under `=1`, `=7`, `=7` + LL up to 2 MiB | pass |
+| delayed-rank stress (`=7`) and the mode 8 negative control (must give wrong sums) | pass / pass (wrong sums seen) |
+| `kernels test --backend hip --quick`, `=7` | exit 0 |
+| ids18: 18 prompts, default path (unset env = mode 7), 256 tokens, vs the main (=3) majority of `raw/ars-w1` | 18/18 |
+| tapped soak, 120 fresh processes, short-5, `--spec mtp --spec-k 2`, default path | 0 divergent: 120 taps byte-identical, and identical to the mode-1 tap; 120 id lines equal |
+| Mac `cargo test --workspace --release` | green (202 ok, 0 failed) |
+
+A/B (3 interleaved rounds, one binary, rotating order; 35B also with the mode 3 reference): decode tok/s, mean of per-round medians.
+
+| case | mode 1 | mode 7 | mode 7 vs mode 1 (mean; per round) |
+|---|---|---|---|
+| 27B MTP off 1k | 55.25 | 55.82 | +1.0% (+0.6, +0.4, +2.1) |
+| 27B MTP off 4k | 54.81 | 54.72 | -0.17% (+0.2, +0.1, -0.8) |
+| 27B MTP off 16k | 51.96 | 52.03 | +0.13% (+0.2, +0.2, 0.0) |
+| 27B MTP k2 rcp-code | 107.29 | 106.86 | -0.40% (-0.4, -0.2, -0.6) |
+| 27B MTP k2 rcp-prose | 82.20 | 81.94 | -0.31% (-0.4, -0.1, -0.4) |
+| 27B MTP k2 rcp-recall | 97.60 | 97.33 | -0.28% (-0.3, -0.2, -0.3) |
+| 27B MTP k2 all categories | 95.70 | 95.38 | -0.33% |
+| 35B tp2 1k | 182.29 (mode 3: 192.26) | 193.30 | +6.05%, recovery 1.10 (1.09 to 1.11) |
+| 35B tp2 4k | 182.61 (mode 3: 189.03) | 190.33 | +4.23%, recovery 1.20 (1.17 to 1.22) |
+
+Merge rule (coordinator): mode 7 at least mode 1's speed on every 27B case within 0.5%, and the 35B recovers at least half of mode 1's cost. Judged on the means: every 27B case is within 0.5% of mode 1 (worst: rcp-code -0.40%), and the 35B recovers 1.10 / 1.20 of mode 1's cost. Two single rounds are slightly worse than -0.5% (27B 4k round 3 -0.78%, rcp-code round 3 -0.62%); the spread of the mode 1 arm alone is about 0.3 to 0.6% per size, so these are noise-level, but they are stated here. The 27B gains nothing over mode 1 (its fused f32 all-reduce+norm is the same kernel; the plain all-reduces are faster in LL but small); the gain is the 35B. 35B prefill 4k mode 7 had one outlier round (10284 against ~12000; its prefill messages are above the LL limit and take the same fence path as mode 1), prefill is not part of the rule.
+
+The `diag` and `graphrate` stages were not run (no window left); the attribution of the 27B result to the fused f32 kernel is now supported only by the fallback restoring mode 1 speed.
