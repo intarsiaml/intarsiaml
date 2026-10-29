@@ -1,0 +1,7 @@
+DIFFER mix-greedy/n4
+DIFFER mix-greedy/n8
+DIFFER mix-greedy-again/n4
+DIFFER mix-greedy-again/n8
+EQUAL  mix-t0.8-k40-p0.95/n4
+DIFFER mix-t0.8-k40-p0.95/n8
+1/6 long-prompt cells identical, 2304 token ids compared

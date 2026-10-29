@@ -1,0 +1,6 @@
+intarsia_batch_iterations_total 410
+intarsia_batch_decode_steps_total 404
+intarsia_batch_prefill_chunks_total 72
+intarsia_batch_prefill_tokens_total 117435
+intarsia_batch_mixed_iterations_total 26
+intarsia_batch_step_ewma_ms 30.910355130306083
