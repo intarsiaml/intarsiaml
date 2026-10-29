@@ -35,6 +35,22 @@ pub struct HipBuffer {
     ordinal: i32,
     /// 0 = `Layout::RowMajor`, 1 = `Layout::Fp8Frag`; stored only by `relayout_fp8_frag`, after the bytes have been rearranged.
     layout: AtomicU8,
+    /// lane pf27c: unique per allocation (never reused), and a count of the writes through the backend (upload, copy, zero, relayout, a
+    /// launch's outputs): the [`SpanCache`] key and its staleness check
+    id: u64,
+    gen: AtomicU64,
+}
+
+/// lane pf27c: the next [`HipBuffer::id`]
+static NEXT_BUFFER_ID: AtomicU64 = AtomicU64::new(1);
+
+impl HipBuffer {
+    /// a write through the backend is queued: cached results derived from the old bytes are stale
+    fn touch(buf: &Buffer) {
+        if let Some(h) = buf.downcast::<HipBuffer>() {
+            h.gen.fetch_add(1, Ordering::Relaxed);
+        }
+    }
 }
 
 /// The dtype code a `Layout::Fp8Frag` fp8 weight is passed to the launchers with (kernels/hip/ik_hip_abi.h IK_HIP_DTYPE_FP8_E4M3_FRAG).
@@ -149,6 +165,56 @@ pub struct HipBackend {
     /// lane arx: the all-reduce push armed by the communicator for the next `matmul_mxfp4_a8_mma` launch on this device whose output is
     /// exactly [`PushArm::out`] (`comm::P2pComm::prepush`); the launch fills [`PushArm::lay`] when its GEMM pushed
     push_arm: Mutex<Option<PushArm>>,
+    /// lane pf27c: the W4A8 direct path's span results per weight (`INTARSIA_HIP_MXFP4_A8_SPANCACHE`)
+    spans: Mutex<SpanCache>,
+}
+
+/// Lane pf27c: the span pass of `matmul_mxfp4_a8_mma` (wref [N] = each row's largest scale byte, and the fold flag) is a pure function of the
+/// weight's scales, so the direct path (M > 64, eager, stream 0) computes it once per scale tensor (`ik_mxfp4_a8_spans`, into a slice of
+/// `pool`) instead of in a launch of its own in every call (640 launches per 27B 4k prefill). The flag is copied back without a wait into a
+/// page-locked slot (a fresh slot per fill, so a copy still in flight never lands in another fill's slot); once it has arrived, a call
+/// launches only the kernel of the path it selects (the other one would exit at once: 992 launches per 4k prefill). Keyed by the scale
+/// buffer's allocation id (never reused) and offset, N and K; a write to that buffer through the backend (`HipBuffer::gen`) refills it.
+/// The kernels, wref and flag are the uncached call's, so the output is bitwise the same. `INTARSIA_HIP_MXFP4_A8_SPANCACHE=0` turns it off.
+struct SpanCache {
+    map: std::collections::HashMap<(u64, usize, usize, usize), SpanEntry>,
+    /// device chunks of SPAN_CHUNK bytes; `used` bytes of the last one are taken
+    pool: Vec<Buffer>,
+    used: usize,
+    /// SPAN_SLOTS page-locked i32 flags (0 = not allocated yet), the next free one
+    host: usize,
+    next_slot: usize,
+    /// off: the knob, or out of slots / an allocation failed (the calls go back to the uncached path)
+    off: bool,
+}
+
+#[derive(Clone, Copy)]
+struct SpanEntry {
+    gen: u64,
+    /// device address of wref [round16(N)], the flag right after it
+    dev: usize,
+    slot: usize,
+}
+
+const SPAN_CHUNK: usize = 4 << 20;
+const SPAN_SLOTS: usize = 16384;
+/// a host flag slot whose copy has not arrived (the flag itself is 0, 1 or 0x01010101)
+const SPAN_PENDING: i32 = -1;
+
+impl SpanCache {
+    fn new() -> Self {
+        let off = std::env::var("INTARSIA_HIP_MXFP4_A8_SPANCACHE").is_ok_and(|v| v == "0");
+        SpanCache { map: Default::default(), pool: Vec::new(), used: 0, host: 0, next_slot: 0, off }
+    }
+}
+
+impl Drop for SpanCache {
+    fn drop(&mut self) {
+        if self.host != 0 {
+            // SAFETY: allocated by ik_rt_host_alloc in `HipBackend::span`; nothing reads it any more.
+            unsafe { ffi::ik_rt_host_free(self.host as *mut c_void) };
+        }
+    }
 }
 
 /// An all-reduce push armed for one GEMM (lane arx, see `kernels/hip/ar_push.h`).
@@ -399,6 +465,7 @@ impl HipBackend {
             staging: Mutex::new(None),
             relayout: (AtomicU64::new(0), AtomicU64::new(0)),
             push_arm: Mutex::new(None),
+            spans: Mutex::new(SpanCache::new()),
         };
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
@@ -407,6 +474,80 @@ impl HipBackend {
     /// lane arx: replace the armed all-reduce push (`None` clears it); returns the one it replaced.
     pub(crate) fn swap_push_arm(&self, arm: Option<PushArm>) -> Option<PushArm> {
         std::mem::replace(&mut *self.push_arm.lock().unwrap(), arm)
+    }
+
+    /// Lane pf27c: the cached span result of the W4A8 weight whose scales are `sc` ([N, K/32]) for a call of `m` rows on `stream`, filled on
+    /// first use: (wref, flag, fold) with fold 1 / 0 = the flag selects the fold / per-group path, -1 = not read back yet. None: the call
+    /// takes the uncached path (the cache is off, a graph is being captured, a side stream, the staged kernel, or the cache is full).
+    fn span(&self, sc: &TensorRef, m: usize, k: usize, stream: StreamId, s: *mut c_void) -> Result<Option<(*const c_void, *const c_void, c_int)>> {
+        if stream != 0 || self.capturing.load(Ordering::Relaxed) || sc.shape.len() != 2 || k == 0 || k % 32 != 0 || sc.shape[1] != k / 32 {
+            return Ok(None);
+        }
+        // SAFETY: plain FFI query of the launcher's static configuration
+        if unsafe { ffi::ik_mxfp4_a8_use_direct(m as i64) } == 0 {
+            return Ok(None);
+        }
+        let Some(hb) = sc.buf.downcast::<HipBuffer>() else { return Ok(None) };
+        let mut c = self.spans.lock().unwrap();
+        if c.off {
+            return Ok(None);
+        }
+        let n = sc.shape[0];
+        let key = (hb.id, sc.offset, n, k);
+        let gen = hb.gen.load(Ordering::Relaxed);
+        if let Some(e) = c.map.get(&key).copied().filter(|e| e.gen == gen) {
+            // SAFETY: slot < SPAN_SLOTS of the live page-locked block; the async copy writes the aligned i32 whole
+            let v = unsafe { std::ptr::read_volatile((c.host as *const i32).add(e.slot)) };
+            let fold = match v {
+                SPAN_PENDING => -1,
+                0 => 1,
+                _ => 0,
+            };
+            let wref = e.dev as *const c_void;
+            return Ok(Some((wref, (e.dev + n.div_ceil(16) * 16) as *const c_void, fold)));
+        }
+        if c.host == 0 {
+            let mut p: *mut c_void = std::ptr::null_mut();
+            // SAFETY: valid out-pointer
+            if unsafe { ffi::ik_rt_host_alloc(&mut p, SPAN_SLOTS * 4) } != 0 || p.is_null() {
+                c.off = true;
+                return Ok(None);
+            }
+            c.host = p as usize;
+        }
+        let need = n.div_ceil(16) * 16 + 16;
+        if c.next_slot >= SPAN_SLOTS || need > SPAN_CHUNK {
+            c.off = true;
+            return Ok(None);
+        }
+        if c.pool.is_empty() || c.used + need > SPAN_CHUNK {
+            match self.alloc(SPAN_CHUNK, MemKind::Device) {
+                Ok(b) => {
+                    c.pool.push(b);
+                    c.used = 0;
+                }
+                Err(_) => {
+                    c.off = true;
+                    return Ok(None);
+                }
+            }
+        }
+        let dev = Self::ptr(c.pool.last().unwrap(), c.used, need)? as usize;
+        c.used += need;
+        let slot = c.next_slot;
+        c.next_slot += 1;
+        let flag = dev + n.div_ceil(16) * 16;
+        let st = Self::tensor(sc)?;
+        // SAFETY: slot < SPAN_SLOTS of the page-locked block; `dev` is `need` bytes of a live pool chunk (wref [round16(N)], flag); the span
+        // pass and the async copy run on the call's stream ahead of the GEMM that reads them; the slot is read only after the copy (it holds
+        // SPAN_PENDING until then).
+        unsafe {
+            std::ptr::write_volatile((c.host as *mut i32).add(slot), SPAN_PENDING);
+            check("a8 spans", ffi::ik_mxfp4_a8_spans(&st, k as i64, dev as *mut c_void, flag as *mut c_void, s))?;
+            check("a8 span flag", ffi::ik_rt_memcpy_d2h_async((c.host as *mut i32).add(slot) as *mut c_void, flag as *const c_void, 4, s))?;
+        }
+        c.map.insert(key, SpanEntry { gen, dev, slot });
+        Ok(Some((dev as *const c_void, flag as *const c_void, -1)))
     }
 
     /// INTARSIA_HIP_TRACE: the stream is idle-synchronised (a synchronize, or a copy whose wrapper synchronises it), so
@@ -548,7 +689,14 @@ impl Backend for HipBackend {
                 check("poison sync", unsafe { ffi::ik_rt_stream_sync(s) })?;
             }
         }
-        Ok(Buffer::new(HipBuffer { ptr: p, bytes, ordinal: self.ordinal, layout: AtomicU8::new(0) }))
+        Ok(Buffer::new(HipBuffer {
+            ptr: p,
+            bytes,
+            ordinal: self.ordinal,
+            layout: AtomicU8::new(0),
+            id: NEXT_BUFFER_ID.fetch_add(1, Ordering::Relaxed),
+            gen: AtomicU64::new(0),
+        }))
     }
 
     fn upload(&self, dst: &Buffer, dst_offset: usize, src: &[u8], stream: StreamId) -> Result<()> {
@@ -558,6 +706,7 @@ impl Backend for HipBackend {
         if src.is_empty() {
             return Ok(());
         }
+        HipBuffer::touch(dst);
         self.bind()?;
         let d = Self::ptr(dst, dst_offset, src.len())?;
         let s = self.stream(stream)?;
@@ -638,6 +787,7 @@ impl Backend for HipBackend {
         if bytes == 0 {
             return Ok(());
         }
+        HipBuffer::touch(dst);
         self.bind()?;
         let d = Self::ptr(dst, dst_offset, bytes)?;
         let s_ptr = Self::ptr(src, src_offset, bytes)?;
@@ -650,6 +800,7 @@ impl Backend for HipBackend {
         if dst.bytes() == 0 {
             return Ok(());
         }
+        HipBuffer::touch(dst);
         self.bind()?;
         let d = Self::ptr(dst, 0, dst.bytes())?;
         let s = self.stream(stream)?;
@@ -691,6 +842,7 @@ impl Backend for HipBackend {
         check("relayout_fp8_frag", unsafe { ffi::ik_fp8_relayout_frag(&src, &mut dst, st) })?;
         self.copy(&w.buf, 0, &scratch, 0, w.nbytes(), 0)?;
         self.synchronize(0)?;
+        hb.gen.fetch_add(1, Ordering::Relaxed);
         hb.layout.store(1, Ordering::Release);
         self.relayout.0.fetch_add(1, Ordering::Relaxed);
         self.relayout.1.fetch_add(w.nbytes() as u64, Ordering::Relaxed);
@@ -749,6 +901,22 @@ impl Backend for HipBackend {
         }
         self.bind()?;
         let s = self.stream(stream)?;
+        for t in &call.outputs {
+            HipBuffer::touch(&t.buf); // lane pf27c: the span cache's staleness check
+        }
+        // lane pf27c: the W4A8 direct path's cached span results (`SpanCache`), for the scales of the call's weight(s)
+        let span = |n: usize| match &call.inputs[0].shape[..] {
+            [m, k] => self.span(&call.inputs[n], *m, *k, stream, s),
+            _ => Ok(None),
+        };
+        let span0 = match kernel {
+            "matmul_mxfp4_a8_mma" | "matmul_mxfp4_pair_a8_mma" => span(2)?,
+            _ => None,
+        };
+        let span1 = match kernel {
+            "matmul_mxfp4_pair_a8_mma" if span0.is_some() => span(4)?,
+            _ => None,
+        };
         let inp: Vec<IkTensor> = call.inputs.iter().map(Self::tensor).collect::<Result<_>>()?;
         let mut out: Vec<IkTensor> = call.outputs.iter().map(Self::tensor).collect::<Result<_>>()?;
         let a = &call.attrs;
@@ -935,12 +1103,22 @@ impl Backend for HipBackend {
                     match arm.as_mut().filter(|a| a.lay.pushed == 0 && a.lay.cap > 0 && a.out == (*o).data as usize && a.bytes == call.outputs[0].nbytes()) {
                         Some(a) => {
                             let mut lay = ffi::IkArPush { cap: a.lay.cap, ..Default::default() };
-                            let rc = ffi::ik_matmul_mxfp4_a8_mma_push(i(0), i(1), i(2), i(3), o, sc, a.peer as *mut c_void, &mut lay, s);
+                            let rc = match span0 {
+                                Some((wr, fl, fo)) => {
+                                    ffi::ik_matmul_mxfp4_a8_mma_cached(i(0), i(1), i(2), i(3), o, sc, wr, fl, fo, a.peer as *mut c_void, &mut lay, s)
+                                }
+                                None => ffi::ik_matmul_mxfp4_a8_mma_push(i(0), i(1), i(2), i(3), o, sc, a.peer as *mut c_void, &mut lay, s),
+                            };
                             // a launch that did not push leaves the arm spent: the all-reduce pushes itself
                             a.lay = if rc == 0 { lay } else { ffi::IkArPush::default() };
                             rc
                         }
-                        None => ffi::ik_matmul_mxfp4_a8_mma(i(0), i(1), i(2), i(3), o, sc, s),
+                        None => match span0 {
+                            Some((wr, fl, fo)) => {
+                                ffi::ik_matmul_mxfp4_a8_mma_cached(i(0), i(1), i(2), i(3), o, sc, wr, fl, fo, std::ptr::null_mut(), std::ptr::null_mut(), s)
+                            }
+                            None => ffi::ik_matmul_mxfp4_a8_mma(i(0), i(1), i(2), i(3), o, sc, s),
+                        },
                     }
                 }
                 "matmul_mxfp4_pair_gemv" => ffi::ik_matmul_mxfp4_pair_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
@@ -949,7 +1127,12 @@ impl Backend for HipBackend {
                 }
                 "matmul_mxfp4_pair_gemv_rows" => ffi::ik_matmul_mxfp4_pair_gemv_rows(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
                 "matmul_mxfp4_pair_a8_gemv" => ffi::ik_matmul_mxfp4_pair_a8_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
-                "matmul_mxfp4_pair_a8_mma" => ffi::ik_matmul_mxfp4_pair_a8_mma(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
+                "matmul_mxfp4_pair_a8_mma" => match (span0, span1) {
+                    (Some((w0, f0, d0)), Some((w1, f1, d1))) => {
+                        ffi::ik_matmul_mxfp4_pair_a8_mma_cached(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, w0, f0, d0, w1, f1, d1, s)
+                    }
+                    _ => ffi::ik_matmul_mxfp4_pair_a8_mma(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
+                },
                 "matmul_mxfp4_pair_a8_gemv_rows" => ffi::ik_matmul_mxfp4_pair_a8_gemv_rows(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
                 "moe_topk_bf16" => ffi::ik_moe_topk_bf16(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),
                 "moe_topk_bf16_v2" => ffi::ik_moe_topk_bf16_v2(i(0), a.top_k as c_int, a.norm_topk as c_int, o, o.add(1), s),

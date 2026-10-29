@@ -157,6 +157,8 @@ extern "C" {
     /// round 9 pinned staging (device.rs `Staging`)
     pub fn ik_rt_memcpy_h2d_pinned(dst: *mut c_void, src: *const c_void, n: usize, stream: S) -> c_int;
     pub fn ik_rt_memcpy_d2h_pinned(dst: *mut c_void, src: *const c_void, n: usize, stream: S) -> c_int;
+    /// lane pf27c: hipMemcpyAsync device -> page-locked host, no wait (the span cache's fold flags)
+    pub fn ik_rt_memcpy_d2h_async(dst: *mut c_void, src: *const c_void, n: usize, stream: S) -> c_int;
     pub fn ik_rt_host_alloc(p: *mut *mut c_void, bytes: usize) -> c_int;
     pub fn ik_rt_host_free(p: *mut c_void) -> c_int;
     pub fn ik_rt_event_create_sync(ev: *mut S) -> c_int;
@@ -335,6 +337,44 @@ extern "C" {
     pub fn ik_matmul_mxfp4_pair_a8_gemv_rows(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_pair_a8_gemv(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_pair_a8_mma(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
+    /// lane pf27c: the W4A8 span pass of one weight into the backend's span cache (wref [N] u8, fold flag i32), and whether M rows take the
+    /// direct kernel; the direct path's GEMMs with cached span results (`fold`: 1 / 0 known path, -1 unknown; `lay` null = no push)
+    pub fn ik_mxfp4_a8_spans(scales: T, k: i64, wref: *mut c_void, flag: *mut c_void, s: S) -> c_int;
+    pub fn ik_mxfp4_a8_use_direct(m: i64) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_matmul_mxfp4_a8_mma_cached(
+        x: T,
+        w: T,
+        scales: T,
+        act: T,
+        out: TM,
+        scratch: SC,
+        wref: *const c_void,
+        flag: *const c_void,
+        fold: c_int,
+        peer: *mut c_void,
+        lay: *mut IkArPush,
+        s: S,
+    ) -> c_int;
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_matmul_mxfp4_pair_a8_mma_cached(
+        x: T,
+        w0: T,
+        s0: T,
+        w1: T,
+        s1: T,
+        act: T,
+        out0: TM,
+        out1: TM,
+        scratch: SC,
+        wref0: *const c_void,
+        flag0: *const c_void,
+        fold0: c_int,
+        wref1: *const c_void,
+        flag1: *const c_void,
+        fold1: c_int,
+        s: S,
+    ) -> c_int;
     pub fn ik_matmul_mxfp4_gemv_rows_bf16(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_pair_gemv_rows_bf16(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_moe_topk_bf16(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;

@@ -1,0 +1,15 @@
+
+running 1 test
+test push_gemm_timing ... TIMEP M=2048 N=5120 K=8704 gemm 859.9 us
+TIMEP M=2048 N=5120 K=3072 gemm 326.8 us
+TIMEP M=2048 N=5120 K=8704 plain 1689.5 us
+TIMEP M=2048 N=5120 K=3072 plain 1149.9 us
+PF27C-DIAG push grid: 32 WGP-units, push 1, push8 2 blocks each
+PF27C-DIAG push grid: 32 WGP-units, push 1, push8 2 blocks each
+TIMEP M=2048 N=5120 K=8704 push 1116.9 us
+TIMEP M=2048 N=5120 K=3072 push 500.9 us
+Some("rank 0: launch counters 0 flags 0; rank 1: launch counters 0 flags 0; wide launches 92 / 92, pushed 92; ")
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.96s
+

@@ -1,0 +1,49 @@
+[localeval] calibrated: 22.1 tokens/sentence, 92 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.24s prefill=4191 tok/s decode=55.7 tok/s peak=60.8 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=988 ttft=0.23s prefill=4240 tok/s decode=55.8 tok/s peak=61.4 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=989 ttft=0.23s prefill=4275 tok/s decode=55.8 tok/s peak=61.5 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4085 ttft=0.86s prefill=4772 tok/s decode=54.9 tok/s peak=60.9 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4087 ttft=0.86s prefill=4756 tok/s decode=55.0 tok/s peak=62.8 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4085 ttft=0.86s prefill=4755 tok/s decode=53.5 tok/s peak=60.6 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16651 ttft=3.92s prefill=4242 tok/s decode=52.6 tok/s peak=58.4 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16652 ttft=4.00s prefill=4165 tok/s decode=54.1 tok/s peak=61.4 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16650 ttft=3.90s prefill=4266 tok/s decode=52.0 tok/s peak=58.6 tok/s out=128
+# localeval: pf27c-rec_spoff — 2026-10-29T07:46
+
+- model: `qwen-pf27c` on ? (?), url `http://tatooine:8095/v1`
+- thinking: default; run kind: speed; label: pf27c-w2-rec_spoff-9
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/intarsiaml/.worktrees/pf27c/scripts/pf27c/leval.py speed pf27c-rec_spoff --sizes 1024,4096,16384 --gen 128 --reps 3 --label pf27c-w2-rec_spoff-9 --recipe HIP_VISIBLE_DEVICES=0,1 pf27c-base-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 --spec off (; lane arx) --wait-idle 60`
+- result file: `results/20261029-074649-pf27c-rec_spoff-pf27c-w2-rec_spoff-9/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 pf27c-base-cli serve --backend hip --model 27B --tp 2 --devices 0,1 --max-batch 1 --mem-budget 29 --max-seq 20480 --spec off (; lane arx)
+````
+
+## Speed sweep
+
+served `qwen-pf27c`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 989 | 0.23 | 4240 (4191–4275) * | - | 55.8 (55.7–55.8) | 61.4 (60.8–61.5) | - | - | 128 |
+| 4085 | 0.86 | 4756 (4755–4772) | 4946 | 54.9 (53.5–55.0) | 60.9 (60.6–62.8) | - | - | 128 |
+| 16651 | 3.92 | 4242 (4165–4266) | 4098 | 52.6 (52.0–54.1) | 58.6 (58.4–61.4) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261029-074649-pf27c-rec_spoff-pf27c-w2-rec_spoff-9/result.json
+[localeval] logged to unanimis: eec44609-9fef-4d23-ad67-ac1f260b30a1

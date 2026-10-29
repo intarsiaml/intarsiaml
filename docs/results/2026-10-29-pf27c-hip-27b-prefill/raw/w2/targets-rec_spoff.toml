@@ -1,0 +1,3 @@
+[targets.pf27c-rec_spoff]
+url = "http://tatooine:8095/v1"
+model = "qwen-pf27c"

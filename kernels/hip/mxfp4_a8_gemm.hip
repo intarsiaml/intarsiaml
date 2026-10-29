@@ -19,6 +19,10 @@
 // INTARSIA_HIP_MXFP4_A8_PD=1 restores the previous kernel choice (global-load prefetch distance 1, the previous tile table).
 // M > 64 runs the direct kernel (a8_direct_kernel, lane PF27: tokens straight from global memory in fragment order, weights alone
 // through LDS; bitwise the same output); INTARSIA_HIP_MXFP4_A8_DIRECT=0 restores the staged kernel below, _DTILE forces a direct tile.
+// Lane pf27c: the span pass (wref, fold flag) is a pure function of the weight scales, so the backend computes it once per weight
+// (ik_mxfp4_a8_spans into its own buffer, device.rs `SpanCache`) and the direct path's calls take it (the _cached entry points): no span
+// launch per call, and once the backend has read the flag back, only the kernel of the path it selects is launched (the other one would
+// exit at once). Same kernels, same wref and flag values, so the output is bitwise the uncached call's.
 // Block: WN x WM waves, each wave TN x TM fragments of 16 x 16 (weights x tokens); 64 k per stage, double-buffered through
 // registers (prefetch distance 2 by default: two register sets, the loads of stage k + 2 are in flight during stage k), LDS rows padded (ik_f8_gemm.h's layout). Fragments / k layout as ik_f8_gemm.h (both operands permute k alike).
 // K % 32 == 0 (a K % 64 == 32 tail stage is zero padded). Deterministic, fixed reduction order, independent of M.
@@ -710,13 +714,15 @@ void a8_run(const A8Args& a, OutT* out, hipStream_t s) {
 }
 
 // The direct kernel's tiles (both paths enqueued, the flag picks one, as a8_run).
+// only: -1 enqueues both paths (the flag picks one on the device), 1 only the fold kernel, 0 only the per-group one (lane pf27c: the caller
+// knows the flag)
 template <typename OutT>
-void a8_direct_run(const A8Args& a, OutT* out, hipStream_t s, uint4* peer = nullptr, ik_ar_push* lay = nullptr) {
-#define IK_A8_DTILE(WN, WM, TN, TM)                                       \
-    {                                                                     \
-        a8_direct_enqueue<true, WN, WM, TN, TM>(a, out, s, peer, lay);    \
-        a8_direct_enqueue<false, WN, WM, TN, TM>(a, out, s, peer, lay);   \
-        return;                                                           \
+void a8_direct_run(const A8Args& a, OutT* out, hipStream_t s, uint4* peer = nullptr, ik_ar_push* lay = nullptr, int only = -1) {
+#define IK_A8_DTILE(WN, WM, TN, TM)                                                    \
+    {                                                                                  \
+        if (only != 0) a8_direct_enqueue<true, WN, WM, TN, TM>(a, out, s, peer, lay);  \
+        if (only != 1) a8_direct_enqueue<false, WN, WM, TN, TM>(a, out, s, peer, lay); \
+        return;                                                                        \
     }
     const int* t = a8_cfg().dtile;
     if (t[0] > 0) {
@@ -803,7 +809,7 @@ int a8_spans(const ik_tensor* w0, const ik_tensor* s0, uint8_t* wref0, int* flag
 // into `peer` (ar_push.h) when this call takes the direct kernel with a bf16, 8-aligned output whose layout fits lay->cap; lay->pushed says
 // whether it did (otherwise the GEMM is the ordinary one and the all-reduce pushes as before)
 int a8_gemm(const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, uint8_t* base, const uint8_t* wref, const int* flag, int64_t M, int64_t K,
-            bool direct, hipStream_t s, void* peer = nullptr, ik_ar_push* lay = nullptr) {
+            bool direct, hipStream_t s, void* peer = nullptr, ik_ar_push* lay = nullptr, int only = -1) {
     const int64_t N = w->shape[0];
     const int64_t Mp = (M + 15) & ~(int64_t)15, Kp = (K + 63) & ~(int64_t)63;
     A8Args a;
@@ -824,14 +830,14 @@ int a8_gemm(const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, uint8_t* ba
         if (peer && direct && out->dtype == IK_DTYPE_BF16 && a.vec_out && bound <= lay->cap) {
             lay->M = (int32_t)M;
             lay->N = N;
-            a8_direct_run<ik_bf16>(a, (ik_bf16*)out->data, s, (uint4*)peer, lay);
+            a8_direct_run<ik_bf16>(a, (ik_bf16*)out->data, s, (uint4*)peer, lay, only);
             lay->pushed = 1;
             return ik_launch_status();
         }
     }
     if (direct) {
-        if (out->dtype == IK_DTYPE_F32) a8_direct_run<float>(a, (float*)out->data, s);
-        else a8_direct_run<ik_bf16>(a, (ik_bf16*)out->data, s);
+        if (out->dtype == IK_DTYPE_F32) a8_direct_run<float>(a, (float*)out->data, s, nullptr, nullptr, only);
+        else a8_direct_run<ik_bf16>(a, (ik_bf16*)out->data, s, nullptr, nullptr, only);
     } else if (out->dtype == IK_DTYPE_F32) {
         a8_run<float>(a, (float*)out->data, s);
     } else {
@@ -892,6 +898,40 @@ int launch_a8_pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0,
     return a8_gemm(w1, s1, out1, base, wref1, flag1, M, K, direct, s);
 }
 
+// Lane pf27c: the direct path with the weight's span result cached by the caller (wref [N], flag; ik_mxfp4_a8_spans): the quant pre-pass,
+// then the GEMM(s), no span launch and no flag fill; `fold` 1 / 0 = the flag is known to select the fold / per-group path (only that
+// kernel is launched), -1 = unknown (both, the flag picks). The caller checks a8_use_direct(M) first.
+int launch_a8_cached(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, const ik_scratch* scratch, void* stream,
+                     const uint8_t* wref, const int* flag, int fold, void* peer = nullptr, ik_ar_push* lay = nullptr) {
+    if (lay) lay->pushed = 0;
+    IK_TRY(a8_check(x, w, sc, out));
+    const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
+    if (!wref || !flag || !a8_use_direct(M) || K == 0 || N == 0) return IK_ERR_INVALID_ARG;
+    hipStream_t s = IK_STREAM(stream);
+    if (!scratch || !scratch->data || scratch->bytes < (int64_t)a8_scratch_total(M, K, N)) return IK_ERR_INVALID_ARG;
+    if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
+    uint8_t* base = (uint8_t*)scratch->data;
+    IK_TRY(a8_quant(x, base, M, K, true, nullptr, 0, s));
+    return a8_gemm(w, sc, out, base, wref, flag, M, K, true, s, peer, lay, fold);
+}
+
+int launch_a8_pair_cached(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1, ik_tensor* out0,
+                          ik_tensor* out1, const ik_scratch* scratch, void* stream, const uint8_t* wref0, const int* flag0, int fold0,
+                          const uint8_t* wref1, const int* flag1, int fold1) {
+    IK_TRY(a8_check(x, w0, s0, out0));
+    IK_TRY(a8_check(x, w1, s1, out1));
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (!wref0 || !flag0 || !wref1 || !flag1 || !a8_use_direct(M) || K == 0 || N0 == 0 || N1 == 0) return IK_ERR_INVALID_ARG;
+    hipStream_t s = IK_STREAM(stream);
+    const int64_t NN = (int64_t)a8_round16((size_t)N0) + N1;
+    if (!scratch || !scratch->data || scratch->bytes < (int64_t)a8_scratch_total(M, K, NN)) return IK_ERR_INVALID_ARG;
+    if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
+    uint8_t* base = (uint8_t*)scratch->data;
+    IK_TRY(a8_quant(x, base, M, K, true, nullptr, 0, s));
+    IK_TRY(a8_gemm(w0, s0, out0, base, wref0, flag0, M, K, true, s, nullptr, nullptr, fold0));
+    return a8_gemm(w1, s1, out1, base, wref1, flag1, M, K, true, s, nullptr, nullptr, fold1);
+}
+
 }  // namespace
 
 extern "C" {
@@ -919,6 +959,39 @@ int ik_matmul_mxfp4_pair_a8_mma(const ik_tensor* x, const ik_tensor* w0, const i
                                 const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, const ik_scratch* scratch, void* stream) {
     (void)act;
     return launch_a8_pair(x, w0, s0, w1, s1, out0, out1, scratch, stream);
+}
+
+// lane pf27c: the span pass of one weight (scales [N, K/32]) into a caller buffer: wref [N] (the largest scale byte of each row) and the
+// fold flag (0 = every row folds), exactly what launch_a8 computes per call (the per-group knob's flag included). The flag is zeroed first.
+int ik_mxfp4_a8_spans(const ik_tensor* scales, int64_t K, void* wref, void* flag, void* stream) {
+    IK_TRY(ik_check_a(scales, IK_DTYPE_U8, 2, 1));
+    const int64_t N = scales->shape[0];
+    if (!wref || !flag || K <= 0 || K % kA8G != 0 || scales->shape[1] != K / kA8G || N == 0) return IK_ERR_SHAPE;
+    hipStream_t s = IK_STREAM(stream);
+    if (a8_cfg().pergroup) return hipMemsetAsync(flag, 1, sizeof(int), s) == hipSuccess ? IK_OK : IK_ERR_LAUNCH;
+    if (hipMemsetAsync(flag, 0, sizeof(int), s) != hipSuccess) return IK_ERR_LAUNCH;
+    a8_wspan_kernel<<<(unsigned)((N + 7) / 8), 256, 0, s>>>((const uint8_t*)scales->data, (uint8_t*)wref, (int*)flag, N, (int)(K / kA8G), nullptr,
+                                                            nullptr, nullptr, 0);
+    return ik_launch_status();
+}
+
+// lane pf27c: does a call of M rows take the direct kernel (and so the _cached entry points)?
+int ik_mxfp4_a8_use_direct(int64_t M) { return a8_use_direct(M) ? 1 : 0; }
+
+// lane pf27c: ik_matmul_mxfp4_a8_mma{,_push} / ik_matmul_mxfp4_pair_a8_mma with the weights' span results from ik_mxfp4_a8_spans (the direct
+// path only; `fold` as launch_a8_cached). `lay` null: no push. Bitwise the uncached calls.
+int ik_matmul_mxfp4_a8_mma_cached(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act, ik_tensor* out,
+                                  const ik_scratch* scratch, const void* wref, const void* flag, int fold, void* peer, ik_ar_push* lay, void* stream) {
+    (void)act;
+    return launch_a8_cached(x, w, scales, out, scratch, stream, (const uint8_t*)wref, (const int*)flag, fold, peer, lay);
+}
+
+int ik_matmul_mxfp4_pair_a8_mma_cached(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1,
+                                       const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, const ik_scratch* scratch, const void* wref0,
+                                       const void* flag0, int fold0, const void* wref1, const void* flag1, int fold1, void* stream) {
+    (void)act;
+    return launch_a8_pair_cached(x, w0, s0, w1, s1, out0, out1, scratch, stream, (const uint8_t*)wref0, (const int*)flag0, fold0,
+                                 (const uint8_t*)wref1, (const int*)flag1, fold1);
 }
 
 }  // extern "C"
