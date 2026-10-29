@@ -1,0 +1,9 @@
+fleetq: #6892 running on spark1: bash -c 'ssh -o BatchMode=yes spark1 '"'"'bash -s'"'"' < scripts/gdnx/plan.sh'
+PASS plan 8 json byte-identical (8758 B, md5 b1a1150e)
+PASS plan 8 txt byte-identical (1478 B, md5 7742cef8)
+FAIL plan 35 json
+FAIL plan 35 txt
+PASS plan g json byte-identical (8408 B, md5 2a659412)
+PASS plan g txt byte-identical (1797 B, md5 ec4ef23e)
+plan fails=2
+fleetq: #6892 done (exit 0)
