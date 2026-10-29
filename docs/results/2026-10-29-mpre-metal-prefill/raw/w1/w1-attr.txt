@@ -1,0 +1,141 @@
+
+=== 35B 1k: plain prefill [(497, 1959.0, '?'), (507, 1920.1, '?')]
+kernel-mode GPU sum 282 ms over 2488 records
+  moe experts             102.5 ms  36.3%  n=  316    4.4 TF 
+  dense gemm fp8           79.5 ms  28.2%  n=  386   31.4 TF     48 GB/s(w)
+  gdn delta rule           40.2 ms  14.2%  n=  120          
+  dense gemm nvfp4         29.2 ms  10.4%  n=  355    4.2 TF     15 GB/s(w)
+  norm/elementwise         11.6 ms   4.1%  n=  717          
+  attention                 9.0 ms   3.2%  n=   29          
+  dense gemm bf16           4.0 ms   1.4%  n=  208   12.0 TF     37 GB/s(w)
+  gdn conv                  3.1 ms   1.1%  n=  120          
+  moe route/combine         3.1 ms   1.1%  n=  236          
+  lm_head/argmax            0.0 ms   0.0%  n=    1          
+  -- top ops
+     moe_experts_bf16                      102.5 ms n=  316      324 us    4.4 TF
+     matmul_fp8_nax                         65.2 ms n=  130      502 us   38.1 TF
+     gdn_delta_rule_bf16_pre                39.0 ms n=   60      649 us 
+     matmul_nvfp4_mma                       25.6 ms n=  120      213 us    4.8 TF
+     matmul_fp8_gemv                        14.2 ms n=  256       56 us    0.4 TF
+     attn_prefill_bf16_flash                 8.2 ms n=   10      824 us 
+     matmul_nvfp4_gemv                       3.6 ms n=  235       15 us    0.2 TF
+     rmsnorm_add_bf16                        3.5 ms n=  236       15 us 
+     gdn_conv_bf16                           3.1 ms n=  120       25 us 
+     matmul_pair_bf16_nax                    2.9 ms n=   70       42 us   16.6 TF
+     rmsnorm_bf16                            2.4 ms n=   93       26 us 
+     qk_norm_rope_kv_bf16                    2.0 ms n=   29       70 us 
+     moe_topk_bf16                           2.0 ms n=  118       17 us 
+     silu_glu_bf16                           1.8 ms n=  208        9 us 
+cb-mode: 25 buffers, first-start..last-end 617 ms, GPU busy 268 ms, idle 349 ms (56.6%), host-open..end 619 ms
+
+=== 35B 4k: plain prefill [(1088, 3765.8, '?'), (1079, 3795.6, '?')]
+kernel-mode GPU sum 997 ms over 3420 records
+  moe experts             303.7 ms  30.5%  n=  476   13.9 TF 
+  dense gemm fp8          247.0 ms  24.8%  n=  516   42.4 TF     21 GB/s(w)
+  gdn delta rule          159.6 ms  16.0%  n=  180          
+  attention               132.6 ms  13.3%  n=   39          
+  dense gemm nvfp4         94.9 ms   9.5%  n=  475    5.4 TF      5 GB/s(w)
+  norm/elementwise         35.5 ms   3.6%  n=  959          
+  gdn conv                  9.3 ms   0.9%  n=  180          
+  dense gemm bf16           8.1 ms   0.8%  n=  278   25.3 TF     24 GB/s(w)
+  moe route/combine         6.1 ms   0.6%  n=  316          
+  lm_head/argmax            0.0 ms   0.0%  n=    1          
+  -- top ops
+     moe_experts_bf16                      303.7 ms n=  476      638 us   13.9 TF
+     matmul_fp8_nax                        239.2 ms n=  260      920 us   43.8 TF
+     gdn_delta_rule_bf16_pre               159.0 ms n=  120     1325 us 
+     attn_prefill_bf16_flash               131.8 ms n=   20     6588 us 
+     matmul_nvfp4_mma                       92.8 ms n=  240      387 us    5.6 TF
+     gdn_conv_bf16                           9.3 ms n=  180       51 us 
+     rmsnorm_add_bf16                        8.7 ms n=  316       27 us 
+     rmsnorm_bf16                            8.2 ms n=  124       66 us 
+     qk_norm_rope_kv_bf16                    8.2 ms n=   39      209 us 
+     matmul_fp8_gemv                         7.8 ms n=  256       30 us    0.7 TF
+     matmul_pair_bf16_nax                    7.5 ms n=  140       54 us   27.3 TF
+     silu_glu_bf16                           5.3 ms n=  278       19 us 
+     moe_combine_bf16                        3.1 ms n=  158       20 us 
+     moe_topk_bf16                           2.9 ms n=  158       19 us 
+cb-mode: 34 buffers, first-start..last-end 1120 ms, GPU busy 904 ms, idle 216 ms (19.3%), host-open..end 1121 ms
+
+=== 35B 16k: plain prefill [(5231, 3132.1, '?'), (5239, 3127.0, '?')]
+kernel-mode GPU sum 5069 ms over 9012 records
+  attention              2020.4 ms  39.9%  n=   99          
+  moe experts            1100.4 ms  21.7%  n= 1436   15.9 TF 
+  dense gemm fp8          848.6 ms  16.7%  n= 1296   49.4 TF     15 GB/s(w)
+  gdn delta rule          556.6 ms  11.0%  n=  540          
+  dense gemm nvfp4        335.4 ms   6.6%  n= 1195    6.1 TF      3 GB/s(w)
+  norm/elementwise        128.1 ms   2.5%  n= 2411          
+  gdn conv                 32.4 ms   0.6%  n=  540          
+  dense gemm bf16          27.8 ms   0.5%  n=  698   29.4 TF     18 GB/s(w)
+  moe route/combine        19.5 ms   0.4%  n=  796          
+  lm_head/argmax            0.0 ms   0.0%  n=    1          
+  -- top ops
+     attn_prefill_bf16_flash              2017.8 ms n=   80    25223 us 
+     moe_experts_bf16                     1100.4 ms n= 1436      766 us   15.9 TF
+     matmul_fp8_nax                        841.0 ms n= 1040      809 us   49.8 TF
+     gdn_delta_rule_bf16_pre               556.0 ms n=  480     1158 us 
+     matmul_nvfp4_mma                      333.4 ms n=  960      347 us    6.2 TF
+     gdn_conv_bf16                          32.4 ms n=  540       60 us 
+     rmsnorm_add_bf16                       30.2 ms n=  796       38 us 
+     qk_norm_rope_kv_bf16                   29.6 ms n=   99      299 us 
+     rmsnorm_bf16                           29.2 ms n=  310       94 us 
+     matmul_pair_bf16_nax                   27.2 ms n=  560       49 us   30.0 TF
+     silu_glu_bf16                          21.1 ms n=  698       30 us 
+     moe_combine_bf16                       10.6 ms n=  398       27 us 
+     moe_topk_bf16                           8.9 ms n=  398       22 us 
+     gate_split_bf16                         8.4 ms n=   99       85 us 
+cb-mode: 88 buffers, first-start..last-end 5296 ms, GPU busy 5086 ms, idle 210 ms (4.0%), host-open..end 5297 ms
+
+=== 8B 1k: plain prefill [(354, 2747.3, '?'), (354, 2747.3, '?')]
+kernel-mode GPU sum 263 ms over 363 records
+  dense gemm bf16         244.7 ms  92.9%  n=  180   55.2 TF     57 GB/s(w)
+  norm/elementwise          8.9 ms   3.4%  n=  146          
+  attention                 7.4 ms   2.8%  n=   36          
+  lm_head/argmax            2.4 ms   0.9%  n=    1    0.5 TF    528 GB/s(w)
+  -- top ops
+     matmul_pair_bf16_nax                  135.9 ms n=   72     1888 us   56.2 TF
+     matmul_bf16_nax                       108.8 ms n=  108     1008 us   54.0 TF
+     attn_prefill_bf16_flash_nax             7.4 ms n=   36      207 us 
+     silu_glu_bf16                           4.1 ms n=   36      113 us 
+     rmsnorm_add_bf16                        2.7 ms n=   72       38 us 
+     logits_bf16_gemv                        2.4 ms n=    1     2358 us    0.5 TF
+     qk_norm_rope_kv_bf16                    1.9 ms n=   36       53 us 
+     embedding_bf16                          0.1 ms n=    1      146 us 
+     rmsnorm_bf16                            0.1 ms n=    1       58 us 
+cb-mode: 8 buffers, first-start..last-end 371 ms, GPU busy 311 ms, idle 60 ms (16.2%), host-open..end 422 ms
+
+=== 8B 4k: plain prefill [(1215, 3370.3, '?'), (1240, 3303.8, '?')]
+kernel-mode GPU sum 1126 ms over 725 records
+  dense gemm bf16         978.6 ms  86.9%  n=  360   58.1 TF     28 GB/s(w)
+  attention               105.1 ms   9.3%  n=   72          
+  norm/elementwise         40.4 ms   3.6%  n=  292          
+  lm_head/argmax            2.2 ms   0.2%  n=    1    0.6 TF    573 GB/s(w)
+  -- top ops
+     matmul_pair_bf16_nax                  536.9 ms n=  144     3728 us   59.9 TF
+     matmul_bf16_nax                       441.7 ms n=  216     2045 us   56.0 TF
+     attn_prefill_bf16_flash_nax           105.1 ms n=   72     1460 us 
+     silu_glu_bf16                          19.1 ms n=   72      265 us 
+     rmsnorm_add_bf16                       13.5 ms n=  144       94 us 
+     qk_norm_rope_kv_bf16                    7.2 ms n=   72      101 us 
+     logits_bf16_gemv                        2.2 ms n=    1     2171 us    0.6 TF
+     embedding_bf16                          0.4 ms n=    2      184 us 
+     rmsnorm_bf16                            0.1 ms n=    2       72 us 
+cb-mode: 12 buffers, first-start..last-end 1287 ms, GPU busy 1236 ms, idle 51 ms (3.9%), host-open..end 1342 ms
+
+=== 8B 16k: plain prefill [(6326, 2589.9, '?'), (6464, 2534.6, '?')]
+kernel-mode GPU sum 6031 ms over 2897 records
+  dense gemm bf16        4074.8 ms  67.6%  n= 1440   55.9 TF     27 GB/s(w)
+  attention              1792.8 ms  29.7%  n=  288          
+  norm/elementwise        160.8 ms   2.7%  n= 1168          
+  lm_head/argmax            2.2 ms   0.0%  n=    1    0.6 TF    562 GB/s(w)
+  -- top ops
+     matmul_pair_bf16_nax                 2255.1 ms n=  576     3915 us   57.0 TF
+     matmul_bf16_nax                      1819.7 ms n=  864     2106 us   54.4 TF
+     attn_prefill_bf16_flash_nax          1792.8 ms n=  288     6225 us 
+     silu_glu_bf16                          79.3 ms n=  288      275 us 
+     rmsnorm_add_bf16                       53.0 ms n=  576       92 us 
+     qk_norm_rope_kv_bf16                   27.5 ms n=  288       95 us 
+     logits_bf16_gemv                        2.2 ms n=    1     2216 us    0.6 TF
+     embedding_bf16                          0.8 ms n=    8       98 us 
+     rmsnorm_bf16                            0.3 ms n=    8       42 us 
+cb-mode: 36 buffers, first-start..last-end 6472 ms, GPU busy 6422 ms, idle 50 ms (0.8%), host-open..end 6528 ms

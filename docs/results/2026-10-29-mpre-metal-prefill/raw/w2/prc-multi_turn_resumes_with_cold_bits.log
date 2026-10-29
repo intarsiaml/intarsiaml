@@ -1,0 +1,25 @@
+
+running 1 test
+DECODEROWS 0 (prompt 7, resumed at 31 of 41, 24 decode rows reused): DIFFER at row 0, maxabs 1.685e-1
+DECODEROWS 1 (prompt 13, resumed at 37 of 47, 24 decode rows reused): DIFFER at row 0, maxabs 1.381e-1
+DECODEROWS 2 (prompt 7, resumed at 31 of 41, 24 decode rows reused): DIFFER at row 0, maxabs 2.278e-1
+DECODEROWS 3 (prompt 13, resumed at 37 of 47, 24 decode rows reused): DIFFER at row 0, maxabs 2.069e-1
+DECODEROWS 4 (prompt 15, resumed at 39 of 49, 24 decode rows reused): DIFFER at row 0, maxabs 1.437e-1
+DECODEROWS 5 (prompt 8, resumed at 32 of 42, 24 decode rows reused): DIFFER at row 0, maxabs 1.633e-1
+DECODEROWS 6 (prompt 8, resumed at 32 of 42, 24 decode rows reused): DIFFER at row 0, maxabs 2.097e-1
+DECODEROWS 7 (prompt 5, resumed at 29 of 39, 24 decode rows reused): DIFFER at row 0, maxabs 1.899e-1
+DECODEROWS 8 (prompt 13, resumed at 37 of 47, 24 decode rows reused): DIFFER at row 0, maxabs 2.096e-1
+test multi_turn_resumes_with_cold_bits has been running for over 60 seconds
+DECODEROWS 9 (prompt 6, resumed at 30 of 40, 24 decode rows reused): DIFFER at row 0, maxabs 2.230e-1
+DECODEROWS 10 (prompt 6, resumed at 30 of 40, 24 decode rows reused): DIFFER at row 0, maxabs 1.524e-1
+DECODEROWS 11 (prompt 9, resumed at 33 of 43, 24 decode rows reused): DIFFER at row 0, maxabs 2.059e-1
+DECODEROWS 12 (prompt 5, resumed at 29 of 39, 24 decode rows reused): DIFFER at row 0, maxabs 1.721e-1
+DECODEROWS 13 (prompt 6, resumed at 30 of 40, 24 decode rows reused): DIFFER at row 0, maxabs 2.544e-1
+DECODEROWS 14 (prompt 7, resumed at 31 of 41, 24 decode rows reused): DIFFER at row 0, maxabs 2.247e-1
+DECODEROWS 15 (prompt 6, resumed at 30 of 40, 24 decode rows reused): DIFFER at row 0, maxabs 1.990e-1
+DECODEROWS summary: 16 / 16 turn-2 prefills over reused decode rows differ from cold
+turn 2 cuts (turn 1 prompt length, resumed at): [(7, 7), (13, 13), (7, 7), (13, 13), (15, 15), (8, 8), (8, 8), (5, 5), (13, 13), (6, 6), (6, 6), (9, 9), (5, 5), (6, 6), (7, 7), (6, 6)]
+test multi_turn_resumes_with_cold_bits ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 96.51s
+

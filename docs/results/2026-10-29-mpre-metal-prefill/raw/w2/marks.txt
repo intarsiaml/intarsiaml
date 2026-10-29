@@ -1,0 +1,34 @@
+12:19:25 start rustc=       0 cargo=       0
+12:19:36 kl short off exit 0
+12:19:47 kl short on exit 0
+12:19:50 kl short self exit 1: 
+12:21:42 kl long off exit 0
+12:23:32 kl long on exit 0
+12:23:35 kl long self exit 1: 
+12:24:20 kl 4k off exit 0
+12:25:02 kl 4k on exit 0
+12:25:05 kl 4k self exit 1: 
+12:25:27 ids short-0 done
+12:25:47 ids 4k-0 done
+12:26:08 ids 4k-1 done
+12:26:42 ids 16k-0 done
+12:31:03 test batch_recurrent exit 0: test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 260.88s
+12:32:57 test batch_metal_real exit 101: test result: FAILED. 2 passed; 1 failed; 5 ignored; 0 measured; 0 filtered out; finished in 113.81s
+12:33:14 test batch_metal exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.91s
+12:34:18 test long exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 63.66s
+12:34:21 test rows_exact exit 0: test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.65s
+12:34:36 test row_tables exit 0: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.47s
+12:35:30 prc reuse_rule_resumes_with_cold_bits exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 53.35s
+12:37:06 prc multi_turn_resumes_with_cold_bits exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 96.51s
+12:41:27 prc engine_repeats_equal_the_cold_reference exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 260.68s
+12:42:37 prc engine_multi_turn_equals_cold_reference exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 69.74s
+12:42:47 plan Qwen3.6-35B-A3B-NVFP4: c1 DIFF, c1off same
+12:42:48 plan Qwen3-8B: c1 same, c1off same
+12:42:49 plan Llama-3.1-8B-Instruct: c1 same, c1off same
+12:42:50 plan Qwen2.5-7B-Instruct: c1 same, c1off same
+12:42:51 plan Qwen3.8-27B-Quark-AWQ-MXFP4: c1 DIFF, c1off same
+12:42:53 plan MiniCPM-V-4.7-35B-A3B-MLX-4bit: c1 same, c1off same
+12:42:53 plan Kolibri-1-MLX-4bit: c1 same, c1off same
+12:43:25 kernels test 35B exit 0: 48 admitted, 0 rejected
+12:43:28 cb 1k: prefill 235 ms (4132.4 tok/s) 
+12:43:28 end rustc=       0 cargo=       1

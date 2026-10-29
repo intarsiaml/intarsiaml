@@ -1,0 +1,5 @@
+prefill chunk 256 (default)
+Error: loading /Users/josef/Models/MiniCPM-V-4.7-35B-A3B-MLX-4bit
+
+Caused by:
+    model error: tensor 'model.language_model.layers.0.mlp.experts.0.gate_proj.weight' not found in checkpoint
