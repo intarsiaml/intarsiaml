@@ -201,6 +201,7 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
         dflash: None,
         clean: 0,
         passes: Vec::new(),
+        inv_len: 0,
         spec_rows: Default::default(),
     }
 }
@@ -258,6 +259,30 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
     for t in 2..=model.batch_rows() {
         probes.push((Phase::Batch, t, 0));
         probes.push((Phase::Batch, t, cap - 1));
+    }
+    // lane rip: row-invariant prefill needs a `row_invariant` kernel for every op of a prefill pass (a one-row pass, the last
+    // token of a resumed prompt, included); a model with an op that has none (MoE, fp8 / quantised GEMMs, Gemma-4's extended
+    // attention, ...) keeps the ordinary prefill and the backend's reuse rule
+    if model.row_invariant_prefill() {
+        let mut gaps = BTreeSet::new();
+        for t in [1, chunk.min(cap)] {
+            let rec = model.dry_run(Phase::Prefill, t, 0).map_err(|e| Error::invalid(format!("plan probe (row-invariant) t={t}: {e}")))?;
+            gaps.extend(rec.missing.into_iter().map(|(op, m, _)| format!("{op} ({m})")));
+        }
+        if !gaps.is_empty() {
+            eprintln!(
+                "intarsia: row-invariant prefill off for this model: no row-invariant kernel for {}",
+                gaps.into_iter().collect::<Vec<_>>().join("; ")
+            );
+            model.disable_row_invariant_prefill();
+        }
+    }
+    if model.row_invariant_prefill() {
+        // a row-invariant prefill pass may have one row (a resumed prompt's last token): record it too
+        probes.push((Phase::Prefill, 1, 0));
+        if cap > 1 {
+            probes.push((Phase::Prefill, 1, cap - 1));
+        }
     }
     let mut calls = Vec::new();
     let mut comm_decode = (0usize, 0usize, 0usize);

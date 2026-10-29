@@ -696,6 +696,130 @@ fn real_qwen3_8b_prefix_reuse_probe() {
     }
 }
 
+/// The KV cache rows `0..len` of every attention slot of `st`, as bytes (K then V, kv head by kv head).
+fn kv_rows(m: &Model, st: &intarsia_core::state::SequenceState, len: usize) -> Vec<u8> {
+    let mut out = Vec::new();
+    for s in &st.slots {
+        if let intarsia_core::state::StateSlot::AttnKv(a) = s {
+            let row = a.head_dim * a.dtype.size_bytes();
+            for buf in [&a.k, &a.v] {
+                for h in 0..a.n_kv_heads {
+                    let mut b = vec![0u8; len * row];
+                    m.backend.download(buf, (h * a.cap) * row, &mut b, 0).unwrap();
+                    out.extend_from_slice(&b);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Deterministic text of about `words` words, every sentence different (a long prompt for the row-invariance gate).
+fn long_text(words: usize) -> String {
+    let mut s = String::new();
+    let mut i = 0;
+    while s.split_whitespace().count() < words {
+        s.push_str(&format!("{} (part {i}, {} items). ", EQ_PROMPTS[i % EQ_PROMPTS.len()].trim(), 3 * i + 7));
+        i += 1;
+    }
+    s
+}
+
+/// Lane rip (docs/results/2026-10-29-rip-row-invariant-prefill.md): on Qwen3-8B, a prompt prefilled in one `forward_prefill`
+/// (the cold run: 4096-row chunks) has bitwise the same last-row logits and KV rows as the same prompt prefilled in two passes
+/// split at every sampled k, as in 256-row busy chunks, and as a resume from a held prefix (the cold state truncated to k, then
+/// the rest: what prefix reuse does), and the greedy decode after each is bitwise the cold one. Prompts: a 1500-token one (one
+/// pass cold) and a 4700-token one (4096 + 604 cold). `INTARSIA_RIP_PLAIN=1`: the same with the ordinary prefill (`forward`, no
+/// row-invariant kernels), printing the differences instead of asserting (the lane's "before" probe, and the mutant).
+#[test]
+fn real_qwen3_8b_prefill_is_row_invariant() {
+    let _serial = serial();
+    use intarsia_core::engine::TextCodec;
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
+    let plain = std::env::var("INTARSIA_RIP_PLAIN").is_ok_and(|v| v == "1");
+    let m = load(&dir, be, 2, 8192);
+    assert!(plain || m.row_invariant_prefill(), "row-invariant prefill is off for the 8B");
+    let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
+    let pf = |st: &mut intarsia_core::state::SequenceState, ids: &[u32], mode: HeadMode| {
+        if plain { m.forward(st, ids, mode, None) } else { m.forward_prefill(st, ids, mode, None) }.unwrap()
+    };
+    const GEN: usize = 8;
+    let decode = |st: &mut intarsia_core::state::SequenceState, first: Vec<f32>| -> Vec<Vec<f32>> {
+        let mut rows = vec![first];
+        for _ in 0..GEN {
+            let t = argmax_of(rows.last().unwrap());
+            rows.push(logits_of(m.forward(st, &[t], HeadMode::LastLogits, None).unwrap()));
+        }
+        rows
+    };
+    let mut failures = Vec::new();
+    for words in [1100usize, 3500] {
+        let p = codec.encode(&long_text(words), false).unwrap();
+        let plen = p.len();
+        let mut cold = m.new_state().unwrap();
+        let first = logits_of(pf(&mut cold, &p, HeadMode::LastLogits));
+        let kv_cold = kv_rows(&m, &cold, plen);
+        let cold_rows = decode(&mut cold, first);
+        let kv_after = kv_rows(&m, &cold, plen + GEN);
+        eprintln!("RIP prompt {plen} tokens (cold chunk {}), cold greedy {:?}", m.prefill_chunk(), cold_rows.iter().map(|r| argmax_of(r)).collect::<Vec<_>>());
+        let mut judge = |what: String, st: &mut intarsia_core::state::SequenceState, first: Vec<f32>| {
+            let same_logits = first == cold_rows[0];
+            let same_kv = kv_rows(&m, st, plen) == kv_cold;
+            let rows = decode(st, first);
+            let dec = rows.iter().zip(&cold_rows).position(|(a, b)| a != b);
+            let same_after = kv_rows(&m, st, plen + GEN) == kv_after;
+            let ok = same_logits && same_kv && dec.is_none() && same_after;
+            eprintln!(
+                "RIP {plen} {what}: logits {} kv {} decode {} kv+decode {}",
+                if same_logits { "EQUAL" } else { "DIFFER" },
+                if same_kv { "EQUAL" } else { "DIFFER" },
+                dec.map_or("EQUAL".to_string(), |r| format!("DIFFER from row {r}")),
+                if same_after { "EQUAL" } else { "DIFFER" },
+            );
+            if !ok {
+                failures.push(format!("{plen} {what}"));
+            }
+        };
+        let mut ks = vec![1usize, 7, 255, 256, 1000, plen - 1];
+        if plen > 4097 {
+            ks.extend([4095, 4096, 4097]);
+        }
+        for &k in &ks {
+            let mut st = m.new_state().unwrap();
+            pf(&mut st, &p[..k], HeadMode::None);
+            let l = logits_of(pf(&mut st, &p[k..], HeadMode::LastLogits));
+            judge(format!("split k={k}"), &mut st, l);
+        }
+        // 256-row busy chunks (the batched engine's chunk while others decode), then the last row's head
+        {
+            let mut st = m.new_state().unwrap();
+            let mut at = 0;
+            let mut out = None;
+            while at < plen {
+                let n = 256.min(plen - at);
+                let mode = if at + n == plen { HeadMode::LastLogits } else { HeadMode::None };
+                out = Some(pf(&mut st, &p[at..at + n], mode));
+                at += n;
+            }
+            judge("busy 256-row chunks".into(), &mut st, logits_of(out.unwrap()));
+        }
+        // prefix reuse: a held state (the prompt and a few decode steps) truncated to k, then the rest of the prompt
+        for &k in &[plen - 1, 1000, 1] {
+            let mut st = m.new_state().unwrap();
+            let l = logits_of(pf(&mut st, &p, HeadMode::LastLogits));
+            let _ = decode(&mut st, l);
+            st.truncate(k, &*m.backend).unwrap();
+            let l = logits_of(pf(&mut st, &p[k..], HeadMode::LastLogits));
+            judge(format!("reuse from {k}"), &mut st, l);
+        }
+    }
+    if plain {
+        eprintln!("RIP plain prefill: {} of the cases differ: {failures:?}", failures.len());
+    } else {
+        assert!(failures.is_empty(), "row-invariant prefill is not row-invariant: {failures:?}");
+    }
+}
+
 // ---- engine level ---------------------------------------------------------------------------------------------------
 
 #[derive(Debug, PartialEq)]
@@ -840,6 +964,120 @@ fn real_qwen3_8b_batched_engine_equals_the_cold_reference() {
         }
         eprintln!("bi8 engine identity: {slots} slots, {} requests equal the cold reference", rounds.iter().map(|r| r.len()).sum::<usize>());
     }
+}
+
+/// (ids, cached prompt tokens) of a request.
+fn collect_cached(rx: &Receiver<GenEvent>) -> (Vec<u32>, usize) {
+    let mut ids = vec![];
+    loop {
+        match rx.recv_timeout(Duration::from_secs(600)).expect("engine stalled") {
+            GenEvent::Token { id, .. } => ids.push(id),
+            GenEvent::Done { cached_tokens, .. } => return (ids, cached_tokens),
+            GenEvent::Error { message } => panic!("request failed: {message}"),
+        }
+    }
+}
+
+/// Lane rip (docs/results/2026-10-29-rip-row-invariant-prefill.md), engine level on Qwen3-8B: with row-invariant prefill a
+/// request reuses any held prefix prefill passes wrote and still computes its cold output.
+/// - Multi-turn chat on the single-sequence engine: turn 2 (turn 1's prompt, its 48-token reply, a new user message) resumes from
+///   turn 1's whole prompt (not from the reply's rows, which decode steps wrote) and equals turn 2 on a fresh engine; turn 3 resumes
+///   from turn 2's whole prompt.
+/// - The batched engine (16 slots): the same turns, and a 1700-token prompt admitted while four others decode (256-row busy
+///   chunks), equal the fresh engine's outputs.
+/// `INTARSIA_PREFIX_REUSE=any` (reuse decode-written rows too) is the mutant: turn 2 must then differ (`INTARSIA_RIP_EXPECT_ANY_FAILS=1`).
+#[test]
+fn real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
+    let mk = |max_batch: Option<usize>| EngineOptions {
+        load: LoadOptions { max_seq: 8192, kv_fraction: 0.95, profile_every: 0, ..Default::default() },
+        max_batch,
+        ..Default::default()
+    };
+    let chat = |e: &dyn Engine, history: &[u32], user: &str| -> Vec<u32> {
+        let mut p = history.to_vec();
+        let pre = if history.is_empty() { "" } else { "<|im_end|>\n" };
+        p.extend(e.tokenize(&format!("{pre}<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"), false).unwrap());
+        p
+    };
+    let greedy = |prompt: Vec<u32>, n: usize| GenRequest { prompt, max_tokens: n, ignore_eos: true, ..Default::default() };
+    let u1 = format!("Summarise the following notes in three sentences.\n\n{}", long_text(1400));
+    let u2 = "Now list the three most important items, one per line.";
+    let u3 = "Which of them came first?";
+    // turns on one engine: (prompts, outputs, cached)
+    let turns = |e: &dyn Engine| -> (Vec<Vec<u32>>, Vec<Vec<u32>>, Vec<usize>) {
+        let (mut ps, mut outs, mut cached) = (vec![], vec![], vec![]);
+        let mut hist: Vec<u32> = vec![];
+        for u in [u1.as_str(), u2, u3] {
+            let p = chat(e, &hist, u);
+            let (ids, c) = collect_cached(&e.submit(greedy(p.clone(), 48)).unwrap());
+            hist = p.clone();
+            hist.extend(&ids);
+            ps.push(p);
+            outs.push(ids);
+            cached.push(c);
+        }
+        (ps, outs, cached)
+    };
+    let long = |e: &dyn Engine| e.tokenize(&format!("Translate to French:\n{}", long_text(1200)), false).unwrap();
+    let any = std::env::var("INTARSIA_RIP_EXPECT_ANY_FAILS").is_ok_and(|v| v == "1");
+    // warm: the single-sequence engine runs the three turns in a row (each resumes from the one before)
+    let (ps, warm, cached) = {
+        let l = engine(&dir, &be, &mk(None));
+        turns(&*l.engine)
+    };
+    eprintln!("RIP turns: prompts {:?} tokens, cached {:?}", ps.iter().map(|p| p.len()).collect::<Vec<_>>(), cached);
+    if !any {
+        assert_eq!(cached[0], 0);
+        assert_eq!(cached[1], ps[0].len(), "turn 2 resumes from turn 1's whole prompt, not from its reply's rows");
+        assert_eq!(cached[2], ps[1].len(), "turn 3 resumes from turn 2's whole prompt");
+    }
+    // cold: each turn's prompt alone on a fresh engine (the previous request shares no prefix with it), and the long prompt
+    let (cold, cold_long) = {
+        let l = engine(&dir, &be, &mk(None));
+        let mut outs = vec![];
+        let filler = l.engine.tokenize("Zebra crossings are", false).unwrap();
+        for p in &ps {
+            let (ids, c) = collect_cached(&l.engine.submit(greedy(p.clone(), 48)).unwrap());
+            assert_eq!(c, 0, "the cold reference reused a prefix");
+            outs.push(ids);
+            let _ = collect_cached(&l.engine.submit(greedy(filler.clone(), 2)).unwrap());
+        }
+        let (ids, c) = collect_cached(&l.engine.submit(greedy(long(&*l.engine), 48)).unwrap());
+        assert_eq!(c, 0);
+        (outs, ids)
+    };
+    for t in 0..3 {
+        let same = warm[t] == cold[t];
+        eprintln!("RIP single-sequence turn {}: warm {} cold", t + 1, if same { "==" } else { "!=" });
+        if any {
+            continue;
+        }
+        assert!(same, "turn {} on the single-sequence engine differs from its cold run", t + 1);
+    }
+    if any {
+        assert!(warm[1] != cold[1] || warm[2] != cold[2], "mutant (reuse of decode-written rows) not caught");
+        return;
+    }
+    // the batched engine: the turns, then the long prompt while four others decode
+    let l = engine(&dir, &be, &mk(Some(16)));
+    assert_eq!(l.max_batch, 16);
+    let (ps_b, warm_b, cached_b) = turns(&*l.engine);
+    assert_eq!(ps_b, ps);
+    eprintln!("RIP batched turns cached {cached_b:?}");
+    for t in 0..3 {
+        assert_eq!(warm_b[t], cold[t], "turn {} on the batched engine differs from its cold run", t + 1);
+    }
+    assert!(cached_b[1] >= ps[0].len() && cached_b[2] >= ps[1].len(), "the batched engine did not resume the turns: {cached_b:?}");
+    let bg: Vec<_> = (0..4).map(|i| l.engine.submit(greedy(l.engine.tokenize(EQ_PROMPTS[i], false).unwrap(), 400)).unwrap()).collect();
+    std::thread::sleep(Duration::from_millis(1500));
+    let (ids, _) = collect_cached(&l.engine.submit(greedy(long(&*l.engine), 48)).unwrap());
+    for rx in &bg {
+        let _ = collect_cached(rx);
+    }
+    assert_eq!(ids, cold_long, "a long prompt prefilled in busy chunks differs from its cold run");
+    eprintln!("RIP batched: turns and the busy-chunked long prompt equal the cold reference");
 }
 
 /// Device-side sampling is the host sampling (lane htk, docs/results/2026-10-27-htk-hip-topk.md): `INTARSIA_DEVICE_SAMPLING=1` on a backend with

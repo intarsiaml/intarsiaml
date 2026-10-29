@@ -19,6 +19,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_bf16", Op::Matmul),
     ("matmul_bf16_gemv", Op::Matmul),
     ("matmul_bf16_gemv_rows", Op::Matmul),
+    ("matmul_bf16_inv", Op::Matmul),
     ("logits_bf16", Op::Logits),
     ("logits_bf16_gemv", Op::Logits),
     ("logits_bf16_gemv_rows", Op::Logits),
@@ -369,11 +370,13 @@ pub fn all() -> Vec<KernelImpl> {
     for (name, op) in TABLE.iter().copied() {
         let k = base(name, op);
         let k = match name {
-            "embedding_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
+            // `row_invariant` (lane rip): a row-invariant prefill pass (`OpCall::prefill_inv`) may run only these. The row-wise ops
+            // here compute each row (norms: one block per row, its size from the row length) or element alone; tests/row_invariance.rs
+            "embedding_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT).row_invariant(),
             "rmsnorm_bf16" | "rmsnorm_add_bf16" | "add_bf16" | "qk_norm_bf16" | "silu_glu_bf16" => {
-                k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL)
+                k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL).row_invariant()
             }
-            "rope_bf16" => k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL),
+            "rope_bf16" => k.acts(bf).when(|s| s.head_dim % 2 == 0).exact(Exactness::Deterministic).tol(BF16_TOL).row_invariant(),
             // cuBLAS: tensor cores, algorithm (split-K) may change with the shape or the library version
             "matmul_bf16" => k.acts(bf).weights(bf).exact(Exactness::Fast).tol(BF16_TOL).priority(0),
             "logits_bf16" => k.acts(bf).weights(bf).exact(Exactness::Fast).tol(F32_TOL).priority(0),
@@ -385,13 +388,26 @@ pub fn all() -> Vec<KernelImpl> {
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
                 .priority(10),
+            // row_invariant: the head of a prefill pass is its last row alone (M = 1, `HeadMode::LastLogits` / `LastArgmax`), and
+            // row m of an M <= 4 call runs the M = 1 loop (tests/row_invariance.rs)
             "logits_bf16_gemv" => k
                 .acts(bf)
                 .weights(bf)
                 .when(|s| (1..=4).contains(&s.m))
                 .exact(Exactness::Deterministic)
                 .tol(F32_TOL)
-                .priority(10),
+                .priority(10)
+                .row_invariant(),
+            // cuBLASLt, one algorithm per (N, K) for every M (kernels/cuda/matmul_lt.cu): the row-invariant prefill's GEMM, M = 1
+            // included. Priority -5: ordinary calls keep matmul_bf16 / matmul_bf16_gemv
+            "matmul_bf16_inv" => k
+                .acts(bf)
+                .weights(bf)
+                .when(|s| s.k % 8 == 0 && s.n % 8 == 0)
+                .exact(Exactness::Deterministic)
+                .tol(BF16_TOL)
+                .priority(-5)
+                .row_invariant(),
             // Row-exact twins of the two GEMVs (`rows_exact`: only a call with `OpCall::exact_rows` selects them; the priority
             // is moot). M = 1..=16, row m bitwise the M = 1 GEMV on row m alone (tests/rows_exact.rs). M = 1 is accepted
             // (Metal's start at 2): an `exact_rows` one-row call must still find a kernel once any rows kernel is listed.
@@ -412,21 +428,24 @@ pub fn all() -> Vec<KernelImpl> {
                 .priority(-1)
                 .rows_exact(),
             // the cache dtype (bf16 or fp8_e4m3) is the output's; the launcher dispatches on it
-            "kv_append_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
+            "kv_append_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT).row_invariant(),
             "attn_prefill_bf16" | "attn_decode_bf16" => k
                 .acts(bf)
                 .weights(bf)
                 .when(|s| s.head_dim > 0 && s.head_dim <= 256 && s.head_dim % 2 == 0)
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL),
-            // tensor-core flash prefill (mma.sync bf16): ranks above the SIMT fallback for chunks of > 16 rows
+            // tensor-core flash prefill (mma.sync bf16): ranks above the SIMT fallback for chunks of > 16 rows. Row-invariant: key
+            // tiles start at absolute key 0, a row's arithmetic does not depend on the other rows of its block (fully masked tiles
+            // leave it unchanged) or on pos0 beyond its own position, so a row-invariant prefill pass takes it at every row count
             "attn_prefill_bf16_flash" => k
                 .acts(bf)
                 .weights(bf)
-                .when(|s| flash_ok(s) && s.m > SPLITKV_MAX_ROWS)
+                .when(|s| flash_ok(s) && (s.m > SPLITKV_MAX_ROWS || s.prefill_inv))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
-                .priority(10),
+                .priority(10)
+                .row_invariant(),
             // split-KV (flash-decoding): decode and short q_len (verify); needs scratch
             "attn_decode_bf16_splitkv" | "attn_prefill_bf16_splitkv" => k
                 .acts(bf)
@@ -443,10 +462,11 @@ pub fn all() -> Vec<KernelImpl> {
             "attn_prefill_f8kv_flash" => k
                 .acts(bf)
                 .weights([DType::Fp8E4m3])
-                .when(|s| flash_ok(s) && s.m > SPLITKV_MAX_ROWS)
+                .when(|s| flash_ok(s) && (s.m > SPLITKV_MAX_ROWS || s.prefill_inv))
                 .exact(Exactness::Deterministic)
                 .tol(BF16_TOL)
-                .priority(10),
+                .priority(10)
+                .row_invariant(),
             "attn_decode_f8kv_splitkv" | "attn_prefill_f8kv_splitkv" => k
                 .acts(bf)
                 .weights([DType::Fp8E4m3])
@@ -567,8 +587,8 @@ pub fn all() -> Vec<KernelImpl> {
                 .scratch(splitkv_rows_scratch)
                 .priority(-1)
                 .row_table(),
-            "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
-            "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT),
+            "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT).row_invariant(),
+            "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT).row_invariant(),
             other => unreachable!("kernel {other} has no registration"),
         };
         v.push(k);
@@ -927,6 +947,51 @@ mod tests {
         }
     }
 
+    /// Lane rip: a row-invariant prefill pass (`ShapeInfo::prefill_inv`, which `Registry::select` restricts to `row_invariant`
+    /// kernels) gets the pinned cuBLASLt GEMM and the flash attention at every row count; an ordinary call keeps cuBLAS, the
+    /// M <= 4 GEMV and split-KV for <= 16 rows; the cuBLAS GEMM and the split-KV kernels are not row-invariant.
+    #[test]
+    fn row_invariant_prefill_selection() {
+        let pick = |op: Op, m: usize, inv: bool, w: DType| {
+            let s = ShapeInfo {
+                m,
+                n: 4096,
+                k: if matches!(op, Op::Matmul | Op::Logits) { 4096 } else { 128 },
+                n_heads: 32,
+                n_kv_heads: 8,
+                head_dim: 128,
+                kv_len: 4096,
+                act: Some(DType::Bf16),
+                weight: Some(w),
+                prefill_inv: inv,
+                ..Default::default()
+            };
+            let mut best: Option<KernelImpl> = None;
+            for k in all().into_iter().filter(|k| {
+                k.op == op && k.accepts(&s) && !k.rows_exact && !k.row_table && (!inv || k.row_invariant)
+            }) {
+                if best.as_ref().is_none_or(|b| k.priority > b.priority) {
+                    best = Some(k);
+                }
+            }
+            best.map(|k| k.name.to_string())
+        };
+        let bf = DType::Bf16;
+        for m in [1, 2, 4, 5, 16, 17, 256, 4096] {
+            assert_eq!(pick(Op::Matmul, m, true, bf).as_deref(), Some("matmul_bf16_inv"), "M={m}");
+            assert_eq!(pick(Op::AttnPrefill, m, true, bf).as_deref(), Some("attn_prefill_bf16_flash"), "T={m}");
+            assert_eq!(pick(Op::AttnPrefill, m, true, DType::Fp8E4m3).as_deref(), Some("attn_prefill_f8kv_flash"), "T={m}");
+            let ordinary = if m <= 4 { "matmul_bf16_gemv" } else { "matmul_bf16" };
+            assert_eq!(pick(Op::Matmul, m, false, bf).as_deref(), Some(ordinary), "M={m}");
+        }
+        assert_eq!(pick(Op::Logits, 1, true, bf).as_deref(), Some("logits_bf16_gemv"));
+        assert_eq!(pick(Op::Logits, 16, true, bf), None, "multi-row heads never run in a row-invariant pass");
+        assert_eq!(pick(Op::AttnDecode, 1, true, bf), None, "a one-row prefill pass runs AttnPrefill");
+        for name in ["matmul_bf16", "matmul_bf16_gemv", "attn_prefill_bf16_splitkv", "attn_decode_bf16_splitkv", "logits_bf16"] {
+            assert!(!all().into_iter().any(|k| k.name == name && k.row_invariant), "{name} must not be row_invariant");
+        }
+    }
+
     #[test]
     fn names_unique_and_ops_covered() {
         let table = full_table();
@@ -1074,6 +1139,7 @@ mod tests {
         "matmul_bf16:matmul",
         "matmul_bf16_gemv:matmul",
         "matmul_bf16_gemv_rows:matmul",
+        "matmul_bf16_inv:matmul",
         "matmul_exl3_gemm:matmul_exl3",
         "matmul_exl3_gemv:matmul_exl3",
         "matmul_fp8_gemm:matmul_fp8",
@@ -1119,7 +1185,8 @@ mod tests {
 
     /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
     /// origin/main's (`4962d8fa`), so the plan has the same candidates as before. Round 5 adds the three fp8-KV attention
-    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them).
+    /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them). Lane rip adds `matmul_bf16_inv`
+    /// (priority -5: only a row-invariant prefill pass, `OpCall::prefill_inv`, selects it).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();

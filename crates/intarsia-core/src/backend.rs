@@ -208,6 +208,13 @@ pub trait Backend: Send + Sync {
         true
     }
 
+    /// True when the backend registers `row_invariant` kernels for a whole dense prefill pass (lane rip): a pass run through
+    /// `Model::forward_prefill` then gives every row the bits it has in any other split of the prompt, at any row count, so prefix
+    /// reuse may resume from any row such a pass wrote (`Model::reuse_len`). Default false.
+    fn row_invariant_prefill(&self) -> bool {
+        false
+    }
+
     /// Most sequences one batched decode step may carry on this backend (`Model::enable_batch`, `--max-batch`): the number of
     /// rows its row-exact multi-row kernels are registered and proven for (G-B: row r of an M-row call is bitwise the one-row
     /// kernel). Default 8 (Metal's, and what the cpu backend serves in tests); the CUDA backend proves 16. Never above

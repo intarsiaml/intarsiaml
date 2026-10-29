@@ -386,6 +386,12 @@ pub struct OpCall {
     /// Row-table call (batched decode, CUDA): the call covers `rows.rows` sequences at once, each with its own state buffers.
     /// See [`RowTab`]. `None` (every ordinary call): the state tensors of the call are the state.
     pub rows: Option<RowTab>,
+    /// Row-invariant prefill pass (lane rip, `Model::forward_prefill` on a backend with `Backend::row_invariant_prefill`): row
+    /// `t` of the call must come out with the same bits whatever other rows share the call and wherever the pass starts, so a
+    /// prompt prefilled in any chunks, or resumed from any prefix such a pass wrote, computes its one-pass bits.
+    /// `Registry::select` then picks only kernels registered `row_invariant` (and fails if none fits). `false` (every other call)
+    /// leaves selection as it was.
+    pub prefill_inv: bool,
 }
 
 /// The per-sequence buffers of a batched decode call, as a table of device addresses that the host rewrites before every step
@@ -414,7 +420,7 @@ pub struct RowTab {
 
 impl OpCall {
     pub fn new(op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> OpCall {
-        OpCall { op, inputs, outputs, attrs, scratch: None, pos: None, exact_rows: false, rows: None }
+        OpCall { op, inputs, outputs, attrs, scratch: None, pos: None, exact_rows: false, rows: None, prefill_inv: false }
     }
 
     /// The solo-step calls a call stands for: `rows` for a row-table call and for the per-row ops (`QkNorm`, `Rope`,
@@ -800,11 +806,15 @@ pub struct ShapeInfo {
     /// An input of the call is in a non-row-major layout (`backend::Layout`: HIP fragment-order fp8 weights). Only kernels registered
     /// `.frag_ok()` accept the call, so a kernel that reads row-major bytes can never be selected for it.
     pub frag: bool,
+    /// `OpCall::prefill_inv` of the call (a row-invariant prefill pass): lets a `row_invariant` kernel that ordinary calls take only
+    /// for some row counts (the flash prefill above 16 rows) accept every row count there.
+    pub prefill_inv: bool,
 }
 
 impl ShapeInfo {
     pub fn from_call(call: &OpCall) -> ShapeInfo {
         let mut s = Self::from_call_untagged(call);
+        s.prefill_inv = call.prefill_inv;
         // an input in a non-row-major layout (backend::Layout, HIP fragment-order fp8 weights): only kernels registered `.frag_ok()` accept it
         s.frag = call.inputs.iter().any(|t| t.layout() != crate::backend::Layout::RowMajor);
         s
