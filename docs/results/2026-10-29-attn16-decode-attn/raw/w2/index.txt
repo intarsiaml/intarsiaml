@@ -1,0 +1,6 @@
+attn16-base-r1: - result file: `results/20261029-083230-adhoc-attn16-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-083230-adhoc-attn16-base-r1/result.json 
+attn16-dev-r1: - result file: `results/20261029-083355-adhoc-attn16-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-083355-adhoc-attn16-dev-r1/result.json 
+attn16-dev-r2: - result file: `results/20261029-083524-adhoc-attn16-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-083524-adhoc-attn16-dev-r2/result.json 
+attn16-base-r2: - result file: `results/20261029-083646-adhoc-attn16-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-083646-adhoc-attn16-base-r2/result.json 
+attn16-base-r3: - result file: `results/20261029-083811-adhoc-attn16-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-083811-adhoc-attn16-base-r3/result.json 
+attn16-dev-r3: - result file: `results/20261029-083936-adhoc-attn16-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-083936-adhoc-attn16-dev-r3/result.json 

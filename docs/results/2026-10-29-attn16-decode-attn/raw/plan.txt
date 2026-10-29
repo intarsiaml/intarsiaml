@@ -1,0 +1,7 @@
+PASS plan 8 json byte-identical (8973 B, md5 5bb00f3e)
+PASS plan 8 txt byte-identical (1548 B, md5 dfb75d7b)
+PASS plan 35 json byte-identical (15570 B, md5 d4815ce2)
+PASS plan 35 txt byte-identical (4017 B, md5 68b03467)
+plan fails=0
+
+[exited with code 0]

@@ -21,6 +21,8 @@
 #include "ik_launch.h"
 #include "ik_quant.cuh"
 
+#include <stdlib.h>
+
 extern "C" {
 int ik_attn_prefill_bf16(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, float scale,
                          ik_tensor* out, void* stream);
@@ -82,6 +84,105 @@ struct KvLoad<uint8_t> {
         }
     }
 };
+
+// splitkv_rows_persist_kernel's stage-1 pieces: splitkv_kernel's iteration body and lane merge, the same statements in the
+// same order (splitkv_kernel keeps its own copy, so its code is unchanged). tests/row_tables.rs checks the persistent
+// kernel against the solo launch bitwise.
+
+// one iteration: the KB keys of each key lane (K / V raw bits in kk / vv, ok = in range) into the lane's (m, l, acc)
+template <int GP, int TPK, int KB, typename KT>
+__device__ __forceinline__ void splitkv_step(const typename KvLoad<KT>::V* kk, const typename KvLoad<KT>::V* vv, const bool* ok,
+                                             const float (&qr)[GP][8], float (&m)[GP], float (&l)[GP], float (&acc)[GP][8]) {
+    using L = KvLoad<KT>;
+    float sc[KB][GP];
+#pragma unroll
+    for (int u = 0; u < KB; ++u) {
+        float kf[8];
+        L::unpack(kk[u], kf);
+#pragma unroll
+        for (int g = 0; g < GP; ++g) {
+            float d = 0.f;
+#pragma unroll
+            for (int e = 0; e < 8; ++e) d += qr[g][e] * kf[e];
+#pragma unroll
+            for (int o = TPK / 2; o > 0; o >>= 1) d += __shfl_xor_sync(0xffffffffu, d, o);
+            sc[u][g] = ok[u] ? d : -INFINITY;
+        }
+    }
+    float vf[KB][8];
+#pragma unroll
+    for (int u = 0; u < KB; ++u) L::unpack(vv[u], vf[u]);
+#pragma unroll
+    for (int g = 0; g < GP; ++g) {
+        float tmax = sc[0][g];
+#pragma unroll
+        for (int u = 1; u < KB; ++u) tmax = fmaxf(tmax, sc[u][g]);
+        const float m_new = fmaxf(m[g], tmax);
+        const float m_use = (m_new == -INFINITY) ? 0.f : m_new;
+        const float corr = exp2f(m[g] - m_use);  // m == -inf -> 0
+        m[g] = m_new;
+        float p[KB], psum = 0.f;
+#pragma unroll
+        for (int u = 0; u < KB; ++u) {
+            p[u] = exp2f(sc[u][g] - m_use);
+            psum += p[u];
+        }
+        l[g] = l[g] * corr + psum;
+#pragma unroll
+        for (int e = 0; e < 8; ++e) {
+            float a = acc[g][e] * corr;
+#pragma unroll
+            for (int u = 0; u < KB; ++u) a += p[u] * vf[u][e];
+            acc[g][e] = a;
+        }
+    }
+}
+
+// merge the NG key lanes, one head at a time; write the block's partial for that head
+template <int GP, int TPK>
+__device__ __forceinline__ void splitkv_merge(const float (&m)[GP], const float (&l)[GP], const float (&acc)[GP][8],
+                                              float* __restrict__ pacc, float2* __restrict__ pml, int N, int G, int nsplit, int sp,
+                                              int kvh, int t, float* s_acc, float* s_m, float* s_l) {
+    constexpr int D = TPK * 8;
+    constexpr int NG = kBlock / TPK;
+    const int c = threadIdx.x % TPK, gk = threadIdx.x / TPK;
+#pragma unroll
+    for (int g = 0; g < GP; ++g) {
+        if (g < G) {
+            __syncthreads();  // s_acc / s_m / s_l are reused for every head
+#pragma unroll
+            for (int e = 0; e < 8; ++e) s_acc[gk * D + c * 8 + e] = acc[g][e];
+            if (c == 0) {
+                s_m[gk] = m[g];
+                s_l[gk] = l[g];
+            }
+            __syncthreads();
+            const int64_t slot = ((int64_t)t * N + (int64_t)kvh * G + g) * nsplit + sp;
+            if (threadIdx.x < D) {
+                float M = -INFINITY;
+                for (int i = 0; i < NG; ++i) M = fmaxf(M, s_m[i]);
+                float A = 0.f, L = 0.f;
+                if (M != -INFINITY) {
+                    for (int i = 0; i < NG; ++i) {
+                        const float w = exp2f(s_m[i] - M);  // empty lane: exp2(-inf) = 0, acc is 0 too
+                        L += s_l[i] * w;
+                        A += s_acc[i * D + threadIdx.x] * w;
+                    }
+                }
+                pacc[slot * D + threadIdx.x] = A;
+                if (threadIdx.x == 0) pml[slot] = make_float2(M, L);
+            }
+        }
+    }
+}
+
+// the item's keys: [sp * chunk, sp * chunk + chunk) clipped to [lo, visible)
+__device__ __forceinline__ void splitkv_range(int sp, int64_t chunk, int64_t lo, int64_t visible, int64_t& start, int64_t& end) {
+    start = (int64_t)sp * chunk;
+    end = start + chunk;
+    if (start < lo) start = lo;
+    if (end > visible) end = visible;
+}
 
 //
 // ROWS (batched decode, row-table launch, `OpCall::rows`): grid.z is the SEQUENCE, each a T = 1 decode call: its position is
@@ -241,8 +342,158 @@ splitkv_kernel(const ik_bf16* __restrict__ q, const KT* __restrict__ kc, const K
     }
 }
 
+// Row-table decode on a fixed grid (INTARSIA_ATTN_ROWS_PERSIST, default on), for groups of 5..8 query heads (KB = 2; the
+// 35B's 8): the blocks of splitkv_kernel<ROWS>'s grid that do work, i.e. the items (row, kv head, split < the row's split
+// count), numbered row by row, then kv head, then split, dealt round-robin to a grid of (SMs x resident blocks). Each item
+// runs splitkv_step / splitkv_merge on the keys, heads and partial slot its block of the full grid has, with the same q
+// values and a zero for every key past the item's end, so every partial is bitwise that block's.
+// What changes is the schedule. The full grid launches 64 splits per row and kv head (the length-independent maximum a CUDA
+// graph needs) of which about 18 work at 1k keys, and each of its blocks waits on a position, a row-table entry, q and its
+// first K / V before it streams its 4 iterations. Here a block streams its items' iterations back to back: the K / V of each
+// iteration are loaded one iteration ahead and the last iteration of an item loads the next item's first, the next item's
+// row-table entry is read during this one, positions live in shared memory, q is read 16 B at a time, and K / V are loaded
+// as streaming (`__ldcs`, evict first) so they do not push the partials out of L2 before the combine reads them.
+template <int TPK>
+__global__ void __launch_bounds__(kBlock)
+splitkv_rows_persist_kernel(const ik_bf16* __restrict__ q, float* __restrict__ pacc, float2* __restrict__ pml, int N, int G,
+                            int NKV, int64_t cap, float qscale, int nsplit, int R, const int32_t* __restrict__ pos_dev,
+                            const uint8_t* __restrict__ tab, int64_t tstride, int64_t tindex) {
+    constexpr int GP = kMaxGroup, KB = 2;  // dispatch_group's (8, 2) case
+    constexpr int D = TPK * 8;
+    constexpr int NG = kBlock / TPK;
+    __shared__ __align__(16) float s_acc[NG * D];
+    __shared__ float s_m[NG], s_l[NG];
+    __shared__ int s_first[kMaxRows + 1];  // first item of row r; s_first[R] = the item count
+    __shared__ int s_pos[kMaxRows];
+    if ((int)threadIdx.x < R) {
+        const int p = pos_dev[threadIdx.x];
+        s_pos[threadIdx.x] = p;
+        s_first[threadIdx.x + 1] = splitkv_count((int64_t)p + 1, NKV, 1) * NKV;
+    }
+    __syncthreads();
+    if (threadIdx.x == 0) {
+        s_first[0] = 0;
+        for (int r = 0; r < R; ++r) s_first[r + 1] += s_first[r];
+    }
+    __syncthreads();
+    const int items = s_first[R];
+    const int c = threadIdx.x % TPK, gk = threadIdx.x / TPK;
+
+    struct Item {
+        int t, kvh, sp;
+        int64_t start, end;
+        const ik_bf16 *kb, *vb;  // this thread's 8 dims of key 0 of the kv head
+    };
+    // item `it`, `t` the row of the block's previous item (a block's items increase, so its row only moves forward)
+    auto describe = [&](int it, int& t, Item& d) {
+        while (it >= s_first[t + 1]) ++t;
+        const int64_t kv_len = (int64_t)s_pos[t] + 1;
+        const int nsplit_eff = splitkv_count(kv_len, NKV, 1);
+        const int local = it - s_first[t];
+        d.t = t;
+        d.sp = local % nsplit_eff;
+        d.kvh = local / nsplit_eff;
+        splitkv_range(d.sp, splitkv_chunk(kv_len, nsplit_eff), 0, kv_len, d.start, d.end);
+        const uint64_t* tp = reinterpret_cast<const uint64_t*>(tab) + (int64_t)t * tstride + tindex;
+        d.kb = reinterpret_cast<const ik_bf16*>(tp[0]) + (int64_t)d.kvh * cap * D + c * 8;
+        d.vb = reinterpret_cast<const ik_bf16*>(tp[1]) + (int64_t)d.kvh * cap * D + c * 8;
+    };
+    // the K / V of the iteration at `base` of an item (zero past its end, as splitkv_item)
+    auto load = [&](const Item& d, int64_t base, uint4* nk, uint4* nv) {
+#pragma unroll
+        for (int u = 0; u < KB; ++u) {
+            const int64_t j = base + (int64_t)u * NG + gk;
+            nk[u] = make_uint4(0, 0, 0, 0);
+            nv[u] = make_uint4(0, 0, 0, 0);
+            if (j < d.end) {
+                nk[u] = __ldcs(reinterpret_cast<const uint4*>(d.kb + j * D));
+                nv[u] = __ldcs(reinterpret_cast<const uint4*>(d.vb + j * D));
+            }
+        }
+    };
+
+    int it = blockIdx.x, t = 0;
+    if (it >= items) return;
+    Item cur;
+    describe(it, t, cur);
+    uint4 nk[KB], nv[KB];  // the K / V of the next iteration
+    load(cur, cur.start, nk, nv);
+    while (true) {
+        const bool more = it + (int)gridDim.x < items;
+        Item nxt = cur;
+        if (more) describe(it + (int)gridDim.x, t, nxt);
+
+        float qr[GP][8];
+#pragma unroll
+        for (int g = 0; g < GP; ++g) {
+#pragma unroll
+            for (int e = 0; e < 8; ++e) qr[g][e] = 0.f;
+            if (g < G) {
+                const uint4 w = __ldg(reinterpret_cast<const uint4*>(q + ((int64_t)cur.t * N + (int64_t)cur.kvh * G + g) * D + c * 8));
+                float f[8];
+                ik_unpack8(w, f);  // exact, as ik_b2f per element
+#pragma unroll
+                for (int e = 0; e < 8; ++e) qr[g][e] = f[e] * qscale;
+            }
+        }
+        float m[GP], l[GP], acc[GP][8];
+#pragma unroll
+        for (int g = 0; g < GP; ++g) {
+            m[g] = -INFINITY;
+            l[g] = 0.f;
+#pragma unroll
+            for (int e = 0; e < 8; ++e) acc[g][e] = 0.f;
+        }
+
+        bool fetched = false;  // whether an iteration of this item has loaded the next item's first K / V
+        for (int64_t base = cur.start; base < cur.end; base += (int64_t)NG * KB) {
+            uint4 kk[KB], vv[KB];
+            bool ok[KB];
+#pragma unroll
+            for (int u = 0; u < KB; ++u) {
+                kk[u] = nk[u];
+                vv[u] = nv[u];
+                ok[u] = base + (int64_t)u * NG + gk < cur.end;
+            }
+            const int64_t nb = base + (int64_t)NG * KB;
+            if (nb < cur.end) {
+                load(cur, nb, nk, nv);
+            } else if (more) {
+                load(nxt, nxt.start, nk, nv);
+                fetched = true;
+            }
+            splitkv_step<GP, TPK, KB, ik_bf16>(kk, vv, ok, qr, m, l, acc);
+        }
+        if (more && !fetched) load(nxt, nxt.start, nk, nv);  // an item without keys loaded nothing
+        splitkv_merge<GP, TPK>(m, l, acc, pacc, pml, N, G, nsplit, cur.sp, cur.kvh, cur.t, s_acc, s_m, s_l);
+        if (!more) break;
+        cur = nxt;
+        it += (int)gridDim.x;
+    }
+}
+
+template <int TPK>
+int launch_rows_persist(const ik_bf16* q, float* pacc, float2* pml, int64_t R, int64_t N, int64_t NKV, int64_t cap, float qscale,
+                        int nsplit, const int32_t* pos_dev, cudaStream_t s, const uint8_t* tab, int64_t tstride, int64_t tindex) {
+    auto kern = splitkv_rows_persist_kernel<TPK>;
+    static int grid = 0;  // SMs x resident blocks, once per process
+    if (!grid) {
+        int occ = 0, sms = 0, d = 0;
+        cudaGetDevice(&d);
+        if (cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, kern, kBlock, 0) != cudaSuccess || occ < 1) occ = 1;
+        if (cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, d) != cudaSuccess || sms < 1) sms = 48;
+        grid = sms * occ;
+    }
+    kern<<<grid, kBlock, 0, s>>>(q, pacc, pml, (int)N, (int)(N / NKV), (int)NKV, cap, qscale, nsplit, (int)R, pos_dev, tab, tstride,
+                                 tindex);
+    return IK_OK;
+}
+
 // ROWS: `T` rows are sequences of one query row each (stage 1's ROWS), row `t * N + h` belongs to sequence `t = row / N`.
-template <int D, bool ROWS = false>
+// DISCARD (after splitkv_rows_persist_kernel; the partials 128-byte aligned): once the block has read its row's partials it
+// drops their L2 lines without writing them back (`discard.global.L2`); they are dead, and at B = 16 they are 4.7 MB per
+// layer that would otherwise go to DRAM and back. The values read are the same.
+template <int D, bool ROWS = false, bool DISCARD = false>
 __global__ void __launch_bounds__(D)
 combine_kernel(const float* __restrict__ pacc, const float2* __restrict__ pml, ik_bf16* __restrict__ out, int nsplit,
                int T, int NKV, int64_t pos0_host, const int32_t* pos_dev, int N = 0) {
@@ -263,6 +514,12 @@ combine_kernel(const float* __restrict__ pacc, const float2* __restrict__ pml, i
         A += acc[(int64_t)s * D + threadIdx.x] * w;
     }
     out[row * D + threadIdx.x] = ik_f2b(A / L);
+    if constexpr (DISCARD) {
+        __syncthreads();  // every thread has read its column
+        const int lines = nsplit_eff * D * 4 / 128;
+        for (int i = threadIdx.x; i < lines; i += D)
+            asm volatile("discard.global.L2 [%0], 128;" ::"l"(reinterpret_cast<const char*>(acc) + (int64_t)i * 128) : "memory");
+    }
 }
 
 // D = 512 (Gemma 4 global layers). A key row is spanned by one warp, 16 dims per thread (two 16 B loads, dims c*8 .. +8 and
@@ -436,6 +693,16 @@ void launch_split(const ik_bf16* q, const KT* kc, const KT* vc, float* pacc, flo
                                                               qscale, nsplit, window, pos_dev, tab, tstride, tindex);
 }
 
+// INTARSIA_ATTN_ROWS_PERSIST: 1 (the default) runs the row-table decode launch for groups of 5..8 heads as
+// splitkv_rows_persist_kernel, 0 as the full grid of splitkv_kernel<ROWS>. Read once per process; the bits do not depend on it.
+inline int rows_persist() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_ATTN_ROWS_PERSIST");
+        return (e && e[0] == '0' && !e[1]) ? 0 : 1;
+    }();
+    return v;
+}
+
 template <int TPK, typename KT, bool ROWS = false>
 int dispatch_group(int G, const ik_bf16* q, const KT* kc, const KT* vc, float* pacc, float2* pml,
                    int64_t T, int64_t N, int64_t NKV, int64_t cap, int64_t pos0, float qscale, int nsplit,
@@ -557,25 +824,44 @@ int splitkv_launch_rows(const ik_tensor* q, const ik_tensor* kc0, const ik_tenso
     const uint8_t* tp = (const uint8_t*)tab->data;
     const float qscale = scale * kLog2e;
     int rc = IK_ERR_SHAPE;
+    // groups of 5..8 heads (KB = 2), the 35B's 8: the fixed-grid kernel; the combine drops the partials from L2 after it
+    const bool persist = rows_persist() && N / NKV > 4 && ik_aligned16(q->data) && !(reinterpret_cast<uintptr_t>(pacc) & 127u);
+    if (persist) {
+        switch (D) {
+            case 32: rc = launch_rows_persist<4>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index); break;
+            case 64: rc = launch_rows_persist<8>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index); break;
+            case 128: rc = launch_rows_persist<16>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index); break;
+            case 256: rc = launch_rows_persist<32>(qp, pacc, pml, R, N, NKV, cap, qscale, nsplit, pos_dev, s, tp, stride, index); break;
+        }
+    } else {
 #define IK_ROWS_DISPATCH(DV, TPKV)                                                                                          \
     case DV: rc = dispatch_group<TPKV, ik_bf16, true>((int)(N / NKV), qp, kp, vp, pacc, pml, R, N, NKV, cap, 0, qscale, nsplit, \
                                                       0, pos_dev, s, tp, stride, index); break;
-    switch (D) {
-        IK_ROWS_DISPATCH(32, 4)
-        IK_ROWS_DISPATCH(64, 8)
-        IK_ROWS_DISPATCH(128, 16)
-        IK_ROWS_DISPATCH(256, 32)
-    }
+        switch (D) {
+            IK_ROWS_DISPATCH(32, 4)
+            IK_ROWS_DISPATCH(64, 8)
+            IK_ROWS_DISPATCH(128, 16)
+            IK_ROWS_DISPATCH(256, 32)
+        }
 #undef IK_ROWS_DISPATCH
+    }
     if (rc != IK_OK) return rc;
     IK_TRY(ik_launch_status());
     ik_bf16* op = (ik_bf16*)out->data;
     const unsigned rows = (unsigned)(R * N);
     switch (D) {
-        case 32: combine_kernel<32, true><<<rows, 32, 0, s>>>(pacc, pml, op, nsplit, (int)R, (int)NKV, 0, pos_dev, (int)N); break;
-        case 64: combine_kernel<64, true><<<rows, 64, 0, s>>>(pacc, pml, op, nsplit, (int)R, (int)NKV, 0, pos_dev, (int)N); break;
-        case 128: combine_kernel<128, true><<<rows, 128, 0, s>>>(pacc, pml, op, nsplit, (int)R, (int)NKV, 0, pos_dev, (int)N); break;
-        case 256: combine_kernel<256, true><<<rows, 256, 0, s>>>(pacc, pml, op, nsplit, (int)R, (int)NKV, 0, pos_dev, (int)N); break;
+#define IK_ROWS_COMBINE(DV)                                                                                                       \
+    case DV:                                                                                                                      \
+        if (persist)                                                                                                              \
+            combine_kernel<DV, true, true><<<rows, DV, 0, s>>>(pacc, pml, op, nsplit, (int)R, (int)NKV, 0, pos_dev, (int)N);       \
+        else                                                                                                                      \
+            combine_kernel<DV, true><<<rows, DV, 0, s>>>(pacc, pml, op, nsplit, (int)R, (int)NKV, 0, pos_dev, (int)N);             \
+        break;
+        IK_ROWS_COMBINE(32)
+        IK_ROWS_COMBINE(64)
+        IK_ROWS_COMBINE(128)
+        IK_ROWS_COMBINE(256)
+#undef IK_ROWS_COMBINE
     }
     return ik_launch_status();
 }
