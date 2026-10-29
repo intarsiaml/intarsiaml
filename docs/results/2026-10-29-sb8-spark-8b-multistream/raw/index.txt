@@ -1,0 +1,10 @@
+- result file: `results/20261028-200830-adhoc-sb8-mb16-r1/result.json`
+[localeval] saved /opt/code/deepeval/results/20261028-200830-adhoc-sb8-mb16-r1/result.json
+- result file: `results/20261028-201207-adhoc-sb8-mb8-r1/result.json`
+[localeval] saved /opt/code/deepeval/results/20261028-201207-adhoc-sb8-mb8-r1/result.json
+- result file: `results/20261028-202101-adhoc-sb8-mb16-r2/result.json`
+[localeval] saved /opt/code/deepeval/results/20261028-202101-adhoc-sb8-mb16-r2/result.json
+- result file: `results/20261028-202435-adhoc-sb8-default-r1/result.json`
+[localeval] saved /opt/code/deepeval/results/20261028-202435-adhoc-sb8-default-r1/result.json
+- result file: `results/20261028-202832-adhoc-sb8-mb16-r3/result.json`
+[localeval] saved /opt/code/deepeval/results/20261028-202832-adhoc-sb8-mb16-r3/result.json
