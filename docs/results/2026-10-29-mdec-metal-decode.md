@@ -39,6 +39,12 @@ Single stream: no lever found that moves it. The 35B decodes 124.5 / 120.7 / 109
 ~2.4 GB/token floor at 4k); the 8B is at 98 % of its floor. Section 1 is the attribution, section 2 what was tried (all
 bitwise, all within noise or slower), section 3 what is left.
 
+**Base of every A/B:** `7aebefb83`, before #253 (MPRE's faster Metal prefill). The N = 16 gain comes from prefill overlapping
+decode, so it may move on the new main; it was not re-measured there.
+
+**Defaults:** without `--max-batch`, every backend decodes one sequence (`load.rs`). On main, `--max-batch` 9..16 on Metal was
+refused ("not implemented yet"); this branch accepts it. Existing `--max-batch` <= 8 configurations are not changed.
+
 ## 1. Attribution: where one 35B decode token goes
 
 Method: `generate`, 129 tokens after a 973 / 4096 / 16384-token prompt (the longctx prompts), three runs per context:
@@ -138,7 +144,7 @@ construction (single-stream and `--max-batch` <= 8 run the same kernels and plan
 | `real_lfm2_batched_decode_is_bitwise_the_solo_step` (LFM2.5-1.2B, short-conv), extended to N = 2..16 | **9360 pairs bitwise** (#7102) | `raw/s6/lfm2.log` |
 | `tests/multirow.rs` (selection pinned: exact-rows calls take the multi-row GEMVs at M = 2..16, fail at 17) | 12 / 12 (#7102) | `raw/s6/multirow.log` |
 | greedy ids, 35B 4k 257 tokens, main vs branch | identical md5 every arm (#7076) | `raw/w4/window.log` |
-| `cargo test --workspace --release` (endor) | __WS__ | `raw/w4/wstest.log` |
+| `cargo test --workspace --release` (endor) | 1104 passed / 0 failed / 28 ignored on the branch at `7aebefb83` (#7106); after merging main `27d4e8bcf` (#253): **1105 / 0 / 28** (#7109) | `raw/w4/wstest.log`, `raw/w4/wstest-postmerge.log` |
 | long prompts 2.6k / 4k / 16k at 16 slots (`--ignored real_35b_batched_engine_long_prompts_*`) | not run (window budget) | |
 
 Every Metal model with a batched gate was run at 16 rows (35B, 8B, LFM2). Qwen3.5-4B has no batched gate; its layers (GDN +
@@ -146,6 +152,10 @@ attention, bf16) use the same row kernels as the 35B's and the 8B's, but it was 
 over from mr3's experiment (a 1-token prompt: nothing to prefill); fixed (prompt lengths 41 and 23), then it passed (#7080).
 
 ## 5. fleetq jobs
+
+GPU windows by their own log timestamps: w1 about 4 min, w2 5, w3 7, w4 10 (cap 40). Short checks under 3 min. The three
+workspace-test jobs also used the GPU (the Metal tests in the workspace).
+
 
 | job | what | slot |
 |---|---|---|
@@ -162,4 +172,4 @@ over from mr3's experiment (a 1-token prompt: nothing to prefill); fixed (prompt
 | #7097 | short check 5: no result (the workspace test had rebuilt `intarsia` without `--features metal`) | `--quiet gpu,cpu` |
 | #7102 | short check 6: 8B / LFM2 / multirow gates at N <= 16 | default |
 | #7105 | short check 5b: served N = 4, `--max-batch` 8 vs 16 x 2 | `--quiet gpu,cpu` |
-| #7083, #7106 | workspace tests (#7083 stopped at the first failing binary: `multirow.rs` still pinned 8 rows; fixed) | default |
+| #7083, #7106, #7109 | workspace tests (#7109 after merging #253) (#7083 stopped at the first failing binary: `multirow.rs` still pinned 8 rows; fixed) | default |
