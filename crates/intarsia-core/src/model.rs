@@ -39,6 +39,8 @@ mod gemma;
 pub(crate) mod feedback;
 mod graph_step;
 mod spec_graph;
+mod spec_pipe;
+pub(crate) use spec_pipe::{Predraft, Staged};
 mod verify_attn;
 pub use spec_graph::SpecPass;
 pub use verify_attn::{verify_rows_pos_bytes, verify_rows_pos_stale, verify_rows_tab_bytes};
@@ -560,6 +562,9 @@ pub struct Model {
     /// Device-side token feedback in greedy decode (`model/feedback.rs`): the backend's default, `INTARSIA_TOKEN_FEEDBACK`,
     /// or [`Model::set_token_feedback`]; only ever true on a backend that supports it.
     token_feedback: std::sync::atomic::AtomicBool,
+    /// The pipelined MTP step (`model/spec_pipe.rs`): 0 = the backend's default (Metal with `INTARSIA_METAL_MTP_GPU_ACCEPT`
+    /// not `0`), 1 = on, 2 = off ([`Model::set_spec_pipe`]).
+    spec_pipe: std::sync::atomic::AtomicU8,
     /// Dispatches of a speculative feedback step submitted before the previous token is read (`model/feedback.rs`).
     feedback_hold: usize,
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
@@ -1555,6 +1560,7 @@ impl Model {
             tp_batch_mutant: std::sync::atomic::AtomicU8::new(0),
             coll_trace: coll_trace::CollTrace::new(std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1")),
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
+            spec_pipe: std::sync::atomic::AtomicU8::new(0),
             feedback_hold,
             tail_merge,
             prefill_peel,

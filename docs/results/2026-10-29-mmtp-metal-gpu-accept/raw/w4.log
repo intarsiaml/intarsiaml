@@ -1,0 +1,25 @@
+fleetq: #7215 waiting (#1 in line): needs gpu quiet on endor, but #7213 "mnq: gates 1+2 (greedy ids, metal tests, real-model batch/reuse, kernels test, plan show)" (claude-f31ccf91) loads it
+fleetq:   #7213 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7213 set, or it will wait for #7213 to be released.
+fleetq: #7215 running on endor: env OUT=w4 ROUNDS=5 'ARMS=mtp1 mtp0' .lane/w4.sh
+## r1-mtp1 17:40:06
+localeval exit 0
+## r1-mtp0 17:40:52
+localeval exit 0
+## r2-mtp0 17:41:37
+localeval exit 0
+## r2-mtp1 17:42:24
+localeval exit 0
+## r3-mtp1 17:43:09
+localeval exit 0
+## r3-mtp0 17:43:54
+localeval exit 0
+## r4-mtp0 17:44:40
+localeval exit 0
+## r4-mtp1 17:45:26
+localeval exit 0
+## r5-mtp1 17:46:11
+localeval exit 0
+## r5-mtp0 17:46:56
+localeval exit 0
+## done 17:47:42
+fleetq: #7215 done (exit 0)

@@ -1,0 +1,31 @@
+fleetq: #7220 waiting (#2 in line): in line behind #7219 "mmtp: cpu MTP tests (tests/mtp.rs)" (claude-f31ccf91) on endor
+fleetq:   #7219 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7219 set, or it will wait for #7219 to be released.
+fleetq: #7220 waiting (#1 in line): needs cpu quiet on endor, but #7219 "mmtp: cpu MTP tests (tests/mtp.rs)" (claude-f31ccf91) loads it
+fleetq:   #7219 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7219 set, or it will wait for #7219 to be released.
+fleetq: #7220 running on endor: .lane/diag3.sh
+short: main MTP == branch MTP (b4ca5abeaa616cfa9b0b49477d06d286)
+spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass)
+4ka: main MTP == branch MTP (bda48660a18fcda3bc27a8b91776e941)
+spec: verify passes=99 proposed=198 accepted=155 (acceptance 78.3%, 2.57 tokens per pass)
+4kb: main MTP == branch MTP (3c7cb036eb2ceffc6e0c98d1fd3acd0c)
+spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)
+16k: main MTP == branch MTP (968783287407c323348aff5047591d43)
+spec: verify passes=99 proposed=197 accepted=156 (acceptance 79.2%, 2.58 tokens per pass)
+reuse tests exit 0
+test pass_record_carries_the_row_invariant_prefix ... ok
+test wide_reuse_len_reads_the_pass_history ... ok
+test batched_engine_picks_slots_by_wide_passes ... ok
+test batched_engine_multi_turn_resumes_the_whole_prompt ... ok
+test single_sequence_engine_resumes_at_any_row_of_wide_passes ... ok
+test batched_engine_picks_slots_by_the_same_rule ... ok
+test single_sequence_engine_resumes_only_at_the_cold_schedule ... ok
+test cpu_prefill_is_bitwise_row_count_invariant ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
+test engine_repeats_equal_the_cold_reference ... ok
+test engine_multi_turn_equals_cold_reference ... ok
+test multi_turn_resumes_with_cold_bits ... ok
+test prefix_reuse_long_splits ... ok
+test reuse_rule_resumes_with_cold_bits ... ok
+test prefix_reuse_probe ... ok
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+fleetq: #7220 done (exit 0)

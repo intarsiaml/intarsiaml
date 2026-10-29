@@ -1136,6 +1136,7 @@ impl Model {
             tp_batch_mutant: std::sync::atomic::AtomicU8::new(0),
             coll_trace: super::coll_trace::CollTrace::new(false),
             token_feedback: std::sync::atomic::AtomicBool::new(false),
+            spec_pipe: std::sync::atomic::AtomicU8::new(0),
             feedback_hold: self.feedback_hold,
             tail_merge: 0,
             prefill_peel: self.prefill_peel,
