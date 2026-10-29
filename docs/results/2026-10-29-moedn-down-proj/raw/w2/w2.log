@@ -1,0 +1,56 @@
+fleetq: #7006 running on spark1: scripts/moedn/w2.sh
+10:04:37
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+EQUAL  greedy/n4
+EQUAL  greedy/n16
+21/21 cells identical, 9408 token ids compared
+identity exit 0
+10:08:01
+== round 1 arm base 10:08:01
+base r1: MemAvailable 56824 MB with the server up
+moedn-base-r1: - result file: `results/20261029-100843-adhoc-moedn-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-100843-adhoc-moedn-base-r1/result.json 
+[localeval] 1 streams: aggregate 81.1 tok/s
+[localeval] 4 streams: aggregate 176.7 tok/s
+[localeval] 8 streams: aggregate 226.1 tok/s
+[localeval] 16 streams: aggregate 296.9 tok/s
+== round 1 arm dev 10:09:28
+dev r1: MemAvailable 56838 MB with the server up
+moedn-dev-r1: - result file: `results/20261029-101012-adhoc-moedn-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-101012-adhoc-moedn-dev-r1/result.json 
+[localeval] 1 streams: aggregate 80.6 tok/s
+[localeval] 4 streams: aggregate 174.1 tok/s
+[localeval] 8 streams: aggregate 236.1 tok/s
+[localeval] 16 streams: aggregate 301.1 tok/s
+== round 2 arm dev 10:10:56
+dev r2: MemAvailable 56846 MB with the server up
+moedn-dev-r2: - result file: `results/20261029-101142-adhoc-moedn-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-101142-adhoc-moedn-dev-r2/result.json 
+[localeval] 1 streams: aggregate 80.4 tok/s
+[localeval] 4 streams: aggregate 178.0 tok/s
+[localeval] 8 streams: aggregate 232.8 tok/s
+[localeval] 16 streams: aggregate 304.7 tok/s
+== round 2 arm base 10:12:25
+base r2: MemAvailable 56836 MB with the server up
+moedn-base-r2: - result file: `results/20261029-101307-adhoc-moedn-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-101307-adhoc-moedn-base-r2/result.json 
+[localeval] 1 streams: aggregate 80.7 tok/s
+[localeval] 4 streams: aggregate 178.9 tok/s
+[localeval] 8 streams: aggregate 231.8 tok/s
+[localeval] 16 streams: aggregate 296.9 tok/s
+== round 3 arm base 10:13:51
+base r3: MemAvailable 56828 MB with the server up
+moedn-base-r3: - result file: `results/20261029-101439-adhoc-moedn-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-101439-adhoc-moedn-base-r3/result.json 
+[localeval] 1 streams: aggregate 79.0 tok/s
+[localeval] 4 streams: aggregate 173.9 tok/s
+[localeval] 8 streams: aggregate 232.4 tok/s
+[localeval] 16 streams: aggregate 294.7 tok/s
+== round 3 arm dev 10:15:24
+dev r3: MemAvailable 56841 MB with the server up
+moedn-dev-r3: - result file: `results/20261029-101606-adhoc-moedn-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-101606-adhoc-moedn-dev-r3/result.json 
+[localeval] 1 streams: aggregate 81.2 tok/s
+[localeval] 4 streams: aggregate 176.4 tok/s
+[localeval] 8 streams: aggregate 235.1 tok/s
+[localeval] 16 streams: aggregate 304.5 tok/s
+== done 10:16:49
+10:16:49
+fleetq: #7006 done (exit 0)
