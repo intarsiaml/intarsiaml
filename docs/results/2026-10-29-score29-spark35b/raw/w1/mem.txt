@@ -1,0 +1,4 @@
+single r1: MemAvailable 58001 MB with the server up
+multi r1: MemAvailable 57022 MB with the server up
+multi r2: MemAvailable 56917 MB with the server up
+single r2: MemAvailable 59039 MB with the server up
