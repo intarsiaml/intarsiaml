@@ -132,6 +132,12 @@ Notes:
 between it and default-on: the 120-process soak, and an MTP decode A/B with enough rounds to resolve 0.5 %. To check next: why a
 4107-token prompt (2048 + 2048 + 11) gained only +1.9 % in its one sample.
 
+## Coordinator no-op check: #237 (row-invariant CUDA prefill) on HIP
+
+Main `bfbee3cb6` (#237) vs `200be3f05`, both built on tatooine (fleetq #6812, both cards, `scripts/arx/noop-237.sh`):
+- `plan show --json`: Qwen3-8B BF16 (one card) 8343 / 8343 bytes and Qwen3.6-35B-A3B NVFP4 tp2 13541 / 13541 bytes, both byte-identical
+- 35B tp2 greedy ids, spec off, 256 tokens: short-0 and 4k-0 identical (`raw/noop-237/`)
+
 ## GPU jobs
 
 Both cards in one fleetq job, Radiance down and restored (`curl tatooine:8080/v1/models` answered after every job). Windows:

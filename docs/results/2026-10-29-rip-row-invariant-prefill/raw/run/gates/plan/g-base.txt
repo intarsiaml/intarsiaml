@@ -1,0 +1,27 @@
+model Gemma-4-26B-A4B-NVFP4  backend cuda  device NVIDIA GB10 (124609 MiB)  exactness fast
+act bf16  kv bf16  prefill chunk 1024 (recipe gemma4, cuda)  scratch 57705984 B  require_admitted false  reference_only false
+
+layers (30):
+    0..29  gemma4_layer
+
+op             kernel                     exactness     admitted  calls/step   scratch
+embedding      embedding_scaled_bf16      deterministic no        1 0
+rmsnorm        rmsnorm_bf16               deterministic no        241 0
+add            add_bf16                   deterministic no        60 0
+add            add_scaled_bf16            deterministic no        30 0
+qk_norm        qk_norm_bf16               deterministic no        90 0
+rope           rope_bf16                  deterministic no        50 0
+rope           rope_prop_bf16             deterministic no        10 0
+matmul         matmul_bf16                fast          no        0 0
+matmul         matmul_bf16_gemv           deterministic no        235 0
+logits         logits_bf16                fast          no        0 0
+logits         logits_bf16_gemv           deterministic no        1 0
+kv_append      kv_append_bf16             exact         no        60 0
+attn_prefill   attn_prefill_bf16_ext      deterministic no        0 0
+attn_prefill   attn_prefill_bf16_splitkv_ext deterministic no        0 4605440
+attn_decode    attn_decode_bf16_splitkv_ext deterministic no        30 2105344
+argmax         argmax_f32                 exact         no        1 0
+moe_topk       moe_topk_bf16              deterministic no        30 0
+moe_experts    moe_experts_decode_v2_gelu_bf16 deterministic no        30 11264
+moe_experts    moe_experts_gelu_bf16      deterministic no        0 57705984
+gelu_glu       gelu_glu_bf16              deterministic no        30 0
