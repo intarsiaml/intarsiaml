@@ -158,17 +158,20 @@ Other figures:
 
 **Reading:**
 - *16 streams.* +1.1 to +1.3 % is at the low end of the +1.5 to +2 % projected from the micro (section 3).
-- *4 and 8 streams.* At 4 / 8 rows, the fp8 GDN / attention projections take the unchanged bf16-staged kernel (section 1). Only
-  k / v, the shared expert and (at 8) the lm_head change, worth well under 0.5 % of a step. The per-round spread here is ±1 to
-  2 %, so -0.9 % at 4 and +0.6 % at 8 are noise around zero, not a measured regression.
-- *1 stream.* The 1-row calls take the unchanged one-row kernels, so +0.8 % is noise as well.
+- *4 and 8 streams.* At 4 / 8 rows, the fp8 GDN / attention projections take the unchanged bf16-staged kernel (section 1).
+  Only k / v, the shared expert's split / tile kernels and (at 8) the lm_head change, worth well under 0.5 % of a step. The deltas
+  are within the ±1 to 2 % spread between rounds: two of three rounds were negative at 4 streams, and one of three at 8. One changed
+  micro cell was slower: nvfp4 512x2048 at M = 4, +11.2 % over 2 runs, at the shared expert's ~8 us scale. So a small cost at 4
+  streams is not ruled out.
+- *1 stream.* The 1-row calls take the unchanged one-row kernels. For fp8, `rows_run` takes the persistent kernels only for M ≥ 2.
+  For nvfp4, M = 1 has no full or split path and launches `nvfp4_gemv_kernel<1>`. So the +0.8 % is noise.
 - *vLLM at 16 streams* (340.1 tok/s, vr16 window 10-27): 0.80x on base, 0.81x on dev.
 
 ## 5. Gates
 
 | gate | result |
 |---|---|
-| +3 % at 16 streams and 8 not slower; or smaller but exact and positive everywhere (3 rounds) | **fail**: 16 +1.1 %; 8 +0.6 % (not slower); 4 -0.9 % (within noise, but not positive) |
+| +3 % at 16 streams and 8 not slower; or smaller but exact and positive everywhere (3 rounds) | **fail**: 16 +1.1 %; 8 +0.6 % (not slower); 4 -0.9 % (within the round spread, but not positive) |
 | served greedy tokens identical to main (21-cell set) | **pass**: 21/21 cells, 9408 ids (`raw/ident/compare.log`) |
 | `batch_cuda_real` (batched equals solo) on the 35B | **pass**: 4290 (row, step) pairs bitwise, plus the engine test (`raw/batch-real.txt`) |
 | `rows_exact` | **pass**: 9 tests (`raw/rows-exact.txt`; also #6671 in `raw/micro/m1-exact-evict.log`) |
@@ -178,7 +181,7 @@ Other figures:
 | CI | **pass** (PR #230) |
 
 **Options for the coordinator.** The change is bitwise exact and makes the 16-row kernels faster. In serve it gives +1.1 to
-+1.3 % at 16 streams, and it is neutral within noise at 1 / 4 / 8 streams, where most of the changed kernels do not run.
++1.3 % at 16 streams, and it is within the round spread at 1 / 4 / 8 streams (-0.9 % at 4), where most of the changed kernels do not run.
 - Merging it is the #229 decision with a smaller margin.
 - Holding it costs nothing, because it carries no knob.
 - The next exact step on the same kernels is f16 staging of the fp8 activations (section 1, Not done), which removes the
