@@ -3,11 +3,44 @@
 Lane attn16, 2026-10-29, branch `lane-attn16/decode-attn` from `main` 07f178dad (merged with 7c2dd03ae, HIP-only). spark2
 (spark-fa00, GB10 sm_121), `nvidia/Qwen3.6-35B-A3B-NVFP4`. CUDA only.
 
-**Status: draft PR. Not merged.** STATUS_LINE
+**Status: draft PR. Not merged.** Exact and default on. The attention bucket fell by 0.20 ms in the served burst against the 0.5 ms the speed bar asks for, so this is a draft.
 
 ## Result
 
-RESULT_BLOCK
+- **Why main's kernel is slow.** The cost is the schedule and the f32 partials' DRAM traffic, not the math.
+  - The row-table grid launches 64 x 2 x 16 = 2048 blocks; at about 1.1k keys, 576 of them work.
+  - At 242 registers it runs 1 block per SM.
+  - Each working block waits on its position, row-table entry and q, then streams only 4 iterations without prefetch.
+  - It writes 4.7 MB of partials per layer, which the 39 MB KV stream evicts to DRAM before the combine reads them back.
+- **The pattern can reach the floor.** The same K / V access pattern as a pure read probe reaches 235 GB/s, 166 us per
+  layer at B = 16.
+- **The change.** `splitkv_rows_persist_kernel` (default on, `INTARSIA_ATTN_ROWS_PERSIST=0` restores main):
+  - It runs a fixed grid of SMs x 1 block that streams only the working items, prefetching across item boundaries.
+  - K / V use streaming loads.
+  - The combine drops the dead partials from L2 (`discard.global.L2`).
+  - It is bitwise main for every row: same split policy, same statements, same partial layout.
+  - All 58 of main's kernels in the file have identical SASS.
+- **Per-kernel numbers.**
+
+  | measurement | main | this PR |
+  |---|---:|---:|
+  | micro, M = 16, 1.1k to 1.3k keys, stage 1, nsys | 228 us | 178 us |
+  | micro, stage 1 + combine | 227 us | 187.6 us |
+  | served 16-stream burst, nsys (B = 16 decode) | 211.7 us | 191.1 us |
+
+- **Step and serve numbers.**
+  - Attention bucket in the served burst: 2.22 -> 2.02 ms, **-0.20 ms**.
+  - Step in the served burst: 44.49 -> 44.30 ms.
+  - `timing_35b_batched_step` at 1024-token prompts, B = 16: about -0.4 ms.
+  - Serve: +1.1 % at 16 streams and +1.8 % at 4. The 1-stream cell is -0.5 %, but that cell runs the solo step, whose
+    kernels have main's SASS.
+- **Exact.** batch_cuda_real 35B 4290 pairs bitwise (pre- and post-merge), row_tables / rows_exact pass, served `equal.py`
+  21/21 identical, `plan show` 8B / 35B byte-identical.
+- **Short of the speed bar (-0.5 ms bucket).**
+  - In the engine, the partial write-backs that the discard removes were partly hidden behind other kernels, so the micro's
+    -50 us per layer became -21 us per layer.
+  - The remaining exact headroom to the 166 us floor is about 0.25 ms per step.
+  - The rest of the 1.2 ms gap to vLLM is fp8 KV (half the bytes), which is not exact.
 
 ## 1. Why our kernel was slow
 
@@ -86,18 +119,80 @@ Considered and not shipped:
 
 ## 3. Numbers
 
-PER_KERNEL_BLOCK
+**Micro** (`timing_attn_rows`, the row-table launch alone; 10 layers' own caches per row; row r at 1100 + 37 r % 200
+keys). The rows below are us per call (stage 1 + combine), `INTARSIA_ATTN_ROWS_PERSIST` 0 / 1, on the pre-merge tree:
+
+| M | 1100 keys: main | 1100 keys: PR | 64 keys: main | 64 keys: PR |
+|---:|---:|---:|---:|---:|
+| 1 | 19.3 | 16.6 | 14.6 | 14.6 |
+| 4 | 64.7 | 57.9 | 18.7 | 14.7 |
+| 8 | 117.8 | 97.4 | 28.7 | 16.6 |
+| 16 | 227.4 | 187.6 | 47.3 | 33.0 |
+
+**Served burst** (`scripts/attn16/prof.sh`: `serve --max-batch 16`, 16 streams, ~1k-token prompts, 256 tokens; nsys,
+decode window 5 to 14 s; main = 781d21833, this PR merged with it; `raw/base-b16`, `raw/dev-b16`):
+
+| kernel (B = 16 decode) | grid | main us/call | PR us/call |
+|---|---|---:|---:|
+| `splitkv_kernel<8,32,2,bf16,ROWS>` / `splitkv_rows_persist_kernel<32>` | 64x2x16 / 48x1x1 | 211.7 | 191.1 |
+| `combine_kernel<256,ROWS>` (DISCARD in the PR) | 256 | 7.6 | 7.0 |
+| `kv_append_rows_kernel` (x2) | | 5.5 | 5.7 |
+
+| bucket (`buckets.py`, ms per step) | main | PR | delta |
+|---|---:|---:|---:|
+| attention (splitkv + kv_append) | 2.22 | 2.02 | -0.20 |
+| sum of kernel durations | 44.57 | 44.32 | -0.25 |
+| decode step, mean of 245 passes (`timeline.txt`) | 44.49 | 44.30 | -0.19 |
+
+**Step micro-timing** (`timing_35b_batched_step`, B = 16, three runs of 60 steps; dev binary under
+`INTARSIA_ATTN_ROWS_PERSIST=0`, which is main's kernels, against the default):
+
+| tree, prompt | PERSIST=0 | default | delta |
+|---|---|---|---:|
+| pre-merge (07f178dad), 64 | 44.39 / 44.44 (two runs, middle third) | 44.37 / 44.15 | about -0.1 |
+| pre-merge, 1024 | 46.53 / 46.56 | 46.20 / 46.20 | about -0.35 |
+| merged (781d21833), 1024 | 45.52 (mean of thirds) | 45.10 | -0.42 |
+
+(W3's base-vs-dev step run is not used: main's test binary has no `INTARSIA_STEP_PROMPT`, so its base rows ran 64-token
+prompts.)
+
+**Serve A/B** (localeval, `serve --max-batch 16`, 1024-token prompts, 256 tokens, 3 interleaved rounds, aggregate tok/s,
+main 781d21833 vs this PR merged; `raw/w2`):
+
+| streams | main | PR | delta | range main / PR |
+|---:|---:|---:|---:|---|
+| 1 | 79.9 | 79.5 | -0.5 % | 79.7-80.2 / 79.2-79.8 |
+| 4 | 170.6 | 173.6 | +1.8 % | 170.2-171.3 / 172.7-174.1 |
+| 8 | 226.1 | 226.6 | +0.2 % | 225.1-227.4 / 223.4-229.1 |
+| 16 | 291.8 | 295.0 | +1.1 % | 291.3-292.5 / 293.7-296.5 |
+
+One stream is the solo step (`batch.rs`: "one row is the solo step itself"). Its kernels have main's SASS, so the -0.5 % is
+run-to-run noise. The ranges overlap.
 
 ## 4. Gates
 
-GATES_BLOCK
+| gate | result |
+|---|---|
+| `batch_cuda_real` 35B (`real_35b_batched*`) | PASS, 4290 (row, step) pairs bitwise, pre-merge (W1) and merged (W3) |
+| `row_tables` (incl. G-B `attn_decode_bf16_splitkv_rows`, 3220480 bytes, M 1..16, 7 shapes incl. G = 5 / 8, D = 64 / 128 / 256) | PASS (6 tests), plus the G-B under `INTARSIA_ATTN_ROWS_PERSIST=0` |
+| `rows_exact` | PASS (10 tests) |
+| served `equal.py`, main vs PR | 21/21 cells identical, 9408 token ids |
+| `plan show` 8B / 35B, json + txt | byte-identical (`raw/plan.txt`); 35B unchanged (scratch size and kernel name are unchanged) |
+| `plan show` Gemma-4 | NOT RUN: no checkpoint on spark2 (see caveats) |
+| SASS of main's 58 kernels in `attention_splitkv.cu` | identical (`scripts/attn16/sass.sh`) |
+| Mac `cargo test --workspace --release` | PASS after the tuning.md rows |
+| speed: attention bucket -0.5 ms at B = 16 | NOT MET: -0.20 ms served, -0.5 ms on the isolated micro |
+| speed: no serve cell slower than -0.5 % | 1 stream -0.5 % (solo path, unchanged kernels), others +0.2 to +1.8 % |
+
+GPU windows: W1 #6977 (14 min), W2 #6981 (12 min), W3 #6982 (12 min). Short checks, each < 3 min (ptxas, SASS, probes,
+micro, nsys micro, plan show, one step check), about 25.
 
 ## 5. Caveats
 
 - **The brief says vLLM's KV is bf16; it is not.** VPROF's startup log shows FlashInfer decode on an `float8_e4m3fn` KV
   cache: 19.7 MB per layer against our 39 MB. Most of the 1.2 ms "attention gap" is bytes. An exact bf16 kernel's floor at
   B = 16, about 1.1k keys, is about 166 us per layer (the pattern probe), so the exact headroom from main's 214.6 us is
-  about 0.5 ms per step, of which this PR takes ANSWER.
+  about 0.5 ms per step, of which this PR takes 0.2 ms served (0.4 ms on the micro-timing step, 0.5 ms on the isolated kernel).
 - **Gemma-4 `plan show` was not run.** The checkpoint is not on spark2, and lanes may only use spark2. All pre-existing
   kernels have identical SASS, and plan show is host-side.
 - **`discard.global.L2` makes the discarded lines' contents undefined.** They are this launch's dead partials only, inside
