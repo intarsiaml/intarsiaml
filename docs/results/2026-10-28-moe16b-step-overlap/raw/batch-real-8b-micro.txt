@@ -1,0 +1,5 @@
+fleetq: #6646 running on spark1: ssh -n -o BatchMode=yes spark1 'export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; cd ~/intarsiaml-moe16b/src && T=$(ls -t target/release/deps/batch_cuda_real-* | grep -v '"'"'\.d$'"'"' | head -1); date +%T; INTARSIA_QWEN3_DIR=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218 INTARSIA_REQUIRE_GPU=1 timeout 170 $T real_qwen3_8b_batched_decode_is_bitwise_the_solo_step --exact --test-threads=1 --nocapture 2>&1 | grep -aE '"'"'^test |test result|panicked|FAIL|identical|pairs|rror'"'"' | cut -c1-300 | tail -12; date +%T'
+21:45:30
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663231488, free_bytes: 75024338944, weights_bytes: 16381470720, workspace_bytes: 538971792, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 7127312
+21:48:21
+fleetq: #6646 done (exit 0)

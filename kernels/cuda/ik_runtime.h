@@ -35,6 +35,11 @@ int ik_rt_memset(void* dst, int value, size_t n, void* stream);
 int ik_rt_stream_create(void** stream);
 int ik_rt_stream_create_high_priority(void** stream);
 int ik_rt_stream_sync(void* stream);
+/* fork / join of two streams (also inside a graph capture: the wait pulls the other stream into it): an event without timing,
+   recorded after the work queued so far on `stream`; later work on `stream` waits for the work `ev` was recorded after */
+int ik_rt_event_create_sync(void** ev);
+int ik_rt_event_record(void* ev, void* stream);
+int ik_rt_stream_wait_event(void* stream, void* ev);
 /* D2D copy bandwidth in GB/s (one read + one write counted once per byte copied), ~256 MB working set */
 int ik_rt_measure_bandwidth(double* gbs);
 /* CUDA graphs: everything launched on `stream` between begin and end is recorded, not run (thread-local capture mode,

@@ -1,0 +1,76 @@
+diff --git a/crates/intarsia-backend-cuda/tests/rows_exact.rs b/crates/intarsia-backend-cuda/tests/rows_exact.rs
+index 43598abc9..8418cf717 100644
+--- a/crates/intarsia-backend-cuda/tests/rows_exact.rs
++++ b/crates/intarsia-backend-cuda/tests/rows_exact.rs
+@@ -370,7 +370,23 @@ fn fp8_rows_q_are_bitwise_the_one_row_gemv() {
+     // the 35B's projections (GDN out / o_proj 2048x4096 is the launcher's own case), edges: n not a multiple of any tile, K = 16,
+     // a ragged lane tail, M * K at exactly the 96 KB the kernel may stage (6144 at M = 16), one output
+     let shapes = [(2048usize, 4096usize), (8192, 2048), (512, 2048), (300, 2048), (9, 16), (33, 2064), (64, 6144), (8, 1040), (1, 4096)];
+-    let forms: [(&str, &str); 8] = [("", ""), ("1", ""), ("all", ""), ("all", "1x16"), ("all", "2x16"), ("all", "1x8"), ("all", "1x8x3"), ("all", "4x8")];
++    // the `b*` shapes: lane moe16b's balanced split (rows_q_tiles BAL)
++    let forms: [(&str, &str); 14] = [
++        ("", ""),
++        ("1", ""),
++        ("all", ""),
++        ("all", "1x16"),
++        ("all", "2x16"),
++        ("all", "1x8"),
++        ("all", "1x8x3"),
++        ("all", "4x8"),
++        ("all", "b2x8x2"),
++        ("all", "b1x16"),
++        ("all", "b2x12"),
++        ("all", "b2x16"),
++        ("all", "b4x8"),
++        ("all", "b4x12"),
++    ];
+     for (q, shape) in forms {
+         for (var, val) in [("INTARSIA_CUDA_FP8_ROWS_Q", q), ("INTARSIA_CUDA_FP8_ROWS_QSHAPE", shape)] {
+             if val.is_empty() {
+@@ -971,7 +987,18 @@ fn timing_rows_evict() {
+     };
+     // fp8: the 35B's GDN in_qkv, in_z / attention q, k / v, GDN out / o_proj
+     if only.is_empty() || only.contains("fp8") {
+-        let forms: [(&str, &str, &str, &str); 11] = [
++        // `MSD2_ONLY=fp8bal`: lane moe16b's balanced-split shapes against the launcher's policy (`MSD2_SHAPE=NxK`, `MSD2_M=m`: one shape / M)
++        let bal: [(&str, &str, &str, &str); 8] = [
++            ("unset", "", "", ""),
++            ("q2x8", "", "all", ""),
++            ("b2x8x2", "", "all", "b2x8x2"),
++            ("b1x16", "", "all", "b1x16"),
++            ("b2x12", "", "all", "b2x12"),
++            ("b2x16", "", "all", "b2x16"),
++            ("b4x8", "", "all", "b4x8"),
++            ("b4x12", "", "all", "b4x12"),
++        ];
++        let all: [(&str, &str, &str, &str); 11] = [
+             ("base", "", "0", ""),
+             ("auto", "", "1", ""),
+             ("unset", "", "", ""),
+@@ -984,7 +1011,13 @@ fn timing_rows_evict() {
+             ("q1x8x3", "", "all", "1x8x3"),
+             ("q4x8", "", "all", "4x8"),
+         ];
++        let forms: &[(&str, &str, &str, &str)] = if only.contains("fp8bal") { &bal } else { &all };
++        let shape = std::env::var("MSD2_SHAPE").unwrap_or_default();
++        let only_m: Option<usize> = std::env::var("MSD2_M").ok().and_then(|v| v.parse().ok());
+         for (n, k) in [(8192usize, 2048usize), (4096, 2048), (512, 2048), (2048, 4096)] {
++            if !shape.is_empty() && shape != format!("{n}x{k}") {
++                continue;
++            }
+             let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, true, DType::Bf16, DType::Bf16);
+             let sc = rig.put(&scales_tensor(hc.inputs[2].to_f32()[0], 0.125));
+             let ws: Vec<TensorRef> = (0..pool_of(n * k)).map(|_| rig.put(&hc.inputs[1])).collect();
+@@ -1001,8 +1034,11 @@ fn timing_rows_evict() {
+             let us = time_pool("matmul_fp8_gemv", Op::MatmulFp8, &c1);
+             println!("EVT fp8 {n}x{k} {:<9} M=1  {us:8.2} us {:7.1} GB/s", "solo", (n * k) as f64 / us / 1e3);
+             for &m in &ms {
++                if only_m.is_some_and(|o| o != m) {
++                    continue;
++                }
+                 let calls = mk(m);
+-                for (name, full, q, qs) in forms {
++                for &(name, full, q, qs) in forms {
+                     set(&[("INTARSIA_CUDA_FP8_ROWS_FULL", full), ("INTARSIA_CUDA_FP8_ROWS_Q", q), ("INTARSIA_CUDA_FP8_ROWS_QSHAPE", qs)]);
+                     let us = time_pool("matmul_fp8_gemv_rows", Op::MatmulFp8, &calls);
+                     println!("EVT fp8 {n}x{k} {name:<9} M={m:<2} {us:8.2} us {:7.1} GB/s", (n * k) as f64 / us / 1e3);

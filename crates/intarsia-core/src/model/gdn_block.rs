@@ -174,7 +174,9 @@ impl Model {
             }
         }
         // The four projections read the same activation. qkv and z (fp8 / mxfp4) go through one launch, and so do the b and a
-        // gates (dense / mxfp4), when the backend has the fused pair kernels; otherwise each runs on its own.
+        // gates (dense / mxfp4), when the backend has the fused pair kernels; otherwise each runs on its own. Lane moe16b: z, b
+        // and a run on the side stream beside qkv (same ops in the same order; forked here, joined before the conv reads them).
+        let fork = self.side_fork(true, t, profile)?;
         let qz_fused = match (g.in_qkv.format, g.in_z.format) {
             (FP8_E4M3, FP8_E4M3) => self.try_fused(
                 Op::MatmulFp8Pair,
@@ -188,23 +190,32 @@ impl Model {
         };
         if !qz_fused {
             self.proj(n, &g.in_qkv, &qkv, profile)?;
-            self.proj(n, &g.in_z, &z, profile)?;
         }
-        let ba_fused = ba_fused
-            || match (g.in_b.format, g.in_a.format) {
-                (BF16, BF16) => self.try_fused(
-                    Op::MatmulPair,
-                    vec![n.clone(), g.in_b.parts[0].clone(), g.in_a.parts[0].clone()],
-                    vec![b.clone(), a.clone()],
-                    OpAttrs::default(),
-                    profile,
-                )?,
-                (MXFP4, MXFP4) => self.try_mxfp4_pair(n, &g.in_b, &g.in_a, &b, &a, profile)?,
-                _ => false,
-            };
-        if !ba_fused {
-            self.proj(n, &g.in_b, &b, profile)?;
-            self.proj(n, &g.in_a, &a, profile)?;
+        let mut rest = || -> Result<()> {
+            if !qz_fused {
+                self.proj(n, &g.in_z, &z, profile)?;
+            }
+            let ba_fused = ba_fused
+                || match (g.in_b.format, g.in_a.format) {
+                    (BF16, BF16) => self.try_fused(
+                        Op::MatmulPair,
+                        vec![n.clone(), g.in_b.parts[0].clone(), g.in_a.parts[0].clone()],
+                        vec![b.clone(), a.clone()],
+                        OpAttrs::default(),
+                        profile,
+                    )?,
+                    (MXFP4, MXFP4) => self.try_mxfp4_pair(n, &g.in_b, &g.in_a, &b, &a, profile)?,
+                    _ => false,
+                };
+            if !ba_fused {
+                self.proj(n, &g.in_b, &b, profile)?;
+                self.proj(n, &g.in_a, &a, profile)?;
+            }
+            Ok(())
+        };
+        match fork {
+            Some(tok) => self.side_run(tok, &mut rest)?,
+            None => rest()?,
         }
         // HF l2norm epsilon (a constant of the architecture, not rms_norm_eps)
         let delta_attrs = OpAttrs { eps: 1e-6, ..Default::default() };

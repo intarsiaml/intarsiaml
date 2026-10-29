@@ -1,0 +1,4 @@
+steps 149  mean step span 46.97 ms  mean gap 0.43 ms  (0.9 %)
+gap us: p10 394 p50 421 p90 447 max 1448
+non-kernel op '[CUDA memcpy Device-to-Host]': per step 0.000 MB, 49.2 us GPU time
+non-kernel op '[CUDA memcpy Host-to-Device]': per step 0.010 MB, 1.2 us GPU time

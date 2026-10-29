@@ -1,0 +1,2 @@
+moe-route T=2 K=8 calls=1200 mean_distinct=12.92 min=8 max=16 pairs=16
+moe-route T=16 K=8 calls=9600 mean_distinct=61.45 min=32 max=103 pairs=128
