@@ -1,0 +1,3 @@
+[targets.arx-px_mb16_r1]
+url = "http://tatooine:8095/v1"
+model = "qwen-arx"

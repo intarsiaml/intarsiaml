@@ -1,0 +1,11 @@
+== ids2 short-0 off: SAME (257 words; prompt=41) (11 s)
+== ids2 short-0 def: SAME (257 words; prompt=41) (22 s)
+== ids2 4k-0 off: SAME (257 words; prompt=2610) (34 s)
+== ids2 4k-0 def: SAME (257 words; prompt=2610) (45 s)
+== ids2 16k-3 off: SAME (257 words; prompt=11957) (58 s)
+== ids2 16k-3 def: SAME (257 words; prompt=11957) (71 s)
+== tests2 comm [A=1] rc=0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 18.98s  test ll_without_the_tag_check_is_caught_by_the_stress_test ... negative control: 1380 wrong results without the tag check test wide_path_without_the_wait_is_caught_by_the_stress_test ... negative control (wide, no wait): 244 wrong results  (90 s)
+== tests2 ar_norm [A=1] rc=0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s   (92 s)
+== tests2 comm [INTARSIA_HIP_AR_WIDE=0] rc=0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 19.03s  test ll_without_the_tag_check_is_caught_by_the_stress_test ... negative control: 1380 wrong results without the tag check negative control (wide, no wait): 244 wrong results  (111 s)
+== tests2 ar_norm [INTARSIA_HIP_AR_WIDE=0] rc=0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s   (113 s)
+[arx] micro done 2026-10-28 23:57:47, 113 s

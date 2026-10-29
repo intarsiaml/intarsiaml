@@ -1,0 +1,3 @@
+short-0 bb1f3acae6de 1030 chars, 256 tokens, 1.4s
+4k-0 f71dc2314b31 1109 chars, 256 tokens, 1.6s
+16k-3 690670ba1f7e 911 chars, 256 tokens, 2.7s

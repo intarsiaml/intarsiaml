@@ -1,0 +1,5 @@
+== soak dev: 120 processes; distinct id lines 1; rc!=0: 0 (2026-10-29 04:12:53)
+== soak base: 3 processes; distinct id lines 1; rc!=0: 0 (2026-10-29 04:13:06)
+== soak taps: dev 120 files, distinct 1, equal to base-1 (c006426589a15146614139e4dca54ffb): 120; base distinct 1; ids dev==base: yes
+== soak tap size: 38M; prefill lines dev: finish=length prompt=2610 (cached 0) completion=16 | prefill 917 ms (2847.5 tok/ .. finish=length prompt=2610 (cached 0) completion=16 | prefill 939 ms (2779.9 tok/; base: finish=length prompt=2610 (cached 0) completion=16 | prefill 979 ms (2665.9 tok/
+[arx] micro done 2026-10-29 04:13:06, 493 s

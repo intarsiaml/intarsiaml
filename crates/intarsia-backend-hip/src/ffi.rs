@@ -24,6 +24,23 @@ pub struct IkScratch {
     pub bytes: i64,
 }
 
+/// Mirror of `ik_ar_push` in kernels/hip/ar_push.h (lane arx): the layout of a partial its GEMM pushed into the peer's all-reduce slot.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct IkArPush {
+    pub pushed: i32,
+    pub m: i32,
+    pub n: i64,
+    pub wn: i32,
+    pub tn: i32,
+    pub tm: i32,
+    pub nw: i32,
+    pub gx: i32,
+    pub pad: i32,
+    pub words: i64,
+    pub cap: i64,
+}
+
 /// Mirror of `ik_device_info` in kernels/hip/ik_runtime.h.
 #[repr(C)]
 pub struct IkDeviceInfo {
@@ -96,6 +113,21 @@ extern "C" {
         peer_ll: *mut c_void,
         my_ll: *mut c_void,
         ll_slot_bytes: i64,
+        stream: S,
+    ) -> c_int;
+    /// lane arx: the reduce of a partial its GEMM already pushed (`ik_matmul_mxfp4_a8_mma_push`), on the wide path's buffers
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_ar2_pushed(
+        x: *mut c_void,
+        out: *mut c_void,
+        my_scratch: *mut c_void,
+        peer_flags: *mut u32,
+        my_flags: *mut u32,
+        ctrs: *mut u32,
+        slot_bytes: i64,
+        nblocks: c_int,
+        drain: c_int,
+        lay: *const IkArPush,
         stream: S,
     ) -> c_int;
     #[allow(clippy::too_many_arguments)]
@@ -292,6 +324,9 @@ extern "C" {
     pub fn ik_matmul_mxfp4_mma_v1(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_mma_fold(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_a8_mma(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
+    /// lane arx: `ik_matmul_mxfp4_a8_mma` that also pushes its output into the peer's all-reduce slot `peer` (kernels/hip/ar_push.h)
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_matmul_mxfp4_a8_mma_push(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, peer: *mut c_void, lay: *mut IkArPush, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_pair_gemv(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_gemv_rows(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_a8_gemv_rows(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;

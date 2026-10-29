@@ -1,0 +1,19 @@
+
+running 4 tests
+test pushed_all_reduce_is_bitwise_the_plain_pair ... ok
+test pushed_all_reduce_is_bitwise_the_plain_pair_over_m ... 
+thread 'pushed_all_reduce_is_bitwise_the_plain_pair_over_m' panicked at crates/intarsia-backend-hip/tests/ar_push.rs:194:5:
+pushed all-reduce differs from the plain pair (first (row, feature) per rank): ["M 511: [Some((448, 3087)), Some((448, 3087))]", "M 767: [Some((704, 2063)), Some((704, 2063))]", "M 1023: [Some((960, 1039)), Some((960, 1039))]", "M 1144: [Some((0, 1444)), Some((0, 1444))]", "M 1147: [Some((0, 1445)), Some((0, 1445))]", "M 1599: [Some((1536, 519)), Some((1536, 519))]", "M 2047: [Some((1984, 527)), Some((1984, 527))]"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test pushed_all_reduce_survives_a_delayed_rank ... ok
+test pushed_all_reduce_without_the_wait_is_caught_by_the_stress_test ... negative control (pushed, no wait): 102 wrong results
+ok
+
+failures:
+
+failures:
+    pushed_all_reduce_is_bitwise_the_plain_pair_over_m
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.65s
+

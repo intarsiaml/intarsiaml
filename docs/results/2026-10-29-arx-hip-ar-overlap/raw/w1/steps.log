@@ -1,0 +1,40 @@
+23:49:44 guard: [guard] radiance stopped 2026-10-28 23:49:43
+23:49:44 item 1: starting server w0+m35
+23:50:15 item 1 w0+m35 speed: exit 0 results/20261028-235001-arx-w0_m35-arx-w1-w0_m35-1/result.json
+23:50:50 item 2 w0+m35 texts: exit 0       18 lines
+23:50:50 item 3: starting server rec+m35
+23:51:14 item 3 rec+m35 speed: exit 0 results/20261028-235101-arx-rec_m35-arx-w1-rec_m35-3/result.json
+23:51:49 item 4 rec+m35 texts: exit 0       18 lines
+23:52:03 item 5 rec+m35 speed: exit 0 results/20261028-235150-arx-rec_m35-arx-w1-rec_m35-5/result.json
+23:52:03 item 6: starting server w0+m35+r2
+23:52:28 item 6 w0+m35+r2 speed: exit 0 results/20261028-235214-arx-w0_m35_r2-arx-w1-w0_m35_r2-6/result.json
+23:52:42 item 7 w0+m35+r2 speed: exit 0 results/20261028-235228-arx-w0_m35_r2-arx-w1-w0_m35_r2-7/result.json
+23:52:42 item 8: starting server rec+m35+r2
+23:53:07 item 8 rec+m35+r2 speed: exit 0 results/20261028-235253-arx-rec_m35_r2-arx-w1-rec_m35_r2-8/result.json
+23:53:07 item 9: starting server w0+m35+spoff
+23:53:52 item 9 w0+m35+spoff texts: exit 0       18 lines
+23:53:52 item 10: starting server rec+m35+spoff
+23:54:37 item 10 rec+m35+spoff texts: exit 0       18 lines
+23:54:37 item 11: starting server gates
+23:57:48 item 11 gates: == ids2 short-0 off: SAME (257 words; prompt=41) (11 s)|== ids2 short-0 def: SAME (257 words; prompt=41) (22 s)|== ids2 4k-0 off: SAME (257 words; prompt=2610) (34 s)|== ids2 4k-0 def: SAME (257 words; prompt=2610) (45 s)|== ids2 16k-3 off: SAME (257 words; prompt=11957) (58 s)|== ids2 16k-3 def: SAME (257 words; prompt=11957) (71 s)|== tests2 comm [A=1] rc=0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 18.98s  test ll_without_the_tag_check_is_caught_by_the_stress_test ... negative cont|== tests2 ar_norm [A=1] rc=0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s   (92 s)|== tests2 comm [INTARSIA_HIP_AR_WIDE=0] rc=0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 19.03s  test ll_without_the_tag_check_is_caught_by_the_stress_tes|== tests2 ar_norm [INTARSIA_HIP_AR_WIDE=0] rc=0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s   (113 s)|
+23:57:48 item 12: starting server rec+mb16+r1
+23:58:54 item 12 rec+mb16+r1 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|
+23:58:54 item 13: starting server px+mb16+r1
+23:59:57 item 13 px+mb16+r1 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|
+23:59:57 item 14: starting server rec+mb16+r2
+00:01:03 item 14 rec+mb16+r2 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|
+00:01:03 item 15: starting server px+mb16+r2
+00:02:09 item 15 px+mb16+r2 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|
+00:02:09 item 16: starting server rec+mb16+r3
+00:03:15 item 16 rec+mb16+r3 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|
+00:03:15 item 17: starting server px+mb16+r3
+00:04:21 item 17 px+mb16+r3 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|
+00:04:21 item 18: starting server rec+mb16+r4
+00:05:27 item 18 rec+mb16+r4 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|
+00:05:27 item 19: starting server px+mb16+r4
+00:06:33 item 19 px+mb16+r4 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|
+00:06:33 item 20: starting server rec+mb16+r5
+00:07:39 item 20 rec+mb16+r5 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|
+00:07:39 item 21: starting server px+mb16+r5
+00:08:42 item 21 px+mb16+r5 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|
+00:09:07 guard: [guard] radiance answers 2026-10-29 00:09:07 (after 30 s)

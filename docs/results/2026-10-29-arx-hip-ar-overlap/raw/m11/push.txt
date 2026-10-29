@@ -1,0 +1,19 @@
+
+running 4 tests
+test pushed_all_reduce_is_bitwise_the_plain_pair ... ok
+test pushed_all_reduce_is_bitwise_the_plain_pair_over_m ... 
+thread 'pushed_all_reduce_is_bitwise_the_plain_pair_over_m' panicked at crates/intarsia-backend-hip/tests/ar_push.rs:186:5:
+pushed all-reduce differs from the plain pair at M = [511, 767, 1023, 1144, 1147, 1599, 2047]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test pushed_all_reduce_survives_a_delayed_rank ... ok
+test pushed_all_reduce_without_the_wait_is_caught_by_the_stress_test ... negative control (pushed, no wait): 94 wrong results
+ok
+
+failures:
+
+failures:
+    pushed_all_reduce_is_bitwise_the_plain_pair_over_m
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.42s
+

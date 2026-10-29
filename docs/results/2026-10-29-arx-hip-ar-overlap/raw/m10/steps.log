@@ -1,0 +1,7 @@
+01:31:07 guard: [guard] radiance stopped 2026-10-29 01:31:07
+01:31:07 item 1: starting server t0+bin=arx-dev-cli
+01:32:43 item 1 t0+bin=arx-dev-cli texts2: 4k-0 a36fcaedc82c 916 chars, 256 tokens, 6.2s|16k-0 7db9923364e9 902 chars, 256 tokens, 9.8s|
+01:32:43 item 2: starting server t1+bin=arx-dev-cli
+01:34:16 item 2 t1+bin=arx-dev-cli texts2: 4k-0 a36fcaedc82c 916 chars, 256 tokens, 6.2s|16k-0 a79fec9a4ae0 1057 chars, 256 tokens, 10.0s|
+01:34:16 done
+01:34:26 guard: [guard] radiance answers 2026-10-29 01:34:26 (after 15 s)
