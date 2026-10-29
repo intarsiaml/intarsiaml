@@ -2576,17 +2576,19 @@ impl Model {
     }
 
     /// Lane moe16b: a fork point on `self.stream` for [`Model::side_run`], or `None` (everything in order on one stream). `proj`
-    /// false: the MoE block's shared expert beside the routed experts (`INTARSIA_MOE_SHARED_STREAM`, default on, `0` off); true: the
-    /// attention block's k / v and the GatedDeltaNet block's z / b / a projections beside its q / qkv projection
-    /// (`INTARSIA_SIDE_PROJ`, default on, `0` off). Only for a decode step: one row, or a row-exact pass of up to `SIDE_MAX_ROWS` rows (a
-    /// batched step, a verify): its kernels are GEMVs that take no plan scratch (the routed experts own it); a short prefill chunk
-    /// would pick the scratch-using cuBLASLt GEMMs from 5 rows. And only on a backend that forks inside a graph capture, single rank, not profiled (per-op timing synchronises one stream) and not in a plan dry run (the recorded calls and
-    /// their order are the same either way: only the stream of the shared-expert launches changes).
+    /// false: the MoE block's shared expert beside the routed experts (`INTARSIA_MOE_SHARED_STREAM=1`, opt-in); true: the attention
+    /// block's k / v and the GatedDeltaNet block's z / b / a projections beside its q / qkv projection (`INTARSIA_SIDE_PROJ=1`,
+    /// opt-in). Only for a decode step: one row, or a row-exact pass of up to `SIDE_MAX_ROWS` rows (a batched step, a verify),
+    /// whose kernels are GEMVs that take no plan scratch (the routed experts own it); a short prefill chunk would pick the
+    /// scratch-using cuBLASLt GEMMs from 5 rows. And only on a backend that forks inside a graph capture, single rank, not
+    /// profiled (per-op timing synchronises one stream) and not in a plan dry run (the recorded calls and their order are the
+    /// same either way: only the stream of the side launches changes).
     pub(crate) fn side_fork(&self, proj: bool, rows: usize, profile: bool) -> Result<Option<u64>> {
         const SIDE_MAX_ROWS: usize = 16;
         static MOE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
         static PROJ: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-        let knob = |name: &str| std::env::var(name).map_or(true, |v| v.trim() != "0");
+        // opt-in (lane moe16b's serve A/B fell short of its 16-stream gate): `1` on, unset / anything else off
+        let knob = |name: &str| std::env::var(name).is_ok_and(|v| v.trim() == "1");
         let on = if proj {
             *PROJ.get_or_init(|| knob("INTARSIA_SIDE_PROJ"))
         } else {

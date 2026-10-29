@@ -15,10 +15,15 @@ Every exactness gate passes:
 - `rows_exact` passes.
 - `plan show` is byte-identical for 8B, 35B and Gemma-4.
 - Mac `cargo test --workspace --release` passes.
+- `batch_cuda_real` on the 8B with both knobs on: 4290 pairs bitwise.
 
 The change is exact: it runs the same kernels on the same inputs in the same issue order. Only the stream of some launches changes.
 
-GPU windows used: **1 of 2** (#6628). An earlier attempt, #6627, failed at once because the script was not executable. It loaded nothing and is not counted.
+**Both knobs are opt-in on this branch** (`INTARSIA_MOE_SHARED_STREAM=1`, `INTARSIA_SIDE_PROJ=1`; unset = main's single stream),
+because the speed gates fail. Every measurement below ran the build where they were on by default (1e2db288c), which is the same
+code path as setting both to `1`.
+
+GPU windows used: **2 of 2** (#6628 speed + exactness, #6647 8B batched-equals-solo). An earlier attempt, #6627, failed at once because the script was not executable. It loaded nothing and is not counted.
 Raw: `2026-10-28-moe16b-step-overlap/raw/`. Scripts: `scripts/moe16b/`, which are copies of `scripts/msd/` retargeted to this lane's folders, plus `micro*.sh` and `w1.sh`.
 
 ## 1. What changed
@@ -37,11 +42,11 @@ A 5+-row prefill chunk is excluded: it picks the cuBLASLt GEMMs, which take the 
 failed in prefill on the guard error described below. The fork condition was then fixed (commit 1e2db288c).
 
 **What runs on the side stream:**
-- **MoE block** (`INTARSIA_MOE_SHARED_STREAM`, default on, `0` off): the shared expert (gate, up, silu_glu, down and, in a batched
+- **MoE block** (`INTARSIA_MOE_SHARED_STREAM=1`, opt-in): the shared expert (gate, up, silu_glu, down and, in a batched
   step, the gate logit). It forks after the router and runs beside the top-k and the routed experts, then joins before
   `MoeCombine`. The fold into `SharedDownCombine` is not tried while forked, because it reads the routed result. CUDA has no such
   kernel, so nothing changes there.
-- **Attention** (`INTARSIA_SIDE_PROJ`, default on, `0` off): k / v (+ bias) beside q and its gate split.
+- **Attention** (`INTARSIA_SIDE_PROJ=1`, opt-in): k / v (+ bias) beside q and its gate split.
 - **GatedDeltaNet** (`INTARSIA_SIDE_PROJ`): z, b, a beside qkv. This covers the solo block and the batched block. It joins before
   the conv reads them.
 
@@ -71,7 +76,7 @@ rounds reversed), a fresh server per arm.
 
 The arms:
 - **base**: `origin/main` 318d508fb.
-- **dev**: this branch, both knobs on, as it ships.
+- **dev**: this branch with both knobs on.
 - **moeonly**: dev with `INTARSIA_SIDE_PROJ=0`, so only the shared expert is on the side stream.
 
 Aggregate tok/s:
@@ -99,13 +104,13 @@ to 264 tokens. One process per variant, because the knobs are read once per proc
 | variant | B=8, mean ms | B=16, mean ms | B=16 vs off |
 |---|---:|---:|---:|
 | off (three processes) | 29.05 / 29.06 / 28.99 | 46.72 / 46.80 / 46.85 | |
-| **dev as shipped** (two processes) | 28.30 / 28.29 | 45.71 / 45.78 | **-1.04 ms (-2.2 %)**; B=8 -0.73 ms (-2.5 %) |
-| shared expert forked before the router (`early`) | 28.63 | 45.75 | same as shipped |
+| **dev, both knobs on** (two processes) | 28.30 / 28.29 | 45.71 / 45.78 | **-1.04 ms (-2.2 %)**; B=8 -0.73 ms (-2.5 %) |
+| shared expert forked before the router (`early`) | 28.63 | 45.75 | same as dev |
 | GDN z kept on the main stream (only b / a on the side) | 28.79 | 45.93 | -0.8 ms |
 | shared expert only (`INTARSIA_SIDE_PROJ=0`) | 28.67 | 46.15 | -0.6 ms |
-| side streams at the default priority instead of the highest | 28.25 | 45.77 | same as shipped |
+| side streams at the default priority instead of the highest | 28.25 | 45.77 | same as dev |
 
-The `early`, z-on-main and priority variants used temporary knobs. They were removed again, so the branch ships the W1-measured
+The `early`, z-on-main and priority variants used temporary knobs. They were removed again, so the branch carries the W1-measured
 form. Spread between processes is about ±0.1 ms.
 
 **Why 16 streams gains less.** The A/B burst also contains the burst's serial prefill, about a fifth of its wall time at 16
@@ -201,20 +206,22 @@ numerics change. And this lane has no KL tool run budgeted for it.
 |---|---|
 | +5 % at 16 streams, +3 % at 8, 1 stream within 1 % (3 rounds) | **16: fail (+1.3 %)**; 8: pass (+3.3 %); 1: pass (+2.6 %) |
 | served greedy tokens identical to main (21-cell set) | **pass**: 21/21 cells, 9408 ids (`raw/ident/compare.log`) |
-| `batch_cuda_real` (batched equals solo) on the 35B | **pass**: 4290 (row, step) pairs bitwise, plus the engine test (`raw/batch-real.txt`, in W1); the decode test also as micros (`raw/batch-real-decode-micro2.txt`) |
+| `batch_cuda_real` (batched equals solo) on the 35B | **pass**: 4290 (row, step) pairs bitwise, plus the engine test (`raw/batch-real.txt`, in W1); the decode test also as micros (`raw/batch-real-decode-micro2.txt`); 8B with both knobs on: 4290 pairs bitwise (`raw/batch-real-8b.txt`, W2) |
 | `rows_exact` | **pass**: 9 tests (`raw/rows-exact.txt`) |
 | `plan show` byte-identical, 8B / 35B / Gemma-4 | **pass**: json and txt (`raw/build-3.log` first build, `raw/build-final.log` final build) |
-| Mac `cargo test --workspace --release` | **pass**: exit 0, 0 failed (`raw/mac-cargo-test.log`) |
+| Mac `cargo test --workspace --release` | **pass**: exit 0, 0 failed (`raw/mac-cargo-test.log`; final tree `raw/mac-cargo-test-final.log`) |
 | CI | see the PR |
 
 ## 7. Process
 
-GPU windows: **1 of 2**.
+GPU windows: **2 of 2**.
 - **#6628, W1**, `--quiet gpu,cpu --mem 50`, about 24 min. It ran the identity check, `batch_cuda_real`, the 3-round 3-arm A/B,
   and nsys at B=16 for base and dev.
 - **#6627** started the same script and failed on exec. It loaded no GPU work.
-- Window 2 was not used. No candidate was left that could reach +5 % at 16 streams, or even +2 %: the variants in sections 3 and 5
-  were all measured as micros first.
+- **#6647, W2**, `--quiet gpu,cpu --mem 30`: `batch_cuda_real` on the 8B (`real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`)
+  with both knobs on, because it covers the attention k / v fork on a dense model (`raw/batch-real-8b.txt`). The micro attempt
+  (#6646) ran out of its 170 s limit. No speed run was left that could reach +5 % at 16 streams, or even +2 %: the variants in
+  sections 3 and 5 were all measured as micros first.
 
 Micro jobs under 3 min on spark1, not windows:
 - #6603: fp8 prefetch.
