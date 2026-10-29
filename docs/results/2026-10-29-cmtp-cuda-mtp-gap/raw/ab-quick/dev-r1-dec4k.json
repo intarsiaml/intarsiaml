@@ -1,0 +1,3 @@
+{"rep": 0, "streams": 1, "wall": 3.896, "ttft_med": 0.479, "dec_toks_per_s_per_stream_med": 112.11, "chunks": [384]}
+{"rep": 1, "streams": 1, "wall": 3.935, "ttft_med": 0.456, "dec_toks_per_s_per_stream_med": 110.1, "chunks": [384]}
+{"rep": 2, "streams": 1, "wall": 3.843, "ttft_med": 0.456, "dec_toks_per_s_per_stream_med": 113.08, "chunks": [384]}

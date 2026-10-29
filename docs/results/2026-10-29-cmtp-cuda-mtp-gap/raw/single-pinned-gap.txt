@@ -1,0 +1,99 @@
+graph replays 495; duration ms: min 12.012 med 20.737 max 22.464
+  graphId 7: n 305 med 20.815 ms
+  graphId 4: n 95 med 20.602 ms
+  graphId 10: n 93 med 20.713 ms
+  graphId 1: n 2 med 12.019 ms
+kernels total 1949; eager (outside graph replay) 1949; memcpy 7137; memset 30
+
+passes 494 (graph >= 10.37 ms)
+  period      mean  21.037 ms  med  21.027  p10  20.307  p90  21.842
+  graph       mean  20.745 ms  med  20.739  p10  20.082  p90  21.489
+  gap         mean   0.292 ms  med   0.099  p10   0.092  p90   0.613
+  gpu_in_gap  mean   0.204 ms  med   0.001  p10   0.001  p90   0.538
+  idle        mean   0.087 ms  med   0.091  p10   0.071  p90   0.099
+  idle share of pass period: 0.42 %   (gap incl. eager GPU work: 1.39 %)
+  eager activity per gap: mean 14.4
+
+GPU work in the gaps (name: count/pass, total us/pass):
+  memcpy8                                                       11.36    202.61 us
+  memcpy1                                                        2.00      0.52 us
+  memcpy2                                                        1.00      1.02 us
+  k:rmsnorm_kernel                                               0.01      0.02 us
+  k:gemv_kernel                                                  0.00      0.15 us
+  k:rope_pass_kernel                                             0.00      0.00 us
+  k:rope_kernel                                                  0.00      0.02 us
+  k:kv_append_kernel                                             0.00      0.00 us
+  k:embedding_kernel                                             0.00      0.00 us
+  k:add_kernel                                                   0.00      0.00 us
+  k:gemv_pair_kernel                                             0.00      0.04 us
+
+CUDA runtime API calls in the gaps (name: count/pass, total us/pass on the host):
+  cudaMemcpyAsync_v3020                               13.74     57.69 us
+  cudaGraphLaunch_v10000                               1.00     89.35 us
+  cudaStreamSynchronize_v3020                          0.37   7851.00 us
+  cuKernelGetName                                      0.03      0.00 us
+  cudaLaunchKernel_v7000                               0.03      0.11 us
+  cudaMemGetInfo_v3020                                 0.00      0.29 us
+
+median-ish pass timeline (us from previous graph end):
+  +     1.8 dur      0.9  GPU memcpy2:76B
+  +    10.2 dur      4.2  API cudaMemcpyAsync_v3020
+  +    12.0 dur     11.7  GPU memcpy8:2146304B
+  +    14.8 dur      3.0  API cudaMemcpyAsync_v3020
+  +    18.1 dur      3.4  API cudaMemcpyAsync_v3020
+  +    21.8 dur      9.2  API cudaMemcpyAsync_v3020
+  +    26.0 dur     10.3  GPU memcpy8:2146304B
+  +    31.3 dur      3.5  API cudaMemcpyAsync_v3020
+  +    35.2 dur      2.5  API cudaMemcpyAsync_v3020
+  +    38.0 dur      3.4  API cudaMemcpyAsync_v3020
+  +    38.3 dur     12.5  GPU memcpy8:2146304B
+  +    41.7 dur      2.8  API cudaMemcpyAsync_v3020
+  +    44.8 dur      3.2  API cudaMemcpyAsync_v3020
+  +    48.4 dur      2.6  API cudaMemcpyAsync_v3020
+  +    51.3 dur      3.5  API cudaMemcpyAsync_v3020
+  +    51.7 dur     12.6  GPU memcpy8:2146304B
+  +    55.2 dur      3.1  API cudaMemcpyAsync_v3020
+  +    60.1 dur      5.1  API cudaMemcpyAsync_v3020
+  +    66.7 dur      3.0  API cudaMemcpyAsync_v3020
+  +    66.9 dur     18.0  GPU memcpy8:2146304B
+  +    70.0 dur      3.2  API cudaMemcpyAsync_v3020
+  +    73.6 dur      5.5  API cudaMemcpyAsync_v3020
+  +    79.5 dur      4.6  API cudaMemcpyAsync_v3020
+  +    86.0 dur      3.4  API cudaMemcpyAsync_v3020
+  +    86.4 dur     21.9  GPU memcpy8:2146304B
+  +    89.7 dur      2.8  API cudaMemcpyAsync_v3020
+  +    92.8 dur      4.2  API cudaMemcpyAsync_v3020
+  +    98.2 dur      2.8  API cudaMemcpyAsync_v3020
+  +   101.5 dur      4.5  API cudaMemcpyAsync_v3020
+  +   106.3 dur      4.7  API cudaMemcpyAsync_v3020
+  +   110.0 dur     19.1  GPU memcpy8:2146304B
+  +   111.3 dur      2.6  API cudaMemcpyAsync_v3020
+  +   114.2 dur      3.2  API cudaMemcpyAsync_v3020
+  +   118.3 dur      3.6  API cudaMemcpyAsync_v3020
+  +   122.2 dur      3.4  API cudaMemcpyAsync_v3020
+  +   126.2 dur      4.4  API cudaMemcpyAsync_v3020
+  +   130.5 dur     18.0  GPU memcpy8:2146304B
+  +   131.9 dur      3.3  API cudaMemcpyAsync_v3020
+  +   135.6 dur     14.7  API cudaMemcpyAsync_v3020
+  +   151.0 dur     17.3  GPU memcpy8:2146304B
+  +   155.7 dur      2.6  API cudaMemcpyAsync_v3020
+  +   158.8 dur      3.2  API cudaMemcpyAsync_v3020
+  +   162.4 dur     92.4  API cudaGraphLaunch_v10000
+  +   169.7 dur     21.2  GPU memcpy8:2146304B
+  +   192.2 dur     19.1  GPU memcpy8:2146304B
+  +   212.6 dur     17.4  GPU memcpy8:2146304B
+  +   232.1 dur     19.1  GPU memcpy8:2146304B
+  +   253.6 dur     17.1  GPU memcpy8:2146304B
+  +   268.8 dur      4.0  API cudaMemcpyAsync_v3020
+  +   272.1 dur     20.3  GPU memcpy8:2146304B
+  +   273.4 dur  21046.2  API cudaStreamSynchronize_v3020
+  +   273.4 dur  21046.0  SYNC
+  +   294.7 dur     18.9  GPU memcpy8:2146304B
+  +   316.1 dur     17.8  GPU memcpy8:2146304B
+  +   336.6 dur     17.2  GPU memcpy8:2146304B
+  +   356.0 dur     20.2  GPU memcpy8:2146304B
+  +   378.6 dur     17.0  GPU memcpy8:2146304B
+  +   398.0 dur     19.4  GPU memcpy8:2146304B
+  +   418.7 dur     17.4  GPU memcpy8:2146304B
+  +   438.0 dur     18.5  GPU memcpy8:2146304B
+  next graph starts +604.7
