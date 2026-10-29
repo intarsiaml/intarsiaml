@@ -101,7 +101,7 @@ fi
 #   ids    the det / ars / pf27 ids gate: greedy 256 ids of the 18 prompts in scripts/dfh/ids-prompts, tp2, base vs dev, spec off + MTP default
 if has ids; then
   IG="generate -m $M27 --backend hip --tp 2 --devices 0,1 --mem-budget 29 --max-seq 20480 --chat --no-think --profile-every 0 --ignore-eos --show-ids --max-tokens 256"
-  for pr in $(ls $R/scripts/dfh/ids-prompts | sed 's/\.txt$//'); do
+  for pr in ${IDSP:-$(ls $R/scripts/dfh/ids-prompts | sed 's/\.txt$//')}; do
     for sp in off mtp; do
       sa=""; [[ $sp == off ]] && sa="--spec off"
       for b in base dev; do

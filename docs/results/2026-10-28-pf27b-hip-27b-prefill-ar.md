@@ -11,7 +11,7 @@ Branch `lane-pf27b/prefill-overlap`, built on origin/main `a35339fe9` (PR #228).
 | What did it | (1) `matmul_mxfp4_pair_a8_mma`: the four pair sites (GDN qkv\|z and b\|a, attention k\|v, FFN gate\|up) quantise their shared activation once (992 -> 640 pre-passes per 4k prefill), one span launch per pair, the fold flags zeroed by the pre-pass instead of 992 memsets, the 128-token tile for N <= 64. (3) the wide fence path: prefill all-reduces run one 64-block launch on their own 20 MiB slot instead of five 4 MiB launches on 16 blocks (20 MiB: 1020 -> 840 us; link floor ~750 us). |
 | Overlap (item 2) | Not shipped. `INTARSIA_TP_OVERLAP=2` + `GPU_MAX_HW_QUEUES=4` + chunk 4096 on top of this branch: 888 vs 888 ms (no gain); it needs a process-wide 4-queue setting that the R9700 lessons tie to a ~20% decode loss. The all-reduce is now 208 ms per rank against a ~192 ms link floor: hiding it is the only lever left on it (section 6). |
 | Gap | Radiance 1.12.0 5214 / 5994 / 5869 (R3): 0.75 / 0.72 / 0.68x (were 0.72 / 0.67 / 0.64x against this base). vLLM-fork 4k 5399, 16k 5305 (R123 / R126 **old**): 0.80x / 0.75x. Still 3/3; the stretch (5399 at 4k) is not reached. |
-| Windows | 2 of 3 (W1 A/B + texts + mixids; W2 gates). 9 micro jobs under 3 min (m1-m9). Radiance answered on :8080 before every release (section 8). |
+| Windows | 2 of 3 (W1 A/B + texts + mixids; W2 gates). 10 micro jobs under 3 min (m1-m10). Radiance answered on :8080 before every release (section 8). |
 
 ## 1. Attribution, 4k prompt, per rank (rank 0; `rocprofv3`, `generate --max-tokens 1 --spec off`, W2 traces `raw/w2/p-*.csv.gz`)
 
@@ -89,6 +89,7 @@ The MTP-off 4k base runs read higher than the MTP-on ones (4094-4143 vs 3911-407
 | `plan show` 8B / 35B byte-identical | **met**: 1346 B / 3184 B, base vs the final dev CLI (m9; m6 on an earlier dev build agreed too; the W2 8B row failed to start on a container-name clash in the harness, fixed) |
 | all-reduce: delayed-rank stress, negative control | **met**: whole `tests/comm.rs` (13 passed) and `tests/ar_norm.rs` (4) under the default env, `INTARSIA_HIP_AR_DRAIN=1` and `INTARSIA_HIP_AR_WIDE=0`: the LL delayed-rank stress and its no-tag-check control (1380 wrong), the mode 8 control, the new wide-path stress (0 wrong in 40 rounds) and its no-wait control (246 wrong); wide == old path bitwise |
 | all-reduce: 120-process tapped soak | **met**: 120 fresh tp2 processes of the dev CLI, prompt `4k-0` (both 2048-row chunks take the wide 20 MiB launches), MTP k2, 16 tokens: 120 / 120 rc 0, 1 distinct id line, 120 / 120 taps byte-identical to each other and to main's (3 base processes, `c006426589a1...`; `raw/w2/soak-taps.md5`) |
+| merged tree (origin/main `f2bb3410f`, after #229 / #231) | **met**: ids `short-0` / `4k-0` / `16k-0` x off / MTP 6 / 6 SAME vs a fresh main build, `plan show` 8B / 35B byte-identical, 4k prefill 933-935 -> 882-886 ms (m10). #229's side-stream projections do not engage here (`side_fork`: tp > 1 and rows > 16 return `None`) |
 | CI | see the PR |
 
 ## 6. Item 2, the overlap: what `INTARSIA_TP_OVERLAP` is and why it stays off
@@ -117,6 +118,7 @@ What is left on the all-reduce: 208 ms per rank against ~192 ms of pure wire tim
 | #6667 | **W1** | localeval A/B, texts, mixids (22:19:46-22:42:06) | 15 s |
 | #6675 | **W2** | gates: a8 / comm / ar_norm tests, `kernels test --quick`, ids 36, 120-process soak, traces (22:43:09-23:04:17) | 26 s |
 | #6679 | micro m9 | plan show on the final CLI | 25 s |
+| #6684 | micro m10 | merged tree vs main `f2bb3410f`: ids x6, plan show, 4k generate | 40 s |
 
 (The first W1 start, #6665, exited at once with a permission error in the driver before stopping radiance.) CPU jobs: builds #6648, #6649, #6655, #6661, #6663.
 
