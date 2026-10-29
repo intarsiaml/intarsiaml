@@ -1,0 +1,25 @@
+== INTARSIA_CUDA_FP8_TRIPLE_ROWS=0 12:12:31
+STEP B=8 ms 26.027 27.191 28.585
+STEP B=16 ms 41.242 42.559 44.185
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 50.05s
+== - 12:13:22
+STEP B=8 ms 25.904 27.160 28.421
+STEP B=16 ms 41.165 42.688 44.118
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.46s
+== INTARSIA_CUDA_FP8_TRIPLE_ROWS=2 12:14:10
+STEP B=8 ms 25.990 27.152 28.463
+STEP B=16 ms 41.173 42.725 44.250
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 46.52s
+== INTARSIA_CUDA_FP8_TRIPLE_ROWS=2 12:14:57
+STEP B=8 ms 25.911 27.215 28.456
+STEP B=16 ms 41.468 42.599 44.173
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.35s
+== - 12:15:45
+STEP B=8 ms 25.988 27.220 28.531
+STEP B=16 ms 41.086 42.434 44.153
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 47.78s
+== INTARSIA_CUDA_FP8_TRIPLE_ROWS=0 12:16:34
+STEP B=8 ms 26.024 27.144 28.573
+STEP B=16 ms 41.231 42.536 44.223
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 49.22s
+== done 12:17:23

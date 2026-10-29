@@ -1,0 +1,9 @@
+fleetq: #7067 running on spark1: ssh spark1 'bash -s'
+PASS plan 8 json byte-identical (8973 B, md5 86564f6f)
+PASS plan 8 txt byte-identical (1548 B, md5 a4ee469e)
+PASS plan 35 json byte-identical (15570 B, md5 ed24f896)
+PASS plan 35 txt byte-identical (4017 B, md5 79073eb4)
+PASS plan g json byte-identical (8408 B, md5 2a659412)
+PASS plan g txt byte-identical (1797 B, md5 ec4ef23e)
+plan fails=0
+fleetq: #7067 done (exit 0)
