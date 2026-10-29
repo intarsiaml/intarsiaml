@@ -1,0 +1,3 @@
+fleetq: #6714 running on endor: scripts/prb/served.sh bin/fix docs/results/2026-10-29-prb-prefix-reuse-probe/raw/served
+scripts/prb/served.sh: line 26: X[@]: unbound variable
+fleetq: #6714 done (exit 1)

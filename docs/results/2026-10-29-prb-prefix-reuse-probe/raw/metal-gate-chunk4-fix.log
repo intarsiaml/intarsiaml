@@ -1,0 +1,67 @@
+fleetq: #6699 waiting (#1 in line): needs gpu quiet on endor, but #6698 "prb: Mac cargo test --workspace --release" (claude-f31ccf91) loads it
+fleetq:   #6698 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6698 set, or it will wait for #6698 to be released.
+fleetq: #6699 running on endor: env INTARSIA_PROBE_DIR=/Users/josef/Models/Qwen3-8B INTARSIA_PROBE_BACKEND=metal INTARSIA_PROBE_CHUNK=4 cargo test --release -p intarsia-models --test prefix_reuse_real reuse_rule_resumes -- --nocapture --test-threads=1
+warning: field `spec_dflash` is never read
+    --> crates/intarsia-core/src/engine.rs:1135:5
+     |
+1102 | pub(crate) struct Seq {
+     |                   --- field in this struct
+...
+1135 |     spec_dflash: bool,
+     |     ^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1213:4
+     |
+1213 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: unreachable pattern
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:307:13
+    |
+307 |             _ => {}
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:307:13
+    |
+304 |             GenEvent::Token { id, .. } => ids.push(id),
+    |             -------------------------- matches some of the same values
+305 |             GenEvent::Done { finish_reason, cached_tokens, .. } => return (Out { ids, reason: Some(finish_reason) }, cached_tokens),
+    |             --------------------------------------------------- matches some of the same values
+306 |             GenEvent::Error { message, .. } => panic!("request failed: {message}"),
+    |             ------------------------------- matches some of the same values
+307 |             _ => {}
+    |             ^ collectively making this unreachable
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "prefix_reuse_real") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/prefix_reuse_real.rs (target/release/deps/prefix_reuse_real-87d86364fad22268)
+
+running 1 test
+test reuse_rule_resumes_with_cold_bits ... reuse cuts (plen, resumed at) of the repeated prompts: [(7, 4), (13, 8), (7, 4), (13, 8), (15, 12), (8, 4), (8, 4), (5, 0), (13, 8), (6, 4), (6, 4), (9, 4), (5, 0), (6, 4), (7, 4), (6, 4)]
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 67.16s
+
+fleetq: #6699 done (exit 0)
