@@ -1,0 +1,16 @@
+fleetq: #6644 running on spark1: ssh -n -o BatchMode=yes spark1 'export PATH=/usr/local/cuda/bin:$PATH INTARSIA_REQUIRE_GPU=1; cd ~/intarsiaml-moe16b/src && T=$(ls -t target/release/deps/rows_exact-* | grep -v "\.d$" | head -1); date +%T; timeout 200 $T --test-threads=4 2>&1 | grep -aE "^test |panicked|FAIL|test result" | cut -c1-200; date +%T'
+21:41:29
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_ops_are_row_independent ... ok
+test fp8_rows_q_are_bitwise_the_one_row_gemv ... ok
+test timing_gemv_rows ... ignored, micro-timing
+test timing_rows_evict ... ignored, micro-timing
+test rows_split_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_full_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 16.25s
+21:41:45
+fleetq: #6644 done (exit 0)

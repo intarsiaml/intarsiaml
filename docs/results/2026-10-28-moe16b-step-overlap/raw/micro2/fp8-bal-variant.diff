@@ -1,0 +1,174 @@
+diff --git a/kernels/cuda/fp8.cu b/kernels/cuda/fp8.cu
+index 0a2975ad6..2008d5d6e 100644
+--- a/kernels/cuda/fp8.cu
++++ b/kernels/cuda/fp8.cu
+@@ -378,52 +378,78 @@ constexpr size_t kQSmemMax = 96 * 1024;
+ 
+ // rows m0 .. m0 + RM - 1 of the call, staged in xs: XQ as codes [RM][KV] (16 codes per uint4, element order), else as bf16
+ // halves [RM][2][KV] (the persistent kernel's layout)
+-template <int RM, int NT, int W, bool XQ, typename OutT>
+-__device__ __forceinline__ void rows_q_tiles(const uint4* __restrict__ xs, const uint8_t* __restrict__ w, float s_out,
+-                                             OutT* __restrict__ out, int m0, int N, int K) {
++// one tile: the outputs nb .. nb + NT - 1 of rows m0 .. m0 + RM - 1 (outputs >= `lim` are dead: they read row 0, nothing is stored)
++template <int RM, int NT, bool XQ, typename OutT>
++__device__ __forceinline__ void rows_q_tile(const uint4* __restrict__ xs, const uint8_t* __restrict__ w, float s_out,
++                                            OutT* __restrict__ out, int m0, int N, int K, int64_t nb, int64_t lim) {
+     const int KV = K / 16;
+-    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+-    const int64_t tiles = ((int64_t)N + NT - 1) / NT;
+-    for (int64_t t = (int64_t)blockIdx.x * W + warp; t < tiles; t += (int64_t)gridDim.x * W) {
+-        const int64_t nb = t * NT;  // this tile's outputs: nb .. nb + NT - 1
+-        const uint4* wr[NT];
++    const int lane = threadIdx.x % IK_WARP;
++    const uint4* wr[NT];
+ #pragma unroll
+-        for (int j = 0; j < NT; ++j) wr[j] = reinterpret_cast<const uint4*>(w + (nb + j < N ? nb + j : 0) * (int64_t)K);  // a dead output reads row 0
+-        float acc[NT][RM];
++    for (int j = 0; j < NT; ++j) wr[j] = reinterpret_cast<const uint4*>(w + (nb + j < lim ? nb + j : 0) * (int64_t)K);  // a dead output reads row 0
++    float acc[NT][RM];
+ #pragma unroll
+-        for (int j = 0; j < NT; ++j)
++    for (int j = 0; j < NT; ++j)
+ #pragma unroll
+-            for (int m = 0; m < RM; ++m) acc[j][m] = 0.f;
++        for (int m = 0; m < RM; ++m) acc[j][m] = 0.f;
+ #pragma unroll 2
+-        for (int u = lane; u < KV; u += IK_WARP) {
+-            float wf[NT][16];
++    for (int u = lane; u < KV; u += IK_WARP) {
++        float wf[NT][16];
+ #pragma unroll
+-            for (int j = 0; j < NT; ++j) ik_fp8x16_to_f32(__ldcs(wr[j] + u), wf[j]);
++        for (int j = 0; j < NT; ++j) ik_fp8x16_to_f32(__ldcs(wr[j] + u), wf[j]);
+ #pragma unroll
+-            for (int m = 0; m < RM; ++m) {
+-                float xf[16];
+-                if constexpr (XQ) {
+-                    ik_fp8x16_to_f32(xs[m * KV + u], xf);
+-                } else {
+-                    ik_unpack8(xs[(m * 2) * KV + u], xf);
+-                    ik_unpack8(xs[(m * 2 + 1) * KV + u], xf + 8);
+-                }
++        for (int m = 0; m < RM; ++m) {
++            float xf[16];
++            if constexpr (XQ) {
++                ik_fp8x16_to_f32(xs[m * KV + u], xf);
++            } else {
++                ik_unpack8(xs[(m * 2) * KV + u], xf);
++                ik_unpack8(xs[(m * 2 + 1) * KV + u], xf + 8);
++            }
+ #pragma unroll
+-                for (int j = 0; j < NT; ++j) {
+-                    float sdot = 0.f;
++            for (int j = 0; j < NT; ++j) {
++                float sdot = 0.f;
+ #pragma unroll
+-                    for (int e = 0; e < 16; ++e) sdot = fmaf(wf[j][e], xf[e], sdot);
+-                    acc[j][m] += sdot;
+-                }
++                for (int e = 0; e < 16; ++e) sdot = fmaf(wf[j][e], xf[e], sdot);
++                acc[j][m] += sdot;
+             }
+         }
++    }
+ #pragma unroll
+-        for (int j = 0; j < NT; ++j)
++    for (int j = 0; j < NT; ++j)
+ #pragma unroll
+-            for (int m = 0; m < RM; ++m) {
+-                const float r = ik_warp_sum(acc[j][m]);  // all 32 lanes call it (full-mask shuffles)
+-                if (lane == 0 && nb + j < N) ik_store(out + (int64_t)(m0 + m) * N + nb + j, r * s_out);
++        for (int m = 0; m < RM; ++m) {
++            const float r = ik_warp_sum(acc[j][m]);  // all 32 lanes call it (full-mask shuffles)
++            if (lane == 0 && nb + j < lim) ik_store(out + (int64_t)(m0 + m) * N + nb + j, r * s_out);
++        }
++}
++
++// rows m0 .. m0 + RM - 1 of the call, staged in xs: XQ as codes [RM][KV] (16 codes per uint4, element order), else as bf16
++// halves [RM][2][KV] (the persistent kernel's layout). Tiles of NT outputs, warp-strided over the grid. BAL (lane moe16b): each warp
++// takes a contiguous run of N / (all warps) outputs instead (every SM the same share, to one output), as tiles of NT, then of NT / 2
++// .. 1 for the rest; each output's arithmetic is the same either way (its own lane-strided blocks, fmaf chain, warp tree).
++template <int RM, int NT, int W, bool XQ, bool BAL, typename OutT>
++__device__ __forceinline__ void rows_q_tiles(const uint4* __restrict__ xs, const uint8_t* __restrict__ w, float s_out,
++                                             OutT* __restrict__ out, int m0, int N, int K) {
++    const int warp = threadIdx.x / IK_WARP;
++    if constexpr (BAL) {
++        const int64_t g = (int64_t)blockIdx.x * W + warp, G = (int64_t)gridDim.x * W;
++        const int64_t lo = g * N / G, hi = (g + 1) * N / G;
++        int64_t nb = lo;
++        for (; nb + NT <= hi; nb += NT) rows_q_tile<RM, NT, XQ>(xs, w, s_out, out, m0, N, K, nb, hi);
++        if constexpr (NT >= 4) {
++            if (nb + NT / 2 <= hi) {
++                rows_q_tile<RM, NT / 2, XQ>(xs, w, s_out, out, m0, N, K, nb, hi);
++                nb += NT / 2;
+             }
++        }
++        if constexpr (NT >= 2) {
++            for (; nb < hi; ++nb) rows_q_tile<RM, 1, XQ>(xs, w, s_out, out, m0, N, K, nb, hi);
++        }
++    } else {
++        const int64_t tiles = ((int64_t)N + NT - 1) / NT;
++        for (int64_t t = (int64_t)blockIdx.x * W + warp; t < tiles; t += (int64_t)gridDim.x * W)
++            rows_q_tile<RM, NT, XQ>(xs, w, s_out, out, m0, N, K, t * NT, N);
+     }
+ }
+ 
+@@ -436,7 +462,7 @@ IK_DEVI void rows_q_stage_bf16(const ik_bf16* __restrict__ x, uint4* __restrict_
+     }
+ }
+ 
+-template <int M, int NT, int W, int MINB, typename OutT>
++template <int M, int NT, int W, int MINB, typename OutT, bool BAL = false>
+ __global__ void __launch_bounds__(W * IK_WARP, MINB)
+ fp8_gemv_rows_q_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                        OutT* __restrict__ out, int N, int K) {
+@@ -460,7 +486,7 @@ fp8_gemv_rows_q_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
+             xs[i] = make_uint4(c[0], c[1], c[2], c[3]);
+         }
+         __syncthreads();
+-        rows_q_tiles<M, NT, W, true>(xs, w, sc[0] * s_in, out, 0, N, K);
++        rows_q_tiles<M, NT, W, true, BAL>(xs, w, sc[0] * s_in, out, 0, N, K);
+         return;
+     }
+     constexpr int G = M / 2;  // W8A16: bf16 rows, G at a time (G * K * 2 <= M * K bytes)
+@@ -469,21 +495,21 @@ fp8_gemv_rows_q_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
+         __syncthreads();  // the previous group is consumed
+         rows_q_stage_bf16(x, xs, g * G, G, K);
+         __syncthreads();
+-        rows_q_tiles<G, NT, W, false>(xs, w, sc[0], out, g * G, N, K);
++        rows_q_tiles<G, NT, W, false, BAL>(xs, w, sc[0], out, g * G, N, K);
+     }
+     if constexpr (M % 2 == 1) {
+         __syncthreads();
+         rows_q_stage_bf16(x, xs, M - 1, 1, K);
+         __syncthreads();
+-        rows_q_tiles<1, NT, W, false>(xs, w, sc[0], out, M - 1, N, K);
++        rows_q_tiles<1, NT, W, false, BAL>(xs, w, sc[0], out, M - 1, N, K);
+     }
+ }
+ 
+-template <int M, int NT, int W, int MINB, typename OutT>
++template <int M, int NT, int W, int MINB, typename OutT, bool BAL = false>
+ int rows_run_q(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, cudaStream_t s) {
+     const size_t smem = (size_t)M * K;
+-    auto kern = fp8_gemv_rows_q_kernel<M, NT, W, MINB, OutT>;
+-    const bool cap_set = smem_cap_once<fp8_gemv_rows_q_kernel<M, NT, W, MINB, OutT>>(kQSmemMax);
++    auto kern = fp8_gemv_rows_q_kernel<M, NT, W, MINB, OutT, BAL>;
++    const bool cap_set = smem_cap_once<fp8_gemv_rows_q_kernel<M, NT, W, MINB, OutT, BAL>>(kQSmemMax);
+     if (!cap_set) return IK_ERR_LAUNCH;
+     int occ = 0;
+     if (cudaOccupancyMaxActiveBlocksPerMultiprocessor(&occ, kern, W * IK_WARP, smem) != cudaSuccess || occ < 1) occ = 1;
+@@ -507,6 +533,13 @@ int rows_run_q_shape(const ik_bf16* x, const uint8_t* w, const float* sc, OutT*
+         if (!strcmp(f, "1x8")) return rows_run_q<M, 1, 8, 2>(x, w, sc, out, N, K, s);
+         if (!strcmp(f, "1x8x3")) return rows_run_q<M, 1, 8, 3>(x, w, sc, out, N, K, s);
+         if (!strcmp(f, "4x8")) return rows_run_q<M, 4, 8, 1>(x, w, sc, out, N, K, s);
++        // lane moe16b: the balanced split (every warp the same run of outputs, to one)
++        if (!strcmp(f, "b2x8x2")) return rows_run_q<M, 2, 8, 2, OutT, true>(x, w, sc, out, N, K, s);
++        if (!strcmp(f, "b1x16")) return rows_run_q<M, 1, 16, 1, OutT, true>(x, w, sc, out, N, K, s);
++        if (!strcmp(f, "b2x12")) return rows_run_q<M, 2, 12, 1, OutT, true>(x, w, sc, out, N, K, s);
++        if (!strcmp(f, "b2x16")) return rows_run_q<M, 2, 16, 1, OutT, true>(x, w, sc, out, N, K, s);
++        if (!strcmp(f, "b4x8")) return rows_run_q<M, 4, 8, 1, OutT, true>(x, w, sc, out, N, K, s);
++        if (!strcmp(f, "b4x12")) return rows_run_q<M, 4, 12, 1, OutT, true>(x, w, sc, out, N, K, s);
+     }
+     if (N <= kQSmallN) return rows_run_q<M, 1, 16, 1>(x, w, sc, out, N, K, s);
+     return rows_run_q<M, 2, 8, 2>(x, w, sc, out, N, K, s);

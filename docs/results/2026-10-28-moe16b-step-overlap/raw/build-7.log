@@ -1,0 +1,9 @@
+fleetq: #6638 running on spark1: bash -c 'scripts/moe16b/build.sh dev && scripts/moe16b/batch-real.sh build'
+    Finished `release` profile [optimized] target(s) in 2m 10s
+-rwxrwxr-x 1 nvidia nvidia 108414376 Oct 28 21:28 /home/nvidia/intarsiaml-moe16b/bin/dev
+intarsia 0.0.1
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 10.24s
+  Executable tests/batch_cuda_real.rs (target/release/deps/batch_cuda_real-a41e7f0f521d6475)
+fleetq: #6638 done (exit 0)

@@ -1,0 +1,207 @@
+fleetq: #6628 running on spark1: scripts/moe16b/w1.sh
+20:51:43
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+EQUAL  greedy/n4
+EQUAL  greedy/n16
+21/21 cells identical, 9408 token ids compared
+identity exit 0
+20:54:59
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663231488, free_bytes: 70699077632, weights_bytes: 20825033460, workspace_bytes: 694874000, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 67164122907, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+4290 (row, step) pairs bitwise identical in 75.7 s
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 14 filtered out; finished in 288.62s
+20:59:49
+== round 1 arm base 20:59:49
+base r1: MemAvailable 62504 MB with the server up
+msd-base-r1: - result file: `results/20261028-210033-adhoc-msd-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261028-210033-adhoc-msd-base-r1/result.json 
+[localeval] 1 streams: aggregate 78.7 tok/s
+[localeval] 4 streams: aggregate 165.4 tok/s
+[localeval] 8 streams: aggregate 221.0 tok/s
+[localeval] 16 streams: aggregate 269.7 tok/s
+== round 1 arm dev 21:01:20
+dev r1: MemAvailable 62500 MB with the server up
+msd-dev-r1: - result file: `results/20261028-210156-adhoc-msd-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261028-210156-adhoc-msd-dev-r1/result.json 
+[localeval] 1 streams: aggregate 80.1 tok/s
+[localeval] 4 streams: aggregate 170.9 tok/s
+[localeval] 8 streams: aggregate 228.9 tok/s
+[localeval] 16 streams: aggregate 272.6 tok/s
+== round 1 arm moeonly 21:02:42
+moeonly r1: MemAvailable 62495 MB with the server up
+msd-moeonly-r1: - result file: `results/20261028-210318-adhoc-msd-moeonly-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261028-210318-adhoc-msd-moeonly-r1/result.json 
+[localeval] 1 streams: aggregate 79.9 tok/s
+[localeval] 4 streams: aggregate 168.2 tok/s
+[localeval] 8 streams: aggregate 227.2 tok/s
+[localeval] 16 streams: aggregate 272.3 tok/s
+== round 2 arm moeonly 21:04:04
+moeonly r2: MemAvailable 62488 MB with the server up
+msd-moeonly-r2: - result file: `results/20261028-210443-adhoc-msd-moeonly-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261028-210443-adhoc-msd-moeonly-r2/result.json 
+[localeval] 1 streams: aggregate 79.8 tok/s
+[localeval] 4 streams: aggregate 166.5 tok/s
+[localeval] 8 streams: aggregate 219.5 tok/s
+[localeval] 16 streams: aggregate 272.5 tok/s
+== round 2 arm dev 21:05:30
+dev r2: MemAvailable 62508 MB with the server up
+msd-dev-r2: - result file: `results/20261028-210606-adhoc-msd-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261028-210606-adhoc-msd-dev-r2/result.json 
+[localeval] 1 streams: aggregate 80.8 tok/s
+[localeval] 4 streams: aggregate 168.4 tok/s
+[localeval] 8 streams: aggregate 225.1 tok/s
+[localeval] 16 streams: aggregate 274.0 tok/s
+== round 2 arm base 21:06:52
+base r2: MemAvailable 62523 MB with the server up
+msd-base-r2: - result file: `results/20261028-210729-adhoc-msd-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261028-210729-adhoc-msd-base-r2/result.json 
+[localeval] 1 streams: aggregate 78.7 tok/s
+[localeval] 4 streams: aggregate 166.2 tok/s
+[localeval] 8 streams: aggregate 217.3 tok/s
+[localeval] 16 streams: aggregate 269.9 tok/s
+== round 3 arm base 21:08:15
+base r3: MemAvailable 62500 MB with the server up
+msd-base-r3: - result file: `results/20261028-210850-adhoc-msd-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261028-210850-adhoc-msd-base-r3/result.json 
+[localeval] 1 streams: aggregate 77.9 tok/s
+[localeval] 4 streams: aggregate 165.8 tok/s
+[localeval] 8 streams: aggregate 217.4 tok/s
+[localeval] 16 streams: aggregate 268.4 tok/s
+== round 3 arm dev 21:09:37
+dev r3: MemAvailable 62516 MB with the server up
+msd-dev-r3: - result file: `results/20261028-211013-adhoc-msd-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261028-211013-adhoc-msd-dev-r3/result.json 
+[localeval] 1 streams: aggregate 80.4 tok/s
+[localeval] 4 streams: aggregate 173.8 tok/s
+[localeval] 8 streams: aggregate 223.6 tok/s
+[localeval] 16 streams: aggregate 271.8 tok/s
+== round 3 arm moeonly 21:10:59
+moeonly r3: MemAvailable 62516 MB with the server up
+msd-moeonly-r3: - result file: `results/20261028-211145-adhoc-msd-moeonly-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261028-211145-adhoc-msd-moeonly-r3/result.json 
+[localeval] 1 streams: aggregate 79.3 tok/s
+[localeval] 4 streams: aggregate 165.6 tok/s
+[localeval] 8 streams: aggregate 218.2 tok/s
+[localeval] 16 streams: aggregate 268.2 tok/s
+== done 21:12:32
+21:12:32
+round 0 streams 2 wall 1.54s ttft_med 1.05 ttft_max 1.05 chunks [32, 32]
+round 0 streams 16 wall 15.95s ttft_med 2.40 ttft_max 4.10 chunks [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+clusters: [(31344, 1.5), (266754, 15.6)]
+-- whole burst: span 15587 ms, 266754 kernels, kernel sum 15289 ms, union busy 15285 ms, GPU idle 1.9 %
+moe_dec_gate_up_kernel<                                                              3728.8 ms  24.4 %  11440 calls     325.9 us avg
+gdn_delta_split_kernel<                                                              2590.1 ms  16.9 %   9060 calls     285.9 us avg
+moe_dec_down_v2_kernel<                                                              2158.2 ms  14.1 %  11440 calls     188.7 us avg
+fp8_gemv_rows_q_kernel<                                                              2041.1 ms  13.3 %  32560 calls      62.7 us avg
+moe_w4a16_kernel<                                                                    1540.1 ms  10.1 %   1280 calls    1203.2 us avg
+splitkv_kernel<                                                                       535.6 ms   3.5 %   2860 calls     187.3 us avg
+nvfp4_gemv_full_kernel<                                                               477.4 ms   3.1 %    262 calls    1822.2 us avg
+nvfp4_gemv_split_kernel<                                                              222.7 ms   1.5 %  21440 calls      10.4 us avg
+gemv_split_kernel<                                                                    186.9 ms   1.2 %  37520 calls       5.0 us avg
+nvjet_sm121_qqtst_mma_192x176x128_2_48x88x128_tmaAB_bz_TNNN                           173.5 ms   1.1 %    640 calls     271.1 us avg
+rmsnorm_kernel<                                                                       161.0 ms   1.1 %  29260 calls       5.5 us avg
+fp8_gemv_rows_full_kernel<                                                            133.4 ms   0.9 %   2280 calls      58.5 us avg
+gdn_conv_rows_kernel                                                                  131.0 ms   0.9 %   8040 calls      16.3 us avg
+nvfp4_gemv_tile_kernel<                                                               124.0 ms   0.8 %  10562 calls      11.7 us avg
+moe_reduce_kernel<__nv_bfloat16>                                                      113.3 ms   0.7 %    640 calls     177.1 us avg
+gdn_conv_kernel                                                                       103.0 ms   0.7 %   1020 calls     100.9 us avg
+nvjet_sm121_qqtst_mma_192x160x128_2_48x80x128_tmaAB_bz_TNNN                            87.7 ms   0.6 %    640 calls     137.0 us avg
+nvfp4_reg_kernel<                                                                      83.8 ms   0.5 %   1280 calls      65.4 us avg
+gated_rmsnorm_kernel<                                                                  75.9 ms   0.5 %   8520 calls       8.9 us avg
+fp8_gemv_pair_kernel<__nv_bfloat16>                                                    62.0 ms   0.4 %    720 calls      86.1 us avg
+sm89_xmma_gemm_e4m3bf16_e4m3f32_f32_tn_n_tilesize128x128x64_stage3_warpsize2x2x1       59.5 ms   0.4 %    480 calls     124.0 us avg
+rope_kernel                                                                            51.8 ms   0.3 %   5720 calls       9.1 us avg
+moe_topk_kernel                                                                        47.4 ms   0.3 %  12080 calls       3.9 us avg
+flash_kernel<                                                                          35.8 ms   0.2 %    160 calls     223.8 us avg
+lt_actq8_kernel                                                                        33.9 ms   0.2 %   2080 calls      16.3 us avg
+nvfp4_gemv_kernel<                                                                     32.9 ms   0.2 %    902 calls      36.4 us avg
+moe_combine_kernel<__nv_bfloat16>                                                      32.5 ms   0.2 %  12080 calls       2.7 us avg
+kv_append_rows_kernel<__nv_bfloat16,                                                   28.5 ms   0.2 %   5360 calls       5.3 us avg
+-- decode window 5.0s..15.3s: span 10287 ms, 190789 kernels, kernel sum 10157 ms, union busy 10154 ms, GPU idle 1.3 %
+moe_dec_gate_up_kernel<                                                              3162.1 ms  31.1 %   8633 calls     366.3 us avg
+moe_dec_down_v2_kernel<                                                              1807.8 ms  17.8 %   8634 calls     209.4 us avg
+gdn_delta_split_kernel<                                                              1787.7 ms  17.6 %   6475 calls     276.1 us avg
+fp8_gemv_rows_q_kernel<                                                              1774.8 ms  17.5 %  28040 calls      63.3 us avg
+splitkv_kernel<                                                                       451.0 ms   4.4 %   2158 calls     209.0 us avg
+nvfp4_gemv_full_kernel<                                                               400.0 ms   3.9 %    216 calls    1852.0 us avg
+nvfp4_gemv_split_kernel<                                                              184.6 ms   1.8 %  17266 calls      10.7 us avg
+gemv_split_kernel<                                                                    150.3 ms   1.5 %  30216 calls       5.0 us avg
+gdn_conv_rows_kernel                                                                  108.5 ms   1.1 %   6475 calls      16.8 us avg
+nvfp4_gemv_tile_kernel<                                                               101.8 ms   1.0 %   8633 calls      11.8 us avg
+rmsnorm_kernel<                                                                        49.4 ms   0.5 %  21798 calls       2.3 us avg
+rope_kernel                                                                            40.8 ms   0.4 %   4316 calls       9.5 us avg
+moe_topk_kernel                                                                        31.1 ms   0.3 %   8633 calls       3.6 us avg
+gated_rmsnorm_kernel<                                                                  27.1 ms   0.3 %   6475 calls       4.2 us avg
+kv_append_rows_kernel<__nv_bfloat16,                                                   23.3 ms   0.2 %   4316 calls       5.4 us avg
+combine_kernel<                                                                        15.0 ms   0.1 %   2158 calls       6.9 us avg
+silu_glu_kernel<                                                                       11.2 ms   0.1 %   8633 calls       1.3 us avg
+moe_combine_kernel<__nv_bfloat16>                                                      10.0 ms   0.1 %   8633 calls       1.2 us avg
+argmax_kernel<float>                                                                    7.9 ms   0.1 %    216 calls      36.6 us avg
+rope_pass_kernel                                                                        3.9 ms   0.0 %   4316 calls       0.9 us avg
+sigmoid_mul_kernel                                                                      3.5 ms   0.0 %   2158 calls       1.6 us avg
+gate_split_kernel                                                                       3.0 ms   0.0 %   2158 calls       1.4 us avg
+fp8_gemv_rows_full_kernel<                                                              1.1 ms   0.0 %     17 calls      63.4 us avg
+embedding_kernel<                                                                       0.9 ms   0.0 %    216 calls       4.3 us avg
+steps 151  mean step span 46.39 ms  mean gap 0.44 ms  (1.0 %)
+gap us: p10 404 p50 428 p90 454 max 1294
+non-kernel op '[CUDA memcpy Device-to-Host]': per step 0.000 MB, 38.0 us GPU time
+non-kernel op '[CUDA memcpy Host-to-Device]': per step 0.010 MB, 1.2 us GPU time
+21:13:49
+round 0 streams 2 wall 1.51s ttft_med 1.04 ttft_max 1.04 chunks [32, 32]
+round 0 streams 16 wall 15.83s ttft_med 2.34 ttft_max 4.04 chunks [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+clusters: [(31344, 1.5), (266754, 15.5)]
+-- whole burst: span 15516 ms, 266754 kernels, kernel sum 15917 ms, union busy 15217 ms, GPU idle 1.9 %
+moe_dec_gate_up_kernel<                                                              3869.4 ms  24.3 %  11440 calls     338.2 us avg
+gdn_delta_split_kernel<                                                              2591.7 ms  16.3 %   9060 calls     286.1 us avg
+moe_dec_down_v2_kernel<                                                              2217.0 ms  13.9 %  11440 calls     193.8 us avg
+fp8_gemv_rows_q_kernel<                                                              2133.9 ms  13.4 %  32560 calls      65.5 us avg
+moe_w4a16_kernel<                                                                    1540.7 ms   9.7 %   1280 calls    1203.7 us avg
+splitkv_kernel<                                                                       540.8 ms   3.4 %   2860 calls     189.1 us avg
+nvfp4_gemv_full_kernel<                                                               476.6 ms   3.0 %    262 calls    1818.9 us avg
+nvfp4_gemv_split_kernel<                                                              474.8 ms   3.0 %  21440 calls      22.1 us avg
+gemv_split_kernel<                                                                    188.0 ms   1.2 %  37520 calls       5.0 us avg
+nvjet_sm121_qqtst_mma_192x176x128_2_48x88x128_tmaAB_bz_TNNN                           173.6 ms   1.1 %    640 calls     271.2 us avg
+rmsnorm_kernel<                                                                       163.4 ms   1.0 %  29260 calls       5.6 us avg
+fp8_gemv_rows_full_kernel<                                                            148.1 ms   0.9 %   2280 calls      65.0 us avg
+gdn_conv_rows_kernel                                                                  131.9 ms   0.8 %   8040 calls      16.4 us avg
+nvfp4_gemv_tile_kernel<                                                               124.4 ms   0.8 %  10562 calls      11.8 us avg
+moe_reduce_kernel<__nv_bfloat16>                                                      113.3 ms   0.7 %    640 calls     177.0 us avg
+gdn_conv_kernel                                                                       102.2 ms   0.6 %   1020 calls     100.2 us avg
+nvjet_sm121_qqtst_mma_192x160x128_2_48x80x128_tmaAB_bz_TNNN                            87.4 ms   0.5 %    640 calls     136.6 us avg
+nvfp4_reg_kernel<                                                                      84.0 ms   0.5 %   1280 calls      65.7 us avg
+gated_rmsnorm_kernel<                                                                  76.6 ms   0.5 %   8520 calls       9.0 us avg
+moe_topk_kernel                                                                        68.6 ms   0.4 %  12080 calls       5.7 us avg
+fp8_gemv_pair_kernel<__nv_bfloat16>                                                    63.7 ms   0.4 %    720 calls      88.4 us avg
+sm89_xmma_gemm_e4m3bf16_e4m3f32_f32_tn_n_tilesize128x128x64_stage3_warpsize2x2x1       60.6 ms   0.4 %    480 calls     126.3 us avg
+rope_kernel                                                                            52.2 ms   0.3 %   5720 calls       9.1 us avg
+nvfp4_gemv_kernel<                                                                     37.9 ms   0.2 %    902 calls      42.0 us avg
+flash_kernel<                                                                          35.8 ms   0.2 %    160 calls     224.0 us avg
+gate_split_kernel                                                                      34.3 ms   0.2 %   3020 calls      11.4 us avg
+moe_combine_kernel<__nv_bfloat16>                                                      33.6 ms   0.2 %  12080 calls       2.8 us avg
+lt_actq8_kernel                                                                        32.5 ms   0.2 %   2080 calls      15.6 us avg
+-- decode window 5.0s..15.2s: span 10216 ms, 190060 kernels, kernel sum 10637 ms, union busy 10089 ms, GPU idle 1.2 %
+moe_dec_gate_up_kernel<                                                              3278.0 ms  30.8 %   8600 calls     381.2 us avg
+moe_dec_down_v2_kernel<                                                              1853.4 ms  17.4 %   8600 calls     215.5 us avg
+fp8_gemv_rows_q_kernel<                                                              1846.1 ms  17.4 %  27950 calls      66.1 us avg
+gdn_delta_split_kernel<                                                              1783.6 ms  16.8 %   6450 calls     276.5 us avg
+splitkv_kernel<                                                                       454.3 ms   4.3 %   2150 calls     211.3 us avg
+nvfp4_gemv_full_kernel<                                                               397.6 ms   3.7 %    215 calls    1849.5 us avg
+nvfp4_gemv_split_kernel<                                                              397.4 ms   3.7 %  17200 calls      23.1 us avg
+gemv_split_kernel<                                                                    151.4 ms   1.4 %  30100 calls       5.0 us avg
+gdn_conv_rows_kernel                                                                  108.5 ms   1.0 %   6450 calls      16.8 us avg
+nvfp4_gemv_tile_kernel<                                                               101.9 ms   1.0 %   8600 calls      11.8 us avg
+rmsnorm_kernel<                                                                        50.3 ms   0.5 %  21715 calls       2.3 us avg
+moe_topk_kernel                                                                        47.9 ms   0.5 %   8600 calls       5.6 us avg
+rope_kernel                                                                            40.9 ms   0.4 %   4300 calls       9.5 us avg
+gated_rmsnorm_kernel<                                                                  27.6 ms   0.3 %   6450 calls       4.3 us avg
+kv_append_rows_kernel<__nv_bfloat16,                                                   24.3 ms   0.2 %   4300 calls       5.6 us avg
+silu_glu_kernel<                                                                       21.7 ms   0.2 %   8600 calls       2.5 us avg
+combine_kernel<                                                                        15.5 ms   0.1 %   2150 calls       7.2 us avg
+moe_combine_kernel<__nv_bfloat16>                                                      10.8 ms   0.1 %   8600 calls       1.3 us avg
+argmax_kernel<float>                                                                    9.1 ms   0.1 %    215 calls      42.3 us avg
+gate_split_kernel                                                                       8.1 ms   0.1 %   2150 calls       3.8 us avg
+rope_pass_kernel                                                                        4.2 ms   0.0 %   4300 calls       1.0 us avg
+sigmoid_mul_kernel                                                                      3.7 ms   0.0 %   2150 calls       1.7 us avg
+embedding_kernel<                                                                       0.9 ms   0.0 %    215 calls       4.3 us avg
+steps 149  mean step span 46.97 ms  mean gap 0.43 ms  (0.9 %)
+gap us: p10 394 p50 421 p90 447 max 1448
+non-kernel op '[CUDA memcpy Device-to-Host]': per step 0.000 MB, 49.2 us GPU time
+non-kernel op '[CUDA memcpy Host-to-Device]': per step 0.010 MB, 1.2 us GPU time
+21:15:06
+fleetq: #6628 done (exit 0)
