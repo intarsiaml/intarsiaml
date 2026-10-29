@@ -138,6 +138,18 @@ pub trait OpRunner {
     fn fused_available(&self, _op: Op, _inputs: &[TensorRef], _outputs: &[TensorRef], _attrs: &OpAttrs) -> bool {
         false
     }
+    /// A fork point after everything run so far, for [`OpRunner::on_side`] (lane moe16b: the shared expert beside the routed
+    /// experts), or `None`: the runner has no second stream for a `rows`-row call and the caller runs everything in order. The
+    /// default never forks.
+    fn fork(&self, _rows: usize) -> Result<Option<u64>> {
+        Ok(None)
+    }
+    /// Run `body`'s ops on a second stream that starts at the fork point `tok`, then order the runner's own stream after them
+    /// (the join). Ops run before the call stay ordered before the fork point only; ops run after it see all of `body`'s results.
+    /// The default runs `body` inline.
+    fn on_side(&self, _tok: u64, body: &mut dyn FnMut() -> Result<()>) -> Result<()> {
+        body()
+    }
 }
 
 /// The residual add and norm in front of a block (`RmsNormAdd(blk, res, w) -> (n, sum)`), handed to the block that reads `n`
@@ -342,6 +354,10 @@ impl MoeWeights {
                 return Ok(());
             }
         }
+        // lane moe16b: the shared expert reads only `n` (and the gate logit), so it can run on a second stream beside the
+        // top-k and the routed experts; the fork point is here, after the router, and the issue order of the ops is unchanged
+        // (only the stream of the shared-expert launches differs, so every kernel and its inputs are the ones of one stream)
+        let fork = if self.shared.is_some() { run.fork(t)? } else { None };
         run.run(Op::MoeTopk, vec![logits], vec![tw.clone(), ti.clone()], attrs())?;
         run.run(
             Op::MoeExperts,
@@ -359,7 +375,38 @@ impl MoeWeights {
             attrs(),
         )?;
         let Some(sh) = &self.shared else { return Ok(()) };
-        let (g, u, a) = (view(&ws.sh_g, t), view(&ws.sh_u, t), view(&ws.sh_a, t));
+        let shared = SharedViews { n, ws, t, gate_logit_done, routed: &routed, out, so: &so, sl: &sl };
+        match fork {
+            // beside the routed experts: the combine (which reads them) runs after the join, never as the down projection's epilogue
+            Some(tok) => run.on_side(tok, &mut || shared.run(run, sh, false).map(|_| ()))?,
+            None => {
+                if shared.run(run, sh, true)? {
+                    return Ok(());
+                }
+            }
+        }
+        run.run(Op::MoeCombine, vec![routed, so, sl], vec![out.clone()], OpAttrs::default())
+    }
+}
+
+/// The shared expert's operands in [`MoeWeights::forward_folded`].
+struct SharedViews<'a> {
+    n: &'a TensorRef,
+    ws: &'a MoeScratch,
+    t: usize,
+    gate_logit_done: bool,
+    routed: &'a TensorRef,
+    out: &'a TensorRef,
+    so: &'a TensorRef,
+    sl: &'a TensorRef,
+}
+
+impl SharedViews<'_> {
+    /// `so = shared(n)` and, unless already computed, the gate logit `sl`; with `fold` the down projection may take the combine
+    /// as its epilogue (`SharedDownCombine`, writing `out`), and then this returns `true` (nothing is left to combine).
+    fn run(&self, run: &dyn OpRunner, sh: &SharedExpert, fold: bool) -> Result<bool> {
+        let (n, t) = (self.n, self.t);
+        let (g, u, a) = (view(&self.ws.sh_g, t), view(&self.ws.sh_u, t), view(&self.ws.sh_a, t));
         // shared gate + up + silu_glu in one launch when the backend has the fused nvfp4 kernel
         let glu_done = if sh.gate.format == NVFP4 && sh.up.format == NVFP4 {
             let (pg, pu) = (&sh.gate.parts, &sh.up.parts);
@@ -382,25 +429,25 @@ impl MoeWeights {
         // the shared-expert down projection with the combine as its epilogue (`SharedDownCombine`, row-local: no wait) when the
         // backend has it. Only tried when the gate logit is already computed (folded into the router pair above), so the unfused
         // fallback below keeps today's op order exactly; `so` is then not written (nothing else reads it).
-        if gate_logit_done && sh.down.format == NVFP4 {
+        if fold && self.gate_logit_done && sh.down.format == NVFP4 {
             let pd = &sh.down.parts;
             let folded = run.run_fused(
                 Op::SharedDownCombine,
-                vec![a.clone(), pd[0].clone(), pd[1].clone(), pd[2].clone(), routed.clone(), sl.clone()],
-                vec![out.clone()],
+                vec![a.clone(), pd[0].clone(), pd[1].clone(), pd[2].clone(), self.routed.clone(), self.sl.clone()],
+                vec![self.out.clone()],
                 OpAttrs::default(),
             )?;
             if folded {
-                return Ok(());
+                return Ok(true);
             }
         }
-        let call = sh.down.call(a, so.clone());
+        let call = sh.down.call(a, self.so.clone());
         run.run(call.op, call.inputs, call.outputs, call.attrs)?;
-        if !gate_logit_done {
-            let call = sh.gate_logit.call(n.clone(), sl.clone());
+        if !self.gate_logit_done {
+            let call = sh.gate_logit.call(n.clone(), self.sl.clone());
             run.run(call.op, call.inputs, call.outputs, call.attrs)?;
         }
-        run.run(Op::MoeCombine, vec![routed, so, sl], vec![out.clone()], OpAttrs::default())
+        Ok(false)
     }
 }
 

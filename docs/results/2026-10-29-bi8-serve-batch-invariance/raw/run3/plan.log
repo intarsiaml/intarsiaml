@@ -1,0 +1,7 @@
+PASS plan 8 json byte-identical (8758 B)
+PASS plan 8 txt byte-identical (1478 B)
+PASS plan 35 json byte-identical (15336 B)
+PASS plan 35 txt byte-identical (3946 B)
+PASS plan g json byte-identical (8401 B)
+PASS plan g txt byte-identical (1790 B)
+plan fails=0

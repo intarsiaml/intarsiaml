@@ -1,0 +1,19 @@
+fleetq: #6599 running on spark1: scripts/moe16b/cpu-build.sh
+Wed Oct 28 20:14:21 EDT 2026
+    Finished `release` profile [optimized] target(s) in 2m 16s
+-rwxrwxr-x 1 nvidia nvidia 108409168 Oct 28 20:17 /home/nvidia/intarsiaml-moe16b/bin/base
+intarsia 0.0.1
+Wed Oct 28 20:17:11 EDT 2026
+    Finished `release` profile [optimized] target(s) in 2m 06s
+-rwxrwxr-x 1 nvidia nvidia 109331296 Oct 28 20:19 /home/nvidia/intarsiaml-moe16b/bin/dev
+intarsia 0.0.1
+Wed Oct 28 20:19:29 EDT 2026
+warning: field `spec_dflash` is never read
+warning: function `hip_batch_needs_hybrid` is never used
+warning: field `max_tokens` is never read
+warning: field `state_id` is never read
+warning: `intarsia-core` (lib) generated 4 warnings
+    Finished `release` profile [optimized] target(s) in 12.20s
+  Executable tests/rows_exact.rs (target/release/deps/rows_exact-22d61bde1266dc5a)
+Wed Oct 28 20:19:42 EDT 2026
+fleetq: #6599 done (exit 0)

@@ -200,6 +200,14 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// True when a dense prefill may resume from any held KV row and still compute the bits a cold prefill of the whole prompt
+    /// computes, so prefix reuse may cut anywhere (`Model::reuse_len`). False where a pass's bits depend on its row count or
+    /// its first row (CUDA, measured on Qwen3-8B: every split of a prompt changed its logits): reuse then
+    /// resumes only where the prompt's own cold chunk schedule cuts. Default true (cpu; Metal and HIP keep their reuse).
+    fn prefix_reuse_any_cut(&self) -> bool {
+        true
+    }
+
     /// Most sequences one batched decode step may carry on this backend (`Model::enable_batch`, `--max-batch`): the number of
     /// rows its row-exact multi-row kernels are registered and proven for (G-B: row r of an M-row call is bitwise the one-row
     /// kernel). Default 8 (Metal's, and what the cpu backend serves in tests); the CUDA backend proves 16. Never above
@@ -306,6 +314,14 @@ pub trait Backend: Send + Sync {
     /// Whether two streams of this backend can run side by side and [`Backend::stream_wait`] orders them (lane TPO: the tensor-parallel
     /// all-reduce on a second stream beside the next rows' GEMM). `false` (the default): the engine never uses a second stream.
     fn stream_overlap(&self) -> bool {
+        false
+    }
+
+    /// Whether [`Backend::stream_record`] / [`Backend::stream_wait_for`] fork and join two streams of this backend, also inside a
+    /// [`Backend::graph_capture`] (the wait pulls the other stream into the capture, the join takes it out again), without the
+    /// lane-TPO overlap that [`Backend::stream_overlap`] turns on. Lane moe16b: the MoE block's shared expert on a second stream
+    /// beside the routed experts (`INTARSIA_MOE_SHARED_STREAM`). `false` (the default): the engine never forks.
+    fn stream_fork(&self) -> bool {
         false
     }
 

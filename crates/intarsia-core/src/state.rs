@@ -173,6 +173,11 @@ pub struct SequenceState {
     /// the engine's chunk schedule, none by a decode step, so their state is what a cold prefill of `tokens[..clean]`
     /// computes. Lowered by [`SequenceState::truncate`], set by [`SequenceState::load_prefix`]; the engine advances it.
     pub clean: usize,
+    /// The forward passes that wrote rows `0..len`, in order, as `(first row, end)`: one entry per committed pass
+    /// ([`SequenceState::commit`]). A truncate drops the passes past the new length (a pass it cuts through leaves a gap),
+    /// a prefix-store restore leaves none. Exact prefix reuse on a chunk-sensitive backend reads it
+    /// ([`SequenceState::ladder_reuse_len`]).
+    pub passes: Vec<(usize, usize)>,
     /// The MTP drafter's state (`--spec mtp` only).
     pub mtp: Option<Box<MtpState>>,
     /// The DFlash drafter's state (`--spec dflash` only).
@@ -219,6 +224,7 @@ impl SequenceState {
             peers: Vec::new(),
             remote: None,
             clean: 0,
+            passes: Vec::new(),
             mtp: None,
             dflash: None,
             spec_rows: SpecRows::default(),
@@ -439,6 +445,25 @@ impl SequenceState {
         self.snapshots.iter().map(|s| s.len).filter(|&l| l <= want).max().unwrap_or(0)
     }
 
+    /// Exact prefix reuse on a backend whose prefill bits depend on a pass's row count (`Backend::prefix_reuse_any_cut`
+    /// false, CUDA): the longest prefix `<= want` a prompt may resume from and still compute its cold prefill's bits. That is
+    /// 0, or one of `points` (the ends of the prompt's non-final cold chunks) whose rows `0..L` this state wrote with exactly
+    /// the cold schedule's passes, the full `chunk`-row passes `(0, chunk), (chunk, 2 chunk), .., (L - chunk, L)`. Rows a
+    /// decode step, a busy-size chunk or a resumed prompt wrote never qualify, nor does a prompt's own last token.
+    pub fn ladder_reuse_len(&self, want: usize, chunk: usize, points: &[usize]) -> usize {
+        let want = want.min(self.len);
+        let mut best = 0;
+        for (i, &p) in self.passes.iter().enumerate() {
+            if p != (i * chunk, (i + 1) * chunk) || p.1 > want {
+                break;
+            }
+            if points.contains(&p.1) {
+                best = p.1;
+            }
+        }
+        best
+    }
+
     /// Roll back to the first `len` tokens (prefix reuse). Attention caches just shorten;
     /// recurrent state is restored from the snapshot taken at exactly `len`, zeroed for 0, and
     /// otherwise cannot be rolled back (`Unsupported`). Truncating to 0 always zeroes recurrent
@@ -528,6 +553,7 @@ impl SequenceState {
         self.len = len;
         self.tokens.truncate(len);
         self.clean = self.clean.min(len);
+        self.passes.retain(|p| p.1 <= len);
         Ok(())
     }
 
@@ -545,6 +571,8 @@ impl SequenceState {
             }
         }
         self.clean = len;
+        // no pass of this state wrote the restored rows: exact reuse never resumes inside them
+        self.passes.clear();
         // the restored rows never went through the MTP head: its cache no longer covers the sequence
         if let Some(m) = &mut self.mtp {
             m.synced = false;
@@ -556,6 +584,7 @@ impl SequenceState {
 
     /// Advance a draft KV state by `n` ingested rows (every attention slot): the DFlash context cache holds no tokens.
     pub fn advance_rows(&mut self, n: usize) {
+        self.passes.push((self.len, self.len + n));
         self.len += n;
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {
@@ -591,6 +620,7 @@ impl SequenceState {
 
     /// Advance after a forward pass appended `ids`.
     pub fn commit(&mut self, ids: &[u32]) {
+        self.passes.push((self.len, self.len + ids.len()));
         self.len += ids.len();
         self.tokens.extend_from_slice(ids);
         for s in self.slots.iter_mut() {

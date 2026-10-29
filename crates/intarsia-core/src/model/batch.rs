@@ -1104,6 +1104,7 @@ impl Model {
             ar_defer: Mutex::new(None),
             pipe: Mutex::new(Vec::new()),
             pipe_active: std::sync::atomic::AtomicBool::new(false),
+            launch_on: std::sync::atomic::AtomicU32::new(u32::MAX),
             in_layers: std::sync::atomic::AtomicBool::new(false),
             ar_fused_eager: Default::default(),
             ar_fused_captured: Default::default(),

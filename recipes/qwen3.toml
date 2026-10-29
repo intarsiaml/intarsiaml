@@ -44,9 +44,10 @@ lm_head = { tensor = "lm_head", tied_to = "model.embed_tokens" }
 # but not yet by the GPU kernels.
 kv_dtype = "bf16"
 # Most sequences `--max-batch` may decode together (continuous batching on Metal, CUDA and HIP; the row-exact kernels
-# take 8 rows on Metal, 16 on CUDA and HIP). Batching is opt-in: without `--max-batch` the engine serves one sequence at a
-# time.
-max_batch = 8
+# take 8 rows on Metal, 16 on CUDA and HIP; the backend's own cap applies on top, so Metal still stops at 8). Batching is
+# opt-in: without `--max-batch` the engine serves one sequence at a time. 16, not 8: the 8 capped CUDA `--max-batch 16` with
+# "exceeds the max_batch 8" and left the Qwen3-8B 16-stream scoreboard cell at 8 rows (docs/results/2026-10-29-sb8-spark-8b-multistream.md).
+max_batch = 16
 
 # Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256, so CPU is unchanged).
 # 2048 on Metal: plain prefill on Qwen3-8B BF16 / M5 Max goes 459 -> 386 ms at 1k (973 tokens), 1725 -> 1448 ms at 4k

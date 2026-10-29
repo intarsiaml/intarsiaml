@@ -52,6 +52,8 @@ impl Model {
                 self.exec(Op::RmsNormAdd, inputs, outputs, f.attrs.clone(), profile)?;
             }
         }
+        // lane moe16b: z, b and a on the side stream beside qkv, as in `gdn_block_segs`
+        let fork = self.side_fork(true, rows, profile)?;
         let qz_fused = match (g.in_qkv.format, g.in_z.format) {
             (FP8_E4M3, FP8_E4M3) => self.try_fused(
                 Op::MatmulFp8Pair,
@@ -71,23 +73,32 @@ impl Model {
         };
         if !qz_fused {
             self.proj(n, &g.in_qkv, &qkv, profile)?;
-            self.proj(n, &g.in_z, &z, profile)?;
         }
-        let ba_fused = ba_fused
-            || match (g.in_b.format, g.in_a.format) {
-                (BF16, BF16) => self.try_fused(
-                    Op::MatmulPair,
-                    vec![n.clone(), g.in_b.parts[0].clone(), g.in_a.parts[0].clone()],
-                    vec![bg.clone(), a.clone()],
-                    OpAttrs::default(),
-                    profile,
-                )?,
-                (MXFP4, MXFP4) => self.try_mxfp4_pair(n, &g.in_b, &g.in_a, &bg, &a, profile)?,
-                _ => false,
-            };
-        if !ba_fused {
-            self.proj(n, &g.in_b, &bg, profile)?;
-            self.proj(n, &g.in_a, &a, profile)?;
+        let mut rest = || -> Result<()> {
+            if !qz_fused {
+                self.proj(n, &g.in_z, &z, profile)?;
+            }
+            let ba_fused = ba_fused
+                || match (g.in_b.format, g.in_a.format) {
+                    (BF16, BF16) => self.try_fused(
+                        Op::MatmulPair,
+                        vec![n.clone(), g.in_b.parts[0].clone(), g.in_a.parts[0].clone()],
+                        vec![bg.clone(), a.clone()],
+                        OpAttrs::default(),
+                        profile,
+                    )?,
+                    (MXFP4, MXFP4) => self.try_mxfp4_pair(n, &g.in_b, &g.in_a, &bg, &a, profile)?,
+                    _ => false,
+                };
+            if !ba_fused {
+                self.proj(n, &g.in_b, &bg, profile)?;
+                self.proj(n, &g.in_a, &a, profile)?;
+            }
+            Ok(())
+        };
+        match fork {
+            Some(tok) => self.side_run(tok, &mut rest)?,
+            None => rest()?,
         }
 
         // conv + delta rule: one T = 1 call per row, on that row's own recurrent slot. These are the solo step's one-row

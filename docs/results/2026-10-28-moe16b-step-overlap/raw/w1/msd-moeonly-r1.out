@@ -1,0 +1,52 @@
+[localeval] calibrated: 22.1 tokens/sentence, 51 base tokens, ctx=8192
+[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.19s prefill=5321 tok/s decode=84.5 tok/s peak=103.0 tok/s out=256
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.19s prefill=5349 tok/s decode=84.5 tok/s peak=103.9 tok/s out=256
+[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.19s prefill=5291 tok/s decode=84.5 tok/s peak=103.8 tok/s out=256
+[localeval] 1 streams: aggregate 79.9 tok/s
+[localeval] 4 streams: aggregate 168.2 tok/s
+[localeval] 8 streams: aggregate 227.2 tok/s
+[localeval] 16 streams: aggregate 272.3 tok/s
+# localeval: adhoc — 2026-10-28T21:03
+
+- model: `intarsia` on ? (?), url `http://spark-4e77:8190/v1`
+- thinking: off; run kind: speed; label: msd-moeonly-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-4e77:8190/v1 --model intarsia --thinking off --sizes 1024 --gen 256 --reps 3 --concurrency 1,4,8,16 --label msd-moeonly-r1 --no-unim --recipe intarsia serve --backend cuda --max-seq 8192 --mem-budget 40 bin=dev env='INTARSIA_SIDE_PROJ=0' --max-batch 16`
+- result file: `results/20261028-210318-adhoc-msd-moeonly-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --max-seq 8192 --mem-budget 40 bin=dev env='INTARSIA_SIDE_PROJ=0' --max-batch 16
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 8192, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.19 | 5321 (5291–5349) * | - | 84.5 (84.5–84.5) | 103.8 (103.0–103.9) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 79.9 | 86.1 (86.1–86.1) | 0.24 |
+| 4 | 168.2 | 45.7 (43.6–48.1) | 0.47 |
+| 8 | 227.2 | 31.6 (29.4–34.4) | 0.87 |
+| 16 | 272.3 | 19.3 (17.8–21.9) | 1.68 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261028-210318-adhoc-msd-moeonly-r1/result.json
+[localeval] not logged to unanimis (--no-unim)

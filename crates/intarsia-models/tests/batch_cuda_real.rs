@@ -179,6 +179,45 @@ fn gate(m: &Model, lens: Vec<usize>, batches: Vec<usize>, steps: usize, vocab_ra
     assert_eq!(n, expect);
 }
 
+/// Lane moe16b: wall time of the 35B's batched decode step (graphs on, device argmax, as in serve) at B = 8 and 16, three runs of 60
+/// steps after 20 warm-up steps. `--ignored`, inside a fleetq slot quiet on the GPU; prints `STEP B=.. ms ..`. The side-stream knobs
+/// (`INTARSIA_MOE_SHARED_STREAM`, `INTARSIA_SIDE_PROJ`) are read once per process: one variant per run.
+#[test]
+#[ignore = "micro-timing"]
+fn timing_35b_batched_step() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 16, 2048);
+    for b in [8usize, 16] {
+        let mut sts: Vec<_> = (0..b)
+            .map(|i| {
+                let mut st = m.new_state().unwrap();
+                let p: Vec<u32> = (0..64).map(|k| 1000 + ((i * 977 + k * 131) % 29000) as u32).collect();
+                m.forward(&mut st, &p, HeadMode::None, None).unwrap();
+                st
+            })
+            .collect();
+        let mut ids: Vec<u32> = (0..b).map(|i| 2000 + i as u32).collect();
+        let modes = vec![HeadMode::LastArgmax; b];
+        let mut run = |n: usize| -> f64 {
+            let t = std::time::Instant::now();
+            for _ in 0..n {
+                let mut refs: Vec<_> = sts.iter_mut().collect();
+                let out = m.forward_batch(&mut refs, &ids, &modes).unwrap();
+                for (r, o) in out.iter().enumerate() {
+                    if let StepOut::Token(t) = o {
+                        ids[r] = *t;
+                    }
+                }
+            }
+            t.elapsed().as_secs_f64() * 1e3 / n as f64
+        };
+        run(20);
+        let ms: Vec<f64> = (0..3).map(|_| run(60)).collect();
+        println!("STEP B={b} ms {:.3} {:.3} {:.3}", ms[0], ms[1], ms[2]);
+    }
+}
+
 #[test]
 fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     let _serial = serial();
@@ -195,6 +234,13 @@ fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     // equals the prompt prefilled alone with the same chunks
     let n = batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000));
     assert_eq!(n, 4 * 2 * 700usize.div_ceil(256));
+    // lane moe16c: with neither side-stream knob set (both default on), a single-rank CUDA run must take the side-stream forks
+    let forks = intarsia_core::model::SIDE_FORKS_TOTAL.load(std::sync::atomic::Ordering::Relaxed);
+    let unset = ["INTARSIA_MOE_SHARED_STREAM", "INTARSIA_SIDE_PROJ"].iter().all(|k| std::env::var_os(k).is_none());
+    eprintln!("side-stream forks: {forks} (knobs unset: {unset})");
+    if unset && !hip && tp() == 1 {
+        assert!(forks > 0, "the default-on side-stream knobs took no fork");
+    }
     if tp() == 2 {
         // the batched steps ran through recordings on BOTH ranks, in lockstep (graphs are on by default, as in serve)
         let (g0, g1) = (m.graph_stats(), m.rank_model(1).unwrap().graph_stats());
@@ -523,7 +569,131 @@ fn real_qwen3_8b_batched_decode_is_bitwise_the_solo_step() {
     // on HIP (lane hb) every N from 2 to the cap, not only the sizes the CUDA gate samples
     let hip = std::env::var("INTARSIA_BATCH_TEST_BACKEND").is_ok_and(|v| v == "hip");
     let sizes: Vec<usize> = if hip { (2..=16).collect() } else { vec![2, 3, 4, 8, 16] };
-    gate(&m, lens, sizes, 130, (1000, 30000));
+    gate(&m, lens.clone(), sizes, 130, (1000, 30000));
+    if !hip {
+        // every other N up to the cap, shorter (lane bi8: the served 8B differed from solo from 5 streams up; that was prefix
+        // reuse, not the batch width, and this gate shows the batch width is bitwise at every N)
+        gate(&m, lens, (5..=16).filter(|n| *n != 8 && *n != 16).collect(), 32, (1000, 30000));
+    }
+}
+
+/// The 16 prompts of `scripts/htk/equal.py` (the SB8 / BI8 served-identity set).
+const EQ_PROMPTS: [&str; 16] = [
+    "The history of the printing press begins",
+    "def fibonacci(n):\n    \"\"\"Return the n-th Fibonacci number.\"\"\"\n",
+    "Photosynthesis is the process by which",
+    "In 1969, the Apollo 11 mission",
+    "Explain, step by step, why the sky is blue. First,",
+    "The three laws of thermodynamics state that",
+    "A recipe for sourdough bread needs",
+    "The capital of Australia is",
+    "Once upon a time, in a small village by the sea,",
+    "To install the package, run",
+    "The Pythagorean theorem says",
+    "In machine learning, overfitting happens when",
+    "The French Revolution started because",
+    "A haiku about autumn:",
+    "The difference between TCP and UDP is",
+    "Quantum entanglement is",
+];
+
+fn logits_of(o: StepOut) -> Vec<f32> {
+    match o {
+        StepOut::Logits(l) => l,
+        o => panic!("expected logits, got {o:?}"),
+    }
+}
+
+fn argmax_of(l: &[f32]) -> u32 {
+    l.iter().enumerate().fold((0usize, f32::MIN), |b, (i, &v)| if v > b.1 { (i, v) } else { b }).0 as u32
+}
+
+/// BI8 probe (diagnostic, prints a table): is a dense prefill that resumes from a KV prefix bitwise the cold prefill? For each
+/// equal.py prompt: the cold run (one `forward` over the prompt, 64 greedy tokens), every split `k` (`forward(P[..k])`, then
+/// `forward(P[k..])`), the repeated-prompt reuse a slot gives (the cold run's state truncated to `plen - 1`, then the last
+/// token alone: what `pick_slot` / `Seq::new` do for a prompt the slot already ran) and a cross-prompt reuse (another prompt's
+/// state truncated to the shared prefix). Opt-in: `INTARSIA_BI8_PROBE=1` and `INTARSIA_QWEN3_DIR`.
+#[test]
+fn real_qwen3_8b_prefix_reuse_probe() {
+    let _serial = serial();
+    use intarsia_core::engine::TextCodec;
+    if !std::env::var("INTARSIA_BI8_PROBE").is_ok_and(|v| v == "1") {
+        eprintln!("SKIPPED: INTARSIA_BI8_PROBE=1 not set");
+        return;
+    }
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 2, 2048);
+    let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
+    const GEN: usize = 64;
+    const FORCED: usize = 4;
+    let ids: Vec<Vec<u32>> = EQ_PROMPTS.iter().map(|p| codec.encode(p, false).unwrap()).collect();
+    // greedy continuation of `st` from the logits row `first`: (tokens, logits rows incl. `first`)
+    let greedy = |st: &mut intarsia_core::state::SequenceState, first: Vec<f32>, n: usize| -> (Vec<u32>, Vec<Vec<f32>>) {
+        let mut rows = vec![first];
+        let mut toks = Vec::new();
+        for _ in 0..n {
+            let t = argmax_of(rows.last().unwrap());
+            toks.push(t);
+            rows.push(logits_of(m.forward(st, &[t], HeadMode::LastLogits, None).unwrap()));
+        }
+        (toks, rows)
+    };
+    let first_diff = |a: &[Vec<f32>], b: &[Vec<f32>]| a.iter().zip(b).position(|(x, y)| x != y);
+    let maxabs = |a: &[f32], b: &[f32]| a.iter().zip(b).map(|(x, y)| (x - y).abs()).fold(0f32, f32::max);
+    let mut cold: Vec<(Vec<u32>, Vec<Vec<f32>>)> = Vec::new();
+    for (i, p) in ids.iter().enumerate() {
+        let mut st = m.new_state().unwrap();
+        let l = logits_of(m.forward(&mut st, p, HeadMode::LastLogits, None).unwrap());
+        let (toks, rows) = greedy(&mut st, l, GEN);
+        eprintln!("COLD {i} plen {} ids {:?}", p.len(), toks);
+        // the repeated prompt on the same slot: the cold state (prompt + GEN tokens) truncated to plen - 1, last token alone
+        st.truncate(p.len() - 1, &*m.backend).unwrap();
+        let l = logits_of(m.forward(&mut st, &p[p.len() - 1..], HeadMode::LastLogits, None).unwrap());
+        let (rt, rr) = greedy(&mut st, l, GEN);
+        let d = rt.iter().zip(&toks).position(|(a, b)| a != b);
+        eprintln!(
+            "SELFREUSE {i} plen {}: logits row0 {} (maxabs {:.3e}), first logits diff row {:?}, first token diff {:?}",
+            p.len(),
+            if rr[0] == rows[0] { "EQUAL" } else { "DIFFER" },
+            maxabs(&rr[0], &rows[0]),
+            first_diff(&rr, &rows),
+            d
+        );
+        cold.push((toks, rows));
+    }
+    // every split k: forward(P[..k]) then forward(P[k..]) and FORCED teacher-forced decode rows
+    for (i, p) in ids.iter().enumerate() {
+        let mut line = String::new();
+        for k in 1..p.len() {
+            let mut st = m.new_state().unwrap();
+            m.forward(&mut st, &p[..k], HeadMode::None, None).unwrap();
+            let mut rows = vec![logits_of(m.forward(&mut st, &p[k..], HeadMode::LastLogits, None).unwrap())];
+            for &t in &cold[i].0[..FORCED] {
+                rows.push(logits_of(m.forward(&mut st, &[t], HeadMode::LastLogits, None).unwrap()));
+            }
+            let fd = first_diff(&rows, &cold[i].1[..=FORCED]);
+            line.push_str(&format!(" k{k}(tail {}):{}", p.len() - k, fd.map_or("=".to_string(), |r| format!("x{r}"))));
+        }
+        eprintln!("SPLIT {i} plen {}:{line}", p.len());
+    }
+    // cross-prompt reuse: prompt j's cold state truncated to the prefix it shares with i, then P_i[c..]
+    for (i, p) in ids.iter().enumerate() {
+        for (j, q) in ids.iter().enumerate() {
+            let c = p.iter().zip(q).take_while(|(a, b)| a == b).count().min(p.len() - 1);
+            if i == j || c == 0 {
+                continue;
+            }
+            let mut st = m.new_state().unwrap();
+            let l = logits_of(m.forward(&mut st, q, HeadMode::LastLogits, None).unwrap());
+            let _ = greedy(&mut st, l, FORCED);
+            st.truncate(c, &*m.backend).unwrap();
+            let mut rows = vec![logits_of(m.forward(&mut st, &p[c..], HeadMode::LastLogits, None).unwrap())];
+            for &t in &cold[i].0[..FORCED] {
+                rows.push(logits_of(m.forward(&mut st, &[t], HeadMode::LastLogits, None).unwrap()));
+            }
+            eprintln!("CROSS {i}<-{j} shared {c} of {}: first logits diff row {:?}", p.len(), first_diff(&rows, &cold[i].1[..=FORCED]));
+        }
+    }
 }
 
 // ---- engine level ---------------------------------------------------------------------------------------------------
@@ -611,6 +781,64 @@ fn real_35b_batched_engine_equals_the_local_engine() {
             // either way, so the whole output is compared
             assert_eq!(&got, want, "concurrent request {i} on {slots} slots");
         }
+    }
+}
+
+/// Lane bi8 (docs/results/2026-10-29-bi8-serve-batch-invariance.md): on Qwen3-8B every request computes the bits of its cold
+/// run whatever the engine held before. The reference is each equal.py prompt alone on a fresh single-sequence engine. The same
+/// engine then runs the prompts again in an order full of repeats and shared first tokens (a slot's prefix reuse resumed a
+/// repeated prompt with its last token alone, a 1-row pass, which flipped greedy tokens); then the batched engine at 8 and 16
+/// slots runs three rounds of all 16 at once without a restart (rounds 2 and 3 find every prompt's own earlier slot idle) and a
+/// round of 5. Every request's tokens must be the reference's. Greedy, and seeded sampling on every fourth prompt.
+#[test]
+fn real_qwen3_8b_batched_engine_equals_the_cold_reference() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
+    const GEN: usize = 64;
+    let mk = |max_batch: Option<usize>| EngineOptions {
+        load: LoadOptions { max_seq: 2048, kv_fraction: 0.95, profile_every: 0, ..Default::default() },
+        max_batch,
+        ..Default::default()
+    };
+    let req = |e: &dyn Engine, i: usize| {
+        let mut r = GenRequest { prompt: e.tokenize(EQ_PROMPTS[i], false).unwrap(), max_tokens: GEN, ignore_eos: true, ..Default::default() };
+        if i % 4 == 3 {
+            r.temperature = 0.8;
+            r.top_k = 40;
+            r.top_p = 0.95;
+            r.seed = Some(100 + i as u64);
+        }
+        r
+    };
+    // the cold reference: the prompts in order on one single-sequence engine. It holds only the previous request, and no two
+    // consecutive prompts share their first token, so no request finds a prefix to reuse, under any reuse rule
+    let reference: Vec<Out> = {
+        let l = engine(&dir, &be, &mk(None));
+        let reqs: Vec<GenRequest> = (0..EQ_PROMPTS.len()).map(|i| req(&*l.engine, i)).collect();
+        for w in reqs.windows(2) {
+            assert_ne!(w[0].prompt[0], w[1].prompt[0], "consecutive reference prompts must not share a prefix");
+        }
+        reqs.into_iter().map(|r| collect(&l.engine.submit(r).unwrap())).collect()
+    };
+    assert!(reference.iter().all(|o| o.ids.len() == GEN));
+    {
+        let l = engine(&dir, &be, &mk(None));
+        for (n, &i) in [4usize, 4, 5, 0, 5, 8, 8, 7, 12, 5, 14, 1, 1].iter().enumerate() {
+            assert_eq!(collect(&l.engine.submit(req(&*l.engine, i)).unwrap()), reference[i], "single-sequence engine, request {n} (prompt {i})");
+        }
+    }
+    for slots in [8usize, 16] {
+        let l = engine(&dir, &be, &mk(Some(slots)));
+        assert_eq!(l.max_batch, slots);
+        let mut rounds: Vec<Vec<usize>> = vec![(0..16).collect(), (0..16).collect(), (0..16).rev().collect(), (0..5).collect()];
+        rounds.push(vec![4, 5, 8, 4, 5, 8]);
+        for (round, idx) in rounds.iter().enumerate() {
+            let rxs: Vec<_> = idx.iter().map(|&i| l.engine.submit(req(&*l.engine, i)).unwrap()).collect();
+            for (&i, rx) in idx.iter().zip(&rxs) {
+                assert_eq!(&collect(rx), &reference[i], "{slots} slots, round {round}, prompt {i}");
+            }
+        }
+        eprintln!("bi8 engine identity: {slots} slots, {} requests equal the cold reference", rounds.iter().map(|r| r.len()).sum::<usize>());
     }
 }
 

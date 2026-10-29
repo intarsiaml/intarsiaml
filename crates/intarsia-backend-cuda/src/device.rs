@@ -91,7 +91,14 @@ pub struct CudaBackend {
     streams: Mutex<Vec<usize>>,
     /// Set by [`Backend::prefer_verify_attn_per_row`] (an MTP model, unless `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=0`).
     verify_per_row_pref: std::sync::atomic::AtomicBool,
+    /// `cudaEvent_t` handles (as usize) for [`Backend::stream_record`], used round robin, and the next index: a wait takes the
+    /// state of the event at the call, so an event can be recorded again once the waits on it are queued. Created on the first
+    /// fork (no event exists unless `INTARSIA_MOE_SHARED_STREAM` forks).
+    fork_events: Mutex<(Vec<usize>, usize)>,
 }
+
+/// Events in the fork pool: a token must be waited for within this many further [`Backend::stream_record`] calls.
+const FORK_EVENTS: usize = 64;
 
 impl CudaBackend {
     /// `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW`: `Some(true)` set to anything but "0", `Some(false)` set to "0", `None` unset.
@@ -130,6 +137,7 @@ impl CudaBackend {
             bandwidth_gbs,
             streams: Mutex::new(Vec::new()),
             verify_per_row_pref: std::sync::atomic::AtomicBool::new(false),
+            fork_events: Mutex::new((Vec::new(), 0)),
         };
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
@@ -186,6 +194,13 @@ impl CudaBackend {
 }
 
 impl Backend for CudaBackend {
+    /// Not on CUDA: a prefill pass's bits depend on its row count. On Qwen3-8B every split `P[..k]` + `P[k..]` of the 16
+    /// equal.py prompts gave other logits than the one-pass prefill, and a repeated prompt resumed with its last token alone
+    /// moved them by up to 0.23 and flipped greedy tokens (lane bi8, docs/results/2026-10-29-bi8-serve-batch-invariance.md;
+    /// also docs/results/2026-10-22-ck-cuda8b-chunk.md for 256- vs 4096-row chunks).
+    fn prefix_reuse_any_cut(&self) -> bool {
+        false
+    }
     fn name(&self) -> &str {
         "cuda"
     }
@@ -508,6 +523,43 @@ impl Backend for CudaBackend {
     /// admission, docs/results/2026-10-21-tp2-cuda-graphs.md).
     fn fusion_under_tp(&self) -> bool {
         true
+    }
+
+    fn stream_fork(&self) -> bool {
+        true
+    }
+
+    fn stream_record(&self, signal: StreamId) -> Result<u64> {
+        self.bind()?;
+        let s = self.stream(signal)?;
+        let (ev, i) = {
+            let mut pool = self.fork_events.lock().unwrap();
+            if pool.0.is_empty() {
+                for _ in 0..FORK_EVENTS {
+                    let mut h: *mut c_void = std::ptr::null_mut();
+                    // SAFETY: valid out-pointer; the device is bound.
+                    check("cudaEventCreateWithFlags", unsafe { ffi::ik_rt_event_create_sync(&mut h) })?;
+                    pool.0.push(h as usize);
+                }
+            }
+            let i = pool.1;
+            pool.1 = (i + 1) % FORK_EVENTS;
+            (pool.0[i] as *mut c_void, i)
+        };
+        // SAFETY: a live event and a live stream of this device (in a capture the record becomes a graph dependency).
+        check("cudaEventRecord", unsafe { ffi::ik_rt_event_record(ev, s) })?;
+        Ok(i as u64)
+    }
+
+    fn stream_wait_for(&self, waiter: StreamId, token: u64) -> Result<()> {
+        self.bind()?;
+        let w = self.stream(waiter)?;
+        let ev = {
+            let pool = self.fork_events.lock().unwrap();
+            *pool.0.get(token as usize).ok_or_else(|| Error::backend("stream_wait_for: unknown token"))? as *mut c_void
+        };
+        // SAFETY: a live event and a live stream of this device; the wait takes the event's state at this call.
+        check("cudaStreamWaitEvent", unsafe { ffi::ik_rt_stream_wait_event(w, ev) })
     }
 
     fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {

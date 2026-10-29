@@ -1,0 +1,22 @@
+fleetq: #6641 running on spark1: bash -c 'scripts/moe16b/cpu-build.sh nobase && ssh spark1 "bash -s" < scripts/moe16b/plan.sh'
+Wed Oct 28 21:32:21 EDT 2026
+    Finished `release` profile [optimized] target(s) in 2m 08s
+-rwxrwxr-x 1 nvidia nvidia 108478008 Oct 28 21:34 /home/nvidia/intarsiaml-moe16b/bin/dev
+intarsia 0.0.1
+Wed Oct 28 21:34:33 EDT 2026
+warning: field `spec_dflash` is never read
+warning: function `hip_batch_needs_hybrid` is never used
+warning: field `max_tokens` is never read
+warning: field `state_id` is never read
+warning: `intarsia-core` (lib) generated 4 warnings
+    Finished `release` profile [optimized] target(s) in 9.36s
+  Executable tests/rows_exact.rs (target/release/deps/rows_exact-22d61bde1266dc5a)
+Wed Oct 28 21:34:43 EDT 2026
+PASS plan 8 json byte-identical (8758 B, md5 b1a1150e)
+PASS plan 8 txt byte-identical (1478 B, md5 7742cef8)
+PASS plan 35 json byte-identical (15336 B, md5 8c7a3de5)
+PASS plan 35 txt byte-identical (3946 B, md5 7b9068be)
+PASS plan g json byte-identical (8408 B, md5 2a659412)
+PASS plan g txt byte-identical (1797 B, md5 ec4ef23e)
+plan fails=0
+fleetq: #6641 done (exit 0)
