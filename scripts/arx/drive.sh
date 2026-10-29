@@ -99,6 +99,9 @@ for item in $ITEMS; do
     texts)
       python3 "$HERE/../pf27/texts.py" "http://tatooine:$PORT" qwen-arx "$REPO/scripts/cmtp/ids-prompts" > "$OUT/texts-$t.txt" 2>&1
       say "item $n $full texts: exit $? $(wc -l < "$OUT/texts-$t.txt") lines" ;;
+    texts2)  # lane arx: texts.py on TNAMES only (e.g. "4k-0 16k-0")
+      python3 "$HERE/../pf27/texts.py" "http://tatooine:$PORT" qwen-arx "$REPO/scripts/cmtp/ids-prompts" ${TNAMES:-4k-0 16k-0} > "$OUT/texts2-$t.txt" 2>&1
+      say "item $n $full texts2: $(tr '\n' '|' < "$OUT/texts2-$t.txt" | cut -c1-200)" ;;
     mixids)
       python3 "$HERE/../pf27/mixids.py" "http://tatooine:$PORT" qwen-arx $(for f in ${MIXF:-4k-0 16k-3 4k-3}; do echo "$REPO/scripts/cmtp/ids-prompts/$f.txt"; done) > "$OUT/mixids-$t.txt" 2>&1
       say "item $n $full mixids: $(tr '\n' '|' < "$OUT/mixids-$t.txt" | cut -c1-300)" ;;

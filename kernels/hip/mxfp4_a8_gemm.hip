@@ -342,10 +342,12 @@ IK_DEVI void a8_lds_barrier() {
 // stream raises the all-reduce flag. The stores to `out` and the arithmetic are the !PUSH kernel's.
 template <bool FOLD, int WN, int WM, int TN, int TM, typename OutT, bool PUSH = false>
 __device__ __forceinline__ void a8_direct_tile(const A8Args& a, OutT* __restrict__ out, uint4* __restrict__ peer, int bx, int by, int gx,
-                                               int pbx = -1, int pby = 0, bool push_now = true) {
+                                               uint4 (&hold)[TN * TM], int pbx = -1, int pby = 0, bool push_now = true) {
     // one BM x BN output tile (bx, by); gx tiles along M. PUSH: (pbx, pby) is this block's previous tile (pbx < 0: none), whose output words
-    // this thread pushes spread over this tile's k stages (read back from `out`, its own stores), so the link takes them while the WMMAs run
-    // instead of the wave stalling on a full store queue at the epilogue; push_now: push this tile's words in the epilogue (the block's last)
+    // this thread pushes spread over this tile's k stages from `hold` (registers: the previous epilogue's packed words), so the link takes
+    // them while the WMMAs run instead of the wave stalling on a full store queue at the epilogue; push_now: push this tile's words in the
+    // epilogue (the block's last), else keep them in `hold`. (Reading them back from `out` instead gave stale words for some tiles: lane arx
+    // m13, the partial tiles pushed one tile late.)
     constexpr int NT = WN * WM * IK_WARP;
     constexpr int BN = WN * TN * 16, BM = WM * TM * 16;
     constexpr int CHW = BN * 2;  // 16-byte weight chunks of one stage (one group, 32 codes, each)
@@ -455,13 +457,18 @@ __device__ __forceinline__ void a8_direct_tile(const A8Args& a, OutT* __restrict
     const int lr = lane & 15, lh = (lane >> 4) * 16;
     const int ln = (lane >> 4) * 8;  // C fragment: lane holds token lr and features ln + e, e = 0..7
     int pq = 0;  // PUSH: the previous tile's words this thread pushed so far (q = i * TM + j)
+    // word q of the previous tile (q = i * TM + j); the unrolled select keeps `hold` in registers (a runtime index would put it in scratch)
     auto push_prev = [&](int q) {
-        const int i = q / TM, j = q % TM;
-        const int m = pbx * BM + wm * TM * 16 + j * 16 + lr;
-        const int64_t n = (int64_t)pby * BN + wn * TN * 16 + i * 16 + ln;
-        if (m < M && n < N) {
-            const int64_t blk = (int64_t)pby * gx + pbx;
-            peer[(((blk * (WN * WM) + wave) * TN + i) * TM + j) * 32 + lane] = *reinterpret_cast<const uint4*>(out + (int64_t)m * N + n);
+#pragma unroll
+        for (int qq = 0; qq < TN * TM; ++qq) {
+            if (qq != q) continue;
+            const int i = qq / TM, j = qq % TM;
+            const int m = pbx * BM + wm * TM * 16 + j * 16 + lr;
+            const int64_t n = (int64_t)pby * BN + wn * TN * 16 + i * 16 + ln;
+            if (m < M && n < N) {
+                const int64_t blk = (int64_t)pby * gx + pbx;
+                peer[(((blk * (WN * WM) + wave) * TN + i) * TM + j) * 32 + lane] = hold[qq];
+            }
         }
     };
     const int pstride = nk / (TN * TM) > 0 ? nk / (TN * TM) : 1;
@@ -555,9 +562,13 @@ __device__ __forceinline__ void a8_direct_tile(const A8Args& a, OutT* __restrict
                 if (sizeof(OutT) == 2) {
                     const uint4 pk = ik_pack8(v);
                     *reinterpret_cast<uint4*>(o) = pk;
-                    if (PUSH && push_now) {
-                        const int64_t blk = (int64_t)by * gx + bx;
-                        peer[(((blk * (WN * WM) + wave) * TN + i) * TM + j) * 32 + lane] = pk;
+                    if constexpr (PUSH) {
+                        if (push_now) {
+                            const int64_t blk = (int64_t)by * gx + bx;
+                            peer[(((blk * (WN * WM) + wave) * TN + i) * TM + j) * 32 + lane] = pk;
+                        } else {
+                            hold[i * TM + j] = pk;
+                        }
                     }
                 } else {
                     reinterpret_cast<float4*>(o)[0] = make_float4(v[0], v[1], v[2], v[3]);
@@ -579,14 +590,16 @@ __global__ void __launch_bounds__(WN * WM * 32) a8_direct_kernel(A8Args a, OutT*
     if ((*a.flag == 0) != FOLD) return;
     if constexpr (PUSH) {
         int prev = -1;
+        uint4 hold[TN * TM];
         for (int t = blockIdx.x; t < gx * gy; t += gridDim.x) {
             const bool last = t + (int)gridDim.x >= gx * gy;
-            a8_direct_tile<FOLD, WN, WM, TN, TM, OutT, PUSH>(a, out, peer, t % gx, t / gx, gx, prev < 0 ? -1 : prev % gx, prev < 0 ? 0 : prev / gx, last);
+            a8_direct_tile<FOLD, WN, WM, TN, TM, OutT, PUSH>(a, out, peer, t % gx, t / gx, gx, hold, prev < 0 ? -1 : prev % gx, prev < 0 ? 0 : prev / gx, last);
             prev = t;
         }
         __threadfence_system();
     } else {
-        a8_direct_tile<FOLD, WN, WM, TN, TM, OutT, PUSH>(a, out, peer, blockIdx.x, blockIdx.y, gx);
+        uint4 hold[TN * TM];
+        a8_direct_tile<FOLD, WN, WM, TN, TM, OutT, PUSH>(a, out, peer, blockIdx.x, blockIdx.y, gx, hold);
     }
 }
 

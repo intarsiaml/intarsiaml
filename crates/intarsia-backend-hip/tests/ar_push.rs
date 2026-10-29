@@ -63,9 +63,9 @@ fn put(be: &dyn Backend, t: &HostTensor) -> TensorRef {
 }
 
 /// One GEMM call per rank (each rank its own weights and activations, as a row-parallel shard), with its scratch.
-fn calls(be: &[Arc<dyn Backend>], seed: u64) -> Vec<[OpCall; 2]> {
+fn calls(be: &[Arc<dyn Backend>], seed: u64, shapes: &[(usize, usize, usize, bool)]) -> Vec<[OpCall; 2]> {
     let mut rng = SplitMix64::new(seed);
-    SHAPES
+    shapes
         .iter()
         .map(|&(m, n, k, _)| {
             let mk = |r: usize, hc: &HostCall| {
@@ -135,9 +135,9 @@ fn extra(be: &[Arc<dyn Backend>]) -> [TensorRef; 2] {
 }
 
 /// The reference: the plain GEMM + all-reduce (push off), both ranks equal.
-fn reference(seed: u64) -> Option<Vec<[Vec<u8>; 2]>> {
+fn reference(seed: u64, shapes: &[(usize, usize, usize, bool)]) -> Option<Vec<[Vec<u8>; 2]>> {
     let g = group(7, false)?;
-    let cs = calls(&g.0, seed);
+    let cs = calls(&g.0, seed, shapes);
     run(&g, &cs, &extra(&g.0), false, None);
     let r = outputs(&g, &cs);
     for (i, o) in r.iter().enumerate() {
@@ -149,9 +149,9 @@ fn reference(seed: u64) -> Option<Vec<[Vec<u8>; 2]>> {
 #[test]
 fn pushed_all_reduce_is_bitwise_the_plain_pair() {
     let _one = serial();
-    let Some(want) = reference(7) else { return };
+    let Some(want) = reference(7, &SHAPES) else { return };
     let g = group(7, true).unwrap();
-    let cs = calls(&g.0, 7);
+    let cs = calls(&g.0, 7, &SHAPES);
     let ex = extra(&g.0);
     // the push group without prepush is the plain pair too
     run(&g, &cs, &ex, false, None);
@@ -168,12 +168,62 @@ fn pushed_all_reduce_is_bitwise_the_plain_pair() {
     }
 }
 
+/// Every M of the direct kernel's tile cutovers and token-block remainders a prefill chunk can end on (the 27B's 2048-row chunks:
+/// 1144 and 1599 are two served 16k remainders), at hidden 5120 and the 27B's K 3072: bitwise the plain pair, both ranks.
+#[test]
+fn pushed_all_reduce_is_bitwise_the_plain_pair_over_m() {
+    let _one = serial();
+    let ms: Vec<usize> = [65usize, 100, 127, 128, 129, 255, 256, 257, 511, 512, 513, 767, 768, 769, 1000, 1023, 1024, 1025, 1144, 1147, 1536, 1599, 1600, 1821, 2000, 2047, 2048]
+        .into_iter()
+        .collect();
+    let shapes: Vec<(usize, usize, usize, bool)> = ms.iter().map(|&m| (m, 5120, 3072, true)).collect();
+    let Some(want) = reference(13, &shapes) else { return };
+    let g = group(7, true).unwrap();
+    let cs = calls(&g.0, 13, &shapes);
+    let ex = extra(&g.0);
+    // where a result first differs (bf16 element -> row, feature), per rank, or None
+    let first = |o: &[Vec<u8>; 2], w: &[Vec<u8>; 2]| -> [Option<(usize, usize)>; 2] {
+        [0, 1].map(|r| o[r].chunks(2).zip(w[r].chunks(2)).position(|(x, y)| x != y).map(|e| (e / 5120, e % 5120)))
+    };
+    run(&g, &cs, &ex, false, None);
+    let plain: Vec<String> = outputs(&g, &cs).iter().zip(&want).zip(&ms).filter(|((o, w), _)| o != w).map(|((o, w), m)| format!("M {m}: {:?}", first(o, w))).collect();
+    assert!(plain.is_empty(), "push group without prepush differs from the plain pair: {plain:?}");
+    run(&g, &cs, &ex, true, None);
+    assert_eq!(pushed(&g.1[0]), 2 * shapes.len() as u64, "{:?}", g.1[0].debug_state());
+    // rank 0's wrong elements, by (token block, wave row group, 16-token tile) of the direct tile (bm 512 from M = 768, else 256; 64 rows
+    // per wave row) and how many feature tiles (64 wide) they touch
+    let hist = |o: &[Vec<u8>; 2], w: &[Vec<u8>; 2], m: usize| -> String {
+        let bm = if m >= 768 { 512 } else { 256 };
+        let mut h = std::collections::BTreeMap::<(usize, usize, usize), (usize, std::collections::BTreeSet<usize>)>::new();
+        let mut n = 0;
+        for (e, (x, y)) in o[0].chunks(2).zip(w[0].chunks(2)).enumerate() {
+            if x != y {
+                n += 1;
+                let (r, c) = (e / 5120, e % 5120);
+                let v = h.entry((r / bm, (r % bm) / 64, (r % 64) / 16)).or_default();
+                v.0 += 1;
+                v.1.insert(c / 64);
+            }
+        }
+        let parts: Vec<String> = h.iter().map(|(k, v)| format!("{k:?}x{}:{}by", v.0, v.1.len())).collect();
+        format!("{n} wrong; {}", parts.join(" "))
+    };
+    let bad: Vec<String> = outputs(&g, &cs)
+        .iter()
+        .zip(&want)
+        .zip(&ms)
+        .filter(|((o, w), _)| o != w)
+        .map(|((o, w), m)| format!("M {m}: {:?} [{}]", first(o, w), hist(o, w, *m)))
+        .collect();
+    assert!(bad.is_empty(), "pushed all-reduce differs from the plain pair (first (row, feature) per rank): {bad:?}");
+}
+
 /// Rounds of the chain with one rank (alternating) delayed by up to `max_us` before a third of its GEMMs; the number of wrong outputs
 /// (rank x case x round) against the reference.
 fn stress(drain: i32, rounds: usize, max_us: u64) -> usize {
-    let Some(want) = reference(11) else { return 0 };
+    let Some(want) = reference(11, &SHAPES) else { return 0 };
     let g = group(drain, true).unwrap();
-    let cs = calls(&g.0, 11);
+    let cs = calls(&g.0, 11, &SHAPES);
     let ex = extra(&g.0);
     let mut rng = SplitMix64::new(5);
     let mut wrong = 0;

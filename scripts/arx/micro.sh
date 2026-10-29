@@ -176,6 +176,16 @@ if has probe; then
   wait
   for v in any def; do echo "== probe $v: $(grep -a '^test result\|summary\|^test ' "$O/probe-$v.txt" | tr '\n' ' ' | cut -c1-600)"; done
 fi
+#   tap    lane arx: one tapped generate (INTARSIA_DET_TAP: per-pass per-layer row hashes) of TAPP (16k-0), spec off, 4 tokens, per arm of
+#          TARMS (env lists, "A=1" = none): the first pass / layer where the arms part
+if has tap; then
+  for e in ${TARMS:-A=1 INTARSIA_HIP_AR_PUSH=1}; do
+    tg=$(echo $e | tr ':=,' '___'); rm -f "$O/tap-$tg.txt"
+    gpu 150 env ${e//,/ } INTARSIA_DET_TAP=/work/arx-out/$W/tap-$tg.txt /work/${TAPB:-arx-dev-cli} generate -m $M27 --backend hip --tp 2 --devices 0,1 --mem-budget 29 --max-seq 20480 --chat --no-think \
+      --profile-every 0 --ignore-eos --show-ids --spec off --max-tokens 4 -p "$(cat $R/scripts/dfh/ids-prompts/${TAPP:-16k-0}.txt)" > /dev/null 2> "$O/tap-$tg.err"
+    echo "== tap $e: $(wc -l < "$O/tap-$tg.txt") lines, $(grep -a '^ids' "$O/tap-$tg.err" | md5sum | cut -c1-10)"
+  done
+fi
 if has arrate; then
   for b in base dev; do gpu 60 /work/arx-bin/comm-$b --ignored --nocapture all_reduce_rate > "$O/arrate-$b.txt" 2>&1; done
 fi
