@@ -722,7 +722,7 @@ inline bool qpipe_on() {
     return !(e && e[0] == '0' && e[1] == 0) && !getenv("INTARSIA_CUDA_FP8_ROWS_QSHAPE");
 }
 inline QPipe qpipe_shape(int64_t K) {
-    QPipe q = K == 4096 ? QPipe{1, 16, 1, 2, 4, 2} : QPipe{2, 16, 1, 1, 0, 2};  // defaults (results doc, probe and step A/B)
+    QPipe q = K == 4096 ? QPipe{1, 16, 1, 2, 4, 1} : QPipe{2, 16, 1, 1, 0, 1};  // defaults (results doc, probe and step A/B)
     const char* e = getenv(K == 4096 ? "INTARSIA_CUDA_FP8_ROWS_QPIPE_K4" : "INTARSIA_CUDA_FP8_ROWS_QPIPE_K2");
     QPipe v{};
     if (e && sscanf(e, "%dx%dx%d:%d:%d:%d", &v.nt, &v.w, &v.minb, &v.ch, &v.pf, &v.ep) == 6) q = v;
