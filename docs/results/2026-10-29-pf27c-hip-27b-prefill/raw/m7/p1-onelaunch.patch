@@ -1,0 +1,255 @@
+diff --git a/kernels/hip/mxfp4_a8_gemm.hip b/kernels/hip/mxfp4_a8_gemm.hip
+index b1407207a..75cab1100 100644
+--- a/kernels/hip/mxfp4_a8_gemm.hip
++++ b/kernels/hip/mxfp4_a8_gemm.hip
+@@ -19,6 +19,8 @@
+ // INTARSIA_HIP_MXFP4_A8_PD=1 restores the previous kernel choice (global-load prefetch distance 1, the previous tile table).
+ // M > 64 runs the direct kernel (a8_direct_kernel, lane PF27: tokens straight from global memory in fragment order, weights alone
+ // through LDS; bitwise the same output); INTARSIA_HIP_MXFP4_A8_DIRECT=0 restores the staged kernel below, _DTILE forces a direct tile.
++// The direct kernel is one launch per call with both paths inside (each block takes the one its weight's flag selects), and a pair
++// (launch_a8_pair) is one launch over both weights (lane pf27c).
+ // Block: WN x WM waves, each wave TN x TM fragments of 16 x 16 (weights x tokens); 64 k per stage, double-buffered through
+ // registers (prefetch distance 2 by default: two register sets, the loads of stage k + 2 are in flight during stage k), LDS rows padded (ik_f8_gemm.h's layout). Fragments / k layout as ik_f8_gemm.h (both operands permute k alike).
+ // K % 32 == 0 (a K % 64 == 32 tail stage is zero padded). Deterministic, fixed reduction order, independent of M.
+@@ -340,9 +342,11 @@ IK_DEVI void a8_lds_barrier() {
+ // PUSH (lane arx, bf16 out with vec_out only): every output word also goes to `peer` (the peer rank's all-reduce slot) in the fragment order of
+ // ar_push.h; a8_direct_kernel fences each thread's pushes at system scope before it ends, so they have landed when the next launch on this
+ // stream raises the all-reduce flag. The stores to `out` and the arithmetic are the !PUSH kernel's.
++// sw / sS: the kernel's LDS (a8_direct_lds), shared by both fold paths of one kernel (lane pf27c)
+ template <bool FOLD, int WN, int WM, int TN, int TM, typename OutT, bool PUSH = false>
+ __device__ __forceinline__ void a8_direct_tile(const A8Args& a, OutT* __restrict__ out, uint4* __restrict__ peer, int bx, int by, int gx,
+-                                               uint4 (&hold)[TN * TM], int pbx = -1, int pby = 0, bool push_now = true) {
++                                               uint4 (&hold)[TN * TM], uint8_t (&sw)[2][WN * TN * 16 * kA8LD], float (&sS)[4 * WN * TN * 16],
++                                               int pbx = -1, int pby = 0, bool push_now = true) {
+     // one BM x BN output tile (bx, by); gx tiles along M. PUSH: (pbx, pby) is this block's previous tile (pbx < 0: none), whose output words
+     // this thread pushes spread over this tile's k stages from `hold` (registers: the previous epilogue's packed words), so the link takes
+     // them while the WMMAs run instead of the wave stalling on a full store queue at the epilogue; push_now: push this tile's words in the
+@@ -352,9 +356,7 @@ __device__ __forceinline__ void a8_direct_tile(const A8Args& a, OutT* __restrict
+     constexpr int BN = WN * TN * 16, BM = WM * TM * 16;
+     constexpr int CHW = BN * 2;  // 16-byte weight chunks of one stage (one group, 32 codes, each)
+     constexpr int CW = (CHW + NT - 1) / NT;
+-    constexpr int SS = FOLD ? 4 : 4 * BN;  // per-group path: f32 scales [buf][group][n]
+-    __shared__ __align__(16) uint8_t sw[2][BN * kA8LD];
+-    __shared__ __align__(16) float sS[SS];
++    // sS: the per-group path's f32 scales [buf][group][n]
+ 
+     const uint8_t* __restrict__ xt = a.xq;  // fragment-ordered tokens
+     const uint8_t* __restrict__ w = a.w;
+@@ -581,44 +583,80 @@ __device__ __forceinline__ void a8_direct_tile(const A8Args& a, OutT* __restrict
+     }
+ }
+ 
++// Lane pf27c: one launch per call (both fold paths used to be two launches, the one the flag did not select exiting at once: 992 empty
++// launches per 4k prefill). Each block reads its weight's flag and runs that path's tile; a pair (launch_a8_pair) is one launch over both
++// weights, blocks y < gy0 the first and the rest the second (the 27B's gate | up: 2 x 544 blocks, whole rounds of the 64 resident ones
++// instead of 8.5 per weight). Every tile is a8_direct_tile's, so the output is bitwise the two launches'. A real checkpoint never takes the
++// per-group path: amdgpu_waves_per_eu(8) keeps the fold path at the old fold kernel's 8 waves per SIMD (<= 192 VGPRs) and lets the
++// per-group one spill.
++#define IK_A8_DIRECT_LDS                                                       \
++    __shared__ __align__(16) uint8_t sw[2][WN * TN * 16 * kA8LD];              \
++    __shared__ __align__(16) float sS[4 * WN * TN * 16];
++template <int WN, int WM, int TN, int TM, typename OutT>
++__global__ void __launch_bounds__(WN * WM * 32)
++a8_direct_kernel(A8Args a0, OutT* __restrict__ out0, A8Args a1, OutT* __restrict__ out1, int gx, int gy0) {
++    IK_A8_DIRECT_LDS
++    const bool second = (int)blockIdx.y >= gy0;
++    const A8Args& a = second ? a1 : a0;
++    OutT* out = second ? out1 : out0;
++    const int by = second ? (int)blockIdx.y - gy0 : (int)blockIdx.y;
++    uint4 hold[TN * TM];
++    if (*a.flag == 0) {
++        a8_direct_tile<true, WN, WM, TN, TM, OutT, false>(a, out, nullptr, blockIdx.x, by, gx, hold, sw, sS);
++    } else {
++        // the per-group path as quarter tiles (TN / 2 weight and TM / 2 token tiles per wave, the block's four quarters in turn): the
++        // same bits (every direct tile gives them), and the kernel keeps the fold path's register count (one kernel holds the larger of
++        // its two paths' VGPRs)
++        constexpr int TNH = TN > 1 ? TN / 2 : 1, TMH = TM > 1 ? TM / 2 : 1, NN = TN / TNH, NM = TM / TMH;
++#pragma unroll 1
++        for (int q = 0; q < NN * NM; ++q)
++            a8_direct_tile<false, WN, WM, TNH, TMH, OutT, false>(a, out, nullptr, blockIdx.x * NM + q % NM, by * NN + q / NM, gx,
++                                                                *reinterpret_cast<uint4(*)[TNH * TMH]>(hold),
++                                                                *reinterpret_cast<uint8_t(*)[2][WN * TNH * 16 * kA8LD]>(sw),
++                                                                *reinterpret_cast<float(*)[4 * WN * TNH * 16]>(sS));
++    }
++}
++
+ // PUSH: a persistent grid (a8_direct_enqueue: as many blocks as fit on the card at once) walks the tiles bx-fastest, and each tile's words
+ // are pushed during the block's next tile (a8_direct_tile), so the link drains them while the WMMAs run; the system fence comes once, after
+ // the last tile. (A fence per block held the CU until the link took the tile, and a push in each epilogue stalled the waves on the store
+-// queue: the push added to the GEMM instead of hiding behind it, lane arx m2 / m4.)
+-template <bool FOLD, int WN, int WM, int TN, int TM, typename OutT, bool PUSH>
+-__global__ void __launch_bounds__(WN * WM * 32) a8_direct_kernel(A8Args a, OutT* __restrict__ out, uint4* __restrict__ peer, int gx, int gy) {
++// queue: the push added to the GEMM instead of hiding behind it, lane arx m2 / m4.) Still one launch per fold path: with both in one
++// kernel the fold path spilled (lane pf27c).
++template <bool FOLD, int WN, int WM, int TN, int TM, typename OutT>
++__global__ void __launch_bounds__(WN * WM * 32) a8_direct_push_kernel(A8Args a, OutT* __restrict__ out, uint4* __restrict__ peer, int gx, int gy) {
+     if ((*a.flag == 0) != FOLD) return;
+-    if constexpr (PUSH) {
+-        int prev = -1;
+-        uint4 hold[TN * TM];
+-        for (int t = blockIdx.x; t < gx * gy; t += gridDim.x) {
+-            const bool last = t + (int)gridDim.x >= gx * gy;
+-            a8_direct_tile<FOLD, WN, WM, TN, TM, OutT, PUSH>(a, out, peer, t % gx, t / gx, gx, hold, prev < 0 ? -1 : prev % gx, prev < 0 ? 0 : prev / gx, last);
+-            prev = t;
+-        }
+-        __threadfence_system();
+-    } else {
+-        uint4 hold[TN * TM];
+-        a8_direct_tile<FOLD, WN, WM, TN, TM, OutT, PUSH>(a, out, peer, blockIdx.x, blockIdx.y, gx, hold);
++    IK_A8_DIRECT_LDS
++    int prev = -1;
++    uint4 hold[TN * TM];
++    for (int t = blockIdx.x; t < gx * gy; t += gridDim.x) {
++        const bool last = t + (int)gridDim.x >= gx * gy;
++        a8_direct_tile<FOLD, WN, WM, TN, TM, OutT, true>(a, out, peer, t % gx, t / gx, gx, hold, sw, sS, prev < 0 ? -1 : prev % gx, prev < 0 ? 0 : prev / gx, last);
++        prev = t;
+     }
++    __threadfence_system();
+ }
+-
+-// peer non-null: the PUSH kernel (bf16 out only; a8_gemm checks), and `lay` gets the tile
+-template <bool FOLD, int WN, int WM, int TN, int TM, typename OutT>
+-void a8_direct_enqueue(const A8Args& a, OutT* out, hipStream_t s, uint4* peer = nullptr, ik_ar_push* lay = nullptr) {
+-    dim3 grid((unsigned)(((int64_t)a.M + WM * TM * 16 - 1) / (WM * TM * 16)), (unsigned)((a.N + WN * TN * 16 - 1) / (WN * TN * 16)));
++#undef IK_A8_DIRECT_LDS
++
++// peer non-null: the PUSH kernel (bf16 out only; a8_gemm checks), and `lay` gets the tile; a1 / out1 non-null: the pair's second weight
++// (never with peer)
++template <int WN, int WM, int TN, int TM, typename OutT>
++void a8_direct_enqueue(const A8Args& a, OutT* out, hipStream_t s, uint4* peer = nullptr, ik_ar_push* lay = nullptr, const A8Args* a1 = nullptr,
++                       OutT* out1 = nullptr) {
++    constexpr int BM = WM * TM * 16, BN = WN * TN * 16;
++    dim3 grid((unsigned)(((int64_t)a.M + BM - 1) / BM), (unsigned)((a.N + BN - 1) / BN));
+     if (peer) {
+         // the persistent grid: every block resident at once (blocks per CU from the occupancy API, once per instance)
+         static const int per_grid = [] {
+             int dev = 0, cus = 0, per_cu = 0;
+             (void)hipGetDevice(&dev);
+             (void)hipDeviceGetAttribute(&cus, hipDeviceAttributeMultiprocessorCount, dev);
+-            (void)hipOccupancyMaxActiveBlocksPerMultiprocessor(&per_cu, a8_direct_kernel<FOLD, WN, WM, TN, TM, OutT, true>, WN * WM * 32, 0);
++            (void)hipOccupancyMaxActiveBlocksPerMultiprocessor(&per_cu, a8_direct_push_kernel<true, WN, WM, TN, TM, OutT>, WN * WM * 32, 0);
+             return cus * (per_cu > 0 ? per_cu : 1);
+         }();
+         const int64_t tiles = (int64_t)grid.x * grid.y;
+         const unsigned nb = (unsigned)(tiles < per_grid ? tiles : per_grid);
+-        a8_direct_kernel<FOLD, WN, WM, TN, TM, OutT, true><<<nb, WN * WM * 32, 0, s>>>(a, out, peer, (int)grid.x, (int)grid.y);
++        a8_direct_push_kernel<true, WN, WM, TN, TM, OutT><<<nb, WN * WM * 32, 0, s>>>(a, out, peer, (int)grid.x, (int)grid.y);
++        a8_direct_push_kernel<false, WN, WM, TN, TM, OutT><<<nb, WN * WM * 32, 0, s>>>(a, out, peer, (int)grid.x, (int)grid.y);
+         if (lay) {
+             lay->wn = WN;
+             lay->tn = TN;
+@@ -627,9 +665,11 @@ void a8_direct_enqueue(const A8Args& a, OutT* out, hipStream_t s, uint4* peer =
+             lay->gx = (int32_t)grid.x;
+             lay->words = (int64_t)grid.x * grid.y * WN * WM * TN * TM * 32;
+         }
+-    } else {
+-        a8_direct_kernel<FOLD, WN, WM, TN, TM, OutT, false><<<grid, WN * WM * 32, 0, s>>>(a, out, nullptr, (int)grid.x, (int)grid.y);
++        return;
+     }
++    const int gy0 = (int)grid.y;
++    if (a1) grid.y += (unsigned)((a1->N + BN - 1) / BN);
++    a8_direct_kernel<WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(a, out, a1 ? *a1 : a, a1 ? out1 : out, (int)grid.x, gy0);
+ }
+ 
+ // INTARSIA_HIP_MXFP4_A8_TILE=WN,WM,TN,TM[,PD] forces one tile (PD 1 or 2, default 1), INTARSIA_HIP_MXFP4_A8_PERGROUP=1 forces the per-group path,
+@@ -709,31 +749,37 @@ void a8_run(const A8Args& a, OutT* out, hipStream_t s) {
+ #undef IK_A8_TILE
+ }
+ 
+-// The direct kernel's tiles (both paths enqueued, the flag picks one, as a8_run).
+-template <typename OutT>
+-void a8_direct_run(const A8Args& a, OutT* out, hipStream_t s, uint4* peer = nullptr, ik_ar_push* lay = nullptr) {
+-#define IK_A8_DTILE(WN, WM, TN, TM)                                       \
+-    {                                                                     \
+-        a8_direct_enqueue<true, WN, WM, TN, TM>(a, out, s, peer, lay);    \
+-        a8_direct_enqueue<false, WN, WM, TN, TM>(a, out, s, peer, lay);   \
+-        return;                                                           \
+-    }
++// The direct kernel's tile of a call: 64 features x 512 tokens (16 waves) from M = 768, else 64 x 256 (8 waves): lane PF27's sweep (raw/m5)
++// over the 27B tp2 shapes at M = 130 .. 2048 (the 512-token tile ties at M = 512 and wins from M = 1000; below it pads too many tokens)
++// lane pf27b: one 64-feature tile column (N <= 64: the 27B's GDN b / a gates, 24 rows per rank) takes the 128-token tile, 16 blocks at
++// M = 2048 instead of 4 (call level 92 -> 79 us; every tile gives the same bits, the a8_mma_hashes of each DTILE agree)
++int a8_dtile(const A8Args& a) {
+     const int* t = a8_cfg().dtile;
+     if (t[0] > 0) {
+         const int key = t[0] * 1000 + t[1] * 100 + t[2] * 10 + t[3];
+-        if (key == 2824) IK_A8_DTILE(2, 8, 2, 4)
+-        if (key == 2424) IK_A8_DTILE(2, 4, 2, 4)
+-        if (key == 2224) IK_A8_DTILE(2, 2, 2, 4)
+-        if (key == 4424) IK_A8_DTILE(4, 4, 2, 4)
+-        if (key == 4224) IK_A8_DTILE(4, 2, 2, 4)
++        if (key == 2824 || key == 2424 || key == 2224 || key == 4424 || key == 4224) return key;
++    }
++    if (a.N <= 64) return 2224;
++    if (a.M >= 768) return 2824;
++    return 2424;
++}
++
++// One direct launch: the call's tile (a pair's two weights must have the same one, launch_a8_pair checks).
++template <typename OutT>
++void a8_direct_run(const A8Args& a, OutT* out, hipStream_t s, uint4* peer = nullptr, ik_ar_push* lay = nullptr, const A8Args* a1 = nullptr,
++                   OutT* out1 = nullptr) {
++#define IK_A8_DTILE(WN, WM, TN, TM)                                          \
++    {                                                                        \
++        a8_direct_enqueue<WN, WM, TN, TM>(a, out, s, peer, lay, a1, out1);   \
++        return;                                                              \
++    }
++    switch (a8_dtile(a)) {
++        case 2824: IK_A8_DTILE(2, 8, 2, 4)
++        case 2224: IK_A8_DTILE(2, 2, 2, 4)
++        case 4424: IK_A8_DTILE(4, 4, 2, 4)
++        case 4224: IK_A8_DTILE(4, 2, 2, 4)
++        default: IK_A8_DTILE(2, 4, 2, 4)
+     }
+-    // 64 features x 512 tokens (16 waves) from M = 768, else 64 x 256 (8 waves): lane PF27's sweep (raw/m5) over the 27B tp2 shapes at
+-    // M = 130 .. 2048 (the 512-token tile ties at M = 512 and wins from M = 1000; below it pads too many tokens)
+-    // lane pf27b: one 64-feature tile column (N <= 64: the 27B's GDN b / a gates, 24 rows per rank) takes the 128-token tile, 16 blocks at
+-    // M = 2048 instead of 4 (call level 92 -> 79 us; every tile gives the same bits, the a8_mma_hashes of each DTILE agree)
+-    if (a.N <= 64) IK_A8_DTILE(2, 2, 2, 4)
+-    if (a.M >= 768) IK_A8_DTILE(2, 8, 2, 4)
+-    IK_A8_DTILE(2, 4, 2, 4)
+ #undef IK_A8_DTILE
+ }
+ 
+@@ -802,8 +848,8 @@ int a8_spans(const ik_tensor* w0, const ik_tensor* s0, uint8_t* wref0, int* flag
+ // one GEMM on the quantised activations in the scratch base, after its span pass (wref, flag). lay non-null (lane arx): also push the output
+ // into `peer` (ar_push.h) when this call takes the direct kernel with a bf16, 8-aligned output whose layout fits lay->cap; lay->pushed says
+ // whether it did (otherwise the GEMM is the ordinary one and the all-reduce pushes as before)
+-int a8_gemm(const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, uint8_t* base, const uint8_t* wref, const int* flag, int64_t M, int64_t K,
+-            bool direct, hipStream_t s, void* peer = nullptr, ik_ar_push* lay = nullptr) {
++A8Args a8_args(const ik_tensor* w, const ik_tensor* sc, const ik_tensor* out, uint8_t* base, const uint8_t* wref, const int* flag, int64_t M,
++                int64_t K, bool direct) {
+     const int64_t N = w->shape[0];
+     const int64_t Mp = (M + 15) & ~(int64_t)15, Kp = (K + 63) & ~(int64_t)63;
+     A8Args a;
+@@ -817,6 +863,13 @@ int a8_gemm(const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, uint8_t* ba
+     a.N = N;
+     a.K = (int)K;
+     a.vec_out = (N % 8 == 0) && ik_aligned16(out->data);
++    return a;
++}
++
++int a8_gemm(const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, uint8_t* base, const uint8_t* wref, const int* flag, int64_t M, int64_t K,
++            bool direct, hipStream_t s, void* peer = nullptr, ik_ar_push* lay = nullptr) {
++    const int64_t N = w->shape[0];
++    const A8Args a = a8_args(w, sc, out, base, wref, flag, M, K, direct);
+     if (lay) {
+         lay->pushed = 0;
+         // every direct tile is at most 512 tokens x 128 features: the layout of any of them fits this bound
+@@ -888,6 +941,16 @@ int launch_a8_pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0,
+     const bool direct = a8_use_direct(M);
+     IK_TRY(a8_quant(x, base, M, K, direct, flag0, 2, s));
+     IK_TRY(a8_spans(w0, s0, wref0, flag0, w1, s1, wref1, flag1, K, direct, s));
++    static const bool pair1 = [] { const char* e = getenv("INTARSIA_HIP_MXFP4_A8_PAIR1"); return !(e && e[0] == '0'); }();  // PF27C-TMP
++    if (pair1 && direct && out0->dtype == out1->dtype) {
++        // lane pf27c: both weights in one direct launch when they take the same tile (each block is exactly its single call's)
++        const A8Args a0 = a8_args(w0, s0, out0, base, wref0, flag0, M, K, direct), a1 = a8_args(w1, s1, out1, base, wref1, flag1, M, K, direct);
++        if (a8_dtile(a0) == a8_dtile(a1)) {
++            if (out0->dtype == IK_DTYPE_F32) a8_direct_run<float>(a0, (float*)out0->data, s, nullptr, nullptr, &a1, (float*)out1->data);
++            else a8_direct_run<ik_bf16>(a0, (ik_bf16*)out0->data, s, nullptr, nullptr, &a1, (ik_bf16*)out1->data);
++            return ik_launch_status();
++        }
++    }
+     IK_TRY(a8_gemm(w0, s0, out0, base, wref0, flag0, M, K, direct, s));
+     return a8_gemm(w1, s1, out1, base, wref1, flag1, M, K, direct, s);
+ }

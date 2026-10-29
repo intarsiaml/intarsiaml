@@ -16,16 +16,20 @@
 //!    `INTARSIA_HIP_MXFP4_A8_PD` value (1 = the previous kernel and tile table; the kernel reads it once per process) and diff the lines: prefetch
 //!    distance 1 and 2, and the tile table of each, must agree bitwise.
 //!
+//! 8. `a8_span_cache_reuses_and_refills` (lane pf27c): calls that reuse one weight's buffers (the backend's span cache: the fold flag read back
+//!    after the first call, later calls launch only the selected path's kernel) give the bits of fresh-buffer calls, foldable and wide-span
+//!    weights, single and pair; a weight rewritten in place gives the new weight's bits.
+//!
 //! Needs a GPU: skips without one. INTARSIA_HIP_MXFP4_A8_PERGROUP=1 reruns 1-3 on the per-group path.
 #![cfg(ik_hip)]
 
-use intarsia_core::backend::Backend;
+use intarsia_core::backend::{Backend, MemKind};
 use intarsia_core::exec::{run_host, HostCall, OutSpec};
 use intarsia_core::quant::cases::{matmul_mxfp4_case, matmul_mxfp4_pair_case};
 use intarsia_core::quant::reference::matmul_mxfp4_a8;
 use intarsia_core::quant::Mxfp4Act;
 use intarsia_core::rng::SplitMix64;
-use intarsia_core::{DType, HostTensor};
+use intarsia_core::{DType, HostTensor, OpCall, ShapeInfo, TensorRef};
 use std::sync::Arc;
 
 fn device() -> Option<Arc<dyn Backend>> {
@@ -210,6 +214,79 @@ fn a8_pair_is_bitwise_two_single_calls() {
                 assert!(pair[j].data == single[0].data, "M={m} N0={n0} N1={n1} K={k} {odt:?}: pair output {j} differs from the single call");
             }
         }
+    }
+}
+
+/// Lane pf27c: the backend's span cache (device.rs `SpanCache`, one span pass per weight instead of per call). Calls on the same device buffers
+/// (round 0 fills the entry with both fold paths launched, later rounds run after the flag has been read back and launch only the selected
+/// path's kernel) give the bits of `run_host` calls (fresh buffers: a new entry each), for foldable weights and a wide-span one (the per-group
+/// path), single and pair; then every input is rewritten in place (upload into the same buffers, the wide-span case flipping to the fold
+/// path) and the calls give the new weights' bits.
+#[test]
+fn a8_span_cache_reuses_and_refills() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(101);
+    let put = |t: &HostTensor| {
+        let b = hip.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
+        hip.upload(&b, 0, &t.data, 0).unwrap();
+        TensorRef::new(b, t.dtype, &t.shape)
+    };
+    let launch = |kernel: &str, hc: &HostCall, ins: &[TensorRef]| -> Vec<Vec<u8>> {
+        let outs: Vec<TensorRef> = hc.outputs.iter().map(|o| put(&HostTensor::zeros(o.dtype, &o.shape))).collect();
+        let mut call = OpCall::new(hc.op, ins.to_vec(), outs.clone(), hc.attrs.clone());
+        let kern = hip.kernels().into_iter().find(|x| x.name == kernel).unwrap();
+        let need = kern.scratch_bytes(&ShapeInfo::from_call(&call)).max(16);
+        call.scratch = Some(TensorRef::new(hip.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
+        hip.launch(kernel, &call, 0).unwrap();
+        hip.synchronize(0).unwrap();
+        outs.iter()
+            .map(|t| {
+                let mut v = vec![0u8; t.nbytes()];
+                hip.download(&t.buf, t.offset, &mut v, 0).unwrap();
+                v
+            })
+            .collect()
+    };
+    // row 5 of the scales [N, K/32] at `si`: one group 20 octaves above the others, beyond the fold bound (test 2's construction)
+    let widen = |hc: &mut HostCall, si: usize, k: usize| {
+        let g = k / 32;
+        hc.inputs[si].data[5 * g + 3] = hc.inputs[si].data[5 * g].saturating_add(20).min(250);
+    };
+    let check = |kernel: &str, a: &HostCall, b: &HostCall, what: &str| {
+        let want_a = run_host(&*hip, kernel, a).unwrap();
+        let want_b = run_host(&*hip, kernel, b).unwrap();
+        let ins: Vec<TensorRef> = a.inputs.iter().map(put).collect();
+        for round in 0..3 {
+            let got = launch(kernel, a, &ins);
+            for (j, w) in want_a.iter().enumerate() {
+                assert!(got[j] == w.data, "{kernel} {what}: round {round}, output {j} differs from the fresh-buffer call");
+            }
+        }
+        for (t, h) in ins.iter().zip(&b.inputs) {
+            hip.upload(&t.buf, t.offset, &h.data, 0).unwrap();
+        }
+        for round in 0..2 {
+            let got = launch(kernel, b, &ins);
+            for (j, w) in want_b.iter().enumerate() {
+                assert!(got[j] == w.data, "{kernel} {what}: after the in-place rewrite, round {round}, output {j} differs from the new weight's call");
+            }
+        }
+    };
+    for (m, n, k, wide) in [(2048usize, 5120usize, 3072usize, false), (300, 777, 4160, false), (1810, 512, 5120, false), (130, 512, 1024, true)] {
+        let mut a = matmul_mxfp4_case(&mut rng, m, n, k, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+        let b = matmul_mxfp4_case(&mut rng, m, n, k, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+        if wide {
+            widen(&mut a, 2, k);
+        }
+        check("matmul_mxfp4_a8_mma", &a, &b, &format!("M={m} N={n} K={k} wide={wide}"));
+    }
+    for (m, n0, n1, k, wide) in [(2048usize, 8704usize, 8704usize, 5120usize, false), (2048, 24, 24, 5120, false), (300, 777, 1000, 4160, true)] {
+        let mut a = matmul_mxfp4_pair_case(&mut rng, m, n0, n1, k, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+        let b = matmul_mxfp4_pair_case(&mut rng, m, n0, n1, k, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+        if wide {
+            widen(&mut a, 4, k); // the second weight takes the per-group path, the first the fold path
+        }
+        check("matmul_mxfp4_pair_a8_mma", &a, &b, &format!("M={m} N0={n0} N1={n1} K={k} wide={wide}"));
     }
 }
 

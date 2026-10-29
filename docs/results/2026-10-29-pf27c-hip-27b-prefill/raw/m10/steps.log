@@ -1,0 +1,8 @@
+fleetq: #6921 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m10 SEC=prof PFLAGS=--hip-runtime-trace PBINS=pf27c-base-cli bash ~/intarsiaml-pf27c/scripts/pf27c/micro.sh'
+[arx] stopping radiance 2026-10-29 06:54:43
+[arx] radiance inactive 2026-10-29 06:54:47
+== prof pf27c-base-cli-4k-0: finish=length prompt=3858 (cached 0) completion=1 | prefill 832 ms (4638.1 tok/s) | decode 0 ms (0.00 tok/s) csv=252 /home/josef/intarsiaml-pf27c/pf27c-out/m10/p-pf27c-base-cli-4k-0.csv.gz (8 s)
+[arx] micro done 2026-10-29 06:54:51, 8 s
+[arx] starting radiance 2026-10-29 06:54:51
+[arx] RADIANCE-RESTORE active after 10 s at 2026-10-29 06:55:01; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793271299,"owned_by":"radiance"
+fleetq: #6921 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

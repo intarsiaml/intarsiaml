@@ -1,0 +1,14 @@
+fleetq: #6891 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m1 SEC=prof PBINS=pf27c-base-cli bash ~/intarsiaml-pf27c/scripts/pf27c/micro.sh && W=m1 SEC=prof PP=16k-0 PMS=20480 PBINS=pf27c-base-cli NORAD=1 bash ~/intarsiaml-pf27c/scripts/pf27c/micro.sh'
+[arx] stopping radiance 2026-10-29 06:04:42
+[arx] radiance inactive 2026-10-29 06:04:45
+== prof pf27c-base-cli-4k-0: finish=length prompt=3858 (cached 0) completion=1 | prefill 822 ms (4692.4 tok/s) | decode 0 ms (0.00 tok/s) csv=248 /home/josef/intarsiaml-pf27c/pf27c-out/m1/p-pf27c-base-cli-4k-0.csv.gz (13 s)
+[arx] micro done 2026-10-29 06:04:55, 13 s
+[arx] starting radiance 2026-10-29 06:04:55
+[arx] RADIANCE-RESTORE active after 15 s at 2026-10-29 06:05:10; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793268306,"owned_by":"radiance"
+[arx] stopping radiance 2026-10-29 06:05:10
+[arx] radiance inactive 2026-10-29 06:05:13
+== prof pf27c-base-cli-16k-0: | `cublaslt` / `hipblaslt` prefill GEMM registered as `Fast` | **partial** | cuBLASLt for FP8 only ([`kernels/cuda/fp8_g csv=812 /home/josef/intarsiaml-pf27c/pf27c-out/m1/p-pf27c-base-cli-16k-0.csv.gz (12 s)
+[arx] micro done 2026-10-29 06:05:22, 12 s
+[arx] starting radiance 2026-10-29 06:05:22
+[arx] RADIANCE-RESTORE active after 10 s at 2026-10-29 06:05:32; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793268331,"owned_by":"radiance"
+fleetq: #6891 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

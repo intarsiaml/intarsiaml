@@ -1,0 +1,9 @@
+fleetq: #6919 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m9 SEC='"'"'ptime'"'"' PDVAR=INTARSIA_HIP_AR_PUSH_GRID PDIAGS='"'"'- 4'"'"' bash ~/intarsiaml-pf27c/scripts/pf27c/micro.sh'
+[arx] stopping radiance 2026-10-29 06:50:04
+[arx] radiance inactive 2026-10-29 06:50:08
+== ptime [A=1]: M=2048 N=5120 K=3072 gemm 321.0 us|M=2048 N=5120 K=8704 plain 1696.0 us|M=2048 N=5120 K=3072 plain 1158.1 us|M=2048 N=5120 K=8704 push 1276.7 us|M=2048 N=5120 K=3072 push 954.5 us|
+== ptime [INTARSIA_HIP_AR_PUSH_GRID=4]: M=2048 N=5120 K=3072 gemm 327.5 us|M=2048 N=5120 K=8704 plain 1691.2 us|M=2048 N=5120 K=3072 plain 1153.7 us|M=2048 N=5120 K=8704 push 1205.1 us|M=2048 N=5120 K=3072 push 901.7 us|
+[arx] micro done 2026-10-29 06:50:10, 6 s
+[arx] starting radiance 2026-10-29 06:50:10
+[arx] RADIANCE-RESTORE active after 11 s at 2026-10-29 06:50:21; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793271018,"owned_by":"radiance"
+fleetq: #6919 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

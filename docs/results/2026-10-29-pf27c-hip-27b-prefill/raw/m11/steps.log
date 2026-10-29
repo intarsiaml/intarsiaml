@@ -1,0 +1,19 @@
+fleetq: #6929 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m11 SEC='"'"'corr hash gen prof'"'"' GREPS=3 HENVS='"'"'A=1 INTARSIA_HIP_MXFP4_A8_PERGROUP=1'"'"' PBINS=pf27c-dev-cli bash ~/intarsiaml-pf27c/scripts/pf27c/micro.sh'
+[arx] stopping radiance 2026-10-29 07:05:47
+[arx] radiance inactive 2026-10-29 07:05:51
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 810 ms (4761.7 tok/s) | decode 0 ms (0.00 tok/s) (8 s)
+== gen pf27c-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 822 ms (4693.9 tok/s) | decode 0 ms (0.00 tok/s) (11 s)
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 813 ms (4743.2 tok/s) | decode 0 ms (0.00 tok/s) (15 s)
+== gen pf27c-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 815 ms (4735.4 tok/s) | decode 0 ms (0.00 tok/s) (19 s)
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 813 ms (4744.1 tok/s) | decode 0 ms (0.00 tok/s) (23 s)
+== gen pf27c-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 817 ms (4720.7 tok/s) | decode 0 ms (0.00 tok/s) (27 s)
+== prof pf27c-dev-cli-4k-0: finish=length prompt=3858 (cached 0) completion=1 | prefill 828 ms (4658.8 tok/s) | decode 0 ms (0.00 tok/s) csv=272 /home/josef/intarsiaml-pf27c/pf27c-out/m11/p-pf27c-dev-cli-4k-0.csv.gz (31 s)
+== corr [A=1] rc=0: test result: ok. 8 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 22.22s  (53 s)
+== corr [INTARSIA_HIP_MXFP4_A8_PERGROUP=1] rc=0: test result: ok. 8 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 22.45s  (76 s)
+== corr [INTARSIA_HIP_MXFP4_A8_DIRECT=0] rc=0: test result: ok. 8 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 21.66s  (98 s)
+== hash [A=1]: base 48 lines, dev 48, differing: 0
+== hash [INTARSIA_HIP_MXFP4_A8_PERGROUP=1]: base 48 lines, dev 48, differing: 0
+[arx] micro done 2026-10-29 07:07:48, 121 s
+[arx] starting radiance 2026-10-29 07:07:48
+[arx] RADIANCE-RESTORE active after 10 s at 2026-10-29 07:07:58; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793272075,"owned_by":"radiance"
+fleetq: #6929 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
