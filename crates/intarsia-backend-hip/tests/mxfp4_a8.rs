@@ -23,6 +23,10 @@
 //!    for them (`INTARSIA_HIP_NORM_QUANT`): the norm's outputs, and the GEMMs (single and pair) that read its quantised activations, are
 //!    bitwise the plain norm and GEMMs on a copy of the normed rows; the reads are taken (`prequant_hits`); a rewrite of the normed rows
 //!    in place is seen (the next GEMM runs its own pre-pass on the new rows).
+//! 10. `a8_act_quant_is_bitwise_the_pre_pass` (lane nq27): the same for `silu_glu` (the FFN down projection's input) and `gated_rmsnorm` (the GDN
+//!    out projection's input, run on `[tokens * heads, dv]` rows and read as `[tokens, heads * dv]`; `INTARSIA_HIP_ACT_QUANT`): outputs and
+//!    GEMMs bitwise the plain producer (launched on a side stream) and GEMMs on a copy, the reads taken, a rewrite in place seen, and the
+//!    whole FFN chain norm - pair - silu_glu - down over the one quant slot.
 //!
 //! Needs a GPU: skips without one. INTARSIA_HIP_MXFP4_A8_PERGROUP=1 reruns 1-3 on the per-group path.
 #![cfg(ik_hip)]
@@ -374,6 +378,195 @@ fn a8_norm_quant_is_bitwise_the_pre_pass() {
         hip.upload(&n.buf, n.offset, &other.data, 0).unwrap();
         let copy2 = put(&other);
         assert!(gemm("matmul_mxfp4_pair_a8_mma", &pair, &n) == gemm("matmul_mxfp4_pair_a8_mma", &pair, &copy2), "{what}: a rewrite of the normed rows was not seen");
+    }
+}
+
+// ---- lane nq27 ----
+
+fn nq_put(hip: &Arc<dyn Backend>, t: &HostTensor) -> TensorRef {
+    let b = hip.alloc(t.nbytes().max(16), MemKind::Device).unwrap();
+    hip.upload(&b, 0, &t.data, 0).unwrap();
+    TensorRef::new(b, t.dtype, &t.shape)
+}
+
+fn nq_get(hip: &Arc<dyn Backend>, t: &TensorRef) -> Vec<u8> {
+    hip.synchronize(0).unwrap();
+    let mut v = vec![0u8; t.nbytes()];
+    hip.download(&t.buf, t.offset, &mut v, 0).unwrap();
+    v
+}
+
+/// a W4A8 GEMM call (its scratch) of `hc`'s weights on the activation `x`, writing `outs`
+fn nq_gemm(hip: &Arc<dyn Backend>, kernel: &str, hc: &HostCall, x: &TensorRef, outs: &[TensorRef]) {
+    let mut ins: Vec<TensorRef> = hc.inputs.iter().map(|t| nq_put(hip, t)).collect();
+    ins[0] = x.clone();
+    let mut call = OpCall::new(hc.op, ins, outs.to_vec(), hc.attrs.clone());
+    let kern = hip.kernels().into_iter().find(|k| k.name == kernel).unwrap();
+    let need = kern.scratch_bytes(&ShapeInfo::from_call(&call)).max(16);
+    call.scratch = Some(TensorRef::new(hip.alloc(need, MemKind::Device).unwrap(), DType::U8, &[need]));
+    hip.launch(kernel, &call, 0).unwrap();
+}
+
+fn nq_zeros(hip: &Arc<dyn Backend>, dt: DType, shape: &[usize]) -> TensorRef {
+    nq_put(hip, &HostTensor::zeros(dt, shape))
+}
+
+/// the knobs that turn the handoff (or the direct kernel it needs) off: no GEMM then reads a producer's quantised rows
+fn nq_off(knob: &str) -> bool {
+    std::env::var("INTARSIA_HIP_MXFP4_A8_DIRECT").is_ok_and(|v| v == "0") || std::env::var(knob).is_ok_and(|v| v == "0")
+}
+
+#[test]
+fn a8_act_quant_is_bitwise_the_pre_pass() {
+    let Some(hip) = device() else { return };
+    let mut rng = SplitMix64::new(127);
+    let bf = |rng: &mut SplitMix64, shape: &[usize], scale: f32| {
+        HostTensor::from_f32_as(DType::Bf16, shape, &rng.normal_vec(shape.iter().product(), scale))
+    };
+    // the plain producer: the same launch on a side stream, which never takes the handoff
+    let plain = |op: Op, kernel: &str, ins: Vec<TensorRef>, outs: Vec<TensorRef>, attrs: &OpAttrs| {
+        hip.synchronize(0).unwrap();
+        hip.launch(kernel, &OpCall::new(op, ins, outs, attrs.clone()), 1).unwrap();
+        hip.synchronize(1).unwrap();
+    };
+    let attrs = OpAttrs { eps: 1e-6, w_offset: 0.0, ..Default::default() };
+    // silu_glu -> the FFN down projection: (rows, I, N): the 27B tp2 points (an 8704-column shard, a 1810-row chunk), a K % 64 == 32 tail, the
+    // smallest direct M, a row longer than the kept chunks fit (plain silu_glu, plain pre-pass)
+    for (m, k, n) in [(2048usize, 8704usize, 5120usize), (1810, 8704, 24), (300, 4128, 640), (65, 2080, 512), (130, 32800, 64)] {
+        let what = format!("silu_glu M={m} I={k} N={n}");
+        let (g, u) = (nq_put(&hip, &bf(&mut rng, &[m, k], 2.0)), nq_put(&hip, &bf(&mut rng, &[m, k], 1.0)));
+        let (a, a_ref) = (nq_zeros(&hip, DType::Bf16, &[m, k]), nq_zeros(&hip, DType::Bf16, &[m, k]));
+        let down = matmul_mxfp4_case(&mut rng, m, n, k, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+        let silu = |kern_out: &TensorRef, side: bool| {
+            let call = OpCall::new(Op::SiluGlu, vec![g.clone(), u.clone()], vec![kern_out.clone()], OpAttrs::default());
+            if side {
+                plain(Op::SiluGlu, "silu_glu_bf16", call.inputs.clone(), call.outputs.clone(), &call.attrs);
+            } else {
+                hip.launch("silu_glu_bf16", &call, 0).unwrap();
+            }
+        };
+        silu(&a_ref, true);
+        let a_want = nq_get(&hip, &a_ref);
+        let copy = nq_put(&hip, &HostTensor::new(DType::Bf16, vec![m, k], a_want.clone()).unwrap());
+        let out = nq_zeros(&hip, down.outputs[0].dtype, &down.outputs[0].shape);
+        nq_gemm(&hip, "matmul_mxfp4_a8_mma", &down, &copy, &[out.clone()]);
+        let want = nq_get(&hip, &out);
+        let hits0 = intarsia_backend_hip::prequant_hits();
+        for round in 0..3 {
+            silu(&a, false);
+            assert!(nq_get(&hip, &a) == a_want, "{what}: round {round}, the activation differs from the plain silu_glu");
+            nq_gemm(&hip, "matmul_mxfp4_a8_mma", &down, &a, &[out.clone()]);
+            assert!(nq_get(&hip, &out) == want, "{what}: round {round}, the down GEMM differs");
+        }
+        let hits = intarsia_backend_hip::prequant_hits() - hits0;
+        if nq_off("INTARSIA_HIP_ACT_QUANT") || k > 32768 {
+            assert_eq!(hits, 0, "{what}: quantised rows read with the direct kernel or the knob off, or a row too long for the kernel");
+        } else {
+            assert!(hits >= 2, "{what}: the down GEMM did not read silu_glu's quantised rows ({hits} reads)");
+        }
+        // the activation rewritten in place: the GEMM sees the new rows
+        silu(&a, false);
+        let other = bf(&mut rng, &[m, k], 1.0);
+        hip.upload(&a.buf, a.offset, &other.data, 0).unwrap();
+        let copy2 = nq_put(&hip, &other);
+        let (o1, o2) = (nq_zeros(&hip, down.outputs[0].dtype, &down.outputs[0].shape), nq_zeros(&hip, down.outputs[0].dtype, &down.outputs[0].shape));
+        nq_gemm(&hip, "matmul_mxfp4_a8_mma", &down, &a, &[o1.clone()]);
+        nq_gemm(&hip, "matmul_mxfp4_a8_mma", &down, &copy2, &[o2.clone()]);
+        assert!(nq_get(&hip, &o1) == nq_get(&hip, &o2), "{what}: a rewrite of the activation was not seen");
+    }
+    // gated_rmsnorm -> the GDN out projection: (tokens, heads, dv, N); dv = 128 with 24 heads is the 27B tp2 shard. 100 x 4 x 512 has more than
+    // 32 lanes per head: the plain kernel's multi-warp reduction, which the quant launch does not take.
+    for (t, hv, dv, n) in [(2048usize, 24usize, 128usize, 5120usize), (1810, 24, 128, 24), (65, 16, 128, 640), (300, 65, 32, 512), (130, 8, 256, 256), (100, 4, 512, 128)] {
+        let (k, rows) = (hv * dv, t * hv);
+        let what = format!("gated_rmsnorm tokens={t} heads={hv} dv={dv} N={n}");
+        let (x, z) = (nq_put(&hip, &bf(&mut rng, &[rows, dv], 1.0)), nq_put(&hip, &bf(&mut rng, &[rows, dv], 2.0)));
+        let w = nq_put(&hip, &bf(&mut rng, &[dv], 0.3));
+        let (o, o_ref) = (nq_zeros(&hip, DType::Bf16, &[rows, dv]), nq_zeros(&hip, DType::Bf16, &[rows, dv]));
+        let proj = matmul_mxfp4_case(&mut rng, t, n, k, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+        let gated = |dst: &TensorRef, side: bool| {
+            let call = OpCall::new(Op::GatedRmsnorm, vec![x.clone(), z.clone(), w.clone()], vec![dst.clone()], attrs.clone());
+            if side {
+                plain(Op::GatedRmsnorm, "gated_rmsnorm_bf16", call.inputs.clone(), call.outputs.clone(), &call.attrs);
+            } else {
+                hip.launch("gated_rmsnorm_bf16", &call, 0).unwrap();
+            }
+        };
+        gated(&o_ref, true);
+        let o_want = nq_get(&hip, &o_ref);
+        let copy = nq_put(&hip, &HostTensor::new(DType::Bf16, vec![t, k], o_want.clone()).unwrap());
+        let out = nq_zeros(&hip, proj.outputs[0].dtype, &proj.outputs[0].shape);
+        nq_gemm(&hip, "matmul_mxfp4_a8_mma", &proj, &copy, &[out.clone()]);
+        let want = nq_get(&hip, &out);
+        // the GEMM reads the producer's bytes as [tokens, heads * dv]
+        let view = TensorRef::new(o.buf.clone(), DType::Bf16, &[t, k]);
+        let hits0 = intarsia_backend_hip::prequant_hits();
+        for round in 0..3 {
+            gated(&o, false);
+            assert!(nq_get(&hip, &o) == o_want, "{what}: round {round}, the normed rows differ from the plain gated_rmsnorm");
+            nq_gemm(&hip, "matmul_mxfp4_a8_mma", &proj, &view, &[out.clone()]);
+            assert!(nq_get(&hip, &out) == want, "{what}: round {round}, the out GEMM differs");
+        }
+        let hits = intarsia_backend_hip::prequant_hits() - hits0;
+        if nq_off("INTARSIA_HIP_ACT_QUANT") || dv > 256 {
+            assert_eq!(hits, 0, "{what}: quantised rows read with the direct kernel or the knob off, or heads the quant launch does not take");
+        } else {
+            // round 0 learns the GEMM's row length, round 1 is the first producer launch that quantises
+            assert!(hits >= 1, "{what}: the out GEMM did not read gated_rmsnorm's quantised rows ({hits} reads)");
+        }
+        gated(&o, false);
+        let other = bf(&mut rng, &[rows, dv], 1.0);
+        hip.upload(&o.buf, o.offset, &other.data, 0).unwrap();
+        let copy2 = nq_put(&hip, &other);
+        let copy2 = TensorRef::new(copy2.buf.clone(), DType::Bf16, &[t, k]);
+        let (o1, o2) = (nq_zeros(&hip, proj.outputs[0].dtype, &proj.outputs[0].shape), nq_zeros(&hip, proj.outputs[0].dtype, &proj.outputs[0].shape));
+        nq_gemm(&hip, "matmul_mxfp4_a8_mma", &proj, &view, &[o1.clone()]);
+        nq_gemm(&hip, "matmul_mxfp4_a8_mma", &proj, &copy2, &[o2.clone()]);
+        assert!(nq_get(&hip, &o1) == nq_get(&hip, &o2), "{what}: a rewrite of the normed rows was not seen");
+    }
+    // the FFN chain over the one quant slot: rmsnorm_add -> gate | up pair -> silu_glu -> down, every producer and GEMM reading the previous
+    // one's output; each round against the same chain with plain producers on a side stream
+    for (m, h, inter, n) in [(2048usize, 5120usize, 8704usize, 5120usize), (1810, 5120, 8704, 5120), (300, 4128, 4128, 640)] {
+        let what = format!("ffn chain M={m} H={h} I={inter}");
+        let (x, res) = (nq_put(&hip, &bf(&mut rng, &[m, h], 1.0)), nq_put(&hip, &bf(&mut rng, &[m, h], 3.0)));
+        let w = nq_put(&hip, &bf(&mut rng, &[h], 0.2));
+        let pair = matmul_mxfp4_pair_case(&mut rng, m, inter, inter, h, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+        let down = matmul_mxfp4_case(&mut rng, m, n, inter, Mxfp4Act::Fp8, DType::Bf16, DType::Bf16);
+        let nattrs = OpAttrs { eps: 1e-6, w_offset: 1.0, ..Default::default() };
+        let bufs = || (nq_zeros(&hip, DType::Bf16, &[m, h]), nq_zeros(&hip, DType::Bf16, &[m, h]), nq_zeros(&hip, DType::Bf16, &[m, inter]), nq_zeros(&hip, DType::Bf16, &[m, inter]), nq_zeros(&hip, DType::Bf16, &[m, inter]), nq_zeros(&hip, down.outputs[0].dtype, &down.outputs[0].shape));
+        let chain = |(nn, sum, g, u, a, d): &(TensorRef, TensorRef, TensorRef, TensorRef, TensorRef, TensorRef), side: bool| {
+            let norm = OpCall::new(Op::RmsNormAdd, vec![x.clone(), res.clone(), w.clone()], vec![nn.clone(), sum.clone()], nattrs.clone());
+            let silu = OpCall::new(Op::SiluGlu, vec![g.clone(), u.clone()], vec![a.clone()], OpAttrs::default());
+            if side {
+                plain(Op::RmsNormAdd, "rmsnorm_add_bf16", norm.inputs.clone(), norm.outputs.clone(), &norm.attrs);
+            } else {
+                hip.launch("rmsnorm_add_bf16", &norm, 0).unwrap();
+            }
+            nq_gemm(&hip, "matmul_mxfp4_pair_a8_mma", &pair, nn, &[g.clone(), u.clone()]);
+            if side {
+                plain(Op::SiluGlu, "silu_glu_bf16", silu.inputs.clone(), silu.outputs.clone(), &silu.attrs);
+            } else {
+                hip.launch("silu_glu_bf16", &silu, 0).unwrap();
+            }
+            nq_gemm(&hip, "matmul_mxfp4_a8_mma", &down, a, &[d.clone()]);
+        };
+        let reference = bufs();
+        chain(&reference, true);
+        let want: Vec<Vec<u8>> = [&reference.0, &reference.1, &reference.2, &reference.3, &reference.4, &reference.5].iter().map(|t| nq_get(&hip, t)).collect();
+        let dev = bufs();
+        let hits0 = intarsia_backend_hip::prequant_hits();
+        for round in 0..3 {
+            chain(&dev, false);
+            let got: Vec<Vec<u8>> = [&dev.0, &dev.1, &dev.2, &dev.3, &dev.4, &dev.5].iter().map(|t| nq_get(&hip, t)).collect();
+            for (i, name) in ["norm", "sum", "gate", "up", "activation", "down"].iter().enumerate() {
+                assert!(got[i] == want[i], "{what}: round {round}, {name} differs from the plain chain");
+            }
+        }
+        let hits = intarsia_backend_hip::prequant_hits() - hits0;
+        if nq_off("INTARSIA_HIP_ACT_QUANT") && nq_off("INTARSIA_HIP_NORM_QUANT") {
+            assert_eq!(hits, 0, "{what}: quantised rows read with the direct kernel or the knobs off");
+        } else {
+            assert!(hits >= 2, "{what}: the chain's GEMMs did not read their producers' quantised rows ({hits} reads)");
+        }
     }
 }
 
