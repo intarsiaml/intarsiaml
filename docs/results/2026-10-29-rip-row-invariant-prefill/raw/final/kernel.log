@@ -1,0 +1,35 @@
+warning: field `spec_dflash` is never read
+1135 |     spec_dflash: bool,
+test flash_attention_rows_do_not_depend_on_the_split ... attn_prefill_bf16_flash 32/8x128: every window identical
+FINDING attn_prefill_bf16_splitkv (2..16 rows) vs flash one pass 32/8x128: (0,2):0 (0,4):0 (0,5):0 (0,7):0 (0,16):0 (1,7):0 (7,9):0 (100,3):0 (2047,2):0 (4100,5):0
+FINDING attn_decode_bf16_splitkv (1 row) vs flash one pass 32/8x128: (1,1):0 (7,1):0 (255,1):0 (256,1):0 (1000,1):0 (4095,1):0 (4096,1):0 (4351,1):0
+attn_prefill_bf16_flash 8/8x128: every window identical
+FINDING attn_prefill_bf16_splitkv (2..16 rows) vs flash one pass 8/8x128: (0,2):0 (0,4):0 (0,5):0 (0,7):0 (0,16):0 (1,7):0 (7,9):0 (100,3):0 (2047,2):0 (4100,5):0
+FINDING attn_decode_bf16_splitkv (1 row) vs flash one pass 8/8x128: (1,1):0 (7,1):0 (255,1):0 (256,1):0 (1000,1):0 (4095,1):0 (4096,1):0 (4351,1):0
+test gemm_inv_timing_at_8b_shapes ... ignored
+test gemm_rows_do_not_depend_on_m ... matmul_bf16_inv: N=4096 K=4096 ref M 4096 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+FINDING matmul_bf16 (cuBLAS GemmEx heuristic) N4096 K4096: (0,1):1 (0,17):17 (1,1):1 (7,1):1 (255,1):1 (256,1):1 (513,17):17 (1000,1):1 (4095,1):1
+FINDING matmul_bf16_gemv (M <= 4) vs cuBLAS one pass N4096 K4096: 11 of 11 windows differ
+matmul_bf16_inv N4096 K4096: every window identical
+matmul_bf16_inv: N=1024 K=4096 ref M 4096 -> heuristic #0 algo 67 tile 409 stages 35 (of 3)
+FINDING matmul_bf16 (cuBLAS GemmEx heuristic) N1024 K4096: (0,1):1 (0,2):2 (0,4):3 (0,5):4 (0,7):6 (0,17):15 (1,1):1 (1,7):6 (7,1):1 (100,3):3 (255,1):1 (256,1):1 (513,17):13 (1000,1):1 (4095,1):1
+FINDING matmul_bf16_gemv (M <= 4) vs cuBLAS one pass N1024 K4096: 10 of 11 windows differ
+matmul_bf16_inv N1024 K4096: every window identical
+matmul_bf16_inv: N=12288 K=4096 ref M 4096 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+FINDING matmul_bf16 (cuBLAS GemmEx heuristic) N12288 K4096: (0,1):1 (1,1):1 (7,1):1 (255,1):1 (256,1):1 (1000,1):1 (4095,1):1
+FINDING matmul_bf16_gemv (M <= 4) vs cuBLAS one pass N12288 K4096: 11 of 11 windows differ
+matmul_bf16_inv N12288 K4096: every window identical
+matmul_bf16_inv: N=4096 K=12288 ref M 4096 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+FINDING matmul_bf16 (cuBLAS GemmEx heuristic) N4096 K12288: (0,1):1 (0,17):17 (1,1):1 (7,1):1 (255,1):1 (256,1):1 (513,17):17 (1000,1):1 (4095,1):1
+FINDING matmul_bf16_gemv (M <= 4) vs cuBLAS one pass N4096 K12288: 11 of 11 windows differ
+matmul_bf16_inv N4096 K12288: every window identical
+test head_gemv_rows_do_not_depend_on_m ... ok
+test row_wise_ops_do_not_depend_on_m ... rmsnorm_bf16: every window identical
+rmsnorm_add_bf16: every window identical
+add_bf16: every window identical
+silu_glu_bf16: every window identical
+qk_norm_bf16: every window identical
+rope_bf16: every window identical
+qk_norm_bf16: every window identical
+rope_bf16: every window identical
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 26.94s

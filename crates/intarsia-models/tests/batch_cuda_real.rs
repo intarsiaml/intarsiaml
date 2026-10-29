@@ -111,6 +111,17 @@ fn load(dir: &PathBuf, backend: Arc<dyn intarsia_core::backend::Backend>, rows: 
     load_with(dir, backend, rows, max_seq, 0).0
 }
 
+/// Lane rip: [`load`] with row-invariant prefill on (`LoadOptions::row_invariant_prefill`; off by default on CUDA), unless
+/// `INTARSIA_RIP_PLAIN=1` (the ordinary prefill, the "before" probe).
+static LOAD_INV: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+fn load_inv(dir: &PathBuf, backend: Arc<dyn intarsia_core::backend::Backend>, rows: usize, max_seq: usize) -> Model {
+    let plain = std::env::var("INTARSIA_RIP_PLAIN").is_ok_and(|v| v == "1");
+    LOAD_INV.store(!plain, std::sync::atomic::Ordering::Relaxed);
+    let m = load(dir, backend, rows, max_seq);
+    LOAD_INV.store(false, std::sync::atomic::Ordering::Relaxed);
+    m
+}
+
 fn load_with(
     dir: &PathBuf,
     backend: Arc<dyn intarsia_core::backend::Backend>,
@@ -140,6 +151,7 @@ fn try_load_with(
         kv_fraction: 0.95,
         // INTARSIA_TEST_MXFP4_ACT=fp8|none|dynamic: the MXFP4 activation mode (default: the recipe's / the checkpoint's)
         mxfp4_act: std::env::var("INTARSIA_TEST_MXFP4_ACT").ok().map(|v| intarsia_core::quant::Mxfp4Act::parse(&v).unwrap()),
+        row_invariant_prefill: LOAD_INV.load(std::sync::atomic::Ordering::Relaxed).then_some(true),
         ..Default::default()
     });
     let tel = Arc::new(Telemetry::new());
@@ -627,6 +639,12 @@ fn real_qwen3_8b_prefix_reuse_probe() {
     const GEN: usize = 64;
     const FORCED: usize = 4;
     let ids: Vec<Vec<u32>> = EQ_PROMPTS.iter().map(|p| codec.encode(p, false).unwrap()).collect();
+    // lane rip: prompt passes run as the engines run them (`forward_prefill`: row-invariant prefill on CUDA), or with the ordinary
+    // prefill under INTARSIA_RIP_PLAIN=1 (the BI8 probe as it was)
+    let plain = std::env::var("INTARSIA_RIP_PLAIN").is_ok_and(|v| v == "1");
+    let pf = |st: &mut intarsia_core::state::SequenceState, ids: &[u32], mode: HeadMode| {
+        if plain { m.forward(st, ids, mode, None) } else { m.forward_prefill(st, ids, mode, None) }.unwrap()
+    };
     // greedy continuation of `st` from the logits row `first`: (tokens, logits rows incl. `first`)
     let greedy = |st: &mut intarsia_core::state::SequenceState, first: Vec<f32>, n: usize| -> (Vec<u32>, Vec<Vec<f32>>) {
         let mut rows = vec![first];
@@ -643,12 +661,12 @@ fn real_qwen3_8b_prefix_reuse_probe() {
     let mut cold: Vec<(Vec<u32>, Vec<Vec<f32>>)> = Vec::new();
     for (i, p) in ids.iter().enumerate() {
         let mut st = m.new_state().unwrap();
-        let l = logits_of(m.forward(&mut st, p, HeadMode::LastLogits, None).unwrap());
+        let l = logits_of(pf(&mut st, p, HeadMode::LastLogits));
         let (toks, rows) = greedy(&mut st, l, GEN);
         eprintln!("COLD {i} plen {} ids {:?}", p.len(), toks);
         // the repeated prompt on the same slot: the cold state (prompt + GEN tokens) truncated to plen - 1, last token alone
         st.truncate(p.len() - 1, &*m.backend).unwrap();
-        let l = logits_of(m.forward(&mut st, &p[p.len() - 1..], HeadMode::LastLogits, None).unwrap());
+        let l = logits_of(pf(&mut st, &p[p.len() - 1..], HeadMode::LastLogits));
         let (rt, rr) = greedy(&mut st, l, GEN);
         let d = rt.iter().zip(&toks).position(|(a, b)| a != b);
         eprintln!(
@@ -666,8 +684,8 @@ fn real_qwen3_8b_prefix_reuse_probe() {
         let mut line = String::new();
         for k in 1..p.len() {
             let mut st = m.new_state().unwrap();
-            m.forward(&mut st, &p[..k], HeadMode::None, None).unwrap();
-            let mut rows = vec![logits_of(m.forward(&mut st, &p[k..], HeadMode::LastLogits, None).unwrap())];
+            pf(&mut st, &p[..k], HeadMode::None);
+            let mut rows = vec![logits_of(pf(&mut st, &p[k..], HeadMode::LastLogits))];
             for &t in &cold[i].0[..FORCED] {
                 rows.push(logits_of(m.forward(&mut st, &[t], HeadMode::LastLogits, None).unwrap()));
             }
@@ -684,15 +702,139 @@ fn real_qwen3_8b_prefix_reuse_probe() {
                 continue;
             }
             let mut st = m.new_state().unwrap();
-            let l = logits_of(m.forward(&mut st, q, HeadMode::LastLogits, None).unwrap());
+            let l = logits_of(pf(&mut st, q, HeadMode::LastLogits));
             let _ = greedy(&mut st, l, FORCED);
             st.truncate(c, &*m.backend).unwrap();
-            let mut rows = vec![logits_of(m.forward(&mut st, &p[c..], HeadMode::LastLogits, None).unwrap())];
+            let mut rows = vec![logits_of(pf(&mut st, &p[c..], HeadMode::LastLogits))];
             for &t in &cold[i].0[..FORCED] {
                 rows.push(logits_of(m.forward(&mut st, &[t], HeadMode::LastLogits, None).unwrap()));
             }
             eprintln!("CROSS {i}<-{j} shared {c} of {}: first logits diff row {:?}", p.len(), first_diff(&rows, &cold[i].1[..=FORCED]));
         }
+    }
+}
+
+/// The KV cache rows `0..len` of every attention slot of `st`, as bytes (K then V, kv head by kv head).
+fn kv_rows(m: &Model, st: &intarsia_core::state::SequenceState, len: usize) -> Vec<u8> {
+    let mut out = Vec::new();
+    for s in &st.slots {
+        if let intarsia_core::state::StateSlot::AttnKv(a) = s {
+            let row = a.head_dim * a.dtype.size_bytes();
+            for buf in [&a.k, &a.v] {
+                for h in 0..a.n_kv_heads {
+                    let mut b = vec![0u8; len * row];
+                    m.backend.download(buf, (h * a.cap) * row, &mut b, 0).unwrap();
+                    out.extend_from_slice(&b);
+                }
+            }
+        }
+    }
+    out
+}
+
+/// Deterministic text of about `words` words, every sentence different (a long prompt for the row-invariance gate).
+fn long_text(words: usize) -> String {
+    let mut s = String::new();
+    let mut i = 0;
+    while s.split_whitespace().count() < words {
+        s.push_str(&format!("{} (part {i}, {} items). ", EQ_PROMPTS[i % EQ_PROMPTS.len()].trim(), 3 * i + 7));
+        i += 1;
+    }
+    s
+}
+
+/// Lane rip (docs/results/2026-10-29-rip-row-invariant-prefill.md): on Qwen3-8B, a prompt prefilled in one `forward_prefill`
+/// (the cold run: 4096-row chunks) has bitwise the same last-row logits and KV rows as the same prompt prefilled in two passes
+/// split at every sampled k, as in 256-row busy chunks, and as a resume from a held prefix (the cold state truncated to k, then
+/// the rest: what prefix reuse does), and the greedy decode after each is bitwise the cold one. Prompts: a 1500-token one (one
+/// pass cold) and a 4700-token one (4096 + 604 cold). `INTARSIA_RIP_PLAIN=1`: the same with the ordinary prefill (`forward`, no
+/// row-invariant kernels), printing the differences instead of asserting (the lane's "before" probe, and the mutant).
+#[test]
+fn real_qwen3_8b_prefill_is_row_invariant() {
+    let _serial = serial();
+    use intarsia_core::engine::TextCodec;
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
+    let plain = std::env::var("INTARSIA_RIP_PLAIN").is_ok_and(|v| v == "1");
+    let m = load_inv(&dir, be, 2, 8192);
+    assert!(plain || m.row_invariant_prefill(), "row-invariant prefill did not switch on for the 8B (LoadOptions::row_invariant_prefill)");
+    let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
+    let pf = |st: &mut intarsia_core::state::SequenceState, ids: &[u32], mode: HeadMode| {
+        if plain { m.forward(st, ids, mode, None) } else { m.forward_prefill(st, ids, mode, None) }.unwrap()
+    };
+    const GEN: usize = 8;
+    let decode = |st: &mut intarsia_core::state::SequenceState, first: Vec<f32>| -> Vec<Vec<f32>> {
+        let mut rows = vec![first];
+        for _ in 0..GEN {
+            let t = argmax_of(rows.last().unwrap());
+            rows.push(logits_of(m.forward(st, &[t], HeadMode::LastLogits, None).unwrap()));
+        }
+        rows
+    };
+    let mut failures = Vec::new();
+    for words in [1100usize, 3500] {
+        let p = codec.encode(&long_text(words), false).unwrap();
+        let plen = p.len();
+        let mut cold = m.new_state().unwrap();
+        let first = logits_of(pf(&mut cold, &p, HeadMode::LastLogits));
+        let kv_cold = kv_rows(&m, &cold, plen);
+        let cold_rows = decode(&mut cold, first);
+        let kv_after = kv_rows(&m, &cold, plen + GEN);
+        eprintln!("RIP prompt {plen} tokens (cold chunk {}), cold greedy {:?}", m.prefill_chunk(), cold_rows.iter().map(|r| argmax_of(r)).collect::<Vec<_>>());
+        let mut judge = |what: String, st: &mut intarsia_core::state::SequenceState, first: Vec<f32>| {
+            let same_logits = first == cold_rows[0];
+            let same_kv = kv_rows(&m, st, plen) == kv_cold;
+            let rows = decode(st, first);
+            let dec = rows.iter().zip(&cold_rows).position(|(a, b)| a != b);
+            let same_after = kv_rows(&m, st, plen + GEN) == kv_after;
+            let ok = same_logits && same_kv && dec.is_none() && same_after;
+            eprintln!(
+                "RIP {plen} {what}: logits {} kv {} decode {} kv+decode {}",
+                if same_logits { "EQUAL" } else { "DIFFER" },
+                if same_kv { "EQUAL" } else { "DIFFER" },
+                dec.map_or("EQUAL".to_string(), |r| format!("DIFFER from row {r}")),
+                if same_after { "EQUAL" } else { "DIFFER" },
+            );
+            if !ok {
+                failures.push(format!("{plen} {what}"));
+            }
+        };
+        let mut ks = vec![1usize, 7, 255, 256, 1000, plen - 1];
+        if plen > 4097 {
+            ks.extend([4095, 4096, 4097]);
+        }
+        for &k in &ks {
+            let mut st = m.new_state().unwrap();
+            pf(&mut st, &p[..k], HeadMode::None);
+            let l = logits_of(pf(&mut st, &p[k..], HeadMode::LastLogits));
+            judge(format!("split k={k}"), &mut st, l);
+        }
+        // 256-row busy chunks (the batched engine's chunk while others decode), then the last row's head
+        {
+            let mut st = m.new_state().unwrap();
+            let mut at = 0;
+            let mut out = None;
+            while at < plen {
+                let n = 256.min(plen - at);
+                let mode = if at + n == plen { HeadMode::LastLogits } else { HeadMode::None };
+                out = Some(pf(&mut st, &p[at..at + n], mode));
+                at += n;
+            }
+            judge("busy 256-row chunks".into(), &mut st, logits_of(out.unwrap()));
+        }
+        // prefix reuse: a held state (the prompt and a few decode steps) truncated to k, then the rest of the prompt
+        for &k in &[plen - 1, 1000, 1] {
+            let mut st = m.new_state().unwrap();
+            let l = logits_of(pf(&mut st, &p, HeadMode::LastLogits));
+            let _ = decode(&mut st, l);
+            st.truncate(k, &*m.backend).unwrap();
+            let l = logits_of(pf(&mut st, &p[k..], HeadMode::LastLogits));
+            judge(format!("reuse from {k}"), &mut st, l);
+        }
+    }
+    if plain {
+        eprintln!("RIP plain prefill: {} of the cases differ: {failures:?}", failures.len());
+    } else {
+        assert!(failures.is_empty(), "row-invariant prefill is not row-invariant: {failures:?}");
     }
 }
 
@@ -840,6 +982,185 @@ fn real_qwen3_8b_batched_engine_equals_the_cold_reference() {
         }
         eprintln!("bi8 engine identity: {slots} slots, {} requests equal the cold reference", rounds.iter().map(|r| r.len()).sum::<usize>());
     }
+}
+
+/// Lane rip: why `Model::reuse_len` stops at `SequenceState::inv_len` (the rows prefill passes wrote) rather than at the common
+/// prefix. A held sequence (a ~600-token prompt, then 16 greedy decode steps) holds the reply's rows as decode steps wrote them:
+/// the M = 1 GEMV and the split-KV decode attention. A cold row-invariant prefill of the same tokens must give the prompt rows
+/// bitwise, and other bits for the decode-written rows (else reusing them would be exact and the limit needless: this test then
+/// fails to say so). Resuming at `inv_len` (what reuse does) gives the cold bits: logits and every KV row.
+#[test]
+fn real_qwen3_8b_decode_written_rows_are_not_prefill_rows() {
+    let _serial = serial();
+    use intarsia_core::engine::TextCodec;
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
+    let m = load_inv(&dir, be, 2, 8192);
+    assert!(m.row_invariant_prefill(), "row-invariant prefill did not switch on for the 8B (LoadOptions::row_invariant_prefill)");
+    let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
+    let p = codec.encode(&long_text(300), false).unwrap();
+    const GEN: usize = 16;
+    let mut held = m.new_state().unwrap();
+    let mut l = logits_of(m.forward_prefill(&mut held, &p, HeadMode::LastLogits, None).unwrap());
+    let mut q = p.clone();
+    for _ in 0..GEN {
+        let t = argmax_of(&l);
+        q.push(t);
+        l = logits_of(m.forward(&mut held, &[t], HeadMode::LastLogits, None).unwrap());
+    }
+    assert_eq!(held.len, q.len());
+    assert_eq!(held.inv_len(), p.len(), "decode steps advanced the row-invariant prefix");
+    // the next turn's prompt holds q whole: reuse resumes at the prompt, not at q
+    assert_eq!(m.reuse_len(&held, q.len() + 8, q.len()), p.len());
+    let mut cold = m.new_state().unwrap();
+    let lc = logits_of(m.forward_prefill(&mut cold, &q, HeadMode::LastLogits, None).unwrap());
+    let prompt_rows = kv_rows(&m, &held, p.len()) == kv_rows(&m, &cold, p.len());
+    let all_rows = kv_rows(&m, &held, q.len()) == kv_rows(&m, &cold, q.len());
+    let next = l == lc;
+    let eq = |b: bool| if b { "EQUAL" } else { "DIFFER" };
+    eprintln!(
+        "RIP decode-written rows: {} prompt rows + {GEN} decode rows; vs a cold prefill of the same tokens: KV of the prompt rows {}, KV of all rows {}, next-token logits {}",
+        p.len(),
+        eq(prompt_rows),
+        eq(all_rows),
+        eq(next)
+    );
+    assert!(prompt_rows, "the held prompt rows are not the cold prefill rows");
+    assert!(!(all_rows && next), "decode-written rows are bitwise prefill rows: the inv_len limit is stricter than needed");
+    // what reuse does: back to inv_len, then the rest as a prefill pass
+    held.truncate(held.inv_len(), &*m.backend).unwrap();
+    let lr = logits_of(m.forward_prefill(&mut held, &q[p.len()..], HeadMode::LastLogits, None).unwrap());
+    let exact = lr == lc && kv_rows(&m, &held, q.len()) == kv_rows(&m, &cold, q.len());
+    eprintln!("RIP resume at inv_len {} then prefill the {GEN} reply tokens: logits and KV {}", p.len(), eq(exact));
+    assert!(exact, "resuming at inv_len is not the cold prefill");
+}
+
+/// Lane rip: with row-invariant prefill on, the ordinary prefill (`Model::forward`, as accuracy's all-logits passes and direct
+/// callers run it) still fits the plan: a 16-row pass at the end of an 8192-token context takes the split-KV prefill and its
+/// largest scratch, which the plan's ordinary-prefill probes reserve (`plan::record`).
+#[test]
+fn real_qwen3_8b_ordinary_short_pass_fits_the_plan() {
+    let _serial = serial();
+    use intarsia_core::engine::TextCodec;
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
+    let m = load_inv(&dir, be, 2, 8192);
+    assert!(m.row_invariant_prefill(), "row-invariant prefill did not switch on for the 8B (LoadOptions::row_invariant_prefill)");
+    let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
+    let mut p = codec.encode(&long_text(7000), false).unwrap();
+    assert!(p.len() >= 8192, "{} tokens", p.len());
+    p.truncate(8192);
+    let mut st = m.new_state().unwrap();
+    m.forward_prefill(&mut st, &p[..8176], HeadMode::None, None).unwrap();
+    for t in [16usize, 9, 5] {
+        let at = st.len;
+        logits_of(m.forward(&mut st, &p[at..at + t], HeadMode::LastLogits, None).unwrap_or_else(|e| panic!("{t}-row pass at {at}: {e}")));
+        st.truncate(at, &*m.backend).unwrap();
+    }
+    eprintln!("RIP ordinary 16 / 9 / 5-row passes at 8176 ran");
+}
+
+/// (ids, cached prompt tokens) of a request.
+fn collect_cached(rx: &Receiver<GenEvent>) -> (Vec<u32>, usize) {
+    let mut ids = vec![];
+    loop {
+        match rx.recv_timeout(Duration::from_secs(600)).expect("engine stalled") {
+            GenEvent::Token { id, .. } => ids.push(id),
+            GenEvent::Done { cached_tokens, .. } => return (ids, cached_tokens),
+            GenEvent::Error { message } => panic!("request failed: {message}"),
+        }
+    }
+}
+
+/// Lane rip (docs/results/2026-10-29-rip-row-invariant-prefill.md), engine level on Qwen3-8B: with row-invariant prefill a
+/// request reuses any held prefix prefill passes wrote and still computes its cold output.
+/// - Multi-turn chat on the single-sequence engine: turn 2 (turn 1's prompt, its 48-token reply, a new user message) resumes from
+///   turn 1's whole prompt (not from the reply's rows, which decode steps wrote) and equals turn 2 on a fresh engine; turn 3 resumes
+///   from turn 2's whole prompt.
+/// - The batched engine (16 slots): the same turns, and a 1700-token prompt admitted while four others decode (256-row busy
+///   chunks), equal the fresh engine's outputs.
+/// Why turn 2 does not resume inside turn 1's reply: `real_qwen3_8b_decode_written_rows_are_not_prefill_rows` (bitwise; greedy tokens
+/// alone did not tell: with `INTARSIA_PREFIX_REUSE=any` the 48-token turns still matched here).
+#[test]
+fn real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
+    let mk = |max_batch: Option<usize>| EngineOptions {
+        load: LoadOptions { max_seq: 8192, kv_fraction: 0.95, profile_every: 0, row_invariant_prefill: Some(true), ..Default::default() },
+        max_batch,
+        ..Default::default()
+    };
+    let chat = |e: &dyn Engine, history: &[u32], user: &str| -> Vec<u32> {
+        let mut p = history.to_vec();
+        let pre = if history.is_empty() { "" } else { "<|im_end|>\n" };
+        p.extend(e.tokenize(&format!("{pre}<|im_start|>user\n{user}<|im_end|>\n<|im_start|>assistant\n"), false).unwrap());
+        p
+    };
+    let greedy = |prompt: Vec<u32>, n: usize| GenRequest { prompt, max_tokens: n, ignore_eos: true, ..Default::default() };
+    let u1 = format!("Summarise the following notes in three sentences.\n\n{}", long_text(1400));
+    let u2 = "Now list the three most important items, one per line.";
+    let u3 = "Which of them came first?";
+    // turns on one engine: (prompts, outputs, cached)
+    let turns = |e: &dyn Engine| -> (Vec<Vec<u32>>, Vec<Vec<u32>>, Vec<usize>) {
+        let (mut ps, mut outs, mut cached) = (vec![], vec![], vec![]);
+        let mut hist: Vec<u32> = vec![];
+        for u in [u1.as_str(), u2, u3] {
+            let p = chat(e, &hist, u);
+            let (ids, c) = collect_cached(&e.submit(greedy(p.clone(), 48)).unwrap());
+            hist = p.clone();
+            hist.extend(&ids);
+            ps.push(p);
+            outs.push(ids);
+            cached.push(c);
+        }
+        (ps, outs, cached)
+    };
+    let long = |e: &dyn Engine| e.tokenize(&format!("Translate to French:\n{}", long_text(1200)), false).unwrap();
+    // warm: the single-sequence engine runs the three turns in a row (each resumes from the one before)
+    let (ps, warm, cached) = {
+        let l = engine(&dir, &be, &mk(None));
+        turns(&*l.engine)
+    };
+    eprintln!("RIP turns: prompts {:?} tokens, cached {:?}", ps.iter().map(|p| p.len()).collect::<Vec<_>>(), cached);
+    assert_eq!(cached[0], 0);
+    assert_eq!(cached[1], ps[0].len(), "turn 2 resumes from turn 1's whole prompt, not from its reply's rows");
+    assert_eq!(cached[2], ps[1].len(), "turn 3 resumes from turn 2's whole prompt");
+    // cold: each turn's prompt alone on a fresh engine (the previous request shares no prefix with it), and the long prompt
+    let (cold, cold_long) = {
+        let l = engine(&dir, &be, &mk(None));
+        let mut outs = vec![];
+        let filler = l.engine.tokenize("Zebra crossings are", false).unwrap();
+        for p in &ps {
+            let (ids, c) = collect_cached(&l.engine.submit(greedy(p.clone(), 48)).unwrap());
+            assert_eq!(c, 0, "the cold reference reused a prefix");
+            outs.push(ids);
+            let _ = collect_cached(&l.engine.submit(greedy(filler.clone(), 2)).unwrap());
+        }
+        let (ids, c) = collect_cached(&l.engine.submit(greedy(long(&*l.engine), 48)).unwrap());
+        assert_eq!(c, 0);
+        (outs, ids)
+    };
+    for t in 0..3 {
+        let same = warm[t] == cold[t];
+        eprintln!("RIP single-sequence turn {}: warm {} cold", t + 1, if same { "==" } else { "!=" });
+        assert!(same, "turn {} on the single-sequence engine differs from its cold run", t + 1);
+    }
+    // the batched engine: the turns, then the long prompt while four others decode
+    let l = engine(&dir, &be, &mk(Some(16)));
+    assert_eq!(l.max_batch, 16);
+    let (ps_b, warm_b, cached_b) = turns(&*l.engine);
+    assert_eq!(ps_b, ps);
+    eprintln!("RIP batched turns cached {cached_b:?}");
+    for t in 0..3 {
+        assert_eq!(warm_b[t], cold[t], "turn {} on the batched engine differs from its cold run", t + 1);
+    }
+    assert!(cached_b[1] >= ps[0].len() && cached_b[2] >= ps[1].len(), "the batched engine did not resume the turns: {cached_b:?}");
+    let bg: Vec<_> = (0..4).map(|i| l.engine.submit(greedy(l.engine.tokenize(EQ_PROMPTS[i], false).unwrap(), 400)).unwrap()).collect();
+    std::thread::sleep(Duration::from_millis(1500));
+    let (ids, _) = collect_cached(&l.engine.submit(greedy(long(&*l.engine), 48)).unwrap());
+    for rx in &bg {
+        let _ = collect_cached(rx);
+    }
+    assert_eq!(ids, cold_long, "a long prompt prefilled in busy chunks differs from its cold run");
+    eprintln!("RIP batched: turns and the busy-chunked long prompt equal the cold reference");
 }
 
 /// Device-side sampling is the host sampling (lane htk, docs/results/2026-10-27-htk-hip-topk.md): `INTARSIA_DEVICE_SAMPLING=1` on a backend with

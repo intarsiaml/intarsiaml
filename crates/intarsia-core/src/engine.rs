@@ -856,7 +856,7 @@ impl Engine for LocalEngine {
         let Inner { model, state } = &mut *g;
         state.reset(&*model.backend)?;
         let split = ids.len() - n_decode;
-        model.forward(state, &ids[..split], HeadMode::None, None)?;
+        model.forward_prefill(state, &ids[..split], HeadMode::None, None)?;
         for (j, id) in ids[split..].iter().enumerate() {
             match model.forward(state, std::slice::from_ref(id), HeadMode::LastLogits, None)? {
                 StepOut::Logits(row) => cb(split + j, &row)?,
@@ -1557,7 +1557,7 @@ impl Seq {
         };
         if n < remaining || prewarm {
             let start = self.pos;
-            match model.forward(st, &self.req.prompt[self.pos..self.pos + n], HeadMode::None, None)? {
+            match model.forward_prefill(st, &self.req.prompt[self.pos..self.pos + n], HeadMode::None, None)? {
                 StepOut::None => {}
                 _ => return Err(Error::Other("backend returned output for a prefill chunk".into())),
             }
@@ -1577,7 +1577,7 @@ impl Seq {
             // snapshot one token before the end of the prompt: a repeated or regenerated request reuses everything
             // but its last token, as with an attention-only cache
             let start = self.pos;
-            model.forward(st, &self.req.prompt[self.pos..self.plen - 1], HeadMode::None, None)?;
+            model.forward_prefill(st, &self.req.prompt[self.pos..self.plen - 1], HeadMode::None, None)?;
             self.pos = self.plen - 1;
             st.snapshot(&*model.backend, crate::state::RECURRENT_SNAPSHOTS)?;
             if st.clean == start {
@@ -1586,7 +1586,7 @@ impl Seq {
         }
         let start = self.pos;
         let mode = self.head_mode(1);
-        let out = model.forward(st, &self.req.prompt[self.pos..], mode, None)?;
+        let out = model.forward_prefill(st, &self.req.prompt[self.pos..], mode, None)?;
         if st.clean == start {
             st.clean = st.len;
         }
@@ -1946,7 +1946,9 @@ impl Seq {
     /// Produce the next `self.tok` on this sequence alone (plan, run the forward pass, sample).
     pub(crate) fn advance(&mut self, model: &Model, st: &mut SequenceState) -> Result<()> {
         if let Some((tok, mode)) = self.prepare(model, st)? {
+            let pos = st.len;
             let out = model.forward(st, &[tok], mode, None)?;
+            st.tag_passes(pos, crate::state::PassKind::Decode);
             self.accept_plain(out)?;
         }
         Ok(())

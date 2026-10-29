@@ -774,7 +774,7 @@ fn check_packed(v: Variant, rows: usize, chunk: usize) {
     let m = model_c(v, rows, true, &tel, chunk);
     let mut o = BatchedOptions::new(rows, 64);
     o.prefix_reuse = false;
-    o.pack_prefill = true;
+    o.pack_prefill = Some(true);
     // Hold the scheduler thread until every request is queued: otherwise a slow machine lets it admit and prefill the first
     // prompts one at a time before the rest are submitted, and nothing is packed (main run 40228193513).
     o.hold_start = true;

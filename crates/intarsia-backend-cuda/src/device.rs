@@ -201,6 +201,23 @@ impl Backend for CudaBackend {
     fn prefix_reuse_any_cut(&self) -> bool {
         false
     }
+    /// Not by default, though supported (lane rip, docs/results/2026-10-29-rip-row-invariant-prefill.md): with
+    /// `INTARSIA_ROW_INVARIANT_PREFILL=1` (or `LoadOptions::row_invariant_prefill`) a `Model::forward_prefill` pass runs the pinned
+    /// cuBLASLt GEMM (`matmul_bf16_inv`) and the flash attention at every row count, so a row's bits do not depend on the pass and
+    /// reuse resumes from any row such a pass wrote. Off because the pinned GEMM is ~17-24% slower than cuBLAS at M ~ 1000
+    /// (Qwen3-8B 1k-token prefill -10.4%, 4k +1.4%, 16k +0.2%); the user decides the default.
+    fn row_invariant_prefill(&self) -> bool {
+        false
+    }
+    /// Lane srv16: cuBLASLt fp8 and cuBLAS bf16 GEMMs pick tiling / split-K by row count (lane sk's macro pass), so a packed
+    /// prefill runs them per prompt; without it `real_35b_packed_prefill_equals_the_local_engine` fails.
+    fn pack_split_gemms(&self) -> bool {
+        true
+    }
+    /// Lane srv16: packed prefill on by default (docs/results/2026-10-28-srv16-serve-gap.md: each prompt bitwise its solo prefill).
+    fn pack_prefill_default(&self) -> bool {
+        true
+    }
     fn name(&self) -> &str {
         "cuda"
     }
@@ -436,6 +453,7 @@ impl Backend for CudaBackend {
                 }
                 "matmul_bf16" => ffi::ik_matmul_bf16(i(0), i(1), o, s),
                 "matmul_bf16_gemv" => ffi::ik_matmul_bf16_gemv(i(0), i(1), o, s),
+                "matmul_bf16_inv" => ffi::ik_matmul_bf16_inv(i(0), i(1), o, s),
                 "matmul_bf16_gemv_rows" => ffi::ik_matmul_bf16_gemv_rows(i(0), i(1), o, s),
                 "logits_bf16" => ffi::ik_logits_bf16(i(0), i(1), o, s),
                 "logits_bf16_gemv" => ffi::ik_logits_bf16_gemv(i(0), i(1), o, s),

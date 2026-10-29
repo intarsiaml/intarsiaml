@@ -145,15 +145,31 @@ pub struct PeerState {
     pub st: SequenceState,
 }
 
+/// What kind of forward pass wrote a [`Pass`]'s rows: which kernels' bits they carry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PassKind {
+    /// An ordinary pass (a prefill chunk, a packed prefill segment, or a pass whose caller tagged nothing): its rows carry the
+    /// bits of a `rows`-row pass on this backend.
+    Plain,
+    /// A row-invariant prefill pass (lane rip, `Model::forward_prefill` with `Model::row_invariant_prefill` on): each row has
+    /// the bits a one-pass prefill of the prompt gives it, whatever the pass's row count or first row.
+    RowInvariant,
+    /// A decode step (`rows` 1): decode kernels, not a prefill pass's, so a cold prefill would give these rows other bits.
+    Decode,
+    /// A row-exact speculative-verify pass (`rows` 1: each row is what a decode step writes, whatever the pass's row count).
+    Verify,
+}
+
 /// One forward pass that wrote the KV rows `start..end` ([`SequenceState::passes`]). `rows` is the row count whose kernels'
-/// bits the rows carry: the pass's own row count for an ordinary (prefill) pass, 1 for a decode step or a row-exact
-/// speculative-verify pass (their kernels give a row the bits of a 1-row pass whatever the row count). A truncate that cuts a
-/// pass clips `end` and keeps `rows`.
+/// bits the rows carry: the pass's own row count for an ordinary or row-invariant pass, 1 for a decode step or a row-exact
+/// speculative-verify pass (their kernels give a row the bits of a 1-row pass whatever the row count); `kind` says which.
+/// A truncate (or a speculative rollback) that cuts a pass clips `end` and keeps `rows` and `kind`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Pass {
     pub start: usize,
     pub end: usize,
     pub rows: usize,
+    pub kind: PassKind,
 }
 
 /// All state of one sequence.
@@ -184,10 +200,10 @@ pub struct SequenceState {
     /// the engine's chunk schedule, none by a decode step, so their state is what a cold prefill of `tokens[..clean]`
     /// computes. Lowered by [`SequenceState::truncate`], set by [`SequenceState::load_prefix`]; the engine advances it.
     pub clean: usize,
-    /// The forward passes that wrote rows `0..len`, in order: one entry per committed pass ([`SequenceState::commit`]).
-    /// A truncate drops the passes past the new length and clips the one it cuts through, a prefix-store restore leaves
-    /// none. Exact prefix reuse on a chunk-sensitive backend reads it ([`SequenceState::ladder_reuse_len`],
-    /// [`SequenceState::wide_reuse_len`]).
+    /// The forward passes that wrote rows `0..len`, in order: one entry per committed pass ([`SequenceState::commit`]),
+    /// with its row count and kind. A truncate or a speculative rollback drops the passes past the new length and clips the
+    /// one it cuts through, a prefix-store restore leaves none. Exact prefix reuse on a chunk-sensitive backend reads it
+    /// ([`SequenceState::ladder_reuse_len`], [`SequenceState::wide_reuse_len`], [`SequenceState::inv_len`]).
     pub passes: Vec<Pass>,
     /// The MTP drafter's state (`--spec mtp` only).
     pub mtp: Option<Box<MtpState>>,
@@ -433,6 +449,7 @@ impl SequenceState {
             }
         }
         self.len = keep;
+        self.clip_passes(keep);
         self.tokens.truncate(keep);
         if let Some(m) = &mut self.mtp {
             if m.kv.len > keep {
@@ -490,6 +507,29 @@ impl SequenceState {
             end = p.end;
         }
         end.min(want)
+    }
+
+    /// Row-invariant prefix (lane rip): the rows `0..n` written by row-invariant prefill passes ([`PassKind::RowInvariant`])
+    /// only, in an unbroken run from row 0, so their state is bitwise what a cold prefill of `tokens[..n]` in any chunks
+    /// writes and a prompt sharing them may resume at any row below `n` (`Model::reuse_len`). A decode step, a verify pass,
+    /// an ordinary pass, a gap and a prefix-store restore (no pass) end it.
+    pub fn inv_len(&self) -> usize {
+        let mut end = 0;
+        for p in &self.passes {
+            if p.start != end || p.kind != PassKind::RowInvariant {
+                break;
+            }
+            end = p.end;
+        }
+        end.min(self.len)
+    }
+
+    /// Drop the passes at or past row `len` and clip the one that crosses it (truncate, speculative rollback).
+    fn clip_passes(&mut self, len: usize) {
+        self.passes.retain(|p| p.start < len);
+        if let Some(p) = self.passes.last_mut() {
+            p.end = p.end.min(len);
+        }
     }
 
     /// Roll back to the first `len` tokens (prefix reuse). Attention caches just shorten;
@@ -581,10 +621,7 @@ impl SequenceState {
         self.len = len;
         self.tokens.truncate(len);
         self.clean = self.clean.min(len);
-        self.passes.retain(|p| p.start < len);
-        if let Some(p) = self.passes.last_mut() {
-            p.end = p.end.min(len);
-        }
+        self.clip_passes(len);
         Ok(())
     }
 
@@ -615,7 +652,7 @@ impl SequenceState {
 
     /// Advance a draft KV state by `n` ingested rows (every attention slot): the DFlash context cache holds no tokens.
     pub fn advance_rows(&mut self, n: usize) {
-        self.passes.push(Pass { start: self.len, end: self.len + n, rows: 1 });
+        self.passes.push(Pass { start: self.len, end: self.len + n, rows: 1, kind: PassKind::Plain });
         self.len += n;
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {
@@ -649,15 +686,32 @@ impl SequenceState {
         self.truncate(0, backend)
     }
 
-    /// Advance after a forward pass appended `ids`.
+    /// Advance after a forward pass appended `ids` (an ordinary pass: [`PassKind::Plain`] of `ids.len()` rows).
     pub fn commit(&mut self, ids: &[u32]) {
-        self.commit_rows(ids, ids.len());
+        self.commit_pass(ids, ids.len(), PassKind::Plain);
     }
 
-    /// [`SequenceState::commit`] for a pass whose rows carry the bits of `rows`-row kernels, not of `ids.len()`-row ones:
-    /// a row-exact speculative-verify pass (`rows` 1: each row is what a decode step writes).
-    pub fn commit_rows(&mut self, ids: &[u32], rows: usize) {
-        self.passes.push(Pass { start: self.len, end: self.len + ids.len(), rows });
+    /// [`SequenceState::commit`] for a decode step ([`PassKind::Decode`], 1 row per token).
+    pub fn commit_decode(&mut self, ids: &[u32]) {
+        self.commit_pass(ids, 1, PassKind::Decode);
+    }
+
+    /// [`SequenceState::commit`] for a row-exact speculative-verify pass: its rows carry the bits of 1-row kernels, not of
+    /// `ids.len()`-row ones ([`PassKind::Verify`]; each row is what a decode step writes).
+    pub fn commit_verify(&mut self, ids: &[u32]) {
+        self.commit_pass(ids, 1, PassKind::Verify);
+    }
+
+    /// Re-tag the passes this state committed from row `from` on (the ones a single `Model::forward` call wrote, which may be
+    /// several chunks) as `kind`; their row counts stay.
+    pub fn tag_passes(&mut self, from: usize, kind: PassKind) {
+        for p in self.passes.iter_mut().rev().take_while(|p| p.start >= from) {
+            p.kind = kind;
+        }
+    }
+
+    fn commit_pass(&mut self, ids: &[u32], rows: usize, kind: PassKind) {
+        self.passes.push(Pass { start: self.len, end: self.len + ids.len(), rows, kind });
         self.len += ids.len();
         self.tokens.extend_from_slice(ids);
         for s in self.slots.iter_mut() {

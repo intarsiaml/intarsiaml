@@ -213,10 +213,31 @@ pub trait Backend: Send + Sync {
     /// every other split of the same prompt into passes of at least that many rows writes, a one-pass prefill's among
     /// them. `Some(n)`: a prefix then needs no cold cut to be reusable (`Model::reuse_len`), only rows written by passes of
     /// `n` rows or more (a decode step is a 1-row pass) and a remainder prefilled in passes of `n` or more. Metal: `Some(2)`,
-    /// only a 1-row pass differs. `None` (default; CUDA, whose passes differ at any size): only the prompt's own cold chunk
-    /// schedule is a safe cut.
+    /// only a 1-row pass differs. `None` (default; CUDA, whose ordinary passes differ at any size; with row-invariant prefill
+    /// on, [`Backend::row_invariant_prefill`], CUDA's rule is that one's instead): only the prompt's own cold chunk schedule is
+    /// a safe cut.
     fn prefix_reuse_min_pass_rows(&self) -> Option<usize> {
         None
+    }
+
+    /// True when the backend registers `row_invariant` kernels for a whole dense prefill pass (lane rip): a pass run through
+    /// `Model::forward_prefill` then gives every row the bits it has in any other split of the prompt, at any row count, so prefix
+    /// reuse may resume from any row such a pass wrote (`Model::reuse_len`). Default false.
+    fn row_invariant_prefill(&self) -> bool {
+        false
+    }
+
+    /// True when the vendor GEMMs (`Model::macro_split`'s ops) pick their tiling by row count, so a packed multi-prompt prefill
+    /// pass (`Model::forward_packed`) must run them once per prompt, on that prompt's rows, to keep each prompt's solo bits
+    /// (CUDA: cuBLAS / cuBLASLt). Default false: one call over every prompt's rows (HIP's packed pass, `tests/packed_rows.rs`).
+    fn pack_split_gemms(&self) -> bool {
+        false
+    }
+
+    /// Whether `serve --max-batch` packs the prefill of prompts waiting together (`BatchedOptions::pack_prefill`) when
+    /// `INTARSIA_PACK_PREFILL` is unset. Default false (opt-in); true where the packed pass is measured bitwise and faster (CUDA).
+    fn pack_prefill_default(&self) -> bool {
+        false
     }
 
     /// Most sequences one batched decode step may carry on this backend (`Model::enable_batch`, `--max-batch`): the number of

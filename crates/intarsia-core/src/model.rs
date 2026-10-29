@@ -113,6 +113,17 @@ fn prefix_reuse_override() -> Option<bool> {
     })
 }
 
+/// `INTARSIA_ROW_INVARIANT_PREFILL`: `1` / `0` overrides `Backend::row_invariant_prefill` (lane rip; [`Model::forward_prefill`]);
+/// unset or anything else: the backend decides.
+fn row_invariant_override() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_ROW_INVARIANT_PREFILL").ok().as_deref() {
+        Some("1") => Some(true),
+        Some("0") => Some(false),
+        _ => None,
+    })
+}
+
 /// Rows of logits computed/downloaded at a time when all positions are requested.
 const LOGIT_ROWS: usize = 16;
 
@@ -172,6 +183,9 @@ pub struct LoadOptions {
     pub dflash: Option<DflashLoad>,
     /// Macro prefill pass size in rows (see [`Model::macro_rows`]): `None` = `INTARSIA_PREFILL_MACRO` (unset = off); `Some(0)` off.
     pub prefill_macro: Option<usize>,
+    /// Row-invariant prefill ([`Model::row_invariant_prefill`], lane rip): `Some` wins over `INTARSIA_ROW_INVARIANT_PREFILL`,
+    /// which wins over `Backend::row_invariant_prefill` (off everywhere by default: on CUDA it costs ~10% at 1k-token prefill).
+    pub row_invariant_prefill: Option<bool>,
 }
 
 impl Default for LoadOptions {
@@ -195,6 +209,7 @@ impl Default for LoadOptions {
             mtp_draft_vocab: None,
             dflash: None,
             prefill_macro: None,
+            row_invariant_prefill: None,
         }
     }
 }
@@ -483,6 +498,13 @@ pub struct Model {
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
+    /// Inside [`Model::forward_prefill`] with row-invariant prefill on: every call of the pass carries `OpCall::prefill_inv`, so
+    /// the registry gives it a `row_invariant` kernel (or fails). Never set otherwise.
+    prefill_inv: std::sync::atomic::AtomicBool,
+    /// Row-invariant prefill is on for this model ([`Model::row_invariant_prefill`]): the backend asks for it
+    /// (`Backend::row_invariant_prefill`, `INTARSIA_ROW_INVARIANT_PREFILL` overrides), the model is attention-only on one rank, and
+    /// the plan found a `row_invariant` kernel for every op of a prefill pass (`plan::record` switches it off otherwise).
+    inv_on: std::sync::atomic::AtomicBool,
     /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
     /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
     head_rows_attn: std::sync::atomic::AtomicBool,
@@ -558,7 +580,8 @@ pub struct Model {
     /// tiling, and so their summation order, by the row count), whose bits a chunk-sized call must reproduce. Everything else a
     /// macro pass batches is row-wise bitwise (norms, the pinned expert and shared-expert kernels, quantisers, top-k).
     macro_split: Vec<Op>,
-    /// The rows of the macro pass being run, `(lo, len)` per chunk, `Some` only inside [`Model::run_macro_group`].
+    /// The rows of the macro pass being run, `(lo, len)` per chunk, `Some` only inside [`Model::run_macro_group`]
+    /// (and, per prompt, inside [`Model::forward_packed`] on a [`Backend::pack_split_gemms`] backend).
     macro_ctx: Mutex<Option<Vec<(usize, usize)>>>,
     /// Macro passes run (groups of two or more chunks), for tests and the serve log.
     macro_passes: std::sync::atomic::AtomicU64,
@@ -663,19 +686,28 @@ impl Model {
     /// (`Backend::prefix_reuse_any_cut`, cpu / HIP); elsewhere (CUDA, Metal) a prefix that gives a request the bits of its
     /// cold prefill whatever its slot held before (lane bi8: a repeated prompt resuming with its last token alone, a 1-row
     /// pass, moved logits by up to 0.23 and flipped greedy tokens on Qwen3-8B;
-    /// docs/results/2026-10-29-bi8-serve-batch-invariance.md). Where the backend's passes of `n` rows or more agree
-    /// (`Backend::prefix_reuse_min_pass_rows`, Metal: 2): a prefix written by such passes only
-    /// ([`SequenceState::wide_reuse_len`]; a decode step's rows are not), cut back until the remainder's passes have `n`
-    /// rows or more too (lane prc). Otherwise only a prefix the prompt's own cold chunk schedule wrote
-    /// ([`SequenceState::ladder_reuse_len`], CUDA).
-    /// `INTARSIA_PREFIX_REUSE=any|exact` overrides the backend's choice (`exact`: the cold schedule's cuts everywhere).
+    /// docs/results/2026-10-29-bi8-serve-batch-invariance.md). In that case, first match wins: with row-invariant prefill on
+    /// ([`Model::row_invariant_prefill`], CUDA with `INTARSIA_ROW_INVARIANT_PREFILL=1`, lane rip) any prefix of the rows
+    /// row-invariant prefill passes wrote ([`SequenceState::inv_len`]; a decode step's rows are not). Where the backend's
+    /// passes of `n` rows or more agree (`Backend::prefix_reuse_min_pass_rows`, Metal: 2, lane prc): a prefix written by such
+    /// passes only ([`SequenceState::wide_reuse_len`]; a decode step's rows are not), cut back until the remainder's passes
+    /// have `n` rows or more too. Otherwise only a prefix the prompt's own cold chunk schedule wrote
+    /// ([`SequenceState::ladder_reuse_len`], CUDA's default).
+    /// `INTARSIA_PREFIX_REUSE=any|exact` overrides the backend's choice (`any`: any held row; `exact`: the cold schedule's
+    /// cuts everywhere, row-invariant prefill or not).
     pub fn reuse_len(&self, st: &SequenceState, plen: usize, want: usize) -> usize {
         if st.has_recurrent() {
             return st.restorable_len(want);
         }
         let over = prefix_reuse_override();
-        if over.unwrap_or_else(|| self.backend.prefix_reuse_any_cut()) {
-            return want.min(st.len);
+        match over {
+            Some(true) => return want.min(st.len),
+            Some(false) => {}
+            None if self.backend.prefix_reuse_any_cut() => return want.min(st.len),
+            // row-invariant prefill (lane rip): any prefix of the rows row-invariant prefill passes wrote. Rows a decode step wrote
+            // (an earlier reply) are not among them: decode runs other kernels, so a cold prefill would give those rows other bits
+            None if self.row_invariant_prefill() => return want.min(st.inv_len()),
+            None => {}
         }
         let chunk = self.prefill_chunk().max(1);
         let avoid = self.backend.avoid_single_row_prefill();
@@ -692,6 +724,22 @@ impl Model {
         let sched = crate::scheduler::chunk_schedule_tm(0, plen, chunk, avoid, self.tail_merge());
         let points: Vec<usize> = sched.iter().skip(1).map(|&(start, _)| start).collect();
         st.ladder_reuse_len(want, chunk, &points)
+    }
+
+    /// Row-invariant prefill is on (lane rip): [`Model::forward_prefill`] runs `row_invariant` kernels only, so a row's bits do not
+    /// depend on the pass that computes it, and [`Model::reuse_len`] resumes at any row such passes wrote.
+    pub fn row_invariant_prefill(&self) -> bool {
+        self.inv_on.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Switch row-invariant prefill off (the plan found an op of a prefill pass without a `row_invariant` kernel).
+    pub(crate) fn disable_row_invariant_prefill(&self) {
+        self.inv_on.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// Set row-invariant prefill (`plan::record`: off for the ordinary-prefill probes, then back on).
+    pub(crate) fn set_row_invariant_prefill(&self, on: bool) {
+        self.inv_on.store(on, std::sync::atomic::Ordering::Relaxed);
     }
 
     /// Prefill tail peel in rows (0 = off, the default; [`crate::scheduler::peel_tail`]).
@@ -1435,6 +1483,11 @@ impl Model {
         if mtp_head.is_some() {
             b.prefer_verify_attn_per_row();
         }
+        // lane rip: row-invariant prefill for attention-only models on one rank (a recurrent state reuses only its snapshots, and
+        // its busy chunk is the solo chunk; the plan probe below may still switch it off)
+        let inv_want = opts.row_invariant_prefill.or_else(row_invariant_override).unwrap_or_else(|| b.row_invariant_prefill())
+            && slot_specs.iter().all(|s| matches!(s, SlotSpec::AttnKv { .. }))
+            && tp.world == 1;
         let mut model = Model {
             backend,
             registry,
@@ -1480,6 +1533,8 @@ impl Model {
             peers: Vec::new(),
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            prefill_inv: std::sync::atomic::AtomicBool::new(false),
+            inv_on: std::sync::atomic::AtomicBool::new(inv_want),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),
@@ -1563,6 +1618,9 @@ impl Model {
         if verify || batch {
             self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
         }
+        // a prefill probe records the calls a row-invariant prefill pass makes (`Model::forward_prefill`), when that is on
+        let inv = phase == crate::plan::Phase::Prefill && self.row_invariant_prefill();
+        self.prefill_inv.store(inv, std::sync::atomic::Ordering::Relaxed);
         let run = (|| -> Result<()> {
             if batch {
                 // `t` sequences, each `pos0` tokens long: the real batched pass, recorded
@@ -1583,11 +1641,14 @@ impl Model {
                 if let Some(r) = self.recorder.lock().unwrap().as_mut() {
                     r.extra = true;
                 }
+                // all-logits heads (accuracy) never run in a row-invariant pass (`Model::forward_prefill`)
+                self.prefill_inv.store(false, std::sync::atomic::Ordering::Relaxed);
                 self.head_logits(&hn, 0, t.min(LOGIT_ROWS), false)?;
             }
             Ok(())
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        self.prefill_inv.store(false, std::sync::atomic::Ordering::Relaxed);
         let rec = self.recorder.lock().unwrap().take().unwrap_or_default();
         run?;
         Ok(rec)
@@ -1711,7 +1772,7 @@ impl Model {
         };
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
-        st.commit_rows(ids, 1);
+        st.commit_verify(ids);
         if recurrent {
             st.spec_rows.saved = q - 1;
         }
@@ -1793,7 +1854,7 @@ impl Model {
         let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("forward_verify before enable_verify"))?;
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
-        st.commit_rows(ids, 1);
+        st.commit_verify(ids);
         if st.has_recurrent() {
             st.spec_rows.saved = q - 1;
         }
@@ -1852,7 +1913,7 @@ impl Model {
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         let hn = run?;
-        st.commit_rows(ids, 1);
+        st.commit_verify(ids);
         if st.has_recurrent() {
             st.spec_rows.saved = q - 1;
         }
@@ -2138,6 +2199,39 @@ impl Model {
         r
     }
 
+    /// [`Model::forward`] for a pass of prompt tokens (a prefill chunk, a prompt's last token alone). With row-invariant prefill
+    /// on ([`Model::row_invariant_prefill`]) every call of the pass takes a `row_invariant` kernel (`OpCall::prefill_inv`): the
+    /// GEMMs one cuBLASLt algorithm for every row count, attention the flash kernel even for one row, no decode graph. Each row
+    /// then has the bits it has in a one-pass prefill of the prompt whatever the pass's size or first row, and the rows the
+    /// pass wrote are recorded as row-invariant (`PassKind::RowInvariant`), joining the state's row-invariant prefix
+    /// (`SequenceState::inv_len`) when they extend it. Otherwise, and for
+    /// `HeadMode::AllLogits` (its multi-row head groups have no row-invariant kernel), exactly [`Model::forward`].
+    pub fn forward_prefill(
+        &self,
+        st: &mut SequenceState,
+        ids: &[u32],
+        mode: HeadMode,
+        on_row: Option<RowCallback<'_>>,
+    ) -> Result<StepOut> {
+        let inv = self.row_invariant_prefill()
+            && !matches!(mode, HeadMode::AllLogits)
+            && !st.has_recurrent()
+            && self.remote.is_none()
+            && self.peers.is_empty()
+            && !self.verifying();
+        if !inv {
+            return self.forward(st, ids, mode, on_row);
+        }
+        let pos = st.len;
+        self.prefill_inv.store(true, std::sync::atomic::Ordering::Relaxed);
+        let r = self.forward(st, ids, mode, on_row);
+        self.prefill_inv.store(false, std::sync::atomic::Ordering::Relaxed);
+        if r.is_ok() && st.len == pos + ids.len() {
+            st.tag_passes(pos, crate::state::PassKind::RowInvariant);
+        }
+        r
+    }
+
     /// Fewest rows a segment of a packed prefill pass may have: below it the kernels a prompt's solo chunk picks (the GEMV-style
     /// MoE path under 16 tokens, the dense GEMV up to 4 rows) are not the ones the packed call picks.
     pub const PACK_MIN_ROWS: usize = 16;
@@ -2171,8 +2265,12 @@ impl Model {
 
     /// Most rows one packed pass holds: the workspace's, and no more than the KV capacity: plan resolution sizes the kernel scratch
     /// for chunks that fit the context, and a packed pass of several prompts must not need more than a solo chunk could.
+    /// Lane srv16: where the vendor GEMMs run per prompt ([`Backend::pack_split_gemms`]) a packed pass is a macro pass with one
+    /// segment per prompt (each at most a chunk for attention, the recurrence and the GEMMs; only the row-wise kernels see every
+    /// row), so it may fill what the workspace holds for a macro pass ([`Model::macro_rows`]).
     pub fn pack_rows_max(&self) -> usize {
-        self.ws.max_tokens.min(self.plan.kv_cap_tokens.max(1))
+        let ws = if self.backend.pack_split_gemms() { self.ws.max_tokens.max(self.macro_rows) } else { self.ws.max_tokens };
+        ws.min(self.plan.kv_cap_tokens.max(1))
     }
 
     /// Whether this model can run [`Model::forward_packed`]: a single rank, no Gemma layers, no plan recording.
@@ -2237,7 +2335,18 @@ impl Model {
                 })
                 .collect();
             self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
-            self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None)?;
+            // lane srv16: where the vendor GEMMs ([`Model::macro_split`]) pick their tiling by row count (CUDA,
+            // `Backend::pack_split_gemms`) they run once per prompt on its own rows, as in a macro pass, so each prompt keeps the
+            // bits of its solo prefill
+            let split = self.backend.pack_split_gemms();
+            if split {
+                *self.macro_ctx.lock().unwrap() = Some(segs.iter().map(|s| (s.lo, s.len)).collect());
+            }
+            let r = self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None);
+            if split {
+                *self.macro_ctx.lock().unwrap() = None;
+            }
+            r?;
         }
         for (st, ids) in items.iter_mut() {
             st.commit(ids);
@@ -2735,6 +2844,7 @@ impl Model {
     fn exec_call_one(&self, mut call: OpCall, profile: bool) -> Result<()> {
         let op = call.op;
         call.exact_rows = self.verifying();
+        call.prefill_inv = self.prefill_inv();
         call.check()?;
         if self.pipe_active.load(std::sync::atomic::Ordering::Relaxed) {
             self.pipe_join()?; // an all-reduce of the overlap is still in flight on stream 1: this op may read its result
@@ -3087,9 +3197,10 @@ impl Model {
             return false;
         }
         let select = |c: &OpCall| {
-            if self.verifying() {
+            if self.verifying() || self.prefill_inv() {
                 let mut c = c.clone();
-                c.exact_rows = true;
+                c.exact_rows = self.verifying();
+                c.prefill_inv = self.prefill_inv();
                 return self.registry.select(&c).is_ok();
             }
             self.registry.select(c).is_ok()
@@ -3131,6 +3242,11 @@ impl Model {
     /// Inside [`Model::forward_verify`].
     fn verifying(&self) -> bool {
         self.exact_rows.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Inside a row-invariant prefill pass ([`Model::forward_prefill`]).
+    fn prefill_inv(&self) -> bool {
+        self.prefill_inv.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// `out = x @ W^T` for a linear layer in any supported weight format.
@@ -3609,12 +3725,15 @@ impl Model {
             }
             return Ok((attn_out, qc));
         }
+        // a one-row pass is a decode step, except in a row-invariant prefill pass: its last prompt token alone (a resumed prompt)
+        // must run the prefill kernel that row runs inside a longer pass
+        let decode = t == 1 && !self.prefill_inv();
         self.exec_pos(
-            if t == 1 { Op::AttnDecode } else { Op::AttnPrefill },
+            if decode { Op::AttnDecode } else { Op::AttnPrefill },
             vec![bufs.q[qc].clone(), kcache, vcache],
             vec![attn_out.clone()],
             attrs,
-            if t == 1 { dpos } else { None },
+            if decode { dpos } else { None },
             profile,
         )?;
         Ok((attn_out, qc))

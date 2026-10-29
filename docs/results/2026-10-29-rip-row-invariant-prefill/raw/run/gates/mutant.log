@@ -1,0 +1,7 @@
+test real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference ... prefill chunk 4096 (recipe qwen3, cuda)
+RIP turns: prompts [2802, 2872, 2936] tokens, cached [0, 2849, 2919]
+RIP single-sequence turn 1: warm == cold
+RIP single-sequence turn 2: warm == cold
+RIP single-sequence turn 3: warm == cold
+thread 'real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:1066:9:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 22 filtered out; finished in 86.09s

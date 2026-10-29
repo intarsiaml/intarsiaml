@@ -107,7 +107,7 @@ impl Model {
         };
         self.head_to_device_into(&hn, 0, profile, ring.rows(out, 1))?;
         let fence = if held { None } else { Some(self.backend.fence(0)?) };
-        st.commit(&[match feed {
+        st.commit_decode(&[match feed {
             Feed::Host(id) => id,
             Feed::Slot(_) => UNREAD,
         }]);

@@ -1,0 +1,3 @@
+base r1: MemAvailable 62523 MB with the server up
+devpack r1: MemAvailable 62516 MB with the server up
+basepack r1: MemAvailable 62510 MB with the server up
