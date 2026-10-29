@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lane ARX micro job, ON tatooine inside one short fleetq job (< 3 min, takes radiance-rank0/1 down): stop radiance, run the sections of
-# SEC (in this order), restore radiance and wait until :8080 answers (EXIT trap). Output in ~/intarsiaml-arx/arx-out/$W.
+# SEC (in this order), restore radiance and wait until :8080 answers (EXIT trap). Output in ~/intarsiaml-arx2/arx-out/$W.
 #   link   tests/comm.rs p2p_link_rate (dev): P2P copy-engine rate, push / reduce phases per block count, all-reduce per wide setting
 #   pair   tests/mxfp4_a8.rs a8_pair_is_bitwise_two_single_calls (dev)
 #   wide   tests/comm.rs wide-path gates (dev): bitwise vs the old path, delayed-rank stress, the no-wait negative control
@@ -114,24 +114,27 @@ if has ids; then
     done
   done
 fi
-#   soak   SOAKN (120) fresh tapped tp=2 processes of the dev CLI in one container, prompt SOAKP (4k-0: both prefill chunks take the 20 MiB
+#   soak   SOAKN (120) fresh tapped tp=2 processes of the dev CLI (env SOAKE, lane arx2: INTARSIA_HIP_AR_PUSH=1) in one container, prompt SOAKP (4k-0: both prefill chunks take the 20 MiB
 #          wide launches), --spec mtp --spec-k 2, 16 tokens, the env not setting any knob; then SOAKB (3) base processes. Taps (per-row layer
 #          hashes) and id lines of every process; the verdict: all dev taps byte-identical to each other and to the base taps
 if has soak; then
   sp=${SOAKP:-4k-0}
   for v in "dev:${SOAKN:-120}" "base:${SOAKB:-3}"; do
-    b=${v%%:*}; n=${v#*:}; rm -f "$O/soak-$b.ids"
+    b=${v%%:*}; n=${v#*:}; rm -f "$O/soak-$b.ids" "$O/soak-$b.prefill"; se=A=1; [[ $b == dev ]] && se=${SOAKE:-A=1}
     gpu 3300 bash -c '
-      b=$1 n=$2 o=$3 sp=$4 m=$5
+      b=$1 n=$2 o=$3 sp=$4 m=$5 se=$6
       for i in $(seq 1 "$n"); do
-        INTARSIA_DET_TAP=$o/soak-$b-$i.tap /work/arx-$b-cli generate -m "$m" --backend hip --tp 2 --devices 0,1 --mem-budget 29 --max-seq 20480 --chat --no-think \
+        env $se INTARSIA_DET_TAP=$o/soak-$b-$i.tap /work/arx-$b-cli generate -m "$m" --backend hip --tp 2 --devices 0,1 --mem-budget 29 --max-seq 20480 --chat --no-think \
           --profile-every 0 --ignore-eos --show-ids -p "$(cat /work/scripts/dfh/ids-prompts/$sp.txt)" --max-tokens 16 --spec mtp --spec-k 2 > /dev/null 2> "$o/soak-$b.tmp"
         echo "rc=$? $(grep -a "^ids" "$o/soak-$b.tmp")" >> "$o/soak-$b.ids"
-      done; rm -f "$o/soak-$b.tmp"' _ "$b" "$n" "/work/arx-out/$W" "$sp" "$M27"
+        grep -a "prefill " "$o/soak-$b.tmp" | tail -1 | cut -c1-120 >> "$o/soak-$b.prefill"
+      done; rm -f "$o/soak-$b.tmp"' _ "$b" "$n" "/work/arx-out/$W" "$sp" "$M27" "$se"
     echo "== soak $b: $(wc -l < "$O/soak-$b.ids") processes; distinct id lines $(sort -u "$O/soak-$b.ids" | wc -l); rc!=0: $(grep -vc '^rc=0' "$O/soak-$b.ids") ($(now))"
   done
   ref=$(md5sum "$O/soak-base-1.tap" 2>/dev/null | cut -d' ' -f1)
   echo "== soak taps: dev $(ls "$O"/soak-dev-*.tap 2>/dev/null | wc -l) files, distinct $(md5sum "$O"/soak-dev-*.tap | cut -d' ' -f1 | sort -u | wc -l), equal to base-1 ($ref): $(md5sum "$O"/soak-dev-*.tap | grep -c "^$ref"); base distinct $(md5sum "$O"/soak-base-*.tap | cut -d' ' -f1 | sort -u | wc -l); ids dev==base: $(cmp -s <(sort -u "$O/soak-dev.ids") <(sort -u "$O/soak-base.ids") && echo yes || echo NO)"
+  md5sum "$O"/soak-*.tap > "$O/soak-taps.md5" 2>/dev/null; echo "== soak tap size: $(du -sh "$O" | cut -f1); prefill lines dev: $(sort "$O/soak-dev.prefill" | head -1 | cut -c1-80) .. $(sort "$O/soak-dev.prefill" | tail -1 | cut -c1-80); base: $(sort "$O/soak-base.prefill" | head -1 | cut -c1-80)"
+  gzip -c "$O/soak-base-1.tap" > "$O/soak-base-1.tap.gz" 2>/dev/null; rm -f "$O"/soak-*.tap
 fi
 #   ids2   lane arx: greedy 256 ids of IDSP (default all 18), model IDSM (27B | 35B), ONE binary (IDSB, arx-base-cli) under two envs: the default
 #          vs IDSE (INTARSIA_HIP_AR_WIDE=0), spec off + the model's default spec

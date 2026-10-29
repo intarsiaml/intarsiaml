@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # lane arx: HIP no-op check of main bfbee3cb6 (dev) vs 200be3f05 (base): plan show 8B / 35B tp2, 35B tp2 greedy ids short-0 / 4k-0 spec off
-source ~/intarsiaml-arx/scripts/arx/lib.sh
+source ~/intarsiaml-arx2/scripts/arx/lib.sh
 O=$R/arx-out/noop
 trap restore EXIT; stop_radiance
 M35=/models/intarsia/Qwen3.6-35B-A3B-NVFP4

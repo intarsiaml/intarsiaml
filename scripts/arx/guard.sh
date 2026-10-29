@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Lane ARX (copy of scripts/pf27/guard.sh, kept in ~/intarsiaml-arx/arx-bin on tatooine, not ~/spt) (ON tatooine, run over ssh by speed-window.sh with its stdin on a fifo): stop radiance,
+# Lane ARX (copy of scripts/pf27/guard.sh, kept in ~/intarsiaml-arx2/arx-bin on tatooine, not ~/spt) (ON tatooine, run over ssh by speed-window.sh with its stdin on a fifo): stop radiance,
 # and restore it when stdin closes (the Mac side ended or died); prints when radiance answers.
 restore() {
   docker rm -f arx-serve >/dev/null 2>&1

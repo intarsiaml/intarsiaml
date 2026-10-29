@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Lane ARX, ON tatooine inside a fleetq job (--load cpu): build the release CLI and the test binaries of one tree in its own volume.
-#   bash ~/intarsiaml-arx/scripts/arx/build.sh dev|base
-# -> ~/intarsiaml-arx/arx-<tag>-cli, ~/intarsiaml-arx/arx-bin/<test>-<tag>. CLI=0 / TESTS=0 skip, TBINS lists the test targets.
+#   bash ~/intarsiaml-arx2/scripts/arx/build.sh dev|base
+# -> ~/intarsiaml-arx2/arx-<tag>-cli, ~/intarsiaml-arx2/arx-bin/<test>-<tag>. CLI=0 / TESTS=0 skip, TBINS lists the test targets.
 set -uo pipefail
 tag=${1:?dev|base}
-R=$HOME/intarsiaml-arx
-if [[ $tag == base ]]; then T=$R/arx-base-tree; V=intarsia-cargo-arx-base; else T=$R; V=intarsia-cargo-arx; fi
+R=$HOME/intarsiaml-arx2
+if [[ $tag == base ]]; then T=$R/arx-base-tree; V=intarsia-cargo-arx2-base; else T=$R; V=intarsia-cargo-arx2; fi
 export INTARSIA_REPO=$T INTARSIA_TARGET_VOL=$V
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
 mkdir -p $R/arx-bin

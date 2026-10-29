@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Lane ARX shared helpers, ON tatooine (sourced) inside a fleetq job. Every GPU command runs in the dev image through deploy/tatooine/dev.sh.
-# Layout: ~/intarsiaml-arx is the branch tree (rsynced from the Mac), ~/intarsiaml-arx/arx-base-tree is main's tree;
-# binaries live in ~/intarsiaml-arx (/work inside the container): arx-<tag>-cli, arx-bin/<test>-<tag>; outputs in arx-out/<window>.
-R=$HOME/intarsiaml-arx; V=intarsia-cargo-arx; D=$R/deploy/tatooine/dev.sh
+# Layout: ~/intarsiaml-arx2 is the branch tree (rsynced from the Mac), ~/intarsiaml-arx2/arx-base-tree is main's tree;
+# binaries live in ~/intarsiaml-arx2 (/work inside the container): arx-<tag>-cli, arx-bin/<test>-<tag>; outputs in arx-out/<window>.
+R=$HOME/intarsiaml-arx2; V=intarsia-cargo-arx2; D=$R/deploy/tatooine/dev.sh
 M27=/models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
 H=/data/models/radiance/hf-cache/hub
 now() { date '+%F %T'; }
