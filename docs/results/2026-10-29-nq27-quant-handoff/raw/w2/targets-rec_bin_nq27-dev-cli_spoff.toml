@@ -1,0 +1,3 @@
+[targets.nq27-rec_bin_nq27-dev-cli_spoff]
+url = "http://tatooine:8095/v1"
+model = "qwen-nq27"

@@ -173,6 +173,111 @@ __global__ void gated_rmsnorm_kernel(const ik_bf16* __restrict__ x, const ik_bf1
     }
 }
 
+// Lane nq27: the producers of the W4A8 GEMM's other activations (silu_glu before the FFN down projection, gated_rmsnorm before the GDN out
+// projection) also write the GEMM's quantised activations, the way rmsnorm_kernel's QUANT does: the layout and bytes of mx_a8_quant_tiled_kernel
+// from the bf16 values as stored, an order-free row max, the grid the 16-padded row count (rows >= M and the K % 64 == 32 pad group zeroed).
+// chunk c (k = 8 c) of a row's 16-byte lane slot in its tile
+IK_DEVI uint2* nq_chunk(uint8_t* tile, int c) {
+    return reinterpret_cast<uint2*>(tile + (c >> 2) * 512 + ((c >> 1) & 1) * 256 + (c & 1) * 8);
+}
+
+// silu_glu_kernel<true> over whole rows of K (one block per row, blockDim.x * kNqKeep >= K / 8 chunks) that also quantises its output: out =
+// bf16(silu(g) * u), the same expression per element as silu_glu_kernel, so the stored bytes are the plain kernel's.
+__global__ void silu_glu_quant_kernel(const ik_bf16* __restrict__ g, const ik_bf16* __restrict__ u, ik_bf16* __restrict__ out, int64_t K,
+                                      uint8_t* __restrict__ xt, float* __restrict__ xs, int64_t M) {
+    __shared__ float red[32];
+    const int64_t row = blockIdx.x;
+    const int C = (int)(K >> 3), CP = (int)((K + 63) >> 6) * 8;
+    uint8_t* tile = xt + (row >> 4) * (int64_t)(CP / 4) * 512 + (row & 15) * 16;
+    for (int c = C + threadIdx.x; c < CP; c += blockDim.x) *nq_chunk(tile, c) = make_uint2(0u, 0u);
+    if (row >= M) {  // block-uniform
+        for (int c = threadIdx.x; c < C; c += blockDim.x) *nq_chunk(tile, c) = make_uint2(0u, 0u);
+        return;
+    }
+    const uint4* gr = reinterpret_cast<const uint4*>(g + row * K);
+    const uint4* ur = reinterpret_cast<const uint4*>(u + row * K);
+    uint4* orow = reinterpret_cast<uint4*>(out + row * K);
+    uint4 keep[kNqKeep];
+    float amax = 0.f;
+#pragma unroll
+    for (int j = 0; j < kNqKeep; ++j) {
+        const int i = threadIdx.x + j * blockDim.x;
+        if (i < C) {
+            float fg[8], fu[8];
+            ik_unpack8(gr[i], fg);
+            ik_unpack8(ur[i], fu);
+#pragma unroll
+            for (int k = 0; k < 8; ++k) fg[k] = ik_silu(fg[k]) * fu[k];
+            keep[j] = ik_pack8(fg);
+            orow[i] = keep[j];
+            ik_unpack8(keep[j], fg);  // the stored bf16 values
+#pragma unroll
+            for (int k = 0; k < 8; ++k) amax = fmaxf(amax, fabsf(fg[k]));
+        }
+    }
+    amax = ik_block_max(amax, red);
+    const float s = fmaxf(__fdiv_rn(amax, kMxA8Max), kMxA8MinScale);
+    if (threadIdx.x == 0) xs[row] = s;
+#pragma unroll
+    for (int j = 0; j < kNqKeep; ++j) {
+        const int i = threadIdx.x + j * blockDim.x;
+        if (i < C) *nq_chunk(tile, i) = mx_a8_quant8(keep[j], s);
+    }
+}
+
+// gated_rmsnorm_kernel<true> (rows of H = dv, one warp's lanes per head) whose output the W4A8 GEMM reads as [tokens, heads * H]: one block per
+// 16-padded TOKEN, thread t = chunk t of the token's heads * H elements (L = H / 8 lanes per head, L a power of two <= 32 so a head lies in one
+// warp). Each head's sum of squares is the plain kernel's: its 8-term per-lane sum, then the xor tree over the head's lanes (the plain kernel's
+// 32-lane tree adds exact zeros above the L lanes), so rsqrt(ss / H + eps) and every stored element are the plain kernel's bits. The row scale is
+// the max over the whole token (all heads).
+__global__ void gated_rmsnorm_quant_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ z, const ik_bf16* __restrict__ w,
+                                           ik_bf16* __restrict__ out, int64_t H, int heads, float eps, float woff, uint8_t* __restrict__ xt,
+                                           float* __restrict__ xs, int64_t M) {
+    __shared__ float red[32];
+    const int64_t row = blockIdx.x;
+    const int L = (int)(H >> 3), C = heads * L;
+    const int64_t K = (int64_t)heads * H;
+    const int CP = (int)((K + 63) >> 6) * 8;
+    uint8_t* tile = xt + (row >> 4) * (int64_t)(CP / 4) * 512 + (row & 15) * 16;
+    for (int c = C + threadIdx.x; c < CP; c += blockDim.x) *nq_chunk(tile, c) = make_uint2(0u, 0u);
+    if (row >= M) {  // block-uniform
+        for (int c = threadIdx.x; c < C; c += blockDim.x) *nq_chunk(tile, c) = make_uint2(0u, 0u);
+        return;
+    }
+    const int t = threadIdx.x;
+    const bool valid = t < C;
+    float f[8], zf[8], gw[8];
+    float ss = 0.f;
+    if (valid) {
+        ik_unpack8(reinterpret_cast<const uint4*>(x + row * K)[t], f);
+#pragma unroll
+        for (int k = 0; k < 8; ++k) ss += f[k] * f[k];
+    }
+    for (int o = L >> 1; o > 0; o >>= 1) ss += __shfl_xor(ss, o, IK_WARP);
+    const float r = rsqrtf(ss / (float)H + eps);
+    uint4 keep = make_uint4(0u, 0u, 0u, 0u);
+    float amax = 0.f;
+    if (valid) {
+        ik_unpack8(reinterpret_cast<const uint4*>(w)[t & (L - 1)], gw);
+        ik_unpack8(reinterpret_cast<const uint4*>(z + row * K)[t], zf);
+#pragma unroll
+        for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (gw[k] + woff);
+        float nrm[8];
+        ik_unpack8(ik_pack8(f), nrm);  // the normalised row as the rmsnorm launch stores it (bf16)
+#pragma unroll
+        for (int k = 0; k < 8; ++k) f[k] = ik_silu(zf[k]) * nrm[k];
+        keep = ik_pack8(f);
+        reinterpret_cast<uint4*>(out + row * K)[t] = keep;
+        ik_unpack8(keep, f);  // the stored bf16 values
+#pragma unroll
+        for (int k = 0; k < 8; ++k) amax = fmaxf(amax, fabsf(f[k]));
+    }
+    amax = ik_block_max(amax, red);
+    const float s = fmaxf(__fdiv_rn(amax, kMxA8Max), kMxA8MinScale);
+    if (threadIdx.x == 0) xs[row] = s;
+    if (valid) *nq_chunk(tile, t) = mx_a8_quant8(keep, s);
+}
+
 int launch_rows(const ik_bf16* x, const ik_bf16* res, const ik_bf16* w, ik_bf16* out, ik_bf16* sum, int64_t rows,
                 int64_t H, float eps, float woff, hipStream_t s) {
     if (rows == 0 || H == 0) return IK_OK;
@@ -225,6 +330,38 @@ int launch_rows_quant(const ik_bf16* x, const ik_bf16* res, const ik_bf16* w, ik
     return ik_launch_status();
 }
 
+// Lane nq27: silu_glu over [rows, K] plus the W4A8 quant of its output into xq (layout as launch_rows_quant); IK_ERR_UNSUPPORTED (nothing launched)
+// when the operands do not take the plain launch's vector path or a row does not fit the kept chunks.
+int launch_silu_quant(const ik_bf16* g, const ik_bf16* u, ik_bf16* out, int64_t rows, int64_t K, void* xq, hipStream_t s) {
+    const int64_t C = K / 8;
+    const bool vec = K % 32 == 0 && ik_aligned16(g) && ik_aligned16(u) && ik_aligned16(out) && ik_aligned16(xq);
+    if (!vec || rows <= 0 || C > 1024 * (int64_t)kNqKeep || rows > 0x7fffffe0LL) return IK_ERR_UNSUPPORTED;
+    const unsigned bd = ik_round_up((unsigned)((C + kNqKeep - 1) / kNqKeep), 32);
+    const int64_t Mp = (rows + 15) & ~(int64_t)15, Kp = (K + 63) & ~(int64_t)63;
+    uint8_t* xt = static_cast<uint8_t*>(xq);
+    float* xs = reinterpret_cast<float*>(xt + mx_a8_xs_offset(Mp, Kp));
+    silu_glu_quant_kernel<<<(unsigned)Mp, bd, 0, s>>>(g, u, out, K, xt, xs, rows);
+    return ik_launch_status();
+}
+
+// Lane nq27: gated_rmsnorm over [rows = tokens * heads, H] plus the W4A8 quant of its output read as [tokens, heads * H] into xq; IK_ERR_UNSUPPORTED
+// (nothing launched) unless the plain launch takes its single-warp vector path (H / 8 a power of two <= 32) and a token's chunks fit one block.
+int launch_gated_quant(const ik_bf16* x, const ik_bf16* z, const ik_bf16* w, ik_bf16* out, int64_t rows, int64_t H, int64_t heads, float eps,
+                       float woff, void* xq, hipStream_t s) {
+    const int64_t L = H / 8;
+    const bool vec = H % 8 == 0 && ik_aligned16(x) && ik_aligned16(z) && ik_aligned16(w) && ik_aligned16(out) && ik_aligned16(xq);
+    if (!vec || heads <= 0 || rows <= 0 || rows % heads != 0 || L < 1 || L > 32 || (L & (L - 1)) != 0 || (heads * H) % 32 != 0 ||
+        heads * L > 1024 || rows / heads > 0x7fffffe0LL)
+        return IK_ERR_UNSUPPORTED;
+    const int64_t M = rows / heads, K = heads * H;
+    const int64_t Mp = (M + 15) & ~(int64_t)15, Kp = (K + 63) & ~(int64_t)63;
+    uint8_t* xt = static_cast<uint8_t*>(xq);
+    float* xs = reinterpret_cast<float*>(xt + mx_a8_xs_offset(Mp, Kp));
+    const unsigned bd = ik_round_up((unsigned)(heads * L), 32);
+    gated_rmsnorm_quant_kernel<<<(unsigned)Mp, bd, 0, s>>>(x, z, w, out, H, (int)heads, eps, woff, xt, xs, M);
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
@@ -248,6 +385,37 @@ int ik_rmsnorm_quant_bf16(const ik_tensor* x, const ik_tensor* res, const ik_ten
     }
     return launch_rows_quant((const ik_bf16*)x->data, res ? (const ik_bf16*)res->data : nullptr, (const ik_bf16*)w->data, (ik_bf16*)out->data,
                              sum_out ? (ik_bf16*)sum_out->data : nullptr, R, H, eps, w_offset, xq, IK_STREAM(stream));
+}
+
+// Lane nq27: ik_silu_glu_bf16 that also writes the W4A8 prefill GEMM's quantised activations of `out` into xq (layout and size as
+// ik_rmsnorm_quant_bf16's, for Mp = round16(rows), Kp = round64(K)); out is bitwise the plain launch's. IK_ERR_UNSUPPORTED (nothing launched) when
+// the operands do not take the vector path.
+int ik_silu_glu_quant_bf16(const ik_tensor* gate, const ik_tensor* up, ik_tensor* out, void* xq, void* stream) {
+    IK_TRY(ik_check(gate, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(up, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(out, IK_DTYPE_BF16, 2));
+    for (int d = 0; d < 2; ++d)
+        if (up->shape[d] != gate->shape[d] || out->shape[d] != gate->shape[d]) return IK_ERR_SHAPE;
+    if (!xq) return IK_ERR_INVALID_ARG;
+    return launch_silu_quant((const ik_bf16*)gate->data, (const ik_bf16*)up->data, (ik_bf16*)out->data, gate->shape[0], gate->shape[1], xq,
+                             IK_STREAM(stream));
+}
+
+// Lane nq27: ik_gated_rmsnorm_bf16 on [tokens * heads, H] rows that also writes the W4A8 GEMM's quantised activations of `out` read as
+// [tokens, heads * H] into xq (layout as above for Mp = round16(tokens), Kp = round64(heads * H)); out is bitwise the plain launch's.
+// IK_ERR_UNSUPPORTED (nothing launched) when the operands do not take the plain launch's single-warp vector path or heads * H / 8 > 1024.
+int ik_gated_rmsnorm_quant_bf16(const ik_tensor* x, const ik_tensor* z, const ik_tensor* w, float eps, float w_offset, int64_t heads,
+                                ik_tensor* out, void* xq, void* stream) {
+    IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(z, IK_DTYPE_BF16, 2));
+    IK_TRY(ik_check(w, IK_DTYPE_BF16, 1));
+    IK_TRY(ik_check(out, IK_DTYPE_BF16, 2));
+    if (z->shape[0] != x->shape[0] || z->shape[1] != x->shape[1] || w->shape[0] != x->shape[1] || out->shape[0] != x->shape[0] ||
+        out->shape[1] != x->shape[1])
+        return IK_ERR_SHAPE;
+    if (!xq) return IK_ERR_INVALID_ARG;
+    return launch_gated_quant((const ik_bf16*)x->data, (const ik_bf16*)z->data, (const ik_bf16*)w->data, (ik_bf16*)out->data, x->shape[0], x->shape[1],
+                              heads, eps, w_offset, xq, IK_STREAM(stream));
 }
 
 int ik_gated_rmsnorm_bf16(const ik_tensor* x, const ik_tensor* z, const ik_tensor* w, float eps, float w_offset,

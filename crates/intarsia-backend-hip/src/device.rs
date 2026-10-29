@@ -167,7 +167,8 @@ pub struct HipBackend {
     push_arm: Mutex<Option<PushArm>>,
     /// lane pf27c: the W4A8 direct path's span results per weight (`INTARSIA_HIP_MXFP4_A8_SPANCACHE`)
     spans: Mutex<SpanCache>,
-    /// lane fuse27: the quantised activations a prefill norm wrote for the W4A8 GEMMs that read its output (`INTARSIA_HIP_NORM_QUANT`)
+    /// lane fuse27 / nq27: the quantised activations a prefill norm, silu_glu or gated_rmsnorm wrote for the W4A8 GEMMs that read its output
+    /// (`INTARSIA_HIP_NORM_QUANT`, `INTARSIA_HIP_ACT_QUANT`)
     prequant: Mutex<PreQuant>,
 }
 
@@ -178,27 +179,43 @@ pub struct HipBackend {
 /// instead of running its pre-pass. Producer and readers are on stream 0, so a later norm rewrites `buf` only after the readers before it.
 /// The norm quantises only once a direct GEMM was seen to read a norm output (`wanted`), so a model whose norms feed no W4A8 GEMM (the
 /// NVFP4 35B) never pays for it. Same kernels, same bytes: bitwise the pre-pass. `INTARSIA_HIP_NORM_QUANT=0` turns it off.
+///
+/// Lane nq27: the same handoff from the two producers of the remaining W4A8 activations, `silu_glu` (the FFN down projection's input, `[rows, I]`)
+/// and `gated_rmsnorm` (the GDN out projection's input: it runs on `[tokens * heads, dv]` rows, the GEMM reads the same bytes as
+/// `[tokens, heads * dv]`, so the key is the GEMM's and `heads * dv` is learnt from the first GEMM that reads such an output). One slot serves all
+/// three: a GEMM reads its activations before the next producer of the stream runs. `wanted` is per producer (a model whose silu_glu output
+/// feeds no W4A8 GEMM never pays for that quant); `INTARSIA_HIP_ACT_QUANT=0` turns off the two new producers.
 struct PreQuant {
-    /// what `buf` holds: the norm output's (buffer id, offset, rows, H, write count after the norm)
+    /// what `buf` holds, as the reading GEMM sees it: (buffer id, offset, rows, K, write count after the producer)
     key: Option<PqKey>,
-    /// the last prefill-shaped norm output (quantised or not): a direct W4A8 call that reads it sets `wanted`
-    last: Option<PqKey>,
-    wanted: bool,
+    /// the last prefill-shaped output of each producer ([`PQ_NORM`], [`PQ_SILU`], [`PQ_GATED`]; quantised or not, a gated one as the
+    /// producer shaped it): a direct W4A8 call that reads it sets that producer's `wanted`
+    last: [Option<PqKey>; 3],
+    wanted: [bool; 3],
+    /// the row length `heads * dv` of the GEMM that reads gated_rmsnorm's output (0 = not seen yet)
+    gated_k: usize,
     buf: Option<(Buffer, usize)>,
     /// buffers outgrown by a larger chunk: a queued launch may still read them, so they live as long as the backend
     old: Vec<Buffer>,
-    off: bool,
+    /// per producer: the knob is `0`, or the buffer could not be allocated
+    off: [bool; 3],
 }
 
 type PqKey = (u64, usize, usize, usize, u64);
+
+/// the producers of [`PreQuant`]
+const PQ_NORM: usize = 0;
+const PQ_SILU: usize = 1;
+const PQ_GATED: usize = 2;
 
 /// calls that read a norm's quantised activations (`crate::prequant_hits`)
 pub(crate) static PQ_HITS: AtomicU64 = AtomicU64::new(0);
 
 impl PreQuant {
     fn new() -> Self {
-        let off = std::env::var("INTARSIA_HIP_NORM_QUANT").is_ok_and(|v| v == "0");
-        PreQuant { key: None, last: None, wanted: false, buf: None, old: Vec::new(), off }
+        let knob = |name: &str| std::env::var(name).is_ok_and(|v| v == "0");
+        let (norm, act) = (knob("INTARSIA_HIP_NORM_QUANT"), knob("INTARSIA_HIP_ACT_QUANT"));
+        PreQuant { key: None, last: [None; 3], wanted: [false; 3], gated_k: 0, buf: None, old: Vec::new(), off: [norm, act, act] }
     }
 
     /// the key of a bf16 `[rows, H]` tensor in a backend buffer, at its current write count
@@ -530,25 +547,40 @@ impl HipBackend {
         HipBuffer::touch(&t.buf);
     }
 
-    /// Lane fuse27 ([`PreQuant`]): where a norm writing `out` (touched already) writes the W4A8 activations of it, and the key they will hold
-    /// once [`HipBackend::prequant_done`] says the launch ran; None = the plain norm (off, not wanted yet, a side stream or capture, rows that
-    /// do not take the direct kernel).
-    fn prequant_slot(&self, out: &TensorRef, stream: StreamId) -> Result<Option<(*mut c_void, PqKey)>> {
+    /// Lane fuse27 ([`PreQuant`]): where a producer of `kind` writing `out` (touched already) writes the W4A8 activations of it, the key they
+    /// will hold once [`HipBackend::prequant_done`] says the launch ran, and the rows of `out` per row of the GEMM that reads it (gated_rmsnorm's
+    /// heads; 1 otherwise); None = the plain launch (off, not wanted yet, a side stream or capture, rows that do not take the direct kernel).
+    fn prequant_slot(&self, out: &TensorRef, stream: StreamId, kind: usize) -> Result<Option<(*mut c_void, PqKey, usize)>> {
         if stream != 0 || self.capturing.load(Ordering::Relaxed) {
             return Ok(None);
         }
-        let Some(key) = PreQuant::key_of(out) else { return Ok(None) };
-        let (m, h) = (key.2, key.3);
+        let Some(own) = PreQuant::key_of(out) else { return Ok(None) };
         // SAFETY: plain FFI query of the launcher's static configuration
-        if h == 0 || h % 32 != 0 || unsafe { ffi::ik_mxfp4_a8_use_direct(m as i64) } == 0 {
-            return Ok(None);
-        }
+        let direct = |m: usize| (unsafe { ffi::ik_mxfp4_a8_use_direct(m as i64) }) != 0;
         let mut c = self.prequant.lock().unwrap();
-        if c.off {
+        if c.off[kind] {
             return Ok(None);
         }
-        c.last = Some(key);
-        if !c.wanted {
+        // the GEMM's view: gated_rmsnorm's [tokens * heads, dv] rows are its [tokens, heads * dv] rows (the key of the K learnt so far)
+        let (key, per) = if kind == PQ_GATED {
+            if own.2 == 0 || own.3 == 0 || !direct(own.2) {
+                return Ok(None);
+            }
+            c.last[kind] = Some(own);
+            let k = c.gated_k;
+            if k == 0 || k % own.3 != 0 || (own.2 * own.3) % k != 0 {
+                return Ok(None);
+            }
+            ((own.0, own.1, own.2 * own.3 / k, k, own.4), k / own.3)
+        } else {
+            (own, 1)
+        };
+        let (m, h) = (key.2, key.3);
+        if h == 0 || h % 32 != 0 || !direct(m) {
+            return Ok(None);
+        }
+        c.last[kind] = Some(own);
+        if !c.wanted[kind] {
             return Ok(None);
         }
         let need = a8_xq_bytes(m, h);
@@ -561,13 +593,13 @@ impl HipBackend {
                     c.key = None; // the new buffer holds nothing yet
                 }
                 Err(_) => {
-                    c.off = true;
+                    c.off = [true; 3];
                     return Ok(None);
                 }
             }
         }
         let b = &c.buf.as_ref().unwrap().0;
-        Ok(Some((Self::ptr(b, 0, need)? as *mut c_void, key)))
+        Ok(Some((Self::ptr(b, 0, need)? as *mut c_void, key, per)))
     }
 
     /// Lane fuse27: a launch that wrote the slot of [`HipBackend::prequant_slot`] was queued (`ok`) or failed (it may have half-written it)
@@ -580,7 +612,7 @@ impl HipBackend {
     fn prequant_get(&self, x: &TensorRef) -> *const c_void {
         let Some(key) = PreQuant::key_of(x) else { return std::ptr::null() };
         let mut c = self.prequant.lock().unwrap();
-        if c.off {
+        if c.off == [true; 3] {
             return std::ptr::null();
         }
         if c.key == Some(key) {
@@ -591,8 +623,17 @@ impl HipBackend {
                 }
             }
         }
-        if c.last == Some(key) {
-            c.wanted = true;
+        for kind in [PQ_NORM, PQ_SILU] {
+            if c.last[kind] == Some(key) {
+                c.wanted[kind] = true;
+            }
+        }
+        // gated_rmsnorm's [tokens * heads, dv] rows: the same bytes (buffer, offset, write count, element count) read as [tokens, K]
+        if let Some(l) = c.last[PQ_GATED] {
+            if (l.0, l.1, l.4) == (key.0, key.1, key.4) && l.2 * l.3 == key.2 * key.3 && key.3 % l.3 == 0 {
+                c.wanted[PQ_GATED] = true;
+                c.gated_k = key.3;
+            }
         }
         std::ptr::null()
     }
@@ -1040,7 +1081,9 @@ impl Backend for HipBackend {
         };
         // lane fuse27 (`PreQuant`): a prefill norm's quant target, and a cached-span W4A8 call's activations quantised by that norm
         let pq = match kernel {
-            "rmsnorm_bf16" | "rmsnorm_add_bf16" => self.prequant_slot(&call.outputs[0], stream)?,
+            "rmsnorm_bf16" | "rmsnorm_add_bf16" => self.prequant_slot(&call.outputs[0], stream, PQ_NORM)?,
+            "silu_glu_bf16" => self.prequant_slot(&call.outputs[0], stream, PQ_SILU)?,
+            "gated_rmsnorm_bf16" => self.prequant_slot(&call.outputs[0], stream, PQ_GATED)?,
             _ => None,
         };
         let mut pq_ran = false;
@@ -1091,7 +1134,7 @@ impl Backend for HipBackend {
                 "embedding_bf16" => ffi::ik_embedding_bf16(i(0), i(1), o, s),
                 // lane fuse27: the prefill norm also quantises its output for the W4A8 GEMMs (`PreQuant`); IK_ERR_UNSUPPORTED = not this path
                 "rmsnorm_bf16" => match pq {
-                    Some((xq, _)) => match ffi::ik_rmsnorm_quant_bf16(i(0), std::ptr::null(), i(1), a.eps, a.w_offset, o, std::ptr::null_mut(), xq, s) {
+                    Some((xq, ..)) => match ffi::ik_rmsnorm_quant_bf16(i(0), std::ptr::null(), i(1), a.eps, a.w_offset, o, std::ptr::null_mut(), xq, s) {
                         5 => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
                         rc => {
                             pq_ran = true;
@@ -1101,7 +1144,7 @@ impl Backend for HipBackend {
                     None => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
                 },
                 "rmsnorm_add_bf16" => match pq {
-                    Some((xq, _)) => match ffi::ik_rmsnorm_quant_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), xq, s) {
+                    Some((xq, ..)) => match ffi::ik_rmsnorm_quant_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), xq, s) {
                         5 => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), s),
                         rc => {
                             pq_ran = true;
@@ -1192,7 +1235,17 @@ impl Backend for HipBackend {
                 "attn_prefill_bf16_flash_v2" => {
                     ffi::ik_attn_prefill_bf16_flash_v2(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, s)
                 }
-                "silu_glu_bf16" => ffi::ik_silu_glu_bf16(i(0), i(1), o, s),
+                // lane nq27: silu_glu / gated_rmsnorm also quantise their output for the W4A8 GEMM that reads it (`PreQuant`)
+                "silu_glu_bf16" => match pq {
+                    Some((xq, ..)) => match ffi::ik_silu_glu_quant_bf16(i(0), i(1), o, xq, s) {
+                        5 => ffi::ik_silu_glu_bf16(i(0), i(1), o, s),
+                        rc => {
+                            pq_ran = true;
+                            rc
+                        }
+                    },
+                    None => ffi::ik_silu_glu_bf16(i(0), i(1), o, s),
+                },
                 "gdn_conv_bf16" => ffi::ik_gdn_conv_bf16(i(0), i(1), o, o.add(1), s),
                 "gdn_conv_bf16_rows" => ffi::ik_gdn_conv_bf16_rows(i(0), i(1), o, o.add(1), tab, tab_stride, tab_index, s),
                 "gdn_delta_rule_bf16_v2_rows" => ffi::ik_gdn_delta_rule_bf16_v2_rows(
@@ -1308,7 +1361,16 @@ impl Backend for HipBackend {
                 "matmul_pair_bf16_gemv" => ffi::ik_matmul_pair_bf16_gemv(i(0), i(1), i(2), o, o.add(1), s),
                 "matmul_fp8_pair_gemv" => ffi::ik_matmul_fp8_pair_gemv(i(0), i(1), i(2), i(3), i(4), o, o.add(1), s),
                 "matmul_nvfp4_glu_gemv" => ffi::ik_matmul_nvfp4_glu_gemv(i(0), i(1), i(2), i(3), i(4), i(5), i(6), o, s),
-                "gated_rmsnorm_bf16" => ffi::ik_gated_rmsnorm_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, s),
+                "gated_rmsnorm_bf16" => match pq {
+                    Some((xq, _, heads)) => match ffi::ik_gated_rmsnorm_quant_bf16(i(0), i(1), i(2), a.eps, a.w_offset, heads as i64, o, xq, s) {
+                        5 => ffi::ik_gated_rmsnorm_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, s),
+                        rc => {
+                            pq_ran = true;
+                            rc
+                        }
+                    },
+                    None => ffi::ik_gated_rmsnorm_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, s),
+                },
                 "gated_rmsnorm_matmul_fp8_gemv" => {
                     ffi::ik_gated_rmsnorm_matmul_fp8_gemv(i(0), i(1), i(2), a.eps, a.w_offset, i(3), i(4), o, s)
                 }
@@ -1383,7 +1445,7 @@ impl Backend for HipBackend {
                 tr.pool.push(a);
             }
         }
-        if let (true, Some((_, key))) = (pq_ran, pq) {
+        if let (true, Some((_, key, _))) = (pq_ran, pq) {
             self.prequant_done(key, rc == 0);
         }
         if rc != 0 {
