@@ -1,0 +1,36 @@
+matmul_bf16_inv: N=4096 K=4096 ref M 512 -> heuristic #0 algo 67 tile 409 stages 35 (of 4)
+matmul_bf16_inv: N=1024 K=4096 ref M 512 -> heuristic #0 algo 67 tile 28 stages 35 (of 3)
+matmul_bf16_inv: N=12288 K=4096 ref M 512 -> heuristic #0 algo 21 tile 23 stages 9 (of 5)
+matmul_bf16_inv: N=4096 K=12288 ref M 512 -> heuristic #0 algo 67 tile 414 stages 35 (of 4)
+TIMING ref_m 512 M   991: cublas   4142.5 us/layer  inv   4977.4 us/layer  inv/cublas 1.202
+TIMING ref_m 512 M  1024: cublas   4519.9 us/layer  inv   5025.4 us/layer  inv/cublas 1.112
+TIMING ref_m 512 M  2048: cublas   8861.2 us/layer  inv   9761.0 us/layer  inv/cublas 1.102
+TIMING ref_m 512 M  4096: cublas  17009.6 us/layer  inv  18277.0 us/layer  inv/cublas 1.075
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 13.20s
+matmul_bf16_inv: N=4096 K=4096 ref M 1024 -> heuristic #0 algo 67 tile 409 stages 35 (of 6)
+matmul_bf16_inv: N=1024 K=4096 ref M 1024 -> heuristic #0 algo 21 tile 23 stages 9 (of 5)
+matmul_bf16_inv: N=12288 K=4096 ref M 1024 -> heuristic #0 algo 21 tile 23 stages 9 (of 5)
+matmul_bf16_inv: N=4096 K=12288 ref M 1024 -> heuristic #0 algo 67 tile 24 stages 35 (of 4)
+TIMING ref_m 1024 M   991: cublas   4129.4 us/layer  inv   4817.5 us/layer  inv/cublas 1.167
+TIMING ref_m 1024 M  1024: cublas   4522.1 us/layer  inv   4830.4 us/layer  inv/cublas 1.068
+TIMING ref_m 1024 M  2048: cublas   8852.7 us/layer  inv   9588.9 us/layer  inv/cublas 1.083
+TIMING ref_m 1024 M  4096: cublas  16846.8 us/layer  inv  17428.2 us/layer  inv/cublas 1.035
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 12.84s
+matmul_bf16_inv: N=4096 K=4096 ref M 2048 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+matmul_bf16_inv: N=1024 K=4096 ref M 2048 -> heuristic #0 algo 67 tile 412 stages 35 (of 6)
+matmul_bf16_inv: N=12288 K=4096 ref M 2048 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+matmul_bf16_inv: N=4096 K=12288 ref M 2048 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+TIMING ref_m 2048 M   991: cublas   4212.5 us/layer  inv   5005.5 us/layer  inv/cublas 1.188
+TIMING ref_m 2048 M  1024: cublas   4509.6 us/layer  inv   5212.8 us/layer  inv/cublas 1.156
+TIMING ref_m 2048 M  2048: cublas   8866.7 us/layer  inv   8572.2 us/layer  inv/cublas 0.967
+TIMING ref_m 2048 M  4096: cublas  17019.9 us/layer  inv  16390.2 us/layer  inv/cublas 0.963
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 13.27s
+matmul_bf16_inv: N=4096 K=4096 ref M 4096 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+matmul_bf16_inv: N=1024 K=4096 ref M 4096 -> heuristic #0 algo 67 tile 409 stages 35 (of 3)
+matmul_bf16_inv: N=12288 K=4096 ref M 4096 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+matmul_bf16_inv: N=4096 K=12288 ref M 4096 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+TIMING ref_m 4096 M   991: cublas   4132.5 us/layer  inv   5119.3 us/layer  inv/cublas 1.239
+TIMING ref_m 4096 M  1024: cublas   4498.1 us/layer  inv   5110.8 us/layer  inv/cublas 1.136
+TIMING ref_m 4096 M  2048: cublas   8870.7 us/layer  inv   8362.4 us/layer  inv/cublas 0.943
+TIMING ref_m 4096 M  4096: cublas  16973.2 us/layer  inv  16400.2 us/layer  inv/cublas 0.966
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 13.14s
