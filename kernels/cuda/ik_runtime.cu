@@ -120,6 +120,14 @@ int ik_rt_stream_create_high_priority(void** stream) {
     return (int)e;
 }
 int ik_rt_stream_sync(void* stream) { return (int)cudaStreamSynchronize((cudaStream_t)stream); }
+int ik_rt_event_create_sync(void** ev) {
+    cudaEvent_t e = nullptr;
+    cudaError_t rc = cudaEventCreateWithFlags(&e, cudaEventDisableTiming);
+    *ev = (void*)e;
+    return (int)rc;
+}
+int ik_rt_event_record(void* ev, void* stream) { return (int)cudaEventRecord((cudaEvent_t)ev, (cudaStream_t)stream); }
+int ik_rt_stream_wait_event(void* stream, void* ev) { return (int)cudaStreamWaitEvent((cudaStream_t)stream, (cudaEvent_t)ev, 0); }
 
 int ik_rt_measure_bandwidth(double* gbs) {
     const size_t bytes = 128u << 20;

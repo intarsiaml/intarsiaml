@@ -287,6 +287,12 @@ impl OpRunner for ExecRunner<'_> {
     fn run_fused(&self, op: Op, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, attrs: OpAttrs) -> Result<bool> {
         self.m.try_fused(op, inputs, outputs, attrs, self.profile)
     }
+    fn fork(&self, rows: usize) -> Result<Option<u64>> {
+        self.m.side_fork(false, rows, self.profile)
+    }
+    fn on_side(&self, tok: u64, body: &mut dyn FnMut() -> Result<()>) -> Result<()> {
+        self.m.side_run(tok, body)
+    }
     /// Only in a batched pass (batching on and the pass row-exact): the callers use it to take a fused op the solo step would not take at
     /// this row count, which must not change anything with batching off (`plan show` and the solo / prefill / verify paths stay as on main).
     fn fused_available(&self, op: Op, inputs: &[TensorRef], outputs: &[TensorRef], attrs: &OpAttrs) -> bool {
@@ -437,6 +443,9 @@ pub struct Model {
     /// the pipelined FFN takes them over per row range. `pipe_active` is the cheap test for "the list is not empty".
     pipe: Mutex<Vec<(usize, usize, u64)>>,
     pipe_active: std::sync::atomic::AtomicBool,
+    /// Lane moe16b: the stream [`Model::exec_call_one`] launches on while the MoE block's shared expert runs beside the routed
+    /// experts ([`Model::side_run`]); `u32::MAX`: `self.stream`.
+    launch_on: std::sync::atomic::AtomicU32,
     /// True while [`Model::run_layers`] runs a single-sequence pass: the only place the overlap may leave an all-reduce in flight (its end
     /// joins). Other callers of the blocks (the MTP and DFlash heads) never split.
     in_layers: std::sync::atomic::AtomicBool,
@@ -1408,6 +1417,7 @@ impl Model {
             ar_defer: Mutex::new(None),
             pipe: Mutex::new(Vec::new()),
             pipe_active: std::sync::atomic::AtomicBool::new(false),
+            launch_on: std::sync::atomic::AtomicU32::new(u32::MAX),
             in_layers: std::sync::atomic::AtomicBool::new(false),
             ar_fused_eager: Default::default(),
             ar_fused_captured: Default::default(),
@@ -2565,6 +2575,52 @@ impl Model {
         TensorRef::new(b.clone(), dtype, shape)
     }
 
+    /// Lane moe16b: a fork point on `self.stream` for [`Model::side_run`], or `None` (everything in order on one stream). `proj`
+    /// false: the MoE block's shared expert beside the routed experts (`INTARSIA_MOE_SHARED_STREAM`, default on, `0` off); true: the
+    /// attention block's k / v and the GatedDeltaNet block's z / b / a projections beside its q / qkv projection
+    /// (`INTARSIA_SIDE_PROJ`, default on, `0` off). Only for a decode-sized pass (`rows <= SIDE_MAX_ROWS`: no kernel there takes the
+    /// plan scratch the routed experts use, and no prefill GEMM shares cuBLAS's workspace), on a backend that forks inside a graph
+    /// capture, single rank, not profiled (per-op timing synchronises one stream) and not in a plan dry run (the recorded calls and
+    /// their order are the same either way: only the stream of the shared-expert launches changes).
+    pub(crate) fn side_fork(&self, proj: bool, rows: usize, profile: bool) -> Result<Option<u64>> {
+        const SIDE_MAX_ROWS: usize = 16;
+        static MOE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        static PROJ: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        let knob = |name: &str| std::env::var(name).map_or(true, |v| v.trim() != "0");
+        let on = if proj {
+            *PROJ.get_or_init(|| knob("INTARSIA_SIDE_PROJ"))
+        } else {
+            *MOE.get_or_init(|| knob("INTARSIA_MOE_SHARED_STREAM"))
+        };
+        if !on
+            || rows > SIDE_MAX_ROWS
+            || profile
+            || self.tp.world != 1
+            || !self.backend.stream_fork()
+            || self.pipe_active.load(std::sync::atomic::Ordering::Relaxed)
+            || self.launch_on.load(std::sync::atomic::Ordering::Relaxed) != u32::MAX
+            || self.recorder.lock().unwrap().is_some()
+        {
+            return Ok(None);
+        }
+        Ok(Some(self.backend.stream_record(self.stream)?))
+    }
+
+    /// Run `body`'s launches on the side stream (`self.stream + 2`: the decode twin's stream 1 and stream 0 each get their own),
+    /// starting after the fork point `tok` of [`Model::side_fork`], then order `self.stream` after them (the join, also on error,
+    /// so a graph capture never ends with the side stream still in it).
+    pub(crate) fn side_run(&self, tok: u64, body: &mut dyn FnMut() -> Result<()>) -> Result<()> {
+        use std::sync::atomic::Ordering::Relaxed;
+        let side = self.stream + 2;
+        self.backend.stream_wait_for(side, tok)?;
+        self.launch_on.store(side, Relaxed);
+        let ran = body();
+        self.launch_on.store(u32::MAX, Relaxed);
+        let joined = self.backend.stream_record(side).and_then(|t| self.backend.stream_wait_for(self.stream, t));
+        ran?;
+        joined
+    }
+
     fn exec(
         &self,
         op: Op,
@@ -2664,7 +2720,17 @@ impl Model {
             self.backend.synchronize(self.stream)?;
         }
         let t0 = Instant::now();
-        self.backend.launch(&kernel.name, &call, self.stream)?;
+        let stream = match self.launch_on.load(std::sync::atomic::Ordering::Relaxed) {
+            u32::MAX => self.stream,
+            side => {
+                // the routed experts beside it take the plan's one scratch buffer: a side-stream kernel must not
+                if call.scratch.is_some() {
+                    return Err(Error::backend(format!("{op:?} ({}) needs kernel scratch on the shared-expert stream", kernel.name)));
+                }
+                side
+            }
+        };
+        self.backend.launch(&kernel.name, &call, stream)?;
         if profile {
             self.backend.synchronize(self.stream)?;
             self.telemetry.record_op(op, Some(t0.elapsed()));
@@ -3250,6 +3316,8 @@ impl Model {
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
         let qc = 0usize;
         let skip_q = self.kv_only_skip_q.load(std::sync::atomic::Ordering::Relaxed);
+        // lane moe16b: k / v (they read only `n`) on the side stream beside q, forked here and joined before this returns
+        let fork = if !kv_done && !skip_q { self.side_fork(true, t, profile)? } else { None };
         let gate = if a.gated {
             let (qg, gate) = self.gated_q_buffers(t);
             if !skip_q {
@@ -3277,17 +3345,25 @@ impl Model {
         };
         // k and v read the same activation: one launch for both when the backend has the fused fp8 / bf16 pair
         let (k_out, v_out) = (self.view(&ws.k[0], act, &[t, nkv * hd]), self.view(&ws.v, act, &[t, nkv * hd]));
-        if !kv_done && !self.kv_pair(a, n, &k_out, &v_out, profile)? {
-            self.proj(n, &a.wk, &k_out, profile)?;
-            self.proj(n, &a.wv, &v_out, profile)?;
-        }
-        if !kv_done {
+        let mut kv = || -> Result<()> {
+            if kv_done {
+                return Ok(());
+            }
+            if !self.kv_pair(a, n, &k_out, &v_out, profile)? {
+                self.proj(n, &a.wk, &k_out, profile)?;
+                self.proj(n, &a.wv, &v_out, profile)?;
+            }
             if let Some(bias) = &a.k_bias {
                 self.add_bias(&k_out, bias, profile)?;
             }
             if let Some(bias) = &a.v_bias {
                 self.add_bias(&v_out, bias, profile)?;
             }
+            Ok(())
+        };
+        match fork {
+            Some(tok) => self.side_run(tok, &mut kv)?,
+            None => kv()?,
         }
         Ok((qc, gate))
     }
