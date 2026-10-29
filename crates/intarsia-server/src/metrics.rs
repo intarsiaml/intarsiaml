@@ -213,6 +213,8 @@ pub fn render_batch(b: &intarsia_core::scheduler::BatchMetrics) -> String {
         let _ = writeln!(o, "intarsia_batch_decode_rows_total{{rows=\"{rows}\"}} {n}");
     }
     metric(&mut o, "intarsia_batch_prefill_chunks_total", "counter", "Prefill chunks run.", b.prefill_chunks);
+    metric(&mut o, "intarsia_batch_pack_passes_total", "counter", "Packed prefill passes (several prompts' chunks in one pass).", b.pack_passes);
+    metric(&mut o, "intarsia_batch_packed_chunks_total", "counter", "Prefill chunks run inside packed passes.", b.packed_chunks);
     metric(&mut o, "intarsia_batch_prefill_tokens_total", "counter", "Prompt tokens prefilled.", b.prefill_tokens);
     metric(
         &mut o,

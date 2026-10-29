@@ -64,6 +64,10 @@ pub struct BatchedOptions {
     /// independent of the other rows of the call. `None` (unset): the backend's default (`Backend::pack_prefill_default`: on for
     /// CUDA, lane srv16; off elsewhere).
     pub pack_prefill: Option<bool>,
+    /// Most body rows of one packed pass (`INTARSIA_PACK_ROWS`, 0: the workspace bound only); see [`SchedulerConfig::pack_rows`].
+    pub pack_rows: usize,
+    /// A packed pass takes at most half of the waiting prompts (`INTARSIA_PACK_HALF=1`); see [`SchedulerConfig::pack_half`].
+    pub pack_half: bool,
     /// Tests only: start the scheduler thread held, so that a whole workload is submitted before its first iteration admits
     /// anything (see [`BatchedEngine::release`]). Always false from [`BatchedOptions::new`].
     #[doc(hidden)]
@@ -82,6 +86,8 @@ impl BatchedOptions {
             trace_stderr: self.trace,
             spec_off_at: self.spec_off_at,
             pack_prefill: self.pack_prefill.unwrap_or(false),
+            pack_rows: self.pack_rows,
+            pack_half: self.pack_half,
             ..SchedulerConfig::default()
         }
     }
@@ -98,6 +104,8 @@ impl BatchedOptions {
             row_fault: None,
             overlap: std::env::var("INTARSIA_OVERLAP").map(|v| v == "1").unwrap_or(false),
             pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").ok().map(|v| v == "1"),
+            pack_rows: std::env::var("INTARSIA_PACK_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(0),
+            pack_half: env("INTARSIA_PACK_HALF"),
             hold_start: false,
         }
     }

@@ -257,6 +257,12 @@ pub struct SchedulerConfig {
     /// Pack the next chunks of several waiting prompts into one prefill pass ([`BatchModel::prefill_pack`]) when the model can
     /// (`INTARSIA_PACK_PREFILL=1`). Opt-in.
     pub pack_prefill: bool,
+    /// Most body rows of one packed pass (`INTARSIA_PACK_ROWS`), below the model's own bound ([`BatchModel::pack_rows_max`]);
+    /// 0: the model's bound only. Lane srv16b: a decoding sequence waits for the whole pass, so this bounds that wait.
+    pub pack_rows: usize,
+    /// A packed pass takes at most half (rounded up) of the prompts waiting to prefill (`INTARSIA_PACK_HALF`): every prompt of a
+    /// pass gets its first token when the pass ends, so packing a short queue whole delays its median first token.
+    pub pack_half: bool,
 }
 
 impl Default for SchedulerConfig {
@@ -273,6 +279,8 @@ impl Default for SchedulerConfig {
             trace_cap: 1 << 16,
             prefix_reuse: true,
             pack_prefill: false,
+            pack_rows: 0,
+            pack_half: false,
         }
     }
 }
@@ -1238,19 +1246,26 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
     }
 
     /// Prefill request `i`'s next chunk together with the next chunks of the requests prefilling behind it, in one packed pass,
-    /// when at least two fit (each body at least `pack_min_rows`, together at most `pack_rows_max`). `None`: nothing was packed
+    /// when at least two fit (each body at least `pack_min_rows`, together at most `pack_rows_max` and `pack_rows`, at most half the
+    /// queue with `pack_half`). `None`: nothing was packed
     /// and nothing changed, the caller runs the chunk alone. `Some(ended)`: the packed chunks ran and were accounted.
     fn prefill_packed(&mut self, i: usize, n_decoding: usize) -> Option<bool> {
         let (cap, min) = (self.model.pack_rows_max(), self.model.pack_min_rows());
         if cap == 0 {
             return None;
         }
+        let cap = if self.cfg.pack_rows > 0 { cap.min(self.cfg.pack_rows) } else { cap };
+        let most = if self.cfg.pack_half {
+            self.active.iter().filter(|a| matches!(a.phase, Phase::Prefilling { .. })).count().div_ceil(2)
+        } else {
+            usize::MAX
+        };
         let mut picked: Vec<usize> = Vec::new();
         let mut rows = 0usize;
         let order = std::iter::once(i).chain((0..self.active.len()).filter(|&j| j != i && matches!(self.active[j].phase, Phase::Prefilling { .. })));
         for j in order {
             let Some(body) = self.pack_body_rows(j, n_decoding) else { break };
-            if body < min || rows + body > cap {
+            if picked.len() == most || body < min || rows + body > cap {
                 break;
             }
             rows += body;
