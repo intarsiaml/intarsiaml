@@ -86,6 +86,8 @@ inside a chunk. The prefix store (`--prefix-store`) cuts recurrent prefill at me
   above (`INTARSIA_PROBE_ASSERT=1` makes it a gate on the shapes). `engine_hybrid_reuse_equals_cold` is the gate: A then B on
   one engine equals a fresh engine's B. A after B and A repeated equal cold A, with the cached counts above.
 
+* endor `cargo test --workspace --release --no-fail-fast`: 1112 passed, 1 failed (`docs_env_vars`: the two new probe variables had no row in docs/tuning.md; rows added, re-run passes), 28 ignored. 35B engine gate: B after A cached 0 = cold; A after B cached 0 = cold; A repeated cached 4095 = cold (`raw/tests-run2.log`).
+
 ## Not run: qualify's reuse gate
 
 `accuracy --mode reuse` (qualify's `acc-4k` / `acc-4k-reuse` on the 35B) has a `continue` case that requires
