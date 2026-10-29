@@ -125,7 +125,8 @@ Notes:
 | prefill +5 % at 4k | **met**: +9.6 % (MTP), +9.2 % (spec off); 1k +6.0 %, 16k +6.5 % |
 | no prompt length slower | met (1k, 4k, 16k, MTP and spec off) |
 | 120-process soak byte-identical | **not run**: no GPU window left |
-| Mac `cargo test --workspace --release` | 205 suites, 1090 passed, 0 failed |
+| Mac `cargo test --workspace --release` | 205 suites, 1090 passed, 0 failed (also after merging main `ebf8192a0`, #235) |
+| merged tree on tatooine (m15 #6795) | HIP build ok; `tests/ar_push.rs` 4 / 4; 4k CLI prefill 886 -> 813 ms with push (+9.0 %) |
 
 **Verdict: opt-in (`INTARSIA_HIP_AR_PUSH=1`, default off), draft PR.** Correctness and the prefill gate pass. Two things still stand
 between it and default-on: the 120-process soak, and an MTP decode A/B with enough rounds to resolve 0.5 %. To check next: why a
@@ -142,4 +143,4 @@ Both cards in one fleetq job, Radiance down and restored (`curl tatooine:8080/v1
 - W3 #6784 (01:55-02:29, register variant: A/B, texts, ids, hashes, mixids).
 
 Short checks (< 3 min each, both cards): m1 #6725, m2 #6726, m3 #6732, m4 #6733, m5 #6735, m6 #6738, m7 #6743, m8 #6749, m9 #6766,
-m10 #6771, m11 #6773, m12 #6775, m13 #6777, m14 #6779. Builds and Mac tests ran as `--load cpu` jobs.
+m10 #6771, m11 #6773, m12 #6775, m13 #6777, m14 #6779, m15 #6795 (merged tree). Builds and Mac tests ran as `--load cpu` jobs.
