@@ -1,0 +1,5 @@
+EQUAL  greedy/n4
+EQUAL  greedy/n16
+EQUAL  t0.8-k40-p0.95/n4
+EQUAL  t0.8-k40-p0.95/n16
+4/4 long-prompt cells identical, 2560 token ids compared

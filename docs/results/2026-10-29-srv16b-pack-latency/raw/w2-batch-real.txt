@@ -1,0 +1,6 @@
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663231488, free_bytes: 70656409600, weights_bytes: 20825033460, workspace_bytes: 694874000, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 67123588277, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+4290 (row, step) pairs bitwise identical in 75.3 s
+test real_35b_batched_engine_equals_the_local_engine ... prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_35b_batched_macro_prefill_equals_the_plain_local_engine ... ignored
+test result: ok. 2 passed; 0 failed; 2 ignored; 0 measured; 17 filtered out; finished in 267.94s

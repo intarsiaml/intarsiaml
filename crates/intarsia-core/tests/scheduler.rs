@@ -44,6 +44,19 @@ fn with_overlap<R>(v: bool, f: impl FnOnce() -> R) -> R {
     r
 }
 
+thread_local! {
+    /// `BatchModel::pack_rows_max` of every `MockModel` created on this test thread (0: no packing).
+    static PACK: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Run `f` with the mock models' packed-pass bound set to `rows`.
+fn with_pack<R>(rows: usize, f: impl FnOnce() -> R) -> R {
+    let old = PACK.with(|a| a.replace(rows));
+    let r = f();
+    PACK.with(|a| a.set(old));
+    r
+}
+
 /// Run `f` with the mock models' flag set to `v`.
 fn with_avoid<R>(v: bool, f: impl FnOnce() -> R) -> R {
     let old = AVOID.with(|a| a.replace(v));
@@ -88,6 +101,8 @@ struct Rec {
     /// Prefill chunks `(start, len)` as the model ran them, per request.
     chunks: HashMap<RequestId, Vec<(usize, usize)>>,
     batch_sizes: Vec<usize>,
+    /// Packed passes as the model ran them: the body rows of each chunk (`prefill_pack`).
+    packs: Vec<Vec<usize>>,
 }
 
 struct MockModel {
@@ -117,6 +132,8 @@ struct MockModel {
     gate: Option<Arc<(Mutex<bool>, Condvar)>>,
     /// `BatchModel::macro_step` pass size in rows (0: off).
     macro_rows: usize,
+    /// `BatchModel::pack_rows_max` (0: the model cannot pack); a packed pass runs its chunks one by one.
+    pack: usize,
 }
 
 impl MockModel {
@@ -135,6 +152,7 @@ impl MockModel {
             leak: false,
             rec: Arc::new(Mutex::new(Rec::default())),
             macro_rows: 0,
+            pack: PACK.with(|a| a.get()),
             avoid: avoid(),
             overlap: OVERLAP.with(|a| a.get()),
             inflight: None,
@@ -229,6 +247,17 @@ impl BatchModel for MockModel {
     fn prefill_end(&mut self) -> Result<Option<Out>> {
         let (slot, tokens, mode, _) = self.inflight.take().expect("a chunk in flight");
         self.prefill_chunk(slot, &tokens, mode)
+    }
+    fn pack_rows_max(&self) -> usize {
+        self.pack
+    }
+    fn pack_min_rows(&self) -> usize {
+        16
+    }
+    fn prefill_pack(&mut self, items: &[(usize, &[u32], Option<Mode>)]) -> Result<Vec<Option<Out>>> {
+        let rows = items.iter().map(|&(_, t, mode)| t.len() - usize::from(mode.is_some())).collect();
+        self.rec.lock().unwrap().packs.push(rows);
+        items.iter().map(|&(slot, tokens, mode)| self.prefill_chunk(slot, tokens, mode)).collect()
     }
     fn decode_step(&mut self, rows: &[Row<Mode>]) -> Result<Vec<Result<Out>>> {
         if let Some(f) = &self.inflight {
@@ -725,12 +754,14 @@ fn check_trace(run: &BatchRun, cfg: &SchedulerConfig) {
     for (id, its) in &decode_iters {
         assert!(its.windows(2).all(|w| w[1] == w[0] + 1), "request {id} skipped a decode iteration: {its:?}");
     }
-    // prefill budget while others decode: an iteration whose prefill stalls a stream that decodes before and after it
+    // prefill budget while others decode: an iteration whose prefill stalls a stream that decodes before and after it (a packed
+    // pass holds one chunk of each prompt it packs)
+    let per_pass = if cfg.pack_prefill { cfg.max_batch } else { 1 };
     for (iter, tok) in &prefill_tokens_in_iter {
         let (Some(now), Some(next)) = (decode_in_iter.get(iter), decode_in_iter.get(&(iter + 1))) else { continue };
         if now.iter().any(|id| next.contains(id)) {
             assert!(
-                *tok <= cfg.busy_chunk * cfg.busy_chunks_per_iter,
+                *tok <= cfg.busy_chunk * cfg.busy_chunks_per_iter * per_pass,
                 "iter {iter}: {tok} prefill tokens beside decode"
             );
         }
@@ -1064,6 +1095,62 @@ fn max_batch_one_uses_solo_chunk() {
     for (_, rx, _) in rxs {
         assert_eq!(tokens(&collect(&rx)).len(), 10);
     }
+}
+
+/// Lane srv16b: a packed pass holds at most `pack_rows` body rows and, with `pack_half`, at most half the prompts waiting to
+/// prefill. Eight 41-token prompts (40-row bodies) queued at once, 8 slots: the next pass takes the first prompt and those behind it.
+#[test]
+fn packed_passes_follow_the_row_cap_and_the_half_rule() {
+    let packs = |pack_rows: usize, pack_half: bool| -> Vec<usize> {
+        let mut m = MockModel::new(8, 4096);
+        m.pack = 4096;
+        let rec = m.rec.clone();
+        let cfg = SchedulerConfig { max_batch: 8, pack_prefill: true, pack_rows, pack_half, ..Default::default() };
+        let mut s = Scheduler::new(m, cfg).unwrap();
+        let mut rng = SplitMix64::new(5);
+        let rxs: Vec<_> = (0..8).map(|_| submit(&mut s, greedy(random_prompt(&mut rng, 41), 4))).collect();
+        run_to_end(&mut s);
+        for (_, rx, _) in rxs {
+            assert_eq!(tokens(&collect(&rx)).len(), 4);
+        }
+        let r = rec.lock().unwrap();
+        assert!(r.packs.iter().flatten().all(|&b| b == 40));
+        r.packs.iter().map(Vec::len).collect()
+    };
+    assert_eq!(packs(0, false), vec![8]);
+    assert_eq!(packs(120, false), vec![3, 3, 2]);
+    assert_eq!(packs(80, false), vec![2, 2, 2, 2]);
+    // 8 waiting: 4; 4 waiting: 2; 2 waiting: 1 (alone), 1 waiting: alone
+    assert_eq!(packs(0, true), vec![4, 2]);
+    assert_eq!(packs(120, true), vec![3, 3]);
+}
+
+/// The randomized identity run with packed passes (cap, half rule): every request equals its solo reference.
+#[test]
+fn batched_equals_solo_randomized_with_packing() {
+    with_pack(1024, || {
+        let cap = 4096;
+        let mut passes = 0;
+        for (pack_rows, pack_half) in [(0, false), (600, false), (0, true), (900, true)] {
+            for &b in &[2usize, 4, 8] {
+                for seed in 0..3u64 {
+                    let mut rng = SplitMix64::new(seed * 1000 + b as u64 + 31);
+                    // a packed pass fails as a whole (every prompt in it fails), so no injected prefill failures here
+                    let mut reqs = random_reqs(&mut rng, 24, cap);
+                    reqs.iter_mut().for_each(|r| r.fail_prefill = false);
+                    let cfg = SchedulerConfig { max_batch: b, max_queue: 1000, pack_prefill: true, pack_rows, pack_half, ..Default::default() };
+                    let run = run_batched(cfg.clone(), cap, &reqs, false);
+                    check_trace(&run, &cfg);
+                    assert_eq!(check_identity(&run, &reqs, &cfg, cap), 0, "pack_rows {pack_rows}, half {pack_half}, B = {b}, seed {seed}");
+                    let r = run.rec.lock().unwrap();
+                    let bound = if pack_rows > 0 { pack_rows } else { 1024 };
+                    assert!(r.packs.iter().all(|p| p.len() >= 2 && p.iter().sum::<usize>() <= bound), "{:?}", r.packs);
+                    passes += r.packs.len();
+                }
+            }
+        }
+        assert!(passes >= 20, "only {passes} packed passes");
+    });
 }
 
 /// Run the same small workload under `cfg`; the scheduler is returned for its trace.
