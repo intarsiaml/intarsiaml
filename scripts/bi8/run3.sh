@@ -31,4 +31,7 @@ for bin in base intarsia; do
   stop_server
 done
 python3 "$D/../htk/equal.py" compare "$OUT/eq35-base.json" "$OUT/eq35-intarsia.json" | tee "$OUT/eq35-compare.log" | tail -1
+echo "== mutant: the 8B engine gate with the old reuse rule (INTARSIA_PREFIX_REUSE=any) must fail"
+M8T=$M8
+rsh "$RPATH cd ~/intarsiaml-bi8/src && INTARSIA_PREFIX_REUSE=any INTARSIA_QWEN3_DIR=$M8T INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_qwen3_8b_batched_engine -- --test-threads=1 --nocapture 2>&1 | grep -aE '^test |test result|panicked|left|right|request' | head -12" | tee "$OUT/mutant.log"
 echo "== done"

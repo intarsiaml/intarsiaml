@@ -82,6 +82,7 @@ Also in the PR: SB8's `raw/qwen3-cap16.patch` (`recipes/qwen3.toml` `max_batch` 
 | served greedy vs cold, `--max-batch 16`, 1 / 4 / 8 / 16 streams x 3 reps on one server | **12 / 12** identical |
 | served greedy vs cold, `--max-batch 8`, 8 / 16 streams x 2 reps | **4 / 4** identical |
 | equal.py 21 cells (7 sampling settings x 1 / 4 / 16 streams), solo vs `--max-batch 16` | **21 / 21** identical, 9408 ids (SB8: 7 / 21; the sampled cells were the same reuse effect) |
+| merged tree (after #228 / #229, `eec3770a3`): served greedy vs cold, `--max-batch 16`, 1 / 4 / 8 / 16 streams x 2 reps on one server | **8 / 8** identical (`raw/run4/`) |
 | mutant: the engine gate with `INTARSIA_PREFIX_REUSE=any` (the old rule) | **caught**: fails at the single-sequence engine's 2nd request (prompt 4 repeated, ids differ from token 48; `raw/run3/mutant.log`) |
 
 ## Speed at 16 streams (localeval A/B, ABAB, one window)
