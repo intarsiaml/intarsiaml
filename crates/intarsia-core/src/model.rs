@@ -3935,6 +3935,7 @@ impl Model {
     /// order on both ranks.
     fn proj_then_reduce(&self, x: &TensorRef, w: &QTensor, dst: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
         let Some(piece) = self.overlap_piece(t, profile) else {
+            self.prepush(dst)?;
             self.proj(x, w, dst, profile)?;
             return self.all_reduce(dst, out, profile);
         };
@@ -4006,6 +4007,22 @@ impl Model {
             }
         }
         self.pipe_publish(toks);
+        Ok(())
+    }
+
+    /// Lane arx: tell the communicator that the next op is the GEMM writing `partial` and the next collective its all-reduce
+    /// ([`Comm::prepush`]), so the GEMM may push the partial as its tiles finish (HIP `INTARSIA_HIP_AR_PUSH`). Only on an eager pass on
+    /// stream 0 (never while the plan is recorded or a graph captured: the push goes to a slot picked at enqueue time) and never with a
+    /// test hook that changes the collectives. Bitwise the plain pair either way.
+    fn prepush(&self, partial: &TensorRef) -> Result<()> {
+        let Some(comm) = &self.tp.comm else { return Ok(()) };
+        if self.stream != 0 || self.no_comm || self.test_bug.is_some() || self.tp_batch_mutant.load(std::sync::atomic::Ordering::Relaxed) != 0 {
+            return Ok(());
+        }
+        if self.recorder.lock().unwrap().is_some() || self.capture_ops.lock().unwrap().is_some() {
+            return Ok(());
+        }
+        comm.prepush(partial)?;
         Ok(())
     }
 

@@ -162,6 +162,27 @@ pub fn create_group_wide(
     Ok((backends, comms))
 }
 
+/// [`create_group_wide`] with the GEMM push of lane arx (`INTARSIA_HIP_AR_PUSH`) set explicitly (tests).
+#[cfg(ik_hip)]
+#[doc(hidden)]
+#[allow(clippy::type_complexity)]
+pub fn create_group_push(
+    ordinals: &[usize],
+    drain: i32,
+    ll_max: usize,
+    wide: Option<(i32, usize)>,
+    push: bool,
+) -> intarsia_core::Result<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn intarsia_core::Comm>>)> {
+    disable::check_env()?;
+    let hips = ordinals
+        .iter()
+        .map(|&o| device::HipBackend::new(o).map(Arc::new))
+        .collect::<intarsia_core::Result<Vec<_>>>()?;
+    let backends: Vec<Arc<dyn Backend>> = hips.iter().map(|h| h.clone() as Arc<dyn Backend>).collect();
+    let comms = comm::p2p_group_push(&hips, Some(drain), Some(ll_max), Some(wide), Some(push))?;
+    Ok((backends, comms))
+}
+
 /// Lane pf27b's P2P link micro-benchmark on two devices (`comm::p2p_bench`).
 #[cfg(ik_hip)]
 #[doc(hidden)]

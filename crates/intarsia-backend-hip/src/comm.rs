@@ -10,13 +10,13 @@
 //! Both ranks must make the same sequence of calls (the per-block counters count launches and must stay equal).
 //! Messages larger than one scratch slot are split into several launches.
 
-use crate::device::HipBackend;
+use crate::device::{HipBackend, PushArm};
 use crate::ffi;
 use intarsia_core::backend::{StreamId, TensorRef};
 use intarsia_core::comm::{ArNorm, Comm, CommCounters, CommStats};
 use intarsia_core::{DType, Error, Result};
 use std::ffi::c_void;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -141,6 +141,11 @@ struct Wide {
     bufs: [RankBuf; 2],
     nblocks: i32,
     slot_bytes: usize,
+    /// launches each rank has enqueued on these buffers (lane arx): the device counters' value once they ran, so the next launch's
+    /// `seq` is this + 1 and its slot `(this + 1) & 1`, which a GEMM armed to push (`P2pComm::prepush`) writes into ahead of it
+    launches: [AtomicU64; 2],
+    /// all-reduces (both ranks) that only reduced because their GEMM had pushed (`debug_state`, tests)
+    pushed: AtomicU64,
 }
 
 struct Group {
@@ -151,6 +156,8 @@ struct Group {
     wide_min: usize,
     /// bytes of one LL slot (twice the largest LL message), 0 when the LL path is off
     ll_slot_bytes: usize,
+    /// lane arx, `INTARSIA_HIP_AR_PUSH=1`: the wide all-reduce of a partial whose GEMM can push it (`Comm::prepush`) skips its own push
+    push: bool,
     aborted: AtomicBool,
     /// `INTARSIA_TP_COLL_TRACE=1` (debugging, w26): every collective launch of each rank, packed as `op << 60 | dtype << 56 | out dtype << 52 |
     /// blocks << 40 | elements` (op 1 all-reduce, 2 all-gather, 3 all-reduce + rmsnorm). `debug_state` reports the first launch where the ranks differ.
@@ -218,6 +225,19 @@ pub fn p2p_group_wide(
     drain: Option<i32>,
     ll_max: Option<usize>,
     wide: Option<Option<(i32, usize)>>,
+) -> Result<Vec<Arc<dyn Comm>>> {
+    p2p_group_push(backends, drain, ll_max, wide, None)
+}
+
+/// [`p2p_group_wide`] with the GEMM push (lane arx, `INTARSIA_HIP_AR_PUSH`) given explicitly: `Some(on)`, or `None` to read the variable.
+/// Only with the wide path on.
+#[allow(clippy::type_complexity)]
+pub fn p2p_group_push(
+    backends: &[Arc<HipBackend>],
+    drain: Option<i32>,
+    ll_max: Option<usize>,
+    wide: Option<Option<(i32, usize)>>,
+    push: Option<bool>,
 ) -> Result<Vec<Arc<dyn Comm>>> {
     if backends.len() != 2 {
         return Err(Error::Unsupported(format!("the peer-to-peer all-reduce is a two-rank kernel, got {} ranks", backends.len())));
@@ -287,15 +307,26 @@ pub fn p2p_group_wide(
             ],
             nblocks,
             slot_bytes,
+            launches: [AtomicU64::new(0), AtomicU64::new(0)],
+            pushed: AtomicU64::new(0),
         }),
         None => None,
     };
+    let push = match push {
+        Some(p) => p,
+        None => match std::env::var("INTARSIA_HIP_AR_PUSH").ok().as_deref() {
+            None | Some("") | Some("0") => false,
+            Some("1") => true,
+            Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_PUSH={v} (0 or 1)"))),
+        },
+    } && wide.is_some();
     let wide_min = if ll_slot_bytes > 0 { ll_slot_bytes / 2 } else { LL_MAX_DEFAULT };
     let group = Arc::new(Group {
         bufs: [RankBuf::new(&backends[0], ll_slot_bytes)?, RankBuf::new(&backends[1], ll_slot_bytes)?],
         wide,
         wide_min,
         ll_slot_bytes,
+        push,
         aborted: AtomicBool::new(false),
         calls: std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1").then(|| std::sync::Mutex::new([Vec::new(), Vec::new()])),
     });
@@ -330,6 +361,8 @@ impl Comm for P2pComm {
     }
 
     fn all_reduce_sum_into(&self, partial: &TensorRef, out: &TensorRef, stream: StreamId) -> Result<()> {
+        // lane arx: an armed push applies to this call or to none (spent either way)
+        let arm = if self.group.push { self.backend.swap_push_arm(None) } else { None };
         if self.group.aborted.load(Ordering::Acquire) {
             return Err(Error::backend("communicator aborted (another rank failed)"));
         }
@@ -362,11 +395,33 @@ impl Comm for P2pComm {
             None => (&self.group.bufs, SLOT_BYTES, NBLOCKS, self.group.ll_slot_bytes),
         };
         let (me, peer) = (&bufs[self.rank], &bufs[1 - self.rank]);
+        if let (Some(w), Some(a)) = (wide, arm) {
+            if a.lay.pushed == 1 && a.out == pbase as usize && a.bytes == total && out.dtype == DType::Bf16 {
+                // the GEMM pushed this partial into the slot of launch `a.launch`: nothing else may have run on the wide buffers since
+                let n = w.launches[self.rank].fetch_add(1, Ordering::Relaxed);
+                if n != a.launch {
+                    return Err(Error::backend(format!("hip all_reduce: GEMM pushed for wide launch {} but this is launch {n}", a.launch)));
+                }
+                self.group.note(self.rank, 5, partial.dtype as i32, out.dtype as i32, partial.numel());
+                // SAFETY: as below; `a.lay` is what the GEMM launch returned for exactly this partial.
+                let rc = unsafe {
+                    ffi::ik_ar2_pushed(pbase as *mut c_void, obase as *mut c_void, me.scratch, peer.flags, me.flags, me.ctrs, slot as i64, nblocks, self.drain, &a.lay, s)
+                };
+                if rc != 0 {
+                    return Err(Error::backend(format!("ik_ar2_pushed returned {} ({rc})", ffi::status_name(rc))));
+                }
+                w.pushed.fetch_add(1, Ordering::Relaxed);
+                return Ok(());
+            }
+        }
         let (mut off, n_total) = (0usize, partial.numel());
         let per = slot / pe; // elements per launch
         while off < n_total {
             let n = per.min(n_total - off);
             self.group.note(self.rank, if wide.is_some() { 4 } else { 1 }, partial.dtype as i32, out.dtype as i32, n);
+            if let Some(w) = wide {
+                w.launches[self.rank].fetch_add(1, Ordering::Relaxed);
+            }
             // SAFETY: both ranges are inside their tensors (bounds checked); scratch / flags / counters are live for
             // the group's lifetime, which the comm keeps alive through `group`.
             let rc = unsafe {
@@ -402,11 +457,32 @@ impl Comm for P2pComm {
         Some(16)
     }
 
+    /// Lane arx (`INTARSIA_HIP_AR_PUSH=1`): arm the GEMM launch that writes `partial` (`matmul_mxfp4_a8_mma`'s direct kernel) to push
+    /// it into the peer's slot of the next wide launch, for a bf16 partial on the wide path that fits one slot. The next collective spends
+    /// the arm: its all-reduce of this partial then only reduces (`ik_ar2_pushed`) when the GEMM did push, else pushes as before.
+    fn prepush(&self, partial: &TensorRef) -> Result<bool> {
+        let Some(w) = self.group.wide.as_ref().filter(|_| self.group.push) else { return Ok(false) };
+        let total = partial.nbytes();
+        if partial.dtype != DType::Bf16 || total <= self.group.wide_min || total > w.slot_bytes || total % 16 != 0 {
+            return Ok(false);
+        }
+        partial.check_bounds()?;
+        let out = HipBackend::ptr(&partial.buf, partial.offset, total)? as usize;
+        let launch = w.launches[self.rank].load(Ordering::Relaxed);
+        let peer = w.bufs[1 - self.rank].scratch as usize + ((launch + 1) & 1) as usize * w.slot_bytes;
+        let lay = ffi::IkArPush { cap: w.slot_bytes as i64, ..Default::default() };
+        self.backend.swap_push_arm(Some(PushArm { out, bytes: total, peer, launch, lay }));
+        Ok(true)
+    }
+
     /// Rank-major gather (`ag2_kernel`): `recv[r * send.numel() ..]` is rank r's `send`. `send` may be this rank's own
     /// segment of `recv` (in place: the kernel skips the self copy), or disjoint from it. The same push handshake, scratch,
     /// flags and counters as the all-reduce, so both ranks must make the same sequence of collectives and either kind may
     /// follow the other. Messages above one scratch slot go in several launches.
     fn all_gather(&self, send: &TensorRef, recv: &TensorRef, stream: StreamId) -> Result<()> {
+        if self.group.push {
+            self.backend.swap_push_arm(None); // an armed push is spent by the next collective (lane arx)
+        }
         if self.group.aborted.load(Ordering::Acquire) {
             return Err(Error::backend("communicator aborted (another rank failed)"));
         }
@@ -522,6 +598,14 @@ impl Comm for P2pComm {
             };
             out.push_str(&format!("rank {r}: launch counters {} flags {}; ", summ(&c), summ(&f)));
         }
+        if let Some(w) = &self.group.wide {
+            out.push_str(&format!(
+                "wide launches {} / {}, pushed {}; ",
+                w.launches[0].load(Ordering::Relaxed),
+                w.launches[1].load(Ordering::Relaxed),
+                w.pushed.load(Ordering::Relaxed)
+            ));
+        }
         if let Some(c) = &self.group.calls {
             let c = c.lock().unwrap();
             let dec = |w: u64| format!("op{} dt{} odt{} blocks{} n{}", w >> 60, (w >> 56) & 15, (w >> 52) & 15, (w >> 40) & 0xfff, w & ((1 << 40) - 1));
@@ -564,6 +648,9 @@ impl Comm for P2pComm {
         self.ar_norm_shape(a).is_some()
     }
     fn all_reduce_add_rmsnorm(&self, a: &ArNorm<'_>, stream: StreamId) -> Result<()> {
+        if self.group.push {
+            self.backend.swap_push_arm(None); // an armed push is spent by the next collective (lane arx)
+        }
         self.all_reduce_add_rmsnorm_impl(a, stream)
     }
 }

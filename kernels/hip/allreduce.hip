@@ -42,6 +42,7 @@
  */
 #include "ik_hip.h"
 #include "ar_ll.h"
+#include "ar_push.h"
 
 #define AR_SPIN_MAX 480000000u /* polls (w27 diagnostic: 8x the old 60M, which trapped after ~6 s) */
 
@@ -148,6 +149,53 @@ __global__ void ar2_kernel(const int4* x4, void* out, int4* peer_scratch, int4* 
     } else {
         int4* o4 = (int4*)out;
         for (k = start + tid; k < end; k += nt) o4[k] = ar_add16<KIND>(x4[k], ms[k]);
+    }
+}
+
+/* Lane arx: the reduce half of ar2_kernel<0> (bf16 in place or into out) when the GEMM that wrote x already pushed it into the peer's slot
+ * `seq & 1` in the fragment order of ar_push.h (the GEMM fenced its pushes, and it ended before this launch on the same stream started: the
+ * flag goes out after the data landed). The handshake, counters and slot parity are ar2_kernel's on the same buffers (the wide path's), so the
+ * slot-reuse argument holds unchanged: a rank's GEMM for launch k + 1 writes slot (k + 1) & 1 only after its launch k saw the peer's flag k,
+ * which the peer raised after its launch k - 1 (the last reader of that slot) ended. Both ranks must take this path for the same launch
+ * (the layout is not ar2_kernel's row-major one): a pure function of the call's shape and the environment, the same on both.
+ * Block b reduces words [b * w, (b + 1) * w) of the layout; each word is read and written by one thread, so out may be x. drain 9: no wait
+ * (tests only, the negative control). */
+__global__ void ar2p_kernel(const int4* x4, int4* out4, const int4* my_scratch, unsigned int* peer_flags, unsigned int* my_flags,
+                            unsigned int* ctrs, int slot_stride16, ik_ar_push lay, int drain) {
+    const int b = blockIdx.x, nb = gridDim.x, tid = threadIdx.x, nt = blockDim.x;
+    __shared__ unsigned int s_seq;
+    if (tid == 0) s_seq = atomicAdd(&ctrs[b], 1u) + 1u;
+    __syncthreads();
+    const unsigned int seq = s_seq;
+    const int4* ms = my_scratch + (size_t)(seq & 1u) * (size_t)slot_stride16;
+    if (tid == 0) {
+        ar_store_rel(&peer_flags[b], seq);
+        unsigned int spins = 0;
+        while (drain != 9 && (int)(ar_load_acq(&my_flags[b]) - seq) < 0) {
+            __builtin_amdgcn_s_sleep(1);
+            if (++spins > AR_SPIN_MAX) __builtin_trap();
+        }
+    }
+    __syncthreads();
+    const int64_t words = lay.words, w = (words + nb - 1) / nb;
+    const int64_t start = (int64_t)b * w < words ? (int64_t)b * w : words, end = start + w < words ? start + w : words;
+    const int bm = (lay.nw / lay.wn) * lay.tm * 16, bn = lay.wn * lay.tn * 16;
+    for (int64_t k = start + tid; k < end; k += nt) {
+        // 32-bit index math (a slot holds at most 2^24 words)
+        const unsigned lane = (unsigned)k & 31u;
+        unsigned t = (unsigned)k >> 5;
+        const unsigned j = t % (unsigned)lay.tm;
+        t /= (unsigned)lay.tm;
+        const unsigned i = t % (unsigned)lay.tn;
+        t /= (unsigned)lay.tn;
+        const unsigned wave = t % (unsigned)lay.nw;
+        t /= (unsigned)lay.nw;
+        const int64_t bx = t % (unsigned)lay.gx, by = t / (unsigned)lay.gx;
+        const int64_t m = bx * bm + (wave / (unsigned)lay.wn) * lay.tm * 16 + j * 16 + (lane & 15u);
+        const int64_t n = by * bn + (wave % (unsigned)lay.wn) * lay.tn * 16 + i * 16 + (lane >> 4) * 8;
+        if (m >= lay.M || n >= lay.N) continue;
+        const int64_t o = (m * lay.N + n) >> 3;
+        out4[o] = ar_add16<0>(x4[o], ms[k]);
     }
 }
 
@@ -305,6 +353,19 @@ int ik_ar2_oneshot(void* x, void* out, int dtype, int out_dtype, int64_t n_elem,
         ar2_kernel<1><<<nblocks, 256, 0, s>>>((const int4*)x, out, (int4*)peer_scratch, (int4*)my_scratch, peer_flags, my_flags, ctrs, n16, stride16, drain);
     else
         ar2_kernel<2><<<nblocks, 256, 0, s>>>((const int4*)x, out, (int4*)peer_scratch, (int4*)my_scratch, peer_flags, my_flags, ctrs, n16, stride16, drain);
+    return ik_launch_status();
+}
+
+/* lane arx: the all-reduce of a bf16 partial x (M x N, row-major) whose GEMM pushed it already (ik_matmul_mxfp4_a8_mma_push, `lay` as it
+ * returned): out = x + the peer's partial, bitwise ik_ar2_oneshot's bf16 sum. Scratch, flags and counters are the wide path's (the slot the
+ * GEMM wrote is this launch's, `seq & 1`); nblocks must be the wide path's block count. */
+int ik_ar2_pushed(void* x, void* out, void* my_scratch, unsigned int* peer_flags, unsigned int* my_flags, unsigned int* ctrs, int64_t slot_bytes,
+                  int nblocks, int drain, const ik_ar_push* lay, void* stream) {
+    if (!x || !out || !my_scratch || !peer_flags || !my_flags || !ctrs || !lay || nblocks < 1 || nblocks > 1024) return IK_ERR_INVALID_ARG;
+    if (!lay->pushed || lay->words * 16 > slot_bytes || lay->words > (1 << 24) || slot_bytes % 16 != 0 || lay->N % 8 != 0) return IK_ERR_SHAPE;
+    if (((uintptr_t)x & 15) != 0 || ((uintptr_t)out & 15) != 0) return IK_ERR_SHAPE;
+    ar2p_kernel<<<nblocks, 256, 0, IK_STREAM(stream)>>>((const int4*)x, (int4*)out, (const int4*)my_scratch, peer_flags, my_flags, ctrs,
+                                                       (int)(slot_bytes / 16), *lay, drain);
     return ik_launch_status();
 }
 

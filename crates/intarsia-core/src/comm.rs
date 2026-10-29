@@ -150,6 +150,15 @@ pub trait Comm: Send + Sync {
     fn all_reduce_add_rmsnorm(&self, _a: &ArNorm<'_>, _stream: StreamId) -> Result<()> {
         Err(Error::Unsupported(format!("{} has no fused all-reduce + rmsnorm", self.name())))
     }
+
+    /// Lane arx: the next op is the GEMM that writes `partial` and the next collective is its all-reduce
+    /// ([`Comm::all_reduce_sum_into`] with this `partial`), both on the rank's stream; the communicator may let the GEMM push
+    /// the partial to the peer as its tiles finish, so the all-reduce only reduces (HIP: `INTARSIA_HIP_AR_PUSH`). Only for an
+    /// eager pass (never recorded or captured) and the same on every rank; the result is bit for bit the plain pair's.
+    /// Returns whether it armed anything (default: never).
+    fn prepush(&self, _partial: &TensorRef) -> Result<bool> {
+        Ok(false)
+    }
 }
 
 /// Operands of [`Comm::all_reduce_add_rmsnorm`]: the `[rows, H]` activations are in the model's activation dtype.
