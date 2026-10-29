@@ -1,0 +1,31 @@
+clusters: [(31344, 1.5), (161162, 3.3)]
+-- whole burst: span 3330 ms, 161162 kernels, kernel sum 3537 ms, union busy 3235 ms, GPU idle 2.8 %
+fp8_gemv_pair_kernel<__nv_bfloat16>                                                   897.7 ms  25.4 %  10240 calls      87.7 us avg
+moe_dec_gate_up_kernel<                                                               533.2 ms  15.1 %  10240 calls      52.1 us avg
+nvfp4_gemv_kernel<                                                                    445.5 ms  12.6 %  10496 calls      42.4 us avg
+fp8_gemv_gated_kernel                                                                 337.4 ms   9.5 %   7680 calls      43.9 us avg
+fp8_gemv_kernel<                                                                      315.4 ms   8.9 %   5120 calls      61.6 us avg
+moe_dec_down_v2_kernel<                                                               281.7 ms   8.0 %  10240 calls      27.5 us avg
+nvfp4_glu_kernel                                                                      120.5 ms   3.4 %  10240 calls      11.8 us avg
+rmsnorm_add_pair_kernel                                                               117.2 ms   3.3 %  17664 calls       6.6 us avg
+moe_w4a16_kernel<                                                                      95.5 ms   2.7 %     80 calls    1194.2 us avg
+gdn_delta_dec_kernel<                                                                  81.5 ms   2.3 %   7680 calls      10.6 us avg
+moe_topk_kernel                                                                        53.7 ms   1.5 %  10280 calls       5.2 us avg
+splitkv_kernel<                                                                        42.5 ms   1.2 %   2560 calls      16.6 us avg
+gdn_conv_kernel<__nv_bfloat16>                                                         31.0 ms   0.9 %   7710 calls       4.0 us avg
+gdn_delta_split_kernel<                                                                29.5 ms   0.8 %     30 calls     981.8 us avg
+rope_kernel                                                                            26.8 ms   0.8 %   5120 calls       5.2 us avg
+rmsnorm_kernel<                                                                        21.9 ms   0.6 %   8293 calls       2.6 us avg
+moe_combine_kernel<__nv_bfloat16>                                                      12.6 ms   0.4 %  10280 calls       1.2 us avg
+gdn_conv_state_kernel<__nv_bfloat16>                                                   12.0 ms   0.3 %   7710 calls       1.6 us avg
+nvjet_sm121_qqtst_mma_192x176x128_2_48x88x128_tmaAB_bz_TNNN                            10.8 ms   0.3 %     40 calls     270.1 us avg
+combine_kernel<                                                                         7.9 ms   0.2 %   2560 calls       3.1 us avg
+kv_append_kernel<__nv_bfloat16,                                                         7.1 ms   0.2 %   5140 calls       1.4 us avg
+moe_reduce_kernel<__nv_bfloat16>                                                        7.0 ms   0.2 %     40 calls     173.8 us avg
+gate_split_kernel                                                                       6.0 ms   0.2 %   2570 calls       2.3 us avg
+nvjet_sm121_qqtst_mma_192x160x128_2_48x80x128_tmaAB_bz_TNNN                             5.5 ms   0.2 %     40 calls     136.8 us avg
+nvfp4_reg_kernel<                                                                       5.2 ms   0.1 %     80 calls      65.5 us avg
+rope_pass_kernel                                                                        5.1 ms   0.1 %   5140 calls       1.0 us avg
+argmax_kernel<float>                                                                    4.1 ms   0.1 %    256 calls      15.9 us avg
+sm89_xmma_gemm_e4m3bf16_e4m3f32_f32_tn_n_tilesize128x128x64_stage3_warpsize2x2x1        3.7 ms   0.1 %     30 calls     124.1 us avg
+-- decode window 5.0s..3.0s: span -1970 ms, 0 kernels, kernel sum 0 ms, union busy 0 ms, GPU idle 100.0 %

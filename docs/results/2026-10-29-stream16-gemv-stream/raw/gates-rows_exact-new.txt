@@ -1,0 +1,3 @@
+test fp8_rows_qpipe_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_pipe_are_bitwise_the_one_row_gemv ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 4.43s
