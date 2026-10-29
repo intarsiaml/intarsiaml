@@ -1,0 +1,46 @@
+== plan 8B: byte-identical (1346 B)
+== plan 35B: byte-identical (3184 B)
+== tests comm [A=1] rc=0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 18.80s  test ll_without_the_tag_check_is_caught_by_the_stress_test ... negative control: 1380 wrong results without the tag check negative control (wide, no wait): 243 wrong results 
+== tests ar_norm [A=1] rc=0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s  
+== tests comm [INTARSIA_HIP_AR_DRAIN=1] rc=0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 18.84s  test many_back_to_back_launches_keep_both_scratch_parities_straight ... negative control: 1380 wrong results without the tag check test wide_path_without_the_wait_is_caught_by_the_stress_test ... negative control (wide, no wait): 243 wrong results 
+== tests ar_norm [INTARSIA_HIP_AR_DRAIN=1] rc=0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s  
+== tests comm [INTARSIA_HIP_AR_WIDE=0] rc=0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 18.73s  test ll_without_the_tag_check_is_caught_by_the_stress_test ... negative control: 1380 wrong results without the tag check test wide_path_without_the_wait_is_caught_by_the_stress_test ... negative control (wide, no wait): 244 wrong results 
+== tests ar_norm [INTARSIA_HIP_AR_WIDE=0] rc=0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s  
+== adm exit 0: 75 admitted rows; pair_a8_mma: matmul_mxfp4_pair matmul_mxfp4_pair_a8_mma        6      0     0.000e0     0.000e0  ADMITTED ; tail: SKIPPED: kernel gated_rmsnorm_matmul_fp8_wmma ran 0 cases on backend 'hip' SKIPPED: kernel rmsnorm_add_matmul_fp8_pair_wmma ran 0 cases on backend 'hip' SKIPPED: kernel sigmoid_mul_matmul_fp8_wmma ran 0 cases on backend 'hip' 
+== ids 16k-0 off: SAME (257 words; prompt=10413)
+== ids 16k-0 mtp: SAME (257 words; prompt=10413)
+== ids 16k-1 off: SAME (257 words; prompt=11862)
+== ids 16k-1 mtp: SAME (257 words; prompt=11862)
+== ids 16k-2 off: SAME (257 words; prompt=12552)
+== ids 16k-2 mtp: SAME (257 words; prompt=12552)
+== ids 16k-3 off: SAME (257 words; prompt=11957)
+== ids 16k-3 mtp: SAME (257 words; prompt=11957)
+== ids 16k-4 off: SAME (257 words; prompt=10946)
+== ids 16k-4 mtp: SAME (257 words; prompt=10946)
+== ids 16k-5 off: SAME (257 words; prompt=12541)
+== ids 16k-5 mtp: SAME (257 words; prompt=12541)
+== ids 4k-0 off: SAME (257 words; prompt=2610)
+== ids 4k-0 mtp: SAME (257 words; prompt=2610)
+== ids 4k-1 off: SAME (257 words; prompt=3135)
+== ids 4k-1 mtp: SAME (257 words; prompt=3135)
+== ids 4k-2 off: SAME (257 words; prompt=3284)
+== ids 4k-2 mtp: SAME (257 words; prompt=3284)
+== ids 4k-3 off: SAME (257 words; prompt=2720)
+== ids 4k-3 mtp: SAME (257 words; prompt=2720)
+== ids 4k-4 off: SAME (257 words; prompt=2940)
+== ids 4k-4 mtp: SAME (257 words; prompt=2940)
+== ids 4k-5 off: SAME (257 words; prompt=3381)
+== ids 4k-5 mtp: SAME (257 words; prompt=3381)
+== ids short-0 off: SAME (257 words; prompt=41)
+== ids short-0 mtp: SAME (257 words; prompt=41)
+== ids short-1 off: SAME (257 words; prompt=34)
+== ids short-1 mtp: SAME (257 words; prompt=34)
+== ids short-2 off: SAME (257 words; prompt=42)
+== ids short-2 mtp: SAME (257 words; prompt=42)
+== ids short-3 off: SAME (257 words; prompt=43)
+== ids short-3 mtp: SAME (257 words; prompt=43)
+== ids short-4 off: SAME (257 words; prompt=69)
+== ids short-4 mtp: SAME (257 words; prompt=69)
+== ids short-5 off: SAME (257 words; prompt=39)
+== ids short-5 mtp: SAME (257 words; prompt=39)
+== push rc=0 test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.74s test pushed_all_reduce_without_the_wait_is_caught_by_the_stress_test ... negative control (pushed, no wait): 94 wrong results 

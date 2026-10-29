@@ -1,0 +1,16 @@
+fleetq: #6917 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m8 SEC='"'"'ptime gen'"'"' PDVAR=INTARSIA_HIP_AR_PUSH_GRID PDIAGS='"'"'- 1 2'"'"' GREPS=2 GARMS='"'"'pf27c-base-cli pf27c-dev-cli:INTARSIA_HIP_AR_PUSH_GRID=1 pf27c-dev-cli:INTARSIA_HIP_AR_PUSH_GRID=2'"'"' bash ~/intarsiaml-pf27c/scripts/pf27c/micro.sh'
+[arx] stopping radiance 2026-10-29 06:47:44
+[arx] radiance inactive 2026-10-29 06:47:48
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 819 ms (4713.0 tok/s) | decode 0 ms (0.00 tok/s) (8 s)
+== gen pf27c-dev-cli:INTARSIA_HIP_AR_PUSH_GRID=1: finish=length prompt=3858 (cached 0) completion=1 | prefill 963 ms (4007.4 tok/s) | decode 0 ms (0.00 tok/s) (12 s)
+== gen pf27c-dev-cli:INTARSIA_HIP_AR_PUSH_GRID=2: finish=length prompt=3858 (cached 0) completion=1 | prefill 909 ms (4242.3 tok/s) | decode 0 ms (0.00 tok/s) (16 s)
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 813 ms (4743.7 tok/s) | decode 0 ms (0.00 tok/s) (19 s)
+== gen pf27c-dev-cli:INTARSIA_HIP_AR_PUSH_GRID=1: finish=length prompt=3858 (cached 0) completion=1 | prefill 969 ms (3979.5 tok/s) | decode 0 ms (0.00 tok/s) (23 s)
+== gen pf27c-dev-cli:INTARSIA_HIP_AR_PUSH_GRID=2: finish=length prompt=3858 (cached 0) completion=1 | prefill 910 ms (4240.5 tok/s) | decode 0 ms (0.00 tok/s) (27 s)
+== ptime [A=1]: M=2048 N=5120 K=3072 gemm 333.1 us|M=2048 N=5120 K=8704 plain 1697.8 us|M=2048 N=5120 K=3072 plain 1148.6 us|M=2048 N=5120 K=8704 push 1281.4 us|M=2048 N=5120 K=3072 push 946.8 us|
+== ptime [INTARSIA_HIP_AR_PUSH_GRID=1]: M=2048 N=5120 K=3072 gemm 328.4 us|M=2048 N=5120 K=8704 plain 1694.0 us|M=2048 N=5120 K=3072 plain 1153.3 us|M=2048 N=5120 K=8704 push 2098.9 us|M=2048 N=5120 K=3072 push 1453.1 us|
+== ptime [INTARSIA_HIP_AR_PUSH_GRID=2]: M=2048 N=5120 K=3072 gemm 329.9 us|M=2048 N=5120 K=8704 plain 1694.8 us|M=2048 N=5120 K=3072 plain 1155.6 us|M=2048 N=5120 K=8704 push 2093.1 us|M=2048 N=5120 K=3072 push 943.8 us|
+[arx] micro done 2026-10-29 06:48:15, 31 s
+[arx] starting radiance 2026-10-29 06:48:15
+[arx] RADIANCE-RESTORE active after 10 s at 2026-10-29 06:48:25; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793270903,"owned_by":"radiance"
+fleetq: #6917 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

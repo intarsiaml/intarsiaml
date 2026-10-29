@@ -1,0 +1,607 @@
+W20261029 10:05:14.106118 140212598295232 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.000733 sec
+W20261029 10:05:14.108952 140212598295232 simple_timer.cpp:55] [rocprofv3] '/work/pf27c-base-cli generate -m /models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 --backend hip --tp 2 --devices 0,1 --mem-budget 29 --max-seq 20480 --spec off --ignore-eos --max-tokens 1 --profile-every 0 -p # IntarsiaML architecture plan (v0.2, 2026-10-12)
+
+> v0.2 incorporates the [Fable adversarial review](reviews/2026-10-12-fable-adversarial-review.md): torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as the first kernel packs, hard kernels earlier, Phase 0 cut to seams.
+
+Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the same way. Every op, kernel, quant format, model block, benchmark and API surface is a piece with a contract, and every piece is checked against a reference before it is allowed in.
+
+Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
+
+> **Status of this document (2026-10-25).** This file is the v0.2 *plan*, not a description of the code. Each claim in
+> sections 1 to 14 now carries one of three markers, checked against `origin/main` with `grep` and `ls`
+> (review finding 7, [reviews/2026-10-22-fable-adversarial.md](reviews/2026-10-22-fable-adversarial.md)):
+> **implemented** (links to the file that does it), **partial** (says what is missing) or **planned** (nothing in the code yet).
+> Where the code does the job differently from the text, the row says so and the original text is left as the design intent.
+> The "Status vs plan" table below, the per-section tables (1 to 12), the section 2 diagram note and the section 13 status
+> paragraph were all re-checked on 2026-10-25 against `origin/main` (cf84efa4, PRs up to #157).
+
+### Status vs plan
+
+| Component | Status | Short version |
+|---|---|---|
+| Rust host, server, CLI, TUI, embedded UI | **implemented** | 12 crates; see sections 1, 9, 12 |
+| Backends: cpu-ref, CUDA, HIP | **implemented** | cpu-ref is the oracle; CUDA targets `sm_121`, HIP `gfx1201` |
+| Metal backend | **implemented** | not in the plan above; `crates/intarsia-backend-metal`; row-exact batched decode for the hybrid 35B (`crates/intarsia-backend-metal/tests/rows_exact.rs`) |
+| Vulkan / SYCL backend behind the same trait | **planned** | no code; the C ABI is CUDA-stream-shaped, so it is not "the same trait" for free |
+| Backend trait | **partial** | exists, but shaped differently from the sketch (3.1) |
+| Kernel registry, cpu-ref oracle, admission test | **implemented** | 3.2 |
+| `register_kernel!` as the registration path | **partial** | macro exists, backends register through `KernelImpl` directly |
+| Exactness modes (`fast`, `deterministic`, `exact`) | **implemented** | enum and per-kernel tag; no server flag |
+| Autotuner and tuning DB (`tuning/<fingerprint>.toml`) | **planned** | no code, no `tuning/` directory; kernel choice is static priority |
+| Torch-free C kernel ABI | **implemented** | `kernels/abi/ik_abi.h` |
+| Kernel packs (`kernels/packs/*`) | **partial** | kernels are ported into `kernels/cuda` and `kernels/hip`; no pack mechanism, no submodules |
+| Quant formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | `crates/intarsia-core/src/quant` |
+| Quant formats GGUF k-quants, AWQ/GPTQ | **planned** | no loader |
+| `intarsia-quant` crate | **planned** | does not exist; formats live in `intarsia-core` |
+| Block library (GQA, GDN, dense FFN, MoE, RMSNorm) | **partial** | hard-coded in Rust, selected by recipe; sliding window exists only inside the Gemma 4 block (`crates/intarsia-core/src/model/gemma.rs`); MLA, Mamba2, LayerNorm absent |
+| Recipes and `recipe new` | **partial** | 7 recipes in `recipes/` (Qwen2, Qwen3, Qwen3.5 dense / MoE / VL, Llama, Gemma 4), so "Qwen3 family only" no longer holds; unsupported architectures refused at load |
+| Plan compiler, `plan show`, measured-memory KV, graph capture | **partial** | graphs are captured per batch row count for batched decode (`crates/intarsia-core/src/model/graph_step.rs`); no tuning DB, no `--allow-slow` |
+| Scheduler | **partial** | FIFO continuous batching (`crates/intarsia-core/src/scheduler.rs`) on Metal, CUDA and HIP (dense models on Metal and HIP since #154, hybrid models on all three); tensor-parallel batching and MTP under batching are not on main; no priorities |
+| Watchdog and supervisor | **implemented** | `crates/intarsia-server/src/supervisor.rs` |
+| Paged KV blocks | **planned** | KV is contiguous per slot |
+| Radix-tree prefix cache | **partial** | opt-in content-addressed prefix store (`crates/intarsia-core/src/prefix_store.rs`, `serve --prefix-store`, hash-keyed pages, not a radix tree), single-sequence engine only; idle-slot prefix reuse with recurrent snapshots otherwise |
+| Host-RAM KV tier | **partial** | the prefix store keeps prefix pages in host memory and on disk (`crates/intarsia-core/src/prefix_store.rs`); live per-slot KV has no host tier |
+| Speculation | **partial** | n-gram (Metal only) and the MTP drafter (`--spec mtp` on CUDA, HIP and Metal, one sequence, greedy; captured draft+verify step on HIP in `crates/intarsia-core/src/model/spec_graph.rs`); DFlash absent; batched MTP refused at load (`crates/intarsia-models/src/load.rs`) |
+| Sampler and structured output | **partial** | no min-p or penalties; `llguidance` is in |
+| Tool and reasoning parsers | **partial** | one tool-call format (hermes) and one reasoning format (think-tags) |
+| Tensor parallelism and `Comm` | **partial** | NCCL (CUDA), 2-rank P2P (HIP), host-bounced for the rest; no RCCL, no fused all-reduce+norm+quant, no lossy transports; batching under tp, vocab-parallel head and fused all-reduce+norm are open PRs, not on main |
+| Accuracy system | **partial** | `intarsia accuracy` and `qualify`; gates differ from section 6 (see ADR-0008) |
+| Bench plugins, onboarding | **partial** | `bench speed` and `onboard` exist; no `BenchPlugin` trait, no `micro` plugin |
+| OpenAI and Anthropic APIs | **partial** | `/v1/responses` and `/v1/embeddings` absent |
+| Prometheus metrics | **implemented** | OTLP export absent |
+| Containers, run manifest, `intarsia replay` | **partial** | script-level only: `scripts/deploy.sh`, `scripts/bench-bundle.sh` (pack / replay), `scripts/repro-build.sh`, CI `scripts/repro-check.sh`; only HIP dev Dockerfiles (`deploy/tatooine/`); no `intarsia replay` command, and the bundle holds no plan or tuning hash |
+
+---
+
+## 0. Goals, honest targets, anti-goals
+
+Requirements in priority order (user, 2026-10-12): modular → easy to use → accurate → fast (top 3 per platform) → reproducible → OpenAI/Anthropic APIs → built-in UI/TUI (optional, dark) → metrics → live architecture diagram → Spark → R9700 → TP=X → Intel Arc later.
+
+**What "top 3" means per platform** (the competitor to beat at each phase gate):
+
+| Platform | Current leaders on our boxes | Phase-2 gate | Phase-4 gate |
+|---|---|---|---|
+| DGX Spark (GB10) | TensorFold (27B EXL3+DFlash2 83 tok/s), vLLM (35B-A3B NVFP4 86-90), llama.cpp, SGLang | beat llama.cpp and vLLM single-stream on the same quant | within 10% of TensorFold |
+| R9700 (gfx1201) | native radiance (27B TP=2 207-226), vLLM-radiance (150), llama.cpp Vulkan (MoE 112) | beat llama.cpp Vulkan/HIP | beat vLLM-radiance; radiance is the long-term bar |
+| Apple Silicon (dev box) | mlx-serve, MLX-LM, TensorFold-MLX | correctness only | later decision |
+| Intel Arc | llama.cpp SYCL | not in scope | not in scope |
+
+Top 3 on R9700 means beating vLLM or llama.cpp, not radiance, until Phase 4. Saying so keeps the target honest.
+
+**Anti-goals** (each one cost a prior project months):
+- **No per-family engines.** TensorFold ships a CUDA engine per model family; effort multiplies per model. Here a model is a *recipe* over a shared block library. New code is needed only for a genuinely new block type.
+- **No Python in the serving path.** Native radiance starts in 11 s vs 160 s for vLLM at equal or better step time. Python stays in offline tools (golden references, converters).
+- **No scope sprawl.** Text LLM inference first. No image, audio or 3D (mlx-serve's burden). Vision encoders are a later block type, not a side product.
+- **No kernel enters without passing its reference test.** sm_121 CUTLASS NVFP4 MoE emitting `!!!!!` and a cuDNN FP8 GEMM hanging after 250k steps were both shipped by others.
+
+---
+
+## 1. Language and build
+
+| Layer | Choice | Why |
+|---|---|---|
+| Host: server, scheduler, KV manager, loaders, metrics, UI server, CLI | **Rust** (stable, edition 2021) | Native speed and startup with memory safety; best ecosystem for this exact stack: `tokenizers` (HF), `safetensors`, `minijinja` (HF chat templates), `llguidance` (structured output), `axum`/`tokio`, `ratatui`, `prometheus-client`, `opentelemetry`, `cudarc` (CUDA driver + NCCL). One static binary per platform. |
+| GPU kernels, NVIDIA | **CUDA C++** (+ inline PTX where profiling demands), AOT-compiled to fatbins for `sm_121` (GB10), plus `sm_90/100/120` when hardware appears | Cold JIT compiles take minutes on GB10; AOT removes that. |
+| GPU kernels, AMD | **HIP C++** (+ inline GCN/RDNA asm where needed), AOT for `gfx1201` | Same as radiance, which holds the R9700 bar. |
+| Shared kernel code | One `ik_portable.h` header that maps CUDA/HIP intrinsics; elementwise, norm, rope, sampling and quant-pack kernels compile from one source for both | Halves the simple-kernel work. GEMM and attention stay arch-specific. |
+| Apple (dev) / Arc (later) | Metal / Vulkan or SYCL backends behind the same trait | Not built now; the trait is shaped so they slot in. |
+| Offline tools | Python (uv), never imported by the server | Golden logits via HF `transformers`, plotting, converters. |
+
+Rejected: C++ host (radiance proves it works, but modularity, packaging and the server/UI ecosystem are slower to build); Zig host (mlx-serve proves it works, but the ML-adjacent library ecosystem is thin; no `tokenizers`/`llguidance` equivalents); Python host (per-step overhead, startup, container weight); Mojo (tried in `TensorFold-mojo*`, not merged). Assembly is used per hot spot, not as a language choice.
+
+
+**Status (section 1).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| Rust host, one binary per platform | **implemented** | [`Cargo.toml`](../Cargo.toml) workspace, edition 2021, `rust-toolchain.toml` pins 1.90.0 |
+| Host crates `tokenizers`, `minijinja`, `llguidance`, `axum`, `ratatui` | **implemented** | [`Cargo.toml`](../Cargo.toml) dependencies |
+| Host crates `prometheus-client`, `opentelemetry`, `cudarc`, `rust-embed` | **planned** | not in `Cargo.toml`: metrics are hand-written ([`crates/intarsia-server/src/metrics.rs`](../crates/intarsia-server/src/metrics.rs)), CUDA is bound through own FFI ([`crates/intarsia-backend-cuda/src/ffi.rs`](../crates/intarsia-backend-cuda/src/ffi.rs)), UI files are `include_str!`d ([`crates/intarsia-ui/src/lib.rs`](../crates/intarsia-ui/src/lib.rs)) |
+| CUDA C++ AOT for `sm_121` | **implemented** | [`crates/intarsia-backend-cuda/build.rs`](../crates/intarsia-backend-cuda/build.rs) (default `sm_121`) |
+| HIP C++ AOT for `gfx1201` | **implemented** | [`crates/intarsia-backend-hip/build.rs`](../crates/intarsia-backend-hip/build.rs) (default `gfx1201`) |
+| One `ik_portable.h` so simple kernels compile from one source for CUDA and HIP | **partial** | [`kernels/common/ik_portable.h`](../kernels/common/ik_portable.h) exists, but `kernels/cuda/*.cu` and `kernels/hip/*.hip` are separate files |
+| Apple (dev) / Arc (later): Metal / Vulkan or SYCL behind the same trait | **partial** | Metal **implemented**: [`crates/intarsia-backend-metal/src/lib.rs`](../crates/intarsia-backend-metal/src/lib.rs); Vulkan/SYCL **planned**: no code |
+| Offline Python tools, never imported by the server | **implemented** | [`tools/golden.py`](../tools/golden.py), [`tools/scribe.py`](../tools/scribe.py) |
+
+---
+
+## 2. System overview
+
+```mermaid
+flowchart LR
+  subgraph Front["Front door (crate: intarsia-server)"]
+    OAI["OpenAI: /v1/chat/completions, /v1/completions, /v1/responses, /v1/models"]
+    ANT["Anthropic: /v1/messages"]
+    UI["Embedded web UI: chat, live dashboard, live architecture map"]
+    MET["/metrics (Prometheus), OTLP, /events (SSE)"]
+  end
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    TOK["Tokenizer + chat template + parsers (tools, reasoning)"]
+    SCH["Scheduler: continuous batching, chunked prefill, priorities"]
+    KV["KV manager: paged blocks, radix prefix cache, host tier"]
+    SPEC["Speculation: MTP, DFlash-style drafter, n-gram"]
+    SMP["Sampler + structured output (llguidance)"]
+    PLAN["Plan compiler: recipe → op graph → kernel selection → captured graphs per batch bucket"]
+  end
+  subgraph Pieces["Pieces (plugins)"]
+    REC["Recipes (TOML)"]
+    BLK["Block library: attention (GQA/MLA/SWA/GDN), FFN (dense/MoE), norms, rope"]
+    QF["Quant formats: BF16, FP8, NVFP4, MXFP4, GGUF k-quants, EXL3, AWQ/GPTQ"]
+    KR["Kernel registry: (op, backend, arch, dtype/quant, shape class) → impl + reference + autotune DB"]
+    BEN["Bench plugins: micro, e2e, localeval"]
+  end
+  subgraph HW["Backends (crate: intarsia-backend-*)"]
+    CPU["cpu-ref (always on: the oracle)"]
+    CUDA["cuda (GB10 sm_121)"]
+    HIP["hip (R9700 gfx1201)"]
+    COMM["Comm: NCCL/RCCL, P2P one-shot all-reduce"]
+  end
+  OAI & ANT & UI --> TOK --> SCH
+  SCH <--> KV
+  SCH --> SPEC --> PLAN
+  SCH --> PLAN --> KR --> CUDA & HIP & CPU
+  PLAN --> SMP
+  REC --> PLAN
+  BLK --> PLAN
+  QF --> KR
+  PLAN --> COMM
+  Core -. events .-> MET
+  MET --> UI
+```
+
+**Status (section 2 diagram).** Boxes that are **planned** or **partial**: `KV` ("paged blocks, radix prefix cache, host tier"; partial: live KV is contiguous per slot ([`state.rs`](../crates/intarsia-core/src/state.rs)); the opt-in content-addressed prefix store keeps paged, content-addressed prefix states in device, host and disk tiers ([`prefix_store.rs`](../crates/intarsia-core/src/prefix_store.rs)); there is no radix tree), `SPEC` (partial: n-gram (Metal only) and MTP (CUDA, HIP, Metal; one sequence) are in, see [`spec.rs`](../crates/intarsia-core/src/spec.rs) and [`model/spec_graph.rs`](../crates/intarsia-core/src/model/spec_graph.rs); no DFlash drafter), `QF` (partial: no GGUF k-quants, AWQ/GPTQ), `BLK` (partial: sliding window exists only inside the Gemma 4 block, [`model/gemma.rs`](../crates/intarsia-core/src/model/gemma.rs); no MLA, no Mamba2), `KR` "autotune DB" (planned), `HIP` and `CUDA` are implemented, `COMM` "NCCL/RCCL" (partial: NCCL on CUDA and a 2-rank P2P one-shot all-reduce on HIP, no RCCL), "OTLP" in `MET` (planned), `/v1/responses` in `OAI` (planned), `PLAN` "captured graphs per batch bucket" (partial: graphs are captured per decode row count, not per rounded bucket, see 3.6). Metal ([`crates/intarsia-backend-metal`](../crates/intarsia-backend-metal)) is implemented but missing from the diagram's `HW` subgraph. The picture in [architecture-diagram.md](architecture-diagram.md) marks planned components with dashed outlines.
+
+---
+
+## 3. Core abstractions (the pieces)
+
+### 3.1 Backend trait (minimal on purpose)
+
+```rust
+pub trait Backend: Send + Sync {
+    fn info(&self) -> DeviceInfo;                       // arch, mem, bandwidth (measured), features
+    fn alloc(&self, bytes: usize, kind: MemKind) -> Result<Buffer>;
+    fn copy(&self, dst: &Buffer, src: &Buffer, stream: StreamId) -> Result<()>;
+    fn launch(&self, k: &LoadedKernel, args: &KernelArgs, stream: StreamId) -> Result<()>;
+    fn graph_begin(&self, stream: StreamId) -> Result<()>;
+    fn graph_end(&self, stream: StreamId) -> Result<GraphHandle>;
+    fn graph_replay(&self, g: &GraphHandle, stream: StreamId) -> Result<()>;
+    fn event(&self, stream: StreamId) -> Result<Event>;
+    fn comm(&self) -> Option<&dyn Comm>;                 // TP collectives
+}
+```
+
+
+**Status (3.1).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| A minimal `Backend` trait is the whole device contract | **partial** | [`backend.rs:192`](../crates/intarsia-core/src/backend.rs): the trait exists with 33 methods, 9 required (`name`, `info`, `alloc`, `upload`, `download`, `copy`, `kernels`, `launch`, `synchronize`); the rest have defaults. Shape differs from the sketch: `launch` is `launch(kernel_name, &OpCall, stream)`, graphs are `graph_capture`/`graph_replay`, there is no `event` |
+| `fn comm(&self) -> Option<&dyn Comm>` | **partial** | no `comm` method on the trait; TP collectives are built from backend lists in [`crates/intarsia-core/src/comm.rs`](../crates/intarsia-core/src/comm.rs) and per-backend files |
+| Everything above the trait is backend-neutral | **partial** | backend-specific branches remain: [`crates/intarsia-core/src/model/batch.rs`](../crates/intarsia-core/src/model/batch.rs) tests `backend.name() != "cpu"`, and `--max-batch` above 1 is refused on any backend but Metal, CUDA and HIP (and the CPU backend with `IA_RECURRENT_BATCH=1`) in [`crates/intarsia-models/src/load.rs`](../crates/intarsia-models/src/load.rs) |
+| A Vulkan or SYCL backend only has to implement the trait plus its kernel packs | **planned** | no such backend; `kernels/abi/ik_abi.h` takes a CUDA-stream-shaped `void* stream` and CUDA/HIP share `ik_*` symbol names |
+| Backend init applies known-bad-default fixes as data (`GPU_MAX_HW_QUEUES=1`) | **partial** | applied by the launchers, not by backend init: [`crates/intarsia-cli/src/cmd/onboard.rs`](../crates/intarsia-cli/src/cmd/onboard.rs), [`crates/intarsia-cli/src/cmd/qualify.rs`](../crates/intarsia-cli/src/cmd/qualify.rs); `doctor` only reports it ([`crates/intarsia-cli/src/cmd/doctor.rs`](../crates/intarsia-cli/src/cmd/doctor.rs)) |
+
+
+Everything else (ops, quant, attention) lives above the trait. A Vulkan or SYCL backend for Arc only has to implement this plus its kernel packs. Backend init applies known-bad-default fixes as data (for example `GPU_MAX_HW_QUEUES=1` on HIP, which removed a permanent 20% slowdown).
+
+### 3.2 Kernel registry: the core of modularity and accuracy
+
+Every **op** (e.g. `matmul`, `rmsnorm_add`, `rope`, `paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) has:
+
+1. A **signature**: typed inputs/outputs, layouts, quant format.
+2. A **reference implementation** in `cpu-ref` (f32/f64 accumulate). This is the oracle.
+3. Any number of **implementations**, each declaring `(backend, arch set, dtype/quant, shape predicate, exactness class)`.
+
+```rust
+register_kernel! {
+    op: Matmul, name: "nvfp4_gemv_splitk_v1",
+    backend: Cuda, arch: [sm_121], weights: Nvfp4, acts: [Bf16, Fp8E4m3],
+    when: |s| s.m <= 8 && s.k % 64 == 0,          // shape preconditions are code, checked at plan time
+    exact: Exactness::Deterministic,               // or BitExactVsSerial / Tolerance(...)
+    tol: Tol { max_abs: 2e-2, rel_l2: 5e-3 },
+}
+```
+
+Rules:
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Plan-time preconditions**: shape predicates are evaluated when the plan is built, so traps like "MXFP4 GEMM needs per-rank K % 128" fail loudly at load, not as token-0 output.
+- **Autotuner**: for each (op, shape bucket) on a host, time the eligible implementations and store the winner in a **tuning DB** keyed by host fingerprint (GPU, driver, toolkit, kernel-pack hash). The DB is a committed lockfile per platform (`tuning/<fingerprint>.toml`) so results reproduce.
+- **Exactness modes** (from TensorFold): `fast` (any passing kernel), `deterministic` (fixed reduction order, run-to-run identical), `exact` (multi-row verify equals serial decode bit-for-bit; required for lossless speculation claims). Mode is a server flag and is reported in every result.
+
+
+**Status (3.2).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| Every op has a typed signature | **implemented** | [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs): `Op` enum, 42 ops with arity and shape checks. The example op names (`paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) are plan names; the real ones are `AttnDecode`, `AttnPrefill`, `MoeTopk`, `MoeExperts`, `MoeBlock`, and there is no all-reduce op |
+| Reference implementation per op in `cpu-ref` | **implemented** | [`crates/intarsia-backend-cpu/src/reference.rs`](../crates/intarsia-backend-cpu/src/reference.rs) |
+| Many implementations per op, each with (backend, arch, dtype/quant, shape predicate, exactness) | **implemented** | [`crates/intarsia-core/src/registry.rs`](../crates/intarsia-core/src/registry.rs) `KernelImpl` |
+| `register_kernel!` macro | **partial** | [`registry.rs:247`](../crates/intarsia-core/src/registry.rs) defines it; only that file uses it. Backends build `KernelImpl` values directly ([`crates/intarsia-backend-cuda/src/kernels.rs`](../crates/intarsia-backend-cuda/src/kernels.rs)). The `tol:` field in the example is illustrative |
+| Admission test, `intarsia kernels test`; failing kernel is unselectable | **implemented** | [`crates/intarsia-core/src/admission.rs`](../crates/intarsia-core/src/admission.rs), [`crates/intarsia-cli/src/cmd/kernels.rs`](../crates/intarsia-cli/src/cmd/kernels.rs) |
+| Plan-time preconditions fail loudly at load | **implemented** | [`crates/intarsia-core/src/plan.rs`](../crates/intarsia-core/src/plan.rs) returns `Error::NoKernel` when no admitted kernel fits |
+| Autotuner and tuning DB committed as `tuning/<fingerprint>.toml` | **planned** | no autotuner code and no `tuning/` directory; selection is static priority among admitted kernels |
+| Exactness modes `fast`, `deterministic`, `exact` | **implemented** | [`registry.rs:16`](../crates/intarsia-core/src/registry.rs) `Exactness` enum, shown by `intarsia kernels` |
+| Mode is a server flag reported in every result | **planned** | no `--exactness` flag in `serve` or `common.rs`; exactness is a per-kernel tag |
+
+### 3.3 Kernel ABI and kernel packs
+
+Every pack is a **port**, not an import (most upstream kernels take `torch::Tensor`). The port target is one torch-free C ABI, `kernels/abi/ik_abi.h`:
+
+```c
+typedef struct { void* data; int32_t dtype; int32_t ndim; int64_t shape[6]; int64_t stride[6]; } ik_tensor;
+typedef struct { const void* scales; const void* zeros; int32_t group; int32_t format; } ik_quant;
+// every launcher: raw tensors in, status out, explicit stream, no allocation inside
+int ik_rmsnorm_add(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, ik_tensor* out, void* stream);
+```
+
+Kernels are compiled by `nvcc`/`hipcc` into a static library per backend and bound from Rust via `extern "C"`. The same shim pattern covers HIP, where Rust bindings are thin (no RCCL or hipBLASLt crates).
+
+| Pack | Backend | License | Port first |
+|---|---|---|---|
+| `native` (ours) | CUDA + HIP | Apache-2.0 | norms, rope, embedding, sampling, simple attention, glue |
+| `tensorfold` | CUDA (+ its ROCm variants) | MIT | EXL3 linear/experts, NVFP4 `qmmf`, GDN, DFlash verify, attention: holds the Spark bar |
+| `radiance` (`libr4d`) | HIP gfx1201 | Apache-2.0 (keep `NOTICE`) | MXFP4×FP8 GEMM, one-shot 2/3-rank all-reduce (+norm+quant), GDN recurrent update, paged attention, int2 lm_head: holds the R9700 bar |
+| `cublaslt` / `hipblaslt` | vendor | vendor | prefill GEMM, registered as `Exactness::Fast` only (algorithm choice varies by shape; graphs freeze one) |
+
+Other packs (flashinfer, cutlass, ggml, exl3 upstream, ck/aiter) are added only when a measured gap names one. Rule: **no pack is vendored without its license file in `LICENSES/`**, pinned by commit, and every exported kernel passes the admission test.
+
+**Block-scope fused ops are first-class.** Radiance and TensorFold are fast because of hand-fused, family-specific kernels (all-reduce in a GEMV epilogue, norm+quant into GDN). A generic pattern-rewriting fuser is a compiler project we will not build. Instead the registry holds fused block ops (e.g. `gdn_layer_decode_fused`, `attn_block_decode_fused`, `all_reduce_rmsnorm_fp8`) whose reference is the generic op chain. The plan compiler picks the fused op when one is admitted for the shape, else falls back to the chain.
+
+
+**Status (3.3).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| One torch-free C ABI, `kernels/abi/ik_abi.h` | **implemented** | [`kernels/abi/ik_abi.h`](../kernels/abi/ik_abi.h) (`ik_tensor`, `ik_quant`; launcher comment still says Phase 0 dense BF16) |
+| Kernels compiled by `nvcc`/`hipcc` into a static library and bound via `extern "C"` | **implemented** | [`crates/intarsia-backend-cuda/build.rs`](../crates/intarsia-backend-cuda/build.rs), [`crates/intarsia-backend-hip/build.rs`](../crates/intarsia-backend-hip/build.rs), FFI in `ffi.rs` of each crate |
+| `native` pack (ours, CUDA + HIP) | **implemented** | [`kernels/cuda`](../kernels/cuda), [`kernels/hip`](../kernels/hip) |
+| `tensorfold` pack (MIT): EXL3, NVFP4, GDN, DFlash verify | **partial** | ports of TensorFold kernels exist ([`kernels/cuda/exl3.cu`](../kernels/cuda/exl3.cu), [`kernels/cuda/nvfp4.cu`](../kernels/cuda/nvfp4.cu), licence in [`LICENSES/TensorFold-MIT.txt`](../LICENSES/TensorFold-MIT.txt)); there is no pack boundary, and no DFlash verify |
+| `radiance` pack (Apache-2.0): MXFP4xFP8 GEMM, one-shot all-reduce, GDN, paged attention | **partial** | HIP kernels with attribution ([`kernels/hip/NOTICE-radiance`](../kernels/hip/NOTICE-radiance), [`LICENSES/Apache-2.0-radiance.txt`](../LICENSES/Apache-2.0-radiance.txt)): MXFP4 GEMM ([`kernels/hip/mxfp4.hip`](../kernels/hip/mxfp4.hip)), a 2-rank one-shot all-reduce ([`kernels/hip/allreduce.hip`](../kernels/hip/allreduce.hip)), GDN ([`kernels/hip/gdn.hip`](../kernels/hip/gdn.hip)); no paged attention, and the all-reduce is 2-rank only |
+| `cublaslt` / `hipblaslt` prefill GEMM registered as `Fast` | **partial** | cuBLASLt for FP8 only ([`kernels/cuda/fp8_gemm_lt.cu`](../kernels/cuda/fp8_gemm_lt.cu)); a hipBLASLt route is not built (the note is in [`kernels/hip/matmul.hip`](../kernels/hip/matmul.hip), see [`docs/backends/hip.md`](backends/hip.md)) |
+| Other packs (flashinfer, cutlass, ggml, exl3, ck/aiter) as pinned submodules under `kernels/packs/` | **planned** | no `kernels/packs/`, no `.gitmodules` |
+| No pack vendored without its licence file in `LICENSES/` | **implemented** | [`LICENSES`](../LICENSES) holds radiance, TensorFold and exllamav3 |
+| Block-scope fused ops are first-class; plan picks the fused op when admitted, else the chain | **partial** | fused ops exist as `Op` variants (`MoeBlock`, `GdnConvDelta`, `RmsNormAddMatmulPair`, `QkNormRopeKv`, ... in [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs)); the example names (`gdn_layer_decode_fused`, `attn_block_decode_fused`, `all_reduce_rmsnorm_fp8`) do not exist, and the chain fallback is decided in model code, not by the plan compiler |
+
+### 3.4 Quant formats as plugins
+
+```rust
+pub trait QuantFormat {
+    fn id(&self) -> QuantId;                                  // "nvfp4", "mxfp4", "gguf:q4_k", "exl3:3.0", ...
+    fn detect(&self, meta: &WeightMeta) -> bool;              // from safetensors/GGUF metadata
+    fn load(&self, src: &TensorSource, dst: &dyn Backend, layout: &Layout) -> Result<QTensor>;
+    fn dequant_ref(&self, q: &QTensor) -> Tensor;             // used by the oracle
+    fn quantize(&self, t: &Tensor, cfg: &QuantCfg) -> Option<QTensor>;  // optional: on-the-fly RTN
+}
+```
+
+Adding a quant = implement this trait + register matmul kernels that accept it. The oracle path (`dequant_ref` + reference matmul) works the moment `load` and `dequant_ref` exist, so correctness is testable before any fast kernel is written.
+
+Per-tensor overrides live in the recipe (e.g. drafter stays FP8: MXFP4 RTN dropped drafter acceptance from 2.5 to 2.21 on R9700).
+
+
+**Status (3.4).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| `QuantFormat` trait with `id`, `detect`, `load`, `dequant_ref`, `quantize` | **implemented** | [`mod.rs:233`](../crates/intarsia-core/src/quant/mod.rs) (same five methods; `load` takes `WeightMeta`, `&dyn Backend` and `QuantLoadOpts`) |
+| Formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | [`crates/intarsia-core/src/quant/fp8.rs`](../crates/intarsia-core/src/quant/fp8.rs), [`crates/intarsia-core/src/quant/nvfp4.rs`](../crates/intarsia-core/src/quant/nvfp4.rs), [`crates/intarsia-core/src/quant/mxfp4.rs`](../crates/intarsia-core/src/quant/mxfp4.rs), [`crates/intarsia-core/src/quant/exl3.rs`](../crates/intarsia-core/src/quant/exl3.rs); BF16 is `Bf16Dense` in `quant/mod.rs` |
+| Formats GGUF k-quants, AWQ/GPTQ | **planned** | no `QuantFormat` impl; `gguf` appears only in `quant/scheme.rs` and `cmd/recipe.rs` text |
+| Adding a quant = implement the trait + register kernels | **partial** | also needs `Op` variants per (format, fusion) and edits in about 20 files (review finding 9, deferred to the user) |
+| Oracle path works as soon as `load` and `dequant_ref` exist | **implemented** | [`crates/intarsia-core/src/quant/reference.rs`](../crates/intarsia-core/src/quant/reference.rs) |
+| Per-tensor overrides live in the recipe | **partial** | recipes carry per-backend tuning tables; per-tensor quant overrides are chosen in load code, not in the recipe TOML |
+| `intarsia-quant` crate (section 12) | **planned** | does not exist; code is under [`crates/intarsia-core/src/quant`](../crates/intarsia-core/src/quant) |
+
+### 3.5 Block library and recipes: adding a model
+
+A **block** is a reu
+W20261029 10:05:14.124312 140212598295232 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+prefill chunk 2048 (recipe qwen3_5_vl, hip)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'fp8' (the recipe's default on this backend, chosen for accuracy and speed (Qwen3.8-27B, full MMLU n=1425: W4A8 0.8204, W4A16 0.822, W4A4 0.802; against W4A16 prefill +48% and decode +11% at tp2, KL to the W4A16 golden 12x below W4A4's, docs/results/2026-10-27-w4a8-hip-fp8-act.md); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: fp8 (recipe qwen3_5_vl [tuning.hip] mxfp4_act)
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 4.8s: 64 layers, hidden 5120, act bf16, kv bf16, weights 10.29 GB, context 20480 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 15469 tokens
+finish=length prompt=15469 (cached 0) completion=1 | prefill 3503 ms (4415.7 tok/s) | decode 0 ms (0.00 tok/s)
+tensor parallel: 1153 all-reduces (128.1 per step), 0 timed, avg 0.0 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+steps=9 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: all_reduce=0ms/1153 argmax=0ms/1 attn_decode=0ms/16 attn_prefill=0ms/128 embedding=0ms/9
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1
+W20261029 10:05:22.585665 140212598295232 simple_timer.cpp:55] [rocprofv3] '/work/pf27c-base-cli generate -m /models/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 --backend hip --tp 2 --devices 0,1 --mem-budget 29 --max-seq 20480 --spec off --ignore-eos --max-tokens 1 --profile-every 0 -p # IntarsiaML architecture plan (v0.2, 2026-10-12)
+
+> v0.2 incorporates the [Fable adversarial review](reviews/2026-10-12-fable-adversarial-review.md): torch-free C kernel ABI, TensorFold (MIT) and radiance (Apache-2.0) as the first kernel packs, hard kernels earlier, Phase 0 cut to seams.
+
+Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the same way. Every op, kernel, quant format, model block, benchmark and API surface is a piece with a contract, and every piece is checked against a reference before it is allowed in.
+
+Research this plan builds on: [AMD R9700 lessons](research/amd-r9700-lessons.md), [Spark / TensorFold / tooling lessons](research/spark-tensorfold-tooling-lessons.md), [Fable review](reviews/2026-10-12-fable-adversarial-review.md). Decisions are logged in [decisions/](decisions/).
+
+> **Status of this document (2026-10-25).** This file is the v0.2 *plan*, not a description of the code. Each claim in
+> sections 1 to 14 now carries one of three markers, checked against `origin/main` with `grep` and `ls`
+> (review finding 7, [reviews/2026-10-22-fable-adversarial.md](reviews/2026-10-22-fable-adversarial.md)):
+> **implemented** (links to the file that does it), **partial** (says what is missing) or **planned** (nothing in the code yet).
+> Where the code does the job differently from the text, the row says so and the original text is left as the design intent.
+> The "Status vs plan" table below, the per-section tables (1 to 12), the section 2 diagram note and the section 13 status
+> paragraph were all re-checked on 2026-10-25 against `origin/main` (cf84efa4, PRs up to #157).
+
+### Status vs plan
+
+| Component | Status | Short version |
+|---|---|---|
+| Rust host, server, CLI, TUI, embedded UI | **implemented** | 12 crates; see sections 1, 9, 12 |
+| Backends: cpu-ref, CUDA, HIP | **implemented** | cpu-ref is the oracle; CUDA targets `sm_121`, HIP `gfx1201` |
+| Metal backend | **implemented** | not in the plan above; `crates/intarsia-backend-metal`; row-exact batched decode for the hybrid 35B (`crates/intarsia-backend-metal/tests/rows_exact.rs`) |
+| Vulkan / SYCL backend behind the same trait | **planned** | no code; the C ABI is CUDA-stream-shaped, so it is not "the same trait" for free |
+| Backend trait | **partial** | exists, but shaped differently from the sketch (3.1) |
+| Kernel registry, cpu-ref oracle, admission test | **implemented** | 3.2 |
+| `register_kernel!` as the registration path | **partial** | macro exists, backends register through `KernelImpl` directly |
+| Exactness modes (`fast`, `deterministic`, `exact`) | **implemented** | enum and per-kernel tag; no server flag |
+| Autotuner and tuning DB (`tuning/<fingerprint>.toml`) | **planned** | no code, no `tuning/` directory; kernel choice is static priority |
+| Torch-free C kernel ABI | **implemented** | `kernels/abi/ik_abi.h` |
+| Kernel packs (`kernels/packs/*`) | **partial** | kernels are ported into `kernels/cuda` and `kernels/hip`; no pack mechanism, no submodules |
+| Quant formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | `crates/intarsia-core/src/quant` |
+| Quant formats GGUF k-quants, AWQ/GPTQ | **planned** | no loader |
+| `intarsia-quant` crate | **planned** | does not exist; formats live in `intarsia-core` |
+| Block library (GQA, GDN, dense FFN, MoE, RMSNorm) | **partial** | hard-coded in Rust, selected by recipe; sliding window exists only inside the Gemma 4 block (`crates/intarsia-core/src/model/gemma.rs`); MLA, Mamba2, LayerNorm absent |
+| Recipes and `recipe new` | **partial** | 7 recipes in `recipes/` (Qwen2, Qwen3, Qwen3.5 dense / MoE / VL, Llama, Gemma 4), so "Qwen3 family only" no longer holds; unsupported architectures refused at load |
+| Plan compiler, `plan show`, measured-memory KV, graph capture | **partial** | graphs are captured per batch row count for batched decode (`crates/intarsia-core/src/model/graph_step.rs`); no tuning DB, no `--allow-slow` |
+| Scheduler | **partial** | FIFO continuous batching (`crates/intarsia-core/src/scheduler.rs`) on Metal, CUDA and HIP (dense models on Metal and HIP since #154, hybrid models on all three); tensor-parallel batching and MTP under batching are not on main; no priorities |
+| Watchdog and supervisor | **implemented** | `crates/intarsia-server/src/supervisor.rs` |
+| Paged KV blocks | **planned** | KV is contiguous per slot |
+| Radix-tree prefix cache | **partial** | opt-in content-addressed prefix store (`crates/intarsia-core/src/prefix_store.rs`, `serve --prefix-store`, hash-keyed pages, not a radix tree), single-sequence engine only; idle-slot prefix reuse with recurrent snapshots otherwise |
+| Host-RAM KV tier | **partial** | the prefix store keeps prefix pages in host memory and on disk (`crates/intarsia-core/src/prefix_store.rs`); live per-slot KV has no host tier |
+| Speculation | **partial** | n-gram (Metal only) and the MTP drafter (`--spec mtp` on CUDA, HIP and Metal, one sequence, greedy; captured draft+verify step on HIP in `crates/intarsia-core/src/model/spec_graph.rs`); DFlash absent; batched MTP refused at load (`crates/intarsia-models/src/load.rs`) |
+| Sampler and structured output | **partial** | no min-p or penalties; `llguidance` is in |
+| Tool and reasoning parsers | **partial** | one tool-call format (hermes) and one reasoning format (think-tags) |
+| Tensor parallelism and `Comm` | **partial** | NCCL (CUDA), 2-rank P2P (HIP), host-bounced for the rest; no RCCL, no fused all-reduce+norm+quant, no lossy transports; batching under tp, vocab-parallel head and fused all-reduce+norm are open PRs, not on main |
+| Accuracy system | **partial** | `intarsia accuracy` and `qualify`; gates differ from section 6 (see ADR-0008) |
+| Bench plugins, onboarding | **partial** | `bench speed` and `onboard` exist; no `BenchPlugin` trait, no `micro` plugin |
+| OpenAI and Anthropic APIs | **partial** | `/v1/responses` and `/v1/embeddings` absent |
+| Prometheus metrics | **implemented** | OTLP export absent |
+| Containers, run manifest, `intarsia replay` | **partial** | script-level only: `scripts/deploy.sh`, `scripts/bench-bundle.sh` (pack / replay), `scripts/repro-build.sh`, CI `scripts/repro-check.sh`; only HIP dev Dockerfiles (`deploy/tatooine/`); no `intarsia replay` command, and the bundle holds no plan or tuning hash |
+
+---
+
+## 0. Goals, honest targets, anti-goals
+
+Requirements in priority order (user, 2026-10-12): modular → easy to use → accurate → fast (top 3 per platform) → reproducible → OpenAI/Anthropic APIs → built-in UI/TUI (optional, dark) → metrics → live architecture diagram → Spark → R9700 → TP=X → Intel Arc later.
+
+**What "top 3" means per platform** (the competitor to beat at each phase gate):
+
+| Platform | Current leaders on our boxes | Phase-2 gate | Phase-4 gate |
+|---|---|---|---|
+| DGX Spark (GB10) | TensorFold (27B EXL3+DFlash2 83 tok/s), vLLM (35B-A3B NVFP4 86-90), llama.cpp, SGLang | beat llama.cpp and vLLM single-stream on the same quant | within 10% of TensorFold |
+| R9700 (gfx1201) | native radiance (27B TP=2 207-226), vLLM-radiance (150), llama.cpp Vulkan (MoE 112) | beat llama.cpp Vulkan/HIP | beat vLLM-radiance; radiance is the long-term bar |
+| Apple Silicon (dev box) | mlx-serve, MLX-LM, TensorFold-MLX | correctness only | later decision |
+| Intel Arc | llama.cpp SYCL | not in scope | not in scope |
+
+Top 3 on R9700 means beating vLLM or llama.cpp, not radiance, until Phase 4. Saying so keeps the target honest.
+
+**Anti-goals** (each one cost a prior project months):
+- **No per-family engines.** TensorFold ships a CUDA engine per model family; effort multiplies per model. Here a model is a *recipe* over a shared block library. New code is needed only for a genuinely new block type.
+- **No Python in the serving path.** Native radiance starts in 11 s vs 160 s for vLLM at equal or better step time. Python stays in offline tools (golden references, converters).
+- **No scope sprawl.** Text LLM inference first. No image, audio or 3D (mlx-serve's burden). Vision encoders are a later block type, not a side product.
+- **No kernel enters without passing its reference test.** sm_121 CUTLASS NVFP4 MoE emitting `!!!!!` and a cuDNN FP8 GEMM hanging after 250k steps were both shipped by others.
+
+---
+
+## 1. Language and build
+
+| Layer | Choice | Why |
+|---|---|---|
+| Host: server, scheduler, KV manager, loaders, metrics, UI server, CLI | **Rust** (stable, edition 2021) | Native speed and startup with memory safety; best ecosystem for this exact stack: `tokenizers` (HF), `safetensors`, `minijinja` (HF chat templates), `llguidance` (structured output), `axum`/`tokio`, `ratatui`, `prometheus-client`, `opentelemetry`, `cudarc` (CUDA driver + NCCL). One static binary per platform. |
+| GPU kernels, NVIDIA | **CUDA C++** (+ inline PTX where profiling demands), AOT-compiled to fatbins for `sm_121` (GB10), plus `sm_90/100/120` when hardware appears | Cold JIT compiles take minutes on GB10; AOT removes that. |
+| GPU kernels, AMD | **HIP C++** (+ inline GCN/RDNA asm where needed), AOT for `gfx1201` | Same as radiance, which holds the R9700 bar. |
+| Shared kernel code | One `ik_portable.h` header that maps CUDA/HIP intrinsics; elementwise, norm, rope, sampling and quant-pack kernels compile from one source for both | Halves the simple-kernel work. GEMM and attention stay arch-specific. |
+| Apple (dev) / Arc (later) | Metal / Vulkan or SYCL backends behind the same trait | Not built now; the trait is shaped so they slot in. |
+| Offline tools | Python (uv), never imported by the server | Golden logits via HF `transformers`, plotting, converters. |
+
+Rejected: C++ host (radiance proves it works, but modularity, packaging and the server/UI ecosystem are slower to build); Zig host (mlx-serve proves it works, but the ML-adjacent library ecosystem is thin; no `tokenizers`/`llguidance` equivalents); Python host (per-step overhead, startup, container weight); Mojo (tried in `TensorFold-mojo*`, not merged). Assembly is used per hot spot, not as a language choice.
+
+
+**Status (section 1).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| Rust host, one binary per platform | **implemented** | [`Cargo.toml`](../Cargo.toml) workspace, edition 2021, `rust-toolchain.toml` pins 1.90.0 |
+| Host crates `tokenizers`, `minijinja`, `llguidance`, `axum`, `ratatui` | **implemented** | [`Cargo.toml`](../Cargo.toml) dependencies |
+| Host crates `prometheus-client`, `opentelemetry`, `cudarc`, `rust-embed` | **planned** | not in `Cargo.toml`: metrics are hand-written ([`crates/intarsia-server/src/metrics.rs`](../crates/intarsia-server/src/metrics.rs)), CUDA is bound through own FFI ([`crates/intarsia-backend-cuda/src/ffi.rs`](../crates/intarsia-backend-cuda/src/ffi.rs)), UI files are `include_str!`d ([`crates/intarsia-ui/src/lib.rs`](../crates/intarsia-ui/src/lib.rs)) |
+| CUDA C++ AOT for `sm_121` | **implemented** | [`crates/intarsia-backend-cuda/build.rs`](../crates/intarsia-backend-cuda/build.rs) (default `sm_121`) |
+| HIP C++ AOT for `gfx1201` | **implemented** | [`crates/intarsia-backend-hip/build.rs`](../crates/intarsia-backend-hip/build.rs) (default `gfx1201`) |
+| One `ik_portable.h` so simple kernels compile from one source for CUDA and HIP | **partial** | [`kernels/common/ik_portable.h`](../kernels/common/ik_portable.h) exists, but `kernels/cuda/*.cu` and `kernels/hip/*.hip` are separate files |
+| Apple (dev) / Arc (later): Metal / Vulkan or SYCL behind the same trait | **partial** | Metal **implemented**: [`crates/intarsia-backend-metal/src/lib.rs`](../crates/intarsia-backend-metal/src/lib.rs); Vulkan/SYCL **planned**: no code |
+| Offline Python tools, never imported by the server | **implemented** | [`tools/golden.py`](../tools/golden.py), [`tools/scribe.py`](../tools/scribe.py) |
+
+---
+
+## 2. System overview
+
+```mermaid
+flowchart LR
+  subgraph Front["Front door (crate: intarsia-server)"]
+    OAI["OpenAI: /v1/chat/completions, /v1/completions, /v1/responses, /v1/models"]
+    ANT["Anthropic: /v1/messages"]
+    UI["Embedded web UI: chat, live dashboard, live architecture map"]
+    MET["/metrics (Prometheus), OTLP, /events (SSE)"]
+  end
+  subgraph Core["Engine core (crate: intarsia-core)"]
+    TOK["Tokenizer + chat template + parsers (tools, reasoning)"]
+    SCH["Scheduler: continuous batching, chunked prefill, priorities"]
+    KV["KV manager: paged blocks, radix prefix cache, host tier"]
+    SPEC["Speculation: MTP, DFlash-style drafter, n-gram"]
+    SMP["Sampler + structured output (llguidance)"]
+    PLAN["Plan compiler: recipe → op graph → kernel selection → captured graphs per batch bucket"]
+  end
+  subgraph Pieces["Pieces (plugins)"]
+    REC["Recipes (TOML)"]
+    BLK["Block library: attention (GQA/MLA/SWA/GDN), FFN (dense/MoE), norms, rope"]
+    QF["Quant formats: BF16, FP8, NVFP4, MXFP4, GGUF k-quants, EXL3, AWQ/GPTQ"]
+    KR["Kernel registry: (op, backend, arch, dtype/quant, shape class) → impl + reference + autotune DB"]
+    BEN["Bench plugins: micro, e2e, localeval"]
+  end
+  subgraph HW["Backends (crate: intarsia-backend-*)"]
+    CPU["cpu-ref (always on: the oracle)"]
+    CUDA["cuda (GB10 sm_121)"]
+    HIP["hip (R9700 gfx1201)"]
+    COMM["Comm: NCCL/RCCL, P2P one-shot all-reduce"]
+  end
+  OAI & ANT & UI --> TOK --> SCH
+  SCH <--> KV
+  SCH --> SPEC --> PLAN
+  SCH --> PLAN --> KR --> CUDA & HIP & CPU
+  PLAN --> SMP
+  REC --> PLAN
+  BLK --> PLAN
+  QF --> KR
+  PLAN --> COMM
+  Core -. events .-> MET
+  MET --> UI
+```
+
+**Status (section 2 diagram).** Boxes that are **planned** or **partial**: `KV` ("paged blocks, radix prefix cache, host tier"; partial: live KV is contiguous per slot ([`state.rs`](../crates/intarsia-core/src/state.rs)); the opt-in content-addressed prefix store keeps paged, content-addressed prefix states in device, host and disk tiers ([`prefix_store.rs`](../crates/intarsia-core/src/prefix_store.rs)); there is no radix tree), `SPEC` (partial: n-gram (Metal only) and MTP (CUDA, HIP, Metal; one sequence) are in, see [`spec.rs`](../crates/intarsia-core/src/spec.rs) and [`model/spec_graph.rs`](../crates/intarsia-core/src/model/spec_graph.rs); no DFlash drafter), `QF` (partial: no GGUF k-quants, AWQ/GPTQ), `BLK` (partial: sliding window exists only inside the Gemma 4 block, [`model/gemma.rs`](../crates/intarsia-core/src/model/gemma.rs); no MLA, no Mamba2), `KR` "autotune DB" (planned), `HIP` and `CUDA` are implemented, `COMM` "NCCL/RCCL" (partial: NCCL on CUDA and a 2-rank P2P one-shot all-reduce on HIP, no RCCL), "OTLP" in `MET` (planned), `/v1/responses` in `OAI` (planned), `PLAN` "captured graphs per batch bucket" (partial: graphs are captured per decode row count, not per rounded bucket, see 3.6). Metal ([`crates/intarsia-backend-metal`](../crates/intarsia-backend-metal)) is implemented but missing from the diagram's `HW` subgraph. The picture in [architecture-diagram.md](architecture-diagram.md) marks planned components with dashed outlines.
+
+---
+
+## 3. Core abstractions (the pieces)
+
+### 3.1 Backend trait (minimal on purpose)
+
+```rust
+pub trait Backend: Send + Sync {
+    fn info(&self) -> DeviceInfo;                       // arch, mem, bandwidth (measured), features
+    fn alloc(&self, bytes: usize, kind: MemKind) -> Result<Buffer>;
+    fn copy(&self, dst: &Buffer, src: &Buffer, stream: StreamId) -> Result<()>;
+    fn launch(&self, k: &LoadedKernel, args: &KernelArgs, stream: StreamId) -> Result<()>;
+    fn graph_begin(&self, stream: StreamId) -> Result<()>;
+    fn graph_end(&self, stream: StreamId) -> Result<GraphHandle>;
+    fn graph_replay(&self, g: &GraphHandle, stream: StreamId) -> Result<()>;
+    fn event(&self, stream: StreamId) -> Result<Event>;
+    fn comm(&self) -> Option<&dyn Comm>;                 // TP collectives
+}
+```
+
+
+**Status (3.1).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| A minimal `Backend` trait is the whole device contract | **partial** | [`backend.rs:192`](../crates/intarsia-core/src/backend.rs): the trait exists with 33 methods, 9 required (`name`, `info`, `alloc`, `upload`, `download`, `copy`, `kernels`, `launch`, `synchronize`); the rest have defaults. Shape differs from the sketch: `launch` is `launch(kernel_name, &OpCall, stream)`, graphs are `graph_capture`/`graph_replay`, there is no `event` |
+| `fn comm(&self) -> Option<&dyn Comm>` | **partial** | no `comm` method on the trait; TP collectives are built from backend lists in [`crates/intarsia-core/src/comm.rs`](../crates/intarsia-core/src/comm.rs) and per-backend files |
+| Everything above the trait is backend-neutral | **partial** | backend-specific branches remain: [`crates/intarsia-core/src/model/batch.rs`](../crates/intarsia-core/src/model/batch.rs) tests `backend.name() != "cpu"`, and `--max-batch` above 1 is refused on any backend but Metal, CUDA and HIP (and the CPU backend with `IA_RECURRENT_BATCH=1`) in [`crates/intarsia-models/src/load.rs`](../crates/intarsia-models/src/load.rs) |
+| A Vulkan or SYCL backend only has to implement the trait plus its kernel packs | **planned** | no such backend; `kernels/abi/ik_abi.h` takes a CUDA-stream-shaped `void* stream` and CUDA/HIP share `ik_*` symbol names |
+| Backend init applies known-bad-default fixes as data (`GPU_MAX_HW_QUEUES=1`) | **partial** | applied by the launchers, not by backend init: [`crates/intarsia-cli/src/cmd/onboard.rs`](../crates/intarsia-cli/src/cmd/onboard.rs), [`crates/intarsia-cli/src/cmd/qualify.rs`](../crates/intarsia-cli/src/cmd/qualify.rs); `doctor` only reports it ([`crates/intarsia-cli/src/cmd/doctor.rs`](../crates/intarsia-cli/src/cmd/doctor.rs)) |
+
+
+Everything else (ops, quant, attention) lives above the trait. A Vulkan or SYCL backend for Arc only has to implement this plus its kernel packs. Backend init applies known-bad-default fixes as data (for example `GPU_MAX_HW_QUEUES=1` on HIP, which removed a permanent 20% slowdown).
+
+### 3.2 Kernel registry: the core of modularity and accuracy
+
+Every **op** (e.g. `matmul`, `rmsnorm_add`, `rope`, `paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) has:
+
+1. A **signature**: typed inputs/outputs, layouts, quant format.
+2. A **reference implementation** in `cpu-ref` (f32/f64 accumulate). This is the oracle.
+3. Any number of **implementations**, each declaring `(backend, arch set, dtype/quant, shape predicate, exactness class)`.
+
+```rust
+register_kernel! {
+    op: Matmul, name: "nvfp4_gemv_splitk_v1",
+    backend: Cuda, arch: [sm_121], weights: Nvfp4, acts: [Bf16, Fp8E4m3],
+    when: |s| s.m <= 8 && s.k % 64 == 0,          // shape preconditions are code, checked at plan time
+    exact: Exactness::Deterministic,               // or BitExactVsSerial / Tolerance(...)
+    tol: Tol { max_abs: 2e-2, rel_l2: 5e-3 },
+}
+```
+
+Rules:
+- **Admission test**: `intarsia kernels test` runs every registered implementation against its reference over a shape sweep (including the recipe's real shapes) and records pass/fail plus error stats. A kernel that fails is unselectable on that host. This catches the "compiles for sm_120 but runs garbage on sm_121" class.
+- **Plan-time preconditions**: shape predicates are evaluated when the plan is built, so traps like "MXFP4 GEMM needs per-rank K % 128" fail loudly at load, not as token-0 output.
+- **Autotuner**: for each (op, shape bucket) on a host, time the eligible implementations and store the winner in a **tuning DB** keyed by host fingerprint (GPU, driver, toolkit, kernel-pack hash). The DB is a committed lockfile per platform (`tuning/<fingerprint>.toml`) so results reproduce.
+- **Exactness modes** (from TensorFold): `fast` (any passing kernel), `deterministic` (fixed reduction order, run-to-run identical), `exact` (multi-row verify equals serial decode bit-for-bit; required for lossless speculation claims). Mode is a server flag and is reported in every result.
+
+
+**Status (3.2).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| Every op has a typed signature | **implemented** | [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs): `Op` enum, 42 ops with arity and shape checks. The example op names (`paged_attn_decode`, `paged_attn_verify`, `moe_gate_topk`, `moe_grouped_gemm`, `all_reduce_norm_quant`) are plan names; the real ones are `AttnDecode`, `AttnPrefill`, `MoeTopk`, `MoeExperts`, `MoeBlock`, and there is no all-reduce op |
+| Reference implementation per op in `cpu-ref` | **implemented** | [`crates/intarsia-backend-cpu/src/reference.rs`](../crates/intarsia-backend-cpu/src/reference.rs) |
+| Many implementations per op, each with (backend, arch, dtype/quant, shape predicate, exactness) | **implemented** | [`crates/intarsia-core/src/registry.rs`](../crates/intarsia-core/src/registry.rs) `KernelImpl` |
+| `register_kernel!` macro | **partial** | [`registry.rs:247`](../crates/intarsia-core/src/registry.rs) defines it; only that file uses it. Backends build `KernelImpl` values directly ([`crates/intarsia-backend-cuda/src/kernels.rs`](../crates/intarsia-backend-cuda/src/kernels.rs)). The `tol:` field in the example is illustrative |
+| Admission test, `intarsia kernels test`; failing kernel is unselectable | **implemented** | [`crates/intarsia-core/src/admission.rs`](../crates/intarsia-core/src/admission.rs), [`crates/intarsia-cli/src/cmd/kernels.rs`](../crates/intarsia-cli/src/cmd/kernels.rs) |
+| Plan-time preconditions fail loudly at load | **implemented** | [`crates/intarsia-core/src/plan.rs`](../crates/intarsia-core/src/plan.rs) returns `Error::NoKernel` when no admitted kernel fits |
+| Autotuner and tuning DB committed as `tuning/<fingerprint>.toml` | **planned** | no autotuner code and no `tuning/` directory; selection is static priority among admitted kernels |
+| Exactness modes `fast`, `deterministic`, `exact` | **implemented** | [`registry.rs:16`](../crates/intarsia-core/src/registry.rs) `Exactness` enum, shown by `intarsia kernels` |
+| Mode is a server flag reported in every result | **planned** | no `--exactness` flag in `serve` or `common.rs`; exactness is a per-kernel tag |
+
+### 3.3 Kernel ABI and kernel packs
+
+Every pack is a **port**, not an import (most upstream kernels take `torch::Tensor`). The port target is one torch-free C ABI, `kernels/abi/ik_abi.h`:
+
+```c
+typedef struct { void* data; int32_t dtype; int32_t ndim; int64_t shape[6]; int64_t stride[6]; } ik_tensor;
+typedef struct { const void* scales; const void* zeros; int32_t group; int32_t format; } ik_quant;
+// every launcher: raw tensors in, status out, explicit stream, no allocation inside
+int ik_rmsnorm_add(const ik_tensor* x, const ik_tensor* res, const ik_tensor* w, float eps, ik_tensor* out, void* stream);
+```
+
+Kernels are compiled by `nvcc`/`hipcc` into a static library per backend and bound from Rust via `extern "C"`. The same shim pattern covers HIP, where Rust bindings are thin (no RCCL or hipBLASLt crates).
+
+| Pack | Backend | License | Port first |
+|---|---|---|---|
+| `native` (ours) | CUDA + HIP | Apache-2.0 | norms, rope, embedding, sampling, simple attention, glue |
+| `tensorfold` | CUDA (+ its ROCm variants) | MIT | EXL3 linear/experts, NVFP4 `qmmf`, GDN, DFlash verify, attention: holds the Spark bar |
+| `radiance` (`libr4d`) | HIP gfx1201 | Apache-2.0 (keep `NOTICE`) | MXFP4×FP8 GEMM, one-shot 2/3-rank all-reduce (+norm+quant), GDN recurrent update, paged attention, int2 lm_head: holds the R9700 bar |
+| `cublaslt` / `hipblaslt` | vendor | vendor | prefill GEMM, registered as `Exactness::Fast` only (algorithm choice varies by shape; graphs freeze one) |
+
+Other packs (flashinfer, cutlass, ggml, exl3 upstream, ck/aiter) are added only when a measured gap names one. Rule: **no pack is vendored without its license file in `LICENSES/`**, pinned by commit, and every exported kernel passes the admission test.
+
+**Block-scope fused ops are first-class.** Radiance and TensorFold are fast because of hand-fused, family-specific kernels (all-reduce in a GEMV epilogue, norm+quant into GDN). A generic pattern-rewriting fuser is a compiler project we will not build. Instead the registry holds fused block ops (e.g. `gdn_layer_decode_fused`, `attn_block_decode_fused`, `all_reduce_rmsnorm_fp8`) whose reference is the generic op chain. The plan compiler picks the fused op when one is admitted for the shape, else falls back to the chain.
+
+
+**Status (3.3).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| One torch-free C ABI, `kernels/abi/ik_abi.h` | **implemented** | [`kernels/abi/ik_abi.h`](../kernels/abi/ik_abi.h) (`ik_tensor`, `ik_quant`; launcher comment still says Phase 0 dense BF16) |
+| Kernels compiled by `nvcc`/`hipcc` into a static library and bound via `extern "C"` | **implemented** | [`crates/intarsia-backend-cuda/build.rs`](../crates/intarsia-backend-cuda/build.rs), [`crates/intarsia-backend-hip/build.rs`](../crates/intarsia-backend-hip/build.rs), FFI in `ffi.rs` of each crate |
+| `native` pack (ours, CUDA + HIP) | **implemented** | [`kernels/cuda`](../kernels/cuda), [`kernels/hip`](../kernels/hip) |
+| `tensorfold` pack (MIT): EXL3, NVFP4, GDN, DFlash verify | **partial** | ports of TensorFold kernels exist ([`kernels/cuda/exl3.cu`](../kernels/cuda/exl3.cu), [`kernels/cuda/nvfp4.cu`](../kernels/cuda/nvfp4.cu), licence in [`LICENSES/TensorFold-MIT.txt`](../LICENSES/TensorFold-MIT.txt)); there is no pack boundary, and no DFlash verify |
+| `radiance` pack (Apache-2.0): MXFP4xFP8 GEMM, one-shot all-reduce, GDN, paged attention | **partial** | HIP kernels with attribution ([`kernels/hip/NOTICE-radiance`](../kernels/hip/NOTICE-radiance), [`LICENSES/Apache-2.0-radiance.txt`](../LICENSES/Apache-2.0-radiance.txt)): MXFP4 GEMM ([`kernels/hip/mxfp4.hip`](../kernels/hip/mxfp4.hip)), a 2-rank one-shot all-reduce ([`kernels/hip/allreduce.hip`](../kernels/hip/allreduce.hip)), GDN ([`kernels/hip/gdn.hip`](../kernels/hip/gdn.hip)); no paged attention, and the all-reduce is 2-rank only |
+| `cublaslt` / `hipblaslt` prefill GEMM registered as `Fast` | **partial** | cuBLASLt for FP8 only ([`kernels/cuda/fp8_gemm_lt.cu`](../kernels/cuda/fp8_gemm_lt.cu)); a hipBLASLt route is not built (the note is in [`kernels/hip/matmul.hip`](../kernels/hip/matmul.hip), see [`docs/backends/hip.md`](backends/hip.md)) |
+| Other packs (flashinfer, cutlass, ggml, exl3, ck/aiter) as pinned submodules under `kernels/packs/` | **planned** | no `kernels/packs/`, no `.gitmodules` |
+| No pack vendored without its licence file in `LICENSES/` | **implemented** | [`LICENSES`](../LICENSES) holds radiance, TensorFold and exllamav3 |
+| Block-scope fused ops are first-class; plan picks the fused op when admitted, else the chain | **partial** | fused ops exist as `Op` variants (`MoeBlock`, `GdnConvDelta`, `RmsNormAddMatmulPair`, `QkNormRopeKv`, ... in [`crates/intarsia-core/src/ops.rs`](../crates/intarsia-core/src/ops.rs)); the example names (`gdn_layer_decode_fused`, `attn_block_decode_fused`, `all_reduce_rmsnorm_fp8`) do not exist, and the chain fallback is decided in model code, not by the plan compiler |
+
+### 3.4 Quant formats as plugins
+
+```rust
+pub trait QuantFormat {
+    fn id(&self) -> QuantId;                                  // "nvfp4", "mxfp4", "gguf:q4_k", "exl3:3.0", ...
+    fn detect(&self, meta: &WeightMeta) -> bool;              // from safetensors/GGUF metadata
+    fn load(&self, src: &TensorSource, dst: &dyn Backend, layout: &Layout) -> Result<QTensor>;
+    fn dequant_ref(&self, q: &QTensor) -> Tensor;             // used by the oracle
+    fn quantize(&self, t: &Tensor, cfg: &QuantCfg) -> Option<QTensor>;  // optional: on-the-fly RTN
+}
+```
+
+Adding a quant = implement this trait + register matmul kernels that accept it. The oracle path (`dequant_ref` + reference matmul) works the moment `load` and `dequant_ref` exist, so correctness is testable before any fast kernel is written.
+
+Per-tensor overrides live in the recipe (e.g. drafter stays FP8: MXFP4 RTN dropped drafter acceptance from 2.5 to 2.21 on R9700).
+
+
+**Status (3.4).**
+
+| Claim | Status | Evidence on origin/main |
+|---|---|---|
+| `QuantFormat` trait with `id`, `detect`, `load`, `dequant_ref`, `quantize` | **implemented** | [`mod.rs:233`](../crates/intarsia-core/src/quant/mod.rs) (same five methods; `load` takes `WeightMeta`, `&dyn Backend` and `QuantLoadOpts`) |
+| Formats BF16, FP8, NVFP4, MXFP4, EXL3 | **implemented** | [`crates/intarsia-core/src/quant/fp8.rs`](../crates/intarsia-core/src/quant/fp8.rs), [`crates/intarsia-core/src/quant/nvfp4.rs`](../crates/intarsia-core/src/quant/nvfp4.rs), [`crates/intarsia-core/src/quant/mxfp4.rs`](../crates/intarsia-core/src/quant/mxfp4.rs), [`crates/intarsia-core/src/quant/exl3.rs`](../crates/intarsia-core/src/quant/exl3.rs); BF16 is `Bf16Dense` in `quant/mod.rs` |
+| Formats GGUF k-quants, AWQ/GPTQ | **planned** | no `QuantFormat` impl; `gguf` appears only in `quant/scheme.rs` and `cmd/recipe.rs` text |
+| Adding a quant = implement the trait + register kernels | **partial** | also needs `Op` variants per (format, fusion) and edits in about 20 files (review finding 9, deferred to the user) |
+| Oracle path works as soon as `load` and `dequant_ref` exist | **implemented** | [`crates/intarsia-core/src/quant/reference.rs`](../crates/intarsia-core/src/quant/reference.rs) |
+| Per-tensor overrides live in the recipe | **partial** | recipes carry per-backend tuning tables; per-tensor quant overrides are chosen in load code, not in the recipe TOML |
+| `intarsia-quant` crate (section 12) | **planned** | does not exist; code is under [`crates/intarsia-core/src/quant`](../crates/intarsia-core/src/quant) |
+
+### 3.5 Block library and recipes: adding a model
+
+A **block** is a reu
+E20261029 10:05:22.594920 140212598295232 output_stream.cpp:111] Opened result file: /work/pf27c-prof/run_kernel_trace.csv
+E20261029 10:05:22.636214 140212598295232 output_stream.cpp:111] Opened result file: /work/pf27c-prof/run_agent_info.csv
+W20261029 10:05:22.636842 140212598295232 simple_timer.cpp:55] [rocprofv3] output generation ::     0.046620 sec
+W20261029 10:05:22.637053 140212598295232 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.046845 sec

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Lane PF27c (from ARX)2: pool the localeval speed runs of one or more steps.logs by model / spec mode / arm (rec* = main, p1* = push) and print the median of the
+"""Lane PF27c (from ARX)2: pool the localeval speed runs of one or more steps.logs by model / spec mode / arm (rec* = main, +bin=pf27c-dev-cli = dev, shown as "push") and print the median of the
 per-run medians per size, with the spread, and the push / main ratio.
 usage: speedtab2.py steps.log [steps.log ...]   (results are read from /opt/code/deepeval/)"""
 import json, re, statistics as st, sys, collections
@@ -8,7 +8,7 @@ out = collections.defaultdict(lambda: {'pre': [], 'dec': []})
 runs = collections.Counter()
 for path in sys.argv[1:]:
     for m in re.finditer(r'item (\d+) (\S+) speed: exit 0 (results/\S+)', open(path).read()):
-        full = m.group(2); arm = 'push' if full.startswith('p1') else 'main'
+        full = m.group(2); arm = 'push' if 'bin=pf27c-dev-cli' in full else 'main'  # lane pf27c: 'push' = the dev binary
         grp = ('35B' if 'm35' in full else '27B') + (' spec off' if 'spoff' in full else ' default spec')
         runs[(grp, arm)] += 1
         for row in json.load(open(root + m.group(3)))['speed']['rows']:

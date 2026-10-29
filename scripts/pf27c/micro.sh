@@ -196,10 +196,10 @@ fi
 if has arrate; then
   for b in base dev; do gpu 60 /work/pf27c-bin/comm-$b --ignored --nocapture all_reduce_rate > "$O/arrate-$b.txt" 2>&1; done
 fi
-# ptime  lane pf27c: tests/ar_push.rs push_gemm_timing (dev) once per INTARSIA_HIP_AR_PUSH_DIAG value of PDIAGS ("-" = unset)
+# ptime  lane pf27c: tests/ar_push.rs push_gemm_timing (dev) once per value of PDIAGS ("-" = unset) of the env var PDVAR
 if has ptime; then
   for d in ${PDIAGS:--}; do
-    e=A=1; [[ $d != - ]] && e=${PDVAR:-INTARSIA_HIP_AR_PUSH_DIAG}=$d
+    e=A=1; [[ $d != - ]] && e=${PDVAR:?PDVAR}=$d
     gpu 100 env $e ${PTENV:-} /work/pf27c-bin/ar_push-${PTBIN:-dev} --ignored --nocapture --test-threads 1 push_gemm_timing > "$O/ptime-$d.txt" 2>&1
     echo "== ptime [$e]: $(grep -a '^TIMEP\|PF27C-DIAG\|panicked' "$O/ptime-$d.txt" | sed 's/TIMEP //' | tr '\n' '|')"
   done

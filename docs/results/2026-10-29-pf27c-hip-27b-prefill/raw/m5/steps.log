@@ -1,0 +1,15 @@
+fleetq: #6904 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m5 SEC='"'"'hash gen corr'"'"' GREPS=3 CENVS='"'"'A=1'"'"' bash ~/intarsiaml-pf27c/scripts/pf27c/micro.sh'
+[arx] stopping radiance 2026-10-29 06:34:24
+[arx] radiance inactive 2026-10-29 06:34:27
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 812 ms (4751.8 tok/s) | decode 0 ms (0.00 tok/s) (7 s)
+== gen pf27c-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 827 ms (4663.2 tok/s) | decode 0 ms (0.00 tok/s) (11 s)
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 811 ms (4756.7 tok/s) | decode 0 ms (0.00 tok/s) (15 s)
+== gen pf27c-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 833 ms (4632.3 tok/s) | decode 0 ms (0.00 tok/s) (19 s)
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 819 ms (4712.6 tok/s) | decode 0 ms (0.00 tok/s) (23 s)
+== gen pf27c-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 833 ms (4631.2 tok/s) | decode 0 ms (0.00 tok/s) (26 s)
+== corr [A=1] rc=0: test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 20.85s  (48 s)
+== hash: base 48 lines, dev 48, differing: 0
+[arx] micro done 2026-10-29 06:35:23, 59 s
+[arx] starting radiance 2026-10-29 06:35:23
+[arx] RADIANCE-RESTORE active after 10 s at 2026-10-29 06:35:33; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793270131,"owned_by":"radiance"
+fleetq: #6904 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -1,0 +1,21 @@
+07:32:47 guard: [guard] radiance stopped 2026-10-29 07:32:46
+07:32:47 item 1: starting server rec
+07:34:36 item 1 rec speed: exit 0 results/20261029-073404-pf27c-rec-pf27c-w2-rec-1/result.json
+07:35:56 item 2 rec texts: exit 0       18 lines
+07:35:56 item 3: starting server rec+bin=pf27c-dev-cli
+07:37:44 item 3 rec+bin=pf27c-dev-cli speed: exit 0 results/20261029-073713-pf27c-rec_bin_pf27c-dev-cli-pf27c-w2-rec_bin_pf27c-dev-cli-3/result.json
+07:39:03 item 4 rec+bin=pf27c-dev-cli texts: exit 0       18 lines
+07:39:03 item 5: starting server rec
+07:40:52 item 5 rec speed: exit 0 results/20261029-074021-pf27c-rec-pf27c-w2-rec-5/result.json
+07:40:52 item 6: starting server rec+bin=pf27c-dev-cli
+07:42:41 item 6 rec+bin=pf27c-dev-cli speed: exit 0 results/20261029-074210-pf27c-rec_bin_pf27c-dev-cli-pf27c-w2-rec_bin_pf27c-dev-cli-6/result.json
+07:42:41 item 7: starting server rec
+07:44:29 item 7 rec speed: exit 0 results/20261029-074358-pf27c-rec-pf27c-w2-rec-7/result.json
+07:44:29 item 8: starting server rec+bin=pf27c-dev-cli
+07:46:17 item 8 rec+bin=pf27c-dev-cli speed: exit 0 results/20261029-074546-pf27c-rec_bin_pf27c-dev-cli-pf27c-w2-rec_bin_pf27c-dev-cli-8/result.json
+07:46:17 item 9: starting server rec+spoff
+07:47:28 item 9 rec+spoff speed: exit 0 results/20261029-074649-pf27c-rec_spoff-pf27c-w2-rec_spoff-9/result.json
+07:47:28 item 10: starting server rec+bin=pf27c-dev-cli+spoff
+07:48:38 item 10 rec+bin=pf27c-dev-cli+spoff speed: exit 0 results/20261029-074759-pf27c-rec_bin_pf27c-dev-cli_spoff-pf27c-w2-rec_bin_pf27c-dev-cli_spoff-10/result.json
+07:48:38 done
+07:48:48 guard: [guard] radiance answers 2026-10-29 07:48:48 (after 15 s)
