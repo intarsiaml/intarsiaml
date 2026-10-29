@@ -145,6 +145,17 @@ pub struct PeerState {
     pub st: SequenceState,
 }
 
+/// One forward pass that wrote the KV rows `start..end` ([`SequenceState::passes`]). `rows` is the row count whose kernels'
+/// bits the rows carry: the pass's own row count for an ordinary (prefill) pass, 1 for a decode step or a row-exact
+/// speculative-verify pass (their kernels give a row the bits of a 1-row pass whatever the row count). A truncate that cuts a
+/// pass clips `end` and keeps `rows`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Pass {
+    pub start: usize,
+    pub end: usize,
+    pub rows: usize,
+}
+
 /// All state of one sequence.
 pub struct SequenceState {
     /// Unique per allocated state (never reused): a captured CUDA graph is bound to one state's buffers
@@ -173,11 +184,11 @@ pub struct SequenceState {
     /// the engine's chunk schedule, none by a decode step, so their state is what a cold prefill of `tokens[..clean]`
     /// computes. Lowered by [`SequenceState::truncate`], set by [`SequenceState::load_prefix`]; the engine advances it.
     pub clean: usize,
-    /// The forward passes that wrote rows `0..len`, in order, as `(first row, end)`: one entry per committed pass
-    /// ([`SequenceState::commit`]). A truncate drops the passes past the new length (a pass it cuts through leaves a gap),
-    /// a prefix-store restore leaves none. Exact prefix reuse on a chunk-sensitive backend reads it
-    /// ([`SequenceState::ladder_reuse_len`]).
-    pub passes: Vec<(usize, usize)>,
+    /// The forward passes that wrote rows `0..len`, in order: one entry per committed pass ([`SequenceState::commit`]).
+    /// A truncate drops the passes past the new length and clips the one it cuts through, a prefix-store restore leaves
+    /// none. Exact prefix reuse on a chunk-sensitive backend reads it ([`SequenceState::ladder_reuse_len`],
+    /// [`SequenceState::wide_reuse_len`]).
+    pub passes: Vec<Pass>,
     /// The MTP drafter's state (`--spec mtp` only).
     pub mtp: Option<Box<MtpState>>,
     /// The DFlash drafter's state (`--spec dflash` only).
@@ -453,15 +464,32 @@ impl SequenceState {
     pub fn ladder_reuse_len(&self, want: usize, chunk: usize, points: &[usize]) -> usize {
         let want = want.min(self.len);
         let mut best = 0;
-        for (i, &p) in self.passes.iter().enumerate() {
-            if p != (i * chunk, (i + 1) * chunk) || p.1 > want {
+        for (i, p) in self.passes.iter().enumerate() {
+            if (p.start, p.end) != (i * chunk, (i + 1) * chunk) || p.rows != chunk || p.end > want {
                 break;
             }
-            if points.contains(&p.1) {
-                best = p.1;
+            if points.contains(&p.end) {
+                best = p.end;
             }
         }
         best
+    }
+
+    /// Exact prefix reuse on a backend whose passes of `min_rows` rows or more write rows bitwise equal to each other's and
+    /// to a one-pass prefill's, whatever the split (`Backend::prefix_reuse_min_pass_rows`; Metal: only a 1-row pass
+    /// differs): the longest prefix `<= want` whose rows this state wrote with such passes only, in an unbroken run from
+    /// row 0. A decode step or a row-exact verify pass (`rows` 1), the rows of a prefix-store restore (no pass) and a gap
+    /// end it. The caller still has to prefill the rest in passes of `min_rows` rows or more.
+    pub fn wide_reuse_len(&self, want: usize, min_rows: usize) -> usize {
+        let want = want.min(self.len);
+        let mut end = 0;
+        for p in &self.passes {
+            if end >= want || p.start != end || p.rows < min_rows {
+                break;
+            }
+            end = p.end;
+        }
+        end.min(want)
     }
 
     /// Roll back to the first `len` tokens (prefix reuse). Attention caches just shorten;
@@ -553,7 +581,10 @@ impl SequenceState {
         self.len = len;
         self.tokens.truncate(len);
         self.clean = self.clean.min(len);
-        self.passes.retain(|p| p.1 <= len);
+        self.passes.retain(|p| p.start < len);
+        if let Some(p) = self.passes.last_mut() {
+            p.end = p.end.min(len);
+        }
         Ok(())
     }
 
@@ -584,7 +615,7 @@ impl SequenceState {
 
     /// Advance a draft KV state by `n` ingested rows (every attention slot): the DFlash context cache holds no tokens.
     pub fn advance_rows(&mut self, n: usize) {
-        self.passes.push((self.len, self.len + n));
+        self.passes.push(Pass { start: self.len, end: self.len + n, rows: 1 });
         self.len += n;
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {
@@ -620,7 +651,13 @@ impl SequenceState {
 
     /// Advance after a forward pass appended `ids`.
     pub fn commit(&mut self, ids: &[u32]) {
-        self.passes.push((self.len, self.len + ids.len()));
+        self.commit_rows(ids, ids.len());
+    }
+
+    /// [`SequenceState::commit`] for a pass whose rows carry the bits of `rows`-row kernels, not of `ids.len()`-row ones:
+    /// a row-exact speculative-verify pass (`rows` 1: each row is what a decode step writes).
+    pub fn commit_rows(&mut self, ids: &[u32], rows: usize) {
+        self.passes.push(Pass { start: self.len, end: self.len + ids.len(), rows });
         self.len += ids.len();
         self.tokens.extend_from_slice(ids);
         for s in self.slots.iter_mut() {

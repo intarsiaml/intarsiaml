@@ -1,0 +1,258 @@
+[
+ {
+  "phase": "SEQ",
+  "chat": 0,
+  "turn": 1,
+  "text": "The capital of Australia is **Canberra**.\n\n**Why was it chosen?**\n\nCanberra was selected as the capital of Australia in 1908 as a compromise between two major cities: **Sydney** and **Melbourne",
+  "cached": 0,
+  "prompt": 25
+ },
+ {
+  "phase": "SEQ",
+  "chat": 0,
+  "turn": 2,
+  "text": "Certainly! Let's delve deeper into the history and reasons behind the selection of **Canberra** as the capital of Australia.\n\n---\n\n### **Background: The Need for a Capital**\n\nWhen Australia became a federation in **1901**,",
+  "cached": 21,
+  "prompt": 93
+ },
+ {
+  "phase": "SEQ",
+  "chat": 1,
+  "turn": 1,
+  "text": "The sky appears blue due to a phenomenon called **Rayleigh scattering**, which is a type of light scattering that occurs when light interacts with particles much smaller than the wavelength of the light. Here's a step-by-step explanation of why the sky",
+  "cached": 3,
+  "prompt": 25
+ },
+ {
+  "phase": "SEQ",
+  "chat": 1,
+  "turn": 2,
+  "text": "Certainly! Let's continue the explanation in more detail, breaking down the process of why the sky appears blue:\n\n---\n\n### **Step 1: The Sun emits white light**\n\nThe Sun emits light that appears white to our eyes, but in",
+  "cached": 21,
+  "prompt": 93
+ },
+ {
+  "phase": "SEQ",
+  "chat": 2,
+  "turn": 1,
+  "text": "**Haiku:**\n\nCrisp leaves dance on wind,  \nGolden light through maple trees\u2014  \nAutumn whispers peace.\n\n**Explanation of Imagery:**\n\nThis haiku captures the essence of autumn through vivid, sensory imagery. \n\n",
+  "cached": 3,
+  "prompt": 24
+ },
+ {
+  "phase": "SEQ",
+  "chat": 2,
+  "turn": 2,
+  "text": "Certainly! Let's continue with a second haiku and then provide a more detailed explanation of its imagery.\n\n---\n\n**Haiku:**\n\nCrisp leaves dance on wind,  \nGolden light through maple trees\u2014  \nAutumn whispers peace.\n\n",
+  "cached": 20,
+  "prompt": 92
+ },
+ {
+  "phase": "SEQ",
+  "chat": 3,
+  "turn": 1,
+  "text": "TCP (Transmission Control Protocol) and UDP (User Datagram Protocol) are both transport layer protocols used in the Internet Protocol (IP) suite. They are used to send data across networks, but they differ significantly in their approach, features, and",
+  "cached": 3,
+  "prompt": 19
+ },
+ {
+  "phase": "SEQ",
+  "chat": 3,
+  "turn": 2,
+  "text": "Certainly! Let's continue the explanation of how **TCP** (Transmission Control Protocol) differs from **UDP** (User Datagram Protocol) in more detail.\n\n---\n\n### **1. Connection-Oriented vs. Connectionless**\n\n- **TCP",
+  "cached": 15,
+  "prompt": 87
+ },
+ {
+  "phase": "REPEAT",
+  "chat": 0,
+  "turn": 1,
+  "text": "The capital of Australia is **Canberra**.\n\n**Why was it chosen?**\n\nCanberra was selected as the capital of Australia in 1908 as a compromise between two major cities: **Sydney** and **Melbourne",
+  "cached": 3,
+  "prompt": 25
+ },
+ {
+  "phase": "REPEAT",
+  "chat": 0,
+  "turn": 2,
+  "text": "Certainly! Let's delve deeper into the history and reasons behind the selection of **Canberra** as the capital of Australia.\n\n---\n\n### **Background: The Need for a Capital**\n\nWhen Australia became a federation in **1901**,",
+  "cached": 21,
+  "prompt": 93
+ },
+ {
+  "phase": "REPEAT",
+  "chat": 1,
+  "turn": 1,
+  "text": "The sky appears blue due to a phenomenon called **Rayleigh scattering**, which is a type of light scattering that occurs when light interacts with particles much smaller than the wavelength of the light. Here's a step-by-step explanation of why the sky",
+  "cached": 3,
+  "prompt": 25
+ },
+ {
+  "phase": "REPEAT",
+  "chat": 1,
+  "turn": 2,
+  "text": "Certainly! Let's continue the explanation in more detail, breaking down the process of why the sky appears blue:\n\n---\n\n### **Step 1: The Sun emits white light**\n\nThe Sun emits light that appears white to our eyes, but in",
+  "cached": 21,
+  "prompt": 93
+ },
+ {
+  "phase": "REPEAT",
+  "chat": 2,
+  "turn": 1,
+  "text": "**Haiku:**\n\nCrisp leaves dance on wind,  \nGolden light through maple trees\u2014  \nAutumn whispers peace.\n\n**Explanation of Imagery:**\n\nThis haiku captures the essence of autumn through vivid, sensory imagery. \n\n",
+  "cached": 3,
+  "prompt": 24
+ },
+ {
+  "phase": "REPEAT",
+  "chat": 2,
+  "turn": 2,
+  "text": "Certainly! Let's continue with a second haiku and then provide a more detailed explanation of its imagery.\n\n---\n\n**Haiku:**\n\nCrisp leaves dance on wind,  \nGolden light through maple trees\u2014  \nAutumn whispers peace.\n\n",
+  "cached": 20,
+  "prompt": 92
+ },
+ {
+  "phase": "REPEAT",
+  "chat": 3,
+  "turn": 1,
+  "text": "TCP (Transmission Control Protocol) and UDP (User Datagram Protocol) are both transport layer protocols used in the Internet Protocol (IP) suite. They are used to send data across networks, but they differ significantly in their approach, features, and",
+  "cached": 3,
+  "prompt": 19
+ },
+ {
+  "phase": "REPEAT",
+  "chat": 3,
+  "turn": 2,
+  "text": "Certainly! Let's continue the explanation of how **TCP** (Transmission Control Protocol) differs from **UDP** (User Datagram Protocol) in more detail.\n\n---\n\n### **1. Connection-Oriented vs. Connectionless**\n\n- **TCP",
+  "cached": 15,
+  "prompt": 87
+ },
+ {
+  "phase": "CONC0",
+  "chat": 0,
+  "turn": 1,
+  "text": "The capital of Australia is **Canberra**.\n\n**Why was it chosen?**\n\nCanberra was selected as the capital of Australia in 1908 as a compromise between two major cities: **Sydney** and **Melbourne",
+  "cached": 3,
+  "prompt": 25
+ },
+ {
+  "phase": "CONC0",
+  "chat": 0,
+  "turn": 2,
+  "text": "Certainly! Let's delve deeper into the history and reasons behind the selection of **Canberra** as the capital of Australia.\n\n---\n\n### **Background: The Need for a Capital**\n\nWhen Australia became a federation in **1901**,",
+  "cached": 21,
+  "prompt": 93
+ },
+ {
+  "phase": "CONC0",
+  "chat": 1,
+  "turn": 1,
+  "text": "The sky appears blue due to a phenomenon called **Rayleigh scattering**, which is a type of light scattering that occurs when light interacts with particles much smaller than the wavelength of the light. Here's a step-by-step explanation of why the sky",
+  "cached": 0,
+  "prompt": 25
+ },
+ {
+  "phase": "CONC0",
+  "chat": 1,
+  "turn": 2,
+  "text": "Certainly! Let's continue the explanation in more detail, breaking down the process of why the sky appears blue:\n\n---\n\n### **Step 1: The Sun emits white light**\n\nThe Sun emits light that appears white to our eyes, but in",
+  "cached": 21,
+  "prompt": 93
+ },
+ {
+  "phase": "CONC0",
+  "chat": 2,
+  "turn": 1,
+  "text": "**Haiku:**\n\nCrisp leaves dance on wind,  \nGolden light through maple trees\u2014  \nAutumn whispers peace.\n\n**Explanation of Imagery:**\n\nThis haiku captures the essence of autumn through vivid, sensory imagery. \n\n",
+  "cached": 0,
+  "prompt": 24
+ },
+ {
+  "phase": "CONC0",
+  "chat": 2,
+  "turn": 2,
+  "text": "Certainly! Let's continue with a second haiku and then provide a more detailed explanation of its imagery.\n\n---\n\n**Haiku:**\n\nCrisp leaves dance on wind,  \nGolden light through maple trees\u2014  \nAutumn whispers peace.\n\n",
+  "cached": 20,
+  "prompt": 92
+ },
+ {
+  "phase": "CONC0",
+  "chat": 3,
+  "turn": 1,
+  "text": "TCP (Transmission Control Protocol) and UDP (User Datagram Protocol) are both transport layer protocols used in the Internet Protocol (IP) suite. They are used to send data across networks, but they differ significantly in their approach, features, and",
+  "cached": 0,
+  "prompt": 19
+ },
+ {
+  "phase": "CONC0",
+  "chat": 3,
+  "turn": 2,
+  "text": "Certainly! Let's continue the explanation of how **TCP** (Transmission Control Protocol) differs from **UDP** (User Datagram Protocol) in more detail.\n\n---\n\n### **1. Connection-Oriented vs. Connectionless**\n\n- **TCP",
+  "cached": 15,
+  "prompt": 87
+ },
+ {
+  "phase": "CONC1",
+  "chat": 0,
+  "turn": 1,
+  "text": "The capital of Australia is **Canberra**.\n\n**Why was it chosen?**\n\nCanberra was selected as the capital of Australia in 1908 as a compromise between two major cities: **Sydney** and **Melbourne",
+  "cached": 21,
+  "prompt": 25
+ },
+ {
+  "phase": "CONC1",
+  "chat": 0,
+  "turn": 2,
+  "text": "Certainly! Let's delve deeper into the history and reasons behind the selection of **Canberra** as the capital of Australia.\n\n---\n\n### **Background: The Need for a Capital**\n\nWhen Australia became a federation in **1901**,",
+  "cached": 21,
+  "prompt": 93
+ },
+ {
+  "phase": "CONC1",
+  "chat": 1,
+  "turn": 1,
+  "text": "The sky appears blue due to a phenomenon called **Rayleigh scattering**, which is a type of light scattering that occurs when light interacts with particles much smaller than the wavelength of the light. Here's a step-by-step explanation of why the sky",
+  "cached": 21,
+  "prompt": 25
+ },
+ {
+  "phase": "CONC1",
+  "chat": 1,
+  "turn": 2,
+  "text": "Certainly! Let's continue the explanation in more detail, breaking down the process of why the sky appears blue:\n\n---\n\n### **Step 1: The Sun emits white light**\n\nThe Sun emits light that appears white to our eyes, but in",
+  "cached": 21,
+  "prompt": 93
+ },
+ {
+  "phase": "CONC1",
+  "chat": 2,
+  "turn": 1,
+  "text": "**Haiku:**\n\nCrisp leaves dance on wind,  \nGolden light through maple trees\u2014  \nAutumn whispers peace.\n\n**Explanation of Imagery:**\n\nThis haiku captures the essence of autumn through vivid, sensory imagery. \n\n",
+  "cached": 20,
+  "prompt": 24
+ },
+ {
+  "phase": "CONC1",
+  "chat": 2,
+  "turn": 2,
+  "text": "Certainly! Let's continue with a second haiku and then provide a more detailed explanation of its imagery.\n\n---\n\n**Haiku:**\n\nCrisp leaves dance on wind,  \nGolden light through maple trees\u2014  \nAutumn whispers peace.\n\n",
+  "cached": 20,
+  "prompt": 92
+ },
+ {
+  "phase": "CONC1",
+  "chat": 3,
+  "turn": 1,
+  "text": "TCP (Transmission Control Protocol) and UDP (User Datagram Protocol) are both transport layer protocols used in the Internet Protocol (IP) suite. They are used to send data across networks, but they differ significantly in their approach, features, and",
+  "cached": 15,
+  "prompt": 19
+ },
+ {
+  "phase": "CONC1",
+  "chat": 3,
+  "turn": 2,
+  "text": "Certainly! Let's continue the explanation of how **TCP** (Transmission Control Protocol) differs from **UDP** (User Datagram Protocol) in more detail.\n\n---\n\n### **1. Connection-Oriented vs. Connectionless**\n\n- **TCP",
+  "cached": 15,
+  "prompt": 87
+ }
+]

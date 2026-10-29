@@ -1,0 +1,10 @@
+fleetq: #6763 waiting (#1 in line): needs gpu quiet on endor, but #6761 "prc: wide-rule gates 8B (default / any / chunk4 / exact)" (claude-f31ccf91) loads it
+fleetq:   #6761 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6761 set, or it will wait for #6761 to be released.
+fleetq: #6763 running on endor: /private/tmp/claude-501/prc-plan.sh
+PLAN-IDENTICAL
+    1342 docs/results/2026-10-29-prc-metal-cheap-reuse/raw/plan/8b-base.txt
+    1342 docs/results/2026-10-29-prc-metal-cheap-reuse/raw/plan/8b-new.txt
+    8371 docs/results/2026-10-29-prc-metal-cheap-reuse/raw/plan/8b-base.json
+    8371 docs/results/2026-10-29-prc-metal-cheap-reuse/raw/plan/8b-new.json
+   19426 total
+fleetq: #6763 done (exit 0)

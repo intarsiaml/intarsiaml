@@ -1,0 +1,4 @@
+== exact
+run 0: turn 1 prompt 1785 cached 0 ttft 442 ms; turn 2 prompt 1853 cached 0 ttft 458 ms
+run 1: turn 1 prompt 1736 cached 0 ttft 432 ms; turn 2 prompt 1804 cached 0 ttft 456 ms
+run 2: turn 1 prompt 1734 cached 0 ttft 427 ms; turn 2 prompt 1802 cached 0 ttft 455 ms

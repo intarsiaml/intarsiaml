@@ -1,0 +1,16 @@
+fleetq: #6767 waiting (#3 in line): in line behind #6763 "prc: plan show 8B base vs new" (claude-f31ccf91) on endor
+fleetq:   #6763 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6763 set, or it will wait for #6763 to be released.
+fleetq: #6767 waiting (#2 in line): in line behind #6764 "noop: build #235" (claude-f31ccf91) on endor
+fleetq:   #6764 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6764 set, or it will wait for #6764 to be released.
+fleetq: #6767 waiting (#1 in line): needs cpu quiet on endor, but #6764 "noop: build #235" (claude-f31ccf91) loads it
+fleetq:   #6764 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=6764 set, or it will wait for #6764 to be released.
+fleetq: #6767 running on endor: scripts/prc/ttft.sh /opt/code/intarsiaml/.worktrees/prc/target/new-intarsia docs/results/2026-10-29-prc-metal-cheap-reuse/raw/ttft
+== exact
+run 0: turn 1 prompt 1785 cached 0 ttft 442 ms; turn 2 prompt 1853 cached 0 ttft 458 ms
+run 1: turn 1 prompt 1736 cached 0 ttft 432 ms; turn 2 prompt 1804 cached 0 ttft 456 ms
+run 2: turn 1 prompt 1734 cached 0 ttft 427 ms; turn 2 prompt 1802 cached 0 ttft 455 ms
+== new
+run 0: turn 1 prompt 1785 cached 182 ttft 414 ms; turn 2 prompt 1853 cached 1781 ttft 57 ms
+run 1: turn 1 prompt 1736 cached 7 ttft 427 ms; turn 2 prompt 1804 cached 1732 ttft 57 ms
+run 2: turn 1 prompt 1734 cached 7 ttft 427 ms; turn 2 prompt 1802 cached 1730 ttft 57 ms
+fleetq: #6767 done (exit 0)

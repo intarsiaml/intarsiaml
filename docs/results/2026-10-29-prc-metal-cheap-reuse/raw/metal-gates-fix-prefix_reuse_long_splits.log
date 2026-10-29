@@ -1,0 +1,107 @@
+warning: field `spec_dflash` is never read
+    --> crates/intarsia-core/src/engine.rs:1135:5
+     |
+1102 | pub(crate) struct Seq {
+     |                   --- field in this struct
+...
+1135 |     spec_dflash: bool,
+     |     ^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1213:4
+     |
+1213 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: unreachable pattern
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:390:13
+    |
+390 |             _ => {}
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:390:13
+    |
+387 |             GenEvent::Token { id, .. } => ids.push(id),
+    |             -------------------------- matches some of the same values
+388 |             GenEvent::Done { finish_reason, cached_tokens, .. } => return (Out { ids, reason: Some(finish_reason) }, cached_tokens),
+    |             --------------------------------------------------- matches some of the same values
+389 |             GenEvent::Error { message, .. } => panic!("request failed: {message}"),
+    |             ------------------------------- matches some of the same values
+390 |             _ => {}
+    |             ^ collectively making this unreachable
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "prefix_reuse_real") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/prefix_reuse_real.rs (target/release/deps/prefix_reuse_real-87d86364fad22268)
+
+running 1 test
+test prefix_reuse_long_splits ... LONG n 700 passes [1, 699]: DIFFER row 0 maxabs 1.891e-1
+LONG n 700 passes [2, 698]: =
+LONG n 700 passes [3, 697]: =
+LONG n 700 passes [4, 696]: =
+LONG n 700 passes [5, 695]: =
+LONG n 700 passes [7, 693]: =
+LONG n 700 passes [8, 692]: =
+LONG n 700 passes [9, 691]: =
+LONG n 700 passes [15, 685]: =
+LONG n 700 passes [16, 684]: =
+LONG n 700 passes [17, 683]: =
+LONG n 700 passes [31, 669]: =
+LONG n 700 passes [32, 668]: =
+LONG n 700 passes [33, 667]: =
+LONG n 700 passes [63, 637]: =
+LONG n 700 passes [64, 636]: =
+LONG n 700 passes [65, 635]: =
+LONG n 700 passes [127, 573]: =
+LONG n 700 passes [128, 572]: =
+LONG n 700 passes [129, 571]: =
+LONG n 700 passes [255, 445]: =
+LONG n 700 passes [256, 444]: =
+LONG n 700 passes [257, 443]: =
+LONG n 700 passes [300, 400]: =
+LONG n 700 passes [511, 189]: =
+LONG n 700 passes [512, 188]: =
+LONG n 700 passes [513, 187]: =
+LONG n 700 passes [667, 33]: =
+LONG n 700 passes [668, 32]: =
+LONG n 700 passes [683, 17]: =
+LONG n 700 passes [684, 16]: =
+LONG n 700 passes [691, 9]: =
+LONG n 700 passes [692, 8]: =
+LONG n 700 passes [695, 5]: =
+LONG n 700 passes [697, 3]: =
+LONG n 700 passes [698, 2]: =
+LONG n 700 passes [699, 1]: DIFFER row 0 maxabs 1.200e-1
+LONG n 700 passes [2, 38, 660]: =
+LONG n 700 passes [33, 67, 600]: =
+LONG n 700 passes [64, 65, 571]: =
+LONG n 700 passes [5, 1, 294, 400]: DIFFER row 0 maxabs 1.976e-1
+LONG n 700 passes [128, 1, 271, 300]: DIFFER row 0 maxabs 1.568e-1
+LONG n 700 passes [2, 2, 4, 8, 16, 32, 64, 128, 444]: =
+LONG n 700 passes [100, 300, 298, 2]: =
+LONG summary: 0 of 44 splits not as the 1-row-pass rule says: []
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 26.54s
+

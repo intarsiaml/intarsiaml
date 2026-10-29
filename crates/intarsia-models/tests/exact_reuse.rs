@@ -3,6 +3,8 @@
 //! only where its own cold chunk schedule cuts, and only over rows the held sequence wrote with exactly those passes, in the
 //! single-sequence engine and in the batched engine's slot choice alike. The cpu kernels are chunk-invariant, so here the
 //! bits agree either way: these tests pin the policy (which prefix is reused), the CUDA gates in `batch_cuda_real.rs` the bits.
+//! Lane prc (docs/results/2026-10-29-prc-metal-cheap-reuse.md): a backend that also says passes of >= 2 rows agree
+//! (`Backend::prefix_reuse_min_pass_rows`, Metal) resumes at any row of a prefix written by such passes, `Wide` below.
 mod common;
 use common::*;
 use intarsia_core::backend::{Backend, Buffer, DeviceInfo, MemKind, StreamId};
@@ -16,9 +18,11 @@ use std::time::Duration;
 
 const CHUNK: usize = 8;
 
-/// The cpu backend, reporting a chunk-sensitive prefill as CUDA does.
+/// The cpu backend, reporting a chunk-sensitive prefill as CUDA does; with `min_rows` also what Metal reports (passes of that
+/// many rows or more agree, a 1-row pass is kept out of prefill chunking).
 struct Strict {
     inner: Arc<dyn Backend>,
+    min_rows: Option<usize>,
 }
 
 impl Backend for Strict {
@@ -52,11 +56,21 @@ impl Backend for Strict {
     fn prefix_reuse_any_cut(&self) -> bool {
         false
     }
+    fn avoid_single_row_prefill(&self) -> bool {
+        self.min_rows.is_some()
+    }
+    fn prefix_reuse_min_pass_rows(&self) -> Option<usize> {
+        self.min_rows
+    }
 }
 
 fn model(strict: bool, rows: usize) -> (Model, Arc<Telemetry>) {
+    model_with(strict, None, rows)
+}
+
+fn model_with(strict: bool, min_rows: Option<usize>, rows: usize) -> (Model, Arc<Telemetry>) {
     let cpu = intarsia_backend_cpu::CpuBackend::arc();
-    let backend: Arc<dyn Backend> = if strict { Arc::new(Strict { inner: cpu }) } else { cpu };
+    let backend: Arc<dyn Backend> = if strict { Arc::new(Strict { inner: cpu, min_rows }) } else { cpu };
     let t = tiny_weights(DType::Bf16, 5);
     let tel = Arc::new(Telemetry::new());
     let mut m = Model::load(
@@ -206,4 +220,87 @@ fn cpu_prefill_is_bitwise_row_count_invariant() {
             assert!(run(k) == cold, "{dt:?}: split ({k}, {}) differs from the one-pass prefill", p.len() - k);
         }
     }
+}
+
+/// What `Wide` (Metal's report) resumes at, per request of `cases()`: a repeat cuts two rows before its end (the remainder is not
+/// a 1-row pass), a shared prefix at the shared row.
+const WIDE_CACHED: [usize; 5] = [0, SHORT.len() - 2, 0, LONG.len() - 2, 20];
+
+#[test]
+fn single_sequence_engine_resumes_at_any_row_of_wide_passes() {
+    let (m, tel) = model_with(true, Some(2), 1);
+    let e = LocalEngine::new(m, Arc::new(ByteCodec), meta(), tel).unwrap();
+    let cold = |p: &str| {
+        let (m, tel) = model_with(true, Some(2), 1);
+        collect(&LocalEngine::new(m, Arc::new(ByteCodec), meta(), tel).unwrap().submit(req(p)).unwrap()).0
+    };
+    for ((p, ..), want) in cases().into_iter().zip(WIDE_CACHED) {
+        let (ids, cached) = collect(&e.submit(req(p)).unwrap());
+        assert_eq!(cached, want, "{p:?}");
+        assert_eq!(ids, cold(p), "{p:?}: the warm request computes its cold output");
+    }
+    // a follow-up turn: LONG, its generated tokens, more text. Rows from 30 on were written by decode steps (1-row passes):
+    // the resume point is the end of the prefill's rows, not the end of the shared tokens
+    let (first, _) = collect(&e.submit(req(LONG)).unwrap());
+    let mut follow = req(LONG);
+    follow.prompt.extend(&first);
+    follow.prompt.extend("and more text here".bytes().map(|b| b as u32));
+    let (_, cached) = collect(&e.submit(follow).unwrap());
+    assert_eq!(cached, LONG.len());
+}
+
+#[test]
+fn batched_engine_picks_slots_by_wide_passes() {
+    let (m, tel) = model_with(true, Some(2), 2);
+    let mut o = BatchedOptions::new(2, 16);
+    o.prefix_reuse = true;
+    let e = BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel, o).unwrap();
+    for ((p, ..), want) in cases().into_iter().zip(WIDE_CACHED) {
+        let (_, cached) = collect(&e.submit(req(p)).unwrap());
+        assert_eq!(cached, want, "{p:?}");
+    }
+}
+
+/// `Model::reuse_len` and `SequenceState::wide_reuse_len` on hand-built histories (Wide: passes of >= 2 rows agree).
+#[test]
+fn wide_reuse_len_reads_the_pass_history() {
+    use intarsia_core::model::HeadMode;
+    let (m, _) = model_with(true, Some(2), 1);
+    let p: Vec<u32> = LONG.bytes().map(|b| b as u32).collect();
+    let mut st = m.new_state().unwrap();
+    m.forward(&mut st, &p, HeadMode::None, None).unwrap();
+    for t in [7u32, 8, 9] {
+        m.forward(&mut st, &[t], HeadMode::None, None).unwrap();
+    }
+    let n = p.len();
+    // the prompt again: rows 0..30 are wide, the decode rows are not; the last token alone would be a 1-row pass
+    assert_eq!(st.wide_reuse_len(n - 1, 2), n - 1);
+    assert_eq!(m.reuse_len(&st, n, n - 1), n - 2);
+    // a longer prompt sharing everything held: stops where the decode rows begin
+    assert_eq!(st.wide_reuse_len(n + 3, 2), n);
+    assert_eq!(m.reuse_len(&st, n + 20, n + 3), n);
+    // a truncate that cuts through the prompt's last pass keeps it as a wide pass: the next repeat reuses just as much
+    st.truncate(n - 2, &*m.backend).unwrap();
+    m.forward(&mut st, &p[n - 2..], HeadMode::None, None).unwrap();
+    assert_eq!(st.passes.iter().map(|q| q.rows).collect::<Vec<_>>(), [8, 8, 8, 6, 2]);
+    assert_eq!(m.reuse_len(&st, n, n - 1), n - 2);
+    // a row-exact verify pass is 1-row work whatever its row count
+    st.commit_rows(&[1, 2, 3], 1);
+    assert_eq!(st.wide_reuse_len(n + 3, 2), n);
+    // a 2-token prompt repeated: its last token alone would be a 1-row pass, so nothing
+    let mut s2 = m.new_state().unwrap();
+    m.forward(&mut s2, &p[..2], HeadMode::None, None).unwrap();
+    assert_eq!(m.reuse_len(&s2, 2, 1), 0);
+    // rows restored from a prefix store were written by no pass of this state
+    s2.load_prefix(&p[..10]);
+    assert_eq!(m.reuse_len(&s2, 20, 10), 0);
+    // CUDA's report (no min) keeps the cold-schedule rule, cpu's any cut
+    let (c, _) = model_with(true, None, 1);
+    let mut s3 = c.new_state().unwrap();
+    c.forward(&mut s3, &p, HeadMode::None, None).unwrap();
+    assert_eq!(c.reuse_len(&s3, n + 20, n), 24);
+    let (cpu, _) = model(false, 1);
+    let mut s4 = cpu.new_state().unwrap();
+    cpu.forward(&mut s4, &p, HeadMode::None, None).unwrap();
+    assert_eq!(cpu.reuse_len(&s4, n + 20, n), n);
 }

@@ -209,6 +209,16 @@ pub trait Backend: Send + Sync {
         true
     }
 
+    /// Where [`Backend::prefix_reuse_any_cut`] is false: the fewest rows a forward pass may have for its rows to be bitwise what
+    /// every other split of the same prompt into passes of at least that many rows writes, a one-pass prefill's among
+    /// them. `Some(n)`: a prefix then needs no cold cut to be reusable (`Model::reuse_len`), only rows written by passes of
+    /// `n` rows or more (a decode step is a 1-row pass) and a remainder prefilled in passes of `n` or more. Metal: `Some(2)`,
+    /// only a 1-row pass differs. `None` (default; CUDA, whose passes differ at any size): only the prompt's own cold chunk
+    /// schedule is a safe cut.
+    fn prefix_reuse_min_pass_rows(&self) -> Option<usize> {
+        None
+    }
+
     /// Most sequences one batched decode step may carry on this backend (`Model::enable_batch`, `--max-batch`): the number of
     /// rows its row-exact multi-row kernels are registered and proven for (G-B: row r of an M-row call is bitwise the one-row
     /// kernel). Default 8 (Metal's, and what the cpu backend serves in tests); the CUDA backend proves 16. Never above
