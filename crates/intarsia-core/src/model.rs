@@ -101,6 +101,17 @@ fn macro_split_ops() -> Result<Vec<Op>> {
     }
 }
 
+/// `INTARSIA_PREFIX_REUSE`: `any` (resume at any held row) or `exact` (only where the cold schedule cuts) overrides
+/// `Backend::prefix_reuse_any_cut`; unset or anything else: the backend decides ([`Model::reuse_len`]).
+fn prefix_reuse_override() -> Option<bool> {
+    static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| match std::env::var("INTARSIA_PREFIX_REUSE").ok().as_deref() {
+        Some("any") => Some(true),
+        Some("exact") => Some(false),
+        _ => None,
+    })
+}
+
 /// Rows of logits computed/downloaded at a time when all positions are requested.
 const LOGIT_ROWS: usize = 16;
 
@@ -643,6 +654,27 @@ impl Model {
     /// [`crate::scheduler::next_prefill_chunk_tm`].
     pub fn tail_merge(&self) -> usize {
         self.tail_merge
+    }
+
+    /// The KV prefix of `st` a request for a prompt of `plen` tokens may resume from, at most `want` (the prefix the two
+    /// share, already below `plen`). Recurrent state: what it can return to ([`SequenceState::restorable_len`]). Attention
+    /// only: any length where the backend's prefill is bitwise the same whatever row a pass starts at
+    /// (`Backend::prefix_reuse_any_cut`, cpu / Metal / HIP); elsewhere (CUDA) only a prefix written by the prompt's own cold
+    /// chunk schedule ([`SequenceState::ladder_reuse_len`]), so a request computes the bits of its cold prefill whatever its
+    /// slot held before (lane bi8: a repeated prompt resuming with its last token alone, a 1-row pass, moved logits by up to
+    /// 0.23 and flipped greedy tokens on Qwen3-8B; docs/results/2026-10-29-bi8-serve-batch-invariance.md).
+    /// `INTARSIA_PREFIX_REUSE=any|exact` overrides the backend's choice.
+    pub fn reuse_len(&self, st: &SequenceState, plen: usize, want: usize) -> usize {
+        if st.has_recurrent() {
+            return st.restorable_len(want);
+        }
+        if prefix_reuse_override().unwrap_or_else(|| self.backend.prefix_reuse_any_cut()) {
+            return want.min(st.len);
+        }
+        let chunk = self.prefill_chunk().max(1);
+        let sched = crate::scheduler::chunk_schedule_tm(0, plen, chunk, self.backend.avoid_single_row_prefill(), self.tail_merge());
+        let points: Vec<usize> = sched.iter().skip(1).map(|&(start, _)| start).collect();
+        st.ladder_reuse_len(want, chunk, &points)
     }
 
     /// Prefill tail peel in rows (0 = off, the default; [`crate::scheduler::peel_tail`]).

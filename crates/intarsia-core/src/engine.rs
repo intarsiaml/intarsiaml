@@ -1207,10 +1207,11 @@ impl Seq {
         if let Some(ps) = &ps {
             // bitwise reuse only: what prefill wrote, at a point of this prompt's own chunk schedule
             p = ps.local_reuse(st, p.min(st.clean));
-        } else if recurrent {
+        } else {
             // Recurrent state (GatedDeltaNet / Mamba) cannot be shortened: reuse only what the state can return
-            // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing.
-            p = st.restorable_len(p);
+            // to exactly: the whole held sequence, a snapshot taken during an earlier prefill, or nothing. Attention
+            // only: on a chunk-sensitive backend (CUDA) only a prefix the cold schedule of this prompt also cuts at.
+            p = model.reuse_len(st, plen, p);
         }
         if st.mtp.as_ref().is_some_and(|m| drafting && !m.synced) || st.dflash.as_ref().is_some_and(|d| drafting && !d.synced) {
             p = 0;

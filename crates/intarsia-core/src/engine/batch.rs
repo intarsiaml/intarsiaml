@@ -199,6 +199,10 @@ impl BatchModel for SlotModel {
     fn restorable_len(&self, slot: usize, want: usize) -> usize {
         self.states[slot].restorable_len(want)
     }
+    fn reuse_len(&self, slot: usize, plen: usize, want: usize) -> usize {
+        // the solo engine's rule (`Seq::new`): a slot's history never changes a request's bits
+        self.model.reuse_len(&self.states[slot], plen, want)
+    }
     fn prefill_chunk(&mut self, slot: usize, tokens: &[u32], mode: Option<HeadMode>) -> Result<Option<StepOut>> {
         run_prefill(&self.model, &mut self.states[slot], tokens, mode)
     }

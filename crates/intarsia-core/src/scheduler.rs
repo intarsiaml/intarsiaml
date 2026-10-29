@@ -88,6 +88,11 @@ pub trait BatchModel {
     fn restorable_len(&self, _slot: usize, want: usize) -> usize {
         want
     }
+    /// The prefix of slot `slot` a prompt of `plen` tokens may reuse, at most `want` (the common prefix, below `plen`): what
+    /// gives the request the bits of its cold prefill (`Model::reuse_len`). Default: [`BatchModel::restorable_len`].
+    fn reuse_len(&self, slot: usize, _plen: usize, want: usize) -> usize {
+        self.restorable_len(slot, want)
+    }
     /// Prefill `tokens` into slot `slot` at its current length, as one forward pass of exactly `tokens.len()` rows
     /// (the chunk size is part of numerical identity, design 4.5 item 1). `mode = None`: KV only, returns `None`;
     /// `Some(m)`: the last position's head output in mode `m` (the request's first token).
@@ -855,7 +860,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             .map(|s| {
                 let cached = if self.cfg.prefix_reuse {
                     let want = common_prefix(self.model.slot_tokens(s), prompt).min(reuse_max);
-                    self.model.restorable_len(s, want)
+                    self.model.reuse_len(s, prompt.len(), want)
                 } else {
                     0
                 };
