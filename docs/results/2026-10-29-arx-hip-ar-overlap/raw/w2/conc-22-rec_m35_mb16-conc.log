@@ -1,0 +1,50 @@
+[localeval] calibrated: 22.1 tokens/sentence, 50 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=993 ttft=0.11s prefill=8883 tok/s decode=190.4 tok/s peak=302.8 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=989 ttft=0.11s prefill=8983 tok/s decode=190.8 tok/s peak=331.0 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.11s prefill=8867 tok/s decode=191.7 tok/s peak=323.3 tok/s out=128
+[localeval] 4 streams: aggregate 288.3 tok/s
+[localeval] 8 streams: aggregate 371.7 tok/s
+[localeval] 16 streams: aggregate 390.3 tok/s
+# localeval: arx-rec_m35_mb16 — 2026-10-29T01:28
+
+- model: `qwen-arx` on ? (?), url `http://tatooine:8095/v1`
+- thinking: default; run kind: speed; label: arx-w2-rec_m35_mb16-conc-22
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed arx-rec_m35_mb16 --sizes 1024 --gen 128 --reps 3 --concurrency 4,8,16 --label arx-w2-rec_m35_mb16-conc-22 --recipe HIP_VISIBLE_DEVICES=0,1 arx-base-cli serve --backend hip --model 35B --tp 2 --devices 0,1 --max-batch 16 --mem-budget 29 --max-seq 20480 (; lane arx) --wait-idle 60`
+- result file: `results/20261029-012831-arx-rec_m35_mb16-arx-w2-rec_m35_mb16-conc-22/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 arx-base-cli serve --backend hip --model 35B --tp 2 --devices 0,1 --max-batch 16 --mem-budget 29 --max-seq 20480 (; lane arx)
+````
+
+## Speed sweep
+
+served `qwen-arx`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.11 | 8883 (8867–8983) * | - | 190.8 (190.4–191.7) | 323.3 (302.8–331.0) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 288.3 | 85.3 (76.7–96.5) | 0.27 |
+| 8 | 371.7 | 57.8 (49.5–69.4) | 0.52 |
+| 16 | 390.3 | 30.1 (25.7–38.4) | 0.94 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261029-012831-arx-rec_m35_mb16-arx-w2-rec_m35_mb16-conc-22/result.json
+[localeval] logged to unanimis: 3fc94afa-8f58-4ea3-a369-7be7691edad6
