@@ -133,7 +133,7 @@ Competitors (scoreboard row "R9700 27B MXFP4 W4A8, TP2"): Radiance 1.12.0 5214 /
 | numerics | unchanged by construction; GEMM hashes on 48 shape/dtype cases identical to main's binary for the default, every direct tile, `DIRECT=0`, and the per-group path (`raw/w1/hash-*`, `raw/w2/gates-15/hash-*`, `raw/m1`, `raw/m4`). No KL / MMLU run needed (bitwise) |
 | a8 correctness tests (M- and position-independence, reference, wide-span group path, flipped code) | **met**: 6 / 6 `a8_` tests pass on default, `DIRECT=0`, `PERGROUP=1`; `a8_mma_rows_do_not_depend_on_m` also checks staged (M <= 64) == direct (M > 64) rows in one process |
 | `kernels test --backend hip --quick` | **met**: exit 0, 74 admitted rows, 84 kernels, 456 cases (10 kernels with no quick case, as on main) (`raw/w2/gates-15/adm.log`) |
-| Mac `cargo test --workspace --release` | **met**: 202 `test result: ok`, 0 failed, exit 0 (`--no-fail-fast`) |
+| Mac `cargo test --workspace --release` | **met**: 202 `test result: ok`, 0 failed, exit 0 (`--no-fail-fast`), on the tree merged with main after #225 |
 | `plan show` unchanged for the other models | **met**: 8B 1346 B and 35B 3184 B byte-identical, base vs branch CLI (`raw/w2/gates-15/plan-*`) |
 | CI | see the PR |
 
