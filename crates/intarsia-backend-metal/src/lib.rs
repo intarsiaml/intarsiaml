@@ -682,6 +682,14 @@ impl Backend for MetalBackend {
         true
     }
 
+    /// The 1-row pass is also what a held KV prefix must not be cut at: a request that resumed with its prompt's last token
+    /// alone (or from rows one pass of 1 row wrote) moved the logits of Qwen3-8B by 0.1-0.24 against its cold prefill, in
+    /// 16 of 16 equal.py prompts, and flipped greedy tokens (lane prb, docs/results/2026-10-29-prb-prefix-reuse-probe.md). So
+    /// reuse resumes only where the prompt's own cold chunk schedule cuts, as on CUDA (`Model::reuse_len`).
+    fn prefix_reuse_any_cut(&self) -> bool {
+        false
+    }
+
     fn info(&self) -> DeviceInfo {
         let total = self.device.recommendedMaxWorkingSetSize();
         let used = self.device.currentAllocatedSize() as u64;

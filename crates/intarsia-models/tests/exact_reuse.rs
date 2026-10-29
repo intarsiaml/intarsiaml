@@ -1,5 +1,5 @@
 //! Exact prefix reuse (lane bi8, docs/results/2026-10-29-bi8-serve-batch-invariance.md): on a backend whose dense prefill
-//! bits depend on a pass's row count (`Backend::prefix_reuse_any_cut` false, CUDA) a request resumes from a held KV prefix
+//! bits depend on a pass's row count (`Backend::prefix_reuse_any_cut` false: CUDA, and Metal since lane prb) a request resumes from a held KV prefix
 //! only where its own cold chunk schedule cuts, and only over rows the held sequence wrote with exactly those passes, in the
 //! single-sequence engine and in the batched engine's slot choice alike. The cpu kernels are chunk-invariant, so here the
 //! bits agree either way: these tests pin the policy (which prefix is reused), the CUDA gates in `batch_cuda_real.rs` the bits.
@@ -157,6 +157,53 @@ fn batched_engine_picks_slots_by_the_same_rule() {
                 // two slots: the least recently used one may hold the other prompt, so at most the single-sequence figure
                 assert!(cached <= want_any, "{p:?}: cached {cached} > {want_any}");
             }
+        }
+    }
+}
+
+/// Lane prb (docs/results/2026-10-29-prb-prefix-reuse-probe.md): the cpu backend's prefill is row-count invariant, which is why
+/// it keeps `prefix_reuse_any_cut` (default true): every output element is one fixed-order dot product of a row of activations
+/// with a row of weights (and attention is per (row, head)), whatever the number of rows or the first row of a pass. Pinned bit
+/// for bit: a 30-token prompt prefilled in one `forward` (chunks 8, 8, 8, 6) and split anywhere (k, 30 - k), the 1-row tail
+/// (k = 29) included, gives the same logits for the last prompt row and for the decode steps after it, in bf16 and f32.
+#[test]
+fn cpu_prefill_is_bitwise_row_count_invariant() {
+    use intarsia_core::model::{HeadMode, StepOut};
+    let logits = |o: StepOut| match o {
+        StepOut::Logits(l) => l,
+        o => panic!("expected logits, got {o:?}"),
+    };
+    for dt in [DType::Bf16, DType::F32] {
+        let t = tiny_weights(dt, 5);
+        let m = Model::load(
+            intarsia_backend_cpu::CpuBackend::arc(),
+            &recipe(),
+            &dims(),
+            &t.weights,
+            &LoadOptions { max_seq: 160, prefill_chunk: CHUNK, ..Default::default() },
+            Arc::new(Telemetry::new()),
+        )
+        .unwrap();
+        assert!(m.backend.prefix_reuse_any_cut());
+        let p: Vec<u32> = LONG.bytes().map(|b| b as u32).collect();
+        let steps = [7u32, 8, 9];
+        let run = |k: usize| {
+            let mut st = m.new_state().unwrap();
+            let mut rows = vec![];
+            if k == 0 {
+                rows.push(logits(m.forward(&mut st, &p, HeadMode::LastLogits, None).unwrap()));
+            } else {
+                m.forward(&mut st, &p[..k], HeadMode::None, None).unwrap();
+                rows.push(logits(m.forward(&mut st, &p[k..], HeadMode::LastLogits, None).unwrap()));
+            }
+            for &s in &steps {
+                rows.push(logits(m.forward(&mut st, &[s], HeadMode::LastLogits, None).unwrap()));
+            }
+            rows
+        };
+        let cold = run(0);
+        for k in 1..p.len() {
+            assert!(run(k) == cold, "{dt:?}: split ({k}, {}) differs from the one-pass prefill", p.len() - k);
         }
     }
 }
