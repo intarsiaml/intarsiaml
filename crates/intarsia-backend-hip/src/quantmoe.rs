@@ -620,7 +620,8 @@ pub fn all() -> Vec<KernelImpl> {
                     .scratch(|s| mx_a8_scratch(s.m, s.k))
                     .priority(-1)
                     .rows_exact(),
-                // W4A8 prefill GEMM on the fp8 WMMA, any M: the quant pre-pass output, then N bytes of per-row scale maxima + a flag
+                // W4A8 prefill GEMM on the fp8 WMMA, any M: the quant pre-pass output over the 16-padded M and 64-padded K (the direct
+                // kernel's fragment-ordered tokens, lane PF27), then N bytes of per-row scale maxima + a flag (a8_scratch_total in mxfp4_a8_gemm.hip)
                 "matmul_mxfp4_a8_mma" => k
                     .acts(bf)
                     .weights([DType::U8])
@@ -628,7 +629,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .tol_f32(F32_OUT_TOL)
-                    .scratch(|s| mx_a8_scratch(s.m, s.k) + s.n.div_ceil(16) * 16 + 64),
+                    .scratch(|s| mx_a8_scratch(s.m.div_ceil(16) * 16, s.k.div_ceil(64) * 64) + s.n.div_ceil(16) * 16 + 64),
                 "moe_topk_bf16" => k
                     .acts(bf)
                     .when(|s| s.experts <= 512 && (1..=32).contains(&s.top_k))
