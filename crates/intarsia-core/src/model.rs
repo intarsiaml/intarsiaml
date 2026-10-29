@@ -182,6 +182,9 @@ pub struct LoadOptions {
     pub dflash: Option<DflashLoad>,
     /// Macro prefill pass size in rows (see [`Model::macro_rows`]): `None` = `INTARSIA_PREFILL_MACRO` (unset = off); `Some(0)` off.
     pub prefill_macro: Option<usize>,
+    /// Row-invariant prefill ([`Model::row_invariant_prefill`], lane rip): `Some` wins over `INTARSIA_ROW_INVARIANT_PREFILL`,
+    /// which wins over `Backend::row_invariant_prefill` (off everywhere by default: on CUDA it costs ~10% at 1k-token prefill).
+    pub row_invariant_prefill: Option<bool>,
 }
 
 impl Default for LoadOptions {
@@ -205,6 +208,7 @@ impl Default for LoadOptions {
             mtp_draft_vocab: None,
             dflash: None,
             prefill_macro: None,
+            row_invariant_prefill: None,
         }
     }
 }
@@ -1460,7 +1464,7 @@ impl Model {
         }
         // lane rip: row-invariant prefill for attention-only models on one rank (a recurrent state reuses only its snapshots, and
         // its busy chunk is the solo chunk; the plan probe below may still switch it off)
-        let inv_want = row_invariant_override().unwrap_or_else(|| b.row_invariant_prefill())
+        let inv_want = opts.row_invariant_prefill.or_else(row_invariant_override).unwrap_or_else(|| b.row_invariant_prefill())
             && slot_specs.iter().all(|s| matches!(s, SlotSpec::AttnKv { .. }))
             && tp.world == 1;
         let mut model = Model {

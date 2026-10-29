@@ -111,6 +111,17 @@ fn load(dir: &PathBuf, backend: Arc<dyn intarsia_core::backend::Backend>, rows: 
     load_with(dir, backend, rows, max_seq, 0).0
 }
 
+/// Lane rip: [`load`] with row-invariant prefill on (`LoadOptions::row_invariant_prefill`; off by default on CUDA), unless
+/// `INTARSIA_RIP_PLAIN=1` (the ordinary prefill, the "before" probe).
+static LOAD_INV: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+fn load_inv(dir: &PathBuf, backend: Arc<dyn intarsia_core::backend::Backend>, rows: usize, max_seq: usize) -> Model {
+    let plain = std::env::var("INTARSIA_RIP_PLAIN").is_ok_and(|v| v == "1");
+    LOAD_INV.store(!plain, std::sync::atomic::Ordering::Relaxed);
+    let m = load(dir, backend, rows, max_seq);
+    LOAD_INV.store(false, std::sync::atomic::Ordering::Relaxed);
+    m
+}
+
 fn load_with(
     dir: &PathBuf,
     backend: Arc<dyn intarsia_core::backend::Backend>,
@@ -140,6 +151,7 @@ fn try_load_with(
         kv_fraction: 0.95,
         // INTARSIA_TEST_MXFP4_ACT=fp8|none|dynamic: the MXFP4 activation mode (default: the recipe's / the checkpoint's)
         mxfp4_act: std::env::var("INTARSIA_TEST_MXFP4_ACT").ok().map(|v| intarsia_core::quant::Mxfp4Act::parse(&v).unwrap()),
+        row_invariant_prefill: LOAD_INV.load(std::sync::atomic::Ordering::Relaxed).then_some(true),
         ..Default::default()
     });
     let tel = Arc::new(Telemetry::new());
@@ -743,8 +755,8 @@ fn real_qwen3_8b_prefill_is_row_invariant() {
     use intarsia_core::engine::TextCodec;
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
     let plain = std::env::var("INTARSIA_RIP_PLAIN").is_ok_and(|v| v == "1");
-    let m = load(&dir, be, 2, 8192);
-    assert!(plain || m.row_invariant_prefill(), "row-invariant prefill is off for the 8B");
+    let m = load_inv(&dir, be, 2, 8192);
+    assert!(plain || m.row_invariant_prefill(), "row-invariant prefill did not switch on for the 8B (LoadOptions::row_invariant_prefill)");
     let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
     let pf = |st: &mut intarsia_core::state::SequenceState, ids: &[u32], mode: HeadMode| {
         if plain { m.forward(st, ids, mode, None) } else { m.forward_prefill(st, ids, mode, None) }.unwrap()
@@ -982,8 +994,8 @@ fn real_qwen3_8b_decode_written_rows_are_not_prefill_rows() {
     let _serial = serial();
     use intarsia_core::engine::TextCodec;
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
-    let m = load(&dir, be, 2, 8192);
-    assert!(m.row_invariant_prefill(), "row-invariant prefill is off for the 8B");
+    let m = load_inv(&dir, be, 2, 8192);
+    assert!(m.row_invariant_prefill(), "row-invariant prefill did not switch on for the 8B (LoadOptions::row_invariant_prefill)");
     let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
     let p = codec.encode(&long_text(300), false).unwrap();
     const GEN: usize = 16;
@@ -1030,8 +1042,8 @@ fn real_qwen3_8b_ordinary_short_pass_fits_the_plan() {
     let _serial = serial();
     use intarsia_core::engine::TextCodec;
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
-    let m = load(&dir, be, 2, 8192);
-    assert!(m.row_invariant_prefill(), "row-invariant prefill is off for the 8B");
+    let m = load_inv(&dir, be, 2, 8192);
+    assert!(m.row_invariant_prefill(), "row-invariant prefill did not switch on for the 8B (LoadOptions::row_invariant_prefill)");
     let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
     let mut p = codec.encode(&long_text(7000), false).unwrap();
     assert!(p.len() >= 8192, "{} tokens", p.len());
@@ -1072,7 +1084,7 @@ fn real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference() {
     let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
     let mk = |max_batch: Option<usize>| EngineOptions {
-        load: LoadOptions { max_seq: 8192, kv_fraction: 0.95, profile_every: 0, ..Default::default() },
+        load: LoadOptions { max_seq: 8192, kv_fraction: 0.95, profile_every: 0, row_invariant_prefill: Some(true), ..Default::default() },
         max_batch,
         ..Default::default()
     };

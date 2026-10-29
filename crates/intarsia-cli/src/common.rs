@@ -337,6 +337,7 @@ impl ModelArgs {
                 mtp_draft_vocab: self.mtp_draft_vocab,
                 dflash: None, // set from --spec-draft by the loader
                 prefill_macro: None, // INTARSIA_PREFILL_MACRO (Model::load)
+                row_invariant_prefill: None, // INTARSIA_ROW_INVARIANT_PREFILL (Model::load)
             },
             spec_draft: self.spec_draft.clone(),
             dcoco: self.dcoco,

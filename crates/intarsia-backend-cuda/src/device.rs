@@ -201,11 +201,13 @@ impl Backend for CudaBackend {
     fn prefix_reuse_any_cut(&self) -> bool {
         false
     }
-    /// Yes (lane rip, docs/results/2026-10-29-rip-row-invariant-prefill.md): a `Model::forward_prefill` pass runs the pinned
-    /// cuBLASLt GEMM (`matmul_bf16_inv`) and the flash attention at every row count, so a row's bits no longer depend on the
-    /// pass; reuse then resumes from any row such a pass wrote. `INTARSIA_ROW_INVARIANT_PREFILL=0` restores the BI8 rule.
+    /// Not by default, though supported (lane rip, docs/results/2026-10-29-rip-row-invariant-prefill.md): with
+    /// `INTARSIA_ROW_INVARIANT_PREFILL=1` (or `LoadOptions::row_invariant_prefill`) a `Model::forward_prefill` pass runs the pinned
+    /// cuBLASLt GEMM (`matmul_bf16_inv`) and the flash attention at every row count, so a row's bits do not depend on the pass and
+    /// reuse resumes from any row such a pass wrote. Off because the pinned GEMM is ~17-24% slower than cuBLAS at M ~ 1000
+    /// (Qwen3-8B 1k-token prefill -9.6%, 4k +2.2%, 16k +0.6%); the user decides the default.
     fn row_invariant_prefill(&self) -> bool {
-        true
+        false
     }
     fn name(&self) -> &str {
         "cuda"

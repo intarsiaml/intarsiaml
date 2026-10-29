@@ -5,7 +5,7 @@
 //! bits agree either way: these tests pin the policy (which prefix is reused), the CUDA gates in `batch_cuda_real.rs` the bits.
 //!
 //! Lane rip (docs/results/2026-10-29-rip-row-invariant-prefill.md): on a backend with row-invariant prefill
-//! (`Backend::row_invariant_prefill`, CUDA now) a request resumes at any row a row-invariant prefill pass wrote, never inside rows
+//! (`Backend::row_invariant_prefill`; CUDA with `INTARSIA_ROW_INVARIANT_PREFILL=1`) a request resumes at any row a row-invariant prefill pass wrote, never inside rows
 //! a decode step wrote (`Mode::Invariant` below: the cpu backend with every kernel marked `row_invariant`).
 mod common;
 use common::*;
@@ -21,7 +21,7 @@ use std::time::Duration;
 const CHUNK: usize = 8;
 
 /// The cpu backend, reporting a chunk-sensitive prefill as CUDA did before lane rip (`inv` false), or a chunk-sensitive ordinary
-/// prefill with row-invariant prefill passes, as CUDA does now (`inv` true: every cpu kernel is marked `row_invariant`; the cpu
+/// prefill with row-invariant prefill passes, as CUDA with `INTARSIA_ROW_INVARIANT_PREFILL=1` (`inv` true: every cpu kernel is marked `row_invariant`; the cpu
 /// kernels compute each row alone).
 struct Strict {
     inner: Arc<dyn Backend>,
