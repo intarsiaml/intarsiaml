@@ -137,6 +137,8 @@ between it and default-on: the 120-process soak, and an MTP decode A/B with enou
 Main `bfbee3cb6` (#237) vs `200be3f05`, both built on tatooine (fleetq #6812, both cards, `scripts/arx/noop-237.sh`):
 - `plan show --json`: Qwen3-8B BF16 (one card) 8343 / 8343 bytes and Qwen3.6-35B-A3B NVFP4 tp2 13541 / 13541 bytes, both byte-identical
 - 35B tp2 greedy ids, spec off, 256 tokens: short-0 and 4k-0 identical (`raw/noop-237/`)
+- this branch merged with `bfbee3cb6` (m16 #6817): HIP build ok, `tests/ar_push.rs` 4 / 4, 4k CLI prefill 886 -> 813 ms with push, 27B
+  greedy ids push vs off identical for 4k-0 and 16k-0 (spec off and default)
 
 ## GPU jobs
 
@@ -149,4 +151,4 @@ Both cards in one fleetq job, Radiance down and restored (`curl tatooine:8080/v1
 - W3 #6784 (01:55-02:29, register variant: A/B, texts, ids, hashes, mixids).
 
 Short checks (< 3 min each, both cards): m1 #6725, m2 #6726, m3 #6732, m4 #6733, m5 #6735, m6 #6738, m7 #6743, m8 #6749, m9 #6766,
-m10 #6771, m11 #6773, m12 #6775, m13 #6777, m14 #6779, m15 #6795 (merged tree). Builds and Mac tests ran as `--load cpu` jobs.
+m10 #6771, m11 #6773, m12 #6775, m13 #6777, m14 #6779, m15 #6795 (merged tree), #6812 (#237 no-op), m16 #6817 (merged with #237). Builds and Mac tests ran as `--load cpu` jobs.
