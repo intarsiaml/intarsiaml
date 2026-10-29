@@ -526,6 +526,172 @@ __global__ void __launch_bounds__(32) gdn_delta_split_kernel(
     }
 }
 
+// ---- delta rule, decode (T = 1): the split kernel's arithmetic with the row sums gathered through shared memory --------
+// BITWISE gdn_delta_split_kernel (and so gdn_delta_rows_kernel) for one token, dk = 128. The warp owns RPW state rows; lane L
+// holds float4 group L of every one of them, so the state comes in (and goes out) as RPW fully coalesced 512-byte rows, straight
+// into registers, with no staging tile. The q / k vectors are the same for all rows of a head: lane L normalises its own group
+// (the same products raw * norm as the split kernel's staging), after the same lane-strided sums of squares and warp tree.
+// Per row, the group dot products g_0 .. g_31 (the same FMUL / FFMA chain) go to shared memory and lane r adds row r's left to
+// right from 0 (the same FADD chain the split kernel hands from lane to lane), then delta and, after the update, the output the
+// same way. Only the memory path and which lane does which add change.
+//
+// WPB warps per block, each with its own RPW rows (the q / k norm is redone per warp, as in the split kernel).
+// ROWS (batched decode, row-table launch): as in gdn_delta_split_kernel, grid.z is the sequence.
+template <int DK, int RPW, int WPB, bool ROWS>
+__global__ void __launch_bounds__(32 * WPB) gdn_delta_dec_kernel(
+    const ik_bf16* __restrict__ qkv, const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ b,
+    const ik_bf16* __restrict__ a_log, const ik_bf16* __restrict__ dt_bias, float eps, ik_bf16* __restrict__ o,
+    float* __restrict__ state, int Hk, int Hv, int dv, const uint8_t* tab = nullptr, int64_t tstride = 0,
+    int64_t tindex = 0, int64_t toff = 0) {
+    static_assert(DK == 128, "one float4 group per lane");
+    static_assert(RPW <= 32, "a lane sums a row");
+    constexpr int PL = DK / 32;
+    const int lane = threadIdx.x % 32, wp = threadIdx.x / 32;
+    const int j0 = (blockIdx.x * WPB + wp) * RPW;
+    const int h = blockIdx.y;
+    const int kh = h / (Hv / Hk);
+    const int C = 2 * Hk * DK + Hv * dv;
+    if constexpr (ROWS) {
+        const int64_t rr = blockIdx.z;
+        qkv += rr * C;
+        a += rr * Hv;
+        b += rr * Hv;
+        o += rr * Hv * dv;
+        state = reinterpret_cast<float*>(reinterpret_cast<const uint64_t*>(tab)[rr * tstride + tindex] + (uint64_t)toff);
+    }
+    const int nrows = min(RPW, dv - j0);
+    if (nrows <= 0) return;  // a whole warp past dv (warp-level synchronisation only)
+    float4* const blk = reinterpret_cast<float4*>(state + ((int64_t)h * dv + j0) * DK);
+    float4 s[RPW];
+#pragma unroll
+    for (int r = 0; r < RPW; ++r) s[r] = r < nrows ? blk[r * (DK / 4) + lane] : make_float4(0.f, 0.f, 0.f, 0.f);
+
+    const float scale = rsqrtf((float)DK);
+    const float neg_a = -expf(ik_b2f(a_log[h]));
+    const float dtb = ik_b2f(dt_bias[h]);
+    // the split kernel's load_raw + prep for t = 0
+    float qr_[PL], kr_[PL];
+#pragma unroll
+    for (int i = 0; i < PL; ++i) {
+        qr_[i] = ik_b2f(qkv[kh * DK + lane + 32 * i]);
+        kr_[i] = ik_b2f(qkv[Hk * DK + kh * DK + lane + 32 * i]);
+    }
+    float qq = 0.f, kk = 0.f;
+#pragma unroll
+    for (int i = 0; i < PL; ++i) {
+        qq += qr_[i] * qr_[i];
+        kk += kr_[i] * kr_[i];
+    }
+    qq = ik_warp_sum(qq);
+    kk = ik_warp_sum(kk);
+    const float qn = rsqrtf(qq + eps) * scale, kn = rsqrtf(kk + eps);
+    float kq[4], qv[4];  // this lane's group: elements 4 * lane .. 4 * lane + 3
+#pragma unroll
+    for (int e = 0; e < 4; ++e) {
+        qv[e] = ik_b2f(qkv[kh * DK + 4 * lane + e]) * qn;
+        kq[e] = ik_b2f(qkv[Hk * DK + kh * DK + 4 * lane + e]) * kn;
+    }
+    const float4 k4 = make_float4(kq[0], kq[1], kq[2], kq[3]), q4 = make_float4(qv[0], qv[1], qv[2], qv[3]);
+    const float v = lane < nrows ? ik_b2f(qkv[2 * Hk * DK + h * dv + j0 + lane]) : 0.f;  // lane r: row r's v
+    const float beta = sigmoidf(ik_b2f(b[h]));
+    const float decay = expf(neg_a * softplus(ik_b2f(a[h]) + dtb));
+
+    __shared__ float gs_[WPB][RPW][33];  // [warp][row][group], padded: lane r reads row r without bank conflicts
+    __shared__ float ds_[WPB][RPW];
+    float (*gs)[33] = gs_[wp];
+    float* ds = ds_[wp];
+#pragma unroll
+    for (int r = 0; r < RPW; ++r) {
+        s[r].x = __fmul_rn(s[r].x, decay); s[r].y = __fmul_rn(s[r].y, decay);
+        s[r].z = __fmul_rn(s[r].z, decay); s[r].w = __fmul_rn(s[r].w, decay);
+        gs[r][lane] = __fmaf_rn(s[r].w, k4.w, __fmaf_rn(s[r].z, k4.z, __fmaf_rn(s[r].x, k4.x, __fmul_rn(s[r].y, k4.y))));
+    }
+    __syncwarp();
+    if (lane < RPW) {
+        float c = 0.f;
+#pragma unroll
+        for (int i = 0; i < DK / 4; ++i) c = __fadd_rn(c, gs[lane][i]);
+        ds[lane] = __fmul_rn(__fsub_rn(v, c), beta);
+    }
+    __syncwarp();  // ds is visible; the reads of gs are done
+#pragma unroll
+    for (int r = 0; r < RPW; ++r) {
+        const float delta = ds[r];
+        s[r].x = __fmaf_rn(k4.x, delta, s[r].x); s[r].y = __fmaf_rn(k4.y, delta, s[r].y);
+        s[r].z = __fmaf_rn(k4.z, delta, s[r].z); s[r].w = __fmaf_rn(k4.w, delta, s[r].w);
+        gs[r][lane] = __fmaf_rn(s[r].w, q4.w, __fmaf_rn(s[r].z, q4.z, __fmaf_rn(s[r].x, q4.x, __fmul_rn(s[r].y, q4.y))));
+    }
+#pragma unroll
+    for (int r = 0; r < RPW; ++r)
+        if (r < nrows) blk[r * (DK / 4) + lane] = s[r];
+    __syncwarp();
+    if (lane < nrows) {
+        float c = 0.f;
+#pragma unroll
+        for (int i = 0; i < DK / 4; ++i) c = __fadd_rn(c, gs[lane][i]);
+        o[(int64_t)h * dv + j0 + lane] = ik_f2b(c);
+    }
+}
+
+// INTARSIA_GDN_DEC = 0 keeps the split kernel for T = 1 (A/B); 1 | 2 | 4 | 8 | 16 picks the rows per warp (default 1), and
+// INTARSIA_GDN_DEC_WPB = 1 | 2 | 4 the warps per block (default 2 from 12 rows, 1 below: evicted micro-timing, one row per
+// warp, 35B: 16 rows 296 -> 283 us, 8 rows 152 -> 144, 1 row 23.3 -> 20.8). The bits depend on neither.
+inline int gdn_env(const char* name, int dflt) {
+    const char* e = getenv(name);
+    return e ? atoi(e) : dflt;
+}
+inline int gdn_dec_rpw() {
+    static const int v = [] {
+        const int n = gdn_env("INTARSIA_GDN_DEC", 1);
+        return (n == 0 || n == 1 || n == 2 || n == 4 || n == 8 || n == 16) ? n : 1;
+    }();
+    return v;
+}
+inline int gdn_dec_wpb() {
+    static const int v = [] {
+        const int n = gdn_env("INTARSIA_GDN_DEC_WPB", 0);
+        return (n == 1 || n == 2 || n == 4) ? n : 0;  // 0: by the row count
+    }();
+    return v;
+}
+
+template <int RPW, int WPB, bool ROWS>
+void gdn_dec_launch(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log, const ik_tensor* dt_bias,
+                    float eps, ik_tensor* o, float* state, int Hk, int Hv, int dv, int R, const uint8_t* tab, int64_t stride,
+                    int64_t index, int64_t byte_off, cudaStream_t s) {
+    const dim3 grid((unsigned)((dv + RPW * WPB - 1) / (RPW * WPB)), (unsigned)Hv, (unsigned)R);
+    gdn_delta_dec_kernel<128, RPW, WPB, ROWS><<<grid, 32 * WPB, 0, s>>>(
+        (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,
+        (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, state, Hk, Hv, dv, tab, stride, index, byte_off);
+}
+
+template <int RPW, bool ROWS>
+void gdn_dec_wpb_launch(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
+                        const ik_tensor* dt_bias, float eps, ik_tensor* o, float* state, int Hk, int Hv, int dv, int R,
+                        const uint8_t* tab, int64_t stride, int64_t index, int64_t byte_off, cudaStream_t s) {
+    switch (gdn_dec_wpb() ? gdn_dec_wpb() : R >= 12 ? 2 : 1) {
+        case 2: gdn_dec_launch<RPW, 2, ROWS>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s); break;
+        case 4: gdn_dec_launch<RPW, 4, ROWS>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s); break;
+        default: gdn_dec_launch<RPW, 1, ROWS>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s);
+    }
+}
+
+// the decode kernel for T = 1, dk = 128 (ROWS: R rows through the row table)
+template <bool ROWS>
+void gdn_dec_run(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log, const ik_tensor* dt_bias,
+                 float eps, ik_tensor* o, float* state, int Hk, int Hv, int dv, int R, const uint8_t* tab, int64_t stride,
+                 int64_t index, int64_t byte_off, cudaStream_t s) {
+#define IK_GDN_DEC(RPW) gdn_dec_wpb_launch<RPW, ROWS>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s)
+    switch (gdn_dec_rpw()) {
+        case 2: IK_GDN_DEC(2); break;
+        case 4: IK_GDN_DEC(4); break;
+        case 8: IK_GDN_DEC(8); break;
+        case 16: IK_GDN_DEC(16); break;
+        default: IK_GDN_DEC(1);
+    }
+#undef IK_GDN_DEC
+}
+
 }  // namespace
 
 extern "C" {
@@ -669,6 +835,10 @@ int ik_gdn_delta_rule_bf16_split(const ik_tensor* qkv, const ik_tensor* a, const
         return (n == 2 || n == 4 || n == 8) ? n : 2;
     }();
     cudaStream_t s = IK_STREAM(stream);
+    if (T == 1 && dk == 128 && gdn_dec_rpw() > 0) {  // decode: the same bits from the decode kernel
+        gdn_dec_run<false>(qkv, a, b, a_log, dt_bias, eps, o, (float*)state->data, (int)Hk, (int)Hv, (int)dv, 1, nullptr, 0, 0, 0, s);
+        return ik_launch_status();
+    }
 #define IK_GDN_SPLIT(DK, LPR)                                                                                        \
     gdn_delta_split_kernel<DK, LPR><<<dim3((unsigned)((dv + (32 / LPR) - 1) / (32 / LPR)), (unsigned)Hv), 32, 0, s>>>( \
         (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,    \
@@ -747,6 +917,11 @@ int ik_gdn_delta_rule_bf16_split_rows(const ik_tensor* qkv, const ik_tensor* a, 
         return (n == 2 || n == 4 || n == 8) ? n : 2;
     }();
     cudaStream_t s = IK_STREAM(stream);
+    if (dk == 128 && gdn_dec_rpw() > 0) {
+        gdn_dec_run<true>(qkv, a, b, a_log, dt_bias, eps, o, nullptr, (int)Hk, (int)Hv, (int)dv, (int)R, (const uint8_t*)tab->data,
+                          stride, index, byte_off, s);
+        return ik_launch_status();
+    }
 #define IK_GDN_SPLIT_ROWS(DK, LPR)                                                                                        \
     gdn_delta_split_kernel<DK, LPR, true>                                                                                 \
         <<<dim3((unsigned)((dv + (32 / LPR) - 1) / (32 / LPR)), (unsigned)Hv, (unsigned)R), 32, 0, s>>>(                  \

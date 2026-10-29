@@ -1,0 +1,6 @@
+gdnx-base-r1: - result file: `results/20261029-062252-adhoc-gdnx-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-062252-adhoc-gdnx-base-r1/result.json 
+gdnx-dev-r1: - result file: `results/20261029-062421-adhoc-gdnx-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-062421-adhoc-gdnx-dev-r1/result.json 
+gdnx-dev-r2: - result file: `results/20261029-062545-adhoc-gdnx-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-062545-adhoc-gdnx-dev-r2/result.json 
+gdnx-base-r2: - result file: `results/20261029-062717-adhoc-gdnx-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-062717-adhoc-gdnx-base-r2/result.json 
+gdnx-base-r3: - result file: `results/20261029-062840-adhoc-gdnx-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-062840-adhoc-gdnx-base-r3/result.json 
+gdnx-dev-r3: - result file: `results/20261029-063008-adhoc-gdnx-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-063008-adhoc-gdnx-dev-r3/result.json 

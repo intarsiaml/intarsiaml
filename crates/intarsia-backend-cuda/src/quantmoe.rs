@@ -58,6 +58,9 @@ pub const TABLE: &[(&str, Op)] = &[
     // replaces; the model falls back to that chain when the registry has no kernel for the exact call
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
     ("matmul_fp8_pair_gemv", Op::MatmulFp8Pair),
+    // row-exact twin (`rows_exact`, M = 1..=16): bitwise two `matmul_fp8_gemv_rows` calls, one launch where both take the
+    // e4m3-staged kernel (lane gdnx: the batched-decode GDN qkv + z and attention k + v)
+    ("matmul_fp8_pair_gemv_rows", Op::MatmulFp8Pair),
     // prefill (M >= 256): the gemm_reg GEMM on cuBLAS's bf16 kernels over exactly expanded e4m3 operands, the same bytes
     // at the 35B shapes on sm_121 / CUDA 13.0 (INTARSIA_CUDA_FP8_CUBLAS; docs/results/2026-10-22-s1-spark-prefill.md)
     ("matmul_fp8_gemm_cublas", Op::MatmulFp8),
@@ -512,6 +515,15 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
+                // INTARSIA_CUDA_FP8_PAIR_ROWS=0 keeps the two single calls inside the same launcher (A/B; the same bits)
+                "matmul_fp8_pair_gemv_rows" => k
+                    .acts(bf)
+                    .weights([DType::Fp8E4m3])
+                    .when(|s| (1..=ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && s.out == Some(DType::Bf16))
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .priority(-1)
+                    .rows_exact(),
                 // bitwise two `matmul_fp8_gemm_reg` calls: served exactly where those serve both halves (M >= 256, the reg
                 // GEMM on; never with the opt-in e4m3 GEMMs, which would serve the singles). `INTARSIA_CUDA_FP8_PAIR_REG=0`
                 // (or INTARSIA_NO_FUSION=1 in the model) gives the two single calls.

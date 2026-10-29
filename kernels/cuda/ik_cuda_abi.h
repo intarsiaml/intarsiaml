@@ -168,6 +168,9 @@ int ik_matmul_exl3_gemm(const ik_tensor* x, const ik_tensor* trellis, const ik_t
  * (tests/rows_exact.rs: every M, W8A8 and W8A16, the 35B and 8B shapes). */
 /* = ik_matmul_fp8_gemv */
 int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, ik_tensor* out, void* stream);
+/* = ik_matmul_fp8_pair_gemv (bf16 outputs); also bitwise the two ik_matmul_fp8_gemv_rows calls */
+int ik_matmul_fp8_pair_gemv_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                                 const ik_tensor* scales1, ik_tensor* out0, ik_tensor* out1, void* stream);
 /* = ik_matmul_nvfp4_gemv */
 int ik_matmul_nvfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
                               const ik_tensor* global_scale, ik_tensor* out, void* stream);

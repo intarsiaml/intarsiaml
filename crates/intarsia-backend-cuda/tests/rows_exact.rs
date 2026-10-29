@@ -403,6 +403,83 @@ fn fp8_rows_q_are_bitwise_the_one_row_gemv() {
     rig.report("fp8-q");
 }
 
+/// The row-exact fp8 pair (`matmul_fp8_pair_gemv_rows`, lane gdnx): both outputs of every M-row call are, row by row, the bits
+/// of the one-row `matmul_fp8_gemv` on each matrix alone (and of the M = 1 `matmul_fp8_pair_gemv`), with equal and with
+/// different input scales (one staging, two stagings), W8A16 halves, and the 35B's GDN qkv + z and attention k + v shapes.
+#[test]
+fn fp8_pair_rows_are_bitwise_the_one_row_gemvs() {
+    let Some(rig) = Rig::new("fp8_pair_rows_are_bitwise_the_one_row_gemvs") else { return };
+    let mut rng = SplitMix64::new(821);
+    let shapes = [(8192usize, 4096usize, 2048usize), (512, 512, 2048), (300, 9, 2048), (33, 70, 2064), (9, 8, 16)];
+    // (input scale of matrix 0, of matrix 1): 0 = W8A16
+    let scales = [(0.125f32, 0.125f32), (0.125, 0.0117), (0.0, 0.125), (0.125, 0.0), (0.0, 0.0)];
+    let a = OpAttrs::default();
+    for q in ["", "all"] {
+        if q.is_empty() {
+            std::env::remove_var("INTARSIA_CUDA_FP8_ROWS_Q");
+        } else {
+            std::env::set_var("INTARSIA_CUDA_FP8_ROWS_Q", q);
+        }
+        for (n0, n1, k) in shapes {
+            for (is0, is1) in scales {
+                let mats: Vec<(TensorRef, TensorRef)> = [(n0, is0), (n1, is1)]
+                    .iter()
+                    .map(|&(n, is)| {
+                        let hc = intarsia_core::quant::cases::matmul_fp8_case(&mut rng, 1, n, k, is > 0.0, DType::Bf16, DType::Bf16);
+                        let ws = hc.inputs[2].to_f32()[0];
+                        (rig.put(&hc.inputs[1]), rig.put(&scales_tensor(ws, is)))
+                    })
+                    .collect();
+                let clip = 448.0 * is0.max(is1).max(1.0 / 448.0);
+                let x_rows = nasty_rows(&mut rng, k, clip);
+                let label = format!("fp8 pair q={q} n={n0}+{n1} k={k} is={is0}/{is1}");
+                // the solo references: every row alone through the one-row GEMV, per matrix
+                let want: Vec<[Vec<u8>; 2]> = (0..CAP)
+                    .map(|r| {
+                        let x = rig.put(&bf16_row(&x_rows[r]));
+                        let one = |i: usize, n: usize| {
+                            rig.run("matmul_fp8_gemv", Op::MatmulFp8, &[x.clone(), mats[i].0.clone(), mats[i].1.clone()], &[(DType::Bf16, vec![1, n])], &a)[0].data.clone()
+                        };
+                        [one(0, n0), one(1, n1)]
+                    })
+                    .collect();
+                let x0 = rig.put(&bf16_row(&x_rows[0]));
+                let solo_pair = rig.run(
+                    "matmul_fp8_pair_gemv",
+                    Op::MatmulFp8Pair,
+                    &[x0, mats[0].0.clone(), mats[0].1.clone(), mats[1].0.clone(), mats[1].1.clone()],
+                    &[(DType::Bf16, vec![1, n0]), (DType::Bf16, vec![1, n1])],
+                    &a,
+                );
+                assert!(solo_pair[0].data == want[0][0] && solo_pair[1].data == want[0][1], "G-B FAIL {label}: the M = 1 pair is not the single GEMVs");
+                let all: Vec<f32> = x_rows[..CAP].iter().flatten().copied().collect();
+                let x_all = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &all));
+                for m in 1..=CAP {
+                    let o = rig.run(
+                        "matmul_fp8_pair_gemv_rows",
+                        Op::MatmulFp8Pair,
+                        &[x_all.rows(0, m), mats[0].0.clone(), mats[0].1.clone(), mats[1].0.clone(), mats[1].1.clone()],
+                        &[(DType::Bf16, vec![m, n0]), (DType::Bf16, vec![m, n1])],
+                        &a,
+                    );
+                    for (i, n) in [(0usize, n0), (1, n1)] {
+                        for r in 0..m {
+                            let got = &o[i].data[r * n * 2..(r + 1) * n * 2];
+                            if got != &want[r][i][..] {
+                                let first = got.chunks(2).zip(want[r][i].chunks(2)).position(|(g, w)| g != w).unwrap();
+                                panic!("G-B FAIL {label}: M={m} output {i} row {r} differs from the one-row GEMV (first at col {first})");
+                            }
+                        }
+                    }
+                    rig.note("matmul_fp8_pair_gemv_rows", m, m, m * (n0 + n1) * 2);
+                }
+            }
+        }
+    }
+    std::env::remove_var("INTARSIA_CUDA_FP8_ROWS_Q");
+    rig.report("fp8-pair");
+}
+
 /// The row-group split of the bf16 and nvfp4 row-exact launchers (INTARSIA_CUDA_BF16_ROWS_SPLIT / INTARSIA_CUDA_NVFP4_ROWS_SPLIT
 /// forced to every R, and `auto`: the launchers' own pick): the one-row kernel's bits, ragged last groups included.
 #[test]
