@@ -132,7 +132,7 @@ fn run_prefill(model: &Model, st: &mut SequenceState, tokens: &[u32], mode: Opti
         let keep = model.batch_snapshots();
         return Ok(match mode {
             None => {
-                if !matches!(model.forward(st, tokens, HeadMode::None, None)?, StepOut::None) {
+                if !matches!(model.forward_prefill(st, tokens, HeadMode::None, None)?, StepOut::None) {
                     return Err(Error::Other("a headless prefill pass returned an output".into()));
                 }
                 st.snapshot(&*model.backend, keep)?;
@@ -141,19 +141,19 @@ fn run_prefill(model: &Model, st: &mut SequenceState, tokens: &[u32], mode: Opti
             Some(m) => {
                 if tokens.len() > 1 {
                     // nothing is asked of this pass: a head output here would be a bug, not a result to drop
-                    if !matches!(model.forward(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?, StepOut::None) {
+                    if !matches!(model.forward_prefill(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?, StepOut::None) {
                         return Err(Error::Other("a headless prefill pass returned an output".into()));
                     }
                     st.snapshot(&*model.backend, keep)?;
                 }
-                match model.forward(st, &tokens[tokens.len() - 1..], m, None)? {
+                match model.forward_prefill(st, &tokens[tokens.len() - 1..], m, None)? {
                     StepOut::None => None,
                     o => Some(o),
                 }
             }
         });
     }
-    let out = model.forward(st, tokens, mode.unwrap_or(HeadMode::None), None)?;
+    let out = model.forward_prefill(st, tokens, mode.unwrap_or(HeadMode::None), None)?;
     Ok(match out {
         StepOut::None => None,
         o => Some(o),
@@ -298,7 +298,7 @@ impl BatchModel for SlotModel {
         for &(slot, tokens, mode) in items {
             out.push(match mode {
                 None => None,
-                Some(m) => match self.model.forward(&mut self.states[slot], &tokens[tokens.len() - 1..], m, None)? {
+                Some(m) => match self.model.forward_prefill(&mut self.states[slot], &tokens[tokens.len() - 1..], m, None)? {
                     StepOut::None => None,
                     o => Some(o),
                 },

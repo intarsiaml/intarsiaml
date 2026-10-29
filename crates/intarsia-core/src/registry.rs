@@ -98,6 +98,11 @@ pub struct KernelImpl {
     /// Reads a non-row-major weight layout (`backend::Layout`, `ShapeInfo::frag`). Off by default: a call with a tagged input is accepted
     /// only by kernels that say they can read it.
     pub frag: bool,
+    /// Row-invariant prefill kernel (lane rip): every output row's bits depend only on that row's inputs (and, for attention, on
+    /// the keys at absolute positions `0 ..= pos0 + t`), never on how many other rows share the call or where the call starts, for
+    /// every row count the predicate accepts. A call with `OpCall::prefill_inv` selects only kernels marked so (and fails if none
+    /// fits); ordinary calls select them as usual.
+    pub row_invariant: bool,
 }
 
 fn always(_: &ShapeInfo) -> bool {
@@ -124,6 +129,7 @@ impl KernelImpl {
             row_table: false,
             ext: false,
             frag: false,
+            row_invariant: false,
         }
     }
 
@@ -188,6 +194,11 @@ impl KernelImpl {
     /// Mark as a verify-row kernel (see `KernelImpl::rows_exact`).
     pub fn rows_exact(mut self) -> Self {
         self.rows_exact = true;
+        self
+    }
+    /// Mark as a row-invariant prefill kernel (see `KernelImpl::row_invariant`).
+    pub fn row_invariant(mut self) -> Self {
+        self.row_invariant = true;
         self
     }
     /// Mark as a row-table kernel (see `KernelImpl::row_table`).
@@ -353,6 +364,10 @@ impl Registry {
             if k.rows_exact != rows_only || k.row_table != call.rows.is_some() {
                 continue;
             }
+            // a row-invariant prefill pass (`OpCall::prefill_inv`) takes only kernels that promise it, for every op
+            if call.prefill_inv && !k.row_invariant {
+                continue;
+            }
             if self.reference_only && !k.is_reference {
                 continue;
             }
@@ -367,7 +382,7 @@ impl Registry {
         }
         best.ok_or_else(|| {
             Error::NoKernel(format!(
-                "{} on {}/{} (m={} n={} k={} act={:?} w={:?}){}{}{}",
+                "{} on {}/{} (m={} n={} k={} act={:?} w={:?}){}{}{}{}",
                 call.op,
                 self.backend,
                 self.arch,
@@ -379,6 +394,7 @@ impl Registry {
                 if self.reference_only { " [reference kernels only]" } else { "" },
                 if self.require_admitted { " [admitted kernels only]" } else { "" },
                 if rows_only { " [row-exact verify kernels only]" } else { "" },
+                if call.prefill_inv { " [row-invariant prefill kernels only]" } else { "" },
             ))
         })
     }
