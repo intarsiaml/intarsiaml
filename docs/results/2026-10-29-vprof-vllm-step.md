@@ -18,16 +18,22 @@ graphs traced with `--cuda-graph-trace=node`).
   takes 18.9 ms. It reads the same NVFP4 bytes (each distinct expert once) and streams them a little slower than our
   kernels (about 212 against 223 GB/s at equal expert counts). Its down projection is faster than ours (163 against 188 us per
   layer), its gate_up slower (335 against 283 us).
-- **The 3.5 ms is spread over four places**, all on the main stream: GDN 1.2 ms (the delta-rule kernel streams its state at
-  about 268 GB/s, not at our 232), fp8 projections 1.4 ms (merged CUTLASS GEMMs), attention 1.2 ms (fp8 KV, half the bytes) and the
-  lm_head 0.3 ms; the routed experts and glue go the other way (+1.0 and +0.3 ms).
-- **Overlap is not the difference.** vLLM hides 3.9 ms of aux-stream work behind the routed experts (its shared expert is
-  bulky: 3.9 ms of kernels against our 1.6), but our default-on `INTARSIA_MOE_SHARED_STREAM` / `INTARSIA_SIDE_PROJ` already hide
-  that work; the main-stream path alone (vLLM 38.8 ms of kernels, ours about 41.5) is what differs.
-- **step16's "GDN is at the floor" was wrong by 14 %**: vLLM's Triton kernel moves the same f32 state in 250 us, 268 GB/s
-  of a 273 GB/s peak, against our 279 us.
+- **The 3.5 ms is spread over four places**: GDN 1.2 ms (the delta-rule kernel moves the same f32 state 12 % faster per call,
+  250 against 279 us), fp8 projections 1.4 ms (merged CUTLASS GEMMs), attention 1.2 ms (fp8 KV, half the bytes) and the lm_head
+  0.3 ms; the routed experts and glue go the other way (+1.0 and +0.3 ms).
+- **Kernel sums are almost equal (42.9 ms ours, 42.7 vLLM); the critical path is not.** The union of kernel intervals (what the
+  GPU is busy for) is 41.5 ms for ours and 38.75 for vLLM, a measured 2.7 ms. vLLM hides 3.9 ms of aux-stream work (its shared
+  expert is bulky: 3.9 ms of kernels against our 1.6) behind the routed experts; ours hides about 1.8 ms, although by my
+  reading of the buckets about 3.5 to 4 ms of our work sits on side streams (shared expert 1.6, GDN z about 1.5, k/v 0.4, part of
+  the 0.7 bf16 GEMVs). **How that splits into "kernel is slower" and "overlap is worse" depends on which of our kernels are the
+  hidden ones; step16's trace was not kept, so the per-bucket attribution below assumes ours hides the shared expert and
+  that the rest is exposed.** If instead our hidden 1.8 ms is z / k / v, the exposed shared expert makes the main-stream rows
+  smaller and the overlap item in section 4 larger.
+- **The delta-rule hardware floor is higher than step16 assumed.** step16 showed that no exact change got under 279 us; vLLM's Triton
+  kernel moves the same f32 state in 250 us, about 259 GB/s in step16's units (232 x 279/250), 95 % of the 273 GB/s peak. The
+  state is f32 in this run (section 1).
 
-What did not work: the ncu pass that would have measured DRAM bytes per MoE kernel hung (section 7), so routed-expert bytes are
+What did not work: the ncu pass that would have measured DRAM bytes per MoE kernel hung (section 6), so routed-expert bytes are
 derived, not measured.
 
 ## 1. Method
@@ -45,6 +51,9 @@ container `vprof-vllm` started with the vr16 launcher's flags (`raw/vprof-cmd.js
 - vLLM picked (startup log, `raw/vllm-startup.log`): NVFP4 MoE `MARLIN`, NVFP4 linears `MarlinNvFp4LinearKernel`, FlashInfer
   attention (`decode_backend=flashinfer-native`, KV `float8_e4m3fn`), the Triton/FLA GDN kernels, CUDA graphs `FULL` for decode
   (sizes 1, 2, 4, 8, 16) and `PIECEWISE` for prefill.
+- The GDN state is f32 in this run, checked from the log: it sets the attention block to 2096 tokens "to ensure the attention
+  page size is >= the mamba page size"; 2096 x 1024 B (2 KV heads x 256 x K and V, fp8) = 2,146,304 B, which is exactly an f32
+  SSM state (32 x 128 x 128 x 4 = 2,097,152 B) plus the 8192 x 3 bf16 conv state (49,152 B). A bf16 state would give about 1072 tokens.
 - Driven by `scripts/vprof/burst.py` (same prompt construction as `scripts/step16/burst.py`: first 3700 chars of
   `tools/prompts/corpus_docs.txt` behind a per-stream tag, `DISTINCT=1` gives each stream its own slice; thinking off,
   `ignore_eos`): a 2-stream warm-up, burst **a** (16 streams, same body, comparable to step16's `base-b16`), burst **b**
@@ -98,7 +107,7 @@ ours the 167-step window of step16.
 | GPU idle inside the window | 0.5 | 0.28 | | ours 1.2 %, `rank.txt` |
 | **step wall** | **42.01** | **39.03** | **-2.98** | |
 
-Reading it: the step wall is the main-stream chain. vLLM's main stream carries 38.8 ms of kernels (everything except the 3.89 ms
+Reading it (the attribution assumes our hidden 1.8 ms is the shared expert; see the Result section): the step wall is the main-stream chain. vLLM's main stream carries 38.8 ms of kernels (everything except the 3.89 ms
 on the aux stream), ours about 41.5 (42.9 minus the 1.8 hidden). The 2.7 ms difference of the chain is the sum of the main-stream
 rows (-1.22 - 1.16 - 0.20 - 1.20 - 0.29 + 0.98 + 0.23 + 0.32 = -2.54, plus rounding of the overlap estimate) and 0.24 ms less
 idle. Burst b (distinct bodies) has the same non-MoE rows and 22.7 ms of routed MoE (`raw/vsteps-burst-b-30-197.txt`).
@@ -157,22 +166,24 @@ changes (`docs/tuning.md`).
 1. **GDN delta-rule kernel and conv: about -1.0 to -1.2 ms (delta 279 -> 250 us x 30, conv 18.3 -> 7.6 us x 30). The conv
    part is exact (a 4-tap elementwise op); the delta part is exact only if the left-to-right key sum is kept, which is not
    shown.** vLLM's Triton kernel (`fused_recurrent_gated_delta_rule_packed_decode_kernel`, read in the image's
-   `third_party/flash_linear_attention/ops/fused_recurrent.py`) streams the same f32 state (32 MB read + 32 MB written per layer
-   at B = 16) in 250 us, 268 GB/s. Its shape: grid (4 value tiles of 32 rows, 16 sequences x 32 heads), one 32-thread block each,
+   `third_party/flash_linear_attention/ops/fused_recurrent.py`) streams the same f32 state (about 32 MB read + 32 MB written per layer
+   at B = 16) in 250 us against our 279 us, 11.6 % faster per call. Its shape: grid (4 value tiles of 32 rows, 16 sequences x 32 heads), one 32-thread block each,
    the whole `[32 x 128]` state tile in registers, and the key-dimension sums done with `tl.sum(..., 1)`, a Triton tree
    reduction. That tree is **not** our summation order: `gdn_delta_split_kernel<128, LPR=2>` (`kernels/cuda/gdn.cu`) sums
    left to right with a carry handed between the two lanes of a row, and its header records that other trees change the 35B's
    greedy tokens and KL. So vLLM's kernel cannot be dropped in. What is open is whether a launch shape closer to vLLM's (more,
-   smaller blocks per head, state loads issued earlier; `INTARSIA_GDN_SPLIT_LPR` only accepts 2, 4, 8, which step16 swept) can
-   reach 268 GB/s while keeping our left-to-right carry. step16's "at the floor" statement should be withdrawn: the floor on
-   this part is about 268 GB/s, not 232.
-2. **Fewer, wider fp8 projection launches and a higher streaming rate: about -0.5 to -0.9 ms of the 1.36 ms (K=2048
+   smaller blocks per head, state loads issued earlier; `INTARSIA_GDN_SPLIT_LPR` accepts only 2, 4, 8) can reach 250 us while
+   keeping our left-to-right carry. step16's claim stands for exact changes it tried, but "at the bandwidth floor" does not:
+   the hardware allows at least 11.6 % more on this kernel.
+2. **Fewer, wider fp8 projection launches and a higher streaming rate: about -0.5 to -1.5 ms (bucket difference 1.36 ms, plus any exposed side-stream work) (K=2048
    5.52 -> 4.36, K=4096 2.35 -> 2.15). Exact.** vLLM runs GDN qkv + z as one 12288-row GEMM (116.7 us, 216 GB/s) and the
    attention q + k + v as one 9216-row GEMM (85.7 us); ours runs 8192-row, 4096-row, 8192-row and two 512-row GEMVs at
    180 to 200 GB/s. Concatenating the weight rows at load and launching the existing row-exact kernel once over all rows keeps
    every output row's dot-product order, so it is bitwise. Caution: INTARSIA_SIDE_PROJ already overlaps z, k, v with qkv, q,
-   so the saving is the part the overlap does not already hide (launch tails, the 512-row kernels' low occupancy); the
-   estimate is below the bucket difference for that reason. K = 4096 (-0.2 ms) is a bandwidth-only item.
+   so the saving is the part the overlap does not already hide (launch tails, the 512-row kernels' low occupancy). The range is
+   wide because it depends on how much of our side-stream work is really hidden: qkv and z are both DRAM-bound GEMVs, so
+   running them beside each other may hide little, and vLLM's aux kernels are small latency-bound ones next to a DRAM-bound
+   Marlin. If z, k and v are mostly exposed today, one merged launch recovers more than the low end. K = 4096 (-0.2 ms) is a bandwidth-only item.
 3. **Routed-expert down projection at vLLM's rate: about -0.5 to -1.0 ms (188 -> 163 us per layer). Exactness depends on
    keeping the per-pair FMA chain, so only a streaming/tiling change qualifies; the moe16 lane's expert-major attempt did
    not pay.** This is the only MoE lever the profile supports; gate_up is already faster than vLLM's.
@@ -210,7 +221,7 @@ unchecked). Until then routed-expert bytes are derived.
 
 ## 7. Process
 
-GPU jobs on spark1, all with `--takes-down flight,guidance,capcom --quiet gpu,cpu --mem 45` and the service restored each time:
+Three fleetq jobs ran against the brief's cap of two GPU windows (#6859 did no GPU work but took the service down for 3 minutes). GPU jobs on spark1, all with `--takes-down flight,guidance,capcom --quiet gpu,cpu --mem 45` and the service restored each time:
 
 | job | what | result |
 |---|---|---|
