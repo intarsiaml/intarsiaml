@@ -20,12 +20,12 @@ v2 kernel.
 | `timing_35b_batched_step` B = 8 (ms, same) | 27.61 / 27.81 | 27.12 / 27.17 | -0.56 ms (-2.0 %) |
 | 16-stream burst wall under nsys (s) | 14.41 | 13.83 | -4.0 % |
 
-Serve A/B (localeval, 1 / 4 / 8 / 16 streams, 3 interleaved rounds): section 4.
+Serve A/B (localeval, 3 interleaved rounds, aggregate decode tok/s): **+0.6 / -0.2 / +2.0 / +2.5 %** at 1 / 4 / 8 / 16 streams (section 4).
 
 Gates: `batch_cuda_real` 35B 4290 (row, step) pairs bitwise. rows_exact (incl. `moe_decode_rows_are_bitwise_the_one_token_kernel`:
 the dd kernel at T = 1..16 against the v2 T = 1 kernel, with distinct, same-expert, shared-pair, invalid-id and wide-weight
 routings, the 35B shape, a top-4 shape and the gelu twin with I / 16 = 8). row_tables, quantmoe and moe_nvfp4 pass.
-`plan show` is byte-identical for the 8B, 35B and Gemma-4 (json and text). Served `equal.py`: section 4. Mac
+`plan show` is byte-identical for the 8B, 35B and Gemma-4 (json and text). Served `equal.py` base vs dev: 21/21 cells identical. Mac
 `cargo test --workspace --release` is green.
 
 ## 1. Why the down projection was slow
@@ -108,7 +108,23 @@ gate_up 329.5 / 322.6 (the same kernel; run-to-run). These profiles' window give
 
 ## 4. Served identity and serve A/B (W2)
 
-PENDING
+Served-token identity (`scripts/moedn/ident.sh`, `scripts/htk/equal.py`: 7 sampling settings x 1 / 4 / 16 streams, fixed
+seeds, 64 tokens; base = main efb8b4b3b, dev = this branch, both `serve --max-batch 16`; `raw/ident/`): **21/21 cells
+identical, 9408 token ids compared.**
+
+Serve A/B (`scripts/moedn/le-window.sh`, localeval speed, ~1k-token prompts, 256 tokens, 3 interleaved rounds, aggregate
+decode tok/s, base = main efb8b4b3b, dev = this branch, both `--max-batch 16`; raw `raw/w2/`, localeval runs
+`20261029-100843` .. `20261029-101606-adhoc-moedn-*`):
+
+| streams | base r1 / r2 / r3 | dev r1 / r2 / r3 | base mean | dev mean | delta |
+|---:|---|---|---:|---:|---:|
+| 1 | 81.1 / 80.7 / 79.0 | 80.6 / 80.4 / 81.2 | 80.27 | 80.73 | +0.6 % |
+| 4 | 176.7 / 178.9 / 173.9 | 174.1 / 178.0 / 176.4 | 176.50 | 176.17 | -0.2 % |
+| 8 | 226.1 / 231.8 / 232.4 | 236.1 / 232.8 / 235.1 | 230.10 | 234.67 | **+2.0 %** |
+| 16 | 296.9 / 296.9 / 294.7 | 301.1 / 304.7 / 304.5 | 296.17 | 303.43 | **+2.5 %** |
+
+No cell is slower than -0.5 %. At 8 and 16 streams every dev round is above every base round. The 16-stream gain (+2.5 %)
+is about the step's -2.8 %. The 1- and 4-stream cells sit inside this A/B's round-to-round spread (up to +-1.5 %).
 
 ## 5. Not done / caveats
 
@@ -121,7 +137,7 @@ PENDING
 
 ## GPU use
 
-Two GPU windows: W1 (#6995, 12 min: gates, batch_cuda_real, step timing, two nsys bursts) and W2 (identity + serve A/B).
+Two GPU windows: W1 (#6995, 12 min: gates, batch_cuda_real, step timing, two nsys bursts) and W2 (#7006, 13 min: served identity + 3-round serve A/B).
 Short checks (< 3 min each): #6986, #6987 and #6989 (the micro, the last two under nsys). Builds and `plan show` ran as
 `--load cpu` slots. spark1-vllm stayed up; no `--takes-down`.
 

@@ -1,0 +1,6 @@
+moedn-base-r1: - result file: `results/20261029-100843-adhoc-moedn-base-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-100843-adhoc-moedn-base-r1/result.json 
+moedn-dev-r1: - result file: `results/20261029-101012-adhoc-moedn-dev-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-101012-adhoc-moedn-dev-r1/result.json 
+moedn-dev-r2: - result file: `results/20261029-101142-adhoc-moedn-dev-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-101142-adhoc-moedn-dev-r2/result.json 
+moedn-base-r2: - result file: `results/20261029-101307-adhoc-moedn-base-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-101307-adhoc-moedn-base-r2/result.json 
+moedn-base-r3: - result file: `results/20261029-101439-adhoc-moedn-base-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-101439-adhoc-moedn-base-r3/result.json 
+moedn-dev-r3: - result file: `results/20261029-101606-adhoc-moedn-dev-r3/result.json` [localeval] saved /opt/code/deepeval/results/20261029-101606-adhoc-moedn-dev-r3/result.json 
