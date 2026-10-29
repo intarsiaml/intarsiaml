@@ -1,0 +1,15 @@
+[14:42:56] batch_recurrent exit 0: test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 254.37s
+[14:46:55] batch_metal_real exit 101: test result: FAILED. 2 passed; 1 failed; 5 ignored; 0 measured; 0 filtered out; finished in 238.01s
+[14:47:53] long prompts exit 101: test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 58.02s
+[14:54:22] workspace exit 101: 1090 passed, 15 failed, 28 ignored
+test gpu_tests_were_not_built ... FAILED
+failures:
+failures:
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test real_35b_batched_decode_is_bitwise_the_solo_step ... FAILED
+test real_35b_batched_engine_equals_the_local_engine ... FAILED
+test real_35b_device_sampling_draws_the_host_tokens ... FAILED
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... FAILED
+test real_qwen3_8b_decode_written_rows_are_not_prefill_rows ... FAILED
+test real_qwen3_8b_ordinary_short_pass_fits_the_plan ... FAILED
+[14:54:22] done

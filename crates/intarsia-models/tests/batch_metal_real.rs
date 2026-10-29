@@ -376,11 +376,11 @@ fn corpus_tokens(dir: &std::path::Path) -> Vec<u32> {
 }
 // ---- engine identity on prompts longer than the solo chunk ----------------------------------------------------------------
 
-/// The busy chunk of the batching engine defaults to the solo chunk (2048 for the 35B on Metal too) for the hybrid 35B, so a request that prefills while
-/// others decode runs the solo chunk schedule: its output must be token for token the `LocalEngine` run, for prompts of 2.6k, 4k
-/// and 16k tokens (more than one chunk), with 2 and 4 slots. The decoding neighbour (R0, a short prompt, 900 tokens) is still
+/// The busy chunk of the batching engine is the solo chunk for the hybrid 35B on CUDA (2048), but the recipe's own 2048 on Metal (solo chunk 4096), so a request that
+/// prefills while others decode runs 2048-row steps against the `LocalEngine`'s 4096: its output must still be token for token the `LocalEngine` run, for prompts of 2.6k, 4k
+/// and 16k tokens (at the 4096-row Metal chunk only the 16k prompt spans several chunks; the 2.6k and 4k ones prefill whole), with 2 and 4 slots. The decoding neighbour (R0, a short prompt, 900 tokens) is still
 /// generating while the long prompts prefill (checked from the scheduler's mixed-iteration counter). Control, printed and not
-/// asserted: the same scenario with `--busy-chunk 64` (smaller than the solo chunk, 2048), to show the test can see a schedule mismatch.
+/// asserted: the same scenario with `--busy-chunk 64` (smaller than the solo chunk, 4096), to show the test can see a schedule mismatch.
 #[test]
 #[ignore]
 fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
@@ -392,6 +392,30 @@ fn real_35b_batched_engine_long_prompts_equal_the_local_engine() {
 #[ignore]
 fn real_35b_batched_engine_long_prompts_control_busy_chunk_64() {
     long_engine(true);
+}
+
+/// Drop `l` (the engine, its scheduler thread, the model) and check that the device gave its memory back. The free-memory plan
+/// of the next engine reads `recommendedMaxWorkingSetSize - currentAllocatedSize`; the Metal backend used to keep every loaded
+/// model's weight mapping in its host cache for its whole life, so each engine of this test planned from 22 GB less than the
+/// one before and the fourth got a 16377-token context window (the 16384-token prompt was refused). `MetalBackend::info`
+/// now prunes the released mappings, so `free_mem` is back at `baseline` (the free memory before the first engine) here.
+fn drop_and_settle(be: &Arc<dyn intarsia_core::backend::Backend>, l: intarsia_models::load::Loaded, baseline: u64, what: &str) {
+    drop(l);
+    let t0 = std::time::Instant::now();
+    let tol = 64 << 20;
+    loop {
+        let free = be.info().free_mem;
+        if free + tol >= baseline || t0.elapsed() > Duration::from_secs(10) {
+            eprintln!(
+                "LONGENG {what}: dropped, free memory {} MiB of the {} MiB at the start, after {:.1} s",
+                free >> 20,
+                baseline >> 20,
+                t0.elapsed().as_secs_f64()
+            );
+            return;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
 }
 
 fn long_engine(control_only: bool) {
@@ -423,10 +447,13 @@ fn long_engine(control_only: bool) {
             ("R3 2600 tok", req(window(60000, 2600), 130, None)),
         ]
     };
+    let baseline = be.info().free_mem;
     let reference: Vec<Out> = {
         let l = load_engine(&dir, be.clone(), &mk(None, None)).unwrap();
         assert_eq!(l.max_batch, 1);
-        reqs().into_iter().map(|(_, r)| collect(&l.engine.submit(r).unwrap())).collect()
+        let outs = reqs().into_iter().map(|(_, r)| collect(&l.engine.submit(r).unwrap())).collect();
+        drop_and_settle(&be, l, baseline, "reference engine");
+        outs
     };
     assert!(reference.iter().zip(reqs()).all(|(o, (_, r))| o.ids.len() == r.max_tokens));
     // `slots` slots; request indices to run (R0 first, the rest together once R0 is decoding)
@@ -469,7 +496,9 @@ fn long_engine(control_only: bool) {
             outs.push(h0.join().unwrap());
             outs.extend(hs.into_iter().map(|h| h.join().unwrap()));
         });
-        (outs, l.engine.batch_metrics().expect("a batching engine has metrics"))
+        let metrics = l.engine.batch_metrics().expect("a batching engine has metrics");
+        drop_and_settle(&be, l, baseline, &format!("{slots}-slot engine"));
+        (outs, metrics)
     };
     let mut failures = Vec::new();
     let identity_cases: Vec<(usize, Vec<usize>)> =

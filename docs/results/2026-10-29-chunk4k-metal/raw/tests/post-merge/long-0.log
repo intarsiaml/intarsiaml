@@ -1,0 +1,70 @@
+warning: field `spec_dflash` is never read
+    --> crates/intarsia-core/src/engine.rs:1135:5
+     |
+1102 | pub(crate) struct Seq {
+     |                   --- field in this struct
+...
+1135 |     spec_dflash: bool,
+     |     ^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1215:4
+     |
+1215 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_metal_real.rs:448:41
+    |
+448 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                         ^^^^^^^^^^ this value is reassigned later and never used
+...
+460 |                             reason = Some(finish_reason);
+    |                             ---------------------------- `reason` is overwritten here before the previous value is read
+    |
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:265:8
+    |
+265 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "batch_metal_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/batch_metal_real.rs (.lane/target/release/deps/batch_metal_real-0e2ba6caed371530)
+
+running 1 test
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+continuous batching: up to 2 sequences (--max-batch), busy prefill chunk 4096
+LONGENG 2 slots, requests [0, 1], busy chunk default: mixed iterations 1, prefill chunks 2, decode batches B1:770 B2:129
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 30.49s
+

@@ -1,0 +1,29 @@
+[15:39:19] long-prompt test (default invocation) exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 302.32s
+LONGENG reference engine: dropped, free memory 87755 MiB of the 110094 MiB at the start, after 60.1 s
+LONGENG 2-slot engine: dropped, free memory 87755 MiB of the 110094 MiB at the start, after 60.0 s
+LONGENG 2 slots, requests [0, 1], busy chunk default: mixed iterations 2, prefill chunks 3, decode batches B1:770 B2:129
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+LONGENG 4-slot engine: dropped, free memory 87755 MiB of the 110094 MiB at the start, after 60.1 s
+LONGENG 4 slots, requests [0, 1, 2, 3], busy chunk default: mixed iterations 12, prefill chunks 13, decode batches B1:760 B2:10 B3:10 B4:119
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+LONGENG   R2 16384 tok (sampled) : IDENTICAL to the LocalEngine run
+LONGENG   R3 2600 tok : IDENTICAL to the LocalEngine run
+LONGENG 4-slot engine: dropped, free memory 87755 MiB of the 110094 MiB at the start, after 60.1 s
+LONGENG 4 slots, requests [0, 2, 3, 1], busy chunk default: mixed iterations 12, prefill chunks 13, decode batches B1:766 B2:4 B3:4 B4:125
+LONGENG   R0 200 tok, 900 gen : IDENTICAL to the LocalEngine run
+LONGENG   R2 16384 tok (sampled) : IDENTICAL to the LocalEngine run
+LONGENG   R3 2600 tok : IDENTICAL to the LocalEngine run
+LONGENG   R1 4096 tok : IDENTICAL to the LocalEngine run
+[15:39:22] plan show diff vs busy=4096:        0 lines
+[15:39:27] ids short-0: identical to the 2048 run (prefill chunk 4096 (recipe qwen3_5_moe, metal))
+[15:39:33] ids 4k-0: identical to the 2048 run (prefill chunk 4096 (recipe qwen3_5_moe, metal))
+[15:39:41] mb4: prefill chunk 4096 (recipe qwen3_5_moe, metal);continuous batching: up to 4 sequences (--max-batch), busy prefill chunk 2048;
+[15:39:46] single-default: prefill chunk 4096 (recipe qwen3_5_moe, metal);
+[15:39:59] single-default localeval exit 0
+[15:40:04] single-c2048: prefill chunk 2048 (--prefill-chunk);
+[15:40:16] single-c2048 localeval exit 0
+[15:40:22] single-default2: prefill chunk 4096 (recipe qwen3_5_moe, metal);
+[15:40:33] single-default2 localeval exit 0
+[15:40:34] done

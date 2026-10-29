@@ -83,12 +83,24 @@ prefill_macro = 8192
 # (docs/results/2026-10-27-mpf-macro-prefill-mtp.md, section 9; lane cmtp before it).
 mtp_default_k = 2
 
-# 2048 on Metal (user-delegated 2026-10-22 19:41): at the 256 default, `qualify` on the 4k golden fails the prefix-reuse gate on
-# long_docs_4k `continue` (streams diverge at token 8, docs/results/2026-10-22-gc-gate-coverage.md); 2048 amortises the expert
-# reads the same way as on CUDA. The chunk is part of the accuracy baseline identity: golden/baselines/qwen36-35b*.metal.* were
-# re-recorded with it. Measurements: docs/results/2026-10-22-gc2-metal-35b-chunk2048.md.
+# 4096 on Metal (lane chunk4k, 2026-10-29): 4096-row chunks give the MoE expert GEMMs 128 rows per expert (64 at 2048) and
+# amortise the fp8 weight decode over twice the rows: served 35B prefill about +7.5 % at 4k (best start against best start; paired median
+# +11 %) and +2 to +6 % at 16k (noisy) over 2048, 6 interleaved rounds on endor, decode and 1-16 stream burst unchanged, greedy ids bitwise equal
+# (docs/results/2026-10-29-chunk4k-metal.md). Before that 2048 (user-delegated 2026-10-22
+# 19:41): at the 256 default `qualify` on the 4k golden fails the prefix-reuse gate on long_docs_4k `continue` (streams diverge at
+# token 8, docs/results/2026-10-22-gc-gate-coverage.md); 2048 amortises the expert reads the same way as on CUDA
+# (docs/results/2026-10-22-gc2-metal-35b-chunk2048.md). The chunk is part of the accuracy baseline identity:
+# golden/baselines/qwen36-35b*.metal.* were re-recorded with it. At 4096 the 4k documents (4064 tokens) cannot cross a chunk
+# boundary, so `accuracy --mode all` judges prefix reuse only on chat_reuse_4k (as on HIP, below); `qualify` also runs the
+# reuse check at chunk 1024, which judges all three.
+# Beside decoding streams (`serve --max-batch` > 1) a prompt prefills in 2048-row steps, not 4096: the scheduler runs `busy_chunk` for
+# a request whose prefill starts while a stream decodes and `prefill_chunk` otherwise (crates/intarsia-core/src/scheduler.rs,
+# `prefill_plan`: `n_decoding > 0`, chosen on the request's first chunk), so a neighbour's worst step stays the ~0.4 s it was at 2048 rows instead of ~0.7 s.
+# Single-stream and idle-server prefill keep 4096. The 35B's prefill is chunk-invariant bitwise on Metal
+# (docs/results/2026-10-29-chunk4k-metal.md), unlike CUDA where a smaller busy chunk moves the KL.
 [tuning.metal]
-prefill_chunk = 2048
+prefill_chunk = 4096
+busy_chunk = 2048
 
 # 4096 on HIP: every MoE layer reads all 256 experts once per chunk, so at 256 tokens a 4k prompt re-reads the expert weights 16
 # times. 35B prefill on one R9700 at 128 / 1024 / 4096 tokens goes 1254 / 2112 / 2033 tok/s (256) to 1231 / 3094 / 3585 (4096), 3058

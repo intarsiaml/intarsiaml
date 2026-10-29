@@ -1,0 +1,69 @@
+[14:25:03] start 492a8b35e
+[14:25:06] plan Qwen3.6-35B-A3B-NVFP4 exit 0: 4096 recipe qwen3_5_moe, metal 167905792
+[14:25:06] plan Qwen3-8B exit 0: 2048 recipe qwen3, metal 1064960
+[14:25:06] plan Llama-3.1-8B-Instruct exit 0: 256 default 1064960
+[14:25:07] plan Qwen2.5-7B-Instruct exit 0: 256 default 931840
+[14:25:07] plan Qwen3.8-27B-Quark-AWQ-MXFP4 exit 0: 256 default 8912912
+[14:25:08] plan MiniCPM-V-4.7-35B-A3B-MLX-4bit exit 1: json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+[14:25:08] plan Kolibri-1-MLX-4bit exit 1: json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)
+[14:25:16] ids short-0 c4096 exit 0: prefill chunk 4096 (recipe qwen3_5_moe, metal) |  38708707328 maximum resident set size; 20675227560 peak memory footprint; | uniq-ids-lines        0 md5 d41d8cd98f00b204e9800998ecf8427e
+[14:25:21] ids short-0 c2048 exit 0: prefill chunk 2048 (--prefill-chunk) |  38713442304 maximum resident set size; 20722217520 peak memory footprint; | uniq-ids-lines        1 md5 703745c3c899797224eac32ee422fd0a
+[14:25:26] ids short-0 mtp exit 0: prefill chunk 4096 (recipe qwen3_5_moe, metal) |  41723936768 maximum resident set size; 21941353288 peak memory footprint; | uniq-ids-lines        1 md5 703745c3c899797224eac32ee422fd0a
+[14:25:26]   short-0: c4096 DIFFERS from c2048
+[14:25:26]   short-0: c4096 DIFFERS from mtp
+[14:25:34] ids 4k-0 c4096 exit 0: prefill chunk 4096 (recipe qwen3_5_moe, metal) |  38709706752 maximum resident set size; 20667937448 peak memory footprint; | uniq-ids-lines        0 md5 d41d8cd98f00b204e9800998ecf8427e
+[14:25:40] ids 4k-0 c2048 exit 0: prefill chunk 2048 (--prefill-chunk) |  38704513024 maximum resident set size; 20755296864 peak memory footprint; | uniq-ids-lines        1 md5 84d60aa5c4c421cbfd9de9a4db937b78
+[14:25:46] ids 4k-0 mtp exit 0: prefill chunk 4096 (recipe qwen3_5_moe, metal) |  41729015808 maximum resident set size; 21888154416 peak memory footprint; | uniq-ids-lines        1 md5 84d60aa5c4c421cbfd9de9a4db937b78
+[14:25:46]   4k-0: c4096 DIFFERS from c2048
+[14:25:46]   4k-0: c4096 DIFFERS from mtp
+[14:25:54] ids 4k-1 c4096 exit 0: prefill chunk 4096 (recipe qwen3_5_moe, metal) |  38704824320 maximum resident set size; 20755132952 peak memory footprint; | uniq-ids-lines        0 md5 d41d8cd98f00b204e9800998ecf8427e
+[14:26:00] ids 4k-1 c2048 exit 0: prefill chunk 2048 (--prefill-chunk) |  38671597568 maximum resident set size; 20570238936 peak memory footprint; | uniq-ids-lines        1 md5 e293ea0fd56f1f0308b3c1efb8fcb59f
+[14:26:06] ids 4k-1 mtp exit 0: prefill chunk 4096 (recipe qwen3_5_moe, metal) |  41720692736 maximum resident set size; 21870934760 peak memory footprint; | uniq-ids-lines        1 md5 e293ea0fd56f1f0308b3c1efb8fcb59f
+[14:26:06]   4k-1: c4096 DIFFERS from c2048
+[14:26:06]   4k-1: c4096 DIFFERS from mtp
+[14:26:20] ids 16k-0 c4096 exit 0: prefill chunk 4096 (recipe qwen3_5_moe, metal) |  38706462720 maximum resident set size; 20611035048 peak memory footprint; | uniq-ids-lines        0 md5 d41d8cd98f00b204e9800998ecf8427e
+[14:26:30] ids 16k-0 c2048 exit 0: prefill chunk 2048 (--prefill-chunk) |  38580535296 maximum resident set size; 20510323200 peak memory footprint; | uniq-ids-lines        1 md5 d133440aab512e80476bb3808e588d62
+[14:26:39] ids 16k-0 mtp exit 0: prefill chunk 4096 (recipe qwen3_5_moe, metal) |  41734094848 maximum resident set size; 21863544928 peak memory footprint; | uniq-ids-lines        1 md5 d133440aab512e80476bb3808e588d62
+[14:26:39]   16k-0: c4096 DIFFERS from c2048
+[14:26:39]   16k-0: c4096 DIFFERS from mtp
+[14:30:34] qualify 0-record exit 1 235 s
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 53 kernels registered)
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      8s] plan: PASS in 7.5s (24 ops resolved, exactness deterministic, loaded in 7.5s)
+[qualify      8s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     18s] acc-short: MISSING-BASELINE in 9.8s (MISSING-BASELINE: baseline /opt/code/intarsiaml/golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.metal.baseline.json not used (recorded at prefill chunk 2048, this run uses 4096): KL, tail, prefix-reuse gates only, top-1 not gated. Qwen3.6-35B-A3B-NVFP4 has no full-precision golden (MoE / hybrid / quantized, golden from a reference server), so
+[qualify     38s] acc-oracle: MISSING-BASELINE in 20.1s (MISSING-BASELINE: the recorded dump /opt/code/intarsiaml/golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors does not apply: Error: the self-golden was written with a different configuration (prefill chunk: self-golden 2048 (recipe qwen3_5_moe, metal), this run 4096 (recipe qwen3_5_moe, metal) -- the recipe's defaul
+[qualify    125s] acc-long: PASS in 86.8s (prefill top-1 94.20% KL 4.19e-2; decode top-1 98.44% KL 9.54e-3)
+[qualify    216s] acc-4k: FAIL in 91.2s (prefix reuse at chunk 1024: 3 judged, 0 skipped: prefix reuse differs from a cold run)
+[qualify    236s] envelope: PASS in 19.5s (baseline and envelope (chunk) written; they gate this build: PASS)
+total 5760
+-rw-r--r--@ 1 josef  staff     2760 Oct 29 14:30 acc-4k-reuse.baseline.json
+-rw-r--r--@ 1 josef  staff     9264 Oct 29 14:29 acc-4k.baseline.json
+-rw-r--r--@ 1 josef  staff    10881 Oct 29 14:28 acc-long.baseline.json
+-rw-r--r--@ 1 josef  staff     9900 Oct 29 14:27 acc-oracle.baseline.json
+-rw-r--r--@ 1 josef  staff    15410 Oct 29 14:26 acc-short.baseline.json
+-rw-r--r--@ 1 josef  staff    34321 Oct 29 14:30 envelope.json
+-rw-r--r--@ 1 josef  staff  2853516 Oct 29 14:27 qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors
+ M golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.metal.selfgolden.safetensors
+ M golden/baselines/qwen36-35b-a3b-nvfp4-vllm-4k-top20.metal.baseline.json
+ M golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.metal.baseline.json
+ M golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.metal.envelope.json
+[14:35:32] qualify 1-verdict exit 1 298 s
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 53 kernels registered)
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      5s] plan: PASS in 4.6s (24 ops resolved, exactness deterministic, loaded in 4.6s)
+[qualify     36s] kernels: PASS in 30.9s (48 kernels, 924 cases in 30.8s)
+[qualify     45s] gate: PASS in 8.7s (perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     45s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     59s] acc-short: PASS in 14.1s (prefill top-1 97.85% KL 7.93e-3; decode top-1 97.50% KL 1.24e-2)
+[qualify     97s] acc-oracle: PASS in 38.3s (prefill top-1 96.04% KL 1.07e-2)
+[qualify    120s] bench: PASS in 22.2s (decode 123.7 tok/s at 128 tokens (45% of the byte floor))
+[qualify    206s] acc-long: PASS in 86.6s (prefill top-1 94.20% KL 4.19e-2; decode top-1 98.44% KL 9.54e-3)
+[qualify    298s] acc-4k: FAIL in 91.6s (prefix reuse at chunk 1024: 3 judged, 0 skipped: prefix reuse differs from a cold run)
+    continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-long_docs_4k-s2000-g4k.continue-oracle.safetensors: mean KL(oracle||cold) 8.99e-3, mean KL(oracle||warm) 1.54e-2, warm/cold 1.71x; limit 1.5x cold + 3e-3 = 1.65e-2: PASS
+    continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-chat_reuse_4k-s4521.continue-oracle.safetensors: mean KL(oracle||cold) 5.18e-3, mean KL(oracle||warm) 3.68e-3, warm/cold 0.71x; limit 1.5x cold + 3e-3 = 1.08e-2: PASS
+prefix reuse: 3 prompt(s) judged, 0 skipped
+    continue judged against the committed CPU oracle qwen36-35b-a3b-nvfp4-continue-chat_reuse_4k-s4521.continue-oracle.safetensors: mean KL(oracle||cold) 5.18e-3, mean KL(oracle||warm) 3.68e-3, warm/cold 0.71x; limit 1.5x cold + 3e-3 = 1.08e-2: PASS
+prefix reuse: 1 prompt(s) judged, 2 skipped
+prefix reuse: 2 prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk 4096 (recipe qwen3_5_moe, metal): long_docs_4k, long_code_4k; 1 judged
+[14:35:32] done

@@ -1,0 +1,28 @@
+[qualify      0s] Qwen3.6-35B-A3B-NVFP4 on metal, report directory /opt/code/intarsiaml/.worktrees/chunk4k/.lane/w1/q-1-verdict
+[qualify      0s] this build carries no INTARSIA_BUILD_STAMP: baselines it writes are marked unstamped
+[qualify      0s] == doctor [doctor: host and device fingerprint, known pitfalls]
+[qualify      0s] doctor: PASS in 0.5s (Apple M5 Max (applegpu_g17s), 53 kernels registered)
+[qualify      0s] == recipe [recipe resolve]
+[qualify      1s] recipe: PASS in 0.3s (builtin:qwen3_5_moe covers this model (61/61 tensor templates resolve, quant nvfp4+fp8))
+[qualify      1s] == plan [plan show: load the model, resolve a kernel per op]
+[qualify      5s] plan: PASS in 4.6s (24 ops resolved, exactness deterministic, loaded in 4.6s)
+[qualify      5s] == kernels [kernels test on the model's shapes]
+[qualify     36s] kernels: PASS in 30.9s (48 kernels, 924 cases in 30.8s)
+[qualify     36s] == gate [quick gate: sanity prompts, perplexity, non-finite]
+[qualify     45s] gate: PASS in 8.7s (perplexity 1.22, 5/5 sanity prompts ok, no non-finite rows)
+[qualify     45s] == acc-format [short accuracy against the format's own reference (same quantized weights)]
+[qualify     45s] acc-format: SKIP in 0.0s (no format-reference golden for 'Qwen3.6-35B-A3B-NVFP4' (make one with the format's reference implementation, e.g. tools/golden_exl3.py for EXL3, and give --format-golden FILE))
+[qualify     45s] == acc-short [short accuracy against a golden]
+[qualify     59s] acc-short: PASS in 14.1s (prefill top-1 97.85% KL 7.93e-3; decode top-1 97.50% KL 1.24e-2)
+[qualify     59s] == acc-oracle [short prefill accuracy against the f64 CPU oracle (same weights, deterministic reference)]
+[qualify     97s] acc-oracle: PASS in 38.3s (prefill top-1 96.04% KL 1.07e-2)
+[qualify     97s] == bench [bench speed 128 / 1024 / 4096 with the byte floor]
+[qualify    103s] server up in 6s on http://127.0.0.1:8090 (max-seq 4608)
+[qualify    120s] bench: PASS in 22.2s (decode 123.7 tok/s at 128 tokens (45% of the byte floor))
+QUICK DONE: /opt/code/intarsiaml/.worktrees/chunk4k/.lane/w1/q-1-verdict/quick-report.md
+[qualify    120s] == acc-long [accuracy --mode all on the long golden (prefill, decode, prefix reuse)]
+[qualify    206s] acc-long: PASS in 86.6s (prefill top-1 94.20% KL 4.19e-2; decode top-1 98.44% KL 9.54e-3)
+[qualify    206s] == acc-4k [accuracy --mode all on the 4k golden (prefill, decode, prefix reuse past 2 chunks of 2048)]
+[qualify    298s] acc-4k: FAIL in 91.6s (prefix reuse at chunk 1024: 3 judged, 0 skipped: prefix reuse differs from a cold run)
+FULL DONE: /opt/code/intarsiaml/.worktrees/chunk4k/.lane/w1/q-1-verdict/full-report.md
+[qualify    298s] exit code 1

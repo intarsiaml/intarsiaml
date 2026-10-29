@@ -55,6 +55,15 @@ pub(crate) struct HostCache {
     kw_bytes: u64,
     map: HashMap<usize, Entry>,
 }
+impl HostCache {
+    /// The cache outlives the models: drop the entries whose mapping nothing else holds any more (every `Buffer` handed out by
+    /// [`try_wrap`] keeps its own `Arc` of the mapping, so a count of 1 is the cache alone). Without this a backend that loads a
+    /// second model in the same process (tests, a reload) keeps the first one's weights allocated, and the free-memory plan of
+    /// the next engine ([`MetalBackend::info`]) starts from that much less memory.
+    pub(crate) fn prune(&mut self) {
+        self.map.retain(|_, e| Arc::strong_count(&e._mem) > 1);
+    }
+}
 
 fn round_down(v: usize, page: usize) -> usize {
     v & !(page - 1)
@@ -101,6 +110,7 @@ pub(crate) fn try_wrap(be: &MetalBackend, mem: Arc<dyn HostMemory>, offset: usiz
     let max = be.device().maxBufferLength();
     let mut cache = be.hosts.lock().unwrap();
     if !cache.map.contains_key(&key) {
+        cache.prune();
         let floor = round_down(start, page);
         let total = round_up(start + slice.len(), page) - floor;
         let whole = if total <= max { Some((no_copy(be, floor, total)?, floor)) } else { None };
