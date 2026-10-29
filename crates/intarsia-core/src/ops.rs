@@ -1109,8 +1109,11 @@ mod tests {
         bad.outputs[2] = f(&[c, k]); // conv state [C, K-1]
         assert!(bad.check().is_err());
         let mut bad = p3.clone();
-        bad.outputs[2] = b(&[c, k - 1]); // conv state must be f32
+        bad.outputs[2] = t(DType::I32, &[c, k - 1]); // conv state must be f32 or bf16
         assert!(bad.check().is_err());
+        let mut bf16_state = p3.clone();
+        bf16_state.outputs[2] = b(&[c, k - 1]); // bf16 where the backend stores it so (`Backend::gdn_conv_dtype`)
+        bf16_state.check().unwrap();
         let mut bad = p3.clone();
         bad.outputs[1] = f(&[hv, dv, dk + 1]); // delta state does not split the qkv row
         assert!(bad.check().is_err());

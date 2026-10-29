@@ -9,6 +9,6 @@ B=${BIN:-dev}
 for v in "$@"; do
   e=$v; [ "$e" = - ] && e=
   echo "== $v $(date +%T)"
-  ssh -n -o BatchMode=yes spark1 "export FLEETQ_JOB=$FLEETQ_JOB; cd ~/intarsiaml-conv16/src/crates/intarsia-models && env $(echo "$e" | tr , ' ') INTARSIA_QWEN36_DIR=$M35 INTARSIA_REQUIRE_GPU=1 timeout 230 ~/intarsiaml-conv16/bin/batch_cuda_real-$B --ignored --nocapture --test-threads=1 --exact timing_35b_batched_step 2>&1 | grep -aE '^STEP|panicked|test result'"
+  ssh -n -o BatchMode=yes spark1 "export FLEETQ_JOB=$FLEETQ_JOB; cd ~/intarsiaml-conv16/src/crates/intarsia-models && env $(echo "$e" | tr , ' ') INTARSIA_QWEN36_DIR=$M35 INTARSIA_REQUIRE_GPU=1 timeout 230 ~/intarsiaml-conv16/bin/batch_cuda_real-$B --ignored --nocapture --test-threads=1 --exact timing_35b_batched_step 2>&1 | grep -aE '^STEP|panicked|test result|row-table path'"
 done
 echo "== done $(date +%T)"
