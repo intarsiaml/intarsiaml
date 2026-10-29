@@ -15,7 +15,8 @@ PHASES=${PHASES:-"speed27:4"}; CAP=${CAP:-4500}; PORT=8097; R0=${R0:-1}
 M27=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
 M35=/models/intarsia/Qwen3.6-35B-A3B-NVFP4
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
-ORD=("d3 d1 d5" "d5 d1 d3" "d1 d5 d3" "d3 d5 d1")
+ORD=("d1 d3 d7" "d7 d3 d1" "d3 d7 d1" "d1 d7 d3")
+# arms d<N> = INTARSIA_HIP_AR_DRAIN=<N> (d7 = lane ars LL handshake; every arm runs the B binary ars-intarsia-b, so only the knob differs)
 # ARMS="d3 d1": two arms, order alternating per round
 [[ -n ${ARMS:-} ]] && { rev=$(echo $ARMS | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}'); ORD=("$ARMS" "$rev" "$ARMS" "$rev"); }
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; REPO="$(cd "$HERE/../.." && pwd)"
@@ -47,21 +48,33 @@ serve() { # serve <phase> <arm>
   $SSH "docker rm -f ars-serve >/dev/null 2>&1; docker run -d --name ars-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
     --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=0,1 -e INTARSIA_HIP_AR_DRAIN=$drain \
-    -v \$HOME/intarsiaml-ars:/work -v /data/models:/models:ro -w /work $IMG /work/ars-intarsia serve --backend hip --model $model \
+    -v \$HOME/intarsiaml-ars:/work -v /data/models:/models:ro -w /work $IMG /work/${BIN:-ars-intarsia-b} serve --backend hip --model $model \
     --served-model-name $SERVED $spec --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq $maxseq --no-supervisor --host 0.0.0.0 --port $PORT" \
     < /dev/null > "$OUT/docker-$ph-$arm.id" 2>&1
   for i in $(seq 1 100); do curl -sf -m 3 "http://tatooine:$PORT/health" > /dev/null 2>&1 && return 0; sleep 3; done
   $SSH 'docker logs --tail 40 ars-serve' > "$OUT/serve-fail-$ph-$arm.log" 2>&1 < /dev/null; return 1
 }
 
+if [[ -n ${PRESTAGES:-} ]]; then
+  # stages-soak.sh stages (tests, rate, kt7, soak7, ids18 ...) inside this same radiance-down window, before the A/B phases
+  mkdir -p "$OUT/pre"; scp -q "$HERE/stages-soak.sh" tatooine:intarsiaml-ars/.ars/
+  say "prestages: $PRESTAGES"
+  $SSH "rm -rf ~/intarsiaml-ars/.ars/out/$W; N=${N:-250} REFN=${REFN:-0} DEFN=${DEFN:-1} DEFE='${DEFE:-}' DEFBIN=${DEFBIN:-} STAGES='$PRESTAGES' timeout ${PRECAP:-3000} bash ~/intarsiaml-ars/.ars/stages-soak.sh ~/intarsiaml-ars/.ars/out/$W" < /dev/null 2>&1 | tee "$OUT/pre/stages.log"
+  rsync -a "tatooine:intarsiaml-ars/.ars/out/$W/" "$OUT/pre/" 2>/dev/null
+  say "prestages done, time left $(left)s"
+fi
+
 for ph in $PHASES; do
   PNAME=${ph%%:*}; PR=${ph#*:}
+  if [[ $PNAME == speed35 && -n ${ARMS35:-} ]]; then # arms for the 35B phase only (e.g. a d3 reference beside d1 and d7)
+    rev35=$(echo $ARMS35 | awk '{for (i=NF;i>=1;i--) printf "%s ", $i}'); ORD=("$ARMS35" "$rev35" "$ARMS35" "$rev35")
+  elif [[ -n ${ARMS:-} ]]; then ORD=("$ARMS" "$rev" "$ARMS" "$rev"); fi
   for r in $(seq "$R0" $(( R0 + PR - 1 ))); do
     for arm in ${ORD[$(( r - 1 ))]}; do
       if (( $(left) < 480 )); then say "SKIPPED $PNAME round $r arm $arm (time left $(left)s)"; continue; fi
       say "$PNAME round $r arm $arm: starting server"
       if ! serve "$PNAME" "$arm"; then say "$PNAME round $r arm $arm: server did not come up"; $SSH 'docker rm -f ars-serve' >/dev/null 2>&1 < /dev/null; continue; fi
-      printf '[targets.ars]\nurl = "http://tatooine:%s/v1"\nmodel = "%s"\n' "$PORT" "$SERVED" > "$OUT/targets-$PNAME-$arm.toml"
+      printf '[targets.ar]\nurl = "http://tatooine:%s/v1"\nmodel = "%s"\n' "$PORT" "$SERVED" > "$OUT/targets-$PNAME-$arm.toml"
       case $PNAME in
         speed27|speed35)
           sizes=1024,4096,16384; gen=128; [[ $PNAME == speed35 ]] && { sizes=1024,4096; gen=256; }

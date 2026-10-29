@@ -17,6 +17,8 @@
 // INTARSIA_HIP_MXFP4_A8_PERGROUP=1 forces the per-group path (tests: real checkpoints never leave the fold path).
 // INTARSIA_HIP_MXFP4_A8_TILE=WN,WM,TN,TM[,PD] forces one tile (sweeps; the tiles of the table are accepted, PD 1 or 2, default 1).
 // INTARSIA_HIP_MXFP4_A8_PD=1 restores the previous kernel choice (global-load prefetch distance 1, the previous tile table).
+// M > 64 runs the direct kernel (a8_direct_kernel, lane PF27: tokens straight from global memory in fragment order, weights alone
+// through LDS; bitwise the same output); INTARSIA_HIP_MXFP4_A8_DIRECT=0 restores the staged kernel below, _DTILE forces a direct tile.
 // Block: WN x WM waves, each wave TN x TM fragments of 16 x 16 (weights x tokens); 64 k per stage, double-buffered through
 // registers (prefetch distance 2 by default: two register sets, the loads of stage k + 2 are in flight during stage k), LDS rows padded (ik_f8_gemm.h's layout). Fragments / k layout as ik_f8_gemm.h (both operands permute k alike).
 // K % 32 == 0 (a K % 64 == 32 tail stage is zero padded). Deterministic, fixed reduction order, independent of M.
@@ -309,12 +311,243 @@ void a8_enqueue(const A8Args& a, OutT* out, hipStream_t s) {
     a8_gemm_kernel<FOLD, WN, WM, TN, TM, PD, OutT><<<grid, WN * WM * 32, 0, s>>>(a, out);
 }
 
+// LDS-only block barrier: orders the block's LDS accesses and nothing else. __syncthreads() is a workgroup-scope release / acquire
+// of every address space, so on gfx12 it waits for every outstanding global load too (s_wait_loadcnt 0), which would drain the
+// token-fragment loads the direct kernel keeps in flight across the stage barrier. (The same construction as Radiance's
+// mxt_lds_barrier, libr4d/r4d_gemm_mxfp4a8_tiled.hip, Apache-2.0; written here from the AMDGPU memory model, no code copied.)
+IK_DEVI void a8_lds_barrier() {
+    __builtin_amdgcn_fence(__ATOMIC_RELEASE, "workgroup", "local");
+    __builtin_amdgcn_s_barrier();
+    __builtin_amdgcn_fence(__ATOMIC_ACQUIRE, "workgroup", "local");
+}
+
+// Lane PF27, the direct kernel: the tokens skip LDS. The pre-pass (mx_a8_quant_tiled_kernel, ik_mx_a8.h) writes xq in fragment order,
+// so each wave loads its token fragments straight from global memory into registers (one coalesced 512-byte uint4 load per fragment
+// and 32-k group), one stage ahead; only the weights go through LDS (decode + store as a8_gemm_kernel, prefetch distance 2). The
+// stage's LDS traffic drops from the weight AND token fragments (+ both stores) to the weight fragments and the weight store, which
+// was the bound of a8_gemm_kernel (lane GLR's DIAG 5: no LDS fragment reads, -43 %). Every WMMA gets the same operand bytes in the
+// same lanes, the accumulators the same WMMAs in the same k order, the epilogue the same math: the output is bitwise a8_gemm_kernel's.
+// The stage barrier is a8_lds_barrier, so the token loads stay in flight across it.
+template <bool FOLD, int WN, int WM, int TN, int TM, typename OutT>
+__global__ void __launch_bounds__(WN * WM * 32) a8_direct_kernel(A8Args a, OutT* __restrict__ out) {
+    if ((*a.flag == 0) != FOLD) return;
+    constexpr int NT = WN * WM * IK_WARP;
+    constexpr int BN = WN * TN * 16, BM = WM * TM * 16;
+    constexpr int CHW = BN * 2;  // 16-byte weight chunks of one stage (one group, 32 codes, each)
+    constexpr int CW = (CHW + NT - 1) / NT;
+    constexpr int SS = FOLD ? 4 : 4 * BN;  // per-group path: f32 scales [buf][group][n]
+    __shared__ __align__(16) uint8_t sw[2][BN * kA8LD];
+    __shared__ __align__(16) float sS[SS];
+
+    const uint8_t* __restrict__ xt = a.xq;  // fragment-ordered tokens
+    const uint8_t* __restrict__ w = a.w;
+    const uint8_t* __restrict__ ws = a.ws;
+    const int M = a.M, K = a.K;
+    const int64_t N = a.N;
+    const int tid = threadIdx.x, lane = tid & 31;
+    const int wave = __builtin_amdgcn_readfirstlane(tid >> 5);  // wave-uniform: the token addresses below stay scalar
+    const int wn = wave % WN, wm = wave / WN;
+    const int m_blk = blockIdx.x * BM;
+    const int64_t n_blk = (int64_t)blockIdx.y * BN;
+    const int nk = (K + kA8BK - 1) / kA8BK, KG = K / kA8G;
+    const int MT = (M + 15) >> 4;  // 16-token tiles the pre-pass wrote
+    const int KGP = nk * 2;        // groups per tile in the tiled xq: K padded to the stage (the pre-pass zeroes a K % 64 == 32 tail group)
+
+    struct Stage {
+        uint4 rw[CW];
+        int rt[CW];  // FOLD: fold shift of the chunk's group; else: its e8m0 byte
+    };
+    Stage st[2];  // weights: stage k's registers in st[k % 2] (prefetch distance 2, as a8_gemm_kernel's default)
+    uint4 xr[2][2][TM];  // tokens: stage k's fragments in xr[k % 2][group][j] (prefetch distance 1)
+    int wr[CW];
+#pragma unroll
+    for (int c = 0; c < CW; ++c) {
+        wr[c] = 127;
+        if constexpr (FOLD) {
+            const int64_t n = n_blk + ((tid + c * NT) >> 1);
+            if (n < N) wr[c] = (int)a.wref[n];
+        }
+    }
+    // the wave's token tiles; a tile past the last one is clamped onto it (its columns are never stored, and a WMMA column only
+    // reaches its own outputs)
+    // wave-uniform byte offset of tile j's first group (SGPRs); each lane adds lane * 16, so every token load is a scalar base + one
+    // 32-bit lane offset (no per-load 64-bit address VALU)
+    int64_t xb[TM];
+#pragma unroll
+    for (int j = 0; j < TM; ++j) xb[j] = (int64_t)min((m_blk >> 4) + wm * TM + j, MT - 1) * KGP * 512;
+    const int loff = lane * 16;
+    auto gload = [&](Stage& st, int k0) {
+#pragma unroll
+        for (int c = 0; c < CW; ++c) {
+            const int idx = tid + c * NT, r = idx >> 1, ch = idx & 1;
+            const int64_t n = n_blk + r;
+            const int kg = k0 + ch * kA8G;
+            if (idx < CHW && n < N && kg < K) {
+                st.rw[c] = *reinterpret_cast<const uint4*>(w + n * (K / 2) + kg / 2);
+                const int s = (int)ws[n * KG + kg / kA8G];
+                if constexpr (FOLD) st.rt[c] = s - wr[c] + 6;
+                else st.rt[c] = s;
+            } else {
+                st.rw[c] = make_uint4(0, 0, 0, 0);
+                st.rt[c] = FOLD ? 0 : 127;  // zero codes; a finite scale so 0 * scale stays 0
+            }
+        }
+    };
+    auto xload = [&](uint4 (&xs)[2][TM], int k0) {
+#pragma unroll
+        for (int g = 0; g < 2; ++g) {
+            const int kg = (k0 >> 5) + g;  // wave-uniform; the K % 64 == 32 tail stage's second group is the pre-pass's zero pad group
+#pragma unroll
+            for (int j = 0; j < TM; ++j) xs[g][j] = *reinterpret_cast<const uint4*>(xt + (xb[j] + (int64_t)kg * 512) + loff);
+        }
+    };
+    auto sstore = [&](const Stage& st, int buf) {
+#pragma unroll
+        for (int c = 0; c < CW; ++c) {
+            const int idx = tid + c * NT;
+            if (idx < CHW) {
+                const int r = idx >> 1, ch = idx & 1;
+                uint32_t t0 = kA8Tab0, t1 = kA8Tab1;
+                if constexpr (FOLD) {
+                    const int ti = min(max(st.rt[c], -8), 6) + 8;
+                    t0 = kA8FoldTab[ti][0];
+                    t1 = kA8FoldTab[ti][1];
+                } else {
+                    sS[(buf * 2 + ch) * BN + r] = a8_e8m0((uint32_t)st.rt[c]);
+                }
+                const uint2 p0 = a8_fold8(st.rw[c].x, t0, t1), p1 = a8_fold8(st.rw[c].y, t0, t1);
+                const uint2 p2 = a8_fold8(st.rw[c].z, t0, t1), p3 = a8_fold8(st.rw[c].w, t0, t1);
+                uint8_t* p = &sw[buf][r * kA8LD + ch * kA8G];
+                *reinterpret_cast<uint4*>(p) = make_uint4(p0.x, p0.y, p1.x, p1.y);
+                *reinterpret_cast<uint4*>(p + 16) = make_uint4(p2.x, p2.y, p3.x, p3.y);
+            }
+        }
+    };
+
+    ik_dq_v8f acc[TN][TM];
+#pragma unroll
+    for (int i = 0; i < TN; ++i)
+#pragma unroll
+        for (int j = 0; j < TM; ++j)
+#pragma unroll
+            for (int e = 0; e < 8; ++e) acc[i][j][e] = 0.f;
+
+    gload(st[0], 0);
+    xload(xr[0], 0);
+    sstore(st[0], 0);
+    if (1 < nk) gload(st[1], kA8BK);
+    a8_lds_barrier();
+    const int lr = lane & 15, lh = (lane >> 4) * 16;
+    const int ln = (lane >> 4) * 8;  // C fragment: lane holds token lr and features ln + e, e = 0..7
+    // stage kt (u = kt % 2): st[u] (already stored) takes the weight loads of stage kt + 2, xr[u ^ 1] the token loads of stage kt + 1;
+    // the WMMAs read the weights from LDS buffer u and the tokens from xr[u]; then st[u ^ 1] (stage kt + 1) is stored into buffer u ^ 1
+    auto step = [&](int kt, uint4 (&xc)[2][TM], uint4 (&xn)[2][TM], Stage& nx, Stage& ld) {
+        const int buf = kt & 1;
+        if (kt + 2 < nk) gload(ld, (kt + 2) * kA8BK);
+        if (kt + 1 < nk) xload(xn, (kt + 1) * kA8BK);
+#pragma unroll
+        for (int g = 0; g < 2; ++g) {
+            const int kk = g * 32;
+            uint4 af[TN];
+#pragma unroll
+            for (int i = 0; i < TN; ++i)
+                af[i] = *reinterpret_cast<const uint4*>(&sw[buf][(wn * TN * 16 + i * 16 + lr) * kA8LD + kk + lh]);
+            if constexpr (FOLD) {
+#pragma unroll
+                for (int i = 0; i < TN; ++i)
+#pragma unroll
+                    for (int j = 0; j < TM; ++j) {
+                        acc[i][j] = a8_wmma(af[i].x, af[i].y, xc[g][j].x, xc[g][j].y, acc[i][j]);
+                        acc[i][j] = a8_wmma(af[i].z, af[i].w, xc[g][j].z, xc[g][j].w, acc[i][j]);
+                    }
+            } else {
+                float sc[TN][8];
+#pragma unroll
+                for (int i = 0; i < TN; ++i) {
+                    const float* sp = &sS[(buf * 2 + g) * BN + wn * TN * 16 + i * 16 + ln];
+                    const float4 s0 = *reinterpret_cast<const float4*>(sp), s1 = *reinterpret_cast<const float4*>(sp + 4);
+                    sc[i][0] = s0.x;
+                    sc[i][1] = s0.y;
+                    sc[i][2] = s0.z;
+                    sc[i][3] = s0.w;
+                    sc[i][4] = s1.x;
+                    sc[i][5] = s1.y;
+                    sc[i][6] = s1.z;
+                    sc[i][7] = s1.w;
+                }
+#pragma unroll
+                for (int i = 0; i < TN; ++i)
+#pragma unroll
+                    for (int j = 0; j < TM; ++j) {
+                        ik_dq_v8f gq;
+#pragma unroll
+                        for (int e = 0; e < 8; ++e) gq[e] = 0.f;
+                        gq = a8_wmma(af[i].x, af[i].y, xc[g][j].x, xc[g][j].y, gq);
+                        gq = a8_wmma(af[i].z, af[i].w, xc[g][j].z, xc[g][j].w, gq);
+#pragma unroll
+                        for (int e = 0; e < 8; ++e) acc[i][j][e] = fmaf(gq[e], sc[i][e], acc[i][j][e]);
+                    }
+            }
+        }
+        if (kt + 1 < nk) sstore(nx, buf ^ 1);
+        a8_lds_barrier();
+    };
+    for (int kt0 = 0; kt0 < nk; kt0 += 2) {
+        step(kt0, xr[0], xr[1], st[1], st[0]);
+        if (kt0 + 1 < nk) step(kt0 + 1, xr[1], xr[0], st[0], st[1]);
+    }
+
+#pragma unroll
+    for (int i = 0; i < TN; ++i) {
+#pragma unroll
+        for (int j = 0; j < TM; ++j) {
+            const int m = m_blk + wm * TM * 16 + j * 16 + lr;
+            const int64_t n = n_blk + wn * TN * 16 + i * 16 + ln;
+            if (m >= M || n >= N) continue;
+            const float xsm = a.xs[m];
+            float v[8];
+            if constexpr (FOLD) {
+                const uint2 wq = *reinterpret_cast<const uint2*>(a.wref + n);
+#pragma unroll
+                for (int e = 0; e < 8; ++e) {
+                    const uint32_t b = ((e < 4 ? wq.x : wq.y) >> (8 * (e & 3))) & 0xffu;
+                    v[e] = ldexpf(acc[i][j][e] * xsm, (int)b - 133);
+                }
+            } else {
+#pragma unroll
+                for (int e = 0; e < 8; ++e) v[e] = acc[i][j][e] * xsm;
+            }
+            OutT* o = out + (int64_t)m * N + n;
+            if (a.vec_out) {
+                if (sizeof(OutT) == 2) {
+                    *reinterpret_cast<uint4*>(o) = ik_pack8(v);
+                } else {
+                    reinterpret_cast<float4*>(o)[0] = make_float4(v[0], v[1], v[2], v[3]);
+                    reinterpret_cast<float4*>(o)[1] = make_float4(v[4], v[5], v[6], v[7]);
+                }
+            } else {
+                for (int e = 0; e < 8 && n + e < N; ++e) ik_store(o + e, v[e]);
+            }
+        }
+    }
+}
+
+template <bool FOLD, int WN, int WM, int TN, int TM, typename OutT>
+void a8_direct_enqueue(const A8Args& a, OutT* out, hipStream_t s) {
+    dim3 grid((unsigned)(((int64_t)a.M + WM * TM * 16 - 1) / (WM * TM * 16)), (unsigned)((a.N + WN * TN * 16 - 1) / (WN * TN * 16)));
+    a8_direct_kernel<FOLD, WN, WM, TN, TM, OutT><<<grid, WN * WM * 32, 0, s>>>(a, out);
+}
+
 // INTARSIA_HIP_MXFP4_A8_TILE=WN,WM,TN,TM[,PD] forces one tile (PD 1 or 2, default 1), INTARSIA_HIP_MXFP4_A8_PERGROUP=1 forces the per-group path,
 // INTARSIA_HIP_MXFP4_A8_PD=1 restores the previous kernel choice (prefetch distance 1 and the previous tile table). Read once.
+// INTARSIA_HIP_MXFP4_A8_DIRECT=0 turns the direct kernel off (tokens through LDS again, a8_gemm_kernel), INTARSIA_HIP_MXFP4_A8_DTILE=WN,WM,TN,TM
+// forces one direct tile (sweeps; the tiles of a8_direct_run only). Both read once.
 struct A8Cfg {
     int tile[5] = {0, 0, 0, 0, 1};
     int pergroup = 0;
     int pd = 2;
+    int direct = 1;
+    int dtile[4] = {0, 0, 0, 0};
 };
 const A8Cfg& a8_cfg() {
     static const A8Cfg cfg = [] {
@@ -325,6 +558,10 @@ const A8Cfg& a8_cfg() {
         c.pergroup = (g && g[0] == '1') ? 1 : 0;
         const char* p = getenv("INTARSIA_HIP_MXFP4_A8_PD");
         c.pd = (p && p[0] == '1') ? 1 : 2;
+        const char* d = getenv("INTARSIA_HIP_MXFP4_A8_DIRECT");
+        c.direct = (d && d[0] == '0') ? 0 : 1;
+        const char* dt = getenv("INTARSIA_HIP_MXFP4_A8_DTILE");
+        if (dt && sscanf(dt, "%d,%d,%d,%d", &c.dtile[0], &c.dtile[1], &c.dtile[2], &c.dtile[3]) < 4) c.dtile[0] = 0;
         return c;
     }();
     return cfg;
@@ -378,11 +615,44 @@ void a8_run(const A8Args& a, OutT* out, hipStream_t s) {
 #undef IK_A8_TILE
 }
 
+// The direct kernel's tiles (both paths enqueued, the flag picks one, as a8_run).
+template <typename OutT>
+void a8_direct_run(const A8Args& a, OutT* out, hipStream_t s) {
+#define IK_A8_DTILE(WN, WM, TN, TM)                              \
+    {                                                            \
+        a8_direct_enqueue<true, WN, WM, TN, TM>(a, out, s);      \
+        a8_direct_enqueue<false, WN, WM, TN, TM>(a, out, s);     \
+        return;                                                  \
+    }
+    const int* t = a8_cfg().dtile;
+    if (t[0] > 0) {
+        const int key = t[0] * 1000 + t[1] * 100 + t[2] * 10 + t[3];
+        if (key == 2824) IK_A8_DTILE(2, 8, 2, 4)
+        if (key == 2424) IK_A8_DTILE(2, 4, 2, 4)
+        if (key == 2224) IK_A8_DTILE(2, 2, 2, 4)
+        if (key == 4424) IK_A8_DTILE(4, 4, 2, 4)
+        if (key == 4224) IK_A8_DTILE(4, 2, 2, 4)
+    }
+    // 64 features x 512 tokens (16 waves) from M = 768, else 64 x 256 (8 waves): lane PF27's sweep (raw/m5) over the 27B tp2 shapes at
+    // M = 130 .. 2048 (the 512-token tile ties at M = 512 and wins from M = 1000; below it pads too many tokens)
+    if (a.M >= 768) IK_A8_DTILE(2, 8, 2, 4)
+    IK_A8_DTILE(2, 4, 2, 4)
+#undef IK_A8_DTILE
+}
+
 size_t a8_round16(size_t v) { return (v + 15) & ~(size_t)15; }
 
-// scratch: mx_a8_scratch_bytes(M, K) (xq, xs; ik_mx_a8.h), padded to 16, then wref [round16(N)] and the fold flag [16]
+// scratch: mx_a8_scratch_bytes(round16(M), round64(K)) (xq, xs; ik_mx_a8.h; the direct kernel's tiled xq covers the 16-padded M and the
+// 64-padded K), padded to 16,
+// then wref [round16(N)] and the fold flag [16]. quantmoe.rs's matmul_mxfp4_a8_mma scratch is the same size.
 size_t a8_scratch_total(int64_t M, int64_t K, int64_t N) {
-    return a8_round16(mx_a8_scratch_bytes(M, K)) + a8_round16((size_t)N) + 16;
+    return a8_round16(mx_a8_scratch_bytes((M + 15) & ~(int64_t)15, (K + 63) & ~(int64_t)63)) + a8_round16((size_t)N) + 16;
+}
+
+// the direct kernel for this call? (M > 64: the staged kernel's 64-row tile keeps the small calls)
+bool a8_use_direct(int64_t M) {
+    const A8Cfg& c = a8_cfg();
+    return c.direct && M > 64 && c.tile[0] == 0 && c.pd == 2;
 }
 
 int launch_a8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, const ik_scratch* scratch,
@@ -405,13 +675,22 @@ int launch_a8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_te
     if (!scratch || !scratch->data || scratch->bytes < (int64_t)a8_scratch_total(M, K, N)) return IK_ERR_INVALID_ARG;
     if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
     uint8_t* base = (uint8_t*)scratch->data;
-    const size_t off = a8_round16(mx_a8_scratch_bytes(M, K));
+    const int64_t Mp = (M + 15) & ~(int64_t)15, Kp = (K + 63) & ~(int64_t)63;
+    const size_t off = a8_round16(mx_a8_scratch_bytes(Mp, Kp));
     uint8_t* wref = base + off;
     int* flag = reinterpret_cast<int*>(wref + a8_round16((size_t)N));
     const uint8_t* wp = (const uint8_t*)w->data;
     const uint8_t* sp = (const uint8_t*)sc->data;
+    const bool direct = a8_use_direct(M);
 
-    IK_TRY(mx_a8_quant_launch((const ik_bf16*)x->data, base, M, K, s));
+    if (direct) {
+        if (reinterpret_cast<uintptr_t>(x->data) & 15u) return IK_ERR_INVALID_ARG;
+        mx_a8_quant_tiled_kernel<<<(unsigned)Mp, 256, 0, s>>>((const ik_bf16*)x->data, base, reinterpret_cast<float*>(base + mx_a8_xs_offset(Mp, Kp)),
+                                                            (int)M, (int)K);
+        IK_TRY(ik_launch_status());
+    } else {
+        IK_TRY(mx_a8_quant_launch((const ik_bf16*)x->data, base, M, K, s));
+    }
     if (a8_cfg().pergroup) {
         if (hipMemsetAsync(flag, 1, sizeof(int), s) != hipSuccess) return IK_ERR_LAUNCH;  // flag = 0x01010101: never folds
     } else {
@@ -421,7 +700,7 @@ int launch_a8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_te
     }
     A8Args a;
     a.xq = base;
-    a.xs = reinterpret_cast<const float*>(base + mx_a8_xs_offset(M, K));
+    a.xs = reinterpret_cast<const float*>(base + (direct ? mx_a8_xs_offset(Mp, Kp) : mx_a8_xs_offset(M, K)));
     a.w = wp;
     a.ws = sp;
     a.wref = wref;
@@ -430,8 +709,14 @@ int launch_a8(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_te
     a.N = N;
     a.K = (int)K;
     a.vec_out = (N % 8 == 0) && ik_aligned16(out->data);
-    if (out->dtype == IK_DTYPE_F32) a8_run<float>(a, (float*)out->data, s);
-    else a8_run<ik_bf16>(a, (ik_bf16*)out->data, s);
+    if (direct) {
+        if (out->dtype == IK_DTYPE_F32) a8_direct_run<float>(a, (float*)out->data, s);
+        else a8_direct_run<ik_bf16>(a, (ik_bf16*)out->data, s);
+    } else if (out->dtype == IK_DTYPE_F32) {
+        a8_run<float>(a, (float*)out->data, s);
+    } else {
+        a8_run<ik_bf16>(a, (ik_bf16*)out->data, s);
+    }
     return ik_launch_status();
 }
 

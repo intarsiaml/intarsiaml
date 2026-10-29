@@ -1,0 +1,45 @@
+[pf27] stopping radiance 2026-10-28 20:22:52
+[pf27] radiance inactive 2026-10-28 20:22:56
+P pf27-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 1027 ms (3758.4 tok/s) | decode 0 ms (0.00 tok/s) csv=340 /home/josef/intarsiaml-pf27/pf27-out/w1/p-pf27-base-cli.csv.gz 2026-10-28 20:23:02
+P pf27-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 1023 ms (3770.9 tok/s) | decode 0 ms (0.00 tok/s) csv=344 /home/josef/intarsiaml-pf27/pf27-out/w1/p-pf27-dev-cli.csv.gz 2026-10-28 20:23:06
+T pf27-base-cli rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1009 ms (3824.5 tok/s) | decode 0 ms (0.00 tok/s)
+T pf27-dev-cli rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1011 ms (3816.9 tok/s) | decode 0 ms (0.00 tok/s)
+T pf27-dev-cli:4096 rep1: finish=length prompt=3858 (cached 0) completion=1 | prefill 1057 ms (3648.5 tok/s) | decode 0 ms (0.00 tok/s)
+T pf27-base-cli rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1015 ms (3802.1 tok/s) | decode 0 ms (0.00 tok/s)
+T pf27-dev-cli rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1013 ms (3809.6 tok/s) | decode 0 ms (0.00 tok/s)
+T pf27-dev-cli:4096 rep2: finish=length prompt=3858 (cached 0) completion=1 | prefill 1062 ms (3633.9 tok/s) | decode 0 ms (0.00 tok/s)
+T pf27-base-cli rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1011 ms (3814.5 tok/s) | decode 0 ms (0.00 tok/s)
+T pf27-dev-cli rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1015 ms (3800.6 tok/s) | decode 0 ms (0.00 tok/s)
+T pf27-dev-cli:4096 rep3: finish=length prompt=3858 (cached 0) completion=1 | prefill 1063 ms (3628.4 tok/s) | decode 0 ms (0.00 tok/s)
+== corr [A=1]: test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 11.14s 
+== corr [INTARSIA_HIP_MXFP4_A8_DIRECT=0]: test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 10.48s 
+== corr [INTARSIA_HIP_MXFP4_A8_PERGROUP=1]: test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 11.28s 
+== hash-dev-2244.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-2444.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-4224.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-4424.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-4442.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-direct0.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-pergroup.txt: 48 lines, differing from hash-base-pergroup.txt (48 lines): 0
+== hash-dev.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== time base: 17327.8 us summed 2026-10-28 20:25:16
+== time dev: 17098.6 us summed 2026-10-28 20:25:20
+== time dev-4424: 17128.1 us summed 2026-10-28 20:25:25
+== time dev-4224: 19142.8 us summed 2026-10-28 20:25:30
+== time dev-2444: 23001.3 us summed 2026-10-28 20:25:35
+== time dev-2244: 26720.4 us summed 2026-10-28 20:25:41
+== time dev-4442: 18670.6 us summed 2026-10-28 20:25:46
+== time base2: 17671.6 us summed 2026-10-28 20:25:51
+== time dev2: 17378.3 us summed 2026-10-28 20:25:56
+[pf27] ktrace base ok
+[pf27] ktrace dev ok
+== admission exit 0: 74 admitted rows; tail:
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+84 kernels, 456 cases in 3.4s
+incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+== plan 8B: byte-identical (1346 B)
+== plan 35B: byte-identical (3184 B)
+[pf27] window done 2026-10-28 20:26:14, 3398 s of the budget left
+[pf27] starting radiance 2026-10-28 20:26:14
+[pf27] RADIANCE-RESTORE active after 30 s at 2026-10-28 20:26:44; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793233599,"owned_by":"radiance"

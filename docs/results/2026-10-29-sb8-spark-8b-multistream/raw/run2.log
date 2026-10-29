@@ -1,0 +1,41 @@
+fleetq: #6601 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #6601 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/sb8-all.sh
+49:max_batch = 16
+== mb16 r2 20:19:12
+[N/A]
+42404 MB avail
+- result file: `results/20261028-202101-adhoc-sb8-mb16-r2/result.json`
+[localeval] saved /opt/code/deepeval/results/20261028-202101-adhoc-sb8-mb16-r2/result.json
+[localeval] 1 streams: aggregate 15.9 tok/s
+[localeval] 4 streams: aggregate 57.1 tok/s
+[localeval] 8 streams: aggregate 102.5 tok/s
+[localeval] 16 streams: aggregate 163.1 tok/s
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096
+== default r1 20:23:12
+[N/A]
+60033 MB avail
+- result file: `results/20261028-202435-adhoc-sb8-default-r1/result.json`
+[localeval] saved /opt/code/deepeval/results/20261028-202435-adhoc-sb8-default-r1/result.json
+[localeval] 1 streams: aggregate 15.8 tok/s
+[localeval] 4 streams: aggregate 15.8 tok/s
+== mb16 r3 20:26:48
+[N/A]
+42402 MB avail
+- result file: `results/20261028-202832-adhoc-sb8-mb16-r3/result.json`
+[localeval] saved /opt/code/deepeval/results/20261028-202832-adhoc-sb8-mb16-r3/result.json
+[localeval] 1 streams: aggregate 15.8 tok/s
+[localeval] 4 streams: aggregate 56.9 tok/s
+[localeval] 8 streams: aggregate 102.2 tok/s
+[localeval] 16 streams: aggregate 163.0 tok/s
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096
+== done 20:30:43
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+greedy n=4: 256 tokens
+greedy n=16: 1024 tokens
+DIFFER t0.8-p0.9-nok/n16
+EQUAL  greedy/n1
+EQUAL  greedy/n4
+DIFFER greedy/n16
+7/21 cells identical, 9408 token ids compared
+fleetq: #6601 done (exit 1)

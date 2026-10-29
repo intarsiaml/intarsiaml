@@ -1,0 +1,26 @@
+fleetq: #6597 waiting (#1 in line): needs spark2 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #6597 running on spark2: /private/tmp/claude-501/-opt-code-intarsiaml/f31ccf91-6032-412f-aeab-eea38852047d/scratchpad/sb8-run.sh
+49:max_batch = 16
+== mb16 r1 20:06:42
+[N/A]
+42669 MB avail
+- result file: `results/20261028-200830-adhoc-sb8-mb16-r1/result.json`
+[localeval] saved /opt/code/deepeval/results/20261028-200830-adhoc-sb8-mb16-r1/result.json
+[localeval] 1 streams: aggregate 15.9 tok/s
+[localeval] 4 streams: aggregate 57.1 tok/s
+[localeval] 8 streams: aggregate 102.8 tok/s
+[localeval] 16 streams: aggregate 163.0 tok/s
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096
+== mb8 r1 20:10:41
+[N/A]
+51773 MB avail
+- result file: `results/20261028-201207-adhoc-sb8-mb8-r1/result.json`
+[localeval] saved /opt/code/deepeval/results/20261028-201207-adhoc-sb8-mb8-r1/result.json
+[localeval] 1 streams: aggregate 15.9 tok/s
+[localeval] 4 streams: aggregate 57.0 tok/s
+[localeval] 8 streams: aggregate 102.2 tok/s
+[localeval] 16 streams: aggregate 103.6 tok/s
+continuous batching: up to 8 sequences (--max-batch), busy prefill chunk 4096
+== default r1 20:14:33
+[N/A]
+60069 MB avail

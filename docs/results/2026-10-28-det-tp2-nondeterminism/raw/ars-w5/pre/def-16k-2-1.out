@@ -1,0 +1,9 @@
+This is a highly detailed, technically rigorous engineering log documenting the development, debugging, and validation of Tensor Parallelism (TP=2) support for specific LLMs on AMD GPUs (R9700/gfx1201). The document reads like a "post-mortem" or a "release candidate" report for a specific feature branch (`lane-tp2`).
+
+Here is a critical review of the document, categorized by what is convincing, what is not, and what is missing.
+
+### 1. What is Convincing
+
+**A. The "Gate" Logic is Sound and Honest**
+The most impressive aspect of this document is the intellectual honesty regarding the validation criteria.
+*   **Admission of Limitation:** Section 1.2 explicitly states that KL divergence between TP=2 and TP=1 *cannot* detect a 0.3% partial-scale bug because the noise floor of the reduction order is higher than the bug. This is a rare and valuable admission in engineering logs. Many teams would claim "KL is low, therefore it works." Here, they admit KL is insufficient for subtle numerical bugs and switch to a **direct partial-sum check** (Section 1.3) with deterministic and probabilistic bounds

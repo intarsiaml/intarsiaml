@@ -1,0 +1,56 @@
+warning: field `spec_dflash` is never read
+    --> crates/intarsia-core/src/engine.rs:1135:5
+     |
+1102 | pub(crate) struct Seq {
+     |                   --- field in this struct
+...
+1135 |     spec_dflash: bool,
+     |     ^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1212:4
+     |
+1212 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/comm.rs (/target/release/deps/comm-b581c712b283f774)
+
+running 2 tests
+test all_reduce_rate ...      bytes      us/call   GB/s (msg)   launches
+      8192         11.7         0.70       4000
+     16384         11.5         1.42       4000
+     65536         12.6         5.21       4000
+    524288         35.0        14.99        400
+   2097152        112.4        18.65        400
+ok
+test ar_norm_rate ...      H  rows  part    us/call   launches
+  2048     1   f32       12.5       4000
+  2048     1  bf16       12.3       4000
+  5120     1  bf16       15.5       4000
+  5120     1   f32       16.0       4000
+  5120     3  bf16       16.0       4000
+  5120     3   f32       16.7       4000
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 0.80s
+
