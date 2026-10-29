@@ -1,0 +1,17 @@
+== row_tables
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 21.77s
+== rows_exact
+G-B bf16 matmul_bf16_gemv_rows: M:cases/rows/bytes 1:22/22/88100 2:22/44/176200 3:22/66/264300 4:22/88/352400 5:22/110/440500 6:22/132/528600 7:22/154/616700 8:22/176/704800 9:22/198/792900 10:22/220/881000 11:22/242/969100 12:22/264/1057200 13:22/286/1145300 14:22/308/1233400 15:22/330/1321500 16:22/352/1409600
+G-B moe moe_experts_decode_v2_rows_bf16: M:cases/rows/bytes 1:16/16/34816 2:16/32/69632 3:16/48/104448 4:16/64/139264 5:16/80/174080 6:16/96/208896 7:16/112/243712 8:16/128/278528 9:16/144/313344 10:16/160/348160 11:16/176/382976 12:16/192/417792 13:16/208/452608 14:16/224/487424 15:16/240/522240 16:16/256/557056
+G-B row-parallel argmax_f32: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel embedding_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel gated_rmsnorm_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel moe_combine_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel moe_topk_bf16: M:cases/rows/bytes 16:4/64/0
+G-B row-parallel rmsnorm_add_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel rmsnorm_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel sigmoid_mul_bf16: M:cases/rows/bytes 16:1/16/0
+G-B row-parallel silu_glu_bf16: M:cases/rows/bytes 16:1/16/0
+G-B split matmul_bf16_gemv_rows: M:cases/rows/bytes 1:70/70/10420 2:70/140/20840 3:70/210/31260 4:70/280/41680 5:70/350/52100 6:70/420/62520 7:70/490/72940 8:70/560/83360 9:70/630/93780 10:70/700/104200 11:70/770/114620 12:70/840/125040 13:70/910/135460 14:70/980/145880 15:70/1050/156300 16:70/1120/166720
+G-B split matmul_nvfp4_gemv_rows: M:cases/rows/bytes 1:120/120/234000 2:120/240/468000 3:120/360/702000 4:120/480/936000 5:120/600/1170000 6:120/720/1404000 7:120/840/1638000 8:120/960/1872000 9:120/1080/2106000 10:120/1200/2340000 11:120/1320/2574000 12:120/1440/2808000 13:120/1560/3042000 14:120/1680/3276000 15:120/1800/3510000 16:120/1920/3744000
+test result: ok. 10 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 33.80s
