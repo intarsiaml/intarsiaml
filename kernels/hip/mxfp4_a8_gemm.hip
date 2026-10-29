@@ -900,9 +900,10 @@ int launch_a8_pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0,
 
 // Lane pf27c: the direct path with the weight's span result cached by the caller (wref [N], flag; ik_mxfp4_a8_spans): the quant pre-pass,
 // then the GEMM(s), no span launch and no flag fill; `fold` 1 / 0 = the flag is known to select the fold / per-group path (only that
-// kernel is launched), -1 = unknown (both, the flag picks). The caller checks a8_use_direct(M) first.
+// kernel is launched), -1 = unknown (both, the flag picks). The caller checks a8_use_direct(M) first. xq non-null (lane fuse27): x's
+// quantised activations in the direct pre-pass's layout, already written by the norm that produced x (ik_rmsnorm_quant_bf16): no pre-pass.
 int launch_a8_cached(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, ik_tensor* out, const ik_scratch* scratch, void* stream,
-                     const uint8_t* wref, const int* flag, int fold, void* peer = nullptr, ik_ar_push* lay = nullptr) {
+                     const uint8_t* wref, const int* flag, int fold, const uint8_t* xq, void* peer = nullptr, ik_ar_push* lay = nullptr) {
     if (lay) lay->pushed = 0;
     IK_TRY(a8_check(x, w, sc, out));
     const int64_t M = x->shape[0], K = x->shape[1], N = w->shape[0];
@@ -910,14 +911,14 @@ int launch_a8_cached(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc
     hipStream_t s = IK_STREAM(stream);
     if (!scratch || !scratch->data || scratch->bytes < (int64_t)a8_scratch_total(M, K, N)) return IK_ERR_INVALID_ARG;
     if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
-    uint8_t* base = (uint8_t*)scratch->data;
-    IK_TRY(a8_quant(x, base, M, K, true, nullptr, 0, s));
+    uint8_t* base = xq ? const_cast<uint8_t*>(xq) : (uint8_t*)scratch->data;
+    if (!xq) IK_TRY(a8_quant(x, base, M, K, true, nullptr, 0, s));
     return a8_gemm(w, sc, out, base, wref, flag, M, K, true, s, peer, lay, fold);
 }
 
 int launch_a8_pair_cached(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1, ik_tensor* out0,
                           ik_tensor* out1, const ik_scratch* scratch, void* stream, const uint8_t* wref0, const int* flag0, int fold0,
-                          const uint8_t* wref1, const int* flag1, int fold1) {
+                          const uint8_t* wref1, const int* flag1, int fold1, const uint8_t* xq) {
     IK_TRY(a8_check(x, w0, s0, out0));
     IK_TRY(a8_check(x, w1, s1, out1));
     const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
@@ -926,8 +927,8 @@ int launch_a8_pair_cached(const ik_tensor* x, const ik_tensor* w0, const ik_tens
     const int64_t NN = (int64_t)a8_round16((size_t)N0) + N1;
     if (!scratch || !scratch->data || scratch->bytes < (int64_t)a8_scratch_total(M, K, NN)) return IK_ERR_INVALID_ARG;
     if (reinterpret_cast<uintptr_t>(scratch->data) & 15u) return IK_ERR_INVALID_ARG;
-    uint8_t* base = (uint8_t*)scratch->data;
-    IK_TRY(a8_quant(x, base, M, K, true, nullptr, 0, s));
+    uint8_t* base = xq ? const_cast<uint8_t*>(xq) : (uint8_t*)scratch->data;
+    if (!xq) IK_TRY(a8_quant(x, base, M, K, true, nullptr, 0, s));
     IK_TRY(a8_gemm(w0, s0, out0, base, wref0, flag0, M, K, true, s, nullptr, nullptr, fold0));
     return a8_gemm(w1, s1, out1, base, wref1, flag1, M, K, true, s, nullptr, nullptr, fold1);
 }
@@ -979,19 +980,21 @@ int ik_mxfp4_a8_spans(const ik_tensor* scales, int64_t K, void* wref, void* flag
 int ik_mxfp4_a8_use_direct(int64_t M) { return a8_use_direct(M) ? 1 : 0; }
 
 // lane pf27c: ik_matmul_mxfp4_a8_mma{,_push} / ik_matmul_mxfp4_pair_a8_mma with the weights' span results from ik_mxfp4_a8_spans (the direct
-// path only; `fold` as launch_a8_cached). `lay` null: no push. Bitwise the uncached calls.
+// path only; `fold` as launch_a8_cached). `lay` null: no push. `xq` (lane fuse27): null, or x's activations quantised by ik_rmsnorm_quant_bf16
+// (no pre-pass). Bitwise the uncached calls.
 int ik_matmul_mxfp4_a8_mma_cached(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act, ik_tensor* out,
-                                  const ik_scratch* scratch, const void* wref, const void* flag, int fold, void* peer, ik_ar_push* lay, void* stream) {
+                                  const ik_scratch* scratch, const void* wref, const void* flag, int fold, void* peer, ik_ar_push* lay, const void* xq,
+                                  void* stream) {
     (void)act;
-    return launch_a8_cached(x, w, scales, out, scratch, stream, (const uint8_t*)wref, (const int*)flag, fold, peer, lay);
+    return launch_a8_cached(x, w, scales, out, scratch, stream, (const uint8_t*)wref, (const int*)flag, fold, (const uint8_t*)xq, peer, lay);
 }
 
 int ik_matmul_mxfp4_pair_a8_mma_cached(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* s0, const ik_tensor* w1, const ik_tensor* s1,
                                        const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, const ik_scratch* scratch, const void* wref0,
-                                       const void* flag0, int fold0, const void* wref1, const void* flag1, int fold1, void* stream) {
+                                       const void* flag0, int fold0, const void* wref1, const void* flag1, int fold1, const void* xq, void* stream) {
     (void)act;
     return launch_a8_pair_cached(x, w0, s0, w1, s1, out0, out1, scratch, stream, (const uint8_t*)wref0, (const int*)flag0, fold0,
-                                 (const uint8_t*)wref1, (const int*)flag1, fold1);
+                                 (const uint8_t*)wref1, (const int*)flag1, fold1, (const uint8_t*)xq);
 }
 
 }  // extern "C"

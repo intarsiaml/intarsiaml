@@ -386,6 +386,7 @@ impl Comm for P2pComm {
         self.counters.call(total);
         self.backend.bind()?;
         let s = self.backend.stream(stream)?;
+        HipBackend::touch_tensor(out); // lane fuse27: what the backend derived from the old rows (`PreQuant`) is stale
         let pbase = HipBackend::ptr(&partial.buf, partial.offset, total)?;
         let obase = HipBackend::ptr(&out.buf, out.offset, out.nbytes())?;
         // above the LL limit the wide fence path, when on (a pure function of the message size, so both ranks agree)
@@ -702,6 +703,9 @@ impl P2pComm {
         self.counters.call(total);
         self.backend.bind()?;
         let s = self.backend.stream(stream)?;
+        for t in [a.out, a.norm, a.sum] {
+            HipBackend::touch_tensor(t); // lane fuse27: what the backend derived from the old rows (`PreQuant`) is stale
+        }
         let ptr = |t: &TensorRef| HipBackend::ptr(&t.buf, t.offset, t.nbytes());
         let (me, peer) = (&self.group.bufs[self.rank], &self.group.bufs[1 - self.rank]);
         self.group.note(self.rank, 3, a.partial.dtype as i32, a.partial.dtype as i32, rows * h);

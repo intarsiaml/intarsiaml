@@ -170,6 +170,10 @@ extern "C" {
     pub fn ik_embedding_bf16(ids: T, table: T, out: TM, s: S) -> c_int;
     pub fn ik_rmsnorm_bf16(x: T, w: T, eps: f32, w_offset: f32, out: TM, s: S) -> c_int;
     pub fn ik_rmsnorm_add_bf16(x: T, res: T, w: T, eps: f32, w_offset: f32, out: TM, sum: TM, s: S) -> c_int;
+    /// lane fuse27: rmsnorm (res / sum null) or rmsnorm_add that also writes the W4A8 direct GEMM's quantised `out` into `xq`
+    /// (kernels/hip/norm.hip); IK_ERR_UNSUPPORTED = not this path, nothing launched
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_rmsnorm_quant_bf16(x: T, res: T, w: T, eps: f32, w_offset: f32, out: TM, sum: TM, xq: *mut c_void, s: S) -> c_int;
     pub fn ik_add_bf16(a: T, b: T, out: TM, s: S) -> c_int;
     pub fn ik_qk_norm_bf16(x: T, w: T, eps: f32, w_offset: f32, out: TM, s: S) -> c_int;
     pub fn ik_rope_bf16(x: T, pos0: i64, theta: f32, rotary_dim: i64, out: TM, pos: T, s: S) -> c_int;
@@ -354,6 +358,7 @@ extern "C" {
         fold: c_int,
         peer: *mut c_void,
         lay: *mut IkArPush,
+        xq: *const c_void,
         s: S,
     ) -> c_int;
     #[allow(clippy::too_many_arguments)]
@@ -373,6 +378,7 @@ extern "C" {
         wref1: *const c_void,
         flag1: *const c_void,
         fold1: c_int,
+        xq: *const c_void,
         s: S,
     ) -> c_int;
     pub fn ik_matmul_mxfp4_gemv_rows_bf16(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;

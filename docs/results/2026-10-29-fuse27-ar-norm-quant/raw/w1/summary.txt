@@ -1,0 +1,60 @@
+fleetq: #7007 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=w1 SEC='"'"'fuse corr hash plan push tests adm ids'"'"' CENVS='"'"'A=1 INTARSIA_HIP_MXFP4_A8_PERGROUP=1 INTARSIA_HIP_MXFP4_A8_DIRECT=0 INTARSIA_HIP_NORM_QUANT=0'"'"' TMAX=2350 bash ~/intarsiaml-fuse27/scripts/fuse27/micro.sh'
+[arx] stopping radiance 2026-10-29 10:04:55
+[arx] radiance inactive 2026-10-29 10:04:58
+== fuse nq rc=0 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 2.37s 
+== fuse arn rc=0 test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s  (6 s)
+== corr [A=1] rc=0: test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 24.31s  (31 s)
+== corr [INTARSIA_HIP_MXFP4_A8_PERGROUP=1] rc=0: test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 24.08s  (55 s)
+== corr [INTARSIA_HIP_MXFP4_A8_DIRECT=0] rc=0: test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 24.51s  (80 s)
+== corr [INTARSIA_HIP_NORM_QUANT=0] rc=0: test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 24.16s  (105 s)
+== hash [A=1]: base 48 lines, dev 48, differing: 0
+== plan 8B: byte-identical (1346 B)
+== plan 35B: byte-identical (3184 B)
+== tests comm [A=1] rc=0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 19.14s  test many_back_to_back_launches_keep_both_scratch_parities_straight ... negative control: 1380 wrong results without the tag check test wide_path_without_the_wait_is_caught_by_the_stress_test ... negative control (wide, no wait): 239 wrong results 
+== tests ar_norm [A=1] rc=0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s  
+== tests comm [INTARSIA_HIP_AR_DRAIN=1] rc=0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 19.28s  test ll_without_the_tag_check_is_caught_by_the_stress_test ... negative control: 1380 wrong results without the tag check test wide_path_without_the_wait_is_caught_by_the_stress_test ... negative control (wide, no wait): 242 wrong results 
+== tests ar_norm [INTARSIA_HIP_AR_DRAIN=1] rc=0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.69s  
+== tests comm [INTARSIA_HIP_AR_WIDE=0] rc=0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 19.11s  test ll_without_the_tag_check_is_caught_by_the_stress_test ... negative control: 1380 wrong results without the tag check negative control (wide, no wait): 242 wrong results 
+== tests ar_norm [INTARSIA_HIP_AR_WIDE=0] rc=0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s  
+== adm exit 0: 75 admitted rows; pair_a8_mma: matmul_mxfp4_pair matmul_mxfp4_pair_a8_mma        6      0     0.000e0     0.000e0  ADMITTED ; tail: shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED 85 kernels, 462 cases in 3.4s incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them) 
+== ids 16k-0 off: SAME (257 words; prompt=10413)
+== ids 16k-0 mtp: SAME (257 words; prompt=10413)
+== ids 16k-1 off: SAME (257 words; prompt=11862)
+== ids 16k-1 mtp: SAME (257 words; prompt=11862)
+== ids 16k-2 off: SAME (257 words; prompt=12552)
+== ids 16k-2 mtp: SAME (257 words; prompt=12552)
+== ids 16k-3 off: SAME (257 words; prompt=11957)
+== ids 16k-3 mtp: SAME (257 words; prompt=11957)
+== ids 16k-4 off: SAME (257 words; prompt=10946)
+== ids 16k-4 mtp: SAME (257 words; prompt=10946)
+== ids 16k-5 off: SAME (257 words; prompt=12541)
+== ids 16k-5 mtp: SAME (257 words; prompt=12541)
+== ids 4k-0 off: SAME (257 words; prompt=2610)
+== ids 4k-0 mtp: SAME (257 words; prompt=2610)
+== ids 4k-1 off: SAME (257 words; prompt=3135)
+== ids 4k-1 mtp: SAME (257 words; prompt=3135)
+== ids 4k-2 off: SAME (257 words; prompt=3284)
+== ids 4k-2 mtp: SAME (257 words; prompt=3284)
+== ids 4k-3 off: SAME (257 words; prompt=2720)
+== ids 4k-3 mtp: SAME (257 words; prompt=2720)
+== ids 4k-4 off: SAME (257 words; prompt=2940)
+== ids 4k-4 mtp: SAME (257 words; prompt=2940)
+== ids 4k-5 off: SAME (257 words; prompt=3381)
+== ids 4k-5 mtp: SAME (257 words; prompt=3381)
+== ids short-0 off: SAME (257 words; prompt=41)
+== ids short-0 mtp: SAME (257 words; prompt=41)
+== ids short-1 off: SAME (257 words; prompt=34)
+== ids short-1 mtp: SAME (257 words; prompt=34)
+== ids short-2 off: SAME (257 words; prompt=42)
+== ids short-2 mtp: SAME (257 words; prompt=42)
+== ids short-3 off: SAME (257 words; prompt=43)
+== ids short-3 mtp: SAME (257 words; prompt=43)
+== ids short-4 off: SAME (257 words; prompt=69)
+== ids short-4 mtp: SAME (257 words; prompt=69)
+== ids short-5 off: SAME (257 words; prompt=39)
+== ids short-5 mtp: SAME (257 words; prompt=39)
+== push rc=0 test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 9.03s test pushed_all_reduce_without_the_wait_is_caught_by_the_stress_test ... negative control (pushed, no wait): 102 wrong results 
+[arx] micro done 2026-10-29 10:17:58, 783 s
+[arx] starting radiance 2026-10-29 10:17:58
+[arx] RADIANCE-RESTORE active after 35 s at 2026-10-29 10:18:33; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793283510,"owned_by":"radiance"
+fleetq: #7007 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
