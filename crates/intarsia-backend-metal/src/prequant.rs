@@ -1,4 +1,4 @@
-//! Lane mnq: the producer of an fp8 GEMV's input also writes q(x) (`INTARSIA_METAL_NORM_FP8`, default on, `=0` is main).
+//! Lane mnq: the producer of an fp8 GEMV's input also writes q(x) (`INTARSIA_METAL_NORM_FP8=1`, opt-in; off is main).
 //!
 //! The decode fp8 GEMV (`fp8_gemv_*_m1`) stages q(x) = bf16(e4m3 QDQ(x / input_scale)) of its activation row in threadgroup
 //! memory once per threadgroup (a divide, an encode and a decode per element, in every one of its few hundred threadgroups,
@@ -33,15 +33,15 @@ use objc2_metal::{MTLComputeCommandEncoder, MTLComputePipelineState, MTLSize};
 /// Bytes of the q(x) slot: rows of at most 8192 bf16 elements (the widest fp8 projection input of the models served here is 4096).
 pub(crate) const SLOT_BYTES: usize = 16384;
 
-/// `INTARSIA_METAL_NORM_FP8`: unset / `1` hands off from `silu_glu` and `sigmoid_mul` (the GDN out projection's and the
-/// attention o_proj's input), `0` turns the handoff off (every producer and every fp8 GEMV is main's again), `2` adds the
-/// row norms (`rmsnorm`, `rmsnorm_add`: slower, see docs/results/2026-10-29-mnq-metal-norm-fp8.md).
+/// `INTARSIA_METAL_NORM_FP8`: unset / `0`: off (every producer and every fp8 GEMV is main's); `1` hands off from `silu_glu`
+/// and `sigmoid_mul` (the GDN out projection's and the attention o_proj's input); `2` adds the row norms (`rmsnorm`,
+/// `rmsnorm_add`). Off by default: neither level is faster than main (docs/results/2026-10-29-mnq-metal-norm-fp8.md).
 pub fn level() -> u8 {
     static L: std::sync::OnceLock<u8> = std::sync::OnceLock::new();
     *L.get_or_init(|| match std::env::var("INTARSIA_METAL_NORM_FP8").as_deref() {
-        Ok("0") => 0,
+        Ok("1") => 1,
         Ok("2") => 2,
-        _ => 1,
+        _ => 0,
     })
 }
 
