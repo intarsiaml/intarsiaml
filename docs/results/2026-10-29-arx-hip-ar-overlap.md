@@ -125,7 +125,7 @@ Notes:
 | prefill +5 % at 4k | **met**: +9.6 % (MTP), +9.2 % (spec off); 1k +6.0 %, 16k +6.5 % |
 | no prompt length slower | met (1k, 4k, 16k, MTP and spec off) |
 | 120-process soak byte-identical | **not run**: no GPU window left |
-| Mac `cargo test --workspace --release` | 205 suites, 1090 passed, 0 failed (also after merging main `ebf8192a0`, #235) |
+| Mac `cargo test --workspace --release` | 205 suites, 1090 passed, 0 failed (also after merging main `ebf8192a0`, #235); after merging `bfbee3cb6` (#237): 206 suites, 1096 passed, 0 failed |
 | merged tree on tatooine (m15 #6795) | HIP build ok; `tests/ar_push.rs` 4 / 4; 4k CLI prefill 886 -> 813 ms with push (+9.0 %) |
 
 **Verdict: opt-in (`INTARSIA_HIP_AR_PUSH=1`, default off), draft PR.** Correctness and the prefill gate pass. Two things still stand
