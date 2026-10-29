@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Lane attn16 (from msd): ON spark2 (plan show runs on the host, no GPU kernels): `plan show` json + text of base vs dev for 8B, 35B, Gemma-4; byte-compare.
-#   fleetq run --host spark2 --load cpu --expect 10 --label "msd: plan show" -- ssh spark2 'bash -s' < scripts/attn16/plan.sh
+# Lane attn16 (from msd): ON spark2 (plan show runs on the host, no GPU kernels): `plan show` json + text of base vs dev for 8B and 35B (Gemma-4 is not on spark2); byte-compare.
+#   fleetq run --host spark2 --load cpu --expect 10 --label "attn16: plan show" -- ssh spark2 'bash -s' < scripts/attn16/plan.sh
 set -uo pipefail
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
 R=$HOME/intarsiaml-attn16; H=/home/nvidia/.cache/huggingface/hub; O=$R/out/plan; mkdir -p $O; fails=0
-for mm in 8:models--Qwen--Qwen3-8B 35:models--nvidia--Qwen3.6-35B-A3B-NVFP4 g:models--nvidia--Gemma-4-26B-A4B-NVFP4; do
+for mm in 8:models--Qwen--Qwen3-8B 35:models--nvidia--Qwen3.6-35B-A3B-NVFP4; do
   m=${mm%%:*}; M=$(ls -d $H/${mm#*:}/snapshots/* | head -1)
   for t in base dev; do
     b=$R/bin/$t
