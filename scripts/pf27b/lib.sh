@@ -18,11 +18,11 @@ restore() {
 }
 stop_radiance() { echo "[pf27b] stopping radiance $(now)"; systemctl --user stop radiance < /dev/null; sleep 3; echo "[pf27b] radiance $(systemctl --user is-active radiance) $(now)"; }
 # gpu <timeout s> <cmd...>: dev image, both cards (G overrides), the lane's tree + target volume
-gpu() { local t=$1 nm=pf27b-run-$RANDOM$RANDOM; shift
+gpu() { local t=$1 nm=pf27b-run-$BASHPID-$RANDOM$RANDOM; shift
   INTARSIA_CONTAINER_NAME=$nm INTARSIA_REPO=$R INTARSIA_TARGET_VOL=$V INTARSIA_MODELS=${MODELS:-$H} HIP_VISIBLE_DEVICES=${G:-0,1} timeout -s KILL "$t" $D "$@" < /dev/null
   local rc=$?; if [[ $rc -eq 137 ]]; then echo "[pf27b] timeout after $t s: killing the container" >&2; docker kill $nm > /dev/null 2>&1; fi; return $rc
 }
-gpup() { local t=$1 nm=pf27b-run-$RANDOM$RANDOM; shift
+gpup() { local t=$1 nm=pf27b-run-$BASHPID-$RANDOM$RANDOM; shift
   INTARSIA_CONTAINER_NAME=$nm INTARSIA_IMAGE=intarsia-hip-prof:rocm7.2.4-rust1.90.0 INTARSIA_REPO=$R INTARSIA_TARGET_VOL=$V INTARSIA_MODELS=${MODELS:-$H} HIP_VISIBLE_DEVICES=${G:-0,1} timeout -s KILL "$t" $D "$@" < /dev/null
   local rc=$?; if [[ $rc -eq 137 ]]; then docker kill $nm > /dev/null 2>&1; fi; return $rc
 }
