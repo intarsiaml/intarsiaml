@@ -1,0 +1,4 @@
+burst warm streams 2 distinct 0 wall 1.05s ttft_med 0.56 ttft_max 0.56 chunks [32, 32]
+burst a streams 16 distinct 0 wall 12.64s ttft_med 2.79 ttft_max 2.91 chunks [256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256, 256]
+burst b streams 16 distinct 1 wall 13.26s ttft_med 2.64 ttft_max 2.77 chunks [256, 256, 256, 256, 256, 256, 254, 256, 256, 256, 256, 256, 254, 256, 256, 256]
+burst c streams 1 distinct 0 wall 1.86s ttft_med 0.22 ttft_max 0.22 chunks [128]

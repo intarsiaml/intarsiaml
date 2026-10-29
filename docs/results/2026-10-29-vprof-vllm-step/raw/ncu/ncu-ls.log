@@ -1,0 +1,16 @@
+total 880388
+drwxrwxr-x 2 nvidia nvidia      4096 Oct 29 04:51 .
+drwxrwxr-x 3 nvidia nvidia      4096 Oct 29 04:27 ..
+-rw-rw-r-- 1 nvidia nvidia 122026452 Oct 29 04:37 api_cuda_api_trace.csv
+-rw-rw-r-- 1 nvidia nvidia       143 Oct 29 05:01 burst-a.txt
+-rwxr-xr-x 1 nvidia nvidia      2114 Oct 29 04:46 burst.py
+-rw-r--r-- 1 nvidia nvidia    101696 Oct 29 04:46 corpus_docs.txt
+-rw-rw-r-- 1 nvidia nvidia   3049299 Oct 29 04:37 graphlaunch.csv.gz
+-rw-r--r-- 1 nvidia nvidia       206 Oct 29 04:46 ncu.csv
+-rw-rw-r-- 1 nvidia nvidia  70771368 Oct 29 04:33 nsys.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 187142144 Oct 29 04:37 nsys.sqlite
+-rw-rw-r-- 1 nvidia nvidia       330 Oct 29 04:37 stats-api.log
+-rw-rw-r-- 1 nvidia nvidia       209 Oct 29 04:37 stats.log
+-rw-rw-r-- 1 nvidia nvidia  12376068 Oct 29 04:37 tail4.csv.gz
+-rwxr-xr-x 1 nvidia nvidia       965 Oct 29 04:46 tail.py
+-rw-rw-r-- 1 nvidia nvidia 505995056 Oct 29 04:37 trace_cuda_gpu_trace.csv
