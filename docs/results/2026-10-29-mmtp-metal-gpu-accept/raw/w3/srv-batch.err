@@ -1,0 +1,4 @@
+Error: loading /Users/josef/models/Qwen3.6-35B-A3B-NVFP4
+
+Caused by:
+    unsupported: --spec mtp/auto with the batching engine (use --max-batch 1)
