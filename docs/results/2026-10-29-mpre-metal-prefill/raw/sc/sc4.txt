@@ -1,0 +1,28 @@
+fleetq: #7048 running on endor: env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer .lane/target/release/deps/flash_prefill_nax-638d80717ff1c8f0 --test-threads 1 --nocapture
+
+running 5 tests
+test flash_chunk_invariant ... 
+thread 'flash_chunk_invariant' (45244244) panicked at crates/intarsia-backend-metal/tests/flash_prefill_nax.rs:277:13:
+attn_nax_d256_h2_k64: differs from the first variant
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test flash_falls_back_on_misaligned_operands ... metal attn_prefill_bf16_flash_nax: misaligned operands (q skip 1, out skip 0, q at 2, out at 0, k cache at 0, v cache at 0); running attn_prefill_bf16_flash (reported once)
+metal attn_prefill_bf16_flash: misaligned operands (q skip 1, out skip 0, k cache at 0, v cache at 0); running attn_prefill_bf16 (reported once)
+ok
+test flash_matches_f64_reference ... attn_nax_d128_s4: worst error 0.746 of tolerance over 22 cases
+attn_nax_d128_s8: worst error 0.746 of tolerance over 22 cases
+attn_nax_d256_h2: worst error 0.735 of tolerance over 8 cases
+attn_nax_d256_h4: worst error 0.735 of tolerance over 8 cases
+attn_nax_d256_h2_k64: worst error 0.711 of tolerance over 8 cases
+ok
+test flash_predicate ... ok
+test registry_splits_are_bitwise_the_single_call ... ok
+
+failures:
+
+failures:
+    flash_chunk_invariant
+
+test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.09s
+
+fleetq: #7048 done (exit 101)

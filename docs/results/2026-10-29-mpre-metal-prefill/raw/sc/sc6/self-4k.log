@@ -1,0 +1,9 @@
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+accuracy: Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max (vocab 248320, weights/act/kv bf16/bf16)
+golden: /opt/code/intarsiaml/.worktrees/mpre/.lane/w2/4k.off.sg.safetensors (3 prompts, 12759 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia UNSTAMPED (built without INTARSIA_BUILD_STAMP) | model Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 2048; longest prompt 4631; prompts spanning more than one chunk: 3/3
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+Error: the self-golden was written with a different configuration (decode positions: self-golden 64, this run 16); write a new one or pass --allow-config-mismatch

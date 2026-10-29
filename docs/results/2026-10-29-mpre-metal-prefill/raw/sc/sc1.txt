@@ -1,0 +1,13 @@
+fleetq: #7033 running on endor: target/release/examples/flash_bench --heads 16 --kv-heads 2 --dim 256 --chunk 2048 flash attn_nax_d256_s8 attn_nax_d256_s4 0 2048 14336
+heads 16/2 head_dim 256, chunk 2048, 36 layers (one KV cache each), 10 reps
+   pos0 kernel                         us/call       p10       p90   TFLOPS
+      0 flash                           2830.5    2826.6    2842.6    12.15
+      0 attn_nax_d256_s8                3821.3    3814.5    3829.7     9.00
+      0 attn_nax_d256_s4                3880.6    3823.3    4222.3     8.86
+   2048 flash                           8369.6    8356.8    8385.0    12.32
+   2048 attn_nax_d256_s8               14137.3   13437.9   14608.2     7.29
+   2048 attn_nax_d256_s4               15229.8   15112.9   15383.8     6.77
+  14336 flash                          48925.0   47736.4   49998.6    10.53
+  14336 attn_nax_d256_s8               93315.0   91055.2   95383.8     5.52
+  14336 attn_nax_d256_s4               87805.9   85008.5   90943.5     5.87
+fleetq: #7033 done (exit 0)

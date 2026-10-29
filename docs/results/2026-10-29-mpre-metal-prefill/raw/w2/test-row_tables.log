@@ -1,0 +1,13 @@
+
+running 8 tests
+test a_swapped_table_entry_is_seen ... ok
+test attn_decode_rows_are_the_solo_decode ... ok
+test gdn_conv_rows_are_the_solo_conv ... ok
+test gdn_delta_rows_are_the_solo_delta_rule ... ok
+test kv_append_rows_are_the_solo_append ... ok
+test qk_norm_rope_kv_rows_are_the_solo_prologue ... ok
+test rope_with_one_position_per_token_is_the_solo_rope ... ok
+test swapped_state_entries_are_seen ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.47s
+

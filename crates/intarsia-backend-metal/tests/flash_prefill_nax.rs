@@ -230,8 +230,21 @@ fn flash_matches_f64_reference() {
         c(257, 28, 4, 128, 3839, 4200), // group 7: Qwen2.5-7B heads, one row past a block, 4k context
         c(33, 14, 2, 128, 30, 64),      // group 7, short chunk
     ];
+    // head_dim 256 (attn_nax_x, even groups): the 35B's 16 / 2 heads, Qwen3.5-4B's 16 / 4, group 2 and 6
+    let cases256 = [
+        c(5, 16, 2, 256, 0, 16),        // partial slab, partial tile
+        c(64, 16, 2, 256, 0, 80),       // group 8, NaN tail
+        c(33, 16, 4, 256, 30, 64),      // group 4, continuation, tile boundaries mid-block
+        c(257, 16, 2, 256, 3839, 4200), // one row past a block, 4k context
+        c(16, 4, 2, 256, 0, 16),        // group 2, exactly one slab
+        c(70, 12, 2, 256, 5, 90),       // group 6
+        c(300, 16, 2, 256, 1000, 1300), // continuation, cap = pos0 + T
+        c(1024, 16, 2, 256, 0, 1030),   // long chunk
+    ];
     for name in all_variants() {
         select_variant(Some(name));
+        let d = NAX_FLASH_VARIANTS.iter().find(|v| v.name == name).unwrap().head_dim;
+        let cases: &[Case] = if d == 256 { &cases256 } else { &cases };
         let mut worst = 0.0f64;
         for (i, cs) in cases.iter().enumerate() {
             let dt = data(cs, 500 + i as u64);
@@ -251,26 +264,28 @@ fn flash_matches_f64_reference() {
 #[test]
 fn flash_chunk_invariant() {
     let _g = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
-    let cs = c(256, 32, 8, 128, 300, 556);
-    let dt = data(&cs, 900);
-    let scale = 1.0 / (cs.d as f32).sqrt();
-    let mut first: Option<Vec<u16>> = None;
-    for name in all_variants() {
-        select_variant(Some(name));
-        let r = setup(&cs, &dt, [0; 3]);
-        let whole = run_once(&r, &cs, ATTN_PREFILL_BF16_FLASH_NAX, scale, 0);
-        // the threadgroup shape (heads x slabs per threadgroup) does not change a row's bits either
-        assert!(first.get_or_insert_with(|| whole.clone()) == &whole, "{name}: differs from the first variant");
-        for split in [vec![64, 64, 64, 64], vec![100, 156], vec![1, 255], vec![7, 13, 97, 139], vec![128, 128]] {
-            let out = out_buf(&r.be, &cs, 0);
-            let mut t0 = 0;
-            for &nt in &split {
-                r.be.launch(ATTN_PREFILL_BF16_FLASH_NAX, &call_rows(&r, &cs, &out, 0, t0, nt, scale), 0).unwrap();
-                t0 += nt;
+    for d in [128, 256] {
+        let cs = if d == 128 { c(256, 32, 8, 128, 300, 556) } else { c(256, 16, 2, 256, 300, 556) };
+        let dt = data(&cs, 900);
+        let scale = 1.0 / (cs.d as f32).sqrt();
+        let mut first: Option<Vec<u16>> = None;
+        for name in all_variants().filter(|n| NAX_FLASH_VARIANTS.iter().any(|v| v.name == *n && v.head_dim == d)) {
+            select_variant(Some(name));
+            let r = setup(&cs, &dt, [0; 3]);
+            let whole = run_once(&r, &cs, ATTN_PREFILL_BF16_FLASH_NAX, scale, 0);
+            // the threadgroup shape (heads x slabs per threadgroup) does not change a row's bits either
+            assert!(first.get_or_insert_with(|| whole.clone()) == &whole, "{name}: differs from the first variant");
+            for split in [vec![64, 64, 64, 64], vec![100, 156], vec![1, 255], vec![7, 13, 97, 139], vec![128, 128]] {
+                let out = out_buf(&r.be, &cs, 0);
+                let mut t0 = 0;
+                for &nt in &split {
+                    r.be.launch(ATTN_PREFILL_BF16_FLASH_NAX, &call_rows(&r, &cs, &out, 0, t0, nt, scale), 0).unwrap();
+                    t0 += nt;
+                }
+                r.be.synchronize(0).unwrap();
+                let got = read_u16(&r.be, &out, 0, cs.t * cs.n * cs.d);
+                assert!(got == whole, "{name}: split {split:?} differs from the single call");
             }
-            r.be.synchronize(0).unwrap();
-            let got = read_u16(&r.be, &out, 0, cs.t * cs.n * cs.d);
-            assert!(got == whole, "{name}: split {split:?} differs from the single call");
         }
     }
     select_variant(None);
@@ -328,7 +343,9 @@ fn flash_predicate() {
     assert!(!accepts(f, &mk(256, 72, 8, 128, DType::Bf16)), "group 9");
     assert!(!accepts(f, &mk(256, 16, 1, 128, DType::Bf16)), "group 16");
     assert!(!accepts(f, &mk(256, 4, 2, 64, DType::Bf16)), "head_dim 64 stays on the P2 kernel");
-    assert!(!accepts(f, &mk(256, 4, 2, 256, DType::Bf16)), "head_dim 256 stays on the P2 kernel");
+    assert!(accepts(f, &mk(256, 16, 2, 256, DType::Bf16)), "head_dim 256, group 8 (the 35B)");
+    assert!(accepts(f, &mk(2, 16, 2, 256, DType::Bf16)), "head_dim 256, the smallest chunk");
+    assert!(!accepts(f, &mk(256, 12, 4, 256, DType::Bf16)), "head_dim 256, odd group stays on the P2 kernel");
     assert!(!accepts(f, &mk(256, 4, 2, 128, DType::F32)), "f32 cache");
     assert!(!accepts(f, &mk(256, 4, 2, 128, DType::Fp8E4m3)), "fp8 cache");
     assert!(accepts(ATTN_PREFILL_BF16, &mk(4, 4, 2, 128, DType::Bf16)), "the old kernel stays registered");
