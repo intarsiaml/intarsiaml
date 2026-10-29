@@ -1,0 +1,7 @@
+prefill chunk 2048 (recipe qwen3_5_vl, hip)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'fp8' (the recipe's default on this backend, chosen for accuracy and speed (Qwen3.8-27B, full MMLU n=1425: W4A8 0.8204, W4A16 0.822, W4A4 0.802; against W4A16 prefill +48% and decode +11% at tp2, KL to the W4A16 golden 12x below W4A4's, docs/results/2026-10-27-w4a8-hip-fp8-act.md); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: fp8 (recipe qwen3_5_vl [tuning.hip] mxfp4_act)
+admission on plan shapes: 21 kernel(s) checked, 296 case(s) run, 0 cached
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on hip (AMD Radeon Graphics x2 (tp=2, hip-p2p comm)) in 29.3s, context 20480 tokens
+intarsia server listening on http://0.0.0.0:8095
+queues=1

@@ -1,0 +1,3 @@
+[targets.arx-rec_m35_mb16]
+url = "http://tatooine:8095/v1"
+model = "qwen-arx"
