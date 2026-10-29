@@ -262,6 +262,9 @@ impl BatchModel for SlotModel {
     fn pack_min_rows(&self) -> usize {
         Model::PACK_MIN_ROWS
     }
+    fn pack_whole_prompts(&self) -> bool {
+        self.model.backend.pack_split_gemms()
+    }
     fn prefill_pack(&mut self, items: &[(usize, &[u32], Option<HeadMode>)]) -> Result<Vec<Option<StepOut>>> {
         // the schedule of `run_prefill` for a recurrent state, with the bodies of all chunks in one pass: the body is the chunk
         // (non-final) or the chunk without its last token (final); a snapshot follows each body; the last token runs alone
