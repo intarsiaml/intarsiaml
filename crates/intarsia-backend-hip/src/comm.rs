@@ -315,8 +315,8 @@ pub fn p2p_group_push(
     let push = match push {
         Some(p) => p,
         None => match std::env::var("INTARSIA_HIP_AR_PUSH").ok().as_deref() {
-            None | Some("") | Some("0") => false,
-            Some("1") => true,
+            Some("0") => false,
+            None | Some("") | Some("1") => true,
             Some(v) => return Err(Error::invalid(format!("INTARSIA_HIP_AR_PUSH={v} (0 or 1)"))),
         },
     } && wide.is_some();
