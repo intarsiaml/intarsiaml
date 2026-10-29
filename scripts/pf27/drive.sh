@@ -17,6 +17,10 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; REPO="$(cd "$HERE/../.." &
 OUT=$REPO/docs/results/2026-10-28-pf27-hip-27b-prefill/raw/$W; mkdir -p "$OUT" "$REPO/pf27-out"
 say() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
 SSH="ssh -o BatchMode=yes tatooine"
+scp -q "$HERE"/*.sh "$HERE"/*.py tatooine:intarsiaml-pf27/scripts/pf27/
+for f in pf27-base-cli pf27-dev-cli pf27-bin/mxfp4_a8-base pf27-bin/mxfp4_a8-dev; do
+  $SSH "test -x ~/intarsiaml-pf27/$f" < /dev/null || { echo "MISSING $f: not starting the window"; exit 3; }
+done
 FIFO=$(mktemp -u "$REPO/pf27-out/guard.XXXXXX"); mkfifo "$FIFO"
 $SSH 'mkdir -p ~/intarsiaml-pf27/pf27-bin' < /dev/null; scp -q "$HERE/guard.sh" tatooine:intarsiaml-pf27/pf27-bin/
 $SSH 'bash ~/intarsiaml-pf27/pf27-bin/guard.sh' > "$OUT/guard.log" 2>&1 < "$FIFO" &
@@ -95,8 +99,8 @@ for item in $ITEMS; do
       say "item $n kprof: $(grep -ac 'pass' "$OUT/kprof-$n.txt") passes" ;;
     gates)   # w1.sh sections GSEC (corr hash mut adm plan time ...) with GENV extra env (TVARS=...); cards free
       stop_serve; cur=""
-      $SSH "NOSTOP=1 BIN=/work/pf27-bin/mxfp4_a8-dev W=$W-gates SEC='$GSEC' $GENV bash ~/intarsiaml-pf27/scripts/pf27/w1.sh" < /dev/null > "$OUT/gates-$n.txt" 2>&1
-      scp -q -r "tatooine:intarsiaml-pf27-logs/$W-gates/." "$OUT/gates-$n/" < /dev/null
+      $SSH "NOSTOP=1 O=~/intarsiaml-pf27/pf27-out/$W-gates SEC='$GSEC' ${GENV:-} bash ~/intarsiaml-pf27/scripts/pf27/w1.sh" < /dev/null > "$OUT/gates-$n.txt" 2>&1
+      mkdir -p "$OUT/gates-$n"; scp -q -r "tatooine:intarsiaml-pf27/pf27-out/$W-gates/." "$OUT/gates-$n/" < /dev/null
       say "item $n gates: $(grep -a '^==' "$OUT/gates-$n.txt" | cut -c1-150 | tr '\n' '|')" ;;
     *) say "item $n: unknown action $act" ;;
   esac
