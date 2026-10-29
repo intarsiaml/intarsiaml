@@ -250,3 +250,50 @@ fn pushed_all_reduce_without_the_wait_is_caught_by_the_stress_test() {
     assert!(wrong > 0, "the pushed reduce's wait was removed and nothing went wrong: the stress test cannot see a missing handshake");
     eprintln!("negative control (pushed, no wait): {wrong} wrong results");
 }
+
+/// Lane pf27c (timing only, ignored; prints `TIMEP` lines): the 27B's row-parallel GEMMs at a 2048-row chunk (down K 8704, GDN out / o_proj
+/// K 3072), per call on both ranks: the whole `matmul_mxfp4_a8_mma` op alone (quant pre-pass, weight spans, GEMM), the plain op + all-reduce,
+/// and the pushing op + its reduce. The kernel's env knobs are read once per process: run the binary once per setting.
+#[test]
+#[ignore]
+fn push_gemm_timing() {
+    let _one = serial();
+    let shapes = [(2048usize, 5120usize, 8704usize, true), (2048, 5120, 3072, true)];
+    let reps = 20;
+    let Some(g) = group(7, true) else { return };
+    let cs = calls(&g.0, 21, &shapes);
+    let time = |mode: &str| {
+        for (i, s) in shapes.iter().enumerate() {
+            let one = &cs[i];
+            let go = |n: usize| {
+                std::thread::scope(|sc| {
+                    for r in 0..2 {
+                        let (b, c, call) = (&g.0[r], &g.1[r], &one[r]);
+                        sc.spawn(move || {
+                            for _ in 0..n {
+                                let out = &call.outputs[0];
+                                if mode == "push" {
+                                    c.prepush(out).unwrap();
+                                }
+                                b.launch("matmul_mxfp4_a8_mma", call, 0).unwrap();
+                                if mode != "gemm" {
+                                    c.all_reduce_sum(out, 0).unwrap();
+                                }
+                            }
+                            b.synchronize(0).unwrap();
+                        });
+                    }
+                });
+            };
+            go(3);
+            let t0 = std::time::Instant::now();
+            go(reps);
+            let us = t0.elapsed().as_secs_f64() * 1e6 / reps as f64;
+            println!("TIMEP M={} N={} K={} {mode} {us:.1} us", s.0, s.1, s.2);
+        }
+    };
+    time("gemm");
+    time("plain");
+    time("push");
+    eprintln!("{:?}", g.1[0].debug_state());
+}
