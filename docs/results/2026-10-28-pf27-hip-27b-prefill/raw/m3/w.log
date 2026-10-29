@@ -1,0 +1,16 @@
+[pf27] stopping radiance 2026-10-28 20:35:10
+[pf27] radiance inactive 2026-10-28 20:35:14
+== diag 0: 4772.1 us summed
+== diag 7: 4778.7 us summed
+== diag 8: 4564.5 us summed
+== diag 9: 4601.8 us summed
+== diag 0: 4789.5 us summed
+== diag 7: 4798.5 us summed
+== diag 8: 4575.1 us summed
+== diag 9: 4617.3 us summed
+== hash diag 7: 48 lines; bf16 lines differing from base: 0
+== hash diag 8: 48 lines; bf16 lines differing from base: 0
+== hash diag 9: 48 lines; bf16 lines differing from base: 0
+[pf27] window done 2026-10-28 20:35:45, 3565 s of the budget left
+[pf27] starting radiance 2026-10-28 20:35:45
+[pf27] RADIANCE-RESTORE active after 10 s at 2026-10-28 20:35:55; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793234152,"owned_by":"radiance"

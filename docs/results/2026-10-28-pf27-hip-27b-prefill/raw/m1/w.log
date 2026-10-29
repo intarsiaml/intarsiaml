@@ -1,0 +1,13 @@
+[pf27] stopping radiance 2026-10-28 20:28:52
+[pf27] radiance inactive 2026-10-28 20:28:56
+== hq 4824: 48 lines, differing from base: 0
+== hq 4842: 48 lines, differing from base: 0
+== hq 2824: 48 lines, differing from base: 0
+== time dev: 16920.3 us summed 2026-10-28 20:29:18
+== time dev-4824: 16846.1 us summed 2026-10-28 20:29:23
+== time dev-4842: 16537.2 us summed 2026-10-28 20:29:27
+== time dev-2824: 16300.5 us summed 2026-10-28 20:29:32
+== time base2: 17424.6 us summed 2026-10-28 20:29:37
+[pf27] window done 2026-10-28 20:29:37, 3555 s of the budget left
+[pf27] starting radiance 2026-10-28 20:29:37
+[pf27] RADIANCE-RESTORE active after 10 s at 2026-10-28 20:29:47; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793233785,"owned_by":"radiance"

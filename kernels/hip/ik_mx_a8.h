@@ -89,6 +89,35 @@ mx_a8_quant_kernel(const ik_bf16* __restrict__ x, uint8_t* __restrict__ xq, floa
     mx_a8_row_quant(xp, qp, C, s);
 }
 
+/* Same quantisation (same helpers, so the same xs / e4m3 bytes), written in the fragment order of the W4A8 prefill GEMM's direct
+ * kernel (mxfp4_a8_gemm.hip, lane PF27) instead of row-major: for every 16-token tile t and 32-k group g one 512-byte block, in
+ * which lane l (0..31) of a wave finds its 16 bytes at l * 16 = token 16 t + (l & 15), k = 32 g + 16 (l >> 4) .. + 16:
+ *   xt[(t * KG + g) * 512 + ((m & 15) + 16 * ((k & 31) >> 4)) * 16 + (k & 15)] = xq[m, k],   KG = 2 * ceil(K / 64)
+ * which is the uint4 a wave's LDS read of a8_gemm_kernel gives that lane, with KG = the group count of K padded to a multiple of 64
+ * (a K % 64 == 32 tail adds one zero group per tile). One block per row of the 16-padded M (gridDim.x = Mp); rows M .. Mp - 1 are
+ * written as zeros (no xs). K % 32 == 0. */
+static __global__ void __launch_bounds__(256)
+mx_a8_quant_tiled_kernel(const ik_bf16* __restrict__ x, uint8_t* __restrict__ xt, float* __restrict__ xs, int M, int K) {
+    __shared__ float red[256 / IK_WARP];
+    const int64_t row = blockIdx.x;
+    const int C = K >> 3, KGP = ((K + 63) >> 6) * 2;  // 8-element chunks; 32-k groups per tile, K padded to 64
+    const int CP = KGP * 4;                            // chunks including the pad group
+    uint8_t* tile = xt + (row >> 4) * (int64_t)KGP * 512 + (row & 15) * 16;
+    // chunk c (k = 8 c): group c >> 2, half (c >> 1) & 1 (lanes 16..31), byte (c & 1) * 8 of the lane's 16
+    for (int c = C + threadIdx.x; c < CP; c += kMxA8QuantThreads)  // the K % 64 == 32 pad group: zeros
+        *reinterpret_cast<uint2*>(tile + (c >> 2) * 512 + ((c >> 1) & 1) * 256 + (c & 1) * 8) = make_uint2(0u, 0u);
+    if (row >= M) {  // block-uniform
+        for (int c = threadIdx.x; c < C; c += kMxA8QuantThreads)
+            *reinterpret_cast<uint2*>(tile + (c >> 2) * 512 + ((c >> 1) & 1) * 256 + (c & 1) * 8) = make_uint2(0u, 0u);
+        return;
+    }
+    const uint4* xp = reinterpret_cast<const uint4*>(x + row * K);
+    const float s = mx_a8_row_scale(xp, C, red);
+    if (threadIdx.x == 0) xs[row] = s;
+    for (int c = threadIdx.x; c < C; c += kMxA8QuantThreads)
+        *reinterpret_cast<uint2*>(tile + (c >> 2) * 512 + ((c >> 1) & 1) * 256 + (c & 1) * 8) = mx_a8_quant8(xp[c], s);
+}
+
 /* ---- scratch layout / launch (host) ------------------------------------------------------------------------------------ */
 
 static inline size_t mx_a8_al16(size_t b) { return (b + 15) & ~(size_t)15; }
