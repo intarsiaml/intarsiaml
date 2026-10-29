@@ -54,7 +54,7 @@ has not changed since. W2's own profile is in section 5.
 - 232 GB/s is the rate the best decode kernels on this box reach (the one-row fp8 GEMV: 200 to 219 GB/s; the routed experts:
   84 to 88 % of 230 GB/s, MOE16).
 - The delta kernel reads and writes each state row once, coalesced. The q / k / v / a / b inputs are under 1 % of the bytes.
-  4096 one-warp blocks are resident (16 rows x 32 heads x 8 row groups) with 8 KB of state in flight per warp.
+  4096 one-warp blocks are launched (16 rows x 32 heads x 8 row groups), each with 8 KB of state in flight.
 - Fusing conv into delta saves one launch, not bytes. It would also add an op to the recorded plan, so `plan show` would change.
 - So no exact layout, fusion or occupancy change shortens GDN. Only fewer state bytes would, and that is not exact.
 
@@ -65,7 +65,9 @@ has not changed since. W2's own profile is in section 5.
 - But `Qwen3_5ForConditionalGenerationConfig.verify_and_update_config` (`model_executor/models/config.py`) sets the cache
   dtype from the HF config's `mamba_ssm_dtype`, and this checkpoint's `config.json` says `"mamba_ssm_dtype": "float32"`.
 
-So vLLM streams the same f32 state bytes. Its shorter step (~40.6 ms vs ~44.5 ms, SRV16) comes from elsewhere. The likely place
+The checkpoint's `architectures` is `Qwen3_5MoeForConditionalGeneration`. vLLM's `MODELS_CONFIG_MAP` maps it to that override,
+and `text_config.mamba_ssm_dtype` is `float32`. vr16's 40.6 ms run (`2026-10-27-vr16-vllm-seqs16.md`) used the same image
+(`65b7662d`), also without the flag. So vLLM streams the same f32 state bytes. Its shorter step (~40.6 ms vs ~44.5 ms, SRV16) comes from elsewhere. The likely place
 is kernel efficiency in the routed MoE (21.7 ms per step at about 85 % of 230 GB/s), outside this lane's brief. The lane did not
 profile vLLM: the server on the box is the production one.
 
@@ -137,8 +139,9 @@ At M = 12 / 16 the launcher takes the e4m3 kernel (`rows_q`), which this change 
 are noise.
 
 In the engine's graph the same kernel is not faster (B = 8 nsys, section 5). The change is kept because it is exact, a strict
-instruction cut (no f32 unpack of x or weights), and matches the e4m3 kernel since #230. If the coordinator prefers no change
-without a measured gain, the branch can merge the docs only.
+instruction cut (no f32 unpack of x or weights), and matches the e4m3 kernel since #230. Cost: the second tile loop grows each binary that
+holds the kernel by about 4.4 MB (CLI 100.6 -> 105.0 MB, `batch_cuda_real` 90.1 -> 94.6 MB, `rows_exact` 77.4 -> 81.9 MB). If the
+coordinator prefers no change without a measured gain, the branch can merge the docs only.
 
 ## 4. Serve A/B (W1, `scripts/step16/w1.sh`, `raw/w1/`)
 
@@ -259,7 +262,8 @@ CPU and no-load jobs:
 - vLLM config reads: #6802 to #6806, #6833, #6834 (`--load none`).
 - Mac test: #6832 (endor, `--load cpu,gpu`).
 
-spark1-vllm stayed up throughout, no `--takes-down`.
+spark1-vllm stayed up throughout, no `--takes-down`. No lane process was left on spark1 (checked in #6847), and
+`~/intarsiaml-step16` was removed at the end.
 
 ## 8. Next steps
 
