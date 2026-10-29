@@ -179,6 +179,45 @@ fn gate(m: &Model, lens: Vec<usize>, batches: Vec<usize>, steps: usize, vocab_ra
     assert_eq!(n, expect);
 }
 
+/// Lane moe16b: wall time of the 35B's batched decode step (graphs on, device argmax, as in serve) at B = 8 and 16, three runs of 60
+/// steps after 20 warm-up steps. `--ignored`, inside a fleetq slot quiet on the GPU; prints `STEP B=.. ms ..`. The side-stream knobs
+/// (`INTARSIA_MOE_SHARED_STREAM`, `INTARSIA_SIDE_PROJ`) are read once per process: one variant per run.
+#[test]
+#[ignore = "micro-timing"]
+fn timing_35b_batched_step() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 16, 2048);
+    for b in [8usize, 16] {
+        let mut sts: Vec<_> = (0..b)
+            .map(|i| {
+                let mut st = m.new_state().unwrap();
+                let p: Vec<u32> = (0..64).map(|k| 1000 + ((i * 977 + k * 131) % 29000) as u32).collect();
+                m.forward(&mut st, &p, HeadMode::None, None).unwrap();
+                st
+            })
+            .collect();
+        let mut ids: Vec<u32> = (0..b).map(|i| 2000 + i as u32).collect();
+        let modes = vec![HeadMode::LastArgmax; b];
+        let mut run = |n: usize| -> f64 {
+            let t = std::time::Instant::now();
+            for _ in 0..n {
+                let mut refs: Vec<_> = sts.iter_mut().collect();
+                let out = m.forward_batch(&mut refs, &ids, &modes).unwrap();
+                for (r, o) in out.iter().enumerate() {
+                    if let StepOut::Token(t) = o {
+                        ids[r] = *t;
+                    }
+                }
+            }
+            t.elapsed().as_secs_f64() * 1e3 / n as f64
+        };
+        run(20);
+        let ms: Vec<f64> = (0..3).map(|_| run(60)).collect();
+        println!("STEP B={b} ms {:.3} {:.3} {:.3}", ms[0], ms[1], ms[2]);
+    }
+}
+
 #[test]
 fn real_35b_batched_decode_is_bitwise_the_solo_step() {
     let _serial = serial();
