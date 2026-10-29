@@ -20,8 +20,11 @@ Every exactness gate passes:
 The change is exact: it runs the same kernels on the same inputs in the same issue order. Only the stream of some launches changes.
 
 **Both knobs are opt-in on this branch** (`INTARSIA_MOE_SHARED_STREAM=1`, `INTARSIA_SIDE_PROJ=1`; unset = main's single stream),
-because the speed gates fail. Every measurement below ran the build where they were on by default (1e2db288c), which is the same
-code path as setting both to `1`.
+because the speed gates fail.
+- W1 (identity, `batch_cuda_real`, the serve A/B, nsys) and W2 ran the build where both were on by default (1e2db288c). That is the
+  same code path as setting both to `1` now.
+- The step micro-timings of section 3 ran a temporary build with extra variant knobs, in which the shared expert forked before the
+  router by default. Its "dev, both knobs on" row sets `INTARSIA_MOE_SHARED_FORK=late`, which is W1's code path.
 
 GPU windows used: **2 of 2** (#6628 speed + exactness, #6647 8B batched-equals-solo). An earlier attempt, #6627, failed at once because the script was not executable. It loaded nothing and is not counted.
 Raw: `2026-10-28-moe16b-step-overlap/raw/`. Scripts: `scripts/moe16b/`, which are copies of `scripts/msd/` retargeted to this lane's folders, plus `micro*.sh` and `w1.sh`.
@@ -113,9 +116,13 @@ to 264 tokens. One process per variant, because the knobs are read once per proc
 The `early`, z-on-main and priority variants used temporary knobs. They were removed again, so the branch carries the W1-measured
 form. Spread between processes is about ±0.1 ms.
 
-**Why 16 streams gains less.** The A/B burst also contains the burst's serial prefill, about a fifth of its wall time at 16
-streams. So a 2.2 % shorter decode step gives about +1.3 to 1.7 % aggregate. At 8 streams the step gain is larger in relative
-terms (2.5 %), and prefill is a smaller part of the burst.
+**Why 16 streams gains less in serve than here.** Two reasons, both estimates from the A/B figures:
+- *Prefill in the burst.* 16 streams x 256 tokens / 272.8 tok/s is about 15.0 s of wall time. Decode at 19.3 tok/s per stream is
+  256 / 19.3 = 13.3 s. That leaves about 1.7 s (11 %, close to the 1.67 s mean TTFT) for prefill and start-up, which the change
+  does not touch. So a 2.2 % shorter step gives at most about +2.0 % aggregate.
+- *Context length.* This micro decodes at 64 to 264 tokens of context. Serve decodes at about 1.0 to 1.25k, where attention is a
+  larger share of each step, so the same absolute saving is a smaller relative one. This covers the rest, from +2.0 % down to the
+  measured +1.3 %.
 
 ## 4. nsys at 16 streams, before and after (W1, `prof.sh`, `--cuda-graph-trace=node`, `raw/base-b16`, `raw/dev-b16`)
 
@@ -224,12 +231,17 @@ GPU windows: **2 of 2**.
   sections 3 and 5 were all measured as micros first.
 
 Micro jobs under 3 min on spark1, not windows:
-- #6603: fp8 prefetch.
-- #6604: ncu probe.
-- #6615, #6621: batch_cuda_real decode. #6615 failed in prefill, which led to the fork fix.
-- #6624: fp8 balanced split.
-- #6634, #6636, #6639: step-timing variants.
-- #6644: rows_exact.
+(durations from `fleetq log`; each is under 3 min):
+- #6603 (23 s): fp8 prefetch.
+- #6604 (2 s): ncu probe.
+- #6615 (33 s), #6621 (1 min 48 s): batch_cuda_real decode. #6615 failed in prefill, which led to the fork fix.
+- #6624 (18 s): fp8 balanced split.
+- #6634 (2 min 24 s), #6636 (2 min 33 s), #6639 (2 min 37 s): step-timing variants.
+- #6644 (17 s): rows_exact.
+- #6646 (2 min 51 s): 8B batch_cuda_real, cut off by its 170 s limit before a result.
+
+Windows: #6628 ran 23 min 23 s, #6647 ran 6 min 14 s. Window 2 went to the 8B batched-equals-solo check, which is not a merge gate
+(the gate names the 35B). It was the remaining exactness coverage for the attention k / v fork on a dense model.
 
 `--load cpu` / `--load none` builds and checks: #6599, #6602, #6605, #6606, #6608, #6617, #6626, #6632, #6638, #6641.
 
@@ -238,8 +250,9 @@ job started. That job's off variant matched the other two off runs to 0.1 ms.
 
 ## 8. Next steps
 
-1. **Burst prefill scheduling** (excluded here; it is scheduler work). This is now the larger part of the 16-stream gap: the burst
-   prefill is about a fifth of the 16-stream burst.
+1. **Per-step kernel time at B=16, not the overlap.** The overlap trades latency for contention (section 4), so the remaining gap
+   to vLLM (about 7 ms per step) has to come out of the kernels themselves. The routed experts (21.7 ms) and GDN (8.9 ms) dominate.
+   Burst prefill is only about 11 % of the 16-stream burst (section 3 estimate). It is scheduler work and a separate lane.
 2. **The fp8 / nvfp4 rows kernels at M = 16 are instruction-bound on activation unpacking.**
    - An exact fix would have to cut the per-tile e4m3 -> f16 -> f32 unpack of the staged rows. For example, stage x as bf16 where
      M x K x 2 fits. That trades the F2FP + HADD2 for integer shifts, but costs occupancy. Or find a cheaper exact unpack.
