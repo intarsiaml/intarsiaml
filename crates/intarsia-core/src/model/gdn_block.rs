@@ -15,14 +15,14 @@
 use super::*;
 use crate::quant::{BF16, FP8_E4M3, MXFP4};
 
-/// Bytes the recurrent slot of one GatedDeltaNet layer holds: conv state `[C, K-1]` f32, then (256-byte
-/// aligned) the delta-rule state `[Hv, dv, dk]` f32.
-pub(super) fn state_bytes(l: &LinearDims) -> usize {
-    state_s_offset(l) + l.v_heads * l.v_head_dim * l.k_head_dim * 4
+/// Bytes the recurrent slot of one GatedDeltaNet layer holds: conv state `[C, K-1]` in `conv_dt` (`Backend::gdn_conv_dtype`:
+/// f32, bf16 on CUDA), then (256-byte aligned) the delta-rule state `[Hv, dv, dk]` f32.
+pub(super) fn state_bytes(l: &LinearDims, conv_dt: DType) -> usize {
+    state_s_offset(l, conv_dt) + l.v_heads * l.v_head_dim * l.k_head_dim * 4
 }
 
-pub(super) fn state_s_offset(l: &LinearDims) -> usize {
-    (l.conv_dim() * (l.conv_kernel - 1) * 4).div_ceil(256) * 256
+pub(super) fn state_s_offset(l: &LinearDims, conv_dt: DType) -> usize {
+    (l.conv_dim() * (l.conv_kernel - 1) * conv_dt.size_bytes()).div_ceil(256) * 256
 }
 
 pub(super) struct GdnBlock {
@@ -143,13 +143,14 @@ impl Model {
         let act = self.act;
         let (c, hv, dv, dk, ks) = (l.conv_dim(), l.v_heads, l.v_head_dim, l.k_head_dim, l.conv_kernel);
         let vdim = hv * dv;
+        let conv_dt = self.backend.gdn_conv_dtype();
         let rec = match &st.slots[g.slot] {
             StateSlot::Recurrent(r) => r,
             StateSlot::AttnKv(_) => return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot")),
         };
-        let conv_state = TensorRef::new(rec.buf.clone(), DType::F32, &[c, ks - 1]);
+        let conv_state = TensorRef::new(rec.buf.clone(), conv_dt, &[c, ks - 1]);
         let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
-        s_state.offset = state_s_offset(l);
+        s_state.offset = state_s_offset(l, conv_dt);
 
         let qkv = self.view(&x.qkv, act, &[t, c]);
         let z = self.view(&x.z, act, &[t, vdim]);
@@ -225,9 +226,9 @@ impl Model {
                     StateSlot::Recurrent(r) => r,
                     StateSlot::AttnKv(_) => return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot")),
                 };
-                let conv_state = TensorRef::new(rec.buf.clone(), DType::F32, &[c, ks - 1]);
+                let conv_state = TensorRef::new(rec.buf.clone(), conv_dt, &[c, ks - 1]);
                 let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
-                s_state.offset = state_s_offset(l);
+                s_state.offset = state_s_offset(l, conv_dt);
                 let (lo, len) = (sg.lo, sg.len);
                 let (qkv, a, b, conv, core) = (qkv.rows(lo, len), a.rows(lo, len), b.rows(lo, len), conv.rows(lo, len), core.rows(lo, len));
                 self.conv_delta(g, &qkv, &a, &b, &conv, &core, &s_state, &conv_state, &delta_attrs, profile)?;
@@ -240,11 +241,11 @@ impl Model {
             // HIP (lane vrc): the T rows in one launch that also stores the state after every row but the last into the save
             // buffers: bitwise the row-by-row calls and copies below, without their launches (INTARSIA_HIP_GDN_VERIFY_FUSE=0: off)
             let mut done = false;
-            if save && self.gdn_verify_fuse_ok(t, off, rec.bytes, state_s_offset(l)) {
+            if save && self.gdn_verify_fuse_ok(t, off, rec.bytes, state_s_offset(l, conv_dt)) {
                 let snaps: Vec<TensorRef> = st.spec_rows.bufs[..t - 1]
                     .iter()
                     .map(|b| {
-                        let mut v = TensorRef::new(b.clone(), DType::F32, &[c, ks - 1]);
+                        let mut v = TensorRef::new(b.clone(), conv_dt, &[c, ks - 1]);
                         v.offset = off;
                         v
                     })

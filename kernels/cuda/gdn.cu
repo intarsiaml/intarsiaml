@@ -1,8 +1,8 @@
 // Gated DeltaNet (linear attention) kernels: causal depthwise conv + SiLU, and the gated delta rule.
-// Semantics: crates/intarsia-core/src/gdn.rs (HF Qwen3_5MoeGatedDeltaNet). Activations are bf16, state is f32.
+// Semantics: crates/intarsia-core/src/gdn.rs (HF Qwen3_5MoeGatedDeltaNet). Activations are bf16, state is f32 (the conv state f32 or bf16).
 //
 // Design notes (sequential-over-tokens first; a chunked parallel form is future work):
-//  * gdn_conv: one thread per (channel, tile of 32 tokens), history from x or the old f32 conv state [C,K-1];
+//  * gdn_conv: one thread per (channel, tile of 32 tokens), history from x or the old conv state [C,K-1] (f32 or bf16);
 //    a second tiny kernel then writes the new state in place.
 //  * gdn_delta_rule: the recurrence is independent per (value head, value row j): one warp owns one row
 //    S_j[dk] with dk/32 elements per lane in registers, and loops over the tokens. q/k are l2-normalised per
@@ -20,11 +20,19 @@ constexpr int kConvTile = 32;  // tokens per thread: history comes from x (or th
 
 IK_DEVI float silu(float g) { return g / (1.f + expf(-g)); }
 
+// The conv state is f32 or bf16 (lane conv16: `Backend::gdn_conv_dtype`). It only ever holds past inputs, which are bf16, or
+// zeros, so the bf16 store rounds nothing and every value read back is the f32 one: the two layouts are bitwise.
+IK_DEVI float st_ld(const float* p) { return *p; }
+IK_DEVI float st_ld(const ik_bf16* p) { return ik_b2f(*p); }
+IK_DEVI void st_put(float* p, float v) { *p = v; }
+IK_DEVI void st_put(ik_bf16* p, float v) { *p = ik_f2b(v); }
+
 // Grid (channels / 128, token tiles). The history of a tile is read from x (the previous K-1 inputs), or from the
 // incoming state for positions before the sequence start, so tiles are independent. The new state is written by a
 // second kernel (gdn_conv_state_kernel) once every tile is done reading the old one.
+template <typename ST>
 __global__ void gdn_conv_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w,
-                                ik_bf16* __restrict__ y, const float* __restrict__ state, int64_t T, int C, int K) {
+                                ik_bf16* __restrict__ y, const ST* __restrict__ state, int64_t T, int C, int K) {
     const int c = blockIdx.x * blockDim.x + threadIdx.x;
     if (c >= C) return;
     const int64_t t0 = (int64_t)blockIdx.y * kConvTile;
@@ -33,7 +41,7 @@ __global__ void gdn_conv_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __
     for (int j = 0; j < K; ++j) taps[j] = ik_b2f(w[(int64_t)c * K + j]);
     for (int j = 0; j < K - 1; ++j) {
         const int64_t p = t0 - (K - 1) + j;  // position of this history entry
-        h[j] = p >= 0 ? ik_b2f(x[p * C + c]) : state[(int64_t)c * (K - 1) + (K - 1) + p];
+        h[j] = p >= 0 ? ik_b2f(x[p * C + c]) : st_ld(state + (int64_t)c * (K - 1) + (K - 1) + p);
     }
     for (int64_t t = t0; t < t1; ++t) {
         const float cur = ik_b2f(x[t * C + c]);
@@ -46,40 +54,41 @@ __global__ void gdn_conv_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __
 }
 
 // state[c] = the last K-1 inputs of the extended sequence [old state | x]
-__global__ void gdn_conv_state_kernel(const ik_bf16* __restrict__ x, float* __restrict__ state, int64_t T, int C,
-                                      int K) {
+template <typename ST>
+__global__ void gdn_conv_state_kernel(const ik_bf16* __restrict__ x, ST* __restrict__ state, int64_t T, int C, int K) {
     const int c = blockIdx.x * blockDim.x + threadIdx.x;
     if (c >= C) return;
     float h[kMaxTaps];
     for (int j = 0; j < K - 1; ++j) {
         const int64_t p = T - (K - 1) + j;
-        h[j] = p >= 0 ? ik_b2f(x[p * C + c]) : state[(int64_t)c * (K - 1) + (K - 1) + p];
+        h[j] = p >= 0 ? ik_b2f(x[p * C + c]) : st_ld(state + (int64_t)c * (K - 1) + (K - 1) + p);
     }
-    for (int j = 0; j < K - 1; ++j) state[(int64_t)c * (K - 1) + j] = h[j];
+    for (int j = 0; j < K - 1; ++j) st_put(state + (int64_t)c * (K - 1) + j, h[j]);
 }
 
 // Row-table launch (batched decode): row r (grid.y) is the T = 1 call of gdn_conv_kernel + gdn_conv_state_kernel on that
 // sequence's own conv state (device address in entry [r][tindex] of the row table). One thread owns one channel of one row,
 // reads its K-1 history values and writes the new ones after the output is computed (the two solo kernels do the same in
 // two launches; no other thread touches this channel's history), with the same expressions: bitwise the solo pair.
+template <typename ST>
 __global__ void gdn_conv_rows_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, ik_bf16* __restrict__ y,
                                      const uint8_t* __restrict__ tab, int64_t tstride, int64_t tindex, int C, int K) {
     const int c = blockIdx.x * blockDim.x + threadIdx.x;
     if (c >= C) return;
     const int64_t r = blockIdx.y;
-    float* state = reinterpret_cast<float*>(reinterpret_cast<const uint64_t*>(tab)[r * tstride + tindex]);
+    ST* state = reinterpret_cast<ST*>(reinterpret_cast<const uint64_t*>(tab)[r * tstride + tindex]);
     x += r * C;
     y += r * C;
     float taps[kMaxTaps], h[kMaxTaps];
     for (int j = 0; j < K; ++j) taps[j] = ik_b2f(w[(int64_t)c * K + j]);
-    for (int j = 0; j < K - 1; ++j) h[j] = state[(int64_t)c * (K - 1) + j];  // p = j - (K - 1) < 0: the old state
+    for (int j = 0; j < K - 1; ++j) h[j] = st_ld(state + (int64_t)c * (K - 1) + j);  // p = j - (K - 1) < 0: the old state
     const float cur = ik_b2f(x[c]);
     float acc = taps[K - 1] * cur;
     for (int j = 0; j < K - 1; ++j) acc += taps[j] * h[j];
     y[c] = ik_f2b(silu(acc));
     // the new state: the last K-1 inputs of [old state | x]
-    for (int j = 0; j < K - 2; ++j) state[(int64_t)c * (K - 1) + j] = h[j + 1];
-    state[(int64_t)c * (K - 1) + (K - 2)] = cur;
+    for (int j = 0; j < K - 2; ++j) st_put(state + (int64_t)c * (K - 1) + j, h[j + 1]);
+    st_put(state + (int64_t)c * (K - 1) + (K - 2), cur);
 }
 
 // ---- delta rule ---------------------------------------------------------------------------
@@ -700,7 +709,9 @@ int ik_gdn_conv_bf16(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, ik
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(taps, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(y, IK_DTYPE_BF16, 2));
-    IK_TRY(ik_check(state, IK_DTYPE_F32, 2));
+    if (state && state->dtype == IK_DTYPE_BF16) IK_TRY(ik_check(state, IK_DTYPE_BF16, 2));
+    else IK_TRY(ik_check(state, IK_DTYPE_F32, 2));
+    const bool st16 = state->dtype == IK_DTYPE_BF16;
     const int64_t T = x->shape[0], C = x->shape[1], K = taps->shape[1];
     if (K < 2 || K > kMaxTaps || taps->shape[0] != C || y->shape[0] != T || y->shape[1] != C ||
         state->shape[0] != C || state->shape[1] != K - 1)
@@ -709,11 +720,20 @@ int ik_gdn_conv_bf16(const ik_tensor* x, const ik_tensor* taps, ik_tensor* y, ik
     const int threads = 128;
     cudaStream_t s = IK_STREAM(stream);
     dim3 grid((unsigned)((C + threads - 1) / threads), (unsigned)((T + kConvTile - 1) / kConvTile));
-    gdn_conv_kernel<<<grid, threads, 0, s>>>((const ik_bf16*)x->data, (const ik_bf16*)taps->data,
-                                             (ik_bf16*)y->data, (const float*)state->data, T, (int)C, (int)K);
-    IK_TRY(ik_launch_status());
-    gdn_conv_state_kernel<<<(unsigned)((C + threads - 1) / threads), threads, 0, s>>>(
-        (const ik_bf16*)x->data, (float*)state->data, T, (int)C, (int)K);
+    const unsigned sgrid = (unsigned)((C + threads - 1) / threads);
+    if (st16) {
+        gdn_conv_kernel<ik_bf16><<<grid, threads, 0, s>>>((const ik_bf16*)x->data, (const ik_bf16*)taps->data,
+                                                          (ik_bf16*)y->data, (const ik_bf16*)state->data, T, (int)C, (int)K);
+        IK_TRY(ik_launch_status());
+        gdn_conv_state_kernel<ik_bf16><<<sgrid, threads, 0, s>>>((const ik_bf16*)x->data, (ik_bf16*)state->data, T, (int)C,
+                                                                 (int)K);
+    } else {
+        gdn_conv_kernel<float><<<grid, threads, 0, s>>>((const ik_bf16*)x->data, (const ik_bf16*)taps->data,
+                                                        (ik_bf16*)y->data, (const float*)state->data, T, (int)C, (int)K);
+        IK_TRY(ik_launch_status());
+        gdn_conv_state_kernel<float><<<sgrid, threads, 0, s>>>((const ik_bf16*)x->data, (float*)state->data, T, (int)C,
+                                                               (int)K);
+    }
     return ik_launch_status();
 }
 
@@ -871,7 +891,9 @@ int ik_gdn_conv_bf16_rows(const ik_tensor* x, const ik_tensor* taps, ik_tensor* 
     IK_TRY(ik_check(x, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(taps, IK_DTYPE_BF16, 2));
     IK_TRY(ik_check(y, IK_DTYPE_BF16, 2));
-    IK_TRY(ik_check(state0, IK_DTYPE_F32, 2));
+    if (state0 && state0->dtype == IK_DTYPE_BF16) IK_TRY(ik_check(state0, IK_DTYPE_BF16, 2));
+    else IK_TRY(ik_check(state0, IK_DTYPE_F32, 2));
+    const bool st16 = state0->dtype == IK_DTYPE_BF16;
     const int64_t R = x->shape[0], C = x->shape[1], K = taps->shape[1];
     if (K < 2 || K > kMaxTaps || taps->shape[0] != C || y->shape[0] != R || y->shape[1] != C ||
         state0->shape[0] != C || state0->shape[1] != K - 1)
@@ -880,9 +902,15 @@ int ik_gdn_conv_bf16_rows(const ik_tensor* x, const ik_tensor* taps, ik_tensor* 
     if (C == 0 || R == 0) return IK_OK;
     if (R > 65535) return IK_ERR_SHAPE;
     const int threads = 128;
-    gdn_conv_rows_kernel<<<dim3((unsigned)((C + threads - 1) / threads), (unsigned)R), threads, 0, IK_STREAM(stream)>>>(
-        (const ik_bf16*)x->data, (const ik_bf16*)taps->data, (ik_bf16*)y->data, (const uint8_t*)tab->data, stride, index,
-        (int)C, (int)K);
+    const dim3 grid((unsigned)((C + threads - 1) / threads), (unsigned)R);
+    if (st16)
+        gdn_conv_rows_kernel<ik_bf16><<<grid, threads, 0, IK_STREAM(stream)>>>(
+            (const ik_bf16*)x->data, (const ik_bf16*)taps->data, (ik_bf16*)y->data, (const uint8_t*)tab->data, stride, index,
+            (int)C, (int)K);
+    else
+        gdn_conv_rows_kernel<float><<<grid, threads, 0, IK_STREAM(stream)>>>(
+            (const ik_bf16*)x->data, (const ik_bf16*)taps->data, (ik_bf16*)y->data, (const uint8_t*)tab->data, stride, index,
+            (int)C, (int)K);
     return ik_launch_status();
 }
 
