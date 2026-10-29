@@ -1022,6 +1022,30 @@ fn real_qwen3_8b_decode_written_rows_are_not_prefill_rows() {
     assert!(exact, "resuming at inv_len is not the cold prefill");
 }
 
+/// Lane rip: with row-invariant prefill on, the ordinary prefill (`Model::forward`, as accuracy's all-logits passes and direct
+/// callers run it) still fits the plan: a 16-row pass at the end of an 8192-token context takes the split-KV prefill and its
+/// largest scratch, which the plan's ordinary-prefill probes reserve (`plan::record`).
+#[test]
+fn real_qwen3_8b_ordinary_short_pass_fits_the_plan() {
+    let _serial = serial();
+    use intarsia_core::engine::TextCodec;
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN3_DIR"), cuda()) else { return };
+    let m = load(&dir, be, 2, 8192);
+    assert!(m.row_invariant_prefill(), "row-invariant prefill is off for the 8B");
+    let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
+    let mut p = codec.encode(&long_text(7000), false).unwrap();
+    assert!(p.len() >= 8192, "{} tokens", p.len());
+    p.truncate(8192);
+    let mut st = m.new_state().unwrap();
+    m.forward_prefill(&mut st, &p[..8176], HeadMode::None, None).unwrap();
+    for t in [16usize, 9, 5] {
+        let at = st.len;
+        logits_of(m.forward(&mut st, &p[at..at + t], HeadMode::LastLogits, None).unwrap_or_else(|e| panic!("{t}-row pass at {at}: {e}")));
+        st.truncate(at, &*m.backend).unwrap();
+    }
+    eprintln!("RIP ordinary 16 / 9 / 5-row passes at 8176 ran");
+}
+
 /// (ids, cached prompt tokens) of a request.
 fn collect_cached(rx: &Receiver<GenEvent>) -> (Vec<u32>, usize) {
     let mut ids = vec![];

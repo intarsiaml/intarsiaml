@@ -284,17 +284,35 @@ fn record(model: &Model) -> Result<(Vec<PlannedCall>, Vec<usize>, (usize, usize,
             probes.push((Phase::Prefill, 1, cap - 1));
         }
     }
+    // with row-invariant prefill on, every prefill probe runs twice: as `Model::forward_prefill` runs it, and as the ordinary
+    // prefill (`Model::forward`: accuracy's all-logits passes, direct callers), whose kernels (split-KV for <= 16 rows, its
+    // scratch) the plan must still cover
+    let inv = model.row_invariant_prefill();
+    let probes: Vec<(Phase, usize, usize, bool)> = probes
+        .into_iter()
+        .flat_map(|(ph, t, p0)| {
+            let both = inv && ph == Phase::Prefill && t > 1;
+            [(ph, t, p0, false)].into_iter().chain(both.then_some((ph, t, p0, true)))
+        })
+        .collect();
     let mut calls = Vec::new();
     let mut comm_decode = (0usize, 0usize, 0usize);
     let mut decode0: Vec<(Op, String)> = Vec::new();
     // op -> (shapes without a kernel, first description, where it is needed, weight tensors of the dtype no kernel takes)
     let mut missing: BTreeMap<Op, MissingOp> = BTreeMap::new();
-    for (phase, t, pos0) in probes {
+    for (phase, t, pos0, plain) in probes {
         // a batch step appends one token to each of its sequences
         if pos0 + if phase == Phase::Batch { 1 } else { t } > cap {
             continue;
         }
-        let rec = model.dry_run(phase, t, pos0).map_err(|e| Error::invalid(format!("plan probe {phase:?} t={t} pos0={pos0}: {e}")))?;
+        if plain {
+            model.set_row_invariant_prefill(false);
+        }
+        let rec = model.dry_run(phase, t, pos0);
+        if plain {
+            model.set_row_invariant_prefill(true);
+        }
+        let rec = rec.map_err(|e| Error::invalid(format!("plan probe {phase:?} t={t} pos0={pos0}{}: {e}", if plain { " (ordinary)" } else { "" })))?;
         if phase == Phase::Decode && pos0 == 0 {
             decode0 = rec.calls.iter().filter(|c| !c.extra).map(|c| (c.call.op, c.kernel.clone())).collect();
         }

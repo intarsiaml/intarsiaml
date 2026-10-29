@@ -712,6 +712,11 @@ impl Model {
         self.inv_on.store(false, std::sync::atomic::Ordering::Relaxed);
     }
 
+    /// Set row-invariant prefill (`plan::record`: off for the ordinary-prefill probes, then back on).
+    pub(crate) fn set_row_invariant_prefill(&self, on: bool) {
+        self.inv_on.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
     /// Prefill tail peel in rows (0 = off, the default; [`crate::scheduler::peel_tail`]).
     pub fn prefill_peel(&self) -> usize {
         self.prefill_peel

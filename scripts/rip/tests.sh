@@ -2,7 +2,7 @@
 # Lane rip, a short GPU job (spark2, --quiet gpu,cpu): the kernel-level row-invariance findings and gate (tests/row_invariance.rs),
 # then the 8B model-level gate with the ordinary prefill (INTARSIA_RIP_PLAIN=1, the "before" probe) and with row-invariant prefill.
 #   OUT=... fleetq run --host spark2 --quiet gpu,cpu --mem 40 --expect 15 --label "rip: findings + model gate" -- scripts/rip/tests.sh
-# TESTS="kernel plain model engine" picks the parts (default: kernel plain model).
+# TESTS="kernel plain model engine decoderows ordinary plan" picks the parts (default: kernel plain model).
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 H=spark2
@@ -18,7 +18,9 @@ for part in $T; do
     plain) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_RIP_PLAIN=1 INTARSIA_QWEN3_DIR=$M INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_qwen3_8b_prefill_is_row_invariant -- --test-threads=1 --nocapture 2>&1 | grep -aE '$F'" > "$OUT/plain.log" ;;
     model) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_QWEN3_DIR=$M INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_qwen3_8b_prefill_is_row_invariant -- --test-threads=1 --nocapture 2>&1 | grep -aE '$F'" > "$OUT/model.log" ;;
     engine) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_QWEN3_DIR=$M INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real -- real_qwen3_8b_reuse_and_busy real_qwen3_8b_batched --test-threads=1 --nocapture 2>&1 | grep -aE '$F|bi8|pairs bitwise'" > "$OUT/engine.log" ;;
-    mutant) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_PREFIX_REUSE=any INTARSIA_RIP_EXPECT_ANY_FAILS=1 INTARSIA_QWEN3_DIR=$M INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_qwen3_8b_reuse_and_busy -- --test-threads=1 --nocapture 2>&1 | grep -aE '$F'" > "$OUT/mutant.log" ;;
+    decoderows) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_QWEN3_DIR=$M INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_qwen3_8b_decode_written_rows -- --test-threads=1 --nocapture 2>&1 | grep -aE '$F'" > "$OUT/decoderows.log" ;;
+    ordinary) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_QWEN3_DIR=$M INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_qwen3_8b_ordinary_short_pass -- --test-threads=1 --nocapture 2>&1 | grep -aE '$F'" > "$OUT/ordinary.log" ;;
+    plan) rsh "B=~/intarsiaml-rip/bin; for t in base intarsia; do \$B/\$t plan show --backend cuda --model $M --max-seq 8192 --mem-budget 40 < /dev/null > ~/intarsiaml-rip/out/plan8-\$t.txt 2>/dev/null; done; diff ~/intarsiaml-rip/out/plan8-base.txt ~/intarsiaml-rip/out/plan8-intarsia.txt; echo diff-exit \$?" > "$OUT/plan.log" ;;
   esac
   echo "== $part"; tail -4 "$OUT/$part.log"
 done
