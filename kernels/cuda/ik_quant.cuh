@@ -127,6 +127,17 @@ IK_DEVI void ik_fp8x16_to_h2(const uint4& u, uint32_t* h) {
     }
 }
 
+/* 8 floats -> 8 f16 (round to nearest; exact for values on the e4m3 grid), pairs as ik_fp8x16_to_h2 lays them out */
+IK_DEVI uint4 ik_pack8_f16(const float* f) {
+    uint32_t h[4];
+#pragma unroll
+    for (int i = 0; i < 4; ++i) {
+        const __half2 p = __floats2half2_rn(f[2 * i], f[2 * i + 1]);
+        h[i] = *reinterpret_cast<const uint32_t*>(&p);
+    }
+    return make_uint4(h[0], h[1], h[2], h[3]);
+}
+
 /* e2m1 magnitudes 0 .5 1 1.5 2 3 4 6 as bf16: high bytes and low bytes, for `prmt` (selector nibble = 3-bit magnitude code) */
 #define IK_FP4_BF_HI_LO 0x3F3F3F00u
 #define IK_FP4_BF_HI_HI 0x40404040u
