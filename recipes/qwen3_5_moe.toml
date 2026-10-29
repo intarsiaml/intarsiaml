@@ -60,6 +60,8 @@ final_norm = "model.language_model.norm"
 lm_head = { tensor = "lm_head", tied_to = "model.language_model.embed_tokens" }
 
 [defaults]
+# bf16 KV cache (bitwise gates). fp8_e4m3 (`--kv-dtype fp8`, or this key in a copy of the recipe passed with `--recipe`) is the
+# opt-in vLLM serves this checkpoint with: measured cost and speed in docs/results/2026-10-29-fp8kv-opt-in.md.
 kv_dtype = "bf16"
 max_batch = 32
 

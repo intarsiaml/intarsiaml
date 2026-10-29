@@ -1,0 +1,15 @@
+fleetq: #7093 running on spark2: ssh -n spark2 'M=$(ls -d ~/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/*); for kv in bf16 fp8; do echo "== kv $kv"; ~/intarsiaml-fp8kv/bin/dev plan show --backend cuda --model $M --max-seq 8192 --mem-budget 40 --kv-dtype $kv < /dev/null 2>/dev/null | grep -iE "kv|context|token"; done'
+== kv bf16
+act bf16  kv bf16  prefill chunk 2048 (recipe qwen3_5_moe, cuda)  scratch 335842816 B  require_admitted false  reference_only false
+kv_append      kv_append_bf16             exact         no        20 0
+attn_prefill   attn_prefill_bf16_splitkv  deterministic no        0 2311680
+attn_decode    attn_decode_bf16_splitkv   deterministic no        10 1056768
+attn_decode    attn_decode_bf16_splitkv_rows deterministic no        0 16908288
+== kv fp8
+act bf16  kv fp8_e4m3  prefill chunk 2048 (recipe qwen3_5_moe, cuda)  scratch 335842816 B  require_admitted false  reference_only false
+kv_append      kv_append_bf16             exact         no        20 0
+attn_prefill   attn_prefill_f8kv_flash    deterministic no        0 0
+attn_prefill   attn_prefill_f8kv_splitkv  deterministic no        0 2311680
+attn_decode    attn_decode_f8kv_splitkv   deterministic no        10 1056768
+attn_decode    attn_decode_f8kv_splitkv_rows deterministic no        0 16908288
+fleetq: #7093 done (exit 0)
