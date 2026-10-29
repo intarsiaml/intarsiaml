@@ -205,7 +205,7 @@ impl Backend for CudaBackend {
     /// `INTARSIA_ROW_INVARIANT_PREFILL=1` (or `LoadOptions::row_invariant_prefill`) a `Model::forward_prefill` pass runs the pinned
     /// cuBLASLt GEMM (`matmul_bf16_inv`) and the flash attention at every row count, so a row's bits do not depend on the pass and
     /// reuse resumes from any row such a pass wrote. Off because the pinned GEMM is ~17-24% slower than cuBLAS at M ~ 1000
-    /// (Qwen3-8B 1k-token prefill -9.6%, 4k +2.2%, 16k +0.6%); the user decides the default.
+    /// (Qwen3-8B 1k-token prefill -10.4%, 4k +1.4%, 16k +0.2%); the user decides the default.
     fn row_invariant_prefill(&self) -> bool {
         false
     }

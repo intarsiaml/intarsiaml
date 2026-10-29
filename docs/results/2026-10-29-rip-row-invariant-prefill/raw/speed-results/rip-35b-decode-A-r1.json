@@ -1,0 +1,147 @@
+{
+ "run_id": "20261029-014528-adhoc-rip-35b-decode-A-r1",
+ "kind": "speed",
+ "label": "rip-35b-decode-A-r1",
+ "started_at": "2026-10-29T01:45:28-04:00",
+ "finished_at": "2026-10-29T01:45:53-04:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://spark-fa00:8197/v1",
+  "model": "intarsia",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "env INTARSIA_ROW_INVARIANT_PREFILL=default /home/nvidia/intarsiaml-rip/bin/base serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8197 --host 0.0.0.0 --served-model-name intarsia --profile-every 0 --max-seq 8192 --mem-budget 40 --max-batch 16"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --url http://spark-fa00:8197/v1 --model intarsia --thinking off --sizes 1024 --gen 256 --reps 3 --concurrency 16 --label rip-35b-decode-A-r1 --recipe env INTARSIA_ROW_INVARIANT_PREFILL=default /home/nvidia/intarsiaml-rip/bin/base serve --backend cuda --model /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --port 8197 --host 0.0.0.0 --served-model-name intarsia --profile-every 0 --max-seq 8192 --mem-budget 40 --max-batch 16",
+  "git": "d12b61c"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "intarsia"
+   ],
+   "root": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "intarsia",
+   "max_model_len": 8192
+  },
+  "gen_tokens": 256,
+  "reps": 3,
+  "tokens_per_filler_sentence": 22.04,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 990,
+    "completion_tokens": {
+     "median": 256,
+     "min": 256,
+     "max": 256,
+     "n": 3,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.187,
+     "min": 0.184,
+     "max": 0.188,
+     "n": 3,
+     "spread_pct": 2.1
+    },
+    "prefill_tok_s": {
+     "median": 5295.942,
+     "min": 5266.956,
+     "max": 5383.02,
+     "n": 3,
+     "spread_pct": 2.2
+    },
+    "decode_tok_s": {
+     "median": 85.42,
+     "min": 85.359,
+     "max": 85.424,
+     "n": 3,
+     "spread_pct": 0.1
+    },
+    "peak_decode_tok_s": {
+     "median": 105.3,
+     "min": 104.6,
+     "max": 110.7,
+     "n": 3,
+     "spread_pct": 5.8
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 3,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   }
+  ],
+  "skipped": [],
+  "concurrency": [
+   {
+    "streams": 16,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 274.0,
+    "per_stream_decode_tok_s": {
+     "median": 19.562,
+     "min": 17.846,
+     "max": 22.097,
+     "n": 16,
+     "spread_pct": 21.7
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 23.3,
+     "min": 23.2,
+     "max": 26.0,
+     "n": 16,
+     "spread_pct": 12.0
+    },
+    "ttft_s": {
+     "median": 1.725,
+     "min": 0.189,
+     "max": 3.388,
+     "n": 16,
+     "spread_pct": 185.5
+    },
+    "errors": []
+   }
+  ],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "intarsia",
+  "activity_checks": {
+   "idle": 5,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}
