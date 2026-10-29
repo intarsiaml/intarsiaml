@@ -10,9 +10,12 @@ files that carry `prefill_chunk` re-recorded at 4096. Nothing else in the engine
 (`qwen3.toml`: 2048 on Metal) are untouched. Source of the idea: MPRE section 4 (`2026-10-29-mpre-metal-prefill.md`), where a
 third arm at `--prefill-chunk 4096` gave +6.2 % at 4k and 16k.
 
-**Result:** greedy ids are bitwise identical (12 of 12 comparisons), served 35B prefill is +17 % at 4k and +9 % at 16k
-(medians of 6 interleaved rounds; every one of the 6 paired 4k rounds is positive, +7.3 % at the smallest), and decode (1 stream
-at 1k / 4k / 16k) and the 1 / 4 / 8 / 16-stream burst are inside noise.
+**Result:** greedy ids are bitwise identical (12 of 12 comparisons). Served 35B prefill at 4k is about +7.5 % (best 2048 start
+5451 against best 4096 start 5860; paired median +11 %, every one of the 6 paired rounds at least +7.3 %) and at 16k about +2 to
++6 % and noisy (best against best +2 %, paired median +5.5 %, one of 6 rounds -1.9 %). The 6-round medians in the table (+17 % at
+4k, +9 % at 16k) are larger because the 2048 arm is slow in some server starts. Decode (1 stream at 1k / 4k / 16k) and the 1 / 4 / 8 /
+16-stream burst are inside noise. The ids gate and the re-record ran on `492a8b35e` plus this change; #255 touches no Metal code, and the
+A/B and the final tests ran on the merged tree.
 
 ## 1. Served A/B, 2048 vs 4096
 
@@ -66,7 +69,7 @@ of about 5 %, so no cell is slower beyond noise. **The 16-stream number on curre
 | other recipes | `plan show` on the other local checkpoints: Qwen3-8B 2048 (recipe qwen3), Llama-3.1-8B 256, Qwen2.5-7B 256, Qwen3.8-27B-Quark 256, all unchanged; MiniCPM-V-4.7 and Kolibri-1 do not load on Metal on main (as in MPRE). Only the `qwen3_5_moe` recipe changed |
 | `batch_recurrent` (`INTARSIA_REQUIRE_GPU=1`) | 14 passed. It uses synthetic fixtures, so it does not exercise the recipe chunk |
 | `batch_metal_real` 35B (`INTARSIA_TEST_REAL_MODEL=1`) | `real_35b_batched_decode_is_bitwise_the_solo_step` and `real_35b_batched_engine_equals_the_local_engine` pass; `real_lfm2_batched_decode_is_bitwise_the_solo_step` fails only because `INTARSIA_LFM2_DIR` is unset (as in MPRE) |
-| `batch_metal_real` `--ignored real_35b_batched_engine_long_prompts_equal_the_local_engine` (2.6k / 4k / 16k prompts, 2 and 4 slots, busy chunk default = 4096) | in one process the third identity case failed with `prompt of 16384 tokens does not fit the context window of 16377 tokens`: the fourth engine in the process plans its KV from the free memory left after three engines, and the bigger 4096-row scratch leaves it 7 tokens short. Cases 1 and 2 had passed (2 slots: 2/2 IDENTICAL; 4 slots: 4/4 IDENTICAL, including the 16384-token prompt). Fix in the test only: `INTARSIA_LONGENG_CASE=N` runs one case per process (row in `docs/tuning.md`); after the merge all three cases pass, 2 + 4 + 4 requests IDENTICAL to the LocalEngine run, 0 DIFFERS (`raw/tests/post-merge/long-*.log`) |
+| `batch_metal_real` `--ignored real_35b_batched_engine_long_prompts_equal_the_local_engine` (2.6k / 4k / 16k prompts, 2 and 4 slots, busy chunk default = 4096) | in one process the third identity case failed with `prompt of 16384 tokens does not fit the context window of 16377 tokens`: the fourth engine in the process plans its KV from the free memory left after three engines, and most likely because the bigger 4096-row scratch leaves it 7 tokens short (inferred, not measured against main). Cases 1 and 2 had passed (2 slots: 2/2 IDENTICAL; 4 slots: 4/4 IDENTICAL, including the 16384-token prompt). Fix in the test only: `INTARSIA_LONGENG_CASE=N` runs one case per process (row in `docs/tuning.md`); after the merge all three cases pass, 2 + 4 + 4 requests IDENTICAL to the LocalEngine run, 0 DIFFERS (`raw/tests/post-merge/long-*.log`) |
 | prefix reuse equals cold | the 35B prefix-reuse gate is `qualify`'s `acc-4k`, which runs `accuracy --mode all` at the plan chunk (4096) and `--mode reuse` at chunk 1024. At 4096 `--mode all`: continue case on chat_reuse_4k oracle-relative PASS (warm/cold 0.71x), restore / aligned bit-identical; long_docs_4k and long_code_4k are skipped there because their 4064 tokens cannot cross a 4096 boundary (judged 1, skipped 2, as on HIP). The chunk-1024 `--mode reuse` run judges all three and FAILS on `long_code_4k continue` (streams diverge at token 3, "the golden's prompt token ids differ from the ones it was made for", no committed oracle applies): **this failure is not caused by the change**, the same command with a binary built from `main`'s recipe (2048) fails identically (`raw/control/`), and it never reads the recipe chunk. `qualify` therefore reports `acc-4k` FAIL both before and after. The PRC probe tests (`prefix_reuse_real`, `reuse_rule_resumes_with_cold_bits` ...) need a dense checkpoint and the 8B recipe is unchanged, so they were not re-run |
 | `cargo test --workspace --release --locked` (endor, after merging #255, no GPU-required env) | **1105 passed, 0 failed, 28 ignored** (`raw/tests/post-merge/ws.log`). A first run in the same job as the real-model tests left `INTARSIA_REQUIRE_GPU=1` exported and reported 15 failures that are all the CUDA / real-model tests refusing to skip (`gpu_tests_were_not_built`, `real_*` on a Mac); that log is kept as `raw/tests/w3-ws-REQUIRE_GPU-env-leak.log` and is a script error, not a result |
 
@@ -121,3 +124,5 @@ decode 98.44 % / 9.54e-3), `acc-4k` FAIL for the pre-existing reason in the gate
 | #7125 | A/B attempt 1: `serve` subcommand missing in the script, servers exited at once, no data | `--quiet gpu,cpu` |
 | #7126 | window 2: served A/B, 3 rounds, single stream and burst (10 min) | `--quiet gpu,cpu` |
 | #7127 | 3 extra single-stream rounds (4.3 min) | `--quiet gpu,cpu` |
+| #7129 | `docs_env_vars` test | `--load cpu` |
+| #7130 | final binary (recipe comment edited after the re-record) rebuilt; `qualify` acc-short grades against the installed baseline: PASS (97.85 % / 7.93e-3, not MISSING-BASELINE) | `--quiet gpu,cpu` |
