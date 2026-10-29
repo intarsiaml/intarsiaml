@@ -488,21 +488,24 @@ fn timing_gdn_rows() {
 /// stage 1 + combine) at the 35B shape (16 q heads, 2 kv heads of 256) for M rows, cycling over 10 layers' own K / V caches per
 /// row so the caches come from DRAM as in the decode step. Row r attends ATTNT_POS + 37 * r % 200 keys (default 1100, the
 /// served ~1k-token prompts). Prints `ATTNT M us/call GB/s` (K + V bytes read). INTARSIA_ATTN_ROWS_PERSIST applies as in the engine.
+/// ATTNT_KV=fp8_e4m3 times the fp8-cache twin `attn_decode_f8kv_splitkv_rows` on e4m3 caches instead (lane fp8kv).
 #[test]
 #[ignore]
 fn timing_attn_rows() {
     let Some(rig) = Rig::new("timing_attn_rows") else { return };
     let mut rng = SplitMix64::new(15);
-    let (nh, nkv, d, layers, cap) = (16usize, 2usize, 256usize, 10usize, 1400usize);
     let ms: Vec<usize> = std::env::var("ATTNT_M").ok().map(|v| v.split(',').map(|x| x.parse().unwrap()).collect()).unwrap_or(vec![1, 4, 8, 16]);
     let base: usize = std::env::var("ATTNT_POS").ok().map(|v| v.parse().unwrap()).unwrap_or(1100);
+    let (nh, nkv, d, layers, cap) = (16usize, 2usize, 256usize, 10usize, (base + 300).max(1400));
     let mmax = *ms.iter().max().unwrap();
-    let init = HostTensor::from_f32_as(DType::Bf16, &[nkv * cap * d], &rng.normal_vec(nkv * cap * d, 1.0)).data;
+    let kv = std::env::var("ATTNT_KV").ok().map(|v| DType::parse(&v).unwrap()).unwrap_or(DType::Bf16);
+    let name = if kv == DType::Bf16 { "attn_decode_bf16_splitkv_rows" } else { "attn_decode_f8kv_splitkv_rows" };
+    let init = HostTensor::from_f32_as(kv, &[nkv * cap * d], &rng.normal_vec(nkv * cap * d, 1.0)).data;
     let caches: Vec<Vec<(TensorRef, TensorRef)>> = (0..layers)
-        .map(|_| (0..mmax).map(|_| (rig.put_bytes(&init, DType::Bf16, &[nkv, cap, d]), rig.put_bytes(&init, DType::Bf16, &[nkv, cap, d]))).collect())
+        .map(|_| (0..mmax).map(|_| (rig.put_bytes(&init, kv, &[nkv, cap, d]), rig.put_bytes(&init, kv, &[nkv, cap, d]))).collect())
         .collect();
     let scale = 1.0 / (d as f32).sqrt();
-    let k = rig.be.kernels().into_iter().find(|k| k.name == "attn_decode_bf16_splitkv_rows" && k.op == Op::AttnDecode).expect("registered");
+    let k = rig.be.kernels().into_iter().find(|k| k.name == name && k.op == Op::AttnDecode).expect("registered");
     for &m in &ms {
         let pos: Vec<usize> = (0..m).map(|r| (base + 37 * r % 200).min(cap - 1)).collect();
         let pt: Vec<u8> = pos.iter().flat_map(|p| (*p as i32).to_le_bytes()).collect();
@@ -528,7 +531,7 @@ fn timing_attn_rows() {
             rig.be.synchronize(0).unwrap();
             let t0 = std::time::Instant::now();
             for call in calls.iter() {
-                rig.be.launch("attn_decode_bf16_splitkv_rows", call, 0).unwrap();
+                rig.be.launch(name, call, 0).unwrap();
             }
             rig.be.synchronize(0).unwrap();
             let us = t0.elapsed().as_secs_f64() * 1e6 / calls.len() as f64;
@@ -536,7 +539,7 @@ fn timing_attn_rows() {
                 best = best.min(us);
             }
         }
-        let bytes: usize = pos.iter().map(|p| 2 * nkv * (p + 1) * d * 2).sum();
-        println!("ATTNT attn_decode_bf16_splitkv_rows M={m} pos~{base} {best:.1} us/call {:.0} GB/s", bytes as f64 / best / 1e3);
+        let bytes: usize = pos.iter().map(|p| 2 * nkv * (p + 1) * d * kv.size_bytes()).sum();
+        println!("ATTNT {name} M={m} pos~{base} {best:.1} us/call {:.0} GB/s", bytes as f64 / best / 1e3);
     }
 }
