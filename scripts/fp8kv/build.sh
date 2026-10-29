@@ -33,7 +33,7 @@ for what in "$@"; do
     rt-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test row_tables --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/row_tables-* | grep -v '\.d$' | head -1) $L/bin/row_tables-${what#rt-}" ;;
     qm-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test quantmoe --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/quantmoe-* | grep -v '\.d$' | head -1) $L/bin/quantmoe-${what#qm-}" ;;
     mn-*) rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test moe_nvfp4 --no-run 2>&1 | grep -E '^error|Finished' | tail -4; cp \$(ls -t target/release/deps/moe_nvfp4-* | grep -v '\.d$' | head -1) $L/bin/moe_nvfp4-${what#mn-}" ;;
-    sass) rsh "rm -rf $L/kchk && mkdir -p $L/kchk/kernels && cp -r $R/kernels/cuda $R/kernels/abi $L/kchk/kernels/"
+    sass) rsh "rm -rf $L/kchk && mkdir -p $L/kchk/kernels && cp -r $R/kernels/. $L/kchk/kernels/"
           git -C "$REPO" show "${BASE_REF:-origin/main}":kernels/cuda/attention_splitkv.cu | ssh -o BatchMode=yes spark2 "cat > $L/kchk/kernels/cuda/attention_splitkv_base.cu"
           ssh -o BatchMode=yes spark2 'bash -s' < "$REPO/scripts/fp8kv/sass.sh" ;;
     res) rsh "cd $R && for o in \$(find target/release/build -name 'moe_decode*.o' | head -1); do cuobjdump --dump-resource-usage \$o | grep -E 'Function|REG' | sed 's/^ *//' | paste - - | grep -E 'down|gate_up' | cut -c1-240; done" ;;
