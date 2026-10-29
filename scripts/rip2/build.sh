@@ -11,6 +11,9 @@ rsh() { ssh -n -o BatchMode=yes "$H" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*";
 STAMP="$("$REPO/scripts/tree-stamp.sh")"
 rsh "mkdir -p $R ~/intarsiaml-rip2/bin ~/intarsiaml-rip2/out; test -d $R/target || cp -a ~/intarsiaml-pc/target $R/target"
 rsync -a --delete --exclude target --exclude .git --exclude golden --exclude tools/.venv --exclude .claude --exclude .worktrees --exclude out "$REPO/" "$H:intarsiaml-rip2/src/"
+# rsync -a keeps the Mac mtimes: a file edited while an earlier build compiled can look older than its fingerprint (lane rip2's
+# stale binary), so touch the sources as build-base.sh does
+rsh "cd $R && find . -path ./target -prune -o -type f \\( -name '*.rs' -o -name '*.cu' -o -name '*.h' -o -name '*.cuh' -o -name '*.toml' \\) -print0 | xargs -0 touch"
 rsh "cd $R && env INTARSIA_BUILD_STAMP='$STAMP' CARGO_BUILD_JOBS=16 cargo build --release --features cuda -p intarsia-cli 2>&1 | grep -E '^(error|warning: unused)|Finished' | tail -8"
 rsh "cp $R/target/release/intarsia ~/intarsiaml-rip2/bin/intarsia; ~/intarsiaml-rip2/bin/intarsia --version | head -1"
 rsh "cd $R && CARGO_BUILD_JOBS=16 cargo test -p intarsia-models --release --test batch_cuda_real --no-run 2>&1 | grep -E '^error|Finished|Executable' | tail -4"

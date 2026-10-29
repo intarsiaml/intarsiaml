@@ -11,8 +11,9 @@ list). spark2 (spark-fa00, GB10 sm_121, cuBLASLt 13.1.1.3), `spark2-vllm` (retro
 On sm_121 most split-K-1 cuBLASLt bf16 kernels are bitwise equal to every other, whatever its tile: of the algorithm x
 tile x stages configurations checked (164 per Qwen3-8B projection shape, custom option 0, split-K 1; the enumeration hit its time
 limit before algo 67's custom options), **524 of 656** gave byte-identical 4352-row outputs to RIP's primary
-(`raw/probe/all1.log`; algo 21 at every tile, algo 67 at most), and so did **every split-K-1 pick cuBLASLt's own
-heuristic makes at M = 991 / 1024 / 2048 / 4096** (`raw/probe/pool1.log`; `raw/kernel/kernel1.log`: the first differing pick is wanted at 17-65 rows). The ones that differ (algo 16, algo 24, algo 67 at small tiles:
+(`raw/probe/all1.log`; algo 21 at every tile, algo 67 at most), and in the dispatcher **the heuristic's first usable split-K-1 pick was equal at
+every M from 66 rows up** (`raw/kernel/kernel1.log`: the only probed picks that differ are first wanted at 17-65 rows;
+`raw/probe/pool1.log` classes every heuristic pick at 16..4096 rows). The ones that differ (algo 16, algo 24, algo 67 at small tiles:
 ids 3, 5, 6, 8-13, 15) are presumably other MMA shapes / sliced-K; split-K > 1 always differs. cuBLAS itself uses split-K only below ~512 rows.
 
 `matmul_bf16_inv` now keeps RIP's primary (it defines the bits) and, per row count, runs the heuristic's first pick for that M
@@ -80,7 +81,8 @@ Raw: `raw/gates-w2/` (model + served), `raw/gates-w3/` (kernel tests, plans), `r
 | Gate | Result |
 |---|---|
 | 8B probe (cold reference, `INTARSIA_BI8_PROBE=1`): 16 prompts, self-reuse / every split / cross-prompt | **pass**: self-reuse 16 / 16 equal, 0 differing splits, 0 cross differences |
-| RIP's 8B split test `real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference` (k = 1, 7, 255, 256, 1000, plen-1, 4095 / 4096 / 4097, busy chunks, reuse) + BI8 batched gates | **pass** (3 / 3) |
+| RIP's 8B split test `real_qwen3_8b_prefill_is_row_invariant` (2164- / 7172-token prompts: k = 1, 7, 255, 256, 1000, plen-1, 4095 / 4096 / 4097, 256-row busy chunks, reuse from 1 / 1000 / plen-1), on the **final kernel `62d98a1`** | **pass**, 23 / 23 EQUAL (last-row logits, KV, 8 greedy decode steps; `raw/model-final/`) |
+| Engine reuse + busy-chunk + BI8 batched (`real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference`, `real_qwen3_8b_batched*`) | **pass** (3 / 3) |
 | Multi-turn: 3 turns (2802 / 2872 / 2936 tokens, cached 0 / 2802 / 2872), single-sequence and batched | **pass**: warm == cold every turn |
 | Decode-written rows (bitwise) / ordinary short pass at 8176 | **pass** (2 / 2): resume at `inv_len` 555 + 16 reply tokens EQUAL |
 | Served greedy vs cold reference, solo 1 / 4 / 16 x 3 reps | **9 / 9 identical** |
@@ -96,7 +98,9 @@ Raw: `raw/gates-w2/` (model + served), `raw/gates-w3/` (kernel tests, plans), `r
 (`raw/diag/`, micro jobs): `INTARSIA_INV_SINGLE=1` on that binary differed the same way, `origin/main` with
 `INTARSIA_ROW_INVARIANT_PREFILL=1` was identical, and so was that binary with the knob set explicitly: the server's default was
 the ordinary prefill, and that binary's `plan show` 8B was byte-identical to base (no `matmul_bf16_inv` row), i.e. the
-installed binary did not carry the default flip. The rebuilt merged binary's default and `=1` give the same plan (with the
+installed binary did not carry the default flip (most likely: `device.rs` was edited while the first build compiled, and
+`rsync -a` kept its older Mac mtime, so cargo saw nothing newer; `scripts/rip2/build.sh` now touches the sources like
+`build-base.sh`). `raw/gates-w1/batch35.log` is that window's 35B test cut off by stopping the job (no verdict), not a failure. The rebuilt merged binary's default and `=1` give the same plan (with the
 row) and its default served n8 was identical twice; window 2 then passed every served gate.
 
 ## 4. Speed (knob off vs on, 3 interleaved rounds, localeval)
