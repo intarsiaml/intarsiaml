@@ -1,0 +1,19 @@
+short-main 3502aa16b75d63b0a58ee606ccdf43bc steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+short-dev1 3502aa16b75d63b0a58ee606ccdf43bc steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+short-dev 3502aa16b75d63b0a58ee606ccdf43bc steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+p4k-a-main 63e14320749f8773f9a0623977f8dde5 steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+p4k-a-dev1 63e14320749f8773f9a0623977f8dde5 steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+p4k-a-dev 63e14320749f8773f9a0623977f8dde5 steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+p4k-b-main 0031ba99a464f61f24aa88cdc2fdbc6a steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+p4k-b-dev1 0031ba99a464f61f24aa88cdc2fdbc6a steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+p4k-b-dev 0031ba99a464f61f24aa88cdc2fdbc6a steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+p16k-main 2cb3b284ff11a3f4bd53701dcb072bb0 steps=260 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+p16k-dev1 2cb3b284ff11a3f4bd53701dcb072bb0 steps=260 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+p16k-dev 2cb3b284ff11a3f4bd53701dcb072bb0 steps=260 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 
+short-dev1-mtp 3502aa16b75d63b0a58ee606ccdf43bc steps=100 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/198 argmax=0ms/295 attn_decode
+short-main-mtp 3502aa16b75d63b0a58ee606ccdf43bc steps=100 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/198 argmax=0ms/295 attn_decode
+p4k-a-dev1-mtp 63e14320749f8773f9a0623977f8dde5 steps=102 graph replays=0 (captures 0) eager decode steps=2 (profiled 0) top ops: add=0ms/201 argmax=0ms/299 attn_decode
+p4k-a-main-mtp 63e14320749f8773f9a0623977f8dde5 steps=102 graph replays=0 (captures 0) eager decode steps=2 (profiled 0) top ops: add=0ms/201 argmax=0ms/299 attn_decode
+eos-main 545ea642a23be2f3bc3ffb34be9ff762      708 bytes
+eos-dev 545ea642a23be2f3bc3ffb34be9ff762      708 bytes
+done

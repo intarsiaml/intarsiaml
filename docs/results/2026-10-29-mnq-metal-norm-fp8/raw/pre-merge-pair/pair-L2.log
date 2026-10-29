@@ -1,0 +1,36 @@
+fleetq: #7221 waiting (#2 in line): in line behind #7220 "mmtp diag3: main binary MTP ids on 4 gate prompts + reuse tests" (claude-f31ccf91) on endor
+fleetq:   #7220 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7220 set, or it will wait for #7220 to be released.
+fleetq: #7221 waiting (#1 in line): needs gpu quiet on endor, but #7220 "mmtp diag3: main binary MTP ids on 4 gate prompts + reuse tests" (claude-f31ccf91) loads it
+fleetq:   #7220 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7220 set, or it will wait for #7220 to be released.
+fleetq: #7221 running on endor: .lane/pair.sh
+main1 63e14320749f8773f9a0623977f8dde5 122.31 tok/s
+dev1 63e14320749f8773f9a0623977f8dde5 121.20 tok/s
+devL2-1 63e14320749f8773f9a0623977f8dde5 120.09 tok/s
+main2 63e14320749f8773f9a0623977f8dde5 121.29 tok/s
+dev2 63e14320749f8773f9a0623977f8dde5 100.55 tok/s
+devL2-2 63e14320749f8773f9a0623977f8dde5 100.59 tok/s
+main3 63e14320749f8773f9a0623977f8dde5 108.95 tok/s
+dev3 63e14320749f8773f9a0623977f8dde5 116.58 tok/s
+devL2-3 63e14320749f8773f9a0623977f8dde5 107.98 tok/s
+main4 63e14320749f8773f9a0623977f8dde5 97.70 tok/s
+dev4 63e14320749f8773f9a0623977f8dde5 111.10 tok/s
+devL2-4 63e14320749f8773f9a0623977f8dde5 120.18 tok/s
+main5 63e14320749f8773f9a0623977f8dde5 120.69 tok/s
+dev5 63e14320749f8773f9a0623977f8dde5 120.10 tok/s
+devL2-5 63e14320749f8773f9a0623977f8dde5 119.39 tok/s
+main6 63e14320749f8773f9a0623977f8dde5 121.37 tok/s
+dev6 63e14320749f8773f9a0623977f8dde5 120.31 tok/s
+devL2-6 63e14320749f8773f9a0623977f8dde5 120.22 tok/s
+main7 63e14320749f8773f9a0623977f8dde5 120.96 tok/s
+dev7 63e14320749f8773f9a0623977f8dde5 118.69 tok/s
+devL2-7 63e14320749f8773f9a0623977f8dde5 119.64 tok/s
+main8 63e14320749f8773f9a0623977f8dde5 120.14 tok/s
+dev8 63e14320749f8773f9a0623977f8dde5 120.69 tok/s
+devL2-8 63e14320749f8773f9a0623977f8dde5 120.27 tok/s
+main9 63e14320749f8773f9a0623977f8dde5 121.45 tok/s
+dev9 63e14320749f8773f9a0623977f8dde5 120.21 tok/s
+devL2-9 63e14320749f8773f9a0623977f8dde5 119.62 tok/s
+main10 63e14320749f8773f9a0623977f8dde5 120.92 tok/s
+dev10 63e14320749f8773f9a0623977f8dde5 120.22 tok/s
+devL2-10 63e14320749f8773f9a0623977f8dde5 120.17 tok/s
+fleetq: #7221 done (exit 0)

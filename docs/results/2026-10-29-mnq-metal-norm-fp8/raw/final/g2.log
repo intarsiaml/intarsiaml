@@ -1,0 +1,71 @@
+## metal rows_exact (INTARSIA_METAL_NORM_FP8=1)
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.62s
+## metal row_tables (INTARSIA_METAL_NORM_FP8=1)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.27s
+## metal token_feedback (INTARSIA_METAL_NORM_FP8=1)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+## metal norm_fp8 (INTARSIA_METAL_NORM_FP8=1)
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 9.52s
+## metal fused (INTARSIA_METAL_NORM_FP8=1)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+## metal dense (INTARSIA_METAL_NORM_FP8=1)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+## metal lowlat (INTARSIA_METAL_NORM_FP8=1)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+## metal qkv_fold (INTARSIA_METAL_NORM_FP8=1)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.27s
+## metal multirow (INTARSIA_METAL_NORM_FP8=1)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.77s
+## metal gdn (INTARSIA_METAL_NORM_FP8=1)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+## metal norm_fp8 level 2
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 9.54s
+## rows_exact level 0
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.62s
+## models batch_metal_real
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_real_traffic ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_engine_long_prompts_control_busy_chunk_64 ... ignored
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_lfm2_batched_decode_is_bitwise_the_solo_step ... ok
+test real_35b_batched_decode_is_bitwise_the_solo_step has been running for over 60 seconds
+test real_35b_batched_engine_equals_the_local_engine has been running for over 60 seconds
+test real_35b_batched_engine_equals_the_local_engine ... ok
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+test result: ok. 3 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 201.02s
+## models batch_recurrent
+test batched_engine_with_overlap_equals_solo_over_128_tokens ... ok
+test decode_twin_beside_a_running_prefill_is_bitwise_solo ... ok
+test alternating_rows_and_batches_do_not_recapture ... ok
+test hybrid_batching_is_refused_without_the_opt_in ... ok
+test memory_plan_counts_recurrent_state_and_snapshots_and_slots_preallocate_them ... ok
+test batched_hybrid_decode_beside_prefill_chunks ... ok
+test prefix_reuse_restores_recurrent_state_from_a_snapshot ... ok
+test batched_hybrid_decode_is_bitwise_the_solo_step ... ok
+test batched_engine_with_macro_prefill_equals_plain_solo ... ok
+test macro_forward_equals_chunked_forward ... ok
+test batched_engine_with_prefix_reuse_equals_solo ... ok
+test macro_prefill_equals_the_plain_chunk_schedule ... ok
+test batched_engine_with_packed_prefill_equals_solo ... ok
+test batched_engine_equals_solo_over_128_tokens ... ok
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.50s
+## models exact_reuse
+test pass_record_carries_the_row_invariant_prefix ... ok
+test wide_reuse_len_reads_the_pass_history ... ok
+test batched_engine_picks_slots_by_wide_passes ... ok
+test batched_engine_multi_turn_resumes_the_whole_prompt ... ok
+test single_sequence_engine_resumes_at_any_row_of_wide_passes ... ok
+test batched_engine_picks_slots_by_the_same_rule ... ok
+test single_sequence_engine_resumes_only_at_the_cold_schedule ... ok
+test cpu_prefill_is_bitwise_row_count_invariant ... ok
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.11s
+## kernels test
+exit 0
+matmul_nvfp4   matmul_nvfp4_gemv_rows          2      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_bf16_rows           1      0     0.000e0     0.000e0  ADMITTED
+48 kernels, 238 cases in 2.3s
+## plan show
+plan diff default:        0 lines
+plan diff =0:        0 lines
+GATE2-DONE
