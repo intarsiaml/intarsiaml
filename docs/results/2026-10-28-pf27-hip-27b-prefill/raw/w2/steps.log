@@ -1,0 +1,30 @@
+20:48:07 guard: [guard] radiance stopped 2026-10-28 20:48:06
+20:48:07 item 1: starting server rec+bin=pf27-base-cli
+20:50:02 item 1 rec+bin=pf27-base-cli speed: exit 0 results/20261028-204927-pf27-rec_bin_pf27-base-cli-pf27-w2-rec_bin_pf27-base-cli-1/result.json
+20:50:02 item 2: starting server rec+bin=pf27-dev-cli
+20:51:56 item 2 rec+bin=pf27-dev-cli speed: exit 0 results/20261028-205123-pf27-rec_bin_pf27-dev-cli-pf27-w2-rec_bin_pf27-dev-cli-2/result.json
+20:52:30 item 3 rec+bin=pf27-dev-cli speed: exit 0 results/20261028-205157-pf27-rec_bin_pf27-dev-cli-pf27-w2-rec_bin_pf27-dev-cli-3/result.json
+20:52:30 item 4: starting server rec+bin=pf27-base-cli
+20:54:25 item 4 rec+bin=pf27-base-cli speed: exit 0 results/20261028-205351-pf27-rec_bin_pf27-base-cli-pf27-w2-rec_bin_pf27-base-cli-4/result.json
+20:55:01 item 5 rec+bin=pf27-base-cli speed: exit 0 results/20261028-205426-pf27-rec_bin_pf27-base-cli-pf27-w2-rec_bin_pf27-base-cli-5/result.json
+20:55:01 item 6: starting server rec+bin=pf27-dev-cli
+20:56:54 item 6 rec+bin=pf27-dev-cli speed: exit 0 results/20261028-205621-pf27-rec_bin_pf27-dev-cli-pf27-w2-rec_bin_pf27-dev-cli-6/result.json
+20:56:54 item 7: starting server rec+bin=pf27-base-cli+spoff
+20:58:08 item 7 rec+bin=pf27-base-cli+spoff speed: exit 0 results/20261028-205726-pf27-rec_bin_pf27-base-cli_spoff-pf27-w2-rec_bin_pf27-base-cli_spoff-7/result.json
+20:58:08 item 8: starting server rec+bin=pf27-dev-cli+spoff
+20:59:20 item 8 rec+bin=pf27-dev-cli+spoff speed: exit 0 results/20261028-205840-pf27-rec_bin_pf27-dev-cli_spoff-pf27-w2-rec_bin_pf27-dev-cli_spoff-8/result.json
+21:00:02 item 9 rec+bin=pf27-dev-cli+spoff speed: exit 0 results/20261028-205921-pf27-rec_bin_pf27-dev-cli_spoff-pf27-w2-rec_bin_pf27-dev-cli_spoff-9/result.json
+21:00:02 item 10: starting server rec+bin=pf27-base-cli+spoff
+21:01:16 item 10 rec+bin=pf27-base-cli+spoff speed: exit 0 results/20261028-210033-pf27-rec_bin_pf27-base-cli_spoff-pf27-w2-rec_bin_pf27-base-cli_spoff-10/result.json
+21:01:16 item 11: starting server rec+bin=pf27-base-cli
+21:04:01 item 11 rec+bin=pf27-base-cli texts: exit 0       18 lines
+21:04:01 item 12: starting server rec+bin=pf27-dev-cli
+21:06:45 item 12 rec+bin=pf27-dev-cli texts: exit 0       18 lines
+21:06:45 item 13: starting server rec+bin=pf27-dev-cli+mb16+spoff
+21:08:01 item 13 rec+bin=pf27-dev-cli+mb16+spoff mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+21:08:01 item 14: starting server rec+bin=pf27-base-cli+mb16+spoff
+21:09:18 item 14 rec+bin=pf27-base-cli+mb16+spoff mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+21:09:18 item 15: starting server rec+bin=pf27-base-cli
+21:12:25 item 15 gates: == corr [A=1]: test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 10.48s |== corr [INTARSIA_HIP_MXFP4_A8_DIRECT=0]: test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 10.75s |== corr [INTARSIA_HIP_MXFP4_A8_PERGROUP=1]: test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 9.34s |== hash-dev-2244.txt: 48 lines, differing from hash-base.txt (48 lines): 0|== hash-dev-2444.txt: 48 lines, differing from hash-base.txt (48 lines): 0|== hash-dev-4224.txt: 48 lines, differing from hash-base.txt (48 lines): 0|== hash-dev-4424.txt: 48 lines, differing from hash-base.txt (48 lines): 0|== hash-dev-4442.txt: 48 lines, differing from hash-base.txt (48 lines): 0|== hash-dev-direct0.txt: 48 lines, differing from hash-base.txt (48 lines): 0|== hash-dev-pergroup.txt: 48 lines, differing from hash-base-pergroup.txt (48 lines): 0|== hash-dev.txt: 48 lines, differing from hash-base.txt (48 lines): 0|== admission exit 0: 74 admitted rows; tail:|== plan 8B: byte-identical (1346 B)|== plan 35B: byte-identical (3184 B)|
+21:12:25 done
+21:13:01 guard: [guard] radiance answers 2026-10-28 21:13:01 (after 40 s)

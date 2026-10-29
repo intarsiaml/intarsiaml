@@ -13,7 +13,7 @@ Branch `lane-pf27/prefill`, built on origin/main `318d508fb` (PR #224). Host tat
 | Prefill, localeval (W2) | 3 interleaved rounds, MTP on: **1k / 4k / 16k x1.063 / x1.076 / x1.067** (3483 / 3789 / 3543 -> 3703 / 4076 / 3782 tok/s). MTP off, 2 rounds: x1.024 / x1.069 / x1.059. Decode MTP off x1.010 / x1.004 / x1.004. |
 | Gap | vs the scoreboard's best same-quant numbers (Radiance 1.12.0 5214 / 5994 / 5869, R3): 0.68 / 0.64 / 0.61x -> **0.71 / 0.68 / 0.64x**; vs the vLLM-fork (4k 5399, 16k 5305, R123 / R126 **old**): 4k 0.71 -> 0.75x, 16k 0.67 -> 0.71x. Target 0.80x at 4k (~4800) **not reached**; still rank 3/3. |
 | Gates | All met (table below). |
-| Windows | 3 of 3 (W1 attribution + kernel gates, W2 A/B, W3 ids gate); 5 kernel micro-benchmark jobs under 3 min (not windows). Radiance restored and `/v1/models` on :8080 confirmed before each release: 30 s, 35 s, see W3. |
+| Windows | 3 of 3 (W1 attribution + kernel gates, W2 A/B, W3 ids gate + branch trace); 5 kernel micro-benchmark jobs under 3 min (not windows). Radiance restored and `/v1/models` confirmed on :8080 before each release: 30 s, 35 s, 10 s (W1 / W2 / W3; micro jobs 10 s each). :8000 does not answer (HTTP 000) even with Radiance up; the live service is on :8080. |
 
 ## 1. Attribution (W1, main `318d508fb`)
 
@@ -41,6 +41,19 @@ GEMM achieved rate per projection (rank 0, kernel time, M = 2048 / 1794 chunks):
 | attn q + gate (N 6144) | 19.7 | 197.4 | 54 | 48 |
 
 Top two buckets and their headroom: the GEMM (48%; 45% below the fp8 peak on paper; lane LDF measured the card at its 300 W cap in this kernel) and the all-reduce (23%; owned by lane ARS, kernels not touched here). GDN is third (11%): a WMMA chunked rewrite (Radiance's design) would change numerics, so it could only ship opt-in.
+
+After (W3, branch `24b8915b3`, same prompt and command, `raw/w3/p-pf27-dev-cli.csv.gz`): span 966 ms (rank 0; was 1030), plain run 967 ms.
+
+| bucket | rank 0 ms before | after | rank 1 ms before | after |
+|---|---|---|---|---|
+| W4A8 GEMM | 497.3 | **437.5** | 490.9 | **421.6** |
+| all-reduce | 239.0 | 238.2 | 247.1 | 255.6 |
+| GDN | 112.6 | 115.7 | 111.1 | 114.1 |
+| activation quant + weight span | 39.1 | 41.5 | 38.7 | 41.3 |
+| norms / attention / elementwise | 83.2 | 84.6 | 83.0 | 83.9 |
+| idle | 53.0 | 42.8 | 56.3 | 47.9 |
+
+The main GEMM kernel: 470 ms (128 x 256 staged, ~198 TFLOP/s) -> 424 ms (`a8_direct_kernel<2,8,2,4>`, ~220 TFLOP/s, 60% of 366) on rank 0 for the same work. The tiled pre-pass costs 37.0 ms vs 35.0 for the row-major one.
 
 ## 2. The lever: why the GEMM, and what limited it
 
@@ -114,7 +127,7 @@ Competitors (scoreboard row "R9700 27B MXFP4 W4A8, TP2"): Radiance 1.12.0 5214 /
 | prefill 4k >= +5%, 3 interleaved rounds | **met**: x1.076 (MTP on, 3 vs 3), x1.069 (MTP off, 2 vs 2) |
 | no prefill length slower than 1% | **met**: 1k x1.063, 16k x1.067 (MTP off x1.024, x1.059) |
 | decode not slower than 1% | **met**: 1k MTP on x1.019, MTP off x1.010 / x1.004 / x1.004 |
-| greedy ids at tp=2 equal main, 18-prompt ids set (`scripts/dfh/ids-prompts`, as det / vrc) | see W3 below |
+| greedy ids at tp=2 equal main, 18-prompt ids set (`scripts/dfh/ids-prompts`, as det / vrc) | **met**: 36 / 36 SAME (18 prompts x spec off and MTP default, 256 greedy ids, `generate --tp 2 --chat --no-think --show-ids`, base vs branch CLI) (`raw/w3/ids-*`) |
 | also: 18 gate prompts x 256 tokens through `serve` (`scripts/cmtp/ids-prompts`, texts.py) | **met**: md5 identical base vs branch (`raw/w2/texts-*`) |
 | also: batched == solo (`mixids.py`, max-batch 16, a 48-token stream B prefilled beside A) | **met**: A `915f1c0953`, B `dd42cb5b78` / `e74f590855` / `537fb01934` for base and branch, the values GLR / LDF recorded for main |
 | numerics | unchanged by construction; GEMM hashes on 48 shape/dtype cases identical to main's binary for the default, every direct tile, `DIRECT=0`, and the per-group path (`raw/w1/hash-*`, `raw/w2/gates-15/hash-*`, `raw/m1`, `raw/m4`). No KL / MMLU run needed (bitwise) |
@@ -134,8 +147,8 @@ Competitors (scoreboard row "R9700 27B MXFP4 W4A8, TP2"): Radiance 1.12.0 5214 /
 | m3 | micro | interleaved WMMA order: timing + hashes | 10 s |
 | m4 | micro | scalar token addressing: timing + hashes | 10 s |
 | m5 | micro | tile table at M = 130 .. 2048 | 10 s |
-| W2 | **W2** | localeval A/B, texts, mixids, hashes, a8 tests, admission, plan show | 35 s |
-| W3 | **W3** | ids gate, branch attribution trace | see below |
+| #6625 | **W2** | localeval A/B, texts, mixids, hashes, a8 tests, admission, plan show | 35 s |
+| #6631 | **W3** | ids gate, branch attribution trace | 10 s |
 
 CPU jobs (builds, ISA dumps): #6588 and the build1..build7 jobs in `pf27-out` (not committed).
 

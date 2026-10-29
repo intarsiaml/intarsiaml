@@ -1,0 +1,20 @@
+[pf27] radiance inactive 2026-10-28 21:10:38
+== corr [A=1]: test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 10.48s 
+== corr [INTARSIA_HIP_MXFP4_A8_DIRECT=0]: test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 10.75s 
+== corr [INTARSIA_HIP_MXFP4_A8_PERGROUP=1]: test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 1 filtered out; finished in 9.34s 
+== hash-dev-2244.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-2444.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-4224.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-4424.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-4442.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-direct0.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== hash-dev-pergroup.txt: 48 lines, differing from hash-base-pergroup.txt (48 lines): 0
+== hash-dev.txt: 48 lines, differing from hash-base.txt (48 lines): 0
+== admission exit 0: 74 admitted rows; tail:
+sigmoid_mul_matmul_fp8 sigmoid_mul_matmul_fp8_wmma      0      0     0.000e0     0.000e0  NO CASES (untested)
+shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED
+84 kernels, 456 cases in 3.4s
+incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)
+== plan 8B: byte-identical (1346 B)
+== plan 35B: byte-identical (3184 B)
+[pf27] window done 2026-10-28 21:12:24, 3494 s of the budget left
