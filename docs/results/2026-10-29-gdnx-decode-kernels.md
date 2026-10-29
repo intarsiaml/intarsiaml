@@ -28,6 +28,26 @@ B = 16: -0.56 ms (-1.3 %); each change alone gives about -0.35 ms. B = 8: -0.2 m
 with the pair, z no longer runs beside qkv, but b / a still do, and turning the side stream off is not faster
 (raw: `raw/steptime-w1.txt`, `raw/w1.log`).
 
+## Per kernel at B = 16 (nsys, VPROF's units)
+
+Window #6909 (06:37-06:41): `scripts/gdnx/prof.sh` (step16's: `serve --max-batch 16`, a 16-stream burst of ~1k-token prompts,
+256 tokens, CUDA graphs with `--cuda-graph-trace=node`), base and dev one burst each (`raw/base-b16`, `raw/dev-b16`).
+
+| kernel(s) per layer | base | dev | per step |
+|---|---:|---:|---:|
+| GDN delta rule | `gdn_delta_split_kernel` 279.3 us | `gdn_delta_dec_kernel` 272.8 us (-2.3 %) | -0.20 ms |
+| GDN qkv + z (8192 + 4096 x 2048) | two `rows_q` calls, ~142 us | one `rows_q_pair` 129.4 us (-9 %) | -0.38 ms |
+| attention k + v (512 + 512 x 2048) | two calls, 2 x 18.4 us | one pair 27.6 us (-25 %) | -0.09 ms |
+| GDN b / a pair (bf16, side stream) | 3.2 us | 8.9 us | +0.34 ms of side-stream time |
+| GDN conv | 17.2 us | 17.7 us | +0.02 ms |
+
+(qkv + z for base: the 96-block `rows_q` bucket is 30 qkv + 30 z + 10 attention q calls, 5.17 ms; attention q alone is
+89.8 us in dev, so 30 x (qkv + z) = 4.27 ms.) The b / a GEMV runs on the side stream. It used to overlap qkv while z
+ran beside it; now it overlaps the longer pair kernel and is slowed by sharing the SMs, mostly hidden. The kernel sum is
+44.52 -> 44.29 ms. One burst per arm is too noisy for the wall (the passes differ: 252 vs 245); the step timing and
+the serve A/B above are the speed measures. The delta kernel gains less in the graph (-2.3 %) than in the evicted micro
+(-4 %).
+
 ## 1. GDN delta rule at decode
 
 **Floor probe first.** `scripts/gdnx/bwprobe.cu`: an in-place read-scale-write of 30 x 32 MB f32 (the B = 16 state
@@ -145,8 +165,9 @@ So the PR is a **draft**: exact and positive at every stream count, but under th
 
 GPU jobs on spark1 (all `--quiet gpu,cpu` except where noted): micro jobs under 5 min: #6867, #6869, #6870, #6873,
 #6875, #6877, #6879, #6881 (rows_exact), plus #6872 (probe compile error, no GPU work). Windows: #6886 (W1:
-batch_cuda_real + 12 step-timing runs, 06:00-06:11) and #6897 (W2: identity + 3-round serve A/B, 06:18-06:31): two of
-the three allowed windows. Builds (#6866, #6868, #6874, #6876, #6878, #6880, #6882, #6883) and plan show (#6892) ran
+batch_cuda_real + 12 step-timing runs, 06:00-06:11), #6897 (W2: identity + 3-round serve A/B, 06:18-06:31) and #6905 +
+#6909 (W3: nsys base vs dev; #6905 profiled nothing in its 2 minutes because the copied burst.py read step16's prompt
+path, retried at once as #6909, 4 minutes): three windows, about 32 minutes of GPU in all. Builds (#6866, #6868, #6874, #6876, #6878, #6880, #6882, #6883) and plan show (#6892) ran
 `--load cpu`; #6871 (`--load none`) read vLLM's `fused_recurrent.py` from the running container. spark1-vllm was not
 touched.
 
