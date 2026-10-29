@@ -1,0 +1,3 @@
+fleetq #6668 (spark1, --quiet gpu,cpu, 10 s): nvcc -O3 -arch=sm_121 q.cu; cuobjdump -sass q | grep -c FHFMA
+48
+MIXED-FMA check: 0 of 18841728 results differ from fmaf (no error)

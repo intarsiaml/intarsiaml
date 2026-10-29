@@ -1,0 +1,1 @@
+fleetq #6659 (spark1, --load cpu): p.cu, sm_121 and sm_121a: `plain` = F2FP.F16.E4M3.UNPACK_B x2, HADD2.F32 x4, FFMA x2; `mixed` (fma.rn.f32.f16) = F2FP.F16.E4M3.UNPACK_B x2, FHFMA R9, R0, R3, R9 and FHFMA R9, R0.H1, R3.H1, R9

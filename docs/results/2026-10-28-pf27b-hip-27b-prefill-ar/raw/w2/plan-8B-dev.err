@@ -1,0 +1,3 @@
+docker: Error response from daemon: Conflict. The container name "/pf27b-run-2677527108" is already in use by container "f4b9192926407852c3ec642c8423719924120e99711642391d7ed5f9aa5a091e". You have to remove (or rename) that container to be able to reuse that name.
+
+Run 'docker run --help' for more information

@@ -1,0 +1,11 @@
+fleetq: #6662 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m7 SEC='"'"'time'"'"' DTILES='"'"'- 2824 2424 2224'"'"' TENV='"'"'PF27B_SMALL=1 GLR_TIMING_M=2048,1810'"'"' bash ~/intarsiaml-pf27b/scripts/pf27b/micro.sh'
+[pf27b] stopping radiance 2026-10-28 22:14:55
+[pf27b] radiance inactive 2026-10-28 22:14:59
+== time -: k/v M=2048 97.7 | k/v M=1810 94.9 | b/a M=2048 92.0 | b/a M=1810 87.2 | gate M=2048 872.9 | gate M=1810 860.6 | qkv M=2048 522.8 | qkv M=1810 508.1 | 
+== time 2824: k/v M=2048 96.7 | k/v M=1810 95.1 | b/a M=2048 92.4 | b/a M=1810 87.4 | gate M=2048 876.2 | gate M=1810 863.0 | qkv M=2048 522.3 | qkv M=1810 507.2 | 
+== time 2424: k/v M=2048 102.0 | k/v M=1810 98.9 | b/a M=2048 81.4 | b/a M=1810 80.0 | gate M=2048 913.8 | gate M=1810 884.4 | qkv M=2048 550.9 | qkv M=1810 525.1 | 
+== time 2224: k/v M=2048 110.1 | k/v M=1810 106.3 | b/a M=2048 79.3 | b/a M=1810 78.9 | gate M=2048 1005.3 | gate M=1810 938.1 | qkv M=2048 607.6 | qkv M=1810 557.4 | 
+[pf27b] micro done 2026-10-28 22:15:06, 11 s
+[pf27b] starting radiance 2026-10-28 22:15:06
+[pf27b] RADIANCE-RESTORE active after 10 s at 2026-10-28 22:15:16; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793240114,"owned_by":"radiance"
+fleetq: #6662 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

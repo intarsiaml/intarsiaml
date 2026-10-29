@@ -1,0 +1,19 @@
+fleetq: #6684 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m10 SEC='"'"'plan gen ids'"'"' IDSP='"'"'short-0 4k-0 16k-0'"'"' GREPS=2 bash ~/intarsiaml-pf27b/scripts/pf27b/micro.sh'
+[pf27b] stopping radiance 2026-10-28 23:10:45
+[pf27b] radiance inactive 2026-10-28 23:10:49
+== gen pf27b-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 935 ms (4125.4 tok/s) | decode 0 ms (0.00 tok/s) (8 s)
+== gen pf27b-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 882 ms (4375.0 tok/s) | decode 0 ms (0.00 tok/s) (12 s)
+== gen pf27b-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 933 ms (4135.0 tok/s) | decode 0 ms (0.00 tok/s) (16 s)
+== gen pf27b-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 886 ms (4355.0 tok/s) | decode 0 ms (0.00 tok/s) (19 s)
+== plan 8B: byte-identical (1346 B)
+== plan 35B: byte-identical (3184 B)
+== ids short-0 off: SAME (257 words; prompt=41)
+== ids short-0 mtp: SAME (257 words; prompt=41)
+== ids 4k-0 off: SAME (257 words; prompt=2610)
+== ids 4k-0 mtp: SAME (257 words; prompt=2610)
+== ids 16k-0 off: SAME (257 words; prompt=10413)
+== ids 16k-0 mtp: SAME (257 words; prompt=10413)
+[pf27b] micro done 2026-10-28 23:12:52, 127 s
+[pf27b] starting radiance 2026-10-28 23:12:52
+[pf27b] RADIANCE-RESTORE active after 40 s at 2026-10-28 23:13:32; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793243612,"owned_by":"radiance"
+fleetq: #6684 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

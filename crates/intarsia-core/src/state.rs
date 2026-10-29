@@ -454,7 +454,7 @@ impl SequenceState {
     }
 
     /// Exact prefix reuse on a backend whose prefill bits depend on a pass's row count (`Backend::prefix_reuse_any_cut`
-    /// false, CUDA): the longest prefix `<= want` a prompt may resume from and still compute its cold prefill's bits. That is
+    /// false: CUDA, Metal): the longest prefix `<= want` a prompt may resume from and still compute its cold prefill's bits. That is
     /// 0, or one of `points` (the ends of the prompt's non-final cold chunks) whose rows `0..L` this state wrote with exactly
     /// the cold schedule's passes, the full `chunk`-row passes `(0, chunk), (chunk, 2 chunk), .., (L - chunk, L)`. Rows a
     /// decode step, a busy-size chunk or a resumed prompt wrote never qualify, nor does a prompt's own last token.

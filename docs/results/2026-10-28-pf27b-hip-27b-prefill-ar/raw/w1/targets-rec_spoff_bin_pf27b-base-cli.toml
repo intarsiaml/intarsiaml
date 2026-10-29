@@ -1,0 +1,3 @@
+[targets.pf27b-rec_spoff_bin_pf27b-base-cli]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-pf27b"

@@ -75,6 +75,9 @@ extern "C" {
     pub fn ik_rt_can_access_peer(device: c_int, peer: c_int, ok: *mut c_int) -> c_int;
     pub fn ik_rt_enable_peer_access(device: c_int, peer: c_int) -> c_int;
     pub fn ik_rt_malloc_finegrained(p: *mut *mut c_void, bytes: usize) -> c_int;
+    /// `kernels/hip/allreduce.hip`: one phase of the fence all-reduce alone (benchmarks only, `comm::p2p_bench`)
+    #[allow(clippy::too_many_arguments)]
+    pub fn ik_ar2_bench(mode: c_int, x: *mut c_void, out: *mut c_void, peer_scratch: *mut c_void, my_scratch: *mut c_void, n16: i64, nblocks: c_int, stream: S) -> c_int;
     #[allow(clippy::too_many_arguments)]
     pub fn ik_ar2_oneshot(
         x: *mut c_void,
@@ -296,6 +299,7 @@ extern "C" {
     pub fn ik_matmul_mxfp4_pair_gemv_rows(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_pair_a8_gemv_rows(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_pair_a8_gemv(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
+    pub fn ik_matmul_mxfp4_pair_a8_mma(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_gemv_rows_bf16(x: T, w: T, scales: T, act: T, out: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_matmul_mxfp4_pair_gemv_rows_bf16(x: T, w0: T, s0: T, w1: T, s1: T, act: T, out0: TM, out1: TM, scratch: SC, s: S) -> c_int;
     pub fn ik_moe_topk_bf16(logits: T, top_k: c_int, norm: c_int, weights: TM, ids: TM, s: S) -> c_int;

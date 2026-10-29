@@ -1,0 +1,31 @@
+22:19:47 guard: [guard] radiance stopped 2026-10-28 22:19:46
+22:19:47 item 1: starting server rec+bin=pf27b-base-cli
+22:21:40 item 1 rec+bin=pf27b-base-cli speed: exit 0 results/20261028-222107-pf27b-rec_bin_pf27b-base-cli-pf27b-w1-rec_bin_pf27b-base-cli-1/result.json
+22:21:40 item 2: starting server rec+bin=pf27b-dev-cli
+22:23:32 item 2 rec+bin=pf27b-dev-cli speed: exit 0 results/20261028-222300-pf27b-rec_bin_pf27b-dev-cli-pf27b-w1-rec_bin_pf27b-dev-cli-2/result.json
+22:24:54 item 3 rec+bin=pf27b-dev-cli texts: exit 0       18 lines
+22:24:54 item 4: starting server rec+bin=pf27b-dev-cli+mb16
+22:26:10 item 4 rec+bin=pf27b-dev-cli+mb16 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+22:26:10 item 5: starting server rec+bin=pf27b-base-cli+mb16
+22:27:26 item 5 rec+bin=pf27b-base-cli+mb16 mixids: 4k-0.txt: A e70fbb862c (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+22:27:26 item 6: starting server rec+bin=pf27b-base-cli
+22:30:10 item 6 rec+bin=pf27b-base-cli texts: exit 0       18 lines
+22:30:44 item 7 rec+bin=pf27b-base-cli speed: exit 0 results/20261028-223011-pf27b-rec_bin_pf27b-base-cli-pf27b-w1-rec_bin_pf27b-base-cli-7/result.json
+22:31:18 item 8 rec+bin=pf27b-base-cli speed: exit 0 results/20261028-223045-pf27b-rec_bin_pf27b-base-cli-pf27b-w1-rec_bin_pf27b-base-cli-8/result.json
+22:31:18 item 9: starting server rec+bin=pf27b-dev-cli
+22:33:11 item 9 rec+bin=pf27b-dev-cli speed: exit 0 results/20261028-223239-pf27b-rec_bin_pf27b-dev-cli-pf27b-w1-rec_bin_pf27b-dev-cli-9/result.json
+22:33:44 item 10 rec+bin=pf27b-dev-cli speed: exit 0 results/20261028-223312-pf27b-rec_bin_pf27b-dev-cli-pf27b-w1-rec_bin_pf27b-dev-cli-10/result.json
+22:33:44 item 11: starting server rec+bin=pf27b-base-cli
+22:35:38 item 11 rec+bin=pf27b-base-cli speed: exit 0 results/20261028-223505-pf27b-rec_bin_pf27b-base-cli-pf27b-w1-rec_bin_pf27b-base-cli-11/result.json
+22:35:38 item 12: starting server rec+spoff+bin=pf27b-base-cli
+22:36:51 item 12 rec+spoff+bin=pf27b-base-cli speed: exit 0 results/20261028-223610-pf27b-rec_spoff_bin_pf27b-base-cli-pf27b-w1-rec_spoff_bin_pf27b-base-cli-12/result.json
+22:36:51 item 13: starting server rec+spoff+bin=pf27b-dev-cli
+22:38:06 item 13 rec+spoff+bin=pf27b-dev-cli speed: exit 0 results/20261028-223726-pf27b-rec_spoff_bin_pf27b-dev-cli-pf27b-w1-rec_spoff_bin_pf27b-dev-cli-13/result.json
+22:38:47 item 14 rec+spoff+bin=pf27b-dev-cli speed: exit 0 results/20261028-223807-pf27b-rec_spoff_bin_pf27b-dev-cli-pf27b-w1-rec_spoff_bin_pf27b-dev-cli-14/result.json
+22:38:47 item 15: starting server rec+spoff+bin=pf27b-base-cli
+22:39:59 item 15 rec+spoff+bin=pf27b-base-cli speed: exit 0 results/20261028-223919-pf27b-rec_spoff_bin_pf27b-base-cli-pf27b-w1-rec_spoff_bin_pf27b-base-cli-15/result.json
+22:40:41 item 16 rec+spoff+bin=pf27b-base-cli speed: exit 0 results/20261028-224000-pf27b-rec_spoff_bin_pf27b-base-cli-pf27b-w1-rec_spoff_bin_pf27b-base-cli-16/result.json
+22:40:41 item 17: starting server rec+spoff+bin=pf27b-dev-cli
+22:41:56 item 17 rec+spoff+bin=pf27b-dev-cli speed: exit 0 results/20261028-224116-pf27b-rec_spoff_bin_pf27b-dev-cli-pf27b-w1-rec_spoff_bin_pf27b-dev-cli-17/result.json
+22:41:56 done
+22:42:06 guard: [guard] radiance answers 2026-10-28 22:42:06 (after 15 s)

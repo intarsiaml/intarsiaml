@@ -1,0 +1,8 @@
+TIME a8tp2 k/v      512x5120  M=2048       102.0 us   105.3 TFLOPS
+TIME a8tp2 k/v      512x5120  M=1810        98.9 us    95.9 TFLOPS
+TIME a8tp2 b/a      24x5120  M=2048        81.4 us     6.2 TFLOPS
+TIME a8tp2 b/a      24x5120  M=1810        80.0 us     5.6 TFLOPS
+TIME a8tp2 gate     8704x5120  M=2048       913.8 us   199.8 TFLOPS
+TIME a8tp2 gate     8704x5120  M=1810       884.4 us   182.4 TFLOPS
+TIME a8tp2 qkv      5120x5120  M=2048       550.9 us   194.9 TFLOPS
+TIME a8tp2 qkv      5120x5120  M=1810       525.1 us   180.7 TFLOPS

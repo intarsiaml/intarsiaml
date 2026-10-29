@@ -141,6 +141,38 @@ pub fn create_group_mode(
     Ok((backends, comms))
 }
 
+/// [`create_group_mode`] with the wide fence path given explicitly (`Some((blocks, slot_bytes))`, or `None` for off) instead of read from
+/// `INTARSIA_HIP_AR_WIDE` (lane pf27b's tests and rate benchmark).
+#[cfg(ik_hip)]
+#[doc(hidden)]
+#[allow(clippy::type_complexity)]
+pub fn create_group_wide(
+    ordinals: &[usize],
+    drain: i32,
+    ll_max: usize,
+    wide: Option<(i32, usize)>,
+) -> intarsia_core::Result<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn intarsia_core::Comm>>)> {
+    disable::check_env()?;
+    let hips = ordinals
+        .iter()
+        .map(|&o| device::HipBackend::new(o).map(Arc::new))
+        .collect::<intarsia_core::Result<Vec<_>>>()?;
+    let backends: Vec<Arc<dyn Backend>> = hips.iter().map(|h| h.clone() as Arc<dyn Backend>).collect();
+    let comms = comm::p2p_group_wide(&hips, Some(drain), Some(ll_max), Some(wide))?;
+    Ok((backends, comms))
+}
+
+/// Lane pf27b's P2P link micro-benchmark on two devices (`comm::p2p_bench`).
+#[cfg(ik_hip)]
+#[doc(hidden)]
+pub fn p2p_bench(ordinals: &[usize], sizes: &[usize], blocks: &[i32], iters: usize) -> intarsia_core::Result<String> {
+    let hips = ordinals
+        .iter()
+        .map(|&o| device::HipBackend::new(o).map(Arc::new))
+        .collect::<intarsia_core::Result<Vec<_>>>()?;
+    comm::p2p_bench(&hips, sizes, blocks, iters)
+}
+
 /// Open HIP devices as a tensor-parallel group (stub: this build has no ROCm toolchain).
 #[cfg(not(ik_hip))]
 pub fn create_group(

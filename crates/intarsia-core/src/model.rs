@@ -677,7 +677,7 @@ impl Model {
     /// The KV prefix of `st` a request for a prompt of `plen` tokens may resume from, at most `want` (the prefix the two
     /// share, already below `plen`). Recurrent state: what it can return to ([`SequenceState::restorable_len`]). Attention
     /// only: any length where the backend's prefill is bitwise the same whatever row a pass starts at
-    /// (`Backend::prefix_reuse_any_cut`, cpu / Metal / HIP); elsewhere (CUDA) only a prefix written by the prompt's own cold
+    /// (`Backend::prefix_reuse_any_cut`, cpu / HIP); elsewhere (CUDA, Metal) only a prefix written by the prompt's own cold
     /// chunk schedule ([`SequenceState::ladder_reuse_len`]), so a request computes the bits of its cold prefill whatever its
     /// slot held before (lane bi8: a repeated prompt resuming with its last token alone, a 1-row pass, moved logits by up to
     /// 0.23 and flipped greedy tokens on Qwen3-8B; docs/results/2026-10-29-bi8-serve-batch-invariance.md).
