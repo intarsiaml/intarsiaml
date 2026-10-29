@@ -360,3 +360,291 @@ fn all_gather_captured_in_a_graph_replays_exactly_between_all_reduces() {
         }
     }
 }
+
+// ---- lane ars: the tagged-line (LL) handshake, INTARSIA_HIP_AR_DRAIN=7, against the fence mode (1) ----
+//
+// The tests above run under whatever INTARSIA_HIP_AR_DRAIN the environment sets (`INTARSIA_HIP_AR_DRAIN=7` and
+// `INTARSIA_HIP_AR_LL_MAX=2097152` run them all on the LL path). These build their groups with an explicit mode.
+
+fn group_mode(drain: i32, ll_max: usize) -> Option<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn Comm>>)> {
+    let ords: Vec<usize> = std::env::var("INTARSIA_HIP_DEVICES")
+        .ok()
+        .map(|v| v.split(',').filter_map(|x| x.trim().parse().ok()).collect())
+        .unwrap_or_else(|| vec![0, 1]);
+    match intarsia_backend_hip::create_group_mode(&ords, drain, ll_max) {
+        Ok(g) => Some(g),
+        Err(e) => {
+            eprintln!("skipping: no usable 2-GPU HIP group ({e})");
+            None
+        }
+    }
+}
+
+fn raw_bits(be: &dyn Backend, t: &TensorRef) -> Vec<u8> {
+    be.synchronize(0).unwrap();
+    let mut bytes = vec![0u8; t.nbytes()];
+    be.download(&t.buf, t.offset, &mut bytes, 0).unwrap();
+    bytes
+}
+
+/// Every collective kind at decode, boundary and prefill sizes, one fixed input stream: the bytes both ranks end up with.
+fn ll_suite(drain: i32, ll_max: usize) -> Option<Vec<Vec<u8>>> {
+    use intarsia_core::comm::ArNorm;
+    let (be, comms) = group_mode(drain, ll_max)?;
+    let mut rng = SplitMix64::new(2026);
+    let mut out: Vec<Vec<u8>> = Vec::new();
+    let run2 = |f: &(dyn Fn(usize) + Sync)| {
+        std::thread::scope(|sc| {
+            for r in 0..2 {
+                sc.spawn(move || f(r));
+            }
+        });
+    };
+    // in-place bf16 and f32, and f32 -> bf16: below, at and above the default 64 KiB LL limit, odd word counts, fewer words than blocks
+    for (dt, n) in [
+        (DType::Bf16, 8usize), (DType::Bf16, 16), (DType::Bf16, 24), (DType::Bf16, 4096), (DType::Bf16, 5120), (DType::Bf16, 3 * 5120),
+        (DType::Bf16, 8 * 5120), (DType::Bf16, 32768), (DType::Bf16, 32776), (DType::Bf16, 262_144), (DType::Bf16, 1_048_576),
+        (DType::F32, 4), (DType::F32, 4096), (DType::F32, 3 * 5120), (DType::F32, 16384), (DType::F32, 16388), (DType::F32, 300_000),
+    ] {
+        let a: Vec<f32> = rng.normal_vec(n, 3.0);
+        let b: Vec<f32> = rng.normal_vec(n, 3.0);
+        let t = [put(&*be[0], dt, &a), put(&*be[1], dt, &b)];
+        run2(&|r| comms[r].all_reduce_sum(&t[r], 0).unwrap());
+        out.push(raw_bits(&*be[0], &t[0]));
+        out.push(raw_bits(&*be[1], &t[1]));
+        if dt == DType::F32 {
+            let p = [put(&*be[0], dt, &a), put(&*be[1], dt, &b)];
+            let o = [put(&*be[0], DType::Bf16, &vec![0.0; n]), put(&*be[1], DType::Bf16, &vec![0.0; n])];
+            run2(&|r| comms[r].all_reduce_sum_into(&p[r], &o[r], 0).unwrap());
+            out.push(raw_bits(&*be[0], &o[0]));
+            out.push(raw_bits(&*be[1], &o[1]));
+        }
+    }
+    // all-gather, in place and disjoint
+    for n in [4usize, 4096, 16384, 16388, 124_160] {
+        for in_place in [false, true] {
+            let a: Vec<f32> = rng.normal_vec(n, 3.0);
+            let b: Vec<f32> = rng.normal_vec(n, 3.0);
+            let vals = [&a, &b];
+            let recv: Vec<TensorRef> = (0..2).map(|r| put(&*be[r], DType::F32, &vec![f32::from_bits(0x7fc0_dead); 2 * n]).reshaped(&[2, n])).collect();
+            let send: Vec<TensorRef> = (0..2)
+                .map(|r| {
+                    if in_place {
+                        upload_f32(&*be[r], &recv[r].rows(r, 1), vals[r]);
+                        recv[r].rows(r, 1)
+                    } else {
+                        put(&*be[r], DType::F32, vals[r])
+                    }
+                })
+                .collect();
+            run2(&|r| comms[r].all_gather(&send[r], &recv[r], 0).unwrap());
+            out.push(raw_bits(&*be[0], &recv[0]));
+            out.push(raw_bits(&*be[1], &recv[1]));
+        }
+    }
+    // the fused all-reduce + residual add + rmsnorm: 1, 3 and 16 rows of the 35B's and the 27B's hidden size, f32 and bf16 partials
+    for (h, rows, dt) in [(2048usize, 1usize, DType::F32), (5120, 1, DType::F32), (5120, 3, DType::Bf16), (5120, 3, DType::F32), (2048, 16, DType::Bf16), (5120, 16, DType::F32)] {
+        let n = rows * h;
+        let parts = [rng.normal_vec(n, 2.0), rng.normal_vec(n, 2.0)];
+        let res = rng.normal_vec(n, 1.0);
+        let wv = rng.normal_vec(h, 1.0);
+        let z = vec![0f32; n];
+        let mk = |r: usize| {
+            (
+                put(&*be[r], dt, &parts[r]),
+                put(&*be[r], DType::Bf16, &z),
+                put(&*be[r], DType::Bf16, &res),
+                put(&*be[r], DType::Bf16, &wv),
+                put(&*be[r], DType::Bf16, &z),
+                put(&*be[r], DType::Bf16, &z),
+            )
+        };
+        let bufs = [mk(0), mk(1)];
+        run2(&|r| {
+            let (p, o, rs, w, nr, s) = &bufs[r];
+            let a = ArNorm { partial: p, out: o, residual: rs, weight: w, norm: nr, sum: s, eps: 1e-6, w_offset: 0.0 };
+            assert!(comms[r].ar_norm_supported(&a));
+            comms[r].all_reduce_add_rmsnorm(&a, 0).unwrap();
+        });
+        for r in 0..2 {
+            let (_, o, _, _, nr, s) = &bufs[r];
+            out.push(raw_bits(&*be[r], o));
+            out.push(raw_bits(&*be[r], nr));
+            out.push(raw_bits(&*be[r], s));
+        }
+    }
+    Some(out)
+}
+
+#[test]
+fn ll_handshake_is_bitwise_the_fence_mode_across_ops_and_sizes() {
+    let _one = serial();
+    let Some(fence) = ll_suite(1, 0) else { return };
+    for (ll_max, name) in [(64 << 10, "LL up to 64 KiB, fence above"), (2 << 20, "LL up to 2 MiB")] {
+        let ll = ll_suite(7, ll_max).unwrap();
+        assert_eq!(fence.len(), ll.len());
+        for (i, (f, l)) in fence.iter().zip(&ll).enumerate() {
+            assert!(f == l, "{name}: result {i} differs from mode 1");
+        }
+    }
+}
+
+/// One rank (alternating by round) is slow: random host sleeps before its launches, so the other waits in the handshake with its
+/// data already pushed, or pushes while the late one has not started. Long unsynchronised chains of mixed collectives (both scratch
+/// parities, several launches in flight), every result checked against the host sum of the inputs.
+fn ll_stress(drain: i32, ll_max: usize, rounds: usize) -> usize {
+    let Some((be, comms)) = group_mode(drain, ll_max) else { return 0 };
+    let mut rng = SplitMix64::new(77);
+    let mut wrong = 0;
+    for round in 0..rounds {
+        let k = 24usize;
+        let sizes = [8usize, 2048, 4096, 5120, 3 * 5120];
+        let mut ins: Vec<(Vec<f32>, Vec<f32>)> = Vec::new();
+        let mut tens: [Vec<TensorRef>; 2] = [Vec::new(), Vec::new()];
+        for i in 0..k {
+            let n = sizes[i % sizes.len()];
+            let a: Vec<f32> = rng.normal_vec(n, 2.0);
+            let b: Vec<f32> = rng.normal_vec(n, 2.0);
+            tens[0].push(put(&*be[0], DType::Bf16, &a));
+            tens[1].push(put(&*be[1], DType::Bf16, &b));
+            ins.push((get(&*be[0], &tens[0][i]), get(&*be[1], &tens[1][i])));
+        }
+        let slow = round % 2; // the delayed rank
+        let delays: Vec<u64> = (0..k).map(|_| rng.next_u64() % 400).collect();
+        std::thread::scope(|sc| {
+            for r in 0..2 {
+                let (c, ts, d) = (&comms[r], &tens[r], &delays);
+                sc.spawn(move || {
+                    for (i, t) in ts.iter().enumerate() {
+                        if r == slow && i % 3 == 0 {
+                            std::thread::sleep(std::time::Duration::from_micros(d[i]));
+                        }
+                        c.all_reduce_sum(t, 0).unwrap();
+                    }
+                });
+            }
+        });
+        for i in 0..k {
+            let want = host_sum(DType::Bf16, &ins[i].0, &ins[i].1);
+            for r in 0..2 {
+                if get(&*be[r], &tens[r][i]) != want {
+                    wrong += 1;
+                }
+            }
+        }
+    }
+    wrong
+}
+
+#[test]
+fn ll_handshake_survives_a_delayed_rank() {
+    let _one = serial();
+    assert_eq!(ll_stress(7, 64 << 10, 120), 0, "wrong sums with the LL handshake while one rank was delayed");
+}
+
+/// Negative control: drain 8 is the LL kernel without the tag check. It reads whatever is in its scratch the moment its own push is
+/// done, so with a delayed peer it must produce wrong sums; if it did not, the stress test above would prove nothing.
+#[test]
+fn ll_without_the_tag_check_is_caught_by_the_stress_test() {
+    let _one = serial();
+    let wrong = ll_stress(8, 64 << 10, 30);
+    assert!(wrong > 0, "the tag check was removed and nothing went wrong: the stress test cannot see a stale read");
+    eprintln!("negative control: {wrong} wrong results without the tag check");
+}
+
+/// `cargo test --release -p intarsia-backend-hip --test comm ar_norm_rate -- --ignored --nocapture`: us per fused all-reduce + add + rmsnorm
+/// call, back to back on both ranks, at the decode shapes (35B hidden 2048, 27B hidden 5120, one row and a 3-row verify step), whatever
+/// `INTARSIA_HIP_AR_DRAIN` says. Lane ars: the all-reduce rate test above does not touch this kernel.
+#[test]
+#[ignore]
+fn ar_norm_rate() {
+    use intarsia_core::comm::ArNorm;
+    let _one = serial();
+    let Some((be, comms)) = group() else { return };
+    println!("{:>6} {:>5} {:>5} {:>10} {:>10}", "H", "rows", "part", "us/call", "launches");
+    for (h, rows, dt) in [(2048usize, 1usize, DType::F32), (2048, 1, DType::Bf16), (5120, 1, DType::Bf16), (5120, 1, DType::F32), (5120, 3, DType::Bf16), (5120, 3, DType::F32)] {
+        let n = rows * h;
+        let z = vec![0f32; n];
+        let w = vec![0f32; h];
+        let mk = |r: usize| {
+            (
+                put(&*be[r], dt, &z),
+                put(&*be[r], DType::Bf16, &z),
+                put(&*be[r], DType::Bf16, &z),
+                put(&*be[r], DType::Bf16, &w),
+                put(&*be[r], DType::Bf16, &z),
+                put(&*be[r], DType::Bf16, &z),
+            )
+        };
+        let bufs = [mk(0), mk(1)];
+        let iters = 4000;
+        let run = |count: usize| {
+            std::thread::scope(|sc| {
+                for r in 0..2 {
+                    let (c, b, bufs) = (&comms[r], &be[r], &bufs);
+                    sc.spawn(move || {
+                        let (p, o, rs, w, nr, s) = &bufs[r];
+                        let a = ArNorm { partial: p, out: o, residual: rs, weight: w, norm: nr, sum: s, eps: 1e-6, w_offset: 0.0 };
+                        for _ in 0..count {
+                            c.all_reduce_add_rmsnorm(&a, 0).unwrap();
+                        }
+                        b.synchronize(0).unwrap();
+                    });
+                }
+            });
+        };
+        run(100);
+        let t0 = Instant::now();
+        run(iters);
+        let us = t0.elapsed().as_secs_f64() * 1e6 / iters as f64;
+        println!("{:>6} {:>5} {:>5} {:>10.1} {:>10}", h, rows, if dt == DType::F32 { "f32" } else { "bf16" }, us, iters);
+    }
+}
+
+/// `cargo test --release -p intarsia-backend-hip --test comm ar_graph_rate -- --ignored --nocapture`: us per all-reduce with 64 of them
+/// recorded back to back in one hipGraph per rank and replayed (what the tp=2 decode graph does), whatever `INTARSIA_HIP_AR_DRAIN` says.
+/// The eager rate tests above are limited by the host's launch rate (about 5 us per call), which hides a kernel that is shorter than that;
+/// a replayed graph has no launch gaps, so this is the kernel's own critical path. Lane ars.
+#[test]
+#[ignore]
+fn ar_graph_rate() {
+    let _one = serial();
+    let Some((be, comms)) = group() else { return };
+    println!("{:>8} {:>6} {:>10}", "bytes", "dtype", "us/call");
+    for (dt, n) in [(DType::Bf16, 2048usize), (DType::Bf16, 5120), (DType::Bf16, 3 * 5120), (DType::Bf16, 16 * 5120), (DType::F32, 5120)] {
+        let z = vec![0f32; n];
+        let t = [put(&*be[0], dt, &z), put(&*be[1], dt, &z)];
+        const K: usize = 64;
+        let graphs: Vec<_> = (0..2)
+            .map(|r| {
+                be[r]
+                    .graph_capture(0, &mut || {
+                        for _ in 0..K {
+                            comms[r].all_reduce_sum(&t[r], 0)?;
+                        }
+                        Ok(())
+                    })
+                    .unwrap()
+            })
+            .collect();
+        let run = |reps: usize| {
+            std::thread::scope(|sc| {
+                for r in 0..2 {
+                    let (b, g) = (&be[r], &graphs[r]);
+                    sc.spawn(move || {
+                        for _ in 0..reps {
+                            b.graph_replay(g, 0).unwrap();
+                        }
+                        b.synchronize(0).unwrap();
+                    });
+                }
+            });
+        };
+        run(5);
+        let reps = 200;
+        let t0 = Instant::now();
+        run(reps);
+        let us = t0.elapsed().as_secs_f64() * 1e6 / (reps * K) as f64;
+        println!("{:>8} {:>6} {:>10.2}", n * dt.size_bytes(), if dt == DType::F32 { "f32" } else { "bf16" }, us);
+    }
+}

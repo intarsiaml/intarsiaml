@@ -42,3 +42,24 @@ for c in cats + ['all']:
                 s += f' **{statistics.mean(dl):+.2f}%** (worst {min(dl):+.2f}%)'
         cells.append(s)
     print(f'| {c} | ' + ' | '.join(cells) + ' |')
+
+# lane ars: recovery of the new arm = (new - d1) / (d3 - d1), per round, over the all-category mean
+new = next((a for a in arms if a not in ('d1', 'd3', 'd5')), None)
+if new and 'd1' in arms:
+    print(f'\nRecovery of {new} vs d1 (1 = as fast as d3, 0 = as slow as d1), per category and over all categories')
+    print(f'| category | recovery | {new} vs d1 |'); print('|---|---|---|')
+    for c in cats + ['all']:
+        rec, dv = [], []
+        rs = sorted({r for cc in cats for r in data.get((new, cc), {})}) if c == 'all' else sorted(data.get((new, c), {}))
+        for r in rs:
+            def val(a):
+                if c == 'all':
+                    return statistics.mean([data[(a, cc)][r] for cc in cats]) if all(r in data.get((a, cc), {}) for cc in cats) else None
+                return data.get((a, c), {}).get(r)
+            x, a1, a3 = val(new), val('d1'), val('d3')
+            if x and a1 and a3:
+                dv.append((x / a1 - 1) * 100)
+                if abs(a3 - a1) > 1e-9:
+                    rec.append((x - a1) / (a3 - a1))
+        if rec:
+            print(f'| {c} | {statistics.mean(rec):.2f} (rounds {min(rec):.2f} to {max(rec):.2f}, n={len(rec)}) | {statistics.mean(dv):+.2f}% |')

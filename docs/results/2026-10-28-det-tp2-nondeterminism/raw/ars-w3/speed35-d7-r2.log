@@ -1,0 +1,45 @@
+[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=8192
+[localeval]   1024 tok rep 1/3: prompt=990 ttft=0.11s prefill=8893 tok/s decode=190.5 tok/s peak=380.3 tok/s out=256
+[localeval]   1024 tok rep 2/3: prompt=995 ttft=0.11s prefill=8823 tok/s decode=193.0 tok/s peak=387.9 tok/s out=256
+[localeval]   1024 tok rep 3/3: prompt=988 ttft=0.11s prefill=8884 tok/s decode=193.5 tok/s peak=349.7 tok/s out=256
+[localeval]   4096 tok rep 1/3: prompt=4087 ttft=0.33s prefill=12210 tok/s decode=189.5 tok/s peak=398.8 tok/s out=256
+[localeval]   4096 tok rep 2/3: prompt=4087 ttft=0.34s prefill=11996 tok/s decode=190.0 tok/s peak=345.0 tok/s out=256
+[localeval]   4096 tok rep 3/3: prompt=4087 ttft=0.38s prefill=10665 tok/s decode=196.4 tok/s peak=397.2 tok/s out=256
+# localeval: ar — 2026-10-28T17:04
+
+- model: `qwen36-35b-d7` on ? (?), url `http://tatooine:8097/v1`
+- thinking: off; run kind: speed; label: ars-w3-speed35-d7-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git d12b61c
+- command: `/opt/code/deepeval/.venv/bin/localeval speed ar --thinking off --sizes 1024,4096 --gen 256 --reps 3 --label ars-w3-speed35-d7-r2 --recipe HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_DRAIN=7 ars-intarsia serve --backend hip --model /models/intarsia/Qwen3.6-35B-A3B-NVFP4  --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree ~/intarsiaml-ars, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane ar) --wait-idle 60`
+- result file: `results/20261028-170456-ar-ars-w3-speed35-d7-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0,1 INTARSIA_HIP_AR_DRAIN=7 ars-intarsia serve --backend hip --model /models/intarsia/Qwen3.6-35B-A3B-NVFP4  --tp 2 --devices 0,1 --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 8192 (tree ~/intarsiaml-ars, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane ar)
+````
+
+## Speed sweep
+
+served `qwen36-35b-d7`, fingerprint `None`, ctx 8192, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.11 | 8884 (8823–8893) * | - | 193.0 (190.5–193.5) | 380.3 (349.7–387.9) | - | - | 256 |
+| 4087 | 0.34 | 11996 (10665–12210) | 13465 | 190.0 (189.5–196.4) | 397.2 (345.0–398.8) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261028-170456-ar-ars-w3-speed35-d7-r2/result.json
+[localeval] logged to unanimis: 5d3034c9-134a-4df0-9db7-904e1967de3c

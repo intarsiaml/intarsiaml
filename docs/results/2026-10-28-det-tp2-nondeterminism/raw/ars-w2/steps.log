@@ -1,0 +1,30 @@
+16:13:56 tests drain=1 ll_max=default: exit 0 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.34s 
+16:14:04 tests drain=7 ll_max=default: exit 0 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.30s 
+16:14:11 tests drain=7 ll_max=2097152: exit 0 test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s test result: ok. 10 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.27s 
+16:14:15 kernels test --backend hip --quick (B binary, drain 7): exit 0 shared_down_combine shared_down_combine_nvfp4_gemv      6      0     0.000e0     0.000e0  ADMITTED|84 kernels, 456 cases in 3.3s|incomplete: 10 kernel(s) had no cases in this sweep (--quick) (untested, not failed; plan-time admission tests them)|
+16:14:16 rate drain=1 ll_max=default: exit 0
+16:14:16 rate drain=3 ll_max=default: exit 0
+16:14:17 rate drain=7 ll_max=default: exit 0
+16:14:18 rate drain=7 ll_max=2097152: exit 0
+16:27:21 soak7: 250 processes; ids-line counts 250 
+16:27:28 def-short-0-1 exit 0
+16:27:35 def-short-1-1 exit 0
+16:27:43 def-short-2-1 exit 0
+16:27:50 def-short-3-1 exit 0
+16:27:57 def-short-4-1 exit 0
+16:28:05 def-short-5-1 exit 0
+16:28:13 def-4k-0-1 exit 0
+16:28:21 def-4k-1-1 exit 0
+16:28:29 def-4k-2-1 exit 0
+16:28:37 def-4k-3-1 exit 0
+16:28:45 def-4k-4-1 exit 0
+16:28:53 def-4k-5-1 exit 0
+16:29:03 def-16k-0-1 exit 0
+16:29:14 def-16k-1-1 exit 0
+16:29:25 def-16k-2-1 exit 0
+16:29:36 def-16k-3-1 exit 0
+16:29:46 def-16k-4-1 exit 0
+16:29:57 def-16k-5-1 exit 0
+16:29:57 soak stages done
+16:29:58 stages done
+16:30:09 guard: [guard] radiance answers 2026-10-28 16:30:09 (after 15 s)
