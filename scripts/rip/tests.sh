@@ -14,7 +14,7 @@ T=${TESTS:-kernel plain model}
 F='^test |test result|panicked|FINDING|RIP|matmul_bf16_inv|flash|_bf16:|left|right|row-invariant'
 for part in $T; do
   case $part in
-    kernel) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_REQUIRE_GPU=1 INTARSIA_LT_DEBUG=1 cargo test -p intarsia-backend-cuda --release --test row_invariance -- --test-threads=1 --nocapture 2>&1 | grep -aE '$F|matmul_bf16_inv: N'" > "$OUT/kernel.log" ;;
+    kernel) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_INV_REF_M=${REFM:-4096} INTARSIA_REQUIRE_GPU=1 INTARSIA_LT_DEBUG=1 cargo test -p intarsia-backend-cuda --release --test row_invariance -- --test-threads=1 --nocapture 2>&1 | grep -aE '$F|matmul_bf16_inv: N'" > "$OUT/kernel.log" ;;
     plain) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_RIP_PLAIN=1 INTARSIA_QWEN3_DIR=$M INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_qwen3_8b_prefill_is_row_invariant -- --test-threads=1 --nocapture 2>&1 | grep -aE '$F'" > "$OUT/plain.log" ;;
     model) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_QWEN3_DIR=$M INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_qwen3_8b_prefill_is_row_invariant -- --test-threads=1 --nocapture 2>&1 | grep -aE '$F'" > "$OUT/model.log" ;;
     engine) rsh "$RPATH cd ~/intarsiaml-rip/src && INTARSIA_QWEN3_DIR=$M INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real -- real_qwen3_8b_reuse_and_busy real_qwen3_8b_batched --test-threads=1 --nocapture 2>&1 | grep -aE '$F|bi8|pairs bitwise'" > "$OUT/engine.log" ;;

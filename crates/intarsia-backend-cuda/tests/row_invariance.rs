@@ -320,10 +320,17 @@ fn row_wise_ops_do_not_depend_on_m() {
 #[ignore]
 fn gemm_inv_timing_at_8b_shapes() {
     let Some(be) = device("gemm_inv_timing_at_8b_shapes") else { return };
-    let t = |shape: &[usize]| {
+    // random bf16 operands (zeros would change the power-capped GPU's clocks); outputs zeroed
+    let rng = std::cell::RefCell::new(SplitMix64::new(0x71f));
+    let t = |shape: &[usize], fill: bool| {
         let n: usize = shape.iter().product();
         let buf = be.alloc(n * 2, MemKind::Device).unwrap();
-        be.zero(&buf, 0).unwrap();
+        if fill {
+            let h = bf(&mut rng.borrow_mut(), shape, 1.0 / 64.0);
+            be.upload(&buf, 0, &h.data, 0).unwrap();
+        } else {
+            be.zero(&buf, 0).unwrap();
+        }
         TensorRef::new(buf, DType::Bf16, shape)
     };
     let layer: [(usize, usize); 7] = [(4096, 4096), (1024, 4096), (1024, 4096), (4096, 4096), (12288, 4096), (12288, 4096), (4096, 12288)];
@@ -331,7 +338,7 @@ fn gemm_inv_timing_at_8b_shapes() {
     for m in [991usize, 1024, 2048, 4096] {
         let calls: Vec<OpCall> = layer
             .iter()
-            .map(|&(n, k)| OpCall::new(Op::Matmul, vec![t(&[m, k]), t(&[n, k])], vec![t(&[m, n])], OpAttrs::default()))
+            .map(|&(n, k)| OpCall::new(Op::Matmul, vec![t(&[m, k], true), t(&[n, k], true)], vec![t(&[m, n], false)], OpAttrs::default()))
             .collect();
         let mut us = Vec::new();
         for name in ["matmul_bf16", "matmul_bf16_inv"] {
