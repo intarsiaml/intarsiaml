@@ -51,7 +51,7 @@ Unprofiled the difference is not there: served A/B, same binary, fresh server pe
 
 | arm | decode tok/s (median of rounds) | rounds |
 | --- | --- | --- |
-| `base` pageable (`INTARSIA_CUDA_PINNED_DOWNLOAD=0` in the experiment build) | 114.9 | 115.8, 114.1 |
+| `base` pageable (pinned staging off, in the reverted experiment build) | 114.9 | 115.8, 114.1 |
 | `dev` pinned | 112.4 | 111.6, 113.3 |
 
 0.978x with a run-to-run spread of 107 to 119 tok/s inside either arm: no gain, so the stall costs nothing when nothing is tracing, and the 114.9 tok/s of the unprofiled `base` (2.43 tokens/pass => 21.1 ms)
@@ -72,7 +72,7 @@ graphs), not steady state. 16 streams x 23.2 tok/s = 370 tok/s under nsys. The "
 ## 5. What would still be worth doing, and what is not
 
 - Rollback restore without copies (point the next graph at the accepted row's buffer, or restore only layers whose state differs): at most 0.97 % single stream. Below the bar, large change to a bitwise-critical path; not started.
-- Moving acceptance / next-draft setup into the graph (`INTARSIA_CUDA_MTP_GPU_ACCEPT`): the host work it would remove is a few us per pass plus part of the 87 to 93 us idle; the graph launch itself stays. Not started.
+- Moving acceptance / next-draft setup into the graph: the host work it would remove is a few us per pass plus part of the 87 to 93 us idle; the graph launch itself stays. Not started.
 - The `gdn_conv_kernel` gaps inside the graph (0.34 ms, 1.6 %): a kernel-lane lead.
 
 ## 6. Gates and runs

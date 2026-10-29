@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Lane cmtp: served A/B on spark1, arms differ by env (same binary), interleaved rounds. Run under fleetq run --quiet gpu,cpu:
-#   fleetq run --host spark1 --quiet gpu,cpu --mem 50 --expect 40 --label "cmtp2: A/B s1" -- ssh spark1 'W=ab1 ARMS="base:INTARSIA_CUDA_PINNED_DOWNLOAD=0 dev:X=1" bash -s s1' < scripts/cmtp/ab.sh
+#   fleetq run --host spark1 --quiet gpu,cpu --mem 50 --expect 40 --label "cmtp2: A/B s1" -- ssh spark1 'W=ab1 ARMS="base:PINNED_DOWNLOAD_OFF=1 (reverted experiment knob) dev:X=1" bash -s s1' < scripts/cmtp/ab.sh
 # MODE s1: serve --max-batch 1 (MTP default), cells dec1k dec4k dec16k pf4k.  MODE s16: serve --max-batch 16, cells b1 b4 b8 b16 (1k prompts).
 # ARMS "name:ENV=val[,ENV2=val]" (use X=1 for none); CELLS overrides the cell list; ROUNDS (3); REPS per cell (3, first dropped for dec).
 set -uo pipefail

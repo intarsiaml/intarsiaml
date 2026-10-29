@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane cmtp W1: nsys capture of a served 35B decode window on spark1 (run under fleetq run --quiet gpu,cpu, ssh spark1 'bash -s CASE' < this).
 #   CASE=single: --max-batch 1 (MTP default), one 4k stream.  CASE=b16: --max-batch 16, 16 streams of ~1k tokens.
-# Extra env: GT (graph trace: graph|node, default graph), ENVX (extra env for serve, e.g. INTARSIA_CUDA_MTP_GPU_ACCEPT=0), TAG, GEN.
+# Extra env: GT (graph trace: graph|node, default graph), ENVX (extra env for serve, e.g. a knob name; none shipped), TAG, GEN.
 set -uo pipefail
 ENVX=${ENVX:-}
 export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH
