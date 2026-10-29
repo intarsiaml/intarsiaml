@@ -12,7 +12,7 @@ date +%T; "$H/ident.sh" base dev; ok=$?
 echo "identity exit $ok"; [[ $ok == 0 ]] || { echo "ABORT: base vs dev served tokens differ"; exit 2; }
 date +%T; "$H/batch-real.sh" run | tee "$RAW/batch-real.txt"
 grep -aq "test result: ok" "$RAW/batch-real.txt" || { echo "ABORT: batch_cuda_real failed"; exit 3; }
-date +%T; "$H/le-window.sh" w1 3 base:base::--max-batch_16 dev:dev::--max-batch_16
+date +%T; "$H/le-window.sh" w1 3 base:base::--max-batch_16 dev:dev::--max-batch_16 moeonly:dev:INTARSIA_SIDE_PROJ=0:--max-batch_16
 date +%T; RANK_ARGS=5 WIN="4 11" N=16 "$H/prof.sh" base base-b16
 date +%T; RANK_ARGS=5 WIN="4 11" N=16 "$H/prof.sh" dev dev-b16
 date +%T
