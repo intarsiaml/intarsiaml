@@ -183,7 +183,7 @@ fn gemm_inv_rows_equal_at_every_m() {
     let Some(be) = device("gemm_inv_rows_equal_at_every_m") else { return };
     let mut rng = SplitMix64::new(0x72a);
     let total = 4352;
-    let max_m = std::env::var("INTARSIA_RIP2_MAX_M").ok().and_then(|v| v.parse().ok()).unwrap_or(total).min(total);
+    let max_m = total;
     for (n, k) in PROJ {
         let t0 = Instant::now();
         let up = |h: &HostTensor| {

@@ -7,7 +7,7 @@
 # ROUNDS (default 3) rounds A B for the 8B. The 35B has row-invariant prefill off (the plan finds no row-invariant MoE / NVFP4
 # kernels), so the env changes nothing there: its arms are A = ~/intarsiaml-rip2/bin/base (origin/main), B = the fix binary,
 # ROUNDS35 (default 1) rounds. localeval reports cached_tokens_max per size (a nonce leads every prompt; > 64 cached is flagged).
-#   OUT=... fleetq run --host spark2 --quiet gpu,cpu --mem 50 --expect 75 --label "rip: speed A/B" -- scripts/rip/speed.sh
+#   OUT=... fleetq run --host spark2 --quiet gpu,cpu --mem 50 --expect 75 --label "rip2: speed A/B" -- scripts/rip2/speed.sh
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 H=spark2; HN=spark-fa00; PORT=8197
@@ -28,7 +28,7 @@ start() { # log env args
 }
 le() { # label sizes gen conc recipe
   (cd /opt/code/deepeval && uv run localeval speed --url "http://$HN:$PORT/v1" --model intarsia --thinking off --sizes "$2" --gen "$3" --reps 3 \
-    --concurrency "$4" --label "rip-$1" --recipe "$5" 2>&1 | grep -E "saved|unim|tok/s|cached|^\|" | tail -16)
+    --concurrency "$4" --label "rip2-$1" --recipe "$5" 2>&1 | grep -E "saved|unim|tok/s|cached|^\|" | tail -16)
 }
 arm() { # model-tag model round arm
   local tag=$1 M=$2 r=$3 a=$4 env args
@@ -48,5 +48,5 @@ arm() { # model-tag model round arm
   fi
 }
 for r in $(seq 1 "${ROUNDS:-3}"); do for a in A B; do arm 8b "$M8" "$r" "$a"; done; done
-for r in $(seq 1 "${ROUNDS35:-1}"); do for a in A B; do arm 35b "$M35" "$r" "$a"; done; done
+for r in $(seq 1 "${ROUNDS35:-0}"); do for a in A B; do arm 35b "$M35" "$r" "$a"; done; done
 echo "== done"
