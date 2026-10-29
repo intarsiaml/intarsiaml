@@ -396,24 +396,40 @@ __device__ __forceinline__ void rows_q_tiles(const uint4* __restrict__ xs, const
             for (int m = 0; m < RM; ++m) acc[j][m] = 0.f;
 #pragma unroll 2
         for (int u = lane; u < KV; u += IK_WARP) {
-            float wf[NT][16];
+            if constexpr (XQ) {
+                // lane moe16c: codes and weights to f16 pairs only; the f16 x f16 + f32 fma takes them (ik_fma2_f16: the same
+                // 16-long chain, element order, f32 products and roundings as fmaf on the f32 images below)
+                uint32_t wh[NT][8];
 #pragma unroll
-            for (int j = 0; j < NT; ++j) ik_fp8x16_to_f32(__ldcs(wr[j] + u), wf[j]);
+                for (int j = 0; j < NT; ++j) ik_fp8x16_to_h2(__ldcs(wr[j] + u), wh[j]);
 #pragma unroll
-            for (int m = 0; m < RM; ++m) {
-                float xf[16];
-                if constexpr (XQ) {
-                    ik_fp8x16_to_f32(xs[m * KV + u], xf);
-                } else {
+                for (int m = 0; m < RM; ++m) {
+                    uint32_t xh[8];
+                    ik_fp8x16_to_h2(xs[m * KV + u], xh);
+#pragma unroll
+                    for (int j = 0; j < NT; ++j) {
+                        float sdot = 0.f;
+#pragma unroll
+                        for (int p = 0; p < 8; ++p) sdot = ik_fma2_f16(wh[j][p], xh[p], sdot);
+                        acc[j][m] += sdot;
+                    }
+                }
+            } else {
+                float wf[NT][16];
+#pragma unroll
+                for (int j = 0; j < NT; ++j) ik_fp8x16_to_f32(__ldcs(wr[j] + u), wf[j]);
+#pragma unroll
+                for (int m = 0; m < RM; ++m) {
+                    float xf[16];
                     ik_unpack8(xs[(m * 2) * KV + u], xf);
                     ik_unpack8(xs[(m * 2 + 1) * KV + u], xf + 8);
-                }
 #pragma unroll
-                for (int j = 0; j < NT; ++j) {
-                    float sdot = 0.f;
+                    for (int j = 0; j < NT; ++j) {
+                        float sdot = 0.f;
 #pragma unroll
-                    for (int e = 0; e < 16; ++e) sdot = fmaf(wf[j][e], xf[e], sdot);
-                    acc[j][m] += sdot;
+                        for (int e = 0; e < 16; ++e) sdot = fmaf(wf[j][e], xf[e], sdot);
+                        acc[j][m] += sdot;
+                    }
                 }
             }
         }
