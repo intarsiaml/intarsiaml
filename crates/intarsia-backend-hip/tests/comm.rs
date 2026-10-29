@@ -648,3 +648,201 @@ fn ar_graph_rate() {
         println!("{:>8} {:>6} {:>10.2}", n * dt.size_bytes(), if dt == DType::F32 { "f32" } else { "bf16" }, us);
     }
 }
+
+// ---- lane pf27b: the wide fence path for all-reduces above the LL limit (prefill sizes) ----
+
+fn ords() -> Vec<usize> {
+    std::env::var("INTARSIA_HIP_DEVICES")
+        .ok()
+        .map(|v| v.split(',').filter_map(|x| x.trim().parse().ok()).collect())
+        .unwrap_or_else(|| vec![0, 1])
+}
+
+fn group_wide(drain: i32, ll_max: usize, wide: Option<(i32, usize)>) -> Option<(Vec<Arc<dyn Backend>>, Vec<Arc<dyn Comm>>)> {
+    match intarsia_backend_hip::create_group_wide(&ords(), drain, ll_max, wide) {
+        Ok(g) => Some(g),
+        Err(e) => {
+            eprintln!("skipping: no usable 2-GPU HIP group ({e})");
+            None
+        }
+    }
+}
+
+fn bf16_round(v: &[f32]) -> Vec<f32> {
+    let mut bytes = vec![0u8; v.len() * 2];
+    encode_from_f32(DType::Bf16, v, &mut bytes);
+    let mut out = vec![0f32; v.len()];
+    decode_to_f32(DType::Bf16, &bytes, &mut out);
+    out
+}
+
+/// Prefill-sized messages (in bf16 elements): above the 64 KiB LL limit, not multiples of the old 4 MiB or the wide 20 MiB slot,
+/// a 1810- and a 2048-row chunk of the 27B's hidden 5120, and one above the wide slot (two launches); small ones in between (LL).
+const BIG_SIZES: [usize; 8] = [8, 3 * 5120, 40_000, 2_100_000, 1810 * 5120, 2048 * 5120, 11_000_000, 5120];
+
+/// The results of a fixed sequence of large all-reduces (bf16 in place, f32 in place, f32 -> bf16) on both ranks.
+fn big_suite(drain: i32, wide: Option<(i32, usize)>) -> Option<Vec<Vec<u8>>> {
+    let (be, comms) = group_wide(drain, 64 << 10, wide)?;
+    let mut rng = SplitMix64::new(4242);
+    let mut out = Vec::new();
+    let run2 = |f: &(dyn Fn(usize) + Sync)| {
+        std::thread::scope(|sc| {
+            for r in 0..2 {
+                sc.spawn(move || f(r));
+            }
+        });
+    };
+    for (dt, n) in [(DType::Bf16, 40_000usize), (DType::Bf16, 2_100_000), (DType::Bf16, 2048 * 5120), (DType::Bf16, 11_000_000), (DType::F32, 300_000), (DType::F32, 5_300_000)] {
+        let a = rng.normal_vec(n, 3.0);
+        let b = rng.normal_vec(n, 3.0);
+        let t = [put(&*be[0], dt, &a), put(&*be[1], dt, &b)];
+        run2(&|r| comms[r].all_reduce_sum(&t[r], 0).unwrap());
+        out.push(raw_bits(&*be[0], &t[0]));
+        out.push(raw_bits(&*be[1], &t[1]));
+        if dt == DType::F32 {
+            let p = [put(&*be[0], dt, &a), put(&*be[1], dt, &b)];
+            let o = [put(&*be[0], DType::Bf16, &vec![0.0; n]), put(&*be[1], DType::Bf16, &vec![0.0; n])];
+            run2(&|r| comms[r].all_reduce_sum_into(&p[r], &o[r], 0).unwrap());
+            out.push(raw_bits(&*be[0], &o[0]));
+            out.push(raw_bits(&*be[1], &o[1]));
+        }
+    }
+    Some(out)
+}
+
+#[test]
+fn wide_path_is_bitwise_the_old_path_at_prefill_sizes() {
+    let _one = serial();
+    let Some(old) = big_suite(1, None) else { return };
+    for (i, pair) in old.chunks(2).enumerate() {
+        assert!(pair[0] == pair[1], "old path: result {i} differs between the ranks");
+    }
+    for (drain, wide) in [(1, Some((64, 20 << 20))), (7, Some((64, 20 << 20))), (7, Some((256, 4 << 20))), (7, Some((16, 20 << 20)))] {
+        let w = big_suite(drain, wide).unwrap();
+        assert_eq!(old.len(), w.len());
+        for (i, (o, n)) in old.iter().zip(&w).enumerate() {
+            assert!(o == n, "drain {drain} wide {wide:?}: result {i} differs from the old 16-block path");
+        }
+    }
+}
+
+/// One rank (alternating by round) is slow: random host sleeps (up to ~2 ms, about two prefill all-reduces) before a third of its
+/// launches, over chains of mixed small (LL) and prefill-sized (fence, wide or not) all-reduces. Every result against the host sum.
+fn big_stress(drain: i32, wide: Option<(i32, usize)>, rounds: usize) -> usize {
+    let Some((be, comms)) = group_wide(drain, 64 << 10, wide) else { return 0 };
+    let mut rng = SplitMix64::new(91);
+    let k = 16usize;
+    let mut ins: Vec<[Vec<f32>; 2]> = Vec::new();
+    let mut want: Vec<Vec<f32>> = Vec::new();
+    let mut tens: [Vec<TensorRef>; 2] = [Vec::new(), Vec::new()];
+    for i in 0..k {
+        let n = BIG_SIZES[i % BIG_SIZES.len()];
+        let ab = [bf16_round(&rng.normal_vec(n, 2.0)), bf16_round(&rng.normal_vec(n, 2.0))];
+        want.push(host_sum(DType::Bf16, &ab[0], &ab[1]));
+        for r in 0..2 {
+            tens[r].push(put(&*be[r], DType::Bf16, &ab[r]));
+        }
+        ins.push(ab);
+    }
+    let mut wrong = 0;
+    for round in 0..rounds {
+        if round > 0 {
+            for i in 0..k {
+                for r in 0..2 {
+                    let mut bytes = vec![0u8; ins[i][r].len() * 2];
+                    encode_from_f32(DType::Bf16, &ins[i][r], &mut bytes);
+                    be[r].upload(&tens[r][i].buf, 0, &bytes, 0).unwrap();
+                }
+            }
+            be[0].synchronize(0).unwrap();
+            be[1].synchronize(0).unwrap();
+        }
+        let slow = round % 2;
+        let delays: Vec<u64> = (0..k).map(|_| rng.next_u64() % 2000).collect();
+        std::thread::scope(|sc| {
+            for r in 0..2 {
+                let (c, ts, d) = (&comms[r], &tens[r], &delays);
+                sc.spawn(move || {
+                    for (i, t) in ts.iter().enumerate() {
+                        if r == slow && i % 3 == 0 {
+                            std::thread::sleep(std::time::Duration::from_micros(d[i]));
+                        }
+                        c.all_reduce_sum(t, 0).unwrap();
+                    }
+                });
+            }
+        });
+        for i in 0..k {
+            for r in 0..2 {
+                if get(&*be[r], &tens[r][i]) != want[i] {
+                    wrong += 1;
+                }
+            }
+        }
+    }
+    wrong
+}
+
+#[test]
+fn wide_path_survives_a_delayed_rank() {
+    let _one = serial();
+    assert_eq!(big_stress(7, Some((64, 20 << 20)), 40), 0, "wrong sums on the wide fence path while one rank was delayed");
+}
+
+/// Negative control: drain 9 is the fence path without its wait. With a delayed peer it must produce wrong sums at prefill sizes,
+/// or the stress test above could not see a missing handshake on the wide path.
+#[test]
+fn wide_path_without_the_wait_is_caught_by_the_stress_test() {
+    let _one = serial();
+    let wrong = big_stress(9, Some((64, 20 << 20)), 10);
+    assert!(wrong > 0, "the wide path's wait was removed and nothing went wrong: the stress test cannot see a stale read");
+    eprintln!("negative control (wide, no wait): {wrong} wrong results");
+}
+
+/// `cargo test --release -p intarsia-backend-hip --test comm p2p_link_rate -- --ignored --nocapture`: the P2P link's copy-engine
+/// rate, the fence all-reduce's phases alone per block count (`p2p_bench`), and the all-reduce at prefill sizes per wide setting.
+#[test]
+#[ignore]
+fn p2p_link_rate() {
+    let _one = serial();
+    let blocks: Vec<i32> = std::env::var("PF27B_BLOCKS")
+        .ok()
+        .map(|v| v.split(',').filter_map(|x| x.trim().parse().ok()).collect())
+        .unwrap_or_else(|| vec![16, 32, 64, 128, 256]);
+    let sizes = [4usize << 20, 1810 * 5120 * 2, 2048 * 5120 * 2];
+    match intarsia_backend_hip::p2p_bench(&ords(), &sizes, &blocks, 40) {
+        Ok(s) => print!("{s}"),
+        Err(e) => {
+            eprintln!("skipping: {e}");
+            return;
+        }
+    }
+    let cfgs: Vec<Option<(i32, usize)>> = vec![None, Some((16, 20 << 20)), Some((32, 20 << 20)), Some((64, 20 << 20)), Some((128, 20 << 20)), Some((256, 20 << 20)), Some((64, 4 << 20)), Some((128, 4 << 20))];
+    for cfg in cfgs {
+        let Some((be, comms)) = group_wide(7, 64 << 10, cfg) else { return };
+        for n in [2usize << 20, 1810 * 5120, 2048 * 5120] {
+            let z = vec![0f32; n];
+            let t = [put(&*be[0], DType::Bf16, &z), put(&*be[1], DType::Bf16, &z)];
+            for _ in 0..5 {
+                run_pair(&comms, &t);
+            }
+            be[0].synchronize(0).unwrap();
+            be[1].synchronize(0).unwrap();
+            let iters = 40;
+            let t0 = Instant::now();
+            std::thread::scope(|sc| {
+                for r in 0..2 {
+                    let (c, x, b) = (&comms[r], &t[r], &be[r]);
+                    sc.spawn(move || {
+                        for _ in 0..iters {
+                            c.all_reduce_sum(x, 0).unwrap();
+                        }
+                        b.synchronize(0).unwrap();
+                    });
+                }
+            });
+            let us = t0.elapsed().as_secs_f64() * 1e6 / iters as f64;
+            println!("AR wide={:<16} {:>10} B {:>9.1} us {:>7.2} GB/s", format!("{cfg:?}"), n * 2, us, (n * 2) as f64 / us / 1e3);
+        }
+    }
+}

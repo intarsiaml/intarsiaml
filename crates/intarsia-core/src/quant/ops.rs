@@ -474,6 +474,7 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.m = i[0].shape[0];
             s.k = i[0].shape[1];
             s.n = i[1].shape[0];
+            s.n1 = call.outputs.get(1).map_or(0, |o| o.shape.get(1).copied().unwrap_or(0));
             s.weight = Some(i[1].dtype);
         }
         // the first GEMV's weight gives n and the weight dtype (the norm is over k)
