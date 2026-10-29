@@ -1,0 +1,5 @@
+Error: loading /Users/josef/Models/Kolibri-1-MLX-4bit
+
+Caused by:
+    model error: no recipe matches architectures ["Kolibri1ForCausalLM"]; recipes loaded cover ["Qwen3ForCausalLM", "Qwen3_5ForCausalLM", "Qwen3_5MoeForConditionalGeneration", "Qwen3_5MoeForCausalLM", "Qwen3_5ForConditionalGeneration", "MiniCPMV4_7ForConditionalGeneration", "Gemma4ForConditionalGeneration", "Gemma4ForCausalLM", "LlamaForCausalLM", "Qwen2ForCausalLM", "Lfm2ForCausalLM"]
+    write one with `intarsia recipe new --model <dir>` (see docs/recipes.md) and pass --recipe FILE or --recipe-dir DIR

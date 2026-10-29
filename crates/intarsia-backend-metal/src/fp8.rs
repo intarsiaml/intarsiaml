@@ -483,14 +483,14 @@ impl MetalBackend {
 /// Kernel arguments of `gemm_nax_fp8_t` (`NaxFp8P` in gemm_nax_fp8.metal; 32 bytes).
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Default)]
-struct NaxFp8Params {
-    m: u32,
-    n: u32,
-    k: u32,
-    swz_log: u32,
+pub(crate) struct NaxFp8Params {
+    pub m: u32,
+    pub n: u32,
+    pub k: u32,
+    pub swz_log: u32,
     /// Leading elements (0 or 1) of C past its 4-byte aligned binding.
-    s_c: u32,
-    pad: [u32; 3],
+    pub s_c: u32,
+    pub pad: [u32; 3],
 }
 
 /// Rows of the simdgroup-matrix form (`fp8_rows_mmt_*`; its q(x) is padded to this many).

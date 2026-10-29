@@ -1,0 +1,12 @@
+
+running 7 tests
+test fp8_at_the_35b_projection_shapes ... ok
+test fp8_matches_the_oracle ... ok
+test nvfp4_at_the_35b_projection_shapes ... ok
+test nvfp4_matches_the_oracle ... ok
+test nvfp4_nax_rows_do_not_depend_on_the_call ... ok
+test w8a8_quantiser_is_bit_exact_over_every_bf16_pattern ... ok
+test weights_not_8_byte_aligned_are_refused ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.70s
+

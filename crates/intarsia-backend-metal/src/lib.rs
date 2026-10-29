@@ -38,7 +38,7 @@ pub mod multirow;
 mod moe;
 pub mod fp8;
 mod mxfp4;
-mod nvfp4;
+pub mod nvfp4;
 mod rowtab;
 pub mod profile;
 
@@ -1058,7 +1058,10 @@ impl MetalBackend {
         if matches!(kernel, fp8::MATMUL_FP8_GEMV | fp8::MATMUL_FP8_MMA | fp8::MATMUL_FP8_NAX | fp8::MATMUL_FP8_GEMV_ROWS) && call.op == Op::MatmulFp8 {
             return self.launch_fp8(kernel, call);
         }
-        if matches!(kernel, nvfp4::MATMUL_NVFP4_GEMV | nvfp4::MATMUL_NVFP4_MMA | nvfp4::MATMUL_NVFP4_GEMV_ROWS)
+        if matches!(
+            kernel,
+            nvfp4::MATMUL_NVFP4_GEMV | nvfp4::MATMUL_NVFP4_MMA | nvfp4::MATMUL_NVFP4_NAX | nvfp4::MATMUL_NVFP4_GEMV_ROWS
+        )
             && call.op == Op::MatmulNvfp4
         {
             return self.launch_nvfp4(kernel, call);
