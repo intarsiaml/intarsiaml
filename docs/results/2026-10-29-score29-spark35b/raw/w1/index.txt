@@ -1,0 +1,4 @@
+score29-single-r1: - result file: `results/20261029-104558-adhoc-score29-single-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-104558-adhoc-score29-single-r1/result.json 
+score29-multi-r1: - result file: `results/20261029-104707-adhoc-score29-multi-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261029-104707-adhoc-score29-multi-r1/result.json 
+score29-multi-r2: - result file: `results/20261029-104835-adhoc-score29-multi-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-104835-adhoc-score29-multi-r2/result.json 
+score29-single-r2: - result file: `results/20261029-105003-adhoc-score29-single-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261029-105003-adhoc-score29-single-r2/result.json 
