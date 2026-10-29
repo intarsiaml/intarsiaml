@@ -1,0 +1,8 @@
+fleetq: #6765 running on spark1: bash -c 'REF=origin/main scripts/srv16b/build.sh base && scripts/srv16b/build.sh dev'
+    Finished `release` profile [optimized] target(s) in 1m 59s
+-rwxrwxr-x 1 nvidia nvidia 100605400 Oct 29 01:27 /home/nvidia/intarsiaml-srv16b/bin/base
+intarsia 0.0.1
+    Finished `release` profile [optimized] target(s) in 1m 54s
+-rwxrwxr-x 1 nvidia nvidia 100612144 Oct 29 01:29 /home/nvidia/intarsiaml-srv16b/bin/dev
+intarsia 0.0.1
+fleetq: #6765 done (exit 0)

@@ -683,7 +683,7 @@ impl Model {
     /// The KV prefix of `st` a request for a prompt of `plen` tokens may resume from, at most `want` (the prefix the two
     /// share, already below `plen`). Recurrent state: what it can return to ([`SequenceState::restorable_len`]). Attention
     /// only: any length where the backend's prefill is bitwise the same whatever row a pass starts at
-    /// (`Backend::prefix_reuse_any_cut`, cpu / HIP); elsewhere (CUDA, Metal) a prefix that gives a request the bits of its
+    /// (`Backend::prefix_reuse_any_cut`, cpu); elsewhere (CUDA, Metal, HIP) a prefix that gives a request the bits of its
     /// cold prefill whatever its slot held before (lane bi8: a repeated prompt resuming with its last token alone, a 1-row
     /// pass, moved logits by up to 0.23 and flipped greedy tokens on Qwen3-8B;
     /// docs/results/2026-10-29-bi8-serve-batch-invariance.md). In that case, first match wins: with row-invariant prefill on
@@ -692,7 +692,7 @@ impl Model {
     /// passes of `n` rows or more agree (`Backend::prefix_reuse_min_pass_rows`, Metal: 2, lane prc): a prefix written by such
     /// passes only ([`SequenceState::wide_reuse_len`]; a decode step's rows are not), cut back until the remainder's passes
     /// have `n` rows or more too. Otherwise only a prefix the prompt's own cold chunk schedule wrote
-    /// ([`SequenceState::ladder_reuse_len`], CUDA's default).
+    /// ([`SequenceState::ladder_reuse_len`], CUDA's default and HIP's, lane arx).
     /// `INTARSIA_PREFIX_REUSE=any|exact` overrides the backend's choice (`any`: any held row; `exact`: the cold schedule's
     /// cuts everywhere, row-invariant prefill or not).
     pub fn reuse_len(&self, st: &SequenceState, plen: usize, want: usize) -> usize {

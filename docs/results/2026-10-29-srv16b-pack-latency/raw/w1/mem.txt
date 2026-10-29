@@ -1,0 +1,8 @@
+base r1: MemAvailable 61730 MB with the server up
+p8k r1: MemAvailable 61770 MB with the server up
+r2k r1: MemAvailable 62502 MB with the server up
+r3k r1: MemAvailable 62488 MB with the server up
+r4k r1: MemAvailable 62483 MB with the server up
+h r1: MemAvailable 62490 MB with the server up
+h3k r1: MemAvailable 62491 MB with the server up
+h4k r1: MemAvailable 62480 MB with the server up

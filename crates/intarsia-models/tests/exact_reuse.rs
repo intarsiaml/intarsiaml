@@ -1,5 +1,5 @@
 //! Exact prefix reuse (lane bi8, docs/results/2026-10-29-bi8-serve-batch-invariance.md): on a backend whose dense prefill
-//! bits depend on a pass's row count (`Backend::prefix_reuse_any_cut` false: CUDA, and Metal since lane prb) a request resumes from a held KV prefix
+//! bits depend on a pass's row count (`Backend::prefix_reuse_any_cut` false: CUDA, Metal since lane prb, HIP since lane arx) a request resumes from a held KV prefix
 //! only where its own cold chunk schedule cuts, and only over rows the held sequence wrote with exactly those passes, in the
 //! single-sequence engine and in the batched engine's slot choice alike. The cpu kernels are chunk-invariant, so here the
 //! bits agree either way: these tests pin the policy (which prefix is reused), the CUDA gates in `batch_cuda_real.rs` the bits.
