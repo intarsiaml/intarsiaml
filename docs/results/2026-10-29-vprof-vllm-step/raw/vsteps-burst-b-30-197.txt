@@ -1,0 +1,61 @@
+cluster 1: 254 steps found, using steps [30,197) = 167
+step wall   mean 41.78 ms  median 41.83  min 39.09 max 44.74
+kernel sum  mean 45.42 ms (all streams)   union-busy mean 41.50 ms   aux-stream kernel time 3.90 ms
+idle (wall - union busy) 0.29 ms
+
+| bucket | ms/step | calls/step | of which on aux stream (ms) |
+|---|---:|---:|---:|
+| routed MoE (gate_up, down) | 22.69 | 80.0 | 0.00 |
+| GDN (delta, conv) | 7.76 | 60.0 | 0.00 |
+| fp8 K=2048 (GDN qkvz, attn qkv) | 4.34 | 40.0 | 0.00 |
+| shared expert + shared gate (aux stream) | 3.90 | 240.0 | 3.90 |
+| fp8 K=4096 (GDN out, o_proj) | 2.14 | 40.0 | 0.00 |
+| norms, top-k, glue | 1.41 | 537.0 | 0.00 |
+| lm_head nvfp4 (Marlin) | 1.23 | 1.0 | 0.00 |
+| attention | 1.02 | 30.0 | 0.00 |
+| bf16 GEMVs, main stream (router, GDN b/a) | 0.93 | 140.0 | 0.00 |
+| **sum** | **45.42** | | |
+
+kernel | grid | block | stream | calls/step | us/call | ms/step
+marlin_moe_wna16::Marlin< | 144x1x1 | 128x1 | main | 80.0 | 283.6 | 22.69
+fused_recurrent_gated_delta_rule_packed_decode_kernel | 4x512x1 | 32x1 | main | 30.0 | 250.6 | 7.52
+cutlass::device_kernel<enable_sm120_family<cutlass::gemm::kernel::Gemm | 1x192x1 | 384x1 | main | 30.0 | 116.2 | 3.49
+cutlass::device_kernel<enable_sm120_family<cutlass::gemm::kernel::Gemm | 1x32x1 | 384x1 | main | 40.0 | 53.5 | 2.14
+std::enable_if<!T7, void>::type internal::gemvx::kernel<int, int, __nv | 4x1x1 | 32x4 | aux | 40.0 | 32.2 | 1.29
+marlin::Marlin< | 48x1x1 | 256x1 | main | 1.0 | 1228.3 | 1.23
+flashinfer::BatchPrefillWithPagedKVCacheKernel<flashinfer::KernelTrait | 48x1x2 | 32x1 | main | 10.0 | 94.5 | 0.95
+cutlass::device_kernel<enable_sm120_family<cutlass::gemm::kernel::Gemm | 1x144x1 | 384x1 | main | 10.0 | 85.4 | 0.85
+marlin::Marlin< | 48x1x1 | 128x1 | aux | 40.0 | 19.7 | 0.79
+at::native::elementwise_kernel< | 64x1x1 | 128x1 | aux | 40.0 | 17.4 | 0.70
+marlin::Marlin< | 48x1x1 | 256x1 | aux | 40.0 | 16.2 | 0.65
+cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_ | 8x2x8 | 32x1 | main | 40.0 | 14.9 | 0.60
+at::native::vectorized_elementwise_kernel< | 1x1x1 | 128x1 | aux | 40.0 | 8.7 | 0.35
+_causal_conv1d_update_kernel | 16x32x1 | 128x1 | main | 30.0 | 8.1 | 0.24
+triton_red_fused__to_copy_add_clamp_cutlass_scaled_mm_fused_add_rms_no | 8x1x1 | 256x1 | main | 39.0 | 4.4 | 0.17
+vllm::moe::moe_align_block_size_kernel<int> | 2x1x1 | 1024x1 | main | 40.0 | 4.1 | 0.16
+cublasLt::splitKreduce_kernel< | 8x1x1 | 32x16 | main | 40.0 | 4.0 | 0.16
+vllm::moe::topkGating< | 4x1x1 | 32x4 | main | 40.0 | 3.7 | 0.15
+cutlass::Kernel2<cutlass_80_wmma_tensorop_bf16_s161616gemm_bf16_16x16_ | 4x1x8 | 32x1 | main | 30.0 | 4.7 | 0.14
+triton_poi_fused_mul_silu_slice_0 | 16x1x1 | 256x1 | aux | 40.0 | 3.4 | 0.14
+vllm::act_and_mul_kernel<c10::BFloat16, __nv_bfloat162, &vllm::silu_ke | 128x1x1 | 64x1 | main | 40.0 | 3.0 | 0.12
+vllm::moe::count_and_sort_expert_tokens_kernel<int> | 1x1x1 | 256x1 | main | 40.0 | 2.5 | 0.10
+vllm::moe::moe_sum_vec_kernel<c10::BFloat16, int,  | 16x1x1 | 256x1 | main | 40.0 | 2.1 | 0.09
+at::native::vectorized_elementwise_kernel< | 1x1x1 | 128x1 | main | 55.0 | 1.4 | 0.08
+at::native::unrolled_elementwise_kernel<at::native::direct_copy_kernel | 7760x1x1 | 128x1 | main | 1.0 | 74.1 | 0.07
+triton_poi_fused__to_copy__unsafe_view_add_clamp_clone_cutlass_scaled_ | 128x1x1 | 256x1 | main | 30.0 | 2.2 | 0.07
+triton_red_fused__to_copy_add_fused_add_rms_norm_moe_forward_shared_2 | 8x1x1 | 256x1 | main | 20.0 | 2.9 | 0.06
+vllm::reshape_and_cache_flash_kernel<__nv_bfloat16, unsigned char,  | 16x1x1 | 512x1 | main | 10.0 | 4.8 | 0.05
+cublasLt::splitKreduce_kernel< | 2x1x1 | 32x16 | main | 30.0 | 1.4 | 0.04
+triton_per_fused__to_copy_mean_pow_view_0 | 512x1x1 | 64x1 | main | 20.0 | 1.8 | 0.04
+triton_poi_fused_0 | 1x1x1 | 128x1 | main | 10.0 | 3.4 | 0.03
+triton_red_fused__to_copy_add_fused_add_rms_norm_moe_forward_shared_1 | 8x1x1 | 256x1 | main | 10.0 | 3.1 | 0.03
+flashinfer::PersistentVariableLengthMergeStatesKernel< | 288x1x1 | 32x4 | main | 10.0 | 2.9 | 0.03
+triton_red_fused__to_copy_add_fused_add_rms_norm_moe_forward_shared_3 | 8x1x1 | 256x1 | main | 10.0 | 2.8 | 0.03
+at::native::<unnamed>::indexSelectSmallIndex<c10::BFloat16, long, unsi | 16x1x1 | 128x1 | main | 1.0 | 24.9 | 0.02
+triton_poi_fused_zeros_5 | 128x1x1 | 256x1 | main | 20.0 | 0.9 | 0.02
+at::native::reduce_kernel< | 16x9x1 | 32x16 | main | 1.0 | 18.7 | 0.02
+triton_poi_fused_4 | 2x1x1 | 128x1 | main | 20.0 | 0.9 | 0.02
+triton_poi_fused_7 | 144x1x1 | 256x1 | main | 10.0 | 1.7 | 0.02
+triton_per_fused_1 | 512x1x1 | 64x1 | main | 10.0 | 1.5 | 0.02
+
+per-step wall ms (first 40 of selection): [39.1, 40.1, 39.7, 39.7, 40.8, 40.7, 40.9, 40.1, 40.1, 40.7, 39.8, 41.1, 39.8, 40.7, 41.2, 39.5, 39.3, 40.7, 39.1, 40.2, 41.3, 39.9, 39.4, 40.3, 40.7, 39.8, 41.1, 39.9, 39.6, 39.8, 40.5, 39.7, 41.2, 41.0, 43.1, 42.0, 40.9, 39.6, 40.2, 42.1]

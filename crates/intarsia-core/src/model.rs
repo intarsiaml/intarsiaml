@@ -102,7 +102,8 @@ fn macro_split_ops() -> Result<Vec<Op>> {
 }
 
 /// `INTARSIA_PREFIX_REUSE`: `any` (resume at any held row) or `exact` (only where the cold schedule cuts) overrides
-/// `Backend::prefix_reuse_any_cut`; unset or anything else: the backend decides ([`Model::reuse_len`]).
+/// `Backend::prefix_reuse_any_cut` and `Backend::prefix_reuse_min_pass_rows`; unset or anything else: the backend decides
+/// ([`Model::reuse_len`]).
 fn prefix_reuse_override() -> Option<bool> {
     static V: std::sync::OnceLock<Option<bool>> = std::sync::OnceLock::new();
     *V.get_or_init(|| match std::env::var("INTARSIA_PREFIX_REUSE").ok().as_deref() {
@@ -682,26 +683,45 @@ impl Model {
     /// The KV prefix of `st` a request for a prompt of `plen` tokens may resume from, at most `want` (the prefix the two
     /// share, already below `plen`). Recurrent state: what it can return to ([`SequenceState::restorable_len`]). Attention
     /// only: any length where the backend's prefill is bitwise the same whatever row a pass starts at
-    /// (`Backend::prefix_reuse_any_cut`, cpu); elsewhere (CUDA, Metal, HIP) only a prefix written by the prompt's own cold
-    /// chunk schedule ([`SequenceState::ladder_reuse_len`]), so a request computes the bits of its cold prefill whatever its
-    /// slot held before (lane bi8: a repeated prompt resuming with its last token alone, a 1-row pass, moved logits by up to
-    /// 0.23 and flipped greedy tokens on Qwen3-8B; docs/results/2026-10-29-bi8-serve-batch-invariance.md).
-    /// `INTARSIA_PREFIX_REUSE=any|exact` overrides the backend's choice.
+    /// (`Backend::prefix_reuse_any_cut`, cpu); elsewhere (CUDA, Metal, HIP) a prefix that gives a request the bits of its
+    /// cold prefill whatever its slot held before (lane bi8: a repeated prompt resuming with its last token alone, a 1-row
+    /// pass, moved logits by up to 0.23 and flipped greedy tokens on Qwen3-8B;
+    /// docs/results/2026-10-29-bi8-serve-batch-invariance.md). In that case, first match wins: with row-invariant prefill on
+    /// ([`Model::row_invariant_prefill`], CUDA with `INTARSIA_ROW_INVARIANT_PREFILL=1`, lane rip) any prefix of the rows
+    /// row-invariant prefill passes wrote ([`SequenceState::inv_len`]; a decode step's rows are not). Where the backend's
+    /// passes of `n` rows or more agree (`Backend::prefix_reuse_min_pass_rows`, Metal: 2, lane prc): a prefix written by such
+    /// passes only ([`SequenceState::wide_reuse_len`]; a decode step's rows are not), cut back until the remainder's passes
+    /// have `n` rows or more too. Otherwise only a prefix the prompt's own cold chunk schedule wrote
+    /// ([`SequenceState::ladder_reuse_len`], CUDA's default and HIP's, lane arx).
+    /// `INTARSIA_PREFIX_REUSE=any|exact` overrides the backend's choice (`any`: any held row; `exact`: the cold schedule's
+    /// cuts everywhere, row-invariant prefill or not).
     pub fn reuse_len(&self, st: &SequenceState, plen: usize, want: usize) -> usize {
         if st.has_recurrent() {
             return st.restorable_len(want);
         }
-        match prefix_reuse_override() {
+        let over = prefix_reuse_override();
+        match over {
             Some(true) => return want.min(st.len),
             Some(false) => {}
             None if self.backend.prefix_reuse_any_cut() => return want.min(st.len),
             // row-invariant prefill (lane rip): any prefix of the rows row-invariant prefill passes wrote. Rows a decode step wrote
             // (an earlier reply) are not among them: decode runs other kernels, so a cold prefill would give those rows other bits
-            None if self.row_invariant_prefill() => return want.min(st.inv_len),
+            None if self.row_invariant_prefill() => return want.min(st.inv_len()),
             None => {}
         }
         let chunk = self.prefill_chunk().max(1);
-        let sched = crate::scheduler::chunk_schedule_tm(0, plen, chunk, self.backend.avoid_single_row_prefill(), self.tail_merge());
+        let avoid = self.backend.avoid_single_row_prefill();
+        // a prefill tail peel can end the remainder in a 1-row pass the schedule below does not show
+        let min_rows = self.backend.prefix_reuse_min_pass_rows().filter(|_| over.is_none() && self.prefill_peel == 0);
+        if let Some(n) = min_rows {
+            let mut cut = st.wide_reuse_len(want, n);
+            // the remainder runs as the schedule says from the cut: back off until none of its passes is below `n` rows
+            while cut > 0 && crate::scheduler::chunk_schedule_tm(cut, plen, chunk, avoid, self.tail_merge()).iter().any(|&(_, len)| len < n) {
+                cut -= 1;
+            }
+            return cut;
+        }
+        let sched = crate::scheduler::chunk_schedule_tm(0, plen, chunk, avoid, self.tail_merge());
         let points: Vec<usize> = sched.iter().skip(1).map(|&(start, _)| start).collect();
         st.ladder_reuse_len(want, chunk, &points)
     }
@@ -1752,7 +1772,7 @@ impl Model {
         };
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
-        st.commit(ids);
+        st.commit_verify(ids);
         if recurrent {
             st.spec_rows.saved = q - 1;
         }
@@ -1834,7 +1854,7 @@ impl Model {
         let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("forward_verify before enable_verify"))?;
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
-        st.commit(ids);
+        st.commit_verify(ids);
         if st.has_recurrent() {
             st.spec_rows.saved = q - 1;
         }
@@ -1893,7 +1913,7 @@ impl Model {
         })();
         self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
         let hn = run?;
-        st.commit(ids);
+        st.commit_verify(ids);
         if st.has_recurrent() {
             st.spec_rows.saved = q - 1;
         }
@@ -2183,7 +2203,8 @@ impl Model {
     /// on ([`Model::row_invariant_prefill`]) every call of the pass takes a `row_invariant` kernel (`OpCall::prefill_inv`): the
     /// GEMMs one cuBLASLt algorithm for every row count, attention the flash kernel even for one row, no decode graph. Each row
     /// then has the bits it has in a one-pass prefill of the prompt whatever the pass's size or first row, and the rows the
-    /// pass wrote join the state's row-invariant prefix (`SequenceState::inv_len`) when they extend it. Otherwise, and for
+    /// pass wrote are recorded as row-invariant (`PassKind::RowInvariant`), joining the state's row-invariant prefix
+    /// (`SequenceState::inv_len`) when they extend it. Otherwise, and for
     /// `HeadMode::AllLogits` (its multi-row head groups have no row-invariant kernel), exactly [`Model::forward`].
     pub fn forward_prefill(
         &self,
@@ -2202,12 +2223,11 @@ impl Model {
             return self.forward(st, ids, mode, on_row);
         }
         let pos = st.len;
-        debug_assert!(st.inv_len <= st.len, "inv_len {} above len {}", st.inv_len, st.len);
         self.prefill_inv.store(true, std::sync::atomic::Ordering::Relaxed);
         let r = self.forward(st, ids, mode, on_row);
         self.prefill_inv.store(false, std::sync::atomic::Ordering::Relaxed);
-        if r.is_ok() && st.inv_len == pos && st.len == pos + ids.len() {
-            st.inv_len = st.len;
+        if r.is_ok() && st.len == pos + ids.len() {
+            st.tag_passes(pos, crate::state::PassKind::RowInvariant);
         }
         r
     }

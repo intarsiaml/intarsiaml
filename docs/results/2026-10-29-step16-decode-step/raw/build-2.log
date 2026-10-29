@@ -1,0 +1,7 @@
+fleetq: #6819 running on spark1: scripts/step16/build.sh rows-fh
+02:57:50
+    Finished `release` profile [optimized] target(s) in 2m 08s
+/dev/nvme0n1p2  3.7T  3.3T  261G  93% /
+1.8G	/home/nvidia/intarsiaml-step16
+02:59:59
+fleetq: #6819 done (exit 0)

@@ -1,0 +1,13 @@
+| bucket (ms per step, B=16) | base | dev | dev - base |
+|---|---:|---:|---:|
+| routed MoE (gate_up + down_v2) | 18.94 | 19.12 | +0.18 |
+| GDN (delta, conv) | 8.96 | 8.90 | -0.06 |
+| fp8 K=2048 (GDN qkv / z, attn q) | 5.15 | 5.15 | +0.00 |
+| fp8 K=4096 (GDN out, o_proj) | 2.35 | 2.34 | -0.01 |
+| attention | 2.24 | 2.20 | -0.04 |
+| shared expert nvfp4 (gate, up, down) | 1.59 | 1.56 | -0.03 |
+| lm_head nvfp4 | 1.52 | 1.51 | -0.01 |
+| norms, top-k, glue | 1.08 | 1.07 | -0.01 |
+| bf16 small GEMVs (router, GDN b / a, shared gate) | 0.71 | 0.68 | -0.03 |
+| fp8 k / v 512x2048 | 0.37 | 0.37 | +0.00 |
+| **sum of kernel durations** | **42.91** | **42.90** | **-0.01** |

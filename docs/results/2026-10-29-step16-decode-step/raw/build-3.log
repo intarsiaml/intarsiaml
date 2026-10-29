@@ -1,0 +1,20 @@
+fleetq: #6825 running on spark1: bash -c 'REF=ebf8192a0 scripts/step16/build.sh cli-base breal-base && scripts/step16/build.sh cli-dev breal-dev rows-dev'
+03:03:01
+    Finished `release` profile [optimized] target(s) in 2m 10s
+intarsia 0.0.1
+03:05:12
+    Finished `release` profile [optimized] target(s) in 15.09s
+/dev/nvme0n1p2  3.7T  3.3T  256G  93% /
+2.9G	/home/nvidia/intarsiaml-step16
+03:05:29
+03:05:46
+    Finished `release` profile [optimized] target(s) in 2m 26s
+intarsia 0.0.1
+03:08:13
+    Finished `release` profile [optimized] target(s) in 10.53s
+03:08:24
+    Finished `release` profile [optimized] target(s) in 8.85s
+/dev/nvme0n1p2  3.7T  3.3T  255G  93% /
+3.1G	/home/nvidia/intarsiaml-step16
+03:08:33
+fleetq: #6825 done (exit 0)

@@ -1,0 +1,5 @@
+burst warm streams 2 distinct 0 wall 2.04s ttft_med 0.70 ttft_max 0.70 chunks [31, 32]
+start_profile http 200
+-rw-r--r-- 1 root root 206 Oct 29 04:46 /home/nvidia/intarsiaml-vprof/out/ncu.csv
+4 /home/nvidia/intarsiaml-vprof/out/ncu.csv
+stop_profile http 000
