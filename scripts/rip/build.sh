@@ -6,7 +6,7 @@ set -euo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 REPO="$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 H=${HOST:-spark2}; R="~/intarsiaml-rip/src"
-RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
+RPATH='set -o pipefail; export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
 rsh() { ssh -n -o BatchMode=yes "$H" "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 STAMP="$("$REPO/scripts/tree-stamp.sh")"
 rsh "mkdir -p $R ~/intarsiaml-rip/bin ~/intarsiaml-rip/out; test -d $R/target || cp -a ~/intarsiaml-pc/target $R/target"

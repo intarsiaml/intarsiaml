@@ -627,6 +627,12 @@ fn real_qwen3_8b_prefix_reuse_probe() {
     const GEN: usize = 64;
     const FORCED: usize = 4;
     let ids: Vec<Vec<u32>> = EQ_PROMPTS.iter().map(|p| codec.encode(p, false).unwrap()).collect();
+    // lane rip: prompt passes run as the engines run them (`forward_prefill`: row-invariant prefill on CUDA), or with the ordinary
+    // prefill under INTARSIA_RIP_PLAIN=1 (the BI8 probe as it was)
+    let plain = std::env::var("INTARSIA_RIP_PLAIN").is_ok_and(|v| v == "1");
+    let pf = |st: &mut intarsia_core::state::SequenceState, ids: &[u32], mode: HeadMode| {
+        if plain { m.forward(st, ids, mode, None) } else { m.forward_prefill(st, ids, mode, None) }.unwrap()
+    };
     // greedy continuation of `st` from the logits row `first`: (tokens, logits rows incl. `first`)
     let greedy = |st: &mut intarsia_core::state::SequenceState, first: Vec<f32>, n: usize| -> (Vec<u32>, Vec<Vec<f32>>) {
         let mut rows = vec![first];
@@ -643,12 +649,12 @@ fn real_qwen3_8b_prefix_reuse_probe() {
     let mut cold: Vec<(Vec<u32>, Vec<Vec<f32>>)> = Vec::new();
     for (i, p) in ids.iter().enumerate() {
         let mut st = m.new_state().unwrap();
-        let l = logits_of(m.forward(&mut st, p, HeadMode::LastLogits, None).unwrap());
+        let l = logits_of(pf(&mut st, p, HeadMode::LastLogits));
         let (toks, rows) = greedy(&mut st, l, GEN);
         eprintln!("COLD {i} plen {} ids {:?}", p.len(), toks);
         // the repeated prompt on the same slot: the cold state (prompt + GEN tokens) truncated to plen - 1, last token alone
         st.truncate(p.len() - 1, &*m.backend).unwrap();
-        let l = logits_of(m.forward(&mut st, &p[p.len() - 1..], HeadMode::LastLogits, None).unwrap());
+        let l = logits_of(pf(&mut st, &p[p.len() - 1..], HeadMode::LastLogits));
         let (rt, rr) = greedy(&mut st, l, GEN);
         let d = rt.iter().zip(&toks).position(|(a, b)| a != b);
         eprintln!(
@@ -666,8 +672,8 @@ fn real_qwen3_8b_prefix_reuse_probe() {
         let mut line = String::new();
         for k in 1..p.len() {
             let mut st = m.new_state().unwrap();
-            m.forward(&mut st, &p[..k], HeadMode::None, None).unwrap();
-            let mut rows = vec![logits_of(m.forward(&mut st, &p[k..], HeadMode::LastLogits, None).unwrap())];
+            pf(&mut st, &p[..k], HeadMode::None);
+            let mut rows = vec![logits_of(pf(&mut st, &p[k..], HeadMode::LastLogits))];
             for &t in &cold[i].0[..FORCED] {
                 rows.push(logits_of(m.forward(&mut st, &[t], HeadMode::LastLogits, None).unwrap()));
             }
@@ -684,10 +690,10 @@ fn real_qwen3_8b_prefix_reuse_probe() {
                 continue;
             }
             let mut st = m.new_state().unwrap();
-            let l = logits_of(m.forward(&mut st, q, HeadMode::LastLogits, None).unwrap());
+            let l = logits_of(pf(&mut st, q, HeadMode::LastLogits));
             let _ = greedy(&mut st, l, FORCED);
             st.truncate(c, &*m.backend).unwrap();
-            let mut rows = vec![logits_of(m.forward(&mut st, &p[c..], HeadMode::LastLogits, None).unwrap())];
+            let mut rows = vec![logits_of(pf(&mut st, &p[c..], HeadMode::LastLogits))];
             for &t in &cold[i].0[..FORCED] {
                 rows.push(logits_of(m.forward(&mut st, &[t], HeadMode::LastLogits, None).unwrap()));
             }

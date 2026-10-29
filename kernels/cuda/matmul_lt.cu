@@ -12,6 +12,7 @@
 // INTARSIA_LT_DEBUG=1 prints the chosen algorithm per shape.
 #include "ik_launch.h"
 #include "ik_internal.h"
+#include "ik_quant.cuh"
 #include <cublasLt.h>
 #include <map>
 #include <mutex>
