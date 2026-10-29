@@ -546,6 +546,18 @@ impl SpecGate {
         true
     }
 
+    /// What [`SpecGate::allow`] would answer now, without counting anything (lane mmtp: whether to draft the next pass ahead
+    /// of its verify). A guess only: the cost samples taken before the next step can still change the answer.
+    pub fn would_allow(&self, busy: bool) -> bool {
+        if busy && !self.busy_ok() {
+            return false;
+        }
+        if !busy && self.cost.p.enabled() && (matches!(self.cost.mode, CostMode::Plain { .. }) || self.cost.probe) {
+            return false;
+        }
+        self.skip == 0
+    }
+
     /// Whether a request with this history may draft beside other decoding sequences.
     fn busy_ok(&self) -> bool {
         self.p.fails == 0

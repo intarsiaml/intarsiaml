@@ -4,7 +4,7 @@
 //! `Engine` is object safe: hold it as `Arc<dyn Engine>`.
 
 use crate::error::{Error, Result};
-use crate::model::{HeadMode, Model, StepOut};
+use crate::model::{HeadMode, Model, Predraft, Staged, StepOut};
 use crate::sampler::{Sampler, SamplingParams};
 use crate::state::SequenceState;
 use crate::telemetry::{Telemetry, TelemetrySnapshot};
@@ -1159,6 +1159,13 @@ pub(crate) struct Seq {
     ps: Option<SeqStore>,
     /// Time spent restoring a stored prefix (part of the time to first token).
     restore_time: Duration,
+    /// The single-sequence loop drives this sequence (`run_seq`): the workspace is its own between steps, so the MTP step
+    /// may run pipelined (`Model::spec_pipe_step`, lane mmtp) and leave the next draft running behind it.
+    pipe_solo: bool,
+    /// The next pass's draft, already submitted (`Model::spec_pipe_predraft`).
+    predraft: Option<Predraft>,
+    /// The next pass's ids, already in `ws.ids` (`Model::spec_pipe_step`).
+    staged: Option<Staged>,
 }
 
 /// Reject prompts a sequence of capacity `cap` cannot take.
@@ -1339,6 +1346,9 @@ impl Seq {
             tx,
             ps: None,
             restore_time: Duration::ZERO,
+            pipe_solo: false,
+            predraft: None,
+            staged: None,
         }
     }
 
@@ -1786,6 +1796,26 @@ impl Seq {
         Next::Plain
     }
 
+    /// The `k` [`Seq::plan_step`] will draft with once the verified tokens in `pending` are out, if it will draft then
+    /// (lane mmtp: the pipelined step submits that draft before the tokens go out). [`Seq::plan_step`]'s rules at the
+    /// token count the pending tokens reach; a stop id among them, the gate's next answer and the end of the request are
+    /// taken into account, a stop string or a cancel is not (the draft is then unused, which changes nothing).
+    fn next_draft_k(&self, st: &SequenceState) -> Option<usize> {
+        if !self.pipe_solo || !self.spec_on || !self.spec_mtp || self.spec_dflash || self.auto.is_some() {
+            return None;
+        }
+        if self.spec_paused || self.plain_next || self.pending.is_empty() || self.pending.iter().any(|t| self.stop_ids.contains(t)) {
+            return None;
+        }
+        if !self.gate.would_allow(self.spec_busy) {
+            return None;
+        }
+        let generated = self.generated + self.pending.len();
+        let room = st.cap.saturating_sub(st.len + 1);
+        let k = self.spec_k.min(room).min(self.max_new.saturating_sub(generated + 1));
+        (k > 0 && (generated >= self.req.min_tokens || self.stop_ids.is_empty())).then_some(k)
+    }
+
     /// Run the verify pass for `drafts` ([`Next::Verify`]); the verified tokens queue up for [`Seq::plan_step`].
     pub(crate) fn verify(&mut self, model: &Model, st: &mut SequenceState, drafts: &[u32]) -> Result<()> {
         let pos = st.len;
@@ -1848,7 +1878,13 @@ impl Seq {
     /// speculative run) becomes `self.tok`, a verify pass runs; `Some((token, mode))` when a plain step is still needed
     /// ([`Seq::plain_input`]), which the caller runs alone or inside a batch and hands to [`Seq::accept_plain`].
     pub(crate) fn prepare(&mut self, model: &Model, st: &mut SequenceState) -> Result<Option<(u32, HeadMode)>> {
-        match self.plan_step(st) {
+        let plan = self.plan_step(st);
+        if !matches!(plan, Next::Emit(_) | Next::Draft(_)) {
+            // anything else runs on the workspace: what the last pipelined pass left there is gone
+            self.predraft = None;
+            self.staged = None;
+        }
+        match plan {
             Next::Emit(t) => {
                 self.tok = t;
                 return Ok(None);
@@ -1860,7 +1896,47 @@ impl Seq {
                     return Ok(None);
                 }
             }
+            Next::Draft(k)
+                if self.pipe_solo
+                    && self.auto.is_none()
+                    && !self.spec_dflash
+                    && !self.spec_busy
+                    && !mtp_verify_check()
+                    && model.spec_pipe_ok(st, self.tok, k) =>
+            {
+                // draft and verify with one wait (`Model::spec_pipe_step`), the same acceptance, then the next pass's draft is
+                // submitted before this pass's tokens go out
+                self.cost_begin(true);
+                let t0 = Instant::now();
+                let len0 = st.len;
+                let pre = self.predraft.take();
+                let ahead = pre.is_some();
+                let staged = self.staged.take();
+                let pass = model.spec_pipe_step(st, self.tok, k, pre, staged.as_ref())?;
+                self.verify_pass(model, st, len0, &pass.drafts, pass.out)?;
+                let t1 = Instant::now();
+                if let (Some(k2), Some(&next)) = (self.next_draft_k(st), self.pending.back()) {
+                    self.predraft = model.spec_pipe_predraft(st, next, k2, pass.staged.as_ref())?;
+                }
+                if self.predraft.is_none() {
+                    self.staged = pass.staged;
+                }
+                if crate::spec::trace_enabled() {
+                    eprintln!(
+                        "spec: mtp pipe step {:.3} ms (drafted ahead {ahead}), next draft submitted in {:.3} ms ({})",
+                        (t1 - t0).as_secs_f64() * 1e3,
+                        t1.elapsed().as_secs_f64() * 1e3,
+                        self.predraft.is_some()
+                    );
+                }
+                if let Some(t) = self.pending.pop_front() {
+                    self.tok = t;
+                    return Ok(None);
+                }
+            }
             Next::Draft(k) if self.auto.is_none() && !mtp_verify_check() && model.spec_step_ok(st, self.tok, k) => {
+                self.predraft = None;
+                self.staged = None;
                 // draft and verify as one replay of a captured graph (`Model::spec_step`), then the same acceptance
                 self.cost_begin(true);
                 let t0 = Instant::now();
@@ -1887,6 +1963,8 @@ impl Seq {
                 }
             }
             Next::Draft(k) => {
+                self.predraft = None;
+                self.staged = None;
                 self.cost_begin(true);
                 let t0 = Instant::now();
                 let drafter = self.drafter;
@@ -2118,6 +2196,8 @@ fn run_seq(seq: &mut Seq, model: &mut Model, st: &mut SequenceState) -> Result<O
         }
     }
     let mut first = true;
+    // this loop alone runs on the model between the sequence's steps
+    seq.pipe_solo = true;
     loop {
         let done = seq.on_token()?;
         if first {

@@ -1,0 +1,45 @@
+fleetq: #7186 running on endor: .lane/w1.sh
+## short-off 17:14:20
+finish=length prompt=19 (cached 0) completion=256 | prefill 400 ms (47.5 tok/s) | decode 2015 ms (126.58 tok/s)
+steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570
+## short-mtp0 17:14:25
+spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass)
+steps=104 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/205 argmax=0ms/306 attn_decode=0ms/130 attn_prefill=0ms/1113 embedding=0ms/309
+## short-mtp1 17:14:30
+spec: verify passes=102 proposed=203 accepted=153 (acceptance 75.4%, 2.50 tokens per pass)
+steps=104 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/205 argmax=0ms/306 attn_decode=0ms/130 attn_prefill=0ms/1113 embedding=0ms/309
+## 4ka-off 17:14:36
+finish=length prompt=4096 (cached 0) completion=256 | prefill 847 ms (4838.5 tok/s) | decode 2114 ms (120.63 tok/s)
+steps=257 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/10 embedding=0ms/257 gate_split=0ms/2570
+## 4ka-mtp0 17:14:42
+spec: verify passes=99 proposed=198 accepted=155 (acceptance 78.3%, 2.57 tokens per pass)
+steps=102 graph replays=0 (captures 0) eager decode steps=2 (profiled 0) top ops: add=0ms/201 argmax=0ms/299 attn_decode=0ms/135 attn_prefill=0ms/1083 embedding=0ms/303
+## 4ka-mtp1 17:14:47
+spec: verify passes=99 proposed=198 accepted=155 (acceptance 78.3%, 2.57 tokens per pass)
+steps=102 graph replays=0 (captures 0) eager decode steps=2 (profiled 0) top ops: add=0ms/201 argmax=0ms/299 attn_decode=0ms/135 attn_prefill=0ms/1083 embedding=0ms/303
+## 4kb-off 17:14:53
+finish=length prompt=4171 (cached 0) completion=256 | prefill 900 ms (4633.5 tok/s) | decode 2111 ms (120.78 tok/s)
+steps=258 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/20 embedding=0ms/258 gate_split=0ms/2580
+## 4kb-mtp0 17:14:58
+spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)
+steps=98 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/193 argmax=0ms/286 attn_decode=0ms/115 attn_prefill=0ms/1055 embedding=0ms/291
+## 4kb-mtp1 17:15:04
+spec: verify passes=95 proposed=190 accepted=160 (acceptance 84.2%, 2.68 tokens per pass)
+steps=98 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/193 argmax=0ms/286 attn_decode=0ms/115 attn_prefill=0ms/1055 embedding=0ms/291
+## 16k-off 17:15:09
+finish=length prompt=16384 (cached 0) completion=256 | prefill 3678 ms (4454.6 tok/s) | decode 2337 ms (109.13 tok/s)
+steps=260 graph replays=0 (captures 0) eager decode steps=256 (profiled 0) top ops: argmax=0ms/256 attn_decode=0ms/2560 attn_prefill=0ms/40 embedding=0ms/260 gate_split=0ms/2600
+## 16k-mtp0 17:15:18
+spec: verify passes=99 proposed=197 accepted=156 (acceptance 79.2%, 2.58 tokens per pass)
+steps=104 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/202 argmax=0ms/297 attn_decode=0ms/124 attn_prefill=0ms/1113 embedding=0ms/306
+## 16k-mtp1 17:15:27
+spec: verify passes=99 proposed=197 accepted=156 (acceptance 79.2%, 2.58 tokens per pass)
+steps=104 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/202 argmax=0ms/297 attn_decode=0ms/124 attn_prefill=0ms/1113 embedding=0ms/306
+## 4ka-cb0 17:15:35
+spec: verify passes=52 proposed=103 accepted=76 (acceptance 73.8%, 2.46 tokens per pass)
+steps=54 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/105 argmax=0ms/156 attn_decode=0ms/73 attn_prefill=0ms/570 embedding=0ms/159
+## 4ka-cb1 17:15:40
+spec: verify passes=52 proposed=103 accepted=76 (acceptance 73.8%, 2.46 tokens per pass)
+steps=54 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/105 argmax=0ms/156 attn_decode=0ms/73 attn_prefill=0ms/570 embedding=0ms/159
+## done 17:15:45
+fleetq: #7186 done (exit 0)
