@@ -1,0 +1,9 @@
+fleetq: #6719 running on spark1: bash -c 'scripts/srv16/build.sh dev2 && scripts/srv16/batch-real.sh build'
+    Finished `release` profile [optimized] target(s) in 1m 54s
+-rwxrwxr-x 1 nvidia nvidia 100540576 Oct 29 00:08 /home/nvidia/intarsiaml-srv16/bin/dev2
+intarsia 0.0.1
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 10.64s
+  Executable tests/batch_cuda_real.rs (target/release/deps/batch_cuda_real-a41e7f0f521d6475)
+fleetq: #6719 done (exit 0)

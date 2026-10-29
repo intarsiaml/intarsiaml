@@ -1,0 +1,40 @@
+    --> crates/intarsia-core/src/model/batch.rs:1213:4
+     |
+1213 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/rows_exact.rs (target/release/deps/rows_exact-22d61bde1266dc5a)
+
+running 11 tests
+test timing_gemv_rows ... ignored, micro-timing
+test timing_rows_evict ... ignored, micro-timing
+test row_parallel_ops_are_row_independent ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test rows_split_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_full_are_bitwise_the_one_row_gemv ... ok
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_q_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+
+test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 17.11s
+

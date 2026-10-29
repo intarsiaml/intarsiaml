@@ -1,0 +1,33 @@
+fleetq: #6757 running on spark1: env IDENT_MIX=1 IDENT_OUT=ident-w3b scripts/srv16/ident.sh base:base dev4:dev4
+mix-greedy n=4: 256 tokens, prompts [7576, 1212, 3435, 1091]
+mix-greedy n=8: 512 tokens, prompts [7576, 1212, 3435, 1091, 5636, 1197, 4504, 1144]
+mix-greedy-again n=4: 256 tokens, prompts [7576, 1212, 3435, 1091]
+mix-greedy-again n=8: 512 tokens, prompts [7576, 1212, 3435, 1091, 5636, 1197, 4504, 1144]
+mix-t0.8-k40-p0.95 n=4: 256 tokens, prompts [7585, 1221, 3444, 1100]
+mix-t0.8-k40-p0.95 n=8: 512 tokens, prompts [7585, 1221, 3444, 1100, 5645, 1206, 4513, 1153]
+intarsia_batch_iterations_total 450
+intarsia_batch_decode_steps_total 444
+intarsia_batch_prefill_chunks_total 72
+intarsia_batch_prefill_tokens_total 117435
+intarsia_batch_mixed_iterations_total 66
+intarsia_batch_step_ewma_ms 23.072383925194142
+mix-greedy n=4: 256 tokens, prompts [7576, 1212, 3435, 1091]
+mix-greedy n=8: 512 tokens, prompts [7576, 1212, 3435, 1091, 5636, 1197, 4504, 1144]
+mix-greedy-again n=4: 256 tokens, prompts [7576, 1212, 3435, 1091]
+mix-greedy-again n=8: 512 tokens, prompts [7576, 1212, 3435, 1091, 5636, 1197, 4504, 1144]
+mix-t0.8-k40-p0.95 n=4: 256 tokens, prompts [7585, 1221, 3444, 1100]
+mix-t0.8-k40-p0.95 n=8: 512 tokens, prompts [7585, 1221, 3444, 1100, 5645, 1206, 4513, 1153]
+intarsia_batch_iterations_total 444
+intarsia_batch_decode_steps_total 438
+intarsia_batch_prefill_chunks_total 72
+intarsia_batch_prefill_tokens_total 117435
+intarsia_batch_mixed_iterations_total 60
+intarsia_batch_step_ewma_ms 23.120063410578624
+EQUAL  mix-greedy/n4
+EQUAL  mix-greedy/n8
+EQUAL  mix-greedy-again/n4
+EQUAL  mix-greedy-again/n8
+EQUAL  mix-t0.8-k40-p0.95/n4
+EQUAL  mix-t0.8-k40-p0.95/n8
+6/6 long-prompt cells identical, 2304 token ids compared
+fleetq: #6757 done (exit 0)

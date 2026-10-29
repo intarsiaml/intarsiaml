@@ -209,6 +209,15 @@ impl Backend for CudaBackend {
     fn row_invariant_prefill(&self) -> bool {
         false
     }
+    /// Lane srv16: cuBLASLt fp8 and cuBLAS bf16 GEMMs pick tiling / split-K by row count (lane sk's macro pass), so a packed
+    /// prefill runs them per prompt; without it `real_35b_packed_prefill_equals_the_local_engine` fails.
+    fn pack_split_gemms(&self) -> bool {
+        true
+    }
+    /// Lane srv16: packed prefill on by default (docs/results/2026-10-28-srv16-serve-gap.md: each prompt bitwise its solo prefill).
+    fn pack_prefill_default(&self) -> bool {
+        true
+    }
     fn name(&self) -> &str {
         "cuda"
     }
