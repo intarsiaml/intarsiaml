@@ -31,6 +31,7 @@ impl Model {
         let act = self.act;
         let (c, hv, dv, dk, ks) = (l.conv_dim(), l.v_heads, l.v_head_dim, l.k_head_dim, l.conv_kernel);
         let vdim = hv * dv;
+        let conv_dt = self.backend.gdn_conv_dtype();
 
         let qkv = self.view(&x.qkv, act, &[rows, c]);
         let z = self.view(&x.z, act, &[rows, vdim]);
@@ -110,12 +111,12 @@ impl Model {
         let mut table_done = false;
         if let (Some(conv_tab), Some(delta_tab)) = (
             self.row_tab_for(rows, g.slot, 0, 0),
-            self.row_tab_for(rows, g.slot, 0, state_s_offset(l)),
+            self.row_tab_for(rows, g.slot, 0, state_s_offset(l, conv_dt)),
         ) {
             if let StateSlot::Recurrent(rec) = &sts[0].slots[g.slot] {
-                let conv_state = TensorRef::new(rec.buf.clone(), DType::F32, &[c, ks - 1]);
+                let conv_state = TensorRef::new(rec.buf.clone(), conv_dt, &[c, ks - 1]);
                 let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
-                s_state.offset = state_s_offset(l);
+                s_state.offset = state_s_offset(l, conv_dt);
                 let mut cc = OpCall::new(
                     Op::GdnConv,
                     vec![qkv.clone(), g.conv.clone()],
@@ -156,9 +157,9 @@ impl Model {
                         return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot"))
                     }
                 };
-                let conv_state = TensorRef::new(rec.buf.clone(), DType::F32, &[c, ks - 1]);
+                let conv_state = TensorRef::new(rec.buf.clone(), conv_dt, &[c, ks - 1]);
                 let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
-                s_state.offset = state_s_offset(l);
+                s_state.offset = state_s_offset(l, conv_dt);
                 let (qkv_r, a_r, b_r, conv_r, core_r) =
                     (qkv.rows(r, 1), a.rows(r, 1), bg.rows(r, 1), conv.rows(r, 1), core.rows(r, 1));
                 let folded = self.try_fused(

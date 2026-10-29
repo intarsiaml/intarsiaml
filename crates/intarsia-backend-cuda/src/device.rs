@@ -219,6 +219,16 @@ impl Backend for CudaBackend {
     fn pack_prefill_default(&self) -> bool {
         true
     }
+    /// Lane conv16: the GDN conv state is bf16 (it only holds past bf16 inputs or zeros, so bitwise the f32 one) and the conv
+    /// kernels move half the bytes (docs/results/2026-10-29-conv16-bf16-conv-state.md). `INTARSIA_CUDA_CONV_BF16=0` opts out.
+    fn gdn_conv_dtype(&self) -> DType {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        if *ON.get_or_init(|| std::env::var_os("INTARSIA_CUDA_CONV_BF16").map_or(true, |v| v != "0")) {
+            DType::Bf16
+        } else {
+            DType::F32
+        }
+    }
     fn name(&self) -> &str {
         "cuda"
     }

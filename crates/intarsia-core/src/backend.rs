@@ -257,6 +257,13 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Element type of the GatedDeltaNet conv state in a layer's recurrent slot (`[C, K-1]`, ahead of the delta-rule state).
+    /// The state only ever holds past bf16 inputs (or zeros), so a backend whose conv kernels take it as bf16 halves the
+    /// bytes they move, bitwise (lane conv16: CUDA). Default f32 (cpu, Metal, HIP): the slot layout is then unchanged.
+    fn gdn_conv_dtype(&self) -> DType {
+        DType::F32
+    }
+
     /// Device description with memory figures measured at call time.
     fn info(&self) -> DeviceInfo;
 
