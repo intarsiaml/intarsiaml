@@ -296,7 +296,7 @@ pub const MATMUL_PAIR_BF16_NAX: &str = "matmul_pair_bf16_nax";
 /// the P2 flash kernel and falls back to it for operands it cannot take.
 pub const ATTN_PREFILL_BF16_FLASH_NAX: &str = "attn_prefill_bf16_flash_nax";
 pub const NAX_KERNELS: &[&str] =
-    &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX, crate::fp8::MATMUL_FP8_NAX];
+    &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX, crate::fp8::MATMUL_FP8_NAX, crate::nvfp4::MATMUL_NVFP4_NAX];
 
 pub fn requires_metal4(kernel: &str) -> bool {
     NAX_KERNELS.contains(&kernel)
@@ -379,6 +379,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::fp8::MATMUL_FP8_NAX, Op::MatmulFp8),
     (crate::nvfp4::MATMUL_NVFP4_GEMV, Op::MatmulNvfp4),
     (crate::nvfp4::MATMUL_NVFP4_MMA, Op::MatmulNvfp4),
+    (crate::nvfp4::MATMUL_NVFP4_NAX, Op::MatmulNvfp4),
     (crate::fp8::MATMUL_FP8_GEMV_ROWS, Op::MatmulFp8),
     (crate::nvfp4::MATMUL_NVFP4_GEMV_ROWS, Op::MatmulNvfp4),
     (crate::moe::MOE_EXPERTS_BF16_ROWS, Op::MoeExperts),
@@ -656,6 +657,16 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(PAIR_TOL)
                     .tol_f32(F32_TOL)
                     .priority(0),
+                // the GEMM on the neural accelerators (decoded bf16 weights in the scratch, fp8 NAX GEMM): M > 8, above `mma`
+                crate::nvfp4::MATMUL_NVFP4_NAX => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::nvfp4::nax_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(crate::nvfp4::nax_scratch)
+                    .priority(5),
                 // Row-exact multi-row forms for batched decode of the hybrid 35B (rows_exact: only `OpCall::exact_rows` calls
                 // select them): row r bitwise the M = 1 serving kernel on row r alone, M = 2..=8 (tests/rows_exact.rs).
                 crate::fp8::MATMUL_FP8_GEMV_ROWS => k

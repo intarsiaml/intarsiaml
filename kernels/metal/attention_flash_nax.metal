@@ -4,7 +4,7 @@
 // `attn_prefill_bf16_flash` (attention_flash.metal): 0 q [T,N,D], 1 k cache [Nkv,cap,D], 2 v cache, 3 out [T,N,D],
 // 4 OpP (a = T, b = N, c = Nkv, d = D, e = cap, f = pos0, f0 = scale); operands 16-byte aligned (the launcher falls back
 // to the P2 kernel otherwise). Query rows are positions pos0 .. pos0 + T, keys 0 .. pos0 + T are in the cache, row i sees
-// keys 0 ..= pos0 + i. head_dim 128.
+// keys 0 ..= pos0 + i. head_dim 128 (attn_nax) and head_dim 256 with an even group (attn_nax_x, at the end of the file).
 //
 // Structure after MLX's NAX attention (mlx/backend/metal/kernels/steel/attn/kernels/steel_attention_nax.h and
 // steel/attn/nax.h): 16x16 fragments with 8 elements per lane, matmul2d 16x32x16 on register-resident cooperative
@@ -300,3 +300,215 @@ template <int D, int BK, int NSG>
 // Keep in step with NAX_FLASH_VARIANTS in src/flash_nax.rs. NSG = 4 serves groups 1, 2, 4; NSG = 8 serves group 8.
 NAX_FLASH_INST("attn_nax_d128_s4", 128, 32, 4)
 NAX_FLASH_INST("attn_nax_d128_s8", 128, 32, 8)
+
+// head_dim 256 (attn_nax_x): the D / 16 Q fragments and the D / 16 accumulator fragments of one simdgroup do not fit the
+// register file together (a plain attn_nax<256> instantiation spills and runs at 6-9 TFLOPS, below the P2 kernel). So two
+// simdgroups share a (query head, 16-row slab): simdgroup half h holds the Q columns and accumulates the O columns
+// 128 h .. 128 h + 127, which is exactly the register footprint of the head_dim 128 kernel. Per key tile each half
+// computes its partial score tile Q_h . K_h^T over its 128 dims, the two partials meet in threadgroup memory (each lane
+// trades with the same lane of the partner, which holds the same fragment coordinates) and both form S = S_0 + S_1 in
+// that order, so both run the identical softmax and get identical P, m and l. A threadgroup is NH heads x 2 halves; the
+// partial-score slots are double-buffered, so one barrier per key tile suffices (a simdgroup can only overwrite slot
+// kt & 1 after the barrier of tile kt + 1, which its partner passes after reading it). Everything else (bf16 P with l
+// summed over the rounded weights, masking, key tiles from absolute key 0, the bounds-checked last tile) is attn_nax's,
+// so the result is chunk invariant in the same way.
+template <int BK, int NH>
+[[kernel, max_total_threads_per_threadgroup(NH * 64)]] void attn_nax_x(
+    device const ushort* q [[buffer(0)]],
+    device const ushort* kc [[buffer(1)]],
+    device const ushort* vc [[buffer(2)]],
+    device ushort* out [[buffer(3)]],
+    constant OpP& p [[buffer(4)]],
+    uint3 tg [[threadgroup_position_in_grid]],
+    uint3 grid [[threadgroups_per_grid]],
+    uint sg [[simdgroup_index_in_threadgroup]],
+    uint lane [[thread_index_in_simdgroup]]) {
+    constexpr int D = 256, DH = 128;
+    constexpr int TH = DH / 16;  // fragments of a half
+    constexpr int TK = BK / 16;
+    static_assert(BK % 32 == 0, "tile shape");
+    threadgroup float4 xs[2][NH * 2][TK * 2][32];
+
+    const uint T = p.a, N = p.b, Nkv = p.c;
+    const ulong cap = p.e, pos0 = p.f;
+    const uint G = N / Nkv;
+    const uint qb = grid.x - 1 - tg.x;
+    const uint kvh = tg.y;
+    const uint half_ = sg & 1, hh = sg >> 1;
+    const uint head = kvh * G + tg.z * NH + hh;
+    const uint qbase = qb * 16;
+    const uint c0 = half_ * DH;
+    const ulong kv_len = min(pos0 + T, cap);
+    const ulong kmax = min(kv_len, pos0 + min((ulong)T, (ulong)(qb + 1) * 16));
+    const uint nkt = (uint)((kmax + BK - 1) / BK);
+
+    const uint qid = lane / 4;
+    const uint fm = (qid & 4) + ((lane / 2) % 4);
+    const uint cq = (qid & 2) + (lane & 1);
+
+    device bfloat* kb = (device bfloat*)(kc + (ulong)kvh * cap * D);
+    device bfloat* vb = (device bfloat*)(vc + (ulong)kvh * cap * D);
+    tensor<device bfloat, dextents<int, 2>, tensor_inline> tK(kb, dextents<int, 2>(D, (int)kv_len));
+    tensor<device bfloat, dextents<int, 2>, tensor_inline> tV(vb, dextents<int, 2>(D, (int)kv_len));
+
+    const uint pos0r = qbase + fm, pos1r = qbase + fm + 8;
+    frag_t<bfloat> Qf[TH];
+    FN_UNROLL
+    for (int id = 0; id < TH; ++id) {
+        const uint co = c0 + 16 * id + 4 * cq;
+        Qf[id] = ld_frag(q + ((ulong)pos0r * N + head) * D + co, pos0r < T, q + ((ulong)pos1r * N + head) * D + co, pos1r < T);
+    }
+
+    frag_t<float> O[TH];
+    FN_UNROLL
+    for (int i = 0; i < TH; ++i) O[i] = frag_t<float>(0.0f);
+    float m0 = -INFINITY, m1 = -INFINITY, l0 = 0.0f, l1 = 0.0f;
+    const float c = p.f0 * 1.44269504088896340736f;
+    const ulong row0 = pos0 + pos0r, row1 = pos0 + pos1r;
+    const ulong first_row = pos0 + qbase;
+
+    for (uint kt = 0; kt < nkt; ++kt) {
+        const int key0 = (int)((ulong)kt * BK);
+
+        frag_t<float> S[TK];
+        FN_UNROLL
+        for (int j = 0; j < TK; ++j) S[j] = frag_t<float>(0.0f);
+        const bool full = (ulong)key0 + BK <= kv_len;
+        if (full) {
+            FN_UNROLL
+            for (int kp = 0; kp < TK / 2; ++kp) {
+                FN_UNROLL
+                for (int id = 0; id < TH; ++id) {
+                    auto sk = tK.template slice<16, 32>(c0 + 16 * id, key0 + 32 * kp);
+                    nax_mma_ct<true>(S[2 * kp], S[2 * kp + 1], Qf[id], sk);
+                }
+            }
+        } else {
+            FN_UNROLL
+            for (int kp = 0; kp < TK / 2; ++kp) {
+                const ulong ka = (ulong)key0 + 32 * kp + fm, kb2 = ka + 16;
+                FN_UNROLL
+                for (int id = 0; id < TH; ++id) {
+                    const uint co = c0 + 16 * id + 4 * cq;
+                    const frag_t<bfloat> b0 = ld_frag((device const ushort*)kb + ka * D + co, ka < kv_len,
+                                                      (device const ushort*)kb + (ka + 8) * D + co, ka + 8 < kv_len);
+                    const frag_t<bfloat> b1 = ld_frag((device const ushort*)kb + kb2 * D + co, kb2 < kv_len,
+                                                      (device const ushort*)kb + (kb2 + 8) * D + co, kb2 + 8 < kv_len);
+                    nax_mma<true>(S[2 * kp], S[2 * kp + 1], Qf[id], b0, b1);
+                }
+            }
+        }
+        // the two halves' partial scores: S = S_0 + S_1 (in this order on both halves)
+        threadgroup float4 (*mine)[32] = xs[kt & 1][sg];
+        threadgroup float4 (*other)[32] = xs[kt & 1][sg ^ 1];
+        FN_UNROLL
+        for (int f = 0; f < TK; ++f) {
+            mine[2 * f][lane] = float4(S[f][0], S[f][1], S[f][2], S[f][3]);
+            mine[2 * f + 1][lane] = float4(S[f][4], S[f][5], S[f][6], S[f][7]);
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        FN_UNROLL
+        for (int f = 0; f < TK; ++f) {
+            const float4 a = other[2 * f][lane], b = other[2 * f + 1][lane];
+            const float o8[8] = {a.x, a.y, a.z, a.w, b.x, b.y, b.z, b.w};
+            FN_UNROLL
+            for (int e = 0; e < 8; ++e) S[f][e] = half_ == 0 ? S[f][e] + o8[e] : o8[e] + S[f][e];
+        }
+
+        const bool masked = (ulong)key0 + BK - 1 > first_row;
+        float mx0 = -INFINITY, mx1 = -INFINITY;
+        FN_UNROLL
+        for (int f = 0; f < TK; ++f) {
+            FN_UNROLL
+            for (int e = 0; e < 8; ++e) {
+                float s = S[f][e] * c;
+                const ulong key = (ulong)key0 + 16 * f + 4 * cq + (e & 3);
+                if (masked && key > ((e & 4) ? row1 : row0)) s = -INFINITY;
+                S[f][e] = s;
+                if (e & 4) mx1 = max(mx1, s); else mx0 = max(mx0, s);
+            }
+        }
+        mx0 = max(mx0, simd_shuffle_xor(mx0, ushort(1)));
+        mx0 = max(mx0, simd_shuffle_xor(mx0, ushort(8)));
+        mx1 = max(mx1, simd_shuffle_xor(mx1, ushort(1)));
+        mx1 = max(mx1, simd_shuffle_xor(mx1, ushort(8)));
+        const float mn0 = max(m0, mx0), mn1 = max(m1, mx1);
+        const float mu0 = mn0 == -INFINITY ? 0.0f : mn0, mu1 = mn1 == -INFINITY ? 0.0f : mn1;
+        const float f0 = fast::exp2(m0 - mu0), f1 = fast::exp2(m1 - mu1);
+        m0 = mn0;
+        m1 = mn1;
+        float ls0 = 0.0f, ls1 = 0.0f;
+        frag_t<bfloat> Pf[TK];
+        FN_UNROLL
+        for (int f = 0; f < TK; ++f) {
+            FN_UNROLL
+            for (int e = 0; e < 8; ++e) {
+                Pf[f][e] = bfloat(fast::exp2(S[f][e] - ((e & 4) ? mu1 : mu0)));
+                const float pr = float(Pf[f][e]);  // the weight P.V applies
+                if (e & 4) ls1 += pr; else ls0 += pr;
+            }
+        }
+        l0 = l0 * f0 + ls0;
+        l1 = l1 * f1 + ls1;
+        FN_UNROLL
+        for (int i = 0; i < TH; ++i) {
+            FN_UNROLL
+            for (int e = 0; e < 8; ++e) O[i][e] *= (e & 4) ? f1 : f0;
+        }
+
+        if (full) {
+            FN_UNROLL
+            for (int kk = 0; kk < TK; ++kk) {
+                FN_UNROLL
+                for (int idp = 0; idp < TH / 2; ++idp) {
+                    auto sv = tV.template slice<32, 16>(c0 + 32 * idp, key0 + 16 * kk);
+                    nax_mma_ct<false>(O[2 * idp], O[2 * idp + 1], Pf[kk], sv);
+                }
+            }
+        } else {
+            FN_UNROLL
+            for (int kk = 0; kk < TK; ++kk) {
+                const ulong va = (ulong)key0 + 16 * kk + fm;
+                FN_UNROLL
+                for (int idp = 0; idp < TH / 2; ++idp) {
+                    const uint co = c0 + 32 * idp + 4 * cq;
+                    const frag_t<bfloat> v0 = ld_frag((device const ushort*)vb + va * D + co, va < kv_len,
+                                                      (device const ushort*)vb + (va + 8) * D + co, va + 8 < kv_len);
+                    const frag_t<bfloat> v1 = ld_frag((device const ushort*)vb + va * D + co + 16, va < kv_len,
+                                                      (device const ushort*)vb + (va + 8) * D + co + 16, va + 8 < kv_len);
+                    nax_mma<false>(O[2 * idp], O[2 * idp + 1], Pf[kk], v0, v1);
+                }
+            }
+        }
+    }
+
+    l0 += simd_shuffle_xor(l0, ushort(1));
+    l0 += simd_shuffle_xor(l0, ushort(8));
+    l1 += simd_shuffle_xor(l1, ushort(1));
+    l1 += simd_shuffle_xor(l1, ushort(8));
+    const float inv0 = 1.0f / l0, inv1 = 1.0f / l1;
+    FN_UNROLL
+    for (int i = 0; i < 2; ++i) {
+        const uint pos = i ? pos1r : pos0r;
+        if (pos >= T) continue;
+        const float inv = i ? inv1 : inv0;
+        device uint2* dst = (device uint2*)(out + ((ulong)pos * N + head) * D + c0 + 4 * cq);
+        FN_UNROLL
+        for (int id = 0; id < TH; ++id) {
+            const ushort a = f2bf(O[id][4 * i] * inv), b = f2bf(O[id][4 * i + 1] * inv);
+            const ushort c2 = f2bf(O[id][4 * i + 2] * inv), d2 = f2bf(O[id][4 * i + 3] * inv);
+            dst[id * 4] = uint2((uint)a | ((uint)b << 16), (uint)c2 | ((uint)d2 << 16));
+        }
+    }
+}
+
+#define NAX_FLASH_X_INST(NAME, BK, NH)                                                                                \
+    template [[host_name(NAME)]] kernel void attn_nax_x<BK, NH>(                                                      \
+        device const ushort*, device const ushort*, device const ushort*, device ushort*, constant OpP&, uint3, uint3, \
+        uint, uint);
+
+// Keep in step with NAX_FLASH_VARIANTS (head_dim 256 rows) in src/flash_nax.rs.
+// NH heads of a kv head per threadgroup (16 KB / 32 KB of partial-score slots). A 64-key tile (32 KB at NH = 2) ran at
+// half the speed (13.7 against 27 TFLOPS at 14k context) and changes the bits (other online-softmax steps): not kept.
+NAX_FLASH_X_INST("attn_nax_d256_h4", 32, 4)
+NAX_FLASH_X_INST("attn_nax_d256_h2", 32, 2)
