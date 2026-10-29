@@ -1,0 +1,30 @@
+warning: field `spec_dflash` is never read
+1135 |     spec_dflash: bool,
+test real_qwen3_8b_prefill_is_row_invariant ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663002112, free_bytes: 64548331520, weights_bytes: 16381470720, workspace_bytes: 538755472, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 61320914174, kv_cap_tokens: 8192, kv_total_bytes: 1207959552, notes: [] }
+RIP prompt 2164 tokens (cold chunk 4096), cold greedy [576, 8585, 22126, 3855, 1576, 320, 4480, 220, 16]
+RIP 2164 split k=1: logits DIFFER kv DIFFER decode DIFFER from row 0 kv+decode DIFFER
+RIP 2164 split k=7: logits DIFFER kv DIFFER decode DIFFER from row 0 kv+decode DIFFER
+RIP 2164 split k=255: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 2164 split k=256: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 2164 split k=1000: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 2164 split k=2163: logits DIFFER kv DIFFER decode DIFFER from row 0 kv+decode DIFFER
+RIP 2164 busy 256-row chunks: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 2164 reuse from 2163: logits DIFFER kv DIFFER decode DIFFER from row 0 kv+decode DIFFER
+RIP 2164 reuse from 1000: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 2164 reuse from 1: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP prompt 7172 tokens (cold chunk 4096), cold greedy [576, 3840, 315, 279, 18484, 3493, 12033, 320, 4480]
+RIP 7172 split k=1: logits DIFFER kv DIFFER decode DIFFER from row 0 kv+decode DIFFER
+RIP 7172 split k=7: logits DIFFER kv DIFFER decode DIFFER from row 0 kv+decode DIFFER
+RIP 7172 split k=255: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 7172 split k=256: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 7172 split k=1000: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 7172 split k=7171: logits DIFFER kv DIFFER decode DIFFER from row 0 kv+decode DIFFER
+RIP 7172 split k=4095: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 7172 split k=4096: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 7172 split k=4097: logits DIFFER kv DIFFER decode DIFFER from row 0 kv+decode DIFFER
+RIP 7172 busy 256-row chunks: logits DIFFER kv DIFFER decode DIFFER from row 0 kv+decode DIFFER
+RIP 7172 reuse from 7171: logits DIFFER kv DIFFER decode DIFFER from row 0 kv+decode DIFFER
+RIP 7172 reuse from 1000: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP 7172 reuse from 1: logits EQUAL kv EQUAL decode EQUAL kv+decode EQUAL
+RIP plain prefill: 10 of the cases differ: ["2164 split k=1", "2164 split k=7", "2164 split k=2163", "2164 reuse from 2163", "7172 split k=1", "7172 split k=7", "7172 split k=7171", "7172 split k=4097", "7172 busy 256-row chunks", "7172 reuse from 7171"]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 103.86s

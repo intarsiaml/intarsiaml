@@ -171,6 +171,10 @@ int ik_matmul_fp8_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_ten
 /* = ik_matmul_nvfp4_gemv */
 int ik_matmul_nvfp4_gemv_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* block_scales,
                               const ik_tensor* global_scale, ik_tensor* out, void* stream);
+/* matmul_bf16_inv: matmul_bf16 (x[M,K] w[N,K]^T -> bf16 out[M,N], K % 8 == 0, N % 8 == 0, 16-byte aligned) on ONE cuBLASLt
+ * algorithm per (N, K) for every M (split-K 1, no workspace), so row m's bits do not depend on M (row-invariant prefill, lane
+ * rip; kernels/cuda/matmul_lt.cu, tests/row_invariance.rs). */
+int ik_matmul_bf16_inv(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
 /* = ik_matmul_bf16_gemv / ik_logits_bf16_gemv */
 int ik_matmul_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);
 int ik_logits_bf16_gemv_rows(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* stream);

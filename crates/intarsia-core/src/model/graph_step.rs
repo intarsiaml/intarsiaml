@@ -190,6 +190,7 @@ impl Model {
             return false;
         }
         ids.len() == 1
+            && !self.prefill_inv()
             && matches!(mode, HeadMode::LastLogits | HeadMode::LastArgmax)
             && st.id != 0
             && self.graphs.usable(self)

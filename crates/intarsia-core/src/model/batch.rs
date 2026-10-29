@@ -1114,6 +1114,8 @@ impl Model {
             peers: Vec::new(),
             remote: None,
             exact_rows: std::sync::atomic::AtomicBool::new(false),
+            prefill_inv: std::sync::atomic::AtomicBool::new(false),
+            inv_on: std::sync::atomic::AtomicBool::new(self.row_invariant_prefill()),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),

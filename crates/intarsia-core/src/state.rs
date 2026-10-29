@@ -178,6 +178,12 @@ pub struct SequenceState {
     /// a prefix-store restore leaves none. Exact prefix reuse on a chunk-sensitive backend reads it
     /// ([`SequenceState::ladder_reuse_len`]).
     pub passes: Vec<(usize, usize)>,
+    /// Row-invariant prefix (lane rip): rows `0..inv_len` were all written by row-invariant prefill passes
+    /// (`Model::forward_prefill` with `Model::row_invariant_prefill` on), so their state is bitwise what a cold prefill of
+    /// `tokens[..inv_len]` in any chunks writes, and a prompt sharing them may resume at any row below it (`Model::reuse_len`).
+    /// Advanced by `forward_prefill` when its pass extends it, lowered by [`SequenceState::truncate`], zeroed by
+    /// [`SequenceState::load_prefix`]; a decode step never advances it.
+    pub inv_len: usize,
     /// The MTP drafter's state (`--spec mtp` only).
     pub mtp: Option<Box<MtpState>>,
     /// The DFlash drafter's state (`--spec dflash` only).
@@ -225,6 +231,7 @@ impl SequenceState {
             remote: None,
             clean: 0,
             passes: Vec::new(),
+            inv_len: 0,
             mtp: None,
             dflash: None,
             spec_rows: SpecRows::default(),
@@ -422,6 +429,7 @@ impl SequenceState {
             }
         }
         self.len = keep;
+        self.inv_len = self.inv_len.min(keep);
         self.tokens.truncate(keep);
         if let Some(m) = &mut self.mtp {
             if m.kv.len > keep {
@@ -554,6 +562,7 @@ impl SequenceState {
         self.tokens.truncate(len);
         self.clean = self.clean.min(len);
         self.passes.retain(|p| p.1 <= len);
+        self.inv_len = self.inv_len.min(len);
         Ok(())
     }
 
@@ -573,6 +582,7 @@ impl SequenceState {
         self.clean = len;
         // no pass of this state wrote the restored rows: exact reuse never resumes inside them
         self.passes.clear();
+        self.inv_len = 0;
         // the restored rows never went through the MTP head: its cache no longer covers the sequence
         if let Some(m) = &mut self.mtp {
             m.synced = false;

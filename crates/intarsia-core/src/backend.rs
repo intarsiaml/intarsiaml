@@ -209,6 +209,13 @@ pub trait Backend: Send + Sync {
         true
     }
 
+    /// True when the backend registers `row_invariant` kernels for a whole dense prefill pass (lane rip): a pass run through
+    /// `Model::forward_prefill` then gives every row the bits it has in any other split of the prompt, at any row count, so prefix
+    /// reuse may resume from any row such a pass wrote (`Model::reuse_len`). Default false.
+    fn row_invariant_prefill(&self) -> bool {
+        false
+    }
+
     /// True when the vendor GEMMs (`Model::macro_split`'s ops) pick their tiling by row count, so a packed multi-prompt prefill
     /// pass (`Model::forward_packed`) must run them once per prompt, on that prompt's rows, to keep each prompt's solo bits
     /// (CUDA: cuBLAS / cuBLASLt). Default false: one call over every prompt's rows (HIP's packed pass, `tests/packed_rows.rs`).
