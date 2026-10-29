@@ -2155,8 +2155,12 @@ impl Model {
 
     /// Most rows one packed pass holds: the workspace's, and no more than the KV capacity: plan resolution sizes the kernel scratch
     /// for chunks that fit the context, and a packed pass of several prompts must not need more than a solo chunk could.
+    /// Lane srv16: where the vendor GEMMs run per prompt ([`Backend::pack_split_gemms`]) a packed pass is a macro pass with one
+    /// segment per prompt (each at most a chunk for attention, the recurrence and the GEMMs; only the row-wise kernels see every
+    /// row), so it may fill what the workspace holds for a macro pass ([`Model::macro_rows`]).
     pub fn pack_rows_max(&self) -> usize {
-        self.ws.max_tokens.min(self.plan.kv_cap_tokens.max(1))
+        let ws = if self.backend.pack_split_gemms() { self.ws.max_tokens.max(self.macro_rows) } else { self.ws.max_tokens };
+        ws.min(self.plan.kv_cap_tokens.max(1))
     }
 
     /// Whether this model can run [`Model::forward_packed`]: a single rank, no Gemma layers, no plan recording.
