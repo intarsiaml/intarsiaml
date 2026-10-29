@@ -1,0 +1,7 @@
+test real_qwen3_8b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663002112, free_bytes: 64331124736, weights_bytes: 16381470720, workspace_bytes: 538971792, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 61114567732, kv_cap_tokens: 2048, kv_total_bytes: 301989888, notes: [] }
+4290 (row, step) pairs bitwise identical in 318.1 s
+3264 (row, step) pairs bitwise identical in 230.1 s
+test real_qwen3_8b_batched_engine_equals_the_cold_reference ... prefill chunk 4096 (recipe qwen3, cuda)
+bi8 engine identity: 8 slots, 59 requests equal the cold reference
+bi8 engine identity: 16 slots, 59 requests equal the cold reference
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 899.40s

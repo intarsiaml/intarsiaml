@@ -126,15 +126,16 @@ fn kv_budget_is_shared_by_the_sequences() {
 fn max_batch_resolution() {
     use intarsia_models::select_recipe;
     let q3 = select_recipe(&serde_json::json!({"architectures": ["Qwen3ForCausalLM"]}), &[]).unwrap().1;
-    // the recipe's max_batch (8) is the cap of an explicit flag; `load_engine` resolves "no flag" with
+    // the recipe's max_batch (16) is the cap of an explicit flag; `load_engine` resolves "no flag" with
     // `supported = 1`, which is what makes batching opt-in
     let d = q3.resolve_max_batch(None, 1).unwrap();
     assert_eq!(d.value, 1);
     assert_eq!(q3.resolve_max_batch(Some(8), 8).unwrap().value, 8);
+    assert_eq!(q3.resolve_max_batch(Some(16), 16).unwrap().value, 16);
     assert!(q3.resolve_max_batch(Some(1), 8).is_ok());
     assert!(q3.resolve_max_batch(Some(0), 8).is_err());
     // above the recipe's max_batch
-    assert!(q3.resolve_max_batch(Some(9), 16).unwrap_err().to_string().contains("exceeds"));
+    assert!(q3.resolve_max_batch(Some(17), 32).unwrap_err().to_string().contains("exceeds"));
     // above what the engine implements
     assert!(q3.resolve_max_batch(Some(2), 1).unwrap_err().to_string().contains("not implemented yet"));
     // a recipe that declares more than the engine does (qwen3_5: 32): the default is clamped, not an error
