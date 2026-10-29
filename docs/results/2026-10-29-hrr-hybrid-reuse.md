@@ -61,7 +61,9 @@ So the GatedDeltaNet state at 4095 cannot be the state a cold prefill of B write
 prompt's own cold recurrent schedule. In addition, the rows `0..L` must have been written by prefill passes (`Plain` /
 `RowInvariant`) in an unbroken run from row 0, each ending at one of `cuts`. Rows written by a decode step, a verify pass or
 a prefix-store restore end the run. The cpu backend (any cut) keeps `restorable_len`. The batched engine calls the same
-function (`engine/batch.rs`).
+function (`engine/batch.rs`). Neither engine uses 1-row avoidance for recurrent states (`Seq::prefill_step`,
+`engine/batch.rs` `avoid_single_row_prefill`), so the cuts match both. A batched prefill that runs at the busy chunk (2048
+beside decoders) writes passes ending at multiples of 2048, which are not 4096-chunk cuts, so it resumes nothing: this is conservative.
 
 | case (35B, chunk 4096) | before | after |
 |---|---|---|
@@ -73,7 +75,7 @@ function (`engine/batch.rs`).
 
 Cost: without a prefix store a hybrid model on Metal, CUDA or HIP no longer resumes a next chat turn or an extended prompt
 inside a chunk. The prefix store (`--prefix-store`) cuts recurrent prefill at message boundaries
-(`SeqStore::chunk_end`) and resumes there bitwise. It is the way to get bitwise multi-turn reuse on these models.
+(`SeqStore::chunk_end`) and resumes there (its own bitwise gate: `tests/prefix_store_metal.rs`; not re-measured here). It is the way to get bitwise multi-turn reuse on these models.
 
 ## Tests
 

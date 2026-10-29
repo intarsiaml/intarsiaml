@@ -457,6 +457,14 @@ fn chunk_sensitive_backend_resumes_a_recurrent_state_only_at_cold_cuts() {
     let (tt, ct) = run(&e, &turn, 6);
     assert_eq!(ct, 16);
     assert_eq!(tt, run(&chunky(), &turn, 6).0);
+    // a 1-row remainder: A' = 17 tokens (cuts 8, 16; the last token alone), B' = 18 (cuts 8, 16, 17); A' never snapshots
+    // at 17, so 16
+    let a17: Vec<u32> = ids[..17].to_vec();
+    run(&e, &a17, 3);
+    let b18: Vec<u32> = ids[..18].to_vec();
+    let (t18, c18) = run(&e, &b18, 3);
+    assert_eq!(c18, 16);
+    assert_eq!(t18, run(&chunky(), &b18, 3).0);
     // a prompt shorter than a chunk resumes only when repeated
     let short: Vec<u32> = ids[..6].to_vec();
     run(&e, &short, 3);
