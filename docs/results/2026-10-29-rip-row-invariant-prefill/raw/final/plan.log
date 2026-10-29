@@ -1,0 +1,6 @@
+== default vs base
+diff-exit 0
+== opt-in vs base
+14a15
+> matmul         matmul_bf16_inv            deterministic no        0 0
+diff-exit 1

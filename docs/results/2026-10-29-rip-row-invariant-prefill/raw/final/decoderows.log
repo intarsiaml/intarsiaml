@@ -1,0 +1,6 @@
+warning: field `spec_dflash` is never read
+1135 |     spec_dflash: bool,
+test real_qwen3_8b_decode_written_rows_are_not_prefill_rows ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663002112, free_bytes: 66973716480, weights_bytes: 16381470720, workspace_bytes: 538971792, kv_bytes_per_token: 147456, kv_fraction: 0.95, kv_budget_bytes: 63625029857, kv_cap_tokens: 8192, kv_total_bytes: 1207959552, notes: [] }
+RIP decode-written rows: 555 prompt rows + 16 decode rows; vs a cold prefill of the same tokens: KV of the prompt rows EQUAL, KV of all rows DIFFER, next-token logits DIFFER
+RIP resume at inv_len 555 then prefill the 16 reply tokens: logits and KV EQUAL
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 36.61s

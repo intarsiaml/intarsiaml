@@ -775,6 +775,8 @@ fn check_packed(v: Variant, rows: usize, chunk: usize) {
     let mut o = BatchedOptions::new(rows, 64);
     o.prefix_reuse = false;
     o.pack_prefill = Some(true);
+    // pack whatever fits: with the half-queue rule (the default) two slots never pack (two waiting prompts go one by one)
+    o.pack_half = false;
     // Hold the scheduler thread until every request is queued: otherwise a slow machine lets it admit and prefill the first
     // prompts one at a time before the rest are submitted, and nothing is packed (main run 40228193513).
     o.hold_start = true;

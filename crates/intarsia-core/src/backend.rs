@@ -203,10 +203,17 @@ pub trait Backend: Send + Sync {
     /// True when a dense prefill may resume from any held KV row and still compute the bits a cold prefill of the whole prompt
     /// computes, so prefix reuse may cut anywhere (`Model::reuse_len`). False where a pass's bits depend on its row count or
     /// its first row (CUDA, measured on Qwen3-8B: every split of a prompt changed its logits; Metal, same model: the splits
-    /// with a 1-row pass, a repeated prompt's last token alone among them): reuse then resumes only where the prompt's own
-    /// cold chunk schedule cuts. Default true (cpu, whose kernels are row-count invariant; HIP not yet measured).
+    /// with a 1-row pass, a repeated prompt's last token alone among them; HIP, same model on an R9700, the same): reuse then
+    /// resumes only where the prompt's own cold chunk schedule cuts. Default true (cpu, whose kernels are row-count invariant).
     fn prefix_reuse_any_cut(&self) -> bool {
         true
+    }
+
+    /// True when the backend registers `row_invariant` kernels for a whole dense prefill pass (lane rip): a pass run through
+    /// `Model::forward_prefill` then gives every row the bits it has in any other split of the prompt, at any row count, so prefix
+    /// reuse may resume from any row such a pass wrote (`Model::reuse_len`). Default false.
+    fn row_invariant_prefill(&self) -> bool {
+        false
     }
 
     /// True when the vendor GEMMs (`Model::macro_split`'s ops) pick their tiling by row count, so a packed multi-prompt prefill

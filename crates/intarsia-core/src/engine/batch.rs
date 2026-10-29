@@ -64,11 +64,22 @@ pub struct BatchedOptions {
     /// independent of the other rows of the call. `None` (unset): the backend's default (`Backend::pack_prefill_default`: on for
     /// CUDA, lane srv16; off elsewhere).
     pub pack_prefill: Option<bool>,
+    /// Most body rows of one packed pass (`INTARSIA_PACK_ROWS`, default [`PACK_ROWS_DEFAULT`], 0: the workspace bound only); see
+    /// [`SchedulerConfig::pack_rows`].
+    pub pack_rows: usize,
+    /// A packed pass takes at most half of the waiting prompts (default on, `INTARSIA_PACK_HALF=0` off); see
+    /// [`SchedulerConfig::pack_half`].
+    pub pack_half: bool,
     /// Tests only: start the scheduler thread held, so that a whole workload is submitted before its first iteration admits
     /// anything (see [`BatchedEngine::release`]). Always false from [`BatchedOptions::new`].
     #[doc(hidden)]
     pub hold_start: bool,
 }
+
+/// Default row cap of a packed prefill pass (lane srv16b): a decoding stream waits for the whole pass, ~0.14 ms per row on the Spark
+/// 35B, so 3072 rows (three ~1k-token prompts) keep that wait under ~0.5 s, and keep most of the 8192-row pass's 16-stream gain
+/// (docs/results/2026-10-29-srv16b-pack-latency.md).
+pub const PACK_ROWS_DEFAULT: usize = 3072;
 
 impl BatchedOptions {
     /// The scheduler policy these options select, for a model whose prefill chunk is `solo_chunk`.
@@ -82,6 +93,8 @@ impl BatchedOptions {
             trace_stderr: self.trace,
             spec_off_at: self.spec_off_at,
             pack_prefill: self.pack_prefill.unwrap_or(false),
+            pack_rows: self.pack_rows,
+            pack_half: self.pack_half,
             ..SchedulerConfig::default()
         }
     }
@@ -98,6 +111,8 @@ impl BatchedOptions {
             row_fault: None,
             overlap: std::env::var("INTARSIA_OVERLAP").map(|v| v == "1").unwrap_or(false),
             pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").ok().map(|v| v == "1"),
+            pack_rows: std::env::var("INTARSIA_PACK_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(PACK_ROWS_DEFAULT),
+            pack_half: std::env::var("INTARSIA_PACK_HALF").map(|v| v != "0").unwrap_or(true),
             hold_start: false,
         }
     }
@@ -132,7 +147,7 @@ fn run_prefill(model: &Model, st: &mut SequenceState, tokens: &[u32], mode: Opti
         let keep = model.batch_snapshots();
         return Ok(match mode {
             None => {
-                if !matches!(model.forward(st, tokens, HeadMode::None, None)?, StepOut::None) {
+                if !matches!(model.forward_prefill(st, tokens, HeadMode::None, None)?, StepOut::None) {
                     return Err(Error::Other("a headless prefill pass returned an output".into()));
                 }
                 st.snapshot(&*model.backend, keep)?;
@@ -141,19 +156,19 @@ fn run_prefill(model: &Model, st: &mut SequenceState, tokens: &[u32], mode: Opti
             Some(m) => {
                 if tokens.len() > 1 {
                     // nothing is asked of this pass: a head output here would be a bug, not a result to drop
-                    if !matches!(model.forward(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?, StepOut::None) {
+                    if !matches!(model.forward_prefill(st, &tokens[..tokens.len() - 1], HeadMode::None, None)?, StepOut::None) {
                         return Err(Error::Other("a headless prefill pass returned an output".into()));
                     }
                     st.snapshot(&*model.backend, keep)?;
                 }
-                match model.forward(st, &tokens[tokens.len() - 1..], m, None)? {
+                match model.forward_prefill(st, &tokens[tokens.len() - 1..], m, None)? {
                     StepOut::None => None,
                     o => Some(o),
                 }
             }
         });
     }
-    let out = model.forward(st, tokens, mode.unwrap_or(HeadMode::None), None)?;
+    let out = model.forward_prefill(st, tokens, mode.unwrap_or(HeadMode::None), None)?;
     Ok(match out {
         StepOut::None => None,
         o => Some(o),
@@ -298,7 +313,7 @@ impl BatchModel for SlotModel {
         for &(slot, tokens, mode) in items {
             out.push(match mode {
                 None => None,
-                Some(m) => match self.model.forward(&mut self.states[slot], &tokens[tokens.len() - 1..], m, None)? {
+                Some(m) => match self.model.forward_prefill(&mut self.states[slot], &tokens[tokens.len() - 1..], m, None)? {
                     StepOut::None => None,
                     o => Some(o),
                 },

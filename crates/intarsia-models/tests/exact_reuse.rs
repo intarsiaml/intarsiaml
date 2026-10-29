@@ -1,14 +1,18 @@
 //! Exact prefix reuse (lane bi8, docs/results/2026-10-29-bi8-serve-batch-invariance.md): on a backend whose dense prefill
-//! bits depend on a pass's row count (`Backend::prefix_reuse_any_cut` false: CUDA, and Metal since lane prb) a request resumes from a held KV prefix
+//! bits depend on a pass's row count (`Backend::prefix_reuse_any_cut` false: CUDA, Metal since lane prb, HIP since lane arx) a request resumes from a held KV prefix
 //! only where its own cold chunk schedule cuts, and only over rows the held sequence wrote with exactly those passes, in the
 //! single-sequence engine and in the batched engine's slot choice alike. The cpu kernels are chunk-invariant, so here the
 //! bits agree either way: these tests pin the policy (which prefix is reused), the CUDA gates in `batch_cuda_real.rs` the bits.
+//!
+//! Lane rip (docs/results/2026-10-29-rip-row-invariant-prefill.md): on a backend with row-invariant prefill
+//! (`Backend::row_invariant_prefill`; CUDA with `INTARSIA_ROW_INVARIANT_PREFILL=1`) a request resumes at any row a row-invariant prefill pass wrote, never inside rows
+//! a decode step wrote (`Mode::Invariant` below: the cpu backend with every kernel marked `row_invariant`).
 mod common;
 use common::*;
 use intarsia_core::backend::{Backend, Buffer, DeviceInfo, MemKind, StreamId};
 use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::{
-    BatchedEngine, BatchedOptions, DType, Engine, EngineMeta, GenEvent, GenRequest, KernelImpl, LocalEngine, OpCall, Result,
+    BatchedEngine, BatchedOptions, DType, Engine, EngineMeta, GenEvent, GenRequest, KernelImpl, LocalEngine, Op, OpCall, Result,
     Telemetry,
 };
 use std::sync::Arc;
@@ -16,9 +20,27 @@ use std::time::Duration;
 
 const CHUNK: usize = 8;
 
-/// The cpu backend, reporting a chunk-sensitive prefill as CUDA does.
+/// The cpu backend, reporting a chunk-sensitive prefill as CUDA did before lane rip (`inv` false), or a chunk-sensitive ordinary
+/// prefill with row-invariant prefill passes, as CUDA with `INTARSIA_ROW_INVARIANT_PREFILL=1` (`inv` true: every cpu kernel is marked `row_invariant`; the cpu
+/// kernels compute each row alone).
 struct Strict {
     inner: Arc<dyn Backend>,
+    inv: bool,
+    /// with `inv`: leave the matmuls untagged, as a CUDA checkpoint whose GEMMs have no `row_invariant` kernel (fp8, NVFP4, MoE)
+    partial: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Mode {
+    /// the cpu backend: any cut
+    Any,
+    /// chunk-sensitive, no row-invariant prefill: the BI8 ladder
+    Ladder,
+    /// chunk-sensitive with row-invariant prefill passes: any cut inside the rows those wrote
+    Invariant,
+    /// the backend asks for row-invariant prefill but an op of the pass (the matmul) has no `row_invariant` kernel: the plan
+    /// switches it off and reuse falls back to the ladder (Gemma-4 / quantised checkpoints on CUDA)
+    Partial,
 }
 
 impl Backend for Strict {
@@ -41,7 +63,11 @@ impl Backend for Strict {
         self.inner.copy(d, d_o, s, s_o, n, st)
     }
     fn kernels(&self) -> Vec<KernelImpl> {
-        self.inner.kernels()
+        let mut v = self.inner.kernels();
+        if self.inv {
+            v = v.into_iter().map(|k| if self.partial && k.op == Op::Matmul { k } else { k.row_invariant() }).collect();
+        }
+        v
     }
     fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> Result<()> {
         self.inner.launch(kernel, call, stream)
@@ -52,11 +78,19 @@ impl Backend for Strict {
     fn prefix_reuse_any_cut(&self) -> bool {
         false
     }
+    fn row_invariant_prefill(&self) -> bool {
+        self.inv
+    }
 }
 
-fn model(strict: bool, rows: usize) -> (Model, Arc<Telemetry>) {
+fn model(mode: Mode, rows: usize) -> (Model, Arc<Telemetry>) {
     let cpu = intarsia_backend_cpu::CpuBackend::arc();
-    let backend: Arc<dyn Backend> = if strict { Arc::new(Strict { inner: cpu }) } else { cpu };
+    let backend: Arc<dyn Backend> = match mode {
+        Mode::Any => cpu,
+        Mode::Ladder => Arc::new(Strict { inner: cpu, inv: false, partial: false }),
+        Mode::Invariant => Arc::new(Strict { inner: cpu, inv: true, partial: false }),
+        Mode::Partial => Arc::new(Strict { inner: cpu, inv: true, partial: true }),
+    };
     let t = tiny_weights(DType::Bf16, 5);
     let tel = Arc::new(Telemetry::new());
     let mut m = Model::load(
@@ -72,6 +106,7 @@ fn model(strict: bool, rows: usize) -> (Model, Arc<Telemetry>) {
         m.enable_batch(rows).unwrap();
     }
     m.configure_plan(&Default::default(), None).unwrap();
+    assert_eq!(m.row_invariant_prefill(), mode == Mode::Invariant, "{mode:?}");
     (m, tel)
 }
 
@@ -114,19 +149,24 @@ fn cases() -> Vec<(&'static str, usize, usize)> {
     ]
 }
 
+/// The prefix a request of `cases()` reuses in `mode` (row-invariant: the cpu figure, every reused row a prefill row).
+fn want(mode: Mode, strict: usize, any: usize) -> usize {
+    if matches!(mode, Mode::Ladder | Mode::Partial) { strict } else { any }
+}
+
 #[test]
 fn single_sequence_engine_resumes_only_at_the_cold_schedule() {
-    for strict in [true, false] {
-        let (m, tel) = model(strict, 1);
+    for mode in [Mode::Ladder, Mode::Any, Mode::Invariant, Mode::Partial] {
+        let (m, tel) = model(mode, 1);
         let e = LocalEngine::new(m, Arc::new(ByteCodec), meta(), tel).unwrap();
         let cold = |p: &str| {
-            let (m, tel) = model(strict, 1);
+            let (m, tel) = model(mode, 1);
             collect(&LocalEngine::new(m, Arc::new(ByteCodec), meta(), tel).unwrap().submit(req(p)).unwrap()).0
         };
         for (p, want_strict, want_any) in cases() {
             let (ids, cached) = collect(&e.submit(req(p)).unwrap());
-            assert_eq!(cached, if strict { want_strict } else { want_any }, "{p:?} strict={strict}");
-            assert_eq!(ids, cold(p), "{p:?} strict={strict}: the warm request computes its cold output");
+            assert_eq!(cached, want(mode, want_strict, want_any), "{p:?} {mode:?}");
+            assert_eq!(ids, cold(p), "{p:?} {mode:?}: the warm request computes its cold output");
         }
         // a follow-up turn: LONG plus its generated tokens plus more. Rows 24..30 were the final chunk (6 rows), rows from 30
         // on were written by decode steps: only the 8-row ladder up to 24 matches the new prompt's own cold chunks
@@ -135,16 +175,35 @@ fn single_sequence_engine_resumes_only_at_the_cold_schedule() {
         follow.prompt.extend(&first);
         follow.prompt.extend("and more text here".bytes().map(|b| b as u32));
         let (_, cached) = collect(&e.submit(follow.clone()).unwrap());
-        // the held sequence: the prompt and every generated token but the last (never fed back)
+        // the held sequence: the prompt and every generated token but the last (never fed back). Row-invariant: the whole
+        // prompt (its rows were all prefill passes), not the decode-written rows after it
         let any_cut = LONG.len() + req(LONG).max_tokens - 1;
-        assert_eq!(cached, if strict { 24 } else { any_cut }, "follow-up turn strict={strict}");
+        let w = match mode {
+            Mode::Ladder | Mode::Partial => 24,
+            Mode::Any => any_cut,
+            Mode::Invariant => LONG.len(),
+        };
+        assert_eq!(cached, w, "follow-up turn {mode:?}");
+        // the next turn's prompt holds the follow-up turn whole: every row of it a prefill row now
+        let (second, _) = collect(&e.submit(follow.clone()).unwrap());
+        let mut third = follow.clone();
+        third.prompt.extend(&second);
+        third.prompt.extend(" and the third turn".bytes().map(|b| b as u32));
+        let (ids, cached) = collect(&e.submit(third.clone()).unwrap());
+        if mode == Mode::Invariant {
+            assert_eq!(cached, follow.prompt.len(), "third turn");
+        }
+        let (m2, tel2) = model(mode, 1);
+        let cold3 = collect(&LocalEngine::new(m2, Arc::new(ByteCodec), meta(), tel2).unwrap().submit(third).unwrap()).0;
+        assert_eq!(ids, cold3, "third turn {mode:?}: the warm request computes its cold output");
     }
 }
 
 #[test]
 fn batched_engine_picks_slots_by_the_same_rule() {
-    for strict in [true, false] {
-        let (m, tel) = model(strict, 2);
+    for mode in [Mode::Ladder, Mode::Any, Mode::Invariant, Mode::Partial] {
+        let strict = matches!(mode, Mode::Ladder | Mode::Partial);
+        let (m, tel) = model(mode, 2);
         let mut o = BatchedOptions::new(2, 16);
         o.prefix_reuse = true;
         let e = BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel, o).unwrap();
@@ -158,6 +217,32 @@ fn batched_engine_picks_slots_by_the_same_rule() {
                 assert!(cached <= want_any, "{p:?}: cached {cached} > {want_any}");
             }
         }
+    }
+}
+
+/// Lane rip: the batched engine writes a prompt's last row in a prefill pass too, so with row-invariant prefill turn 2 of a chat
+/// resumes from turn 1's whole prompt (not from turn 1's reply, which decode steps wrote), and computes its cold output.
+#[test]
+fn batched_engine_multi_turn_resumes_the_whole_prompt() {
+    for mode in [Mode::Invariant, Mode::Ladder] {
+        let fresh = || {
+            let (m, tel) = model(mode, 2);
+            let mut o = BatchedOptions::new(2, 16);
+            o.prefix_reuse = true;
+            BatchedEngine::new(m, Arc::new(ByteCodec), meta(), tel, o).unwrap()
+        };
+        let e = fresh();
+        let (first, cached) = collect(&e.submit(req(LONG)).unwrap());
+        assert_eq!(cached, 0);
+        let mut follow = req(LONG);
+        follow.prompt.extend(&first);
+        follow.prompt.extend("and more text here".bytes().map(|b| b as u32));
+        let (ids, cached) = collect(&e.submit(follow.clone()).unwrap());
+        let w = if mode == Mode::Invariant { LONG.len() } else { 24 };
+        assert_eq!(cached, w, "turn 2 {mode:?}");
+        let (cold, c0) = collect(&fresh().submit(follow).unwrap());
+        assert_eq!(c0, 0);
+        assert_eq!(ids, cold, "turn 2 {mode:?}: the warm request computes its cold output");
     }
 }
 
