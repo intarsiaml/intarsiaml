@@ -11,7 +11,7 @@ Branch `lane-pf27b/prefill-overlap`, built on origin/main `a35339fe9` (PR #228).
 | What did it | (1) `matmul_mxfp4_pair_a8_mma`: the four pair sites (GDN qkv\|z and b\|a, attention k\|v, FFN gate\|up) quantise their shared activation once (992 -> 640 pre-passes per 4k prefill), one span launch per pair, the fold flags zeroed by the pre-pass instead of 992 memsets, the 128-token tile for N <= 64. (3) the wide fence path: prefill all-reduces run one 64-block launch on their own 20 MiB slot instead of five 4 MiB launches on 16 blocks (20 MiB: 1020 -> 840 us; link floor ~750 us). |
 | Overlap (item 2) | Not shipped. `INTARSIA_TP_OVERLAP=2` + `GPU_MAX_HW_QUEUES=4` + chunk 4096 on top of this branch: 888 vs 888 ms (no gain); it needs a process-wide 4-queue setting that the R9700 lessons tie to a ~20% decode loss. The all-reduce is now 208 ms per rank against a ~192 ms link floor: hiding it is the only lever left on it (section 6). |
 | Gap | Radiance 1.12.0 5214 / 5994 / 5869 (R3): 0.75 / 0.72 / 0.68x (were 0.72 / 0.67 / 0.64x against this base). vLLM-fork 4k 5399, 16k 5305 (R123 / R126 **old**): 0.80x / 0.75x. Still 3/3; the stretch (5399 at 4k) is not reached. |
-| Windows | 2 of 3 (W1 A/B + texts + mixids; W2 gates). 8 micro jobs under 3 min (m1-m8). Radiance answered on :8080 before every release (section 8). |
+| Windows | 2 of 3 (W1 A/B + texts + mixids; W2 gates). 9 micro jobs under 3 min (m1-m9). Radiance answered on :8080 before every release (section 8). |
 
 ## 1. Attribution, 4k prompt, per rank (rank 0; `rocprofv3`, `generate --max-tokens 1 --spec off`, W2 traces `raw/w2/p-*.csv.gz`)
 
@@ -45,7 +45,7 @@ The link peaks at ~28 GB/s per direction and 16 blocks already push at that rate
 
 ## 3. What changed
 
-* `kernels/hip/mxfp4_a8_gemm.hip`: `launch_a8` split into `a8_check` / `a8_quant` / `a8_spans` / `a8_gemm`; `launch_a8_pair` + `ik_matmul_mxfp4_pair_a8_mma` (one quant pre-pass, one span launch for both weights with their own wref and fold flag, then the two GEMMs, each exactly the single call's); `a8_wspan_kernel` takes an optional second weight; the direct pre-pass zeroes the fold flags (the staged path and the per-group knob keep their memsets); `a8_direct_run` takes the 64 x 128 tile (`2,2,2,4`) for N <= 64 (b / a: call level 92 -> 79 us, m7). Every direct tile gives the same bits (PF27's per-tile hashes; `a8_mma_rows_do_not_depend_on_m` checks the N = 48 rows of the new tile against the staged kernel).
+* `kernels/hip/mxfp4_a8_gemm.hip`: `launch_a8` split into `a8_check` / `a8_quant` / `a8_spans` / `a8_gemm`; `launch_a8_pair` + `ik_matmul_mxfp4_pair_a8_mma` (one quant pre-pass, one span launch for both weights with their own wref and fold flag, then the two GEMMs, each exactly the single call's); `a8_wspan_kernel` takes an optional second weight; the direct pre-pass zeroes the fold flags (the staged path and the per-group knob keep their memsets); `a8_direct_run` takes the 64 x 128 tile (`2,2,2,4`) for N <= 64 (b / a: call level 92 -> 79 us, m7). Every direct tile gives the same bits on PF27's per-tile hashes; the 24-feature b / a shapes with the new tile are checked end to end (section 5).
 * `kernels/hip/ik_mx_a8.h`: `mx_a8_quant_tiled_kernel` zeroes `nzero` flags (block 0).
 * `crates/intarsia-backend-hip/src/quantmoe.rs`: `matmul_mxfp4_pair_a8_mma` registered for `Op::MatmulMxfp4Pair` with `matmul_mxfp4_a8_mma`'s predicate, exactness and priority, so a pair selects it exactly where each single call selects the single GEMM (M <= 8 keeps the pair GEMV at priority 10; verify / batched `exact_rows` calls keep the row kernels). No model change: the four `try_mxfp4_pair` sites now find a kernel at prefill M. `ShapeInfo::n1` (second output width of the pair ops) sizes its scratch.
 * `crates/intarsia-backend-hip/src/comm.rs`: the wide fence path (`Wide`: its own scratch, flags and counters, `INTARSIA_HIP_AR_WIDE=BLOCKS[,SLOT_MIB]`, default 64 blocks and 20 MiB, `0` = the old path). All-reduces above the LL limit take it, a pure function of the message size. The LL path, mode 7 as the default, the fused all-reduce+norm and the all-gather are untouched. `p2p_bench` (benchmark only).
@@ -82,13 +82,13 @@ The MTP-off 4k base runs read higher than the MTP-on ones (4094-4143 vs 3911-407
 | prefill >= +5% at 4k, 3 interleaved rounds | **met**: x1.072 (MTP on, 4 base / 3 dev runs); MTP off x1.038 |
 | no prefill length more than 1% slower | **met**: 1k x1.053, 16k x1.058 (MTP off x1.047 / x1.062) |
 | decode not more than 1% slower | **met**: MTP off x0.999 / x1.000 / x1.000; MTP on x1.022 / x0.998 / x1.021 |
-| greedy ids at tp=2, 18 prompts, spec off and MTP, equal main | W2_IDS |
-| output bitwise identical to main | served texts: 18 / 18 md5 equal base vs dev (`raw/w1/texts-*`); mixids (max-batch 16, B prefilled beside A): dev A `915f1c0953` x3, B `dd42cb5b78` / `e74f590855` / `537fb01934`, PF27's main values (base: see section 7); single W4A8 GEMM hashes 48 / 48 equal base vs dev binary (W2_HASH); pair == two singles bitwise (`a8_pair`, default, per-group and staged runs); wide path == old path bitwise (`wide_path_is_bitwise_*`); a8 tests 7 / 7 under default, `PERGROUP=1`, `DIRECT=0` (W2) |
-| `kernels test --backend hip --quick` | W2_ADM |
+| greedy ids at tp=2, 18 prompts, spec off and MTP, equal main | **met**: 36 / 36 SAME (`scripts/dfh/ids-prompts`, 256 greedy ids, `generate --tp 2`, base vs dev binary; `raw/w2/ids-*`) |
+| output bitwise identical to main | served texts: 18 / 18 md5 equal base vs dev (`raw/w1/texts-*`); mixids (max-batch 16, B prefilled beside A): dev A `915f1c0953` x3, B `dd42cb5b78` / `e74f590855` / `537fb01934`, PF27's main values (base: see section 7); single W4A8 GEMM hashes (`a8_mma_hashes`, 24 shapes x 2 out dtypes, none with N <= 64) 48 / 48 equal base vs dev binary, on the final binary (W2); the new N <= 64 tile is covered end to end (ids, texts, soak taps vs main) and by the pair test at N = 24; pair == two singles bitwise (`a8_pair`, default, per-group and staged runs); wide path == old path bitwise (`wide_path_is_bitwise_*`); a8 tests 7 / 7 under default, `PERGROUP=1`, `DIRECT=0` (W2) |
+| `kernels test --backend hip --quick` | **met**: exit 0, 85 kernels / 462 cases (main: 84 / 456), 75 ADMITTED rows (main 74; the new one is `matmul_mxfp4_pair_a8_mma`, 6 cases, max_abs 0), the same 10 incomplete (no `--quick` cases) as main |
 | Mac `cargo test --workspace --release` | **met**: 202 `test result: ok`, 0 failed |
-| `plan show` 8B / 35B byte-identical | **met**: 1346 B / 3184 B, base vs dev CLI (m6, W2) |
-| all-reduce: delayed-rank stress, negative control | W2_TESTS |
-| all-reduce: 120-process tapped soak | W2_SOAK |
+| `plan show` 8B / 35B byte-identical | **met**: 1346 B / 3184 B, base vs the final dev CLI (m9; m6 on an earlier dev build agreed too; the W2 8B row failed to start on a container-name clash in the harness, fixed) |
+| all-reduce: delayed-rank stress, negative control | **met**: whole `tests/comm.rs` (13 passed) and `tests/ar_norm.rs` (4) under the default env, `INTARSIA_HIP_AR_DRAIN=1` and `INTARSIA_HIP_AR_WIDE=0`: the LL delayed-rank stress and its no-tag-check control (1380 wrong), the mode 8 control, the new wide-path stress (0 wrong in 40 rounds) and its no-wait control (246 wrong); wide == old path bitwise |
+| all-reduce: 120-process tapped soak | **met**: 120 fresh tp2 processes of the dev CLI, prompt `4k-0` (both 2048-row chunks take the wide 20 MiB launches), MTP k2, 16 tokens: 120 / 120 rc 0, 1 distinct id line, 120 / 120 taps byte-identical to each other and to main's (3 base processes, `c006426589a1...`; `raw/w2/soak-taps.md5`) |
 | CI | see the PR |
 
 ## 6. Item 2, the overlap: what `INTARSIA_TP_OVERLAP` is and why it stays off
@@ -111,11 +111,12 @@ What is left on the all-reduce: 208 ms per rank against ~192 ms of pure wire tim
 | #6653 | micro m3 | 4k generate base / dev / dev `WIDE=0` | 10 s |
 | #6654 | micro m4 | dev trace + 4 generate rounds | 10 s |
 | #6656 | micro m5 | pair, hashes, `AR_WIDE` 32 / 64 / 128 sweep | 10 s |
-| #6657 | micro m6 | plan show, negative-control count, max-seq 20480, TP_OVERLAP stack | 35 s |
+| #6658 | micro m6 | plan show, negative-control count, max-seq 20480, TP_OVERLAP stack | 35 s |
 | #6662 | micro m7 | small-N a8 tile timing | 10 s |
 | #6664 | micro m8 | a8 tests + generate rounds | 10 s |
 | #6667 | **W1** | localeval A/B, texts, mixids (22:19:46-22:42:06) | 15 s |
-| #6675 | **W2** | gates (W2_TIME) | W2_RESTORE |
+| #6675 | **W2** | gates: a8 / comm / ar_norm tests, `kernels test --quick`, ids 36, 120-process soak, traces (22:43:09-23:04:17) | 26 s |
+| #6679 | micro m9 | plan show on the final CLI | 25 s |
 
 (The first W1 start, #6665, exited at once with a permission error in the driver before stopping radiance.) CPU jobs: builds #6648, #6649, #6655, #6661, #6663.
 
