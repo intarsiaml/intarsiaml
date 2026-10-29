@@ -1,0 +1,11 @@
+fleetq: #6899 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m4 SEC=ptime PDIAGS='"'"'- 1 2 3'"'"' bash ~/intarsiaml-pf27c/scripts/pf27c/micro.sh'
+[arx] stopping radiance 2026-10-29 06:19:53
+[arx] radiance inactive 2026-10-29 06:19:57
+== ptime [A=1]: M=2048 N=5120 K=3072 gemm 326.6 us|M=2048 N=5120 K=8704 plain 1686.4 us|M=2048 N=5120 K=3072 plain 1152.8 us|M=2048 N=5120 K=8704 push 1262.4 us|M=2048 N=5120 K=3072 push 943.5 us|
+== ptime [INTARSIA_HIP_AR_PUSH_DIAG=1]: M=2048 N=5120 K=3072 gemm 326.8 us|M=2048 N=5120 K=8704 plain 1689.5 us|M=2048 N=5120 K=3072 plain 1149.9 us|PF27C-DIAG push grid: 32 WGP-units, push 1, push8 2 blocks each|PF27C-DIAG push grid: 32 WGP-units, push 1, push8 2 blocks each|M=2048 N=5120 K=8704 push 1116.9 us|M=2048 N=5120 K=3072 push 500.9 us|
+== ptime [INTARSIA_HIP_AR_PUSH_DIAG=2]: M=2048 N=5120 K=3072 gemm 324.0 us|M=2048 N=5120 K=8704 plain 1691.2 us|M=2048 N=5120 K=3072 plain 1155.2 us|PF27C-DIAG push grid: 32 WGP-units, push 1, push8 2 blocks each|PF27C-DIAG push grid: 32 WGP-units, push 1, push8 2 blocks each|M=2048 N=5120 K=8704 push 1275.4 us|M=2048 N=5120 K=3072 push 981.6 us|
+== ptime [INTARSIA_HIP_AR_PUSH_DIAG=3]: M=2048 N=5120 K=3072 gemm 325.2 us|M=2048 N=5120 K=8704 plain 1694.9 us|M=2048 N=5120 K=3072 plain 1153.1 us|PF27C-DIAG push grid: 32 WGP-units, push 1, push8 2 blocks each|PF27C-DIAG push grid: 32 WGP-units, push 1, push8 2 blocks each|M=2048 N=5120 K=8704 push 1060.2 us|M=2048 N=5120 K=3072 push 507.9 us|
+[arx] micro done 2026-10-29 06:20:02, 9 s
+[arx] starting radiance 2026-10-29 06:20:02
+[arx] RADIANCE-RESTORE active after 10 s at 2026-10-29 06:20:12; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793269210,"owned_by":"radiance"
+fleetq: #6899 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

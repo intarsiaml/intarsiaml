@@ -1,0 +1,12 @@
+fleetq: #6915 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m7 SEC='"'"'gen prof'"'"' GREPS=1 GARMS='"'"'pf27c-base-cli pf27c-dev-cli pf27c-dev-cli:INTARSIA_HIP_MXFP4_A8_PAIR1=0'"'"' PBINS='"'"'pf27c-dev-cli pf27c-dev-cli:INTARSIA_HIP_MXFP4_A8_PAIR1=0'"'"' bash ~/intarsiaml-pf27c/scripts/pf27c/micro.sh'
+[arx] stopping radiance 2026-10-29 06:43:56
+[arx] radiance inactive 2026-10-29 06:44:00
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 816 ms (4725.4 tok/s) | decode 0 ms (0.00 tok/s) (8 s)
+== gen pf27c-dev-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 834 ms (4623.9 tok/s) | decode 0 ms (0.00 tok/s) (11 s)
+== gen pf27c-dev-cli:INTARSIA_HIP_MXFP4_A8_PAIR1=0: finish=length prompt=3858 (cached 0) completion=1 | prefill 811 ms (4755.0 tok/s) | decode 0 ms (0.00 tok/s) (15 s)
+== prof pf27c-dev-cli-4k-0: finish=length prompt=3858 (cached 0) completion=1 | prefill 838 ms (4604.1 tok/s) | decode 0 ms (0.00 tok/s) csv=200 /home/josef/intarsiaml-pf27c/pf27c-out/m7/p-pf27c-dev-cli-4k-0.csv.gz (19 s)
+== prof pf27c-dev-cli_INTARSIA_HIP_MXFP4_A8_PAIR1_0-4k-0: finish=length prompt=3858 (cached 0) completion=1 | prefill 821 ms (4697.0 tok/s) | decode 0 ms (0.00 tok/s) csv=216 /home/josef/intarsiaml-pf27c/pf27c-out/m7/p-pf27c-dev-cli_INTARSIA_HIP_MXFP4_A8_PAIR1_0-4k-0.csv.gz (23 s)
+[arx] micro done 2026-10-29 06:44:19, 23 s
+[arx] starting radiance 2026-10-29 06:44:19
+[arx] RADIANCE-RESTORE active after 10 s at 2026-10-29 06:44:29; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793270667,"owned_by":"radiance"
+fleetq: #6915 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

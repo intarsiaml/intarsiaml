@@ -1,0 +1,13 @@
+fleetq: #6895 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #6895 running on tatooine-r9700, tatooine-r9700-2: ssh -o BatchMode=yes tatooine 'W=m3 SEC='"'"'gen prof'"'"' PBINS='"'"'pf27c-base-cli:INTARSIA_HIP_MXFP4_A8_DTILE=2+4+2+4'"'"' GARMS='"'"'pf27c-base-cli pf27c-base-cli:INTARSIA_HIP_MXFP4_A8_DTILE=2+4+2+4'"'"' GREPS=2 bash ~/intarsiaml-pf27c/scripts/pf27c/micro.sh'
+[arx] stopping radiance 2026-10-29 06:16:12
+[arx] radiance inactive 2026-10-29 06:16:16
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 814 ms (4741.2 tok/s) | decode 0 ms (0.00 tok/s) (9 s)
+== gen pf27c-base-cli:INTARSIA_HIP_MXFP4_A8_DTILE=2+4+2+4: finish=length prompt=3858 (cached 0) completion=1 | prefill 834 ms (4627.7 tok/s) | decode 0 ms (0.00 tok/s) (12 s)
+== gen pf27c-base-cli: finish=length prompt=3858 (cached 0) completion=1 | prefill 821 ms (4700.0 tok/s) | decode 0 ms (0.00 tok/s) (16 s)
+== gen pf27c-base-cli:INTARSIA_HIP_MXFP4_A8_DTILE=2+4+2+4: finish=length prompt=3858 (cached 0) completion=1 | prefill 834 ms (4628.5 tok/s) | decode 0 ms (0.00 tok/s) (20 s)
+== prof pf27c-base-cli_INTARSIA_HIP_MXFP4_A8_DTILE_2_4_2_4-4k-0: finish=length prompt=3858 (cached 0) completion=1 | prefill 847 ms (4556.5 tok/s) | decode 0 ms (0.00 tok/s) csv=248 /home/josef/intarsiaml-pf27c/pf27c-out/m3/p-pf27c-base-cli_INTARSIA_HIP_MXFP4_A8_DTILE_2_4_2_4-4k-0.csv.gz (24 s)
+[arx] micro done 2026-10-29 06:16:36, 24 s
+[arx] starting radiance 2026-10-29 06:16:36
+[arx] RADIANCE-RESTORE active after 10 s at 2026-10-29 06:16:46; models: {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793269004,"owned_by":"radiance"
+fleetq: #6895 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

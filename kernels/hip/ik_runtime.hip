@@ -96,6 +96,11 @@ int ik_rt_memcpy_d2h_pinned(void* dst, const void* src, size_t n, void* stream) 
     if (e != hipSuccess) return (int)e;
     return (int)hipStreamSynchronize((hipStream_t)stream);
 }
+/* lane pf27c: an async copy into page-locked memory (the A8 span cache's fold flags, device.rs `SpanCache`): nothing waits; the caller reads
+   `dst` later and treats its old contents as "not arrived yet". */
+int ik_rt_memcpy_d2h_async(void* dst, const void* src, size_t n, void* stream) {
+    return (int)hipMemcpyAsync(dst, src, n, hipMemcpyDeviceToHost, (hipStream_t)stream);
+}
 int ik_rt_host_alloc(void** p, size_t bytes) { return (int)hipHostMalloc(p, bytes, hipHostMallocDefault); }
 int ik_rt_host_free(void* p) { return (int)hipHostFree(p); }
 int ik_rt_event_create_sync(void** ev) {
