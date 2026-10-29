@@ -1,0 +1,3 @@
+[targets.fuse27-rec_bin_fuse27-dev-cli]
+url = "http://tatooine:8095/v1"
+model = "qwen-fuse27"

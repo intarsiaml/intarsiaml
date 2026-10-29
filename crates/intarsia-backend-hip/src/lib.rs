@@ -64,6 +64,13 @@ pub fn split_pieces(est_us: f64, max_pieces: i64) -> i32 {
     unsafe { ffi::ik_hip_split_pieces(est_us, max_pieces) }
 }
 
+/// Lane fuse27: W4A8 GEMM calls in this process that read the activations their norm had quantised (`INTARSIA_HIP_NORM_QUANT`) instead
+/// of running their own pre-pass (tests, diagnostics).
+#[cfg(ik_hip)]
+pub fn prequant_hits() -> u64 {
+    device::PQ_HITS.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 /// Open HIP device `ordinal`.
 #[cfg(ik_hip)]
 pub fn create(ordinal: usize) -> intarsia_core::Result<Arc<dyn Backend>> {

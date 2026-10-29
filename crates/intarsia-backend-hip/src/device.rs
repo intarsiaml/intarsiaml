@@ -167,6 +167,54 @@ pub struct HipBackend {
     push_arm: Mutex<Option<PushArm>>,
     /// lane pf27c: the W4A8 direct path's span results per weight (`INTARSIA_HIP_MXFP4_A8_SPANCACHE`)
     spans: Mutex<SpanCache>,
+    /// lane fuse27: the quantised activations a prefill norm wrote for the W4A8 GEMMs that read its output (`INTARSIA_HIP_NORM_QUANT`)
+    prequant: Mutex<PreQuant>,
+}
+
+/// Lane fuse27: a prefill rmsnorm / rmsnorm_add (eager, stream 0, rows that take the W4A8 direct kernel) whose output the W4A8 GEMMs read
+/// next (FFN gate | up, GDN qkv | z and b | a, attention q and k | v: up to three pre-passes of the same rows) also writes those GEMMs'
+/// quantised activations (`ik_rmsnorm_quant_bf16`: the e4m3 bytes and row scales of the direct pre-pass, from the bf16 values it stores) into
+/// `buf`; a cached-span call (`HipBackend::span` Some) whose `x` is exactly that output, not written since (`HipBuffer::gen`), reads them
+/// instead of running its pre-pass. Producer and readers are on stream 0, so a later norm rewrites `buf` only after the readers before it.
+/// The norm quantises only once a direct GEMM was seen to read a norm output (`wanted`), so a model whose norms feed no W4A8 GEMM (the
+/// NVFP4 35B) never pays for it. Same kernels, same bytes: bitwise the pre-pass. `INTARSIA_HIP_NORM_QUANT=0` turns it off.
+struct PreQuant {
+    /// what `buf` holds: the norm output's (buffer id, offset, rows, H, write count after the norm)
+    key: Option<PqKey>,
+    /// the last prefill-shaped norm output (quantised or not): a direct W4A8 call that reads it sets `wanted`
+    last: Option<PqKey>,
+    wanted: bool,
+    buf: Option<(Buffer, usize)>,
+    /// buffers outgrown by a larger chunk: a queued launch may still read them, so they live as long as the backend
+    old: Vec<Buffer>,
+    off: bool,
+}
+
+type PqKey = (u64, usize, usize, usize, u64);
+
+/// calls that read a norm's quantised activations (`crate::prequant_hits`)
+pub(crate) static PQ_HITS: AtomicU64 = AtomicU64::new(0);
+
+impl PreQuant {
+    fn new() -> Self {
+        let off = std::env::var("INTARSIA_HIP_NORM_QUANT").is_ok_and(|v| v == "0");
+        PreQuant { key: None, last: None, wanted: false, buf: None, old: Vec::new(), off }
+    }
+
+    /// the key of a bf16 `[rows, H]` tensor in a backend buffer, at its current write count
+    fn key_of(t: &TensorRef) -> Option<PqKey> {
+        let hb = t.buf.downcast::<HipBuffer>()?;
+        match (t.dtype, &t.shape[..]) {
+            (DType::Bf16, [m, h]) => Some((hb.id, t.offset, *m, *h, hb.gen.load(Ordering::Relaxed))),
+            _ => None,
+        }
+    }
+}
+
+/// bytes of the direct pre-pass's activations for `m` rows of `k` (ik_mx_a8.h `mx_a8_scratch_bytes` of the 16-padded M and 64-padded K)
+fn a8_xq_bytes(m: usize, k: usize) -> usize {
+    let (mp, kp) = (m.div_ceil(16) * 16, k.div_ceil(64) * 64);
+    (mp * kp).div_ceil(16) * 16 + (mp * 4).div_ceil(16) * 16 + 16
 }
 
 /// Lane pf27c: the span pass of `matmul_mxfp4_a8_mma` (wref [N] = each row's largest scale byte, and the fold flag) is a pure function of the
@@ -466,6 +514,7 @@ impl HipBackend {
             relayout: (AtomicU64::new(0), AtomicU64::new(0)),
             push_arm: Mutex::new(None),
             spans: Mutex::new(SpanCache::new()),
+            prequant: Mutex::new(PreQuant::new()),
         };
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
@@ -474,6 +523,78 @@ impl HipBackend {
     /// lane arx: replace the armed all-reduce push (`None` clears it); returns the one it replaced.
     pub(crate) fn swap_push_arm(&self, arm: Option<PushArm>) -> Option<PushArm> {
         std::mem::replace(&mut *self.push_arm.lock().unwrap(), arm)
+    }
+
+    /// lane fuse27: a collective (comm.rs) writes `t`: what the backend derived from its old bytes is stale (`HipBuffer::gen`)
+    pub(crate) fn touch_tensor(t: &TensorRef) {
+        HipBuffer::touch(&t.buf);
+    }
+
+    /// Lane fuse27 ([`PreQuant`]): where a norm writing `out` (touched already) writes the W4A8 activations of it, and the key they will hold
+    /// once [`HipBackend::prequant_done`] says the launch ran; None = the plain norm (off, not wanted yet, a side stream or capture, rows that
+    /// do not take the direct kernel).
+    fn prequant_slot(&self, out: &TensorRef, stream: StreamId) -> Result<Option<(*mut c_void, PqKey)>> {
+        if stream != 0 || self.capturing.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let Some(key) = PreQuant::key_of(out) else { return Ok(None) };
+        let (m, h) = (key.2, key.3);
+        // SAFETY: plain FFI query of the launcher's static configuration
+        if h == 0 || h % 32 != 0 || unsafe { ffi::ik_mxfp4_a8_use_direct(m as i64) } == 0 {
+            return Ok(None);
+        }
+        let mut c = self.prequant.lock().unwrap();
+        if c.off {
+            return Ok(None);
+        }
+        c.last = Some(key);
+        if !c.wanted {
+            return Ok(None);
+        }
+        let need = a8_xq_bytes(m, h);
+        if c.buf.as_ref().is_none_or(|b| b.1 < need) {
+            match self.alloc(need, MemKind::Device) {
+                Ok(b) => {
+                    if let Some(old) = c.buf.replace((b, need)) {
+                        c.old.push(old.0);
+                    }
+                    c.key = None; // the new buffer holds nothing yet
+                }
+                Err(_) => {
+                    c.off = true;
+                    return Ok(None);
+                }
+            }
+        }
+        let b = &c.buf.as_ref().unwrap().0;
+        Ok(Some((Self::ptr(b, 0, need)? as *mut c_void, key)))
+    }
+
+    /// Lane fuse27: a launch that wrote the slot of [`HipBackend::prequant_slot`] was queued (`ok`) or failed (it may have half-written it)
+    fn prequant_done(&self, key: PqKey, ok: bool) {
+        self.prequant.lock().unwrap().key = ok.then_some(key);
+    }
+
+    /// Lane fuse27: the W4A8 activations of `x` written by the norm that produced it, if `buf` still holds them (else null: the call runs its
+    /// own pre-pass). Only for a call that took the cached span path (stream 0, no capture, direct kernel).
+    fn prequant_get(&self, x: &TensorRef) -> *const c_void {
+        let Some(key) = PreQuant::key_of(x) else { return std::ptr::null() };
+        let mut c = self.prequant.lock().unwrap();
+        if c.off {
+            return std::ptr::null();
+        }
+        if c.key == Some(key) {
+            if let Some((b, n)) = &c.buf {
+                if let Ok(p) = Self::ptr(b, 0, *n) {
+                    PQ_HITS.fetch_add(1, Ordering::Relaxed);
+                    return p as *const c_void;
+                }
+            }
+        }
+        if c.last == Some(key) {
+            c.wanted = true;
+        }
+        std::ptr::null()
     }
 
     /// Lane pf27c: the cached span result of the W4A8 weight whose scales are `sc` ([N, K/32]) for a call of `m` rows on `stream`, filled on
@@ -917,6 +1038,18 @@ impl Backend for HipBackend {
             "matmul_mxfp4_pair_a8_mma" if span0.is_some() => span(4)?,
             _ => None,
         };
+        // lane fuse27 (`PreQuant`): a prefill norm's quant target, and a cached-span W4A8 call's activations quantised by that norm
+        let pq = match kernel {
+            "rmsnorm_bf16" | "rmsnorm_add_bf16" => self.prequant_slot(&call.outputs[0], stream)?,
+            _ => None,
+        };
+        let mut pq_ran = false;
+        let xq_in = match kernel {
+            "matmul_mxfp4_a8_mma" | "matmul_mxfp4_pair_a8_mma" if span0.is_some() && (kernel == "matmul_mxfp4_a8_mma" || span1.is_some()) => {
+                self.prequant_get(&call.inputs[0])
+            }
+            _ => std::ptr::null(),
+        };
         let inp: Vec<IkTensor> = call.inputs.iter().map(Self::tensor).collect::<Result<_>>()?;
         let mut out: Vec<IkTensor> = call.outputs.iter().map(Self::tensor).collect::<Result<_>>()?;
         let a = &call.attrs;
@@ -956,8 +1089,27 @@ impl Backend for HipBackend {
         let rc = unsafe {
             match kernel {
                 "embedding_bf16" => ffi::ik_embedding_bf16(i(0), i(1), o, s),
-                "rmsnorm_bf16" => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
-                "rmsnorm_add_bf16" => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), s),
+                // lane fuse27: the prefill norm also quantises its output for the W4A8 GEMMs (`PreQuant`); IK_ERR_UNSUPPORTED = not this path
+                "rmsnorm_bf16" => match pq {
+                    Some((xq, _)) => match ffi::ik_rmsnorm_quant_bf16(i(0), std::ptr::null(), i(1), a.eps, a.w_offset, o, std::ptr::null_mut(), xq, s) {
+                        5 => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
+                        rc => {
+                            pq_ran = true;
+                            rc
+                        }
+                    },
+                    None => ffi::ik_rmsnorm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
+                },
+                "rmsnorm_add_bf16" => match pq {
+                    Some((xq, _)) => match ffi::ik_rmsnorm_quant_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), xq, s) {
+                        5 => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), s),
+                        rc => {
+                            pq_ran = true;
+                            rc
+                        }
+                    },
+                    None => ffi::ik_rmsnorm_add_bf16(i(0), i(1), i(2), a.eps, a.w_offset, o, o.add(1), s),
+                },
                 "add_bf16" => ffi::ik_add_bf16(i(0), i(1), o, s),
                 "qk_norm_bf16" => ffi::ik_qk_norm_bf16(i(0), i(1), a.eps, a.w_offset, o, s),
                 "rope_bf16" => ffi::ik_rope_bf16(i(0), a.pos0 as i64, a.theta, a.rotary_dim as i64, o, pos, s),
@@ -1105,7 +1257,7 @@ impl Backend for HipBackend {
                             let mut lay = ffi::IkArPush { cap: a.lay.cap, ..Default::default() };
                             let rc = match span0 {
                                 Some((wr, fl, fo)) => {
-                                    ffi::ik_matmul_mxfp4_a8_mma_cached(i(0), i(1), i(2), i(3), o, sc, wr, fl, fo, a.peer as *mut c_void, &mut lay, s)
+                                    ffi::ik_matmul_mxfp4_a8_mma_cached(i(0), i(1), i(2), i(3), o, sc, wr, fl, fo, a.peer as *mut c_void, &mut lay, xq_in, s)
                                 }
                                 None => ffi::ik_matmul_mxfp4_a8_mma_push(i(0), i(1), i(2), i(3), o, sc, a.peer as *mut c_void, &mut lay, s),
                             };
@@ -1115,7 +1267,7 @@ impl Backend for HipBackend {
                         }
                         None => match span0 {
                             Some((wr, fl, fo)) => {
-                                ffi::ik_matmul_mxfp4_a8_mma_cached(i(0), i(1), i(2), i(3), o, sc, wr, fl, fo, std::ptr::null_mut(), std::ptr::null_mut(), s)
+                                ffi::ik_matmul_mxfp4_a8_mma_cached(i(0), i(1), i(2), i(3), o, sc, wr, fl, fo, std::ptr::null_mut(), std::ptr::null_mut(), xq_in, s)
                             }
                             None => ffi::ik_matmul_mxfp4_a8_mma(i(0), i(1), i(2), i(3), o, sc, s),
                         },
@@ -1129,7 +1281,7 @@ impl Backend for HipBackend {
                 "matmul_mxfp4_pair_a8_gemv" => ffi::ik_matmul_mxfp4_pair_a8_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
                 "matmul_mxfp4_pair_a8_mma" => match (span0, span1) {
                     (Some((w0, f0, d0)), Some((w1, f1, d1))) => {
-                        ffi::ik_matmul_mxfp4_pair_a8_mma_cached(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, w0, f0, d0, w1, f1, d1, s)
+                        ffi::ik_matmul_mxfp4_pair_a8_mma_cached(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, w0, f0, d0, w1, f1, d1, xq_in, s)
                     }
                     _ => ffi::ik_matmul_mxfp4_pair_a8_mma(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
                 },
@@ -1230,6 +1382,9 @@ impl Backend for HipBackend {
             } else {
                 tr.pool.push(a);
             }
+        }
+        if let (true, Some((_, key))) = (pq_ran, pq) {
+            self.prequant_done(key, rc == 0);
         }
         if rc != 0 {
             let dts: Vec<DType> = call.inputs.iter().map(|t| t.dtype).collect();

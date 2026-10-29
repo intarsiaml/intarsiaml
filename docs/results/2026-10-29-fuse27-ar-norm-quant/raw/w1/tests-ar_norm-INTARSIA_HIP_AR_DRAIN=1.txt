@@ -1,0 +1,10 @@
+
+running 4 tests
+test bf16_partials_reduced_in_place_like_the_moe_block_output ... ok
+test fused_and_plain_collectives_interleave_eagerly_and_in_a_replayed_graph ... ok
+test fused_is_bitwise_the_unfused_pair_on_wide_range_data ... 480 trials
+ok
+test sixteen_rows_is_the_limit_and_unsupported_operands_are_refused ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.69s
+

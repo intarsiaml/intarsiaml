@@ -1,0 +1,15 @@
+
+running 1 test
+test pushed_all_reduce_add_rmsnorm_is_bitwise_the_plain_chain ... 
+thread 'pushed_all_reduce_add_rmsnorm_is_bitwise_the_plain_chain' panicked at crates/intarsia-backend-hip/tests/ar_push.rs:311:9:
+reference: M 2048 differs between the ranks
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    pushed_all_reduce_add_rmsnorm_is_bitwise_the_plain_chain
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 2.05s
+
