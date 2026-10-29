@@ -203,6 +203,217 @@ moe_dec_down_v2_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict_
     }
 }
 
+// Dedup ("dd") down projection for the multi-token (rows) launchers, lane moedn. v2 runs every (token, slot) pair as its own
+// block group, so an expert that 2 tokens route to is read and decoded twice (128 pairs on ~61 distinct experts at T = 16, the
+// second read from L2 at best), in 8192 one-iteration blocks. Here a block owns RT = R * G output rows of ALL T tokens: it lists
+// the T * K pairs grouped by distinct valid expert in shared memory (a counting sort), and its warps take (expert, R-row group)
+// items from a shared counter. A warp loads the item's R weight rows once (the next item's rows and first h chunk prefetched
+// into registers while the current one computes, the next pair's h chunk while the current pair computes) and runs every pair
+// routed to that expert on them. Per (pair, row) it is v2's code: the lane-strided u loop, the 16-term pdot
+// fmaf chain, acc = fmaf(pdot, sv, acc) from 0, ik_warp_sum, round(round(s * g) * w); the term lands in shared memory under
+// its slot, and one thread per (token, row) sums slots 0..K-1 from +0 as v2 does, so the outputs are bitwise v2's (and so the
+// T = 1 kernel's). Which warp runs which item, and in what order, cannot change a bit. An invalid id's slot holds 0, as in v2.
+// Shared memory: P * RT floats of terms and 6 * P + 1 ints (P = T * K <= 256): at most 38 KB.
+template <int R>
+IK_DEVI void dd_load_rows(const uint8_t* __restrict__ dnw, const uint8_t* __restrict__ dns, int v, int rb, int H, int I,
+                          int u, uint2* wv, float* sv) {
+#pragma unroll
+    for (int i = 0; i < R; ++i) {
+        const int64_t row = (int64_t)v * H + (rb + i < H ? rb + i : H - 1);  // rows >= H are read, never stored
+        wv[i] = __ldcs(reinterpret_cast<const uint2*>(dnw + row * (I / 2)) + u);
+        sv[i] = ik_e4m3_to_f(dns[row * (I / 16) + u]);
+    }
+}
+
+template <int R, int G>
+__global__ void __launch_bounds__(kRowWarps * IK_WARP, 3)
+moe_dec_down_dd_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dnw, const uint8_t* __restrict__ dns,
+                       const float* __restrict__ gscales, const int* __restrict__ ids, const float* __restrict__ wts,
+                       ik_bf16* __restrict__ out, int T, int E, int H, int I, int K) {
+    constexpr int RT = R * G;
+    extern __shared__ __align__(16) float dd_smem[];
+    __shared__ int nlead, next_item;
+    const int P = T * K;
+    float* term = dd_smem;                                     // [P][RT]
+    int* sid = reinterpret_cast<int*>(term + (size_t)P * RT);  // [P] the pair's expert, -1 if invalid
+    int* fst = sid + P;                                        // [P] the first pair on the same expert
+    int* rnk = fst + P;                                        // [P] the pair's rank among its expert's pairs
+    int* dix = rnk + P;                                        // [P] at a first pair: its expert's index d
+    int* ord = dix + P;                                        // [P] the valid pairs grouped by expert
+    int* off = ord + P;                                        // [P + 1] expert d's pairs are ord[off[d] .. off[d + 1])
+    const int r0 = blockIdx.x * RT;
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    if (threadIdx.x == 0) nlead = 0, next_item = kRowWarps;
+    for (int p = threadIdx.x; p <= P; p += blockDim.x) {
+        off[p] = 0;
+        if (p < P) {
+            const int v = ids[p];
+            sid[p] = v >= 0 && v < E ? v : -1;
+        }
+    }
+    __syncthreads();
+    // counting sort of the pairs by expert (experts in first-come order of the atomic: it only decides the work order)
+    for (int p = threadIdx.x; p < P; p += blockDim.x) {
+        const int v = sid[p];
+        if (v < 0) {
+            for (int i = 0; i < RT; ++i) term[p * RT + i] = 0.f;
+            continue;
+        }
+        int f = p, n = 0;
+        for (int q = 0; q < p; ++q)
+            if (sid[q] == v) f = n++ ? f : q;
+        fst[p] = f;
+        rnk[p] = n;
+        if (f == p) dix[p] = atomicAdd(&nlead, 1);
+    }
+    __syncthreads();
+    for (int p = threadIdx.x; p < P; p += blockDim.x)
+        if (sid[p] >= 0) atomicAdd(&off[dix[fst[p]] + 1], 1);
+    __syncthreads();
+    if (warp == 0) {
+        int carry = 0;
+        for (int b = 0; b < nlead; b += IK_WARP) {
+            int x = b + lane < nlead ? off[b + lane + 1] : 0;
+#pragma unroll
+            for (int s = 1; s < IK_WARP; s <<= 1) {
+                const int y = __shfl_up_sync(0xffffffffu, x, s);
+                if (lane >= s) x += y;
+            }
+            if (b + lane < nlead) off[b + lane + 1] = x + carry;
+            carry += __shfl_sync(0xffffffffu, x, IK_WARP - 1);
+        }
+    }
+    __syncthreads();
+    for (int p = threadIdx.x; p < P; p += blockDim.x)
+        if (sid[p] >= 0) ord[off[dix[fst[p]]] + rnk[p]] = p;
+    __syncthreads();
+    const int items = nlead * G;
+    if (I / 16 <= IK_WARP) {
+        // one u per lane (the 35B: I / 16 = 32): the item's weights stay in registers for all its pairs; items are handed out
+        // by a shared counter, and the next item's weights and first h chunk load while the current one computes
+        const int u = lane < I / 16 ? lane : 0;
+        const bool on = lane < I / 16;
+        uint2 nw[R];
+        float ns[R];
+        uint4 nh0 = make_uint4(0, 0, 0, 0), nh1 = nh0;
+        int it = warp;
+        if (it < items) {
+            dd_load_rows<R>(dnw, dns, sid[ord[off[it / G]]], r0 + (it % G) * R, H, I, u, nw, ns);
+            const uint4* hp = reinterpret_cast<const uint4*>(h + (int64_t)ord[off[it / G]] * I);
+            nh0 = hp[2 * u], nh1 = hp[2 * u + 1];
+        }
+        while (it < items) {
+            uint2 wv[R];
+            float sv[R];
+#pragma unroll
+            for (int i = 0; i < R; ++i) wv[i] = nw[i], sv[i] = ns[i];
+            uint4 ha0 = nh0, ha1 = nh1;
+            const int d = it / G, g = it % G, o0 = off[d], o1 = off[d + 1];
+            const int v = sid[ord[o0]];
+            int ni = 0;
+            if (lane == 0) ni = atomicAdd(&next_item, 1);
+            it = __shfl_sync(0xffffffffu, ni, 0);
+            if (it < items) {
+                const int pn = ord[off[it / G]];
+                dd_load_rows<R>(dnw, dns, sid[pn], r0 + (it % G) * R, H, I, u, nw, ns);
+                const uint4* hp = reinterpret_cast<const uint4*>(h + (int64_t)pn * I);
+                nh0 = hp[2 * u], nh1 = hp[2 * u + 1];
+            }
+            const float gs = gscales[v * 3 + 2];
+            for (int j = o0; j < o1; ++j) {
+                const int p = ord[j];
+                uint4 hb0 = ha0, hb1 = ha1;
+                if (j + 1 < o1) {
+                    const uint4* hp = reinterpret_cast<const uint4*>(h + (int64_t)ord[j + 1] * I);
+                    hb0 = hp[2 * u], hb1 = hp[2 * u + 1];
+                }
+                float acc[R];
+#pragma unroll
+                for (int i = 0; i < R; ++i) acc[i] = 0.f;
+                if (on) {
+                    float hf[16];
+                    ik_unpack8(ha0, hf);
+                    ik_unpack8(ha1, hf + 8);
+#pragma unroll
+                    for (int i = 0; i < R; ++i) {
+                        float fw[16];
+                        ik_fp4x8_to_f32(wv[i].x, fw);
+                        ik_fp4x8_to_f32(wv[i].y, fw + 8);
+                        float pdot = 0.f;
+#pragma unroll
+                        for (int e = 0; e < 16; ++e) pdot = fmaf(fw[e], hf[e], pdot);
+                        acc[i] = fmaf(pdot, sv[i], acc[i]);
+                    }
+                }
+#pragma unroll
+                for (int i = 0; i < R; ++i) {
+                    const float s = ik_warp_sum(acc[i]);
+                    if (lane == 0) term[p * RT + g * R + i] = round_bf16(round_bf16(s * gs) * wts[p]);
+                }
+                ha0 = hb0, ha1 = hb1;
+            }
+        }
+    } else {
+        // the general u loop (I / 16 > 32): per pair, v2's loop; the item's rows come from L1 / L2 after the first pair
+        for (int it = warp; it < items; it += kRowWarps) {
+            const int d = it / G, g = it % G, rb = r0 + g * R;
+            const int v = sid[ord[off[d]]];
+            const float gs = gscales[v * 3 + 2];
+            const uint2* wrow[R];
+            const uint8_t* srow[R];
+#pragma unroll
+            for (int i = 0; i < R; ++i) {
+                const int64_t row = (int64_t)v * H + (rb + i < H ? rb + i : H - 1);  // rows >= H are read, never stored
+                wrow[i] = reinterpret_cast<const uint2*>(dnw + row * (I / 2));
+                srow[i] = dns + row * (I / 16);
+            }
+            for (int j = off[d]; j < off[d + 1]; ++j) {
+                const int p = ord[j];
+                float acc[R];
+#pragma unroll
+                for (int i = 0; i < R; ++i) acc[i] = 0.f;
+                const uint4* hp = reinterpret_cast<const uint4*>(h + (int64_t)p * I);
+#pragma unroll 1
+                for (int u = lane; u < I / 16; u += IK_WARP) {
+                    uint2 wv[R];
+                    float sv[R];
+#pragma unroll
+                    for (int i = 0; i < R; ++i) {
+                        wv[i] = wrow[i][u];
+                        sv[i] = ik_e4m3_to_f(srow[i][u]);
+                    }
+                    float hf[16];
+                    ik_unpack8(hp[2 * u], hf);
+                    ik_unpack8(hp[2 * u + 1], hf + 8);
+#pragma unroll
+                    for (int i = 0; i < R; ++i) {
+                        float fw[16];
+                        ik_fp4x8_to_f32(wv[i].x, fw);
+                        ik_fp4x8_to_f32(wv[i].y, fw + 8);
+                        float pdot = 0.f;
+#pragma unroll
+                        for (int e = 0; e < 16; ++e) pdot = fmaf(fw[e], hf[e], pdot);
+                        acc[i] = fmaf(pdot, sv[i], acc[i]);
+                    }
+                }
+#pragma unroll
+                for (int i = 0; i < R; ++i) {
+                    const float s = ik_warp_sum(acc[i]);
+                    if (lane == 0) term[p * RT + g * R + i] = round_bf16(round_bf16(s * gs) * wts[p]);
+                }
+            }
+        }
+    }
+    __syncthreads();
+    for (int o = threadIdx.x; o < T * RT; o += blockDim.x) {
+        const int t = o / RT, i = o % RT;
+        if (r0 + i >= H) continue;
+        float total = 0.f;
+        for (int k = 0; k < K; ++k) total += term[(t * K + k) * RT + i];
+        out[(int64_t)t * H + r0 + i] = ik_f2b(total);
+    }
+}
+
 inline int64_t r256(int64_t v) { return (v + 255) & ~int64_t(255); }
 
 // Tuning knobs for A/B runs (host side, read when the launch is recorded): rows per block of the v2 down kernel
@@ -233,6 +444,33 @@ void launch_down_v2(const ik_bf16* hbuf, const ik_tensor* down_w, const ik_tenso
     moe_dec_down_v2_kernel<R, TF><<<TF ? dim3((unsigned)T, rb) : dim3(rb, (unsigned)T), kRowWarps * IK_WARP, 0, s>>>(
         hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data, (const float*)gscales->data,
         (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)E, (int)H, (int)I, (int)K);
+}
+
+template <int R, int RT>
+void launch_down_dd(const ik_bf16* hbuf, const ik_tensor* down_w, const ik_tensor* down_s, const ik_tensor* gscales,
+                    const ik_tensor* ids, const ik_tensor* weights, ik_tensor* out, int64_t T, int64_t E, int64_t H,
+                    int64_t I, int64_t K, cudaStream_t s) {
+    const size_t smem = (size_t)T * K * (RT * sizeof(float) + 6 * sizeof(int)) + sizeof(int);
+    moe_dec_down_dd_kernel<R, RT / R><<<(unsigned)((H + RT - 1) / RT), kRowWarps * IK_WARP, smem, s>>>(
+        hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data, (const float*)gscales->data,
+        (const int*)ids->data, (const float*)weights->data, (ik_bf16*)out->data, (int)T, (int)E, (int)H, (int)I, (int)K);
+}
+
+// The dedup down kernel's geometry (lane moedn; host side, read when the launch is recorded): INTARSIA_MOE_DOWN_DD = rows per
+// block 8|16|32, 0 = the v2 kernel; INTARSIA_MOE_DOWN_DD_R = rows per warp item 2|4|8 (at most the block's rows).
+bool launch_down_dd_knobs(const ik_bf16* hbuf, const ik_tensor* down_w, const ik_tensor* down_s, const ik_tensor* gscales,
+                          const ik_tensor* ids, const ik_tensor* weights, ik_tensor* out, int64_t T, int64_t E, int64_t H,
+                          int64_t I, int64_t K, cudaStream_t s) {
+    const int rt = knob("INTARSIA_MOE_DOWN_DD", 16, 0, 8, 16, 32);
+    const int r = knob("INTARSIA_MOE_DOWN_DD_R", 4, 2, 4, 8, 8);
+    switch (rt * 10 + (r > rt ? rt : r)) {
+#define IK_DD_CASE(rr, rt_) case rt_ * 10 + rr: launch_down_dd<rr, rt_>(hbuf, down_w, down_s, gscales, ids, weights, out, T, E, H, I, K, s); return true;
+        IK_DD_CASE(2, 8) IK_DD_CASE(4, 8) IK_DD_CASE(8, 8)
+        IK_DD_CASE(2, 16) IK_DD_CASE(4, 16) IK_DD_CASE(8, 16)
+        IK_DD_CASE(2, 32) IK_DD_CASE(4, 32) IK_DD_CASE(8, 32)
+#undef IK_DD_CASE
+        default: return false;
+    }
 }
 
 // Diagnostic, lane moe16 (INTARSIA_MOE_ROUTE_STATS=1; off by default, no effect on results): distinct experts per call of the
@@ -314,6 +552,8 @@ int decode_launch(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wei
     IK_TRY(ik_launch_status());
     if (v2) {
         const bool tf = max_t > 0;  // the multi-token (rows) launchers
+        if (tf && launch_down_dd_knobs(hbuf, down_w, down_s, gscales, ids, weights, out, T, E, H, I, K, s))
+            return ik_launch_status();
         switch (knob("INTARSIA_MOE_DOWN_R", 4, 1, 2, 4, 8)) {
 #define IK_DOWN_CASE(r) case r: if (tf) launch_down_v2<r, true>(hbuf, down_w, down_s, gscales, ids, weights, out, T, E, H, I, K, s); \
                                 else launch_down_v2<r, false>(hbuf, down_w, down_s, gscales, ids, weights, out, T, E, H, I, K, s); break;

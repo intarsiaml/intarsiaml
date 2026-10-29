@@ -1,0 +1,54 @@
+== quantmoe 09:44:58
+test bench_moe_decode_cold ... ignored
+test bench_moe_rows_cold ... ignored
+test bench_real_shapes ... ignored
+test bench_wq_prefill_shapes ... ignored
+test matmul_fp8_gemm_f8_is_as_accurate_as_the_bf16_gemm ... ok
+test matmul_fp8_gemm_f8_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_is_bitwise_the_mma_kernel ... ok
+test matmul_fp8_gemm_lt_is_as_accurate_as_the_bf16_gemm ... ok
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call ... ok
+test matmul_fp8_gemm_lt_rows_do_not_depend_on_the_call_35b_shapes ... ok
+test matmul_nvfp4_gemm_is_bitwise_the_mma_kernel ... ok
+test moe_experts_decode_matches_old_kernel ... ok
+test moe_experts_mma_is_as_accurate_as_old_kernel ... ok
+test moe_experts_mma_is_independent_of_tile_height ... ok
+test moe_experts_mma_matches_old_kernel ... ok
+test moe_experts_mma_matches_reference ... ok
+test moe_experts_mma_small_t_sweep ... ignored
+test moe_experts_skewed_and_invalid_routing ... ok
+test probe_cublas_bf16_vs_gemm_reg_bits ... ignored
+test result: ok. 13 passed; 0 failed; 6 ignored; 0 measured; 0 filtered out; finished in 7.61s
+== moe_nvfp4 09:45:06
+test bench_moe_nvfp4_real_shapes ... ignored
+test moe_nvfp4_at_the_real_prefill_shape ... ok
+test moe_nvfp4_handles_range_zero_rows_and_odd_routing ... ok
+test moe_nvfp4_is_independent_of_tile_height ... ok
+test moe_nvfp4_is_within_activation_quantisation_error_of_the_bf16_reference ... ok
+test moe_nvfp4_matches_the_quantised_reference ... ok
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.07s
+== rows_exact 09:45:09
+test bf16_matmul_and_logits_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_pair_rows_are_bitwise_the_one_row_gemvs ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test fp8_rows_q_are_bitwise_the_one_row_gemv ... ok
+test moe_decode_rows_are_bitwise_the_one_token_kernel ... ok
+test mxfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test nvfp4_rows_full_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_ops_are_row_independent ... ok
+test rows_split_are_bitwise_the_one_row_gemv ... ok
+test timing_gemv_rows ... ignored, micro-timing
+test timing_rows_evict ... ignored, micro-timing
+test result: ok. 10 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 34.10s
+== row_tables 09:45:44
+test attn_decode_rows_are_the_solo_decode ... G-B attn_decode_bf16_splitkv_rows: 3220480 bytes identical to the solo launches (M 1..=16, 7 shapes, positions 0..1199)
+test device_topk_is_the_host_candidate_order ... G-B topk_f32: 8180 (id, value) pairs equal to the host order (V 248320 / 151936 / 1000 / 70, R <= 16, k <= 64), NaN row flagged
+test gdn_conv_rows_are_the_solo_conv ... G-B gdn_conv_bf16_rows: 27472544 bytes identical to the solo launches (M 1..=16, 3 shapes)
+test gdn_delta_rows_are_the_solo_delta_rule ... G-B gdn_delta_rule_bf16_split_rows: 305405952 bytes identical to the solo launches (M 1..=16, dk 128 and 64)
+test kv_append_rows_are_the_solo_append ... G-B kv_append_bf16_rows: 33423360 bytes identical to the solo launches (M 1..=16, 2 shapes)
+test rope_with_one_position_per_row_is_the_solo_rope ... G-B rope_bf16 (one position per row): 2350080 bytes identical to the solo launches (M 2..=16, 3 shapes)
+test timing_attn_rows ... ignored
+test timing_gdn_rows ... ignored
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 21.46s
+== done 09:46:06
