@@ -26,6 +26,20 @@ echo "[pf27] radiance $(systemctl --user is-active radiance) $(now)"
 P=$(cat $R/scripts/cmtp/ids-prompts/4k-0.txt)
 GEN="generate -m $M27 --backend hip --tp 2 --devices 0,1 --mem-budget 29 --max-seq 8192 --spec off --ignore-eos --max-tokens 1"
 
+if has ids; then  # the det / ars lanes' ids gate: greedy 256 ids of the 18 prompts in scripts/dfh/ids-prompts, tp2, base vs dev, spec off + MTP default
+  IG="generate -m $M27 --backend hip --tp 2 --devices 0,1 --mem-budget 29 --max-seq 20480 --chat --no-think --profile-every 0 --ignore-eos --show-ids --max-tokens 256"
+  for pr in $(ls $R/scripts/dfh/ids-prompts | sed 's/\.txt$//'); do
+    for sp in off mtp; do
+      sa=""; [[ $sp == off ]] && sa="--spec off"
+      for b in base dev; do
+        gpu 420 /work/pf27-$b-cli $IG $sa -p "$(cat $R/scripts/dfh/ids-prompts/$pr.txt)" > /dev/null 2> "$O/ids-$pr-$sp-$b.err"
+        grep -a '^ids' "$O/ids-$pr-$sp-$b.err" > "$O/ids-$pr-$sp-$b.ids"
+      done
+      if [[ -s "$O/ids-$pr-$sp-base.ids" ]] && cmp -s "$O/ids-$pr-$sp-base.ids" "$O/ids-$pr-$sp-dev.ids"; then r=SAME; else r=DIFF; fi
+      echo "== ids $pr $sp: $r ($(wc -w < "$O/ids-$pr-$sp-base.ids") words; $(grep -aoE 'prompt=[0-9]+' "$O/ids-$pr-$sp-base.err" | tail -1))"
+    done
+  done
+fi
 if has P; then
   for b in $PBINS; do
     d=/work/pf27-prof; rm -rf "$R/pf27-prof"; mkdir -p "$R/pf27-prof"
@@ -84,16 +98,7 @@ if has time; then
   t base2 $TB A=1
   [[ -z "${TQUICK:-}" ]] && t dev2 $TD A=1
 fi
-if has diag; then  # PF27-DIAG timing-only variants of the direct kernel (TD = the diag test binary), M = 2048
-  for d in ${DIAGS:-0 1 2 3 4 5 6 0}; do
-    G=0 gpu 300 env GLR_TIMING_M=2048 INTARSIA_HIP_MXFP4_A8_DIAG=$d $TD --ignored --nocapture timing_a8_tp2 2>&1 | grep -aE "^TIME|panicked|error" > "$O/diag-$d.txt"
-    echo "== diag $d: $(awk '/^TIME/ {s += $(NF-3)} END {print s " us summed"}' "$O/diag-$d.txt")"
-  done
-  for d in ${DHASH:-}; do  # correct-result diag variants: hashes against W1's base
-    G=0 gpu 300 env INTARSIA_HIP_MXFP4_A8_DIAG=$d $TD --ignored --nocapture a8_mma_hashes 2>&1 | grep -a "^HASH\|panicked" > "$O/hash-diag-$d.txt"
-    echo "== hash diag $d: $(wc -l < "$O/hash-diag-$d.txt") lines; bf16 lines differing from base: $(grep -a Bf16 "$O/hash-diag-$d.txt" | diff <(grep -a Bf16 $HOME/intarsiaml-pf27/pf27-out/w1/hash-base.txt) - | grep -c '^<')"
-  done
-fi
+# (the timing-only diagnostic section of the lane ran a build of raw/isa/mxfp4_a8_gemm.diag.hip, not the shipped kernel)
 if has ktrace; then
   for v in "base|$TB" "dev|$TD"; do
     [[ $(left) -lt 200 ]] && break
