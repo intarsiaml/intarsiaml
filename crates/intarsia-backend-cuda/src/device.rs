@@ -201,6 +201,11 @@ impl Backend for CudaBackend {
     fn prefix_reuse_any_cut(&self) -> bool {
         false
     }
+    /// Lane srv16: cuBLASLt fp8 and cuBLAS bf16 GEMMs pick tiling / split-K by row count (lane sk's macro pass), so a packed
+    /// prefill runs them per prompt; without it `real_35b_packed_prefill_equals_the_local_engine` fails.
+    fn pack_split_gemms(&self) -> bool {
+        true
+    }
     fn name(&self) -> &str {
         "cuda"
     }
