@@ -59,10 +59,11 @@ pub struct BatchedOptions {
     /// Prefill/decode overlap (R3d, `INTARSIA_OVERLAP`): batched decode runs on a decode twin of the model (own stream, own
     /// workspace) so a prefill chunk can be in flight beside the decode steps. Output is unchanged, bit for bit; CUDA only.
     pub overlap: bool,
-    /// Packed prefill (`INTARSIA_PACK_PREFILL=1`, opt-in): the next chunks of several waiting prompts run in one pass
+    /// Packed prefill (`INTARSIA_PACK_PREFILL=1` on, `=0` off): the next chunks of several waiting prompts run in one pass
     /// (`Model::forward_packed`) on a hybrid (recurrent) model; each prompt's state is its solo prefill's when every row-wise kernel is
-    /// independent of the other rows of the call.
-    pub pack_prefill: bool,
+    /// independent of the other rows of the call. `None` (unset): the backend's default (`Backend::pack_prefill_default`: on for
+    /// CUDA, lane srv16; off elsewhere).
+    pub pack_prefill: Option<bool>,
     /// Tests only: start the scheduler thread held, so that a whole workload is submitted before its first iteration admits
     /// anything (see [`BatchedEngine::release`]). Always false from [`BatchedOptions::new`].
     #[doc(hidden)]
@@ -80,7 +81,7 @@ impl BatchedOptions {
             prefix_reuse: self.prefix_reuse,
             trace_stderr: self.trace,
             spec_off_at: self.spec_off_at,
-            pack_prefill: self.pack_prefill,
+            pack_prefill: self.pack_prefill.unwrap_or(false),
             ..SchedulerConfig::default()
         }
     }
@@ -96,7 +97,7 @@ impl BatchedOptions {
             busy_chunk: BUSY_PREFILL_CHUNK,
             row_fault: None,
             overlap: std::env::var("INTARSIA_OVERLAP").map(|v| v == "1").unwrap_or(false),
-            pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").map(|v| v == "1").unwrap_or(false),
+            pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").ok().map(|v| v == "1"),
             hold_start: false,
         }
     }
@@ -580,6 +581,9 @@ impl BatchedEngine {
 
         let solo_chunk = model.prefill_chunk().max(1);
         let mut cfg = opts.scheduler_config(solo_chunk);
+        if opts.pack_prefill.is_none() {
+            cfg.pack_prefill = model.backend.pack_prefill_default();
+        }
         if recurrent && model.batch_snapshots() == 0 {
             // the prefix store stays at batch 1 on this backend: a recurrent slot cannot be rewound, so no slot is a reuse
             // candidate (every request starts from an empty slot)

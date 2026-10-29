@@ -215,6 +215,12 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Whether `serve --max-batch` packs the prefill of prompts waiting together (`BatchedOptions::pack_prefill`) when
+    /// `INTARSIA_PACK_PREFILL` is unset. Default false (opt-in); true where the packed pass is measured bitwise and faster (CUDA).
+    fn pack_prefill_default(&self) -> bool {
+        false
+    }
+
     /// Most sequences one batched decode step may carry on this backend (`Model::enable_batch`, `--max-batch`): the number of
     /// rows its row-exact multi-row kernels are registered and proven for (G-B: row r of an M-row call is bitwise the one-row
     /// kernel). Default 8 (Metal's, and what the cpu backend serves in tests); the CUDA backend proves 16. Never above

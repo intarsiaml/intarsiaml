@@ -206,6 +206,10 @@ impl Backend for CudaBackend {
     fn pack_split_gemms(&self) -> bool {
         true
     }
+    /// Lane srv16: packed prefill on by default (docs/results/2026-10-28-srv16-serve-gap.md: each prompt bitwise its solo prefill).
+    fn pack_prefill_default(&self) -> bool {
+        true
+    }
     fn name(&self) -> &str {
         "cuda"
     }
