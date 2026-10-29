@@ -429,6 +429,7 @@ impl SequenceState {
             }
         }
         self.len = keep;
+        self.inv_len = self.inv_len.min(keep);
         self.tokens.truncate(keep);
         if let Some(m) = &mut self.mtp {
             if m.kv.len > keep {

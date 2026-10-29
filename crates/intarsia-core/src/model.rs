@@ -2192,6 +2192,7 @@ impl Model {
             return self.forward(st, ids, mode, on_row);
         }
         let pos = st.len;
+        debug_assert!(st.inv_len <= st.len, "inv_len {} above len {}", st.inv_len, st.len);
         self.prefill_inv.store(true, std::sync::atomic::Ordering::Relaxed);
         let r = self.forward(st, ids, mode, on_row);
         self.prefill_inv.store(false, std::sync::atomic::Ordering::Relaxed);
