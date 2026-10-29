@@ -186,6 +186,13 @@ impl CudaBackend {
 }
 
 impl Backend for CudaBackend {
+    /// Not on CUDA: a prefill pass's bits depend on its row count. On Qwen3-8B every split `P[..k]` + `P[k..]` of the 16
+    /// equal.py prompts gave other logits than the one-pass prefill, and a repeated prompt resumed with its last token alone
+    /// moved them by up to 0.23 and flipped greedy tokens (lane bi8, docs/results/2026-10-29-bi8-serve-batch-invariance.md;
+    /// also docs/results/2026-10-22-ck-cuda8b-chunk.md for 256- vs 4096-row chunks).
+    fn prefix_reuse_any_cut(&self) -> bool {
+        false
+    }
     fn name(&self) -> &str {
         "cuda"
     }
