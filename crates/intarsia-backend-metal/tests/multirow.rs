@@ -472,8 +472,9 @@ fn all_variants_logits() {
 
 /// Ordinary calls (`exact_rows` false) get what serving picked before the rows kernels were listed, through
 /// `Registry::select` itself: NAX GEMM / NAX pair for M = 2..15 (`NAX_MIN_M` = 2 since the tail-chunk fix; tiled GEMM
-/// and no pair kernel without the metal4 library) and the tiled logits GEMM. Verify calls (`exact_rows`) of M = 2..8
-/// get the multi-row GEMVs and nothing else, and M > 8 verify calls fail instead of landing on another kernel.
+/// and no pair kernel without the metal4 library) and the tiled logits GEMM. Verify / batched calls (`exact_rows`) of
+/// M = 2..16 get the multi-row GEMVs and nothing else (9..16 rows run as two launches, lane mdec), and M > 16 fail instead of
+/// landing on another kernel.
 #[test]
 fn serving_selection_unchanged() {
     let be = backend();
@@ -485,7 +486,7 @@ fn serving_selection_unchanged() {
     } else {
         (MATMUL_BF16, None)
     };
-    for m in [2usize, 3, 8, 15] {
+    for m in [2usize, 3, 8, 15, 16, 17] {
         let w = weights(&be, 64, 64, 0, 1);
         let xb = padded(&be, 0, &rand_rows(m, 64, 2), 16);
         let yb = out_buffer(&be, 0, m * 64 * 2);
@@ -510,7 +511,7 @@ fn serving_selection_unchanged() {
         call.exact_rows = true;
         lcall.exact_rows = true;
         pcall.exact_rows = true;
-        if m <= 8 {
+        if m <= 16 {
             assert_eq!(pick(&call).unwrap(), MATMUL_BF16_GEMV_ROWS, "M={m}");
             assert_eq!(pick(&lcall).unwrap(), LOGITS_BF16_GEMV_ROWS, "M={m}");
             assert_eq!(pick(&pcall).unwrap(), MATMUL_PAIR_BF16_GEMV_ROWS, "M={m}");

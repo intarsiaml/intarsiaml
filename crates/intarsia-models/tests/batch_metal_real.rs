@@ -125,10 +125,10 @@ fn real_lfm2_batched_decode_is_bitwise_the_solo_step() {
         return skip("INTARSIA_LFM2_DIR not set");
     }
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_LFM2_DIR"), metal()) else { return };
-    let m = load(&dir, be, 8, 2048);
+    let m = load(&dir, be, 16, 2048);
     eprintln!("batch plan notes: {:?}", m.plan.notes);
-    let lens = vec![5, 37, 130, 300, 17, 64, 9, 222];
-    gate(&m, lens, vec![2, 3, 4, 5, 6, 7, 8], 130, (1000, 30000));
+    let lens = vec![5, 37, 130, 300, 17, 64, 9, 222, 41, 450, 77, 23, 190, 29, 601, 12];
+    gate(&m, lens, vec![2, 3, 4, 5, 6, 7, 8, 9, 12, 16], 130, (1000, 30000));
     let n = batch_identity::run_with_prefill(&m, &[37, 130, 300, 17], 700, 256, (1000, 30000));
     assert_eq!(n, 4 * 2 * 700usize.div_ceil(256));
 }

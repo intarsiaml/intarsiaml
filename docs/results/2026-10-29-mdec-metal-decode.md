@@ -8,22 +8,32 @@ Qwen3.6-35B-A3B NVFP4 (MTP off, the Metal default; MTP measured opt-in) and Qwen
 
 **One shippable change: Metal takes `--max-batch` up to 16** (was 8). 9..16 rows run the multi-row GEMVs as two launches of at
 most 8 rows (lane mr3's chunking, `lane-mr3/cap16-experiment`, rebased) and the per-pair MoE kernels as one launch; every row is
-bitwise the solo step (gates below). Nothing changes at `--max-batch` 8 or below or for a single stream (same kernels, same plan).
+bitwise the solo step (gates below). At `--max-batch` 8 or below the kernels and the admission are main's (the server log's
+admission line, 27 kernels / 479 cases, and batching notes are identical to main's at `--max-batch 8`); a full batch-plan dump
+was not compared. `--max-batch 16` does reserve recurrent state and workspace for 16 sequences (942 MiB on the 35B), so its
+N <= 8 cells are the same kernels on a different plan, and are reported as such below.
 
 Served 35B, localeval `--sizes 1024 --gen 512 --reps 1`, `--max-batch 8` (main's cap) vs `16`, a fresh server per arm,
 interleaved (job #7076: 8, 16, 16, 8, 8, 16), aggregate decode tok/s:
 
 | streams | `--max-batch 8` r1 / r2 / r3 | `--max-batch 16` r1 / r2 / r3 | median change |
 |---:|---|---|---:|
-| 1 | 107.3 / 118.1 / 113.3 | 109.0 / 113.0 / 113.3 | 0 (same path) |
-| 4 | 217.4 / 248.0 / 227.1 | 219.7 / 222.5 / 230.6 | -2.0 % (same path; pairs +1.1 / -10.3 / +1.5, the r2 `8` arm ran fast on every cell) |
-| 8 | 273.4 / 283.1 / 285.7 | 277.0 / 282.6 / 286.8 | -0.2 % (same path) |
+| 1 | 107.3 / 118.1 / 113.3 | 109.0 / 113.0 / 113.3 | 0 |
+| 4 | 217.4 / 248.0 / 227.1 | 219.7 / 222.5 / 230.6 | **-2.0 %** (pairs +1.1 / -10.3 / +1.5; the r2 `8` arm ran fast on every cell, re-measured below) |
+| 8 | 273.4 / 283.1 / 285.7 | 277.0 / 282.6 / 286.8 | -0.2 % |
 | **16** | 276.4 / 281.7 / 283.8 | 295.9 / 298.2 / 304.8 | **+5.9 %** (pairs +7.1 / +5.9 / +7.4) |
+
+N = 4 re-measured alone (short check #7105, 2 interleaved pairs, 8 / 16 / 16 / 8): `--max-batch 8` 253.6 / 251.8 vs `16` 251.9 /
+253.9 tok/s, **0.0 %**; the -2.0 % above was the fast r2 arm. No cell is slower than -1 %.
 
 The earlier window (#7061, N = 8 and 16 only, order 8/16, 16/8, 8/16) gave N = 16 309.3 / 288.0 / 289.8 vs 294.5 / 298.1 / 304.9
 (+2.9 % median, pairs -4.8 / +3.5 / +5.2). Over all six pairs the median is +5.5 %. Time to first token at 16 streams drops
 from 8.6 s to 2.7 s (the second wave no longer waits for the first). The gain is the second wave's prefill overlapping
 decode, not a faster step: a 16-row step is 37.4 ms against 20.5 ms for 8 rows (section 2).
+
+Not measured on the branch: 35B single-stream 1k / 16k and the 8B at 1k / 4k / 16k (the one-row path is main's except a
+kernel-name check per launch in `row_chunks`); the 35B 4k A/B (#7076) is main 118.2 / 115.1 / 117.0 vs branch 115.5 / 117.2 /
+116.3 tok/s with identical outputs. The scoreboard rows are MTP-off (the Metal default), as are all cells here.
 
 Single stream: no lever found that moves it. The 35B decodes 124.5 / 120.7 / 109.5 tok/s at 1k / 4k / 16k (47 % of its
 ~2.4 GB/token floor at 4k); the 8B is at 98 % of its floor. Section 1 is the attribution, section 2 what was tried (all
@@ -124,13 +134,15 @@ construction (single-stream and `--max-batch` <= 8 run the same kernels and plan
 | negative control `INTARSIA_METAL_NEGCTL=fp8_mmt` | fails the fp8 gate, as it must (#7061) | `raw/w3/window.log` |
 | `real_35b_batched_decode_is_bitwise_the_solo_step`, N = 2..9, 11, 12, 13, 15, 16, 130 steps each, beside prefill chunks | **14430 (row, step) pairs bitwise identical** (#7080) | `raw/w4/gc-bitwise.log` |
 | `real_35b_batched_engine_equals_the_local_engine`, 4 / 8 / 16 slots | pass (#7076) | `raw/w4/gc.log` |
-| `batch_metal` (Qwen3-8B dense batching) | pass (#7076) | `raw/w4/dense.log` |
+| `batch_metal` (Qwen3-8B dense batching), extended to N = 2..16 (2, 3, 4, 6, 8, 9, 12, 16) | **360 (row, step) pairs bitwise** (#7102) | `raw/s6/dense16.log` |
+| `real_lfm2_batched_decode_is_bitwise_the_solo_step` (LFM2.5-1.2B, short-conv), extended to N = 2..16 | **9360 pairs bitwise** (#7102) | `raw/s6/lfm2.log` |
+| `tests/multirow.rs` (selection pinned: exact-rows calls take the multi-row GEMVs at M = 2..16, fail at 17) | 12 / 12 (#7102) | `raw/s6/multirow.log` |
 | greedy ids, 35B 4k 257 tokens, main vs branch | identical md5 every arm (#7076) | `raw/w4/window.log` |
 | `cargo test --workspace --release` (endor) | __WS__ | `raw/w4/wstest.log` |
 | long prompts 2.6k / 4k / 16k at 16 slots (`--ignored real_35b_batched_engine_long_prompts_*`) | not run (window budget) | |
 
-`real_lfm2_batched_decode_is_bitwise_the_solo_step` fails under `INTARSIA_REQUIRE_GPU=1` only because `INTARSIA_LFM2_DIR` is
-not set on endor (it is SKIPPED otherwise); not related. The first run of the bitwise gate (#7076) failed on a test bug carried
+Every Metal model with a batched gate was run at 16 rows (35B, 8B, LFM2). Qwen3.5-4B has no batched gate; its layers (GDN +
+attention, bf16) use the same row kernels as the 35B's and the 8B's, but it was not run at 16 rows. The first run of the bitwise gate (#7076) failed on a test bug carried
 over from mr3's experiment (a 1-token prompt: nothing to prefill); fixed (prompt lengths 41 and 23), then it passed (#7080).
 
 ## 5. fleetq jobs
@@ -146,4 +158,8 @@ over from mr3's experiment (a 1-token prompt: nothing to prefill); fixed (prompt
 | **#7061** | **window 3**: rows_exact + negative control, fp8 M = 1 `_xd` A/B + ce1, B = 8 / 16 per-kernel profile, served 8 vs 16 x 3 | `--quiet gpu,cpu` |
 | **#7076** | **window 4**: gates, fp8 load-first A/B vs main, served 8 vs 16 x 3 (N = 1..16) | `--quiet gpu,cpu` |
 | #7080 | short check 3: bitwise batched gate N <= 16 | default |
-| #7083 | workspace tests | default |
+| #7084 | short check 4: ran stale test binaries (N <= 8), superseded by #7102 | default |
+| #7097 | short check 5: no result (the workspace test had rebuilt `intarsia` without `--features metal`) | `--quiet gpu,cpu` |
+| #7102 | short check 6: 8B / LFM2 / multirow gates at N <= 16 | default |
+| #7105 | short check 5b: served N = 4, `--max-batch` 8 vs 16 x 2 | `--quiet gpu,cpu` |
+| #7083, #7106 | workspace tests (#7083 stopped at the first failing binary: `multirow.rs` still pinned 8 rows; fixed) | default |
