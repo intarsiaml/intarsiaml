@@ -1,0 +1,16 @@
+[localeval]   4096 tok rep 3/3: prompt=4087 ttft=0.90s prefill=4536 tok/s decode=15.4 tok/s peak=0.0 tok/s out=16
+[localeval]  16384 tok rep 1/3: prompt=16653 ttft=4.30s prefill=3871 tok/s decode=13.1 tok/s peak=0.0 tok/s out=16
+[localeval]  16384 tok rep 2/3: prompt=16654 ttft=4.30s prefill=3871 tok/s decode=12.4 tok/s peak=0.0 tok/s out=16
+[localeval]  16384 tok rep 3/3: prompt=16656 ttft=4.32s prefill=3854 tok/s decode=13.1 tok/s peak=0.0 tok/s out=16
+[localeval] 1 streams: aggregate 13.2 tok/s
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.20 | 4973 (4972–4979) * | - | 15.0 (14.9–15.0) | - | - | - | 16 |
+| 4089 | 0.84 | 4852 (4536–4880) | 4811 | 14.6 (14.5–15.4) | - | - | - | 16 |
+| 16654 | 4.30 | 3871 (3854–3871) | 3633 | 13.1 (12.4–13.1) | - | - | - | 16 |
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 13.2 | 15.8 (15.8–15.8) | 0.25 |
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+[localeval] saved /opt/code/deepeval/results/20261029-054238-adhoc-rip2-8b-prefill-A-r3/result.json

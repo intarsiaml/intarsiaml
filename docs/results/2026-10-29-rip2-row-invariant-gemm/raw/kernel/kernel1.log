@@ -1,0 +1,130 @@
+fleetq: #6824 running on spark2: ssh -n -o BatchMode=yes spark2 'cd ~/intarsiaml-rip2/src && export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; INTARSIA_REQUIRE_GPU=1 INTARSIA_LT_DEBUG=1 timeout 150 cargo test -p intarsia-backend-cuda --release --test row_invariance gemm_ -- --test-threads=1 --nocapture 2>&1 | grep -aE "^test |test result|panicked|matmul_bf16_inv|FINDING"; INTARSIA_REQUIRE_GPU=1 timeout 60 cargo test -p intarsia-backend-cuda --release --test row_invariance gemm_inv_timing -- --ignored --nocapture 2>&1 | grep -aE "TIMING|panicked"; INTARSIA_INV_SINGLE=1 INTARSIA_REQUIRE_GPU=1 timeout 60 cargo test -p intarsia-backend-cuda --release --test row_invariance gemm_inv_timing -- --ignored --nocapture 2>&1 | grep -aE "TIMING|panicked" | sed "s/^/SINGLE /"'
+test gemm_inv_rows_equal_at_every_m ... matmul_bf16_inv: N=4096 K=4096 ref M 4096 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 412 stages 35 cust 31 (first at M 4352): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 13 tile 0 stages 0 cust 73 (first at M 1): unusable
+matmul_bf16_inv: N=4096 K=4096 probe algo 13 tile 0 stages 0 cust 75 (first at M 1): unusable
+matmul_bf16_inv: N=4096 K=4096 probe algo 13 tile 0 stages 0 cust 79 (first at M 1): unusable
+matmul_bf16_inv: N=4096 K=4096 probe algo 21 tile 11 stages 20 cust 0 (first at M 1): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 21 tile 5 stages 19 cust 0 (first at M 2): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 15 stages 35 cust 22 (first at M 17): DIFFERS
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 15 stages 35 cust 31 (first at M 17): DIFFERS
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 318 stages 35 cust 29 (first at M 17): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 26 stages 35 cust 28 (first at M 33): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 18 stages 35 cust 28 (first at M 35): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 21 tile 11 stages 19 cust 0 (first at M 65): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 21 tile 20 stages 15 cust 0 (first at M 97): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 29 stages 35 cust 23 (first at M 129): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 459 stages 35 cust 34 (first at M 161): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 28 stages 35 cust 15 (first at M 209): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 24 stages 35 cust 31 (first at M 375): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 406 stages 35 cust 30 (first at M 385): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 21 tile 23 stages 9 cust 0 (first at M 625): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 463 stages 35 cust 30 (first at M 769): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 409 stages 35 cust 31 (first at M 865): equal to the primary
+matmul_bf16_inv: N=4096 K=4096 probe algo 67 tile 412 stages 34 cust 30 (first at M 1233): equal to the primary
+matmul_bf16_inv N4096 K4096: M 1..=4352: 0 row counts differ from the 4352-row pass (4.4 s)
+matmul_bf16_inv: N=1024 K=4096 ref M 4096 -> heuristic #0 algo 67 tile 409 stages 35 (of 3)
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 20 stages 35 cust 31 (first at M 4352): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 13 tile 0 stages 0 cust 73 (first at M 1): unusable
+matmul_bf16_inv: N=1024 K=4096 probe algo 13 tile 0 stages 0 cust 75 (first at M 1): unusable
+matmul_bf16_inv: N=1024 K=4096 probe algo 13 tile 0 stages 0 cust 79 (first at M 1): unusable
+matmul_bf16_inv: N=1024 K=4096 probe algo 21 tile 11 stages 20 cust 0 (first at M 1): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 21 tile 5 stages 20 cust 0 (first at M 2): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 11 stages 35 cust 7 (first at M 17): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 13 stages 35 cust 29 (first at M 17): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 11 stages 35 cust 17 (first at M 17): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 316 stages 35 cust 29 (first at M 17): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 13 stages 35 cust 19 (first at M 33): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 13 stages 35 cust 28 (first at M 33): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 12 stages 35 cust 3 (first at M 33): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 15 stages 35 cust 22 (first at M 65): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 15 stages 35 cust 31 (first at M 65): DIFFERS
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 318 stages 35 cust 29 (first at M 65): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 27 stages 35 cust 19 (first at M 161): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 17 stages 35 cust 7 (first at M 225): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 26 stages 35 cust 28 (first at M 257): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 33 stages 35 cust 31 (first at M 353): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 28 stages 35 cust 23 (first at M 385): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 33 stages 35 cust 23 (first at M 449): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 20 stages 35 cust 30 (first at M 577): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 29 stages 35 cust 23 (first at M 769): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 32 stages 35 cust 22 (first at M 961): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 412 stages 34 cust 30 (first at M 1153): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 21 tile 23 stages 9 cust 0 (first at M 1185): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 406 stages 35 cust 31 (first at M 1537): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 29 stages 35 cust 31 (first at M 1729): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 32 stages 35 cust 31 (first at M 1921): equal to the primary
+matmul_bf16_inv: N=1024 K=4096 probe algo 67 tile 412 stages 35 cust 31 (first at M 2305): equal to the primary
+matmul_bf16_inv N1024 K4096: M 1..=4352: 0 row counts differ from the 4352-row pass (1.3 s)
+matmul_bf16_inv: N=12288 K=4096 ref M 4096 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+matmul_bf16_inv: N=12288 K=4096 probe algo 67 tile 412 stages 35 cust 31 (first at M 4352): equal to the primary
+matmul_bf16_inv: N=12288 K=4096 probe algo 13 tile 0 stages 0 cust 73 (first at M 1): unusable
+matmul_bf16_inv: N=12288 K=4096 probe algo 13 tile 0 stages 0 cust 75 (first at M 1): unusable
+matmul_bf16_inv: N=12288 K=4096 probe algo 21 tile 11 stages 20 cust 0 (first at M 1): equal to the primary
+matmul_bf16_inv: N=12288 K=4096 probe algo 21 tile 5 stages 19 cust 0 (first at M 2): equal to the primary
+matmul_bf16_inv: N=12288 K=4096 probe algo 21 tile 11 stages 19 cust 0 (first at M 17): equal to the primary
+matmul_bf16_inv: N=12288 K=4096 probe algo 21 tile 20 stages 15 cust 0 (first at M 97): equal to the primary
+matmul_bf16_inv: N=12288 K=4096 probe algo 67 tile 29 stages 35 cust 23 (first at M 129): equal to the primary
+matmul_bf16_inv: N=12288 K=4096 probe algo 67 tile 406 stages 35 cust 30 (first at M 161): equal to the primary
+matmul_bf16_inv: N=12288 K=4096 probe algo 67 tile 463 stages 35 cust 30 (first at M 257): equal to the primary
+matmul_bf16_inv: N=12288 K=4096 probe algo 67 tile 409 stages 35 cust 31 (first at M 289): equal to the primary
+matmul_bf16_inv: N=12288 K=4096 probe algo 21 tile 23 stages 9 cust 0 (first at M 449): equal to the primary
+matmul_bf16_inv N12288 K4096: M 1..=4352: 0 row counts differ from the 4352-row pass (11.7 s)
+matmul_bf16_inv: N=4096 K=12288 ref M 4096 -> heuristic #0 algo 67 tile 416 stages 35 (of 5)
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 412 stages 35 cust 31 (first at M 4352): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 13 tile 0 stages 0 cust 75 (first at M 1): unusable
+matmul_bf16_inv: N=4096 K=12288 probe algo 13 tile 0 stages 0 cust 73 (first at M 1): unusable
+matmul_bf16_inv: N=4096 K=12288 probe algo 21 tile 5 stages 19 cust 0 (first at M 2): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 15 stages 35 cust 22 (first at M 17): DIFFERS
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 318 stages 35 cust 28 (first at M 17): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 21 tile 17 stages 16 cust 0 (first at M 33): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 28 stages 35 cust 23 (first at M 65): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 33 stages 35 cust 23 (first at M 76): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 20 stages 35 cust 31 (first at M 97): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 406 stages 35 cust 30 (first at M 161): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 31 stages 35 cust 23 (first at M 193): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 33 stages 35 cust 22 (first at M 257): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 24 stages 35 cust 31 (first at M 289): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 29 stages 35 cust 22 (first at M 385): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 414 stages 35 cust 22 (first at M 481): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 416 stages 35 cust 30 (first at M 673): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 20 stages 35 cust 30 (first at M 721): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 409 stages 35 cust 30 (first at M 961): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 67 tile 463 stages 35 cust 30 (first at M 1409): equal to the primary
+matmul_bf16_inv: N=4096 K=12288 probe algo 21 tile 23 stages 9 cust 0 (first at M 1457): equal to the primary
+matmul_bf16_inv N4096 K12288: M 1..=4352: 0 row counts differ from the 4352-row pass (12.3 s)
+test gemm_inv_timing_at_8b_shapes ... ignored
+test gemm_rows_do_not_depend_on_m ... FINDING matmul_bf16 (cuBLAS GemmEx heuristic) N4096 K4096: (0,1):1 (0,17):17 (1,1):1 (7,1):1 (255,1):1 (256,1):1 (513,17):17 (1000,1):1 (4095,1):1
+FINDING matmul_bf16_gemv (M <= 4) vs cuBLAS one pass N4096 K4096: 11 of 11 windows differ
+matmul_bf16_inv N4096 K4096: every window identical
+FINDING matmul_bf16 (cuBLAS GemmEx heuristic) N1024 K4096: (0,1):1 (0,2):2 (0,4):3 (0,5):4 (0,7):6 (0,17):15 (1,1):1 (1,7):6 (7,1):1 (100,3):3 (255,1):1 (256,1):1 (513,17):13 (1000,1):1 (4095,1):1
+FINDING matmul_bf16_gemv (M <= 4) vs cuBLAS one pass N1024 K4096: 10 of 11 windows differ
+matmul_bf16_inv N1024 K4096: every window identical
+FINDING matmul_bf16 (cuBLAS GemmEx heuristic) N12288 K4096: (0,1):1 (1,1):1 (7,1):1 (255,1):1 (256,1):1 (1000,1):1 (4095,1):1
+FINDING matmul_bf16_gemv (M <= 4) vs cuBLAS one pass N12288 K4096: 11 of 11 windows differ
+matmul_bf16_inv N12288 K4096: every window identical
+FINDING matmul_bf16 (cuBLAS GemmEx heuristic) N4096 K12288: (0,1):1 (0,17):17 (1,1):1 (7,1):1 (255,1):1 (256,1):1 (513,17):17 (1000,1):1 (4095,1):1
+FINDING matmul_bf16_gemv (M <= 4) vs cuBLAS one pass N4096 K12288: 11 of 11 windows differ
+matmul_bf16_inv N4096 K12288: every window identical
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 3 filtered out; finished in 46.94s
+TIMING ref_m 4096 M    16: cublas   1724.0 us/layer  inv   1725.9 us/layer  inv/cublas 1.001
+TIMING ref_m 4096 M    64: cublas   1813.5 us/layer  inv   1867.4 us/layer  inv/cublas 1.030
+TIMING ref_m 4096 M   256: cublas   2056.4 us/layer  inv   2167.7 us/layer  inv/cublas 1.054
+TIMING ref_m 4096 M   512: cublas   2953.9 us/layer  inv   2969.2 us/layer  inv/cublas 1.005
+TIMING ref_m 4096 M   991: cublas   4135.2 us/layer  inv   4143.2 us/layer  inv/cublas 1.002
+TIMING ref_m 4096 M  1024: cublas   4416.6 us/layer  inv   4455.8 us/layer  inv/cublas 1.009
+TIMING ref_m 4096 M  1536: cublas   6922.2 us/layer  inv   6921.9 us/layer  inv/cublas 1.000
+TIMING ref_m 4096 M  2048: cublas   8836.2 us/layer  inv   8937.7 us/layer  inv/cublas 1.011
+TIMING ref_m 4096 M  3000: cublas  12845.3 us/layer  inv  12752.6 us/layer  inv/cublas 0.993
+TIMING ref_m 4096 M  4096: cublas  17079.2 us/layer  inv  16952.4 us/layer  inv/cublas 0.993
+SINGLE TIMING ref_m 4096 M    16: cublas   1737.4 us/layer  inv   1952.6 us/layer  inv/cublas 1.124
+SINGLE TIMING ref_m 4096 M    64: cublas   1829.7 us/layer  inv   2024.8 us/layer  inv/cublas 1.107
+SINGLE TIMING ref_m 4096 M   256: cublas   2124.7 us/layer  inv   2538.5 us/layer  inv/cublas 1.195
+SINGLE TIMING ref_m 4096 M   512: cublas   2950.4 us/layer  inv   2868.0 us/layer  inv/cublas 0.972
+SINGLE TIMING ref_m 4096 M   991: cublas   4126.2 us/layer  inv   5119.8 us/layer  inv/cublas 1.241
+SINGLE TIMING ref_m 4096 M  1024: cublas   4573.3 us/layer  inv   5103.4 us/layer  inv/cublas 1.116
+SINGLE TIMING ref_m 4096 M  1536: cublas   6889.9 us/layer  inv   7157.4 us/layer  inv/cublas 1.039
+SINGLE TIMING ref_m 4096 M  2048: cublas   8863.7 us/layer  inv   8474.8 us/layer  inv/cublas 0.956
+SINGLE TIMING ref_m 4096 M  3000: cublas  12857.8 us/layer  inv  12515.0 us/layer  inv/cublas 0.973
+SINGLE TIMING ref_m 4096 M  4096: cublas  17109.0 us/layer  inv  16405.1 us/layer  inv/cublas 0.959
+fleetq: #6824 done (exit 0)

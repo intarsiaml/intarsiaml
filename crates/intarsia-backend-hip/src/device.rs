@@ -146,6 +146,22 @@ pub struct HipBackend {
     staging: Mutex<Option<Option<Staging>>>,
     /// lane wg: dense fp8 weights rearranged into `Layout::Fp8Frag` by `relayout_fp8_frag` (count, bytes)
     relayout: (AtomicU64, AtomicU64),
+    /// lane arx: the all-reduce push armed by the communicator for the next `matmul_mxfp4_a8_mma` launch on this device whose output is
+    /// exactly [`PushArm::out`] (`comm::P2pComm::prepush`); the launch fills [`PushArm::lay`] when its GEMM pushed
+    push_arm: Mutex<Option<PushArm>>,
+}
+
+/// An all-reduce push armed for one GEMM (lane arx, see `kernels/hip/ar_push.h`).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct PushArm {
+    /// the output (= the all-reduce's partial) device address and bytes
+    pub out: usize,
+    pub bytes: usize,
+    /// the peer's scratch slot of the next wide launch, and that launch's index on this rank (the wide launches before it)
+    pub peer: usize,
+    pub launch: u64,
+    /// what the GEMM returned (`pushed` 1: the slot holds the partial in the fragment order)
+    pub lay: ffi::IkArPush,
 }
 
 /// Round 9 (docs/results/2026-10-19-hip-round9.md): page-locked host staging for small uploads and downloads.
@@ -382,9 +398,15 @@ impl HipBackend {
             capturing: AtomicBool::new(false),
             staging: Mutex::new(None),
             relayout: (AtomicU64::new(0), AtomicU64::new(0)),
+            push_arm: Mutex::new(None),
         };
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
+    }
+
+    /// lane arx: replace the armed all-reduce push (`None` clears it); returns the one it replaced.
+    pub(crate) fn swap_push_arm(&self, arm: Option<PushArm>) -> Option<PushArm> {
+        std::mem::replace(&mut *self.push_arm.lock().unwrap(), arm)
     }
 
     /// INTARSIA_HIP_TRACE: the stream is idle-synchronised (a synchronize, or a copy whose wrapper synchronises it), so
@@ -907,7 +929,20 @@ impl Backend for HipBackend {
                 "matmul_mxfp4_mma" => ffi::ik_matmul_mxfp4_mma(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_mma_v1" => ffi::ik_matmul_mxfp4_mma_v1(i(0), i(1), i(2), i(3), o, sc, s),
                 "matmul_mxfp4_mma_fold" => ffi::ik_matmul_mxfp4_mma_fold(i(0), i(1), i(2), i(3), o, sc, s),
-                "matmul_mxfp4_a8_mma" => ffi::ik_matmul_mxfp4_a8_mma(i(0), i(1), i(2), i(3), o, sc, s),
+                "matmul_mxfp4_a8_mma" => {
+                    // lane arx: the launch the communicator armed (its output is the next all-reduce's partial) also pushes it to the peer
+                    let mut arm = self.push_arm.lock().unwrap();
+                    match arm.as_mut().filter(|a| a.lay.pushed == 0 && a.lay.cap > 0 && a.out == (*o).data as usize && a.bytes == call.outputs[0].nbytes()) {
+                        Some(a) => {
+                            let mut lay = ffi::IkArPush { cap: a.lay.cap, ..Default::default() };
+                            let rc = ffi::ik_matmul_mxfp4_a8_mma_push(i(0), i(1), i(2), i(3), o, sc, a.peer as *mut c_void, &mut lay, s);
+                            // a launch that did not push leaves the arm spent: the all-reduce pushes itself
+                            a.lay = if rc == 0 { lay } else { ffi::IkArPush::default() };
+                            rc
+                        }
+                        None => ffi::ik_matmul_mxfp4_a8_mma(i(0), i(1), i(2), i(3), o, sc, s),
+                    }
+                }
                 "matmul_mxfp4_pair_gemv" => ffi::ik_matmul_mxfp4_pair_gemv(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s),
                 "matmul_mxfp4_pair_gemv_rows" if a.mxfp4_w4a16 => {
                     ffi::ik_matmul_mxfp4_pair_gemv_rows_bf16(i(0), i(1), i(2), i(3), i(4), i(5), o, o.add(1), sc, s)

@@ -1,0 +1,1 @@
+test real_35b_batched_decode_is_bitwise_the_solo_step ... error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`

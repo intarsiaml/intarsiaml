@@ -184,7 +184,7 @@ pub struct LoadOptions {
     /// Macro prefill pass size in rows (see [`Model::macro_rows`]): `None` = `INTARSIA_PREFILL_MACRO` (unset = off); `Some(0)` off.
     pub prefill_macro: Option<usize>,
     /// Row-invariant prefill ([`Model::row_invariant_prefill`], lane rip): `Some` wins over `INTARSIA_ROW_INVARIANT_PREFILL`,
-    /// which wins over `Backend::row_invariant_prefill` (off everywhere by default: on CUDA it costs ~10% at 1k-token prefill).
+    /// which wins over `Backend::row_invariant_prefill` (on CUDA by default since lane rip2, off on the other backends).
     pub row_invariant_prefill: Option<bool>,
 }
 
@@ -687,7 +687,7 @@ impl Model {
     /// cold prefill whatever its slot held before (lane bi8: a repeated prompt resuming with its last token alone, a 1-row
     /// pass, moved logits by up to 0.23 and flipped greedy tokens on Qwen3-8B;
     /// docs/results/2026-10-29-bi8-serve-batch-invariance.md). In that case, first match wins: with row-invariant prefill on
-    /// ([`Model::row_invariant_prefill`], CUDA with `INTARSIA_ROW_INVARIANT_PREFILL=1`, lane rip) any prefix of the rows
+    /// ([`Model::row_invariant_prefill`], CUDA dense models by default, lane rip / rip2) any prefix of the rows
     /// row-invariant prefill passes wrote ([`SequenceState::inv_len`]; a decode step's rows are not). Where the backend's
     /// passes of `n` rows or more agree (`Backend::prefix_reuse_min_pass_rows`, Metal: 2, lane prc): a prefix written by such
     /// passes only ([`SequenceState::wide_reuse_len`]; a decode step's rows are not), cut back until the remainder's passes
@@ -4071,6 +4071,7 @@ impl Model {
     /// order on both ranks.
     fn proj_then_reduce(&self, x: &TensorRef, w: &QTensor, dst: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
         let Some(piece) = self.overlap_piece(t, profile) else {
+            self.prepush(dst)?;
             self.proj(x, w, dst, profile)?;
             return self.all_reduce(dst, out, profile);
         };
@@ -4142,6 +4143,22 @@ impl Model {
             }
         }
         self.pipe_publish(toks);
+        Ok(())
+    }
+
+    /// Lane arx: tell the communicator that the next op is the GEMM writing `partial` and the next collective its all-reduce
+    /// ([`Comm::prepush`]), so the GEMM may push the partial as its tiles finish (HIP `INTARSIA_HIP_AR_PUSH`). Only on an eager pass on
+    /// stream 0 (never while the plan is recorded or a graph captured: the push goes to a slot picked at enqueue time) and never with a
+    /// test hook that changes the collectives. Bitwise the plain pair either way.
+    fn prepush(&self, partial: &TensorRef) -> Result<()> {
+        let Some(comm) = &self.tp.comm else { return Ok(()) };
+        if self.stream != 0 || self.no_comm || self.test_bug.is_some() || self.tp_batch_mutant.load(std::sync::atomic::Ordering::Relaxed) != 0 {
+            return Ok(());
+        }
+        if self.recorder.lock().unwrap().is_some() || self.capture_ops.lock().unwrap().is_some() {
+            return Ok(());
+        }
+        comm.prepush(partial)?;
         Ok(())
     }
 

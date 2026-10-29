@@ -1,0 +1,29 @@
+01:55:24 guard: [guard] radiance stopped 2026-10-29 01:55:24
+01:55:24 item 1: starting server p1+bin=arx-dev-cli
+01:57:13 item 1 p1+bin=arx-dev-cli speed: exit 0 results/20261029-015642-arx-p1_bin_arx-dev-cli-arx-w3-p1_bin_arx-dev-cli-1/result.json
+01:58:32 item 2 p1+bin=arx-dev-cli texts: exit 0       18 lines
+01:58:32 item 3: starting server rec
+02:00:22 item 3 rec speed: exit 0 results/20261029-015950-arx-rec-arx-w3-rec-3/result.json
+02:01:44 item 4 rec texts: exit 0       18 lines
+02:01:44 item 5: starting server rec+r2
+02:03:34 item 5 rec+r2 speed: exit 0 results/20261029-020302-arx-rec_r2-arx-w3-rec_r2-5/result.json
+02:03:34 item 6: starting server p1+bin=arx-dev-cli+r2
+02:05:23 item 6 p1+bin=arx-dev-cli+r2 speed: exit 0 results/20261029-020452-arx-p1_bin_arx-dev-cli_r2-arx-w3-p1_bin_arx-dev-cli_r2-6/result.json
+02:05:23 item 7: starting server p1+bin=arx-dev-cli+r3
+02:07:11 item 7 p1+bin=arx-dev-cli+r3 speed: exit 0 results/20261029-020640-arx-p1_bin_arx-dev-cli_r3-arx-w3-p1_bin_arx-dev-cli_r3-7/result.json
+02:07:11 item 8: starting server rec+r3
+02:09:01 item 8 rec+r3 speed: exit 0 results/20261029-020828-arx-rec_r3-arx-w3-rec_r3-8/result.json
+02:09:01 item 9: starting server p1+bin=arx-dev-cli+spoff
+02:10:11 item 9 p1+bin=arx-dev-cli+spoff speed: exit 0 results/20261029-020933-arx-p1_bin_arx-dev-cli_spoff-arx-w3-p1_bin_arx-dev-cli_spoff-9/result.json
+02:12:04 item 10 p1+bin=arx-dev-cli+spoff texts: exit 0       18 lines
+02:12:04 item 11: starting server rec+spoff
+02:13:16 item 11 rec+spoff speed: exit 0 results/20261029-021236-arx-rec_spoff-arx-w3-rec_spoff-11/result.json
+02:15:11 item 12 rec+spoff texts: exit 0       18 lines
+02:15:11 item 13: starting server gates
+02:26:17 item 13 gates: == hash: base 48 lines, dev 48, differing: 0|== ids2 16k-0 off: SAME (257 words; prompt=10413) (32 s)|== ids2 16k-0 def: SAME (257 words; prompt=10413) (48 s)|== ids2 16k-1 off: SAME (257 words; prompt=11862) (69 s)|== ids2 16k-1 def: SAME (257 words; prompt=11862) (87 s)|== ids2 16k-2 off: SAME (257 words; prompt=12552) (109 s)|== ids2 16k-2 def: SAME (257 words; prompt=12552) (127 s)|== ids2 16k-3 off: SAME (257 words; prompt=11957) (148 s)|== ids2 16k-3 def: SAME (257 words; prompt=11957) (166 s)|== ids2 16k-4 off: SAME (257 words; prompt=10946) (186 s)|== ids2 16k-4 def: SAME (257 words; prompt=10946) (205 s)|== ids2 16k-5 off: SAME (257 words; prompt=12541) (226 s)|== ids2 16k-5 def: SAME (257 words; prompt=12541) (244 s)|== ids2 4k-0 off: SAME (257 words; prompt=2610) (260 s)|== ids2 4k-0 def: SAME (257 words; prompt=2610) (273 s)|== ids2 4k-1 off: SAME (257 words; prompt=3135) (289 s)|== ids2 4k-1 def: SAME (257 words; prompt=3135) (303 s)|== ids2 4k-2 off: SAME (257 words; prompt=3284) (319 s)|== ids2 4k-2 def: SAME (257 words; prompt=3284) (333 s)|== ids2 4k-3 off: SAME (257 words; prompt=2720) (349 s)|== ids2 4k-3 def: SAME (257 words; prompt=2720) (362 s)|== ids2 4k-4 off: SAME (257 words; prompt=2940) (379 s)|== ids2 4k-4 def: SAME (257 words; prompt=2940) (393 s)|== ids2 4k-5 off: SAME (257 words; prompt=3381) (409 s)|== ids2 4k-5 def: SAME (257 words; prompt=3381) (422 s)|== ids2 short-0 off: SAME (257 words; prompt=41) (438 s)|== ids2 short-0 def: SAME (257 words; prompt=41) (449 s)|== ids2 short-1 off: SAME (257 words; prompt=34) (465 s)|== ids2 short-1 def: SAME (257 words; prompt=34) (477 s)|== ids2 short-2 off: SAME (257 words; prompt=42) (492 s)|== ids2 short-2 def: SAME (257 words; prompt=42) (504 s)|== ids2 short-3 off: SAME (257 words; prompt=43) (519 s)|== ids2 short-3 def: SAME (257 words; prompt=43) (531 s)|== ids2 short-4 off: SAME (257 words; prompt=69) (546 s)|== ids2 short-4 def: SAME (257 words; prompt=69) (558 s)|== ids2 short-5 off: SAME (257 words; prompt=39) (573 s)|== ids2 short-5 def: SAME (257 words; prompt=39) (585 s)|
+02:26:17 item 14: starting server p1+bin=arx-dev-cli+mb16
+02:27:29 item 14 p1+bin=arx-dev-cli+mb16 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+02:27:29 item 15: starting server rec+mb16
+02:28:45 item 15 rec+mb16 mixids: 4k-0.txt: A 915f1c0953 (200 chunks) B dd42cb5b78 (48 chunks)|16k-3.txt: A 915f1c0953 (200 chunks) B e74f590855 (48 chunks)|4k-3.txt: A 915f1c0953 (200 chunks) B 537fb01934 (48 chunks)|
+02:28:45 done
+02:28:56 guard: [guard] radiance answers 2026-10-29 02:28:56 (after 15 s)

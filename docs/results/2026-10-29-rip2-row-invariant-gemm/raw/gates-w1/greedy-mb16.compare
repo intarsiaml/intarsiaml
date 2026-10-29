@@ -1,0 +1,13 @@
+n1/r0: IDENTICAL
+n1/r1: IDENTICAL
+n1/r2: IDENTICAL
+n4/r0: IDENTICAL
+n4/r1: IDENTICAL
+n4/r2: IDENTICAL
+n8/r0: DIFFER (stream, first diff pos) [(4, 48), (5, 3)]
+n8/r1: DIFFER (stream, first diff pos) [(4, 48), (5, 3)]
+n8/r2: DIFFER (stream, first diff pos) [(4, 48), (5, 3)]
+n16/r0: DIFFER (stream, first diff pos) [(4, 48), (5, 3), (13, 11)]
+n16/r1: DIFFER (stream, first diff pos) [(4, 48), (5, 3), (13, 11)]
+n16/r2: DIFFER (stream, first diff pos) [(4, 48), (5, 3), (13, 11)]
+6/12 runs identical to cold.json

@@ -1,0 +1,3 @@
+[targets.arx-t1_bin_arx-dev-cli]
+url = "http://tatooine:8095/v1"
+model = "qwen-arx"

@@ -1,0 +1,27 @@
+04:25:18 guard: [guard] radiance stopped 2026-10-29 04:25:18
+04:25:18 item 1: starting server p1+bin=arx-dev-cli
+04:27:06 item 1 p1+bin=arx-dev-cli speed: exit 0 results/20261029-042635-arx-p1_bin_arx-dev-cli-arx-x2w2-p1_bin_arx-dev-cli-1/result.json
+04:27:12 item 2 p1+bin=arx-dev-cli p4107: p4107 n=182: prompt=[4106, 4108] ttft=[0.92, 1.031, 0.917] prefill tok/s=[4465, 3982, 4478] median=4465|p4107 n=181: prompt=[4082, 4084, 4086] ttft=[0.868, 0.866, 0.968] prefill tok/s=[4705, 4715, 4222] median=4705|
+04:27:25 item 3 p1+bin=arx-dev-cli texts2: short-0 f01c64c1b9ce 1094 chars, 256 tokens, 2.8s|4k-0 a36fcaedc82c 916 chars, 256 tokens, 3.4s|16k-3 dec43e3a9546 936 chars, 256 tokens, 6.7s|
+04:27:25 item 4: starting server p1+bin=arx-dev-cli+r2
+04:29:14 item 4 p1+bin=arx-dev-cli+r2 speed: exit 0 results/20261029-042842-arx-p1_bin_arx-dev-cli_r2-arx-x2w2-p1_bin_arx-dev-cli_r2-4/result.json
+04:29:14 item 5: starting server rec+r2
+04:31:04 item 5 rec+r2 speed: exit 0 results/20261029-043031-arx-rec_r2-arx-x2w2-rec_r2-5/result.json
+04:31:04 item 6: starting server rec+r3
+04:32:53 item 6 rec+r3 speed: exit 0 results/20261029-043221-arx-rec_r3-arx-x2w2-rec_r3-6/result.json
+04:32:59 item 7 rec+r3 p4107: p4107 n=182: prompt=[4106] ttft=[0.993, 0.985, 0.994] prefill tok/s=[4135, 4169, 4131] median=4135|p4107 n=181: prompt=[4080, 4082] ttft=[0.95, 0.944, 0.944] prefill tok/s=[4296, 4322, 4323] median=4322|
+04:32:59 item 8: starting server p1+bin=arx-dev-cli+r3
+04:34:47 item 8 p1+bin=arx-dev-cli+r3 speed: exit 0 results/20261029-043416-arx-p1_bin_arx-dev-cli_r3-arx-x2w2-p1_bin_arx-dev-cli_r3-8/result.json
+04:34:53 item 9 p1+bin=arx-dev-cli+r3 p4107: p4107 n=182: prompt=[4107, 4110] ttft=[0.921, 0.917, 0.952] prefill tok/s=[4457, 4477, 4315] median=4457|p4107 n=181: prompt=[4083, 4085, 4087] ttft=[0.87, 0.869, 0.868] prefill tok/s=[4698, 4697, 4707] median=4698|
+04:34:53 item 10: starting server p1+bin=arx-dev-cli+r4
+04:36:41 item 10 p1+bin=arx-dev-cli+r4 speed: exit 0 results/20261029-043610-arx-p1_bin_arx-dev-cli_r4-arx-x2w2-p1_bin_arx-dev-cli_r4-10/result.json
+04:36:41 item 11: starting server rec+r4
+04:38:31 item 11 rec+r4 speed: exit 0 results/20261029-043758-arx-rec_r4-arx-x2w2-rec_r4-11/result.json
+04:38:31 item 12: starting server rec+r5
+04:40:20 item 12 rec+r5 speed: exit 0 results/20261029-043948-arx-rec_r5-arx-x2w2-rec_r5-12/result.json
+04:40:26 item 13 rec+r5 p4107: p4107 n=182: prompt=[4107, 4108] ttft=[0.992, 1.093, 0.99] prefill tok/s=[4141, 3760, 4150] median=4141|p4107 n=181: prompt=[4084, 4085, 4086] ttft=[0.944, 0.943, 1.014] prefill tok/s=[4327, 4330, 4029] median=4327|
+04:40:26 item 14: starting server p1+bin=arx-dev-cli+r5
+04:42:15 item 14 p1+bin=arx-dev-cli+r5 speed: exit 0 results/20261029-044144-arx-p1_bin_arx-dev-cli_r5-arx-x2w2-p1_bin_arx-dev-cli_r5-14/result.json
+04:42:20 item 15 p1+bin=arx-dev-cli+r5 p4107: p4107 n=182: prompt=[4104, 4105, 4111] ttft=[0.898, 0.925, 0.896] prefill tok/s=[4568, 4443, 4584] median=4568|p4107 n=181: prompt=[4078, 4083, 4087] ttft=[0.869, 0.871, 0.869] prefill tok/s=[4691, 4693, 4700] median=4693|
+04:42:20 done
+04:42:30 guard: [guard] radiance answers 2026-10-29 04:42:30 (after 15 s)

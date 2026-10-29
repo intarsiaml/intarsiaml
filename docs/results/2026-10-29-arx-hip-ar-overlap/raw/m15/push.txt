@@ -1,0 +1,10 @@
+
+running 4 tests
+test pushed_all_reduce_is_bitwise_the_plain_pair ... ok
+test pushed_all_reduce_is_bitwise_the_plain_pair_over_m ... ok
+test pushed_all_reduce_survives_a_delayed_rank ... ok
+test pushed_all_reduce_without_the_wait_is_caught_by_the_stress_test ... negative control (pushed, no wait): 102 wrong results
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.96s
+
