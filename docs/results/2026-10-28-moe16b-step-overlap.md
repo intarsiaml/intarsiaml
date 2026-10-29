@@ -267,6 +267,11 @@ decision, 2026-10-28, lane moe16c. Reason: the change is bitwise exact (served g
 and the 8B, `rows_exact`, `plan show` identical) and positive at every stream count (+2.6 / +3.2 / +3.3 / +1.3 % at
 1 / 4 / 8 / 16 streams, 3 rounds). It missed only the +5 % gate at 16 streams.
 
-Lane moe16c re-checked the merged tree on spark1 with no knob variables set, so the defaults engage: `rows_exact` and
-`batch_cuda_real` on the 35B (`raw/moe16c-defaults.txt`).
+Lane moe16c re-checked the tree with main merged in on spark1, with no knob variables set, so the defaults engage (fleetq #6660,
+`--quiet gpu,cpu`, 5 min 20 s; `raw/moe16c-defaults.txt`):
+- `rows_exact`: 9 passed.
+- `batch_cuda_real` `real_35b_batched*`: 2 passed; 4290 (row, step) pairs bitwise identical. The new process counter
+  `SIDE_FORKS_TOTAL` read 2160 side-stream forks, and the test now asserts it is non-zero when both knobs are unset on single-rank
+  CUDA.
+- Mac `cargo test --workspace --release`: exit 0, 0 failed (`raw/mac-cargo-test-moe16c.log`).
 
