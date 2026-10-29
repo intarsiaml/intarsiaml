@@ -1,0 +1,54 @@
+Admitted { iter: 1, id: 0, slot: 0, cached: 0 }
+Admitted { iter: 1, id: 1, slot: 1, cached: 0 }
+PrefillStart { iter: 1, id: 0, chunk: 2048, decoding: 0 }
+Chunk { iter: 1, id: 0, start: 0, len: 1152, last: true }
+PrefillStart { iter: 2, id: 1, chunk: 2048, decoding: 1 }
+Chunk { iter: 2, id: 1, start: 0, len: 1152, last: true }
+Admitted { iter: 10, id: 2, slot: 2, cached: 0 }
+PrefillStart { iter: 10, id: 2, chunk: 2048, decoding: 0 }
+Chunk { iter: 10, id: 2, start: 0, len: 1151, last: true }
+Admitted { iter: 11, id: 3, slot: 3, cached: 0 }
+Admitted { iter: 11, id: 4, slot: 4, cached: 0 }
+Admitted { iter: 11, id: 5, slot: 5, cached: 0 }
+Admitted { iter: 11, id: 6, slot: 6, cached: 0 }
+Admitted { iter: 11, id: 7, slot: 7, cached: 0 }
+Admitted { iter: 11, id: 8, slot: 8, cached: 0 }
+Admitted { iter: 11, id: 9, slot: 9, cached: 0 }
+Admitted { iter: 11, id: 10, slot: 10, cached: 0 }
+Admitted { iter: 11, id: 11, slot: 11, cached: 0 }
+Admitted { iter: 11, id: 12, slot: 12, cached: 0 }
+Admitted { iter: 11, id: 13, slot: 13, cached: 0 }
+Admitted { iter: 11, id: 14, slot: 14, cached: 0 }
+Admitted { iter: 11, id: 15, slot: 15, cached: 0 }
+Admitted { iter: 11, id: 16, slot: 0, cached: 0 }
+Admitted { iter: 11, id: 17, slot: 1, cached: 0 }
+PrefillStart { iter: 11, id: 3, chunk: 2048, decoding: 1 }
+Chunk { iter: 11, id: 3, start: 0, len: 1152, last: true }
+PrefillStart { iter: 12, id: 4, chunk: 2048, decoding: 2 }
+Chunk { iter: 12, id: 4, start: 0, len: 1151, last: true }
+PrefillStart { iter: 13, id: 5, chunk: 2048, decoding: 3 }
+Chunk { iter: 13, id: 5, start: 0, len: 1152, last: true }
+PrefillStart { iter: 14, id: 6, chunk: 2048, decoding: 4 }
+Chunk { iter: 14, id: 6, start: 0, len: 1152, last: true }
+PrefillStart { iter: 15, id: 7, chunk: 2048, decoding: 5 }
+Chunk { iter: 15, id: 7, start: 0, len: 1151, last: true }
+PrefillStart { iter: 16, id: 8, chunk: 2048, decoding: 6 }
+Chunk { iter: 16, id: 8, start: 0, len: 1151, last: true }
+PrefillStart { iter: 17, id: 9, chunk: 2048, decoding: 7 }
+Chunk { iter: 17, id: 9, start: 0, len: 1151, last: true }
+PrefillStart { iter: 18, id: 10, chunk: 2048, decoding: 8 }
+Chunk { iter: 18, id: 10, start: 0, len: 1151, last: true }
+PrefillStart { iter: 19, id: 11, chunk: 2048, decoding: 9 }
+Chunk { iter: 19, id: 11, start: 0, len: 1151, last: true }
+PrefillStart { iter: 20, id: 12, chunk: 2048, decoding: 10 }
+Chunk { iter: 20, id: 12, start: 0, len: 1152, last: true }
+PrefillStart { iter: 21, id: 13, chunk: 2048, decoding: 11 }
+Chunk { iter: 21, id: 13, start: 0, len: 1151, last: true }
+PrefillStart { iter: 22, id: 14, chunk: 2048, decoding: 12 }
+Chunk { iter: 22, id: 14, start: 0, len: 1151, last: true }
+PrefillStart { iter: 23, id: 15, chunk: 2048, decoding: 13 }
+Chunk { iter: 23, id: 15, start: 0, len: 1152, last: true }
+PrefillStart { iter: 24, id: 16, chunk: 2048, decoding: 14 }
+Chunk { iter: 24, id: 16, start: 0, len: 1152, last: true }
+PrefillStart { iter: 25, id: 17, chunk: 2048, decoding: 14 }
+Chunk { iter: 25, id: 17, start: 0, len: 1151, last: true }

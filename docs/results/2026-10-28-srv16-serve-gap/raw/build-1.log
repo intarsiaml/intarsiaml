@@ -1,0 +1,12 @@
+fleetq: #6704 running on spark1: bash -c 'REF=b7c624423 scripts/srv16/build.sh base && scripts/srv16/build.sh dev && scripts/srv16/batch-real.sh build'
+    Finished `release` profile [optimized] target(s) in 1m 50s
+-rwxrwxr-x 1 nvidia nvidia 100605248 Oct 28 23:41 /home/nvidia/intarsiaml-srv16/bin/base
+intarsia 0.0.1
+    Finished `release` profile [optimized] target(s) in 1m 49s
+-rwxrwxr-x 1 nvidia nvidia 100605696 Oct 28 23:43 /home/nvidia/intarsiaml-srv16/bin/dev
+intarsia 0.0.1
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 15.21s
+  Executable tests/batch_cuda_real.rs (target/release/deps/batch_cuda_real-a41e7f0f521d6475)
+fleetq: #6704 done (exit 0)

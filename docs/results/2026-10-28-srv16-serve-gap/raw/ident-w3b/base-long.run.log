@@ -1,0 +1,6 @@
+mix-greedy n=4: 256 tokens, prompts [7576, 1212, 3435, 1091]
+mix-greedy n=8: 512 tokens, prompts [7576, 1212, 3435, 1091, 5636, 1197, 4504, 1144]
+mix-greedy-again n=4: 256 tokens, prompts [7576, 1212, 3435, 1091]
+mix-greedy-again n=8: 512 tokens, prompts [7576, 1212, 3435, 1091, 5636, 1197, 4504, 1144]
+mix-t0.8-k40-p0.95 n=4: 256 tokens, prompts [7585, 1221, 3444, 1100]
+mix-t0.8-k40-p0.95 n=8: 512 tokens, prompts [7585, 1221, 3444, 1100, 5645, 1206, 4513, 1153]
