@@ -77,7 +77,7 @@ Also in the PR: SB8's `raw/qwen3-cap16.patch` (`recipes/qwen3.toml` `max_batch` 
 | served greedy vs cold, `--max-batch 16`, 1 / 4 / 8 / 16 streams x 3 reps on one server | **12 / 12** identical |
 | served greedy vs cold, `--max-batch 8`, 8 / 16 streams x 2 reps | **4 / 4** identical |
 | equal.py 21 cells (7 sampling settings x 1 / 4 / 16 streams), solo vs `--max-batch 16` | **21 / 21** identical, 9408 ids (SB8: 7 / 21; the sampled cells were the same reuse effect) |
-| mutant: the engine gate with `INTARSIA_PREFIX_REUSE=any` (the old rule) | MUTANT |
+| mutant: the engine gate with `INTARSIA_PREFIX_REUSE=any` (the old rule) | **caught**: fails at the single-sequence engine's 2nd request (prompt 4 repeated, ids differ from token 48; `raw/run3/mutant.log`) |
 
 ## Speed at 16 streams (localeval A/B, ABAB, one window)
 
@@ -95,11 +95,30 @@ runs `20261028-221552-adhoc-bi8-base-r1`, `-221854-...-fix-r1`, `-222157-...-bas
 
 ## Other models (`raw/run3/`)
 
-THREE
+| model | path | affected before? | after |
+|---|---|---|---|
+| Qwen3.6-35B-A3B (hybrid) | recurrent state: `reuse_len` returns `restorable_len`, as before | no: snapshots only, and the cold schedule runs the last token alone | `real_35b_batched_*` pass (4290 pairs; batched engine == local engine); served equal.py 21 / 21 cells base vs fix at `--max-batch 16`, 9408 ids |
+| Gemma-4-26B-A4B (dense attention, recipe `max_batch = 1`) | single-sequence engine only | yes in kind: the solo engine resumed any prefix on CUDA, so a repeated or prefix-sharing request could leave its cold bits | the exact rule applies (no reuse for prompts under one chunk); `plan show` unchanged; not re-measured at serve level |
+| Qwen3-8B, other dense Qwen3 / Llama / Qwen2 on CUDA | both engines | yes | exact rule |
+
+`plan show` (json and text, `--max-seq 8192 --mem-budget 40`) is byte-identical base vs fix for the 8B (8758 / 1478 B), the 35B
+(15336 / 3946 B) and Gemma-4 (8401 / 1790 B) (`raw/run3/plan.log`).
 
 ## Gates
 
-GATES
+| gate | result |
+|---|---|
+| served greedy == solo on the 8B at 1 / 4 / 8 / 16 streams, 3 reps | pass (solo 9 / 9 and `--max-batch 16` 12 / 12 vs the cold reference; equal.py 21 / 21 solo vs batched) |
+| model-level batched == solo at every N up to 16 (8B) | pass (`real_qwen3_8b_batched_decode_is_bitwise_the_solo_step`, now N 2..16 on CUDA) |
+| new engine-level batched == cold reference (8B) | pass; catches the old rule |
+| shared path touched: CUDA `rows_exact` | pass, 9 passed, 2 ignored (`raw/run3/rows_exact.log`) |
+| shared path touched: `batch_cuda_real` on the 35B | pass (`raw/run3/batch35.log`) |
+| `plan show` byte-identical, 8B / 35B / Gemma-4 | pass (6 / 6 files) |
+| 35B 21-cell served identity (#224's set) at 16 streams | pass, 21 / 21 base vs fix |
+| Mac `cargo test --workspace --release` | pass, 1085 passed, 0 failed (`raw/mac-test.log`) |
+| cpu policy tests (`crates/intarsia-models/tests/exact_reuse.rs`) | pass (exact rule: short prompt never resumed, repeat at 24 of 30, shared 20 -> 16, follow-up turn 24; any-cut backend unchanged) |
+| 16-stream speed within 2 % of 163.0 | pass, 161.6 (-0.9 %; same-window base 161.8) |
+| CI | see the PR |
 
 ## Not covered / follow-ups
 
