@@ -317,6 +317,14 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Whether [`Backend::stream_record`] / [`Backend::stream_wait_for`] fork and join two streams of this backend, also inside a
+    /// [`Backend::graph_capture`] (the wait pulls the other stream into the capture, the join takes it out again), without the
+    /// lane-TPO overlap that [`Backend::stream_overlap`] turns on. Lane moe16b: the MoE block's shared expert on a second stream
+    /// beside the routed experts (`INTARSIA_MOE_SHARED_STREAM`). `false` (the default): the engine never forks.
+    fn stream_fork(&self) -> bool {
+        false
+    }
+
     /// Mark the point after everything queued so far on `signal`; the token can be waited for with [`Backend::stream_wait_for`], later and
     /// more than once. Tokens are recycled: wait for one within a few dozen further `stream_record` calls. Only when
     /// [`Backend::stream_overlap`] is `true`.

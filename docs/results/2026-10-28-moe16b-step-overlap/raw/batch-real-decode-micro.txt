@@ -1,0 +1,8 @@
+fleetq: #6615 running on spark1: ssh -n -o BatchMode=yes spark1 'export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; cd ~/intarsiaml-moe16b/src && T=$(ls -t target/release/deps/batch_cuda_real-* | grep -v '"'"'\.d$'"'"' | head -1); date +%T; INTARSIA_QWEN36_DIR=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 INTARSIA_REQUIRE_GPU=1 timeout 170 $T real_35b_batched_decode_is_bitwise_the_solo_step --exact --test-threads=1 --nocapture 2>&1 | grep -aE '"'"'^test |test result|panicked|FAIL|identical|pairs|rror'"'"' | tail -15; date +%T'
+20:37:37
+test real_35b_batched_decode_is_bitwise_the_solo_step ... plan before batching: MemoryPlan { device: "NVIDIA GB10", total_bytes: 130663231488, free_bytes: 70731493376, weights_bytes: 20825033460, workspace_bytes: 694874000, kv_bytes_per_token: 20480, kv_fraction: 0.95, kv_budget_bytes: 67194917864, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+thread 'real_35b_batched_decode_is_bitwise_the_solo_step' panicked at crates/intarsia-models/tests/common/batch_identity.rs:61:68:
+FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 31.45s
+20:38:09
+fleetq: #6615 done (exit 0)

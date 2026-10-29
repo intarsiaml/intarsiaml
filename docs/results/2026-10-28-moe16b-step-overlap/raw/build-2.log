@@ -1,0 +1,19 @@
+fleetq: #6602 running on spark1: bash -c 'scripts/moe16b/cpu-build.sh nobase && scripts/moe16b/batch-real.sh build'
+Wed Oct 28 20:21:07 EDT 2026
+    Finished `release` profile [optimized] target(s) in 2m 08s
+-rwxrwxr-x 1 nvidia nvidia 109395120 Oct 28 20:23 /home/nvidia/intarsiaml-moe16b/bin/dev
+intarsia 0.0.1
+Wed Oct 28 20:23:19 EDT 2026
+warning: field `spec_dflash` is never read
+warning: function `hip_batch_needs_hybrid` is never used
+warning: field `max_tokens` is never read
+warning: field `state_id` is never read
+warning: `intarsia-core` (lib) generated 4 warnings
+    Finished `release` profile [optimized] target(s) in 9.30s
+  Executable tests/rows_exact.rs (target/release/deps/rows_exact-22d61bde1266dc5a)
+Wed Oct 28 20:23:29 EDT 2026
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 14.20s
+  Executable tests/batch_cuda_real.rs (target/release/deps/batch_cuda_real-a41e7f0f521d6475)
+fleetq: #6602 done (exit 0)
