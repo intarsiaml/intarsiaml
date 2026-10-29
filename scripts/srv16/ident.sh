@@ -20,15 +20,16 @@ for spec in $A $B; do
   SPID=$(rsh "mkdir -p ~/intarsiaml-srv16/out; nohup env $envs ~/intarsiaml-srv16/bin/$bin serve --backend cuda --model $M35 --port $PORT --host 0.0.0.0 --served-model-name intarsia --max-seq 8192 --mem-budget 40 --profile-every 0 $XA > ~/intarsiaml-srv16/out/ident-$lab.log 2>&1 < /dev/null & echo \$!")
   up=0; for i in $(seq 1 150); do curl -sf "http://$HN:$PORT/health" >/dev/null && { up=1; break; }; sleep 2; done
   [[ $up == 1 ]] || { echo "server $lab did not come up"; stop_server; exit 1; }
-  python3 "$REPO/scripts/htk/equal.py" run --url http://$HN:$PORT/v1 --out $RAW/$lab.json > $RAW/$lab.run.log 2>&1
-  python3 "$H/ident_long.py" run --url http://$HN:$PORT/v1 --corpus "$REPO/tools/prompts/corpus_docs.txt" --out $RAW/$lab-long.json > $RAW/$lab-long.run.log 2>&1
-  tail -1 $RAW/$lab.run.log; tail -1 $RAW/$lab-long.run.log
+  # IDENT_MIX=1 (lane srv16 W3): only ident_long.py --mix (multi-chunk prompts beside 1k ones, a repeated cell for prefix reuse)
+  [[ -n "${IDENT_MIX:-}" ]] || python3 "$REPO/scripts/htk/equal.py" run --url http://$HN:$PORT/v1 --out $RAW/$lab.json > $RAW/$lab.run.log 2>&1
+  python3 "$H/ident_long.py" run --url http://$HN:$PORT/v1 --corpus "$REPO/tools/prompts/corpus_docs.txt" --out $RAW/$lab-long.json ${IDENT_MIX:+--mix} > $RAW/$lab-long.run.log 2>&1
+  [[ -n "${IDENT_MIX:-}" ]] || tail -1 $RAW/$lab.run.log; cat $RAW/$lab-long.run.log
   curl -s "http://$HN:$PORT/metrics" | grep -E "^intarsia_batch_(iterations|decode_steps|prefill|mixed|step_ewma)" > $RAW/$lab.metrics.txt
   cat $RAW/$lab.metrics.txt
   stop_server
 done
 la=${A%%:*}; lb=${B%%:*}; rc=0
-python3 "$REPO/scripts/htk/equal.py" compare $RAW/$la.json $RAW/$lb.json > $RAW/compare.log; rc=$?
+[[ -n "${IDENT_MIX:-}" ]] || { python3 "$REPO/scripts/htk/equal.py" compare $RAW/$la.json $RAW/$lb.json > $RAW/compare.log; rc=$?; }
 python3 "$H/ident_long.py" compare $RAW/$la-long.json $RAW/$lb-long.json > $RAW/compare-long.log; rc=$((rc + $?))
-tail -1 $RAW/compare.log; tail -1 $RAW/compare-long.log
+[[ -n "${IDENT_MIX:-}" ]] || tail -1 $RAW/compare.log; cat $RAW/compare-long.log
 exit $rc
