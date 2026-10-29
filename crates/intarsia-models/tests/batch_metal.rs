@@ -49,14 +49,14 @@ fn batch_bitwise_equals_solo_steps_qwen3_8b_metal() {
     let opts = LoadOptions { max_seq: 4352, prefill_chunk: chunk, profile_every: 0, ..Default::default() };
     let mut m = Model::load(backend, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
     assert!(m.batch_capable(), "the metal backend registers the row-exact kernels");
-    m.enable_batch(8).unwrap();
+    m.enable_batch(16).unwrap();
     // plan resolution dry-runs every batch size at both ends of the context: a batched op without a row-exact kernel
     // would fail here
     m.configure_plan(&Default::default(), None).unwrap();
     assert!(m.plan.kv_cap_tokens >= 4352, "{} tokens per sequence", m.plan.kv_cap_tokens);
 
     // the batched pass runs the row-exact multi-row kernels for the projections and the row-table kernels for the attention
-    let rec = m.dry_run(Phase::Batch, 8, 1000).unwrap();
+    let rec = m.dry_run(Phase::Batch, 16, 1000).unwrap();
     let dec = m.dry_run(Phase::Decode, 1, 1000).unwrap();
     let pick = |rec: &intarsia_core::plan::Recorder, op: Op| -> Vec<String> {
         let mut v: Vec<String> = rec.calls.iter().filter(|c| c.call.op == op).map(|c| c.kernel.clone()).collect();
@@ -78,15 +78,15 @@ fn batch_bitwise_equals_solo_steps_qwen3_8b_metal() {
     assert!(pick(Op::Logits).iter().all(|k| k.contains("rows")));
 
     let cfg = batch_identity::Cfg {
-        lens: vec![5, 37, 130, 500, 1100, 2000, 3000, 4000],
-        batches: vec![2, 3, 4, 6, 8],
+        lens: vec![5, 37, 130, 500, 1100, 2000, 3000, 4000, 9, 64, 222, 300, 17, 77, 450, 900],
+        batches: vec![2, 3, 4, 6, 8, 9, 12, 16],
         steps: 6,
         vocab_range: (1000, 30000),
     };
     let t0 = std::time::Instant::now();
     let n = batch_identity::run(&m, &cfg);
     eprintln!("{n} (row, step) pairs bitwise identical in {:.1} s", t0.elapsed().as_secs_f64());
-    assert_eq!(n, (2 + 3 + 4 + 6 + 8) * 6);
+    assert_eq!(n, (2 + 3 + 4 + 6 + 8 + 9 + 12 + 16) * 6);
 
     // batched decode steps beside a prefill: 4 decoding sequences, a 1300-token prompt prefilled in 256-token chunks
     let t0 = std::time::Instant::now();

@@ -1,0 +1,25 @@
+
+running 1 test
+plan before batching: MemoryPlan { device: "Apple M5 Max", total_bytes: 115448725504, free_bytes: 73617293312, weights_bytes: 20825033460, workspace_bytes: 694864784, kv_bytes_per_token: 20480, kv_fraction: 0.5, kv_budget_bytes: 36808646656, kv_cap_tokens: 2048, kv_total_bytes: 41943040, notes: [] }
+recurrent bytes per state 65863680
+batch plan notes: ["942 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 62 MiB per sequence)"]
+16 sequences prefilled twice in 2.4 s
+batch 2: 130 steps bitwise in 3.5 s (per step: 10.0 ms batched, 16.2 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 4.9 s (per step: 12.0 ms batched, 24.3 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 6.3 s (per step: 14.0 ms batched, 32.4 ms for the 4 solo steps)
+batch 5: 130 steps bitwise in 7.6 s (per step: 15.7 ms batched, 40.5 ms for the 5 solo steps)
+batch 6: 130 steps bitwise in 8.9 s (per step: 17.2 ms batched, 48.7 ms for the 6 solo steps)
+batch 7: 130 steps bitwise in 10.4 s (per step: 18.7 ms batched, 57.4 ms for the 7 solo steps)
+batch 8: 130 steps bitwise in 11.6 s (per step: 20.5 ms batched, 65.1 ms for the 8 solo steps)
+test real_35b_batched_decode_is_bitwise_the_solo_step has been running for over 60 seconds
+batch 9: 130 steps bitwise in 13.6 s (per step: 26.4 ms batched, 73.7 ms for the 9 solo steps)
+batch 11: 130 steps bitwise in 16.2 s (per step: 29.9 ms batched, 89.5 ms for the 11 solo steps)
+batch 12: 130 steps bitwise in 17.4 s (per step: 31.3 ms batched, 97.3 ms for the 12 solo steps)
+batch 13: 130 steps bitwise in 18.7 s (per step: 33.0 ms batched, 105.1 ms for the 13 solo steps)
+batch 15: 130 steps bitwise in 21.3 s (per step: 35.8 ms batched, 121.0 ms for the 15 solo steps)
+batch 16: 130 steps bitwise in 22.6 s (per step: 37.4 ms batched, 129.4 ms for the 16 solo steps)
+14430 (row, step) pairs bitwise identical in 165.5 s
+test real_35b_batched_decode_is_bitwise_the_solo_step ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 169.44s
+

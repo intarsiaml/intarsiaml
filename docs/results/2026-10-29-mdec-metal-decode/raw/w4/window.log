@@ -1,0 +1,70 @@
+fleetq: #7076 waiting (#4 in line): in line behind #7064 "mdec: build cli + metal tests (cap16 chunked + m1 pf exp)" (claude-f31ccf91) on endor
+fleetq:   #7064 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7064 set, or it will wait for #7064 to be released.
+fleetq: #7076 waiting (#1 in line): needs cpu quiet on endor, but #7064 "mdec: build cli + metal tests (cap16 chunked + m1 pf exp)" (claude-f31ccf91) loads it
+fleetq:   #7064 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7064 set, or it will wait for #7064 to be released.
+fleetq: #7076 waiting (#1 in line): needs cpu quiet on endor, but #7075 "mdec: build main 7aebefb83 baseline cli" (claude-f31ccf91) loads it
+fleetq:   #7075 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7075 set, or it will wait for #7075 to be released.
+fleetq: #7076 running on endor: .lane/scripts/w4.sh /opt/code/intarsiaml/.worktrees/mdec/.lane/w4 /opt/code/intarsiaml/.worktrees/mdec/.lane/target-main/release/intarsia
+## gates 12:44:10
+rows_exact exit 0
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.30s
+batch_metal_real exit 101
+test real_35b_batch_step_profile ... ignored
+test real_35b_batch_step_real_traffic ... ignored
+test real_35b_batch_step_timing ... ignored
+test real_35b_batched_decode_is_bitwise_the_solo_step ... FAILED
+test real_35b_batched_engine_equals_the_local_engine ... ok
+test real_35b_batched_engine_long_prompts_control_busy_chunk_64 ... ignored
+test real_35b_batched_engine_long_prompts_equal_the_local_engine ... ignored
+test real_lfm2_batched_decode_is_bitwise_the_solo_step ... FAILED
+test result: FAILED. 1 passed; 2 failed; 5 ignored; 0 measured; 0 filtered out; finished in 82.59s
+batch_metal (8B) exit 0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.31s
+## m1 pf A/B 12:45:57
+p1-main decode 2166 ms (118.20 tok/s) md5 018c2368403749b34e768686d6bf6f91
+p1-off decode 2216 ms (115.53 tok/s) md5 018c2368403749b34e768686d6bf6f91
+p1-pf decode 2213 ms (115.69 tok/s) md5 018c2368403749b34e768686d6bf6f91
+p2-main decode 2224 ms (115.10 tok/s) md5 018c2368403749b34e768686d6bf6f91
+p2-off decode 2184 ms (117.23 tok/s) md5 018c2368403749b34e768686d6bf6f91
+p2-pf decode 2216 ms (115.51 tok/s) md5 018c2368403749b34e768686d6bf6f91
+p3-main decode 2188 ms (116.99 tok/s) md5 018c2368403749b34e768686d6bf6f91
+p3-off decode 2201 ms (116.33 tok/s) md5 018c2368403749b34e768686d6bf6f91
+p3-pf decode 2207 ms (116.00 tok/s) md5 018c2368403749b34e768686d6bf6f91
+## r1-mb8 12:46:56
+localeval exit 0
+| 1 | 107.3 | 114.4 (114.4–114.4) | 0.30 |
+| 4 | 217.4 | 59.5 (56.1–63.2) | 0.81 |
+| 8 | 273.4 | 38.0 (35.1–41.3) | 1.47 |
+| 16 | 276.4 | 36.2 (35.4–41.7) | 8.82 |
+## r1-mb16 12:48:12
+localeval exit 0
+| 1 | 109.0 | 115.1 (115.1–115.1) | 0.26 |
+| 4 | 219.7 | 60.1 (56.7–63.8) | 0.79 |
+| 8 | 277.0 | 38.5 (35.6–41.9) | 1.45 |
+| 16 | 295.9 | 20.6 (18.9–22.8) | 2.72 |
+## r2-mb16 12:49:24
+localeval exit 0
+| 1 | 113.0 | 119.9 (119.9–119.9) | 0.27 |
+| 4 | 222.5 | 60.7 (57.4–64.5) | 0.77 |
+| 8 | 282.6 | 39.2 (36.3–42.8) | 1.43 |
+| 16 | 298.2 | 20.8 (19.1–23.0) | 2.75 |
+## r2-mb8 12:50:33
+localeval exit 0
+| 1 | 118.1 | 124.8 (124.8–124.8) | 0.24 |
+| 4 | 248.0 | 67.0 (64.0–70.3) | 0.61 |
+| 8 | 283.1 | 39.4 (36.4–42.9) | 1.44 |
+| 16 | 281.7 | 37.3 (35.5–41.8) | 8.55 |
+## r3-mb8 12:51:42
+localeval exit 0
+| 1 | 113.3 | 120.1 (120.1–120.1) | 0.27 |
+| 4 | 227.1 | 62.0 (58.6–66.0) | 0.76 |
+| 8 | 285.7 | 39.7 (36.7–43.2) | 1.41 |
+| 16 | 283.8 | 37.0 (36.3–43.0) | 8.63 |
+## r3-mb16 12:52:51
+localeval exit 0
+| 1 | 113.3 | 119.9 (119.9–119.9) | 0.26 |
+| 4 | 230.6 | 63.0 (59.5–67.0) | 0.76 |
+| 8 | 286.8 | 39.8 (36.8–43.4) | 1.41 |
+| 16 | 304.8 | 21.2 (19.5–23.5) | 2.66 |
+## done 12:54:00
+fleetq: #7076 done (exit 0)

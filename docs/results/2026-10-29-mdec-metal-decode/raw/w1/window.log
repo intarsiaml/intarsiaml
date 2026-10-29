@@ -1,0 +1,76 @@
+fleetq: #7030 running on endor: .lane/scripts/w1.sh /opt/code/intarsiaml/.worktrees/mdec/.lane/target/release/intarsia /opt/code/intarsiaml/.worktrees/mdec/.lane/w1
+## 35-1k-plain 11:41:44 rustc=       0
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+finish=length prompt=973 (cached 0) completion=129 | prefill 500 ms (1946.5 tok/s) | decode 1028 ms (124.50 tok/s)
+steps=130 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/10 embedding=0ms/130 gate_split=0ms/1300
+## 35-1k-cb 11:41:49 rustc=       0
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+finish=length prompt=973 (cached 0) completion=129 | prefill 495 ms (1964.7 tok/s) | decode 1033 ms (123.94 tok/s)
+steps=130 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/10 embedding=0ms/130 gate_split=0ms/1300
+## 35-1k-ce1 11:41:53 rustc=       0
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+finish=length prompt=973 (cached 0) completion=129 | prefill 510 ms (1908.1 tok/s) | decode 1124 ms (113.86 tok/s)
+steps=130 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/10 embedding=0ms/130 gate_split=0ms/1300
+## 35-4k-plain 11:41:58 rustc=       0
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+finish=length prompt=4096 (cached 0) completion=129 | prefill 1080 ms (3792.4 tok/s) | decode 1061 ms (120.67 tok/s)
+steps=131 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/20 embedding=0ms/131 gate_split=0ms/1310
+## 35-4k-cb 11:42:03 rustc=       0
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+finish=length prompt=4096 (cached 0) completion=129 | prefill 1196 ms (3423.7 tok/s) | decode 1058 ms (121.03 tok/s)
+steps=131 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/20 embedding=0ms/131 gate_split=0ms/1310
+## 35-4k-ce1 11:42:08 rustc=       0
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+finish=length prompt=4096 (cached 0) completion=129 | prefill 1119 ms (3661.1 tok/s) | decode 1129 ms (113.34 tok/s)
+steps=131 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/20 embedding=0ms/131 gate_split=0ms/1310
+## 35-16k-plain 11:42:13 rustc=       0
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+finish=length prompt=16384 (cached 0) completion=129 | prefill 5364 ms (3054.7 tok/s) | decode 1169 ms (109.45 tok/s)
+steps=137 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/80 embedding=0ms/137 gate_split=0ms/1370
+## 35-16k-cb 11:42:22 rustc=       0
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+finish=length prompt=16384 (cached 0) completion=129 | prefill 5202 ms (3149.4 tok/s) | decode 1196 ms (107.00 tok/s)
+steps=137 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/80 embedding=0ms/137 gate_split=0ms/1370
+## 35-16k-ce1 11:42:31 rustc=       0
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+finish=length prompt=16384 (cached 0) completion=129 | prefill 5274 ms (3106.6 tok/s) | decode 1242 ms (103.07 tok/s)
+steps=137 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/80 embedding=0ms/137 gate_split=0ms/1370
+## 35-4k-plain2 11:42:40 rustc=       0
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+finish=length prompt=4096 (cached 0) completion=129 | prefill 1097 ms (3735.2 tok/s) | decode 1055 ms (121.28 tok/s)
+steps=131 graph replays=0 (captures 0) eager decode steps=129 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/1290 attn_prefill=0ms/20 embedding=0ms/131 gate_split=0ms/1310
+## 35-4k-mtp 11:42:45 rustc=       0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash moe_experts=moe_experts_bf16 argmax=argmax_f32
+finish=length prompt=4096 (cached 0) completion=129 | prefill 1104 ms (3711.1 tok/s) | decode 773 ms (165.58 tok/s)
+spec: verify passes=47 proposed=93 accepted=81 (acceptance 87.1%, 2.72 tokens per pass)
+steps=50 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/96 argmax=0ms/141 attn_decode=0ms/63 attn_prefill=0ms/530 embedding=0ms/146
+## 35-4k-mtpcb 11:42:50 rustc=       0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash moe_experts=moe_experts_bf16 argmax=argmax_f32
+finish=length prompt=4096 (cached 0) completion=129 | prefill 1100 ms (3725.3 tok/s) | decode 776 ms (165.02 tok/s)
+spec: verify passes=47 proposed=93 accepted=81 (acceptance 87.1%, 2.72 tokens per pass)
+steps=50 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/96 argmax=0ms/141 attn_decode=0ms/63 attn_prefill=0ms/530 embedding=0ms/146
+## 35-1k-mtp 11:42:55 rustc=       0
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash moe_experts=moe_experts_bf16 argmax=argmax_f32
+finish=length prompt=973 (cached 0) completion=129 | prefill 508 ms (1915.4 tok/s) | decode 758 ms (168.86 tok/s)
+spec: verify passes=51 proposed=101 accepted=77 (acceptance 76.2%, 2.51 tokens per pass)
+steps=53 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: add=0ms/103 argmax=0ms/153 attn_decode=0ms/68 attn_prefill=0ms/563 embedding=0ms/156
+## 8-4k-plain 11:43:00 rustc=       0
+prefill chunk 2048 (recipe qwen3, metal)
+finish=length prompt=4096 (cached 0) completion=129 | prefill 2315 ms (1769.3 tok/s) | decode 3572 ms (35.83 tok/s)
+steps=130 graph replays=0 (captures 0) eager decode steps=128 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/4608 attn_prefill=0ms/72 embedding=0ms/130 logits=0ms/129
+## 8-4k-cb 11:43:06 rustc=       0
+prefill chunk 2048 (recipe qwen3, metal)
+finish=length prompt=4096 (cached 0) completion=129 | prefill 1191 ms (3439.9 tok/s) | decode 3591 ms (35.64 tok/s)
+steps=130 graph replays=0 (captures 0) eager decode steps=128 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/4608 attn_prefill=0ms/72 embedding=0ms/130 logits=0ms/129
+## 8-4k-ce1 11:43:11 rustc=       0
+prefill chunk 2048 (recipe qwen3, metal)
+finish=length prompt=4096 (cached 0) completion=129 | prefill 1087 ms (3768.6 tok/s) | decode 3571 ms (35.84 tok/s)
+steps=130 graph replays=0 (captures 0) eager decode steps=128 (profiled 0) top ops: argmax=0ms/129 attn_decode=0ms/4608 attn_prefill=0ms/72 embedding=0ms/130 logits=0ms/129
+## b-plain 11:43:16
+localeval exit 0
+## b-host 11:44:01
+localeval exit 0
+## b-cb 11:44:36
+localeval exit 0
+## done 11:44:59
+fleetq: #7030 done (exit 0)

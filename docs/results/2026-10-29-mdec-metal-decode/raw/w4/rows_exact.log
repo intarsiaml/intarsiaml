@@ -1,0 +1,49 @@
+warning: field `spec_dflash` is never read
+    --> crates/intarsia-core/src/engine.rs:1135:5
+     |
+1102 | pub(crate) struct Seq {
+     |                   --- field in this struct
+...
+1135 |     spec_dflash: bool,
+     |     ^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1215:4
+     |
+1215 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 4 warnings
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/rows_exact.rs (.lane/target/release/deps/rows_exact-31ca8bc2b56c4560)
+
+running 8 tests
+test bf16_pair_rows_at_the_35b_pairs ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_experts_rows_are_bitwise_the_one_token_call ... ok
+test negative_controls_differ_from_the_one_row_calls ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_kernels_do_not_depend_on_the_row_count ... ok
+test rows_exact_registrations_are_pinned ... ok
+test timing_rows ... ignored
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.30s
+

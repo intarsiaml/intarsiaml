@@ -72,6 +72,12 @@ fn rows_shaders() -> ((&'static str, usize), (&'static str, usize)) {
     })
 }
 
+/// The per-pair (fat) kernels have no token limit: a batched call of up to `CHUNK_ROWS_MAX` tokens runs as one launch
+/// (lane mdec). The expert-grouped `_x` kernels (`INTARSIA_METAL_MOE_ROWS_FAT=0`) take `ROWS_MAX`; more are chunked.
+pub fn rows_native() -> bool {
+    rows_shaders().0 .1 == PR
+}
+
 /// Tokens the row-exact decode takes (`MOE_XR` pairs per tile: an expert has at most one pair per token).
 pub const ROWS_MAX: usize = 8;
 
@@ -177,8 +183,9 @@ impl MetalBackend {
         if pairs == 0 || h == 0 {
             return Ok(());
         }
-        if rows && !(2..=ROWS_MAX).contains(&t) {
-            return Err(Error::invalid(format!("metal moe_experts_bf16_rows: T = {t} (2..={ROWS_MAX} tokens)")));
+        let most = if rows_native() { crate::CHUNK_ROWS_MAX } else { ROWS_MAX };
+        if rows && !(2..=most).contains(&t) {
+            return Err(Error::invalid(format!("metal moe_experts_bf16_rows: T = {t} (2..={most} tokens)")));
         }
         let o32 = match out.dtype {
             DType::Bf16 => 0,

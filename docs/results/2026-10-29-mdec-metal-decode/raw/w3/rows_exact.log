@@ -1,0 +1,13 @@
+
+running 8 tests
+test bf16_pair_rows_at_the_35b_pairs ... ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... ok
+test moe_experts_rows_are_bitwise_the_one_token_call ... ok
+test negative_controls_differ_from_the_one_row_calls ... ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... ok
+test row_parallel_kernels_do_not_depend_on_the_row_count ... ok
+test rows_exact_registrations_are_pinned ... ok
+test timing_rows ... ignored
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.89s
+

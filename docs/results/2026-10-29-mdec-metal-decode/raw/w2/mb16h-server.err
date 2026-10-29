@@ -1,0 +1,18 @@
+prefill chunk 2048 (recipe qwen3_5_moe, metal)
+intarsia-backend-metal: keep-warm: registered the file at 0x7000000000, 10.01 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x74a8b80000, 3.41 GB
+intarsia-backend-metal: keep-warm: registered the file at 0x7254750000, 10.00 GB
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 27 kernel(s) checked, 0 case(s) run, 567 cached
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 2048
+loaded Qwen3.6-35B-A3B-NVFP4 on metal (Apple M5 Max) in 5.5s, context 8192 tokens
+intarsia server listening on http://127.0.0.1:18472
+host-profile prefill-only   iters      1 rows  0.00 wall 192.985 ms | reap+admit 0.023 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.001 detok 0.016 send 0.003 finish 0.012 prefill 192.927 | other 0.003
+host-profile prefill-only   iters      3 rows  0.00 wall 340.756 ms | reap+admit 0.010 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.000 detok 0.002 send 0.001 finish 0.002 prefill 340.738 | other 0.002
+host-profile decode-only    iters    256 rows  1.00 wall   8.052 ms | reap+admit 0.000 prepare 0.000 step-setup 8.047 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.000 detok 0.002 send 0.001 finish 0.000 prefill 0.000 | other 0.001
+host-profile decode-only    iters    255 rows  1.00 wall   8.099 ms | reap+admit 0.000 prepare 0.000 step-setup 8.093 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.000 detok 0.002 send 0.001 finish 0.000 prefill 0.000 | other 0.001
+host-profile prefill-only   iters      1 rows  0.00 wall 238.548 ms | reap+admit 0.041 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.001 detok 0.005 send 0.003 finish 0.000 prefill 238.495 | other 0.003
+host-profile decode-only    iters    256 rows 16.00 wall  38.622 ms | reap+admit 0.000 prepare 0.000 step-setup 0.004 upload 0.000 launch 1.534 sync 37.024 step-tail 0.000 accept 0.002 metrics 0.001 on_token 0.002 detok 0.024 send 0.029 finish 0.000 prefill 0.000 | other 0.002 | gpu-idle-gap 0.065 ms (255 gaps)
+host-profile decode-only    iters    255 rows 15.53 wall  38.502 ms | reap+admit 0.000 prepare 0.000 step-setup 0.037 upload 0.000 launch 1.518 sync 36.887 step-tail 0.000 accept 0.002 metrics 0.001 on_token 0.002 detok 0.023 send 0.029 finish 0.000 prefill 0.000 | other 0.002 | gpu-idle-gap 0.065 ms (254 gaps)
+host-profile decode+prefill iters     15 rows  8.00 wall 279.036 ms | reap+admit 0.010 prepare 0.000 step-setup 0.942 upload 0.000 launch 1.184 sync 21.478 step-tail 0.000 accept 0.001 metrics 0.001 on_token 0.002 detok 0.019 send 0.021 finish 0.000 prefill 255.375 | other 0.004
+host-profile prefill-only   iters      1 rows  0.00 wall 239.597 ms | reap+admit 0.056 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.000 detok 0.003 send 0.003 finish 0.000 prefill 239.531 | other 0.003
