@@ -17,7 +17,7 @@ now() { date '+%F %T'; }
 run() { # card tag env args...
   local g=$1 tag=$2 e=$3; shift 3
   echo "== $tag ($e) $(now)"
-  INTARSIA_CONTAINER_NAME=wmr-job-$g INTARSIA_REPO=$TREE INTARSIA_TARGET_VOL=$REL HIP_VISIBLE_DEVICES=$g $DEVSH env $e /target/release/intarsia accuracy --backend hip --device 0 --model $M "$@" \
+  INTARSIA_CONTAINER_NAME=wmr-job-${g%%,*} INTARSIA_REPO=$TREE INTARSIA_TARGET_VOL=$REL HIP_VISIBLE_DEVICES=$g $DEVSH env $e /target/release/intarsia accuracy --backend hip --device 0 --model $M "$@" \
     < /dev/null > "$O/$tag.log" 2>&1
   echo "$tag exit=$? $(grep -aE 'SELF-STATS|verdict|PASS|FAIL|top-1|flips|mean' "$O/$tag.log" | tail -n 8 | tr '\n' '|' | cut -c1-900)"
 }
@@ -31,9 +31,23 @@ chain() { # card kind golden decodepos maxseq
   [[ $k == short ]] && run $g $k-off-control NOKNOB=1 $S --self-vs-ref-noise
   echo "$k chain done $(now)"
 }
+tpchain() { # tp=2 on both cards: short then long, dumps tp2-<kind>-main
+  for kk in "short qwen36-35b-a3b-nvfp4-vllm-top20.safetensors 16 4096" "long qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors 64 16384"; do
+    set -- $kk; local k=tp2-$1 gold=$2 dp=$3 ms=$4
+    local TP="--tp 2 --devices 0,1"
+    local C="--golden $G/$gold --mode both --decode-positions $dp --max-seq $ms --mem-budget 29 $TP"
+    local S="--self-golden /work/dumps/$k-main.safetensors --mode both --decode-positions $dp --max-seq $ms --mem-budget 29 --allow-same-code --allow-unstamped --pre-change d2fe64a8a --revlist /work/revlist.txt $TP"
+    run 0,1 $k-off-write NOKNOB=1 $C --write-self-golden /work/dumps/$k-main.safetensors --allow-unstamped --allow-same-code
+    run 0,1 $k-on-svrn "$OPT1" $S --self-vs-ref-noise
+    run 0,1 $k-on-default "$OPT1" $S
+    run 0,1 $k-off-control NOKNOB=1 $S --self-vs-ref-noise
+  done
+  echo "tp2 chain done $(now)"
+}
 pids=()
+if [[ $W == *T* ]]; then tpchain > "$O/T.out" 2>&1 & pids+=($!); fi
 if [[ $W == *S* ]]; then chain 0 short qwen36-35b-a3b-nvfp4-vllm-top20.safetensors 16 4096 > "$O/S.out" 2>&1 & pids+=($!); fi
 if [[ $W == *L* ]]; then chain 1 long qwen36-35b-a3b-nvfp4-vllm-long-top20.safetensors 64 16384 > "$O/L.out" 2>&1 & pids+=($!); fi
 for p in "${pids[@]}"; do wait "$p"; done
-for f in S L; do [[ -s $O/$f.out ]] && { echo "######## $f"; cat "$O/$f.out"; }; done
+for f in S L T; do [[ -s $O/$f.out ]] && { echo "######## $f"; cat "$O/$f.out"; }; done
 echo "acc done $(now)"
