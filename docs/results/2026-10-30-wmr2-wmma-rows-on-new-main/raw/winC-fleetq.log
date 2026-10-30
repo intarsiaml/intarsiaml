@@ -1,0 +1,38 @@
+fleetq: #7384 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #7384 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/intarsiaml/.worktrees/wmr2/docs/results/2026-10-30-wmr2-wmma-rows-on-new-main/raw/winC TREE=hfp8new2 PLAN=1 CAP=1080 PHASES=g512:16:1024:512:1,4,8,16:3:tp1-off,tp1-fp8,tp1-bf16:0 scripts/wmr/window.sh
+04:29:46 guard: [guard] radiance stopped 2026-10-30 04:29:46
+04:29:47 binary: intarsia 0.0.1 
+04:29:50 plan show off exit=0     3184 B
+04:29:53 plan show on exit=0     3188 B
+04:29:56 plan show fp8 exit=0     3188 B
+04:29:59 plan show bf16 exit=0     3184 B
+04:29:59 g512-tp1-off-r1: starting server
+04:30:15 g512-tp1-off-r1: server up (32 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:30:59 g512-tp1-off-r1: localeval exit 0 - result file: `results/20261030-043016-adhoc-wmr-g512-tp1-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-043016-adhoc-wmr-g512-tp1-off-r1/result.json|
+04:31:00 g512-tp1-fp8-r1: starting server
+04:31:16 g512-tp1-fp8-r1: server up (93 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:31:59 g512-tp1-fp8-r1: localeval exit 0 - result file: `results/20261030-043117-adhoc-wmr-g512-tp1-fp8-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-043117-adhoc-wmr-g512-tp1-fp8-r1/result.json|
+04:31:59 g512-tp1-bf16-r1: starting server
+04:32:16 g512-tp1-bf16-r1: server up (153 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:33:00 g512-tp1-bf16-r1: localeval exit 0 - result file: `results/20261030-043216-adhoc-wmr-g512-tp1-bf16-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-043216-adhoc-wmr-g512-tp1-bf16-r1/result.json|
+04:33:00 g512-tp1-bf16-r2: starting server
+04:33:17 g512-tp1-bf16-r2: server up (214 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:34:00 g512-tp1-bf16-r2: localeval exit 0 - result file: `results/20261030-043317-adhoc-wmr-g512-tp1-bf16-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-043317-adhoc-wmr-g512-tp1-bf16-r2/result.json|
+04:34:01 g512-tp1-fp8-r2: starting server
+04:34:18 g512-tp1-fp8-r2: server up (275 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:35:00 g512-tp1-fp8-r2: localeval exit 0 - result file: `results/20261030-043418-adhoc-wmr-g512-tp1-fp8-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-043418-adhoc-wmr-g512-tp1-fp8-r2/result.json|
+04:35:00 g512-tp1-off-r2: starting server
+04:35:17 g512-tp1-off-r2: server up (334 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:36:01 g512-tp1-off-r2: localeval exit 0 - result file: `results/20261030-043518-adhoc-wmr-g512-tp1-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-043518-adhoc-wmr-g512-tp1-off-r2/result.json|
+04:36:01 g512-tp1-off-r3: starting server
+04:36:18 g512-tp1-off-r3: server up (395 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:37:01 g512-tp1-off-r3: localeval exit 0 - result file: `results/20261030-043618-adhoc-wmr-g512-tp1-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-043618-adhoc-wmr-g512-tp1-off-r3/result.json|
+04:37:02 g512-tp1-fp8-r3: starting server
+04:37:19 g512-tp1-fp8-r3: server up (456 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:38:01 g512-tp1-fp8-r3: localeval exit 0 - result file: `results/20261030-043719-adhoc-wmr-g512-tp1-fp8-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-043719-adhoc-wmr-g512-tp1-fp8-r3/result.json|
+04:38:02 g512-tp1-bf16-r3: starting server
+04:38:18 g512-tp1-bf16-r3: server up (515 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:39:02 g512-tp1-bf16-r3: localeval exit 0 - result file: `results/20261030-043819-adhoc-wmr-g512-tp1-bf16-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-043819-adhoc-wmr-g512-tp1-bf16-r3/result.json|
+04:39:02 done, time left 521s
+04:39:13 guard: [guard] stopping radiance 2026-10-30 04:29:43|[guard] radiance answers 2026-10-30 04:39:13 (after 15 s), unit active|
+fleetq: #7384 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -1,0 +1,47 @@
+fleetq: #7383 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 44% busy with work fleetq does not track
+fleetq: #7383 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/intarsiaml/.worktrees/wmr2/docs/results/2026-10-30-wmr2-wmma-rows-on-new-main/raw/winB TREE=hfp8new2 PLAN=1 CAP=1080 'PHASES=g512:16:1024:512:1,4,8,16:3:tp2-off,tp2-on:0 b1:1:1024,4096,16384:512::3:tp2-off,tp2-on:0' scripts/wmr/window.sh
+04:21:46 guard: [guard] radiance stopped 2026-10-30 04:21:46
+04:21:47 binary: intarsia 0.0.1 
+04:21:47 plan show off exit=2        0 B
+04:21:47 plan show on exit=2        0 B
+04:21:48 plan show fp8 exit=2        0 B
+04:21:48 plan show bf16 exit=2        0 B
+04:21:48 g512-tp2-off-r1: starting server
+04:22:02 g512-tp2-off-r1: server up (19 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:22:35 g512-tp2-off-r1: localeval exit 0 - result file: `results/20261030-042202-adhoc-wmr-g512-tp2-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042202-adhoc-wmr-g512-tp2-off-r1/result.json|
+04:22:36 g512-tp2-on-r1: starting server
+04:22:49 g512-tp2-on-r1: server up (66 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:23:22 g512-tp2-on-r1: localeval exit 0 - result file: `results/20261030-042250-adhoc-wmr-g512-tp2-on-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042250-adhoc-wmr-g512-tp2-on-r1/result.json|
+04:23:23 g512-tp2-on-r2: starting server
+04:23:36 g512-tp2-on-r2: server up (113 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:24:09 g512-tp2-on-r2: localeval exit 0 - result file: `results/20261030-042336-adhoc-wmr-g512-tp2-on-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042336-adhoc-wmr-g512-tp2-on-r2/result.json|
+04:24:09 g512-tp2-off-r2: starting server
+04:24:23 g512-tp2-off-r2: server up (160 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:24:56 g512-tp2-off-r2: localeval exit 0 - result file: `results/20261030-042423-adhoc-wmr-g512-tp2-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042423-adhoc-wmr-g512-tp2-off-r2/result.json|
+04:24:57 g512-tp2-off-r3: starting server
+04:25:10 g512-tp2-off-r3: server up (207 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:25:44 g512-tp2-off-r3: localeval exit 0 - result file: `results/20261030-042511-adhoc-wmr-g512-tp2-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042511-adhoc-wmr-g512-tp2-off-r3/result.json|
+04:25:45 g512-tp2-on-r3: starting server
+04:25:58 g512-tp2-on-r3: server up (255 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+04:26:31 g512-tp2-on-r3: localeval exit 0 - result file: `results/20261030-042559-adhoc-wmr-g512-tp2-on-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042559-adhoc-wmr-g512-tp2-on-r3/result.json|
+04:26:31 b1-tp2-off-r1: starting server
+04:26:41 b1-tp2-off-r1: server up (298 s into the window), localeval (sizes 1024,4096,16384, gen 512, streams 1)
+04:26:54 b1-tp2-off-r1: localeval exit 0 - result file: `results/20261030-042642-adhoc-wmr-b1-tp2-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042642-adhoc-wmr-b1-tp2-off-r1/result.json|
+04:26:54 b1-tp2-on-r1: starting server
+04:27:04 b1-tp2-on-r1: server up (321 s into the window), localeval (sizes 1024,4096,16384, gen 512, streams 1)
+04:27:17 b1-tp2-on-r1: localeval exit 0 - result file: `results/20261030-042705-adhoc-wmr-b1-tp2-on-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042705-adhoc-wmr-b1-tp2-on-r1/result.json|
+04:27:17 b1-tp2-on-r2: starting server
+04:27:28 b1-tp2-on-r2: server up (345 s into the window), localeval (sizes 1024,4096,16384, gen 512, streams 1)
+04:27:40 b1-tp2-on-r2: localeval exit 0 - result file: `results/20261030-042728-adhoc-wmr-b1-tp2-on-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042728-adhoc-wmr-b1-tp2-on-r2/result.json|
+04:27:40 b1-tp2-off-r2: starting server
+04:27:51 b1-tp2-off-r2: server up (368 s into the window), localeval (sizes 1024,4096,16384, gen 512, streams 1)
+04:28:03 b1-tp2-off-r2: localeval exit 0 - result file: `results/20261030-042751-adhoc-wmr-b1-tp2-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042751-adhoc-wmr-b1-tp2-off-r2/result.json|
+04:28:03 b1-tp2-off-r3: starting server
+04:28:14 b1-tp2-off-r3: server up (391 s into the window), localeval (sizes 1024,4096,16384, gen 512, streams 1)
+04:28:26 b1-tp2-off-r3: localeval exit 0 - result file: `results/20261030-042814-adhoc-wmr-b1-tp2-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042814-adhoc-wmr-b1-tp2-off-r3/result.json|
+04:28:26 b1-tp2-on-r3: starting server
+04:28:36 b1-tp2-on-r3: server up (413 s into the window), localeval (sizes 1024,4096,16384, gen 512, streams 1)
+04:28:49 b1-tp2-on-r3: localeval exit 0 - result file: `results/20261030-042837-adhoc-wmr-b1-tp2-on-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-042837-adhoc-wmr-b1-tp2-on-r3/result.json|
+04:28:49 done, time left 654s
+04:29:00 guard: [guard] stopping radiance 2026-10-30 04:21:43|[guard] radiance answers 2026-10-30 04:29:00 (after 15 s), unit active|
+fleetq: #7383 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
