@@ -1,0 +1,23 @@
+12:18:18 guard: [guard] radiance stopped 2026-10-30 12:18:18
+12:18:18 a-main: start ( -e BENCH_CASES=v2:512:2048,v2:8192:2048,v2:2048:4096,rows2:2048:4096,rows2:512:2048,pair:8192:2048:4096,sig:2048:4096)
+12:18:19 a-main: exit 0 (7 lines)
+12:18:19 a-new: start ( -e BENCH_CASES=v2:512:2048,v2:8192:2048,v2:2048:4096,rows2:2048:4096,rows2:512:2048,pair:8192:2048:4096,sig:2048:4096)
+12:18:20 a-new: exit 0 (7 lines)
+12:18:20 a-sync: start ( -e BENCH_CASES=v2:512:2048,v2:8192:2048,v2:2048:4096,rows2:2048:4096,rows2:512:2048,pair:8192:2048:4096,sig:2048:4096)
+12:18:21 a-sync: exit 0 (7 lines)
+12:18:21 a-nopre: start ( -e BENCH_CASES=v2:512:2048,v2:8192:2048,v2:2048:4096,rows2:2048:4096,rows2:512:2048,pair:8192:2048:4096,sig:2048:4096)
+12:18:22 a-nopre: exit 0 (7 lines)
+12:18:22 a-noping: start ( -e BENCH_CASES=v2:512:2048,v2:8192:2048,v2:2048:4096,rows2:2048:4096,rows2:512:2048,pair:8192:2048:4096,sig:2048:4096)
+12:18:23 a-noping: exit 0 (7 lines)
+12:18:23 a-all3: start ( -e BENCH_CASES=v2:512:2048,v2:8192:2048,v2:2048:4096,rows2:2048:4096,rows2:512:2048,pair:8192:2048:4096,sig:2048:4096)
+12:18:24 a-all3: exit 0 (7 lines)
+12:18:24 s-main: start ( -e BENCH_DUMP=/work/hload-out/s-main)
+12:18:26 s-main: exit 0 (8 lines)
+12:18:26 s-new: start ( -e BENCH_DUMP=/work/hload-out/s-new)
+12:18:27 s-new: exit 0 (8 lines)
+12:18:27 s-main2: start ()
+12:18:28 s-main2: exit 0 (8 lines)
+12:18:28 s-new2: start ()
+12:18:29 s-new2: exit 0 (8 lines)
+12:18:29 done, time left 886s
+12:18:39 guard: [guard] stopping radiance 2026-10-30 12:18:15|[guard] radiance answers 2026-10-30 12:18:39 (after 15 s), unit active|

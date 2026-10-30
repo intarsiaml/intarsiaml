@@ -1,0 +1,23 @@
+11:39:26 guard: [guard] radiance stopped 2026-10-30 11:39:25
+11:39:26 moe-main: start ( -e BENCH_DUMP=/work/hload-out/e-main)
+11:39:35 moe-main: exit 0 (10 lines)
+11:39:35 moe-new: start ( -e BENCH_DUMP=/work/hload-out/e-new)
+11:39:45 moe-new: exit 0 (10 lines)
+11:39:45 mb-main: start ( -e BENCH_DUMP=/work/hload-out/b-main)
+11:39:55 mb-main: exit 0 (4 lines)
+11:39:55 mb-new: start ( -e BENCH_DUMP=/work/hload-out/b-new)
+11:40:04 mb-new: exit 0 (4 lines)
+11:40:04 mb-r2: start ( -e BENCH_DUMP=/work/hload-out/b-r2)
+11:40:13 mb-r2: exit 0 (4 lines)
+11:40:13 mb-r3: start ( -e BENCH_DUMP=/work/hload-out/b-r3)
+11:40:22 mb-r3: exit 0 (4 lines)
+11:40:22 moe-new2: start ()
+11:40:32 moe-new2: exit 0 (10 lines)
+11:40:32 moe-main2: start ()
+11:40:42 moe-main2: exit 0 (10 lines)
+11:40:42 mb-new2: start ()
+11:40:51 mb-new2: exit 0 (4 lines)
+11:40:51 mb-main2: start ()
+11:41:00 mb-main2: exit 0 (4 lines)
+11:41:00 done, time left 981s
+11:41:10 guard: [guard] stopping radiance 2026-10-30 11:39:22|[guard] radiance answers 2026-10-30 11:41:10 (after 15 s), unit active|

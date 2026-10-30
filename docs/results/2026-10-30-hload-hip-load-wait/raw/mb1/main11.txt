@@ -1,0 +1,5 @@
+I=512 T= 1 distinct 8.0 maxpairs 1  gate_up<1>   23.03 us  down<1>   16.23 us
+I=512 T= 2 distinct 15.0 maxpairs 2  gate_up<1>   34.73 us  down<1>   27.27 us
+I=512 T= 4 distinct 25.8 maxpairs 4  gate_up<1>   53.93 us  down<1>   46.73 us
+I=512 T= 8 distinct 45.1 maxpairs 7  gate_up<1>   92.34 us  down<1>   84.17 us
+I=512 T=16 distinct 74.6 maxpairs 13  gate_up<1>  174.49 us  down<1>  159.91 us
