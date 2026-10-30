@@ -1145,10 +1145,11 @@ fn timing_gemv_rows() {
             }
         }
     }
-    for (n, k) in [(4096usize, 4096usize), (256, 2048)] {
+    // (256, 2048) router, (32, 2048) GDN in_a / in_b, (1, 2048) shared-expert gate: the latency-bound small GEMVs of lane hgv
+    for (n, k) in [(4096usize, 4096usize), (256, 2048), (32, 2048), (1, 2048)] {
         let w = rig.put(&fast_bf16(&mut rng, n, k));
         let x = rig.put(&HostTensor::from_f32_as(DType::Bf16, &[CAP, k], &rng.normal_vec(CAP * k, 1.0)));
-        for (kernel, ms) in [("matmul_bf16_gemv", vec![1usize, 2, 4]), ("matmul_bf16_gemv_rows", vec![1, 2, 4, 8, 12, 16])] {
+        for (kernel, ms) in [("matmul_bf16_gemv", vec![1usize, 2, 4]), ("matmul_bf16_gemv_rows", vec![1, 2, 4, 5, 6, 8, 10, 12, 14, 16])] {
             if !have(kernel) {
                 continue;
             }
