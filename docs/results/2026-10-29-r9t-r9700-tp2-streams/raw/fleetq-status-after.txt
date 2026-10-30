@@ -1,0 +1,11 @@
+fleetq · 23:58:59 · last health check 16s ago
+
+tatooine-r9700 (tatooine) · online · GPU 77% busy
+  memory    32 GB: services 31 · jobs 0 · free 1  (box reports 22.9 free)
+  services
+    + radiance-rank0         radiance                     31 GB  up · 1 in flight
+
+tatooine-r9700-2 (tatooine) · online · GPU 2% busy
+  memory    32 GB: services 31 · jobs 0 · free 1  (box reports 22.9 free)
+  services
+    + radiance-rank1         radiance                     31 GB  up · 1 in flight
