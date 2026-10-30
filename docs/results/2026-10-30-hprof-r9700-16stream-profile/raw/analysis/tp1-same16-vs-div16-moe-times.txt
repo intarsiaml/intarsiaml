@@ -1,0 +1,12 @@
+burst 1 B=8 steps=183 wall=21.27ms gate_up=3984us/step down=2469us/step splitkv=620us
+     first half gate_up=3840 down=2406
+     second half gate_up=4125 down=2531
+burst 2 B=16 steps=175 wall=39.74ms gate_up=6880us/step down=4591us/step splitkv=1162us
+     first half gate_up=6786 down=4540
+     second half gate_up=6973 down=4641
+burst 3 B=8 steps=184 wall=21.68ms gate_up=4143us/step down=2546us/step splitkv=710us
+     first half gate_up=3983 down=2481
+     second half gate_up=4304 down=2612
+burst 4 B=16 steps=176 wall=40.17ms gate_up=7009us/step down=4661us/step splitkv=1359us
+     first half gate_up=6786 down=4523
+     second half gate_up=7232 down=4798

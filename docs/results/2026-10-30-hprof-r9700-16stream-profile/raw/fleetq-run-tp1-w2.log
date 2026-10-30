@@ -1,0 +1,11 @@
+fleetq: #7279 running on tatooine-r9700, tatooine-r9700-2: scripts/hprof/window.sh
+00:46:56 guard: [guard] radiance stopped 2026-10-30 00:46:56
+00:46:57 binary: intarsia 0.0.1 
+00:46:57 tp1-prof-sweep: starting server
+00:47:13 tp1-prof-sweep: driver phases same2,same4,same6,same10,same12,same13,same14 (gen 192)
+00:48:22 tp1-prof-sweep: driver exit 0: {"phase": "same2", "streams": 2, "ok": 2, "wall_s": 2.18, "completion_tokens": 384, "prompt_tokens_median": 995, "ttft_max_s": 0.26, "per_stream_decode_tok_s_mean": 96.5, "aggregate_decode_tok_s_est":|{"phase": "same4", "streams": 4, "ok": 4, "wall_s": 3.18, "completion_tokens": 768, "prompt_tokens_median": 994, "ttft_max_s": 0.53, "per_stream_decode_tok_s_mean": 68.1, "aggregate_decode_tok_s_est":|{"phase": "same6", "streams": 6, "ok": 6, "wall_s": 4.16, "completion_tokens": 1152, "prompt_tokens_median": 991, "ttft_max_s": 0.84, "per_stream_decode_tok_s_mean": 52.5, "aggregate_decode_tok_s_est"|{"phase": "same10", "streams": 10, "ok": 10, "wall_s": 6.56, "completion_tokens": 1920, "prompt_tokens_median": 992, "ttft_max_s": 1.43, "per_stream_decode_tok_s_mean": 33.5, "aggregate_decode_tok_s_e|{"phase": "same12", "streams": 12, "ok": 12, "wall_s": 7.45, "completion_tokens": 2304, "prompt_tokens_median": 991, "ttft_max_s": 1.76, "per_stream_decode_tok_s_mean": 30.4, "aggregate_decode_tok_s_e|{"phase": "same13", "streams": 13, "ok": 13, "wall_s": 8.04, "completion_tokens": 2496, "prompt_tokens_median": 991, "ttft_max_s": 1.91, "per_stream_decode_tok_s_mean": 27.7, "aggregate_decode_tok_s_e|{"phase": "same14", "streams": 14, "ok": 14, "wall_s": 8.56, "completion_tokens": 2688, "prompt_tokens_median": 992, "ttft_max_s": 2.09, "per_stream_decode_tok_s_mean": 26.1, "aggregate_decode_tok_s_e|
+00:48:26 tp1-prof-sweep: server state after exit file (waited 6 s): false exit=0
+00:48:30 tp1-prof-sweep: copied  20M (648 /home/josef/intarsiaml-tp2-hprof/hprof-out/tp1-prof-sweep/k_agent_info.csv.gz 21161620 /home/josef/intarsiaml-tp2-hprof/hprof-out/tp1-prof-sweep/k_kernel_trace.csv.gz )
+00:48:30 done, time left 852s
+00:48:40 guard: [guard] stopping radiance 2026-10-30 00:46:53|[guard] radiance answers 2026-10-30 00:48:40 (after 15 s), unit active|
+fleetq: #7279 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

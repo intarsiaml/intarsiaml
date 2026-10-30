@@ -155,6 +155,8 @@ pub struct HipBackend {
     /// per-kernel GPU-time trace (INTARSIA_HIP_TRACE=1: start/stop event pair per launch), printed to stderr when the
     /// backend is dropped
     trace: Option<Mutex<Trace>>,
+    /// lane hprof: `INTARSIA_HIP_ROUTE_STATS` (route_stats.rs)
+    route: Option<Mutex<crate::route_stats::RouteStats>>,
     /// a graph capture is running on this backend: launches are recorded, not executed, so the trace's stream events
     /// (which would become event nodes of the graph) are skipped
     capturing: AtomicBool,
@@ -526,6 +528,7 @@ impl HipBackend {
             streams: Mutex::new(Vec::new()),
             fork_events: Mutex::new((Vec::new(), 0)),
             trace: std::env::var_os("INTARSIA_HIP_TRACE").filter(|v| v != "0").map(|_| Mutex::new(Trace::default())),
+            route: crate::route_stats::RouteStats::from_env(),
             capturing: AtomicBool::new(false),
             staging: Mutex::new(None),
             relayout: (AtomicU64::new(0), AtomicU64::new(0)),
@@ -533,6 +536,7 @@ impl HipBackend {
             spans: Mutex::new(SpanCache::new()),
             prequant: Mutex::new(PreQuant::new()),
         };
+        crate::route_stats::exit_watch();
         be.stream(0)?; // create the default stream now so failures surface here
         Ok(be)
     }
@@ -1434,6 +1438,22 @@ impl Backend for HipBackend {
                 other => return Err(Error::NoKernel(format!("hip kernel '{other}' has no dispatch entry"))),
             }
         };
+        // lane hprof: INTARSIA_HIP_ROUTE_STATS reads back the grouped block's top-k ids (eager launches only)
+        if let (Some(rs), 0, true, false) = (&self.route, rc, kernel == "moe_block_bf16_grouped", self.capturing.load(Ordering::Relaxed)) {
+            let (rows, k) = (inp[0].shape[0] as usize, a.top_k as usize);
+            if let (Some(scr), true) = (scr.as_ref(), rows > 0 && k > 0) {
+                let n = rows * k;
+                let mut ids = vec![0i32; n];
+                let off = (n * 4).div_ceil(256) * 256;
+                // SAFETY: the ids block lies inside the plan-reserved scratch (layout in moe_block_grouped.hip); the stream is idle after the sync.
+                unsafe {
+                    ffi::ik_rt_stream_sync(s);
+                    ffi::ik_rt_memcpy_d2h(ids.as_mut_ptr() as *mut c_void, (scr.data as *const u8).add(off) as *const c_void, n * 4, s);
+                    ffi::ik_rt_stream_sync(s);
+                }
+                rs.lock().unwrap().record(rows, inp[3].data as usize, &ids);
+            }
+        }
         if let (Some(tr), Some(a)) = (trace, t_start) {
             let mut tr = tr.lock().unwrap();
             if rc == 0 {
