@@ -248,6 +248,10 @@ fn row_chunks(kernel: &str, call: &OpCall) -> Option<Vec<OpCall>> {
     if !is_rows || m <= CHUNK_TILE || m > CHUNK_ROWS_MAX || call.rows.is_some() {
         return None;
     }
+    // fp8 takes 9..=16 rows in one launch of the 16-row simdgroup-matrix form (lane mfp8) when it has its scratch
+    if kernel == fp8::MATMUL_FP8_GEMV_ROWS && call.scratch.is_some() && fp8::rows16_on() {
+        return None;
+    }
     // the per-pair MoE kernels take all rows in one launch (lane mdec): pairs that share an expert read it at about the same time
     if kernel == moe::MOE_EXPERTS_BF16_ROWS && moe::rows_native() {
         return None;

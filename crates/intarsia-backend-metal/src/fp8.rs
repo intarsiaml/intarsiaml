@@ -22,7 +22,7 @@ pub const MATMUL_FP8_GEMV_ROWS: &str = "matmul_fp8_gemv_rows";
 const XPREP: &str = "fp8_xprep_bf16";
 const XPREP_T: &str = "fp8_xprep_t";
 /// Shader entry points (kernels/metal/fp8.metal).
-pub const SHADERS: [&str; 19] = [
+pub const SHADERS: [&str; 23] = [
     XPREP,
     "fp8_gemv_bf16_m1",
     "fp8_gemv_bf16_m8",
@@ -42,6 +42,10 @@ pub const SHADERS: [&str; 19] = [
     "fp8_rows_mmt_bf16_neg",
     "fp8_rows_mmt_f32_neg",
     W_TO_BF16,
+    "fp8_rows_mmt_bf16_r2",
+    "fp8_rows_mmt_f32_r2",
+    "fp8_rows_mmt_bf16_neg_r2",
+    "fp8_rows_mmt_f32_neg_r2",
 ];
 
 const W_TO_BF16: &str = "fp8_w_to_bf16";
@@ -361,7 +365,7 @@ impl MetalBackend {
         f32_out: bool,
     ) -> Result<()> {
         let (m, n, k) = (pdims[0] as usize, pdims[1] as usize, pdims[2] as usize);
-        if !(2..=GEMV_MB).contains(&m) {
+        if !(2..=GEMV_MB).contains(&m) && !(m <= crate::CHUNK_ROWS_MAX && rows16_on()) {
             return Err(Error::invalid(format!("metal {MATMUL_FP8_GEMV_ROWS}: M = {m} (2..=8 rows)")));
         }
         let scratch = call.scratch.as_ref().expect("checked by the caller");
@@ -435,13 +439,17 @@ impl MetalBackend {
         f32_out: bool,
     ) -> Result<()> {
         let (m, n, k) = (pdims[0] as usize, pdims[1] as usize, pdims[2] as usize);
-        debug_assert!(m <= MMT_ROWS);
-        pdims[3] = MMT_ROWS as u32;
-        let name = match (f32_out, mmt_neg()) {
-            (false, false) => SHADERS[14],
-            (true, false) => SHADERS[15],
-            (false, true) => SHADERS[16],
-            (true, true) => SHADERS[17],
+        let mp = mmt_padded(m);
+        pdims[3] = mp as u32;
+        let name = match (mp > MMT_ROWS, f32_out, mmt_neg()) {
+            (false, false, false) => SHADERS[14],
+            (false, true, false) => SHADERS[15],
+            (false, false, true) => SHADERS[16],
+            (false, true, true) => SHADERS[17],
+            (true, false, false) => SHADERS[19],
+            (true, true, false) => SHADERS[20],
+            (true, false, true) => SHADERS[21],
+            (true, true, true) => SHADERS[22],
         };
         let pso_x = self.pso(XPREP_T).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP_T}'")))?;
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
@@ -461,7 +469,7 @@ impl MetalBackend {
             }
             set_bytes(enc, &px, 3);
             enc.dispatchThreads_threadsPerThreadgroup(
-                MTLSize { width: k * MMT_ROWS / 2, height: 1, depth: 1 },
+                MTLSize { width: k * mp / 2, height: 1, depth: 1 },
                 MTLSize { width: tx, height: 1, depth: 1 },
             );
             // SAFETY: as above.
@@ -520,7 +528,21 @@ fn mmt_neg() -> bool {
 
 /// q(x) bytes the `matmul_fp8_gemv_rows` form for M rows reads from the scratch (without the 16 bytes of alignment slack).
 fn rows_scratch_q(m: usize, k: usize) -> usize {
-    if m >= mmt_min() { MMT_ROWS * k * 2 } else { m * k * 2 }
+    if m >= mmt_min() { mmt_padded(m) * k * 2 } else { m * k * 2 }
+}
+
+/// Rows the simdgroup-matrix form pads its q(x) to for M rows: 8, or 16 for M = 9..=16 (the `_r2` entries, which read each
+/// weight tile once for all the rows).
+fn mmt_padded(m: usize) -> usize {
+    if m > MMT_ROWS { 2 * MMT_ROWS } else { MMT_ROWS }
+}
+
+/// 9..=16 rows of `matmul_fp8_gemv_rows` in ONE launch of the simdgroup-matrix form (`fp8_rows_mmt_*_r2`) instead of two
+/// chunks of `row_chunks`. OFF unless `INTARSIA_METAL_FP8_ROWS16=1`: measured on endor it is slower than the two 8-row
+/// launches (docs/results/2026-10-30-mfp8-metal-rows16.md). Needs the scratch, the `_xd` form and the simdgroup-matrix form on.
+pub fn rows16_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_FP8_ROWS16").is_ok_and(|v| v == "1")) && xd_on() && mmt_min() <= MMT_ROWS
 }
 
 /// The `_xd` form of `matmul_fp8_gemv_rows` (on unless `INTARSIA_METAL_FP8_ROWS_XD=0`, which takes the staged form back).
@@ -531,7 +553,7 @@ fn xd_on() -> bool {
 
 /// Scratch of `matmul_fp8_gemv_rows`: the q(x) rows (`_xd` form: M rows; simdgroup-matrix form: padded to 8).
 pub fn rows_scratch(s: &ShapeInfo) -> usize {
-    s.m.max(MMT_ROWS) * s.k * 2 + 16
+    s.m.next_multiple_of(MMT_ROWS).max(MMT_ROWS) * s.k * 2 + 16
 }
 
 /// `INTARSIA_METAL_NEGCTL=fp8_xd`: the `_xd` GEMV with another association on odd blocks (tests only: NOT the solo bits).

@@ -279,7 +279,10 @@ FP8_GEMV_XDN(fp8_gemv_f32_m4_xd_neg, 4, 2, 2, float, true)
 // adjacent rows of one k of the block-transposed q(x) xt[u][k][m] (bf16, MP = 8 R rows, zero padded; fp8_xprep_t).
 // Layout of a lane's 2 elements of an 8x8 matrix (measured): row (lane & 16 ? 4 : 0) + ((lane >> 1) & 3), columns
 // ((lane >> 3) & 1) * 4 + (lane & 1) * 2 and + 1. One threadgroup per 8 outputs, all rows; padded to 8 rows, so it costs
-// the same at M = 2 as at 8 and the launcher keeps the `_xd` form below 5 rows. R = 2 (16 rows) is not instantiated.
+// the same at M = 2 as at 8 and the launcher keeps the `_xd` form below 5 rows. R = 2 (the `_r2` entries, lane mfp8) pads to 16 rows
+// and serves 9..=16 rows in one launch, reading each weight tile once; every row block r is the same code on its own rows, so
+// the bits of a row do not depend on R. NT (tiles of 8 outputs per threadgroup, sharing the activation loads) > 1 was
+// measured much slower (docs/results/2026-10-30-mfp8-metal-rows16.md) and stays at 1. The 16-row form is OFF by default there.
 // NEG (negative control only): the two MMAs of a block in the other order.
 kernel void fp8_xprep_t(device const ushort* x [[buffer(0)]], device const float* sc [[buffer(1)]],
                         device uint* xt [[buffer(2)]], constant OpP& p [[buffer(3)]], uint g [[thread_position_in_grid]]) {
@@ -301,42 +304,49 @@ kernel void fp8_xprep_t(device const ushort* x [[buffer(0)]], device const float
     xt[g] = v[0] | (v[1] << 16);
 }
 
-template <typename OutT, bool NEG, int R>
+template <typename OutT, bool NEG, int R, int NT>
 inline void fp8_rows_mmt_impl(device const ushort* xt, device const uchar* w, device const float* sc, device OutT* out,
                               constant OpP& p, threadgroup float* red, uint tg, uint sg, uint lane, uint tid) {
     constexpr uint MP = 8 * R;
     const uint M = p.a, N = p.b, K = p.c;
-    const uint n0 = tg * 8;
+    const uint n0 = tg * (8 * NT);  // NT tiles of 8 outputs: the activation operand of a block is loaded once for all of them
     const uint fm = ((lane & 16u) ? 4u : 0u) + ((lane >> 1) & 3u);
     const uint fn = ((lane >> 3) & 1u) * 4u + (lane & 1u) * 2u;
-    device const uchar* wr = w + (ulong)min(n0 + fm, N - 1) * K;
-    simdgroup_float8x8 acc[R][4];
-    for (int r = 0; r < R; ++r)
-        for (int c = 0; c < 4; ++c) acc[r][c] = make_filled_simdgroup_matrix<float, 8, 8>(0.0f);
+    device const uchar* wr[NT];
+    for (int j = 0; j < NT; ++j) wr[j] = w + (ulong)min(n0 + 8 * j + fm, N - 1) * K;
+    simdgroup_float8x8 acc[NT][R][4];
+    for (int j = 0; j < NT; ++j)
+        for (int r = 0; r < R; ++r)
+            for (int c = 0; c < 4; ++c) acc[j][r][c] = make_filled_simdgroup_matrix<float, 8, 8>(0.0f);
     const uint nch = K / 16;
     for (uint ub = 4 * sg; ub < nch; ub += 32) {
-        uint flags = 0;  // bit c: the block of class c of weight row fm holds a NaN code
-        float2 wa[4], wb[4];
-        for (int c = 0; c < 4; ++c) {
-            const ulong u = min(ub + c, nch - 1);
-            const uint v1 = *(device const ushort*)(wr + u * 16 + fn), v2 = *(device const ushort*)(wr + u * 16 + 8 + fn);
-            const uint word = v1 | (v2 << 16);
-            const float2 pp = fp8_x2(word), qq = fp8_x2(word >> 8);
-            wa[c] = float2(pp.x, qq.x);  // (n = fm, k = fn, fn + 1)
-            wb[c] = float2(pp.y, qq.y);  // (n = fm, k = 8 + fn, 9 + fn)
-            flags |= (fp8_word_nan(word) || fp8_word_nan(word >> 8)) ? (1u << c) : 0u;
+        uint flags[NT];  // bit c: the block of class c of weight row fm of tile j holds a NaN code
+        float2 wa[NT][4], wb[NT][4];
+        for (int j = 0; j < NT; ++j) {
+            flags[j] = 0;
+            for (int c = 0; c < 4; ++c) {
+                const ulong u = min(ub + c, nch - 1);
+                const uint v1 = *(device const ushort*)(wr[j] + u * 16 + fn), v2 = *(device const ushort*)(wr[j] + u * 16 + 8 + fn);
+                const uint word = v1 | (v2 << 16);
+                const float2 pp = fp8_x2(word), qq = fp8_x2(word >> 8);
+                wa[j][c] = float2(pp.x, qq.x);  // (n = fm, k = fn, fn + 1)
+                wb[j][c] = float2(pp.y, qq.y);  // (n = fm, k = 8 + fn, 9 + fn)
+                flags[j] |= (fp8_word_nan(word) || fp8_word_nan(word >> 8)) ? (1u << c) : 0u;
+            }
+            // the 16 bytes of weight row fm lie in the 4 lanes that differ in lane bits 0 and 3
+            flags[j] |= simd_shuffle_xor(flags[j], 1);
+            flags[j] |= simd_shuffle_xor(flags[j], 8);
         }
-        // the 16 bytes of weight row fm lie in the 4 lanes that differ in lane bits 0 and 3
-        flags |= simd_shuffle_xor(flags, 1);
-        flags |= simd_shuffle_xor(flags, 8);
         for (int c = 0; c < 4; ++c) {
             const uint u = ub + c;
             if (u >= nch) break;  // uniform over the simdgroup
-            simdgroup_float8x8 a1m, a2m;
-            a1m.thread_elements()[0] = wa[c].x;
-            a1m.thread_elements()[1] = wa[c].y;
-            a2m.thread_elements()[0] = wb[c].x;
-            a2m.thread_elements()[1] = wb[c].y;
+            simdgroup_float8x8 a1m[NT], a2m[NT];
+            for (int j = 0; j < NT; ++j) {
+                a1m[j].thread_elements()[0] = wa[j][c].x;
+                a1m[j].thread_elements()[1] = wa[j][c].y;
+                a2m[j].thread_elements()[0] = wb[j][c].x;
+                a2m[j].thread_elements()[1] = wb[j][c].y;
+            }
             for (int r = 0; r < R; ++r) {
                 simdgroup_float8x8 b1m, b2m;
                 device const ushort* xb = xt + (ulong)u * 16 * MP + fm * MP + fn + 8 * r;
@@ -345,56 +355,64 @@ inline void fp8_rows_mmt_impl(device const ushort* xt, device const uchar* w, de
                 b1m.thread_elements()[1] = as_type<float>(x1 & 0xFFFF0000u);
                 b2m.thread_elements()[0] = as_type<float>(x2 << 16);  // k = 8 + fm
                 b2m.thread_elements()[1] = as_type<float>(x2 & 0xFFFF0000u);
-                simdgroup_float8x8 t = make_filled_simdgroup_matrix<float, 8, 8>(0.0f);
-                if (NEG) {
-                    simdgroup_multiply_accumulate(t, a2m, b2m, t);
-                    simdgroup_multiply_accumulate(t, a1m, b1m, t);
-                } else {
-                    simdgroup_multiply_accumulate(t, a1m, b1m, t);
-                    simdgroup_multiply_accumulate(t, a2m, b2m, t);
+                for (int j = 0; j < NT; ++j) {
+                    simdgroup_float8x8 t = make_filled_simdgroup_matrix<float, 8, 8>(0.0f);
+                    if (NEG) {
+                        simdgroup_multiply_accumulate(t, a2m[j], b2m, t);
+                        simdgroup_multiply_accumulate(t, a1m[j], b1m, t);
+                    } else {
+                        simdgroup_multiply_accumulate(t, a1m[j], b1m, t);
+                        simdgroup_multiply_accumulate(t, a2m[j], b2m, t);
+                    }
+                    float2 tv = float2(t.thread_elements()[0], t.thread_elements()[1]);
+                    if (flags[j] & (1u << c)) tv = float2(as_type<float>(0x7FC00000u));
+                    acc[j][r][c].thread_elements()[0] += tv.x;
+                    acc[j][r][c].thread_elements()[1] += tv.y;
                 }
-                float2 tv = float2(t.thread_elements()[0], t.thread_elements()[1]);
-                if (flags & (1u << c)) tv = float2(as_type<float>(0x7FC00000u));
-                acc[r][c].thread_elements()[0] += tv.x;
-                acc[r][c].thread_elements()[1] += tv.y;
             }
         }
     }
-    // the pairwise tree of simd_sum: classes 4s..4s+3 here, then the 8 simdgroups; red[r][sg][m][n]
-    for (int r = 0; r < R; ++r) {
-        const float qx = (acc[r][0].thread_elements()[0] + acc[r][1].thread_elements()[0]) +
-                         (acc[r][2].thread_elements()[0] + acc[r][3].thread_elements()[0]);
-        const float qy = (acc[r][0].thread_elements()[1] + acc[r][1].thread_elements()[1]) +
-                         (acc[r][2].thread_elements()[1] + acc[r][3].thread_elements()[1]);
-        red[(r * 8 + sg) * 64 + fn * 8 + fm] = qx;
-        red[(r * 8 + sg) * 64 + (fn + 1) * 8 + fm] = qy;
-    }
+    // the pairwise tree of simd_sum: classes 4s..4s+3 here, then the 8 simdgroups; red[j][r][sg][m][n]
+    for (int j = 0; j < NT; ++j)
+        for (int r = 0; r < R; ++r) {
+            const float qx = (acc[j][r][0].thread_elements()[0] + acc[j][r][1].thread_elements()[0]) +
+                             (acc[j][r][2].thread_elements()[0] + acc[j][r][3].thread_elements()[0]);
+            const float qy = (acc[j][r][0].thread_elements()[1] + acc[j][r][1].thread_elements()[1]) +
+                             (acc[j][r][2].thread_elements()[1] + acc[j][r][3].thread_elements()[1]);
+            red[((j * R + r) * 8 + sg) * 64 + fn * 8 + fm] = qx;
+            red[((j * R + r) * 8 + sg) * 64 + (fn + 1) * 8 + fm] = qy;
+        }
     threadgroup_barrier(mem_flags::mem_threadgroup);
     const float ws = sc[0], is = sc[1];
     const float scale = ws * (is > 0.0f ? is : 1.0f) * 256.0f;
-    for (uint e = tid; e < 64 * R; e += 256) {
-        const uint r = e / 64, i = e % 64;
-        const uint m = 8 * r + i / 8, n = n0 + i % 8;
-        threadgroup const float* rt = red + r * 512 + i;
+    for (uint e = tid; e < 64 * R * NT; e += 256) {
+        const uint jr = e / 64, i = e % 64;
+        const uint j = jr / R, r = jr % R;
+        const uint m = 8 * r + i / 8, n = n0 + 8 * j + i % 8;
+        threadgroup const float* rt = red + jr * 512 + i;
         const float v = ((rt[0] + rt[64]) + (rt[128] + rt[192])) + ((rt[256] + rt[320]) + (rt[384] + rt[448]));
         if (m < M && n < N) store_out(out + p.s1, (ulong)m * N + n, v * scale);
     }
 }
 
-#define FP8_ROWS_MMT(NAME, OUT, NEG, R)                                                                             \
+#define FP8_ROWS_MMT(NAME, OUT, NEG, R, NT)                                                                         \
     kernel void NAME(device const ushort* xt [[buffer(0)]], device const uchar* w [[buffer(1)]],                   \
                      device const float* sc [[buffer(2)]], device OUT* out [[buffer(3)]],                           \
                      constant OpP& p [[buffer(4)]], uint tg [[threadgroup_position_in_grid]],                       \
                      uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]],           \
                      uint tid [[thread_index_in_threadgroup]]) {                                                    \
-        threadgroup float red[R * 8 * 64];                                                                          \
-        fp8_rows_mmt_impl<OUT, NEG, R>(xt, w, sc, out, p, red, tg, sg, lane, tid);                                  \
+        threadgroup float red[NT * R * 8 * 64];                                                                     \
+        fp8_rows_mmt_impl<OUT, NEG, R, NT>(xt, w, sc, out, p, red, tg, sg, lane, tid);                              \
     }
 
-FP8_ROWS_MMT(fp8_rows_mmt_bf16, ushort, false, 1)
-FP8_ROWS_MMT(fp8_rows_mmt_f32, float, false, 1)
-FP8_ROWS_MMT(fp8_rows_mmt_bf16_neg, ushort, true, 1)
-FP8_ROWS_MMT(fp8_rows_mmt_f32_neg, float, true, 1)
+FP8_ROWS_MMT(fp8_rows_mmt_bf16, ushort, false, 1, 1)
+FP8_ROWS_MMT(fp8_rows_mmt_f32, float, false, 1, 1)
+FP8_ROWS_MMT(fp8_rows_mmt_bf16_neg, ushort, true, 1, 1)
+FP8_ROWS_MMT(fp8_rows_mmt_f32_neg, float, true, 1, 1)
+FP8_ROWS_MMT(fp8_rows_mmt_bf16_r2, ushort, false, 2, 1)
+FP8_ROWS_MMT(fp8_rows_mmt_f32_r2, float, false, 2, 1)
+FP8_ROWS_MMT(fp8_rows_mmt_bf16_neg_r2, ushort, true, 2, 1)
+FP8_ROWS_MMT(fp8_rows_mmt_f32_neg_r2, float, true, 2, 1)
 
 // ---- GEMM -------------------------------------------------------------------------------------------------------------
 
