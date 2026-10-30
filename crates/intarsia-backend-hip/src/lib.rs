@@ -22,6 +22,8 @@ mod comm;
 mod device;
 #[cfg(ik_hip)]
 mod ffi;
+#[cfg(ik_hip)]
+mod route_stats;
 
 use intarsia_core::Backend;
 use std::sync::Arc;
