@@ -73,7 +73,7 @@ for h in spark1 spark2; do r $h "mkdir -p ~/intarsia-tp2/xout/$OUT; rm -f ~/inta
 # pre-flight: both boxes must run the binary built from EXPECT_HEAD, else exit before anything is taken down
 if [[ -z ${DRY:-} ]]; then
   for h in spark1 spark2; do
-    v=$(r $h "$BIN --version 2>&1 | tr '\n' ' '")
+    v=$(r $h "strings $BIN | grep -m1 -o 'head=[0-9a-f]* code-tree=[0-9a-f]* dirty=[a-z]*'")  # --version prints no stamp
     [[ $v == *"head=${EXPECT_HEAD:-694b519}"* ]] || { log "PRE-FLIGHT FAIL: $h binary is not head=${EXPECT_HEAD:-694b519}: $v"; exit 3; }
   done
 fi
