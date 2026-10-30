@@ -1,0 +1,43 @@
+105
+fp8_gemv_kernel<1, 2, ik_bf16, 2>                  wg=256 lds=0 vgpr=128 scratch=0
+fp8_gemv_kernel<10, 2, ik_bf16, 2>                 wg=256 lds=0 vgpr=256 scratch=72
+fp8_gemv_kernel<11, 2, ik_bf16, 2>                 wg=256 lds=0 vgpr=256 scratch=160
+fp8_gemv_kernel<12, 2, ik_bf16, 2>                 wg=256 lds=0 vgpr=256 scratch=284
+fp8_gemv_kernel<2, 2, ik_bf16, 2>                  wg=256 lds=0 vgpr=144 scratch=0
+fp8_gemv_kernel<3, 2, ik_bf16, 2>                  wg=256 lds=0 vgpr=168 scratch=0
+fp8_gemv_kernel<4, 2, ik_bf16, 2>                  wg=256 lds=0 vgpr=184 scratch=0
+fp8_gemv_kernel<5, 2, ik_bf16, 2>                  wg=256 lds=0 vgpr=200 scratch=0
+fp8_gemv_kernel<6, 2, ik_bf16, 2>                  wg=256 lds=0 vgpr=224 scratch=0
+fp8_gemv_kernel<7, 2, ik_bf16, 2>                  wg=256 lds=0 vgpr=240 scratch=0
+fp8_gemv_kernel<8, 2, ik_bf16, 2>                  wg=256 lds=0 vgpr=248 scratch=0
+fp8_gemv_kernel<9, 2, ik_bf16, 2>                  wg=256 lds=0 vgpr=256 scratch=0
+gdn_delta_rows_v2_kernel<128, 2, 2, false>         wg=32 lds=1024 vgpr=184 scratch=0
+gdn_delta_rows_v2_kernel<128, 2, 2, true>          wg=32 lds=1024 vgpr=192 scratch=0
+gdn_delta_rows_v3_kernel<128>                      wg=32 lds=4096 vgpr=256 scratch=40
+gemv_kernel<16, 2, 4, ik_bf16>                     wg=256 lds=0 vgpr=256 scratch=440
+gemv_kernel<8, 2, 4, ik_bf16>                      wg=256 lds=0 vgpr=240 scratch=0
+moe_down_g2_kernel<2>                              wg=256 lds=512 vgpr=120 scratch=0
+moe_down_kernel                                    wg=256 lds=512 vgpr=72 scratch=0
+moe_down_reduce_p1_v2_kernel<ik_bf16, false>       wg=256 lds=512 vgpr=136 scratch=0
+moe_gate_up_g2_kernel<2>                           wg=256 lds=512 vgpr=216 scratch=0
+moe_gate_up_kernel                                 wg=256 lds=512 vgpr=120 scratch=0
+moe_gate_up_p1_v2_kernel<false, 4>                 wg=256 lds=512 vgpr=96 scratch=0
+nvfp4_gemv_v2_kernel<1, float, false>              wg=256 lds=512 vgpr=72 scratch=0
+nvfp4_gemv_v2_kernel<2, float, false>              wg=256 lds=512 vgpr=104 scratch=0
+nvfp4_gemv_v2_kernel<2, ik_bf16, false>            wg=256 lds=512 vgpr=104 scratch=0
+nvfp4_gemv_v2_kernel<3, float, false>              wg=256 lds=512 vgpr=144 scratch=0
+nvfp4_gemv_v2_kernel<3, ik_bf16, false>            wg=256 lds=512 vgpr=144 scratch=0
+nvfp4_gemv_v2_kernel<4, float, false>              wg=256 lds=512 vgpr=168 scratch=0
+nvfp4_gemv_v2_kernel<4, ik_bf16, false>            wg=256 lds=512 vgpr=168 scratch=0
+nvfp4_gemv_v2_kernel<5, float, false>              wg=256 lds=512 vgpr=200 scratch=0
+nvfp4_gemv_v2_kernel<5, ik_bf16, false>            wg=256 lds=512 vgpr=200 scratch=0
+nvfp4_gemv_v2_kernel<6, float, false>              wg=256 lds=512 vgpr=240 scratch=0
+nvfp4_gemv_v2_kernel<6, ik_bf16, false>            wg=256 lds=512 vgpr=240 scratch=0
+nvfp4_gemv_v2_kernel<7, float, false>              wg=256 lds=512 vgpr=256 scratch=52
+nvfp4_gemv_v2_kernel<7, ik_bf16, false>            wg=256 lds=512 vgpr=256 scratch=52
+nvfp4_gemv_v2_kernel<8, float, false>              wg=256 lds=512 vgpr=256 scratch=340
+nvfp4_gemv_v2_kernel<8, ik_bf16, false>            wg=256 lds=512 vgpr=256 scratch=340
+shared_down_combine_rows_kernel                    wg=256 lds=512 vgpr=64 scratch=0
+shared_glu_rows_kernel                             wg=256 lds=512 vgpr=104 scratch=0
+splitkv_kernel<8, 32, 2, false>                    wg=256 lds=8704 vgpr=216 scratch=0
+splitkv_kernel<8, 32, 2, true>                     wg=256 lds=8704 vgpr=216 scratch=0

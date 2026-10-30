@@ -11,10 +11,10 @@
 # Workload per server: step plain first runs `localeval speed --sizes 1024 --gen $GEN --concurrency 8,16` (single-stream row, then 8 and 16 streams);
 # every step then runs scripts/hprof/drive.py PHASES (b1, same8, same16, div8, div16: identical prompts as localeval sends, and 8 / 16 different docs).
 # Radiance is restored by guard.sh on tatooine when this script ends or dies (trap); the script waits for it and appends the downtime
-# to OUT/downtime.log. TREE = the tree on tatooine built by scripts/hprof/build.sh.
+# to OUT/downtime.log. Optional: XENV="-e VAR=val ..." (extra docker env for the prof step), TAGSUF (suffix of the step tag), PHASES, GENP. TREE = the tree on tatooine built by scripts/hprof/build.sh.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
-ARM=${ARM:-tp1}; STEPS=${STEPS:-"prof route plain"}; TREE=${TREE:-hprof}; CAP=${CAP:-950}; GEN=${GEN:-384}; GENP=${GENP:-192}; CONC=${CONC:-8,16}; PHASES=${PHASES:-b1,same8,same16,div8,div16}
+ARM=${ARM:-tp1}; STEPS=${STEPS:-"prof route plain"}; TREE=${TREE:-hprof}; CAP=${CAP:-950}; GEN=${GEN:-384}; GENP=${GENP:-192}; CONC=${CONC:-8,16}; PHASES=${PHASES:-b1,same8,same16,div8,div16}; XENV=${XENV:-}; TAGSUF=${TAGSUF:-}
 MODEL=/models/Qwen3.6-35B-A3B-NVFP4; NAME=qwen36-35b; MODELS_DIR=/data/models/intarsia
 MAXB=16; MAXSEQ=${MAXSEQ:-18432}; PORT=8090
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0; PIMG=intarsia-hip-prof:rocm7.2.4-rust1.90.0
@@ -52,7 +52,7 @@ SERVE="serve --backend hip --model $MODEL --served-model-name $NAME --max-batch 
 serve() {
   local step=$1 tag=$2 img=$IMG envs="-e INTARSIA_HOST_PROFILE=1" cmd="/work/tp2-intarsia $SERVE"
   case $step in
-    prof) img=$PIMG; envs="$envs -e INTARSIA_HIP_EXIT_FILE=/work/hprof-out/$tag.exit"
+    prof) img=$PIMG; envs="$envs $XENV -e INTARSIA_HIP_EXIT_FILE=/work/hprof-out/$tag.exit"
           cmd="rocprofv3 --kernel-trace -f csv -d /work/hprof-out/$tag -o k -- /work/tp2-intarsia $SERVE"
           $SSH "mkdir -p ~/intarsiaml-tp2-$TREE/hprof-out && rm -rf ~/intarsiaml-tp2-$TREE/hprof-out/$tag ~/intarsiaml-tp2-$TREE/hprof-out/$tag.exit" < /dev/null ;;
     route) envs="-e INTARSIA_HIP_ROUTE_STATS=1 -e INTARSIA_BATCH_GRAPHS=0" ;;
@@ -72,7 +72,7 @@ serve() {
 }
 
 for step in $STEPS; do
-  tag="$ARM-$step"
+  tag="$ARM-$step$TAGSUF"
   if (( $(left) < 350 )); then say "SKIPPED $tag (time left $(left)s)"; continue; fi
   say "$tag: starting server"
   if ! serve "$step" "$tag"; then say "$tag: server did not come up, aborting the window (see serve-fail-$tag.log)"; stopserver; exit 1; fi
