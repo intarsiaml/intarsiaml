@@ -47,7 +47,8 @@ serve() {
   [[ $mb -gt 1 ]] && args="--max-batch $mb"
   [[ $tp == tp2 ]] && { gpus=0,1; args="$args --tp 2 --devices 0,1"; }
   [[ $knob == on ]] && envs="-e INTARSIA_HIP_WMMA_ROWS=1 -e INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all"
-  RECIPE="${knob/on/$KNOB} HIP_VISIBLE_DEVICES=$gpus GPU_MAX_HW_QUEUES=1 intarsia serve --backend hip --model $MODEL --served-model-name $NAME $args --spec off --profile-every 0 --mem-budget 29 --max-seq $MAXSEQ --no-supervisor --host 0.0.0.0 --port $PORT (tree $TREE, docker $IMG, arm $arm)"
+  [[ $knob == bare ]] && envs="-e INTARSIA_HIP_WMMA_ROWS=1"   # the flag alone: the default table (W8A16 only; on the 35B it moves the three fp8 decode folds)
+  RECIPE="${envs//-e /} HIP_VISIBLE_DEVICES=$gpus GPU_MAX_HW_QUEUES=1 intarsia serve --backend hip --model $MODEL --served-model-name $NAME $args --spec off --profile-every 0 --mem-budget 29 --max-seq $MAXSEQ --no-supervisor --host 0.0.0.0 --port $PORT (tree $TREE, docker $IMG, arm $arm)"
   stopserver
   $SSH "docker run -d --name wmr-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
