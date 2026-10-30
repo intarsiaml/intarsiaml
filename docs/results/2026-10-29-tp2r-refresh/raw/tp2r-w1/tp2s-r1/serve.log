@@ -1,0 +1,9 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29555
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 with tp=2 (rank 1 at 10.100.152.3:29555)
+
+Caused by:
+    unsupported: batched decode needs a single-rank model or rank 0 of an in-process tensor-parallel group (no remote rank)
+NCCL version 2.30.7+cuda13.3
