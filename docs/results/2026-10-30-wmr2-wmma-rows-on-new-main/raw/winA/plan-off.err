@@ -1,0 +1,7 @@
+error: unexpected argument '--max-batch' found
+
+  tip: a similar argument exists: '--mxfp4-act'
+
+Usage: tp2-intarsia plan show --model <MODEL> --backend <BACKEND> --max-seq <MAX_SEQ> --mxfp4-act <MXFP4_ACT>
+
+For more information, try '--help'.

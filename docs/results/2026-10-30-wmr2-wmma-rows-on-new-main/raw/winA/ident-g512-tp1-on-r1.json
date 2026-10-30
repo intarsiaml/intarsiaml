@@ -1,0 +1,988 @@
+{
+ "summary": {
+  "solo2": {
+   "identical": 16,
+   "of": 16,
+   "diffs": []
+  },
+  "c4": {
+   "identical": 16,
+   "of": 16,
+   "diffs": []
+  },
+  "c8": {
+   "identical": 16,
+   "of": 16,
+   "diffs": []
+  },
+  "c16": {
+   "identical": 16,
+   "of": 16,
+   "diffs": []
+  }
+ },
+ "completion_tokens_solo": 2560,
+ "seconds": 57.7,
+ "results": {
+  "solo:0": {
+   "text": "The printing press, invented by Johannes Gutenberg around 1440 in Mainz, Germany, revolutionized information dissemination. Gutenberg adapted existing technologies, including wine presses and oil-based ink, to create movable type made from a durable lead-tin-antimony alloy. This innovation allowed for the mass production of books, most notably the Gutenberg Bible, which demonstrated the press\u2019s potential for high-quality, consistent output.\n\nPrior to this, books were hand-copied by scribes, making them rare and expensive. The printing press drastically reduced production costs and time, leading to an explosion in literacy and the spread of knowledge across Europe. It played a pivotal role in major historical movements, including the Protestant Reformation, the Scientific Revolution, and the Enlightenment, by enabling the rapid distribution of ideas. While",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 33,
+    "completion_tokens": 160,
+    "total_tokens": 193,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:1": {
+   "text": "A transformer language model computes attention through a mechanism called scaled dot-product attention. First, the input sequence is projected into three distinct vector spaces: queries (Q), keys (K), and values (V). These projections allow the model to analyze relationships between different words in the sequence.\n\nThe core computation involves multiplying the query matrix by the transpose of the key matrix. This operation calculates the similarity or relevance between every pair of tokens in the sequence. To stabilize gradients during training, the resulting scores are scaled by dividing them by the square root of the key dimension.\n\nNext, a softmax function is applied to these scaled scores. This converts the raw similarity scores into a probability distribution, ensuring that all attention weights for a given query sum to one. These weights represent the importance of each token relative to the",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 145,
+    "completion_tokens": 160,
+    "total_tokens": 305,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:2": {
+   "text": "The water cycle, also known as the hydrologic cycle, is the continuous movement of water on, above, and below the surface of the Earth. This process is driven primarily by solar energy and gravity. It begins with evaporation, where the sun heats liquid water in oceans, lakes, and rivers, turning it into water vapor that rises into the atmosphere. Plants also contribute to this process through transpiration, releasing moisture from their leaves.\n\nAs the water vapor ascends, it cools and undergoes condensation, transforming back into liquid droplets that form clouds. When these droplets combine and grow heavy enough, they fall to the ground as precipitation, such as rain, snow, or hail. Once on the surface, the water follows several paths: it may flow over land as runoff",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 30,
+    "completion_tokens": 160,
+    "total_tokens": 190,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:3": {
+   "text": "A binary search tree (BST) is a specialized data structure used for storing sorted data efficiently. It is a node-based tree where each node contains a key and two subtrees, typically referred to as the left and right child. The defining characteristic of a BST is its ordering property: for any given node, all keys in its left subtree are strictly less than the node\u2019s key, while all keys in its right subtree are strictly greater. This hierarchical arrangement allows for rapid searching, insertion, and deletion operations. In a balanced BST, these operations generally occur in logarithmic time, O(log n), making BSTs significantly faster than linear structures like arrays or linked lists for large datasets. However, if the tree becomes unbalanced\u2014resembling a linked list\u2014performance degrades to linear time, O",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 363,
+    "completion_tokens": 160,
+    "total_tokens": 523,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:4": {
+   "text": "The French Revolution, beginning in 1789, resulted from a complex interplay of social inequality, economic crisis, and political instability. France\u2019s rigid social structure divided society into three estates, with the First (clergy) and Second (nobility) enjoying significant privileges while bearing little tax burden. In contrast, the Third Estate, comprising peasants, artisans, and the bourgeoisie, shouldered the entire tax load despite having no political power.\n\nCompounding this resentment was a severe economic crisis. Decades of costly wars, particularly support for the American Revolution, left the state deeply in debt. Poor harvests in the late 1780s caused widespread food shortages and skyrocketing bread prices, exacerbating public anger. Furthermore, King Louis XVI\u2019s inability to implement effective financial reforms",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 33,
+    "completion_tokens": 160,
+    "total_tokens": 193,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:5": {
+   "text": "Vaccines train the immune system by safely introducing a harmless component of a pathogen, such as a weakened virus, inactivated bacteria, or specific proteins, without causing the actual disease. This exposure allows the body to recognize the invader and mount a targeted defense. When the vaccine enters the system, immune cells called antigen-presenting cells identify the foreign material and alert T cells and B cells. B cells then produce antibodies specifically designed to bind to the pathogen\u2019s unique markers, while T cells help coordinate the attack and destroy infected cells. Crucially, this process creates immunological memory. Memory B and T cells remain in the body long after the initial response subsides, \"remembering\" the specific threat. If the person is later exposed to the real, live pathogen, the immune",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 588,
+    "completion_tokens": 160,
+    "total_tokens": 748,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:6": {
+   "text": "Chess is a two-player strategy game played on an 8x8 checkered board. Each player begins with sixteen pieces: one king, one queen, two rooks, two knights, two bishops, and eight pawns. The objective is to checkmate the opponent\u2019s king, placing it under immediate threat of capture with no legal escape.\n\nPieces move uniquely. The king moves one square in any direction. The queen combines the rook\u2019s and bishop\u2019s powers, moving any number of squares horizontally, vertically, or diagonally. Rooks move straight horizontally or vertically, while bishops move diagonally. Knights move in an \"L\" shape and can jump over other pieces. Pawns move forward one square, or two on their first move, capturing diagonally.\n\nSpecial moves include cast",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 31,
+    "completion_tokens": 160,
+    "total_tokens": 191,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:7": {
+   "text": "Plate tectonics is the scientific theory describing the large-scale motion of Earth\u2019s lithosphere, the rigid outer shell of the planet. This shell is divided into several large and small tectonic plates that float on the semi-fluid asthenosphere beneath them. The movement of these plates is driven primarily by mantle convection, where heat from Earth\u2019s core causes material in the mantle to rise, cool, and sink, creating a circular flow that drags the plates along.\n\nPlates interact at three main types of boundaries: divergent, where plates move apart and new crust is formed; convergent, where plates collide, leading to subduction or mountain building; and transform, where plates slide past each other horizontally. These interactions are responsible for major geological phenomena, including earthquakes, volcanic activity",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 809,
+    "completion_tokens": 160,
+    "total_tokens": 969,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:8": {
+   "text": "A CPU cache is a small, extremely fast memory storage located directly on or near the processor. Its primary purpose is to bridge the significant speed gap between the CPU, which operates at gigahertz speeds, and the main system memory (RAM), which is comparatively slow.\n\nThe cache stores frequently accessed data and instructions, allowing the CPU to retrieve them quickly without waiting for slower RAM access. This concept relies on the principle of locality: programs tend to reuse specific data (temporal locality) or access data located near previously used items (spatial locality).\n\nModern CPUs typically use a multi-level hierarchy, including L1, L2, and sometimes L3 caches. L1 is the smallest and fastest, split into separate instruction and data caches. L2 is larger but slightly slower, while L",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:9": {
+   "text": "Stars form from vast clouds of gas and dust, primarily hydrogen, collapsing under their own gravity. As the core compresses and heats up, nuclear fusion ignites, converting hydrogen into helium and releasing immense energy that counteracts gravitational collapse, marking the star\u2019s main sequence phase. This stable period can last billions of years, depending on the star's mass.\n\nEventually, the hydrogen fuel depletes. The core contracts while the outer layers expand, turning the star into a red giant or supergiant. In low-mass stars, the outer layers drift away, forming a planetary nebula, leaving behind a dense, cooling white dwarf. Massive stars undergo more violent endings, exploding as supernovae. These explosions scatter heavy elements into space and leave behind either a neutron star or a black hole",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1032,
+    "completion_tokens": 160,
+    "total_tokens": 1192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:10": {
+   "text": "Double-entry bookkeeping is the standard accounting method where every financial transaction affects at least two accounts, ensuring the accounting equation remains balanced: Assets = Liabilities + Equity. This system relies on the principle that every debit has an equal and opposite credit.\n\nIn this framework, accounts are categorized as assets, liabilities, equity, revenue, or expenses. Debits increase asset and expense accounts but decrease liability, equity, and revenue accounts. Conversely, credits increase liability, equity, and revenue accounts while decreasing assets and expenses. For example, if a business purchases equipment for cash, the Equipment account (an asset) is debited, and the Cash account (also an asset) is credited.\n\nThis dual recording system provides a comprehensive view of a company\u2019s financial health. It minimizes errors because the total",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 34,
+    "completion_tokens": 160,
+    "total_tokens": 194,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:11": {
+   "text": "Baking sourdough bread is a rewarding process that relies on wild yeast and lactobacillus bacteria. First, maintain a active sourdough starter by feeding it regularly with flour and water until it doubles in size. To begin baking, mix your starter with flour, water, and salt to form a shaggy dough. Perform a series of stretch-and-folds every thirty minutes for two hours to develop gluten structure. Afterward, let the dough bulk ferment at room temperature until it rises significantly and shows bubbles on the surface.\n\nNext, shape the dough into a round boule and place it seam-side up in a floured banneton. Refrigerate the dough for 12 to 24 hours for cold fermentation, which enhances flavor. Preheat a Dutch oven in the",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1255,
+    "completion_tokens": 160,
+    "total_tokens": 1415,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:12": {
+   "text": "The TCP three-way handshake is a fundamental process used to establish a reliable connection between two devices over a network, such as the internet. It ensures both parties are ready to communicate and agree on initial sequence numbers for data tracking.\n\nThe process involves three steps:\n1. **SYN**: The client sends a packet with the \"SYN\" (synchronize) flag set to the server, indicating a desire to connect and proposing an initial sequence number.\n2. **SYN-ACK**: The server responds with a packet containing both \"SYN\" and \"ACK\" (acknowledge) flags. It acknowledges the client\u2019s sequence number and proposes its own.\n3. **ACK**: The client sends a final packet with the \"ACK\" flag set, acknowledging the server\u2019s sequence",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:13": {
+   "text": "The theory of evolution by natural selection, primarily formulated by Charles Darwin, explains how species change over time. It posits that individuals within a population exhibit natural variations in traits. These variations are often heritable, meaning they can be passed from parents to offspring. In any given environment, resources are limited, leading to competition among individuals. Those with traits better suited to their environment are more likely to survive and reproduce, a concept known as \"survival of the fittest.\" Conversely, individuals with less advantageous traits are less likely to survive and pass on their genes. Over many generations, these beneficial traits become more common in the population, while disadvantageous ones diminish. This gradual process results in the adaptation of species to their environments and can eventually lead to the emergence of new species. Natural selection is",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1477,
+    "completion_tokens": 160,
+    "total_tokens": 1637,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:14": {
+   "text": "Lithium-ion batteries store and release energy through the movement of lithium ions between two electrodes: an anode (typically graphite) and a cathode (a metal oxide). During charging, an external power source forces lithium ions to move from the cathode to the anode, where they are stored. Simultaneously, electrons flow through the external circuit to balance the charge.\n\nWhen the battery discharges, the process reverses. Lithium ions flow back from the anode to the cathode through an electrolyte solution, while electrons travel through the connected device, providing electrical power. A separator prevents direct contact between the electrodes, avoiding short circuits while allowing ion passage. This reversible chemical reaction allows the battery to be recharged hundreds or thousands of times. The efficiency and high energy density of",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo:15": {
+   "text": "The Roman road network was a monumental engineering achievement that facilitated the expansion and consolidation of the Roman Empire. Spanning over 400,000 kilometers, these roads connected distant provinces to Rome, ensuring rapid military deployment, efficient administrative control, and robust economic trade. Constructed with durable layers of stone, gravel, and sand, the roads were designed for longevity and all-weather usability, often featuring straight alignments to minimize travel time.\n\nKey routes, such as the Via Appia and Via Flaminia, served as vital arteries for commerce and communication. The network included milestones for distance measurement, waystations for rest, and secure bridges over rivers. This infrastructure not only strengthened political unity but also promoted cultural exchange across diverse regions. The systematic planning and standardized construction techniques allowed the Romans to",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1696,
+    "completion_tokens": 160,
+    "total_tokens": 1856,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:0": {
+   "text": "The printing press, invented by Johannes Gutenberg around 1440 in Mainz, Germany, revolutionized information dissemination. Gutenberg adapted existing technologies, including wine presses and oil-based ink, to create movable type made from a durable lead-tin-antimony alloy. This innovation allowed for the mass production of books, most notably the Gutenberg Bible, which demonstrated the press\u2019s potential for high-quality, consistent output.\n\nPrior to this, books were hand-copied by scribes, making them rare and expensive. The printing press drastically reduced production costs and time, leading to an explosion in literacy and the spread of knowledge across Europe. It played a pivotal role in major historical movements, including the Protestant Reformation, the Scientific Revolution, and the Enlightenment, by enabling the rapid distribution of ideas. While",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 33,
+    "completion_tokens": 160,
+    "total_tokens": 193,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:1": {
+   "text": "A transformer language model computes attention through a mechanism called scaled dot-product attention. First, the input sequence is projected into three distinct vector spaces: queries (Q), keys (K), and values (V). These projections allow the model to analyze relationships between different words in the sequence.\n\nThe core computation involves multiplying the query matrix by the transpose of the key matrix. This operation calculates the similarity or relevance between every pair of tokens in the sequence. To stabilize gradients during training, the resulting scores are scaled by dividing them by the square root of the key dimension.\n\nNext, a softmax function is applied to these scaled scores. This converts the raw similarity scores into a probability distribution, ensuring that all attention weights for a given query sum to one. These weights represent the importance of each token relative to the",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 145,
+    "completion_tokens": 160,
+    "total_tokens": 305,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:2": {
+   "text": "The water cycle, also known as the hydrologic cycle, is the continuous movement of water on, above, and below the surface of the Earth. This process is driven primarily by solar energy and gravity. It begins with evaporation, where the sun heats liquid water in oceans, lakes, and rivers, turning it into water vapor that rises into the atmosphere. Plants also contribute to this process through transpiration, releasing moisture from their leaves.\n\nAs the water vapor ascends, it cools and undergoes condensation, transforming back into liquid droplets that form clouds. When these droplets combine and grow heavy enough, they fall to the ground as precipitation, such as rain, snow, or hail. Once on the surface, the water follows several paths: it may flow over land as runoff",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 30,
+    "completion_tokens": 160,
+    "total_tokens": 190,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:3": {
+   "text": "A binary search tree (BST) is a specialized data structure used for storing sorted data efficiently. It is a node-based tree where each node contains a key and two subtrees, typically referred to as the left and right child. The defining characteristic of a BST is its ordering property: for any given node, all keys in its left subtree are strictly less than the node\u2019s key, while all keys in its right subtree are strictly greater. This hierarchical arrangement allows for rapid searching, insertion, and deletion operations. In a balanced BST, these operations generally occur in logarithmic time, O(log n), making BSTs significantly faster than linear structures like arrays or linked lists for large datasets. However, if the tree becomes unbalanced\u2014resembling a linked list\u2014performance degrades to linear time, O",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 363,
+    "completion_tokens": 160,
+    "total_tokens": 523,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:4": {
+   "text": "The French Revolution, beginning in 1789, resulted from a complex interplay of social inequality, economic crisis, and political instability. France\u2019s rigid social structure divided society into three estates, with the First (clergy) and Second (nobility) enjoying significant privileges while bearing little tax burden. In contrast, the Third Estate, comprising peasants, artisans, and the bourgeoisie, shouldered the entire tax load despite having no political power.\n\nCompounding this resentment was a severe economic crisis. Decades of costly wars, particularly support for the American Revolution, left the state deeply in debt. Poor harvests in the late 1780s caused widespread food shortages and skyrocketing bread prices, exacerbating public anger. Furthermore, King Louis XVI\u2019s inability to implement effective financial reforms",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 33,
+    "completion_tokens": 160,
+    "total_tokens": 193,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:5": {
+   "text": "Vaccines train the immune system by safely introducing a harmless component of a pathogen, such as a weakened virus, inactivated bacteria, or specific proteins, without causing the actual disease. This exposure allows the body to recognize the invader and mount a targeted defense. When the vaccine enters the system, immune cells called antigen-presenting cells identify the foreign material and alert T cells and B cells. B cells then produce antibodies specifically designed to bind to the pathogen\u2019s unique markers, while T cells help coordinate the attack and destroy infected cells. Crucially, this process creates immunological memory. Memory B and T cells remain in the body long after the initial response subsides, \"remembering\" the specific threat. If the person is later exposed to the real, live pathogen, the immune",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 588,
+    "completion_tokens": 160,
+    "total_tokens": 748,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:6": {
+   "text": "Chess is a two-player strategy game played on an 8x8 checkered board. Each player begins with sixteen pieces: one king, one queen, two rooks, two knights, two bishops, and eight pawns. The objective is to checkmate the opponent\u2019s king, placing it under immediate threat of capture with no legal escape.\n\nPieces move uniquely. The king moves one square in any direction. The queen combines the rook\u2019s and bishop\u2019s powers, moving any number of squares horizontally, vertically, or diagonally. Rooks move straight horizontally or vertically, while bishops move diagonally. Knights move in an \"L\" shape and can jump over other pieces. Pawns move forward one square, or two on their first move, capturing diagonally.\n\nSpecial moves include cast",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 31,
+    "completion_tokens": 160,
+    "total_tokens": 191,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:7": {
+   "text": "Plate tectonics is the scientific theory describing the large-scale motion of Earth\u2019s lithosphere, the rigid outer shell of the planet. This shell is divided into several large and small tectonic plates that float on the semi-fluid asthenosphere beneath them. The movement of these plates is driven primarily by mantle convection, where heat from Earth\u2019s core causes material in the mantle to rise, cool, and sink, creating a circular flow that drags the plates along.\n\nPlates interact at three main types of boundaries: divergent, where plates move apart and new crust is formed; convergent, where plates collide, leading to subduction or mountain building; and transform, where plates slide past each other horizontally. These interactions are responsible for major geological phenomena, including earthquakes, volcanic activity",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 809,
+    "completion_tokens": 160,
+    "total_tokens": 969,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:8": {
+   "text": "A CPU cache is a small, extremely fast memory storage located directly on or near the processor. Its primary purpose is to bridge the significant speed gap between the CPU, which operates at gigahertz speeds, and the main system memory (RAM), which is comparatively slow.\n\nThe cache stores frequently accessed data and instructions, allowing the CPU to retrieve them quickly without waiting for slower RAM access. This concept relies on the principle of locality: programs tend to reuse specific data (temporal locality) or access data located near previously used items (spatial locality).\n\nModern CPUs typically use a multi-level hierarchy, including L1, L2, and sometimes L3 caches. L1 is the smallest and fastest, split into separate instruction and data caches. L2 is larger but slightly slower, while L",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:9": {
+   "text": "Stars form from vast clouds of gas and dust, primarily hydrogen, collapsing under their own gravity. As the core compresses and heats up, nuclear fusion ignites, converting hydrogen into helium and releasing immense energy that counteracts gravitational collapse, marking the star\u2019s main sequence phase. This stable period can last billions of years, depending on the star's mass.\n\nEventually, the hydrogen fuel depletes. The core contracts while the outer layers expand, turning the star into a red giant or supergiant. In low-mass stars, the outer layers drift away, forming a planetary nebula, leaving behind a dense, cooling white dwarf. Massive stars undergo more violent endings, exploding as supernovae. These explosions scatter heavy elements into space and leave behind either a neutron star or a black hole",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1032,
+    "completion_tokens": 160,
+    "total_tokens": 1192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:10": {
+   "text": "Double-entry bookkeeping is the standard accounting method where every financial transaction affects at least two accounts, ensuring the accounting equation remains balanced: Assets = Liabilities + Equity. This system relies on the principle that every debit has an equal and opposite credit.\n\nIn this framework, accounts are categorized as assets, liabilities, equity, revenue, or expenses. Debits increase asset and expense accounts but decrease liability, equity, and revenue accounts. Conversely, credits increase liability, equity, and revenue accounts while decreasing assets and expenses. For example, if a business purchases equipment for cash, the Equipment account (an asset) is debited, and the Cash account (also an asset) is credited.\n\nThis dual recording system provides a comprehensive view of a company\u2019s financial health. It minimizes errors because the total",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 34,
+    "completion_tokens": 160,
+    "total_tokens": 194,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:11": {
+   "text": "Baking sourdough bread is a rewarding process that relies on wild yeast and lactobacillus bacteria. First, maintain a active sourdough starter by feeding it regularly with flour and water until it doubles in size. To begin baking, mix your starter with flour, water, and salt to form a shaggy dough. Perform a series of stretch-and-folds every thirty minutes for two hours to develop gluten structure. Afterward, let the dough bulk ferment at room temperature until it rises significantly and shows bubbles on the surface.\n\nNext, shape the dough into a round boule and place it seam-side up in a floured banneton. Refrigerate the dough for 12 to 24 hours for cold fermentation, which enhances flavor. Preheat a Dutch oven in the",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1255,
+    "completion_tokens": 160,
+    "total_tokens": 1415,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:12": {
+   "text": "The TCP three-way handshake is a fundamental process used to establish a reliable connection between two devices over a network, such as the internet. It ensures both parties are ready to communicate and agree on initial sequence numbers for data tracking.\n\nThe process involves three steps:\n1. **SYN**: The client sends a packet with the \"SYN\" (synchronize) flag set to the server, indicating a desire to connect and proposing an initial sequence number.\n2. **SYN-ACK**: The server responds with a packet containing both \"SYN\" and \"ACK\" (acknowledge) flags. It acknowledges the client\u2019s sequence number and proposes its own.\n3. **ACK**: The client sends a final packet with the \"ACK\" flag set, acknowledging the server\u2019s sequence",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:13": {
+   "text": "The theory of evolution by natural selection, primarily formulated by Charles Darwin, explains how species change over time. It posits that individuals within a population exhibit natural variations in traits. These variations are often heritable, meaning they can be passed from parents to offspring. In any given environment, resources are limited, leading to competition among individuals. Those with traits better suited to their environment are more likely to survive and reproduce, a concept known as \"survival of the fittest.\" Conversely, individuals with less advantageous traits are less likely to survive and pass on their genes. Over many generations, these beneficial traits become more common in the population, while disadvantageous ones diminish. This gradual process results in the adaptation of species to their environments and can eventually lead to the emergence of new species. Natural selection is",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1477,
+    "completion_tokens": 160,
+    "total_tokens": 1637,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:14": {
+   "text": "Lithium-ion batteries store and release energy through the movement of lithium ions between two electrodes: an anode (typically graphite) and a cathode (a metal oxide). During charging, an external power source forces lithium ions to move from the cathode to the anode, where they are stored. Simultaneously, electrons flow through the external circuit to balance the charge.\n\nWhen the battery discharges, the process reverses. Lithium ions flow back from the anode to the cathode through an electrolyte solution, while electrons travel through the connected device, providing electrical power. A separator prevents direct contact between the electrodes, avoiding short circuits while allowing ion passage. This reversible chemical reaction allows the battery to be recharged hundreds or thousands of times. The efficiency and high energy density of",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "solo2:15": {
+   "text": "The Roman road network was a monumental engineering achievement that facilitated the expansion and consolidation of the Roman Empire. Spanning over 400,000 kilometers, these roads connected distant provinces to Rome, ensuring rapid military deployment, efficient administrative control, and robust economic trade. Constructed with durable layers of stone, gravel, and sand, the roads were designed for longevity and all-weather usability, often featuring straight alignments to minimize travel time.\n\nKey routes, such as the Via Appia and Via Flaminia, served as vital arteries for commerce and communication. The network included milestones for distance measurement, waystations for rest, and secure bridges over rivers. This infrastructure not only strengthened political unity but also promoted cultural exchange across diverse regions. The systematic planning and standardized construction techniques allowed the Romans to",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1696,
+    "completion_tokens": 160,
+    "total_tokens": 1856,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:0": {
+   "text": "The printing press, invented by Johannes Gutenberg around 1440 in Mainz, Germany, revolutionized information dissemination. Gutenberg adapted existing technologies, including wine presses and oil-based ink, to create movable type made from a durable lead-tin-antimony alloy. This innovation allowed for the mass production of books, most notably the Gutenberg Bible, which demonstrated the press\u2019s potential for high-quality, consistent output.\n\nPrior to this, books were hand-copied by scribes, making them rare and expensive. The printing press drastically reduced production costs and time, leading to an explosion in literacy and the spread of knowledge across Europe. It played a pivotal role in major historical movements, including the Protestant Reformation, the Scientific Revolution, and the Enlightenment, by enabling the rapid distribution of ideas. While",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 33,
+    "completion_tokens": 160,
+    "total_tokens": 193,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:1": {
+   "text": "A transformer language model computes attention through a mechanism called scaled dot-product attention. First, the input sequence is projected into three distinct vector spaces: queries (Q), keys (K), and values (V). These projections allow the model to analyze relationships between different words in the sequence.\n\nThe core computation involves multiplying the query matrix by the transpose of the key matrix. This operation calculates the similarity or relevance between every pair of tokens in the sequence. To stabilize gradients during training, the resulting scores are scaled by dividing them by the square root of the key dimension.\n\nNext, a softmax function is applied to these scaled scores. This converts the raw similarity scores into a probability distribution, ensuring that all attention weights for a given query sum to one. These weights represent the importance of each token relative to the",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 145,
+    "completion_tokens": 160,
+    "total_tokens": 305,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:2": {
+   "text": "The water cycle, also known as the hydrologic cycle, is the continuous movement of water on, above, and below the surface of the Earth. This process is driven primarily by solar energy and gravity. It begins with evaporation, where the sun heats liquid water in oceans, lakes, and rivers, turning it into water vapor that rises into the atmosphere. Plants also contribute to this process through transpiration, releasing moisture from their leaves.\n\nAs the water vapor ascends, it cools and undergoes condensation, transforming back into liquid droplets that form clouds. When these droplets combine and grow heavy enough, they fall to the ground as precipitation, such as rain, snow, or hail. Once on the surface, the water follows several paths: it may flow over land as runoff",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 30,
+    "completion_tokens": 160,
+    "total_tokens": 190,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:3": {
+   "text": "A binary search tree (BST) is a specialized data structure used for storing sorted data efficiently. It is a node-based tree where each node contains a key and two subtrees, typically referred to as the left and right child. The defining characteristic of a BST is its ordering property: for any given node, all keys in its left subtree are strictly less than the node\u2019s key, while all keys in its right subtree are strictly greater. This hierarchical arrangement allows for rapid searching, insertion, and deletion operations. In a balanced BST, these operations generally occur in logarithmic time, O(log n), making BSTs significantly faster than linear structures like arrays or linked lists for large datasets. However, if the tree becomes unbalanced\u2014resembling a linked list\u2014performance degrades to linear time, O",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 363,
+    "completion_tokens": 160,
+    "total_tokens": 523,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:4": {
+   "text": "The French Revolution, beginning in 1789, resulted from a complex interplay of social inequality, economic crisis, and political instability. France\u2019s rigid social structure divided society into three estates, with the First (clergy) and Second (nobility) enjoying significant privileges while bearing little tax burden. In contrast, the Third Estate, comprising peasants, artisans, and the bourgeoisie, shouldered the entire tax load despite having no political power.\n\nCompounding this resentment was a severe economic crisis. Decades of costly wars, particularly support for the American Revolution, left the state deeply in debt. Poor harvests in the late 1780s caused widespread food shortages and skyrocketing bread prices, exacerbating public anger. Furthermore, King Louis XVI\u2019s inability to implement effective financial reforms",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 33,
+    "completion_tokens": 160,
+    "total_tokens": 193,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:5": {
+   "text": "Vaccines train the immune system by safely introducing a harmless component of a pathogen, such as a weakened virus, inactivated bacteria, or specific proteins, without causing the actual disease. This exposure allows the body to recognize the invader and mount a targeted defense. When the vaccine enters the system, immune cells called antigen-presenting cells identify the foreign material and alert T cells and B cells. B cells then produce antibodies specifically designed to bind to the pathogen\u2019s unique markers, while T cells help coordinate the attack and destroy infected cells. Crucially, this process creates immunological memory. Memory B and T cells remain in the body long after the initial response subsides, \"remembering\" the specific threat. If the person is later exposed to the real, live pathogen, the immune",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 588,
+    "completion_tokens": 160,
+    "total_tokens": 748,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:6": {
+   "text": "Chess is a two-player strategy game played on an 8x8 checkered board. Each player begins with sixteen pieces: one king, one queen, two rooks, two knights, two bishops, and eight pawns. The objective is to checkmate the opponent\u2019s king, placing it under immediate threat of capture with no legal escape.\n\nPieces move uniquely. The king moves one square in any direction. The queen combines the rook\u2019s and bishop\u2019s powers, moving any number of squares horizontally, vertically, or diagonally. Rooks move straight horizontally or vertically, while bishops move diagonally. Knights move in an \"L\" shape and can jump over other pieces. Pawns move forward one square, or two on their first move, capturing diagonally.\n\nSpecial moves include cast",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 31,
+    "completion_tokens": 160,
+    "total_tokens": 191,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:7": {
+   "text": "Plate tectonics is the scientific theory describing the large-scale motion of Earth\u2019s lithosphere, the rigid outer shell of the planet. This shell is divided into several large and small tectonic plates that float on the semi-fluid asthenosphere beneath them. The movement of these plates is driven primarily by mantle convection, where heat from Earth\u2019s core causes material in the mantle to rise, cool, and sink, creating a circular flow that drags the plates along.\n\nPlates interact at three main types of boundaries: divergent, where plates move apart and new crust is formed; convergent, where plates collide, leading to subduction or mountain building; and transform, where plates slide past each other horizontally. These interactions are responsible for major geological phenomena, including earthquakes, volcanic activity",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 809,
+    "completion_tokens": 160,
+    "total_tokens": 969,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:9": {
+   "text": "Stars form from vast clouds of gas and dust, primarily hydrogen, collapsing under their own gravity. As the core compresses and heats up, nuclear fusion ignites, converting hydrogen into helium and releasing immense energy that counteracts gravitational collapse, marking the star\u2019s main sequence phase. This stable period can last billions of years, depending on the star's mass.\n\nEventually, the hydrogen fuel depletes. The core contracts while the outer layers expand, turning the star into a red giant or supergiant. In low-mass stars, the outer layers drift away, forming a planetary nebula, leaving behind a dense, cooling white dwarf. Massive stars undergo more violent endings, exploding as supernovae. These explosions scatter heavy elements into space and leave behind either a neutron star or a black hole",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1032,
+    "completion_tokens": 160,
+    "total_tokens": 1192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:8": {
+   "text": "A CPU cache is a small, extremely fast memory storage located directly on or near the processor. Its primary purpose is to bridge the significant speed gap between the CPU, which operates at gigahertz speeds, and the main system memory (RAM), which is comparatively slow.\n\nThe cache stores frequently accessed data and instructions, allowing the CPU to retrieve them quickly without waiting for slower RAM access. This concept relies on the principle of locality: programs tend to reuse specific data (temporal locality) or access data located near previously used items (spatial locality).\n\nModern CPUs typically use a multi-level hierarchy, including L1, L2, and sometimes L3 caches. L1 is the smallest and fastest, split into separate instruction and data caches. L2 is larger but slightly slower, while L",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:10": {
+   "text": "Double-entry bookkeeping is the standard accounting method where every financial transaction affects at least two accounts, ensuring the accounting equation remains balanced: Assets = Liabilities + Equity. This system relies on the principle that every debit has an equal and opposite credit.\n\nIn this framework, accounts are categorized as assets, liabilities, equity, revenue, or expenses. Debits increase asset and expense accounts but decrease liability, equity, and revenue accounts. Conversely, credits increase liability, equity, and revenue accounts while decreasing assets and expenses. For example, if a business purchases equipment for cash, the Equipment account (an asset) is debited, and the Cash account (also an asset) is credited.\n\nThis dual recording system provides a comprehensive view of a company\u2019s financial health. It minimizes errors because the total",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 34,
+    "completion_tokens": 160,
+    "total_tokens": 194,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:11": {
+   "text": "Baking sourdough bread is a rewarding process that relies on wild yeast and lactobacillus bacteria. First, maintain a active sourdough starter by feeding it regularly with flour and water until it doubles in size. To begin baking, mix your starter with flour, water, and salt to form a shaggy dough. Perform a series of stretch-and-folds every thirty minutes for two hours to develop gluten structure. Afterward, let the dough bulk ferment at room temperature until it rises significantly and shows bubbles on the surface.\n\nNext, shape the dough into a round boule and place it seam-side up in a floured banneton. Refrigerate the dough for 12 to 24 hours for cold fermentation, which enhances flavor. Preheat a Dutch oven in the",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1255,
+    "completion_tokens": 160,
+    "total_tokens": 1415,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:14": {
+   "text": "Lithium-ion batteries store and release energy through the movement of lithium ions between two electrodes: an anode (typically graphite) and a cathode (a metal oxide). During charging, an external power source forces lithium ions to move from the cathode to the anode, where they are stored. Simultaneously, electrons flow through the external circuit to balance the charge.\n\nWhen the battery discharges, the process reverses. Lithium ions flow back from the anode to the cathode through an electrolyte solution, while electrons travel through the connected device, providing electrical power. A separator prevents direct contact between the electrodes, avoiding short circuits while allowing ion passage. This reversible chemical reaction allows the battery to be recharged hundreds or thousands of times. The efficiency and high energy density of",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:12": {
+   "text": "The TCP three-way handshake is a fundamental process used to establish a reliable connection between two devices over a network, such as the internet. It ensures both parties are ready to communicate and agree on initial sequence numbers for data tracking.\n\nThe process involves three steps:\n1. **SYN**: The client sends a packet with the \"SYN\" (synchronize) flag set to the server, indicating a desire to connect and proposing an initial sequence number.\n2. **SYN-ACK**: The server responds with a packet containing both \"SYN\" and \"ACK\" (acknowledge) flags. It acknowledges the client\u2019s sequence number and proposes its own.\n3. **ACK**: The client sends a final packet with the \"ACK\" flag set, acknowledging the server\u2019s sequence",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:15": {
+   "text": "The Roman road network was a monumental engineering achievement that facilitated the expansion and consolidation of the Roman Empire. Spanning over 400,000 kilometers, these roads connected distant provinces to Rome, ensuring rapid military deployment, efficient administrative control, and robust economic trade. Constructed with durable layers of stone, gravel, and sand, the roads were designed for longevity and all-weather usability, often featuring straight alignments to minimize travel time.\n\nKey routes, such as the Via Appia and Via Flaminia, served as vital arteries for commerce and communication. The network included milestones for distance measurement, waystations for rest, and secure bridges over rivers. This infrastructure not only strengthened political unity but also promoted cultural exchange across diverse regions. The systematic planning and standardized construction techniques allowed the Romans to",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1696,
+    "completion_tokens": 160,
+    "total_tokens": 1856,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c4:13": {
+   "text": "The theory of evolution by natural selection, primarily formulated by Charles Darwin, explains how species change over time. It posits that individuals within a population exhibit natural variations in traits. These variations are often heritable, meaning they can be passed from parents to offspring. In any given environment, resources are limited, leading to competition among individuals. Those with traits better suited to their environment are more likely to survive and reproduce, a concept known as \"survival of the fittest.\" Conversely, individuals with less advantageous traits are less likely to survive and pass on their genes. Over many generations, these beneficial traits become more common in the population, while disadvantageous ones diminish. This gradual process results in the adaptation of species to their environments and can eventually lead to the emergence of new species. Natural selection is",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1477,
+    "completion_tokens": 160,
+    "total_tokens": 1637,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:0": {
+   "text": "The printing press, invented by Johannes Gutenberg around 1440 in Mainz, Germany, revolutionized information dissemination. Gutenberg adapted existing technologies, including wine presses and oil-based ink, to create movable type made from a durable lead-tin-antimony alloy. This innovation allowed for the mass production of books, most notably the Gutenberg Bible, which demonstrated the press\u2019s potential for high-quality, consistent output.\n\nPrior to this, books were hand-copied by scribes, making them rare and expensive. The printing press drastically reduced production costs and time, leading to an explosion in literacy and the spread of knowledge across Europe. It played a pivotal role in major historical movements, including the Protestant Reformation, the Scientific Revolution, and the Enlightenment, by enabling the rapid distribution of ideas. While",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 33,
+    "completion_tokens": 160,
+    "total_tokens": 193,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:6": {
+   "text": "Chess is a two-player strategy game played on an 8x8 checkered board. Each player begins with sixteen pieces: one king, one queen, two rooks, two knights, two bishops, and eight pawns. The objective is to checkmate the opponent\u2019s king, placing it under immediate threat of capture with no legal escape.\n\nPieces move uniquely. The king moves one square in any direction. The queen combines the rook\u2019s and bishop\u2019s powers, moving any number of squares horizontally, vertically, or diagonally. Rooks move straight horizontally or vertically, while bishops move diagonally. Knights move in an \"L\" shape and can jump over other pieces. Pawns move forward one square, or two on their first move, capturing diagonally.\n\nSpecial moves include cast",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 31,
+    "completion_tokens": 160,
+    "total_tokens": 191,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:4": {
+   "text": "The French Revolution, beginning in 1789, resulted from a complex interplay of social inequality, economic crisis, and political instability. France\u2019s rigid social structure divided society into three estates, with the First (clergy) and Second (nobility) enjoying significant privileges while bearing little tax burden. In contrast, the Third Estate, comprising peasants, artisans, and the bourgeoisie, shouldered the entire tax load despite having no political power.\n\nCompounding this resentment was a severe economic crisis. Decades of costly wars, particularly support for the American Revolution, left the state deeply in debt. Poor harvests in the late 1780s caused widespread food shortages and skyrocketing bread prices, exacerbating public anger. Furthermore, King Louis XVI\u2019s inability to implement effective financial reforms",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 33,
+    "completion_tokens": 160,
+    "total_tokens": 193,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:3": {
+   "text": "A binary search tree (BST) is a specialized data structure used for storing sorted data efficiently. It is a node-based tree where each node contains a key and two subtrees, typically referred to as the left and right child. The defining characteristic of a BST is its ordering property: for any given node, all keys in its left subtree are strictly less than the node\u2019s key, while all keys in its right subtree are strictly greater. This hierarchical arrangement allows for rapid searching, insertion, and deletion operations. In a balanced BST, these operations generally occur in logarithmic time, O(log n), making BSTs significantly faster than linear structures like arrays or linked lists for large datasets. However, if the tree becomes unbalanced\u2014resembling a linked list\u2014performance degrades to linear time, O",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 363,
+    "completion_tokens": 160,
+    "total_tokens": 523,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:1": {
+   "text": "A transformer language model computes attention through a mechanism called scaled dot-product attention. First, the input sequence is projected into three distinct vector spaces: queries (Q), keys (K), and values (V). These projections allow the model to analyze relationships between different words in the sequence.\n\nThe core computation involves multiplying the query matrix by the transpose of the key matrix. This operation calculates the similarity or relevance between every pair of tokens in the sequence. To stabilize gradients during training, the resulting scores are scaled by dividing them by the square root of the key dimension.\n\nNext, a softmax function is applied to these scaled scores. This converts the raw similarity scores into a probability distribution, ensuring that all attention weights for a given query sum to one. These weights represent the importance of each token relative to the",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 145,
+    "completion_tokens": 160,
+    "total_tokens": 305,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:5": {
+   "text": "Vaccines train the immune system by safely introducing a harmless component of a pathogen, such as a weakened virus, inactivated bacteria, or specific proteins, without causing the actual disease. This exposure allows the body to recognize the invader and mount a targeted defense. When the vaccine enters the system, immune cells called antigen-presenting cells identify the foreign material and alert T cells and B cells. B cells then produce antibodies specifically designed to bind to the pathogen\u2019s unique markers, while T cells help coordinate the attack and destroy infected cells. Crucially, this process creates immunological memory. Memory B and T cells remain in the body long after the initial response subsides, \"remembering\" the specific threat. If the person is later exposed to the real, live pathogen, the immune",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 588,
+    "completion_tokens": 160,
+    "total_tokens": 748,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:7": {
+   "text": "Plate tectonics is the scientific theory describing the large-scale motion of Earth\u2019s lithosphere, the rigid outer shell of the planet. This shell is divided into several large and small tectonic plates that float on the semi-fluid asthenosphere beneath them. The movement of these plates is driven primarily by mantle convection, where heat from Earth\u2019s core causes material in the mantle to rise, cool, and sink, creating a circular flow that drags the plates along.\n\nPlates interact at three main types of boundaries: divergent, where plates move apart and new crust is formed; convergent, where plates collide, leading to subduction or mountain building; and transform, where plates slide past each other horizontally. These interactions are responsible for major geological phenomena, including earthquakes, volcanic activity",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 809,
+    "completion_tokens": 160,
+    "total_tokens": 969,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:2": {
+   "text": "The water cycle, also known as the hydrologic cycle, is the continuous movement of water on, above, and below the surface of the Earth. This process is driven primarily by solar energy and gravity. It begins with evaporation, where the sun heats liquid water in oceans, lakes, and rivers, turning it into water vapor that rises into the atmosphere. Plants also contribute to this process through transpiration, releasing moisture from their leaves.\n\nAs the water vapor ascends, it cools and undergoes condensation, transforming back into liquid droplets that form clouds. When these droplets combine and grow heavy enough, they fall to the ground as precipitation, such as rain, snow, or hail. Once on the surface, the water follows several paths: it may flow over land as runoff",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 30,
+    "completion_tokens": 160,
+    "total_tokens": 190,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:12": {
+   "text": "The TCP three-way handshake is a fundamental process used to establish a reliable connection between two devices over a network, such as the internet. It ensures both parties are ready to communicate and agree on initial sequence numbers for data tracking.\n\nThe process involves three steps:\n1. **SYN**: The client sends a packet with the \"SYN\" (synchronize) flag set to the server, indicating a desire to connect and proposing an initial sequence number.\n2. **SYN-ACK**: The server responds with a packet containing both \"SYN\" and \"ACK\" (acknowledge) flags. It acknowledges the client\u2019s sequence number and proposes its own.\n3. **ACK**: The client sends a final packet with the \"ACK\" flag set, acknowledging the server\u2019s sequence",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:8": {
+   "text": "A CPU cache is a small, extremely fast memory storage located directly on or near the processor. Its primary purpose is to bridge the significant speed gap between the CPU, which operates at gigahertz speeds, and the main system memory (RAM), which is comparatively slow.\n\nThe cache stores frequently accessed data and instructions, allowing the CPU to retrieve them quickly without waiting for slower RAM access. This concept relies on the principle of locality: programs tend to reuse specific data (temporal locality) or access data located near previously used items (spatial locality).\n\nModern CPUs typically use a multi-level hierarchy, including L1, L2, and sometimes L3 caches. L1 is the smallest and fastest, split into separate instruction and data caches. L2 is larger but slightly slower, while L",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:10": {
+   "text": "Double-entry bookkeeping is the standard accounting method where every financial transaction affects at least two accounts, ensuring the accounting equation remains balanced: Assets = Liabilities + Equity. This system relies on the principle that every debit has an equal and opposite credit.\n\nIn this framework, accounts are categorized as assets, liabilities, equity, revenue, or expenses. Debits increase asset and expense accounts but decrease liability, equity, and revenue accounts. Conversely, credits increase liability, equity, and revenue accounts while decreasing assets and expenses. For example, if a business purchases equipment for cash, the Equipment account (an asset) is debited, and the Cash account (also an asset) is credited.\n\nThis dual recording system provides a comprehensive view of a company\u2019s financial health. It minimizes errors because the total",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 34,
+    "completion_tokens": 160,
+    "total_tokens": 194,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:14": {
+   "text": "Lithium-ion batteries store and release energy through the movement of lithium ions between two electrodes: an anode (typically graphite) and a cathode (a metal oxide). During charging, an external power source forces lithium ions to move from the cathode to the anode, where they are stored. Simultaneously, electrons flow through the external circuit to balance the charge.\n\nWhen the battery discharges, the process reverses. Lithium ions flow back from the anode to the cathode through an electrolyte solution, while electrons travel through the connected device, providing electrical power. A separator prevents direct contact between the electrodes, avoiding short circuits while allowing ion passage. This reversible chemical reaction allows the battery to be recharged hundreds or thousands of times. The efficiency and high energy density of",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:9": {
+   "text": "Stars form from vast clouds of gas and dust, primarily hydrogen, collapsing under their own gravity. As the core compresses and heats up, nuclear fusion ignites, converting hydrogen into helium and releasing immense energy that counteracts gravitational collapse, marking the star\u2019s main sequence phase. This stable period can last billions of years, depending on the star's mass.\n\nEventually, the hydrogen fuel depletes. The core contracts while the outer layers expand, turning the star into a red giant or supergiant. In low-mass stars, the outer layers drift away, forming a planetary nebula, leaving behind a dense, cooling white dwarf. Massive stars undergo more violent endings, exploding as supernovae. These explosions scatter heavy elements into space and leave behind either a neutron star or a black hole",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1032,
+    "completion_tokens": 160,
+    "total_tokens": 1192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:11": {
+   "text": "Baking sourdough bread is a rewarding process that relies on wild yeast and lactobacillus bacteria. First, maintain a active sourdough starter by feeding it regularly with flour and water until it doubles in size. To begin baking, mix your starter with flour, water, and salt to form a shaggy dough. Perform a series of stretch-and-folds every thirty minutes for two hours to develop gluten structure. Afterward, let the dough bulk ferment at room temperature until it rises significantly and shows bubbles on the surface.\n\nNext, shape the dough into a round boule and place it seam-side up in a floured banneton. Refrigerate the dough for 12 to 24 hours for cold fermentation, which enhances flavor. Preheat a Dutch oven in the",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1255,
+    "completion_tokens": 160,
+    "total_tokens": 1415,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:13": {
+   "text": "The theory of evolution by natural selection, primarily formulated by Charles Darwin, explains how species change over time. It posits that individuals within a population exhibit natural variations in traits. These variations are often heritable, meaning they can be passed from parents to offspring. In any given environment, resources are limited, leading to competition among individuals. Those with traits better suited to their environment are more likely to survive and reproduce, a concept known as \"survival of the fittest.\" Conversely, individuals with less advantageous traits are less likely to survive and pass on their genes. Over many generations, these beneficial traits become more common in the population, while disadvantageous ones diminish. This gradual process results in the adaptation of species to their environments and can eventually lead to the emergence of new species. Natural selection is",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1477,
+    "completion_tokens": 160,
+    "total_tokens": 1637,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c8:15": {
+   "text": "The Roman road network was a monumental engineering achievement that facilitated the expansion and consolidation of the Roman Empire. Spanning over 400,000 kilometers, these roads connected distant provinces to Rome, ensuring rapid military deployment, efficient administrative control, and robust economic trade. Constructed with durable layers of stone, gravel, and sand, the roads were designed for longevity and all-weather usability, often featuring straight alignments to minimize travel time.\n\nKey routes, such as the Via Appia and Via Flaminia, served as vital arteries for commerce and communication. The network included milestones for distance measurement, waystations for rest, and secure bridges over rivers. This infrastructure not only strengthened political unity but also promoted cultural exchange across diverse regions. The systematic planning and standardized construction techniques allowed the Romans to",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1696,
+    "completion_tokens": 160,
+    "total_tokens": 1856,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:2": {
+   "text": "The water cycle, also known as the hydrologic cycle, is the continuous movement of water on, above, and below the surface of the Earth. This process is driven primarily by solar energy and gravity. It begins with evaporation, where the sun heats liquid water in oceans, lakes, and rivers, turning it into water vapor that rises into the atmosphere. Plants also contribute to this process through transpiration, releasing moisture from their leaves.\n\nAs the water vapor ascends, it cools and undergoes condensation, transforming back into liquid droplets that form clouds. When these droplets combine and grow heavy enough, they fall to the ground as precipitation, such as rain, snow, or hail. Once on the surface, the water follows several paths: it may flow over land as runoff",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 30,
+    "completion_tokens": 160,
+    "total_tokens": 190,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:4": {
+   "text": "The French Revolution, beginning in 1789, resulted from a complex interplay of social inequality, economic crisis, and political instability. France\u2019s rigid social structure divided society into three estates, with the First (clergy) and Second (nobility) enjoying significant privileges while bearing little tax burden. In contrast, the Third Estate, comprising peasants, artisans, and the bourgeoisie, shouldered the entire tax load despite having no political power.\n\nCompounding this resentment was a severe economic crisis. Decades of costly wars, particularly support for the American Revolution, left the state deeply in debt. Poor harvests in the late 1780s caused widespread food shortages and skyrocketing bread prices, exacerbating public anger. Furthermore, King Louis XVI\u2019s inability to implement effective financial reforms",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 33,
+    "completion_tokens": 160,
+    "total_tokens": 193,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:8": {
+   "text": "A CPU cache is a small, extremely fast memory storage located directly on or near the processor. Its primary purpose is to bridge the significant speed gap between the CPU, which operates at gigahertz speeds, and the main system memory (RAM), which is comparatively slow.\n\nThe cache stores frequently accessed data and instructions, allowing the CPU to retrieve them quickly without waiting for slower RAM access. This concept relies on the principle of locality: programs tend to reuse specific data (temporal locality) or access data located near previously used items (spatial locality).\n\nModern CPUs typically use a multi-level hierarchy, including L1, L2, and sometimes L3 caches. L1 is the smallest and fastest, split into separate instruction and data caches. L2 is larger but slightly slower, while L",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:12": {
+   "text": "The TCP three-way handshake is a fundamental process used to establish a reliable connection between two devices over a network, such as the internet. It ensures both parties are ready to communicate and agree on initial sequence numbers for data tracking.\n\nThe process involves three steps:\n1. **SYN**: The client sends a packet with the \"SYN\" (synchronize) flag set to the server, indicating a desire to connect and proposing an initial sequence number.\n2. **SYN-ACK**: The server responds with a packet containing both \"SYN\" and \"ACK\" (acknowledge) flags. It acknowledges the client\u2019s sequence number and proposes its own.\n3. **ACK**: The client sends a final packet with the \"ACK\" flag set, acknowledging the server\u2019s sequence",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:6": {
+   "text": "Chess is a two-player strategy game played on an 8x8 checkered board. Each player begins with sixteen pieces: one king, one queen, two rooks, two knights, two bishops, and eight pawns. The objective is to checkmate the opponent\u2019s king, placing it under immediate threat of capture with no legal escape.\n\nPieces move uniquely. The king moves one square in any direction. The queen combines the rook\u2019s and bishop\u2019s powers, moving any number of squares horizontally, vertically, or diagonally. Rooks move straight horizontally or vertically, while bishops move diagonally. Knights move in an \"L\" shape and can jump over other pieces. Pawns move forward one square, or two on their first move, capturing diagonally.\n\nSpecial moves include cast",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 31,
+    "completion_tokens": 160,
+    "total_tokens": 191,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:3": {
+   "text": "A binary search tree (BST) is a specialized data structure used for storing sorted data efficiently. It is a node-based tree where each node contains a key and two subtrees, typically referred to as the left and right child. The defining characteristic of a BST is its ordering property: for any given node, all keys in its left subtree are strictly less than the node\u2019s key, while all keys in its right subtree are strictly greater. This hierarchical arrangement allows for rapid searching, insertion, and deletion operations. In a balanced BST, these operations generally occur in logarithmic time, O(log n), making BSTs significantly faster than linear structures like arrays or linked lists for large datasets. However, if the tree becomes unbalanced\u2014resembling a linked list\u2014performance degrades to linear time, O",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 363,
+    "completion_tokens": 160,
+    "total_tokens": 523,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:5": {
+   "text": "Vaccines train the immune system by safely introducing a harmless component of a pathogen, such as a weakened virus, inactivated bacteria, or specific proteins, without causing the actual disease. This exposure allows the body to recognize the invader and mount a targeted defense. When the vaccine enters the system, immune cells called antigen-presenting cells identify the foreign material and alert T cells and B cells. B cells then produce antibodies specifically designed to bind to the pathogen\u2019s unique markers, while T cells help coordinate the attack and destroy infected cells. Crucially, this process creates immunological memory. Memory B and T cells remain in the body long after the initial response subsides, \"remembering\" the specific threat. If the person is later exposed to the real, live pathogen, the immune",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 588,
+    "completion_tokens": 160,
+    "total_tokens": 748,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:0": {
+   "text": "The printing press, invented by Johannes Gutenberg around 1440 in Mainz, Germany, revolutionized information dissemination. Gutenberg adapted existing technologies, including wine presses and oil-based ink, to create movable type made from a durable lead-tin-antimony alloy. This innovation allowed for the mass production of books, most notably the Gutenberg Bible, which demonstrated the press\u2019s potential for high-quality, consistent output.\n\nPrior to this, books were hand-copied by scribes, making them rare and expensive. The printing press drastically reduced production costs and time, leading to an explosion in literacy and the spread of knowledge across Europe. It played a pivotal role in major historical movements, including the Protestant Reformation, the Scientific Revolution, and the Enlightenment, by enabling the rapid distribution of ideas. While",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 33,
+    "completion_tokens": 160,
+    "total_tokens": 193,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:14": {
+   "text": "Lithium-ion batteries store and release energy through the movement of lithium ions between two electrodes: an anode (typically graphite) and a cathode (a metal oxide). During charging, an external power source forces lithium ions to move from the cathode to the anode, where they are stored. Simultaneously, electrons flow through the external circuit to balance the charge.\n\nWhen the battery discharges, the process reverses. Lithium ions flow back from the anode to the cathode through an electrolyte solution, while electrons travel through the connected device, providing electrical power. A separator prevents direct contact between the electrodes, avoiding short circuits while allowing ion passage. This reversible chemical reaction allows the battery to be recharged hundreds or thousands of times. The efficiency and high energy density of",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 32,
+    "completion_tokens": 160,
+    "total_tokens": 192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:1": {
+   "text": "A transformer language model computes attention through a mechanism called scaled dot-product attention. First, the input sequence is projected into three distinct vector spaces: queries (Q), keys (K), and values (V). These projections allow the model to analyze relationships between different words in the sequence.\n\nThe core computation involves multiplying the query matrix by the transpose of the key matrix. This operation calculates the similarity or relevance between every pair of tokens in the sequence. To stabilize gradients during training, the resulting scores are scaled by dividing them by the square root of the key dimension.\n\nNext, a softmax function is applied to these scaled scores. This converts the raw similarity scores into a probability distribution, ensuring that all attention weights for a given query sum to one. These weights represent the importance of each token relative to the",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 145,
+    "completion_tokens": 160,
+    "total_tokens": 305,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:10": {
+   "text": "Double-entry bookkeeping is the standard accounting method where every financial transaction affects at least two accounts, ensuring the accounting equation remains balanced: Assets = Liabilities + Equity. This system relies on the principle that every debit has an equal and opposite credit.\n\nIn this framework, accounts are categorized as assets, liabilities, equity, revenue, or expenses. Debits increase asset and expense accounts but decrease liability, equity, and revenue accounts. Conversely, credits increase liability, equity, and revenue accounts while decreasing assets and expenses. For example, if a business purchases equipment for cash, the Equipment account (an asset) is debited, and the Cash account (also an asset) is credited.\n\nThis dual recording system provides a comprehensive view of a company\u2019s financial health. It minimizes errors because the total",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 34,
+    "completion_tokens": 160,
+    "total_tokens": 194,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:7": {
+   "text": "Plate tectonics is the scientific theory describing the large-scale motion of Earth\u2019s lithosphere, the rigid outer shell of the planet. This shell is divided into several large and small tectonic plates that float on the semi-fluid asthenosphere beneath them. The movement of these plates is driven primarily by mantle convection, where heat from Earth\u2019s core causes material in the mantle to rise, cool, and sink, creating a circular flow that drags the plates along.\n\nPlates interact at three main types of boundaries: divergent, where plates move apart and new crust is formed; convergent, where plates collide, leading to subduction or mountain building; and transform, where plates slide past each other horizontally. These interactions are responsible for major geological phenomena, including earthquakes, volcanic activity",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 809,
+    "completion_tokens": 160,
+    "total_tokens": 969,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:9": {
+   "text": "Stars form from vast clouds of gas and dust, primarily hydrogen, collapsing under their own gravity. As the core compresses and heats up, nuclear fusion ignites, converting hydrogen into helium and releasing immense energy that counteracts gravitational collapse, marking the star\u2019s main sequence phase. This stable period can last billions of years, depending on the star's mass.\n\nEventually, the hydrogen fuel depletes. The core contracts while the outer layers expand, turning the star into a red giant or supergiant. In low-mass stars, the outer layers drift away, forming a planetary nebula, leaving behind a dense, cooling white dwarf. Massive stars undergo more violent endings, exploding as supernovae. These explosions scatter heavy elements into space and leave behind either a neutron star or a black hole",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1032,
+    "completion_tokens": 160,
+    "total_tokens": 1192,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:11": {
+   "text": "Baking sourdough bread is a rewarding process that relies on wild yeast and lactobacillus bacteria. First, maintain a active sourdough starter by feeding it regularly with flour and water until it doubles in size. To begin baking, mix your starter with flour, water, and salt to form a shaggy dough. Perform a series of stretch-and-folds every thirty minutes for two hours to develop gluten structure. Afterward, let the dough bulk ferment at room temperature until it rises significantly and shows bubbles on the surface.\n\nNext, shape the dough into a round boule and place it seam-side up in a floured banneton. Refrigerate the dough for 12 to 24 hours for cold fermentation, which enhances flavor. Preheat a Dutch oven in the",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1255,
+    "completion_tokens": 160,
+    "total_tokens": 1415,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:13": {
+   "text": "The theory of evolution by natural selection, primarily formulated by Charles Darwin, explains how species change over time. It posits that individuals within a population exhibit natural variations in traits. These variations are often heritable, meaning they can be passed from parents to offspring. In any given environment, resources are limited, leading to competition among individuals. Those with traits better suited to their environment are more likely to survive and reproduce, a concept known as \"survival of the fittest.\" Conversely, individuals with less advantageous traits are less likely to survive and pass on their genes. Over many generations, these beneficial traits become more common in the population, while disadvantageous ones diminish. This gradual process results in the adaptation of species to their environments and can eventually lead to the emergence of new species. Natural selection is",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1477,
+    "completion_tokens": 160,
+    "total_tokens": 1637,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  },
+  "c16:15": {
+   "text": "The Roman road network was a monumental engineering achievement that facilitated the expansion and consolidation of the Roman Empire. Spanning over 400,000 kilometers, these roads connected distant provinces to Rome, ensuring rapid military deployment, efficient administrative control, and robust economic trade. Constructed with durable layers of stone, gravel, and sand, the roads were designed for longevity and all-weather usability, often featuring straight alignments to minimize travel time.\n\nKey routes, such as the Via Appia and Via Flaminia, served as vital arteries for commerce and communication. The network included milestones for distance measurement, waystations for rest, and secure bridges over rivers. This infrastructure not only strengthened political unity but also promoted cultural exchange across diverse regions. The systematic planning and standardized construction techniques allowed the Romans to",
+   "finish": "length",
+   "usage": {
+    "prompt_tokens": 1696,
+    "completion_tokens": 160,
+    "total_tokens": 1856,
+    "prompt_tokens_details": {
+     "cached_tokens": 0
+    }
+   }
+  }
+ }
+}
