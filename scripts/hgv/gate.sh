@@ -34,10 +34,10 @@ t() {
   while [[ $# -gt 0 && $1 != -- ]]; do envs+=("$1"); shift; done; shift
   args=("$@")
   if (( $(left) < secs )); then say "SKIPPED $tag (time left $(left)s < $secs)"; return; fi
-  say "$tag: start ($tree, $target ${args[*]})"
+  say "$tag: start ($tree, $target ${args[*]:-})"
   $SSH "INTARSIA_REPO=\$HOME/intarsiaml-tp2-$tree INTARSIA_TARGET_VOL=intarsia-cargo-target-tp2-$tree-hiptest HIP_VISIBLE_DEVICES=0,1 \
-    INTARSIA_CONTAINER_NAME=hgv-test timeout -k 10 $secs \$HOME/intarsiaml-tp2-$tree/deploy/tatooine/dev.sh env INTARSIA_REQUIRE_GPU=1 ${envs[*]} \
-    cargo test --release -p intarsia-backend-hip --test $target -- --test-threads=1 --nocapture ${args[*]}" < /dev/null > "$OUT/$tag.log" 2>&1
+    INTARSIA_CONTAINER_NAME=hgv-test timeout -k 10 $secs \$HOME/intarsiaml-tp2-$tree/deploy/tatooine/dev.sh env INTARSIA_REQUIRE_GPU=1 ${envs[*]:-} \
+    cargo test --release -p intarsia-backend-hip --test $target -- --test-threads=1 --nocapture ${args[*]:-}" < /dev/null > "$OUT/$tag.log" 2>&1
   local rc=$?
   $SSH 'docker rm -f hgv-test' > /dev/null 2>&1 < /dev/null
   say "$tag: exit $rc: $(grep -aE '^test result|FAILED|panicked' "$OUT/$tag.log" | head -4 | tr '\n' '|')"
