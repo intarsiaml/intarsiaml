@@ -5,8 +5,9 @@
 #   BASE=<rev> fleetq run --host tatooine-r9700 --load cpu --mem 0 --expect 60 --label "HGV build base + hgv HIP" -- scripts/hgv/build.sh
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
-base=$(scripts/tp2-hip/sync.sh hgvbase "${BASE:?BASE=<rev>}")
+# BASE unset: rebuild the hgv tree only (incremental, after a change)
+trees=""
+if [[ -n "${BASE:-}" ]]; then base=$(scripts/tp2-hip/sync.sh hgvbase "$BASE"); echo "stamp base: $base"; trees="hgvbase=$base "; fi
 head=$(scripts/tp2-hip/sync.sh hgv HEAD)
-echo "stamp base: $base"
 echo "stamp hgv: $head"
-ssh -o BatchMode=yes tatooine "HIPTEST=1 TREES='hgvbase=$base hgv=$head' bash -s" < scripts/tp2-hip/build.sh
+ssh -o BatchMode=yes tatooine "HIPTEST=1 TREES='${trees}hgv=$head' bash -s" < scripts/tp2-hip/build.sh

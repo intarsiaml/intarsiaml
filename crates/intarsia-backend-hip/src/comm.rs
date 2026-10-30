@@ -25,9 +25,11 @@ const NBLOCKS: i32 = 16;
 /// One scratch slot (there are two per rank). Larger messages are split.
 const SLOT_BYTES: usize = 4 << 20;
 /// Largest message (bytes) that takes the LL path when `INTARSIA_HIP_AR_DRAIN=7` (`INTARSIA_HIP_AR_LL_MAX` overrides): the LL lines
-/// double the bytes on the wire, so bigger messages keep the fence path. 128 KiB (lane hgv) keeps the second all-reduce of a layer on the
-/// LL path at 16 decode rows: its f32 partial is 16 x 2048 x 4 bytes (19 us at 8 rows on LL, 43 us on the fence path at 16 rows, 26 us on
-/// LL); the next size up, a 17-row f32 partial, and every prefill all-reduce (a 2048-row chunk is 8 MiB bf16) stay on the fence path.
+/// double the bytes on the wire, so bigger messages keep the fence path. 128 KiB (lane hgv, was 64 KiB) keeps the second all-reduce of a layer
+/// on the LL path at 16 decode rows: its f32 partial is 16 x 2048 x 4 bytes = 128 KiB (19 us on LL at 8 rows; at 16 rows 43 us on the fence
+/// path against 26 us on LL). What moves from the fence to the LL path at hidden 2048: messages of 64 KiB to 128 KiB, i.e. f32 9..16 rows and
+/// bf16 17..32 rows (a short prompt or the last chunk of one); every prefill chunk of 33 or more bf16 rows, and the 1-row decode (8 KiB), are
+/// unchanged. The fused add + rmsnorm all-reduce takes the same limit (`ar_norm.hip`).
 const LL_MAX_DEFAULT: usize = 128 << 10;
 /// The wide fence path (lane pf27b): all-reduces above the LL limit (every prefill all-reduce) run on their own scratch, flags and
 /// counters with more blocks and one slot that holds a whole 2048-row x 5120 bf16 partial, so a prefill all-reduce is one launch on

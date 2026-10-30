@@ -92,6 +92,9 @@ gemv_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, OutT* 
 // the same lane-ascending fma chain and warp sum whatever M, R, U or the group are, so the bits do not change with the grouping. The last
 // group of an M that is not a multiple of the group size masks its missing rows (TAIL).
 constexpr int kGemvRowsGroup = 4;
+// Only the small, latency-bound matrices take the grouped launch (the 35B's router 1 MiB, GDN in_a / in_b, shared-expert gate). A big matrix
+// (an lm_head, a dense projection) would be streamed once per group of rows, not once: it keeps the one-launch gemv_kernel<M>.
+constexpr int64_t kGemvRowsGroupMaxBytes = 4 << 20;
 
 template <int R, int U, typename OutT>
 __global__ void __launch_bounds__(kGemvWarps * IK_WARP)
@@ -352,8 +355,8 @@ int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* st
 // take M as a template argument and every row's lane order (idx ascending per lane, one warp-sum) does not depend on it; the
 // only thing the ordinary launcher refuses past M = 4 is the instantiation. The activations are read from global memory (no
 // shared-memory stage), so there is no K limit either. Tested bitwise for M = 1..16 in tests/rows_exact.rs (G-B). Vector operands
-// with M > kGemvRowsGroup (4) run as groups of 4 rows along blockIdx.y (gemv_rows_grp_kernel); fewer rows, and the scalar path, as one
-// gemv_kernel<M>.
+// with M > kGemvRowsGroup (4) and a weight matrix of at most kGemvRowsGroupMaxBytes run as groups of 4 rows along blockIdx.y
+// (gemv_rows_grp_kernel); fewer rows, bigger matrices and the scalar path as one gemv_kernel<M>.
 constexpr int kRowsMax = 16;
 
 template <typename OutT>
@@ -365,7 +368,7 @@ int gemv_rows_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, voi
     const ik_bf16* xp = (const ik_bf16*)x->data;
     const ik_bf16* wp = (const ik_bf16*)w->data;
     OutT* op = (OutT*)out->data;
-    if (vec && M > kGemvRowsGroup) {
+    if (vec && M > kGemvRowsGroup && N * K * 2 <= kGemvRowsGroupMaxBytes) {
         constexpr int R = 2, U = 4;
         const dim3 grid((unsigned)((N + (int64_t)kGemvWarps * R - 1) / ((int64_t)kGemvWarps * R)),
                         (unsigned)((M + kGemvRowsGroup - 1) / kGemvRowsGroup));
