@@ -1,0 +1,17 @@
+fleetq: #7399 running on tatooine-r9700, tatooine-r9700-2: scripts/k4fp8/mbwin.sh
+07:53:57 guard: [guard] radiance stopped 2026-10-30 07:53:57
+07:53:57 hot-main-r1: start ( -e BENCH_SHAPES=8192x2048,4096x2048,2048x4096,2048x2048 -e BENCH_MS=1,4,8,12,16 -e BENCH_MODE=time -e BENCH_HOT=1)
+07:53:58 hot-main-r1: exit 0 (20 lines)
+07:53:58 hot-up4-r1: start ( -e BENCH_SHAPES=8192x2048,4096x2048,2048x4096,2048x2048 -e BENCH_MS=1,4,8,12,16 -e BENCH_MODE=time -e BENCH_HOT=1)
+07:53:59 hot-up4-r1: exit 0 (20 lines)
+07:53:59 cold-main-r1: start ( -e BENCH_SHAPES=8192x2048,4096x2048,2048x4096,2048x2048 -e BENCH_MS=1,4,8,12,16 -e BENCH_MODE=time)
+07:54:00 cold-main-r1: exit 0 (20 lines)
+07:54:00 cold-up4-r1: start ( -e BENCH_SHAPES=8192x2048,4096x2048,2048x4096,2048x2048 -e BENCH_MS=1,4,8,12,16 -e BENCH_MODE=time)
+07:54:01 cold-up4-r1: exit 0 (20 lines)
+07:54:01 hot-main-r2: start ( -e BENCH_SHAPES=8192x2048,4096x2048,2048x4096,2048x2048 -e BENCH_MS=1,4,8,12,16 -e BENCH_MODE=time -e BENCH_HOT=1)
+07:54:02 hot-main-r2: exit 0 (20 lines)
+07:54:02 hot-up4-r2: start ( -e BENCH_SHAPES=8192x2048,4096x2048,2048x4096,2048x2048 -e BENCH_MS=1,4,8,12,16 -e BENCH_MODE=time -e BENCH_HOT=1)
+07:54:03 hot-up4-r2: exit 0 (20 lines)
+07:54:03 done, time left 591s
+07:54:13 guard: [guard] stopping radiance 2026-10-30 07:53:55|[guard] radiance answers 2026-10-30 07:54:13 (after 15 s), unit active|
+fleetq: #7399 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

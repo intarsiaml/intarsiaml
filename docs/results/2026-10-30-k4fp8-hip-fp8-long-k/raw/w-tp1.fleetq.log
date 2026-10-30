@@ -1,0 +1,29 @@
+fleetq: #7408 waiting (#1 in line): radiance-rank0 is also taken down by #7407 "K4FP8 step-time baseline: batched==solo TP=1/TP=2 on main tree hfp8new2" (claude-908e11e8)
+fleetq:   #7407 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7407 set, or it will wait for #7407 to be released.
+fleetq: #7408 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 93% busy with work fleetq does not track
+fleetq: #7408 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 73% busy with work fleetq does not track
+fleetq: #7408 running on tatooine-r9700, tatooine-r9700-2: scripts/k4fp8/window.sh
+08:22:16 guard: [guard] radiance stopped 2026-10-30 08:22:16
+08:22:17 binary base: intarsia 0.0.1 
+08:22:17 binary new: intarsia 0.0.1 
+08:22:17 speed-tp1-base-r1: starting server
+08:22:34 speed-tp1-base-r1: server up, localeval (sizes 1024, gen 512, streams 1,4,8,16)
+08:23:15 speed-tp1-base-r1: localeval exit 0 - result file: `results/20261030-082234-adhoc-k4fp8-speed-tp1-base-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-082234-adhoc-k4fp8-speed-tp1-base-r1/result.json|
+08:23:15 speed-tp1-new-r1: starting server
+08:23:32 speed-tp1-new-r1: server up, localeval (sizes 1024, gen 512, streams 1,4,8,16)
+08:24:12 speed-tp1-new-r1: localeval exit 0 - result file: `results/20261030-082332-adhoc-k4fp8-speed-tp1-new-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-082332-adhoc-k4fp8-speed-tp1-new-r1/result.json|
+08:24:12 speed-tp1-new-r2: starting server
+08:24:29 speed-tp1-new-r2: server up, localeval (sizes 1024, gen 512, streams 1,4,8,16)
+08:25:09 speed-tp1-new-r2: localeval exit 0 - result file: `results/20261030-082429-adhoc-k4fp8-speed-tp1-new-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-082429-adhoc-k4fp8-speed-tp1-new-r2/result.json|
+08:25:09 speed-tp1-base-r2: starting server
+08:25:26 speed-tp1-base-r2: server up, localeval (sizes 1024, gen 512, streams 1,4,8,16)
+08:26:06 speed-tp1-base-r2: localeval exit 0 - result file: `results/20261030-082526-adhoc-k4fp8-speed-tp1-base-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-082526-adhoc-k4fp8-speed-tp1-base-r2/result.json|
+08:26:07 speed-tp1-base-r3: starting server
+08:26:24 speed-tp1-base-r3: server up, localeval (sizes 1024, gen 512, streams 1,4,8,16)
+08:27:04 speed-tp1-base-r3: localeval exit 0 - result file: `results/20261030-082624-adhoc-k4fp8-speed-tp1-base-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-082624-adhoc-k4fp8-speed-tp1-base-r3/result.json|
+08:27:04 speed-tp1-new-r3: starting server
+08:27:21 speed-tp1-new-r3: server up, localeval (sizes 1024, gen 512, streams 1,4,8,16)
+08:28:01 speed-tp1-new-r3: localeval exit 0 - result file: `results/20261030-082722-adhoc-k4fp8-speed-tp1-new-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-082722-adhoc-k4fp8-speed-tp1-new-r3/result.json|
+08:28:01 done, time left 802s
+08:28:11 guard: [guard] stopping radiance 2026-10-30 08:22:13|[guard] radiance answers 2026-10-30 08:28:11 (after 15 s), unit active|
+fleetq: #7408 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

@@ -1,0 +1,8 @@
+fleetq: #7406 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 94% busy with work fleetq does not track
+fleetq: #7406 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 78% busy with work fleetq does not track
+fleetq: #7406 running on tatooine-r9700, tatooine-r9700-2: scripts/k4fp8/tests.sh
+08:12:46 guard: [guard] radiance stopped 2026-10-30 08:12:46
+08:15:04 mtest tp2 exit 0: test real_35b_batched_decode_is_bitwise_the_solo_step ... tensor parallel x2: vocab-parallel head true|batch 2: 130 steps bitwise in 2.7 s (per step: 7.6 ms batched, 12.6 ms for the 2 solo steps)|batch 3: 130 steps bitwise in 3.5 s (per step: 9.1 ms batched, 16.0 ms for the 3 solo steps)|batch 4: 130 steps bitwise in 4.3 s (per step: 10.2 ms batched, 21.2 ms for the 4 solo steps)|batch 5: 130 steps bitwise in 5.1 s (per step: 11.1 ms batched, 26.3 ms for the 5 solo steps)|batch 6: 130 steps bitwise in 6.0 s (per step: 12.2 ms batched, 31.6 ms for the 6 solo steps)|batch 7: 130 steps bitwise in 7.0 s (per step: 13.0 ms batched, 37.4 ms for the 7 solo steps)|batch 8: 130 steps bitwise in 7.8 s (per step: 13.9 ms batched, 42.5 ms for the 8 solo steps)|
+08:15:04 done, time left 1009s
+08:15:14 guard: [guard] stopping radiance 2026-10-30 08:12:43|[guard] radiance answers 2026-10-30 08:15:14 (after 15 s), unit active|
+fleetq: #7406 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
