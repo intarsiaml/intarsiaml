@@ -1,0 +1,4 @@
+tp-worker: waiting for rank 0 on 10.100.152.3:29555
+tp-worker: rank 0 connected from 10.100.152.1:59282
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+Error: unsupported: --spec mtp under tensor parallelism with an MoE head (its experts are not sharded)
