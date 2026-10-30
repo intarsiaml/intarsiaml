@@ -1,0 +1,49 @@
+fleetq: #7316 waiting (#1 in line): needs cpu quiet on endor, but #7315 "mnarrow: build main (metal cli + harness + rows_exact)" (claude-908e11e8) loads it
+fleetq:   #7315 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7315 set, or it will wait for #7315 to be released.
+fleetq: #7316 running on endor: .lane/micro.sh .lane/micro2 off 0 1 2 3 4 5 6 off2
+## off
+test timing_moe_rows16 ... TIMING moe_rows16 T=8 pool120 (50.9 distinct of 64 pairs): rows call 185.0 us
+TIMING moe_rows16 T=9 pool120 (55.5 distinct of 72 pairs): rows call 203.7 us
+TIMING moe_rows16 T=12 pool120 (67.2 distinct of 96 pairs): rows call 256.4 us
+TIMING moe_rows16 T=16 pool120 (79.7 distinct of 128 pairs): rows call 327.7 us
+## 0
+test timing_moe_rows16 ... TIMING moe_rows16 T=8 pool120 (50.9 distinct of 64 pairs): rows call 185.2 us
+TIMING moe_rows16 T=9 pool120 (55.5 distinct of 72 pairs): rows call 236.3 us
+TIMING moe_rows16 T=12 pool120 (67.2 distinct of 96 pairs): rows call 298.3 us
+TIMING moe_rows16 T=16 pool120 (79.7 distinct of 128 pairs): rows call 388.5 us
+## 1
+test timing_moe_rows16 ... TIMING moe_rows16 T=8 pool120 (50.9 distinct of 64 pairs): rows call 185.2 us
+TIMING moe_rows16 T=9 pool120 (55.5 distinct of 72 pairs): rows call 218.1 us
+TIMING moe_rows16 T=12 pool120 (67.2 distinct of 96 pairs): rows call 273.9 us
+TIMING moe_rows16 T=16 pool120 (79.7 distinct of 128 pairs): rows call 350.0 us
+## 2
+test timing_moe_rows16 ... TIMING moe_rows16 T=8 pool120 (50.9 distinct of 64 pairs): rows call 185.8 us
+TIMING moe_rows16 T=9 pool120 (55.5 distinct of 72 pairs): rows call 230.5 us
+TIMING moe_rows16 T=12 pool120 (67.2 distinct of 96 pairs): rows call 286.8 us
+TIMING moe_rows16 T=16 pool120 (79.7 distinct of 128 pairs): rows call 362.2 us
+## 3
+test timing_moe_rows16 ... TIMING moe_rows16 T=8 pool120 (50.9 distinct of 64 pairs): rows call 184.7 us
+TIMING moe_rows16 T=9 pool120 (55.5 distinct of 72 pairs): rows call 301.6 us
+TIMING moe_rows16 T=12 pool120 (67.2 distinct of 96 pairs): rows call 374.7 us
+TIMING moe_rows16 T=16 pool120 (79.7 distinct of 128 pairs): rows call 465.5 us
+## 4
+test timing_moe_rows16 ... TIMING moe_rows16 T=8 pool120 (50.9 distinct of 64 pairs): rows call 185.1 us
+TIMING moe_rows16 T=9 pool120 (55.5 distinct of 72 pairs): rows call 206.1 us
+TIMING moe_rows16 T=12 pool120 (67.2 distinct of 96 pairs): rows call 265.4 us
+TIMING moe_rows16 T=16 pool120 (79.7 distinct of 128 pairs): rows call 345.1 us
+## 5
+test timing_moe_rows16 ... TIMING moe_rows16 T=8 pool120 (50.9 distinct of 64 pairs): rows call 189.7 us
+TIMING moe_rows16 T=9 pool120 (55.5 distinct of 72 pairs): rows call 263.2 us
+TIMING moe_rows16 T=12 pool120 (67.2 distinct of 96 pairs): rows call 329.5 us
+TIMING moe_rows16 T=16 pool120 (79.7 distinct of 128 pairs): rows call 421.8 us
+## 6
+test timing_moe_rows16 ... TIMING moe_rows16 T=8 pool120 (50.9 distinct of 64 pairs): rows call 185.2 us
+TIMING moe_rows16 T=9 pool120 (55.5 distinct of 72 pairs): rows call 226.6 us
+TIMING moe_rows16 T=12 pool120 (67.2 distinct of 96 pairs): rows call 289.5 us
+TIMING moe_rows16 T=16 pool120 (79.7 distinct of 128 pairs): rows call 379.1 us
+## off2
+test timing_moe_rows16 ... TIMING moe_rows16 T=8 pool120 (50.9 distinct of 64 pairs): rows call 185.8 us
+TIMING moe_rows16 T=9 pool120 (55.5 distinct of 72 pairs): rows call 203.7 us
+TIMING moe_rows16 T=12 pool120 (67.2 distinct of 96 pairs): rows call 256.3 us
+TIMING moe_rows16 T=16 pool120 (79.7 distinct of 128 pairs): rows call 327.2 us
+fleetq: #7316 done (exit 0)

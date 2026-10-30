@@ -1,0 +1,11 @@
+
+running 1 test
+test real_35b_batch_step_real_traffic ... plan before batching: MemoryPlan { device: "Apple M5 Max", total_bytes: 115448725504, free_bytes: 73351593984, weights_bytes: 20825033460, workspace_bytes: 1044515728, kv_bytes_per_token: 20480, kv_fraction: 0.5, kv_budget_bytes: 36675796992, kv_cap_tokens: 4096, kv_total_bytes: 83886080, notes: [] }
+recurrent bytes per state 65863680
+REALTRAFFIC B= 9: 25.40 ms/step, 354.3 tok/s aggregate
+REALTRAFFIC B=12: 30.05 ms/step, 399.3 tok/s aggregate
+REALTRAFFIC B=16: 35.73 ms/step, 447.8 tok/s aggregate
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 15.63s
+
