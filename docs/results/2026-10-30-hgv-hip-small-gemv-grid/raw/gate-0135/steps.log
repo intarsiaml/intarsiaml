@@ -1,0 +1,25 @@
+01:35:39 guard: [guard] radiance stopped 2026-10-30 01:35:39
+01:35:39 gate-rows-exact: start (hgv, rows_exact )
+01:36:05 gate-rows-exact: exit 0: thread 'wmma_bf16_switch_from_the_gemv_is_not_bitwise' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:307:17:|test result: ok. 13 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 24.68s|
+01:36:05 gate-moe-grouped: start (hgv, moe_block moe_block_grouped)
+01:38:02 gate-moe-grouped: exit 0: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 116.18s|
+01:38:02 gate-ar-norm: start (hgv, ar_norm )
+01:38:04 gate-ar-norm: exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.66s|
+01:38:04 gate-ar-push: start (hgv, ar_push )
+01:38:14 gate-ar-push: exit 0: test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.68s|
+01:38:14 gate-comm: start (hgv, comm )
+01:38:34 gate-comm: exit 0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 19.13s|
+01:38:34 time-gemv-hgvbase: start (hgvbase, rows_exact --ignored timing_gemv_rows)
+01:38:43 time-gemv-hgvbase: exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 7.94s|
+01:38:43 time-mxfp4-hgvbase: start (hgvbase, rows_exact --ignored timing_mxfp4_rows)
+01:38:58 time-mxfp4-hgvbase: exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 14.12s|
+01:38:58 time-moe-hgvbase: start (hgvbase, moe_block moe_rows_timing)
+01:39:22 time-moe-hgvbase: exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 22.85s|
+01:39:22 time-gemv-hgv: start (hgv, rows_exact --ignored timing_gemv_rows)
+01:39:31 time-gemv-hgv: exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 7.93s|
+01:39:31 time-mxfp4-hgv: start (hgv, rows_exact --ignored timing_mxfp4_rows)
+01:39:46 time-mxfp4-hgv: exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 14.12s|
+01:39:46 time-moe-hgv: start (hgv, moe_block moe_rows_timing)
+01:40:10 time-moe-hgv: exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 22.81s|
+01:40:10 done, time left 676s
+01:40:20 guard: [guard] stopping radiance 2026-10-30 01:35:36|[guard] radiance answers 2026-10-30 01:40:20 (after 15 s), unit active|

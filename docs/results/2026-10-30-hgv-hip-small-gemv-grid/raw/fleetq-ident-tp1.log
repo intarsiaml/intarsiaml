@@ -1,0 +1,21 @@
+fleetq: #7338 waiting (#2 in line): in line behind #7337 "HFP8 fp8 rows bitwise check actq=1" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7337 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7337 set, or it will wait for #7337 to be released.
+fleetq: #7338 waiting (#1 in line): radiance-rank0 is also taken down by #7337 "HFP8 fp8 rows bitwise check actq=1" (claude-908e11e8)
+fleetq:   #7337 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7337 set, or it will wait for #7337 to be released.
+fleetq: #7338 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #7338 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #7338 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 80% busy with work fleetq does not track
+fleetq: #7338 running on tatooine-r9700, tatooine-r9700-2: scripts/hgv/window.sh
+01:53:46 guard: [guard] radiance stopped 2026-10-30 01:53:46
+01:53:46 ident-rtp1-tp1-base: starting server
+01:54:03 ident-rtp1-tp1-base: server up, ident (gen 384)
+01:55:18 ident-rtp1-tp1-base: ident exit 0: {"phase": "same1", "ok": 1, "wall_s": 2.5, "sha": ["541c4ec9fa89bb6e"], "completion": [384]}|{"phase": "same8", "ok": 8, "wall_s": 8.9, "sha": ["541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4ec9|{"phase": "same16", "ok": 16, "wall_s": 17.3, "sha": ["541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4|{"phase": "div1", "ok": 1, "wall_s": 2.5, "sha": ["a5e7e1a7d9eb3863"], "completion": [384]}|{"phase": "div8", "ok": 8, "wall_s": 9.0, "sha": ["a5e7e1a7d9eb3863", "9f649cd0152f3f38", "eb45ea82e14e64f6", "8c907249a|{"phase": "div16", "ok": 16, "wall_s": 17.3, "sha": ["a5e7e1a7d9eb3863", "9f649cd0152f3f38", "eb45ea82e14e64f6", "8c9072|
+01:55:19 ident-rtp1-tp1-hgv: starting server
+01:55:36 ident-rtp1-tp1-hgv: server up, ident (gen 384)
+01:56:49 ident-rtp1-tp1-hgv: ident exit 0: {"phase": "same1", "ok": 1, "wall_s": 2.5, "sha": ["541c4ec9fa89bb6e"], "completion": [384]}|{"phase": "same8", "ok": 8, "wall_s": 8.7, "sha": ["541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4ec9|{"phase": "same16", "ok": 16, "wall_s": 16.1, "sha": ["541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4|{"phase": "div1", "ok": 1, "wall_s": 2.5, "sha": ["a5e7e1a7d9eb3863"], "completion": [384]}|{"phase": "div8", "ok": 8, "wall_s": 8.8, "sha": ["a5e7e1a7d9eb3863", "9f649cd0152f3f38", "eb45ea82e14e64f6", "8c907249a|{"phase": "div16", "ok": 16, "wall_s": 16.1, "sha": ["a5e7e1a7d9eb3863", "9f649cd0152f3f38", "eb45ea82e14e64f6", "8c9072|
+01:56:49 ident-rtp1-tp1-base: starting server
+01:57:06 ident-rtp1-tp1-base: server up, ident (gen 384)
+01:58:21 ident-rtp1-tp1-base: ident exit 0: {"phase": "same1", "ok": 1, "wall_s": 2.5, "sha": ["541c4ec9fa89bb6e"], "completion": [384]}|{"phase": "same8", "ok": 8, "wall_s": 8.9, "sha": ["541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4ec9|{"phase": "same16", "ok": 16, "wall_s": 17.3, "sha": ["541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4ec9fa89bb6e", "541c4|{"phase": "div1", "ok": 1, "wall_s": 2.5, "sha": ["a5e7e1a7d9eb3863"], "completion": [384]}|{"phase": "div8", "ok": 8, "wall_s": 9.0, "sha": ["a5e7e1a7d9eb3863", "9f649cd0152f3f38", "eb45ea82e14e64f6", "8c907249a|{"phase": "div16", "ok": 16, "wall_s": 17.3, "sha": ["a5e7e1a7d9eb3863", "9f649cd0152f3f38", "eb45ea82e14e64f6", "8c9072|
+01:58:22 done, time left 671s
+01:58:32 guard: [guard] stopping radiance 2026-10-30 01:53:43|[guard] radiance answers 2026-10-30 01:58:32 (after 15 s), unit active|
+fleetq: #7338 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

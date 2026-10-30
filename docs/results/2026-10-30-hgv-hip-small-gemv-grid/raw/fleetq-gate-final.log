@@ -1,0 +1,15 @@
+fleetq: #7336 running on tatooine-r9700, tatooine-r9700-2: scripts/hgv/gate.sh
+01:46:25 guard: [guard] radiance stopped 2026-10-30 01:46:25
+01:46:25 gate-rows-exact: start (hgv, rows_exact )
+01:46:51 gate-rows-exact: exit 0: thread 'wmma_bf16_switch_from_the_gemv_is_not_bitwise' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:307:17:|test result: ok. 13 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 24.41s|
+01:46:51 gate-moe-grouped: start (hgv, moe_block moe_block_grouped)
+01:48:49 gate-moe-grouped: exit 0: test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 117.16s|
+01:48:49 gate-ar-norm: start (hgv, ar_norm )
+01:48:51 gate-ar-norm: exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s|
+01:48:51 gate-ar-push: start (hgv, ar_push )
+01:49:02 gate-ar-push: exit 0: test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 9.78s|
+01:49:02 gate-comm: start (hgv, comm )
+01:49:22 gate-comm: exit 0: test result: ok. 13 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 19.13s|
+01:49:22 done, time left 770s
+01:49:32 guard: [guard] stopping radiance 2026-10-30 01:46:22|[guard] radiance answers 2026-10-30 01:49:32 (after 15 s), unit active|
+fleetq: #7336 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

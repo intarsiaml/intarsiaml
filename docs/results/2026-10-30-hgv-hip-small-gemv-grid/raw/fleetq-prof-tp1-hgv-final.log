@@ -1,0 +1,17 @@
+fleetq: #7339 waiting (#2 in line): in line behind #7338 "HGV identity tp1 (main, hgv, main)" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7338 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7338 set, or it will wait for #7338 to be released.
+fleetq: #7339 waiting (#1 in line): radiance-rank0 is also taken down by #7338 "HGV identity tp1 (main, hgv, main)" (claude-908e11e8)
+fleetq:   #7338 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7338 set, or it will wait for #7338 to be released.
+fleetq: #7339 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 78% busy with work fleetq does not track
+fleetq: #7339 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #7339 running on tatooine-r9700, tatooine-r9700-2: scripts/hprof/window.sh
+01:59:16 guard: [guard] radiance stopped 2026-10-30 01:59:16
+01:59:17 binary: intarsia 0.0.1 
+01:59:17 tp1-prof: starting server
+01:59:34 tp1-prof: driver phases same16,div16 (gen 192)
+02:00:01 tp1-prof: driver exit 0: {"phase": "same16", "streams": 16, "ok": 16, "wall_s": 9.12, "completion_tokens": 3072, "prompt_tokens_median": 992, "ttft_max_s": 2.46, "per_stream_decode_tok_s_mean": 24.8, "aggregate_decode_tok_s_e|{"phase": "div16", "streams": 16, "ok": 16, "wall_s": 9.3, "completion_tokens": 3072, "prompt_tokens_median": 1242, "ttft_max_s": 2.43, "per_stream_decode_tok_s_mean": 24.2, "aggregate_decode_tok_s_es|
+02:00:05 tp1-prof: server state after exit file (waited 6 s): false exit=0
+02:00:06 tp1-prof: copied 7.5M (648 /home/josef/intarsiaml-tp2-hgv/hprof-out/tp1-prof/k_agent_info.csv.gz 7807239 /home/josef/intarsiaml-tp2-hgv/hprof-out/tp1-prof/k_kernel_trace.csv.gz )
+02:00:07 done, time left 846s
+02:00:17 guard: [guard] stopping radiance 2026-10-30 01:59:13|[guard] radiance answers 2026-10-30 02:00:17 (after 15 s), unit active|
+fleetq: #7339 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

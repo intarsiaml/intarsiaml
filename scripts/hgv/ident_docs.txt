@@ -1,0 +1,16 @@
+docs/ARCHITECTURE.md
+docs/accuracy.md
+docs/adding-a-model.md
+docs/backends/hip.md
+docs/benchmarking.md
+docs/composer/gaps.md
+docs/decisions/0004-phase-0-implementation-decisions.md
+docs/decisions/0007-phase-1b-2a-2b-implementation-decisions.md
+docs/decisions/LOG.md
+docs/plans/2026-10-25-r9700-push.md
+docs/proposals/2026-10-19-core-op-fusion.md
+docs/recipes.md
+docs/research/2026-10-20-dsv41-flash-scope.md
+docs/research/continuous-batching-design.md
+docs/research/macos-metal-backend-scope.md
+docs/research/metal-next-levers.md

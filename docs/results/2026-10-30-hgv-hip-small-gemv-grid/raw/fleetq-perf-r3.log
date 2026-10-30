@@ -1,0 +1,32 @@
+fleetq: #7369 waiting (#6 in line): in line behind #7364 "HGV prof tp2 hgv" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7364 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7364 set, or it will wait for #7364 to be released.
+fleetq: #7369 waiting (#5 in line): in line behind #7365 "WMR A/B tp1 bare flag (ROWS=1 alone) vs off, streams 1/4/8/16 x3" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7365 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7365 set, or it will wait for #7365 to be released.
+fleetq: #7369 waiting (#4 in line): in line behind #7366 "WMR gates B: 35B batched==solo (batch_cuda_real), flag off/on" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7366 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7366 set, or it will wait for #7366 to be released.
+fleetq: #7369 waiting (#3 in line): in line behind #7367 "WMR accuracy compare: self-golden main dumps vs flag on (tp1 short+long), --pre-change" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7367 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7367 set, or it will wait for #7367 to be released.
+fleetq: #7369 waiting (#2 in line): in line behind #7368 "HFP8 gates: hip rows tests + tp1 batched==solo" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7368 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7368 set, or it will wait for #7368 to be released.
+fleetq: #7369 waiting (#1 in line): radiance-rank0 is also taken down by #7368 "HFP8 gates: hip rows tests + tp1 batched==solo" (claude-908e11e8)
+fleetq:   #7368 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7368 set, or it will wait for #7368 to be released.
+fleetq: #7369 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 94% busy with work fleetq does not track
+fleetq: #7369 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #7369 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 77% busy with work fleetq does not track
+fleetq: #7369 running on tatooine-r9700, tatooine-r9700-2: scripts/hgv/window.sh
+03:23:46 guard: [guard] radiance stopped 2026-10-30 03:23:46
+03:23:46 perf-r3-tp1-base-1: starting server
+03:24:03 perf-r3-tp1-base-1: server up, localeval (1024 prompt, gen 512, streams 1,4,8,16)
+03:24:49 perf-r3-tp1-base-1: localeval exit 0 - result file: `results/20261030-032404-adhoc-hgv-perf-r3-tp1-base-1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-032404-adhoc-hgv-perf-r3-tp1-base-1/result.json|
+03:24:50 perf-r3-tp1-hgv-2: starting server
+03:25:07 perf-r3-tp1-hgv-2: server up, localeval (1024 prompt, gen 512, streams 1,4,8,16)
+03:25:51 perf-r3-tp1-hgv-2: localeval exit 0 - result file: `results/20261030-032507-adhoc-hgv-perf-r3-tp1-hgv-2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-032507-adhoc-hgv-perf-r3-tp1-hgv-2/result.json|
+03:25:52 perf-r3-tp2-hgv-3: starting server
+03:26:05 perf-r3-tp2-hgv-3: server up, localeval (1024 prompt, gen 512, streams 1,4,8,16)
+03:26:38 perf-r3-tp2-hgv-3: localeval exit 0 - result file: `results/20261030-032606-adhoc-hgv-perf-r3-tp2-hgv-3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-032606-adhoc-hgv-perf-r3-tp2-hgv-3/result.json|
+03:26:38 perf-r3-tp2-base-4: starting server
+03:26:52 perf-r3-tp2-base-4: server up, localeval (1024 prompt, gen 512, streams 1,4,8,16)
+03:27:27 perf-r3-tp2-base-4: localeval exit 0 - result file: `results/20261030-032652-adhoc-hgv-perf-r3-tp2-base-4/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-032652-adhoc-hgv-perf-r3-tp2-base-4/result.json|
+03:27:28 done, time left 775s
+03:27:38 guard: [guard] stopping radiance 2026-10-30 03:23:43|[guard] radiance answers 2026-10-30 03:27:38 (after 15 s), unit active|
+fleetq: #7369 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

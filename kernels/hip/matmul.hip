@@ -21,9 +21,10 @@ IK_DEVI void store_out(ik_bf16* p, float v) { *p = ik_f2b(v); }
 // R rows per warp, U uint4 loads per lane and row in flight.
 // `blk` is the block's index along the rows of this matrix (blockIdx.x for the plain kernel; the pair kernel below
 // passes the index inside the segment the block belongs to, so both run exactly this code).
-template <int M, int R, int U, typename OutT>
+// TAIL (rows launcher only): only the first `mvalid` of the M activation rows exist; the others re-read row mvalid - 1 and store nothing.
+template <int M, int R, int U, typename OutT, bool TAIL = false>
 __device__ __forceinline__ void gemv_body(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w,
-                                          OutT* __restrict__ out, int64_t N, int64_t K, int64_t blk) {
+                                          OutT* __restrict__ out, int64_t N, int64_t K, int64_t blk, int mvalid = M) {
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int64_t n0 = (blk * kGemvWarps + warp) * R;
     if (n0 >= N) return;  // whole warp exits together; no block-level sync below
@@ -57,7 +58,8 @@ __device__ __forceinline__ void gemv_body(const ik_bf16* __restrict__ x, const i
 #pragma unroll
             for (int m = 0; m < M; ++m) {
                 float xf[8];
-                ik_unpack8(ok ? ik_ldg(x8 + m * nv + idx) : make_uint4(0, 0, 0, 0), xf);
+                const int mr = (TAIL && m >= mvalid) ? mvalid - 1 : m;
+                ik_unpack8(ok ? ik_ldg(x8 + mr * nv + idx) : make_uint4(0, 0, 0, 0), xf);
 #pragma unroll
                 for (int r = 0; r < R; ++r) {
                     float wf[8];
@@ -73,7 +75,7 @@ __device__ __forceinline__ void gemv_body(const ik_bf16* __restrict__ x, const i
 #pragma unroll
         for (int m = 0; m < M; ++m) {
             const float s = ik_warp_sum(acc[r][m]);
-            if (lane == 0 && n0 + r < N) store_out(out + m * N + n0 + r, s);
+            if (lane == 0 && n0 + r < N && (!TAIL || m < mvalid)) store_out(out + m * N + n0 + r, s);
         }
 }
 
@@ -82,6 +84,28 @@ __global__ void __launch_bounds__(kGemvWarps * IK_WARP)
 gemv_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, OutT* __restrict__ out, int64_t N,
             int64_t K) {
     gemv_body<M, R, U, OutT>(x, w, out, N, K, (int64_t)blockIdx.x);
+}
+
+// Rows launcher (M > 4 activation rows): the M rows are split into groups of kGemvRowsGroup along blockIdx.y, each group one
+// gemv_body<kGemvRowsGroup, R, U> with its own accumulators, so no instantiation spills (gemv_kernel<16, 2, 4>: 256 VGPR + 440 B of
+// scratch per thread, 23 us against 5.5 us for <8>) and the grid is kGemvRowsGroup-fold wider. A (weight row, activation row) result is
+// the same lane-ascending fma chain and warp sum whatever M, R, U or the group are, so the bits do not change with the grouping. The last
+// group of an M that is not a multiple of the group size masks its missing rows (TAIL).
+constexpr int kGemvRowsGroup = 4;
+// Only the small, latency-bound matrices take the grouped launch (the 35B's router 1 MiB, GDN in_a / in_b, shared-expert gate). A big matrix
+// (an lm_head, a dense projection) would be streamed once per group of rows, not once: it keeps the one-launch gemv_kernel<M>.
+constexpr int64_t kGemvRowsGroupMaxBytes = 4 << 20;
+
+template <int R, int U, typename OutT>
+__global__ void __launch_bounds__(kGemvWarps * IK_WARP)
+gemv_rows_grp_kernel(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ w, OutT* __restrict__ out, int64_t N, int64_t K,
+                     int M) {
+    const int m0 = (int)blockIdx.y * kGemvRowsGroup;
+    const int mv = M - m0 < kGemvRowsGroup ? M - m0 : kGemvRowsGroup;
+    const ik_bf16* xg = x + (int64_t)m0 * K;
+    OutT* og = out + (int64_t)m0 * N;
+    if (mv == kGemvRowsGroup) gemv_body<kGemvRowsGroup, R, U, OutT>(xg, w, og, N, K, (int64_t)blockIdx.x);
+    else gemv_body<kGemvRowsGroup, R, U, OutT, true>(xg, w, og, N, K, (int64_t)blockIdx.x, mv);
 }
 
 // Two projections of one activation row in one launch (the GDN a / b gates, the MoE router and shared-expert gate):
@@ -330,7 +354,9 @@ int gemv_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, void* st
 // M = 1..kRowsMax rows in one launch, row m bitwise what the one-row GEMV above computes on row m alone. The kernels already
 // take M as a template argument and every row's lane order (idx ascending per lane, one warp-sum) does not depend on it; the
 // only thing the ordinary launcher refuses past M = 4 is the instantiation. The activations are read from global memory (no
-// shared-memory stage), so there is no K limit either. Tested bitwise for M = 1..16 in tests/rows_exact.rs (G-B).
+// shared-memory stage), so there is no K limit either. Tested bitwise for M = 1..16 in tests/rows_exact.rs (G-B). Vector operands
+// with M > kGemvRowsGroup (4) and a weight matrix of at most kGemvRowsGroupMaxBytes run as groups of 4 rows along blockIdx.y
+// (gemv_rows_grp_kernel); fewer rows, bigger matrices and the scalar path as one gemv_kernel<M>.
 constexpr int kRowsMax = 16;
 
 template <typename OutT>
@@ -342,6 +368,13 @@ int gemv_rows_launch(const ik_tensor* x, const ik_tensor* w, ik_tensor* out, voi
     const ik_bf16* xp = (const ik_bf16*)x->data;
     const ik_bf16* wp = (const ik_bf16*)w->data;
     OutT* op = (OutT*)out->data;
+    if (vec && M > kGemvRowsGroup && N * K * 2 <= kGemvRowsGroupMaxBytes) {
+        constexpr int R = 2, U = 4;
+        const dim3 grid((unsigned)((N + (int64_t)kGemvWarps * R - 1) / ((int64_t)kGemvWarps * R)),
+                        (unsigned)((M + kGemvRowsGroup - 1) / kGemvRowsGroup));
+        gemv_rows_grp_kernel<R, U, OutT><<<grid, kGemvWarps * IK_WARP, 0, s>>>(xp, wp, op, N, K, (int)M);
+        return ik_launch_status();
+    }
     bool launched = false;
     switch (M) {
 #define IK_ROWS_CASE(MV) \
