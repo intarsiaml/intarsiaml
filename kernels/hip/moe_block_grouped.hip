@@ -8,7 +8,7 @@
 //   1. ik_moe_topk_bf16_v2                the chain's top-k (ids, weights)
 //   2. ik_moe_experts_bf16_rows           the chain's routed experts: tokens grouped by expert, each expert's weights read once per chunk of
 //                                         8 pairs, per-pair arithmetic independent of the grouping, fixed k order in the reduction (moe.hip)
-//   3. shared_glu_rows_kernel             shared gate + up + silu for ALL rows in one pass over the weights
+//   3. shared_glu_rows_kernel             shared gate + up + silu for ALL rows (blocks over output rows x groups of 4 tokens)
 //   4. shared_down_combine_rows_kernel    shared down + moe_combine's epilogue for all rows in one pass
 // 21 launches become 7 (the two logit GEMVs stay in the model). Steps 3 and 4 follow moe_block.hip's copies of nvfp4_glu_kernel and
 // shared_down_combine_kernel<1> for every row: a warp owns output row n, lane u = lane, lane + 32, .. of K / 16, one fma chain per 16-element
@@ -22,6 +22,7 @@ namespace {
 constexpr int kWarps = 8;
 constexpr int kPre = 4;       // lane-iterations whose weights are requested before the table barrier (nvfp4.hip kPre)
 constexpr int kRowsMax = 16;  // tokens per launch
+constexpr int kRowsGrp = 4;   // tokens per block of the shared-expert kernels (blockIdx.y selects the group of tokens)
 
 // out[m, n] = bf16(silu(g) * u), g / u = what the gate / up GEMV stores for row m (nvfp4_glu_kernel for every row m < T at once)
 __global__ void __launch_bounds__(kWarps * IK_WARP)
@@ -51,9 +52,10 @@ shared_glu_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
     __syncthreads();
     if (!live) return;  // whole warp exits together
-    float ag[kRowsMax], au[kRowsMax];
+    const int m0 = (int)blockIdx.y * kRowsGrp;  // this block's tokens m0 .. m0 + kRowsGrp - 1 (those below T)
+    float ag[kRowsGrp], au[kRowsGrp];
 #pragma unroll
-    for (int m = 0; m < kRowsMax; ++m) ag[m] = au[m] = 0.f;
+    for (int m = 0; m < kRowsGrp; ++m) ag[m] = au[m] = 0.f;
     auto step = [&](int u, const uint2& gq, uint32_t gb, const uint2& uq, uint32_t ub) {
         const float scg = ik_e4m3_to_f(gb), scu = ik_e4m3_to_f(ub);
         float fg[16], fu[16];
@@ -62,9 +64,9 @@ shared_glu_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
         ik_fp4x8_to_f32(uq.x, lut, fu);
         ik_fp4x8_to_f32(uq.y, lut, fu + 8);
 #pragma unroll
-        for (int m = 0; m < kRowsMax; ++m) {
-            if (m < T) {
-                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + (int64_t)u * 16);
+        for (int m = 0; m < kRowsGrp; ++m) {
+            if (m0 + m < T) {
+                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)(m0 + m) * K + (int64_t)u * 16);
                 float xf[16];
                 ik_unpack8(xp[0], xf);
                 ik_unpack8(xp[1], xf + 8);
@@ -88,11 +90,11 @@ shared_glu_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
         step(u, ik_ldcs(wr[0] + u), sr[0][u], ik_ldcs(wr[1] + u), sr[1][u]);
     const float g0 = gsg[0], u0 = gsu[0];
 #pragma unroll
-    for (int m = 0; m < kRowsMax; ++m) {
-        if (m < T) {
+    for (int m = 0; m < kRowsGrp; ++m) {
+        if (m0 + m < T) {
             const float g = ik_b2f(ik_f2b(ik_warp_sum(ag[m]) * g0));  // what the gate GEMV stores
             const float uu = ik_b2f(ik_f2b(ik_warp_sum(au[m]) * u0));  // what the up GEMV stores
-            if (lane == 0) out[(int64_t)m * N + n] = ik_f2b(ik_silu(g) * uu);
+            if (lane == 0) out[(int64_t)(m0 + m) * N + n] = ik_f2b(ik_silu(g) * uu);
         }
     }
 }
@@ -123,18 +125,19 @@ shared_down_combine_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __
     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
     __syncthreads();
     if (!live) return;  // whole warp exits together
-    float acc[kRowsMax];
+    const int m0 = (int)blockIdx.y * kRowsGrp;  // this block's tokens m0 .. m0 + kRowsGrp - 1 (those below T)
+    float acc[kRowsGrp];
 #pragma unroll
-    for (int m = 0; m < kRowsMax; ++m) acc[m] = 0.f;
+    for (int m = 0; m < kRowsGrp; ++m) acc[m] = 0.f;
     auto step = [&](int u, const uint2& wq, uint32_t sbyte) {
         const float sc = ik_e4m3_to_f(sbyte);
         float wf[16];
         ik_fp4x8_to_f32(wq.x, lut, wf);
         ik_fp4x8_to_f32(wq.y, lut, wf + 8);
 #pragma unroll
-        for (int m = 0; m < kRowsMax; ++m) {
-            if (m < T) {
-                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)m * K + (int64_t)u * 16);
+        for (int m = 0; m < kRowsGrp; ++m) {
+            if (m0 + m < T) {
+                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)(m0 + m) * K + (int64_t)u * 16);
                 float xf[16];
                 ik_unpack8(xp[0], xf);
                 ik_unpack8(xp[1], xf + 8);
@@ -153,15 +156,15 @@ shared_down_combine_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __
     for (int u = lane + IK_WARP * kPre; u < nu; u += IK_WARP) step(u, ik_ldcs(wr + u), sr[u]);
     const float g = gs[0];
 #pragma unroll
-    for (int m = 0; m < kRowsMax; ++m) {
-        if (m < T) {
+    for (int m = 0; m < kRowsGrp; ++m) {
+        if (m0 + m < T) {
             const float s = ik_warp_sum(acc[m]);
             if (lane == 0) {
                 const float so = ik_round_bf16(s * g);  // what the down GEMV stores (the shared-expert output)
-                const float gl = ik_b2f(logit[m]);
+                const float gl = ik_b2f(logit[m0 + m]);
                 const float sg = ik_round_bf16(1.f / (1.f + expf(-gl)));
                 const float sv = ik_round_bf16(sg * so);
-                const int64_t i = (int64_t)m * N + n;
+                const int64_t i = (int64_t)(m0 + m) * N + n;
                 out[i] = ik_f2b(ik_round_bf16(ik_b2f(routed[i]) + sv));
             }
         }
@@ -259,11 +262,12 @@ int ik_moe_block_bf16_grouped(const ik_tensor* in, int top_k, int norm, ik_tenso
     IK_TRY(ik_moe_topk_bf16_v2(logits, top_k, norm, &wt, &idt, stream));
     IK_TRY(ik_moe_experts_bf16_rows(x, &idt, &wt, guw, gus, dnw, dns, gsc, &routed, &exs, stream));
     ik_bf16* sa = (ik_bf16*)(base + L.sa);
-    shared_glu_rows_kernel<<<(unsigned)((IS + kWarps - 1) / kWarps), kWarps * IK_WARP, 0, s>>>(
+    const unsigned tgroups = (unsigned)((T + kRowsGrp - 1) / kRowsGrp);
+    shared_glu_rows_kernel<<<dim3((unsigned)((IS + kWarps - 1) / kWarps), tgroups), kWarps * IK_WARP, 0, s>>>(
         (const ik_bf16*)x->data, (const uint8_t*)sgw->data, (const uint8_t*)sgs->data, (const float*)sgg->data, (const uint8_t*)suw->data,
         (const uint8_t*)sus->data, (const float*)sug->data, sa, (int)T, IS, (int)H);
     IK_TRY(ik_launch_status());
-    shared_down_combine_rows_kernel<<<(unsigned)((H + kWarps - 1) / kWarps), kWarps * IK_WARP, 0, s>>>(
+    shared_down_combine_rows_kernel<<<dim3((unsigned)((H + kWarps - 1) / kWarps), tgroups), kWarps * IK_WARP, 0, s>>>(
         sa, (const uint8_t*)sdw->data, (const uint8_t*)sds->data, (const float*)sdg->data, (const ik_bf16*)routed.data,
         (const ik_bf16*)sl->data, (ik_bf16*)out->data, (int)T, H, (int)IS);
     return ik_launch_status();

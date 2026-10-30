@@ -25,8 +25,10 @@ const NBLOCKS: i32 = 16;
 /// One scratch slot (there are two per rank). Larger messages are split.
 const SLOT_BYTES: usize = 4 << 20;
 /// Largest message (bytes) that takes the LL path when `INTARSIA_HIP_AR_DRAIN=7` (`INTARSIA_HIP_AR_LL_MAX` overrides): the LL lines
-/// double the bytes on the wire, so bigger messages keep the fence path.
-const LL_MAX_DEFAULT: usize = 64 << 10;
+/// double the bytes on the wire, so bigger messages keep the fence path. 128 KiB (lane hgv) keeps the second all-reduce of a layer on the
+/// LL path at 16 decode rows: its f32 partial is 16 x 2048 x 4 bytes (19 us at 8 rows on LL, 43 us on the fence path at 16 rows, 26 us on
+/// LL); the next size up, a 17-row f32 partial, and every prefill all-reduce (a 2048-row chunk is 8 MiB bf16) stay on the fence path.
+const LL_MAX_DEFAULT: usize = 128 << 10;
 /// The wide fence path (lane pf27b): all-reduces above the LL limit (every prefill all-reduce) run on their own scratch, flags and
 /// counters with more blocks and one slot that holds a whole 2048-row x 5120 bf16 partial, so a prefill all-reduce is one launch on
 /// most of the card instead of five 4 MiB launches on 16 blocks. `INTARSIA_HIP_AR_WIDE=BLOCKS[,SLOT_MIB]` overrides, `0` turns it off.
