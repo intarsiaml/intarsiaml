@@ -1,0 +1,7 @@
+fleetq: #7262 running on tatooine-r9700: scripts/r9s/build.sh
+stamp: head=a053f98_code-tree=6bd88aa600d4_dirty=no
+== r9s: head=a053f98 code-tree=6bd88aa600d4 dirty=no 23:36:38
+build r9s exit 0 23:37:54
+    Finished `release` profile [optimized] target(s) in 1m 13s
+-rwxr-xr-x 1 josef josef 50963120 Oct 29 23:37 /home/josef/intarsiaml-tp2-r9s/tp2-intarsia
+fleetq: #7262 done (exit 0)
