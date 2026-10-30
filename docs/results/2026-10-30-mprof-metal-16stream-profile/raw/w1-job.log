@@ -1,0 +1,63 @@
+fleetq: #7271 running on endor: /opt/code/intarsiaml/.worktrees/mprof/docs/results/2026-10-30-mprof-metal-16stream-profile/raw/scripts/w1.sh /opt/code/intarsiaml/.worktrees/mprof/docs/results/2026-10-30-mprof-metal-16stream-profile/raw/w1
+## plain1 00:30:34
+exit 0
+REALTRAFFIC B= 1: 8.00 ms/step, 125.1 tok/s aggregate
+REALTRAFFIC B= 4: 13.92 ms/step, 287.4 tok/s aggregate
+REALTRAFFIC B= 8: 19.68 ms/step, 406.5 tok/s aggregate
+REALTRAFFIC B= 9: 25.74 ms/step, 349.6 tok/s aggregate
+REALTRAFFIC B=12: 30.33 ms/step, 395.6 tok/s aggregate
+REALTRAFFIC B=16: 36.60 ms/step, 437.2 tok/s aggregate
+## plain2 00:31:15
+exit 0
+REALTRAFFIC B= 1: 7.96 ms/step, 125.7 tok/s aggregate
+REALTRAFFIC B= 4: 13.91 ms/step, 287.5 tok/s aggregate
+REALTRAFFIC B= 8: 20.18 ms/step, 396.5 tok/s aggregate
+REALTRAFFIC B= 9: 26.36 ms/step, 341.5 tok/s aggregate
+REALTRAFFIC B=12: 31.17 ms/step, 385.0 tok/s aggregate
+REALTRAFFIC B=16: 35.93 ms/step, 445.4 tok/s aggregate
+## cb 00:31:39
+exit 0
+REALTRAFFIC B= 1: 9.06 ms/step, 110.3 tok/s aggregate
+REALTRAFFIC B= 4: 15.65 ms/step, 255.5 tok/s aggregate
+REALTRAFFIC B= 8: 21.40 ms/step, 373.8 tok/s aggregate
+REALTRAFFIC B= 9: 27.40 ms/step, 328.4 tok/s aggregate
+REALTRAFFIC B=12: 32.79 ms/step, 365.9 tok/s aggregate
+REALTRAFFIC B=16: 40.24 ms/step, 397.6 tok/s aggregate
+## ce1 00:32:06
+exit 0
+REALTRAFFIC B= 1: 15.05 ms/step, 66.4 tok/s aggregate
+REALTRAFFIC B= 4: 15.40 ms/step, 259.8 tok/s aggregate
+REALTRAFFIC B= 8: 21.80 ms/step, 366.9 tok/s aggregate
+REALTRAFFIC B= 9: 29.35 ms/step, 306.7 tok/s aggregate
+REALTRAFFIC B=12: 32.50 ms/step, 369.2 tok/s aggregate
+REALTRAFFIC B=16: 39.39 ms/step, 406.2 tok/s aggregate
+## kernel 00:32:35
+exit 0
+REALTRAFFIC B= 1: 166.19 ms/step, 6.0 tok/s aggregate
+REALTRAFFIC B= 4: 155.27 ms/step, 25.8 tok/s aggregate
+REALTRAFFIC B= 8: 127.30 ms/step, 62.8 tok/s aggregate
+REALTRAFFIC B= 9: 179.89 ms/step, 50.0 tok/s aggregate
+REALTRAFFIC B=12: 179.38 ms/step, 66.9 tok/s aggregate
+REALTRAFFIC B=16: 202.80 ms/step, 78.9 tok/s aggregate
+## plain3 00:33:39
+exit 0
+REALTRAFFIC B= 1: 8.16 ms/step, 122.5 tok/s aggregate
+REALTRAFFIC B= 4: 13.84 ms/step, 289.0 tok/s aggregate
+REALTRAFFIC B= 8: 19.80 ms/step, 404.1 tok/s aggregate
+REALTRAFFIC B= 9: 25.69 ms/step, 350.3 tok/s aggregate
+REALTRAFFIC B=12: 30.29 ms/step, 396.1 tok/s aggregate
+REALTRAFFIC B=16: 35.85 ms/step, 446.3 tok/s aggregate
+total 164688
+drwxr-xr-x@ 11 josef  staff       352 Oct 30 00:33 .
+drwxr-xr-x@  5 josef  staff       160 Oct 30 00:30 ..
+-rw-r--r--@  1 josef  staff    375992 Oct 30 00:32 cb.jsonl
+-rw-r--r--@  1 josef  staff       824 Oct 30 00:32 cb.log
+-rw-r--r--@  1 josef  staff  41811822 Oct 30 00:32 ce1.jsonl
+-rw-r--r--@  1 josef  staff       824 Oct 30 00:32 ce1.log
+-rw-r--r--@  1 josef  staff  41872226 Oct 30 00:33 kernel.jsonl
+-rw-r--r--@  1 josef  staff       824 Oct 30 00:33 kernel.log
+-rw-r--r--@  1 josef  staff       824 Oct 30 00:31 plain1.log
+-rw-r--r--@  1 josef  staff       824 Oct 30 00:31 plain2.log
+-rw-r--r--@  1 josef  staff       824 Oct 30 00:34 plain3.log
+## done 00:34:05
+fleetq: #7271 done (exit 0)

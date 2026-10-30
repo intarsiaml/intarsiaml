@@ -1,0 +1,43 @@
+fleetq: #7275 running on endor: /opt/code/intarsiaml/.worktrees/mprof/docs/results/2026-10-30-mprof-metal-16stream-profile/raw/scripts/w1b.sh /opt/code/intarsiaml/.worktrees/mprof/docs/results/2026-10-30-mprof-metal-16stream-profile/raw/w1b
+## plain1 00:36:19
+exit 0
+REALTRAFFIC B=16: 35.53 ms/step, 450.3 tok/s aggregate
+REALTRAFFIC B=12: 30.22 ms/step, 397.1 tok/s aggregate
+REALTRAFFIC B= 9: 25.84 ms/step, 348.3 tok/s aggregate
+REALTRAFFIC B= 8: 20.32 ms/step, 393.8 tok/s aggregate
+REALTRAFFIC B= 4: 14.14 ms/step, 282.9 tok/s aggregate
+REALTRAFFIC B= 1: 8.07 ms/step, 123.9 tok/s aggregate
+## ce1 00:36:42
+exit 0
+REALTRAFFIC B=16: 37.37 ms/step, 428.1 tok/s aggregate
+REALTRAFFIC B=12: 32.52 ms/step, 369.1 tok/s aggregate
+REALTRAFFIC B= 9: 28.36 ms/step, 317.4 tok/s aggregate
+REALTRAFFIC B= 8: 21.26 ms/step, 376.4 tok/s aggregate
+REALTRAFFIC B= 4: 14.88 ms/step, 268.9 tok/s aggregate
+REALTRAFFIC B= 1: 8.53 ms/step, 117.2 tok/s aggregate
+## kernel1 00:37:08
+exit 0
+REALTRAFFIC B=16: 214.40 ms/step, 74.6 tok/s aggregate
+REALTRAFFIC B=12: 192.65 ms/step, 62.3 tok/s aggregate
+REALTRAFFIC B= 9: 195.00 ms/step, 46.2 tok/s aggregate
+REALTRAFFIC B= 8: 143.12 ms/step, 55.9 tok/s aggregate
+REALTRAFFIC B= 4: 147.78 ms/step, 27.1 tok/s aggregate
+REALTRAFFIC B= 1: 146.07 ms/step, 6.8 tok/s aggregate
+## kernel2 00:38:09
+exit 0
+REALTRAFFIC B=16: 211.39 ms/step, 75.7 tok/s aggregate
+REALTRAFFIC B=12: 200.21 ms/step, 59.9 tok/s aggregate
+REALTRAFFIC B= 9: 185.52 ms/step, 48.5 tok/s aggregate
+REALTRAFFIC B= 8: 152.39 ms/step, 52.5 tok/s aggregate
+REALTRAFFIC B= 4: 171.31 ms/step, 23.3 tok/s aggregate
+REALTRAFFIC B= 1: 146.45 ms/step, 6.8 tok/s aggregate
+## plain2 00:39:12
+exit 0
+REALTRAFFIC B=16: 35.65 ms/step, 448.8 tok/s aggregate
+REALTRAFFIC B=12: 30.38 ms/step, 395.1 tok/s aggregate
+REALTRAFFIC B= 9: 26.35 ms/step, 341.5 tok/s aggregate
+REALTRAFFIC B= 8: 20.14 ms/step, 397.3 tok/s aggregate
+REALTRAFFIC B= 4: 14.43 ms/step, 277.2 tok/s aggregate
+REALTRAFFIC B= 1: 8.29 ms/step, 120.6 tok/s aggregate
+## done 00:39:37
+fleetq: #7275 done (exit 0)

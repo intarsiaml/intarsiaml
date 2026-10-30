@@ -1,0 +1,15 @@
+#!/bin/bash
+# MPROF window 1b: like w1 but B in descending order (GPU clock state warm for the serialized `kernel` mode), kernel mode twice.
+set -u
+[ -n "${FLEETQ_JOB:-}" ] || { echo "not inside a fleetq slot" >&2; exit 2; }
+W=/opt/code/intarsiaml/.worktrees/mprof; O=$1; mkdir -p $O
+BR=$(ls -t $W/.lane/target/release/deps/batch_metal_real-* | grep -v '\.d$' | head -1)
+export MM_BATCHES=16,12,9,8,4,1 MM_STEPS=32 INTARSIA_TEST_REAL_MODEL=1 INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=$HOME/models/Qwen3.6-35B-A3B-NVFP4
+run() { local tag=$1; shift; echo "## $tag $(date +%T)"; env X=1 "$@" $BR --ignored real_35b_batch_step_real_traffic --nocapture --test-threads=1 > $O/$tag.log 2>&1; echo "exit $?"; grep REALTRAFFIC $O/$tag.log; }
+run plain1
+run ce1 INTARSIA_METAL_COMMIT_EVERY=1 INTARSIA_METAL_PROFILE=cb:$O/ce1.jsonl
+run kernel1 INTARSIA_METAL_PROFILE=kernel:$O/kernel1.jsonl
+run kernel2 INTARSIA_METAL_PROFILE=kernel:$O/kernel2.jsonl
+run plain2
+gzip -f $O/*.jsonl
+echo "## done $(date +%T)"
