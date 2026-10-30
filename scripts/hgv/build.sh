@@ -10,4 +10,6 @@ trees=""
 if [[ -n "${BASE:-}" ]]; then base=$(scripts/tp2-hip/sync.sh hgvbase "$BASE"); echo "stamp base: $base"; trees="hgvbase=$base "; fi
 head=$(scripts/tp2-hip/sync.sh hgv HEAD)
 echo "stamp hgv: $head"
+# git archive stamps files with the commit time: a build that was running when the tree was replaced can look newer than the sources; touch them
+ssh -o BatchMode=yes tatooine "find ~/intarsiaml-tp2-hgv ${BASE:+~/intarsiaml-tp2-hgvbase} -type f -not -path '*/.git/*' -exec touch {} +" < /dev/null
 ssh -o BatchMode=yes tatooine "HIPTEST=1 TREES='${trees}hgv=$head' bash -s" < scripts/tp2-hip/build.sh
