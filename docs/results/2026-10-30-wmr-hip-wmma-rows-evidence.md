@@ -39,7 +39,7 @@ A partial table is the hazard the table docs name (`quantmoe.rs:146-152`): a kin
 
 ## 2. `rows_exact` with the flag (item 2)
 
-`cargo test -p intarsia-backend-hip --test rows_exact --test wmma_folds --test frag_layout -- --test-threads=1` on card 1, three arms (`raw/gates/R-{off,bare,opt1}.log`, `R.out`): rows_exact 13 passed / 2 ignored (timing), wmma_folds 5 passed, frag_layout 6 passed, in all three arms. Also `quick_coverage` (knob unset) and `quick_coverage_wmma` (option 1): pass.
+`cargo test -p intarsia-backend-hip --test rows_exact --test wmma_folds --test frag_layout -- --test-threads=1` on card 1, three arms (`raw/gates/R-{off,bare,opt1}.log`, `R.out`): rows_exact 13 passed / 2 ignored (timing), wmma_folds 6 passed, frag_layout 5 passed, in all three arms. Also `quick_coverage` (knob unset) and `quick_coverage_wmma` (option 1): pass.
 
 What this shows: `wmma_fp8_rows_are_bitwise_the_one_row_call` and `wmma_bf16_rows_are_bitwise_the_one_row_call` check that row r of an M-row call equals the family's own M = 1 launch for every M = 1..64 (wider than the 1..16 the registry admits), with nasty neighbours, 35B shapes, W8A8 and W8A16, bf16 and f32 out (`tests/rows_exact.rs:373-432`); the folds are bitwise their unfused chains in `wmma_folds`. What it does not show: that the registry picks these kernels (the tests call kernels by name, which is why all three arms are identical); that is section 1 (plan show) and section 4 (served). The GEMV-twin tests (`fp8_rows_are_bitwise_the_one_row_gemv`, nvfp4, MoE, bf16 logits) also pass, so the kernels the flag leaves alone keep their own invariance.
 
@@ -75,7 +75,7 @@ Decode tok/s:
 | TP=2, 4k | 190.4 / 190.7 / 190.6; **190.6** | 183.4 / 186.4 / 186.5; **185.4** | -2.7 % [-3.7..-2.2] |
 | TP=2, 16k | 176.7 / 181.2 / 183.9; **180.6** | 177.4 / 178.3 / 177.4; **177.7** | -1.6 % [-3.5..+0.4] |
 
-Prefill tok/s (the family only runs at 16 rows or fewer, so only prompt tails can change): TP=1 7196 -> 7432 (+3.3 %), 10178 -> 10363 (+1.8 %), 9397 -> 9335 (-0.7 %) at 1k / 4k / 16k; TP=2 8957 -> 8880 (-0.9 %), 12499 -> 12587 (+0.7 %), 11670 -> 11746 (+0.7 %). All within the round-to-round spread; TTFT likewise (`raw/winC`, `raw/winE`).
+Prefill tok/s (the family only runs at 16 rows or fewer, so only prompt tails can change): TP=1 7196 -> 7432 (+3.3 %), 10178 -> 10363 (+1.8 %), 9397 -> 9335 (-0.7 %) at 1k / 4k / 16k; TP=2 8957 -> 8880 (-0.9 %), 12499 -> 12587 (+0.7 %), 11670 -> 11746 (+0.7 %). All within the round-to-round spread; TTFT likewise (`raw/winC`, `raw/winE`). A 990-token prompt is a single 990-row prefill chunk that the family (16 rows or fewer) cannot touch, and localeval itself marks TTFT under 1024 uncached tokens as per-request overhead, so the +3.3 % at 1k is overhead noise, not a gain.
 
 The decode cost is the M = 1 W8A8 kernel being slower than the scalar GEMV (lane wg measured +0.25 ms per step at B = 1 and chased it without a fix; the fragment-order weight layout `INTARSIA_HIP_FP8_FRAG=1` did not move step time).
 
@@ -161,6 +161,7 @@ Not covered by the wording and worth deciding with it: speculative decode (`--sp
 
 ## 6. Limits, not done, run record
 
+* `intarsia qualify` was not run. The ADR-0007 change-against-base gate was run directly (`accuracy --self-golden --self-vs-ref-noise`, 4.1). `qualify`'s acc-oracle drift stage compares with the pinned `golden/baselines/qwen36-35b-a3b-nvfp4-cpu-oracle.hip(-tp2).selfgolden.safetensors` at the 1e-4 budget; by the 2026-10-22 policy it would fail for the batched family until those dumps are re-recorded for it.
 * Not run: the two `#[ignore]`d long-prompt batched tests; MTP identity; Qwen3-8B / 27B; tracked-baseline/envelope gate for the flag-on build (wg's PASS on the 10-25 tree stands); the 4k vLLM golden (`...-vllm-4k-top20`, Metal baselines only).
 * One tree, one day: the three rounds of each arm span 1-2 windows (rounds 1-2 and 3 of TP=1 were different windows); the off arms of windows A, C and F (157.7 / 157.7 / 157.8 at 1 stream, 370.9 / 371.8 at 16) agree to 0.3 %, so window-to-window drift is small.
 * The TP=1 single-stream rows come from the `--max-batch 1` phase (window C), the "1 stream" rows of 3.1 from a `--max-batch 16` server; they differ by the graph/step overhead of the batched engine and are not interchangeable.
