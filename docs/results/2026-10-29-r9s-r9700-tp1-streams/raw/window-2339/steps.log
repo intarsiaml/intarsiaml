@@ -1,0 +1,16 @@
+23:39:35 guard: [guard] radiance stopped 2026-10-29 23:39:34
+23:39:36 binary: intarsia 0.0.1 tree stamp: stamp: head=a053f98_code-tree=6bd88aa600d4_dirty=no 
+23:39:36 g512-r1: starting server
+23:39:56 g512-r1: server up, localeval (gen 512, streams 4,8,16)
+23:40:42 g512-r1: localeval exit 0 - result file: `results/20261029-233956-adhoc-r9s-g512-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-233956-adhoc-r9s-g512-r1/result.json|
+23:40:43 g512-r2: starting server
+23:40:59 g512-r2: server up, localeval (gen 512, streams 4,8,16)
+23:41:46 g512-r2: localeval exit 0 - result file: `results/20261029-234100-adhoc-r9s-g512-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-234100-adhoc-r9s-g512-r2/result.json|
+23:41:46 g512-r3: starting server
+23:42:03 g512-r3: server up, localeval (gen 512, streams 4,8,16)
+23:42:49 g512-r3: localeval exit 0 - result file: `results/20261029-234203-adhoc-r9s-g512-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-234203-adhoc-r9s-g512-r3/result.json|
+23:42:50 g128-r1: starting server
+23:43:06 g128-r1: server up, localeval (gen 128, streams 4,16)
+23:43:19 g128-r1: localeval exit 0 - result file: `results/20261029-234307-adhoc-r9s-g128-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-234307-adhoc-r9s-g128-r1/result.json|
+23:43:19 done, time left 2172s
+23:43:29 guard: [guard] stopping radiance 2026-10-29 23:39:31|[guard] radiance answers 2026-10-29 23:43:29 (after 15 s), unit active|
