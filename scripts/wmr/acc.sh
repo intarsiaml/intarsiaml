@@ -5,11 +5,12 @@
 # and, as a second run, the default budgets). --mode both: prefill is the M > 16 GEMM path and cannot move, the decode window is what changes.
 #   S (card 0) short golden (10 prompts): off write, on svrn, on default budgets, off control (off vs its own dump: must be 0)
 #   L (card 1) long golden (5 prompts, 16k): off write, on svrn, on default budgets
-# usage: acc.sh [S|L|SL]; logs ~/wmr-logs/acc/<tag>.log, dumps ~/wmr-logs/acc/<tag>.safetensors (kept on tatooine, copied by the Mac side if small)
+# usage: acc.sh [S|L|SL]; logs ~/wmr-logs/acc/<tag>.log, dumps ~/intarsiaml-tp2-wmr/dumps/<short|long>-main.safetensors (kept on tatooine)
 set -uo pipefail
 W=${1:-SL}
 O=$HOME/wmr-logs/acc; mkdir -p "$O"
-TREE=$HOME/intarsiaml-tp2-wmr; DEVSH=$TREE/deploy/tatooine/dev.sh; REL=intarsia-cargo-target-tp2-wmr
+TREE=$HOME/intarsiaml-tp2-wmr; mkdir -p "$TREE/dumps"; # dumps go under /work/dumps in the container (the tree is the only writable mount)
+ DEVSH=$TREE/deploy/tatooine/dev.sh; REL=intarsia-cargo-target-tp2-wmr
 M=/models/Qwen3.6-35B-A3B-NVFP4; G=/models/golden
 OPT1="INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all"
 now() { date '+%F %T'; }
@@ -23,8 +24,8 @@ run() { # card tag env args...
 chain() { # card kind golden decodepos maxseq
   local g=$1 k=$2 gold=$3 dp=$4 ms=$5
   local C="--golden $G/$gold --mode both --decode-positions $dp --max-seq $ms --mem-budget 29"
-  local S="--self-golden $O/$k-main.safetensors --mode both --decode-positions $dp --max-seq $ms --mem-budget 29 --allow-same-code --allow-unstamped"
-  run $g $k-off-write NOKNOB=1 $C --write-self-golden $O/$k-main.safetensors --allow-unstamped --allow-same-code
+  local S="--self-golden /work/dumps/$k-main.safetensors --mode both --decode-positions $dp --max-seq $ms --mem-budget 29 --allow-same-code --allow-unstamped"
+  run $g $k-off-write NOKNOB=1 $C --write-self-golden /work/dumps/$k-main.safetensors --allow-unstamped --allow-same-code
   run $g $k-on-svrn "$OPT1" $S --self-vs-ref-noise
   run $g $k-on-default "$OPT1" $S
   [[ $k == short ]] && run $g $k-off-control NOKNOB=1 $S --self-vs-ref-noise
