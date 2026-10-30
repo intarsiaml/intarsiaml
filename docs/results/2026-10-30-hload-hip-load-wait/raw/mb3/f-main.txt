@@ -1,0 +1,36 @@
+TIME v2:8192:2048           actq=1    32.38 us    518 GB/s
+DUMP /work/hload-out/f-main/v2-8192-2048-a1.bin
+TIME v2:4096:2048           actq=1    17.45 us    481 GB/s
+DUMP /work/hload-out/f-main/v2-4096-2048-a1.bin
+TIME v2:2048:4096           actq=1    16.40 us    512 GB/s
+DUMP /work/hload-out/f-main/v2-2048-4096-a1.bin
+TIME v2:2048:2048           actq=1    10.78 us    389 GB/s
+DUMP /work/hload-out/f-main/v2-2048-2048-a1.bin
+TIME v2:512:2048            actq=1     5.17 us    203 GB/s
+DUMP /work/hload-out/f-main/v2-512-2048-a1.bin
+TIME v2:256:2048            actq=1     4.58 us    114 GB/s
+DUMP /work/hload-out/f-main/v2-256-2048-a1.bin
+TIME rows2:8192:2048        actq=1    31.84 us    527 GB/s
+DUMP /work/hload-out/f-main/rows2-8192-2048-a1.bin
+TIME rows2:4096:2048        actq=1    19.57 us    429 GB/s
+DUMP /work/hload-out/f-main/rows2-4096-2048-a1.bin
+TIME rows2:2048:4096        actq=1    17.63 us    476 GB/s
+DUMP /work/hload-out/f-main/rows2-2048-4096-a1.bin
+TIME rows2:2048:2048        actq=1    11.83 us    354 GB/s
+DUMP /work/hload-out/f-main/rows2-2048-2048-a1.bin
+TIME rows2:512:2048         actq=1     5.61 us    187 GB/s
+DUMP /work/hload-out/f-main/rows2-512-2048-a1.bin
+TIME rows2:256:2048         actq=1     5.44 us     96 GB/s
+DUMP /work/hload-out/f-main/rows2-256-2048-a1.bin
+TIME rows3:2048:4096        actq=1    19.10 us    439 GB/s
+DUMP /work/hload-out/f-main/rows3-2048-4096-a1.bin
+TIME rows4:2048:4096        actq=1    19.80 us    424 GB/s
+DUMP /work/hload-out/f-main/rows4-2048-4096-a1.bin
+TIME pair:8192:2048:4096    actq=1    41.61 us    605 GB/s
+DUMP /work/hload-out/f-main/pair-8192-2048-4096-a1.bin
+TIME gated:2048:4096        actq=1    18.99 us    442 GB/s
+DUMP /work/hload-out/f-main/gated-2048-4096-a1.bin
+TIME sig:2048:4096          actq=1    17.57 us    478 GB/s
+DUMP /work/hload-out/f-main/sig-2048-4096-a1.bin
+TIME npair:512:2048:512     actq=1     8.16 us    257 GB/s
+DUMP /work/hload-out/f-main/npair-512-2048-512-a1.bin

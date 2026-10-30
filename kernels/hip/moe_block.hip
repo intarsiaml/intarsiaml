@@ -45,6 +45,9 @@ constexpr int kGluPre = 4;              // nvfp4.hip kPre (nvfp4_glu_kernel's wi
 // first (all of them at IS <= 512) before its wait and loads the rest as used: the same iterations in the same order, fewer
 // registers held across the wait (occupancy)
 constexpr int kSdcWin = 1;
+#ifndef IK_MB_HRING
+#define IK_MB_HRING 4  // the down role's ring of expert h chunks in flight (lane hload)
+#endif
 constexpr int kSyncSlots = 16;
 constexpr int kSyncStride = 16;         // unsigned ints: one 64-byte line per slot
 __device__ unsigned int g_moe_block_sync[kSyncSlots * kSyncStride];
@@ -161,6 +164,10 @@ __global__ void __launch_bounds__(kRowWarps * IK_WARP) __attribute__((amdgpu_wav
     if ((a.skew >> 21) & 1)
         for (int i = 0; i < (int)(blockIdx.x % 7) * (a.skew & 0xffff); ++i) __builtin_amdgcn_s_sleep(8);
     if (threadIdx.x == 0) ticket = (int)__hip_atomic_fetch_add(sync + 2, 1u, __ATOMIC_RELAXED, __HIP_MEMORY_SCOPE_AGENT);
+    // lane hload: the fp4 table is written before this barrier, which every role passes anyway. It used to be written after
+    // each role's weight window was requested, behind a second __syncthreads, whose workgroup release fence waits for every
+    // load in flight (s_wait_loadcnt 0x0): the producers' compute could not start before their whole window had arrived.
+    if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
     __syncthreads();
     const int bid = ticket;  // the role
     if (bid < NS + NG) {
@@ -200,17 +207,16 @@ __global__ void __launch_bounds__(kRowWarps * IK_WARP) __attribute__((amdgpu_wav
             for (int j = 0; j < kGluPre; ++j) {
                 const int u = lane + IK_WARP * j;
                 const bool ok = u < nu;
+                const int uc = ok ? u : 0;  // branch-free (lane hload): a lane past nu reads chunk 0 and never uses it
 #pragma unroll
                 for (int r = 0; r < 2; ++r) {
-                    wv[r][j] = ok ? ik_ldcs(wr[r] + u) : make_uint2(0, 0);
-                    sb[r][j] = ok ? sr[r][u] : 0u;
+                    wv[r][j] = ik_ldcs(wr[r] + uc);
+                    sb[r][j] = sr[r][uc];
                 }
-                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)(ok ? u : 0) * 16);
+                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)uc * 16);
                 xv[j][0] = xp[0];
                 xv[j][1] = xp[1];
             }
-            if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
-            __syncthreads();
             if (live) {
                 float acc[2] = {0.f, 0.f};
                 auto step = [&](int r, const uint2& wq, uint32_t sbyte, const uint4 (&xq)[2]) {
@@ -275,17 +281,15 @@ __global__ void __launch_bounds__(kRowWarps * IK_WARP) __attribute__((amdgpu_wav
 #pragma unroll
         for (int j = 0; j < PRE; ++j) {
             const int u = lane + IK_WARP * j;
-            const bool in = u < nu;
-            wgv[j] = in ? ik_ldcs(wg + u) : make_uint2(0, 0);
-            wuv[j] = in ? ik_ldcs(wu + u) : make_uint2(0, 0);
-            sgb[j] = in ? sg[u] : 0u;
-            sub[j] = in ? su[u] : 0u;
-            const uint4* xp = reinterpret_cast<const uint4*>(xr + (in ? u : 0) * 16);
+            const int uc = u < nu ? u : 0;  // branch-free (lane hload): a lane past nu reads chunk 0 and never uses it
+            wgv[j] = ik_ldcs(wg + uc);
+            wuv[j] = ik_ldcs(wu + uc);
+            sgb[j] = sg[uc];
+            sub[j] = su[uc];
+            const uint4* xp = reinterpret_cast<const uint4*>(xr + uc * 16);
             xv[j][0] = xp[0];
             xv[j][1] = xp[1];
         }
-        if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
-        __syncthreads();
         if (live) {
             float ag = 0.f, au = 0.f;
             auto step = [&](const uint2& g2, const uint2& u2, uint32_t gsb, uint32_t usb, const uint4& x0, const uint4& x1) {
@@ -376,7 +380,6 @@ __global__ void __launch_bounds__(kRowWarps * IK_WARP) __attribute__((amdgpu_wav
         ssb[j] = okj ? ssr[u] : 0u;
     }
     const float gl = ik_b2f(a.sl[t]);
-    if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
     // test seam (bit 17, INTARSIA_HIP_MOE_BLOCK_PREREAD=1; default off): every wave reads the h AND sa lines it will use
     // before the wait, so they sit in this block's caches when the producers store them; only the acquire below makes the
     // later reads see the stores (tests/moe_block.rs sentinel stress)
@@ -419,13 +422,28 @@ __global__ void __launch_bounds__(kRowWarps * IK_WARP) __attribute__((amdgpu_wav
             for (int i = 0; i < 16; ++i) pp = fmaf(fw[i], hf[i], pp);
             acc[k] = fmaf(pp, ik_e4m3_to_f(sbyte), acc[k]);
         };
+        // lane hload: the experts' h chunks of this lane are requested kHRing at a time, a ring refilled as each expert is
+        // done, and the shared activation chunk of the first shared iteration with the first ones, right after the acquire.
+        // They were loaded one expert at a time, each waited before its fmas: K + 1 serial L2 round trips on the step's
+        // critical path. Every address is valid: an expert slot without an expert reads row 0 and is never used, a lane past
+        // snu reads chunk 0. The fmas run in the old order (expert k ascending, one chain each).
+        constexpr int kHRing = IK_MB_HRING;
+        uint4 hv[kHRing][2];
+        uint4 sxv[2];
+        if (lane < nu) {
+#pragma unroll
+            for (int k = 0; k < kHRing; ++k) hload(k < K ? k : 0, lane, hv[k][0], hv[k][1]);
+        }
+        {
+            const uint4* sp = reinterpret_cast<const uint4*>(sx + (int64_t)(lane < snu ? lane : 0) * 16);
+            sxv[0] = sp[0];
+            sxv[1] = sp[1];
+        }
         if (lane < nu) {
 #pragma unroll
             for (int k = 0; k < kMaxK; ++k) {
-                if (!wd[k]) continue;
-                uint4 h0, h1;
-                hload(k < K ? k : 0, lane, h0, h1);
-                step(k, wv[k], sb[k], h0, h1);
+                if (wd[k]) step(k, wv[k], sb[k], hv[k % kHRing][0], hv[k % kHRing][1]);
+                if (k + kHRing < kMaxK) hload(k + kHRing < K ? k + kHRing : 0, lane, hv[k % kHRing][0], hv[k % kHRing][1]);
             }
         }
         for (int u = lane + IK_WARP; u < nu; u += IK_WARP) {
@@ -471,8 +489,12 @@ __global__ void __launch_bounds__(kRowWarps * IK_WARP) __attribute__((amdgpu_wav
         for (int j = 0; j < kSdcWin; ++j) {
             const int u = lane + IK_WARP * j;
             if (u >= snu) continue;
-            const uint4* xp = reinterpret_cast<const uint4*>(sx + (int64_t)u * 16);
-            sstep(swv[j], ssb[j], xp[0], xp[1]);
+            if (j == 0) {
+                sstep(swv[0], ssb[0], sxv[0], sxv[1]);  // requested with the h chunks above
+            } else {
+                const uint4* xp = reinterpret_cast<const uint4*>(sx + (int64_t)u * 16);
+                sstep(swv[j], ssb[j], xp[0], xp[1]);
+            }
         }
         for (int u = lane + IK_WARP * kSdcWin; u < snu; u += IK_WARP) {  // IS > 2048: the remaining iterations
             const uint4* xp = reinterpret_cast<const uint4*>(sx + (int64_t)u * 16);

@@ -537,14 +537,15 @@ moe_down_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dnw, 
 // bit: the same lane / iteration order (u = lane, lane + 32, ..), one fma chain per 16-element block from 0, the block scale applied per block,
 // ik_warp_sum, the global scale after the sum, the same bf16 roundings; only the mapping of rows to warps and the loads change (tests/rows_exact.rs
 // moe G-B, tests/moe_pairs.rs). Used by the row-exact entry only (ik_moe_experts_bf16_rows); INTARSIA_HIP_MOE_G2 = "gu:dn" (rows per warp of
-// gate_up in {1, 2} and of down in {1, 2, 4}; default 2:2; 0 = the old kernels), read at every launch, part of the backend fingerprint.
+// gate_up in {1, 2} and of down in {1, 2, 4}; default 2 and auto (4 where the one-iteration down twin below applies, else 2);
+// 0 = the old kernels), read at every launch, part of the backend fingerprint.
 constexpr int kG2Pre = 4;
 
 struct G2Cfg {
     int gu, dn;
 };
 G2Cfg moe_g2_cfg() {
-    G2Cfg c{2, 2};
+    G2Cfg c{2, -1};  // down -1 = auto: 4 rows per warp where moe_down_g2f_kernel applies, else 2 (g2_down_launch)
     const char* e = getenv("INTARSIA_HIP_MOE_G2");
     if (!e || !e[0]) return c;
     if (e[0] == '0' && e[1] == 0) return G2Cfg{0, 0};
@@ -783,6 +784,147 @@ moe_down_g2_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dn
             }
         }
     }
+}
+
+// ---- G2 down, one lane iteration (lane hload): the h loads issued with the weights ---------------------------------------
+// moe_down_g2_kernel loads every pair's h chunk inside the q loop, right before its use, under `if (q < pc)`: a warp waits one
+// L2 round trip per pair, one after the other, after its weight window arrived (`s_wait_loadcnt` 1 / 0 per pair in the ISA,
+// docs/results/2026-10-30-hload-hip-load-wait.md). At I / 16 <= IK_WARP (the 35B's I = 512 and its TP=2 shard 256: one lane
+// iteration, no window) this twin requests the h chunks of up to kG2Grp pairs together with the weights, so a warp waits once.
+// Every load is unconditional from a valid address (pairs past pc read the chunk's first pair, lanes past nu read chunk 0); only
+// the arithmetic sits under the pc / nu conditions. Every (pair, row) result is moe_down_g2_kernel's, bit for bit: the same
+// fmaf chain (i 0..15 from 0, the block scale, ik_warp_sum, the global scale, the bf16 rounding); only the loads move. It also
+// needs fewer VGPRs (RW = 4: 135 against 207), so RW = 4 is the default where it applies (INTARSIA_HIP_MOE_G2 down `auto`).
+constexpr int kG2Grp = 4;  // down: pairs whose h chunks are loaded with the weights
+
+template <int RW>
+__global__ void __launch_bounds__(kRowWarps * IK_WARP)
+moe_down_g2f_kernel(const ik_bf16* __restrict__ h, const uint8_t* __restrict__ dnw, const uint8_t* __restrict__ dns,
+                    const float* __restrict__ gscales, const int* __restrict__ pairs, const int* __restrict__ offsets,
+                    const int* __restrict__ active, ik_bf16* __restrict__ y, int E, int H, int I) {
+    IK_FP4_LUT(lut);
+    const int slot = blockIdx.x;
+    if (slot >= active[E]) return;
+    const int e = active[slot];
+    const int begin = offsets[e], cnt = offsets[e + 1] - begin;
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int r0 = (blockIdx.y * kRowWarps + warp) * RW;
+    if (r0 >= H) return;
+    const int nu = I / 16;          // <= IK_WARP: one lane iteration
+    const bool live = lane < nu;    // lanes past nu add nothing (the kernel above skips them)
+    const int u = live ? lane : 0;  // ... and read chunk 0
+    const uint2* wd[RW];
+    const uint8_t* sd[RW];
+#pragma unroll
+    for (int rr = 0; rr < RW; ++rr) {
+        const int r = min(r0 + rr, H - 1);
+        wd[rr] = reinterpret_cast<const uint2*>(dnw + ((int64_t)e * H + r) * (I / 2));
+        sd[rr] = dns + ((int64_t)e * H + r) * (I / 16);
+    }
+    const float gd = gscales[e * 3 + 2];
+    for (int c0 = 0; c0 < cnt; c0 += kPairChunk) {
+        const int pc = min(kPairChunk, cnt - c0);
+        int pi[kPairChunk];
+#pragma unroll
+        for (int q = 0; q < kPairChunk; ++q) pi[q] = pairs[begin + c0 + (q < pc ? q : 0)];
+        uint2 wv[RW];
+        uint32_t sb[RW];
+#pragma unroll
+        for (int rr = 0; rr < RW; ++rr) {
+            wv[rr] = ik_ldcs(wd[rr] + u);
+            sb[rr] = sd[rr][u];
+        }
+        auto hload = [&](int q, uint4 (&d)[2]) {
+            const uint4* hp = reinterpret_cast<const uint4*>(h + (int64_t)pi[q] * I + (int64_t)u * 16);
+            d[0] = hp[0];
+            d[1] = hp[1];
+        };
+        uint4 hv[kG2Grp][2];
+#pragma unroll
+        for (int q = 0; q < kG2Grp; ++q) hload(q, hv[q]);
+        float acc[RW][kPairChunk];
+#pragma unroll
+        for (int rr = 0; rr < RW; ++rr)
+#pragma unroll
+            for (int q = 0; q < kPairChunk; ++q) acc[rr][q] = 0.f;
+        float fw[RW][16], sv[RW];
+#pragma unroll
+        for (int rr = 0; rr < RW; ++rr) {
+            sv[rr] = ik_e4m3_to_f(sb[rr]);
+            ik_fp4x8_to_f32(wv[rr].x, lut, fw[rr]);
+            ik_fp4x8_to_f32(wv[rr].y, lut, fw[rr] + 8);
+        }
+        auto pair = [&](int q, const uint4 (&hq)[2]) {
+            float hf[16];
+            ik_unpack8(hq[0], hf);
+            ik_unpack8(hq[1], hf + 8);
+#pragma unroll
+            for (int rr = 0; rr < RW; ++rr) {
+                float p = 0.f;
+#pragma unroll
+                for (int i = 0; i < 16; ++i) p = fmaf(fw[rr][i], hf[i], p);
+                acc[rr][q] = fmaf(p, sv[rr], acc[rr][q]);
+            }
+        };
+        if (live) {
+#pragma unroll
+            for (int q = 0; q < kG2Grp; ++q)
+                if (q < pc) pair(q, hv[q]);
+        }
+        if (pc > kG2Grp) {  // rare: the rest loaded as used
+#pragma unroll
+            for (int q = kG2Grp; q < kPairChunk; ++q) {
+                if (q < pc) {
+                    uint4 hq[2];
+                    hload(q, hq);
+                    if (live) pair(q, hq);
+                }
+            }
+        }
+#pragma unroll
+        for (int q = 0; q < kPairChunk; ++q) {
+            if (q < pc) {
+#pragma unroll
+                for (int rr = 0; rr < RW; ++rr) {
+                    const float v = ik_warp_sum(acc[rr][q]) * gd;
+                    if (lane == 0 && r0 + rr < H) y[(int64_t)pi[q] * H + r0 + rr] = ik_f2b(v);
+                }
+            }
+        }
+    }
+}
+
+// The G2 launches (the row-exact entry and the bench harness scripts/hload/bench_moe.hip); down takes moe_down_g2f_kernel where
+// its shape condition holds.
+#define IK_G2_HAVE_LAUNCH 1
+void g2_gate_up_launch(int rw, unsigned slots, const ik_bf16* x, const uint8_t* guw, const uint8_t* gus, const float* gsc,
+                       const int* pairs, const int* offsets, const int* active, ik_bf16* h, int E, int H, int I, int K,
+                       hipStream_t s) {
+#define IK_G2_GU(RW)                                                                                                             \
+    moe_gate_up_g2_kernel<RW><<<dim3(slots, (unsigned)((I + kRowWarps * RW - 1) / (kRowWarps * RW))), kRowWarps * IK_WARP, 0, s>>>( \
+        x, guw, gus, gsc, pairs, offsets, active, h, E, H, I, K)
+    if (rw == 1) IK_G2_GU(1);
+    else IK_G2_GU(2);
+#undef IK_G2_GU
+}
+void g2_down_launch(int rw, unsigned slots, const ik_bf16* h, const uint8_t* dnw, const uint8_t* dns, const float* gsc,
+                    const int* pairs, const int* offsets, const int* active, ik_bf16* y, int E, int H, int I, hipStream_t s) {
+    const bool fast = I / 16 <= IK_WARP && I % 16 == 0;
+    if (rw < 0) rw = fast ? 4 : 2;  // `auto` (the default): see moe_down_g2f_kernel
+#define IK_G2_DN(KN, RW)                                                                                                         \
+    KN<RW><<<dim3(slots, (unsigned)((H + kRowWarps * RW - 1) / (kRowWarps * RW))), kRowWarps * IK_WARP, 0, s>>>(h, dnw, dns, gsc,  \
+                                                                                                             pairs, offsets, \
+                                                                                                             active, y, E, H, I)
+    if (fast) {
+        if (rw == 1) IK_G2_DN(moe_down_g2f_kernel, 1);
+        else if (rw == 2) IK_G2_DN(moe_down_g2f_kernel, 2);
+        else IK_G2_DN(moe_down_g2f_kernel, 4);
+    } else {
+        if (rw == 1) IK_G2_DN(moe_down_g2_kernel, 1);
+        else if (rw == 2) IK_G2_DN(moe_down_g2_kernel, 2);
+        else IK_G2_DN(moe_down_g2_kernel, 4);
+    }
+#undef IK_G2_DN
 }
 
 template <typename OutT>
@@ -1613,13 +1755,8 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
     } else {
         const G2Cfg g2 = allow_wmma ? G2Cfg{0, 0} : moe_g2_cfg();  // the row-exact entry only
         if (g2.gu) {
-#define IK_G2_GU(RW)                                                                                                          \
-    moe_gate_up_g2_kernel<RW><<<dim3(slots, (unsigned)((I + kRowWarps * RW - 1) / (kRowWarps * RW))), kRowWarps * IK_WARP, 0, s>>>( \
-        (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,                            \
-        (const float*)gscales->data, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K)
-            if (g2.gu == 1) IK_G2_GU(1);
-            else IK_G2_GU(2);
-#undef IK_G2_GU
+            g2_gate_up_launch(g2.gu, slots, (const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data, (const uint8_t*)gate_up_s->data,
+                              (const float*)gscales->data, pairs, offsets, active, hbuf, (int)E, (int)H, (int)I, (int)K, s);
         } else {
             moe_gate_up_kernel<<<dim3(slots, (unsigned)((I + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
                                  (size_t)PC * H * 2, s>>>((const ik_bf16*)x->data, (const uint8_t*)gate_up_w->data,
@@ -1628,14 +1765,8 @@ int moe_experts_impl(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* 
         }
         IK_TRY(ik_launch_status());
         if (g2.dn) {
-#define IK_G2_DN(RW)                                                                                                          \
-    moe_down_g2_kernel<RW><<<dim3(slots, (unsigned)((H + kRowWarps * RW - 1) / (kRowWarps * RW))), kRowWarps * IK_WARP, 0, s>>>( \
-        hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data, (const float*)gscales->data, pairs, offsets, active,   \
-        ybuf, (int)E, (int)H, (int)I)
-            if (g2.dn == 1) IK_G2_DN(1);
-            else if (g2.dn == 2) IK_G2_DN(2);
-            else IK_G2_DN(4);
-#undef IK_G2_DN
+            g2_down_launch(g2.dn, slots, hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data, (const float*)gscales->data,
+                           pairs, offsets, active, ybuf, (int)E, (int)H, (int)I, s);
         } else {
             moe_down_kernel<<<dim3(slots, (unsigned)((H + kRowWarps - 1) / kRowWarps)), kRowWarps * IK_WARP,
                               (size_t)PC * I * 2, s>>>(hbuf, (const uint8_t*)down_w->data, (const uint8_t*)down_s->data,
