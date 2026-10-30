@@ -48,7 +48,8 @@ dev image, tatooine. Model `/data/models/intarsia/Qwen3.6-35B-A3B-NVFP4` (40 lay
   the fused per-token block and are not recorded (1 row = 8 distinct by definition).
 * **Windows** (all `fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu`, restore trap and guard from
   r9s / r9t): #7274 TP=1 prof + route + plain (radiance down 00:35:17-00:40:26, 5 min), #7277 TP=2 prof + plain (00:41:13-00:44:13, 3 min),
-  #7279 TP=1 row-count sweep (00:46:53-00:48:40), #7281 TP=2 `INTARSIA_HIP_AR_LL_MAX` test (00:49:43-00:50:38). Build #7272 (`--load cpu`).
+  #7279 TP=1 row-count sweep (00:46:53-00:48:40), #7281 TP=2 `INTARSIA_HIP_AR_LL_MAX` test (00:49:43-00:50:38), #7282 TP=2 graphs-off
+  check (00:57:14-00:58:09). Build #7272 (`--load cpu`).
   #7273 was started by mistake (script not executable), never ran anything and was released at once; radiance was not touched.
   Radiance answered `/v1/models` again within 15 s of each restore and is up on both ranks now.
 
@@ -169,7 +170,7 @@ GatedDeltaNet state 656, lm_head at M=1 624). TFLOPS are effective FLOPs of the 
 | lm_head NVFP4, 4 launches of M=4 (4) | 632.2 | 2.53 | 286.1 MB | 452 | 71 % | 6.4 | below roof, 4 passes |
 | fp8 GEMV N=2048 K=4096, M=5, M=6, three passes (80 + 40) | 28.5 / 32.5 | 2.28 + 1.30 | 8.4 MB | 294 / 258 | 46 / 40 % | 2.9-3.1 | neither |
 | fp8 GEMV N=4096 K=2048, M=8, two passes (60) | 36.3 | 2.18 | 8.4 MB | 231 | 36 % | 3.7 | neither |
-| bf16 GEMV GDN b/a, `gemv_kernel<16>`, 2 blocks (60) | 23.0 | 1.38 | 0.26 MB | 11 | 2 % | 0.2 | latency (scratch spill, 2 blocks) |
+| bf16 GEMV GDN b/a, `gemv_kernel<16>`, 2 blocks (60) | 23.0 | 1.38 | 0.13 MB | 6 | 1 % | 0.1 | latency (scratch spill, 2 blocks) |
 | attention split-KV (10) | 126.1 | 1.26 | 39.3 MB | 312 | 49 % | 2.5 | below bandwidth |
 | shared expert gate+up, `shared_glu_rows_kernel` (40) | 28.9 | 1.16 | 1.18 MB | 41 | 6 % | 2.3 | latency (64 blocks) |
 | bf16 GEMV router N=256, 16 blocks (40) | 24.2 | 0.97 | 1.05 MB | 43 | 7 % | 0.7 | latency (scratch spill) |
@@ -242,7 +243,7 @@ Ceiling = ms per step saved at 16 rows if the kernel ran at the roof on its real
 | # | bottleneck | now | ceiling | file:line | evidence |
 |---|---|---:|---:|---|---|
 | 1 | Dense fp8 projections: 2.9 GB streamed per step instead of 1.28 GB, at 40 % of the roof | 11.18 ms | **-9.2 ms** (single pass at roof: 2.0 ms); -6.2 ms if only the pass count is fixed at today's per-pass rate | `kernels/hip/fp8.hip:409` (`kRowsGroup = 12`), `:597-625` (launcher, groups), `:232-271` (accumulation, VGPR 248), `:196-225` (activation staging); call sites `gdn_batch.rs:59`, `batch.rs:842` | section 5; per-pass 63.5 us at M=8 vs 31.7 us at M=1; step doubles 8 -> 16 with unchanged per-pass cost |
-| 2 | Latency-bound small ops: bf16 GEMVs (3.30 ms) and shared expert (2.05 ms) move 75 MB per step | 5.35 ms | **-5.0 ms** (about 0.3 ms left) | `kernels/hip/matmul.hip:82` (`gemv_kernel`, `:330-339` rows launcher), `moe_block_grouped.hip:27`, `:102`; `quantmoe.rs:372` | 2-16 blocks of 256 threads; M=16 instantiation 440 B/thread scratch; per-call 22-29 us for 0.004-1.2 MB; unchanged at TP=2 |
+| 2 | Latency-bound small ops: bf16 GEMVs (3.30 ms) and shared expert (2.05 ms) move about 120 MB per step (b/a 8, router 42, shared expert 71) | 5.35 ms | **-5.0 ms** (about 0.3 ms left) | `kernels/hip/matmul.hip:82` (`gemv_kernel`, `:330-339` rows launcher), `moe_block_grouped.hip:27`, `:102`; `quantmoe.rs:372` | 2-16 blocks of 256 threads; M=16 instantiation 440 B/thread scratch; per-call 22-29 us for 0.004-1.2 MB; unchanged at TP=2 |
 | 3 | MoE routed experts below the bandwidth roof (74 % gate_up, 56 % down) on 70 distinct experts | 11.57 ms | **-3.8 ms** (-3.3 ms at 600 GB/s) | `kernels/hip/moe.hip:561` (gate_up g2), `:685` (down g2), `:1617`, `:1632` (launch) | 123.9 MB per layer; the floor is 7.7 ms, not the 11.3-12.1 ms of l7 |
 | 4 | lm_head in four M=4 passes (the M=8 instantiation spills: 3.2 ms for 8 rows) | 2.53 ms | **-2.1 ms** (one pass: 0.45 ms) | `kernels/hip/nvfp4.hip:369-394` (`kRowsGroup = 4`, groups) | 4 x 632 us; single row reaches 98 % of the roof |
 | 5 | 1001 launches per step, about 3.2 us idle at every dependent boundary | 3.18 ms | about **-1.5 ms** (halve the launches) | the per-layer launch chains, e.g. `fp8_gemv_kernel` 300 launches, MoE glue 120, norms 101 | idle inside the graph: 0.85 / 2.73 / 3.18 ms at 268 / 869 / 1001 launches; unprofiled bound: step 38.8 - kernel busy 36.7 = 2.1 ms |
@@ -261,7 +262,13 @@ path at 26.5 us: all-reduce 2.17 -> 1.57 ms and the profiled step 29.70 -> 29.01
 * **Launches per step** (decode, graph replay): TP=1 268 (1 row) / 869 (8) / 1001 (16); TP=2 389 / 926 / 1075 per rank.
 * **Batched decode is captured in a HIP graph**, one per row count, replayed with `hipGraphLaunch`
   (`crates/intarsia-core/src/model/graph_step.rs:296-381`, `INTARSIA_BATCH_GRAPHS` default on). The trace shows the replayed kernels; the
-  step wall equals the sum of kernel times plus the in-graph gaps of section 3.
+  step wall equals the sum of kernel times plus the in-graph gaps of section 3. **TP=2 replays graphs too:** rank 0 decides and replays,
+  the peers follow (`model/batch.rs:484-558`, `:637`); the default TP=2 host-profile carries the graph path's `upload` span (0.010 ms), the
+  `INTARSIA_BATCH_GRAPHS=0` run does not (`step-setup` instead), and no fallback message appears in the serve log. The TP=2 host-profile
+  `launch` span (27.6 ms at 16 rows) wraps the join with the peer rank, so at TP=2 it is not a host cost. A TP=2 server with graphs off
+  (window #7282, profiled, `raw/window-tp2-0057/`) is only 1.6-1.7 % slower, 16.87 / 30.17 ms against 16.59 / 29.70 ms at 8 / 16 rows, with the
+  same kernel count and the same in-step idle (2.99 / 3.51 ms against 2.90 / 3.35): the step is GPU-bound either way and the graph buys
+  about 0.3-0.5 ms per step there. The in-step idle of the TP=2 table is therefore the dependent-kernel gap, not host launch time.
 * **Host cost per decode step** (host-profile, 16 rows, TP=1): upload 0.009 ms, graph launch 0.024 ms, detok + send 0.024 ms, everything
   else under 0.003 ms; the rest of the 38.7 ms is the wait for the GPU (sync 38.65 ms). `gpu-idle-gap` 0.028 ms per step at TP=1, 0.026 ms
   at TP=2 (the trace measures 10 us from one step's last kernel to the next step's first). Scheduler, sampling and SSE are not a factor.
@@ -296,9 +303,9 @@ path at 26.5 us: all-reduce 2.17 -> 1.57 ms and the profiled step 29.70 -> 29.01
 `scripts/hprof/build.sh` (fleet job, `--load cpu`), then `ARM=tp1 STEPS="prof route plain" scripts/hprof/window.sh` and
 `ARM=tp2 STEPS="prof plain" scripts/hprof/window.sh` under `fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu`;
 the sweep was `ARM=tp1 STEPS=prof TAGSUF=-sweep PHASES="same2,same4,same6,same10,same12,same13,same14"`, the all-reduce test
-`ARM=tp2 STEPS=prof TAGSUF=-llmax XENV="-e INTARSIA_HIP_AR_LL_MAX=262144" PHASES="same8,same16"`. Analysis:
+`ARM=tp2 STEPS=prof TAGSUF=-llmax XENV="-e INTARSIA_HIP_AR_LL_MAX=262144" PHASES="same8,same16"` (graphs-off check: `XENV="-e INTARSIA_BATCH_GRAPHS=0"`). Analysis:
 `python3 scripts/hprof/analyze.py {explore,steps,dump,report} <k_kernel_trace.csv.gz> ...`.
 
 Raw data in `docs/results/2026-10-30-hprof-r9700-16stream-profile/raw/`: `window-tp1-0035/` (prof, route, plain: kernel traces `prof-tp1-prof/`,
 `serve-*.log` with host-profile and route-stats, `drive-*.jsonl`, `localeval-tp1-plain.log`), `window-tp2-0041/`, `window-tp1-0046/` (sweep),
-`window-tp2-0049/` (LL_MAX), `analysis/` (reports as JSON, step tables, VGPR / LDS / scratch of every kernel), `build.log`, `fleetq-run-*.log`.
+`window-tp2-0049/` (LL_MAX), `window-tp2-0057/` (graphs off), `analysis/` (reports as JSON, step tables, VGPR / LDS / scratch of every kernel), `build.log`, `fleetq-run-*.log`.

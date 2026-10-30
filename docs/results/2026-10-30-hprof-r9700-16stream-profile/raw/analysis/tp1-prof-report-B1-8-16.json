@@ -571,10 +571,10 @@
     "us_call": 5.4569158131177,
     "ms_step": 0.32741494878706195,
     "label": "GDN b/a bf16 GEMV",
-    "bytes": 262144,
-    "gbs": 48.03885729184985,
-    "pct_roof": 7.50607145185154,
-    "tflops": 0.38431085833479883
+    "bytes": 131072,
+    "gbs": 24.019428645924926,
+    "pct_roof": 3.75303572592577,
+    "tflops": 0.19215542916739942
    },
    {
     "name": "void  gemv_kernel<8, 2, 4,  >(  const*,   const*,  *, long, long)",
@@ -1047,10 +1047,10 @@
     "us_call": 22.9749487654321,
     "ms_step": 1.378496925925926,
     "label": "GDN b/a bf16 GEMV",
-    "bytes": 262144,
-    "gbs": 11.409992800263367,
-    "pct_roof": 1.7828113750411512,
-    "tflops": 0.1825598848042139
+    "bytes": 131072,
+    "gbs": 5.704996400131684,
+    "pct_roof": 0.8914056875205756,
+    "tflops": 0.09127994240210695
    },
    {
     "name": "void  fp8_gemv_kernel<6, 2,  , 2>(  const*, unsigned char const*, float const*,  *, int, int)",

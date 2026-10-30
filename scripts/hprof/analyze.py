@@ -223,7 +223,7 @@ def roof(n, gx, gy, gz, B, ctx, distinct):
     if "splitkv" in n:
         return f"attn splitkv (ctx {ctx})", B * ctx * 2048, B * 16 * ctx * 256 * 4
     if "gemv_kernel<" in n:
-        Nk = {512: 32 * 2, 4096: 256, 256: 1}.get(gx)
+        Nk = {512: 32, 4096: 256, 256: 1}.get(gx)
         if Nk:
             return {512: "GDN b/a bf16 GEMV", 4096: "router bf16 GEMV", 256: "shared-gate bf16 GEMV"}[gx], Nk * 2048 * 2, 2 * B * Nk * 2048
     return None
