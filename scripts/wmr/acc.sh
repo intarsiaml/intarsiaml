@@ -24,7 +24,7 @@ run() { # card tag env args...
 chain() { # card kind golden decodepos maxseq
   local g=$1 k=$2 gold=$3 dp=$4 ms=$5
   local C="--golden $G/$gold --mode both --decode-positions $dp --max-seq $ms --mem-budget 29"
-  local S="--self-golden /work/dumps/$k-main.safetensors --mode both --decode-positions $dp --max-seq $ms --mem-budget 29 --allow-same-code --allow-unstamped"
+  local S="--self-golden /work/dumps/$k-main.safetensors --mode both --decode-positions $dp --max-seq $ms --mem-budget 29 --allow-same-code --allow-unstamped --pre-change d2fe64a8a --revlist /work/revlist.txt"
   [[ ${SKIPWRITE:-0} == 1 ]] || run $g $k-off-write NOKNOB=1 $C --write-self-golden /work/dumps/$k-main.safetensors --allow-unstamped --allow-same-code
   run $g $k-on-svrn "$OPT1" $S --self-vs-ref-noise
   run $g $k-on-default "$OPT1" $S
