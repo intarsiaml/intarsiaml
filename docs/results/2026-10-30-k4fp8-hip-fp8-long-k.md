@@ -10,6 +10,9 @@ HFP8 (`2026-10-30-hfp8-hip-fp8-rows16.md`, section 5): the K = 4096 projections 
   - 8 streams: +2.5 % (TP=1) / +2.7 % (TP=2). 4 streams: +0.7 % / +1.1 %.
   - One stream is unchanged, and so is `--max-batch 1` at TP=1: 164.2 -> 164.4 tok/s.
   - The 16-row step goes from 32.3 to 31.4 ms (TP=1) and from 23.7 to 23.1 ms (TP=2).
+  - Against the lane's ~2 % bar at 16 streams, TP=1 clears it and TP=2 does not. K = 4096 exists only at TP=1: at TP=2 the row-split
+    `out_proj` / `o_proj` shards are 2048x2048, so the 16-warp long-K lever never runs there. At TP=2 the change is a smaller,
+    bit-exact gain with no regression.
 * **Bitwise identical to main.**
   - Every row of every M = 1..16 equals the one-row kernel's output: 1248 checks on the final kernel, ragged shapes and W8A16
     included.
@@ -263,6 +266,12 @@ the model's step measured -0.6 and -0.9 ms.
   conversion to stop losing at large N.
 * Small N (512, 256: 16-18 us at M = 16 against 5 us at M = 1) is latency bound with 16-32 blocks. Fusing the k / v pair into one launch
   (HFP8's note) is still open.
+* The same load idiom (`cond ? ik_ldcs(...) : 0`, which compiles to loads in branches) is in the one-row `fp8_gemv_body`
+  (`fp8.hip:164`, the M = 1, 2 kernel, deliberately untouched here) and in the MoE GEMV kernels (`moe.hip:604`, `:724`, `:926`, `:992`,
+  ...). Each needs its ISA read before anyone assumes the same stall applies.
+* `kOnePassMinLong = 5` (the fewest rows the one-pass kernel takes at K > 2048) was set against the old one-pass kernel. In `raw/mb6`,
+  M = 3, 4 at K = 4096 still ran the per-group kernel in both arms (default dispatch), so whether the new kernel should take them was
+  not timed.
 
 ## Reproduce
 
