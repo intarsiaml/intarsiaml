@@ -441,7 +441,10 @@ int gemv_rows_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, O
 //  * a block works through `tiles` consecutive tiles of 8 warps * R rows when the activations fit in one segment (K <= 2048),
 //    staging them once and loading the next tile's weights while it computes the current one.
 // `fp8_gemv_rows_launch` below picks it.
-constexpr int kOnePassMin = 9;  // fewest rows the one-pass kernel serves (measured; INTARSIA_HIP_FP8_ONEPASS_MIN overrides)
+// Fewest rows the one-pass kernel serves: it is as fast or faster than the per-group kernels from M = 2 (K <= 2048) and from M = 5
+// (longer K, where it stages in two segments); M = 1..2 keep the kernels they had. INTARSIA_HIP_FP8_ONEPASS_MIN overrides both.
+constexpr int kOnePassMinShort = 3;
+constexpr int kOnePassMinLong = 5;
 constexpr int kSegElems = 2048;
 constexpr int kSegU = kSegElems / 16;  // chunks per segment = IK_WARP * kUn
 
@@ -843,10 +846,11 @@ int launch_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales,
     const uint8_t* wp = (const uint8_t*)w->data;
     const float* sp = (const float*)scales->data;
     const bool f32o = out->dtype == IK_DTYPE_F32;
-    static const int one_pass_min = [] {
+    static const int forced_min = [] {
         const char* e = getenv("INTARSIA_HIP_FP8_ONEPASS_MIN");
-        return e ? atoi(e) : kOnePassMin;
+        return e ? atoi(e) : 0;
     }();
+    const int one_pass_min = forced_min > 0 ? forced_min : K <= 2048 ? kOnePassMinShort : kOnePassMinLong;
     if (M >= one_pass_min)
         return f32o ? fp8_gemv_rows_launch((int)M, xp, wp, sp, (float*)out->data, N, K, s)
                     : fp8_gemv_rows_launch((int)M, xp, wp, sp, (ik_bf16*)out->data, N, K, s);
