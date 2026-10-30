@@ -22,7 +22,9 @@ namespace {
 constexpr int kWarps = 8;
 constexpr int kPre = 4;       // lane-iterations whose weights are requested before the table barrier (nvfp4.hip kPre)
 constexpr int kRowsMax = 16;  // tokens per launch
-constexpr int kRowsGrp = 4;   // tokens per block of the shared-expert kernels (blockIdx.y selects the group of tokens)
+constexpr int kRowsGrp = 4;   // tokens per block of shared_glu_rows_kernel (blockIdx.y selects the group of tokens): 28.9 -> 13.9 us at 16 rows
+// shared_down_combine_rows_kernel keeps all rows in one block: with groups of 4 it measured 25.4 us against 22.3 (rocprofv3, 16 rows, TP=1)
+constexpr int kRowsGrpDown = kRowsMax;
 
 // out[m, n] = bf16(silu(g) * u), g / u = what the gate / up GEMV stores for row m (nvfp4_glu_kernel for every row m < T at once)
 __global__ void __launch_bounds__(kWarps * IK_WARP)
@@ -125,17 +127,17 @@ shared_down_combine_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __
     if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
     __syncthreads();
     if (!live) return;  // whole warp exits together
-    const int m0 = (int)blockIdx.y * kRowsGrp;  // this block's tokens m0 .. m0 + kRowsGrp - 1 (those below T)
-    float acc[kRowsGrp];
+    const int m0 = (int)blockIdx.y * kRowsGrpDown;  // this block's tokens m0 .. m0 + kRowsGrpDown - 1 (those below T)
+    float acc[kRowsGrpDown];
 #pragma unroll
-    for (int m = 0; m < kRowsGrp; ++m) acc[m] = 0.f;
+    for (int m = 0; m < kRowsGrpDown; ++m) acc[m] = 0.f;
     auto step = [&](int u, const uint2& wq, uint32_t sbyte) {
         const float sc = ik_e4m3_to_f(sbyte);
         float wf[16];
         ik_fp4x8_to_f32(wq.x, lut, wf);
         ik_fp4x8_to_f32(wq.y, lut, wf + 8);
 #pragma unroll
-        for (int m = 0; m < kRowsGrp; ++m) {
+        for (int m = 0; m < kRowsGrpDown; ++m) {
             if (m0 + m < T) {
                 const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)(m0 + m) * K + (int64_t)u * 16);
                 float xf[16];
@@ -156,7 +158,7 @@ shared_down_combine_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __
     for (int u = lane + IK_WARP * kPre; u < nu; u += IK_WARP) step(u, ik_ldcs(wr + u), sr[u]);
     const float g = gs[0];
 #pragma unroll
-    for (int m = 0; m < kRowsGrp; ++m) {
+    for (int m = 0; m < kRowsGrpDown; ++m) {
         if (m0 + m < T) {
             const float s = ik_warp_sum(acc[m]);
             if (lane == 0) {
@@ -267,7 +269,8 @@ int ik_moe_block_bf16_grouped(const ik_tensor* in, int top_k, int norm, ik_tenso
         (const ik_bf16*)x->data, (const uint8_t*)sgw->data, (const uint8_t*)sgs->data, (const float*)sgg->data, (const uint8_t*)suw->data,
         (const uint8_t*)sus->data, (const float*)sug->data, sa, (int)T, IS, (int)H);
     IK_TRY(ik_launch_status());
-    shared_down_combine_rows_kernel<<<dim3((unsigned)((H + kWarps - 1) / kWarps), tgroups), kWarps * IK_WARP, 0, s>>>(
+    shared_down_combine_rows_kernel<<<dim3((unsigned)((H + kWarps - 1) / kWarps), (unsigned)((T + kRowsGrpDown - 1) / kRowsGrpDown)),
+                                      kWarps * IK_WARP, 0, s>>>(
         sa, (const uint8_t*)sdw->data, (const uint8_t*)sds->data, (const float*)sdg->data, (const ik_bf16*)routed.data,
         (const ik_bf16*)sl->data, (ik_bf16*)out->data, (int)T, H, (int)IS);
     return ik_launch_status();
