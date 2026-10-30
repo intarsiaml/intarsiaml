@@ -1,0 +1,27 @@
+fleetq: #7280 running on endor: /opt/code/intarsiaml/.worktrees/mprof/docs/results/2026-10-30-mprof-metal-16stream-profile/raw/scripts/w3.sh /opt/code/intarsiaml/.worktrees/mprof/docs/results/2026-10-30-mprof-metal-16stream-profile/raw/w3
+## b16-s64-r1 B=16 steps=64 00:47:35
+exit 0
+REALTRAFFIC B=16: 35.50 ms/step, 450.7 tok/s aggregate
+## b16-s800-r1 B=16 steps=800 00:47:45
+exit 0
+REALTRAFFIC B=16: 39.60 ms/step, 404.1 tok/s aggregate
+## b8-s64-r1 B=8 steps=64 00:48:26
+exit 0
+REALTRAFFIC B= 8: 19.78 ms/step, 404.4 tok/s aggregate
+## b8-s1200-r1 B=8 steps=1200 00:48:34
+exit 0
+REALTRAFFIC B= 8: 22.27 ms/step, 359.2 tok/s aggregate
+## b16-s64-r2 B=16 steps=64 00:49:08
+exit 0
+REALTRAFFIC B=16: 35.66 ms/step, 448.7 tok/s aggregate
+## b16-s800-r2 B=16 steps=800 00:49:19
+exit 0
+REALTRAFFIC B=16: 42.12 ms/step, 379.8 tok/s aggregate
+## b8-s64-r2 B=8 steps=64 00:50:01
+exit 0
+REALTRAFFIC B= 8: 19.65 ms/step, 407.2 tok/s aggregate
+## b8-s1200-r2 B=8 steps=1200 00:50:09
+exit 0
+REALTRAFFIC B= 8: 22.05 ms/step, 362.9 tok/s aggregate
+## done 00:50:42
+fleetq: #7280 done (exit 0)

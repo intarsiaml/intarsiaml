@@ -1,0 +1,12 @@
+fleetq: #7278 waiting (#1 in line): needs gpu quiet on endor, but #7276 "mprof w2: served 16-stream burst plain/host/cb/ce1/kernel" (claude-908e11e8-mprof) loads it
+fleetq:   #7276 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7276 set, or it will wait for #7276 to be released.
+fleetq: #7278 running on endor: /opt/code/intarsiaml/.worktrees/mprof/.lane/roof /opt/code/intarsiaml/.worktrees/mprof/docs/results/2026-10-30-mprof-metal-16stream-profile/raw/scripts/roof/roof.metallib
+device: Apple M5 Max recommendedMaxWorkingSet GB: 115.448725504
+read 0.5 GiB (GB/s): max 582.4  median 505.2  min 402.3 GB/s
+read 1.0 GiB (GB/s): max 580.5  median 571.2  min 535.1 GB/s
+read 2.0 GiB (GB/s): max 579.9  median 566.0  min 545.8 GB/s
+read 3.0 GiB (GB/s): max 569.2  median 566.8  min 544.0 GB/s
+fp32 FMA: max 15.5  median 15.5  min 14.7 TFLOPS
+simdgroup float8x8 MMA (f32 in, f32 acc): max 16.4  median 16.3  min 16.1 TFLOPS
+simdgroup half8x8 MMA (f16 in, f32 acc): max 15.8  median 15.8  min 15.7 TFLOPS
+fleetq: #7278 done (exit 0)
