@@ -480,6 +480,27 @@ pub fn chunk_schedule_tm(
     out
 }
 
+/// Where a cold prefill of a `prompt_len`-token prompt leaves a model with recurrent state (no prefix store): the end of every
+/// pass before the last token, which runs alone (`engine::Seq::prefill_step`, the batched `run_prefill`). Plain `chunk`-row
+/// passes (no 1-row avoidance: the last token is alone anyway), until the tail merge or the remainder fits one pass, which ends
+/// at `prompt_len - 1`. A macro prefill pass (`INTARSIA_PREFILL_MACRO`) ends at one of these too.
+pub fn recurrent_schedule_cuts(prompt_len: usize, chunk: usize, tail_merge: usize) -> Vec<usize> {
+    let mut out = Vec::new();
+    let mut pos = 0;
+    while pos < prompt_len {
+        let rem = prompt_len - pos;
+        if next_prefill_chunk_tm(rem, chunk, false, tail_merge) == rem {
+            if rem > 1 {
+                out.push(prompt_len - 1);
+            }
+            break;
+        }
+        pos += chunk;
+        out.push(pos);
+    }
+    out
+}
+
 fn common_prefix(a: &[u32], b: &[u32]) -> usize {
     a.iter().zip(b).take_while(|(x, y)| x == y).count()
 }

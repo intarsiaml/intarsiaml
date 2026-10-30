@@ -42,13 +42,17 @@ fn read_safetensors(path: &Path) -> BTreeMap<String, (Vec<usize>, Vec<f32>)> {
 }
 
 fn load(chunk: usize) -> Model {
+    load_on(intarsia_backend_cpu::CpuBackend::arc(), chunk)
+}
+
+fn load_on(backend: Arc<dyn intarsia_core::Backend>, chunk: usize) -> Model {
     let dir = fixture_dir();
     let recipe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5.toml")).unwrap();
     let cfg: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(dir.join("config.json")).unwrap()).unwrap();
     let dims = ModelDims::from_hf_config(&cfg, &recipe.config).unwrap();
     let src = SafeTensors::open_dir(&dir).unwrap();
     Model::load(
-        intarsia_backend_cpu::CpuBackend::arc(),
+        backend,
         &recipe,
         &dims,
         &src,
@@ -375,6 +379,103 @@ fn hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind() {
     assert_eq!(wt, ct);
     let d = max_diff(&wrows, &crows);
     assert!(d <= TOL, "continue: warm vs cold logits differ by {d}");
+}
+
+/// The cpu backend reporting what Metal does (`prefix_reuse_any_cut` false: a prefill pass's bits depend on its rows), so
+/// `Model::reuse_len` takes the chunk-sensitive rule for a recurrent state.
+struct Chunky(Arc<dyn intarsia_core::Backend>);
+
+impl intarsia_core::Backend for Chunky {
+    fn name(&self) -> &str {
+        self.0.name()
+    }
+    fn info(&self) -> intarsia_core::DeviceInfo {
+        self.0.info()
+    }
+    fn alloc(&self, bytes: usize, kind: intarsia_core::MemKind) -> intarsia_core::Result<intarsia_core::Buffer> {
+        self.0.alloc(bytes, kind)
+    }
+    fn upload(&self, dst: &intarsia_core::Buffer, o: usize, src: &[u8], s: intarsia_core::StreamId) -> intarsia_core::Result<()> {
+        self.0.upload(dst, o, src, s)
+    }
+    fn download(&self, src: &intarsia_core::Buffer, o: usize, dst: &mut [u8], s: intarsia_core::StreamId) -> intarsia_core::Result<()> {
+        self.0.download(src, o, dst, s)
+    }
+    fn copy(&self, d: &intarsia_core::Buffer, d_o: usize, s: &intarsia_core::Buffer, s_o: usize, n: usize, st: intarsia_core::StreamId) -> intarsia_core::Result<()> {
+        self.0.copy(d, d_o, s, s_o, n, st)
+    }
+    fn kernels(&self) -> Vec<intarsia_core::KernelImpl> {
+        self.0.kernels()
+    }
+    fn launch(&self, kernel: &str, call: &intarsia_core::OpCall, stream: intarsia_core::StreamId) -> intarsia_core::Result<()> {
+        self.0.launch(kernel, call, stream)
+    }
+    fn synchronize(&self, s: intarsia_core::StreamId) -> intarsia_core::Result<()> {
+        self.0.synchronize(s)
+    }
+    fn prefix_reuse_any_cut(&self) -> bool {
+        false
+    }
+    fn avoid_single_row_prefill(&self) -> bool {
+        true
+    }
+    fn prefix_reuse_min_pass_rows(&self) -> Option<usize> {
+        Some(2)
+    }
+}
+
+/// Lane hrr (docs/results/2026-10-29-hrr-hybrid-reuse.md): on a chunk-sensitive backend a recurrent state resumes only at a
+/// cut of the new prompt's own cold schedule (`scheduler::recurrent_schedule_cuts`) that the held state's prefill passes
+/// wrote. The Metal repro in small: A then B = A + more resumed at A's `plen - 1` snapshot, a cut of A's schedule but not
+/// of B's, and B's text changed. The cpu kernels give the same tokens either way; the cached counts pin the rule.
+#[test]
+fn chunk_sensitive_backend_resumes_a_recurrent_state_only_at_cold_cuts() {
+    let (ids, _) = golden();
+    let chunky = || {
+        let m = load_on(Arc::new(Chunky(intarsia_backend_cpu::CpuBackend::arc())), 8);
+        LocalEngine::new(m, Arc::new(IdCodec), EngineMeta { id: "tiny-hybrid".into(), ..Default::default() }, Arc::new(Telemetry::new())).unwrap()
+    };
+    // A: 20 tokens, cold passes (0, 8) (8, 16) (16, 19) (19, 20): snapshots at 8, 16 and 19
+    let a: Vec<u32> = ids[..20].to_vec();
+    let e = chunky();
+    let (ta, ca) = run(&e, &a, 6);
+    assert_eq!(ca, 0);
+    // A again: 19 is a cut of A's own schedule
+    let (ta2, ca2) = run(&e, &a, 6);
+    assert_eq!((ca2, &ta2), (19, &ta));
+    // B = A + 3 tokens: B's cuts are 8, 16 and 22, so 16, not A's 19
+    let mut b = a.clone();
+    b.extend_from_slice(&[5, 6, 7]);
+    let (tb, cb) = run(&e, &b, 6);
+    assert_eq!(cb, 16, "B resumes at the last cut of its own cold schedule");
+    assert_eq!(tb, run(&chunky(), &b, 6).0);
+    // the next chat turn (A + reply + new tokens): the reply's decode rows and A's 19 are no cuts of it
+    run(&e, &a, 6);
+    let mut turn = a.clone();
+    turn.extend_from_slice(&ta);
+    turn.extend_from_slice(&[30, 31, 32]);
+    let (tt, ct) = run(&e, &turn, 6);
+    assert_eq!(ct, 16);
+    assert_eq!(tt, run(&chunky(), &turn, 6).0);
+    // a 1-row remainder: A' = 17 tokens (cuts 8, 16; the last token alone), B' = 18 (cuts 8, 16, 17); A' never snapshots
+    // at 17, so 16
+    let a17: Vec<u32> = ids[..17].to_vec();
+    run(&e, &a17, 3);
+    let b18: Vec<u32> = ids[..18].to_vec();
+    let (t18, c18) = run(&e, &b18, 3);
+    assert_eq!(c18, 16);
+    assert_eq!(t18, run(&chunky(), &b18, 3).0);
+    // a prompt shorter than a chunk resumes only when repeated
+    let short: Vec<u32> = ids[..6].to_vec();
+    run(&e, &short, 3);
+    assert_eq!(run(&e, &short, 3).1, 5);
+    let mut longer = short.clone();
+    longer.extend_from_slice(&[9, 10]);
+    assert_eq!(run(&e, &longer, 3).1, 0);
+    // the cpu backend itself (any cut) keeps every snapshot and the held sequence
+    let cpu = engine(8);
+    run(&cpu, &a, 6);
+    assert_eq!(run(&cpu, &b, 6).1, 19);
 }
 
 // ---------------------------------------------------------------------------

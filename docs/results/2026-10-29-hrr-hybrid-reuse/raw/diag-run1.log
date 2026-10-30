@@ -1,0 +1,66 @@
+fleetq: #7232 waiting (#1 in line): #7231 "mnq: serial micro timings (producer+GEMV sequences, GEMV alone) at levels 0/1/2" (claude-f31ccf91) needs gpu quiet on endor, and this job loads it
+fleetq: #7232 running on endor: /opt/code/intarsiaml/.worktrees/hrr/run1.sh
++ cd /opt/code/intarsiaml/.claude/worktrees/bold-jackson-f249a3
++ export CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/hrr/target
++ CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/hrr/target
++ cargo test --release -p intarsia-core --test scheduler recurrent_schedule_cuts
++ tail -5
+running 1 test
+test recurrent_schedule_cuts_follow_the_solo_schedule ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 36 filtered out; finished in 0.00s
++ cargo test --release -p intarsia-models --test hybrid
++ grep -E '^test |test result|panicked|assert'
+test cuda_bf16_matches_cpu_bf16_and_hf ... ok
+test layer_kinds_follow_the_config ... ok
+test one_shot_prefill_matches_hf ... ok
+test argmax_decode_path_agrees ... ok
+test failed_forward_resets_recurrent_state ... ok
+test recurrent_snapshots_restore_exactly ... ok
+test prefill_then_token_by_token_decode_matches_hf ... ok
+test engine_continues_a_conversation_without_recomputing_the_history ... ok
+test chunked_prefill_matches_hf ... ok
+test engine_reuses_prefix_through_snapshots_and_matches_a_fresh_engine ... ok
+test chunk_sensitive_backend_resumes_a_recurrent_state_only_at_cold_cuts ... ok
+test hybrid_engine_reuse_matches_cold_logits_for_every_restore_kind ... ok
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
++ export INTARSIA_PROBE_DIR=/Users/josef/models/Qwen3.6-35B-A3B-NVFP4
++ INTARSIA_PROBE_DIR=/Users/josef/models/Qwen3.6-35B-A3B-NVFP4
++ cargo test --release -p intarsia-models --test hybrid_reuse_real -- --nocapture --test-threads=1
++ grep -vE '^\s*(Compiling|warning)'
+    Finished `release` profile [optimized] target(s) in 0.71s
+     Running tests/hybrid_reuse_real.rs (/opt/code/intarsiaml/.worktrees/hrr/target/release/deps/hybrid_reuse_real-4c34aef09f78c2ae)
+running 2 tests
+test engine_hybrid_reuse_equals_cold ... prefill chunk 4096 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+B after A: cached 0, = cold
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+A repeated: cached 0, = cold
+thread 'engine_hybrid_reuse_equals_cold' (48343148) panicked at crates/intarsia-models/tests/hybrid_reuse_real.rs:290:5:
+assertion `left == right` failed: repeated A should resume at its plen - 1 snapshot
+  left: 0
+ right: 4095
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test hybrid_reuse_shapes ... backend metal chunk 4096 A 4096 tokens, B 4105 tokens, common 4096
+cold repeat (determinism): EQUAL
+warm shape [0,4095)+[4095,4104)+1 vs cold: row4096=4.402e-1 row4097=8.669e-1 row4098=9.946e-1 row4099=7.779e-1 row4100=1.952e0 row4101=1.427e0 row4102=1.247e0 row4103=1.233e0 tail0=1.136e0 tail1=7.761e-1 tail2=1.167e0 tail3=1.510e0 tail4=1.448e0 recurrent slots differ [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29] of 30 DIFFER
+reuse_len(plen 4105, want 4096) = 0 (snapshots at [4095])
+restored A snapshot + rest vs warm shape (restore exactness): EQUAL
+restored A snapshot + rest vs cold: row4096=4.402e-1 row4097=8.669e-1 row4098=9.946e-1 row4099=7.779e-1 row4100=1.952e0 row4101=1.427e0 row4102=1.247e0 row4103=1.233e0 tail0=1.136e0 tail1=7.761e-1 tail2=1.167e0 tail3=1.510e0 tail4=1.448e0 recurrent slots differ [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29] of 30 DIFFER
+cold, tail split at [4100] vs one 8-row pass: row4100=2.665e-1 row4101=1.958e-1 row4102=2.631e-1 row4103=7.110e-1 tail0=7.662e-1 tail1=1.406e0 tail2=8.873e-1 tail3=1.156e0 tail4=1.584e0 recurrent slots differ [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29] of 30 DIFFER
+cold, tail split at [4099] vs one 8-row pass: row4099=6.992e-1 row4100=2.665e-1 row4101=1.880e-1 row4102=2.436e-1 row4103=1.939e-1 tail0=3.309e-1 tail1=3.464e-1 tail2=2.390e-1 tail3=3.469e-1 tail4=6.732e-1 recurrent slots differ [27, 28, 29] of 30 DIFFER
+cold, tail split at [4097] vs one 8-row pass: row4097=1.038e0 row4098=9.987e-1 row4099=1.148e0 row4100=1.762e0 row4101=1.786e0 row4102=1.386e0 row4103=1.180e0 tail0=1.018e0 tail1=7.872e-1 tail2=1.004e0 tail3=1.201e0 tail4=1.294e0 recurrent slots differ [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29] of 30 DIFFER
+cold, tail split at [4098, 4101] vs one 8-row pass: row4101=1.896e0 row4102=1.358e0 row4103=1.088e0 tail0=9.402e-1 tail1=1.193e0 tail2=6.900e-1 tail3=1.088e0 tail4=1.568e0 recurrent slots differ [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29] of 30 DIFFER
+[0,4095)+[4095,4096)+[4096,4104)+1 vs cold: row4096=8.121e-1 row4097=8.659e-1 row4098=8.841e-1 row4099=7.290e-1 row4100=1.715e0 row4101=1.644e0 row4102=9.530e-1 row4103=1.252e0 tail0=9.558e-1 tail1=1.194e0 tail2=8.442e-1 tail3=1.277e0 tail4=1.730e0 recurrent slots differ [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29] of 30 DIFFER
+[0,4094)+[4094,4096)+[4096,4104)+1 vs cold: row4096=8.607e-1 row4097=1.010e0 row4098=7.894e-1 row4099=8.279e-1 row4100=1.569e0 row4101=1.178e0 row4102=1.420e0 row4103=1.304e0 tail0=1.084e0 tail1=8.644e-1 tail2=1.014e0 tail3=1.030e0 tail4=1.600e0 recurrent slots differ [1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29] of 30 DIFFER
+[0,2048)+[2048,4096)+[4096,4104)+1 vs cold: EQUAL
+ok
+failures:
+failures:
+    engine_hybrid_reuse_equals_cold
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 114.49s
+error: test failed, to rerun pass `-p intarsia-models --test hybrid_reuse_real`
+fleetq: #7232 done (exit 0)
