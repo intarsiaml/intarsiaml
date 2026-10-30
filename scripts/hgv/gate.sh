@@ -4,7 +4,7 @@
 #   STEPS="gates timing" fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu --expect 20 --mem 30 \
 #     --label "HGV gates + timing" -- scripts/hgv/gate.sh
 # gates (hgv tree): rows_exact (bf16 + all others), moe_block grouped tests, comm, ar_norm, ar_push (default env: the new LL limit)
-# timing (hgvbase then hgv): rows_exact timing_gemv_rows, timing_mxfp4_rows (the lm_head at M = 5..8 must not move), moe_block_timing
+# timing (hgvbase then hgv): rows_exact timing_gemv_rows, timing_mxfp4_rows (the lm_head at M = 5..8 must not move), moe_rows_timing
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 STEPS=${STEPS:-"gates timing"}; CAP=${CAP:-950}
@@ -54,7 +54,7 @@ for step in $STEPS; do
       for tree in hgvbase hgv; do
         t time-gemv-$tree $tree 240 rows_exact -- --ignored timing_gemv_rows
         t time-mxfp4-$tree $tree 240 rows_exact -- --ignored timing_mxfp4_rows
-        t time-moe-$tree $tree 240 moe_block INTARSIA_HIP_MOE_BLOCK_BENCH=1 -- moe_block_timing
+        t time-moe-$tree $tree 240 moe_block INTARSIA_HIP_MOE_ROWS_BENCH=1 INTARSIA_HIP_MOE_ROWS_BENCH_T=5,8,13,16 -- moe_rows_timing
       done ;;
   esac
 done
