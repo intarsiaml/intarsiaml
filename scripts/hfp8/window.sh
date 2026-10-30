@@ -3,7 +3,7 @@
 # that holds both R9700 cards and takes radiance down (derived from scripts/r9t/window.sh, same guard):
 #   ARMS="tp1:base tp1:new" ROUNDS=3 fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu --load cpu \
 #     --expect 20 --mem 30 --label "HFP8 e2e tp1 streams" -- scripts/hfp8/window.sh
-# ARMS: space separated <tp1|tp2>:<base|new>; base = tree hfp8base (a real build of origin/main), new = tree hfp8new (this branch). Each
+# ARMS: space separated <tp1|tp2>:<base|new>; base = tree hfp8base2 (a real build of main 05451fe66, HGV included), new = tree hfp8new2 (this branch rebased on it). Each
 # round starts a fresh server per arm (`serve --spec off --max-batch $MB`, thinking off), arms interleaved, the order reversed on even rounds.
 # MODE=speed (default): `localeval speed --sizes $SIZES --gen $GEN --concurrency $CONC` per server; MODE=greedy: scripts/hfp8/greedy.py
 # (16 concurrent different prompts at temperature 0, outputs to OUT/greedy-<tag>.jsonl). MB = --max-batch (default 16; 1 = flag omitted).
@@ -35,7 +35,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-treeof() { case $1 in base) echo hfp8base;; new) echo hfp8new;; *) echo "$1";; esac; }
+treeof() { case $1 in base) echo hfp8base2;; new) echo hfp8new2;; *) echo "$1";; esac; }
 for v in base new; do
   $SSH "docker run --rm -v \$HOME/intarsiaml-tp2-$(treeof $v):/work -w /work $IMG /work/tp2-intarsia --version" < /dev/null > "$OUT/versions-$v.txt" 2>&1
   say "binary $v: $(head -c 250 "$OUT/versions-$v.txt" | tr '\n' ' ')"

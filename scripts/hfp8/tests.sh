@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane hfp8: the correctness gates of the one-pass fp8 rows kernel, driven FROM THE MAC under one fleetq job that holds both R9700 cards and
-# takes radiance down (same guard as mbwin.sh / window.sh). The tree hfp8new was built with scripts/tp2-hip/build.sh HIPTEST=1 HIPTEST_MODELS=1
-# (the tests are precompiled in the volume intarsia-cargo-target-tp2-hfp8new-hiptest).
+# takes radiance down (same guard as mbwin.sh / window.sh). The tree hfp8new2 was built with scripts/tp2-hip/build.sh HIPTEST=1 HIPTEST_MODELS=1
+# (the tests are precompiled in the volume intarsia-cargo-target-tp2-hfp8new2-hiptest).
 #   STEPS="hip tp1" OUT=<dir> fleetq run --host tatooine-r9700,tatooine-r9700-2 --takes-down radiance --quiet gpu,cpu --expect 20 --mem 30 \
 #     --label "HFP8 gates" -- scripts/hfp8/tests.sh
 # STEPS (space separated, in order):
@@ -12,7 +12,7 @@
 #   tp2   the same with INTARSIA_BATCH_TEST_TP=2 on both cards
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
-STEPS=${STEPS:-"hip tp1 tp2"}; TREE=${TREE:-hfp8new}; CAP=${CAP:-1150}
+STEPS=${STEPS:-"hip tp1 tp2"}; TREE=${TREE:-hfp8new2}; CAP=${CAP:-1150}
 M35=/models/Qwen3.6-35B-A3B-NVFP4
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; REPO="$(cd "$HERE/../.." && pwd)"
 OUT=${OUT:?OUT dir}; mkdir -p "$OUT"
