@@ -27,5 +27,5 @@ cleanup() {
 }
 trap cleanup EXIT
 say "start $SCRIPT $*"
-timeout "$CAP" $SSH "bash ~/wmr/$SCRIPT $*" < /dev/null > "$OUT/${SCRIPT%.sh}.log" 2>&1
+$SSH "timeout $CAP bash ~/wmr/$SCRIPT $*" < /dev/null > "$OUT/${SCRIPT%.sh}.log" 2>&1
 say "$SCRIPT exit $?"
