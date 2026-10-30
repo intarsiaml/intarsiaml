@@ -1,0 +1,12 @@
+TIME N=8192  K=2048  M=8     41.13 us     408 GB/s(weights once)  xinf of M=1
+TIME N=8192  K=2048  M=12    52.23 us     321 GB/s(weights once)  xinf of M=1
+TIME N=8192  K=2048  M=16    65.19 us     257 GB/s(weights once)  xinf of M=1
+TIME N=4096  K=2048  M=8     24.89 us     337 GB/s(weights once)  xinf of M=1
+TIME N=4096  K=2048  M=12    30.96 us     271 GB/s(weights once)  xinf of M=1
+TIME N=4096  K=2048  M=16    39.38 us     213 GB/s(weights once)  xinf of M=1
+TIME N=2048  K=4096  M=8     29.77 us     282 GB/s(weights once)  xinf of M=1
+TIME N=2048  K=4096  M=12    45.09 us     186 GB/s(weights once)  xinf of M=1
+TIME N=2048  K=4096  M=16    55.29 us     152 GB/s(weights once)  xinf of M=1
+TIME N=512   K=2048  M=8     16.33 us      64 GB/s(weights once)  xinf of M=1
+TIME N=512   K=2048  M=12    19.97 us      53 GB/s(weights once)  xinf of M=1
+TIME N=512   K=2048  M=16    27.75 us      38 GB/s(weights once)  xinf of M=1

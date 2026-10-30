@@ -1,0 +1,7 @@
+02:12:16 guard: [guard] radiance stopped 2026-10-30 02:12:16
+02:12:16 main: start ()
+02:12:18 main: exit 0 (96 lines)
+02:12:18 new: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+02:12:20 new: exit 0 (96 lines)
+02:12:20 done, time left 893s
+02:12:30 guard: [guard] stopping radiance 2026-10-30 02:12:13|[guard] radiance answers 2026-10-30 02:12:30 (after 15 s), unit active|

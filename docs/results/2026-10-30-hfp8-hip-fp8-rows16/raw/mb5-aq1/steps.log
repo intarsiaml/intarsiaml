@@ -1,0 +1,9 @@
+01:49:35 guard: [guard] radiance stopped 2026-10-30 01:49:35
+01:49:35 def: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:50:36 def: exit 0 (417 lines)
+01:50:36 t3: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1 -e INTARSIA_HIP_FP8_TILES=3)
+01:51:38 t3: exit 0 (417 lines)
+01:51:38 t8: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1 -e INTARSIA_HIP_FP8_TILES=8)
+01:52:39 t8: exit 0 (417 lines)
+01:52:39 done, time left 353s
+01:52:49 guard: [guard] stopping radiance 2026-10-30 01:49:33|[guard] radiance answers 2026-10-30 01:52:49 (after 15 s), unit active|

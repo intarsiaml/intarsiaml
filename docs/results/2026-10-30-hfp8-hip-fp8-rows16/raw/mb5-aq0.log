@@ -1,0 +1,19 @@
+fleetq: #7342 waiting (#5 in line): in line behind #7338 "HGV identity tp1 (main, hgv, main)" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7338 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7338 set, or it will wait for #7338 to be released.
+fleetq: #7342 waiting (#4 in line): in line behind #7339 "HGV prof tp1 hgv" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7339 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7339 set, or it will wait for #7339 to be released.
+fleetq: #7342 waiting (#2 in line): in line behind #7341 "WMR build HIP + GPU tests (compile only)" (claude-908e11e8) on tatooine-r9700
+fleetq:   #7341 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7341 set, or it will wait for #7341 to be released.
+fleetq: #7342 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 57% busy with work fleetq does not track
+fleetq: #7342 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 74% busy with work fleetq does not track
+fleetq: #7342 running on tatooine-r9700, tatooine-r9700-2: scripts/hfp8/mbwin.sh
+02:01:18 guard: [guard] radiance stopped 2026-10-30 02:01:18
+02:01:18 def: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+02:02:31 def: exit 0 (417 lines)
+02:02:31 t3: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1 -e INTARSIA_HIP_FP8_TILES=3)
+02:03:35 t3: exit 0 (417 lines)
+02:03:35 t8: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1 -e INTARSIA_HIP_FP8_TILES=8)
+02:04:41 t8: exit 0 (417 lines)
+02:04:41 done, time left 332s
+02:04:56 guard: [guard] stopping radiance 2026-10-30 02:01:14|[guard] radiance answers 2026-10-30 02:04:56 (after 20 s), unit active|
+fleetq: #7342 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
