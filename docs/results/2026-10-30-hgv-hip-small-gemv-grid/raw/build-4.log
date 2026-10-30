@@ -1,0 +1,12 @@
+fleetq: #7332 running on tatooine-r9700: scripts/hgv/build.sh
+stamp hgv: head=a301bc2_code-tree=6e729edf8dd3_dirty=no
+== hgv: head=a301bc2 code-tree=6e729edf8dd3 dirty=no 01:43:42
+build hgv exit 0 01:45:01
+    Finished `release` profile [optimized] target(s) in 1m 16s
+hip tests build hgv exit 0 01:46:15
+    Finished `release` profile [optimized] target(s) in 1m 10s
+-rwxr-xr-x 1 josef josef 51020664 Oct 30 01:15 /home/josef/intarsiaml-tp2-hgvbase/tp2-intarsia
+-rwxr-xr-x 1 josef josef 51017144 Oct 30 01:45 /home/josef/intarsiaml-tp2-hgv/tp2-intarsia
+-rwxr-xr-x 1 josef josef 51020408 Oct 30 00:34 /home/josef/intarsiaml-tp2-hprof/tp2-intarsia
+-rwxr-xr-x 1 josef josef 50963120 Oct 29 23:37 /home/josef/intarsiaml-tp2-r9s/tp2-intarsia
+fleetq: #7332 done (exit 0)

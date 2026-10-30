@@ -1,0 +1,65 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1216:4
+     |
+1216 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/moe_block.rs (/target/release/deps/moe_block-f5e45b49f7fb48bd)
+
+running 1 test
+test moe_rows_timing ... moe_rows_timing T=5: 16 layers, 50 replays per round, median us per layer, 3 rounds; distinct experts per layer mean 37.9 (min 35 max 40)
+  (a) unfused chain          228.46   218.74   218.83
+  (b) topk + experts         182.75   185.75   185.82
+  (c) shared + combine        34.86    34.88    34.81
+  (d) 3 x gemv_v2 M=4         17.75    17.75    17.74
+  (e) tiny launch              3.96     3.97     3.96
+  (f) fused rows block       198.62   198.93   199.41
+  (g) grouped block          212.08   212.10   212.17
+moe_rows_timing T=8: 16 layers, 50 replays per round, median us per layer, 3 rounds; distinct experts per layer mean 56.4 (min 52 max 61)
+  (a) unfused chain          322.92   314.53   314.61
+  (b) topk + experts         275.37   275.67   275.50
+  (c) shared + combine        39.83    39.88    39.87
+  (d) 3 x gemv_v2 M=4         17.75    17.75    17.75
+  (e) tiny launch              3.96     3.97     3.96
+  (f) fused rows block       312.36   313.37   312.74
+  (g) grouped block          303.49   303.97   304.00
+moe_rows_timing T=13: 16 layers, 50 replays per round, median us per layer, 3 rounds; distinct experts per layer mean 86.8 (min 82 max 91)
+  (a) unfused chain          495.65   494.31   494.91
+  (b) topk + experts         427.43   427.53   427.80
+  (c) shared + combine        67.21    67.21    67.36
+  (d) 3 x gemv_v2 M=4         17.73    17.72    17.76
+  (e) tiny launch              3.95     3.95     3.96
+  (f) fused rows block       494.13   494.85   495.09
+  (g) grouped block          467.95   468.12   468.72
+moe_rows_timing T=16: 16 layers, 50 replays per round, median us per layer, 3 rounds; distinct experts per layer mean 103.4 (min 97 max 111)
+  (a) unfused chain          590.28   589.42   590.19
+  (b) topk + experts         516.75   516.68   517.27
+  (c) shared + combine        73.07    73.27    73.19
+  (d) 3 x gemv_v2 M=4         17.74    17.77    17.77
+  (e) tiny launch              3.96     3.96     3.96
+  (f) fused rows block       609.08   609.04   609.62
+  (g) grouped block          559.25   559.72   560.07
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 10 filtered out; finished in 22.81s
+

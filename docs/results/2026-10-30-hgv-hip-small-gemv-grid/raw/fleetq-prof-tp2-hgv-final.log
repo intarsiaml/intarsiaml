@@ -1,0 +1,32 @@
+fleetq: #7364 waiting (#9 in line): in line behind #7355 "WMR gates: rows_exact/folds/frag, batched==solo, plan show (flag off/bare/on)" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7355 set, or it will wait for #7355 to be released.
+fleetq: #7364 waiting (#8 in line): in line behind #7357 "HFP8 microbench compile e final (hipcc, no GPU)" (claude-908e11e8) on tatooine-r9700
+fleetq:   #7357 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7357 set, or it will wait for #7357 to be released.
+fleetq: #7364 waiting (#7 in line): in line behind #7358 "WMR accuracy: self-golden main vs flag on, tp1 short+long (rerun, dump dir)" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7358 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7358 set, or it will wait for #7358 to be released.
+fleetq: #7364 waiting (#6 in line): in line behind #7359 "WMR single-stream b1 tp2 1k/4k/16k x3, flag off vs on" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7359 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7359 set, or it will wait for #7359 to be released.
+fleetq: #7364 waiting (#5 in line): in line behind #7360 "WMR A/B tp2 streams 1/4/8/16, flag off vs on, 3 rounds + identity" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7360 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7360 set, or it will wait for #7360 to be released.
+fleetq: #7364 waiting (#4 in line): in line behind #7361 "WMR A/B tp1 round 3 streams + single-stream b1 1k/4k/16k x3" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7361 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7361 set, or it will wait for #7361 to be released.
+fleetq: #7364 waiting (#3 in line): in line behind #7362 "HFP8 build new + HIP/models gpu tests compile" (claude-908e11e8) on tatooine-r9700
+fleetq:   #7362 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7362 set, or it will wait for #7362 to be released.
+fleetq: #7364 waiting (#2 in line): in line behind #7363 "HGV A/B perf round 2" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7363 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7363 set, or it will wait for #7363 to be released.
+fleetq: #7364 waiting (#1 in line): radiance-rank0 is also taken down by #7363 "HGV A/B perf round 2" (claude-908e11e8)
+fleetq:   #7363 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7363 set, or it will wait for #7363 to be released.
+fleetq: #7364 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 100% busy with work fleetq does not track
+fleetq: #7364 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #7364 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 34% busy with work fleetq does not track
+fleetq: #7364 running on tatooine-r9700, tatooine-r9700-2: scripts/hprof/window.sh
+02:57:16 guard: [guard] radiance stopped 2026-10-30 02:57:16
+02:57:17 binary: intarsia 0.0.1 
+02:57:17 tp2-prof: starting server
+02:57:31 tp2-prof: driver phases same16,div16 (gen 192)
+02:57:53 tp2-prof: driver exit 0: {"phase": "same16", "streams": 16, "ok": 16, "wall_s": 6.82, "completion_tokens": 3072, "prompt_tokens_median": 991, "ttft_max_s": 2.07, "per_stream_decode_tok_s_mean": 34.2, "aggregate_decode_tok_s_e|{"phase": "div16", "streams": 16, "ok": 16, "wall_s": 6.83, "completion_tokens": 3072, "prompt_tokens_median": 1242, "ttft_max_s": 2.05, "per_stream_decode_tok_s_mean": 34.0, "aggregate_decode_tok_s_e|
+02:57:57 tp2-prof: server state after exit file (waited 6 s): false exit=0
+02:57:59 tp2-prof: copied  16M (648 /home/josef/intarsiaml-tp2-hgv/hprof-out/tp2-prof/k_agent_info.csv.gz 16646395 /home/josef/intarsiaml-tp2-hgv/hprof-out/tp2-prof/k_kernel_trace.csv.gz )
+02:58:00 done, time left 853s
+02:58:10 guard: [guard] stopping radiance 2026-10-30 02:57:13|[guard] radiance answers 2026-10-30 02:58:10 (after 15 s), unit active|
+fleetq: #7364 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

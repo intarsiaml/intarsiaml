@@ -1,0 +1,217 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1216:4
+     |
+1216 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: variable does not need to be mutable
+    --> crates/intarsia-backend-hip/tests/rows_exact.rs:1114:9
+     |
+1114 |     let mut line = |what: &str, kernel: &str, m: usize, us: f64, bytes: usize| {
+     |         ----^^^^
+     |         |
+     |         help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-backend-hip` (test "rows_exact") generated 1 warning (run `cargo fix --test "rows_exact"` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/rows_exact.rs (/target/release/deps/rows_exact-43c3557e11c85b2e)
+
+running 1 test
+test timing_mxfp4_rows ... TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=1     81.31 us    582.3 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=2     87.69 us    540.0 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=3    118.83 us    398.5 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=4    163.33 us    289.9 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=5    227.33 us    208.3 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv        M=8   1539.85 us     30.7 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=1     80.32 us    589.5 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=2     79.23 us    597.6 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=3     80.04 us    591.6 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=4     80.70 us    586.7 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=5     81.93 us    577.9 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=6     84.29 us    561.7 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=7     86.91 us    544.8 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=8     89.30 us    530.2 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=12   110.43 us    428.8 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_gemv_rows   M=16   140.69 us    336.6 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv     M=1     75.40 us    628.0 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv     M=2     78.12 us    606.1 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv     M=3     78.98 us    599.5 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv     M=4     80.11 us    591.0 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv     M=5     81.09 us    583.9 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv     M=8     87.63 us    540.3 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv_rows M=1     75.37 us    628.2 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv_rows M=2     78.17 us    605.7 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv_rows M=3     79.00 us    599.4 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv_rows M=4     80.14 us    590.8 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv_rows M=5     81.13 us    583.6 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv_rows M=6     84.13 us    562.8 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv_rows M=7     85.39 us    554.5 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv_rows M=8     88.02 us    537.9 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv_rows M=12    99.13 us    477.6 GB/s
+TIME mxfp4 17408x5120   matmul_mxfp4_a8_gemv_rows M=16   119.92 us    394.8 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=1     81.47 us    581.2 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=2     86.26 us    548.9 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=3    114.26 us    414.4 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=4    150.92 us    313.7 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=5    211.86 us    223.5 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv        M=8   1552.11 us     30.5 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=1     80.12 us    591.0 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=2     83.48 us    567.2 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=3     85.98 us    550.7 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=4     85.73 us    552.3 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=5     88.44 us    535.4 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=6     86.98 us    544.4 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=7     91.81 us    515.8 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=8     94.61 us    500.5 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=12   109.28 us    433.3 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_gemv_rows   M=16   138.55 us    341.7 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv     M=1     77.89 us    607.9 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv     M=2     81.97 us    577.7 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv     M=3     82.47 us    574.1 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv     M=4     83.67 us    565.9 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv     M=5     84.99 us    557.1 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv     M=8     91.80 us    515.8 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv_rows M=1     77.47 us    611.2 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv_rows M=2     81.96 us    577.7 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv_rows M=3     82.50 us    574.0 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv_rows M=4     83.66 us    566.0 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv_rows M=5     85.00 us    557.0 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv_rows M=6     88.47 us    535.2 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv_rows M=7     89.10 us    531.4 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv_rows M=8     92.81 us    510.2 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv_rows M=12   107.62 us    440.0 GB/s
+TIME mxfp4 5120x17408  matmul_mxfp4_a8_gemv_rows M=16   128.40 us    368.8 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=1     60.53 us    552.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=2     63.92 us    522.9 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=3     85.69 us    390.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=4    115.75 us    288.7 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=5    163.60 us    204.3 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv        M=8    916.52 us     36.5 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=1     59.15 us    565.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=2     59.57 us    561.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=3     60.37 us    553.7 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=4     60.50 us    552.4 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=5     61.54 us    543.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=6     63.34 us    527.7 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=7     65.51 us    510.2 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=8     67.87 us    492.5 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=12    81.57 us    409.7 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_gemv_rows   M=16   104.55 us    319.7 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv     M=1     56.03 us    596.6 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv     M=2     58.19 us    574.3 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv     M=3     59.35 us    563.2 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv     M=4     59.79 us    559.0 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv     M=5     60.40 us    553.3 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv     M=8     66.41 us    503.3 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv_rows M=1     55.61 us    601.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv_rows M=2     58.12 us    575.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv_rows M=3     59.36 us    563.1 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv_rows M=4     59.91 us    557.9 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv_rows M=5     60.58 us    551.7 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv_rows M=6     63.10 us    529.7 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv_rows M=7     64.92 us    514.9 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv_rows M=8     67.14 us    497.8 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv_rows M=12    76.65 us    436.0 GB/s
+TIME mxfp4 12288x5120   matmul_mxfp4_a8_gemv_rows M=16    89.32 us    374.2 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=1     35.68 us    468.4 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=2     41.34 us    404.3 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=3     50.91 us    328.3 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=4     64.62 us    258.6 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=5     87.40 us    191.2 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv        M=8    463.70 us     36.0 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=1     35.20 us    474.8 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=2     40.36 us    414.1 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=3     43.95 us    380.3 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=4     46.62 us    358.4 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=5     47.48 us    351.9 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=6     51.85 us    322.3 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=7     53.01 us    315.2 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=8     54.17 us    308.5 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=12    61.02 us    273.9 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_gemv_rows   M=16    69.96 us    238.9 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv     M=1     36.34 us    459.9 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv     M=2     39.71 us    420.9 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv     M=3     40.67 us    410.9 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv     M=4     45.94 us    363.8 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv     M=5     49.55 us    337.3 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv     M=8     62.18 us    268.8 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv_rows M=1     36.37 us    459.5 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv_rows M=2     39.69 us    421.0 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv_rows M=3     40.59 us    411.7 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv_rows M=4     45.81 us    364.8 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv_rows M=5     49.63 us    336.7 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv_rows M=6     58.83 us    284.1 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv_rows M=7     61.52 us    271.6 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv_rows M=8     61.70 us    270.9 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv_rows M=12    70.14 us    238.3 GB/s
+TIME mxfp4 5120x6144   matmul_mxfp4_a8_gemv_rows M=16    79.22 us    210.9 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=1     13.24 us    210.4 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=2     14.69 us    189.6 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=3     16.12 us    172.8 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=4     21.25 us    131.1 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=5     23.49 us    118.6 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv        M=8     85.71 us     32.5 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=1     13.26 us    210.1 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=2     13.49 us    206.5 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=3     14.13 us    197.1 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=4     14.52 us    191.8 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=5     14.31 us    194.7 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=6     14.79 us    188.3 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=7     14.93 us    186.5 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=8     15.34 us    181.6 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=12    17.00 us    163.8 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_gemv_rows   M=16    19.91 us    139.9 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv     M=1      8.94 us    311.5 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv     M=2     12.04 us    231.3 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv     M=3     12.25 us    227.3 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv     M=4     13.05 us    213.4 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv     M=5     13.57 us    205.2 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv     M=8     15.65 us    178.0 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv_rows M=1      8.92 us    312.1 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv_rows M=2     12.06 us    230.9 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv_rows M=3     12.29 us    226.7 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv_rows M=4     13.03 us    213.8 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv_rows M=5     13.61 us    204.7 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv_rows M=6     14.39 us    193.5 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv_rows M=7     14.90 us    186.9 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv_rows M=8     15.64 us    178.1 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv_rows M=12    18.02 us    154.5 GB/s
+TIME mxfp4 1024x5120   matmul_mxfp4_a8_gemv_rows M=16    20.57 us    135.4 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv         M=1   4243.32 us    599.2 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv         M=2   4262.92 us    596.5 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv         M=3   4280.05 us    594.1 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv         M=4   4343.96 us    585.4 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv_rows    M=1   4244.18 us    599.1 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv_rows    M=2   4263.92 us    596.4 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv_rows    M=3   4280.16 us    594.1 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv_rows    M=4   4344.27 us    585.3 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv_rows    M=5   8456.89 us    300.7 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv_rows    M=6   8496.13 us    299.3 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv_rows    M=8   8565.51 us    296.9 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv_rows    M=12  4637.19 us    548.3 GB/s
+TIME lm_head 248320x5120 logits_bf16_gemv_rows    M=16  4639.30 us    548.1 GB/s
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 15.69s
+
