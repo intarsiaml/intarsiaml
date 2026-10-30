@@ -55,15 +55,15 @@ measured here, section 4; all ms per 37.0 ms step, harness regime; the served su
 | 1 | fp8 projections: two 8-row launches, each at 235-290 GB/s (about 45 % of attainable) and each re-reading 1.28 GB of weights | 10.15 ms | 2.2 ms | **7.9 ms** | `kernels/metal/fp8.metal:132-231` (`_xd`, M 2..4 per launch), `:304-382` (`fp8_rows_mmt`, M 5..8), `crates/intarsia-backend-metal/src/fp8.rs:356,502`, `lib.rs:237-273` |
 | 2 | routed experts: gate-up at 412 GB/s of distinct bytes (71 %), down tracks *pairs* not distinct experts | 14.30 ms | 9.7 ms | **4.6 ms** | `kernels/metal/moe.metal:556-640` (per-pair kernels `moe_dec_gu_p` / `moe_dec_dn_p`), `src/moe.rs:232-243`, `lib.rs:252` |
 | 3 | lm_head: scalar FMA, time proportional to rows (0.26 ms per row), 12 % of the nvfp4 byte roof | 4.14 ms | 0.5 ms | **3.6 ms** | `kernels/metal/nvfp4.metal:81-147` (`nv_gemv_impl`, 8-row form), `src/nvfp4.rs:28-45,170-185` |
-| 4 | small-N nvfp4 / bf16 GEMVs (shared expert 512x2048 + 2048x512, router 257x2048, GDN in_a+in_b 64x2048): one-row shader looped over rows, chunked | 2.6 ms | 0.2 ms | **2.4 ms** | `src/nvfp4.rs:28-45,176-182` (`nv_rows_mb`, `NARROW_N` 4096), `kernels/metal/gemv_multirow.metal:79-99,218` |
-| 5 | attention decode: 36 % of the KV read roof (4 head-split threadgroups re-read each KV head, short rows idle) | 1.76 ms | 0.63 ms | **1.1 ms** | `kernels/metal/attention_splitkv.metal:532-570`, `src/attn.rs:20-78`, `src/rowtab.rs:419-433` |
+| 4 | small-N nvfp4 / bf16 GEMVs (shared expert 512x2048 + 2048x512, router 257x2048, GDN in_a+in_b 64x2048): one-row shader looped over rows, chunked | 2.6 ms | 0.2 ms | **2.4 ms** | `src/nvfp4.rs:28-45,176-182` (`nv_rows_mb`, `NARROW_N` 4096), `kernels/metal/gemv_multirow.metal:80-99,218` |
+| 5 | attention decode: 36 % of the KV read roof (4 head-split threadgroups re-read each KV head, short rows idle) | 1.76 ms | 0.63 ms | **1.1 ms** | `kernels/metal/attention_splitkv.metal:532-570`, `src/attn.rs:20-78`, `src/rowtab.rs:~419-433` |
 
 The five add up to 19.7 ms, which would put the 16-row step at about 17 ms (930 tok/s decode-only); the unique-byte floor of the
 whole step is 9.7 GB (7.3 GB weights, 2.0 GB GDN state read+write, 0.36 GB KV) = 16.7 ms. **Not a bottleneck:** GDN delta rule
 (2.27 ms, already at the bandwidth roof), host work, sampling. **Constraint every kernel lane inherits:** all multi-row kernels are
 `rows_exact` (each row bitwise the solo step, `crates/intarsia-core/src/registry.rs:356-364`, lane mb), and the roofs above assume that is
 relaxed or reproduced; the NAX / `mpp::tensor_ops` kernels are registered but unreachable in a decode batch. **And one trap for
-A/B work:** every kernel runs 10-15 % slower after 20-30 s of sustained load than in a 2-3 s harness cell (section 7).
+A/B work:** every multi-row kernel runs 10-18 % slower in the served burst (the GPU is loaded continuously, prefills first) than in the harness cells, which start after a 1.5 s pause; the harness itself runs 11-18 % slower when a cell lasts 30 s instead of 2.3 s (section 7).
 
 ## 1. Method
 
@@ -281,18 +281,31 @@ so the batch is full for 79 % of the wall; the only way to a bigger aggregate is
 
 The served steady step (42.5 ms at 16 rows, 23.15 at 8) is 10-15 % above the harness step (35.9, 20.0), at the same row counts and with
 *fewer* distinct experts (section 3). In the `ce1` served trace *every* group is slower, including those whose work does not depend on
-the data: lm_head 4.91 vs 4.14 ms (+18 %), fp8 11.47 vs 10.15 (+13 %), MoE 15.68 vs 14.65 (+7 %), GDN 3.21 vs 2.98 (+8 %). Test (`raw/scripts/w3.sh`, `raw/w3/`), the
-same harness, one B, 64 steps (2.3 s) against 800 or 1200 steps (30 s):
+the data: lm_head 4.91 vs 4.14 ms (+18 %), fp8 11.47 vs 10.15 (+13 %), MoE 15.68 vs 14.65 (+7 %), GDN 3.21 vs 2.98 (+8 %). Two tests:
 
-| B | 64 steps (ms / step) | 800 / 1200 steps (ms / step) | change |
-|---:|---|---|---:|
-| 16 | 35.50, 35.66 | 39.60, 42.12 (800 steps) | +11 % .. +18 % |
-| 8 | 19.78, 19.65 | 22.27, 22.05 (1200 steps) | +12 % |
+1. *Harness, 64 steps (2.3 s) against 800 or 1200 steps (30 s)* (`raw/scripts/w3.sh`, `raw/w3/`):
 
-The context grows by 800-1200 tokens over the long runs (attention is 1.8 ms at 1.1k context at B=16 and scales with it), which accounts for about 0.5-0.7 ms of the
-4-6 ms at B=16 and of the 2.3 ms at B=8; the rest is a slowdown of the GPU under sustained load (clock / power state; a clock reading was not
-available without root, so the cause is inferred from the uniform slowdown of data-independent kernels, not measured). The single-stream step (low power) is unaffected: 8.11 ms served vs 8.10 harness.
-**Consequence for later lanes:** a 2-3 s harness cell flatters every multi-row kernel by 10-15 %; the served-regime figure is the one to quote, and an A/B must use the same duration on both arms.
+   | B | 64 steps (ms / step) | 800 / 1200 steps (ms / step) | change |
+   |---:|---|---|---:|
+   | 16 | 35.50, 35.66 | 39.60, 42.12 (800 steps) | +11 % .. +18 % |
+   | 8 | 19.78, 19.65 | 22.27, 22.05 (1200 steps) | +12 % |
+
+   The context grows by 800-1200 tokens over the long runs (attention is 1.8 ms at 1.1k context at B=16 and scales with it), which accounts for about
+   0.5-0.7 ms of the 4-6 ms at B=16 and of the 2.3 ms at B=8; the rest is not context.
+2. *Drift inside the served burst* (`raw/scripts/an_drift.py`, `raw/analysis/drift_served_ce1.md`): the lm_head kernel, whose work is fixed, in 50-step bins.
+
+   | served run | first 50 steps | later bins | harness cell |
+   |---|---:|---:|---:|
+   | D1 (single stream, 11 s) | 0.495 ms | 0.487-0.503, flat | 0.51 |
+   | D8 | 2.375 ms (elapsed 13.9 s) | 2.44-2.49 | 2.06 |
+   | D16 | 4.802 ms (elapsed 30.3 s) | 4.86-4.94 | 4.14 |
+
+   So the served slowdown is **already there in the first second of each batched run (+15 % at 8 rows, +16 % at 16)** and creeps up only another 2-5 % after;
+   it is not a slow ramp over 20-30 s. The one-row stream (low power) shows none. What is established: with the GPU loaded continuously (the 2-4 s of prefills just
+   before each burst, no idle pause) the multi-row kernels run 10-18 % slower than in a harness cell that follows a 1.5 s pause, and the harness itself slows 11-18 % over a long cell. A GPU clock / power
+   state is the likely cause, but no clock or power reading was available (it needs root), so the cause is **not isolated**.
+
+**Consequence for later lanes:** do not compare a harness number against a served number; quote the served-regime step (42.5 / 23.15 ms) for end-to-end claims, and run any kernel A/B with the same cell length, the same pause before it and the same order of arms on both sides.
 
 ## 8. Host side (question 6)
 
@@ -321,10 +334,10 @@ bf16 matmul / pair / logits GEMVs into two launches of `ceil(m/2)` and `floor(m/
 | fp8 one row | `fp8.rs` | `fp8_gemv_bf16_m1` (`:251`, `RS` 4, `UN` 4) | no | per 16-weight chunk |
 | lm_head (n 248320) | `nvfp4.rs:170-185`, grid over 8-row shader for n > `NARROW_N` 4096 | `nv_gemv_f32_m8` (`nvfp4.metal:161`; impl `nv_gemv_impl` `:81-147`) | **no: scalar fma** (`nv_dot16d` `:69`, multi-row loop `:105-122`) | `nv_dec16` once per weight block (`:109`), **hoisted out of the M loop** (`:110`); `RS` 2, `NV_SG` 8 |
 | shared expert 512x2048 / 2048x512 | `nvfp4.rs:28-45,176-182`, `nv_rows_mb` | `nv_gemv_*_m1` over a grid of M threadgroup rows | no | **per row**: each row's threadgroup re-decodes inline (`:123-136`, `nv_dot16`) and re-reads the weights from cache |
-| router + shared gate, in_a/in_b | `multirow.rs:28` (kernel name) | `gemv_pair_bf16_rt_u2s8_mr` (`gemv_multirow.metal:218`, body `rt_rows16` `:79`) | no: `dot8` fma chain (`:54-64`) | bf16, none |
+| router + shared gate, in_a/in_b | `multirow.rs:28` (kernel name) | `gemv_pair_bf16_rt_u2s8_mr` (`gemv_multirow.metal:218`, body `rt_rows16` `:80`) | no: `dot8` fma chain (`:54-64`) | bf16, none |
 | routed experts | `moe.rs` rows branch `:232-243` | `moe_dec_gu_p` (`moe.metal:584`), `moe_dec_dn_p` (`:630`), `moe_gather_*` (`:546-554`) | no: LUT + fma `moe_blk_dot` (`:35-42`) | **per pair**: a threadgroup row per (token, k) pair (`MOE_PR` 2 rows per simdgroup, `:580`); an expert's blocks are decoded again by every pair that routes to it; no grouping, shared experts rely on cache (`:556-569`). The grouped `moe_lead` form (`:289-316`) is reachable with `INTARSIA_METAL_MOE_ROWS_FAT=0` |
 | GDN delta | `rowtab.rs` (delta launch) | `gdn_delta_rule_rows_t` (`gdn.metal:499-564`) | no | f32 state, whole 128x128 state per head read once and written once per row (`:521-524`, `:563`) |
-| attention decode | `launch_attn_rowtab` `rowtab.rs:355` | `attn_decode_rowtab_t` (`attention_splitkv.metal:532`) + combine (`:659`) | no (`ask_step` fma `:91-117`) | KV is bf16; `head_split` 4 for the 35B (`attn.rs:72-78`), so each KV head is read by 4 threadgroups (`:546-558`); stage-1 grid `(nkv*hs, max_split, R)` (`rowtab.rs:419-433`) |
+| attention decode | `launch_attn_rowtab` `rowtab.rs:355` | `attn_decode_rowtab_t` (`attention_splitkv.metal:532`) + combine (`:659`) | no (`ask_step` fma, defined `:74`, called `:185,187`) | KV is bf16; `head_split` 4 for the 35B (`attn.rs:72-78`), so each KV head is read by 4 threadgroups (`:546-558`); stage-1 grid `(nkv*hs, max_split, R)` (`rowtab.rs:~419-433`) |
 | top-k, combine, norms, gated norm, conv, gates | | one launch for all rows | no | none |
 
 The Metal backend registers no fusions for this model (`MatmulFp8Pair`, `RmsNormAddMatmulPair`, `GatedRmsnorm*`, `GdnConvDelta`, `GateSplitQkNormRopeKv`, `MatmulNvfp4Glu`, `SharedDownCombine`, `MoeBlock`: `kernels.rs:821-847,1037`), which is where the 1125 dispatches come from.
@@ -347,7 +360,7 @@ Not worth a lane: GDN delta rule (2.27 ms, at the bandwidth roof; only a narrowe
 * Harness contexts are about 1.0-1.2k tokens and its text is one markdown corpus; routing, hence the MoE bytes, move with the text (section 3). Longer contexts raise attention (x2 time per doubling of KV bytes) and nothing else.
 * `ce1` charges overlapped launches to the earlier one; group totals are reliable, single rows of overlapping pairs are not (B=1 fp8 4096x2048). `cb` mode is +12 % at 16 rows; `kernel` durations are unusable below 9 rows (clock state), used for routing labels only.
 * Server-start to server-start spread is 10-20 % at 8 streams (277-333 tok/s); only the steady-step and decomposition figures should be compared across lanes.
-* The sustained-load explanation (section 7) is inferred, no clock / power reading.
+* The cause of the served-vs-harness slowdown (section 7) is not isolated: it is present from the first second of a batched run and no clock / power reading was available.
 * Roofs: 580 GB/s is a read-only stream; mixed read / write traffic (delta rule) cannot be judged against it. FMA / MMA peaks are from `raw/scripts/roof/` on this box, not published figures.
 * Numbers are for MTP off and `--max-batch 16`; the workspace of 16 sequences is allocated (942 MiB), which does not change the kernels at <= 8 rows.
 
