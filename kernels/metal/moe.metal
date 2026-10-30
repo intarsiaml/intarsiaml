@@ -286,7 +286,8 @@ constant constexpr uint MOE_XR = 8;  // pairs served per threadgroup row
 
 // The pairs this threadgroup row serves: pl[0..rows) ascending, all with expert `e`. false: not a leader / invalid id. One
 // simd ballot per 32 ids (every lane of a simdgroup calls it with the same arguments).
-inline bool moe_lead(device const int* ids, uint P, uint E, uint pr, uint lane, thread uint& e, thread uint& rows,
+template <uint XR>
+inline bool moe_lead_n(device const int* ids, uint P, uint E, uint pr, uint lane, thread uint& e, thread uint& rows,
                      thread uint* pl) {
     const int id = ids[pr];
     if (id < 0 || (uint)id >= E) return false;
@@ -298,14 +299,14 @@ inline bool moe_lead(device const int* ids, uint P, uint E, uint pr, uint lane, 
         m &= (lim >= 32u) ? 0xFFFFFFFFul : ((1ul << lim) - 1ul);
         rank += (uint)popcount(m);
     }
-    if (rank % MOE_XR != 0) return false;
+    if (rank % XR != 0) return false;
     e = (uint)id;
     rows = 0;
-    uint seen = 0;  // pairs of this expert met so far; keep those numbered rank .. rank + MOE_XR - 1
-    for (uint base = 0; base < P && rows < MOE_XR; base += 32u) {
+    uint seen = 0;  // pairs of this expert met so far; keep those numbered rank .. rank + XR - 1
+    for (uint base = 0; base < P && rows < XR; base += 32u) {
         const int v = (base + lane < P) ? ids[base + lane] : -1;
         ulong m = (ulong)simd_ballot(v == id);
-        while (m != 0ul && rows < MOE_XR) {
+        while (m != 0ul && rows < XR) {
             const uint b = (uint)ctz(m);
             m &= m - 1ul;
             if (seen >= rank) pl[rows++] = base + b;
@@ -313,6 +314,11 @@ inline bool moe_lead(device const int* ids, uint P, uint E, uint pr, uint lane, 
         }
     }
     return true;
+}
+
+inline bool moe_lead(device const int* ids, uint P, uint E, uint pr, uint lane, thread uint& e, thread uint& rows,
+                     thread uint* pl) {
+    return moe_lead_n<MOE_XR>(ids, P, E, pr, lane, e, rows, pl);
 }
 
 // gate + up: grid (ceil(I / 4), pairs); one simdgroup per row r, loops the pairs of its expert inside the weight-block loop
@@ -679,3 +685,89 @@ MOE_GU_P(moe_dec_gu_p, false)
 MOE_DN_P(moe_dec_dn_p, false)
 MOE_GU_P(moe_dec_gu_p_neg, true)
 MOE_DN_P(moe_dec_dn_p_neg, true)
+
+// ---- expert-grouped fat down for 9..16 rows (lane mmoe) ----------------------------------------------------------------
+// moe_dec_dn_p reads an expert's weight rows once per (pair, row): at 16 rows ~128 pairs share ~78 experts, so the down
+// projection re-reads (and re-decodes) each shared expert's rows ~1.6 times and its time follows the pair count. These
+// kernels give a threadgroup row to the first pair of each expert (moe_lead_n: it serves the next MOE_DG pairs of that
+// expert, found by ballots over the ids) and loop those pairs inside the weight-block loop: every weight block is decoded
+// once (moe_blk_dec) and used for all of them, and the h block of a pair is loaded once for MOE_DR weight rows. Per (pair,
+// row) the arithmetic is exactly moe_dec_dn_p's: the lane-strided block loop, the 16-term fma chain of moe_blk_dot (here
+// moe_blk_dot_f over the decoded block: the same fmas in the same order), the scale fma, simd_sum, f2bf(t * gs); only which
+// threadgroup computes a pair changes. NEG (INTARSIA_METAL_NEGCTL=moe_dn): the reversed chain of moe_dec_dn_p's control.
+// grid (ceil(H / (4 * DR)), pairs); y by pair; moe_gather sums per token in k order.
+
+template <bool NEG, uint DR, uint DG>
+inline void moe_dec_dn_g_impl(device const ushort* h, device const int* ids, device const uchar* dw, device const uchar* ds,
+                              device const float* gsc, device ushort* y, constant OpP& p, uint2 tg, uint sg, uint lane) {
+    const uint n0 = (tg.x * MOE_DEC_SG + sg) * DR;
+    const uint T = p.a, E = p.b, K = p.c, H = p.d, I = p.e;
+    uint e, rows;
+    uint pl[DG];
+    if (!moe_lead_n<DG>(ids, T * K, E, tg.y, lane, e, rows, pl)) return;  // uniform over the threadgroup
+    if (n0 >= H) return;
+    device const ushort* hr[DG];
+    _Pragma("clang loop unroll(full)")
+    for (uint q = 0; q < DG; ++q) hr[q] = h + (ulong)pl[min(q, rows - 1u)] * I;
+    device const packed_uint2* wr[DR];
+    device const uchar* sr[DR];
+    _Pragma("clang loop unroll(full)")
+    for (uint j = 0; j < DR; ++j) {
+        const ulong rn = (ulong)e * H + min(n0 + j, H - 1u);
+        wr[j] = (device const packed_uint2*)(dw + rn * (I / 2));
+        sr[j] = ds + p.s2 + rn * (I / 16);
+    }
+    float s[DR][DG];
+    _Pragma("clang loop unroll(full)")
+    for (uint j = 0; j < DR; ++j) {
+        _Pragma("clang loop unroll(full)")
+        for (uint q = 0; q < DG; ++q) s[j][q] = 0.f;
+    }
+    for (uint u = lane; u < I / 16; u += 32u) {
+        float wf[DR][16], sc[DR];
+        uint2 wv[DR];
+        _Pragma("clang loop unroll(full)")
+        for (uint j = 0; j < DR; ++j) {
+            wv[j] = uint2(wr[j][u]);
+            moe_blk_dec(wv[j], wf[j]);
+            sc[j] = moe_e4m3(sr[j][u]);
+        }
+        _Pragma("clang loop unroll(full)")
+        for (uint q = 0; q < DG; ++q) {
+            if (q >= rows) break;
+            float hv[16];
+            for (int i = 0; i < 16; ++i) hv[i] = bf2f(hr[q][u * 16 + i]);
+            _Pragma("clang loop unroll(full)")
+            for (uint j = 0; j < DR; ++j)
+                s[j][q] = fma(NEG ? moe_blk_dot_rev(wv[j], hv) : moe_blk_dot_f(wf[j], hv), sc[j], s[j][q]);
+        }
+    }
+    _Pragma("clang loop unroll(full)")
+    for (uint q = 0; q < DG; ++q) {
+        if (q >= rows) break;
+        _Pragma("clang loop unroll(full)")
+        for (uint j = 0; j < DR; ++j) {
+            const float t = simd_sum(s[j][q]);
+            if (lane == 0 && n0 + j < H) y[(ulong)pl[q] * H + n0 + j] = f2bf(t * gsc[e * 3 + 2]);
+        }
+    }
+}
+
+#define MOE_DN_G(NAME, NEG, DR, DG)                                                                                 \
+    kernel void NAME(device const ushort* h [[buffer(0)]], device const int* ids [[buffer(1)]],                    \
+                     device const uchar* dw [[buffer(2)]], device const uchar* ds [[buffer(3)]],                    \
+                     device const float* gsc [[buffer(4)]], device ushort* y [[buffer(5)]],                         \
+                     constant OpP& p [[buffer(6)]], uint2 tg [[threadgroup_position_in_grid]],                      \
+                     uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
+        moe_dec_dn_g_impl<NEG, DR, DG>(h, ids, dw, ds, gsc, y, p, tg, sg, lane);                                    \
+    }
+
+// (rows per simdgroup, pairs per leader) variants; the launcher picks one (src/moe.rs `dn_grouped`)
+MOE_DN_G(moe_dec_dn_g_2x4, false, 2, 4)
+MOE_DN_G(moe_dec_dn_g_4x2, false, 4, 2)
+MOE_DN_G(moe_dec_dn_g_4x4, false, 4, 4)
+MOE_DN_G(moe_dec_dn_g_8x2, false, 8, 2)
+MOE_DN_G(moe_dec_dn_g_4x1, false, 4, 1)
+MOE_DN_G(moe_dec_dn_g_8x1, false, 8, 1)
+MOE_DN_G(moe_dec_dn_g_2x2, false, 2, 2)
+MOE_DN_G(moe_dec_dn_g_2x4_neg, true, 2, 4)

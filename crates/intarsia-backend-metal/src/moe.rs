@@ -49,11 +49,24 @@ const DN_P: &str = "moe_dec_dn_p";
 const GU_P_NEG: &str = "moe_dec_gu_p_neg";
 const DN_P_NEG: &str = "moe_dec_dn_p_neg";
 const PR: usize = 2;
+/// The expert-grouped fat down kernels (lane mmoe, docs/results/2026-10-30-mmoe-metal-moe-grouped-down.md) with their rows
+/// per simdgroup: for 9+ rows, one threadgroup row per expert serves its next 4 / 8 / 16 pairs.
+const DN_G: [(&str, usize); 7] = [
+    ("moe_dec_dn_g_2x4", 2),
+    ("moe_dec_dn_g_4x2", 4),
+    ("moe_dec_dn_g_4x4", 4),
+    ("moe_dec_dn_g_8x2", 8),
+    ("moe_dec_dn_g_4x1", 4),
+    ("moe_dec_dn_g_8x1", 8),
+    ("moe_dec_dn_g_2x2", 2),
+];
+const DN_G_NEG: (&str, usize) = ("moe_dec_dn_g_2x4_neg", 2);
 
 /// Shader entry points (kernels/metal/moe.metal).
-pub const SHADERS: [&str; 23] = [
+pub const SHADERS: [&str; 31] = [
     TOPK_BF16, TOPK_F32, COMBINE, DEC_GU, DEC_DN[0], DEC_DN[1], GROUP, MM_GU[0], MM_GU[1], MM_GU[2], MM_GU[3],
     MM_DN[0], MM_DN[1], MM_DN[2], MM_DN[3], GATHER[0], GATHER[1], DEC_GU_X, DEC_DN_X, GU_P, DN_P, GU_P_NEG, DN_P_NEG,
+    DN_G[0].0, DN_G[1].0, DN_G[2].0, DN_G[3].0, DN_G[4].0, DN_G[5].0, DN_G[6].0, DN_G_NEG.0,
 ];
 
 /// The rows path's gate+up and down shaders with their rows per simdgroup: the fat-threadgroup kernels unless
@@ -72,6 +85,27 @@ fn rows_shaders() -> ((&'static str, usize), (&'static str, usize)) {
     })
 }
 
+/// Rows at and above which the rows path's down projection runs expert-grouped (`moe_dec_dn_g_*`, lane mmoe), from
+/// `INTARSIA_METAL_MOE_DN_GROUP` (a row count; 0 = never). `INTARSIA_METAL_MOE_DN_GV` picks the (rows per simdgroup x pairs
+/// per leader) variant of `DN_G`.
+fn dn_grouped_min_rows() -> usize {
+    static MIN: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *MIN.get_or_init(|| match std::env::var("INTARSIA_METAL_MOE_DN_GROUP").ok().and_then(|v| v.parse::<usize>().ok()) {
+        Some(0) | None => usize::MAX,
+        Some(n) => n,
+    })
+}
+/// The grouped down shader and its weight rows per simdgroup; `INTARSIA_METAL_NEGCTL=moe_dn_g` swaps in the control form
+/// (the per-pair kernels stay the real ones, so a gate failure is the grouped kernel's, at T >= the grouping threshold).
+fn dn_grouped() -> (&'static str, usize) {
+    static PICK: std::sync::OnceLock<(&'static str, usize)> = std::sync::OnceLock::new();
+    *PICK.get_or_init(|| {
+        let v = std::env::var("INTARSIA_METAL_MOE_DN_GV").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(0);
+        let pick = if std::env::var("INTARSIA_METAL_NEGCTL").is_ok_and(|v| v == "moe_dn_g") { DN_G_NEG } else { DN_G[v.min(DN_G.len() - 1)] };
+        eprintln!("metal moe: expert-grouped down '{}' for T >= {}", pick.0, dn_grouped_min_rows());
+        pick
+    })
+}
 /// The per-pair (fat) kernels have no token limit: a batched call of up to `CHUNK_ROWS_MAX` tokens runs as one launch
 /// (lane mdec). The expert-grouped `_x` kernels (`INTARSIA_METAL_MOE_ROWS_FAT=0`) take `ROWS_MAX`; more are chunked.
 pub fn rows_native() -> bool {
@@ -236,6 +270,7 @@ impl MetalBackend {
             let ((gu, rg), (dn, rd)) = rows_shaders();
             let g1 = MTLSize { width: i.div_ceil(DEC_SG * rg), height: pairs, depth: 1 };
             self.moe_dispatch(gu, &[&xb, &ib, &guwb, &gusb, &gb, &hb], &p, g1, DEC_SG * 32)?;
+            let (dn, rd) = if t >= dn_grouped_min_rows() { dn_grouped() } else { (dn, rd) };
             let g2 = MTLSize { width: h.div_ceil(DEC_SG * rd), height: pairs, depth: 1 };
             self.moe_dispatch(dn, &[&hb, &ib, &dwb, &dsb, &gb, &yb], &p, g2, DEC_SG * 32)?;
             let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };

@@ -341,8 +341,31 @@ fn routings(rng: &mut SplitMix64, t: usize) -> Vec<(&'static str, Vec<i32>, Vec<
     out.push(("empty-token", none, rws.clone()));
     // the same expert on every slot of every other token (duplicates: eight pairs of one expert per token, several tiles)
     let dup: Vec<i32> = (0..t * K).map(|i| if i / K % 2 == 0 { 5 } else { rids[i] }).collect();
-    out.push(("duplicates", dup, rws));
+    out.push(("duplicates", dup, rws.clone()));
+    // real-text-like skew (lane mmoe): the 8 distinct experts of every token drawn from a 120-expert pool, so 128 pairs at
+    // T = 16 land on ~79 distinct experts (the served 35B shows 77-82), with a few experts hit by many tokens
+    out.push(("pool120", pool_routing(rng, t, 120), rws));
     out
+}
+
+/// `t` tokens x `K` distinct experts each, drawn uniformly from the first `pool` experts of a shuffled order.
+fn pool_routing(rng: &mut SplitMix64, t: usize, pool: usize) -> Vec<i32> {
+    let mut order: Vec<i32> = (0..E as i32).collect();
+    for i in (1..order.len()).rev() {
+        order.swap(i, (rng.next_u64() % (i as u64 + 1)) as usize);
+    }
+    let mut ids = Vec::with_capacity(t * K);
+    for _ in 0..t {
+        let mut pick: Vec<i32> = Vec::new();
+        while pick.len() < K {
+            let c = order[(rng.next_u64() % pool as u64) as usize];
+            if !pick.contains(&c) {
+                pick.push(c);
+            }
+        }
+        ids.extend(pick);
+    }
+    ids
 }
 
 #[test]
@@ -1015,5 +1038,63 @@ fn timing_rows() {
             };
             eprintln!("TIMING moe_experts(cold) T={m} routing={name}: {m} one-token calls {serial:.1} us, rows call {rows:.1} us ({:.2}x)", serial / rows);
         }
+    }
+}
+
+/// `cargo test --release --test rows_exact -- --ignored --nocapture timing_moe_rows16` (lane mmoe): the row-exact MoE launch
+/// at T = 8..16 on pool-120 routing (cold cycling of 24 routings), wall us per call. Env `INTARSIA_METAL_MOE_DN_GROUP` /
+/// `INTARSIA_METAL_MOE_DN_GV` pick the path; `INTARSIA_METAL_COMMIT_EVERY=1 INTARSIA_METAL_PROFILE=cb:<file>` splits it
+/// into gate-up / down / gather records.
+#[test]
+#[ignore]
+fn timing_moe_rows16() {
+    let be = backend();
+    let mut rng = SplitMix64::new(0x71_3e);
+    let ex = random_experts(&mut rng, E, H, I);
+    let (guw, gus, dw, ds, gs) = (
+        put_host(&be, &ex.gate_up_w, 8),
+        put_host(&be, &ex.gate_up_s, 0),
+        put_host(&be, &ex.down_w, 8),
+        put_host(&be, &ex.down_s, 0),
+        put_host(&be, &ex.gscales, 0),
+    );
+    let ks = be.kernels();
+    let rows_k = ks.iter().find(|k| k.name == "moe_experts_bf16_rows").unwrap();
+    const VARIANTS: usize = 24;
+    for m in [8usize, 9, 12, 16] {
+        let x = HostTensor::from_f32_as(DType::Bf16, &[m, H], &rng.normal_vec(m * H, 1.0));
+        let xr = put_host(&be, &x, 0);
+        let ys = guarded(&be, 0, m * H * 2);
+        let mut calls: Vec<OpCall> = Vec::new();
+        let mut distinct = 0usize;
+        for _ in 0..VARIANTS {
+            let ids = pool_routing(&mut rng, m, 120);
+            let mut u = ids.clone();
+            u.sort();
+            u.dedup();
+            distinct += u.len();
+            let ws = vec![1.0f32 / K as f32; m * K];
+            let idt = put_host(&be, &HostTensor::from_i32(&[m, K], &ids), 0);
+            let wst = put_host(&be, &HostTensor::from_f32(&[m, K], &ws), 0);
+            let mut c = OpCall::new(
+                Op::MoeExperts,
+                vec![xr.clone(), idt, wst, guw.clone(), gus.clone(), dw.clone(), ds.clone(), gs.clone()],
+                vec![t(&ys, 0, DType::Bf16, &[m, H])],
+                OpAttrs { top_k: K, ..OpAttrs::default() },
+            );
+            let need = rows_k.scratch_bytes(&ShapeInfo::from_call(&c));
+            c.scratch = Some(TensorRef::new(be.alloc(need.max(16), MemKind::Device).unwrap(), DType::U8, &[need]));
+            calls.push(c);
+        }
+        let mut i = 0usize;
+        let us = time_us(&be, 96, || {
+            i += 1;
+            be.launch("moe_experts_bf16_rows", &calls[i % VARIANTS], 0).unwrap()
+        });
+        eprintln!(
+            "TIMING moe_rows16 T={m} pool120 ({:.1} distinct of {} pairs): rows call {us:.1} us",
+            distinct as f64 / VARIANTS as f64,
+            m * K
+        );
     }
 }
