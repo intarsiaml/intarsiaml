@@ -1,0 +1,33 @@
+fleetq: #7388 running on tatooine-r9700, tatooine-r9700-2: scripts/k4fp8/mbwin.sh
+07:25:07 guard: [guard] radiance stopped 2026-10-30 07:25:06
+07:25:07 census: start ( -e BENCH_SHAPES=8192x2048,4096x2048,2048x4096,512x2048,2048x2048,256x2048 -e BENCH_MS=1,2,3,4,5,8,12,16 -e BENCH_MODE=time)
+07:25:08 census: exit 0 (48 lines)
+07:25:08 abl0: start ( -e BENCH_SHAPES=2048x4096,8192x2048 -e BENCH_MS=1,8,16 -e BENCH_MODE=time)
+07:25:09 abl0: exit 0 (6 lines)
+07:25:09 abl1: start ( -e BENCH_SHAPES=2048x4096,8192x2048 -e BENCH_MS=1,8,16 -e BENCH_MODE=time)
+07:25:10 abl1: exit 0 (6 lines)
+07:25:10 abl2: start ( -e BENCH_SHAPES=2048x4096,8192x2048 -e BENCH_MS=1,8,16 -e BENCH_MODE=time)
+07:25:10 abl2: exit 0 (6 lines)
+07:25:10 abl3: start ( -e BENCH_SHAPES=2048x4096,8192x2048 -e BENCH_MS=1,8,16 -e BENCH_MODE=time)
+07:25:11 abl3: exit 0 (6 lines)
+07:25:11 abl4: start ( -e BENCH_SHAPES=2048x4096,8192x2048 -e BENCH_MS=1,8,16 -e BENCH_MODE=time)
+07:25:12 abl4: exit 0 (6 lines)
+07:25:12 abl5: start ( -e BENCH_SHAPES=2048x4096,8192x2048 -e BENCH_MS=1,8,16 -e BENCH_MODE=time)
+07:25:13 abl5: exit 0 (6 lines)
+07:25:13 abl6: start ( -e BENCH_SHAPES=2048x4096,8192x2048 -e BENCH_MS=1,8,16 -e BENCH_MODE=time)
+07:25:13 abl6: exit 0 (6 lines)
+07:25:13 abl7: start ( -e BENCH_SHAPES=2048x4096,8192x2048 -e BENCH_MS=1,8,16 -e BENCH_MODE=time)
+07:25:14 abl7: exit 0 (6 lines)
+07:25:14 w16: start ( -e BENCH_SHAPES=2048x4096,64x6144 -e BENCH_MS=1,5,8,12,16 -e BENCH_MODE=time)
+07:25:16 w16: exit 0 (10 lines)
+07:25:16 w16chk1: start ( -e BENCH_SHAPES=2048x4096,33x2064,16x16400,64x6144,1x4096 -e BENCH_MS=5,8,13,16 -e BENCH_MODE=check)
+07:25:19 w16chk1: exit 0 (41 lines)
+07:25:19 w16chk0: start ( -e BENCH_SHAPES=2048x4096,33x2064,16x16400,64x6144 -e BENCH_MS=5,8,13,16 -e BENCH_MODE=check -e BENCH_ACTQ=0)
+07:25:20 w16chk0: exit 0 (33 lines)
+07:25:20 census0: start ( -e BENCH_SHAPES=8192x2048,4096x2048,2048x4096,512x2048,2048x2048,256x2048 -e BENCH_MS=1,4,8,16 -e BENCH_MODE=time -e BENCH_ACTQ=0)
+07:25:21 census0: exit 0 (24 lines)
+07:25:21 census-r2: start ( -e BENCH_SHAPES=8192x2048,4096x2048,2048x4096,512x2048,2048x2048,256x2048 -e BENCH_MS=1,2,3,4,5,8,12,16 -e BENCH_MODE=time)
+07:25:23 census-r2: exit 0 (48 lines)
+07:25:23 done, time left 820s
+07:25:33 guard: [guard] stopping radiance 2026-10-30 07:25:04|[guard] radiance answers 2026-10-30 07:25:33 (after 15 s), unit active|
+fleetq: #7388 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

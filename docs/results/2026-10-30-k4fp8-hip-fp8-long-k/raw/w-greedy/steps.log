@@ -1,0 +1,17 @@
+08:34:16 guard: [guard] radiance stopped 2026-10-30 08:34:16
+08:34:17 binary base: intarsia 0.0.1 
+08:34:17 binary new: intarsia 0.0.1 
+08:34:17 greedy-tp1-base-r1: starting server
+08:34:34 greedy-tp1-base-r1: server up, greedy (16 streams, gen 192)
+08:34:42 greedy-tp1-base-r1: greedy exit 0 {"streams": 16, "ok": 16, "chars": 13013} 
+08:34:42 greedy-tp1-new-r1: starting server
+08:34:59 greedy-tp1-new-r1: server up, greedy (16 streams, gen 192)
+08:35:07 greedy-tp1-new-r1: greedy exit 0 {"streams": 16, "ok": 16, "chars": 13013} 
+08:35:08 greedy-tp2-base-r1: starting server
+08:35:21 greedy-tp2-base-r1: server up, greedy (16 streams, gen 192)
+08:35:28 greedy-tp2-base-r1: greedy exit 0 {"streams": 16, "ok": 16, "chars": 12702} 
+08:35:28 greedy-tp2-new-r1: starting server
+08:35:42 greedy-tp2-new-r1: server up, greedy (16 streams, gen 192)
+08:35:48 greedy-tp2-new-r1: greedy exit 0 {"streams": 16, "ok": 16, "chars": 12702} 
+08:35:49 done, time left 1054s
+08:35:59 guard: [guard] stopping radiance 2026-10-30 08:34:13|[guard] radiance answers 2026-10-30 08:35:59 (after 15 s), unit active|
