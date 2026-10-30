@@ -1,0 +1,12 @@
+fleetq: #7325 waiting (#1 in line): radiance-rank0 is also taken down by #7323 "HGV gates + kernel timing rerun on touched build" (claude-908e11e8)
+fleetq:   #7323 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7323 set, or it will wait for #7323 to be released.
+fleetq: #7325 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 77% busy with work fleetq does not track
+fleetq: #7325 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #7325 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 80% busy with work fleetq does not track
+fleetq: #7325 running on tatooine-r9700, tatooine-r9700-2: scripts/hfp8/mbwin.sh
+01:41:16 guard: [guard] radiance stopped 2026-10-30 01:41:16
+01:41:16 b: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:41:18 b: exit 0 (109 lines)
+01:41:18 done, time left 535s
+01:41:28 guard: [guard] stopping radiance 2026-10-30 01:41:13|[guard] radiance answers 2026-10-30 01:41:28 (after 15 s), unit active|
+fleetq: #7325 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

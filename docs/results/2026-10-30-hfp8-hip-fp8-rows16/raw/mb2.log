@@ -1,0 +1,21 @@
+fleetq: #7318 waiting (#1 in line): radiance-rank0 is also taken down by #7312 "HGV gates + kernel timing (rows_exact, moe, comm)" (claude-908e11e8)
+fleetq:   #7312 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7312 set, or it will wait for #7312 to be released.
+fleetq: #7318 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 76% busy with work fleetq does not track
+fleetq: #7318 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #7318 running on tatooine-r9700, tatooine-r9700-2: scripts/hfp8/mbwin.sh
+01:32:48 guard: [guard] radiance stopped 2026-10-30 01:32:47
+01:32:48 a: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:50 a: exit 0 (6 lines)
+01:32:50 abl1: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:51 abl1: exit 0 (6 lines)
+01:32:51 abl2: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:52 abl2: exit 0 (6 lines)
+01:32:52 abl4: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:53 abl4: exit 0 (6 lines)
+01:32:53 abl8: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:54 abl8: exit 0 (6 lines)
+01:32:54 abl6: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:55 abl6: exit 0 (6 lines)
+01:32:55 done, time left 528s
+01:33:05 guard: [guard] stopping radiance 2026-10-30 01:32:43|[guard] radiance answers 2026-10-30 01:33:05 (after 15 s), unit active|
+fleetq: #7318 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
