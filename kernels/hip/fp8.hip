@@ -405,7 +405,9 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
 // sizes the staged activations and the accumulator array. gemv_by_m stops at 4 rows (the ordinary decode registrations);
 // this table goes up to the most rows whose staged x (M * K * 2 bytes) fits the 48 KiB the kernel is allowed. The launcher
 // below splits a larger M into near-equal groups of at most that many rows (a group is a launch; the weights are read once
-// per group, so M = 16 at K = 2048 is two weight passes, at K = 4096 three).
+// per group, so M = 16 at K = 2048 is two weight passes, at K = 4096 three). Since lane hfp8 the launcher sends M >= 3 (K <= 2048)
+// or M >= 5 to the one-pass kernel (fp8_gemv_rows_kernel below), so this table and the splitting serve M <= 4, and larger M only
+// with INTARSIA_HIP_FP8_ONEPASS_MIN raised (the "before" arm of docs/results/2026-10-30-hfp8-hip-fp8-rows16.md).
 constexpr int kRowsGroup = 12;
 constexpr int kRowsMax = 16;
 

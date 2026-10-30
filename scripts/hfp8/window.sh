@@ -9,7 +9,7 @@
 # (16 concurrent different prompts at temperature 0, outputs to OUT/greedy-<tag>.jsonl). MB = --max-batch (default 16; 1 = flag omitted).
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
-ARMS=${ARMS:?ARMS}; ROUNDS=${ROUNDS:-3}; MB=${MB:-16}; SIZES=${SIZES:-1024}; GEN=${GEN:-512}; CONC=${CONC:-4,8,16}; MODE=${MODE:-speed}; CAP=${CAP:-1150}
+ARMS=${ARMS:?ARMS}; ROUNDS=${ROUNDS:-3}; MB=${MB:-16}; SIZES=${SIZES:-1024}; GEN=${GEN:-512}; CONC=${CONC-4,8,16}; MODE=${MODE:-speed}; CAP=${CAP:-1150}
 GGEN=${GGEN:-192}; GSTREAMS=${GSTREAMS:-16}
 MODEL=/models/Qwen3.6-35B-A3B-NVFP4; NAME=qwen36-35b; MODELS_DIR=/data/models/intarsia
 MAXSEQ=${MAXSEQ:-18432}; PORT=8090
