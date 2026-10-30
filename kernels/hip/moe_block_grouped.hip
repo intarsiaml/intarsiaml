@@ -38,26 +38,50 @@ shared_glu_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
     const uint2* wr[2] = {reinterpret_cast<const uint2*>(wg + nn * (K / 2)), reinterpret_cast<const uint2*>(wu + nn * (K / 2))};
     const uint8_t* sr[2] = {bsg + nn * (K / 16), bsu + nn * (K / 16)};
     const int nu = K / 16;
+    // lane hload: the fp4 table first (its barrier's workgroup release fence waits for every load in flight, so behind the
+    // weight window it made the compute wait for the whole window), then branch-free loads (a lane past nu reads chunk 0)
+    __shared__ float lut[16];
+    if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
+    __syncthreads();
     uint2 wv[2][kPre];
     uint32_t sb[2][kPre];
 #pragma unroll
     for (int j = 0; j < kPre; ++j) {
         const int u = lane + IK_WARP * j;
-        const bool ok = u < nu;
+        const int uc = u < nu ? u : 0;
 #pragma unroll
         for (int r = 0; r < 2; ++r) {
-            wv[r][j] = ok ? ik_ldcs(wr[r] + u) : make_uint2(0, 0);
-            sb[r][j] = ok ? sr[r][u] : 0u;
+            wv[r][j] = ik_ldcs(wr[r] + uc);
+            sb[r][j] = sr[r][uc];
         }
     }
-    __shared__ float lut[16];
-    if (threadIdx.x < 16) lut[threadIdx.x] = ik_fp4_value(threadIdx.x);
-    __syncthreads();
     if (!live) return;  // whole warp exits together
     const int m0 = (int)blockIdx.y * kRowsGrp;  // this block's tokens m0 .. m0 + kRowsGrp - 1 (those below T)
     float ag[kRowsGrp], au[kRowsGrp];
 #pragma unroll
     for (int m = 0; m < kRowsGrp; ++m) ag[m] = au[m] = 0.f;
+    // x chunks (iteration j, token m) in the order they are used, kRowsGrp in flight: the next iteration's are requested while
+    // this one computes (each was loaded right before its use, one L2 round trip per (j, m) in turn). A token past T reads
+    // token T - 1 and is never used.
+    auto xload = [&](int u, int m, uint4 (&d)[2]) {
+        const int mm = m0 + m < T ? m0 + m : T - 1;
+        const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)mm * K + (int64_t)(u < nu ? u : 0) * 16);
+        d[0] = xp[0];
+        d[1] = xp[1];
+    };
+    auto dot = [&](int m, const float (&fg)[16], const float (&fu)[16], float scg, float scu, const uint4 (&xq)[2]) {
+        float xf[16];
+        ik_unpack8(xq[0], xf);
+        ik_unpack8(xq[1], xf + 8);
+        float pg = 0.f, pu = 0.f;
+#pragma unroll
+        for (int e = 0; e < 16; ++e) {
+            pg = fmaf(fg[e], xf[e], pg);
+            pu = fmaf(fu[e], xf[e], pu);
+        }
+        ag[m] = fmaf(pg, scg, ag[m]);
+        au[m] = fmaf(pu, scu, au[m]);
+    };
     auto step = [&](int u, const uint2& gq, uint32_t gb, const uint2& uq, uint32_t ub) {
         const float scg = ik_e4m3_to_f(gb), scu = ik_e4m3_to_f(ub);
         float fg[16], fu[16];
@@ -68,25 +92,29 @@ shared_glu_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict_
 #pragma unroll
         for (int m = 0; m < kRowsGrp; ++m) {
             if (m0 + m < T) {
-                const uint4* xp = reinterpret_cast<const uint4*>(x + (int64_t)(m0 + m) * K + (int64_t)u * 16);
-                float xf[16];
-                ik_unpack8(xp[0], xf);
-                ik_unpack8(xp[1], xf + 8);
-                float pg = 0.f, pu = 0.f;
-#pragma unroll
-                for (int e = 0; e < 16; ++e) {
-                    pg = fmaf(fg[e], xf[e], pg);
-                    pu = fmaf(fu[e], xf[e], pu);
-                }
-                ag[m] = fmaf(pg, scg, ag[m]);
-                au[m] = fmaf(pu, scu, au[m]);
+                uint4 xq[2];
+                xload(u, m, xq);
+                dot(m, fg, fu, scg, scu, xq);
             }
         }
     };
+    uint4 xr[kRowsGrp][2];
+#pragma unroll
+    for (int m = 0; m < kRowsGrp; ++m) xload(lane, m, xr[m]);
 #pragma unroll
     for (int j = 0; j < kPre; ++j) {
-        if (lane + IK_WARP * j >= nu) continue;
-        step(lane + IK_WARP * j, wv[0][j], sb[0][j], wv[1][j], sb[1][j]);
+        const int u = lane + IK_WARP * j;
+        const float scg = ik_e4m3_to_f(sb[0][j]), scu = ik_e4m3_to_f(sb[1][j]);
+        float fg[16], fu[16];
+        ik_fp4x8_to_f32(wv[0][j].x, lut, fg);
+        ik_fp4x8_to_f32(wv[0][j].y, lut, fg + 8);
+        ik_fp4x8_to_f32(wv[1][j].x, lut, fu);
+        ik_fp4x8_to_f32(wv[1][j].y, lut, fu + 8);
+#pragma unroll
+        for (int m = 0; m < kRowsGrp; ++m) {
+            if (u < nu && m0 + m < T) dot(m, fg, fu, scg, scu, xr[m]);
+            if (j + 1 < kPre) xload(u + IK_WARP, m, xr[m]);
+        }
     }
     for (int u = lane + IK_WARP * kPre; u < nu; u += IK_WARP)  // K > 2048: the remaining iterations, loaded as used
         step(u, ik_ldcs(wr[0] + u), sr[0][u], ik_ldcs(wr[1] + u), sr[1][u]);
