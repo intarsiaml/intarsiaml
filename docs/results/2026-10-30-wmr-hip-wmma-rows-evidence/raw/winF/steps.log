@@ -1,0 +1,22 @@
+02:58:46 guard: [guard] radiance stopped 2026-10-30 02:58:46
+02:58:47 binary: intarsia 0.0.1 
+02:58:47 g512f-tp1-off-r1: starting server
+02:59:03 g512f-tp1-off-r1: server up (20 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:59:53 g512f-tp1-off-r1: localeval exit 0 - result file: `results/20261030-025904-adhoc-wmr-g512f-tp1-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-025904-adhoc-wmr-g512f-tp1-off-r1/result.json|
+02:59:53 g512f-tp1-bare-r1: starting server
+03:00:10 g512f-tp1-bare-r1: server up (87 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+03:01:00 g512f-tp1-bare-r1: localeval exit 0 - result file: `results/20261030-030011-adhoc-wmr-g512f-tp1-bare-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-030011-adhoc-wmr-g512f-tp1-bare-r1/result.json|
+03:01:00 g512f-tp1-bare-r2: starting server
+03:01:17 g512f-tp1-bare-r2: server up (154 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+03:02:07 g512f-tp1-bare-r2: localeval exit 0 - result file: `results/20261030-030118-adhoc-wmr-g512f-tp1-bare-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-030118-adhoc-wmr-g512f-tp1-bare-r2/result.json|
+03:02:07 g512f-tp1-off-r2: starting server
+03:02:24 g512f-tp1-off-r2: server up (221 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+03:03:13 g512f-tp1-off-r2: localeval exit 0 - result file: `results/20261030-030224-adhoc-wmr-g512f-tp1-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-030224-adhoc-wmr-g512f-tp1-off-r2/result.json|
+03:03:14 g512f-tp1-off-r3: starting server
+03:03:31 g512f-tp1-off-r3: server up (288 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+03:04:20 g512f-tp1-off-r3: localeval exit 0 - result file: `results/20261030-030331-adhoc-wmr-g512f-tp1-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-030331-adhoc-wmr-g512f-tp1-off-r3/result.json|
+03:04:21 g512f-tp1-bare-r3: starting server
+03:04:37 g512f-tp1-bare-r3: server up (354 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+03:05:27 g512f-tp1-bare-r3: localeval exit 0 - result file: `results/20261030-030438-adhoc-wmr-g512f-tp1-bare-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-030438-adhoc-wmr-g512f-tp1-bare-r3/result.json|
+03:05:28 done, time left 695s
+03:05:38 guard: [guard] stopping radiance 2026-10-30 02:58:43|[guard] radiance answers 2026-10-30 03:05:38 (after 15 s), unit active|

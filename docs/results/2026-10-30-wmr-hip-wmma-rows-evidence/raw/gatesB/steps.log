@@ -1,0 +1,4 @@
+03:06:16 guard: [guard] radiance stopped 2026-10-30 03:06:16
+03:06:16 start gates.sh B
+03:13:21 gates.sh exit 0
+03:13:32 guard: [guard] stopping radiance 2026-10-30 03:06:13|[guard] radiance answers 2026-10-30 03:13:31 (after 15 s), unit active|

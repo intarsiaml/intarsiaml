@@ -1,0 +1,27 @@
+fleetq: #7341 waiting (#4 in line): in line behind #7338 "HGV identity tp1 (main, hgv, main)" (claude-908e11e8) on tatooine-r9700
+fleetq:   #7338 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7338 set, or it will wait for #7338 to be released.
+fleetq: #7341 waiting (#4 in line): in line behind #7338 "HGV identity tp1 (main, hgv, main)" (claude-908e11e8) on tatooine-r9700; #7338 has no estimated start, so nothing can go first by ending before it
+fleetq:   #7338 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7338 set, or it will wait for #7338 to be released.
+fleetq: #7341 waiting (#3 in line): in line behind #7339 "HGV prof tp1 hgv" (claude-908e11e8) on tatooine-r9700
+fleetq:   #7339 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7339 set, or it will wait for #7339 to be released.
+fleetq: #7341 waiting (#2 in line): in line behind #7339 "HGV prof tp1 hgv" (claude-908e11e8) on tatooine-r9700; #7339 has no estimated start, so nothing can go first by ending before it
+fleetq:   #7339 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7339 set, or it will wait for #7339 to be released.
+fleetq: #7341 waiting (#1 in line): #7339 "HGV prof tp1 hgv" (claude-908e11e8) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #7339 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7339 set, or it will wait for #7339 to be released.
+fleetq: #7341 running on tatooine-r9700: scripts/wmr/build.sh
+stamp: head=d2fe64a_code-tree=917c430d6a38_dirty=no
+== wmr: head=d2fe64a code-tree=917c430d6a38 dirty=no 02:01:44
+build wmr exit 0 02:03:23
+    Finished `release` profile [optimized] target(s) in 1m 37s
+hip tests build wmr exit 0 02:04:27
+    Finished `release` profile [optimized] target(s) in 1m 02s
+models gpu tests build wmr exit 0 02:04:44
+    Finished `release` profile [optimized] target(s) in 15.55s
+-rwxr-xr-x 1 josef josef 51020712 Oct 30 02:02 /home/josef/intarsiaml-tp2-hfp8base/tp2-intarsia
+-rwxr-xr-x 1 josef josef 52330760 Oct 30 02:03 /home/josef/intarsiaml-tp2-hfp8new/tp2-intarsia
+-rwxr-xr-x 1 josef josef 51020664 Oct 30 01:15 /home/josef/intarsiaml-tp2-hgvbase/tp2-intarsia
+-rwxr-xr-x 1 josef josef 51017144 Oct 30 01:45 /home/josef/intarsiaml-tp2-hgv/tp2-intarsia
+-rwxr-xr-x 1 josef josef 51020408 Oct 30 00:34 /home/josef/intarsiaml-tp2-hprof/tp2-intarsia
+-rwxr-xr-x 1 josef josef 50963120 Oct 29 23:37 /home/josef/intarsiaml-tp2-r9s/tp2-intarsia
+-rwxr-xr-x 1 josef josef 51020664 Oct 30 02:03 /home/josef/intarsiaml-tp2-wmr/tp2-intarsia
+fleetq: #7341 done (exit 0)

@@ -1,0 +1,18 @@
+02:15:07 guard: [guard] radiance stopped 2026-10-30 02:15:06
+02:15:07 binary: intarsia 0.0.1 
+02:15:07 g512-tp1-off-r1: starting server
+02:15:24 g512-tp1-off-r1: server up (21 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:16:14 g512-tp1-off-r1: localeval exit 0 - result file: `results/20261030-021525-adhoc-wmr-g512-tp1-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-021525-adhoc-wmr-g512-tp1-off-r1/result.json|
+02:17:13 g512-tp1-off-r1: ident exit 0 IDENT c8 vs solo: 16/16 identical; diffs []|IDENT c16 vs solo: 16/16 identical; diffs []|IDENT done 59.4 s, 2560 solo completion tokens|
+02:17:14 g512-tp1-on-r1: starting server
+02:17:30 g512-tp1-on-r1: server up (147 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:18:13 g512-tp1-on-r1: localeval exit 0 - result file: `results/20261030-021731-adhoc-wmr-g512-tp1-on-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-021731-adhoc-wmr-g512-tp1-on-r1/result.json|
+02:19:11 g512-tp1-on-r1: ident exit 0 IDENT c8 vs solo: 16/16 identical; diffs []|IDENT c16 vs solo: 16/16 identical; diffs []|IDENT done 58.1 s, 2560 solo completion tokens|
+02:19:12 g512-tp1-on-r2: starting server
+02:19:28 g512-tp1-on-r2: server up (265 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:20:11 g512-tp1-on-r2: localeval exit 0 - result file: `results/20261030-021929-adhoc-wmr-g512-tp1-on-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-021929-adhoc-wmr-g512-tp1-on-r2/result.json|
+02:20:11 g512-tp1-off-r2: starting server
+02:20:28 g512-tp1-off-r2: server up (325 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:21:17 g512-tp1-off-r2: localeval exit 0 - result file: `results/20261030-022028-adhoc-wmr-g512-tp1-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-022028-adhoc-wmr-g512-tp1-off-r2/result.json|
+02:21:18 done, time left 705s
+02:21:28 guard: [guard] stopping radiance 2026-10-30 02:15:04|[guard] radiance answers 2026-10-30 02:21:28 (after 15 s), unit active|

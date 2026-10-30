@@ -1,0 +1,24 @@
+fleetq: #7367 waiting (#8 in line): in line behind #7360 "WMR A/B tp2 streams 1/4/8/16, flag off vs on, 3 rounds + identity" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7360 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7360 set, or it will wait for #7360 to be released.
+fleetq: #7367 waiting (#7 in line): in line behind #7361 "WMR A/B tp1 round 3 streams + single-stream b1 1k/4k/16k x3" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7361 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7361 set, or it will wait for #7361 to be released.
+fleetq: #7367 waiting (#6 in line): in line behind #7362 "HFP8 build new + HIP/models gpu tests compile" (claude-908e11e8) on tatooine-r9700
+fleetq:   #7362 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7362 set, or it will wait for #7362 to be released.
+fleetq: #7367 waiting (#5 in line): in line behind #7363 "HGV A/B perf round 2" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7363 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7363 set, or it will wait for #7363 to be released.
+fleetq: #7367 waiting (#4 in line): in line behind #7364 "HGV prof tp2 hgv" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7364 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7364 set, or it will wait for #7364 to be released.
+fleetq: #7367 waiting (#3 in line): in line behind #7365 "WMR A/B tp1 bare flag (ROWS=1 alone) vs off, streams 1/4/8/16 x3" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7365 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7365 set, or it will wait for #7365 to be released.
+fleetq: #7367 waiting (#2 in line): in line behind #7366 "WMR gates B: 35B batched==solo (batch_cuda_real), flag off/on" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7366 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7366 set, or it will wait for #7366 to be released.
+fleetq: #7367 waiting (#1 in line): radiance-rank0 is also taken down by #7366 "WMR gates B: 35B batched==solo (batch_cuda_real), flag off/on" (claude-908e11e8)
+fleetq:   #7366 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7366 set, or it will wait for #7366 to be released.
+fleetq: #7367 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 96% busy with work fleetq does not track
+fleetq: #7367 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (8 in flight)
+fleetq: #7367 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/intarsiaml/.worktrees/wmr/docs/results/2026-10-30-wmr-hip-wmma-rows-evidence/raw/acc CAP=1000 SKIPWRITE=1 scripts/wmr/guarded.sh acc.sh SL
+03:14:16 guard: [guard] radiance stopped 2026-10-30 03:14:16
+03:14:16 start acc.sh SL
+03:19:02 acc.sh exit 0
+03:19:12 guard: [guard] stopping radiance 2026-10-30 03:14:13|[guard] radiance answers 2026-10-30 03:19:12 (after 15 s), unit active|
+fleetq: #7367 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

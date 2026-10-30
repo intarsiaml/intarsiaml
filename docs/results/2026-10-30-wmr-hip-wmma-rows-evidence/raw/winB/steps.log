@@ -1,0 +1,24 @@
+02:36:46 guard: [guard] radiance stopped 2026-10-30 02:36:46
+02:36:47 binary: intarsia 0.0.1 
+02:36:47 g512-tp2-off-r1: starting server
+02:37:00 g512-tp2-off-r1: server up (17 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:37:38 g512-tp2-off-r1: localeval exit 0 - result file: `results/20261030-023701-adhoc-wmr-g512-tp2-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-023701-adhoc-wmr-g512-tp2-off-r1/result.json|
+02:38:27 g512-tp2-off-r1: ident exit 0 IDENT c8 vs solo: 16/16 identical; diffs []|IDENT c16 vs solo: 16/16 identical; diffs []|IDENT done 48.4 s, 2560 solo completion tokens|
+02:38:27 g512-tp2-on-r1: starting server
+02:38:41 g512-tp2-on-r1: server up (118 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:39:14 g512-tp2-on-r1: localeval exit 0 - result file: `results/20261030-023841-adhoc-wmr-g512-tp2-on-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-023841-adhoc-wmr-g512-tp2-on-r1/result.json|
+02:40:01 g512-tp2-on-r1: ident exit 0 IDENT c8 vs solo: 16/16 identical; diffs []|IDENT c16 vs solo: 16/16 identical; diffs []|IDENT done 47.0 s, 2560 solo completion tokens|
+02:40:02 g512-tp2-on-r2: starting server
+02:40:15 g512-tp2-on-r2: server up (212 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:40:49 g512-tp2-on-r2: localeval exit 0 - result file: `results/20261030-024016-adhoc-wmr-g512-tp2-on-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-024016-adhoc-wmr-g512-tp2-on-r2/result.json|
+02:40:49 g512-tp2-off-r2: starting server
+02:41:03 g512-tp2-off-r2: server up (260 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:41:40 g512-tp2-off-r2: localeval exit 0 - result file: `results/20261030-024103-adhoc-wmr-g512-tp2-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-024103-adhoc-wmr-g512-tp2-off-r2/result.json|
+02:41:41 g512-tp2-off-r3: starting server
+02:41:54 g512-tp2-off-r3: server up (311 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:42:33 g512-tp2-off-r3: localeval exit 0 - result file: `results/20261030-024155-adhoc-wmr-g512-tp2-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-024155-adhoc-wmr-g512-tp2-off-r3/result.json|
+02:42:33 g512-tp2-on-r3: starting server
+02:42:46 g512-tp2-on-r3: server up (363 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:43:20 g512-tp2-on-r3: localeval exit 0 - result file: `results/20261030-024247-adhoc-wmr-g512-tp2-on-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-024247-adhoc-wmr-g512-tp2-on-r3/result.json|
+02:43:20 done, time left 703s
+02:43:31 guard: [guard] stopping radiance 2026-10-30 02:36:43|[guard] radiance answers 2026-10-30 02:43:31 (after 15 s), unit active|

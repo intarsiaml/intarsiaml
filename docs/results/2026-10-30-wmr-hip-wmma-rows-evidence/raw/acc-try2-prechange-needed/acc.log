@@ -1,0 +1,19 @@
+######## S
+== short-off-write (NOKNOB=1) 2026-10-30 02:30:59
+short-off-write exit=0 prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin|decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.75% (not gated for this class) ok | 21-way KL (scored rows, n=118) 1.214e-2 (need <= 3.0e-2) ok [all rows, n=160: 1.172e-2, reported only] | tail mass (all rows) ours 0.0254 vs ref 0.0258, excess -0.0004 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS|decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 1.214e-2 PASS | KL / ref noise = 4.035 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [decode]: old def: PASS 1.172e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.214e-2 (21-way KL over scored rows <= max(static floor, factor x refer
+== short-on-svrn (INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all) 2026-10-30 02:31:09
+short-on-svrn exit=1 change vs base: every prompt may be 3 x its own reference noise (default); 10 prompt(s) have one in the record, the others use the mean noise|
+== short-on-default (INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all) 2026-10-30 02:31:11
+short-on-default exit=1 
+== short-off-control (NOKNOB=1) 2026-10-30 02:31:14
+short-off-control exit=1 change vs base: every prompt may be 3 x its own reference noise (default); 10 prompt(s) have one in the record, the others use the mean noise|
+short chain done 2026-10-30 02:31:17
+######## L
+== long-off-write (NOKNOB=1) 2026-10-30 02:30:59
+long-off-write exit=0 prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin|decode (teacher-forced) floor [4bit]: top-1 (all rows) 96.88% (not gated for this class) ok | 21-way KL (scored rows, n=320) 9.273e-3 (need <= 3.0e-2) ok [all rows, n=320: 9.273e-3, reported only] | tail mass (all rows) ours 0.0238 vs ref 0.0230, excess +0.0008 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS|decode KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 2.218e-2 (all rows) x factor 1 (default) = 2.218e-2 => effective 3.000e-2 bound by static floor; KL 9.273e-3 PASS | KL / ref noise = 0.418 on all rows (the factor at which the noise term passes)|gate-definition: kl_floor [decode]: old def: PASS 9.273e-3 (21-way KL over all rows <= static floor) | current def: PASS 9.273e-3 (21-way KL over scored rows <= max(static floor, factor x reference n
+== long-on-svrn (INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all) 2026-10-30 02:32:58
+long-on-svrn exit=1 change vs base: every prompt may be 3 x its own reference noise (default); 5 prompt(s) have one in the record, the others use the mean noise|
+== long-on-default (INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all) 2026-10-30 02:33:01
+long-on-default exit=1 
+long chain done 2026-10-30 02:33:04
+acc done 2026-10-30 02:33:04

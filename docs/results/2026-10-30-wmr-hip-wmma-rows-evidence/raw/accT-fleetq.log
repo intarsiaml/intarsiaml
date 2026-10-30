@@ -1,0 +1,12 @@
+fleetq: #7370 waiting (#2 in line): in line behind #7369 "HGV A/B perf round 3" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7369 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7369 set, or it will wait for #7369 to be released.
+fleetq: #7370 waiting (#1 in line): radiance-rank0 is also taken down by #7369 "HGV A/B perf round 3" (claude-908e11e8)
+fleetq:   #7369 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7369 set, or it will wait for #7369 to be released.
+fleetq: #7370 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 81% busy with work fleetq does not track
+fleetq: #7370 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #7370 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/intarsiaml/.worktrees/wmr/docs/results/2026-10-30-wmr-hip-wmma-rows-evidence/raw/accT CAP=1100 scripts/wmr/guarded.sh acc.sh T
+03:28:16 guard: [guard] radiance stopped 2026-10-30 03:28:16
+03:28:16 start acc.sh T
+03:35:03 acc.sh exit 0
+03:35:13 guard: [guard] stopping radiance 2026-10-30 03:28:13|[guard] radiance answers 2026-10-30 03:35:13 (after 15 s), unit active|
+fleetq: #7370 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

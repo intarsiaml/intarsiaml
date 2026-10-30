@@ -1,0 +1,3 @@
+docker: Error response from daemon: Conflict. The container name "/wmr-job-0" is already in use by container "5cb9c663b5ea668ef427ad0d0c605d2d70127a1892baf8ddeefe287cbff89b37". You have to remove (or rename) that container to be able to reuse that name.
+
+Run 'docker run --help' for more information

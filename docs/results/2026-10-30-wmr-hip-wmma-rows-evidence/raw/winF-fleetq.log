@@ -1,0 +1,42 @@
+fleetq: #7365 waiting (#8 in line): in line behind #7358 "WMR accuracy: self-golden main vs flag on, tp1 short+long (rerun, dump dir)" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7358 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7358 set, or it will wait for #7358 to be released.
+fleetq: #7365 waiting (#7 in line): in line behind #7359 "WMR single-stream b1 tp2 1k/4k/16k x3, flag off vs on" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7359 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7359 set, or it will wait for #7359 to be released.
+fleetq: #7365 waiting (#6 in line): in line behind #7360 "WMR A/B tp2 streams 1/4/8/16, flag off vs on, 3 rounds + identity" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7360 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7360 set, or it will wait for #7360 to be released.
+fleetq: #7365 waiting (#5 in line): in line behind #7361 "WMR A/B tp1 round 3 streams + single-stream b1 1k/4k/16k x3" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7361 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7361 set, or it will wait for #7361 to be released.
+fleetq: #7365 waiting (#4 in line): in line behind #7362 "HFP8 build new + HIP/models gpu tests compile" (claude-908e11e8) on tatooine-r9700
+fleetq:   #7362 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7362 set, or it will wait for #7362 to be released.
+fleetq: #7365 waiting (#3 in line): in line behind #7363 "HGV A/B perf round 2" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7363 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7363 set, or it will wait for #7363 to be released.
+fleetq: #7365 waiting (#2 in line): in line behind #7364 "HGV prof tp2 hgv" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7364 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7364 set, or it will wait for #7364 to be released.
+fleetq: #7365 waiting (#1 in line): radiance-rank0 is also taken down by #7364 "HGV prof tp2 hgv" (claude-908e11e8)
+fleetq:   #7364 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7364 set, or it will wait for #7364 to be released.
+fleetq: #7365 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 29% busy with work fleetq does not track
+fleetq: #7365 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #7365 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/intarsiaml/.worktrees/wmr/docs/results/2026-10-30-wmr-hip-wmma-rows-evidence/raw/winF CAP=1100 PHASES=g512f:16:1024:512:1,4,8,16:3:tp1-off,tp1-bare:0 scripts/wmr/window.sh
+02:58:46 guard: [guard] radiance stopped 2026-10-30 02:58:46
+02:58:47 binary: intarsia 0.0.1 
+02:58:47 g512f-tp1-off-r1: starting server
+02:59:03 g512f-tp1-off-r1: server up (20 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:59:53 g512f-tp1-off-r1: localeval exit 0 - result file: `results/20261030-025904-adhoc-wmr-g512f-tp1-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-025904-adhoc-wmr-g512f-tp1-off-r1/result.json|
+02:59:53 g512f-tp1-bare-r1: starting server
+03:00:10 g512f-tp1-bare-r1: server up (87 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+03:01:00 g512f-tp1-bare-r1: localeval exit 0 - result file: `results/20261030-030011-adhoc-wmr-g512f-tp1-bare-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-030011-adhoc-wmr-g512f-tp1-bare-r1/result.json|
+03:01:00 g512f-tp1-bare-r2: starting server
+03:01:17 g512f-tp1-bare-r2: server up (154 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+03:02:07 g512f-tp1-bare-r2: localeval exit 0 - result file: `results/20261030-030118-adhoc-wmr-g512f-tp1-bare-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-030118-adhoc-wmr-g512f-tp1-bare-r2/result.json|
+03:02:07 g512f-tp1-off-r2: starting server
+03:02:24 g512f-tp1-off-r2: server up (221 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+03:03:13 g512f-tp1-off-r2: localeval exit 0 - result file: `results/20261030-030224-adhoc-wmr-g512f-tp1-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-030224-adhoc-wmr-g512f-tp1-off-r2/result.json|
+03:03:14 g512f-tp1-off-r3: starting server
+03:03:31 g512f-tp1-off-r3: server up (288 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+03:04:20 g512f-tp1-off-r3: localeval exit 0 - result file: `results/20261030-030331-adhoc-wmr-g512f-tp1-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-030331-adhoc-wmr-g512f-tp1-off-r3/result.json|
+03:04:21 g512f-tp1-bare-r3: starting server
+03:04:37 g512f-tp1-bare-r3: server up (354 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+03:05:27 g512f-tp1-bare-r3: localeval exit 0 - result file: `results/20261030-030438-adhoc-wmr-g512f-tp1-bare-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-030438-adhoc-wmr-g512f-tp1-bare-r3/result.json|
+03:05:28 done, time left 695s
+03:05:38 guard: [guard] stopping radiance 2026-10-30 02:58:43|[guard] radiance answers 2026-10-30 03:05:38 (after 15 s), unit active|
+fleetq: #7365 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

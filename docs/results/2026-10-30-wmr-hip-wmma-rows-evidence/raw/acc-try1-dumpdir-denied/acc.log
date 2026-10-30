@@ -1,0 +1,19 @@
+######## S
+== short-off-write (NOKNOB=1) 2026-10-30 02:12:48
+short-off-write exit=1 prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 3.010e-3 (scored rows) x factor 1 (default) = 3.010e-3 => effective 3.000e-2 bound by static floor; KL 5.978e-3 PASS | KL / ref noise = 1.986 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [prefill]: old def: PASS 7.417e-3 (21-way KL over all rows <= static floor) | current def: PASS 5.978e-3 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]|prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin|decode (teacher-forced) floor [4bit]: top-1 (all rows) 98.75% (not gated for this class) ok | 21-way KL (scored rows, n=118) 1.214e-2 (need <= 3.0e-2) ok [all rows, n=160: 1.172e-2, reported only] | tail mass (a
+== short-on-svrn (INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all) 2026-10-30 02:12:58
+short-on-svrn exit=1 
+== short-on-default (INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all) 2026-10-30 02:13:01
+short-on-default exit=1 
+== short-off-control (NOKNOB=1) 2026-10-30 02:13:03
+short-off-control exit=1 
+short chain done 2026-10-30 02:13:06
+######## L
+== long-off-write (NOKNOB=1) 2026-10-30 02:12:48
+long-off-write exit=1 prefill KL threshold [21-way KL]: static floor 3.000e-2 | ref noise 8.417e-3 (scored rows) x factor 1 (default) = 8.417e-3 => effective 3.000e-2 bound by static floor; KL 1.420e-2 PASS | KL / ref noise = 1.687 on scored rows (the factor at which the noise term passes)|gate-definition: kl_floor [prefill]: old def: FAIL 4.356e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.420e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]|prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin|decode (teacher-forced) floor [4bit]: top-1 (all rows) 96.88% (not gated for this class) ok | 21-way KL (scored rows, n=320) 9.273e-3 (need <= 3.0e-2) ok [all rows, n=320: 9.273e-3, reported only] | tail mass (a
+== long-on-svrn (INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all) 2026-10-30 02:14:47
+long-on-svrn exit=1 
+== long-on-default (INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all) 2026-10-30 02:14:50
+long-on-default exit=1 
+long chain done 2026-10-30 02:14:52
+acc done 2026-10-30 02:14:52

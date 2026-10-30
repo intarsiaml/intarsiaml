@@ -1,0 +1,2 @@
+loaded Qwen3.6-35B-A3B-NVFP4 on hip (AMD Radeon Graphics x2 (tp=2, hip-p2p comm)) in 8.1s, context 18432 tokens
+intarsia server listening on http://0.0.0.0:8090

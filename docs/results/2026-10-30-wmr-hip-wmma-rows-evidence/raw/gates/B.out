@@ -1,0 +1,5 @@
+== B batch_cuda_real batched, opt1 (INTARSIA_HIP_WMMA_ROWS=1 INTARSIA_HIP_WMMA_TABLE=fp8a8=all,bf16=all) 2026-10-30 02:28:08
+exit=125 
+== B batch_cuda_real batched, off (NOKNOB=1) 2026-10-30 02:28:08
+exit=125 
+B done 2026-10-30 02:28:08

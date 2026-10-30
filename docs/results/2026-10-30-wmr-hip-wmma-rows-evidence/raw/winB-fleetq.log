@@ -1,0 +1,44 @@
+fleetq: #7360 waiting (#9 in line): in line behind #7352 "HGV A/B perf round 1" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7352 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7352 set, or it will wait for #7352 to be released.
+fleetq: #7360 waiting (#7 in line): in line behind #7353 "HGV prof tp2 hgvbase" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7353 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7353 set, or it will wait for #7353 to be released.
+fleetq: #7360 waiting (#6 in line): in line behind #7354 "HFP8 microbench sweep main vs new round 2" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7354 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7354 set, or it will wait for #7354 to be released.
+fleetq: #7360 waiting (#5 in line): in line behind #7355 "WMR gates: rows_exact/folds/frag, batched==solo, plan show (flag off/bare/on)" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7355 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7355 set, or it will wait for #7355 to be released.
+fleetq: #7360 waiting (#4 in line): in line behind #7357 "HFP8 microbench compile e final (hipcc, no GPU)" (claude-908e11e8) on tatooine-r9700
+fleetq:   #7357 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7357 set, or it will wait for #7357 to be released.
+fleetq: #7360 waiting (#3 in line): in line behind #7358 "WMR accuracy: self-golden main vs flag on, tp1 short+long (rerun, dump dir)" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7358 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7358 set, or it will wait for #7358 to be released.
+fleetq: #7360 waiting (#2 in line): in line behind #7359 "WMR single-stream b1 tp2 1k/4k/16k x3, flag off vs on" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7359 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7359 set, or it will wait for #7359 to be released.
+fleetq: #7360 waiting (#1 in line): radiance-rank0 is also taken down by #7359 "WMR single-stream b1 tp2 1k/4k/16k x3, flag off vs on" (claude-908e11e8)
+fleetq:   #7359 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7359 set, or it will wait for #7359 to be released.
+fleetq: #7360 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 64% busy with work fleetq does not track
+fleetq: #7360 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 73% busy with work fleetq does not track
+fleetq: #7360 running on tatooine-r9700, tatooine-r9700-2: env OUT=/opt/code/intarsiaml/.worktrees/wmr/docs/results/2026-10-30-wmr-hip-wmma-rows-evidence/raw/winB CAP=1100 PHASES=g512:16:1024:512:1,4,8,16:3:tp2-off,tp2-on:1 scripts/wmr/window.sh
+02:36:46 guard: [guard] radiance stopped 2026-10-30 02:36:46
+02:36:47 binary: intarsia 0.0.1 
+02:36:47 g512-tp2-off-r1: starting server
+02:37:00 g512-tp2-off-r1: server up (17 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:37:38 g512-tp2-off-r1: localeval exit 0 - result file: `results/20261030-023701-adhoc-wmr-g512-tp2-off-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-023701-adhoc-wmr-g512-tp2-off-r1/result.json|
+02:38:27 g512-tp2-off-r1: ident exit 0 IDENT c8 vs solo: 16/16 identical; diffs []|IDENT c16 vs solo: 16/16 identical; diffs []|IDENT done 48.4 s, 2560 solo completion tokens|
+02:38:27 g512-tp2-on-r1: starting server
+02:38:41 g512-tp2-on-r1: server up (118 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:39:14 g512-tp2-on-r1: localeval exit 0 - result file: `results/20261030-023841-adhoc-wmr-g512-tp2-on-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-023841-adhoc-wmr-g512-tp2-on-r1/result.json|
+02:40:01 g512-tp2-on-r1: ident exit 0 IDENT c8 vs solo: 16/16 identical; diffs []|IDENT c16 vs solo: 16/16 identical; diffs []|IDENT done 47.0 s, 2560 solo completion tokens|
+02:40:02 g512-tp2-on-r2: starting server
+02:40:15 g512-tp2-on-r2: server up (212 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:40:49 g512-tp2-on-r2: localeval exit 0 - result file: `results/20261030-024016-adhoc-wmr-g512-tp2-on-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-024016-adhoc-wmr-g512-tp2-on-r2/result.json|
+02:40:49 g512-tp2-off-r2: starting server
+02:41:03 g512-tp2-off-r2: server up (260 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:41:40 g512-tp2-off-r2: localeval exit 0 - result file: `results/20261030-024103-adhoc-wmr-g512-tp2-off-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-024103-adhoc-wmr-g512-tp2-off-r2/result.json|
+02:41:41 g512-tp2-off-r3: starting server
+02:41:54 g512-tp2-off-r3: server up (311 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:42:33 g512-tp2-off-r3: localeval exit 0 - result file: `results/20261030-024155-adhoc-wmr-g512-tp2-off-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-024155-adhoc-wmr-g512-tp2-off-r3/result.json|
+02:42:33 g512-tp2-on-r3: starting server
+02:42:46 g512-tp2-on-r3: server up (363 s into the window), localeval (sizes 1024, gen 512, streams 1,4,8,16)
+02:43:20 g512-tp2-on-r3: localeval exit 0 - result file: `results/20261030-024247-adhoc-wmr-g512-tp2-on-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-024247-adhoc-wmr-g512-tp2-on-r3/result.json|
+02:43:20 done, time left 703s
+02:43:31 guard: [guard] stopping radiance 2026-10-30 02:36:43|[guard] radiance answers 2026-10-30 02:43:31 (after 15 s), unit active|
+fleetq: #7360 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

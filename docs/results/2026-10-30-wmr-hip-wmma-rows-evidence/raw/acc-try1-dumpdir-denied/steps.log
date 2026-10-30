@@ -1,0 +1,4 @@
+02:12:48 guard: [guard] radiance stopped 2026-10-30 02:12:48
+02:12:48 start acc.sh SL
+02:14:53 acc.sh exit 0
+02:15:03 guard: [guard] stopping radiance 2026-10-30 02:12:45|[guard] radiance answers 2026-10-30 02:15:03 (after 15 s), unit active|
