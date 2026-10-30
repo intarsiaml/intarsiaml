@@ -57,8 +57,9 @@ serve() {
   return 1
 }
 
+N=0
 for arm in $ARMS; do
-  tag="$MODE-r$ROUND-${arm/:/-}"
+  N=$((N+1)); tag="$MODE-r$ROUND-${arm/:/-}-$N"
   if (( $(left) < 280 )); then say "SKIPPED $tag (time left $(left)s)"; continue; fi
   say "$tag: starting server"
   if ! serve "$arm" "$tag"; then say "$tag: server did not come up, aborting the window (see serve-fail-$tag.log)"; stopserver; exit 1; fi
@@ -71,7 +72,7 @@ for arm in $ARMS; do
   else
     say "$tag: server up, ident (gen $IGEN)"
     ( cd /opt/code/deepeval && uv run python "$HERE/ident.py" --url "http://tatooine:$PORT/v1" --model "$NAME" --docs-list "$HERE/ident_docs.txt" \
-        --root "$REPO" --gen "$IGEN" --out "$OUT/ident-${arm/:/-}.json" ) > "$OUT/ident-$tag.jsonl" 2> "$OUT/ident-$tag.err" < /dev/null
+        --root "$REPO" --gen "$IGEN" --out "$OUT/ident-${arm/:/-}-$N.json" ) > "$OUT/ident-$tag.jsonl" 2> "$OUT/ident-$tag.err" < /dev/null
     say "$tag: ident exit $?: $(cut -c1-120 "$OUT/ident-$tag.jsonl" | tr '\n' '|')"
   fi
   $SSH 'docker logs hgv-serve 2>&1 | grep -aiE "stamp|head=|code-tree|batch|graph|listening|tensor-parallel" | tail -8' < /dev/null > "$OUT/serve-$tag.log" 2>&1
