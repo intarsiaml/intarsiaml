@@ -6,4 +6,5 @@ set -euo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
 ssh -n -o BatchMode=yes spark2 "export FLEETQ_JOB=$FLEETQ_JOB; cat ~/intarsia-dsv41-tp2/bin/STAMP; free -g | head -2; \
   INTARSIA_DSV41_BACKEND=cuda INTARSIA_DSV41_CACHE=\$HOME/intarsia-dsv41-tp2/cache/l3-r0of1 INTARSIA_DSV41_FIXTURES=\$HOME/intarsia-dsv41-tp2/fixtures \
-  timeout 900 ~/intarsia-dsv41-tp2/bin/dsv41_runtime few_layer_runtime_matches --nocapture --test-threads 1 2>&1 | tail -40; free -g | head -2"
+  timeout 900 ~/intarsia-dsv41-tp2/bin/dsv41_runtime few_layer_runtime_matches --nocapture --test-threads 1 2>&1 | tail -40; free -g | head -2; \
+  for k in \${KERNELS:-logits_f16w matmul_f16w}; do timeout 300 ~/intarsia-dsv41-tp2/bin/intarsia kernels test --backend cuda --kernel \$k 2>&1 | tail -4; done"
