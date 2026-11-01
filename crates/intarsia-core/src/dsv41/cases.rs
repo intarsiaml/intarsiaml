@@ -289,5 +289,140 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
             }
         }
     }
+    for &t in &[1usize, 4] {
+        for &dt in dts {
+            dev_cases(op, t, dt, rng, &mut push);
+        }
+    }
     cases
+}
+
+/// Device-position cases (`DsvAttrs::host_dev_pos`: the sweep uploads it as `OpCall::pos`) of the positioned ops at
+/// capacity shapes: no compressed rows yet, fewer rows than top_k, more, groups complete and not, outputs wider than the
+/// rows written (the untouched / -1 / 0 regions are compared too: outputs start random).
+fn dev_cases(op: Op, t: usize, dt: DType, rng: &mut SplitMix64, push: &mut impl FnMut(String, Op, Vec<HostTensor>, Vec<OutSpec>, OpAttrs)) {
+    let dev = |p: usize, ratio: usize| {
+        let mut a = OpAttrs { pos0: 0, ..OpAttrs::default() };
+        (a.dsv.host_dev_pos, a.dsv.ratio) = (Some(p as i32), ratio);
+        a
+    };
+    let d = 64usize;
+    match op {
+        Op::RopeTail => {
+            for (stride, inverse, p, ratio) in [(1, false, 37, 1), (4, false, 37, 4), (2, true, 9, 2)] {
+                let mut at = dev(p, ratio);
+                (at.dsv.pos_stride, at.dsv.inverse) = (stride, inverse);
+                let f: Vec<f32> = (0..32).map(|j| 10000f32.powf(-(2 * j) as f32 / 64.0)).collect();
+                push(
+                    format!("dev P={p} ratio={ratio} T={t} N=4 D=128 rd=64 stride={stride} inverse={inverse} {dt}"),
+                    op,
+                    vec![rand_t(rng, dt, &[t, 4, 128], 1.0), HostTensor::from_f32(&[32], &f)],
+                    vec![out(dt, &[t, 4, 128])],
+                    at,
+                );
+            }
+        }
+        Op::WindowKv => {
+            let (w, wc) = (8, 12);
+            for p in [0, 3, 21] {
+                let at = OpAttrs { window: w, ..dev(p, 1) };
+                push(
+                    format!("dev P={p} T={t} D={d} W={w} Wc={wc} {dt}"),
+                    op,
+                    vec![rand_t(rng, dt, &[t, d], 1.0)],
+                    vec![out(dt, &[w + t, d]), inout(rand_t(rng, dt, &[wc, d], 1.0))],
+                    at,
+                );
+            }
+        }
+        Op::ActQdq => {
+            // y [10,128]: rows P/ratio .. (the last case runs past y's end: only the rows that fit are written)
+            for (fmt, block, sc, p, ratio) in [(QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, 3, 1), (QdqFmt::Fp4E2m1, 16, QdqScale::E4m3, 13, 2), (QdqFmt::Fp4E2m1, 32, QdqScale::Ue8m0, 8, 1)] {
+                let mut at = dev(p, ratio);
+                (at.dsv.qdq_fmt, at.dsv.qdq_block, at.dsv.qdq_scale) = (fmt, block, sc);
+                push(
+                    format!("dev P={p} ratio={ratio} G={t} Ry=10 N=128 {fmt:?}/{block}/{sc:?} {dt}"),
+                    op,
+                    vec![rand_t(rng, dt, &[t, 128], 3.0)],
+                    vec![inout(rand_t(rng, dt, &[10, 128], 1.0))],
+                    at,
+                );
+            }
+        }
+        Op::CompressPool => {
+            // (ratio, P, Gmax): ratio 2 at T = 1: P = 4 completes no group, P = 5 one; T = 4: P = 1 completes 2 (Gmax 1 clips)
+            for (ratio, p, gmax) in [(2, 4, 2), (2, 5, 2), (2, 1, 1), (4, 7, 2)] {
+                let rc = 2 * ratio;
+                push(
+                    format!("dev P={p} ratio={ratio} T={t} D={d} Rc={rc} Gmax={gmax} {dt}"),
+                    op,
+                    vec![rand_t(rng, DType::F32, &[t, d], 1.0), rand_t(rng, DType::F32, &[t, d], 1.0)],
+                    vec![inout(rand_t(rng, dt, &[gmax, d], 1.0)), inout(rand_t(rng, DType::F32, &[rc, d], 1.0)), inout(rand_t(rng, DType::F32, &[rc, d], 1.0))],
+                    dev(p, ratio),
+                );
+            }
+        }
+        Op::IndexerBlocks | Op::IndexerTopk => {
+            // (Hi, Di, block, Ncap, ratio, P, top_k, candidates): N = min((P + T) / ratio, Ncap) from 0 up, Ncap > N
+            let shapes: [(usize, usize, usize, usize, usize, usize, usize, bool); 7] = [
+                (4, 32, 4, 40, 2, 0, 8, false),
+                (4, 32, 4, 40, 1, 3, 8, false),
+                (4, 32, 4, 40, 1, 3, 8, true),
+                (4, 32, 4, 40, 1, 27, 8, true),
+                (4, 32, 4, 40, 2, 41, 8, false),
+                (32, 128, 8, 400, 1, 300, 64, true),
+                (32, 128, 8, 400, 2, 600, 64, false),
+            ];
+            for (hi, di, block, ncap, ratio, p, top_k, with_cand) in shapes {
+                let n = ((p + t) / ratio).min(ncap);
+                let mut at = OpAttrs { scale: (di as f32).powf(-0.5) * (hi as f32).powf(-0.5), ..dev(p, ratio) };
+                at.dsv.block = block;
+                let mut inputs = vec![rand_t(rng, dt, &[t, hi, di], 1.0), rand_t(rng, dt, &[ncap, di], 1.0), rand_t(rng, dt, &[t, hi], 1.0)];
+                let nb = n_blocks(ncap, block);
+                let (label, outputs) = if op == Op::IndexerBlocks {
+                    if with_cand {
+                        continue;
+                    }
+                    at.top_k = if hi == 32 { 12 } else { 3 };
+                    (format!("dev P={p} ratio={ratio} T={t} Hi={hi} Di={di} Ncap={ncap} N={n} B={block} keep={} {dt}", at.top_k), vec![inout(bytes_t(rng, DType::U8, &[t, nb], |v| v as u8))])
+                } else {
+                    at.top_k = top_k;
+                    inputs.push(if with_cand { bytes_t(rng, DType::U8, &[t, nb], |v| (v % 4 != 0) as u8) } else { HostTensor::zeros(DType::U8, &[0]) });
+                    let kw = top_k.min(ncap);
+                    (
+                        format!("dev P={p} ratio={ratio} T={t} Hi={hi} Di={di} Ncap={ncap} N={n} topk={top_k} cand={with_cand} {dt}"),
+                        vec![inout(bytes_t(rng, DType::I32, &[t, kw], |v| v as u8))],
+                    )
+                };
+                push(label, op, inputs, outputs, at);
+            }
+        }
+        Op::AttnSparse => {
+            // (H, D, W, Ncap, Kw, ratio, P): Ncap 0 (window only), Kc = min(Kw, N) below and at Kw, the model's shape
+            for (h, dd, w, ncap, kw, ratio, p) in [(4, 64, 8, 0, 5, 1, 9), (4, 64, 8, 12, 5, 1, 2), (4, 64, 8, 12, 5, 1, 10), (4, 64, 8, 12, 5, 2, 4), (32, 512, 128, 80, 64, 2, 140), (32, 512, 128, 80, 64, 2, 60)] {
+                let n = ((p + t) / ratio).min(ncap);
+                let kc = if ncap > 0 { kw.min(n) } else { kw };
+                // the first Kc columns hold -1 or a visible row; the columns past Kc are never read (garbage)
+                let idx: Vec<i32> = (0..t * kw)
+                    .map(|e| if e % kw >= kc { 9999 } else if n == 0 { -1 } else { (rng.next_u64() % (n as u64 + 2)) as i32 - 2 })
+                    .map(|v| v.max(-1))
+                    .collect();
+                let at = OpAttrs { window: w, scale: (dd as f32).powf(-0.5), ..dev(p, ratio) };
+                push(
+                    format!("dev P={p} ratio={ratio} T={t} H={h} D={dd} W={w} Ncap={ncap} N={n} Kw={kw} Kc={kc} {dt}"),
+                    op,
+                    vec![
+                        rand_t(rng, dt, &[t, h, dd], 1.0),
+                        rand_t(rng, dt, &[w + t, dd], 1.0),
+                        rand_t(rng, dt, &[ncap, dd], 1.0),
+                        HostTensor::from_i32(&[t, kw], &idx),
+                        rand_t(rng, DType::F32, &[h], 1.0),
+                    ],
+                    vec![out(dt, &[t, h, dd])],
+                    at,
+                );
+            }
+        }
+        _ => {}
+    }
 }

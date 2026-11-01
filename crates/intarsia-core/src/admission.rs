@@ -1159,12 +1159,16 @@ pub fn shape_of(hc: &HostCall) -> Result<ShapeInfo> {
     let mk = |dt: DType, shape: &[usize]| {
         TensorRef::new(Buffer::new(Phantom(shape.iter().product::<usize>() * dt.size_bytes())), dt, shape)
     };
-    let call = crate::ops::OpCall::new(
+    let mut call = crate::ops::OpCall::new(
         hc.op,
         hc.inputs.iter().map(|t| mk(t.dtype, &t.shape)).collect(),
         hc.outputs.iter().map(|o| mk(o.dtype, &o.shape)).collect(),
         hc.attrs.clone(),
     );
+    // a DeepSeek-V4.1 device-position case (`DsvAttrs::host_dev_pos`, uploaded by `exec::run_host`)
+    if hc.attrs.dsv.host_dev_pos.is_some() {
+        call.pos = Some(mk(DType::I32, &[1]));
+    }
     call.check()?;
     Ok(ShapeInfo::from_call(&call))
 }

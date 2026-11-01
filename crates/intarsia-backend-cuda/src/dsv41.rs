@@ -210,12 +210,39 @@ mod launch {
         ) -> c_int;
         fn ik_moe_route(lg: T, bias: T, top_k: i64, scale: f32, norm: i32, temp: f32, sf: i32, w: TM, ids: TM, s: S) -> c_int;
         fn ik_silu_glu_clamp(g: T, u: T, limit: f32, y: TM, s: S) -> c_int;
-        fn ik_act_qdq(x: T, fmt: i32, block: i64, sfmt: i32, y: TM, s: S) -> c_int;
-        fn ik_rope_tail(x: T, f: T, pos0: i64, stride: i64, inverse: i32, y: TM, pos: T, s: S) -> c_int;
+        fn ik_act_qdq(x: T, fmt: i32, block: i64, sfmt: i32, ratio: i64, y: TM, pos: T, s: S) -> c_int;
+        fn ik_rope_tail(x: T, f: T, pos0: i64, stride: i64, ratio: i64, inverse: i32, y: TM, pos: T, s: S) -> c_int;
         fn ik_window_kv(kv: T, window: i64, pos0: i64, win: TM, ring: TM, pos: T, s: S) -> c_int;
-        fn ik_attn_sparse(q: T, win: T, cmp: T, idx: T, sink: T, window: i64, pos0: i64, scale: f32, o: TM, sc: SC, pos: T, s: S) -> c_int;
-        fn ik_compress_pool(kv: T, score: T, ratio: i64, pos0: i64, out: TM, kv_ring: TM, score_ring: TM, s: S) -> c_int;
-        fn ik_indexer_blocks(q: T, k: T, w: T, keep: i64, block: i64, ratio: i64, pos0: i64, scale: f32, mask: TM, sc: SC, s: S) -> c_int;
+        fn ik_attn_sparse(
+            q: T,
+            win: T,
+            cmp: T,
+            idx: T,
+            sink: T,
+            window: i64,
+            pos0: i64,
+            ratio: i64,
+            scale: f32,
+            o: TM,
+            sc: SC,
+            pos: T,
+            s: S,
+        ) -> c_int;
+        fn ik_compress_pool(kv: T, score: T, ratio: i64, pos0: i64, out: TM, kv_ring: TM, score_ring: TM, pos: T, s: S) -> c_int;
+        fn ik_indexer_blocks(
+            q: T,
+            k: T,
+            w: T,
+            keep: i64,
+            block: i64,
+            ratio: i64,
+            pos0: i64,
+            scale: f32,
+            mask: TM,
+            sc: SC,
+            pos: T,
+            s: S,
+        ) -> c_int;
         fn ik_transpose01(x: T, y: TM, s: S) -> c_int;
         fn ik_logits_f16w(x: T, w: T, y: TM, s: S) -> c_int;
         fn ik_matmul_f16w(x: T, w: T, y: TM, s: S) -> c_int;
@@ -233,6 +260,7 @@ mod launch {
             scale: f32,
             idx: TM,
             sc: SC,
+            pos: T,
             s: S,
         ) -> c_int;
     }
@@ -282,6 +310,9 @@ mod launch {
                 ScoreFunc::SqrtSoftplus => 2,
             };
             let pos0 = a.pos0 as i64;
+            // device position: the compressed row ratio of the positioned ops (rope_tail's group start, act_qdq's row offset,
+            // attn_sparse's visible compressed rows); a host-position launch ignores it
+            let ratio = d.ratio.max(1) as i64;
             // SAFETY: tensors are bounds-checked views of live device buffers (held by `call`); the launchers validate
             // dtype / rank / shape / scratch and return an error status instead of faulting, and never synchronise or allocate.
             let rc = unsafe {
@@ -316,11 +347,13 @@ mod launch {
                         ik_moe_route(i(0), i(1), a.top_k as i64, a.scale, a.norm_topk as i32, a.temperature, sf, on(0), on(1), s)
                     }
                     "silu_glu_clamp" => ik_silu_glu_clamp(i(0), i(1), d.limit, on(0), s),
-                    "act_qdq" => ik_act_qdq(i(0), fmt, d.qdq_block as i64, sfmt, on(0), s),
-                    "rope_tail" => ik_rope_tail(i(0), i(1), pos0, d.pos_stride as i64, d.inverse as i32, on(0), pos, s),
+                    "act_qdq" => ik_act_qdq(i(0), fmt, d.qdq_block as i64, sfmt, ratio, on(0), pos, s),
+                    "rope_tail" => ik_rope_tail(i(0), i(1), pos0, d.pos_stride as i64, ratio, d.inverse as i32, on(0), pos, s),
                     "window_kv" => ik_window_kv(i(0), a.window as i64, pos0, on(0), on(1), pos, s),
-                    "attn_sparse" => ik_attn_sparse(i(0), i(1), i(2), i(3), i(4), a.window as i64, pos0, a.scale, on(0), sc, pos, s),
-                    "compress_pool" => ik_compress_pool(i(0), i(1), d.ratio as i64, pos0, on(0), on(1), on(2), s),
+                    "attn_sparse" => {
+                        ik_attn_sparse(i(0), i(1), i(2), i(3), i(4), a.window as i64, pos0, ratio, a.scale, on(0), sc, pos, s)
+                    }
+                    "compress_pool" => ik_compress_pool(i(0), i(1), d.ratio as i64, pos0, on(0), on(1), on(2), pos, s),
                     "indexer_blocks" => ik_indexer_blocks(
                         i(0),
                         i(1),
@@ -332,6 +365,7 @@ mod launch {
                         a.scale,
                         on(0),
                         sc,
+                        pos,
                         s,
                     ),
                     "indexer_topk" => ik_indexer_topk(
@@ -346,6 +380,7 @@ mod launch {
                         a.scale,
                         on(0),
                         sc,
+                        pos,
                         s,
                     ),
                     "transpose01" => ik_transpose01(i(0), on(0), s),

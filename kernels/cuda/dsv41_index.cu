@@ -41,23 +41,48 @@ template <> __device__ __forceinline__ void load8<float>(const float* p, float* 
     f[0] = a.x, f[1] = a.y, f[2] = a.z, f[3] = a.w, f[4] = b.x, f[5] = b.y, f[6] = b.z, f[7] = b.w;
 }
 
-// BLOCKS: write block maxima (row length nb) instead of the score row (row length Nk)
+// Device position (`pos`): the call's keys are a capacity view k [Ncap, Di]; the kernels read P when they run and take
+// N = min((P + T) / ratio, Ncap) rows (host call: P = pos0, N = Ncap = Nk). Strides stay the capacity's.
+struct DevLen {
+    const int* dpos;  // null: host position
+    int64_t Tn;       // rows of the whole chunk
+};
+
+IK_DEVI void dev_len(const DevLen& d, int64_t ratio, int64_t Ncap, int64_t& pos0, int64_t& N) {
+    if (!d.dpos) {
+        N = Ncap;
+        return;
+    }
+    pos0 = *d.dpos;
+    N = (pos0 + d.Tn) / ratio;
+    if (N > Ncap) N = Ncap;
+}
+
+// rows of query t that are visible (at most N)
+IK_DEVI int64_t visible(int64_t pos0, int64_t t, int64_t ratio, int64_t N) {
+    const int64_t nt = (pos0 + t + 1) / ratio;
+    return nt < N ? nt : N;
+}
+
+// BLOCKS: write block maxima (row length nb) instead of the score row (row length Nk). cs: the candidate row stride, os: the
+// output row stride.
 template <typename T, bool BLOCKS>
 __global__ void __launch_bounds__(kScoreThreads) index_score(const T* __restrict__ q, const T* __restrict__ k, const T* __restrict__ w,
                                                              const unsigned char* __restrict__ cand, int64_t t0, int64_t Hi, int64_t Di,
                                                              int64_t Nk, int64_t B, int64_t ratio, int64_t pos0, float scale,
-                                                             float* __restrict__ out) {
+                                                             float* __restrict__ out, DevLen dl, int64_t cs, int64_t os) {
     __shared__ __align__(16) float qs[kMaxQ];
     __shared__ float ws[kMaxHi];
     const int64_t tl = blockIdx.y, t = t0 + tl;
+    dev_len(dl, ratio, Nk, pos0, Nk);
+    if ((int64_t)blockIdx.x * kScoreThreads >= Nk) return;  // past the device count (block-uniform)
     for (int64_t i = threadIdx.x; i < Hi * Di; i += kScoreThreads) qs[i] = ld(q, t * Hi * Di + i);
     if (threadIdx.x < Hi) ws[threadIdx.x] = ld(w, t * Hi + threadIdx.x);
     __syncthreads();
     const int64_t c = (int64_t)blockIdx.x * kScoreThreads + threadIdx.x;
-    const int64_t nt = (pos0 + t + 1) / ratio;
-    const int64_t nb = cdiv(Nk, B);
+    const int64_t nt = visible(pos0, t, ratio, Nk);
     bool ok = c < Nk && c < nt;
-    if (ok && cand) ok = cand[t * nb + c / B] != 0;
+    if (ok && cand) ok = cand[t * cs + c / B] != 0;
     float score = -INFINITY;
     if (ok) {
         float acc[kMaxHi];
@@ -95,9 +120,9 @@ __global__ void __launch_bounds__(kScoreThreads) index_score(const T* __restrict
     if (BLOCKS) {
         float m = score;
         for (int o = 1; o < B; o <<= 1) m = fmaxf(m, __shfl_xor_sync(0xffffffffu, m, o));
-        if ((c % B) == 0 && c < Nk) out[tl * nb + c / B] = m;
+        if ((c % B) == 0 && c < Nk) out[tl * os + c / B] = m;
     } else if (c < Nk) {
-        out[tl * Nk + c] = score;
+        out[tl * os + c] = score;
     }
 }
 
@@ -226,33 +251,41 @@ IK_DEVI void select_core(int64_t N, int64_t k, KeyAt key_at, Emit emit) {
 }
 
 // One row of `v` (row length N): the k best (value descending, ties to the lower index), emitted in index order.
-// BLOCKS: mask row (u8, length N) of the picks whose value is > -inf, after pinning the query's newest visible block; else
-// idx row (length k), index >= nt mapped to -1.
+// BLOCKS: mask row (u8, `os` wide: the first N entries are the blocks, the rest 0) of the picks whose value is > -inf, after
+// pinning the query's newest visible block; else idx row (`os` wide: k picks, index >= nt mapped to -1, then -1 fill).
 template <bool BLOCKS>
-IK_DEVI void select_row(float* row, int64_t N, int64_t k, int64_t t, int64_t nt, int64_t B, int* __restrict__ idx, unsigned char* __restrict__ mask) {
+IK_DEVI void select_row(float* row, int64_t N, int64_t k, int64_t t, int64_t nt, int64_t B, int* __restrict__ idx, unsigned char* __restrict__ mask,
+                        int64_t os) {
     if (BLOCKS) {
-        unsigned char* mrow = mask + t * N;
-        for (int64_t i = threadIdx.x; i < N; i += kSelThreads) mrow[i] = 0;
+        unsigned char* mrow = mask + t * os;
+        for (int64_t i = threadIdx.x; i < os; i += kSelThreads) mrow[i] = 0;
         if (threadIdx.x == 0 && nt > 0) row[(nt - 1) / B] = INFINITY;
         __syncthreads();
+    } else {
+        for (int64_t o = k + threadIdx.x; o < os; o += kSelThreads) idx[t * os + o] = -1;
     }
     if (k <= 0) return;
     select_core(
         N, k, [&](int64_t i) { return fkey(row[i]); },
         [&](int64_t i, unsigned o) {
             if (BLOCKS) {
-                if (row[i] > -INFINITY) mask[t * N + i] = 1;
+                if (row[i] > -INFINITY) mask[t * os + i] = 1;
             } else {
-                idx[t * k + o] = i < nt ? (int)i : -1;
+                idx[t * os + o] = i < nt ? (int)i : -1;
             }
         });
 }
 
+// v rows of `len` (the capacity's: Nk or ceil(Nk / B)); keep: top_k / blocks kept; os: the output row stride
 template <bool BLOCKS>
-__global__ void __launch_bounds__(kSelThreads) index_select(float* __restrict__ v, int64_t N, int64_t k, int64_t t0, int64_t B, int64_t ratio,
-                                                            int64_t pos0, int* __restrict__ idx, unsigned char* __restrict__ mask) {
+__global__ void __launch_bounds__(kSelThreads) index_select(float* __restrict__ v, int64_t len, int64_t keep, int64_t t0, int64_t B,
+                                                            int64_t ratio, int64_t pos0, int* __restrict__ idx, unsigned char* __restrict__ mask,
+                                                            DevLen dl, int64_t Nk, int64_t os) {
     const int64_t tl = blockIdx.x, t = t0 + tl;
-    select_row<BLOCKS>(v + tl * N, N, k, t, (pos0 + t + 1) / ratio, B, idx, mask);
+    int64_t N;
+    dev_len(dl, ratio, Nk, pos0, N);
+    const int64_t n = BLOCKS ? cdiv(N, B) : N;
+    select_row<BLOCKS>(v + tl * len, n, keep < n ? keep : n, t, visible(pos0, t, ratio, N), B, idx, mask, os);
 }
 
 // ---- multi-block threshold select (indexer_topk, few query rows, long rows) ---------------------------------------------
@@ -271,12 +304,17 @@ struct SelMeta {
     unsigned bin, cnt, flag, ctr;
 };
 
-__global__ void __launch_bounds__(256) sel_hist(const float* __restrict__ v, int64_t N, unsigned* __restrict__ hist) {
+// v rows of `len` (= Nk, the capacity); the segments and k are bounded by the device count N
+__global__ void __launch_bounds__(256) sel_hist(const float* __restrict__ v, int64_t len, unsigned* __restrict__ hist, DevLen dl,
+                                                int64_t ratio) {
     __shared__ unsigned h[kHistBins];
     const int64_t tl = blockIdx.y;
+    int64_t p0 = 0, N;
+    dev_len(dl, ratio, len, p0, N);
+    if ((int64_t)blockIdx.x * kSeg >= N) return;
     for (int b = threadIdx.x; b < kHistBins; b += 256) h[b] = 0;
     __syncthreads();
-    const float* row = v + tl * N;
+    const float* row = v + tl * len;
     const int64_t lo = (int64_t)blockIdx.x * kSeg, hi = min(lo + kSeg, N);
     for (int64_t i = lo + threadIdx.x; i < hi; i += 256) atomicAdd(&h[fkey(row[i]) >> kHistShift], 1u);
     __syncthreads();
@@ -284,9 +322,14 @@ __global__ void __launch_bounds__(256) sel_hist(const float* __restrict__ v, int
         if (h[b]) atomicAdd(&hist[tl * kHistBins + b], h[b]);
 }
 
-__global__ void __launch_bounds__(kSelThreads) sel_thresh(const unsigned* __restrict__ hist, int64_t k, SelMeta* __restrict__ meta) {
+__global__ void __launch_bounds__(kSelThreads) sel_thresh(const unsigned* __restrict__ hist, int64_t k, SelMeta* __restrict__ meta, DevLen dl,
+                                                          int64_t ratio, int64_t len) {
     __shared__ unsigned wsum[32];
     const int64_t tl = blockIdx.x;
+    int64_t p0 = 0, N;
+    dev_len(dl, ratio, len, p0, N);
+    if (k > N) k = N;
+    if (k <= 0) return;  // no picks (N = 0): sel_compact / sel_final skip the row
     const unsigned* h = hist + tl * kHistBins;
     // thread i owns bins 2047-2i and 2046-2i (descending); kSelThreads * 2 == kHistBins
     const int b0 = kHistBins - 1 - 2 * threadIdx.x;
@@ -310,11 +353,15 @@ __global__ void __launch_bounds__(kSelThreads) sel_thresh(const unsigned* __rest
     }
 }
 
-__global__ void __launch_bounds__(256) sel_compact(const float* __restrict__ v, int64_t N, SelMeta* __restrict__ meta, uint2* __restrict__ cand) {
+__global__ void __launch_bounds__(256) sel_compact(const float* __restrict__ v, int64_t len, SelMeta* __restrict__ meta, uint2* __restrict__ cand,
+                                                   DevLen dl, int64_t ratio) {
     const int64_t tl = blockIdx.y;
+    int64_t p0 = 0, N;
+    dev_len(dl, ratio, len, p0, N);
+    if (N <= 0 || (int64_t)blockIdx.x * kSeg >= N) return;
     if (meta[tl].flag) return;
     const unsigned bin = meta[tl].bin;
-    const float* row = v + tl * N;
+    const float* row = v + tl * len;
     const int64_t lo = (int64_t)blockIdx.x * kSeg, hi = min(lo + kSeg, N);
     const int lane = threadIdx.x & 31;
     for (int64_t base = lo; base < hi; base += 256) {
@@ -337,15 +384,21 @@ __global__ void __launch_bounds__(256) sel_compact(const float* __restrict__ v, 
     }
 }
 
-__global__ void __launch_bounds__(kSelThreads) sel_final(float* __restrict__ v, int64_t N, int64_t k, int64_t t0, int64_t ratio, int64_t pos0,
-                                                         const SelMeta* __restrict__ meta, const uint2* __restrict__ cand, int* __restrict__ idx) {
+__global__ void __launch_bounds__(kSelThreads) sel_final(float* __restrict__ v, int64_t len, int64_t k, int64_t t0, int64_t ratio, int64_t pos0,
+                                                         const SelMeta* __restrict__ meta, const uint2* __restrict__ cand, int* __restrict__ idx,
+                                                         DevLen dl, int64_t os) {
     __shared__ unsigned keys[kCap];
     __shared__ int ids[kCap];
     const int64_t tl = blockIdx.x, t = t0 + tl;
-    const int64_t nt = (pos0 + t + 1) / ratio;
+    int64_t N;
+    dev_len(dl, ratio, len, pos0, N);
+    if (k > N) k = N;
+    const int64_t nt = visible(pos0, t, ratio, N);
+    for (int64_t o = k + threadIdx.x; o < os; o += kSelThreads) idx[t * os + o] = -1;
+    if (k <= 0) return;
     const SelMeta m = meta[tl];
     if (m.flag) {
-        select_row<false>(v + tl * N, N, k, t, nt, 1, idx, nullptr);
+        select_row<false>(v + tl * len, N, k, t, nt, 1, idx, nullptr, os);
         return;
     }
     int P = 2;
@@ -385,7 +438,7 @@ __global__ void __launch_bounds__(kSelThreads) sel_final(float* __restrict__ v, 
         P, k, [&](int64_t i) { return keys[i]; },
         [&](int64_t i, unsigned o) {
             const int p = ids[i];
-            idx[t * k + o] = p < nt ? p : -1;
+            idx[t * os + o] = p < nt ? p : -1;
         });
 }
 
@@ -422,14 +475,16 @@ template <bool BLOCKS>
 __global__ void __launch_bounds__(kMmaWarps * 32) index_score_mma(const __nv_bfloat16* __restrict__ q, const __nv_bfloat16* __restrict__ k,
                                                                 const __nv_bfloat16* __restrict__ w, const unsigned char* __restrict__ cand,
                                                                 int64_t t0, int64_t tr, int Hi, int Di, int64_t Nk, int B, int64_t ratio,
-                                                                int64_t pos0, float scale, int qb, float* __restrict__ out) {
+                                                                int64_t pos0, float scale, int qb, float* __restrict__ out, DevLen dl, int64_t cs,
+                                                                int64_t os) {
     extern __shared__ __align__(16) unsigned char smem_raw[];
     __nv_bfloat16* kt = reinterpret_cast<__nv_bfloat16*>(smem_raw);  // [kMmaKeys][Di + 8]
     const int ldk = Di + 8;
     const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
     const int g = lane >> 2, tq = lane & 3;
     const int64_t c0 = (int64_t)blockIdx.x * kMmaKeys;
-    const int64_t nb = cdiv(Nk, B);
+    dev_len(dl, ratio, Nk, pos0, Nk);
+    if (c0 >= Nk) return;  // past the device count (block-uniform)
     const int64_t q0 = (int64_t)blockIdx.y * qb;  // first query (tile-local) of this block
     const int nq = (int)min((int64_t)qb, tr - q0);
     // rows the block needs: below the last query's visible rows; with one query also inside its candidates
@@ -439,7 +494,7 @@ __global__ void __launch_bounds__(kMmaWarps * 32) index_score_mma(const __nv_bfl
         const int64_t c = c0 + r;
         uint4 val = make_uint4(0, 0, 0, 0);
         bool need = c < Nk && c < nt_last;
-        if (need && cand && nq == 1) need = cand[(t0 + q0) * nb + c / B] != 0;
+        if (need && cand && nq == 1) need = cand[(t0 + q0) * cs + c / B] != 0;
         if (need) val = __ldg(reinterpret_cast<const uint4*>(k + c * Di) + cv);
         *reinterpret_cast<uint4*>(kt + r * ldk + cv * 8) = val;
     }
@@ -448,7 +503,7 @@ __global__ void __launch_bounds__(kMmaWarps * 32) index_score_mma(const __nv_bfl
     const int qi = warp / wpq;
     if (qi >= nq) return;
     const int64_t tl = q0 + qi, t = t0 + tl;
-    const int64_t nt = (pos0 + t + 1) / ratio;
+    const int64_t nt = visible(pos0, t, ratio, Nk);
     const int mt_n = Hi / 16, ks_n = Di / 16;
     // A fragments of this query: [m-tile][k-step][4]
     unsigned af[2][kMmaMaxDi / 16][4];
@@ -479,7 +534,7 @@ __global__ void __launch_bounds__(kMmaWarps * 32) index_score_mma(const __nv_bfl
         if (n0 >= Nk) break;
         // whole tile invisible or outside the candidates (block 8 = one tile): -inf without multiplying
         bool any = n0 < nt;
-        if (any && cand && B == 8) any = cand[t * nb + n0 / 8] != 0;
+        if (any && cand && B == 8) any = cand[t * cs + n0 / 8] != 0;
         float s0 = -INFINITY, s1 = -INFINITY;
         const int64_t col = n0 + 2 * tq;
         if (any) {
@@ -516,8 +571,8 @@ __global__ void __launch_bounds__(kMmaWarps * 32) index_score_mma(const __nv_bfl
             if (s1 == 0.f) s1 = 0.f;
             bool v0 = col < nt && col < Nk, v1 = col + 1 < nt && col + 1 < Nk;
             if (cand && B != 8) {
-                v0 = v0 && cand[t * nb + col / B] != 0;
-                v1 = v1 && cand[t * nb + (col + 1) / B] != 0;
+                v0 = v0 && cand[t * cs + col / B] != 0;
+                v1 = v1 && cand[t * cs + (col + 1) / B] != 0;
             }
             if (!v0) s0 = -INFINITY;
             if (!v1) s1 = -INFINITY;
@@ -526,18 +581,18 @@ __global__ void __launch_bounds__(kMmaWarps * 32) index_score_mma(const __nv_bfl
             // block maxima: B in {1, 2, 4, 8} columns, lanes tq hold columns 2tq, 2tq+1
             if (B == 1) {
                 if (g == 0) {
-                    if (col < Nk) out[tl * nb + col] = s0;
-                    if (col + 1 < Nk) out[tl * nb + col + 1] = s1;
+                    if (col < Nk) out[tl * os + col] = s0;
+                    if (col + 1 < Nk) out[tl * os + col + 1] = s1;
                 }
             } else {
                 float m = fmaxf(s0, s1);
                 if (B >= 4) m = fmaxf(m, __shfl_xor_sync(0xffffffffu, m, 1));
                 if (B >= 8) m = fmaxf(m, __shfl_xor_sync(0xffffffffu, m, 2));
-                if (g == 0 && (col % B) == 0 && col < Nk) out[tl * nb + col / B] = m;
+                if (g == 0 && (col % B) == 0 && col < Nk) out[tl * os + col / B] = m;
             }
         } else if (g == 0) {
-            if (col < Nk) out[tl * Nk + col] = s0;
-            if (col + 1 < Nk) out[tl * Nk + col + 1] = s1;
+            if (col < Nk) out[tl * os + col] = s0;
+            if (col + 1 < Nk) out[tl * os + col + 1] = s1;
         }
     }
 }
@@ -556,14 +611,19 @@ struct IdxArgs {
     int64_t keep, B, ratio, pos0;
     float scale;
     const ik_scratch* scratch;
+    const int* dpos;  // device position (null: pos0); k is then a capacity view [Ncap, Di]
 };
 
+// Every host-side decision (tiles, grids, MMA vs SIMT, fast vs one-block select) depends on the shapes only, never on the
+// device position, so a captured graph replays at any P; the kernels bound their work by the device count N.
 template <typename T, bool BLOCKS>
 int run(const IdxArgs& a, ik_tensor* outp, cudaStream_t s) {
     const int64_t Tn = a.q->shape[0], Hi = a.q->shape[1], Di = a.q->shape[2], Nk = a.k->shape[0];
     const int64_t nb = cdiv(Nk, a.B);
     const int64_t len = BLOCKS ? nb : Nk;
     const int64_t kk = BLOCKS ? (a.keep < nb ? a.keep : nb) : (a.keep < Nk ? a.keep : Nk);
+    const int64_t os = outp->shape[1];  // output row stride: nb (mask) or kk (idx)
+    const DevLen dl{a.dpos, Tn};
     if (Tn == 0) return IK_OK;
     if (Nk == 0) {
         // no compressed rows: an empty idx [T, 0]; a mask [T, 0]
@@ -598,28 +658,28 @@ int run(const IdxArgs& a, ik_tensor* outp, cudaStream_t s) {
             const size_t smem = (size_t)kMmaKeys * (Di + 8) * 2;
             index_score_mma<BLOCKS><<<g, kMmaWarps * 32, smem, s>>>((const __nv_bfloat16*)a.q->data, (const __nv_bfloat16*)a.k->data,
                                                                    (const __nv_bfloat16*)a.w->data, cand, t0, tr, (int)Hi, (int)Di, Nk,
-                                                                   (int)a.B, a.ratio, a.pos0, a.scale, qb, sc);
+                                                                   (int)a.B, a.ratio, a.pos0, a.scale, qb, sc, dl, nb, len);
         } else {
             dim3 g((unsigned)cdiv(Nk, kScoreThreads), (unsigned)tr);
             index_score<T, BLOCKS><<<g, kScoreThreads, 0, s>>>((const T*)a.q->data, (const T*)a.k->data, (const T*)a.w->data, cand, t0, Hi,
-                                                               Di, Nk, a.B, a.ratio, a.pos0, a.scale, sc);
+                                                               Di, Nk, a.B, a.ratio, a.pos0, a.scale, sc, dl, nb, len);
         }
         IK_TRY(ik_launch_status());
         if (fast) {
             // hist and meta are contiguous: one memset clears both (meta's counters start at 0)
             if (cudaMemsetAsync(fhist, 0, (size_t)(tr * kHistBins * 4 + tr * sizeof(SelMeta)), s) != cudaSuccess) return IK_ERR_LAUNCH;
             const dim3 gs((unsigned)cdiv(len, kSeg), (unsigned)tr);
-            sel_hist<<<gs, 256, 0, s>>>(sc, len, fhist);
+            sel_hist<<<gs, 256, 0, s>>>(sc, len, fhist, dl, a.ratio);
             IK_TRY(ik_launch_status());
-            sel_thresh<<<(unsigned)tr, kSelThreads, 0, s>>>(fhist, kk, fmeta);
+            sel_thresh<<<(unsigned)tr, kSelThreads, 0, s>>>(fhist, kk, fmeta, dl, a.ratio, len);
             IK_TRY(ik_launch_status());
-            sel_compact<<<gs, 256, 0, s>>>(sc, len, fmeta, fcand);
+            sel_compact<<<gs, 256, 0, s>>>(sc, len, fmeta, fcand, dl, a.ratio);
             IK_TRY(ik_launch_status());
-            sel_final<<<(unsigned)tr, kSelThreads, 0, s>>>(sc, len, kk, t0, a.ratio, a.pos0, fmeta, fcand, (int*)outp->data);
+            sel_final<<<(unsigned)tr, kSelThreads, 0, s>>>(sc, len, kk, t0, a.ratio, a.pos0, fmeta, fcand, (int*)outp->data, dl, os);
         } else {
-            index_select<BLOCKS><<<(unsigned)tr, kSelThreads, 0, s>>>(sc, len, kk, t0, a.B, a.ratio, a.pos0,
+            index_select<BLOCKS><<<(unsigned)tr, kSelThreads, 0, s>>>(sc, len, a.keep, t0, a.B, a.ratio, a.pos0,
                                                                        BLOCKS ? nullptr : (int*)outp->data,
-                                                                       BLOCKS ? (unsigned char*)outp->data : nullptr);
+                                                                       BLOCKS ? (unsigned char*)outp->data : nullptr, dl, Nk, os);
         }
         IK_TRY(ik_launch_status());
     }
@@ -631,9 +691,11 @@ int check_common(const IdxArgs& a) {
     IK_TRY(ik_check(a.k, a.q->dtype, 2));
     IK_TRY(ik_check(a.w, a.q->dtype, 2));
     const int64_t Tn = a.q->shape[0], Hi = a.q->shape[1], Di = a.q->shape[2], Nk = a.k->shape[0];
-    if (a.ratio < 1 || a.pos0 < 0 || a.B < 1 || a.B > 32 || (a.B & (a.B - 1)) != 0 || a.keep < 1) return IK_ERR_SHAPE;
+    if (a.ratio < 1 || (!a.dpos && a.pos0 < 0) || a.B < 1 || a.B > 32 || (a.B & (a.B - 1)) != 0 || a.keep < 1) return IK_ERR_SHAPE;
     if (Hi < 1 || Hi > kMaxHi || Hi * Di > kMaxQ || Di % 8 != 0) return IK_ERR_SHAPE;
-    if (a.k->shape[1] != Di || a.w->shape[0] != Tn || a.w->shape[1] != Hi || Nk != (a.pos0 + Tn) / a.ratio) return IK_ERR_SHAPE;
+    if (a.k->shape[1] != Di || a.w->shape[0] != Tn || a.w->shape[1] != Hi) return IK_ERR_SHAPE;
+    // host position: exactly the visible rows; device position: any capacity (the kernels take min((P + T) / ratio, Nk))
+    if (!a.dpos && Nk != (a.pos0 + Tn) / a.ratio) return IK_ERR_SHAPE;
     if (Nk > 0 && !ik_aligned16(a.k->data)) return IK_ERR_INVALID_ARG;
     return IK_OK;
 }
@@ -641,8 +703,9 @@ int check_common(const IdxArgs& a) {
 }  // namespace
 
 extern "C" int ik_indexer_blocks(const ik_tensor* q, const ik_tensor* k, const ik_tensor* w, int64_t keep, int64_t block, int64_t ratio,
-                                 int64_t pos0, float scale, ik_tensor* mask, const ik_scratch* scratch, void* stream) {
-    IdxArgs a{q, k, w, nullptr, keep, block, ratio, pos0, scale, scratch};
+                                 int64_t pos0, float scale, ik_tensor* mask, const ik_scratch* scratch, const ik_tensor* pos, void* stream) {
+    IK_TRY(ik_check_pos(pos));
+    IdxArgs a{q, k, w, nullptr, keep, block, ratio, pos0, scale, scratch, pos ? (const int*)pos->data : nullptr};
     IK_TRY(check_common(a));
     IK_TRY(ik_check(mask, IK_DTYPE_U8, 2));
     if (mask->shape[0] != q->shape[0] || mask->shape[1] != cdiv(k->shape[0], block)) return IK_ERR_SHAPE;
@@ -657,8 +720,9 @@ extern "C" int ik_indexer_blocks(const ik_tensor* q, const ik_tensor* k, const i
 
 extern "C" int ik_indexer_topk(const ik_tensor* q, const ik_tensor* k, const ik_tensor* w, const ik_tensor* cand, int64_t top_k,
                                int64_t block, int64_t ratio, int64_t pos0, float scale, ik_tensor* idx, const ik_scratch* scratch,
-                               void* stream) {
-    IdxArgs a{q, k, w, cand, top_k, block, ratio, pos0, scale, scratch};
+                               const ik_tensor* pos, void* stream) {
+    IK_TRY(ik_check_pos(pos));
+    IdxArgs a{q, k, w, cand, top_k, block, ratio, pos0, scale, scratch, pos ? (const int*)pos->data : nullptr};
     IK_TRY(check_common(a));
     IK_TRY(ik_check(idx, IK_DTYPE_I32, 2));
     const int64_t Nk = k->shape[0];

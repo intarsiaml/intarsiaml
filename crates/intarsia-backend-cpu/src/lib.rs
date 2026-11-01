@@ -203,10 +203,11 @@ impl Backend for CpuBackend {
         if name != call.op.as_str() {
             return Err(Error::invalid(format!("kernel '{kernel}' cannot run op '{}'", call.op)));
         }
-        // device-side position: resolve it now (the cpu runs synchronously, so the value is current)
+        // device-side position: resolve it now (the cpu runs synchronously, so the value is current). The DeepSeek-V4.1
+        // positioned ops keep it: with a device position their shapes are the capacity's (dsv41_ref reads it).
         let patched;
         let call = match &call.pos {
-            Some(p) => {
+            Some(p) if !intarsia_core::dsv41::ops::POSITIONED.contains(&call.op) => {
                 let mut bytes = [0u8; 4];
                 self.download(&p.buf, p.offset, &mut bytes, 0)?;
                 let pos0 = i32::from_le_bytes(bytes);
@@ -220,7 +221,7 @@ impl Backend for CpuBackend {
                 patched = c;
                 &patched
             }
-            None => call,
+            _ => call,
         };
         if reference {
             reference::run(call)?;

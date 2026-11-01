@@ -27,11 +27,43 @@ constexpr float kInitMax = -1e30f;
 
 template <typename T> constexpr int tile_keys() { return kTileBytes / (kMaxD * (int)sizeof(T)) < 32 ? kTileBytes / (kMaxD * (int)sizeof(T)) : 32; }
 
+// Splits of a call of Tn queries whose key lists hold W + Kc entries in tiles of KS (the host policy).
+__host__ __device__ inline int attn_nsplit(int64_t Tn, int64_t W, int64_t Kc, int KS) {
+    int nsplit = 1;
+    if (Tn <= kMaxSplitRows) {
+        const int64_t ntiles = cdiv(W + Kc, KS);
+        nsplit = (int)(ntiles < kMaxSplit ? ntiles : kMaxSplit);
+    }
+    return nsplit < 1 ? 1 : nsplit;
+}
+
+// What a call computes. Host position: the launch's values. Device position (`dpos`): P = *dpos, the visible compressed
+// rows N = min((P + Tn) / ratio, Nc) of the capacity view cmp [Nc,D], the index entries Kc = min(Kw, N) (all Kw when Nc = 0)
+// and the splits the host would use for an idx of Kc columns; the grid is sized for Kw and blocks past them exit.
+struct AttnEff {
+    int64_t p0, nc, kc;
+    int nsplit;
+};
+
+template <int KS>
+IK_DEVI AttnEff attn_eff(const int* dpos, int64_t pos0, int64_t Tn, int64_t W, int64_t Nc, int64_t Kw, int64_t ratio, int nsplit) {
+    if (!dpos) return AttnEff{pos0, Nc, Kw, nsplit};
+    AttnEff e;
+    e.p0 = *dpos;
+    int64_t n = (e.p0 + Tn) / ratio;
+    if (n > Nc) n = Nc;
+    e.nc = n;
+    e.kc = Nc > 0 ? (Kw < n ? Kw : n) : Kw;
+    e.nsplit = attn_nsplit(Tn, W, e.kc, KS);
+    return e;
+}
+
 template <typename T>
 __global__ void __launch_bounds__(kThreads) attn_sparse_kernel(const T* __restrict__ q, const T* __restrict__ win, const T* __restrict__ cmp,
                                                                const int* __restrict__ idx, const float* __restrict__ sink, T* __restrict__ out,
                                                                float* __restrict__ part, int64_t H, int64_t D, int64_t W, int64_t Nc,
-                                                               int64_t Kc, int64_t pos0, const int* __restrict__ dpos, float scale, int nsplit) {
+                                                               int64_t Kw, int64_t pos0, const int* __restrict__ dpos, float scale, int nsplit,
+                                                               int64_t ratio) {
     constexpr int KS = tile_keys<T>();
     extern __shared__ __align__(16) unsigned char smem_raw[];
     T* kt = reinterpret_cast<T*>(smem_raw);  // [KS][D]
@@ -45,7 +77,11 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_kernel(const T* __restri
     const int64_t h0 = (int64_t)blockIdx.z * kHeads;
     const int nh = (int)min((int64_t)kHeads, H - h0);
     const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
-    const int64_t p0 = dpos ? (int64_t)*dpos : pos0;
+    const AttnEff ef = attn_eff<KS>(dpos, pos0, gridDim.y, W, Nc, Kw, ratio, nsplit);
+    if (split >= ef.nsplit) return;  // grid sized for the capacity (block-uniform)
+    nsplit = ef.nsplit;
+    Nc = ef.nc;
+    const int64_t p0 = ef.p0, Kc = ef.kc;
     const int64_t nkeys = W + Kc;
     const int ntiles = (int)cdiv(nkeys, KS);
     const int dper = (int)(D / 32);  // q elements per lane (D in 32..512)
@@ -86,7 +122,7 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_kernel(const T* __restri
                 ok = (p0 + row >= W);
                 sr = row;
             } else if (e < nkeys) {
-                const int c = idx[t * Kc + (e - W)];
+                const int c = idx[t * Kw + (e - W)];
                 ok = (c >= 0 && c < Nc);
                 sr = -(int64_t)c - 1;
             }
@@ -218,8 +254,8 @@ static size_t attn_mma_smem(int64_t D) {
 __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16* __restrict__ q, const __nv_bfloat16* __restrict__ win,
                                                             const __nv_bfloat16* __restrict__ cmp, const int* __restrict__ idx,
                                                             const float* __restrict__ sink, __nv_bfloat16* __restrict__ out,
-                                                            float* __restrict__ part, int64_t H, int64_t D, int64_t W, int64_t Nc, int64_t Kc,
-                                                            int64_t pos0, const int* __restrict__ dpos, float scale, int nsplit) {
+                                                            float* __restrict__ part, int64_t H, int64_t D, int64_t W, int64_t Nc, int64_t Kw,
+                                                            int64_t pos0, const int* __restrict__ dpos, float scale, int nsplit, int64_t ratio) {
     extern __shared__ __align__(16) unsigned char smem_raw[];
     const int ld = (int)D + 8;
     __nv_bfloat16* Qs = reinterpret_cast<__nv_bfloat16*>(smem_raw);
@@ -236,7 +272,11 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
     const int nh = (int)min((int64_t)kHeads, H - h0);  // 16 or 32
     const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
     const int g = lane >> 2, tq = lane & 3;
-    const int64_t p0 = dpos ? (int64_t)*dpos : pos0;
+    const AttnEff ef = attn_eff<kMmaKeys>(dpos, pos0, gridDim.y, W, Nc, Kw, ratio, nsplit);
+    if (split >= ef.nsplit) return;  // grid sized for the capacity (block-uniform)
+    nsplit = ef.nsplit;
+    Nc = ef.nc;
+    const int64_t p0 = ef.p0, Kc = ef.kc;
     const int64_t nkeys = W + Kc;
     const int ntiles = (int)cdiv(nkeys, kMmaKeys);
     const int nv = (int)(D / 8);  // 16-byte vectors per row
@@ -271,7 +311,7 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
                 ok = (p0 + row >= W);
                 sr = row;
             } else if (e < nkeys) {
-                const int c = idx[t * Kc + (e - W)];
+                const int c = idx[t * Kw + (e - W)];
                 ok = (c >= 0 && c < Nc);
                 sr = -(int64_t)c - 1;
             }
@@ -411,9 +451,12 @@ static bool attn_mma_enabled() {
 }
 
 // merge the split partials of one (query, head): o = sum_s acc_s e^(m_s - M) / (sum_s l_s e^(m_s - M) + e^(sink - M))
-template <typename T>
+// Device position: the splits the attention kernel took (KS its tile); one split wrote the output directly.
+template <typename T, int KS>
 __global__ void attn_sparse_merge(const float* __restrict__ part, const float* __restrict__ sink, T* __restrict__ out, int64_t Tn, int64_t H,
-                                  int64_t D, int nsplit) {
+                                  int64_t D, int nsplit, const int* __restrict__ dpos, int64_t W, int64_t Nc, int64_t Kw, int64_t ratio) {
+    nsplit = attn_eff<KS>(dpos, 0, Tn, W, Nc, Kw, ratio, nsplit).nsplit;
+    if (nsplit <= 1) return;
     const int64_t t = blockIdx.x, h = blockIdx.y;
     const int64_t slot0 = (t * H + h) * nsplit;
     const float* pm = part + Tn * H * nsplit * D + slot0 * 2;
@@ -431,25 +474,25 @@ __global__ void attn_sparse_merge(const float* __restrict__ part, const float* _
 
 template <typename T>
 int launch(const ik_tensor* q, const ik_tensor* win, const ik_tensor* cmp, const ik_tensor* idx, const ik_tensor* sink, int64_t W,
-           int64_t pos0, float scale, ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos, cudaStream_t s) {
+           int64_t pos0, int64_t ratio, float scale, ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos, cudaStream_t s) {
     constexpr int KS = tile_keys<T>();
     const int64_t Tn = q->shape[0], H = q->shape[1], D = q->shape[2];
-    const int64_t Nc = cmp->shape[0], Kc = idx->shape[1];
-    const int64_t ntiles = cdiv(W + Kc, KS);
-    int nsplit = 1;
-    if (Tn <= kMaxSplitRows) nsplit = (int)(ntiles < kMaxSplit ? ntiles : kMaxSplit);
-    if (nsplit < 1) nsplit = 1;
+    const int64_t Nc = cmp->shape[0], Kw = idx->shape[1];
+    const int* dp = pos ? (const int*)pos->data : nullptr;
+    // splits of the grid (and the scratch layout's bound) from the idx width; a device-position call takes as many of
+    // them as its device index count needs (attn_eff), the merge reads that many
     float* part = nullptr;
+    bool mma = false;
+    if constexpr (std::is_same<T, __nv_bfloat16>::value) {
+        mma = attn_mma_enabled() && H % 16 == 0 && D % 64 == 0 && D <= kMaxD && ik_aligned16(q->data) && ik_aligned16(out->data);
+    }
+    const int nsplit = attn_nsplit(Tn, W, Kw, mma ? kMmaKeys : KS);
     if (nsplit > 1) {
         const int64_t need = Tn * H * nsplit * (D + 2) * 4;
         if (!scratch || !scratch->data || scratch->bytes < need) return IK_ERR_INVALID_ARG;
         part = (float*)scratch->data;
     }
     dim3 g((unsigned)nsplit, (unsigned)Tn, (unsigned)cdiv(H, kHeads));
-    bool mma = false;
-    if constexpr (std::is_same<T, __nv_bfloat16>::value) {
-        mma = attn_mma_enabled() && H % 16 == 0 && D % 64 == 0 && D <= kMaxD && ik_aligned16(q->data) && ik_aligned16(out->data);
-    }
     if (mma) {
         static_assert(kMmaKeys == 32, "split policy assumes 32-key tiles");
         const size_t smem = attn_mma_smem(D);
@@ -460,21 +503,23 @@ int launch(const ik_tensor* q, const ik_tensor* win, const ik_tensor* cmp, const
         }
         attn_sparse_mma<<<g, kThreads, smem, s>>>((const __nv_bfloat16*)q->data, (const __nv_bfloat16*)win->data, (const __nv_bfloat16*)cmp->data,
                                                   (const int*)idx->data, (const float*)sink->data, (__nv_bfloat16*)out->data, part, H, D, W, Nc,
-                                                  Kc, pos0, pos ? (const int*)pos->data : nullptr, scale, nsplit);
+                                                  Kw, pos0, dp, scale, nsplit, ratio);
         IK_TRY(ik_launch_status());
         if (nsplit > 1) {
-            attn_sparse_merge<T><<<dim3((unsigned)Tn, (unsigned)H), 128, 0, s>>>(part, (const float*)sink->data, (T*)out->data, Tn, H, D, nsplit);
+            attn_sparse_merge<T, kMmaKeys><<<dim3((unsigned)Tn, (unsigned)H), 128, 0, s>>>(part, (const float*)sink->data, (T*)out->data, Tn, H, D,
+                                                                                          nsplit, dp, W, Nc, Kw, ratio);
             IK_TRY(ik_launch_status());
         }
         return IK_OK;
     }
     const size_t smem = (size_t)KS * D * sizeof(T);
     attn_sparse_kernel<T><<<g, kThreads, smem, s>>>((const T*)q->data, (const T*)win->data, (const T*)cmp->data, (const int*)idx->data,
-                                                    (const float*)sink->data, (T*)out->data, part, H, D, W, Nc, Kc, pos0,
-                                                    pos ? (const int*)pos->data : nullptr, scale, nsplit);
+                                                    (const float*)sink->data, (T*)out->data, part, H, D, W, Nc, Kw, pos0, dp, scale, nsplit,
+                                                    ratio);
     IK_TRY(ik_launch_status());
     if (nsplit > 1) {
-        attn_sparse_merge<T><<<dim3((unsigned)Tn, (unsigned)H), 128, 0, s>>>(part, (const float*)sink->data, (T*)out->data, Tn, H, D, nsplit);
+        attn_sparse_merge<T, KS><<<dim3((unsigned)Tn, (unsigned)H), 128, 0, s>>>(part, (const float*)sink->data, (T*)out->data, Tn, H, D, nsplit,
+                                                                                dp, W, Nc, Kw, ratio);
         IK_TRY(ik_launch_status());
     }
     return IK_OK;
@@ -483,8 +528,8 @@ int launch(const ik_tensor* q, const ik_tensor* win, const ik_tensor* cmp, const
 }  // namespace
 
 extern "C" int ik_attn_sparse(const ik_tensor* q, const ik_tensor* win, const ik_tensor* cmp, const ik_tensor* idx, const ik_tensor* sink,
-                              int64_t window, int64_t pos0, float scale, ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos,
-                              void* stream) {
+                              int64_t window, int64_t pos0, int64_t ratio, float scale, ik_tensor* out, const ik_scratch* scratch,
+                              const ik_tensor* pos, void* stream) {
     IK_TRY(check_float(q, 3));
     IK_TRY(ik_check(win, q->dtype, 2));
     IK_TRY(ik_check(cmp, q->dtype, 2));
@@ -493,7 +538,7 @@ extern "C" int ik_attn_sparse(const ik_tensor* q, const ik_tensor* win, const ik
     IK_TRY(ik_check(out, q->dtype, 3));
     IK_TRY(ik_check_pos(pos));
     const int64_t T = q->shape[0], H = q->shape[1], D = q->shape[2], W = window;
-    if (W < 1 || win->shape[0] != W + T || win->shape[1] != D || cmp->shape[1] != D || idx->shape[0] != T || sink->shape[0] != H ||
+    if (W < 1 || ratio < 1 || win->shape[0] != W + T || win->shape[1] != D || cmp->shape[1] != D || idx->shape[0] != T || sink->shape[0] != H ||
         out->shape[0] != T || out->shape[1] != H || out->shape[2] != D)
         return IK_ERR_SHAPE;
     // D a power of two in 32..512 (the PV layout splits 256 threads into D/2 column pairs)
@@ -502,9 +547,9 @@ extern "C" int ik_attn_sparse(const ik_tensor* q, const ik_tensor* win, const ik
     if (T * H == 0) return IK_OK;
     cudaStream_t s = IK_STREAM(stream);
     switch (q->dtype) {
-        case IK_DTYPE_F32: return launch<float>(q, win, cmp, idx, sink, W, pos0, scale, out, scratch, pos, s);
-        case IK_DTYPE_BF16: return launch<__nv_bfloat16>(q, win, cmp, idx, sink, W, pos0, scale, out, scratch, pos, s);
-        case IK_DTYPE_F16: return launch<__half>(q, win, cmp, idx, sink, W, pos0, scale, out, scratch, pos, s);
+        case IK_DTYPE_F32: return launch<float>(q, win, cmp, idx, sink, W, pos0, ratio, scale, out, scratch, pos, s);
+        case IK_DTYPE_BF16: return launch<__nv_bfloat16>(q, win, cmp, idx, sink, W, pos0, ratio, scale, out, scratch, pos, s);
+        case IK_DTYPE_F16: return launch<__half>(q, win, cmp, idx, sink, W, pos0, ratio, scale, out, scratch, pos, s);
         default: return IK_ERR_DTYPE;
     }
 }

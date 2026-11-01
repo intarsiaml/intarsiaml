@@ -3,11 +3,12 @@
 //! `cpu_f32_*`) run this code. Ops in [`STUBS`] have no reference yet: their kernels are registered (so `plan show`
 //! lists the full op sequence) and fail with a "not implemented (lane 1b)" error, which admission reports.
 
-use crate::mem::{read_f32, write_f32};
-use intarsia_core::dsv41::ops::{compressed_rows, engram_head_dim, n_blocks, visible_rows, QdqFmt, QdqScale, ScoreFunc};
+use crate::mem::{read_f32, write_f32, CpuBuffer};
+use intarsia_core::backend::Buffer;
+use intarsia_core::dsv41::ops::{compressed_rows, engram_head_dim, n_blocks, visible_rows, QdqFmt, QdqScale, ScoreFunc, POSITIONED};
 use intarsia_core::dtype::{f32_to_fp8_e4m3, fp8_e4m3_to_f32};
 use intarsia_core::quant::nvfp4::{f32_to_fp4, fp4_to_f32};
-use intarsia_core::{Error, Op, OpCall, Result, TensorRef};
+use intarsia_core::{DType, Error, Op, OpCall, Result, TensorRef};
 
 /// DeepSeek-V4.1 ops without a cpu reference yet (lane 1b removes entries as it lands them). `MatmulFp8Block` serves only
 /// the official FP8 base checkpoint (the Mia EXL3 checkpoint has no fp8 linear). The routed EXL3 experts are the EXL3
@@ -157,7 +158,7 @@ fn index_scores(call: &OpCall, q: &[f64], k: &[f64], w: &[f64], t: usize) -> Vec
     let (hi, di) = (call.inputs[0].shape[1], call.inputs[0].shape[2]);
     let nk = call.inputs[1].shape[0];
     let a = &call.attrs;
-    let n_t = visible_rows(a.pos0, t, a.dsv.ratio);
+    let n_t = visible_rows(a.pos0, t, a.dsv.ratio).min(nk);
     (0..nk)
         .map(|c| {
             if c >= n_t {
@@ -175,10 +176,128 @@ fn index_scores(call: &OpCall, q: &[f64], k: &[f64], w: &[f64], t: usize) -> Vec
         .collect()
 }
 
+/// A zeroed host tensor (the device-position path's temporaries).
+fn temp(dt: intarsia_core::DType, shape: &[usize]) -> TensorRef {
+    let n: usize = shape.iter().product();
+    TensorRef::new(Buffer::new(CpuBuffer::zeroed(n * dt.size_bytes())), dt, shape)
+}
+
+/// `[R, Cs]` -> `[R, Cd]` (same dtype, `Cs <= Cd`): each row of `src`, then `fill` (one element's bytes) up to `Cd`.
+fn scatter_cols(src: Option<&TensorRef>, dst: &TensorRef, fill: &[u8]) -> Result<()> {
+    let es = dst.dtype.size_bytes();
+    let (rows, cd) = (dst.shape[0], dst.shape[1]);
+    let cs = src.map_or(0, |t| t.shape[1]);
+    let sb = match src {
+        Some(t) => crate::mem::bytes(t)?.to_vec(),
+        None => Vec::new(),
+    };
+    // SAFETY: the op's outputs are exclusively owned by the running op.
+    let db = unsafe { crate::mem::bytes_mut(dst)? };
+    for r in 0..rows {
+        let row = &mut db[r * cd * es..(r + 1) * cd * es];
+        row[..cs * es].copy_from_slice(&sb[r * cs * es..(r + 1) * cs * es]);
+        for e in row[cs * es..].chunks_exact_mut(es) {
+            e.copy_from_slice(fill);
+        }
+    }
+    Ok(())
+}
+
+/// The leading `c` columns of a `[R, C]` tensor as a new `[R, c]` tensor.
+fn lead_cols(t: &TensorRef, c: usize) -> Result<TensorRef> {
+    let es = t.dtype.size_bytes();
+    let (rows, cols) = (t.shape[0], t.shape[1]);
+    let out = temp(t.dtype, &[rows, c]);
+    let sb = crate::mem::bytes(t)?;
+    // SAFETY: `out` is a fresh temporary.
+    let db = unsafe { crate::mem::bytes_mut(&out)? };
+    for r in 0..rows {
+        db[r * c * es..(r + 1) * c * es].copy_from_slice(&sb[r * cols * es..(r * cols + c) * es]);
+    }
+    Ok(out)
+}
+
+/// The host call at position `pos0` on `inputs` / `outputs` (the device-position path's equivalent call).
+fn host_run(call: &OpCall, inputs: Vec<TensorRef>, outputs: Vec<TensorRef>, pos0: usize) -> Result<()> {
+    let mut attrs = call.attrs.clone();
+    attrs.pos0 = pos0;
+    attrs.dsv.host_dev_pos = None;
+    run(&OpCall::new(call.op, inputs, outputs, attrs))
+}
+
+/// A positioned op with a device position `P` (`OpCall::pos`; docs/design/dsv41-ops.md, "Device position"): the host
+/// computation at `pos0 = P` on the leading rows the device count selects, scattered / padded into the capacity outputs.
+fn run_dev(call: &OpCall, p: usize) -> Result<()> {
+    let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
+    let r = a.dsv.ratio.max(1);
+    let t = i[0].shape[0];
+    match call.op {
+        Op::RopeTail => host_run(call, i.clone(), o.clone(), p / r * r),
+        Op::WindowKv => host_run(call, i.clone(), o.clone(), p),
+        Op::ActQdq => {
+            let (g, off, ry) = (i[0].shape[0], p / r, o[0].shape[0]);
+            let rows = g.min(ry.saturating_sub(off));
+            if rows == 0 {
+                return Ok(());
+            }
+            host_run(call, vec![i[0].rows(0, rows)], vec![o[0].rows(off, rows)], p)
+        }
+        Op::CompressPool => {
+            let (d, gmax) = (i[0].shape[1], o[0].shape[0]);
+            let (_, g) = compressed_rows(p, t, r);
+            let tmp = temp(o[0].dtype, &[g, d]);
+            host_run(call, i.clone(), vec![tmp.clone(), o[1].clone(), o[2].clone()], p)?;
+            let n = g.min(gmax) * d * o[0].dtype.size_bytes();
+            let src = crate::mem::bytes(&tmp)?.to_vec();
+            // SAFETY: the op's outputs are exclusively owned by the running op.
+            let dst = unsafe { crate::mem::bytes_mut(&o[0])? };
+            dst[..n].copy_from_slice(&src[..n]);
+            Ok(())
+        }
+        Op::IndexerBlocks | Op::IndexerTopk => {
+            let ncap = i[1].shape[0];
+            let n = ((p + t) / r).min(ncap);
+            let nb = n_blocks(n, a.dsv.block);
+            let blocks = call.op == Op::IndexerBlocks;
+            let fill: &[u8] = if blocks { &[0u8] } else { &[0xffu8; 4] };
+            if n == 0 {
+                return scatter_cols(None, &o[0], fill);
+            }
+            let mut inputs = vec![i[0].clone(), i[1].rows(0, n), i[2].clone()];
+            let tmp = if blocks {
+                temp(DType::U8, &[t, nb])
+            } else {
+                inputs.push(if i[3].numel() == 0 { i[3].clone() } else { lead_cols(&i[3], nb)? });
+                temp(DType::I32, &[t, a.top_k.min(n)])
+            };
+            host_run(call, inputs, vec![tmp.clone()], p)?;
+            scatter_cols(Some(&tmp), &o[0], fill)
+        }
+        Op::AttnSparse => {
+            let (ncap, kw) = (i[2].shape[0], i[3].shape[1]);
+            let n = ((p + t) / r).min(ncap);
+            let kc = if ncap > 0 { kw.min(n) } else { kw };
+            let idx = if kc == kw { i[3].clone() } else { lead_cols(&i[3], kc)? };
+            host_run(call, vec![i[0].clone(), i[1].clone(), i[2].rows(0, n), idx, i[4].clone()], o.clone(), p)
+        }
+        op => Err(Error::invalid(format!("dsv41_ref: {op} takes no device position"))),
+    }
+}
+
 pub fn run(call: &OpCall) -> Result<()> {
     let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
     if STUBS.contains(&call.op) {
         return Err(stub_error(call.op));
+    }
+    if let Some(pt) = &call.pos {
+        if POSITIONED.contains(&call.op) {
+            let b = crate::mem::bytes(pt)?;
+            let p = i32::from_le_bytes([b[0], b[1], b[2], b[3]]);
+            if p < 0 {
+                return Err(Error::invalid(format!("{}: device position {p} < 0", call.op)));
+            }
+            return run_dev(call, p as usize);
+        }
     }
     match call.op {
         Op::HcExpand => {
@@ -412,7 +531,7 @@ pub fn run(call: &OpCall) -> Result<()> {
             for r in 0..t {
                 let s = index_scores(call, &q, &k, &w, r);
                 let mut bs: Vec<f64> = (0..nb).map(|j| s[j * b..((j + 1) * b).min(nk)].iter().cloned().fold(f64::NEG_INFINITY, f64::max)).collect();
-                let n_t = visible_rows(a.pos0, r, a.dsv.ratio);
+                let n_t = visible_rows(a.pos0, r, a.dsv.ratio).min(nk);
                 if n_t > 0 {
                     bs[(n_t - 1) / b] = f64::INFINITY;
                 }
@@ -444,7 +563,7 @@ pub fn run(call: &OpCall) -> Result<()> {
                 }
                 let mut top = topk_desc(&s, kk);
                 top.sort_unstable();
-                let n_t = visible_rows(a.pos0, r, a.dsv.ratio);
+                let n_t = visible_rows(a.pos0, r, a.dsv.ratio).min(nk);
                 for (j, c) in top.into_iter().enumerate() {
                     idx[r * kk + j] = if c < n_t { c as f64 } else { -1.0 };
                 }

@@ -1,7 +1,9 @@
 /* DeepSeek-V4.1 launchers (CUDA only), kernels/cuda/dsv41_*.cu. Semantics: the op contract docs/design/dsv41-ops.md (one
  * launcher per `Op`, same inputs / outputs in the same order, attributes as scalars). Every float tensor may be bf16, f16 or
  * f32 unless a line says otherwise; every tensor is dense row-major. Positioned launchers take an optional device-side
- * position `pos` (i32 [1], null = the host `pos0`) where the op's shapes do not depend on it. */
+ * position `pos` (i32 [1], null = the host `pos0`; P below): the launch then ignores pos0, takes capacity-sized shapes and
+ * reads P when it runs, so a captured graph replays at any position; the result is bitwise the host call at pos0 = P on the
+ * leading rows (docs/design/dsv41-ops.md, "Device position"). */
 #ifndef IK_CUDA_ABI_DSV41_H
 #define IK_CUDA_ABI_DSV41_H
 
@@ -50,12 +52,15 @@ int ik_silu_glu_clamp(const ik_tensor* gate, const ik_tensor* up, float limit, i
 
 /* act_qdq: x [.., N] -> y (same shape and dtype): per block of `block` elements of the last dim quantise and dequantise.
  * fmt 0 e4m3, 1 e2m1; scale_fmt 0 ue8m0, 1 e4m3, 2 f32 (act_quant / fp4_act_quant of kernel.py, the cpu reference's
- * `qdq_block` bit for bit). block: a power of two <= 32 or a multiple of 32. */
-int ik_act_qdq(const ik_tensor* x, int32_t fmt, int64_t block, int32_t scale_fmt, ik_tensor* y, void* stream);
+ * `qdq_block` bit for bit). block: a power of two <= 32 or a multiple of 32. With `pos`: x [G,N], y [Ry,N] (same dtype),
+ * y row floor(P / ratio) + g = qdq(x row g) for the rows that fit, every other y row untouched. */
+int ik_act_qdq(const ik_tensor* x, int32_t fmt, int64_t block, int32_t scale_fmt, int64_t ratio, ik_tensor* y, const ik_tensor* pos,
+               void* stream);
 
 /* rope_tail: x [T,N,Dh], inv_freq f32 [rd/2] -> out: the last rd elements rotated as adjacent (re, im) pairs, row t at
- * position (pos ? *pos : pos0) + t * pos_stride, angle = f32(pos) * inv_freq[i] in f32; inverse rotates by -angle. */
-int ik_rope_tail(const ik_tensor* x, const ik_tensor* inv_freq, int64_t pos0, int64_t pos_stride, int32_t inverse,
+ * position (pos ? floor(*pos / ratio) * ratio : pos0) + t * pos_stride, angle = f32(pos) * inv_freq[i] in f32; inverse
+ * rotates by -angle. ratio (>= 1) only matters with `pos`. */
+int ik_rope_tail(const ik_tensor* x, const ik_tensor* inv_freq, int64_t pos0, int64_t pos_stride, int64_t ratio, int32_t inverse,
                  ik_tensor* out, const ik_tensor* pos, void* stream);
 
 /* window_kv: kv [T,D] -> win [W+T,D] (rows < W from ring slots p % Wc of positions pos0-W+r, zero below 0; then the chunk),
@@ -67,16 +72,19 @@ int ik_window_kv(const ik_tensor* kv, int64_t window, int64_t pos0, ik_tensor* w
 /* attn_sparse: q [T,H,D], win [W+T,D], cmp [Nc,D], idx i32 [T,Kc] (-1 = none), sink f32 [H] -> o [T,H,D]. Query t attends
  * the window rows t+1..t+W (positions >= 0 only) and cmp[idx[t,j]] for idx >= 0; one vector is key and value (MQA); the
  * sink joins the softmax denominator only; a query with no keys gives zeros. Scratch: split-KV partials for T <= 16 (see
- * dsv41_attn.cu `attn_nsplit`), none above. q, win, cmp and o share one dtype. */
+ * dsv41_attn.cu `attn_nsplit`), none above. q, win, cmp and o share one dtype. With `pos`: cmp [Ncap,D] is a capacity view
+ * (rows c >= N = min((P+T)/ratio, Ncap) are not attended) and only the first Kc = min(Kw, N) idx columns are read (all Kw
+ * when Ncap = 0); the splits follow Kc as the host's follow its idx width. */
 int ik_attn_sparse(const ik_tensor* q, const ik_tensor* win, const ik_tensor* cmp, const ik_tensor* idx,
-                   const ik_tensor* sink, int64_t window, int64_t pos0, float scale, ik_tensor* out,
+                   const ik_tensor* sink, int64_t window, int64_t pos0, int64_t ratio, float scale, ik_tensor* out,
                    const ik_scratch* scratch, const ik_tensor* pos, void* stream);
 
 /* compress_pool: kv f32 [T,D], score f32 [T,D] -> out [G,D] (groups completing in the chunk, softmax-gated per channel over
  * each group's `ratio` rows; rows before pos0 from the rings at slot p % Rc), kv ring f32 [Rc,D], score ring f32 [Rc,D]
- * (in place: then the chunk's last min(T,Rc) rows). Two launches. */
+ * (in place: then the chunk's last min(T,Rc) rows). Two launches. With `pos`: out [Gmax,D], rows g < min(G, Gmax) written
+ * for the G groups completing at P, the rest untouched. */
 int ik_compress_pool(const ik_tensor* kv, const ik_tensor* score, int64_t ratio, int64_t pos0, ik_tensor* out,
-                     ik_tensor* kv_ring, ik_tensor* score_ring, void* stream);
+                     ik_tensor* kv_ring, ik_tensor* score_ring, const ik_tensor* pos, void* stream);
 
 /* indexer_blocks: q [T,Hi,Di], k [Nk,Di], w [T,Hi] -> mask u8 [T, ceil(Nk/block)]: the `keep` best blocks (block score =
  * best row score, the query's newest visible block pinned in, -inf blocks dropped, ties to the lower block).
@@ -84,12 +92,15 @@ int ik_compress_pool(const ik_tensor* kv, const ik_tensor* score, int64_t ratio,
  * best rows (ties to the lower index; rows outside kept candidate blocks are -inf), sorted by position, picks past the
  * query's visible rows -1. score[t,c] = scale * sum_h w[t,h] relu(q[t,h] . k[c]) for c < (pos0+t+1)/ratio. Hi <= 32,
  * Hi*Di <= 8192, Di % 8 == 0, 64 % block == 0. Scratch: f32 [rows, Nk] for a tile of `rows` = scratch / (4 Nk) queries
- * (at least one; the launcher runs the chunk tile by tile), never a per-head score. */
+ * (at least one; the launcher runs the chunk tile by tile), never a per-head score. With `pos`: k [Ncap,Di] is a capacity view
+ * of which the first N = min((P+T)/ratio, Ncap) rows count; mask [T, ceil(Ncap/block)]: columns past ceil(N/block) are 0;
+ * idx [T, min(top_k, Ncap)]: columns past min(top_k, N) are -1; cand (when given) [T, ceil(Ncap/block)]. */
 int ik_indexer_blocks(const ik_tensor* q, const ik_tensor* k, const ik_tensor* w, int64_t keep, int64_t block,
-                      int64_t ratio, int64_t pos0, float scale, ik_tensor* mask, const ik_scratch* scratch, void* stream);
+                      int64_t ratio, int64_t pos0, float scale, ik_tensor* mask, const ik_scratch* scratch, const ik_tensor* pos,
+                      void* stream);
 int ik_indexer_topk(const ik_tensor* q, const ik_tensor* k, const ik_tensor* w, const ik_tensor* cand, int64_t top_k,
                     int64_t block, int64_t ratio, int64_t pos0, float scale, ik_tensor* idx, const ik_scratch* scratch,
-                    void* stream);
+                    const ik_tensor* pos, void* stream);
 
 /* transpose01 (dsv41_engram.cu): x [A,B,C] -> y [B,A,C], any 1, 2 or 4 byte dtype (pure byte movement, exact). */
 int ik_transpose01(const ik_tensor* x, ik_tensor* y, void* stream);

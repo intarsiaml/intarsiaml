@@ -73,6 +73,10 @@ pub struct DsvAttrs {
     pub block: usize,
     /// `MoeRoute`: score function.
     pub score_func: ScoreFunc,
+    /// Host calls only (admission cases, `exec::run_host`): upload this value as the call's device position
+    /// (`OpCall::pos`, `i32 [1]`), so a sweep case exercises the device-position path. Kernels never read it; an
+    /// `OpCall` built by a graph carries its position in `OpCall::pos` and leaves this `None`.
+    pub host_dev_pos: Option<i32>,
 }
 
 impl Default for DsvAttrs {
@@ -89,6 +93,7 @@ impl Default for DsvAttrs {
             pos_stride: 1,
             block: 8,
             score_func: ScoreFunc::SqrtSoftplus,
+            host_dev_pos: None,
         }
     }
 }
@@ -117,8 +122,11 @@ pub const OPS: [Op; 19] = [
 ];
 
 /// Ops whose position comes from `attrs.pos0` or a device-side `OpCall::pos` (`i32 [1]`, rewritten before a captured
-/// decode step replays).
-pub const POSITIONED: [Op; 6] = [Op::RopeTail, Op::WindowKv, Op::AttnSparse, Op::CompressPool, Op::IndexerBlocks, Op::IndexerTopk];
+/// decode step replays). With `pos` the call ignores `attrs.pos0` (semantics and checks) and takes capacity-sized shapes;
+/// the rules are in docs/design/dsv41-ops.md ("Device position"). `ActQdq` is positioned only in that form (x `[G,N]`
+/// written to rows `floor(P / ratio) ..` of y `[Ry,N]`); without `pos` it has no position.
+pub const POSITIONED: [Op; 7] =
+    [Op::RopeTail, Op::WindowKv, Op::AttnSparse, Op::CompressPool, Op::IndexerBlocks, Op::IndexerTopk, Op::ActQdq];
 
 /// `(cmp_rows, groups)` of a chunk: compressed rows visible to the last query (`(pos0 + T) / ratio`) and the groups that
 /// complete inside it (`(pos0 + T) / ratio - pos0 / ratio`).
@@ -152,6 +160,11 @@ fn bad(op: Op, m: String) -> Result<()> {
 pub fn check(call: &OpCall) -> Result<()> {
     let (i, o, a) = (&call.inputs, &call.outputs, &call.attrs);
     let op = call.op;
+    // device position: attrs.pos0 is ignored, shapes are the capacity's
+    let dev = call.pos.is_some();
+    if dev && a.dsv.ratio == 0 {
+        return bad(op, "ratio must be >= 1".into());
+    }
     let rank = |t: &crate::backend::TensorRef, r: usize, what: &str| -> Result<()> {
         if t.shape.len() != r {
             return bad(op, format!("{what} must be rank {r}, got {:?}", t.shape));
@@ -291,6 +304,18 @@ pub fn check(call: &OpCall) -> Result<()> {
             float(&i[1], "up")?;
             float(&o[0], "out")?;
         }
+        Op::ActQdq if dev => {
+            rank(&i[0], 2, "x")?;
+            rank(&o[0], 2, "y")?;
+            if o[0].shape[1] != i[0].shape[1] || o[0].dtype != i[0].dtype {
+                return bad(op, format!("x {} {:?} y {} {:?}: device position needs y [Ry,N] of x's dtype", i[0].dtype, i[0].shape, o[0].dtype, o[0].shape));
+            }
+            let (n, b) = (i[0].shape[1], a.dsv.qdq_block);
+            if b == 0 || n % b != 0 {
+                return bad(op, format!("last dim {n} is not a multiple of the block {b}"));
+            }
+            float(&i[0], "x")?;
+        }
         Op::ActQdq => {
             if i[0].shape.is_empty() || o[0].shape != i[0].shape || o[0].dtype != i[0].dtype {
                 return bad(op, format!("x {} {:?} y {} {:?}: same shape and dtype", i[0].dtype, i[0].shape, o[0].dtype, o[0].shape));
@@ -356,8 +381,9 @@ pub fn check(call: &OpCall) -> Result<()> {
             let (t, d) = (i[0].shape[0], i[0].shape[1]);
             let r = a.dsv.ratio;
             let rc = o[1].shape.first().copied().unwrap_or(0);
-            let (_, g) = compressed_rows(a.pos0, t, r);
-            if r < 2 || i[1].shape != [t, d] || o[0].shape != [g, d] || o[1].shape != [rc, d] || o[2].shape != [rc, d] || rc < r || rc % r != 0 {
+            // device position: out [Gmax,D] for any Gmax (the groups completing at P that fit are written)
+            let g = if dev { o[0].shape.first().copied().unwrap_or(0) } else { compressed_rows(a.pos0, t, r).1 };
+            if r < 2 || o[0].shape.len() != 2 || i[1].shape != [t, d] || o[0].shape != [g, d] || o[1].shape != [rc, d] || o[2].shape != [rc, d] || rc < r || rc % r != 0 {
                 return bad(
                     op,
                     format!(
@@ -377,7 +403,8 @@ pub fn check(call: &OpCall) -> Result<()> {
             rank(&i[2], 2, "w")?;
             let (t, hi, di) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
             let nk = i[1].shape[0];
-            let (want_nk, _) = compressed_rows(a.pos0, t, a.dsv.ratio);
+            // device position: k is a capacity view [Ncap,Di] (any Ncap), every width below is the capacity's
+            let want_nk = if dev { nk } else { compressed_rows(a.pos0, t, a.dsv.ratio).0 };
             if i[1].shape[1] != di || i[2].shape != [t, hi] || nk != want_nk {
                 return bad(
                     op,

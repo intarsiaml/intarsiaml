@@ -32,8 +32,8 @@ References are to DeepSeek's official inference code (MIT), as checked out in `.
 All tensors are dense row-major. A chunk is `T` rows at absolute positions `pos0 .. pos0 + T`, for every op. The official
 code runs only a prefill from position 0 or a one-token decode step; the rules below are the general form and reduce to
 those two cases (lane 1b's fixtures should cover both, plus a chunked prefill). "Positioned" ops (`RopeTail`, `WindowKv`,
-`AttnSparse`, `CompressPool`, `IndexerBlocks`, `IndexerTopk`) also accept a device-side position (`OpCall::pos`,
-`i32 [1]`) for graph replay. `D` = 512 (head_dim), `S` = 4 (hc_mult), `H` = 64 heads, `W` = 128 (window).
+`AttnSparse`, `CompressPool`, `IndexerBlocks`, `IndexerTopk`, and `ActQdq` in its row-offset form) also accept a device-side
+position (`OpCall::pos`, `i32 [1]`) for graph replay, with capacity-sized shapes ("Device position" below). `D` = 512 (head_dim), `S` = 4 (hc_mult), `H` = 64 heads, `W` = 128 (window).
 
 Outputs never alias inputs: the graph ping-pongs the residual (`x0` / `x1`) and gives every intermediate its own
 workspace name, so a kernel may write an output before it has read all of an input (`HcPost` mixes across streams,
@@ -106,6 +106,47 @@ them with that error (`crates/intarsia-backend-cpu/tests/admission.rs` asserts b
   `crates/intarsia-backend-cpu/tests/dsv41_hc_sublayer.rs` asserts the fused outputs equal the sequence bit for bit. The
   fold is all-or-nothing: post_x, post_mix, post_comb and h_out are all present, or all `[0]`. No output aliases an
   input (pre / post / comb must not be the pre_in / post_mix / post_comb buffers).
+
+### Device position (CUDA graphs)
+
+A captured decode / verify pass cannot change shapes or host scalars, so the positioned ops (`dsv41::ops::POSITIONED`:
+`RopeTail`, `WindowKv`, `ActQdq`, `CompressPool`, `IndexerBlocks`, `IndexerTopk`, `AttnSparse`) also run with the pass's
+first position `P` in device memory (`OpCall::pos`, `i32 [1]`) and with fixed, capacity-sized shapes. With `pos` set,
+`attrs.pos0` is ignored entirely (semantics and checks); without it every op is exactly the host form above. `T` = leading
+dim of the first input, `R` = `attrs.dsv.ratio` (>= 1, **the graph must set it** on every device-position call below that
+uses it, including `RopeTail`, `ActQdq` and `AttnSparse`, whose host forms ignore it).
+
+| Op | Device-position form |
+|---|---|
+| `RopeTail` | row `t` at position `floor(P / R) * R + t * pos_stride` (R = 1: `P + t * pos_stride`; the compressed latent / index-key ropes set R = the compressor ratio, whose host `pos0` is `(pos0 / r) * r`) |
+| `WindowKv` | the host op at `pos0 = P` |
+| `ActQdq` | x `[G,N]` rank 2, y `[Ry,N]` same dtype (Ry may differ from G): y row `floor(P / R) + g` = qdq(x row `g`) for every `g < G` with `floor(P / R) + g < Ry`; every other y row untouched (new compressed latents / index keys into the shared slot, y = the whole slot) |
+| `CompressPool` | kv, score f32 `[T,D]`, out `[Gmax,D]` (any Gmax): with `G = (P+T)/r - P/r`, out rows `g < min(G, Gmax)` = the host result at `pos0 = P`, rows `>= G` untouched; ring writes = the host's at `pos0 = P`. kv / score rows `>= T` are never read |
+| `IndexerBlocks` | q `[T,Hi,Di]`, k `[Ncap,Di]` (a capacity view of the shared index keys), w `[T,Hi]`, mask u8 `[T, ceil(Ncap/B)]`: with `N = min((P+T)/R, Ncap)`, `mask[:, :ceil(N/B)]` = the host result (`pos0 = P`, keys `k[:N]`), `mask[:, ceil(N/B):] = 0` |
+| `IndexerTopk` | k `[Ncap,Di]`; cand empty or u8 `[T, ceil(Ncap/B)]` (only its first `ceil(N/B)` columns are read); idx i32 `[T,Kw]`, `Kw = min(top_k, Ncap)`: with `Kh = min(top_k, N)`, `idx[:, :Kh]` = the host result (`pos0 = P`, `k[:N]`, `cand[:, :ceil(N/B)]`), `idx[:, Kh:] = -1`; `N = 0` gives an all `-1` idx |
+| `AttnSparse` | cmp `[Ncap,D]` (Ncap may be 0), idx i32 `[T,Kw]`: when `Ncap > 0`, `N = min((P+T)/R, Ncap)`, `Kc = min(Kw, N)` and the output = the host result (`pos0 = P`, `cmp[:N]`, `idx[:, :Kc]`); when `Ncap = 0`, `Kc = Kw`. idx columns `>= Kc` are never read |
+
+**Bitwise rule.** A device-position call produces exactly the bits of the equivalent host call on the same GPU, outside the
+documented untouched / `-1` / `0` regions. The CUDA kernels get there by making every host-side decision from the shapes
+only (grids, tiles, the tensor-core vs SIMT choice, the fast multi-block vs one-block select, scratch layout) and computing
+`P`, `N`, `G`, `Kc`, `Kh` on the device: `AttnSparse` sizes its grid from `Kw` and computes the split count of the
+decode / verify path (`T <= 16`: `nsplit = min(cdiv(W + Kc, tile), 32)`, tile 32 keys for bf16) from `Kc` exactly as the
+host computes it from its idx width; blocks of splits `>= nsplit` exit, one split writes the output directly, more go
+through the merge with the same partial layout. Work is bounded by `N`: score blocks past `N` exit before loading the
+query, the selects run over `N` entries with `k = min(top_k, N)` (blocks: `min(keep, ceil(N/B))`), the multi-block select
+bounds its segments by `N`. The indexer keeps the host's static choice of the multi-block select by the capacity length
+(`>= 16384` rows): both selects are exact, so the picks are the same. Each query's visible rows are clamped to `N`.
+
+The cpu reference (`dsv41_ref::run_dev`) runs the host computation on the leading rows at `pos0 = P` into temporaries
+and scatters / pads into the capacity outputs; the cpu backend passes the position of these ops through unresolved.
+Admission cases carry the position in `DsvAttrs::host_dev_pos` (`exec::run_host` uploads it as `OpCall::pos`; nothing
+else reads it). `crates/intarsia-backend-cuda/tests/dsv41_dpos.rs` compares every device-position call with its host call
+bitwise on the GPU, replays a captured graph of the device calls at many positions, and (`INTARSIA_DSV41_DPOS_BENCH=1`)
+prints the device vs host timing.
+
+Scratch for capacity shapes: `index_scratch` with `kv_len = Ncap` (k's rows) and `m = T` (one tile of `[T, Ncap]` f32
+scores, plus the multi-block select's buffers when `T <= 16` and `Ncap >= 16384`); `attn_scratch` does not depend on the
+index count (`T * H * 32 * (D + 2) * 4` bytes for `T <= 16`). Both come from `ShapeInfo::from_call` of the capacity call.
 
 ### Ops that existing ones cover
 

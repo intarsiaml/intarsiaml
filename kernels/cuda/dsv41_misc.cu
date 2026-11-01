@@ -163,39 +163,59 @@ IK_DEVI float qdq_one(float v, float s, const QdqP& p) {
     return q * s;
 }
 
+// Device position (act_qdq with `pos`): x row g goes to y row floor(P / ratio) + g, rows past y's `ry` rows are dropped.
+struct QdqRows {
+    const int* dpos;  // null: y = x's shape, element i -> i
+    int64_t ratio, ncol, ry;
+};
+
+// y element of x element `i` (-1: dropped)
+IK_DEVI int64_t qdq_dst(int64_t i, const QdqRows& r) {
+    if (!r.dpos) return i;
+    const int64_t off = (int64_t)*r.dpos / r.ratio;
+    return i / r.ncol + off < r.ry ? i + off * r.ncol : -1;
+}
+
 // blocks of b <= 32 elements (a power of two): b consecutive lanes share a block
 template <typename Ti, typename To>
-__global__ void qdq_small(const Ti* __restrict__ x, To* __restrict__ y, int64_t n, int b, QdqP p) {
+__global__ void qdq_small(const Ti* __restrict__ x, To* __restrict__ y, int64_t n, int b, QdqP p, QdqRows rows) {
     const int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
     const float v = i < n ? ld(x, i) : 0.f;
     float a = fabsf(v);
     for (int o = b >> 1; o > 0; o >>= 1) a = fmaxf(a, __shfl_xor_sync(0xffffffffu, a, o));
     const float s = qdq_scale(a, p);
-    if (i < n) st(y, i, qdq_one(v, s, p));
+    if (i < n) {
+        const int64_t di = qdq_dst(i, rows);
+        if (di >= 0) st(y, di, qdq_one(v, s, p));
+    }
 }
 
 // blocks of b = 32 k elements: one warp per block
 template <typename Ti, typename To>
-__global__ void qdq_wide(const Ti* __restrict__ x, To* __restrict__ y, int64_t nblk, int b, QdqP p) {
+__global__ void qdq_wide(const Ti* __restrict__ x, To* __restrict__ y, int64_t nblk, int b, QdqP p, QdqRows rows) {
     const int64_t blk = ((int64_t)blockIdx.x * blockDim.x + threadIdx.x) >> 5;
     const int lane = threadIdx.x & 31;
     if (blk >= nblk) return;
     const int64_t o = blk * b;
+    const int64_t d = qdq_dst(o, rows);  // a block never straddles rows (b divides the row)
+    if (d < 0) return;
     float a = 0.f;
     for (int j = lane; j < b; j += 32) a = fmaxf(a, fabsf(ld(x, o + j)));
     a = ik_warp_max(a);
     const float s = qdq_scale(a, p);
-    for (int j = lane; j < b; j += 32) st(y, o + j, qdq_one(ld(x, o + j), s, p));
+    for (int j = lane; j < b; j += 32) st(y, d + j, qdq_one(ld(x, o + j), s, p));
 }
 
 // ---------------------------------------------------------------------------------------------------------------- rope_tail
 
 template <typename Ti, typename To>
 __global__ void rope_tail_kernel(const Ti* __restrict__ x, const float* __restrict__ f, To* __restrict__ y, int64_t T, int64_t N,
-                                 int64_t Dh, int64_t half, int64_t pos0, int64_t stride, int inverse, const int* __restrict__ dpos) {
+                                 int64_t Dh, int64_t half, int64_t pos0, int64_t stride, int inverse, const int* __restrict__ dpos,
+                                 int64_t ratio) {
     const int64_t n = T * N * Dh;
     const int64_t base = Dh - 2 * half;
-    const int64_t p0 = dpos ? (int64_t)*dpos : pos0;
+    // device position: the group start of P (ratio 1: P itself)
+    const int64_t p0 = dpos ? (int64_t)*dpos / ratio * ratio : pos0;
     for (int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; i < n; i += (int64_t)gridDim.x * blockDim.x) {
         const int64_t e = i % Dh;
         if (e < base) {
@@ -249,7 +269,13 @@ __global__ void ring_write(const T* __restrict__ src, T* __restrict__ ring, int6
 template <typename To>
 __global__ void compress_pool_kernel(const float* __restrict__ kv, const float* __restrict__ sc, const float* __restrict__ rkv,
                                      const float* __restrict__ rsc, To* __restrict__ out, int64_t G, int64_t D, int64_t r, int64_t Rc,
-                                     int64_t pos0) {
+                                     int64_t pos0, const int* __restrict__ dpos, int64_t Tn) {
+    // device position: the groups completing in the chunk at P, at most the out rows the grid covers (G = Gmax)
+    if (dpos) {
+        pos0 = *dpos;
+        const int64_t g = (pos0 + Tn) / r - pos0 / r;
+        if (g < G) G = g;
+    }
     const int64_t n = G * D;
     for (int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; i < n; i += (int64_t)gridDim.x * blockDim.x) {
         const int64_t g = i / D, c = i % D;
@@ -309,13 +335,23 @@ extern "C" int ik_silu_glu_clamp(const ik_tensor* gate, const ik_tensor* up, flo
     return ik_launch_status();
 }
 
-extern "C" int ik_act_qdq(const ik_tensor* x, int32_t fmt, int64_t block, int32_t scale_fmt, ik_tensor* y, void* stream) {
+extern "C" int ik_act_qdq(const ik_tensor* x, int32_t fmt, int64_t block, int32_t scale_fmt, int64_t ratio, ik_tensor* y,
+                          const ik_tensor* pos, void* stream) {
     if (!x || !y || x->ndim < 1) return IK_ERR_INVALID_ARG;
     IK_TRY(check_float(x, x->ndim));
     IK_TRY(ik_check(y, x->dtype, x->ndim));
+    IK_TRY(ik_check_pos(pos));
     const int64_t n = ik_numel(x);
     const int64_t last = x->shape[x->ndim - 1];
-    if (ik_numel(y) != n || block < 1 || last % block != 0 || fmt < 0 || fmt > 1 || scale_fmt < 0 || scale_fmt > 2) return IK_ERR_SHAPE;
+    QdqRows rows{nullptr, 1, last, 0};
+    if (pos) {
+        // x [G,N] -> rows floor(P / ratio) .. of y [Ry,N]
+        if (x->ndim != 2 || y->shape[1] != last || ratio < 1) return IK_ERR_SHAPE;
+        rows = QdqRows{(const int*)pos->data, ratio, last, y->shape[0]};
+    } else if (ik_numel(y) != n) {
+        return IK_ERR_SHAPE;
+    }
+    if (block < 1 || last % block != 0 || fmt < 0 || fmt > 1 || scale_fmt < 0 || scale_fmt > 2) return IK_ERR_SHAPE;
     const bool small = block <= 32 && (block & (block - 1)) == 0;
     if (!small && block % 32 != 0) return IK_ERR_SHAPE;
     if (n == 0) return IK_OK;
@@ -333,31 +369,31 @@ extern "C" int ik_act_qdq(const ik_tensor* x, int32_t fmt, int64_t block, int32_
     if (small) {
         const unsigned blocks = (unsigned)cdiv(n, kThreads);
         DSV_FLOAT_DISPATCH(x->dtype, Ti,
-            qdq_small<Ti, Ti><<<blocks, kThreads, 0, s>>>((const Ti*)x->data, (Ti*)y->data, n, (int)block, p));
+            qdq_small<Ti, Ti><<<blocks, kThreads, 0, s>>>((const Ti*)x->data, (Ti*)y->data, n, (int)block, p, rows));
     } else {
         const int64_t nblk = n / block;
         const unsigned blocks = (unsigned)cdiv(nblk * 32, kThreads);
         DSV_FLOAT_DISPATCH(x->dtype, Ti,
-            qdq_wide<Ti, Ti><<<blocks, kThreads, 0, s>>>((const Ti*)x->data, (Ti*)y->data, nblk, (int)block, p));
+            qdq_wide<Ti, Ti><<<blocks, kThreads, 0, s>>>((const Ti*)x->data, (Ti*)y->data, nblk, (int)block, p, rows));
     }
     return ik_launch_status();
 }
 
-extern "C" int ik_rope_tail(const ik_tensor* x, const ik_tensor* inv_freq, int64_t pos0, int64_t pos_stride, int32_t inverse,
-                            ik_tensor* out, const ik_tensor* pos, void* stream) {
+extern "C" int ik_rope_tail(const ik_tensor* x, const ik_tensor* inv_freq, int64_t pos0, int64_t pos_stride, int64_t ratio,
+                            int32_t inverse, ik_tensor* out, const ik_tensor* pos, void* stream) {
     IK_TRY(check_float(x, 3));
     IK_TRY(ik_check(inv_freq, IK_DTYPE_F32, 1));
     IK_TRY(check_float(out, 3));
     IK_TRY(ik_check_pos(pos));
     const int64_t T = x->shape[0], N = x->shape[1], Dh = x->shape[2], half = inv_freq->shape[0];
-    if (half < 1 || 2 * half > Dh || pos_stride < 1 || out->shape[0] != T || out->shape[1] != N || out->shape[2] != Dh) return IK_ERR_SHAPE;
+    if (half < 1 || 2 * half > Dh || pos_stride < 1 || ratio < 1 || out->shape[0] != T || out->shape[1] != N || out->shape[2] != Dh) return IK_ERR_SHAPE;
     const int64_t n = T * N * Dh;
     if (n == 0) return IK_OK;
     cudaStream_t s = IK_STREAM(stream);
     const int* dp = pos ? (const int*)pos->data : nullptr;
     DSV_FLOAT_DISPATCH(x->dtype, Ti, DSV_FLOAT_DISPATCH(out->dtype, To,
         rope_tail_kernel<Ti, To><<<grid1d(n, kThreads), kThreads, 0, s>>>((const Ti*)x->data, (const float*)inv_freq->data,
-                                                                        (To*)out->data, T, N, Dh, half, pos0, pos_stride, inverse, dp)));
+                                                                        (To*)out->data, T, N, Dh, half, pos0, pos_stride, inverse, dp, ratio)));
     return ik_launch_status();
 }
 
@@ -382,15 +418,18 @@ extern "C" int ik_window_kv(const ik_tensor* kv, int64_t window, int64_t pos0, i
 }
 
 extern "C" int ik_compress_pool(const ik_tensor* kv, const ik_tensor* score, int64_t ratio, int64_t pos0, ik_tensor* out,
-                                ik_tensor* kv_ring, ik_tensor* score_ring, void* stream) {
+                                ik_tensor* kv_ring, ik_tensor* score_ring, const ik_tensor* pos, void* stream) {
     IK_TRY(ik_check(kv, IK_DTYPE_F32, 2));
     IK_TRY(ik_check(score, IK_DTYPE_F32, 2));
     IK_TRY(check_float(out, 2));
     IK_TRY(ik_check(kv_ring, IK_DTYPE_F32, 2));
     IK_TRY(ik_check(score_ring, IK_DTYPE_F32, 2));
+    IK_TRY(ik_check_pos(pos));
     const int64_t T = kv->shape[0], D = kv->shape[1], r = ratio, Rc = kv_ring->shape[0];
-    if (r < 2 || pos0 < 0) return IK_ERR_SHAPE;
-    const int64_t G = (pos0 + T) / r - pos0 / r;
+    if (r < 2 || (!pos && pos0 < 0)) return IK_ERR_SHAPE;
+    // device position: out [Gmax,D] (the kernel writes the min(G, Gmax) completed groups at P); host: out [G,D] exactly
+    const int64_t G = pos ? out->shape[0] : (pos0 + T) / r - pos0 / r;
+    const int* dp = pos ? (const int*)pos->data : nullptr;
     if (score->shape[0] != T || score->shape[1] != D || out->shape[0] != G || out->shape[1] != D || kv_ring->shape[1] != D ||
         score_ring->shape[0] != Rc || score_ring->shape[1] != D || Rc < r || Rc % r != 0)
         return IK_ERR_SHAPE;
@@ -399,14 +438,13 @@ extern "C" int ik_compress_pool(const ik_tensor* kv, const ik_tensor* score, int
         DSV_FLOAT_DISPATCH(out->dtype, To,
             compress_pool_kernel<To><<<grid1d(G * D, kThreads), kThreads, 0, s>>>((const float*)kv->data, (const float*)score->data,
                                                                                  (const float*)kv_ring->data, (const float*)score_ring->data,
-                                                                                 (To*)out->data, G, D, r, Rc, pos0));
+                                                                                 (To*)out->data, G, D, r, Rc, pos0, dp, T));
         IK_TRY(ik_launch_status());
     }
     if (T > 0 && D > 0) {
         const int64_t rows = T < Rc ? T : Rc;
-        ring_write<float><<<grid1d(rows * D, kThreads), kThreads, 0, s>>>((const float*)kv->data, (float*)kv_ring->data, T, D, Rc, pos0, nullptr);
-        ring_write<float><<<grid1d(rows * D, kThreads), kThreads, 0, s>>>((const float*)score->data, (float*)score_ring->data, T, D, Rc, pos0,
-                                                                         nullptr);
+        ring_write<float><<<grid1d(rows * D, kThreads), kThreads, 0, s>>>((const float*)kv->data, (float*)kv_ring->data, T, D, Rc, pos0, dp);
+        ring_write<float><<<grid1d(rows * D, kThreads), kThreads, 0, s>>>((const float*)score->data, (float*)score_ring->data, T, D, Rc, pos0, dp);
     }
     return ik_launch_status();
 }
