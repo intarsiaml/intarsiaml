@@ -165,6 +165,10 @@ The graph still emits the separate ops; switching is local to `build` in `graph.
   an Engram layer (`EngramMerge` runs on the post-`HcPost` streams before the mixes) keeps the separate `HcPost`. The
   DSpark tap reads the streams too; with the fold it must come after the `HcSublayer` (it reads `h_out`). The head keeps
   `HcPost` + `HcPre(head)` + `RmsNorm` (no mixes there).
+- Fold at decode / verify only (`T <= 16`). On a 4096-row prefill chunk the fold is slower than the separate `HcPost`
+  (sm_121: fused 5.4 ms vs 5.05 ms separate) while the unfolded op still wins (2.76 ms vs 3.25 ms), so prefill graphs keep
+  `HcPost` separate and emit `HcSublayer` without the fold. Decode (sm_121, per rank): 16.4 us unfolded (separate 20.8),
+  18.4 us folded (separate 24.9).
 - The CUDA kernel takes `S <= 4`, `S*D % 4 == 0`, `D <= 12288`; its scratch is `hc_sub_scratch` in
   `crates/intarsia-backend-cuda/src/dsv41.rs` (the plan reserves it like any kernel scratch).
 
