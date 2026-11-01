@@ -21,7 +21,7 @@ use intarsia_core::comm::Comm;
 use intarsia_core::dsv41::config::Dsv41Config;
 use intarsia_core::dsv41::engram::EngramTier;
 use intarsia_core::dsv41::graph::GraphTp;
-use intarsia_core::dsv41::runtime::{fuse_shared_experts, Dsv41Runtime, EngramInputs, FusedShapes, RuntimeOpts};
+use intarsia_core::dsv41::runtime::{fuse_shared_experts, Dsv41Runtime, EngramInputs, RuntimeOpts};
 use intarsia_core::engine::{ChatOpts, Engine, FinishReason, GenEvent, GenRequest, IncrementalDecoder, ModelInfo, StopMatcher, TextCodec};
 use intarsia_core::sampler::{Sampler, SamplingParams};
 use intarsia_core::state::SequenceState;
@@ -79,6 +79,34 @@ fn gib(b: u64) -> f64 {
     b as f64 / (1u64 << 30) as f64
 }
 
+/// `INTARSIA_DSV41_ENGRAM=off` (smoke tests without the 190 GB of tables): every row is zero, so the Engram layers add
+/// nothing. The model's output is wrong in that mode; it only checks that everything else loads and runs.
+struct ZeroTier {
+    layout: intarsia_core::dsv41::engram::EngramLayout,
+    shard: intarsia_core::dsv41::engram::EngramShard,
+}
+
+impl EngramTier for ZeroTier {
+    fn layout(&self) -> &intarsia_core::dsv41::engram::EngramLayout {
+        &self.layout
+    }
+    fn shard(&self) -> intarsia_core::dsv41::engram::EngramShard {
+        self.shard
+    }
+    fn issue(&self, _layer: usize, _rows: &[u32]) -> Result<intarsia_core::dsv41::engram::EngramTicket> {
+        Ok(intarsia_core::dsv41::engram::EngramTicket(0))
+    }
+    fn wait(&self, _t: intarsia_core::dsv41::engram::EngramTicket, out: &mut [u8]) -> Result<()> {
+        let dh = self.layout.head_dim;
+        let rb = intarsia_core::dsv41::engram::record_bytes(dh);
+        for r in out.chunks_exact_mut(rb) {
+            r[..dh].fill(0);
+            r[dh..].fill(127);
+        }
+        Ok(())
+    }
+}
+
 /// The Engram tier of rank `rank` of `world`: this rank's shards from `o.engram_dir`, O_DIRECT, io_uring.
 fn engram_tier(cfg: &Dsv41Config, dir: &Path, o: &Dsv41Opts, rank: usize, world: usize) -> Result<EngramInputs> {
     use intarsia_engram::{EngramStore, HashLayout, NvmeEngramTier, ScaleMode, StoreConfig, TableShard, TokenMap};
@@ -86,6 +114,12 @@ fn engram_tier(cfg: &Dsv41Config, dir: &Path, o: &Dsv41Opts, rank: usize, world:
     let e = cfg.engram.as_ref().ok_or_else(|| Error::model("deepseek_v41: no engram config"))?;
     if hash.layer_ids() != e.layer_ids.as_slice() || hash.layout().rows != e.num_embeddings {
         return Err(Error::model(format!("deepseek_v41: the Engram tier's layout ({:?}, {:?}) is not the checkpoint's ({:?}, {:?})", hash.layer_ids(), hash.layout().rows, e.layer_ids, e.num_embeddings)));
+    }
+    if o.engram_dir.as_os_str() == "off" {
+        eprintln!("dsv41: WARNING: INTARSIA_DSV41_ENGRAM=off: Engram rows are zero, the output is NOT the model's");
+        let tm = TokenMap::load_json(&dir.join("dsv41_token_map.json")).map_err(|e| Error::model(format!("{}: {e}", dir.join("dsv41_token_map.json").display())))?;
+        let tier = ZeroTier { layout: hash.layout().clone(), shard: intarsia_core::dsv41::engram::EngramShard { rank, world } };
+        return Ok(EngramInputs { tier: Arc::new(tier), hasher: hash.hasher.clone(), token_map: tm.map });
     }
     let mut shards = Vec::new();
     for (li, &l) in hash.layer_ids().iter().enumerate() {
@@ -137,7 +171,7 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
         (None, Some(l)) if l < n_layers => Some(engram_tier(&cfg, dir, o, rank, world)?),
         _ => None,
     };
-    let shapes = FusedShapes { inner: HeaderShapes::open(dir)?, dim: cfg.dim, experts: cfg.n_routed_experts };
+    let shapes = HeaderShapes::open(dir)?;
     let opts = RuntimeOpts { act: DType::Bf16, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers } };
     let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, comm, weights, engram, opts)?;
     let mm = &rt.memory;

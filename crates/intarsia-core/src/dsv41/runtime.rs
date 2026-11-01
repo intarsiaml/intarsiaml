@@ -510,31 +510,8 @@ fn ws_index(n: &str) -> Option<usize> {
     n.strip_suffix(']').and_then(|x| x.rsplit_once('[')).and_then(|(_, i)| i.parse().ok())
 }
 
-/// Shapes of a rank cache as the graph reads them: the routed experts' arena / scales / meta grown by the shared expert
-/// (expert `E` of the fused launch, [`fuse_shared_experts`]).
-pub struct FusedShapes<W: WeightShapes> {
-    pub inner: W,
-    pub dim: usize,
-    pub experts: usize,
-}
-
-impl<W: WeightShapes> WeightShapes for FusedShapes<W> {
-    fn get(&self, name: &str) -> Option<(DType, Vec<usize>)> {
-        for (suffix, which) in [(".experts.arena", 0), (".experts.scales", 1), (".experts.meta", 2)] {
-            if let Some(p) = name.strip_suffix(suffix) {
-                let f = super::graph::fused_expert_shapes(&self.inner, p, self.dim, self.experts).ok()?;
-                return Some(match which {
-                    0 => (DType::I16, vec![f.words]),
-                    1 => (DType::F16, vec![self.experts + 1, 3 * self.dim + 3 * f.inter]),
-                    _ => (DType::I32, vec![self.experts + 1, crate::quant::exl3_moe::META_COLS]),
-                });
-            }
-        }
-        self.inner.get(name)
-    }
-}
-
-/// Fuse every layer's shared expert into its routed-expert tensors (a rank cache stores the routed arena of `E` experts
+/// Fuse every layer's shared expert into its routed-expert tensors (the graph is built from the rank cache's own shapes:
+/// `graph::fused_expert_shapes` derives the fused sizes from the routed arena plus the shared expert's trellis shapes) (a rank cache stores the routed arena of `E` experts
 /// and the shared expert as three EXL3 linears, `layers.{l}.ffn.shared_experts.w1/w3/w2`): the arena grows by the shared
 /// expert's tiles (device-to-device copies), scales and meta by one row (expert `E`). The shared tensors are dropped.
 /// Every shared matrix must have the routed experts' (rank's) width and codebook. `marker(p)` says the codebook of
