@@ -72,6 +72,12 @@ struct Exec {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct PassStats {
     pub engram_wait_us: u64,
+    /// Host time to build the graph of the pass.
+    pub build_us: u64,
+    /// Host time from the first launch to the last (enqueue only, the device may still run).
+    pub enqueue_us: u64,
+    /// Whole pass including the logits read (a device sync).
+    pub total_us: u64,
 }
 
 pub struct Dsv41Runtime {
@@ -90,6 +96,8 @@ pub struct Dsv41Runtime {
     slot_specs: Vec<SlotSpec>,
     pub memory: RuntimeMemory,
     pub last_pass: Mutex<PassStats>,
+    /// `INTARSIA_DSV41_PROFILE` accumulator: (passes, build, enqueue, total, engram wait) in us.
+    prof: Mutex<(u64, u64, u64, u64, u64)>,
 }
 
 fn esz(d: DType) -> usize {
@@ -215,10 +223,39 @@ impl Dsv41Runtime {
             slot_specs,
             memory: RuntimeMemory::default(),
             last_pass: Mutex::new(PassStats::default()),
+            prof: Mutex::new((0, 0, 0, 0, 0)),
         };
         let state_per_seq = rt.slot_specs.iter().map(|s| s.bytes(rt.opts.cap) as u64).sum();
         rt.memory = RuntimeMemory { weights: weight_bytes, workspace: ws_bytes, constants: cbytes, scratch: 0, state_per_seq };
         Ok(rt)
+    }
+
+    /// Keep the pass's timing; with `INTARSIA_DSV41_PROFILE=N` print the mean of every N one-row passes (host build,
+    /// host enqueue, whole pass with the logits sync, Engram wait): enqueue close to the whole pass means host-bound.
+    fn note_pass(&self, t: usize, s: PassStats) {
+        *self.last_pass.lock().unwrap() = s;
+        let every = match std::env::var("INTARSIA_DSV41_PROFILE").ok().and_then(|v| v.parse::<u64>().ok()) {
+            Some(n) if n > 0 && t == 1 => n,
+            _ => return,
+        };
+        let mut acc = self.prof.lock().unwrap();
+        acc.0 += 1;
+        acc.1 += s.build_us;
+        acc.2 += s.enqueue_us;
+        acc.3 += s.total_us;
+        acc.4 += s.engram_wait_us;
+        if acc.0 >= every {
+            let n = acc.0 as f64;
+            eprintln!(
+                "dsv41 profile: {} decode passes: build {:.2} ms, enqueue {:.2} ms, whole pass {:.2} ms, engram wait {:.3} ms",
+                acc.0,
+                acc.1 as f64 / n / 1e3,
+                acc.2 as f64 / n / 1e3,
+                acc.3 as f64 / n / 1e3,
+                acc.4 as f64 / n / 1e3
+            );
+            *acc = (0, 0, 0, 0, 0);
+        }
     }
 
     pub fn slot_specs(&self) -> &[SlotSpec] {
@@ -285,6 +322,7 @@ impl Dsv41Runtime {
     /// One pass of `t = ids.len()` rows at position `st.len`.
     fn pass(&self, st: &mut SequenceState, ids: &[u32], want_logits: bool) -> Result<Option<Vec<f32>>> {
         let (t, pos0) = (ids.len(), st.len);
+        let p0 = Instant::now();
         self.touch();
         let g = build_with(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp)?;
         let mut ex = self.exec.lock().unwrap();
@@ -312,7 +350,8 @@ impl Dsv41Runtime {
                 }
             }
         }
-        let mut stats = PassStats::default();
+        let mut stats = PassStats { build_us: p0.elapsed().as_micros() as u64, ..Default::default() };
+        let e0 = Instant::now();
         for (si, stage) in g.stages.iter().enumerate() {
             if let Some(l) = stage.layer {
                 if let Some((_li, ticket)) = tickets.remove(&l) {
@@ -329,14 +368,18 @@ impl Dsv41Runtime {
             }
             self.run_stage(&mut ex, si, stage, st, t)?;
         }
-        *self.last_pass.lock().unwrap() = stats;
+        stats.enqueue_us = e0.elapsed().as_micros() as u64;
         if !want_logits {
+            stats.total_us = p0.elapsed().as_micros() as u64;
+            self.note_pass(t, stats);
             return Ok(None);
         }
         self.touch();
         let lt = self.view(&ex, &g.logits, st, t)?;
         let mut bytes = vec![0u8; lt.nbytes()];
         self.backend.download(&lt.buf, lt.offset, &mut bytes, 0)?;
+        stats.total_us = p0.elapsed().as_micros() as u64;
+        self.note_pass(t, stats);
         Ok(Some(bytes.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect()))
     }
 
