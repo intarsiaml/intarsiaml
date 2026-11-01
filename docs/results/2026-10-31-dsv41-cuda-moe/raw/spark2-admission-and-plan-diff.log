@@ -1,0 +1,61 @@
+fleetq: #7579 running on spark2: .scratch/s2-gates.sh
+fleetq: #7579 went ahead of the line and must end within 2h29m (by Sun 01:13); it is stopped then
+=== kernels test --backend cuda --op moe_experts --quick
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_experts    moe_experts_bf16                4      0    2.604e-3    7.608e-5  ADMITTED
+moe_experts    moe_experts_decode_bf16         1      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_decode_v2_bf16      1      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_decode_v2_rows_bf16      2      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_mma_bf16            2      0    2.604e-3    7.936e-5  ADMITTED
+moe_experts    moe_experts_nvfp4_mma_bf16      1      0    1.794e-1    1.629e-1  ADMITTED
+moe_experts    moe_experts_w4a16_bf16          1      0    2.604e-3    7.936e-5  ADMITTED
+moe_experts    moe_experts_gelu_bf16           8      0    2.604e-3    7.608e-5  ADMITTED
+moe_experts    moe_experts_mma_gelu_bf16       4      0    2.604e-3    7.936e-5  ADMITTED
+moe_experts    moe_experts_w4a16_gelu_bf16      2      0    2.604e-3    7.936e-5  ADMITTED
+moe_experts    moe_experts_decode_gelu_bf16      2      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_decode_v2_gelu_bf16      2      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_decode_v2_gelu_rows_bf16      4      0     0.000e0     0.000e0  ADMITTED
+moe_experts    moe_experts_exl3                7      0    6.993e-3    1.361e-3  ADMITTED
+14 kernels, 41 cases in 1.1s
+=== kernels test --backend cuda --op moe_experts (full)
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+moe_experts    moe_experts_bf16               12      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_bf16         2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_v2_bf16      2      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_v2_rows_bf16      4      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_mma_bf16            7      0    3.185e-3    1.245e-4  ADMITTED
+moe_experts    moe_experts_nvfp4_mma_bf16      1      0    1.683e-1    1.628e-1  ADMITTED
+moe_experts    moe_experts_w4a16_bf16          1      0    2.475e-3    5.867e-5  ADMITTED
+moe_experts    moe_experts_gelu_bf16          18      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_mma_gelu_bf16      10      0    3.185e-3    1.499e-4  ADMITTED
+moe_experts    moe_experts_w4a16_gelu_bf16      2      0    2.475e-3    5.867e-5  ADMITTED
+moe_experts    moe_experts_decode_gelu_bf16      4      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_v2_gelu_bf16      4      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_decode_v2_gelu_rows_bf16      7      0    4.149e-3    3.160e-4  ADMITTED
+moe_experts    moe_experts_exl3               15      0    6.993e-3    1.361e-3  ADMITTED
+14 kernels, 89 cases in 37.5s
+=== kernels test --backend cuda --op matmul_exl3 --quick
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_exl3    matmul_exl3_gemv              108      0    6.452e-3    1.458e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               27      0    6.452e-3    9.322e-4  ADMITTED
+2 kernels, 135 cases in 0.1s
+=== kernels test --backend cuda --op matmul_exl3 (full)
+candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_exl3    matmul_exl3_gemv              242      0    6.993e-3    1.680e-3  ADMITTED
+matmul_exl3    matmul_exl3_gemm               81      0    5.618e-3    9.393e-4  ADMITTED
+2 kernels, 323 cases in 3.7s
+=== plan show base 84415d5d1 vs dev
+PASS plan 8 json byte-identical (8973 B, md5 5bb00f3e)
+PASS plan 8 txt byte-identical (1548 B, md5 dfb75d7b)
+PASS plan 35 json byte-identical (15570 B, md5 d4815ce2)
+PASS plan 35 txt byte-identical (4017 B, md5 68b03467)
+plan fails=0
+fleetq: #7579 done (exit 0)
