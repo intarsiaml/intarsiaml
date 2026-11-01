@@ -114,6 +114,10 @@ fn residual(rt: &Dsv41Runtime, t: usize, pos0: usize) -> Vec<f32> {
     let head = g.stages.last().unwrap();
     let Buf::Ws(name) = &head.steps[0].inputs[0].buf else { panic!("head input is not a workspace") };
     let n = t * 4 * rt.cfg.dim;
+    if rt.opts.act == DType::F32 {
+        let b = rt.read_ws(name, DType::F32, n).unwrap();
+        return b.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect();
+    }
     let b = rt.read_ws(name, DType::Bf16, n).unwrap();
     b.chunks_exact(2).map(|c| f32::from_bits((u16::from_le_bytes([c[0], c[1]]) as u32) << 16)).collect()
 }
@@ -136,6 +140,11 @@ fn fixture_engram(fx: &St, rank: usize, world: usize) -> EngramInputs {
 
 /// Prefill 16 then decode 2, per truncation depth `layers`; returns (layer, step, max_abs/max|ref|, rel_rms).
 fn run_steps(rt: &mut Dsv41Runtime, fx: &St, read: bool) -> Vec<(usize, &'static str, f64, f64)> {
+    run_steps_flow(rt, fx, fx, "bf16", read)
+}
+
+/// `fxf`: the fixture of the compared flow (`flow`/L../out.h); `fx`: the bf16 fixture (ids, routes).
+fn run_steps_flow(rt: &mut Dsv41Runtime, fx: &St, fxf: &St, flow: &str, read: bool) -> Vec<(usize, &'static str, f64, f64)> {
     let ids: Vec<u32> = fx.get("ids").i32().into_iter().map(|v| v as u32).collect();
     let mut out = vec![];
     for l in 0..3 {
@@ -144,9 +153,19 @@ fn run_steps(rt: &mut Dsv41Runtime, fx: &St, read: bool) -> Vec<(usize, &'static
         for (step, (a, b)) in [("s0", (0, 16)), ("s1", (16, 17)), ("s2", (17, 18))] {
             let pos0 = st.len;
             rt.forward(&mut st, &ids[a..b], true).unwrap();
+            if read && b - a == 1 && std::env::var_os("INTARSIA_DSV41_ROUTES").is_some() {
+                // the last layer's routing of this decode step against the official one (a near-tie flip explains a jump)
+                let r = rt.read_ws("route_ids7", DType::I32, 7).unwrap();
+                let mut got: Vec<i32> = r.chunks_exact(4).take(6).map(|c| i32::from_le_bytes(c.try_into().unwrap())).collect();
+                got.sort();
+                let k = format!("bf16/L{l}/{step}/ffn.gate_idx");
+                let mut want = if fx.has(&k) { fx.get(&k).i32() } else { vec![] };
+                want.sort();
+                println!("ROUTE L{l} {step}: ours {got:?} official {want:?}");
+            }
             if read {
                 let got = residual(rt, b - a, pos0);
-                let want = fx.get(&format!("bf16/L{l}/{step}/out.h")).f32();
+                let want = fxf.get(&format!("{flow}/L{l}/{step}/out.h")).f32();
                 let (mx, rr) = err(&got, &want);
                 out.push((l, step, mx, rr));
             }
@@ -168,29 +187,51 @@ fn few_layer_runtime_two_ranks_match_the_official_layer_outputs() {
         println!("skipped: set INTARSIA_DSV41_CACHE_R0, INTARSIA_DSV41_CACHE_R1 and INTARSIA_DSV41_FIXTURES");
         return;
     };
-    let backends: Vec<Arc<dyn Backend>> = vec![intarsia_backend_cpu::CpuBackend::arc(), intarsia_backend_cpu::CpuBackend::arc()];
-    let comms = intarsia_core::comm::HostCommGroup::new(backends.clone());
-    let hs: Vec<_> = [c0, c1]
-        .into_iter()
-        .enumerate()
-        .map(|(r, cache)| {
-            let (b, c, fxd) = (backends[r].clone(), comms[r].clone(), fxd.clone());
-            std::thread::spawn(move || {
-                let fx = St::open(&fxd.join("layers_bf16.safetensors"));
-                let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0 };
-                let (mut rt, m) = load_runtime_with(&cache, b, Some(c), &o, Some(fixture_engram(&fx, r, 2))).unwrap();
-                assert_eq!((m.rank, m.world, m.layers), (r, 2, Some(3)));
-                run_steps(&mut rt, &fx, r == 0)
+    // bf16 (bound as for one rank) and fp32 (the sharding and the collectives must not change the result beyond rounding)
+    for (flow, act, bound) in [("fp32", DType::F32, 1e-4), ("bf16", DType::Bf16, 3e-2)] {
+        let backends: Vec<Arc<dyn Backend>> = vec![intarsia_backend_cpu::CpuBackend::arc(), intarsia_backend_cpu::CpuBackend::arc()];
+        let comms = intarsia_core::comm::HostCommGroup::new(backends.clone());
+        let hs: Vec<_> = [c0.clone(), c1.clone()]
+            .into_iter()
+            .enumerate()
+            .map(|(r, cache)| {
+                let (b, c, fxd) = (backends[r].clone(), comms[r].clone(), fxd.clone());
+                std::thread::spawn(move || {
+                    let fx = St::open(&fxd.join("layers_bf16.safetensors"));
+                    let fxf = St::open(&fxd.join(format!("layers_{flow}.safetensors")));
+                    let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0, act };
+                    let (mut rt, m) = load_runtime_with(&cache, b, Some(c), &o, Some(fixture_engram(&fx, r, 2))).unwrap();
+                    assert_eq!((m.rank, m.world, m.layers), (r, 2, Some(3)));
+                    run_steps_flow(&mut rt, &fx, &fxf, flow, r == 0)
+                })
             })
-        })
-        .collect();
-    let res: Vec<_> = hs.into_iter().map(|h| h.join().unwrap()).collect();
-    let mut worst = 0f64;
-    for (l, step, mx, rr) in &res[0] {
-        println!("RUNTIME TP2 L{l} {step}: max_abs/max|ref| {mx:.3e}  rel_rms {rr:.3e}");
-        worst = worst.max(*mx);
+            .collect();
+        let res: Vec<_> = hs.into_iter().map(|h| h.join().unwrap()).collect();
+        let mut worst = 0f64;
+        for (l, step, mx, rr) in &res[0] {
+            println!("RUNTIME TP2 {flow} L{l} {step}: max_abs/max|ref| {mx:.3e}  rel_rms {rr:.3e}");
+            worst = worst.max(*mx);
+        }
+        assert!(worst < bound, "{flow}: worst layer output error {worst:.3e}");
     }
-    assert!(worst < 3e-2, "worst layer output error {worst:.3e}");
+}
+
+#[test]
+fn few_layer_runtime_fp32_matches_the_official_fp32_layer_outputs() {
+    let (Some(cache), Some(fxd)) = (std::env::var_os("INTARSIA_DSV41_CACHE").map(PathBuf::from), std::env::var_os("INTARSIA_DSV41_FIXTURES").map(PathBuf::from)) else {
+        println!("skipped: set INTARSIA_DSV41_CACHE and INTARSIA_DSV41_FIXTURES");
+        return;
+    };
+    let fx = St::open(&fxd.join("layers_bf16.safetensors"));
+    let fx32 = St::open(&fxd.join("layers_fp32.safetensors"));
+    let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0, act: DType::F32 };
+    let (mut rt, _) = load_runtime_with(&cache, intarsia_backend_cpu::CpuBackend::arc(), None, &o, Some(fixture_engram(&fx, 0, 1))).unwrap();
+    let mut worst = 0f64;
+    for (l, step, mx, rr) in run_steps_flow(&mut rt, &fx, &fx32, "fp32", true) {
+        println!("RUNTIME FP32 L{l} {step}: max_abs/max|ref| {mx:.3e}  rel_rms {rr:.3e}");
+        worst = worst.max(mx);
+    }
+    assert!(worst < 1e-4, "worst fp32 layer output error {worst:.3e}");
 }
 
 #[test]
@@ -204,7 +245,7 @@ fn few_layer_runtime_matches_the_official_layer_outputs() {
         Ok("cuda") => cuda_backend(),
         _ => intarsia_backend_cpu::CpuBackend::arc(),
     };
-    let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0 };
+    let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0, act: DType::Bf16 };
     let (mut rt, m) = load_runtime_with(&cache, backend, None, &o, Some(fixture_engram(&fx, 0, 1))).unwrap();
     assert_eq!((m.world, m.layers), (1, Some(3)), "a --layers 3 cache of world 1");
     let mut worst = 0f64;

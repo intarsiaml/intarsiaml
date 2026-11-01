@@ -45,6 +45,8 @@ pub struct Dsv41Opts {
     pub chunk: usize,
     pub engram_dir: PathBuf,
     pub hot_mb: usize,
+    /// Activation dtype (bf16; f32 for parity runs, `INTARSIA_DSV41_ACT=f32`).
+    pub act: DType,
 }
 
 impl Dsv41Opts {
@@ -55,6 +57,7 @@ impl Dsv41Opts {
             chunk: env_usize("INTARSIA_DSV41_CHUNK").or(prefill_chunk).unwrap_or(512),
             engram_dir: std::env::var_os("INTARSIA_DSV41_ENGRAM").map(PathBuf::from).unwrap_or_else(|| Path::new(&home).join("dsv41-engram")),
             hot_mb: env_usize("INTARSIA_DSV41_ENGRAM_HOT_MB").unwrap_or(0),
+            act: if std::env::var("INTARSIA_DSV41_ACT").as_deref() == Ok("f32") { DType::F32 } else { DType::Bf16 },
         }
     }
 }
@@ -66,7 +69,7 @@ pub fn is_rank_cache(dir: &Path) -> bool {
 
 /// What both ranks must agree on (handshake).
 pub fn fingerprint(m: &Manifest, o: &Dsv41Opts) -> String {
-    format!("dsv41 source {} | world {} | layers {:?} | cap {} | chunk {}", m.source_fingerprint, m.world, m.layers, o.cap, o.chunk)
+    format!("dsv41 source {} | world {} | layers {:?} | cap {} | chunk {} | act {}", m.source_fingerprint, m.world, m.layers, o.cap, o.chunk, o.act)
 }
 
 fn mem_available() -> Option<u64> {
@@ -172,7 +175,7 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
         _ => None,
     };
     let shapes = HeaderShapes::open(dir)?;
-    let opts = RuntimeOpts { act: DType::Bf16, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers } };
+    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers } };
     let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, comm, weights, engram, opts)?;
     let mm = &rt.memory;
     let avail1 = mem_available();
