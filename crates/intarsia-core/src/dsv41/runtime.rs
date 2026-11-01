@@ -63,8 +63,9 @@ struct Exec {
     scratch: Option<TensorRef>,
     /// Last fill written per workspace name: `(offset, count, value bits)`; a step that writes the name clears it.
     filled: HashMap<String, (usize, usize, u64)>,
-    /// Kernel choice per (stage, step, rows class).
-    kernels: HashMap<(usize, usize, bool), String>,
+    /// Kernel choice per (stage, step name, op, rows class: 1 / 2..=16 / more). Step lists differ between a one-row pass
+    /// and a longer one (the MoE route tables), so the index alone does not name a step.
+    kernels: HashMap<(usize, String, crate::ops::Op, u8), String>,
 }
 
 /// Per-pass timing (decode profiling): host time spent waiting for Engram records.
@@ -359,7 +360,7 @@ impl Dsv41Runtime {
             }
             let mut call = OpCall::new(step.op, inputs, outputs, step.attrs.clone());
             call.check().map_err(|e| Error::model(format!("deepseek_v41 step {}: {e}", step.what)))?;
-            let key = (si, j, t > 16);
+            let key = (si, step.what.clone(), step.op, if t == 1 { 0 } else if t <= 16 { 1 } else { 2 });
             let kname = match ex.kernels.get(&key) {
                 Some(k) => k.clone(),
                 None => {
