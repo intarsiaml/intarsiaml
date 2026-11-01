@@ -370,7 +370,8 @@ fn dspark_rounds_match_the_official_drafter() {
 /// as plain greedy decoding. Same engine, same prompt: a request with a logits trace decodes one token a pass (the
 /// engine never speculates with a trace), one without speculates. On the cpu backend with f32 activations the verify
 /// rows are row-invariant, so the token ids must be equal; the prompt is long enough that decoding crosses the 128-row
-/// window ring and the first ratio-128 compressor group (rollback across both). `INTARSIA_DSV41_CACHE` as above, with
+/// window ring wrap, with rollbacks through it and through the ratio-2 compressor groups (layer 2 of a `--layers 3` cache;
+/// the ratio-1 layers start at 20). `INTARSIA_DSV41_CACHE` as above, with
 /// its DSpark sub-cache; Engram off (zero rows, both requests alike). `INTARSIA_DSV41_SPEC_PROMPT` / `_TOKENS` resize it.
 #[test]
 fn speculative_greedy_equals_plain_greedy() {
@@ -426,8 +427,8 @@ fn speculative_greedy_equals_plain_greedy() {
 /// every position, a verify pass `[token, 3 drafts]` and rolls back after it, the drafts alternately wrong (rejected:
 /// keep 1 row) and right (accepted: keep all 4 rows, the next pass starts 4 tokens on). Each kept verify row's logits
 /// are compared with the decoding state's logits at the same position, so trajectories never part. cpu f32: equal to
-/// 1e-5 (and the same argmax); cuda bf16: printed per position (past the 128-row window ring and the first ratio-128
-/// group), median < 2e-2, worst < 0.3. `INTARSIA_DSV41_CACHE` as above with its DSpark sub-cache; Engram off.
+/// 1e-5 (and the same argmax); cuda bf16: printed per position (past the 128-row window ring wrap), median < 2e-2, worst
+/// < 0.3. Covers the compressor ratios the cache's layers have (`--layers 21` reaches the first ratio-1 layer). `INTARSIA_DSV41_CACHE` as above with its DSpark sub-cache; Engram off.
 #[test]
 fn verify_rows_track_decode_through_rollback() {
     let Some(cache) = std::env::var_os("INTARSIA_DSV41_CACHE").map(PathBuf::from) else {
