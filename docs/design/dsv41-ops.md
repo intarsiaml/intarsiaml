@@ -172,12 +172,12 @@ Decode step of the Mia checkpoint (`plan show`, cpu, position 4095), steps per s
 | Stage | Steps | What differs |
 |---|---|---|
 | embed | 2 | `Embedding`, `HcExpand` |
-| layers 0, 3-7, 9-13, 15-19, 21-23, 25-27, 29-31, 33-35, 37-39 | 39 | window (+ shared compressed KV and indices from their sources on 3-39) |
-| layer 1 | 42 | + Engram (`EngramGather`, `MatmulExl3`, `EngramMerge`) |
-| layers 2, 8 | 54 | + compressor ratio 2 (2 f32 `MatmulExl3`, `CompressPool`), index keys, indexer |
-| layer 14 | 57 | 2 / 8 plus Engram |
-| layer 20 | 53 | compressor ratio 1 (one `MatmulExl3`), index keys, `IndexerBlocks`, indexer |
-| layers 24, 28, 32, 36 | 44 | indexer in layer 20's candidates (no own keys) |
+| layers 0, 3-7, 9-13, 15-19, 21-23, 25-27, 29-31, 33-35, 37-39 | 38 | window (+ shared compressed KV and indices from their sources on 3-39) |
+| layer 1 | 41 | + Engram (`EngramGather`, `MatmulExl3`, `EngramMerge`) |
+| layers 2, 8 | 53 | + compressor ratio 2 (2 f32 `MatmulExl3`, `CompressPool`), index keys, indexer |
+| layer 14 | 56 | 2 / 8 plus Engram |
+| layer 20 | 52 | compressor ratio 1 (one `MatmulExl3`), index keys, `IndexerBlocks`, indexer |
+| layers 24, 28, 32, 36 | 43 | indexer in layer 20's candidates (no own keys) |
 | head | 3 | `HcPre`, `RmsNorm`, `MatmulExl3` (f32 logits) |
 
 1650 steps per decode step; 622 of them `MatmulExl3`, 40 `MoeExpertsExl3` (the only stub on this checkpoint).
@@ -193,9 +193,13 @@ Decode step of the Mia checkpoint (`plan show`, cpu, position 4095), steps per s
 - Layer 20's own top-k is not masked by its candidates; only the later index sources (24..36) mask.
 - Hyper-connections need four ops (expand, mixes, pre, post), and each sub-block collapses with the previous sub-block's
   pre-mix.
-- Activation fake-quantisation is part of the math: the window KV and the attention output go through e4m3 per 32
-  (ue8m0), the compressed KV through e2m1 per 16 with e4m3 scales, index keys and queries through e2m1 per 32 (ue8m0):
-  `ActQdq`. The attention output is de-rotated before `wo_a`. YaRN changes only the frequencies (no mscale).
+- Activation fake-quantisation is part of the math: the window KV (whole 512-wide row) goes through e4m3 per 32 (ue8m0),
+  the compressed KV (rotated first, whole 512-wide row) through e2m1 per 16 with e4m3 scales, index keys and queries
+  through e2m1 per 32 (ue8m0): `ActQdq`. The attention output goes through e4m3 per 32 before `wo_a` **only for the FP8
+  base checkpoint** (`model.py:785`, `quant == "official"` in the fixtures); the Mia EXL3 checkpoint, TensorFold and the
+  committed fixtures do not (layer-0 `o_lora` disagrees with the fixture by 2.5e-2 with it, 2.5e-6 without), so the
+  graph inserts that step for `Dsv41Quant::Fp8` only. The attention output is de-rotated before `wo_a`. YaRN changes only
+  the frequencies (no mscale).
 - The Mia EXL3 checkpoint has no Engram tables (`config.json` `engram_table_dir: null`, no `engram.embed` tensors): they
   have to come from the base (FP8 + E8M0, 2 x ~98 GB). Its other non-EXL3 tensors: norms (bf16), hc weights, attention
   sinks, router bias (f32), router weight and `weights_proj` (f16), embedding (bf16).
