@@ -146,8 +146,11 @@ fn plan_show_lists_every_new_op_and_resolves_cpu_kernels() {
             assert!(!ops.contains_key(op.as_str()));
             continue;
         }
-        // the fused HcSublayer is not wired into the graph yet (lane dsv41/tp2 switches to it; drop this skip then)
+        // the fused HcSublayer (62) replaces HcMixes + HcPre + RmsNorm [+ HcPost]; the graph still emits the separate ops until
+        // lane dsv41/tp2 switches to it (docs/design/dsv41-ops.md "Wiring the fused HcSublayer"). This assertion fails then:
+        // replace it by the cpu-kernel check below and lower the hc_pre count.
         if op == Op::HcSublayer {
+            assert!(!ops.contains_key(op.as_str()), "HcSublayer is in the graph now: update this test");
             continue;
         }
         let (k, _) = &ops[op.as_str()];
