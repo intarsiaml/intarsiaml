@@ -1,7 +1,7 @@
 # DeepSeek-V4.1 Flash: op contract, state and graph (lane 1a)
 
 This is the contract that lanes 1b (cpu reference ops), 2 (CUDA) and the Engram lane implement against. Lane 1a appended
-every op DeepSeek-V4.1 needs to `Op` once (discriminants 44..=62, `crates/intarsia-core/src/ops.rs`, never insert above
+every op DeepSeek-V4.1 needs to `Op` once (discriminants 44..=61, `crates/intarsia-core/src/ops.rs`, never insert above
 them), added the state slots, the Engram tier interface, the typed config and the model graph. The model does not run yet:
 `intarsia plan show --model <dir> --backend cpu` lists the full op sequence of the checkpoint from its `config.json` and
 safetensors headers, and loading it for generation refuses with a pointer to `plan show`.
@@ -67,9 +67,8 @@ them with that error (`crates/intarsia-backend-cpu/tests/admission.rs` asserts b
 | 57 | `GroupedMatmul` | x `[T,G*K]`, w `[G,N,K]` -> `[T,G*N]`, group g: x[:, gK..] @ w[g]^T | | `einsum("bsgd,grd->bsgr")` `model.py:789` | ref |
 | 58 | `Transpose01` | x `[A,B,C]` -> `[B,A,C]` (any dtype) | | layout helper: per-group EXL3 `wo_a` slices need group-major rows | ref |
 | 59 | `MatmulFp8Block` | x `[M,K]` float, w `[N,K]` e4m3, w_scale `[ceil(N/b), K/b]` u8 (E8M0) -> `[M,N]` | `dsv.block` (32; the activation is quantised to e4m3 per `b` elements with a ue8m0 scale first) | `linear` `model.py:181`, `fp8_gemm` `kernel.py:208-308` | **stub** |
-| 60 | `MoeExpertsExl3` | x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, then for w1 (gate), w3 (up), w2 (down): trellis `[E,K/16,N/16,16*bits]` i16, suh `[E,K]` f16, svh `[E,N]` f16, codebook `[1]` i32 -> y `[T,H]` = sum_k weights[k] * w2_e(SiluGluClamp(w1_e x, w3_e x)) | `dsv.limit`, `top_k` | `MoE.forward` / `Expert.forward` `model.py:856-907` (the official code scales before `w2`: same math, one rounding apart) | **stub** |
-| 61 | `EngramGather` | rows `[T,C,Dh]` e4m3, scales `[T,C,Dh/32]` u8 (E8M0) -> `[T, C*Dh]` = rows * 2^(scale-127) | | `ParallelEngramEmbedding.forward` `model.py:296-326` | ref |
-| 62 | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)D]` (S keys then one value), q_w `[S,D]`, k_w `[S,D]` -> `[T,S,D]` | `eps` (norm_eps) | `Engram.forward` `model.py:328-367` | ref |
+| 60 | `EngramGather` | records `[T,C,Dh+Dh/32]` u8 (per row: `Dh` e4m3 bytes, then `Dh/32` E8M0 scale bytes; 264 B for Dh 256) -> `[T, C*Dh]` = payload * 2^(scale-127) | | `ParallelEngramEmbedding.forward` `model.py:296-326`; record layout from the plan review (2026-10-31) | ref |
+| 61 | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)D]` (S keys then one value), q_w `[S,D]`, k_w `[S,D]` -> `[T,S,D]` | `eps` (norm_eps) | `Engram.forward` `model.py:328-367` | ref |
 
 ### Exact rules the references implement
 
@@ -110,6 +109,7 @@ them with that error (`crates/intarsia-backend-cpu/tests/admission.rs` asserts b
 | Norms (eps 1e-20) | `RmsNorm` | |
 | Routed + shared expert sum | `Add` | the official sum is in f32 before the cast; one rounding apart |
 | Token embedding | `Embedding` | |
+| Mia's routed EXL3 experts (384 per layer, top 6, clamped SwiGLU) | `MoeExperts`, EXL3 encoding (`quant::exl3_moe`, from `dsv41/cuda-moe` `8e2b8b54b`): an i16 input 3 selects it; inputs x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, arena `[W]` i16 (every expert's gate / up / down tiles), scales `[E, 3H+3I]` f16, meta `[E, 8]` i32 (16-byte arena offsets and width per matrix), codebook `[1]` i32, limit `[1]` f32 (swiglu_limit) | f64 cpu reference in `exl3_ref`; the graph sizes the arena as `E x` expert 0's tiles (one width per stack in Mia, verified over all of `tensor_storage`) |
 | Base checkpoint's FP4 routed experts | `MoeExperts` (MXFP4: e2m1 + E8M0 per 32) | needs `dsv.limit` honoured by its kernels (an attribute, not a new op; lane 1b) |
 
 `MatmulFp8` does not cover the base's FP8 linears: it takes a per-tensor scale and a static activation scale, the base has
@@ -119,8 +119,8 @@ them with that error (`crates/intarsia-backend-cpu/tests/admission.rs` asserts b
 
 | Slot | Per | Shape | Truncation |
 |---|---|---|---|
-| `Ring { kind: WindowKv }` | every layer (40) | `[128, 512]` act dtype | by length within `margin` (0 today: the official ring); a cut past it is refused (`Unsupported`) |
-| `Ring { kind: CompressTail, planes: 2 }` | KV sources with ratio > 1 (2, 8, 14) | 2 planes `[ratio, 512]` f32 (kv, score) | same |
+| `Ring { kind: WindowKv }` | every layer (40) | `[128 + 16, 512]` act dtype | by length within `margin` 16 (`graph::ROLLBACK_MARGIN`: DSpark blocks of 5, n-gram drafts); a deeper cut is refused (`Unsupported`), except back to 0 |
+| `Ring { kind: CompressTail, planes: 2 }` | KV sources with ratio > 1 (2, 8, 14) | 2 planes `[18, 512]` f32 (kv, score): a multiple of the ratio holding `ratio - 1 + 16` tokens (`graph::tail_rows`) | same |
 | `Shared { kind: CompressedKv }` | KV sources (2, 8, 14, 20) | `[ceil(cap/ratio), 512]` | by length (rows past `len/ratio` are stale) |
 | `Shared { kind: IndexK }` | KV sources (2, 8, 14, 20) | `[ceil(cap/ratio), 128]` | same |
 
@@ -141,7 +141,13 @@ norm -> attention -> `HcPost(attn post, comb)` -> `HcMixes(hc_ffn)` -> `HcPre(at
 `HcPost(ffn post, comb)`. The pre-mix of a sub-block is the one the *previous* sub-block computed (`Block.forward`
 `model.py:970`): layer 0's attention uses a constant one-hot `[1,0,0,0]` (`make_identity_pre_mix` `model.py:1162`), the
 head collapses with the last FFN's pre-mix (`Transformer.forward` line 1271). `plan show` reports
-`residual streams 4`.
+`residual streams 4`. `ParallelHead.forward` (`model.py:1010`) is a plain f32 linear of the last row: no further mix.
+
+DSpark tap: before the attention of each MTP target layer (37, 38, 39) the graph records `HcPre` of the stream with the
+constant mix `1/S` into `main_hidden.{0,1,2}` (`h.mean(dim=2)`, `Transformer.forward` line 1269). Nothing reads it until
+the drafting lane lands; it is there so the hook is part of the frozen graph (plan review: "design DSpark hooks in 1a").
+Every per-sequence state is a length-truncatable slot (window and compressor rings within their margin, shared caches by
+length); the Engram token history is `SequenceState::tokens`; candidates and top-k lists are per-pass carries.
 
 ## Engram tier
 
@@ -149,11 +155,11 @@ head collapses with the last FFN's pre-mix (`Transformer.forward` line 1271). `p
 `NgramHashState.forward` `engram.py:129`; layout primes `EngramLayout` `engram.py:87` derived and checked against
 `engram_num_embeddings`; multipliers from numpy PCG64, generated by `tools/gen_dsv41_engram_params.py` with a hash fixture
 the tests compare against). The row fetch is issued as soon as the token ids are known (`EngramTier::issue`, never blocks),
-waited on before the upload (`EngramTier::wait` writes `[n, 256]` e4m3 payload and `[n, 8]` E8M0 scales, zeros for rows
-outside the rank's shard, `EngramShard` = `ParallelEngramEmbedding`'s `ceil(rows / world)` split). `MemEngramTier` is the
-in-memory test tier. "Scales resident" (A2) means the tier keeps the E8M0 scale array (`[rows, 8]`, about 3 GB per rank)
-in host memory and gathers it by row index in `wait`, beside the payload rows read from NVMe; `EngramGather` therefore takes
-per-row scales and never sees the table. Not here: the compressed token map (`build_compressed_token_map` `engram.py:17`, a tokenizer
+waited on before the upload (`EngramTier::wait` writes packed records `[n, 264]`: 256 e4m3 payload bytes then 8 E8M0
+scales, the layout `EngramGather` reads; a row outside the rank's shard is a zero payload with unit scales;
+`EngramShard` = `ParallelEngramEmbedding`'s `ceil(rows / world)` split). `MemEngramTier` is the in-memory test tier.
+The plan review (2026-10-31) replaced the scope doc's resident scales (3 GB per rank) with these 264 B records, 15 per
+4 KiB page, so nothing table-sized stays in host memory. Not here: the compressed token map (`build_compressed_token_map` `engram.py:17`, a tokenizer
 normaliser pass that must yield exactly 99,092 ids) and the NVMe io_uring tier (Engram lane).
 
 ## Graph
@@ -172,15 +178,33 @@ Decode step of the Mia checkpoint (`plan show`, cpu, position 4095), steps per s
 | Stage | Steps | What differs |
 |---|---|---|
 | embed | 2 | `Embedding`, `HcExpand` |
-| layers 0, 3-7, 9-13, 15-19, 21-23, 25-27, 29-31, 33-35, 37-39 | 38 | window (+ shared compressed KV and indices from their sources on 3-39) |
+| layers 0, 3-7, 9-13, 15-19, 21-23, 25-27, 29-31, 33-35 | 38 | window (+ shared compressed KV and indices from their sources on 3-39) |
 | layer 1 | 41 | + Engram (`EngramGather`, `MatmulExl3`, `EngramMerge`) |
 | layers 2, 8 | 53 | + compressor ratio 2 (2 f32 `MatmulExl3`, `CompressPool`), index keys, indexer |
 | layer 14 | 56 | 2 / 8 plus Engram |
 | layer 20 | 52 | compressor ratio 1 (one `MatmulExl3`), index keys, `IndexerBlocks`, indexer |
 | layers 24, 28, 32, 36 | 43 | indexer in layer 20's candidates (no own keys) |
+| layers 37-39 | 39 | + DSpark tap (`HcPre` with the mean mix) |
 | head | 3 | `HcPre`, `RmsNorm`, `MatmulExl3` (f32 logits) |
 
-1650 steps per decode step; 622 of them `MatmulExl3`, 40 `MoeExpertsExl3` (the only stub on this checkpoint).
+1653 steps per decode step; 622 of them `MatmulExl3`, 40 `MoeExperts` (EXL3 encoding). No stub op on this checkpoint.
+
+## Final discriminant list (frozen)
+
+Decided 2026-10-31 (coordinator): the routed EXL3 experts use the EXL3 encoding of the existing `MoeExperts`, so the
+`MoeExpertsExl3` variant lane 1a first proposed was dropped before it reached any lane that numbers ops. Lanes refer to
+ops by name; the numbers below are what `Op as usize` returns and what admission seeds by.
+
+| # | Op | # | Op | # | Op |
+|---|---|---|---|---|---|
+| 44 | `HcExpand` | 50 | `ActQdq` | 56 | `IndexerTopk` |
+| 45 | `HcMixes` | 51 | `RopeTail` | 57 | `GroupedMatmul` |
+| 46 | `HcPre` | 52 | `WindowKv` | 58 | `Transpose01` |
+| 47 | `HcPost` | 53 | `AttnSparse` | 59 | `MatmulFp8Block` |
+| 48 | `MoeRoute` | 54 | `CompressPool` | 60 | `EngramGather` |
+| 49 | `SiluGluClamp` | 55 | `IndexerBlocks` | 61 | `EngramMerge` |
+
+`Op::ALL` has 62 entries; `EngramMerge` is last. The next op anyone appends is 62.
 
 ## Where the official code differs from the scope doc
 

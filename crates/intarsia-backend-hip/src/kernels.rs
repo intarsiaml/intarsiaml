@@ -142,7 +142,6 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::GroupedMatmul,
     Op::Transpose01,
     Op::MatmulFp8Block,
-    Op::MoeExpertsExl3,
     Op::EngramGather,
     Op::EngramMerge,
 ];

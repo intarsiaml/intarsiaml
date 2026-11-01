@@ -90,7 +90,7 @@ pub fn plan_json(model: &str, c: &Dsv41Config, w: &dyn WeightShapes, backend: &d
 }
 
 /// Ops whose cpu kernels are stubs (mirrors `intarsia_backend_cpu::dsv41_ref::STUBS`, which core cannot see).
-const STUB_OPS: [&str; 2] = ["matmul_fp8_block", "moe_experts_exl3"];
+const STUB_OPS: [&str; 1] = ["matmul_fp8_block"];
 
 fn arg_str(dt: DType, shape: &[usize], buf: &Buf) -> String {
     let at = match buf {
