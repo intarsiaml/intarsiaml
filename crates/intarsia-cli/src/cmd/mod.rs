@@ -4,6 +4,7 @@
 pub mod accuracy;
 pub mod bench;
 pub mod doctor;
+pub mod dsv41_cache;
 pub mod generate;
 pub mod kernels;
 pub mod onboard;

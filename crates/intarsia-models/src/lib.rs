@@ -3,6 +3,7 @@
 
 pub mod chat_template;
 pub mod dsv41;
+pub mod dsv41_cache;
 pub mod load;
 pub mod recipe;
 pub mod safetensors;
