@@ -204,6 +204,19 @@ if [[ " $STEPS " == *" hold "* ]]; then
   for i in $(seq 1 $(( ${HOLD_MIN:-30} * 6 ))); do [[ -f $OUT/stop ]] && break; (( $(left) > 0 )) || break; sleep 10; done
 fi
 r spark1 "grep -aE 'dsv41' $LOGD/serve-$TAG.log | tail -12" | tee -a "$OUT/steps.log"
+# speculation: the per-request lines (tokens a round, drafts accepted) summed over this config
+r spark1 "grep -a 'dsv41: spec ' $LOGD/serve-$TAG.log" > "$OUT/spec.txt" || true
+if [[ -s "$OUT/spec.txt" ]]; then
+  python3 - "$OUT/spec.txt" <<'PY' | tee -a "$OUT/steps.log"
+import re, sys
+t = r = a = d = 0
+for l in open(sys.argv[1]):
+    m = re.search(r"spec (\d+) tokens in (\d+) rounds .*?, (\d+)/(\d+) drafts accepted", l)
+    if m:
+        t += int(m[1]); r += int(m[2]); a += int(m[3]); d += int(m[4])
+print(f"spec total: {t} tokens in {r} rounds = {t / max(r, 1):.3f} a round; drafts accepted {a}/{d} = {100 * a / max(d, 1):.1f} %")
+PY
+fi
 }
 
 # AB="ENV_A|ENV_B" (e.g. "INTARSIA_DSV41_EXL3_SPLITK=0|INTARSIA_DSV41_EXL3_SPLITK=48"): run the steps once per config, each with
