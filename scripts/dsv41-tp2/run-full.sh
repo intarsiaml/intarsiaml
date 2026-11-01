@@ -22,7 +22,11 @@ r() { ssh -n -o BatchMode=yes -o ConnectTimeout=10 "$1" "export FLEETQ_JOB=$FLEE
 left() { echo $(( DEADLINE - $(date +%s) )); }
 
 for h in spark1 spark2; do
-  r $h 'cat /proc/$(pgrep -x earlyoom)/cmdline | tr "\0" " "' | grep -q -- '-m 3,2' || { log "earlyoom on $h is not at -m 3,2; not starting"; exit 1; }
+  # EARLYOOM_OK: the earlyoom -m settings the user has set on purpose (default 3,2; the user lowered it to 2,1 for the
+  # BLACKFOLD runs of 2026-11-01). Never changed here; our own watcher stops us at KILL_GIB, above either kill line.
+  eo=$(r $h 'cat /proc/$(pgrep -x earlyoom)/cmdline | tr "\0" " "' | grep -oE -- '-m [0-9]+,[0-9]+' | cut -c4-)
+  [[ " ${EARLYOOM_OK:-3,2} " == *" $eo "* ]] || { log "earlyoom on $h is at -m $eo, not one of '${EARLYOOM_OK:-3,2}'; not starting"; exit 1; }
+  log "earlyoom on $h: -m $eo"
   r $h "test -x ~/intarsia-dsv41-tp2/bin/intarsia && test -f ~/intarsia-nccl/libnccl.so.2" || { log "binary or NCCL library missing on $h"; exit 1; }
 done
 r spark1 "test -f $C0/manifest.json" && r spark2 "test -f $C1/manifest.json" || { log "rank cache missing"; exit 1; }
