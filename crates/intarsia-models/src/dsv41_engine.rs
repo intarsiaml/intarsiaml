@@ -314,6 +314,12 @@ impl Worker {
         let mut sampler = Sampler::new(params, req.seed);
         let mut dec = IncrementalDecoder::new();
         let mut stops = StopMatcher::new(&req.stop);
+        // structured output: the server's compiled constraint masks the host logits each step (computed inline: the
+        // mask costs far less than this engine's decode step)
+        let mut cons = match &req.constraint {
+            Some(c) => Some(c.start()?),
+            None => None,
+        };
         let mut n = 0usize;
         let t1 = Instant::now();
         let finish;
@@ -329,12 +335,20 @@ impl Worker {
                     }
                 }
             }
+            if let Some(c) = cons.as_mut().filter(|c| c.active()) {
+                if !c.compute_mask()?.apply(&mut logits) {
+                    return Err(Error::Other("structured output: the constraint allows no token here".into()));
+                }
+            }
             let tok = if req.temperature <= 0.0 { intarsia_core::sampler::argmax(&logits) as u32 } else { sampler.sample(&logits) as u32 };
             n += 1;
             let is_eos = !req.ignore_eos && (self.eos.contains(&tok) || req.stop_ids.contains(&tok));
             if is_eos {
                 finish = FinishReason::Stop;
                 break;
+            }
+            if let Some(c) = cons.as_mut() {
+                c.commit(tok)?;
             }
             let text = dec.push(&*self.codec, tok)?;
             let (out, hit) = stops.push(&text);
