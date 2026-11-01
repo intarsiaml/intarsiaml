@@ -434,7 +434,9 @@ impl Dsv41Engine {
             weights_bytes: rt.memory.weights,
             eos_ids: eos.clone(),
             has_chat_template: codec.has_chat_template(),
-            reasoning_parser: None,
+            // The template's thinking mode ends the prompt in `<think>`; the model closes it with the single `</think>`
+            // token (128822), so a request with `enable_thinking: true` gets `reasoning_content` split off.
+            reasoning_parser: Some("think-tags".into()),
             tool_parser: None,
             memory_plan: intarsia_core::memplan::MemoryPlan {
                 device: info0.name.clone(),
