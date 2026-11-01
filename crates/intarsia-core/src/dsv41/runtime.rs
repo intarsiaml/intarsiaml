@@ -65,7 +65,7 @@ struct Exec {
     filled: HashMap<String, (usize, usize, u64)>,
     /// Kernel choice per (stage, step name, op, rows class: 1 / 2..=16 / more). Step lists differ between a one-row pass
     /// and a longer one (the MoE route tables), so the index alone does not name a step.
-    kernels: HashMap<(usize, String, crate::ops::Op, u8), String>,
+    kernels: HashMap<(usize, String, crate::ops::Op, u8), usize>,
 }
 
 /// Per-pass timing (decode profiling): host time spent waiting for Engram records.
@@ -80,6 +80,8 @@ pub struct Dsv41Runtime {
     pub backend: Arc<dyn Backend>,
     pub comm: Option<Arc<dyn Comm>>,
     reg: Registry,
+    /// The backend's kernel table (taken once: `Backend::kernels` builds it on every call).
+    kernel_list: Vec<crate::registry::KernelImpl>,
     weights: HashMap<String, TensorRef>,
     consts: HashMap<String, TensorRef>,
     engram: Option<EngramInputs>,
@@ -119,6 +121,7 @@ impl Dsv41Runtime {
         }
         let info = backend.info();
         let reg = Registry::new(backend.name(), &info, backend.kernels());
+        let kernel_list = backend.kernels();
         let weight_bytes: u64 = weights.values().map(|t| t.nbytes() as u64).sum();
         // workspace: the largest byte size of every name over the shapes a pass can take
         let mut need: HashMap<String, (usize, DType)> = HashMap::new();
@@ -203,6 +206,7 @@ impl Dsv41Runtime {
             backend,
             comm,
             reg,
+            kernel_list,
             weights,
             consts,
             engram,
@@ -361,17 +365,22 @@ impl Dsv41Runtime {
             let mut call = OpCall::new(step.op, inputs, outputs, step.attrs.clone());
             call.check().map_err(|e| Error::model(format!("deepseek_v41 step {}: {e}", step.what)))?;
             let key = (si, step.what.clone(), step.op, if t == 1 { 0 } else if t <= 16 { 1 } else { 2 });
-            let kname = match ex.kernels.get(&key) {
-                Some(k) => k.clone(),
+            let ki = match ex.kernels.get(&key) {
+                Some(&i) => i,
                 None => {
                     let k = self.reg.select(&call).map_err(|e| Error::model(format!("deepseek_v41 step {} ({}): {e}", step.what, step.op.as_str())))?;
-                    let n = k.name.clone();
-                    ex.kernels.insert(key, n.clone());
-                    n
+                    let i = self
+                        .kernel_list
+                        .iter()
+                        .position(|x| x.name == k.name && x.op == step.op)
+                        .ok_or_else(|| Error::backend(format!("deepseek_v41: selected kernel {} is not in the backend's table", k.name)))?;
+                    ex.kernels.insert(key, i);
+                    i
                 }
             };
-            let kimpl = self.backend.kernels().into_iter().find(|k| k.name == kname && k.op == step.op);
-            let need = kimpl.map_or(0, |k| k.scratch_bytes(&ShapeInfo::from_call(&call)));
+            let kimpl = &self.kernel_list[ki];
+            let kname = kimpl.name.as_str();
+            let need = kimpl.scratch_bytes(&ShapeInfo::from_call(&call));
             if need > 0 {
                 if ex.scratch.as_ref().is_none_or(|s| s.nbytes() < need) {
                     let bytes = need.next_power_of_two().max(1 << 20);
@@ -380,7 +389,7 @@ impl Dsv41Runtime {
                 }
                 call.scratch = Some(ex.scratch.as_ref().unwrap().reshaped(&[ex.scratch.as_ref().unwrap().numel()]).rows(0, need));
             }
-            self.backend.launch(&kname, &call, 0).map_err(|e| Error::backend(format!("deepseek_v41 step {} ({kname}): {e}", step.what)))?;
+            self.backend.launch(kname, &call, 0).map_err(|e| Error::backend(format!("deepseek_v41 step {} ({kname}): {e}", step.what)))?;
         }
         for (_, e) in extras {
             self.extra(ex, e, st, t)?;
@@ -485,8 +494,8 @@ impl Dsv41Runtime {
     pub fn kernel_summary(&self) -> Vec<(String, usize)> {
         let ex = self.exec.lock().unwrap();
         let mut m: HashMap<String, usize> = HashMap::new();
-        for k in ex.kernels.values() {
-            *m.entry(k.clone()).or_default() += 1;
+        for &k in ex.kernels.values() {
+            *m.entry(self.kernel_list[k].name.clone()).or_default() += 1;
         }
         let mut v: Vec<_> = m.into_iter().collect();
         v.sort();
