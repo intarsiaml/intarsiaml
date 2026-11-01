@@ -32,7 +32,7 @@ def load(path):
 
 
 def query(base, model, ids):
-    body = {"model": model, "prompt": ids, "max_tokens": 1, "temperature": 0, "logprobs": 20, "return_token_ids": True}
+    body = {"model": model, "prompt": ids, "max_tokens": 1, "temperature": 0, "logprobs": 20, "return_token_ids": True, "ignore_eos": True}
     req = urllib.request.Request(base.rstrip("/") + "/completions", json.dumps(body).encode(), {"content-type": "application/json"})
     with urllib.request.urlopen(req, timeout=600) as r:
         return json.load(r)

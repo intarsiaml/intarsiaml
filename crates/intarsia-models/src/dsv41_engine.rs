@@ -329,7 +329,10 @@ impl Worker {
                 tl.lock().unwrap().push(logits.clone());
             }
             if n < req.min_tokens {
-                for &e in self.eos.iter().chain(&req.stop_ids) {
+                // the stop set only, like the main engine (and vLLM): with ignore_eos the EOS ids are not stops and stay
+                // samplable (a greedy golden with min_tokens + ignore_eos then matches TensorFold's, which emits EOS)
+                let eos: &[u32] = if req.ignore_eos { &[] } else { &self.eos };
+                for &e in eos.iter().chain(&req.stop_ids) {
                     if let Some(x) = logits.get_mut(e as usize) {
                         *x = f32::NEG_INFINITY;
                     }
