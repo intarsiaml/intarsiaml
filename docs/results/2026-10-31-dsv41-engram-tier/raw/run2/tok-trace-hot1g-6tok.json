@@ -1,0 +1,83 @@
+{
+  "dir": "/home/nvidia/dsv41-engram",
+  "rank": 1,
+  "world": 2,
+  "backend": "io_uring",
+  "granule": "page",
+  "scales": "read",
+  "hot_mb": 1024,
+  "profile": ".scratch/profile-r1-3M.u64",
+  "trace": ".scratch/test.u32",
+  "tokens_per_step": 6,
+  "touch": false,
+  "touch_lead_us": 0,
+  "keepalive_ms": 0.0,
+  "spec_topk": 0,
+  "spec_lead_us": 500,
+  "open_s": 0.000800846,
+  "preload_s": 4.828980487,
+  "host": {
+    "kernel": "6.17.0-1032-nvidia",
+    "apst_max_latency_us": "100000",
+    "nvme_model": "SAMSUNG MZALC4T0HBL1-00B07",
+    "logical_block": "512",
+    "scheduler": "[none] mq-deadline"
+  },
+  "points": [
+    {
+      "gap_ms": 0.0,
+      "layer1": {
+        "n": 800,
+        "p50_us": 159.776,
+        "p90_us": 313.615,
+        "p99_us": 434.654,
+        "p999_us": 1762.762,
+        "max_us": 1762.762,
+        "mean_us": 144.53670375
+      },
+      "step": {
+        "n": 800,
+        "p50_us": 186.89499999999998,
+        "p90_us": 389.87100000000004,
+        "p99_us": 525.8059999999999,
+        "p999_us": 1762.762,
+        "max_us": 1762.762,
+        "mean_us": 180.06107000000003
+      },
+      "hot_hit_pct": 66.91753472222223,
+      "row_reads_per_token": 7.93875,
+      "io_bytes": 165773312,
+      "staged_hits": 0,
+      "joined": 5,
+      "failed": 0
+    },
+    {
+      "gap_ms": 75.0,
+      "layer1": {
+        "n": 800,
+        "p50_us": 31.823999999999998,
+        "p90_us": 1086.301,
+        "p99_us": 10004.766,
+        "p999_us": 10479.805,
+        "max_us": 10479.805,
+        "mean_us": 727.782215
+      },
+      "step": {
+        "n": 800,
+        "p50_us": 33.392,
+        "p90_us": 1099.068,
+        "p99_us": 10004.766,
+        "p999_us": 10479.805,
+        "max_us": 10479.805,
+        "mean_us": 734.5697400000001
+      },
+      "hot_hit_pct": 75.37673611111111,
+      "row_reads_per_token": 5.909583333333333,
+      "io_bytes": 123482112,
+      "staged_hits": 0,
+      "joined": 0,
+      "failed": 0
+    }
+  ],
+  "resident_bytes": 815971136
+}

@@ -486,10 +486,18 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     b.push(Op::AttnSparse, format!("{p}.sparse_attn"), vec![q, winbuf, cmp, idx, sink], vec![o.clone()], OpAttrs { window: win, pos0, scale: (hd as f32).powf(-0.5), ..Default::default() });
     let o = b.rope(o, l, pos0, 1, true, Buf::Ws("o_derot".into()), &format!("{p}.rope_inverse(o)"));
 
-    // grouped low-rank output: fp8 round trip, per-group projection, then wo_b
+    // grouped low-rank output: fp8 round trip (FP8 base checkpoint only), per-group projection, then wo_b. The official code
+    // quantises `o` before `wo_a` only in its FP8 mode (`model.py:785`); the EXL3 checkpoint's reference engine (TensorFold)
+    // and the committed fixtures (`tools/dsv41/fixtures.py --quant tf`) do not, and the fp32 layer-0 `o_lora` then
+    // disagrees with the fixture by 2.5e-2 instead of 2.5e-6 (`crates/intarsia-models/tests/dsv41_layers.rs`).
     let g = c.o_groups;
     let gk = h * hd / g;
-    let o = b.qdq(Arg { shape: vec![t, g, gk], ..o }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("o_q".into()), &format!("{p}.act_quant(o)"));
+    let o = Arg { shape: vec![t, g, gk], ..o };
+    let o = if matches!(c.quant, Dsv41Quant::Fp8 { .. }) {
+        b.qdq(o, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("o_q".into()), &format!("{p}.act_quant(o)"))
+    } else {
+        o
+    };
     let oa = if b.has(&format!("{p}.wo_a.slice.0.trellis")) {
         // EXL3 (Mia): one matmul per group slice on group-major rows
         let og = ws("o_groups", act, &[g, t, gk]);

@@ -1,0 +1,83 @@
+{
+  "dir": "/home/nvidia/.cache/dsv41-tensorfold/engram-1bae0e10",
+  "rank": 1,
+  "world": 2,
+  "backend": "io_uring",
+  "granule": "page",
+  "scales": "read",
+  "hot_mb": 0,
+  "profile": null,
+  "trace": null,
+  "tokens_per_step": 1,
+  "touch": true,
+  "touch_lead_us": 1000,
+  "keepalive_ms": 0.0,
+  "spec_topk": 0,
+  "spec_lead_us": 500,
+  "open_s": 0.011662682,
+  "preload_s": 0.0,
+  "host": {
+    "kernel": "6.17.0-1032-nvidia",
+    "apst_max_latency_us": "100000",
+    "nvme_model": "SAMSUNG MZALC4T0HBL1-00B07",
+    "logical_block": "512",
+    "scheduler": "[none] mq-deadline"
+  },
+  "points": [
+    {
+      "gap_ms": 0.0,
+      "layer1": {
+        "n": 1500,
+        "p50_us": 251.951,
+        "p90_us": 429.295,
+        "p99_us": 552.718,
+        "p999_us": 642.51,
+        "max_us": 696.845,
+        "mean_us": 292.8588460000001
+      },
+      "step": {
+        "n": 1500,
+        "p50_us": 268.175,
+        "p90_us": 429.407,
+        "p99_us": 555.582,
+        "p999_us": 642.51,
+        "max_us": 696.845,
+        "mean_us": 297.0370193333336
+      },
+      "hot_hit_pct": 0.0,
+      "row_reads_per_token": 24.0,
+      "io_bytes": 303779840,
+      "staged_hits": 0,
+      "joined": 0,
+      "failed": 0
+    },
+    {
+      "gap_ms": 75.0,
+      "layer1": {
+        "n": 1500,
+        "p50_us": 209.24699999999999,
+        "p90_us": 462.158,
+        "p99_us": 568.542,
+        "p999_us": 698.045,
+        "max_us": 703.0540000000001,
+        "mean_us": 273.7349646666669
+      },
+      "step": {
+        "n": 1500,
+        "p50_us": 210.78300000000002,
+        "p90_us": 462.238,
+        "p99_us": 568.542,
+        "p999_us": 698.045,
+        "max_us": 703.0540000000001,
+        "mean_us": 276.9940193333335
+      },
+      "hot_hit_pct": 0.0,
+      "row_reads_per_token": 23.998666666666665,
+      "io_bytes": 304017408,
+      "staged_hits": 2,
+      "joined": 0,
+      "failed": 0
+    }
+  ],
+  "resident_bytes": 6422528
+}

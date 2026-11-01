@@ -69,7 +69,7 @@ fn mia_graph_records_every_layer_with_the_official_structure() {
     let taps: Vec<usize> = (0..40).filter(|&l| g.stages[l + 1].steps.iter().any(|s| s.what.ends_with("dspark_tap"))).collect();
     assert_eq!(taps, [37, 38, 39]);
     let steps: Vec<usize> = (0..40).map(|l| layer_ops(&g, l).len()).collect();
-    assert_eq!((steps[0], steps[1], steps[2], steps[3], steps[14], steps[20], steps[24], steps[39]), (39, 42, 54, 39, 57, 53, 44, 40));
+    assert_eq!((steps[0], steps[1], steps[2], steps[3], steps[14], steps[20], steps[24], steps[39]), (38, 41, 53, 38, 56, 52, 43, 39));
 
     // the indexers on 24..36 mask with layer 20's candidates; the others pass an empty mask
     let idx_cand = |l: usize| g.stages[l + 1].steps.iter().find(|s| s.op == Op::IndexerTopk).unwrap().inputs[3].shape.clone();
