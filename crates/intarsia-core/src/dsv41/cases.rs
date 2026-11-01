@@ -215,13 +215,16 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     at.dsv.limit = 10.0;
                     push(format!("T={t} E={e} K={k} H={h} I={i} bits={bits} {dt}"), op, inputs, vec![out(dt, &[t, h])], at);
                 }
-                Op::EngramGather => push(
-                    format!("T={t} C=3 Dh=64 {dt}"),
-                    op,
-                    vec![bytes_t(rng, DType::Fp8E4m3, &[t, 3, 64], |v| (v % 0x7E) as u8 | ((v >> 8) as u8 & 0x80)), bytes_t(rng, DType::U8, &[t, 3, 2], |v| 120 + (v % 10) as u8)],
-                    vec![out(dt, &[t, 3 * 64])],
-                    a,
-                ),
+                Op::EngramGather => {
+                    // records of Dh 64: 64 e4m3 bytes (finite, either sign), then 2 E8M0 scales near 2^0
+                    let mut rec = bytes_t(rng, DType::U8, &[t, 3, 66], |v| (v % 0x7E) as u8 | ((v >> 8) as u8 & 0x80));
+                    for (j, b) in rec.data.iter_mut().enumerate() {
+                        if j % 66 >= 64 {
+                            *b = 120 + *b % 10;
+                        }
+                    }
+                    push(format!("T={t} C=3 Dh=64 {dt}"), op, vec![rec], vec![out(dt, &[t, 3 * 64])], a)
+                }
                 Op::EngramMerge => push(
                     format!("T={t} S={s} D={d} {dt}"),
                     op,

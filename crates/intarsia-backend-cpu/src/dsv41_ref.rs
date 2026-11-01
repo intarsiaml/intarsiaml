@@ -4,7 +4,7 @@
 //! lists the full op sequence) and fail with a "not implemented (lane 1b)" error, which admission reports.
 
 use crate::mem::{read_f32, write_f32};
-use intarsia_core::dsv41::ops::{compressed_rows, n_blocks, visible_rows, QdqFmt, QdqScale, ScoreFunc};
+use intarsia_core::dsv41::ops::{compressed_rows, engram_head_dim, n_blocks, visible_rows, QdqFmt, QdqScale, ScoreFunc};
 use intarsia_core::dtype::{f32_to_fp8_e4m3, fp8_e4m3_to_f32};
 use intarsia_core::quant::nvfp4::{f32_to_fp4, fp4_to_f32};
 use intarsia_core::{Error, Op, OpCall, Result, TensorRef};
@@ -435,9 +435,15 @@ pub fn run(call: &OpCall) -> Result<()> {
             write_f32(&o[0], &y)
         }
         Op::EngramGather => {
-            // ParallelEngramEmbedding.forward: fp8 rows times their E8M0 block scales
-            let (rows, sc) = (read_f32(&i[0])?, read_f32(&i[1])?);
-            let y: Vec<f32> = rows.iter().enumerate().map(|(j, v)| v * 2f32.powi(sc[j / 32] as i32 - 127)).collect();
+            // ParallelEngramEmbedding.forward: fp8 rows times their E8M0 block scales, one packed record per row
+            let rec = crate::mem::bytes(&i[0])?;
+            let r = i[0].shape[2];
+            let dh = engram_head_dim(r);
+            let mut y = Vec::with_capacity(rec.len() / r * dh);
+            for row in rec.chunks_exact(r) {
+                let (payload, scales) = row.split_at(dh);
+                y.extend(payload.iter().enumerate().map(|(j, &b)| fp8_e4m3_to_f32(b) * 2f32.powi(scales[j / 32] as i32 - 127)));
+            }
             write_f32(&o[0], &y)
         }
         Op::EngramMerge => {

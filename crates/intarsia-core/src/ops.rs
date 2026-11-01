@@ -52,7 +52,7 @@
 //! | `Transpose01` | x `[A,B,C]` | `[B,A,C]` | |
 //! | `MatmulFp8Block` | x `[M,K]`, w `[N,K]` e4m3, w_scale `[ceil(N/b),K/b]` u8 (E8M0) | `[M,N]` (activations quantised to e4m3 per b first) | dsv.block |
 //! | `MoeExpertsExl3` | x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, (trellis `[E,K/16,N/16,16*bits]` i16, suh `[E,K]` f16, svh `[E,N]` f16) x w1 / w3 / w2, codebook `[1]` i32 | `[T,H]` (weighted sum of clamped-SwiGLU EXL3 experts) | top_k, dsv.limit |
-//! | `EngramGather` | rows `[T,C,Dh]` e4m3, scales `[T,C,Dh/32]` u8 (E8M0) | `[T,C*Dh]` | |
+//! | `EngramGather` | records `[T,C,Dh+Dh/32]` u8 (per row: Dh e4m3 bytes, then Dh/32 E8M0 scale bytes; 264 B for Dh 256) | `[T,C*Dh]` | |
 //! | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)*D]` (S keys, one value), q_w `[S,D]`, k_w `[S,D]` | `[T,S,D]` (h + gate * value per stream) | eps |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
@@ -389,7 +389,7 @@ impl Op {
             Op::Transpose01 => (1, 1),
             Op::MatmulFp8Block => (3, 1),
             Op::MoeExpertsExl3 => (13, 1),
-            Op::EngramGather => (2, 1),
+            Op::EngramGather => (1, 1),
             Op::EngramMerge => (4, 1),
         }
     }

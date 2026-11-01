@@ -244,6 +244,16 @@ fn flip(x: &Arg) -> Arg {
     Arg { buf: Buf::Ws(other.into()), ..x.clone() }
 }
 
+/// Tokens a truncate / speculative rollback may cut while the rings still hold every row the window and the pending
+/// compressor group need (`SlotSpec::Ring::margin`): DSpark verifies blocks of 5, n-gram drafts a few more.
+pub const ROLLBACK_MARGIN: usize = 16;
+
+/// Rows of a compressor tail ring of ratio `r`: a multiple of `r` holding the `r - 1` pending tokens plus
+/// [`ROLLBACK_MARGIN`] (cutting `m` tokens re-opens a group whose first rows were written up to `m + r - 1` steps earlier).
+pub fn tail_rows(r: usize) -> usize {
+    r * (ROLLBACK_MARGIN + r).div_ceil(r)
+}
+
 /// Fixed slot indices of a layer.
 #[derive(Clone, Copy, Debug, Default)]
 struct LayerSlots {
@@ -260,7 +270,8 @@ fn slots(c: &Dsv41Config, act: DType) -> (Vec<SlotSpec>, Vec<LayerSlots>) {
     let mut ls = vec![LayerSlots::default(); c.n_layers];
     for (l, s) in ls.iter_mut().enumerate() {
         s.window = specs.len();
-        specs.push(SlotSpec::Ring { rows: c.window, width: c.head_dim, planes: 1, dtype: act, margin: 0, kind: RingKind::WindowKv });
+        let m = ROLLBACK_MARGIN;
+        specs.push(SlotSpec::Ring { rows: c.window + m, width: c.head_dim, planes: 1, dtype: act, margin: m, kind: RingKind::WindowKv });
         let _ = l;
     }
     for &src in &c.kv_source_layers {
@@ -268,7 +279,8 @@ fn slots(c: &Dsv41Config, act: DType) -> (Vec<SlotSpec>, Vec<LayerSlots>) {
         let readers: Vec<usize> = (0..c.n_layers).filter(|&l| c.kv_source(l) == Some(src)).collect();
         if r > 1 {
             ls[src].tail = Some(specs.len());
-            specs.push(SlotSpec::Ring { rows: r, width: c.head_dim, planes: 2, dtype: DType::F32, margin: 0, kind: RingKind::CompressTail });
+            let (rows, margin) = (tail_rows(r), ROLLBACK_MARGIN);
+            specs.push(SlotSpec::Ring { rows, width: c.head_dim, planes: 2, dtype: DType::F32, margin, kind: RingKind::CompressTail });
         }
         let cmp = specs.len();
         specs.push(SlotSpec::Shared { ratio: r, width: c.head_dim, dtype: act, writer: src, readers: readers.clone(), kind: SharedKind::CompressedKv });
@@ -311,10 +323,10 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
         // Engram (Transformer.forward, before the block): rows hashed on the host, fetched from the tier
         if let Some(e) = c.engram.as_ref().filter(|e| e.layer_ids.contains(&l)) {
             let cols = (e.max_ngram - 1) * e.n_heads;
-            let rows = arg(Buf::Host(format!("engram.{l}.rows")), DType::Fp8E4m3, &[t, cols, e.head_dim]);
-            let scales = arg(Buf::Host(format!("engram.{l}.scales")), DType::U8, &[t, cols, e.head_dim / 32]);
+            let rec = super::engram::record_bytes(e.head_dim);
+            let records = arg(Buf::Host(format!("engram.{l}.records")), DType::U8, &[t, cols, rec]);
             let emb = ws("engram.emb", act, &[t, cols * e.head_dim]);
-            b.push(Op::EngramGather, format!("{p}.engram.embed"), vec![rows, scales], vec![emb.clone()], OpAttrs::default());
+            b.push(Op::EngramGather, format!("{p}.engram.embed"), vec![records], vec![emb.clone()], OpAttrs::default());
             let kv = b.matmul(emb, &format!("{p}.engram.wkv"), Buf::Ws("engram.kv".into()), act)?;
             let (qw, kw) = (b.weight(&format!("{p}.engram.q_weight"))?, b.weight(&format!("{p}.engram.k_weight"))?);
             let y = flip(&x);
@@ -324,6 +336,13 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
         }
 
         // attention sub-block (Block.forward)
+        // DSpark tap (Transformer.forward, model.py:1269): the MTP head reads the mean over streams of the attention input of
+        // its target layers; a collapse with the constant mix 1/S. Recorded so the drafting lane only consumes it.
+        if let Some(j) = c.mtp.as_ref().and_then(|m| m.target_layer_ids.iter().position(|&tl| tl == l)) {
+            let mean = arg(Buf::Const("hc.mean_mix".into()), DType::F32, &[t, s]);
+            b.push(Op::HcPre, format!("{p}.dspark_tap"), vec![x.clone(), mean], vec![ws(&format!("main_hidden.{j}"), act, &[t, d])], OpAttrs::default());
+            blocks.push("dspark_tap".to_string());
+        }
         let [attn_pre, attn_post, attn_comb] = b.hc_mixes(&x, &format!("{p}.hc_attn"), "hc_attn")?;
         let a_in = ws("a", act, &[t, d]);
         b.push(Op::HcPre, format!("{p}.hc_pre(attn)"), vec![x.clone(), pre_mix.clone()], vec![a_in.clone()], OpAttrs::default());
@@ -379,7 +398,7 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv_rope".into()), &format!("{p}.rope(kv)"));
     let kv = b.qdq(Arg { shape: vec![t, hd], ..kv }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("kv_q".into()), &format!("{p}.act_quant(kv)"));
     let winbuf = ws("win", act, &[win + t, hd]);
-    let ring = arg(Buf::Slot { slot: ls.window, plane: 0, row0: 0 }, act, &[win, hd]);
+    let ring = arg(Buf::Slot { slot: ls.window, plane: 0, row0: 0 }, act, &[win + ROLLBACK_MARGIN, hd]);
     b.push(Op::WindowKv, format!("{p}.window_kv"), vec![kv], vec![winbuf.clone(), ring], OpAttrs { window: win, pos0, ..Default::default() });
 
     let (nk, groups) = if r > 0 { compressed_rows(pos0, t, r) } else { (0, 0) };
@@ -398,8 +417,8 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
                 let tail = ls.tail.expect("ratio > 1 sources have a tail ring");
                 let outs = vec![
                     ws("latent", act, &[groups, hd]),
-                    arg(Buf::Slot { slot: tail, plane: 0, row0: 0 }, DType::F32, &[r, hd]),
-                    arg(Buf::Slot { slot: tail, plane: 1, row0: 0 }, DType::F32, &[r, hd]),
+                    arg(Buf::Slot { slot: tail, plane: 0, row0: 0 }, DType::F32, &[tail_rows(r), hd]),
+                    arg(Buf::Slot { slot: tail, plane: 1, row0: 0 }, DType::F32, &[tail_rows(r), hd]),
                 ];
                 let mut a = OpAttrs { pos0, ..Default::default() };
                 a.dsv.ratio = r;

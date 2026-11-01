@@ -133,6 +133,12 @@ pub fn visible_rows(pos0: usize, t: usize, ratio: usize) -> usize {
     (pos0 + t + 1) / ratio.max(1)
 }
 
+/// Payload width of an Engram record of `r` bytes (`Dh` e4m3 bytes plus `Dh / 32` E8M0 scales, so `r = 33 * Dh / 32`);
+/// 0 when `r` is not such a width.
+pub fn engram_head_dim(r: usize) -> usize {
+    if r > 0 && r % 33 == 0 { r / 33 * 32 } else { 0 }
+}
+
 /// `(rows, positions)` of `Op::IndexerBlocks`' output for `n` compressed rows: `ceil(n / block)` blocks.
 pub fn n_blocks(n: usize, block: usize) -> usize {
     n.div_ceil(block.max(1))
@@ -418,14 +424,14 @@ pub fn check(call: &OpCall) -> Result<()> {
             float(&o[0], "y")?;
         }
         Op::EngramGather => {
-            rank(&i[0], 3, "rows")?;
-            rank(&i[1], 3, "scales")?;
-            let (t, c, dh) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
-            if dh % 32 != 0 || i[1].shape != [t, c, dh / 32] || o[0].shape != [t, c * dh] {
-                return bad(op, format!("rows {:?} scales {:?} y {:?}: need scales [T,C,Dh/32], y [T,C*Dh]", i[0].shape, i[1].shape, o[0].shape));
+            rank(&i[0], 3, "records")?;
+            let (t, c, r) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+            let dh = engram_head_dim(r);
+            if dh == 0 || o[0].shape != [t, c * dh] {
+                return bad(op, format!("records {:?} y {:?}: need records [T,C,Dh+Dh/32] (Dh a multiple of 32), y [T,C*Dh]", i[0].shape, o[0].shape));
             }
-            if i[0].dtype != DType::Fp8E4m3 || i[1].dtype != DType::U8 {
-                return bad(op, format!("rows must be fp8_e4m3 and scales u8 (e8m0), got {} / {}", i[0].dtype, i[1].dtype));
+            if i[0].dtype != DType::U8 {
+                return bad(op, format!("records must be u8 (e4m3 payload + E8M0 scales), got {}", i[0].dtype));
             }
             float(&o[0], "y")?;
         }
@@ -530,8 +536,8 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
         Op::EngramGather => {
             s.m = first(&i[0], 0);
             s.n = first(&i[0], 1);
-            s.k = first(&i[0], 2);
-            s.weight = Some(i[0].dtype);
+            s.k = engram_head_dim(first(&i[0], 2));
+            s.weight = Some(DType::Fp8E4m3);
         }
         _ => {}
     }
