@@ -159,6 +159,50 @@ pub fn load_runtime(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc<dyn 
     load_runtime_with(dir, backend, comm, o, None)
 }
 
+/// The router's `gate.bias` is f32 in the graph (the official Gate holds it in an f32 parameter); the Mia checkpoint
+/// stores the main layers' as F32 but the DSpark stages' (`mtp.{i}.ffn.gate.bias`) as F16. Upcast those at load
+/// (a few hundred bytes each), as the official load_state_dict does.
+fn upcast_f16_gate_biases(weights: &mut std::collections::HashMap<String, intarsia_core::backend::TensorRef>, shapes: &mut HeaderShapes, backend: &dyn Backend) -> Result<()> {
+    let names: Vec<String> = weights.iter().filter(|(k, t)| k.ends_with(".gate.bias") && t.dtype == DType::F16).map(|(k, _)| k.clone()).collect();
+    for n in names {
+        let t = &weights[&n];
+        let numel: usize = t.shape.iter().product();
+        let mut h = vec![0u8; 2 * numel];
+        backend.download(&t.buf, t.offset, &mut h, 0)?;
+        backend.synchronize(0)?;
+        let f: Vec<u8> = h.chunks_exact(2).flat_map(|b| f16_to_f32(u16::from_le_bytes([b[0], b[1]])).to_le_bytes()).collect();
+        let buf = backend.alloc(f.len().max(16), intarsia_core::backend::MemKind::Device)?;
+        backend.upload(&buf, 0, &f, 0)?;
+        backend.synchronize(0)?;
+        let shape = t.shape.clone();
+        if let Some(e) = shapes.0.get_mut(&n) {
+            e.0 = DType::F32;
+        }
+        weights.insert(n, intarsia_core::backend::TensorRef::new(buf, DType::F32, &shape));
+    }
+    Ok(())
+}
+
+fn f16_to_f32(h: u16) -> f32 {
+    let (sign, exp, man) = (((h >> 15) as u32) << 31, ((h >> 10) & 0x1f) as u32, (h & 0x3ff) as u32);
+    let bits = match (exp, man) {
+        (0, 0) => sign,
+        (0, m) => {
+            // subnormal: normalise
+            let mut e = 127 - 15 + 1;
+            let mut m = m;
+            while m & 0x400 == 0 {
+                m <<= 1;
+                e -= 1;
+            }
+            sign | ((e as u32) << 23) | ((m & 0x3ff) << 13)
+        }
+        (0x1f, m) => sign | 0x7f80_0000 | (m << 13),
+        (e, m) => sign | ((e + 127 - 15) << 23) | (m << 13),
+    };
+    f32::from_bits(bits)
+}
+
 /// [`load_runtime`] with the Engram inputs given (tests: a tier serving fixture rows) instead of the NVMe tier.
 pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc<dyn Comm>>, o: &Dsv41Opts, engram_override: Option<EngramInputs>) -> Result<(Dsv41Runtime, Manifest)> {
     let m = open_manifest(dir)?;
@@ -194,6 +238,7 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
     fuse_shared_experts_at(&*backend, &mut weights, &moes, cfg.dim)?;
     // vision / aligner tensors and anything else the text graph does not read stay on disk
     weights.retain(|k, _| !(k.starts_with("vision.") || k.starts_with("aligner.") || k.starts_with("image_")));
+    upcast_f16_gate_biases(&mut weights, &mut shapes, &*backend)?;
     let load_s = t0.elapsed().as_secs_f64();
     eprintln!("dsv41: rank {rank}/{world}: loaded {:.2} GiB of weights from {} in {load_s:.1} s ({:.2} GB/s)", gib(weight_bytes), dir.display(), weight_bytes as f64 / 1e9 / load_s.max(1e-9));
     let first_engram = cfg.engram.as_ref().and_then(|e| e.layer_ids.iter().min().copied());
@@ -683,5 +728,17 @@ impl Engine for Dsv41Engine {
     }
     fn failed(&self) -> Option<String> {
         self.failed.lock().unwrap().clone()
+    }
+}
+
+#[cfg(test)]
+mod f16_tests {
+    #[test]
+    fn f16_to_f32_matches_ieee() {
+        for (h, f) in [(0x3c00u16, 1.0f32), (0xc000, -2.0), (0x7bff, 65504.0), (0x0001, 2f32.powi(-24)), (0x0200, 2f32.powi(-15)), (0x8000, -0.0), (0x3555, 0.333_251_95)] {
+            assert_eq!(super::f16_to_f32(h).to_bits(), f.to_bits(), "{h:#06x}");
+        }
+        assert!(super::f16_to_f32(0x7e00).is_nan());
+        assert_eq!(super::f16_to_f32(0x7c00), f32::INFINITY);
     }
 }
