@@ -28,7 +28,7 @@
 //! | `MatmulMxfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), scales `[N,K/32]` u8 (e8m0), act `[1]` f32 (0 = 16-bit x, 1 = dynamic MXFP4 QDQ of x, 2 = dynamic per-token fp8 e4m3 x) | `[M,N]` (bf16/f16/f32) | see `quant::mxfp4` |
 //! | `MatmulMxfp4Pair` | x `[M,K]`, (w0 `[N0,K/2]` u8, scales0 `[N0,K/32]` u8), (w1 `[N1,K/2]` u8, scales1 `[N1,K/32]` u8), act `[1]` f32 | `[M,N0]`, `[M,N1]` (= two `MatmulMxfp4`s of the same x and act) | fused, see `quant::mxfp4` |
 //! | `MoeTopk` | router logits `[T,E]` | weights `[T,K]` f32, expert ids `[T,K]` i32 | top_k, norm_topk |
-//! | `MoeExperts` | x `[T,H]`, ids `[T,K]`, weights `[T,K]`, gate_up w `[E,2I,H/2]` u8, gate_up scales `[E,2I,H/16]` fp8, down w `[E,H,I/2]` u8, down scales `[E,H,I/16]` fp8, global `[E,3]` f32 | `[T,H]` | see `quant::moe` |
+//! | `MoeExperts` | x `[T,H]`, ids `[T,K]`, weights `[T,K]`, gate_up w `[E,2I,H/2]` u8, gate_up scales `[E,2I,H/16]` fp8, down w `[E,H,I/2]` u8, down scales `[E,H,I/16]` fp8, global `[E,3]` f32 | `[T,H]` | see `quant::moe`; or the EXL3 encoding (input 3 an i16 trellis arena, `quant::exl3_moe`) |
 //! | `MoeCombine` | routed `[T,H]`, shared `[T,H]`, shared-gate logit `[T,1]` | `[T,H]` | |
 //! | `GateSplit` | x `[T,N,2D]` (per head: `D` values then `D` gate values) | q `[T,N,D]`, gate `[T,N,D]` | |
 //! | `SigmoidMul` | a `[R,X]`, gate `[R,X]` | `[R,X]` (= a * sigmoid(gate)) | |

@@ -158,6 +158,8 @@ pub fn check(call: &OpCall) -> Result<()> {
                 return bad(op, "outputs must be weights f32 [T,K] and ids i32 [T,K]".into());
             }
         }
+        // the EXL3 encoding (input 3 an i16 trellis arena): quant::exl3_moe
+        Op::MoeExperts if i[3].dtype == DType::I16 => crate::quant::exl3_moe::check(call)?,
         Op::MoeExperts => {
             rank(&i[0], 2, "x")?;
             rank(&i[1], 2, "ids")?;
@@ -457,6 +459,7 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.experts = s.n;
             s.top_k = call.attrs.top_k;
         }
+        Op::MoeExperts if i[3].dtype == DType::I16 => crate::quant::exl3_moe::shape(call, s),
         Op::MoeExperts => {
             s.m = i[0].shape[0];
             s.k = i[0].shape[1]; // hidden

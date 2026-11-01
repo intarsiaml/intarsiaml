@@ -317,6 +317,23 @@ pub fn forward_block(xh: &[f64], m: usize, k: usize, n: usize, trellis: &[u8], s
     acc
 }
 
+/// [`forward`] of an f64 input (no f32 rounding of `x`).
+pub fn forward64(x: &[f64], m: usize, k: usize, n: usize, trellis: &[u8], suh: &[f64], svh: &[f64], k2: usize, cb: Codebook) -> Vec<f64> {
+    let mut xh: Vec<f64> = x.iter().zip(suh.iter().cycle()).map(|(a, s)| a * s).collect();
+    debug_assert_eq!(xh.len(), m * k);
+    for blk in xh.chunks_exact_mut(HAD) {
+        fwht128(blk);
+    }
+    let mut y = vec![0f64; m * n];
+    for nb in 0..n / HAD {
+        let blk = forward_block(&xh, m, k, n, trellis, svh, nb, k2, cb);
+        for mi in 0..m {
+            y[mi * n + nb * HAD..mi * n + nb * HAD + HAD].copy_from_slice(&blk[mi * HAD..(mi + 1) * HAD]);
+        }
+    }
+    y
+}
+
 /// `y = x @ W` `[m, n]` in f64 (the reference of `Op::MatmulExl3`), single-threaded.
 pub fn forward(x: &[f32], m: usize, k: usize, n: usize, trellis: &[u8], suh: &[f64], svh: &[f64], k2: usize, cb: Codebook) -> Vec<f64> {
     let xh = rotate_input(x, m, k, suh);
@@ -452,6 +469,70 @@ pub fn dequant_parts(parts: &[HostTensor]) -> Vec<f32> {
     dequant_t(&parts[0].data, &f16_bytes(&parts[1].data), &f16_bytes(&parts[2].data), k, n, k2, cb).into_iter().map(|v| v as f32).collect()
 }
 
+/// Shape, width and codebook of the EXL3 layer at `meta` (validated: an i16 trellis of an EXL3 width with K and N multiples of
+/// 128, at most one codebook marker holding the multiplier exllamav3 writes, no bias).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LayerMeta {
+    pub k: usize,
+    pub n: usize,
+    pub k2: usize,
+    pub cb: Codebook,
+}
+
+pub fn layer_meta(meta: &WeightMeta) -> Result<LayerMeta> {
+    let p = meta.prefix;
+    let fail = |why: String| Error::model(format!("exl3 '{p}': {why}"));
+    let ti = meta.info("trellis").ok_or_else(|| fail("no .trellis".into()))?;
+    if ti.dtype != DType::I16 || ti.shape.len() != 3 {
+        return Err(fail(format!("trellis must be i16 [K/16, N/16, 16*bits], got {} {:?}", ti.dtype, ti.shape)));
+    }
+    let k2 = k2_of(&ti.shape).ok_or_else(|| fail(format!("trellis last dim {} is no EXL3 width", ti.shape[2])))?;
+    let (k, n) = (16 * ti.shape[0], 16 * ti.shape[1]);
+    if k % HAD != 0 || n % HAD != 0 {
+        return Err(fail(format!("K={k} and N={n} must be multiples of {HAD} (the Hadamard blocks)")));
+    }
+    if meta.info("bias").is_some() {
+        return Err(Error::Unsupported(format!("exl3 '{p}': a bias next to the trellis is not implemented")));
+    }
+    // the codebook: at most one marker, and it must hold the multiplier exllamav3 writes
+    let mut cb = Codebook::Inst3;
+    for c in [Codebook::Mcg, Codebook::Mul1] {
+        let (suffix, want) = c.marker().unwrap();
+        if let Some(mi) = meta.info(suffix) {
+            if cb != Codebook::Inst3 {
+                return Err(fail("both mcg and mul1 markers".into()));
+            }
+            let b = meta.src.bytes(&format!("{p}.{suffix}"))?;
+            if mi.dtype != DType::I32 || b.len() != 4 || u32::from_le_bytes([b[0], b[1], b[2], b[3]]) != want {
+                return Err(fail(format!(".{suffix} marker must be the i32 scalar {want:#x}")));
+            }
+            cb = c;
+        }
+    }
+    if !valid_k2(k2, cb) {
+        return Err(fail(format!("{}-bit tiles need the mul1 codebook, found {}", k2 as f64 / 2.0, cb.name())));
+    }
+    Ok(LayerMeta { k, n, k2, cb })
+}
+
+/// f16 bytes of the scale vector `{prefix}.{full}` (or the packed signs `{prefix}.{packed}`, unpacked), elements
+/// `[off, off + len)` of its `total`.
+pub fn scale_bytes(meta: &WeightMeta, full: &str, packed: &str, total: usize, off: usize, len: usize) -> Result<Vec<u8>> {
+    let p = meta.prefix;
+    let fail = |why: String| Error::model(format!("exl3 '{p}': {why}"));
+    if let Some(i) = meta.info(full) {
+        if i.dtype != DType::F16 || i.shape != [total] {
+            return Err(fail(format!(".{full} must be f16 [{total}], got {} {:?}", i.dtype, i.shape)));
+        }
+        return Ok(meta.src.bytes(&format!("{p}.{full}"))?[2 * off..2 * (off + len)].to_vec());
+    }
+    let i = meta.info(packed).ok_or_else(|| fail(format!("no .{full} or .{packed}")))?;
+    if i.dtype != DType::I16 || i.shape != [total / 16] {
+        return Err(fail(format!(".{packed} must be i16 [{}], got {} {:?}", total / 16, i.dtype, i.shape)));
+    }
+    Ok(unpack_signs(meta.src.bytes(&format!("{p}.{packed}"))?)[2 * off..2 * (off + len)].to_vec())
+}
+
 /// The `exl3` quantisation format (ExLlamaV3 checkpoints, `quant_method = "exl3"`).
 pub struct Exl3;
 
@@ -466,56 +547,13 @@ impl QuantFormat for Exl3 {
 
     fn load(&self, meta: &WeightMeta, backend: &dyn Backend, opts: &QuantLoadOpts) -> Result<QTensor> {
         let p = meta.prefix;
-        let fail = |why: String| Error::model(format!("exl3 '{p}': {why}"));
-        let ti = meta.info("trellis").ok_or_else(|| fail("no .trellis".into()))?;
-        if ti.dtype != DType::I16 || ti.shape.len() != 3 {
-            return Err(fail(format!("trellis must be i16 [K/16, N/16, 16*bits], got {} {:?}", ti.dtype, ti.shape)));
-        }
-        let k2 = k2_of(&ti.shape).ok_or_else(|| fail(format!("trellis last dim {} is no EXL3 width", ti.shape[2])))?;
-        let (k, n) = (16 * ti.shape[0], 16 * ti.shape[1]);
-        if k % HAD != 0 || n % HAD != 0 {
-            return Err(fail(format!("K={k} and N={n} must be multiples of {HAD} (the Hadamard blocks)")));
-        }
-        if meta.info("bias").is_some() {
-            return Err(Error::Unsupported(format!("exl3 '{p}': a bias next to the trellis is not implemented")));
-        }
-        // the codebook: at most one marker, and it must hold the multiplier exllamav3 writes
-        let mut cb = Codebook::Inst3;
-        for c in [Codebook::Mcg, Codebook::Mul1] {
-            let (suffix, want) = c.marker().unwrap();
-            if let Some(mi) = meta.info(suffix) {
-                if cb != Codebook::Inst3 {
-                    return Err(fail("both mcg and mul1 markers".into()));
-                }
-                let b = meta.src.bytes(&format!("{p}.{suffix}"))?;
-                if mi.dtype != DType::I32 || b.len() != 4 || u32::from_le_bytes([b[0], b[1], b[2], b[3]]) != want {
-                    return Err(fail(format!(".{suffix} marker must be the i32 scalar {want:#x}")));
-                }
-                cb = c;
-            }
-        }
-        if !valid_k2(k2, cb) {
-            return Err(fail(format!("{}-bit tiles need the mul1 codebook, found {}", k2 as f64 / 2.0, cb.name())));
-        }
+        let LayerMeta { k, n, k2, cb } = layer_meta(meta)?;
         // tensor parallelism: this rank's (k range, n range) of the checkpoint `[K, N]` (see [`shard_ranges`])
         let ((k0, kl), (n0, nl)) = match opts.shard {
             Some(sh) => shard_ranges(k, n, sh, p)?,
             None => ((0, k), (0, n)),
         };
-        // f16 bytes of a scale vector (`full`, or the packed signs `packed` unpacked), elements `[off, off + len)` of `total`
-        let scale_bytes = |full: &str, packed: &str, total: usize, off: usize, len: usize| -> Result<Vec<u8>> {
-            if let Some(i) = meta.info(full) {
-                if i.dtype != DType::F16 || i.shape != [total] {
-                    return Err(fail(format!(".{full} must be f16 [{total}], got {} {:?}", i.dtype, i.shape)));
-                }
-                return Ok(meta.src.bytes(&format!("{p}.{full}"))?[2 * off..2 * (off + len)].to_vec());
-            }
-            let i = meta.info(packed).ok_or_else(|| fail(format!("no .{full} or .{packed}")))?;
-            if i.dtype != DType::I16 || i.shape != [total / 16] {
-                return Err(fail(format!(".{packed} must be i16 [{}], got {} {:?}", total / 16, i.dtype, i.shape)));
-            }
-            Ok(unpack_signs(meta.src.bytes(&format!("{p}.{packed}"))?)[2 * off..2 * (off + len)].to_vec())
-        };
+        let scale_bytes = |full: &str, packed: &str, total: usize, off: usize, len: usize| scale_bytes(meta, full, packed, total, off, len);
         let up = |b: &[u8], len: usize| -> Result<TensorRef> {
             Ok(TensorRef::new(upload_new(backend, b)?, DType::F16, &[len]))
         };
