@@ -132,7 +132,7 @@ Observations:
   turning coalescing off would lower the floor; all three knobs (APST, poll queues, coalescing) are root-only
   system settings, so they are not changed here: the user's call.
 - 4 KiB reads are as fast as 512 B ones at decode depths and faster at QD 24 sustained (p99.9 178 vs 415 us),
-  so the bench uses page granule. The device has headroom: 650K IOPS at QD 64.
+  so the bench uses page granule and `StoreConfig::default()` does too (`ReadGranule::Page`). The device has headroom: 650K IOPS at QD 64.
 - pread pool (16 threads) at 512 B, burst 24: 664 / 827 / 1025 us at gap 0, 1302 / 2030 / 2428 at 75 ms.
 
 ## Store end to end (`engram-bench token`, rank 1 of 2, both layers, 24 owned rows per token)
@@ -149,7 +149,7 @@ Final run, quiet disk (10 s before: 0 MiB read or written; at most 9 MiB written
 | packed, uniform random ids | 75 | 594 / 887 / 1286 / 1398 | 595 / 887 / 1286 | 0 % | 24.0 |
 | + touch 1 ms ahead | 16 | 195 / 368 / 449 / 519 | 195 / 389 / 449 | 0 % | 24.0 |
 | + touch 1 ms ahead | 75 | 194 / 407 / 529 / 974 | 195 / 416 / 697 | 0 % | 24.0 |
-| + touch + prefetch top-4 0.5 ms ahead (true token among them) | 75 | 21 / 39 / 104 / 557 | 21 / 39 / 104 | 0 % | 0.0 |
+| + touch + prefetch top-4 0.5 ms ahead (assumes 100 % top-4 recall) | 75 | 21 / 39 / 104 / 557 | 21 / 39 / 104 | 0 % | 0.0 |
 | packed, real text, no hot tier | 0 | 130 / 321 / 434 / 712 | 134 / 362 / 468 | 0 % | 20.0 |
 | packed, real text, no hot tier | 75 | 583 / 9642 / 10108 / 10505 | 584 / 9642 / 10108 | 0 % | 20.9 |
 | + touch 1 ms ahead | 75 | 123 / 236 / 336 / 456 | 138 / 263 / 456 | 0 % | 20.0 |
@@ -166,8 +166,10 @@ Final run, quiet disk (10 s before: 0 MiB read or written; at most 9 MiB written
 
 Findings:
 - **Touch every step.** Without it, layer 1 waits ~0.6 ms after a 75 ms gap (p99.9 1.3 ms), and when a step needs no
-  disk reads at all (hot tier or staging served everything) the following idle stretch is longer and the drive goes
-  into a deeper state: **~9.6 ms** for the next read (the p99 of 9.6 ms in the trace runs without touch; constant
+  disk reads at all (hot tier or staging served everything) the following idle stretch is longer and the next read
+  costs **~9.6 ms**: the idle-gap probe (`raw/raw-idle.json`, single 4 KiB read after an idle gap) gives p50 0.50-0.63 ms
+  after 50-100 ms idle and **9.67 ms after 150 ms or more**, so the drive enters a deep power state between 100 and
+  150 ms of idle (APST: `default_ps_max_latency_us=100000` permits it; turning APST down is a root-only system setting) (the p99 of 9.6 ms in the trace runs without touch; constant
   across runs, gone with touch). One 512 B read per step, about 1 ms before the ids are known, keeps p99 at
   0.24-0.41 ms and p99.9 at 0.33-0.53 ms at 16-75 ms gaps. It is cheap (one IO per step) and must be issued even
   when the step has no misses.
@@ -224,6 +226,8 @@ Engine side:
 1. Host, per sequence: `NgramState` (or `NgramHasher::hash` on the history) -> 24 row ids per layer per token.
 2. `touch()` about 1 ms before sampling finishes (start of the last layer or lm_head), then `issue` both layers the
    moment the ids are on the host. Optionally `prefetch` the rows of the top-k candidates / DSpark drafts.
+   Also `touch()` at request admission (well before prefill reaches layer 1) and keep touching every step while any
+   sequence is active: after a long idle the first read costs ~9.6 ms, which a 1 ms lead cannot hide.
 3. Split the captured graph at layers 1 and 14 (or poll a host flag from a device wait kernel) and `wait` between the
    segments; layer 14 has ~13 layers of slack.
 4. Rows other ranks own come back as zero payload; zero e4m3 bytes dequantize to exactly 0 whatever the scale, so the

@@ -39,6 +39,12 @@ impl NvmeEngramTier {
                 )));
             }
         }
+        // the tables must not go through the page cache (it is GPU memory on a unified-memory box)
+        if cfg!(target_os = "linux") {
+            if let Some(s) = store.shards().iter().find(|s| !s.direct()) {
+                return Err(Error::model(format!("engram tier: {} could not be opened with O_DIRECT", s.path.display())));
+            }
+        }
         let spin = store.config().spin;
         Ok(Self { layout: hash.layout().clone(), shard: EngramShard { rank, world }, owned, spin, store: Mutex::new(store) })
     }

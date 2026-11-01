@@ -44,7 +44,7 @@ impl Default for StoreConfig {
         Self {
             backend: BackendKind::Auto,
             depth: 256,
-            granule: ReadGranule::Sector,
+            granule: ReadGranule::Page,
             spin: Duration::from_millis(5),
             hot: HotTierConfig::default(),
             staging_rows: 16384,
