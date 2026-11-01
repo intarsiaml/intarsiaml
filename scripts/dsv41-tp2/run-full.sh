@@ -75,9 +75,12 @@ log "vLLM stopped on both"
   done ) > "$OUT/mem.log" 2>&1 & WATCH=$!
 
 TAG=$(date +%H%M)
-r spark2 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $BIN tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2 > $LOGD/worker-$TAG.log 2>&1 < /dev/null &"
+# NSYS=1: both ranks run under `nsys launch` (no collection until the nsys step starts a session)
+NL0=""; NL1=""
+if [[ ${NSYS:-0} == 1 ]]; then NL0="nsys launch --session-new=dsv41r0 --trace=cuda,nvtx"; NL1="${NL0/dsv41r0/dsv41r1}"; fi
+r spark2 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $NL1 $BIN tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2 > $LOGD/worker-$TAG.log 2>&1 < /dev/null &"
 sleep 2
-r spark1 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $BIN serve -m $C0 --backend cuda --tp 2 --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name dsv41-intarsia --no-supervisor --no-ui > $LOGD/serve-$TAG.log 2>&1 < /dev/null &"
+r spark1 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $NL0 $BIN serve -m $C0 --backend cuda --tp 2 --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name dsv41-intarsia --no-supervisor --no-ui > $LOGD/serve-$TAG.log 2>&1 < /dev/null &"
 log "ranks started (tag $TAG)"
 T0=$(date +%s); up=0
 while (( $(date +%s) - T0 < 900 )); do
@@ -118,6 +121,24 @@ for f in sorted(glob.glob(sys.argv[1]+"/chat-speed*.json")):
     d=json.load(open(f)); print(f.split("/")[-1], d.get("usage"), d.get("timings") or d.get("intarsia"))
 PY
   curl -s -m 5 "$SURL/metrics" | grep -E 'decode|prefill|ttft' | head -20 | tee -a "$OUT/steps.log"
+fi
+if [[ " $STEPS " == *" nsys "* && ${NSYS:-0} == 1 ]]; then
+  # one forced-length request under nsys on both ranks; per-step breakdown from each rank's GPU trace
+  NT=${NSYS_TOKENS:-48}
+  req() { curl -s -m 300 "$SURL/v1/completions" -H 'content-type: application/json' -d "{\"model\":\"dsv41-intarsia\",\"prompt\":\"The history of the printing press begins\",\"max_tokens\":$1,\"temperature\":0,\"ignore_eos\":true}" > "$OUT/nsys-req-$1.json"; }
+  req 16
+  r spark1 "nsys start --session=dsv41r0 -o $LOGD/nsys-r0-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  r spark2 "nsys start --session=dsv41r1 -o $LOGD/nsys-r1-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  t=$(date +%s); req $NT; log "nsys request: $NT tokens in $(( $(date +%s) - t )) s: $(head -c 300 "$OUT/nsys-req-$NT.json")"
+  r spark1 "nsys stop --session=dsv41r0" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  r spark2 "nsys stop --session=dsv41r1" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  for rk in 0 1; do
+    h=spark$((rk + 1))
+    r $h "nsys stats --report cuda_gpu_trace --format csv --output $LOGD/nsys-r$rk-$TAG $LOGD/nsys-r$rk-$TAG.nsys-rep > /dev/null 2>&1; ls -la $LOGD/nsys-r$rk-$TAG*" | tee -a "$OUT/steps.log"
+    scp -q "$h:intarsia-dsv41-tp2/logs/nsys-r$rk-$TAG*" "$OUT/" 2>/dev/null
+    f=$(ls "$OUT"/nsys-r$rk-$TAG*gpu_trace*.csv 2>/dev/null | head -1)
+    [[ -n $f ]] && { log "rank $rk breakdown:"; python3 "$S/nsys_breakdown.py" "$f" --tokens $((NT - 2)) | tee -a "$OUT/steps.log"; }
+  done
 fi
 # localeval (the fleet's harness, /opt/code/deepeval) inside this slot (FLEETQ_JOB is set): speed sweep and MMLU
 LE_RECIPE="intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
