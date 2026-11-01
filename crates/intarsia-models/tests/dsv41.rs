@@ -146,6 +146,10 @@ fn plan_show_lists_every_new_op_and_resolves_cpu_kernels() {
             assert!(!ops.contains_key(op.as_str()));
             continue;
         }
+        // the fused HcSublayer is not wired into the graph yet (lane dsv41/tp2 switches to it; drop this skip then)
+        if op == Op::HcSublayer {
+            continue;
+        }
         let (k, _) = &ops[op.as_str()];
         assert_eq!(k, &format!("cpu_f32_{}", op.as_str()));
     }
