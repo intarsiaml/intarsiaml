@@ -20,7 +20,7 @@ constexpr int kThreads = 256;
 constexpr int kWarps = kThreads / 32;
 constexpr int kChunk = 128;   // h elements per chunk: 32 lanes x 4
 constexpr int kTileRows = 16; // rows per block of the partial kernel
-constexpr int kTargetBlocks = 192;
+constexpr int kTargetBlocks = 1536;  // ~32 blocks per SM: the fold's staging is latency-bound
 constexpr int kRowsPerWarp = 4;  // projection rows (incl. the sum of squares) per warp: 8 warps x 4 >= (2+S)S + 1 = 25
 
 template <typename T> IK_DEVI T cvt(float v);
@@ -151,8 +151,7 @@ __global__ void __launch_bounds__(kThreads) hc_sub_finish(const Th* __restrict__
         for (int sp = 0; sp < nsplit; ++sp) v += part[(t * nsplit + sp) * (M + 1) + lane];
     sums[lane] = v;
     __syncwarp();
-    if (lane != 0) return;
-    hc_split_sinkhorn<S>(sums, (int64_t)S * D, scale, base, eps, iters, hc_eps, pre + t * S, post + t * S, comb + t * S * S);
+    hc_split_sinkhorn_warp<S>(sums, (int64_t)S * D, scale, base, eps, iters, hc_eps, pre + t * S, post + t * S, comb + t * S * S);
 }
 
 }  // namespace

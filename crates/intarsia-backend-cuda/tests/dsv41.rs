@@ -386,6 +386,45 @@ fn indexer_tiles_against_the_cpu_reference() {
     assert!(failed.is_empty(), "failed: {failed:?}");
 }
 
+/// indexer_topk's multi-block threshold select (T <= 16, Nk >= 16384) on every branch: candidates within the cap, the
+/// fallback to the one-block select when the k-th key's histogram bin is too full (-inf fill-ins when fewer than top_k rows
+/// are inside the candidates; all-equal scores), against the cpu reference exactly.
+#[test]
+fn indexer_select_paths_against_the_cpu_reference() {
+    let Some(cuda) = device() else { return };
+    let cpu = CpuBackend::new();
+    let mut failed = Vec::new();
+    for t in [1usize, 3] {
+        for what in ["random", "few candidates", "all ties"] {
+            let nk = 32768;
+            let pos0 = nk - t;
+            let nb = nk.div_ceil(8);
+            let mut rng = SplitMix64::new(0x5e1 ^ t as u64 ^ what.len() as u64);
+            let r = &mut rng;
+            let q = if what == "all ties" { HostTensor::zeros(BF, &[t, HI, DI]) } else { rand_t(r, BF, &[t, HI, DI], 1.0) };
+            let k = rand_t(r, BF, &[nk, DI], 1.0);
+            let w = rand_t(r, BF, &[t, HI], 1.0);
+            let cand = if what == "few candidates" {
+                let c: Vec<u8> = (0..t * nb).map(|j| ((j % nb) % 2000 == 7) as u8).collect();
+                HostTensor::new(DType::U8, vec![t, nb], c).unwrap()
+            } else {
+                HostTensor::zeros(DType::U8, &[0])
+            };
+            let mut at = OpAttrs { pos0, scale: 0.01, top_k: TOPK, ..OpAttrs::default() };
+            (at.dsv.ratio, at.dsv.block) = (1, 8);
+            let call = HostCall { op: Op::IndexerTopk, inputs: vec![q, k, w, cand], outputs: vec![out(DType::I32, &[t, TOPK])], attrs: at };
+            let want = run_host(&cpu, "ref_indexer_topk", &call).unwrap();
+            let got = run_host(&*cuda, "indexer_topk", &call).unwrap();
+            let same = got[0].data == want[0].data;
+            println!("{:<4} indexer_topk select T={t} Nk={nk} {what}", if same { "ok" } else { "FAIL" });
+            if !same {
+                failed.push(format!("T={t} {what}"));
+            }
+        }
+    }
+    assert!(failed.is_empty(), "failed: {failed:?}");
+}
+
 /// Upload a host call once (inputs, outputs, scratch) for repeated launches.
 fn device_call(b: &dyn Backend, kernel: &str, hc: &HostCall) -> (OpCall, usize) {
     let put = |t: &HostTensor| {

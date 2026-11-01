@@ -9,68 +9,48 @@ namespace dsv41 {
 
 IK_DEVI float sigmoidf_(float v) { return 1.f / (1.f + expf(-v)); }
 
-/* sums: the row's M = (2+S)S raw projections (fn @ x) and, at [M], sum(x^2) over its sd elements; writes pre / post [S],
- * comb [S*S] of the row. One thread. */
+/* hc_split_sinkhorn of one row, one warp: sums holds the row's M = (2+S)S raw projections (fn @ x) and, at [M], sum(x^2)
+ * over its sd elements; writes pre / post [S], comb [S*S] of the row. Lane l < S*S holds comb[l / S][l % S], lanes j < S compute pre[j] /
+ * post[j]. Every row / column sum gathers its S terms by shuffles in index order, so each f32 sum is formed in the reference's
+ * loop order (and so are the maxima). All 32 lanes must call it; sums is shared memory. */
 template <int S>
-IK_DEVI void hc_split_sinkhorn(const float* sums, int64_t sd, const float* __restrict__ scale, const float* __restrict__ base, float eps,
-                               int iters, float hc_eps, float* pre, float* post, float* comb) {
+IK_DEVI void hc_split_sinkhorn_warp(const float* sums, int64_t sd, const float* __restrict__ scale, const float* __restrict__ base, float eps,
+                                    int iters, float hc_eps, float* pre, float* post, float* comb) {
     constexpr int M = (2 + S) * S;
-    float mix[M];
+    const int lane = threadIdx.x & 31;
     const float rs = 1.f / sqrtf(sums[M] / (float)sd + eps);
-#pragma unroll
-    for (int j = 0; j < M; ++j) mix[j] = sums[j] * rs;
-    const float s0 = scale[0], s1 = scale[1], s2 = scale[2];
-#pragma unroll
-    for (int j = 0; j < S; ++j) {
-        pre[j] = sigmoidf_(mix[j] * s0 + base[j]) + hc_eps;
-        post[j] = 2.f * sigmoidf_(mix[S + j] * s1 + base[S + j]);
+    if (lane < S) {
+        pre[lane] = sigmoidf_(sums[lane] * rs * scale[0] + base[lane]) + hc_eps;
+        post[lane] = 2.f * sigmoidf_(sums[S + lane] * rs * scale[1] + base[S + lane]) ;
     }
-    float c[S * S];
+    const int l = lane < S * S ? lane : 0;
+    const int j = l / S, k = l % S;
+    float c = sums[2 * S + l] * rs * scale[2] + base[2 * S + l];
+    // softmax over the row, + eps
+    float mx = -INFINITY;
 #pragma unroll
-    for (int j = 0; j < S * S; ++j) c[j] = mix[2 * S + j] * s2 + base[2 * S + j];
-    // comb = softmax(comb, -1) + eps; comb = comb / (comb.sum(-2) + eps)
+    for (int kk = 0; kk < S; ++kk) mx = fmaxf(mx, __shfl_sync(0xffffffffu, c, j * S + kk));
+    c = expf(c - mx);
+    float sum = 0.f;
 #pragma unroll
-    for (int j = 0; j < S; ++j) {
-        float mx = -INFINITY;
+    for (int kk = 0; kk < S; ++kk) sum += __shfl_sync(0xffffffffu, c, j * S + kk);
+    c = c / sum + hc_eps;
+    // column normalisation
+    sum = 0.f;
 #pragma unroll
-        for (int k = 0; k < S; ++k) mx = fmaxf(mx, c[j * S + k]);
-        float sum = 0.f;
-#pragma unroll
-        for (int k = 0; k < S; ++k) {
-            c[j * S + k] = expf(c[j * S + k] - mx);
-            sum += c[j * S + k];
-        }
-#pragma unroll
-        for (int k = 0; k < S; ++k) c[j * S + k] = c[j * S + k] / sum + hc_eps;
-    }
-#pragma unroll
-    for (int k = 0; k < S; ++k) {
-        float sum = 0.f;
-#pragma unroll
-        for (int j = 0; j < S; ++j) sum += c[j * S + k];
-#pragma unroll
-        for (int j = 0; j < S; ++j) c[j * S + k] /= sum + hc_eps;
-    }
+    for (int jj = 0; jj < S; ++jj) sum += __shfl_sync(0xffffffffu, c, jj * S + k);
+    c /= sum + hc_eps;
     for (int it = 1; it < iters; ++it) {
+        sum = 0.f;
 #pragma unroll
-        for (int j = 0; j < S; ++j) {
-            float sum = 0.f;
+        for (int kk = 0; kk < S; ++kk) sum += __shfl_sync(0xffffffffu, c, j * S + kk);
+        c /= sum + hc_eps;
+        sum = 0.f;
 #pragma unroll
-            for (int k = 0; k < S; ++k) sum += c[j * S + k];
-#pragma unroll
-            for (int k = 0; k < S; ++k) c[j * S + k] /= sum + hc_eps;
-        }
-#pragma unroll
-        for (int k = 0; k < S; ++k) {
-            float sum = 0.f;
-#pragma unroll
-            for (int j = 0; j < S; ++j) sum += c[j * S + k];
-#pragma unroll
-            for (int j = 0; j < S; ++j) c[j * S + k] /= sum + hc_eps;
-        }
+        for (int jj = 0; jj < S; ++jj) sum += __shfl_sync(0xffffffffu, c, jj * S + k);
+        c /= sum + hc_eps;
     }
-#pragma unroll
-    for (int j = 0; j < S * S; ++j) comb[j] = c[j];
+    if (lane < S * S) comb[lane] = c;
 }
 
 }  // namespace dsv41

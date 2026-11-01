@@ -55,11 +55,12 @@ fn hc_mixes_scratch(s: &ShapeInfo) -> usize {
 // ---- hc_sublayer split policy (mirrors `hc_sub_nsplit` in kernels/cuda/dsv41_hc_sub.cu) ----
 const HC_SUB_TILE_ROWS: usize = 16;
 const HC_SUB_CHUNK: usize = 128;
+const HC_SUB_TARGET_BLOCKS: usize = 1536;
 
 /// Splits of hc_sublayer's partial kernel for `rows` rows of `sd` flattened elements.
 pub fn hc_sub_nsplit(rows: usize, sd: usize) -> usize {
     let tiles = rows.div_ceil(HC_SUB_TILE_ROWS).max(1);
-    HC_TARGET_BLOCKS.div_ceil(tiles).clamp(1, sd.div_ceil(HC_SUB_CHUNK).max(1))
+    HC_SUB_TARGET_BLOCKS.div_ceil(tiles).clamp(1, sd.div_ceil(HC_SUB_CHUNK).max(1))
 }
 
 /// hc_sublayer scratch: f32 partials `[T, nsplit, (2+S)S + 1]` (ShapeInfo: m = T, n = S, k = D).
@@ -91,12 +92,25 @@ pub const INDEX_SCORE_BUDGET: usize = 128 << 20;
 /// Indexer scratch: one tile of head-summed score rows. A decode step needs `4 Nk` bytes (512 KiB at Nk = 128K); a prefill
 /// chunk is cut into tiles of `INDEX_SCORE_BUDGET / (4 Nk)` queries, so the buffer never exceeds the budget (or one row).
 /// The launcher takes as many query rows per tile as the scratch it is given holds, so any buffer of at least `4 Nk` bytes
-/// serves a call (ShapeInfo: m = T, kv_len = Nk).
+/// serves a call. `indexer_topk` with few long rows (T <= 16, Nk >= 16384) also gets the multi-block threshold select's
+/// buffers (histogram, candidates: 41 KiB per row); without them it falls back to the one-block select (ShapeInfo: m = T,
+/// kv_len = Nk).
 pub fn index_scratch(s: &ShapeInfo) -> usize {
     let row = s.kv_len.max(1) * 4;
     let rows = (INDEX_SCORE_BUDGET / row).clamp(1, s.m.max(1));
-    rows * row
+    let mut bytes = rows * row;
+    if s.m <= INDEX_FAST_ROWS && s.kv_len >= INDEX_FAST_MIN_N {
+        bytes = bytes.div_ceil(256) * 256 + s.m * INDEX_FAST_EXTRA_PER_ROW + INDEX_FAST_SLACK;
+    }
+    bytes
 }
+
+// ---- the multi-block threshold select (mirrors kernels/cuda/dsv41_index.cu: kFastRows, kFastMinN, fast_extra) ----
+const INDEX_FAST_ROWS: usize = 16;
+const INDEX_FAST_MIN_N: usize = 16384;
+/// Histogram (2048 u32) + meta (16 B) + candidates (4096 x 8 B) per row.
+const INDEX_FAST_EXTRA_PER_ROW: usize = 2048 * 4 + 16 + 4096 * 8;
+const INDEX_FAST_SLACK: usize = 1024;
 
 fn pow2_le(v: usize, max: usize) -> bool {
     v.is_power_of_two() && v <= max
@@ -339,7 +353,8 @@ mod tests {
     #[test]
     fn index_scratch_holds_a_row_and_stays_in_budget() {
         let s = |m, nk| ShapeInfo { m, kv_len: nk, ..ShapeInfo::default() };
-        assert_eq!(index_scratch(&s(1, 131072)), 131072 * 4);
+        assert_eq!(index_scratch(&s(1, 4096)), 4096 * 4);
+        assert_eq!(index_scratch(&s(1, 131072)), 131072 * 4 + INDEX_FAST_EXTRA_PER_ROW + INDEX_FAST_SLACK);
         assert_eq!(index_scratch(&s(4096, 131072)), INDEX_SCORE_BUDGET);
         assert_eq!(index_scratch(&s(4096, 1 << 26)), (1 << 26) * 4, "one row at least");
         for nk in (1..300_000).step_by(997) {
@@ -351,7 +366,7 @@ mod tests {
     #[test]
     fn hc_sub_nsplit_policy() {
         assert_eq!(hc_sub_nsplit(1, 4 * 5120), 160);
-        assert_eq!(hc_sub_nsplit(4096, 4 * 5120), 1);
+        assert_eq!(hc_sub_nsplit(4096, 4 * 5120), 6);
         assert_eq!(hc_sub_nsplit(17, 256), 2);
     }
 

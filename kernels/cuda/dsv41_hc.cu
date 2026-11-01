@@ -74,8 +74,8 @@ __global__ void __launch_bounds__(kThreads) hc_mix_partial(const T* __restrict__
     }
 }
 
-// one warp per row: lane j sums split column j in split order; lane 0 then runs the split and hc_split_sinkhorn with S a
-// compile-time constant (registers only)
+// one warp per row: lane j sums split column j in split order; the warp then runs the split and the Sinkhorn
+// (hc_split_sinkhorn_warp, one lane per comb entry, S a compile-time constant)
 template <int S>
 __global__ void hc_mix_finish(const float* __restrict__ part, int64_t rows, int64_t sd, int nsplit, const float* __restrict__ scale,
                               const float* __restrict__ base, float eps, int iters, float hc_eps, float* __restrict__ pre,
@@ -90,8 +90,7 @@ __global__ void hc_mix_finish(const float* __restrict__ part, int64_t rows, int6
         for (int sp = 0; sp < nsplit; ++sp) v += part[(r * nsplit + sp) * (M + 1) + lane];
     sm[wi][lane] = v;
     __syncwarp();
-    if (lane != 0) return;
-    hc_split_sinkhorn<S>(sm[wi], sd, scale, base, eps, iters, hc_eps, pre + r * S, post + r * S, comb + r * S * S);
+    hc_split_sinkhorn_warp<S>(sm[wi], sd, scale, base, eps, iters, hc_eps, pre + r * S, post + r * S, comb + r * S * S);
 }
 
 template <typename Ti, typename To>
