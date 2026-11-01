@@ -288,6 +288,26 @@ fn cache_split_reassembly_rename_experts_and_load() {
     let _ = std::fs::remove_dir_all(&root);
 }
 
+/// Parts larger than one 64 MiB read chunk: tensors that straddle chunk boundaries, tiny and empty ones in between.
+#[test]
+fn loader_streams_tensors_across_chunk_boundaries() {
+    let root = tmp("chunks");
+    let src_dir = root.join("src");
+    std::fs::create_dir_all(&src_dir).unwrap();
+    let mut c = Ckpt { t: BTreeMap::new(), rng: SplitMix64::new(11) };
+    for (i, n) in [3usize << 20, 70 << 20, 1, 5 << 20, 0, 64 << 20, 9, 130 << 20, 3 << 20].iter().enumerate() {
+        let d = c.rand(*n);
+        c.put(&format!("a{i}.weight"), DType::U8, &[*n], d);
+    }
+    let ts: Vec<(&str, &HostTensor)> = c.t.iter().map(|(k, v)| (k.as_str(), v)).collect();
+    write_safetensors(&src_dir.join("model.safetensors"), &ts).unwrap();
+    std::fs::copy(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/dsv41/mia_headers/config.json"), src_dir.join("config.json")).unwrap();
+    let out = root.join("cache");
+    build_rank_cache(&src_dir, &out, &BuildOpts::new(0, 1, None)).unwrap();
+    check_load(&out);
+    let _ = std::fs::remove_dir_all(&root);
+}
+
 /// Loader throughput on a real cache: `INTARSIA_DSV41_CACHE=<dir> cargo test --release -p intarsia-models --test dsv41_cache -- --ignored --nocapture`.
 #[test]
 #[ignore]

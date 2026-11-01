@@ -1111,9 +1111,8 @@ fn load_part(path: &Path, backend: &dyn Backend, out: &mut HashMap<String, Tenso
                     break;
                 }
             }
-            if free_tx.send(buf).is_err() {
-                break;
-            }
+            // the reader may already have finished (and dropped its end) while chunks are still queued: not an error
+            let _ = free_tx.send(buf);
         }
         if res.is_ok() && ti < ts.len() {
             res = Err(err(format!("{}: stream ended before '{}'", path.display(), ts[ti].name)));
