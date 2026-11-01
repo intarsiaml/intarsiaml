@@ -615,6 +615,10 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                     push(format!("T={t} E={e} K={k} H={h} I={i} {dt} gelu"), c);
                 }
             }
+            // the EXL3 encoding (i16 trellis arena; only kernels taking i16 weights accept these), from its own stream so the
+            // NVFP4 cases above stay the same
+            let mut xrng = SplitMix64::new(cfg.seed ^ 0xE813_E8E8);
+            crate::quant::exl3_moe::sweep_cases(cfg, &mut xrng, &mut push);
         }
         Op::MoeCombine => {
             for &t in if quick { &[1usize, 5][..] } else { &[1usize, 5, 33][..] } {
@@ -862,6 +866,9 @@ pub fn label(call: &OpCall, caps: &ShapeCaps) -> Option<String> {
     if call.op == Op::MatmulExl3 {
         return Some(crate::quant::exl3::label(call, caps));
     }
+    if crate::quant::exl3_moe::is_exl3(call) {
+        return Some(crate::quant::exl3_moe::label(call, caps));
+    }
     let (i, o) = (&call.inputs, &call.outputs);
     let s = match call.op {
         Op::MatmulFp8 => format!(
@@ -1019,6 +1026,9 @@ fn plan_act(call: &OpCall) -> Mxfp4Act {
 pub fn case_from_call(call: &OpCall, caps: &ShapeCaps, rng: &mut SplitMix64) -> Option<(HostCall, String)> {
     if call.op == Op::MatmulExl3 {
         return Some(crate::quant::exl3::case_from_call(call, caps, rng));
+    }
+    if crate::quant::exl3_moe::is_exl3(call) {
+        return Some(crate::quant::exl3_moe::case_from_call(call, caps, rng));
     }
     let label = label(call, caps)?;
     let (i, o) = (&call.inputs, &call.outputs);
