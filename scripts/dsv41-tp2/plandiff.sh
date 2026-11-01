@@ -33,7 +33,7 @@ if [[ ${EXL3:-0} == 1 ]]; then
   for d in qwen3-8b-exl3-4.0bpw qwen3-8b-exl3-4.0bpw-bf16plain; do
     m=/home/nvidia/models-m2/$d
     for b in base tp2; do
-      bin=~/intarsia-dsv41-tp2/bin/intarsia; [[ $b == base ]] && bin=~/intarsia-dsv41-tp2/bin/intarsia-base
+      bin='$HOME/intarsia-dsv41-tp2/bin/intarsia'; [[ $b == base ]] && bin='$HOME/intarsia-dsv41-tp2/bin/intarsia-base'
       r1 "$bin plan show -m $m --backend cuda 2>&1" > "$OUT/$d-$b.txt" || true
       r1 "$bin generate -m $m --backend cuda -p 'The sky appears blue because' --max-tokens 32 2>&1 | grep -vE 'loaded|finish=|steps=|prefill chunk'" > "$OUT/$d-$b-gen.txt" || true
     done
