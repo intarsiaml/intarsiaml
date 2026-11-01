@@ -181,13 +181,13 @@ Decode step of the Mia checkpoint (`plan show`, cpu, position 4095), steps per s
 | Stage | Steps | What differs |
 |---|---|---|
 | embed | 2 | `Embedding`, `HcExpand` |
-| layers 0, 3-7, 9-13, 15-19, 21-23, 25-27, 29-31, 33-35 | 39 | window (+ shared compressed KV and indices from their sources on 3-39) |
-| layer 1 | 42 | + Engram (`EngramGather`, `MatmulExl3`, `EngramMerge`) |
-| layers 2, 8 | 54 | + compressor ratio 2 (2 f32 `MatmulExl3`, `CompressPool`), index keys, indexer |
-| layer 14 | 57 | 2 / 8 plus Engram |
-| layer 20 | 53 | compressor ratio 1 (one `MatmulExl3`), index keys, `IndexerBlocks`, indexer |
-| layers 24, 28, 32, 36 | 44 | indexer in layer 20's candidates (no own keys) |
-| layers 37-39 | 40 | + DSpark tap (`HcPre` with the mean mix) |
+| layers 0, 3-7, 9-13, 15-19, 21-23, 25-27, 29-31, 33-35 | 38 | window (+ shared compressed KV and indices from their sources on 3-39) |
+| layer 1 | 41 | + Engram (`EngramGather`, `MatmulExl3`, `EngramMerge`) |
+| layers 2, 8 | 53 | + compressor ratio 2 (2 f32 `MatmulExl3`, `CompressPool`), index keys, indexer |
+| layer 14 | 56 | 2 / 8 plus Engram |
+| layer 20 | 52 | compressor ratio 1 (one `MatmulExl3`), index keys, `IndexerBlocks`, indexer |
+| layers 24, 28, 32, 36 | 43 | indexer in layer 20's candidates (no own keys) |
+| layers 37-39 | 39 | + DSpark tap (`HcPre` with the mean mix) |
 | head | 3 | `HcPre`, `RmsNorm`, `MatmulExl3` (f32 logits) |
 
 1653 steps per decode step; 622 of them `MatmulExl3`, 40 `MoeExperts` (EXL3 encoding). No stub op on this checkpoint.
@@ -220,11 +220,73 @@ ops by name; the numbers below are what `Op as usize` returns and what admission
 - Layer 20's own top-k is not masked by its candidates; only the later index sources (24..36) mask.
 - Hyper-connections need four ops (expand, mixes, pre, post), and each sub-block collapses with the previous sub-block's
   pre-mix.
-- Activation fake-quantisation is part of the math: the window KV and the attention output go through e4m3 per 32
-  (ue8m0), the compressed KV through e2m1 per 16 with e4m3 scales, index keys and queries through e2m1 per 32 (ue8m0):
-  `ActQdq`. The attention output is de-rotated before `wo_a`. YaRN changes only the frequencies (no mscale).
+- Activation fake-quantisation is part of the math: the window KV (whole 512-wide row) goes through e4m3 per 32 (ue8m0),
+  the compressed KV (rotated first, whole 512-wide row) through e2m1 per 16 with e4m3 scales, index keys and queries
+  through e2m1 per 32 (ue8m0): `ActQdq`. The attention output goes through e4m3 per 32 before `wo_a` **only for the FP8
+  base checkpoint** (`model.py:785`, `quant == "official"` in the fixtures); the Mia EXL3 checkpoint, TensorFold and the
+  committed fixtures do not (layer-0 `o_lora` disagrees with the fixture by 2.5e-2 with it, 2.5e-6 without), so the
+  graph inserts that step for `Dsv41Quant::Fp8` only. The attention output is de-rotated before `wo_a`. YaRN changes only
+  the frequencies (no mscale).
 - The Mia EXL3 checkpoint has no Engram tables (`config.json` `engram_table_dir: null`, no `engram.embed` tensors): they
   have to come from the base (FP8 + E8M0, 2 x ~98 GB). Its other non-EXL3 tensors: norms (bf16), hc weights, attention
   sinks, router bias (f32), router weight and `weights_proj` (f16), embedding (bf16).
 - `gate.bias_vl` is the vision-language routing bias for image-span tokens (`Gate.forward`), unused text-only.
 - `MatmulFp8` does not cover the base's FP8 (block E8M0 scales, dynamic activation quantisation): new `MatmulFp8Block`.
+
+## Parity with the official code (lane 1b)
+
+Every cpu reference op is checked against DeepSeek's official `model.py` / `kernel.py` / `engram.py` through the fixtures in
+`golden/dsv41/` (generator `tools/dsv41/fixtures.py`, which runs the official code on CPU with torch emulations of the
+tilelang kernels; the emulations are not bit-checked against the GPU kernels). Run `cargo test -p intarsia-backend-cpu
+--test dsv41_parity --test dsv41_chunked -- --nocapture` for the `PARITY ...` rows; tolerance is `max |got - ref| / max |ref|`.
+
+| Op | Fixture | Result (max abs error / max abs ref) | Tolerance |
+|---|---|---|---|
+| `ActQdq` (fp8 b32 ue8m0, fp4 b32 e8m0, fp4 b16 e4m3) | `ops` (4096 values each) | bit-exact | 0 |
+| `HcMixes` (sigmoid split, 20 Sinkhorn rounds) | `ops` `sinkhorn/*` (32 rows) | pre 7.2e-8, post 9e-8, comb 1.4e-7 | 1e-6 |
+| `HcPre`, `HcPost` | `ops` `hc_pre`/`hc_post` (bf16); layer-2 taps (prefill and decode); fp32 chain | bf16 6.4e-9 and 3.0e-3 (6 of 81,920 values round to the neighbouring bf16: one ulp); layer-2 taps <= 4.9e-5; fp32 chain 1.3e-7 | 4e-3 / 1e-5 |
+| `MoeRoute` (`bias`, `bias_vl`) | layer-2 router logits, 16 tokens (7 image rows, all 7 route differently under `bias_vl`) | all expert sets equal; weights 1.0e-7 | 1e-5 |
+| `SiluGluClamp`, `GroupedMatmul`, `Transpose01` | naive transcriptions of `Expert.forward` / `einsum` | exact | 1e-6 |
+| `RopeTail` | `ops` rope plain + compressed_yarn: tables at positions up to 1,048,575, rows at 5, 6, 7, 70000, forward and inverse; layer-2 `o_sparse -> o_unrot` | tables 3.0e-8 (cos/sin), rows bit-exact | 1e-5 / 4e-3 |
+| `RopeTail` then `ActQdq` on compressed rows | layer-2 `latent_pre_rope -> latent` taps | bit-exact (e2m1 per 16 with e4m3 scales over the whole 512-wide row, after the rotation) | 0 |
+| `WindowKv`, `CompressPool` (ratio 2, partial groups) | naive `_window_kv` / `Compressor.forward`; chunks 5,20,1,1,13 and 7,1,1,2 | exact | 1e-6 |
+| `IndexerBlocks` | `ops` `select_candidate_blocks` (rows of 20,000 / 15,000 / 3,000 / 9) | identical kept blocks | exact |
+| `IndexerTopk` | layer-2 selections (16 prefill rows + 2 decode steps); tie rule below | identical | exact |
+| `AttnSparse` | `sparse_attn_4k_{bf16,fp32}` (real layer-2 data: 10 / 8 rows at positions 0 .. 4094, window 128 + up to 512 compressed rows, 64 heads, sink); synthetic with `-1` and an all-masked row | bf16 5.3e-3, fp32 6.7e-7, synthetic 4.8e-3 (all-masked row exactly 0) | 8e-3 / 1e-5 / 8e-3 |
+| `EngramMerge` / `EngramGather` | layer-1 taps (`engram.in/kv/out`, `engram.rows`) | 4.1e-7 (6 of 327,680 values differ, by 3.8e-6 absolute: bf16 rounding of near-zero values) / exact | 1e-6 / 0 |
+| layers 0, 1, 2 (graph + ops; routed experts and Engram rows taken from the fixture) | `layers_{bf16,fp32}`, prefill 16 + decode at 16 and 17, real Mia weights | bf16 1.4e-3 .. 5.5e-3 per layer output (rms 1.5e-3 .. 3.2e-3); fp32 1.9e-7 .. 6.3e-6 | 1e-2 / 1e-4 |
+
+Why the bf16 tolerances are not zero: the official sparse attention rounds the softmax probabilities to bf16 before `P @ V`
+(`kernel.py:380`; the reference keeps them in f64 and rounds the output once), and the bf16 hidden states round at every
+sub-block, so two correct implementations differ by a few bf16 ulps of the largest value. fp32 flows agree to ~1e-6 (the ops
+compute in f64 and round to f32; torch accumulates in f32).
+
+Behaviour the tests pin that the op table leaves implicit:
+
+- `AttnSparse` always attends the query's own window key (`window >= 1`, the key at position `pos0 + t`), so an all-masked row
+  (zeros) can only come from a call that leaves the window out, as the official kernel's synthetic fixture does; the
+  reference returns zeros for a row without keys (`keys.is_empty()`).
+- The compressed latent is `RmsNorm -> RopeTail (pos_stride = ratio, first position of the group) -> ActQdq (e2m1, 16, e4m3)`,
+  index keys `wk -> RmsNorm -> RopeTail -> ActQdq (e2m1, 32, ue8m0)`; `attn.idxs` of the official code indexes
+  `[window ring 128 | chunk | compressed]` (compressed row `idx - 144` in a 16-row prefill, `idx - 129` in a decode step).
+- Chunked == whole, decode-after-prefill == prefill-all and a rollback of up to the ring margin (16) are bit-identical
+  for the op chain window KV -> compressor (ratio 1, 2, 3) -> index compressor -> indexer top-k (with and without candidate
+  blocks) -> sparse attention -> de-rotation (`dsv41_chunked.rs`), and layer 2 through the real graph and weights is
+  bit-identical across chunk schedules (`dsv41_layers.rs`). The official code is not (bf16 matmul batch shape: 6.9e-3 relative
+  between prefill(N) and prefill(N-3)+3 decode); the engine's kernels must be, because speculative verification compares
+  the verify pass with the decode it replaces. A ring without the rollback margin is detected as unsafe by the same tests.
+
+### Indexer top-k tie-breaking
+
+`torch.topk(sorted=False)` leaves equal scores in an unspecified order; on the 4,095-token layer-2 run its picks differ from a
+stable descending sort in 1,013 of 4,095 rows, all of them equal-score swaps at the cut. The engine's rule is explicit and
+shared by `IndexerTopk`, `IndexerBlocks` (block scores) and `MoeRoute` (expert scores): **the `top_k` highest scores win;
+equal scores are resolved to the lowest row (block, expert) index; the winners are returned in ascending row order, unreachable
+fill-ins (`-inf`, row `>= (pos0 + t + 1) / ratio`) as `-1` after the real picks.** The result then depends only on the
+scores, not on the chunking, the thread count or the sort algorithm. The tests compare against an independent stable sort
+(`indexer_topk_tie_break_is_lowest_index_and_deterministic`, data tied at the cut) and against the official picks on the
+layer-2 fixture rows with fewer visible rows than `index_topk` (every visible row selected, `indexer_topk_matches_layer2_selection`).
+Not yet done: the SET comparison against the official `topk(sorted=False)` on the 4,095-row run needs the real indexer
+scores (`tools/dsv41/fixtures.py indexer4k` writes them with both selections; it needs ~35 GB and the Mia weights on
+spark1, queue slot not obtained in the lane's time; the test then asserts equal sets whenever the official pick has no tie at
+the cut, and for the 1,013 tie rows that both picks are optimal and differ only inside the tied value).
