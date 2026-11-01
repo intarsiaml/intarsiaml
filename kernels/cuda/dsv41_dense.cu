@@ -10,6 +10,7 @@
 // part order. WPO is a function of N only and R does not enter a row's sum, so a row's bits do not depend on M or on its
 // place in the batch (decode == prefill bit for bit). The scalar kernel is the fallback for other K / alignments.
 #include "dsv41_common.cuh"
+#include <cstdlib>
 
 using namespace dsv41;
 
@@ -141,11 +142,21 @@ void launch_vec(const X* x, const __half* w, Y* y, int M, int N, int K, cudaStre
     }
 }
 
+static int f16w_rows() {
+    static int r = -1;
+    if (r < 0) {
+        const char* e = getenv("INTARSIA_DSV41_F16W_ROWS");
+        r = (e && e[0] == '1' && e[1] == 0) ? 1 : 16;
+    }
+    return r;
+}
+
 template <typename X, typename Y>
 int dense_f16w_typed(const X* xp, const __half* wp, Y* yp, int64_t M, int64_t N, int64_t K, bool vec, cudaStream_t s) {
     if (vec) {
-        // R = 1 for decode (no idle row registers), 16 rows per weight read in prefill
-        if (M == 1) launch_vec<X, Y, 1>(xp, wp, yp, (int)M, (int)N, (int)K, s);
+        // R = 1 for decode (no idle row registers), 16 rows per weight read in prefill. INTARSIA_DSV41_F16W_ROWS=1 keeps
+        // R = 1 at every M (diagnosis; R never enters a row's sum, so the bits are the same either way)
+        if (M == 1 || f16w_rows() == 1) launch_vec<X, Y, 1>(xp, wp, yp, (int)M, (int)N, (int)K, s);
         else launch_vec<X, Y, 16>(xp, wp, yp, (int)M, (int)N, (int)K, s);
     } else {
         dim3 grid((unsigned)cdiv(N, kWarps), (unsigned)M);

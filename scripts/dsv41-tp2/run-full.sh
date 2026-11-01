@@ -87,8 +87,8 @@ log "ranks started (tag $TAG)"
 T0=$(date +%s); up=0
 while (( $(date +%s) - T0 < 900 )); do
   curl -sf -m 5 "$SURL/health" >/dev/null && { up=1; break; }
-  r spark1 "pgrep -f '[i]ntarsia-dsv41-tp2/bin/intarsia serve' >/dev/null" || { log "rank 0 exited"; break; }
-  r spark2 "pgrep -f '[i]ntarsia-dsv41-tp2/bin/intarsia tp-worker' >/dev/null" || { log "rank 1 exited"; break; }
+  r spark1 "pgrep -f '[i]ntarsia-dsv41-tp2/bin/intarsia[^ ]* serve' >/dev/null" || { log "rank 0 exited"; break; }
+  r spark2 "pgrep -f '[i]ntarsia-dsv41-tp2/bin/intarsia[^ ]* tp-worker' >/dev/null" || { log "rank 1 exited"; break; }
   sleep 5
 done
 log "serve up=$up after $(( $(date +%s) - T0 )) s"
@@ -130,6 +130,12 @@ if [[ " $STEPS " == *" neartie_fresh "* ]]; then
   log "near-tie probe (fresh): $NT_TF vs $OUT/tok-intarsia-tp2.st"
   python3 "$S/neartie.py" "${NT_TF:-/opt/code/intarsiaml/.worktrees/dsv41-golden-tf/tok-tensorfold-mia.st}" "$OUT/tok-intarsia-tp2.st" "$SURL/v1" dsv41-intarsia "$OUT/neartie-fresh.md" 2>&1 | tee -a "$OUT/steps.log"
 fi
+# prefillprof (with XENV="INTARSIA_DSV41_OPPROF=1 INTARSIA_DSV41_PROFILE=32"): one ~4K-token prompt + 40 tokens, then the
+# per-kernel device-time table of rank 0 (multi-row = the prefill chunks, one-row = decode; a sync after every step)
+if [[ " $STEPS " == *" prefillprof "* ]]; then
+  chat prefillprof 40 "Summarize the following notes in one sentence. $(python3 -c 'print(" ".join(f"Note {i}: the lighthouse lamp was checked and the log was signed." for i in range(300)))')"
+  sleep 2; r spark1 "grep -aA26 'dsv41 opprof (multi-row' $LOGD/serve-$TAG.log | tail -27; grep -aA26 'dsv41 opprof (one-row' $LOGD/serve-$TAG.log | tail -27" | tee -a "$OUT/steps.log"
+fi
 if [[ " $STEPS " == *" speed "* ]]; then
   for n in 1 2; do chat speed$n 512 "Explain how a transformer language model generates text, in detail."; done
   python3 - "$OUT" <<'PY' | tee -a "$OUT/steps.log"
@@ -142,7 +148,10 @@ fi
 if [[ " $STEPS " == *" nsys "* && ${NSYS:-0} == 1 ]]; then
   # one forced-length request under nsys on both ranks; per-step breakdown from each rank's GPU trace
   NT=${NSYS_TOKENS:-48}
-  req() { curl -s -m 300 "$SURL/v1/completions" -H 'content-type: application/json' -d "{\"model\":\"dsv41-intarsia\",\"prompt\":\"The history of the printing press begins\",\"max_tokens\":$1,\"temperature\":0,\"ignore_eos\":true}" > "$OUT/nsys-req-$1.json"; }
+  # NSYS_LONG=1: the measured request has a ~4K-token prompt (prefill under nsys); the warm-up stays short
+  NP="The history of the printing press begins"
+  req() { local p=$NP; [[ $1 != 16 && ${NSYS_LONG:-0} == 1 ]] && p="$(python3 -c 'print(" ".join(f"Note {i}: the lighthouse lamp was checked and the log was signed." for i in range(300)))') The history of the printing press begins"
+    curl -s -m 300 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":sys.argv[2],"max_tokens":int(sys.argv[1]),"temperature":0,"ignore_eos":True}))' "$1" "$p")" > "$OUT/nsys-req-$1.json"; }
   req 16
   r spark1 "nsys start --session=dsv41r0x$TAG -o $LOGD/nsys-r0-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
   r spark2 "nsys start --session=dsv41r1x$TAG -o $LOGD/nsys-r1-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
@@ -161,7 +170,7 @@ fi
 LE_RECIPE="intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
 le() { ( cd /opt/code/deepeval && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run localeval "$@" --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "$LE_RECIPE" ) 2>&1 | tee "$OUT/le-$1-$(date +%H%M%S).log" | tail -40 | tee -a "$OUT/steps.log"; }
 if [[ " $STEPS " == *" lspeed "* ]]; then
-  le speed --sizes 128,1024,4096,16384 --gen 128 --reps 3 --label dsv41-intarsia-tp2-speed${LSUF:-}
+  le speed --sizes ${LSIZES:-128,1024,4096,16384} --gen 128 --reps ${LREPS:-3} --label dsv41-intarsia-tp2-speed${LSUF:-}
 fi
 if [[ " $STEPS " == *" mmlu "* ]] && [[ " $STEPS " == *" greedy "* ]] && ! grep -qi paris "$OUT/chat-capital.json"; then
   log "chat check failed (no 'Paris' in the capital answer): skipping MMLU"; STEPS="${STEPS/mmlu/}"
@@ -186,10 +195,12 @@ if [[ -n ${AB:-} ]]; then
     OUT=$OUT0/ab$i; mkdir -p "$OUT"; LSUF=-ab$i
     v="STEPS_AB$i"; STEPS_SAVE=$STEPS; STEPS=${!v:-$STEPS}
     v="NSYS_AB$i"; NSYS_SAVE=${NSYS:-0}; NSYS=${!v:-$NSYS_SAVE}
-    log "config ab$i: $cfg; steps: $STEPS; nsys $NSYS"
+    # BIN_ABi: another binary for this config (same path prefix, so kill_ours and the watcher still match it)
+    v="BIN_AB$i"; BIN_SAVE=$BIN; BIN=${!v:-$BIN}
+    log "config ab$i: $cfg; steps: $STEPS; nsys $NSYS; bin $BIN"
     start_ranks "$cfg"
     run_steps
-    STEPS=$STEPS_SAVE; NSYS=$NSYS_SAVE
+    STEPS=$STEPS_SAVE; NSYS=$NSYS_SAVE; BIN=$BIN_SAVE
     kill_ours; log "config ab$i done"
     i=$((i + 1))
   done
