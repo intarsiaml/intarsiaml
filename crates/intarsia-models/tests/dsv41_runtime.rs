@@ -421,3 +421,67 @@ fn speculative_greedy_equals_plain_greedy() {
         assert_eq!(plain, spec, "speculative greedy differs from plain greedy at token {lead}");
     }
 }
+
+/// Teacher-forced check of the verify path: one state decodes a fixed continuation one token a pass; a second runs, at
+/// every position, a verify pass `[token, 3 drafts]` and rolls back after it, the drafts alternately wrong (rejected:
+/// keep 1 row) and right (accepted: keep all 4 rows, the next pass starts 4 tokens on). Each kept verify row's logits
+/// are compared with the decoding state's logits at the same position, so trajectories never part. cpu f32: equal to
+/// 1e-5; cuda bf16: printed per position (the position past the 128-row window ring and the first ratio-128 group
+/// included) with a loose bound. `INTARSIA_DSV41_CACHE` as above with its DSpark sub-cache; Engram off.
+#[test]
+fn verify_rows_track_decode_through_rollback() {
+    let Some(cache) = std::env::var_os("INTARSIA_DSV41_CACHE").map(PathBuf::from) else {
+        println!("skipped: set INTARSIA_DSV41_CACHE (with its mtp sub-cache)");
+        return;
+    };
+    let cuda = std::env::var("INTARSIA_DSV41_BACKEND").as_deref() == Ok("cuda");
+    let act = if cuda || std::env::var("INTARSIA_DSV41_ACT").as_deref() == Ok("bf16") { DType::Bf16 } else { DType::F32 };
+    let backend: Arc<dyn Backend> = if cuda { cuda_backend() } else { intarsia_backend_cpu::CpuBackend::arc() };
+    let o = Dsv41Opts { cap: 512, chunk: 64, engram_dir: PathBuf::from("off"), hot_mb: 0, act, spec: true };
+    let (rt, _) = load_runtime_with(&cache, backend, None, &o, None).unwrap();
+    let toks = |n: usize, s: usize| -> Vec<u32> { (0..n).map(|i| [301u32, 270, 8331, 1205, 778, 12345, 1137, 15, 3000, 4321][(i * 7 + i / 10 + s) % 10]).collect() };
+    let (prompt, cont) = (toks(110, 0), toks(64, 3));
+    let rel = |a: &[f32], b: &[f32]| -> f64 {
+        let (mut d, mut n) = (0f64, 0f64);
+        for (x, y) in a.iter().zip(b) {
+            d += ((x - y) as f64).powi(2);
+            n += (*x as f64).powi(2);
+        }
+        (d / n.max(1e-30)).sqrt()
+    };
+    // reference: decode one token a pass; logits[i] predicts cont[i + 1] after cont[..=i]
+    let mut sa = rt.new_state().unwrap();
+    rt.forward(&mut sa, &prompt, false).unwrap();
+    let want: Vec<Vec<f32>> = cont.iter().map(|&c| rt.forward(&mut sa, &[c], true).unwrap().unwrap()).collect();
+    let mut sb = rt.new_state().unwrap();
+    rt.forward(&mut sb, &prompt, false).unwrap();
+    let (mut i, mut round, mut worst, mut worst_at) = (0usize, 0usize, 0f64, 0usize);
+    let mut argmax_diff = Vec::new();
+    while i + 4 <= cont.len() {
+        let accept = round % 2 == 1;
+        let ids: Vec<u32> = if accept { cont[i..i + 4].to_vec() } else { vec![cont[i], 99, 98, 97] };
+        let len0 = sb.len;
+        let rows = rt.forward_rows(&mut sb, &ids).unwrap();
+        let keep = if accept { 4 } else { 1 };
+        for (k, row) in rows.iter().take(keep).enumerate() {
+            let r = rel(&want[i + k], row);
+            let am = |v: &[f32]| v.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)).map(|(j, _)| j).unwrap();
+            if am(row) != am(&want[i + k]) {
+                argmax_diff.push(prompt.len() + i + k);
+            }
+            if r > worst {
+                (worst, worst_at) = (r, prompt.len() + i + k);
+            }
+            println!("VERIFY pos {} ({}, row {k}): rel_rms {r:.3e}", prompt.len() + i + k, if accept { "accepted" } else { "rejected" });
+        }
+        sb.truncate(len0 + keep, &*rt.backend).unwrap();
+        i += keep;
+        round += 1;
+    }
+    println!("VERIFY worst rel_rms {worst:.3e} at position {worst_at}; argmax differs at {argmax_diff:?}");
+    if act == DType::F32 && !cuda {
+        assert!(worst < 1e-5 && argmax_diff.is_empty(), "f32 verify rows differ from decode: {worst:.3e} at {worst_at}");
+    } else {
+        assert!(worst < 0.1, "verify rows far from decode: {worst:.3e} at {worst_at}");
+    }
+}
