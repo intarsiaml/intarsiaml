@@ -30,7 +30,7 @@ fn quantise(dtype: DType, v: &[f64]) -> Vec<f64> {
     back.into_iter().map(|x| x as f64).collect()
 }
 
-fn rmsnorm_rows(x: &[f64], w: &[f64], eps: f64, w_offset: f64) -> Result<Vec<f64>> {
+pub(crate) fn rmsnorm_rows(x: &[f64], w: &[f64], eps: f64, w_offset: f64) -> Result<Vec<f64>> {
     let d = w.len();
     if d == 0 {
         return Err(Error::invalid("rmsnorm: zero-width weight"));
@@ -57,7 +57,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::ShortConv => crate::gdn_ref::run(call),
         Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
         Op::MatmulExl3 => crate::exl3_ref::run(call),
-        Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge => crate::dsv41_ref::run(call),
+        Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41_ref::run(call),
         Op::MatmulPair
         | Op::MatmulFp8Pair
         | Op::MatmulMxfp4Pair

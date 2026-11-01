@@ -53,6 +53,7 @@
 //! | `MatmulFp8Block` | x `[M,K]`, w `[N,K]` e4m3, w_scale `[ceil(N/b),K/b]` u8 (E8M0) | `[M,N]` (activations quantised to e4m3 per b first) | dsv.block |
 //! | `EngramGather` | records `[T,C,Dh+Dh/32]` u8 (per row: Dh e4m3 bytes, then Dh/32 E8M0 scale bytes; 264 B for Dh 256) | `[T,C*Dh]` | |
 //! | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)*D]` (S keys, one value), q_w `[S,D]`, k_w `[S,D]` | `[T,S,D]` (h + gate * value per stream) | eps |
+//! | `HcSublayer` | x `[T,S,D]`, fn, scale, base (as `HcMixes`), pre_in `[T,S]` f32, norm_w `[D]`, then post_x `[T,D]`, post_mix `[T,S]` f32, post_comb `[T,S,S]` f32 or three `[0]` | n `[T,D]` (= `RmsNorm(HcPre(h, pre_in), norm_w)`), pre, post, comb (= `HcMixes(h)`), h_out `[T,S,D]` or `[0]`; h = x, or with the fold `HcPost(post_x, x, post_mix, post_comb)` written to h_out | eps, w_offset, dsv.iters, dsv.hc_eps |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
 //! | `MatmulPair` | x `[M,K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | `[M,N0]`, `[M,N1]` (= two `Matmul`s of one x) | fused decode GEMV pair, see `quant::fused` |
@@ -182,10 +183,14 @@ pub enum Op {
     EngramGather,
     /// Engram: gated merge of the n-gram value into every residual stream.
     EngramMerge,
+    /// DeepSeek-V4.1 fused hyper-connection sublayer entry (decode win, lane cuda-attn): `HcMixes` + Sinkhorn on the streams,
+    /// their collapse with the previous sublayer's pre-mix (`HcPre`) and the sublayer norm (`RmsNorm`) in one op; optionally
+    /// first the previous sublayer's `HcPost` (the fold). Exactly the sequence of those ops (docs/design/dsv41-ops.md).
+    HcSublayer,
 }
 
 impl Op {
-    pub const ALL: [Op; 62] = [
+    pub const ALL: [Op; 63] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -248,6 +253,7 @@ impl Op {
         Op::MatmulFp8Block,
         Op::EngramGather,
         Op::EngramMerge,
+        Op::HcSublayer,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -315,6 +321,7 @@ impl Op {
             Op::MatmulFp8Block => "matmul_fp8_block",
             Op::EngramGather => "engram_gather",
             Op::EngramMerge => "engram_merge",
+            Op::HcSublayer => "hc_sublayer",
         }
     }
 
@@ -385,6 +392,7 @@ impl Op {
             Op::MatmulFp8Block => (3, 1),
             Op::EngramGather => (1, 1),
             Op::EngramMerge => (4, 1),
+            Op::HcSublayer => (9, 5),
         }
     }
 }
@@ -882,7 +890,7 @@ impl OpCall {
             | Op::MatmulMxfp4Pair => crate::quant::ops::check(self)?,
             Op::MatmulExl3 => crate::quant::exl3::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
-            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge => crate::dsv41::ops::check(self)?,
+            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::check(self)?,
         }
         Ok(())
     }
@@ -1043,7 +1051,7 @@ impl ShapeInfo {
             | Op::MatmulMxfp4Pair => crate::quant::ops::shape(call, &mut s),
             Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
-            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge => crate::dsv41::ops::shape(call, &mut s),
+            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::shape(call, &mut s),
         }
         let _ = o;
         s
@@ -1287,12 +1295,12 @@ mod tests {
         assert_eq!(Op::GeluGlu as usize, 41, "appended at the end, in this order");
         assert_eq!(Op::DynConv as usize, 42, "appended at the end, in this order");
         assert_eq!(Op::ShortConv as usize, 43, "appended at the end, in this order");
-        // the DeepSeek-V4.1 block (lane 1a): absolute discriminants 44..=61, in `dsv41::ops::OPS` order, last in `Op::ALL`
+        // the DeepSeek-V4.1 block (lane 1a): absolute discriminants 44..=62, in `dsv41::ops::OPS` order, last in `Op::ALL`
         for (j, op) in crate::dsv41::ops::OPS.iter().enumerate() {
             assert_eq!(*op as usize, 44 + j, "{op}");
             assert_eq!(Op::ALL[44 + j], *op);
         }
-        assert_eq!(Op::ALL.last(), Some(&Op::EngramMerge), "the last of the DSv4.1 block");
+        assert_eq!(Op::ALL.last(), Some(&Op::HcSublayer), "the last of the DSv4.1 block");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

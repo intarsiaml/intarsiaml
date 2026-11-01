@@ -55,6 +55,35 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     let at = OpAttrs { eps: 1e-20, ..a };
                     push(format!("T={t} S={s} D={d} {dt}"), op, inputs, vec![out(DType::F32, &[t, s]), out(DType::F32, &[t, s]), out(DType::F32, &[t, s, s])], at);
                 }
+                Op::HcSublayer => {
+                    let m = (2 + s) * s;
+                    for fold in [false, true] {
+                        let mut inputs = vec![
+                            rand_t(rng, dt, &[t, s, d], 1.0),
+                            rand_t(rng, DType::F32, &[m, s * d], 0.05),
+                            rand_t(rng, DType::F32, &[3], 0.5),
+                            rand_t(rng, DType::F32, &[m], 0.5),
+                            rand_t(rng, DType::F32, &[t, s], 0.7),
+                            rand_t(rng, dt, &[d], 1.0),
+                        ];
+                        let h_out = if fold {
+                            inputs.extend([rand_t(rng, dt, &[t, d], 1.0), rand_t(rng, DType::F32, &[t, s], 1.0), rand_t(rng, DType::F32, &[t, s, s], 0.5)]);
+                            out(dt, &[t, s, d])
+                        } else {
+                            inputs.extend([HostTensor::zeros(dt, &[0]), HostTensor::zeros(DType::F32, &[0]), HostTensor::zeros(DType::F32, &[0])]);
+                            out(dt, &[0])
+                        };
+                        let mut at = OpAttrs { eps: 1e-6, ..a.clone() };
+                        (at.dsv.iters, at.dsv.hc_eps) = (20, 1e-6);
+                        push(
+                            format!("T={t} S={s} D={d} fold={fold} {dt}"),
+                            op,
+                            inputs,
+                            vec![out(dt, &[t, d]), out(DType::F32, &[t, s]), out(DType::F32, &[t, s]), out(DType::F32, &[t, s, s]), h_out],
+                            at,
+                        );
+                    }
+                }
                 Op::HcPre => push(
                     format!("T={t} S={s} D={d} {dt}"),
                     op,
@@ -126,6 +155,26 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
                 Op::AttnSparse => {
                     let (h, w, nc, kc) = (4, 8, 12, 5);
+                    // DeepSeek-V4.1's per-rank head shape (32 heads of 512, the 128-token window): the tensor-core path of
+                    // the CUDA kernel (heads a multiple of 16), split-KV for T <= 16 and the direct prefill write above
+                    {
+                        let (h, d, w, nc, kc, pos0) = (32, 512, 128, 80, 64, 140);
+                        let idx: Vec<i32> = (0..t * kc).map(|_| (rng.next_u64() % (nc as u64 + 8)) as i32 - 8).map(|v| v.max(-1)).collect();
+                        let at = OpAttrs { window: w, pos0, scale: (d as f32).powf(-0.5), ..a.clone() };
+                        push(
+                            format!("T={t} H={h} D={d} W={w} Nc={nc} Kc={kc} pos0={pos0} {dt}"),
+                            op,
+                            vec![
+                                rand_t(rng, dt, &[t, h, d], 1.0),
+                                rand_t(rng, dt, &[w + t, d], 1.0),
+                                rand_t(rng, dt, &[nc, d], 1.0),
+                                HostTensor::from_i32(&[t, kc], &idx),
+                                rand_t(rng, DType::F32, &[h], 1.0),
+                            ],
+                            vec![out(dt, &[t, h, d])],
+                            at,
+                        );
+                    }
                     for pos0 in [0, 10] {
                         let idx: Vec<i32> = (0..t * kc).map(|_| (rng.next_u64() % (nc as u64 + 3)) as i32 - 3).map(|v| v.max(-1)).collect();
                         let at = OpAttrs { window: w, pos0, scale: 0.125, ..a.clone() };
@@ -160,6 +209,24 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     }
                 }
                 Op::IndexerBlocks | Op::IndexerTopk => {
+                    // DeepSeek-V4.1's indexer shape (32 heads of 128, candidate blocks of 8): the CUDA tensor-core score
+                    for (ratio, pos0) in [(1, 300), (2, 600)] {
+                        let (hi, di, block) = (32, 128, 8);
+                        let (nk, _) = compressed_rows(pos0, t, ratio);
+                        let mut at = OpAttrs { pos0, scale: (di as f32).powf(-0.5) * (hi as f32).powf(-0.5), ..a.clone() };
+                        (at.dsv.ratio, at.dsv.block) = (ratio, block);
+                        let mut inputs = vec![rand_t(rng, dt, &[t, hi, di], 1.0), rand_t(rng, dt, &[nk, di], 1.0), rand_t(rng, dt, &[t, hi], 1.0)];
+                        let nb = n_blocks(nk, block);
+                        let (label, outputs) = if op == Op::IndexerBlocks {
+                            at.top_k = 12;
+                            (format!("T={t} Hi={hi} Di={di} Nk={nk} ratio={ratio} B={block} keep=12 pos0={pos0} {dt}"), vec![out(DType::U8, &[t, nb])])
+                        } else {
+                            at.top_k = 64;
+                            inputs.push(bytes_t(rng, DType::U8, &[t, nb], |v| (v % 4 != 0) as u8));
+                            (format!("T={t} Hi={hi} Di={di} Nk={nk} ratio={ratio} topk=64 pos0={pos0} cand=true {dt}"), vec![out(DType::I32, &[t, 64.min(nk)])])
+                        };
+                        push(label, op, inputs, outputs, at);
+                    }
                     let (hi, di, block) = (4, 32, 4);
                     for (ratio, pos0) in [(1, 0), (2, 30), (1, 40)] {
                         let (nk, _) = compressed_rows(pos0, t, ratio);

@@ -144,6 +144,7 @@ pub const UNIMPLEMENTED: &[Op] = &[
     Op::MatmulFp8Block,
     Op::EngramGather,
     Op::EngramMerge,
+    Op::HcSublayer,
 ];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the

@@ -97,6 +97,40 @@ fn cases(t: usize, pos: usize, nk_ratio1: usize) -> Vec<(String, &'static str, H
             attrs: a.clone(),
         },
     ));
+    for fold in [false, true] {
+        let mut at = OpAttrs { eps: 1e-20, ..a.clone() };
+        (at.dsv.iters, at.dsv.hc_eps) = (20, 1e-6);
+        let mut inputs = vec![
+            rand_t(r, BF, &[t, S, D], 1.0),
+            rand_t(r, DType::F32, &[m, S * D], 0.01),
+            rand_t(r, DType::F32, &[3], 0.5),
+            rand_t(r, DType::F32, &[m], 0.5),
+            rand_t(r, DType::F32, &[t, S], 0.7),
+            rand_t(r, BF, &[D], 1.0),
+        ];
+        let h_out = if fold {
+            inputs.extend([rand_t(r, BF, &[t, D], 1.0), rand_t(r, DType::F32, &[t, S], 1.0), rand_t(r, DType::F32, &[t, S, S], 0.5)]);
+            out(BF, &[t, S, D])
+        } else {
+            inputs.extend([HostTensor::zeros(BF, &[0]), HostTensor::zeros(DType::F32, &[0]), HostTensor::zeros(DType::F32, &[0])]);
+            out(BF, &[0])
+        };
+        v.push((
+            format!("hc_sublayer fold={fold} T={t}"),
+            "hc_sublayer",
+            HostCall {
+                op: Op::HcSublayer,
+                inputs,
+                outputs: vec![out(BF, &[t, D]), out(DType::F32, &[t, S]), out(DType::F32, &[t, S]), out(DType::F32, &[t, S, S]), h_out],
+                attrs: at,
+            },
+        ));
+    }
+    v.push((
+        format!("rmsnorm (separate path) T={t}"),
+        "rmsnorm_bf16",
+        HostCall { op: Op::RmsNorm, inputs: vec![rand_t(r, BF, &[t, D], 1.0), rand_t(r, BF, &[D], 1.0)], outputs: vec![out(BF, &[t, D])], attrs: OpAttrs { eps: 1e-20, ..a.clone() } },
+    ));
     v.push((
         format!("moe_route T={t} E={E} K=6"),
         "moe_route",
