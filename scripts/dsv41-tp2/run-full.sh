@@ -125,6 +125,11 @@ if [[ " $STEPS " == *" golden "* ]]; then
       --base-url $SURL/v1 --model dsv41-intarsia --no-draft-field --tokenizer "$TOK" --out "$OUT/tok-intarsia-tp2.st" \
       --note "intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') TP=2 cap ${CAP:-32768} chunk ${CHUNK:-512}" ) 2>&1 | tee -a "$OUT/steps.log"
 fi
+if [[ " $STEPS " == *" neartie_fresh "* ]]; then
+  # the same probe against this run's own golden tokens ($OUT/tok-intarsia-tp2.st from the golden step)
+  log "near-tie probe (fresh): $NT_TF vs $OUT/tok-intarsia-tp2.st"
+  python3 "$S/neartie.py" "${NT_TF:-/opt/code/intarsiaml/.worktrees/dsv41-golden-tf/tok-tensorfold-mia.st}" "$OUT/tok-intarsia-tp2.st" "$SURL/v1" dsv41-intarsia "$OUT/neartie-fresh.md" 2>&1 | tee -a "$OUT/steps.log"
+fi
 if [[ " $STEPS " == *" speed "* ]]; then
   for n in 1 2; do chat speed$n 512 "Explain how a transformer language model generates text, in detail."; done
   python3 - "$OUT" <<'PY' | tee -a "$OUT/steps.log"
