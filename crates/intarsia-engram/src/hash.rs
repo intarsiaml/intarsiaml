@@ -202,6 +202,13 @@ impl NgramState {
         self.hist = [token, self.hist[0], self.hist[1]];
     }
 
+    /// Row ids a candidate next token would need, without appending it (for speculative
+    /// [`crate::EngramStore::prefetch`] of the top-k candidates before sampling).
+    pub fn peek(&self, layout: &HashLayout, token: Option<u32>, out: &mut [u64]) {
+        let mut s = *self;
+        s.push(layout, token, out);
+    }
+
     /// Forget the history (a new sequence).
     pub fn reset(&mut self) {
         *self = Self::default();
