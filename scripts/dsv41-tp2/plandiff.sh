@@ -19,9 +19,9 @@ for m in 35b:$M35 8b:$M8; do
   n=${m%%:*}; d=${m#*:}
   rsh "~/intarsia-dsv41-tp2/src-base/target/release/intarsia plan show -m $d --backend cuda 2>&1" > "$OUT/$n-base.txt" || true
   rsh "~/intarsia-dsv41-tp2/bin/intarsia plan show -m $d --backend cuda 2>&1" > "$OUT/$n-tp2.txt" || true
-  if diff -q <(grep -v -iE 'built|stamp|took|ms\b' "$OUT/$n-base.txt") <(grep -v -iE 'built|stamp|took|ms\b' "$OUT/$n-tp2.txt") >/dev/null; then
+  if diff -q <(grep -v -iE 'built|stamp|took|loaded in|ms\b' "$OUT/$n-base.txt") <(grep -v -iE 'built|stamp|took|loaded in|ms\b' "$OUT/$n-tp2.txt") >/dev/null; then
     echo "$n: plan show unchanged ($(wc -l < "$OUT/$n-tp2.txt") lines)"
   else
-    echo "$n: plan show DIFFERS"; diff "$OUT/$n-base.txt" "$OUT/$n-tp2.txt" | head -40
+    echo "$n: plan show DIFFERS"; { diff "$OUT/$n-base.txt" "$OUT/$n-tp2.txt" | head -40; true; }
   fi
 done
