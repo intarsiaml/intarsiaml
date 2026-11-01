@@ -21,7 +21,7 @@ const MUL1: u32 = 0x83DC_D12D;
 const MCG: u32 = 0xCBAC_1FED;
 
 fn tmp(name: &str) -> PathBuf {
-    let d = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../.scratch/cache-agent").join(format!("{name}-{}", std::process::id()));
+    let d = Path::new(env!("CARGO_TARGET_TMPDIR")).join(format!("dsv41-cache-{name}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     d
