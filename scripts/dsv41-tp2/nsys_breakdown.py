@@ -34,9 +34,16 @@ def load(path):
 
 
 def short(name):
-    n = name.split("(")[0].split("<")[0]
+    n = name.replace("<unnamed>::", "").replace("(anonymous namespace)::", "")
     if n.startswith("void "):
         n = n[5:]
+    if n.startswith("["):
+        return n
+    # drop the argument list and template arguments (the first '(' or '<' after the name)
+    for i, ch in enumerate(n):
+        if ch in "(<":
+            n = n[:i]
+            break
     if "nccl" in n.lower():
         return "nccl:" + n.split("_")[1] if "_" in n else n
     return n.split("::")[-1]
@@ -49,15 +56,23 @@ def main():
     split_us = float(args[args.index("--split-us") + 1]) if "--split-us" in args else 2000.0
     rows = load(path)
     steps, cur, last_end = [], [], None
+    by_gather = any("AllGather" in n for _, _, n, _ in rows)
     for s, d, n, k in rows:
-        if last_end is not None and (s - last_end) / 1e3 > split_us and cur:
+        if not by_gather and last_end is not None and (s - last_end) / 1e3 > split_us and cur:
             steps.append(cur)
             cur = []
         cur.append((s, d, n, k))
         last_end = max(last_end or 0, s + d)
-    if cur:
+        if by_gather and "AllGather" in n:
+            # rank 0 downloads the logits right after the gather: keep that copy in this pass
+            steps.append(cur)
+            cur = []
+    if cur and not by_gather:
         steps.append(cur)
-    print(f"{len(rows)} GPU ops, {len(steps)} steps split at gaps > {split_us:.0f} us")
+    elif cur and steps and all(k == "memcpy" for _, _, _, k in cur):
+        steps[-1].extend(cur)
+    how = "the logits all-gather (one per pass)" if by_gather else f"gaps > {split_us:.0f} us"
+    print(f"{len(rows)} GPU ops, {len(steps)} passes split at {how}")
     dec = steps[-tokens:] if len(steps) >= tokens else steps
     # time between consecutive steps' starts = the real per-token time
     starts = [st[0][0] for st in dec]
