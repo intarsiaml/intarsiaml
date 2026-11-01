@@ -19,6 +19,18 @@
   "bytes": 2338,
   "sha256": "559c2bd853a51b3fc086a84ed42373c0a448d74f4025866a44ba7d9f1029aa3d"
  },
+ "dspark/dspark_bf16.safetensors": {
+  "bytes": 39056192,
+  "sha256": "3799bac466add97678a3d87461ffba271ee050616e55612e27e8944aafe054f3"
+ },
+ "dspark/dspark_fp32.safetensors": {
+  "bytes": 59533488,
+  "sha256": "ae18197174f1dcc229258a445b898ac23dceacc4baafc50272db36210244218b"
+ },
+ "dspark/dspark_summary.json": {
+  "bytes": 2205,
+  "sha256": "4ddb158350ce72518a0caace0159748d11bd76b836b86777f2583370ba690de7"
+ },
  "layers_bf16.safetensors": {
   "bytes": 27739926,
   "sha256": "286ecbefda7df9dc69063726b4401b481e4603296fa3e80f16ddbb1df11b3cf1"

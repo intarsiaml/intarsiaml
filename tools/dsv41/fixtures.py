@@ -35,6 +35,7 @@ Commands (run on spark1 inside a fleetq slot, see docs/research/2026-10-31-dsv41
   uv run tools/dsv41/fixtures.py layers  --out DIR [options]    # layers 0-2, 16-token prefill + 2 decode steps
   uv run tools/dsv41/fixtures.py attn4k  --out DIR [options]    # layer-2 attention, ~4K-token prompt, chunk checks
   uv run tools/dsv41/fixtures.py ops     --out DIR              # synthetic op fixtures (quant, select, rope, hc)
+  uv run tools/dsv41/fixtures.py dspark  --out DIR [options]    # DSpark drafter: 3 stages + heads, 16-pos seed + 3 rounds
   uv run tools/dsv41/fixtures.py ci --out DIR DST                # cut the small committed subset (golden/dsv41/)
   uv run tools/dsv41/fixtures.py manifest DIR                   # sha256 + sizes of every file under DIR
 """
@@ -483,6 +484,7 @@ def engram_embed_forward(table, block_size=32):
 # --------------------------------------------------------------------------------------------------------------
 FP32_NAMES = ("hc_attn_fn", "hc_ffn_fn", "hc_attn_base", "hc_ffn_base", "hc_attn_scale", "hc_ffn_scale", "attn_sink",
               "gate.bias", "gate.bias_vl", "gate.weight", "q_weight", "k_weight")
+DSPARK_FP32_NAMES = ("markov_head.head.weight",)  # ParallelHead: fp32 parameter (bf16 in the checkpoint)
 
 
 class Env:
@@ -516,15 +518,21 @@ def make_args(M, cfg: dict, max_seq_len: int):
     return M.ModelArgs(**{k: v for k, v in d.items() if k in fields})
 
 
-def build_block(env: Env, layer_id: int, flow_dtype: torch.dtype):
+def build_block(env: Env, layer_id: int, flow_dtype: torch.dtype, dspark: bool = False):
+    """dspark: build DSparkBlock(layer_id) (layer_id = n_layers + stage) from the checkpoint's mtp.{stage}.* tensors."""
     M, args, src = env.M, env.args, env.src
     torch.set_default_dtype(flow_dtype)
     M.world_size, M.rank, M.default_dtype = 1, 0, torch.float8_e4m3fn
     M.precompute_freqs_cis.cache_clear()
+    ckpt = f"mtp.{layer_id - args.n_layers}" if dspark else f"layers.{layer_id}"
     with torch.device("meta"):
-        blk = M.Block(layer_id, args, None)
-        if env.layout is not None and layer_id in env.layout.layer_ids:
-            blk.engram = M.Engram(args, layer_id, env.layout)
+        if dspark:
+            blk = M.DSparkBlock(layer_id, args)
+        else:
+            blk = M.Block(layer_id, args, None)
+            if env.layout is not None and layer_id in env.layout.layer_ids:
+                blk.engram = M.Engram(args, layer_id, env.layout)
+    blk.ckpt_prefix = ckpt
     M.precompute_freqs_cis.cache_clear()
     # buffers
     for mod in blk.modules():
@@ -542,21 +550,22 @@ def build_block(env: Env, layer_id: int, flow_dtype: torch.dtype):
                     mod._buffers[n] = torch.zeros(b.shape, dtype=b.dtype)
     lin_mods = {n: m for n, m in blk.named_modules() if isinstance(m, M.Linear)}
     for name, mod in lin_mods.items():
-        pref = f"layers.{layer_id}.{name}"
+        pref = f"{ckpt}.{name}"
         if name == "attn.wo_a":
             w = src.wo_a_dense(pref, args.o_groups, (mod.out_features, mod.in_features)) if isinstance(src, SynthSource) else src.wo_a_dense(pref, args.o_groups)
             mod._parameters["weight"] = torch.nn.Parameter(w.to(flow_dtype), requires_grad=False)
-        elif (src.has(pref + ".trellis")) or (isinstance(src, SynthSource) and not name.endswith("weights_proj")):
+        elif (src.has(pref + ".trellis")) or (isinstance(src, SynthSource) and not name.endswith(("weights_proj", "confidence_head.proj"))):
             env.handlers[id(mod.weight)] = (mod.weight, src.linear(pref, (mod.out_features, mod.in_features)) if isinstance(src, SynthSource) else src.linear(pref))
-        else:  # plain weight stored as is (indexer.weights_proj)
+        else:  # plain weight stored as is (indexer.weights_proj; DSpark confidence_head.proj, bf16 stored, fp32 declared)
             t = src.plain(pref + ".weight", (mod.out_features, mod.in_features))
-            mod._parameters["weight"] = torch.nn.Parameter(t.to(flow_dtype), requires_grad=False)
+            dt = torch.float32 if name.endswith("confidence_head.proj") else flow_dtype
+            mod._parameters["weight"] = torch.nn.Parameter(t.to(dt), requires_grad=False)
     for pname, p in list(blk.named_parameters()):
         modpath, _, attr = pname.rpartition(".")
         if modpath in lin_mods or pname.startswith("engram.embed."):
             continue  # linears are bound above; the engram table is read row by row from disk
-        t = src.plain(f"layers.{layer_id}.{pname}", tuple(p.shape))
-        keep32 = any(pname.endswith(s) for s in FP32_NAMES)
+        t = src.plain(f"{ckpt}.{pname}", tuple(p.shape))
+        keep32 = any(pname.endswith(s) for s in FP32_NAMES + DSPARK_FP32_NAMES)
         t = t.to(torch.float32 if keep32 else flow_dtype)
         blk.get_submodule(modpath)._parameters[attr] = torch.nn.Parameter(t, requires_grad=False)
     if blk.engram is not None:
@@ -732,7 +741,8 @@ def moe_tap(env, blk, x, tap):
     tap("ffn.gate_w", weights), tap("ffn.gate_idx", indices.to(torch.int32))
     counts = torch.bincount(indices.flatten(), minlength=ffn.n_routed_experts).tolist()
     used = [i for i, c in enumerate(counts) if c]
-    pre = [f"layers.{blk.layer_id}.ffn.experts.{i}.{w}" for i in used for w in ("w1", "w2", "w3")]
+    ckpt = getattr(blk, "ckpt_prefix", f"layers.{blk.layer_id}")
+    pre = [f"{ckpt}.ffn.experts.{i}.{w}" for i in used for w in ("w1", "w2", "w3")]
     if hasattr(env.src, "prefetch"):
         env.src.prefetch(pre)
     y = torch.zeros_like(xv, dtype=torch.float32)
@@ -790,6 +800,180 @@ def attach_engram_taps(blk, tap):
         return r
 
     e.wkv.forward, e.embed.forward = wkv, emb
+
+
+# --------------------------------------------------------------------------------------------------------------
+# DSpark drafter (the 3 mtp.* stages): tapped versions of DSparkAttention / DSparkBlock.forward_head
+# --------------------------------------------------------------------------------------------------------------
+def dspark_attn_tap(env: Env, attn, x, s, main_x, tap=None):
+    """DSparkAttention.forward (model.py:1035) line by line, with taps. x: the draft block [b, block, dim]."""
+    M = env.M
+    tap = tap or (lambda *_: None)
+    assert attn.compress_ratio == 0
+    b, seqlen, _ = main_x.size()
+    win, rd = attn.window_size, attn.rope_head_dim
+    main_kv = attn.kv_norm(attn.wkv(main_x))
+    M.apply_rotary_emb(main_kv[..., -rd:], attn.freqs_cis[s : s + seqlen])
+    M.act_quant(main_kv, M.fp8_block_size, M.scale_fmt, M.scale_dtype, True)
+    tap("attn.main_kv", main_kv)
+    if s == 0:
+        return attn.forward(x, 0, main_x)  # seeding only: the official code (writes the window, returns x)
+    bs = x.size(1)
+    freqs = attn.freqs_cis[s + seqlen : s + seqlen + bs]
+    qr = attn.q_norm(attn.wq_a(x))
+    q = attn.wq_b(qr).unflatten(-1, (attn.n_local_heads, attn.head_dim))
+    M.apply_rotary_emb(q[..., -rd:], freqs)
+    tap("attn.q", q)
+    kv = attn.kv_norm(attn.wkv(x))
+    M.apply_rotary_emb(kv[..., -rd:], freqs)
+    M.act_quant(kv, M.fp8_block_size, M.scale_fmt, M.scale_dtype, True)
+    tap("attn.kv_block", kv)
+    idxs = M.get_dspark_topk_idxs(win, b, bs, s)
+    tap("attn.idxs", idxs)
+    attn.window_kv_cache[:b, s % win] = main_kv.squeeze(1)
+    kv_all = torch.cat([attn.window_kv_cache[:b], kv], dim=1)
+    o = M.sparse_attn(q, kv_all, attn.attn_sink, idxs, attn.softmax_scale)
+    tap("attn.o_sparse", o)
+    M.apply_rotary_emb(o[..., -rd:], freqs, True)
+    tap("attn.o_unrot", o)
+    o = o.view(b, bs, attn.n_local_groups, -1)
+    if env.quant == "official":
+        M.act_quant(o, M.fp8_block_size, M.scale_fmt, M.scale_dtype, True)
+    wo_a = attn.wo_a.weight.view(attn.n_local_groups, attn.o_lora_rank, -1)
+    o = torch.einsum("bsgd,grd->bsgr", o, wo_a)
+    tap("attn.o_lora", o)
+    return attn.wo_b(o.flatten(2))
+
+
+def dspark_head_tap(env, blk, h, pre_mix, input_ids, tap):
+    """DSparkBlock.forward_head (model.py:1140) line by line, with taps."""
+    M = env.M
+    x = blk.hc_pre(h, pre_mix)
+    tap("head.x", x)
+    xn = blk.norm(x)
+    tap("head.norm", xn)
+    logits = blk.head(xn, full_logits=True)
+    tap("head.logits_raw", logits)
+    output_ids = input_ids.new_empty(input_ids.size(0), blk.block_size + 1)
+    output_ids[:, 0] = input_ids
+    embeds = []
+    for i in range(blk.block_size):
+        bias, me = blk.markov_head(output_ids[:, i])
+        logits[:, i].add_(bias)
+        embeds.append(me)
+        output_ids[:, i + 1] = M.sample(logits[:, i], blk.temperature)
+    me = torch.stack(embeds, dim=1)
+    conf = blk.confidence_head(x, me)
+    tap("head.logits", logits), tap("head.markov_embed", me), tap("head.output_ids", output_ids), tap("head.confidence", conf)
+    return output_ids, logits, conf
+
+
+class DSparkEmbed:
+    """The main model's ParallelEmbedding (shared by the stages), rows read from the weight source."""
+
+    def __init__(self, rows_fn, dtype):
+        self.rows_fn, self.dtype = rows_fn, dtype
+
+    def __call__(self, ids):
+        return self.rows_fn(ids.flatten().tolist()).to(self.dtype).view(*ids.shape, -1)
+
+
+class DSparkHead:
+    """The main model's ParallelHead (shared): EXL3 `head` in Mia, so applied through the weight source's handler
+    (F.linear in ParallelHead.forward is not routed through model.linear)."""
+
+    def __init__(self, handler):
+        self.h = handler
+
+    def __call__(self, x, full_logits=False):
+        if not full_logits:
+            x = x[:, -1]
+        return self.h(x.float()).float()
+
+
+def build_dspark(env, flow_dtype, embed, head):
+    args = env.args
+    stages = []
+    for i in range(args.n_mtp_layers):
+        blk = build_block(env, args.n_layers + i, flow_dtype, dspark=True)
+        blk.embed, blk.head = embed, head
+        assert blk.temperature == 0, "temperature must be 0 (argmax drafts)"
+        n_r, n_a = args.get_moe_config(args.n_layers + i)
+        assert blk.ffn.n_routed_experts == n_r and blk.ffn.gate.topk == n_a, (blk.ffn.n_routed_experts, blk.ffn.gate.topk)
+        stages.append(blk)
+    return stages
+
+
+def dspark_seed(env, stages, main_hidden, input_ids):
+    """Transformer.forward_spec at start_pos 0 (the official code): every stage seeds its window from main_x."""
+    h, main_x = stages[0].forward_embed(main_hidden, input_ids)
+    pre_mix = env.M.make_identity_pre_mix(h, env.args.hc_mult)
+    for blk in stages:
+        h2, pm2 = blk(h, 0, pre_mix, main_x)
+        assert h2 is h and pm2 is pre_mix
+    return main_x
+
+
+def dspark_round(env, stages, main_hidden, input_ids, s, tap):
+    """Transformer.forward_spec at start_pos s > 0 with sublayer taps (prefix s{i}/ per stage, head.* at the end)."""
+    M, base = env.M, tap.prefix
+    h, main_x = stages[0].forward_embed(main_hidden, input_ids)
+    tap("main_x", main_x)
+    pre_mix = M.make_identity_pre_mix(h, env.args.hc_mult)
+    for i, blk in enumerate(stages):
+        tap.prefix = f"{base}s{i}/"
+        h, pre_mix = block_step(env, blk, h, s, pre_mix, tap, attn_impl=lambda a, x, st: dspark_attn_tap(env, a, x, st, main_x, tap))
+        tap("attn.window_kv", blk.attn.window_kv_cache[:1])
+    tap.prefix = base
+    out = dspark_head_tap(env, stages[-1], h, pre_mix, input_ids, tap)
+    tap.prefix = base
+    return out
+
+
+def run_dspark(env, flow, main_hidden, input_ids, P, embed_fn, head_handler, log_prefix=""):
+    """Seed (P positions) + one round per input id at start_pos P, P+1, ...; tapped, then the literal official
+    Transformer.forward_spec on fresh stages as a cross-check. main_hidden [P+R, n_target*dim] f32, input_ids [R]."""
+    M, args = env.M, env.args
+    dt = FLOWS[flow]
+    torch.set_default_dtype(dt)
+    R = len(input_ids)
+    mh = main_hidden.to(dt).unsqueeze(0)
+    ids = torch.tensor(input_ids, dtype=torch.int64)
+    embed, head = DSparkEmbed(embed_fn, dt), DSparkHead(head_handler)
+    stages = build_dspark(env, dt, embed, head)
+    tap = Taps()
+    tap.prefix = "seed/"
+    main_x = dspark_seed(env, stages, mh[:, :P], ids[:1])
+    tap("main_x", main_x)
+    win0 = [blk.attn.window_kv_cache[:1].clone() for blk in stages]
+    for i, blk in enumerate(stages):
+        tap(f"s{i}/window_kv", blk.attn.window_kv_cache[:1])
+    dspark_seed(env, stages, mh[:, :P], ids[:1])  # seeding twice is idempotent
+    assert all(bit_equal(w, blk.attn.window_kv_cache[:1]) for w, blk in zip(win0, stages)), "seeding is not idempotent"
+    mine = []
+    for j in range(R):
+        tap.prefix = f"r{j}/"
+        mine.append(dspark_round(env, stages, mh[:, P + j : P + j + 1], ids[j : j + 1], P + j, tap))
+        log(f"{log_prefix}{flow} round {j} (start_pos {P + j}): draft {mine[-1][0][0].tolist()} confidence {[round(v, 4) for v in mine[-1][2][0].float().tolist()]}")
+    # cross-check: the literal official driver on fresh stages
+    torch.set_default_dtype(dt)
+    shim = types.SimpleNamespace(mtp=build_dspark(env, dt, embed, head), hc_mult=args.hc_mult)
+    assert M.Transformer.forward_spec(shim, ids[:1], mh[:, :P], 0) is None
+    rep = {}
+    for j in range(R):
+        oi, lg, cf = M.Transformer.forward_spec(shim, ids[j : j + 1], mh[:, P + j : P + j + 1], P + j)
+        d, r = rel(mine[j][1], lg)
+        same = torch.equal(oi, mine[j][0])
+        rep[f"r{j}"] = {"output_ids_equal": same, "logits_rel": r, "confidence_max_abs": float((cf - mine[j][2]).abs().max()),
+                        "logits_bitequal": bit_equal(lg, mine[j][1])}
+        log(f"{log_prefix}{flow} round {j}: tapped vs official forward_spec: ids equal={same} logits rel={r:.3e} bitequal={rep[f'r{j}']['logits_bitequal']}")
+        assert same and r < (1e-4 if flow == "fp32" else 5e-2), (flow, j, rep[f"r{j}"])
+    for i, (a_, b_) in enumerate(zip(stages, shim.mtp)):
+        assert bit_equal(a_.attn.window_kv_cache, b_.attn.window_kv_cache), f"stage {i} window differs from the official run"
+    d = {k: (v[0] if v.dim() > 0 and v.size(0) == 1 else v) for k, v in tap.d.items()}  # drop the batch dim
+    d["in/main_hidden"] = main_hidden.float()
+    d["in/input_ids"] = ids
+    return d, rep
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -1184,6 +1368,71 @@ def cmd_indexer4k(a):
     save_st(fx, Path(a.out) / "indexer_4k_bf16.safetensors", {"generator": "tools/dsv41/fixtures.py indexer4k", **{k: json.dumps(v) for k, v in stats.items()}})
 
 
+DSPARK_P, DSPARK_IDS = 16, [3000, 4321, 12345]
+
+
+def dspark_meta(env, P, ids, flow, extra):
+    a = env.args
+    return {"generator": "tools/dsv41/fixtures.py dspark", "flow": flow, "quant": env.quant, "P": P, "R": len(ids),
+            "block_size": a.dspark_block_size, "window": a.window_size, "start_positions": json.dumps([P + j for j in range(len(ids))]),
+            "input_ids": json.dumps(ids), "noise_token_id": a.dspark_noise_token_id, "target_layer_ids": json.dumps(list(a.dspark_target_layer_ids)),
+            "n_stages": a.n_mtp_layers, "stage_layer_ids": json.dumps([a.n_layers + i for i in range(a.n_mtp_layers)]),
+            "moe": json.dumps(a.get_moe_config(a.n_layers)), "temperature": 0,
+            "window_valid_rows": json.dumps({"seed": [0, P - 1], **{f"r{j}": [0, P + j] for j in range(len(ids))}}),
+            "conventions": ("in/main_hidden [P+R, n_target*dim] f32 = synthetic N(0,1) (torch.Generator seed 0) standing in for "
+                            "cat(mean over hc of the attention inputs of target layers); rows 0..P-1 seed (start_pos 0), row P+j = round j "
+                            "(start_pos P+j); the bf16 flow casts it to bf16 first. in/input_ids [R] i64 = row-0 token of each round. "
+                            "seed/main_x [P, dim]; seed/s{i}/window_kv [window, head_dim] after seeding (valid rows in window_valid_rows). "
+                            "r{j}/main_x [1, dim]; r{j}/s{i}/<tap>: block_step taps of the layer fixtures (in.h, in.pre_mix, hc_attn.{mixes,pre,post,comb}, "
+                            "hc_pre_attn, attn_norm, attn.main_kv (the window row written this round, position P+j), attn.q (after RoPE), "
+                            "attn.kv_block (block kv after RoPE + fp8 act_quant), attn.idxs, attn.o_sparse, attn.o_unrot (wo_a input), attn.o_lora, "
+                            "attn.out, hc_post_attn, hc_ffn.*, hc_pre_ffn, ffn_norm, ffn.gate_w, ffn.gate_idx, ffn.routed_y, ffn.shared, "
+                            "ffn.combine_f32, ffn.out, out.h, out.pre_mix = next stage's in.pre_mix), attn.window_kv (after the round). "
+                            "r{j}/head.x [block, dim] (hc_pre of the last stage), head.norm, head.logits_raw [block, V] (before the Markov bias), "
+                            "head.logits (after), head.markov_embed [block, rank], head.output_ids [block+1] (row 0 = input id), head.confidence [block]. "
+                            "Block rows sit at positions start_pos+1 .. start_pos+block. Batch dim dropped everywhere."),
+            **extra}
+
+
+def cmd_dspark(a):
+    """DSpark drafter fixtures (3 stages mtp.0-2 + Markov/confidence heads), both flows, one file per flow."""
+    import subprocess
+
+    official, mia = Path(a.official), Path(a.mia)
+    cfg = json.loads((official / "config.json").read_text())
+    M, E = load_official(official, a.quant)
+    args = make_args(M, {**cfg, "temperature": 0}, a.max_seq_len)
+    src = Exl3Source(mia, Path(a.exl3_format), a.cache_gb)
+    env = Env(M, E, args, src, None, {}, a.quant)
+    P, ids = DSPARK_P, DSPARK_IDS
+    g = torch.Generator().manual_seed(0)
+    main_hidden = torch.randn(P + len(ids), args.dim * len(args.dspark_target_layer_ids), generator=g)
+    head = src.linear("head")
+    try:
+        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=Path(__file__).parent, capture_output=True, text=True).stdout.strip()
+    except Exception:
+        commit = ""
+    extra = {"mia_snapshot": a.mia, "git_commit": a.git_commit or commit or "unknown", "fixtures_py_sha256": sha256(__file__),
+             "official_model_py_sha256": sha256(official / "model.py"),
+             "official": "deepseek-ai/DeepSeek-V4.1-Flash-1017 inference/model.py (MIT): DSparkBlock/DSparkAttention/forward_spec",
+             "kernels": "pure-torch CPU emulation of kernel.py, not bit-checked against GPU", "exl3": "TensorFold format.py (MIT) float64"}
+    out = Path(a.out)
+    flows = list(FLOWS) if a.flows == "both" else [a.flows]
+    summary = {}
+    for fl in flows:
+        t0 = time.time()
+        d, rep = run_dspark(env, fl, main_hidden, ids, P, src.embed_rows, head)
+        save_st(d, out / f"dspark_{fl}.safetensors", {**dspark_meta(env, P, ids, fl, extra), "official_crosscheck": json.dumps(rep)})
+        summary[fl] = {"seconds": round(time.time() - t0), "crosscheck": rep,
+                       "drafts": [d[f"r{j}/head.output_ids"].tolist() for j in range(len(ids))],
+                       "confidence": [d[f"r{j}/head.confidence"].float().tolist() for j in range(len(ids))]}
+    if len(flows) == 2:
+        agree = [sum(int(x == y) for x, y in zip(summary["fp32"]["drafts"][j][1:], summary["bf16"]["drafts"][j][1:])) for j in range(len(ids))]
+        summary["fp32_bf16_draft_agreement"] = agree
+    (out / "dspark_summary.json").write_text(json.dumps(summary, indent=1))
+    log(json.dumps(summary, indent=1))
+
+
 def cmd_ops(a):
     """Synthetic op fixtures: no weights needed."""
     out = Path(a.out)
@@ -1256,6 +1505,9 @@ def cmd_ci(a):
     cap = int(a.budget_mb * 1e6)
     total = 0
     for fl in ("bf16", "fp32"):
+        if not (src / f"layers_{fl}.safetensors").exists():
+            log(f"no layers_{fl}.safetensors in {src}: layers cut skipped")
+            continue
         f = safe_open(str(src / f"layers_{fl}.safetensors"), framework="pt")
         keep = {}
         for k in f.keys():
@@ -1281,6 +1533,58 @@ def cmd_ci(a):
         save_st(sel, dst / f"layers_{fl}_ci.safetensors", {"note": "subset of layers_*.safetensors; full file sha256 in manifest.json (spark1:~/dsv41-fixtures/out)"})
     log(f"total {total / 1e6:.2f} MB (cap {cap / 1e6:.0f} MB)")
     assert total <= cap
+    for fl in ("bf16", "fp32"):
+        if (src / f"dspark_{fl}.safetensors").exists():
+            dspark_ci(src / f"dspark_{fl}.safetensors", dst / f"dspark_{fl}_ci.safetensors", a.dspark_budget_mb)
+
+
+DSPARK_CI_INNER = ("attn_norm", "attn.o_unrot", "attn.o_lora", "hc_pre_attn", "hc_post_attn", "hc_pre_ffn", "ffn_norm",
+                   "ffn.routed_y", "ffn.shared", "ffn.combine_f32")
+
+
+def dspark_ci(path, dst, budget_mb):
+    """Committed cut of dspark_{flow}.safetensors: full logits -> per-row top-64 (values f32, ids i32); then whole
+    tensors greedily by priority under the budget (s{i+1}/in.* == s{i}/out.* and the per-round windows are
+    reconstructible from the seed window + attn.main_kv, so those go last)."""
+    from safetensors import safe_open
+
+    f = safe_open(str(path), framework="pt")
+    meta = f.metadata()
+    keys = list(f.keys())
+    t = {k: f.get_tensor(k) for k in keys}
+    P = int(meta["P"])
+    sel = {}
+    for k in keys:
+        if k.endswith(("head.logits", "head.logits_raw")):
+            v, i = torch.topk(t[k].float(), 64, dim=-1)
+            sel[k.replace("head.logits", "head.logits_top64").replace("_top64_raw", "_raw_top64") + ".v"] = v
+            sel[k.replace("head.logits", "head.logits_top64").replace("_top64_raw", "_raw_top64") + ".i"] = i.to(torch.int32)
+    for k in keys:
+        if k.startswith("seed/") and k.endswith("/window_kv"):
+            sel[k + "_valid"] = t[k][:P]
+    nb = lambda x: x.numel() * x.element_size()
+    rounds = sorted({k.split("/")[0] for k in keys if k.startswith("r")})
+    stages = sorted({k.split("/")[1] for k in keys if k.startswith("r") and k.split("/")[1].startswith("s")})
+    prio = [[k for k in keys if k.startswith("in/") or k == "seed/main_x" or k.endswith(("/main_x", "head.x"))],
+            [k for k in keys if nb(t[k]) <= 32_768 and not k.endswith(("head.logits", "head.logits_raw"))],
+            [f"{rounds[0]}/{s}/{n}" for s in stages for n in ("out.h", "attn.out", "ffn.out")],
+            [f"{rounds[0]}/{stages[0]}/{n}" for n in DSPARK_CI_INNER],
+            [f"{rounds[0]}/{s}/{n}" for s in stages[1:] for n in DSPARK_CI_INNER],
+            [f"{r}/{s}/{n}" for r in rounds[1:] for s in stages for n in ("out.h", "attn.out", "ffn.out")],
+            [f"{rounds[0]}/{stages[0]}/{n}" for n in ("attn.q", "attn.o_sparse", "head.norm")],
+            [f"{r}/head.norm" for r in rounds]]
+    cap = int(budget_mb * 1e6)
+    total = sum(nb(v) for v in sel.values())
+    for grp in prio:
+        for k in grp:
+            if k in t and k not in sel and total + nb(t[k]) <= cap:
+                sel[k] = t[k]
+                total += nb(t[k])
+    dropped = [k for k in keys if k not in sel]
+    log(f"{path.name}: {len(sel)} tensors, {total / 1e6:.2f} MB (cap {budget_mb} MB), {len(dropped)} dropped")
+    save_st(sel, dst, {**meta, "ci_note": "subset of " + path.name + " (full file sha256 in manifest.json); head.logits*/ -> "
+                       "*_top64.{v,i} per row (descending); seed/s*/window_kv -> window_kv_valid (rows 0..P-1)",
+                       "ci_dropped": json.dumps(dropped)})
 
 
 def cmd_manifest(a):
@@ -1288,6 +1592,12 @@ def cmd_manifest(a):
     rows = {str(p.relative_to(d)): {"bytes": p.stat().st_size, "sha256": sha256(p)} for p in sorted(d.rglob("*")) if p.is_file() and p.name != "manifest.json"}
     (d / "manifest.json").write_text(json.dumps(rows, indent=1))
     log(f"manifest of {len(rows)} files")
+    if a.merge_into:  # add these rows (keys prefixed) to another manifest, e.g. golden/dsv41/manifest.json
+        m = Path(a.merge_into)
+        old = json.loads(m.read_text()) if m.exists() else {}
+        old.update({a.key_prefix + k: v for k, v in rows.items()})
+        m.write_text(json.dumps(dict(sorted(old.items())), indent=1) + "\n")
+        log(f"merged {len(rows)} rows into {m} (prefix {a.key_prefix!r})")
 
 
 # --------------------------------------------------------------------------------------------------------------
@@ -1373,12 +1683,35 @@ def cmd_selftest(a):
         x = torch.randn(1, 63, cfg["dim"]).to(FLOWS[fl])
         rep, _ = verify_chunking(env, 2, x, fl, [[8, 8, 8, 8, 8, 8, 8, 7], [32, 31], [63], [5, 7, 9, 11, 13, 18]], tag=f"selftest/{fl}")
         assert rep["chunked"]["32,31"]["out_bitequal_to_whole"]
+    # 5. DSpark drafter (3 stages, own MoE config 8/3 vs the backbone's 16/2), P > window: seeding wraps the ring
+    dcfg = dict(cfg, compress_ratios=cfg["compress_ratios"][:4] + [0, 0, 0], n_mtp_layers=3, dspark_block_size=4,
+                dspark_noise_token_id=999, dspark_target_layer_ids=[1, 2, 3], dspark_markov_rank=32,
+                dspark_n_routed_experts=8, dspark_n_activated_experts=3, temperature=0)
+    denv = Env(M, E, make_args(M, dcfg, 256), src, None, {}, a.quant)
+    P, dids, bs = 20, [3, 500, 998], dcfg["dspark_block_size"]
+    mh = torch.randn(P + len(dids), 3 * cfg["dim"], generator=torch.Generator().manual_seed(0))
+    drafts = {}
+    for fl in ("fp32", "bf16"):
+        d, _ = run_dspark(denv, fl, mh, dids, P, src.embed_rows, src.linear("head", (cfg["vocab_size"], cfg["dim"])), log_prefix="selftest/")
+        assert d["seed/main_x"].shape == (P, cfg["dim"]) and d["seed/s2/window_kv"].shape == (16, cfg["head_dim"])
+        for j in range(len(dids)):
+            oi, lg = d[f"r{j}/head.output_ids"], d[f"r{j}/head.logits"]
+            assert oi.shape == (bs + 1,) and lg.shape == (bs, cfg["vocab_size"]) and d[f"r{j}/head.logits_raw"].shape == lg.shape
+            assert oi[0] == dids[j] and torch.equal(oi[1:], lg.argmax(-1)), "Markov chain: output_ids[i+1] != argmax(logits[i])"
+            assert d[f"r{j}/head.markov_embed"].shape == (bs, dcfg["dspark_markov_rank"]) and torch.isfinite(d[f"r{j}/head.confidence"]).all()
+            assert d[f"r{j}/s0/in.h"].shape == (bs, cfg["hc_mult"], cfg["dim"]) and d[f"r{j}/s0/ffn.gate_idx"].shape == (bs, 3)
+            assert d[f"r{j}/s0/attn.idxs"].shape == (bs, 16 + bs)  # min(window, start_pos + 1) slots + the whole block
+            for i in range(2):
+                assert bit_equal(d[f"r{j}/s{i}/out.h"], d[f"r{j}/s{i + 1}/in.h"]) and torch.equal(d[f"r{j}/s{i}/out.pre_mix"], d[f"r{j}/s{i + 1}/in.pre_mix"])
+            assert bit_equal(d[f"r{j}/s1/attn.window_kv"][(P + j) % 16], d[f"r{j}/s1/attn.main_kv"][0])
+        drafts[fl] = [d[f"r{j}/head.output_ids"].tolist() for j in range(len(dids))]
+    log(f"selftest dspark drafts fp32 {drafts['fp32']} bf16 {drafts['bf16']}")
     log("SELFTEST OK")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["selftest", "layers", "attn4k", "indexer4k", "ops", "manifest", "ci"])
+    ap.add_argument("cmd", choices=["selftest", "layers", "attn4k", "indexer4k", "ops", "dspark", "manifest", "ci"])
     ap.add_argument("dir", nargs="?")
     home = Path.home()
     base = home / "dsv41-fixtures"
@@ -1395,6 +1728,10 @@ def main():
     ap.add_argument("--budget-mb", type=float, default=15)
     ap.add_argument("--cache-gb", type=float, default=16)
     ap.add_argument("--max-seq-len", type=int, default=4352)
+    ap.add_argument("--dspark-budget-mb", type=float, default=6.0)
+    ap.add_argument("--git-commit", default=None, help="dspark: recorded in the metadata (default: git rev-parse HEAD next to this file)")
+    ap.add_argument("--merge-into", default=None, help="manifest: also merge the rows into this manifest.json")
+    ap.add_argument("--key-prefix", default="", help="manifest --merge-into: prefix for the merged keys")
     a = ap.parse_args()
     torch.set_num_threads(os.cpu_count() or 8)
     if a.cmd == "ci":
@@ -1406,7 +1743,7 @@ def main():
         sub = sorted(Path(a.engram_dir).glob("*"))
         if sub:
             a.engram_dir = str(sub[0])
-    {"selftest": cmd_selftest, "layers": cmd_layers, "attn4k": cmd_attn4k, "indexer4k": cmd_indexer4k, "ops": cmd_ops}[a.cmd](a)
+    {"selftest": cmd_selftest, "layers": cmd_layers, "attn4k": cmd_attn4k, "indexer4k": cmd_indexer4k, "ops": cmd_ops, "dspark": cmd_dspark}[a.cmd](a)
 
 
 if __name__ == "__main__":
