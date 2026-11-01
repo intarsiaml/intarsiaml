@@ -607,12 +607,13 @@ pub fn all() -> Vec<KernelImpl> {
     }
     v.extend(crate::quantmoe::all());
     v.extend(crate::exl3::all());
+    v.extend(crate::dsv41::all());
     v
 }
 
 /// (launcher name, op) of every launcher: this file's table plus the quantised/MoE table.
 pub fn full_table() -> Vec<(&'static str, Op)> {
-    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).copied().collect()
+    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).chain(crate::dsv41::TABLE.iter()).copied().collect()
 }
 
 #[cfg(test)]
@@ -1029,9 +1030,13 @@ mod tests {
         // pair (`MatmulMxfp4Pair`, HIP-only so far: the model keeps two `MatmulMxfp4` launches here).
         // `DynConv` (the DFlash2 draft's conv, lane dfh) is cpu and HIP only: DFlash2 drafts are refused on CUDA at load.
         // `ShortConv` (LFM2's gated short conv, lane nab2) is cpu and Metal so far: an LFM2 model fails at load with `NoKernel` naming `short_conv`.
-        // The DeepSeek-V4.1 ops (`intarsia_core::dsv41::ops::OPS`, lane 1a) have no CUDA kernels yet (lane 2 ports them): a DSv4.1
-        // checkpoint fails at load with `NoKernel`, and `plan show` lists each as having no kernel.
-        let not_on_cuda: Vec<Op> = NOT_ON_CUDA.iter().chain(intarsia_core::dsv41::ops::OPS.iter()).copied().collect();
+        // The DeepSeek-V4.1 ops (`intarsia_core::dsv41::ops::OPS`, lane 1a) without a CUDA kernel yet (dsv41.rs has the rest): the
+        // layout helpers and grouped matmul, the base checkpoint's fp8 linear, the EXL3 experts (lane cuda-moe) and Engram.
+        let not_on_cuda: Vec<Op> = NOT_ON_CUDA
+            .iter()
+            .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
+            .copied()
+            .collect();
         const NOT_ON_CUDA: [Op; 13] = [
             Op::ShortConv,
             Op::DynConv,
@@ -1061,6 +1066,7 @@ mod tests {
             include_str!("../../../kernels/abi/ik_abi.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi_g4.h"),
+            include_str!("../../../kernels/cuda/ik_cuda_abi_dsv41.h"),
         ]
         .concat();
         for (name, _) in full_table() {
@@ -1219,7 +1225,12 @@ mod tests {
     /// `moe_experts_exl3` (weights i16 only: only the EXL3 encoding of `MoeExperts` selects it).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
-        let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
+        // the DeepSeek-V4.1 kernels (dsv41.rs) serve only the ops lane 1a appended, which no earlier model's plan contains
+        let mut got: Vec<String> = all()
+            .iter()
+            .filter(|k| !intarsia_core::dsv41::ops::OPS.contains(&k.op))
+            .map(|k| format!("{}:{}", k.name, k.op))
+            .collect();
         got.sort();
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));
