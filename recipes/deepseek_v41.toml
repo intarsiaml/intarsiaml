@@ -1,0 +1,38 @@
+# DeepSeek-V4.1 Flash (DeepseekV41ForCausalLM; the official FP8 base and Mia's EXL3 requant): 40 layers whose residual
+# is 4 hyper-connection streams (Sinkhorn-mixed), MQA attention with head_dim 512, per-head attention sinks and a
+# 128-token sliding window, plus compressed KV (ratio 2 on layers 2-19, ratio 1 on 20-39) shared from source layers
+# 2 / 8 / 14 / 20 and chosen per query by an fp4 indexer (sources 2, 8, 14, 20, 24, 28, 32, 36; two-level candidate blocks
+# from layer 20), Engram n-gram tables on layers 1 and 14, sqrt-softplus routed MoE (384 experts, top 6) with a shared
+# expert and clamped SwiGLU, a grouped low-rank output projection, YaRN rope at compress_rope_theta for compressed
+# layers. Text only (the vision tower is skipped); the DSpark / MTP blocks (`mtp.*`) are parsed, not executed.
+#
+# The graph is code, not this table: `intarsia_core::dsv41` (config, graph, ops; contract docs/design/dsv41-ops.md)
+# reads config.json itself. This recipe names the checkpoint layout the graph uses, so `recipe list` / matching find
+# the model; loading it for generation refuses until the executing lanes land (docs/plans/2026-10-31-dsv41-unpark.md),
+# `intarsia plan show --model <dir>` lists the op sequence.
+[model]
+match.architectures = ["DeepseekV41ForCausalLM"]
+family = "deepseek_v41"
+chat_template = "hf"
+
+[layer]
+pattern = ["dsv41_attn", "dsv41_moe"]
+
+[layer.dsv41_attn]
+prefix = "layers.{i}.attn"             # wq_a q_norm wq_b wkv kv_norm attn_sink wo_a(.slice.{g}) wo_b compressor.* indexer.*
+hc = "layers.{i}.hc_attn"              # hc_attn_fn / _scale / _base
+norm = "layers.{i}.attn_norm"
+engram = "layers.{i}.engram"           # engram_layer_ids only: wkv q_weight k_weight (the tables live outside the checkpoint)
+
+[layer.dsv41_moe]
+prefix = "layers.{i}.ffn"              # gate (weight, bias, bias_vl) experts.{e}.w1/w3/w2 shared_experts.w1/w3/w2
+hc = "layers.{i}.hc_ffn"
+norm = "layers.{i}.ffn_norm"
+
+[top]
+embed = "embed"
+final_norm = "norm"
+lm_head = { tensor = "head" }
+
+[defaults]
+kv_dtype = "bf16"
