@@ -1029,6 +1029,9 @@ mod tests {
         // pair (`MatmulMxfp4Pair`, HIP-only so far: the model keeps two `MatmulMxfp4` launches here).
         // `DynConv` (the DFlash2 draft's conv, lane dfh) is cpu and HIP only: DFlash2 drafts are refused on CUDA at load.
         // `ShortConv` (LFM2's gated short conv, lane nab2) is cpu and Metal so far: an LFM2 model fails at load with `NoKernel` naming `short_conv`.
+        // The DeepSeek-V4.1 ops (`intarsia_core::dsv41::ops::OPS`, lane 1a) have no CUDA kernels yet (lane 2 ports them): a DSv4.1
+        // checkpoint fails at load with `NoKernel`, and `plan show` lists each as having no kernel.
+        let not_on_cuda: Vec<Op> = NOT_ON_CUDA.iter().chain(intarsia_core::dsv41::ops::OPS.iter()).copied().collect();
         const NOT_ON_CUDA: [Op; 13] = [
             Op::ShortConv,
             Op::DynConv,
@@ -1045,7 +1048,7 @@ mod tests {
             Op::MatmulMxfp4Pair,
         ];
         for op in Op::ALL {
-            if !NOT_ON_CUDA.contains(&op) {
+            if !not_on_cuda.contains(&op) {
                 assert!(table.iter().any(|(_, o)| *o == op), "no cuda kernel for {op}");
             }
         }
