@@ -24,8 +24,8 @@ constexpr int kSelThreads = 1024;
 constexpr int kSelWarps = kSelThreads / 32;
 
 template <typename T> IK_DEVI void load8(const T* p, float* f);
-template <> IK_DEVI void load8<__nv_bfloat16>(const __nv_bfloat16* p, float* f) { ik_unpack8(__ldg(reinterpret_cast<const uint4*>(p)), f); }
-template <> IK_DEVI void load8<__half>(const __half* p, float* f) {
+template <> __device__ __forceinline__ void load8<__nv_bfloat16>(const __nv_bfloat16* p, float* f) { ik_unpack8(__ldg(reinterpret_cast<const uint4*>(p)), f); }
+template <> __device__ __forceinline__ void load8<__half>(const __half* p, float* f) {
     const uint4 u = __ldg(reinterpret_cast<const uint4*>(p));
     const __half2* h = reinterpret_cast<const __half2*>(&u);
 #pragma unroll
@@ -35,7 +35,7 @@ template <> IK_DEVI void load8<__half>(const __half* p, float* f) {
         f[2 * i + 1] = t.y;
     }
 }
-template <> IK_DEVI void load8<float>(const float* p, float* f) {
+template <> __device__ __forceinline__ void load8<float>(const float* p, float* f) {
     const float4 a = __ldg(reinterpret_cast<const float4*>(p)), b = __ldg(reinterpret_cast<const float4*>(p) + 1);
     f[0] = a.x, f[1] = a.y, f[2] = a.z, f[3] = a.w, f[4] = b.x, f[5] = b.y, f[6] = b.z, f[7] = b.w;
 }

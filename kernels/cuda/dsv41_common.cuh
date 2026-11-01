@@ -10,14 +10,14 @@
 namespace dsv41 {
 
 template <typename T> IK_DEVI float ld(const T* p, int64_t i);
-template <> IK_DEVI float ld<float>(const float* p, int64_t i) { return p[i]; }
-template <> IK_DEVI float ld<__nv_bfloat16>(const __nv_bfloat16* p, int64_t i) { return __bfloat162float(p[i]); }
-template <> IK_DEVI float ld<__half>(const __half* p, int64_t i) { return __half2float(p[i]); }
+template <> __device__ __forceinline__ float ld<float>(const float* p, int64_t i) { return p[i]; }
+template <> __device__ __forceinline__ float ld<__nv_bfloat16>(const __nv_bfloat16* p, int64_t i) { return __bfloat162float(p[i]); }
+template <> __device__ __forceinline__ float ld<__half>(const __half* p, int64_t i) { return __half2float(p[i]); }
 
 template <typename T> IK_DEVI void st(T* p, int64_t i, float v);
-template <> IK_DEVI void st<float>(float* p, int64_t i, float v) { p[i] = v; }
-template <> IK_DEVI void st<__nv_bfloat16>(__nv_bfloat16* p, int64_t i, float v) { p[i] = __float2bfloat16_rn(v); }
-template <> IK_DEVI void st<__half>(__half* p, int64_t i, float v) { p[i] = __float2half_rn(v); }
+template <> __device__ __forceinline__ void st<float>(float* p, int64_t i, float v) { p[i] = v; }
+template <> __device__ __forceinline__ void st<__nv_bfloat16>(__nv_bfloat16* p, int64_t i, float v) { p[i] = __float2bfloat16_rn(v); }
+template <> __device__ __forceinline__ void st<__half>(__half* p, int64_t i, float v) { p[i] = __float2half_rn(v); }
 
 static inline bool is_float_dt(int dt) { return dt == IK_DTYPE_F32 || dt == IK_DTYPE_BF16 || dt == IK_DTYPE_F16; }
 
@@ -28,7 +28,7 @@ static inline int check_float(const ik_tensor* t, int ndim) {
     return ik_check(t, t->dtype, ndim);
 }
 
-static inline int64_t cdiv(int64_t a, int64_t b) { return (a + b - 1) / b; }
+__host__ __device__ inline int64_t cdiv(int64_t a, int64_t b) { return (a + b - 1) / b; }
 
 static inline unsigned grid1d(int64_t n, int threads) {
     int64_t b = cdiv(n, threads);
