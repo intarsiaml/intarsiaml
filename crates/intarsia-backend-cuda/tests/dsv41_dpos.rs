@@ -337,8 +337,8 @@ fn indexer_device_position_is_bitwise_the_host_call() {
                     check::topk(be, &x, 64, true, p);
                 }
             }
-            // capacity past the fast-select bound (16384): the device call takes the multi-block select at every N, the
-            // host the one-block select below 16384 rows
+            // capacity past the fast-select bound (16384): the device call launches the multi-block select's kernels and
+            // falls back to the one-block select inside them below 16384 rows, as the host call does by its shape
             if dt == DType::Bf16 && hi == 32 {
                 for ratio in [1usize, 2] {
                     let ncap = 20000;
@@ -471,7 +471,9 @@ fn graph_of_device_calls_replays_at_every_position() {
 
 // ---- timing ------------------------------------------------------------------------------------------------------------
 
-fn time_us(be: &dyn Backend, l: &Launch, iters: usize) -> f64 {
+/// (eager, graph) microseconds per call: back-to-back eager launches (host launch cost included), and replays of a graph
+/// holding 50 launches (about the GPU time per call, as inside the captured decode step).
+fn time_us(be: &dyn Backend, l: &Launch, iters: usize) -> (f64, f64) {
     for _ in 0..5 {
         l.run(be);
     }
@@ -481,7 +483,25 @@ fn time_us(be: &dyn Backend, l: &Launch, iters: usize) -> f64 {
         l.run(be);
     }
     be.synchronize(0).unwrap();
-    t0.elapsed().as_secs_f64() * 1e6 / iters as f64
+    let eager = t0.elapsed().as_secs_f64() * 1e6 / iters as f64;
+    const PER: usize = 50;
+    let g = be
+        .graph_capture(0, &mut || {
+            for _ in 0..PER {
+                be.launch(l.kernel, &l.call, 0)?;
+            }
+            Ok(())
+        })
+        .unwrap();
+    be.graph_replay(&g, 0).unwrap();
+    be.synchronize(0).unwrap();
+    let reps = 10;
+    let t0 = std::time::Instant::now();
+    for _ in 0..reps {
+        be.graph_replay(&g, 0).unwrap();
+    }
+    be.synchronize(0).unwrap();
+    (eager, t0.elapsed().as_secs_f64() * 1e6 / (reps * PER) as f64)
 }
 
 /// Device-position vs host-position cost at the model's shapes (capacity 32768 tokens): `INTARSIA_DSV41_DPOS_BENCH=1`.
@@ -496,7 +516,7 @@ fn device_position_timing() {
     let r = &mut rng;
     let dt = DType::Bf16;
     let (hi, di, b, h, d, w, cap) = (32usize, 128usize, 8usize, 32usize, 512usize, 128usize, 32768usize);
-    println!("TIMING op ratio T P | host us | device us | delta");
+    println!("TIMING op ratio T P | eager host us | eager device us | delta | graph host us | graph device us | delta");
     for ratio in [1usize, 2] {
         let ncap = cap / ratio;
         for t in [1usize, 4] {
@@ -512,7 +532,9 @@ fn device_position_timing() {
                 let (nbc, nbe) = (n_blocks(ncap, b), n_blocks(n, b));
                 let (kw, kh) = (512.min(ncap), 512.min(n));
                 let host = OpAttrs { pos0: p, ..x.attrs.clone() };
-                let row = |name: &str, hu: f64, du: f64| println!("TIMING {name} {ratio} {t} {p} | {hu:8.2} | {du:8.2} | {:+.2}", du - hu);
+                let row = |name: &str, h: (f64, f64), d: (f64, f64)| {
+                    println!("TIMING {name} {ratio} {t} {p} | {:8.2} | {:8.2} | {:+.2} | {:8.2} | {:8.2} | {:+.2}", h.0, d.0, d.0 - h.0, h.1, d.1, d.1 - h.1)
+                };
                 // indexer_blocks (keep 2048)
                 let md = put(be, &HostTensor::zeros(DType::U8, &[t, nbc]));
                 let mh = put(be, &HostTensor::zeros(DType::U8, &[t, nbe]));

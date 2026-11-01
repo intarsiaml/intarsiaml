@@ -134,8 +134,10 @@ decode / verify path (`T <= 16`: `nsplit = min(cdiv(W + Kc, tile), 32)`, tile 32
 host computes it from its idx width; blocks of splits `>= nsplit` exit, one split writes the output directly, more go
 through the merge with the same partial layout. Work is bounded by `N`: score blocks past `N` exit before loading the
 query, the selects run over `N` entries with `k = min(top_k, N)` (blocks: `min(keep, ceil(N/B))`), the multi-block select
-bounds its segments by `N`. The indexer keeps the host's static choice of the multi-block select by the capacity length
-(`>= 16384` rows): both selects are exact, so the picks are the same. Each query's visible rows are clamped to `N`.
+bounds its segments by `N`. The indexer launches the multi-block select's kernels when the capacity length is `>= 16384`
+rows (a shape decision), and a call whose device count `N` is below 16384 takes the one-block select inside them (the
+other select kernels exit at once), the same algorithm the host call picks at that `N`; both selects are exact anyway.
+Each query's visible rows are clamped to `N`.
 
 The cpu reference (`dsv41_ref::run_dev`) runs the host computation on the leading rows at `pos0 = P` into temporaries
 and scatters / pads into the capacity outputs; the cpu backend passes the position of these ops through unresolved.

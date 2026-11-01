@@ -23,6 +23,14 @@ constexpr int kMaxHi = 32;
 constexpr int kMaxQ = 8192;  // Hi * Di floats of the query in shared memory
 constexpr int kSelThreads = 1024;
 constexpr int kSelWarps = kSelThreads / 32;
+constexpr int kHistBins = 2048;  // the multi-block select's histogram (below)
+
+// The multi-block select's per-row histogram and meta (4 u32), cleared by the score kernel's first column block of each
+// row (no separate memset node). h: the histograms of `tr` rows, then their metas.
+IK_DEVI void zero_sel(unsigned* h, int64_t tr, int64_t tl) {
+    for (int i = threadIdx.x; i < kHistBins; i += blockDim.x) h[tl * kHistBins + i] = 0u;
+    if (threadIdx.x < 4) h[tr * kHistBins + tl * 4 + threadIdx.x] = 0u;
+}
 
 template <typename T> IK_DEVI void load8(const T* p, float* f);
 template <> __device__ __forceinline__ void load8<__nv_bfloat16>(const __nv_bfloat16* p, float* f) { ik_unpack8(__ldg(reinterpret_cast<const uint4*>(p)), f); }
@@ -70,10 +78,11 @@ template <typename T, bool BLOCKS>
 __global__ void __launch_bounds__(kScoreThreads) index_score(const T* __restrict__ q, const T* __restrict__ k, const T* __restrict__ w,
                                                              const unsigned char* __restrict__ cand, int64_t t0, int64_t Hi, int64_t Di,
                                                              int64_t Nk, int64_t B, int64_t ratio, int64_t pos0, float scale,
-                                                             float* __restrict__ out, DevLen dl, int64_t cs, int64_t os) {
+                                                             float* __restrict__ out, DevLen dl, int64_t cs, int64_t os, unsigned* __restrict__ zh) {
     __shared__ __align__(16) float qs[kMaxQ];
     __shared__ float ws[kMaxHi];
     const int64_t tl = blockIdx.y, t = t0 + tl;
+    if (zh && blockIdx.x == 0) zero_sel(zh, gridDim.y, tl);
     dev_len(dl, ratio, Nk, pos0, Nk);
     if ((int64_t)blockIdx.x * kScoreThreads >= Nk) return;  // past the device count (block-uniform)
     for (int64_t i = threadIdx.x; i < Hi * Di; i += kScoreThreads) qs[i] = ld(q, t * Hi * Di + i);
@@ -293,16 +302,20 @@ __global__ void __launch_bounds__(kSelThreads) index_select(float* __restrict__ 
 // keys' top 11 bits over many blocks, (2) per row the bin holding the k-th best key, (3) compaction of every key in that bin
 // or above (at most kCap; otherwise the row falls back to the one-block select), (4) per row an exact select over the
 // candidates sorted by position. Same picks, same order as select_row.
-constexpr int kHistBins = 2048;
 constexpr int kHistShift = 21;
 constexpr int64_t kSeg = 4096;
 constexpr int kCap = 4096;
 constexpr int64_t kFastRows = 16;
 constexpr int64_t kFastMinN = 16384;
 
+// Device position: the launcher picks the multi-block select by the capacity length; a call whose device count N is below
+// kFastMinN takes the host's one-block select instead (in sel_final; the other select kernels exit at once).
+IK_DEVI bool dev_short(const DevLen& d, int64_t N) { return d.dpos && N < kFastMinN; }
+
 struct SelMeta {
     unsigned bin, cnt, flag, ctr;
 };
+static_assert(sizeof(SelMeta) == 16, "zero_sel clears 4 u32 per meta");
 
 // v rows of `len` (= Nk, the capacity); the segments and k are bounded by the device count N
 __global__ void __launch_bounds__(256) sel_hist(const float* __restrict__ v, int64_t len, unsigned* __restrict__ hist, DevLen dl,
@@ -311,7 +324,7 @@ __global__ void __launch_bounds__(256) sel_hist(const float* __restrict__ v, int
     const int64_t tl = blockIdx.y;
     int64_t p0 = 0, N;
     dev_len(dl, ratio, len, p0, N);
-    if ((int64_t)blockIdx.x * kSeg >= N) return;
+    if ((int64_t)blockIdx.x * kSeg >= N || dev_short(dl, N)) return;
     for (int b = threadIdx.x; b < kHistBins; b += 256) h[b] = 0;
     __syncthreads();
     const float* row = v + tl * len;
@@ -329,7 +342,7 @@ __global__ void __launch_bounds__(kSelThreads) sel_thresh(const unsigned* __rest
     int64_t p0 = 0, N;
     dev_len(dl, ratio, len, p0, N);
     if (k > N) k = N;
-    if (k <= 0) return;  // no picks (N = 0): sel_compact / sel_final skip the row
+    if (k <= 0 || dev_short(dl, N)) return;  // no picks (N = 0) or the one-block select: sel_compact skips the row
     const unsigned* h = hist + tl * kHistBins;
     // thread i owns bins 2047-2i and 2046-2i (descending); kSelThreads * 2 == kHistBins
     const int b0 = kHistBins - 1 - 2 * threadIdx.x;
@@ -358,7 +371,7 @@ __global__ void __launch_bounds__(256) sel_compact(const float* __restrict__ v, 
     const int64_t tl = blockIdx.y;
     int64_t p0 = 0, N;
     dev_len(dl, ratio, len, p0, N);
-    if (N <= 0 || (int64_t)blockIdx.x * kSeg >= N) return;
+    if (N <= 0 || (int64_t)blockIdx.x * kSeg >= N || dev_short(dl, N)) return;
     if (meta[tl].flag) return;
     const unsigned bin = meta[tl].bin;
     const float* row = v + tl * len;
@@ -397,7 +410,7 @@ __global__ void __launch_bounds__(kSelThreads) sel_final(float* __restrict__ v, 
     for (int64_t o = k + threadIdx.x; o < os; o += kSelThreads) idx[t * os + o] = -1;
     if (k <= 0) return;
     const SelMeta m = meta[tl];
-    if (m.flag) {
+    if (m.flag || dev_short(dl, N)) {
         select_row<false>(v + tl * len, N, k, t, nt, 1, idx, nullptr, os);
         return;
     }
@@ -476,13 +489,17 @@ __global__ void __launch_bounds__(kMmaWarps * 32) index_score_mma(const __nv_bfl
                                                                 const __nv_bfloat16* __restrict__ w, const unsigned char* __restrict__ cand,
                                                                 int64_t t0, int64_t tr, int Hi, int Di, int64_t Nk, int B, int64_t ratio,
                                                                 int64_t pos0, float scale, int qb, float* __restrict__ out, DevLen dl, int64_t cs,
-                                                                int64_t os) {
+                                                                int64_t os, unsigned* __restrict__ zh) {
     extern __shared__ __align__(16) unsigned char smem_raw[];
     __nv_bfloat16* kt = reinterpret_cast<__nv_bfloat16*>(smem_raw);  // [kMmaKeys][Di + 8]
     const int ldk = Di + 8;
     const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
     const int g = lane >> 2, tq = lane & 3;
     const int64_t c0 = (int64_t)blockIdx.x * kMmaKeys;
+    if (zh && blockIdx.x == 0) {
+        const int64_t q0z = (int64_t)blockIdx.y * qb;
+        for (int64_t j = q0z; j < q0z + qb && j < tr; ++j) zero_sel(zh, tr, j);
+    }
     dev_len(dl, ratio, Nk, pos0, Nk);
     if (c0 >= Nk) return;  // past the device count (block-uniform)
     const int64_t q0 = (int64_t)blockIdx.y * qb;  // first query (tile-local) of this block
@@ -658,16 +675,17 @@ int run(const IdxArgs& a, ik_tensor* outp, cudaStream_t s) {
             const size_t smem = (size_t)kMmaKeys * (Di + 8) * 2;
             index_score_mma<BLOCKS><<<g, kMmaWarps * 32, smem, s>>>((const __nv_bfloat16*)a.q->data, (const __nv_bfloat16*)a.k->data,
                                                                    (const __nv_bfloat16*)a.w->data, cand, t0, tr, (int)Hi, (int)Di, Nk,
-                                                                   (int)a.B, a.ratio, a.pos0, a.scale, qb, sc, dl, nb, len);
+                                                                   (int)a.B, a.ratio, a.pos0, a.scale, qb, sc, dl, nb, len,
+                                                                   fast ? fhist : nullptr);
         } else {
             dim3 g((unsigned)cdiv(Nk, kScoreThreads), (unsigned)tr);
             index_score<T, BLOCKS><<<g, kScoreThreads, 0, s>>>((const T*)a.q->data, (const T*)a.k->data, (const T*)a.w->data, cand, t0, Hi,
-                                                               Di, Nk, a.B, a.ratio, a.pos0, a.scale, sc, dl, nb, len);
+                                                               Di, Nk, a.B, a.ratio, a.pos0, a.scale, sc, dl, nb, len,
+                                                               fast ? fhist : nullptr);
         }
         IK_TRY(ik_launch_status());
         if (fast) {
-            // hist and meta are contiguous: one memset clears both (meta's counters start at 0)
-            if (cudaMemsetAsync(fhist, 0, (size_t)(tr * kHistBins * 4 + tr * sizeof(SelMeta)), s) != cudaSuccess) return IK_ERR_LAUNCH;
+            // hist and meta (counters at 0) were cleared by the score kernel (zero_sel)
             const dim3 gs((unsigned)cdiv(len, kSeg), (unsigned)tr);
             sel_hist<<<gs, 256, 0, s>>>(sc, len, fhist, dl, a.ratio);
             IK_TRY(ik_launch_status());
