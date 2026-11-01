@@ -316,7 +316,22 @@ fn dspark_rounds_match_the_official_drafter() {
             let (_, hx_rr) = err(&hx, &ds.get(&format!("{r}/head.x")).f32());
             // the head's raw logits (before the Markov bias) at the official top-64 ids of every row
             let lg = to_f32s(&rt.read_ws("dspark.logits", DType::F32, 5 * v).unwrap(), DType::F32);
-            let (ti, tv) = (ds.get(&format!("{r}/head.logits_raw_top64.i")).i32(), ds.get(&format!("{r}/head.logits_raw_top64.v")).f32());
+            // CI cut: the official top-64 per row; full fixture: the whole `head.logits_raw [block, V]`, top-64 taken here
+            let (ti, tv) = if ds.has(&format!("{r}/head.logits_raw_top64.i")) {
+                (ds.get(&format!("{r}/head.logits_raw_top64.i")).i32(), ds.get(&format!("{r}/head.logits_raw_top64.v")).f32())
+            } else {
+                let raw = ds.get(&format!("{r}/head.logits_raw")).f32();
+                let (mut ti, mut tv) = (Vec::new(), Vec::new());
+                for row in raw.chunks_exact(v) {
+                    let mut ix: Vec<usize> = (0..v).collect();
+                    ix.select_nth_unstable_by(63, |&a, &b| row[b].total_cmp(&row[a]));
+                    ix.truncate(64);
+                    ix.sort_by(|&a, &b| row[b].total_cmp(&row[a]));
+                    ti.extend(ix.iter().map(|&i| i as i32));
+                    tv.extend(ix.iter().map(|&i| row[i]));
+                }
+                (ti, tv)
+            };
             let got: Vec<f32> = ti.iter().enumerate().map(|(k, &id)| lg[(k / 64) * v + id as usize]).collect();
             let (_, lg_rr) = err(&got, &tv);
             let want_conf = ds.get(&format!("{r}/head.confidence")).f32();
