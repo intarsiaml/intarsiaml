@@ -365,3 +365,58 @@ fn dspark_rounds_match_the_official_drafter() {
     }
     assert!(fails.is_empty(), "{}", fails.join("; "));
 }
+
+/// Speculative greedy decoding (DSpark draft, multi-row verify, rollback at the first rejection) gives the same tokens
+/// as plain greedy decoding. Same engine, same prompt: a request with a logits trace decodes one token a pass (the
+/// engine never speculates with a trace), one without speculates. On the cpu backend with f32 activations the verify
+/// rows are row-invariant, so the token ids must be equal; the prompt is long enough that decoding crosses the 128-row
+/// window ring and the first ratio-128 compressor group (rollback across both). `INTARSIA_DSV41_CACHE` as above, with
+/// its DSpark sub-cache; Engram off (zero rows, both requests alike). `INTARSIA_DSV41_SPEC_PROMPT` / `_TOKENS` resize it.
+#[test]
+fn speculative_greedy_equals_plain_greedy() {
+    use intarsia_core::engine::{Engine, GenEvent, GenRequest};
+    let Some(cache) = std::env::var_os("INTARSIA_DSV41_CACHE").map(PathBuf::from) else {
+        println!("skipped: set INTARSIA_DSV41_CACHE (with its mtp sub-cache)");
+        return;
+    };
+    let cuda = std::env::var("INTARSIA_DSV41_BACKEND").as_deref() == Ok("cuda");
+    let n_prompt: usize = std::env::var("INTARSIA_DSV41_SPEC_PROMPT").ok().and_then(|v| v.parse().ok()).unwrap_or(110);
+    let n_gen: usize = std::env::var("INTARSIA_DSV41_SPEC_TOKENS").ok().and_then(|v| v.parse().ok()).unwrap_or(48);
+    std::env::set_var("INTARSIA_DSV41_SPEC", "1");
+    std::env::set_var("INTARSIA_DSV41_ENGRAM", "off");
+    std::env::set_var("INTARSIA_DSV41_CAP", "512");
+    std::env::set_var("INTARSIA_DSV41_CHUNK", "64");
+    if !cuda {
+        std::env::set_var("INTARSIA_DSV41_ACT", "f32");
+    }
+    let backend: Arc<dyn Backend> = if cuda { cuda_backend() } else { intarsia_backend_cpu::CpuBackend::arc() };
+    let eng = intarsia_models::dsv41_engine::Dsv41Engine::load(&cache, backend, None, None, None, None).unwrap();
+    // a fixed pseudo-text prompt: common token ids, repeated phrases so the drafter gets some right
+    let prompt: Vec<u32> = (0..n_prompt).map(|i| [301u32, 270, 8331, 1205, 778, 12345, 1137, 15, 3000, 4321][(i * 7 + i / 10) % 10]).collect();
+    let run = |trace: bool| -> Vec<u32> {
+        let req = GenRequest {
+            prompt: prompt.clone(),
+            max_tokens: n_gen,
+            temperature: 0.0,
+            ignore_eos: true,
+            trace_logits: trace.then(|| Arc::new(Mutex::new(Vec::new()))),
+            ..Default::default()
+        };
+        let mut ids = Vec::new();
+        eng.generate(req, &mut |e| match e {
+            GenEvent::Token { id, .. } => ids.push(id),
+            GenEvent::Error { message } => panic!("generate: {message}"),
+            _ => {}
+        })
+        .unwrap();
+        ids.truncate(n_gen); // a last Token may repeat the final id to carry held-back text
+        ids
+    };
+    let plain = run(true);
+    let spec = run(false);
+    let lead = plain.iter().zip(&spec).take_while(|(a, b)| a == b).count();
+    println!("SPEC plain {plain:?}\nSPEC spec  {spec:?}\nSPEC leading equal {lead}/{}", plain.len());
+    if !cuda {
+        assert_eq!(plain, spec, "speculative greedy differs from plain greedy at token {lead}");
+    }
+}
