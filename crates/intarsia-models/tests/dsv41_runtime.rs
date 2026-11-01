@@ -438,10 +438,13 @@ fn verify_rows_track_decode_through_rollback() {
     let cuda = std::env::var("INTARSIA_DSV41_BACKEND").as_deref() == Ok("cuda");
     let act = if cuda || std::env::var("INTARSIA_DSV41_ACT").as_deref() == Ok("bf16") { DType::Bf16 } else { DType::F32 };
     let backend: Arc<dyn Backend> = if cuda { cuda_backend() } else { intarsia_backend_cpu::CpuBackend::arc() };
-    let o = Dsv41Opts { cap: 512, chunk: 64, engram_dir: PathBuf::from("off"), hot_mb: 0, act, spec: true };
+    let knob = |k: &str, d: usize| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+    // past index_topk (512) compressed keys the indexer really selects: e.g. INTARSIA_DSV41_VT_PROMPT=560 with a cap of 1024
+    let (n_prompt, n_cont, cap) = (knob("INTARSIA_DSV41_VT_PROMPT", 110), knob("INTARSIA_DSV41_VT_TOKENS", 64), knob("INTARSIA_DSV41_VT_CAP", 512));
+    let o = Dsv41Opts { cap, chunk: 64, engram_dir: PathBuf::from("off"), hot_mb: 0, act, spec: true };
     let (rt, _) = load_runtime_with(&cache, backend, None, &o, None).unwrap();
     let toks = |n: usize, s: usize| -> Vec<u32> { (0..n).map(|i| [301u32, 270, 8331, 1205, 778, 12345, 1137, 15, 3000, 4321][(i * 7 + i / 10 + s) % 10]).collect() };
-    let (prompt, cont) = (toks(110, 0), toks(64, 3));
+    let (prompt, cont) = (toks(n_prompt, 0), toks(n_cont, 3));
     let rel = |a: &[f32], b: &[f32]| -> f64 {
         let (mut d, mut n) = (0f64, 0f64);
         for (x, y) in a.iter().zip(b) {
