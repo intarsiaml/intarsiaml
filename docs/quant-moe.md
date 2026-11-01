@@ -57,6 +57,29 @@ final add are rounded to the activation dtype); with f32 activations the cpu ora
 Shared expert width, the router dtype and the shared-expert-gate dtype were taken from the checkpoint: shared
 expert projections are NVFP4 (`W4A16_NVFP4`), the router `gate.weight` and `shared_expert_gate.weight` are bf16.
 
+## EXL3 experts (`MoeExperts` with an i16 trellis arena, DeepSeek-V4.1 on the Mia EXL3 checkpoint)
+
+Same op, same eight inputs; input 3's dtype (i16) selects the encoding (`quant::exl3_moe`, all checks, shapes, plan cases
+and the cpu reference dispatch on it, NVFP4 calls are unchanged):
+
+```
+0 x [T,H]   1 ids i32 [T,K]   2 weights f32 [T,K]
+3 arena i16 [W]        every expert's gate [H/16,I/16,8k2], up, down [I/16,H/16,8k2] trellis tiles
+4 scales f16 [E,3H+3I] suh_g | suh_u | svh_g | svh_u | suh_d | svh_d
+5 meta i32 [E,8]       gate, up, down offsets (16-byte units), gate, up, down k2
+6 codebook i32 [1]     7 limit f32 [1] (SwiGLU clamp: silu(min(g,L)) * clamp(u,-L,L); +inf = none)
+out[t] = sum_j w[t,j] * down_e(act(gate_e x[t], up_e x[t])), e = ids[t,j]; ids outside 0..E add nothing
+```
+
+Widths are per matrix (Mia: routed 2 / 3 bit, shared 4 / 5 bit), so the shared expert can ride in the same call as
+expert E-1 with a slot of weight 1 per row. `exl3_moe::load(backend, src, experts, H, I, rank, world, limit)` builds the
+encoding from checkpoint prefixes (`layers.{l}.ffn.experts.{x}.w1/.w3/.w2`, then `shared_experts`) and, at `world > 1`,
+keeps rank `r`'s intermediate columns (gate / up split N, down split K: partial outputs, summed by the row-parallel
+all-reduce); the split must sit on the 128-point Hadamard grid (DSv4.1 TP=2: I = 2304 = 2 x 9 x 128). Plain EXL3
+linears shard at load the same way (`exl3::shard_ranges`: `ShardAxis::Rows` = N, `Cols` = K, multiples of 128 per rank,
+anything else refused). CUDA: `moe_experts_exl3` (kernels/cuda/exl3_moe*.cu, ported from TensorFold's DeepSeek-V4.1
+fork, Apache-2.0), results in `docs/results/2026-10-31-dsv41-cuda-moe.md`.
+
 ## CUDA kernels
 
 | kernel | when | notes |
