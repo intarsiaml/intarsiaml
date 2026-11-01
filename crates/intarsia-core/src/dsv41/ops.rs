@@ -51,7 +51,7 @@ pub enum ScoreFunc {
 /// Attributes of the DeepSeek-V4.1 ops (`OpAttrs::dsv`); every other op ignores them.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct DsvAttrs {
-    /// `SiluGluClamp`, `MoeExpertsExl3`: `swiglu_limit` (up clamped to `[-limit, limit]`, gate to `<= limit`); 0 = no clamp.
+    /// `SiluGluClamp`: `swiglu_limit` (up clamped to `[-limit, limit]`, gate to `<= limit`); 0 = no clamp.
     pub limit: f32,
     /// `CompressPool`, `IndexerBlocks`, `IndexerTopk`: tokens per compressed row (`compress_ratios[layer]`, >= 1).
     pub ratio: usize,
@@ -94,7 +94,7 @@ impl Default for DsvAttrs {
 }
 
 /// The DeepSeek-V4.1 ops, in discriminant order (44 ..).
-pub const OPS: [Op; 19] = [
+pub const OPS: [Op; 18] = [
     Op::HcExpand,
     Op::HcMixes,
     Op::HcPre,
@@ -111,7 +111,6 @@ pub const OPS: [Op; 19] = [
     Op::GroupedMatmul,
     Op::Transpose01,
     Op::MatmulFp8Block,
-    Op::MoeExpertsExl3,
     Op::EngramGather,
     Op::EngramMerge,
 ];
@@ -131,6 +130,12 @@ pub fn compressed_rows(pos0: usize, t: usize, ratio: usize) -> (usize, usize) {
 /// the query has passed its last token.
 pub fn visible_rows(pos0: usize, t: usize, ratio: usize) -> usize {
     (pos0 + t + 1) / ratio.max(1)
+}
+
+/// Payload width of an Engram record of `r` bytes (`Dh` e4m3 bytes plus `Dh / 32` E8M0 scales, so `r = 33 * Dh / 32`);
+/// 0 when `r` is not such a width.
+pub fn engram_head_dim(r: usize) -> usize {
+    if r > 0 && r % 33 == 0 { r / 33 * 32 } else { 0 }
 }
 
 /// `(rows, positions)` of `Op::IndexerBlocks`' output for `n` compressed rows: `ceil(n / block)` blocks.
@@ -393,39 +398,15 @@ pub fn check(call: &OpCall) -> Result<()> {
             }
             float(&i[0], "x")?;
         }
-        Op::MoeExpertsExl3 => {
-            rank(&i[0], 2, "x")?;
-            let (t, h) = (i[0].shape[0], i[0].shape[1]);
-            let k = i[1].shape.get(1).copied().unwrap_or(0);
-            if i[1].shape != [t, k] || i[2].shape != [t, k] || i[1].dtype != DType::I32 || i[2].dtype != DType::F32 || o[0].shape != [t, h] {
-                return bad(op, format!("x {:?} ids {:?} weights {:?} y {:?}", i[0].shape, i[1].shape, i[2].shape, o[0].shape));
-            }
-            // gate (w1), up (w3), down (w2): trellis [E, K/16, N/16, 16*bits] i16, suh [E, K] f16, svh [E, N] f16
-            let e = i[3].shape.first().copied().unwrap_or(0);
-            for (base, kk, what) in [(3usize, h, "w1"), (6, h, "w3"), (9, 0, "w2")] {
-                let tr = &i[base];
-                if tr.shape.len() != 4 || tr.shape[0] != e || tr.dtype != DType::I16 || i[base + 1].dtype != DType::F16 || i[base + 2].dtype != DType::F16 {
-                    return bad(op, format!("{what} trellis {} {:?} must be i16 [E,K/16,N/16,16*bits] with f16 suh / svh", tr.dtype, tr.shape));
-                }
-                if kk > 0 && tr.shape[1] * 16 != kk {
-                    return bad(op, format!("{what} trellis {:?} does not take K = {kk}", tr.shape));
-                }
-            }
-            if i[12].shape != [1] || i[12].dtype != DType::I32 {
-                return bad(op, "codebook must be i32 [1]".into());
-            }
-            float(&i[0], "x")?;
-            float(&o[0], "y")?;
-        }
         Op::EngramGather => {
-            rank(&i[0], 3, "rows")?;
-            rank(&i[1], 3, "scales")?;
-            let (t, c, dh) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
-            if dh % 32 != 0 || i[1].shape != [t, c, dh / 32] || o[0].shape != [t, c * dh] {
-                return bad(op, format!("rows {:?} scales {:?} y {:?}: need scales [T,C,Dh/32], y [T,C*Dh]", i[0].shape, i[1].shape, o[0].shape));
+            rank(&i[0], 3, "records")?;
+            let (t, c, r) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+            let dh = engram_head_dim(r);
+            if dh == 0 || o[0].shape != [t, c * dh] {
+                return bad(op, format!("records {:?} y {:?}: need records [T,C,Dh+Dh/32] (Dh a multiple of 32), y [T,C*Dh]", i[0].shape, o[0].shape));
             }
-            if i[0].dtype != DType::Fp8E4m3 || i[1].dtype != DType::U8 {
-                return bad(op, format!("rows must be fp8_e4m3 and scales u8 (e8m0), got {} / {}", i[0].dtype, i[1].dtype));
+            if i[0].dtype != DType::U8 {
+                return bad(op, format!("records must be u8 (e4m3 payload + E8M0 scales), got {}", i[0].dtype));
             }
             float(&o[0], "y")?;
         }
@@ -519,19 +500,11 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.k = first(&i[1], 1);
             s.weight = Some(i[1].dtype);
         }
-        Op::MoeExpertsExl3 => {
-            s.m = first(&i[0], 0);
-            s.k = first(&i[0], 1);
-            s.n = first(&i[3], 2) * 16;
-            s.experts = first(&i[3], 0);
-            s.top_k = first(&i[1], 1);
-            s.weight = Some(DType::I16);
-        }
         Op::EngramGather => {
             s.m = first(&i[0], 0);
             s.n = first(&i[0], 1);
-            s.k = first(&i[0], 2);
-            s.weight = Some(i[0].dtype);
+            s.k = engram_head_dim(first(&i[0], 2));
+            s.weight = Some(DType::Fp8E4m3);
         }
         _ => {}
     }

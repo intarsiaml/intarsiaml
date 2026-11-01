@@ -244,6 +244,16 @@ fn flip(x: &Arg) -> Arg {
     Arg { buf: Buf::Ws(other.into()), ..x.clone() }
 }
 
+/// Tokens a truncate / speculative rollback may cut while the rings still hold every row the window and the pending
+/// compressor group need (`SlotSpec::Ring::margin`): DSpark verifies blocks of 5, n-gram drafts a few more.
+pub const ROLLBACK_MARGIN: usize = 16;
+
+/// Rows of a compressor tail ring of ratio `r`: a multiple of `r` holding the `r - 1` pending tokens plus
+/// [`ROLLBACK_MARGIN`] (cutting `m` tokens re-opens a group whose first rows were written up to `m + r - 1` steps earlier).
+pub fn tail_rows(r: usize) -> usize {
+    r * (ROLLBACK_MARGIN + r).div_ceil(r)
+}
+
 /// Fixed slot indices of a layer.
 #[derive(Clone, Copy, Debug, Default)]
 struct LayerSlots {
@@ -260,7 +270,8 @@ fn slots(c: &Dsv41Config, act: DType) -> (Vec<SlotSpec>, Vec<LayerSlots>) {
     let mut ls = vec![LayerSlots::default(); c.n_layers];
     for (l, s) in ls.iter_mut().enumerate() {
         s.window = specs.len();
-        specs.push(SlotSpec::Ring { rows: c.window, width: c.head_dim, planes: 1, dtype: act, margin: 0, kind: RingKind::WindowKv });
+        let m = ROLLBACK_MARGIN;
+        specs.push(SlotSpec::Ring { rows: c.window + m, width: c.head_dim, planes: 1, dtype: act, margin: m, kind: RingKind::WindowKv });
         let _ = l;
     }
     for &src in &c.kv_source_layers {
@@ -268,7 +279,8 @@ fn slots(c: &Dsv41Config, act: DType) -> (Vec<SlotSpec>, Vec<LayerSlots>) {
         let readers: Vec<usize> = (0..c.n_layers).filter(|&l| c.kv_source(l) == Some(src)).collect();
         if r > 1 {
             ls[src].tail = Some(specs.len());
-            specs.push(SlotSpec::Ring { rows: r, width: c.head_dim, planes: 2, dtype: DType::F32, margin: 0, kind: RingKind::CompressTail });
+            let (rows, margin) = (tail_rows(r), ROLLBACK_MARGIN);
+            specs.push(SlotSpec::Ring { rows, width: c.head_dim, planes: 2, dtype: DType::F32, margin, kind: RingKind::CompressTail });
         }
         let cmp = specs.len();
         specs.push(SlotSpec::Shared { ratio: r, width: c.head_dim, dtype: act, writer: src, readers: readers.clone(), kind: SharedKind::CompressedKv });
@@ -311,10 +323,10 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
         // Engram (Transformer.forward, before the block): rows hashed on the host, fetched from the tier
         if let Some(e) = c.engram.as_ref().filter(|e| e.layer_ids.contains(&l)) {
             let cols = (e.max_ngram - 1) * e.n_heads;
-            let rows = arg(Buf::Host(format!("engram.{l}.rows")), DType::Fp8E4m3, &[t, cols, e.head_dim]);
-            let scales = arg(Buf::Host(format!("engram.{l}.scales")), DType::U8, &[t, cols, e.head_dim / 32]);
+            let rec = super::engram::record_bytes(e.head_dim);
+            let records = arg(Buf::Host(format!("engram.{l}.records")), DType::U8, &[t, cols, rec]);
             let emb = ws("engram.emb", act, &[t, cols * e.head_dim]);
-            b.push(Op::EngramGather, format!("{p}.engram.embed"), vec![rows, scales], vec![emb.clone()], OpAttrs::default());
+            b.push(Op::EngramGather, format!("{p}.engram.embed"), vec![records], vec![emb.clone()], OpAttrs::default());
             let kv = b.matmul(emb, &format!("{p}.engram.wkv"), Buf::Ws("engram.kv".into()), act)?;
             let (qw, kw) = (b.weight(&format!("{p}.engram.q_weight"))?, b.weight(&format!("{p}.engram.k_weight"))?);
             let y = flip(&x);
@@ -324,6 +336,13 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
         }
 
         // attention sub-block (Block.forward)
+        // DSpark tap (Transformer.forward, model.py:1269): the MTP head reads the mean over streams of the attention input of
+        // its target layers; a collapse with the constant mix 1/S. Recorded so the drafting lane only consumes it.
+        if let Some(j) = c.mtp.as_ref().and_then(|m| m.target_layer_ids.iter().position(|&tl| tl == l)) {
+            let mean = arg(Buf::Const("hc.mean_mix".into()), DType::F32, &[t, s]);
+            b.push(Op::HcPre, format!("{p}.dspark_tap"), vec![x.clone(), mean], vec![ws(&format!("main_hidden.{j}"), act, &[t, d])], OpAttrs::default());
+            blocks.push("dspark_tap".to_string());
+        }
         let [attn_pre, attn_post, attn_comb] = b.hc_mixes(&x, &format!("{p}.hc_attn"), "hc_attn")?;
         let a_in = ws("a", act, &[t, d]);
         b.push(Op::HcPre, format!("{p}.hc_pre(attn)"), vec![x.clone(), pre_mix.clone()], vec![a_in.clone()], OpAttrs::default());
@@ -379,7 +398,7 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv_rope".into()), &format!("{p}.rope(kv)"));
     let kv = b.qdq(Arg { shape: vec![t, hd], ..kv }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("kv_q".into()), &format!("{p}.act_quant(kv)"));
     let winbuf = ws("win", act, &[win + t, hd]);
-    let ring = arg(Buf::Slot { slot: ls.window, plane: 0, row0: 0 }, act, &[win, hd]);
+    let ring = arg(Buf::Slot { slot: ls.window, plane: 0, row0: 0 }, act, &[win + ROLLBACK_MARGIN, hd]);
     b.push(Op::WindowKv, format!("{p}.window_kv"), vec![kv], vec![winbuf.clone(), ring], OpAttrs { window: win, pos0, ..Default::default() });
 
     let (nk, groups) = if r > 0 { compressed_rows(pos0, t, r) } else { (0, 0) };
@@ -398,8 +417,8 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
                 let tail = ls.tail.expect("ratio > 1 sources have a tail ring");
                 let outs = vec![
                     ws("latent", act, &[groups, hd]),
-                    arg(Buf::Slot { slot: tail, plane: 0, row0: 0 }, DType::F32, &[r, hd]),
-                    arg(Buf::Slot { slot: tail, plane: 1, row0: 0 }, DType::F32, &[r, hd]),
+                    arg(Buf::Slot { slot: tail, plane: 0, row0: 0 }, DType::F32, &[tail_rows(r), hd]),
+                    arg(Buf::Slot { slot: tail, plane: 1, row0: 0 }, DType::F32, &[tail_rows(r), hd]),
                 ];
                 let mut a = OpAttrs { pos0, ..Default::default() };
                 a.dsv.ratio = r;
@@ -508,28 +527,45 @@ fn moe(b: &mut Builder, p: &str, n: &Arg, experts: usize, top_k: usize) -> Resul
     let (rw, ids) = (ws("route_w", DType::F32, &[t, top_k]), ws("route_ids", DType::I32, &[t, top_k]));
     b.push(Op::MoeRoute, format!("{p}.gate"), vec![logits, bias], vec![rw.clone(), ids.clone()], OpAttrs { top_k, scale: c.route_scale, norm_topk: c.norm_topk, ..Default::default() });
 
-    let mut inputs = vec![n.clone(), ids, rw];
+    // routed experts: the EXL3 encoding of `MoeExperts` (`quant::exl3_moe`), built at load from the per-expert tensors:
+    // one i16 trellis arena of every expert's gate / up / down tiles, scales [E, 3H + 3I] f16 (suh / svh of each matrix),
+    // meta [E, 8] i32 (arena offsets and widths), the codebook, and the swiglu clamp limit
+    let mut words = 0usize;
+    let mut inter = 0usize;
     for wn in ["w1", "w3", "w2"] {
         let e0 = format!("{p}.experts.0.{wn}");
         let last = format!("{p}.experts.{}.{wn}", experts - 1);
         let (Some((_, s0)), Some((_, sl))) = (b.w.get(&format!("{e0}.trellis")), b.w.get(&format!("{last}.trellis"))) else {
             return Err(Error::Unsupported(format!(
-                "deepseek_v41: routed experts {p}.experts.*.{wn} are not EXL3 (the base's FP4 experts run as MoeExperts with dsv.limit, lane 1b)"
+                "deepseek_v41: routed experts {p}.experts.*.{wn} are not EXL3 (the base's FP4 experts run as the MXFP4 MoeExperts with a clamp, lane 1b)"
             )));
         };
         if s0 != sl || s0.len() != 3 {
             return Err(Error::model(format!("deepseek_v41: {p} experts 0 and {} differ in shape ({s0:?} / {sl:?})", experts - 1)));
         }
         let (k, nn) = (16 * s0[0], 16 * s0[1]);
-        inputs.push(arg(Buf::Weight(format!("{p}.experts.*.{wn}.trellis")), DType::I16, &[experts, s0[0], s0[1], s0[2]]));
-        inputs.push(arg(Buf::Weight(format!("{p}.experts.*.{wn}.suh")), DType::F16, &[experts, k]));
-        inputs.push(arg(Buf::Weight(format!("{p}.experts.*.{wn}.svh")), DType::F16, &[experts, nn]));
+        let want = if wn == "w2" { (inter, d) } else { (d, nn) };
+        if wn != "w2" {
+            inter = nn;
+        }
+        if (k, nn) != want {
+            return Err(Error::model(format!("deepseek_v41: {p}.experts.*.{wn} is [{k} -> {nn}], expected [{} -> {}]", want.0, want.1)));
+        }
+        // one width per (layer, matrix) stack in the Mia checkpoint, so the arena is E times expert 0's tiles
+        words += experts * s0.iter().product::<usize>();
     }
-    inputs.push(arg(Buf::Weight(format!("{p}.experts.*.codebook")), DType::I32, &[1]));
+    let inputs = vec![
+        n.clone(),
+        ids,
+        rw,
+        arg(Buf::Weight(format!("{p}.experts.arena")), DType::I16, &[words]),
+        arg(Buf::Weight(format!("{p}.experts.scales")), DType::F16, &[experts, 3 * d + 3 * inter]),
+        arg(Buf::Weight(format!("{p}.experts.meta")), DType::I32, &[experts, crate::quant::exl3_moe::META_COLS]),
+        arg(Buf::Weight(format!("{p}.experts.codebook")), DType::I32, &[1]),
+        arg(Buf::Const("swiglu_limit".into()), DType::F32, &[1]),
+    ];
     let routed = ws("moe_routed", act, &[t, d]);
-    let mut a = OpAttrs { top_k, ..Default::default() };
-    a.dsv.limit = c.swiglu_limit;
-    b.push(Op::MoeExpertsExl3, format!("{p}.experts"), inputs, vec![routed.clone()], a);
+    b.push(Op::MoeExperts, format!("{p}.experts"), inputs, vec![routed.clone()], OpAttrs { top_k, ..Default::default() });
 
     // shared expert: clamped SwiGLU
     let g = b.matmul(n.clone(), &format!("{p}.shared_experts.w1"), Buf::Ws("g".into()), act)?;

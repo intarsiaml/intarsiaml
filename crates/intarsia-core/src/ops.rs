@@ -28,13 +28,13 @@
 //! | `MatmulMxfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), scales `[N,K/32]` u8 (e8m0), act `[1]` f32 (0 = 16-bit x, 1 = dynamic MXFP4 QDQ of x, 2 = dynamic per-token fp8 e4m3 x) | `[M,N]` (bf16/f16/f32) | see `quant::mxfp4` |
 //! | `MatmulMxfp4Pair` | x `[M,K]`, (w0 `[N0,K/2]` u8, scales0 `[N0,K/32]` u8), (w1 `[N1,K/2]` u8, scales1 `[N1,K/32]` u8), act `[1]` f32 | `[M,N0]`, `[M,N1]` (= two `MatmulMxfp4`s of the same x and act) | fused, see `quant::mxfp4` |
 //! | `MoeTopk` | router logits `[T,E]` | weights `[T,K]` f32, expert ids `[T,K]` i32 | top_k, norm_topk |
-//! | `MoeExperts` | x `[T,H]`, ids `[T,K]`, weights `[T,K]`, gate_up w `[E,2I,H/2]` u8, gate_up scales `[E,2I,H/16]` fp8, down w `[E,H,I/2]` u8, down scales `[E,H,I/16]` fp8, global `[E,3]` f32 | `[T,H]` | see `quant::moe` |
+//! | `MoeExperts` | x `[T,H]`, ids `[T,K]`, weights `[T,K]`, gate_up w `[E,2I,H/2]` u8, gate_up scales `[E,2I,H/16]` fp8, down w `[E,H,I/2]` u8, down scales `[E,H,I/16]` fp8, global `[E,3]` f32 | `[T,H]` | see `quant::moe`; or the EXL3 encoding (input 3 an i16 trellis arena, `quant::exl3_moe`) |
 //! | `MoeCombine` | routed `[T,H]`, shared `[T,H]`, shared-gate logit `[T,1]` | `[T,H]` | |
 //! | `GateSplit` | x `[T,N,2D]` (per head: `D` values then `D` gate values) | q `[T,N,D]`, gate `[T,N,D]` | |
 //! | `SigmoidMul` | a `[R,X]`, gate `[R,X]` | `[R,X]` (= a * sigmoid(gate)) | |
 //! | `GdnConv` | x `[T,C]`, taps `[C,K]` | y `[T,C]` (= silu(causal conv)), conv state `[C,K-1]` f32, or bf16 where `Backend::gdn_conv_dtype` says so (**in place**) | |
 //! | `ShortConv` | bcx `[T,3C]` (the `in_proj` output, rows `[B \| C \| x]`), taps `[C,K]` | y `[T,C]` (= `C * causalconv(B * x)`: depthwise causal conv, no activation, no bias, tap `K-1` on the current token; f32 inside, one rounding), conv state `[C,K-1]` f32 (the last `K-1` values of `B * x`, **in place**) | LFM2's short-conv block (lane nab2) |
-//! | **DeepSeek-V4.1** (44..=62, lane 1a; exact rules, references and status in docs/design/dsv41-ops.md, checks in `dsv41::ops`) | | | |
+//! | **DeepSeek-V4.1** (44..=61, lane 1a; exact rules, references and status in docs/design/dsv41-ops.md, checks in `dsv41::ops`) | | | |
 //! | `HcExpand` | x `[T,D]` | `[T,S,D]` (S copies) | |
 //! | `HcMixes` | x `[T,S,D]`, fn `[(2+S)S,S*D]` f32, scale `[3]` f32, base `[(2+S)S]` f32 | pre `[T,S]`, post `[T,S]`, comb `[T,S,S]` f32 (sigmoid splits, Sinkhorn-normalised comb) | eps (RMS over `S*D`), dsv.iters, dsv.hc_eps |
 //! | `HcPre` | x `[T,S,D]`, mix `[T,S]` f32 | `[T,D]` (= sum_s mix[s] x[s]) | |
@@ -51,8 +51,7 @@
 //! | `GroupedMatmul` | x `[T,G*K]`, w `[G,N,K]` | `[T,G*N]` (group g: x_g @ w[g]^T) | |
 //! | `Transpose01` | x `[A,B,C]` | `[B,A,C]` | |
 //! | `MatmulFp8Block` | x `[M,K]`, w `[N,K]` e4m3, w_scale `[ceil(N/b),K/b]` u8 (E8M0) | `[M,N]` (activations quantised to e4m3 per b first) | dsv.block |
-//! | `MoeExpertsExl3` | x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, (trellis `[E,K/16,N/16,16*bits]` i16, suh `[E,K]` f16, svh `[E,N]` f16) x w1 / w3 / w2, codebook `[1]` i32 | `[T,H]` (weighted sum of clamped-SwiGLU EXL3 experts) | top_k, dsv.limit |
-//! | `EngramGather` | rows `[T,C,Dh]` e4m3, scales `[T,C,Dh/32]` u8 (E8M0) | `[T,C*Dh]` | |
+//! | `EngramGather` | records `[T,C,Dh+Dh/32]` u8 (per row: Dh e4m3 bytes, then Dh/32 E8M0 scale bytes; 264 B for Dh 256) | `[T,C*Dh]` | |
 //! | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)*D]` (S keys, one value), q_w `[S,D]`, k_w `[S,D]` | `[T,S,D]` (h + gate * value per stream) | eps |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
@@ -144,7 +143,7 @@ pub enum Op {
     DynConv,
     // appended (2026-10-27, nab2 LFM2.5): the gated short conv of Liquid's LFM2 (no activation, state in a `Recurrent` slot), for the same reason
     ShortConv,
-    // appended ONCE (2026-10-31, lane 1a, DeepSeek-V4.1 skeleton): the whole DSv4.1 op set, discriminants 44..=62, frozen so
+    // appended ONCE (2026-10-31, lane 1a, DeepSeek-V4.1 skeleton): the whole DSv4.1 op set, discriminants 44..=61, frozen so
     // that the later lanes (cpu reference, CUDA, Engram) only fill in kernels. Semantics: `crate::dsv41::ops` and
     // docs/design/dsv41-ops.md. Never insert above this block, for the same reason as above.
     /// Hyper-connections: copy the embedding into the residual streams.
@@ -179,8 +178,6 @@ pub enum Op {
     Transpose01,
     /// FP8 e4m3 matmul with E8M0 block scales and dynamic per-block activation quantisation.
     MatmulFp8Block,
-    /// Routed EXL3 experts with clamped SwiGLU, weighted sum.
-    MoeExpertsExl3,
     /// Engram: dequantise fetched fp8 table rows with their E8M0 scales.
     EngramGather,
     /// Engram: gated merge of the n-gram value into every residual stream.
@@ -188,7 +185,7 @@ pub enum Op {
 }
 
 impl Op {
-    pub const ALL: [Op; 63] = [
+    pub const ALL: [Op; 62] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -249,7 +246,6 @@ impl Op {
         Op::GroupedMatmul,
         Op::Transpose01,
         Op::MatmulFp8Block,
-        Op::MoeExpertsExl3,
         Op::EngramGather,
         Op::EngramMerge,
     ];
@@ -317,7 +313,6 @@ impl Op {
             Op::GroupedMatmul => "grouped_matmul",
             Op::Transpose01 => "transpose01",
             Op::MatmulFp8Block => "matmul_fp8_block",
-            Op::MoeExpertsExl3 => "moe_experts_exl3",
             Op::EngramGather => "engram_gather",
             Op::EngramMerge => "engram_merge",
         }
@@ -388,8 +383,7 @@ impl Op {
             Op::GroupedMatmul => (2, 1),
             Op::Transpose01 => (1, 1),
             Op::MatmulFp8Block => (3, 1),
-            Op::MoeExpertsExl3 => (13, 1),
-            Op::EngramGather => (2, 1),
+            Op::EngramGather => (1, 1),
             Op::EngramMerge => (4, 1),
         }
     }
@@ -888,7 +882,7 @@ impl OpCall {
             | Op::MatmulMxfp4Pair => crate::quant::ops::check(self)?,
             Op::MatmulExl3 => crate::quant::exl3::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
-            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::MoeExpertsExl3 | Op::EngramGather | Op::EngramMerge => crate::dsv41::ops::check(self)?,
+            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge => crate::dsv41::ops::check(self)?,
         }
         Ok(())
     }
@@ -1049,7 +1043,7 @@ impl ShapeInfo {
             | Op::MatmulMxfp4Pair => crate::quant::ops::shape(call, &mut s),
             Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
-            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::MoeExpertsExl3 | Op::EngramGather | Op::EngramMerge => crate::dsv41::ops::shape(call, &mut s),
+            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge => crate::dsv41::ops::shape(call, &mut s),
         }
         let _ = o;
         s
@@ -1293,12 +1287,12 @@ mod tests {
         assert_eq!(Op::GeluGlu as usize, 41, "appended at the end, in this order");
         assert_eq!(Op::DynConv as usize, 42, "appended at the end, in this order");
         assert_eq!(Op::ShortConv as usize, 43, "appended at the end, in this order");
-        // the DeepSeek-V4.1 block (lane 1a): absolute discriminants 44..=62, in `dsv41::ops::OPS` order, last in `Op::ALL`
+        // the DeepSeek-V4.1 block (lane 1a): absolute discriminants 44..=61, in `dsv41::ops::OPS` order, last in `Op::ALL`
         for (j, op) in crate::dsv41::ops::OPS.iter().enumerate() {
             assert_eq!(*op as usize, 44 + j, "{op}");
             assert_eq!(Op::ALL[44 + j], *op);
         }
-        assert_eq!(Op::ALL.last(), Some(&Op::EngramMerge), "appended after the DSv4.1 block's first 18 ops");
+        assert_eq!(Op::ALL.last(), Some(&Op::EngramMerge), "the last of the DSv4.1 block");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

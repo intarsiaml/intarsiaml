@@ -34,7 +34,7 @@ provided methods (`owned_rows`, `touch`, `prefetch`), additive, defaults keep `M
 
 | Item | What |
 |---|---|
-| `NvmeEngramTier::new(store, &hash, rank, world)` | implements `intarsia_core::dsv41::engram::EngramTier` (`issue`, `wait`, `owned_rows`, `touch`, `prefetch`) |
+| `NvmeEngramTier::new(store, &hash, rank, world)` | implements `intarsia_core::dsv41::engram::EngramTier` (`issue`, `wait` -> packed 264 B records, `owned_rows`, `touch`, `prefetch`); refuses shards without O_DIRECT on Linux |
 | `HashLayout::dsv41()` | core `NgramHasher` + DSv4.1 multipliers, per-column offsets, `rank_rows(layer, rank, world)` (column split) |
 | `NgramState::push(&hash, Option<u32>, &mut [u64])` | one token -> 48 global row ids `[layer][column]` via the core hasher on a 4-id window, O(1); `peek` for candidate tokens; `None` = dead/image token |
 | `TokenMap::load_json` / `token_map::build(&Tokenizer)` (feature `tokenizer`) | raw -> compressed ids |
@@ -230,8 +230,9 @@ Engine side:
    sequence is active: after a long idle the first read costs ~9.6 ms, which a 1 ms lead cannot hide.
 3. Split the captured graph at layers 1 and 14 (or poll a host flag from a device wait kernel) and `wait` between the
    segments; layer 14 has ~13 layers of slack.
-4. Rows other ranks own come back as zero payload; zero e4m3 bytes dequantize to exactly 0 whatever the scale, so the
-   all-reduce of the gathered rows works unchanged.
+4. `wait` writes packed 264 B records (the `EngramGather` input, dsv41/plan @298d3d572); rows other ranks own come back
+   as zero payload with unit scales, which dequantize to exactly 0, so the all-reduce of the gathered rows works
+   unchanged. The store's own `wait` also offers split `[n,256]` / `[n,8]` outputs.
 5. Prefill: issue a chunk's rows per layer in one call (reads queue beyond the depth, duplicates are read once).
 
 ## Reproduce

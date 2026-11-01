@@ -5,7 +5,9 @@
 //! per-layer FP8 table (`[~384M, 256]` e4m3 plus `[~384M, 8]` E8M0 scales per layer, 203 GB for the two Engram layers).
 //! The row addresses depend on token ids only, never on hidden state, so they are known when a pass starts: the engine
 //! hashes on the host ([`NgramHasher`]) and issues the row fetch to an [`EngramTier`] the moment the token ids are known
-//! (scope doc variant A2), then uploads the rows for `Op::EngramGather` + `Op::EngramMerge`.
+//! (scope doc variant A2), then uploads the rows for `Op::EngramGather` + `Op::EngramMerge`. A row travels as one packed
+//! record (`Dh` e4m3 bytes, then `Dh / 32` E8M0 scales: 264 B, 15 per 4 KiB page; plan review 2026-10-31), so no scale
+//! array stays resident on the host.
 //!
 //! Not here (Engram lane): the compressed token map (`build_compressed_token_map`, a tokenizer normaliser pass that must
 //! give exactly `engram_compressed_vocab_size` = 99,092 ids) and the NVMe `io_uring` tier with its hot rows.
@@ -17,6 +19,11 @@ use std::sync::Mutex;
 
 /// Elements per E8M0 scale of a table row.
 pub const SCALE_BLOCK: usize = 32;
+
+/// Bytes of one packed row: `head_dim` e4m3 payload bytes, then `head_dim / 32` E8M0 scale bytes (264 for head_dim 256).
+pub const fn record_bytes(head_dim: usize) -> usize {
+    head_dim + head_dim / SCALE_BLOCK
+}
 
 /// Bucket layout of the hash tables (`EngramLayout`): every `(n-gram size, head)` owns a prime-sized range of the layer's
 /// table, primes drawn in order from `engram_vocab_size` upwards and never reused.
@@ -164,8 +171,8 @@ pub struct EngramTicket(pub u64);
 
 /// Where the Engram tables live (host RAM, local NVMe, ...). The engine calls [`EngramTier::issue`] as soon as a pass's token
 /// ids are known and [`EngramTier::wait`] right before the rows are uploaded, so the fetch overlaps the layers before the
-/// first Engram layer (and graph replays never wait on IO inside a kernel). Where the E8M0 scales are kept (resident
-/// array, or packed next to each row as 264 B records) is the tier's business: `wait` hands out both.
+/// first Engram layer (and graph replays never wait on IO inside a kernel). Rows come back as packed records
+/// ([`record_bytes`]), the layout `Op::EngramGather` reads, so the host copies them straight into the upload buffer.
 pub trait EngramTier: Send + Sync {
     /// The bucket layout the tables were built for.
     fn layout(&self) -> &EngramLayout;
@@ -174,10 +181,9 @@ pub trait EngramTier: Send + Sync {
     /// Start fetching `rows` (absolute row indices of Engram layer `layer`, an index into `layout().layer_ids`). Must not block
     /// on IO.
     fn issue(&self, layer: usize, rows: &[u32]) -> Result<EngramTicket>;
-    /// Block until the fetch is complete, then write its rows in request order: `payload` `[n, head_dim]` e4m3 bytes and
-    /// `scales` `[n, head_dim / 32]` E8M0 bytes. A row outside [`EngramTier::owned_rows`] comes back as zero payload (any
-    /// scale).
-    fn wait(&self, ticket: EngramTicket, payload: &mut [u8], scales: &mut [u8]) -> Result<()>;
+    /// Block until the fetch is complete, then write its rows in request order as packed records, `[n, record_bytes]`.
+    /// A row outside [`EngramTier::owned_rows`] comes back as a zero payload with unit scales (E8M0 127).
+    fn wait(&self, ticket: EngramTicket, records: &mut [u8]) -> Result<()>;
     /// Absolute rows of Engram layer `layer` this tier serves. Default: [`EngramShard::range`] (model.py's
     /// `ceil(rows / world)` split). The NVMe tier (`intarsia-engram`) splits at a hash-column boundary instead (rank r
     /// owns columns `r * cols / world ..`), which is what the existing local table copies hold; either split sums to
@@ -199,24 +205,23 @@ pub trait EngramTier: Send + Sync {
 pub struct MemEngramTier {
     layout: EngramLayout,
     shard: EngramShard,
-    /// Per layer: the shard's payload rows `[n, head_dim]` and scales `[n, head_dim / 32]`.
-    payload: Vec<Vec<u8>>,
-    scales: Vec<Vec<u8>>,
+    /// Per layer: the shard's rows as packed records `[n, record_bytes]`.
+    records: Vec<Vec<u8>>,
     next: AtomicU64,
     pending: Mutex<HashMap<u64, (usize, Vec<u32>)>>,
 }
 
 impl MemEngramTier {
-    /// `payload[l]` / `scales[l]` hold exactly the rows of `shard.range(layout.rows[l])`.
-    pub fn new(layout: EngramLayout, shard: EngramShard, payload: Vec<Vec<u8>>, scales: Vec<Vec<u8>>) -> Result<MemEngramTier> {
-        let (dh, sb) = (layout.head_dim, layout.head_dim / SCALE_BLOCK);
+    /// `records[l]` holds exactly the rows of `shard.range(layout.rows[l])`, packed.
+    pub fn new(layout: EngramLayout, shard: EngramShard, records: Vec<Vec<u8>>) -> Result<MemEngramTier> {
+        let rb = record_bytes(layout.head_dim);
         for (l, &rows) in layout.rows.iter().enumerate() {
             let n = (shard.range(rows).end - shard.range(rows).start) as usize;
-            if payload.get(l).map(Vec::len) != Some(n * dh) || scales.get(l).map(Vec::len) != Some(n * sb) {
-                return Err(Error::invalid(format!("engram tier layer {l}: need {n} rows of {dh} payload and {sb} scale bytes")));
+            if records.get(l).map(Vec::len) != Some(n * rb) {
+                return Err(Error::invalid(format!("engram tier layer {l}: need {n} records of {rb} bytes")));
             }
         }
-        Ok(MemEngramTier { layout, shard, payload, scales, next: AtomicU64::new(1), pending: Mutex::new(HashMap::new()) })
+        Ok(MemEngramTier { layout, shard, records, next: AtomicU64::new(1), pending: Mutex::new(HashMap::new()) })
     }
 }
 
@@ -238,22 +243,21 @@ impl EngramTier for MemEngramTier {
         self.pending.lock().unwrap().insert(id, (layer, rows.to_vec()));
         Ok(EngramTicket(id))
     }
-    fn wait(&self, ticket: EngramTicket, payload: &mut [u8], scales: &mut [u8]) -> Result<()> {
+    fn wait(&self, ticket: EngramTicket, records: &mut [u8]) -> Result<()> {
         let (layer, rows) = self.pending.lock().unwrap().remove(&ticket.0).ok_or_else(|| Error::invalid("engram tier: unknown ticket"))?;
-        let (dh, sb) = (self.layout.head_dim, self.layout.head_dim / SCALE_BLOCK);
-        if payload.len() != rows.len() * dh || scales.len() != rows.len() * sb {
-            return Err(Error::invalid("engram tier: output buffers do not match the request"));
+        let (dh, rb) = (self.layout.head_dim, record_bytes(self.layout.head_dim));
+        if records.len() != rows.len() * rb {
+            return Err(Error::invalid("engram tier: output buffer does not match the request"));
         }
         let range = self.shard.range(self.layout.rows[layer]);
         for (j, &r) in rows.iter().enumerate() {
-            let (p, s) = (&mut payload[j * dh..(j + 1) * dh], &mut scales[j * sb..(j + 1) * sb]);
+            let out = &mut records[j * rb..(j + 1) * rb];
             if range.contains(&(r as u64)) {
                 let i = (r as u64 - range.start) as usize;
-                p.copy_from_slice(&self.payload[layer][i * dh..(i + 1) * dh]);
-                s.copy_from_slice(&self.scales[layer][i * sb..(i + 1) * sb]);
+                out.copy_from_slice(&self.records[layer][i * rb..(i + 1) * rb]);
             } else {
-                p.fill(0);
-                s.fill(127);
+                out[..dh].fill(0);
+                out[dh..].fill(127);
             }
         }
         Ok(())
@@ -303,16 +307,17 @@ mod tests {
         let layout = EngramLayout { layer_ids: vec![1], max_ngram: 2, n_heads: 1, head_dim: 64, rows: vec![10], primes: vec![vec![vec![10]]] };
         let shard = EngramShard { rank: 1, world: 2 };
         assert_eq!(shard.range(10), 5..10);
-        let payload: Vec<u8> = (0..5 * 64).map(|i| (i % 251) as u8).collect();
-        let scales: Vec<u8> = (0..5 * 2).map(|i| 100 + i as u8).collect();
-        let t = MemEngramTier::new(layout, shard, vec![payload.clone()], vec![scales.clone()]).unwrap();
+        let rb = record_bytes(64);
+        assert_eq!((rb, record_bytes(256)), (66, 264));
+        let records: Vec<u8> = (0..5 * rb).map(|i| (i % 251) as u8).collect();
+        let t = MemEngramTier::new(layout, shard, vec![records.clone()]).unwrap();
         let tk = t.issue(0, &[7, 2, 9]).unwrap();
-        let (mut p, mut s) = (vec![1u8; 3 * 64], vec![0u8; 3 * 2]);
-        t.wait(tk, &mut p, &mut s).unwrap();
-        assert_eq!(&p[..64], &payload[2 * 64..3 * 64]);
-        assert!(p[64..128].iter().all(|&b| b == 0));
-        assert_eq!(&s[4..6], &scales[4 * 2..5 * 2]);
-        assert!(t.wait(tk, &mut p, &mut s).is_err(), "a ticket is consumed by its wait");
+        let mut out = vec![1u8; 3 * rb];
+        t.wait(tk, &mut out).unwrap();
+        assert_eq!(&out[..rb], &records[2 * rb..3 * rb], "row 7 is the shard's third");
+        assert!(out[rb..rb + 64].iter().all(|&b| b == 0) && out[rb + 64..2 * rb].iter().all(|&b| b == 127), "row 2 is another rank's");
+        assert_eq!(&out[2 * rb..], &records[4 * rb..5 * rb]);
+        assert!(t.wait(tk, &mut out).is_err(), "a ticket is consumed by its wait");
         assert!(t.issue(0, &[10]).is_err());
     }
 }

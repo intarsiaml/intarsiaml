@@ -2,7 +2,8 @@
 
 use crate::hash::HashLayout;
 use crate::store::{EngramStore, Ticket};
-use intarsia_core::dsv41::engram::{EngramLayout, EngramShard, EngramTicket, EngramTier};
+use crate::layout::{RECORD_BYTES, WEIGHT_BYTES};
+use intarsia_core::dsv41::engram::{record_bytes, EngramLayout, EngramShard, EngramTicket, EngramTier};
 use intarsia_core::error::{Error, Result};
 use std::ops::Range;
 use std::sync::Mutex;
@@ -45,6 +46,9 @@ impl NvmeEngramTier {
                 return Err(Error::model(format!("engram tier: {} could not be opened with O_DIRECT", s.path.display())));
             }
         }
+        if record_bytes(hash.layout().head_dim) != RECORD_BYTES {
+            return Err(Error::model(format!("engram tier: head_dim {} (this tier reads 264 B records)", hash.layout().head_dim)));
+        }
         let spin = store.config().spin;
         Ok(Self { layout: hash.layout().clone(), shard: EngramShard { rank, world }, owned, spin, store: Mutex::new(store) })
     }
@@ -75,14 +79,26 @@ impl EngramTier for NvmeEngramTier {
         }
         Ok(EngramTicket(self.store().fetch(layer, &rows64(rows))?.id()))
     }
-    fn wait(&self, ticket: EngramTicket, payload: &mut [u8], scales: &mut [u8]) -> Result<()> {
+    fn wait(&self, ticket: EngramTicket, records: &mut [u8]) -> Result<()> {
         let t = Ticket::from_id(ticket.0);
         let start = Instant::now();
         loop {
             let mut s = self.store();
             if s.poll(t)? || start.elapsed() >= self.spin {
                 // ready, or done spinning: the store's own wait blocks in the kernel
-                s.wait(t, payload, scales)?;
+                let info = s.wait_records(t, records)?;
+                if records.len() != info.rows * RECORD_BYTES {
+                    return Err(Error::invalid("engram tier: output buffer does not match the request"));
+                }
+                if info.not_owned > 0 {
+                    // the contract: another rank's row is a zero payload with unit scales (E8M0 127). An owned row whose
+                    // 264 bytes are all zero would get the same treatment; it dequantizes to 0 either way.
+                    for rec in records.chunks_exact_mut(RECORD_BYTES) {
+                        if rec.iter().all(|&b| b == 0) {
+                            rec[WEIGHT_BYTES..].fill(127);
+                        }
+                    }
+                }
                 return Ok(());
             }
             drop(s);

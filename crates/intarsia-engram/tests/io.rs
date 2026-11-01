@@ -233,14 +233,17 @@ fn nvme_tier_implements_the_core_trait() {
     tier.prefetch(0, &[150, 151]).unwrap();
     let rows = [150u32, 3, 203, 150, 101];
     let t = tier.issue(0, &rows).unwrap();
-    let (mut w, mut s) = (vec![9u8; rows.len() * 256], vec![9u8; rows.len() * 8]);
-    tier.wait(t, &mut w, &mut s).unwrap();
+    let mut rec = vec![9u8; rows.len() * RECORD_BYTES];
+    tier.wait(t, &mut rec).unwrap();
     for (i, &r) in rows.iter().enumerate() {
-        let want = if owned.contains(&(r as u64)) { record(r as u64) } else { vec![0u8; RECORD_BYTES] };
-        assert_eq!(&w[i * 256..(i + 1) * 256], &want[..256]);
-        assert_eq!(&s[i * 8..(i + 1) * 8], &want[256..]);
+        let mut want = record(r as u64);
+        if !owned.contains(&(r as u64)) {
+            want[..256].fill(0);
+            want[256..].fill(127);
+        }
+        assert_eq!(&rec[i * RECORD_BYTES..(i + 1) * RECORD_BYTES], &want[..], "row {r}");
     }
-    assert!(tier.wait(t, &mut w, &mut s).is_err(), "a ticket is consumed by its wait");
+    assert!(tier.wait(t, &mut rec).is_err(), "a ticket is consumed by its wait");
     assert!(tier.issue(0, &[204]).is_err());
     // the hash feeds the tier: a token's rows, then fetched
     let mut st = intarsia_engram::NgramState::default();
@@ -248,5 +251,6 @@ fn nvme_tier_implements_the_core_trait() {
     st.push(&hash, Some(7), &mut ids);
     let ids32: Vec<u32> = ids.iter().map(|&r| r as u32).collect();
     let t = tier.issue(0, &ids32).unwrap();
-    tier.wait(t, &mut w[..ids.len() * 256], &mut s[..ids.len() * 8]).unwrap();
+    let mut rec = vec![0u8; ids.len() * RECORD_BYTES];
+    tier.wait(t, &mut rec).unwrap();
 }

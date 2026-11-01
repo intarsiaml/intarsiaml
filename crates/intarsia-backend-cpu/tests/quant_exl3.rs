@@ -240,7 +240,81 @@ fn loader_reads_markers_and_packed_signs() {
     assert!(ld("c").unwrap_err().to_string().contains("marker"));
     assert!(ld("d").unwrap_err().to_string().contains("bias"));
     assert_eq!(cb_of(&ld("e").unwrap().download(&b).unwrap()), Codebook::Inst3);
-    // tensor parallelism is refused, not silently loaded whole
+    // a tensor-parallel split off the 128-point Hadamard grid (N = 128 over 2 ranks) is refused, not silently loaded whole
     let sh = intarsia_core::weights::Shard { axis: intarsia_core::weights::ShardAxis::Rows, rank: 0, world: 2 };
-    assert!(quant::load_linear(&w, "a", &b, &QuantLoadOpts { shard: Some(sh), ..Default::default() }).is_err());
+    let e = quant::load_linear(&w, "a", &b, &QuantLoadOpts { shard: Some(sh), ..Default::default() }).unwrap_err();
+    assert!(e.to_string().contains("multiple of 128"), "{e}");
 }
+
+/// Tensor-parallel loads (`QuantLoadOpts::shard`): column-parallel slices (engine rows = checkpoint N) side by side and
+/// row-parallel slices (engine columns = checkpoint K) summed give the whole layer's output through the cpu op (f32 out),
+/// for full `suh`/`svh` and for packed `su`/`sv` signs. DeepSeek-V4.1 expert shapes at TP=2.
+#[test]
+fn sharded_loads_reassemble_the_whole_layer() {
+    use intarsia_core::weights::{Shard, ShardAxis};
+    let b = CpuBackend::new();
+    let mut rng = intarsia_core::rng::SplitMix64::new(77);
+    for (n, k, k2, packed) in [(2304usize, 5120usize, 6usize, false), (5120, 2304, 6, false), (512, 768, 4, true)] {
+        let q = exl3::random(&mut rng, n, k, k2, Codebook::Mul1);
+        let mut w = MemWeights::new();
+        w.insert("l.trellis", q.parts[0].clone());
+        if packed {
+            let pk = |len: usize, rng: &mut intarsia_core::rng::SplitMix64| HostTensor {
+                dtype: DType::I16,
+                shape: vec![len / 16],
+                data: (0..len / 16).flat_map(|_| (rng.next_u64() as u16).to_le_bytes()).collect(),
+            };
+            w.insert("l.su", pk(k, &mut rng));
+            w.insert("l.sv", pk(n, &mut rng));
+        } else {
+            w.insert("l.suh", q.parts[1].clone());
+            w.insert("l.svh", q.parts[2].clone());
+        }
+        w.insert(
+            "l.mul1",
+            HostTensor { dtype: DType::I32, shape: vec![], data: exl3::MUL1_MUL.to_le_bytes().to_vec() },
+        );
+        let m = 3;
+        let xv = rng.normal_vec(m * k, 1.0);
+        let x = HostTensor::from_f32_as(DType::F32, &[m, k], &xv);
+        let full_q = quant::load_linear(&w, "l", &b, &QuantLoadOpts::default()).unwrap().download(&b).unwrap();
+        let full = run_op(&b, "ref_matmul_exl3", &full_q, &x, DType::F32);
+        let scale = full.iter().fold(0f32, |a, v| a.max(v.abs())).max(1.0);
+        for axis in [ShardAxis::Rows, ShardAxis::Cols] {
+            let mut got = vec![0f32; m * n];
+            for rank in 0..2 {
+                let opts = QuantLoadOpts { shard: Some(Shard { axis, rank, world: 2 }), ..Default::default() };
+                let s = quant::load_linear(&w, "l", &b, &opts).unwrap().download(&b).unwrap();
+                if axis == ShardAxis::Rows {
+                    assert_eq!((s.n, s.k), (n / 2, k));
+                    let y = run_op(&b, "ref_matmul_exl3", &s, &x, DType::F32);
+                    for mi in 0..m {
+                        got[mi * n + rank * s.n..mi * n + (rank + 1) * s.n]
+                            .copy_from_slice(&y[mi * s.n..(mi + 1) * s.n]);
+                    }
+                } else {
+                    assert_eq!((s.n, s.k), (n, k / 2));
+                    let xs: Vec<f32> =
+                        (0..m).flat_map(|mi| xv[mi * k + rank * s.k..mi * k + (rank + 1) * s.k].to_vec()).collect();
+                    let y = run_op(
+                        &b,
+                        "ref_matmul_exl3",
+                        &s,
+                        &HostTensor::from_f32_as(DType::F32, &[m, s.k], &xs),
+                        DType::F32,
+                    );
+                    for (g, v) in got.iter_mut().zip(y) {
+                        *g += v;
+                    }
+                }
+            }
+            // f32 outputs of each slice (one f32 rounding each) summed in f32: a few ulp of the largest output
+            let worst = got.iter().zip(&full).fold(0f32, |a, (g, v)| a.max((g - v).abs()));
+            println!(
+                "[{n}, {k}] k2={k2} packed={packed} {axis:?}: worst |shards - whole| {worst:.2e} (max |y| {scale:.2})"
+            );
+            assert!(worst <= 4e-6 * scale, "[{n}, {k}] {axis:?}: {worst:e}");
+        }
+    }
+}
+
