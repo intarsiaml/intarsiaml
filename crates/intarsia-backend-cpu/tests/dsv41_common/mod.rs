@@ -2,7 +2,6 @@
 //! error metrics. Included with `mod dsv41_common;` by `dsv41_parity.rs` and `dsv41_chunked.rs`.
 #![allow(dead_code)]
 
-use half::bf16;
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::exec::{run_host, HostCall, OutSpec};
 use intarsia_core::{DType, HostTensor, Op, OpAttrs};
@@ -23,13 +22,24 @@ pub struct Raw {
 impl Raw {
     pub fn f32(&self) -> Vec<f32> {
         match self.dtype.as_str() {
-            "F32" => self.bytes.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect(),
-            "BF16" => self.bytes.chunks_exact(2).map(|c| bf16::from_le_bytes([c[0], c[1]]).to_f32()).collect(),
-            "F16" => self.bytes.chunks_exact(2).map(|c| half::f16::from_le_bytes([c[0], c[1]]).to_f32()).collect(),
+            "F32" | "BF16" | "F16" => self.host().to_f32(),
             "I32" => self.i32().into_iter().map(|v| v as f32).collect(),
             "U8" | "BOOL" => self.bytes.iter().map(|&b| b as f32).collect(),
             d => panic!("f32() of {d}"),
         }
+    }
+    /// The tensor as stored (F32 / BF16 / F16 / I32 / I16 / U8 only).
+    pub fn host(&self) -> HostTensor {
+        let dt = match self.dtype.as_str() {
+            "F32" => DType::F32,
+            "BF16" => DType::Bf16,
+            "F16" => DType::F16,
+            "I32" => DType::I32,
+            "I16" => DType::I16,
+            "U8" | "BOOL" => DType::U8,
+            d => panic!("host() of {d}"),
+        };
+        HostTensor::new(dt, self.shape.clone(), self.bytes.clone()).unwrap()
     }
     pub fn i32(&self) -> Vec<i32> {
         match self.dtype.as_str() {

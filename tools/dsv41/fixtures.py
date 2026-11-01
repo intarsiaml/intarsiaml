@@ -684,6 +684,9 @@ def indexer_chunk(env, attn, x, qr, latent, s, offset, tap):
         M.fp4_act_quant(q, M.fp4_block_size, True)
     index_k = M.shared_attn.index_k[:b, : E // ratio]
     weights = ix.weights_proj(x) * (ix.softmax_scale * ix.n_heads**-0.5)
+    tap("indexer.q", q)
+    tap("indexer.w", weights)
+    tap("indexer.index_k", index_k)
     score = torch.einsum("bshd,btd->bsht", q, index_k)
     score = (score.relu_() * weights.unsqueeze(-1)).sum(dim=2)
     clens = (torch.arange(s + 1, E + 1) // ratio).unsqueeze(-1)
@@ -1144,6 +1147,43 @@ def cmd_attn4k(a):
         stats["indexer_selected_per_row"] = [int((sel[i] >= 0).sum()) for i in range(len(rows))]
 
 
+def cmd_indexer4k(a):
+    """Indexer fixture for the cpu reference's top-k parity: real q / weights / index keys / bf16 scores of layer 2 on the
+    ~4K-token prompt, the official `topk(sorted=False)` picks and the stable lowest-index-wins picks for ~48 query rows
+    (the rows where the two differ first). Run: uv run tools/dsv41/fixtures.py indexer4k --out DIR"""
+    env = setup_real(a)
+    M, n = env.M, a.tokens
+    ids = encode(env, Path(a.text_file).read_text(), n)
+    dt = FLOWS["bf16"]
+    torch.set_default_dtype(dt)
+    blk = build_block(env, 2, dt)
+    x = blk.attn_norm(env.src.embed_rows(ids).unsqueeze(0).to(dt))
+    blk_o = build_block(env, 2, dt)
+    blk_o.attn.forward(x, 0)
+    off = M.shared_attn.topk_idxs.clone()[0]  # [N, topk], offset N, -1 = none; sorted by position
+    tap = Taps()
+    blk_m = build_block(env, 2, dt)
+    attn_chunk(env, blk_m.attn, x, 0, tap)
+    d = tap.d
+    win = blk_m.attn.window_size
+    mine = d["attn.idxs"][0, :, win:]
+    clen = n // blk_m.attn.compress_ratio
+    off_c = torch.where(off >= 0, off - n, torch.full_like(off, -1))
+    mine_c = torch.where(mine >= 0, mine - (win + n), torch.full_like(mine, -1))
+    tie, other = [], []
+    for r in range(1100, n):
+        (other if torch.equal(off_c[r], mine_c[r]) else tie).append(r)
+    rows = sorted(tie[:32] + other[:: max(1, len(other) // 16)][:16])
+    fx = {"rows": torch.tensor(rows, dtype=torch.int32), "q": d["indexer.q"][0, rows], "w": d["indexer.w"][0, rows],
+          "k": d["indexer.index_k"][0], "score": d["indexer.score"][0, rows], "official_idx": off_c[rows].to(torch.int32),
+          "stable_idx": mine_c[rows].to(torch.int32)}
+    stats = {"rows_total": n, "rows_where_official_differs_from_stable": len(tie), "compressed_rows": clen,
+             "score_dtype": str(d["indexer.score"].dtype), "weights_dtype": str(d["indexer.w"].dtype), "q_dtype": str(d["indexer.q"].dtype),
+             "scale": blk_m.attn.indexer.softmax_scale * blk_m.attn.indexer.n_heads ** -0.5}
+    log(f"indexer4k: {stats}")
+    save_st(fx, Path(a.out) / "indexer_4k_bf16.safetensors", {"generator": "tools/dsv41/fixtures.py indexer4k", **{k: json.dumps(v) for k, v in stats.items()}})
+
+
 def cmd_ops(a):
     """Synthetic op fixtures: no weights needed."""
     out = Path(a.out)
@@ -1338,7 +1378,7 @@ def cmd_selftest(a):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("cmd", choices=["selftest", "layers", "attn4k", "ops", "manifest", "ci"])
+    ap.add_argument("cmd", choices=["selftest", "layers", "attn4k", "indexer4k", "ops", "manifest", "ci"])
     ap.add_argument("dir", nargs="?")
     home = Path.home()
     base = home / "dsv41-fixtures"
@@ -1362,11 +1402,11 @@ def main():
     if a.cmd == "manifest":
         a.dir = a.dir or a.out
         return cmd_manifest(a)
-    if a.cmd in ("layers", "attn4k") and Path(a.engram_dir).is_dir() and not any(Path(a.engram_dir, s).exists() for s in a.engram_shards):
+    if a.cmd in ("layers", "attn4k", "indexer4k") and Path(a.engram_dir).is_dir() and not any(Path(a.engram_dir, s).exists() for s in a.engram_shards):
         sub = sorted(Path(a.engram_dir).glob("*"))
         if sub:
             a.engram_dir = str(sub[0])
-    {"selftest": cmd_selftest, "layers": cmd_layers, "attn4k": cmd_attn4k, "ops": cmd_ops}[a.cmd](a)
+    {"selftest": cmd_selftest, "layers": cmd_layers, "attn4k": cmd_attn4k, "indexer4k": cmd_indexer4k, "ops": cmd_ops}[a.cmd](a)
 
 
 if __name__ == "__main__":
