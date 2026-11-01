@@ -256,6 +256,102 @@ fn real_shapes_against_the_cpu_reference() {
     assert!(failed.is_empty(), "failed: {failed:?}");
 }
 
+/// attn_sparse prefill rows (T > 16: one block per query and head group, the direct-write branch, no split merge) and the
+/// split / direct boundary, at the model's head shape, against the cpu reference.
+#[test]
+fn attn_sparse_prefill_rows_against_the_cpu_reference() {
+    let Some(cuda) = device() else { return };
+    let cpu = CpuBackend::new();
+    let kern = cuda.kernels().into_iter().find(|k| k.name == "attn_sparse").unwrap();
+    let mut failed = Vec::new();
+    for (t, pos0, nc, kc) in [(16usize, 300usize, 150usize, 64usize), (17, 300, 150, 64), (32, 0, 16, 16), (64, 1000, 520, 512)] {
+        let mut rng = SplitMix64::new(0xa77 ^ t as u64);
+        let r = &mut rng;
+        let idx: Vec<i32> = (0..t * kc).map(|_| if r.next_u64() % 8 == 0 { -1 } else { (r.next_u64() % nc as u64) as i32 }).collect();
+        let call = HostCall {
+            op: Op::AttnSparse,
+            inputs: vec![
+                rand_t(r, BF, &[t, H, HD], 1.0),
+                rand_t(r, BF, &[W + t, HD], 1.0),
+                rand_t(r, BF, &[nc, HD], 1.0),
+                HostTensor::from_i32(&[t, kc], &idx),
+                rand_t(r, DType::F32, &[H], 1.0),
+            ],
+            outputs: vec![out(BF, &[t, H, HD])],
+            attrs: OpAttrs { window: W, pos0, scale: (HD as f32).powf(-0.5), ..OpAttrs::default() },
+        };
+        let want = run_host(&cpu, "ref_attn_sparse", &call).unwrap();
+        let got = run_host(&*cuda, "attn_sparse", &call).unwrap();
+        let (ok, ma, rl) = judge(&kern, &got, &want);
+        println!("{:<4} attn_sparse T={t} pos0={pos0} Nc={nc} Kc={kc}  max_abs={ma:.3e} rel_l2={rl:.3e}", if ok { "ok" } else { "FAIL" });
+        if !ok {
+            failed.push(t);
+        }
+    }
+    assert!(failed.is_empty(), "failed T: {failed:?}");
+}
+
+/// The indexer's query tiling: a scratch that holds only `rows` score rows makes the launcher run the chunk tile by tile
+/// (t0 > 0 in every kernel); the result must equal the cpu reference exactly.
+#[test]
+fn indexer_tiles_against_the_cpu_reference() {
+    let Some(cuda) = device() else { return };
+    let cpu = CpuBackend::new();
+    let mut failed = Vec::new();
+    for (t, nk, rows, ratio) in [(40usize, 4096usize, 7usize, 1usize), (33, 2048, 5, 2), (9, 1024, 1, 1)] {
+        let pos0 = nk * ratio - t;
+        let nb = nk.div_ceil(8);
+        let mut rng = SplitMix64::new(0x711e ^ t as u64);
+        let r = &mut rng;
+        let q = rand_t(r, BF, &[t, HI, DI], 1.0);
+        let k = rand_t(r, BF, &[nk, DI], 1.0);
+        let w = rand_t(r, BF, &[t, HI], 1.0);
+        let cand: Vec<u8> = (0..t * nb).map(|_| (r.next_u64() % 3 != 0) as u8).collect();
+        let mut at = OpAttrs { pos0, scale: 0.01, ..OpAttrs::default() };
+        (at.dsv.ratio, at.dsv.block) = (ratio, 8);
+        let kk = TOPK.min(nk);
+        for (kernel, call) in [
+            (
+                "indexer_blocks",
+                HostCall {
+                    op: Op::IndexerBlocks,
+                    inputs: vec![q.clone(), k.clone(), w.clone()],
+                    outputs: vec![out(DType::U8, &[t, nb])],
+                    attrs: OpAttrs { top_k: 64, ..at.clone() },
+                },
+            ),
+            (
+                "indexer_topk",
+                HostCall {
+                    op: Op::IndexerTopk,
+                    inputs: vec![q.clone(), k.clone(), w.clone(), HostTensor::new(DType::U8, vec![t, nb], cand.clone()).unwrap()],
+                    outputs: vec![out(DType::I32, &[t, kk])],
+                    attrs: OpAttrs { top_k: TOPK, ..at.clone() },
+                },
+            ),
+        ] {
+            let want = run_host(&cpu, &format!("ref_{}", call.op.as_str()), &call).unwrap();
+            let (mut dc, _) = device_call(&*cuda, kernel, &call);
+            let len = if kernel == "indexer_blocks" { nb } else { nk };
+            let bytes = rows * len * 4;
+            let buf = cuda.alloc(bytes, MemKind::Device).unwrap();
+            dc.scratch = Some(TensorRef::new(buf, DType::U8, &[bytes]));
+            cuda.launch(kernel, &dc, 0).unwrap();
+            cuda.synchronize(0).unwrap();
+            let o = &dc.outputs[0];
+            let mut data = vec![0u8; o.nbytes()];
+            cuda.download(&o.buf, o.offset, &mut data, 0).unwrap();
+            cuda.synchronize(0).unwrap();
+            let same = data == want[0].data;
+            println!("{:<4} {kernel} T={t} Nk={nk} ratio={ratio} tile={rows} rows", if same { "ok" } else { "FAIL" });
+            if !same {
+                failed.push(format!("{kernel} T={t}"));
+            }
+        }
+    }
+    assert!(failed.is_empty(), "failed: {failed:?}");
+}
+
 /// Upload a host call once (inputs, outputs, scratch) for repeated launches.
 fn device_call(b: &dyn Backend, kernel: &str, hc: &HostCall) -> (OpCall, usize) {
     let put = |t: &HostTensor| {
