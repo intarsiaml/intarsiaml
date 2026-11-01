@@ -230,3 +230,19 @@ fn every_step_resolves_to_a_cuda_kernel() {
     }
     assert!(missing.is_empty(), "steps without a CUDA kernel:\n{}", missing.iter().map(|(k, v)| format!("  {k}: {v}")).collect::<Vec<_>>().join("\n"));
 }
+
+/// Host cost of building the decode graph (the eager runtime builds one per pass): printed, bounded loosely.
+#[test]
+fn decode_graph_build_is_cheap() {
+    let (c, w) = mia();
+    let t0 = std::time::Instant::now();
+    let n = 20;
+    for i in 0..n {
+        build(&c, &w, GraphOpts { t: 1, pos0: 4000 + i, act: DType::Bf16, cap: 131_072 }).unwrap();
+    }
+    let per = t0.elapsed().as_secs_f64() * 1e3 / n as f64;
+    let g = build(&c, &w, GraphOpts { t: 1, pos0: 4000, act: DType::Bf16, cap: 131_072 }).unwrap();
+    let steps: usize = g.stages.iter().map(|s| s.steps.len()).sum();
+    println!("decode graph build: {per:.2} ms, {steps} steps");
+    assert!(per < 200.0, "{per:.2} ms per decode graph");
+}
