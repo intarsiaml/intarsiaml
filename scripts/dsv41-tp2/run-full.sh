@@ -43,10 +43,16 @@ restore() {
   for h in spark1 spark2; do r $h "mkdir -p $LOGD; cp $LOGD/*.log /dev/null 2>/dev/null; true"; done
   scp -q "spark1:intarsia-dsv41-tp2/logs/serve-*.log" "$OUT/" 2>/dev/null; scp -q "spark2:intarsia-dsv41-tp2/logs/worker-*.log" "$OUT/" 2>/dev/null
   if [[ $STOPPED == 1 ]]; then
+    # the container keeps its old log, whose "startup complete" line matched at once (window 2); `docker logs --since`
+    # prints nothing on these hosts and log rotation drops old lines, so a count does not work either. Wait for a
+    # "startup complete" line stamped (docker logs -t, UTC) after the container's StartedAt.
     for h in spark1 spark2; do r $h "docker start $VLLM_C >/dev/null" || log "WARNING: docker start on $h failed"; done
     for h in spark1 spark2; do
       local ok=0
-      for i in $(seq 1 120); do r $h "docker logs --tail 80 $VLLM_C 2>&1" | grep -q "Application startup complete" && { ok=1; break; }; sleep 10; done
+      for i in $(seq 1 120); do
+        r $h "s=\$(docker inspect -f '{{.State.StartedAt}}' $VLLM_C); t=\$(docker logs -t --tail 2000 $VLLM_C 2>&1 | grep 'Application startup complete' | tail -1 | cut -d' ' -f1); [[ -n \$t && \$t > \$s ]]" && { ok=1; break; }
+        sleep 10
+      done
       [[ $ok == 1 ]] && log "vLLM on $h up ($(r $h "docker ps --filter name=$VLLM_C --format {{.Status}}"))" || log "WARNING: vLLM on $h not up after 20 min"
     done
   fi
