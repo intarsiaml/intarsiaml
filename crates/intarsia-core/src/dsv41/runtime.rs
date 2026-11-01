@@ -100,7 +100,7 @@ pub struct Dsv41Runtime {
     prof: Mutex<(u64, u64, u64, u64, u64)>,
     /// `INTARSIA_DSV41_OPPROF`: (one-row pass?, kernel) -> (calls, us).
     opprof: Option<Mutex<HashMap<(bool, String), (u64, u64)>>>,
-    /// `INTARSIA_DSV41_EXL3_SPLITK` (default 48 = GB10's SM count, 0 = off): one-row EXL3 linears whose GEMV grid (N / 128
+    /// `INTARSIA_DSV41_EXL3_SPLITK` (default 16, 0 = off): one-row EXL3 linears whose GEMV grid (N / 128
     /// blocks) is below this run the split-K GEMV `matmul_exl3_splitk` instead (selected here by name; the plain registry
     /// selection never picks it).
     splitk_grid: usize,
@@ -231,7 +231,7 @@ impl Dsv41Runtime {
             last_pass: Mutex::new(PassStats::default()),
             prof: Mutex::new((0, 0, 0, 0, 0)),
             opprof: std::env::var_os("INTARSIA_DSV41_OPPROF").filter(|v| v != "0").map(|_| Mutex::new(HashMap::new())),
-            splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(48),
+            splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(16),
         };
         let state_per_seq = rt.slot_specs.iter().map(|s| s.bytes(rt.opts.cap) as u64).sum();
         rt.memory = RuntimeMemory { weights: weight_bytes, workspace: ws_bytes, constants: cbytes, scratch: 0, state_per_seq };
