@@ -13,8 +13,24 @@ use crate::kernels::ARCH;
 use intarsia_core::quant::exl3::valid_k2_any;
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
-pub const TABLE: &[(&str, Op)] =
-    &[("matmul_exl3_gemv", Op::MatmulExl3), ("matmul_exl3_gemm", Op::MatmulExl3), ("moe_experts_exl3", Op::MoeExperts)];
+pub const TABLE: &[(&str, Op)] = &[
+    ("matmul_exl3_gemv", Op::MatmulExl3),
+    ("matmul_exl3_gemm", Op::MatmulExl3),
+    ("moe_experts_exl3", Op::MoeExperts),
+    ("matmul_exl3_splitk", Op::MatmulExl3),
+];
+
+/// Rows `matmul_exl3_splitk` takes (one 16-row pass, kernels/cuda/exl3.cu).
+pub const SPLITK_MAX_ROWS: usize = 16;
+
+/// Splits the scratch of `matmul_exl3_splitk` has room for (`kMaxSplits`).
+pub const SPLITK_MAX_SPLITS: usize = 16;
+
+/// Scratch bytes of `matmul_exl3_splitk`: the rotated input fp16 `[M, K]` rounded up to 256 bytes, then the f32 partials
+/// `[16, M, N]` (mirrors `ik_matmul_exl3_splitk_scratch_bytes`).
+pub fn splitk_scratch_bytes(s: &ShapeInfo) -> usize {
+    ((s.m * s.k * 2 + 255) & !255) + SPLITK_MAX_SPLITS * s.m * s.n * 4
+}
 
 /// Rows below which `moe_experts_exl3` runs its decode kernel in one slice (kernels/cuda/exl3_moe.cu, `kDecodeRows`).
 pub const MOE_DECODE_ROWS: usize = 64;
@@ -133,6 +149,18 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(gemm_scratch_bytes)
                     .priority(20),
+                // split-K GEMV for small-N decode calls (lane dsv41/tp2). Priority below the GEMV, which accepts every shape this
+                // does, so the plain selection never picks it and no model's plan changes; DeepSeek-V4.1's runtime selects it by
+                // name for its small-grid one-row calls (`dsv41::runtime`, INTARSIA_DSV41_EXL3_SPLITK). Not bitwise the GEMV.
+                "matmul_exl3_splitk" => k
+                    .acts([DType::Bf16, DType::F16, DType::F32])
+                    .weights([DType::I16])
+                    .when(|s| (1..=SPLITK_MAX_ROWS).contains(&s.m) && shape_ok(s))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_OUT_TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(splitk_scratch_bytes)
+                    .priority(-10),
                 // EXL3 routed experts (Op::MoeExperts with an i16 trellis arena, quant::exl3_moe): decode windows below 64 rows,
                 // prompt slices of 512 rows above; every width and codebook (device data, per matrix)
                 "moe_experts_exl3" => k
@@ -179,6 +207,17 @@ pub mod launch {
             scratch: *const IkScratch,
             s: *mut c_void,
         ) -> c_int;
+        fn ik_matmul_exl3_splitk(
+            x: *const IkTensor,
+            trellis: *const IkTensor,
+            suh: *const IkTensor,
+            svh: *const IkTensor,
+            cb: *const IkTensor,
+            out: *mut IkTensor,
+            scratch: *const IkScratch,
+            s: *mut c_void,
+        ) -> c_int;
+        fn ik_matmul_exl3_splitk_scratch_bytes(m: i64, k: i64, n: i64) -> i64;
         fn ik_moe_experts_exl3(
             x: *const IkTensor,
             ids: *const IkTensor,
@@ -193,6 +232,12 @@ pub mod launch {
             s: *mut c_void,
         ) -> c_int;
         fn ik_moe_experts_exl3_scratch_bytes(t: i64, h: i64, i: i64, e: i64, k: i64) -> i64;
+    }
+
+    /// `ik_matmul_exl3_splitk_scratch_bytes`, for the test that `splitk_scratch_bytes` mirrors it.
+    pub fn splitk_scratch_bytes_device(m: usize, k: usize, n: usize) -> usize {
+        // SAFETY: pure host arithmetic
+        unsafe { ik_matmul_exl3_splitk_scratch_bytes(m as i64, k as i64, n as i64) as usize }
     }
 
     /// The device layout's scratch size (kernels/cuda/exl3_moe.cu), for the test that `moe_scratch_bytes` mirrors it.
@@ -236,7 +281,11 @@ pub mod launch {
                 let rc = unsafe { ik_moe_experts_exl3(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), out.as_mut_ptr(), sp, s) };
                 return if rc != 0 { Err(Self::exl3_err(kernel, rc, call)) } else { Ok(()) };
             }
-            let f = if kernel == "matmul_exl3_gemm" { ik_matmul_exl3_gemm } else { ik_matmul_exl3_gemv };
+            let f = match kernel {
+                "matmul_exl3_gemm" => ik_matmul_exl3_gemm,
+                "matmul_exl3_splitk" => ik_matmul_exl3_splitk,
+                _ => ik_matmul_exl3_gemv,
+            };
             let rc = unsafe {
                 f(
                     i(0),

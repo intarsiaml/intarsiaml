@@ -1145,7 +1145,7 @@ pub fn run_admission(
 }
 
 /// Shape facts of a host call (builds throwaway device-free descriptors).
-fn shape_of(hc: &HostCall) -> Result<ShapeInfo> {
+pub fn shape_of(hc: &HostCall) -> Result<ShapeInfo> {
     use crate::backend::{Buffer, BufferImpl, TensorRef};
     struct Phantom(usize);
     impl BufferImpl for Phantom {

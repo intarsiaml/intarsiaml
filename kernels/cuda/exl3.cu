@@ -397,6 +397,141 @@ __global__ void __launch_bounds__(WK * 32) linear_kernel(const half* __restrict_
     }
 }
 
+// ---- split-K GEMV (lane dsv41/tp2) ---------------------------------------------------------------------------------
+//
+// ik_matmul_exl3_splitk: the same op for small-N decode calls (M <= 16), where linear_kernel's grid of N / 128 blocks leaves
+// most SMs idle (DeepSeek-V4.1's wo_a slices: 8 blocks on 48 SMs, ~78 GB/s). The K range is cut into S equal splits
+// (S divides K / 128, a function of K, N and the SM count only, see splitk_count). Block (nb, s) runs linear_body's walk over
+// its split (8 warps, one mma chain each from zero, warps added in warp order) and stores the raw 128-column partial, before
+// H and svh, to f32 scratch [S, M, N]. A second launch adds the S partials in split order and finishes (H, svh, rounding)
+// like linear_kernel. Deterministic; the bits differ from linear_kernel's (the sum order differs). The kernels above are
+// unchanged: this is a separate entry point that only DeepSeek-V4.1's runtime selects (registered at a priority the plain
+// selection never reaches, crates/intarsia-backend-cuda/src/exl3.rs).
+
+template <int K2, int CB, int WK>
+__device__ __forceinline__ void split_body(const half* __restrict__ xh, const uint32_t* __restrict__ T, long long stride_k,
+                                           long long stride_nb, float* __restrict__ part, int M, int K, int N, int S,
+                                           float* red) {
+    constexpr int LW = lane_words<K2>();
+    constexpr int TW = tile_words<K2>();
+    const int RH = min(M, 8);
+    const int nb = blockIdx.x, sp = blockIdx.y;
+    const int warp = threadIdx.x >> 5, lane = threadIdx.x & 31;
+    const int g = lane >> 2, t = lane & 3;
+    const int per_split = (K >> 4) / S;
+    const int per_warp = per_split / WK;
+    const int kt0 = sp * per_split + warp * per_warp;
+    const uint32_t* tiles = T + nb * stride_nb;
+    const int col0 = nb * 128;
+    bool prev = false;
+    if constexpr (step_shuffled<K2>()) {
+        int word, offset;
+        lane_start<K2>(lane, word, offset);
+        prev = word != lane / (8 / K2);
+    }
+    const int R = M;  // M <= 16: one pass
+    float acc[8][2][4];
+#pragma unroll
+    for (int i = 0; i < 8; ++i)
+#pragma unroll
+        for (int h = 0; h < 2; ++h)
+#pragma unroll
+            for (int c = 0; c < 4; ++c) acc[i][h][c] = 0.f;
+    const int r0 = g < R ? g : R - 1, r1 = g + 8 < R ? g + 8 : R - 1;
+    const half* x0 = xh + (size_t)r0 * K;
+    const half* x1 = xh + (size_t)r1 * K;
+    const uint32_t* tile = tiles + (size_t)kt0 * stride_k;
+    constexpr bool PF = K2 <= 12;
+    constexpr int SR = step_regs<K2>();
+    uint32_t cur[PF ? SR : 1], nxt[PF ? SR : 1];
+    if constexpr (PF) load_step<K2>(tile, lane, cur);
+#pragma unroll 1
+    for (int i = 0; i < per_warp; ++i) {
+        const int kt = kt0 + i;
+        uint32_t a[4];
+        a[0] = __ldg(reinterpret_cast<const uint32_t*>(x0 + kt * 16 + 2 * t));
+        a[1] = __ldg(reinterpret_cast<const uint32_t*>(x1 + kt * 16 + 2 * t));
+        a[2] = __ldg(reinterpret_cast<const uint32_t*>(x0 + kt * 16 + 2 * t + 8));
+        a[3] = __ldg(reinterpret_cast<const uint32_t*>(x1 + kt * 16 + 2 * t + 8));
+        if constexpr (PF) {
+            if (i + 1 < per_warp) load_step<K2>(tile + (size_t)(i + 1) * stride_k, lane, nxt);
+        }
+#pragma unroll
+        for (int j = 0; j < 8; ++j) {
+            uint32_t w[LW];
+            if constexpr (PF) step_lane_words<K2>(cur, j, lane, prev, w);
+            else ldg_lane_words<K2>(tile + (size_t)i * stride_k + j * TW, lane, w);
+            uint32_t b0[2], b1[2];
+            decode_lane<K2, CB>(w, lane, b0, b1);
+            mma16816(acc[j][0], a, b0);
+            mma16816(acc[j][1], a, b1);
+        }
+        if constexpr (PF) {
+#pragma unroll
+            for (int q = 0; q < SR; ++q) cur[q] = nxt[q];
+        }
+    }
+    for (int rlo = 0; rlo < R; rlo += 8) {
+        const int rn = min(R - rlo, 8);
+        __syncthreads();
+        if (g < RH) {
+#pragma unroll
+            for (int i = 0; i < 8; ++i)
+#pragma unroll
+                for (int h = 0; h < 2; ++h) {
+                    const int col = i * 16 + h * 8 + 2 * t;
+                    *reinterpret_cast<float2*>(red + (warp * RH + g) * 128 + col) =
+                        rlo ? make_float2(acc[i][h][2], acc[i][h][3]) : make_float2(acc[i][h][0], acc[i][h][1]);
+                }
+        }
+        __syncthreads();
+        for (int r = warp; r < rn; r += WK) {
+            float4 v = *reinterpret_cast<const float4*>(red + r * 128 + 4 * lane);
+#pragma unroll
+            for (int w = 1; w < WK; ++w) {
+                const float4 q = *reinterpret_cast<const float4*>(red + (w * RH + r) * 128 + 4 * lane);
+                v.x += q.x; v.y += q.y; v.z += q.z; v.w += q.w;
+            }
+            *reinterpret_cast<float4*>(part + ((size_t)sp * M + rlo + r) * N + col0 + 4 * lane) = v;
+        }
+    }
+}
+
+template <int K2, int WK>
+__global__ void __launch_bounds__(WK * 32) split_kernel(const half* __restrict__ xh, const uint32_t* __restrict__ T,
+                                                        long long stride_k, long long stride_nb, float* __restrict__ part,
+                                                        const int* __restrict__ cbp, int M, int K, int N, int S) {
+    extern __shared__ __align__(16) float red[];  // WK * min(M, 8) * 128 floats
+    const int cb = __ldg(cbp);
+    const float nan = __int_as_float(0x7fc00000);
+    if constexpr (K2 % 2 == 1) {
+        if (cb == CB_MUL1) { split_body<K2, CB_MUL1, WK>(xh, T, stride_k, stride_nb, part, M, K, N, S, red); return; }
+    } else {
+        if (cb == CB_3INST) { split_body<K2, CB_3INST, WK>(xh, T, stride_k, stride_nb, part, M, K, N, S, red); return; }
+        if (cb == CB_MCG) { split_body<K2, CB_MCG, WK>(xh, T, stride_k, stride_nb, part, M, K, N, S, red); return; }
+        if (cb == CB_MUL1) { split_body<K2, CB_MUL1, WK>(xh, T, stride_k, stride_nb, part, M, K, N, S, red); return; }
+    }
+    // unusable codebook: NaN partials (the finish then writes NaN, like poison_body)
+    const int lane = threadIdx.x & 31;
+    for (int r = threadIdx.x >> 5; r < M; r += WK)
+        *reinterpret_cast<float4*>(part + ((size_t)blockIdx.y * M + r) * N + blockIdx.x * 128 + 4 * lane) = make_float4(nan, nan, nan, nan);
+}
+
+// One warp per (128 columns, row): the S partials added in split order, then H, svh and the output rounding.
+__global__ void __launch_bounds__(32) split_finish_kernel(const float* __restrict__ part, const half* __restrict__ svh,
+                                                          void* __restrict__ y, int y_dtype, int M, int N, int S) {
+    const int nb = blockIdx.x, r = blockIdx.y, lane = threadIdx.x;
+    const int col = nb * 128 + 4 * lane;
+    float4 a = *reinterpret_cast<const float4*>(part + (size_t)r * N + col);
+    for (int sp = 1; sp < S; ++sp) {
+        const float4 q = *reinterpret_cast<const float4*>(part + ((size_t)sp * M + r) * N + col);
+        a.x += q.x; a.y += q.y; a.z += q.z; a.w += q.w;
+    }
+    float v[4] = {a.x, a.y, a.z, a.w};
+    finish(v, lane, svh, col);
+    store4(y, y_dtype, (size_t)r * N + col, v);
+}
+
 // ---- prefill GEMM ------------------------------------------------------------------------------------------------
 //
 // The GEMV above decodes every weight tile again for each 16-row pass. The GEMM decodes each tile once per block of
@@ -739,6 +874,65 @@ int launch_gemm(int k2, const half* xh, const uint32_t* T, long long stride_k, l
 #undef IK_EXL3_GEMM
 }
 
+// Split count of ik_matmul_exl3_splitk: the smallest S dividing K / 128 (each warp keeps whole k tiles) whose grid
+// (N / 128) * S reaches the SM count, at most kMaxSplits. A function of (K, N, SM count) only.
+constexpr int kMaxSplits = 16;
+
+int sm_count() {
+    static const int n = [] {
+        int dev = 0, v = 0;
+        cudaGetDevice(&dev);
+        cudaDeviceGetAttribute(&v, cudaDevAttrMultiProcessorCount, dev);
+        return v > 0 ? v : 1;
+    }();
+    return n;
+}
+
+int splitk_count(int64_t K, int64_t N, int sms) {
+    const int64_t kb = K / 128, nb = N / 128;
+    int best = 1;
+    for (int s = 1; s <= kMaxSplits && s <= kb; ++s) {
+        if (kb % s != 0) continue;
+        best = s;
+        if (nb * s >= sms) break;
+    }
+    return best;
+}
+
+template <int K2>
+int run_split(const half* xh, const uint32_t* T, long long stride_k, long long stride_nb, float* part, const half* svh,
+              void* y, int y_dtype, const int* cbp, int M, int K, int N, int S, cudaStream_t s) {
+    const unsigned smem = (unsigned)(kWarps * (M < 8 ? M : 8) * 128 * sizeof(float));
+    split_kernel<K2, kWarps><<<dim3((unsigned)(N / 128), (unsigned)S), kWarps * 32, smem, s>>>(xh, T, stride_k, stride_nb,
+                                                                                             part, cbp, M, K, N, S);
+    IK_TRY(ik_launch_status());
+    split_finish_kernel<<<dim3((unsigned)(N / 128), (unsigned)M), 32, 0, s>>>(part, svh, y, y_dtype, M, N, S);
+    return ik_launch_status();
+}
+
+int launch_split(int k2, const half* xh, const uint32_t* T, long long stride_k, long long stride_nb, float* part,
+                 const half* svh, void* y, int y_dtype, const int* cbp, int M, int K, int N, int S, cudaStream_t s) {
+#define IK_EXL3_SPLIT(K2_) \
+    case K2_:              \
+        return run_split<K2_>(xh, T, stride_k, stride_nb, part, svh, y, y_dtype, cbp, M, K, N, S, s)
+    switch (k2) {
+        IK_EXL3_SPLIT(2);
+        IK_EXL3_SPLIT(3);
+        IK_EXL3_SPLIT(4);
+        IK_EXL3_SPLIT(5);
+        IK_EXL3_SPLIT(6);
+        IK_EXL3_SPLIT(7);
+        IK_EXL3_SPLIT(8);
+        IK_EXL3_SPLIT(10);
+        IK_EXL3_SPLIT(12);
+        IK_EXL3_SPLIT(14);
+        IK_EXL3_SPLIT(16);
+        default:
+            return IK_ERR_SHAPE;
+    }
+#undef IK_EXL3_SPLIT
+}
+
 bool is_act(int dtype) { return dtype == IK_DTYPE_BF16 || dtype == IK_DTYPE_F16 || dtype == IK_DTYPE_F32; }
 
 }  // namespace
@@ -802,6 +996,46 @@ int ik_matmul_exl3_gemv(const ik_tensor* x, const ik_tensor* trellis, const ik_t
 int ik_matmul_exl3_gemm(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
                         const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream) {
     return exl3_launch(true, x, trellis, suh, svh, cb, out, scratch, stream);
+}
+
+// Scratch of ik_matmul_exl3_splitk: the rotated input fp16 [M, K] at offset 0, rounded up to 256 bytes, then the f32
+// partials [kMaxSplits, M, N] (the device uses S <= kMaxSplits of them). Mirrored by exl3.rs::splitk_scratch_bytes.
+long long ik_matmul_exl3_splitk_scratch_bytes(long long M, long long K, long long N) {
+    return ((M * K * 2 + 255) & ~255LL) + (int64_t)kMaxSplits * M * N * 4;
+}
+
+int ik_matmul_exl3_splitk(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                          const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    if (!x || !out) return IK_ERR_INVALID_ARG;
+    if (!is_act(x->dtype) || !is_act(out->dtype)) return IK_ERR_DTYPE;
+    IK_TRY(ik_check_a(x, x->dtype, 2, 16));
+    IK_TRY(ik_check_a(out, out->dtype, 2, 16));
+    IK_TRY(ik_check_a(trellis, IK_DTYPE_I16, 3, 4));
+    IK_TRY(ik_check_a(suh, IK_DTYPE_F16, 1, 8));
+    IK_TRY(ik_check_a(svh, IK_DTYPE_F16, 1, 8));
+    IK_TRY(ik_check_a(cb, IK_DTYPE_I32, 1, 4));
+    const int64_t M = x->shape[0], K = x->shape[1];
+    const int64_t kt = trellis->shape[0], nt = trellis->shape[1], words = trellis->shape[2];
+    const int64_t N = 16 * nt;
+    if (words % 8 != 0 || words / 8 < 2 || words / 8 > 16) return IK_ERR_SHAPE;
+    const int k2 = (int)(words / 8);
+    if (16 * kt != K || K % 128 != 0 || N % 128 != 0 || suh->shape[0] != K || svh->shape[0] != N || cb->shape[0] != 1 ||
+        out->shape[0] != M || out->shape[1] != N)
+        return IK_ERR_SHAPE;
+    if (M == 0 || N == 0 || K == 0) return IK_OK;
+    if (M > 16 || K > 0x3fffffffLL || N > 0x3fffffffLL) return IK_ERR_SHAPE;
+    const int64_t need = ik_matmul_exl3_splitk_scratch_bytes(M, K, N);
+    if (!scratch || !scratch->data || scratch->bytes < need || ((uintptr_t)scratch->data & 15u) != 0) return IK_ERR_INVALID_ARG;
+    cudaStream_t s = IK_STREAM(stream);
+    half* xh = (half*)scratch->data;
+    float* part = (float*)((char*)scratch->data + ((M * K * 2 + 255) & ~255LL));
+    const int S = splitk_count(K, N, sm_count());
+    rot_in_kernel<<<dim3((unsigned)((K / 128 + 3) / 4), (unsigned)M), 128, 0, s>>>(x->data, x->dtype, (const half*)suh->data,
+                                                                                   xh, (int)K);
+    IK_TRY(ik_launch_status());
+    const long long stride_k = (long long)nt * 4 * k2, stride_nb = 8LL * 4 * k2;
+    return launch_split(k2, xh, (const uint32_t*)trellis->data, stride_k, stride_nb, part, (const half*)svh->data, out->data,
+                        out->dtype, (const int*)cb->data, (int)M, (int)K, (int)N, S, s);
 }
 
 }  // extern "C"

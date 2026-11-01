@@ -356,8 +356,29 @@ pub struct CompletionReq {
     /// Not supported here (chat only); present so it is rejected instead of ignored.
     #[serde(default)]
     tools: Option<Value>,
+    /// Legacy completions `logprobs` (0..=20): the top-N log-probabilities of each generated position, from the model's raw
+    /// logits before sampling (temperature, masks and penalties not applied). Non-streaming only.
+    #[serde(default)]
+    logprobs: Option<u32>,
     #[serde(flatten)]
     common: CommonParams,
+}
+
+/// log-softmax of one logits row: the chosen token's logprob and the top `n` (id, logprob), best first.
+fn top_logprobs(row: &[f32], chosen: u32, n: usize) -> (f32, Vec<(u32, f32)>) {
+    let mx = row.iter().copied().filter(|x| x.is_finite()).fold(f32::NEG_INFINITY, f32::max);
+    let lse = mx + row.iter().filter(|x| x.is_finite()).map(|&x| ((x - mx) as f64).exp()).sum::<f64>().ln() as f32;
+    let mut idx: Vec<u32> = (0..row.len() as u32).collect();
+    let n = n.min(row.len());
+    if n > 0 {
+        idx.select_nth_unstable_by(n - 1, |&a, &b| row[b as usize].total_cmp(&row[a as usize]));
+        idx.truncate(n);
+        idx.sort_by(|&a, &b| row[b as usize].total_cmp(&row[a as usize]));
+    } else {
+        idx.clear();
+    }
+    let lp = |i: u32| row.get(i as usize).map_or(f32::NEG_INFINITY, |&x| x - lse);
+    (lp(chosen), idx.into_iter().map(|i| (i, lp(i))).collect())
 }
 
 pub async fn completions(
@@ -416,6 +437,12 @@ async fn completions_inner(
     };
     let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
     structured::attach(&st, F, &mut gen, plan, false).await?;
+    let n_lp = req.logprobs.map(|n| n.min(20) as usize);
+    if n_lp.is_some() && req.common.stream {
+        return Err(ApiError::bad_request(F, "logprobs are supported on non-streaming completions only"));
+    }
+    let trace = n_lp.map(|_| std::sync::Arc::new(std::sync::Mutex::new(Vec::<Vec<f32>>::new())));
+    gen.trace_logits = trace.clone();
     let rx = start(&st, F, gen)?;
 
     let id = st.new_id("cmpl");
@@ -438,6 +465,39 @@ async fn completions_inner(
         let mut v = chunk(&format!("{prefix}{}", c.text), Some(finish_str(c.finish)), false);
         if rid {
             v["choices"][0]["token_ids"] = json!(c.ids);
+        }
+        if let (Some(n), Some(tr)) = (n_lp, &trace) {
+            let rows = std::mem::take(&mut *tr.lock().unwrap());
+            let steps: Vec<(u32, f32, Vec<(u32, f32)>)> = c
+                .ids
+                .iter()
+                .zip(&rows)
+                .map(|(&tok, row)| {
+                    let (lp, top) = top_logprobs(row, tok, n);
+                    (tok, lp, top)
+                })
+                .collect();
+            let mut want: Vec<u32> = steps.iter().flat_map(|(t, _, top)| std::iter::once(*t).chain(top.iter().map(|x| x.0))).collect();
+            want.sort_unstable();
+            want.dedup();
+            let w2 = want.clone();
+            let texts: Vec<String> = blocking_as(&st.engine, F, move |e| w2.iter().map(|&i| e.detokenize(&[i])).collect::<intarsia_core::Result<Vec<_>>>()).await?;
+            let text_of = |i: u32| texts[want.binary_search(&i).unwrap()].clone();
+            let mut top_maps = Vec::new();
+            for (_, _, top) in &steps {
+                let mut m = Map::new();
+                for &(i, l) in top {
+                    m.entry(text_of(i)).or_insert(json!(l));
+                }
+                top_maps.push(Value::Object(m));
+            }
+            v["choices"][0]["logprobs"] = json!({
+                "tokens": steps.iter().map(|s| text_of(s.0)).collect::<Vec<_>>(),
+                "token_logprobs": steps.iter().map(|s| s.1).collect::<Vec<_>>(),
+                "top_logprobs": top_maps,
+                // not in the OpenAI schema: the same top-N as [id, logprob, text] (decoded strings can collide)
+                "top_logprobs_ids": steps.iter().map(|s| s.2.iter().map(|&(i, l)| json!([i, l, text_of(i)])).collect::<Vec<_>>()).collect::<Vec<_>>(),
+            });
         }
         v["usage"] = with_chunk(usage(c.prompt_tokens, c.completion_tokens, c.cached_tokens), rid, c.prefill_chunk);
         return Ok(Json(v).into_response());

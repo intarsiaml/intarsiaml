@@ -74,13 +74,15 @@ log "vLLM stopped on both"
     echo "$line"; sleep 5
   done ) > "$OUT/mem.log" 2>&1 & WATCH=$!
 
-TAG=$(date +%H%M)
+# start both ranks with extra env $1 (on top of DENV / XENV); exits the script (restore runs) if they do not come up
+start_ranks() {
+TAG=$(date +%H%M%S)
 # NSYS=1: both ranks run under `nsys launch` (no collection until the nsys step starts a session)
 NL0=""; NL1=""
-if [[ ${NSYS:-0} == 1 ]]; then NL0="nsys launch --session-new=dsv41r0 --trace=cuda,nvtx"; NL1="${NL0/dsv41r0/dsv41r1}"; fi
-r spark2 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $NL1 $BIN tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2 > $LOGD/worker-$TAG.log 2>&1 < /dev/null &"
+if [[ ${NSYS:-0} == 1 ]]; then NL0="nsys launch --session-new=dsv41r0x$TAG --trace=cuda,nvtx"; NL1="${NL0/dsv41r0x/dsv41r1x}"; fi
+r spark2 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $1 $NL1 $BIN tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2 > $LOGD/worker-$TAG.log 2>&1 < /dev/null &"
 sleep 2
-r spark1 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $NL0 $BIN serve -m $C0 --backend cuda --tp 2 --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name dsv41-intarsia --no-supervisor --no-ui > $LOGD/serve-$TAG.log 2>&1 < /dev/null &"
+r spark1 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $1 $NL0 $BIN serve -m $C0 --backend cuda --tp 2 --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name dsv41-intarsia --no-supervisor --no-ui > $LOGD/serve-$TAG.log 2>&1 < /dev/null &"
 log "ranks started (tag $TAG)"
 T0=$(date +%s); up=0
 while (( $(date +%s) - T0 < 900 )); do
@@ -93,7 +95,10 @@ log "serve up=$up after $(( $(date +%s) - T0 )) s"
 r spark1 "grep -aE 'dsv41|error|Error|panick' $LOGD/serve-$TAG.log | tail -25" | tee -a "$OUT/steps.log"
 r spark2 "grep -aE 'dsv41|error|Error|panick' $LOGD/worker-$TAG.log | tail -15" | tee -a "$OUT/steps.log"
 [[ $up == 1 ]] || exit 1
+}
 
+# the steps of $STEPS against the running ranks
+run_steps() {
 chat() { # <name> <max_tokens> <prompt>
   curl -s -m 600 "$SURL/v1/chat/completions" -H 'content-type: application/json' \
     -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","messages":[{"role":"user","content":sys.argv[2]}],"temperature":0,"max_tokens":int(sys.argv[1])}))' "$2" "$3")" > "$OUT/chat-$1.json"
@@ -104,6 +109,13 @@ if [[ " $STEPS " == *" greedy "* ]]; then
   chat count 64 "Count from 1 to 20, separated by commas."
   chat code 200 "Write a Python function that returns the n-th Fibonacci number iteratively."
   chat story 256 "Write a short paragraph about a lighthouse keeper who finds a message in a bottle."
+fi
+if [[ " $STEPS " == *" neartie "* ]]; then
+  # intarsia's top-20 at each first divergence from TensorFold's greedy golden (coordinator's near-tie check)
+  NT_TF=${NT_TF:-/opt/code/intarsiaml/.worktrees/dsv41-golden-tf/tok-tensorfold-mia.st}
+  NT_IA=${NT_IA:-$REPO/.scratch/full-w1/tok-intarsia-tp2.st}
+  log "near-tie probe: $NT_TF vs $NT_IA"
+  python3 "$S/neartie.py" "$NT_TF" "$NT_IA" "$SURL/v1" dsv41-intarsia "$OUT/neartie.md" 2>&1 | tee -a "$OUT/steps.log"
 fi
 if [[ " $STEPS " == *" golden "* ]]; then
   # greedy token ids on the golden prompt set (tools/prompts/golden*.jsonl), same format as TensorFold's goldens
@@ -127,11 +139,11 @@ if [[ " $STEPS " == *" nsys "* && ${NSYS:-0} == 1 ]]; then
   NT=${NSYS_TOKENS:-48}
   req() { curl -s -m 300 "$SURL/v1/completions" -H 'content-type: application/json' -d "{\"model\":\"dsv41-intarsia\",\"prompt\":\"The history of the printing press begins\",\"max_tokens\":$1,\"temperature\":0,\"ignore_eos\":true}" > "$OUT/nsys-req-$1.json"; }
   req 16
-  r spark1 "nsys start --session=dsv41r0 -o $LOGD/nsys-r0-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
-  r spark2 "nsys start --session=dsv41r1 -o $LOGD/nsys-r1-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  r spark1 "nsys start --session=dsv41r0x$TAG -o $LOGD/nsys-r0-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  r spark2 "nsys start --session=dsv41r1x$TAG -o $LOGD/nsys-r1-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
   t=$(date +%s); req $NT; log "nsys request: $NT tokens in $(( $(date +%s) - t )) s: $(head -c 300 "$OUT/nsys-req-$NT.json")"
-  r spark1 "nsys stop --session=dsv41r0" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
-  r spark2 "nsys stop --session=dsv41r1" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  r spark1 "nsys stop --session=dsv41r0x$TAG" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  r spark2 "nsys stop --session=dsv41r1x$TAG" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
   for rk in 0 1; do
     h=spark$((rk + 1))
     r $h "nsys stats --report cuda_gpu_trace --format csv --output $LOGD/nsys-r$rk-$TAG $LOGD/nsys-r$rk-$TAG.nsys-rep > /dev/null 2>&1; ls -la $LOGD/nsys-r$rk-$TAG*" | tee -a "$OUT/steps.log"
@@ -144,17 +156,41 @@ fi
 LE_RECIPE="intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
 le() { ( cd /opt/code/deepeval && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run localeval "$@" --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "$LE_RECIPE" ) 2>&1 | tee "$OUT/le-$1-$(date +%H%M%S).log" | tail -40 | tee -a "$OUT/steps.log"; }
 if [[ " $STEPS " == *" lspeed "* ]]; then
-  le speed --sizes 128,1024,4096,16384 --gen 128 --reps 3 --label dsv41-intarsia-tp2-speed
+  le speed --sizes 128,1024,4096,16384 --gen 128 --reps 3 --label dsv41-intarsia-tp2-speed${LSUF:-}
 fi
 if [[ " $STEPS " == *" mmlu "* ]] && [[ " $STEPS " == *" greedy "* ]] && ! grep -qi paris "$OUT/chat-capital.json"; then
   log "chat check failed (no 'Paris' in the capital answer): skipping MMLU"; STEPS="${STEPS/mmlu/}"
 fi
 if [[ " $STEPS " == *" mmlu "* ]]; then
-  le quality --bench mmlu --limit ${MMLU_LIMIT:-25} --label dsv41-intarsia-tp2-mmlu
+  le quality --bench mmlu --limit ${MMLU_LIMIT:-25} --label dsv41-intarsia-tp2-mmlu${LSUF:-}
 fi
 if [[ " $STEPS " == *" hold "* ]]; then
   log "holding the server for ${HOLD_MIN:-30} min (or until $OUT/stop exists)"
   for i in $(seq 1 $(( ${HOLD_MIN:-30} * 6 ))); do [[ -f $OUT/stop ]] && break; (( $(left) > 0 )) || break; sleep 10; done
 fi
 r spark1 "grep -aE 'dsv41' $LOGD/serve-$TAG.log | tail -12" | tee -a "$OUT/steps.log"
+}
+
+# AB="ENV_A|ENV_B" (e.g. "INTARSIA_DSV41_EXL3_SPLITK=0|INTARSIA_DSV41_EXL3_SPLITK=48"): run the steps once per config, each with
+# a fresh start of both ranks (same binary, ~25 s load), outputs in $OUT/ab0, $OUT/ab1 and localeval labels suffixed -ab0 / -ab1.
+# STEPS_ABi / NSYS_ABi override STEPS / NSYS per config (e.g. MMLU only for the new one, nsys in a config of its own).
+if [[ -n ${AB:-} ]]; then
+  OUT0=$OUT; i=0
+  IFS='|' read -ra CFGS <<< "$AB"
+  for cfg in "${CFGS[@]}"; do
+    OUT=$OUT0/ab$i; mkdir -p "$OUT"; LSUF=-ab$i
+    v="STEPS_AB$i"; STEPS_SAVE=$STEPS; STEPS=${!v:-$STEPS}
+    v="NSYS_AB$i"; NSYS_SAVE=${NSYS:-0}; NSYS=${!v:-$NSYS_SAVE}
+    log "config ab$i: $cfg; steps: $STEPS; nsys $NSYS"
+    start_ranks "$cfg"
+    run_steps
+    STEPS=$STEPS_SAVE; NSYS=$NSYS_SAVE
+    kill_ours; log "config ab$i done"
+    i=$((i + 1))
+  done
+  OUT=$OUT0
+else
+  start_ranks ""
+  run_steps
+fi
 log "done"

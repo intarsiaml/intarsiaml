@@ -178,6 +178,14 @@ long long ik_moe_experts_exl3_scratch_bytes(long long T, long long H, long long 
 int ik_matmul_exl3_gemm(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
                         const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
+/* matmul_exl3_splitk (lane dsv41/tp2): the same op and arguments for M <= 16 rows, K cut into S splits (S | K/128, from
+ * K, N and the SM count) so a small-N call fills the GPU; partials in f32 are added in split order before H / svh.
+ * Deterministic, not bitwise the GEMV. Scratch: the rotated input fp16 [M,K] rounded up to 256 bytes, then f32
+ * [16,M,N]; 16-byte aligned (ik_matmul_exl3_splitk_scratch_bytes). Selected only by DeepSeek-V4.1's runtime. */
+int ik_matmul_exl3_splitk(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                          const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
+long long ik_matmul_exl3_splitk_scratch_bytes(long long M, long long K, long long N);
+
 /* Row-exact multi-row twins of the decode GEMVs (rows_exact kernels, `OpCall::exact_rows`; hybrid continuous batching, stage R0):
  * the same arguments and launch contract as the 1-row-GEMV launcher named in each comment, any M in 1..=16, and row m of the
  * output is BITWISE the M = 1 call on row m alone

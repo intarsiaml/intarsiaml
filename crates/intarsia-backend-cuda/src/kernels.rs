@@ -1175,6 +1175,7 @@ mod tests {
         "matmul_bf16_inv:matmul",
         "matmul_exl3_gemm:matmul_exl3",
         "matmul_exl3_gemv:matmul_exl3",
+        "matmul_exl3_splitk:matmul_exl3",
         "matmul_f16w:matmul",
         "matmul_fp8_gemm:matmul_fp8",
         "matmul_fp8_gemm_cublas:matmul_fp8",
@@ -1225,7 +1226,8 @@ mod tests {
     /// fp8-cache attention twin `attn_decode_f8kv_splitkv_rows`. Lane rip adds `matmul_bf16_inv`
     /// (priority -5: only a row-invariant prefill pass, `OpCall::prefill_inv`, selects it). Lane dsv41/cuda-moe adds
     /// `moe_experts_exl3` (weights i16 only: only the EXL3 encoding of `MoeExperts` selects it). Lane dsv41/tp2 adds
-    /// `logits_f16w` / `matmul_f16w` (weights f16 only: no earlier model has f16 dense weights).
+    /// `logits_f16w` / `matmul_f16w` (weights f16 only: no earlier model has f16 dense weights). And `matmul_exl3_splitk`
+    /// (priority -10, below the GEMV that accepts all its shapes: only DeepSeek-V4.1's runtime selects it, by name).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         // the DeepSeek-V4.1 kernels (dsv41.rs) serve only the ops lane 1a appended, which no earlier model's plan contains
