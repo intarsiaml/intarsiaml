@@ -99,16 +99,22 @@ r spark2 "grep -aE 'dsv41|error|Error|panick' $LOGD/worker-$TAG.log | tail -15" 
 
 # the steps of $STEPS against the running ranks
 run_steps() {
+# speculation lines per step: specn = lines so far in this config's serve log; specstep N LABEL [names] sums the lines
+# after N (per request and per category with names; scripts/dsv41-tp2/specsum.py)
+specn() { local n; n=$(r spark1 "grep -ac 'dsv41: spec ' $LOGD/serve-$TAG.log; true" 2>/dev/null | tail -1); echo "${n:-0}"; }
+specstep() { r spark1 "grep -a 'dsv41: spec ' $LOGD/serve-$TAG.log | tail -n +$(( $1 + 1 ))" > "$OUT/spec-$2.txt" 2>/dev/null; [[ -s "$OUT/spec-$2.txt" ]] && python3 "$S/specsum.py" "$OUT/spec-$2.txt" "$2" "${3:-}" | tee -a "$OUT/steps.log"; true; }
 chat() { # <name> <max_tokens> <prompt>
   curl -s -m 600 "$SURL/v1/chat/completions" -H 'content-type: application/json' \
     -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","messages":[{"role":"user","content":sys.argv[2]}],"temperature":0,"max_tokens":int(sys.argv[1])}))' "$2" "$3")" > "$OUT/chat-$1.json"
   python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); c=d.get("choices",[{}])[0]; print(sys.argv[2], repr((c.get("message") or {}).get("content","")[:600]), d.get("usage"))' "$OUT/chat-$1.json" "$1" | tee -a "$OUT/steps.log"
 }
 if [[ " $STEPS " == *" greedy "* ]]; then
+  sn=$(specn)
   chat capital 48 "What is the capital of France? Answer in one sentence."
   chat count 64 "Count from 1 to 20, separated by commas."
   chat code 200 "Write a Python function that returns the n-th Fibonacci number iteratively."
   chat story 256 "Write a short paragraph about a lighthouse keeper who finds a message in a bottle."
+  specstep "$sn" greedy chat_capital,count,code_fib,story
 fi
 if [[ " $STEPS " == *" neartie "* ]]; then
   # intarsia's top-20 at each first divergence from TensorFold's greedy golden (coordinator's near-tie check)
@@ -118,12 +124,14 @@ if [[ " $STEPS " == *" neartie "* ]]; then
   python3 "$S/neartie.py" "$NT_TF" "$NT_IA" "$SURL/v1" dsv41-intarsia "$OUT/neartie.md" 2>&1 | tee -a "$OUT/steps.log"
 fi
 if [[ " $STEPS " == *" golden "* ]]; then
+  sn=$(specn)
   # greedy token ids on the golden prompt set (tools/prompts/golden*.jsonl), same format as TensorFold's goldens
   # (tools/dsv41/golden_tf.py tokens); compare later with `golden_tf.py compare A B`
   TOK=${TOKENIZER:-$REPO/.scratch/cache/l3-r0of1/tokenizer.json}
   ( cd "$REPO" && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run --with numpy --with safetensors --with tokenizers python tools/dsv41/golden_tf.py tokens \
       --base-url $SURL/v1 --model dsv41-intarsia --no-draft-field --tokenizer "$TOK" --out "$OUT/tok-intarsia-tp2.st" \
       --note "intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') TP=2 cap ${CAP:-32768} chunk ${CHUNK:-512}" ) 2>&1 | tee -a "$OUT/steps.log"
+  specstep "$sn" golden count,story,code,science,chat_short,chat_system,chat_multiturn,chat_reasoning,long_prose_300,long_prose_700
 fi
 if [[ " $STEPS " == *" neartie_fresh "* ]]; then
   # the same probe against this run's own golden tokens ($OUT/tok-intarsia-tp2.st from the golden step)
@@ -191,13 +199,17 @@ fi
 LE_RECIPE="intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
 le() { ( cd /opt/code/deepeval && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run localeval "$@" --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "$LE_RECIPE" ) 2>&1 | tee "$OUT/le-$1-$(date +%H%M%S).log" | tail -40 | tee -a "$OUT/steps.log"; }
 if [[ " $STEPS " == *" lspeed "* ]]; then
+  sn=$(specn)
   le speed --sizes ${LSIZES:-128,1024,4096,16384} --gen 128 --reps ${LREPS:-3} --label dsv41-intarsia-tp2-speed${LSUF:-}
+  specstep "$sn" lspeed
 fi
 if [[ " $STEPS " == *" mmlu "* ]] && [[ " $STEPS " == *" greedy "* ]] && ! grep -qi paris "$OUT/chat-capital.json"; then
   log "chat check failed (no 'Paris' in the capital answer): skipping MMLU"; STEPS="${STEPS/mmlu/}"
 fi
 if [[ " $STEPS " == *" mmlu "* ]]; then
+  sn=$(specn)
   le quality --bench mmlu --limit ${MMLU_LIMIT:-25} --label dsv41-intarsia-tp2-mmlu${LSUF:-}
+  specstep "$sn" mmlu
 fi
 if [[ " $STEPS " == *" hold "* ]]; then
   log "holding the server for ${HOLD_MIN:-30} min (or until $OUT/stop exists)"
