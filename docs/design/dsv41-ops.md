@@ -237,21 +237,21 @@ Every cpu reference op is checked against DeepSeek's official `model.py` / `kern
 tilelang kernels; the emulations are not bit-checked against the GPU kernels). Run `cargo test -p intarsia-backend-cpu
 --test dsv41_parity --test dsv41_chunked -- --nocapture` for the `PARITY ...` rows; tolerance is `max |got - ref| / max |ref|`.
 
-| Op | Fixture | Result | Tolerance |
+| Op | Fixture | Result (max abs error / max abs ref) | Tolerance |
 |---|---|---|---|
-| `ActQdq` (fp8 b32 ue8m0, fp4 b32 e8m0, fp4 b16 e4m3) | `ops` (8x512, an all-zero block, a 3e4 outlier) | bit-exact | 0 |
-| `HcMixes` (sigmoid split, 20 Sinkhorn rounds) | `ops` (32 rows); real `fn`/`scale`/`base` of layers 0-2 | 1.4e-7; <= 5.4e-6 on real bf16 activations | 1e-6 / 1e-5 |
-| `HcPre`, `HcPost` | `ops`; layer-2 taps (prefill and decode); fp32 chain | <= 3.0e-3 (bf16: 6 of 81,920 values round to the neighbouring bf16, double rounding f64 -> f32 -> bf16); fp32 1.3e-7 | 4e-3 / 1e-5 |
-| `MoeRoute` (`bias`, `bias_vl`) | layer-2 router logits of 16 tokens (7 image rows) | all expert sets equal, weights 1.0e-7 | 1e-5 |
-| `SiluGluClamp`, `GroupedMatmul`, `Transpose01` | naive transcriptions of `Expert.forward` / `einsum` | exact / 1e-7 | 1e-6 |
-| `RopeTail` | `ops` rope plain + compressed_yarn: tables at positions up to 1,048,575; forward and inverse; layer-2 `o_sparse -> o_unrot` and `latent_pre_rope -> latent` | tables 3.0e-8, rows bit-exact | 1e-5 / 4e-3 |
-| `ActQdq` after `RopeTail` on compressed rows | layer-2 `latent` taps | bit-exact (fp4 e2m1/16/e4m3 over the whole 512-wide row, after the rotation) | 0 |
-| `WindowKv`, `CompressPool` (ratio 2, partial groups) | naive `_window_kv` / `Compressor.forward`, chunks 5,20,1,1,13 and 7,1,1,2 | exact / 0 | 1e-6 |
+| `ActQdq` (fp8 b32 ue8m0, fp4 b32 e8m0, fp4 b16 e4m3) | `ops` (4096 values each) | bit-exact | 0 |
+| `HcMixes` (sigmoid split, 20 Sinkhorn rounds) | `ops` `sinkhorn/*` (32 rows) | pre 7.2e-8, post 9e-8, comb 1.4e-7 | 1e-6 |
+| `HcPre`, `HcPost` | `ops` `hc_pre`/`hc_post` (bf16); layer-2 taps (prefill and decode); fp32 chain | bf16 6.4e-9 and 3.0e-3 (6 of 81,920 values round to the neighbouring bf16: one ulp); layer-2 taps <= 4.9e-5; fp32 chain 1.3e-7 | 4e-3 / 1e-5 |
+| `MoeRoute` (`bias`, `bias_vl`) | layer-2 router logits, 16 tokens (7 image rows, all 7 route differently under `bias_vl`) | all expert sets equal; weights 1.0e-7 | 1e-5 |
+| `SiluGluClamp`, `GroupedMatmul`, `Transpose01` | naive transcriptions of `Expert.forward` / `einsum` | exact | 1e-6 |
+| `RopeTail` | `ops` rope plain + compressed_yarn: tables at positions up to 1,048,575, rows at 5, 6, 7, 70000, forward and inverse; layer-2 `o_sparse -> o_unrot` | tables 3.0e-8 (cos/sin), rows bit-exact | 1e-5 / 4e-3 |
+| `RopeTail` then `ActQdq` on compressed rows | layer-2 `latent_pre_rope -> latent` taps | bit-exact (e2m1 per 16 with e4m3 scales over the whole 512-wide row, after the rotation) | 0 |
+| `WindowKv`, `CompressPool` (ratio 2, partial groups) | naive `_window_kv` / `Compressor.forward`; chunks 5,20,1,1,13 and 7,1,1,2 | exact | 1e-6 |
 | `IndexerBlocks` | `ops` `select_candidate_blocks` (rows of 20,000 / 15,000 / 3,000 / 9) | identical kept blocks | exact |
 | `IndexerTopk` | layer-2 selections (16 prefill rows + 2 decode steps); tie rule below | identical | exact |
-| `AttnSparse` | `sparse_attn_4k_{bf16,fp32}` (real layer-2 data, 10 / 8 rows at positions 0 .. 4094, window 128 + up to 512 compressed rows, 64 heads, sink); synthetic with `-1` and an all-masked row | bf16 5.3e-3, fp32 8.4e-7, synthetic 4.8e-3 | 8e-3 / 1e-5 / 8e-3 |
-| `EngramMerge` / `EngramGather` | layer-1 taps (`engram.in/kv/out`, `engram.rows`) | 4.1e-7 / exact | 1e-6 / 0 |
-| layers 0, 1, 2 (graph + ops, routed experts and Engram rows taken from the fixture) | `layers_{bf16,fp32}`, prefill 16 + decode at 16 and 17 | bf16 <= 5.5e-3, fp32 <= 6.3e-6 per layer output | 1e-2 / 1e-4 |
+| `AttnSparse` | `sparse_attn_4k_{bf16,fp32}` (real layer-2 data: 10 / 8 rows at positions 0 .. 4094, window 128 + up to 512 compressed rows, 64 heads, sink); synthetic with `-1` and an all-masked row | bf16 5.3e-3, fp32 6.7e-7, synthetic 4.8e-3 (all-masked row exactly 0) | 8e-3 / 1e-5 / 8e-3 |
+| `EngramMerge` / `EngramGather` | layer-1 taps (`engram.in/kv/out`, `engram.rows`) | 4.1e-7 (6 of 327,680 values differ, by 3.8e-6 absolute: bf16 rounding of near-zero values) / exact | 1e-6 / 0 |
+| layers 0, 1, 2 (graph + ops; routed experts and Engram rows taken from the fixture) | `layers_{bf16,fp32}`, prefill 16 + decode at 16 and 17, real Mia weights | bf16 1.4e-3 .. 5.5e-3 per layer output (rms 1.5e-3 .. 3.2e-3); fp32 1.9e-7 .. 6.3e-6 | 1e-2 / 1e-4 |
 
 Why the bf16 tolerances are not zero: the official sparse attention rounds the softmax probabilities to bf16 before `P @ V`
 (`kernel.py:380`; the reference keeps them in f64 and rounds the output once), and the bf16 hidden states round at every
@@ -281,5 +281,9 @@ shared by `IndexerTopk`, `IndexerBlocks` (block scores) and `MoeRoute` (expert s
 equal scores are resolved to the lowest row (block, expert) index; the winners are returned in ascending row order, unreachable
 fill-ins (`-inf`, row `>= (pos0 + t + 1) / ratio`) as `-1` after the real picks.** The result then depends only on the
 scores, not on the chunking, the thread count or the sort algorithm. The tests compare against an independent stable sort
-(`indexer_topk_tie_break_is_lowest_index_and_deterministic`) and, against the official picks, as a set modulo the tied value
-at the cut (see "Indexer scores" below).
+(`indexer_topk_tie_break_is_lowest_index_and_deterministic`, data tied at the cut) and against the official picks on the
+layer-2 fixture rows with fewer visible rows than `index_topk` (every visible row selected, `indexer_topk_matches_layer2_selection`).
+Not yet done: the SET comparison against the official `topk(sorted=False)` on the 4,095-row run needs the real indexer
+scores (`tools/dsv41/fixtures.py indexer4k` writes them with both selections; it needs ~35 GB and the Mia weights on
+spark1, queue slot not obtained in the lane's time; the test then asserts equal sets whenever the official pick has no tie at
+the cut, and for the 1,013 tie rows that both picks are optimal and differ only inside the tied value).
