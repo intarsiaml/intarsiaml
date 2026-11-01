@@ -192,3 +192,41 @@ fn trimmed_index_and_quant_config_match_the_headers() {
     let base: Value = serde_json::from_str(include_str!("fixtures/dsv41/base-index.trimmed.json")).unwrap();
     assert!(base["weight_map"].get("layers.2.attn.wq_a.scale").is_some() && base["weight_map"].get("layers.2.attn.indexer.wk.scale").is_none());
 }
+
+/// Every step of the Mia graph (decode at a long position, a 16-row and a 512-row chunk) has a CUDA kernel on sm_121: the
+/// CUDA registry is data, so this runs without a GPU and catches a missing kernel before a Spark run does.
+#[test]
+fn every_step_resolves_to_a_cuda_kernel() {
+    let (c, w) = mia();
+    let info = intarsia_core::DeviceInfo {
+        name: "registry only".into(),
+        backend: "cuda".into(),
+        arch: intarsia_backend_cuda::kernels::ARCH.into(),
+        total_mem: 128 << 30,
+        free_mem: 100 << 30,
+        unified: true,
+        bandwidth_gbs: None,
+    };
+    let reg = intarsia_core::registry::Registry::new("cuda", &info, intarsia_backend_cuda::kernels::all());
+    let mut missing = BTreeMap::new();
+    // and one rank of TP=2 on a rank cache's shapes when given (`INTARSIA_DSV41_CACHE_R0`: a `--world 2` rank cache)
+    let r0 = std::env::var_os("INTARSIA_DSV41_CACHE_R0").map(PathBuf::from);
+    let shapes_r0 = r0.as_ref().map(|d| (HeaderShapes::open(d).unwrap(), intarsia_models::dsv41_cache::open_manifest(d).unwrap()));
+    let mut graphs = vec![];
+    for (t, pos0) in [(1, 70_000), (16, 0), (16, 4096), (512, 0), (512, 8192)] {
+        graphs.push((t, build(&c, &w, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }).unwrap()));
+        if let Some((ws, m)) = &shapes_r0 {
+            let tp = intarsia_core::dsv41::graph::GraphTp { world: m.world, layers: m.layers };
+            graphs.push((t, intarsia_core::dsv41::graph::build_with(&c, ws, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }, tp).unwrap()));
+        }
+    }
+    for (t, g) in graphs {
+        for st in g.stages.iter().flat_map(|s| s.steps.iter()) {
+            let call = st.phantom_call().unwrap();
+            if let Err(e) = reg.select(&call) {
+                missing.entry(format!("{} t={t}", st.op.as_str())).or_insert_with(|| format!("{}: {e}", st.what));
+            }
+        }
+    }
+    assert!(missing.is_empty(), "steps without a CUDA kernel:\n{}", missing.iter().map(|(k, v)| format!("  {k}: {v}")).collect::<Vec<_>>().join("\n"));
+}

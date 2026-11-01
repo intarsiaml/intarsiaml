@@ -104,6 +104,9 @@ int ik_engram_gather(const ik_tensor* records, ik_tensor* y, void* stream);
 int ik_engram_merge(const ik_tensor* h, const ik_tensor* kv, const ik_tensor* q_w, const ik_tensor* k_w, float eps, ik_tensor* out,
                     void* stream);
 
+/* dense_f16w: x float [M,K], w f16 [N,K] -> y float [M,N] = x w^T, f32 accumulation (the f16 router / indexer weights). */
+int ik_dense_f16w(const ik_tensor* x, const ik_tensor* w, ik_tensor* y, void* stream);
+
 #ifdef __cplusplus
 }
 #endif

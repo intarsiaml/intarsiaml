@@ -29,6 +29,8 @@ pub const TABLE: &[(&str, Op)] = &[
     ("transpose01", Op::Transpose01),
     ("engram_gather", Op::EngramGather),
     ("engram_merge", Op::EngramMerge),
+    ("logits_f16w", Op::Logits),
+    ("matmul_f16w", Op::Matmul),
 ];
 
 /// bf16-rounded outputs: a one-ulp flip is allowed (the backend's shared budget).
@@ -157,6 +159,8 @@ pub fn all() -> Vec<KernelImpl> {
                 // e4m3 payload times a power of two in f32 (the reference's arithmetic); y rounded to its dtype like the reference's
                 "engram_gather" => k.acts([DType::U8]).exact(Exactness::Exact).tol(Tol::EXACT),
                 "engram_merge" => k.tol(BF16_TOL).tol_f32(F32_TOL),
+                // f16-weight dense linears (router, indexer weights_proj): warp per output, f32 accumulation
+                "logits_f16w" | "matmul_f16w" => k.weights([DType::F16]).when(|s| s.m <= 65535).tol(BF16_TOL).tol_f32(F32_TOL),
                 other => unreachable!("dsv41 kernel {other} has no registration"),
             }
         })
@@ -213,6 +217,7 @@ mod launch {
         fn ik_compress_pool(kv: T, score: T, ratio: i64, pos0: i64, out: TM, kv_ring: TM, score_ring: TM, s: S) -> c_int;
         fn ik_indexer_blocks(q: T, k: T, w: T, keep: i64, block: i64, ratio: i64, pos0: i64, scale: f32, mask: TM, sc: SC, s: S) -> c_int;
         fn ik_transpose01(x: T, y: TM, s: S) -> c_int;
+        fn ik_dense_f16w(x: T, w: T, y: TM, s: S) -> c_int;
         fn ik_engram_gather(rec: T, y: TM, s: S) -> c_int;
         fn ik_engram_merge(h: T, kv: T, q_w: T, k_w: T, eps: f32, out: TM, s: S) -> c_int;
         fn ik_indexer_topk(
@@ -343,6 +348,7 @@ mod launch {
                         s,
                     ),
                     "transpose01" => ik_transpose01(i(0), on(0), s),
+                    "logits_f16w" | "matmul_f16w" => ik_dense_f16w(i(0), i(1), on(0), s),
                     "engram_gather" => ik_engram_gather(i(0), on(0), s),
                     "engram_merge" => ik_engram_merge(i(0), i(1), i(2), i(3), a.eps, on(0), s),
                     other => return Err(Error::NoKernel(format!("cuda kernel '{other}'"))),
