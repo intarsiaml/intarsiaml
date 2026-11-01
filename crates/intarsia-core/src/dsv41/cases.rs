@@ -201,20 +201,6 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                         at,
                     );
                 }
-                Op::MoeExpertsExl3 => {
-                    let (e, k, h, i, bits) = (4usize, 2usize, 128usize, 128usize, 3usize);
-                    let ids: Vec<i32> = (0..t * k).map(|j| ((j * 3 + 1) % e) as i32).collect();
-                    let mut inputs = vec![rand_t(rng, dt, &[t, h], 1.0), HostTensor::from_i32(&[t, k], &ids), rand_t(rng, DType::F32, &[t, k], 0.5)];
-                    for (kk, nn) in [(h, i), (h, i), (i, h)] {
-                        inputs.push(bytes_t(rng, DType::I16, &[e, kk / 16, nn / 16, 16 * bits], |v| v as u8));
-                        inputs.push(rand_t(rng, DType::F16, &[e, kk], 0.1));
-                        inputs.push(rand_t(rng, DType::F16, &[e, nn], 1.0));
-                    }
-                    inputs.push(HostTensor::from_i32(&[1], &[2]));
-                    let mut at = OpAttrs { top_k: k, ..a };
-                    at.dsv.limit = 10.0;
-                    push(format!("T={t} E={e} K={k} H={h} I={i} bits={bits} {dt}"), op, inputs, vec![out(dt, &[t, h])], at);
-                }
                 Op::EngramGather => {
                     // records of Dh 64: 64 e4m3 bytes (finite, either sign), then 2 E8M0 scales near 2^0
                     let mut rec = bytes_t(rng, DType::U8, &[t, 3, 66], |v| (v % 0x7E) as u8 | ((v >> 8) as u8 & 0x80));

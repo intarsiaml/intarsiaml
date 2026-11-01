@@ -1,7 +1,7 @@
 # DeepSeek-V4.1 Flash: op contract, state and graph (lane 1a)
 
 This is the contract that lanes 1b (cpu reference ops), 2 (CUDA) and the Engram lane implement against. Lane 1a appended
-every op DeepSeek-V4.1 needs to `Op` once (discriminants 44..=62, `crates/intarsia-core/src/ops.rs`, never insert above
+every op DeepSeek-V4.1 needs to `Op` once (discriminants 44..=61, `crates/intarsia-core/src/ops.rs`, never insert above
 them), added the state slots, the Engram tier interface, the typed config and the model graph. The model does not run yet:
 `intarsia plan show --model <dir> --backend cpu` lists the full op sequence of the checkpoint from its `config.json` and
 safetensors headers, and loading it for generation refuses with a pointer to `plan show`.
@@ -67,9 +67,8 @@ them with that error (`crates/intarsia-backend-cpu/tests/admission.rs` asserts b
 | 57 | `GroupedMatmul` | x `[T,G*K]`, w `[G,N,K]` -> `[T,G*N]`, group g: x[:, gK..] @ w[g]^T | | `einsum("bsgd,grd->bsgr")` `model.py:789` | ref |
 | 58 | `Transpose01` | x `[A,B,C]` -> `[B,A,C]` (any dtype) | | layout helper: per-group EXL3 `wo_a` slices need group-major rows | ref |
 | 59 | `MatmulFp8Block` | x `[M,K]` float, w `[N,K]` e4m3, w_scale `[ceil(N/b), K/b]` u8 (E8M0) -> `[M,N]` | `dsv.block` (32; the activation is quantised to e4m3 per `b` elements with a ue8m0 scale first) | `linear` `model.py:181`, `fp8_gemm` `kernel.py:208-308` | **stub** |
-| 60 | `MoeExpertsExl3` | x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, then for w1 (gate), w3 (up), w2 (down): trellis `[E,K/16,N/16,16*bits]` i16, suh `[E,K]` f16, svh `[E,N]` f16, codebook `[1]` i32 -> y `[T,H]` = sum_k weights[k] * w2_e(SiluGluClamp(w1_e x, w3_e x)) | `dsv.limit`, `top_k` | `MoE.forward` / `Expert.forward` `model.py:856-907` (the official code scales before `w2`: same math, one rounding apart) | **stub** |
-| 61 | `EngramGather` | records `[T,C,Dh+Dh/32]` u8 (per row: `Dh` e4m3 bytes, then `Dh/32` E8M0 scale bytes; 264 B for Dh 256) -> `[T, C*Dh]` = payload * 2^(scale-127) | | `ParallelEngramEmbedding.forward` `model.py:296-326`; record layout from the plan review (2026-10-31) | ref |
-| 62 | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)D]` (S keys then one value), q_w `[S,D]`, k_w `[S,D]` -> `[T,S,D]` | `eps` (norm_eps) | `Engram.forward` `model.py:328-367` | ref |
+| 60 | `EngramGather` | records `[T,C,Dh+Dh/32]` u8 (per row: `Dh` e4m3 bytes, then `Dh/32` E8M0 scale bytes; 264 B for Dh 256) -> `[T, C*Dh]` = payload * 2^(scale-127) | | `ParallelEngramEmbedding.forward` `model.py:296-326`; record layout from the plan review (2026-10-31) | ref |
+| 61 | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)D]` (S keys then one value), q_w `[S,D]`, k_w `[S,D]` -> `[T,S,D]` | `eps` (norm_eps) | `Engram.forward` `model.py:328-367` | ref |
 
 ### Exact rules the references implement
 
@@ -110,6 +109,7 @@ them with that error (`crates/intarsia-backend-cpu/tests/admission.rs` asserts b
 | Norms (eps 1e-20) | `RmsNorm` | |
 | Routed + shared expert sum | `Add` | the official sum is in f32 before the cast; one rounding apart |
 | Token embedding | `Embedding` | |
+| Mia's routed EXL3 experts (384 per layer, top 6, clamped SwiGLU) | `MoeExperts`, EXL3 encoding (`quant::exl3_moe`, from `dsv41/cuda-moe` `8e2b8b54b`): an i16 input 3 selects it; inputs x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, arena `[W]` i16 (every expert's gate / up / down tiles), scales `[E, 3H+3I]` f16, meta `[E, 8]` i32 (16-byte arena offsets and width per matrix), codebook `[1]` i32, limit `[1]` f32 (swiglu_limit) | f64 cpu reference in `exl3_ref`; the graph sizes the arena as `E x` expert 0's tiles (one width per stack in Mia, verified over all of `tensor_storage`) |
 | Base checkpoint's FP4 routed experts | `MoeExperts` (MXFP4: e2m1 + E8M0 per 32) | needs `dsv.limit` honoured by its kernels (an attribute, not a new op; lane 1b) |
 
 `MatmulFp8` does not cover the base's FP8 linears: it takes a per-tensor scale and a static activation scale, the base has
@@ -187,18 +187,24 @@ Decode step of the Mia checkpoint (`plan show`, cpu, position 4095), steps per s
 | layers 37-39 | 40 | + DSpark tap (`HcPre` with the mean mix) |
 | head | 3 | `HcPre`, `RmsNorm`, `MatmulExl3` (f32 logits) |
 
-1653 steps per decode step; 622 of them `MatmulExl3`, 40 `MoeExpertsExl3` (the only stub on this checkpoint).
+1653 steps per decode step; 622 of them `MatmulExl3`, 40 `MoeExperts` (EXL3 encoding). No stub op on this checkpoint.
 
-## Open decision: `MoeExpertsExl3` vs the EXL3 encoding of `MoeExperts`
+## Final discriminant list (frozen)
 
-The `dsv41/cuda-moe` lane (commit `8e2b8b54b`, not on this branch) encodes EXL3 experts in the existing `Op::MoeExperts`:
-input 3's dtype (i16) selects `quant::exl3_moe`; eight inputs x, ids, weights, arena `[W]` i16, scales `[E, 3H+3I]` f16,
-meta `[E, 8]` i32 (offsets + width per gate/up/down), codebook `[1]`, swiglu limit `[1]` f32, with an f64 cpu reference.
-That makes `MoeExpertsExl3` (60) redundant. If the coordinator takes that encoding, 1a drops `MoeExpertsExl3`, renumbers
-`EngramGather` / `EngramMerge` to 60 / 61, and the graph emits `MoeExperts` with the arena operands: a small change, but
-it must happen before this branch merges (after that the discriminants are frozen) and it needs `8e2b8b54b` underneath
-(this branch's `MoeExperts` check rejects an i16 arena). Mia's routed experts have one width per (layer, matrix) stack in
-all 40 layers (checked over every `tensor_storage` entry), so either encoding fits the checkpoint.
+Decided 2026-10-31 (coordinator): the routed EXL3 experts use the EXL3 encoding of the existing `MoeExperts`, so the
+`MoeExpertsExl3` variant lane 1a first proposed was dropped before it reached any lane that numbers ops. Lanes refer to
+ops by name; the numbers below are what `Op as usize` returns and what admission seeds by.
+
+| # | Op | # | Op | # | Op |
+|---|---|---|---|---|---|
+| 44 | `HcExpand` | 50 | `ActQdq` | 56 | `IndexerTopk` |
+| 45 | `HcMixes` | 51 | `RopeTail` | 57 | `GroupedMatmul` |
+| 46 | `HcPre` | 52 | `WindowKv` | 58 | `Transpose01` |
+| 47 | `HcPost` | 53 | `AttnSparse` | 59 | `MatmulFp8Block` |
+| 48 | `MoeRoute` | 54 | `CompressPool` | 60 | `EngramGather` |
+| 49 | `SiluGluClamp` | 55 | `IndexerBlocks` | 61 | `EngramMerge` |
+
+`Op::ALL` has 62 entries; `EngramMerge` is last. The next op anyone appends is 62.
 
 ## Where the official code differs from the scope doc
 

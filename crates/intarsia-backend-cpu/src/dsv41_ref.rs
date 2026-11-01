@@ -10,9 +10,9 @@ use intarsia_core::quant::nvfp4::{f32_to_fp4, fp4_to_f32};
 use intarsia_core::{Error, Op, OpCall, Result, TensorRef};
 
 /// DeepSeek-V4.1 ops without a cpu reference yet (lane 1b removes entries as it lands them). `MatmulFp8Block` serves only
-/// the official FP8 base checkpoint (the Mia EXL3 checkpoint has no fp8 linear); `MoeExpertsExl3` is the grouped EXL3
-/// expert GEMM (lane 1b composes it from the EXL3 decoder in `exl3_ref`, lane 2 ports TensorFold's `experts_grouped`).
-pub const STUBS: [Op; 2] = [Op::MatmulFp8Block, Op::MoeExpertsExl3];
+/// the official FP8 base checkpoint (the Mia EXL3 checkpoint has no fp8 linear). The routed EXL3 experts are the EXL3
+/// encoding of the existing `MoeExperts` (`quant::exl3_moe`), which has its own reference.
+pub const STUBS: [Op; 1] = [Op::MatmulFp8Block];
 
 /// The error a stub op's kernels return.
 pub fn stub_error(op: Op) -> Error {

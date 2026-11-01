@@ -527,28 +527,45 @@ fn moe(b: &mut Builder, p: &str, n: &Arg, experts: usize, top_k: usize) -> Resul
     let (rw, ids) = (ws("route_w", DType::F32, &[t, top_k]), ws("route_ids", DType::I32, &[t, top_k]));
     b.push(Op::MoeRoute, format!("{p}.gate"), vec![logits, bias], vec![rw.clone(), ids.clone()], OpAttrs { top_k, scale: c.route_scale, norm_topk: c.norm_topk, ..Default::default() });
 
-    let mut inputs = vec![n.clone(), ids, rw];
+    // routed experts: the EXL3 encoding of `MoeExperts` (`quant::exl3_moe`), built at load from the per-expert tensors:
+    // one i16 trellis arena of every expert's gate / up / down tiles, scales [E, 3H + 3I] f16 (suh / svh of each matrix),
+    // meta [E, 8] i32 (arena offsets and widths), the codebook, and the swiglu clamp limit
+    let mut words = 0usize;
+    let mut inter = 0usize;
     for wn in ["w1", "w3", "w2"] {
         let e0 = format!("{p}.experts.0.{wn}");
         let last = format!("{p}.experts.{}.{wn}", experts - 1);
         let (Some((_, s0)), Some((_, sl))) = (b.w.get(&format!("{e0}.trellis")), b.w.get(&format!("{last}.trellis"))) else {
             return Err(Error::Unsupported(format!(
-                "deepseek_v41: routed experts {p}.experts.*.{wn} are not EXL3 (the base's FP4 experts run as MoeExperts with dsv.limit, lane 1b)"
+                "deepseek_v41: routed experts {p}.experts.*.{wn} are not EXL3 (the base's FP4 experts run as the MXFP4 MoeExperts with a clamp, lane 1b)"
             )));
         };
         if s0 != sl || s0.len() != 3 {
             return Err(Error::model(format!("deepseek_v41: {p} experts 0 and {} differ in shape ({s0:?} / {sl:?})", experts - 1)));
         }
         let (k, nn) = (16 * s0[0], 16 * s0[1]);
-        inputs.push(arg(Buf::Weight(format!("{p}.experts.*.{wn}.trellis")), DType::I16, &[experts, s0[0], s0[1], s0[2]]));
-        inputs.push(arg(Buf::Weight(format!("{p}.experts.*.{wn}.suh")), DType::F16, &[experts, k]));
-        inputs.push(arg(Buf::Weight(format!("{p}.experts.*.{wn}.svh")), DType::F16, &[experts, nn]));
+        let want = if wn == "w2" { (inter, d) } else { (d, nn) };
+        if wn != "w2" {
+            inter = nn;
+        }
+        if (k, nn) != want {
+            return Err(Error::model(format!("deepseek_v41: {p}.experts.*.{wn} is [{k} -> {nn}], expected [{} -> {}]", want.0, want.1)));
+        }
+        // one width per (layer, matrix) stack in the Mia checkpoint, so the arena is E times expert 0's tiles
+        words += experts * s0.iter().product::<usize>();
     }
-    inputs.push(arg(Buf::Weight(format!("{p}.experts.*.codebook")), DType::I32, &[1]));
+    let inputs = vec![
+        n.clone(),
+        ids,
+        rw,
+        arg(Buf::Weight(format!("{p}.experts.arena")), DType::I16, &[words]),
+        arg(Buf::Weight(format!("{p}.experts.scales")), DType::F16, &[experts, 3 * d + 3 * inter]),
+        arg(Buf::Weight(format!("{p}.experts.meta")), DType::I32, &[experts, crate::quant::exl3_moe::META_COLS]),
+        arg(Buf::Weight(format!("{p}.experts.codebook")), DType::I32, &[1]),
+        arg(Buf::Const("swiglu_limit".into()), DType::F32, &[1]),
+    ];
     let routed = ws("moe_routed", act, &[t, d]);
-    let mut a = OpAttrs { top_k, ..Default::default() };
-    a.dsv.limit = c.swiglu_limit;
-    b.push(Op::MoeExpertsExl3, format!("{p}.experts"), inputs, vec![routed.clone()], a);
+    b.push(Op::MoeExperts, format!("{p}.experts"), inputs, vec![routed.clone()], OpAttrs { top_k, ..Default::default() });
 
     // shared expert: clamped SwiGLU
     let g = b.matmul(n.clone(), &format!("{p}.shared_experts.w1"), Buf::Ws("g".into()), act)?;
