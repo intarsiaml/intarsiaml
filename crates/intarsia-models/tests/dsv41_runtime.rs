@@ -386,9 +386,10 @@ fn speculative_greedy_equals_plain_greedy() {
     std::env::set_var("INTARSIA_DSV41_ENGRAM", "off");
     std::env::set_var("INTARSIA_DSV41_CAP", "512");
     std::env::set_var("INTARSIA_DSV41_CHUNK", "64");
-    if !cuda {
+    if !cuda && std::env::var_os("INTARSIA_DSV41_ACT").is_none() {
         std::env::set_var("INTARSIA_DSV41_ACT", "f32");
     }
+    let exact = !cuda && std::env::var("INTARSIA_DSV41_ACT").as_deref() == Ok("f32");
     let backend: Arc<dyn Backend> = if cuda { cuda_backend() } else { intarsia_backend_cpu::CpuBackend::arc() };
     let eng = intarsia_models::dsv41_engine::Dsv41Engine::load(&cache, backend, None, None, None, None).unwrap();
     // a fixed pseudo-text prompt: common token ids, repeated phrases so the drafter gets some right
@@ -416,7 +417,7 @@ fn speculative_greedy_equals_plain_greedy() {
     let spec = run(false);
     let lead = plain.iter().zip(&spec).take_while(|(a, b)| a == b).count();
     println!("SPEC plain {plain:?}\nSPEC spec  {spec:?}\nSPEC leading equal {lead}/{}", plain.len());
-    if !cuda {
+    if exact {
         assert_eq!(plain, spec, "speculative greedy differs from plain greedy at token {lead}");
     }
 }
