@@ -229,3 +229,57 @@ ops by name; the numbers below are what `Op as usize` returns and what admission
   sinks, router bias (f32), router weight and `weights_proj` (f16), embedding (bf16).
 - `gate.bias_vl` is the vision-language routing bias for image-span tokens (`Gate.forward`), unused text-only.
 - `MatmulFp8` does not cover the base's FP8 (block E8M0 scales, dynamic activation quantisation): new `MatmulFp8Block`.
+
+## Parity with the official code (lane 1b)
+
+Every cpu reference op is checked against DeepSeek's official `model.py` / `kernel.py` / `engram.py` through the fixtures in
+`golden/dsv41/` (generator `tools/dsv41/fixtures.py`, which runs the official code on CPU with torch emulations of the
+tilelang kernels; the emulations are not bit-checked against the GPU kernels). Run `cargo test -p intarsia-backend-cpu
+--test dsv41_parity --test dsv41_chunked -- --nocapture` for the `PARITY ...` rows; tolerance is `max |got - ref| / max |ref|`.
+
+| Op | Fixture | Result | Tolerance |
+|---|---|---|---|
+| `ActQdq` (fp8 b32 ue8m0, fp4 b32 e8m0, fp4 b16 e4m3) | `ops` (8x512, an all-zero block, a 3e4 outlier) | bit-exact | 0 |
+| `HcMixes` (sigmoid split, 20 Sinkhorn rounds) | `ops` (32 rows); real `fn`/`scale`/`base` of layers 0-2 | 1.4e-7; <= 5.4e-6 on real bf16 activations | 1e-6 / 1e-5 |
+| `HcPre`, `HcPost` | `ops`; layer-2 taps (prefill and decode); fp32 chain | <= 3.0e-3 (bf16: 6 of 81,920 values round to the neighbouring bf16, double rounding f64 -> f32 -> bf16); fp32 1.3e-7 | 4e-3 / 1e-5 |
+| `MoeRoute` (`bias`, `bias_vl`) | layer-2 router logits of 16 tokens (7 image rows) | all expert sets equal, weights 1.0e-7 | 1e-5 |
+| `SiluGluClamp`, `GroupedMatmul`, `Transpose01` | naive transcriptions of `Expert.forward` / `einsum` | exact / 1e-7 | 1e-6 |
+| `RopeTail` | `ops` rope plain + compressed_yarn: tables at positions up to 1,048,575; forward and inverse; layer-2 `o_sparse -> o_unrot` and `latent_pre_rope -> latent` | tables 3.0e-8, rows bit-exact | 1e-5 / 4e-3 |
+| `ActQdq` after `RopeTail` on compressed rows | layer-2 `latent` taps | bit-exact (fp4 e2m1/16/e4m3 over the whole 512-wide row, after the rotation) | 0 |
+| `WindowKv`, `CompressPool` (ratio 2, partial groups) | naive `_window_kv` / `Compressor.forward`, chunks 5,20,1,1,13 and 7,1,1,2 | exact / 0 | 1e-6 |
+| `IndexerBlocks` | `ops` `select_candidate_blocks` (rows of 20,000 / 15,000 / 3,000 / 9) | identical kept blocks | exact |
+| `IndexerTopk` | layer-2 selections (16 prefill rows + 2 decode steps); tie rule below | identical | exact |
+| `AttnSparse` | `sparse_attn_4k_{bf16,fp32}` (real layer-2 data, 10 / 8 rows at positions 0 .. 4094, window 128 + up to 512 compressed rows, 64 heads, sink); synthetic with `-1` and an all-masked row | bf16 5.3e-3, fp32 8.4e-7, synthetic 4.8e-3 | 8e-3 / 1e-5 / 8e-3 |
+| `EngramMerge` / `EngramGather` | layer-1 taps (`engram.in/kv/out`, `engram.rows`) | 4.1e-7 / exact | 1e-6 / 0 |
+| layers 0, 1, 2 (graph + ops, routed experts and Engram rows taken from the fixture) | `layers_{bf16,fp32}`, prefill 16 + decode at 16 and 17 | bf16 <= 5.5e-3, fp32 <= 6.3e-6 per layer output | 1e-2 / 1e-4 |
+
+Why the bf16 tolerances are not zero: the official sparse attention rounds the softmax probabilities to bf16 before `P @ V`
+(`kernel.py:380`; the reference keeps them in f64 and rounds the output once), and the bf16 hidden states round at every
+sub-block, so two correct implementations differ by a few bf16 ulps of the largest value. fp32 flows agree to ~1e-6 (the ops
+compute in f64 and round to f32; torch accumulates in f32).
+
+Behaviour the tests pin that the op table leaves implicit:
+
+- `AttnSparse` always attends the query's own window key (`window >= 1`, the key at position `pos0 + t`), so an all-masked row
+  (zeros) can only come from a call that leaves the window out, as the official kernel's synthetic fixture does; the
+  reference returns zeros for a row without keys (`keys.is_empty()`).
+- The compressed latent is `RmsNorm -> RopeTail (pos_stride = ratio, first position of the group) -> ActQdq (e2m1, 16, e4m3)`,
+  index keys `wk -> RmsNorm -> RopeTail -> ActQdq (e2m1, 32, ue8m0)`; `attn.idxs` of the official code indexes
+  `[window ring 128 | chunk | compressed]` (compressed row `idx - 144` in a 16-row prefill, `idx - 129` in a decode step).
+- Chunked == whole, decode-after-prefill == prefill-all and a rollback of up to the ring margin (16) are bit-identical
+  for the op chain window KV -> compressor (ratio 1, 2, 3) -> index compressor -> indexer top-k (with and without candidate
+  blocks) -> sparse attention -> de-rotation (`dsv41_chunked.rs`), and layer 2 through the real graph and weights is
+  bit-identical across chunk schedules (`dsv41_layers.rs`). The official code is not (bf16 matmul batch shape: 6.9e-3 relative
+  between prefill(N) and prefill(N-3)+3 decode); the engine's kernels must be, because speculative verification compares
+  the verify pass with the decode it replaces. A ring without the rollback margin is detected as unsafe by the same tests.
+
+### Indexer top-k tie-breaking
+
+`torch.topk(sorted=False)` leaves equal scores in an unspecified order; on the 4,095-token layer-2 run its picks differ from a
+stable descending sort in 1,013 of 4,095 rows, all of them equal-score swaps at the cut. The engine's rule is explicit and
+shared by `IndexerTopk`, `IndexerBlocks` (block scores) and `MoeRoute` (expert scores): **the `top_k` highest scores win;
+equal scores are resolved to the lowest row (block, expert) index; the winners are returned in ascending row order, unreachable
+fill-ins (`-inf`, row `>= (pos0 + t + 1) / ratio`) as `-1` after the real picks.** The result then depends only on the
+scores, not on the chunking, the thread count or the sort algorithm. The tests compare against an independent stable sort
+(`indexer_topk_tie_break_is_lowest_index_and_deterministic`) and, against the official picks, as a set modulo the tied value
+at the cut (see "Indexer scores" below).
