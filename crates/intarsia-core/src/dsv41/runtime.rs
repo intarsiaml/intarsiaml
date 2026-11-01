@@ -98,6 +98,8 @@ pub struct Dsv41Runtime {
     pub last_pass: Mutex<PassStats>,
     /// `INTARSIA_DSV41_PROFILE` accumulator: (passes, build, enqueue, total, engram wait) in us.
     prof: Mutex<(u64, u64, u64, u64, u64)>,
+    /// `INTARSIA_DSV41_OPPROF`: (one-row pass?, kernel) -> (calls, us).
+    opprof: Option<Mutex<HashMap<(bool, String), (u64, u64)>>>,
 }
 
 fn esz(d: DType) -> usize {
@@ -224,6 +226,7 @@ impl Dsv41Runtime {
             memory: RuntimeMemory::default(),
             last_pass: Mutex::new(PassStats::default()),
             prof: Mutex::new((0, 0, 0, 0, 0)),
+            opprof: std::env::var_os("INTARSIA_DSV41_OPPROF").filter(|v| v != "0").map(|_| Mutex::new(HashMap::new())),
         };
         let state_per_seq = rt.slot_specs.iter().map(|s| s.bytes(rt.opts.cap) as u64).sum();
         rt.memory = RuntimeMemory { weights: weight_bytes, workspace: ws_bytes, constants: cbytes, scratch: 0, state_per_seq };
@@ -255,6 +258,8 @@ impl Dsv41Runtime {
                 acc.4 as f64 / n / 1e3
             );
             *acc = (0, 0, 0, 0, 0);
+            drop(acc);
+            self.print_opprof();
         }
     }
 
@@ -432,7 +437,12 @@ impl Dsv41Runtime {
                 }
                 call.scratch = Some(ex.scratch.as_ref().unwrap().reshaped(&[ex.scratch.as_ref().unwrap().numel()]).rows(0, need));
             }
+            let op_t0 = self.opprof.as_ref().map(|_| Instant::now());
             self.backend.launch(kname, &call, 0).map_err(|e| Error::backend(format!("deepseek_v41 step {} ({kname}): {e}", step.what)))?;
+            if let Some(t0) = op_t0 {
+                self.backend.synchronize(0)?;
+                self.opprof_add(t, kname, t0);
+            }
         }
         for (_, e) in extras {
             self.extra(ex, e, st, t)?;
@@ -441,6 +451,50 @@ impl Dsv41Runtime {
     }
 
     fn extra(&self, ex: &mut Exec, e: &Extra, st: &SequenceState, t: usize) -> Result<()> {
+        let Some(_) = self.opprof.as_ref() else { return self.extra_inner(ex, e, st, t) };
+        let t0 = Instant::now();
+        self.extra_inner(ex, e, st, t)?;
+        self.backend.synchronize(0)?;
+        let kind = match e {
+            Extra::AllReduce { .. } => "[all_reduce]",
+            Extra::AllReduceInto { .. } => "[all_reduce_into]",
+            Extra::AllGather { .. } => "[all_gather]",
+            Extra::Fill { .. } => "[fill]",
+        };
+        self.opprof_add(t, kind, t0);
+        Ok(())
+    }
+
+    /// `INTARSIA_DSV41_OPPROF=1`: device time per kernel / collective (a sync after every step: slow, diagnosis only),
+    /// split into one-row passes and longer ones; `print_opprof` writes the table.
+    fn opprof_add(&self, t: usize, name: &str, t0: Instant) {
+        let us = t0.elapsed().as_micros() as u64;
+        let mut m = self.opprof.as_ref().unwrap().lock().unwrap();
+        let e = m.entry((t == 1, name.to_string())).or_insert((0, 0));
+        e.0 += 1;
+        e.1 += us;
+    }
+
+    /// The `INTARSIA_DSV41_OPPROF` table (per pass class: kernel, calls, total ms, share), then reset.
+    pub fn print_opprof(&self) {
+        let Some(p) = self.opprof.as_ref() else { return };
+        let mut m = p.lock().unwrap();
+        for decode in [true, false] {
+            let mut v: Vec<_> = m.iter().filter(|((d, _), _)| *d == decode).map(|((_, n), &(c, us))| (n.clone(), c, us)).collect();
+            let total: u64 = v.iter().map(|x| x.2).sum();
+            if total == 0 {
+                continue;
+            }
+            v.sort_by(|a, b| b.2.cmp(&a.2));
+            eprintln!("dsv41 opprof ({} passes): total {:.1} ms", if decode { "one-row" } else { "multi-row" }, total as f64 / 1e3);
+            for (n, c, us) in v.iter().take(25) {
+                eprintln!("  {n:<28} {c:>8} calls {:>10.2} ms {:>5.1}%", *us as f64 / 1e3, 100.0 * *us as f64 / total as f64);
+            }
+        }
+        m.clear();
+    }
+
+    fn extra_inner(&self, ex: &mut Exec, e: &Extra, st: &SequenceState, t: usize) -> Result<()> {
         let comm = || self.comm.as_ref().ok_or_else(|| Error::invalid("deepseek_v41: a collective without a communicator"));
         match e {
             Extra::AllReduce { x } => comm()?.all_reduce_sum(&self.view(ex, x, st, t)?, 0),
