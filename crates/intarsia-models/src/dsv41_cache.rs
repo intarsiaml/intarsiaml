@@ -419,10 +419,6 @@ fn scope_of(name: &str, root: &str) -> Option<usize> {
     name.strip_prefix(root)?.split('.').next()?.parse().ok()
 }
 
-fn layer_of(name: &str) -> Option<usize> {
-    name.strip_prefix("layers.")?.split('.').next()?.parse().ok()
-}
-
 /// Numeric id after `prefix` in `s` (`"attn.wo_a.slice.3"` -> 3).
 fn trailing_index(s: &str, prefix: &str) -> Option<usize> {
     s.strip_prefix(prefix)?.parse().ok()

@@ -21,7 +21,7 @@ use intarsia_core::comm::Comm;
 use intarsia_core::dsv41::config::Dsv41Config;
 use intarsia_core::dsv41::engram::EngramTier;
 use intarsia_core::dsv41::graph::GraphTp;
-use intarsia_core::dsv41::runtime::{fuse_shared_experts_at, Dsv41Runtime, EngramInputs, RuntimeOpts};
+use intarsia_core::dsv41::runtime::{fuse_shared_experts_at, Draft, Dsv41Runtime, EngramInputs, RuntimeOpts};
 use intarsia_core::engine::{ChatOpts, Engine, FinishReason, GenEvent, GenRequest, IncrementalDecoder, ModelInfo, StopMatcher, TextCodec};
 use intarsia_core::sampler::{Sampler, SamplingParams};
 use intarsia_core::state::SequenceState;
@@ -29,6 +29,7 @@ use intarsia_core::telemetry::{Telemetry, TelemetrySnapshot};
 use intarsia_core::tp_remote::{RemotePeer, RemoteSeq};
 use intarsia_core::{Backend, DType, Error, Result};
 use serde_json::Value;
+use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
@@ -266,6 +267,22 @@ pub fn serve_rank(dir: &Path, backend: Arc<dyn Backend>, comm: Arc<dyn Comm>, mu
     n
 }
 
+/// Speculative decoding settings (`INTARSIA_DSV41_SPEC_K`: most drafts a round, default 3, at most the block size - 1;
+/// `INTARSIA_DSV41_SPEC_MIN_CONF`: verify the leading drafts whose confidence logit reaches it, at least one; default
+/// off).
+#[derive(Clone, Copy, Debug)]
+struct SpecOpts {
+    k: usize,
+    min_conf: f32,
+}
+
+#[derive(Default)]
+struct SpecStats {
+    rounds: usize,
+    drafted: usize,
+    accepted: usize,
+}
+
 struct Job {
     req: GenRequest,
     tx: Sender<GenEvent>,
@@ -279,6 +296,7 @@ struct Worker {
     codec: Arc<HfCodec>,
     eos: Vec<u32>,
     telemetry: Arc<Telemetry>,
+    spec: Option<SpecOpts>,
 }
 
 impl Worker {
@@ -294,6 +312,56 @@ impl Worker {
             }
         }
         out
+    }
+
+    /// One DSpark drafting round on both ranks after the sequence's last row, `first` the round's first token: the
+    /// drafts rank 0 chose (`ids[1..]`) and their confidences.
+    fn draft(&mut self, first: u32) -> Result<Draft> {
+        if let Some(r) = &self.remote {
+            r.start_draft(&[first])?;
+        }
+        let out = self.rt.draft(&self.st, first);
+        if let Some(r) = &mut self.remote {
+            let rr = r.finish();
+            if out.is_ok() {
+                rr?;
+            }
+        }
+        out?.ok_or_else(|| Error::backend("deepseek_v41: rank 0 got no draft"))
+    }
+
+    /// A verify pass on both ranks (appended to the sequence): every row's logits.
+    fn verify(&mut self, ids: &[u32]) -> Result<Vec<Vec<f32>>> {
+        if let Some(r) = &self.remote {
+            r.start_verify(ids)?;
+        }
+        let out = self.rt.forward_rows(&mut self.st, ids);
+        if let Some(r) = &mut self.remote {
+            let rr = r.finish();
+            if out.is_ok() {
+                rr?;
+            }
+        }
+        out
+    }
+
+    /// The logits rows after `tok` (not yet in the sequence): with speculation a drafting round and a verify pass of
+    /// `[tok, drafts..]` (each row tagged with the draft it checks; the last row checks none), else a plain step.
+    fn next_rows(&mut self, tok: u32, spec: Option<SpecOpts>, stats: &mut SpecStats) -> Result<VecDeque<(Vec<f32>, Option<u32>)>> {
+        let room = self.rt.opts.cap.saturating_sub(self.st.len + 1);
+        if let Some(sp) = spec.filter(|_| room >= 2) {
+            let d = self.draft(tok)?;
+            let mut k = d.confidence.iter().take(sp.k).take_while(|&&c| c >= sp.min_conf).count().max(1).min(sp.k).min(room - 1);
+            k = k.min(d.ids.len() - 1);
+            let mut ids = vec![tok];
+            ids.extend_from_slice(&d.ids[1..=k]);
+            let rows = self.verify(&ids)?;
+            stats.rounds += 1;
+            stats.drafted += k;
+            return Ok(rows.into_iter().enumerate().map(|(i, r)| (r, ids.get(i + 1).copied())).collect());
+        }
+        let l = self.forward(&[tok], true)?.expect("logits");
+        Ok(VecDeque::from([(l, None)]))
     }
 
     /// Roll both ranks back to `len` tokens.
@@ -341,7 +409,11 @@ impl Worker {
             self.truncate(keep)?;
         }
         let cached = keep;
-        let mut logits = self.forward(&req.prompt[keep..].to_vec(), true)?.expect("logits");
+        // speculative decoding: greedy requests without a grammar or a logits trace (the accepted tokens are the target's
+        // argmax, so the reply is the target model's own greedy reply, up to verify-row numerics)
+        let spec = self.spec.filter(|_| req.temperature <= 0.0 && req.constraint.is_none() && req.trace_logits.is_none());
+        let mut stats = SpecStats::default();
+        let mut rows: VecDeque<(Vec<f32>, Option<u32>)> = VecDeque::from([(self.forward(&req.prompt[keep..].to_vec(), true)?.expect("logits"), None)]);
         let prefill = t0.elapsed();
         let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
         let mut sampler = Sampler::new(params, req.seed);
@@ -358,6 +430,7 @@ impl Worker {
         let finish;
         let mut stop_seq = None;
         loop {
+            let (mut logits, expect) = rows.pop_front().expect("a logits row");
             if let Some(tl) = &req.trace_logits {
                 tl.lock().unwrap().push(logits.clone());
             }
@@ -378,6 +451,21 @@ impl Worker {
             }
             let tok = if req.temperature <= 0.0 { intarsia_core::sampler::argmax(&logits) as u32 } else { sampler.sample(&logits) as u32 };
             n += 1;
+            // a verify row: its draft accepted (already in the sequence), or the first rejection (the rows after it and
+            // the sequence past it are dropped)
+            let in_seq = match expect {
+                Some(d) if d == tok => {
+                    stats.accepted += 1;
+                    true
+                }
+                Some(_) => {
+                    let keep = self.st.len - rows.len();
+                    rows.clear();
+                    self.truncate(keep)?;
+                    false
+                }
+                None => false,
+            };
             let is_eos = !req.ignore_eos && (self.eos.contains(&tok) || req.stop_ids.contains(&tok));
             if is_eos {
                 finish = FinishReason::Stop;
@@ -397,7 +485,7 @@ impl Worker {
                 stop_seq = req.stop.iter().find(|s| text.contains(s.as_str())).cloned();
                 break;
             }
-            if n >= req.max_tokens || self.st.len + 1 >= self.rt.opts.cap {
+            if n >= req.max_tokens || self.st.len - rows.len() + 1 >= self.rt.opts.cap {
                 finish = FinishReason::Length;
                 break;
             }
@@ -405,7 +493,25 @@ impl Worker {
                 finish = FinishReason::Cancelled;
                 break;
             }
-            logits = self.forward(&[tok], true)?.expect("logits");
+            if !in_seq {
+                rows = self.next_rows(tok, spec, &mut stats)?;
+            }
+        }
+        // drafts past the reply's end stay out of the sequence (the next request's prefix match sees the reply only)
+        if !rows.is_empty() {
+            let keep = self.st.len - rows.len();
+            self.truncate(keep)?;
+        }
+        if stats.rounds > 0 {
+            eprintln!(
+                "dsv41: spec {} tokens in {} rounds ({:.2} a round), {}/{} drafts accepted ({:.0} %)",
+                n,
+                stats.rounds,
+                n as f64 / stats.rounds as f64,
+                stats.accepted,
+                stats.drafted,
+                100.0 * stats.accepted as f64 / stats.drafted.max(1) as f64
+            );
         }
         if finish != FinishReason::Stop || stop_seq.is_none() {
             let rest = dec.flush(&*self.codec)?;
@@ -508,7 +614,14 @@ impl Dsv41Engine {
             None => None,
         };
         let telemetry = Arc::new(Telemetry::new());
-        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone() };
+        let spec = rt.opts.spec.then(|| {
+            let block = rt.cfg.mtp.as_ref().map_or(1, |m| m.block_size);
+            let k = env_usize("INTARSIA_DSV41_SPEC_K").unwrap_or(3).clamp(1, block.saturating_sub(1).max(1));
+            let min_conf = std::env::var("INTARSIA_DSV41_SPEC_MIN_CONF").ok().and_then(|v| v.parse().ok()).unwrap_or(f32::NEG_INFINITY);
+            eprintln!("dsv41: speculative decoding: up to {k} drafts a round, confidence floor {min_conf}");
+            SpecOpts { k, min_conf }
+        });
+        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec };
         // warm-up: one short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back
         let wt = Instant::now();
         w.forward(&[c.bos], true)?;
