@@ -135,12 +135,15 @@ impl HotTier {
         let dyn_rows = ((cap_rows as f64) * cfg.dynamic_fraction.clamp(0.0, 1.0) as f64) as usize;
         let pinned_cap = cap_rows - dyn_rows;
         let sketch = (dyn_rows > 0).then(|| Sketch::new(cfg.sketch_log2, (10 * cap_rows as u64).max(1 << 20)));
+        // Allocate everything up front: growing a 1 GB slab or a 4M-entry map later costs a 10-20 ms copy/rehash
+        // inside a decode step. `vec![0; n]` is a zeroed allocation (lazily committed pages), so RSS still grows
+        // only as rows land.
         Self {
             cap_rows,
             pinned_cap,
-            data: Vec::new(),
-            index: HashMap::default(),
-            keys: Vec::new(),
+            data: vec![0u8; cap_rows * RECORD_BYTES],
+            index: HashMap::with_capacity_and_hasher(cap_rows, FxBuild::default()),
+            keys: vec![u64::MAX; cap_rows],
             pinned: 0,
             dynamic: 0,
             sketch,
@@ -163,13 +166,6 @@ impl HotTier {
     }
 
     fn slot_mut(&mut self, slot: usize) -> &mut [u8] {
-        let need = (slot + 1) * RECORD_BYTES;
-        if self.data.len() < need {
-            // grow in 64 MiB steps so a large, mostly empty tier does not commit memory up front
-            let step = (64usize << 20) / RECORD_BYTES * RECORD_BYTES;
-            let target = need.max(self.data.len() + step).min(self.cap_rows * RECORD_BYTES);
-            self.data.resize(target, 0);
-        }
         &mut self.data[slot * RECORD_BYTES..(slot + 1) * RECORD_BYTES]
     }
 
@@ -205,9 +201,6 @@ impl HotTier {
     }
 
     fn set_key(&mut self, slot: usize, k: u64) {
-        if self.keys.len() <= slot {
-            self.keys.resize(slot + 1, u64::MAX);
-        }
         self.keys[slot] = k;
         self.index.insert(k, slot as u32);
     }

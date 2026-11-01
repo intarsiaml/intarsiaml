@@ -76,6 +76,10 @@ enum Cmd {
         trace: Option<PathBuf>,
         #[arg(long, default_value_t = 3000)]
         steps: usize,
+        /// With --trace: every N steps jump to a random place in the stream (and restart the n-gram state), so a
+        /// short run samples many documents instead of the first few.
+        #[arg(long, default_value_t = 50)]
+        trace_hop: usize,
         /// Tokens per step (1 = plain decode, 6 = DSpark verify block of 5 drafts + 1).
         #[arg(long, default_value_t = 1)]
         tokens_per_step: usize,
@@ -92,6 +96,19 @@ enum Cmd {
         /// Read a 512 B sector first each step to wake the drive.
         #[arg(long)]
         touch: bool,
+        /// With --touch: issue the touch this long before the token id is known (e.g. at lm_head), us.
+        #[arg(long, default_value_t = 0)]
+        touch_lead_us: u64,
+        /// A background thread reads one 4 KiB block every N ms to keep the drive out of low-power states.
+        #[arg(long, default_value_t = 0.0)]
+        keepalive_ms: f64,
+        /// Speculative prefetch of the rows of K candidate next tokens (K-1 random + the true one, i.e. assumes
+        /// the sampled token is in the top-k) `spec_lead_us` before the token id is known.
+        #[arg(long, default_value_t = 0)]
+        spec_topk: usize,
+        /// Time between the speculative prefetch and the token id being known (lm_head + sampling), us.
+        #[arg(long, default_value_t = 500)]
+        spec_lead_us: u64,
         #[arg(long, default_value = "auto")]
         backend: String,
         #[arg(long, default_value = "sector")]
@@ -197,12 +214,17 @@ fn main() -> io::Result<()> {
             world,
             trace,
             steps,
+            trace_hop,
             tokens_per_step,
             gap_ms,
             hot_mb,
             dynamic_frac,
             profile,
             touch,
+            touch_lead_us,
+            keepalive_ms,
+            spec_topk,
+            spec_lead_us,
             backend,
             granule,
             scales,
@@ -214,12 +236,17 @@ fn main() -> io::Result<()> {
             world,
             trace,
             steps,
+            trace_hop,
             tokens_per_step,
             gap_ms,
             hot_mb,
             dynamic_frac,
             profile,
             touch,
+            touch_lead_us,
+            keepalive_ms,
+            spec_topk,
+            spec_lead_us,
             backend,
             granule,
             scales,
@@ -478,12 +505,17 @@ struct TokenArgs {
     world: usize,
     trace: Option<PathBuf>,
     steps: usize,
+    trace_hop: usize,
     tokens_per_step: usize,
     gap_ms: Vec<f64>,
     hot_mb: usize,
     dynamic_frac: f32,
     profile: Option<PathBuf>,
     touch: bool,
+    touch_lead_us: u64,
+    keepalive_ms: f64,
+    spec_topk: usize,
+    spec_lead_us: u64,
     backend: String,
     granule: String,
     scales: String,
@@ -548,12 +580,15 @@ fn token(a: TokenArgs) -> io::Result<()> {
     let nl = layout.layer_ids.len();
     let mut out = serde_json::json!({"dir": a.dir, "rank": a.rank, "world": a.world, "backend": store.backend_name(),
         "granule": a.granule, "scales": a.scales, "hot_mb": a.hot_mb, "profile": a.profile, "trace": a.trace,
-        "tokens_per_step": a.tokens_per_step, "touch": a.touch, "open_s": open_s, "preload_s": preload_s,
+        "tokens_per_step": a.tokens_per_step, "touch": a.touch, "touch_lead_us": a.touch_lead_us, "keepalive_ms": a.keepalive_ms, "spec_topk": a.spec_topk, "spec_lead_us": a.spec_lead_us, "open_s": open_s, "preload_s": preload_s,
         "host": host_facts(), "points": []});
     println!("per step ({} token(s), {} rows fetched/rank of which {} owned): latency from fetch to rows in, us", a.tokens_per_step, nl * cols * a.tokens_per_step, store.shards().iter().map(|_| cols / a.world).sum::<usize>() * a.tokens_per_step);
     println!("{:>6} | {:<44} | {:<44} | {:>6} {:>7}", "gap ms", "layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max", "step (both layers)   p50 p90 p99 p99.9 max", "hot %", "reads/t");
+    let _keepalive = (a.keepalive_ms > 0.0).then(|| keepalive(store.shards()[0].path.clone(), a.keepalive_ms));
     let mut st = NgramState::default();
     let mut pos = 0usize;
+    let mut spec_rng = Rng(0x5EC0_0000_0000_0001);
+    let mut hop_rng = Rng(0x4057_0000_0000_0003);
     let mut rows = vec![0u64; layout.rows_per_token()];
     let mut per_layer: Vec<Vec<u64>> = vec![Vec::new(); nl];
     let mut w = vec![0u8; 256 * cols * a.tokens_per_step];
@@ -564,13 +599,41 @@ fn token(a: TokenArgs) -> io::Result<()> {
         let mut l1 = Vec::with_capacity(a.steps);
         let mut step = Vec::with_capacity(a.steps);
         let mut tokens = 0usize;
-        for _ in 0..a.steps {
+        for si in 0..a.steps {
+            if a.trace.is_some() && a.trace_hop > 0 && si % a.trace_hop == 0 {
+                pos = (hop_rng.next() % ids.len() as u64) as usize;
+                st.reset();
+            }
             if gap > 0.0 {
                 std::thread::sleep(Duration::from_secs_f64(gap / 1e3));
             }
-            let t0 = Instant::now();
             if a.touch {
                 store.touch()?;
+                let t = Instant::now();
+                while t.elapsed() < Duration::from_micros(a.touch_lead_us) {
+                    std::hint::spin_loop();
+                    let _ = store.poll(intarsia_engram::Ticket::NONE);
+                }
+            }
+            if a.spec_topk > 0 {
+                // candidates for the next token: the true one (peeked from the stream) plus K-1 others
+                let mut cand: Vec<u32> = (1..a.spec_topk).map(|_| (spec_rng.next() % 99_092) as u32).collect();
+                let mut p = pos;
+                while ids[p % ids.len()] == u32::MAX {
+                    p += 1;
+                }
+                cand.push(ids[p % ids.len()]);
+                let st_peek = if ids[pos % ids.len()] == u32::MAX { NgramState::default() } else { st };
+                for &c in &cand {
+                    st_peek.peek(&layout, Some(c), &mut rows);
+                    for l in 0..nl {
+                        store.prefetch(l, &rows[l * cols..(l + 1) * cols])?;
+                    }
+                }
+                let t = Instant::now();
+                while t.elapsed() < Duration::from_micros(a.spec_lead_us) {
+                    std::hint::spin_loop();
+                }
             }
             for v in per_layer.iter_mut() {
                 v.clear();
@@ -600,7 +663,6 @@ fn token(a: TokenArgs) -> io::Result<()> {
                 }
                 lat = lat.max(info.latency);
             }
-            let _ = t0;
             step.push(lat);
         }
         let s = store.stats();
@@ -616,6 +678,33 @@ fn token(a: TokenArgs) -> io::Result<()> {
     }
     out["resident_bytes"] = store.resident_bytes().into();
     write_json(a.json.as_deref(), &out)
+}
+
+/// A thread that reads one random 4 KiB block of `path` (O_DIRECT) every `ms`; stops when the guard drops.
+struct Keepalive(std::sync::Arc<std::sync::atomic::AtomicBool>, Option<std::thread::JoinHandle<()>>);
+impl Drop for Keepalive {
+    fn drop(&mut self) {
+        self.0.store(true, std::sync::atomic::Ordering::Relaxed);
+        if let Some(h) = self.1.take() {
+            let _ = h.join();
+        }
+    }
+}
+fn keepalive(path: PathBuf, ms: f64) -> Keepalive {
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let s2 = stop.clone();
+    let h = std::thread::spawn(move || {
+        let Ok(f) = DirectFile::open(&path, true) else { return };
+        let len = f.file.metadata().map(|m| m.len()).unwrap_or(1 << 20);
+        let mut buf = AlignedBuf::new(4096);
+        let mut r = Rng(0x4B45_4550_414C_4956);
+        while !s2.load(std::sync::atomic::Ordering::Relaxed) {
+            let off = (r.next() % (len / 4096 - 1)) * 4096;
+            let _ = intarsia_engram::io::pread_full(f.fd(), buf.as_mut_slice(), off);
+            std::thread::sleep(Duration::from_secs_f64(ms / 1e3));
+        }
+    });
+    Keepalive(stop, Some(h))
 }
 
 // ---------------------------------------------------------------------------------------------------------------

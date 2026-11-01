@@ -56,6 +56,11 @@ impl Default for StoreConfig {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Ticket(u64);
 
+impl Ticket {
+    /// No fetch: `poll(Ticket::NONE)` just reaps completions and submits queued reads.
+    pub const NONE: Ticket = Ticket(0);
+}
+
 /// What a fetch did.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FetchInfo {
@@ -117,7 +122,13 @@ struct Staging {
 
 impl Staging {
     fn new(cap: usize) -> Self {
-        Self { cap, data: Vec::new(), keys: Vec::new(), index: HashMap::default(), head: 0 }
+        Self {
+            cap,
+            data: vec![0u8; cap * RECORD_BYTES],
+            keys: vec![u64::MAX; cap],
+            index: HashMap::with_capacity_and_hasher(cap, FxBuild::default()),
+            head: 0,
+        }
     }
     fn get(&self, k: u64) -> Option<&[u8]> {
         let s = *self.index.get(&k)? as usize;
@@ -129,14 +140,9 @@ impl Staging {
         }
         let s = self.head % self.cap;
         self.head += 1;
-        if self.keys.len() <= s {
-            self.keys.push(u64::MAX);
-            self.data.resize((s + 1) * RECORD_BYTES, 0);
-        } else {
-            let old = self.keys[s];
-            if self.index.get(&old) == Some(&(s as u32)) {
-                self.index.remove(&old);
-            }
+        let old = self.keys[s];
+        if self.index.get(&old) == Some(&(s as u32)) {
+            self.index.remove(&old);
         }
         self.keys[s] = k;
         self.data[s * RECORD_BYTES..(s + 1) * RECORD_BYTES].copy_from_slice(&rec[..RECORD_BYTES]);
