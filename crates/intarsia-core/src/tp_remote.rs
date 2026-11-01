@@ -63,6 +63,13 @@ const ACK_FAILED: u8 = 3;
 
 /// `Forward` flag: a single-token step that rank 0 runs as a captured decode graph (`model/graph_step.rs`).
 pub const FWD_GRAPH: u64 = 1;
+/// `Forward` flag: not a forward but a speculative drafting round after the sequence's last row ([`RankModel::draft_rank`];
+/// the ids are the round's inputs, the sequence is unchanged). Only models whose handshake fingerprint says they draft
+/// send it (DeepSeek-V4.1's names its DSpark stages), so both ranks know it.
+pub const FWD_DRAFT: u64 = 2;
+/// `Forward` flag: a speculative verify pass (the head's logits of every row; [`RankModel::verify_rank`]). Like
+/// [`FWD_DRAFT`], only sent by models whose handshake fingerprint says they speculate.
+pub const FWD_VERIFY: u64 = 4;
 
 /// How long the primary waits for a forward's answer after its own pass finished (the remote runs the same pass at
 /// the same time, so this only fires on a hung or dead rank). `INTARSIA_TP_REMOTE_TIMEOUT_S` overrides it.
@@ -269,6 +276,24 @@ impl RemoteSeq {
         self.peer.send(T_FORWARD, &body)
     }
 
+    /// Send this sequence's next drafting round ([`FWD_DRAFT`]); answered like a forward ([`RemoteSeq::finish`]).
+    pub fn start_draft(&self, ids: &[u32]) -> Result<()> {
+        self.start_flagged(ids, FWD_DRAFT)
+    }
+
+    /// Send this sequence's next verify pass ([`FWD_VERIFY`]); answered like a forward ([`RemoteSeq::finish`]).
+    pub fn start_verify(&self, ids: &[u32]) -> Result<()> {
+        self.start_flagged(ids, FWD_VERIFY)
+    }
+
+    fn start_flagged(&self, ids: &[u32], flags: u64) -> Result<()> {
+        let mut body = Vec::with_capacity(16 + ids.len() * 4);
+        body.extend_from_slice(&self.sid.to_le_bytes());
+        body.extend_from_slice(&flags.to_le_bytes());
+        body.extend(ids.iter().flat_map(|i| i.to_le_bytes()));
+        self.peer.send(T_FORWARD, &body)
+    }
+
     /// The remote rank's answer to the forward sent by [`RemoteSeq::start_forward`].
     pub fn finish(&mut self) -> Result<()> {
         let rx = self.peer.replies.lock().unwrap();
@@ -355,6 +380,14 @@ pub trait RankModel {
     fn truncate(&self, st: &mut Self::State, len: usize) -> Result<()>;
     fn snapshot(&self, st: &mut Self::State, keep: usize) -> Result<()>;
     fn state_len(st: &Self::State) -> usize;
+    /// This rank's half of the primary's drafting round ([`FWD_DRAFT`]); the sequence is unchanged.
+    fn draft_rank(&self, _st: &mut Self::State, _ids: &[u32]) -> Result<()> {
+        Err(Error::Unsupported("this model does not draft".into()))
+    }
+    /// This rank's half of the primary's verify pass ([`FWD_VERIFY`]): appended to the sequence like a forward.
+    fn verify_rank(&self, _st: &mut Self::State, _ids: &[u32]) -> Result<()> {
+        Err(Error::Unsupported("this model does not verify".into()))
+    }
 }
 
 impl RankModel for Model {
@@ -424,7 +457,14 @@ pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
                     continue;
                 };
                 passes += 1;
-                match model.forward_rank(st, &ids, flags & FWD_GRAPH != 0) {
+                let r = if flags & FWD_DRAFT != 0 {
+                    model.draft_rank(st, &ids)
+                } else if flags & FWD_VERIFY != 0 {
+                    model.verify_rank(st, &ids)
+                } else {
+                    model.forward_rank(st, &ids, flags & FWD_GRAPH != 0)
+                };
+                match r {
                     Ok(()) => reply(&mut w, true, M::state_len(st), "")?,
                     Err(e) => reply(&mut w, false, M::state_len(st), &e.to_string())?,
                 }

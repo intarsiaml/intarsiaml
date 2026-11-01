@@ -259,3 +259,58 @@ fn decode_graph_build_is_cheap() {
     println!("decode graph build: {per:.2} ms, {steps} steps");
     assert!(per < 200.0, "{per:.2} ms per decode graph");
 }
+
+/// Speculative decoding graphs of the Mia checkpoint (its `mtp.{0,1,2}` DSpark stages): the verify pass (every row's
+/// logits, taps absorbed into the stage rings), one drafting round and the Markov step, on one rank (the header fixture
+/// has the unsharded shapes; TP=2 runs in the CPU runtime tests); the plain graph keeps the layout without the rings.
+#[test]
+fn mia_dspark_graphs_record_with_the_official_structure() {
+    use intarsia_core::dsv41::graph::{build_draft, build_markov, build_pass, build_with, dspark_idx, dspark_stages, GraphTp, PassKind};
+    let (c, w) = mia();
+    assert_eq!(dspark_stages(&c, &w), 3);
+    let m = c.mtp.clone().unwrap();
+    assert_eq!((m.block_size, m.n_routed_experts, m.top_k, m.target_layer_ids.clone()), (5, 128, 3, vec![37, 38, 39]));
+    let check = |g: &intarsia_core::dsv41::graph::Dsv41Graph| {
+        for st in &g.stages {
+            for s in &st.steps {
+                s.phantom_call().unwrap_or_else(|e| panic!("{}: {e}", s.what));
+                for o in &s.outputs {
+                    assert!(s.inputs.iter().all(|i| i.buf != o.buf), "{}: {:?} is read and written", s.what, o.buf);
+                }
+            }
+        }
+    };
+    let plain = build_with(&c, &w, GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 4096 }, GraphTp::default()).unwrap();
+    for world in [1] {
+        let tp = GraphTp { world, layers: None };
+        let o = GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 4096 };
+        let v = build_pass(&c, &w, o, tp, PassKind { all_rows: true, absorb: true }).unwrap();
+        check(&v);
+        assert_eq!(v.logits.shape, [4, c.vocab], "world {world}: every row's logits");
+        assert_eq!(v.slots.len(), plain.slots.len() + 3, "one window ring per stage");
+        assert!(v.stages.iter().any(|s| s.name == "dspark absorb"));
+        // a prompt chunk of the same size keeps the last row's logits only
+        let p = build_pass(&c, &w, o, tp, PassKind { all_rows: false, absorb: true }).unwrap();
+        assert_eq!(p.logits.shape, [1, c.vocab]);
+        let d = build_draft(&c, &w, GraphOpts { t: 5, pos0: 101, act: DType::Bf16, cap: 4096 }, tp).unwrap();
+        check(&d);
+        assert_eq!(d.logits.shape, [5, c.vocab]);
+        assert_eq!(format!("{:?}", d.slots), format!("{:?}", v.slots), "the draft graph reads the verify graph's rings");
+        let moes: Vec<_> = d.stages.iter().flat_map(|s| &s.steps).filter(|s| s.op == Op::MoeExperts).collect();
+        assert_eq!(moes.len(), 3);
+        assert_eq!(moes[0].inputs[1].shape, [5, 4], "3 routed slots + the shared one");
+    }
+    let mk = build_markov(&c, &w, DType::Bf16).unwrap();
+    check(&mk);
+    assert_eq!(mk.logits.shape, [1, c.vocab]);
+    assert!(build_pass(&c, &w, GraphOpts { t: 17, pos0: 0, act: DType::Bf16, cap: 4096 }, GraphTp::default(), PassKind { all_rows: true, absorb: false }).is_err());
+
+    // the block key table: row r sees window rows 0..=r (valid positions) and the block rows after it
+    let win = c.window;
+    let idx = dspark_idx(win, 3, 1000);
+    assert_eq!(idx, vec![0, (win + 1) as i32, (win + 2) as i32, 0, 1, (win + 2) as i32, 0, 1, 2]);
+    // at position 2 only window rows at positions >= 0 are valid (j >= W - 2)
+    let idx = dspark_idx(win, 3, 2);
+    let (w1, w2) = ((win + 1) as i32, (win + 2) as i32);
+    assert_eq!(idx, vec![w1, w2, -1, w2, -1, -1, -1, -1, -1]);
+}

@@ -199,7 +199,7 @@ fn few_layer_runtime_two_ranks_match_the_official_layer_outputs() {
                 std::thread::spawn(move || {
                     let fx = St::open(&fxd.join("layers_bf16.safetensors"));
                     let fxf = St::open(&fxd.join(format!("layers_{flow}.safetensors")));
-                    let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0, act };
+                    let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0, act, spec: false };
                     let (mut rt, m) = load_runtime_with(&cache, b, Some(c), &o, Some(fixture_engram(&fx, r, 2))).unwrap();
                     assert_eq!((m.rank, m.world, m.layers), (r, 2, Some(3)));
                     run_steps_flow(&mut rt, &fx, &fxf, flow, r == 0)
@@ -224,7 +224,7 @@ fn few_layer_runtime_fp32_matches_the_official_fp32_layer_outputs() {
     };
     let fx = St::open(&fxd.join("layers_bf16.safetensors"));
     let fx32 = St::open(&fxd.join("layers_fp32.safetensors"));
-    let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0, act: DType::F32 };
+    let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0, act: DType::F32, spec: false };
     // cpu only: the CUDA backend's shared kernels (embedding, norms) take bf16 activations only
     if std::env::var("INTARSIA_DSV41_BACKEND").as_deref() == Ok("cuda") {
         println!("skipped: the fp32 flow runs on the cpu reference only (CUDA embedding / norms are bf16-only)");
@@ -251,7 +251,7 @@ fn few_layer_runtime_matches_the_official_layer_outputs() {
         Ok("cuda") => cuda_backend(),
         _ => intarsia_backend_cpu::CpuBackend::arc(),
     };
-    let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0, act: DType::Bf16 };
+    let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0, act: DType::Bf16, spec: false };
     let (mut rt, m) = load_runtime_with(&cache, backend, None, &o, Some(fixture_engram(&fx, 0, 1))).unwrap();
     assert_eq!((m.world, m.layers), (1, Some(3)), "a --layers 3 cache of world 1");
     let mut worst = 0f64;

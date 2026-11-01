@@ -411,8 +411,52 @@ struct LayerSlots {
 }
 
 /// The state layout: one sliding-window ring per layer; per KV source the compressor tail ring (ratio > 1), the shared
-/// compressed KV and the shared index keys, each read by every layer whose source it is.
-fn slots(c: &Dsv41Config, act: DType) -> (Vec<SlotSpec>, Vec<LayerSlots>) {
+/// compressed KV and the shared index keys, each read by every layer whose source it is; then one window ring per
+/// DSpark stage ([`dspark_rings`]).
+/// `dspark`: the layout of a sequence that drafts (the rings exist only then, so the plain graph's layout is unchanged).
+fn slots(c: &Dsv41Config, w: &dyn WeightShapes, act: DType, dspark: bool) -> (Vec<SlotSpec>, Vec<LayerSlots>, Vec<usize>) {
+    let (mut specs, ls) = model_slots(c, act);
+    let mut rings = Vec::new();
+    for _ in 0..if dspark { dspark_stages(c, w) } else { 0 } {
+        rings.push(specs.len());
+        let m = ROLLBACK_MARGIN;
+        specs.push(SlotSpec::Ring { rows: c.window + m, width: c.head_dim, planes: 1, dtype: act, margin: m, kind: RingKind::WindowKv });
+    }
+    (specs, ls, rings)
+}
+
+/// DSpark stages the engine runs: the checkpoint's `mtp.{i}` blocks when all of them, the stage-0 `main_proj` and the
+/// last stage's head parts are loaded (a rank cache without its `mtp` part has none), else 0.
+pub fn dspark_stages(c: &Dsv41Config, w: &dyn WeightShapes) -> usize {
+    let Some(m) = &c.mtp else { return 0 };
+    if m.n_layers == 0 || m.block_size == 0 || m.target_layer_ids.is_empty() {
+        return 0;
+    }
+    let last = m.n_layers - 1;
+    let lin = |p: &str| w.get(&format!("{p}.trellis")).is_some() || w.get(&format!("{p}.weight")).is_some();
+    let ok = lin("mtp.0.main_proj")
+        && (0..m.n_layers).all(|i| lin(&format!("mtp.{i}.attn.wkv")) && w.get(&format!("mtp.{i}.attn_norm.weight")).is_some())
+        && w.get(&format!("mtp.{last}.norm.weight")).is_some()
+        && w.get(&format!("mtp.{last}.markov_head.embed.weight")).is_some()
+        && w.get(&format!("mtp.{last}.markov_head.head.weight")).is_some();
+    if ok {
+        m.n_layers
+    } else {
+        0
+    }
+}
+
+/// The DSpark taps and stage rings are fed by every pass that reaches the last target layer.
+fn dspark_absorbs(c: &Dsv41Config, w: &dyn WeightShapes, n_layers: usize) -> bool {
+    dspark_stages(c, w) > 0 && c.mtp.as_ref().is_some_and(|m| m.target_layer_ids.iter().all(|&l| l < n_layers))
+}
+
+/// Rows up to which the head computes the logits of every row (a speculative verify pass; `t == 1` and longer chunks:
+/// the last row only).
+pub const VERIFY_MAX_ROWS: usize = 16;
+
+/// The model's own slots (see [`slots`]).
+fn model_slots(c: &Dsv41Config, act: DType) -> (Vec<SlotSpec>, Vec<LayerSlots>) {
     let mut specs = Vec::new();
     let mut ls = vec![LayerSlots::default(); c.n_layers];
     for (l, s) in ls.iter_mut().enumerate() {
@@ -453,7 +497,25 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
 /// `wq_a`, `wkv`, compressor, indexer, router, hc params, Engram `wkv`) replicated. Collectives: one f32 all-reduce
 /// after `wo_b` and one after the MoE per layer, one of the gathered Engram rows per Engram layer (a rank's foreign rows
 /// are exact zeros), one gather of the head's logits.
+/// What a pass computes beyond the plain forward (both default off: the graph is the one without speculation).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct PassKind {
+    /// The head's logits of every row (a speculative verify pass, at most [`VERIFY_MAX_ROWS`] rows); else the last row's.
+    pub all_rows: bool,
+    /// Feed the DSpark stage rings from this pass's taps (every pass of a sequence that drafts; needs the stages loaded).
+    pub absorb: bool,
+}
+
+/// The plain forward graph ([`build_pass`] with the default [`PassKind`]).
 pub fn build_with(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp) -> Result<Dsv41Graph> {
+    build_pass(c, w, o, tp, PassKind::default())
+}
+
+/// The forward graph of one chunk with the extras of `k`.
+pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp, k: PassKind) -> Result<Dsv41Graph> {
+    if k.all_rows && !(1..=VERIFY_MAX_ROWS).contains(&o.t) {
+        return Err(Error::invalid(format!("deepseek_v41: a verify pass of {} rows (1..={VERIFY_MAX_ROWS})", o.t)));
+    }
     let (t, d, s, act) = (o.t, c.dim, c.hc_mult, o.act);
     if t == 0 {
         return Err(Error::invalid("deepseek_v41 graph: zero rows"));
@@ -462,7 +524,12 @@ pub fn build_with(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
         return Err(Error::invalid(format!("deepseek_v41 graph: {} heads / {} groups do not split over {} ranks", c.n_heads, c.o_groups, tp.world)));
     }
     let n_layers = tp.layers.map_or(c.n_layers, |l| l.min(c.n_layers));
-    let (slot_specs, lslots) = slots(c, act);
+    let (slot_specs, lslots, rings) = slots(c, w, act, k.absorb);
+    let absorb = k.absorb && dspark_absorbs(c, w, n_layers);
+    if k.absorb && !absorb {
+        return Err(Error::Unsupported("deepseek_v41: DSpark absorb without its stages and target layers".into()));
+    }
+    let n_taps = c.mtp.as_ref().map_or(0, |m| m.target_layer_ids.len());
     let mut stages = Vec::new();
     let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new() };
 
@@ -516,7 +583,8 @@ pub fn build_with(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
         // its target layers; a collapse with the constant mix 1/S. Recorded so the drafting lane only consumes it.
         if let Some(j) = c.mtp.as_ref().and_then(|m| m.target_layer_ids.iter().position(|&tl| tl == l)) {
             let mean = arg(Buf::Const("hc.mean_mix".into()), DType::F32, &[t, s]);
-            b.push(Op::HcPre, format!("{p}.dspark_tap"), vec![x.clone(), mean], vec![ws(&format!("main_hidden.{j}"), act, &[t, d])], OpAttrs::default());
+            // tap j is slice j of a [taps, t, dim] buffer; the absorb stage reads it as [t, taps * dim]
+            b.push(Op::HcPre, format!("{p}.dspark_tap"), vec![x.clone(), mean], vec![ws(&format!("dspark.taps[{j}]"), act, &[t, d])], OpAttrs::default());
             blocks.push("dspark_tap".to_string());
         }
         let (n, [attn_pre, attn_post, attn_comb], x1) = b.hc_sublayer(&x, &format!("{p}.hc_attn"), "hc_attn", "attn", pre_mix.clone(), &format!("{p}.attn_norm.weight"), pending.take())?;
@@ -542,23 +610,206 @@ pub fn build_with(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     }
     debug_assert!(pending.is_none());
 
-    // head: collapse with the last FFN's pre-mix, norm, logits of the last row (ParallelHead)
+    // DSpark absorb: this chunk's taps into every stage's window ring (DSparkAttention.forward's main_kv; the official
+    // driver writes one position per drafting round, here every pass writes its rows, verify rows included: a rejected
+    // row sits at a position the next drafting round does not read and the next pass rewrites)
+    if absorb {
+        let taps = ws("dspark.taps", act, &[n_taps, t, d]);
+        let mh = ws("dspark.mh", act, &[t, n_taps, d]);
+        b.push(Op::Transpose01, "dspark.taps(token-major)", vec![taps], vec![mh.clone()], OpAttrs::default());
+        dspark_absorb(&mut b, Arg { shape: vec![t, n_taps * d], ..mh }, &rings)?;
+        stages.push(b.stage("dspark absorb".into(), None, vec![format!("main_proj + {} stage rings", rings.len())]));
+    }
+
+    // head: collapse with the last FFN's pre-mix, norm, logits of the last row (ParallelHead); of every row in a
+    // verify-sized pass (2..=VERIFY_MAX_ROWS rows)
     let hc = ws("a", act, &[t, d]);
     b.push(Op::HcPre, "hc_pre(head)", vec![x.clone(), pre_mix], vec![hc.clone()], OpAttrs::default());
     b.rmsnorm(hc, "norm.weight", "n")?;
-    let last = Arg { buf: Buf::Ws("n.last_row".into()), dtype: act, shape: vec![1, d] };
-    let local = b.matmul(last, "head", Buf::Ws("logits".into()), DType::F32)?;
-    let logits = if tp.world > 1 {
-        let full = Arg { buf: Buf::Ws("logits.full".into()), dtype: DType::F32, shape: vec![1, local.shape[1] * tp.world] };
-        b.extra(Extra::AllGather { send: local, recv: full.clone() });
-        full
-    } else {
-        local
-    };
-    let head = b.stage("head".into(), None, vec!["hc_pre".into(), "norm".into(), "head".into()]);
+    let rows = if k.all_rows { t } else { 1 };
+    let src = if rows == 1 { Arg { buf: Buf::Ws("n.last_row".into()), dtype: act, shape: vec![1, d] } } else { ws("n", act, &[t, d]) };
+    let logits = head_logits(&mut b, src, "logits")?;
+    let head = b.stage("head".into(), None, vec!["hc_pre".into(), "norm".into(), if rows == 1 { "head".into() } else { format!("head x{rows}") }]);
     stages.push(head);
 
     Ok(Dsv41Graph { stages, slots: slot_specs, residual_streams: s, mtp: mtp_blocks(c, w), cap: o.cap, logits, world: tp.world })
+}
+
+/// The full-vocabulary f32 logits of the rows of `x` (`[rows, dim]`) through `head`, gathered over the ranks
+/// (`ParallelHead`): one row gathers straight into `{name}.full`; more rows gather rank-major and transpose.
+fn head_logits(b: &mut Builder, x: Arg, name: &str) -> Result<Arg> {
+    let rows = x.shape[0];
+    let local = b.matmul(x, "head", Buf::Ws(name.into()), DType::F32)?;
+    let w = b.tp.world;
+    if w == 1 {
+        return Ok(local);
+    }
+    let v = local.shape[1];
+    let full = ws(&format!("{name}.full"), DType::F32, &[rows, v * w]);
+    if rows == 1 {
+        b.extra(Extra::AllGather { send: local, recv: full.clone() });
+        return Ok(full);
+    }
+    let g = ws(&format!("{name}.gather"), DType::F32, &[w, rows, v]);
+    b.extra(Extra::AllGather { send: local, recv: g.clone() });
+    b.push(Op::Transpose01, format!("{name}.gather(row-major)"), vec![g], vec![Arg { shape: vec![rows, w, v], ..full.clone() }], OpAttrs::default());
+    Ok(full)
+}
+
+/// `main_x = main_norm(main_proj(main_hidden))` of the chunk's rows, then per stage `i` the window KV of every row
+/// (`kv_norm(wkv(main_x))`, rotated at the row's position, fp8 round trip) into stage `i`'s ring (`DSparkAttention.forward`,
+/// model.py:1043-1047). `mh`: `[t, taps * dim]`.
+fn dspark_absorb(b: &mut Builder, mh: Arg, rings: &[usize]) -> Result<()> {
+    let c = b.c;
+    let (t, act, pos0) = (b.o.t, b.o.act, b.o.pos0);
+    let (hd, win) = (c.head_dim, c.window);
+    let mx = b.matmul(mh, "mtp.0.main_proj", Buf::Ws("dspark.mx".into()), act)?;
+    let mx = b.rmsnorm(mx, "mtp.0.main_norm.weight", "dspark.mxn")?;
+    for (i, &slot) in rings.iter().enumerate() {
+        let p = format!("mtp.{i}.attn");
+        let l = c.n_layers + i;
+        let kv = b.matmul(mx.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
+        let kv = b.rmsnorm(kv, &format!("{p}.kv_norm.weight"), "kv_n")?;
+        let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv_rope".into()), &format!("{p}.rope(main_kv)"));
+        let kv = b.qdq(Arg { shape: vec![t, hd], ..kv }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("kv_q".into()), &format!("{p}.act_quant(main_kv)"));
+        let ring = arg(Buf::Slot { slot, plane: 0, row0: 0 }, act, &[win + ROLLBACK_MARGIN, hd]);
+        b.push(Op::WindowKv, format!("{p}.absorb"), vec![kv], vec![ws("win", act, &[win + t, hd]), ring], OpAttrs { window: win, pos0, ..Default::default() });
+    }
+    Ok(())
+}
+
+/// The `[t, t]` i32 key table of a DSpark block at `pos0` (host input `dspark.idx`): row `r` lists the window rows its
+/// causal window misses (`0..=r`, valid ones only) and the block rows after it (`W + r + 1 .. W + t`), -1 padded.
+/// With the `AttnSparse` window part (window rows `r + 1 ..= r + W` of `[W + t]`, positions `pos0 - W + j >= 0`) every
+/// block row sees every valid window position and every block row once, as `get_dspark_topk_idxs` (model.py:1023).
+pub fn dspark_idx(window: usize, t: usize, pos0: usize) -> Vec<i32> {
+    let mut v = vec![-1i32; t * t];
+    for r in 0..t {
+        let mut k = 0;
+        for j in 0..=r.min(window - 1) {
+            if pos0 + j >= window {
+                v[r * t + k] = j as i32;
+                k += 1;
+            }
+        }
+        for j in r + 1..t {
+            v[r * t + k] = (window + j) as i32;
+            k += 1;
+        }
+    }
+    v
+}
+
+/// The graph of one DSpark drafting round (`Transformer.forward_spec`, start_pos > 0): the block of `t = block_size`
+/// rows (`[first id, noise, ..]`, host `token_ids`) at positions `pos0 = start_pos + 1 ..`, the stages, the head's
+/// logits of every row (`logits`, `[t, vocab]`), the head input `dspark.hx` (`[t, dim]`, for the confidence head).
+/// The Markov loop and the confidence run on the host after it ([`build_markov`]). Reads (and harmlessly writes
+/// positions `pos0 ..`, see [`dspark_absorb`]) the stage rings; appends nothing to the sequence.
+pub fn build_draft(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp) -> Result<Dsv41Graph> {
+    let m = c.mtp.as_ref().ok_or_else(|| Error::model("deepseek_v41: no DSpark config"))?;
+    let n_st = dspark_stages(c, w);
+    if n_st == 0 {
+        return Err(Error::Unsupported("deepseek_v41: the DSpark stages are not loaded (rank cache without its mtp part)".into()));
+    }
+    let (t, d, s, act) = (o.t, c.dim, c.hc_mult, o.act);
+    if t != m.block_size || o.pos0 == 0 {
+        return Err(Error::invalid(format!("deepseek_v41 draft graph: {t} rows at {} (a block is {} rows after position 0)", o.pos0, m.block_size)));
+    }
+    if tp.world == 0 || c.n_heads % tp.world != 0 || c.o_groups % tp.world != 0 {
+        return Err(Error::invalid(format!("deepseek_v41 draft graph: {} heads / {} groups do not split over {} ranks", c.n_heads, c.o_groups, tp.world)));
+    }
+    let (slot_specs, _, rings) = slots(c, w, act, true);
+    let mut stages = Vec::new();
+    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new() };
+    let ids = arg(Buf::Host("token_ids".into()), DType::I32, &[t]);
+    let emb = b.weight("embed.weight")?;
+    let h = ws("h", act, &[t, d]);
+    b.push(Op::Embedding, "dspark.embed", vec![ids, emb], vec![h.clone()], OpAttrs::default());
+    let mut x = ws("x0", act, &[t, s, d]);
+    b.push(Op::HcExpand, "dspark.hc_expand", vec![h], vec![x.clone()], OpAttrs::default());
+    stages.push(b.stage("dspark embed".into(), None, vec!["embed".into(), format!("hc_expand x{s}")]));
+    let mut pre_mix = arg(Buf::Const("hc.one_hot_pre_mix".into()), DType::F32, &[t, s]);
+    let fold = hc_fused() && t <= HC_FOLD_MAX_ROWS;
+    let mut pending: Option<PendingPost> = None;
+    for (i, &ring) in rings.iter().enumerate() {
+        let p = format!("mtp.{i}");
+        let mut blocks = Vec::new();
+        let (n, [attn_pre, attn_post, attn_comb], x1) = b.hc_sublayer(&x, &format!("{p}.hc_attn"), "hc_attn", "attn", pre_mix.clone(), &format!("{p}.attn_norm.weight"), pending.take())?;
+        x = x1;
+        let attn_out = dspark_attention(&mut b, i, ring, &n)?;
+        blocks.push(format!("dspark attn (window {} + block {t})", c.window));
+        pending = Some(PendingPost { out: attn_out, post: attn_post, comb: attn_comb, what: format!("{p}.hc_post(attn)") });
+        if !fold {
+            x = b.flush_post(&x, &mut pending);
+        }
+        let (n2, [ffn_pre, ffn_post, ffn_comb], x2) = b.hc_sublayer(&x, &format!("{p}.hc_ffn"), "hc_ffn", "ffn", attn_pre, &format!("{p}.ffn_norm.weight"), pending.take())?;
+        x = x2;
+        let ffn_out = moe(&mut b, &format!("{p}.ffn"), &n2, m.n_routed_experts, m.top_k)?;
+        blocks.push(format!("hc_moe({}x top{} + shared)", m.n_routed_experts, m.top_k));
+        pending = Some(PendingPost { out: ffn_out, post: ffn_post, comb: ffn_comb, what: format!("{p}.hc_post(ffn)") });
+        if !fold || i + 1 == n_st {
+            x = b.flush_post(&x, &mut pending);
+        }
+        pre_mix = ffn_pre;
+        stages.push(b.stage(format!("dspark stage {i}"), None, blocks));
+    }
+    // head (DSparkBlock.forward_head): collapse, the last stage's norm, the shared head over every row
+    let hx = ws("dspark.hx", act, &[t, d]);
+    b.push(Op::HcPre, "dspark.hc_pre(head)", vec![x, pre_mix], vec![hx.clone()], OpAttrs::default());
+    let last = n_st - 1;
+    let nh = b.rmsnorm(hx, &format!("mtp.{last}.norm.weight"), "n")?;
+    let logits = head_logits(&mut b, nh, "dspark.logits")?;
+    stages.push(b.stage("dspark head".into(), None, vec!["hc_pre".into(), "norm".into(), format!("head x{t}")]));
+    Ok(Dsv41Graph { stages, slots: slot_specs, residual_streams: s, mtp: mtp_blocks(c, w), cap: o.cap, logits, world: tp.world })
+}
+
+/// `DSparkAttention.forward` (start_pos > 0) of stage `i` on the block's normed rows `n`: q and the block's KV rotated at
+/// positions `pos0 ..`, attention over the stage ring's window and the whole block (no causal mask inside it, host
+/// `dspark.idx` from [`dspark_idx`]), the grouped output projection.
+fn dspark_attention(b: &mut Builder, i: usize, ring: usize, n: &Arg) -> Result<Arg> {
+    let c = b.c;
+    let (t, act, pos0) = (b.o.t, b.o.act, b.o.pos0);
+    let (h, hd, win) = (c.n_heads / b.tp.world, c.head_dim, c.window);
+    let l = c.n_layers + i;
+    let p = format!("mtp.{i}.attn");
+    let qa = b.matmul(n.clone(), &format!("{p}.wq_a"), Buf::Ws("qa".into()), act)?;
+    let qr = b.rmsnorm(qa, &format!("{p}.q_norm.weight"), "qr")?;
+    let q = b.matmul(qr, &format!("{p}.wq_b"), Buf::Ws("q".into()), act)?;
+    let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, Buf::Ws("q_rope".into()), &format!("{p}.rope(q)"));
+    let kv = b.matmul(n.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
+    let kv = b.rmsnorm(kv, &format!("{p}.kv_norm.weight"), "kv_n")?;
+    let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv_rope".into()), &format!("{p}.rope(kv)"));
+    let kv = b.qdq(Arg { shape: vec![t, hd], ..kv }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("kv_q".into()), &format!("{p}.act_quant(kv)"));
+    let winbuf = ws("win", act, &[win + t, hd]);
+    let ringa = arg(Buf::Slot { slot: ring, plane: 0, row0: 0 }, act, &[win + ROLLBACK_MARGIN, hd]);
+    b.push(Op::WindowKv, format!("{p}.window_kv"), vec![kv], vec![winbuf.clone(), ringa], OpAttrs { window: win, pos0, ..Default::default() });
+    let idx = arg(Buf::Host("dspark.idx".into()), DType::I32, &[t, t]);
+    let sink = b.weight(&format!("{p}.attn_sink"))?;
+    let o = ws("o", act, &[t, h, hd]);
+    b.push(Op::AttnSparse, format!("{p}.sparse_attn"), vec![q, winbuf.clone(), winbuf, idx, sink], vec![o.clone()], OpAttrs { window: win, pos0, scale: (hd as f32).powf(-0.5), ..Default::default() });
+    let o = b.rope(o, l, pos0, 1, true, Buf::Ws("o_derot".into()), &format!("{p}.rope_inverse(o)"));
+    let oa = wo_a(b, &p, o)?;
+    b.matmul_reduced(oa, &format!("{p}.wo_b"), "blk", act)
+}
+
+/// One step of the DSpark Markov head (`DSparkMarkovHead.forward`) on the host id `dspark.markov_id`: the embedding row
+/// (`dspark.markov_e`, `[1, rank]`) and its logits bias (`dspark.markov_bias`, `[1, vocab]` f32). Replicated weights:
+/// any rank runs it alone (rank 0 does, between the draft pass and the verify pass).
+pub fn build_markov(c: &Dsv41Config, w: &dyn WeightShapes, act: DType) -> Result<Dsv41Graph> {
+    let n_st = dspark_stages(c, w);
+    if n_st == 0 {
+        return Err(Error::Unsupported("deepseek_v41: the DSpark stages are not loaded".into()));
+    }
+    let p = format!("mtp.{}.markov_head", n_st - 1);
+    let o = GraphOpts { t: 1, pos0: 0, act, cap: 1 };
+    let mut b = Builder { c, w, o, tp: GraphTp::default(), steps: Vec::new(), extras: Vec::new() };
+    let emb = b.weight(&format!("{p}.embed.weight"))?;
+    let rank = emb.shape[1];
+    let e = ws("dspark.markov_e", act, &[1, rank]);
+    b.push(Op::Embedding, format!("{p}.embed"), vec![arg(Buf::Host("dspark.markov_id".into()), DType::I32, &[1]), emb], vec![e.clone()], OpAttrs::default());
+    let logits = b.matmul(e, &format!("{p}.head"), Buf::Ws("dspark.markov_bias".into()), DType::F32)?;
+    let st = b.stage("dspark markov".into(), None, vec!["embed".into(), "head".into()]);
+    Ok(Dsv41Graph { stages: vec![st], slots: Vec::new(), residual_streams: c.hc_mult, mtp: Vec::new(), cap: 1, logits, world: 1 })
 }
 
 /// The attention of layer `l` (`Attention.forward`); returns its `[t, dim]` output.
@@ -681,6 +932,19 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     } else {
         o
     };
+    let oa = wo_a(b, &p, o)?;
+    b.matmul_reduced(oa, &format!("{p}.wo_b"), "blk", act)
+}
+
+/// The grouped low-rank output projection of attention `p` on `o` (`[t, h, hd]`, de-rotated): per-group EXL3 slices (Mia)
+/// or the dense block-diagonal `wo_a`; returns `[t, groups * o_lora_rank]`.
+fn wo_a(b: &mut Builder, p: &str, o: Arg) -> Result<Arg> {
+    let c = b.c;
+    let (t, act) = (b.o.t, b.o.act);
+    let (h, hd) = (c.n_heads / b.tp.world, c.head_dim);
+    let g = c.o_groups / b.tp.world;
+    let gk = h * hd / g;
+    let o = Arg { shape: vec![t, g, gk], ..o };
     let oa = if b.has(&format!("{p}.wo_a.slice.0.trellis")) {
         // EXL3 (Mia): one matmul per group slice on group-major rows
         let og = ws("o_groups", act, &[g, t, gk]);
@@ -705,7 +969,7 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
         b.push(Op::GroupedMatmul, format!("{p}.wo_a"), vec![Arg { shape: vec![t, g * gk], ..o }, wv], vec![oa.clone()], OpAttrs::default());
         oa
     };
-    b.matmul_reduced(oa, &format!("{p}.wo_b"), "blk", act)
+    Ok(oa)
 }
 
 /// The MoE (`MoE.forward`): router, then routed EXL3 experts and the shared expert in ONE `MoeExperts` launch (the

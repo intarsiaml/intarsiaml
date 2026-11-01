@@ -21,7 +21,7 @@ use intarsia_core::comm::Comm;
 use intarsia_core::dsv41::config::Dsv41Config;
 use intarsia_core::dsv41::engram::EngramTier;
 use intarsia_core::dsv41::graph::GraphTp;
-use intarsia_core::dsv41::runtime::{fuse_shared_experts, Dsv41Runtime, EngramInputs, RuntimeOpts};
+use intarsia_core::dsv41::runtime::{fuse_shared_experts_at, Dsv41Runtime, EngramInputs, RuntimeOpts};
 use intarsia_core::engine::{ChatOpts, Engine, FinishReason, GenEvent, GenRequest, IncrementalDecoder, ModelInfo, StopMatcher, TextCodec};
 use intarsia_core::sampler::{Sampler, SamplingParams};
 use intarsia_core::state::SequenceState;
@@ -47,6 +47,8 @@ pub struct Dsv41Opts {
     pub hot_mb: usize,
     /// Activation dtype (bf16; f32 for parity runs, `INTARSIA_DSV41_ACT=f32`).
     pub act: DType,
+    /// Speculative decoding with the DSpark stages (`INTARSIA_DSV41_SPEC=1`; needs a rank cache with its mtp part).
+    pub spec: bool,
 }
 
 impl Dsv41Opts {
@@ -58,6 +60,7 @@ impl Dsv41Opts {
             engram_dir: std::env::var_os("INTARSIA_DSV41_ENGRAM").map(PathBuf::from).unwrap_or_else(|| Path::new(&home).join("dsv41-engram")),
             hot_mb: env_usize("INTARSIA_DSV41_ENGRAM_HOT_MB").unwrap_or(0),
             act: if std::env::var("INTARSIA_DSV41_ACT").as_deref() == Ok("f32") { DType::F32 } else { DType::Bf16 },
+            spec: std::env::var("INTARSIA_DSV41_SPEC").as_deref() == Ok("1"),
         }
     }
 }
@@ -69,7 +72,13 @@ pub fn is_rank_cache(dir: &Path) -> bool {
 
 /// What both ranks must agree on (handshake).
 pub fn fingerprint(m: &Manifest, o: &Dsv41Opts) -> String {
-    format!("dsv41 source {} | world {} | layers {:?} | cap {} | chunk {} | act {}", m.source_fingerprint, m.world, m.layers, o.cap, o.chunk, o.act)
+    let base = format!("dsv41 source {} | world {} | layers {:?} | cap {} | chunk {} | act {}", m.source_fingerprint, m.world, m.layers, o.cap, o.chunk, o.act);
+    // the spec-off fingerprint is the one before speculation existed, so old and new binaries still pair without it
+    if o.spec {
+        format!("{base} | dspark spec")
+    } else {
+        base
+    }
 }
 
 fn mem_available() -> Option<u64> {
@@ -163,7 +172,11 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
     let lw = load_rank_cache(dir, &*backend)?;
     let mut weights = lw.tensors;
     let n_layers = m.layers.unwrap_or(cfg.n_layers).min(cfg.n_layers);
-    fuse_shared_experts(&*backend, &mut weights, n_layers, cfg.dim, cfg.n_routed_experts)?;
+    let mut moes: Vec<(String, usize)> = (0..n_layers).map(|l| (format!("layers.{l}.ffn"), cfg.n_routed_experts)).collect();
+    if let Some(m) = &cfg.mtp {
+        moes.extend((0..m.n_layers).map(|i| (format!("mtp.{i}.ffn"), m.n_routed_experts)));
+    }
+    fuse_shared_experts_at(&*backend, &mut weights, &moes, cfg.dim)?;
     // vision / aligner tensors and anything else the text graph does not read stay on disk
     weights.retain(|k, _| !(k.starts_with("vision.") || k.starts_with("aligner.") || k.starts_with("image_")));
     let load_s = t0.elapsed().as_secs_f64();
@@ -175,7 +188,7 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
         _ => None,
     };
     let shapes = HeaderShapes::open(dir)?;
-    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers } };
+    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers }, spec: o.spec };
     let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, comm, weights, engram, opts)?;
     let mm = &rt.memory;
     let avail1 = mem_available();

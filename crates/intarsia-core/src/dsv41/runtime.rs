@@ -18,7 +18,7 @@
 
 use super::config::Dsv41Config;
 use super::engram::{record_bytes, EngramTier, NgramHasher};
-use super::graph::{build_with, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Stage, WeightShapes};
+use super::graph::{build_draft, build_markov, build_pass, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Stage, WeightShapes, VERIFY_MAX_ROWS};
 use crate::backend::{Backend, Buffer, MemKind, TensorRef};
 use crate::comm::Comm;
 use crate::dtype::DType;
@@ -45,6 +45,9 @@ pub struct RuntimeOpts {
     /// Most rows of one pass (prefill chunk).
     pub chunk: usize,
     pub tp: GraphTp,
+    /// Speculative decoding with the DSpark stages: every pass absorbs its taps into the stage rings. Both ranks must
+    /// agree (it is part of the handshake fingerprint).
+    pub spec: bool,
 }
 
 /// Memory the runtime holds besides the weights, for the startup report.
@@ -80,7 +83,19 @@ pub struct PassStats {
     pub total_us: u64,
 }
 
+/// One DSpark drafting round ([`Dsv41Runtime::draft`]): `ids[0]` the round's first id, `ids[1..]` the drafts;
+/// `confidence[i]` the confidence head's score of draft `i` (`DSparkConfidenceHead`, a logit).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Draft {
+    pub ids: Vec<u32>,
+    pub confidence: Vec<f32>,
+}
+
 pub struct Dsv41Runtime {
+    /// DSpark stages loaded (0: no drafting).
+    pub dspark: usize,
+    /// The confidence head's weight row (`[dim + markov rank]`, f32), when the stages are loaded.
+    confidence: Vec<f32>,
     pub cfg: Dsv41Config,
     shapes: Box<dyn WeightShapes + Send + Sync>,
     pub backend: Arc<dyn Backend>,
@@ -104,6 +119,16 @@ pub struct Dsv41Runtime {
     /// blocks) is below this run the split-K GEMV `matmul_exl3_splitk` instead (selected here by name; the plain registry
     /// selection never picks it).
     splitk_grid: usize,
+}
+
+/// Little-endian `dtype` elements as f32 (f32, bf16, f16).
+fn to_f32(b: &[u8], dtype: DType) -> Result<Vec<f32>> {
+    Ok(match dtype {
+        DType::F32 => b.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect(),
+        DType::Bf16 => b.chunks_exact(2).map(|c| half::bf16::from_le_bytes([c[0], c[1]]).to_f32()).collect(),
+        DType::F16 => b.chunks_exact(2).map(|c| half::f16::from_le_bytes([c[0], c[1]]).to_f32()).collect(),
+        d => return Err(Error::invalid(format!("deepseek_v41: {d} as f32"))),
+    })
 }
 
 fn esz(d: DType) -> usize {
@@ -139,11 +164,28 @@ impl Dsv41Runtime {
         let weight_bytes: u64 = weights.values().map(|t| t.nbytes() as u64).sum();
         // workspace: the largest byte size of every name over the shapes a pass can take
         let mut need: HashMap<String, (usize, DType)> = HashMap::new();
-        let probes = [(opts.chunk, 0), (opts.chunk, opts.cap.saturating_sub(opts.chunk)), (1, 0), (1, opts.cap - 1), (2, opts.cap - 2)];
+        let v = VERIFY_MAX_ROWS.min(opts.cap - 1);
+        let probes = [(opts.chunk, 0), (opts.chunk, opts.cap.saturating_sub(opts.chunk)), (1, 0), (1, opts.cap - 1), (2, opts.cap - 2), (v, 0), (v, opts.cap - v)];
         let mut slot_specs = Vec::new();
+        let mut graphs = Vec::new();
         for (t, pos0) in probes {
-            let g = build_with(&cfg, &*shapes, GraphOpts { t, pos0, act: opts.act, cap: opts.cap }, opts.tp)?;
+            let all_rows = opts.spec && t == v;
+            let g = build_pass(&cfg, &*shapes, GraphOpts { t, pos0, act: opts.act, cap: opts.cap }, opts.tp, PassKind { all_rows, absorb: opts.spec })?;
             slot_specs = g.slots.clone();
+            graphs.push(g);
+        }
+        let dspark = dspark_stages(&cfg, &*shapes);
+        if opts.spec && dspark == 0 {
+            return Err(Error::Unsupported("deepseek_v41: speculative decoding asked for, but the rank cache has no DSpark (mtp) stages".into()));
+        }
+        if opts.spec {
+            let blk = cfg.mtp.as_ref().map_or(0, |m| m.block_size);
+            for pos0 in [1, opts.cap.saturating_sub(blk).max(1)] {
+                graphs.push(build_draft(&cfg, &*shapes, GraphOpts { t: blk, pos0, act: opts.act, cap: opts.cap }, opts.tp)?);
+            }
+            graphs.push(build_markov(&cfg, &*shapes, opts.act)?);
+        }
+        for g in &graphs {
             for st in &g.stages {
                 let mut args: Vec<&Arg> = st.steps.iter().flat_map(|s| s.inputs.iter().chain(s.outputs.iter())).collect();
                 for (_, e) in &st.extras {
@@ -214,6 +256,17 @@ impl Dsv41Runtime {
         for n in ["empty", "empty_i32", "empty_u8", "empty_out"] {
             put(n, DType::U8, &[0], &[])?;
         }
+        // the DSpark confidence head on the host (`DSparkConfidenceHead`: f32 dot of [hidden, markov embed])
+        let confidence = match dspark {
+            0 => Vec::new(),
+            n_st => {
+                let name = format!("mtp.{}.confidence_head.proj.weight", n_st - 1);
+                let t = weights.get(&name).ok_or_else(|| Error::model(format!("deepseek_v41: {name} not loaded")))?;
+                let mut b = vec![0u8; t.nbytes()];
+                backend.download(&t.buf, t.offset, &mut b, 0)?;
+                to_f32(&b, t.dtype)?
+            }
+        };
         let mut rt = Dsv41Runtime {
             cfg,
             shapes,
@@ -232,6 +285,8 @@ impl Dsv41Runtime {
             prof: Mutex::new((0, 0, 0, 0, 0)),
             opprof: std::env::var_os("INTARSIA_DSV41_OPPROF").filter(|v| v != "0").map(|_| Mutex::new(HashMap::new())),
             splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(16),
+            dspark,
+            confidence,
         };
         let state_per_seq = rt.slot_specs.iter().map(|s| s.bytes(rt.opts.cap) as u64).sum();
         rt.memory = RuntimeMemory { weights: weight_bytes, workspace: ws_bytes, constants: cbytes, scratch: 0, state_per_seq };
@@ -321,7 +376,7 @@ impl Dsv41Runtime {
         while i < ids.len() {
             let n = (ids.len() - i).min(self.opts.chunk);
             let last = i + n == ids.len();
-            let r = self.pass(st, &ids[i..i + n], logits && last);
+            let r = self.pass(st, &ids[i..i + n], logits && last, false);
             match r {
                 Ok(l) => {
                     st.commit(&ids[i..i + n]);
@@ -340,20 +395,118 @@ impl Dsv41Runtime {
         Ok(out)
     }
 
+    /// One verify-sized pass (`2..=VERIFY_MAX_ROWS` rows, or 1) appended to the sequence: the full-vocabulary f32 logits
+    /// of every row (`rows[j]` predicts the token after `ids[j]`).
+    pub fn forward_rows(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<Vec<f32>>> {
+        if ids.is_empty() || ids.len() > VERIFY_MAX_ROWS {
+            return Err(Error::invalid(format!("deepseek_v41: a verify pass takes 1..={VERIFY_MAX_ROWS} rows, not {}", ids.len())));
+        }
+        if st.len + ids.len() > self.opts.cap {
+            return Err(Error::BadRequest(format!("deepseek_v41: {} + {} tokens exceed the capacity {}", st.len, ids.len(), self.opts.cap)));
+        }
+        if !self.opts.spec {
+            return Err(Error::Unsupported("deepseek_v41: a verify pass needs the runtime's spec option".into()));
+        }
+        match self.pass(st, ids, true, true) {
+            Ok(l) => {
+                st.commit(ids);
+                let l = l.expect("logits");
+                let v = l.len() / ids.len();
+                Ok(l.chunks_exact(v).map(|r| r.to_vec()).collect())
+            }
+            Err(e) => {
+                let _ = st.truncate(0, &*self.backend);
+                Err(e)
+            }
+        }
+    }
+
+    /// One DSpark drafting round after the sequence's last row (position `st.len - 1`, whose taps the pass that ran it
+    /// absorbed): the block `[first, noise, ..]` through the stages and the head on every rank (the head's gather), then
+    /// on rank 0 the Markov loop and the confidence head (`DSparkBlock.forward_head`, greedy). Rank 0 gets
+    /// `Some(draft)`, other ranks `None`. The sequence is unchanged.
+    pub fn draft(&self, st: &SequenceState, first: u32) -> Result<Option<Draft>> {
+        let m = self.cfg.mtp.as_ref().filter(|_| self.dspark > 0 && self.opts.spec).ok_or_else(|| Error::Unsupported("deepseek_v41: drafting needs the DSpark stages and the runtime's spec option".into()))?;
+        let (t, pos0) = (m.block_size, st.len);
+        if pos0 == 0 || pos0 + t > self.opts.cap {
+            return Err(Error::invalid(format!("deepseek_v41: a draft block at position {pos0} (capacity {})", self.opts.cap)));
+        }
+        let p0 = Instant::now();
+        let g = build_draft(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp)?;
+        let mut ids = vec![m.noise_token_id; t];
+        ids[0] = first;
+        let idx: Vec<u8> = dspark_idx(self.cfg.window, t, pos0).iter().flat_map(|v| v.to_le_bytes()).collect();
+        let rank0 = self.comm.as_ref().is_none_or(|c| c.rank() == 0);
+        let logits = self.run_graph(&g, st, &ids, &[("host.dspark.idx", &idx)], rank0, p0)?;
+        if !rank0 {
+            return Ok(None);
+        }
+        let logits = logits.expect("logits");
+        let v = logits.len() / t;
+        let mut out = vec![first];
+        let mut embeds: Vec<Vec<f32>> = Vec::with_capacity(t);
+        let mg = build_markov(&self.cfg, &*self.shapes, self.opts.act)?;
+        for i in 0..t {
+            let bias = self.run_graph(&mg, st, &[], &[("host.dspark.markov_id", &(out[i] as i32).to_le_bytes())], true, Instant::now())?.expect("markov bias");
+            let ex = self.exec.lock().unwrap();
+            let e = ex.ws.get("dspark.markov_e").ok_or_else(|| Error::backend("no workspace dspark.markov_e"))?.clone();
+            let rank = mg.stages[0].steps[0].outputs[0].shape[1];
+            let mut eb = vec![0u8; rank * esz(self.opts.act)];
+            self.backend.download(&e.buf, e.offset, &mut eb, 0)?;
+            drop(ex);
+            embeds.push(to_f32(&eb, self.opts.act)?);
+            let row = &logits[i * v..(i + 1) * v];
+            let next = row.iter().zip(&bias).map(|(a, b)| a + b).enumerate().fold((0usize, f32::NEG_INFINITY), |acc, (j, x)| if x > acc.1 { (j, x) } else { acc }).0;
+            out.push(next as u32);
+        }
+        // confidence = proj(cat(hx, markov embed)) per row, in f32
+        let d = self.cfg.dim;
+        let hx = {
+            let ex = self.exec.lock().unwrap();
+            let b = ex.ws.get("dspark.hx").ok_or_else(|| Error::backend("no workspace dspark.hx"))?.clone();
+            let mut hb = vec![0u8; t * d * esz(self.opts.act)];
+            self.backend.download(&b.buf, b.offset, &mut hb, 0)?;
+            to_f32(&hb, self.opts.act)?
+        };
+        let w = &self.confidence;
+        let confidence = (0..t)
+            .map(|r| {
+                let a: f32 = hx[r * d..(r + 1) * d].iter().zip(&w[..d]).map(|(x, y)| x * y).sum();
+                a + embeds[r].iter().zip(&w[d..]).map(|(x, y)| x * y).sum::<f32>()
+            })
+            .collect();
+        Ok(Some(Draft { ids: out, confidence }))
+    }
+
     /// One pass of `t = ids.len()` rows at position `st.len`.
-    fn pass(&self, st: &mut SequenceState, ids: &[u32], want_logits: bool) -> Result<Option<Vec<f32>>> {
+    fn pass(&self, st: &mut SequenceState, ids: &[u32], want_logits: bool, all_rows: bool) -> Result<Option<Vec<f32>>> {
         let (t, pos0) = (ids.len(), st.len);
         let p0 = Instant::now();
+        let k = PassKind { all_rows, absorb: self.opts.spec };
+        let g = build_pass(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp, k)?;
+        self.run_graph(&g, st, ids, &[], want_logits, p0)
+    }
+
+    /// Run graph `g` on `st` (its `t` rows at `st.len`): token ids `ids` (empty: none), the extra host inputs `host`
+    /// (`(workspace name, bytes)`), Engram rows for the graph's Engram layers. Returns the graph's logits when asked.
+    fn run_graph(&self, g: &Dsv41Graph, st: &SequenceState, ids: &[u32], host: &[(&str, &[u8])], want_logits: bool, p0: Instant) -> Result<Option<Vec<f32>>> {
+        let (t, pos0) = (ids.len().max(1), st.len);
         self.touch();
-        let g = build_with(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp)?;
         let mut ex = self.exec.lock().unwrap();
-        // host inputs: token ids
-        let idb: Vec<u8> = ids.iter().flat_map(|&v| (v as i32).to_le_bytes()).collect();
-        let tid = ex.ws.get("host.token_ids").ok_or_else(|| Error::backend("no token id buffer"))?.clone();
-        self.backend.upload(&tid.buf, 0, &idb, 0)?;
+        // host inputs: token ids, the extras
+        if !ids.is_empty() {
+            let idb: Vec<u8> = ids.iter().flat_map(|&v| (v as i32).to_le_bytes()).collect();
+            let tid = ex.ws.get("host.token_ids").ok_or_else(|| Error::backend("no token id buffer"))?.clone();
+            self.backend.upload(&tid.buf, 0, &idb, 0)?;
+        }
+        for (name, data) in host {
+            let b = ex.ws.get(*name).ok_or_else(|| Error::backend(format!("no host buffer {name}")))?.clone();
+            self.backend.upload(&b.buf, 0, data, 0)?;
+        }
+        let engram_layers: Vec<usize> = g.stages.iter().filter_map(|s| s.layer).collect();
         // Engram: hash and issue every Engram layer's rows now
         let mut tickets: HashMap<usize, (usize, super::engram::EngramTicket)> = HashMap::new();
-        if let Some(e) = &self.engram {
+        if let Some(e) = self.engram.as_ref().filter(|_| !engram_layers.is_empty() && !ids.is_empty()) {
             let lim = self.opts.tp.layers.unwrap_or(usize::MAX);
             if e.hasher.layout.layer_ids.iter().any(|&l| l < lim) {
                 let lo = pos0.saturating_sub(e.hasher.layout.max_ngram - 1);
@@ -647,14 +800,21 @@ fn ws_index(n: &str) -> Option<usize> {
 /// Every shared matrix must have the routed experts' (rank's) width and codebook. `marker(p)` says the codebook of
 /// linear `p` (0 3inst, 1 mcg, 2 mul1), from its `{p}.codebook` tensor.
 pub fn fuse_shared_experts(backend: &dyn Backend, weights: &mut HashMap<String, TensorRef>, n_layers: usize, dim: usize, experts: usize) -> Result<()> {
+    let ps: Vec<(String, usize)> = (0..n_layers).map(|l| (format!("layers.{l}.ffn"), experts)).collect();
+    fuse_shared_experts_at(backend, weights, &ps, dim)
+}
+
+/// [`fuse_shared_experts`] for the MoE blocks `(prefix, routed experts)` (`layers.{l}.ffn`, the DSpark `mtp.{i}.ffn`); a
+/// prefix without a routed arena is skipped.
+pub fn fuse_shared_experts_at(backend: &dyn Backend, weights: &mut HashMap<String, TensorRef>, prefixes: &[(String, usize)], dim: usize) -> Result<()> {
     use crate::quant::exl3_moe::{scale_offsets, META_COLS};
     let read = |t: &TensorRef| -> Result<Vec<u8>> {
         let mut v = vec![0u8; t.nbytes()];
         backend.download(&t.buf, t.offset, &mut v, 0)?;
         Ok(v)
     };
-    for l in 0..n_layers {
-        let p = format!("layers.{l}.ffn");
+    for (p, experts) in prefixes {
+        let (p, experts) = (p.as_str(), *experts);
         let Some(arena) = weights.get(&format!("{p}.experts.arena")).cloned() else { continue };
         let scales = weights.get(&format!("{p}.experts.scales")).cloned().ok_or_else(|| Error::model(format!("{p}: no experts.scales")))?;
         let meta = weights.get(&format!("{p}.experts.meta")).cloned().ok_or_else(|| Error::model(format!("{p}: no experts.meta")))?;
@@ -744,5 +904,12 @@ impl crate::tp_remote::RankModel for Dsv41Runtime {
     }
     fn state_len(st: &SequenceState) -> usize {
         st.len
+    }
+    fn verify_rank(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+        self.forward_rows(st, ids).map(|_| ())
+    }
+    fn draft_rank(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+        let first = *ids.first().ok_or_else(|| Error::invalid("deepseek_v41: a drafting round without its first id"))?;
+        self.draft(st, first).map(|_| ())
     }
 }
