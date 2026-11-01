@@ -52,13 +52,14 @@ restore() {
 trap restore EXIT
 for h in spark1 spark2; do r $h "docker stop -t 60 $VLLM_C >/dev/null"; done; STOPPED=1
 log "vLLM stopped on both"
-# watcher: kill our processes on a box that drops under 2 GiB available
+# watcher: kill our processes on a box that drops under KILL_GIB (default 5) GiB available (earlyoom -m 3,2 kills other
+# users' processes at ~3.65 GiB; coordinator 2026-11-01: stop under 5 GiB)
 ( while true; do
     line="$(date +%T)"
     for h in spark1 spark2; do
       a=$(ssh -n -o ConnectTimeout=5 $h "awk '/MemAvailable/{printf \"%.1f\", \$2/1048576}' /proc/meminfo" 2>/dev/null || echo NA)
       line="$line $h=$a"
-      if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < 2.0)}"; then ssh -n $h "pkill -KILL -f '[i]ntarsia-dsv41-tp2/bin/intarsia'"; line="$line KILLED-$h"; fi
+      if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then ssh -n $h "pkill -KILL -f '[i]ntarsia-dsv41-tp2/bin/intarsia'"; line="$line KILLED-$h"; fi
     done
     echo "$line"; sleep 5
   done ) > "$OUT/mem.log" 2>&1 & WATCH=$!

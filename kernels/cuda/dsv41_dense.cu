@@ -4,6 +4,8 @@
 // f32 accumulation, any float x / y dtype. One warp per output, eight per block; small N (<= a few thousand) by design.
 #include "dsv41_common.cuh"
 
+using namespace dsv41;
+
 namespace {
 constexpr int kWarps = 8;
 
