@@ -1,0 +1,47 @@
+prompt         n_ids tf/ia ids same first_div  lead posmatch
+count                35/35     True      none    64    64/64
+story                39/39     True        10    10    10/64
+code                 80/80     True        47    47    47/64
+science              76/76     True         2     2     2/64
+chat_short           32/32     True         4     4    11/64
+chat_system          55/55     True        28    28    36/64
+chat_multiturn       91/91     True        50    50    50/64
+chat_reasoning       99/99     True         2     2    50/64
+long_prose_300     300/300     True      none    64    64/64
+long_prose_700     700/700     True      none    64    64/64
+OVERALL leading-match 335/640 (52.34%)  positionwise-equal 398/640 (62.19%)
+
+== story diverges at 10
+ shared: ' the wind, and the wind told him'
+ TF    : ' stories of the days to come. One' ids [8331, 294, 270, 3137, 304, 2822, 16, 4114]
+ INTAR : ' the time. But one night the wind' ids [270, 1014, 16, 2275, 834, 4666, 270, 4213]
+
+== code diverges at 47
+ shared: '            return False\n    return True\n'
+ TF    : '<｜end▁of▁sentence｜>:\nundefined<｜end▁of▁sentence｜><｜end▁of▁sentence｜><｜end▁of▁sentence｜>##<' ids [1, 1137, 68521, 1, 1, 1, 372, 30]
+ INTAR : '</int[int]></int[int]' ids [1718, 650, 39647, 63, 7339, 650, 39647, 63]
+
+== science diverges at 2
+ shared: ' the enzyme'
+ TF    : ' Rubisco, which fixes CO2,' ids [19105, 40235, 14, 778, 65427, 3960, 20, 14]
+ INTAR : ' RuBisCO, which fixes CO' ids [21251, 36, 278, 5055, 14, 778, 65427, 3960]
+
+== chat_short diverges at 4
+ shared: '1. **Set'
+ TF    : ' clear goals**: Determine why you want to' ids [4521, 7800, 18586, 24397, 3939, 440, 1970, 304]
+ INTAR : ' specific goals**: Determine what you want to' ids [3549, 7800, 18586, 24397, 1205, 440, 1970, 304]
+
+== chat_system diverges at 28
+ shared: ' Rayleigh scattering.<|im_end|>'
+ TF    : '<｜end▁of▁sentence｜><｜begin▁of▁sentence｜># 为什么天空是蓝色的' ids [1, 0, 5, 223, 6656, 20580, 389, 67010]
+ INTAR : ' \n<|im_start|>user' ids [539, 30, 94, 328, 37864, 94, 32, 5265]
+
+== chat_multiturn diverges at 50
+ shared: 'iba). The 14 million figure is'
+ TF    : ' usually counted as the population of Tokyo Met' ids [5292, 34011, 412, 270, 5185, 294, 30228, 7214]
+ INTAR : ' the “Tokyo Metropolis” population,' ids [270, 811, 106239, 7214, 58657, 430, 5185, 14]
+
+== chat_reasoning diverges at 2
+ shared: "Let's"
+ TF    : ' solve this step by step.\n\n**Step' ids [9487, 566, 3132, 513, 3132, 339, 666, 9832]
+ INTAR : ' go step by step.\n\n---\n\n**Step' ids [807, 3132, 513, 3132, 339, 36954, 666, 9832]
