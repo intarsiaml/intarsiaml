@@ -223,9 +223,23 @@ fn main() {
 
     // compile every translation unit in parallel, from the staged copy of the kernels (see "Reproducible objects" above)
     let workdir = stage_kernels(&kroot).unwrap_or_else(|| kroot.clone());
-    let mut children = Vec::new();
+    // MAX_JOBS (or INTARSIA_NVCC_JOBS) caps the nvcc processes alive at once (a GB10 shares its memory with a running model
+    // server); unset, every translation unit compiles at once as before
+    let max_jobs = ["INTARSIA_NVCC_JOBS", "MAX_JOBS"]
+        .iter()
+        .find_map(|v| std::env::var(v).ok().and_then(|s| s.parse::<usize>().ok()))
+        .filter(|&n| n > 0)
+        .unwrap_or(usize::MAX);
+    println!("cargo:rerun-if-env-changed=INTARSIA_NVCC_JOBS");
+    println!("cargo:rerun-if-env-changed=MAX_JOBS");
+    let mut children: std::collections::VecDeque<(PathBuf, std::process::Child)> = Default::default();
     let mut objects = Vec::new();
     for src in &sources {
+        if children.len() >= max_jobs {
+            let (done, mut child) = children.pop_front().unwrap();
+            let st = child.wait().expect("wait for nvcc");
+            assert!(st.success(), "nvcc failed on {}", done.display());
+        }
         let obj = out.join(src.file_stem().unwrap()).with_extension("o");
         let is_a = src.file_stem().unwrap().to_string_lossy().ends_with("_sm120a");
         // every other translation unit gets exactly the command line it had before
@@ -253,7 +267,7 @@ fn main() {
             .arg(rel)
             .spawn()
             .unwrap_or_else(|e| panic!("failed to run {}: {e}", nvcc.display()));
-        children.push((src.clone(), child));
+        children.push_back((src.clone(), child));
         objects.push(obj);
     }
     for (src, mut child) in children {

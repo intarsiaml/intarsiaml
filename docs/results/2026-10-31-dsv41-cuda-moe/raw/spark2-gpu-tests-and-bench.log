@@ -1,0 +1,187 @@
+fleetq: #7573 running on spark2: env HOST=spark2 .scratch/box.sh 'cmd:nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader' t: tig:real_mia tig:bench_dsv41_moe 'cmd:nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader'
+fleetq: #7573 went ahead of the line and must end within 2h41m (by Sun 01:13); it is stopped then
+Mem:             121          46          24           0          52          75
+22:32:53
+0 %
+22:32:53
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.08s
+
+running 6 tests
+test bench_dsv41_moe ... ignored
+test matches_the_cpu_reference_over_the_sweep ... exl3 T=1 E=8 K=2 H=256 I=128 bits=3 cb=mul1 shared=false x=bf16 out=bf16 limit=10: max_abs 2.370e-3 rel_l2 9.447e-4
+exl3 T=1 E=8 K=4 H=384 I=256 bits=2/3 cb=3inst shared=true x=bf16 out=f32 limit=10: max_abs 2.911e-4 rel_l2 3.214e-4
+exl3 T=4 E=12 K=7 H=256 I=256 bits=2.5/3/3.5/5 cb=mul1 shared=true x=bf16 out=bf16 limit=1: max_abs 5.587e-3 rel_l2 1.361e-3
+exl3 T=8 E=16 K=6 H=256 I=128 bits=4/1/8 cb=mcg shared=false x=f16 out=f16 limit=inf: max_abs 5.724e-4 rel_l2 5.011e-4
+exl3 T=40 E=16 K=4 H=256 I=128 bits=3/5 cb=mul1 shared=true x=bf16 out=bf16 limit=10: max_abs 2.128e-3 rel_l2 1.124e-3
+exl3 T=70 E=8 K=3 H=256 I=256 bits=2/3 cb=3inst shared=false x=bf16 out=bf16 limit=10: max_abs 6.993e-3 rel_l2 1.107e-3
+exl3 T=130 E=16 K=6 H=384 I=128 bits=3/1.5/5 cb=mul1 shared=true x=f32 out=f32 limit=1: max_abs 5.027e-4 rel_l2 4.093e-4
+exl3 T=1 E=8 K=2 H=256 I=128 bits=3 cb=mul1 shared=false x=bf16 out=bf16 limit=10: max_abs 2.370e-3 rel_l2 9.447e-4
+exl3 T=1 E=8 K=4 H=384 I=256 bits=2/3 cb=3inst shared=true x=bf16 out=f32 limit=10: max_abs 2.911e-4 rel_l2 3.214e-4
+exl3 T=4 E=12 K=7 H=256 I=256 bits=2.5/3/3.5/5 cb=mul1 shared=true x=bf16 out=bf16 limit=1: max_abs 5.587e-3 rel_l2 1.361e-3
+exl3 T=8 E=16 K=6 H=256 I=128 bits=4/1/8 cb=mcg shared=false x=f16 out=f16 limit=inf: max_abs 5.724e-4 rel_l2 5.011e-4
+exl3 T=40 E=16 K=4 H=256 I=128 bits=3/5 cb=mul1 shared=true x=bf16 out=bf16 limit=10: max_abs 2.128e-3 rel_l2 1.124e-3
+exl3 T=70 E=8 K=3 H=256 I=256 bits=2/3 cb=3inst shared=false x=bf16 out=bf16 limit=10: max_abs 6.993e-3 rel_l2 1.107e-3
+exl3 T=130 E=16 K=6 H=384 I=128 bits=3/1.5/5 cb=mul1 shared=true x=f32 out=f32 limit=1: max_abs 5.027e-4 rel_l2 4.093e-4
+exl3 T=1 E=33 K=7 H=5120 I=1152 bits=3 cb=mul1 shared=true x=bf16 out=bf16 limit=10: max_abs 3.597e-3 rel_l2 1.091e-3
+exl3 T=1 E=33 K=7 H=5120 I=1152 bits=2 cb=mul1 shared=true x=bf16 out=f32 limit=10: max_abs 3.490e-4 rel_l2 3.566e-4
+exl3 T=4 E=17 K=7 H=5120 I=1152 bits=3 cb=mul1 shared=true x=bf16 out=bf16 limit=10: max_abs 3.846e-3 rel_l2 1.150e-3
+exl3 T=1 E=16 K=8 H=1024 I=1152 bits=6/7 cb=mcg shared=false x=bf16 out=bf16 limit=inf: max_abs 1.866e-3 rel_l2 1.021e-3
+exl3 T=3 E=16 K=5 H=640 I=384 bits=4/1 cb=3inst shared=false x=bf16 out=f16 limit=10: max_abs 6.579e-4 rel_l2 4.663e-4
+exl3 T=64 E=24 K=6 H=1024 I=1152 bits=3/5 cb=mul1 shared=true x=bf16 out=bf16 limit=10: max_abs 6.369e-3 rel_l2 1.176e-3
+exl3 T=300 E=16 K=7 H=256 I=384 bits=3/2/5 cb=mcg shared=true x=bf16 out=bf16 limit=10: max_abs 3.356e-3 rel_l2 1.168e-3
+exl3 T=33 E=8 K=8 H=128 I=128 bits=8 cb=3inst shared=false x=f16 out=f32 limit=10: max_abs 4.267e-4 rel_l2 3.642e-4
+worst bf16 output: rel_l2 1.361e-3 (at exl3 T=4 E=12 K=7 H=256 I=256 bits=2.5/3/3.5/5 cb=mul1 shared=true x=bf16 out=bf16 limit=1), max_abs 6.993e-3
+worst f16 output: rel_l2 5.011e-4 (at exl3 T=8 E=16 K=6 H=256 I=128 bits=4/1/8 cb=mcg shared=false x=f16 out=f16 limit=inf), max_abs 6.579e-4
+worst f32 output: rel_l2 4.093e-4 (at exl3 T=130 E=16 K=6 H=384 I=128 bits=3/1.5/5 cb=mul1 shared=true x=f32 out=f32 limit=1), max_abs 5.027e-4
+22 cases, 0 outside the kernel's tolerance
+ok
+test only_the_fp16_roundings_separate_it_from_the_reference ... exl3 T=1 E=8 K=4 H=384 I=256 bits=2/3 cb=3inst shared=true x=bf16 out=f32 limit=10: vs fp16-rounding reference rel_l2 1.66e-7 max_abs 1.95e-7; vs f64 reference rel_l2 3.21e-4 max_abs 2.91e-4
+exl3 T=130 E=16 K=6 H=384 I=128 bits=3/1.5/5 cb=mul1 shared=true x=f32 out=f32 limit=1: vs fp16-rounding reference rel_l2 2.81e-5 max_abs 8.61e-5; vs f64 reference rel_l2 4.09e-4 max_abs 5.03e-4
+ok
+test real_mia_experts_match_the_cpu_reference_and_shard ... ignored
+test rows_do_not_depend_on_the_batch_or_the_path ... ok
+test scratch_formula_mirrors_the_device_layout ... ok
+
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 4.30s
+
+22:32:58
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1219:4
+     |
+1219 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.04s
+
+running 1 test
+test real_mia_experts_match_the_cpu_reference_and_shard ... layer 3 expert slot 0 (layers.3.ffn.experts.0.w1): k2 gate/up/down [6, 6, 6]
+layer 3 expert slot 1 (layers.3.ffn.experts.17.w1): k2 gate/up/down [6, 6, 6]
+layer 3 expert slot 2 (layers.3.ffn.experts.101.w1): k2 gate/up/down [6, 6, 6]
+layer 3 expert slot 3 (layers.3.ffn.experts.222.w1): k2 gate/up/down [6, 6, 6]
+layer 3 expert slot 4 (layers.3.ffn.experts.300.w1): k2 gate/up/down [6, 6, 6]
+layer 3 expert slot 5 (layers.3.ffn.experts.383.w1): k2 gate/up/down [6, 6, 6]
+layer 3 expert slot 6 (layers.3.ffn.shared_experts.w1): k2 gate/up/down [10, 10, 10]
+layer 3 T=1 rank 0/1 (E=7, I=2304): cuda vs cpu max_abs 1.889e-4 rel_l2 3.288e-4
+layer 3 T=1 rank 0/2 (E=7, I=1152): cuda vs cpu max_abs 2.788e-4 rel_l2 3.287e-4
+layer 3 T=1 rank 1/2 (E=7, I=1152): cuda vs cpu max_abs 2.914e-4 rel_l2 3.373e-4
+layer 3 T=1 cpu: rank 0 + rank 1 vs whole rel_l2 4.440e-8 max_abs 4.217e-8
+layer 3 T=1 cuda: rank 0 + rank 1 vs whole rel_l2 4.152e-7 max_abs 4.216e-7
+layer 3 T=4 rank 0/1 (E=7, I=2304): cuda vs cpu max_abs 1.464e-4 rel_l2 3.332e-4
+layer 3 T=4 rank 0/2 (E=7, I=1152): cuda vs cpu max_abs 2.394e-4 rel_l2 3.332e-4
+layer 3 T=4 rank 1/2 (E=7, I=1152): cuda vs cpu max_abs 2.039e-4 rel_l2 3.386e-4
+layer 3 T=4 cpu: rank 0 + rank 1 vs whole rel_l2 4.368e-8 max_abs 2.927e-8
+layer 3 T=4 cuda: rank 0 + rank 1 vs whole rel_l2 4.538e-7 max_abs 2.341e-7
+layer 3 T=64 rank 0/1: prompt kernel rows 0, 31, 63 bitwise equal to the decode kernel
+layer 3 T=64 rank 0/2: prompt kernel rows 0, 31, 63 bitwise equal to the decode kernel
+layer 3 T=64 rank 1/2: prompt kernel rows 0, 31, 63 bitwise equal to the decode kernel
+layer 20 expert slot 0 (layers.20.ffn.experts.0.w1): k2 gate/up/down [4, 4, 4]
+layer 20 expert slot 1 (layers.20.ffn.experts.17.w1): k2 gate/up/down [4, 4, 4]
+layer 20 expert slot 2 (layers.20.ffn.experts.101.w1): k2 gate/up/down [4, 4, 4]
+layer 20 expert slot 3 (layers.20.ffn.experts.222.w1): k2 gate/up/down [4, 4, 4]
+layer 20 expert slot 4 (layers.20.ffn.experts.300.w1): k2 gate/up/down [4, 4, 4]
+layer 20 expert slot 5 (layers.20.ffn.experts.383.w1): k2 gate/up/down [4, 4, 4]
+layer 20 expert slot 6 (layers.20.ffn.shared_experts.w1): k2 gate/up/down [8, 8, 8]
+layer 20 T=1 rank 0/1 (E=7, I=2304): cuda vs cpu max_abs 3.136e-4 rel_l2 3.564e-4
+layer 20 T=1 rank 0/2 (E=7, I=1152): cuda vs cpu max_abs 3.376e-4 rel_l2 3.703e-4
+layer 20 T=1 rank 1/2 (E=7, I=1152): cuda vs cpu max_abs 3.766e-4 rel_l2 3.524e-4
+layer 20 T=1 cpu: rank 0 + rank 1 vs whole rel_l2 4.331e-8 max_abs 7.951e-8
+layer 20 T=1 cuda: rank 0 + rank 1 vs whole rel_l2 4.534e-7 max_abs 3.976e-7
+layer 20 T=4 rank 0/1 (E=7, I=2304): cuda vs cpu max_abs 3.437e-4 rel_l2 3.396e-4
+layer 20 T=4 rank 0/2 (E=7, I=1152): cuda vs cpu max_abs 3.545e-4 rel_l2 3.464e-4
+layer 20 T=4 rank 1/2 (E=7, I=1152): cuda vs cpu max_abs 3.293e-4 rel_l2 3.437e-4
+layer 20 T=4 cpu: rank 0 + rank 1 vs whole rel_l2 4.396e-8 max_abs 7.866e-8
+layer 20 T=4 cuda: rank 0 + rank 1 vs whole rel_l2 4.512e-7 max_abs 4.327e-7
+layer 20 T=64 rank 0/1: prompt kernel rows 0, 31, 63 bitwise equal to the decode kernel
+layer 20 T=64 rank 0/2: prompt kernel rows 0, 31, 63 bitwise equal to the decode kernel
+layer 20 T=64 rank 1/2: prompt kernel rows 0, 31, 63 bitwise equal to the decode kernel
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 7.35s
+
+22:33:06
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1219:4
+     |
+1219 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.04s
+
+running 1 test
+test bench_dsv41_moe ... read 195 matrices of layer 3 in 0.3 s
+rank 0/2: H=5120 I=1152; mean routed expert 6.67 MB, shared 11.10 MB (trellis + scales)
+decode T=1 18 separate matmul_exl3_gemv: 675.1 us/token, 59 GB/s
+decode T=1 21 separate matmul_exl3_gemv: 783.7 us/token, 65 GB/s
+decode T=1 moe_experts_exl3 K=6: 213.0 us/token, 188 GB/s
+decode T=1 moe_experts_exl3 K=7: 257.0 us/token, 199 GB/s
+decode T=4 moe_experts_exl3 K=7: 667.5 us/call, 166.9 us/token
+decode T=8 moe_experts_exl3 K=7: 1092.3 us/call, 136.5 us/token
+prefill T=512 (pool 64: 48 rows per routed expert) moe_experts_exl3 K=7: 11.26 ms, 22.0 us/token, weights 39 GB/s
+prefill T=2048 (pool 64: 192 rows per routed expert) moe_experts_exl3 K=7: 43.46 ms, 21.2 us/token, weights 40 GB/s
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 2.15s
+
+22:33:09
+0 %
+Mem:             121          48          23           0          52          73
+22:33:10
+fleetq: #7573 done (exit 0)

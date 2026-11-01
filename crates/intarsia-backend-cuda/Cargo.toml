@@ -14,3 +14,5 @@ intarsia-core = { workspace = true }
 
 [dev-dependencies]
 intarsia-backend-cpu = { workspace = true }
+serde_json = { workspace = true }
+half = { workspace = true }

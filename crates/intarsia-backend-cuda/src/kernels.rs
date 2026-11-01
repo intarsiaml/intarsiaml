@@ -1197,6 +1197,7 @@ mod tests {
         "moe_experts_decode_bf16:moe_experts",
         "moe_experts_decode_v2_bf16:moe_experts",
         "moe_experts_decode_v2_rows_bf16:moe_experts",
+        "moe_experts_exl3:moe_experts",
         "moe_experts_mma_bf16:moe_experts",
         "moe_experts_nvfp4_mma_bf16:moe_experts",
         "moe_experts_w4a16_bf16:moe_experts",
@@ -1214,7 +1215,8 @@ mod tests {
     /// origin/main's (`4962d8fa`), so the plan has the same candidates as before. Round 5 adds the three fp8-KV attention
     /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them); lane fp8kv the
     /// fp8-cache attention twin `attn_decode_f8kv_splitkv_rows`. Lane rip adds `matmul_bf16_inv`
-    /// (priority -5: only a row-invariant prefill pass, `OpCall::prefill_inv`, selects it).
+    /// (priority -5: only a row-invariant prefill pass, `OpCall::prefill_inv`, selects it). Lane dsv41/cuda-moe adds
+    /// `moe_experts_exl3` (weights i16 only: only the EXL3 encoding of `MoeExperts` selects it).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();

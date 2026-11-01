@@ -1001,8 +1001,10 @@ dependencies = [
 name = "intarsia-backend-cuda"
 version = "0.0.1"
 dependencies = [
+ "half",
  "intarsia-backend-cpu",
  "intarsia-core",
+ "serde_json",
 ]
 
 [[package]]
