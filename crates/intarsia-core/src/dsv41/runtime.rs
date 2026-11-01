@@ -211,7 +211,7 @@ impl Dsv41Runtime {
         put("hc.one_hot_pre_mix", DType::F32, &[rows, s], &f32b(&one_hot))?;
         put("hc.mean_mix", DType::F32, &[rows, s], &f32b(&vec![1.0 / s as f32; rows * s]))?;
         put("swiglu_limit", DType::F32, &[1], &f32b(&[cfg.swiglu_limit]))?;
-        for n in ["empty", "empty_i32", "empty_u8"] {
+        for n in ["empty", "empty_i32", "empty_u8", "empty_out"] {
             put(n, DType::U8, &[0], &[])?;
         }
         let mut rt = Dsv41Runtime {

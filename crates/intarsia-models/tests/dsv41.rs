@@ -51,10 +51,13 @@ fn mia_graph_records_every_layer_with_the_official_structure() {
         }
     }
     let count = |l: usize, op: Op| layer_ops(&g, l).iter().filter(|&&o| o == op).count();
-    // every layer: two hyper-connection sub-blocks, MQA with sink over the window, 8 wo_a group slices, routed + shared MoE
+    // every layer: two hyper-connection sub-blocks, MQA with sink over the window, 8 wo_a group slices, routed + shared MoE.
+    // At decode each sub-block is one HcSublayer that folds the previous HcPost; the FFN's HcPost stays a step of its own
+    // where the next layer reads the streams first (Engram on 1 and 14, the DSpark tap on 37-39, the head after 39).
     for l in 0..40 {
         let tap = usize::from(l >= 37);
-        assert_eq!((count(l, Op::HcMixes), count(l, Op::HcPre), count(l, Op::HcPost)), (2, 2 + tap, 2), "layer {l}");
+        let post = usize::from([0, 13, 36, 37, 38, 39].contains(&l));
+        assert_eq!((count(l, Op::HcSublayer), count(l, Op::HcMixes), count(l, Op::HcPre), count(l, Op::HcPost)), (2, 0, tap, post), "layer {l}");
         assert_eq!((count(l, Op::WindowKv), count(l, Op::AttnSparse), count(l, Op::MoeRoute), count(l, Op::MoeExperts)), (1, 1, 1, 1), "layer {l}");
         assert_eq!(count(l, Op::Transpose01), 2, "layer {l}");
     }
@@ -69,7 +72,16 @@ fn mia_graph_records_every_layer_with_the_official_structure() {
     let taps: Vec<usize> = (0..40).filter(|&l| g.stages[l + 1].steps.iter().any(|s| s.what.ends_with("dspark_tap"))).collect();
     assert_eq!(taps, [37, 38, 39]);
     let steps: Vec<usize> = (0..40).map(|l| layer_ops(&g, l).len()).collect();
-    assert_eq!((steps[0], steps[1], steps[2], steps[3], steps[14], steps[20], steps[24], steps[39]), (33, 36, 48, 33, 51, 47, 38, 34));
+    assert_eq!((steps[0], steps[1], steps[2], steps[3], steps[14], steps[20], steps[24], steps[39]), (28, 30, 42, 27, 45, 41, 32, 29),
+        "6 fewer steps per layer than the separate HcMixes / HcPre / RmsNorm / HcPost (5 where the FFN HcPost stays)");
+    // a prefill chunk (T > 16) keeps both HcPosts separate and emits the HcSublayer without the fold
+    let pf = build(&c, &w, GraphOpts { t: 37, pos0: 0, act: DType::Bf16, cap: 131_072 }).unwrap();
+    for l in [0usize, 5, 39] {
+        let ops = layer_ops(&pf, l);
+        let n = |op: Op| ops.iter().filter(|&&o| o == op).count();
+        assert_eq!((n(Op::HcSublayer), n(Op::HcPost), n(Op::HcMixes)), (2, 2, 0), "prefill layer {l}");
+    }
+    assert!(pf.stages.iter().flat_map(|s| &s.steps).filter(|s| s.op == Op::HcSublayer).all(|s| s.inputs[6].shape == [0]));
 
     // the indexers on 24..36 mask with layer 20's candidates; the others pass an empty mask
     let idx_cand = |l: usize| g.stages[l + 1].steps.iter().find(|s| s.op == Op::IndexerTopk).unwrap().inputs[3].shape.clone();
@@ -150,18 +162,19 @@ fn plan_show_lists_every_new_op_and_resolves_cpu_kernels() {
             assert!(!ops.contains_key(op.as_str()));
             continue;
         }
-        // the fused HcSublayer (62) replaces HcMixes + HcPre + RmsNorm [+ HcPost]; the graph still emits the separate ops until
-        // lane dsv41/tp2 switches to it (docs/design/dsv41-ops.md "Wiring the fused HcSublayer"). This assertion fails then:
-        // replace it by the cpu-kernel check below and lower the hc_pre count.
-        if op == Op::HcSublayer {
-            assert!(!ops.contains_key(op.as_str()), "HcSublayer is in the graph now: update this test");
+        // the fused HcSublayer (62) replaces HcMixes + HcPre + RmsNorm (+ the previous HcPost at decode): HcMixes no
+        // longer occurs on its own (docs/design/dsv41-ops.md "Wiring the fused HcSublayer")
+        if op == Op::HcMixes {
+            assert!(!ops.contains_key(op.as_str()));
             continue;
         }
         let (k, _) = &ops[op.as_str()];
         assert_eq!(k, &format!("cpu_f32_{}", op.as_str()));
     }
     assert_eq!(ops["matmul_exl3"].1, 502, "622 before the shared expert joined the routed launch");
-    assert_eq!(ops["hc_pre"].1, 84, "two per layer, the collapse before the head, three DSpark taps");
+    assert_eq!(ops["hc_pre"].1, 4, "the collapse before the head and three DSpark taps (84 before the fused HcSublayer)");
+    assert_eq!(ops["hc_sublayer"].1, 80, "two per layer");
+    assert_eq!(ops["hc_post"].1, 6, "the FFN HcPost before Engram layers 1 and 14, the taps on 37-39 and the head");
     let text = intarsia_core::dsv41::plan::render(&p);
     // the routed experts are the EXL3 encoding of the existing MoeExperts, resolved to its cpu kernel; no stub on Mia
     assert_eq!(ops["moe_experts"], ("cpu_f32_moe_experts".to_string(), 40));

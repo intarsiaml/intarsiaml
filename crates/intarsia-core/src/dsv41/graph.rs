@@ -296,7 +296,94 @@ impl Builder<'_> {
         self.push(Op::HcMixes, p.to_string(), inputs, outs.to_vec(), a);
         Ok(outs)
     }
+
+    /// The fused hyper-connection sublayer (docs/design/dsv41-ops.md "Wiring the fused HcSublayer"): `HcMixes(h)` of the
+    /// sublayer `p` (`{p}_fn` / `_scale` / `_base`) into `{out}.pre` / `.post` / `.comb`, and
+    /// `n = RmsNorm(HcPre(h, pre_in), norm_w)`. With `fold = Some(pending HcPost)`, h = that `HcPost` of `x`, written to
+    /// `h_out` (the other residual buffer); without it h = x. Returns (n, [pre, post, comb], the stream after the step).
+    fn hc_sublayer(&mut self, x: &Arg, p: &str, out: &str, sub: &str, pre_in: Arg, norm_w: &str, fold: Option<PendingPost>) -> Result<(Arg, [Arg; 3], Arg)> {
+        let (t, s, d, act) = (self.o.t, self.c.hc_mult, self.c.dim, self.o.act);
+        if !hc_fused() {
+            // the separate ops (INTARSIA_DSV41_HC_FUSED=0): HcPost, HcMixes, HcPre, RmsNorm, as before the fused op
+            let mut fold = fold;
+            let x = self.flush_post(x, &mut fold);
+            let mixes = self.hc_mixes(&x, p, out)?;
+            let a_in = ws("a", act, &[t, d]);
+            self.push(Op::HcPre, format!("{}.hc_pre({sub})", p.rsplit_once('.').map_or(p, |(l, _)| l)), vec![x.clone(), pre_in], vec![a_in.clone()], OpAttrs::default());
+            let n = self.rmsnorm(a_in, norm_w, "n")?;
+            return Ok((n, mixes, x));
+        }
+        let outs = [ws(&format!("{out}.pre"), DType::F32, &[t, s]), ws(&format!("{out}.post"), DType::F32, &[t, s]), ws(&format!("{out}.comb"), DType::F32, &[t, s, s])];
+        let n = ws("n", act, &[t, d]);
+        let (post_x, post_mix, post_comb, h_out) = match &fold {
+            Some(f) => (f.out.clone(), f.post.clone(), f.comb.clone(), flip(x)),
+            None => {
+                let e = |dt| arg(Buf::Const("empty".into()), dt, &[0]);
+                // a distinct (also empty) constant for the absent output, so no step names one buffer as input and output
+                (e(act), e(DType::F32), e(DType::F32), arg(Buf::Const("empty_out".into()), act, &[0]))
+            }
+        };
+        let inputs = vec![
+            x.clone(),
+            self.weight(&format!("{p}_fn"))?,
+            self.weight(&format!("{p}_scale"))?,
+            self.weight(&format!("{p}_base"))?,
+            pre_in,
+            self.weight(norm_w)?,
+            post_x,
+            post_mix,
+            post_comb,
+        ];
+        let outputs = vec![n.clone(), outs[0].clone(), outs[1].clone(), outs[2].clone(), h_out.clone()];
+        // the op's contract: no output aliases an input
+        for o in outputs.iter().filter(|o| !o.shape.contains(&0)) {
+            if inputs.iter().any(|i| i.buf == o.buf && !i.shape.contains(&0)) {
+                return Err(Error::invalid(format!("deepseek_v41 graph: {p} hc_sublayer output {:?} aliases an input", o.buf)));
+            }
+        }
+        let mut a = OpAttrs { eps: self.c.norm_eps, ..Default::default() };
+        (a.dsv.iters, a.dsv.hc_eps) = (self.c.hc_sinkhorn_iters, self.c.hc_eps);
+        let what = match &fold {
+            Some(f) => format!("{p}.hc_sublayer(+{})", f.what),
+            None => format!("{p}.hc_sublayer"),
+        };
+        self.push(Op::HcSublayer, what, inputs, outputs, a);
+        Ok((n, outs, if fold.is_some() { h_out } else { x.clone() }))
+    }
+
+    /// Emits a pending `HcPost` as its own step; returns the stream after it.
+    fn flush_post(&mut self, x: &Arg, pending: &mut Option<PendingPost>) -> Arg {
+        match pending.take() {
+            Some(f) => {
+                let y = flip(x);
+                self.push(Op::HcPost, f.what, vec![f.out, x.clone(), f.post, f.comb], vec![y.clone()], OpAttrs::default());
+                y
+            }
+            None => x.clone(),
+        }
+    }
 }
+
+/// A sublayer's `HcPost(out, x, post, comb)` not yet applied to the residual streams: the next `HcSublayer` folds it in
+/// (decode / verify, `T <= HC_FOLD_MAX_ROWS`), or `Builder::flush_post` emits it as its own step.
+struct PendingPost {
+    out: Arg,
+    post: Arg,
+    comb: Arg,
+    /// the step name it would have had on its own (`layers.{l}.hc_post(attn)` / `(ffn)`)
+    what: String,
+}
+
+/// `INTARSIA_DSV41_HC_FUSED` (default on): each sublayer's HcMixes + HcPre + RmsNorm (+ the previous HcPost) as one
+/// `HcSublayer`; `0` emits the separate ops (the graph before lane dsv41/tp2 wired the fused op), for A/B and diagnosis.
+pub fn hc_fused() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_DSV41_HC_FUSED").map_or(true, |v| v != "0"))
+}
+
+/// Rows up to which an `HcSublayer` folds the previous sublayer's `HcPost` (docs/design/dsv41-ops.md: on a 4096-row
+/// prefill chunk the fold is slower than the separate `HcPost`, at decode it saves ~6 us per sublayer on sm_121).
+pub const HC_FOLD_MAX_ROWS: usize = 16;
 
 /// The other residual buffer (`x0` <-> `x1`).
 fn flip(x: &Arg) -> Arg {
@@ -391,6 +478,16 @@ pub fn build_with(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     stages.push(b.stage("embed".into(), None, vec!["embed".into(), format!("hc_expand x{s}")]));
 
     let mut pre_mix = arg(Buf::Const("hc.one_hot_pre_mix".into()), DType::F32, &[t, s]);
+    // HcMixes + HcPre + RmsNorm of every sublayer run as one HcSublayer; at T <= HC_FOLD_MAX_ROWS it also folds the
+    // previous sublayer's HcPost, unless something reads the streams in between (an Engram merge or the DSpark tap of the
+    // next layer, the head): then that HcPost is emitted on its own at the end of its layer.
+    let fold = hc_fused() && t <= HC_FOLD_MAX_ROWS;
+    let reads_streams = |l: usize| {
+        l >= n_layers
+            || c.engram.as_ref().is_some_and(|e| e.layer_ids.contains(&l))
+            || c.mtp.as_ref().is_some_and(|m| m.target_layer_ids.contains(&l))
+    };
+    let mut pending: Option<PendingPost> = None;
     for l in 0..n_layers {
         let p = format!("layers.{l}");
         let mut blocks = Vec::new();
@@ -422,29 +519,28 @@ pub fn build_with(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
             b.push(Op::HcPre, format!("{p}.dspark_tap"), vec![x.clone(), mean], vec![ws(&format!("main_hidden.{j}"), act, &[t, d])], OpAttrs::default());
             blocks.push("dspark_tap".to_string());
         }
-        let [attn_pre, attn_post, attn_comb] = b.hc_mixes(&x, &format!("{p}.hc_attn"), "hc_attn")?;
-        let a_in = ws("a", act, &[t, d]);
-        b.push(Op::HcPre, format!("{p}.hc_pre(attn)"), vec![x.clone(), pre_mix.clone()], vec![a_in.clone()], OpAttrs::default());
-        let n = b.rmsnorm(a_in, &format!("{p}.attn_norm.weight"), "n")?;
+        let (n, [attn_pre, attn_post, attn_comb], x1) = b.hc_sublayer(&x, &format!("{p}.hc_attn"), "hc_attn", "attn", pre_mix.clone(), &format!("{p}.attn_norm.weight"), pending.take())?;
+        x = x1;
         let attn_out = attention(&mut b, l, &lslots[l], &n, &mut blocks)?;
-        let y = flip(&x);
-        b.push(Op::HcPost, format!("{p}.hc_post(attn)"), vec![attn_out, x.clone(), attn_post, attn_comb], vec![y.clone()], OpAttrs::default());
-        x = y;
+        pending = Some(PendingPost { out: attn_out, post: attn_post, comb: attn_comb, what: format!("{p}.hc_post(attn)") });
+        if !fold {
+            x = b.flush_post(&x, &mut pending);
+        }
 
         // MoE sub-block
-        let [ffn_pre, ffn_post, ffn_comb] = b.hc_mixes(&x, &format!("{p}.hc_ffn"), "hc_ffn")?;
-        let f_in = ws("a", act, &[t, d]);
-        b.push(Op::HcPre, format!("{p}.hc_pre(ffn)"), vec![x.clone(), attn_pre], vec![f_in.clone()], OpAttrs::default());
-        let n2 = b.rmsnorm(f_in, &format!("{p}.ffn_norm.weight"), "n")?;
+        let (n2, [ffn_pre, ffn_post, ffn_comb], x2) = b.hc_sublayer(&x, &format!("{p}.hc_ffn"), "hc_ffn", "ffn", attn_pre, &format!("{p}.ffn_norm.weight"), pending.take())?;
+        x = x2;
         let ffn_out = moe(&mut b, &format!("{p}.ffn"), &n2, c.n_routed_experts, c.top_k)?;
         blocks.push(format!("hc_moe({}x top{} + shared)", c.n_routed_experts, c.top_k));
-        let y = flip(&x);
-        b.push(Op::HcPost, format!("{p}.hc_post(ffn)"), vec![ffn_out, x.clone(), ffn_post, ffn_comb], vec![y.clone()], OpAttrs::default());
-        x = y;
+        pending = Some(PendingPost { out: ffn_out, post: ffn_post, comb: ffn_comb, what: format!("{p}.hc_post(ffn)") });
+        if !fold || reads_streams(l + 1) {
+            x = b.flush_post(&x, &mut pending);
+        }
         // the next layer's attention collapses with this FFN's pre-mix (written to "hc_ffn.pre", not overwritten before)
         pre_mix = ffn_pre;
         stages.push(b.stage(format!("layer {l}"), Some(l), blocks));
     }
+    debug_assert!(pending.is_none());
 
     // head: collapse with the last FFN's pre-mix, norm, logits of the last row (ParallelHead)
     let hc = ws("a", act, &[t, d]);
