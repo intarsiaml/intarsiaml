@@ -10,4 +10,5 @@ ssh -n -o BatchMode=yes spark2 "export FLEETQ_JOB=$FLEETQ_JOB; cat ~/intarsia-ds
   P=\$(python3 -c 'print((\"The history of the lighthouse is long and full of storms. \")*180)'); \
   export INTARSIA_DSV41_ENGRAM=off INTARSIA_DSV41_CAP=8192 INTARSIA_DSV41_CHUNK=512; \
   echo '== eager timing'; INTARSIA_DSV41_PROFILE=32 timeout 300 \$B generate -m \$C --backend cuda -p \"\$P\" --max-tokens 97 --ignore-eos 2>&1 | grep -E 'profile|finish=' ; \
+  for ch in 256 512 1024 2048; do echo \"== prefill chunk \$ch\"; INTARSIA_DSV41_CHUNK=\$ch timeout 300 \$B generate -m \$C --backend cuda -p \"\$P\" --max-tokens 2 --ignore-eos 2>&1 | grep -E 'finish='; done; \
   echo '== per-kernel'; INTARSIA_DSV41_OPPROF=1 INTARSIA_DSV41_PROFILE=32 timeout 300 \$B generate -m \$C --backend cuda -p \"\$P\" --max-tokens 33 --ignore-eos 2>&1 | grep -E 'opprof|^  |profile|finish='"
