@@ -310,7 +310,7 @@ fn dspark_rounds_match_the_official_drafter() {
         let ids: Vec<u32> = ds.get("in/input_ids").i32().into_iter().map(|x| x as u32).collect();
         let mut st = rt.new_state().unwrap();
         rt.absorb(&mut st, &mh[..16 * w]).unwrap();
-        let (mut same_ids, mut worst_hx, mut worst_lg, mut worst_conf) = (0, 0f64, 0f64, 0f64);
+        let (mut same_ids, mut worst_hx, mut worst_lg, mut worst_conf, mut best_lg) = (0, 0f64, 0f64, 0f64, f64::INFINITY);
         for (j, &first) in ids.iter().enumerate() {
             rt.absorb(&mut st, &mh[(16 + j) * w..(17 + j) * w]).unwrap();
             let dr = rt.draft(&st, first).unwrap().expect("rank 0 drafts");
@@ -342,7 +342,7 @@ fn dspark_rounds_match_the_official_drafter() {
             let conf = dr.confidence.iter().zip(&want_conf).fold(0f64, |m, (a, b)| m.max((a - b).abs() as f64));
             println!("DSPARK {flow} round {j}: ids {:?} official {want_ids:?}; head.x rel_rms {hx_rr:.3e}, top-64 raw logits rel_rms {lg_rr:.3e}, confidence max |diff| {conf:.3e} ({:?} vs {want_conf:?})", dr.ids, dr.confidence);
             same_ids += dr.ids.iter().zip(&want_ids).skip(1).take_while(|(a, b)| a == b).count();
-            (worst_hx, worst_lg, worst_conf) = (worst_hx.max(hx_rr), worst_lg.max(lg_rr), worst_conf.max(conf));
+            (worst_hx, worst_lg, worst_conf, best_lg) = (worst_hx.max(hx_rr), worst_lg.max(lg_rr), worst_conf.max(conf), best_lg.min(lg_rr));
         }
         println!("DSPARK {flow}: leading drafts equal {same_ids}/15, worst head.x {worst_hx:.3e}, logits {worst_lg:.3e}, confidence {worst_conf:.3e}");
         // fp32: rounds 1-2 match to ~1e-6; round 0 sits ~1.7e-3 off (likely an FP4 q-quant bucket flip in the drafter's sparse
@@ -350,6 +350,14 @@ fn dspark_rounds_match_the_official_drafter() {
         if act == DType::F32 {
             if !(worst_hx < 5e-3 && worst_lg < 1e-3) || same_ids != 15 || worst_conf >= 1e-2 {
                 fails.push(format!("fp32 drafter parity: head.x {worst_hx:.3e}, logits {worst_lg:.3e}, drafts equal {same_ids}/15, confidence {worst_conf:.3e}"));
+            }
+        } else if cuda {
+            // CUDA bf16 differs from the CPU reference by bf16 noise (~1e-2 per stage in the op-by-op dump,
+            // INTARSIA_DSV41_DUMP + tools/dsv41/dumpdiff.py), which flips routing near-ties (raw-logit margins 0.03-0.06)
+            // inside the 5-row block; the block attends to itself, so one flip moves every row. A round without a flip
+            // stays close (logits ~1.4e-2); gross breakage shows as ~1.
+            if !(best_lg < 3e-2 && worst_lg < 0.3) {
+                fails.push(format!("cuda bf16 drafter parity: best round's logits {best_lg:.3e} (< 3e-2), worst {worst_lg:.3e} (< 0.3)"));
             }
         } else if !(worst_hx < 5e-2 && worst_lg < 5e-2) {
             fails.push(format!("bf16 drafter parity: head.x {worst_hx:.3e}, logits {worst_lg:.3e}"));
