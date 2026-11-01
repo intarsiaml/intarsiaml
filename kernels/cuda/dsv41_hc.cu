@@ -76,57 +76,79 @@ __global__ void __launch_bounds__(kThreads) hc_mix_partial(const T* __restrict__
 
 IK_DEVI float sigmoidf_(float v) { return 1.f / (1.f + expf(-v)); }
 
-// one thread per row: sum the splits in order, then hc_split_sinkhorn
-__global__ void hc_mix_finish(const float* __restrict__ part, int64_t rows, int64_t sd, int s, int nsplit, const float* __restrict__ scale,
+// one warp per row: lane j sums split column j in split order; lane 0 then runs the split and hc_split_sinkhorn with S a
+// compile-time constant (registers only)
+template <int S>
+__global__ void hc_mix_finish(const float* __restrict__ part, int64_t rows, int64_t sd, int nsplit, const float* __restrict__ scale,
                               const float* __restrict__ base, float eps, int iters, float hc_eps, float* __restrict__ pre,
                               float* __restrict__ post, float* __restrict__ comb) {
-    const int64_t r = (int64_t)blockIdx.x * blockDim.x + threadIdx.x;
+    constexpr int M = (2 + S) * S;
+    __shared__ float sm[4][32];
+    const int lane = threadIdx.x & 31, wi = threadIdx.x >> 5;
+    const int64_t r = (int64_t)blockIdx.x * 4 + wi;
     if (r >= rows) return;
-    const int m = (2 + s) * s;
-    float mix[kMaxMix + 1];
-    for (int j = 0; j <= m; ++j) mix[j] = 0.f;
-    for (int sp = 0; sp < nsplit; ++sp) {
-        const float* p = part + (r * nsplit + sp) * (m + 1);
-        for (int j = 0; j <= m; ++j) mix[j] += p[j];
-    }
-    const float rs = 1.f / sqrtf(mix[m] / (float)sd + eps);
-    for (int j = 0; j < m; ++j) mix[j] *= rs;
+    float v = 0.f;
+    if (lane <= M)
+        for (int sp = 0; sp < nsplit; ++sp) v += part[(r * nsplit + sp) * (M + 1) + lane];
+    sm[wi][lane] = v;
+    __syncwarp();
+    if (lane != 0) return;
+    float mix[M];
+    const float rs = 1.f / sqrtf(sm[wi][M] / (float)sd + eps);
+#pragma unroll
+    for (int j = 0; j < M; ++j) mix[j] = sm[wi][j] * rs;
     const float s0 = scale[0], s1 = scale[1], s2 = scale[2];
-    for (int j = 0; j < s; ++j) {
-        pre[r * s + j] = sigmoidf_(mix[j] * s0 + base[j]) + hc_eps;
-        post[r * s + j] = 2.f * sigmoidf_(mix[s + j] * s1 + base[s + j]);
+#pragma unroll
+    for (int j = 0; j < S; ++j) {
+        pre[r * S + j] = sigmoidf_(mix[j] * s0 + base[j]) + hc_eps;
+        post[r * S + j] = 2.f * sigmoidf_(mix[S + j] * s1 + base[S + j]);
     }
-    float c[16];
-    for (int j = 0; j < s * s; ++j) c[j] = mix[2 * s + j] * s2 + base[2 * s + j];
+    float c[S * S];
+#pragma unroll
+    for (int j = 0; j < S * S; ++j) c[j] = mix[2 * S + j] * s2 + base[2 * S + j];
     // comb = softmax(comb, -1) + eps; comb = comb / (comb.sum(-2) + eps)
-    for (int j = 0; j < s; ++j) {
+#pragma unroll
+    for (int j = 0; j < S; ++j) {
         float mx = -INFINITY;
-        for (int k = 0; k < s; ++k) mx = fmaxf(mx, c[j * s + k]);
+#pragma unroll
+        for (int k = 0; k < S; ++k) mx = fmaxf(mx, c[j * S + k]);
         float sum = 0.f;
-        for (int k = 0; k < s; ++k) {
-            c[j * s + k] = expf(c[j * s + k] - mx);
-            sum += c[j * s + k];
+#pragma unroll
+        for (int k = 0; k < S; ++k) {
+            c[j * S + k] = expf(c[j * S + k] - mx);
+            sum += c[j * S + k];
         }
-        for (int k = 0; k < s; ++k) c[j * s + k] = c[j * s + k] / sum + hc_eps;
+#pragma unroll
+        for (int k = 0; k < S; ++k) c[j * S + k] = c[j * S + k] / sum + hc_eps;
     }
-    for (int k = 0; k < s; ++k) {
+#pragma unroll
+    for (int k = 0; k < S; ++k) {
         float sum = 0.f;
-        for (int j = 0; j < s; ++j) sum += c[j * s + k];
-        for (int j = 0; j < s; ++j) c[j * s + k] /= sum + hc_eps;
+#pragma unroll
+        for (int j = 0; j < S; ++j) sum += c[j * S + k];
+#pragma unroll
+        for (int j = 0; j < S; ++j) c[j * S + k] /= sum + hc_eps;
     }
     for (int it = 1; it < iters; ++it) {
-        for (int j = 0; j < s; ++j) {
+#pragma unroll
+        for (int j = 0; j < S; ++j) {
             float sum = 0.f;
-            for (int k = 0; k < s; ++k) sum += c[j * s + k];
-            for (int k = 0; k < s; ++k) c[j * s + k] /= sum + hc_eps;
+#pragma unroll
+            for (int k = 0; k < S; ++k) sum += c[j * S + k];
+#pragma unroll
+            for (int k = 0; k < S; ++k) c[j * S + k] /= sum + hc_eps;
         }
-        for (int k = 0; k < s; ++k) {
+#pragma unroll
+        for (int k = 0; k < S; ++k) {
             float sum = 0.f;
-            for (int j = 0; j < s; ++j) sum += c[j * s + k];
-            for (int j = 0; j < s; ++j) c[j * s + k] /= sum + hc_eps;
+#pragma unroll
+            for (int j = 0; j < S; ++j) sum += c[j * S + k];
+#pragma unroll
+            for (int j = 0; j < S; ++j) c[j * S + k] /= sum + hc_eps;
         }
     }
-    for (int j = 0; j < s * s; ++j) comb[r * s * s + j] = c[j];
+#pragma unroll
+    for (int j = 0; j < S * S; ++j) comb[r * S * S + j] = c[j];
 }
 
 template <typename Ti, typename To>
@@ -209,9 +231,18 @@ extern "C" int ik_hc_mixes(const ik_tensor* x, const ik_tensor* fn, const ik_ten
     DSV_FLOAT_DISPATCH(x->dtype, Tx,
         hc_mix_partial<Tx><<<g, kThreads, 0, s>>>((const Tx*)x->data, (const float*)fn->data, T, sd, (int)m, (int)ns, part));
     IK_TRY(ik_launch_status());
-    hc_mix_finish<<<(unsigned)cdiv(T, 64), 64, 0, s>>>(part, T, sd, (int)S, (int)ns, (const float*)scale->data,
-                                                       (const float*)base->data, eps, (int)iters, hc_eps, (float*)pre->data,
-                                                       (float*)post->data, (float*)comb->data);
+    {
+        const unsigned blocks = (unsigned)cdiv(T, 4);
+        const float* sc = (const float*)scale->data;
+        const float* bs = (const float*)base->data;
+        float *pr = (float*)pre->data, *po = (float*)post->data, *cb = (float*)comb->data;
+        switch (S) {
+            case 1: hc_mix_finish<1><<<blocks, 128, 0, s>>>(part, T, sd, (int)ns, sc, bs, eps, (int)iters, hc_eps, pr, po, cb); break;
+            case 2: hc_mix_finish<2><<<blocks, 128, 0, s>>>(part, T, sd, (int)ns, sc, bs, eps, (int)iters, hc_eps, pr, po, cb); break;
+            case 3: hc_mix_finish<3><<<blocks, 128, 0, s>>>(part, T, sd, (int)ns, sc, bs, eps, (int)iters, hc_eps, pr, po, cb); break;
+            default: hc_mix_finish<4><<<blocks, 128, 0, s>>>(part, T, sd, (int)ns, sc, bs, eps, (int)iters, hc_eps, pr, po, cb); break;
+        }
+    }
     return ik_launch_status();
 }
 
