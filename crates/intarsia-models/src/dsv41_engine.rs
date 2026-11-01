@@ -73,7 +73,10 @@ pub fn is_rank_cache(dir: &Path) -> bool {
 
 /// What both ranks must agree on (handshake).
 pub fn fingerprint(m: &Manifest, o: &Dsv41Opts) -> String {
-    let base = format!("dsv41 source {} | world {} | layers {:?} | cap {} | chunk {} | act {}", m.source_fingerprint, m.world, m.layers, o.cap, o.chunk, o.act);
+    let mut base = format!("dsv41 source {} | world {} | layers {:?} | cap {} | chunk {} | act {}", m.source_fingerprint, m.world, m.layers, o.cap, o.chunk, o.act);
+    if m.first_layer > 0 {
+        base.push_str(&format!(" | first layer {}", m.first_layer));
+    }
     // the spec-off fingerprint is the one before speculation existed, so old and new binaries still pair without it
     if o.spec {
         format!("{base} | dspark spec")
@@ -231,7 +234,7 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
         shapes.0.extend(HeaderShapes::open(&mtp_dir)?.0);
     }
     let n_layers = m.layers.unwrap_or(cfg.n_layers).min(cfg.n_layers);
-    let mut moes: Vec<(String, usize)> = (0..n_layers).map(|l| (format!("layers.{l}.ffn"), cfg.n_routed_experts)).collect();
+    let mut moes: Vec<(String, usize)> = (m.first_layer..n_layers).map(|l| (format!("layers.{l}.ffn"), cfg.n_routed_experts)).collect();
     if let Some(m) = &cfg.mtp {
         moes.extend((0..m.n_layers).map(|i| (format!("mtp.{i}.ffn"), m.n_routed_experts)));
     }
@@ -247,7 +250,7 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
         (None, Some(l)) if l < n_layers => Some(engram_tier(&cfg, dir, o, rank, world)?),
         _ => None,
     };
-    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers }, spec: o.spec };
+    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers, first: m.first_layer }, spec: o.spec };
     let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, comm, weights, engram, opts)?;
     match (o.spec, rt.dspark) {
         (true, n) => eprintln!("dsv41: rank {rank}/{world}: speculative decoding on, {n} DSpark stages loaded from {}", mtp_dir.display()),

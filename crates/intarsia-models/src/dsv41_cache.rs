@@ -78,6 +78,9 @@ pub struct Manifest {
     pub rank: usize,
     pub world: usize,
     pub layers: Option<usize>,
+    /// The first layer kept (`--first-layer`, layer-range test caches): layers `first_layer .. layers` keep their names.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub first_layer: usize,
     pub tensors: usize,
     pub bytes: u64,
     pub built_unix: u64,
@@ -87,6 +90,10 @@ pub struct Manifest {
     /// `Some("mtp")`: only the DSpark stages (`mtp.*`), the sub-cache `<rank cache>/mtp` ([`MTP_DIR`]); `None`: the model.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
+}
+
+fn is_zero(x: &usize) -> bool {
+    *x == 0
 }
 
 /// The sub-directory of a rank cache that holds its DSpark stages ([`BuildOpts::mtp_only`]), so adding them does not
@@ -401,6 +408,8 @@ pub struct BuildOpts {
     pub rank: usize,
     pub world: usize,
     pub layers: Option<usize>,
+    /// Drop the layers below this one too (layer-range test caches, e.g. 20 .. 23 for the first ratio-1 layers).
+    pub first_layer: usize,
     /// Write into a non-empty directory that has no manifest (and replace a stale cache).
     pub force: bool,
     pub part_bytes: u64,
@@ -410,7 +419,7 @@ pub struct BuildOpts {
 
 impl BuildOpts {
     pub fn new(rank: usize, world: usize, layers: Option<usize>) -> BuildOpts {
-        BuildOpts { rank, world, layers, force: false, part_bytes: PART_BYTES, mtp_only: false }
+        BuildOpts { rank, world, layers, first_layer: 0, force: false, part_bytes: PART_BYTES, mtp_only: false }
     }
 }
 
@@ -744,8 +753,8 @@ pub fn build_rank_cache(src_dir: &Path, out: &Path, o: &BuildOpts) -> Result<Man
             continue;
         }
         let layer = if n.starts_with(root) { Some(scope_of(n, root).ok_or_else(|| err(format!("cannot read the scope of '{n}'")))?) } else { None };
-        if let (Some(l), Some(limit), false) = (layer, o.layers, o.mtp_only) {
-            if l >= limit {
+        if let (Some(l), false) = (layer, o.mtp_only) {
+            if o.layers.is_some_and(|limit| l >= limit) || l < o.first_layer {
                 dropped += 1;
                 continue;
             }
@@ -805,6 +814,7 @@ pub fn build_rank_cache(src_dir: &Path, out: &Path, o: &BuildOpts) -> Result<Man
         rank: o.rank,
         world: o.world,
         layers: o.layers,
+        first_layer: if o.mtp_only { 0 } else { o.first_layer },
         tensors,
         bytes,
         built_unix: now_unix(),
@@ -849,7 +859,7 @@ fn verify_cache(src: &Source, out: &Path, o: &BuildOpts) -> Result<()> {
         need(&format!("{p}.svh"), &[nl])?;
         need(&format!("{p}.codebook"), &[1])
     };
-    let layers: BTreeSet<usize> = src.entries.keys().filter_map(|n| scope_of(n, root)).filter(|l| o.mtp_only || o.layers.is_none_or(|lim| *l < lim)).collect();
+    let layers: BTreeSet<usize> = src.entries.keys().filter_map(|n| scope_of(n, root)).filter(|l| o.mtp_only || (o.layers.is_none_or(|lim| *l < lim) && *l >= o.first_layer)).collect();
     if src.has("head.trellis") && !o.mtp_only {
         linear("head", Some(ShardAxis::Rows))?;
         kept_groups += 1;
@@ -927,9 +937,20 @@ pub fn cache_matches(dir: &Path, src_dir: &Path, rank: usize, world: usize, laye
 
 /// [`cache_matches`] for the model (`mtp_only` false) or its DSpark sub-cache.
 pub fn cache_matches_scope(dir: &Path, src_dir: &Path, rank: usize, world: usize, layers: Option<usize>, mtp_only: bool) -> Result<bool> {
+    cache_matches_range(dir, src_dir, rank, world, layers, 0, mtp_only)
+}
+
+/// [`cache_matches_scope`] for a layer-range cache (`--first-layer`).
+pub fn cache_matches_range(dir: &Path, src_dir: &Path, rank: usize, world: usize, layers: Option<usize>, first_layer: usize, mtp_only: bool) -> Result<bool> {
     let Ok(m) = open_manifest(dir) else { return Ok(false) };
-    let layers = if mtp_only { None } else { layers };
-    if m.scope.as_deref() != mtp_only.then_some("mtp") || m.rank != rank || m.world != world || m.layers != layers || m.source_fingerprint != source_fingerprint(src_dir)? {
+    let (layers, first_layer) = if mtp_only { (None, 0) } else { (layers, first_layer) };
+    if m.scope.as_deref() != mtp_only.then_some("mtp")
+        || m.rank != rank
+        || m.world != world
+        || m.layers != layers
+        || m.first_layer != first_layer
+        || m.source_fingerprint != source_fingerprint(src_dir)?
+    {
         return Ok(false);
     }
     Ok(m.parts.iter().all(|p| std::fs::metadata(dir.join(&p.file)).is_ok_and(|md| md.len() == p.bytes)))

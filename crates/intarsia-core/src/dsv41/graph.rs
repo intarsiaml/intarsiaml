@@ -125,11 +125,14 @@ pub struct GraphTp {
     pub world: usize,
     /// Run only the first `layers` layers, then the head (few-layer parity runs on a truncated rank cache).
     pub layers: Option<usize>,
+    /// Start at this layer (a layer-range test cache, `intarsia dsv41-cache --first-layer`): the embedding feeds layer
+    /// `first` directly. Not a model; for exactness checks of the layers in the range.
+    pub first: usize,
 }
 
 impl Default for GraphTp {
     fn default() -> Self {
-        GraphTp { world: 1, layers: None }
+        GraphTp { world: 1, layers: None, first: 0 }
     }
 }
 
@@ -447,8 +450,8 @@ pub fn dspark_stages(c: &Dsv41Config, w: &dyn WeightShapes) -> usize {
 }
 
 /// The DSpark taps and stage rings are fed by every pass that reaches the last target layer.
-fn dspark_absorbs(c: &Dsv41Config, w: &dyn WeightShapes, n_layers: usize) -> bool {
-    dspark_stages(c, w) > 0 && c.mtp.as_ref().is_some_and(|m| m.target_layer_ids.iter().all(|&l| l < n_layers))
+fn dspark_absorbs(c: &Dsv41Config, w: &dyn WeightShapes, first: usize, n_layers: usize) -> bool {
+    dspark_stages(c, w) > 0 && c.mtp.as_ref().is_some_and(|m| m.target_layer_ids.iter().all(|&l| (first..n_layers).contains(&l)))
 }
 
 /// Rows up to which the head computes the logits of every row (a speculative verify pass; `t == 1` and longer chunks:
@@ -526,7 +529,10 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     let n_layers = tp.layers.map_or(c.n_layers, |l| l.min(c.n_layers));
     let (slot_specs, lslots, rings) = slots(c, w, act, k.absorb);
     // a truncated model (`--layers` below the target layers: tests) keeps the drafting layout but has no taps to absorb
-    let absorb = k.absorb && dspark_absorbs(c, w, n_layers);
+    if tp.first >= n_layers {
+        return Err(Error::invalid(format!("deepseek_v41 graph: first layer {} of {n_layers}", tp.first)));
+    }
+    let absorb = k.absorb && dspark_absorbs(c, w, tp.first, n_layers);
     if k.absorb && dspark_stages(c, w) == 0 {
         return Err(Error::Unsupported("deepseek_v41: DSpark absorb without the DSpark stages".into()));
     }
@@ -556,7 +562,7 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
             || c.mtp.as_ref().is_some_and(|m| m.target_layer_ids.contains(&l))
     };
     let mut pending: Option<PendingPost> = None;
-    for l in 0..n_layers {
+    for l in tp.first..n_layers {
         let p = format!("layers.{l}");
         let mut blocks = Vec::new();
         // Engram (Transformer.forward, before the block): rows hashed on the host, fetched from the tier

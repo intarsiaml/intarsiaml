@@ -3,7 +3,7 @@
 
 use anyhow::{bail, Result};
 use clap::Args;
-use intarsia_models::dsv41_cache::{build_rank_cache, cache_matches_scope, BuildOpts, MTP_DIR};
+use intarsia_models::dsv41_cache::{build_rank_cache, cache_matches_range, BuildOpts, MTP_DIR};
 use std::path::PathBuf;
 
 #[derive(Args, Debug)]
@@ -23,6 +23,10 @@ pub struct Dsv41CacheArgs {
     /// Keep only the first N layers (cheap trial caches).
     #[arg(long)]
     pub layers: Option<usize>,
+    /// Drop the layers below this one too (layer-range test caches: `--first-layer 20 --layers 23` keeps layers 20-22,
+    /// the first ratio-1 layers, under their own names).
+    #[arg(long, default_value_t = 0)]
+    pub first_layer: usize,
     /// Rebuild even if a matching cache exists, and write into a non-empty directory without a manifest.
     #[arg(long)]
     pub force: bool,
@@ -37,13 +41,14 @@ pub fn run(args: Dsv41CacheArgs) -> Result<()> {
         bail!("--rank {} is outside --world {}", args.rank, args.world);
     }
     let out = if args.mtp_only { args.out.join(MTP_DIR) } else { args.out.clone() };
-    if !args.force && cache_matches_scope(&out, &args.model, args.rank, args.world, args.layers, args.mtp_only)? {
+    if !args.force && cache_matches_range(&out, &args.model, args.rank, args.world, args.layers, args.first_layer, args.mtp_only)? {
         println!("cache at {} already matches (rank {} of {}, layers {:?}); nothing to do (--force rebuilds)", args.out.display(), args.rank, args.world, args.layers);
         return Ok(());
     }
     let mut o = BuildOpts::new(args.rank, args.world, args.layers);
     o.force = args.force;
     o.mtp_only = args.mtp_only;
+    o.first_layer = args.first_layer;
     let m = build_rank_cache(&args.model, &out, &o)?;
     println!("built {}: {} tensors, {:.2} GiB in {} parts", out.display(), m.tensors, m.bytes as f64 / (1u64 << 30) as f64, m.parts.len());
     Ok(())

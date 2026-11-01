@@ -380,3 +380,27 @@ fn mtp_sub_cache_shards_the_stages_with_the_layer_rules() {
     }
     let _ = std::fs::remove_dir_all(&root);
 }
+
+/// `--first-layer`: a layer-range cache keeps the global tensors and the layers `first_layer .. layers` under their
+/// own names, records the range in the manifest, and only matches a request for the same range.
+#[test]
+fn layer_range_cache_keeps_only_its_layers() {
+    let root = tmp("range");
+    let src_dir = root.join("src");
+    make_source(&src_dir);
+    let out = root.join("cache-l1");
+    let mut o = BuildOpts::new(0, 1, None);
+    o.first_layer = 1;
+    let m = build_rank_cache(&src_dir, &out, &o).unwrap();
+    assert_eq!(m.first_layer, 1);
+    let idx: serde_json::Value = serde_json::from_slice(&std::fs::read(out.join("model.safetensors.index.json")).unwrap()).unwrap();
+    let names: Vec<&String> = idx["weight_map"].as_object().unwrap().keys().collect();
+    assert!(names.iter().all(|n| !n.starts_with("layers.0.")), "layer 0 kept");
+    assert!(names.iter().any(|n| n.starts_with("layers.1.")), "layer 1 dropped");
+    assert!(names.iter().any(|n| !n.starts_with("layers.")), "globals dropped");
+    assert!(intarsia_models::dsv41_cache::cache_matches_range(&out, &src_dir, 0, 1, None, 1, false).unwrap());
+    assert!(!intarsia_models::dsv41_cache::cache_matches_range(&out, &src_dir, 0, 1, None, 0, false).unwrap());
+    assert!(!cache_matches(&out, &src_dir, 0, 1, None).unwrap());
+    check_load(&out);
+    let _ = std::fs::remove_dir_all(&root);
+}

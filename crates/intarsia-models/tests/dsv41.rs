@@ -229,7 +229,7 @@ fn every_step_resolves_to_a_cuda_kernel() {
     for (t, pos0) in [(1, 70_000), (16, 0), (16, 4096), (512, 0), (512, 8192)] {
         graphs.push((t, build(&c, &w, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }).unwrap()));
         if let Some((ws, m)) = &shapes_r0 {
-            let tp = intarsia_core::dsv41::graph::GraphTp { world: m.world, layers: m.layers };
+            let tp = intarsia_core::dsv41::graph::GraphTp { world: m.world, layers: m.layers, first: m.first_layer };
             graphs.push((t, intarsia_core::dsv41::graph::build_with(&c, ws, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }, tp).unwrap()));
         }
     }
@@ -282,7 +282,7 @@ fn mia_dspark_graphs_record_with_the_official_structure() {
     };
     let plain = build_with(&c, &w, GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 4096 }, GraphTp::default()).unwrap();
     for world in [1] {
-        let tp = GraphTp { world, layers: None };
+        let tp = GraphTp { world, layers: None, first: 0 };
         let o = GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 4096 };
         let v = build_pass(&c, &w, o, tp, PassKind { all_rows: true, absorb: true }).unwrap();
         check(&v);
