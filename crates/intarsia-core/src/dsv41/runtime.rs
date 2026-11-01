@@ -244,6 +244,17 @@ impl Dsv41Runtime {
         *self.last_pass.lock().unwrap() = s;
         let every = match std::env::var("INTARSIA_DSV41_PROFILE").ok().and_then(|v| v.parse::<u64>().ok()) {
             Some(n) if n > 0 && t == 1 => n,
+            Some(n) if n > 0 && t <= 64 => {
+                // a short multi-row pass (a small prompt; the cost of a verify-sized pass), one line each
+                eprintln!(
+                    "dsv41 profile pass rows={t}: build {:.2} ms, enqueue {:.2} ms, whole pass {:.2} ms, engram wait {:.3} ms",
+                    s.build_us as f64 / 1e3,
+                    s.enqueue_us as f64 / 1e3,
+                    s.total_us as f64 / 1e3,
+                    s.engram_wait_us as f64 / 1e3
+                );
+                return;
+            }
             _ => return,
         };
         let mut acc = self.prof.lock().unwrap();

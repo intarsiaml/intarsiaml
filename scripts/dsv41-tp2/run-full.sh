@@ -137,6 +137,26 @@ if [[ " $STEPS " == *" prefillprof "* ]]; then
   chat prefillprof 40 "Summarize the following notes in one sentence. $(python3 -c 'print(" ".join(f"Note {i}: the lighthouse lamp was checked and the log was signed." for i in range(300)))')"
   sleep 2; r spark1 "grep -aA26 'dsv41 opprof (multi-row' $LOGD/serve-$TAG.log | tail -27; grep -aA26 'dsv41 opprof (one-row' $LOGD/serve-$TAG.log | tail -27" | tee -a "$OUT/steps.log"
 fi
+# rowcost (with INTARSIA_DSV41_PROFILE set): the whole-pass ms of one pass of t rows (a t-token id prompt, max_tokens 1),
+# t = 1..8, 12, 16, 4 reps each after a warm-up: what a verify pass of t rows would cost (prompt passes start at
+# position 0, so attention reads fewer keys than a verify deep in a reply; the warm-up passes join the medians)
+if [[ " $STEPS " == *" rowcost "* ]]; then
+  rc() { curl -s -m 120 "$SURL/v1/completions" -H 'content-type: application/json' \
+    -d "$(python3 -c 'import json,sys; t=int(sys.argv[1]); print(json.dumps({"model":"dsv41-intarsia","prompt":[1000 + 37 * i for i in range(t)],"max_tokens":1,"temperature":0}))' "$1")" > /dev/null; }
+  for t in 4 8; do rc $t; done
+  for rep in 1 2 3 4; do for t in 2 3 4 5 6 7 8 12 16; do rc $t; done; done
+  sleep 1
+  r spark1 "grep -a 'profile pass rows=' $LOGD/serve-$TAG.log" > "$OUT/rowcost.txt"
+  python3 - "$OUT/rowcost.txt" <<'PY' | tee -a "$OUT/steps.log"
+import re, sys, statistics as st, collections
+d = collections.defaultdict(list)
+for l in open(sys.argv[1]):
+    m = re.search(r"rows=(\d+): build ([\d.]+) ms, enqueue ([\d.]+) ms, whole pass ([\d.]+) ms", l)
+    if m: d[int(m[1])].append((float(m[3]), float(m[4])))
+print("rowcost: rows, passes, median enqueue ms, median whole pass ms")
+for t in sorted(d): print(f"rowcost {t:>3} {len(d[t]):>3} {st.median(x[0] for x in d[t]):8.2f} {st.median(x[1] for x in d[t]):8.2f}")
+PY
+fi
 if [[ " $STEPS " == *" speed "* ]]; then
   for n in 1 2; do chat speed$n 512 "Explain how a transformer language model generates text, in detail."; done
   python3 - "$OUT" <<'PY' | tee -a "$OUT/steps.log"

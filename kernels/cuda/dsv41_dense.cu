@@ -142,6 +142,17 @@ void launch_vec(const X* x, const __half* w, Y* y, int M, int N, int K, cudaStre
     }
 }
 
+// INTARSIA_DSV41_F16W_SCALAR=1: the scalar kernel at every shape (the kernel before the vector path, same sum order as
+// then: the numerics A/B of the vector path)
+static bool f16w_scalar() {
+    static int on = -1;
+    if (on < 0) {
+        const char* e = getenv("INTARSIA_DSV41_F16W_SCALAR");
+        on = (e && e[0] == '1' && e[1] == 0) ? 1 : 0;
+    }
+    return on == 1;
+}
+
 static int f16w_rows() {
     static int r = -1;
     if (r < 0) {
@@ -186,7 +197,7 @@ static int dense_f16w(const ik_tensor* x, const ik_tensor* w, ik_tensor* y, void
     if (M * N == 0) return IK_OK;
     cudaStream_t s = IK_STREAM(stream);
     // vector path: whole 16-byte loads of every row (row strides of 8 elements, 16-byte aligned bases), int32 indexing
-    const bool vec = K % 8 == 0 && ((uintptr_t)x->data & 15u) == 0 && ((uintptr_t)w->data & 15u) == 0 && M * K < (1LL << 31) &&
+    const bool vec = !f16w_scalar() && K % 8 == 0 && ((uintptr_t)x->data & 15u) == 0 && ((uintptr_t)w->data & 15u) == 0 && M * K < (1LL << 31) &&
                      N * K < (1LL << 31) && M * N < (1LL << 31);
     switch (x->dtype) {
         case IK_DTYPE_F32: return dense_f16w_out<float>(x, w, y, M, N, K, vec, s);
