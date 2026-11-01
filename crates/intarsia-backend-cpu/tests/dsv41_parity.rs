@@ -677,3 +677,58 @@ fn grouped_matmul_and_transpose_match_einsum() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Engram
+// ---------------------------------------------------------------------------------------------------------------------
+
+/// `Engram.forward` on layer 1's 16 prefill tokens: stream input, the `wkv` output (keys + value) and the gate weights
+/// (`q_weight * k_weight`, from the Mia checkpoint, `engram_L1_weights.safetensors`) give the merged streams.
+#[test]
+fn engram_merge_matches_layer1_taps() {
+    let s = St::golden("layers_bf16_ci.safetensors");
+    let w = St::golden("engram_L1_weights.safetensors");
+    let c = cfg();
+    let (h, kv) = (s.get("bf16/L1/s0/engram.in"), s.get("bf16/L1/s0/engram.kv"));
+    let a = OpAttrs { eps: c.norm_eps, ..Default::default() };
+    let hc = call(
+        Op::EngramMerge,
+        vec![h.tensor_as(DType::Bf16).reshaped(&[16, 4, 5120]), kv.tensor_as(DType::Bf16).reshaped(&[16, 25600]), w.get("layers.1.engram.q_weight").host(), w.get("layers.1.engram.k_weight").host()],
+        vec![OutSpec::new(DType::Bf16, &[16, 4, 5120])],
+        a,
+    );
+    check("EngramMerge layer 1 (bf16)", &go(&hc)[0].to_f32(), &s.get("bf16/L1/s0/engram.out").f32(), 1e-6);
+}
+
+/// `ParallelEngramEmbedding.forward`: packed 264 B records (256 e4m3 bytes + 8 E8M0 scale bytes per row) -> rows. The
+/// fixture keeps the decoded rows (`engram.rows`, exact in bf16: e4m3 times a power of two), so the records are rebuilt from
+/// them: per 32-block the smallest power-of-two scale that represents every value exactly, and the fp8 bytes are the quotient.
+#[test]
+fn engram_gather_decodes_packed_records_to_the_fixture_rows() {
+    use intarsia_core::dtype::{f32_to_fp8_e4m3, fp8_e4m3_to_f32};
+    let s = St::golden("layers_bf16_ci.safetensors");
+    let rows = s.get("bf16/L1/s0/engram.rows");
+    let v = rows.f32();
+    let (t, cols, dh) = (rows.shape[1], rows.shape[2], rows.shape[3]);
+    let rec_len = dh + dh / 32;
+    let mut rec = vec![0u8; t * cols * rec_len];
+    for (r, row) in v.chunks_exact(dh).enumerate() {
+        for (b, blk) in row.chunks_exact(32).enumerate() {
+            // the block's own scale is unknown; the smallest one that represents every value exactly (amax <= 448 * 2^(sc-127))
+            let amax = blk.iter().fold(0f32, |m, x| m.max(x.abs()));
+            let e = if amax == 0.0 { 0 } else { amax.log2().floor() as i32 };
+            let sc = (127 + e - 12..=127 + e)
+                .find(|&sc| {
+                    sc >= 1 && blk.iter().all(|x| fp8_e4m3_to_f32(f32_to_fp8_e4m3(x / 2f32.powi(sc - 127))) * 2f32.powi(sc - 127) == *x)
+                })
+                .expect("block not representable as e4m3 times a power of two");
+            rec[r * rec_len + dh + b] = sc as u8;
+            for (j, x) in blk.iter().enumerate() {
+                rec[r * rec_len + b * 32 + j] = f32_to_fp8_e4m3(x / 2f32.powi(sc - 127));
+            }
+        }
+    }
+    let hc = call(Op::EngramGather, vec![HostTensor::new(DType::U8, vec![t, cols, rec_len], rec).unwrap()], vec![OutSpec::new(DType::Bf16, &[t, cols * dh])], OpAttrs::default());
+    let e = check("EngramGather layer 1 rows (bf16)", &go(&hc)[0].to_f32(), &v, 0.0);
+    assert_eq!(e.n_diff, 0);
+}
