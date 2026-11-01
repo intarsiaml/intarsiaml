@@ -906,9 +906,11 @@ def verify_chunking(env, layer_id, x, flow, chunk_schedules, outdir=None, tag="v
     _, a_off = fresh()
     o_off = a_off.forward(x, 0)
     st_off = valid_state(a_off, N)
+    off_idx = M.shared_attn.topk_idxs.clone() if a_off.compress_ratio else None  # compressed picks, offset N
     # mine whole
     _, a_my = fresh()
-    o_my = attn_chunk(env, a_my, x, 0)
+    tp = Taps()
+    o_my = attn_chunk(env, a_my, x, 0, tp)
     st_my = valid_state(a_my, N)
     d, r = rel(o_my, o_off)
     rep["mine_whole_vs_official_whole_out"] = {"max_abs": d, "rel": r}
@@ -917,6 +919,23 @@ def verify_chunking(env, layer_id, x, flow, chunk_schedules, outdir=None, tag="v
     assert all(rep["mine_whole_vs_official_whole_state_bitequal"].values()), "cache state differs from the official code"
     if flow == "fp32":
         assert r < 1e-4, r  # bf16: indexer score ties may pick another (equally good) key than the official topk
+    if off_idx is not None and "indexer.score" in tp.d:
+        # do the indexer selections differ from the official topk only by ties? (equal-score keys swapped)
+        my_idx = tp.d["attn.idxs"][..., a_my.window_size :]
+        sc = tp.d["indexer.score"][0].float()
+        diff_rows = tie_rows = 0
+        for r in range(N):
+            a_ = set(off_idx[0, r][off_idx[0, r] >= 0].tolist())
+            a_ = {v - N for v in a_}
+            b_ = {v - (a_my.window_size + N) for v in my_idx[0, r][my_idx[0, r] >= 0].tolist()}
+            if a_ != b_:
+                diff_rows += 1
+                sa = torch.sort(sc[r, sorted(a_)]).values
+                sb = torch.sort(sc[r, sorted(b_)]).values
+                tie_rows += int(a_.__len__() == b_.__len__() and torch.equal(sa, sb))
+        rep["indexer_selection_vs_official"] = {"rows": N, "rows_with_different_set": diff_rows, "of_which_equal_score_swaps_only": tie_rows}
+        log(f"{tag}: indexer picks differ from the official topk in {diff_rows}/{N} rows, {tie_rows} of them only by equal-score swaps")
+        assert tie_rows == diff_rows, "mine and the official indexer disagree beyond ties"
     # official prefill N-3 + 3 decode steps
     _, a_dec = fresh()
     a_dec.forward(x[:, : N - 3], 0)
@@ -1206,7 +1225,7 @@ def cmd_ci(a):
                 keep[k] = nbytes if fl == "bf16" and (k in ("ids", "token_map") or k.startswith(("hash_ids", "engram/"))) else None
                 continue
             _, L, st, name = k.split("/", 3)
-            big = nbytes > 1_300_000
+            big = nbytes > (700_000 if fl == "bf16" else 1_300_000)
             if fl == "bf16":
                 ok = (L == "L2" and st == "s0" and not big) or (L == "L1" and st == "s0" and name.startswith("engram.")) \
                     or name in ("out.h", "ffn.gate_idx", "ffn.gate_w") or (st != "s0" and L == "L2" and not big)
@@ -1333,7 +1352,7 @@ def main():
     ap.add_argument("--tokens", type=int, default=4095)
     ap.add_argument("--flows", default="both", choices=["both", "bf16", "fp32"])
     ap.add_argument("--quant", default="tf", choices=["tf", "nofake", "official"])
-    ap.add_argument("--budget-mb", type=float, default=12)
+    ap.add_argument("--budget-mb", type=float, default=15)
     ap.add_argument("--cache-gb", type=float, default=16)
     ap.add_argument("--max-seq-len", type=int, default=4352)
     a = ap.parse_args()

@@ -76,7 +76,7 @@ notice travels), **ADAPT** keep structure, change interfaces/numerics, **REWRITE
 | # | Piece | TensorFold | Official | Notes / verdict |
 |---|---|---|---|---|
 | E1 | Hash (token map, multipliers, primes, rolling XOR, rows) | `D/engram.zig:66-131` (`Hasher`, `hashes()` `:103-126`), primes `:48-63` (Miller-Rabin), offsets `:78-90`, row = `@mod(rolling, prime) + offset` wrapping i64 `:116-121`; **host side, both ranks hash everything**, prefill `D/prompt.zig:1522/1563`, decode `D/round.zig:1653-1678`; multipliers come from `<kit>/engram.json` made by `tools/dsv41-zig/rec/zrec_fixtures.py:105-120` (numpy `default_rng(10007*layer)`); token map from `dsv41_token_map.json` (`D/model.zig:383-384`); image tokens negative = DEAD (`:112`) | `ep:9-14, 17-61, 64-83, 160-184` | **ADAPT**: algorithm identical. **Verified here: the official `build_compressed_token_map` run on Mia's `tokenizer.json` is bit-identical to MiaAI's `dsv41_token_map.json`** (129,280 ids -> 99,092; fixture `token_map` in `layers_*.safetensors`). Draft tokens are hashed like any token in the verify window |
-| E2 | Table layout and fetch | the **official safetensors shards 47/48 as downloaded** (`D/engram_io.zig:20-79, 96-108`): `layers.{1,14}.engram.embed.weight` F8_E4M3 `[384,006,168 / 384,016,682, 256]`, `embed.scale` F8_E8M0 `[rows, 8]`, separate regions (weights 98.3 GB then scales 3.07 GB per layer; 2 reads per row, 4 KiB-aligned O_DIRECT spans into 8 KiB bounce slots `D/engram_aio.zig:12-14`). **Not row-sharded**: both nodes hold the full ~203 GB; TP2 splits the 24 hash *columns* (rank0 0-11, rank1 12-23) (`D/prompt.zig:1446-1451`, `D/plan.zig:34-36,193`) | `mp:296-325` shards rows over ranks + all_reduce | Default path: 64 `pread` threads via page cache (`engram_io.zig:140-290`); `TF_DS_ENGRAM_AIO=1`: raw `io_setup/io_submit/io_getevents` on O_DIRECT, polled reap (0.4-0.8 ms for a 6-row window claimed) (`engram_aio.zig:1-130, 225-255`); rings: decode 1024 slots x ceil(rows/16) x 8 KiB, prompt 4096 slots (`D/model.zig:397-406`); prefetch: decode `engramAhead` at round start, `engramLand` before the layer (`D/round.zig:1506-1530, 1683-1706`); prompt: next chunk read while GPU runs earlier layers, optional lead reader per Engram layer (`D/engram_lead.zig`, `TF_DS_ENGRAM_LEAD=1`). **No hot tier**: relies on the OS page cache or none. Failure paths (patch 0035) end the pair with exit 75 (`D/prompt.zig:1533-1546`). The old `~/dsv41-engram/engram-l*-r0of2.bin` files on spark1/spark2 (Oct 17, root-owned, 264 B interleaved rows, row-half per rank) are NOT what the Mia recipe reads; the fixture generator reads the official shards |
+| E2 | Table layout and fetch | the **official safetensors shards 47/48 as downloaded** (`D/engram_io.zig:20-79, 96-108`): `layers.{1,14}.engram.embed.weight` F8_E4M3 `[384,006,168 / 384,016,682, 256]`, `embed.scale` F8_E8M0 `[rows, 8]`, separate regions (weights 98.3 GB then scales 3.07 GB per layer; 2 reads per row, 4 KiB-aligned O_DIRECT spans into 8 KiB bounce slots `D/engram_aio.zig:12-14`). **Not row-sharded**: both nodes hold the full ~203 GB; TP2 splits the 24 hash *columns* (rank0 0-11, rank1 12-23) (`D/prompt.zig:1446-1451`, `D/plan.zig:34-36,193`) | `mp:296-325` shards rows over ranks + all_reduce | Default path: 64 `pread` threads via page cache (`engram_io.zig:140-290`); `TF_DS_ENGRAM_AIO=1`: raw `io_setup/io_submit/io_getevents` on O_DIRECT, polled reap (0.4-0.8 ms for a 6-row window claimed) (`engram_aio.zig:1-130, 225-255`); rings: decode 1024 slots x ceil(rows/16) x 8 KiB, prompt 4096 slots (`D/model.zig:397-406`); prefetch: decode `engramAhead` at round start, `engramLand` before the layer (`D/round.zig:1506-1530, 1683-1706`); prompt: next chunk read while GPU runs earlier layers, optional lead reader per Engram layer (`D/engram_lead.zig`, `TF_DS_ENGRAM_LEAD=1`). **No hot tier**: relies on the OS page cache or none. Failure paths (patch 0035) end the pair with exit 75 (`D/prompt.zig:1533-1546`). The pre-packed files `spark1:~/dsv41-engram/engram-l{1,14}-r0of2.bin` (Oct 17, root-owned; spark2 holds only `engram-l14-r1of2.bin` there) are **not** what the Mia recipe reads (it reads the official shards; spark2's `~/.cache/dsv41-tensorfold/engram-1bae0e10` is a copy of shards 47/48, same sizes as spark1's HF cache). Their layout, probed read-only: 4096-byte header (magic `DSV4ENG1`, version 1, row count 192,001,740 as LE u32 at byte 24), then rows of 264 B = 256 B FP8 payload + 8 B E8M0 scales **interleaved**, row `r` at `4096 + 264*r` (size 50,688,463,456 = 4096 + 192,001,740*264 exactly); payload and scales are byte-identical to the official shard rows (checked rows 0, 1, 2, 5000 of layer 1). `r0of2` = rank 0's first 192,001,740 rows. This interleaved 264 B row is the better NVMe read unit (one read per row instead of two) and matches the scope doc's A2 layout; origin of the packer unknown (UNVERIFIED which revision/tool wrote it). |
 | E3 | Merge (wkv, gate, add into 4 streams) | rows decoded on host: FP8 x 2^(scale-127) exact fp32 -> RNE bf16 (`D/engram.zig:135-170`, `e4m3 :185`, `bf16 :198`); `wkv` = EXL3 linear **split-K by hash column** (3072 in x 25,600 out per rank), fp32 partials summed in rank order and rounded to bf16 (`D/prompt.zig:135-138`, `D/ops.zig:106`, `K/dsv41_ops.cu:16`); gate = Triton `_engram_gate` (source absent, `BLOCK=1024, D=5120`, `D/tri_basic.zig:59-61`, called `D/prompt.zig:1616`, `D/round.zig:1573`), `engram_qk = q_weight*k_weight` precomputed fp32 (`D/weights.zig:83,528`) | `mp:328-365` (gate: fp32 rstd per hc copy, `copysign(sqrt(clamp_min(|dot|, 1e-6)), dot)`, sigmoid) | ADAPT; hardcodes 2 ranks (`notPorted` otherwise). Single-rank port can do the full matmul and skip the exchange. Gate kernel must be checked against `mp:350-365` (fixtures) |
 
 ### 3.2 DSpark / MTP draft
@@ -176,3 +176,46 @@ and a `NOTICE` section listing the patch authors.
   running TensorFold; the fixtures in `golden/dsv41/` + the goldens (token-level today) are the instruments.
 * UNVERIFIED: that the Python family repo `deepseek-v41-tp2` (Triton sources) is public; not cloned here.
 * UNVERIFIED: GPU behaviour of the CPU emulations in `tools/dsv41/fixtures.py` (`CpuKernels`).
+
+## 8. Fixtures (tools/dsv41/fixtures.py, golden/dsv41/)
+
+Generator: DeepSeek's official `model.py`/`engram.py` on CPU, `kernel.py` replaced by pure-torch `CpuKernels` (act_quant,
+fp4_act_quant, sparse_attn, hc_split_sinkhorn; **not bit-checked against the GPU kernels**, none available), real Mia
+EXL3 2.9 bpw weights decoded with TensorFold's numpy decoder (float64, rotate - W_q - rotate in 16-row blocks),
+Engram rows read by `pread` from official shards 47/48. Run on spark1 in fleetq slots (`--load cpu --mem 30-34`);
+generator inputs/outputs live in `spark1:~/dsv41-fixtures/{in,out}`; `out/manifest.json` (sha256, sizes) is copied to
+`golden/dsv41/manifest.json`. Quantisation flavour `--quant tf` (default): the fp8 fake-quant of `o` before `wo_a` is OFF
+(neither EXL3 nor TensorFold has it); `nofake` also drops the indexer-query fp4; `official` keeps all. Outputs in
+`out/nofake/` use `nofake`.
+
+| File (spark1 `~/dsv41-fixtures/out/`) | Size | Committed? |
+|---|---|---|
+| `layers_bf16.safetensors`, `layers_fp32.safetensors`: layers 0-2, prefill of 16 tokens + 2 single-token decode steps, taps at every sublayer boundary (hc mixes/pre/post/comb incl. Sinkhorn, norms, attention q/kv/latent/idxs/o_sparse/o_lora, indexer k/score, router weights+indices, routed/shared/combined MoE, Engram hash ids/rows/wkv/gate, `out.h`), plus `ids`, `token_map` (129,280), Engram primes/offsets/multipliers | 27.7 MB / 51.7 MB | subset `golden/dsv41/layers_{bf16,fp32}_ci.safetensors` (9.5 / 5.3 MB) |
+| `router_gate_L2.safetensors`: gate weight/bias/bias_vl + input + image_mask (rows 4-10 use `bias_vl`) + outputs | 4.1 MB | no (spark1) |
+| `attn4k_L2_bf16_full.safetensors` (+ `_report.json`): layer-2 attention on a 4,095-token prompt, whole vs chunked (1024/512/1000/777) vs official `Attention.forward`, caches | 128.6 MB | report only |
+| `sparse_attn_4k_bf16.safetensors`: ten rows of sparse attention (q, gathered kv, idxs, sink, o) incl. window/compressed positions | 3.1 MB | no |
+| `attn1k/*_fp32*`: same, fp32 flow, 1,023 tokens | 64.5 + 3.7 MB | report only |
+| `nofake/*`: the `layers`/router fixtures with the indexer-query fp4 off | 83.6 MB | no |
+| `golden/dsv41/ops.safetensors` (synthetic, any machine): fp8/fp4 fake-quant, Sinkhorn, hc_pre/post, candidate blocks, sparse_attn with -1 and an all-masked row, RoPE/YaRN cos/sin out to position 1,048,575, inverse RoPE | 1.6 MB | yes |
+
+Sanity checks (all asserted by the generator or run on the outputs):
+
+* Sublayer-tapped block == official `Block.forward`: layers 0/1/2 bf16 rel 1.0e-4 / 0 / 1.0e-3, fp32 rel 2.6e-8 / 3.9e-9 / 3.2e-8.
+* Hidden-state norms after layers 0/1/2 (hc streams of 16 tokens, `out.h`): bf16 192.4 / 1323.5 / 1457.1, fp32 192.4 / 1321.6 / 1455.4,
+  abs max 9.3 / 60.5 / 60.1; no NaN/Inf. bf16 vs fp32 relative difference after layer 0: 4.2e-3.
+* Router (layer 2, 16 tokens): top-6 expert sets agree with an independent float64 recomputation in 16/16 rows including
+  the `bias_vl` rows 4-10 (7 rows pick different experts than with `bias`), weights agree to 4e-7.
+* Engram token map from the official function on Mia's `tokenizer.json` == MiaAI's `dsv41_token_map.json` (bit-identical).
+* Attention (layer 2, ratio 2, 4,095 tokens, bf16): caches (window ring, compressed KV, index K, compressor state)
+  bit-identical between the official code, my chunk-general code and chunk schedules {1024, 512, 1000, 777}; outputs
+  bit-identical for all chunk sizes in bf16 (fp32: <= 3e-8 relative; BLAS shape noise). Official prefill(N) vs prefill(N-3) + 3 decode steps:
+  caches bit-identical, last-3 outputs differ rel 6.9e-3 in bf16 (matmul batch shape).
+* The official `topk(sorted=False)` differs from a stable sort in 1,013/4,095 rows, **all of them only equal-score swaps**
+  (bf16 scores tie often): the port must define tie-breaking explicitly; the fixture's selection uses lowest-index-first.
+* Official Compressor/`_window_kv`/Indexer/`select_candidate_blocks` only support prefill from position 0 and 1-token decode;
+  `attn_chunk` generalises them. Candidate blocks (layer 20+) are covered by `ops.safetensors` only, not by a layer run
+  (layers 0-2 do not reach them).
+
+Not covered: the EXL3 kernels' own numerics (weights decoded in float64, so fixtures are the exact-math target, GPU EXL3
+kernels will differ by fp16/bf16 rounding), layers >= 3, DSpark/MTP blocks, 16K+ positions (candidate blocks, top-512
+engages past about 16K compressed positions; `ops` covers the selector only).
