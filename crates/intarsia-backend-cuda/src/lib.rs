@@ -11,6 +11,7 @@
 //! returns `Error::Unsupported`.
 
 pub mod disable;
+pub mod dsv41;
 pub mod exl3;
 pub mod hostmem;
 pub mod kernels;
