@@ -33,3 +33,18 @@ pub fn run(call: &OpCall) -> Result<()> {
     }
     write_f32(&o[0], &out)
 }
+
+/// cpu implementation of `Op::MoeExperts` in the EXL3 encoding (`intarsia_core::quant::exl3_moe`): the f64 math of
+/// `exl3_moe::forward` (each (token, slot) pair's expert in parallel, summed per token in slot order), rounded once to the
+/// output dtype. A bad codebook, width or arena offset is an error.
+pub fn run_moe(call: &OpCall) -> Result<()> {
+    use intarsia_core::quant::exl3_moe::{self, View};
+    let (i, o) = (&call.inputs, &call.outputs);
+    let (t, h, inter, e, k) = exl3_moe::dims(call);
+    let v = View::new(e, h, inter, bytes(&i[3])?, bytes(&i[4])?, bytes(&i[5])?, bytes(&i[6])?, bytes(&i[7])?)?;
+    let x = read_f32(&i[0])?;
+    let ids: Vec<i32> = bytes(&i[1])?.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+    let wts = read_f32(&i[2])?;
+    let out = exl3_moe::forward(&v, &x, &ids, &wts, t, k, &|n, f| (0..n).into_par_iter().map(f).collect())?;
+    write_f32(&o[0], &out.iter().map(|v| *v as f32).collect::<Vec<_>>())
+}

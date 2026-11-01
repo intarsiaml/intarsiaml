@@ -53,8 +53,9 @@ fn mia_graph_records_every_layer_with_the_official_structure() {
     let count = |l: usize, op: Op| layer_ops(&g, l).iter().filter(|&&o| o == op).count();
     // every layer: two hyper-connection sub-blocks, MQA with sink over the window, 8 wo_a group slices, routed + shared MoE
     for l in 0..40 {
-        assert_eq!((count(l, Op::HcMixes), count(l, Op::HcPre), count(l, Op::HcPost)), (2, 2, 2), "layer {l}");
-        assert_eq!((count(l, Op::WindowKv), count(l, Op::AttnSparse), count(l, Op::MoeRoute), count(l, Op::MoeExpertsExl3)), (1, 1, 1, 1), "layer {l}");
+        let tap = usize::from(l >= 37);
+        assert_eq!((count(l, Op::HcMixes), count(l, Op::HcPre), count(l, Op::HcPost)), (2, 2 + tap, 2), "layer {l}");
+        assert_eq!((count(l, Op::WindowKv), count(l, Op::AttnSparse), count(l, Op::MoeRoute), count(l, Op::MoeExperts)), (1, 1, 1, 1), "layer {l}");
         assert_eq!(count(l, Op::Transpose01), 2, "layer {l}");
     }
     // compressors on the KV sources only (layer 20's ratio 1 is a plain projection), indexers on the index sources,
@@ -64,8 +65,11 @@ fn mia_graph_records_every_layer_with_the_official_structure() {
     assert_eq!(with(Op::IndexerTopk), [2, 8, 14, 20, 24, 28, 32, 36]);
     assert_eq!(with(Op::IndexerBlocks), [20]);
     assert_eq!(with(Op::EngramMerge), [1, 14]);
+    // the DSpark tap (mean over streams of the attention input) on the MTP target layers
+    let taps: Vec<usize> = (0..40).filter(|&l| g.stages[l + 1].steps.iter().any(|s| s.what.ends_with("dspark_tap"))).collect();
+    assert_eq!(taps, [37, 38, 39]);
     let steps: Vec<usize> = (0..40).map(|l| layer_ops(&g, l).len()).collect();
-    assert_eq!((steps[0], steps[1], steps[2], steps[3], steps[14], steps[20], steps[24], steps[39]), (39, 42, 54, 39, 57, 53, 44, 39));
+    assert_eq!((steps[0], steps[1], steps[2], steps[3], steps[14], steps[20], steps[24], steps[39]), (39, 42, 54, 39, 57, 53, 44, 40));
 
     // the indexers on 24..36 mask with layer 20's candidates; the others pass an empty mask
     let idx_cand = |l: usize| g.stages[l + 1].steps.iter().find(|s| s.op == Op::IndexerTopk).unwrap().inputs[3].shape.clone();
@@ -79,8 +83,23 @@ fn mia_graph_records_every_layer_with_the_official_structure() {
     assert_eq!(attn(0)[2].shape, [0, 512], "window-only layers attend no compressed rows");
     assert_eq!(attn(25)[2].buf, attn(20)[2].buf, "one shared slot for every ratio-1 layer");
 
+    // routed experts: MoeExperts in its EXL3 encoding (i16 arena, scales [E, 3H + 3I], meta [E, 8], codebook, limit)
+    let ex = |l: usize| g.stages[l + 1].steps.iter().find(|s| s.op == Op::MoeExperts).unwrap().inputs.clone();
+    let shapes: Vec<(DType, Vec<usize>)> = ex(0)[3..].iter().map(|a| (a.dtype, a.shape.clone())).collect();
+    // layer 0's experts are 3 bits: gate / up [320, 144, 48] and down [144, 320, 48] words, 384 experts
+    assert_eq!(shapes[0], (DType::I16, vec![384 * 3 * 320 * 144 * 48]));
+    assert_eq!(shapes[1..], [(DType::F16, vec![384, 3 * 5120 + 3 * 2304]), (DType::I32, vec![384, 8]), (DType::I32, vec![1]), (DType::F32, vec![1])]);
+    assert_eq!(ex(20)[3].shape, [384 * 3 * 320 * 144 * 32], "layer 20's experts are 2 bits");
+
     // state: 40 window rings, per KV source a compressor tail (ratio 2), the compressed KV and the index keys
     assert_eq!(g.slots.len(), 40 + 3 * 3 + 2);
+    // every ring can roll back 16 tokens (speculative verify): window 128 + 16 rows, ratio-2 tail 18 rows
+    for s in &g.slots {
+        if let SlotSpec::Ring { rows, margin, kind, .. } = s {
+            assert_eq!(*margin, 16);
+            assert_eq!(*rows, if *kind == intarsia_core::state::RingKind::WindowKv { 144 } else { 18 });
+        }
+    }
     let shared: Vec<(SharedKind, usize, Vec<usize>)> = g
         .slots
         .iter()
@@ -131,9 +150,11 @@ fn plan_show_lists_every_new_op_and_resolves_cpu_kernels() {
         assert_eq!(k, &format!("cpu_f32_{}", op.as_str()));
     }
     assert_eq!(ops["matmul_exl3"].1, 622);
-    assert_eq!(ops["hc_pre"].1, 81, "two per layer plus the collapse before the head");
+    assert_eq!(ops["hc_pre"].1, 84, "two per layer, the collapse before the head, three DSpark taps");
     let text = intarsia_core::dsv41::plan::render(&p);
-    assert!(text.contains("residual streams 4") && text.contains("compressed_kv") && text.contains("stub (lane 1b)"), "{text}");
+    // the routed experts are the EXL3 encoding of the existing MoeExperts, resolved to its cpu kernel; no stub on Mia
+    assert_eq!(ops["moe_experts"], ("cpu_f32_moe_experts".to_string(), 40));
+    assert!(text.contains("residual streams 4") && text.contains("compressed_kv") && !text.contains("stub (lane 1b)"), "{text}");
 }
 
 /// The trimmed index and quantisation config committed beside the fixture agree with its headers: same tensor names,

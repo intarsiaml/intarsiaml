@@ -129,6 +129,7 @@ pub fn run(call: &OpCall) -> Result<()> {
             }
             Ok(())
         }
+        Op::MoeExperts if intarsia_core::quant::exl3_moe::is_exl3(call) => crate::exl3_ref::run_moe(call),
         Op::MoeExperts => {
             let (t, h) = (i[0].shape[0], i[0].shape[1]);
             let k = i[1].shape[1];

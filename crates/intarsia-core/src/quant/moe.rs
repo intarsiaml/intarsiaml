@@ -61,7 +61,8 @@ pub struct SharedExpert {
     pub gate_logit: QTensor,
 }
 
-/// Stacked routed-expert weights (NVFP4, checkpoint layout per expert).
+/// Stacked routed-expert weights (NVFP4, checkpoint layout per expert), or the EXL3 encoding of the same five inputs
+/// (`quant::exl3_moe::load`: arena, scales, meta, codebook, limit).
 #[derive(Clone, Debug)]
 pub struct Experts {
     /// u8 `[E, 2I, H/2]`: rows `0..I` gate, `I..2I` up.
