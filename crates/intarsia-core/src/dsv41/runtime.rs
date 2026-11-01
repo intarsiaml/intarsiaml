@@ -18,7 +18,7 @@
 
 use super::config::Dsv41Config;
 use super::engram::{record_bytes, EngramTier, NgramHasher};
-use super::graph::{build_draft, build_markov, build_pass, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Stage, WeightShapes, VERIFY_MAX_ROWS};
+use super::graph::{build_absorb, build_draft, build_markov, build_pass, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Stage, WeightShapes, VERIFY_MAX_ROWS};
 use crate::backend::{Backend, Buffer, MemKind, TensorRef};
 use crate::comm::Comm;
 use crate::dtype::DType;
@@ -184,6 +184,7 @@ impl Dsv41Runtime {
                 graphs.push(build_draft(&cfg, &*shapes, GraphOpts { t: blk, pos0, act: opts.act, cap: opts.cap }, opts.tp)?);
             }
             graphs.push(build_markov(&cfg, &*shapes, opts.act)?);
+            graphs.push(build_absorb(&cfg, &*shapes, GraphOpts { t: opts.chunk, pos0: 0, act: opts.act, cap: opts.cap }, opts.tp)?);
         }
         for g in &graphs {
             for st in &g.stages {
@@ -437,7 +438,7 @@ impl Dsv41Runtime {
         ids[0] = first;
         let idx: Vec<u8> = dspark_idx(self.cfg.window, t, pos0).iter().flat_map(|v| v.to_le_bytes()).collect();
         let rank0 = self.comm.as_ref().is_none_or(|c| c.rank() == 0);
-        let logits = self.run_graph(&g, st, &ids, &[("host.dspark.idx", &idx)], rank0, p0)?;
+        let logits = self.run_graph(&g, st, t, &ids, &[("host.dspark.idx", &idx)], rank0, p0)?;
         if !rank0 {
             return Ok(None);
         }
@@ -447,7 +448,7 @@ impl Dsv41Runtime {
         let mut embeds: Vec<Vec<f32>> = Vec::with_capacity(t);
         let mg = build_markov(&self.cfg, &*self.shapes, self.opts.act)?;
         for i in 0..t {
-            let bias = self.run_graph(&mg, st, &[], &[("host.dspark.markov_id", &(out[i] as i32).to_le_bytes())], true, Instant::now())?.expect("markov bias");
+            let bias = self.run_graph(&mg, st, 1, &[], &[("host.dspark.markov_id", &(out[i] as i32).to_le_bytes())], true, Instant::now())?.expect("markov bias");
             let ex = self.exec.lock().unwrap();
             let e = ex.ws.get("dspark.markov_e").ok_or_else(|| Error::backend("no workspace dspark.markov_e"))?.clone();
             let rank = mg.stages[0].steps[0].outputs[0].shape[1];
@@ -478,19 +479,46 @@ impl Dsv41Runtime {
         Ok(Some(Draft { ids: out, confidence }))
     }
 
+    /// Feed the DSpark stage rings from `main_hidden` (`[t, taps * dim]` f32, the concatenated taps) at positions
+    /// `st.len ..` and append `t` placeholder rows to the sequence (tests and diagnosis: the model's passes absorb their
+    /// own taps). Every rank runs it.
+    pub fn absorb(&self, st: &mut SequenceState, main_hidden: &[f32]) -> Result<()> {
+        let n_taps = self.cfg.mtp.as_ref().map_or(0, |m| m.target_layer_ids.len());
+        let w = n_taps * self.cfg.dim;
+        if self.dspark == 0 || w == 0 || main_hidden.is_empty() || main_hidden.len() % w != 0 {
+            return Err(Error::invalid("deepseek_v41: absorb needs the DSpark stages and [t, taps * dim] rows"));
+        }
+        let t = main_hidden.len() / w;
+        if t > self.opts.chunk || st.len + t > self.opts.cap {
+            return Err(Error::invalid(format!("deepseek_v41: absorb of {t} rows at {}", st.len)));
+        }
+        let g = build_absorb(&self.cfg, &*self.shapes, GraphOpts { t, pos0: st.len, act: self.opts.act, cap: self.opts.cap }, self.opts.tp)?;
+        let b: Vec<u8> = match self.opts.act {
+            DType::F32 => main_hidden.iter().flat_map(|v| v.to_le_bytes()).collect(),
+            DType::Bf16 => main_hidden.iter().flat_map(|&v| half::bf16::from_f32(v).to_le_bytes()).collect(),
+            d => return Err(Error::invalid(format!("deepseek_v41: absorb in {d}"))),
+        };
+        self.run_graph(&g, st, t, &[], &[("host.dspark.mh", &b)], false, Instant::now())?;
+        st.commit(&vec![0; t]);
+        Ok(())
+    }
+
     /// One pass of `t = ids.len()` rows at position `st.len`.
     fn pass(&self, st: &mut SequenceState, ids: &[u32], want_logits: bool, all_rows: bool) -> Result<Option<Vec<f32>>> {
         let (t, pos0) = (ids.len(), st.len);
         let p0 = Instant::now();
         let k = PassKind { all_rows, absorb: self.opts.spec };
         let g = build_pass(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp, k)?;
-        self.run_graph(&g, st, ids, &[], want_logits, p0)
+        self.run_graph(&g, st, t, ids, &[], want_logits, p0)
     }
 
     /// Run graph `g` on `st` (its `t` rows at `st.len`): token ids `ids` (empty: none), the extra host inputs `host`
     /// (`(workspace name, bytes)`), Engram rows for the graph's Engram layers. Returns the graph's logits when asked.
-    fn run_graph(&self, g: &Dsv41Graph, st: &SequenceState, ids: &[u32], host: &[(&str, &[u8])], want_logits: bool, p0: Instant) -> Result<Option<Vec<f32>>> {
-        let (t, pos0) = (ids.len().max(1), st.len);
+    fn run_graph(&self, g: &Dsv41Graph, st: &SequenceState, t: usize, ids: &[u32], host: &[(&str, &[u8])], want_logits: bool, p0: Instant) -> Result<Option<Vec<f32>>> {
+        let pos0 = st.len;
+        if !ids.is_empty() && ids.len() != t {
+            return Err(Error::invalid(format!("deepseek_v41: {} ids for a graph of {t} rows", ids.len())));
+        }
         self.touch();
         let mut ex = self.exec.lock().unwrap();
         // host inputs: token ids, the extras

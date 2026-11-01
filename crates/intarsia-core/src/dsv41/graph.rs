@@ -525,9 +525,10 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     }
     let n_layers = tp.layers.map_or(c.n_layers, |l| l.min(c.n_layers));
     let (slot_specs, lslots, rings) = slots(c, w, act, k.absorb);
+    // a truncated model (`--layers` below the target layers: tests) keeps the drafting layout but has no taps to absorb
     let absorb = k.absorb && dspark_absorbs(c, w, n_layers);
-    if k.absorb && !absorb {
-        return Err(Error::Unsupported("deepseek_v41: DSpark absorb without its stages and target layers".into()));
+    if k.absorb && dspark_stages(c, w) == 0 {
+        return Err(Error::Unsupported("deepseek_v41: DSpark absorb without the DSpark stages".into()));
     }
     let n_taps = c.mtp.as_ref().map_or(0, |m| m.target_layer_ids.len());
     let mut stages = Vec::new();
@@ -654,6 +655,22 @@ fn head_logits(b: &mut Builder, x: Arg, name: &str) -> Result<Arg> {
     b.extra(Extra::AllGather { send: local, recv: g.clone() });
     b.push(Op::Transpose01, format!("{name}.gather(row-major)"), vec![g], vec![Arg { shape: vec![rows, w, v], ..full.clone() }], OpAttrs::default());
     Ok(full)
+}
+
+/// The DSpark absorb of `t` rows on its own (tests and diagnosis): host input `dspark.mh` (`[t, taps * dim]`, the
+/// concatenated taps) instead of the target layers' taps; writes the stage rings at positions `pos0 ..`.
+pub fn build_absorb(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp) -> Result<Dsv41Graph> {
+    let n_taps = c.mtp.as_ref().map_or(0, |m| m.target_layer_ids.len());
+    if dspark_stages(c, w) == 0 {
+        return Err(Error::Unsupported("deepseek_v41: the DSpark stages are not loaded".into()));
+    }
+    let (slot_specs, _, rings) = slots(c, w, o.act, true);
+    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new() };
+    let mh = arg(Buf::Host("dspark.mh".into()), o.act, &[o.t, n_taps * c.dim]);
+    dspark_absorb(&mut b, mh, &rings)?;
+    let st = b.stage("dspark absorb".into(), None, vec![format!("main_proj + {} stage rings", rings.len())]);
+    let logits = ws("dspark.mxn", o.act, &[o.t, c.dim]);
+    Ok(Dsv41Graph { stages: vec![st], slots: slot_specs, residual_streams: c.hc_mult, mtp: mtp_blocks(c, w), cap: o.cap, logits, world: tp.world })
 }
 
 /// `main_x = main_norm(main_proj(main_hidden))` of the chunk's rows, then per stage `i` the window KV of every row
@@ -788,6 +805,12 @@ fn dspark_attention(b: &mut Builder, i: usize, ring: usize, n: &Arg) -> Result<A
     let o = ws("o", act, &[t, h, hd]);
     b.push(Op::AttnSparse, format!("{p}.sparse_attn"), vec![q, winbuf.clone(), winbuf, idx, sink], vec![o.clone()], OpAttrs { window: win, pos0, scale: (hd as f32).powf(-0.5), ..Default::default() });
     let o = b.rope(o, l, pos0, 1, true, Buf::Ws("o_derot".into()), &format!("{p}.rope_inverse(o)"));
+    // the fp8 round trip before wo_a only in the FP8 checkpoint's mode, as in the model's attention
+    let o = if matches!(c.quant, Dsv41Quant::Fp8 { .. }) {
+        b.qdq(Arg { shape: vec![t, c.o_groups / b.tp.world, h * hd * b.tp.world / c.o_groups], ..o }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("o_q".into()), &format!("{p}.act_quant(o)"))
+    } else {
+        o
+    };
     let oa = wo_a(b, &p, o)?;
     b.matmul_reduced(oa, &format!("{p}.wo_b"), "blk", act)
 }

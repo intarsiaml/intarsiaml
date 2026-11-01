@@ -267,3 +267,71 @@ fn few_layer_runtime_matches_the_official_layer_outputs() {
 fn cuda_backend() -> Arc<dyn Backend> {
     intarsia_backend_cuda::create(0).expect("cuda backend")
 }
+
+fn to_f32s(b: &[u8], dtype: DType) -> Vec<f32> {
+    match dtype {
+        DType::F32 => b.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect(),
+        _ => b.chunks_exact(2).map(|c| f32::from_bits((u16::from_le_bytes([c[0], c[1]]) as u32) << 16)).collect(),
+    }
+}
+
+/// DSpark drafting rounds against the official drafter (`tools/dsv41/fixtures.py dspark`: 16 seed rows absorbed, then 3
+/// rounds of one absorbed row + a 5-row block): the head input, the head's logits at the official top-64 ids, the drafts
+/// (Markov loop, greedy) and the confidences. `INTARSIA_DSV41_CACHE` = a world-1 rank cache with its DSpark sub-cache
+/// (`intarsia dsv41-cache --mtp-only`), `INTARSIA_DSV41_FIXTURES` = the dir with `layers_bf16.safetensors` (for the Engram
+/// tier the loader wants) and `dspark_{fp32,bf16}.safetensors` (else the CI cuts in `golden/dsv41` are used).
+#[test]
+fn dspark_rounds_match_the_official_drafter() {
+    let (Some(cache), Some(fxd)) = (std::env::var_os("INTARSIA_DSV41_CACHE").map(PathBuf::from), std::env::var_os("INTARSIA_DSV41_FIXTURES").map(PathBuf::from)) else {
+        println!("skipped: set INTARSIA_DSV41_CACHE (with its mtp sub-cache) and INTARSIA_DSV41_FIXTURES");
+        return;
+    };
+    let cuda = std::env::var("INTARSIA_DSV41_BACKEND").as_deref() == Ok("cuda");
+    let golden = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../golden/dsv41");
+    let fx = St::open(&fxd.join("layers_bf16.safetensors"));
+    for (flow, act) in [("fp32", DType::F32), ("bf16", DType::Bf16)] {
+        if cuda && act == DType::F32 {
+            println!("DSPARK {flow}: skipped on cuda (bf16 activations only)");
+            continue;
+        }
+        let full = fxd.join(format!("dspark_{flow}.safetensors"));
+        let ds = St::open(&if full.exists() { full } else { golden.join(format!("dspark_{flow}_ci.safetensors")) });
+        let backend: Arc<dyn Backend> = if cuda { cuda_backend() } else { intarsia_backend_cpu::CpuBackend::arc() };
+        let o = Dsv41Opts { cap: 512, chunk: 16, engram_dir: PathBuf::new(), hot_mb: 0, act, spec: true };
+        let (rt, _) = load_runtime_with(&cache, backend, None, &o, Some(fixture_engram(&fx, 0, 1))).unwrap();
+        assert_eq!(rt.dspark, 3, "the sub-cache's three stages");
+        let (d, v) = (rt.cfg.dim, rt.cfg.vocab);
+        let mh = ds.get("in/main_hidden").f32();
+        let w = mh.len() / 19;
+        let ids: Vec<u32> = ds.get("in/input_ids").i32().into_iter().map(|x| x as u32).collect();
+        let mut st = rt.new_state().unwrap();
+        rt.absorb(&mut st, &mh[..16 * w]).unwrap();
+        let (mut same_ids, mut worst_hx, mut worst_lg, mut worst_conf) = (0, 0f64, 0f64, 0f64);
+        for (j, &first) in ids.iter().enumerate() {
+            rt.absorb(&mut st, &mh[(16 + j) * w..(17 + j) * w]).unwrap();
+            let dr = rt.draft(&st, first).unwrap().expect("rank 0 drafts");
+            let r = format!("r{j}");
+            let want_ids: Vec<u32> = ds.get(&format!("{r}/head.output_ids")).i32().into_iter().map(|x| x as u32).collect();
+            let hx = to_f32s(&rt.read_ws("dspark.hx", act, 5 * d).unwrap(), act);
+            let (_, hx_rr) = err(&hx, &ds.get(&format!("{r}/head.x")).f32());
+            // the head's raw logits (before the Markov bias) at the official top-64 ids of every row
+            let lg = to_f32s(&rt.read_ws("dspark.logits", DType::F32, 5 * v).unwrap(), DType::F32);
+            let (ti, tv) = (ds.get(&format!("{r}/head.logits_raw_top64.i")).i32(), ds.get(&format!("{r}/head.logits_raw_top64.v")).f32());
+            let got: Vec<f32> = ti.iter().enumerate().map(|(k, &id)| lg[(k / 64) * v + id as usize]).collect();
+            let (_, lg_rr) = err(&got, &tv);
+            let want_conf = ds.get(&format!("{r}/head.confidence")).f32();
+            let conf = dr.confidence.iter().zip(&want_conf).fold(0f64, |m, (a, b)| m.max((a - b).abs() as f64));
+            println!("DSPARK {flow} round {j}: ids {:?} official {want_ids:?}; head.x rel_rms {hx_rr:.3e}, top-64 raw logits rel_rms {lg_rr:.3e}, confidence max |diff| {conf:.3e} ({:?} vs {want_conf:?})", dr.ids, dr.confidence);
+            same_ids += dr.ids.iter().zip(&want_ids).skip(1).take_while(|(a, b)| a == b).count();
+            (worst_hx, worst_lg, worst_conf) = (worst_hx.max(hx_rr), worst_lg.max(lg_rr), worst_conf.max(conf));
+        }
+        println!("DSPARK {flow}: leading drafts equal {same_ids}/15, worst head.x {worst_hx:.3e}, logits {worst_lg:.3e}, confidence {worst_conf:.3e}");
+        if act == DType::F32 {
+            assert!(worst_hx < 1e-3 && worst_lg < 1e-3, "fp32 drafter parity: head.x {worst_hx:.3e}, logits {worst_lg:.3e}");
+            assert_eq!(same_ids, 15, "fp32: every draft equals the official one");
+            assert!(worst_conf < 1e-2, "fp32 confidence {worst_conf:.3e}");
+        } else {
+            assert!(worst_hx < 5e-2 && worst_lg < 5e-2, "bf16 drafter parity: head.x {worst_hx:.3e}, logits {worst_lg:.3e}");
+        }
+    }
+}
