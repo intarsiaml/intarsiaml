@@ -443,6 +443,23 @@ fn verify_rows_track_decode_through_rollback() {
     let (n_prompt, n_cont, cap) = (knob("INTARSIA_DSV41_VT_PROMPT", 110), knob("INTARSIA_DSV41_VT_TOKENS", 64), knob("INTARSIA_DSV41_VT_CAP", 512));
     let o = Dsv41Opts { cap, chunk: 64, engram_dir: PathBuf::from("off"), hot_mb: 0, act, spec: true };
     let (rt, _) = load_runtime_with(&cache, backend, None, &o, None).unwrap();
+    let (worst, worst_at, argmax_diff, mut all) = verify_track(&rt, n_prompt, n_cont, true);
+    println!("VERIFY worst rel_rms {worst:.3e} at position {worst_at}; argmax differs at {argmax_diff:?}");
+    if act == DType::F32 && !cuda {
+        assert!(worst < 1e-5 && argmax_diff.is_empty(), "f32 verify rows differ from decode: {worst:.3e} at {worst_at}");
+    } else {
+        // bf16: ~5e-3 to 1e-2 per row on the 3-layer cache; a routing near-tie that flips one expert gives a spike
+        // (cuda, 2026-11-01: 0.18 at one of 64 rows) that decays over the next rows
+        all.sort_by(f64::total_cmp);
+        let median = all[all.len() / 2];
+        println!("VERIFY median rel_rms {median:.3e}");
+        assert!(median < 2e-2 && worst < 0.3, "verify rows far from decode: median {median:.3e}, worst {worst:.3e} at {worst_at}");
+    }
+}
+
+/// The teacher-forced loop of [`verify_rows_track_decode_through_rollback`] on one runtime (every rank of a group runs
+/// it in lockstep): `(worst rel_rms, its position, positions whose argmax differs, every kept row's rel_rms)`.
+fn verify_track(rt: &intarsia_core::dsv41::runtime::Dsv41Runtime, n_prompt: usize, n_cont: usize, print: bool) -> (f64, usize, Vec<usize>, Vec<f64>) {
     let toks = |n: usize, s: usize| -> Vec<u32> { (0..n).map(|i| [301u32, 270, 8331, 1205, 778, 12345, 1137, 15, 3000, 4321][(i * 7 + i / 10 + s) % 10]).collect() };
     let (prompt, cont) = (toks(n_prompt, 0), toks(n_cont, 3));
     let rel = |a: &[f32], b: &[f32]| -> f64 {
@@ -478,21 +495,48 @@ fn verify_rows_track_decode_through_rollback() {
             if r > worst {
                 (worst, worst_at) = (r, prompt.len() + i + k);
             }
-            println!("VERIFY pos {} ({}, row {k}): rel_rms {r:.3e}", prompt.len() + i + k, if accept { "accepted" } else { "rejected" });
+            if print {
+                println!("VERIFY pos {} ({}, row {k}): rel_rms {r:.3e}", prompt.len() + i + k, if accept { "accepted" } else { "rejected" });
+            }
         }
         sb.truncate(len0 + keep, &*rt.backend).unwrap();
         i += keep;
         round += 1;
     }
-    println!("VERIFY worst rel_rms {worst:.3e} at position {worst_at}; argmax differs at {argmax_diff:?}");
-    if act == DType::F32 && !cuda {
-        assert!(worst < 1e-5 && argmax_diff.is_empty(), "f32 verify rows differ from decode: {worst:.3e} at {worst_at}");
-    } else {
-        // bf16: ~5e-3 to 1e-2 per row on the 3-layer cache; a routing near-tie that flips one expert gives a spike
-        // (cuda, 2026-11-01: 0.18 at one of 64 rows) that decays over the next rows
-        all.sort_by(f64::total_cmp);
-        let median = all[all.len() / 2];
-        println!("VERIFY median rel_rms {median:.3e}");
-        assert!(median < 2e-2 && worst < 0.3, "verify rows far from decode: median {median:.3e}, worst {worst:.3e} at {worst_at}");
+    (worst, worst_at, argmax_diff, all)
+}
+
+/// [`verify_rows_track_decode_through_rollback`] at TP=2: two in-process ranks on the cpu backend (`HostCommGroup`),
+/// each running the same decode / verify / truncate sequence on its own shard, f32. Rank 0's verify rows must equal its
+/// decode logits exactly, so the sharded verify pass and the truncate of every rank's slots are exact. (The tp_remote
+/// TCP path that carries `Truncate` to a remote rank is not in this test.) `INTARSIA_DSV41_CACHE_R0` / `_R1`: the two
+/// rank caches of one `--layers N` build, each with its DSpark sub-cache; Engram off.
+#[test]
+fn verify_rows_track_decode_through_rollback_two_ranks() {
+    let (Some(c0), Some(c1)) = (std::env::var_os("INTARSIA_DSV41_CACHE_R0").map(PathBuf::from), std::env::var_os("INTARSIA_DSV41_CACHE_R1").map(PathBuf::from)) else {
+        println!("skipped: set INTARSIA_DSV41_CACHE_R0 and INTARSIA_DSV41_CACHE_R1 (with their mtp sub-caches)");
+        return;
+    };
+    let knob = |k: &str, d: usize| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+    let (n_prompt, n_cont, cap) = (knob("INTARSIA_DSV41_VT_PROMPT", 110), knob("INTARSIA_DSV41_VT_TOKENS", 64), knob("INTARSIA_DSV41_VT_CAP", 512));
+    let backends: Vec<Arc<dyn Backend>> = vec![intarsia_backend_cpu::CpuBackend::arc(), intarsia_backend_cpu::CpuBackend::arc()];
+    let comms = intarsia_core::comm::HostCommGroup::new(backends.clone());
+    let hs: Vec<_> = [c0, c1]
+        .into_iter()
+        .enumerate()
+        .map(|(r, cache)| {
+            let (b, c) = (backends[r].clone(), comms[r].clone());
+            std::thread::spawn(move || {
+                let o = Dsv41Opts { cap, chunk: 64, engram_dir: PathBuf::from("off"), hot_mb: 0, act: DType::F32, spec: true };
+                let (rt, m) = load_runtime_with(&cache, b, Some(c), &o, None).unwrap();
+                assert_eq!((m.rank, m.world), (r, 2));
+                verify_track(&rt, n_prompt, n_cont, r == 0)
+            })
+        })
+        .collect();
+    let res: Vec<_> = hs.into_iter().map(|h| h.join().unwrap()).collect();
+    for (r, (worst, worst_at, argmax_diff, all)) in res.iter().enumerate() {
+        println!("VERIFY TP2 rank {r}: {} rows, worst rel_rms {worst:.3e} at position {worst_at}; argmax differs at {argmax_diff:?}", all.len());
+        assert!(*worst < 1e-5 && argmax_diff.is_empty(), "rank {r}: f32 TP=2 verify rows differ from decode: {worst:.3e} at {worst_at}");
     }
 }
