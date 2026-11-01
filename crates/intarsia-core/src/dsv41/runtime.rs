@@ -648,6 +648,18 @@ impl Dsv41Runtime {
                 self.backend.synchronize(0)?;
                 self.opprof_add(t, kname, t0);
             }
+            if let Some(d) = dump_dir() {
+                // INTARSIA_DSV41_DUMP=<dir>: every op's outputs after it ran (cross-backend diffs, tools/dsv41/dumpdiff.py)
+                self.backend.synchronize(0)?;
+                let n = DUMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                for (k, o) in call.outputs.iter().enumerate() {
+                    let bytes = self.backend.download_row_major(o)?;
+                    let what: String = step.what.chars().map(|ch| if ch.is_ascii_alphanumeric() || ch == '.' || ch == '_' { ch } else { '-' }).collect();
+                    let shape = o.shape.iter().map(|x| x.to_string()).collect::<Vec<_>>().join("x");
+                    let f = d.join(format!("{n:05}-{what}-o{k}.{}.{shape}.bin", format!("{:?}", o.dtype).to_lowercase()));
+                    std::fs::write(&f, &bytes).map_err(|e| Error::backend(format!("dump {}: {e}", f.display())))?;
+                }
+            }
         }
         for (_, e) in extras {
             self.extra(ex, e, st, t)?;
@@ -940,4 +952,16 @@ impl crate::tp_remote::RankModel for Dsv41Runtime {
         let first = *ids.first().ok_or_else(|| Error::invalid("deepseek_v41: a drafting round without its first id"))?;
         self.draft(st, first).map(|_| ())
     }
+}
+
+static DUMP_SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+fn dump_dir() -> Option<&'static std::path::Path> {
+    static D: std::sync::OnceLock<Option<std::path::PathBuf>> = std::sync::OnceLock::new();
+    D.get_or_init(|| {
+        let d = std::path::PathBuf::from(std::env::var_os("INTARSIA_DSV41_DUMP")?);
+        std::fs::create_dir_all(&d).ok()?;
+        Some(d)
+    })
+    .as_deref()
 }

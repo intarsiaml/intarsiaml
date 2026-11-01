@@ -291,6 +291,9 @@ fn dspark_rounds_match_the_official_drafter() {
     let fx = St::open(&fxd.join("layers_bf16.safetensors"));
     let mut fails = Vec::new();
     for (flow, act) in [("fp32", DType::F32), ("bf16", DType::Bf16)] {
+        if std::env::var("INTARSIA_DSPARK_FLOW").is_ok_and(|f| f != flow) {
+            continue;
+        }
         if cuda && act == DType::F32 {
             println!("DSPARK {flow}: skipped on cuda (bf16 activations only)");
             continue;
