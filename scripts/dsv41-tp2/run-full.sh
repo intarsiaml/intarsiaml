@@ -119,7 +119,7 @@ fi
 if [[ " $STEPS " == *" neartie "* ]]; then
   # intarsia's top-20 at each first divergence from TensorFold's greedy golden (coordinator's near-tie check)
   NT_TF=${NT_TF:-/opt/code/intarsiaml/.worktrees/dsv41-golden-tf/tok-tensorfold-mia.st}
-  NT_IA=${NT_IA:-$REPO/.scratch/full-w1/tok-intarsia-tp2.st}
+  NT_IA=${NT_IA:-$REPO/docs/results/2026-11-01-dsv41-tp2/tok-intarsia-tp2-w12-specoff.st}
   log "near-tie probe: $NT_TF vs $NT_IA"
   python3 "$S/neartie.py" "$NT_TF" "$NT_IA" "$SURL/v1" dsv41-intarsia "$OUT/neartie.md" 2>&1 | tee -a "$OUT/steps.log"
 fi
@@ -127,7 +127,7 @@ if [[ " $STEPS " == *" golden "* ]]; then
   sn=$(specn)
   # greedy token ids on the golden prompt set (tools/prompts/golden*.jsonl), same format as TensorFold's goldens
   # (tools/dsv41/golden_tf.py tokens); compare later with `golden_tf.py compare A B`
-  TOK=${TOKENIZER:-$REPO/.scratch/cache/l3-r0of1/tokenizer.json}
+  TOK=${TOKENIZER:-/opt/code/intarsiaml/.worktrees/dsv41-official/mia/tokenizer.json}
   ( cd "$REPO" && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run --with numpy --with safetensors --with tokenizers python tools/dsv41/golden_tf.py tokens \
       --base-url $SURL/v1 --model dsv41-intarsia --no-draft-field --tokenizer "$TOK" --out "$OUT/tok-intarsia-tp2.st" \
       --note "intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') TP=2 cap ${CAP:-32768} chunk ${CHUNK:-512}" ) 2>&1 | tee -a "$OUT/steps.log"
