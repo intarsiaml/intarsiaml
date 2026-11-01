@@ -302,6 +302,8 @@ impl Layout {
                     attn.push(AttnLayout { slot: i, heads: *n_kv_heads, head_dim: *head_dim, elem: dtype.size_bytes() })
                 }
                 SlotSpec::Recurrent { bytes } => rec.push((i, *bytes)),
+                // DeepSeek-V4.1's ring and shared slots are not stored (refused in `check`)
+                SlotSpec::Ring { .. } | SlotSpec::Shared { .. } => {}
             }
         }
         let rec_bytes = rec.iter().map(|r| r.1).sum();
@@ -313,6 +315,9 @@ impl Layout {
     }
 
     fn check(&self, st: &SequenceState) -> Result<()> {
+        if st.slots.iter().any(|s| matches!(s, StateSlot::Ring(_) | StateSlot::Shared(_))) {
+            return Err(Error::Unsupported("prefix store of DeepSeek-V4.1 ring / shared state slots".into()));
+        }
         let ok = self.attn.iter().all(|a| match st.slots.get(a.slot) {
             Some(StateSlot::AttnKv(s)) => s.n_kv_heads == a.heads && s.head_dim == a.head_dim && s.dtype.size_bytes() == a.elem,
             _ => false,

@@ -146,7 +146,7 @@ impl Model {
         let conv_dt = self.backend.gdn_conv_dtype();
         let rec = match &st.slots[g.slot] {
             StateSlot::Recurrent(r) => r,
-            StateSlot::AttnKv(_) => return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot")),
+            StateSlot::AttnKv(_) | StateSlot::Ring(_) | StateSlot::Shared(_) => return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot")),
         };
         let conv_state = TensorRef::new(rec.buf.clone(), conv_dt, &[c, ks - 1]);
         let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
@@ -224,7 +224,7 @@ impl Model {
             for sg in segs {
                 let rec = match &sg.st.slots[g.slot] {
                     StateSlot::Recurrent(r) => r,
-                    StateSlot::AttnKv(_) => return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot")),
+                    StateSlot::AttnKv(_) | StateSlot::Ring(_) | StateSlot::Shared(_) => return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot")),
                 };
                 let conv_state = TensorRef::new(rec.buf.clone(), conv_dt, &[c, ks - 1]);
                 let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
