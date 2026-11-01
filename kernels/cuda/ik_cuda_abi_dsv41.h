@@ -29,6 +29,16 @@ int ik_hc_pre(const ik_tensor* x, const ik_tensor* mix, ik_tensor* y, void* stre
 int ik_hc_post(const ik_tensor* x, const ik_tensor* res, const ik_tensor* post, const ik_tensor* comb, ik_tensor* y,
                void* stream);
 
+/* hc_sublayer: the fused sublayer entry (Op::HcSublayer). x [T,S,D], fn / scale / base as hc_mixes, pre_in f32 [T,S] (the
+ * previous sublayer's pre-mix), norm_w [D] (x's dtype or f32), then post_x [T,D], post_mix f32 [T,S], post_comb f32 [T,S,S]
+ * (the fold: h = hc_post(post_x, x, post_mix, post_comb), stored to h_out [T,S,D]) or post_x null / empty -> n [T,D] =
+ * rmsnorm(hc_pre(h, pre_in), norm_w), pre / post f32 [T,S], comb f32 [T,S,S] = hc_mixes(h). S <= 4, S*D % 4 == 0, D <= 12288.
+ * Scratch: f32 partials [T, nsplit, (2+S)S + 1] (`hc_sub_nsplit`, mirrored on the Rust side). Two launches. */
+int ik_hc_sublayer(const ik_tensor* x, const ik_tensor* fn, const ik_tensor* scale, const ik_tensor* base, const ik_tensor* pre_in,
+                   const ik_tensor* norm_w, const ik_tensor* post_x, const ik_tensor* post_mix, const ik_tensor* post_comb, float eps,
+                   float w_offset, int64_t iters, float hc_eps, ik_tensor* n, ik_tensor* pre, ik_tensor* post, ik_tensor* comb,
+                   ik_tensor* h_out, const ik_scratch* scratch, void* stream);
+
 /* moe_route: logits f32 [T,E], bias f32 [E] -> weights f32 [T,K], ids i32 [T,K]. score_func 0 softmax, 1 sigmoid, 2
  * sqrt(softplus); experts = top-K of score + bias (ties to the lower index), weights = score[experts] (normalised by their
  * sum + 1e-20 when norm_topk and K > 1) * scale. E <= 1024, K <= 32. */

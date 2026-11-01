@@ -1,7 +1,7 @@
 // DeepSeek-V4.1 hyper-connections: hc_expand, hc_mixes (projection + RMS statistic + split + 4x4 Sinkhorn, all f32 as
 // Block.hc_mixes / hc_split_sinkhorn, model.py:950-957, kernel.py:406-475), hc_pre, hc_post (model.py:959-968).
 // Contract: docs/design/dsv41-ops.md. Written from the official inference code (MIT, DeepSeek).
-#include "dsv41_common.cuh"
+#include "dsv41_hc.cuh"
 
 using namespace dsv41;
 
@@ -74,10 +74,8 @@ __global__ void __launch_bounds__(kThreads) hc_mix_partial(const T* __restrict__
     }
 }
 
-IK_DEVI float sigmoidf_(float v) { return 1.f / (1.f + expf(-v)); }
-
-// one warp per row: lane j sums split column j in split order; lane 0 then runs the split and hc_split_sinkhorn with S a
-// compile-time constant (registers only)
+// one warp per row: lane j sums split column j in split order; the warp then runs the split and the Sinkhorn
+// (hc_split_sinkhorn_warp, one lane per comb entry, S a compile-time constant)
 template <int S>
 __global__ void hc_mix_finish(const float* __restrict__ part, int64_t rows, int64_t sd, int nsplit, const float* __restrict__ scale,
                               const float* __restrict__ base, float eps, int iters, float hc_eps, float* __restrict__ pre,
@@ -92,63 +90,7 @@ __global__ void hc_mix_finish(const float* __restrict__ part, int64_t rows, int6
         for (int sp = 0; sp < nsplit; ++sp) v += part[(r * nsplit + sp) * (M + 1) + lane];
     sm[wi][lane] = v;
     __syncwarp();
-    if (lane != 0) return;
-    float mix[M];
-    const float rs = 1.f / sqrtf(sm[wi][M] / (float)sd + eps);
-#pragma unroll
-    for (int j = 0; j < M; ++j) mix[j] = sm[wi][j] * rs;
-    const float s0 = scale[0], s1 = scale[1], s2 = scale[2];
-#pragma unroll
-    for (int j = 0; j < S; ++j) {
-        pre[r * S + j] = sigmoidf_(mix[j] * s0 + base[j]) + hc_eps;
-        post[r * S + j] = 2.f * sigmoidf_(mix[S + j] * s1 + base[S + j]);
-    }
-    float c[S * S];
-#pragma unroll
-    for (int j = 0; j < S * S; ++j) c[j] = mix[2 * S + j] * s2 + base[2 * S + j];
-    // comb = softmax(comb, -1) + eps; comb = comb / (comb.sum(-2) + eps)
-#pragma unroll
-    for (int j = 0; j < S; ++j) {
-        float mx = -INFINITY;
-#pragma unroll
-        for (int k = 0; k < S; ++k) mx = fmaxf(mx, c[j * S + k]);
-        float sum = 0.f;
-#pragma unroll
-        for (int k = 0; k < S; ++k) {
-            c[j * S + k] = expf(c[j * S + k] - mx);
-            sum += c[j * S + k];
-        }
-#pragma unroll
-        for (int k = 0; k < S; ++k) c[j * S + k] = c[j * S + k] / sum + hc_eps;
-    }
-#pragma unroll
-    for (int k = 0; k < S; ++k) {
-        float sum = 0.f;
-#pragma unroll
-        for (int j = 0; j < S; ++j) sum += c[j * S + k];
-#pragma unroll
-        for (int j = 0; j < S; ++j) c[j * S + k] /= sum + hc_eps;
-    }
-    for (int it = 1; it < iters; ++it) {
-#pragma unroll
-        for (int j = 0; j < S; ++j) {
-            float sum = 0.f;
-#pragma unroll
-            for (int k = 0; k < S; ++k) sum += c[j * S + k];
-#pragma unroll
-            for (int k = 0; k < S; ++k) c[j * S + k] /= sum + hc_eps;
-        }
-#pragma unroll
-        for (int k = 0; k < S; ++k) {
-            float sum = 0.f;
-#pragma unroll
-            for (int j = 0; j < S; ++j) sum += c[j * S + k];
-#pragma unroll
-            for (int j = 0; j < S; ++j) c[j * S + k] /= sum + hc_eps;
-        }
-    }
-#pragma unroll
-    for (int j = 0; j < S * S; ++j) comb[r * S * S + j] = c[j];
+    hc_split_sinkhorn_warp<S>(sm[wi], sd, scale, base, eps, iters, hc_eps, pre + r * S, post + r * S, comb + r * S * S);
 }
 
 template <typename Ti, typename To>

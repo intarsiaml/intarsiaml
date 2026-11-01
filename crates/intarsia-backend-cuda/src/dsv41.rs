@@ -16,6 +16,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("hc_mixes", Op::HcMixes),
     ("hc_pre", Op::HcPre),
     ("hc_post", Op::HcPost),
+    ("hc_sublayer", Op::HcSublayer),
     ("moe_route", Op::MoeRoute),
     ("silu_glu_clamp", Op::SiluGluClamp),
     ("act_qdq", Op::ActQdq),
@@ -55,6 +56,23 @@ fn hc_mixes_scratch(s: &ShapeInfo) -> usize {
     s.m * hc_nsplit(s.m, s.n * s.k) * (m + 1) * 4
 }
 
+// ---- hc_sublayer split policy (mirrors `hc_sub_nsplit` in kernels/cuda/dsv41_hc_sub.cu) ----
+const HC_SUB_TILE_ROWS: usize = 16;
+const HC_SUB_CHUNK: usize = 128;
+const HC_SUB_TARGET_BLOCKS: usize = 1536;
+
+/// Splits of hc_sublayer's partial kernel for `rows` rows of `sd` flattened elements.
+pub fn hc_sub_nsplit(rows: usize, sd: usize) -> usize {
+    let tiles = rows.div_ceil(HC_SUB_TILE_ROWS).max(1);
+    HC_SUB_TARGET_BLOCKS.div_ceil(tiles).clamp(1, sd.div_ceil(HC_SUB_CHUNK).max(1))
+}
+
+/// hc_sublayer scratch: f32 partials `[T, nsplit, (2+S)S + 1]` (ShapeInfo: m = T, n = S, k = D).
+fn hc_sub_scratch(s: &ShapeInfo) -> usize {
+    let m = (2 + s.n) * s.n;
+    s.m * hc_sub_nsplit(s.m, s.n * s.k) * (m + 1) * 4
+}
+
 // ---- attn_sparse split policy (mirrors kernels/cuda/dsv41_attn.cu) ----
 /// Most query rows that run split-KV (above: one block per query and head group, no scratch).
 pub const ATTN_SPLIT_ROWS: usize = 16;
@@ -78,12 +96,25 @@ pub const INDEX_SCORE_BUDGET: usize = 128 << 20;
 /// Indexer scratch: one tile of head-summed score rows. A decode step needs `4 Nk` bytes (512 KiB at Nk = 128K); a prefill
 /// chunk is cut into tiles of `INDEX_SCORE_BUDGET / (4 Nk)` queries, so the buffer never exceeds the budget (or one row).
 /// The launcher takes as many query rows per tile as the scratch it is given holds, so any buffer of at least `4 Nk` bytes
-/// serves a call (ShapeInfo: m = T, kv_len = Nk).
+/// serves a call. `indexer_topk` with few long rows (T <= 16, Nk >= 16384) also gets the multi-block threshold select's
+/// buffers (histogram, candidates: 41 KiB per row); without them it falls back to the one-block select (ShapeInfo: m = T,
+/// kv_len = Nk).
 pub fn index_scratch(s: &ShapeInfo) -> usize {
     let row = s.kv_len.max(1) * 4;
     let rows = (INDEX_SCORE_BUDGET / row).clamp(1, s.m.max(1));
-    rows * row
+    let mut bytes = rows * row;
+    if s.m <= INDEX_FAST_ROWS && s.kv_len >= INDEX_FAST_MIN_N {
+        bytes = bytes.div_ceil(256) * 256 + s.m * INDEX_FAST_EXTRA_PER_ROW + INDEX_FAST_SLACK;
+    }
+    bytes
 }
+
+// ---- the multi-block threshold select (mirrors kernels/cuda/dsv41_index.cu: kFastRows, kFastMinN, fast_extra) ----
+const INDEX_FAST_ROWS: usize = 16;
+const INDEX_FAST_MIN_N: usize = 16384;
+/// Histogram (2048 u32) + meta (16 B) + candidates (4096 x 8 B) per row.
+const INDEX_FAST_EXTRA_PER_ROW: usize = 2048 * 4 + 16 + 4096 * 8;
+const INDEX_FAST_SLACK: usize = 1024;
 
 fn pow2_le(v: usize, max: usize) -> bool {
     v.is_power_of_two() && v <= max
@@ -98,6 +129,11 @@ pub fn all() -> Vec<KernelImpl> {
                 // copies: bitwise the reference
                 "hc_expand" => k.exact(Exactness::Exact).tol(Tol::EXACT),
                 "hc_mixes" => k.when(|s| s.n >= 1 && s.n <= 4).tol(F32_TOL).scratch(hc_mixes_scratch),
+                "hc_sublayer" => k
+                    .when(|s| (1..=4).contains(&s.n) && (s.n * s.k) % 4 == 0 && s.k <= 12288)
+                    .tol(BF16_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(hc_sub_scratch),
                 "hc_pre" | "hc_post" => k.when(|s| s.n >= 1 && s.n <= 8).tol(BF16_TOL).tol_f32(F32_TOL),
                 "moe_route" => k.acts([DType::F32]).when(|s| s.experts <= 1024 && (1..=32).contains(&s.top_k)).tol(F32_TOL),
                 "silu_glu_clamp" => k.tol(BF16_TOL).tol_f32(F32_TOL),
@@ -146,6 +182,28 @@ mod launch {
         fn ik_hc_mixes(x: T, f: T, scale: T, base: T, eps: f32, iters: i64, hc_eps: f32, pre: TM, post: TM, comb: TM, sc: SC, s: S) -> c_int;
         fn ik_hc_pre(x: T, mix: T, y: TM, s: S) -> c_int;
         fn ik_hc_post(x: T, res: T, post: T, comb: T, y: TM, s: S) -> c_int;
+        fn ik_hc_sublayer(
+            x: T,
+            f: T,
+            scale: T,
+            base: T,
+            pre_in: T,
+            norm_w: T,
+            post_x: T,
+            post_mix: T,
+            post_comb: T,
+            eps: f32,
+            w_offset: f32,
+            iters: i64,
+            hc_eps: f32,
+            n: TM,
+            pre: TM,
+            post: TM,
+            comb: TM,
+            h_out: TM,
+            sc: SC,
+            s: S,
+        ) -> c_int;
         fn ik_moe_route(lg: T, bias: T, top_k: i64, scale: f32, norm: i32, temp: f32, sf: i32, w: TM, ids: TM, s: S) -> c_int;
         fn ik_silu_glu_clamp(g: T, u: T, limit: f32, y: TM, s: S) -> c_int;
         fn ik_act_qdq(x: T, fmt: i32, block: i64, sfmt: i32, y: TM, s: S) -> c_int;
@@ -226,6 +284,28 @@ mod launch {
                     "hc_mixes" => ik_hc_mixes(i(0), i(1), i(2), i(3), a.eps, d.iters as i64, d.hc_eps, on(0), on(1), on(2), sc, s),
                     "hc_pre" => ik_hc_pre(i(0), i(1), on(0), s),
                     "hc_post" => ik_hc_post(i(0), i(1), i(2), i(3), on(0), s),
+                    "hc_sublayer" => ik_hc_sublayer(
+                        i(0),
+                        i(1),
+                        i(2),
+                        i(3),
+                        i(4),
+                        i(5),
+                        i(6),
+                        i(7),
+                        i(8),
+                        a.eps,
+                        a.w_offset,
+                        d.iters as i64,
+                        d.hc_eps,
+                        on(0),
+                        on(1),
+                        on(2),
+                        on(3),
+                        on(4),
+                        sc,
+                        s,
+                    ),
                     "moe_route" => {
                         ik_moe_route(i(0), i(1), a.top_k as i64, a.scale, a.norm_topk as i32, a.temperature, sf, on(0), on(1), s)
                     }
@@ -288,13 +368,21 @@ mod tests {
     #[test]
     fn index_scratch_holds_a_row_and_stays_in_budget() {
         let s = |m, nk| ShapeInfo { m, kv_len: nk, ..ShapeInfo::default() };
-        assert_eq!(index_scratch(&s(1, 131072)), 131072 * 4);
+        assert_eq!(index_scratch(&s(1, 4096)), 4096 * 4);
+        assert_eq!(index_scratch(&s(1, 131072)), 131072 * 4 + INDEX_FAST_EXTRA_PER_ROW + INDEX_FAST_SLACK);
         assert_eq!(index_scratch(&s(4096, 131072)), INDEX_SCORE_BUDGET);
         assert_eq!(index_scratch(&s(4096, 1 << 26)), (1 << 26) * 4, "one row at least");
         for nk in (1..300_000).step_by(997) {
             let b = index_scratch(&s(4096, nk));
             assert!(b >= nk * 4 && b <= INDEX_SCORE_BUDGET.max(nk * 4), "nk {nk}");
         }
+    }
+
+    #[test]
+    fn hc_sub_nsplit_policy() {
+        assert_eq!(hc_sub_nsplit(1, 4 * 5120), 160);
+        assert_eq!(hc_sub_nsplit(4096, 4 * 5120), 6);
+        assert_eq!(hc_sub_nsplit(17, 256), 2);
     }
 
     #[test]

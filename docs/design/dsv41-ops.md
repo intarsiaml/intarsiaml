@@ -69,6 +69,7 @@ them with that error (`crates/intarsia-backend-cpu/tests/admission.rs` asserts b
 | 59 | `MatmulFp8Block` | x `[M,K]` float, w `[N,K]` e4m3, w_scale `[ceil(N/b), K/b]` u8 (E8M0) -> `[M,N]` | `dsv.block` (32; the activation is quantised to e4m3 per `b` elements with a ue8m0 scale first) | `linear` `model.py:181`, `fp8_gemm` `kernel.py:208-308` | **stub** |
 | 60 | `EngramGather` | records `[T,C,Dh+Dh/32]` u8 (per row: `Dh` e4m3 bytes, then `Dh/32` E8M0 scale bytes; 264 B for Dh 256) -> `[T, C*Dh]` = payload * 2^(scale-127) | | `ParallelEngramEmbedding.forward` `model.py:296-326`; record layout from the plan review (2026-10-31) | ref |
 | 61 | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)D]` (S keys then one value), q_w `[S,D]`, k_w `[S,D]` -> `[T,S,D]` | `eps` (norm_eps) | `Engram.forward` `model.py:328-367` | ref |
+| 62 | `HcSublayer` | x `[T,S,D]`, fn, scale, base (as `HcMixes`), pre_in `[T,S]` f32, norm_w `[D]` (x's dtype or f32), then post_x `[T,D]`, post_mix `[T,S]` f32, post_comb `[T,S,S]` f32 **or** three `[0]` -> n `[T,D]`, pre `[T,S]`, post `[T,S]`, comb `[T,S,S]` (f32), h_out `[T,S,D]` **or** `[0]`. h = x, or with the fold h = `HcPost(post_x, x, post_mix, post_comb)` stored to h_out; (pre, post, comb) = `HcMixes(h)`; n = `RmsNorm(HcPre(h, pre_in), norm_w)` | `eps` (norm_eps: both the mixes' RMS and the norm), `w_offset`, `dsv.iters`, `dsv.hc_eps` | `Block.forward` `model.py:983-995` (`hc_post`, `hc_mixes`, `hc_pre`, `attn_norm` / `ffn_norm`) | ref (fused; added by lane cuda-attn) |
 
 ### Exact rules the references implement
 
@@ -98,6 +99,13 @@ them with that error (`crates/intarsia-backend-cpu/tests/admission.rs` asserts b
 - **MoeRoute**: `score = sqrt(softplus(logit / temperature))` (or sigmoid / softmax), experts = top-k of `score + bias`
   (ties to the lower index), weights = `score[experts]`, divided by their sum + 1e-20 when `norm_topk` and `K > 1`, times
   `scale`. Image-span tokens use `gate.bias_vl` instead of `gate.bias` (`Gate.forward` line 822); text-only passes `bias`.
+
+- **HcSublayer**: exactly the op sequence it replaces, every intermediate in the dtype the separate ops store it in: h
+  (fold) rounded to h_out's dtype, then `HcMixes(h)`, then y = `HcPre(h, pre_in)` rounded to n's dtype, then
+  `RmsNorm(y, norm_w)` with `eps` / `w_offset`. The cpu reference composes the separate references and
+  `crates/intarsia-backend-cpu/tests/dsv41_hc_sublayer.rs` asserts the fused outputs equal the sequence bit for bit. The
+  fold is all-or-nothing: post_x, post_mix, post_comb and h_out are all present, or all `[0]`. No output aliases an
+  input (pre / post / comb must not be the pre_in / post_mix / post_comb buffers).
 
 ### Ops that existing ones cover
 
@@ -142,6 +150,27 @@ norm -> attention -> `HcPost(attn post, comb)` -> `HcMixes(hc_ffn)` -> `HcPre(at
 `model.py:970`): layer 0's attention uses a constant one-hot `[1,0,0,0]` (`make_identity_pre_mix` `model.py:1162`), the
 head collapses with the last FFN's pre-mix (`Transformer.forward` line 1271). `plan show` reports
 `residual streams 4`. `ParallelHead.forward` (`model.py:1010`) is a plain f32 linear of the last row: no further mix.
+
+### Wiring the fused `HcSublayer` (for the graph owner)
+
+The graph still emits the separate ops; switching is local to `build` in `graph.rs` and changes no buffer or slot:
+
+- Attention sub-block of layer `l`: replace `HcMixes(hc_attn)` + `HcPre(attn)` + `RmsNorm(attn_norm)` by
+  `HcSublayer(x, hc_attn_fn, hc_attn_scale, hc_attn_base, pre_mix, attn_norm.weight, [0], [0], [0])` ->
+  (`n`, `hc_attn.pre`, `hc_attn.post`, `hc_attn.comb`, `[0]`), attrs `eps = norm_eps`, `dsv.iters`, `dsv.hc_eps`.
+- MoE sub-block: fold the attention's `HcPost`: drop `HcPost(attn)` and emit
+  `HcSublayer(x, hc_ffn_*, attn_pre, ffn_norm.weight, attn_out, attn_post, attn_comb)` -> (`n`, `hc_ffn.pre`,
+  `hc_ffn.post`, `hc_ffn.comb`, `flip(x)`), then `x = flip(x)` as before.
+- Next layer's attention may fold the FFN's `HcPost` the same way, except when something reads the streams between them:
+  an Engram layer (`EngramMerge` runs on the post-`HcPost` streams before the mixes) keeps the separate `HcPost`. The
+  DSpark tap reads the streams too; with the fold it must come after the `HcSublayer` (it reads `h_out`). The head keeps
+  `HcPost` + `HcPre(head)` + `RmsNorm` (no mixes there).
+- Fold at decode / verify only (`T <= 16`). On a 4096-row prefill chunk the fold is slower than the separate `HcPost`
+  (sm_121: fused 5.4 ms vs 5.05 ms separate) while the unfolded op still wins (2.76 ms vs 3.25 ms), so prefill graphs keep
+  `HcPost` separate and emit `HcSublayer` without the fold. Decode (sm_121, per rank): 16.4 us unfolded (separate 20.8),
+  18.4 us folded (separate 24.9).
+- The CUDA kernel takes `S <= 4`, `S*D % 4 == 0`, `D <= 12288`; its scratch is `hc_sub_scratch` in
+  `crates/intarsia-backend-cuda/src/dsv41.rs` (the plan reserves it like any kernel scratch).
 
 DSpark tap: before the attention of each MTP target layer (37, 38, 39) the graph records `HcPre` of the stream with the
 constant mix `1/S` into `main_hidden.{0,1,2}` (`h.mean(dim=2)`, `Transformer.forward` line 1269). Nothing reads it until
@@ -206,8 +235,10 @@ ops by name; the numbers below are what `Op as usize` returns and what admission
 | 47 | `HcPost` | 53 | `AttnSparse` | 59 | `MatmulFp8Block` |
 | 48 | `MoeRoute` | 54 | `CompressPool` | 60 | `EngramGather` |
 | 49 | `SiluGluClamp` | 55 | `IndexerBlocks` | 61 | `EngramMerge` |
+|  |  |  |  | 62 | `HcSublayer` (fused, appended later) |
 
-`Op::ALL` has 62 entries; `EngramMerge` is last. The next op anyone appends is 62.
+`Op::ALL` has 63 entries; `HcSublayer` (62, the fused hyper-connection sublayer entry, appended by lane cuda-attn at the
+coordinator's request) is last. The next op anyone appends is 63.
 
 ## Where the official code differs from the scope doc
 

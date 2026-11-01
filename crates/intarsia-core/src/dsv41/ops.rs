@@ -1,4 +1,4 @@
-//! The DeepSeek-V4.1 ops (`Op::HcExpand` .. `Op::EngramMerge`, appended once by lane 1a): their attributes, call checks
+//! The DeepSeek-V4.1 ops (`Op::HcExpand` .. `Op::EngramMerge`, appended once by lane 1a, plus the fused `Op::HcSublayer`): their attributes, call checks
 //! and shape facts. Exact semantics, shapes and the official function each one mirrors are in the `Op` doc table
 //! (`crate::ops`) and in `docs/design/dsv41-ops.md`, which is the contract the cpu reference (`intarsia-backend-cpu`'s
 //! `dsv41_ref`), the CUDA port and the Engram lane implement against.
@@ -55,7 +55,7 @@ pub struct DsvAttrs {
     pub limit: f32,
     /// `CompressPool`, `IndexerBlocks`, `IndexerTopk`: tokens per compressed row (`compress_ratios[layer]`, >= 1).
     pub ratio: usize,
-    /// `HcMixes`: Sinkhorn iterations (`hc_sinkhorn_iters`).
+    /// `HcMixes`, `HcSublayer`: Sinkhorn iterations (`hc_sinkhorn_iters`).
     pub iters: usize,
     /// `HcMixes`: the epsilon added inside the split and every Sinkhorn normalisation (`hc_eps`).
     pub hc_eps: f32,
@@ -94,7 +94,7 @@ impl Default for DsvAttrs {
 }
 
 /// The DeepSeek-V4.1 ops, in discriminant order (44 ..).
-pub const OPS: [Op; 18] = [
+pub const OPS: [Op; 19] = [
     Op::HcExpand,
     Op::HcMixes,
     Op::HcPre,
@@ -113,6 +113,7 @@ pub const OPS: [Op; 18] = [
     Op::MatmulFp8Block,
     Op::EngramGather,
     Op::EngramMerge,
+    Op::HcSublayer,
 ];
 
 /// Ops whose position comes from `attrs.pos0` or a device-side `OpCall::pos` (`i32 [1]`, rewritten before a captured
@@ -207,6 +208,46 @@ pub fn check(call: &OpCall) -> Result<()> {
             float(&i[0], "x")?;
             f32_(&i[1], "mix")?;
             float(&o[0], "y")?;
+        }
+        Op::HcSublayer => {
+            rank(&i[0], 3, "x")?;
+            let (t, s, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+            let m = (2 + s) * s;
+            if i[1].shape != [m, s * d] || i[2].shape != [3] || i[3].shape != [m] {
+                return bad(op, format!("fn {:?} scale {:?} base {:?}: need [{m},{}], [3], [{m}]", i[1].shape, i[2].shape, i[3].shape, s * d));
+            }
+            if i[4].shape != [t, s] || i[5].shape != [d] {
+                return bad(op, format!("pre_in {:?} norm_w {:?}: need [T,S], [D]", i[4].shape, i[5].shape));
+            }
+            if o[0].shape != [t, d] || o[1].shape != [t, s] || o[2].shape != [t, s] || o[3].shape != [t, s, s] {
+                return bad(op, format!("n {:?} pre {:?} post {:?} comb {:?}: need [T,D], [T,S], [T,S], [T,S,S]", o[0].shape, o[1].shape, o[2].shape, o[3].shape));
+            }
+            // the HcPost fold: all of post_x, post_mix, post_comb, h_out present, or all four empty `[0]`
+            let empty = |x: &crate::backend::TensorRef| x.shape == [0];
+            let fold = !empty(&i[6]);
+            if fold {
+                if i[6].shape != [t, d] || i[7].shape != [t, s] || i[8].shape != [t, s, s] || o[4].shape != [t, s, d] {
+                    return bad(
+                        op,
+                        format!("fold: post_x {:?} post_mix {:?} post_comb {:?} h_out {:?}: need [T,D], [T,S], [T,S,S], [T,S,D]", i[6].shape, i[7].shape, i[8].shape, o[4].shape),
+                    );
+                }
+                float(&i[6], "post_x")?;
+                f32_(&i[7], "post_mix")?;
+                f32_(&i[8], "post_comb")?;
+                float(&o[4], "h_out")?;
+            } else if !empty(&i[7]) || !empty(&i[8]) || !empty(&o[4]) {
+                return bad(op, "without the fold post_mix, post_comb and h_out must be empty [0]".into());
+            }
+            float(&i[0], "x")?;
+            float(&i[5], "norm_w")?;
+            float(&o[0], "n")?;
+            for (t, w) in [(&i[1], "fn"), (&i[2], "scale"), (&i[3], "base"), (&i[4], "pre_in"), (&o[1], "pre"), (&o[2], "post"), (&o[3], "comb")] {
+                f32_(t, w)?;
+            }
+            if a.dsv.iters == 0 {
+                return bad(op, "iters must be >= 1".into());
+            }
         }
         Op::HcPost => {
             rank(&i[0], 2, "x")?;
@@ -435,7 +476,7 @@ pub fn shape(call: &OpCall, s: &mut ShapeInfo) {
             s.k = first(&i[0], 1);
             s.n = first(&o[0], 1);
         }
-        Op::HcMixes | Op::HcPre | Op::EngramMerge => {
+        Op::HcMixes | Op::HcPre | Op::EngramMerge | Op::HcSublayer => {
             s.m = first(&i[0], 0);
             s.n = first(&i[0], 1);
             s.k = first(&i[0], 2);

@@ -28,6 +28,86 @@ fn wr(t: &TensorRef, v: &[f64]) -> Result<()> {
     write_f32(t, &f)
 }
 
+/// `v` rounded to `dt` (what writing it to a `dt` tensor and reading it back gives).
+fn round_to(dt: intarsia_core::DType, v: &[f64]) -> Vec<f64> {
+    let f: Vec<f32> = v.iter().map(|x| *x as f32).collect();
+    let mut bytes = vec![0u8; f.len() * dt.size_bytes()];
+    intarsia_core::dtype::encode_from_f32(dt, &f, &mut bytes);
+    let mut back = vec![0f32; f.len()];
+    intarsia_core::dtype::decode_to_f32(dt, &bytes, &mut back);
+    back.into_iter().map(|x| x as f64).collect()
+}
+
+/// Block.hc_mixes + kernel.py hc_split_sinkhorn on `t` rows of `s` streams of width `d`: (pre, post, comb).
+#[allow(clippy::too_many_arguments)]
+fn hc_mixes(x: &[f64], f: &[f64], sc: &[f64], base: &[f64], t: usize, s: usize, d: usize, norm_eps: f64, eps: f64, iters: usize) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
+    let (m, sd) = ((2 + s) * s, s * d);
+    let (mut pre, mut post, mut comb) = (vec![0f64; t * s], vec![0f64; t * s], vec![0f64; t * s * s]);
+    for r in 0..t {
+        let xr = &x[r * sd..(r + 1) * sd];
+        let rs = 1.0 / (xr.iter().map(|v| v * v).sum::<f64>() / sd as f64 + norm_eps).sqrt();
+        let mix: Vec<f64> = (0..m).map(|j| f[j * sd..(j + 1) * sd].iter().zip(xr).map(|(p, q)| p * q).sum::<f64>() * rs).collect();
+        for j in 0..s {
+            pre[r * s + j] = sigmoid(mix[j] * sc[0] + base[j]) + eps;
+            post[r * s + j] = 2.0 * sigmoid(mix[s + j] * sc[1] + base[s + j]);
+        }
+        let mut c: Vec<f64> = (0..s * s).map(|j| mix[2 * s + j] * sc[2] + base[2 * s + j]).collect();
+        for row in c.chunks_mut(s) {
+            let mx = row.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            row.iter_mut().for_each(|v| *v = (*v - mx).exp());
+            let sum: f64 = row.iter().sum();
+            row.iter_mut().for_each(|v| *v = *v / sum + eps);
+        }
+        let col_norm = |c: &mut Vec<f64>| {
+            for k in 0..s {
+                let sum: f64 = (0..s).map(|j| c[j * s + k]).sum();
+                (0..s).for_each(|j| c[j * s + k] /= sum + eps);
+            }
+        };
+        col_norm(&mut c);
+        for _ in 1..iters {
+            for row in c.chunks_mut(s) {
+                let sum: f64 = row.iter().sum();
+                row.iter_mut().for_each(|v| *v /= sum + eps);
+            }
+            col_norm(&mut c);
+        }
+        comb[r * s * s..(r + 1) * s * s].copy_from_slice(&c);
+    }
+    (pre, post, comb)
+}
+
+/// Block.hc_pre: y[r] = sum_c mix[r,c] x[r,c].
+fn hc_pre(x: &[f64], mix: &[f64], t: usize, s: usize, d: usize) -> Vec<f64> {
+    let mut y = vec![0f64; t * d];
+    for r in 0..t {
+        for c in 0..s {
+            let m = mix[r * s + c];
+            for e in 0..d {
+                y[r * d + e] += m * x[(r * s + c) * d + e];
+            }
+        }
+    }
+    y
+}
+
+/// Block.hc_post: y[r,k] = post[r,k] x[r] + sum_j comb[r,j,k] res[r,j].
+fn hc_post(x: &[f64], res: &[f64], post: &[f64], comb: &[f64], t: usize, s: usize, d: usize) -> Vec<f64> {
+    let mut y = vec![0f64; t * s * d];
+    for r in 0..t {
+        for k in 0..s {
+            for e in 0..d {
+                let mut v = post[r * s + k] * x[r * d + e];
+                for j in 0..s {
+                    v += comb[(r * s + j) * s + k] * res[(r * s + j) * d + e];
+                }
+                y[(r * s + k) * d + e] = v;
+            }
+        }
+    }
+    y
+}
+
 fn sigmoid(x: f64) -> f64 {
     1.0 / (1.0 + (-x).exp())
 }
@@ -116,40 +196,7 @@ pub fn run(call: &OpCall) -> Result<()> {
             // Block.hc_mixes + kernel.py hc_split_sinkhorn
             let (t, s, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
             let (x, f, sc, base) = (rd(&i[0])?, rd(&i[1])?, rd(&i[2])?, rd(&i[3])?);
-            let (m, sd) = ((2 + s) * s, s * d);
-            let eps = a.dsv.hc_eps as f64;
-            let (mut pre, mut post, mut comb) = (vec![0f64; t * s], vec![0f64; t * s], vec![0f64; t * s * s]);
-            for r in 0..t {
-                let xr = &x[r * sd..(r + 1) * sd];
-                let rs = 1.0 / (xr.iter().map(|v| v * v).sum::<f64>() / sd as f64 + a.eps as f64).sqrt();
-                let mix: Vec<f64> = (0..m).map(|j| f[j * sd..(j + 1) * sd].iter().zip(xr).map(|(p, q)| p * q).sum::<f64>() * rs).collect();
-                for j in 0..s {
-                    pre[r * s + j] = sigmoid(mix[j] * sc[0] + base[j]) + eps;
-                    post[r * s + j] = 2.0 * sigmoid(mix[s + j] * sc[1] + base[s + j]);
-                }
-                let mut c: Vec<f64> = (0..s * s).map(|j| mix[2 * s + j] * sc[2] + base[2 * s + j]).collect();
-                for row in c.chunks_mut(s) {
-                    let mx = row.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-                    row.iter_mut().for_each(|v| *v = (*v - mx).exp());
-                    let sum: f64 = row.iter().sum();
-                    row.iter_mut().for_each(|v| *v = *v / sum + eps);
-                }
-                let col_norm = |c: &mut Vec<f64>| {
-                    for k in 0..s {
-                        let sum: f64 = (0..s).map(|j| c[j * s + k]).sum();
-                        (0..s).for_each(|j| c[j * s + k] /= sum + eps);
-                    }
-                };
-                col_norm(&mut c);
-                for _ in 1..a.dsv.iters {
-                    for row in c.chunks_mut(s) {
-                        let sum: f64 = row.iter().sum();
-                        row.iter_mut().for_each(|v| *v /= sum + eps);
-                    }
-                    col_norm(&mut c);
-                }
-                comb[r * s * s..(r + 1) * s * s].copy_from_slice(&c);
-            }
+            let (pre, post, comb) = hc_mixes(&x, &f, &sc, &base, t, s, d, a.eps as f64, a.dsv.hc_eps as f64, a.dsv.iters);
             wr(&o[0], &pre)?;
             wr(&o[1], &post)?;
             wr(&o[2], &comb)
@@ -157,33 +204,30 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::HcPre => {
             let (t, s, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
             let (x, mix) = (rd(&i[0])?, rd(&i[1])?);
-            let mut y = vec![0f64; t * d];
-            for r in 0..t {
-                for c in 0..s {
-                    let m = mix[r * s + c];
-                    for e in 0..d {
-                        y[r * d + e] += m * x[(r * s + c) * d + e];
-                    }
-                }
-            }
-            wr(&o[0], &y)
+            wr(&o[0], &hc_pre(&x, &mix, t, s, d))
         }
         Op::HcPost => {
             let (t, s, d) = (i[1].shape[0], i[1].shape[1], i[1].shape[2]);
             let (x, res, post, comb) = (rd(&i[0])?, rd(&i[1])?, rd(&i[2])?, rd(&i[3])?);
-            let mut y = vec![0f64; t * s * d];
-            for r in 0..t {
-                for k in 0..s {
-                    for e in 0..d {
-                        let mut v = post[r * s + k] * x[r * d + e];
-                        for j in 0..s {
-                            v += comb[(r * s + j) * s + k] * res[(r * s + j) * d + e];
-                        }
-                        y[(r * s + k) * d + e] = v;
-                    }
-                }
+            wr(&o[0], &hc_post(&x, &res, &post, &comb, t, s, d))
+        }
+        Op::HcSublayer => {
+            // exactly the op sequence it replaces: [HcPost ->] HcMixes, HcPre (previous pre-mix), RmsNorm; every
+            // intermediate rounded to the dtype the separate ops would store it in (h: h_out's, y: n's)
+            let (t, s, d) = (i[0].shape[0], i[0].shape[1], i[0].shape[2]);
+            let mut h = rd(&i[0])?;
+            if i[6].shape != [0] {
+                let (px, pm, pc) = (rd(&i[6])?, rd(&i[7])?, rd(&i[8])?);
+                h = round_to(o[4].dtype, &hc_post(&px, &h, &pm, &pc, t, s, d));
+                wr(&o[4], &h)?;
             }
-            wr(&o[0], &y)
+            let (f, sc, base) = (rd(&i[1])?, rd(&i[2])?, rd(&i[3])?);
+            let (pre, post, comb) = hc_mixes(&h, &f, &sc, &base, t, s, d, a.eps as f64, a.dsv.hc_eps as f64, a.dsv.iters);
+            let y = round_to(o[0].dtype, &hc_pre(&h, &rd(&i[4])?, t, s, d));
+            wr(&o[0], &crate::reference::rmsnorm_rows(&y, &rd(&i[5])?, a.eps as f64, a.w_offset as f64)?)?;
+            wr(&o[1], &pre)?;
+            wr(&o[2], &post)?;
+            wr(&o[3], &comb)
         }
         Op::MoeRoute => {
             // Gate.forward: the bias picks the experts, the weights come from the unbiased scores

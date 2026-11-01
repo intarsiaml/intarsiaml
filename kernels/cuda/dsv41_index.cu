@@ -10,6 +10,7 @@
 //     lower index), then one ordered pass that emits the picks in position order (topk: indices, picks past the query's
 //     visible rows -1; blocks: the u8 mask with the newest visible block pinned and -inf blocks dropped).
 #include "dsv41_common.cuh"
+#include <limits.h>
 #include <stdlib.h>
 #include <type_traits>
 
@@ -133,26 +134,16 @@ IK_DEVI unsigned block_scan(unsigned v, unsigned* wsum, unsigned& total) {
 }
 
 // One block per row of `v` (row length N): the k best (value descending, ties to the lower index), emitted in index order.
-// BLOCKS: mask row (u8, length N) of the picks whose value is > -inf, after pinning element `pin`; else idx row (length k),
-// index >= nt mapped to -1.
-template <bool BLOCKS>
-__global__ void __launch_bounds__(kSelThreads) index_select(float* __restrict__ v, int64_t N, int64_t k, int64_t t0, int64_t B, int64_t ratio,
-                                                            int64_t pos0, int* __restrict__ idx, unsigned char* __restrict__ mask) {
+// The k best of N keys (key descending, ties to the lower position; positions are 0..N-1 in the order the caller wants the
+// picks emitted), then one ordered pass calling emit(i, o) for every pick i with its rank o among the picks in position
+// order. One block of kSelThreads; key_at(i) is an order-preserving u32 key (fkey). k <= N.
+template <typename KeyAt, typename Emit>
+IK_DEVI void select_core(int64_t N, int64_t k, KeyAt key_at, Emit emit) {
     __shared__ unsigned hist[256];
     __shared__ unsigned wsum[32];
     __shared__ unsigned s_digit, s_rem;
     __shared__ unsigned s_cgt, s_ceq;
     __shared__ int s_done;
-    const int64_t tl = blockIdx.x, t = t0 + tl;
-    const int64_t nt = (pos0 + t + 1) / ratio;
-    float* row = v + tl * N;
-    if (BLOCKS) {
-        unsigned char* mrow = mask + t * N;
-        for (int64_t i = threadIdx.x; i < N; i += kSelThreads) mrow[i] = 0;
-        if (threadIdx.x == 0 && nt > 0) row[(nt - 1) / B] = INFINITY;
-        __syncthreads();
-    }
-    if (k <= 0) return;
     unsigned prefix = 0, pmask = 0, rem = (unsigned)k;
     const int lane = threadIdx.x & 31, w = threadIdx.x >> 5;
     for (int pass = 0; pass < 4; ++pass) {
@@ -160,7 +151,7 @@ __global__ void __launch_bounds__(kSelThreads) index_select(float* __restrict__ 
         if (threadIdx.x < 256) hist[threadIdx.x] = 0;
         __syncthreads();
         for (int64_t i = threadIdx.x; i < N; i += kSelThreads) {
-            const unsigned key = fkey(row[i]);
+            const unsigned key = key_at(i);
             if ((key & pmask) == prefix) {
                 const unsigned dg = (key >> shift) & 255u;
                 const unsigned peers = __match_any_sync(__activemask(), dg);
@@ -213,7 +204,7 @@ __global__ void __launch_bounds__(kSelThreads) index_select(float* __restrict__ 
         const int64_t i = base + threadIdx.x;
         unsigned gt = 0, eq = 0;
         if (i < N) {
-            const unsigned key = fkey(row[i]);
+            const unsigned key = key_at(i);
             gt = key > kth;
             eq = key == kth;
         }
@@ -222,14 +213,7 @@ __global__ void __launch_bounds__(kSelThreads) index_select(float* __restrict__ 
         const unsigned exc = inc - (gt | (eq << 16));
         const unsigned cgt = s_cgt, ceq = s_ceq;
         const unsigned gb = cgt + (exc & 0xFFFFu), eb = ceq + (exc >> 16);
-        if (gt || (eq && eb < need_eq)) {
-            const unsigned o = gb + min(eb, need_eq);
-            if (BLOCKS) {
-                if (row[i] > -INFINITY) mask[t * N + i] = 1;
-            } else {
-                idx[t * k + o] = i < nt ? (int)i : -1;
-            }
-        }
+        if (gt || (eq && eb < need_eq)) emit(i, gb + min(eb, need_eq));
         __syncthreads();
         if (threadIdx.x == 0) {
             s_cgt = cgt + (total & 0xFFFFu);
@@ -241,6 +225,182 @@ __global__ void __launch_bounds__(kSelThreads) index_select(float* __restrict__ 
     }
 }
 
+// One row of `v` (row length N): the k best (value descending, ties to the lower index), emitted in index order.
+// BLOCKS: mask row (u8, length N) of the picks whose value is > -inf, after pinning the query's newest visible block; else
+// idx row (length k), index >= nt mapped to -1.
+template <bool BLOCKS>
+IK_DEVI void select_row(float* row, int64_t N, int64_t k, int64_t t, int64_t nt, int64_t B, int* __restrict__ idx, unsigned char* __restrict__ mask) {
+    if (BLOCKS) {
+        unsigned char* mrow = mask + t * N;
+        for (int64_t i = threadIdx.x; i < N; i += kSelThreads) mrow[i] = 0;
+        if (threadIdx.x == 0 && nt > 0) row[(nt - 1) / B] = INFINITY;
+        __syncthreads();
+    }
+    if (k <= 0) return;
+    select_core(
+        N, k, [&](int64_t i) { return fkey(row[i]); },
+        [&](int64_t i, unsigned o) {
+            if (BLOCKS) {
+                if (row[i] > -INFINITY) mask[t * N + i] = 1;
+            } else {
+                idx[t * k + o] = i < nt ? (int)i : -1;
+            }
+        });
+}
+
+template <bool BLOCKS>
+__global__ void __launch_bounds__(kSelThreads) index_select(float* __restrict__ v, int64_t N, int64_t k, int64_t t0, int64_t B, int64_t ratio,
+                                                            int64_t pos0, int* __restrict__ idx, unsigned char* __restrict__ mask) {
+    const int64_t tl = blockIdx.x, t = t0 + tl;
+    select_row<BLOCKS>(v + tl * N, N, k, t, (pos0 + t + 1) / ratio, B, idx, mask);
+}
+
+// ---- multi-block threshold select (indexer_topk, few query rows, long rows) ---------------------------------------------
+// A one-block select of a 128K row runs on one SM. For T <= kFastRows rows of N >= kFastMinN: (1) a global histogram of the
+// keys' top 11 bits over many blocks, (2) per row the bin holding the k-th best key, (3) compaction of every key in that bin
+// or above (at most kCap; otherwise the row falls back to the one-block select), (4) per row an exact select over the
+// candidates sorted by position. Same picks, same order as select_row.
+constexpr int kHistBins = 2048;
+constexpr int kHistShift = 21;
+constexpr int64_t kSeg = 4096;
+constexpr int kCap = 4096;
+constexpr int64_t kFastRows = 16;
+constexpr int64_t kFastMinN = 16384;
+
+struct SelMeta {
+    unsigned bin, cnt, flag, ctr;
+};
+
+__global__ void __launch_bounds__(256) sel_hist(const float* __restrict__ v, int64_t N, unsigned* __restrict__ hist) {
+    __shared__ unsigned h[kHistBins];
+    const int64_t tl = blockIdx.y;
+    for (int b = threadIdx.x; b < kHistBins; b += 256) h[b] = 0;
+    __syncthreads();
+    const float* row = v + tl * N;
+    const int64_t lo = (int64_t)blockIdx.x * kSeg, hi = min(lo + kSeg, N);
+    for (int64_t i = lo + threadIdx.x; i < hi; i += 256) atomicAdd(&h[fkey(row[i]) >> kHistShift], 1u);
+    __syncthreads();
+    for (int b = threadIdx.x; b < kHistBins; b += 256)
+        if (h[b]) atomicAdd(&hist[tl * kHistBins + b], h[b]);
+}
+
+__global__ void __launch_bounds__(kSelThreads) sel_thresh(const unsigned* __restrict__ hist, int64_t k, SelMeta* __restrict__ meta) {
+    __shared__ unsigned wsum[32];
+    const int64_t tl = blockIdx.x;
+    const unsigned* h = hist + tl * kHistBins;
+    // thread i owns bins 2047-2i and 2046-2i (descending); kSelThreads * 2 == kHistBins
+    const int b0 = kHistBins - 1 - 2 * threadIdx.x;
+    const unsigned c0 = h[b0], c1 = h[b0 - 1], c = c0 + c1;
+    unsigned total;
+    const unsigned inc = block_scan(c, wsum, total);
+    const unsigned exc = inc - c;
+    const unsigned kk = (unsigned)k;
+    if (exc < kk && inc >= kk) {
+        SelMeta m;
+        if (exc + c0 >= kk) {
+            m.bin = b0;
+            m.cnt = exc + c0;
+        } else {
+            m.bin = b0 - 1;
+            m.cnt = inc;
+        }
+        m.flag = m.cnt > (unsigned)kCap;
+        m.ctr = 0;
+        meta[tl] = m;
+    }
+}
+
+__global__ void __launch_bounds__(256) sel_compact(const float* __restrict__ v, int64_t N, SelMeta* __restrict__ meta, uint2* __restrict__ cand) {
+    const int64_t tl = blockIdx.y;
+    if (meta[tl].flag) return;
+    const unsigned bin = meta[tl].bin;
+    const float* row = v + tl * N;
+    const int64_t lo = (int64_t)blockIdx.x * kSeg, hi = min(lo + kSeg, N);
+    const int lane = threadIdx.x & 31;
+    for (int64_t base = lo; base < hi; base += 256) {
+        const int64_t i = base + threadIdx.x;
+        unsigned key = 0;
+        bool take = false;
+        if (i < hi) {
+            key = fkey(row[i]);
+            take = (key >> kHistShift) >= bin;
+        }
+        // warp-aggregated append
+        const unsigned m = __ballot_sync(0xffffffffu, take);
+        if (m) {
+            unsigned pos0 = 0;
+            const int leader = __ffs(m) - 1;
+            if (lane == leader) pos0 = atomicAdd(&meta[tl].ctr, (unsigned)__popc(m));
+            pos0 = __shfl_sync(0xffffffffu, pos0, leader);
+            if (take) cand[tl * kCap + pos0 + __popc(m & ((1u << lane) - 1))] = make_uint2(key, (unsigned)i);
+        }
+    }
+}
+
+__global__ void __launch_bounds__(kSelThreads) sel_final(float* __restrict__ v, int64_t N, int64_t k, int64_t t0, int64_t ratio, int64_t pos0,
+                                                         const SelMeta* __restrict__ meta, const uint2* __restrict__ cand, int* __restrict__ idx) {
+    __shared__ unsigned keys[kCap];
+    __shared__ int ids[kCap];
+    const int64_t tl = blockIdx.x, t = t0 + tl;
+    const int64_t nt = (pos0 + t + 1) / ratio;
+    const SelMeta m = meta[tl];
+    if (m.flag) {
+        select_row<false>(v + tl * N, N, k, t, nt, 1, idx, nullptr);
+        return;
+    }
+    int P = 2;
+    while (P < (int)m.cnt) P <<= 1;
+    for (int i = threadIdx.x; i < P; i += kSelThreads) {
+        if (i < (int)m.cnt) {
+            const uint2 c = cand[tl * kCap + i];
+            keys[i] = c.x;
+            ids[i] = (int)c.y;
+        } else {
+            keys[i] = 0;  // below every real key (fkey(-inf) > 0): never picked
+            ids[i] = INT_MAX;
+        }
+    }
+    __syncthreads();
+    // bitonic sort by position (positions are unique)
+    for (int size = 2; size <= P; size <<= 1) {
+        for (int stride = size >> 1; stride > 0; stride >>= 1) {
+            for (int i = threadIdx.x; i < P; i += kSelThreads) {
+                const int j = i ^ stride;
+                if (j > i) {
+                    const bool up = (i & size) == 0;
+                    if ((ids[i] > ids[j]) == up) {
+                        const int ti = ids[i];
+                        ids[i] = ids[j];
+                        ids[j] = ti;
+                        const unsigned tk = keys[i];
+                        keys[i] = keys[j];
+                        keys[j] = tk;
+                    }
+                }
+            }
+            __syncthreads();
+        }
+    }
+    select_core(
+        P, k, [&](int64_t i) { return keys[i]; },
+        [&](int64_t i, unsigned o) {
+            const int p = ids[i];
+            idx[t * k + o] = p < nt ? p : -1;
+        });
+}
+
+static bool index_fast_select_enabled() {
+    static int on = -1;
+    if (on < 0) {
+        const char* e = getenv("INTARSIA_DSV41_INDEX_ONEBLOCK_SELECT");
+        on = !(e && e[0] == '1');
+    }
+    return on == 1;
+}
+
+/* Bytes the fast select needs past the score rows of `rows` rows (mirrored by `INDEX_FAST_EXTRA_PER_ROW` and
+ * `INDEX_FAST_SLACK` in crates/intarsia-backend-cuda/src/dsv41.rs). */
+static int64_t fast_extra(int64_t rows) { return rows * ((int64_t)kHistBins * 4 + (int64_t)sizeof(SelMeta) + (int64_t)kCap * 8) + 1024; }
 
 // ---- tensor-core score (bf16 q / k, Hi in {16, 32}, Di % 16 == 0, Di <= 128, block <= 8) ---------------------------------
 // The index score is a GEMM [T*Hi, Di] x [Di, Nk] with a per-query epilogue (relu, weight, sum over the Hi rows). A block
@@ -414,6 +574,15 @@ int run(const IdxArgs& a, ik_tensor* outp, cudaStream_t s) {
     if (rows > Tn) rows = Tn;
     if (rows > 65535) rows = 65535;
     float* sc = (float*)a.scratch->data;
+    // few long rows: the multi-block threshold select, when the scratch holds its buffers for the whole chunk
+    const int64_t sc_bytes = (Tn * len * 4 + 255) / 256 * 256;
+    const bool fast = !BLOCKS && index_fast_select_enabled() && Tn <= kFastRows && len >= kFastMinN &&
+                      a.scratch->bytes >= sc_bytes + fast_extra(Tn);
+    if (fast) rows = Tn;
+    unsigned char* fx = (unsigned char*)a.scratch->data + sc_bytes;
+    uint2* fcand = (uint2*)fx;
+    unsigned* fhist = (unsigned*)(fx + Tn * kCap * 8);
+    SelMeta* fmeta = (SelMeta*)(fx + Tn * kCap * 8 + Tn * kHistBins * 4);
     const unsigned char* cand = (!BLOCKS && a.cand && ik_numel(a.cand) > 0) ? (const unsigned char*)a.cand->data : nullptr;
     for (int64_t t0 = 0; t0 < Tn; t0 += rows) {
         const int64_t tr = Tn - t0 < rows ? Tn - t0 : rows;
@@ -436,9 +605,22 @@ int run(const IdxArgs& a, ik_tensor* outp, cudaStream_t s) {
                                                                Di, Nk, a.B, a.ratio, a.pos0, a.scale, sc);
         }
         IK_TRY(ik_launch_status());
-        index_select<BLOCKS><<<(unsigned)tr, kSelThreads, 0, s>>>(sc, len, kk, t0, a.B, a.ratio, a.pos0,
-                                                                   BLOCKS ? nullptr : (int*)outp->data,
-                                                                   BLOCKS ? (unsigned char*)outp->data : nullptr);
+        if (fast) {
+            // hist and meta are contiguous: one memset clears both (meta's counters start at 0)
+            if (cudaMemsetAsync(fhist, 0, (size_t)(tr * kHistBins * 4 + tr * sizeof(SelMeta)), s) != cudaSuccess) return IK_ERR_LAUNCH;
+            const dim3 gs((unsigned)cdiv(len, kSeg), (unsigned)tr);
+            sel_hist<<<gs, 256, 0, s>>>(sc, len, fhist);
+            IK_TRY(ik_launch_status());
+            sel_thresh<<<(unsigned)tr, kSelThreads, 0, s>>>(fhist, kk, fmeta);
+            IK_TRY(ik_launch_status());
+            sel_compact<<<gs, 256, 0, s>>>(sc, len, fmeta, fcand);
+            IK_TRY(ik_launch_status());
+            sel_final<<<(unsigned)tr, kSelThreads, 0, s>>>(sc, len, kk, t0, a.ratio, a.pos0, fmeta, fcand, (int*)outp->data);
+        } else {
+            index_select<BLOCKS><<<(unsigned)tr, kSelThreads, 0, s>>>(sc, len, kk, t0, a.B, a.ratio, a.pos0,
+                                                                       BLOCKS ? nullptr : (int*)outp->data,
+                                                                       BLOCKS ? (unsigned char*)outp->data : nullptr);
+        }
         IK_TRY(ik_launch_status());
     }
     return IK_OK;
