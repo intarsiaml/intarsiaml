@@ -1,5 +1,7 @@
-//! Bit-exact parity of the Rust Engram hash with DeepSeek's official `engram.py`
-//! (fixture: `tests/fixtures/hash_dsv41.json`, made by `tests/fixtures/gen_hash_fixture.py`).
+//! Bit-exact parity of the Rust Engram hash (intarsia-core's `NgramHasher`, through this crate's `HashLayout` /
+//! `NgramState`) with DeepSeek's official `engram.py` (fixture: `tests/fixtures/hash_dsv41.json`, made by
+//! `tests/fixtures/gen_hash_fixture.py`), and with the skeleton's fixture (`intarsia-core/src/dsv41/engram_fixture.json`,
+//! from `tools/gen_dsv41_engram_params.py`).
 //!
 //! Gated extras:
 //! - `INTARSIA_DSV41_TOKEN_MAP=/path/dsv41_token_map.json` (MiaAI / TensorFold format): the map's sha256 must
@@ -74,11 +76,33 @@ fn u64s(v: &Value) -> Vec<u64> {
 fn constants_match_official() {
     let f = fixture();
     let l = HashLayout::dsv41();
-    assert_eq!(u64s(&f["primes"]), l.primes.concat());
+    let primes: Vec<u64> = l.layout().primes.iter().flatten().flatten().copied().collect();
+    assert_eq!(u64s(&f["primes"]), primes);
     assert_eq!(u64s(&f["offsets"]), l.offsets.concat());
-    assert_eq!(u64s(&f["multipliers"]), l.multipliers.iter().flatten().copied().collect::<Vec<_>>());
-    assert_eq!(u64s(&f["num_embeddings"]), l.num_embeddings);
-    assert_eq!(f["pad"].as_u64().unwrap(), l.pad as u64);
+    let mult: Vec<u64> = l.hasher.multipliers.iter().flatten().map(|&m| m as u64).collect();
+    assert_eq!(u64s(&f["multipliers"]), mult);
+    assert_eq!(u64s(&f["num_embeddings"]), l.layout().rows);
+    assert_eq!(f["pad"].as_i64().unwrap(), l.hasher.pad_id);
+}
+
+#[test]
+fn agrees_with_the_skeleton_fixture() {
+    let p = concat!(env!("CARGO_MANIFEST_DIR"), "/../intarsia-core/src/dsv41/engram_fixture.json");
+    let f: Value = serde_json::from_str(&std::fs::read_to_string(p).unwrap()).unwrap();
+    let l = HashLayout::dsv41();
+    assert_eq!(f["pad_id"].as_i64().unwrap(), l.hasher.pad_id);
+    let mult: Vec<u64> = l.hasher.multipliers.iter().flatten().map(|&m| m as u64).collect();
+    assert_eq!(u64s(&f["multipliers"]), mult);
+    // -1 = DEAD (an image token)
+    let ids: Vec<i64> = f["compressed"].as_array().unwrap().iter().map(|x| x.as_i64().unwrap()).collect();
+    let mut st = NgramState::default();
+    let mut rows = vec![0u64; l.rows_per_token()];
+    let mut got = Vec::new();
+    for &t in &ids {
+        st.push(&l, (t >= 0).then_some(t as u32), &mut rows);
+        got.extend_from_slice(&rows);
+    }
+    assert_eq!(got, u64s(&f["hashes"]));
 }
 
 #[test]
@@ -92,7 +116,7 @@ fn hash_matches_official_engram_py() {
     let mut bad = 0;
     let mut positions = 0;
     for (k, want) in digests.iter().enumerate() {
-        let (ids, dead) = gen_sequence(seed, k as u64, vocab, l.pad as u64);
+        let (ids, dead) = gen_sequence(seed, k as u64, vocab, l.hasher.pad_id as u64);
         positions += ids.len();
         l.hash_sequence(&ids, dead.as_deref(), &mut rows);
         // decode path: one push at a time, after a prefill of the first half
@@ -116,7 +140,7 @@ fn hash_matches_official_engram_py() {
     // and the stored full rows, element by element
     for case in f["full"].as_array().unwrap() {
         let k = case["k"].as_u64().unwrap();
-        let (ids, dead) = gen_sequence(seed, k, vocab, l.pad as u64);
+        let (ids, dead) = gen_sequence(seed, k, vocab, l.hasher.pad_id as u64);
         l.hash_sequence(&ids, dead.as_deref(), &mut rows);
         assert_eq!(rows, u64s(&case["rows"]), "full rows of sequence {k}");
     }

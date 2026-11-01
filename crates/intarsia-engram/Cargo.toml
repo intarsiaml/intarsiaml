@@ -16,6 +16,7 @@ tokenizer = ["dep:tokenizers"]
 bench = ["dep:clap"]
 
 [dependencies]
+intarsia-core = { workspace = true }
 libc = "0.2"
 sha2 = "0.10"
 half = { workspace = true }

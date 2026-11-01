@@ -1078,6 +1078,7 @@ version = "0.0.1"
 dependencies = [
  "clap",
  "half",
+ "intarsia-core",
  "io-uring",
  "libc",
  "serde_json",

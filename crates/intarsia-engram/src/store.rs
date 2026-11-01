@@ -59,6 +59,12 @@ pub struct Ticket(u64);
 impl Ticket {
     /// No fetch: `poll(Ticket::NONE)` just reaps completions and submits queued reads.
     pub const NONE: Ticket = Ticket(0);
+    pub fn id(self) -> u64 {
+        self.0
+    }
+    pub fn from_id(id: u64) -> Self {
+        Ticket(id)
+    }
 }
 
 /// What a fetch did.

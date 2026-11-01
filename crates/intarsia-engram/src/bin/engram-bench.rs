@@ -525,10 +525,10 @@ struct TokenArgs {
 
 fn open_shards(dir: &Path, layout: &HashLayout, rank: usize, world: usize, scales: ScaleMode, direct: bool) -> io::Result<Vec<TableShard>> {
     layout
-        .layer_ids
+        .layer_ids()
         .iter()
         .enumerate()
-        .map(|(i, &l)| TableShard::open_dir(dir, l, rank, world, layout.rank_rows(i, rank, world), scales, direct))
+        .map(|(i, &l)| TableShard::open_dir(dir, l as u32, rank, world, layout.rank_rows(i, rank, world), scales, direct))
         .collect()
 }
 
@@ -577,7 +577,7 @@ fn token(a: TokenArgs) -> io::Result<()> {
         }
     };
     let cols = layout.cols();
-    let nl = layout.layer_ids.len();
+    let nl = layout.n_layers();
     let mut out = serde_json::json!({"dir": a.dir, "rank": a.rank, "world": a.world, "backend": store.backend_name(),
         "granule": a.granule, "scales": a.scales, "hot_mb": a.hot_mb, "profile": a.profile, "trace": a.trace,
         "tokens_per_step": a.tokens_per_step, "touch": a.touch, "touch_lead_us": a.touch_lead_us, "keepalive_ms": a.keepalive_ms, "spec_topk": a.spec_topk, "spec_lead_us": a.spec_lead_us, "open_s": open_s, "preload_s": preload_s,
@@ -716,7 +716,7 @@ fn count_rows(layout: &HashLayout, ids: &[u32], rank: usize, world: usize) -> Ha
     let c = layout.cols();
     let mut m: HashMap<u64, u32, intarsia_engram::hot::FxBuild> = HashMap::default();
     hash_stream(layout, ids, |rows| {
-        for l in 0..layout.layer_ids.len() {
+        for l in 0..layout.n_layers() {
             for col in cols.clone() {
                 *m.entry(key(l, rows[l * c + col])).or_insert(0) += 1;
             }
@@ -758,10 +758,10 @@ fn hit(train: &Path, test: &Path, rank: usize, world: usize, sizes: &[usize], dy
             tier.pin(k, &rec);
         }
         hash_stream(&layout, &te, |rows| {
-            for l in 0..layout.layer_ids.len() {
+            for l in 0..layout.n_layers() {
                 for col in cols.clone() {
                     let k = key(l, rows[l * c + col]);
-                    let g = col / layout.n_heads;
+                    let g = col / layout.n_heads();
                     look[g] += 1;
                     hits[g] += set.contains(&k) as u64;
                     if tier.lookup(k).is_none() {
@@ -898,7 +898,7 @@ fn verify(a: &Path, b: &Path, rank: usize, world: usize, n: usize) -> io::Result
 
 fn repack(src: &Path, layer: u32, rank: usize, world: usize, out: &Path, limit: Option<u64>, yes: bool) -> io::Result<()> {
     let layout = HashLayout::dsv41();
-    let li = layout.layer_index(layer).ok_or_else(|| io::Error::other("not an Engram layer"))?;
+    let li = layout.layer_index(layer as usize).ok_or_else(|| io::Error::other("not an Engram layer"))?;
     let rows = layout.rank_rows(li, rank, world);
     let rows = match limit {
         Some(n) => rows.start..(rows.start + n).min(rows.end),

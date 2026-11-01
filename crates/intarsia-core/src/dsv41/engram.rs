@@ -175,8 +175,24 @@ pub trait EngramTier: Send + Sync {
     /// on IO.
     fn issue(&self, layer: usize, rows: &[u32]) -> Result<EngramTicket>;
     /// Block until the fetch is complete, then write its rows in request order: `payload` `[n, head_dim]` e4m3 bytes and
-    /// `scales` `[n, head_dim / 32]` E8M0 bytes. A row outside [`EngramTier::shard`] comes back as zero payload (any scale).
+    /// `scales` `[n, head_dim / 32]` E8M0 bytes. A row outside [`EngramTier::owned_rows`] comes back as zero payload (any
+    /// scale).
     fn wait(&self, ticket: EngramTicket, payload: &mut [u8], scales: &mut [u8]) -> Result<()>;
+    /// Absolute rows of Engram layer `layer` this tier serves. Default: [`EngramShard::range`] (model.py's
+    /// `ceil(rows / world)` split). The NVMe tier (`intarsia-engram`) splits at a hash-column boundary instead (rank r
+    /// owns columns `r * cols / world ..`), which is what the existing local table copies hold; either split sums to
+    /// the same output, since rows outside a rank's share are zero.
+    fn owned_rows(&self, layer: usize) -> std::ops::Range<u64> {
+        self.shard().range(self.layout().rows[layer])
+    }
+    /// Wake the table storage ahead of a fetch (an NVMe drive sleeps between decode steps; one small read about 1 ms
+    /// before the token ids are known hides its wake-up). No-op by default.
+    fn touch(&self) {}
+    /// Speculative fetch (e.g. the rows of the top-k candidate next tokens before sampling); a later `issue` of the same
+    /// rows finds them in flight or done. No-op by default.
+    fn prefetch(&self, _layer: usize, _rows: &[u32]) -> Result<()> {
+        Ok(())
+    }
 }
 
 /// An in-memory [`EngramTier`] holding its shard's rows (tests, and small synthetic tables).

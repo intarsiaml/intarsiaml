@@ -5,7 +5,9 @@
 //! E8M0 scales per 32; 101 GB per table). The tables stay on local NVMe, row-sharded across TP ranks; this crate
 //! is everything between a token id and the rows in host memory:
 //!
-//! - [`HashLayout`] / [`NgramState`]: the official hash, bit-exact (`tests/hash_parity.rs`).
+//! - [`HashLayout`] / [`NgramState`]: intarsia-core's `NgramHasher` (the official hash, bit-exact:
+//!   `tests/hash_parity.rs`) with the rank split and an O(1) decode state.
+//! - [`NvmeEngramTier`]: the store as intarsia-core's `EngramTier`.
 //! - [`TokenMap`]: raw -> compressed token ids (feature `tokenizer` builds it from tokenizer.json).
 //! - [`TableShard`]: one layer's rows for one rank, in any supported on-disk layout ([`layout`] documents them).
 //! - [`EngramStore`]: non-blocking `fetch` -> `poll` / `wait`, O_DIRECT reads through io_uring (Linux) or a pread
@@ -20,6 +22,7 @@ pub mod hot;
 pub mod io;
 pub mod layout;
 pub mod store;
+pub mod tier;
 pub mod token_map;
 
 pub use hash::{dsv41, HashLayout, NgramState};
@@ -27,4 +30,5 @@ pub use hot::{HotStats, HotTier, HotTierConfig};
 pub use io::BackendKind;
 pub use layout::{LayoutKind, ReadGranule, ScaleMode, TableShard, RECORD_BYTES, SCALE_BYTES, WEIGHT_BYTES};
 pub use store::{EngramStore, FetchInfo, StoreConfig, StoreStats, Ticket};
+pub use tier::NvmeEngramTier;
 pub use token_map::TokenMap;
