@@ -124,10 +124,32 @@ pub enum Op {
     DynConv,
     // appended (2026-10-27, nab2 LFM2.5): the gated short conv of Liquid's LFM2 (no activation, state in a `Recurrent` slot), for the same reason
     ShortConv,
+    // appended ONCE (2026-10-31, lane 1a, DeepSeek-V4.1 skeleton): the whole DSv4.1 op set, discriminants 44..=62, frozen so
+    // that the later lanes (cpu reference, CUDA, Engram) only fill in kernels. Semantics: `crate::dsv41::ops` and
+    // docs/design/dsv41-ops.md. Never insert above this block, for the same reason as above.
+    HcExpand,
+    HcMixes,
+    HcPre,
+    HcPost,
+    MoeRoute,
+    SiluGluClamp,
+    ActQdq,
+    RopeTail,
+    WindowKv,
+    AttnSparse,
+    CompressPool,
+    IndexerBlocks,
+    IndexerTopk,
+    GroupedMatmul,
+    Transpose01,
+    MatmulFp8Block,
+    MoeExpertsExl3,
+    EngramGather,
+    EngramMerge,
 }
 
 impl Op {
-    pub const ALL: [Op; 44] = [
+    pub const ALL: [Op; 63] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -172,6 +194,25 @@ impl Op {
         Op::GeluGlu,
         Op::DynConv,
         Op::ShortConv,
+        Op::HcExpand,
+        Op::HcMixes,
+        Op::HcPre,
+        Op::HcPost,
+        Op::MoeRoute,
+        Op::SiluGluClamp,
+        Op::ActQdq,
+        Op::RopeTail,
+        Op::WindowKv,
+        Op::AttnSparse,
+        Op::CompressPool,
+        Op::IndexerBlocks,
+        Op::IndexerTopk,
+        Op::GroupedMatmul,
+        Op::Transpose01,
+        Op::MatmulFp8Block,
+        Op::MoeExpertsExl3,
+        Op::EngramGather,
+        Op::EngramMerge,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -221,6 +262,25 @@ impl Op {
             Op::GeluGlu => "gelu_glu",
             Op::DynConv => "dyn_conv",
             Op::ShortConv => "short_conv",
+            Op::HcExpand => "hc_expand",
+            Op::HcMixes => "hc_mixes",
+            Op::HcPre => "hc_pre",
+            Op::HcPost => "hc_post",
+            Op::MoeRoute => "moe_route",
+            Op::SiluGluClamp => "silu_glu_clamp",
+            Op::ActQdq => "act_qdq",
+            Op::RopeTail => "rope_tail",
+            Op::WindowKv => "window_kv",
+            Op::AttnSparse => "attn_sparse",
+            Op::CompressPool => "compress_pool",
+            Op::IndexerBlocks => "indexer_blocks",
+            Op::IndexerTopk => "indexer_topk",
+            Op::GroupedMatmul => "grouped_matmul",
+            Op::Transpose01 => "transpose01",
+            Op::MatmulFp8Block => "matmul_fp8_block",
+            Op::MoeExpertsExl3 => "moe_experts_exl3",
+            Op::EngramGather => "engram_gather",
+            Op::EngramMerge => "engram_merge",
         }
     }
 
@@ -273,6 +333,25 @@ impl Op {
             Op::GeluGlu => (2, 1),
             Op::DynConv => (3, 1),
             Op::ShortConv => (2, 2),
+            Op::HcExpand => (1, 1),
+            Op::HcMixes => (4, 3),
+            Op::HcPre => (2, 1),
+            Op::HcPost => (4, 1),
+            Op::MoeRoute => (2, 2),
+            Op::SiluGluClamp => (2, 1),
+            Op::ActQdq => (1, 1),
+            Op::RopeTail => (2, 1),
+            Op::WindowKv => (1, 2),
+            Op::AttnSparse => (5, 1),
+            Op::CompressPool => (2, 3),
+            Op::IndexerBlocks => (3, 1),
+            Op::IndexerTopk => (4, 1),
+            Op::GroupedMatmul => (2, 1),
+            Op::Transpose01 => (1, 1),
+            Op::MatmulFp8Block => (3, 1),
+            Op::MoeExpertsExl3 => (13, 1),
+            Op::EngramGather => (2, 1),
+            Op::EngramMerge => (4, 1),
         }
     }
 }
@@ -332,6 +411,8 @@ pub struct OpAttrs {
     /// `QTensor::act_fp8`). Read by kernel selection (`ShapeInfo::mxfp4_a8`): only kernels registered for W4A8 serve it, every
     /// other MXFP4 kernel declines it, because they read any nonzero `act` as W4A4; false for every other op.
     pub mxfp4_a8: bool,
+    /// The DeepSeek-V4.1 ops' own attributes (`crate::dsv41::ops::DsvAttrs`); every other op ignores them.
+    pub dsv: crate::dsv41::ops::DsvAttrs,
 }
 
 impl Default for OpAttrs {
@@ -358,6 +439,7 @@ impl Default for OpAttrs {
             fp8_static_act: false,
             mxfp4_w4a16: false,
             mxfp4_a8: false,
+            dsv: Default::default(),
         }
     }
 }
@@ -500,7 +582,9 @@ impl OpCall {
         }
         if let Some(p) = &self.pos {
             p.check_bounds()?;
-            if !matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv | Op::GateSplitQkNormRopeKv) {
+            if !matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv | Op::GateSplitQkNormRopeKv)
+                && !crate::dsv41::ops::POSITIONED.contains(&self.op)
+            {
                 return Err(Error::invalid(format!("{}: takes no device-side position", self.op)));
             }
             // one position (token t sits at pos + t), or one per token (`[T]`: batched decode rows, each at its own position)
@@ -765,6 +849,7 @@ impl OpCall {
             | Op::MatmulMxfp4Pair => crate::quant::ops::check(self)?,
             Op::MatmulExl3 => crate::quant::exl3::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
+            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::MoeExpertsExl3 | Op::EngramGather | Op::EngramMerge => crate::dsv41::ops::check(self)?,
         }
         Ok(())
     }
@@ -828,7 +913,8 @@ impl ShapeInfo {
         let mut s = ShapeInfo {
             act: i.first().map(|t| t.dtype),
             out: o.first().map(|t| t.dtype),
-            ext: call.attrs.window > 0
+            // the DeepSeek-V4.1 ops read `window` as part of their own definition (no kernel predates it), never as an extension
+            ext: (call.attrs.window > 0 && !crate::dsv41::ops::OPS.contains(&call.op))
                 || call.attrs.rope_prop
                 || call.attrs.gelu
                 || (matches!(call.op, Op::Add | Op::Embedding) && call.attrs.scale != 1.0),
@@ -924,6 +1010,7 @@ impl ShapeInfo {
             | Op::MatmulMxfp4Pair => crate::quant::ops::shape(call, &mut s),
             Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
+            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::MoeExpertsExl3 | Op::EngramGather | Op::EngramMerge => crate::dsv41::ops::shape(call, &mut s),
         }
         let _ = o;
         s
@@ -1158,15 +1245,21 @@ mod tests {
         );
         assert_eq!(Op::MoeBlock.arity(), (17, 1));
         assert_eq!(Op::MoeBlock.as_str(), "moe_block");
-        assert_eq!(Op::ALL[Op::ALL.len() - 9], Op::MoeBlock, "appended at the end");
-        assert_eq!(Op::ALL[Op::ALL.len() - 8], Op::MatmulMxfp4, "appended after MoeBlock");
-        assert_eq!(Op::ALL[Op::ALL.len() - 7], Op::MatmulExl3, "appended after MatmulMxfp4");
-        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
-        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::RopeScaled, "appended after MatmulMxfp4Pair");
-        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::AddBias, "appended after RopeScaled");
-        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::GeluGlu, "appended after AddBias");
-        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::DynConv, "appended after GeluGlu");
-        assert_eq!(Op::ALL.last(), Some(&Op::ShortConv), "appended after DynConv");
+        assert_eq!(Op::MoeBlock as usize, 35, "appended at the end, in this order");
+        assert_eq!(Op::MatmulMxfp4 as usize, 36, "appended at the end, in this order");
+        assert_eq!(Op::MatmulExl3 as usize, 37, "appended at the end, in this order");
+        assert_eq!(Op::MatmulMxfp4Pair as usize, 38, "appended at the end, in this order");
+        assert_eq!(Op::RopeScaled as usize, 39, "appended at the end, in this order");
+        assert_eq!(Op::AddBias as usize, 40, "appended at the end, in this order");
+        assert_eq!(Op::GeluGlu as usize, 41, "appended at the end, in this order");
+        assert_eq!(Op::DynConv as usize, 42, "appended at the end, in this order");
+        assert_eq!(Op::ShortConv as usize, 43, "appended at the end, in this order");
+        // the DeepSeek-V4.1 block (lane 1a): absolute discriminants 44..=62, in `dsv41::ops::OPS` order, last in `Op::ALL`
+        for (j, op) in crate::dsv41::ops::OPS.iter().enumerate() {
+            assert_eq!(*op as usize, 44 + j, "{op}");
+            assert_eq!(Op::ALL[44 + j], *op);
+        }
+        assert_eq!(Op::ALL.last(), Some(&Op::EngramMerge), "appended after the DSv4.1 block's first 18 ops");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));
