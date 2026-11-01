@@ -81,6 +81,19 @@ int ik_indexer_topk(const ik_tensor* q, const ik_tensor* k, const ik_tensor* w, 
                     int64_t block, int64_t ratio, int64_t pos0, float scale, ik_tensor* idx, const ik_scratch* scratch,
                     void* stream);
 
+/* transpose01 (dsv41_engram.cu): x [A,B,C] -> y [B,A,C], any 1, 2 or 4 byte dtype (pure byte movement, exact). */
+int ik_transpose01(const ik_tensor* x, ik_tensor* y, void* stream);
+
+/* engram_gather: records u8 [T,C,Dh + Dh/32] (per row Dh e4m3 bytes, then Dh/32 E8M0 scales) -> y float [T, C*Dh],
+ * e4m3 payload * 2^(scale - 127) in f32 (cpu reference's arithmetic). */
+int ik_engram_gather(const ik_tensor* records, ik_tensor* y, void* stream);
+
+/* engram_merge: h [T,S,D], kv [T,(S+1)*D] (S keys, then one value), q_w [S,D], k_w [S,D] (same dtype) -> out [T,S,D] (any
+ * float dtypes, f32 math): per stream s, dot = sum_d h q_w k_w key * rsqrt(ms(h) + eps) * rsqrt(ms(key) + eps) / sqrt(D),
+ * gate = sigmoid(sign(dot) sqrt(max(|dot|, 1e-6))), out = h + gate * value. */
+int ik_engram_merge(const ik_tensor* h, const ik_tensor* kv, const ik_tensor* q_w, const ik_tensor* k_w, float eps, ik_tensor* out,
+                    void* stream);
+
 #ifdef __cplusplus
 }
 #endif

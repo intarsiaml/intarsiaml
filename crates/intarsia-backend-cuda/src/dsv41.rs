@@ -5,7 +5,8 @@
 //! (`intarsia kernels test --backend cuda --op <op>`). The table is data and compiles on every host; the dispatch
 //! (`launch_dsv41`, called from `device.rs::launch`) needs CUDA.
 //!
-//! Every launcher takes bf16, f16 or f32 activations (the sweep runs bf16 and f32); the model runs bf16.
+//! Every launcher takes bf16, f16 or f32 activations (the sweep runs bf16 and f32); the model runs bf16. `transpose01`,
+//! `engram_gather` and `engram_merge` (kernels/cuda/dsv41_engram.cu) were added by lane `dsv41/tp2`; transpose01 takes any dtype.
 
 use crate::kernels::ARCH;
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
@@ -24,6 +25,9 @@ pub const TABLE: &[(&str, Op)] = &[
     ("compress_pool", Op::CompressPool),
     ("indexer_blocks", Op::IndexerBlocks),
     ("indexer_topk", Op::IndexerTopk),
+    ("transpose01", Op::Transpose01),
+    ("engram_gather", Op::EngramGather),
+    ("engram_merge", Op::EngramMerge),
 ];
 
 /// bf16-rounded outputs: a one-ulp flip is allowed (the backend's shared budget).
@@ -112,6 +116,11 @@ pub fn all() -> Vec<KernelImpl> {
                     .when(|s| (1..=32).contains(&s.n_heads) && s.head_dim % 8 == 0 && s.n_heads * s.head_dim <= 8192)
                     .tol(BF16_TOL)
                     .scratch(index_scratch),
+                // byte movement by element size, any dtype (f32 / bf16 / f16 activations, i32 route tables): bitwise the reference
+                "transpose01" => KernelImpl::new(*op, *name, "cuda").arch([ARCH]).exact(Exactness::Exact).tol(Tol::EXACT),
+                // e4m3 payload times a power of two in f32 (the reference's arithmetic); y rounded to its dtype like the reference's
+                "engram_gather" => k.acts([DType::U8]).exact(Exactness::Exact).tol(Tol::EXACT),
+                "engram_merge" => k.tol(BF16_TOL).tol_f32(F32_TOL),
                 other => unreachable!("dsv41 kernel {other} has no registration"),
             }
         })
@@ -145,6 +154,9 @@ mod launch {
         fn ik_attn_sparse(q: T, win: T, cmp: T, idx: T, sink: T, window: i64, pos0: i64, scale: f32, o: TM, sc: SC, pos: T, s: S) -> c_int;
         fn ik_compress_pool(kv: T, score: T, ratio: i64, pos0: i64, out: TM, kv_ring: TM, score_ring: TM, s: S) -> c_int;
         fn ik_indexer_blocks(q: T, k: T, w: T, keep: i64, block: i64, ratio: i64, pos0: i64, scale: f32, mask: TM, sc: SC, s: S) -> c_int;
+        fn ik_transpose01(x: T, y: TM, s: S) -> c_int;
+        fn ik_engram_gather(rec: T, y: TM, s: S) -> c_int;
+        fn ik_engram_merge(h: T, kv: T, q_w: T, k_w: T, eps: f32, out: TM, s: S) -> c_int;
         fn ik_indexer_topk(
             q: T,
             k: T,
@@ -250,6 +262,9 @@ mod launch {
                         sc,
                         s,
                     ),
+                    "transpose01" => ik_transpose01(i(0), on(0), s),
+                    "engram_gather" => ik_engram_gather(i(0), on(0), s),
+                    "engram_merge" => ik_engram_merge(i(0), i(1), i(2), i(3), a.eps, on(0), s),
                     other => return Err(Error::NoKernel(format!("cuda kernel '{other}'"))),
                 }
             };
