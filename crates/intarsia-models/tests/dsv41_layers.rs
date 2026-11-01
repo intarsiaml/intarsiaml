@@ -59,13 +59,14 @@ struct Interp<'a> {
     /// replace the output of the routed-experts step / Engram gather by these
     overrides: HashMap<String, HostTensor>,
     ids: Vec<i32>,
-    skip_oq: bool,
+    /// emulate the removed fp8 qdq of `o` (evidence test only)
+    force_oq: bool,
     /// (what-substring, op) -> compare callback results
     report: Vec<(String, Err3)>,
 }
 
 impl<'a> Interp<'a> {
-    fn new(s: &'a Setup, act: DType, graph_slots: &[SlotSpec], skip_oq: bool) -> Interp<'a> {
+    fn new(s: &'a Setup, act: DType, graph_slots: &[SlotSpec], force_oq: bool) -> Interp<'a> {
         let slots = graph_slots
             .iter()
             .map(|sp| match sp {
@@ -74,7 +75,7 @@ impl<'a> Interp<'a> {
                 other => panic!("unexpected slot {other:?}"),
             })
             .collect();
-        Interp { s, act, ws: HashMap::new(), slots, overrides: HashMap::new(), ids: vec![], skip_oq, report: vec![] }
+        Interp { s, act, ws: HashMap::new(), slots, overrides: HashMap::new(), ids: vec![], force_oq, report: vec![] }
     }
 
     fn weight(&self, name: &str) -> HostTensor {
@@ -168,8 +169,6 @@ impl<'a> Interp<'a> {
         if let Some(o) = self.overrides.get(&st.what).cloned() {
             let want = &st.outputs[0];
             outs = vec![HostTensor::from_f32_as(want.dtype, &want.shape, &o.to_f32())];
-        } else if self.skip_oq && st.what.ends_with("attn.act_quant(o)") {
-            outs = vec![self.read(&st.inputs[0])];
         } else {
             let inputs: Vec<HostTensor> = st.inputs.iter().map(|a| self.read(a)).collect();
             let outputs: Vec<OutSpec> = st
@@ -184,7 +183,14 @@ impl<'a> Interp<'a> {
                 })
                 .collect();
             let hc = call(st.op, inputs, outputs, st.attrs.clone());
-            outs = go(&hc);
+            let mut o = go(&hc);
+            if self.force_oq && st.what.ends_with("attn.rope_inverse(o)") {
+                let mut a = intarsia_core::OpAttrs::default();
+                (a.dsv.qdq_fmt, a.dsv.qdq_block, a.dsv.qdq_scale) = (intarsia_core::dsv41::ops::QdqFmt::Fp8E4m3, 32, intarsia_core::dsv41::ops::QdqScale::Ue8m0);
+                let n = o[0].numel();
+                o = go(&call(Op::ActQdq, vec![o.remove(0).reshaped(&[n / 4096, 4096])], vec![OutSpec::new(st.outputs[0].dtype, &[n / 4096, 4096])], a));
+            }
+            outs = o;
         }
         for (a, t) in st.outputs.iter().zip(&outs) {
             self.write(a, t.clone());
@@ -285,12 +291,12 @@ fn run_layer(s: &Setup, ip: &mut Interp, g: &intarsia_core::dsv41::graph::Dsv41G
     last
 }
 
-fn layers_flow(flow: &str, act: DType, skip_oq: bool, tols: [f64; 3]) {
+fn layers_flow(flow: &str, act: DType, tols: [f64; 3]) {
     let Some(s) = setup(flow) else { return };
     let t = 16;
     // embedding + HcExpand (stage `embed`) against layer 0's input
     let g = graph_for(&s, act, t, 0);
-    let mut ip = Interp::new(&s, act, &g.slots, skip_oq);
+    let mut ip = Interp::new(&s, act, &g.slots, false);
     ip.ids = (0..t as i32).collect();
     let embed = g.stages.iter().find(|x| x.name == "embed").unwrap();
     for st in &embed.steps {
@@ -301,7 +307,7 @@ fn layers_flow(flow: &str, act: DType, skip_oq: bool, tols: [f64; 3]) {
     // each layer starts from the fixture's own input, so an error in one layer cannot hide or shift another's; the three
     // chunks (16-row prefill at 0, decode steps at 16 and 17) run in order on one set of slots per layer
     for l in 0..3 {
-        let mut ip = Interp::new(&s, act, &g.slots, skip_oq);
+        let mut ip = Interp::new(&s, act, &g.slots, false);
         for (step, t, pos0) in [("s0", 16usize, 0usize), ("s1", 1, 16), ("s2", 1, 17)] {
             let g = graph_for(&s, act, t, pos0);
             let out = run_layer(&s, &mut ip, &g, flow, l, step, t);
@@ -315,30 +321,32 @@ fn layers_flow(flow: &str, act: DType, skip_oq: bool, tols: [f64; 3]) {
 /// probabilities, split accumulations), so per-layer outputs agree to a few bf16 ulps (measured 2-5e-3 of max|ref|).
 #[test]
 fn layers_0_to_2_bf16_match_official_taps() {
-    layers_flow("bf16", DType::Bf16, true, [1e-2, 1e-2, 1e-2]);
+    layers_flow("bf16", DType::Bf16, [1e-2, 1e-2, 1e-2]);
 }
 
 #[test]
 fn layers_0_to_2_fp32_match_official_taps() {
-    layers_flow("fp32", DType::F32, true, [1e-3, 1e-3, 1e-3]);
+    layers_flow("fp32", DType::F32, [1e-4, 1e-4, 1e-4]);
 }
 
-/// The graph inserts an fp8 `ActQdq` on the attention output before `wo_a` for every checkpoint (`graph.rs`, "act_quant(o)").
-/// The official code does that only for the FP8 base checkpoint (`quant == "official"` in the generator); the Mia EXL3
-/// checkpoint's reference engine (TensorFold) and the fixtures do not. Running the graph as built diverges from the fixtures
-/// by far more than the bf16 noise: this test records the size of that divergence (it is the evidence for the graph issue
-/// reported by lane 1b).
+/// The official code quantises the attention output to fp8 before `wo_a` only for the FP8 base checkpoint; the Mia EXL3
+/// checkpoint's reference engine (TensorFold) and the fixtures do not. The graph therefore has no `act_quant(o)` step for
+/// EXL3 (it used to insert it for every checkpoint, which made fp32 layer-0 `o_lora` disagree with the fixture by 2.5e-2
+/// instead of 2.5e-6); this test pins the graph and records the size of the divergence the step would cause.
 #[test]
-fn graph_as_built_diverges_from_the_fixtures_at_the_o_quant() {
+fn exl3_graph_has_no_fp8_qdq_of_the_attention_output() {
     let Some(s) = setup("fp32") else { return };
     let act = DType::F32;
     let g = graph_for(&s, act, 16, 0);
+    for st in &g.stages {
+        assert!(!st.steps.iter().any(|x| x.what.ends_with("act_quant(o)")), "{}: fp8 qdq of o in an EXL3 graph", st.name);
+    }
     let mut worst = [0f64; 2];
-    for (i, skip) in [true, false].into_iter().enumerate() {
-        let mut ip = Interp::new(&s, act, &g.slots, skip);
+    for (i, force) in [false, true].into_iter().enumerate() {
+        let mut ip = Interp::new(&s, act, &g.slots, force);
         run_layer(&s, &mut ip, &g, "fp32", 0, "s0", 16);
         worst[i] = ip.report.iter().find(|(t, _)| t == "attn.o_lora").unwrap().1.max_rel_max;
     }
-    println!("PARITY graph o-quant: fp32 layer-0 attn.o_lora max_abs/max|ref| = {:.2e} without the fp8 qdq of `o`, {:.2e} with it (as the graph is built)", worst[0], worst[1]);
+    println!("PARITY o-quant: fp32 layer-0 attn.o_lora max_abs/max|ref| = {:.2e} as built, {:.2e} with an fp8 qdq of `o` inserted", worst[0], worst[1]);
     assert!(worst[0] < 1e-5 && worst[1] > 100.0 * worst[0]);
 }
