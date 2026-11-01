@@ -35,6 +35,11 @@ those two cases (lane 1b's fixtures should cover both, plus a chunked prefill). 
 `AttnSparse`, `CompressPool`, `IndexerBlocks`, `IndexerTopk`) also accept a device-side position (`OpCall::pos`,
 `i32 [1]`) for graph replay. `D` = 512 (head_dim), `S` = 4 (hc_mult), `H` = 64 heads, `W` = 128 (window).
 
+Outputs never alias inputs: the graph ping-pongs the residual (`x0` / `x1`) and gives every intermediate its own
+workspace name, so a kernel may write an output before it has read all of an input (`HcPost` mixes across streams,
+`EngramMerge` reads every stream). The only in-place tensors are the state rings of `WindowKv` and `CompressPool`, which
+are outputs only (tested in `crates/intarsia-models/tests/dsv41.rs`).
+
 Activation dtype is bf16 unless stated; "float" means bf16 / f16 / f32. Ops that the official code runs in fp32 take or
 produce f32 where it matters (hyper-connection mixes, router logits, compressor inputs).
 
@@ -146,7 +151,9 @@ head collapses with the last FFN's pre-mix (`Transformer.forward` line 1271). `p
 the tests compare against). The row fetch is issued as soon as the token ids are known (`EngramTier::issue`, never blocks),
 waited on before the upload (`EngramTier::wait` writes `[n, 256]` e4m3 payload and `[n, 8]` E8M0 scales, zeros for rows
 outside the rank's shard, `EngramShard` = `ParallelEngramEmbedding`'s `ceil(rows / world)` split). `MemEngramTier` is the
-in-memory test tier. Not here: the compressed token map (`build_compressed_token_map` `engram.py:17`, a tokenizer
+in-memory test tier. "Scales resident" (A2) means the tier keeps the E8M0 scale array (`[rows, 8]`, about 3 GB per rank)
+in host memory and gathers it by row index in `wait`, beside the payload rows read from NVMe; `EngramGather` therefore takes
+per-row scales and never sees the table. Not here: the compressed token map (`build_compressed_token_map` `engram.py:17`, a tokenizer
 normaliser pass that must yield exactly 99,092 ids) and the NVMe io_uring tier (Engram lane).
 
 ## Graph

@@ -34,6 +34,26 @@
 //! | `SigmoidMul` | a `[R,X]`, gate `[R,X]` | `[R,X]` (= a * sigmoid(gate)) | |
 //! | `GdnConv` | x `[T,C]`, taps `[C,K]` | y `[T,C]` (= silu(causal conv)), conv state `[C,K-1]` f32, or bf16 where `Backend::gdn_conv_dtype` says so (**in place**) | |
 //! | `ShortConv` | bcx `[T,3C]` (the `in_proj` output, rows `[B \| C \| x]`), taps `[C,K]` | y `[T,C]` (= `C * causalconv(B * x)`: depthwise causal conv, no activation, no bias, tap `K-1` on the current token; f32 inside, one rounding), conv state `[C,K-1]` f32 (the last `K-1` values of `B * x`, **in place**) | LFM2's short-conv block (lane nab2) |
+//! | **DeepSeek-V4.1** (44..=62, lane 1a; exact rules, references and status in docs/design/dsv41-ops.md, checks in `dsv41::ops`) | | | |
+//! | `HcExpand` | x `[T,D]` | `[T,S,D]` (S copies) | |
+//! | `HcMixes` | x `[T,S,D]`, fn `[(2+S)S,S*D]` f32, scale `[3]` f32, base `[(2+S)S]` f32 | pre `[T,S]`, post `[T,S]`, comb `[T,S,S]` f32 (sigmoid splits, Sinkhorn-normalised comb) | eps (RMS over `S*D`), dsv.iters, dsv.hc_eps |
+//! | `HcPre` | x `[T,S,D]`, mix `[T,S]` f32 | `[T,D]` (= sum_s mix[s] x[s]) | |
+//! | `HcPost` | x `[T,D]`, res `[T,S,D]`, post `[T,S]` f32, comb `[T,S,S]` f32 | `[T,S,D]` (y[k] = post[k] x + sum_j comb[j,k] res[j]) | |
+//! | `MoeRoute` | logits `[T,E]` f32, bias `[E]` f32 | weights `[T,K]` f32, ids `[T,K]` i32 (top-k of score + bias, weights the unbiased scores) | top_k, scale, norm_topk, temperature, dsv.score_func |
+//! | `SiluGluClamp` | gate `[R,I]`, up `[R,I]` | `[R,I]` (= silu(min(gate,l)) * clamp(up,-l,l)) | dsv.limit |
+//! | `ActQdq` | x `[..,N]` | same (quantise per block of N, dequantise) | dsv.qdq_fmt, dsv.qdq_block, dsv.qdq_scale |
+//! | `RopeTail` | x `[T,N,Dh]`, inv_freq `[rd/2]` f32 | `[T,N,Dh]` (last rd elements rotated as adjacent pairs, row t at pos0 + t*pos_stride) | pos0, dsv.pos_stride, dsv.inverse |
+//! | `WindowKv` | kv `[T,D]` | win `[W+T,D]`, ring `[Wc,D]` (**in place**) | window, pos0 |
+//! | `AttnSparse` | q `[T,H,D]`, win `[W+T,D]`, cmp `[Nc,D]`, idx `[T,Kc]` i32 (-1 none), sink `[H]` f32 | `[T,H,D]` (MQA over the window plus the indexed compressed rows, sink in the denominator) | window, pos0, scale |
+//! | `CompressPool` | kv `[T,D]` f32, score `[T,D]` f32 | out `[G,D]` (softmax-gated pooling of each completed group of ratio rows), kv / score rings `[Rc,D]` f32 (**in place**) | dsv.ratio, pos0 |
+//! | `IndexerBlocks` | q `[T,Hi,Di]`, k `[Nk,Di]`, w `[T,Hi]` | mask `[T,ceil(Nk/B)]` u8 (top_k candidate blocks) | top_k, dsv.block, dsv.ratio, pos0, scale |
+//! | `IndexerTopk` | q, k, w as above, candidates `[T,ceil(Nk/B)]` u8 or `[0]` | idx `[T,min(top_k,Nk)]` i32 (position order, -1 unreachable) | top_k, dsv.block, dsv.ratio, pos0, scale |
+//! | `GroupedMatmul` | x `[T,G*K]`, w `[G,N,K]` | `[T,G*N]` (group g: x_g @ w[g]^T) | |
+//! | `Transpose01` | x `[A,B,C]` | `[B,A,C]` | |
+//! | `MatmulFp8Block` | x `[M,K]`, w `[N,K]` e4m3, w_scale `[ceil(N/b),K/b]` u8 (E8M0) | `[M,N]` (activations quantised to e4m3 per b first) | dsv.block |
+//! | `MoeExpertsExl3` | x `[T,H]`, ids `[T,K]` i32, weights `[T,K]` f32, (trellis `[E,K/16,N/16,16*bits]` i16, suh `[E,K]` f16, svh `[E,N]` f16) x w1 / w3 / w2, codebook `[1]` i32 | `[T,H]` (weighted sum of clamped-SwiGLU EXL3 experts) | top_k, dsv.limit |
+//! | `EngramGather` | rows `[T,C,Dh]` e4m3, scales `[T,C,Dh/32]` u8 (E8M0) | `[T,C*Dh]` | |
+//! | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)*D]` (S keys, one value), q_w `[S,D]`, k_w `[S,D]` | `[T,S,D]` (h + gate * value per stream) | eps |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
 //! | `MatmulPair` | x `[M,K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | `[M,N0]`, `[M,N1]` (= two `Matmul`s of one x) | fused decode GEMV pair, see `quant::fused` |
@@ -127,24 +147,43 @@ pub enum Op {
     // appended ONCE (2026-10-31, lane 1a, DeepSeek-V4.1 skeleton): the whole DSv4.1 op set, discriminants 44..=62, frozen so
     // that the later lanes (cpu reference, CUDA, Engram) only fill in kernels. Semantics: `crate::dsv41::ops` and
     // docs/design/dsv41-ops.md. Never insert above this block, for the same reason as above.
+    /// Hyper-connections: copy the embedding into the residual streams.
     HcExpand,
+    /// Hyper-connections: pre / post / Sinkhorn comb mixes of a sub-block from the stream (fp32).
     HcMixes,
+    /// Hyper-connections: collapse the streams into one sub-block input.
     HcPre,
+    /// Hyper-connections: expand a sub-block output back into the streams, mixing the residual through comb.
     HcPost,
+    /// Router with a selection-only bias (sqrt-softplus / sigmoid / softmax scores).
     MoeRoute,
+    /// SwiGLU with the swiglu_limit clamps (up both sides, gate above).
     SiluGluClamp,
+    /// Fake quantisation (fp8 / fp4 round trip) of activations, per block of the last dim.
     ActQdq,
+    /// Rotary embedding on the last rd elements, adjacent pairs, strided positions, optional inverse.
     RopeTail,
+    /// Sliding-window KV: the window rows a chunk attends plus the ring update.
     WindowKv,
+    /// MQA over the sliding window plus indexed compressed rows, per-head sink.
     AttnSparse,
+    /// Compressor: softmax-gated pooling of each completed group, the pending group in rings.
     CompressPool,
+    /// Indexer level one: candidate blocks per query.
     IndexerBlocks,
+    /// Indexer: top-k compressed rows per query (optionally within candidate blocks).
     IndexerTopk,
+    /// Block-diagonal (grouped) matmul, the dense low-rank output projection.
     GroupedMatmul,
+    /// Swap the two leading dims (group-major rows for per-group projections).
     Transpose01,
+    /// FP8 e4m3 matmul with E8M0 block scales and dynamic per-block activation quantisation.
     MatmulFp8Block,
+    /// Routed EXL3 experts with clamped SwiGLU, weighted sum.
     MoeExpertsExl3,
+    /// Engram: dequantise fetched fp8 table rows with their E8M0 scales.
     EngramGather,
+    /// Engram: gated merge of the n-gram value into every residual stream.
     EngramMerge,
 }
 

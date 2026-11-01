@@ -8,7 +8,7 @@
 //! `Attention.forward` / `MoE.forward` (official inference code, MIT, DeepSeek); file:line per step kind in
 //! docs/design/dsv41-ops.md.
 //!
-//! Multi-stream residual: the residual is `hc_mult` (4) streams, `[t, 4, dim]` in the workspace ("x"); every sub-block
+//! Multi-stream residual: the residual is `hc_mult` (4) streams, `[t, 4, dim]` in the workspace ("x0" / "x1", ping-pong); every sub-block
 //! collapses it with `HcPre` and expands back with `HcPost`, the mixes come from `HcMixes` of the stream before the
 //! sub-block, and each sub-block's collapse uses the mix the previous sub-block computed (the first one a constant
 //! one-hot, the final collapse before the head the last FFN's).
@@ -238,6 +238,12 @@ impl Builder<'_> {
     }
 }
 
+/// The other residual buffer (`x0` <-> `x1`).
+fn flip(x: &Arg) -> Arg {
+    let other = if x.buf == Buf::Ws("x0".into()) { "x1" } else { "x0" };
+    Arg { buf: Buf::Ws(other.into()), ..x.clone() }
+}
+
 /// Fixed slot indices of a layer.
 #[derive(Clone, Copy, Debug, Default)]
 struct LayerSlots {
@@ -292,7 +298,9 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
     let emb = b.weight("embed.weight")?;
     let h = ws("h", act, &[t, d]);
     b.push(Op::Embedding, "embed", vec![ids, emb], vec![h.clone()], OpAttrs::default());
-    let x = ws("x", act, &[t, s, d]);
+    // the residual ping-pongs between two buffers: HcPost mixes across streams and EngramMerge reads every stream, so no
+    // step's output aliases its input (outputs never alias inputs in this graph, except the state rings marked in place)
+    let mut x = ws("x0", act, &[t, s, d]);
     b.push(Op::HcExpand, "hc_expand", vec![h], vec![x.clone()], OpAttrs::default());
     stages.push(Stage { name: "embed".into(), layer: None, blocks: vec!["embed".into(), format!("hc_expand x{s}")], steps: std::mem::take(&mut b.steps) });
 
@@ -309,7 +317,9 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
             b.push(Op::EngramGather, format!("{p}.engram.embed"), vec![rows, scales], vec![emb.clone()], OpAttrs::default());
             let kv = b.matmul(emb, &format!("{p}.engram.wkv"), Buf::Ws("engram.kv".into()), act)?;
             let (qw, kw) = (b.weight(&format!("{p}.engram.q_weight"))?, b.weight(&format!("{p}.engram.k_weight"))?);
-            b.push(Op::EngramMerge, format!("{p}.engram"), vec![x.clone(), kv, qw, kw], vec![x.clone()], OpAttrs { eps: c.norm_eps, ..Default::default() });
+            let y = flip(&x);
+            b.push(Op::EngramMerge, format!("{p}.engram"), vec![x.clone(), kv, qw, kw], vec![y.clone()], OpAttrs { eps: c.norm_eps, ..Default::default() });
+            x = y;
             blocks.push("engram".to_string());
         }
 
@@ -319,7 +329,9 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
         b.push(Op::HcPre, format!("{p}.hc_pre(attn)"), vec![x.clone(), pre_mix.clone()], vec![a_in.clone()], OpAttrs::default());
         let n = b.rmsnorm(a_in, &format!("{p}.attn_norm.weight"), "n")?;
         let attn_out = attention(&mut b, l, &lslots[l], &n, &mut blocks)?;
-        b.push(Op::HcPost, format!("{p}.hc_post(attn)"), vec![attn_out, x.clone(), attn_post, attn_comb], vec![x.clone()], OpAttrs::default());
+        let y = flip(&x);
+        b.push(Op::HcPost, format!("{p}.hc_post(attn)"), vec![attn_out, x.clone(), attn_post, attn_comb], vec![y.clone()], OpAttrs::default());
+        x = y;
 
         // MoE sub-block
         let [ffn_pre, ffn_post, ffn_comb] = b.hc_mixes(&x, &format!("{p}.hc_ffn"), "hc_ffn")?;
@@ -328,7 +340,9 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
         let n2 = b.rmsnorm(f_in, &format!("{p}.ffn_norm.weight"), "n")?;
         let ffn_out = moe(&mut b, &format!("{p}.ffn"), &n2, c.n_routed_experts, c.top_k)?;
         blocks.push(format!("hc_moe({}x top{} + shared)", c.n_routed_experts, c.top_k));
-        b.push(Op::HcPost, format!("{p}.hc_post(ffn)"), vec![ffn_out, x.clone(), ffn_post, ffn_comb], vec![x.clone()], OpAttrs::default());
+        let y = flip(&x);
+        b.push(Op::HcPost, format!("{p}.hc_post(ffn)"), vec![ffn_out, x.clone(), ffn_post, ffn_comb], vec![y.clone()], OpAttrs::default());
+        x = y;
         // the next layer's attention collapses with this FFN's pre-mix (written to "hc_ffn.pre", not overwritten before)
         pre_mix = ffn_pre;
         stages.push(Stage { name: format!("layer {l}"), layer: Some(l), blocks, steps: std::mem::take(&mut b.steps) });
@@ -357,13 +371,13 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     let qa = b.matmul(n.clone(), &format!("{p}.wq_a"), Buf::Ws("qa".into()), act)?;
     let qr = b.rmsnorm(qa, &format!("{p}.q_norm.weight"), "qr")?;
     let q = b.matmul(qr.clone(), &format!("{p}.wq_b"), Buf::Ws("q".into()), act)?;
-    let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, Buf::Ws("q".into()), &format!("{p}.rope(q)"));
+    let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, Buf::Ws("q_rope".into()), &format!("{p}.rope(q)"));
 
     // sliding-window KV: one latent, normed, rotated, fp8 round trip, into the ring
     let kv = b.matmul(n.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
-    let kv = b.rmsnorm(kv, &format!("{p}.kv_norm.weight"), "kv")?;
-    let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv".into()), &format!("{p}.rope(kv)"));
-    let kv = b.qdq(Arg { shape: vec![t, hd], ..kv }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("kv".into()), &format!("{p}.act_quant(kv)"));
+    let kv = b.rmsnorm(kv, &format!("{p}.kv_norm.weight"), "kv_n")?;
+    let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv_rope".into()), &format!("{p}.rope(kv)"));
+    let kv = b.qdq(Arg { shape: vec![t, hd], ..kv }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("kv_q".into()), &format!("{p}.act_quant(kv)"));
     let winbuf = ws("win", act, &[win + t, hd]);
     let ring = arg(Buf::Slot { slot: ls.window, plane: 0, row0: 0 }, act, &[win, hd]);
     b.push(Op::WindowKv, format!("{p}.window_kv"), vec![kv], vec![winbuf.clone(), ring], OpAttrs { window: win, pos0, ..Default::default() });
@@ -395,11 +409,11 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
                 b.matmul(n.clone(), &format!("{p}.compressor.wkv"), Buf::Ws("latent".into()), act)?
             };
             if groups > 0 {
-                let latent = b.rmsnorm(latent, &format!("{p}.compressor.norm.weight"), "latent")?;
+                let latent = b.rmsnorm(latent, &format!("{p}.compressor.norm.weight"), "latent_n")?;
                 // index keys from the pre-rope latent (Indexer.forward, owns_k), then the latent itself
                 let k = b.matmul(latent.clone(), &format!("{p}.indexer.wk"), Buf::Ws("index_k".into()), act)?;
-                let k = b.rmsnorm(k, &format!("{p}.indexer.k_norm.weight"), "index_k")?;
-                let k = b.rope(Arg { shape: vec![groups, 1, c.index_head_dim], ..k }, l, row0 * r, r, false, Buf::Ws("index_k".into()), &format!("{p}.rope(index_k)"));
+                let k = b.rmsnorm(k, &format!("{p}.indexer.k_norm.weight"), "index_k_n")?;
+                let k = b.rope(Arg { shape: vec![groups, 1, c.index_head_dim], ..k }, l, row0 * r, r, false, Buf::Ws("index_k_rope".into()), &format!("{p}.rope(index_k)"));
                 b.qdq(
                     Arg { shape: vec![groups, c.index_head_dim], ..k },
                     QdqFmt::Fp4E2m1,
@@ -408,7 +422,7 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
                     Buf::Slot { slot: ik_slot, plane: 0, row0 },
                     &format!("{p}.act_quant(index_k)"),
                 );
-                let lat = b.rope(Arg { shape: vec![groups, 1, hd], ..latent }, l, row0 * r, r, false, Buf::Ws("latent".into()), &format!("{p}.rope(latent)"));
+                let lat = b.rope(Arg { shape: vec![groups, 1, hd], ..latent }, l, row0 * r, r, false, Buf::Ws("latent_rope".into()), &format!("{p}.rope(latent)"));
                 b.qdq(Arg { shape: vec![groups, hd], ..lat }, QdqFmt::Fp4E2m1, 16, QdqScale::E4m3, Buf::Slot { slot: cmp_slot, plane: 0, row0 }, &format!("{p}.act_quant(latent)"));
             }
             desc.push_str(&format!(" + compressor(ratio {r})"));
@@ -417,8 +431,8 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
         if isrc == l && nk > 0 {
             // the indexer (Indexer.forward): fp4 query heads against the shared index keys
             let iq = b.matmul(qr, &format!("{p}.indexer.wq_b"), Buf::Ws("index_q".into()), act)?;
-            let iq = b.rope(Arg { shape: vec![t, c.index_n_heads, c.index_head_dim], ..iq }, l, pos0, 1, false, Buf::Ws("index_q".into()), &format!("{p}.rope(index_q)"));
-            let iq = b.qdq(iq, QdqFmt::Fp4E2m1, 32, QdqScale::Ue8m0, Buf::Ws("index_q".into()), &format!("{p}.act_quant(index_q)"));
+            let iq = b.rope(Arg { shape: vec![t, c.index_n_heads, c.index_head_dim], ..iq }, l, pos0, 1, false, Buf::Ws("index_q_rope".into()), &format!("{p}.rope(index_q)"));
+            let iq = b.qdq(iq, QdqFmt::Fp4E2m1, 32, QdqScale::Ue8m0, Buf::Ws("index_q_q".into()), &format!("{p}.act_quant(index_q)"));
             let iw = b.matmul(n.clone(), &format!("{p}.indexer.weights_proj"), Buf::Ws("index_w".into()), act)?;
             let keys = arg(Buf::Slot { slot: ik_slot, plane: 0, row0: 0 }, act, &[nk, c.index_head_dim]);
             let scale = (c.index_head_dim as f32).powf(-0.5) * (c.index_n_heads as f32).powf(-0.5);
@@ -451,12 +465,12 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     let sink = b.weight(&format!("{p}.attn_sink"))?;
     let o = ws("o", act, &[t, h, hd]);
     b.push(Op::AttnSparse, format!("{p}.sparse_attn"), vec![q, winbuf, cmp, idx, sink], vec![o.clone()], OpAttrs { window: win, pos0, scale: (hd as f32).powf(-0.5), ..Default::default() });
-    let o = b.rope(o, l, pos0, 1, true, Buf::Ws("o".into()), &format!("{p}.rope_inverse(o)"));
+    let o = b.rope(o, l, pos0, 1, true, Buf::Ws("o_derot".into()), &format!("{p}.rope_inverse(o)"));
 
     // grouped low-rank output: fp8 round trip, per-group projection, then wo_b
     let g = c.o_groups;
     let gk = h * hd / g;
-    let o = b.qdq(Arg { shape: vec![t, g, gk], ..o }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("o".into()), &format!("{p}.act_quant(o)"));
+    let o = b.qdq(Arg { shape: vec![t, g, gk], ..o }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("o_q".into()), &format!("{p}.act_quant(o)"));
     let oa = if b.has(&format!("{p}.wo_a.slice.0.trellis")) {
         // EXL3 (Mia): one matmul per group slice on group-major rows
         let og = ws("o_groups", act, &[g, t, gk]);
@@ -520,7 +534,7 @@ fn moe(b: &mut Builder, p: &str, n: &Arg, experts: usize, top_k: usize) -> Resul
     // shared expert: clamped SwiGLU
     let g = b.matmul(n.clone(), &format!("{p}.shared_experts.w1"), Buf::Ws("g".into()), act)?;
     let u = b.matmul(n.clone(), &format!("{p}.shared_experts.w3"), Buf::Ws("u".into()), act)?;
-    let hsh = ws("g", act, &g.shape);
+    let hsh = ws("h_shared", act, &g.shape);
     let mut a = OpAttrs::default();
     a.dsv.limit = c.swiglu_limit;
     b.push(Op::SiluGluClamp, format!("{p}.shared_experts.act"), vec![g, u], vec![hsh.clone()], a);

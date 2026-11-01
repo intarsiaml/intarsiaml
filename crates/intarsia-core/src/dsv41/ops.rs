@@ -11,6 +11,10 @@ use crate::dtype::DType;
 use crate::error::{Error, Result};
 use crate::ops::{Op, OpCall, ShapeInfo};
 
+/// What a registered-but-unimplemented kernel's error says (`intarsia kernels test` reports such kernels as STUB instead
+/// of failing; the cpu stubs in `intarsia-backend-cpu`'s `dsv41_ref::STUBS` use it).
+pub const STUB_MARK: &str = "not implemented (lane 1b)";
+
 /// Element format of `Op::ActQdq` (the reference's in-place `act_quant` / `fp4_act_quant`: quantise, then dequantise
 /// back to the activation dtype).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

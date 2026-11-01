@@ -16,7 +16,7 @@ pub const STUBS: [Op; 2] = [Op::MatmulFp8Block, Op::MoeExpertsExl3];
 
 /// The error a stub op's kernels return.
 pub fn stub_error(op: Op) -> Error {
-    Error::Unsupported(format!("{op}: not implemented (lane 1b), see docs/design/dsv41-ops.md"))
+    Error::Unsupported(format!("{op}: {}, see docs/design/dsv41-ops.md", intarsia_core::dsv41::ops::STUB_MARK))
 }
 
 fn rd(t: &TensorRef) -> Result<Vec<f64>> {

@@ -44,6 +44,10 @@ fn mia_graph_records_every_layer_with_the_official_structure() {
     for st in &g.stages {
         for s in &st.steps {
             s.phantom_call().unwrap();
+            // no step writes a buffer it reads (kernels may assume outputs never alias inputs)
+            for o in &s.outputs {
+                assert!(s.inputs.iter().all(|i| i.buf != o.buf), "{}: {:?} is read and written", s.what, o.buf);
+            }
         }
     }
     let count = |l: usize, op: Op| layer_ops(&g, l).iter().filter(|&&o| o == op).count();
