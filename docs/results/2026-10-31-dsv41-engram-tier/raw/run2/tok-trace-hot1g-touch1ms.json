@@ -1,0 +1,83 @@
+{
+  "dir": "/home/nvidia/dsv41-engram",
+  "rank": 1,
+  "world": 2,
+  "backend": "io_uring",
+  "granule": "page",
+  "scales": "read",
+  "hot_mb": 1024,
+  "profile": ".scratch/profile-r1-3M.u64",
+  "trace": ".scratch/test.u32",
+  "tokens_per_step": 1,
+  "touch": true,
+  "touch_lead_us": 1000,
+  "keepalive_ms": 0.0,
+  "spec_topk": 0,
+  "spec_lead_us": 500,
+  "open_s": 0.000444078,
+  "preload_s": 4.44462193,
+  "host": {
+    "kernel": "6.17.0-1032-nvidia",
+    "apst_max_latency_us": "100000",
+    "nvme_model": "SAMSUNG MZALC4T0HBL1-00B07",
+    "logical_block": "512",
+    "scheduler": "[none] mq-deadline"
+  },
+  "points": [
+    {
+      "gap_ms": 16.0,
+      "layer1": {
+        "n": 1500,
+        "p50_us": 8.368,
+        "p90_us": 182.624,
+        "p99_us": 289.631,
+        "p999_us": 328.68699999999995,
+        "max_us": 381.839,
+        "mean_us": 63.275253333333275
+      },
+      "step": {
+        "n": 1500,
+        "p50_us": 8.399999999999999,
+        "p90_us": 212.36700000000002,
+        "p99_us": 302.431,
+        "p999_us": 418.574,
+        "max_us": 472.71900000000005,
+        "mean_us": 69.81603466666667
+      },
+      "hot_hit_pct": 70.51944444444445,
+      "row_reads_per_token": 7.075333333333333,
+      "io_bytes": 46342144,
+      "staged_hits": 0,
+      "joined": 0,
+      "failed": 0
+    },
+    {
+      "gap_ms": 75.0,
+      "layer1": {
+        "n": 1500,
+        "p50_us": 8.816,
+        "p90_us": 246.127,
+        "p99_us": 1488.7469999999998,
+        "p999_us": 1788.89,
+        "max_us": 1830.8899999999999,
+        "mean_us": 132.14297333333337
+      },
+      "step": {
+        "n": 1500,
+        "p50_us": 8.831999999999999,
+        "p90_us": 281.951,
+        "p99_us": 1563.067,
+        "p999_us": 1817.674,
+        "max_us": 1830.8899999999999,
+        "mean_us": 145.17277466666675
+      },
+      "hot_hit_pct": 60.75555555555555,
+      "row_reads_per_token": 9.418666666666667,
+      "io_bytes": 61632512,
+      "staged_hits": 0,
+      "joined": 0,
+      "failed": 0
+    }
+  ],
+  "resident_bytes": 804954152
+}

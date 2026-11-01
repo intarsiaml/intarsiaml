@@ -1,0 +1,83 @@
+{
+  "dir": "/home/nvidia/.cache/dsv41-tensorfold/engram-1bae0e10",
+  "rank": 1,
+  "world": 2,
+  "backend": "io_uring",
+  "granule": "page",
+  "scales": "resident",
+  "hot_mb": 0,
+  "profile": null,
+  "trace": null,
+  "tokens_per_step": 1,
+  "touch": false,
+  "touch_lead_us": 0,
+  "keepalive_ms": 0.0,
+  "spec_topk": 0,
+  "spec_lead_us": 500,
+  "open_s": 1.3063995959999999,
+  "preload_s": 0.0,
+  "host": {
+    "kernel": "6.17.0-1032-nvidia",
+    "apst_max_latency_us": "100000",
+    "nvme_model": "SAMSUNG MZALC4T0HBL1-00B07",
+    "logical_block": "512",
+    "scheduler": "[none] mq-deadline"
+  },
+  "points": [
+    {
+      "gap_ms": 0.0,
+      "layer1": {
+        "n": 1500,
+        "p50_us": 125.568,
+        "p90_us": 164.064,
+        "p99_us": 204.288,
+        "p999_us": 235.135,
+        "max_us": 242.671,
+        "mean_us": 127.58340600000011
+      },
+      "step": {
+        "n": 1500,
+        "p50_us": 127.05499999999999,
+        "p90_us": 165.167,
+        "p99_us": 213.839,
+        "p999_us": 404.943,
+        "max_us": 405.93399999999997,
+        "mean_us": 131.69411333333338
+      },
+      "hot_hit_pct": 0.0,
+      "row_reads_per_token": 24.0,
+      "io_bytes": 156323840,
+      "staged_hits": 0,
+      "joined": 0,
+      "failed": 0
+    },
+    {
+      "gap_ms": 16.0,
+      "layer1": {
+        "n": 1500,
+        "p50_us": 222.799,
+        "p90_us": 238.495,
+        "p99_us": 442.271,
+        "p999_us": 535.358,
+        "max_us": 557.9499999999999,
+        "mean_us": 214.51738266666638
+      },
+      "step": {
+        "n": 1500,
+        "p50_us": 222.847,
+        "p90_us": 239.839,
+        "p99_us": 449.118,
+        "p999_us": 557.9499999999999,
+        "max_us": 734.957,
+        "mean_us": 216.06146933333295
+      },
+      "hot_hit_pct": 0.0,
+      "row_reads_per_token": 23.998666666666665,
+      "io_bytes": 156569600,
+      "staged_hits": 2,
+      "joined": 0,
+      "failed": 0
+    }
+  ],
+  "resident_bytes": 3078535280
+}

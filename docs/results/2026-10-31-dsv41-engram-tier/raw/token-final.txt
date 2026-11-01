@@ -1,0 +1,117 @@
+fleetq: #7549 waiting (#1 in line): needs disk quiet on spark2, but #7531 "BLACKFOLD staging (verify/patch weights, engine build, rank files)" (claude-5e038b15) loads it
+fleetq:   #7531 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7531 set, or it will wait for #7531 to be released.
+fleetq: #7549 waiting (#1 in line): needs disk quiet on spark2, but #7546 "dsv41 engram tier bench (NVMe reads): store per-token, run 2" (claude-5e038b15) loads it
+fleetq:   #7546 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7546 set, or it will wait for #7546 to be released.
+fleetq: #7549 running on spark2: ssh -tt spark2 intarsia-dsv41-engram/.scratch/token3.sh
+    Finished `release` profile [optimized] target(s) in 0.27s
+quiet check (10 s):
+  read 0 MiB, written 0 MiB
+               total        used        free      shared  buff/cache   available
+Mem:             121          46           5           0          71          75
+== random: --dir /home/nvidia/dsv41-engram --steps 1500 --granule page --gap-ms 0,16,75
+MemAvailable 75.7 GiB, this run needs ~0.25 GiB
+layer 1: Packed rows 192001740..384006168 direct true (/home/nvidia/dsv41-engram/engram-l1-r1of2.bin)
+layer 14: Packed rows 192007016..384016682 direct true (/home/nvidia/dsv41-engram/engram-l14-r1of2.bin)
+per step (1 token(s), 48 rows fetched/rank of which 24 owned): latency from fetch to rows in, us
+gap ms | layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max | step (both layers)   p50 p90 p99 p99.9 max   |  hot % reads/t
+     0 |      136      172      410      461      469 |      140      179      412      461      469 |    0.0    24.0
+    16 |      172      224      468      573      594 |      174      226      470      594      673 |    0.0    24.0
+    75 |      594      649      887     1286     1398 |      595      657      887     1286     1398 |    0.0    24.0
+wrote .scratch/out3/tok-random.json
+   disk meanwhile: read 447 MiB, written 9 MiB
+== random-touch1ms: --dir /home/nvidia/dsv41-engram --steps 1500 --granule page --gap-ms 16,75 --touch --touch-lead-us 1000
+MemAvailable 75.7 GiB, this run needs ~0.25 GiB
+layer 1: Packed rows 192001740..384006168 direct true (/home/nvidia/dsv41-engram/engram-l1-r1of2.bin)
+layer 14: Packed rows 192007016..384016682 direct true (/home/nvidia/dsv41-engram/engram-l14-r1of2.bin)
+per step (1 token(s), 48 rows fetched/rank of which 24 owned): latency from fetch to rows in, us
+gap ms | layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max | step (both layers)   p50 p90 p99 p99.9 max   |  hot % reads/t
+    16 |      195      208      368      449      519 |      195      210      389      449      519 |    0.0    24.0
+    75 |      194      210      407      529      974 |      195      214      416      697      974 |    0.0    24.0
+wrote .scratch/out3/tok-random-touch1ms.json
+   disk meanwhile: read 302 MiB, written 5 MiB
+== random-spec4-touch: --dir /home/nvidia/dsv41-engram --steps 1500 --granule page --gap-ms 75 --touch --touch-lead-us 1000 --spec-topk 4 --spec-lead-us 500
+MemAvailable 75.7 GiB, this run needs ~0.25 GiB
+layer 1: Packed rows 192001740..384006168 direct true (/home/nvidia/dsv41-engram/engram-l1-r1of2.bin)
+layer 14: Packed rows 192007016..384016682 direct true (/home/nvidia/dsv41-engram/engram-l14-r1of2.bin)
+per step (1 token(s), 48 rows fetched/rank of which 24 owned): latency from fetch to rows in, us
+gap ms | layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max | step (both layers)   p50 p90 p99 p99.9 max   |  hot % reads/t
+    75 |       21       31       39      104      557 |       21       31       39      104      558 |    0.0     0.0
+wrote .scratch/out3/tok-random-spec4-touch.json
+   disk meanwhile: read 598 MiB, written 5 MiB
+== trace-nohot: --dir /home/nvidia/dsv41-engram --steps 1500 --granule page --gap-ms 0,75 --trace .scratch/test.u32
+MemAvailable 75.7 GiB, this run needs ~0.25 GiB
+layer 1: Packed rows 192001740..384006168 direct true (/home/nvidia/dsv41-engram/engram-l1-r1of2.bin)
+layer 14: Packed rows 192007016..384016682 direct true (/home/nvidia/dsv41-engram/engram-l14-r1of2.bin)
+per step (1 token(s), 48 rows fetched/rank of which 24 owned): latency from fetch to rows in, us
+gap ms | layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max | step (both layers)   p50 p90 p99 p99.9 max   |  hot % reads/t
+     0 |      130      185      321      434      712 |      134      186      362      468      712 |    0.0    20.0
+    75 |      583      649     9642    10108    10505 |      584      652     9642    10108    10505 |    0.0    20.9
+wrote .scratch/out3/tok-trace-nohot.json
+   disk meanwhile: read 254 MiB, written 2 MiB
+== trace-nohot-touch1ms: --dir /home/nvidia/dsv41-engram --steps 1500 --granule page --gap-ms 75 --trace .scratch/test.u32 --touch --touch-lead-us 1000
+MemAvailable 75.7 GiB, this run needs ~0.25 GiB
+layer 1: Packed rows 192001740..384006168 direct true (/home/nvidia/dsv41-engram/engram-l1-r1of2.bin)
+layer 14: Packed rows 192007016..384016682 direct true (/home/nvidia/dsv41-engram/engram-l14-r1of2.bin)
+per step (1 token(s), 48 rows fetched/rank of which 24 owned): latency from fetch to rows in, us
+gap ms | layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max | step (both layers)   p50 p90 p99 p99.9 max   |  hot % reads/t
+    75 |      123      185      236      336      456 |      138      186      263      456      458 |    0.0    20.0
+wrote .scratch/out3/tok-trace-nohot-touch1ms.json
+   disk meanwhile: read 125 MiB, written 3 MiB
+== trace-hot1g: --dir /home/nvidia/dsv41-engram --steps 1500 --granule page --gap-ms 0,16,75 --trace .scratch/test.u32 --hot-mb 1024 --profile .scratch/profile-r1-3M.u64
+MemAvailable 75.7 GiB, this run needs ~1.25 GiB
+layer 1: Packed rows 192001740..384006168 direct true (/home/nvidia/dsv41-engram/engram-l1-r1of2.bin)
+layer 14: Packed rows 192007016..384016682 direct true (/home/nvidia/dsv41-engram/engram-l14-r1of2.bin)
+pinned 3000000 rows (792 MB) in 4.9 s
+per step (1 token(s), 48 rows fetched/rank of which 24 owned): latency from fetch to rows in, us
+gap ms | layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max | step (both layers)   p50 p90 p99 p99.9 max   |  hot % reads/t
+     0 |        3      143      265      354      391 |        3      163      278      437      444 |   70.5     7.1
+    16 |        5      262     9605     9639     9662 |        5      280     9610     9662     9669 |   60.8     9.4
+    75 |        5      693     9680    10516    10537 |        5      700     9680    10516    10537 |   69.6     7.3
+wrote .scratch/out3/tok-trace-hot1g.json
+   disk meanwhile: read 12601 MiB, written 5 MiB
+== trace-hot1g-touch1ms: --dir /home/nvidia/dsv41-engram --steps 1500 --granule page --gap-ms 16,75 --trace .scratch/test.u32 --hot-mb 1024 --profile .scratch/profile-r1-3M.u64 --touch --touch-lead-us 1000
+MemAvailable 75.7 GiB, this run needs ~1.25 GiB
+layer 1: Packed rows 192001740..384006168 direct true (/home/nvidia/dsv41-engram/engram-l1-r1of2.bin)
+layer 14: Packed rows 192007016..384016682 direct true (/home/nvidia/dsv41-engram/engram-l14-r1of2.bin)
+pinned 3000000 rows (792 MB) in 4.5 s
+per step (1 token(s), 48 rows fetched/rank of which 24 owned): latency from fetch to rows in, us
+gap ms | layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max | step (both layers)   p50 p90 p99 p99.9 max   |  hot % reads/t
+    16 |        6      160      293      330      334 |        6      185      299      408      427 |   70.5     7.1
+    75 |        6      189      299      332      404 |        6      223      303      395      404 |   60.8     9.4
+wrote .scratch/out3/tok-trace-hot1g-touch1ms.json
+   disk meanwhile: read 12557 MiB, written 4 MiB
+== trace-hot1g-6tok-touch: --dir /home/nvidia/dsv41-engram --steps 800 --granule page --gap-ms 0,75 --trace .scratch/test.u32 --hot-mb 1024 --profile .scratch/profile-r1-3M.u64 --tokens-per-step 6 --touch --touch-lead-us 1000
+MemAvailable 75.7 GiB, this run needs ~1.25 GiB
+layer 1: Packed rows 192001740..384006168 direct true (/home/nvidia/dsv41-engram/engram-l1-r1of2.bin)
+layer 14: Packed rows 192007016..384016682 direct true (/home/nvidia/dsv41-engram/engram-l14-r1of2.bin)
+pinned 3000000 rows (792 MB) in 4.5 s
+per step (6 token(s), 288 rows fetched/rank of which 144 owned): latency from fetch to rows in, us
+gap ms | layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max | step (both layers)   p50 p90 p99 p99.9 max   |  hot % reads/t
+     0 |      140      298      402     1584     1584 |      179      364      489     1584     1584 |   66.9     7.9
+    75 |       21      292      452      652      652 |       21      369      515      988      988 |   75.4     5.9
+wrote .scratch/out3/tok-trace-hot1g-6tok-touch.json
+   disk meanwhile: read 12729 MiB, written 1 MiB
+== st-scaleread-touch: --dir /home/nvidia/.cache/dsv41-tensorfold/engram-1bae0e10 --steps 1500 --granule page --gap-ms 0,75 --touch --touch-lead-us 1000
+MemAvailable 75.7 GiB, this run needs ~0.25 GiB
+layer 1: Safetensors rows 192001740..384006168 direct true (/home/nvidia/.cache/dsv41-tensorfold/engram-1bae0e10/model-00047-of-00048.safetensors)
+layer 14: Safetensors rows 192007016..384016682 direct true (/home/nvidia/.cache/dsv41-tensorfold/engram-1bae0e10/model-00048-of-00048.safetensors)
+per step (1 token(s), 48 rows fetched/rank of which 24 owned): latency from fetch to rows in, us
+gap ms | layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max | step (both layers)   p50 p90 p99 p99.9 max   |  hot % reads/t
+     0 |      252      429      553      643      697 |      268      429      556      643      697 |    0.0    24.0
+    75 |      209      462      569      698      703 |      211      462      569      698      703 |    0.0    24.0
+wrote .scratch/out3/tok-st-scaleread-touch.json
+   disk meanwhile: read 581 MiB, written 4 MiB
+== st-resident-touch: --dir /home/nvidia/.cache/dsv41-tensorfold/engram-1bae0e10 --steps 1500 --granule page --gap-ms 75 --scales resident --touch --touch-lead-us 1000
+MemAvailable 75.7 GiB, this run needs ~3.11 GiB
+layer 1: Safetensors rows 192001740..384006168 direct true (/home/nvidia/.cache/dsv41-tensorfold/engram-1bae0e10/model-00047-of-00048.safetensors)
+layer 14: Safetensors rows 192007016..384016682 direct true (/home/nvidia/.cache/dsv41-tensorfold/engram-1bae0e10/model-00048-of-00048.safetensors)
+per step (1 token(s), 48 rows fetched/rank of which 24 owned): latency from fetch to rows in, us
+gap ms | layer 1 (needed after layer 0)   p50 p90 p99 p99.9 max | step (both layers)   p50 p90 p99 p99.9 max   |  hot % reads/t
+    75 |      151      202      315      486      528 |      154      203      375      486      528 |    0.0    24.0
+wrote .scratch/out3/tok-st-resident-touch.json
+   disk meanwhile: read 3081 MiB, written 4 MiB
+               total        used        free      shared  buff/cache   available
+Mem:             121          45           5           0          71          75
+Connection to spark-fa00 closed.
+fleetq: #7549 done (exit 0)
+FINISHED

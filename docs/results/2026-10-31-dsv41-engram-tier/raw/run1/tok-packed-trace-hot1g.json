@@ -1,0 +1,110 @@
+{
+  "dir": "/home/nvidia/dsv41-engram",
+  "rank": 1,
+  "world": 2,
+  "backend": "io_uring",
+  "granule": "page",
+  "scales": "read",
+  "hot_mb": 1024,
+  "profile": ".scratch/profile-r1-3M.u64",
+  "trace": ".scratch/test.u32",
+  "tokens_per_step": 1,
+  "touch": false,
+  "touch_lead_us": 0,
+  "keepalive_ms": 0.0,
+  "spec_topk": 0,
+  "spec_lead_us": 500,
+  "open_s": 0.000444255,
+  "preload_s": 4.480396766,
+  "host": {
+    "kernel": "6.17.0-1032-nvidia",
+    "apst_max_latency_us": "100000",
+    "nvme_model": "SAMSUNG MZALC4T0HBL1-00B07",
+    "logical_block": "512",
+    "scheduler": "[none] mq-deadline"
+  },
+  "points": [
+    {
+      "gap_ms": 0.0,
+      "layer1": {
+        "n": 1500,
+        "p50_us": 94.32000000000001,
+        "p90_us": 198.527,
+        "p99_us": 295.07099999999997,
+        "p999_us": 318.575,
+        "max_us": 19799.556,
+        "mean_us": 106.28376666666668
+      },
+      "step": {
+        "n": 1500,
+        "p50_us": 122.20800000000001,
+        "p90_us": 220.815,
+        "p99_us": 300.207,
+        "p999_us": 399.61499999999995,
+        "max_us": 19799.556,
+        "mean_us": 121.1452666666668
+      },
+      "hot_hit_pct": 43.5,
+      "row_reads_per_token": 13.56,
+      "io_bytes": 88739840,
+      "staged_hits": 0,
+      "joined": 0,
+      "failed": 0
+    },
+    {
+      "gap_ms": 16.0,
+      "layer1": {
+        "n": 1500,
+        "p50_us": 141.35999999999999,
+        "p90_us": 287.519,
+        "p99_us": 9562.563,
+        "p999_us": 10025.057999999999,
+        "max_us": 10053.681999999999,
+        "mean_us": 279.8328206666667
+      },
+      "step": {
+        "n": 1500,
+        "p50_us": 154.447,
+        "p90_us": 292.847,
+        "p99_us": 9562.563,
+        "p999_us": 10025.057999999999,
+        "max_us": 10053.681999999999,
+        "mean_us": 294.2395526666666
+      },
+      "hot_hit_pct": 33.736111111111114,
+      "row_reads_per_token": 15.903333333333334,
+      "io_bytes": 103964672,
+      "staged_hits": 0,
+      "joined": 0,
+      "failed": 0
+    },
+    {
+      "gap_ms": 75.0,
+      "layer1": {
+        "n": 1500,
+        "p50_us": 543.134,
+        "p90_us": 694.878,
+        "p99_us": 9663.730000000001,
+        "p999_us": 10601.52,
+        "max_us": 11110.75,
+        "mean_us": 925.7431066666674
+      },
+      "step": {
+        "n": 1500,
+        "p50_us": 552.574,
+        "p90_us": 697.486,
+        "p99_us": 9664.786,
+        "p999_us": 10601.52,
+        "max_us": 11110.75,
+        "mean_us": 931.1297280000009
+      },
+      "hot_hit_pct": 42.12777777777778,
+      "row_reads_per_token": 13.889333333333333,
+      "io_bytes": 90480640,
+      "staged_hits": 0,
+      "joined": 0,
+      "failed": 0
+    }
+  ],
+  "resident_bytes": 815590184
+}

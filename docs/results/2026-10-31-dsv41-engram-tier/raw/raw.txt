@@ -1,0 +1,84 @@
+fleetq: #7534 running on spark2: ssh -tt spark2 intarsia-dsv41-engram/.scratch/raw.sh
+disk activity before (5 s):
+ 259       0 nvme0n1 50993995 182035 1277371009 122559180 1860355 229842 452250814 3059750 0 636049 125629189 0 0 0 0 8837 10257
+ 259       0 nvme0n1 50993995 182035 1277371009 122559180 1860358 229874 452251094 3059772 0 636062 125629211 0 0 0 0 8838 10258
+               total        used        free      shared  buff/cache   available
+Mem:             121          46           2           0          74          74
+raw: /home/nvidia/dsv41-engram/engram-l1-r1of2.bin (50.7 GB, reading below 50.7 GB) backend io_uring direct true
+sustained random reads (O_DIRECT)
+    bs   qd       IOPS      MB/s | per-IO latency us:    p50      p90      p99    p99.9      max
+   512    1       3922       2.0 |                         201      301      534      620      747
+   512    2       7418       3.8 |                         277      316      543      697      890
+   512    4      14839       7.6 |                         278      304      542      676      802
+   512    8      59378      30.4 |                         152      187      400      461      692
+   512   16     100299      51.4 |                         153      162      397      480     1550
+   512   24     193816      99.2 |                         113      165      332      415     3077
+   512   32     348921     178.6 |                          79      163      185      378      670
+   512   48     469252     240.3 |                          85      177      300      428     5874
+   512   64     654127     334.9 |                          91      128      195      333     5612
+  4096    1       3505      14.4 |                         300      304      486      570      715
+  4096    2       7422      30.4 |                         299      302      497      562      666
+  4096    4      17584      72.0 |                         200      300      418      528      847
+  4096    8      82561     338.2 |                          78      154      237      418      672
+  4096   16     134184     549.6 |                         107      158      325      417      525
+  4096   24     294267    1205.3 |                          78      102      138      178      654
+  4096   32     366215    1500.0 |                          80      118      190      393     6068
+  4096   48     550429    2254.6 |                          82      113      175      248     5531
+  4096   64     655137    2683.4 |                          91      128      191      306     4439
+
+token-shaped bursts: N reads at once, wait for all (latency of the whole burst)
+    bs burst  gap ms | burst us:    p50      p90      p99    p99.9      max
+   512    12       0 |                147      168      390      451      514
+   512    12      16 |                229      253      369      456      475
+   512    12      75 |                658      709      853     1147     1147
+   512    24       0 |                125      145      181      401      426
+   512    24      16 |                227      240      442      499      577
+   512    24      75 |                605      650      805     1096     1096
+   512    48       0 |                163      197      240      425      453
+   512    48      16 |                231      270      669      766      789
+   512    48      75 |                634      690      898      922      922
+   512   144       0 |                286      334      546      631      719
+   512   144      16 |                352      473      686      833      855
+   512   144      75 |                767     1011     1204     1237     1237
+  4096    12       0 |                200      202      591      779      788
+  4096    12      16 |                312      349      436      645      682
+  4096    12      75 |                672      725      792     1110     1110
+  4096    24       0 |                126      152      189      402      404
+  4096    24      16 |                173      202      231      273      278
+  4096    24      75 |                572      616      663      666      666
+  4096    48       0 |                163      198      243      455      472
+  4096    48      16 |                216      251      308      502      512
+  4096    48      75 |                619      668      890     1286     1286
+  4096   144       0 |                264      311      534      591     1349
+  4096   144      16 |                356      397      451      647      674
+  4096   144      75 |                728      793     1007     1025     1025
+wrote .scratch/out/raw-uring.json
+raw: /home/nvidia/dsv41-engram/engram-l1-r1of2.bin (50.7 GB, reading below 50.7 GB) backend io_uring direct true
+sustained random reads (O_DIRECT)
+    bs   qd       IOPS      MB/s | per-IO latency us:    p50      p90      p99    p99.9      max
+  1024   24     293444     300.5 |                          78      102      138      200      565
+  1024   48     537174     550.1 |                          82      116      197      454     6085
+
+token-shaped bursts: N reads at once, wait for all (latency of the whole burst)
+    bs burst  gap ms | burst us:    p50      p90      p99    p99.9      max
+  1024    12       0 |                200      201      244      307      311
+  1024    12      16 |                308      513      583      601      704
+  1024    24       0 |                125      148      187      418      591
+  1024    24      16 |                231      417      552      594      667
+wrote .scratch/out/raw-uring-1k.json
+raw: /home/nvidia/dsv41-engram/engram-l1-r1of2.bin (50.7 GB, reading below 50.7 GB) backend pread-pool direct true
+sustained random reads (O_DIRECT)
+    bs   qd       IOPS      MB/s | per-IO latency us:    p50      p90      p99    p99.9      max
+   512   24      64874      33.2 |                         369      498      579      652     1050
+
+token-shaped bursts: N reads at once, wait for all (latency of the whole burst)
+    bs burst  gap ms | burst us:    p50      p90      p99    p99.9      max
+   512    12       0 |                527      597      652      693      695
+   512    12      16 |                855     1214     1519     1966     1997
+   512    12      75 |               1067     1380     1822     2272     2272
+   512    24       0 |                664      757      827     1025     1355
+   512    24      16 |               1104     1365     1631     1818     1870
+   512    24      75 |               1302     1662     2030     2428     2428
+wrote .scratch/out/raw-pool.json
+Connection to spark-fa00 closed.
+fleetq: #7534 done (exit 0)
