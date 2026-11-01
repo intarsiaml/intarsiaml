@@ -185,6 +185,25 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
             SlotSpec::Recurrent { bytes } => {
                 StateSlot::Recurrent(RecurrentState { buf: Buffer::new(Phantom((*bytes).max(16))), bytes: *bytes })
             }
+            SlotSpec::Ring { rows, width, planes, dtype, margin, kind } => StateSlot::Ring(crate::state::RingState {
+                buf: Buffer::new(Phantom(s.bytes(cap).max(16))),
+                rows: *rows,
+                width: *width,
+                planes: *planes,
+                dtype: *dtype,
+                margin: *margin,
+                kind: *kind,
+            }),
+            SlotSpec::Shared { ratio, width, dtype, writer, readers, kind } => StateSlot::Shared(crate::state::SharedState {
+                buf: Buffer::new(Phantom(s.bytes(cap).max(16))),
+                cap_rows: cap.div_ceil((*ratio).max(1)),
+                ratio: *ratio,
+                width: *width,
+                dtype: *dtype,
+                writer: *writer,
+                readers: readers.clone(),
+                kind: *kind,
+            }),
         });
     }
     SequenceState {

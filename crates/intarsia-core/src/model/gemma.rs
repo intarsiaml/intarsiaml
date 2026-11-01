@@ -131,7 +131,7 @@ impl Model {
         // ---- attention ----
         let slot = match &st.slots[g.slot] {
             StateSlot::AttnKv(s) => s,
-            StateSlot::Recurrent(_) => return Err(Error::invalid("gemma attention bound to a recurrent state slot")),
+            StateSlot::Recurrent(_) | StateSlot::Ring(_) | StateSlot::Shared(_) => return Err(Error::invalid("gemma attention bound to a recurrent state slot")),
         };
         norm(h_in, &g.input_norm, &b0)?;
         let q3 = |i: usize| self.view(&ws.q[i], act, &[t, nh, hd]);

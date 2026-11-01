@@ -57,6 +57,7 @@ pub fn run(call: &OpCall) -> Result<()> {
         Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::ShortConv => crate::gdn_ref::run(call),
         Op::MatmulFp8 | Op::MatmulNvfp4 | Op::MatmulMxfp4 | Op::MoeTopk | Op::MoeExperts | Op::MoeCombine => crate::quant_ref::run(call),
         Op::MatmulExl3 => crate::exl3_ref::run(call),
+        Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::MoeExpertsExl3 | Op::EngramGather | Op::EngramMerge => crate::dsv41_ref::run(call),
         Op::MatmulPair
         | Op::MatmulFp8Pair
         | Op::MatmulMxfp4Pair

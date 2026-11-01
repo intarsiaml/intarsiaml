@@ -3898,7 +3898,7 @@ impl Model {
     fn attn_slot<'s>(st: &'s SequenceState, a: &AttnBlock) -> Result<&'s crate::state::AttnKvState> {
         match &st.slots[a.slot] {
             StateSlot::AttnKv(s) => Ok(s),
-            StateSlot::Recurrent(_) => Err(Error::invalid("attention block bound to a recurrent state slot")),
+            StateSlot::Recurrent(_) | StateSlot::Ring(_) | StateSlot::Shared(_) => Err(Error::invalid("attention block bound to a recurrent state slot")),
         }
     }
 

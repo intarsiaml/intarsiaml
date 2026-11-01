@@ -1,0 +1,4925 @@
+{
+"quant_method": "exl3",
+"version": "1.6.1",
+"bits": 2.9,
+"head_bits": 6,
+"out_scales": "always",
+"codebook": "mul1",
+"original_quantization_config": {
+"quant_method": "fp8",
+"activation_scheme": "dynamic",
+"weight_block_size": [
+32,
+32
+],
+"scale_fmt": "ue8m0",
+"expert_dtype": "fp4"
+},
+"mtp_bits": 4,
+"tensor_storage": {
+"embed": {
+"stored_tensors": {
+"embed.weight": {
+"shape": [
+129280,
+5120
+],
+"n_bytes": 1323827200,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"hc_expand": {
+"stored_tensors": {}
+},
+"layers.0.hc_attn.norm": {
+"stored_tensors": {}
+},
+"layers.0.attn_norm": {
+"stored_tensors": {
+"layers.0.attn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.0.attn.wq_a": {
+"stored_tensors": {
+"layers.0.attn.wq_a.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wq_a.svh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wq_a.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wq_a.trellis": {
+"shape": [
+320,
+80,
+96
+],
+"n_bytes": 4915200,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 6,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.q_norm": {
+"stored_tensors": {
+"layers.0.attn.q_norm.weight": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.0.attn.wq_b": {
+"stored_tensors": {
+"layers.0.attn.wq_b.suh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wq_b.svh": {
+"shape": [
+32768
+],
+"n_bytes": 65536,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wq_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wq_b.trellis": {
+"shape": [
+80,
+2048,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.wkv": {
+"stored_tensors": {
+"layers.0.attn.wkv.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wkv.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wkv.trellis": {
+"shape": [
+320,
+32,
+96
+],
+"n_bytes": 1966080,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 6,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.kv_norm": {
+"stored_tensors": {
+"layers.0.attn.kv_norm.weight": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.0.attn.wo_a.slice.0": {
+"stored_tensors": {
+"layers.0.attn.wo_a.slice.0.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.0.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.0.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wo_a.slice.0.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.wo_a.slice.1": {
+"stored_tensors": {
+"layers.0.attn.wo_a.slice.1.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.1.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wo_a.slice.1.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.wo_a.slice.2": {
+"stored_tensors": {
+"layers.0.attn.wo_a.slice.2.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.2.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wo_a.slice.2.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.wo_a.slice.3": {
+"stored_tensors": {
+"layers.0.attn.wo_a.slice.3.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.3.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wo_a.slice.3.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.wo_a.slice.4": {
+"stored_tensors": {
+"layers.0.attn.wo_a.slice.4.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.4.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.4.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wo_a.slice.4.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.wo_a.slice.5": {
+"stored_tensors": {
+"layers.0.attn.wo_a.slice.5.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.5.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.5.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wo_a.slice.5.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.wo_a.slice.6": {
+"stored_tensors": {
+"layers.0.attn.wo_a.slice.6.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.6.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.6.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wo_a.slice.6.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.wo_a.slice.7": {
+"stored_tensors": {
+"layers.0.attn.wo_a.slice.7.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.7.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_a.slice.7.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wo_a.slice.7.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.attn.wo_b": {
+"stored_tensors": {
+"layers.0.attn.wo_b.suh": {
+"shape": [
+8192
+],
+"n_bytes": 16384,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_b.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.0.attn.wo_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.attn.wo_b.trellis": {
+"shape": [
+512,
+320,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.hc_ffn.norm": {
+"stored_tensors": {}
+},
+"layers.0.ffn_norm": {
+"stored_tensors": {
+"layers.0.ffn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.0.ffn.gate": {
+"stored_tensors": {
+"layers.0.ffn.gate.bias": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.0.ffn.gate.bias_vl": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.0.ffn.gate.weight": {
+"shape": [
+384,
+5120
+],
+"n_bytes": 3932160,
+"dtype": "torch.float16"
+}
+}
+},
+"layers.0.ffn.experts.0.w3": {
+"stored_tensors": {
+"layers.0.ffn.experts.0.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.experts.0.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.experts.0.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.ffn.experts.0.w3.trellis": {
+"shape": [
+320,
+144,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.0.ffn.experts.0.w1": {
+"stored_tensors": {
+"layers.0.ffn.experts.0.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.experts.0.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.experts.0.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.ffn.experts.0.w1.trellis": {
+"shape": [
+320,
+144,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.0.ffn.experts.0.w2": {
+"stored_tensors": {
+"layers.0.ffn.experts.0.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.experts.0.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.experts.0.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.ffn.experts.0.w2.trellis": {
+"shape": [
+144,
+320,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.0.ffn.shared_experts.w3": {
+"stored_tensors": {
+"layers.0.ffn.shared_experts.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.shared_experts.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.shared_experts.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.ffn.shared_experts.w3.trellis": {
+"shape": [
+320,
+144,
+80
+],
+"n_bytes": 7372800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.ffn.shared_experts.w1": {
+"stored_tensors": {
+"layers.0.ffn.shared_experts.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.shared_experts.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.shared_experts.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.ffn.shared_experts.w1.trellis": {
+"shape": [
+320,
+144,
+80
+],
+"n_bytes": 7372800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.0.ffn.shared_experts.w2": {
+"stored_tensors": {
+"layers.0.ffn.shared_experts.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.shared_experts.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.0.ffn.shared_experts.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.0.ffn.shared_experts.w2.trellis": {
+"shape": [
+144,
+320,
+80
+],
+"n_bytes": 7372800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.hc_attn.norm": {
+"stored_tensors": {}
+},
+"layers.1.attn_norm": {
+"stored_tensors": {
+"layers.1.attn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.1.attn.wq_a": {
+"stored_tensors": {
+"layers.1.attn.wq_a.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wq_a.svh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wq_a.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wq_a.trellis": {
+"shape": [
+320,
+80,
+80
+],
+"n_bytes": 4096000,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.q_norm": {
+"stored_tensors": {
+"layers.1.attn.q_norm.weight": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.1.attn.wq_b": {
+"stored_tensors": {
+"layers.1.attn.wq_b.suh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wq_b.svh": {
+"shape": [
+32768
+],
+"n_bytes": 65536,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wq_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wq_b.trellis": {
+"shape": [
+80,
+2048,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.wkv": {
+"stored_tensors": {
+"layers.1.attn.wkv.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wkv.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wkv.trellis": {
+"shape": [
+320,
+32,
+80
+],
+"n_bytes": 1638400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.kv_norm": {
+"stored_tensors": {
+"layers.1.attn.kv_norm.weight": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.1.attn.wo_a.slice.0": {
+"stored_tensors": {
+"layers.1.attn.wo_a.slice.0.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.0.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.0.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wo_a.slice.0.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.wo_a.slice.1": {
+"stored_tensors": {
+"layers.1.attn.wo_a.slice.1.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.1.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wo_a.slice.1.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.wo_a.slice.2": {
+"stored_tensors": {
+"layers.1.attn.wo_a.slice.2.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.2.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wo_a.slice.2.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.wo_a.slice.3": {
+"stored_tensors": {
+"layers.1.attn.wo_a.slice.3.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.3.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wo_a.slice.3.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.wo_a.slice.4": {
+"stored_tensors": {
+"layers.1.attn.wo_a.slice.4.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.4.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.4.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wo_a.slice.4.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.wo_a.slice.5": {
+"stored_tensors": {
+"layers.1.attn.wo_a.slice.5.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.5.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.5.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wo_a.slice.5.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.wo_a.slice.6": {
+"stored_tensors": {
+"layers.1.attn.wo_a.slice.6.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.6.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.6.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wo_a.slice.6.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.wo_a.slice.7": {
+"stored_tensors": {
+"layers.1.attn.wo_a.slice.7.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.7.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_a.slice.7.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wo_a.slice.7.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.attn.wo_b": {
+"stored_tensors": {
+"layers.1.attn.wo_b.suh": {
+"shape": [
+8192
+],
+"n_bytes": 16384,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_b.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.1.attn.wo_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.attn.wo_b.trellis": {
+"shape": [
+512,
+320,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.hc_ffn.norm": {
+"stored_tensors": {}
+},
+"layers.1.ffn_norm": {
+"stored_tensors": {
+"layers.1.ffn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.1.ffn.gate": {
+"stored_tensors": {
+"layers.1.ffn.gate.bias": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.1.ffn.gate.bias_vl": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.1.ffn.gate.weight": {
+"shape": [
+384,
+5120
+],
+"n_bytes": 3932160,
+"dtype": "torch.float16"
+}
+}
+},
+"layers.1.ffn.experts.0.w3": {
+"stored_tensors": {
+"layers.1.ffn.experts.0.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.experts.0.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.experts.0.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.ffn.experts.0.w3.trellis": {
+"shape": [
+320,
+144,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.1.ffn.experts.0.w1": {
+"stored_tensors": {
+"layers.1.ffn.experts.0.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.experts.0.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.experts.0.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.ffn.experts.0.w1.trellis": {
+"shape": [
+320,
+144,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.1.ffn.experts.0.w2": {
+"stored_tensors": {
+"layers.1.ffn.experts.0.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.experts.0.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.experts.0.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.ffn.experts.0.w2.trellis": {
+"shape": [
+144,
+320,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.1.ffn.shared_experts.w3": {
+"stored_tensors": {
+"layers.1.ffn.shared_experts.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.shared_experts.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.shared_experts.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.ffn.shared_experts.w3.trellis": {
+"shape": [
+320,
+144,
+80
+],
+"n_bytes": 7372800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.ffn.shared_experts.w1": {
+"stored_tensors": {
+"layers.1.ffn.shared_experts.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.shared_experts.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.shared_experts.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.ffn.shared_experts.w1.trellis": {
+"shape": [
+320,
+144,
+80
+],
+"n_bytes": 7372800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.ffn.shared_experts.w2": {
+"stored_tensors": {
+"layers.1.ffn.shared_experts.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.shared_experts.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.1.ffn.shared_experts.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.ffn.shared_experts.w2.trellis": {
+"shape": [
+144,
+320,
+80
+],
+"n_bytes": 7372800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.1.engram.wkv": {
+"stored_tensors": {
+"layers.1.engram.wkv.suh": {
+"shape": [
+6144
+],
+"n_bytes": 12288,
+"dtype": "torch.float16"
+},
+"layers.1.engram.wkv.svh": {
+"shape": [
+25600
+],
+"n_bytes": 51200,
+"dtype": "torch.float16"
+},
+"layers.1.engram.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.1.engram.wkv.trellis": {
+"shape": [
+384,
+1600,
+80
+],
+"n_bytes": 98304000,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.hc_attn.norm": {
+"stored_tensors": {}
+},
+"layers.2.attn_norm": {
+"stored_tensors": {
+"layers.2.attn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.2.attn.wq_a": {
+"stored_tensors": {
+"layers.2.attn.wq_a.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wq_a.svh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wq_a.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wq_a.trellis": {
+"shape": [
+320,
+80,
+80
+],
+"n_bytes": 4096000,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.q_norm": {
+"stored_tensors": {
+"layers.2.attn.q_norm.weight": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.2.attn.wq_b": {
+"stored_tensors": {
+"layers.2.attn.wq_b.suh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wq_b.svh": {
+"shape": [
+32768
+],
+"n_bytes": 65536,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wq_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wq_b.trellis": {
+"shape": [
+80,
+2048,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.wkv": {
+"stored_tensors": {
+"layers.2.attn.wkv.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wkv.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wkv.trellis": {
+"shape": [
+320,
+32,
+80
+],
+"n_bytes": 1638400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.kv_norm": {
+"stored_tensors": {
+"layers.2.attn.kv_norm.weight": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.2.attn.wo_a.slice.0": {
+"stored_tensors": {
+"layers.2.attn.wo_a.slice.0.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.0.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.0.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wo_a.slice.0.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.wo_a.slice.1": {
+"stored_tensors": {
+"layers.2.attn.wo_a.slice.1.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.1.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wo_a.slice.1.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.wo_a.slice.2": {
+"stored_tensors": {
+"layers.2.attn.wo_a.slice.2.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.2.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wo_a.slice.2.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.wo_a.slice.3": {
+"stored_tensors": {
+"layers.2.attn.wo_a.slice.3.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.3.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wo_a.slice.3.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.wo_a.slice.4": {
+"stored_tensors": {
+"layers.2.attn.wo_a.slice.4.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.4.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.4.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wo_a.slice.4.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.wo_a.slice.5": {
+"stored_tensors": {
+"layers.2.attn.wo_a.slice.5.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.5.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.5.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wo_a.slice.5.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.wo_a.slice.6": {
+"stored_tensors": {
+"layers.2.attn.wo_a.slice.6.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.6.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.6.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wo_a.slice.6.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.wo_a.slice.7": {
+"stored_tensors": {
+"layers.2.attn.wo_a.slice.7.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.7.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_a.slice.7.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wo_a.slice.7.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.wo_b": {
+"stored_tensors": {
+"layers.2.attn.wo_b.suh": {
+"shape": [
+8192
+],
+"n_bytes": 16384,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_b.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.attn.wo_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.wo_b.trellis": {
+"shape": [
+512,
+320,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.compressor.wkv": {
+"stored_tensors": {
+"layers.2.attn.compressor.wkv.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.attn.compressor.wkv.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.2.attn.compressor.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.compressor.wkv.trellis": {
+"shape": [
+320,
+32,
+80
+],
+"n_bytes": 1638400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.compressor.wgate": {
+"stored_tensors": {
+"layers.2.attn.compressor.wgate.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.attn.compressor.wgate.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.2.attn.compressor.wgate.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.compressor.wgate.trellis": {
+"shape": [
+320,
+32,
+80
+],
+"n_bytes": 1638400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.compressor.norm": {
+"stored_tensors": {
+"layers.2.attn.compressor.norm.weight": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.2.attn.indexer.wq_b": {
+"stored_tensors": {
+"layers.2.attn.indexer.wq_b.suh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.2.attn.indexer.wq_b.svh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.2.attn.indexer.wq_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.indexer.wq_b.trellis": {
+"shape": [
+80,
+256,
+80
+],
+"n_bytes": 3276800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.indexer.weights_proj": {
+"stored_tensors": {
+"layers.2.attn.indexer.weights_proj.weight": {
+"shape": [
+32,
+5120
+],
+"n_bytes": 327680,
+"dtype": "torch.float16"
+}
+}
+},
+"layers.2.attn.indexer.wk": {
+"stored_tensors": {
+"layers.2.attn.indexer.wk.suh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.2.attn.indexer.wk.svh": {
+"shape": [
+128
+],
+"n_bytes": 256,
+"dtype": "torch.float16"
+},
+"layers.2.attn.indexer.wk.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.attn.indexer.wk.trellis": {
+"shape": [
+32,
+8,
+128
+],
+"n_bytes": 65536,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 8,
+"mul1_multiplier": 2212286765
+},
+"layers.2.attn.indexer.k_norm": {
+"stored_tensors": {
+"layers.2.attn.indexer.k_norm.weight": {
+"shape": [
+128
+],
+"n_bytes": 256,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.2.hc_ffn.norm": {
+"stored_tensors": {}
+},
+"layers.2.ffn_norm": {
+"stored_tensors": {
+"layers.2.ffn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.2.ffn.gate": {
+"stored_tensors": {
+"layers.2.ffn.gate.bias": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.2.ffn.gate.bias_vl": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.2.ffn.gate.weight": {
+"shape": [
+384,
+5120
+],
+"n_bytes": 3932160,
+"dtype": "torch.float16"
+}
+}
+},
+"layers.2.ffn.experts.0.w3": {
+"stored_tensors": {
+"layers.2.ffn.experts.0.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.experts.0.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.experts.0.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.ffn.experts.0.w3.trellis": {
+"shape": [
+320,
+144,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.2.ffn.experts.0.w1": {
+"stored_tensors": {
+"layers.2.ffn.experts.0.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.experts.0.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.experts.0.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.ffn.experts.0.w1.trellis": {
+"shape": [
+320,
+144,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.2.ffn.experts.0.w2": {
+"stored_tensors": {
+"layers.2.ffn.experts.0.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.experts.0.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.experts.0.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.ffn.experts.0.w2.trellis": {
+"shape": [
+144,
+320,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.2.ffn.shared_experts.w3": {
+"stored_tensors": {
+"layers.2.ffn.shared_experts.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.shared_experts.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.shared_experts.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.ffn.shared_experts.w3.trellis": {
+"shape": [
+320,
+144,
+80
+],
+"n_bytes": 7372800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.ffn.shared_experts.w1": {
+"stored_tensors": {
+"layers.2.ffn.shared_experts.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.shared_experts.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.shared_experts.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.ffn.shared_experts.w1.trellis": {
+"shape": [
+320,
+144,
+80
+],
+"n_bytes": 7372800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.2.ffn.shared_experts.w2": {
+"stored_tensors": {
+"layers.2.ffn.shared_experts.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.shared_experts.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.2.ffn.shared_experts.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.2.ffn.shared_experts.w2.trellis": {
+"shape": [
+144,
+320,
+80
+],
+"n_bytes": 7372800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.hc_attn.norm": {
+"stored_tensors": {}
+},
+"layers.14.attn_norm": {
+"stored_tensors": {
+"layers.14.attn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.14.attn.wq_a": {
+"stored_tensors": {
+"layers.14.attn.wq_a.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wq_a.svh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wq_a.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wq_a.trellis": {
+"shape": [
+320,
+80,
+80
+],
+"n_bytes": 4096000,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.q_norm": {
+"stored_tensors": {
+"layers.14.attn.q_norm.weight": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.14.attn.wq_b": {
+"stored_tensors": {
+"layers.14.attn.wq_b.suh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wq_b.svh": {
+"shape": [
+32768
+],
+"n_bytes": 65536,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wq_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wq_b.trellis": {
+"shape": [
+80,
+2048,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.wkv": {
+"stored_tensors": {
+"layers.14.attn.wkv.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wkv.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wkv.trellis": {
+"shape": [
+320,
+32,
+80
+],
+"n_bytes": 1638400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.kv_norm": {
+"stored_tensors": {
+"layers.14.attn.kv_norm.weight": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.14.attn.wo_a.slice.0": {
+"stored_tensors": {
+"layers.14.attn.wo_a.slice.0.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.0.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.0.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wo_a.slice.0.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.wo_a.slice.1": {
+"stored_tensors": {
+"layers.14.attn.wo_a.slice.1.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.1.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wo_a.slice.1.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.wo_a.slice.2": {
+"stored_tensors": {
+"layers.14.attn.wo_a.slice.2.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.2.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wo_a.slice.2.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.wo_a.slice.3": {
+"stored_tensors": {
+"layers.14.attn.wo_a.slice.3.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.3.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wo_a.slice.3.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.wo_a.slice.4": {
+"stored_tensors": {
+"layers.14.attn.wo_a.slice.4.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.4.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.4.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wo_a.slice.4.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.wo_a.slice.5": {
+"stored_tensors": {
+"layers.14.attn.wo_a.slice.5.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.5.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.5.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wo_a.slice.5.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.wo_a.slice.6": {
+"stored_tensors": {
+"layers.14.attn.wo_a.slice.6.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.6.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.6.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wo_a.slice.6.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.wo_a.slice.7": {
+"stored_tensors": {
+"layers.14.attn.wo_a.slice.7.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.7.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_a.slice.7.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wo_a.slice.7.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.wo_b": {
+"stored_tensors": {
+"layers.14.attn.wo_b.suh": {
+"shape": [
+8192
+],
+"n_bytes": 16384,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_b.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.attn.wo_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.wo_b.trellis": {
+"shape": [
+512,
+320,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.compressor.wkv": {
+"stored_tensors": {
+"layers.14.attn.compressor.wkv.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.attn.compressor.wkv.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.14.attn.compressor.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.compressor.wkv.trellis": {
+"shape": [
+320,
+32,
+80
+],
+"n_bytes": 1638400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.compressor.wgate": {
+"stored_tensors": {
+"layers.14.attn.compressor.wgate.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.attn.compressor.wgate.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.14.attn.compressor.wgate.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.compressor.wgate.trellis": {
+"shape": [
+320,
+32,
+80
+],
+"n_bytes": 1638400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.compressor.norm": {
+"stored_tensors": {
+"layers.14.attn.compressor.norm.weight": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.14.attn.indexer.wq_b": {
+"stored_tensors": {
+"layers.14.attn.indexer.wq_b.suh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.14.attn.indexer.wq_b.svh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.14.attn.indexer.wq_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.indexer.wq_b.trellis": {
+"shape": [
+80,
+256,
+80
+],
+"n_bytes": 3276800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.indexer.weights_proj": {
+"stored_tensors": {
+"layers.14.attn.indexer.weights_proj.weight": {
+"shape": [
+32,
+5120
+],
+"n_bytes": 327680,
+"dtype": "torch.float16"
+}
+}
+},
+"layers.14.attn.indexer.wk": {
+"stored_tensors": {
+"layers.14.attn.indexer.wk.suh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.14.attn.indexer.wk.svh": {
+"shape": [
+128
+],
+"n_bytes": 256,
+"dtype": "torch.float16"
+},
+"layers.14.attn.indexer.wk.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.attn.indexer.wk.trellis": {
+"shape": [
+32,
+8,
+128
+],
+"n_bytes": 65536,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 8,
+"mul1_multiplier": 2212286765
+},
+"layers.14.attn.indexer.k_norm": {
+"stored_tensors": {
+"layers.14.attn.indexer.k_norm.weight": {
+"shape": [
+128
+],
+"n_bytes": 256,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.14.hc_ffn.norm": {
+"stored_tensors": {}
+},
+"layers.14.ffn_norm": {
+"stored_tensors": {
+"layers.14.ffn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.14.ffn.gate": {
+"stored_tensors": {
+"layers.14.ffn.gate.bias": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.14.ffn.gate.bias_vl": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.14.ffn.gate.weight": {
+"shape": [
+384,
+5120
+],
+"n_bytes": 3932160,
+"dtype": "torch.float16"
+}
+}
+},
+"layers.14.ffn.experts.0.w3": {
+"stored_tensors": {
+"layers.14.ffn.experts.0.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.experts.0.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.experts.0.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.ffn.experts.0.w3.trellis": {
+"shape": [
+320,
+144,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.14.ffn.experts.0.w1": {
+"stored_tensors": {
+"layers.14.ffn.experts.0.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.experts.0.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.experts.0.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.ffn.experts.0.w1.trellis": {
+"shape": [
+320,
+144,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.14.ffn.experts.0.w2": {
+"stored_tensors": {
+"layers.14.ffn.experts.0.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.experts.0.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.experts.0.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.ffn.experts.0.w2.trellis": {
+"shape": [
+144,
+320,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.14.ffn.shared_experts.w3": {
+"stored_tensors": {
+"layers.14.ffn.shared_experts.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.shared_experts.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.shared_experts.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.ffn.shared_experts.w3.trellis": {
+"shape": [
+320,
+144,
+64
+],
+"n_bytes": 5898240,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 4,
+"mul1_multiplier": 2212286765
+},
+"layers.14.ffn.shared_experts.w1": {
+"stored_tensors": {
+"layers.14.ffn.shared_experts.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.shared_experts.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.shared_experts.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.ffn.shared_experts.w1.trellis": {
+"shape": [
+320,
+144,
+64
+],
+"n_bytes": 5898240,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 4,
+"mul1_multiplier": 2212286765
+},
+"layers.14.ffn.shared_experts.w2": {
+"stored_tensors": {
+"layers.14.ffn.shared_experts.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.shared_experts.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.14.ffn.shared_experts.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.ffn.shared_experts.w2.trellis": {
+"shape": [
+144,
+320,
+64
+],
+"n_bytes": 5898240,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 4,
+"mul1_multiplier": 2212286765
+},
+"layers.14.engram.wkv": {
+"stored_tensors": {
+"layers.14.engram.wkv.suh": {
+"shape": [
+6144
+],
+"n_bytes": 12288,
+"dtype": "torch.float16"
+},
+"layers.14.engram.wkv.svh": {
+"shape": [
+25600
+],
+"n_bytes": 51200,
+"dtype": "torch.float16"
+},
+"layers.14.engram.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.14.engram.wkv.trellis": {
+"shape": [
+384,
+1600,
+64
+],
+"n_bytes": 78643200,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 4,
+"mul1_multiplier": 2212286765
+},
+"layers.20.hc_attn.norm": {
+"stored_tensors": {}
+},
+"layers.20.attn_norm": {
+"stored_tensors": {
+"layers.20.attn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.20.attn.wq_a": {
+"stored_tensors": {
+"layers.20.attn.wq_a.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wq_a.svh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wq_a.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wq_a.trellis": {
+"shape": [
+320,
+80,
+80
+],
+"n_bytes": 4096000,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.q_norm": {
+"stored_tensors": {
+"layers.20.attn.q_norm.weight": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.20.attn.wq_b": {
+"stored_tensors": {
+"layers.20.attn.wq_b.suh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wq_b.svh": {
+"shape": [
+32768
+],
+"n_bytes": 65536,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wq_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wq_b.trellis": {
+"shape": [
+80,
+2048,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.wkv": {
+"stored_tensors": {
+"layers.20.attn.wkv.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wkv.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wkv.trellis": {
+"shape": [
+320,
+32,
+80
+],
+"n_bytes": 1638400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.kv_norm": {
+"stored_tensors": {
+"layers.20.attn.kv_norm.weight": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.20.attn.wo_a.slice.0": {
+"stored_tensors": {
+"layers.20.attn.wo_a.slice.0.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.0.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.0.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wo_a.slice.0.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.wo_a.slice.1": {
+"stored_tensors": {
+"layers.20.attn.wo_a.slice.1.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.1.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wo_a.slice.1.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.wo_a.slice.2": {
+"stored_tensors": {
+"layers.20.attn.wo_a.slice.2.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.2.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wo_a.slice.2.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.wo_a.slice.3": {
+"stored_tensors": {
+"layers.20.attn.wo_a.slice.3.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.3.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wo_a.slice.3.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.wo_a.slice.4": {
+"stored_tensors": {
+"layers.20.attn.wo_a.slice.4.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.4.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.4.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wo_a.slice.4.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.wo_a.slice.5": {
+"stored_tensors": {
+"layers.20.attn.wo_a.slice.5.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.5.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.5.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wo_a.slice.5.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.wo_a.slice.6": {
+"stored_tensors": {
+"layers.20.attn.wo_a.slice.6.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.6.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.6.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wo_a.slice.6.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.wo_a.slice.7": {
+"stored_tensors": {
+"layers.20.attn.wo_a.slice.7.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.7.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_a.slice.7.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wo_a.slice.7.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.wo_b": {
+"stored_tensors": {
+"layers.20.attn.wo_b.suh": {
+"shape": [
+8192
+],
+"n_bytes": 16384,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_b.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.20.attn.wo_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.wo_b.trellis": {
+"shape": [
+512,
+320,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.compressor.wkv": {
+"stored_tensors": {
+"layers.20.attn.compressor.wkv.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.20.attn.compressor.wkv.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.20.attn.compressor.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.compressor.wkv.trellis": {
+"shape": [
+320,
+32,
+80
+],
+"n_bytes": 1638400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.compressor.norm": {
+"stored_tensors": {
+"layers.20.attn.compressor.norm.weight": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.20.attn.indexer.wq_b": {
+"stored_tensors": {
+"layers.20.attn.indexer.wq_b.suh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.20.attn.indexer.wq_b.svh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.20.attn.indexer.wq_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.indexer.wq_b.trellis": {
+"shape": [
+80,
+256,
+80
+],
+"n_bytes": 3276800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.indexer.weights_proj": {
+"stored_tensors": {
+"layers.20.attn.indexer.weights_proj.weight": {
+"shape": [
+32,
+5120
+],
+"n_bytes": 327680,
+"dtype": "torch.float16"
+}
+}
+},
+"layers.20.attn.indexer.wk": {
+"stored_tensors": {
+"layers.20.attn.indexer.wk.suh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.20.attn.indexer.wk.svh": {
+"shape": [
+128
+],
+"n_bytes": 256,
+"dtype": "torch.float16"
+},
+"layers.20.attn.indexer.wk.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.attn.indexer.wk.trellis": {
+"shape": [
+32,
+8,
+128
+],
+"n_bytes": 65536,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 8,
+"mul1_multiplier": 2212286765
+},
+"layers.20.attn.indexer.k_norm": {
+"stored_tensors": {
+"layers.20.attn.indexer.k_norm.weight": {
+"shape": [
+128
+],
+"n_bytes": 256,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.20.hc_ffn.norm": {
+"stored_tensors": {}
+},
+"layers.20.ffn_norm": {
+"stored_tensors": {
+"layers.20.ffn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.20.ffn.gate": {
+"stored_tensors": {
+"layers.20.ffn.gate.bias": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.20.ffn.gate.bias_vl": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.20.ffn.gate.weight": {
+"shape": [
+384,
+5120
+],
+"n_bytes": 3932160,
+"dtype": "torch.float16"
+}
+}
+},
+"layers.20.ffn.experts.0.w3": {
+"stored_tensors": {
+"layers.20.ffn.experts.0.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.experts.0.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.experts.0.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.ffn.experts.0.w3.trellis": {
+"shape": [
+320,
+144,
+32
+],
+"n_bytes": 2949120,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 2,
+"mul1_multiplier": 2212286765
+},
+"layers.20.ffn.experts.0.w1": {
+"stored_tensors": {
+"layers.20.ffn.experts.0.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.experts.0.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.experts.0.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.ffn.experts.0.w1.trellis": {
+"shape": [
+320,
+144,
+32
+],
+"n_bytes": 2949120,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 2,
+"mul1_multiplier": 2212286765
+},
+"layers.20.ffn.experts.0.w2": {
+"stored_tensors": {
+"layers.20.ffn.experts.0.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.experts.0.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.experts.0.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.ffn.experts.0.w2.trellis": {
+"shape": [
+144,
+320,
+32
+],
+"n_bytes": 2949120,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 2,
+"mul1_multiplier": 2212286765
+},
+"layers.20.ffn.shared_experts.w3": {
+"stored_tensors": {
+"layers.20.ffn.shared_experts.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.shared_experts.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.shared_experts.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.ffn.shared_experts.w3.trellis": {
+"shape": [
+320,
+144,
+64
+],
+"n_bytes": 5898240,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 4,
+"mul1_multiplier": 2212286765
+},
+"layers.20.ffn.shared_experts.w1": {
+"stored_tensors": {
+"layers.20.ffn.shared_experts.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.shared_experts.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.shared_experts.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.ffn.shared_experts.w1.trellis": {
+"shape": [
+320,
+144,
+64
+],
+"n_bytes": 5898240,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 4,
+"mul1_multiplier": 2212286765
+},
+"layers.20.ffn.shared_experts.w2": {
+"stored_tensors": {
+"layers.20.ffn.shared_experts.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.shared_experts.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.20.ffn.shared_experts.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.20.ffn.shared_experts.w2.trellis": {
+"shape": [
+144,
+320,
+64
+],
+"n_bytes": 5898240,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 4,
+"mul1_multiplier": 2212286765
+},
+"layers.24.hc_attn.norm": {
+"stored_tensors": {}
+},
+"layers.24.attn_norm": {
+"stored_tensors": {
+"layers.24.attn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.24.attn.wq_a": {
+"stored_tensors": {
+"layers.24.attn.wq_a.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wq_a.svh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wq_a.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wq_a.trellis": {
+"shape": [
+320,
+80,
+80
+],
+"n_bytes": 4096000,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.q_norm": {
+"stored_tensors": {
+"layers.24.attn.q_norm.weight": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.24.attn.wq_b": {
+"stored_tensors": {
+"layers.24.attn.wq_b.suh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wq_b.svh": {
+"shape": [
+32768
+],
+"n_bytes": 65536,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wq_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wq_b.trellis": {
+"shape": [
+80,
+2048,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.wkv": {
+"stored_tensors": {
+"layers.24.attn.wkv.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wkv.svh": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wkv.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wkv.trellis": {
+"shape": [
+320,
+32,
+80
+],
+"n_bytes": 1638400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.kv_norm": {
+"stored_tensors": {
+"layers.24.attn.kv_norm.weight": {
+"shape": [
+512
+],
+"n_bytes": 1024,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.24.attn.wo_a.slice.0": {
+"stored_tensors": {
+"layers.24.attn.wo_a.slice.0.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.0.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.0.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wo_a.slice.0.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.wo_a.slice.1": {
+"stored_tensors": {
+"layers.24.attn.wo_a.slice.1.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.1.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wo_a.slice.1.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.wo_a.slice.2": {
+"stored_tensors": {
+"layers.24.attn.wo_a.slice.2.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.2.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wo_a.slice.2.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.wo_a.slice.3": {
+"stored_tensors": {
+"layers.24.attn.wo_a.slice.3.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.3.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wo_a.slice.3.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.wo_a.slice.4": {
+"stored_tensors": {
+"layers.24.attn.wo_a.slice.4.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.4.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.4.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wo_a.slice.4.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.wo_a.slice.5": {
+"stored_tensors": {
+"layers.24.attn.wo_a.slice.5.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.5.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.5.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wo_a.slice.5.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.wo_a.slice.6": {
+"stored_tensors": {
+"layers.24.attn.wo_a.slice.6.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.6.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.6.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wo_a.slice.6.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.wo_a.slice.7": {
+"stored_tensors": {
+"layers.24.attn.wo_a.slice.7.suh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.7.svh": {
+"shape": [
+1024
+],
+"n_bytes": 2048,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_a.slice.7.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wo_a.slice.7.trellis": {
+"shape": [
+256,
+64,
+80
+],
+"n_bytes": 2621440,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.wo_b": {
+"stored_tensors": {
+"layers.24.attn.wo_b.suh": {
+"shape": [
+8192
+],
+"n_bytes": 16384,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_b.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.24.attn.wo_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.wo_b.trellis": {
+"shape": [
+512,
+320,
+80
+],
+"n_bytes": 26214400,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.indexer.wq_b": {
+"stored_tensors": {
+"layers.24.attn.indexer.wq_b.suh": {
+"shape": [
+1280
+],
+"n_bytes": 2560,
+"dtype": "torch.float16"
+},
+"layers.24.attn.indexer.wq_b.svh": {
+"shape": [
+4096
+],
+"n_bytes": 8192,
+"dtype": "torch.float16"
+},
+"layers.24.attn.indexer.wq_b.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.attn.indexer.wq_b.trellis": {
+"shape": [
+80,
+256,
+80
+],
+"n_bytes": 3276800,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 5,
+"mul1_multiplier": 2212286765
+},
+"layers.24.attn.indexer.weights_proj": {
+"stored_tensors": {
+"layers.24.attn.indexer.weights_proj.weight": {
+"shape": [
+32,
+5120
+],
+"n_bytes": 327680,
+"dtype": "torch.float16"
+}
+}
+},
+"layers.24.hc_ffn.norm": {
+"stored_tensors": {}
+},
+"layers.24.ffn_norm": {
+"stored_tensors": {
+"layers.24.ffn_norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"layers.24.ffn.gate": {
+"stored_tensors": {
+"layers.24.ffn.gate.bias": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.24.ffn.gate.bias_vl": {
+"shape": [
+384
+],
+"n_bytes": 1536,
+"dtype": "torch.float32"
+},
+"layers.24.ffn.gate.weight": {
+"shape": [
+384,
+5120
+],
+"n_bytes": 3932160,
+"dtype": "torch.float16"
+}
+}
+},
+"layers.24.ffn.experts.0.w3": {
+"stored_tensors": {
+"layers.24.ffn.experts.0.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.experts.0.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.experts.0.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.ffn.experts.0.w3.trellis": {
+"shape": [
+320,
+144,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.24.ffn.experts.0.w1": {
+"stored_tensors": {
+"layers.24.ffn.experts.0.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.experts.0.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.experts.0.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.ffn.experts.0.w1.trellis": {
+"shape": [
+320,
+144,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.24.ffn.experts.0.w2": {
+"stored_tensors": {
+"layers.24.ffn.experts.0.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.experts.0.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.experts.0.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.ffn.experts.0.w2.trellis": {
+"shape": [
+144,
+320,
+48
+],
+"n_bytes": 4423680,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 3,
+"mul1_multiplier": 2212286765
+},
+"layers.24.ffn.shared_experts.w3": {
+"stored_tensors": {
+"layers.24.ffn.shared_experts.w3.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.shared_experts.w3.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.shared_experts.w3.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.ffn.shared_experts.w3.trellis": {
+"shape": [
+320,
+144,
+64
+],
+"n_bytes": 5898240,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 4,
+"mul1_multiplier": 2212286765
+},
+"layers.24.ffn.shared_experts.w1": {
+"stored_tensors": {
+"layers.24.ffn.shared_experts.w1.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.shared_experts.w1.svh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.shared_experts.w1.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.ffn.shared_experts.w1.trellis": {
+"shape": [
+320,
+144,
+64
+],
+"n_bytes": 5898240,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 4,
+"mul1_multiplier": 2212286765
+},
+"layers.24.ffn.shared_experts.w2": {
+"stored_tensors": {
+"layers.24.ffn.shared_experts.w2.suh": {
+"shape": [
+2304
+],
+"n_bytes": 4608,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.shared_experts.w2.svh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"layers.24.ffn.shared_experts.w2.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"layers.24.ffn.shared_experts.w2.trellis": {
+"shape": [
+144,
+320,
+64
+],
+"n_bytes": 5898240,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 4,
+"mul1_multiplier": 2212286765
+},
+"hc_collapse": {
+"stored_tensors": {}
+},
+"norm": {
+"stored_tensors": {
+"norm.weight": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.bfloat16"
+}
+}
+},
+"head": {
+"stored_tensors": {
+"head.suh": {
+"shape": [
+5120
+],
+"n_bytes": 10240,
+"dtype": "torch.float16"
+},
+"head.svh": {
+"shape": [
+129280
+],
+"n_bytes": 258560,
+"dtype": "torch.float16"
+},
+"head.mul1": {
+"shape": [],
+"n_bytes": 4,
+"dtype": "torch.int32"
+},
+"head.trellis": {
+"shape": [
+320,
+8080,
+96
+],
+"n_bytes": 496435200,
+"dtype": "torch.int16"
+}
+},
+"quant_format": "exl3",
+"bits_per_weight": 6,
+"mul1_multiplier": 2212286765
+}
+}
+}

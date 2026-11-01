@@ -26,8 +26,8 @@ live in `recipes/*.toml` and are compiled in by `crates/intarsia-models/src/reci
 **Errors you will meet.** An unknown key is rejected with the list of valid ones (`unknown field `kv_dtyp`, expected
 one of `kv_dtype`, `max_batch`, `fp8_act``) in every table with a fixed set of keys. Three places still accept names
 they do not know: `[layer.norms]` (a map: a misspelled `pre_ffn` is a norm that is never applied), `[layer.by_type]`
-(a map from layer type to block list) and extra `[layer.<block>]` tables (`other`; only `[layer.moe]` and `[layer.gemma]` are read, the rest
-fail at build). A recipe in `--recipe-dir` that does not parse is skipped when choosing by architecture, and the "no
+(a map from layer type to block list) and extra `[layer.<block>]` tables (`other`; only `[layer.moe]` and `[layer.gemma]` are read, `[layer.dsv41_attn]` / `[layer.dsv41_moe]` are documentation,
+the rest fail at build). A recipe in `--recipe-dir` that does not parse is skipped when choosing by architecture, and the "no
 recipe matches" error now lists each skipped file with its parse error, so a typo shows up there instead of as a silent
 miss. `intarsia plan show` is the quickest way to see a load error with the model's real `config.json`.
 
@@ -119,6 +119,14 @@ activation, no bias (`Op::ShortConv`, `crates/intarsia-core/src/model/short_conv
 |---|---|---|---|
 | `kind` | string | required | `"gemma4"` (the only layout implemented). |
 | `prefix` | string | required | Tensor prefix of the whole layer, e.g. `"model.language_model.layers.{i}"`. Everything under it (attention, dense MLP, router, experts, the five norms, `layer_scalar`) is found by the fixed Gemma 4 names. Head sizes, KV heads, sliding window, rope tables, soft-cap and expert counts come from `config.json` (`ModelDims::gemma`, `layer_types`). Use `pattern = ["gemma"]` and `[layer.norms] pre_gemma = <input_layernorm>`. |
+
+### `[layer.dsv41_attn]`, `[layer.dsv41_moe]` (DeepSeek-V4.1, `recipes/deepseek_v41.toml`)
+
+Name the checkpoint layout of the DeepSeek-V4.1 graph (`intarsia_core::dsv41`, contract in docs/design/dsv41-ops.md):
+`prefix` (the attention / MoE tensors), `hc` (the hyper-connection mix weights of the sub-block), `norm` (its pre-norm)
+and, on the attention, `engram` (the Engram projection on `engram_layer_ids`). The graph itself is code and reads
+`config.json` directly; family `deepseek_v41` refuses to load for generation until the executing lanes land, and
+`intarsia plan show --model <dir>` lists its op sequence from the safetensors headers alone.
 
 ### `[top]` (required)
 

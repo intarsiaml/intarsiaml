@@ -93,6 +93,9 @@ pub fn read_model_spec(dir: &Path, opts: &EngineOptions) -> Result<(String, Reci
         Some(p) => (p.display().to_string(), load_recipe_file(p)?),
         None => select_recipe(&cfg, &opts.recipe_dirs)?,
     };
+    if recipe.model.family == "deepseek_v41" {
+        return Err(crate::dsv41::not_executable());
+    }
     let dims = ModelDims::from_hf_config(&cfg, &recipe.config)?;
     Ok((src, recipe, dims, cfg))
 }

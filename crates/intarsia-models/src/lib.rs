@@ -2,6 +2,7 @@
 //! Hugging Face chat templates, and the one-call [`load::load_engine`].
 
 pub mod chat_template;
+pub mod dsv41;
 pub mod load;
 pub mod recipe;
 pub mod safetensors;
