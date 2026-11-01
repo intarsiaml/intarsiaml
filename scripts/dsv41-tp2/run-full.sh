@@ -127,8 +127,9 @@ if [[ " $STEPS " == *" golden "* ]]; then
 fi
 if [[ " $STEPS " == *" neartie_fresh "* ]]; then
   # the same probe against this run's own golden tokens ($OUT/tok-intarsia-tp2.st from the golden step)
+  NT_TF=${NT_TF:-/opt/code/intarsiaml/.worktrees/dsv41-golden-tf/tok-tensorfold-mia.st}
   log "near-tie probe (fresh): $NT_TF vs $OUT/tok-intarsia-tp2.st"
-  python3 "$S/neartie.py" "${NT_TF:-/opt/code/intarsiaml/.worktrees/dsv41-golden-tf/tok-tensorfold-mia.st}" "$OUT/tok-intarsia-tp2.st" "$SURL/v1" dsv41-intarsia "$OUT/neartie-fresh.md" 2>&1 | tee -a "$OUT/steps.log"
+  python3 "$S/neartie.py" "$NT_TF" "$OUT/tok-intarsia-tp2.st" "$SURL/v1" dsv41-intarsia "$OUT/neartie-fresh.md" 2>&1 | tee -a "$OUT/steps.log"
 fi
 # prefillprof (with XENV="INTARSIA_DSV41_OPPROF=1 INTARSIA_DSV41_PROFILE=32"): one ~4K-token prompt + 40 tokens, then the
 # per-kernel device-time table of rank 0 (multi-row = the prefill chunks, one-row = decode; a sync after every step)
