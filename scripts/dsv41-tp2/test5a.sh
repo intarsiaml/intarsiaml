@@ -4,7 +4,7 @@
 #   fleetq run --host spark2 --quiet gpu,cpu --mem 30 --expect 15 --label "dsv41 tp2 5a few-layer CUDA" -- scripts/dsv41-tp2/test5a.sh
 set -euo pipefail
 : "${FLEETQ_JOB:?run under fleetq run}"
-ssh -n -o BatchMode=yes spark2 "export FLEETQ_JOB=$FLEETQ_JOB; cat ~/intarsia-dsv41-tp2/bin/STAMP; free -g | head -2; \
+ssh -n -o BatchMode=yes spark2 "export FLEETQ_JOB=$FLEETQ_JOB; cat ~/intarsia-dsv41-graphs/bin/STAMP; free -g | head -2; \
   INTARSIA_DSV41_ROUTES=1 INTARSIA_DSV41_BACKEND=cuda INTARSIA_DSV41_CACHE=\$HOME/intarsia-dsv41-tp2/cache/l3-r0of1 INTARSIA_DSV41_FIXTURES=\$HOME/intarsia-dsv41-tp2/fixtures \
-  timeout 900 ~/intarsia-dsv41-tp2/bin/dsv41_runtime few_layer_runtime_ --skip two_ranks --nocapture --test-threads 1 2>&1 | tail -40; free -g | head -2; \
-  for k in ${KERNELS:-}; do timeout 300 ~/intarsia-dsv41-tp2/bin/intarsia kernels test --backend cuda --kernel \$k 2>&1 | tail -4; done"
+  timeout 900 ~/intarsia-dsv41-graphs/bin/dsv41_runtime few_layer_runtime_ --skip two_ranks --nocapture --test-threads 1 2>&1 | tail -40; free -g | head -2; \
+  for k in ${KERNELS:-}; do timeout 300 ~/intarsia-dsv41-graphs/bin/intarsia kernels test --backend cuda --kernel \$k 2>&1 | tail -4; done"

@@ -10,10 +10,10 @@ set -u
 S="$(cd "$(dirname "$0")" && pwd)"; REPO="$(cd "$S/../.." && pwd)"
 OUT=${OUT:-$REPO/.scratch/full-$(date +%m%d-%H%M)}; mkdir -p "$OUT"
 STEPS=${STEPS:-greedy}; MAX_MIN=${MAX_MIN:-60}; DEADLINE=$(( $(date +%s) + MAX_MIN * 60 ))
-BIN='$HOME/intarsia-dsv41-tp2/bin/intarsia'
+BIN='$HOME/intarsia-dsv41-graphs/bin/intarsia'
 C0='$HOME/intarsia-dsv41-tp2/cache/r0of2'; C1='$HOME/intarsia-dsv41-tp2/cache/r1of2'
 WIP=10.100.152.3; WPORT=29701; SPORT=8899; SURL=http://100.120.88.104:$SPORT
-LOGD='$HOME/intarsia-dsv41-tp2/logs'
+LOGD='$HOME/intarsia-dsv41-graphs/logs'
 NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-2} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
 DENV="INTARSIA_DSV41_CAP=${CAP:-32768} INTARSIA_DSV41_CHUNK=${CHUNK:-512} INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-}"
 VLLM_C=missioncntrl-guidance
@@ -27,13 +27,13 @@ for h in spark1 spark2; do
   eo=$(r $h 'cat /proc/$(pgrep -x earlyoom)/cmdline | tr "\0" " "' | grep -oE -- '-m [0-9]+,[0-9]+' | cut -c4-)
   [[ " ${EARLYOOM_OK:-3,2} " == *" $eo "* ]] || { log "earlyoom on $h is at -m $eo, not one of '${EARLYOOM_OK:-3,2}'; not starting"; exit 1; }
   log "earlyoom on $h: -m $eo"
-  r $h "test -x ~/intarsia-dsv41-tp2/bin/intarsia && test -f ~/intarsia-nccl/libnccl.so.2" || { log "binary or NCCL library missing on $h"; exit 1; }
+  r $h "test -x ~/intarsia-dsv41-graphs/bin/intarsia && test -f ~/intarsia-nccl/libnccl.so.2" || { log "binary or NCCL library missing on $h"; exit 1; }
 done
 r spark1 "test -f $C0/manifest.json" && r spark2 "test -f $C1/manifest.json" || { log "rank cache missing"; exit 1; }
-[[ "$(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP')" == "$(r spark2 'cat ~/intarsia-dsv41-tp2/bin/STAMP')" ]] || { log "binary stamps differ"; exit 1; }
-log "binary $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP'); out $OUT"
+[[ "$(r spark1 'cat ~/intarsia-dsv41-graphs/bin/STAMP')" == "$(r spark2 'cat ~/intarsia-dsv41-graphs/bin/STAMP')" ]] || { log "binary stamps differ"; exit 1; }
+log "binary $(r spark1 'cat ~/intarsia-dsv41-graphs/bin/STAMP'); out $OUT"
 
-kill_ours() { for h in spark1 spark2; do r $h "pkill -TERM -f '[i]ntarsia-dsv41-tp2/bin/intarsia'; for i in \$(seq 1 20); do pgrep -f '[i]ntarsia-dsv41-tp2/bin/intarsia' >/dev/null || break; sleep 1; done; pkill -KILL -f '[i]ntarsia-dsv41-tp2/bin/intarsia'; true"; done; }
+kill_ours() { for h in spark1 spark2; do r $h "pkill -TERM -f '[i]ntarsia-dsv41-graphs/bin/intarsia'; for i in \$(seq 1 20); do pgrep -f '[i]ntarsia-dsv41-graphs/bin/intarsia' >/dev/null || break; sleep 1; done; pkill -KILL -f '[i]ntarsia-dsv41-graphs/bin/intarsia'; true"; done; }
 STOPPED=0
 restore() {
   local rc=$?
@@ -41,7 +41,7 @@ restore() {
   kill "${WATCH:-}" 2>/dev/null
   kill_ours
   for h in spark1 spark2; do r $h "mkdir -p $LOGD; cp $LOGD/*.log /dev/null 2>/dev/null; true"; done
-  scp -q "spark1:intarsia-dsv41-tp2/logs/serve-*.log" "$OUT/" 2>/dev/null; scp -q "spark2:intarsia-dsv41-tp2/logs/worker-*.log" "$OUT/" 2>/dev/null
+  scp -q "spark1:intarsia-dsv41-graphs/logs/serve-*.log" "$OUT/" 2>/dev/null; scp -q "spark2:intarsia-dsv41-graphs/logs/worker-*.log" "$OUT/" 2>/dev/null
   if [[ $STOPPED == 1 ]]; then
     # the container keeps its old log, whose "startup complete" line matched at once (window 2); `docker logs --since`
     # prints nothing on these hosts and log rotation drops old lines, so a count does not work either. Wait for a
@@ -69,7 +69,7 @@ log "vLLM stopped on both"
     for h in spark1 spark2; do
       a=$(ssh -n -o ConnectTimeout=5 $h "awk '/MemAvailable/{printf \"%.1f\", \$2/1048576}' /proc/meminfo" 2>/dev/null || echo NA)
       line="$line $h=$a"
-      if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then ssh -n $h "pkill -KILL -f '[i]ntarsia-dsv41-tp2/bin/intarsia'"; line="$line KILLED-$h"; fi
+      if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then ssh -n $h "pkill -KILL -f '[i]ntarsia-dsv41-graphs/bin/intarsia'"; line="$line KILLED-$h"; fi
     done
     echo "$line"; sleep 5
   done ) > "$OUT/mem.log" 2>&1 & WATCH=$!
@@ -87,8 +87,8 @@ log "ranks started (tag $TAG)"
 T0=$(date +%s); up=0
 while (( $(date +%s) - T0 < 900 )); do
   curl -sf -m 5 "$SURL/health" >/dev/null && { up=1; break; }
-  r spark1 "pgrep -f '[i]ntarsia-dsv41-tp2/bin/intarsia[^ ]* serve' >/dev/null" || { log "rank 0 exited"; break; }
-  r spark2 "pgrep -f '[i]ntarsia-dsv41-tp2/bin/intarsia[^ ]* tp-worker' >/dev/null" || { log "rank 1 exited"; break; }
+  r spark1 "pgrep -f '[i]ntarsia-dsv41-graphs/bin/intarsia[^ ]* serve' >/dev/null" || { log "rank 0 exited"; break; }
+  r spark2 "pgrep -f '[i]ntarsia-dsv41-graphs/bin/intarsia[^ ]* tp-worker' >/dev/null" || { log "rank 1 exited"; break; }
   sleep 5
 done
 log "serve up=$up after $(( $(date +%s) - T0 )) s"
@@ -130,7 +130,7 @@ if [[ " $STEPS " == *" golden "* ]]; then
   TOK=${TOKENIZER:-/opt/code/intarsiaml/.worktrees/dsv41-official/mia/tokenizer.json}
   ( cd "$REPO" && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run --with numpy --with safetensors --with tokenizers python tools/dsv41/golden_tf.py tokens \
       --base-url $SURL/v1 --model dsv41-intarsia --no-draft-field --tokenizer "$TOK" --out "$OUT/tok-intarsia-tp2.st" \
-      --note "intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') TP=2 cap ${CAP:-32768} chunk ${CHUNK:-512}" ) 2>&1 | tee -a "$OUT/steps.log"
+      --note "intarsia $(r spark1 'cat ~/intarsia-dsv41-graphs/bin/STAMP') TP=2 cap ${CAP:-32768} chunk ${CHUNK:-512}" ) 2>&1 | tee -a "$OUT/steps.log"
   specstep "$sn" golden count,story,code,science,chat_short,chat_system,chat_multiturn,chat_reasoning,long_prose_300,long_prose_700
 fi
 if [[ " $STEPS " == *" neartie_fresh "* ]]; then
@@ -190,13 +190,13 @@ if [[ " $STEPS " == *" nsys "* && ${NSYS:-0} == 1 ]]; then
   for rk in 0 1; do
     h=spark$((rk + 1))
     r $h "nsys stats --report cuda_gpu_trace --format csv --output $LOGD/nsys-r$rk-$TAG $LOGD/nsys-r$rk-$TAG.nsys-rep > /dev/null 2>&1; ls -la $LOGD/nsys-r$rk-$TAG*" | tee -a "$OUT/steps.log"
-    scp -q "$h:intarsia-dsv41-tp2/logs/nsys-r$rk-$TAG*" "$OUT/" 2>/dev/null
+    scp -q "$h:intarsia-dsv41-graphs/logs/nsys-r$rk-$TAG*" "$OUT/" 2>/dev/null
     f=$(ls "$OUT"/nsys-r$rk-$TAG*gpu_trace*.csv 2>/dev/null | head -1)
     [[ -n $f ]] && { log "rank $rk breakdown:"; python3 "$S/nsys_breakdown.py" "$f" --tokens $((NT - 2)) | tee -a "$OUT/steps.log"; }
   done
 fi
 # localeval (the fleet's harness, /opt/code/deepeval) inside this slot (FLEETQ_JOB is set): speed sweep and MMLU
-LE_RECIPE="intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
+LE_RECIPE="intarsia $(r spark1 'cat ~/intarsia-dsv41-graphs/bin/STAMP') scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
 le() { ( cd /opt/code/deepeval && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run localeval "$@" --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "$LE_RECIPE" ) 2>&1 | tee "$OUT/le-$1-$(date +%H%M%S).log" | tail -40 | tee -a "$OUT/steps.log"; }
 if [[ " $STEPS " == *" lspeed "* ]]; then
   sn=$(specn)
