@@ -98,6 +98,12 @@ int ik_transpose01(const ik_tensor* x, ik_tensor* y, void* stream);
  * e4m3 payload * 2^(scale - 127) in f32 (cpu reference's arithmetic). */
 int ik_engram_gather(const ik_tensor* records, ik_tensor* y, void* stream);
 
+/* logits_f16w / matmul_f16w (dsv41_dense.cu): x [M,K] (f32 / bf16 / f16), w f16 [N,K] -> y [M,N] (f32 / bf16 / f16),
+ * y = x w^T, f32 accumulation; M <= 65535. The router `ffn.gate` and the indexer `weights_proj`, which the checkpoint keeps
+ * in f16. */
+int ik_logits_f16w(const ik_tensor* x, const ik_tensor* w, ik_tensor* y, void* stream);
+int ik_matmul_f16w(const ik_tensor* x, const ik_tensor* w, ik_tensor* y, void* stream);
+
 /* engram_merge: h [T,S,D], kv [T,(S+1)*D] (S keys, then one value), q_w [S,D], k_w [S,D] (same dtype) -> out [T,S,D] (any
  * float dtypes, f32 math): per stream s, dot = sum_d h q_w k_w key * rsqrt(ms(h) + eps) * rsqrt(ms(key) + eps) / sqrt(D),
  * gate = sigmoid(sign(dot) sqrt(max(|dot|, 1e-6))), out = h + gate * value. */

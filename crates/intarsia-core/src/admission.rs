@@ -367,7 +367,8 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
             };
             for &m in ms {
                 for &(n, k) in &nk {
-                    for (dt, wt) in [(DType::Bf16, DType::Bf16), (DType::F32, DType::F32)] {
+                    // bf16 x f16 weights: the DeepSeek-V4.1 router and indexer `weights_proj` (`*_f16w` kernels)
+                    for (dt, wt) in [(DType::Bf16, DType::Bf16), (DType::F32, DType::F32), (DType::Bf16, DType::F16)] {
                         let x = rand_t(&mut rng, dt, &[m, k], 1.0);
                         let w = rand_t(&mut rng, wt, &[n, k], 1.0 / (k as f32).sqrt());
                         let od = if op == Op::Logits { DType::F32 } else { dt };

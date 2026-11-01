@@ -41,7 +41,7 @@ int dense_f16w_out(const ik_tensor* x, const ik_tensor* w, ik_tensor* y, int64_t
 }
 }  // namespace
 
-extern "C" int ik_dense_f16w(const ik_tensor* x, const ik_tensor* w, ik_tensor* y, void* stream) {
+static int dense_f16w(const ik_tensor* x, const ik_tensor* w, ik_tensor* y, void* stream) {
     IK_TRY(check_float(x, 2));
     IK_TRY(check_float(y, 2));
     if (w->dtype != IK_DTYPE_F16 || w->ndim != 2) return IK_ERR_DTYPE;
@@ -54,4 +54,12 @@ extern "C" int ik_dense_f16w(const ik_tensor* x, const ik_tensor* w, ik_tensor* 
         case IK_DTYPE_BF16: return dense_f16w_out<__nv_bfloat16>(x, w, y, M, N, K, s);
         default: return dense_f16w_out<__half>(x, w, y, M, N, K, s);
     }
+}
+
+// One launcher per registered kernel name (Op::Logits / Op::Matmul), both the same f16-weight GEMV.
+extern "C" int ik_logits_f16w(const ik_tensor* x, const ik_tensor* w, ik_tensor* y, void* stream) {
+    return dense_f16w(x, w, y, stream);
+}
+extern "C" int ik_matmul_f16w(const ik_tensor* x, const ik_tensor* w, ik_tensor* y, void* stream) {
+    return dense_f16w(x, w, y, stream);
 }

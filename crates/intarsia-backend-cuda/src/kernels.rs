@@ -1168,12 +1168,14 @@ mod tests {
         "logits_bf16:logits",
         "logits_bf16_gemv:logits",
         "logits_bf16_gemv_rows:logits",
+        "logits_f16w:logits",
         "matmul_bf16:matmul",
         "matmul_bf16_gemv:matmul",
         "matmul_bf16_gemv_rows:matmul",
         "matmul_bf16_inv:matmul",
         "matmul_exl3_gemm:matmul_exl3",
         "matmul_exl3_gemv:matmul_exl3",
+        "matmul_f16w:matmul",
         "matmul_fp8_gemm:matmul_fp8",
         "matmul_fp8_gemm_cublas:matmul_fp8",
         "matmul_fp8_gemm_f8:matmul_fp8",
@@ -1222,7 +1224,8 @@ mod tests {
     /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them); lane fp8kv the
     /// fp8-cache attention twin `attn_decode_f8kv_splitkv_rows`. Lane rip adds `matmul_bf16_inv`
     /// (priority -5: only a row-invariant prefill pass, `OpCall::prefill_inv`, selects it). Lane dsv41/cuda-moe adds
-    /// `moe_experts_exl3` (weights i16 only: only the EXL3 encoding of `MoeExperts` selects it).
+    /// `moe_experts_exl3` (weights i16 only: only the EXL3 encoding of `MoeExperts` selects it). Lane dsv41/tp2 adds
+    /// `logits_f16w` / `matmul_f16w` (weights f16 only: no earlier model has f16 dense weights).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         // the DeepSeek-V4.1 kernels (dsv41.rs) serve only the ops lane 1a appended, which no earlier model's plan contains

@@ -217,7 +217,8 @@ mod launch {
         fn ik_compress_pool(kv: T, score: T, ratio: i64, pos0: i64, out: TM, kv_ring: TM, score_ring: TM, s: S) -> c_int;
         fn ik_indexer_blocks(q: T, k: T, w: T, keep: i64, block: i64, ratio: i64, pos0: i64, scale: f32, mask: TM, sc: SC, s: S) -> c_int;
         fn ik_transpose01(x: T, y: TM, s: S) -> c_int;
-        fn ik_dense_f16w(x: T, w: T, y: TM, s: S) -> c_int;
+        fn ik_logits_f16w(x: T, w: T, y: TM, s: S) -> c_int;
+        fn ik_matmul_f16w(x: T, w: T, y: TM, s: S) -> c_int;
         fn ik_engram_gather(rec: T, y: TM, s: S) -> c_int;
         fn ik_engram_merge(h: T, kv: T, q_w: T, k_w: T, eps: f32, out: TM, s: S) -> c_int;
         fn ik_indexer_topk(
@@ -348,7 +349,8 @@ mod launch {
                         s,
                     ),
                     "transpose01" => ik_transpose01(i(0), on(0), s),
-                    "logits_f16w" | "matmul_f16w" => ik_dense_f16w(i(0), i(1), on(0), s),
+                    "logits_f16w" => ik_logits_f16w(i(0), i(1), on(0), s),
+                    "matmul_f16w" => ik_matmul_f16w(i(0), i(1), on(0), s),
                     "engram_gather" => ik_engram_gather(i(0), on(0), s),
                     "engram_merge" => ik_engram_merge(i(0), i(1), i(2), i(3), a.eps, on(0), s),
                     other => return Err(Error::NoKernel(format!("cuda kernel '{other}'"))),
