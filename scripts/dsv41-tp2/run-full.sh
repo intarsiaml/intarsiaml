@@ -113,6 +113,15 @@ for f in sorted(glob.glob(sys.argv[1]+"/chat-speed*.json")):
 PY
   curl -s -m 5 "$SURL/metrics" | grep -E 'decode|prefill|ttft' | head -20 | tee -a "$OUT/steps.log"
 fi
+# localeval (the fleet's harness, /opt/code/deepeval) inside this slot (FLEETQ_JOB is set): speed sweep and MMLU
+LE_RECIPE="intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
+le() { ( cd /opt/code/deepeval && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run localeval "$@" --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "$LE_RECIPE" ) 2>&1 | tail -40 | tee -a "$OUT/steps.log"; }
+if [[ " $STEPS " == *" lspeed "* ]]; then
+  le speed --sizes 128,1024,4096,16384 --gen 128 --reps 3 --label dsv41-intarsia-tp2-speed
+fi
+if [[ " $STEPS " == *" mmlu "* ]]; then
+  le quality --bench mmlu --limit ${MMLU_LIMIT:-25} --label dsv41-intarsia-tp2-mmlu
+fi
 if [[ " $STEPS " == *" hold "* ]]; then
   log "holding the server for ${HOLD_MIN:-30} min (or until $OUT/stop exists)"
   for i in $(seq 1 $(( ${HOLD_MIN:-30} * 6 ))); do [[ -f $OUT/stop ]] && break; (( $(left) > 0 )) || break; sleep 10; done

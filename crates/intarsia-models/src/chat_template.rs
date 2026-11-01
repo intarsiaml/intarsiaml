@@ -150,6 +150,26 @@ fn neutralize_generation_tags(template: &str) -> String {
     out
 }
 
+/// Python methods minijinja lacks: `pycompat`'s, plus `dict.copy()` / `list.copy()` (a new object, as in Python: the
+/// DeepSeek-V4.1 template probes `{}.copy() is sameas {}` to tell TensorFold's engine from Jinja2).
+fn unknown_method(state: &minijinja::State, value: &Value, method: &str, args: &[Value]) -> std::result::Result<Value, minijinja::Error> {
+    if method == "copy" && args.is_empty() {
+        match value.kind() {
+            minijinja::value::ValueKind::Map => {
+                let mut pairs = Vec::new();
+                for k in value.try_iter()? {
+                    let v = value.get_item(&k)?;
+                    pairs.push((k, v));
+                }
+                return Ok(Value::from_iter(pairs));
+            }
+            minijinja::value::ValueKind::Seq => return Ok(Value::from(value.try_iter()?.collect::<Vec<Value>>())),
+            _ => {}
+        }
+    }
+    minijinja_contrib::pycompat::unknown_method_callback(state, value, method, args)
+}
+
 impl ChatTemplate {
     pub fn from_source(template: &str, source: &str, bos: Json, eos: Json) -> Result<ChatTemplate> {
         let template = neutralize_generation_tags(template);
@@ -158,7 +178,7 @@ impl ChatTemplate {
         env.set_trim_blocks(true);
         env.set_lstrip_blocks(true);
         env.set_keep_trailing_newline(true);
-        env.set_unknown_method_callback(minijinja_contrib::pycompat::unknown_method_callback);
+        env.set_unknown_method_callback(unknown_method);
         env.add_function("raise_exception", |msg: String| -> std::result::Result<Value, minijinja::Error> {
             Err(minijinja::Error::new(ErrorKind::InvalidOperation, msg))
         });
