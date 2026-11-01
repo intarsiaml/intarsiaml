@@ -260,6 +260,9 @@ pub fn serve_remote_rank(
     mut stream: std::net::TcpStream,
     opts: &EngineOptions,
 ) -> Result<u64> {
+    if crate::dsv41_engine::is_rank_cache(dir) {
+        return crate::dsv41_engine::serve_rank(dir, backend, comm, stream, opts.prefill_chunk);
+    }
     let (rank, world) = (comm.rank(), comm.world());
     if rank == 0 || world < 2 {
         return Err(Error::invalid(format!("a served rank is rank 1.. of a group (got rank {rank} of {world})")));
@@ -438,6 +441,9 @@ fn mtp_default_allowed(opts: &EngineOptions, local: bool) -> bool {
 }
 
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
+    if crate::dsv41_engine::is_rank_cache(dir) {
+        return load_dsv41(dir, group, opts);
+    }
     let backends: Vec<Arc<dyn Backend>> = match &group {
         Group::Local(b, _) => b.clone(),
         Group::Remote { backend, .. } => vec![backend.clone()],
@@ -761,4 +767,22 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         Arc::new(LocalEngine::new(model, Arc::new(codec), meta, telemetry)?)
     };
     Ok(Loaded { engine, recipe_source, prefill_chunk, chat_template_source, max_batch: max_batch.value })
+}
+
+/// DeepSeek-V4.1 from a rank cache (`intarsia dsv41-cache`): the single-sequence engine of `dsv41_engine`, one rank in this
+/// process or rank 0 of a cross-process group.
+fn load_dsv41(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
+    let engine = match group {
+        Group::Local(b, _) if b.len() == 1 => crate::dsv41_engine::Dsv41Engine::load(dir, b[0].clone(), None, None, opts.model_id.clone(), opts.prefill_chunk)?,
+        Group::Local(..) => return Err(Error::Unsupported("deepseek_v41: in-process tensor parallelism (use --tp-remote with one rank per host)".into())),
+        Group::Remote { backend, comm, stream } => crate::dsv41_engine::Dsv41Engine::load(dir, backend, Some(comm), Some(stream), opts.model_id.clone(), opts.prefill_chunk)?,
+    };
+    let chunk = crate::dsv41_engine::Dsv41Opts::from_env(opts.prefill_chunk).chunk;
+    Ok(Loaded {
+        engine: Arc::new(engine),
+        max_batch: 1,
+        recipe_source: "deepseek_v41 (rank cache)".into(),
+        prefill_chunk: PrefillChunk { value: chunk, source: "INTARSIA_DSV41_CHUNK / --prefill-chunk / 512".into() },
+        chat_template_source: Some(dir.join("chat_template.jinja").display().to_string()),
+    })
 }

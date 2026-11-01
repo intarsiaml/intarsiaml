@@ -69,7 +69,7 @@ fn mia_graph_records_every_layer_with_the_official_structure() {
     let taps: Vec<usize> = (0..40).filter(|&l| g.stages[l + 1].steps.iter().any(|s| s.what.ends_with("dspark_tap"))).collect();
     assert_eq!(taps, [37, 38, 39]);
     let steps: Vec<usize> = (0..40).map(|l| layer_ops(&g, l).len()).collect();
-    assert_eq!((steps[0], steps[1], steps[2], steps[3], steps[14], steps[20], steps[24], steps[39]), (38, 41, 53, 38, 56, 52, 43, 39));
+    assert_eq!((steps[0], steps[1], steps[2], steps[3], steps[14], steps[20], steps[24], steps[39]), (33, 36, 48, 33, 51, 47, 38, 34));
 
     // the indexers on 24..36 mask with layer 20's candidates; the others pass an empty mask
     let idx_cand = |l: usize| g.stages[l + 1].steps.iter().find(|s| s.op == Op::IndexerTopk).unwrap().inputs[3].shape.clone();
@@ -83,13 +83,16 @@ fn mia_graph_records_every_layer_with_the_official_structure() {
     assert_eq!(attn(0)[2].shape, [0, 512], "window-only layers attend no compressed rows");
     assert_eq!(attn(25)[2].buf, attn(20)[2].buf, "one shared slot for every ratio-1 layer");
 
-    // routed experts: MoeExperts in its EXL3 encoding (i16 arena, scales [E, 3H + 3I], meta [E, 8], codebook, limit)
+    // routed + shared experts: ONE MoeExperts in its EXL3 encoding (i16 arena, scales [E + 1, 3H + 3I], meta [E + 1, 8],
+    // codebook, limit), the shared expert as expert 384 picked by a 7th slot of weight 1
     let ex = |l: usize| g.stages[l + 1].steps.iter().find(|s| s.op == Op::MoeExperts).unwrap().inputs.clone();
     let shapes: Vec<(DType, Vec<usize>)> = ex(0)[3..].iter().map(|a| (a.dtype, a.shape.clone())).collect();
+    let shared = |l: usize| -> usize { ["w1", "w3", "w2"].iter().map(|m| w.0[&format!("layers.{l}.ffn.shared_experts.{m}.trellis")].1.iter().product::<usize>()).sum() };
     // layer 0's experts are 3 bits: gate / up [320, 144, 48] and down [144, 320, 48] words, 384 experts
-    assert_eq!(shapes[0], (DType::I16, vec![384 * 3 * 320 * 144 * 48]));
-    assert_eq!(shapes[1..], [(DType::F16, vec![384, 3 * 5120 + 3 * 2304]), (DType::I32, vec![384, 8]), (DType::I32, vec![1]), (DType::F32, vec![1])]);
-    assert_eq!(ex(20)[3].shape, [384 * 3 * 320 * 144 * 32], "layer 20's experts are 2 bits");
+    assert_eq!(shapes[0], (DType::I16, vec![384 * 3 * 320 * 144 * 48 + shared(0)]));
+    assert_eq!(shapes[1..], [(DType::F16, vec![385, 3 * 5120 + 3 * 2304]), (DType::I32, vec![385, 8]), (DType::I32, vec![1]), (DType::F32, vec![1])]);
+    assert_eq!(ex(20)[3].shape, [384 * 3 * 320 * 144 * 32 + shared(20)], "layer 20's experts are 2 bits");
+    assert_eq!((ex(0)[1].shape.clone(), ex(0)[2].shape.clone()), (vec![1, 7], vec![1, 7]), "6 routed slots + the shared one");
 
     // state: 40 window rings, per KV source a compressor tail (ratio 2), the compressed KV and the index keys
     assert_eq!(g.slots.len(), 40 + 3 * 3 + 2);
@@ -142,7 +145,8 @@ fn plan_show_lists_every_new_op_and_resolves_cpu_kernels() {
         .collect();
     for op in intarsia_core::dsv41::ops::OPS {
         // the base checkpoint's ops (fp8 block-scaled linears, a dense grouped wo_a) do not occur in the EXL3 graph
-        if matches!(op, Op::MatmulFp8Block | Op::GroupedMatmul) {
+        // and the clamp runs inside the fused routed + shared MoeExperts (no separate shared-expert SiluGluClamp)
+        if matches!(op, Op::MatmulFp8Block | Op::GroupedMatmul | Op::SiluGluClamp) {
             assert!(!ops.contains_key(op.as_str()));
             continue;
         }
@@ -156,7 +160,7 @@ fn plan_show_lists_every_new_op_and_resolves_cpu_kernels() {
         let (k, _) = &ops[op.as_str()];
         assert_eq!(k, &format!("cpu_f32_{}", op.as_str()));
     }
-    assert_eq!(ops["matmul_exl3"].1, 622);
+    assert_eq!(ops["matmul_exl3"].1, 502, "622 before the shared expert joined the routed launch");
     assert_eq!(ops["hc_pre"].1, 84, "two per layer, the collapse before the head, three DSpark taps");
     let text = intarsia_core::dsv41::plan::render(&p);
     // the routed experts are the EXL3 encoding of the existing MoeExperts, resolved to its cpu kernel; no stub on Mia

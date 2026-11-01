@@ -73,6 +73,22 @@ pub struct Stage {
     /// Block summary for `plan show` (e.g. `["engram", "hc_attn:window+cmp(2)/idx", "hc_moe"]`).
     pub blocks: Vec<String>,
     pub steps: Vec<Step>,
+    /// Host-side actions that are not ops: `(j, action)` runs right before `steps[j]` (`j == steps.len()`: after the
+    /// last step). Collectives of a tensor-parallel rank and constant fills.
+    pub extras: Vec<(usize, Extra)>,
+}
+
+/// A host-side action of a stage (not an `Op`: the op set is frozen).
+#[derive(Clone, Debug, PartialEq)]
+pub enum Extra {
+    /// Sum `x` over the ranks in place (bf16 / f32).
+    AllReduce { x: Arg },
+    /// `out = round(sum over ranks of partial)`: f32 partials rounded once into `out` (`Comm::all_reduce_sum_into`).
+    AllReduceInto { partial: Arg, out: Arg },
+    /// `recv` (`[.., world * n]`) gets every rank's `send` (`[.., n]`) in rank order (one row only).
+    AllGather { send: Arg, recv: Arg },
+    /// Elements `offset .. offset + count` of workspace `buf` (dtype `dtype`) set to `value`.
+    Fill { buf: String, dtype: DType, offset: usize, count: usize, value: f64 },
 }
 
 /// A DSpark / MTP block found in the checkpoint: parsed, not executed.
@@ -93,6 +109,28 @@ pub struct Dsv41Graph {
     pub mtp: Vec<MtpBlock>,
     /// Token capacity the shared slots are sized for.
     pub cap: usize,
+    /// The full-vocabulary f32 logits of the last row (`[1, vocab]`), after the head (and its gather under tensor
+    /// parallelism).
+    pub logits: Arg,
+    /// Tensor-parallel group size the graph was built for (1: one rank).
+    pub world: usize,
+}
+
+/// Tensor parallelism and truncation of the graph ([`build_with`]).
+#[derive(Clone, Copy, Debug)]
+pub struct GraphTp {
+    /// Ranks of the group. The weights the graph is built against are this rank's (a rank cache: column-parallel
+    /// linears hold `N / world` outputs, row-parallel `K / world` inputs, `attn_sink` `n_heads / world`, the rank's
+    /// `o_groups / world` `wo_a` slices renumbered from 0, the routed experts `I / world` wide).
+    pub world: usize,
+    /// Run only the first `layers` layers, then the head (few-layer parity runs on a truncated rank cache).
+    pub layers: Option<usize>,
+}
+
+impl Default for GraphTp {
+    fn default() -> Self {
+        GraphTp { world: 1, layers: None }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -118,7 +156,9 @@ struct Builder<'a> {
     c: &'a Dsv41Config,
     w: &'a dyn WeightShapes,
     o: GraphOpts,
+    tp: GraphTp,
     steps: Vec<Step>,
+    extras: Vec<(usize, Extra)>,
 }
 
 fn arg(buf: Buf, dtype: DType, shape: &[usize]) -> Arg {
@@ -159,6 +199,26 @@ impl Builder<'_> {
 
     fn push(&mut self, op: Op, what: impl Into<String>, inputs: Vec<Arg>, outputs: Vec<Arg>, attrs: OpAttrs) {
         self.steps.push(Step { op, what: what.into(), inputs, outputs, attrs });
+    }
+
+    /// A host action after the steps pushed so far.
+    fn extra(&mut self, e: Extra) {
+        self.extras.push((self.steps.len(), e));
+    }
+
+    fn stage(&mut self, name: String, layer: Option<usize>, blocks: Vec<String>) -> Stage {
+        Stage { name, layer, blocks, steps: std::mem::take(&mut self.steps), extras: std::mem::take(&mut self.extras) }
+    }
+
+    /// A row-parallel linear's output: under tensor parallelism an f32 partial summed over the ranks into `out` (act).
+    fn matmul_reduced(&mut self, x: Arg, p: &str, out: &str, act: DType) -> Result<Arg> {
+        if self.tp.world == 1 {
+            return self.matmul(x, p, Buf::Ws(out.into()), act);
+        }
+        let part = self.matmul(x, p, Buf::Ws(format!("{out}.partial")), DType::F32)?;
+        let o = Arg { buf: Buf::Ws(out.into()), dtype: act, shape: part.shape.clone() };
+        self.extra(Extra::AllReduceInto { partial: part, out: o.clone() });
+        Ok(o)
     }
 
     /// `out = x @ W^T` for the linear `p` (EXL3, fp8 block-scaled or dense), output `out` of dtype `odt`.
@@ -295,15 +355,29 @@ fn slots(c: &Dsv41Config, act: DType) -> (Vec<SlotSpec>, Vec<LayerSlots>) {
     (specs, ls)
 }
 
-/// Build the graph of one chunk.
+/// Build the graph of one chunk (one rank, every layer).
 pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv41Graph> {
+    build_with(c, w, o, GraphTp::default())
+}
+
+/// Build the graph of one chunk for one rank of a tensor-parallel group ([`GraphTp`]). Sharding (TensorFold's layout,
+/// docs/research/2026-10-31-dsv41-porting-map.md 3.3): attention heads split (`wq_b` columns, sinks, `wo_a` groups,
+/// `wo_b` rows), routed + shared experts split by intermediate width, head by vocab; everything else (embedding, norms,
+/// `wq_a`, `wkv`, compressor, indexer, router, hc params, Engram `wkv`) replicated. Collectives: one f32 all-reduce
+/// after `wo_b` and one after the MoE per layer, one of the gathered Engram rows per Engram layer (a rank's foreign rows
+/// are exact zeros), one gather of the head's logits.
+pub fn build_with(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp) -> Result<Dsv41Graph> {
     let (t, d, s, act) = (o.t, c.dim, c.hc_mult, o.act);
     if t == 0 {
         return Err(Error::invalid("deepseek_v41 graph: zero rows"));
     }
+    if tp.world == 0 || c.n_heads % tp.world != 0 || c.o_groups % tp.world != 0 {
+        return Err(Error::invalid(format!("deepseek_v41 graph: {} heads / {} groups do not split over {} ranks", c.n_heads, c.o_groups, tp.world)));
+    }
+    let n_layers = tp.layers.map_or(c.n_layers, |l| l.min(c.n_layers));
     let (slot_specs, lslots) = slots(c, act);
     let mut stages = Vec::new();
-    let mut b = Builder { c, w, o, steps: Vec::new() };
+    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new() };
 
     // embedding, expanded to hc_mult streams (Transformer.forward)
     let ids = arg(Buf::Host("token_ids".into()), DType::I32, &[t]);
@@ -314,10 +388,10 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
     // step's output aliases its input (outputs never alias inputs in this graph, except the state rings marked in place)
     let mut x = ws("x0", act, &[t, s, d]);
     b.push(Op::HcExpand, "hc_expand", vec![h], vec![x.clone()], OpAttrs::default());
-    stages.push(Stage { name: "embed".into(), layer: None, blocks: vec!["embed".into(), format!("hc_expand x{s}")], steps: std::mem::take(&mut b.steps) });
+    stages.push(b.stage("embed".into(), None, vec!["embed".into(), format!("hc_expand x{s}")]));
 
     let mut pre_mix = arg(Buf::Const("hc.one_hot_pre_mix".into()), DType::F32, &[t, s]);
-    for l in 0..c.n_layers {
+    for l in 0..n_layers {
         let p = format!("layers.{l}");
         let mut blocks = Vec::new();
         // Engram (Transformer.forward, before the block): rows hashed on the host, fetched from the tier
@@ -327,6 +401,11 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
             let records = arg(Buf::Host(format!("engram.{l}.records")), DType::U8, &[t, cols, rec]);
             let emb = ws("engram.emb", act, &[t, cols * e.head_dim]);
             b.push(Op::EngramGather, format!("{p}.engram.embed"), vec![records], vec![emb.clone()], OpAttrs::default());
+            if b.tp.world > 1 {
+                // a rank's tier returns another rank's rows as zero payload with unit scales: exact zeros, so the sum is
+                // the full gather (and `engram.wkv` stays replicated)
+                b.extra(Extra::AllReduce { x: emb.clone() });
+            }
             let kv = b.matmul(emb, &format!("{p}.engram.wkv"), Buf::Ws("engram.kv".into()), act)?;
             let (qw, kw) = (b.weight(&format!("{p}.engram.q_weight"))?, b.weight(&format!("{p}.engram.k_weight"))?);
             let y = flip(&x);
@@ -364,7 +443,7 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
         x = y;
         // the next layer's attention collapses with this FFN's pre-mix (written to "hc_ffn.pre", not overwritten before)
         pre_mix = ffn_pre;
-        stages.push(Stage { name: format!("layer {l}"), layer: Some(l), blocks, steps: std::mem::take(&mut b.steps) });
+        stages.push(b.stage(format!("layer {l}"), Some(l), blocks));
     }
 
     // head: collapse with the last FFN's pre-mix, norm, logits of the last row (ParallelHead)
@@ -372,17 +451,25 @@ pub fn build(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts) -> Result<Dsv4
     b.push(Op::HcPre, "hc_pre(head)", vec![x.clone(), pre_mix], vec![hc.clone()], OpAttrs::default());
     b.rmsnorm(hc, "norm.weight", "n")?;
     let last = Arg { buf: Buf::Ws("n.last_row".into()), dtype: act, shape: vec![1, d] };
-    b.matmul(last, "head", Buf::Ws("logits".into()), DType::F32)?;
-    stages.push(Stage { name: "head".into(), layer: None, blocks: vec!["hc_pre".into(), "norm".into(), "head".into()], steps: std::mem::take(&mut b.steps) });
+    let local = b.matmul(last, "head", Buf::Ws("logits".into()), DType::F32)?;
+    let logits = if tp.world > 1 {
+        let full = Arg { buf: Buf::Ws("logits.full".into()), dtype: DType::F32, shape: vec![1, local.shape[1] * tp.world] };
+        b.extra(Extra::AllGather { send: local, recv: full.clone() });
+        full
+    } else {
+        local
+    };
+    let head = b.stage("head".into(), None, vec!["hc_pre".into(), "norm".into(), "head".into()]);
+    stages.push(head);
 
-    Ok(Dsv41Graph { stages, slots: slot_specs, residual_streams: s, mtp: mtp_blocks(c, w), cap: o.cap })
+    Ok(Dsv41Graph { stages, slots: slot_specs, residual_streams: s, mtp: mtp_blocks(c, w), cap: o.cap, logits, world: tp.world })
 }
 
 /// The attention of layer `l` (`Attention.forward`); returns its `[t, dim]` output.
 fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut Vec<String>) -> Result<Arg> {
     let c = b.c;
     let (t, act, pos0) = (b.o.t, b.o.act, b.o.pos0);
-    let (h, hd, win) = (c.n_heads, c.head_dim, c.window);
+    let (h, hd, win) = (c.n_heads / b.tp.world, c.head_dim, c.window);
     let p = format!("layers.{l}.attn");
     let r = c.ratio(l);
 
@@ -490,7 +577,7 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     // quantises `o` before `wo_a` only in its FP8 mode (`model.py:785`); the EXL3 checkpoint's reference engine (TensorFold)
     // and the committed fixtures (`tools/dsv41/fixtures.py --quant tf`) do not, and the fp32 layer-0 `o_lora` then
     // disagrees with the fixture by 2.5e-2 instead of 2.5e-6 (`crates/intarsia-models/tests/dsv41_layers.rs`).
-    let g = c.o_groups;
+    let g = c.o_groups / b.tp.world;
     let gk = h * hd / g;
     let o = Arg { shape: vec![t, g, gk], ..o };
     let o = if matches!(c.quant, Dsv41Quant::Fp8 { .. }) {
@@ -522,70 +609,134 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
         b.push(Op::GroupedMatmul, format!("{p}.wo_a"), vec![Arg { shape: vec![t, g * gk], ..o }, wv], vec![oa.clone()], OpAttrs::default());
         oa
     };
-    b.matmul(oa, &format!("{p}.wo_b"), Buf::Ws("blk".into()), act)
+    b.matmul_reduced(oa, &format!("{p}.wo_b"), "blk", act)
 }
 
-/// The MoE (`MoE.forward`): router, routed EXL3 experts, shared expert; returns `[t, dim]`.
+/// The MoE (`MoE.forward`): router, then routed EXL3 experts and the shared expert in ONE `MoeExperts` launch (the
+/// shared expert rides as expert `E` of an `E + 1` arena, picked by an extra slot of weight 1 in every row, as
+/// TensorFold's served decode does; `quant::exl3_moe` docs). Returns `[t, dim]` (summed over the ranks under tensor
+/// parallelism).
+///
+/// The router writes `[t, k]`; the experts read `[t, k + 1]` whose last column is `(E, 1.0)`. One row (decode): the router
+/// writes the first `k` entries of the `[1, k + 1]` table and a fill sets the last. More rows: the router's `[t, k]` is
+/// transposed to the first `k` rows of a `[k + 1, t]` table, a fill sets its last row, and a transpose turns it back.
+///
+/// The arena / scales / meta are built at load from the per-expert tensors (`{p}.experts.{e}.w1` ..., a full
+/// checkpoint) or from a rank cache's routed arena (`{p}.experts.arena`, `.scales`, `.meta`, `.codebook`), with the
+/// shared expert's tensors (`{p}.shared_experts.w1/w3/w2`) appended (`dsv41::graph::fused_expert_shapes`).
 fn moe(b: &mut Builder, p: &str, n: &Arg, experts: usize, top_k: usize) -> Result<Arg> {
     let c = b.c;
     let (t, d, act) = (b.o.t, c.dim, b.o.act);
     let logits = b.matmul(n.clone(), &format!("{p}.gate"), Buf::Ws("router_logits".into()), DType::F32)?;
     let bias = b.weight(&format!("{p}.gate.bias"))?;
     let bias = Arg { dtype: DType::F32, ..bias };
-    let (rw, ids) = (ws("route_w", DType::F32, &[t, top_k]), ws("route_ids", DType::I32, &[t, top_k]));
-    b.push(Op::MoeRoute, format!("{p}.gate"), vec![logits, bias], vec![rw.clone(), ids.clone()], OpAttrs { top_k, scale: c.route_scale, norm_topk: c.norm_topk, ..Default::default() });
-
-    // routed experts: the EXL3 encoding of `MoeExperts` (`quant::exl3_moe`), built at load from the per-expert tensors:
-    // one i16 trellis arena of every expert's gate / up / down tiles, scales [E, 3H + 3I] f16 (suh / svh of each matrix),
-    // meta [E, 8] i32 (arena offsets and widths), the codebook, and the swiglu clamp limit
-    let mut words = 0usize;
-    let mut inter = 0usize;
-    for wn in ["w1", "w3", "w2"] {
-        let e0 = format!("{p}.experts.0.{wn}");
-        let last = format!("{p}.experts.{}.{wn}", experts - 1);
-        let (Some((_, s0)), Some((_, sl))) = (b.w.get(&format!("{e0}.trellis")), b.w.get(&format!("{last}.trellis"))) else {
-            return Err(Error::Unsupported(format!(
-                "deepseek_v41: routed experts {p}.experts.*.{wn} are not EXL3 (the base's FP4 experts run as the MXFP4 MoeExperts with a clamp, lane 1b)"
-            )));
-        };
-        if s0 != sl || s0.len() != 3 {
-            return Err(Error::model(format!("deepseek_v41: {p} experts 0 and {} differ in shape ({s0:?} / {sl:?})", experts - 1)));
+    let f = fused_expert_shapes(b.w, p, d, experts)?;
+    let k1 = top_k + 1;
+    let route_attrs = OpAttrs { top_k, scale: c.route_scale, norm_topk: c.norm_topk, ..Default::default() };
+    let (ids7, w7) = (ws("route_ids7", DType::I32, &[t, k1]), ws("route_w7", DType::F32, &[t, k1]));
+    if t == 1 {
+        let (rw, ids) = (ws("route_w7", DType::F32, &[1, top_k]), ws("route_ids7", DType::I32, &[1, top_k]));
+        b.push(Op::MoeRoute, format!("{p}.gate"), vec![logits, bias], vec![rw, ids], route_attrs);
+        b.extra(Extra::Fill { buf: "route_ids7".into(), dtype: DType::I32, offset: top_k, count: 1, value: experts as f64 });
+        b.extra(Extra::Fill { buf: "route_w7".into(), dtype: DType::F32, offset: top_k, count: 1, value: 1.0 });
+    } else {
+        let (rw, ids) = (ws("route_w", DType::F32, &[t, top_k]), ws("route_ids", DType::I32, &[t, top_k]));
+        b.push(Op::MoeRoute, format!("{p}.gate"), vec![logits, bias], vec![rw.clone(), ids.clone()], route_attrs);
+        for (src, tbl, dst, dt, v) in [(ids, "route_ids_t", ids7.clone(), DType::I32, experts as f64), (rw, "route_w_t", w7.clone(), DType::F32, 1.0)] {
+            b.push(Op::Transpose01, format!("{p}.shared_slot({tbl})"), vec![Arg { shape: vec![t, top_k, 1], ..src }], vec![ws(tbl, dt, &[top_k, t, 1])], OpAttrs::default());
+            b.extra(Extra::Fill { buf: tbl.into(), dtype: dt, offset: top_k * t, count: t, value: v });
+            b.push(Op::Transpose01, format!("{p}.shared_slot({tbl})^T"), vec![ws(tbl, dt, &[k1, t, 1])], vec![Arg { shape: vec![t, k1, 1], ..dst }], OpAttrs::default());
         }
-        let (k, nn) = (16 * s0[0], 16 * s0[1]);
-        let want = if wn == "w2" { (inter, d) } else { (d, nn) };
-        if wn != "w2" {
-            inter = nn;
-        }
-        if (k, nn) != want {
-            return Err(Error::model(format!("deepseek_v41: {p}.experts.*.{wn} is [{k} -> {nn}], expected [{} -> {}]", want.0, want.1)));
-        }
-        // one width per (layer, matrix) stack in the Mia checkpoint, so the arena is E times expert 0's tiles
-        words += experts * s0.iter().product::<usize>();
     }
     let inputs = vec![
         n.clone(),
-        ids,
-        rw,
-        arg(Buf::Weight(format!("{p}.experts.arena")), DType::I16, &[words]),
-        arg(Buf::Weight(format!("{p}.experts.scales")), DType::F16, &[experts, 3 * d + 3 * inter]),
-        arg(Buf::Weight(format!("{p}.experts.meta")), DType::I32, &[experts, crate::quant::exl3_moe::META_COLS]),
+        ids7,
+        w7,
+        arg(Buf::Weight(format!("{p}.experts.arena")), DType::I16, &[f.words]),
+        arg(Buf::Weight(format!("{p}.experts.scales")), DType::F16, &[experts + 1, 3 * d + 3 * f.inter]),
+        arg(Buf::Weight(format!("{p}.experts.meta")), DType::I32, &[experts + 1, crate::quant::exl3_moe::META_COLS]),
         arg(Buf::Weight(format!("{p}.experts.codebook")), DType::I32, &[1]),
         arg(Buf::Const("swiglu_limit".into()), DType::F32, &[1]),
     ];
-    let routed = ws("moe_routed", act, &[t, d]);
-    b.push(Op::MoeExperts, format!("{p}.experts"), inputs, vec![routed.clone()], OpAttrs { top_k, ..Default::default() });
-
-    // shared expert: clamped SwiGLU
-    let g = b.matmul(n.clone(), &format!("{p}.shared_experts.w1"), Buf::Ws("g".into()), act)?;
-    let u = b.matmul(n.clone(), &format!("{p}.shared_experts.w3"), Buf::Ws("u".into()), act)?;
-    let hsh = ws("h_shared", act, &g.shape);
-    let mut a = OpAttrs::default();
-    a.dsv.limit = c.swiglu_limit;
-    b.push(Op::SiluGluClamp, format!("{p}.shared_experts.act"), vec![g, u], vec![hsh.clone()], a);
-    let sh = b.matmul(hsh, &format!("{p}.shared_experts.w2"), Buf::Ws("moe_shared".into()), act)?;
+    // routed + shared in one launch; under tensor parallelism each rank's output is its partial sum (f32, rounded once)
+    let odt = if b.tp.world > 1 { DType::F32 } else { act };
+    let out_name = if b.tp.world > 1 { "blk.partial" } else { "blk" };
+    let routed = ws(out_name, odt, &[t, d]);
+    b.push(Op::MoeExperts, format!("{p}.experts"), inputs, vec![routed.clone()], OpAttrs { top_k: k1, ..Default::default() });
+    if b.tp.world == 1 {
+        return Ok(routed);
+    }
     let out = ws("blk", act, &[t, d]);
-    b.push(Op::Add, format!("{p}.combine"), vec![routed, sh], vec![out.clone()], OpAttrs::default());
+    b.extra(Extra::AllReduceInto { partial: routed, out: out.clone() });
     Ok(out)
+}
+
+/// Sizes of the fused routed + shared expert tensors of MoE `p` (`layers.{l}.ffn`) as the graph reads them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FusedExperts {
+    /// i16 words of the arena (routed experts, then the shared expert's gate, up, down tiles).
+    pub words: usize,
+    /// i16 words of the routed part (the shared expert's tiles start there).
+    pub routed_words: usize,
+    /// The (rank's) intermediate width.
+    pub inter: usize,
+}
+
+/// [`FusedExperts`] from the checkpoint's per-expert trellis shapes or a rank cache's routed arena, plus the shared
+/// expert's trellis shapes; checks the shared expert has the routed experts' width.
+pub fn fused_expert_shapes(w: &dyn WeightShapes, p: &str, d: usize, experts: usize) -> Result<FusedExperts> {
+    let tiles = |name: &str| -> Result<(usize, usize, usize)> {
+        let (_, s) = w.get(&format!("{name}.trellis")).ok_or_else(|| Error::model(format!("deepseek_v41: no EXL3 tensor {name}.trellis")))?;
+        if s.len() != 3 {
+            return Err(Error::model(format!("deepseek_v41: {name}.trellis has shape {s:?}")));
+        }
+        Ok((16 * s[0], 16 * s[1], s.iter().product()))
+    };
+    let (routed_words, inter) = if let Some((_, a)) = w.get(&format!("{p}.experts.arena")) {
+        // a rank cache: the routed arena is built, its width is in the scales row
+        let (_, sc) = w.get(&format!("{p}.experts.scales")).ok_or_else(|| Error::model(format!("deepseek_v41: {p}.experts.arena without .scales")))?;
+        if sc.len() != 2 || sc[0] != experts || sc[1] < 3 * d || (sc[1] - 3 * d) % 3 != 0 {
+            return Err(Error::model(format!("deepseek_v41: {p}.experts.scales has shape {sc:?} for {experts} experts of dim {d}")));
+        }
+        (a.iter().product::<usize>(), (sc[1] - 3 * d) / 3)
+    } else {
+        let mut words = 0usize;
+        let mut inter = 0usize;
+        for wn in ["w1", "w3", "w2"] {
+            let e0 = format!("{p}.experts.0.{wn}");
+            let last = format!("{p}.experts.{}.{wn}", experts - 1);
+            if w.get(&format!("{e0}.trellis")).is_none() {
+                return Err(Error::Unsupported(format!(
+                    "deepseek_v41: routed experts {p}.experts.*.{wn} are not EXL3 (the base's FP4 experts run as the MXFP4 MoeExperts with a clamp, lane 1b)"
+                )));
+            }
+            let (k, nn, n0) = tiles(&e0)?;
+            let (kl, nl, nlast) = tiles(&last)?;
+            if (k, nn, n0) != (kl, nl, nlast) {
+                return Err(Error::model(format!("deepseek_v41: {p} experts 0 and {} differ in shape", experts - 1)));
+            }
+            let want = if wn == "w2" { (inter, d) } else { (d, nn) };
+            if wn != "w2" {
+                inter = nn;
+            }
+            if (k, nn) != want {
+                return Err(Error::model(format!("deepseek_v41: {p}.experts.*.{wn} is [{k} -> {nn}], expected [{} -> {}]", want.0, want.1)));
+            }
+            // one width per (layer, matrix) stack in the Mia checkpoint, so the arena is E times expert 0's tiles
+            words += experts * n0;
+        }
+        (words, inter)
+    };
+    let mut shared = 0usize;
+    for wn in ["w1", "w3", "w2"] {
+        let (k, nn, n) = tiles(&format!("{p}.shared_experts.{wn}"))?;
+        let want = if wn == "w2" { (inter, d) } else { (d, inter) };
+        if (k, nn) != want {
+            return Err(Error::model(format!("deepseek_v41: {p}.shared_experts.{wn} is [{k} -> {nn}], the fused launch needs [{} -> {}]", want.0, want.1)));
+        }
+        shared += n;
+    }
+    Ok(FusedExperts { words: routed_words + shared, routed_words, inter })
 }
 
 /// The MTP / DSpark blocks the checkpoint carries (`mtp.{i}.*`).

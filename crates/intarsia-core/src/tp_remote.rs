@@ -345,11 +345,42 @@ fn ack_status(e: &Error) -> u8 {
 /// error; `Truncate` and `Snapshot` are acknowledged (see the module docs); a failed `NewState` is reported by the next
 /// answered command of any sequence. Returns how many forward
 /// passes ran.
-pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
+/// What [`serve`] drives on the remote rank: this process's shard of a model and its per-sequence state (the ordinary
+/// [`Model`], or the DeepSeek-V4.1 runtime, `crate::dsv41::runtime`).
+pub trait RankModel {
+    type State;
+    fn new_state(&self) -> Result<Self::State>;
+    /// This rank's half of the primary's forward pass (`graph`: [`FWD_GRAPH`]).
+    fn forward_rank(&self, st: &mut Self::State, ids: &[u32], graph: bool) -> Result<()>;
+    fn truncate(&self, st: &mut Self::State, len: usize) -> Result<()>;
+    fn snapshot(&self, st: &mut Self::State, keep: usize) -> Result<()>;
+    fn state_len(st: &Self::State) -> usize;
+}
+
+impl RankModel for Model {
+    type State = SequenceState;
+    fn new_state(&self) -> Result<SequenceState> {
+        Model::new_state(self)
+    }
+    fn forward_rank(&self, st: &mut SequenceState, ids: &[u32], graph: bool) -> Result<()> {
+        Model::forward_rank(self, st, ids, graph)
+    }
+    fn truncate(&self, st: &mut SequenceState, len: usize) -> Result<()> {
+        st.truncate(len, &*self.backend)
+    }
+    fn snapshot(&self, st: &mut SequenceState, keep: usize) -> Result<()> {
+        st.snapshot(&*self.backend, keep)
+    }
+    fn state_len(st: &SequenceState) -> usize {
+        st.len
+    }
+}
+
+pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
     stream.set_nodelay(true).map_err(io)?;
     let mut rd = BufReader::new(stream.try_clone().map_err(io)?);
     let mut w = BufWriter::new(stream);
-    let mut seqs: HashMap<u64, SequenceState> = HashMap::new();
+    let mut seqs: HashMap<u64, M::State> = HashMap::new();
     let mut pending: Option<String> = None;
     let mut passes = 0u64;
     let reply = |w: &mut BufWriter<TcpStream>, ok: bool, len: usize, msg: &str| -> Result<()> {
@@ -385,7 +416,7 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
                     b[16..].chunks_exact(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
                 if let Some(msg) = pending.take() {
                     // the primary is already in its own pass: leave the group (it aborts on this answer)
-                    reply(&mut w, false, seqs.get(&sid).map_or(0, |s| s.len), &msg)?;
+                    reply(&mut w, false, seqs.get(&sid).map_or(0, M::state_len), &msg)?;
                     continue;
                 }
                 let Some(st) = seqs.get_mut(&sid) else {
@@ -394,8 +425,8 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
                 };
                 passes += 1;
                 match model.forward_rank(st, &ids, flags & FWD_GRAPH != 0) {
-                    Ok(()) => reply(&mut w, true, st.len, "")?,
-                    Err(e) => reply(&mut w, false, st.len, &e.to_string())?,
+                    Ok(()) => reply(&mut w, true, M::state_len(st), "")?,
+                    Err(e) => reply(&mut w, false, M::state_len(st), &e.to_string())?,
                 }
             }
             T_TRUNCATE => {
@@ -403,24 +434,24 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
                 let (status, msg) = match (pending.take(), seqs.get_mut(&sid)) {
                     (Some(msg), _) => (ACK_FAILED, msg),
                     (None, None) => (ACK_REJECTED_INVALID, format!("unknown sequence {sid}")),
-                    (None, Some(st)) => match st.truncate(len, &*model.backend) {
+                    (None, Some(st)) => match model.truncate(st, len) {
                         Ok(()) => (ACK_OK, String::new()),
                         Err(e) => (ack_status(&e), format!("truncate to {len}: {e}")),
                     },
                 };
-                ack(&mut w, status, seqs.get(&sid).map_or(0, |s| s.len), &msg)?;
+                ack(&mut w, status, seqs.get(&sid).map_or(0, M::state_len), &msg)?;
             }
             T_SNAPSHOT => {
                 let keep = u64_at(&b, 1)? as usize;
                 let (status, msg) = match (pending.take(), seqs.get_mut(&sid)) {
                     (Some(msg), _) => (ACK_FAILED, msg),
                     (None, None) => (ACK_REJECTED_INVALID, format!("unknown sequence {sid}")),
-                    (None, Some(st)) => match st.snapshot(&*model.backend, keep) {
+                    (None, Some(st)) => match model.snapshot(st, keep) {
                         Ok(()) => (ACK_OK, String::new()),
                         Err(e) => (ack_status(&e), format!("snapshot: {e}")),
                     },
                 };
-                ack(&mut w, status, seqs.get(&sid).map_or(0, |s| s.len), &msg)?;
+                ack(&mut w, status, seqs.get(&sid).map_or(0, M::state_len), &msg)?;
             }
             T_DROP => {
                 seqs.remove(&sid);
