@@ -84,7 +84,14 @@ pub struct Manifest {
     /// Part files with their sizes (lets `cache_matches` and a copy check detect a truncated cache).
     #[serde(default)]
     pub parts: Vec<PartInfo>,
+    /// `Some("mtp")`: only the DSpark stages (`mtp.*`), the sub-cache `<rank cache>/mtp` ([`MTP_DIR`]); `None`: the model.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<String>,
 }
+
+/// The sub-directory of a rank cache that holds its DSpark stages ([`BuildOpts::mtp_only`]), so adding them does not
+/// rewrite the model's parts.
+pub const MTP_DIR: &str = "mtp";
 
 // ---------------------------------------------------------------------------------------------------------------------
 // page-cache control
@@ -397,12 +404,19 @@ pub struct BuildOpts {
     /// Write into a non-empty directory that has no manifest (and replace a stale cache).
     pub force: bool,
     pub part_bytes: u64,
+    /// Only the DSpark stages (`mtp.*`, sharded with the layers' rules), for `<rank cache>/mtp`.
+    pub mtp_only: bool,
 }
 
 impl BuildOpts {
     pub fn new(rank: usize, world: usize, layers: Option<usize>) -> BuildOpts {
-        BuildOpts { rank, world, layers, force: false, part_bytes: PART_BYTES }
+        BuildOpts { rank, world, layers, force: false, part_bytes: PART_BYTES, mtp_only: false }
     }
+}
+
+/// Numbered scope of `name` under `root` (`layers.` or `mtp.`).
+fn scope_of(name: &str, root: &str) -> Option<usize> {
+    name.strip_prefix(root)?.split('.').next()?.parse().ok()
 }
 
 fn layer_of(name: &str) -> Option<usize> {
@@ -431,6 +445,9 @@ fn known_replicated(local: &str) -> bool {
         || local.starts_with("attn.indexer.")
         || local.starts_with("ffn.gate.")
         || local.starts_with("engram.")
+        || local == "main_norm.weight"
+        || local.starts_with("markov_head.")
+        || local.starts_with("confidence_head.")
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -456,6 +473,8 @@ struct Builder<'a> {
     world: usize,
     swiglu_limit: f32,
     unclassified: Vec<String>,
+    /// `layers.` (the model's layers) or `mtp.` (the DSpark stages): the prefix of a numbered scope.
+    root: &'static str,
 }
 
 impl Builder<'_> {
@@ -581,7 +600,7 @@ impl Builder<'_> {
 
     /// One scope: the global tensors (`layer` None) or one layer.
     fn scope(&mut self, layer: Option<usize>, names: &[&String]) -> Result<()> {
-        let pre = layer.map_or(String::new(), |l| format!("layers.{l}."));
+        let pre = layer.map_or(String::new(), |l| format!("{}{l}.", self.root));
         let local = |n: &str| n.strip_prefix(pre.as_str()).unwrap_or(n).to_string();
         let mut consumed: BTreeSet<String> = BTreeSet::new();
         // routed experts
@@ -699,15 +718,15 @@ pub fn build_rank_cache(src_dir: &Path, out: &Path, o: &BuildOpts) -> Result<Man
     let tcfg = cfg.get("text_config").unwrap_or(&cfg);
     let swiglu_limit = tcfg.get("swiglu_limit").and_then(Value::as_f64).map_or(f32::INFINITY, |v| v as f32);
 
-    // aux files + Engram token map
-    for f in AUX_FILES {
+    // aux files + Engram token map (the model's cache has them; a DSpark sub-cache only needs its tensors)
+    for f in if o.mtp_only { &[][..] } else { &AUX_FILES[..] } {
         let p = src_dir.join(f);
         if p.exists() {
             std::fs::copy(&p, out.join(f))?;
         }
     }
     let tok = src_dir.join("tokenizer.json");
-    if tok.exists() {
+    if !o.mtp_only && tok.exists() {
         let tk = tokenizers::Tokenizer::from_file(&tok).map_err(|e| err(format!("tokenizer.json: {e}")))?;
         let tm = intarsia_engram::token_map::build(&tk).map_err(|e| err(format!("token map: {e}")))?;
         if tm.map.len() != 129_280 || tm.compressed_vocab != 99_092 {
@@ -715,20 +734,21 @@ pub fn build_rank_cache(src_dir: &Path, out: &Path, o: &BuildOpts) -> Result<Man
         }
         std::fs::write(out.join(TOKEN_MAP), serde_json::to_vec(&tm.map).map_err(|e| err(e.to_string()))?)?;
         logln!("token map: {} entries, compressed vocab {}", tm.map.len(), tm.compressed_vocab);
-    } else {
+    } else if !o.mtp_only {
         logln!("WARNING no tokenizer.json in the source: {TOKEN_MAP} not written");
     }
 
     // scopes: global tensors, then layers in numeric order
     let mut scopes: BTreeMap<Option<usize>, Vec<&String>> = BTreeMap::new();
     let mut dropped = 0usize;
+    let root = if o.mtp_only { "mtp." } else { "layers." };
     for n in src.entries.keys() {
-        if n.starts_with("mtp.") {
+        if n.starts_with("mtp.") != o.mtp_only {
             dropped += 1;
             continue;
         }
-        let layer = if n.starts_with("layers.") { Some(layer_of(n).ok_or_else(|| err(format!("cannot read the layer of '{n}'")))?) } else { None };
-        if let (Some(l), Some(limit)) = (layer, o.layers) {
+        let layer = if n.starts_with(root) { Some(scope_of(n, root).ok_or_else(|| err(format!("cannot read the scope of '{n}'")))?) } else { None };
+        if let (Some(l), Some(limit), false) = (layer, o.layers, o.mtp_only) {
             if l >= limit {
                 dropped += 1;
                 continue;
@@ -747,13 +767,13 @@ pub fn build_rank_cache(src_dir: &Path, out: &Path, o: &BuildOpts) -> Result<Man
         dropped,
         n_scopes
     );
-    let mut b = Builder { src: &src, w: PartWriter::new(out, o.part_bytes), rank: o.rank, world: o.world, swiglu_limit, unclassified: Vec::new() };
+    let mut b = Builder { src: &src, w: PartWriter::new(out, o.part_bytes), rank: o.rank, world: o.world, swiglu_limit, unclassified: Vec::new(), root };
     for (i, (layer, names)) in scopes.iter().enumerate() {
         let (t, by) = (b.w.tensors, b.w.bytes);
         b.scope(*layer, names)?;
         logln!(
             "{} ({}/{}): {} tensors, {:.2} GiB; total {} tensors, {:.2} GiB, {:.0} s",
-            layer.map_or("globals".to_string(), |l| format!("layer {l}")),
+            layer.map_or("globals".to_string(), |l| format!("{root}{l}")),
             i + 1,
             n_scopes,
             b.w.tensors - t,
@@ -793,6 +813,7 @@ pub fn build_rank_cache(src_dir: &Path, out: &Path, o: &BuildOpts) -> Result<Man
         bytes,
         built_unix: now_unix(),
         parts: parts.iter().map(|(f, b, _)| PartInfo { file: f.clone(), bytes: *b }).collect(),
+        scope: o.mtp_only.then(|| "mtp".to_string()),
     };
     let tmp = out.join("manifest.json.tmp");
     std::fs::write(&tmp, serde_json::to_vec_pretty(&manifest).map_err(|e| err(e.to_string()))?)?;
@@ -812,7 +833,8 @@ fn verify_cache(src: &Source, out: &Path, o: &BuildOpts) -> Result<()> {
             other => Err(bad(n, &format!("{want:?}"), other)),
         }
     };
-    if let Some(n) = shapes.keys().find(|n| n.starts_with("mtp.") || n.ends_with("bias_vl") || n.contains(".experts.0.")) {
+    let root = if o.mtp_only { "mtp." } else { "layers." };
+    if let Some(n) = shapes.keys().find(|n| n.starts_with("mtp.") != o.mtp_only || n.ends_with("bias_vl") || n.contains(".experts.0.")) {
         return Err(err(format!("cache check: '{n}' must not be in the cache")));
     }
     let mut kept_groups = 0usize;
@@ -831,13 +853,13 @@ fn verify_cache(src: &Source, out: &Path, o: &BuildOpts) -> Result<()> {
         need(&format!("{p}.svh"), &[nl])?;
         need(&format!("{p}.codebook"), &[1])
     };
-    let layers: BTreeSet<usize> = src.entries.keys().filter_map(|n| layer_of(n)).filter(|l| o.layers.is_none_or(|lim| *l < lim)).collect();
-    if src.has("head.trellis") {
+    let layers: BTreeSet<usize> = src.entries.keys().filter_map(|n| scope_of(n, root)).filter(|l| o.mtp_only || o.layers.is_none_or(|lim| *l < lim)).collect();
+    if src.has("head.trellis") && !o.mtp_only {
         linear("head", Some(ShardAxis::Rows))?;
         kept_groups += 1;
     }
     for l in &layers {
-        let p = format!("layers.{l}.");
+        let p = format!("{root}{l}.");
         for (m, ax) in [("attn.wq_b", ShardAxis::Rows), ("ffn.shared_experts.w1", ShardAxis::Rows), ("ffn.shared_experts.w3", ShardAxis::Rows), ("attn.wo_b", ShardAxis::Cols), ("ffn.shared_experts.w2", ShardAxis::Cols)] {
             if src.has(&format!("{p}{m}.trellis")) {
                 linear(&format!("{p}{m}"), Some(ax))?;
@@ -904,8 +926,14 @@ pub fn open_manifest(dir: &Path) -> Result<Manifest> {
 
 /// Whether `dir` holds a complete cache of this rank / world / layer limit built from the checkpoint at `src_dir`.
 pub fn cache_matches(dir: &Path, src_dir: &Path, rank: usize, world: usize, layers: Option<usize>) -> Result<bool> {
+    cache_matches_scope(dir, src_dir, rank, world, layers, false)
+}
+
+/// [`cache_matches`] for the model (`mtp_only` false) or its DSpark sub-cache.
+pub fn cache_matches_scope(dir: &Path, src_dir: &Path, rank: usize, world: usize, layers: Option<usize>, mtp_only: bool) -> Result<bool> {
     let Ok(m) = open_manifest(dir) else { return Ok(false) };
-    if m.rank != rank || m.world != world || m.layers != layers || m.source_fingerprint != source_fingerprint(src_dir)? {
+    let layers = if mtp_only { None } else { layers };
+    if m.scope.as_deref() != mtp_only.then_some("mtp") || m.rank != rank || m.world != world || m.layers != layers || m.source_fingerprint != source_fingerprint(src_dir)? {
         return Ok(false);
     }
     Ok(m.parts.iter().all(|p| std::fs::metadata(dir.join(&p.file)).is_ok_and(|md| md.len() == p.bytes)))

@@ -3,7 +3,7 @@
 
 use anyhow::{bail, Result};
 use clap::Args;
-use intarsia_models::dsv41_cache::{build_rank_cache, cache_matches, BuildOpts};
+use intarsia_models::dsv41_cache::{build_rank_cache, cache_matches_scope, BuildOpts, MTP_DIR};
 use std::path::PathBuf;
 
 #[derive(Args, Debug)]
@@ -26,19 +26,25 @@ pub struct Dsv41CacheArgs {
     /// Rebuild even if a matching cache exists, and write into a non-empty directory without a manifest.
     #[arg(long)]
     pub force: bool,
+    /// Only the DSpark stages (`mtp.*`), for speculative decoding: write them to `<out>/mtp` (the model's parts in
+    /// `<out>` stay as they are; `--layers` does not apply).
+    #[arg(long)]
+    pub mtp_only: bool,
 }
 
 pub fn run(args: Dsv41CacheArgs) -> Result<()> {
     if args.world == 0 || args.rank >= args.world {
         bail!("--rank {} is outside --world {}", args.rank, args.world);
     }
-    if !args.force && cache_matches(&args.out, &args.model, args.rank, args.world, args.layers)? {
+    let out = if args.mtp_only { args.out.join(MTP_DIR) } else { args.out.clone() };
+    if !args.force && cache_matches_scope(&out, &args.model, args.rank, args.world, args.layers, args.mtp_only)? {
         println!("cache at {} already matches (rank {} of {}, layers {:?}); nothing to do (--force rebuilds)", args.out.display(), args.rank, args.world, args.layers);
         return Ok(());
     }
     let mut o = BuildOpts::new(args.rank, args.world, args.layers);
     o.force = args.force;
-    let m = build_rank_cache(&args.model, &args.out, &o)?;
-    println!("built {}: {} tensors, {:.2} GiB in {} parts", args.out.display(), m.tensors, m.bytes as f64 / (1u64 << 30) as f64, m.parts.len());
+    o.mtp_only = args.mtp_only;
+    let m = build_rank_cache(&args.model, &out, &o)?;
+    println!("built {}: {} tensors, {:.2} GiB in {} parts", out.display(), m.tensors, m.bytes as f64 / (1u64 << 30) as f64, m.parts.len());
     Ok(())
 }

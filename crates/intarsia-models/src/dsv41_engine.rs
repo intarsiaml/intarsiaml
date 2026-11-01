@@ -15,7 +15,7 @@
 
 use crate::chat_template::ChatTemplateSource;
 use crate::dsv41::{detect, HeaderShapes};
-use crate::dsv41_cache::{load_rank_cache, open_manifest, Manifest};
+use crate::dsv41_cache::{load_rank_cache, open_manifest, Manifest, MANIFEST, MTP_DIR};
 use crate::tokenizer::HfCodec;
 use intarsia_core::comm::Comm;
 use intarsia_core::dsv41::config::Dsv41Config;
@@ -171,6 +171,20 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
     let t0 = Instant::now();
     let lw = load_rank_cache(dir, &*backend)?;
     let mut weights = lw.tensors;
+    let mut weight_bytes = lw.bytes;
+    let mut shapes = HeaderShapes::open(dir)?;
+    // the DSpark stages: the sub-cache `<dir>/mtp` (`intarsia dsv41-cache --mtp-only`), loaded only when speculating
+    let mtp_dir = dir.join(MTP_DIR);
+    if o.spec {
+        let mm = open_manifest(&mtp_dir).map_err(|e| Error::model(format!("deepseek_v41: INTARSIA_DSV41_SPEC=1 needs the DSpark sub-cache ({e}); build it with `intarsia dsv41-cache --mtp-only`")))?;
+        if mm.scope.as_deref() != Some("mtp") || (mm.rank, mm.world) != (m.rank, m.world) || mm.source_fingerprint != m.source_fingerprint {
+            return Err(Error::model(format!("deepseek_v41: {} is not the DSpark sub-cache of this rank cache (scope {:?}, rank {} of {}, source {})", mtp_dir.display(), mm.scope, mm.rank, mm.world, mm.source_fingerprint)));
+        }
+        let mw = load_rank_cache(&mtp_dir, &*backend)?;
+        weight_bytes += mw.bytes;
+        weights.extend(mw.tensors);
+        shapes.0.extend(HeaderShapes::open(&mtp_dir)?.0);
+    }
     let n_layers = m.layers.unwrap_or(cfg.n_layers).min(cfg.n_layers);
     let mut moes: Vec<(String, usize)> = (0..n_layers).map(|l| (format!("layers.{l}.ffn"), cfg.n_routed_experts)).collect();
     if let Some(m) = &cfg.mtp {
@@ -180,16 +194,22 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
     // vision / aligner tensors and anything else the text graph does not read stay on disk
     weights.retain(|k, _| !(k.starts_with("vision.") || k.starts_with("aligner.") || k.starts_with("image_")));
     let load_s = t0.elapsed().as_secs_f64();
-    eprintln!("dsv41: rank {rank}/{world}: loaded {:.2} GiB of weights from {} in {load_s:.1} s ({:.2} GB/s)", gib(lw.bytes), dir.display(), lw.bytes as f64 / 1e9 / load_s.max(1e-9));
+    eprintln!("dsv41: rank {rank}/{world}: loaded {:.2} GiB of weights from {} in {load_s:.1} s ({:.2} GB/s)", gib(weight_bytes), dir.display(), weight_bytes as f64 / 1e9 / load_s.max(1e-9));
     let first_engram = cfg.engram.as_ref().and_then(|e| e.layer_ids.iter().min().copied());
     let engram = match (engram_override, first_engram) {
         (Some(e), _) => Some(e),
         (None, Some(l)) if l < n_layers => Some(engram_tier(&cfg, dir, o, rank, world)?),
         _ => None,
     };
-    let shapes = HeaderShapes::open(dir)?;
     let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers }, spec: o.spec };
     let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, comm, weights, engram, opts)?;
+    match (o.spec, rt.dspark) {
+        (true, n) => eprintln!("dsv41: rank {rank}/{world}: speculative decoding on, {n} DSpark stages loaded from {}", mtp_dir.display()),
+        (false, _) => eprintln!(
+            "dsv41: rank {rank}/{world}: speculative decoding off (INTARSIA_DSV41_SPEC=1 turns it on{})",
+            if mtp_dir.join(MANIFEST).exists() { "; the DSpark sub-cache is there" } else { "; needs the DSpark sub-cache, `intarsia dsv41-cache --mtp-only`" }
+        ),
+    }
     let mm = &rt.memory;
     let avail1 = mem_available();
     eprintln!(

@@ -63,15 +63,30 @@ impl Ckpt {
 
 /// Two layers (layer 0 with two routed experts), head, embed, an mtp tensor and a `bias_vl` to drop; 2 shard files + index.
 fn make_source(dir: &Path) {
+    make_source_with(dir, false)
+}
+
+/// [`make_source`]; `stages`: with a full DSpark stage `mtp.0` (a layer's tensors plus main_proj, the Markov and
+/// confidence heads) instead of the lone mtp tensor.
+fn make_source_with(dir: &Path, stages: bool) {
     let mut c = Ckpt { t: BTreeMap::new(), rng: SplitMix64::new(7) };
     let e = c.rand(2 * 16 * 256);
     c.put("embed.weight", DType::Bf16, &[16, 256], e);
     let nrm = c.rand(2 * 256);
     c.put("norm.weight", DType::Bf16, &[256], nrm);
     c.lin("head", 256, 512, 8, 0, false);
-    c.lin("mtp.0.attn.wq_a", 256, 128, 4, 2, false);
-    for l in 0..2 {
-        let p = format!("layers.{l}");
+    let scopes: Vec<String> = if stages {
+        c.lin("mtp.0.main_proj", 768, 256, 4, 2, false);
+        for (n, shape) in [("mtp.0.main_norm.weight", vec![256]), ("mtp.0.norm.weight", vec![256]), ("mtp.0.markov_head.embed.weight", vec![16, 32]), ("mtp.0.markov_head.head.weight", vec![16, 32]), ("mtp.0.confidence_head.proj.weight", vec![1, 288])] {
+            let b = c.rand(2 * shape.iter().product::<usize>());
+            c.put(n, DType::Bf16, &shape, b);
+        }
+        vec!["layers.0".into(), "layers.1".into(), "mtp.0".into()]
+    } else {
+        c.lin("mtp.0.attn.wq_a", 256, 128, 4, 2, false);
+        vec!["layers.0".into(), "layers.1".into()]
+    };
+    for p in &scopes {
         c.lin(&format!("{p}.attn.wq_a"), 256, 128, 6, 2, false);
         c.lin(&format!("{p}.attn.wq_b"), 128, 512, 6, 2, false);
         c.lin(&format!("{p}.attn.wo_b"), 512, 256, 4, 1, true);
@@ -91,11 +106,13 @@ fn make_source(dir: &Path) {
         c.lin(&format!("{p}.ffn.shared_experts.w3"), 256, 256, 6, 2, false);
         c.lin(&format!("{p}.ffn.shared_experts.w2"), 256, 256, 6, 2, true);
     }
-    for x in 0..2 {
-        // experts of layer 0, 3 of them so that lexicographic and numeric order agree only for 0..2; widths 2..3 bits (mul1)
-        c.lin(&format!("layers.0.ffn.experts.{x}.w1"), H, I, 4 + 2 * x, 2, false);
-        c.lin(&format!("layers.0.ffn.experts.{x}.w3"), H, I, 6, 2, x == 1);
-        c.lin(&format!("layers.0.ffn.experts.{x}.w2"), I, H, 4, 2, false);
+    for e in if stages { vec!["layers.0", "mtp.0"] } else { vec!["layers.0"] } {
+        for x in 0..2 {
+            // experts of layer 0, 3 of them so that lexicographic and numeric order agree only for 0..2; widths 2..3 bits (mul1)
+            c.lin(&format!("{e}.ffn.experts.{x}.w1"), H, I, 4 + 2 * x, 2, false);
+            c.lin(&format!("{e}.ffn.experts.{x}.w3"), H, I, 6, 2, x == 1);
+            c.lin(&format!("{e}.ffn.experts.{x}.w2"), I, H, 4, 2, false);
+        }
     }
     std::fs::create_dir_all(dir).unwrap();
     let names: Vec<String> = c.t.keys().cloned().collect();
@@ -322,4 +339,44 @@ fn real_cache_loads_on_cpu() {
     assert_eq!(lw.tensors.len(), m.tensors);
     assert_eq!(lw.bytes, m.bytes);
     eprintln!("loaded {} tensors, {:.2} GiB in {:.2} s = {:.2} GB/s", lw.tensors.len(), lw.bytes as f64 / (1u64 << 30) as f64, lw.secs, lw.bytes as f64 / 1e9 / lw.secs);
+}
+
+/// The DSpark sub-cache (`--mtp-only`): only `mtp.*`, sharded with the layers' rules (heads, wo_a slices, sink, shared and
+/// routed experts), main_proj / norms / Markov / confidence heads replicated; matches only as the mtp scope; the model's
+/// cache of the same source still drops every mtp tensor.
+#[test]
+fn mtp_sub_cache_shards_the_stages_with_the_layer_rules() {
+    use intarsia_models::dsv41_cache::{cache_matches_scope, open_manifest, MTP_DIR};
+    let root = tmp("mtp");
+    let src_dir = root.join("src");
+    make_source_with(&src_dir, true);
+    for rank in 0..2 {
+        let model = root.join(format!("r{rank}of2"));
+        build_rank_cache(&src_dir, &model, &BuildOpts::new(rank, 2, None)).unwrap();
+        let shapes = intarsia_models::dsv41::HeaderShapes::open(&model).unwrap().0;
+        assert!(shapes.keys().all(|n| !n.starts_with("mtp.")), "the model's cache keeps no mtp tensor");
+        let out = model.join(MTP_DIR);
+        let mut o = BuildOpts::new(rank, 2, None);
+        o.mtp_only = true;
+        let m = build_rank_cache(&src_dir, &out, &o).unwrap();
+        assert_eq!(m.scope.as_deref(), Some("mtp"));
+        assert!(cache_matches_scope(&out, &src_dir, rank, 2, None, true).unwrap());
+        assert!(!cache_matches_scope(&out, &src_dir, rank, 2, None, false).unwrap(), "a sub-cache is not a model cache");
+        assert!(!cache_matches_scope(&model, &src_dir, rank, 2, None, true).unwrap(), "a model cache is not a sub-cache");
+        assert_eq!(open_manifest(&model).unwrap().scope, None);
+        let sh = intarsia_models::dsv41::HeaderShapes::open(&out).unwrap().0;
+        assert!(sh.keys().all(|n| n.starts_with("mtp.0.")), "{:?}", sh.keys().find(|n| !n.starts_with("mtp.0.")));
+        let get = |n: &str| sh.get(n).unwrap_or_else(|| panic!("{n} missing")).1.clone();
+        assert_eq!(get("mtp.0.attn.wq_b.trellis"), [128 / 16, 512 / 2 / 16, 8 * 6], "heads split over the ranks");
+        assert_eq!(get("mtp.0.attn.wo_b.trellis"), [512 / 2 / 16, 256 / 16, 8 * 4]);
+        assert_eq!(get("mtp.0.attn.attn_sink"), [4]);
+        assert!(sh.contains_key("mtp.0.attn.wo_a.slice.1.trellis") && !sh.contains_key("mtp.0.attn.wo_a.slice.2.trellis"));
+        assert_eq!(get("mtp.0.main_proj.trellis"), [768 / 16, 256 / 16, 8 * 4], "main_proj replicated");
+        for n in ["mtp.0.main_norm.weight", "mtp.0.norm.weight", "mtp.0.markov_head.embed.weight", "mtp.0.markov_head.head.weight", "mtp.0.confidence_head.proj.weight"] {
+            assert!(sh.contains_key(n), "{n}");
+        }
+        assert!(sh.contains_key("mtp.0.ffn.experts.arena") && !sh.keys().any(|n| n.contains(".experts.0.")));
+        check_load(&out);
+    }
+    let _ = std::fs::remove_dir_all(&root);
 }
