@@ -65,7 +65,8 @@ KL_FLOOR = 1e-3
 
 # ---------------------------------------------------------------------------------------------------- http
 class Server:
-    def __init__(self, base, model, key=None, timeout=3600, draft_field=True):
+    def __init__(self, base, model, key=None, timeout=3600, draft_field=True, tokenizer=None):
+        self.tokenizer = tokenizer  # a local tokenizer.json for servers without /tokenize (intarsia)
         self.base = base.rstrip("/")
         self.root = self.base[:-3] if self.base.endswith("/v1") else self.base
         self.model, self.key, self.timeout, self.draft_field = model, key, timeout, draft_field
@@ -102,6 +103,11 @@ class Server:
         return r
 
     def tokenize(self, text, special=True):
+        if self.tokenizer:
+            from tokenizers import Tokenizer
+            if not hasattr(self, "_tok"):
+                self._tok = Tokenizer.from_file(self.tokenizer)
+            return list(self._tok.encode(text, add_special_tokens=special).ids)
         r = self.post_ok("/tokenize", {"model": self.model, "prompt": text, "add_special_tokens": special}, "/tokenize", root=True)
         if r.get("max_model_len"):
             self._max_len = int(r["max_model_len"])
@@ -211,6 +217,7 @@ def add_server_args(ap):
     ap.add_argument("--api-key-file", default=None, help="file with the bearer key (recipe API_KEY=1 keeps it in $STATE_DIR/api-key); or env TF_API_KEY")
     ap.add_argument("--timeout", type=int, default=3600, help="per request seconds (a 64K prefill takes ~30 s, a 512K one ~5 min)")
     ap.add_argument("--no-draft-field", action="store_true", help="do not send `draft: false` (use against a non-TensorFold server that rejects unknown fields)")
+    ap.add_argument("--tokenizer", default=None, metavar="TOKENIZER_JSON", help="tokenize prompts locally (servers without /tokenize, e.g. intarsia; needs `--with tokenizers`)")
     ap.add_argument("--note", default="", help="free text for the metadata: launch flags, recipe commit, TF_REF + patch hash, env of both ranks, KV dtype")
 
 
@@ -218,7 +225,7 @@ def make_server(a):
     key = os.environ.get("TF_API_KEY")
     if a.api_key_file:
         key = pathlib.Path(a.api_key_file).read_text().strip()
-    return Server(a.base_url, a.model, key, a.timeout, not a.no_draft_field)
+    return Server(a.base_url, a.model, key, a.timeout, not a.no_draft_field, a.tokenizer)
 
 
 def longs(a):
@@ -473,7 +480,7 @@ def cmd_tokens(a):
     if not tensors:
         raise SystemExit("no prompt was run")
     meta = {
-        "format": FORMAT_TOKENS, "engine": "tensorfold-native", "engine_version": "not observable through the API (pass --note)",
+        "format": FORMAT_TOKENS, "engine": "tensorfold-native" if srv.draft_field else "other (see server / note)", "engine_version": "not observable through the API (pass --note)",
         "server": a.base_url, "served_model": a.model, "max_model_len": str(srv.max_len()),
         "sampling": json.dumps({"temperature": 0, "draft": False if srv.draft_field else "not sent", "ignore_eos": True,
                                 "return_token_ids": True}),

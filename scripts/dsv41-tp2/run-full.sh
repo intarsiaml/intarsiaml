@@ -91,6 +91,14 @@ if [[ " $STEPS " == *" greedy "* ]]; then
   chat code 200 "Write a Python function that returns the n-th Fibonacci number iteratively."
   chat story 256 "Write a short paragraph about a lighthouse keeper who finds a message in a bottle."
 fi
+if [[ " $STEPS " == *" golden "* ]]; then
+  # greedy token ids on the golden prompt set (tools/prompts/golden*.jsonl), same format as TensorFold's goldens
+  # (tools/dsv41/golden_tf.py tokens); compare later with `golden_tf.py compare A B`
+  TOK=${TOKENIZER:-$REPO/.scratch/cache/l3-r0of1/tokenizer.json}
+  ( cd "$REPO" && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run --with numpy --with safetensors --with tokenizers python tools/dsv41/golden_tf.py tokens \
+      --base-url $SURL/v1 --model dsv41-intarsia --no-draft-field --tokenizer "$TOK" --out "$OUT/tok-intarsia-tp2.st" \
+      --note "intarsia $(r spark1 'cat ~/intarsia-dsv41-tp2/bin/STAMP') TP=2 cap ${CAP:-32768} chunk ${CHUNK:-512}" ) 2>&1 | tee -a "$OUT/steps.log"
+fi
 if [[ " $STEPS " == *" speed "* ]]; then
   for n in 1 2; do chat speed$n 512 "Explain how a transformer language model generates text, in detail."; done
   python3 - "$OUT" <<'PY' | tee -a "$OUT/steps.log"
