@@ -13,8 +13,15 @@ RP='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; export MAX_JOBS=4 CA
 rsh() { ssh -n -o BatchMode=yes spark2 "$RP export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 rsh 'mkdir -p ~/intarsia-dsv41-graphs/src-base; test -d ~/intarsia-dsv41-graphs/src-base/target || cp -a ~/intarsia-dsv41-graphs/src/target ~/intarsia-dsv41-graphs/src-base/target'
 git -C "$REPO" archive --format=tar "$BASE" | ssh -o BatchMode=yes spark2 'tar -C ~/intarsia-dsv41-graphs/src-base -xf -'
+# git archive stamps files with the commit time, older than the objects in the copied target dir: cargo would call them
+# fresh and relink the branch's own code as the "base". Touch the sources so the workspace really rebuilds.
+rsh 'cd ~/intarsia-dsv41-graphs/src-base && find crates kernels -type f -exec touch {} +'
 echo "base $(git -C "$REPO" rev-parse --short "$BASE")"
 rsh 'cd ~/intarsia-dsv41-graphs/src-base && cargo build --release --features cuda -p intarsia-cli 2>&1 | tail -2'
+# BASE_MUST_LACK: a string only the branch's code has; its presence in the base binary voids the diff
+if [[ -n ${BASE_MUST_LACK:-} ]] && rsh "strings ~/intarsia-dsv41-graphs/src-base/target/release/intarsia | grep -q $BASE_MUST_LACK"; then
+  echo "base binary contains $BASE_MUST_LACK: it was not built from $BASE"; exit 3
+fi
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 M8=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218
 for m in 35b:$M35 8b:$M8; do
