@@ -161,6 +161,25 @@ int ik_rt_measure_bandwidth(double* gbs) {
     return (int)e;
 }
 
+// INTARSIA_CUDA_GRAPH_EDGES=1: a line per recorded graph with its node, edge and programmatic-edge counts (does a programmatic
+// launch survive the stream capture? docs/results/2026-11-02-dsv41-pdl.md).
+static void report_graph_edges(cudaGraph_t g) {
+    static const bool on = [] {
+        const char* v = getenv("INTARSIA_CUDA_GRAPH_EDGES");
+        return v != nullptr && v[0] == '1';
+    }();
+    if (!on) return;
+    size_t nodes = 0, n = 0;
+    cudaGraphGetNodes(g, nullptr, &nodes);
+    cudaGraphGetEdges(g, nullptr, nullptr, nullptr, &n);
+    std::vector<cudaGraphNode_t> from(n), to(n);
+    std::vector<cudaGraphEdgeData> data(n);
+    const cudaError_t e = cudaGraphGetEdges(g, from.data(), to.data(), data.data(), &n);
+    size_t prog = 0;
+    for (size_t i = 0; i < n; ++i) prog += data[i].type == cudaGraphDependencyTypeProgrammatic;
+    fprintf(stderr, "cuda graph: %zu nodes, %zu edges, %zu programmatic (%s)\n", nodes, n, prog, cudaGetErrorString(e));
+}
+
 int ik_rt_graph_begin(void* stream) {
     return (int)cudaStreamBeginCapture((cudaStream_t)stream, cudaStreamCaptureModeThreadLocal);
 }
@@ -173,6 +192,7 @@ int ik_rt_graph_end(void* stream, void** exec) {
         cudaGetLastError();  // clear the sticky capture error: the stream is usable again
         return (int)e;
     }
+    report_graph_edges(g);
     cudaGraphExec_t ge = nullptr;
     e = cudaGraphInstantiate(&ge, g, 0);
     cudaGraphDestroy(g);
