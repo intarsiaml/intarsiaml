@@ -99,6 +99,9 @@ struct Captured {
 }
 
 /// Recorded graph kinds: a plain pass (decode), a verify pass (logits of every row), a DSpark drafting block.
+/// The first stream of the lanes ([`Dsv41Runtime::lanes`]; stream 1 is the L2 prefetch's) and the alignment of a lane's scratch slice.
+const LANE_STREAM0: u32 = 2;
+const LANE_STRIDE_ALIGN: usize = 256;
 const GK_PASS: u8 = 0;
 const GK_VERIFY: u8 = 1;
 const GK_DRAFT: u8 = 2;
@@ -170,6 +173,10 @@ pub struct Dsv41Runtime {
     /// linears read: after a layer's `wq_b` its `wo_a` and `wo_b`, after its experts the next layer's `wq_a`, `wkv`, `wq_b`
     /// (16 MiB a launch). Changes no numbers.
     l2_prefetch: bool,
+    /// `INTARSIA_DSV41_LANES` (`0` = off): in a recorded pass the steps with a lane ([`super::graph::Step::lane`]: the four
+    /// `wo_a` slice matmuls of a layer) fork onto streams 2..=5 and join before the next lane-0 step, so their small launches
+    /// run side by side. Same kernels on the same bytes, a scratch of their own each: changes no numbers.
+    lanes: bool,
     /// `INTARSIA_DSV41_EXL3_CP` (comma list of GEMV grids N / 128, default none): on the same one-row and verify calls, these
     /// shapes take `matmul_exl3_cp` (wo_a slice 8, wq_a 10, wo_b 40, wq_b 128, indexer wq_b 32, wkv 4).
     cp_grids: Vec<usize>,
@@ -395,6 +402,7 @@ impl Dsv41Runtime {
             }
         };
         let l2_prefetch = std::env::var("INTARSIA_DSV41_L2_PREFETCH").is_ok_and(|v| v == "1") && backend.stream_fork();
+        let lanes = std::env::var("INTARSIA_DSV41_LANES").is_ok_and(|v| v == "1") && backend.stream_fork();
         let mut rt = Dsv41Runtime {
             cfg,
             shapes,
@@ -415,6 +423,7 @@ impl Dsv41Runtime {
             splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(16),
             splitk_verify: std::env::var("INTARSIA_DSV41_EXL3_SPLITK_VERIFY").map_or(true, |v| v != "0"),
             l2_prefetch,
+            lanes,
             cp_grids: std::env::var("INTARSIA_DSV41_EXL3_CP").map_or(Vec::new(), |v| v.split(',').filter_map(|x| x.parse().ok()).collect()),
             dspark,
             confidence,
@@ -924,7 +933,7 @@ impl Dsv41Runtime {
         for (si, stage) in g.stages.iter().enumerate() {
             for step in &stage.steps {
                 let (call, ki) = self.bind(ex, si, step, st, t)?;
-                need = need.max(self.kernel_list[ki].scratch_bytes(&ShapeInfo::from_call(&call)));
+                need = need.max(self.step_scratch(self.kernel_list[ki].scratch_bytes(&ShapeInfo::from_call(&call)), step.lane));
             }
             for (_, e) in &stage.extras {
                 if matches!(e, Extra::Fill { .. }) {
@@ -1004,6 +1013,16 @@ impl Dsv41Runtime {
         Ok(plan)
     }
 
+    /// The scratch a step needs of the shared buffer: `need`, or with [`Self::lanes`] and a lane `l` its slice
+    /// `(l - 1) * stride` onwards (every lane step of a fork has the same shape, so one stride serves them all).
+    fn step_scratch(&self, need: usize, lane: u8) -> usize {
+        if self.lanes && lane > 0 && need > 0 {
+            lane as usize * need.next_multiple_of(LANE_STRIDE_ALIGN)
+        } else {
+            need
+        }
+    }
+
     fn grow_scratch(&self, ex: &mut Exec, need: usize) -> Result<()> {
         if need > 0 && ex.scratch.as_ref().is_none_or(|s| s.nbytes() < need) {
             if ex.capturing {
@@ -1059,11 +1078,42 @@ impl Dsv41Runtime {
         Ok((call, ki))
     }
 
+    /// End a lane fork: the pass's own stream waits for every lane that ran.
+    fn join_lanes(&self, fork: &mut Option<(u64, [bool; 4])>) -> Result<()> {
+        if let Some((_, used)) = fork.take() {
+            for (i, u) in used.iter().enumerate() {
+                if *u {
+                    self.backend.stream_wait(0, LANE_STREAM0 + i as u32)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     fn run_stage(&self, ex: &mut Exec, si: usize, stage: &Stage, st: &SequenceState, t: usize) -> Result<()> {
         let mut extras = stage.extras.iter().peekable();
+        // lanes only inside a recording; the open fork: the event the lanes wait for, and which lanes did
+        let fork_on = self.lanes && ex.capturing;
+        let mut fork: Option<(u64, [bool; 4])> = None;
         for (j, step) in stage.steps.iter().enumerate() {
             while let Some((_, e)) = extras.next_if(|(k, _)| *k == j) {
+                self.join_lanes(&mut fork)?;
                 self.extra(ex, e, st, t)?;
+            }
+            let lane = if fork_on { step.lane.min(4) as usize } else { 0 };
+            let mut stream = 0;
+            if lane == 0 {
+                self.join_lanes(&mut fork)?;
+            } else {
+                let f = match &mut fork {
+                    Some(f) => f,
+                    None => fork.insert((self.backend.stream_record(0)?, [false; 4])),
+                };
+                stream = LANE_STREAM0 + lane as u32 - 1;
+                if !f.1[lane - 1] {
+                    self.backend.stream_wait_for(stream, f.0)?;
+                    f.1[lane - 1] = true;
+                }
             }
             for a in &step.outputs {
                 if let Buf::Ws(n) = &a.buf {
@@ -1084,11 +1134,12 @@ impl Dsv41Runtime {
             let kname = kimpl.name.as_str();
             let need = kimpl.scratch_bytes(&ShapeInfo::from_call(&call));
             if need > 0 {
-                self.grow_scratch(ex, need)?;
-                call.scratch = Some(ex.scratch.as_ref().unwrap().reshaped(&[ex.scratch.as_ref().unwrap().numel()]).rows(0, need));
+                self.grow_scratch(ex, self.step_scratch(need, lane as u8))?;
+                let off = if lane > 0 { (lane - 1) * need.next_multiple_of(LANE_STRIDE_ALIGN) } else { 0 };
+                call.scratch = Some(ex.scratch.as_ref().unwrap().reshaped(&[ex.scratch.as_ref().unwrap().numel()]).rows(off, need));
             }
             let op_t0 = self.opprof.as_ref().map(|_| Instant::now());
-            self.backend.launch(kname, &call, 0).map_err(|e| Error::backend(format!("deepseek_v41 step {} ({kname}): {e}", step.what)))?;
+            self.backend.launch(kname, &call, stream).map_err(|e| Error::backend(format!("deepseek_v41 step {} ({kname}): {e}", step.what)))?;
             if ex.capturing {
                 if let Some(r) = ex.pf_plan.get(&(si, j)) {
                     self.backend.stream_wait(1, 0)?;
@@ -1113,6 +1164,7 @@ impl Dsv41Runtime {
                 }
             }
         }
+        self.join_lanes(&mut fork)?;
         for (_, e) in extras {
             self.extra(ex, e, st, t)?;
         }
