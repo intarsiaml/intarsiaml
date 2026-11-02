@@ -190,3 +190,19 @@ Run #7795 (`plandiff.sh`, `BASE_REF=e72ce1964 GREEDY=1 BASE_MUST_LACK=INTARSIA_N
 (it contains the `add_f32`, `ik_rt_f32_sum_round`, `nccl.rs` and verify-argmax changes). That makes the result a valid plan diff of the merged code against main, closer to what ships than this branch alone. Result: 35B NVFP4 plan show unchanged (76 lines), Qwen3-8B plan show unchanged (25 lines), 64 greedy tokens identical on both.
 Could the wrong directory have made either build wrong? The base was rebuilt from nothing: `src-base` removed and recreated from `git archive e72ce1964`, 206 crates compiled, the run's own stamp found in the binary, and the guard (`INTARSIA_NCCL_GATHER`, absent from the base sources and the base binary, present in the branch binary) passed; so the base is main and the head is a build containing my changes. What was not pinned: the head binary is read at run time from the graphs dir, so a rebuild there during the run would change it; the stamp read after the plan/greedy steps was `6551ae509`, the same as the one the guard saw, and fleetq showed no other job on spark2 during the run (I did not check for an un-slotted rebuild). The graphs lane's `src-base` was deleted and rebuilt (it is the throw-away base tree that every plandiff run clears).
 A rerun with this lane's own binary (#7798) was cancelled at the coordinator's request: the coordinator runs a plan diff on the final plan head before main. `plandiff.sh` now exits 2 without `SPARK_DIR` set (no default).
+
+### Task 4e: TensorFold knockouts, full model, no nsys (window #7797, vLLM restored)
+
+`TF_DS_L2_PREFETCH` and `TF_DS_HC_SIDE` (both on in the recipe; the head's `native.zig` reads them as "on unless `0`") switched per config, head + worker restarted each time (reserve 10.9, 16K pool), same 4 prompts of ~950-990 tokens x 2 repetitions, 160 tokens each, temperature 0
+(`tfprof/run-tfknock.sh`; 2 warm-up requests first; decode time = client stream time first token to last token, rounds and accepts from the head's `done` log; ms/round = decode time / rounds). Every config produced identical tokens (same `sha` per prompt) and the same 346 rounds, accepted 926/1190 = 3.68 tokens a round.
+
+| config | ms/round | tok/s (decode) |
+|---|---:|---:|
+| prefetch on, hc side on (recipe) | 43.2 | 85.1 |
+| prefetch **off**, hc side on | 42.8 | 85.9 |
+| prefetch on, hc side **off** | 41.8 | 88.0 |
+| both off | 43.5 | 84.4 |
+
+Per-request spread inside one config is 39-55 ms/round (8 requests of 1.6-2.0 s each), so the four means (41.8-43.5) are the same within noise. **Neither knob matters for this workload.** The prefetch hypothesis of 4d (prefetch hides about 8 ms of dense DRAM time) is not supported: switching it off cost nothing.
+Caveats: (1) no nsys on these runs, so that the switches really removed the prefetch kernels / the side stream is inferred from the head's env handling (the worker gets the same `-e` flags via the shared `common` string), not shown; (2) 4d's byte count came from this lane's Mia cache, not from BLACKFOLD's rank cache (different quantisation, so TF may read fewer bytes than I computed and sit above its own floor);
+(3) 160-token requests at ~1K prompt, 3.68 tokens a round here against 2.1 in the nsys request (different prompts, more repetitive text), so absolute round times differ from 4. So the 4c critical-path gap (dense 7.6 vs 15.7 ms) is not explained by prefetch or side-stream; what remains is TF's kernels themselves (one `glinear` template, 274 launches against our ~1100) and its RDMA collectives.
