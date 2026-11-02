@@ -3,7 +3,10 @@
 # branch's binary ($SPARK_DIR/bin/intarsia, from build.sh). Builds the base on spark2 in $SPARK_DIR/src-base.
 # EXL3=1 also diffs main's EXL3 checkpoints (Qwen3-8B EXL3 4.0 bpw, plain and bf16plain, on spark1): plan show and 32 greedy
 # tokens with each binary (run inside a --quiet gpu,cpu slot on spark1 as well: the job must hold spark1 and spark2).
-#   fleetq run --host spark2 --load cpu --mem 20 --expect 25 --label "dsv41 tp2 plan diff" -- scripts/dsv41-tp2/plandiff.sh
+#   SPARK_DIR=~/intarsia-mylane fleetq run --host spark2 --load cpu --mem 20 --expect 25 --label "dsv41 tp2 plan diff" -- scripts/dsv41-tp2/plandiff.sh
+# SPARK_DIR is required, no default: this script deletes and rebuilds $SPARK_DIR/src-base and tests $SPARK_DIR/bin/intarsia, so
+# running it without naming your own lane's directory would use (and clobber) another lane's.
+if [[ -z ${SPARK_DIR:-} ]]; then echo "plandiff.sh: set SPARK_DIR to your lane's Spark directory (e.g. SPARK_DIR=~/intarsia-dsv41-draftdev); it deletes \$SPARK_DIR/src-base" >&2; exit 2; fi
 source "$(dirname "${BASH_SOURCE[0]}")/spark-dir.sh"
 # The one recursive delete in these scripts: $SPARK_DIR/src-base, a real directory under the home directory, nothing else.
 remove_base_tree() {
