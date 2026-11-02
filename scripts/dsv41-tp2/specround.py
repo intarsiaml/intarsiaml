@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Lane dsv41/graphs: what another draft count or confidence floor would have done, from the engine's round trace.
 
-Usage: specround.py SERVE.log [--verify "1:31.3,2:38.4,3:45.5,4:52.9"] [--draft 6.6] [--names a-x,b-y,..]
+Usage: specround.py SERVE.log [--verify "1:31.3,2:42.6,3:47.6,4:52.2"] [--draft 6.6] [--names a-x,b-y,..]
 
 Reads `dsv41: spec round k=K conf=c1,c2,.. ok=N` lines (INTARSIA_DSV41_SPEC_TRACE=1). For each rule it replays the rounds:
 verify only the leading drafts the rule keeps (at least one), so a round yields min(ok, kept) accepted drafts + 1 token and
@@ -72,7 +72,7 @@ FLOORS = (-2.0, -1.0, 0.0, 1.0, 2.0)
 
 def main():
     a = sys.argv[1:]
-    verify = {1: 31.3, 2: 38.4, 3: 45.5, 4: 52.9}
+    verify = {1: 31.3, 2: 42.6, 3: 47.6, 4: 52.2}
     if "--verify" in a:
         verify = {int(p.split(":")[0]): float(p.split(":")[1]) for p in a[a.index("--verify") + 1].split(",")}
     draft = float(a[a.index("--draft") + 1]) if "--draft" in a else 6.6
