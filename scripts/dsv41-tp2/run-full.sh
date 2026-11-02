@@ -233,6 +233,20 @@ PY
 fi
 }
 
+# PRE="ncclbench": before any rank starts (vLLM is down, the GPUs are quiet), nccl_bench between the two Sparks (all-reduce vs
+# all-gather latency through the engine's Comm), once per NCCL_MAX_NCHANNELS in NB_CHANNELS (default "2 1"); output in $OUT.
+if [[ " ${PRE:-} " == *" ncclbench "* ]]; then
+  for nch in ${NB_CHANNELS:-2 1}; do
+    NB="$SPARK_DIR/bin/nccl_bench"
+    r spark2 "mkdir -p $LOGD; nohup timeout 200 env $NCCLENV NCCL_MAX_NCHANNELS=$nch $NB serve $WIP:29711 0 300 > $LOGD/ncclbench-r1-c$nch.log 2>&1 < /dev/null &"
+    sleep 2
+    r spark1 "mkdir -p $LOGD; timeout 200 env $NCCLENV NCCL_MAX_NCHANNELS=$nch $NB connect $WIP:29711 0 300 > $LOGD/ncclbench-r0-c$nch.log 2>&1"
+    log "nccl_bench NCCL_MAX_NCHANNELS=$nch (exit $?)"
+    r spark1 "cat $LOGD/ncclbench-r0-c$nch.log" | tee "$OUT/ncclbench-r0-c$nch.txt" | tee -a "$OUT/steps.log"
+    r spark2 "pkill -f '[b]in/nccl_bench'; cat $LOGD/ncclbench-r1-c$nch.log" > "$OUT/ncclbench-r1-c$nch.txt"
+  done
+fi
+
 # AB="ENV_A|ENV_B" (e.g. "INTARSIA_DSV41_EXL3_SPLITK=0|INTARSIA_DSV41_EXL3_SPLITK=48"): run the steps once per config, each with
 # a fresh start of both ranks (same binary, ~25 s load), outputs in $OUT/ab0, $OUT/ab1 and localeval labels suffixed -ab0 / -ab1.
 # STEPS_ABi / NSYS_ABi override STEPS / NSYS per config (e.g. MMLU only for the new one, nsys in a config of its own).
