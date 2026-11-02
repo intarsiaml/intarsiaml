@@ -211,6 +211,72 @@ __global__ static void ik_f32_sum_round(const float* __restrict__ s, T* __restri
     ik_store_rn(d + i, acc);
 }
 
+// L2 prefetch of weights ahead of the kernels that read them (lane dsv41/graphs, INTARSIA_DSV41_L2_PREFETCH; TensorFold's served
+// settings): one block, 3 us after its start, then a wave of 128 x 8 KiB bulk prefetches every wave_ns, the ranges in order. Writes nothing.
+struct IkPrefetch {
+    const char* ptr[16];
+    long long bytes[16];
+    int n;
+};
+
+__global__ void __launch_bounds__(128) ik_l2_prefetch_kernel(IkPrefetch a, long long delay_ns, long long wave_ns) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
+    const long long chunk = 8 << 10;
+    unsigned long long t0;
+    asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(t0));
+    for (;;) {
+        unsigned long long t;
+        asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(t));
+        if (t - t0 >= (unsigned long long)delay_ns) break;
+        __nanosleep(500);
+    }
+    long long end[16];
+    long long total = 0;
+    for (int t = 0; t < a.n; ++t) {
+        total += (a.bytes[t] / 16 * 16 + chunk - 1) / chunk;
+        end[t] = total;
+    }
+    asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(t0));
+    int r = 0;
+    long long wave = 0;
+    for (long long c = threadIdx.x; c - threadIdx.x < total; c += blockDim.x) {
+        __syncthreads();
+        if (threadIdx.x == 0) {
+            for (;;) {
+                unsigned long long t;
+                asm volatile("mov.u64 %0, %%globaltimer;" : "=l"(t));
+                if (t - t0 >= (unsigned long long)(wave * wave_ns)) break;
+                __nanosleep(256);
+            }
+        }
+        __syncthreads();
+        ++wave;
+        if (c >= total) continue;
+        while (c >= end[r]) ++r;
+        const long long off = (c - (r ? end[r - 1] : 0)) * chunk;
+        const long long left = a.bytes[r] / 16 * 16 - off;
+        const unsigned size = (unsigned)(left < chunk ? left : chunk);
+        asm volatile("cp.async.bulk.prefetch.L2.global [%0], %1;" ::"l"(a.ptr[r] + off), "r"(size) : "memory");
+    }
+#endif
+}
+
+// ranges 16-byte aligned; at most `budget` bytes in all, the last range cut there
+extern "C" int ik_rt_l2_prefetch(const void* const* ptrs, const size_t* bytes, int n, size_t budget, void* stream) {
+    if (n <= 0) return 0;
+    IkPrefetch a{};
+    for (int i = 0; i < n && i < 16 && budget > 0; ++i) {
+        const size_t take = bytes[i] < budget ? bytes[i] : budget;
+        a.ptr[a.n] = (const char*)ptrs[i];
+        a.bytes[a.n] = (long long)take;
+        a.n += 1;
+        budget -= take;
+    }
+    const long long wave_ns = (long long)(128.0 * 8192.0 / 230.0);
+    ik_l2_prefetch_kernel<<<1, 128, 0, (cudaStream_t)stream>>>(a, 3000, wave_ns);
+    return (int)cudaGetLastError();
+}
+
 extern "C" int ik_rt_f32_sum_round(const void* src, int world, size_t n, void* dst, int dst_dtype, void* stream) {
     if (n == 0) return 0;
     if (world < 1) return (int)cudaErrorInvalidValue;

@@ -73,6 +73,10 @@ struct Exec {
     scratch_gen: u64,
     /// Recording a CUDA graph: nothing may upload, allocate or synchronise.
     capturing: bool,
+    /// `INTARSIA_DSV41_L2_PREFETCH`, during a capture: weights to prefetch after step `(stage, step)` ([`Self::prefetch_plan`]).
+    pf_plan: HashMap<(usize, usize), Vec<TensorRef>>,
+    /// A prefetch launch since the segment's start (the prefetch stream has to rejoin before the capture ends).
+    pf_out: bool,
     /// The graph being run or recorded is a verify pass ([`Dsv41Graph::verify`]).
     verify: bool,
 }
@@ -162,6 +166,10 @@ pub struct Dsv41Runtime {
     /// `INTARSIA_DSV41_EXL3_SPLITK_VERIFY` (default on, `0` = GEMV): verify passes take split-K on the same linears as the
     /// one-row decode pass, so a verify row is bitwise the decode row. Plain decode and prefill are untouched.
     splitk_verify: bool,
+    /// `INTARSIA_DSV41_L2_PREFETCH=1` (default off): in a recorded pass, a paced L2 prefetch on stream 1 of the weights the next
+    /// linears read: after a layer's `wq_b` its `wo_a` and `wo_b`, after its experts the next layer's `wq_a`, `wkv`, `wq_b`
+    /// (16 MiB a launch). Changes no numbers.
+    l2_prefetch: bool,
     /// `INTARSIA_DSV41_EXL3_CP` (comma list of GEMV grids N / 128, default none): on the same one-row and verify calls, these
     /// shapes take `matmul_exl3_cp` (wo_a slice 8, wq_a 10, wo_b 40, wq_b 128, indexer wq_b 32, wkv 4).
     cp_grids: Vec<usize>,
@@ -382,6 +390,7 @@ impl Dsv41Runtime {
                 to_f32(&b, t.dtype)?
             }
         };
+        let l2_prefetch = std::env::var("INTARSIA_DSV41_L2_PREFETCH").is_ok_and(|v| v == "1") && backend.stream_fork();
         let mut rt = Dsv41Runtime {
             cfg,
             shapes,
@@ -393,7 +402,7 @@ impl Dsv41Runtime {
             consts,
             engram,
             opts,
-            exec: Mutex::new(Exec { ws, scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false, verify: false }),
+            exec: Mutex::new(Exec { ws, pf_plan: HashMap::new(), pf_out: false, scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false, verify: false }),
             slot_specs,
             memory: RuntimeMemory::default(),
             last_pass: Mutex::new(PassStats::default()),
@@ -401,6 +410,7 @@ impl Dsv41Runtime {
             opprof: std::env::var_os("INTARSIA_DSV41_OPPROF").filter(|v| v != "0").map(|_| Mutex::new(HashMap::new())),
             splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(16),
             splitk_verify: std::env::var("INTARSIA_DSV41_EXL3_SPLITK_VERIFY").map_or(true, |v| v != "0"),
+            l2_prefetch,
             cp_grids: std::env::var("INTARSIA_DSV41_EXL3_CP").map_or(Vec::new(), |v| v.split(',').filter_map(|x| x.parse().ok()).collect()),
             dspark,
             confidence,
@@ -919,6 +929,7 @@ impl Dsv41Runtime {
             }
         }
         cuts.push(g.stages.len());
+        ex.pf_plan = if self.l2_prefetch { self.prefetch_plan(ex, g, st, t)? } else { HashMap::new() };
         let mut segs = Vec::new();
         ex.capturing = true;
         let mut res = Ok(());
@@ -927,6 +938,10 @@ impl Dsv41Runtime {
             let rec = self.backend.graph_capture(0, &mut || {
                 for si in a..b {
                     self.run_stage(ex, si, &g.stages[si], st, t)?;
+                }
+                if ex.pf_out {
+                    self.backend.stream_wait(0, 1)?;
+                    ex.pf_out = false;
                 }
                 Ok(())
             });
@@ -940,6 +955,41 @@ impl Dsv41Runtime {
         }
         ex.capturing = false;
         res.map(|_| segs)
+    }
+
+    /// Which weights a recording prefetches after which step ([`Self::l2_prefetch`]): only the EXL3 trellises of a layer's
+    /// attention linears, found by step name.
+    fn prefetch_plan(&self, ex: &mut Exec, g: &Dsv41Graph, st: &SequenceState, t: usize) -> Result<HashMap<(usize, usize), Vec<TensorRef>>> {
+        let mut plan = HashMap::new();
+        let trellis = |rt: &Self, ex: &mut Exec, si: usize, step: &super::graph::Step| -> Result<TensorRef> {
+            Ok(rt.bind(ex, si, step, st, t)?.0.inputs[1].clone())
+        };
+        let linear = |s: &super::graph::Step| s.op == crate::ops::Op::MatmulExl3 && s.what.contains(".attn.") && !s.what.contains(".indexer.") && !s.what.contains(".compressor.");
+        for (si, stage) in g.stages.iter().enumerate() {
+            for (j, step) in stage.steps.iter().enumerate() {
+                if linear(step) && step.what.ends_with(".wq_b") {
+                    let mut r = Vec::new();
+                    for s in stage.steps[j + 1..].iter().filter(|s| linear(s) && (s.what.contains(".wo_a") || s.what.ends_with(".wo_b"))) {
+                        r.push(trellis(self, ex, si, s)?);
+                    }
+                    if !r.is_empty() {
+                        plan.insert((si, j), r);
+                    }
+                } else if step.op == crate::ops::Op::MoeExperts {
+                    let next = g.stages.iter().enumerate().skip(si + 1).find(|(_, n)| n.steps.iter().any(|s| linear(s) && s.what.ends_with(".wq_a")));
+                    if let Some((ni, n)) = next {
+                        let mut r = Vec::new();
+                        for s in n.steps.iter().filter(|s| linear(s) && (s.what.ends_with(".wq_a") || s.what.ends_with(".wkv") || s.what.ends_with(".wq_b"))) {
+                            r.push(trellis(self, ex, ni, s)?);
+                        }
+                        if !r.is_empty() {
+                            plan.insert((si, j), r);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(plan)
     }
 
     fn grow_scratch(&self, ex: &mut Exec, need: usize) -> Result<()> {
@@ -1027,6 +1077,13 @@ impl Dsv41Runtime {
             }
             let op_t0 = self.opprof.as_ref().map(|_| Instant::now());
             self.backend.launch(kname, &call, 0).map_err(|e| Error::backend(format!("deepseek_v41 step {} ({kname}): {e}", step.what)))?;
+            if ex.capturing {
+                if let Some(r) = ex.pf_plan.get(&(si, j)) {
+                    self.backend.stream_wait(1, 0)?;
+                    self.backend.l2_prefetch(r, 16 << 20, 1)?;
+                    ex.pf_out = true;
+                }
+            }
             if let Some(t0) = op_t0 {
                 self.backend.synchronize(0)?;
                 self.opprof_add(t, kname, t0);

@@ -565,6 +565,19 @@ impl Backend for CudaBackend {
         true
     }
 
+    fn l2_prefetch(&self, ranges: &[TensorRef], budget: usize, stream: StreamId) -> Result<()> {
+        self.bind()?;
+        let s = self.stream(stream)?;
+        let mut ptrs = Vec::with_capacity(ranges.len());
+        let mut bytes = Vec::with_capacity(ranges.len());
+        for t in ranges {
+            ptrs.push(Self::ptr(&t.buf, t.offset, t.nbytes())? as *const c_void);
+            bytes.push(t.nbytes());
+        }
+        // SAFETY: bounds-checked pointers into live device buffers, held by the recording's weights; the kernel only prefetches.
+        check("ik_rt_l2_prefetch", unsafe { ffi::ik_rt_l2_prefetch(ptrs.as_ptr(), bytes.as_ptr(), ptrs.len() as c_int, budget, s) })
+    }
+
     fn stream_record(&self, signal: StreamId) -> Result<u64> {
         self.bind()?;
         let s = self.stream(signal)?;
