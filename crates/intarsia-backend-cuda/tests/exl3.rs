@@ -493,6 +493,92 @@ fn bench_cp() {
     }
 }
 
+/// DeepSeek-V4.1 `wo_a` (4 slices of 1024 x 4096 per layer at a TP=2 rank): the slices one after another on one stream, as the
+/// engine records them, against fork and join over 4 streams (each slice its own scratch). Cold weights (copies of a layer
+/// in one graph), median of 15 replays, us a layer:
+/// `INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda --test exl3 -- --ignored --nocapture bench_wo_a_fork`
+#[test]
+#[ignore]
+fn bench_wo_a_fork() {
+    let Some(cuda) = device() else { return };
+    let b: &dyn Backend = &*cuda;
+    let mut rng = SplitMix64::new(830);
+    let kernel = std::env::var("BENCH_KERNEL").unwrap_or_else(|_| "matmul_exl3_splitk".to_string());
+    println!("{:<44} {:>10} {:>10}", "wo_a, 4 slices of 1024x4096 K2=10", "one stream", "fork 4");
+    for m in [1usize, 2, 4] {
+        let hc = exl3::case(&mut rng, m, 1024, 4096, 10, Codebook::Inst3, DType::Bf16, DType::Bf16);
+        let layers = 20usize;
+        let shared: Vec<TensorRef> = hc.inputs.iter().map(|t| dev_tensor(b, t)).collect();
+        let need = b.kernels().iter().find(|k| k.name == kernel).map_or(0, |k| {
+            let c = OpCall::new(hc.op, shared.clone(), vec![dev_tensor(b, &HostTensor::zeros(hc.outputs[0].dtype, &hc.outputs[0].shape))], hc.attrs.clone());
+            k.scratch_bytes(&ShapeInfo::from_call(&c))
+        });
+        let scratch: Vec<TensorRef> = (0..4).map(|_| TensorRef::new(b.alloc(need.max(16), MemKind::Device).unwrap(), DType::U8, &[need])).collect();
+        let outs: Vec<TensorRef> = (0..4).map(|_| dev_tensor(b, &HostTensor::zeros(hc.outputs[0].dtype, &hc.outputs[0].shape))).collect();
+        // layers x 4 slices, each its own weight copy
+        let mut calls: Vec<Vec<OpCall>> = Vec::new();
+        for _ in 0..layers {
+            let mut l = Vec::new();
+            for g in 0..4 {
+                let mut inputs = shared.clone();
+                inputs[1] = dev_tensor(b, &hc.inputs[1]);
+                let mut c = OpCall::new(hc.op, inputs, vec![outs[g].clone()], hc.attrs.clone());
+                c.scratch = Some(scratch[0].clone());
+                l.push(c);
+            }
+            calls.push(l);
+        }
+        let time = |fork: bool, calls: &mut Vec<Vec<OpCall>>| -> f64 {
+            for l in calls.iter_mut() {
+                for (g, c) in l.iter_mut().enumerate() {
+                    c.scratch = Some(scratch[if fork { g } else { 0 }].clone());
+                }
+            }
+            let gr = b
+                .graph_capture(0, &mut || {
+                    for l in calls.iter() {
+                        if fork {
+                            let tok = b.stream_record(0)?;
+                            for g in 0..4 {
+                                b.stream_wait_for(2 + g as u32, tok)?;
+                            }
+                            for (g, c) in l.iter().enumerate() {
+                                b.launch(&kernel, c, 2 + g as u32)?;
+                            }
+                            for g in 0..4 {
+                                let t = b.stream_record(2 + g as u32)?;
+                                b.stream_wait_for(0, t)?;
+                            }
+                        } else {
+                            for c in l {
+                                b.launch(&kernel, c, 0)?;
+                            }
+                        }
+                    }
+                    Ok(())
+                })
+                .unwrap();
+            for _ in 0..3 {
+                b.graph_replay(&gr, 0).unwrap();
+            }
+            b.synchronize(0).unwrap();
+            let mut t: Vec<f64> = (0..15)
+                .map(|_| {
+                    let t0 = Instant::now();
+                    b.graph_replay(&gr, 0).unwrap();
+                    b.synchronize(0).unwrap();
+                    t0.elapsed().as_secs_f64() / layers as f64
+                })
+                .collect();
+            t.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            t[t.len() / 2]
+        };
+        let seq = time(false, &mut calls);
+        let frk = time(true, &mut calls);
+        println!("{:<44} {:>10.1} {:>10.1}", format!("{kernel} M={m}"), seq * 1e6, frk * 1e6);
+    }
+}
+
 /// Prefill microbenchmark at the Qwen3-8B projection shapes (4-bit 3inst) for M = 8 .. 1024: the GEMV, the GEMM and the
 /// bf16 GEMM (`matmul_bf16`) on the same shapes, cold weights. Prints us per call and TFLOP/s (2 M N K / time).
 /// `INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda --test exl3 -- --ignored --nocapture bench_prefill_shapes`

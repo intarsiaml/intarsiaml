@@ -507,6 +507,8 @@ pub struct Model {
     /// (`Backend::row_invariant_prefill`, `INTARSIA_ROW_INVARIANT_PREFILL` overrides), the model is attention-only on one rank, and
     /// the plan found a `row_invariant` kernel for every op of a prefill pass (`plan::record` switches it off otherwise).
     inv_on: std::sync::atomic::AtomicBool,
+    /// [`Model::set_prefix_reuse_exact`].
+    reuse_exact: std::sync::atomic::AtomicBool,
     /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
     /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
     head_rows_attn: std::sync::atomic::AtomicBool,
@@ -685,8 +687,28 @@ impl Model {
         self.tail_merge
     }
 
+    /// Opt-in strict rule for recurrent states ([`Model::reuse_len`], lane hrr): `INTARSIA_PREFIX_REUSE=exact` (or
+    /// [`Model::set_prefix_reuse_exact`]) and the model has recurrent slots. The state then resumes only at a cut of the new prompt's
+    /// own cold schedule, so a multi-turn prompt resumes at the last prefill chunk cut inside its held prefix
+    /// (`ModelInfo::reuse_cold_cuts_only`; `accuracy --mode reuse` lowers its `continue` bar to that cut). Off by default: a recurrent
+    /// state resumes at any snapshot (`SequenceState::restorable_len`), on every backend.
+    pub fn reuse_recurrent_at_cold_cuts_only(&self) -> bool {
+        if !self.slot_specs.iter().any(|s| matches!(s, SlotSpec::Recurrent { .. })) {
+            return false;
+        }
+        prefix_reuse_override() == Some(false) || self.reuse_exact.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    /// Turn the strict recurrent reuse rule on or off for this model, as `INTARSIA_PREFIX_REUSE=exact` does for the process (tests).
+    pub fn set_prefix_reuse_exact(&self, on: bool) {
+        self.reuse_exact.store(on, std::sync::atomic::Ordering::Relaxed);
+    }
+
     /// The KV prefix of `st` a request for a prompt of `plen` tokens may resume from, at most `want` (the prefix the two
-    /// share, already below `plen`). Recurrent state: what it can return to ([`SequenceState::restorable_len`]). Attention
+    /// share, already below `plen`). Recurrent state: what it can return to ([`SequenceState::restorable_len`]), on every backend; the
+    /// opt-in `INTARSIA_PREFIX_REUSE=exact` ([`Model::reuse_recurrent_at_cold_cuts_only`]) resumes only at a snapshot on a cut of the
+    /// prompt's own cold recurrent schedule, written by that schedule's passes ([`SequenceState::recurrent_reuse_len`], lane
+    /// hrr: the default's resume at a previous prompt's `plen - 1` changed the 35B's greedy text on Metal). Attention
     /// only: any length where the backend's prefill is bitwise the same whatever row a pass starts at
     /// (`Backend::prefix_reuse_any_cut`, cpu); elsewhere (CUDA, Metal, HIP) a prefix that gives a request the bits of its
     /// cold prefill whatever its slot held before (lane bi8: a repeated prompt resuming with its last token alone, a 1-row
@@ -701,10 +723,15 @@ impl Model {
     /// `INTARSIA_PREFIX_REUSE=any|exact` overrides the backend's choice (`any`: any held row; `exact`: the cold schedule's
     /// cuts everywhere, row-invariant prefill or not).
     pub fn reuse_len(&self, st: &SequenceState, plen: usize, want: usize) -> usize {
-        if st.has_recurrent() {
-            return st.restorable_len(want);
-        }
         let over = prefix_reuse_override();
+        if st.has_recurrent() {
+            if !self.reuse_recurrent_at_cold_cuts_only() {
+                return st.restorable_len(want);
+            }
+            // opt-in (`exact`): only where the prompt's own cold prefill leaves its state, written by that schedule's passes (lane hrr)
+            let cuts = crate::scheduler::recurrent_schedule_cuts(plen, self.prefill_chunk().max(1), self.tail_merge());
+            return st.recurrent_reuse_len(want, &cuts);
+        }
         match over {
             Some(true) => return want.min(st.len),
             Some(false) => {}
@@ -1540,6 +1567,7 @@ impl Model {
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(inv_want),
+            reuse_exact: std::sync::atomic::AtomicBool::new(false),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
             kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),

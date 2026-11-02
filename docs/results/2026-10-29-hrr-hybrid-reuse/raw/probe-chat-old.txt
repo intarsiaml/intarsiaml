@@ -1,0 +1,10 @@
+fresh_B        ptoks   4042 cached      0 ttft    768.8 ms
+A              ptoks   4033 cached      0 ttft    725.0 ms
+B_after_A      ptoks   4042 cached   4032 ttft     48.8 ms
+cold_B         ptoks   4042 cached      0 ttft    734.4 ms
+B_after_A == fresh: True  cold == fresh: True
+chat_1500: turn1 ptoks 1443 | warm cached 1474 ttft 47.8 | cold ttft 302.6 | text_equal True
+chat_3000: turn1 ptoks 2954 | warm cached 2985 ttft 52.5 | cold ttft 570.4 | text_equal True
+chat_5000: turn1 ptoks 4960 | warm cached 4991 ttft 56.1 | cold ttft 1013.1 | text_equal True
+chat_8500: turn1 ptoks 8481 | warm cached 8512 ttft 61.0 | cold ttft 1818.7 | text_equal True
+chat_12000: turn1 ptoks 11992 | warm cached 12023 ttft 67.3 | cold ttft 2670.1 | text_equal True

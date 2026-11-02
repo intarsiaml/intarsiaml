@@ -1,0 +1,11 @@
+== bench_wo_a_fork 14:14:27
+
+running 1 test
+wo_a, 4 slices of 1024x4096 K2=10            one stream     fork 4
+matmul_exl3_splitk M=1                             72.9       55.5
+matmul_exl3_splitk M=2                             73.0       55.6
+matmul_exl3_splitk M=4                             73.9       56.0
+test bench_wo_a_fork ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.46s
+

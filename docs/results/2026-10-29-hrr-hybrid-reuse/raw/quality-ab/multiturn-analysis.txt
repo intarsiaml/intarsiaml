@@ -1,0 +1,8 @@
+multi-turn mmlu: n=1425  A(default) 0.8575 (SE 0.0093)  B(exact) 0.8618 (SE 0.0091)  A-B -0.0042 paired SE 0.0030
+  answers differing 26: A right 6, B right 12, neither 8
+  arm A: 1425 requests, 1368 resumed (cached>0), 0 of those at a cold cut of their own prompt, mean uncached tokens 115
+  arm B: 1425 requests, 76 resumed (cached>0), 76 of those at a cold cut of their own prompt, mean uncached tokens 1507
+multi-turn gsm8k: n=200  A(default) 0.9350 (SE 0.0174)  B(exact) 0.9350 (SE 0.0174)  A-B +0.0000 paired SE 0.0000
+  answers differing 0: A right 0, B right 0, neither 0
+  arm A: 200 requests, 190 resumed (cached>0), 0 of those at a cold cut of their own prompt, mean uncached tokens 161
+  arm B: 200 requests, 0 resumed (cached>0), 0 of those at a cold cut of their own prompt, mean uncached tokens 1604
