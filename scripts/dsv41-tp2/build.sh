@@ -11,7 +11,9 @@ STAMP="$(git -C "$REPO" rev-parse --short=9 HEAD) dirty=$(git -C "$REPO" diff --
 RP='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; export MAX_JOBS=4 CARGO_BUILD_JOBS=4 FLASHINFER_NVCC_THREADS=1;'
 rsh() { ssh -n -o BatchMode=yes "$H" "$RP export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
 rsh 'mkdir -p '"$SPARK_DIR"'/src '"$SPARK_DIR"'/bin; test -d '"$SPARK_DIR"'/src/target || { test -d ~/intarsia-dsv41-tp2/src/target && cp -a ~/intarsia-dsv41-tp2/src/target '"$SPARK_DIR"'/src/target; true; }'
-rsync -a --delete --exclude target --exclude .git --exclude golden --exclude tools/.venv --exclude .claude --exclude .scratch "$REPO/" "$H:$SPARK_REL/src/"
+# --checksum --no-t: only files whose content differs are sent and they get the time of the copy, so cargo sees them newer than
+# the artifacts of an earlier build (rsync -a keeps the source mtime, older than those artifacts after a checkout: stale build)
+rsync -a --no-t --checksum --delete --exclude target --exclude .git --exclude golden --exclude tools/.venv --exclude .claude --exclude .scratch "$REPO/" "$H:$SPARK_REL/src/"
 echo "stamp: $STAMP"
 rsh "cd $SPARK_DIR/src && INTARSIA_BUILD_STAMP='$STAMP' cargo build --release --features cuda -p intarsia-cli 2>&1 | tail -3"
 T=$(rsh "cd $SPARK_DIR/src && cargo test --release -p intarsia-models --test dsv41_runtime --no-run 2>&1 | grep -o 'target/release/deps/dsv41_runtime-[0-9a-f]*' | tail -1")
