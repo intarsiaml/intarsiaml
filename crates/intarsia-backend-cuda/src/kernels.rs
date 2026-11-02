@@ -58,6 +58,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("attn_decode_f8kv_splitkv_rows", Op::AttnDecode),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
+    ("add_f32", Op::Add),
 ];
 
 /// bf16-rounded outputs: a one-ulp flip is allowed (same budget as the cpu backend).
@@ -601,6 +602,8 @@ pub fn all() -> Vec<KernelImpl> {
                 .row_table(),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT).row_invariant(),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT).row_invariant(),
+            // f32 tensors (DSv4.1's Markov step adds f32 logits and bias): one IEEE add per element, as the host did
+            "add_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),
         };
         v.push(k);
@@ -1141,6 +1144,7 @@ mod tests {
     #[rustfmt::skip]
     const MAIN_KERNEL_LIST: &[&str] = &[
         "add_bf16:add",
+        "add_f32:add",
         "argmax_bf16:argmax",
         "argmax_f32:argmax",
         "attn_decode_bf16:attn_decode",

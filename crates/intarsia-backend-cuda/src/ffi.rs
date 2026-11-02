@@ -146,6 +146,7 @@ extern "C" {
     pub fn ik_silu_glu_bf16(gate: T, up: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_f32(logits: T, out: TM, s: S) -> c_int;
     pub fn ik_argmax_bf16(logits: T, out: TM, s: S) -> c_int;
+    pub fn ik_add_f32(a: T, b: T, out: TM, s: S) -> c_int;
 
     // ---- g4 (Gemma 4) extended-attribute launchers (kernels/cuda/ik_cuda_abi_g4.h) ----
     pub fn ik_gelu_glu_bf16(gate: T, up: T, out: TM, s: S) -> c_int;

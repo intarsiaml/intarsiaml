@@ -69,9 +69,32 @@ int argmax_launch(const ik_tensor* logits, ik_tensor* out, void* stream, int dty
     return ik_launch_status();
 }
 
+// out = a + b over f32 tensors of equal size: one IEEE add per element (the DSpark Markov step's logits + bias, whose host
+// loop did the same f32 add before its argmax)
+__global__ void add_f32_kernel(const float* __restrict__ a, const float* __restrict__ b, float* __restrict__ out, int64_t n) {
+    for (int64_t i = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; i < n; i += (int64_t)gridDim.x * blockDim.x)
+        out[i] = __fadd_rn(a[i], b[i]);
+}
+
+int add_f32_launch(const ik_tensor* a, const ik_tensor* b, ik_tensor* out, void* stream) {
+    IK_TRY(ik_check(a, IK_DTYPE_F32, 2));
+    IK_TRY(ik_check(b, IK_DTYPE_F32, 2));
+    IK_TRY(ik_check(out, IK_DTYPE_F32, 2));
+    const int64_t n = ik_numel(a);
+    if (ik_numel(b) != n || ik_numel(out) != n) return IK_ERR_SHAPE;
+    if (n == 0) return IK_OK;
+    cudaStream_t s = IK_STREAM(stream);
+    const int64_t blocks = (n + 255) / 256;
+    add_f32_kernel<<<(unsigned)(blocks < 1024 ? blocks : 1024), 256, 0, s>>>((const float*)a->data, (const float*)b->data, (float*)out->data, n);
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
+int ik_add_f32(const ik_tensor* a, const ik_tensor* b, ik_tensor* out, void* stream) {
+    return add_f32_launch(a, b, out, stream);
+}
 int ik_argmax_f32(const ik_tensor* logits, ik_tensor* out, void* stream) {
     return argmax_launch(logits, out, stream, IK_DTYPE_F32);
 }

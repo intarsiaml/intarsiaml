@@ -18,7 +18,7 @@
 
 use super::config::Dsv41Config;
 use super::engram::{record_bytes, EngramTier, NgramHasher};
-use super::graph::{build_absorb, build_draft, build_draft_dpos, build_markov, build_pass, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Stage, WeightShapes, VERIFY_MAX_ROWS};
+use super::graph::{build_absorb, build_draft, build_draft_dpos, build_pass, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Stage, WeightShapes, VERIFY_MAX_ROWS};
 use crate::backend::{Backend, Buffer, GraphHandle, MemKind, TensorRef};
 use crate::comm::Comm;
 use crate::dtype::DType;
@@ -268,9 +268,8 @@ impl Dsv41Runtime {
         if opts.spec {
             let blk = cfg.mtp.as_ref().map_or(0, |m| m.block_size);
             for pos0 in [1, opts.cap.saturating_sub(blk).max(1)] {
-                graphs.push(build_draft(&cfg, &*shapes, GraphOpts { t: blk, pos0, act: opts.act, cap: opts.cap }, opts.tp)?);
+                graphs.push(build_draft(&cfg, &*shapes, GraphOpts { t: blk, pos0, act: opts.act, cap: opts.cap }, opts.tp, blk)?);
             }
-            graphs.push(build_markov(&cfg, &*shapes, opts.act)?);
             graphs.push(build_absorb(&cfg, &*shapes, GraphOpts { t: opts.chunk, pos0: 0, act: opts.act, cap: opts.cap }, opts.tp)?);
         }
         for g in &graphs {
@@ -607,38 +606,33 @@ impl Dsv41Runtime {
         // device positions (eager or replayed) from position `window` on, as the decode / verify passes
         let dpos = pos0 >= self.cfg.window && self.dpos.load(std::sync::atomic::Ordering::Relaxed);
         let o = GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap };
-        let build = || if dpos { build_draft_dpos(&self.cfg, &*self.shapes, o, self.opts.tp) } else { build_draft(&self.cfg, &*self.shapes, o, self.opts.tp) };
+        // the Markov steps run in the drafting graph, on the rank that reads the drafts only (replicated weights)
+        let steps = if rank0 { steps.clamp(1, t) } else { 0 };
+        let build = || if dpos { build_draft_dpos(&self.cfg, &*self.shapes, o, self.opts.tp, steps) } else { build_draft(&self.cfg, &*self.shapes, o, self.opts.tp, steps) };
+        let want = if rank0 { Want::Ids } else { Want::Nothing };
         let mut replayed = None;
         if dpos && self.graphs_on.load(std::sync::atomic::Ordering::Relaxed) {
-            replayed = self.run_captured(st, &ids, (t, GK_DRAFT), &[("host.dspark.idx", &idx)], Want::from(rank0), p0, &build)?;
+            replayed = self.run_captured(st, &ids, (t | steps << 16, GK_DRAFT), &[("host.dspark.idx", &idx)], want, p0, &build)?;
         }
-        let logits = match replayed {
+        let picked = match replayed {
             Some(l) => l,
-            None => self.run_graph(&build()?, st, t, &ids, &[("host.dspark.idx", &idx)], Want::from(rank0), p0)?,
-        }
-        .map(Out::logits);
+            None => self.run_graph(&build()?, st, t, &ids, &[("host.dspark.idx", &idx)], want, p0)?,
+        };
         if !rank0 {
             return Ok(None);
         }
-        let logits = logits.expect("logits");
-        let v = logits.len() / t;
-        let steps = steps.clamp(1, t);
         let mut out = vec![first];
-        let mut embeds: Vec<Vec<f32>> = Vec::with_capacity(steps);
-        let mg = build_markov(&self.cfg, &*self.shapes, self.opts.act)?;
-        for i in 0..steps {
-            let bias = self.run_graph(&mg, st, 1, &[], &[("host.dspark.markov_id", &(out[i] as i32).to_le_bytes())], Want::Logits, Instant::now())?.expect("markov bias").logits();
+        out.extend(picked.expect("markov ids").ids());
+        // the embeddings the Markov steps fed in (`dspark.markov_e[i]` for the id `out[i]`)
+        let rank = self.confidence.len() - self.cfg.dim;
+        let embeds: Vec<Vec<f32>> = {
             let ex = self.exec.lock().unwrap();
             let e = ex.ws.get("dspark.markov_e").ok_or_else(|| Error::backend("no workspace dspark.markov_e"))?.clone();
-            let rank = mg.stages[0].steps[0].outputs[0].shape[1];
-            let mut eb = vec![0u8; rank * esz(self.opts.act)];
+            let mut eb = vec![0u8; steps * rank * esz(self.opts.act)];
             self.backend.download(&e.buf, e.offset, &mut eb, 0)?;
-            drop(ex);
-            embeds.push(to_f32(&eb, self.opts.act)?);
-            let row = &logits[i * v..(i + 1) * v];
-            let next = row.iter().zip(&bias).map(|(a, b)| a + b).enumerate().fold((0usize, f32::NEG_INFINITY), |acc, (j, x)| if x > acc.1 { (j, x) } else { acc }).0;
-            out.push(next as u32);
-        }
+            let f = to_f32(&eb, self.opts.act)?;
+            f.chunks_exact(rank).map(|c| c.to_vec()).collect()
+        };
         // confidence = proj(cat(hx, markov embed)) per row, in f32
         let d = self.cfg.dim;
         let hx = {

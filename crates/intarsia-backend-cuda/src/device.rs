@@ -524,6 +524,7 @@ impl Backend for CudaBackend {
                 }
                 "argmax_f32" => ffi::ik_argmax_f32(i(0), o, s),
                 "argmax_bf16" => ffi::ik_argmax_bf16(i(0), o, s),
+                "add_f32" => ffi::ik_add_f32(i(0), i(1), o, s),
                 other => return Err(Error::NoKernel(format!("cuda kernel '{other}' has no dispatch entry"))),
             }
         };
