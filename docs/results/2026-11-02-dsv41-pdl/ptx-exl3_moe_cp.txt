@@ -1,0 +1,6 @@
+fleetq: #7940 running on spark2: .scratch/step1c.sh
+-rw-rw-r-- 1 nvidia nvidia 2033129 Nov  2 17:16 /home/nvidia/intarsia-dsv41-pdl/logs/step1/cp.ptx
+griddepcontrol in file 56 funcs 0
+  l3_moe_cp_cu_b6894be817grouped_cp_kernel wait 28 launch_dependents 1
+  l3_moe_cp_cu_b6894be815dense_cp_kernelEP wait 27 launch_dependents 0
+fleetq: #7940 done (exit 0)
