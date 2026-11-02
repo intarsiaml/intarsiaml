@@ -184,6 +184,15 @@ Reading it:
 * So the evidence does not show a quality loss from the default on these two benchmarks; it cannot exclude a loss smaller than about 1 point on MMLU, and it does not cover long free-form generation after a resume (the repro's 256-token B text did differ from cold). This test says nothing about the qualify gate failure above (`long_code_4k continue`), which is a code prompt scored against a cold stream.
 * Limits: raw completions with gold-answer history, not the chat template with the model's own replies (those would make the two arms send different prompts); GSM8K history and prompt format are mine, so 0.935 is not comparable with the localeval 0.695 (different prompt: few-shot gold solutions, empty think block, 400 tokens).
 
+## CUDA no-op against origin/main (2026-11-02, head `332436595`)
+
+spark1 (not spark2: spark2's queue was 70 min out; the script's host was changed with `sed`, nothing else), fleetq #7936 (`--load cpu --mem 40`, owner claude-hrr), own dir `~/intarsia-hrr` (removed afterwards), `MAX_JOBS=4`, free memory 63 to 78 GB throughout. `scripts/dsv41-tp2/plandiff.sh` with `BASE_REF=origin/main` (`7d659df4e`, #279 included), `GREEDY=1`; the branch is merged with that main. Raw: `raw/cuda-noop/`.
+
+* `plan show` unchanged for the 35B (76 lines) and Qwen3-8B (25 lines) on CUDA.
+* 64 greedy tokens identical to main's binary for both models.
+* Bug repro on the 35B, CUDA, default rule (chunk 2048, A = 4096 tokens, B = A + " Summarize the above in one paragraph.", 256 tokens; `raw/cuda-noop/probe-*.txt`): main's binary and this head give the same counts: B after A cached 4095, A after B cached 4095, and B's text differs from a cold B on both. **CUDA shows the same bug as Metal on main.** With `INTARSIA_PREFIX_REUSE=exact`: both cached 0 and B equals cold B (B-after-A TTFT 606 ms against 52 to 55 ms by default; cold 598 to 608 ms).
+* Not run: HIP (tatooine has no room beside radiance; CI's `cargo check (linux, hip cfgs)` covers the build only).
+
 ## Follow-up (not done here)
 
 The small-pass splits above differ with 2+ rows per pass on this NVFP4 MoE model. Lane prc's Metal
