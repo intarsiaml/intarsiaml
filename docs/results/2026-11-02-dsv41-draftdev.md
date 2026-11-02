@@ -193,6 +193,8 @@ A rerun with this lane's own binary (#7798) was cancelled at the coordinator's r
 
 ### Task 4e: TensorFold knockouts, full model, no nsys (window #7797, vLLM restored)
 
+> **Measured with a custom streaming client (`knock_client.py`), not localeval, against the fleet rule.** The within-config comparison stands as evidence that the switches did not matter. Do not quote these tok/s as TensorFold's speed; the like-for-like figure is the localeval section below. Also: the switches taking effect was inferred from the env handling, not seen in a trace, and that limits this result: if the worker ignored them, or the head's flags did not reach the kernels, this table shows nothing about them.
+
 `TF_DS_L2_PREFETCH` and `TF_DS_HC_SIDE` (both on in the recipe; the head's `native.zig` reads them as "on unless `0`") switched per config, head + worker restarted each time (reserve 10.9, 16K pool), same 4 prompts of ~950-990 tokens x 2 repetitions, 160 tokens each, temperature 0
 (`tfprof/run-tfknock.sh`; 2 warm-up requests first; decode time = client stream time first token to last token, rounds and accepts from the head's `done` log; ms/round = decode time / rounds). Every config produced identical tokens (same `sha` per prompt) and the same 346 rounds, accepted 926/1190 = 3.68 tokens a round.
 
