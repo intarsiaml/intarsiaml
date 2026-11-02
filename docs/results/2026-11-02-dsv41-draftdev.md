@@ -252,7 +252,14 @@ Memory: min MemAvailable in the TF localeval window was 3.1 GiB, no kill. The br
 
 ## Idle gaps: Engram segments and rank skew (windows 3-5)
 
-**Result, 3-row verify pass:** 43.3 ms with both off, 41.68 ms with both on (-1.6 ms). Draft pass 5.45 to 5.00 ms. About -0.9 ms/token at 2.35 tokens a round (estimate from the pass times). Golden 640/640 in every config that ran it.
+**Result, measured with localeval on the dataset, each A/B inside one window:**
+
+| change | decode tok/s, off to on (means) | ms/token | 3-row pass | default |
+|---|---|---:|---:|---|
+| one graph a pass | 50.97 to 51.7 | -0.28 | about -0.9 ms | on |
+| `INTARSIA_TP_SPIN_MS=100` | 51.85 to 52.9 | -0.38 | about -0.8 ms (draft pass about -0.45 ms) | off |
+
+In both cases the worst run with the change is above the best run without it. Only the first ships as committed; the second needs the env var in the launch. The two were not run together against a config with neither. Golden 640/640 in every config that ran it.
 
 ### Different text on raw prompts: different weights
 
