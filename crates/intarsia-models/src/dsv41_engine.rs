@@ -324,6 +324,35 @@ struct SpecOpts {
     min_conf: f32,
     /// `INTARSIA_DSV41_SPEC_TRACE=1`: one stderr line per round (what a different k or floor would have done offline).
     trace: bool,
+    /// `INTARSIA_DSV41_SPEC_CHOOSE=1`: k per round from the confidence head ([`choose_k`]) instead of `k` and `min_conf`.
+    choose: bool,
+    /// `INTARSIA_DSV41_SPEC_ROUND_MS`: a forward pass's ms by its rows (1, 2, ..; [`ROUND_MS`]).
+    round_ms: [f64; ROUND_MS.len()],
+    /// `INTARSIA_DSV41_SPEC_DRAFT_MS`: a round's ms outside its forward pass ([`DRAFT_MS`]).
+    draft_ms: f64,
+}
+
+/// Measured at TP=2 with graphs (docs/results/2026-11-01-dsv41-graphs.md): a pass of 1 .. 5 rows, whole-pass ms on rank 0.
+const ROUND_MS: [f64; 5] = [31.3, 41.0, 47.15, 52.46, 57.8];
+/// Measured the same way: a round's period minus its verify pass (drafting block, Markov loop, host work).
+const DRAFT_MS: f64 = 9.0;
+
+/// TensorFold's `chooseK` (`draft.zig`): the k in `0..=kmax` with the most expected tokens a millisecond. Expected tokens are
+/// 1 plus the sum of the prefix survivals, a survival being the product of the sigmoids of the confidences so far; the cost
+/// is `round_ms[k] + draft_ms` (`round_ms[k]`: a pass of `k + 1` rows). The first best wins.
+fn choose_k(conf: &[f32], kmax: usize, round_ms: &[f64], draft_ms: f64) -> usize {
+    let (mut best, mut best_v, mut surv, mut tokens) = (0, -1.0f64, 1.0f64, 1.0f64);
+    for k in 0..=kmax.min(conf.len()).min(round_ms.len().saturating_sub(1)) {
+        if k > 0 {
+            surv /= 1.0 + (-(conf[k - 1] as f64)).exp();
+            tokens += surv;
+        }
+        let v = tokens / (round_ms[k] + draft_ms);
+        if v > best_v {
+            (best, best_v) = (k, v);
+        }
+    }
+    best
 }
 
 #[derive(Default)]
@@ -338,6 +367,8 @@ struct SpecStats {
     pos: usize,
     conf: Vec<f32>,
     round_ok: usize,
+    /// A round is open (it may have chosen no draft, so `conf` can be empty).
+    traced: bool,
 }
 
 impl SpecStats {
@@ -358,13 +389,14 @@ impl SpecStats {
 
     /// The round that just ended, as its trace line.
     fn end_round(&mut self, trace: bool) {
-        if trace && !self.conf.is_empty() {
+        if trace && self.traced {
             let c: Vec<String> = self.conf.iter().map(|v| format!("{v:.3}")).collect();
             eprintln!("dsv41: spec round k={} conf={} ok={}", self.conf.len(), c.join(","), self.round_ok);
         }
         self.conf.clear();
         self.pos = 0;
         self.round_ok = 0;
+        self.traced = false;
     }
 }
 
@@ -437,9 +469,20 @@ impl Worker {
         if let Some(sp) = spec.filter(|_| room >= 2) {
             stats.end_round(sp.trace);
             let d = self.draft(tok)?;
-            let mut k = d.confidence.iter().take(sp.k).take_while(|&&c| c >= sp.min_conf).count().max(1).min(sp.k).min(room - 1);
-            k = k.min(d.ids.len() - 1);
+            let mut k = if sp.choose {
+                choose_k(&d.confidence, sp.k, &sp.round_ms, sp.draft_ms)
+            } else {
+                d.confidence.iter().take(sp.k).take_while(|&&c| c >= sp.min_conf).count().max(1).min(sp.k)
+            };
+            k = k.min(room - 1).min(d.ids.len() - 1);
             stats.conf.extend_from_slice(&d.confidence[..k.min(d.confidence.len())]);
+            stats.traced = true;
+            if k == 0 {
+                // no draft is worth a row: the plain one-row pass
+                stats.rounds += 1;
+                let l = self.forward(&[tok], true)?.expect("logits");
+                return Ok(VecDeque::from([(l, None)]));
+            }
             let mut ids = vec![tok];
             ids.extend_from_slice(&d.ids[1..=k]);
             let rows = self.verify(&ids)?;
@@ -709,7 +752,18 @@ impl Dsv41Engine {
             let k = env_usize("INTARSIA_DSV41_SPEC_K").unwrap_or(3).clamp(1, block.saturating_sub(1).max(1));
             let min_conf = std::env::var("INTARSIA_DSV41_SPEC_MIN_CONF").ok().and_then(|v| v.parse().ok()).unwrap_or(f32::NEG_INFINITY);
             eprintln!("dsv41: speculative decoding: up to {k} drafts a round, confidence floor {min_conf}");
-            SpecOpts { k, min_conf, trace: std::env::var("INTARSIA_DSV41_SPEC_TRACE").is_ok_and(|v| v == "1") }
+            let choose = std::env::var("INTARSIA_DSV41_SPEC_CHOOSE").is_ok_and(|v| v == "1");
+            let mut round_ms = ROUND_MS;
+            if let Ok(v) = std::env::var("INTARSIA_DSV41_SPEC_ROUND_MS") {
+                for (slot, x) in round_ms.iter_mut().zip(v.split(',')) {
+                    *slot = x.trim().parse().unwrap_or(*slot);
+                }
+            }
+            let draft_ms = std::env::var("INTARSIA_DSV41_SPEC_DRAFT_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(DRAFT_MS);
+            if choose {
+                eprintln!("dsv41: speculative decoding: k per round from the confidence head, pass ms {round_ms:?}, round overhead {draft_ms} ms");
+            }
+            SpecOpts { k, min_conf, trace: std::env::var("INTARSIA_DSV41_SPEC_TRACE").is_ok_and(|v| v == "1"), choose, round_ms, draft_ms }
         });
         let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec };
         // warm-up: one short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back
@@ -785,5 +839,41 @@ mod f16_tests {
         }
         assert!(super::f16_to_f32(0x7e00).is_nan());
         assert_eq!(super::f16_to_f32(0x7c00), f32::INFINITY);
+    }
+}
+
+#[cfg(test)]
+mod choose_k_tests {
+    use super::{choose_k, DRAFT_MS, ROUND_MS};
+
+    #[test]
+    fn confident_drafts_take_every_row_and_hopeless_ones_none() {
+        assert_eq!(choose_k(&[20.0, 20.0, 20.0, 20.0], 4, &ROUND_MS, DRAFT_MS), 4);
+        assert_eq!(choose_k(&[20.0, 20.0, 20.0, 20.0], 3, &ROUND_MS, DRAFT_MS), 3);
+        assert_eq!(choose_k(&[-20.0, 20.0, 20.0, 20.0], 4, &ROUND_MS, DRAFT_MS), 0);
+    }
+
+    #[test]
+    fn a_row_pays_only_above_its_share_of_the_round() {
+        // two rows: tokens 1 + s against 50 ms, one row 1 against 40.3 ms, so a draft needs s > 0.241 (logit -1.145)
+        let (r, d) = (&[31.3, 41.0][..], 9.0);
+        assert_eq!(choose_k(&[-1.2], 1, r, d), 0);
+        assert_eq!(choose_k(&[-1.1], 1, r, d), 1);
+    }
+
+    #[test]
+    fn a_weak_draft_ends_the_prefix_but_a_strong_later_one_can_carry_it() {
+        // the survival is a product, so a later draft counts only through the earlier ones
+        assert_eq!(choose_k(&[20.0, -20.0, 20.0, 20.0], 4, &ROUND_MS, DRAFT_MS), 1);
+        // short lists and tables bound k
+        assert_eq!(choose_k(&[20.0], 4, &ROUND_MS, DRAFT_MS), 1);
+        assert_eq!(choose_k(&[], 4, &ROUND_MS, DRAFT_MS), 0);
+        assert_eq!(choose_k(&[20.0, 20.0], 4, &[31.3], DRAFT_MS), 0);
+    }
+
+    #[test]
+    fn the_first_best_wins_a_tie() {
+        // equal value at k = 0 and k = 1: 1 / 10 = 1.5 / 15, with a survival of exactly 0.5
+        assert_eq!(choose_k(&[0.0], 1, &[5.0, 10.0], 5.0), 0);
     }
 }

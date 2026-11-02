@@ -9,11 +9,11 @@ costs a verify pass of kept + 1 rows + the draft block. Estimated ms per token =
 it assumes a rejected or unverified draft's round would have gone on from the same text. --names (one per request line, in
 order) adds a table per name prefix.
 """
+import math
 import re
-import statistics as st
 import sys
 
-PAT = re.compile(r"spec round k=(\d+) conf=([-\d.,einf]+) ok=(\d+)")
+PAT = re.compile(r"spec round k=(\d+) conf=([-\d.,einf]*) ok=(\d+)")
 REQ = re.compile(r"dsv41: spec \d+ tokens in ")
 
 
@@ -43,6 +43,18 @@ def table(name, rounds, verify, draft, K):
 
     for k in range(1, K + 1):
         show(f"k={k}", lambda c, k=k: min(k, len(c)))
+    def choose(c):
+        best, best_v, surv, tokens = 0, -1.0, 1.0, 1.0
+        for k in range(len(c) + 1):
+            if k:
+                surv /= 1.0 + math.exp(-c[k - 1])
+                tokens += surv
+            v = tokens / (verify[k + 1] + draft)
+            if v > best_v:
+                best, best_v = k, v
+        return best
+
+    show("chooseK", choose)
     for f in FLOORS:
         for k in (2, K) if K > 2 else (K,):
             def keep(c, f=f, k=k):
@@ -69,7 +81,7 @@ def main():
     for l in open(a[0], errors="replace"):
         m = PAT.search(l)
         if m:
-            cur.append(([float(x) for x in m[2].split(",")], int(m[3])))
+            cur.append(([float(x) for x in m[2].split(",") if x], int(m[3])))
         elif REQ.search(l):
             requests.append(cur)
             cur = []
