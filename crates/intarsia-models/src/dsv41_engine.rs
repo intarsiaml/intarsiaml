@@ -321,7 +321,7 @@ pub fn serve_rank(dir: &Path, backend: Arc<dyn Backend>, comm: Arc<dyn Comm>, mu
     n
 }
 
-/// Speculative decoding settings (`INTARSIA_DSV41_SPEC_K`: most drafts a round, default 3, at most the block size - 1;
+/// Speculative decoding settings (`INTARSIA_DSV41_SPEC_K`: most drafts a round, default 4, at most the block size - 1;
 /// `INTARSIA_DSV41_SPEC_MIN_CONF`: verify the leading drafts whose confidence logit reaches it, at least one; default
 /// off).
 #[derive(Clone, Copy, Debug)]
@@ -338,11 +338,15 @@ struct SpecOpts {
     draft_ms: f64,
 }
 
-/// Measured at TP=2 with graphs and split-K on verify passes (docs/results/2026-11-01-dsv41-graphs.md, window 6): a pass of
-/// 1 .. 4 rows, whole-pass ms on rank 0. The 5-row entry is 4 rows plus the last step, not measured.
-const ROUND_MS: [f64; 5] = [31.3, 38.1, 42.9, 47.8, 52.7];
-/// Measured the same way: a round's period minus its verify pass (drafting block, Markov loop, host work).
-const DRAFT_MS: f64 = 9.0;
+/// Measured at TP=2 on the shipped binary (docs/results/2026-11-02-dsv41-decode2.md, window 2, `INTARSIA_DSV41_SPEC_TRACE=1`): the
+/// median whole-pass ms on rank 0 of a pass of 1 .. 4 rows over the 32 requests of the category set (1300 rounds or more each
+/// but the 1-row pass, 60), 5 rows from the k = 4 arm. Window 6 of docs/results/2026-11-01-dsv41-graphs.md had 31.3, 38.1, 42.9,
+/// 47.8, 52.7. The lane forks (`INTARSIA_DSV41_LANES`) take about 1 ms off each; the decisions depend on the steps between
+/// entries and on [`DRAFT_MS`], and the shipped arm used this table.
+const ROUND_MS: [f64; 5] = [31.1, 36.5, 41.2, 46.0, 50.8];
+/// Measured the same way: a round's period minus its verify pass (drafting block, Markov loop, host work). 9.0 before the draft
+/// round moved onto the device.
+const DRAFT_MS: f64 = 5.5;
 
 /// TensorFold's `chooseK` (`draft.zig`): the k in `0..=kmax` with the most expected tokens a millisecond. Expected tokens are
 /// 1 plus the sum of the prefix survivals, a survival being the product of the sigmoids of the confidences so far; the cost
@@ -797,7 +801,7 @@ impl Dsv41Engine {
         let telemetry = Arc::new(Telemetry::new());
         let spec = rt.opts.spec.then(|| {
             let block = rt.cfg.mtp.as_ref().map_or(1, |m| m.block_size);
-            let k = env_usize("INTARSIA_DSV41_SPEC_K").unwrap_or(3).clamp(1, block.saturating_sub(1).max(1));
+            let k = env_usize("INTARSIA_DSV41_SPEC_K").unwrap_or(4).clamp(1, block.saturating_sub(1).max(1));
             let min_conf = std::env::var("INTARSIA_DSV41_SPEC_MIN_CONF").ok().and_then(|v| v.parse().ok()).unwrap_or(f32::NEG_INFINITY);
             eprintln!("dsv41: speculative decoding: up to {k} drafts a round, confidence floor {min_conf}");
             let choose = std::env::var("INTARSIA_DSV41_SPEC_CHOOSE").map_or(true, |v| v != "0");

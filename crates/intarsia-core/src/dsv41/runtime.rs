@@ -173,8 +173,8 @@ pub struct Dsv41Runtime {
     /// linears read: after a layer's `wq_b` its `wo_a` and `wo_b`, after its experts the next layer's `wq_a`, `wkv`, `wq_b`
     /// (16 MiB a launch). Changes no numbers.
     l2_prefetch: bool,
-    /// `INTARSIA_DSV41_LANES` (`0` = off): in a recorded pass the steps with a lane ([`super::graph::Step::lane`]: the four
-    /// `wo_a` slice matmuls of a layer) fork onto streams 2..=5 and join before the next lane-0 step, so their small launches
+    /// `INTARSIA_DSV41_LANES` (default on, `0` = off): in a recorded pass the steps with a lane ([`super::graph::Step::lane`]: the `wo_a`
+    /// slice matmuls, `wq_a` with `wkv`, the compressor's pair) fork onto streams 2..=5 and join before the next lane-0 step, so their small launches
     /// run side by side. Same kernels on the same bytes, a scratch of their own each: changes no numbers.
     lanes: bool,
     /// `INTARSIA_DSV41_EXL3_CP` (comma list of GEMV grids N / 128, default none): on the same one-row and verify calls, these
@@ -402,7 +402,7 @@ impl Dsv41Runtime {
             }
         };
         let l2_prefetch = std::env::var("INTARSIA_DSV41_L2_PREFETCH").is_ok_and(|v| v == "1") && backend.stream_fork();
-        let lanes = std::env::var("INTARSIA_DSV41_LANES").is_ok_and(|v| v == "1") && backend.stream_fork();
+        let lanes = std::env::var("INTARSIA_DSV41_LANES").map_or(true, |v| v != "0") && backend.stream_fork();
         let mut rt = Dsv41Runtime {
             cfg,
             shapes,
