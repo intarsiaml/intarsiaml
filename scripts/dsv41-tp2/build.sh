@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# BIN_NAME=intarsia.base builds a second CLI binary beside the first (an A/B baseline).
 # Lane dsv41/tp2: sync this worktree to spark2, build the CUDA CLI and the dsv41_runtime test binary there, copy both to
 # $SPARK_DIR/bin on both Sparks. Runs INSIDE a fleetq slot (vLLM stays up):
 #   fleetq run --host spark2 --load cpu --mem 16 --expect 25 --label "dsv41 tp2 build" -- scripts/dsv41-tp2/build.sh
@@ -18,7 +19,7 @@ rsh "set -o pipefail; cd $SPARK_DIR/src && INTARSIA_BUILD_STAMP='$STAMP' cargo b
 rsh "set -o pipefail; cd $SPARK_DIR/src && cargo build --release -p intarsia-backend-cuda --example nccl_bench 2>&1 | tail -3"
 T=$(rsh "cd $SPARK_DIR/src && cargo test --release -p intarsia-models --test dsv41_runtime --no-run 2>&1 | grep -o 'target/release/deps/dsv41_runtime-[0-9a-f]*' | tail -1")
 [[ -n $T ]] || { echo "dsv41_runtime test binary did not build"; exit 1; }
-rsh "cd $SPARK_DIR/src && cp target/release/intarsia $SPARK_DIR/bin/intarsia && cp target/release/examples/nccl_bench $SPARK_DIR/bin/nccl_bench && cp $T $SPARK_DIR/bin/dsv41_runtime && echo '$STAMP' > $SPARK_DIR/bin/STAMP && ls -la $SPARK_DIR/bin"
+rsh "cd $SPARK_DIR/src && cp target/release/intarsia $SPARK_DIR/bin/${BIN_NAME:-intarsia} && cp target/release/examples/nccl_bench $SPARK_DIR/bin/nccl_bench && cp $T $SPARK_DIR/bin/dsv41_runtime && echo '$STAMP' > $SPARK_DIR/bin/STAMP && ls -la $SPARK_DIR/bin"
 O=$([[ $H == spark2 ]] && echo spark1 || echo spark2)
-rsh "ssh -o BatchMode=yes $O 'mkdir -p $SPARK_DIR/bin' && scp -q $SPARK_DIR/bin/intarsia $SPARK_DIR/bin/nccl_bench $SPARK_DIR/bin/dsv41_runtime $SPARK_DIR/bin/STAMP $O:$SPARK_REL/bin/"
-for h in spark1 spark2; do echo "$h: $(ssh -n -o BatchMode=yes $h "cat $SPARK_DIR/bin/STAMP; md5sum $SPARK_DIR/bin/intarsia | cut -c1-12")"; done
+rsh "ssh -o BatchMode=yes $O 'mkdir -p $SPARK_DIR/bin' && scp -q $SPARK_DIR/bin/${BIN_NAME:-intarsia} $SPARK_DIR/bin/nccl_bench $SPARK_DIR/bin/dsv41_runtime $SPARK_DIR/bin/STAMP $O:$SPARK_REL/bin/"
+for h in spark1 spark2; do echo "$h: $(ssh -n -o BatchMode=yes $h "cat $SPARK_DIR/bin/STAMP; md5sum $SPARK_DIR/bin/${BIN_NAME:-intarsia} | cut -c1-12")"; done
