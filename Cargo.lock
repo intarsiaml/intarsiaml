@@ -1069,6 +1069,7 @@ name = "intarsia-core"
 version = "0.0.1"
 dependencies = [
  "half",
+ "libc",
  "serde",
  "serde_json",
  "thiserror 2.0.21",

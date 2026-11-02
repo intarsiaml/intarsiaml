@@ -409,8 +409,105 @@ impl RankModel for Model {
     }
 }
 
+/// `INTARSIA_TP_SPIN_MS=N` (default 0 = off): after every command the remote rank's reader stays awake for `N` ms instead of
+/// blocking in `read`, on one core, and a second thread keeps the core that takes the socket's receive interrupts out of idle
+/// (the Sparks: 0.3 ms one way over TCP, cpuidle exit latency up to 433 us; the primary waits that long in the pass's first
+/// collective). `INTARSIA_TP_SPIN_KEEP=0`: without the second thread. Two cores busy during decode; nothing else changes.
+#[cfg(target_os = "linux")]
+mod spin {
+    use std::net::TcpStream;
+    use std::os::fd::AsRawFd;
+    use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    pub struct Spin {
+        fd: i32,
+        ms: u64,
+        t0: Instant,
+        until_ms: Arc<AtomicU64>,
+        cpu: Arc<AtomicI32>,
+        stop: Arc<AtomicBool>,
+    }
+
+    impl Spin {
+        pub fn new(stream: &TcpStream) -> Option<Spin> {
+            let ms: u64 = std::env::var("INTARSIA_TP_SPIN_MS").ok()?.parse().ok().filter(|&m| m > 0)?;
+            let s = Spin {
+                fd: stream.as_raw_fd(),
+                ms,
+                t0: Instant::now(),
+                until_ms: Arc::new(AtomicU64::new(0)),
+                cpu: Arc::new(AtomicI32::new(-1)),
+                stop: Arc::new(AtomicBool::new(false)),
+            };
+            if std::env::var("INTARSIA_TP_SPIN_KEEP").map_or(true, |v| v != "0") {
+                let (t0, until, cpu, stop) = (s.t0, s.until_ms.clone(), s.cpu.clone(), s.stop.clone());
+                let _ = std::thread::Builder::new().name("tp-spin-keep".into()).spawn(move || {
+                    let mut pinned = -1;
+                    while !stop.load(Ordering::Relaxed) {
+                        if t0.elapsed().as_millis() as u64 >= until.load(Ordering::Relaxed) {
+                            std::thread::sleep(Duration::from_millis(20));
+                            continue;
+                        }
+                        let c = cpu.load(Ordering::Relaxed);
+                        if c >= 0 && c != pinned {
+                            pin(c);
+                            pinned = c;
+                        }
+                        std::hint::spin_loop();
+                    }
+                });
+            }
+            eprintln!("tp: remote rank reader spins {ms} ms after a command");
+            Some(s)
+        }
+
+        /// A command came in: stay awake for the next one and note the core that took its interrupt.
+        pub fn got_frame(&self) {
+            let mut c: libc::c_int = -1;
+            let mut l = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
+            // SAFETY: a live socket and out-pointers of the right size.
+            if unsafe { libc::getsockopt(self.fd, libc::SOL_SOCKET, libc::SO_INCOMING_CPU, (&mut c as *mut libc::c_int).cast(), &mut l) } == 0 {
+                self.cpu.store(c, Ordering::Relaxed);
+            }
+            self.until_ms.store(self.t0.elapsed().as_millis() as u64 + self.ms, Ordering::Relaxed);
+        }
+
+        /// Poll the socket until a byte is there or the time since the last command has run out (then `read` blocks as usual).
+        pub fn wait_readable(&self) {
+            let mut b = 0u8;
+            while (self.t0.elapsed().as_millis() as u64) < self.until_ms.load(Ordering::Relaxed) {
+                // SAFETY: a live socket and a one-byte buffer; MSG_PEEK leaves the byte for `read`.
+                let n = unsafe { libc::recv(self.fd, (&mut b as *mut u8).cast(), 1, libc::MSG_PEEK | libc::MSG_DONTWAIT) };
+                if n >= 0 || std::io::Error::last_os_error().kind() != std::io::ErrorKind::WouldBlock {
+                    return;
+                }
+                std::hint::spin_loop();
+            }
+        }
+    }
+
+    impl Drop for Spin {
+        fn drop(&mut self) {
+            self.stop.store(true, Ordering::Relaxed);
+        }
+    }
+
+    fn pin(cpu: i32) {
+        // SAFETY: a zeroed cpu_set_t is valid; the call affects this thread only.
+        unsafe {
+            let mut set: libc::cpu_set_t = std::mem::zeroed();
+            libc::CPU_SET(cpu as usize, &mut set);
+            libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &set);
+        }
+    }
+}
+
 pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
     stream.set_nodelay(true).map_err(io)?;
+    #[cfg(target_os = "linux")]
+    let spin = spin::Spin::new(&stream);
     let mut rd = BufReader::new(stream.try_clone().map_err(io)?);
     let mut w = BufWriter::new(stream);
     let mut seqs: HashMap<u64, M::State> = HashMap::new();
@@ -431,10 +528,20 @@ pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
         w.flush().map_err(io)
     };
     loop {
+        #[cfg(target_os = "linux")]
+        if let Some(sp) = &spin {
+            if rd.buffer().is_empty() {
+                sp.wait_readable();
+            }
+        }
         let (tag, b) = match read_frame(&mut rd) {
             Ok(f) => f,
             Err(_) => return Ok(passes), // the primary closed the connection
         };
+        #[cfg(target_os = "linux")]
+        if let Some(sp) = &spin {
+            sp.got_frame();
+        }
         let sid = if tag == T_SHUTDOWN { 0 } else { u64_at(&b, 0)? };
         match tag {
             T_NEW => match model.new_state() {
