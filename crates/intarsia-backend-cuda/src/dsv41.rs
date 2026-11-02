@@ -186,8 +186,7 @@ mod launch {
         fn ik_hc_mixes(x: T, f: T, scale: T, base: T, eps: f32, iters: i64, hc_eps: f32, pre: TM, post: TM, comb: TM, sc: SC, s: S) -> c_int;
         fn ik_hc_pre(x: T, mix: T, y: TM, s: S) -> c_int;
         fn ik_hc_post(x: T, res: T, post: T, comb: T, y: TM, s: S) -> c_int;
-        fn ik_hc_sublayer_mode(
-            mode: c_int,
+        fn ik_hc_sublayer(
             x: T,
             f: T,
             scale: T,
@@ -322,8 +321,7 @@ mod launch {
                     "hc_mixes" => ik_hc_mixes(i(0), i(1), i(2), i(3), a.eps, d.iters as i64, d.hc_eps, on(0), on(1), on(2), sc, s),
                     "hc_pre" => ik_hc_pre(i(0), i(1), on(0), s),
                     "hc_post" => ik_hc_post(i(0), i(1), i(2), i(3), on(0), s),
-                    "hc_sublayer" => ik_hc_sublayer_mode(
-                        d.hc_mode as c_int,
+                    "hc_sublayer" => ik_hc_sublayer(
                         i(0),
                         i(1),
                         i(2),
