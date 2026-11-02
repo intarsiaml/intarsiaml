@@ -324,7 +324,7 @@ struct SpecOpts {
     min_conf: f32,
     /// `INTARSIA_DSV41_SPEC_TRACE=1`: one stderr line per round (what a different k or floor would have done offline).
     trace: bool,
-    /// `INTARSIA_DSV41_SPEC_CHOOSE=1`: k per round from the confidence head ([`choose_k`]) instead of `k` and `min_conf`.
+    /// `INTARSIA_DSV41_SPEC_CHOOSE` (default on, `0` = fixed `k` and `min_conf`): k per round from the confidence head ([`choose_k`]).
     choose: bool,
     /// `INTARSIA_DSV41_SPEC_ROUND_MS`: a forward pass's ms by its rows (1, 2, ..; [`ROUND_MS`]).
     round_ms: [f64; ROUND_MS.len()],
@@ -332,8 +332,9 @@ struct SpecOpts {
     draft_ms: f64,
 }
 
-/// Measured at TP=2 with graphs (docs/results/2026-11-01-dsv41-graphs.md): a pass of 1 .. 5 rows, whole-pass ms on rank 0.
-const ROUND_MS: [f64; 5] = [31.3, 41.0, 47.15, 52.46, 57.8];
+/// Measured at TP=2 with graphs and split-K on verify passes (docs/results/2026-11-01-dsv41-graphs.md, window 6): a pass of
+/// 1 .. 4 rows, whole-pass ms on rank 0. The 5-row entry is 4 rows plus the last step, not measured.
+const ROUND_MS: [f64; 5] = [31.3, 38.1, 42.9, 47.8, 52.7];
 /// Measured the same way: a round's period minus its verify pass (drafting block, Markov loop, host work).
 const DRAFT_MS: f64 = 9.0;
 
@@ -752,7 +753,7 @@ impl Dsv41Engine {
             let k = env_usize("INTARSIA_DSV41_SPEC_K").unwrap_or(3).clamp(1, block.saturating_sub(1).max(1));
             let min_conf = std::env::var("INTARSIA_DSV41_SPEC_MIN_CONF").ok().and_then(|v| v.parse().ok()).unwrap_or(f32::NEG_INFINITY);
             eprintln!("dsv41: speculative decoding: up to {k} drafts a round, confidence floor {min_conf}");
-            let choose = std::env::var("INTARSIA_DSV41_SPEC_CHOOSE").is_ok_and(|v| v == "1");
+            let choose = std::env::var("INTARSIA_DSV41_SPEC_CHOOSE").map_or(true, |v| v != "0");
             let mut round_ms = ROUND_MS;
             if let Ok(v) = std::env::var("INTARSIA_DSV41_SPEC_ROUND_MS") {
                 for (slot, x) in round_ms.iter_mut().zip(v.split(',')) {

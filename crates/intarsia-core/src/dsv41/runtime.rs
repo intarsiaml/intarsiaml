@@ -159,8 +159,8 @@ pub struct Dsv41Runtime {
     /// blocks) is below this run the split-K GEMV `matmul_exl3_splitk` instead (selected here by name; the plain registry
     /// selection never picks it).
     splitk_grid: usize,
-    /// `INTARSIA_DSV41_EXL3_SPLITK_VERIFY=1` (default 0): verify passes take split-K on the same linears as the one-row
-    /// decode pass. Plain decode and prefill are untouched.
+    /// `INTARSIA_DSV41_EXL3_SPLITK_VERIFY` (default on, `0` = GEMV): verify passes take split-K on the same linears as the
+    /// one-row decode pass, so a verify row is bitwise the decode row. Plain decode and prefill are untouched.
     splitk_verify: bool,
     /// `INTARSIA_DSV41_DPOS=1` (or graphs on): passes of up to `VERIFY_MAX_ROWS` rows run the device-position graph
     /// ([`PassKind::dpos`]); longer chunks keep the host-position graph.
@@ -393,7 +393,7 @@ impl Dsv41Runtime {
             prof: Mutex::new((0, 0, 0, 0, 0)),
             opprof: std::env::var_os("INTARSIA_DSV41_OPPROF").filter(|v| v != "0").map(|_| Mutex::new(HashMap::new())),
             splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(16),
-            splitk_verify: env_on("INTARSIA_DSV41_EXL3_SPLITK_VERIFY"),
+            splitk_verify: std::env::var("INTARSIA_DSV41_EXL3_SPLITK_VERIFY").map_or(true, |v| v != "0"),
             dspark,
             confidence,
             dpos: std::sync::atomic::AtomicBool::new(dpos),
