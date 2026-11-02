@@ -84,8 +84,8 @@ Rank 0 (rank 1 is within 0.4 ms everywhere), median per pass; "kernel ms" is the
 | kernel ms: router / norm / engram / embed+head | 0.58 | 1.0 |
 
 Round: draft start to next draft start 36.4 ms median (draft 3.8 + verify ~32.3 + two gaps of ~0.1 ms) for 2.1-2.2 tokens = about 16.7 ms/token, 60 tok/s on a request this short.
-Ours (window 1, same checkpoint family is not the same weights: Mia EXL3 vs BLACKFOLD): 51.5 ms a round (23.6 ms/token x 2.18), with a 52 ms 4-row verify against TensorFold's 37 ms, 
-so the verify pass is the gap, 15 ms of it; the draft pass is small in both after this lane's changes.
+Ours (window 1, binary `f4ae35c84`, spec on; different weights: our Mia EXL3 against TensorFold's BLACKFOLD 2.9 bpw, and a different prompt mix): 51.5 ms a round (23.6 ms/token x 2.18 tokens).
+The 4-row verify pass was 52.5 ms in the graphs lane's step-3 measurement (before split-K, so now lower; not re-measured here). So the verify pass is the gap; the draft pass is small in both.
 What to take from it: (1) TensorFold's verify is **MoE 20 ms in 80 grouped_cp launches with the L2 prefetch overlapped on a side stream** (9.4 ms of kernel time hidden), and 11.5 ms of dense linears for 274 launches;
 (2) its collectives cost 4 ms of kernel time a pass for 83 stage/collect pairs and no NCCL in the layers, against our 80 NCCL all-reduces (about 36-50 us each, 3-4 ms): similar in total,
 so the collective cost is not the gap; (3) no idle between kernels in either pass (graphs), so TensorFold's advantage is kernel time, not launch overhead.
