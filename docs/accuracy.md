@@ -170,7 +170,7 @@ when the dir is an HF cache snapshot, else the dir name).
   what `serve` runs. Per prompt, at the run's prefill chunk (the recipe's value for the backend unless
   `--prefill-chunk` overrides it; the tool prints which, and says when it is not the default): *continue*: turn 1 =
   `ids[..s]` + a real 16-token reply, turn 2 = turn 1 + reply + the rest of the prompt (the engine must reuse what it
-  holds, `cached >= s`; for a model with recurrent state on a backend whose prefill bits depend on the pass's row count (the 35B on Metal, CUDA, HIP: `Model::reuse_len` resumes only at a cut of the new prompt's own cold schedule) it must resume at the last prefill chunk cut inside turn 1, `cached >= s / chunk * chunk`); *restore*: turn 1 = `ids[..s]` + a different tail, turn 2 = `ids`, so the cache is truncated
+  holds, `cached >= s`; with the opt-in strict rule `INTARSIA_PREFIX_REUSE=exact` on a recurrent model, which resumes only at a cut of the new prompt's own cold schedule, it must resume at the last prefill chunk cut inside turn 1, `cached >= s / chunk * chunk`); *restore*: turn 1 = `ids[..s]` + a different tail, turn 2 = `ids`, so the cache is truncated
   (attention) or a recurrent snapshot taken at a prefill chunk boundary is restored (GatedDeltaNet), `0 < cached <= s`;
   *aligned*: *restore* with `s` rounded down to a multiple of the prefill chunk. A cold run is forced by serving an
   unrelated prompt in between (`cached == 0` is checked) and the two greedy streams (`--reuse-gen` 32 tokens) are

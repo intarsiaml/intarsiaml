@@ -4,6 +4,10 @@ Lane `hrr`, branch `claude/bold-jackson-f249a3`, base `main` `694b519cf` (#258).
 (`~/models/Qwen3.6-35B-A3B-NVFP4`, 30 GatedDeltaNet + 10 gated-attention layers), Metal, prefill chunk 4096 (recipe). Raw:
 `2026-10-29-hrr-hybrid-reuse/raw/`.
 
+**Status (user decision, 2026-11-02): the strict rule below is opt-in, `INTARSIA_PREFIX_REUSE=exact`. The default is main's: a hybrid
+model resumes at any snapshot (`restorable_len`) on every backend, and can give text that differs from a fresh server's.** Read
+"Fix" as what `exact` does. The numbers in "Cost" are default (the old rule) against `exact`.
+
 ## Report (lane mmtp)
 
 `serve --backend metal` (LocalEngine, no prefix store). A = `prompt-4096.txt` (4096 tokens), 256 greedy tokens. B = A +
@@ -55,17 +59,17 @@ So the GatedDeltaNet state at 4095 cannot be the state a cold prefill of B write
 
 ## Fix
 
-`Model::reuse_len`, recurrent branch: on a backend that is not `prefix_reuse_any_cut` (Metal, CUDA, HIP), and unless
-`INTARSIA_PREFIX_REUSE=any`, resume only at `SequenceState::recurrent_reuse_len(want, cuts)`. That is the longest snapshot
+`Model::reuse_len`, recurrent branch: with `INTARSIA_PREFIX_REUSE=exact` (opt-in; unset and `any` keep `restorable_len`),
+resume only at `SequenceState::recurrent_reuse_len(want, cuts)`. That is the longest snapshot
 `L <= want` that is one of `cuts` = `scheduler::recurrent_schedule_cuts(plen, chunk, tail_merge)`, the pass ends of the
 prompt's own cold recurrent schedule. In addition, the rows `0..L` must have been written by prefill passes (`Plain` /
 `RowInvariant`) in an unbroken run from row 0, each ending at one of `cuts`. Rows written by a decode step, a verify pass or
-a prefix-store restore end the run. The cpu backend (any cut) keeps `restorable_len`. The batched engine calls the same
+a prefix-store restore end the run. The default keeps `restorable_len` on every backend. The batched engine calls the same
 function (`engine/batch.rs`). Neither engine uses 1-row avoidance for recurrent states (`Seq::prefill_step`,
 `engine/batch.rs` `avoid_single_row_prefill`), so the cuts match both. A batched prefill that runs at the busy chunk (2048
 beside decoders) writes passes ending at multiples of 2048, which are not 4096-chunk cuts, so it resumes nothing: this is conservative.
 
-| case (35B, chunk 4096) | before | after |
+| case (35B, chunk 4096) | default (before) | `exact` (after) |
 |---|---|---|
 | B = A + suffix after A | cached 4095, text differs | cached 0, = cold |
 | A repeated | cached 4095, = cold | cached 4095, = cold |
@@ -73,7 +77,7 @@ beside decoders) writes passes ending at multiples of 2048, which are not 4096-c
 | prompt > 4096 sharing the first 4096 with the held one | snapshot at 4096 | snapshot at 4096 (a cut of both) |
 | next chat turn, history < 4096 | held sequence incl. decode rows | 0 |
 
-Cost: without a prefix store a hybrid model on Metal, CUDA or HIP no longer resumes a next chat turn or an extended prompt
+Cost of `exact`: without a prefix store a hybrid model no longer resumes a next chat turn or an extended prompt
 inside a chunk. The prefix store (`--prefix-store`) cuts recurrent prefill at message boundaries
 (`SeqStore::chunk_end`) and resumes there (its own bitwise gate: `tests/prefix_store_metal.rs`; not re-measured here). It is the way to get bitwise multi-turn reuse on these models.
 
@@ -81,19 +85,19 @@ inside a chunk. The prefix store (`--prefix-store`) cuts recurrent prefill at me
 
 * `crates/intarsia-core/tests/scheduler.rs` `recurrent_schedule_cuts_follow_the_solo_schedule`: the cuts, with and without
   tail merge.
-* `crates/intarsia-models/tests/hybrid.rs` `chunk_sensitive_backend_resumes_a_recurrent_state_only_at_cold_cuts`: tiny hybrid
+* `crates/intarsia-models/tests/hybrid.rs` `chunk_sensitive_backend_resumes_a_recurrent_state_only_at_cold_cuts` (strict rule switched on): tiny hybrid
   fixture on a cpu backend reporting Metal's flags. Repeat 19, A + 3 tokens 16 (not 19), next chat turn 16, short prompt
   extended 0. All give the same tokens as a fresh engine. The cpu backend itself still gives 19.
 * `crates/intarsia-models/tests/hybrid_reuse_real.rs` (opt-in `INTARSIA_PROBE_DIR`): `hybrid_reuse_shapes`, the diagnostic
   above (`INTARSIA_PROBE_ASSERT=1` makes it a gate on the shapes). `engine_hybrid_reuse_equals_cold` is the gate: A then B on
   one engine equals a fresh engine's B. A after B and A repeated equal cold A, with the cached counts above.
 
-* After the merge with main (`e72ce1964`) and the gate change: endor `cargo test --workspace --release --no-fail-fast` (fleetq #7841, before the one-line `hybrid.rs` assertion; `-p intarsia-models --test hybrid` and `-p intarsia-cli` re-run after it, #7844): 1199 passed, 0 failed, 29 ignored. Plan show for the 35B and Qwen3-8B on Metal identical to main, `kernels test --backend metal` 0 FAIL (#7846).
+* Rework (opt-in `exact`, default = main): endor `cargo test --workspace --release --no-fail-fast` (fleetq #7888, `raw/cargo-test-workspace-rework.log`): 1200 passed, 0 failed, 29 ignored. The strict test turns the rule on with `Model::set_prefix_reuse_exact(true)`; `default_resumes_a_recurrent_state_at_any_snapshot_on_a_chunk_sensitive_backend` pins the default (B after A resumes at A's `plen - 1` = 19). `plan show` for the 35B and Qwen3-8B on Metal identical to main, `kernels test --backend metal` 0 FAIL (#7893).
 * Before the merge: endor `cargo test --workspace --release --no-fail-fast`: 1112 passed, 1 failed (`docs_env_vars`: the two new probe variables had no row in docs/tuning.md; rows added, re-run passes), 28 ignored. 35B engine gate: B after A cached 0 = cold; A after B cached 0 = cold; A repeated cached 4095 = cold (`raw/tests-run2.log`).
 
-## Cost of the rule and the qualify gate (2026-11-02, after the merge with main `e72ce1964`)
+## Cost of the strict rule and the qualify gate (2026-11-02, after the merge with main `e72ce1964`)
 
-endor, Metal, 35B, chunk 4096 (recipe), `serve --spec off`, greedy, raw `/v1/completions`, `INTARSIA_PREFIX_REUSE=any` is the old rule.
+endor, Metal, 35B, chunk 4096 (recipe), `serve --spec off`, greedy, raw `/v1/completions`, the old rule (the default now) is `old`/`default` below, the strict rule is `new`/`exact`.
 Probe: `raw/hrr_reuse_probe.py` (run by `raw/hrr_run.sh`); fleetq #7834 (chat), #7839 (A = 4096 tokens), #7835 (A = 4098), all endor, `--quiet gpu,cpu`.
 
 **The reported case, reproduced and fixed** (A = 4096 tokens, B = A + " Summarize the above in one paragraph.", 256 tokens; `raw/probe-ab4096-*`):
@@ -119,20 +123,27 @@ The loss is the held tokens above the last multiple of 4096 inside them: 0 to 40
 
 The rule trades prefix for exactness; the lost prefix is what `--prefix-store` (message-boundary cuts) recovers.
 
-## The qualify gate: decision
+## The qualify gate, default against strict (user decision: strict is opt-in)
 
-`accuracy --mode reuse` `continue` required `cached >= split` (turn 2 reuses all of turn 1). On the 35B at qualify's chunk 1024 the new rule resumes at 1024 for split 2000 (old rule: 2015), so the gate would print "reuse covered 1024 < the 2000 tokens of turn 1" on Metal, HIP and CUDA (read from the code; the unmodified gate was not run on this head).
+qualify's `acc-4k-reuse` command (`accuracy --mode reuse --prefill-chunk 1024 --reuse-require-all`, golden `qwen36-35b-a3b-nvfp4-vllm-4k-top20`, Metal 35B), run three times: this branch with the default rule (`raw/accuracy-reuse-35b-metal-default.txt`), this branch with `INTARSIA_PREFIX_REUSE=exact` (`...-exact.txt`), and a build of `origin/main` (`...-main-binary.txt`; fleetq #7893, #7896). The default rows equal main's line for line (cached, agree, verdict): the default is main's behaviour.
 
-Options:
+`ModelInfo::reuse_cold_cuts_only` is true only under `exact`, so the default gate keeps `cached >= s` and `exact` uses `s / chunk * chunk`.
 
-1. **Accept the last cold cut** (implemented). `ModelInfo::reuse_cold_cuts_only` (`Model::reuse_recurrent_at_cold_cuts_only`: recurrent slots, the backend is not `prefix_reuse_any_cut`, `INTARSIA_PREFIX_REUSE` is not `any`) lowers the `continue` bar from `s` to `s / chunk * chunk`. Every other model (dense, cpu, DSv4.1) keeps `cached >= s`. The gate still compares the stream or logits with a cold run, so a wrong-bits resume still fails.
-2. An opt-out that makes the gate test the old rule (`INTARSIA_PREFIX_REUSE=any` in qualify). It passes `cached >= s` only by validating the behaviour that served wrong text, and a serving default that qualify does not exercise.
+| prompt (split) | default: cached, warm = cold tokens | default verdict | exact: cached, warm = cold tokens | exact verdict | oracle warm/cold KL ratio (limit 1.5x + 3e-3), both rules |
+|---|---|---|---|---|---|
+| long_docs_4k (2000) | 2015, 1 of 32 | ok (oracle) | 1024, 32 of 32 | ok (oracle) | 1.71x (1.54e-2 vs 1.65e-2): pass |
+| long_code_4k (2000) | 2015, 3 of 32 | **FAIL**: streams diverge at token 3, KL up to 1.6e-1 | 1024, 32 of 32 | ok | none (committed oracle does not match this prompt's ids) |
+| chat_reuse_4k (4521) | 4536, 32 of 32 | ok (oracle) | 4096, 32 of 32 | ok (oracle) | 0.71x (1.08e-2 limit): pass |
 
-Option 1 is recommended: it gates what the server does and keeps the bit-exact `aligned` and `restore` checks. Result on Metal with option 1 (`raw/accuracy-reuse-35b-metal.txt`, fleetq #7846; qualify's `acc-4k-reuse` command at chunk 1024 with `--reuse-require-all`): prefix-reuse gate PASS, 3 judged, 0 skipped: long_docs_4k continue cached 1024 (floor 1024), long_code_4k 1024, chat_reuse_4k split 4521 cached 4096 (floor 4096); restore and aligned unchanged and bit-exact. The long_docs_4k continue oracle check passes with warm/cold 1.71x against a 1.5x + 3e-3 limit (1.54e-2 vs 1.65e-2): thin, and above the 0.99x the same case gave at cached 2015 (docs/results/2026-10-22-gc2-4k-continue-oracles); not investigated here (the resume now recomputes rows 1024..2000 with prefill kernels where the old rule kept rows the decode kernels wrote).
+Reading it:
 
-CUDA and HIP: read from the code only. Both report `prefix_reuse_any_cut` false (`backend-cuda/src/device.rs:201`, `backend-hip/src/device.rs:799`), so the 35B there takes the same branch and the same floor applies. Not run (no spark run, tatooine untouched).
+* The oracle ratio does not separate the rules. `judge_continue_oracle` scores a scripted resume at the split, not the state the engine resumed from, so the ratio is the same (1.71x, 0.71x) under both and under main. The default passes the oracle limit on the two prompts that have one, and 1.71x is not new to this PR (the same case read 0.99x on 2026-10-22, before main's later changes; not bisected).
+* What does separate them is the stream against a cold run, which the oracle path replaces on long_docs_4k: under the default, warm and cold agree on 1 of 32 tokens there, and long_code_4k FAILS. That failure is on main too (docs/results/2026-10-29-chunk4k-metal.md; main binary run above: same rows). `exact` agrees on 32 of 32 on all three and the gate passes (3 judged, 0 skipped).
+* So the default fails qualify's reuse gate on this golden at chunk 1024 on Metal, as main does. Under the default, qualify's `acc-4k-reuse` for the 35B stays red.
 
-DSv4.1 (`dsv41_engine.rs`) does not use `Model::reuse_len`: `generate` resumes at `SequenceState::restorable_len(common)` of its own state. This PR neither changes nor tests that path; the merge is textually and semantically independent of it (its `ModelInfo` sets `reuse_cold_cuts_only: false`, so its gate bar is unchanged).
+Bug repro, A = 4096 tokens, B = A + " Summarize the above in one paragraph." (`raw/probe-ab4096-default.txt`, `-exact.txt`, fleetq #7893): default B after A cached 4095 (TTFT 49 ms), text differs from the cold B; A after B cached 4095. `exact`: both cached 0, B equals the cold B.
+
+CUDA and HIP: read from the code only. Under `exact` they take the same branch and floor; by default they resume at any snapshot as on main. Not run (no spark run, tatooine untouched). DSv4.1 (`dsv41_engine.rs`) does not use `Model::reuse_len` (its own `restorable_len(common)` in `generate`); the merge is independent of it and its `ModelInfo` sets `reuse_cold_cuts_only: false`.
 
 ## Follow-up (not done here)
 

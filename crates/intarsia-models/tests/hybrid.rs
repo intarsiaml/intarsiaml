@@ -424,7 +424,7 @@ impl intarsia_core::Backend for Chunky {
     }
 }
 
-/// Lane hrr (docs/results/2026-10-29-hrr-hybrid-reuse.md): on a chunk-sensitive backend a recurrent state resumes only at a
+/// Lane hrr (docs/results/2026-10-29-hrr-hybrid-reuse.md), opt-in `INTARSIA_PREFIX_REUSE=exact`: a recurrent state resumes only at a
 /// cut of the new prompt's own cold schedule (`scheduler::recurrent_schedule_cuts`) that the held state's prefill passes
 /// wrote. The Metal repro in small: A then B = A + more resumed at A's `plen - 1` snapshot, a cut of A's schedule but not
 /// of B's, and B's text changed. The cpu kernels give the same tokens either way; the cached counts pin the rule.
@@ -433,6 +433,7 @@ fn chunk_sensitive_backend_resumes_a_recurrent_state_only_at_cold_cuts() {
     let (ids, _) = golden();
     let chunky = || {
         let m = load_on(Arc::new(Chunky(intarsia_backend_cpu::CpuBackend::arc())), 8);
+        m.set_prefix_reuse_exact(true); // the opt-in `INTARSIA_PREFIX_REUSE=exact`
         LocalEngine::new(m, Arc::new(IdCodec), EngineMeta { id: "tiny-hybrid".into(), ..Default::default() }, Arc::new(Telemetry::new())).unwrap()
     };
     // A: 20 tokens, cold passes (0, 8) (8, 16) (16, 19) (19, 20): snapshots at 8, 16 and 19
@@ -440,7 +441,7 @@ fn chunk_sensitive_backend_resumes_a_recurrent_state_only_at_cold_cuts() {
     let e = chunky();
     let (ta, ca) = run(&e, &a, 6);
     assert_eq!(ca, 0);
-    // what `accuracy --mode reuse` reads: this model resumes at cold cuts only, the cpu backend does not
+    // what `accuracy --mode reuse` reads: this model resumes at cold cuts only, the default and the cpu backend do not
     assert!(e.info().reuse_cold_cuts_only && !engine(8).info().reuse_cold_cuts_only);
     // A again: 19 is a cut of A's own schedule
     let (ta2, ca2) = run(&e, &a, 6);
@@ -478,6 +479,23 @@ fn chunk_sensitive_backend_resumes_a_recurrent_state_only_at_cold_cuts() {
     let cpu = engine(8);
     run(&cpu, &a, 6);
     assert_eq!(run(&cpu, &b, 6).1, 19);
+}
+
+/// The default (no `INTARSIA_PREFIX_REUSE`) is main's rule on every backend, a chunk-sensitive one included: a recurrent state
+/// resumes at any snapshot, so B = A + 3 tokens resumes at A's `plen - 1` = 19, the snapshot cold B never holds (the 35B's text
+/// changed there on Metal; the strict rule is the opt-in test above).
+#[test]
+fn default_resumes_a_recurrent_state_at_any_snapshot_on_a_chunk_sensitive_backend() {
+    let (ids, _) = golden();
+    let m = load_on(Arc::new(Chunky(intarsia_backend_cpu::CpuBackend::arc())), 8);
+    let e = LocalEngine::new(m, Arc::new(IdCodec), EngineMeta { id: "tiny-hybrid".into(), ..Default::default() }, Arc::new(Telemetry::new())).unwrap();
+    assert!(!e.info().reuse_cold_cuts_only);
+    let a: Vec<u32> = ids[..20].to_vec();
+    assert_eq!(run(&e, &a, 6).1, 0);
+    assert_eq!(run(&e, &a, 6).1, 19);
+    let mut b = a.clone();
+    b.extend_from_slice(&[5, 6, 7]);
+    assert_eq!(run(&e, &b, 6).1, 19);
 }
 
 // ---------------------------------------------------------------------------
