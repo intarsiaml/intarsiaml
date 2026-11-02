@@ -759,6 +759,18 @@ pub fn dspark_idx(window: usize, t: usize, pos0: usize) -> Vec<i32> {
 /// The Markov loop and the confidence run on the host after it ([`build_markov`]). Reads (and harmlessly writes
 /// positions `pos0 ..`, see [`dspark_absorb`]) the stage rings; appends nothing to the sequence.
 pub fn build_draft(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp) -> Result<Dsv41Graph> {
+    draft_graph(c, w, o, tp, false)
+}
+
+/// [`build_draft`] as a device-position graph (CUDA graph replay of the drafting round): the ropes and the window write
+/// read the block's first position from the device; the attention is built at position `window`, which serves every
+/// round at a position of at least `window` (its window rows are all valid there, and [`dspark_idx`] no longer depends
+/// on the position). Rounds at earlier positions run the host graph.
+pub fn build_draft_dpos(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp) -> Result<Dsv41Graph> {
+    draft_graph(c, w, GraphOpts { pos0: c.window, ..o }, tp, true)
+}
+
+fn draft_graph(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp, dpos: bool) -> Result<Dsv41Graph> {
     let m = c.mtp.as_ref().ok_or_else(|| Error::model("deepseek_v41: no DSpark config"))?;
     let n_st = dspark_stages(c, w);
     if n_st == 0 {
@@ -773,7 +785,7 @@ pub fn build_draft(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Grap
     }
     let (slot_specs, _, rings) = slots(c, w, act, true);
     let mut stages = Vec::new();
-    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos: false };
+    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos };
     let ids = arg(Buf::Host("token_ids".into()), DType::I32, &[t]);
     let emb = b.weight("embed.weight")?;
     let h = ws("h", act, &[t, d]);
@@ -829,18 +841,23 @@ fn dspark_attention(b: &mut Builder, i: usize, ring: usize, n: &Arg) -> Result<A
     let qr = b.rmsnorm(qa, &format!("{p}.q_norm.weight"), "qr")?;
     let q = b.matmul(qr, &format!("{p}.wq_b"), Buf::Ws("q".into()), act)?;
     let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, Buf::Ws("q_rope".into()), &format!("{p}.rope(q)"));
+    b.positioned(1);
     let kv = b.matmul(n.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
     let kv = b.rmsnorm(kv, &format!("{p}.kv_norm.weight"), "kv_n")?;
     let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv_rope".into()), &format!("{p}.rope(kv)"));
+    b.positioned(1);
     let kv = b.qdq(Arg { shape: vec![t, hd], ..kv }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("kv_q".into()), &format!("{p}.act_quant(kv)"));
     let winbuf = ws("win", act, &[win + t, hd]);
     let ringa = arg(Buf::Slot { slot: ring, plane: 0, row0: 0 }, act, &[win + ROLLBACK_MARGIN, hd]);
     b.push(Op::WindowKv, format!("{p}.window_kv"), vec![kv], vec![winbuf.clone(), ringa], OpAttrs { window: win, pos0, ..Default::default() });
+    b.positioned(1);
     let idx = arg(Buf::Host("dspark.idx".into()), DType::I32, &[t, t]);
     let sink = b.weight(&format!("{p}.attn_sink"))?;
     let o = ws("o", act, &[t, h, hd]);
+    // host position even in the device-position graph (built at `window`, see `build_draft_dpos`)
     b.push(Op::AttnSparse, format!("{p}.sparse_attn"), vec![q, winbuf.clone(), winbuf, idx, sink], vec![o.clone()], OpAttrs { window: win, pos0, scale: (hd as f32).powf(-0.5), ..Default::default() });
     let o = b.rope(o, l, pos0, 1, true, Buf::Ws("o_derot".into()), &format!("{p}.rope_inverse(o)"));
+    b.positioned(1);
     // the fp8 round trip before wo_a only in the FP8 checkpoint's mode, as in the model's attention
     let o = if matches!(c.quant, Dsv41Quant::Fp8 { .. }) {
         b.qdq(Arg { shape: vec![t, c.o_groups / b.tp.world, h * hd * b.tp.world / c.o_groups], ..o }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("o_q".into()), &format!("{p}.act_quant(o)"))

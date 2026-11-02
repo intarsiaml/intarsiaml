@@ -564,7 +564,7 @@ fn device_position_passes_equal_host_passes() {
     let tok = |i: usize| ((i * 7919 + 13) % 30000 + 100) as u32;
     let prompt: Vec<u32> = (0..n_prompt).map(tok).collect();
     let cont: Vec<u32> = (0..n_cont + 8).map(|i| tok(n_prompt + i)).collect();
-    // the schedule: rows per step (0: a 4-row verify pass, rolled back to 1 row on even rounds)
+    // the schedule: rows per step (0: a 4-row verify pass, rolled back to 1 row on even rounds, then a drafting round)
     let sched: Vec<usize> = if spec { vec![1, 0, 1, 0, 3, 1, 0, 2, 0, 1, 1] } else { vec![1, 1, 1, 3, 1, 4, 1, 2, 1, 1, 1] };
     let run = |dev: bool| -> Vec<Vec<f32>> {
         rt.set_device_position(dev);
@@ -586,6 +586,9 @@ fn device_position_passes_equal_host_passes() {
                 out.extend(rows.into_iter().take(keep));
                 st.truncate(len0 + keep, &*rt.backend).unwrap();
                 i += keep;
+                // a drafting round after the kept rows (replayed from a graph at positions >= the window)
+                let d = rt.draft(&st, cont[i]).unwrap().expect("rank 0 drafts");
+                out.push(d.ids.iter().map(|&x| x as f32).chain(d.confidence.iter().copied()).collect());
             } else {
                 let n = n.min(n_cont - i);
                 out.push(rt.forward(&mut st, &cont[i..i + n], true).unwrap().unwrap());

@@ -18,7 +18,7 @@
 
 use super::config::Dsv41Config;
 use super::engram::{record_bytes, EngramTier, NgramHasher};
-use super::graph::{build_absorb, build_draft, build_markov, build_pass, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Stage, WeightShapes, VERIFY_MAX_ROWS};
+use super::graph::{build_absorb, build_draft, build_draft_dpos, build_markov, build_pass, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Stage, WeightShapes, VERIFY_MAX_ROWS};
 use crate::backend::{Backend, Buffer, GraphHandle, MemKind, TensorRef};
 use crate::comm::Comm;
 use crate::dtype::DType;
@@ -87,14 +87,19 @@ struct Captured {
     scratch_gen: u64,
 }
 
+/// Recorded graph kinds: a plain pass (decode), a verify pass (logits of every row), a DSpark drafting block.
+const GK_PASS: u8 = 0;
+const GK_VERIFY: u8 = 1;
+const GK_DRAFT: u8 = 2;
+
 /// Graph mode of the runtime: a device-position pass seen for the first time runs eagerly (it also warms every kernel up),
 /// the next one of the same shape is recorded and replayed.
 #[derive(Default)]
 struct Graphs {
-    /// `(rows, all_rows)` -> recording
-    captured: HashMap<(usize, bool), Captured>,
+    /// `(rows, kind)` -> recording (kind: [`GK_PASS`], [`GK_VERIFY`], [`GK_DRAFT`])
+    captured: HashMap<(usize, u8), Captured>,
     /// shapes that ran eagerly once
-    warm: std::collections::HashSet<(usize, bool)>,
+    warm: std::collections::HashSet<(usize, u8)>,
     /// replays since load (stderr note every `INTARSIA_DSV41_PROFILE` passes)
     replays: u64,
 }
@@ -544,12 +549,22 @@ impl Dsv41Runtime {
             return Err(Error::invalid(format!("deepseek_v41: a draft block at position {pos0} (capacity {})", self.opts.cap)));
         }
         let p0 = Instant::now();
-        let g = build_draft(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp)?;
         let mut ids = vec![m.noise_token_id; t];
         ids[0] = first;
         let idx: Vec<u8> = dspark_idx(self.cfg.window, t, pos0).iter().flat_map(|v| v.to_le_bytes()).collect();
         let rank0 = self.comm.as_ref().is_none_or(|c| c.rank() == 0);
-        let logits = self.run_graph(&g, st, t, &ids, &[("host.dspark.idx", &idx)], rank0, p0)?;
+        let mut replayed = None;
+        if pos0 >= self.cfg.window && self.graphs_on.load(std::sync::atomic::Ordering::Relaxed) {
+            let build = || build_draft_dpos(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp);
+            replayed = self.run_captured(st, &ids, (t, GK_DRAFT), &[("host.dspark.idx", &idx)], rank0, p0, &build)?;
+        }
+        let logits = match replayed {
+            Some(l) => l,
+            None => {
+                let g = build_draft(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp)?;
+                self.run_graph(&g, st, t, &ids, &[("host.dspark.idx", &idx)], rank0, p0)?
+            }
+        };
         if !rank0 {
             return Ok(None);
         }
@@ -621,7 +636,10 @@ impl Dsv41Runtime {
         let dpos = self.dpos.load(std::sync::atomic::Ordering::Relaxed) && t <= VERIFY_MAX_ROWS;
         let k = PassKind { all_rows, absorb: self.opts.spec, dpos };
         if dpos && (t == 1 || all_rows) && self.graphs_on.load(std::sync::atomic::Ordering::Relaxed) {
-            if let Some(r) = self.run_captured(st, ids, k, want_logits, p0)? {
+            let key = (t, if all_rows { GK_VERIFY } else { GK_PASS });
+            // the graph does not depend on the host position: built at 0, it serves every position
+            let build = || build_pass(&self.cfg, &*self.shapes, GraphOpts { t, pos0: 0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp, k);
+            if let Some(r) = self.run_captured(st, ids, key, &[], want_logits, p0, &build)? {
                 return Ok(r);
             }
         }
@@ -726,9 +744,18 @@ impl Dsv41Runtime {
 
     /// A device-position pass as CUDA graph replays (`INTARSIA_DSV41_GRAPHS=1`). `None`: run it eagerly instead (the
     /// first pass of its shape, which also warms every kernel up, or a capture that failed: graphs then stay off).
-    fn run_captured(&self, st: &SequenceState, ids: &[u32], k: PassKind, want_logits: bool, p0: Instant) -> Result<Option<Option<Vec<f32>>>> {
+    #[allow(clippy::too_many_arguments)]
+    fn run_captured(
+        &self,
+        st: &SequenceState,
+        ids: &[u32],
+        key: (usize, u8),
+        host: &[(&str, &[u8])],
+        want_logits: bool,
+        p0: Instant,
+        build: &dyn Fn() -> Result<Dsv41Graph>,
+    ) -> Result<Option<Option<Vec<f32>>>> {
         let t = ids.len();
-        let key = (t, k.all_rows);
         let mut gs = self.graphs.lock().unwrap();
         if !gs.warm.contains(&key) {
             gs.warm.insert(key);
@@ -739,25 +766,23 @@ impl Dsv41Runtime {
         let stale = gs.captured.get(&key).is_none_or(|c| c.state_id != st.id || c.scratch_gen != ex.scratch_gen);
         if stale {
             gs.captured.remove(&key);
-            // the graph does not depend on the host position: built at 0, it serves every position
-            let g = build_pass(&self.cfg, &*self.shapes, GraphOpts { t, pos0: 0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp, k)?;
+            let g = build()?;
             match self.capture(&mut ex, &g, st, t) {
                 Ok(segs) => {
                     let n: usize = segs.len();
                     gs.captured.insert(key, Captured { g, segs, state_id: st.id, scratch_gen: ex.scratch_gen });
-                    if gs.captured.len() == 1 {
-                        eprintln!("dsv41: captured the {t}-row pass as {n} CUDA graph segments");
-                    }
+                    let what = ["pass", "verify pass", "drafting block"][key.1 as usize];
+                    eprintln!("dsv41: captured the {t}-row {what} as {n} CUDA graph segment(s)");
                 }
                 Err(e) => {
-                    eprintln!("dsv41: CUDA graph capture of the {t}-row pass failed ({e}); graphs off, eager from now on");
+                    eprintln!("dsv41: CUDA graph capture of a {t}-row graph failed ({e}); graphs off, eager from now on");
                     self.graphs_on.store(false, std::sync::atomic::Ordering::Relaxed);
                     return Ok(None);
                 }
             }
         }
         let c = gs.captured.get(&key).expect("captured");
-        self.upload_inputs(&ex, &c.g, st.len, ids, &[])?;
+        self.upload_inputs(&ex, &c.g, st.len, ids, host)?;
         // fills (constant table cells) are host uploads: re-applied before every replay (cached while untouched)
         for stage in &c.g.stages {
             for (_, e) in &stage.extras {
