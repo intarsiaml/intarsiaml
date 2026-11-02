@@ -23,6 +23,15 @@ rsh "set -o pipefail; cd $SPARK_DIR/src && INTARSIA_BUILD_STAMP='$STAMP' cargo b
 # the NCCL latency probe, when this tree has it
 EX=""; [[ -f $REPO/crates/intarsia-backend-cuda/examples/nccl_bench.rs ]] && EX=nccl_bench
 [[ -z $EX ]] || rsh "set -o pipefail; cd $SPARK_DIR/src && cargo build --release -p intarsia-backend-cuda --example nccl_bench 2>&1 | tail -3"
+if [[ -n ${BIN_NAME:-} ]]; then
+  # a baseline binary beside the real one: the CLI only (the test binary, nccl_bench and STAMP stay those of the head build)
+  rsh "cd $SPARK_DIR/src && cp target/release/intarsia $SPARK_DIR/bin/$BIN_NAME"
+  O=$([[ $H == spark2 ]] && echo spark1 || echo spark2)
+  rsh "ssh -o BatchMode=yes $O 'mkdir -p $SPARK_DIR/bin' && scp -q $SPARK_DIR/bin/$BIN_NAME $O:$SPARK_REL/bin/"
+  for h in spark1 spark2; do echo "$h: $BIN_NAME $(ssh -n -o BatchMode=yes $h "md5sum $SPARK_DIR/bin/$BIN_NAME | cut -c1-12")"; done
+  echo "baseline $BIN_NAME = $STAMP"
+  exit 0
+fi
 T=$(rsh "cd $SPARK_DIR/src && cargo test --release -p intarsia-models --test dsv41_runtime --no-run 2>&1 | grep -o 'target/release/deps/dsv41_runtime-[0-9a-f]*' | tail -1")
 [[ -n $T ]] || { echo "dsv41_runtime test binary did not build"; exit 1; }
 rsh "cd $SPARK_DIR/src && cp target/release/intarsia $SPARK_DIR/bin/${BIN_NAME:-intarsia} && { [ -z '$EX' ] || cp target/release/examples/nccl_bench $SPARK_DIR/bin/nccl_bench; } && cp $T $SPARK_DIR/bin/dsv41_runtime && echo '$STAMP' > $SPARK_DIR/bin/STAMP && ls -la $SPARK_DIR/bin"
