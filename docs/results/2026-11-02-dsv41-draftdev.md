@@ -147,3 +147,26 @@ Kernel time and the rest of the pass explain the other 0-2 ms. So overlap accoun
 3. hc on a side lane: fork/join in the capture with events (`ik_rt_event_record` / `ik_rt_stream_wait_event` exist). Ours hc is 2.39 ms a pass; TF's cross-lane overlap is 4.2 including collectives. Estimate -1 to -2 ms.
 The three together are an estimated -6 to -10 ms of the 10.7 ms verify gap (about +14 to 25 % tok/s at the same acceptance); step 1 alone is the cheapest test and tells whether programmatic launch works in our captured graphs at all. Not part of this estimate: our NCCL all-reduces (80 a pass, 4.8 ms) cannot take part in PDL; TF's collectives are its own RDMA kernels.
 Caveat: one TF request (12 three-row passes), and the TF prompt is 1222 tokens against a few tokens in ours (attention differs: TF 3.5 ms against our 1.2).
+
+### Task 4c: correction. Kernel-duration sums overstate TensorFold's overlap; the critical path says where the gap is
+
+Task 4b read "sum of kernel durations minus union = 12.4 ms of concurrent work" as TF doing the same work as ours in less time. That is not established. TF launches the next kernel of a chain early (programmatic dependent launch) and the early kernel
+sits in `griddepcontrol.wait`, so its recorded duration includes waiting: the sum is inflated by an unknown part of the 12.4 ms. What a trace can give without that ambiguity is the **critical path**: each instant of the pass charged to the class of the
+kernel that started last among those running (prefetch excluded), idle charged to idle (`crit.py`). 3-row verify pass, ms:
+
+| class | TF | ours (nsys) | ours - TF |
+|---|---:|---:|---:|
+| dense linears | 7.60 | 15.70 | **+8.1** |
+| collectives | 1.32 | 4.81 | **+3.5** |
+| idle between kernels | 0.21 | 2.12 | +1.9 |
+| MoE | 17.29 | 18.61 | +1.3 |
+| hyper-connection | 2.94 | 2.39 | -0.6 |
+| attention | 1.90 | 1.24 | -0.7 |
+| other | 0.75 | 0.34 | -0.4 |
+| total (= span) | 32.00 | 45.22 | +13.2 (10.9 against our 42.9 ms without nsys) |
+
+Per block, collective to collective (`blocks.py`, nsys both): attention block 237 us TF against 334 us ours, MoE block 409 against 544, a layer 731 against 968 us; a collective 14 against 30 us.
+
+So the gap is **not mostly concurrency**: about 8 ms of the 13 sit in the dense linears (TF: about 274 launches of one `glinear` kernel; ours about 1100 launches of `linear_kernel`, `split_kernel`, `split_finish_kernel`, `rot_in_kernel`, transposes, 5-80 us each, of which 400-1000 are 1-5 us kernels),
+3.5 ms in the collectives (TF hides its RDMA exchange under the hyper-connection post; ours is 80 serial NCCL all-reduces of about 30 us plus a bf16 round), 1.9 ms is idle time between our kernels (launch gaps; programmatic launch or fewer launches removes it).
+What PDL and a side stream can win from this trace: the idle 1.9 ms, part of the 400-1000 tiny kernels' ramp, and part of the collective (an HC kernel beside the exchange). Estimate: 2-4 ms, not the 6-10 ms of Task 4b, which counted waiting as work. That estimate is smaller and still an estimate.
