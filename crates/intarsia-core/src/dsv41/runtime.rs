@@ -160,7 +160,7 @@ pub struct Dsv41Runtime {
     /// `INTARSIA_DSV41_DPOS=1` (or graphs on): passes of up to `VERIFY_MAX_ROWS` rows run the device-position graph
     /// ([`PassKind::dpos`]); longer chunks keep the host-position graph.
     dpos: std::sync::atomic::AtomicBool,
-    /// `INTARSIA_DSV41_GRAPHS=1` (default 0): one-row decode passes and verify passes replay CUDA graphs of the
+    /// `INTARSIA_DSV41_GRAPHS` (default on, `0` = eager): one-row decode passes and verify passes replay CUDA graphs of the
     /// device-position graph. Switched off for good when a capture fails.
     graphs_on: std::sync::atomic::AtomicBool,
     graphs: Mutex<Graphs>,
@@ -230,7 +230,7 @@ impl Dsv41Runtime {
         let probes = [(opts.chunk, 0), (opts.chunk, opts.cap.saturating_sub(opts.chunk)), (1, 0), (1, opts.cap - 1), (2, opts.cap - 2), (v, 0), (v, opts.cap - v)];
         let env_on = |k: &str| std::env::var(k).is_ok_and(|v| v == "1");
         let opprof_on = std::env::var_os("INTARSIA_DSV41_OPPROF").is_some_and(|v| v != "0");
-        let mut graphs_on = env_on("INTARSIA_DSV41_GRAPHS");
+        let mut graphs_on = std::env::var("INTARSIA_DSV41_GRAPHS").map_or(true, |v| v != "0");
         if graphs_on && (opprof_on || std::env::var_os("INTARSIA_DSV41_DUMP").is_some()) {
             eprintln!("dsv41: INTARSIA_DSV41_GRAPHS ignored: per-op profiling / dumps synchronise after every step");
             graphs_on = false;
