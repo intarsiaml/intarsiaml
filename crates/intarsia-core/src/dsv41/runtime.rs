@@ -514,12 +514,12 @@ impl Dsv41Runtime {
         while i < ids.len() {
             let n = (ids.len() - i).min(self.opts.chunk);
             let last = i + n == ids.len();
-            let r = self.pass(st, &ids[i..i + n], logits && last, false);
+            let r = self.pass(st, &ids[i..i + n], if logits && last { Want::Logits } else { Want::Nothing }, false);
             match r {
                 Ok(l) => {
                     st.commit(&ids[i..i + n]);
                     if last {
-                        out = l;
+                        out = l.map(Out::logits);
                     }
                 }
                 Err(e) => {
@@ -545,12 +545,36 @@ impl Dsv41Runtime {
         if !self.opts.spec {
             return Err(Error::Unsupported("deepseek_v41: a verify pass needs the runtime's spec option".into()));
         }
-        match self.pass(st, ids, true, true) {
+        match self.pass(st, ids, Want::Logits, true) {
             Ok(l) => {
                 st.commit(ids);
-                let l = l.expect("logits");
+                let l = l.expect("logits").logits();
                 let v = l.len() / ids.len();
                 Ok(l.chunks_exact(v).map(|r| r.to_vec()).collect())
+            }
+            Err(e) => {
+                let _ = st.truncate(0, &*self.backend);
+                Err(e)
+            }
+        }
+    }
+
+    /// [`Self::forward_rows`] with the argmax of every row computed on the device (first index of the strict maximum,
+    /// as `sampler::argmax`): only `ids.len()` ints come back, not `ids.len() * vocab` floats.
+    pub fn forward_rows_ids(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<u32>> {
+        if ids.is_empty() || ids.len() > VERIFY_MAX_ROWS {
+            return Err(Error::invalid(format!("deepseek_v41: a verify pass takes 1..={VERIFY_MAX_ROWS} rows, not {}", ids.len())));
+        }
+        if st.len + ids.len() > self.opts.cap {
+            return Err(Error::BadRequest(format!("deepseek_v41: {} + {} tokens exceed the capacity {}", st.len, ids.len(), self.opts.cap)));
+        }
+        if !self.opts.spec {
+            return Err(Error::Unsupported("deepseek_v41: a verify pass needs the runtime's spec option".into()));
+        }
+        match self.pass(st, ids, Want::Ids, true) {
+            Ok(r) => {
+                st.commit(ids);
+                Ok(r.expect("ids").ids())
             }
             Err(e) => {
                 let _ = st.truncate(0, &*self.backend);
@@ -564,6 +588,12 @@ impl Dsv41Runtime {
     /// on rank 0 the Markov loop and the confidence head (`DSparkBlock.forward_head`, greedy). Rank 0 gets
     /// `Some(draft)`, other ranks `None`. The sequence is unchanged.
     pub fn draft(&self, st: &SequenceState, first: u32) -> Result<Option<Draft>> {
+        self.draft_steps(st, first, usize::MAX)
+    }
+
+    /// [`Self::draft`] with only the first `steps` Markov steps (clamped to `1..=block_size`): `Draft::ids` has `steps + 1`
+    /// entries (`first` and the chosen drafts) and `confidence` `steps` (each step is bitwise the full loop's).
+    pub fn draft_steps(&self, st: &SequenceState, first: u32, steps: usize) -> Result<Option<Draft>> {
         let m = self.cfg.mtp.as_ref().filter(|_| self.dspark > 0 && self.opts.spec).ok_or_else(|| Error::Unsupported("deepseek_v41: drafting needs the DSpark stages and the runtime's spec option".into()))?;
         let (t, pos0) = (m.block_size, st.len);
         if pos0 == 0 || pos0 + t > self.opts.cap {
@@ -580,22 +610,24 @@ impl Dsv41Runtime {
         let build = || if dpos { build_draft_dpos(&self.cfg, &*self.shapes, o, self.opts.tp) } else { build_draft(&self.cfg, &*self.shapes, o, self.opts.tp) };
         let mut replayed = None;
         if dpos && self.graphs_on.load(std::sync::atomic::Ordering::Relaxed) {
-            replayed = self.run_captured(st, &ids, (t, GK_DRAFT), &[("host.dspark.idx", &idx)], rank0, p0, &build)?;
+            replayed = self.run_captured(st, &ids, (t, GK_DRAFT), &[("host.dspark.idx", &idx)], Want::from(rank0), p0, &build)?;
         }
         let logits = match replayed {
             Some(l) => l,
-            None => self.run_graph(&build()?, st, t, &ids, &[("host.dspark.idx", &idx)], rank0, p0)?,
-        };
+            None => self.run_graph(&build()?, st, t, &ids, &[("host.dspark.idx", &idx)], Want::from(rank0), p0)?,
+        }
+        .map(Out::logits);
         if !rank0 {
             return Ok(None);
         }
         let logits = logits.expect("logits");
         let v = logits.len() / t;
+        let steps = steps.clamp(1, t);
         let mut out = vec![first];
-        let mut embeds: Vec<Vec<f32>> = Vec::with_capacity(t);
+        let mut embeds: Vec<Vec<f32>> = Vec::with_capacity(steps);
         let mg = build_markov(&self.cfg, &*self.shapes, self.opts.act)?;
-        for i in 0..t {
-            let bias = self.run_graph(&mg, st, 1, &[], &[("host.dspark.markov_id", &(out[i] as i32).to_le_bytes())], true, Instant::now())?.expect("markov bias");
+        for i in 0..steps {
+            let bias = self.run_graph(&mg, st, 1, &[], &[("host.dspark.markov_id", &(out[i] as i32).to_le_bytes())], Want::Logits, Instant::now())?.expect("markov bias").logits();
             let ex = self.exec.lock().unwrap();
             let e = ex.ws.get("dspark.markov_e").ok_or_else(|| Error::backend("no workspace dspark.markov_e"))?.clone();
             let rank = mg.stages[0].steps[0].outputs[0].shape[1];
@@ -612,12 +644,12 @@ impl Dsv41Runtime {
         let hx = {
             let ex = self.exec.lock().unwrap();
             let b = ex.ws.get("dspark.hx").ok_or_else(|| Error::backend("no workspace dspark.hx"))?.clone();
-            let mut hb = vec![0u8; t * d * esz(self.opts.act)];
+            let mut hb = vec![0u8; steps * d * esz(self.opts.act)];
             self.backend.download(&b.buf, b.offset, &mut hb, 0)?;
             to_f32(&hb, self.opts.act)?
         };
         let w = &self.confidence;
-        let confidence = (0..t)
+        let confidence = (0..steps)
             .map(|r| {
                 let a: f32 = hx[r * d..(r + 1) * d].iter().zip(&w[..d]).map(|(x, y)| x * y).sum();
                 a + embeds[r].iter().zip(&w[d..]).map(|(x, y)| x * y).sum::<f32>()
@@ -645,13 +677,13 @@ impl Dsv41Runtime {
             DType::Bf16 => main_hidden.iter().flat_map(|&v| half::bf16::from_f32(v).to_le_bytes()).collect(),
             d => return Err(Error::invalid(format!("deepseek_v41: absorb in {d}"))),
         };
-        self.run_graph(&g, st, t, &[], &[("host.dspark.mh", &b)], false, Instant::now())?;
+        self.run_graph(&g, st, t, &[], &[("host.dspark.mh", &b)], Want::Nothing, Instant::now())?;
         st.commit(&vec![0; t]);
         Ok(())
     }
 
     /// One pass of `t = ids.len()` rows at position `st.len`.
-    fn pass(&self, st: &mut SequenceState, ids: &[u32], want_logits: bool, all_rows: bool) -> Result<Option<Vec<f32>>> {
+    fn pass(&self, st: &mut SequenceState, ids: &[u32], want: Want, all_rows: bool) -> Result<Option<Out>> {
         let (t, pos0) = (ids.len(), st.len);
         let p0 = Instant::now();
         let dpos = self.dpos.load(std::sync::atomic::Ordering::Relaxed) && t <= VERIFY_MAX_ROWS;
@@ -660,12 +692,12 @@ impl Dsv41Runtime {
             let key = (t, if all_rows { GK_VERIFY } else { GK_PASS });
             // the graph does not depend on the host position: built at 0, it serves every position
             let build = || build_pass(&self.cfg, &*self.shapes, GraphOpts { t, pos0: 0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp, k);
-            if let Some(r) = self.run_captured(st, ids, key, &[], want_logits, p0, &build)? {
+            if let Some(r) = self.run_captured(st, ids, key, &[], want, p0, &build)? {
                 return Ok(r);
             }
         }
         let g = build_pass(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp, k)?;
-        self.run_graph(&g, st, t, ids, &[], want_logits, p0)
+        self.run_graph(&g, st, t, ids, &[], want, p0)
     }
 
     /// Host inputs of a pass: token ids, the extras, the device position (when a step reads it).
@@ -725,26 +757,34 @@ impl Dsv41Runtime {
         self.backend.upload(&b.buf, 0, &rec, 0)
     }
 
-    /// The logits of a pass that ran (a device sync), and its timing.
-    fn finish_pass(&self, ex: &Exec, g: &Dsv41Graph, st: &SequenceState, t: usize, want_logits: bool, mut stats: PassStats, e0: Instant, p0: Instant) -> Result<Option<Vec<f32>>> {
+    /// The logits (or argmax ids) of a pass that ran (a device sync), and its timing.
+    fn finish_pass(&self, ex: &Exec, g: &Dsv41Graph, st: &SequenceState, t: usize, want: Want, mut stats: PassStats, e0: Instant, p0: Instant) -> Result<Option<Out>> {
         stats.enqueue_us = e0.elapsed().as_micros() as u64;
-        if !want_logits {
+        if want == Want::Nothing {
             stats.total_us = p0.elapsed().as_micros() as u64;
             self.note_pass(t, stats);
             return Ok(None);
         }
         self.touch();
-        let lt = self.view(ex, &g.logits, st, t)?;
+        let src = match want {
+            Want::Ids => g.ids.as_ref().ok_or_else(|| Error::invalid("deepseek_v41: the graph has no argmax ids"))?,
+            _ => &g.logits,
+        };
+        let lt = self.view(ex, src, st, t)?;
         let mut bytes = vec![0u8; lt.nbytes()];
         self.backend.download(&lt.buf, lt.offset, &mut bytes, 0)?;
         stats.total_us = p0.elapsed().as_micros() as u64;
         self.note_pass(t, stats);
-        Ok(Some(bytes.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect()))
+        Ok(Some(if want == Want::Ids {
+            Out::Ids(bytes.chunks_exact(4).map(|c| i32::from_le_bytes(c.try_into().unwrap()) as u32).collect())
+        } else {
+            Out::Logits(bytes.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect())
+        }))
     }
 
     /// Run graph `g` on `st` (its `t` rows at `st.len`): token ids `ids` (empty: none), the extra host inputs `host`
     /// (`(workspace name, bytes)`), Engram rows for the graph's Engram layers. Returns the graph's logits when asked.
-    fn run_graph(&self, g: &Dsv41Graph, st: &SequenceState, t: usize, ids: &[u32], host: &[(&str, &[u8])], want_logits: bool, p0: Instant) -> Result<Option<Vec<f32>>> {
+    fn run_graph(&self, g: &Dsv41Graph, st: &SequenceState, t: usize, ids: &[u32], host: &[(&str, &[u8])], want: Want, p0: Instant) -> Result<Option<Out>> {
         if !ids.is_empty() && ids.len() != t {
             return Err(Error::invalid(format!("deepseek_v41: {} ids for a graph of {t} rows", ids.len())));
         }
@@ -760,7 +800,7 @@ impl Dsv41Runtime {
             }
             self.run_stage(&mut ex, si, stage, st, t)?;
         }
-        self.finish_pass(&ex, g, st, t, want_logits, stats, e0, p0)
+        self.finish_pass(&ex, g, st, t, want, stats, e0, p0)
     }
 
     /// A device-position pass as CUDA graph replays (`INTARSIA_DSV41_GRAPHS=1`). `None`: run it eagerly instead (the
@@ -772,10 +812,10 @@ impl Dsv41Runtime {
         ids: &[u32],
         key: (usize, u8),
         host: &[(&str, &[u8])],
-        want_logits: bool,
+        want: Want,
         p0: Instant,
         build: &dyn Fn() -> Result<Dsv41Graph>,
-    ) -> Result<Option<Option<Vec<f32>>>> {
+    ) -> Result<Option<Option<Out>>> {
         let t = ids.len();
         let mut gs = self.graphs.lock().unwrap();
         if !gs.warm.contains(&key) {
@@ -836,7 +876,7 @@ impl Dsv41Runtime {
                 }
             }
         }
-        let out = self.finish_pass(&ex, &c.g, st, t, want_logits, stats, e0, p0)?;
+        let out = self.finish_pass(&ex, &c.g, st, t, want, stats, e0, p0)?;
         gs.replays[key.1 as usize] += 1;
         Ok(Some(out))
     }
@@ -1274,11 +1314,52 @@ impl crate::tp_remote::RankModel for Dsv41Runtime {
         st.len
     }
     fn verify_rank(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
-        self.forward_rows(st, ids).map(|_| ())
+        self.forward_rows_ids(st, ids).map(|_| ())
     }
     fn draft_rank(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
         let first = *ids.first().ok_or_else(|| Error::invalid("deepseek_v41: a drafting round without its first id"))?;
         self.draft(st, first).map(|_| ())
+    }
+}
+
+/// What a pass hands back to the host.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Want {
+    /// Nothing (no device sync).
+    Nothing,
+    /// The graph's `logits`.
+    Logits,
+    /// The graph's `ids` (the argmax of every logits row).
+    Ids,
+}
+
+impl From<bool> for Want {
+    fn from(logits: bool) -> Want {
+        if logits {
+            Want::Logits
+        } else {
+            Want::Nothing
+        }
+    }
+}
+
+enum Out {
+    Logits(Vec<f32>),
+    Ids(Vec<u32>),
+}
+
+impl Out {
+    fn logits(self) -> Vec<f32> {
+        match self {
+            Out::Logits(l) => l,
+            Out::Ids(_) => unreachable!("ids where logits were asked"),
+        }
+    }
+    fn ids(self) -> Vec<u32> {
+        match self {
+            Out::Ids(i) => i,
+            Out::Logits(_) => unreachable!("logits where ids were asked"),
+        }
     }
 }
 

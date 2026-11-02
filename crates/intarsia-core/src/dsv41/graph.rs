@@ -115,6 +115,10 @@ pub struct Dsv41Graph {
     /// The full-vocabulary f32 logits of the last row (`[1, vocab]`), after the head (and its gather under tensor
     /// parallelism).
     pub logits: Arg,
+    /// The argmax of every row of `logits` (`[rows]` i32; first index of the strict maximum, as
+    /// `sampler::argmax`), when the graph computes it: a verify pass ([`PassKind::all_rows`]). Lets the host download
+    /// `rows` ints instead of `rows * vocab` floats.
+    pub ids: Option<Arg>,
     /// Tensor-parallel group size the graph was built for (1: one rank).
     pub world: usize,
 }
@@ -664,10 +668,17 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     let rows = if k.all_rows { t } else { 1 };
     let src = if rows == 1 { Arg { buf: Buf::Ws("n.last_row".into()), dtype: act, shape: vec![1, d] } } else { ws("n", act, &[t, d]) };
     let logits = head_logits(&mut b, src, "logits")?;
+    let ids = if k.all_rows {
+        let ids = ws("verify.ids", DType::I32, &[rows]);
+        b.push(Op::Argmax, "argmax(verify)", vec![logits.clone()], vec![ids.clone()], OpAttrs::default());
+        Some(ids)
+    } else {
+        None
+    };
     let head = b.stage("head".into(), None, vec!["hc_pre".into(), "norm".into(), if rows == 1 { "head".into() } else { format!("head x{rows}") }]);
     stages.push(head);
 
-    Ok(Dsv41Graph { stages, slots: slot_specs, residual_streams: s, mtp: mtp_blocks(c, w), cap: o.cap, logits, world: tp.world })
+    Ok(Dsv41Graph { stages, slots: slot_specs, residual_streams: s, mtp: mtp_blocks(c, w), cap: o.cap, logits, ids, world: tp.world })
 }
 
 /// The full-vocabulary f32 logits of the rows of `x` (`[rows, dim]`) through `head`, gathered over the ranks
@@ -704,7 +715,7 @@ pub fn build_absorb(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Gra
     dspark_absorb(&mut b, mh, &rings)?;
     let st = b.stage("dspark absorb".into(), None, vec![format!("main_proj + {} stage rings", rings.len())]);
     let logits = ws("dspark.mxn", o.act, &[o.t, c.dim]);
-    Ok(Dsv41Graph { stages: vec![st], slots: slot_specs, residual_streams: c.hc_mult, mtp: mtp_blocks(c, w), cap: o.cap, logits, world: tp.world })
+    Ok(Dsv41Graph { stages: vec![st], slots: slot_specs, residual_streams: c.hc_mult, mtp: mtp_blocks(c, w), cap: o.cap, logits, ids: None, world: tp.world })
 }
 
 /// `main_x = main_norm(main_proj(main_hidden))` of the chunk's rows, then per stage `i` the window KV of every row
@@ -825,7 +836,7 @@ fn draft_graph(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp,
     let nh = b.rmsnorm(hx, &format!("mtp.{last}.norm.weight"), "n")?;
     let logits = head_logits(&mut b, nh, "dspark.logits")?;
     stages.push(b.stage("dspark head".into(), None, vec!["hc_pre".into(), "norm".into(), format!("head x{t}")]));
-    Ok(Dsv41Graph { stages, slots: slot_specs, residual_streams: s, mtp: mtp_blocks(c, w), cap: o.cap, logits, world: tp.world })
+    Ok(Dsv41Graph { stages, slots: slot_specs, residual_streams: s, mtp: mtp_blocks(c, w), cap: o.cap, logits, ids: None, world: tp.world })
 }
 
 /// `DSparkAttention.forward` (start_pos > 0) of stage `i` on the block's normed rows `n`: q and the block's KV rotated at
@@ -885,7 +896,7 @@ pub fn build_markov(c: &Dsv41Config, w: &dyn WeightShapes, act: DType) -> Result
     b.push(Op::Embedding, format!("{p}.embed"), vec![arg(Buf::Host("dspark.markov_id".into()), DType::I32, &[1]), emb], vec![e.clone()], OpAttrs::default());
     let logits = b.matmul(e, &format!("{p}.head"), Buf::Ws("dspark.markov_bias".into()), DType::F32)?;
     let st = b.stage("dspark markov".into(), None, vec!["embed".into(), "head".into()]);
-    Ok(Dsv41Graph { stages: vec![st], slots: Vec::new(), residual_streams: c.hc_mult, mtp: Vec::new(), cap: 1, logits, world: 1 })
+    Ok(Dsv41Graph { stages: vec![st], slots: Vec::new(), residual_streams: c.hc_mult, mtp: Vec::new(), cap: 1, logits, ids: None, world: 1 })
 }
 
 /// The attention of layer `l` (`Attention.forward`); returns its `[t, dim]` output.

@@ -368,6 +368,13 @@ impl SpecStats {
     }
 }
 
+/// One row of next-token scores: the logits, or (a speculative verify row whose logits nothing reads) the token the
+/// device already took from them (first index of the maximum).
+enum Row {
+    Logits(Vec<f32>),
+    Tok(u32),
+}
+
 struct Job {
     req: GenRequest,
     tx: Sender<GenEvent>,
@@ -401,11 +408,11 @@ impl Worker {
 
     /// One DSpark drafting round on both ranks after the sequence's last row, `first` the round's first token: the
     /// drafts rank 0 chose (`ids[1..]`) and their confidences.
-    fn draft(&mut self, first: u32) -> Result<Draft> {
+    fn draft(&mut self, first: u32, steps: usize) -> Result<Draft> {
         if let Some(r) = &self.remote {
             r.start_draft(&[first])?;
         }
-        let out = self.rt.draft(&self.st, first);
+        let out = self.rt.draft_steps(&self.st, first, steps);
         if let Some(r) = &mut self.remote {
             let rr = r.finish();
             if out.is_ok() {
@@ -415,12 +422,17 @@ impl Worker {
         out?.ok_or_else(|| Error::backend("deepseek_v41: rank 0 got no draft"))
     }
 
-    /// A verify pass on both ranks (appended to the sequence): every row's logits.
-    fn verify(&mut self, ids: &[u32]) -> Result<Vec<Vec<f32>>> {
+    /// A verify pass on both ranks (appended to the sequence): every row's logits, or (`logits` false) every row's
+    /// argmax computed on the device (nothing else is read back).
+    fn verify(&mut self, ids: &[u32], logits: bool) -> Result<Vec<Row>> {
         if let Some(r) = &self.remote {
             r.start_verify(ids)?;
         }
-        let out = self.rt.forward_rows(&mut self.st, ids);
+        let out = if logits {
+            self.rt.forward_rows(&mut self.st, ids).map(|rows| rows.into_iter().map(Row::Logits).collect())
+        } else {
+            self.rt.forward_rows_ids(&mut self.st, ids).map(|t| t.into_iter().map(Row::Tok).collect())
+        };
         if let Some(r) = &mut self.remote {
             let rr = r.finish();
             if out.is_ok() {
@@ -432,23 +444,23 @@ impl Worker {
 
     /// The logits rows after `tok` (not yet in the sequence): with speculation a drafting round and a verify pass of
     /// `[tok, drafts..]` (each row tagged with the draft it checks; the last row checks none), else a plain step.
-    fn next_rows(&mut self, tok: u32, spec: Option<SpecOpts>, stats: &mut SpecStats) -> Result<VecDeque<(Vec<f32>, Option<u32>)>> {
+    fn next_rows(&mut self, tok: u32, spec: Option<SpecOpts>, stats: &mut SpecStats, logits: bool) -> Result<VecDeque<(Row, Option<u32>)>> {
         let room = self.rt.opts.cap.saturating_sub(self.st.len + 1);
         if let Some(sp) = spec.filter(|_| room >= 2) {
             stats.end_round(sp.trace);
-            let d = self.draft(tok)?;
+            let d = self.draft(tok, sp.k)?;
             let mut k = d.confidence.iter().take(sp.k).take_while(|&&c| c >= sp.min_conf).count().max(1).min(sp.k).min(room - 1);
             k = k.min(d.ids.len() - 1);
             stats.conf.extend_from_slice(&d.confidence[..k.min(d.confidence.len())]);
             let mut ids = vec![tok];
             ids.extend_from_slice(&d.ids[1..=k]);
-            let rows = self.verify(&ids)?;
+            let rows = self.verify(&ids, logits)?;
             stats.rounds += 1;
             stats.drafted += k;
             return Ok(rows.into_iter().enumerate().map(|(i, r)| (r, ids.get(i + 1).copied())).collect());
         }
         let l = self.forward(&[tok], true)?.expect("logits");
-        Ok(VecDeque::from([(l, None)]))
+        Ok(VecDeque::from([(Row::Logits(l), None)]))
     }
 
     /// Roll both ranks back to `len` tokens.
@@ -500,7 +512,7 @@ impl Worker {
         // argmax, so the reply is the target model's own greedy reply, up to verify-row numerics)
         let spec = self.spec.filter(|_| req.temperature <= 0.0 && req.constraint.is_none() && req.trace_logits.is_none());
         let mut stats = SpecStats::default();
-        let mut rows: VecDeque<(Vec<f32>, Option<u32>)> = VecDeque::from([(self.forward(&req.prompt[keep..].to_vec(), true)?.expect("logits"), None)]);
+        let mut rows: VecDeque<(Row, Option<u32>)> = VecDeque::from([(Row::Logits(self.forward(&req.prompt[keep..].to_vec(), true)?.expect("logits")), None)]);
         let prefill = t0.elapsed();
         let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
         let mut sampler = Sampler::new(params, req.seed);
@@ -517,7 +529,11 @@ impl Worker {
         let finish;
         let mut stop_seq = None;
         loop {
-            let (mut logits, expect) = rows.pop_front().expect("a logits row");
+            let (row, expect) = rows.pop_front().expect("a logits row");
+            let tok = match row {
+              // a verify row whose argmax the device computed (no trace, mask or constraint applies: `next_rows`)
+              Row::Tok(t) => t,
+              Row::Logits(mut logits) => {
             if let Some(tl) = &req.trace_logits {
                 tl.lock().unwrap().push(logits.clone());
             }
@@ -536,7 +552,9 @@ impl Worker {
                     return Err(Error::Other("structured output: the constraint allows no token here".into()));
                 }
             }
-            let tok = if req.temperature <= 0.0 { intarsia_core::sampler::argmax(&logits) as u32 } else { sampler.sample(&logits) as u32 };
+            if req.temperature <= 0.0 { intarsia_core::sampler::argmax(&logits) as u32 } else { sampler.sample(&logits) as u32 }
+              }
+            };
             n += 1;
             // a verify row: its draft accepted (already in the sequence), or the first rejection (the rows after it and
             // the sequence past it are dropped)
@@ -582,7 +600,9 @@ impl Worker {
                 break;
             }
             if !in_seq {
-                rows = self.next_rows(tok, spec, &mut stats)?;
+                // device argmax unless something reads the logits of the rows to come: the min_tokens mask (applies while `n` is
+                // below it; a row consumed later sees a larger `n`), a constraint or a logits trace (neither speculates)
+                rows = self.next_rows(tok, spec, &mut stats, n < req.min_tokens)?;
             }
         }
         // drafts past the reply's end stay out of the sequence (the next request's prefix match sees the reply only)
