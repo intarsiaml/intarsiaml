@@ -317,6 +317,23 @@ pub fn forward_block(xh: &[f64], m: usize, k: usize, n: usize, trellis: &[u8], s
     acc
 }
 
+/// [`forward`] of an f64 input (no f32 rounding of `x`).
+pub fn forward64(x: &[f64], m: usize, k: usize, n: usize, trellis: &[u8], suh: &[f64], svh: &[f64], k2: usize, cb: Codebook) -> Vec<f64> {
+    let mut xh: Vec<f64> = x.iter().zip(suh.iter().cycle()).map(|(a, s)| a * s).collect();
+    debug_assert_eq!(xh.len(), m * k);
+    for blk in xh.chunks_exact_mut(HAD) {
+        fwht128(blk);
+    }
+    let mut y = vec![0f64; m * n];
+    for nb in 0..n / HAD {
+        let blk = forward_block(&xh, m, k, n, trellis, svh, nb, k2, cb);
+        for mi in 0..m {
+            y[mi * n + nb * HAD..mi * n + nb * HAD + HAD].copy_from_slice(&blk[mi * HAD..(mi + 1) * HAD]);
+        }
+    }
+    y
+}
+
 /// `y = x @ W` `[m, n]` in f64 (the reference of `Op::MatmulExl3`), single-threaded.
 pub fn forward(x: &[f32], m: usize, k: usize, n: usize, trellis: &[u8], suh: &[f64], svh: &[f64], k2: usize, cb: Codebook) -> Vec<f64> {
     let xh = rotate_input(x, m, k, suh);
@@ -336,6 +353,109 @@ pub fn k2_of(shape: &[usize]) -> Option<usize> {
     (shape.len() == 3 && last % 8 == 0 && valid_k2_any(last / 8)).then_some(last / 8)
 }
 
+/// Tensor parallelism: this rank's `((k0, k_len), (n0, n_len))` of a checkpoint weight `[K, N]` (engine `[n, k]`).
+///
+/// `W = diag(suh) H_K W_q H_N diag(svh)` with `H` block-diagonal in 128-point blocks and every 16x16 tile of `W_q` its own
+/// bit stream, so cutting `K` or `N` at a multiple of 128 cuts nothing else: the slice is again an EXL3 layer (the rank's
+/// trellis tiles with its part of `suh` / `svh`), and `x[:, k-slice] @ W[k-slice, :]` summed over the ranks is `x @ W`
+/// up to the order of the f32 sums. A cut anywhere else would split a Hadamard block, which no slice of the stored
+/// tensors can represent, so it is refused:
+/// - [`ShardAxis::Rows`] (engine output features, column-parallel) splits `N`: each rank needs `N / world` a multiple of 128;
+/// - [`ShardAxis::Cols`] (engine input features, row-parallel) splits `K`: each rank needs `K / world` a multiple of 128
+///   (DeepSeek-V4.1 `w2` at TP=2: 2304 = 2 x 9 x 128);
+/// - [`ShardAxis::RowGroups`] is refused (no EXL3 checkpoint fuses projections into one trellis).
+///
+/// [`ShardAxis::Rows`]: crate::weights::ShardAxis::Rows
+/// [`ShardAxis::Cols`]: crate::weights::ShardAxis::Cols
+/// [`ShardAxis::RowGroups`]: crate::weights::ShardAxis::RowGroups
+pub fn shard_ranges(
+    k: usize,
+    n: usize,
+    sh: crate::weights::Shard,
+    name: &str,
+) -> Result<((usize, usize), (usize, usize))> {
+    use crate::weights::ShardAxis;
+    let w = sh.world;
+    let refuse = |why: String| {
+        Err(Error::Unsupported(format!(
+            "tensor parallelism: exl3 '{name}' [K={k}, N={n}] cannot be split {:?} into {w} parts (rank {}): {why}",
+            sh.axis, sh.rank
+        )))
+    };
+    if w == 0 || sh.rank >= w {
+        return refuse("bad rank / world".into());
+    }
+    let (dim, what) = match sh.axis {
+        ShardAxis::Rows => (n, "N (output features)"),
+        ShardAxis::Cols => (k, "K (input features)"),
+        ShardAxis::RowGroups(_) => return refuse("grouped row splits are not implemented for EXL3".into()),
+    };
+    if dim % w != 0 || (dim / w) % HAD != 0 {
+        return refuse(format!(
+            "each rank's share of {what} must be a multiple of {HAD} (the Hadamard block): {dim} / {w} = {}",
+            dim as f64 / w as f64
+        ));
+    }
+    let part = dim / w;
+    Ok(match sh.axis {
+        ShardAxis::Rows => ((0, k), (sh.rank * part, part)),
+        _ => ((sh.rank * part, part), (0, n)),
+    })
+}
+
+/// The tiles of trellis bytes `[K/16, N/16, 16*k2]` (`trellis`, the whole tensor) for k range `(k0, kl)` and n range
+/// `(n0, nl)` (multiples of 16), as a contiguous `[kl/16, nl/16, 16*k2]` tensor.
+pub fn shard_trellis(
+    trellis: &[u8],
+    k: usize,
+    n: usize,
+    k2: usize,
+    (k0, kl): (usize, usize),
+    (n0, nl): (usize, usize),
+) -> Result<Vec<u8>> {
+    let tb = tile_bytes(k2);
+    let row = (n / TILE) * tb;
+    if trellis.len() != (k / TILE) * row
+        || k0 % TILE != 0
+        || kl % TILE != 0
+        || n0 % TILE != 0
+        || nl % TILE != 0
+        || k0 + kl > k
+        || n0 + nl > n
+    {
+        return Err(Error::invalid(format!("exl3 trellis slice k {k0}+{kl} n {n0}+{nl} of [{k}, {n}] at k2={k2}")));
+    }
+    let mut out = Vec::with_capacity((kl / TILE) * (nl / TILE) * tb);
+    for a in k0 / TILE..(k0 + kl) / TILE {
+        out.extend_from_slice(&trellis[a * row + (n0 / TILE) * tb..a * row + ((n0 + nl) / TILE) * tb]);
+    }
+    Ok(out)
+}
+
+/// This rank's slice of a host EXL3 layer (parts `[trellis, suh, svh, codebook]`), as [`Exl3::load`] cuts it on load.
+pub fn shard_host(q: &HostQTensor, sh: crate::weights::Shard) -> Result<HostQTensor> {
+    let (k, n, k2, _) = host_meta(&q.parts);
+    let ((k0, kl), (n0, nl)) = shard_ranges(k, n, sh, "host")?;
+    let tr = shard_trellis(&q.parts[0].data, k, n, k2, (k0, kl), (n0, nl))?;
+    let f16s = |t: &HostTensor, o: usize, l: usize| HostTensor {
+        dtype: DType::F16,
+        shape: vec![l],
+        data: t.data[2 * o..2 * (o + l)].to_vec(),
+    };
+    Ok(HostQTensor {
+        format: EXL3,
+        n: nl,
+        k: kl,
+        parts: vec![
+            HostTensor { dtype: DType::I16, shape: vec![kl / TILE, nl / TILE, 8 * k2], data: tr },
+            f16s(&q.parts[1], k0, kl),
+            f16s(&q.parts[2], n0, nl),
+            q.parts[3].clone(),
+        ],
+        act_quant: false,
+    })
+}
+
 /// (k, n, k2, codebook) of host parts `[trellis, suh, svh, codebook]`.
 fn host_meta(parts: &[HostTensor]) -> (usize, usize, usize, Codebook) {
     let s = &parts[0].shape;
@@ -347,6 +467,70 @@ fn host_meta(parts: &[HostTensor]) -> (usize, usize, usize, Codebook) {
 pub fn dequant_parts(parts: &[HostTensor]) -> Vec<f32> {
     let (k, n, k2, cb) = host_meta(parts);
     dequant_t(&parts[0].data, &f16_bytes(&parts[1].data), &f16_bytes(&parts[2].data), k, n, k2, cb).into_iter().map(|v| v as f32).collect()
+}
+
+/// Shape, width and codebook of the EXL3 layer at `meta` (validated: an i16 trellis of an EXL3 width with K and N multiples of
+/// 128, at most one codebook marker holding the multiplier exllamav3 writes, no bias).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct LayerMeta {
+    pub k: usize,
+    pub n: usize,
+    pub k2: usize,
+    pub cb: Codebook,
+}
+
+pub fn layer_meta(meta: &WeightMeta) -> Result<LayerMeta> {
+    let p = meta.prefix;
+    let fail = |why: String| Error::model(format!("exl3 '{p}': {why}"));
+    let ti = meta.info("trellis").ok_or_else(|| fail("no .trellis".into()))?;
+    if ti.dtype != DType::I16 || ti.shape.len() != 3 {
+        return Err(fail(format!("trellis must be i16 [K/16, N/16, 16*bits], got {} {:?}", ti.dtype, ti.shape)));
+    }
+    let k2 = k2_of(&ti.shape).ok_or_else(|| fail(format!("trellis last dim {} is no EXL3 width", ti.shape[2])))?;
+    let (k, n) = (16 * ti.shape[0], 16 * ti.shape[1]);
+    if k % HAD != 0 || n % HAD != 0 {
+        return Err(fail(format!("K={k} and N={n} must be multiples of {HAD} (the Hadamard blocks)")));
+    }
+    if meta.info("bias").is_some() {
+        return Err(Error::Unsupported(format!("exl3 '{p}': a bias next to the trellis is not implemented")));
+    }
+    // the codebook: at most one marker, and it must hold the multiplier exllamav3 writes
+    let mut cb = Codebook::Inst3;
+    for c in [Codebook::Mcg, Codebook::Mul1] {
+        let (suffix, want) = c.marker().unwrap();
+        if let Some(mi) = meta.info(suffix) {
+            if cb != Codebook::Inst3 {
+                return Err(fail("both mcg and mul1 markers".into()));
+            }
+            let b = meta.src.bytes(&format!("{p}.{suffix}"))?;
+            if mi.dtype != DType::I32 || b.len() != 4 || u32::from_le_bytes([b[0], b[1], b[2], b[3]]) != want {
+                return Err(fail(format!(".{suffix} marker must be the i32 scalar {want:#x}")));
+            }
+            cb = c;
+        }
+    }
+    if !valid_k2(k2, cb) {
+        return Err(fail(format!("{}-bit tiles need the mul1 codebook, found {}", k2 as f64 / 2.0, cb.name())));
+    }
+    Ok(LayerMeta { k, n, k2, cb })
+}
+
+/// f16 bytes of the scale vector `{prefix}.{full}` (or the packed signs `{prefix}.{packed}`, unpacked), elements
+/// `[off, off + len)` of its `total`.
+pub fn scale_bytes(meta: &WeightMeta, full: &str, packed: &str, total: usize, off: usize, len: usize) -> Result<Vec<u8>> {
+    let p = meta.prefix;
+    let fail = |why: String| Error::model(format!("exl3 '{p}': {why}"));
+    if let Some(i) = meta.info(full) {
+        if i.dtype != DType::F16 || i.shape != [total] {
+            return Err(fail(format!(".{full} must be f16 [{total}], got {} {:?}", i.dtype, i.shape)));
+        }
+        return Ok(meta.src.bytes(&format!("{p}.{full}"))?[2 * off..2 * (off + len)].to_vec());
+    }
+    let i = meta.info(packed).ok_or_else(|| fail(format!("no .{full} or .{packed}")))?;
+    if i.dtype != DType::I16 || i.shape != [total / 16] {
+        return Err(fail(format!(".{packed} must be i16 [{}], got {} {:?}", total / 16, i.dtype, i.shape)));
+    }
+    Ok(unpack_signs(meta.src.bytes(&format!("{p}.{packed}"))?)[2 * off..2 * (off + len)].to_vec())
 }
 
 /// The `exl3` quantisation format (ExLlamaV3 checkpoints, `quant_method = "exl3"`).
@@ -362,58 +546,28 @@ impl QuantFormat for Exl3 {
     }
 
     fn load(&self, meta: &WeightMeta, backend: &dyn Backend, opts: &QuantLoadOpts) -> Result<QTensor> {
-        opts.refuse_shard("EXL3", meta.prefix)?;
         let p = meta.prefix;
-        let fail = |why: String| Error::model(format!("exl3 '{p}': {why}"));
-        let ti = meta.info("trellis").ok_or_else(|| fail("no .trellis".into()))?;
-        if ti.dtype != DType::I16 || ti.shape.len() != 3 {
-            return Err(fail(format!("trellis must be i16 [K/16, N/16, 16*bits], got {} {:?}", ti.dtype, ti.shape)));
-        }
-        let k2 = k2_of(&ti.shape).ok_or_else(|| fail(format!("trellis last dim {} is no EXL3 width", ti.shape[2])))?;
-        let (k, n) = (16 * ti.shape[0], 16 * ti.shape[1]);
-        if k % HAD != 0 || n % HAD != 0 {
-            return Err(fail(format!("K={k} and N={n} must be multiples of {HAD} (the Hadamard blocks)")));
-        }
-        if meta.info("bias").is_some() {
-            return Err(Error::Unsupported(format!("exl3 '{p}': a bias next to the trellis is not implemented")));
-        }
-        // the codebook: at most one marker, and it must hold the multiplier exllamav3 writes
-        let mut cb = Codebook::Inst3;
-        for c in [Codebook::Mcg, Codebook::Mul1] {
-            let (suffix, want) = c.marker().unwrap();
-            if let Some(mi) = meta.info(suffix) {
-                if cb != Codebook::Inst3 {
-                    return Err(fail("both mcg and mul1 markers".into()));
-                }
-                let b = meta.src.bytes(&format!("{p}.{suffix}"))?;
-                if mi.dtype != DType::I32 || b.len() != 4 || u32::from_le_bytes([b[0], b[1], b[2], b[3]]) != want {
-                    return Err(fail(format!(".{suffix} marker must be the i32 scalar {want:#x}")));
-                }
-                cb = c;
-            }
-        }
-        if !valid_k2(k2, cb) {
-            return Err(fail(format!("{}-bit tiles need the mul1 codebook, found {}", k2 as f64 / 2.0, cb.name())));
-        }
-        let scales = |full: &str, packed: &str, len: usize| -> Result<TensorRef> {
-            if let Some(i) = meta.info(full) {
-                if i.dtype != DType::F16 || i.shape != [len] {
-                    return Err(fail(format!(".{full} must be f16 [{len}], got {} {:?}", i.dtype, i.shape)));
-                }
-                return crate::weights::load_tensor(backend, meta.src, &format!("{p}.{full}"), Some(&[len]));
-            }
-            let i = meta.info(packed).ok_or_else(|| fail(format!("no .{full} or .{packed}")))?;
-            if i.dtype != DType::I16 || i.shape != [len / 16] {
-                return Err(fail(format!(".{packed} must be i16 [{}], got {} {:?}", len / 16, i.dtype, i.shape)));
-            }
-            let f = unpack_signs(meta.src.bytes(&format!("{p}.{packed}"))?);
-            Ok(TensorRef::new(upload_new(backend, &f)?, DType::F16, &[len]))
+        let LayerMeta { k, n, k2, cb } = layer_meta(meta)?;
+        // tensor parallelism: this rank's (k range, n range) of the checkpoint `[K, N]` (see [`shard_ranges`])
+        let ((k0, kl), (n0, nl)) = match opts.shard {
+            Some(sh) => shard_ranges(k, n, sh, p)?,
+            None => ((0, k), (0, n)),
         };
-        let suh = scales("suh", "su", k)?;
-        let svh = scales("svh", "sv", n)?;
-        let tr = crate::weights::load_tensor(backend, meta.src, &format!("{p}.trellis"), None)?;
+        let scale_bytes = |full: &str, packed: &str, total: usize, off: usize, len: usize| scale_bytes(meta, full, packed, total, off, len);
+        let up = |b: &[u8], len: usize| -> Result<TensorRef> {
+            Ok(TensorRef::new(upload_new(backend, b)?, DType::F16, &[len]))
+        };
+        let suh = up(&scale_bytes("suh", "su", k, k0, kl)?, kl)?;
+        let svh = up(&scale_bytes("svh", "sv", n, n0, nl)?, nl)?;
+        let tname = format!("{p}.trellis");
+        let tr = if opts.shard.is_none() {
+            crate::weights::load_tensor(backend, meta.src, &tname, None)?
+        } else {
+            let part = shard_trellis(meta.src.bytes(&tname)?, k, n, k2, (k0, kl), (n0, nl))?;
+            TensorRef::new(upload_new(backend, &part)?, DType::I16, &[kl / TILE, nl / TILE, 8 * k2])
+        };
         let cbt = TensorRef::new(upload_new(backend, &(cb as i32).to_le_bytes())?, DType::I32, &[1]);
-        Ok(QTensor { format: EXL3, n, k, parts: vec![tr, suh, svh, cbt], act_fp8: false, act_quant: false })
+        Ok(QTensor { format: EXL3, n: nl, k: kl, parts: vec![tr, suh, svh, cbt], act_fp8: false, act_quant: false })
     }
 
     fn dequant_ref(&self, q: &QTensor, backend: &dyn Backend) -> Result<HostTensor> {
@@ -743,6 +897,95 @@ mod tests {
             }
             assert_eq!(q.dequant().len(), n * k);
         }
+    }
+
+    /// Tensor-parallel slices: the column-parallel (N) slices' outputs side by side, and the row-parallel (K) slices' partial
+    /// outputs summed, are the whole layer's output (f64 noise only). DeepSeek-V4.1's expert shapes at TP=2 (w1/w3: K=5120
+    /// N=2304; w2: K=2304 N=5120, split K into 2 x 1152 = 2 x 9 x 128) and at TP=4/6 where they still split.
+    #[test]
+    fn shards_reassemble_the_whole_layer() {
+        use crate::weights::{Shard, ShardAxis};
+        let mut rng = SplitMix64::new(11);
+        for (n, k, k2, cb, world) in [
+            (2304usize, 5120usize, 6usize, Codebook::Mul1, 2usize),
+            (5120, 2304, 6, Codebook::Mul1, 2),
+            (5120, 2304, 4, Codebook::Mcg, 6),
+            (1024, 768, 10, Codebook::Inst3, 3),
+        ] {
+            let m = 2;
+            let q = random(&mut rng, n, k, k2, cb);
+            let x = rng.normal_vec(m * k, 1.0);
+            let f = |q: &HostQTensor, x: &[f32], kk: usize| {
+                forward(
+                    x,
+                    m,
+                    kk,
+                    q.n,
+                    &q.parts[0].data,
+                    &f16_bytes(&q.parts[1].data),
+                    &f16_bytes(&q.parts[2].data),
+                    k2,
+                    cb,
+                )
+            };
+            let full = f(&q, &x, k);
+            let scale = full.iter().fold(0f64, |a, v| a.max(v.abs()));
+            for axis in [ShardAxis::Rows, ShardAxis::Cols] {
+                let dim = if axis == ShardAxis::Rows { n } else { k };
+                if (dim / world) % HAD != 0 {
+                    continue;
+                }
+                let mut got = vec![0f64; m * n];
+                for rank in 0..world {
+                    let s = shard_host(&q, Shard { axis, rank, world }).unwrap();
+                    if axis == ShardAxis::Rows {
+                        assert_eq!((s.n, s.k), (n / world, k));
+                        let y = f(&s, &x, k);
+                        for mi in 0..m {
+                            got[mi * n + rank * s.n..mi * n + (rank + 1) * s.n]
+                                .copy_from_slice(&y[mi * s.n..(mi + 1) * s.n]);
+                        }
+                    } else {
+                        assert_eq!((s.n, s.k), (n, k / world));
+                        let xs: Vec<f32> =
+                            (0..m).flat_map(|mi| x[mi * k + rank * s.k..mi * k + (rank + 1) * s.k].to_vec()).collect();
+                        for (g, y) in got.iter_mut().zip(f(&s, &xs, s.k)) {
+                            *g += y;
+                        }
+                    }
+                }
+                let worst = got.iter().zip(&full).fold(0f64, |a, (g, w)| a.max((g - w).abs()));
+                assert!(worst <= 1e-12 * scale.max(1.0), "{axis:?} world {world} [{n}, {k}]: worst {worst:e}");
+            }
+        }
+    }
+
+    /// A split that would cut a 128-point Hadamard block is refused, naming the tensor and the rule.
+    #[test]
+    fn shards_off_the_hadamard_grid_are_refused() {
+        use crate::weights::{Shard, ShardAxis};
+        // N = 2304 over 4 ranks: 576 = 4.5 x 128; K = 5120 over 3 ranks: not even
+        let e =
+            shard_ranges(5120, 2304, Shard { axis: ShardAxis::Rows, rank: 0, world: 4 }, "layers.3.ffn.experts.0.w1")
+                .unwrap_err();
+        let msg = e.to_string();
+        assert!(msg.contains("layers.3.ffn.experts.0.w1") && msg.contains("multiple of 128"), "{msg}");
+        assert!(shard_ranges(5120, 2304, Shard { axis: ShardAxis::Cols, rank: 1, world: 3 }, "w").is_err());
+        assert!(shard_ranges(
+            5120,
+            2304,
+            Shard { axis: ShardAxis::RowGroups([1152, 1152, 0]), rank: 0, world: 2 },
+            "w"
+        )
+        .is_err());
+        assert_eq!(
+            shard_ranges(2304, 5120, Shard { axis: ShardAxis::Cols, rank: 1, world: 2 }, "w").unwrap(),
+            ((1152, 1152), (0, 5120))
+        );
+        assert_eq!(
+            shard_ranges(5120, 2304, Shard { axis: ShardAxis::Rows, rank: 1, world: 2 }, "w").unwrap(),
+            ((0, 5120), (1152, 1152))
+        );
     }
 
     #[test]

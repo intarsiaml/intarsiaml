@@ -1,0 +1,163 @@
+fleetq: #7260 running on spark1, spark2: scripts/tp2r/xg.sh
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+23:04:50 vLLM stopped on spark1
+23:05:21 vLLM stopped on spark2
+23:05:21 spark1 MemAvailable 112 GB
+23:05:21 spark2 MemAvailable 112 GB
+208 MHz, [N/A], 40, 3.83 W, 0 %
+23:05:22 arm tp1g r1: env[] worker[-] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45 --spec off ]
+tp1g r1 rc=0
+    4096     3966     0.555         7142        84.9      128
+   16384    16263     2.372         6857        77.7      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+23:06:34 arm tp2g r1: env[INTARSIA_TP_FUSION=0] worker[] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45 --tp 2 --tp-remote 10.100.152.3:29555 --spec off ]
+tp2g r1 rc=0
+    4096     4008     0.509         7880        90.4      128
+   16384    16273     2.149         7574        85.5      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 4 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2g-r1: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1042
+23:07:15   REPLAY-CHECK ok tp2g-r1
+23:07:15 arm tp2gf r1: env[INTARSIA_TP_FUSION=1] worker[] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45 --tp 2 --tp-remote 10.100.152.3:29555 --spec off ]
+tp2gf r1 rc=0
+    4096     4005     0.500         8009        98.4      128
+   16384    16279     2.135         7626        91.2      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 4 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2gf-r1: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1042
+23:07:53   REPLAY-CHECK ok tp2gf-r1
+23:07:53 arm tp1m r1: env[] worker[-] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45  ]
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+mtp: drafter head 'mtp' loaded in 1.2 s (routed experts quantised to nvfp4)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv
+tp1m r1 rc=0
+tp2r-tp1m-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      967     0.177         5459       104.3      128
+    4096     3985     0.566         7038       111.4      128
+   16384    16220     2.389         6790        91.5      128
+23:09:04 arm tp2gf r2: env[INTARSIA_TP_FUSION=1] worker[] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45 --tp 2 --tp-remote 10.100.152.3:29555 --spec off ]
+tp2gf r2 rc=0
+    4096     4002     0.509         7864        96.0      128
+   16384    16324     2.133         7653        89.9      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 3 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2gf-r2: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=915
+23:09:39   REPLAY-CHECK ok tp2gf-r2
+23:09:39 arm tp2g r2: env[INTARSIA_TP_FUSION=0] worker[] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45 --tp 2 --tp-remote 10.100.152.3:29555 --spec off ]
+tp2g r2 rc=0
+    4096     3980     0.508         7839        92.3      128
+   16384    16290     2.146         7590        87.0      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2g-r2: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=788
+23:10:10   REPLAY-CHECK ok tp2g-r2
+23:10:10 arm tp1g r2: env[] worker[-] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45 --spec off ]
+tp1g r2 rc=0
+    4096     3972     0.564         7042        84.6      128
+   16384    16313     2.378         6859        77.1      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+23:11:09 arm tp1g r3: env[] worker[-] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45 --spec off ]
+tp1g r3 rc=0
+    4096     4001     0.560         7150        84.5      128
+   16384    16242     2.373         6843        77.2      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 3 profiled eager steps (per-op profiling synchronises around every op)
+23:12:12 arm tp2g r3: env[INTARSIA_TP_FUSION=0] worker[] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45 --tp 2 --tp-remote 10.100.152.3:29555 --spec off ]
+tp2g r3 rc=0
+    4096     4002     0.508         7881        95.3      128
+   16384    16333     2.177         7503        88.6      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 4 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2g-r3: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1042
+23:12:51   REPLAY-CHECK ok tp2g-r3
+23:12:51 arm tp2gf r3: env[INTARSIA_TP_FUSION=1] worker[] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45 --tp 2 --tp-remote 10.100.152.3:29555 --spec off ]
+tp2gf r3 rc=0
+    4096     3995     0.503         7941        96.5      128
+   16384    16327     2.131         7662        90.9      128
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 4096: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+warning: size 16384: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+  rank1 tp2gf-r3: tensor-parallel rank 1: decode graph enabled=true captures=1 replays=788
+23:13:22   REPLAY-CHECK ok tp2gf-r3
+23:13:22 arm tp1m r3: env[] worker[-] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45  ]
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+mtp: drafter head 'mtp' loaded in 0.8 s (routed experts quantised to nvfp4)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv
+tp1m r3 rc=0
+tp2r-tp1m-r3  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      950     0.174         5444       103.1      128
+    4096     3932     0.559         7035       107.5      128
+   16384    16166     2.357         6857        93.2      128
+23:14:29 arm tp1s r1: env[] worker[-] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 8192 --mem-budget 40 --max-batch 16 --spec off ]
+tp1s r1 rc=0
+calibration: 50 base tokens, 21.98 tokens per filler sentence
+  size   1024 rep: prompt=962 gen=128 ttft=0.17s prefill=5569 tok/s decode=87.5 tok/s
+  size   1024 rep: prompt=948 gen=128 ttft=0.18s prefill=5301 tok/s decode=87.3 tok/s
+concurrency 4 at ~1024 prompt tokens
+concurrency 16 at ~1024 prompt tokens
+wrote /home/nvidia/intarsia-tp2/xout/tp2r-w1/tp1s-r1/tp2r-tp1s-r1.json
+tp2r-tp1s-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      955     0.176         5435        87.4      128
+
+ streams    TTFT s per-stream t/s  aggregate t/s
+       4     0.495           47.5          169.0
+      16     1.530           21.5          278.0
+warning: size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)
+23:15:47 arm tp2s r1: env[INTARSIA_TP_FUSION=0] worker[] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 8192 --mem-budget 40 --tp 2 --tp-remote 10.100.152.3:29555 --max-batch 16 --spec off --no-supervisor]
+23:15:53 arm tp2s r1: server did not come up (process exited: 1)
+rank0 serve.log
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 with tp=2 (rank 1 at 10.100.152.3:29555)
+    unsupported: batched decode needs a single-rank model or rank 0 of an in-process tensor-parallel group (no remote rank)
+---
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 with tp=2 (rank 1 at 10.100.152.3:29555)
+
+Caused by:
+    unsupported: batched decode needs a single-rank model or rank 0 of an in-process tensor-parallel group (no remote rank)
+NCCL version 2.30.7+cuda13.3
+rank1 worker log
+---
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+admission on plan shapes (rank 1): 28 kernel(s) checked, 4 case(s) run, 481 cached, rejected: []
+tensor-parallel rank 1 of 2: serving rank 0 (8192 tokens of context)
+tensor-parallel rank 1: decode graph enabled=true captures=0 replays=0
+tp-worker: rank 0 disconnected after 0 forward passes
+worker exit 0 (1)
+23:15:55 arm tp2mtp r1: env[] worker[--spec mtp] serve[-m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --max-seq 20480 --mem-budget 45 --tp 2 --tp-remote 10.100.152.3:29555 --spec mtp --no-supervisor]
+23:15:59 arm tp2mtp r1: server did not come up (process exited: 1)
+rank0 serve.log
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 with tp=2 (rank 1 at 10.100.152.3:29555)
+    unsupported: --spec mtp with a tensor-parallel rank in another process: the MTP drafter runs on in-process ranks only (--tp N on one host)
+---
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29555
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 with tp=2 (rank 1 at 10.100.152.3:29555)
+
+Caused by:
+    unsupported: --spec mtp with a tensor-parallel rank in another process: the MTP drafter runs on in-process ranks only (--tp N on one host)
+NCCL version 2.30.7+cuda13.3
+rank1 worker log
+---
+tp-worker: waiting for rank 0 on 10.100.152.3:29555
+tp-worker: rank 0 connected from 10.100.152.1:59282
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+23:16:00 == window done, 2626 s of the work budget left
+23:16:00 restore (exit 0)
+23:19:13 vLLM on spark1 serving again
+23:19:44 vLLM on spark2 serving again
+fleetq: #7260 done (exit 0); spark1-vllm, spark2-vllm must come back before others can use it

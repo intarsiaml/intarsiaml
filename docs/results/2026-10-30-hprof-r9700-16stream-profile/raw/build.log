@@ -1,0 +1,9 @@
+fleetq: #7272 running on tatooine-r9700: scripts/hprof/build.sh
+stamp: head=de2cc12_code-tree=19d108537c2a_dirty=no
+== hprof: head=de2cc12 code-tree=19d108537c2a dirty=no 00:33:34
+build hprof exit 0 00:34:50
+    Finished `release` profile [optimized] target(s) in 1m 13s
+-rwxr-xr-x 1 josef josef 51020408 Oct 30 00:34 /home/josef/intarsiaml-tp2-hprof/tp2-intarsia
+-rwxr-xr-x 1 josef josef 50963120 Oct 29 23:37 /home/josef/intarsiaml-tp2-r9s/tp2-intarsia
+fleetq: #7272 done (exit 0)
+exit 0

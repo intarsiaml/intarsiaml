@@ -118,7 +118,34 @@ pub const TABLE: &[(&str, Op)] = &[
 /// EXL3 matmul: CUDA and cpu only, docs/results/2026-10-21-m2-exl3.md has the HIP port estimate; `RopeScaled` (llama3 / yarn
 /// rope) and `AddBias` (q / k / v projection bias) are Metal and cpu so far: a model that needs them fails at load with
 /// `NoKernel`, it never runs the unscaled rope; `ShortConv`, LFM2's gated short conv (lane nab2), is Metal and cpu so far).
-pub const UNIMPLEMENTED: &[Op] = &[Op::Sample, Op::MatmulExl3, Op::RopeScaled, Op::AddBias, Op::GeluGlu, Op::ShortConv];
+/// The DeepSeek-V4.1 ops (lane 1a, `intarsia_core::dsv41::ops::OPS`) are not ported: the model is CUDA-first (TP=2 over two Sparks).
+pub const UNIMPLEMENTED: &[Op] = &[
+    Op::Sample,
+    Op::MatmulExl3,
+    Op::RopeScaled,
+    Op::AddBias,
+    Op::GeluGlu,
+    Op::ShortConv,
+    Op::HcExpand,
+    Op::HcMixes,
+    Op::HcPre,
+    Op::HcPost,
+    Op::MoeRoute,
+    Op::SiluGluClamp,
+    Op::ActQdq,
+    Op::RopeTail,
+    Op::WindowKv,
+    Op::AttnSparse,
+    Op::CompressPool,
+    Op::IndexerBlocks,
+    Op::IndexerTopk,
+    Op::GroupedMatmul,
+    Op::Transpose01,
+    Op::MatmulFp8Block,
+    Op::EngramGather,
+    Op::EngramMerge,
+    Op::HcSublayer,
+];
 
 /// Most tokens `gdn_conv_delta_bf16` takes: the conv's single-tile form (gdn.hip kConvTile), every decode step and the
 /// short prefill tails; longer chunks keep gdn_conv_bf16 + gdn_delta_rule_bf16_v2.

@@ -1,0 +1,86 @@
+IntarsiaML CUDA kernels derived from TensorFold's grouped EXL3 expert kernels as extended by BertholomusAI's DeepSeek-V4.1
+fork: https://github.com/bertholomus/TensorFold, branch deepseek-v41-tp2 (commit af26d42b1f618e9e653903a6c043448b52729c64;
+the kernel files last changed in 508bfb34743f88d35abcb514f7013ef531ce34a5), src/tensorfold/cuda/exl3/experts_grouped.cuh
+and experts.cu, licensed Apache-2.0 (LICENSES/Apache-2.0-TensorFold.txt). The fork's DeepSeek-V4.1 family pinned for the
+IntarsiaML port (branch deepseek-v41-zig, commit 629c524a0ea57512a5342abb498d1b7c25353343,
+zig/src/families/dsv41/exl3_experts.zig) launches the cubin built from those sources and documents the launch sequence
+followed here. Earlier, MIT-licensed TensorFold code ported into IntarsiaML is covered by LICENSES/TensorFold-MIT.txt;
+the EXL3 format and decode follow ExLlamaV3 (LICENSES/exllamav3-MIT.txt).
+
+Files in this repository derived from those sources (changed; the changes are listed in the header of exl3_moe.cuh):
+  kernels/cuda/exl3_moe.cuh       codebook decode, lane map, tile decode, mma helpers (experts_grouped.cuh)
+  kernels/cuda/exl3_moe_cp.cu     decode-window grouped GEMV (grouped_cp_kernel, EPI 0)
+  kernels/cuda/exl3_moe_rows.cu   prompt-chunk grouped kernel (grouped_rows_kernel, FOLD on / off, work list)
+  kernels/cuda/exl3_moe.cu        grouping, input rotation, gate / up epilogue (ACT_F32) and down combine
+                                  (decode_prep_kernel, group / work_list kernels, gateup_epilogue_kernel,
+                                  down_combine_kernel of experts.cu)
+
+The fork's NOTICE file (at af26d42b) follows verbatim.
+
+----------------------------------------------------------------------------------------------------------------
+TensorFold
+Copyright 2026 TensorFold contributors
+https://github.com/ashhart/TensorFold
+
+TensorFold is licensed under the Apache License, Version 2.0 (LICENSE) from 0.6.0.
+Releases up to 0.5.0 were MIT-licensed, and code written before 0.6.0 keeps its
+MIT notice in LICENSES/MIT.txt. Third-party code and its licenses are listed in
+THIRD_PARTY_NOTICES.md.
+
+----------------------------------------------------------------------------------------------------------------------
+Changes in this fork (Apache License 2.0, section 4(b))
+
+This is a fork of TensorFold 0.6.6 (upstream commit cb2ebf0; first forked from 0.6.3, 9356df5; for v0.6 rebased onto
+upstream's python-0.6 branch, ed78d6f) by BertholomusAI (Albert Lee,
+https://github.com/bertholomus), Copyright 2026. It adds the deepseek_v41 model family for DeepSeek-V4.1-Flash, tensor-parallel over two NVIDIA GB10
+nodes. TensorFold's text above, LICENSE, LICENSES/ and the upstream sections of THIRD_PARTY_NOTICES.md are unchanged.
+
+Added:
+  src/tensorfold/families/deepseek_v41/   the model family (engine, kernels, server integration)
+  src/tensorfold/cuda/rdma.py, src/tensorfold/cuda/rdma_gather.cu   RDMA-write all-gather for TP decode
+  tools/dsv41/                             tests, checks, benchmark clients, the reference model, DESIGN.md,
+                                           REPORT.md and ATTRIBUTION.md
+  A "DeepSeek-V4.1-Flash on CUDA (TP2)" section in THIRD_PARTY_NOTICES.md, and a fork note at the top of README.md.
+
+Modified upstream files:
+  pyproject.toml                               package data for the deepseek_v41 CUDA sources
+  src/tensorfold/cuda/exl3/experts_grouped.cuh grouped EXL3 expert kernels extended (multi-row prompt-chunk kernels,
+                                               a fused decode-window path)
+  src/tensorfold/cuda/exl3/experts.cu          as above
+  src/tensorfold/cuda/exl3/experts.cpp         bindings for the added kernels
+  src/tensorfold/cuda/exl3/experts.py          Python entry points for the added kernels
+  src/tensorfold/cuda/exl3/experts_cb0.cu      template instantiations of the added kernels
+  src/tensorfold/cuda/exl3/experts_cb1.cu      as above
+  src/tensorfold/cuda/exl3/experts_cb2.cu      as above
+  src/tensorfold/cuda/exl3/prefill.py          optional tile choice by shape (TF_EXL3_PREFILL_TILES)
+  src/tensorfold/cuda/exl3/linear.cu           shared helpers moved to linear_common.cuh (new); rot_in pinned to the
+                                               same arithmetic; grouped decode linears in linear_grouped.cu (new)
+  src/tensorfold/cuda/exl3/linear.cpp          bindings for the grouped linears
+  src/tensorfold/cuda/exl3/linear.py           Exl3Group and Exl3Linear.grouped(); extension renamed
+  tests/cuda/test_exl3_experts.py              tests for the fused decode path
+  src/tensorfold/cuda/http.py                  optional API key (TF_API_KEY / TF_API_KEY_FILE), all routes but /health;
+                                               max_model_len in /v1/models
+  src/tensorfold/cuda/server.py                a family's own image prompts continue through its vision object; an opt-in reasoning
+                                               loop guard (TF_LOOP_GUARD, the request's "loop_guard")
+  src/tensorfold/engine/call_gate.py           ThinkLoop: the loop guard's token 8-gram novelty check
+  src/tensorfold/engine/exact_sampling.py      TF_SEED=random: a request with no explicit seed draws a fresh one (the
+                                               default keys the seed to the prompt)
+  src/tensorfold/cuda/comm.py                  NCCL abort and asynchronous-error hooks (a concurrent lane's watchdog)
+  src/tensorfold/serve_options.py              --vision for families with their own image path (CUDA_VISION)
+  src/tensorfold/cuda/reply_text.py            DSML tool-call parsing for DeepSeek-V4.1
+  src/tensorfold/server/request_options.py     reasoning_effort "off" heard as "none"
+  src/tensorfold/server/authentication.py      the no-key startup line names the CUDA server's TF_API_KEY gate
+  RUNBOOK.md                                   keeping a nearly-full unified GPU's server out of swap (its kernel pages
+                                               the host out while idle; the first request then stalls on page faults)
+  .gitignore                                   ignores macOS ._* files
+  Carried by the v0.6 rebase — upstream python-0.6's own changes the branch now includes (the fork changes none of
+  them): src/tensorfold/cli.py, src/tensorfold/cli_args.py, src/tensorfold/cuda/build.py,
+  src/tensorfold/cuda/kernels/qmm_prefill8.cu, src/tensorfold/families/glm5_next/__init__.py,
+  src/tensorfold/families/glm5_next/cuda/engine.py, src/tensorfold/families/glm5_next/cuda/split.py,
+  src/tensorfold/families/glm5_next/cuda/weights.py, src/tensorfold/families/qwen4_exp/cuda/decode.py,
+  src/tensorfold/families/qwen4_exp/cuda/engine.py, src/tensorfold/families/qwen4_exp/cuda/image_rows.py,
+  src/tensorfold/families/qwen4_exp/cuda/multi.py, src/tensorfold/families/qwen4_exp/cuda/multi_fill.py,
+  src/tensorfold/families/qwen4_exp/cuda/multi_plan.py, src/tensorfold/families/qwen4_exp/cuda/multi_solo.py,
+  src/tensorfold/families/qwen4_exp/cuda/multi_tp.py, tests/test_cuda_cli.py
+
+The "git log" of this branch and tools/dsv41/ATTRIBUTION.md describe the changes and their sources.

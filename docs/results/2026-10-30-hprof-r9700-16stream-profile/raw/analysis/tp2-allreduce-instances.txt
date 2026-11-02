@@ -1,0 +1,21 @@
+B 1
+  0.662ms 40x 16.6us grid=[4096, 1, 1, 256] void ar2ll_kernel<2, true>(  const*, void*, unsigned long lo
+  0.178ms 40x 4.5us grid=[4096, 1, 1, 256] void ar2ll_kernel<0, true>(  const*, void*, unsigned long lo
+  0.036ms 1x 36.2us grid=[4096, 1, 1, 256] ag2_kernel(  const*,  *,  *,  *, unsigned int*, unsigned int
+  0.007ms 3x 2.3us grid=[512, 1, 1, 512] __amd_rocclr_copyBuffer
+  0.002ms 1x 1.7us grid=[256, 1, 1, 256] void  embedding_kernel<true>(int const*,   const*,  *, long,
+B 8
+  0.775ms 40x 19.4us grid=[4096, 1, 1, 256] void ar2ll_kernel<2, true>(  const*, void*, unsigned long lo
+  0.296ms 40x 7.4us grid=[4096, 1, 1, 256] void ar2ll_kernel<0, true>(  const*, void*, unsigned long lo
+  0.170ms 1x 169.7us grid=[4096, 1, 1, 256] ag2_kernel(  const*,  *,  *,  *, unsigned int*, unsigned int
+  0.023ms 16x 1.5us grid=[16384, 1, 1, 512] __amd_rocclr_copyBuffer
+  0.012ms 4x 2.9us grid=[512, 1, 1, 512] __amd_rocclr_copyBuffer
+  0.002ms 1x 1.8us grid=[2048, 1, 1, 256] void  embedding_kernel<true>(int const*,   const*,  *, long,
+B 16
+  1.724ms 40x 43.1us grid=[16384, 1, 1, 256] void ar2_kernel<2>(  const*, void*,  *,  *, unsigned int*, u
+  0.446ms 40x 11.2us grid=[4096, 1, 1, 256] void ar2ll_kernel<0, true>(  const*, void*, unsigned long lo
+  0.344ms 2x 171.8us grid=[4096, 1, 1, 256] ag2_kernel(  const*,  *,  *,  *, unsigned int*, unsigned int
+  0.044ms 32x 1.4us grid=[16384, 1, 1, 512] __amd_rocclr_copyBuffer
+  0.006ms 3x 1.9us grid=[512, 1, 1, 512] __amd_rocclr_copyBuffer
+  0.002ms 1x 2.2us grid=[1024, 1, 1, 512] __amd_rocclr_copyBuffer
+  0.002ms 1x 1.8us grid=[4096, 1, 1, 256] void  embedding_kernel<true>(int const*,   const*,  *, long,

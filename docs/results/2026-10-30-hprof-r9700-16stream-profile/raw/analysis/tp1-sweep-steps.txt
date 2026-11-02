@@ -1,0 +1,20 @@
+== agent Agent 1: 1454 decode-like steps (>= 100 kernels)
+-- burst 0: 196 steps, span 2.82 s
+   B=2 kernels=588: 189 steps, median wall 10.04 ms, busy 8.20 ms
+-- burst 1: 198 steps, span 3.17 s
+   B=4 kernels=828: 187 steps, median wall 13.95 ms, busy 11.37 ms
+-- burst 2: 202 steps, span 4.14 s
+   B=1 kernels=1431: 5 steps, median wall 127.33 ms, busy 118.70 ms
+   B=6 kernels=829: 185 steps, median wall 17.46 ms, busy 14.88 ms
+-- burst 3: 210 steps, span 6.55 s
+   B=1 kernels=1431: 9 steps, median wall 128.02 ms, busy 119.33 ms
+   B=10 kernels=870: 181 steps, median wall 27.28 ms, busy 24.56 ms
+-- burst 4: 214 steps, span 7.30 s
+   B=1 kernels=1431: 11 steps, median wall 128.23 ms, busy 119.67 ms
+   B=12 kernels=870: 179 steps, median wall 29.76 ms, busy 27.00 ms
+-- burst 5: 216 steps, span 8.02 s
+   B=1 kernels=1431: 12 steps, median wall 128.55 ms, busy 119.85 ms
+   B=13 kernels=1001: 178 steps, median wall 32.84 ms, busy 29.70 ms
+-- burst 6: 218 steps, span 8.54 s
+   B=1 kernels=1431: 13 steps, median wall 129.21 ms, busy 120.29 ms
+   B=14 kernels=1001: 177 steps, median wall 34.75 ms, busy 31.57 ms

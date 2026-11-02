@@ -1,0 +1,15 @@
+02:52:20 guard: [guard] radiance stopped 2026-10-30 02:52:20
+02:52:20 perf-r2-tp2-base-1: starting server
+02:52:33 perf-r2-tp2-base-1: server up, localeval (1024 prompt, gen 512, streams 1,4,8,16)
+02:53:08 perf-r2-tp2-base-1: localeval exit 0 - result file: `results/20261030-025234-adhoc-hgv-perf-r2-tp2-base-1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-025234-adhoc-hgv-perf-r2-tp2-base-1/result.json|
+02:53:09 perf-r2-tp2-hgv-2: starting server
+02:53:22 perf-r2-tp2-hgv-2: server up, localeval (1024 prompt, gen 512, streams 1,4,8,16)
+02:53:55 perf-r2-tp2-hgv-2: localeval exit 0 - result file: `results/20261030-025323-adhoc-hgv-perf-r2-tp2-hgv-2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-025323-adhoc-hgv-perf-r2-tp2-hgv-2/result.json|
+02:53:56 perf-r2-tp1-hgv-3: starting server
+02:54:12 perf-r2-tp1-hgv-3: server up, localeval (1024 prompt, gen 512, streams 1,4,8,16)
+02:54:57 perf-r2-tp1-hgv-3: localeval exit 0 - result file: `results/20261030-025413-adhoc-hgv-perf-r2-tp1-hgv-3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-025413-adhoc-hgv-perf-r2-tp1-hgv-3/result.json|
+02:54:57 perf-r2-tp1-base-4: starting server
+02:55:14 perf-r2-tp1-base-4: server up, localeval (1024 prompt, gen 512, streams 1,4,8,16)
+02:56:00 perf-r2-tp1-base-4: localeval exit 0 - result file: `results/20261030-025514-adhoc-hgv-perf-r2-tp1-base-4/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-025514-adhoc-hgv-perf-r2-tp1-base-4/result.json|
+02:56:01 done, time left 775s
+02:56:11 guard: [guard] stopping radiance 2026-10-30 02:52:17|[guard] radiance answers 2026-10-30 02:56:11 (after 15 s), unit active|

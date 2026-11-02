@@ -46,18 +46,18 @@ IK_DEVI uint32_t e4m3x2_to_f16x2(uint32_t w, uint32_t sel) {
 // block reduction over its 32 threads, of which only the first sixteen hold a chunk: the xor butterfly of ik_warp_sum starting
 // at offset 8 inside a 16-lane group sums the same values in the same order (its first step, offset 16, adds an exact zero),
 // so the sixteen lanes of a row may share a warp with the next row's. Every lane of a group must call it.
-IK_DEVI uint4 gated_norm_chunk(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ z, const ik_bf16* __restrict__ nw,
-                               int i8, float eps, float woff) {
+// gated_norm_chunk split in its loads (x, nw, z chunks) and its arithmetic, so the body can request them early (lane hload)
+IK_DEVI uint4 gated_norm_math(uint4 xv, uint4 nwv, uint4 zv, float eps, float woff) {
     float f[8], g[8], zf[8];
-    ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(x) + i8), f);
+    ik_unpack8(xv, f);
     float ss = 0.f;
 #pragma unroll
     for (int k = 0; k < 8; ++k) ss += f[k] * f[k];
 #pragma unroll
     for (int o = 8; o > 0; o >>= 1) ss += __shfl_xor(ss, o, IK_WARP);
     const float r = rsqrtf(ss / 128.f + eps);
-    ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(nw) + (i8 & 15)), g);
-    ik_unpack8(ik_ldg(reinterpret_cast<const uint4*>(z) + i8), zf);
+    ik_unpack8(nwv, g);
+    ik_unpack8(zv, zf);
 #pragma unroll
     for (int k = 0; k < 8; ++k) f[k] = f[k] * r * (g[k] + woff);
     float nrm[8];
@@ -65,6 +65,12 @@ IK_DEVI uint4 gated_norm_chunk(const ik_bf16* __restrict__ x, const ik_bf16* __r
 #pragma unroll
     for (int k = 0; k < 8; ++k) f[k] = ik_silu(zf[k]) * nrm[k];
     return ik_pack8(f);
+}
+
+IK_DEVI uint4 gated_norm_chunk(const ik_bf16* __restrict__ x, const ik_bf16* __restrict__ z, const ik_bf16* __restrict__ nw,
+                               int i8, float eps, float woff) {
+    return gated_norm_math(ik_ldg(reinterpret_cast<const uint4*>(x) + i8), ik_ldg(reinterpret_cast<const uint4*>(nw) + (i8 & 15)),
+                           ik_ldg(reinterpret_cast<const uint4*>(z) + i8), eps, woff);
 }
 
 // The attention input norm folded into the k / v staging (PRO == 3, core-op fusion P5): rmsnorm_kernel<true, true> for one row
@@ -110,16 +116,21 @@ __device__ __forceinline__ void norm_add_stage(const ik_bf16* __restrict__ x, co
 
 // The attention output gate folded into the o_proj staging (PRO == 4, core-op fusion P4b): chunk `i8` of
 // sigmoid_mul(a, gate) as sigmoid_mul_kernel (elementwise.hip) stores it, element by element: bf16(a * (1 / (1 + exp(-g)))).
-IK_DEVI uint4 sigmoid_mul_chunk(const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ gate, int i8) {
+// sigmoid_mul_chunk's arithmetic on chunks already loaded (lane hload)
+IK_DEVI uint4 sigmoid_mul_math(uint4 av, uint4 gv4) {
     float f[8], g[8];
-    ik_unpack8(reinterpret_cast<const uint4*>(a)[i8], f);
-    ik_unpack8(reinterpret_cast<const uint4*>(gate)[i8], g);
+    ik_unpack8(av, f);
+    ik_unpack8(gv4, g);
 #pragma unroll
     for (int k = 0; k < 8; ++k) {
         const float gv = g[k];
         f[k] = f[k] * (1.f / (1.f + expf(-gv)));
     }
     return ik_pack8(f);
+}
+
+IK_DEVI uint4 sigmoid_mul_chunk(const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ gate, int i8) {
+    return sigmoid_mul_math(reinterpret_cast<const uint4*>(a)[i8], reinterpret_cast<const uint4*>(gate)[i8]);
 }
 
 // Q selects how the block stages the activations (everything after the prologue is shared):
@@ -138,7 +149,7 @@ IK_DEVI uint4 sigmoid_mul_chunk(const ik_bf16* __restrict__ a, const ik_bf16* __
 // row into its LDS (norm_add_stage above), and the block with `pwriter` also stores the sum (`psum`) and the normalised row
 // (`pnormed`). PRO == 4 (P4b) stages sigmoid_mul(x, gate = pz), sigmoid_mul_kernel's expression per element. Both then
 // quantise the staged chunk exactly as PRO == 0 quantises the chunk it reads from global memory.
-template <int M, int R, typename OutT, int Q, int W = kWarps, int PRO = 0>
+template <int M, int R, typename OutT, int Q, int W = kWarps, int PRO = 0, bool PRE = PRO == 0>
 __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w,
                                               const float* __restrict__ sc, OutT* __restrict__ out, int N, int K,
                                               int64_t blk, const ik_bf16* __restrict__ pz = nullptr,
@@ -152,19 +163,56 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
     const int64_t n0 = (blk * W + warp) * R;
     const int nu = K / 16;
+    // Lane hload: every load below is issued from a valid address on every path, so the waitcnt pass counts them (loads in
+    // branches made it wait for all of them, `s_wait_loadcnt 0x0`, before the first use): a row past N reads row 0 and is
+    // never stored, a chunk past K reads chunk 0 of its row and is never used (the compute loop stops at nu).
+    const bool live = n0 < N;  // (rows are consecutive: the warp's first row decides)
     const uint4* wr[R];
 #pragma unroll
-    for (int r = 0; r < R; ++r) wr[r] = n0 + r < N ? reinterpret_cast<const uint4*>(w + (n0 + r) * K) : nullptr;
-    uint4 wb[R][kUn];
-    auto load = [&](int i0) {  // iterations i0 .. i0 + kUn - 1 of this lane
+    for (int r = 0; r < R; ++r) wr[r] = reinterpret_cast<const uint4*>(w + (n0 + r < N ? n0 + r : 0) * K);
+    auto load = [&](uint4 (&dst)[R][kUn], int i0) {  // iterations i0 .. i0 + kUn - 1 of this lane
 #pragma unroll
         for (int j = 0; j < kUn; ++j) {
             const int u = lane + IK_WARP * (i0 + j);
 #pragma unroll
-            for (int r = 0; r < R; ++r) wb[r][j] = (wr[r] && u < nu) ? ik_ldcs(wr[r] + u) : make_uint4(0, 0, 0, 0);
+            for (int r = 0; r < R; ++r) dst[r][j] = ik_ldcs(wr[r] + (u < nu ? u : 0));
         }
     };
-    load(0);
+    // PRE: the staging's activation chunks of this thread's first kStagePre iterations are requested BEFORE the weights: the
+    // loads return in order, so the staging used to wait for the whole weight window (its x loads came after it). Now it waits
+    // for its own chunks only and quantises while the weights stream in. Measured per kernel (the doc's ablation): it pays in
+    // fp8_gemv_kernel (M = 1..4, -4..-16 %) and loses in the folds and the pair kernel (+1..+13 %), so only those turn it off.
+    constexpr int kStagePre = 2;
+    constexpr bool kSplit = PRE && Q != 0 && PRO != 3;  // PRO 3 stages from LDS (norm_add_stage), Q 0 element by element
+    const int n8 = M * K / 8;
+    struct Src {
+        uint4 a, b, c;
+    };
+    auto sload = [&](int i8) {
+        Src v;
+        if constexpr (PRO == 2) {
+            v.a = ik_ldg(reinterpret_cast<const uint4*>(x) + i8);
+            v.b = ik_ldg(reinterpret_cast<const uint4*>(pnw) + (i8 & 15));
+            v.c = ik_ldg(reinterpret_cast<const uint4*>(pz) + i8);
+        } else if constexpr (PRO == 4) {
+            v.a = reinterpret_cast<const uint4*>(x)[i8];
+            v.b = reinterpret_cast<const uint4*>(pz)[i8];
+        } else {
+            v.a = reinterpret_cast<const uint4*>(x)[i8];
+        }
+        return v;
+    };
+    Src pre[kStagePre] = {};
+    if constexpr (kSplit) {
+#pragma unroll
+        for (int p = 0; p < kStagePre; ++p) {
+            const int i8 = threadIdx.x + p * blockDim.x;
+            pre[p] = sload(i8 < n8 ? i8 : 0);
+        }
+        __builtin_amdgcn_sched_barrier(0);  // keep them ahead of the weight loads (the scheduler sank one below them)
+    }
+    uint4 wb[R][kUn];
+    load(wb, 0);
 
     const bool actq = sc[1] > 0.f;
     const float s_in = actq ? sc[1] : 1.f;
@@ -182,12 +230,12 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
         }
     } else {
         const float r_in = Q == 3 ? 1.f / s_in : 0.f;
-        for (int i8 = threadIdx.x; i8 < M * K / 8; i8 += blockDim.x) {
+        auto stage = [&](int i8, const Src& src) -> uint4 {
             uint4 v;
-            if constexpr (PRO == 2) v = gated_norm_chunk(x, pz, pnw, i8, peps, pwoff);
+            if constexpr (PRO == 2) v = gated_norm_math(src.a, src.b, src.c, peps, pwoff);
             else if constexpr (PRO == 3) v = reinterpret_cast<const uint4*>(xs)[i8];  // this thread's own chunk of the normed row
-            else if constexpr (PRO == 4) v = sigmoid_mul_chunk(x, pz, i8);
-            else v = reinterpret_cast<const uint4*>(x)[i8];
+            else if constexpr (PRO == 4) v = sigmoid_mul_math(src.a, src.b);
+            else v = src.a;
             uint4 o;
             if (!actq) {
                 o = v;
@@ -223,21 +271,47 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
 #endif
                 }
             }
-            reinterpret_cast<uint4*>(xs)[i8] = o;
+            return o;
+        };
+        if constexpr (kSplit) {
+            // the arithmetic of the requested chunks runs unconditionally (only the store is guarded), so the compiler keeps
+            // their loads where they were issued instead of sinking them into the guarded block, after the weights
+#pragma unroll
+            for (int p = 0; p < kStagePre; ++p) {
+                const int i8 = threadIdx.x + p * blockDim.x;
+                const uint4 o = stage(i8 < n8 ? i8 : 0, pre[p]);
+                if (i8 < n8) reinterpret_cast<uint4*>(xs)[i8] = o;
+            }
+            for (int i8 = threadIdx.x + kStagePre * blockDim.x; i8 < n8; i8 += blockDim.x)
+                reinterpret_cast<uint4*>(xs)[i8] = stage(i8, sload(i8));
+        } else {
+            for (int i8 = threadIdx.x; i8 < n8; i8 += blockDim.x) {
+                if constexpr (PRO == 3) reinterpret_cast<uint4*>(xs)[i8] = stage(i8, pre[0]);  // (src unused)
+                else reinterpret_cast<uint4*>(xs)[i8] = stage(i8, sload(i8));
+            }
         }
     }
     __syncthreads();
-    if (!wr[0]) return;  // (all rows of the warp are past N; rows are consecutive)
+    if (!live) return;  // (all rows of the warp are past N)
 
     float acc[R][M];
 #pragma unroll
     for (int r = 0; r < R; ++r)
 #pragma unroll
         for (int m = 0; m < M; ++m) acc[r][m] = 0.f;
-    const int iters = (nu + IK_WARP - 1 - lane) / IK_WARP;  // iterations this lane runs
+    // ntiles is warp-uniform; a lane stops at its own last iteration (u >= nu) exactly as before.
+    const int ntiles = ((nu + IK_WARP - 1) / IK_WARP + kUn - 1) / kUn;
+    // The lane iterations in tiles of kUn, the next tile loaded after this one computed (as before: a ping-pong of two weight
+    // buffers, the next tile requested before this one computes, doubled the code of the 4-way instantiated body and lost 2-3 us
+    // at the decode shapes, where a lane has only 1-2 tiles; docs/results/2026-10-30-hload-hip-load-wait.md).
+    auto tiles = [&](uint4 (&wa)[R][kUn], auto&& f) {
+        for (int t = 0; t < ntiles; ++t) {
+            if (t > 0) load(wa, t * kUn);
+            f(wa, t * kUn);
+        }
+    };
     if (actq) {
-        for (int i0 = 0; i0 < iters; i0 += kUn) {
-            if (i0 > 0) load(i0);
+        auto tile = [&](const uint4 (&wt)[R][kUn], int i0) {
 #pragma unroll
             for (int j = 0; j < kUn; ++j) {
                 const int u = lane + IK_WARP * (i0 + j);
@@ -251,7 +325,7 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
                 }
 #pragma unroll
                 for (int r = 0; r < R; ++r) {
-                    const uint32_t ww[4] = {wb[r][j].x, wb[r][j].y, wb[r][j].z, wb[r][j].w};
+                    const uint32_t ww[4] = {wt[r][j].x, wt[r][j].y, wt[r][j].z, wt[r][j].w};
                     uint32_t wh[8];
 #pragma unroll
                     for (int q = 0; q < 4; ++q) {
@@ -270,7 +344,8 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
                     }
                 }
             }
-        }
+        };
+        tiles(wb, tile);
 #pragma unroll
         for (int r = 0; r < R; ++r)
 #pragma unroll
@@ -280,8 +355,7 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
             }
         return;
     }
-    for (int i0 = 0; i0 < iters; i0 += kUn) {
-        if (i0 > 0) load(i0);
+    auto tile16 = [&](const uint4 (&wt)[R][kUn], int i0) {
 #pragma unroll
         for (int j = 0; j < kUn; ++j) {
             const int u = lane + IK_WARP * (i0 + j);
@@ -296,7 +370,7 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
 #pragma unroll
             for (int r = 0; r < R; ++r) {
                 float wf[16];
-                ik_fp8x16_to_f32(wb[r][j], wf);
+                ik_fp8x16_to_f32(wt[r][j], wf);
 #pragma unroll
                 for (int m = 0; m < M; ++m) {
                     float s = 0.f;
@@ -306,7 +380,8 @@ __device__ __forceinline__ void fp8_gemv_body(const ik_bf16* __restrict__ x, con
                 }
             }
         }
-    }
+    };
+    tiles(wb, tile16);
 #pragma unroll
     for (int r = 0; r < R; ++r)
 #pragma unroll
@@ -333,8 +408,8 @@ fp8_gemv_pair_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ 
                      OutT* __restrict__ o1, int N1, int K) {
     constexpr int per = W * R;
     const int nb0 = (N0 + per - 1) / per;
-    if ((int)blockIdx.x < nb0) fp8_gemv_body<1, R, OutT, Q, W>(x, w0, sc0, o0, N0, K, (int64_t)blockIdx.x);
-    else fp8_gemv_body<1, R, OutT, Q, W>(x, w1, sc1, o1, N1, K, (int64_t)blockIdx.x - nb0);
+    if ((int)blockIdx.x < nb0) fp8_gemv_body<1, R, OutT, Q, W, 0, false>(x, w0, sc0, o0, N0, K, (int64_t)blockIdx.x);
+    else fp8_gemv_body<1, R, OutT, Q, W, 0, false>(x, w1, sc1, o1, N1, K, (int64_t)blockIdx.x - nb0);
 }
 
 // rows per warp: INTARSIA_HIP_FP8_ROWS=1|2|4 forces one, otherwise 1 for small N (keeps enough blocks in flight)
@@ -405,7 +480,9 @@ int gemv_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* 
 // sizes the staged activations and the accumulator array. gemv_by_m stops at 4 rows (the ordinary decode registrations);
 // this table goes up to the most rows whose staged x (M * K * 2 bytes) fits the 48 KiB the kernel is allowed. The launcher
 // below splits a larger M into near-equal groups of at most that many rows (a group is a launch; the weights are read once
-// per group, so M = 16 at K = 2048 is two weight passes, at K = 4096 three).
+// per group, so M = 16 at K = 2048 is two weight passes, at K = 4096 three). Since lane hfp8 the launcher sends M >= 3 (K <= 2048)
+// or M >= 5 to the one-pass kernel (fp8_gemv_rows_kernel below), so this table and the splitting serve M <= 4, and larger M only
+// with INTARSIA_HIP_FP8_ONEPASS_MIN raised (the "before" arm of docs/results/2026-10-30-hfp8-hip-fp8-rows16.md).
 constexpr int kRowsGroup = 12;
 constexpr int kRowsMax = 16;
 
@@ -419,6 +496,299 @@ int gemv_rows_by_m(int M, const ik_bf16* x, const uint8_t* w, const float* sc, O
         IK_FP8_ROWS_CASE(7) IK_FP8_ROWS_CASE(8) IK_FP8_ROWS_CASE(9) IK_FP8_ROWS_CASE(10) IK_FP8_ROWS_CASE(11)
         IK_FP8_ROWS_CASE(12)
 #undef IK_FP8_ROWS_CASE
+        default: return IK_ERR_SHAPE;
+    }
+    return ik_launch_status();
+}
+
+// ---- one-pass row-exact GEMV for up to 16 rows (lane hfp8) -------------------------------------------------------------------
+// The same arithmetic as fp8_gemv_body (Q = 2, PRO = 0), restructured so that M = 9..16 rows share one weight pass and the
+// kernel is no longer bound by its own per-block overhead (docs/results/2026-10-30-hfp8-hip-fp8-rows16.md):
+//  * the loops over the rows of x (m) and over the warp's weight rows (r) are swapped: one m's staged activations are read from
+//    shared memory, used for both rows r, and dropped, instead of all M * 32 bytes being live at once (VGPR 248+ and scratch
+//    at M >= 9). Every acc[r][m] still sees its chain in the same order (chunks u = lane + 32 i, 8 fdot2 / 16 fmaf each), so
+//    the bits do not change;
+//  * the activations are staged kSegElems (= 2048) at a time; a segment ends on a multiple of 32 chunks, so each lane continues
+//    its own chain across segments, and M * 4 KiB (64 KiB at M = 16) of shared memory serves any K. A staged chunk of 16 values
+//    is stored as two 16-byte halves kSegU apart, so the lanes of a wave read consecutive 16 bytes (no bank conflicts);
+//  * the R * M lane sums go through the very tree of ik_warp_sum (xor 16, 8, 4, 2, 1, each level one add of two lanes' values),
+//    but "scattered": at each level a lane hands the half of its values that its partner finishes and keeps the other half,
+//    so one value per lane is left after the last level and the reduction costs about R * M shuffles instead of 5 R * M. Each
+//    value sees the same adds as before (a + b is b + a), so the bits are the same;
+//  * a block works through `tiles` consecutive tiles of 8 warps * R rows when the activations fit in one segment (K <= 2048),
+//    staging them once and loading the next tile's weights while it computes the current one.
+// `fp8_gemv_rows_launch` below picks it.
+// Fewest rows the one-pass kernel serves: it is as fast or faster than the per-group kernels from M = 2 (K <= 2048) and from M = 5
+// (longer K, where it stages in two segments); M = 1..2 keep the kernels they had. INTARSIA_HIP_FP8_ONEPASS_MIN overrides both.
+constexpr int kOnePassMinShort = 3;
+constexpr int kOnePassMinLong = 5;
+constexpr int kSegElems = 2048;
+constexpr int kSegU = kSegElems / 16;  // chunks per segment = IK_WARP * kUn
+constexpr int kRowsG = 4;  // activation rows per group in the W8A8 inner loop (see fp8_gemv_rows_kernel)
+// Warps per block of the one-pass kernel when K > kSegElems (no tile loop there): the activations are staged per block and segment,
+// so twice the warps halve the staging per weight row (16 x 32 lanes, 4 waves per SIMD at its VGPR count).
+constexpr int kWarpsLongK = 16;
+// W8A8 weights as exact fp16 through the fp8 conversion instruction (v_cvt_pk_f32_fp8 + v_cvt_pkrtz_f16_f32, 2 instructions per
+// pair instead of 4): 2^8 times the e4m3 * 2^-8 encoding of e4m3x2_to_f16x2, so every product, partial sum and lane sum of a chain
+// is 2^8 times its old value (a power of two: no rounding changes; the values stay far from f32 under / overflow) and the output
+// scale is 2^8 instead of 2^16: the same bits.
+#if __has_builtin(__builtin_amdgcn_cvt_pk_f32_fp8) && __has_builtin(__builtin_amdgcn_cvt_pkrtz)
+#define IK_FP8_ROWS_HWCVT 1
+typedef float ik_f2 __attribute__((ext_vector_type(2)));
+template <bool HI>
+IK_DEVI uint32_t e4m3x2_to_f16x2_hw(uint32_t w) {
+    const ik_f2 f = __builtin_amdgcn_cvt_pk_f32_fp8((int)w, HI);
+    return __builtin_bit_cast(uint32_t, __builtin_amdgcn_cvt_pkrtz(f[0], f[1]));
+}
+constexpr float kRowsWScale = 256.f;
+#else
+constexpr float kRowsWScale = 65536.f;
+#endif
+
+template <int M, int R, typename OutT, int W = kWarps>
+__global__ void __launch_bounds__(W * IK_WARP)
+fp8_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                     OutT* __restrict__ out, int N, int K, int tiles) {
+    static_assert(kSegU == IK_WARP * kUn, "one segment is one batch of loads per lane");
+    extern __shared__ __align__(16) unsigned char smem[];
+    uint4* xs = reinterpret_cast<uint4*>(smem);  // [M][kSegElems / 8] chunks of 8 staged values (see above for the order)
+    constexpr int kRowU4 = kSegElems / 8;
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int nu = K / 16;
+    const int ntile = (N + W * R - 1) / (W * R);
+    const int nseg = (K + kSegElems - 1) / kSegElems;
+
+    int64_t n0 = 0, n0n = 0;
+    const uint4* wr[R];
+    const uint4* wrn[R];
+    uint4 wb[R][kUn], wn[R][kUn];
+    auto rows_of = [&](int tile, int64_t& nn, const uint4* (&p)[R]) {
+        nn = ((int64_t)tile * W + warp) * R;
+#pragma unroll
+        for (int r = 0; r < R; ++r) p[r] = tile < ntile && nn + r < N ? reinterpret_cast<const uint4*>(w + (nn + r) * K) : nullptr;
+    };
+    // Branch-free and select-free: every lane loads from a valid address (chunk 0 of row 0 for a row past N or a missing tile,
+    // chunk 0 of its row for a chunk past K) and the value is used as it is: a row past N is its own chains and never stored, a
+    // chunk past K is skipped by the compute loop. The prefetch below is issued on every path for the same reason. With the loads
+    // in branches, a select right after them, or a conditional prefetch, the compiler waits for all outstanding loads, the next
+    // tile's prefetch included, before computing the current tile (docs/results/2026-10-30-k4fp8-hip-fp8-long-k.md).
+    const uint4* const w0 = reinterpret_cast<const uint4*>(w);
+    auto load = [&](int seg, const uint4* const (&p)[R], uint4 (&dst)[R][kUn]) {
+#pragma unroll
+        for (int j = 0; j < kUn; ++j) {
+            const int u = seg * kSegU + lane + IK_WARP * j;
+#pragma unroll
+            for (int r = 0; r < R; ++r) dst[r][j] = ik_ldcs(p[r] ? p[r] + (u < nu ? u : 0) : w0);
+        }
+    };
+    int tile = blockIdx.x * tiles;
+    rows_of(tile, n0, wr);
+    load(0, wr, wb);
+
+    const bool actq = sc[1] > 0.f;
+    const float s_in = actq ? sc[1] : 1.f;
+    const float s_out = sc[0] * s_in;
+
+    for (int t = 0; t < tiles && tile < ntile; ++t, ++tile) {
+        float acc[R][M];
+#pragma unroll
+        for (int r = 0; r < R; ++r)
+#pragma unroll
+            for (int m = 0; m < M; ++m) acc[r][m] = 0.f;
+        const bool prefetch = nseg == 1 && t + 1 < tiles && tile + 1 < ntile;
+        for (int seg = 0; seg < nseg; ++seg) {
+            if (t == 0 || nseg > 1) {  // stage this segment's activations
+                const int k0 = seg * kSegElems;
+                const int klen8 = (min(kSegElems, K - k0)) / 8;  // staged 8-value chunks of one row in this segment
+                if (seg > 0 || t > 0) __syncthreads();            // everyone is done reading the previous contents
+                for (int i8 = threadIdx.x; i8 < M * klen8; i8 += blockDim.x) {
+                    const int m = i8 / klen8, c = i8 - m * klen8;
+                    const uint4 v = reinterpret_cast<const uint4*>(x)[((int64_t)m * K + k0) / 8 + c];
+                    uint4 o;
+                    if (!actq) {
+                        o = v;
+                    } else {
+                        float f[8];
+                        ik_unpack8(v, f);
+#if __has_builtin(__builtin_amdgcn_cvt_pk_fp8_f32)
+                        float y[8];
+#pragma unroll
+                        for (int e = 0; e < 8; ++e) y[e] = fminf(fmaxf(__fdiv_rn(f[e], s_in), -448.f), 448.f);
+                        int c0 = __builtin_amdgcn_cvt_pk_fp8_f32(y[0], y[1], 0, false);
+                        c0 = __builtin_amdgcn_cvt_pk_fp8_f32(y[2], y[3], c0, true);
+                        int c1 = __builtin_amdgcn_cvt_pk_fp8_f32(y[4], y[5], 0, false);
+                        c1 = __builtin_amdgcn_cvt_pk_fp8_f32(y[6], y[7], c1, true);
+                        o = make_uint4(e4m3x2_to_f16x2((uint32_t)c0, 0x010C000Cu), e4m3x2_to_f16x2((uint32_t)c0, 0x030C020Cu),
+                                       e4m3x2_to_f16x2((uint32_t)c1, 0x010C000Cu), e4m3x2_to_f16x2((uint32_t)c1, 0x030C020Cu));
+#else
+                        o = make_uint4(0, 0, 0, 0);
+#endif
+                    }
+                    xs[m * kRowU4 + (c & 1) * kSegU + (c >> 1)] = o;
+                }
+                __syncthreads();
+            }
+            rows_of(prefetch ? tile + 1 : ntile, n0n, wrn);  // the next tile's first batch, or (no next tile) row 0's chunk 0
+            load(0, wrn, wn);
+            if (wr[0]) {
+                if (actq) {
+#pragma unroll
+                    for (int j = 0; j < kUn; ++j) {
+                        const int u = seg * kSegU + lane + IK_WARP * j;
+                        if (u >= nu) break;
+                        uint32_t wh[R][8];
+#pragma unroll
+                        for (int r = 0; r < R; ++r) {
+                            const uint32_t ww[4] = {wb[r][j].x, wb[r][j].y, wb[r][j].z, wb[r][j].w};
+#pragma unroll
+                            for (int q = 0; q < 4; ++q) {
+#ifdef IK_FP8_ROWS_HWCVT
+                                wh[r][2 * q] = e4m3x2_to_f16x2_hw<false>(ww[q]);
+                                wh[r][2 * q + 1] = e4m3x2_to_f16x2_hw<true>(ww[q]);
+#else
+                                wh[r][2 * q] = e4m3x2_to_f16x2(ww[q], 0x010C000Cu);
+                                wh[r][2 * q + 1] = e4m3x2_to_f16x2(ww[q], 0x030C020Cu);
+#endif
+                            }
+                        }
+                        const int cu = lane + IK_WARP * j;  // this chunk's index inside the segment
+                        // The activation rows go in groups of G: the next group's staged chunks are read from LDS while this group
+                        // computes, and the q loop runs outside the rows, so G * R independent chains interleave instead of R.
+                        constexpr int G = M < kRowsG ? M : kRowsG, NG = (M + G - 1) / G;
+                        uint4 xg[2][G][2];
+                        auto ldx = [&](int g, uint4 (&d)[G][2]) {
+#pragma unroll
+                            for (int i = 0; i < G; ++i) {
+                                const int m = g * G + i;
+                                if (m < M) {
+                                    d[i][0] = xs[m * kRowU4 + cu];
+                                    d[i][1] = xs[m * kRowU4 + kSegU + cu];
+                                }
+                            }
+                        };
+                        ldx(0, xg[0]);
+#pragma unroll
+                        for (int g = 0; g < NG; ++g) {
+                            if (g + 1 < NG) ldx(g + 1, xg[(g + 1) & 1]);
+#pragma unroll
+                            for (int q = 0; q < 8; ++q) {
+#pragma unroll
+                                for (int i = 0; i < G; ++i) {
+                                    const int m = g * G + i;
+                                    if (m >= M) continue;
+                                    const uint4 xv = xg[g & 1][i][q >> 2];
+                                    const uint32_t xq = (q & 3) == 0 ? xv.x : (q & 3) == 1 ? xv.y : (q & 3) == 2 ? xv.z : xv.w;
+#pragma unroll
+                                    for (int r = 0; r < R; ++r)
+                                        acc[r][m] = __builtin_amdgcn_fdot2(__builtin_bit_cast(ik_h2, wh[r][q]), __builtin_bit_cast(ik_h2, xq),
+                                                                           acc[r][m], false);
+                                }
+                            }
+                        }
+                    }
+                } else {
+#pragma unroll
+                    for (int j = 0; j < kUn; ++j) {
+                        const int u = seg * kSegU + lane + IK_WARP * j;
+                        if (u >= nu) break;
+                        float wf[R][16];
+#pragma unroll
+                        for (int r = 0; r < R; ++r) ik_fp8x16_to_f32(wb[r][j], wf[r]);
+                        const int cu = lane + IK_WARP * j;
+#pragma unroll
+                        for (int m = 0; m < M; ++m) {
+                            float xf[16];
+                            ik_unpack8(xs[m * kRowU4 + cu], xf);
+                            ik_unpack8(xs[m * kRowU4 + kSegU + cu], xf + 8);
+#pragma unroll
+                            for (int r = 0; r < R; ++r) {
+                                float sm = 0.f;
+#pragma unroll
+                                for (int e = 0; e < 16; ++e) sm = fmaf(wf[r][e], xf[e], sm);
+                                acc[r][m] += sm;
+                            }
+                        }
+                    }
+                }
+            }
+            if (seg + 1 < nseg) load(seg + 1, wr, wb);
+        }
+        if (wr[0]) {
+            constexpr int NI = R * M;
+            constexpr int P = NI <= 2 ? 2 : NI <= 4 ? 4 : NI <= 8 ? 8 : NI <= 16 ? 16 : 32;  // values per lane, a power of two
+            constexpr int LP = P == 2 ? 1 : P == 4 ? 2 : P == 8 ? 3 : P == 16 ? 4 : 5;
+            float v[P];
+#pragma unroll
+            for (int i = 0; i < P; ++i) v[i] = i < NI ? acc[i / M][i % M] : 0.f;
+#pragma unroll
+            for (int lvl = 4; lvl >= 0; --lvl) {
+                const int o = 1 << lvl;
+                if (lvl >= LP) {  // more lanes than values left: a plain butterfly level on every value
+#pragma unroll
+                    for (int i = 0; i < P; ++i) v[i] += __shfl_xor(v[i], o, IK_WARP);
+                } else {  // 2 << lvl values left: this lane keeps one half, its partner finishes the other
+                    const bool hi = (lane & o) != 0;
+#pragma unroll
+                    for (int j = 0; j < (1 << lvl); ++j) {
+                        const float lo_v = v[j], hi_v = v[j + (1 << lvl)];
+                        v[j] = (hi ? hi_v : lo_v) + __shfl_xor(hi ? lo_v : hi_v, o, IK_WARP);
+                    }
+                }
+            }
+            // lane l now holds the sum of item l % P (item i = r * M + m)
+            const int it = lane & (P - 1);
+            if (lane < P && it < NI) {
+                const int r = it / M, m = it % M;
+                if (n0 + r < N) ik_store(out + (int64_t)m * N + n0 + r, actq ? v[0] * kRowsWScale * s_out : v[0] * s_out);
+            }
+        }
+        if (prefetch) {
+            n0 = n0n;
+#pragma unroll
+            for (int r = 0; r < R; ++r) {
+                wr[r] = wrn[r];
+#pragma unroll
+                for (int j = 0; j < kUn; ++j) wb[r][j] = wn[r][j];
+            }
+        }
+    }
+}
+
+// Tiles per block: as many as leave about 64 blocks (the most the 64 KiB of staged activations let a 32-WGP R9700 hold at once), at
+// most 8, so the staged activations are used for 8 * 2 * tiles rows; INTARSIA_HIP_FP8_TILES overrides.
+inline int fp8_rows_tiles(int ntile) {
+    static const int forced = [] {
+        const char* e = getenv("INTARSIA_HIP_FP8_TILES");
+        return e ? atoi(e) : 0;
+    }();
+    if (forced > 0) return forced;
+    return std::min(8, std::max(1, ntile / 64));
+}
+
+template <int M, typename OutT>
+void fp8_gemv_rows_go(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+    constexpr int R = 2;
+    if (K > kSegElems) {  // two or more segments: no tile loop, wider blocks
+        const unsigned grid = (unsigned)((N + kWarpsLongK * R - 1) / (kWarpsLongK * R));
+        fp8_gemv_rows_kernel<M, R, OutT, kWarpsLongK><<<grid, kWarpsLongK * IK_WARP, (size_t)M * kSegElems * 2, s>>>(x, w, sc, out, (int)N, (int)K, 1);
+        return;
+    }
+    const int ntile = (int)((N + kWarps * R - 1) / (kWarps * R));
+    const int tiles = std::min(fp8_rows_tiles(ntile), ntile);
+    const unsigned grid = (unsigned)((ntile + tiles - 1) / tiles);
+    fp8_gemv_rows_kernel<M, R, OutT><<<grid, kWarps * IK_WARP, (size_t)M * kSegElems * 2, s>>>(x, w, sc, out, (int)N, (int)K, tiles);
+}
+
+template <typename OutT>
+int fp8_gemv_rows_launch(int M, const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+    switch (M) {
+#define IK_FP8_ROWS16_CASE(MV) \
+    case MV: fp8_gemv_rows_go<MV, OutT>(x, w, sc, out, N, K, s); break;
+        IK_FP8_ROWS16_CASE(1) IK_FP8_ROWS16_CASE(2) IK_FP8_ROWS16_CASE(3) IK_FP8_ROWS16_CASE(4) IK_FP8_ROWS16_CASE(5)
+        IK_FP8_ROWS16_CASE(6) IK_FP8_ROWS16_CASE(7) IK_FP8_ROWS16_CASE(8) IK_FP8_ROWS16_CASE(9) IK_FP8_ROWS16_CASE(10)
+        IK_FP8_ROWS16_CASE(11) IK_FP8_ROWS16_CASE(12) IK_FP8_ROWS16_CASE(13) IK_FP8_ROWS16_CASE(14) IK_FP8_ROWS16_CASE(15)
+        IK_FP8_ROWS16_CASE(16)
+#undef IK_FP8_ROWS16_CASE
         default: return IK_ERR_SHAPE;
     }
     return ik_launch_status();
@@ -602,13 +972,21 @@ int launch_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales,
     if (M == 0 || N == 0) return IK_OK;
     if (K == 0) return launch(x, w, scales, out, stream, 2);
     if (M > kRowsMax || N > 0x7fffffffLL || K > 0x7fffffffLL) return IK_ERR_SHAPE;
-    const int64_t gmax = std::min<int64_t>(kRowsGroup, 49152 / (K * 2));
-    if (gmax < 1) return IK_ERR_SHAPE;
     hipStream_t s = IK_STREAM(stream);
     const ik_bf16* xp = (const ik_bf16*)x->data;
     const uint8_t* wp = (const uint8_t*)w->data;
     const float* sp = (const float*)scales->data;
     const bool f32o = out->dtype == IK_DTYPE_F32;
+    static const int forced_min = [] {
+        const char* e = getenv("INTARSIA_HIP_FP8_ONEPASS_MIN");
+        return e ? atoi(e) : 0;
+    }();
+    const int one_pass_min = forced_min > 0 ? forced_min : K <= 2048 ? kOnePassMinShort : kOnePassMinLong;
+    if (M >= one_pass_min)
+        return f32o ? fp8_gemv_rows_launch((int)M, xp, wp, sp, (float*)out->data, N, K, s)
+                    : fp8_gemv_rows_launch((int)M, xp, wp, sp, (ik_bf16*)out->data, N, K, s);
+    const int64_t gmax = std::min<int64_t>(kRowsGroup, 49152 / (K * 2));
+    if (gmax < 1) return IK_ERR_SHAPE;
     const int64_t groups = (M + gmax - 1) / gmax;
     int64_t r0 = 0;
     for (int64_t g = 0; g < groups; ++g) {

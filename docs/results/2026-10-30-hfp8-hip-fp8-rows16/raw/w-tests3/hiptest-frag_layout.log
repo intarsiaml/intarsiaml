@@ -1,0 +1,50 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1216:4
+     |
+1216 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/frag_layout.rs (/target/release/deps/frag_layout-7a07573e71f7a00b)
+
+running 5 tests
+test frag_raw_byte_paths_refuse_a_tagged_tensor ... 
+thread 'frag_raw_byte_paths_refuse_a_tagged_tensor' panicked at crates/intarsia-core/src/backend.rs:166:9:
+assertion `left == right` failed: row slice of a Fp8Frag tensor: its bytes are not in row-major order
+  left: Fp8Frag
+ right: RowMajor
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'frag_raw_byte_paths_refuse_a_tagged_tensor' panicked at crates/intarsia-core/src/backend.rs:160:9:
+assertion `left == right` failed: reshape of a Fp8Frag tensor: its bytes are not in row-major order
+  left: Fp8Frag
+ right: RowMajor
+ok
+test frag_readers_that_do_not_know_the_layout_fail_loudly ... refused on tagged weights, cases per kernel: {"gated_rmsnorm_matmul_fp8_gemv": 4, "matmul_fp8_gemv": 16, "matmul_fp8_gemv_rows": 32, "matmul_fp8_gemv_v2": 16, "matmul_fp8_pair_gemv": 6, "rmsnorm_add_matmul_fp8_pair_gemv": 6, "sigmoid_mul_matmul_fp8_gemv": 4}
+ok
+test frag_tagged_weights_give_the_bytes_of_row_major_in_every_reader ... frag == row-major, cases per reader: {"gated_rmsnorm_matmul_fp8_wmma": 4, "matmul_fp8_mma": 40, "matmul_fp8_mma_f8": 40, "matmul_fp8_mma_v2": 40, "matmul_fp8_pair_wmma": 6, "matmul_fp8_wmma": 40, "matmul_fp8_wmma_rows": 40, "rmsnorm_add_matmul_fp8_pair_wmma": 6, "sigmoid_mul_matmul_fp8_wmma": 4}
+ok
+test frag_the_loader_tags_only_under_the_knobs_and_tp_shards_load ... ok
+test frag_the_registry_selects_only_fragment_readers_for_a_tagged_call ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.94s
+

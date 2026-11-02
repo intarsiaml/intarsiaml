@@ -1,0 +1,108 @@
+{
+ "verify": {
+  "N": 1023,
+  "flow": "fp32",
+  "layer": 2,
+  "mine_whole_vs_official_whole_out": {
+   "max_abs": 8.046627044677734e-07,
+   "rel": 1.9411125686549947e-07
+  },
+  "mine_whole_vs_official_whole_state_bitequal": {
+   "window_kv_cache": true,
+   "compress_kv_cache": true,
+   "index_k_cache": true,
+   "kv_state": true,
+   "score_state": true
+  },
+  "official_prefill_Nm3_plus_3_decode_state_bitequal_to_whole": {
+   "window_kv_cache": true,
+   "compress_kv_cache": true,
+   "index_k_cache": true,
+   "kv_state": true,
+   "score_state": true
+  },
+  "official_prefill_Nm3_plus_3_decode_last3_out": {
+   "max_abs": 0.0,
+   "rel": 0.0
+  },
+  "chunked": {
+   "1023": {
+    "ratio_aligned": true,
+    "out_bitequal_to_whole": true,
+    "out_rel": 0.0,
+    "state_bitequal": {
+     "window_kv_cache": true,
+     "compress_kv_cache": true,
+     "index_k_cache": true,
+     "kv_state": true,
+     "score_state": true
+    }
+   },
+   "512,511": {
+    "ratio_aligned": true,
+    "out_bitequal_to_whole": false,
+    "out_rel": 3.2351876144249914e-08,
+    "state_bitequal": {
+     "window_kv_cache": true,
+     "compress_kv_cache": true,
+     "index_k_cache": true,
+     "kv_state": true,
+     "score_state": true
+    }
+   },
+   "1000,23": {
+    "ratio_aligned": true,
+    "out_bitequal_to_whole": true,
+    "out_rel": 0.0,
+    "state_bitequal": {
+     "window_kv_cache": true,
+     "compress_kv_cache": true,
+     "index_k_cache": true,
+     "kv_state": true,
+     "score_state": true
+    }
+   },
+   "777,246": {
+    "ratio_aligned": false,
+    "out_bitequal_to_whole": false,
+    "out_rel": 2.8757223239333254e-08,
+    "state_bitequal": {
+     "window_kv_cache": true,
+     "compress_kv_cache": true,
+     "index_k_cache": true,
+     "kv_state": true,
+     "score_state": true
+    }
+   }
+  }
+ },
+ "stats": {
+  "rows": [
+   0,
+   1,
+   2,
+   127,
+   128,
+   129,
+   1021,
+   1022
+  ],
+  "n_kv_rows": 770,
+  "minus1_per_row": [
+   638,
+   636,
+   635,
+   447,
+   447,
+   446,
+   0,
+   0
+  ],
+  "topk_width": 639,
+  "compressed_positions": 511,
+  "ratio": 2,
+  "scale": 0.04419417382415922,
+  "quant": "tf",
+  "flow": "fp32"
+ }
+}

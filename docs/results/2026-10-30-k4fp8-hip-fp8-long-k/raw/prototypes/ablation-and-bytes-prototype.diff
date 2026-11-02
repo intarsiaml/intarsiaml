@@ -1,0 +1,271 @@
+--- orig/fp8.hip	2026-10-30 07:52:31
++++ abl/fp8.hip	2026-10-30 07:27:59
+@@ -445,13 +445,19 @@
+ // `fp8_gemv_rows_launch` below picks it.
+ // Fewest rows the one-pass kernel serves: it is as fast or faster than the per-group kernels from M = 2 (K <= 2048) and from M = 5
+ // (longer K, where it stages in two segments); M = 1..2 keep the kernels they had. INTARSIA_HIP_FP8_ONEPASS_MIN overrides both.
++#ifndef K4_ABL
++#define K4_ABL 0
++#endif
++#ifndef K4_WARPS
++#define K4_WARPS kWarps
++#endif
+ constexpr int kOnePassMinShort = 3;
+ constexpr int kOnePassMinLong = 5;
+ constexpr int kSegElems = 2048;
+ constexpr int kSegU = kSegElems / 16;  // chunks per segment = IK_WARP * kUn
+ 
+-template <int M, int R, typename OutT>
+-__global__ void __launch_bounds__(kWarps * IK_WARP)
++template <int M, int R, typename OutT, int WK = kWarps>
++__global__ void __launch_bounds__(WK * IK_WARP)
+ fp8_gemv_rows_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
+                      OutT* __restrict__ out, int N, int K, int tiles) {
+     static_assert(kSegU == IK_WARP * kUn, "one segment is one batch of loads per lane");
+@@ -460,7 +466,7 @@
+     constexpr int kRowU4 = kSegElems / 8;
+     const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+     const int nu = K / 16;
+-    const int ntile = (N + kWarps * R - 1) / (kWarps * R);
++    const int ntile = (N + WK * R - 1) / (WK * R);
+     const int nseg = (K + kSegElems - 1) / kSegElems;
+ 
+     int64_t n0 = 0, n0n = 0;
+@@ -468,7 +474,7 @@
+     const uint4* wrn[R];
+     uint4 wb[R][kUn], wn[R][kUn];
+     auto rows_of = [&](int tile, int64_t& nn, const uint4* (&p)[R]) {
+-        nn = ((int64_t)tile * kWarps + warp) * R;
++        nn = ((int64_t)tile * WK + warp) * R;
+ #pragma unroll
+         for (int r = 0; r < R; ++r) p[r] = tile < ntile && nn + r < N ? reinterpret_cast<const uint4*>(w + (nn + r) * K) : nullptr;
+     };
+@@ -500,11 +506,11 @@
+                 const int k0 = seg * kSegElems;
+                 const int klen8 = (min(kSegElems, K - k0)) / 8;  // staged 8-value chunks of one row in this segment
+                 if (seg > 0 || t > 0) __syncthreads();            // everyone is done reading the previous contents
+-                for (int i8 = threadIdx.x; i8 < M * klen8; i8 += blockDim.x) {
++                for (int i8 = threadIdx.x; i8 < ((K4_ABL == 3 || K4_ABL == 7) ? 0 : M * klen8); i8 += blockDim.x) {
+                     const int m = i8 / klen8, c = i8 - m * klen8;
+                     const uint4 v = reinterpret_cast<const uint4*>(x)[((int64_t)m * K + k0) / 8 + c];
+                     uint4 o;
+-                    if (!actq) {
++                    if (!actq || K4_ABL == 2) {
+                         o = v;
+                     } else {
+                         float f[8];
+@@ -512,7 +518,7 @@
+ #if __has_builtin(__builtin_amdgcn_cvt_pk_fp8_f32)
+                         float y[8];
+ #pragma unroll
+-                        for (int e = 0; e < 8; ++e) y[e] = fminf(fmaxf(__fdiv_rn(f[e], s_in), -448.f), 448.f);
++                        for (int e = 0; e < 8; ++e) y[e] = fminf(fmaxf(K4_ABL == 1 ? f[e] : __fdiv_rn(f[e], s_in), -448.f), 448.f);
+                         int c0 = __builtin_amdgcn_cvt_pk_fp8_f32(y[0], y[1], 0, false);
+                         c0 = __builtin_amdgcn_cvt_pk_fp8_f32(y[2], y[3], c0, true);
+                         int c1 = __builtin_amdgcn_cvt_pk_fp8_f32(y[4], y[5], 0, false);
+@@ -531,7 +537,7 @@
+                 rows_of(tile + 1, n0n, wrn);
+                 load(0, wrn, wn);
+             }
+-            if (wr[0]) {
++            if (wr[0] && K4_ABL != 4 && K4_ABL != 7) {
+                 if (actq) {
+ #pragma unroll
+                     for (int j = 0; j < kUn; ++j) {
+@@ -550,7 +556,7 @@
+                         const int cu = lane + IK_WARP * j;  // this chunk's index inside the segment
+ #pragma unroll
+                         for (int m = 0; m < M; ++m) {
+-                            const uint4 x0 = xs[m * kRowU4 + cu], x1 = xs[m * kRowU4 + kSegU + cu];
++                            const uint4 x0 = K4_ABL == 5 ? make_uint4(cu * 7 + m, cu + 3, m, cu) : xs[m * kRowU4 + cu], x1 = K4_ABL == 5 ? make_uint4(cu, m, cu * 5, 1) : xs[m * kRowU4 + kSegU + cu];
+                             const uint32_t xw[8] = {x0.x, x0.y, x0.z, x0.w, x1.x, x1.y, x1.z, x1.w};
+ #pragma unroll
+                             for (int r = 0; r < R; ++r) {
+@@ -597,7 +603,7 @@
+ #pragma unroll
+             for (int i = 0; i < P; ++i) v[i] = i < NI ? acc[i / M][i % M] : 0.f;
+ #pragma unroll
+-            for (int lvl = 4; lvl >= 0; --lvl) {
++            for (int lvl = 4; lvl >= (K4_ABL == 6 ? 5 : 0); --lvl) {
+                 const int o = 1 << lvl;
+                 if (lvl >= LP) {  // more lanes than values left: a plain butterfly level on every value
+ #pragma unroll
+@@ -630,6 +636,155 @@
+     }
+ }
+ 
++
++#ifdef K4_BYTES
++// PROTOTYPE (W8A8 only): activations staged as e4m3 bytes, CAP values per row per stage (a multiple of 2048).
++template <int M, int R, typename OutT, int CAP>
++__global__ void __launch_bounds__(kWarps * IK_WARP)
++fp8_rows_bytes_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const float* __restrict__ sc,
++                      OutT* __restrict__ out, int N, int K, int tiles) {
++    extern __shared__ __align__(16) unsigned char smem[];
++    uint4* xq = reinterpret_cast<uint4*>(smem);  // [M][CAP / 16] chunks of 16 e4m3 bytes
++    uint2* xq2 = reinterpret_cast<uint2*>(smem); // [M][CAP / 8] pieces of 8 e4m3 bytes
++    constexpr int kRowQ = CAP / 16, BPS = CAP / kSegElems;
++    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
++    const int nu = K / 16;
++    const int ntile = (N + kWarps * R - 1) / (kWarps * R);
++    const int nb = (K + kSegElems - 1) / kSegElems;
++    const int nstage = (nb + BPS - 1) / BPS;
++    int64_t n0 = 0, n0n = 0;
++    const uint4* wr[R];
++    const uint4* wrn[R];
++    uint4 wb[R][kUn], wn[R][kUn];
++    auto rows_of = [&](int tile, int64_t& nn, const uint4* (&p)[R]) {
++        nn = ((int64_t)tile * kWarps + warp) * R;
++#pragma unroll
++        for (int r = 0; r < R; ++r) p[r] = tile < ntile && nn + r < N ? reinterpret_cast<const uint4*>(w + (nn + r) * K) : nullptr;
++    };
++    auto load = [&](int seg, const uint4* const (&p)[R], uint4 (&dst)[R][kUn]) {
++#pragma unroll
++        for (int j = 0; j < kUn; ++j) {
++            const int u = seg * kSegU + lane + IK_WARP * j;
++#pragma unroll
++            for (int r = 0; r < R; ++r) dst[r][j] = (p[r] && u < nu) ? ik_ldcs(p[r] + u) : make_uint4(0, 0, 0, 0);
++        }
++    };
++    int tile = blockIdx.x * tiles;
++    rows_of(tile, n0, wr);
++    load(0, wr, wb);
++    const float s_in = sc[1];
++    const float s_out = sc[0] * s_in;
++    for (int t = 0; t < tiles && tile < ntile; ++t, ++tile) {
++        float acc[R][M];
++#pragma unroll
++        for (int r = 0; r < R; ++r)
++#pragma unroll
++            for (int m = 0; m < M; ++m) acc[r][m] = 0.f;
++        for (int b = 0; b < nb; ++b) {
++            if (b % BPS == 0 && (t == 0 || nstage > 1)) {
++                const int k0 = b * kSegElems;
++                const int klen8 = (min(CAP, K - k0)) / 8;
++                if (b > 0 || t > 0) __syncthreads();
++                for (int i8 = threadIdx.x; i8 < M * klen8; i8 += blockDim.x) {
++                    const int m = i8 / klen8, c = i8 - m * klen8;
++                    const uint4 v = reinterpret_cast<const uint4*>(x)[((int64_t)m * K + k0) / 8 + c];
++                    float f[8];
++                    ik_unpack8(v, f);
++                    float y[8];
++#pragma unroll
++                    for (int e = 0; e < 8; ++e) y[e] = fminf(fmaxf(__fdiv_rn(f[e], s_in), -448.f), 448.f);
++                    int c0 = __builtin_amdgcn_cvt_pk_fp8_f32(y[0], y[1], 0, false);
++                    c0 = __builtin_amdgcn_cvt_pk_fp8_f32(y[2], y[3], c0, true);
++                    int c1 = __builtin_amdgcn_cvt_pk_fp8_f32(y[4], y[5], 0, false);
++                    c1 = __builtin_amdgcn_cvt_pk_fp8_f32(y[6], y[7], c1, true);
++                    xq2[m * (CAP / 8) + c] = make_uint2((uint32_t)c0, (uint32_t)c1);
++                }
++                __syncthreads();
++            }
++            if (nstage == 1 && b == nb - 1 && t + 1 < tiles && tile + 1 < ntile) {
++                rows_of(tile + 1, n0n, wrn);
++                load(0, wrn, wn);
++            }
++            if (wr[0]) {
++#pragma unroll
++                for (int j = 0; j < kUn; ++j) {
++                    const int u = b * kSegU + lane + IK_WARP * j;
++                    if (u >= nu) break;
++                    uint32_t wh[R][8];
++#pragma unroll
++                    for (int r = 0; r < R; ++r) {
++                        const uint32_t ww[4] = {wb[r][j].x, wb[r][j].y, wb[r][j].z, wb[r][j].w};
++#pragma unroll
++                        for (int q = 0; q < 4; ++q) {
++                            wh[r][2 * q] = e4m3x2_to_f16x2(ww[q], 0x010C000Cu);
++                            wh[r][2 * q + 1] = e4m3x2_to_f16x2(ww[q], 0x030C020Cu);
++                        }
++                    }
++                    const int cu = (b % BPS) * kSegU + lane + IK_WARP * j;
++#pragma unroll
++                    for (int m = 0; m < M; ++m) {
++                        const uint4 qv = xq[m * kRowQ + cu];
++                        const uint32_t qw[4] = {qv.x, qv.y, qv.z, qv.w};
++                        uint32_t xw[8];
++#pragma unroll
++                        for (int q = 0; q < 4; ++q) {
++                            xw[2 * q] = e4m3x2_to_f16x2(qw[q], 0x010C000Cu);
++                            xw[2 * q + 1] = e4m3x2_to_f16x2(qw[q], 0x030C020Cu);
++                        }
++#pragma unroll
++                        for (int r = 0; r < R; ++r) {
++                            float sm = acc[r][m];
++#pragma unroll
++                            for (int q = 0; q < 8; ++q)
++                                sm = __builtin_amdgcn_fdot2(__builtin_bit_cast(ik_h2, wh[r][q]), __builtin_bit_cast(ik_h2, xw[q]), sm, false);
++                            acc[r][m] = sm;
++                        }
++                    }
++                }
++            }
++            if (b + 1 < nb) load(b + 1, wr, wb);
++        }
++        if (wr[0]) {
++            constexpr int NI = R * M;
++            constexpr int P = NI <= 2 ? 2 : NI <= 4 ? 4 : NI <= 8 ? 8 : NI <= 16 ? 16 : 32;
++            constexpr int LP = P == 2 ? 1 : P == 4 ? 2 : P == 8 ? 3 : P == 16 ? 4 : 5;
++            float v[P];
++#pragma unroll
++            for (int i = 0; i < P; ++i) v[i] = i < NI ? acc[i / M][i % M] : 0.f;
++#pragma unroll
++            for (int lvl = 4; lvl >= 0; --lvl) {
++                const int o = 1 << lvl;
++                if (lvl >= LP) {
++#pragma unroll
++                    for (int i = 0; i < P; ++i) v[i] += __shfl_xor(v[i], o, IK_WARP);
++                } else {
++                    const bool hi = (lane & o) != 0;
++#pragma unroll
++                    for (int j = 0; j < (1 << lvl); ++j) {
++                        const float lo_v = v[j], hi_v = v[j + (1 << lvl)];
++                        v[j] = (hi ? hi_v : lo_v) + __shfl_xor(hi ? lo_v : hi_v, o, IK_WARP);
++                    }
++                }
++            }
++            const int it = lane & (P - 1);
++            if (lane < P && it < NI) {
++                const int r = it / M, m = it % M;
++                if (n0 + r < N) ik_store(out + (int64_t)m * N + n0 + r, v[0] * 65536.f * s_out);
++            }
++        }
++        if (nstage == 1 && t + 1 < tiles && tile + 1 < ntile) {
++            n0 = n0n;
++#pragma unroll
++            for (int r = 0; r < R; ++r) {
++                wr[r] = wrn[r];
++#pragma unroll
++                for (int j = 0; j < kUn; ++j) wb[r][j] = wn[r][j];
++            }
++        }
++    }
++}
++#endif
++
+ // Tiles per block: as many as leave about 64 blocks (the most the 64 KiB of staged activations let a 32-WGP R9700 hold at once), at
+ // most 8, so the staged activations are used for 8 * 2 * tiles rows; INTARSIA_HIP_FP8_TILES overrides.
+ inline int fp8_rows_tiles(int ntile) {
+@@ -644,6 +799,22 @@
+ template <int M, typename OutT>
+ void fp8_gemv_rows_go(const ik_bf16* x, const uint8_t* w, const float* sc, OutT* out, int64_t N, int64_t K, hipStream_t s) {
+     constexpr int R = 2;
++#ifdef K4_BYTES
++    {
++        constexpr int CAP = K4_BYTES;
++        const int ntile = (int)((N + kWarps * R - 1) / (kWarps * R));
++        const int tiles = K <= CAP ? std::min(fp8_rows_tiles(ntile), ntile) : 1;
++        const unsigned grid = (unsigned)((ntile + tiles - 1) / tiles);
++        fp8_rows_bytes_kernel<M, R, OutT, CAP><<<grid, kWarps * IK_WARP, (size_t)M * CAP, s>>>(x, w, sc, out, (int)N, (int)K, tiles);
++        return;
++    }
++#endif
++    if (K > kSegElems && K4_WARPS != kWarps) {
++        constexpr int WK = K4_WARPS;
++        const int ntile = (int)((N + WK * R - 1) / (WK * R));
++        fp8_gemv_rows_kernel<M, R, OutT, WK><<<ntile, WK * IK_WARP, (size_t)M * kSegElems * 2, s>>>(x, w, sc, out, (int)N, (int)K, 1);
++        return;
++    }
+     const int ntile = (int)((N + kWarps * R - 1) / (kWarps * R));
+     const int tiles = K <= kSegElems ? std::min(fp8_rows_tiles(ntile), ntile) : 1;
+     const unsigned grid = (unsigned)((ntile + tiles - 1) / tiles);

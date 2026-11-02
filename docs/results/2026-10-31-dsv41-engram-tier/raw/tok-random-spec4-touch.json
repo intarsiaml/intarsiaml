@@ -1,0 +1,56 @@
+{
+  "dir": "/home/nvidia/dsv41-engram",
+  "rank": 1,
+  "world": 2,
+  "backend": "io_uring",
+  "granule": "page",
+  "scales": "read",
+  "hot_mb": 0,
+  "profile": null,
+  "trace": null,
+  "tokens_per_step": 1,
+  "touch": true,
+  "touch_lead_us": 1000,
+  "keepalive_ms": 0.0,
+  "spec_topk": 4,
+  "spec_lead_us": 500,
+  "open_s": 0.000531534,
+  "preload_s": 0.0,
+  "host": {
+    "kernel": "6.17.0-1032-nvidia",
+    "apst_max_latency_us": "100000",
+    "nvme_model": "SAMSUNG MZALC4T0HBL1-00B07",
+    "logical_block": "512",
+    "scheduler": "[none] mq-deadline"
+  },
+  "points": [
+    {
+      "gap_ms": 75.0,
+      "layer1": {
+        "n": 1500,
+        "p50_us": 21.216,
+        "p90_us": 30.96,
+        "p99_us": 38.528,
+        "p999_us": 104.223,
+        "max_us": 557.23,
+        "mean_us": 22.802391999999994
+      },
+      "step": {
+        "n": 1500,
+        "p50_us": 21.232,
+        "p90_us": 31.104,
+        "p99_us": 38.544000000000004,
+        "p999_us": 104.223,
+        "max_us": 558.0780000000001,
+        "mean_us": 22.895799333333333
+      },
+      "hot_hit_pct": 0.0,
+      "row_reads_per_token": 0.0,
+      "io_bytes": 627195904,
+      "staged_hits": 0,
+      "joined": 36000,
+      "failed": 0
+    }
+  ],
+  "resident_bytes": 6422528
+}

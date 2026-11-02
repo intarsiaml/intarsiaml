@@ -1,0 +1,6 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29555
+Error: loading /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 with tp=2 (rank 1 at 10.100.152.3:29555)
+
+Caused by:
+    unsupported: --spec mtp with a tensor-parallel rank in another process: the MTP drafter runs on in-process ranks only (--tp N on one host)
+NCCL version 2.30.7+cuda13.3

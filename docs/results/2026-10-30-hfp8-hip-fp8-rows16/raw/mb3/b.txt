@@ -1,0 +1,109 @@
+TIME N=8192  K=2048  M=1     31.80 us     528 GB/s(weights once)  x1.00 of M=1
+CHECK N=8192 K=2048 M=1 actq=1 out=bf16: bitwise ok
+CHECK N=8192 K=2048 M=1 actq=1 out=f32: bitwise ok
+TIME N=8192  K=2048  M=4     38.39 us     437 GB/s(weights once)  x1.21 of M=1
+CHECK N=8192 K=2048 M=4 actq=1 out=bf16: bitwise ok
+CHECK N=8192 K=2048 M=4 actq=1 out=f32: bitwise ok
+TIME N=8192  K=2048  M=8     47.40 us     354 GB/s(weights once)  x1.49 of M=1
+CHECK N=8192 K=2048 M=8 actq=1 out=bf16: bitwise ok
+CHECK N=8192 K=2048 M=8 actq=1 out=f32: bitwise ok
+TIME N=8192  K=2048  M=9     55.18 us     304 GB/s(weights once)  x1.74 of M=1
+CHECK N=8192 K=2048 M=9 actq=1 out=bf16: bitwise ok
+CHECK N=8192 K=2048 M=9 actq=1 out=f32: bitwise ok
+TIME N=8192  K=2048  M=10    57.67 us     291 GB/s(weights once)  x1.81 of M=1
+CHECK N=8192 K=2048 M=10 actq=1 out=bf16: bitwise ok
+CHECK N=8192 K=2048 M=10 actq=1 out=f32: bitwise ok
+TIME N=8192  K=2048  M=12    74.19 us     226 GB/s(weights once)  x2.33 of M=1
+CHECK N=8192 K=2048 M=12 actq=1 out=bf16: bitwise ok
+CHECK N=8192 K=2048 M=12 actq=1 out=f32: bitwise ok
+TIME N=8192  K=2048  M=13    77.13 us     218 GB/s(weights once)  x2.43 of M=1
+CHECK N=8192 K=2048 M=13 actq=1 out=bf16: bitwise ok
+CHECK N=8192 K=2048 M=13 actq=1 out=f32: bitwise ok
+TIME N=8192  K=2048  M=15    83.48 us     201 GB/s(weights once)  x2.63 of M=1
+CHECK N=8192 K=2048 M=15 actq=1 out=bf16: bitwise ok
+CHECK N=8192 K=2048 M=15 actq=1 out=f32: bitwise ok
+TIME N=8192  K=2048  M=16    89.87 us     187 GB/s(weights once)  x2.83 of M=1
+CHECK N=8192 K=2048 M=16 actq=1 out=bf16: bitwise ok
+CHECK N=8192 K=2048 M=16 actq=1 out=f32: bitwise ok
+TIME N=4096  K=2048  M=1     21.17 us     396 GB/s(weights once)  x1.00 of M=1
+CHECK N=4096 K=2048 M=1 actq=1 out=bf16: bitwise ok
+CHECK N=4096 K=2048 M=1 actq=1 out=f32: bitwise ok
+TIME N=4096  K=2048  M=4     21.96 us     382 GB/s(weights once)  x1.04 of M=1
+CHECK N=4096 K=2048 M=4 actq=1 out=bf16: bitwise ok
+CHECK N=4096 K=2048 M=4 actq=1 out=f32: bitwise ok
+TIME N=4096  K=2048  M=8     27.89 us     301 GB/s(weights once)  x1.32 of M=1
+CHECK N=4096 K=2048 M=8 actq=1 out=bf16: bitwise ok
+CHECK N=4096 K=2048 M=8 actq=1 out=f32: bitwise ok
+TIME N=4096  K=2048  M=9     32.30 us     260 GB/s(weights once)  x1.53 of M=1
+CHECK N=4096 K=2048 M=9 actq=1 out=bf16: bitwise ok
+CHECK N=4096 K=2048 M=9 actq=1 out=f32: bitwise ok
+TIME N=4096  K=2048  M=10    34.51 us     243 GB/s(weights once)  x1.63 of M=1
+CHECK N=4096 K=2048 M=10 actq=1 out=bf16: bitwise ok
+CHECK N=4096 K=2048 M=10 actq=1 out=f32: bitwise ok
+TIME N=4096  K=2048  M=12    41.97 us     200 GB/s(weights once)  x1.98 of M=1
+CHECK N=4096 K=2048 M=12 actq=1 out=bf16: bitwise ok
+CHECK N=4096 K=2048 M=12 actq=1 out=f32: bitwise ok
+TIME N=4096  K=2048  M=13    43.71 us     192 GB/s(weights once)  x2.07 of M=1
+CHECK N=4096 K=2048 M=13 actq=1 out=bf16: bitwise ok
+CHECK N=4096 K=2048 M=13 actq=1 out=f32: bitwise ok
+TIME N=4096  K=2048  M=15    46.77 us     179 GB/s(weights once)  x2.21 of M=1
+CHECK N=4096 K=2048 M=15 actq=1 out=bf16: bitwise ok
+CHECK N=4096 K=2048 M=15 actq=1 out=f32: bitwise ok
+TIME N=4096  K=2048  M=16    50.35 us     167 GB/s(weights once)  x2.38 of M=1
+CHECK N=4096 K=2048 M=16 actq=1 out=bf16: bitwise ok
+CHECK N=4096 K=2048 M=16 actq=1 out=f32: bitwise ok
+TIME N=2048  K=4096  M=1     17.03 us     493 GB/s(weights once)  x1.00 of M=1
+CHECK N=2048 K=4096 M=1 actq=1 out=bf16: bitwise ok
+CHECK N=2048 K=4096 M=1 actq=1 out=f32: bitwise ok
+TIME N=2048  K=4096  M=4     22.52 us     373 GB/s(weights once)  x1.32 of M=1
+CHECK N=2048 K=4096 M=4 actq=1 out=bf16: bitwise ok
+CHECK N=2048 K=4096 M=4 actq=1 out=f32: bitwise ok
+TIME N=2048  K=4096  M=8     29.61 us     283 GB/s(weights once)  x1.74 of M=1
+CHECK N=2048 K=4096 M=8 actq=1 out=bf16: bitwise ok
+CHECK N=2048 K=4096 M=8 actq=1 out=f32: bitwise ok
+TIME N=2048  K=4096  M=9     37.85 us     222 GB/s(weights once)  x2.22 of M=1
+CHECK N=2048 K=4096 M=9 actq=1 out=bf16: bitwise ok
+CHECK N=2048 K=4096 M=9 actq=1 out=f32: bitwise ok
+TIME N=2048  K=4096  M=10    40.64 us     206 GB/s(weights once)  x2.39 of M=1
+CHECK N=2048 K=4096 M=10 actq=1 out=bf16: bitwise ok
+CHECK N=2048 K=4096 M=10 actq=1 out=f32: bitwise ok
+TIME N=2048  K=4096  M=12    42.27 us     198 GB/s(weights once)  x2.48 of M=1
+CHECK N=2048 K=4096 M=12 actq=1 out=bf16: bitwise ok
+CHECK N=2048 K=4096 M=12 actq=1 out=f32: bitwise ok
+TIME N=2048  K=4096  M=13    45.11 us     186 GB/s(weights once)  x2.65 of M=1
+CHECK N=2048 K=4096 M=13 actq=1 out=bf16: bitwise ok
+CHECK N=2048 K=4096 M=13 actq=1 out=f32: bitwise ok
+TIME N=2048  K=4096  M=15    47.40 us     177 GB/s(weights once)  x2.78 of M=1
+CHECK N=2048 K=4096 M=15 actq=1 out=bf16: bitwise ok
+CHECK N=2048 K=4096 M=15 actq=1 out=f32: bitwise ok
+TIME N=2048  K=4096  M=16    51.22 us     164 GB/s(weights once)  x3.01 of M=1
+CHECK N=2048 K=4096 M=16 actq=1 out=bf16: bitwise ok
+CHECK N=2048 K=4096 M=16 actq=1 out=f32: bitwise ok
+TIME N=512   K=2048  M=1      5.19 us     202 GB/s(weights once)  x1.00 of M=1
+CHECK N=512 K=2048 M=1 actq=1 out=bf16: bitwise ok
+CHECK N=512 K=2048 M=1 actq=1 out=f32: bitwise ok
+TIME N=512   K=2048  M=4      6.90 us     152 GB/s(weights once)  x1.33 of M=1
+CHECK N=512 K=2048 M=4 actq=1 out=bf16: bitwise ok
+CHECK N=512 K=2048 M=4 actq=1 out=f32: bitwise ok
+TIME N=512   K=2048  M=8     10.16 us     103 GB/s(weights once)  x1.96 of M=1
+CHECK N=512 K=2048 M=8 actq=1 out=bf16: bitwise ok
+CHECK N=512 K=2048 M=8 actq=1 out=f32: bitwise ok
+TIME N=512   K=2048  M=9     11.49 us      91 GB/s(weights once)  x2.22 of M=1
+CHECK N=512 K=2048 M=9 actq=1 out=bf16: bitwise ok
+CHECK N=512 K=2048 M=9 actq=1 out=f32: bitwise ok
+TIME N=512   K=2048  M=10    12.15 us      86 GB/s(weights once)  x2.34 of M=1
+CHECK N=512 K=2048 M=10 actq=1 out=bf16: bitwise ok
+CHECK N=512 K=2048 M=10 actq=1 out=f32: bitwise ok
+TIME N=512   K=2048  M=12    13.04 us      80 GB/s(weights once)  x2.52 of M=1
+CHECK N=512 K=2048 M=12 actq=1 out=bf16: bitwise ok
+CHECK N=512 K=2048 M=12 actq=1 out=f32: bitwise ok
+TIME N=512   K=2048  M=13    15.36 us      68 GB/s(weights once)  x2.96 of M=1
+CHECK N=512 K=2048 M=13 actq=1 out=bf16: bitwise ok
+CHECK N=512 K=2048 M=13 actq=1 out=f32: bitwise ok
+TIME N=512   K=2048  M=15    16.57 us      63 GB/s(weights once)  x3.20 of M=1
+CHECK N=512 K=2048 M=15 actq=1 out=bf16: bitwise ok
+CHECK N=512 K=2048 M=15 actq=1 out=f32: bitwise ok
+TIME N=512   K=2048  M=16    18.56 us      56 GB/s(weights once)  x3.58 of M=1
+CHECK N=512 K=2048 M=16 actq=1 out=bf16: bitwise ok
+CHECK N=512 K=2048 M=16 actq=1 out=f32: bitwise ok
+SUMMARY 72 checks, 0 failed

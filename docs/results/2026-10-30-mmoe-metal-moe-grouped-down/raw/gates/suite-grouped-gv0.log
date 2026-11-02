@@ -1,0 +1,24 @@
+
+running 9 tests
+test bf16_pair_rows_at_the_35b_pairs ... bf16 pair: 180 cases, 1620 rows compared bitwise
+ok
+test fp8_rows_are_bitwise_the_one_row_gemv ... fp8: 2880 cases, 25920 rows compared bitwise
+ok
+test moe_experts_rows_are_bitwise_the_one_token_call ... metal moe: expert-grouped down 'moe_dec_dn_g_2x4' for T >= 9
+moe_experts: 420 cases, 3780 rows compared bitwise
+ok
+test negative_controls_differ_from_the_one_row_calls ... NEGATIVE CONTROL fp8 rows (_xd) with rows 0 and 1 swapped: 2040 of 4096 output bytes differ
+NEGATIVE CONTROL fp8 rows (_xd) with q(x) skipped (is = 0): 2542 of 4096 output bytes differ
+NEGATIVE CONTROL moe rows with the routing of tokens 0 and 1 swapped: 7444 of 32768 output bytes differ
+NEGATIVE CONTROL moe grouped prefill path at T = 8 (simdgroup matrices, another order): 18 of 32768 output bytes differ
+ok
+test nvfp4_rows_are_bitwise_the_one_row_gemv ... nvfp4: 360 cases, 3240 rows compared bitwise
+ok
+test row_parallel_kernels_do_not_depend_on_the_row_count ... row-parallel: 210 cases, 1890 rows compared bitwise
+ok
+test rows_exact_registrations_are_pinned ... ok
+test timing_moe_rows16 ... ignored
+test timing_rows ... ignored
+
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 4.90s
+

@@ -1,0 +1,91 @@
+{
+  "kind": "intarsia-bench-speed",
+  "schema_version": 1,
+  "label": "tp2r-tp1s-r1",
+  "timestamp_unix": 1793330145,
+  "url": "http://127.0.0.1:8090",
+  "model": "intarsia-35b",
+  "config": {
+    "sizes": [
+      1024
+    ],
+    "gen": 128,
+    "reps": 2,
+    "warmup": 1,
+    "concurrency": [
+      1,
+      4,
+      16
+    ],
+    "conc_size": 1024,
+    "gb_per_token": null,
+    "bandwidth_gbs": null
+  },
+  "calibration": {
+    "base_prompt_tokens": 50.0,
+    "tokens_per_filler_sentence": 21.99
+  },
+  "fingerprint": {},
+  "graph": {
+    "available": true,
+    "replays": 254,
+    "captures": 2,
+    "eager_steps": 2,
+    "profiled_steps": 2
+  },
+  "rows": [
+    {
+      "target_prompt_tokens": 1024,
+      "prompt_tokens": 955.0,
+      "gen_tokens": 128.0,
+      "ttft_s": 0.1758,
+      "prefill_tok_s": 5435.1,
+      "decode_tok_s": 87.41,
+      "decode_tok_s_reps": [
+        87.49,
+        87.33
+      ],
+      "decode_tok_s_min": 87.33,
+      "decode_tok_s_max": 87.49,
+      "decode_tok_s_stdev": 0.11,
+      "bandwidth_floor_tok_s": null,
+      "pct_of_floor": null,
+      "reps_ok": 2,
+      "errors": 0,
+      "at_most": true,
+      "reps_redone_over_size": 0,
+      "graph": {
+        "available": true,
+        "replays": 254,
+        "captures": 2,
+        "eager_steps": 2,
+        "profiled_steps": 2
+      }
+    }
+  ],
+  "concurrency": [
+    {
+      "streams": 4,
+      "target_prompt_tokens": 1024,
+      "ttft_s": 0.4955,
+      "per_stream_decode_tok_s": 47.51,
+      "aggregate_decode_tok_s": 169.02,
+      "pct_of_floor": null,
+      "bandwidth_floor_tok_s": null,
+      "errors": 0
+    },
+    {
+      "streams": 16,
+      "target_prompt_tokens": 1024,
+      "ttft_s": 1.5298,
+      "per_stream_decode_tok_s": 21.5,
+      "aggregate_decode_tok_s": 278.02,
+      "pct_of_floor": null,
+      "bandwidth_floor_tok_s": null,
+      "errors": 0
+    }
+  ],
+  "warnings": [
+    "size 1024: the timing includes 2 profiled eager steps (per-op profiling synchronises around every op)"
+  ]
+}

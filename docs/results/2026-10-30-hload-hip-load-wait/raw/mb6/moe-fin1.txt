@@ -1,0 +1,10 @@
+I=512 T= 1 distinct 8.0 maxpairs 1  gate_up<2>   23.34 us  down<2>   14.05 us
+I=512 T= 2 distinct 15.0 maxpairs 2  gate_up<2>   35.89 us  down<2>   21.86 us
+I=512 T= 4 distinct 25.8 maxpairs 4  gate_up<2>   56.12 us  down<2>   35.59 us
+I=512 T= 8 distinct 45.1 maxpairs 7  gate_up<2>   96.27 us  down<2>   59.89 us
+I=512 T=16 distinct 74.6 maxpairs 13  gate_up<2>  179.54 us  down<2>  112.28 us
+I=256 T= 1 distinct 8.0 maxpairs 1  gate_up<2>   16.52 us  down<2>   12.65 us
+I=256 T= 2 distinct 14.2 maxpairs 2  gate_up<2>   23.17 us  down<2>   19.93 us
+I=256 T= 4 distinct 25.3 maxpairs 4  gate_up<2>   34.50 us  down<2>   33.29 us
+I=256 T= 8 distinct 46.0 maxpairs 7  gate_up<2>   54.44 us  down<2>   58.83 us
+I=256 T=16 distinct 73.4 maxpairs 14  gate_up<2>   92.77 us  down<2>   99.52 us

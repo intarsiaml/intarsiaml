@@ -1,0 +1,13 @@
+fleetq: #7281 waiting (#1 in line): needs tatooine-r9700 quiet, but requests not tracked by fleetq are in flight: radiance-rank0 (1 in flight)
+fleetq: #7281 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 35% busy with work fleetq does not track
+fleetq: #7281 running on tatooine-r9700, tatooine-r9700-2: scripts/hprof/window.sh
+00:49:46 guard: [guard] radiance stopped 2026-10-30 00:49:46
+00:49:47 binary: intarsia 0.0.1 
+00:49:47 tp2-prof-llmax: starting server
+00:50:00 tp2-prof-llmax: driver phases same8,same16 (gen 192)
+00:50:21 tp2-prof-llmax: driver exit 0: {"phase": "same8", "streams": 8, "ok": 8, "wall_s": 4.15, "completion_tokens": 1536, "prompt_tokens_median": 991, "ttft_max_s": 0.99, "per_stream_decode_tok_s_mean": 54.0, "aggregate_decode_tok_s_est"|{"phase": "same16", "streams": 16, "ok": 16, "wall_s": 7.44, "completion_tokens": 3072, "prompt_tokens_median": 992, "ttft_max_s": 2.04, "per_stream_decode_tok_s_mean": 30.7, "aggregate_decode_tok_s_e|
+00:50:24 tp2-prof-llmax: server state after exit file (waited 6 s): false exit=0
+00:50:27 tp2-prof-llmax: copied  14M (648 /home/josef/intarsiaml-tp2-hprof/hprof-out/tp2-prof-llmax/k_agent_info.csv.gz 15188670 /home/josef/intarsiaml-tp2-hprof/hprof-out/tp2-prof-llmax/k_kernel_trace.csv.gz )
+00:50:27 done, time left 906s
+00:50:38 guard: [guard] stopping radiance 2026-10-30 00:49:43|[guard] radiance answers 2026-10-30 00:50:38 (after 15 s), unit active|
+fleetq: #7281 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

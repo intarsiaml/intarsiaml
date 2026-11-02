@@ -1,0 +1,70 @@
+{
+ "attn1k/attn4k_L2_fp32_full.safetensors": {
+  "bytes": 64491456,
+  "sha256": "f436cad26f1402f4f54f65e635c0fe3d8622f0bb1b3111766246ef9efda2a048"
+ },
+ "attn1k/attn4k_L2_fp32_report.json": {
+  "bytes": 2126,
+  "sha256": "c19c0243da3eb8b190ca8345a17be36953e138ec069757f95cc11915b9f9c73c"
+ },
+ "attn1k/sparse_attn_4k_fp32.safetensors": {
+  "bytes": 3719440,
+  "sha256": "26d3b5829555569ab85590b63c763f2903a3dd4893b416f871759f64304995a5"
+ },
+ "attn4k_L2_bf16_full.safetensors": {
+  "bytes": 128587112,
+  "sha256": "d364879eec84e57a337f1619c1f6c180f5b8d2dab493e4957df1a94f9767fa44"
+ },
+ "attn4k_L2_bf16_report.json": {
+  "bytes": 2338,
+  "sha256": "559c2bd853a51b3fc086a84ed42373c0a448d74f4025866a44ba7d9f1029aa3d"
+ },
+ "dspark/dspark_bf16.safetensors": {
+  "bytes": 39056192,
+  "sha256": "3799bac466add97678a3d87461ffba271ee050616e55612e27e8944aafe054f3"
+ },
+ "dspark/dspark_fp32.safetensors": {
+  "bytes": 59533488,
+  "sha256": "ae18197174f1dcc229258a445b898ac23dceacc4baafc50272db36210244218b"
+ },
+ "dspark/dspark_summary.json": {
+  "bytes": 2205,
+  "sha256": "4ddb158350ce72518a0caace0159748d11bd76b836b86777f2583370ba690de7"
+ },
+ "layers_bf16.safetensors": {
+  "bytes": 27739926,
+  "sha256": "286ecbefda7df9dc69063726b4401b481e4603296fa3e80f16ddbb1df11b3cf1"
+ },
+ "layers_fp32.safetensors": {
+  "bytes": 51698272,
+  "sha256": "09c2d0d087e6cdf221458b9c61f9c5c3adc327a5f45a84008d3d77ce1990ce9e"
+ },
+ "layers_summary.json": {
+  "bytes": 635,
+  "sha256": "08734797e18d6f139e435a0021d624553187bb0755c8e7d6e0b69b5b8c3ce6e9"
+ },
+ "nofake/layers_bf16.safetensors": {
+  "bytes": 27739926,
+  "sha256": "621a13bba6830d6559aa92d1e7aa72e1937890e25fdda4ef6c559693692d3247"
+ },
+ "nofake/layers_fp32.safetensors": {
+  "bytes": 51698272,
+  "sha256": "23171117bca6441d7979478701f7f347291affc3c32def039596a35cbd6f687f"
+ },
+ "nofake/layers_summary.json": {
+  "bytes": 635,
+  "sha256": "08734797e18d6f139e435a0021d624553187bb0755c8e7d6e0b69b5b8c3ce6e9"
+ },
+ "nofake/router_gate_L2.safetensors": {
+  "bytes": 4101048,
+  "sha256": "a679d199a2d6238d1c6298f44307db621fbe803347812523034de616d0ed1869"
+ },
+ "router_gate_L2.safetensors": {
+  "bytes": 4101048,
+  "sha256": "d6bc31739d04ce9916e2a2c6316bf0cbdaa99e55ad098160e7a6a26bee415785"
+ },
+ "sparse_attn_4k_bf16.safetensors": {
+  "bytes": 3071816,
+  "sha256": "265dd08037eb84a022a9af4c81eea57e7e14469b7734850593e7fed7efa39318"
+ }
+}

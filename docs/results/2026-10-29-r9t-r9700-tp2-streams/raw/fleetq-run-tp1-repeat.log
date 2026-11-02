@@ -1,0 +1,15 @@
+fleetq: #7268 running on tatooine-r9700, tatooine-r9700-2: env PHASES=b1:1:1024,4096,16384:512::3:tp1 OUT=/opt/code/intarsiaml/.worktrees/r9t/docs/results/2026-10-29-r9t-r9700-tp2-streams/raw/window-tp1-repeat scripts/r9t/window.sh
+00:02:23 guard: [guard] radiance stopped 2026-10-30 00:02:23
+00:02:23 binary: intarsia 0.0.1 tree stamp (R9S build of the reused tree): stamp: head=a053f98_code-tree=6bd88aa600d4_dirty=no 
+00:02:23 b1-tp1-r1: starting server
+00:02:33 b1-tp1-r1: server up, localeval (sizes 1024,4096,16384, gen 512, streams 1)
+00:02:48 b1-tp1-r1: localeval exit 0 - result file: `results/20261030-000234-adhoc-r9t-b1-tp1-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-000234-adhoc-r9t-b1-tp1-r1/result.json|
+00:02:48 b1-tp1-r2: starting server
+00:02:59 b1-tp1-r2: server up, localeval (sizes 1024,4096,16384, gen 512, streams 1)
+00:03:13 b1-tp1-r2: localeval exit 0 - result file: `results/20261030-000259-adhoc-r9t-b1-tp1-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-000259-adhoc-r9t-b1-tp1-r2/result.json|
+00:03:14 b1-tp1-r3: starting server
+00:03:24 b1-tp1-r3: server up, localeval (sizes 1024,4096,16384, gen 512, streams 1)
+00:03:38 b1-tp1-r3: localeval exit 0 - result file: `results/20261030-000324-adhoc-r9t-b1-tp1-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-000324-adhoc-r9t-b1-tp1-r3/result.json|
+00:03:39 done, time left 2320s
+00:03:49 guard: [guard] stopping radiance 2026-10-30 00:02:20|[guard] radiance answers 2026-10-30 00:03:49 (after 15 s), unit active|
+fleetq: #7268 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

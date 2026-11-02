@@ -1,0 +1,4 @@
+moe_block I=512 T=1    56.64 us
+moe_block I=512 T=2    88.58 us
+moe_block I=256 T=1    43.07 us
+moe_block I=256 T=2    65.76 us

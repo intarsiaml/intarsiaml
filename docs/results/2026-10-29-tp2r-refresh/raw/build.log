@@ -1,0 +1,16 @@
+fleetq: #7255 waiting (#1 in line): spark1 is held exclusively by #7254 "Ling-3.0-flash NVIDIA MoE blog test: baseline vs humming+fp8head+MTP (user-approved takedown)" (claude-2a1e611f)
+fleetq: #7255 waiting (#1 in line): spark1 is offline
+fleetq: #7255 waiting (#1 in line): spark1 is held exclusively by #7254 "Ling-3.0-flash NVIDIA MoE blog test: baseline vs humming+fp8head+MTP (user-approved takedown)" (claude-2a1e611f)
+fleetq: #7255 waiting (#1 in line): spark1 is offline
+fleetq: #7255 waiting (#1 in line): spark1 is held exclusively by #7254 "Ling-3.0-flash NVIDIA MoE blog test: baseline vs humming+fp8head+MTP (user-approved takedown)" (claude-2a1e611f)
+fleetq: #7255 running on spark1: scripts/tp2r/build.sh base
+stamp: head=694b519 code-tree=abec75fa23b5 dirty=no
+     |
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 3m 31s
+-rwxrwxr-x 2 nvidia nvidia 119482288 Oct 29 23:01 /home/nvidia/intarsia-decfuse/tp2r-base/target/acc/release/intarsia
+spark1: intarsia 0.0.1
+spark2: intarsia 0.0.1
+fleetq: #7255 done (exit 0)

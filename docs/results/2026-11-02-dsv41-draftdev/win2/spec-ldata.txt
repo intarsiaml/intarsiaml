@@ -1,0 +1,8 @@
+dsv41: spec 160 tokens in 73 rounds (2.19 a round), 87/172 drafts accepted (51 %), by position 49/73 27/47 11/17
+dsv41: spec 160 tokens in 55 rounds (2.91 a round), 104/146 drafts accepted (71 %), by position 44/55 36/44 24/30
+dsv41: spec 160 tokens in 56 rounds (2.86 a round), 104/151 drafts accepted (69 %), by position 48/56 34/48 22/28
+dsv41: spec 160 tokens in 54 rounds (2.96 a round), 105/138 drafts accepted (76 %), by position 46/54 34/43 25/27
+dsv41: spec 160 tokens in 73 rounds (2.19 a round), 87/172 drafts accepted (51 %), by position 49/73 27/47 11/17
+dsv41: spec 160 tokens in 55 rounds (2.91 a round), 104/146 drafts accepted (71 %), by position 44/55 36/44 24/30
+dsv41: spec 160 tokens in 56 rounds (2.86 a round), 104/151 drafts accepted (69 %), by position 48/56 34/48 22/28
+dsv41: spec 160 tokens in 54 rounds (2.96 a round), 105/138 drafts accepted (76 %), by position 46/54 34/43 25/27

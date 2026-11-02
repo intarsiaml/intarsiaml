@@ -99,7 +99,7 @@ impl Model {
     fn conv_slot<'a>(c: &ConvBlock, st: &'a SequenceState) -> Result<&'a RecurrentState> {
         match &st.slots[c.slot] {
             StateSlot::Recurrent(r) => Ok(r),
-            StateSlot::AttnKv(_) => Err(Error::invalid("short-conv block bound to an attention state slot")),
+            StateSlot::AttnKv(_) | StateSlot::Ring(_) | StateSlot::Shared(_) => Err(Error::invalid("short-conv block bound to an attention state slot")),
         }
     }
 

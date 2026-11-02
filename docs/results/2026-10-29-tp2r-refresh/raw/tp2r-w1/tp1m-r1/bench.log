@@ -1,0 +1,16 @@
+target http://127.0.0.1:8090/v1/chat/completions  model intarsia-35b
+server context window: 20480 tokens
+calibration: 46 base tokens, 21.89 tokens per filler sentence
+  size   1024 rep: prompt=964 gen=128 ttft=0.18s prefill=5397 tok/s decode=101.1 tok/s
+  size   1024 rep: prompt=969 gen=128 ttft=0.18s prefill=5521 tok/s decode=107.6 tok/s
+  size   4096 rep: prompt=3964 gen=128 ttft=0.56s prefill=7046 tok/s decode=106.6 tok/s
+  size   4096 rep: prompt=4005 gen=128 ttft=0.57s prefill=7031 tok/s decode=116.2 tok/s
+  size  16384 rep: prompt=16255 gen=128 ttft=2.39s prefill=6791 tok/s decode=97.4 tok/s
+  size  16384 rep: prompt=16425 > 16384: redone with fewer sentences
+  size  16384 rep: prompt=16185 gen=128 ttft=2.38s prefill=6788 tok/s decode=85.7 tok/s
+wrote /home/nvidia/intarsia-tp2/xout/tp2r-w1/tp1m-r1/tp2r-tp1m-r1.json
+tp2r-tp1m-r1  model=intarsia-35b  gen=128  reps=2
+    size   prompt    TTFT s  prefill t/s  decode t/s      gen
+    1024      967     0.177         5459       104.3      128
+    4096     3985     0.566         7038       111.4      128
+   16384    16220     2.389         6790        91.5      128

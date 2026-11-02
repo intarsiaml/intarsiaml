@@ -1,0 +1,8 @@
+shared IS=512 T= 3 glu    7.28 us  down_combine   13.02 us
+shared IS=512 T= 4 glu    8.04 us  down_combine   12.97 us
+shared IS=512 T= 8 glu   10.14 us  down_combine   12.88 us
+shared IS=512 T=16 glu   14.92 us  down_combine   23.40 us
+shared IS=256 T= 3 glu    6.56 us  down_combine   13.41 us
+shared IS=256 T= 4 glu    7.10 us  down_combine   13.41 us
+shared IS=256 T= 8 glu    7.20 us  down_combine   12.97 us
+shared IS=256 T=16 glu    9.54 us  down_combine   23.26 us

@@ -1,0 +1,15 @@
+01:32:48 guard: [guard] radiance stopped 2026-10-30 01:32:47
+01:32:48 a: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:50 a: exit 0 (6 lines)
+01:32:50 abl1: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:51 abl1: exit 0 (6 lines)
+01:32:51 abl2: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:52 abl2: exit 0 (6 lines)
+01:32:52 abl4: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:53 abl4: exit 0 (6 lines)
+01:32:53 abl8: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:54 abl8: exit 0 (6 lines)
+01:32:54 abl6: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+01:32:55 abl6: exit 0 (6 lines)
+01:32:55 done, time left 528s
+01:33:05 guard: [guard] stopping radiance 2026-10-30 01:32:43|[guard] radiance answers 2026-10-30 01:33:05 (after 15 s), unit active|

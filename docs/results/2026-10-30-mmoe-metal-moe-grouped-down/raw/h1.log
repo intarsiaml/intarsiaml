@@ -1,0 +1,32 @@
+fleetq: #7319 waiting (#1 in line): needs gpu quiet on endor, but #7317 "mnarrow step1: env A/B NV_ROWS_SPLIT=0 vs default, harness B=1..16, 3 rounds" (claude-908e11e8) loads it
+fleetq:   #7317 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7317 set, or it will wait for #7317 to be released.
+fleetq: #7319 running on endor: .lane/h1.sh .lane/h1 off 0 1 off2
+## off 01:31:48
+REALTRAFFIC B= 9: 25.51 ms/step, 352.8 tok/s aggregate
+REALTRAFFIC B=12: 30.58 ms/step, 392.4 tok/s aggregate
+REALTRAFFIC B=16: 35.80 ms/step, 447.0 tok/s aggregate
+REALTRAFFIC B= 9: 28.35 ms/step, 317.5 tok/s aggregate
+REALTRAFFIC B=12: 32.69 ms/step, 367.1 tok/s aggregate
+REALTRAFFIC B=16: 38.81 ms/step, 412.3 tok/s aggregate
+## 0 01:32:20
+REALTRAFFIC B= 9: 27.13 ms/step, 331.7 tok/s aggregate
+REALTRAFFIC B=12: 32.16 ms/step, 373.1 tok/s aggregate
+REALTRAFFIC B=16: 38.49 ms/step, 415.6 tok/s aggregate
+REALTRAFFIC B= 9: 29.61 ms/step, 304.0 tok/s aggregate
+REALTRAFFIC B=12: 34.25 ms/step, 350.3 tok/s aggregate
+REALTRAFFIC B=16: 40.49 ms/step, 395.2 tok/s aggregate
+## 1 01:32:53
+REALTRAFFIC B= 9: 26.66 ms/step, 337.6 tok/s aggregate
+REALTRAFFIC B=12: 31.44 ms/step, 381.7 tok/s aggregate
+REALTRAFFIC B=16: 37.49 ms/step, 426.8 tok/s aggregate
+REALTRAFFIC B= 9: 29.25 ms/step, 307.7 tok/s aggregate
+REALTRAFFIC B=12: 33.43 ms/step, 358.9 tok/s aggregate
+REALTRAFFIC B=16: 39.32 ms/step, 406.9 tok/s aggregate
+## off2 01:33:26
+REALTRAFFIC B= 9: 25.40 ms/step, 354.3 tok/s aggregate
+REALTRAFFIC B=12: 30.05 ms/step, 399.3 tok/s aggregate
+REALTRAFFIC B=16: 35.73 ms/step, 447.8 tok/s aggregate
+REALTRAFFIC B= 9: 28.27 ms/step, 318.4 tok/s aggregate
+REALTRAFFIC B=12: 32.04 ms/step, 374.5 tok/s aggregate
+REALTRAFFIC B=16: 37.57 ms/step, 425.9 tok/s aggregate
+fleetq: #7319 done (exit 0)

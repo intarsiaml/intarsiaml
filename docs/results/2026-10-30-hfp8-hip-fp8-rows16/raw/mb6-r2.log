@@ -1,0 +1,19 @@
+fleetq: #7354 waiting (#5 in line): in line behind #7350 "WMR accuracy: self-golden main vs flag on, tp1 short+long" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7350 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7350 set, or it will wait for #7350 to be released.
+fleetq: #7354 waiting (#4 in line): in line behind #7351 "WMR A/B tp1 streams 1/4/8/16, flag off vs on, rounds 1-2 + identity" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7351 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7351 set, or it will wait for #7351 to be released.
+fleetq: #7354 waiting (#3 in line): in line behind #7352 "HGV A/B perf round 1" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7352 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7352 set, or it will wait for #7352 to be released.
+fleetq: #7354 waiting (#2 in line): in line behind #7353 "HGV prof tp2 hgvbase" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7353 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7353 set, or it will wait for #7353 to be released.
+fleetq: #7354 waiting (#1 in line): radiance-rank0 is also taken down by #7353 "HGV prof tp2 hgvbase" (claude-908e11e8)
+fleetq:   #7353 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7353 set, or it will wait for #7353 to be released.
+fleetq: #7354 running on tatooine-r9700, tatooine-r9700-2: scripts/hfp8/mbwin.sh
+02:27:50 guard: [guard] radiance stopped 2026-10-30 02:27:50
+02:27:50 new: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1)
+02:27:52 new: exit 0 (96 lines)
+02:27:52 main: start ()
+02:27:54 main: exit 0 (96 lines)
+02:27:54 done, time left 893s
+02:28:04 guard: [guard] stopping radiance 2026-10-30 02:27:47|[guard] radiance answers 2026-10-30 02:28:04 (after 15 s), unit active|
+fleetq: #7354 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

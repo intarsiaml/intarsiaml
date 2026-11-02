@@ -1,0 +1,36 @@
+fleetq: #7267 running on tatooine-r9700, tatooine-r9700-2: scripts/r9t/window.sh
+23:53:10 guard: [guard] radiance stopped 2026-10-29 23:53:10
+23:53:11 binary: intarsia 0.0.1 tree stamp (R9S build of the reused tree): stamp: head=a053f98_code-tree=6bd88aa600d4_dirty=no 
+23:53:11 g512-tp2-r1: starting server
+23:53:24 g512-tp2-r1: server up, localeval (sizes 1024, gen 512, streams 4,8,16)
+23:54:00 g512-tp2-r1: localeval exit 0 - result file: `results/20261029-235325-adhoc-r9t-g512-tp2-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-235325-adhoc-r9t-g512-tp2-r1/result.json|
+23:54:00 g512-tp2-r2: starting server
+23:54:14 g512-tp2-r2: server up, localeval (sizes 1024, gen 512, streams 4,8,16)
+23:54:50 g512-tp2-r2: localeval exit 0 - result file: `results/20261029-235415-adhoc-r9t-g512-tp2-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-235415-adhoc-r9t-g512-tp2-r2/result.json|
+23:54:50 g512-tp2-r3: starting server
+23:55:04 g512-tp2-r3: server up, localeval (sizes 1024, gen 512, streams 4,8,16)
+23:55:39 g512-tp2-r3: localeval exit 0 - result file: `results/20261029-235504-adhoc-r9t-g512-tp2-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-235504-adhoc-r9t-g512-tp2-r3/result.json|
+23:55:40 g128-tp2-r1: starting server
+23:55:54 g128-tp2-r1: server up, localeval (sizes 1024, gen 128, streams 4,16)
+23:56:04 g128-tp2-r1: localeval exit 0 - result file: `results/20261029-235554-adhoc-r9t-g128-tp2-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-235554-adhoc-r9t-g128-tp2-r1/result.json|
+23:56:04 b1-tp2-r1: starting server
+23:56:15 b1-tp2-r1: server up, localeval (sizes 1024,4096,16384, gen 512, streams 1)
+23:56:27 b1-tp2-r1: localeval exit 0 - result file: `results/20261029-235615-adhoc-r9t-b1-tp2-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-235615-adhoc-r9t-b1-tp2-r1/result.json|
+23:56:28 b1-tp1-r1: starting server
+23:56:38 b1-tp1-r1: server up, localeval (sizes 1024,4096,16384, gen 512, streams 1)
+23:56:53 b1-tp1-r1: localeval exit 0 - result file: `results/20261029-235639-adhoc-r9t-b1-tp1-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-235639-adhoc-r9t-b1-tp1-r1/result.json|
+23:56:53 b1-tp1-r2: starting server
+23:57:04 b1-tp1-r2: server up, localeval (sizes 1024,4096,16384, gen 512, streams 1)
+23:57:18 b1-tp1-r2: localeval exit 0 - result file: `results/20261029-235704-adhoc-r9t-b1-tp1-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-235704-adhoc-r9t-b1-tp1-r2/result.json|
+23:57:19 b1-tp2-r2: starting server
+23:57:30 b1-tp2-r2: server up, localeval (sizes 1024,4096,16384, gen 512, streams 1)
+23:57:42 b1-tp2-r2: localeval exit 0 - result file: `results/20261029-235730-adhoc-r9t-b1-tp2-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-235730-adhoc-r9t-b1-tp2-r2/result.json|
+23:57:42 b1-tp2-r3: starting server
+23:57:53 b1-tp2-r3: server up, localeval (sizes 1024,4096,16384, gen 512, streams 1)
+23:58:05 b1-tp2-r3: localeval exit 0 - result file: `results/20261029-235753-adhoc-r9t-b1-tp2-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-235753-adhoc-r9t-b1-tp2-r3/result.json|
+23:58:06 b1-tp1-r3: starting server
+23:58:16 b1-tp1-r3: server up, localeval (sizes 1024,4096,16384, gen 512, streams 1)
+23:58:30 b1-tp1-r3: localeval exit 0 - result file: `results/20261029-235816-adhoc-r9t-b1-tp1-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261029-235816-adhoc-r9t-b1-tp1-r3/result.json|
+23:58:31 done, time left 2076s
+23:58:41 guard: [guard] stopping radiance 2026-10-29 23:53:08|[guard] radiance answers 2026-10-29 23:58:41 (after 15 s), unit active|
+fleetq: #7267 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

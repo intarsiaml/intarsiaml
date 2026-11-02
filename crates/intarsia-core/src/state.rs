@@ -18,6 +18,87 @@ pub const RECURRENT_SNAPSHOTS: usize = 4;
 pub enum SlotSpec {
     AttnKv { n_kv_heads: usize, head_dim: usize, dtype: DType },
     Recurrent { bytes: usize },
+    /// A ring of the last `rows` positions (position `p` in row `p % rows`), `planes` arrays of `[rows, width]` back to back:
+    /// DeepSeek-V4.1's sliding-window KV (`rows = window + margin`, one plane) and the compressor's pending group (`rows` a
+    /// multiple of the ratio covering `ratio - 1 + margin` tokens, two f32 planes: projected kv, gate score). `margin` is how
+    /// many tokens [`SequenceState::truncate`] / speculative rollback may cut without losing a row the window or the group
+    /// still needs, so a ring rolls back like an attention cache (by length, no snapshot) within it.
+    Ring { rows: usize, width: usize, planes: usize, dtype: DType, margin: usize, kind: RingKind },
+    /// A cross-layer shared, append-only cache of compressed rows (one row per `ratio` tokens, `ceil(cap / ratio)` rows of
+    /// `width`): written by layer `writer`, read by `readers` (DeepSeek-V4.1's compressed KV and indexer keys, model.py
+    /// `SharedAttentionRuntime`). Rows past `len / ratio` are stale, so it truncates by length.
+    Shared { ratio: usize, width: usize, dtype: DType, writer: usize, readers: Vec<usize>, kind: SharedKind },
+}
+
+/// What a [`SlotSpec::Ring`] holds (for `plan show` and the prefix store).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RingKind {
+    /// Sliding-window KV (`Op::WindowKv`).
+    WindowKv,
+    /// The compressor's pending group (`Op::CompressPool`).
+    CompressTail,
+}
+
+/// What a [`SlotSpec::Shared`] holds.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SharedKind {
+    /// Compressed KV latents (key = value, `Op::AttnSparse`).
+    CompressedKv,
+    /// Indexer keys (`Op::IndexerTopk`).
+    IndexK,
+}
+
+impl SlotSpec {
+    /// Device bytes of the slot for a capacity of `cap` tokens.
+    pub fn bytes(&self, cap: usize) -> usize {
+        match self {
+            SlotSpec::AttnKv { n_kv_heads, head_dim, dtype } => 2 * n_kv_heads * cap * head_dim * dtype.size_bytes(),
+            SlotSpec::Recurrent { bytes } => *bytes,
+            SlotSpec::Ring { rows, width, planes, dtype, .. } => planes * rows * width * dtype.size_bytes(),
+            SlotSpec::Shared { ratio, width, dtype, .. } => cap.div_ceil((*ratio).max(1)) * width * dtype.size_bytes(),
+        }
+    }
+}
+
+pub struct RingState {
+    /// `planes` arrays `[rows, width]`, back to back.
+    pub buf: Buffer,
+    pub rows: usize,
+    pub width: usize,
+    pub planes: usize,
+    pub dtype: DType,
+    pub margin: usize,
+    pub kind: RingKind,
+}
+
+impl RingState {
+    /// Plane `p` as a `[rows, width]` tensor.
+    pub fn plane(&self, p: usize) -> crate::backend::TensorRef {
+        let mut t = crate::backend::TensorRef::new(self.buf.clone(), self.dtype, &[self.rows, self.width]);
+        t.offset = p * self.rows * self.width * self.dtype.size_bytes();
+        t
+    }
+}
+
+pub struct SharedState {
+    /// `[cap_rows, width]`
+    pub buf: Buffer,
+    pub cap_rows: usize,
+    pub ratio: usize,
+    pub width: usize,
+    pub dtype: DType,
+    pub writer: usize,
+    pub readers: Vec<usize>,
+    pub kind: SharedKind,
+}
+
+impl SharedState {
+    /// The whole cache as `[cap_rows, width]` (rows `0..len / ratio` are valid).
+    pub fn rows(&self) -> crate::backend::TensorRef {
+        crate::backend::TensorRef::new(self.buf.clone(), self.dtype, &[self.cap_rows, self.width])
+    }
 }
 
 pub struct AttnKvState {
@@ -40,6 +121,8 @@ pub struct RecurrentState {
 pub enum StateSlot {
     AttnKv(AttnKvState),
     Recurrent(RecurrentState),
+    Ring(RingState),
+    Shared(SharedState),
 }
 
 impl StateSlot {
@@ -47,6 +130,8 @@ impl StateSlot {
         match self {
             StateSlot::AttnKv(s) => s.k.bytes() + s.v.bytes(),
             StateSlot::Recurrent(r) => r.bytes,
+            StateSlot::Ring(r) => r.buf.bytes(),
+            StateSlot::Shared(r) => r.buf.bytes(),
         }
     }
 }
@@ -237,6 +322,24 @@ impl SequenceState {
                     backend.zero(&buf, 0)?;
                     StateSlot::Recurrent(RecurrentState { buf, bytes: *bytes })
                 }
+                SlotSpec::Ring { rows, width, planes, dtype, margin, kind } => {
+                    let buf = backend.alloc(s.bytes(cap).max(16), MemKind::Device)?;
+                    backend.zero(&buf, 0)?;
+                    StateSlot::Ring(RingState { buf, rows: *rows, width: *width, planes: *planes, dtype: *dtype, margin: *margin, kind: *kind })
+                }
+                SlotSpec::Shared { ratio, width, dtype, writer, readers, kind } => {
+                    let buf = backend.alloc(s.bytes(cap).max(16), MemKind::Device)?;
+                    StateSlot::Shared(SharedState {
+                        buf,
+                        cap_rows: cap.div_ceil((*ratio).max(1)),
+                        ratio: *ratio,
+                        width: *width,
+                        dtype: *dtype,
+                        writer: *writer,
+                        readers: readers.clone(),
+                        kind: *kind,
+                    })
+                }
             });
         }
         let id = NEXT_STATE_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -269,9 +372,36 @@ impl SequenceState {
             .map(|s| match s {
                 StateSlot::AttnKv(a) => 2 * a.n_kv_heads * a.len * a.head_dim * a.dtype.size_bytes(),
                 StateSlot::Recurrent(r) => r.bytes,
+                StateSlot::Ring(r) => r.buf.bytes(),
+                StateSlot::Shared(r) => (self.len / r.ratio.max(1)) * r.width * r.dtype.size_bytes(),
             })
             .sum::<usize>()
             + self.peers.iter().map(|p| p.st.used_bytes()).sum::<usize>()
+    }
+
+    /// Tokens a truncate or speculative rollback may cut while every [`SlotSpec::Ring`] slot still holds the rows it needs
+    /// (`None` without ring slots).
+    pub fn ring_margin(&self) -> Option<usize> {
+        self.slots
+            .iter()
+            .filter_map(|s| match s {
+                StateSlot::Ring(r) => Some(r.margin),
+                _ => None,
+            })
+            .min()
+    }
+
+    /// Refuse a cut from `self.len` to `len` that a ring slot cannot follow (0, the empty state, always works).
+    fn check_ring_cut(&self, len: usize) -> Result<()> {
+        if let Some(m) = self.ring_margin() {
+            if len != 0 && len + m < self.len {
+                return Err(Error::Unsupported(format!(
+                    "cannot roll ring state (sliding-window KV, compressor tail) back from {} to {len} tokens: margin {m}",
+                    self.len
+                )));
+            }
+        }
+        Ok(())
     }
 
     pub fn has_recurrent(&self) -> bool {
@@ -414,6 +544,7 @@ impl SequenceState {
 
     /// Whether [`SequenceState::spec_rollback`] to `keep` can be made on this rank's state.
     fn check_spec_rollback(&self, keep: usize) -> Result<()> {
+        self.check_ring_cut(keep)?;
         if self.has_recurrent() {
             let sr = &self.spec_rows;
             keep.checked_sub(sr.base).filter(|m| (1..=sr.saved).contains(m)).ok_or_else(|| {
@@ -467,6 +598,9 @@ impl SequenceState {
     /// length, a snapshot, or 0 (the zero state). Without recurrent slots every length qualifies.
     pub fn restorable_len(&self, want: usize) -> usize {
         let want = want.min(self.len);
+        if self.ring_margin().is_some_and(|m| want + m < self.len) {
+            return 0;
+        }
         if !self.has_recurrent() || want == self.len {
             return want;
         }
@@ -635,6 +769,13 @@ impl SequenceState {
                 d.cut(len, backend)?;
             }
         }
+        if len == 0 {
+            for s in &self.slots {
+                if let StateSlot::Ring(r) = s {
+                    backend.zero(&r.buf, 0)?;
+                }
+            }
+        }
         self.spec_rows.saved = 0;
         self.drop_snapshots_above(len);
         for s in self.slots.iter_mut() {
@@ -697,6 +838,7 @@ impl SequenceState {
             }
             p.st.check_truncate(len)?;
         }
+        self.check_ring_cut(len)?;
         if self.has_recurrent() && len != 0 && len != self.len && !self.snapshots.iter().any(|s| s.len == len) {
             return Err(Error::Unsupported(format!(
                 "cannot roll recurrent state back to {len} tokens (no snapshot there; length {})",

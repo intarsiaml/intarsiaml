@@ -1,0 +1,15 @@
+fleetq: #7330 waiting (#2 in line): in line behind #7325 "HFP8 fp8 rows microbench b" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7325 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7325 set, or it will wait for #7325 to be released.
+fleetq: #7330 waiting (#1 in line): radiance-rank0 is also taken down by #7325 "HFP8 fp8 rows microbench b" (claude-908e11e8)
+fleetq:   #7325 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7325 set, or it will wait for #7325 to be released.
+fleetq: #7330 running on tatooine-r9700, tatooine-r9700-2: scripts/hprof/window.sh
+01:41:31 guard: [guard] radiance stopped 2026-10-30 01:41:31
+01:41:32 binary: intarsia 0.0.1 
+01:41:32 tp1-prof: starting server
+01:41:49 tp1-prof: driver phases same16,div16 (gen 192)
+01:42:16 tp1-prof: driver exit 0: {"phase": "same16", "streams": 16, "ok": 16, "wall_s": 9.17, "completion_tokens": 3072, "prompt_tokens_median": 992, "ttft_max_s": 2.46, "per_stream_decode_tok_s_mean": 24.7, "aggregate_decode_tok_s_e|{"phase": "div16", "streams": 16, "ok": 16, "wall_s": 9.35, "completion_tokens": 3072, "prompt_tokens_median": 1245, "ttft_max_s": 2.44, "per_stream_decode_tok_s_mean": 24.1, "aggregate_decode_tok_s_e|
+01:42:20 tp1-prof: server state after exit file (waited 6 s): false exit=0
+01:42:22 tp1-prof: copied 7.4M (648 /home/josef/intarsiaml-tp2-hgv/hprof-out/tp1-prof/k_agent_info.csv.gz 7802719 /home/josef/intarsiaml-tp2-hgv/hprof-out/tp1-prof/k_kernel_trace.csv.gz )
+01:42:22 done, time left 846s
+01:42:33 guard: [guard] stopping radiance 2026-10-30 01:41:28|[guard] radiance answers 2026-10-30 01:42:33 (after 15 s), unit active|
+fleetq: #7330 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

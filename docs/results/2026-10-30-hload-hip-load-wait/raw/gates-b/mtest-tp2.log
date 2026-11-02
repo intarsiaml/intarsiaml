@@ -1,0 +1,79 @@
+warning: intarsia-backend-cuda@0.0.1: intarsia-backend-cuda: nvcc not found, building the stub (set CUDA_PATH)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1216:4
+     |
+1216 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: value assigned to `reason` is never read
+    --> crates/intarsia-models/tests/batch_cuda_real.rs:1640:45
+     |
+1640 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+     |                                             ^^^^^^
+     |
+     = help: maybe it is overwritten before being read?
+     = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:265:8
+    |
+265 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.06s
+     Running tests/batch_cuda_real.rs (/target/release/deps/batch_cuda_real-1cf4b1d89ee15c86)
+
+running 1 test
+test real_35b_batched_decode_is_bitwise_the_solo_step ... tensor parallel x2: vocab-parallel head true
+plan before batching: MemoryPlan { device: "AMD Radeon Graphics", total_bytes: 34208743424, free_bytes: 22621978624, weights_bytes: 10942366580, workspace_bytes: 606899088, kv_bytes_per_token: 10240, kv_fraction: 0.95, kv_budget_bytes: 21490879423, kv_cap_tokens: 2048, kv_total_bytes: 20971520, notes: [] }
+recurrent bytes per state 32931840
+batch plan: 2048 KV tokens per sequence, 335544320 KV bytes in all, 10240 bytes per token; notes ["471 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 31 MiB per sequence)"]
+batch plan notes: ["471 MiB of the KV budget reserved for the recurrent state of 16 batched sequences (live + 0 snapshots each, 31 MiB per sequence)"]
+16 sequences prefilled twice in 0.9 s
+batch 2: 130 steps bitwise in 2.7 s (per step: 7.4 ms batched, 12.5 ms for the 2 solo steps)
+batch 3: 130 steps bitwise in 3.4 s (per step: 8.9 ms batched, 15.9 ms for the 3 solo steps)
+batch 4: 130 steps bitwise in 4.2 s (per step: 9.9 ms batched, 21.1 ms for the 4 solo steps)
+batch 5: 130 steps bitwise in 5.1 s (per step: 10.8 ms batched, 26.3 ms for the 5 solo steps)
+batch 6: 130 steps bitwise in 6.0 s (per step: 11.9 ms batched, 31.5 ms for the 6 solo steps)
+batch 7: 130 steps bitwise in 6.9 s (per step: 12.7 ms batched, 37.2 ms for the 7 solo steps)
+batch 8: 130 steps bitwise in 7.7 s (per step: 13.5 ms batched, 42.3 ms for the 8 solo steps)
+batch 9: 130 steps bitwise in 8.5 s (per step: 14.2 ms batched, 47.5 ms for the 9 solo steps)
+batch 10: 130 steps bitwise in 9.4 s (per step: 15.4 ms batched, 53.2 ms for the 10 solo steps)
+batch 11: 130 steps bitwise in 10.4 s (per step: 16.9 ms batched, 58.6 ms for the 11 solo steps)
+batch 12: 130 steps bitwise in 11.3 s (per step: 17.6 ms batched, 64.1 ms for the 12 solo steps)
+batch 13: 130 steps bitwise in 12.2 s (per step: 19.1 ms batched, 69.9 ms for the 13 solo steps)
+batch 14: 130 steps bitwise in 13.2 s (per step: 20.1 ms batched, 75.4 ms for the 14 solo steps)
+batch 15: 130 steps bitwise in 14.1 s (per step: 21.0 ms batched, 80.8 ms for the 15 solo steps)
+batch 16: 130 steps bitwise in 14.9 s (per step: 22.1 ms batched, 86.2 ms for the 16 solo steps)
+17550 (row, step) pairs bitwise identical in 131.0 s
+side-stream forks: 0 (knobs unset: true)
+kv bf16, graphs GraphStats { enabled: true, captures: 22, replays: 17580, batch_captures: 15, batch_replays: 1956, spec_captures: 0, spec_replays: 0 }
+tp=2 batched graphs: rank 0 GraphStats { enabled: true, captures: 22, replays: 17580, batch_captures: 15, batch_replays: 1956, spec_captures: 0, spec_replays: 0 }, rank 1 GraphStats { enabled: true, captures: 22, replays: 17580, batch_captures: 15, batch_replays: 1956, spec_captures: 0, spec_replays: 0 }
+tensor-parallel rank 1: decode graph enabled=true captures=22 replays=17580
+tensor-parallel rank 1: batched decode graph captures=15 replays=1956
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 135.65s
+

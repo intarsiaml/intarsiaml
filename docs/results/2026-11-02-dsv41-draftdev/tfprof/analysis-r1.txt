@@ -1,0 +1,75 @@
+
+  gpu busy (union of all streams) 844.48 ms of span 854.31 ms -> idle 9.83 ms
+
+== rank 1 PREFILL T=1222: 1 passes, span median 854.31 ms, kernel-sum 856.02 ms, main-stream busy 856.02 ms, kernels/pass 1817
+  moe experts (grouped_cp/rows, down_combine) 441.241 ms/pass    160.0 kernels
+  dense linears (EXL3 glinear/gemm/unpack/rot) 166.613 ms/pass    792.0 kernels
+  collectives (nccl head gather)     117.357 ms/pass     83.0 kernels
+  attention (sparse_attn, kv, index, rope)  63.118 ms/pass    282.0 kernels
+  hyper-connection (hc_*)             49.762 ms/pass     90.0 kernels
+  embed/head/sample                    4.779 ms/pass     49.0 kernels
+  other                                4.253 ms/pass    267.0 kernels
+  norm                                 3.869 ms/pass     50.0 kernels
+  collectives (rdma stage/collect)     2.848 ms/pass      2.0 kernels
+  engram                               1.848 ms/pass      2.0 kernels
+  router/score/bias                    0.334 ms/pass     40.0 kernels
+
+  gpu busy (union of all streams) 3.75 ms of span 3.76 ms -> idle 0.01 ms
+
+== rank 1 DRAFT T=5: 21 passes, span median 3.76 ms, kernel-sum 4.66 ms, main-stream busy 4.66 ms, kernels/pass 115
+  dense linears (EXL3 glinear/gemm/unpack/rot)   2.129 ms/pass     26.0 kernels
+  moe experts (grouped_cp/rows, down_combine)   1.316 ms/pass      6.0 kernels
+  router/score/bias                    0.439 ms/pass     12.5 kernels
+  collectives (rdma stage/collect)     0.350 ms/pass     21.5 kernels
+  hyper-connection (hc_*)              0.282 ms/pass     13.0 kernels
+  attention (sparse_attn, kv, index, rope)   0.200 ms/pass     16.8 kernels
+  other                                0.101 ms/pass     13.8 kernels
+  embed/head/sample                    0.018 ms/pass      3.0 kernels
+  norm                                 0.003 ms/pass      1.0 kernels
+  top kernels:
+    glinear_kernel                                 1.964 ms/pass   13.0x
+    grouped_cp_kernel                              1.316 ms/pass    6.0x
+    _bias                                          0.342 ms/pass    4.8x
+    dsv41_rdma_collect                             0.258 ms/pass   10.8x
+    _hc_mix_part                                   0.193 ms/pass    6.0x
+    _rmsnorm_rot                                   0.095 ms/pass    3.0x
+    dsv41_rdma_stage                               0.092 ms/pass   10.8x
+    _score                                         0.086 ms/pass    4.8x
+    _hc_finish_s                                   0.081 ms/pass    6.0x
+    _pick                                          0.068 ms/pass    4.8x
+    _kv_norm_rope                                  0.064 ms/pass    3.0x
+    _sparse_attn_merge                             0.048 ms/pass    3.0x
+    _rowmm_parts                                   0.037 ms/pass    3.0x
+    rot_many_kernel                                0.033 ms/pass    7.0x
+
+  gpu busy (union of all streams) 31.89 ms of span 31.95 ms -> idle 0.06 ms
+
+== rank 1 VERIFY T=2..4: 22 passes, span median 31.95 ms, kernel-sum 53.17 ms, main-stream busy 13.15 ms, kernels/pass 1249.0
+  moe experts (grouped_cp/rows, down_combine)  20.083 ms/pass     80.0 kernels
+  dense linears (EXL3 glinear/gemm/unpack/rot)  11.661 ms/pass    274.0 kernels
+  L2 prefetch (side stream)            9.469 ms/pass    120.0 kernels
+  hyper-connection (hc_*)              4.509 ms/pass    320.0 kernels
+  attention (sparse_attn, kv, index, rope)   3.503 ms/pass    158.0 kernels
+  collectives (rdma stage/collect)     3.226 ms/pass    168.0 kernels
+  other                                0.457 ms/pass     75.0 kernels
+  router/score/bias                    0.297 ms/pass     41.0 kernels
+  norm                                 0.174 ms/pass     10.0 kernels
+  engram                               0.028 ms/pass      2.0 kernels
+  embed/head/sample                    0.011 ms/pass      1.0 kernels
+  top kernels:
+    grouped_cp_kernel                             20.083 ms/pass   80.0x
+    glinear_kernel                                10.389 ms/pass  177.0x
+    tf_ds_l2_prefetch_kernel                       9.469 ms/pass  120.0x
+    dsv41_rdma_collect                             2.156 ms/pass   83.0x
+    _hc_post_only                                  1.817 ms/pass   77.0x
+    _sparse_attn_part                              1.411 ms/pass   40.0x
+    _hc_mix_part                                   1.084 ms/pass   80.0x
+    dsv41_rdma_stage                               1.067 ms/pass   83.0x
+    _sparse_attn_merge_rot2                        1.000 ms/pass   40.0x
+    _hc_finish_s                                   0.836 ms/pass   80.0x
+    _hc_sinkhorn                                   0.735 ms/pass   80.0x
+    _rowmm_parts                                   0.676 ms/pass   40.0x
+    _q_kv_norm                                     0.597 ms/pass   40.0x
+    rot_many_kernel                                0.546 ms/pass   49.0x
+
+round period (draft start to next draft start) median ms 36.441199999999995 n 20

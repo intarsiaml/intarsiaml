@@ -1,0 +1,15 @@
+fleetq: #7333 running on tatooine-r9700, tatooine-r9700-2: scripts/hfp8/mbwin.sh
+01:44:07 guard: [guard] radiance stopped 2026-10-30 01:44:07
+01:44:07 t1: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1 -e INTARSIA_HIP_FP8_TILES=1)
+01:44:08 t1: exit 0 (12 lines)
+01:44:08 t2: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1 -e INTARSIA_HIP_FP8_TILES=2)
+01:44:09 t2: exit 0 (12 lines)
+01:44:09 t3: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1 -e INTARSIA_HIP_FP8_TILES=3)
+01:44:10 t3: exit 0 (12 lines)
+01:44:10 t4: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1 -e INTARSIA_HIP_FP8_TILES=4)
+01:44:11 t4: exit 0 (12 lines)
+01:44:11 t8: start ( -e INTARSIA_HIP_FP8_ONEPASS_MIN=1 -e INTARSIA_HIP_FP8_TILES=8)
+01:44:12 t8: exit 0 (12 lines)
+01:44:12 done, time left 532s
+01:44:22 guard: [guard] stopping radiance 2026-10-30 01:44:04|[guard] radiance answers 2026-10-30 01:44:22 (after 15 s), unit active|
+fleetq: #7333 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

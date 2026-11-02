@@ -1,0 +1,7 @@
+TIME v2:512:2048            actq=1     5.50 us    190 GB/s
+TIME v2:8192:2048           actq=1    29.54 us    568 GB/s
+TIME v2:2048:4096           actq=1    16.78 us    500 GB/s
+TIME rows2:2048:4096        actq=1    17.50 us    479 GB/s
+TIME rows2:512:2048         actq=1     5.58 us    188 GB/s
+TIME pair:8192:2048:4096    actq=1    41.15 us    612 GB/s
+TIME sig:2048:4096          actq=1    18.28 us    459 GB/s

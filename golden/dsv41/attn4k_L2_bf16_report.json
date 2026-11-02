@@ -1,0 +1,117 @@
+{
+ "verify": {
+  "N": 4095,
+  "flow": "bf16",
+  "layer": 2,
+  "mine_whole_vs_official_whole_out": {
+   "max_abs": 0.0634765625,
+   "rel": 0.015388257575757576
+  },
+  "mine_whole_vs_official_whole_state_bitequal": {
+   "window_kv_cache": true,
+   "compress_kv_cache": true,
+   "index_k_cache": true,
+   "kv_state": true,
+   "score_state": true
+  },
+  "indexer_selection_vs_official": {
+   "rows": 4095,
+   "rows_with_different_set": 1013,
+   "of_which_equal_score_swaps_only": 1013
+  },
+  "official_prefill_Nm3_plus_3_decode_state_bitequal_to_whole": {
+   "window_kv_cache": true,
+   "compress_kv_cache": true,
+   "index_k_cache": true,
+   "kv_state": true,
+   "score_state": true
+  },
+  "official_prefill_Nm3_plus_3_decode_last3_out": {
+   "max_abs": 0.013916015625,
+   "rel": 0.006904069767441861
+  },
+  "chunked": {
+   "1024,1024,1024,1023": {
+    "ratio_aligned": true,
+    "out_bitequal_to_whole": true,
+    "out_rel": 0.0,
+    "state_bitequal": {
+     "window_kv_cache": true,
+     "compress_kv_cache": true,
+     "index_k_cache": true,
+     "kv_state": true,
+     "score_state": true
+    }
+   },
+   "512,512,512,512,512,512...": {
+    "ratio_aligned": true,
+    "out_bitequal_to_whole": true,
+    "out_rel": 0.0,
+    "state_bitequal": {
+     "window_kv_cache": true,
+     "compress_kv_cache": true,
+     "index_k_cache": true,
+     "kv_state": true,
+     "score_state": true
+    }
+   },
+   "1000,1000,1000,1000,95": {
+    "ratio_aligned": true,
+    "out_bitequal_to_whole": true,
+    "out_rel": 0.0,
+    "state_bitequal": {
+     "window_kv_cache": true,
+     "compress_kv_cache": true,
+     "index_k_cache": true,
+     "kv_state": true,
+     "score_state": true
+    }
+   },
+   "777,777,777,777,777,210": {
+    "ratio_aligned": false,
+    "out_bitequal_to_whole": true,
+    "out_rel": 0.0,
+    "state_bitequal": {
+     "window_kv_cache": true,
+     "compress_kv_cache": true,
+     "index_k_cache": true,
+     "kv_state": true,
+     "score_state": true
+    }
+   }
+  }
+ },
+ "stats": {
+  "rows": [
+   0,
+   1,
+   2,
+   127,
+   128,
+   129,
+   1023,
+   2047,
+   4093,
+   4094
+  ],
+  "n_kv_rows": 1662,
+  "minus1_per_row": [
+   639,
+   637,
+   636,
+   448,
+   448,
+   447,
+   0,
+   0,
+   0,
+   0
+  ],
+  "topk_width": 640,
+  "compressed_positions": 2047,
+  "ratio": 2,
+  "scale": 0.04419417382415922,
+  "quant": "tf",
+  "flow": "bf16"
+ }
+}

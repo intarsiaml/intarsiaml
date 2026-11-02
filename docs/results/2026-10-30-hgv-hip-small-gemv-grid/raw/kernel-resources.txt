@@ -1,0 +1,6 @@
+hgvbase void (anonymous namespace)::gemv_kernel<16, 2, 4, ik_bf16>(i vgpr/scratch/lds ('256', '440', '0')
+hgvbase (anonymous namespace)::shared_glu_rows_kernel(ik_bf16 const* vgpr/scratch/lds ('104', '0', '512')
+hgvbase (anonymous namespace)::shared_down_combine_rows_kernel(ik_bf vgpr/scratch/lds ('64', '0', '512')
+hgv void (anonymous namespace)::gemv_rows_grp_kernel<2, 4, ik_bf vgpr/scratch/lds ('160', '0', '0')
+hgv (anonymous namespace)::shared_glu_rows_kernel(ik_bf16 const* vgpr/scratch/lds ('80', '0', '512')
+hgv (anonymous namespace)::shared_down_combine_rows_kernel(ik_bf vgpr/scratch/lds ('64', '0', '512')

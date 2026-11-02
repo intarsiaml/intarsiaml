@@ -1,0 +1,9 @@
+00:57:17 guard: [guard] radiance stopped 2026-10-30 00:57:17
+00:57:18 binary: intarsia 0.0.1 
+00:57:18 tp2-prof-eager: starting server
+00:57:31 tp2-prof-eager: driver phases same8,same16 (gen 192)
+00:57:52 tp2-prof-eager: driver exit 0: {"phase": "same8", "streams": 8, "ok": 8, "wall_s": 4.15, "completion_tokens": 1536, "prompt_tokens_median": 991, "ttft_max_s": 0.93, "per_stream_decode_tok_s_mean": 53.7, "aggregate_decode_tok_s_est"|{"phase": "same16", "streams": 16, "ok": 16, "wall_s": 7.56, "completion_tokens": 3072, "prompt_tokens_median": 991, "ttft_max_s": 1.96, "per_stream_decode_tok_s_mean": 29.9, "aggregate_decode_tok_s_e|
+00:57:56 tp2-prof-eager: server state after exit file (waited 6 s): false exit=0
+00:57:58 tp2-prof-eager: copied  17M (648 /home/josef/intarsiaml-tp2-hprof/hprof-out/tp2-prof-eager/k_agent_info.csv.gz 17402647 /home/josef/intarsiaml-tp2-hprof/hprof-out/tp2-prof-eager/k_kernel_trace.csv.gz )
+00:57:59 done, time left 906s
+00:58:09 guard: [guard] stopping radiance 2026-10-30 00:57:14|[guard] radiance answers 2026-10-30 00:58:09 (after 15 s), unit active|

@@ -1,0 +1,2 @@
+2026-10-29 job=7260 role=spark1-vllm stop=23:04:48 up=23:19:13 down=865 s label="TP2R tp1 vs tp2 tp2r-w1" serving=yes
+2026-10-29 job=7260 role=spark2-vllm stop=23:04:48 up=23:19:43 down=895 s label="TP2R tp1 vs tp2 tp2r-w1" serving=yes

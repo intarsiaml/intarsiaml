@@ -246,10 +246,11 @@ fn moe_block_rows_are_the_solo_block_per_token() {
     rows_are_the_solo_block_per_token("moe_block_bf16_rows", 91, &[1, 2, 3, 4, 7, 8, 9, 12, 15, 16], &[1, 3, 5, 16]);
 }
 
-/// Lane l7: the grouped block (kernels/hip/moe_block_grouped.hip), every row count 1..=16 at the small shapes and a spread at the 35B's.
+/// Lane l7: the grouped block (kernels/hip/moe_block_grouped.hip), every row count 1..=16 at the small shapes and a spread at the 35B's (lane hgv:
+/// every residue of T mod 4, the shared-expert kernels run groups of 4 tokens per block).
 #[test]
 fn moe_block_grouped_is_the_solo_block_per_token() {
-    rows_are_the_solo_block_per_token("moe_block_bf16_grouped", 92, &[1, 2, 4, 5, 6, 8, 9, 11, 13, 16], &[1, 2, 3, 5, 6, 7, 9, 11, 14, 16]);
+    rows_are_the_solo_block_per_token("moe_block_bf16_grouped", 92, &[1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 13, 15, 16], &[1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 14, 16]);
 }
 
 /// Lane l7 negative controls for the grouped block: a block assembled the same way but with one stage on an inexact (tensor-core) kernel must NOT be

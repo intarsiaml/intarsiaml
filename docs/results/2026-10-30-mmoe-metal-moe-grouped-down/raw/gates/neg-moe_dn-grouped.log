@@ -1,0 +1,15 @@
+
+running 1 test
+test moe_experts_rows_are_bitwise_the_one_token_call ... 
+thread 'moe_experts_rows_are_bitwise_the_one_token_call' (50986899) panicked at crates/intarsia-backend-metal/tests/rows_exact.rs:72:9:
+moe_experts T=4 routing=pool120 out=f32 w_off=0: first differing byte 32192 of 32784 (one-row launches 0xa4, M-row launch 0xa2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    moe_experts_rows_are_bitwise_the_one_token_call
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.36s
+

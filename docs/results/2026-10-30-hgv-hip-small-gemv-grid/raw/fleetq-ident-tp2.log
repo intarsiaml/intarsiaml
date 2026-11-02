@@ -1,0 +1,26 @@
+fleetq: #7345 waiting (#6 in line): in line behind #7339 "HGV prof tp1 hgv" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7339 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7339 set, or it will wait for #7339 to be released.
+fleetq: #7345 waiting (#5 in line): in line behind #7341 "WMR build HIP + GPU tests (compile only)" (claude-908e11e8) on tatooine-r9700
+fleetq:   #7341 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7341 set, or it will wait for #7341 to be released.
+fleetq: #7345 waiting (#2 in line): in line behind #7342 "HFP8 fp8 rows bitwise check actq=0" (claude-908e11e8) on tatooine-r9700, tatooine-r9700-2
+fleetq:   #7342 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7342 set, or it will wait for #7342 to be released.
+fleetq: #7345 waiting (#1 in line): needs cpu quiet on tatooine-r9700, but #7341 "WMR build HIP + GPU tests (compile only)" (claude-908e11e8) loads it
+fleetq:   #7341 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7341 set, or it will wait for #7341 to be released.
+fleetq: #7345 waiting (#1 in line): radiance-rank0 is also taken down by #7342 "HFP8 fp8 rows bitwise check actq=0" (claude-908e11e8)
+fleetq:   #7342 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7342 set, or it will wait for #7342 to be released.
+fleetq: #7345 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 89% busy with work fleetq does not track
+fleetq: #7345 waiting (#1 in line): needs tatooine-r9700 quiet, but its GPU is 71% busy with work fleetq does not track
+fleetq: #7345 running on tatooine-r9700, tatooine-r9700-2: scripts/hgv/window.sh
+02:05:46 guard: [guard] radiance stopped 2026-10-30 02:05:46
+02:05:46 ident-rtp2-tp2-base-1: starting server
+02:06:00 ident-rtp2-tp2-base-1: server up, ident (gen 384)
+02:07:01 ident-rtp2-tp2-base-1: ident exit 0: {"phase": "same1", "ok": 1, "wall_s": 2.1, "sha": ["9618aa347f312012"], "completion": [384]}|{"phase": "same8", "ok": 8, "wall_s": 6.7, "sha": ["9618aa347f312012", "9618aa347f312012", "9618aa347f312012", "9618aa34|{"phase": "same16", "ok": 16, "wall_s": 12.8, "sha": ["9618aa347f312012", "9618aa347f312012", "9618aa347f312012", "9618a|{"phase": "div1", "ok": 1, "wall_s": 2.2, "sha": ["6afd0174f1d58403"], "completion": [384]}|{"phase": "div8", "ok": 8, "wall_s": 6.6, "sha": ["6afd0174f1d58403", "272924de9e0bb395", "3dc4d874ced80f4f", "b8db79f28|{"phase": "div16", "ok": 16, "wall_s": 12.5, "sha": ["6afd0174f1d58403", "272924de9e0bb395", "3dc4d874ced80f4f", "b8db79|
+02:07:02 ident-rtp2-tp2-hgv-2: starting server
+02:07:15 ident-rtp2-tp2-hgv-2: server up, ident (gen 384)
+02:08:13 ident-rtp2-tp2-hgv-2: ident exit 0: {"phase": "same1", "ok": 1, "wall_s": 2.2, "sha": ["9618aa347f312012"], "completion": [384]}|{"phase": "same8", "ok": 8, "wall_s": 6.6, "sha": ["9618aa347f312012", "9618aa347f312012", "9618aa347f312012", "9618aa34|{"phase": "same16", "ok": 16, "wall_s": 11.3, "sha": ["9618aa347f312012", "9618aa347f312012", "9618aa347f312012", "9618a|{"phase": "div1", "ok": 1, "wall_s": 2.1, "sha": ["6afd0174f1d58403"], "completion": [384]}|{"phase": "div8", "ok": 8, "wall_s": 6.5, "sha": ["6afd0174f1d58403", "272924de9e0bb395", "3dc4d874ced80f4f", "b8db79f28|{"phase": "div16", "ok": 16, "wall_s": 11.0, "sha": ["6afd0174f1d58403", "272924de9e0bb395", "3dc4d874ced80f4f", "b8db79|
+02:08:14 ident-rtp2-tp2-base-3: starting server
+02:08:27 ident-rtp2-tp2-base-3: server up, ident (gen 384)
+02:09:28 ident-rtp2-tp2-base-3: ident exit 0: {"phase": "same1", "ok": 1, "wall_s": 2.1, "sha": ["9618aa347f312012"], "completion": [384]}|{"phase": "same8", "ok": 8, "wall_s": 6.8, "sha": ["9618aa347f312012", "9618aa347f312012", "9618aa347f312012", "9618aa34|{"phase": "same16", "ok": 16, "wall_s": 12.8, "sha": ["9618aa347f312012", "9618aa347f312012", "9618aa347f312012", "9618a|{"phase": "div1", "ok": 1, "wall_s": 2.1, "sha": ["6afd0174f1d58403"], "completion": [384]}|{"phase": "div8", "ok": 8, "wall_s": 6.6, "sha": ["6afd0174f1d58403", "272924de9e0bb395", "3dc4d874ced80f4f", "b8db79f28|{"phase": "div16", "ok": 16, "wall_s": 12.6, "sha": ["6afd0174f1d58403", "272924de9e0bb395", "3dc4d874ced80f4f", "b8db79|
+02:09:29 done, time left 724s
+02:09:39 guard: [guard] stopping radiance 2026-10-30 02:05:43|[guard] radiance answers 2026-10-30 02:09:39 (after 15 s), unit active|
+fleetq: #7345 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it

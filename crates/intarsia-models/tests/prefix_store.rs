@@ -65,6 +65,7 @@ fn fill(b: &dyn Backend, st: &SequenceState) {
                 let v: Vec<u8> = (0..r.bytes).map(|j| (sum as usize + j * 3 + si) as u8).collect();
                 b.upload(&r.buf, 0, &v, 0).unwrap();
             }
+            _ => unreachable!("the prefix store refuses DeepSeek-V4.1 ring / shared slots"),
         }
     }
 }
@@ -89,6 +90,7 @@ fn dump(b: &dyn Backend, st: &SequenceState) -> Vec<u8> {
                 b.download(&r.buf, 0, &mut v, 0).unwrap();
                 out.extend(v);
             }
+            _ => unreachable!("the prefix store refuses DeepSeek-V4.1 ring / shared slots"),
         }
     }
     out

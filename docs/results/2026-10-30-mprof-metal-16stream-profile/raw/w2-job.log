@@ -1,0 +1,69 @@
+fleetq: #7276 running on endor: /opt/code/intarsiaml/.worktrees/mprof/docs/results/2026-10-30-mprof-metal-16stream-profile/raw/scripts/w2.sh /opt/code/intarsiaml/.worktrees/mprof/docs/results/2026-10-30-mprof-metal-16stream-profile/raw/w2
+## s-plain1 00:39:45
+localeval exit 0
+| 8 | 332.6 | 45.4 (42.6–48.9) | 1.03 |
+| 16 | 325.2 | 22.4 (20.8–24.6) | 2.29 |
+
+## Method
+## s-plain2 00:40:45
+localeval exit 0
+| 8 | 276.6 | 38.2 (35.4–41.3) | 1.37 |
+| 16 | 299.2 | 20.7 (19.1–22.7) | 2.52 |
+
+## Method
+## s-host 00:41:47
+localeval exit 0
+| 8 | 301.8 | 40.8 (38.6–43.5) | 1.01 |
+| 16 | 309.7 | 21.4 (19.8–23.5) | 2.46 |
+
+## Method
+## s-cb 00:42:45
+localeval exit 0
+| 8 | 306.5 | 41.9 (39.2–45.4) | 1.13 |
+| 16 | 326.4 | 22.6 (20.9–24.8) | 2.33 |
+
+## Method
+## s-ce1 00:43:41
+localeval exit 0
+| 8 | 294.1 | 40.2 (37.6–43.4) | 1.16 |
+| 16 | 314.1 | 21.7 (20.1–23.8) | 2.41 |
+
+## Method
+## s-kernel 00:44:40
+localeval exit 0
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+total 800912
+drwxr-xr-x@ 29 josef  staff        928 Oct 30 00:44 .
+drwxr-xr-x@ 10 josef  staff        320 Oct 30 00:41 ..
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:42 s-cb-localeval.err
+-rw-r--r--@  1 josef  staff       3427 Oct 30 00:43 s-cb-localeval.out
+-rw-r--r--@  1 josef  staff        799 Oct 30 00:42 s-cb-server.err
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:42 s-cb-server.out
+-rw-r--r--@  1 josef  staff    3103308 Oct 30 00:43 s-cb.jsonl
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:43 s-ce1-localeval.err
+-rw-r--r--@  1 josef  staff       3493 Oct 30 00:44 s-ce1-localeval.out
+-rw-r--r--@  1 josef  staff        799 Oct 30 00:43 s-ce1-server.err
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:43 s-ce1-server.out
+-rw-r--r--@  1 josef  staff  344197080 Oct 30 00:44 s-ce1.jsonl
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:41 s-host-localeval.err
+-rw-r--r--@  1 josef  staff       3213 Oct 30 00:42 s-host-localeval.out
+-rw-r--r--@  1 josef  staff       5393 Oct 30 00:42 s-host-server.err
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:41 s-host-server.out
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:44 s-kernel-localeval.err
+-rw-r--r--@  1 josef  staff       3257 Oct 30 00:45 s-kernel-localeval.out
+-rw-r--r--@  1 josef  staff        799 Oct 30 00:44 s-kernel-server.err
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:44 s-kernel-server.out
+-rw-r--r--@  1 josef  staff   53550199 Oct 30 00:45 s-kernel.jsonl
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:39 s-plain1-localeval.err
+-rw-r--r--@  1 josef  staff       3174 Oct 30 00:40 s-plain1-localeval.out
+-rw-r--r--@  1 josef  staff        800 Oct 30 00:39 s-plain1-server.err
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:39 s-plain1-server.out
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:40 s-plain2-localeval.err
+-rw-r--r--@  1 josef  staff       3174 Oct 30 00:41 s-plain2-localeval.out
+-rw-r--r--@  1 josef  staff        799 Oct 30 00:40 s-plain2-server.err
+-rw-r--r--@  1 josef  staff          0 Oct 30 00:40 s-plain2-server.out
+## done 00:45:47
+fleetq: #7276 done (exit 0)

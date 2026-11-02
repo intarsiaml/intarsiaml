@@ -1,0 +1,9 @@
+[2304, 5120] k2=6 packed=false Rows: worst |shards - whole| 0.00e0 (max |y| 5.60)
+[2304, 5120] k2=6 packed=false Cols: worst |shards - whole| 4.77e-7 (max |y| 5.60)
+experts world 1 vs checkpoint math: worst 1.12e-7 (max |y| 2.77)
+experts world 2, rank 0 + rank 1 vs checkpoint math: worst 1.12e-7
+[5120, 2304] k2=6 packed=false Rows: worst |shards - whole| 0.00e0 (max |y| 5.64)
+[5120, 2304] k2=6 packed=false Cols: worst |shards - whole| 4.77e-7 (max |y| 5.64)
+[512, 768] k2=4 packed=true Rows: worst |shards - whole| 0.00e0 (max |y| 86.33)
+[512, 768] k2=4 packed=true Cols: worst |shards - whole| 7.63e-6 (max |y| 86.33)
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.05s

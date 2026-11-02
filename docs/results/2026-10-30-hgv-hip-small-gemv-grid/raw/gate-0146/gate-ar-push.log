@@ -1,0 +1,38 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1216:4
+     |
+1216 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/ar_push.rs (/target/release/deps/ar_push-f2c76f69f8ae593d)
+
+running 5 tests
+test push_gemm_timing ... ignored
+test pushed_all_reduce_is_bitwise_the_plain_pair ... ok
+test pushed_all_reduce_is_bitwise_the_plain_pair_over_m ... ok
+test pushed_all_reduce_survives_a_delayed_rank ... ok
+test pushed_all_reduce_without_the_wait_is_caught_by_the_stress_test ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 9.78s
+
+negative control (pushed, no wait): 94 wrong results

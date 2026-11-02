@@ -1,0 +1,22 @@
+W20261030 04:49:47.781302 131309485587136 simple_timer.cpp:55] [rocprofv3] tool initialization ::     0.000422 sec
+W20261030 04:49:47.781736 131309485587136 simple_timer.cpp:55] [rocprofv3] '/work/tp2-intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --served-model-name qwen36-35b --max-batch 16 --tp 2 --devices 0,1 --spec off --profile-every 0 --mem-budget 29 --max-seq 18432 --no-supervisor --host 0.0.0.0 --port 8090' ::     0.000000 sec
+W20261030 04:49:47.791686 131309485587136 tool.cpp:2422] HSA version 8.20.4 initialized (instance=0)
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 38 kernel(s) checked, 607 case(s) run, 0 cached
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096
+loaded Qwen3.6-35B-A3B-NVFP4 on hip (AMD Radeon Graphics x2 (tp=2, hip-p2p comm)) in 11.2s, context 18432 tokens
+intarsia server listening on http://0.0.0.0:8090
+host-profile prefill-only   iters      1 rows  0.00 wall  74.628 ms | reap+admit 0.437 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.001 on_token 0.001 detok 0.028 send 0.003 finish 0.019 prefill 74.129 | other 0.011
+host-profile prefill-only   iters      2 rows  0.00 wall 189.867 ms | reap+admit 0.234 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.000 detok 0.003 send 0.041 finish 0.010 prefill 189.576 | other 0.003
+host-profile decode-only    iters    191 rows  7.85 wall  16.501 ms | reap+admit 0.000 prepare 0.000 step-setup 0.032 upload 0.015 launch 16.421 sync 15.665 step-tail 0.000 accept 0.004 metrics 0.000 on_token 0.001 detok 0.007 send 0.009 finish 0.000 prefill 0.000 | other 0.000 | gpu-idle-gap 0.039 ms (189 gaps)
+host-profile decode+prefill iters      7 rows  4.00 wall 125.162 ms | reap+admit 0.147 prepare 0.001 step-setup 0.897 upload 0.022 launch 18.887 sync 10.828 step-tail 0.003 accept 0.004 metrics 0.002 on_token 0.001 detok 0.009 send 0.026 finish 0.000 prefill 105.160 | other 0.000
+host-profile prefill-only   iters      1 rows  0.00 wall 109.180 ms | reap+admit 0.391 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.001 detok 0.003 send 0.005 finish 0.000 prefill 108.777 | other 0.002
+host-profile decode-only    iters    191 rows 15.37 wall  28.192 ms | reap+admit 0.000 prepare 0.000 step-setup 0.032 upload 0.017 launch 28.092 sync 27.028 step-tail 0.000 accept 0.019 metrics 0.001 on_token 0.001 detok 0.010 send 0.016 finish 0.001 prefill 0.000 | other 0.000 | gpu-idle-gap 0.057 ms (189 gaps)
+host-profile decode+prefill iters     15 rows  8.00 wall 128.236 ms | reap+admit 0.147 prepare 0.001 step-setup 0.430 upload 0.025 launch 22.597 sync 17.156 step-tail 0.005 accept 0.005 metrics 0.001 on_token 0.001 detok 0.011 send 0.090 finish 0.000 prefill 104.923 | other 0.000
+host-profile prefill-only   iters      1 rows  0.00 wall 111.830 ms | reap+admit 0.361 prepare 0.000 step-setup 0.000 upload 0.000 launch 0.000 sync 0.000 step-tail 0.000 accept 0.000 metrics 0.000 on_token 0.001 detok 0.003 send 0.083 finish 0.000 prefill 111.380 | other 0.002
+hip exit file "/work/hprof-out/tp2-prof-llmax.exit" present: exiting
+E20261030 04:50:21.381862 131300501485248 output_stream.cpp:111] Opened result file: /work/hprof-out/tp2-prof-llmax/k_kernel_trace.csv
+E20261030 04:50:22.200791 131300501485248 output_stream.cpp:111] Opened result file: /work/hprof-out/tp2-prof-llmax/k_agent_info.csv
+W20261030 04:50:22.205327 131300501485248 simple_timer.cpp:55] [rocprofv3] output generation ::     0.824885 sec
+W20261030 04:50:22.205713 131300501485248 simple_timer.cpp:55] [rocprofv3] tool finalization ::     0.825294 sec

@@ -1,0 +1,10 @@
+TIME N=2048  K=4096  M=1     17.92 us     468 GB/s(weights once)  x1.00 of M=1
+TIME N=2048  K=4096  M=5     24.10 us     348 GB/s(weights once)  x1.35 of M=1
+TIME N=2048  K=4096  M=8     28.51 us     294 GB/s(weights once)  x1.59 of M=1
+TIME N=2048  K=4096  M=12    39.90 us     210 GB/s(weights once)  x2.23 of M=1
+TIME N=2048  K=4096  M=16    45.11 us     186 GB/s(weights once)  x2.52 of M=1
+TIME N=64    K=6144  M=1      5.54 us      71 GB/s(weights once)  x1.00 of M=1
+TIME N=64    K=6144  M=5     12.18 us      32 GB/s(weights once)  x2.20 of M=1
+TIME N=64    K=6144  M=8     16.62 us      24 GB/s(weights once)  x3.00 of M=1
+TIME N=64    K=6144  M=12    21.79 us      18 GB/s(weights once)  x3.93 of M=1
+TIME N=64    K=6144  M=16    27.99 us      14 GB/s(weights once)  x5.05 of M=1

@@ -1,0 +1,32 @@
+[package]
+name = "intarsia-engram"
+description = "DeepSeek V4.1 Engram table tier: n-gram hash, row-sharded NVMe tables (O_DIRECT, io_uring), hot tier."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[features]
+default = []
+# Build the compressed token map from a tokenizer.json (the HF `tokenizers` normalizer chain, as engram.py does).
+tokenizer = ["dep:tokenizers"]
+# The `engram-bench` binary (device sweep, per-token latency, hot-tier hit rate, trace, verify, repack).
+bench = ["dep:clap"]
+
+[dependencies]
+intarsia-core = { workspace = true }
+libc = "0.2"
+sha2 = "0.10"
+half = { workspace = true }
+serde_json = { workspace = true }
+tokenizers = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+io-uring = "0.7"
+
+[[bin]]
+name = "engram-bench"
+required-features = ["bench"]

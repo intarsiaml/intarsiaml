@@ -68,6 +68,10 @@ fn run_host_in(backend: &dyn Backend, kernel: &str, hc: &HostCall, frag: bool) -
         outputs.push(put(backend, &t)?);
     }
     let mut call = OpCall::new(hc.op, inputs, outputs.clone(), hc.attrs.clone());
+    // a DeepSeek-V4.1 sweep case of the device-position path (`DsvAttrs::host_dev_pos`)
+    if let Some(p) = hc.attrs.dsv.host_dev_pos {
+        call.pos = Some(put(backend, &HostTensor::from_i32(&[1], &[p]))?);
+    }
     call.check()?;
     // kernels that declare a scratch requirement get a fresh workspace of exactly that size
     if let Some(k) = backend.kernels().iter().find(|k| k.name == kernel && k.op == hc.op) {

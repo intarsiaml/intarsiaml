@@ -1,0 +1,39 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1216:4
+     |
+1216 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/fp8_f8.rs (/target/release/deps/fp8_f8-ef4cdc9593b2e158)
+
+running 5 tests
+test f8_is_not_the_bf16_path ... ok
+test f8_matches_cpu_reference_tightly ... f8 vs matmul_fp8_mma: 724518 elements differ in the last bits (f32 out)
+f8 vs cpu reference: worst rel_l2 f32 out 5.000e-7, bf16 out 1.916e-4
+ok
+test f8_prefill_tiles_match_small_calls ... ok
+test f8_rows_do_not_depend_on_m ... ok
+test f8_weight_only_is_the_bf16_path ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.31s
+

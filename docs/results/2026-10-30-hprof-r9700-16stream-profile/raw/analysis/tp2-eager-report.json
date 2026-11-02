@@ -1,0 +1,1177 @@
+{
+ "8": {
+  "B": 8,
+  "steps": 186,
+  "kernels": 926,
+  "wall_ms": 16.873152,
+  "busy_ms": 13.883423,
+  "idle_in_step_ms": 2.989729,
+  "inter_step_gap_us": 3.04,
+  "groups": {
+   "other (embedding, copies)": {
+    "ms": 0.21044286021505604,
+    "calls": 21.999999999999485
+   },
+   "norms / residual add": {
+    "ms": 0.24525626344088397,
+    "calls": 100.99999999997652
+   },
+   "dense fp8 projections": {
+    "ms": 3.188734779569863,
+    "calls": 129.99999999995015
+   },
+   "small bf16 GEMVs (router, GDN b/a, shared-gate logit)": {
+    "ms": 0.8236950645161688,
+    "calls": 139.99999999994105
+   },
+   "GatedDeltaNet (conv, delta rule, gated norm)": {
+    "ms": 1.1399281720429963,
+    "calls": 89.99999999998653
+   },
+   "all-reduce (TP=2)": {
+    "ms": 1.1183103064515996,
+    "calls": 79.99999999999562
+   },
+   "MoE routing glue (top-k, group, reduce)": {
+    "ms": 0.42749937634406554,
+    "calls": 119.99999999995924
+   },
+   "MoE routed experts": {
+    "ms": 4.452750365591384,
+    "calls": 79.99999999999562
+   },
+   "shared expert": {
+    "ms": 1.0210383602150603,
+    "calls": 79.99999999999562
+   },
+   "attention (excl. projections)": {
+    "ms": 0.6366054892473161,
+    "calls": 79.99999999999562
+   },
+   "lm_head (NVFP4 GEMV)": {
+    "ms": 0.6390501075268817,
+    "calls": 1.9999999999999984
+   },
+   "sampling (argmax)": {
+    "ms": 0.04659441397849465,
+    "calls": 0.9999999999999992
+   }
+  },
+  "inst": [
+   {
+    "name": "void  moe_down_g2_kernel<2>(  const*, unsigned char const*, unsigned char const*, float const*, int const*, in",
+    "grid": [
+     16384,
+     128,
+     1,
+     256
+    ],
+    "group": "MoE routed experts",
+    "calls": 40.0,
+    "us_call": 56.266020698924734,
+    "ms_step": 2.2506408279569894,
+    "label": "routed down (42 experts)",
+    "bytes": 24772608,
+    "gbs": 440.27652377544825,
+    "pct_roof": 68.7932068399138,
+    "tflops": 2.385413546804545
+   },
+   {
+    "name": "void  moe_gate_up_g2_kernel<2>(  const*, unsigned char const*, unsigned char const*, float const*, int const*,",
+    "grid": [
+     16384,
+     16,
+     1,
+     256
+    ],
+    "group": "MoE routed experts",
+    "calls": 40.0,
+    "us_call": 55.05273844086022,
+    "ms_step": 2.2021095376344086,
+    "label": "routed gate_up (42 experts)",
+    "bytes": 49545216,
+    "gbs": 899.9591555872082,
+    "pct_roof": 140.6186180605013,
+    "tflops": 4.875969181594186
+   },
+   {
+    "name": "void  fp8_gemv_kernel<8, 2,  , 2>(  const*, unsigned char const*, float const*,  *, int, int)",
+    "grid": [
+     65536,
+     1,
+     1,
+     256
+    ],
+    "group": "dense fp8 projections",
+    "calls": 40.0,
+    "us_call": 37.141210080645166,
+    "ms_step": 1.4856484032258068,
+    "label": "fp8 GEMV N=4096 K=2048 M=8",
+    "bytes": 8388608,
+    "gbs": 225.85715386724644,
+    "pct_roof": 35.29018029175726,
+    "tflops": 3.613714461875943
+   },
+   {
+    "name": "void  gdn_delta_rows_v2_kernel<128, 2, 2, true>(  const*,   const*,   const*,   const*,   const*, float,  *, f",
+    "grid": [
+     256,
+     16,
+     8,
+     32
+    ],
+    "group": "GatedDeltaNet (conv, delta rule, gated norm)",
+    "calls": 30.0,
+    "us_call": 31.89568888888889,
+    "ms_step": 0.9568706666666666,
+    "label": "GDN delta rule (state r+w, fp32)",
+    "bytes": 33554432,
+    "gbs": 1052.005244874612,
+    "pct_roof": 164.37581951165814,
+    "tflops": 0.526002622437306
+   },
+   {
+    "name": "void  fp8_gemv_kernel<8, 2, float, 2>(  const*, unsigned char const*, float const*, float*, int, int)",
+    "grid": [
+     32768,
+     1,
+     1,
+     256
+    ],
+    "group": "dense fp8 projections",
+    "calls": 40.0,
+    "us_call": 22.183029973118277,
+    "ms_step": 0.8873211989247312,
+    "label": "fp8 GEMV N=2048 K=4096 M=8",
+    "bytes": 8388608,
+    "gbs": 378.15429227501556,
+    "pct_roof": 59.08660816797118,
+    "tflops": 6.050468676400249
+   },
+   {
+    "name": "void ar2ll_kernel<2, true>(  const*, void*, unsigned long long*, unsigned long long const*, unsigned int*, int",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "all-reduce (TP=2)",
+    "calls": 40.0,
+    "us_call": 18.18701129032258,
+    "ms_step": 0.7274804516129032
+   },
+   {
+    "name": "void  fp8_gemv_kernel<8, 2,  , 2>(  const*, unsigned char const*, float const*,  *, int, int)",
+    "grid": [
+     32768,
+     1,
+     1,
+     256
+    ],
+    "group": "dense fp8 projections",
+    "calls": 30.0,
+    "us_call": 21.588554659498207,
+    "ms_step": 0.6476566397849463,
+    "label": "fp8 GEMV N=2048 K=4096 M=8",
+    "bytes": 8388608,
+    "gbs": 388.56737434756,
+    "pct_roof": 60.713652241806244,
+    "tflops": 6.21707798956096
+   },
+   {
+    "name": "void  nvfp4_gemv_v2_kernel<4, float, false>(  const*, unsigned char const*, unsigned char const*, float const*",
+    "grid": [
+     3973120,
+     1,
+     1,
+     256
+    ],
+    "group": "lm_head (NVFP4 GEMV)",
+    "calls": 2.0,
+    "us_call": 319.5250537634409,
+    "ms_step": 0.6390501075268817,
+    "label": "lm_head NVFP4 N=124160 M=4",
+    "bytes": 143032320,
+    "gbs": 447.64039099698704,
+    "pct_roof": 69.94381109327922,
+    "tflops": 6.366441116401594
+   },
+   {
+    "name": "shared_glu_rows_kernel(  const*, unsigned char const*, unsigned char const*, float const*, unsigned char const",
+    "grid": [
+     8192,
+     1,
+     1,
+     256
+    ],
+    "group": "shared expert",
+    "calls": 40.0,
+    "us_call": 14.181594758064517,
+    "ms_step": 0.5672637903225807,
+    "label": "shared gate+up",
+    "bytes": 1179648,
+    "gbs": 83.1816181554039,
+    "pct_roof": 12.997127836781857,
+    "tflops": 2.3660549164203775
+   },
+   {
+    "name": "void  gemv_kernel<8, 2, 4,  >(  const*,   const*,  *, long, long)",
+    "grid": [
+     256,
+     1,
+     1,
+     256
+    ],
+    "group": "small bf16 GEMVs (router, GDN b/a, shared-gate logit)",
+    "calls": 100.0,
+    "us_call": 5.658336397849463,
+    "ms_step": 0.5658336397849463,
+    "label": "shared-gate bf16 GEMV",
+    "bytes": 4096,
+    "gbs": 0.7238876786393872,
+    "pct_roof": 0.11310744978740425,
+    "tflops": 0.0057911014291150975
+   },
+   {
+    "name": "shared_down_combine_rows_kernel(  const*, unsigned char const*, unsigned char const*, float const*,   const*, ",
+    "grid": [
+     65536,
+     1,
+     1,
+     256
+    ],
+    "group": "shared expert",
+    "calls": 40.0,
+    "us_call": 11.344364247311827,
+    "ms_step": 0.4537745698924731,
+    "label": "shared down",
+    "bytes": 589824,
+    "gbs": 51.99268880490728,
+    "pct_roof": 8.123857625766762,
+    "tflops": 1.4789031482284738
+   },
+   {
+    "name": "void ar2ll_kernel<0, true>(  const*, void*, unsigned long long*, unsigned long long const*, unsigned int*, int",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "all-reduce (TP=2)",
+    "calls": 40.0,
+    "us_call": 9.770746370967741,
+    "ms_step": 0.39082985483870963
+   },
+   {
+    "name": "void  splitkv_kernel<8, 32, 2, true>(  const*,   const*,   const*, float*,  *, int, int, long, long, float, in",
+    "grid": [
+     16384,
+     1,
+     8,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 36.83546290322581,
+    "ms_step": 0.36835462903225813,
+    "label": "attn splitkv (ctx 1200)",
+    "bytes": 19660800,
+    "gbs": 533.7465162757119,
+    "pct_roof": 83.39789316808,
+    "tflops": 4.269972130205695
+   },
+   {
+    "name": "void  gemv_kernel<8, 2, 4,  >(  const*,   const*,  *, long, long)",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "small bf16 GEMVs (router, GDN b/a, shared-gate logit)",
+    "calls": 40.0,
+    "us_call": 6.44653561827957,
+    "ms_step": 0.2578614247311828,
+    "label": "router bf16 GEMV",
+    "bytes": 1048576,
+    "gbs": 162.65728789688134,
+    "pct_roof": 25.41520123388771,
+    "tflops": 1.3012583031750509
+   },
+   {
+    "name": "void  rmsnorm_kernel<true, true, false>(  const*,   const*,   const*,  *,  *, long, float, float, unsigned cha",
+    "grid": [
+     2048,
+     1,
+     1,
+     256
+    ],
+    "group": "norms / residual add",
+    "calls": 80.0,
+    "us_call": 2.469556653225806,
+    "ms_step": 0.1975645322580645
+   },
+   {
+    "name": "moe_topk_v2_kernel(  const*, int, int, int, int, float*, int*)",
+    "grid": [
+     256,
+     1,
+     1,
+     128
+    ],
+    "group": "MoE routing glue (top-k, group, reduce)",
+    "calls": 40.0,
+    "us_call": 4.616795967741936,
+    "ms_step": 0.18467183870967743
+   },
+   {
+    "name": "ag2_kernel(  const*,  *,  *,  *, unsigned int*, unsigned int*, unsigned int*, int, int, int, int, int)",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "other (embedding, copies)",
+    "calls": 1.0,
+    "us_call": 169.49646774193548,
+    "ms_step": 0.16949646774193547
+   },
+   {
+    "name": "void  fp8_gemv_kernel<8, 2,  , 2>(  const*, unsigned char const*, float const*,  *, int, int)",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "dense fp8 projections",
+    "calls": 20.0,
+    "us_call": 8.40542688172043,
+    "ms_step": 0.1681085376344086,
+    "label": "fp8 GEMV N=256 K=2048 M=8",
+    "bytes": 524288,
+    "gbs": 62.37494030674243,
+    "pct_roof": 9.746084422928506,
+    "tflops": 0.9979990449078788
+   },
+   {
+    "name": "moe_reduce_v8_kernel(  const*, int const*, float const*,  *, int, int, int)",
+    "grid": [
+     2048,
+     1,
+     1,
+     256
+    ],
+    "group": "MoE routing glue (top-k, group, reduce)",
+    "calls": 40.0,
+    "us_call": 3.5726717741935485,
+    "ms_step": 0.14290687096774196
+   },
+   {
+    "name": "void  gdn_conv_kernel<true, true>(  const*,   const*,  *, float*, long, int, int, unsigned char const*, long, ",
+    "grid": [
+     4096,
+     8,
+     1,
+     128
+    ],
+    "group": "GatedDeltaNet (conv, delta rule, gated norm)",
+    "calls": 30.0,
+    "us_call": 3.3413634408602153,
+    "ms_step": 0.10024090322580646
+   },
+   {
+    "name": "moe_group_kernel(int const*, int, int, int*, int*, int*)",
+    "grid": [
+     1024,
+     1,
+     1,
+     1024
+    ],
+    "group": "MoE routing glue (top-k, group, reduce)",
+    "calls": 40.0,
+    "us_call": 2.498016666666667,
+    "ms_step": 0.09992066666666667
+   },
+   {
+    "name": "void  rope_kernel<true>(  const*,  *, long, int, int, int, long, float, int const*, int)",
+    "grid": [
+     256,
+     2,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 8.63450376344086,
+    "ms_step": 0.0863450376344086
+   },
+   {
+    "name": "void  gated_rmsnorm_kernel<true>(  const*,   const*,   const*,  *, long, float, float)",
+    "grid": [
+     4096,
+     1,
+     1,
+     32
+    ],
+    "group": "GatedDeltaNet (conv, delta rule, gated norm)",
+    "calls": 30.0,
+    "us_call": 2.7605534050179212,
+    "ms_step": 0.08281660215053763
+   },
+   {
+    "name": "void  rope_kernel<true>(  const*,  *, long, int, int, int, long, float, int const*, int)",
+    "grid": [
+     256,
+     1,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 6.151855913978495,
+    "ms_step": 0.06151855913978495
+   },
+   {
+    "name": "void  combine_kernel<256, 16, true>(float const*,   const*,  *, int, int, int, long, int const*, int)",
+    "grid": [
+     16384,
+     1,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 4.661443010752688,
+    "ms_step": 0.04661443010752688
+   },
+   {
+    "name": "void  argmax_kernel<float>(float const*, int*, long)",
+    "grid": [
+     8192,
+     1,
+     1,
+     1024
+    ],
+    "group": "sampling (argmax)",
+    "calls": 1.0,
+    "us_call": 46.59441397849462,
+    "ms_step": 0.04659441397849462
+   },
+   {
+    "name": "void  kv_append_rows_kernel< , 8>(  const*, unsigned char const*, long, long, long, long, long, long, int cons",
+    "grid": [
+     256,
+     1,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 20.0,
+    "us_call": 2.0082107526881723,
+    "ms_step": 0.04016421505376344
+   },
+   {
+    "name": "__amd_rocclr_copyBuffer",
+    "grid": [
+     16384,
+     1,
+     1,
+     512
+    ],
+    "group": "other (embedding, copies)",
+    "calls": 16.0,
+    "us_call": 1.7653084677419353,
+    "ms_step": 0.028244935483870963
+   },
+   {
+    "name": "void  rmsnorm_kernel<false, true, false>(  const*,   const*,   const*,  *,  *, long, float, float, unsigned ch",
+    "grid": [
+     2048,
+     1,
+     1,
+     32
+    ],
+    "group": "norms / residual add",
+    "calls": 10.0,
+    "us_call": 2.3712682795698923,
+    "ms_step": 0.023712682795698926
+   },
+   {
+    "name": "void  rmsnorm_kernel<false, true, false>(  const*,   const*,   const*,  *,  *, long, float, float, unsigned ch",
+    "grid": [
+     256,
+     1,
+     1,
+     32
+    ],
+    "group": "norms / residual add",
+    "calls": 10.0,
+    "us_call": 2.178051612903226,
+    "ms_step": 0.021780516129032257
+   },
+   {
+    "name": "gate_split_kernel(  const*,  *,  *, long, int)",
+    "grid": [
+     16384,
+     1,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 1.7221559139784948,
+    "ms_step": 0.01722155913978495
+   },
+   {
+    "name": "sigmoid_mul_kernel(  const*,   const*,  *, long)",
+    "grid": [
+     16384,
+     1,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 1.6387059139784947,
+    "ms_step": 0.01638705913978495
+   },
+   {
+    "name": "__amd_rocclr_copyBuffer",
+    "grid": [
+     512,
+     1,
+     1,
+     512
+    ],
+    "group": "other (embedding, copies)",
+    "calls": 4.0,
+    "us_call": 2.6469193548387095,
+    "ms_step": 0.010587677419354838
+   },
+   {
+    "name": "void  rmsnorm_kernel<false, true, false>(  const*,   const*,   const*,  *,  *, long, float, float, unsigned ch",
+    "grid": [
+     2048,
+     1,
+     1,
+     256
+    ],
+    "group": "norms / residual add",
+    "calls": 1.0,
+    "us_call": 2.198532258064516,
+    "ms_step": 0.002198532258064516
+   },
+   {
+    "name": "void  embedding_kernel<true>(int const*,   const*,  *, long, long)",
+    "grid": [
+     2048,
+     1,
+     1,
+     256
+    ],
+    "group": "other (embedding, copies)",
+    "calls": 1.0,
+    "us_call": 2.1137795698924733,
+    "ms_step": 0.002113779569892473
+   }
+  ]
+ },
+ "16": {
+  "B": 16,
+  "steps": 176,
+  "kernels": 1075,
+  "wall_ms": 30.169537,
+  "busy_ms": 26.6571205,
+  "idle_in_step_ms": 3.5124165,
+  "inter_step_gap_us": 3.0,
+  "groups": {
+   "other (embedding, copies)": {
+    "ms": 0.41025726136363644,
+    "calls": 38.99999999999823
+   },
+   "norms / residual add": {
+    "ms": 0.251116721590917,
+    "calls": 100.9999999999731
+   },
+   "dense fp8 projections": {
+    "ms": 6.266419136363566,
+    "calls": 259.9999999998285
+   },
+   "small bf16 GEMVs (router, GDN b/a, shared-gate logit)": {
+    "ms": 3.248576119318159,
+    "calls": 139.99999999993764
+   },
+   "GatedDeltaNet (conv, delta rule, gated norm)": {
+    "ms": 2.039858539772756,
+    "calls": 89.9999999999831
+   },
+   "all-reduce (TP=2)": {
+    "ms": 2.186436448863606,
+    "calls": 79.9999999999922
+   },
+   "MoE routing glue (top-k, group, reduce)": {
+    "ms": 0.4398793409091421,
+    "calls": 119.99999999995582
+   },
+   "MoE routed experts": {
+    "ms": 7.663085465909101,
+    "calls": 79.9999999999922
+   },
+   "shared expert": {
+    "ms": 1.8962766647727536,
+    "calls": 79.9999999999922
+   },
+   "attention (excl. projections)": {
+    "ms": 0.9511071136363448,
+    "calls": 79.9999999999922
+   },
+   "lm_head (NVFP4 GEMV)": {
+    "ms": 1.2655931363636352,
+    "calls": 4.00000000000005
+   },
+   "sampling (argmax)": {
+    "ms": 0.040850073863636364,
+    "calls": 1.000000000000004
+   }
+  },
+  "inst": [
+   {
+    "name": "void  moe_down_g2_kernel<2>(  const*, unsigned char const*, unsigned char const*, float const*, int const*, in",
+    "grid": [
+     32768,
+     128,
+     1,
+     256
+    ],
+    "group": "MoE routed experts",
+    "calls": 40.0,
+    "us_call": 103.69840838068183,
+    "ms_step": 4.147936335227273,
+    "label": "routed down (70 experts)",
+    "bytes": 41287680,
+    "gbs": 398.15153043073667,
+    "pct_roof": 62.21117662980261,
+    "tflops": 2.5886169343560277
+   },
+   {
+    "name": "void  moe_gate_up_g2_kernel<2>(  const*, unsigned char const*, unsigned char const*, float const*, int const*,",
+    "grid": [
+     32768,
+     16,
+     1,
+     256
+    ],
+    "group": "MoE routed experts",
+    "calls": 40.0,
+    "us_call": 87.87872826704546,
+    "ms_step": 3.5151491306818183,
+    "label": "routed gate_up (70 experts)",
+    "bytes": 82575360,
+    "gbs": 939.6512856794011,
+    "pct_roof": 146.82051338740644,
+    "tflops": 6.109224866893376
+   },
+   {
+    "name": "void  fp8_gemv_kernel<8, 2,  , 2>(  const*, unsigned char const*, float const*,  *, int, int)",
+    "grid": [
+     65536,
+     1,
+     1,
+     256
+    ],
+    "group": "dense fp8 projections",
+    "calls": 80.0,
+    "us_call": 36.72716761363636,
+    "ms_step": 2.938173409090909,
+    "label": "fp8 GEMV N=4096 K=2048 M=8",
+    "bytes": 8388608,
+    "gbs": 228.40334676081608,
+    "pct_roof": 35.68802293137752,
+    "tflops": 3.6544535481730573
+   },
+   {
+    "name": "void  gemv_kernel<16, 2, 4,  >(  const*,   const*,  *, long, long)",
+    "grid": [
+     256,
+     1,
+     1,
+     256
+    ],
+    "group": "small bf16 GEMVs (router, GDN b/a, shared-gate logit)",
+    "calls": 100.0,
+    "us_call": 23.241815568181817,
+    "ms_step": 2.324181556818182,
+    "label": "shared-gate bf16 GEMV",
+    "bytes": 4096,
+    "gbs": 0.1762340806803169,
+    "pct_roof": 0.027536575106299515,
+    "tflops": 0.0028197452908850706
+   },
+   {
+    "name": "void ar2_kernel<2>(  const*, void*,  *,  *, unsigned int*, unsigned int*, unsigned int*, int, int, int)",
+    "grid": [
+     16384,
+     1,
+     1,
+     256
+    ],
+    "group": "all-reduce (TP=2)",
+    "calls": 40.0,
+    "us_call": 43.819982386363634,
+    "ms_step": 1.7527992954545453
+   },
+   {
+    "name": "void  fp8_gemv_kernel<8, 2, float, 2>(  const*, unsigned char const*, float const*, float*, int, int)",
+    "grid": [
+     32768,
+     1,
+     1,
+     256
+    ],
+    "group": "dense fp8 projections",
+    "calls": 80.0,
+    "us_call": 21.437061292613635,
+    "ms_step": 1.7149649034090908,
+    "label": "fp8 GEMV N=2048 K=4096 M=8",
+    "bytes": 8388608,
+    "gbs": 391.3133374717916,
+    "pct_roof": 61.14270897996744,
+    "tflops": 6.261013399548665
+   },
+   {
+    "name": "void  gdn_delta_rows_v2_kernel<128, 2, 2, true>(  const*,   const*,   const*,   const*,   const*, float,  *, f",
+    "grid": [
+     256,
+     16,
+     16,
+     32
+    ],
+    "group": "GatedDeltaNet (conv, delta rule, gated norm)",
+    "calls": 30.0,
+    "us_call": 54.03065909090909,
+    "ms_step": 1.6209197727272726,
+    "label": "GDN delta rule (state r+w, fp32)",
+    "bytes": 67108864,
+    "gbs": 1242.0515523804036,
+    "pct_roof": 194.07055505943805,
+    "tflops": 0.6210257761902017
+   },
+   {
+    "name": "void  fp8_gemv_kernel<8, 2,  , 2>(  const*, unsigned char const*, float const*,  *, int, int)",
+    "grid": [
+     32768,
+     1,
+     1,
+     256
+    ],
+    "group": "dense fp8 projections",
+    "calls": 60.0,
+    "us_call": 21.417362594696968,
+    "ms_step": 1.285041755681818,
+    "label": "fp8 GEMV N=2048 K=4096 M=8",
+    "bytes": 8388608,
+    "gbs": 391.6732493513023,
+    "pct_roof": 61.19894521114098,
+    "tflops": 6.266771989620836
+   },
+   {
+    "name": "void  nvfp4_gemv_v2_kernel<4, float, false>(  const*, unsigned char const*, unsigned char const*, float const*",
+    "grid": [
+     3973120,
+     1,
+     1,
+     256
+    ],
+    "group": "lm_head (NVFP4 GEMV)",
+    "calls": 4.0,
+    "us_call": 316.3982840909091,
+    "ms_step": 1.2655931363636364,
+    "label": "lm_head NVFP4 N=124160 M=4",
+    "bytes": 143032320,
+    "gbs": 452.06414570473225,
+    "pct_roof": 70.63502276636441,
+    "tflops": 6.429356738911748
+   },
+   {
+    "name": "shared_glu_rows_kernel(  const*, unsigned char const*, unsigned char const*, float const*, unsigned char const",
+    "grid": [
+     8192,
+     1,
+     1,
+     256
+    ],
+    "group": "shared expert",
+    "calls": 40.0,
+    "us_call": 25.318416051136364,
+    "ms_step": 1.0127366420454547,
+    "label": "shared gate+up",
+    "bytes": 1179648,
+    "gbs": 46.592488156345546,
+    "pct_roof": 7.280076274428991,
+    "tflops": 2.6505948817832135
+   },
+   {
+    "name": "void  gemv_kernel<16, 2, 4,  >(  const*,   const*,  *, long, long)",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "small bf16 GEMVs (router, GDN b/a, shared-gate logit)",
+    "calls": 40.0,
+    "us_call": 23.1098640625,
+    "ms_step": 0.9243945625000001,
+    "label": "router bf16 GEMV",
+    "bytes": 1048576,
+    "gbs": 45.37352522559867,
+    "pct_roof": 7.089613316499792,
+    "tflops": 0.7259764036095787
+   },
+   {
+    "name": "shared_down_combine_rows_kernel(  const*, unsigned char const*, unsigned char const*, float const*,   const*, ",
+    "grid": [
+     65536,
+     1,
+     1,
+     256
+    ],
+    "group": "shared expert",
+    "calls": 40.0,
+    "us_call": 22.088500568181818,
+    "ms_step": 0.8835400227272727,
+    "label": "shared down",
+    "bytes": 589824,
+    "gbs": 26.702763194783508,
+    "pct_roof": 4.172306749184923,
+    "tflops": 1.5190905284143505
+   },
+   {
+    "name": "void  splitkv_kernel<8, 32, 2, true>(  const*,   const*,   const*, float*,  *, int, int, long, long, float, in",
+    "grid": [
+     16384,
+     1,
+     16,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 64.65609943181818,
+    "ms_step": 0.6465609943181818,
+    "label": "attn splitkv (ctx 1200)",
+    "bytes": 39321600,
+    "gbs": 608.1653601987825,
+    "pct_roof": 95.02583753105976,
+    "tflops": 4.86532288159026
+   },
+   {
+    "name": "void ar2ll_kernel<0, true>(  const*, void*, unsigned long long*, unsigned long long const*, unsigned int*, int",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "all-reduce (TP=2)",
+    "calls": 40.0,
+    "us_call": 10.840928835227272,
+    "ms_step": 0.4336371534090909
+   },
+   {
+    "name": "ag2_kernel(  const*,  *,  *,  *, unsigned int*, unsigned int*, unsigned int*, int, int, int, int, int)",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "other (embedding, copies)",
+    "calls": 2.0,
+    "us_call": 171.65873579545456,
+    "ms_step": 0.34331747159090914
+   },
+   {
+    "name": "void  gdn_conv_kernel<true, true>(  const*,   const*,  *, float*, long, int, int, unsigned char const*, long, ",
+    "grid": [
+     4096,
+     16,
+     1,
+     128
+    ],
+    "group": "GatedDeltaNet (conv, delta rule, gated norm)",
+    "calls": 30.0,
+    "us_call": 11.233294696969697,
+    "ms_step": 0.33699884090909094
+   },
+   {
+    "name": "void  fp8_gemv_kernel<8, 2,  , 2>(  const*, unsigned char const*, float const*,  *, int, int)",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "dense fp8 projections",
+    "calls": 40.0,
+    "us_call": 8.205976704545453,
+    "ms_step": 0.3282390681818181,
+    "label": "fp8 GEMV N=256 K=2048 M=8",
+    "bytes": 524288,
+    "gbs": 63.890992977056165,
+    "pct_roof": 9.982967652665025,
+    "tflops": 1.0222558876328987
+   },
+   {
+    "name": "void  rmsnorm_kernel<true, true, false>(  const*,   const*,   const*,  *,  *, long, float, float, unsigned cha",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "norms / residual add",
+    "calls": 80.0,
+    "us_call": 2.534028835227273,
+    "ms_step": 0.20272230681818185
+   },
+   {
+    "name": "moe_topk_v2_kernel(  const*, int, int, int, int, float*, int*)",
+    "grid": [
+     512,
+     1,
+     1,
+     128
+    ],
+    "group": "MoE routing glue (top-k, group, reduce)",
+    "calls": 40.0,
+    "us_call": 4.5509697443181825,
+    "ms_step": 0.18203878977272728
+   },
+   {
+    "name": "moe_reduce_v8_kernel(  const*, int const*, float const*,  *, int, int, int)",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "MoE routing glue (top-k, group, reduce)",
+    "calls": 40.0,
+    "us_call": 3.737869318181818,
+    "ms_step": 0.1495147727272727
+   },
+   {
+    "name": "moe_group_kernel(int const*, int, int, int*, int*, int*)",
+    "grid": [
+     1024,
+     1,
+     1,
+     1024
+    ],
+    "group": "MoE routing glue (top-k, group, reduce)",
+    "calls": 40.0,
+    "us_call": 2.7081444602272726,
+    "ms_step": 0.1083257784090909
+   },
+   {
+    "name": "void  rope_kernel<true>(  const*,  *, long, int, int, int, long, float, int const*, int)",
+    "grid": [
+     512,
+     2,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 9.382750568181818,
+    "ms_step": 0.09382750568181818
+   },
+   {
+    "name": "void  gated_rmsnorm_kernel<true>(  const*,   const*,   const*,  *, long, float, float)",
+    "grid": [
+     8192,
+     1,
+     1,
+     32
+    ],
+    "group": "GatedDeltaNet (conv, delta rule, gated norm)",
+    "calls": 30.0,
+    "us_call": 2.731330871212121,
+    "ms_step": 0.08193992613636362
+   },
+   {
+    "name": "void  combine_kernel<256, 16, true>(float const*,   const*,  *, int, int, int, long, int const*, int)",
+    "grid": [
+     32768,
+     1,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 6.876419886363637,
+    "ms_step": 0.06876419886363637
+   },
+   {
+    "name": "void  rope_kernel<true>(  const*,  *, long, int, int, int, long, float, int const*, int)",
+    "grid": [
+     512,
+     1,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 6.303907954545454,
+    "ms_step": 0.06303907954545454
+   },
+   {
+    "name": "__amd_rocclr_copyBuffer",
+    "grid": [
+     16384,
+     1,
+     1,
+     512
+    ],
+    "group": "other (embedding, copies)",
+    "calls": 32.0,
+    "us_call": 1.6982757457386362,
+    "ms_step": 0.05434482386363636
+   },
+   {
+    "name": "void  kv_append_rows_kernel< , 8>(  const*, unsigned char const*, long, long, long, long, long, long, int cons",
+    "grid": [
+     512,
+     1,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 20.0,
+    "us_call": 2.0939545454545456,
+    "ms_step": 0.041879090909090914
+   },
+   {
+    "name": "void  argmax_kernel<float>(float const*, int*, long)",
+    "grid": [
+     16384,
+     1,
+     1,
+     1024
+    ],
+    "group": "sampling (argmax)",
+    "calls": 1.0,
+    "us_call": 40.85007386363636,
+    "ms_step": 0.04085007386363636
+   },
+   {
+    "name": "void  rmsnorm_kernel<false, true, false>(  const*,   const*,   const*,  *,  *, long, float, float, unsigned ch",
+    "grid": [
+     4096,
+     1,
+     1,
+     32
+    ],
+    "group": "norms / residual add",
+    "calls": 10.0,
+    "us_call": 2.4300676136363637,
+    "ms_step": 0.02430067613636364
+   },
+   {
+    "name": "void  rmsnorm_kernel<false, true, false>(  const*,   const*,   const*,  *,  *, long, float, float, unsigned ch",
+    "grid": [
+     512,
+     1,
+     1,
+     32
+    ],
+    "group": "norms / residual add",
+    "calls": 10.0,
+    "us_call": 2.179099431818182,
+    "ms_step": 0.02179099431818182
+   },
+   {
+    "name": "gate_split_kernel(  const*,  *,  *, long, int)",
+    "grid": [
+     32768,
+     1,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 2.0052340909090907,
+    "ms_step": 0.02005234090909091
+   },
+   {
+    "name": "sigmoid_mul_kernel(  const*,   const*,  *, long)",
+    "grid": [
+     32768,
+     1,
+     1,
+     256
+    ],
+    "group": "attention (excl. projections)",
+    "calls": 10.0,
+    "us_call": 1.6983903409090908,
+    "ms_step": 0.016983903409090905
+   },
+   {
+    "name": "__amd_rocclr_copyBuffer",
+    "grid": [
+     512,
+     1,
+     1,
+     512
+    ],
+    "group": "other (embedding, copies)",
+    "calls": 3.0,
+    "us_call": 2.090712121212121,
+    "ms_step": 0.006272136363636363
+   },
+   {
+    "name": "__amd_rocclr_copyBuffer",
+    "grid": [
+     1024,
+     1,
+     1,
+     512
+    ],
+    "group": "other (embedding, copies)",
+    "calls": 1.0,
+    "us_call": 4.133715909090909,
+    "ms_step": 0.004133715909090909
+   },
+   {
+    "name": "void  rmsnorm_kernel<false, true, false>(  const*,   const*,   const*,  *,  *, long, float, float, unsigned ch",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "norms / residual add",
+    "calls": 1.0,
+    "us_call": 2.302744318181818,
+    "ms_step": 0.002302744318181818
+   },
+   {
+    "name": "void  embedding_kernel<true>(int const*,   const*,  *, long, long)",
+    "grid": [
+     4096,
+     1,
+     1,
+     256
+    ],
+    "group": "other (embedding, copies)",
+    "calls": 1.0,
+    "us_call": 2.1891136363636363,
+    "ms_step": 0.002189113636363636
+   }
+  ]
+ }
+}

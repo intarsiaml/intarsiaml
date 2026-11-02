@@ -28,6 +28,8 @@ enum Command {
     Onboard(cmd::onboard::OnboardArgs),
     /// Host fingerprint and known-pitfall checks.
     Doctor(cmd::doctor::DoctorArgs),
+    /// Build the per-rank weight cache of a DeepSeek-V4.1 Flash EXL3 checkpoint (TP rank-local, streamed with O_DIRECT).
+    Dsv41Cache(cmd::dsv41_cache::Dsv41CacheArgs),
     /// Show the resolved execution plan (kernel per op) for a model.
     Plan(cmd::plan::PlanArgs),
     /// Recipe tools: scaffold a recipe for a new model.
@@ -54,6 +56,7 @@ fn main() -> Result<()> {
         Command::Bench(a) => cmd::bench::run(a),
         Command::Doctor(a) => cmd::doctor::run(a),
         Command::Plan(a) => cmd::plan::run(a),
+        Command::Dsv41Cache(a) => cmd::dsv41_cache::run(a),
         Command::Recipe(a) => cmd::recipe::run(a),
         Command::Qualify(a) => cmd::qualify::run(a),
         Command::Top(a) => cmd::top::run(a),

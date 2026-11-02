@@ -79,6 +79,9 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
     if let Some(cases) = crate::quant::cases::sweep(op, cfg) {
         return cases; // quantised-weight and MoE ops build their own (format-aware) data
     }
+    if crate::dsv41::ops::OPS.contains(&op) {
+        return crate::dsv41::cases::sweep(op, cfg);
+    }
     let mut rng = SplitMix64::new(cfg.seed ^ (op as u64).wrapping_mul(0x9E37));
     let mut cases = Vec::new();
     let quick = cfg.quick;
@@ -364,7 +367,8 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
             };
             for &m in ms {
                 for &(n, k) in &nk {
-                    for (dt, wt) in [(DType::Bf16, DType::Bf16), (DType::F32, DType::F32)] {
+                    // bf16 x f16 weights: the DeepSeek-V4.1 router and indexer `weights_proj` (`*_f16w` kernels)
+                    for (dt, wt) in [(DType::Bf16, DType::Bf16), (DType::F32, DType::F32), (DType::Bf16, DType::F16)] {
                         let x = rand_t(&mut rng, dt, &[m, k], 1.0);
                         let w = rand_t(&mut rng, wt, &[n, k], 1.0 / (k as f32).sqrt());
                         let od = if op == Op::Logits { DType::F32 } else { dt };
@@ -1141,7 +1145,7 @@ pub fn run_admission(
 }
 
 /// Shape facts of a host call (builds throwaway device-free descriptors).
-fn shape_of(hc: &HostCall) -> Result<ShapeInfo> {
+pub fn shape_of(hc: &HostCall) -> Result<ShapeInfo> {
     use crate::backend::{Buffer, BufferImpl, TensorRef};
     struct Phantom(usize);
     impl BufferImpl for Phantom {
@@ -1155,12 +1159,16 @@ fn shape_of(hc: &HostCall) -> Result<ShapeInfo> {
     let mk = |dt: DType, shape: &[usize]| {
         TensorRef::new(Buffer::new(Phantom(shape.iter().product::<usize>() * dt.size_bytes())), dt, shape)
     };
-    let call = crate::ops::OpCall::new(
+    let mut call = crate::ops::OpCall::new(
         hc.op,
         hc.inputs.iter().map(|t| mk(t.dtype, &t.shape)).collect(),
         hc.outputs.iter().map(|o| mk(o.dtype, &o.shape)).collect(),
         hc.attrs.clone(),
     );
+    // a DeepSeek-V4.1 device-position case (`DsvAttrs::host_dev_pos`, uploaded by `exec::run_host`)
+    if hc.attrs.dsv.host_dev_pos.is_some() {
+        call.pos = Some(mk(DType::I32, &[1]));
+    }
     call.check()?;
     Ok(ShapeInfo::from_call(&call))
 }

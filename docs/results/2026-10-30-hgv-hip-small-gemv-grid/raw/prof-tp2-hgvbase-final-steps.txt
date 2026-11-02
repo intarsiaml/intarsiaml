@@ -1,0 +1,8 @@
+== agent Agent 1: 446 decode-like steps (>= 100 kernels)
+-- burst 0: 224 steps, span 8.19 s
+   B=1 kernels=1632: 15 steps, median wall 105.21 ms, busy 99.52 ms
+   B=16 kernels=1075: 175 steps, median wall 29.43 ms, busy 26.08 ms
+-- burst 1: 222 steps, span 7.59 s
+   B=1 kernels=1632: 15 steps, median wall 113.60 ms, busy 107.84 ms
+   B=16 kernels=1075: 176 steps, median wall 29.82 ms, busy 26.48 ms
+== agent Agent 2: 0 decode-like steps (>= 100 kernels)

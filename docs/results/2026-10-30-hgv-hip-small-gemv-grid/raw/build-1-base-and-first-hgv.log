@@ -1,0 +1,23 @@
+fleetq: #7294 waiting (#2 in line): in line behind #7291 "HFP8 fp8 rows microbench v1" (claude-908e11e8) on tatooine-r9700
+fleetq:   #7291 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7291 set, or it will wait for #7291 to be released.
+fleetq: #7294 waiting (#1 in line): #7291 "HFP8 fp8 rows microbench v1" (claude-908e11e8) needs cpu quiet on tatooine-r9700, and this job loads it
+fleetq:   #7291 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7291 set, or it will wait for #7291 to be released.
+fleetq: #7294 running on tatooine-r9700: scripts/hgv/build.sh
+stamp base: head=486e081_code-tree=38322d1e4a1d_dirty=no
+stamp hgv: head=fc0212c_code-tree=d8630279d342_dirty=no
+== hgvbase: head=486e081 code-tree=38322d1e4a1d dirty=no 01:14:05
+build hgvbase exit 0 01:15:20
+    Finished `release` profile [optimized] target(s) in 1m 13s
+hip tests build hgvbase exit 0 01:16:25
+    Finished `release` profile [optimized] target(s) in 1m 01s
+== hgv: head=fc0212c code-tree=d8630279d342 dirty=no 01:16:25
+build hgv exit 0 01:17:40
+    Finished `release` profile [optimized] target(s) in 1m 14s
+hip tests build hgv exit 0 01:18:46
+    Finished `release` profile [optimized] target(s) in 1m 03s
+-rwxr-xr-x 1 josef josef 51020664 Oct 30 01:15 /home/josef/intarsiaml-tp2-hgvbase/tp2-intarsia
+-rwxr-xr-x 1 josef josef 50980312 Oct 30 01:17 /home/josef/intarsiaml-tp2-hgv/tp2-intarsia
+-rwxr-xr-x 1 josef josef 51020408 Oct 30 00:34 /home/josef/intarsiaml-tp2-hprof/tp2-intarsia
+-rwxr-xr-x 1 josef josef 50963120 Oct 29 23:37 /home/josef/intarsiaml-tp2-r9s/tp2-intarsia
+scripts/hgv/build.sh: line 14: unexpected EOF while looking for matching `"'
+fleetq: #7294 done (exit 2)

@@ -13,6 +13,7 @@ members = [
     "crates/intarsia-cli",
     "crates/intarsia-bench",
     "crates/intarsia-tui",
+    "crates/intarsia-engram",
 ]
 
 [workspace.package]
@@ -27,6 +28,7 @@ repository = "https://github.com/intarsiaml/intarsiaml"
 [workspace.dependencies]
 intarsia-core = { path = "crates/intarsia-core" }
 intarsia-backend-cpu = { path = "crates/intarsia-backend-cpu" }
+intarsia-engram = { path = "crates/intarsia-engram" }
 intarsia-backend-cuda = { path = "crates/intarsia-backend-cuda" }
 intarsia-backend-hip = { path = "crates/intarsia-backend-hip" }
 intarsia-backend-metal = { path = "crates/intarsia-backend-metal" }

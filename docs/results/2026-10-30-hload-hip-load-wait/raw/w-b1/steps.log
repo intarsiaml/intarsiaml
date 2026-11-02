@@ -1,0 +1,23 @@
+13:09:46 guard: [guard] radiance stopped 2026-10-30 13:09:46
+13:09:47 binary base: intarsia 0.0.1 
+13:09:47 binary new: intarsia 0.0.1 
+13:09:47 speed-tp1-base-r1: starting server
+13:09:58 speed-tp1-base-r1: server up, localeval (sizes 1024,16384, gen 512, streams 1,)
+13:10:09 speed-tp1-base-r1: localeval exit 0 - result file: `results/20261030-130959-adhoc-hload-speed-tp1-base-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-130959-adhoc-hload-speed-tp1-base-r1/result.json|
+13:10:10 speed-tp1-new-r1: starting server
+13:10:20 speed-tp1-new-r1: server up, localeval (sizes 1024,16384, gen 512, streams 1,)
+13:10:31 speed-tp1-new-r1: localeval exit 0 - result file: `results/20261030-131021-adhoc-hload-speed-tp1-new-r1/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-131021-adhoc-hload-speed-tp1-new-r1/result.json|
+13:10:31 speed-tp1-new-r2: starting server
+13:10:41 speed-tp1-new-r2: server up, localeval (sizes 1024,16384, gen 512, streams 1,)
+13:10:53 speed-tp1-new-r2: localeval exit 0 - result file: `results/20261030-131042-adhoc-hload-speed-tp1-new-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-131042-adhoc-hload-speed-tp1-new-r2/result.json|
+13:10:53 speed-tp1-base-r2: starting server
+13:11:04 speed-tp1-base-r2: server up, localeval (sizes 1024,16384, gen 512, streams 1,)
+13:11:15 speed-tp1-base-r2: localeval exit 0 - result file: `results/20261030-131104-adhoc-hload-speed-tp1-base-r2/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-131104-adhoc-hload-speed-tp1-base-r2/result.json|
+13:11:15 speed-tp1-base-r3: starting server
+13:11:26 speed-tp1-base-r3: server up, localeval (sizes 1024,16384, gen 512, streams 1,)
+13:11:36 speed-tp1-base-r3: localeval exit 0 - result file: `results/20261030-131126-adhoc-hload-speed-tp1-base-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-131126-adhoc-hload-speed-tp1-base-r3/result.json|
+13:11:37 speed-tp1-new-r3: starting server
+13:11:47 speed-tp1-new-r3: server up, localeval (sizes 1024,16384, gen 512, streams 1,)
+13:11:58 speed-tp1-new-r3: localeval exit 0 - result file: `results/20261030-131148-adhoc-hload-speed-tp1-new-r3/result.json`|[localeval] saved /opt/code/deepeval/results/20261030-131148-adhoc-hload-speed-tp1-new-r3/result.json|
+13:11:59 done, time left 1014s
+13:12:09 guard: [guard] stopping radiance 2026-10-30 13:09:44|[guard] radiance answers 2026-10-30 13:12:09 (after 15 s), unit active|

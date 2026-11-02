@@ -28,12 +28,32 @@
 //! | `MatmulMxfp4` | x `[M,K]`, w `[N,K/2]` u8 (e2m1 pairs), scales `[N,K/32]` u8 (e8m0), act `[1]` f32 (0 = 16-bit x, 1 = dynamic MXFP4 QDQ of x, 2 = dynamic per-token fp8 e4m3 x) | `[M,N]` (bf16/f16/f32) | see `quant::mxfp4` |
 //! | `MatmulMxfp4Pair` | x `[M,K]`, (w0 `[N0,K/2]` u8, scales0 `[N0,K/32]` u8), (w1 `[N1,K/2]` u8, scales1 `[N1,K/32]` u8), act `[1]` f32 | `[M,N0]`, `[M,N1]` (= two `MatmulMxfp4`s of the same x and act) | fused, see `quant::mxfp4` |
 //! | `MoeTopk` | router logits `[T,E]` | weights `[T,K]` f32, expert ids `[T,K]` i32 | top_k, norm_topk |
-//! | `MoeExperts` | x `[T,H]`, ids `[T,K]`, weights `[T,K]`, gate_up w `[E,2I,H/2]` u8, gate_up scales `[E,2I,H/16]` fp8, down w `[E,H,I/2]` u8, down scales `[E,H,I/16]` fp8, global `[E,3]` f32 | `[T,H]` | see `quant::moe` |
+//! | `MoeExperts` | x `[T,H]`, ids `[T,K]`, weights `[T,K]`, gate_up w `[E,2I,H/2]` u8, gate_up scales `[E,2I,H/16]` fp8, down w `[E,H,I/2]` u8, down scales `[E,H,I/16]` fp8, global `[E,3]` f32 | `[T,H]` | see `quant::moe`; or the EXL3 encoding (input 3 an i16 trellis arena, `quant::exl3_moe`) |
 //! | `MoeCombine` | routed `[T,H]`, shared `[T,H]`, shared-gate logit `[T,1]` | `[T,H]` | |
 //! | `GateSplit` | x `[T,N,2D]` (per head: `D` values then `D` gate values) | q `[T,N,D]`, gate `[T,N,D]` | |
 //! | `SigmoidMul` | a `[R,X]`, gate `[R,X]` | `[R,X]` (= a * sigmoid(gate)) | |
 //! | `GdnConv` | x `[T,C]`, taps `[C,K]` | y `[T,C]` (= silu(causal conv)), conv state `[C,K-1]` f32, or bf16 where `Backend::gdn_conv_dtype` says so (**in place**) | |
 //! | `ShortConv` | bcx `[T,3C]` (the `in_proj` output, rows `[B \| C \| x]`), taps `[C,K]` | y `[T,C]` (= `C * causalconv(B * x)`: depthwise causal conv, no activation, no bias, tap `K-1` on the current token; f32 inside, one rounding), conv state `[C,K-1]` f32 (the last `K-1` values of `B * x`, **in place**) | LFM2's short-conv block (lane nab2) |
+//! | **DeepSeek-V4.1** (44..=61, lane 1a; exact rules, references and status in docs/design/dsv41-ops.md, checks in `dsv41::ops`) | | | |
+//! | `HcExpand` | x `[T,D]` | `[T,S,D]` (S copies) | |
+//! | `HcMixes` | x `[T,S,D]`, fn `[(2+S)S,S*D]` f32, scale `[3]` f32, base `[(2+S)S]` f32 | pre `[T,S]`, post `[T,S]`, comb `[T,S,S]` f32 (sigmoid splits, Sinkhorn-normalised comb) | eps (RMS over `S*D`), dsv.iters, dsv.hc_eps |
+//! | `HcPre` | x `[T,S,D]`, mix `[T,S]` f32 | `[T,D]` (= sum_s mix[s] x[s]) | |
+//! | `HcPost` | x `[T,D]`, res `[T,S,D]`, post `[T,S]` f32, comb `[T,S,S]` f32 | `[T,S,D]` (y[k] = post[k] x + sum_j comb[j,k] res[j]) | |
+//! | `MoeRoute` | logits `[T,E]` f32, bias `[E]` f32 | weights `[T,K]` f32, ids `[T,K]` i32 (top-k of score + bias, weights the unbiased scores) | top_k, scale, norm_topk, temperature, dsv.score_func |
+//! | `SiluGluClamp` | gate `[R,I]`, up `[R,I]` | `[R,I]` (= silu(min(gate,l)) * clamp(up,-l,l)) | dsv.limit |
+//! | `ActQdq` | x `[..,N]` | same (quantise per block of N, dequantise) | dsv.qdq_fmt, dsv.qdq_block, dsv.qdq_scale |
+//! | `RopeTail` | x `[T,N,Dh]`, inv_freq `[rd/2]` f32 | `[T,N,Dh]` (last rd elements rotated as adjacent pairs, row t at pos0 + t*pos_stride) | pos0, dsv.pos_stride, dsv.inverse |
+//! | `WindowKv` | kv `[T,D]` | win `[W+T,D]`, ring `[Wc,D]` (**in place**) | window, pos0 |
+//! | `AttnSparse` | q `[T,H,D]`, win `[W+T,D]`, cmp `[Nc,D]`, idx `[T,Kc]` i32 (-1 none), sink `[H]` f32 | `[T,H,D]` (MQA over the window plus the indexed compressed rows, sink in the denominator) | window, pos0, scale |
+//! | `CompressPool` | kv `[T,D]` f32, score `[T,D]` f32 | out `[G,D]` (softmax-gated pooling of each completed group of ratio rows), kv / score rings `[Rc,D]` f32 (**in place**) | dsv.ratio, pos0 |
+//! | `IndexerBlocks` | q `[T,Hi,Di]`, k `[Nk,Di]`, w `[T,Hi]` | mask `[T,ceil(Nk/B)]` u8 (top_k candidate blocks) | top_k, dsv.block, dsv.ratio, pos0, scale |
+//! | `IndexerTopk` | q, k, w as above, candidates `[T,ceil(Nk/B)]` u8 or `[0]` | idx `[T,min(top_k,Nk)]` i32 (position order, -1 unreachable) | top_k, dsv.block, dsv.ratio, pos0, scale |
+//! | `GroupedMatmul` | x `[T,G*K]`, w `[G,N,K]` | `[T,G*N]` (group g: x_g @ w[g]^T) | |
+//! | `Transpose01` | x `[A,B,C]` | `[B,A,C]` | |
+//! | `MatmulFp8Block` | x `[M,K]`, w `[N,K]` e4m3, w_scale `[ceil(N/b),K/b]` u8 (E8M0) | `[M,N]` (activations quantised to e4m3 per b first) | dsv.block |
+//! | `EngramGather` | records `[T,C,Dh+Dh/32]` u8 (per row: Dh e4m3 bytes, then Dh/32 E8M0 scale bytes; 264 B for Dh 256) | `[T,C*Dh]` | |
+//! | `EngramMerge` | h `[T,S,D]`, kv `[T,(S+1)*D]` (S keys, one value), q_w `[S,D]`, k_w `[S,D]` | `[T,S,D]` (h + gate * value per stream) | eps |
+//! | `HcSublayer` | x `[T,S,D]`, fn, scale, base (as `HcMixes`), pre_in `[T,S]` f32, norm_w `[D]`, then post_x `[T,D]`, post_mix `[T,S]` f32, post_comb `[T,S,S]` f32 or three `[0]` | n `[T,D]` (= `RmsNorm(HcPre(h, pre_in), norm_w)`), pre, post, comb (= `HcMixes(h)`), h_out `[T,S,D]` or `[0]`; h = x, or with the fold `HcPost(post_x, x, post_mix, post_comb)` written to h_out | eps, w_offset, dsv.iters, dsv.hc_eps |
 //! | `GdnDeltaRule` | qkv `[T,C]` (`C = 2*Hk*dk + Hv*dv`, rows `[q|k|v]`), a `[T,Hv]`, b `[T,Hv]`, A_log `[Hv]`, dt_bias `[Hv]` | o `[T,Hv,dv]`, state `[Hv,dv,dk]` f32 (**in place**) | eps (l2norm) |
 //!
 //! | `MatmulPair` | x `[M,K]`, w0 `[N0,K]`, w1 `[N1,K]` (dense) | `[M,N0]`, `[M,N1]` (= two `Matmul`s of one x) | fused decode GEMV pair, see `quant::fused` |
@@ -124,10 +144,53 @@ pub enum Op {
     DynConv,
     // appended (2026-10-27, nab2 LFM2.5): the gated short conv of Liquid's LFM2 (no activation, state in a `Recurrent` slot), for the same reason
     ShortConv,
+    // appended ONCE (2026-10-31, lane 1a, DeepSeek-V4.1 skeleton): the whole DSv4.1 op set, discriminants 44..=61, frozen so
+    // that the later lanes (cpu reference, CUDA, Engram) only fill in kernels. Semantics: `crate::dsv41::ops` and
+    // docs/design/dsv41-ops.md. Never insert above this block, for the same reason as above.
+    /// Hyper-connections: copy the embedding into the residual streams.
+    HcExpand,
+    /// Hyper-connections: pre / post / Sinkhorn comb mixes of a sub-block from the stream (fp32).
+    HcMixes,
+    /// Hyper-connections: collapse the streams into one sub-block input.
+    HcPre,
+    /// Hyper-connections: expand a sub-block output back into the streams, mixing the residual through comb.
+    HcPost,
+    /// Router with a selection-only bias (sqrt-softplus / sigmoid / softmax scores).
+    MoeRoute,
+    /// SwiGLU with the swiglu_limit clamps (up both sides, gate above).
+    SiluGluClamp,
+    /// Fake quantisation (fp8 / fp4 round trip) of activations, per block of the last dim.
+    ActQdq,
+    /// Rotary embedding on the last rd elements, adjacent pairs, strided positions, optional inverse.
+    RopeTail,
+    /// Sliding-window KV: the window rows a chunk attends plus the ring update.
+    WindowKv,
+    /// MQA over the sliding window plus indexed compressed rows, per-head sink.
+    AttnSparse,
+    /// Compressor: softmax-gated pooling of each completed group, the pending group in rings.
+    CompressPool,
+    /// Indexer level one: candidate blocks per query.
+    IndexerBlocks,
+    /// Indexer: top-k compressed rows per query (optionally within candidate blocks).
+    IndexerTopk,
+    /// Block-diagonal (grouped) matmul, the dense low-rank output projection.
+    GroupedMatmul,
+    /// Swap the two leading dims (group-major rows for per-group projections).
+    Transpose01,
+    /// FP8 e4m3 matmul with E8M0 block scales and dynamic per-block activation quantisation.
+    MatmulFp8Block,
+    /// Engram: dequantise fetched fp8 table rows with their E8M0 scales.
+    EngramGather,
+    /// Engram: gated merge of the n-gram value into every residual stream.
+    EngramMerge,
+    /// DeepSeek-V4.1 fused hyper-connection sublayer entry (decode win, lane cuda-attn): `HcMixes` + Sinkhorn on the streams,
+    /// their collapse with the previous sublayer's pre-mix (`HcPre`) and the sublayer norm (`RmsNorm`) in one op; optionally
+    /// first the previous sublayer's `HcPost` (the fold). Exactly the sequence of those ops (docs/design/dsv41-ops.md).
+    HcSublayer,
 }
 
 impl Op {
-    pub const ALL: [Op; 44] = [
+    pub const ALL: [Op; 63] = [
         Op::Embedding,
         Op::RmsNorm,
         Op::RmsNormAdd,
@@ -172,6 +235,25 @@ impl Op {
         Op::GeluGlu,
         Op::DynConv,
         Op::ShortConv,
+        Op::HcExpand,
+        Op::HcMixes,
+        Op::HcPre,
+        Op::HcPost,
+        Op::MoeRoute,
+        Op::SiluGluClamp,
+        Op::ActQdq,
+        Op::RopeTail,
+        Op::WindowKv,
+        Op::AttnSparse,
+        Op::CompressPool,
+        Op::IndexerBlocks,
+        Op::IndexerTopk,
+        Op::GroupedMatmul,
+        Op::Transpose01,
+        Op::MatmulFp8Block,
+        Op::EngramGather,
+        Op::EngramMerge,
+        Op::HcSublayer,
     ];
 
     /// Stable snake_case id (also the `<op>` part of `ik_<op>_<variant>`).
@@ -221,6 +303,25 @@ impl Op {
             Op::GeluGlu => "gelu_glu",
             Op::DynConv => "dyn_conv",
             Op::ShortConv => "short_conv",
+            Op::HcExpand => "hc_expand",
+            Op::HcMixes => "hc_mixes",
+            Op::HcPre => "hc_pre",
+            Op::HcPost => "hc_post",
+            Op::MoeRoute => "moe_route",
+            Op::SiluGluClamp => "silu_glu_clamp",
+            Op::ActQdq => "act_qdq",
+            Op::RopeTail => "rope_tail",
+            Op::WindowKv => "window_kv",
+            Op::AttnSparse => "attn_sparse",
+            Op::CompressPool => "compress_pool",
+            Op::IndexerBlocks => "indexer_blocks",
+            Op::IndexerTopk => "indexer_topk",
+            Op::GroupedMatmul => "grouped_matmul",
+            Op::Transpose01 => "transpose01",
+            Op::MatmulFp8Block => "matmul_fp8_block",
+            Op::EngramGather => "engram_gather",
+            Op::EngramMerge => "engram_merge",
+            Op::HcSublayer => "hc_sublayer",
         }
     }
 
@@ -273,6 +374,25 @@ impl Op {
             Op::GeluGlu => (2, 1),
             Op::DynConv => (3, 1),
             Op::ShortConv => (2, 2),
+            Op::HcExpand => (1, 1),
+            Op::HcMixes => (4, 3),
+            Op::HcPre => (2, 1),
+            Op::HcPost => (4, 1),
+            Op::MoeRoute => (2, 2),
+            Op::SiluGluClamp => (2, 1),
+            Op::ActQdq => (1, 1),
+            Op::RopeTail => (2, 1),
+            Op::WindowKv => (1, 2),
+            Op::AttnSparse => (5, 1),
+            Op::CompressPool => (2, 3),
+            Op::IndexerBlocks => (3, 1),
+            Op::IndexerTopk => (4, 1),
+            Op::GroupedMatmul => (2, 1),
+            Op::Transpose01 => (1, 1),
+            Op::MatmulFp8Block => (3, 1),
+            Op::EngramGather => (1, 1),
+            Op::EngramMerge => (4, 1),
+            Op::HcSublayer => (9, 5),
         }
     }
 }
@@ -332,6 +452,8 @@ pub struct OpAttrs {
     /// `QTensor::act_fp8`). Read by kernel selection (`ShapeInfo::mxfp4_a8`): only kernels registered for W4A8 serve it, every
     /// other MXFP4 kernel declines it, because they read any nonzero `act` as W4A4; false for every other op.
     pub mxfp4_a8: bool,
+    /// The DeepSeek-V4.1 ops' own attributes (`crate::dsv41::ops::DsvAttrs`); every other op ignores them.
+    pub dsv: crate::dsv41::ops::DsvAttrs,
 }
 
 impl Default for OpAttrs {
@@ -358,6 +480,7 @@ impl Default for OpAttrs {
             fp8_static_act: false,
             mxfp4_w4a16: false,
             mxfp4_a8: false,
+            dsv: Default::default(),
         }
     }
 }
@@ -500,7 +623,9 @@ impl OpCall {
         }
         if let Some(p) = &self.pos {
             p.check_bounds()?;
-            if !matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv | Op::GateSplitQkNormRopeKv) {
+            if !matches!(self.op, Op::Rope | Op::RopeScaled | Op::KvAppend | Op::AttnDecode | Op::QkNormRopeKv | Op::GateSplitQkNormRopeKv)
+                && !crate::dsv41::ops::POSITIONED.contains(&self.op)
+            {
                 return Err(Error::invalid(format!("{}: takes no device-side position", self.op)));
             }
             // one position (token t sits at pos + t), or one per token (`[T]`: batched decode rows, each at its own position)
@@ -765,6 +890,7 @@ impl OpCall {
             | Op::MatmulMxfp4Pair => crate::quant::ops::check(self)?,
             Op::MatmulExl3 => crate::quant::exl3::check(self)?,
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::check(self)?,
+            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::check(self)?,
         }
         Ok(())
     }
@@ -828,7 +954,8 @@ impl ShapeInfo {
         let mut s = ShapeInfo {
             act: i.first().map(|t| t.dtype),
             out: o.first().map(|t| t.dtype),
-            ext: call.attrs.window > 0
+            // the DeepSeek-V4.1 ops read `window` as part of their own definition (no kernel predates it), never as an extension
+            ext: (call.attrs.window > 0 && !crate::dsv41::ops::OPS.contains(&call.op))
                 || call.attrs.rope_prop
                 || call.attrs.gelu
                 || (matches!(call.op, Op::Add | Op::Embedding) && call.attrs.scale != 1.0),
@@ -924,6 +1051,7 @@ impl ShapeInfo {
             | Op::MatmulMxfp4Pair => crate::quant::ops::shape(call, &mut s),
             Op::MatmulExl3 => crate::quant::exl3::shape(call, &mut s),
             Op::GateSplit | Op::SigmoidMul | Op::GdnConv | Op::GdnDeltaRule | Op::GdnConvDelta | Op::ShortConv => crate::gdn::shape(call, &mut s),
+            Op::HcExpand | Op::HcMixes | Op::HcPre | Op::HcPost | Op::MoeRoute | Op::SiluGluClamp | Op::ActQdq | Op::RopeTail | Op::WindowKv | Op::AttnSparse | Op::CompressPool | Op::IndexerBlocks | Op::IndexerTopk | Op::GroupedMatmul | Op::Transpose01 | Op::MatmulFp8Block | Op::EngramGather | Op::EngramMerge | Op::HcSublayer => crate::dsv41::ops::shape(call, &mut s),
         }
         let _ = o;
         s
@@ -1158,15 +1286,21 @@ mod tests {
         );
         assert_eq!(Op::MoeBlock.arity(), (17, 1));
         assert_eq!(Op::MoeBlock.as_str(), "moe_block");
-        assert_eq!(Op::ALL[Op::ALL.len() - 9], Op::MoeBlock, "appended at the end");
-        assert_eq!(Op::ALL[Op::ALL.len() - 8], Op::MatmulMxfp4, "appended after MoeBlock");
-        assert_eq!(Op::ALL[Op::ALL.len() - 7], Op::MatmulExl3, "appended after MatmulMxfp4");
-        assert_eq!(Op::ALL[Op::ALL.len() - 6], Op::MatmulMxfp4Pair, "appended after MatmulExl3");
-        assert_eq!(Op::ALL[Op::ALL.len() - 5], Op::RopeScaled, "appended after MatmulMxfp4Pair");
-        assert_eq!(Op::ALL[Op::ALL.len() - 4], Op::AddBias, "appended after RopeScaled");
-        assert_eq!(Op::ALL[Op::ALL.len() - 3], Op::GeluGlu, "appended after AddBias");
-        assert_eq!(Op::ALL[Op::ALL.len() - 2], Op::DynConv, "appended after GeluGlu");
-        assert_eq!(Op::ALL.last(), Some(&Op::ShortConv), "appended after DynConv");
+        assert_eq!(Op::MoeBlock as usize, 35, "appended at the end, in this order");
+        assert_eq!(Op::MatmulMxfp4 as usize, 36, "appended at the end, in this order");
+        assert_eq!(Op::MatmulExl3 as usize, 37, "appended at the end, in this order");
+        assert_eq!(Op::MatmulMxfp4Pair as usize, 38, "appended at the end, in this order");
+        assert_eq!(Op::RopeScaled as usize, 39, "appended at the end, in this order");
+        assert_eq!(Op::AddBias as usize, 40, "appended at the end, in this order");
+        assert_eq!(Op::GeluGlu as usize, 41, "appended at the end, in this order");
+        assert_eq!(Op::DynConv as usize, 42, "appended at the end, in this order");
+        assert_eq!(Op::ShortConv as usize, 43, "appended at the end, in this order");
+        // the DeepSeek-V4.1 block (lane 1a): absolute discriminants 44..=62, in `dsv41::ops::OPS` order, last in `Op::ALL`
+        for (j, op) in crate::dsv41::ops::OPS.iter().enumerate() {
+            assert_eq!(*op as usize, 44 + j, "{op}");
+            assert_eq!(Op::ALL[44 + j], *op);
+        }
+        assert_eq!(Op::ALL.last(), Some(&Op::HcSublayer), "the last of the DSv4.1 block");
         call.check().unwrap();
         let s = ShapeInfo::from_call(&call);
         assert_eq!((s.m, s.k, s.n, s.experts, s.top_k, s.head_dim), (tt, h, i, e, k, is));

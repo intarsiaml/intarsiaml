@@ -153,7 +153,7 @@ impl Model {
             for (r, st) in sts.iter().enumerate() {
                 let rec = match &st.slots[g.slot] {
                     StateSlot::Recurrent(r) => r,
-                    StateSlot::AttnKv(_) => {
+                    StateSlot::AttnKv(_) | StateSlot::Ring(_) | StateSlot::Shared(_) => {
                         return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot"))
                     }
                 };

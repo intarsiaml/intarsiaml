@@ -1,0 +1,13 @@
+#!/bin/bash
+# Xcode 27.2 (installed 10-30 00:54) wants Metal toolchain 27B47, which is not installed; the 27.1 toolchain mounted under
+# /var/run/com.apple.security.cryptexd/mnt is the one the earlier builds used. Route `xcrun -sdk macosx metal|metallib` to it.
+M=/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.1.266.1.BNM1Up/Metal.xctoolchain/usr/bin
+if [ "${1:-}" = "-sdk" ] && [ "${2:-}" = "macosx" ] && { [ "${3:-}" = "metal" ] || [ "${3:-}" = "metallib" ]; }; then
+  tool=$3; shift 3
+  if [ "$tool" = metal ]; then
+    SDK=$(/usr/bin/xcrun -sdk macosx --show-sdk-path)
+    exec $M/metal -isysroot "$SDK" "$@"
+  fi
+  exec $M/$tool "$@"
+fi
+exec /usr/bin/xcrun "$@"

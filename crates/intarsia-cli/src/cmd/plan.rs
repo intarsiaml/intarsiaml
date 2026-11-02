@@ -142,6 +142,17 @@ pub fn render(p: &Value) -> String {
 }
 
 fn show(a: ShowArgs) -> Result<()> {
+    // DeepSeek-V4.1 does not execute yet: plan its graph from the config and the safetensors headers alone
+    if let Some(cfg) = intarsia_models::dsv41::detect(&a.model.model).map_err(|e| anyhow::anyhow!("{e}"))? {
+        let backend = a.model.open_backend()?;
+        let plan = intarsia_models::dsv41::plan(&a.model.model, &cfg, &*backend, a.model.max_seq).map_err(|e| anyhow::anyhow!("{e}"))?;
+        if a.json {
+            println!("{}", serde_json::to_string_pretty(&plan)?);
+        } else {
+            print!("{}", intarsia_core::dsv41::plan::render(&plan));
+        }
+        return Ok(());
+    }
     let loaded = a.model.load()?;
     let mut plan = loaded.engine.plan();
     if let Some(o) = plan.as_object_mut() {

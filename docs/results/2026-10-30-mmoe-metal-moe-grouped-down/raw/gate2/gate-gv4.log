@@ -1,0 +1,8 @@
+
+running 1 test
+test moe_experts_rows_are_bitwise_the_one_token_call ... metal moe: expert-grouped down 'moe_dec_dn_g_4x1' for T >= 9
+moe_experts: 420 cases, 3780 rows compared bitwise
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.69s
+

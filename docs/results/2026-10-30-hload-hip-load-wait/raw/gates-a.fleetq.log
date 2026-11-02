@@ -1,0 +1,21 @@
+fleetq: #7449 running on tatooine-r9700, tatooine-r9700-2: scripts/hload/tests.sh
+12:37:42 guard: [guard] radiance stopped 2026-10-30 12:37:42
+12:38:07 hiptest rows_exact exit 0: thread 'wmma_bf16_switch_from_the_gemv_is_not_bitwise' panicked at crates/intarsia-backend-hip/tests/rows_exact.rs:307:17:|test result: ok. 13 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 24.97s|
+12:38:10 hiptest fp8_f8 exit 0: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.27s|
+12:38:19 hiptest rows_registry exit 0: test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 8.22s|
+12:38:21 hiptest frag_layout exit 0: thread 'frag_raw_byte_paths_refuse_a_tagged_tensor' panicked at crates/intarsia-core/src/backend.rs:166:9:|thread 'frag_raw_byte_paths_refuse_a_tagged_tensor' panicked at crates/intarsia-core/src/backend.rs:160:9:|test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.72s|
+12:38:25 hiptest quick_coverage exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.98s|
+12:38:26 hiptest fp8_pair_shapes exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s|
+12:38:27 hiptest fusion_p1 exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s|
+12:38:32 hiptest fused_decode exit 0: test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.17s|
+12:38:34 hiptest decode_v2 exit 0: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.82s|
+12:38:36 hiptest wmma_folds exit 0: test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.40s|
+12:38:37 hiptest ar_norm exit 0: test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s|
+12:38:40 hiptest packed_rows exit 0: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.48s|
+12:41:54 hiptest moe_block exit 0: test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 193.08s|
+12:42:01 hiptest moe_pairs exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.15s|
+12:42:17 hiptest moe_v3 exit 0: test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.18s|
+12:42:19 hiptest quantmoe exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.27s|test result: ok. 3 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.16s|
+12:42:19 done, time left 869s
+12:42:29 guard: [guard] stopping radiance 2026-10-30 12:37:39|[guard] radiance answers 2026-10-30 12:42:29 (after 15 s), unit active|
+fleetq: #7449 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
