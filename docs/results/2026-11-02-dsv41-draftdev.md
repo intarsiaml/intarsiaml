@@ -322,3 +322,19 @@ The trace now shows about 0.5 ms before launch: two host gaps of 267 and 208 us 
 3. Engram `wkv` K-split per rank (3072 each, as TF): 0.44 ms/pass, about 0.2 ms/token. Numerics risk: partials rounded to bf16 per rank and summed are not bitwise the replicated result, so it needs MMLU, and it changes the cache format. Described only.
 4. Find why the first collective of a graph starts late: the remaining first all-reduce gap is about 0.2 ms/pass on one rank, about 0.1 ms/token.
 5. Issue the Engram rows for all drafts earlier, overlapping the host confidence step: at most 0.3 ms/pass, about 0.1 ms/token, and it touches the k path.
+
+## Final head with the shipped defaults (2026-11-02 10:04-10:13 EST)
+
+User decisions of 09:59: speculation on by default, `INTARSIA_TP_SPIN_MS=100` in `run-full.sh`. Window #7827 ran binary 7509282be with neither set by hand; both logs show them in force (`speculative decoding on`, `tp: remote rank reader spins 100 ms`). One run, no A/B. Raw: `2026-11-02-dsv41-draftdev/final/`.
+
+| check | result |
+|---|---|
+| Golden vs `tok-intarsia-tp2-w12-specoff.st` | 640/640 |
+| Decode by kind, localeval (catspeed.py), tok/s | all 49.1; chat 45.2, code 64.3, prose 41.2, recall 51.4 |
+| Tokens a round, this window | 2.33; drafts accepted 62.7 % |
+| Lowest MemAvailable | spark1 9.0, spark2 9.3 GiB; no kill |
+| Metal no-op vs origin/main 985eced1f (#7828) | 35B and Qwen3-8B: `plan show` unchanged, 256 ids identical at n128 and n4096, `--spec off` |
+
+By kind was 46.9 on merged 6551ae509 (window 9), before one graph a pass and spin. Different windows, so read it as an order of magnitude, not as the size of those two changes.
+
+A rank cache without its `mtp` part stays at spec off with a log line. If only one rank has it, the handshake fingerprints differ and the load fails.
