@@ -11,7 +11,7 @@
 //!   official safetensors); default `~/dsv41-engram`.
 //! - `INTARSIA_DSV41_ENGRAM_HOT_MB`: hot-tier size (TinyLFU only, no pinned profile); default 0 (off).
 //! - `INTARSIA_DSV41_CAP`: token capacity of the sequence (default 32768); `INTARSIA_DSV41_CHUNK`: prefill chunk (default
-//!   the `--prefill-chunk`, else 512).
+//!   the `--prefill-chunk`, else 2048).
 
 use crate::chat_template::ChatTemplateSource;
 use crate::dsv41::{detect, HeaderShapes};
@@ -58,7 +58,7 @@ impl Dsv41Opts {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
         Dsv41Opts {
             cap: env_usize("INTARSIA_DSV41_CAP").unwrap_or(32768),
-            chunk: env_usize("INTARSIA_DSV41_CHUNK").or(prefill_chunk).unwrap_or(512),
+            chunk: env_usize("INTARSIA_DSV41_CHUNK").or(prefill_chunk).unwrap_or(2048),
             engram_dir: std::env::var_os("INTARSIA_DSV41_ENGRAM").map(PathBuf::from).unwrap_or_else(|| Path::new(&home).join("dsv41-engram")),
             hot_mb: env_usize("INTARSIA_DSV41_ENGRAM_HOT_MB").unwrap_or(0),
             act: if std::env::var("INTARSIA_DSV41_ACT").as_deref() == Ok("f32") { DType::F32 } else { DType::Bf16 },

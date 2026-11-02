@@ -17,7 +17,9 @@ WIP=10.100.152.3; WPORT=29701; SPORT=8899; SURL=http://100.120.88.104:$SPORT
 LOGD="$SPARK_DIR/logs"
 NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-2} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
 # TP_SPIN_MS (default 100, 0 = off): rank 1 polls instead of blocking, two busy cores on spark2 during decode (user, 2026-11-02)
-DENV="INTARSIA_TP_SPIN_MS=${TP_SPIN_MS:-100} INTARSIA_DSV41_CAP=${CAP:-32768} INTARSIA_DSV41_CHUNK=${CHUNK:-512} INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-}"
+# CHUNK=engine leaves INTARSIA_DSV41_CHUNK unset (the engine default)
+CHUNK_ENV="INTARSIA_DSV41_CHUNK=${CHUNK:-2048}"; [[ ${CHUNK:-} == engine ]] && CHUNK_ENV=""
+DENV="INTARSIA_TP_SPIN_MS=${TP_SPIN_MS:-100} INTARSIA_DSV41_CAP=${CAP:-32768} ${CHUNK_ENV} INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-}"
 VLLM_C=missioncntrl-guidance
 log() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
 r() { ssh -n -o BatchMode=yes -o ConnectTimeout=10 "$1" "export FLEETQ_JOB=$FLEETQ_JOB; $2"; }
@@ -141,7 +143,7 @@ if [[ " $STEPS " == *" golden "* ]]; then
   TOK=${TOKENIZER:-/opt/code/intarsiaml/.worktrees/dsv41-official/mia/tokenizer.json}
   ( cd "$REPO" && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run --with numpy --with safetensors --with tokenizers python tools/dsv41/golden_tf.py tokens \
       --base-url $SURL/v1 --model dsv41-intarsia --no-draft-field --tokenizer "$TOK" --out "$OUT/tok-intarsia-tp2.st" \
-      --note "intarsia $(r spark1 "cat $SPARK_DIR/bin/STAMP") TP=2 cap ${CAP:-32768} chunk ${CHUNK:-512}" ) 2>&1 | tee -a "$OUT/steps.log"
+      --note "intarsia $(r spark1 "cat $SPARK_DIR/bin/STAMP") TP=2 cap ${CAP:-32768} chunk ${CHUNK:-2048}" ) 2>&1 | tee -a "$OUT/steps.log"
   specstep "$sn" golden count,story,code,science,chat_short,chat_system,chat_multiturn,chat_reasoning,long_prose_300,long_prose_700
 fi
 if [[ " $STEPS " == *" neartie_fresh "* ]]; then
@@ -248,7 +250,7 @@ if [[ " $STEPS " == *" longp "* ]]; then
   done
 fi
 # localeval (the fleet's harness, /opt/code/deepeval) inside this slot (FLEETQ_JOB is set): speed sweep and MMLU
-LE_RECIPE="intarsia $(r spark1 "cat $SPARK_DIR/bin/STAMP") scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
+LE_RECIPE="intarsia $(r spark1 "cat $SPARK_DIR/bin/STAMP") scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-2048}, engram hot ${HOT_MB:-1024} MiB"
 le() { ( cd /opt/code/deepeval && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run localeval "$@" --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "$LE_RECIPE" ) 2>&1 | tee "$OUT/le-$1-$(date +%H%M%S).log" | tail -40 | tee -a "$OUT/steps.log"; }
 # localeval on $LDATA (a dataset of identical prompts for an engine comparison), --judge none: the figure that counts
 if [[ " $STEPS " == *" ldata "* ]]; then
