@@ -1,0 +1,138 @@
+{
+ "fresh_B": {
+  "ttft_ms": 768.8,
+  "cached": 0,
+  "prompt_tokens": 4042,
+  "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long list of sentences, each describing an action performed by one of three characters (harbor master, patient"
+ },
+ "A": {
+  "ttft_ms": 725.0,
+  "cached": 0,
+  "prompt_tokens": 4033,
+  "text": "\n\n"
+ },
+ "B_after_A": {
+  "ttft_ms": 48.8,
+  "cached": 4032,
+  "prompt_tokens": 4042,
+  "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long list of sentences, each describing an action performed by one of three characters (harbor master, patient"
+ },
+ "cold_B": {
+  "ttft_ms": 734.4,
+  "cached": 0,
+  "prompt_tokens": 4042,
+  "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long list of sentences, each describing an action performed by one of three characters (harbor master, patient"
+ },
+ "B_after_A_equals_fresh": true,
+ "cold_equals_fresh": true,
+ "chat_1500": {
+  "turn1": {
+   "ttft_ms": 294.1,
+   "cached": 0,
+   "prompt_tokens": 1443,
+   "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long list of sentences,"
+  },
+  "warm": {
+   "ttft_ms": 47.8,
+   "cached": 1474,
+   "prompt_tokens": 1492,
+   "text": "\n</think>\n\n- The harbor master counted the grey waves rolling in on day 0.\n- A patient gardener measured every window along the hill on day 1.\n- A patient gardener watched every window along the hill on"
+  },
+  "cold": {
+   "ttft_ms": 302.6,
+   "cached": 0,
+   "prompt_tokens": 1492,
+   "text": "\n</think>\n\n- The harbor master counted the grey waves rolling in on day 0.\n- A patient gardener measured every window along the hill on day 1.\n- A patient gardener watched every window along the hill on"
+  },
+  "text_equal": true,
+  "lost": 1
+ },
+ "chat_3000": {
+  "turn1": {
+   "ttft_ms": 559.2,
+   "cached": 0,
+   "prompt_tokens": 2954,
+   "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long list of sentences,"
+  },
+  "warm": {
+   "ttft_ms": 52.5,
+   "cached": 2985,
+   "prompt_tokens": 3003,
+   "text": "\n</think>\n\n- The harbor master counted the grey waves rolling in on day 0.\n- A patient gardener measured every window along the hill on day 1.\n- A patient gardener watched every window along the hill on"
+  },
+  "cold": {
+   "ttft_ms": 570.4,
+   "cached": 0,
+   "prompt_tokens": 3003,
+   "text": "\n</think>\n\n- The harbor master counted the grey waves rolling in on day 0.\n- A patient gardener measured every window along the hill on day 1.\n- A patient gardener watched every window along the hill on"
+  },
+  "text_equal": true,
+  "lost": 1
+ },
+ "chat_5000": {
+  "turn1": {
+   "ttft_ms": 999.8,
+   "cached": 0,
+   "prompt_tokens": 4960,
+   "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long, repetitive sequence of"
+  },
+  "warm": {
+   "ttft_ms": 56.1,
+   "cached": 4991,
+   "prompt_tokens": 5009,
+   "text": "\n</think>\n\n- The harbor master counted the grey waves rolling in on day 0.\n- A patient gardener measured every window along the hill on day 1.\n- A patient gardener watched every window along the hill on"
+  },
+  "cold": {
+   "ttft_ms": 1013.1,
+   "cached": 0,
+   "prompt_tokens": 5009,
+   "text": "\n</think>\n\n- The harbor master counted the grey waves rolling in on day 0.\n- A patient gardener measured every window along the hill on day 1.\n- A patient gardener watched every window along the hill on"
+  },
+  "text_equal": true,
+  "lost": 1
+ },
+ "chat_8500": {
+  "turn1": {
+   "ttft_ms": 1868.3,
+   "cached": 0,
+   "prompt_tokens": 8481,
+   "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long list of sentences,"
+  },
+  "warm": {
+   "ttft_ms": 61.0,
+   "cached": 8512,
+   "prompt_tokens": 8530,
+   "text": "\n</think>\n\n- The harbor master counted the grey waves rolling in on day 0.\n- A patient gardener measured every window along the hill on day 1.\n- A patient gardener watched every window along the hill on"
+  },
+  "cold": {
+   "ttft_ms": 1818.7,
+   "cached": 0,
+   "prompt_tokens": 8530,
+   "text": "\n</think>\n\n- The harbor master counted the grey waves rolling in on day 0.\n- A patient gardener measured every window along the hill on day 1.\n- A patient gardener watched every window along the hill on"
+  },
+  "text_equal": true,
+  "lost": 1
+ },
+ "chat_12000": {
+  "turn1": {
+   "ttft_ms": 2640.8,
+   "cached": 0,
+   "prompt_tokens": 11992,
+   "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long, repetitive sequence of"
+  },
+  "warm": {
+   "ttft_ms": 67.3,
+   "cached": 12023,
+   "prompt_tokens": 12041,
+   "text": "\n</think>\n\n- The harbor master counted the grey waves rolling in on day 0.\n- A patient gardener measured every window along the hill on day 1.\n- A patient gardener watched every window along the hill on"
+  },
+  "cold": {
+   "ttft_ms": 2670.1,
+   "cached": 0,
+   "prompt_tokens": 12041,
+   "text": "\n</think>\n\n- The harbor master counted the grey waves rolling in on day 0.\n- A patient gardener measured every window along the hill on day 1.\n- A patient gardener watched every window along the hill on"
+  },
+  "text_equal": true,
+  "lost": 1
+ }
+}

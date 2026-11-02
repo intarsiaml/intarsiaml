@@ -88,17 +88,51 @@ inside a chunk. The prefix store (`--prefix-store`) cuts recurrent prefill at me
   above (`INTARSIA_PROBE_ASSERT=1` makes it a gate on the shapes). `engine_hybrid_reuse_equals_cold` is the gate: A then B on
   one engine equals a fresh engine's B. A after B and A repeated equal cold A, with the cached counts above.
 
-* endor `cargo test --workspace --release --no-fail-fast`: 1112 passed, 1 failed (`docs_env_vars`: the two new probe variables had no row in docs/tuning.md; rows added, re-run passes), 28 ignored. 35B engine gate: B after A cached 0 = cold; A after B cached 0 = cold; A repeated cached 4095 = cold (`raw/tests-run2.log`).
+* After the merge with main (`e72ce1964`) and the gate change: endor `cargo test --workspace --release --no-fail-fast` (fleetq #7841, before the one-line `hybrid.rs` assertion; `-p intarsia-models --test hybrid` and `-p intarsia-cli` re-run after it, #7844): 1199 passed, 0 failed, 29 ignored. Plan show for the 35B and Qwen3-8B on Metal identical to main, `kernels test --backend metal` 0 FAIL (#7846).
+* Before the merge: endor `cargo test --workspace --release --no-fail-fast`: 1112 passed, 1 failed (`docs_env_vars`: the two new probe variables had no row in docs/tuning.md; rows added, re-run passes), 28 ignored. 35B engine gate: B after A cached 0 = cold; A after B cached 0 = cold; A repeated cached 4095 = cold (`raw/tests-run2.log`).
 
-## Not run: qualify's reuse gate
+## Cost of the rule and the qualify gate (2026-11-02, after the merge with main `e72ce1964`)
 
-`accuracy --mode reuse` (qualify's `acc-4k` / `acc-4k-reuse` on the 35B) has a `continue` case that requires
-`cached >= split`: turn 2 must reuse the whole of turn 1. The rule here resumes a hybrid at the last chunk cut below turn 1's
-end. At chunk 1024 with a 4k prompt split near the middle that is 1024 < ~2032. Read from the code, that case will report
-"reuse covered X < the S tokens of turn 1" on Metal, HIP and CUDA. The `restore` / `aligned` cases (snapshots at chunk
-boundaries) keep passing. On `main` the 35B Metal `acc-4k` already FAILS on `long_code_4k continue`, for another reason
-(docs/results/2026-10-29-chunk4k-metal.md). Not re-run here. Either the `continue` case accepts the last cold cut on a
-chunk-sensitive backend (as it would have to for a dense model under the bi8 ladder), or this rule needs an opt-out for it.
+endor, Metal, 35B, chunk 4096 (recipe), `serve --spec off`, greedy, raw `/v1/completions`, `INTARSIA_PREFIX_REUSE=any` is the old rule.
+Probe: `raw/hrr_reuse_probe.py` (run by `raw/hrr_run.sh`); fleetq #7834 (chat), #7839 (A = 4096 tokens), #7835 (A = 4098), all endor, `--quiet gpu,cpu`.
+
+**The reported case, reproduced and fixed** (A = 4096 tokens, B = A + " Summarize the above in one paragraph.", 256 tokens; `raw/probe-ab4096-*`):
+
+| | B after A cached | B text vs a cold B | A after B cached | B-after-A TTFT |
+|---|---|---|---|---|
+| old rule | 4095 | DIFFERS from char 152 (same char as lane mmtp's report) | 4095 | 54 ms |
+| new rule | 0 | equal | 0 | 1058 ms (cold 1031 ms; this run was ~45 % slow on every request, a concurrent build: the same cold B took 735 ms in #7835) |
+
+With A = 4098 tokens (`raw/probe-ab4098-*`) A's pass ends at 4096 and B's cold schedule cuts at 4096 too: new rule cached 4096, TTFT 49 ms, equal to cold.
+
+**Cached prefix lost in a chat continuation** (turn 1 = L tokens + 32 greedy reply tokens, turn 2 = turn 1 + reply + a 20-token question; `raw/probe-chat-*`; TTFT = first streamed token):
+
+| turn 1 prompt | held | old: cached / TTFT | new: cached / TTFT | cold TTFT | tokens lost | text new = cold |
+|---|---|---|---|---|---|---|
+| 1443 | 1475 | 1474 / 48 ms | 0 / 294 ms | 296 ms | 1474 | yes |
+| 2954 | 2986 | 2985 / 53 ms | 0 / 631 ms | 572 ms | 2985 | yes |
+| 4960 | 4992 | 4991 / 56 ms | 4096 / 234 ms | 1055 ms | 895 | yes |
+| 8481 | 8513 | 8512 / 61 ms | 8192 / 137 ms | 1838 ms | 320 | yes |
+| 11992 | 12024 | 12023 / 67 ms | 8192 / 1016 ms | 2864 ms | 3831 | yes |
+
+The loss is the held tokens above the last multiple of 4096 inside them: 0 to 4095, about half a chunk on average. Cold prefill costs about 0.2 ms per token here (1055 ms for 4960 tokens), so a turn pays up to about 0.8 s more TTFT. A chat shorter than one chunk reuses nothing, so it pays the full cold prefill each turn (0.3 to 0.6 s at 1.5k to 3k tokens). Greedy text over 32 to 48 tokens was equal under the old rule too in these cases: the old rule is wrong only where the resume point is a snapshot the cold schedule does not hold (the first table), not on every continuation.
+
+The rule trades prefix for exactness; the lost prefix is what `--prefix-store` (message-boundary cuts) recovers.
+
+## The qualify gate: decision
+
+`accuracy --mode reuse` `continue` required `cached >= split` (turn 2 reuses all of turn 1). On the 35B at qualify's chunk 1024 the new rule resumes at 1024 for split 2000 (old rule: 2015), so the gate would print "reuse covered 1024 < the 2000 tokens of turn 1" on Metal, HIP and CUDA (read from the code; the unmodified gate was not run on this head).
+
+Options:
+
+1. **Accept the last cold cut** (implemented). `ModelInfo::reuse_cold_cuts_only` (`Model::reuse_recurrent_at_cold_cuts_only`: recurrent slots, the backend is not `prefix_reuse_any_cut`, `INTARSIA_PREFIX_REUSE` is not `any`) lowers the `continue` bar from `s` to `s / chunk * chunk`. Every other model (dense, cpu, DSv4.1) keeps `cached >= s`. The gate still compares the stream or logits with a cold run, so a wrong-bits resume still fails.
+2. An opt-out that makes the gate test the old rule (`INTARSIA_PREFIX_REUSE=any` in qualify). It passes `cached >= s` only by validating the behaviour that served wrong text, and a serving default that qualify does not exercise.
+
+Option 1 is recommended: it gates what the server does and keeps the bit-exact `aligned` and `restore` checks. Result on Metal with option 1 (`raw/accuracy-reuse-35b-metal.txt`, fleetq #7846; qualify's `acc-4k-reuse` command at chunk 1024 with `--reuse-require-all`): prefix-reuse gate PASS, 3 judged, 0 skipped: long_docs_4k continue cached 1024 (floor 1024), long_code_4k 1024, chat_reuse_4k split 4521 cached 4096 (floor 4096); restore and aligned unchanged and bit-exact. The long_docs_4k continue oracle check passes with warm/cold 1.71x against a 1.5x + 3e-3 limit (1.54e-2 vs 1.65e-2): thin, and above the 0.99x the same case gave at cached 2015 (docs/results/2026-10-22-gc2-4k-continue-oracles); not investigated here (the resume now recomputes rows 1024..2000 with prefill kernels where the old rule kept rows the decode kernels wrote).
+
+CUDA and HIP: read from the code only. Both report `prefix_reuse_any_cut` false (`backend-cuda/src/device.rs:201`, `backend-hip/src/device.rs:799`), so the 35B there takes the same branch and the same floor applies. Not run (no spark run, tatooine untouched).
+
+DSv4.1 (`dsv41_engine.rs`) does not use `Model::reuse_len`: `generate` resumes at `SequenceState::restorable_len(common)` of its own state. This PR neither changes nor tests that path; the merge is textually and semantically independent of it (its `ModelInfo` sets `reuse_cold_cuts_only: false`, so its gate bar is unchanged).
 
 ## Follow-up (not done here)
 
