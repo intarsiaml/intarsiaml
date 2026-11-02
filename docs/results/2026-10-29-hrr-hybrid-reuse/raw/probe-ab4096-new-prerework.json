@@ -1,0 +1,35 @@
+{
+ "fresh_B": {
+  "ttft_ms": 1066.1,
+  "cached": 0,
+  "prompt_tokens": 4105,
+  "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long list of sentences, each describing an action performed by a specific character (harbor master, patient gardener, old lighthouse keeper, curious fox) on a specific day (day 0 to day 245).\n   - **Actions/Verbs:** counted, measured, watched, remembered, repaired.\n   - **Objects/Targets:** grey waves rolling in, every window along the hill, a stack of faded maps, a row of copper kettles, the slow tide at dawn.\n   - **Pattern:** Each sentence follows the structure: \"[Character] [verb] [object] on day [number].\"\n   - **Task:** Summarize the above in one paragraph.\n\n2.  **Identify Key Elements for Summary:**\n   - **Characters:** Harbor master, patient gardener, old lighthouse keeper, curious fox.\n   - **Timeframe:** Day 0 to day 245 (a continuous sequence of daily observations/actions).\n   - **Activities:** Each character repeatedly performs various actions (counting, measuring, watching, remembering, repairing) on a"
+ },
+ "A": {
+  "ttft_ms": 1149.9,
+  "cached": 0,
+  "prompt_tokens": 4096,
+  "text": " The old lighthouse keeper measured a row of every window along the hill on day 246. The old lighthouse keeper watched a row of copper kettles on day 247. A patient gardener watched a row of copper kettles on day 248. A patient gardener watched a row of copper kettles on day 249. The old lighthouse keeper counted a row of copper k\n\n"
+ },
+ "B_after_A": {
+  "ttft_ms": 1058.1,
+  "cached": 0,
+  "prompt_tokens": 4105,
+  "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long list of sentences, each describing an action performed by a specific character (harbor master, patient gardener, old lighthouse keeper, curious fox) on a specific day (day 0 to day 245).\n   - **Actions/Verbs:** counted, measured, watched, remembered, repaired.\n   - **Objects/Targets:** grey waves rolling in, every window along the hill, a stack of faded maps, a row of copper kettles, the slow tide at dawn.\n   - **Pattern:** Each sentence follows the structure: \"[Character] [verb] [object] on day [number].\"\n   - **Task:** Summarize the above in one paragraph.\n\n2.  **Identify Key Elements for Summary:**\n   - **Characters:** Harbor master, patient gardener, old lighthouse keeper, curious fox.\n   - **Timeframe:** Day 0 to day 245 (a continuous sequence of daily observations/actions).\n   - **Activities:** Each character repeatedly performs various actions (counting, measuring, watching, remembering, repairing) on a"
+ },
+ "A_after_B": {
+  "ttft_ms": 1062.9,
+  "cached": 0,
+  "prompt_tokens": 4096,
+  "text": " The old lighthouse keeper measured a row of every window along the hill on day 246. The old lighthouse keeper watched a row of copper kettles on day 247. A patient gardener watched a row of copper kettles on day 248. A patient gardener watched a row of copper kettles on day 249. The old lighthouse keeper counted a row of copper k\n\n"
+ },
+ "cold_B": {
+  "ttft_ms": 1031.3,
+  "cached": 0,
+  "prompt_tokens": 4105,
+  "text": "\n\n<think>\nHere's a thinking process:\n\n1.  **Analyze User Input:**\n   - **Input Text:** A long list of sentences, each describing an action performed by a specific character (harbor master, patient gardener, old lighthouse keeper, curious fox) on a specific day (day 0 to day 245).\n   - **Actions/Verbs:** counted, measured, watched, remembered, repaired.\n   - **Objects/Targets:** grey waves rolling in, every window along the hill, a stack of faded maps, a row of copper kettles, the slow tide at dawn.\n   - **Pattern:** Each sentence follows the structure: \"[Character] [verb] [object] on day [number].\"\n   - **Task:** Summarize the above in one paragraph.\n\n2.  **Identify Key Elements for Summary:**\n   - **Characters:** Harbor master, patient gardener, old lighthouse keeper, curious fox.\n   - **Timeframe:** Day 0 to day 245 (a continuous sequence of daily observations/actions).\n   - **Activities:** Each character repeatedly performs various actions (counting, measuring, watching, remembering, repairing) on a"
+ },
+ "B_after_A_equals_fresh": true,
+ "cold_equals_fresh": true,
+ "A_after_B_equals_A": true
+}
