@@ -915,7 +915,7 @@ impl Dsv41Runtime {
         Ok(Some(out))
     }
 
-    /// Record `g` as segments split before every Engram layer's stage. Every kernel already ran once eagerly (the
+    /// Record `g`: one segment, or (`engram_one_graph` off) segments split before every Engram layer's stage. Every kernel already ran once eagerly (the
     /// warm-up pass), the scratch is grown first, the fills applied; nothing inside the recording uploads or allocates.
     fn capture(&self, ex: &mut Exec, g: &Dsv41Graph, st: &SequenceState, t: usize) -> Result<Vec<(usize, usize, GraphHandle)>> {
         ex.verify = g.verify;
