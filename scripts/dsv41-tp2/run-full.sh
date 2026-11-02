@@ -212,24 +212,30 @@ fi
 # max_tokens 1 request (each starts with a unique 'Run id' line, so no prefix is reused), one nsys session on both ranks, 3 s
 # apart, 3 rounds; then each prompt untraced 3 times for the plain wall time.
 # The CSVs go through docs/results/2026-11-02-dsv41-prefill/prefill_table.py.
-if [[ " $STEPS " == *" pfnsys "* && ${NSYS:-0} == 1 ]]; then
+# pfplain: the same requests without nsys (warm-up, then 3 rounds of wall times), for many-config A/Bs.
+if [[ " $STEPS " == *" pfplain "* || ( " $STEPS " == *" pfnsys "* && ${NSYS:-0} == 1 ) ]]; then
+  PFNSYS=0; [[ " $STEPS " == *" pfnsys "* ]] && PFNSYS=1
   PFD=$REPO/docs/results/2026-11-02-dsv41-prefill
   PFP=${PF_PROMPTS:-$PFD/prompt1k.txt $PFD/prompt4k.txt}
   pfreq() { local t0; t0=$(date +%s.%N)
     curl -s -m 300 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":"Run id %s.\n" % sys.argv[2] + open(sys.argv[1]).read(),"max_tokens":1,"temperature":0}))' "$1" "$2-$RANDOM")" > "$OUT/pf-$2.json"
     echo "pf $2 $(basename "$1") wall $(python3 -c 'import sys,time; print("%.3f" % (time.time() - float(sys.argv[1])))' "$t0") s $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("usage"))' "$OUT/pf-$2.json")" | tee -a "$OUT/steps.log"; }
   for f in $PFP $PFP; do pfreq "$f" warm; done
-  r spark1 "nsys start --session=dsv41r0x$TAG -o $LOGD/nsys-r0-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
-  r spark2 "nsys start --session=dsv41r1x$TAG -o $LOGD/nsys-r1-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
-  for rep in 1 2 3; do pi=0; for f in $PFP; do sleep 3; pfreq "$f" traced$pi-$rep; pi=$((pi + 1)); done; done; sleep 3
-  r spark1 "nsys stop --session=dsv41r0x$TAG" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
-  r spark2 "nsys stop --session=dsv41r1x$TAG" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  if [[ $PFNSYS == 1 ]]; then
+    r spark1 "nsys start --session=dsv41r0x$TAG -o $LOGD/nsys-r0-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+    r spark2 "nsys start --session=dsv41r1x$TAG -o $LOGD/nsys-r1-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+    for rep in 1 2 3; do pi=0; for f in $PFP; do sleep 3; pfreq "$f" traced$pi-$rep; pi=$((pi + 1)); done; done; sleep 3
+    r spark1 "nsys stop --session=dsv41r0x$TAG" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+    r spark2 "nsys stop --session=dsv41r1x$TAG" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  fi
   for rep in 1 2 3; do pi=0; for f in $PFP; do pfreq "$f" plain$pi-$rep; pi=$((pi + 1)); done; done
-  for rk in 0 1; do
-    h=spark$((rk + 1))
-    r $h "nsys stats --report cuda_gpu_trace --format csv --output $LOGD/nsys-r$rk-$TAG $LOGD/nsys-r$rk-$TAG.nsys-rep > /dev/null 2>&1; ls -la $LOGD/nsys-r$rk-$TAG*" | tee -a "$OUT/steps.log"
-    scp -q "$h:$SPARK_REL/logs/nsys-r$rk-$TAG*gpu_trace*.csv" "$OUT/" 2>/dev/null
-  done
+  if [[ $PFNSYS == 1 ]]; then
+    for rk in 0 1; do
+      h=spark$((rk + 1))
+      r $h "nsys stats --report cuda_gpu_trace --format csv --output $LOGD/nsys-r$rk-$TAG $LOGD/nsys-r$rk-$TAG.nsys-rep > /dev/null 2>&1; ls -la $LOGD/nsys-r$rk-$TAG*" | tee -a "$OUT/steps.log"
+      scp -q "$h:$SPARK_REL/logs/nsys-r$rk-$TAG*gpu_trace*.csv" "$OUT/" 2>/dev/null
+    done
+  fi
 fi
 # localeval (the fleet's harness, /opt/code/deepeval) inside this slot (FLEETQ_JOB is set): speed sweep and MMLU
 LE_RECIPE="intarsia $(r spark1 "cat $SPARK_DIR/bin/STAMP") scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
