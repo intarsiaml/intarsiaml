@@ -237,6 +237,16 @@ if [[ " $STEPS " == *" pfplain "* || ( " $STEPS " == *" pfnsys "* && ${NSYS:-0} 
     done
   fi
 fi
+# longp: each file of LONG_PROMPTS (32K-64K tokens; set CAP above the longest) as one completion, 16 greedy tokens with the top 5
+# logprobs, saved as $OUT/longp-<name>.json. Compare two configs with docs/results/2026-11-02-dsv41-prefill/cmp_longp.py (chunk
+# invariance: the same tokens and the same logprobs bit for bit).
+if [[ " $STEPS " == *" longp "* ]]; then
+  for f in ${LONG_PROMPTS:?set LONG_PROMPTS}; do
+    t0=$(date +%s.%N)
+    curl -s -m 900 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":open(sys.argv[1]).read(),"max_tokens":16,"temperature":0,"logprobs":5}))' "$f")" > "$OUT/longp-$(basename "$f" .txt).json"
+    log "longp $(basename "$f") wall $(python3 -c 'import sys,time; print("%.1f" % (time.time() - float(sys.argv[1])))' "$t0") s $(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("usage"), repr(d["choices"][0]["text"][:60]))' "$OUT/longp-$(basename "$f" .txt).json" 2>&1 | tail -1)"
+  done
+fi
 # localeval (the fleet's harness, /opt/code/deepeval) inside this slot (FLEETQ_JOB is set): speed sweep and MMLU
 LE_RECIPE="intarsia $(r spark1 "cat $SPARK_DIR/bin/STAMP") scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
 le() { ( cd /opt/code/deepeval && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run localeval "$@" --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "$LE_RECIPE" ) 2>&1 | tee "$OUT/le-$1-$(date +%H%M%S).log" | tail -40 | tee -a "$OUT/steps.log"; }
