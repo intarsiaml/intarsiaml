@@ -376,6 +376,12 @@ struct SpecStats {
     round_ok: usize,
     /// A round is open (it may have chosen no draft, so `conf` can be empty).
     traced: bool,
+    /// This round's ms (`INTARSIA_DSV41_SPEC_TRACE`): drafting, the forward pass (verify or one row), and the round's period
+    /// (its start to the next round's start, which also holds the host work between rounds).
+    draft_ms: f64,
+    pass_ms: f64,
+    round_start: Option<Instant>,
+    period_ms: f64,
 }
 
 impl SpecStats {
@@ -397,8 +403,17 @@ impl SpecStats {
     /// The round that just ended, as its trace line.
     fn end_round(&mut self, trace: bool) {
         if trace && self.traced {
+            self.period_ms = self.round_start.map_or(0.0, |t| t.elapsed().as_secs_f64() * 1e3);
             let c: Vec<String> = self.conf.iter().map(|v| format!("{v:.3}")).collect();
-            eprintln!("dsv41: spec round k={} conf={} ok={}", self.conf.len(), c.join(","), self.round_ok);
+            eprintln!(
+                "dsv41: spec round k={} conf={} ok={} draft_ms={:.2} pass_ms={:.2} period_ms={:.2}",
+                self.conf.len(),
+                c.join(","),
+                self.round_ok,
+                self.draft_ms,
+                self.pass_ms,
+                self.period_ms
+            );
         }
         self.conf.clear();
         self.pos = 0;
@@ -487,7 +502,11 @@ impl Worker {
         let room = self.rt.opts.cap.saturating_sub(self.st.len + 1);
         if let Some(sp) = spec.filter(|_| room >= 2) {
             stats.end_round(sp.trace);
+            let t0 = Instant::now();
+            stats.round_start = Some(t0);
             let d = self.draft(tok, sp.k)?;
+            let t1 = Instant::now();
+            stats.draft_ms = t1.duration_since(t0).as_secs_f64() * 1e3;
             let mut k = if sp.choose {
                 choose_k(&d.confidence, sp.k, &sp.round_ms, sp.draft_ms)
             } else {
@@ -500,11 +519,13 @@ impl Worker {
                 // no draft is worth a row: the plain one-row pass
                 stats.rounds += 1;
                 let l = self.forward(&[tok], true)?.expect("logits");
+                stats.pass_ms = t1.elapsed().as_secs_f64() * 1e3;
                 return Ok(VecDeque::from([(Row::Logits(l), None)]));
             }
             let mut ids = vec![tok];
             ids.extend_from_slice(&d.ids[1..=k]);
             let rows = self.verify(&ids, logits)?;
+            stats.pass_ms = t1.elapsed().as_secs_f64() * 1e3;
             stats.rounds += 1;
             stats.drafted += k;
             return Ok(rows.into_iter().enumerate().map(|(i, r)| (r, ids.get(i + 1).copied())).collect());
