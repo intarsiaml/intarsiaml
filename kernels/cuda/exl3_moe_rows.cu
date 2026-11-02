@@ -9,14 +9,14 @@
 // launched for an empty group and an expert's programs run back to back.
 #include "exl3_moe.cuh"
 
-#include <cstdlib>
-
 namespace ik_exl3x {
 namespace {
 
-constexpr int W = 4;
+constexpr int NT = 8, W = 4, PF = 2, G = 2;  // PF: k tiles of weight words in flight per warp (1: 6.38 s, 2: 5.63 s, 3: 5.88 s for a 4.1K prompt, docs/results/2026-11-02-dsv41-prefill.md)
+constexpr int GR = 16 * G;
+constexpr int TPT = 16 * NT * 16 / (W * 32);  // a thread's outputs of a member tile in the warp sum
 
-template <int CB, int K2, int NT, int G, int PF>
+template <int CB, int K2>
 __device__ __forceinline__ void warp_tiles_rows(const uint32_t* __restrict__ T, int NTILES, int kt0, int nkt, int nt0,
                                                 const half* __restrict__ X, const long long (&off)[G][2], int live,
                                                 int lane, float (&acc)[G][NT][2][4]) {
@@ -98,10 +98,8 @@ __device__ __forceinline__ void warp_tiles_rows(const uint32_t* __restrict__ T, 
     }
 }
 
-template <bool FOLD, int NT, int G, int PF>
+template <bool FOLD>
 __global__ void __launch_bounds__(W * 32) grouped_rows_kernel(GroupedArgs a) {
-    constexpr int GR = 16 * G;
-    constexpr int TPT = 16 * NT * 16 / (W * 32);  // a thread's outputs of a member tile in the warp sum
     const int K = a.K, N = a.N, P = a.P, SK = a.SK, slots = a.slots, nexp = a.nexp;
     // grid.z walks the work list's (expert place, member group) pairs, then (matrix, split)
     const int zz = (int)(blockIdx.z % nexp);
@@ -156,7 +154,7 @@ __global__ void __launch_bounds__(W * 32) grouped_rows_kernel(GroupedArgs a) {
 #pragma unroll
                     for (int c = 0; c < 4; ++c) acc[g][i][h][c] = 0.f;
         const bool ran = T != nullptr && with_width(cb, k2, [&](auto cbc, auto k2c) {
-                             warp_tiles_rows<decltype(cbc)::value, decltype(k2c)::value, NT, G, PF>(T, NTILES, kt0, per_warp, nt0, X,
+                             warp_tiles_rows<decltype(cbc)::value, decltype(k2c)::value>(T, NTILES, kt0, per_warp, nt0, X,
                                                                                           off, live, lane, acc);
                          });
         if (!ran) {
@@ -209,49 +207,19 @@ __global__ void __launch_bounds__(W * 32) grouped_rows_kernel(GroupedArgs a) {
     }
 }
 
+}  // namespace
 
-// Variants of (NT column tiles, G member tiles, PF k tiles of weight prefetch), selected once from
-// INTARSIA_DSV41_MOE_ROWS_VARIANT (experiment: the winner becomes the only one).
-struct Variant { int nt, g, pf; };
-constexpr Variant kVariants[] = {{8, 2, 1}, {8, 2, 2}, {4, 2, 1}, {4, 2, 2}, {4, 4, 1}, {8, 2, 3}, {2, 2, 2}, {4, 2, 3}};
-int rows_variant() {
-    static const int v = [] {
-        const char* e = std::getenv("INTARSIA_DSV41_MOE_ROWS_VARIANT");
-        const int i = e ? std::atoi(e) : 0;
-        return i >= 0 && i < (int)(sizeof(kVariants) / sizeof(kVariants[0])) ? i : 0;
-    }();
-    return v;
-}
-int rows_group_rows() { return 16 * kVariants[rows_variant()].g; }
-
-template <int NT, int G, int PF>
-int launch_rows_v(const GroupedArgs& a, bool fold, cudaStream_t s) {
+// grid: (1, N / 128, mats * (fold ? 1 : SK) * work-list length)
+int launch_rows(const GroupedArgs& a, bool fold, cudaStream_t s) {
     if (a.N % (16 * NT) != 0 || (a.K / 16) % (W * a.SK) != 0 || a.nexp <= 0 || a.work == nullptr) return IK_ERR_SHAPE;
     const long long gz = (long long)a.mats * (fold ? 1 : a.SK) * a.nexp;
     if (gz > 65535) return IK_ERR_SHAPE;
     const dim3 grid(1, (unsigned)(a.N / (16 * NT)), (unsigned)gz);
     if (fold)
-        grouped_rows_kernel<true, NT, G, PF><<<grid, W * 32, 0, s>>>(a);
+        grouped_rows_kernel<true><<<grid, W * 32, 0, s>>>(a);
     else
-        grouped_rows_kernel<false, NT, G, PF><<<grid, W * 32, 0, s>>>(a);
+        grouped_rows_kernel<false><<<grid, W * 32, 0, s>>>(a);
     return ik_launch_status();
 }
-
-}  // namespace
-
-// grid: (1, N / (16 NT), mats * (fold ? 1 : SK) * work-list length)
-int launch_rows(const GroupedArgs& a, bool fold, cudaStream_t s) {
-    switch (rows_variant()) {
-        case 1: return launch_rows_v<8, 2, 2>(a, fold, s);
-        case 2: return launch_rows_v<4, 2, 1>(a, fold, s);
-        case 3: return launch_rows_v<4, 2, 2>(a, fold, s);
-        case 4: return launch_rows_v<4, 4, 1>(a, fold, s);
-        case 5: return launch_rows_v<8, 2, 3>(a, fold, s);
-        case 6: return launch_rows_v<2, 2, 2>(a, fold, s);
-        case 7: return launch_rows_v<4, 2, 3>(a, fold, s);
-        default: return launch_rows_v<8, 2, 1>(a, fold, s);
-    }
-}
-int launch_rows_group_rows() { return rows_group_rows(); }
 
 }  // namespace ik_exl3x

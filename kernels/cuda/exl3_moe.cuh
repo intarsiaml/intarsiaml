@@ -265,6 +265,5 @@ int launch_cp(const GroupedArgs& a, cudaStream_t s);
 int launch_dense_cp(const half* xh, const uint32_t* T, float* part, const int* cbp, int k2, int M, int K, int N, int S,
                     cudaStream_t s);
 int launch_rows(const GroupedArgs& a, bool fold, cudaStream_t s);
-int launch_rows_group_rows();  // members of a work-list group of the prompt kernel (16 x its member tiles)
 
 }  // namespace ik_exl3x

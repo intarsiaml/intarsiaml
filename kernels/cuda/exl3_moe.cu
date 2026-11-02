@@ -41,7 +41,7 @@ __device__ __forceinline__ __nv_bfloat16 from_f<__nv_bfloat16>(float v) { return
 __global__ void __launch_bounds__(1024) group_kernel(const int* __restrict__ ids, int n, int K, int E,
                                                      int* __restrict__ uids, int* __restrict__ ucount,
                                                      int* __restrict__ mstart, int* __restrict__ mcount,
-                                                     int* __restrict__ members, int* __restrict__ work, int wlb, int grp_rows) {
+                                                     int* __restrict__ members, int* __restrict__ work, int wlb) {
     __shared__ int chunk[kChunk];
     __shared__ int sa[kMaxE], sb[kMaxE], sc[kMaxE];
     const int e = threadIdx.x;
@@ -54,7 +54,7 @@ __global__ void __launch_bounds__(1024) group_kernel(const int* __restrict__ ids
         if (e < E)
             for (int i = 0; i < len; ++i) cnt += chunk[i] == e;
     }
-    const int pres = e < E && cnt > 0, grp = (cnt + grp_rows - 1) / grp_rows;
+    const int pres = e < E && cnt > 0, grp = (cnt + 31) / 32;
     sa[e] = pres;
     sb[e] = cnt;
     sc[e] = grp;
@@ -310,8 +310,7 @@ extern "C" int ik_moe_experts_exl3(const ik_tensor* x, const ik_tensor* ids, con
         const int wlb = P / 32 + places + 1;
         const int* idp = (const int*)ids->data + r0 * K;
         const float* wp = (const float*)wts->data + r0 * K;
-        group_kernel<<<1, kMaxE, 0, s>>>(idp, P, (int)K, (int)E, uids, ucount, mstart, mcount, members, work, wlb,
-                                         decode ? 32 : launch_rows_group_rows());
+        group_kernel<<<1, kMaxE, 0, s>>>(idp, P, (int)K, (int)E, uids, ucount, mstart, mcount, members, work, wlb);
         IK_TRY(ik_launch_status());
         const char* xp = (const char*)x->data + r0 * H * xsize;
         const long long items = (long long)P * (H / 128) * 2;
