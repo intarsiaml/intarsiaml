@@ -181,6 +181,8 @@ if [[ " $STEPS " == *" nsys "* && ${NSYS:-0} == 1 ]]; then
   NT=${NSYS_TOKENS:-48}
   # NSYS_LONG=1: the measured request has a ~4K-token prompt (prefill under nsys); the warm-up stays short
   NP="The history of the printing press begins"
+  # NSYS_PROMPT_FILE: every request of this step uses that file's text (to trace the same prompt as another engine)
+  [[ -n ${NSYS_PROMPT_FILE:-} ]] && NP="$(cat "$NSYS_PROMPT_FILE")"
   req() { local p=$NP; [[ $1 != 16 && ${NSYS_LONG:-0} == 1 ]] && p="$(python3 -c 'print(" ".join(f"Note {i}: the lighthouse lamp was checked and the log was signed." for i in range(300)))') The history of the printing press begins"
     curl -s -m 300 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":sys.argv[2],"max_tokens":int(sys.argv[1]),"temperature":0,"ignore_eos":True}))' "$1" "$p")" > "$OUT/nsys-req-$1.json"; }
   req 16
@@ -200,6 +202,29 @@ fi
 # localeval (the fleet's harness, /opt/code/deepeval) inside this slot (FLEETQ_JOB is set): speed sweep and MMLU
 LE_RECIPE="intarsia $(r spark1 "cat $SPARK_DIR/bin/STAMP") scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap ${CAP:-32768} chunk ${CHUNK:-512}, engram hot ${HOT_MB:-1024} MiB"
 le() { ( cd /opt/code/deepeval && perl -e 'alarm shift; exec @ARGV' $(( $(left) > 60 ? $(left) - 60 : 60 )) uv run localeval "$@" --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "$LE_RECIPE" ) 2>&1 | tee "$OUT/le-$1-$(date +%H%M%S).log" | tail -40 | tee -a "$OUT/steps.log"; }
+# KNOCK_DIR/prompt{0..3}.txt through KNOCK_DIR/knock_client.py (raw completions, streamed, temperature 0): 2 warm-up requests, then
+# the 4 prompts x 2 at $KNOCK_TOKENS tokens: ms a round (client first to last token / the engine's rounds), tokens a round, tok/s.
+# The client TensorFold's knockouts used, so both engines are measured the same way (localeval sends chat requests, these are raw).
+if [[ " $STEPS " == *" knock "* ]]; then
+  for p in 0 1; do python3 "$KNOCK_DIR/knock_client.py" "$SURL" none dsv41-intarsia "$KNOCK_DIR/prompt$p.txt" 32 > /dev/null; done
+  sn=$(specn); : > "$OUT/knock.jsonl"
+  for rep in 1 2; do for p in 0 1 2 3; do
+    python3 "$KNOCK_DIR/knock_client.py" "$SURL" none dsv41-intarsia "$KNOCK_DIR/prompt$p.txt" ${KNOCK_TOKENS:-160} >> "$OUT/knock.jsonl" || log "knock: request failed (prompt$p)"
+  done; done
+  specstep "$sn" knock
+  python3 - "$OUT/knock.jsonl" "$OUT/spec-knock.txt" <<'PY' | tee -a "$OUT/steps.log"
+import json, re, sys
+reqs = [json.loads(l) for l in open(sys.argv[1]) if l.strip()]
+pat = re.compile(r"spec (\d+) tokens in (\d+) rounds .*?, (\d+)/(\d+) drafts accepted")
+spec = [tuple(int(x) for x in m.groups()) for m in (pat.search(l) for l in open(sys.argv[2])) if m]
+tt = rr = 0; ds = 0.0
+for q, (t, r, a, d) in zip(reqs, spec):
+    s = q["decode_s"] or 0.0
+    print(f"  {q['prompt'][-11:-4]} tokens {t} rounds {r} accepted {a}/{d} decode {s:.2f}s {1000 * s / max(r, 1):.2f} ms/round {(t - 1) / max(s, 1e-9):.1f} tok/s ttft {q['ttft_s']}s head {q['head'][:40]!r}")
+    tt += t - 1; rr += r; ds += s
+print(f"  knock TOTAL {len(spec)} requests ({len(reqs)} client): {tt} decode tokens in {rr} rounds = {tt / max(rr, 1):.2f} tok/round; {1000 * ds / max(rr, 1):.2f} ms/round; {tt / max(ds, 1e-9):.1f} tok/s")
+PY
+fi
 if [[ " $STEPS " == *" lspeed "* ]]; then
   sn=$(specn)
   le speed --sizes ${LSIZES:-128,1024,4096,16384} --gen 128 --reps ${LREPS:-3} --label dsv41-intarsia-tp2-speed${LSUF:-}
