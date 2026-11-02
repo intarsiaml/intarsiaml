@@ -85,6 +85,11 @@ struct Captured {
     state_id: u64,
     /// `Exec::scratch_gen` at capture.
     scratch_gen: u64,
+    /// Workspace ranges the recording's steps write, per buffer: `(base name, first byte, end byte)`. A replay runs no
+    /// `run_stage`, so it undoes the fills these cover here ([`Exec::filled`] would otherwise keep claiming them, and
+    /// the next graph that needs such a fill would skip it: the DSpark block's route table overwrites the cell that
+    /// holds the main model's shared-expert id).
+    writes: Vec<(String, usize, usize)>,
 }
 
 /// Recorded graph kinds: a plain pass (decode), a verify pass (logits of every row), a DSpark drafting block.
@@ -175,6 +180,21 @@ fn to_f32(b: &[u8], dtype: DType) -> Result<Vec<f32>> {
 
 fn esz(d: DType) -> usize {
     d.size_bytes()
+}
+
+/// The workspace ranges `g`'s steps write, merged per buffer ([`Captured::writes`]).
+fn ws_writes(g: &Dsv41Graph) -> Vec<(String, usize, usize)> {
+    let mut m: HashMap<String, (usize, usize)> = HashMap::new();
+    for a in g.stages.iter().flat_map(|s| s.steps.iter()).flat_map(|s| s.outputs.iter()) {
+        if let Buf::Ws(n) = &a.buf {
+            let len = a.shape.iter().product::<usize>() * esz(a.dtype);
+            let start = ws_index(n).map_or(0, |i| i * len);
+            let e = m.entry(ws_base(n).to_string()).or_insert((start, start + len));
+            e.0 = e.0.min(start);
+            e.1 = e.1.max(start + len);
+        }
+    }
+    m.into_iter().map(|(k, (a, b))| (k, a, b)).collect()
 }
 
 impl Dsv41Runtime {
@@ -554,17 +574,17 @@ impl Dsv41Runtime {
         ids[0] = first;
         let idx: Vec<u8> = dspark_idx(self.cfg.window, t, pos0).iter().flat_map(|v| v.to_le_bytes()).collect();
         let rank0 = self.comm.as_ref().is_none_or(|c| c.rank() == 0);
+        // device positions (eager or replayed) from position `window` on, as the decode / verify passes
+        let dpos = pos0 >= self.cfg.window && self.dpos.load(std::sync::atomic::Ordering::Relaxed);
+        let o = GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap };
+        let build = || if dpos { build_draft_dpos(&self.cfg, &*self.shapes, o, self.opts.tp) } else { build_draft(&self.cfg, &*self.shapes, o, self.opts.tp) };
         let mut replayed = None;
-        if pos0 >= self.cfg.window && self.graphs_on.load(std::sync::atomic::Ordering::Relaxed) {
-            let build = || build_draft_dpos(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp);
+        if dpos && self.graphs_on.load(std::sync::atomic::Ordering::Relaxed) {
             replayed = self.run_captured(st, &ids, (t, GK_DRAFT), &[("host.dspark.idx", &idx)], rank0, p0, &build)?;
         }
         let logits = match replayed {
             Some(l) => l,
-            None => {
-                let g = build_draft(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp)?;
-                self.run_graph(&g, st, t, &ids, &[("host.dspark.idx", &idx)], rank0, p0)?
-            }
+            None => self.run_graph(&build()?, st, t, &ids, &[("host.dspark.idx", &idx)], rank0, p0)?,
         };
         if !rank0 {
             return Ok(None);
@@ -771,7 +791,8 @@ impl Dsv41Runtime {
             match self.capture(&mut ex, &g, st, t) {
                 Ok(segs) => {
                     let n: usize = segs.len();
-                    gs.captured.insert(key, Captured { g, segs, state_id: st.id, scratch_gen: ex.scratch_gen });
+                    let writes = ws_writes(&g);
+                    gs.captured.insert(key, Captured { g, segs, state_id: st.id, scratch_gen: ex.scratch_gen, writes });
                     let what = ["pass", "verify pass", "drafting block"][key.1 as usize];
                     eprintln!("dsv41: captured the {t}-row {what} as {n} CUDA graph segment(s)");
                 }
@@ -802,6 +823,14 @@ impl Dsv41Runtime {
                 }
             }
             self.backend.graph_replay(h, 0)?;
+        }
+        for (base, lo, hi) in &c.writes {
+            if let Some(&(o, n, _)) = ex.filled.get(base.as_str()) {
+                let es = ex.ws.get(base.as_str()).map_or(1, |w| esz(w.dtype));
+                if *lo < (o + n) * es && o * es < *hi {
+                    ex.filled.remove(base.as_str());
+                }
+            }
         }
         let out = self.finish_pass(&ex, &c.g, st, t, want_logits, stats, e0, p0)?;
         gs.replays[key.1 as usize] += 1;
