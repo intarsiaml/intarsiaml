@@ -231,6 +231,13 @@ for q, (t, r, a, d) in zip(reqs, spec):
 print(f"  knock TOTAL {len(spec)} requests ({len(reqs)} client): {tt} decode tokens in {rr} rounds = {tt / max(rr, 1):.2f} tok/round; {1000 * ds / max(rr, 1):.2f} ms/round; {tt / max(ds, 1e-9):.1f} tok/s")
 PY
 fi
+# margin: KNOCK_DIR/prompt{2,3}.txt, one greedy token with the top 5 logprobs (near-tie or a real preference)
+if [[ " $STEPS " == *" margin "* ]]; then
+  for p in 2 3; do
+    curl -s -m 120 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":open(sys.argv[1]).read(),"max_tokens":1,"temperature":0,"logprobs":5}))' "$KNOCK_DIR/prompt$p.txt")" > "$OUT/margin-$p.json"
+    python3 -c 'import json,sys; c=json.load(open(sys.argv[1]))["choices"][0]; print(sys.argv[2], repr(c.get("text")), c.get("logprobs",{}).get("top_logprobs"))' "$OUT/margin-$p.json" "margin prompt$p" | tee -a "$OUT/steps.log"
+  done
+fi
 if [[ " $STEPS " == *" lspeed "* ]]; then
   sn=$(specn)
   le speed --sizes ${LSIZES:-128,1024,4096,16384} --gen 128 --reps ${LREPS:-3} --label dsv41-intarsia-tp2-speed${LSUF:-}
