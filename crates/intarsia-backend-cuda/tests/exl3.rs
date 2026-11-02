@@ -179,6 +179,27 @@ fn rows_do_not_depend_on_the_batch() {
     rows_do_not_depend_on_the_batch_of(KERNEL);
 }
 
+/// Split-K takes at most 16 rows: a row's bits at M = 2 .. 16 must equal its bits at M = 1, or verify rows would not match the
+/// one-row decode pass on the same linears.
+#[test]
+fn splitk_rows_do_not_depend_on_the_batch() {
+    let Some(cuda) = device() else { return };
+    let kernel = "matmul_exl3_splitk";
+    let mut rng = SplitMix64::new(506);
+    for (k2, cb, n, k) in [(8usize, Codebook::Inst3, 512usize, 1024usize), (5, Codebook::Mul1, 256, 384), (4, Codebook::Mcg, 1024, 128), (12, Codebook::Inst3, 1280, 5120)] {
+        let full = exl3::case(&mut rng, 16, n, k, k2, cb, DType::Bf16, DType::Bf16);
+        let all = run_host(&*cuda, kernel, &full).unwrap();
+        for (r0, r1) in [(0usize, 1usize), (3, 4), (15, 16), (0, 2), (0, 3), (0, 4), (1, 5), (4, 9), (8, 16), (0, 8)] {
+            let mut h = full.clone();
+            let t = &full.inputs[0];
+            h.inputs[0] = HostTensor { shape: vec![r1 - r0, k], data: t.data[r0 * k * 2..r1 * k * 2].to_vec(), ..t.clone() };
+            h.outputs = vec![OutSpec::new(DType::Bf16, &[r1 - r0, n])];
+            let part = run_host(&*cuda, kernel, &h).unwrap();
+            assert_eq!(part[0].data, all[0].data[r0 * n * 2..r1 * n * 2], "{kernel} k2={k2} rows {r0}..{r1}");
+        }
+    }
+}
+
 #[test]
 fn gemm_rows_do_not_depend_on_the_batch() {
     rows_do_not_depend_on_the_batch_of(GEMM);
@@ -388,7 +409,7 @@ fn bench_decode_shapes() {
 fn bench_splitk() {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(828);
-    println!("{:<52} {:>9} {:>9} {:>9}", "(M=1, cold weights)", "us/call", "weight MB", "GB/s");
+    println!("{:<52} {:>9} {:>9} {:>9}", "(cold weights)", "us/call", "weight MB", "GB/s");
     for &(n, k, k2, what) in &[
         (512usize, 5120usize, 10usize, "wkv / compressor"),
         (512, 5120, 12, "wkv (6 bit)"),
@@ -398,11 +419,13 @@ fn bench_splitk() {
         (5120, 4096, 10, "wo_b"),
         (16384, 1280, 10, "wq_b (grid 128, not split)"),
     ] {
-        let hc = exl3::case(&mut rng, 1, n, k, k2, Codebook::Inst3, DType::Bf16, DType::Bf16);
+        for m in [1usize, 4] {
+        let hc = exl3::case(&mut rng, m, n, k, k2, Codebook::Inst3, DType::Bf16, DType::Bf16);
         let bytes = hc.inputs[1].data.len();
         for kernel in [KERNEL, "matmul_exl3_splitk"] {
             let us = time_cold(&*cuda, kernel, &hc, &[1], copies_for(bytes), 15);
-            println!("{:<52} {:>9.1} {:>9.2} {:>9.0}", format!("{kernel} {what} N={n} K={k} k2={k2}"), us * 1e6, bytes as f64 / 1e6, bytes as f64 / 1e9 / us);
+            println!("{:<52} {:>9.1} {:>9.2} {:>9.0}", format!("M={m} {kernel} {what} N={n} K={k}"), us * 1e6, bytes as f64 / 1e6, bytes as f64 / 1e9 / us);
+        }
         }
     }
 }
