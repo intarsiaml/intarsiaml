@@ -599,7 +599,7 @@ fn device_position_passes_equal_host_passes() {
     };
     let host = run(false);
     let dev = run(true);
-    let replays = rt.graph_replays();
+    let (r_pass, r_verify, r_draft) = rt.graph_replays();
     assert_eq!(host.len(), dev.len());
     let mut first_diff = None;
     let mut worst = 0f32;
@@ -612,13 +612,19 @@ fn device_position_passes_equal_host_passes() {
         worst = worst.max(d);
     }
     println!(
-        "RUNTIME dpos vs host: {} passes ({} prompt, {} tokens, spec {spec}, graphs {graphs}, {replays} replays): first bitwise difference at pass {first_diff:?}, worst |diff| {worst:.3e}",
+        "RUNTIME dpos vs host: {} passes ({} prompt, {} tokens, spec {spec}, graphs {graphs}, replays: {r_pass} decode / {r_verify} verify / {r_draft} draft): first bitwise difference at pass {first_diff:?}, worst |diff| {worst:.3e}",
         host.len(),
         n_prompt,
         n_cont
     );
     assert!(first_diff.is_none(), "device-position passes differ from host-position passes");
     if graphs {
-        assert!(replays > 0, "no pass replayed a CUDA graph");
+        assert!(r_pass > 0, "no decode pass replayed a CUDA graph");
+        if spec {
+            assert!(r_verify > 0, "no verify pass replayed a CUDA graph");
+            if n_prompt >= 128 {
+                assert!(r_draft > 0, "no drafting block replayed a CUDA graph");
+            }
+        }
     }
 }

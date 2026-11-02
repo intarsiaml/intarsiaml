@@ -100,8 +100,8 @@ struct Graphs {
     captured: HashMap<(usize, u8), Captured>,
     /// shapes that ran eagerly once
     warm: std::collections::HashSet<(usize, u8)>,
-    /// replays since load (stderr note every `INTARSIA_DSV41_PROFILE` passes)
-    replays: u64,
+    /// replays since load, per kind ([`GK_PASS`], [`GK_VERIFY`], [`GK_DRAFT`])
+    replays: [u64; 3],
 }
 
 /// Per-pass timing (decode profiling): host time spent waiting for Engram records.
@@ -446,9 +446,10 @@ impl Dsv41Runtime {
         on
     }
 
-    /// Passes replayed from CUDA graphs since load.
-    pub fn graph_replays(&self) -> u64 {
-        self.graphs.lock().unwrap().replays
+    /// Graphs replayed since load: (decode passes, verify passes, drafting blocks).
+    pub fn graph_replays(&self) -> (u64, u64, u64) {
+        let r = self.graphs.lock().unwrap().replays;
+        (r[0], r[1], r[2])
     }
 
     pub fn slot_specs(&self) -> &[SlotSpec] {
@@ -803,7 +804,7 @@ impl Dsv41Runtime {
             self.backend.graph_replay(h, 0)?;
         }
         let out = self.finish_pass(&ex, &c.g, st, t, want_logits, stats, e0, p0)?;
-        gs.replays += 1;
+        gs.replays[key.1 as usize] += 1;
         Ok(Some(out))
     }
 
