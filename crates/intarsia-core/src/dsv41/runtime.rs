@@ -169,7 +169,7 @@ pub struct Dsv41Runtime {
     /// `INTARSIA_DSV41_EXL3_SPLITK_VERIFY` (default on, `0` = GEMV): verify passes take split-K on the same linears as the
     /// one-row decode pass, so a verify row is bitwise the decode row. Plain decode and prefill are untouched.
     splitk_verify: bool,
-    /// `INTARSIA_DSV41_L2_PREFETCH=1` (default off): in a recorded pass, a paced L2 prefetch on stream 1 of the weights the next
+    /// `INTARSIA_DSV41_L2_PREFETCH` (default on since 2026-11-02, `0` = off): in a recorded pass, a paced L2 prefetch on stream 1 of the weights the next
     /// linears read: after a layer's `wq_b` its `wo_a` and `wo_b`, after its experts the next layer's `wq_a`, `wkv`, `wq_b`
     /// (16 MiB a launch). Changes no numbers.
     l2_prefetch: bool,
@@ -401,7 +401,7 @@ impl Dsv41Runtime {
                 to_f32(&b, t.dtype)?
             }
         };
-        let l2_prefetch = std::env::var("INTARSIA_DSV41_L2_PREFETCH").is_ok_and(|v| v == "1") && backend.stream_fork();
+        let l2_prefetch = std::env::var("INTARSIA_DSV41_L2_PREFETCH").map_or(true, |v| v != "0") && backend.stream_fork();
         let lanes = std::env::var("INTARSIA_DSV41_LANES").map_or(true, |v| v != "0") && backend.stream_fork();
         let mut rt = Dsv41Runtime {
             cfg,
