@@ -1,0 +1,85 @@
+04:30:56 preflight ok
+04:31:00 vLLM stopped
+04:31:06 memory: 04:31:05 spark1=111.1 spark2=111.5
+04:31:06 == config base: TF_DS_HC_SIDE=1 TF_DS_L2_PREFETCH=1
+04:32:03 base: ready=1 after 57 s; 04:32:00 spark1=4.6 spark2=5.7
+04:32:38 base: mem now 04:32:35 spark1=3.8 spark2=5.6
+    [tensorfold] done cmpl-14a6d41567f592947b3e43bbe72cd201 prompt=988 cached=0 thinking=False effort=none tokens=160 sha=31f944238eab finish=length rounds=37 accepted=122/135
+    [tensorfold] done cmpl-d006622c37551eaa44aa23b8ccf6cf03 prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d8f14651fcba finish=length rounds=46 accepted=113/143
+    [tensorfold] done cmpl-3ae592c0b416bd14db5e59274d0efe61 prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d319838f7655 finish=length rounds=46 accepted=113/168
+    [tensorfold] done cmpl-caa969b73cfc23eb4b329c1f0025a781 prompt=947 cached=0 thinking=False effort=none tokens=160 sha=cd6a618f7f22 finish=length rounds=44 accepted=115/149
+    [tensorfold] done cmpl-434ec8f443ec58d7094fd3b1cc9d0374 prompt=988 cached=0 thinking=False effort=none tokens=160 sha=31f944238eab finish=length rounds=37 accepted=122/135
+    [tensorfold] done cmpl-8baa32c1654e984521a71d74ea075f72 prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d8f14651fcba finish=length rounds=46 accepted=113/143
+    [tensorfold] done cmpl-f556b69fafdf4b3292849a676263f9dc prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d319838f7655 finish=length rounds=46 accepted=113/168
+    [tensorfold] done cmpl-dc415836938db7dce0fd90e1826ba1c7 prompt=947 cached=0 thinking=False effort=none tokens=160 sha=cd6a618f7f22 finish=length rounds=44 accepted=115/149
+  prompt0 tokens  160 rounds  37 decode   2.03s   54.84 ms/round    78.4 tok/s  ttft 1.56s
+  prompt1 tokens  160 rounds  46 decode   1.80s   39.20 ms/round    88.2 tok/s  ttft 0.80s
+  prompt2 tokens  160 rounds  46 decode   1.96s   42.65 ms/round    81.0 tok/s  ttft 0.76s
+  prompt3 tokens  160 rounds  44 decode   1.83s   41.68 ms/round    86.7 tok/s  ttft 0.77s
+  prompt0 tokens  160 rounds  37 decode   1.63s   44.00 ms/round    97.7 tok/s  ttft 0.76s
+  prompt1 tokens  160 rounds  46 decode   1.89s   41.00 ms/round    84.3 tok/s  ttft 0.76s
+  prompt2 tokens  160 rounds  46 decode   1.94s   42.11 ms/round    82.1 tok/s  ttft 0.80s
+  prompt3 tokens  160 rounds  44 decode   1.86s   42.39 ms/round    85.3 tok/s  ttft 0.73s
+  TOTAL 8 requests: 1272 decode tokens in 346 rounds = 3.68 tok/round, accepted 926/1190; 43.19 ms/round, 85.1 tok/s decode; mean ttft 0.87s
+04:32:54 == config nopf: TF_DS_HC_SIDE=1 TF_DS_L2_PREFETCH=0
+04:33:32 nopf: ready=1 after 38 s; 04:33:30 spark1=4.6 spark2=5.5
+04:34:05 nopf: mem now 04:34:02 spark1=3.6 spark2=5.4
+    [tensorfold] done cmpl-6349a8432e0dbb8eb152b4986bcac918 prompt=988 cached=0 thinking=False effort=none tokens=160 sha=31f944238eab finish=length rounds=37 accepted=122/135
+    [tensorfold] done cmpl-4dfd2b887c50274dea80db1171e03e90 prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d8f14651fcba finish=length rounds=46 accepted=113/143
+    [tensorfold] done cmpl-e6e89160b5b9737c84cd9b85fb64a7ac prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d319838f7655 finish=length rounds=46 accepted=113/168
+    [tensorfold] done cmpl-905384ff8c5e4d928fd6c409d1195f97 prompt=947 cached=0 thinking=False effort=none tokens=160 sha=cd6a618f7f22 finish=length rounds=44 accepted=115/149
+    [tensorfold] done cmpl-d9c70618db9e9482190598de53397f7b prompt=988 cached=0 thinking=False effort=none tokens=160 sha=31f944238eab finish=length rounds=37 accepted=122/135
+    [tensorfold] done cmpl-239bafe68069b7f1ec11e9c00024d005 prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d8f14651fcba finish=length rounds=46 accepted=113/143
+    [tensorfold] done cmpl-2d943d83f5ce8596d549a32a2cb9fd14 prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d319838f7655 finish=length rounds=46 accepted=113/168
+    [tensorfold] done cmpl-868c653070ad512f96a28cd3585f4cf1 prompt=947 cached=0 thinking=False effort=none tokens=160 sha=cd6a618f7f22 finish=length rounds=44 accepted=115/149
+  prompt0 tokens  160 rounds  37 decode   1.68s   45.46 ms/round    94.5 tok/s  ttft 0.79s
+  prompt1 tokens  160 rounds  46 decode   1.80s   39.20 ms/round    88.2 tok/s  ttft 0.83s
+  prompt2 tokens  160 rounds  46 decode   1.98s   43.13 ms/round    80.1 tok/s  ttft 0.77s
+  prompt3 tokens  160 rounds  44 decode   1.85s   42.16 ms/round    85.7 tok/s  ttft 0.75s
+  prompt0 tokens  160 rounds  37 decode   1.65s   44.62 ms/round    96.3 tok/s  ttft 0.75s
+  prompt1 tokens  160 rounds  46 decode   1.94s   42.22 ms/round    81.9 tok/s  ttft 0.75s
+  prompt2 tokens  160 rounds  46 decode   1.96s   42.50 ms/round    81.3 tok/s  ttft 0.79s
+  prompt3 tokens  160 rounds  44 decode   1.94s   44.09 ms/round    82.0 tok/s  ttft 0.73s
+  TOTAL 8 requests: 1272 decode tokens in 346 rounds = 3.68 tok/round, accepted 926/1190; 42.81 ms/round, 85.9 tok/s decode; mean ttft 0.77s
+04:34:21 == config noside: TF_DS_HC_SIDE=0 TF_DS_L2_PREFETCH=1
+04:34:53 noside: ready=1 after 32 s; 04:34:49 spark1=4.4 spark2=5.7
+04:35:25 noside: mem now 04:35:23 spark1=3.7 spark2=5.4
+    [tensorfold] done cmpl-7ed0939192cd207cb5b2ae8547d355b7 prompt=988 cached=0 thinking=False effort=none tokens=160 sha=31f944238eab finish=length rounds=37 accepted=122/135
+    [tensorfold] done cmpl-89cb96812a0ec4cd4a8183999bc1018f prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d8f14651fcba finish=length rounds=46 accepted=113/143
+    [tensorfold] done cmpl-c3e49da7993363a5c30b6cca121671bc prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d319838f7655 finish=length rounds=46 accepted=113/168
+    [tensorfold] done cmpl-34e6f3a1a6dcb67619faa942f01b8e09 prompt=947 cached=0 thinking=False effort=none tokens=160 sha=cd6a618f7f22 finish=length rounds=44 accepted=115/149
+    [tensorfold] done cmpl-31f616624149565e207d0a5b136e31a0 prompt=988 cached=0 thinking=False effort=none tokens=160 sha=31f944238eab finish=length rounds=37 accepted=122/135
+    [tensorfold] done cmpl-0d2e6e742fd845ed5c44a54994f522ec prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d8f14651fcba finish=length rounds=46 accepted=113/143
+    [tensorfold] done cmpl-41d6698ce81b956f58ff2b3c24b15fec prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d319838f7655 finish=length rounds=46 accepted=113/168
+    [tensorfold] done cmpl-85cc443e94fe9ce5ec54bc2bd6cfa48f prompt=947 cached=0 thinking=False effort=none tokens=160 sha=cd6a618f7f22 finish=length rounds=44 accepted=115/149
+  prompt0 tokens  160 rounds  37 decode   1.64s   44.19 ms/round    97.2 tok/s  ttft 0.74s
+  prompt1 tokens  160 rounds  46 decode   1.84s   39.96 ms/round    86.5 tok/s  ttft 0.77s
+  prompt2 tokens  160 rounds  46 decode   1.90s   41.33 ms/round    83.6 tok/s  ttft 0.80s
+  prompt3 tokens  160 rounds  44 decode   1.86s   42.32 ms/round    85.4 tok/s  ttft 0.73s
+  prompt0 tokens  160 rounds  37 decode   1.62s   43.92 ms/round    97.8 tok/s  ttft 0.80s
+  prompt1 tokens  160 rounds  46 decode   1.82s   39.59 ms/round    87.3 tok/s  ttft 0.78s
+  prompt2 tokens  160 rounds  46 decode   1.98s   42.96 ms/round    80.5 tok/s  ttft 0.76s
+  prompt3 tokens  160 rounds  44 decode   1.80s   40.93 ms/round    88.3 tok/s  ttft 0.76s
+  TOTAL 8 requests: 1272 decode tokens in 346 rounds = 3.68 tok/round, accepted 926/1190; 41.79 ms/round, 88.0 tok/s decode; mean ttft 0.77s
+04:35:40 == config neither: TF_DS_HC_SIDE=0 TF_DS_L2_PREFETCH=0
+04:36:11 neither: ready=1 after 31 s; 04:36:10 spark1=4.3 spark2=5.7
+04:36:44 neither: mem now 04:36:41 spark1=3.6 spark2=5.4
+    [tensorfold] done cmpl-1d9e4c8c3fca6d7f7349c11623c587e2 prompt=988 cached=0 thinking=False effort=none tokens=160 sha=31f944238eab finish=length rounds=37 accepted=122/135
+    [tensorfold] done cmpl-f5dc1492b9ce43dbeca634ea2c0c76f8 prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d8f14651fcba finish=length rounds=46 accepted=113/143
+    [tensorfold] done cmpl-4e83cf108281b59ac4ea128bf9a031e7 prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d319838f7655 finish=length rounds=46 accepted=113/168
+    [tensorfold] done cmpl-b64db781712f5e1d619d2d3fdb650557 prompt=947 cached=0 thinking=False effort=none tokens=160 sha=cd6a618f7f22 finish=length rounds=44 accepted=115/149
+    [tensorfold] done cmpl-6b625f8198b8c1baf8f2ced6de5ede86 prompt=988 cached=0 thinking=False effort=none tokens=160 sha=31f944238eab finish=length rounds=37 accepted=122/135
+    [tensorfold] done cmpl-8fe1c2a86825c59d97309b2702024e76 prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d8f14651fcba finish=length rounds=46 accepted=113/143
+    [tensorfold] done cmpl-8614b1355481851b67982c747908b754 prompt=990 cached=0 thinking=False effort=none tokens=160 sha=d319838f7655 finish=length rounds=46 accepted=113/168
+    [tensorfold] done cmpl-cc287bf76b3bcddc7e1d56a858a11eea prompt=947 cached=0 thinking=False effort=none tokens=160 sha=cd6a618f7f22 finish=length rounds=44 accepted=115/149
+  prompt0 tokens  160 rounds  37 decode   1.69s   45.54 ms/round    94.4 tok/s  ttft 0.77s
+  prompt1 tokens  160 rounds  46 decode   1.94s   42.13 ms/round    82.0 tok/s  ttft 0.75s
+  prompt2 tokens  160 rounds  46 decode   2.02s   43.98 ms/round    78.6 tok/s  ttft 0.82s
+  prompt3 tokens  160 rounds  44 decode   1.95s   44.27 ms/round    81.6 tok/s  ttft 0.74s
+  prompt0 tokens  160 rounds  37 decode   1.69s   45.65 ms/round    94.1 tok/s  ttft 0.78s
+  prompt1 tokens  160 rounds  46 decode   1.88s   40.87 ms/round    84.6 tok/s  ttft 0.80s
+  prompt2 tokens  160 rounds  46 decode   2.02s   43.91 ms/round    78.7 tok/s  ttft 0.77s
+  prompt3 tokens  160 rounds  44 decode   1.88s   42.75 ms/round    84.5 tok/s  ttft 0.75s
+  TOTAL 8 requests: 1272 decode tokens in 346 rounds = 3.68 tok/round, accepted 926/1190; 43.54 ms/round, 84.4 tok/s decode; mean ttft 0.77s
+04:37:00 done; 04:36:57 spark1=111.7 spark2=111.9
+04:37:00 restore

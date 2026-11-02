@@ -159,11 +159,35 @@ int ik_matmul_mxfp4_gemv_mr_rows(const ik_tensor* x, const ik_tensor* w, const i
 int ik_matmul_exl3_gemv(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
                         const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
+/* moe_experts_exl3 (kernels/cuda/exl3_moe*.cu): Op::MoeExperts in its EXL3 encoding (intarsia_core::quant::exl3_moe).
+ * x [T,H] (bf16 / f16 / f32), ids i32 [T,K], wts f32 [T,K], arena i16 [W] (16-byte aligned: every expert's gate, up and
+ * down trellis), scales f16 [E, 3H+3I] (suh_g | suh_u | svh_g | svh_u | suh_d | svh_d), meta i32 [E,8] (gate, up, down
+ * offsets in 16-byte units, gate, up, down k2), codebook i32 [1] and limit f32 [1] ON THE DEVICE -> out [T,H] (bf16 / f16
+ * / f32) = sum_j wts[t,j] * down_e(silu(min(gate_e(x), L)) * clamp(up_e(x), -L, L)), e = ids[t,j]; ids outside 0..E add
+ * nothing; a width that is no EXL3 width with the codebook, or a matrix outside the arena, gives NaN. H, I multiples of
+ * 128, E <= 1024, K <= 32. Scratch: ik_moe_experts_exl3_scratch_bytes(T, H, I, E, K) bytes, 16-byte aligned.
+ * Deterministic; a row's bits do not depend on T. */
+int ik_moe_experts_exl3(const ik_tensor* x, const ik_tensor* ids, const ik_tensor* wts, const ik_tensor* arena,
+                        const ik_tensor* scales, const ik_tensor* meta, const ik_tensor* codebook, const ik_tensor* limit,
+                        ik_tensor* out, const ik_scratch* scratch, void* stream);
+long long ik_moe_experts_exl3_scratch_bytes(long long T, long long H, long long I, long long E, long long K);
+
 /* matmul_exl3_gemm: the same op and arguments, a prefill GEMM: each block decodes a weight tile once for 64 or 128 rows
  * (ldmatrix + mma against shared-memory slices of the rotated input), and its output is bit for bit the GEMV's. Scratch:
  * the rotated input, fp16 [min(M,512),K] (16-byte aligned); rows go through in slices of 512. */
 int ik_matmul_exl3_gemm(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
                         const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
+
+/* matmul_exl3_splitk (lane dsv41/tp2): the same op and arguments for M <= 16 rows, K cut into S splits (S | K/128, from
+ * K, N and the SM count) so a small-N call fills the GPU; partials in f32 are added in split order before H / svh.
+ * Deterministic, not bitwise the GEMV. Scratch: the rotated input fp16 [M,K] rounded up to 256 bytes, then f32
+ * [16,M,N]; 16-byte aligned (ik_matmul_exl3_splitk_scratch_bytes). Selected only by DeepSeek-V4.1's runtime. */
+int ik_matmul_exl3_splitk(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                          const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
+long long ik_matmul_exl3_splitk_scratch_bytes(long long M, long long K, long long N);
+/* Split-K with cp.async weight loads, four warps a program; same scratch; the trellis 16-byte aligned. */
+int ik_matmul_exl3_cp(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                      const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
 /* Row-exact multi-row twins of the decode GEMVs (rows_exact kernels, `OpCall::exact_rows`; hybrid continuous batching, stage R0):
  * the same arguments and launch contract as the 1-row-GEMV launcher named in each comment, any M in 1..=16, and row m of the

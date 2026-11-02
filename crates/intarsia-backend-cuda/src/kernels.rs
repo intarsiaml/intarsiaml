@@ -58,6 +58,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("attn_decode_f8kv_splitkv_rows", Op::AttnDecode),
     ("argmax_f32", Op::Argmax),
     ("argmax_bf16", Op::Argmax),
+    ("add_f32", Op::Add),
 ];
 
 /// bf16-rounded outputs: a one-ulp flip is allowed (same budget as the cpu backend).
@@ -601,18 +602,21 @@ pub fn all() -> Vec<KernelImpl> {
                 .row_table(),
             "argmax_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT).row_invariant(),
             "argmax_bf16" => k.acts(bf).exact(Exactness::Exact).tol(Tol::EXACT).row_invariant(),
+            // f32 tensors (DSv4.1's Markov step adds f32 logits and bias): one IEEE add per element, as the host did
+            "add_f32" => k.acts([DType::F32]).exact(Exactness::Exact).tol(Tol::EXACT),
             other => unreachable!("kernel {other} has no registration"),
         };
         v.push(k);
     }
     v.extend(crate::quantmoe::all());
     v.extend(crate::exl3::all());
+    v.extend(crate::dsv41::all());
     v
 }
 
 /// (launcher name, op) of every launcher: this file's table plus the quantised/MoE table.
 pub fn full_table() -> Vec<(&'static str, Op)> {
-    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).copied().collect()
+    TABLE.iter().chain(crate::quantmoe::TABLE.iter()).chain(crate::exl3::TABLE.iter()).chain(crate::dsv41::TABLE.iter()).copied().collect()
 }
 
 #[cfg(test)]
@@ -1029,6 +1033,13 @@ mod tests {
         // pair (`MatmulMxfp4Pair`, HIP-only so far: the model keeps two `MatmulMxfp4` launches here).
         // `DynConv` (the DFlash2 draft's conv, lane dfh) is cpu and HIP only: DFlash2 drafts are refused on CUDA at load.
         // `ShortConv` (LFM2's gated short conv, lane nab2) is cpu and Metal so far: an LFM2 model fails at load with `NoKernel` naming `short_conv`.
+        // The DeepSeek-V4.1 ops (`intarsia_core::dsv41::ops::OPS`, lane 1a) without a CUDA kernel yet (dsv41.rs has the rest): the
+        // layout helpers and grouped matmul, the base checkpoint's fp8 linear, the EXL3 experts (lane cuda-moe) and Engram.
+        let not_on_cuda: Vec<Op> = NOT_ON_CUDA
+            .iter()
+            .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
+            .copied()
+            .collect();
         const NOT_ON_CUDA: [Op; 13] = [
             Op::ShortConv,
             Op::DynConv,
@@ -1045,7 +1056,7 @@ mod tests {
             Op::MatmulMxfp4Pair,
         ];
         for op in Op::ALL {
-            if !NOT_ON_CUDA.contains(&op) {
+            if !not_on_cuda.contains(&op) {
                 assert!(table.iter().any(|(_, o)| *o == op), "no cuda kernel for {op}");
             }
         }
@@ -1058,6 +1069,7 @@ mod tests {
             include_str!("../../../kernels/abi/ik_abi.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi.h"),
             include_str!("../../../kernels/cuda/ik_cuda_abi_g4.h"),
+            include_str!("../../../kernels/cuda/ik_cuda_abi_dsv41.h"),
         ]
         .concat();
         for (name, _) in full_table() {
@@ -1132,6 +1144,7 @@ mod tests {
     #[rustfmt::skip]
     const MAIN_KERNEL_LIST: &[&str] = &[
         "add_bf16:add",
+        "add_f32:add",
         "argmax_bf16:argmax",
         "argmax_f32:argmax",
         "attn_decode_bf16:attn_decode",
@@ -1159,12 +1172,16 @@ mod tests {
         "logits_bf16:logits",
         "logits_bf16_gemv:logits",
         "logits_bf16_gemv_rows:logits",
+        "logits_f16w:logits",
         "matmul_bf16:matmul",
         "matmul_bf16_gemv:matmul",
         "matmul_bf16_gemv_rows:matmul",
         "matmul_bf16_inv:matmul",
+        "matmul_exl3_cp:matmul_exl3",
         "matmul_exl3_gemm:matmul_exl3",
         "matmul_exl3_gemv:matmul_exl3",
+        "matmul_exl3_splitk:matmul_exl3",
+        "matmul_f16w:matmul",
         "matmul_fp8_gemm:matmul_fp8",
         "matmul_fp8_gemm_cublas:matmul_fp8",
         "matmul_fp8_gemm_f8:matmul_fp8",
@@ -1194,6 +1211,7 @@ mod tests {
         "moe_experts_decode_bf16:moe_experts",
         "moe_experts_decode_v2_bf16:moe_experts",
         "moe_experts_decode_v2_rows_bf16:moe_experts",
+        "moe_experts_exl3:moe_experts",
         "moe_experts_mma_bf16:moe_experts",
         "moe_experts_nvfp4_mma_bf16:moe_experts",
         "moe_experts_w4a16_bf16:moe_experts",
@@ -1211,10 +1229,18 @@ mod tests {
     /// origin/main's (`4962d8fa`), so the plan has the same candidates as before. Round 5 adds the three fp8-KV attention
     /// kernels (`attn_*_f8kv_*`), selectable only for an fp8_e4m3 cache (docs/results/2026-10-19-cuda-round5.md). R3 adds the four `_rows` row-table twins (`row_table`: only a call with `OpCall::rows` selects them); lane fp8kv the
     /// fp8-cache attention twin `attn_decode_f8kv_splitkv_rows`. Lane rip adds `matmul_bf16_inv`
-    /// (priority -5: only a row-invariant prefill pass, `OpCall::prefill_inv`, selects it).
+    /// (priority -5: only a row-invariant prefill pass, `OpCall::prefill_inv`, selects it). Lane dsv41/cuda-moe adds
+    /// `moe_experts_exl3` (weights i16 only: only the EXL3 encoding of `MoeExperts` selects it). Lane dsv41/tp2 adds
+    /// `logits_f16w` / `matmul_f16w` (weights f16 only: no earlier model has f16 dense weights). And `matmul_exl3_splitk`
+    /// (priority -10, below the GEMV that accepts all its shapes: only DeepSeek-V4.1's runtime selects it, by name). `matmul_exl3_cp` likewise (priority -11).
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
-        let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();
+        // the DeepSeek-V4.1 kernels (dsv41.rs) serve only the ops lane 1a appended, which no earlier model's plan contains
+        let mut got: Vec<String> = all()
+            .iter()
+            .filter(|k| !intarsia_core::dsv41::ops::OPS.contains(&k.op))
+            .map(|k| format!("{}:{}", k.name, k.op))
+            .collect();
         got.sort();
         if MAIN_KERNEL_LIST.is_empty() {
             panic!("LIST {}", got.join(" "));

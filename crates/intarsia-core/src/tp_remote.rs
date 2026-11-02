@@ -63,6 +63,13 @@ const ACK_FAILED: u8 = 3;
 
 /// `Forward` flag: a single-token step that rank 0 runs as a captured decode graph (`model/graph_step.rs`).
 pub const FWD_GRAPH: u64 = 1;
+/// `Forward` flag: not a forward but a speculative drafting round after the sequence's last row ([`RankModel::draft_rank`];
+/// the ids are the round's inputs, the sequence is unchanged). Only models whose handshake fingerprint says they draft
+/// send it (DeepSeek-V4.1's names its DSpark stages), so both ranks know it.
+pub const FWD_DRAFT: u64 = 2;
+/// `Forward` flag: a speculative verify pass (the head's logits of every row; [`RankModel::verify_rank`]). Like
+/// [`FWD_DRAFT`], only sent by models whose handshake fingerprint says they speculate.
+pub const FWD_VERIFY: u64 = 4;
 
 /// How long the primary waits for a forward's answer after its own pass finished (the remote runs the same pass at
 /// the same time, so this only fires on a hung or dead rank). `INTARSIA_TP_REMOTE_TIMEOUT_S` overrides it.
@@ -269,6 +276,24 @@ impl RemoteSeq {
         self.peer.send(T_FORWARD, &body)
     }
 
+    /// Send this sequence's next drafting round ([`FWD_DRAFT`]); answered like a forward ([`RemoteSeq::finish`]).
+    pub fn start_draft(&self, ids: &[u32]) -> Result<()> {
+        self.start_flagged(ids, FWD_DRAFT)
+    }
+
+    /// Send this sequence's next verify pass ([`FWD_VERIFY`]); answered like a forward ([`RemoteSeq::finish`]).
+    pub fn start_verify(&self, ids: &[u32]) -> Result<()> {
+        self.start_flagged(ids, FWD_VERIFY)
+    }
+
+    fn start_flagged(&self, ids: &[u32], flags: u64) -> Result<()> {
+        let mut body = Vec::with_capacity(16 + ids.len() * 4);
+        body.extend_from_slice(&self.sid.to_le_bytes());
+        body.extend_from_slice(&flags.to_le_bytes());
+        body.extend(ids.iter().flat_map(|i| i.to_le_bytes()));
+        self.peer.send(T_FORWARD, &body)
+    }
+
     /// The remote rank's answer to the forward sent by [`RemoteSeq::start_forward`].
     pub fn finish(&mut self) -> Result<()> {
         let rx = self.peer.replies.lock().unwrap();
@@ -345,11 +370,147 @@ fn ack_status(e: &Error) -> u8 {
 /// error; `Truncate` and `Snapshot` are acknowledged (see the module docs); a failed `NewState` is reported by the next
 /// answered command of any sequence. Returns how many forward
 /// passes ran.
-pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
+/// What [`serve`] drives on the remote rank: this process's shard of a model and its per-sequence state (the ordinary
+/// [`Model`], or the DeepSeek-V4.1 runtime, `crate::dsv41::runtime`).
+pub trait RankModel {
+    type State;
+    fn new_state(&self) -> Result<Self::State>;
+    /// This rank's half of the primary's forward pass (`graph`: [`FWD_GRAPH`]).
+    fn forward_rank(&self, st: &mut Self::State, ids: &[u32], graph: bool) -> Result<()>;
+    fn truncate(&self, st: &mut Self::State, len: usize) -> Result<()>;
+    fn snapshot(&self, st: &mut Self::State, keep: usize) -> Result<()>;
+    fn state_len(st: &Self::State) -> usize;
+    /// This rank's half of the primary's drafting round ([`FWD_DRAFT`]); the sequence is unchanged.
+    fn draft_rank(&self, _st: &mut Self::State, _ids: &[u32]) -> Result<()> {
+        Err(Error::Unsupported("this model does not draft".into()))
+    }
+    /// This rank's half of the primary's verify pass ([`FWD_VERIFY`]): appended to the sequence like a forward.
+    fn verify_rank(&self, _st: &mut Self::State, _ids: &[u32]) -> Result<()> {
+        Err(Error::Unsupported("this model does not verify".into()))
+    }
+}
+
+impl RankModel for Model {
+    type State = SequenceState;
+    fn new_state(&self) -> Result<SequenceState> {
+        Model::new_state(self)
+    }
+    fn forward_rank(&self, st: &mut SequenceState, ids: &[u32], graph: bool) -> Result<()> {
+        Model::forward_rank(self, st, ids, graph)
+    }
+    fn truncate(&self, st: &mut SequenceState, len: usize) -> Result<()> {
+        st.truncate(len, &*self.backend)
+    }
+    fn snapshot(&self, st: &mut SequenceState, keep: usize) -> Result<()> {
+        st.snapshot(&*self.backend, keep)
+    }
+    fn state_len(st: &SequenceState) -> usize {
+        st.len
+    }
+}
+
+/// `INTARSIA_TP_SPIN_MS=N` (default 0 = off): after every command the remote rank's reader stays awake for `N` ms instead of
+/// blocking in `read`, on one core, and a second thread keeps the core that takes the socket's receive interrupts out of idle
+/// (the Sparks: 0.3 ms one way over TCP, cpuidle exit latency up to 433 us; the primary waits that long in the pass's first
+/// collective). `INTARSIA_TP_SPIN_KEEP=0`: without the second thread. Two cores busy during decode; nothing else changes.
+#[cfg(target_os = "linux")]
+mod spin {
+    use std::net::TcpStream;
+    use std::os::fd::AsRawFd;
+    use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    pub struct Spin {
+        fd: i32,
+        ms: u64,
+        t0: Instant,
+        until_ms: Arc<AtomicU64>,
+        cpu: Arc<AtomicI32>,
+        stop: Arc<AtomicBool>,
+    }
+
+    impl Spin {
+        pub fn new(stream: &TcpStream) -> Option<Spin> {
+            let ms: u64 = std::env::var("INTARSIA_TP_SPIN_MS").ok()?.parse().ok().filter(|&m| m > 0)?;
+            let s = Spin {
+                fd: stream.as_raw_fd(),
+                ms,
+                t0: Instant::now(),
+                until_ms: Arc::new(AtomicU64::new(0)),
+                cpu: Arc::new(AtomicI32::new(-1)),
+                stop: Arc::new(AtomicBool::new(false)),
+            };
+            if std::env::var("INTARSIA_TP_SPIN_KEEP").map_or(true, |v| v != "0") {
+                let (t0, until, cpu, stop) = (s.t0, s.until_ms.clone(), s.cpu.clone(), s.stop.clone());
+                let _ = std::thread::Builder::new().name("tp-spin-keep".into()).spawn(move || {
+                    let mut pinned = -1;
+                    while !stop.load(Ordering::Relaxed) {
+                        if t0.elapsed().as_millis() as u64 >= until.load(Ordering::Relaxed) {
+                            std::thread::sleep(Duration::from_millis(20));
+                            continue;
+                        }
+                        let c = cpu.load(Ordering::Relaxed);
+                        if c >= 0 && c != pinned {
+                            pin(c);
+                            pinned = c;
+                        }
+                        std::hint::spin_loop();
+                    }
+                });
+            }
+            eprintln!("tp: remote rank reader spins {ms} ms after a command");
+            Some(s)
+        }
+
+        /// A command came in: stay awake for the next one and note the core that took its interrupt.
+        pub fn got_frame(&self) {
+            let mut c: libc::c_int = -1;
+            let mut l = std::mem::size_of::<libc::c_int>() as libc::socklen_t;
+            // SAFETY: a live socket and out-pointers of the right size.
+            if unsafe { libc::getsockopt(self.fd, libc::SOL_SOCKET, libc::SO_INCOMING_CPU, (&mut c as *mut libc::c_int).cast(), &mut l) } == 0 {
+                self.cpu.store(c, Ordering::Relaxed);
+            }
+            self.until_ms.store(self.t0.elapsed().as_millis() as u64 + self.ms, Ordering::Relaxed);
+        }
+
+        /// Poll the socket until a byte is there or the time since the last command has run out (then `read` blocks as usual).
+        pub fn wait_readable(&self) {
+            let mut b = 0u8;
+            while (self.t0.elapsed().as_millis() as u64) < self.until_ms.load(Ordering::Relaxed) {
+                // SAFETY: a live socket and a one-byte buffer; MSG_PEEK leaves the byte for `read`.
+                let n = unsafe { libc::recv(self.fd, (&mut b as *mut u8).cast(), 1, libc::MSG_PEEK | libc::MSG_DONTWAIT) };
+                if n >= 0 || std::io::Error::last_os_error().kind() != std::io::ErrorKind::WouldBlock {
+                    return;
+                }
+                std::hint::spin_loop();
+            }
+        }
+    }
+
+    impl Drop for Spin {
+        fn drop(&mut self) {
+            self.stop.store(true, Ordering::Relaxed);
+        }
+    }
+
+    fn pin(cpu: i32) {
+        // SAFETY: a zeroed cpu_set_t is valid; the call affects this thread only.
+        unsafe {
+            let mut set: libc::cpu_set_t = std::mem::zeroed();
+            libc::CPU_SET(cpu as usize, &mut set);
+            libc::sched_setaffinity(0, std::mem::size_of::<libc::cpu_set_t>(), &set);
+        }
+    }
+}
+
+pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
     stream.set_nodelay(true).map_err(io)?;
+    #[cfg(target_os = "linux")]
+    let spin = spin::Spin::new(&stream);
     let mut rd = BufReader::new(stream.try_clone().map_err(io)?);
     let mut w = BufWriter::new(stream);
-    let mut seqs: HashMap<u64, SequenceState> = HashMap::new();
+    let mut seqs: HashMap<u64, M::State> = HashMap::new();
     let mut pending: Option<String> = None;
     let mut passes = 0u64;
     let reply = |w: &mut BufWriter<TcpStream>, ok: bool, len: usize, msg: &str| -> Result<()> {
@@ -367,10 +528,20 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
         w.flush().map_err(io)
     };
     loop {
+        #[cfg(target_os = "linux")]
+        if let Some(sp) = &spin {
+            if rd.buffer().is_empty() {
+                sp.wait_readable();
+            }
+        }
         let (tag, b) = match read_frame(&mut rd) {
             Ok(f) => f,
             Err(_) => return Ok(passes), // the primary closed the connection
         };
+        #[cfg(target_os = "linux")]
+        if let Some(sp) = &spin {
+            sp.got_frame();
+        }
         let sid = if tag == T_SHUTDOWN { 0 } else { u64_at(&b, 0)? };
         match tag {
             T_NEW => match model.new_state() {
@@ -385,7 +556,7 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
                     b[16..].chunks_exact(4).map(|c| u32::from_le_bytes(c.try_into().unwrap())).collect();
                 if let Some(msg) = pending.take() {
                     // the primary is already in its own pass: leave the group (it aborts on this answer)
-                    reply(&mut w, false, seqs.get(&sid).map_or(0, |s| s.len), &msg)?;
+                    reply(&mut w, false, seqs.get(&sid).map_or(0, M::state_len), &msg)?;
                     continue;
                 }
                 let Some(st) = seqs.get_mut(&sid) else {
@@ -393,9 +564,16 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
                     continue;
                 };
                 passes += 1;
-                match model.forward_rank(st, &ids, flags & FWD_GRAPH != 0) {
-                    Ok(()) => reply(&mut w, true, st.len, "")?,
-                    Err(e) => reply(&mut w, false, st.len, &e.to_string())?,
+                let r = if flags & FWD_DRAFT != 0 {
+                    model.draft_rank(st, &ids)
+                } else if flags & FWD_VERIFY != 0 {
+                    model.verify_rank(st, &ids)
+                } else {
+                    model.forward_rank(st, &ids, flags & FWD_GRAPH != 0)
+                };
+                match r {
+                    Ok(()) => reply(&mut w, true, M::state_len(st), "")?,
+                    Err(e) => reply(&mut w, false, M::state_len(st), &e.to_string())?,
                 }
             }
             T_TRUNCATE => {
@@ -403,24 +581,24 @@ pub fn serve(model: &Model, stream: TcpStream) -> Result<u64> {
                 let (status, msg) = match (pending.take(), seqs.get_mut(&sid)) {
                     (Some(msg), _) => (ACK_FAILED, msg),
                     (None, None) => (ACK_REJECTED_INVALID, format!("unknown sequence {sid}")),
-                    (None, Some(st)) => match st.truncate(len, &*model.backend) {
+                    (None, Some(st)) => match model.truncate(st, len) {
                         Ok(()) => (ACK_OK, String::new()),
                         Err(e) => (ack_status(&e), format!("truncate to {len}: {e}")),
                     },
                 };
-                ack(&mut w, status, seqs.get(&sid).map_or(0, |s| s.len), &msg)?;
+                ack(&mut w, status, seqs.get(&sid).map_or(0, M::state_len), &msg)?;
             }
             T_SNAPSHOT => {
                 let keep = u64_at(&b, 1)? as usize;
                 let (status, msg) = match (pending.take(), seqs.get_mut(&sid)) {
                     (Some(msg), _) => (ACK_FAILED, msg),
                     (None, None) => (ACK_REJECTED_INVALID, format!("unknown sequence {sid}")),
-                    (None, Some(st)) => match st.snapshot(&*model.backend, keep) {
+                    (None, Some(st)) => match model.snapshot(st, keep) {
                         Ok(()) => (ACK_OK, String::new()),
                         Err(e) => (ack_status(&e), format!("snapshot: {e}")),
                     },
                 };
-                ack(&mut w, status, seqs.get(&sid).map_or(0, |s| s.len), &msg)?;
+                ack(&mut w, status, seqs.get(&sid).map_or(0, M::state_len), &msg)?;
             }
             T_DROP => {
                 seqs.remove(&sid);

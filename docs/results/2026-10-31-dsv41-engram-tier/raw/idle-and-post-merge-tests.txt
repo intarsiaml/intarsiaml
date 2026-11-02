@@ -1,0 +1,41 @@
+fleetq: #7558 waiting (#1 in line): spark2 is held exclusively by #7550 "BLACKFOLD TP2 load + localeval; vLLM restored after" (claude-5e038b15)
+fleetq:   #7550 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=7550 set, or it will wait for #7550 to be released.
+fleetq: #7558 running on spark2: ssh -tt spark2 intarsia-dsv41-engram/.scratch/idle.sh
+    Finished `release` profile [optimized] target(s) in 12.15s
+test fp8::tests::known_values ... ok
+test hot::tests::pinned_and_dynamic ... ok
+test hash::tests::bucket_split_matches_packed_shards ... ok
+test hash::tests::geometry_matches_config ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test token_map_json_matches_official ... ok
+test agrees_with_the_skeleton_fixture ... ok
+test constants_match_official ... ok
+test hash_matches_official_engram_py ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+test nvme_tier_implements_the_core_trait ... ok
+test hot_tier_preload_and_admission ... ok
+test all_layouts_all_backends_same_rows ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.50s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+raw: /home/nvidia/dsv41-engram/engram-l1-r1of2.bin (50.7 GB, reading below 50.7 GB) backend io_uring direct true
+sustained random reads (O_DIRECT)
+    bs   qd       IOPS      MB/s | per-IO latency us:    p50      p90      p99    p99.9      max
+  4096    1       4980      20.4 |                         200      200      201      496      496
+
+token-shaped bursts: N reads at once, wait for all (latency of the whole burst)
+    bs burst  gap ms | burst us:    p50      p90      p99    p99.9      max
+  4096     1      50 |                631      687      816     1329     1329
+  4096     1     100 |                504      661      798      890      890
+  4096     1     150 |               9665     9744     9924     9975     9975
+  4096     1     200 |               9674     9744    10021    10021    10021
+  4096     1     300 |               9651     9696    10570    10570    10570
+  4096     1     500 |               9656     9764    10130    10130    10130
+  4096    24      50 |                562      607      652      804      804
+  4096    24     100 |                519      593      809      810      810
+  4096    24     150 |               9559     9583     9753    10499    10499
+  4096    24     200 |               9582     9607    10498    10498    10498
+  4096    24     300 |               9567     9684    10179    10179    10179
+  4096    24     500 |               9575     9615     9915     9915     9915
+wrote .scratch/out3/raw-idle.json
+Connection to spark-fa00 closed.
+fleetq: #7558 done (exit 0)

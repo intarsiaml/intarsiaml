@@ -1,0 +1,32 @@
+{
+ "bf16:bf16/L0/s0/out.h": {
+  "norm": 192.41323852539062,
+  "absmax": 9.3125,
+  "has_nan": false
+ },
+ "bf16:bf16/L1/s0/out.h": {
+  "norm": 1323.5191650390625,
+  "absmax": 60.5,
+  "has_nan": false
+ },
+ "bf16:bf16/L2/s0/out.h": {
+  "norm": 1457.0504150390625,
+  "absmax": 60.0,
+  "has_nan": false
+ },
+ "fp32:fp32/L0/s0/out.h": {
+  "norm": 192.4051055908203,
+  "absmax": 9.270591735839844,
+  "has_nan": false
+ },
+ "fp32:fp32/L1/s0/out.h": {
+  "norm": 1321.552978515625,
+  "absmax": 60.46720504760742,
+  "has_nan": false
+ },
+ "fp32:fp32/L2/s0/out.h": {
+  "norm": 1455.3931884765625,
+  "absmax": 60.09900665283203,
+  "has_nan": false
+ }
+}

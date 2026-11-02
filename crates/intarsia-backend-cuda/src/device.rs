@@ -399,6 +399,9 @@ impl Backend for CudaBackend {
         if let Some(r) = self.launch_exl3(kernel, call, stream) {
             return r;
         }
+        if let Some(r) = self.launch_dsv41(kernel, call, stream) {
+            return r;
+        }
         match kernels::TABLE.iter().find(|(n, _)| *n == kernel) {
             None => return Err(Error::NoKernel(format!("cuda kernel '{kernel}'"))),
             Some((_, op)) if *op != call.op => {
@@ -521,6 +524,7 @@ impl Backend for CudaBackend {
                 }
                 "argmax_f32" => ffi::ik_argmax_f32(i(0), o, s),
                 "argmax_bf16" => ffi::ik_argmax_bf16(i(0), o, s),
+                "add_f32" => ffi::ik_add_f32(i(0), i(1), o, s),
                 other => return Err(Error::NoKernel(format!("cuda kernel '{other}' has no dispatch entry"))),
             }
         };
@@ -559,6 +563,19 @@ impl Backend for CudaBackend {
 
     fn stream_fork(&self) -> bool {
         true
+    }
+
+    fn l2_prefetch(&self, ranges: &[TensorRef], budget: usize, stream: StreamId) -> Result<()> {
+        self.bind()?;
+        let s = self.stream(stream)?;
+        let mut ptrs = Vec::with_capacity(ranges.len());
+        let mut bytes = Vec::with_capacity(ranges.len());
+        for t in ranges {
+            ptrs.push(Self::ptr(&t.buf, t.offset, t.nbytes())? as *const c_void);
+            bytes.push(t.nbytes());
+        }
+        // SAFETY: bounds-checked pointers into live device buffers, held by the recording's weights; the kernel only prefetches.
+        check("ik_rt_l2_prefetch", unsafe { ffi::ik_rt_l2_prefetch(ptrs.as_ptr(), bytes.as_ptr(), ptrs.len() as std::ffi::c_int, budget, s) })
     }
 
     fn stream_record(&self, signal: StreamId) -> Result<u64> {

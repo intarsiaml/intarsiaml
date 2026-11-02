@@ -10,9 +10,19 @@ fn cpu_fast_kernels_pass_admission_quick_sweep() {
     let opts = AdmissionOpts { sweep: Some(SweepConfig { quick: true, ..Default::default() }), ..Default::default() };
     let report = run_admission(&b, &b, &opts).unwrap();
     assert!(!report.kernels.is_empty());
-    assert!(report.all_pass(), "\n{}", report.render(false));
-    // every op has an admitted implementation with at least one case
-    for op in intarsia_core::Op::ALL {
+    // the DeepSeek-V4.1 ops without a reference yet (lane 1b) are rejected with their "not implemented" error, never
+    // admitted vacuously; every other kernel passes
+    let stubs = intarsia_backend_cpu::dsv41_ref::STUBS;
+    assert!(report.kernels.iter().filter(|k| !stubs.contains(&k.op)).all(|k| k.admitted), "\n{}", report.render(false));
+    for op in stubs {
+        assert!(report.kernels.iter().any(|k| k.op == op && !k.admitted && k.cases > 0), "{op}: stub must have cases and be rejected");
+        assert!(
+            report.rows.iter().any(|r| r.op == op && r.error.as_deref().is_some_and(|e| e.contains("not implemented (lane 1b)"))),
+            "{op}: admission must report the stub error"
+        );
+    }
+    // every other op has an admitted implementation with at least one case
+    for op in intarsia_core::Op::ALL.into_iter().filter(|o| !stubs.contains(o)) {
         assert!(report.kernels.iter().any(|k| k.op == op && k.admitted && k.cases > 0), "{op} has no admitted kernel");
     }
     // applying the report marks kernels admitted in a registry

@@ -186,6 +186,8 @@ int ik_silu_glu_bf16(const ik_tensor* gate, const ik_tensor* up, ik_tensor* out,
 /* argmax: logits dtype F32 or BF16; lowest index wins ties; out is I32 [R] */
 int ik_argmax_f32(const ik_tensor* logits, ik_tensor* out, void* stream);
 int ik_argmax_bf16(const ik_tensor* logits, ik_tensor* out, void* stream);
+/* out = a + b, F32 tensors of equal size (one IEEE add each; the DeepSeek-V4.1 DSpark Markov step's logits + bias) */
+int ik_add_f32(const ik_tensor* a, const ik_tensor* b, ik_tensor* out, void* stream);
 
 /* Quantised weights and MoE (docs/quant-moe.md). Activations BF16; outputs BF16 or F32 where stated.
  *   matmul_fp8_*    x[M,K] bf16, w[N,K] e4m3, scales f32[2] = (weight_scale, input_scale) -> out[M,N]

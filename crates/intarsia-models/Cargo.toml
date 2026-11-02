@@ -19,6 +19,10 @@ memmap2 = { workspace = true }
 tokenizers = { workspace = true }
 minijinja = { workspace = true }
 minijinja-contrib = { workspace = true }
+# per-rank weight cache (dsv41_cache.rs): token map, source fingerprint, fadvise / O_DIRECT
+intarsia-engram = { workspace = true, features = ["tokenizer"] }
+sha2 = "0.10"
+libc = { workspace = true }
 
 
 [dev-dependencies]

@@ -1,0 +1,33 @@
+03:42:13 preflight ok
+03:42:17 vLLM stopped
+03:42:23 memory: 03:42:22 spark1=110.9 spark2=112.0
+03:43:13 ready=1 after 50 s; 03:43:10 spark1=3.5 spark2=6.2
+{'prompt_tokens': 1222, 'completion_tokens': 16, 'total_tokens': 1238, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} ' the graph capture of the verify pass is a small win, and the\nspec'
+{'prompt_tokens': 1222, 'completion_tokens': 16, 'total_tokens': 1238, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} ' the graph capture of the verify pass is a small win, and the\nspec'
+03:43:28 mem before trace: 03:43:25 spark1=3.4 spark2=6.3
+{'prompt_tokens': 1222, 'completion_tokens': 48, 'total_tokens': 1270, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} ' the graph capture of the verify pass is a small win, and the\nspeculation lever is the next big one. The 3-layer test ca'
+03:43:34 traced request: 48 tokens in 2 s; 03:43:33 spark1=3.3 spark2=6.2
+[1/1] [0%                          ] tf-r0.nsys-rep[1/1] [0%                          ] tf-r0.nsys-rep[1/1] [=====31%                    ] tf-r0.nsys-rep[1/1] [===========50%              ] tf-r0.nsys-rep[1/1] [===============67%          ] tf-r0.nsys-rep[1/1] [========================100%] tf-r0.nsys-rep[1/1] [========================100%] tf-r0.nsys-rep
+Generated:
+	/out/tf-r0.nsys-rep
+[1/1] [0%                          ] tf-r1.nsys-rep[1/1] [0%                          ] tf-r1.nsys-rep[1/1] [=====31%                    ] tf-r1.nsys-rep[1/1] [===========50%              ] tf-r1.nsys-rep[1/1] [===============67%          ] tf-r1.nsys-rep[1/1] [========================100%] tf-r1.nsys-rep[1/1] [========================100%] tf-r1.nsys-rep
+Generated:
+	/out/tf-r1.nsys-rep
+03:43:39 untraced request: 128 tokens in 0 s
+-rw-rw-r-- 1 nvidia nvidia 4143879 Nov  2 03:43 /home/nvidia/intarsia-dsv41-draftdev/tfprof/tf-r0_cuda_gpu_trace.csv
+-rw-rw-r-- 1 root   root   1391326 Nov  2 03:43 /home/nvidia/intarsia-dsv41-draftdev/tfprof/tf-r0.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 3874816 Nov  2 03:43 /home/nvidia/intarsia-dsv41-draftdev/tfprof/tf-r0.sqlite
+-rw-rw-r-- 1 nvidia nvidia 4135595 Nov  2 03:43 /home/nvidia/intarsia-dsv41-draftdev/tfprof/tf-r1_cuda_gpu_trace.csv
+-rw-rw-r-- 1 root   root   1385359 Nov  2 03:43 /home/nvidia/intarsia-dsv41-draftdev/tfprof/tf-r1.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 3690496 Nov  2 03:43 /home/nvidia/intarsia-dsv41-draftdev/tfprof/tf-r1.sqlite
+and the Product-Specific Terms for NVIDIA AI Products
+(found at https://www.nvidia.com/en-us/agreements/enterprise-software/product-specific-terms-for-ai-products/).
+[tensorfold] serving DeepSeek-v4.1-Flash-1017-heretic-tf at http://100.120.88.104:18191/v1 (sampling: temperature 1.0, top_p 0.95, top_k 20; drafts: on; context: 16384; loaded in 42.5s)
+[tensorfold] done cmpl-577a385850011b9f1bf4f022a45eaa9a prompt=1222 cached=0 thinking=False effort=none tokens=16 sha=32815b285ab6 finish=length rounds=8 accepted=7/15
+[tensorfold] done cmpl-1989b392e9302c4c06dbf418aacdcb5b prompt=1222 cached=0 thinking=False effort=none tokens=16 sha=32815b285ab6 finish=length rounds=8 accepted=7/15
+[tensorfold] done cmpl-d968f9bcb78560f7b60c52bf4577c387 prompt=1222 cached=0 thinking=False effort=none tokens=48 sha=3cc578d9f9ee finish=length rounds=22 accepted=25/44
+03:43:43 done; 03:43:37 spark1=2.4 KILLED-spark1 spark2=85.0
+03:43:43 restore
+03:47:17 spark1 vLLM Up 3 minutes
+03:47:18 spark2 vLLM Up 3 minutes
+03:47:18 restored

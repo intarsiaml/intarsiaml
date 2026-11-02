@@ -364,6 +364,12 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Touch these tensors' bytes (`budget` at most, in order) into a cache on `stream`, paced, writing nothing. A hint: the
+    /// default does nothing.
+    fn l2_prefetch(&self, _ranges: &[TensorRef], _budget: usize, _stream: StreamId) -> Result<()> {
+        Ok(())
+    }
+
     /// Mark the point after everything queued so far on `signal`; the token can be waited for with [`Backend::stream_wait_for`], later and
     /// more than once. Tokens are recycled: wait for one within a few dozen further `stream_record` calls. Only when
     /// [`Backend::stream_overlap`] is `true`.

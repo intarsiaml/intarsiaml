@@ -13,7 +13,74 @@ use crate::kernels::ARCH;
 use intarsia_core::quant::exl3::valid_k2_any;
 use intarsia_core::{DType, Exactness, KernelImpl, Op, ShapeInfo, Tol};
 
-pub const TABLE: &[(&str, Op)] = &[("matmul_exl3_gemv", Op::MatmulExl3), ("matmul_exl3_gemm", Op::MatmulExl3)];
+pub const TABLE: &[(&str, Op)] = &[
+    ("matmul_exl3_gemv", Op::MatmulExl3),
+    ("matmul_exl3_gemm", Op::MatmulExl3),
+    ("moe_experts_exl3", Op::MoeExperts),
+    ("matmul_exl3_splitk", Op::MatmulExl3),
+    ("matmul_exl3_cp", Op::MatmulExl3),
+];
+
+/// Rows `matmul_exl3_splitk` takes (one 16-row pass, kernels/cuda/exl3.cu).
+pub const SPLITK_MAX_ROWS: usize = 16;
+
+/// Splits the scratch of `matmul_exl3_splitk` has room for (`kMaxSplits`).
+pub const SPLITK_MAX_SPLITS: usize = 16;
+
+/// Scratch bytes of `matmul_exl3_splitk`: the rotated input fp16 `[M, K]` rounded up to 256 bytes, then the f32 partials
+/// `[16, M, N]` (mirrors `ik_matmul_exl3_splitk_scratch_bytes`).
+pub fn splitk_scratch_bytes(s: &ShapeInfo) -> usize {
+    ((s.m * s.k * 2 + 255) & !255) + SPLITK_MAX_SPLITS * s.m * s.n * 4
+}
+
+/// Rows below which `moe_experts_exl3` runs its decode kernel in one slice (kernels/cuda/exl3_moe.cu, `kDecodeRows`).
+pub const MOE_DECODE_ROWS: usize = 64;
+/// Rows of one prompt slice of `moe_experts_exl3` (`kPromptRows`).
+pub const MOE_PROMPT_ROWS: usize = 512;
+/// Most experts a `moe_experts_exl3` call (`kMaxE`).
+pub const MOE_MAX_EXPERTS: usize = 1024;
+
+/// K splits of the gate / up projection of `moe_experts_exl3` (`gateup_splits`): the most of 4, 2, 1 that divide its
+/// `H / 16` k tiles among 4 warps.
+pub fn moe_gateup_splits(h: usize) -> usize {
+    [4, 2, 1].into_iter().find(|sk| (h / 16) % (4 * sk) == 0).unwrap_or(0)
+}
+
+/// Scratch bytes of `moe_experts_exl3` (kernels/cuda/exl3_moe.cu `layout`, region by region, each rounded up to 256): for a
+/// slice of R rows (all T below `MOE_DECODE_ROWS`, else up to `MOE_PROMPT_ROWS`) and P = R K pairs: the grouping's ints
+/// (3E + 1 + P + 2 (P/32 + min(E, P) + 1)), the rotated gate / up inputs (2 x fp16 [P, H]; the down partials reuse them),
+/// the gate / up partials (f32 [2, SK, P, I], SK = 1 for prompt slices) and the activation (fp16 [P, I]).
+pub fn moe_scratch_bytes(s: &ShapeInfo) -> usize {
+    let r256 = |b: usize| (b + 255) & !255;
+    let (t, h, i, e, k) = (s.m, s.k, s.n, s.experts, s.top_k);
+    if t == 0 {
+        return 0;
+    }
+    let decode = t < MOE_DECODE_ROWS;
+    let r = if decode { t } else { t.min(MOE_PROMPT_ROWS) };
+    let p = r * k;
+    let wlb = p / 32 + e.min(p) + 1;
+    let skz = if decode { moe_gateup_splits(h) } else { 1 };
+    r256(4 * (3 * e + 1 + p + 2 * wlb)) + 2 * r256(p * h * 2) + r256(2 * skz * p * i * 4) + r256(p * i * 2)
+}
+
+/// `moe_experts_exl3`'s budget of bf16 / f16 outputs. Two fp16 roundings separate it from the f64 reference: the rotated
+/// input `H (x * suh)` of gate / up and the rotated activation `H (act * suh_d)` of down (each up to 2^-11 relative per
+/// element), on top of the output rounding. Set from the measured sweep (crates/intarsia-backend-cuda/tests/exl3_moe.rs).
+const MOE_BF16_OUT_TOL: Tol = Tol::new(1.5e-2, 3.5e-3);
+/// ... of f32 outputs (the two fp16 roundings alone).
+const MOE_F32_OUT_TOL: Tol = Tol::new(2e-3, 1e-3);
+
+fn moe_shape_ok(s: &ShapeInfo) -> bool {
+    s.m >= 1
+        && s.k % 128 == 0
+        && s.n % 128 == 0
+        && s.n > 0
+        && moe_gateup_splits(s.k) > 0
+        && (1..=MOE_MAX_EXPERTS).contains(&s.experts)
+        && (1..=32).contains(&s.top_k)
+        && matches!(s.out, Some(DType::Bf16 | DType::F16 | DType::F32))
+}
 
 /// Rows of one slice of a GEMV launch (kernels/cuda/exl3.cu, `kSliceRows`).
 pub const SLICE_ROWS: usize = 128;
@@ -83,6 +150,39 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(gemm_scratch_bytes)
                     .priority(20),
+                // split-K GEMV for small-N decode calls (lane dsv41/tp2). Priority below the GEMV, which accepts every shape this
+                // does, so the plain selection never picks it and no model's plan changes; DeepSeek-V4.1's runtime selects it by
+                // name for its small-grid one-row calls (`dsv41::runtime`, INTARSIA_DSV41_EXL3_SPLITK). Not bitwise the GEMV.
+                "matmul_exl3_splitk" => k
+                    .acts([DType::Bf16, DType::F16, DType::F32])
+                    .weights([DType::I16])
+                    .when(|s| (1..=SPLITK_MAX_ROWS).contains(&s.m) && shape_ok(s))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_OUT_TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(splitk_scratch_bytes)
+                    .priority(-10),
+                // split-K with the MoE kernel's cp.async loader; selected by name only, like matmul_exl3_splitk
+                "matmul_exl3_cp" => k
+                    .acts([DType::Bf16, DType::F16, DType::F32])
+                    .weights([DType::I16])
+                    .when(|s| (1..=SPLITK_MAX_ROWS).contains(&s.m) && shape_ok(s))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_OUT_TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(splitk_scratch_bytes)
+                    .priority(-11),
+                // EXL3 routed experts (Op::MoeExperts with an i16 trellis arena, quant::exl3_moe): decode windows below 64 rows,
+                // prompt slices of 512 rows above; every width and codebook (device data, per matrix)
+                "moe_experts_exl3" => k
+                    .acts([DType::Bf16, DType::F16, DType::F32])
+                    .weights([DType::I16])
+                    .when(moe_shape_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(MOE_BF16_OUT_TOL)
+                    .tol_f32(MOE_F32_OUT_TOL)
+                    .scratch(moe_scratch_bytes)
+                    .priority(10),
                 other => unreachable!("exl3 kernel {other} has no registration"),
             }
         })
@@ -90,7 +190,7 @@ pub fn all() -> Vec<KernelImpl> {
 }
 
 #[cfg(ik_cuda)]
-mod launch {
+pub mod launch {
     use crate::device::CudaBackend;
     use crate::ffi::{status_name, IkScratch, IkTensor};
     use intarsia_core::backend::StreamId;
@@ -118,6 +218,53 @@ mod launch {
             scratch: *const IkScratch,
             s: *mut c_void,
         ) -> c_int;
+        fn ik_matmul_exl3_splitk(
+            x: *const IkTensor,
+            trellis: *const IkTensor,
+            suh: *const IkTensor,
+            svh: *const IkTensor,
+            cb: *const IkTensor,
+            out: *mut IkTensor,
+            scratch: *const IkScratch,
+            s: *mut c_void,
+        ) -> c_int;
+        fn ik_matmul_exl3_cp(
+            x: *const IkTensor,
+            trellis: *const IkTensor,
+            suh: *const IkTensor,
+            svh: *const IkTensor,
+            cb: *const IkTensor,
+            out: *mut IkTensor,
+            scratch: *const IkScratch,
+            s: *mut c_void,
+        ) -> c_int;
+        fn ik_matmul_exl3_splitk_scratch_bytes(m: i64, k: i64, n: i64) -> i64;
+        fn ik_moe_experts_exl3(
+            x: *const IkTensor,
+            ids: *const IkTensor,
+            wts: *const IkTensor,
+            arena: *const IkTensor,
+            scales: *const IkTensor,
+            meta: *const IkTensor,
+            cb: *const IkTensor,
+            limit: *const IkTensor,
+            out: *mut IkTensor,
+            scratch: *const IkScratch,
+            s: *mut c_void,
+        ) -> c_int;
+        fn ik_moe_experts_exl3_scratch_bytes(t: i64, h: i64, i: i64, e: i64, k: i64) -> i64;
+    }
+
+    /// `ik_matmul_exl3_splitk_scratch_bytes`, for the test that `splitk_scratch_bytes` mirrors it.
+    pub fn splitk_scratch_bytes_device(m: usize, k: usize, n: usize) -> usize {
+        // SAFETY: pure host arithmetic
+        unsafe { ik_matmul_exl3_splitk_scratch_bytes(m as i64, k as i64, n as i64) as usize }
+    }
+
+    /// The device layout's scratch size (kernels/cuda/exl3_moe.cu), for the test that `moe_scratch_bytes` mirrors it.
+    pub fn moe_scratch_bytes_device(t: usize, h: usize, i: usize, e: usize, k: usize) -> usize {
+        // SAFETY: pure host arithmetic
+        unsafe { ik_moe_experts_exl3_scratch_bytes(t as i64, h as i64, i as i64, e as i64, k as i64) as usize }
     }
 
     impl CudaBackend {
@@ -146,7 +293,21 @@ mod launch {
             // SAFETY: tensors are bounds-checked views of live device buffers (held by `call`); the launcher validates
             // dtype/rank/stride/alignment/scratch and returns an error status instead of faulting, and never
             // synchronises or allocates.
-            let f = if kernel == "matmul_exl3_gemm" { ik_matmul_exl3_gemm } else { ik_matmul_exl3_gemv };
+            let sp = scratch.as_ref().map_or(std::ptr::null(), |p| p as *const IkScratch);
+            if kernel == "moe_experts_exl3" {
+                if inp.len() != 8 || out.len() != 1 {
+                    return Err(Error::invalid(format!("ik_{kernel}: 8 inputs and 1 output, got {} and {}", inp.len(), out.len())));
+                }
+                // SAFETY: as above
+                let rc = unsafe { ik_moe_experts_exl3(i(0), i(1), i(2), i(3), i(4), i(5), i(6), i(7), out.as_mut_ptr(), sp, s) };
+                return if rc != 0 { Err(Self::exl3_err(kernel, rc, call)) } else { Ok(()) };
+            }
+            let f = match kernel {
+                "matmul_exl3_gemm" => ik_matmul_exl3_gemm,
+                "matmul_exl3_splitk" => ik_matmul_exl3_splitk,
+                "matmul_exl3_cp" => ik_matmul_exl3_cp,
+                _ => ik_matmul_exl3_gemv,
+            };
             let rc = unsafe {
                 f(
                     i(0),
@@ -160,14 +321,18 @@ mod launch {
                 )
             };
             if rc != 0 {
-                let dts: Vec<_> = call.inputs.iter().map(|t| t.dtype).collect();
-                return Err(Error::backend(format!(
-                    "ik_{kernel} returned {} ({rc}); inputs {dts:?} shapes {:?}",
-                    status_name(rc),
-                    call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()
-                )));
+                return Err(Self::exl3_err(kernel, rc, call));
             }
             Ok(())
+        }
+
+        fn exl3_err(kernel: &str, rc: c_int, call: &OpCall) -> Error {
+            let dts: Vec<_> = call.inputs.iter().map(|t| t.dtype).collect();
+            Error::backend(format!(
+                "ik_{kernel} returned {} ({rc}); inputs {dts:?} shapes {:?}",
+                status_name(rc),
+                call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()
+            ))
         }
     }
 }

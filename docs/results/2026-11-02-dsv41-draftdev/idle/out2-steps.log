@@ -1,0 +1,21 @@
+ac41ec223 dirty=no 1102-0602
+06:08:55 arm base: 
+06:09:04 up=1
+06:09:21 arm one: INTARSIA_DSV41_ENGRAM_ONEGRAPH=1
+06:09:30 up=1
+06:09:46 arm base2: 
+06:09:55 up=1
+06:10:12 arm one2: INTARSIA_DSV41_ENGRAM_ONEGRAPH=1
+06:10:21 up=1
+06:10:38 arm late: INTARSIA_DSV41_ENGRAM_LATE_ISSUE=1
+06:10:46 up=1
+06:11:04 arm mix0one: NCCL_GRAPH_MIXING_SUPPORT=0 INTARSIA_DSV41_ENGRAM_ONEGRAPH=1
+06:11:12 up=1
+arm | text same as first arm | rounds | rows=3: n, whole ms median, p25, build, enqueue, engram wait | rows=2 whole | segments | warns
+base | True 10 | 758 | 166 5.56 5.39 0.03 0.155 0.045 | 5.01 | [('2', '2'), ('3', '2')] | 0
+one | True 10 | 758 | 166 5.31 5.08 0.03 0.135 0.027 | 4.68 | [('2', '1'), ('3', '1')] | 0
+base2 | True 10 | 758 | 166 5.75 5.49 0.03 0.16 0.049 | 5.2 | [('2', '2'), ('3', '2')] | 0
+one2 | True 10 | 758 | 166 5.38 5.17 0.035 0.145 0.03 | 4.86 | [('2', '1'), ('3', '1')] | 0
+late | True 10 | 758 | 166 5.75 5.49 0.01 0.205 0.057 | 5.26 | [('2', '2'), ('3', '2')] | 0
+mix0one | True 10 | 758 | 166 5.6 5.29 0.03 0.135 0.027 | 4.97 | [('2', '1'), ('3', '1')] | 0
+06:11:32 end

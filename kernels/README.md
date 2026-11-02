@@ -156,6 +156,8 @@ HIP ports (gfx1201): `kernels/hip/{fp8,nvfp4,moe,gdn}.hip` with `ik_quant.h`, `i
 
 `fp8.cu`, `nvfp4.cu`, `moe.cu`, `moe_grouped.cu`, `moe_decode.cu`, `fp8_gemm.cu`, `nvfp4_gemm.cu`, `wq_gemm.cuh` and `ik_quant.cuh` (fp4/e4m3 decode helpers, ideas from TensorFold's NVFP4 kernels, MIT, see `LICENSES/TensorFold-MIT.txt`). Registered in `crates/intarsia-backend-cuda/src/quantmoe.rs`. Formats, semantics, numerics and measured speeds: `docs/quant-moe.md`.
 
+EXL3 (`exl3.cu`: the `MatmulExl3` GEMV / GEMM; `exl3_moe.cuh`, `exl3_moe.cu`, `exl3_moe_cp.cu`, `exl3_moe_rows.cu`: grouped routed experts, `Op::MoeExperts` with an i16 trellis arena, ported from TensorFold's Apache-2.0 DeepSeek-V4.1 fork, see `kernels/cuda/NOTICE-tensorfold` and `LICENSES/Apache-2.0-TensorFold.txt`). Registered in `crates/intarsia-backend-cuda/src/exl3.rs`; the encoding is `crates/intarsia-core/src/quant/exl3_moe.rs`.
+
 ## Attention (`attention*.cu`)
 
 Causal GQA over the contiguous bf16 KV cache `[Nkv, cap, D]`. Three families, all registered in

@@ -240,7 +240,175 @@ fn loader_reads_markers_and_packed_signs() {
     assert!(ld("c").unwrap_err().to_string().contains("marker"));
     assert!(ld("d").unwrap_err().to_string().contains("bias"));
     assert_eq!(cb_of(&ld("e").unwrap().download(&b).unwrap()), Codebook::Inst3);
-    // tensor parallelism is refused, not silently loaded whole
+    // a tensor-parallel split off the 128-point Hadamard grid (N = 128 over 2 ranks) is refused, not silently loaded whole
     let sh = intarsia_core::weights::Shard { axis: intarsia_core::weights::ShardAxis::Rows, rank: 0, world: 2 };
-    assert!(quant::load_linear(&w, "a", &b, &QuantLoadOpts { shard: Some(sh), ..Default::default() }).is_err());
+    let e = quant::load_linear(&w, "a", &b, &QuantLoadOpts { shard: Some(sh), ..Default::default() }).unwrap_err();
+    assert!(e.to_string().contains("multiple of 128"), "{e}");
+}
+
+/// Tensor-parallel loads (`QuantLoadOpts::shard`): column-parallel slices (engine rows = checkpoint N) side by side and
+/// row-parallel slices (engine columns = checkpoint K) summed give the whole layer's output through the cpu op (f32 out),
+/// for full `suh`/`svh` and for packed `su`/`sv` signs. DeepSeek-V4.1 expert shapes at TP=2.
+#[test]
+fn sharded_loads_reassemble_the_whole_layer() {
+    use intarsia_core::weights::{Shard, ShardAxis};
+    let b = CpuBackend::new();
+    let mut rng = intarsia_core::rng::SplitMix64::new(77);
+    for (n, k, k2, packed) in [(2304usize, 5120usize, 6usize, false), (5120, 2304, 6, false), (512, 768, 4, true)] {
+        let q = exl3::random(&mut rng, n, k, k2, Codebook::Mul1);
+        let mut w = MemWeights::new();
+        w.insert("l.trellis", q.parts[0].clone());
+        if packed {
+            let pk = |len: usize, rng: &mut intarsia_core::rng::SplitMix64| HostTensor {
+                dtype: DType::I16,
+                shape: vec![len / 16],
+                data: (0..len / 16).flat_map(|_| (rng.next_u64() as u16).to_le_bytes()).collect(),
+            };
+            w.insert("l.su", pk(k, &mut rng));
+            w.insert("l.sv", pk(n, &mut rng));
+        } else {
+            w.insert("l.suh", q.parts[1].clone());
+            w.insert("l.svh", q.parts[2].clone());
+        }
+        w.insert(
+            "l.mul1",
+            HostTensor { dtype: DType::I32, shape: vec![], data: exl3::MUL1_MUL.to_le_bytes().to_vec() },
+        );
+        let m = 3;
+        let xv = rng.normal_vec(m * k, 1.0);
+        let x = HostTensor::from_f32_as(DType::F32, &[m, k], &xv);
+        let full_q = quant::load_linear(&w, "l", &b, &QuantLoadOpts::default()).unwrap().download(&b).unwrap();
+        let full = run_op(&b, "ref_matmul_exl3", &full_q, &x, DType::F32);
+        let scale = full.iter().fold(0f32, |a, v| a.max(v.abs())).max(1.0);
+        for axis in [ShardAxis::Rows, ShardAxis::Cols] {
+            let mut got = vec![0f32; m * n];
+            for rank in 0..2 {
+                let opts = QuantLoadOpts { shard: Some(Shard { axis, rank, world: 2 }), ..Default::default() };
+                let s = quant::load_linear(&w, "l", &b, &opts).unwrap().download(&b).unwrap();
+                if axis == ShardAxis::Rows {
+                    assert_eq!((s.n, s.k), (n / 2, k));
+                    let y = run_op(&b, "ref_matmul_exl3", &s, &x, DType::F32);
+                    for mi in 0..m {
+                        got[mi * n + rank * s.n..mi * n + (rank + 1) * s.n]
+                            .copy_from_slice(&y[mi * s.n..(mi + 1) * s.n]);
+                    }
+                } else {
+                    assert_eq!((s.n, s.k), (n, k / 2));
+                    let xs: Vec<f32> =
+                        (0..m).flat_map(|mi| xv[mi * k + rank * s.k..mi * k + (rank + 1) * s.k].to_vec()).collect();
+                    let y = run_op(
+                        &b,
+                        "ref_matmul_exl3",
+                        &s,
+                        &HostTensor::from_f32_as(DType::F32, &[m, s.k], &xs),
+                        DType::F32,
+                    );
+                    for (g, v) in got.iter_mut().zip(y) {
+                        *g += v;
+                    }
+                }
+            }
+            // f32 outputs of each slice (one f32 rounding each) summed in f32: a few ulp of the largest output
+            let worst = got.iter().zip(&full).fold(0f32, |a, (g, v)| a.max((g - v).abs()));
+            println!(
+                "[{n}, {k}] k2={k2} packed={packed} {axis:?}: worst |shards - whole| {worst:.2e} (max |y| {scale:.2})"
+            );
+            assert!(worst <= 4e-6 * scale, "[{n}, {k}] {axis:?}: {worst:e}");
+        }
+    }
+}
+
+
+/// `quant::exl3_moe::load` (the EXL3 encoding of `MoeExperts`) on checkpoint-form experts (DeepSeek-V4.1 names, one width
+/// per matrix, the last expert in the shared expert's place): at world 1 the cpu op gives what the checkpoint's matrices
+/// give through `exl3::forward64` directly (SwiGLU with the clamp, weighted sum), and at world 2 (intermediate-width
+/// split: gate / up by N, down by K) the two ranks' partial outputs sum to it, to f32 noise. Also a split off the
+/// 128-point grid (I = 512 over 8 ranks: 64) and a bad codebook marker are refused.
+#[test]
+fn exl3_experts_load_whole_and_sharded() {
+    use intarsia_core::backend::Backend;
+    use intarsia_core::quant::exl3_moe;
+    let b = CpuBackend::new();
+    let mut rng = intarsia_core::rng::SplitMix64::new(91);
+    let (h, i, e, t, k) = (512usize, 512usize, 5usize, 3usize, 3usize);
+    let limit = 1.5f32;
+    let widths = [[6usize, 6, 6], [4, 4, 4], [6, 4, 6], [10, 8, 10], [8, 10, 10]];
+    let mut w = MemWeights::new();
+    let mut names = Vec::new();
+    let mut mats: Vec<[HostQTensor; 3]> = Vec::new();
+    for (x, ws) in widths.iter().enumerate() {
+        let p = if x == e - 1 { "layers.3.ffn.shared_experts".to_string() } else { format!("layers.3.ffn.experts.{x}") };
+        let mk = |m: &str, n: usize, kk: usize, k2: usize, w: &mut MemWeights, rng: &mut intarsia_core::rng::SplitMix64| {
+            let q = exl3::random(rng, n, kk, k2, Codebook::Mul1);
+            w.insert(&format!("{p}.{m}.trellis"), q.parts[0].clone());
+            w.insert(&format!("{p}.{m}.suh"), q.parts[1].clone());
+            w.insert(&format!("{p}.{m}.svh"), q.parts[2].clone());
+            w.insert(&format!("{p}.{m}.mul1"), HostTensor { dtype: DType::I32, shape: vec![], data: exl3::MUL1_MUL.to_le_bytes().to_vec() });
+            q
+        };
+        let g = mk("w1", i, h, ws[0], &mut w, &mut rng);
+        let u = mk("w3", i, h, ws[1], &mut w, &mut rng);
+        let d = mk("w2", h, i, ws[2], &mut w, &mut rng);
+        names.push([format!("{p}.w1"), format!("{p}.w3"), format!("{p}.w2")]);
+        mats.push([g, u, d]);
+    }
+    let xv = rng.normal_vec(t * h, 1.0);
+    let ids: Vec<i32> = vec![0, 2, 4, 1, 3, 4, 3, 7, 4]; // id 7 is outside 0..E: contributes nothing
+    let wts: Vec<f32> = vec![0.6, 0.4, 1.0, 0.3, 0.7, 1.0, 0.5, 0.9, 1.0];
+    // the checkpoint's math, f64
+    let f = |q: &HostQTensor, v: &[f64]| {
+        let suh = exl3::f16_bytes(&q.parts[1].data);
+        let svh = exl3::f16_bytes(&q.parts[2].data);
+        let k2 = q.parts[0].shape[2] / 8;
+        exl3::forward64(v, 1, q.k, q.n, &q.parts[0].data, &suh, &svh, k2, Codebook::Mul1)
+    };
+    let mut want = vec![0f64; t * h];
+    for r in 0..t {
+        let xr: Vec<f64> = xv[r * h..(r + 1) * h].iter().map(|v| *v as f64).collect();
+        for j in 0..k {
+            let x = ids[r * k + j];
+            if x < 0 || x as usize >= e {
+                continue;
+            }
+            let [g, u, d] = &mats[x as usize];
+            let (gv, uv) = (f(g, &xr), f(u, &xr));
+            let l = limit as f64;
+            let a: Vec<f64> = gv.iter().zip(&uv).map(|(g, u)| {
+                let g = g.min(l);
+                g / (1.0 + (-g).exp()) * u.max(-l).min(l)
+            }).collect();
+            for (o, y) in want[r * h..(r + 1) * h].iter_mut().zip(f(d, &a)) {
+                *o += wts[r * k + j] as f64 * y;
+            }
+        }
+    }
+    let run = |rank: usize, world: usize| -> Vec<f32> {
+        let ex = exl3_moe::load(&b, &w, &names, h, i, rank, world, limit).unwrap();
+        let host = |t: &intarsia_core::backend::TensorRef| HostTensor::new(t.dtype, t.shape.clone(), b.download_row_major(t).unwrap()).unwrap();
+        let mut inputs = vec![
+            HostTensor::from_f32_as(DType::F32, &[t, h], &xv),
+            HostTensor::from_i32(&[t, k], &ids),
+            HostTensor::from_f32(&[t, k], &wts),
+        ];
+        inputs.extend([&ex.gate_up_w, &ex.gate_up_s, &ex.down_w, &ex.down_s, &ex.gscales].map(host));
+        assert_eq!(inputs[4].shape, vec![e, 3 * h + 3 * i / world]);
+        let hc = HostCall { op: Op::MoeExperts, inputs, outputs: vec![OutSpec::new(DType::F32, &[t, h])], attrs: OpAttrs { top_k: k, ..OpAttrs::default() } };
+        run_host(&b, "ref_moe_experts", &hc).unwrap().remove(0).to_f32()
+    };
+    let scale = want.iter().fold(0f64, |a, v| a.max(v.abs())).max(1.0);
+    let whole = run(0, 1);
+    let worst = whole.iter().zip(&want).fold(0f64, |a, (g, w)| a.max((*g as f64 - w).abs()));
+    println!("experts world 1 vs checkpoint math: worst {worst:.2e} (max |y| {scale:.2})");
+    assert!(worst <= 1e-6 * scale, "world 1: {worst:e}");
+    let (r0, r1) = (run(0, 2), run(1, 2));
+    let worst = r0.iter().zip(&r1).zip(&want).fold(0f64, |a, ((p, q), w)| a.max(((*p + *q) as f64 - w).abs()));
+    println!("experts world 2, rank 0 + rank 1 vs checkpoint math: worst {worst:.2e}");
+    assert!(worst <= 4e-6 * scale, "world 2: {worst:e}");
+    // I = 512 over 4 ranks is 128 each (legal); over 8 it is 64: refused, naming the tensor
+    let err = exl3_moe::load(&b, &w, &names, h, i, 0, 8, limit).unwrap_err().to_string();
+    assert!(err.contains("layers.3.ffn.experts.0.w1") && err.contains("multiple of 128"), "{err}");
+    assert!(exl3_moe::load(&b, &w, &names, h, i, 3, 4, limit).is_ok());
+    // a codebook marker without the multiplier exllamav3 writes is refused
+    w.insert("layers.3.ffn.experts.1.w3.mul1", HostTensor { dtype: DType::I32, shape: vec![], data: 0u32.to_le_bytes().to_vec() });
+    assert!(exl3_moe::load(&b, &w, &names, h, i, 0, 1, limit).is_err());
 }

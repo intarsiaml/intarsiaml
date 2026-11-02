@@ -57,6 +57,10 @@ fn sweep_against_the_cpu_reference(kernel: &str) {
     let mut failed = Vec::new();
     for quick in [true, false] {
         for case in sweep(Op::MatmulExl3, &SweepConfig { quick, ..SweepConfig::default() }) {
+            // a kernel with a row limit (matmul_exl3_splitk: M <= 16) is checked on the cases it accepts
+            if !kern.accepts(&intarsia_core::admission::shape_of(&case.call).unwrap()) {
+                continue;
+            }
             let want = run_host(&cpu, "ref_matmul_exl3", &case.call).unwrap();
             let got = run_host(&*cuda, kernel, &case.call).unwrap();
             let (ok, ma, rl) = judge(&kern, &got, &want);
@@ -81,6 +85,27 @@ fn sweep_against_the_cpu_reference(kernel: &str) {
 #[test]
 fn matches_the_cpu_reference_over_the_sweep() {
     sweep_against_the_cpu_reference(KERNEL);
+}
+
+/// The split-K GEMV (lane dsv41/tp2, M <= 16) over the same sweep.
+#[test]
+fn splitk_matches_the_cpu_reference_over_the_sweep() {
+    sweep_against_the_cpu_reference("matmul_exl3_splitk");
+}
+
+#[test]
+fn cp_matches_the_cpu_reference_over_the_sweep() {
+    sweep_against_the_cpu_reference("matmul_exl3_cp");
+}
+
+/// `splitk_scratch_bytes` (the plan's scratch) is the launcher's layout.
+#[test]
+fn splitk_scratch_mirrors_the_device_layout() {
+    use intarsia_backend_cuda::exl3::{launch::splitk_scratch_bytes_device, splitk_scratch_bytes};
+    for (m, k, n) in [(1, 128, 128), (1, 4096, 1024), (3, 7168, 512), (16, 16384, 4096)] {
+        let s = ShapeInfo { m, k, n, ..Default::default() };
+        assert_eq!(splitk_scratch_bytes(&s), splitk_scratch_bytes_device(m, k, n), "M={m} K={k} N={n}");
+    }
 }
 
 /// The GEMM over the same sweep (every row count of it, below its registered crossover too).
@@ -157,6 +182,35 @@ fn rows_do_not_depend_on_the_batch_of(kernel: &str) {
 #[test]
 fn rows_do_not_depend_on_the_batch() {
     rows_do_not_depend_on_the_batch_of(KERNEL);
+}
+
+/// Split-K takes at most 16 rows: a row's bits at M = 2 .. 16 must equal its bits at M = 1, or verify rows would not match the
+/// one-row decode pass on the same linears.
+#[test]
+fn splitk_rows_do_not_depend_on_the_batch() {
+    split_rows_do_not_depend_on_the_batch("matmul_exl3_splitk");
+}
+
+#[test]
+fn cp_rows_do_not_depend_on_the_batch() {
+    split_rows_do_not_depend_on_the_batch("matmul_exl3_cp");
+}
+
+fn split_rows_do_not_depend_on_the_batch(kernel: &str) {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(506);
+    for (k2, cb, n, k) in [(8usize, Codebook::Inst3, 512usize, 1024usize), (5, Codebook::Mul1, 256, 384), (4, Codebook::Mcg, 1024, 128), (12, Codebook::Inst3, 1280, 5120)] {
+        let full = exl3::case(&mut rng, 16, n, k, k2, cb, DType::Bf16, DType::Bf16);
+        let all = run_host(&*cuda, kernel, &full).unwrap();
+        for (r0, r1) in [(0usize, 1usize), (3, 4), (15, 16), (0, 2), (0, 3), (0, 4), (1, 5), (4, 9), (8, 16), (0, 8)] {
+            let mut h = full.clone();
+            let t = &full.inputs[0];
+            h.inputs[0] = HostTensor { shape: vec![r1 - r0, k], data: t.data[r0 * k * 2..r1 * k * 2].to_vec(), ..t.clone() };
+            h.outputs = vec![OutSpec::new(DType::Bf16, &[r1 - r0, n])];
+            let part = run_host(&*cuda, kernel, &h).unwrap();
+            assert_eq!(part[0].data, all[0].data[r0 * n * 2..r1 * n * 2], "{kernel} k2={k2} rows {r0}..{r1}");
+        }
+    }
 }
 
 #[test]
@@ -358,6 +412,84 @@ fn bench_decode_shapes() {
         let bytes = hc.inputs[1].data.len() + hc.inputs[2].data.len();
         let us = time_cold(&*cuda, "matmul_nvfp4_gemv", &hc, &[1, 2], copies_for(bytes), 15);
         row(&format!("nvfp4 matmul_nvfp4_gemv {n}x{k}"), us, bytes);
+    }
+}
+
+/// Split-K vs GEMV at DeepSeek-V4.1's small-grid decode shapes (TP=2 rank, M = 1, cold weights, median of 15):
+/// `INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda --test exl3 -- --ignored --nocapture bench_splitk`
+#[test]
+#[ignore]
+fn bench_splitk() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(828);
+    println!("{:<52} {:>9} {:>9} {:>9}", "(cold weights)", "us/call", "weight MB", "GB/s");
+    for &(n, k, k2, what) in &[
+        (512usize, 5120usize, 10usize, "wkv / compressor"),
+        (512, 5120, 12, "wkv (6 bit)"),
+        (1024, 4096, 10, "wo_a slice"),
+        (1280, 5120, 10, "wq_a"),
+        (4096, 1280, 10, "indexer wq_b"),
+        (5120, 4096, 10, "wo_b"),
+        (16384, 1280, 10, "wq_b (grid 128, not split)"),
+    ] {
+        for m in [1usize, 4] {
+        let hc = exl3::case(&mut rng, m, n, k, k2, Codebook::Inst3, DType::Bf16, DType::Bf16);
+        let bytes = hc.inputs[1].data.len();
+        for kernel in [KERNEL, "matmul_exl3_splitk"] {
+            let us = time_cold(&*cuda, kernel, &hc, &[1], copies_for(bytes), 15);
+            println!("{:<52} {:>9.1} {:>9.2} {:>9.0}", format!("M={m} {kernel} {what} N={n} K={k}"), us * 1e6, bytes as f64 / 1e6, bytes as f64 / 1e9 / us);
+        }
+        }
+    }
+}
+
+/// The cp.async split-K per S against split-K and the GEMV, at DeepSeek-V4.1's dense shapes and real widths (K2 = 10, 5 bits),
+/// M = 1 and 4, cold weights, median of 15. S 0 = the kernel's own plan.
+/// `INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda --test exl3 -- --ignored --nocapture bench_cp`
+#[test]
+#[ignore]
+fn bench_cp() {
+    let Some(cuda) = device() else { return };
+    let mut rng = SplitMix64::new(829);
+    println!("{:<46} {:>9} {:>9} {:>9}", "(cold weights)", "us/call", "weight MB", "GB/s");
+    // the fixed cost of a call: almost no weights (N = 128 or K = 128), so what is left is launches, rot_in and the finish
+    for &(n, k, what) in &[(128usize, 128usize, "floor"), (128, 5120, "floor, K large"), (5120, 128, "floor, N large")] {
+        for m in [1usize, 4] {
+            let hc = exl3::case(&mut rng, m, n, k, 10, Codebook::Inst3, DType::Bf16, DType::Bf16);
+            let bytes = hc.inputs[1].data.len();
+            for kernel in [KERNEL, "matmul_exl3_splitk", "matmul_exl3_cp"] {
+                let us = time_cold(&*cuda, kernel, &hc, &[1], copies_for(bytes), 15);
+                println!("{:<46} {:>9.1} {:>9.2} {:>9.0}", format!("{what} M={m} {kernel}"), us * 1e6, bytes as f64 / 1e6, bytes as f64 / 1e9 / us);
+            }
+        }
+    }
+    for &(n, k, what) in &[
+        (512usize, 5120usize, "wkv / compressor"),
+        (1024, 4096, "wo_a slice"),
+        (1280, 5120, "wq_a"),
+        (4096, 1280, "indexer wq_b"),
+        (5120, 4096, "wo_b"),
+        (16384, 1280, "wq_b"),
+    ] {
+        for m in [1usize, 4] {
+            let hc = exl3::case(&mut rng, m, n, k, 10, Codebook::Inst3, DType::Bf16, DType::Bf16);
+            let bytes = hc.inputs[1].data.len();
+            let row = |label: String, us: f64| println!("{:<46} {:>9.1} {:>9.2} {:>9.0}", label, us * 1e6, bytes as f64 / 1e6, bytes as f64 / 1e9 / us);
+            for kernel in [KERNEL, "matmul_exl3_splitk"] {
+                row(format!("{what} M={m} {kernel}"), time_cold(&*cuda, kernel, &hc, &[1], copies_for(bytes), 15));
+            }
+            for sk in [0usize, 1, 2, 4, 5, 8, 10, 16] {
+                if sk > 0 && (k / 16) % (4 * sk) != 0 {
+                    continue;
+                }
+                // SAFETY: this ignored bench runs alone, one thread
+                unsafe {
+                    if sk == 0 { std::env::remove_var("IK_EXL3_CP_S") } else { std::env::set_var("IK_EXL3_CP_S", sk.to_string()) }
+                }
+                row(format!("{what} M={m} cp S={sk}"), time_cold(&*cuda, "matmul_exl3_cp", &hc, &[1], copies_for(bytes), 15));
+            }
+            unsafe { std::env::remove_var("IK_EXL3_CP_S") };
+        }
     }
 }
 

@@ -255,6 +255,9 @@ impl Model {
                 let (a0, a1) = match slot {
                     StateSlot::AttnKv(kv) => (addr(&kv.k)?, addr(&kv.v)?),
                     StateSlot::Recurrent(rec) => (addr(&rec.buf)?, 0),
+                    StateSlot::Ring(_) | StateSlot::Shared(_) => {
+                        return Err(Error::Unsupported("batched decode row tables of DeepSeek-V4.1 ring / shared slots".into()))
+                    }
                 };
                 let o = (r * stride + 2 * j) * 8;
                 t[o..o + 8].copy_from_slice(&a0.to_le_bytes());

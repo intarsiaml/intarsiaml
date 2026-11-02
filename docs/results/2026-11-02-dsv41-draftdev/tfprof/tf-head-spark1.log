@@ -1,0 +1,53 @@
+
+=============
+== PyTorch ==
+=============
+
+NVIDIA Release 26.07 (build 373437299)
+PyTorch Version 2.13.0a0+9186a08
+Container image Copyright (c) 2026, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+Copyright (c) 2014-2024 Facebook Inc.
+Copyright (c) 2011-2014 Idiap Research Institute (Ronan Collobert)
+Copyright (c) 2012-2014 Deepmind Technologies    (Koray Kavukcuoglu)
+Copyright (c) 2011-2012 NEC Laboratories America (Koray Kavukcuoglu)
+Copyright (c) 2011-2013 NYU                      (Clement Farabet)
+Copyright (c) 2006-2010 NEC Laboratories America (Ronan Collobert, Leon Bottou, Iain Melvin, Jason Weston)
+Copyright (c) 2006      Idiap Research Institute (Samy Bengio)
+Copyright (c) 2001-2004 Idiap Research Institute (Ronan Collobert, Samy Bengio, Johnny Mariethoz)
+Copyright (c) 2015      Google Inc.
+Copyright (c) 2015      Yangqing Jia
+Copyright (c) 2013-2016 The Caffe contributors
+All rights reserved.
+
+Various files include modifications (c) NVIDIA CORPORATION & AFFILIATES.  All rights reserved.
+
+GOVERNING TERMS: The software and materials are governed by the NVIDIA Software License Agreement
+(found at https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-software-license-agreement/)
+and the Product-Specific Terms for NVIDIA AI Products
+(found at https://www.nvidia.com/en-us/agreements/enterprise-software/product-specific-terms-for-ai-products/).
+
+NOTE: CUDA Forward Compatibility mode ENABLED.
+  Using CUDA 13.3 driver version 610.43.02 with kernel driver version 580.178.04.
+  See https://docs.nvidia.com/deploy/cuda-compatibility/ for details.
+
+NOTE: Mellanox network driver detected, but NVIDIA peer memory driver not
+      detected.  Multi-node communication performance may be reduced.
+
+info: rank cache: 95.1 GiB of expert entries read whole in 9.2 s
+RDMA rank 0 peer 1 rail 0: gid_index=3 path_mtu=5
+RDMA rank 0 peer 1 rail 1: gid_index=3 path_mtu=5
+{"vision": "Pillow 12.3.0 decodes the formats other than PNG"}
+[tensorfold] CUDA sm_121 device 0 (NVIDIA GB10, memory shared with the host): model 103.04 GiB; 1 stream at once, 0.00 GiB each at a 16384-token window, of 0.0 GiB left after a 10.9 GiB reserve; prompts in 2048-row chunks
+[tensorfold] serving DeepSeek-v4.1-Flash-1017-heretic-tf at http://100.120.88.104:18191/v1 (sampling: temperature 1.0, top_p 0.95, top_k 20; drafts: on; context: 16384; loaded in 42.5s)
+[tensorfold] thinking on (the chat template's default): replies reason in reasoning_content before the answer in content, and max_tokens counts both. --no-thinking turns it off; a request can send chat_template_kwargs {"enable_thinking": false}
+[tensorfold] 100.92.253.46 "GET /health HTTP/1.1" 200 - key=unauthenticated
+[tensorfold] 100.92.253.46 "GET /v1/models HTTP/1.1" 200 - key=file-1
+info: prompt cache: 1222 tokens, resumed at 0, kept 0; 0 states, 0 MiB and 0 MiB spare of 512 MiB (hits 0, misses 1, evicted 0, refused 0, failed 0)
+[tensorfold] done cmpl-577a385850011b9f1bf4f022a45eaa9a prompt=1222 cached=0 thinking=False effort=none tokens=16 sha=32815b285ab6 finish=length rounds=8 accepted=7/15
+[tensorfold] 100.92.253.46 "POST /v1/completions HTTP/1.1" 200 - key=file-1
+info: prompt cache: 1222 tokens, resumed at 0, kept 0; 0 states, 0 MiB and 0 MiB spare of 512 MiB (hits 0, misses 2, evicted 0, refused 0, failed 0)
+[tensorfold] done cmpl-1989b392e9302c4c06dbf418aacdcb5b prompt=1222 cached=0 thinking=False effort=none tokens=16 sha=32815b285ab6 finish=length rounds=8 accepted=7/15
+[tensorfold] 100.92.253.46 "POST /v1/completions HTTP/1.1" 200 - key=file-1
+info: prompt cache: 1222 tokens, resumed at 0, kept 0; 0 states, 0 MiB and 0 MiB spare of 512 MiB (hits 0, misses 3, evicted 0, refused 0, failed 0)
+[tensorfold] done cmpl-d968f9bcb78560f7b60c52bf4577c387 prompt=1222 cached=0 thinking=False effort=none tokens=48 sha=3cc578d9f9ee finish=length rounds=22 accepted=25/44
+[tensorfold] 100.92.253.46 "POST /v1/completions HTTP/1.1" 200 - key=file-1
