@@ -93,3 +93,57 @@ so the collective cost is not the gap; (3) no idle between kernels in either pas
 Memory (the rules' 2.8 GiB watcher): MemAvailable fell from 110.9 to 3.5 GiB on spark1 (6.1 on spark2) while loading (42.5 s, `loaded in 42.5s`, a warm page cache) and stayed at 3.2-3.5 on spark1 through the capture.
 **The watcher killed the container on spark1 at 03:43:37 (2.4 GiB)** while the host ran `nsys stats` on the two reports, after the stop and the CSV export had completed: the traced request, both reports and both CSVs are complete,
 the planned untraced 128-token request did not run (no plain tok/s from TensorFold in this window). vLLM restored on both (03:47, `Up 3 minutes`, `fleetq mark-up`). Not retried, as agreed.
+
+### Task 4b: is the gap overlap? (TF vs ours, 3-row verify passes; analysis of the existing CSVs, no new window)
+
+Scripts: `tfprof/overlap.py` (TF: streams, class overlap, concurrency), `tfprof/pairs.py` (kernel pairs, same vs cross stream), `tfprof/ours.py` (ours). TF = this lane's capture (12 verify passes with 3 rows, rank 0). Ours = graphs lane's window 9 nsys
+capture (`dsv41-graphs/.scratch/full-w9/ab1/nsys-r0-033722_cuda_gpu_trace.csv`, binary `6551ae509`, 21 verify passes with 3 rows, found by the `argmax` grid of the next segment). Classes are by kernel name on both sides and approximate (TF `other` holds router/rmsnorm; our `moe` holds `moe_route`).
+
+**Kernel time is the same; TF overlaps it, ours does not.** ms per 3-row verify pass:
+
+| | TF | ours |
+|---|---:|---:|
+| span (first kernel start to last kernel end) | 32.00 | 45.22 (nsys); 42.9 without nsys (engine `pass ms` for 3 rows, from the graphs lane's log) |
+| sum of kernel durations, prefetch excluded | 44.15 | 43.12 |
+| union of busy time (time with at least one kernel) | 31.96 (31.79 without prefetch) | 43.10 |
+| sum minus union = work running concurrently | **12.4** (21.65 with prefetch) | **0.02** |
+| MoE (`grouped_cp` + combine) | 20.05 | 18.63 |
+| dense linears (TF `glinear/_gemm`; ours `linear/split/dense_f16w/rot`) | 11.59 | 15.70 |
+| hyper-connection | 4.60 | 2.39 |
+| attention | 3.51 | 1.24 |
+| collectives (TF RDMA stage+collect; ours NCCL all-reduce + round) | 3.30 | 4.82 |
+| router, norms, other | 1.10 | 0.34 |
+| L2 prefetch (TF side stream, hidden) | 9.45 | none |
+| kernels per pass | 1250 | 2375 |
+| idle between kernels | 0.05 | 2.1 (nsys) |
+
+So the coordinator's hypothesis holds: with TF's overlap removed, TF's verify pass would be about 44 ms against our 43; with ours overlapped like TF's, 43.1 - 12.4 = 30.7 ms (+ little idle) against TF's 32.0.
+Concurrency histogram (ms a pass with n kernels running): TF without prefetch {1: 20.4, 2: 10.5, 3: 0.9}; ours {1: 43.1, 2: 0.02}.
+
+**1. Streams.** TF: 10 lanes in the node view. Four carry the layer chain in rotation (about 120-190 kernels each: every class), 13 and 40/37 carry the L2 prefetch (120 launches a pass, 85 us each, one per collective), 42/39/43/36 carry the hyper-connection side work.
+Ours: one lane per layer segment (about 190 lanes, each a graph node group) and nothing runs on two at once.
+
+**2. Overlap, ms a pass (TF, prefetch excluded; pairs, so a 3-way overlap counts per pair; total 13.3).**
+Same lane (consecutive kernels of one chain that start before the previous ends, i.e. programmatic dependent launch): 9.1 ms. `grouped_cp` x `grouped_cp` 2.75 (the down-projection starts about 70 us before the gate/up ends, 40 times a pass), attention x dense 1.68, dense x dense 1.39 (`glinear` pairs 0.98),
+attention x attention 0.85, collective x dense 0.67, hc x dense 0.54.
+Other lane (the side stream): 4.2 ms. hc x collective 1.63 (`_hc_post_only` runs under `dsv41_rdma_collect`, 74 times a pass), hc x dense 1.34, hc x other 0.50, hc x MoE 0.41, hc x attention 0.33.
+Prefetch (not in the 13.3): under dense 5.3, hc 3.5, collective 1.8, attention 1.7, MoE only 0.56.
+TensorFold's own source says why: `zig/src/cuda/launch.zig` sets `programmatic_stream_serialization`, `qmm_frag.cuh` (the EXL3 GEMM) and `dsv41/rdma_gather.cu` carry `griddepcontrol.wait` / `launch_dependents`; `bf-node.sh` sets `TF_DS_HC_SIDE=1` and `TF_DS_L2_PREFETCH=1`. Ours has neither (no `griddepcontrol` or programmatic launch anywhere in `kernels/` or `crates/`).
+
+**3. Dense against MoE.** They do not overlap in either direction: 0.00 ms a pass (MoE x collective 0.01, MoE x attention 0.00). The chain at a layer boundary, from the timeline: second `grouped_cp` ends -> `rdma_stage` starts at the same microsecond -> `rdma_collect` -> `_hc_post_only` -> `_hc_finish_s` -> next layer's first `glinear` (about 10 us after) while `_hc_mix_part` / `_hc_sinkhorn` run on the side lane.
+So the next layer's dense waits for the collective and the hc post; the overlap sits inside the attention half of a layer (q, kv and indexer linears with norm, rope, sparse attention, 3.2 + 1.7 ms) and in the MoE kernel pair (2.75), not across the MoE.
+
+**4. Slower when overlapped?** Not shown, not excluded. Per-kernel durations of the same `glinear` template overlapped by prefetch vs not differ in both directions (-17 %, -26 %, +100 %, +36 % by size; position in the layer confounds it). For the MoE pair, 2nd-kernel end minus 1st-kernel end against their overlap has slope +0.45 (0 would be pure waiting, -1 pure concurrent work), so part of the overlap is the second kernel's launch and wait hidden under the first's tail
+(the kernel sum overstates the work a little: the real saving in span is what the table shows, 12.4). TF's MoE kernels total 20.05 ms against our 18.63, so the prefetch gives no visible MoE speed-up.
+
+**What the overlap explains.** Verify gap at 3 rows: 42.9 (ours, no nsys) - 32.2 (TF, under nsys) = 10.7 ms, and the overlap is 12.4 ms of TF's kernel sum. A round is 51.5 ms ours against 36.4 TF = 15.1 ms: about 10.7 in the verify pass and about 4.4 in the draft pass plus round overhead (ours: draft 6.2 ms under nsys, engine overhead 9 ms; TF: 3.8 + 0.3).
+Kernel time and the rest of the pass explain the other 0-2 ms. So overlap accounts for roughly 70 % of the round gap (10.7 of 15.1).
+
+**Smallest change that lets ours overlap the same way (estimates, not measured; not implemented).**
+1. PDL on the MoE pair: launch the two `grouped_cp` kernels of a layer with the programmatic-stream-serialization attribute and add `griddepcontrol.wait` before the first dependent read and `launch_dependents` after the last independent work. TF gets 2.75 ms a pass from exactly this pair (same kernel name; ours is a port).
+   Estimate -2 to -3 ms a pass, about 5 % of a round, about +1 to 2.5 tok/s. Needs `cudaLaunchKernelEx` in the launch path of that kernel and graph capture of programmatic edges (CUDA >= 12.3; TF replays them under graphs).
+   File owner: kernels/cuda/exl3_moe_cp.cu is next to the graphs lane's `exl3.cu`, so hand it to that lane.
+2. PDL on the dense chain (`linear_kernel`, `split_kernel`, `split_finish_kernel`, `rot_in_kernel`, 90-390 launches a pass of 5-80 us): TF's same-lane overlap outside the MoE is 6.3 ms. Estimate -3 to -5 ms (ours has twice the kernels, 2375 against 1250, so the early-launch hide matters more; fusing `split_kernel` + `split_finish_kernel` + `rot_in_kernel` would also cut launches).
+3. hc on a side lane: fork/join in the capture with events (`ik_rt_event_record` / `ik_rt_stream_wait_event` exist). Ours hc is 2.39 ms a pass; TF's cross-lane overlap is 4.2 including collectives. Estimate -1 to -2 ms.
+The three together are an estimated -6 to -10 ms of the 10.7 ms verify gap (about +14 to 25 % tok/s at the same acceptance); step 1 alone is the cheapest test and tells whether programmatic launch works in our captured graphs at all. Not part of this estimate: our NCCL all-reduces (80 a pass, 4.8 ms) cannot take part in PDL; TF's collectives are its own RDMA kernels.
+Caveat: one TF request (12 three-row passes), and the TF prompt is 1222 tokens against a few tokens in ours (attention differs: TF 3.5 ms against our 1.2).
