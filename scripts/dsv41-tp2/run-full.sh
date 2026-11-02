@@ -80,7 +80,7 @@ log "vLLM stopped on both"
 MF=memfine-$(date +%H%M%S).log
 for h in spark1 spark2; do
   scp -q "$S/memfine.sh" "$h:$SPARK_REL/bin/memfine.sh"
-  r $h "mkdir -p $LOGD; nohup bash $SPARK_DIR/bin/memfine.sh ${KILL_GIB:-5} > $LOGD/$h-$MF 2>&1 < /dev/null &"
+  r $h "mkdir -p $LOGD; nohup bash $SPARK_DIR/bin/memfine.sh ${KILL_GIB:-5} '[i]${SPARK_REL:1}/bin/intarsia' > $LOGD/$h-$MF 2>&1 < /dev/null &"
 done
 
 # start both ranks with extra env $1 (on top of DENV / XENV); exits the script (restore runs) if they do not come up
