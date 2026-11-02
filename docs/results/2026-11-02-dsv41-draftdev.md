@@ -249,3 +249,69 @@ The per-shape excess sums to 3.07 ms of the 8.5 ms critical-path dense gap. The 
 Idle before collectives, median us/pass (ours total 2.3 ms median, max 6.87; TF 0.20 ms): Engram gather to all-reduce 1066, linear to all-reduce 355, argmax to embedding 283, combine to all-reduce 154. Engram bf16 all-reduce itself: median 128 us, mean 190, max 719 (26 calls); f32: median 29 us. TF's verify exchanges through its own RDMA stage (4122 `dsv41_rdma` kernel rows in the trace against 83 NCCL rows; which pass the 83 belong to was not checked), and its largest gap is 95 us.
 
 Memory: min MemAvailable in the TF localeval window was 3.1 GiB, no kill. The brief's limit is 5 GiB except 2.8 for the TF profile; this was the same TF recipe but not the profile, and I used 2.8. Reserve 10.9 leaves too little margin for a 5 GiB limit.
+
+## Idle gaps: Engram segments and rank skew (windows 3-5)
+
+**Result, 3-row verify pass:** 43.3 ms with both off, 41.68 ms with both on (-1.6 ms). Draft pass 5.45 to 5.00 ms. About -0.9 ms/token at 2.35 tokens a round (estimate from the pass times). Golden 640/640 in every config that ran it.
+
+### Different text on raw prompts: different weights
+
+Tokens are the same: `tokenizer.json` and `tokenizer_config.json` have the same sha1 in our rank cache and in TF's model folder, and HF tokenizers give 988/990/990/947 tokens, TF's logged counts (counts, not ids: TF's Zig tokenizer was not run). Both raw paths encode with add_special=true and the post-processor is ByteLevel, so no BOS on either side. The weights differ: ours come from `Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw` (45ee5d0, EXL3 1.6.1), TF loads `/mnt/models/dsv41-1017/blackfold/exl3-2.9bpw-heretic` (the BLACKFOLD overlay, 1.6.2). 46961 of 47001 `tensor_storage` entries are identical; the rest are 40 `ffn.gate.bias` (f16 for TF, f32 for ours), plus our `hc_collapse`. So tonight's TF comparison holds for compute cost per shape, not for text, acceptance or tokens a round. That corrects the open point in 4f.
+
+Our first-token margins (`idle/margin-*.json`): prompt 2 " I" -2.28, next " " -2.55 (0.26 nats); prompt 3 " the" -1.64, next " run" -2.63 (0.99 nats). TF's " [" on prompt 2 is not in our top 5. A margin across different weights does not say more than that.
+
+### 1. One CUDA graph a pass (default on; `INTARSIA_DSV41_ENGRAM_ONEGRAPH=0` goes back)
+
+Cause: the first collective of each CUDA graph starts late. In window 2's trace the gaps sit only at all-reduce indices 0, 2 and 29 (the first of each of 3 segments), median 208 / 704 / 313 us on rank 0, 16 / 273 / 380 us on rank 1; every other all-reduce has a median gap of about 3 us. Why the first one is late was not found. `NCCL_GRAPH_MIXING_SUPPORT=0`, `NCCL_GRAPH_STREAM_ORDERING=0` and `NCCL_GRAPH_HELPER_DISABLE=1` did not move it, so these are not the mechanism.
+
+The change: the whole pass is one recording, all Engram records are waited for and uploaded before it starts. Engram wait goes 0.13 to 0.22 ms, because nothing overlaps it now.
+
+| whole pass ms, median, rank 0 | rows=2 | rows=3 | rows=4 | Engram wait, rows=3 |
+|---|---:|---:|---:|---:|
+| 3 segments, window 3 | 38.74 / 38.27 | 43.40 / 43.15 | 48.80 / 48.73 | 0.13 / 0.16 |
+| 1 graph, window 3 | 37.58 / 37.41 | 42.49 / 42.40 | 47.62 / 47.74 | 0.24 / 0.22 |
+| 3 segments, window 4 | 38.17 | 43.38 | 49.06 | 0.13 |
+| 1 graph, window 4 | 37.98 / 37.42 | 42.54 / 42.02 | 47.82 / 47.69 | 0.21 / 0.23 |
+
+Trace on the same prompt, rank 0: idle before NCCL kernels 1.55 to 0.28 ms/pass, Engram all-reduce median 128 to 24 us (max 719 to 35), verify span 44.78 to 43.04 ms.
+
+localeval, dataset decode tok/s: 51.1 / 51.2 / 50.6 to 52.1 / 51.9 / 51.4 / 51.4, about +1.4 %. The speed sweep does not resolve it (1K prompt 42.4 / 40.3 / 40.5 to 41.2 / 42.0 / 41.7 / 40.2).
+
+### 2. Rank skew (`INTARSIA_TP_SPIN_MS`, default off)
+
+Rank 1 started a pass a median 521 us after rank 0 (trace, aligned on the ends of later all-reduces), so rank 0 sat 813 us in the first all-reduce against about 30 us for the others. Rank 0 sends the command before its own pass, so this is the command's way across: ping over the link is 0.6 ms, cpuidle exit latency goes up to 433 us, `net.core.busy_poll` is 0.
+
+The change, in `tp_remote.rs`, no sudo: rank 1's reader polls its socket with `MSG_PEEK | MSG_DONTWAIT` for `N` ms after a command, and a second thread spins on the core `SO_INCOMING_CPU` reports, keeping it out of idle. Polling alone shows no clear gain (3-layer 5.13 / 5.36 ms against base 5.20 / 5.37); with the second thread 5.00 / 4.92 ms. Cost: two busy cores on rank 1 while decoding and for `N` ms after. Not measured: power, or any effect on GPU clocks beyond the pass times below.
+
+| full model, window 5, rank 0, medians | rows=2 | rows=3 | rows=4 | draft (rows=5) | dataset tok/s | 1K sweep tok/s |
+|---|---:|---:|---:|---:|---:|---:|
+| off | 37.39 / 37.37 | 42.47 / 42.48 | 48.03 / 48.09 | 5.41 / 5.50 | 51.9 / 51.8 | 42.2 / 41.7 |
+| `INTARSIA_TP_SPIN_MS=100` | 36.61 / 36.68 | 41.68 / 41.68 | 47.12 / 47.02 | 4.99 / 5.01 | 53.0 / 52.8 | 43.0 / 43.2 |
+
+Trace: skew 521 to 9 us, first all-reduce on rank 0 813 to 133 us. Golden 640/640 on both configs with it on. The sweep at 4K and 16K also moved up (off 42.4, 43.7 and 42.1, 43.7; on 44.7, 42.7 and 44.3, 43.9), with the spread as large as the gain at 4K.
+
+It stays off by default because `tp_remote.rs` serves every TP model and it spends two cores. Turning it on for DSv4.1 is one env var in the launch.
+
+### Gates
+
+- Golden: 640/640 in every config that ran it (window 3: all 4; window 4: both with one graph; window 5: both with spin), against `tok-intarsia-tp2-w12-specoff.st` or a config of the same window. The window 4 off config and the window 5 off configs did not run it.
+- 3-layer TP=2 over NCCL with the real Engram tier (`idle/run3.sh`): text of 8 requests and logprob hashes of 2 requests identical across every arm of three runs, same 758 rounds.
+- CUDA `device_position_passes_equal_host_passes`: no bitwise difference over 52 passes, 6 runs. Engram is off in that test, so it covers the capture path but not the Engram change; the TP=2 arms cover that.
+- MMLU was not run: the output is bitwise the same on every check above.
+- Plan diff not run here: 35B and Qwen3 do not reach the runtime change; `tp_remote.rs` does reach them, but only behind the unset switch.
+
+An earlier gate run of mine failed 4/4 with "the backend cannot capture": I had left out `INTARSIA_DSV41_BACKEND=cuda`, so it ran on CPU. Not a regression; rerun with the variable.
+
+`scripts/dsv41-tp2/memfine.sh` from plan hard-coded the graphs lane's process pattern, so a window from another Spark dir had no 1 Hz kill line, only the slower ssh watcher. Fixed in `5b771cd25`. Minimum MemAvailable in windows 3, 4 and 5: 6.5, 6.3 and 6.4 GiB, no kill.
+
+### What is left before the pass
+
+The trace now shows about 0.5 ms before launch: two host gaps of 267 and 208 us between the uploads, which is Engram issue plus wait. Argmax to embedding was the third target; this is what remains of it.
+
+### Next, ranked (all estimates, none measured)
+
+1. Dense call counts, graphs lane: `wo_a` 160 calls vs TF 40, `wq_a` + `wkv` 90 vs 41, helpers 679 vs 49. Up to about 2 ms/pass from the 4f table, about 0.9 ms/token, if per-call overhead is the cause.
+2. PDL and the side stream (out of scope tonight): 5.4 ms/pass of the dense gap is unexplained and could be overlap. Largest possible, least known.
+3. Engram `wkv` K-split per rank (3072 each, as TF): 0.44 ms/pass, about 0.2 ms/token. Numerics risk: partials rounded to bf16 per rank and summed are not bitwise the replicated result, so it needs MMLU, and it changes the cache format. Described only.
+4. Find why the first collective of a graph starts late: the remaining first all-reduce gap is about 0.2 ms/pass on one rank, about 0.1 ms/token.
+5. Issue the Engram rows for all drafts earlier, overlapping the host confidence step: at most 0.3 ms/pass, about 0.1 ms/token, and it touches the k path.
