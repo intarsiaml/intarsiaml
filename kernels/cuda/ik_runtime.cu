@@ -4,9 +4,11 @@
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
 #include <string.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <map>
 #include <mutex>
+#include <vector>
 
 namespace {
 // live ik_rt_malloc allocations (base -> bytes): matmul_fp8_gemm_cublas keys its bf16 weight copies by the allocation a
