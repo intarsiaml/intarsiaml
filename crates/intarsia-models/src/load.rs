@@ -777,7 +777,7 @@ fn load_dsv41(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> 
         Group::Local(..) => return Err(Error::Unsupported("deepseek_v41: in-process tensor parallelism (use --tp-remote with one rank per host)".into())),
         Group::Remote { backend, comm, stream } => crate::dsv41_engine::Dsv41Engine::load(dir, backend, Some(comm), Some(stream), opts.model_id.clone(), opts.prefill_chunk)?,
     };
-    let chunk = crate::dsv41_engine::Dsv41Opts::from_env(opts.prefill_chunk).chunk;
+    let chunk = crate::dsv41_engine::Dsv41Opts::from_env(dir, opts.prefill_chunk).chunk;
     Ok(Loaded {
         engine: Arc::new(engine),
         max_batch: 1,

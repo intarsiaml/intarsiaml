@@ -48,12 +48,13 @@ pub struct Dsv41Opts {
     pub hot_mb: usize,
     /// Activation dtype (bf16; f32 for parity runs, `INTARSIA_DSV41_ACT=f32`).
     pub act: DType,
-    /// Speculative decoding with the DSpark stages (`INTARSIA_DSV41_SPEC=1`; needs a rank cache with its mtp part).
+    /// Speculative decoding with the DSpark stages: on when the rank cache has its mtp part (`INTARSIA_DSV41_SPEC=0` turns it
+    /// off, `=1` makes a missing mtp part an error).
     pub spec: bool,
 }
 
 impl Dsv41Opts {
-    pub fn from_env(prefill_chunk: Option<usize>) -> Dsv41Opts {
+    pub fn from_env(dir: &Path, prefill_chunk: Option<usize>) -> Dsv41Opts {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
         Dsv41Opts {
             cap: env_usize("INTARSIA_DSV41_CAP").unwrap_or(32768),
@@ -61,9 +62,14 @@ impl Dsv41Opts {
             engram_dir: std::env::var_os("INTARSIA_DSV41_ENGRAM").map(PathBuf::from).unwrap_or_else(|| Path::new(&home).join("dsv41-engram")),
             hot_mb: env_usize("INTARSIA_DSV41_ENGRAM_HOT_MB").unwrap_or(0),
             act: if std::env::var("INTARSIA_DSV41_ACT").as_deref() == Ok("f32") { DType::F32 } else { DType::Bf16 },
-            spec: std::env::var("INTARSIA_DSV41_SPEC").as_deref() == Ok("1"),
+            spec: spec_on(std::env::var("INTARSIA_DSV41_SPEC").ok().as_deref(), dir.join(MTP_DIR).join(MANIFEST).exists()),
         }
     }
+}
+
+/// Unset: on when the cache has its DSpark sub-cache. Set: `1` is on, anything else off.
+fn spec_on(setting: Option<&str>, has_mtp: bool) -> bool {
+    setting.map_or(has_mtp, |v| v == "1")
 }
 
 /// Is `dir` a DeepSeek-V4.1 rank cache?
@@ -255,8 +261,8 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
     match (o.spec, rt.dspark) {
         (true, n) => eprintln!("dsv41: rank {rank}/{world}: speculative decoding on, {n} DSpark stages loaded from {}", mtp_dir.display()),
         (false, _) => eprintln!(
-            "dsv41: rank {rank}/{world}: speculative decoding off (INTARSIA_DSV41_SPEC=1 turns it on{})",
-            if mtp_dir.join(MANIFEST).exists() { "; the DSpark sub-cache is there" } else { "; needs the DSpark sub-cache, `intarsia dsv41-cache --mtp-only`" }
+            "dsv41: rank {rank}/{world}: speculative decoding off ({})",
+            if mtp_dir.join(MANIFEST).exists() { "INTARSIA_DSV41_SPEC is set and not 1" } else { "no DSpark sub-cache; build it with `intarsia dsv41-cache --mtp-only`" }
         ),
     }
     let mm = &rt.memory;
@@ -302,7 +308,7 @@ pub fn mem_available_now() -> Option<u64> {
 
 /// Rank > 0 of a cross-process group (`intarsia tp-worker`): load, handshake, serve rank 0's passes.
 pub fn serve_rank(dir: &Path, backend: Arc<dyn Backend>, comm: Arc<dyn Comm>, mut stream: std::net::TcpStream, prefill_chunk: Option<usize>) -> Result<u64> {
-    let o = Dsv41Opts::from_env(prefill_chunk);
+    let o = Dsv41Opts::from_env(dir, prefill_chunk);
     let avail0 = mem_available();
     let (rt, m) = load_runtime(dir, backend, Some(comm.clone()), &o)?;
     let cap = intarsia_core::tp_remote::handshake(&mut stream, &fingerprint(&m, &o), o.cap)?;
@@ -703,7 +709,7 @@ pub struct Dsv41Engine {
 impl Dsv41Engine {
     /// Rank 0: load from the rank cache `dir`; `peer` is the remote rank (cross-process TP), `comm` the group.
     pub fn load(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc<dyn Comm>>, remote: Option<std::net::TcpStream>, model_id: Option<String>, prefill_chunk: Option<usize>) -> Result<Dsv41Engine> {
-        let o = Dsv41Opts::from_env(prefill_chunk);
+        let o = Dsv41Opts::from_env(dir, prefill_chunk);
         let avail0 = mem_available();
         let (rt, m) = load_runtime(dir, backend.clone(), comm.clone(), &o)?;
         let peer = match remote {
@@ -860,6 +866,20 @@ mod f16_tests {
         }
         assert!(super::f16_to_f32(0x7e00).is_nan());
         assert_eq!(super::f16_to_f32(0x7c00), f32::INFINITY);
+    }
+}
+
+#[cfg(test)]
+mod spec_default_tests {
+    use super::spec_on;
+
+    #[test]
+    fn unset_follows_the_sub_cache_and_a_set_value_decides() {
+        assert!(spec_on(None, true));
+        assert!(!spec_on(None, false));
+        assert!(spec_on(Some("1"), false));
+        assert!(!spec_on(Some("0"), true));
+        assert!(!spec_on(Some("off"), true));
     }
 }
 
