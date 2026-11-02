@@ -120,7 +120,7 @@ capture (`dsv41-graphs/.scratch/full-w9/ab1/nsys-r0-033722_cuda_gpu_trace.csv`, 
 So the coordinator's hypothesis holds: with TF's overlap removed, TF's verify pass would be about 44 ms against our 43; with ours overlapped like TF's, 43.1 - 12.4 = 30.7 ms (+ little idle) against TF's 32.0.
 Concurrency histogram (ms a pass with n kernels running): TF without prefetch {1: 20.4, 2: 10.5, 3: 0.9}; ours {1: 43.1, 2: 0.02}.
 
-**1. Streams.** TF: 10 lanes in the node view. Four carry the layer chain in rotation (about 120-190 kernels each: every class), 13 and 40/37 carry the L2 prefetch (120 launches a pass, 85 us each, one per collective), 42/39/43/36 carry the hyper-connection side work.
+**1. Streams.** TF: 10 lanes in the node view. Streams 45, 46, 48 carry the layer chain in rotation (about 270-300 kernels a pass each, every class), 13 holds the main chain's remainder plus 78 prefetch launches and 40/37 the other 42 (120 prefetch launches a pass of about 85 us), and 42/39/43/36 hold the rest, with hc kernels on every lane (the node view does not say which lane is the HC side lane).
 Ours: one lane per layer segment (about 190 lanes, each a graph node group) and nothing runs on two at once.
 
 **2. Overlap, ms a pass (TF, prefetch excluded; pairs, so a 3-way overlap counts per pair; total 13.3).**
@@ -131,7 +131,7 @@ Prefetch (not in the 13.3): under dense 5.3, hc 3.5, collective 1.8, attention 1
 TensorFold's own source says why: `zig/src/cuda/launch.zig` sets `programmatic_stream_serialization`, `qmm_frag.cuh` (the EXL3 GEMM) and `dsv41/rdma_gather.cu` carry `griddepcontrol.wait` / `launch_dependents`; `bf-node.sh` sets `TF_DS_HC_SIDE=1` and `TF_DS_L2_PREFETCH=1`. Ours has neither (no `griddepcontrol` or programmatic launch anywhere in `kernels/` or `crates/`).
 
 **3. Dense against MoE.** They do not overlap in either direction: 0.00 ms a pass (MoE x collective 0.01, MoE x attention 0.00). The chain at a layer boundary, from the timeline: second `grouped_cp` ends -> `rdma_stage` starts at the same microsecond -> `rdma_collect` -> `_hc_post_only` -> `_hc_finish_s` -> next layer's first `glinear` (about 10 us after) while `_hc_mix_part` / `_hc_sinkhorn` run on the side lane.
-So the next layer's dense waits for the collective and the hc post; the overlap sits inside the attention half of a layer (q, kv and indexer linears with norm, rope, sparse attention, 3.2 + 1.7 ms) and in the MoE kernel pair (2.75), not across the MoE.
+So the next layer's dense waits for the collective and the hc post; the overlap sits inside the attention half of a layer (attention x dense 1.68, dense x dense, attention x attention) and in the MoE kernel pair (2.75), not across the MoE.
 
 **4. Slower when overlapped?** Not shown, not excluded. Per-kernel durations of the same `glinear` template overlapped by prefetch vs not differ in both directions (-17 %, -26 %, +100 %, +36 % by size; position in the layer confounds it). For the MoE pair, 2nd-kernel end minus 1st-kernel end against their overlap has slope +0.45 (0 would be pure waiting, -1 pure concurrent work), so part of the overlap is the second kernel's launch and wait hidden under the first's tail
 (the kernel sum overstates the work a little: the real saving in span is what the table shows, 12.4). TF's MoE kernels total 20.05 ms against our 18.63, so the prefetch gives no visible MoE speed-up.
