@@ -811,10 +811,12 @@ impl Dsv41Runtime {
             match self.capture(&mut ex, &g, st, t) {
                 Ok(segs) => {
                     let n: usize = segs.len();
+                    let steps = g.stages.iter().flat_map(|s| s.steps.iter());
+                    let (all, exl3) = steps.fold((0, 0), |(a, e), s| (a + 1, e + usize::from(s.op == crate::ops::Op::MatmulExl3)));
                     let writes = ws_writes(&g);
                     gs.captured.insert(key, Captured { g, segs, state_id: st.id, scratch_gen: ex.scratch_gen, writes });
                     let what = ["pass", "verify pass", "drafting block"][key.1 as usize];
-                    eprintln!("dsv41: captured the {t}-row {what} as {n} CUDA graph segment(s) (unix {})", unix_secs());
+                    eprintln!("dsv41: captured the {t}-row {what} as {n} CUDA graph segment(s), {all} steps, {exl3} EXL3 linears (unix {})", unix_secs());
                 }
                 Err(e) => {
                     eprintln!("dsv41: CUDA graph capture of a {t}-row graph failed ({e}); graphs off, eager from now on");
