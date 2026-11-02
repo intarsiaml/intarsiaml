@@ -1,0 +1,6 @@
+fresh_B        ptoks   4107 cached      0 ttft    735.1 ms
+A              ptoks   4098 cached      0 ttft    705.3 ms
+B_after_A      ptoks   4107 cached   4096 ttft     49.0 ms
+A_after_B      ptoks   4098 cached   4096 ttft     19.7 ms
+cold_B         ptoks   4107 cached      0 ttft    735.0 ms
+B_after_A == fresh: True  cold == fresh: True

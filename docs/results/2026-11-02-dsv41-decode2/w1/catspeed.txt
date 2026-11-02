@@ -1,0 +1,6 @@
+kind                      ab0_old                  ab1_new                  ab2_old
+chat          44.9 (median  46.2)      44.8 (median  45.7)      44.7 (median  45.6)
+code          63.5 (median  64.5)      62.5 (median  63.1)      63.2 (median  63.6)
+prose         40.8 (median  40.1)      40.8 (median  40.3)      40.7 (median  40.2)
+recall        50.5 (median  49.8)      50.7 (median  50.5)      50.9 (median  50.2)
+all           48.6 (median  48.0)      48.4 (median  47.5)      48.5 (median  48.4)
