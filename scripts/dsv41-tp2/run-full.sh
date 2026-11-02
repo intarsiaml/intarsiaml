@@ -79,7 +79,8 @@ start_ranks() {
 TAG=$(date +%H%M%S)
 # NSYS=1: both ranks run under `nsys launch` (no collection until the nsys step starts a session)
 NL0=""; NL1=""
-if [[ ${NSYS:-0} == 1 ]]; then NL0="nsys launch --session-new=dsv41r0x$TAG --trace=cuda,nvtx"; NL1="${NL0/dsv41r0x/dsv41r1x}"; fi
+# (with --cuda-graph-trace=node: replayed CUDA graphs show their kernels one by one)
+if [[ ${NSYS:-0} == 1 ]]; then NL0="nsys launch --session-new=dsv41r0x$TAG --trace=cuda,nvtx --cuda-graph-trace=node"; NL1="${NL0/dsv41r0x/dsv41r1x}"; fi
 r spark2 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $1 $NL1 $BIN tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2 > $LOGD/worker-$TAG.log 2>&1 < /dev/null &"
 sleep 2
 r spark1 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $1 $NL0 $BIN serve -m $C0 --backend cuda --tp 2 --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name dsv41-intarsia --no-supervisor --no-ui > $LOGD/serve-$TAG.log 2>&1 < /dev/null &"
