@@ -452,6 +452,17 @@ fn bench_cp() {
     let Some(cuda) = device() else { return };
     let mut rng = SplitMix64::new(829);
     println!("{:<46} {:>9} {:>9} {:>9}", "(cold weights)", "us/call", "weight MB", "GB/s");
+    // the fixed cost of a call: almost no weights (N = 128 or K = 128), so what is left is launches, rot_in and the finish
+    for &(n, k, what) in &[(128usize, 128usize, "floor"), (128, 5120, "floor, K large"), (5120, 128, "floor, N large")] {
+        for m in [1usize, 4] {
+            let hc = exl3::case(&mut rng, m, n, k, 10, Codebook::Inst3, DType::Bf16, DType::Bf16);
+            let bytes = hc.inputs[1].data.len();
+            for kernel in [KERNEL, "matmul_exl3_splitk", "matmul_exl3_cp"] {
+                let us = time_cold(&*cuda, kernel, &hc, &[1], copies_for(bytes), 15);
+                println!("{:<46} {:>9.1} {:>9.2} {:>9.0}", format!("{what} M={m} {kernel}"), us * 1e6, bytes as f64 / 1e6, bytes as f64 / 1e9 / us);
+            }
+        }
+    }
     for &(n, k, what) in &[
         (512usize, 5120usize, "wkv / compressor"),
         (1024, 4096, "wo_a slice"),

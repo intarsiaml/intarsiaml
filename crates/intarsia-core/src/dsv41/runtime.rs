@@ -162,6 +162,9 @@ pub struct Dsv41Runtime {
     /// `INTARSIA_DSV41_EXL3_SPLITK_VERIFY` (default on, `0` = GEMV): verify passes take split-K on the same linears as the
     /// one-row decode pass, so a verify row is bitwise the decode row. Plain decode and prefill are untouched.
     splitk_verify: bool,
+    /// `INTARSIA_DSV41_EXL3_CP` (comma list of GEMV grids N / 128, default none): on the same one-row and verify calls, these
+    /// shapes take `matmul_exl3_cp` (wo_a slice 8, wq_a 10, wo_b 40, wq_b 128, indexer wq_b 32, wkv 4).
+    cp_grids: Vec<usize>,
     /// `INTARSIA_DSV41_DPOS=1` (or graphs on): passes of up to `VERIFY_MAX_ROWS` rows run the device-position graph
     /// ([`PassKind::dpos`]); longer chunks keep the host-position graph.
     dpos: std::sync::atomic::AtomicBool,
@@ -399,6 +402,7 @@ impl Dsv41Runtime {
             opprof: std::env::var_os("INTARSIA_DSV41_OPPROF").filter(|v| v != "0").map(|_| Mutex::new(HashMap::new())),
             splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(16),
             splitk_verify: std::env::var("INTARSIA_DSV41_EXL3_SPLITK_VERIFY").map_or(true, |v| v != "0"),
+            cp_grids: std::env::var("INTARSIA_DSV41_EXL3_CP").map_or(Vec::new(), |v| v.split(',').filter_map(|x| x.parse().ok()).collect()),
             dspark,
             confidence,
             dpos: std::sync::atomic::AtomicBool::new(dpos),
@@ -938,6 +942,11 @@ impl Dsv41Runtime {
                     let s = ShapeInfo::from_call(&call);
                     if n / 128 < self.splitk_grid && self.kernel_list.iter().any(|x| x.name == "matmul_exl3_splitk" && x.op == step.op && x.accepts(&s)) {
                         name = "matmul_exl3_splitk";
+                    }
+                    // INTARSIA_DSV41_EXL3_CP: the cp.async split-K on the grids it lists
+                    let g = n / 128;
+                    if self.cp_grids.contains(&g) && self.kernel_list.iter().any(|x| x.name == "matmul_exl3_cp" && x.op == step.op && x.accepts(&s)) {
+                        name = "matmul_exl3_cp";
                     }
                 }
                 let i = self
