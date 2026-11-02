@@ -16,6 +16,8 @@ rsh 'mkdir -p '"$SPARK_DIR"'/src '"$SPARK_DIR"'/bin; test -d '"$SPARK_DIR"'/src/
 # the artifacts of an earlier build (rsync -a keeps the source mtime, older than those artifacts after a checkout: stale build)
 rsync -a --no-t --checksum --delete --exclude target --exclude .git --exclude golden --exclude tools/.venv --exclude .claude --exclude .scratch "$REPO/" "$H:$SPARK_REL/src/"
 echo "stamp: $STAMP"
+# TOUCH_ALL=1: after a build whose sources carried old mtimes (see above), make every workspace source newer than its artifacts
+[[ ${TOUCH_ALL:-0} != 1 ]] || rsh "find $SPARK_DIR/src/crates $SPARK_DIR/src/kernels -type f -exec touch {} +"
 # pipefail: a failed build must stop here (the cp below would copy the previous binary under the new stamp)
 rsh "set -o pipefail; cd $SPARK_DIR/src && INTARSIA_BUILD_STAMP='$STAMP' cargo build --release --features cuda -p intarsia-cli 2>&1 | tail -3"
 # the NCCL latency probe, when this tree has it
