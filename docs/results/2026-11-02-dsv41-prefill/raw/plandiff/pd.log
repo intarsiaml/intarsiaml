@@ -1,0 +1,18 @@
+fleetq: #7957 waiting (#2 in line): in line behind #7953 "dsv41 group W1: baseline nsys (step 1), vLLM restored after" (claude-group) on spark2
+fleetq: #7957 waiting (#1 in line): spark2 is held exclusively by #7953 "dsv41 group W1: baseline nsys (step 1), vLLM restored after" (claude-group)
+fleetq: #7957 running on spark2: .scratch/pd.sh
+-rwxrwxr-x 1 nvidia nvidia 148035064 Nov  2 18:31 intarsia
+-rwxrwxr-x 1 nvidia nvidia 148034824 Nov  2 16:14 intarsia.f
+-rwxrwxr-x 1 nvidia nvidia 148035064 Nov  2 17:14 intarsia.g
+-rwxrwxr-x 1 nvidia nvidia 143578240 Nov  2 18:31 intarsia.main
+-rwxrwxr-x 1 nvidia nvidia 143578424 Nov  2 14:34 intarsia.p1
+-rwxrwxr-x 1 nvidia nvidia 142530040 Nov  2 14:39 intarsia.p2
+-rwxrwxr-x 1 nvidia nvidia 151116808 Nov  2 15:34 intarsia.v
+base 4794bbc05, stamp plandiff-base-4794bbc05-1102183211
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 52s
+compiled 215 crates
+branch binary: 4794bbc05 dirty=no 1102-1341
+35b: plan show unchanged (      76 lines)
+8b: plan show unchanged (      25 lines)
+fleetq: #7957 done (exit 0)
