@@ -11,17 +11,27 @@ BASE=${BASE_REF:-dsv41/plan}
 OUT=$REPO/.scratch/plandiff; mkdir -p "$OUT"
 RP='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; export MAX_JOBS=4 CARGO_BUILD_JOBS=4;'
 rsh() { ssh -n -o BatchMode=yes spark2 "$RP export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
-rsh 'mkdir -p ~/intarsia-dsv41-graphs/src-base; test -d ~/intarsia-dsv41-graphs/src-base/target || cp -a ~/intarsia-dsv41-graphs/src/target ~/intarsia-dsv41-graphs/src-base/target'
+# Always a clean base: no copied target dir and no files left from an earlier base. git archive stamps files with the
+# commit time, so against an existing target cargo calls them fresh and relinks whatever was built there, and the CUDA
+# build script compiles every kernels/cuda/*.cu it finds, left-overs included.
+rsh 'rm -rf ~/intarsia-dsv41-graphs/src-base; mkdir -p ~/intarsia-dsv41-graphs/src-base ~/intarsia-dsv41-graphs/logs'
 git -C "$REPO" archive --format=tar "$BASE" | ssh -o BatchMode=yes spark2 'tar -C ~/intarsia-dsv41-graphs/src-base -xf -'
-# git archive stamps files with the commit time, older than the objects in the copied target dir: cargo would call them
-# fresh and relink the branch's own code as the "base". Touch the sources so the workspace really rebuilds.
-rsh 'cd ~/intarsia-dsv41-graphs/src-base && find crates kernels -type f -exec touch {} +'
-echo "base $(git -C "$REPO" rev-parse --short "$BASE")"
-rsh 'cd ~/intarsia-dsv41-graphs/src-base && cargo build --release --features cuda -p intarsia-cli 2>&1 | tail -2'
-# BASE_MUST_LACK: a string only the branch's code has; its presence in the base binary voids the diff
-if [[ -n ${BASE_MUST_LACK:-} ]] && rsh "strings ~/intarsia-dsv41-graphs/src-base/target/release/intarsia | grep -q $BASE_MUST_LACK"; then
-  echo "base binary contains $BASE_MUST_LACK: it was not built from $BASE"; exit 3
-fi
+BASE_SHA=$(git -C "$REPO" rev-parse --short "$BASE")
+BASE_STAMP="plandiff-base-$BASE_SHA-$(date +%m%d%H%M%S)"
+echo "base $BASE_SHA, stamp $BASE_STAMP"
+rsh "cd ~/intarsia-dsv41-graphs/src-base && INTARSIA_BUILD_STAMP=$BASE_STAMP cargo build --release --features cuda -p intarsia-cli > ~/intarsia-dsv41-graphs/logs/plandiff-base.log 2>&1; rc=\$?; tail -2 ~/intarsia-dsv41-graphs/logs/plandiff-base.log; echo \"compiled \$(grep -c Compiling ~/intarsia-dsv41-graphs/logs/plandiff-base.log) crates\"; exit \$rc"
+# The base binary must really be this base: it carries this run's stamp, the workspace crates were compiled here, it lacks
+# BASE_MUST_LACK (strings only the branch's code has, space separated), and the branch binary has them (so the check bites).
+BB='~/intarsia-dsv41-graphs/src-base/target/release/intarsia'
+rsh "strings $BB | grep -q $BASE_STAMP" || { echo "base binary lacks stamp $BASE_STAMP"; exit 3; }
+rsh "grep -q 'Compiling intarsia-core' ~/intarsia-dsv41-graphs/logs/plandiff-base.log" || { echo "intarsia-core was not compiled for the base"; exit 3; }
+for x in ${BASE_MUST_LACK:-}; do
+  git -C "$REPO" grep -q "$x" "$BASE" -- crates kernels && { echo "$x is in the sources of $BASE: not a usable guard"; exit 3; }
+  rsh "strings $BB | grep -q $x" && { echo "base binary contains $x: not built from $BASE"; exit 3; }
+  rsh "strings ~/intarsia-dsv41-graphs/bin/intarsia | grep -q $x" || { echo "branch binary lacks $x: the guard proves nothing"; exit 3; }
+  echo "guard $x: absent from the base binary, present in the branch binary"
+done
+echo "branch binary: $(rsh 'cat ~/intarsia-dsv41-graphs/bin/STAMP')"
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 M8=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218
 for m in 35b:$M35 8b:$M8; do
