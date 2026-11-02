@@ -2330,7 +2330,10 @@ struct ReuseRow {
 /// The prefix-reuse path of a real model, compared with a cold run, through `Engine::generate` (what `serve` runs):
 ///
 /// * `continue`: turn 1 = `ids[..s]` and a real reply of the model; turn 2 = turn 1 + reply + the rest of the prompt.
-///   The engine must reuse everything it holds (`cached >= s`) and produce the same greedy tokens as a cold run.
+///   The engine must reuse everything it holds (`cached >= s`) and produce the same greedy tokens as a cold run. A model with
+///   recurrent state on a backend whose prefill bits depend on the pass's row count (`ModelInfo::reuse_cold_cuts_only`: the 35B on
+///   Metal, CUDA and HIP) resumes only at a cut of turn 2's own cold schedule, so there the bar is the last prefill chunk
+///   cut inside turn 1, `s / chunk * chunk` (0 when `s < chunk`; `reuse_split` keeps `s` above one chunk).
 /// * `restore`: turn 1 = `ids[..s]` + a different tail; turn 2 = `ids`. The common prefix is `s`, shorter than what
 ///   is held, so the cache is truncated (attention) or a recurrent snapshot is restored (GatedDeltaNet / Mamba,
 ///   taken at prefill chunk boundaries): the engine reuses `cached > 0` tokens and again must agree with a cold run.
@@ -2441,9 +2444,12 @@ fn reuse_gate(engine: &dyn Engine, g: &Golden, golden_path: &Path, prompts: &[(S
                     }
                     _ => judge(&format!("{name} continue split {split}"), &warm_run, &cold_run, &warm, &cold)?,
                 };
-                let ok = cached >= split && cold_cached == 0 && v.ok;
-                let note = if cached < split {
-                    format!("reuse covered {cached} < the {split} tokens of turn 1")
+                // a model whose recurrent state resumes only at a cut of the prompt's own cold schedule (`Model::reuse_len`, lane hrr)
+                // reuses turn 1 down to the last prefill chunk cut inside it
+                let floor = if info.reuse_cold_cuts_only { split / chunk * chunk } else { split };
+                let ok = cached >= floor && cold_cached == 0 && v.ok;
+                let note = if cached < floor {
+                    format!("reuse covered {cached} < the {floor} tokens of turn 1 it must resume at ({split} held)")
                 } else if cold_cached != 0 {
                     "the cold run was not cold".into()
                 } else {

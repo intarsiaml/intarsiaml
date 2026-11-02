@@ -685,6 +685,20 @@ impl Model {
         self.tail_merge
     }
 
+    /// A recurrent state resumes only at a cut of the new prompt's own cold schedule ([`Model::reuse_len`], lane hrr): the model has
+    /// recurrent slots, the backend's prefill bits depend on a pass's row count (not `prefix_reuse_any_cut`) and
+    /// `INTARSIA_PREFIX_REUSE=any` is not set. A multi-turn prompt then resumes at the last prefill chunk cut inside its held prefix
+    /// (`ModelInfo::reuse_cold_cuts_only`; `accuracy --mode reuse` lowers its `continue` bar to that cut).
+    pub fn reuse_recurrent_at_cold_cuts_only(&self) -> bool {
+        if !self.slot_specs.iter().any(|s| matches!(s, SlotSpec::Recurrent { .. })) {
+            return false;
+        }
+        match prefix_reuse_override() {
+            Some(any) => !any,
+            None => !self.backend.prefix_reuse_any_cut(),
+        }
+    }
+
     /// The KV prefix of `st` a request for a prompt of `plen` tokens may resume from, at most `want` (the prefix the two
     /// share, already below `plen`). Recurrent state: what it can return to ([`SequenceState::restorable_len`]) where the
     /// backend's prefill is bitwise the same whatever row a pass starts at (cpu); elsewhere only a snapshot at a cut of the
@@ -706,7 +720,7 @@ impl Model {
     pub fn reuse_len(&self, st: &SequenceState, plen: usize, want: usize) -> usize {
         let over = prefix_reuse_override();
         if st.has_recurrent() {
-            if over == Some(true) || (over.is_none() && self.backend.prefix_reuse_any_cut()) {
+            if !self.reuse_recurrent_at_cold_cuts_only() {
                 return st.restorable_len(want);
             }
             // only where the prompt's own cold prefill leaves its state, written by that schedule's passes (lane hrr)

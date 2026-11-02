@@ -440,6 +440,8 @@ fn chunk_sensitive_backend_resumes_a_recurrent_state_only_at_cold_cuts() {
     let e = chunky();
     let (ta, ca) = run(&e, &a, 6);
     assert_eq!(ca, 0);
+    // what `accuracy --mode reuse` reads: this model resumes at cold cuts only, the cpu backend does not
+    assert!(e.info().reuse_cold_cuts_only && !engine(8).info().reuse_cold_cuts_only);
     // A again: 19 is a cut of A's own schedule
     let (ta2, ca2) = run(&e, &a, 6);
     assert_eq!((ca2, &ta2), (19, &ta));

@@ -190,6 +190,9 @@ pub struct ModelInfo {
     pub reasoning_parser: Option<String>,
     pub tool_parser: Option<String>,
     pub memory_plan: crate::memplan::MemoryPlan,
+    /// The model has recurrent state and resumes it only at a cut of the new prompt's own cold prefill schedule
+    /// ([`Model::reuse_recurrent_at_cold_cuts_only`]), so a next turn reuses its held prefix down to the last prefill chunk cut.
+    pub reuse_cold_cuts_only: bool,
 }
 
 pub trait Engine: Send + Sync {
@@ -672,6 +675,7 @@ pub(crate) fn build_info(
         reasoning_parser: meta.reasoning_parser.clone(),
         tool_parser: meta.tool_parser.clone(),
         memory_plan: model.plan.clone(),
+        reuse_cold_cuts_only: model.reuse_recurrent_at_cold_cuts_only(),
     }
 }
 

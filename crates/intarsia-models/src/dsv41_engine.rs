@@ -767,6 +767,8 @@ impl Dsv41Engine {
                 kv_total_bytes: rt.memory.state_per_seq,
                 notes: vec![format!("deepseek_v41 rank 0 of {}", m.world)],
             },
+            // its own reuse path (`restorable_len` in `generate`), not `Model::reuse_len`
+            reuse_cold_cuts_only: false,
         };
         let st = rt.new_state()?;
         let remote_seq = match &peer {

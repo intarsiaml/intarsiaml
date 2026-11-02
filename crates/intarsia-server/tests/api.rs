@@ -164,6 +164,7 @@ impl Engine for Mock {
                 kv_total_bytes: 0,
                 notes: vec![],
             },
+            reuse_cold_cuts_only: false,
         }
     }
     fn tokenize(&self, text: &str, _add_special: bool) -> Result<Vec<u32>> {
