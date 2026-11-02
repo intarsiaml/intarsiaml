@@ -11,6 +11,8 @@ BASE=${BASE_REF:-dsv41/plan}
 OUT=$REPO/.scratch/plandiff; mkdir -p "$OUT"
 RP='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; export MAX_JOBS=4 CARGO_BUILD_JOBS=4;'
 rsh() { ssh -n -o BatchMode=yes spark2 "$RP export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
+# GREEDY_ONLY=1 reuses the base binary a previous run built and proved.
+if [[ ${GREEDY_ONLY:-0} != 1 ]]; then
 # Always a clean base: no copied target dir and no files left from an earlier base. git archive stamps files with the
 # commit time, so against an existing target cargo calls them fresh and relinks whatever was built there, and the CUDA
 # build script compiles every kernels/cuda/*.cu it finds, left-overs included.
@@ -31,10 +33,11 @@ for x in ${BASE_MUST_LACK:-}; do
   rsh "strings ~/intarsia-dsv41-graphs/bin/intarsia | grep -q $x" || { echo "branch binary lacks $x: the guard proves nothing"; exit 3; }
   echo "guard $x: absent from the base binary, present in the branch binary"
 done
+fi
 echo "branch binary: $(rsh 'cat ~/intarsia-dsv41-graphs/bin/STAMP')"
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 M8=/home/nvidia/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218
-for m in 35b:$M35 8b:$M8; do
+[[ ${GREEDY_ONLY:-0} == 1 ]] || for m in 35b:$M35 8b:$M8; do
   n=${m%%:*}; d=${m#*:}
   rsh "~/intarsia-dsv41-graphs/src-base/target/release/intarsia plan show -m $d --backend cuda 2>&1" > "$OUT/$n-base.txt" || true
   rsh "~/intarsia-dsv41-graphs/bin/intarsia plan show -m $d --backend cuda 2>&1" > "$OUT/$n-tp2.txt" || true
@@ -44,6 +47,18 @@ for m in 35b:$M35 8b:$M8; do
     echo "$n: plan show DIFFERS"; { diff "$OUT/$n-base.txt" "$OUT/$n-tp2.txt" | head -40; true; }
   fi
 done
+# GREEDY=1: 64 greedy tokens of the 35B and Qwen3-8B with both binaries (plan show says nothing about shared runtime code)
+if [[ ${GREEDY:-0} == 1 ]]; then
+  for m in 35b:$M35 8b:$M8; do
+    n=${m%%:*}; d=${m#*:}
+    for b in base tp2; do
+      bin='~/intarsia-dsv41-graphs/bin/intarsia'; [[ $b == base ]] && bin='~/intarsia-dsv41-graphs/src-base/target/release/intarsia'
+      rsh "$bin generate -m $d --backend cuda -p 'The sky appears blue because' --max-tokens 64 2>/dev/null" > "$OUT/$n-$b-greedy.txt" || echo "$n $b: generate exit $?"
+    done
+    if [[ -s "$OUT/$n-tp2-greedy.txt" ]] && cmp -s "$OUT/$n-base-greedy.txt" "$OUT/$n-tp2-greedy.txt"; then echo "$n: 64 greedy tokens identical: $(tr '\n' ' ' < "$OUT/$n-tp2-greedy.txt" | head -c 100)"; else echo "$n: greedy DIFFERS or empty"; { diff "$OUT/$n-base-greedy.txt" "$OUT/$n-tp2-greedy.txt" | head -6; true; }; fi
+  done
+  [[ ${GREEDY_ONLY:-0} == 1 ]] && exit 0
+fi
 if [[ ${EXL3:-0} == 1 ]]; then
   r1() { ssh -n -o BatchMode=yes spark1 "export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
   rsh 'scp -q ~/intarsia-dsv41-graphs/src-base/target/release/intarsia spark1:intarsia-dsv41-graphs/bin/intarsia-base'
@@ -59,6 +74,8 @@ if [[ ${EXL3:-0} == 1 ]]; then
     else
       echo "$d: plan show DIFFERS"; { diff "$OUT/$d-base.txt" "$OUT/$d-tp2.txt" | head -20; true; }
     fi
-    if cmp -s "$OUT/$d-base-gen.txt" "$OUT/$d-tp2-gen.txt"; then echo "$d: greedy 32 tokens identical: $(head -c 120 "$OUT/$d-tp2-gen.txt" | tr '\n' ' ')"; else echo "$d: greedy DIFFERS"; diff "$OUT/$d-base-gen.txt" "$OUT/$d-tp2-gen.txt" | head; fi
+    # stdout (tokens) and stderr (notes) interleave differently from run to run: the capture-failure note moves around the tokens
+    norm() { sed 's/decode graph capture failed[^;]*; decoding eagerly from here on//' "$1" | tr -d ' \n'; }
+    if [[ "$(norm "$OUT/$d-base-gen.txt")" == "$(norm "$OUT/$d-tp2-gen.txt")" ]]; then echo "$d: greedy output identical (outcome: $(tail -1 "$OUT/$d-tp2-gen.txt" | head -c 120))"; else echo "$d: greedy DIFFERS"; { diff "$OUT/$d-base-gen.txt" "$OUT/$d-tp2-gen.txt" | head; true; }; fi
   done
 fi
