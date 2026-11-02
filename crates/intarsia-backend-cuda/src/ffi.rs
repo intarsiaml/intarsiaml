@@ -60,6 +60,7 @@ extern "C" {
     pub fn ik_rt_stream_sync(stream: S) -> c_int;
     pub fn ik_rt_event_create_sync(ev: *mut S) -> c_int;
     pub fn ik_rt_event_record(ev: S, stream: S) -> c_int;
+    pub fn ik_rt_l2_prefetch(ptrs: *const *const c_void, bytes: *const usize, n: c_int, budget: usize, stream: S) -> c_int;
     pub fn ik_rt_stream_wait_event(stream: S, ev: S) -> c_int;
     pub fn ik_rt_f32_round(src: *const c_void, dst: *mut c_void, n: usize, dst_dtype: c_int, stream: S) -> c_int;
     pub fn ik_rt_f32_sum_round(src: *const c_void, world: c_int, n: usize, dst: *mut c_void, dst_dtype: c_int, stream: S) -> c_int;

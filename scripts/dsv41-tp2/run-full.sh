@@ -41,8 +41,10 @@ restore() {
   log "restore (exit $rc)"
   kill "${WATCH:-}" 2>/dev/null
   kill_ours
+  for h in spark1 spark2; do r $h "pkill -f '[b]in/memfine.sh'; true"; done
   for h in spark1 spark2; do r $h "mkdir -p $LOGD; cp $LOGD/*.log /dev/null 2>/dev/null; true"; done
   scp -q "spark1:$SPARK_REL/logs/serve-*.log" "$OUT/" 2>/dev/null; scp -q "spark2:$SPARK_REL/logs/worker-*.log" "$OUT/" 2>/dev/null
+  for h in spark1 spark2; do scp -q "$h:$SPARK_REL/logs/$h-${MF:-none}" "$OUT/" 2>/dev/null; done
   if [[ $STOPPED == 1 ]]; then
     # the container keeps its old log, whose "startup complete" line matched at once (window 2); `docker logs --since`
     # prints nothing on these hosts and log rotation drops old lines, so a count does not work either. Wait for a
@@ -74,6 +76,12 @@ log "vLLM stopped on both"
     done
     echo "$line"; sleep 5
   done ) > "$OUT/mem.log" 2>&1 & WATCH=$!
+# memfine.sh on each box: MemAvailable and what makes it up, every second, same kill line as the watcher above, no ssh in between
+MF=memfine-$(date +%H%M%S).log
+for h in spark1 spark2; do
+  scp -q "$S/memfine.sh" "$h:$SPARK_REL/bin/memfine.sh"
+  r $h "mkdir -p $LOGD; nohup bash $SPARK_DIR/bin/memfine.sh ${KILL_GIB:-5} > $LOGD/$h-$MF 2>&1 < /dev/null &"
+done
 
 # start both ranks with extra env $1 (on top of DENV / XENV); exits the script (restore runs) if they do not come up
 start_ranks() {
@@ -259,8 +267,16 @@ if [[ " $STEPS " == *" mmlu "* ]] && [[ " $STEPS " == *" greedy "* ]] && ! grep 
 fi
 if [[ " $STEPS " == *" mmlu "* ]]; then
   sn=$(specn)
-  le quality --bench mmlu --limit ${MMLU_LIMIT:-25} --label dsv41-intarsia-tp2-mmlu${LSUF:-}
+  # MMLU_STRUCTURED=none: deepeval's text prompts, no response_format, so the engine can speculate (a request with a
+  # constraint never does, dsv41_engine.rs)
+  le quality --bench mmlu --limit ${MMLU_LIMIT:-25} ${MMLU_STRUCTURED:+--structured $MMLU_STRUCTURED} --label dsv41-intarsia-tp2-mmlu${LSUF:-}
   specstep "$sn" mmlu
+fi
+# GSM8K with deepeval's text prompts: replies of about a hundred tokens, unconstrained, so most of a reply is speculated
+if [[ " $STEPS " == *" gsm8k "* ]]; then
+  sn=$(specn)
+  le quality --bench gsm8k --limit ${GSM8K_LIMIT:-40} --structured none --label dsv41-intarsia-tp2-gsm8k${LSUF:-}
+  specstep "$sn" gsm8k
 fi
 if [[ " $STEPS " == *" hold "* ]]; then
   log "holding the server for ${HOLD_MIN:-30} min (or until $OUT/stop exists)"

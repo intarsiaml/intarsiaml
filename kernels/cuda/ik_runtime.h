@@ -55,6 +55,7 @@ const char* ik_rt_error_string(int code);
 int ik_rt_f32_round(const void* src, void* dst, size_t n, int dst_dtype, void* stream);
 /* dst = round(sum over r < world of src[r * n + i]) in rank order; src is rank-major [world, n] f32; dst_dtype 0 bf16, 1 f16 */
 int ik_rt_f32_sum_round(const void* src, int world, size_t n, void* dst, int dst_dtype, void* stream);
+int ik_rt_l2_prefetch(const void* const* ptrs, const size_t* bytes, int n, size_t budget, void* stream);
 
 #ifdef __cplusplus
 }
