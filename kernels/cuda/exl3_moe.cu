@@ -127,6 +127,8 @@ __global__ void __launch_bounds__(256) rot_in_kernel(const TIN* __restrict__ x, 
 __global__ void __launch_bounds__(32) epilogue_kernel(const float* __restrict__ Z, const int* __restrict__ ids,
                                                       Experts ex, const float* __restrict__ limit,
                                                       half* __restrict__ xd, int P, int SKz) {
+    pdl_trigger();
+    pdl_wait();
     const int p = blockIdx.x, I = ex.I, lane = threadIdx.x;
     const int e = ids[p];
     if (e < 0 || e >= ex.E) return;
@@ -348,8 +350,16 @@ extern "C" int ik_moe_experts_exl3(const ik_tensor* x, const ik_tensor* ids, con
             a.work = work;
             IK_TRY(launch_rows(a, true, s));
         }
-        epilogue_kernel<<<dim3((unsigned)P, (unsigned)(I / 128)), 32, 0, s>>>(z, idp, ex, (const float*)limit->data, xd, P,
-                                                                             decode ? sk : 1);
+        // PDL only in the decode windows (the prompt path's gate / up is launch_rows, which does not trigger)
+        const bool pdl = decode && moe_pdl_enabled();
+        if (pdl) {
+            if (launch_kernel_pdl(epilogue_kernel, dim3((unsigned)P, (unsigned)(I / 128)), dim3(32), s, true, z, idp, ex,
+                                  (const float*)limit->data, xd, P, sk) != cudaSuccess)
+                return IK_ERR_LAUNCH;
+        } else {
+            epilogue_kernel<<<dim3((unsigned)P, (unsigned)(I / 128)), 32, 0, s>>>(z, idp, ex, (const float*)limit->data, xd, P,
+                                                                                 decode ? sk : 1);
+        }
         IK_TRY(ik_launch_status());
         // down
         a.x0 = xd;
@@ -360,7 +370,7 @@ extern "C" int ik_moe_experts_exl3(const ik_tensor* x, const ik_tensor* ids, con
         a.N = (int)H;
         a.SK = 1;
         a.mats = 1;
-        IK_TRY(decode ? launch_cp(a, s) : launch_rows(a, false, s));
+        IK_TRY(decode ? launch_cp(a, s, pdl) : launch_rows(a, false, s));
         char* op = (char*)out->data + r0 * H * osize;
         IK_TRY(by_dtype(out->dtype, [&](auto tag) {
             using TOUT = std::remove_pointer_t<decltype(tag)>;

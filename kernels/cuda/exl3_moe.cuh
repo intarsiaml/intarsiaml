@@ -28,6 +28,8 @@
 #include <cuda_bf16.h>
 #include <cuda_fp16.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <utility>
 #include <type_traits>
 
 namespace ik_exl3x {
@@ -198,6 +200,47 @@ __device__ __forceinline__ void cp_async_commit() { asm volatile("cp.async.commi
 template <int N_>
 __device__ __forceinline__ void cp_async_wait() { asm volatile("cp.async.wait_group %0;\n" ::"n"(N_)); }
 
+// Programmatic dependent launch (INTARSIA_DSV41_MOE_PDL, docs/results/2026-11-02-dsv41-pdl.md). `pdl_trigger`: this block no
+// longer needs the next kernel held back (once every block of the grid has triggered or exited, a kernel launched with the
+// programmatic attribute may start). `pdl_wait`: block until every prerequisite grid has completed and its writes are visible;
+// a no-op for a kernel launched without the attribute, so the kernels carry both unconditionally.
+__device__ __forceinline__ void pdl_trigger() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
+    asm volatile("griddepcontrol.launch_dependents;\n" ::: "memory");
+#endif
+}
+__device__ __forceinline__ void pdl_wait() {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ >= 900
+    asm volatile("griddepcontrol.wait;\n" ::: "memory");
+#endif
+}
+
+// `INTARSIA_DSV41_MOE_PDL` (default off, `1` = on): the epilogue and the down projection of a decode window launch with the
+// programmatic-stream-serialization attribute, so they can start (the down projection's weight copies run) while the kernel
+// before them is still in its last wave. Same kernels, same sums.
+inline bool moe_pdl_enabled() {
+    static const bool on = [] {
+        const char* e = getenv("INTARSIA_DSV41_MOE_PDL");
+        return e != nullptr && e[0] == '1';
+    }();
+    return on;
+}
+
+template <typename... Exp, typename... Act>
+inline cudaError_t launch_kernel_pdl(void (*k)(Exp...), dim3 grid, dim3 block, cudaStream_t s, bool pdl, Act&&... args) {
+    cudaLaunchConfig_t cfg = {};
+    cfg.gridDim = grid;
+    cfg.blockDim = block;
+    cfg.dynamicSmemBytes = 0;
+    cfg.stream = s;
+    cudaLaunchAttribute at[1];
+    at[0].id = cudaLaunchAttributeProgrammaticStreamSerialization;
+    at[0].val.programmaticStreamSerializationAllowed = 1;
+    cfg.attrs = at;
+    cfg.numAttrs = pdl ? 1 : 0;
+    return cudaLaunchKernelEx(&cfg, k, std::forward<Act>(args)...);
+}
+
 // Run f(integral_constant<CB>, integral_constant<K2>) for the call's codebook and a matrix's width; false (f not run) when
 // the pair is no EXL3 width (the caller then writes NaN). The widths ExLlamaV3 writes: 1..8 bits with every codebook,
 // 1.5 / 2.5 / 3.5 with mul1.
@@ -261,7 +304,7 @@ struct GroupedArgs {
 };
 
 // exl3_moe_cp.cu / exl3_moe_rows.cu
-int launch_cp(const GroupedArgs& a, cudaStream_t s);
+int launch_cp(const GroupedArgs& a, cudaStream_t s, bool pdl = false);
 int launch_dense_cp(const half* xh, const uint32_t* T, float* part, const int* cbp, int k2, int M, int K, int N, int S,
                     cudaStream_t s);
 int launch_rows(const GroupedArgs& a, bool fold, cudaStream_t s);

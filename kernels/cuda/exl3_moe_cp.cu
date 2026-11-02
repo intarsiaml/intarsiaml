@@ -48,6 +48,8 @@ __device__ __forceinline__ void warp_tiles_cp(const uint32_t* __restrict__ T, in
         if (d < nkt) issue(d);
         cp_async_commit();
     }
+    // the weight copies above need nothing a kernel before this one writes; the activations below do
+    pdl_wait();
     uint32_t an[4] = {load_pair(x0 + kt0 * 16, ok0), load_pair(x1 + kt0 * 16, ok1), load_pair(x0 + kt0 * 16 + 8, ok0),
                       load_pair(x1 + kt0 * 16 + 8, ok1)};
     for (int it = 0; it < nkt; ++it) {
@@ -85,6 +87,7 @@ __global__ void __launch_bounds__(W * 32, 4) grouped_cp_kernel(GroupedArgs a) {
     constexpr int RED = W * RR * NT * 16;
     __shared__ __align__(16) uint32_t smem[RING > RED ? RING : RED];
     __shared__ int rows_sh[16];
+    pdl_trigger();
     const int K = a.K, N = a.N, P = a.P, SK = a.SK, maxm = a.maxm, slots = a.slots;
     // expert-major order, the last expert place first
     const int MT = (maxm + 15) / 16;
@@ -143,6 +146,7 @@ __global__ void __launch_bounds__(W * 32, 4) grouped_cp_kernel(GroupedArgs a) {
                 for (int c = 0; c < 4; ++c) acc[i][h][c] = __int_as_float(0x7fc00000);
     }
     cp_async_wait<0>();
+    pdl_wait();  // (the wait in warp_tiles_cp is skipped when the width is no EXL3 width) nothing below runs before it
     __syncthreads();  // every warp is done with its ring: it becomes red
 
     // the warps' partial sums through shared memory, added in warp order: rows 0-7, then rows 8-15 when the tile has them
@@ -257,11 +261,15 @@ int launch_dense_cp(const half* xh, const uint32_t* T, float* part, const int* c
 }
 
 // grid: (expert places, N / 128, mats * SK * member tiles); K / 16 a multiple of 4 * SK, N of 128
-int launch_cp(const GroupedArgs& a, cudaStream_t s) {
+int launch_cp(const GroupedArgs& a, cudaStream_t s, bool pdl) {
     if (a.N % (16 * NT) != 0 || (a.K / 16) % (W * a.SK) != 0 || a.nexp <= 0) return IK_ERR_SHAPE;
     const int MT = (a.maxm + 15) / 16;
     const long long gz = (long long)a.mats * a.SK * MT;
     if (gz > 65535) return IK_ERR_SHAPE;
+    if (pdl) {
+        if (launch_kernel_pdl(grouped_cp_kernel, dim3((unsigned)a.nexp, (unsigned)(a.N / (16 * NT)), (unsigned)gz), dim3(W * 32), s, true, a) != cudaSuccess) return IK_ERR_LAUNCH;
+        return ik_launch_status();
+    }
     grouped_cp_kernel<<<dim3((unsigned)a.nexp, (unsigned)(a.N / (16 * NT)), (unsigned)gz), W * 32, 0, s>>>(a);
     return ik_launch_status();
 }
