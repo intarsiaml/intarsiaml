@@ -205,6 +205,17 @@ if [[ " $STEPS " == *" lspeed "* ]]; then
   le speed --sizes ${LSIZES:-128,1024,4096,16384} --gen 128 --reps ${LREPS:-3} --label dsv41-intarsia-tp2-speed${LSUF:-}
   specstep "$sn" lspeed
 fi
+# speed by text kind: localeval's category set (recall, code, prose) plus scripts/dsv41-tp2/chat-rcp.jsonl, decode tok/s per row
+if [[ " $STEPS " == *" lcat "* ]]; then
+  sn=$(specn)
+  le quality --dataset /opt/code/deepeval/datasets/categories-rcp.jsonl --dataset "$S/chat-rcp.jsonl" --judge none --max-tokens ${CAT_TOKENS:-384} --label dsv41-intarsia-tp2-cat${LSUF:-}
+  specstep "$sn" lcat "$(python3 -c "
+import json,sys
+for f in sys.argv[1:]:
+    for l in open(f):
+        if l.startswith('{'): print(json.loads(l)['name'])" /opt/code/deepeval/datasets/categories-rcp.jsonl "$S/chat-rcp.jsonl" | paste -sd, -)"
+  r spark1 "grep -a 'dsv41: spec' $LOGD/serve-$TAG.log" > "$OUT/spec-all.txt" 2>/dev/null
+fi
 if [[ " $STEPS " == *" mmlu "* ]] && [[ " $STEPS " == *" greedy "* ]] && ! grep -qi paris "$OUT/chat-capital.json"; then
   log "chat check failed (no 'Paris' in the capital answer): skipping MMLU"; STEPS="${STEPS/mmlu/}"
 fi
