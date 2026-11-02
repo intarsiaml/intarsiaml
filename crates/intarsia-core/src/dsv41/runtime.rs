@@ -187,6 +187,11 @@ fn esz(d: DType) -> usize {
     d.size_bytes()
 }
 
+/// Unix seconds for the capture and scratch log lines, to tie them to `scripts/dsv41-tp2/memfine.sh`'s memory log.
+fn unix_secs() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs())
+}
+
 /// The workspace ranges `g`'s steps write, merged per buffer ([`Captured::writes`]).
 fn ws_writes(g: &Dsv41Graph) -> Vec<(String, usize, usize)> {
     let mut m: HashMap<String, (usize, usize)> = HashMap::new();
@@ -805,7 +810,7 @@ impl Dsv41Runtime {
                     let writes = ws_writes(&g);
                     gs.captured.insert(key, Captured { g, segs, state_id: st.id, scratch_gen: ex.scratch_gen, writes });
                     let what = ["pass", "verify pass", "drafting block"][key.1 as usize];
-                    eprintln!("dsv41: captured the {t}-row {what} as {n} CUDA graph segment(s)");
+                    eprintln!("dsv41: captured the {t}-row {what} as {n} CUDA graph segment(s) (unix {})", unix_secs());
                 }
                 Err(e) => {
                     eprintln!("dsv41: CUDA graph capture of a {t}-row graph failed ({e}); graphs off, eager from now on");
@@ -906,6 +911,7 @@ impl Dsv41Runtime {
             let b = self.backend.alloc(bytes, MemKind::Device)?;
             ex.scratch = Some(TensorRef::new(b, DType::U8, &[bytes]));
             ex.scratch_gen += 1;
+            eprintln!("dsv41: kernel scratch grew to {bytes} bytes (unix {})", unix_secs());
         }
         Ok(())
     }
