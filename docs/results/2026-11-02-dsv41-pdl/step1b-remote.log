@@ -1,0 +1,19 @@
+0dbfcdcc6 dirty=no 1102-1650
+exl3_moe.cu.ptx griddepcontrol in file 2 .func 0
+  _ZN8ik_exl3x44_GLOBAL__N__fe6e73f8_11_exl3_moe_cu_f00a1e6f12grou wait 0 launch_dependents 0
+  _ZN8ik_exl3x44_GLOBAL__N__fe6e73f8_11_exl3_moe_cu_f00a1e6f15epil wait 1 launch_dependents 1
+  _ZN8ik_exl3x44_GLOBAL__N__fe6e73f8_11_exl3_moe_cu_f00a1e6f13rot_ wait 0 launch_dependents 0
+  _ZN8ik_exl3x44_GLOBAL__N__fe6e73f8_11_exl3_moe_cu_f00a1e6f13rot_ wait 0 launch_dependents 0
+  _ZN8ik_exl3x44_GLOBAL__N__fe6e73f8_11_exl3_moe_cu_f00a1e6f13rot_ wait 0 launch_dependents 0
+  _ZN8ik_exl3x44_GLOBAL__N__fe6e73f8_11_exl3_moe_cu_f00a1e6f14comb wait 0 launch_dependents 0
+  _ZN8ik_exl3x44_GLOBAL__N__fe6e73f8_11_exl3_moe_cu_f00a1e6f14comb wait 0 launch_dependents 0
+  _ZN8ik_exl3x44_GLOBAL__N__fe6e73f8_11_exl3_moe_cu_f00a1e6f14comb wait 0 launch_dependents 0
+            instantiation of "__nv_bool ik_exl3x::with_width(int, int, F &&) [with F=lambda [](auto, auto)->auto]" at line 136
+
+27 errors detected in the compilation of "exl3_moe_cp.cu".
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nvidia/intarsia-dsv41-pdl/logs/step1/exl3_moe_cp.cu.ptx'
+finish=length prompt=25 (cached 0) completion=96 | prefill 29 ms (873.5 tok/s) | decode 1402 ms (67.76 tok/s)
+finish=length prompt=25 (cached 0) completion=96 | prefill 27 ms (911.2 tok/s) | decode 1405 ms (67.62 tok/s)
+done-remote
