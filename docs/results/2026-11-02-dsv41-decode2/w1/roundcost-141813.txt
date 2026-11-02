@@ -1,0 +1,15 @@
+3588 rounds
+ k rows rounds  pass med pass mean draft med period med outside pass med
+ 0    1     87     30.93     31.34      5.14      36.30             5.31
+ 1    2    986     36.43     36.62      5.10      41.72             5.33
+ 2    3   1309     41.14     41.42      5.20      46.68             5.42
+ 3    4   1206     46.00     46.29      5.28      51.52             5.44
+round cost outside the pass: median 5.40 ms, mean 5.47 (old table: 9.0)
+suggested INTARSIA_DSV41_SPEC_ROUND_MS=30.9,36.4,41.1,46.0
+suggested INTARSIA_DSV41_SPEC_DRAFT_MS=5.4
+ k tok/round  ms/round (period)   tok/s
+ 0     1.000              36.70    27.2
+ 1     1.439              42.01    34.3
+ 2     2.092              46.92    44.6
+ 3     3.265              51.81    63.0
+on the 3588 rounds' own (chosen-prefix) confidences, the measured table differs from the old one in 0 rounds

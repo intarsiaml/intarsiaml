@@ -1,0 +1,6 @@
+kind                    shipped_a                 previous             shipped+l2pf                shipped_b
+chat          46.9 (median  48.1)      45.4 (median  46.4)      47.7 (median  49.1)      46.1 (median  47.4)
+code          67.9 (median  67.1)      63.9 (median  64.7)      69.5 (median  68.8)      67.9 (median  67.3)
+prose         41.7 (median  41.4)      41.1 (median  40.3)      42.9 (median  42.7)      41.3 (median  41.1)
+recall        53.7 (median  53.5)      51.1 (median  50.6)      54.3 (median  53.3)      53.1 (median  52.3)
+all           50.8 (median  50.8)      49.0 (median  48.7)      51.9 (median  51.4)      50.3 (median  49.8)
