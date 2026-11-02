@@ -1,8 +1,8 @@
 // EXL3 routed experts, prompt chunks: the grouped kernel that decodes each weight tile once for G member tiles (TensorFold's
-// grouped_rows_kernel<CB, 8, 4, 1, LO, HI, 2, FOLD>; provenance, license and changes: exl3_moe.cuh).
+// grouped_rows_kernel<CB, 8, 4, 1, LO, HI, 2, FOLD>, here with NT = 4 column tiles and G = kGroupRows / 16 = 4 member tiles; provenance, license and changes: exl3_moe.cuh).
 //
-// A program is (work-list entry = (expert place, group of 32 members), 128 output columns, matrix [x K split]); four warps
-// split the K range; each k tile's weights are decoded once and fed to both 16-row member tiles (the mma sequence of a
+// A program is (work-list entry = (expert place, group of kGroupRows = 64 members), 64 output columns, matrix [x K split]); four warps
+// split the K range; each k tile's weights are decoded once and fed to all G 16-row member tiles (the mma sequence of a
 // row is the decode kernel's: the same k tiles in the same order from zero, warps added in order). FOLD (gate / up): one
 // program runs the K splits in order and keeps their sum from 0 in Z [mats, P, N] (0 + s0, then + s1, ..: the decode
 // epilogue's order over its Z splits); without (down: one split) it writes Z [mats, SK, P, N]. The work list (exl3_moe.cu work_list_kernel) only names groups an expert has, so no program is
@@ -12,7 +12,7 @@
 namespace ik_exl3x {
 namespace {
 
-constexpr int NT = 8, W = 4, PF = 1, G = 2;
+constexpr int NT = 4, W = 4, PF = 1, G = kGroupRows / 16;
 constexpr int GR = 16 * G;
 constexpr int TPT = 16 * NT * 16 / (W * 32);  // a thread's outputs of a member tile in the warp sum
 
