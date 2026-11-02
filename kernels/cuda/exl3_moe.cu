@@ -6,7 +6,7 @@
 // A call runs in slices of rows (all T rows when T < kDecodeRows, else kPromptRows at a time), six launches a slice:
 //   group     one block: the distinct routed experts of the slice's (row, slot) pairs in id order ("places"), each
 //             place's members (row * 32 + slot, rows in order) as one list with starts and counts, and the prompt
-//             kernel's work list of (place, kGroupRows-member group); ids outside 0..E belong to no place
+//             kernel's work list of (place, 32-member group); ids outside 0..E belong to no place
 //   rot_in    xg[p] = fp16(H (x[row] * suh_g[e]) / sqrt(128)) and xu[p] likewise, a warp per (pair, 128 block, matrix)
 //   gate/up   grouped GEMV (decode: grouped_cp_kernel, SK K splits) or the prompt kernel (K splits folded) -> Z
 //   epilogue  per pair and 128 columns: the splits summed in order, H, * svh / sqrt(128), SwiGLU with the clamp
@@ -54,7 +54,7 @@ __global__ void __launch_bounds__(1024) group_kernel(const int* __restrict__ ids
         if (e < E)
             for (int i = 0; i < len; ++i) cnt += chunk[i] == e;
     }
-    const int pres = e < E && cnt > 0, grp = (cnt + kGroupRows - 1) / kGroupRows;
+    const int pres = e < E && cnt > 0, grp = (cnt + 31) / 32;
     sa[e] = pres;
     sb[e] = cnt;
     sc[e] = grp;

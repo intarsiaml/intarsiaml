@@ -34,7 +34,6 @@ namespace ik_exl3x {
 
 constexpr float HAD_SCALE = 0.08838834764831845f;  // 1 / sqrt(128)
 constexpr int META_COLS = 8;
-constexpr int kGroupRows = 64;  // members of a prompt work-list group: one decode of a weight tile feeds kGroupRows / 16 member tiles
 
 // One call's experts (the op's inputs 3..7).
 struct Experts {
