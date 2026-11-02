@@ -1,0 +1,8 @@
+fleetq: #7876 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27/.scratch/mtp.sh
+p1 off: decode 7323 ms (21.71 tok/s) 
+p1 k2: decode 7058 ms (22.53 tok/s) accepted=82 (acceptance 53.9%, 2.08 tokens per pass) 
+p1 k3: decode 7783 ms (20.43 tok/s) accepted=91 (acceptance 44.6%, 2.34 tokens per pass) 
+p2 off: decode 7159 ms (22.21 tok/s) 
+p2 k2: decode 5790 ms (27.46 tok/s) accepted=96 (acceptance 77.4%, 2.55 tokens per pass) 
+p2 k3: decode 5953 ms (26.71 tok/s) accepted=106 (acceptance 67.9%, 3.04 tokens per pass) 
+fleetq: #7876 done (exit 0)

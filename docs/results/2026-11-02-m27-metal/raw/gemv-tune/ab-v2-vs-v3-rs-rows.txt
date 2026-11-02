@@ -1,0 +1,15 @@
+fleetq: #7891 waiting (#1 in line): needs cpu quiet on endor, but #7888 "hrr: rework build + cargo test --workspace --release (2)" (claude-hrr) loads it
+fleetq: #7891 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27/.scratch/dec.sh /opt/code/intarsiaml/.worktrees/m27/.scratch/dec2 /opt/code/intarsiaml/.worktrees/m27/.scratch/intarsia-v2 /opt/code/intarsiaml/.worktrees/m27/.scratch/intarsia-v3
+r1 a off: decode 5050 ms (25.15 tok/s)
+r1 a k2: decode 3987 ms (31.85 tok/s)
+r1 b off: decode 6076 ms (20.90 tok/s)
+r1 b k2: decode 4068 ms (31.22 tok/s)
+r2 a off: decode 5182 ms (24.51 tok/s)
+r2 a k2: decode 4014 ms (31.64 tok/s)
+r2 b off: decode 6000 ms (21.17 tok/s)
+r2 b k2: decode 4176 ms (30.41 tok/s)
+r3 a off: decode 5176 ms (24.54 tok/s)
+r3 a k2: decode 4101 ms (30.97 tok/s)
+r3 b off: decode 6098 ms (20.83 tok/s)
+r3 b k2: decode 4124 ms (30.79 tok/s)
+fleetq: #7891 done (exit 0)

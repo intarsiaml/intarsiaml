@@ -79,6 +79,14 @@ mxfp4_act = "none"
 kind = "qwen3_5_mtp"
 prefix = "mtp"
 
+# Metal (M5 Max, 27B MXFP4 W4A16, lane m27, docs/results/2026-11-02-m27-metal.md): prefill chunk 2048 rows (builtin default 256). Every
+# chunk decodes each projection's weights to bf16 into the scratch once (`matmul_mxfp4_nax`) before the NAX GEMM, so a bigger chunk amortises
+# that decode: 4k / 16k prompt prefill 648 / 540 tok/s at 256, 807 / 758 at 2048 (4096: 782 at 4k; 1024: 716 / 688), plain `generate`, 2 reps.
+# `--prefill-chunk N` overrides. `busy_chunk` 256 keeps a prompt that arrives beside decoding streams from stalling them for a 2048-row step.
+[tuning.metal]
+prefill_chunk = 2048
+busy_chunk = 256
+
 # Defaults only where they were measured. The MTP drafter's argmax runs over the first 65536 of the 248320 lm_head rows
 # (`--mtp-draft-vocab`; `--mtp-draft-vocab 0` is the full head). Output is unchanged (the verify pass keeps the full head). Measured on
 # the Qwen3.8-27B MXFP4 on HIP, k=2: +8 to +12% decode on natural text (acceptance within about 4 points of the full head), Rust code
