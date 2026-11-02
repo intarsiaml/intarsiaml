@@ -77,6 +77,10 @@ struct Exec {
     pf_plan: HashMap<(usize, usize), Vec<TensorRef>>,
     /// A prefetch launch since the segment's start (the prefetch stream has to rejoin before the capture ends).
     pf_out: bool,
+    /// `INTARSIA_DSV41_HC_SIDE`, during a capture: the outputs of the side half still running on stream 2.
+    hc_out: Vec<Buf>,
+    /// The side half's own partials: the kernel scratch is reused by the kernels running beside it.
+    hc_scratch: Option<TensorRef>,
     /// The graph being run or recorded is a verify pass ([`Dsv41Graph::verify`]).
     verify: bool,
 }
@@ -170,6 +174,9 @@ pub struct Dsv41Runtime {
     /// linears read: after a layer's `wq_b` its `wo_a` and `wo_b`, after its experts the next layer's `wq_a`, `wkv`, `wq_b`
     /// (16 MiB a launch). Changes no numbers.
     l2_prefetch: bool,
+    /// `INTARSIA_DSV41_HC_SIDE=1` (default off): in a recorded pass, an `HcSublayer`'s dots and Sinkhorn run on stream 2 beside the
+    /// sublayer's kernels (they are only the next sublayer's inputs), joined where those are read. Same bits.
+    hc_side: bool,
     /// `INTARSIA_DSV41_EXL3_CP` (comma list of GEMV grids N / 128, default none): on the same one-row and verify calls, these
     /// shapes take `matmul_exl3_cp` (wo_a slice 8, wq_a 10, wo_b 40, wq_b 128, indexer wq_b 32, wkv 4).
     cp_grids: Vec<usize>,
@@ -391,6 +398,7 @@ impl Dsv41Runtime {
             }
         };
         let l2_prefetch = std::env::var("INTARSIA_DSV41_L2_PREFETCH").is_ok_and(|v| v == "1") && backend.stream_fork();
+        let hc_side = std::env::var("INTARSIA_DSV41_HC_SIDE").is_ok_and(|v| v == "1") && backend.stream_fork();
         let mut rt = Dsv41Runtime {
             cfg,
             shapes,
@@ -402,7 +410,7 @@ impl Dsv41Runtime {
             consts,
             engram,
             opts,
-            exec: Mutex::new(Exec { ws, pf_plan: HashMap::new(), pf_out: false, scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false, verify: false }),
+            exec: Mutex::new(Exec { ws, pf_plan: HashMap::new(), pf_out: false, hc_out: Vec::new(), hc_scratch: None, scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false, verify: false }),
             slot_specs,
             memory: RuntimeMemory::default(),
             last_pass: Mutex::new(PassStats::default()),
@@ -411,6 +419,7 @@ impl Dsv41Runtime {
             splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(16),
             splitk_verify: std::env::var("INTARSIA_DSV41_EXL3_SPLITK_VERIFY").map_or(true, |v| v != "0"),
             l2_prefetch,
+            hc_side,
             cp_grids: std::env::var("INTARSIA_DSV41_EXL3_CP").map_or(Vec::new(), |v| v.split(',').filter_map(|x| x.parse().ok()).collect()),
             dspark,
             confidence,
@@ -909,10 +918,14 @@ impl Dsv41Runtime {
         ex.verify = g.verify;
         // grow the scratch to the largest need of the graph outside the recording
         let mut need = 0usize;
+        let mut hc_need = 0usize;
         for (si, stage) in g.stages.iter().enumerate() {
             for step in &stage.steps {
                 let (call, ki) = self.bind(ex, si, step, st, t)?;
                 need = need.max(self.kernel_list[ki].scratch_bytes(&ShapeInfo::from_call(&call)));
+                if self.hc_side && step.op == crate::ops::Op::HcSublayer {
+                    hc_need = hc_need.max(self.kernel_list[ki].scratch_bytes(&ShapeInfo::from_call(&call)));
+                }
             }
             for (_, e) in &stage.extras {
                 if matches!(e, Extra::Fill { .. }) {
@@ -921,6 +934,10 @@ impl Dsv41Runtime {
             }
         }
         self.grow_scratch(ex, need)?;
+        if hc_need > 0 && ex.hc_scratch.as_ref().is_none_or(|s| s.nbytes() < hc_need) {
+            let b = self.backend.alloc(hc_need, MemKind::Device)?;
+            ex.hc_scratch = Some(TensorRef::new(b, DType::U8, &[hc_need]));
+        }
         let engram: Vec<usize> = self.engram.as_ref().map_or(Vec::new(), |e| e.hasher.layout.layer_ids.clone());
         let mut cuts: Vec<usize> = vec![0];
         for (si, stage) in g.stages.iter().enumerate() {
@@ -942,6 +959,10 @@ impl Dsv41Runtime {
                 if ex.pf_out {
                     self.backend.stream_wait(0, 1)?;
                     ex.pf_out = false;
+                }
+                if !ex.hc_out.is_empty() {
+                    self.backend.stream_wait(0, 2)?;
+                    ex.hc_out.clear();
                 }
                 Ok(())
             });
@@ -1067,6 +1088,11 @@ impl Dsv41Runtime {
                     }
                 }
             }
+            // the side half's outputs are read here: join it first
+            if !ex.hc_out.is_empty() && step.inputs.iter().any(|i| ex.hc_out.contains(&i.buf)) {
+                self.backend.stream_wait(0, 2)?;
+                ex.hc_out.clear();
+            }
             let (mut call, ki) = self.bind(ex, si, step, st, t)?;
             let kimpl = &self.kernel_list[ki];
             let kname = kimpl.name.as_str();
@@ -1076,7 +1102,20 @@ impl Dsv41Runtime {
                 call.scratch = Some(ex.scratch.as_ref().unwrap().reshaped(&[ex.scratch.as_ref().unwrap().numel()]).rows(0, need));
             }
             let op_t0 = self.opprof.as_ref().map(|_| Instant::now());
-            self.backend.launch(kname, &call, 0).map_err(|e| Error::backend(format!("deepseek_v41 step {} ({kname}): {e}", step.what)))?;
+let hc_split = self.hc_side && ex.capturing && step.op == crate::ops::Op::HcSublayer && kname == "hc_sublayer" && ex.hc_scratch.is_some();
+            if hc_split {
+                call.attrs.dsv.hc_mode = 1;
+                call.scratch = None;
+            }
+                        self.backend.launch(kname, &call, 0).map_err(|e| Error::backend(format!("deepseek_v41 step {} ({kname}): {e}", step.what)))?;
+            if hc_split {
+                let mut side = call.clone();
+                side.attrs.dsv.hc_mode = 2;
+                side.scratch = ex.hc_scratch.clone();
+                self.backend.stream_wait(2, 0)?;
+                self.backend.launch(kname, &side, 2).map_err(|e| Error::backend(format!("deepseek_v41 step {} (side): {e}", step.what)))?;
+                ex.hc_out = step.outputs[1..=3].iter().map(|o| o.buf.clone()).collect();
+            }
             if ex.capturing {
                 if let Some(r) = ex.pf_plan.get(&(si, j)) {
                     self.backend.stream_wait(1, 0)?;
