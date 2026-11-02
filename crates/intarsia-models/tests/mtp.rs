@@ -1498,9 +1498,9 @@ fn shipped_recipes_default_the_draft_vocab_only_for_the_27b_on_hip() {
     assert_eq!(vl.resolve_mtp_draft_vocab(None, "cuda").value, 65536);
     assert_eq!(vl.resolve_mtp_draft_vocab(None, "cuda").source, "recipe qwen3_5_vl, cuda");
     assert_eq!(vl.resolve_mtp_draft_vocab(Some(0), "cuda").value, 0, "--mtp-draft-vocab 0 turns it off on cuda too");
-    for b in ["metal", "cpu"] {
-        assert_eq!(vl.resolve_mtp_draft_vocab(None, b).value, 0, "{b}");
-    }
+    assert_eq!(vl.resolve_mtp_draft_vocab(None, "metal").value, 65536);
+    assert_eq!(vl.resolve_mtp_draft_vocab(None, "metal").source, "recipe qwen3_5_vl, metal");
+    assert_eq!(vl.resolve_mtp_draft_vocab(None, "cpu").value, 0, "cpu");
     assert_eq!(vl.resolve_mtp_draft_vocab(Some(0), "hip").value, 0, "--mtp-draft-vocab 0 turns it off");
     assert_eq!(vl.resolve_mtp_draft_vocab(Some(32768), "hip").value, 32768);
     for name in ["qwen3_5", "qwen3_5_moe", "qwen3", "gemma4", "llama", "qwen2"] {
