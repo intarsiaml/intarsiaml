@@ -208,3 +208,44 @@ A rerun with this lane's own binary (#7798) was cancelled at the coordinator's r
 Per-request spread inside one config is 39-55 ms/round (8 requests of 1.6-2.0 s each), so the four means (41.8-43.5) are the same within noise. **Neither knob matters for this workload.** The prefetch hypothesis of 4d (prefetch hides about 8 ms of dense DRAM time) is not supported: switching it off cost nothing.
 Caveats: (1) no nsys on these runs, so that the switches really removed the prefetch kernels / the side stream is inferred from the head's env handling (the worker gets the same `-e` flags via the shared `common` string), not shown; (2) 4d's byte count came from this lane's Mia cache, not from BLACKFOLD's rank cache (different quantisation, so TF may read fewer bytes than I computed and sit above its own floor);
 (3) 160-token requests at ~1K prompt, 3.68 tokens a round here against 2.1 in the nsys request (different prompts, more repetitive text), so absolute round times differ from 4. So the 4c critical-path gap (dense 7.6 vs 15.7 ms) is not explained by prefetch or side-stream; what remains is TF's kernels themselves (one `glinear` template, 274 launches against our ~1100) and its RDMA collectives.
+
+### Task 4f: plan code against TensorFold, same prompts, same client (window 2, vLLM restored)
+
+Ours: plan code at `f4ae35c84`, `win2/ab0` (speed, dataset, knock prompts) and `win2/ab1` (nsys). TF: BLACKFOLD recipe, reserve 10.9, 16K pool, side and prefetch on (`win2/run-tfll.sh`). Scripts and per-request logs are in `2026-11-02-dsv41-draftdev/win2/`; `final.py` prints the tables below (run it beside TF's `out/tf-r0_cuda_gpu_trace.csv`, with `OURS_CSV` set to `nsys-r0-051236_cuda_gpu_trace.csv`; the CSVs are not committed).
+
+**localeval** (`localeval compare 20261102-051128-adhoc-dsv41-intarsia-tp2-speed-ab0 20261102-051817-adhoc-dsv41-blackfold-tf-speed-ll`; dataset runs `...050952...ldata-ab0` and `...051857...ldata-ll`, 8 rows, 4 identical prompts twice, 160 tokens):
+
+| workload | decode tok/s ours | TF | TF/ours | prefill tok/s ours | TF |
+|---|---:|---:|---:|---:|---:|
+| 136 prompt | 44.9 | 61.8 | 1.38 | 264 | 396 |
+| 1027 prompt | 38.7 | 60.0 | 1.55 | 545 | 1459 |
+| 4095 prompt | 40.5 | 57.5 | 1.42 | 577 | 2074 |
+| dataset, ~1K prompt | 50.0 | 71.2 | 1.42 | | |
+
+localeval warned on the TF speed run: decode spread 14.8 % at 128 tokens, and no in-flight counters to prove the server idle (the slot was exclusive). The gap is far outside that spread. Compare within this window only: the Task 1 figure (42.4 tok/s) is a different measurement, not re-run here.
+
+**The gap is ms/round on chat prompts.** Dataset: 238 rounds against 229 for the 640 tokens of one pass over the prompts (2.69 against 2.79 tokens a round), so about 54 against 39 ms/round (decode time from the localeval mean, rounds from the logs). Speed sweep at 1K: 2.10 against 2.18 tokens a round (183 and 176 rounds for 3 x 128 tokens), so about 54 against 36 ms/round.
+
+**Raw-completion prompts also differ in tokens a round** (custom client `knock_client.py`, so not for quoting as engine speed; comparison only): 54.3 ms/round and 2.92 tokens a round for us, 43.2 and 3.70 for TF, on the same 4 prompt files. Greedy text is not the same: the first 40 characters match on prompts 0 and 1, and differ on 2 and 3 (prompt 2 differs from the first token). So these tokens a round are not measured on the same text. Not investigated: our prompt token count is not in our log, so a tokenisation difference is not excluded. The drafter finding above (bf16 leading drafts equal 6/15 on CUDA, 15/15 on CPU) is a candidate for the lower acceptance, not shown to be the cause.
+
+**nsys, 3-row verify pass, median span without our draft part: 44.78 ms (13 passes) against TF 32.19 ms (12 passes), gap 12.6 ms.** Mean span with our draft part is 47.58 ms (it was 45.22 in Task 4 on another request and binary). Critical-path partition, ms/pass: moe 19.2 / 17.29, dense 16.11 / 7.6, coll 3.87 / 1.32, idle 3.48 / 0.21, hc 2.44 / 2.94, attn 2.13 / 1.9, other 0.35 / 0.75 (ours / TF). Our graph has no overlap (concurrency saving 0.02 ms). Same conclusion as 4c: dense first, then collectives and idle.
+
+Dense linears per shape (kernel sum, ms/pass). Our graph is one stream, so ours is real time. TF kernels may wait inside PDL (`griddepcontrol.wait`), so **TF's times here are upper bounds and its GB/s lower bounds**:
+
+| shape | MiB TF / ours | TF calls | TF ms | TF GB/s | ours calls | ours ms | ours GB/s | ours-TF ms |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| wo_b | 518.7 / 518.7 | 41 | 3.12 | 174 | 41 | 3.21 | 169 | +0.09 |
+| wq_b | 500 / 500 | 40 | 2.32 | 226 | 40 | 2.64 | 199 | +0.32 |
+| wo_a | 400 / 400 | 40 | 1.86 | 226 | 160 | 2.81 | 149 | +0.95 |
+| wq_a + wkv (+compr) | 230.7 / 230.7 | 41 | 1.29 | 188 | 90 | 1.81 | 133 | +0.52 |
+| head | 236.7 / 236.7 | 1 | 1.02 | 243 | 1 | 1.08 | 231 | +0.05 |
+| engram wkv | 84.4 / 168.8 | 2 | 0.39 | 229 | 2 | 0.83 | 214 | +0.44 |
+| gate (f16) | 150 / 150 | 40 | 0.62 | 252 | 40 | 1.05 | 150 | +0.42 |
+| indexer (wq_b, wk, proj) | 50.2 / 50.2 | 20 | 0.49 | | 20 | 0.23 | | -0.26 |
+| helpers (TF rot_many; ours rot_in, split_finish, transposes) | - | 49 | 0.49 | | 679 | 1.02 | | +0.54 |
+
+The per-shape excess sums to 3.07 ms of the 8.5 ms critical-path dense gap. The other ~5.4 ms is not explained by this table: TF's dense kernel sum (11.6) is 4 ms above its critical-path dense (7.6), which is either overlap with other work or PDL wait, and these numbers cannot separate the two (see the 4c correction). Where our per-shape excess is largest, we also make more calls: wo_a 160 against 40, wq_a + wkv 90 against 41, helpers 679 against 49.
+
+Idle before collectives, median us/pass (ours total 2.3 ms median, max 6.87; TF 0.20 ms): Engram gather to all-reduce 1066, linear to all-reduce 355, argmax to embedding 283, combine to all-reduce 154. Engram bf16 all-reduce itself: median 128 us, mean 190, max 719 (26 calls); f32: median 29 us. TF's verify exchanges through its own RDMA stage (4122 `dsv41_rdma` kernel rows in the trace against 83 NCCL rows; which pass the 83 belong to was not checked), and its largest gap is 95 us.
+
+Memory: min MemAvailable in the TF localeval window was 3.1 GiB, no kill. The brief's limit is 5 GiB except 2.8 for the TF profile; this was the same TF recipe but not the profile, and I used 2.8. Reserve 10.9 leaves too little margin for a 5 GiB limit.
