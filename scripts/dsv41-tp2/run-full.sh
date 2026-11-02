@@ -34,7 +34,7 @@ r spark1 "test -f $C0/manifest.json" && r spark2 "test -f $C1/manifest.json" || 
 [[ "$(r spark1 "cat $SPARK_DIR/bin/STAMP")" == "$(r spark2 "cat $SPARK_DIR/bin/STAMP")" ]] || { log "binary stamps differ"; exit 1; }
 log "binary $(r spark1 "cat $SPARK_DIR/bin/STAMP"); out $OUT"
 
-kill_ours() { for h in spark1 spark2; do r $h "pkill -TERM -f '[i]ntarsia-dsv41-graphs/bin/intarsia'; for i in \$(seq 1 20); do pgrep -f '[i]ntarsia-dsv41-graphs/bin/intarsia' >/dev/null || break; sleep 1; done; pkill -KILL -f '[i]ntarsia-dsv41-graphs/bin/intarsia'; true"; done; }
+kill_ours() { for h in spark1 spark2; do r $h "pkill -TERM -f '[i]${SPARK_REL:1}/bin/intarsia'; for i in \$(seq 1 20); do pgrep -f '[i]${SPARK_REL:1}/bin/intarsia' >/dev/null || break; sleep 1; done; pkill -KILL -f '[i]${SPARK_REL:1}/bin/intarsia'; true"; done; }
 STOPPED=0
 restore() {
   local rc=$?
@@ -72,7 +72,7 @@ log "vLLM stopped on both"
     for h in spark1 spark2; do
       a=$(ssh -n -o ConnectTimeout=5 $h "awk '/MemAvailable/{printf \"%.1f\", \$2/1048576}' /proc/meminfo" 2>/dev/null || echo NA)
       line="$line $h=$a"
-      if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then ssh -n $h "pkill -KILL -f '[i]ntarsia-dsv41-graphs/bin/intarsia'"; line="$line KILLED-$h"; fi
+      if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then ssh -n $h "pkill -KILL -f '[i]${SPARK_REL:1}/bin/intarsia'"; line="$line KILLED-$h"; fi
     done
     echo "$line"; sleep 5
   done ) > "$OUT/mem.log" 2>&1 & WATCH=$!
@@ -97,8 +97,8 @@ log "ranks started (tag $TAG)"
 T0=$(date +%s); up=0
 while (( $(date +%s) - T0 < 900 )); do
   curl -sf -m 5 "$SURL/health" >/dev/null && { up=1; break; }
-  r spark1 "pgrep -f '[i]ntarsia-dsv41-graphs/bin/intarsia[^ ]* serve' >/dev/null" || { log "rank 0 exited"; break; }
-  r spark2 "pgrep -f '[i]ntarsia-dsv41-graphs/bin/intarsia[^ ]* tp-worker' >/dev/null" || { log "rank 1 exited"; break; }
+  r spark1 "pgrep -f '[i]${SPARK_REL:1}/bin/intarsia[^ ]* serve' >/dev/null" || { log "rank 0 exited"; break; }
+  r spark2 "pgrep -f '[i]${SPARK_REL:1}/bin/intarsia[^ ]* tp-worker' >/dev/null" || { log "rank 1 exited"; break; }
   sleep 5
 done
 log "serve up=$up after $(( $(date +%s) - T0 )) s"
@@ -259,6 +259,20 @@ print(f"spec total: {t} tokens in {r} rounds = {t / max(r, 1):.3f} a round; draf
 PY
 fi
 }
+
+# PRE="ncclbench": before any rank starts (vLLM is down, the GPUs are quiet), nccl_bench between the two Sparks (all-reduce vs
+# all-gather latency through the engine's Comm), once per NCCL_MAX_NCHANNELS in NB_CHANNELS (default "2 1"); output in $OUT.
+if [[ " ${PRE:-} " == *" ncclbench "* ]]; then
+  for nch in ${NB_CHANNELS:-2 1}; do
+    NB="$SPARK_DIR/bin/nccl_bench"
+    r spark2 "mkdir -p $LOGD; nohup timeout 200 env $NCCLENV NCCL_MAX_NCHANNELS=$nch $NB serve $WIP:29711 0 300 > $LOGD/ncclbench-r1-c$nch.log 2>&1 < /dev/null &"
+    sleep 2
+    r spark1 "mkdir -p $LOGD; timeout 200 env $NCCLENV NCCL_MAX_NCHANNELS=$nch $NB connect $WIP:29711 0 300 > $LOGD/ncclbench-r0-c$nch.log 2>&1"
+    log "nccl_bench NCCL_MAX_NCHANNELS=$nch (exit $?)"
+    r spark1 "cat $LOGD/ncclbench-r0-c$nch.log" | tee "$OUT/ncclbench-r0-c$nch.txt" | tee -a "$OUT/steps.log"
+    r spark2 "pkill -f '[b]in/nccl_bench'; cat $LOGD/ncclbench-r1-c$nch.log" > "$OUT/ncclbench-r1-c$nch.txt"
+  done
+fi
 
 # AB="ENV_A|ENV_B" (e.g. "INTARSIA_DSV41_EXL3_SPLITK=0|INTARSIA_DSV41_EXL3_SPLITK=48"): run the steps once per config, each with
 # a fresh start of both ranks (same binary, ~25 s load), outputs in $OUT/ab0, $OUT/ab1 and localeval labels suffixed -ab0 / -ab1.

@@ -53,6 +53,8 @@ const char* ik_rt_error_string(int code);
 /* dst[i] = round-to-nearest-even bf16 (dst_dtype 0) or f16 (1) of the f32 src[i], or a copy (2: f32), n elements on
  * `stream`: the one rounding of a tensor-parallel f32 partial sum (the NCCL collective, docs/design/35b-tp2.md) */
 int ik_rt_f32_round(const void* src, void* dst, size_t n, int dst_dtype, void* stream);
+/* dst = round(sum over r < world of src[r * n + i]) in rank order; src is rank-major [world, n] f32; dst_dtype 0 bf16, 1 f16 */
+int ik_rt_f32_sum_round(const void* src, int world, size_t n, void* dst, int dst_dtype, void* stream);
 
 #ifdef __cplusplus
 }

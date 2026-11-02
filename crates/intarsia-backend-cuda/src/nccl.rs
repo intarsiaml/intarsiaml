@@ -145,6 +145,10 @@ pub fn create(ordinal: usize, rank: usize, world: usize, id: [u8; 128]) -> Resul
         aborted: AtomicBool::new(false),
         scratch: Mutex::new(None),
         reserved: AtomicBool::new(false),
+        // INTARSIA_NCCL_GATHER=1: an f32 partial summed over the ranks into a narrower dtype goes through ncclAllGather
+        // (one hop of the 2-rank ring instead of two) and one kernel that adds the ranks' partials in rank order and
+        // rounds; bitwise the all-reduce at world 2 (f32 addition commutes). Off by default.
+        gather_sum: std::env::var("INTARSIA_NCCL_GATHER").is_ok_and(|v| v == "1"),
         counters: CommCounters::default(),
     };
     Ok((be as Arc<dyn Backend>, Arc::new(c) as Arc<dyn Comm>))
@@ -160,6 +164,7 @@ struct NcclComm {
     /// (and address) for good.
     scratch: Mutex<Option<Buffer>>,
     reserved: AtomicBool,
+    gather_sum: bool,
     counters: CommCounters,
 }
 
@@ -226,11 +231,14 @@ impl Comm for NcclComm {
             )));
         }
         let mut g = self.scratch.lock().unwrap();
-        if g.as_ref().is_none_or(|b| b.bytes() < n * 4) {
+        // the all-gather path lands every rank's partial: `world * n` f32
+        let slots = if self.gather_sum { self.world } else { 1 };
+        if g.as_ref().is_none_or(|b| b.bytes() < slots * n * 4) {
             if self.reserved.load(Ordering::Acquire) {
                 // a captured graph may hold the reserved buffer's address: never move it
                 return Err(Error::invalid(format!(
-                    "nccl all_reduce: {n} f32 partials exceed the reserved {} (Comm::reserve)",
+                    "nccl all_reduce: {} f32 partials exceed the reserved {} (Comm::reserve)",
+                    slots * n,
                     g.as_ref().map_or(0, |b| b.bytes() / 4)
                 )));
             }
@@ -238,12 +246,21 @@ impl Comm for NcclComm {
                 // the old buffer may still be read by queued work: drain before it is freed
                 self.backend.synchronize(stream)?;
             }
-            *g = Some(self.backend.alloc(n * 4, MemKind::Device)?);
+            *g = Some(self.backend.alloc(slots * n * 4, MemKind::Device)?);
         }
-        let sc = CudaBackend::ptr(g.as_ref().unwrap(), 0, n * 4)?;
-        self.reduce(l, src, sc as *mut c_void, n, DType::F32, stream)?;
+        let sc = CudaBackend::ptr(g.as_ref().unwrap(), 0, slots * n * 4)?;
         let code = if out.dtype == DType::Bf16 { 0 } else { 1 };
         let s = self.backend.stream(stream)?;
+        if self.gather_sum {
+            // SAFETY: src holds n f32 (checked above), sc `world * n`, live stream; the kernel runs on the same stream.
+            check(l, "ncclAllGather", unsafe { (l.all_gather)(src, sc as *mut c_void, n, nccl_dtype(DType::F32)?, self.comm, s) })?;
+            let rc = unsafe { crate::ffi::ik_rt_f32_sum_round(sc as *const c_void, self.world as c_int, n, dst, code, s) };
+            if rc != 0 {
+                return Err(Error::backend(format!("f32 partial sum-round failed (cudaError {rc})")));
+            }
+            return Ok(());
+        }
+        self.reduce(l, src, sc as *mut c_void, n, DType::F32, stream)?;
         // SAFETY: sc holds n f32, dst n elements of out.dtype; same stream as the reduce.
         let rc = unsafe { crate::ffi::ik_rt_f32_round(sc as *const c_void, dst, n, code, s) };
         if rc != 0 {
@@ -302,11 +319,11 @@ impl Comm for NcclComm {
 
     fn reserve(&self, max_elems: usize, stream: StreamId) -> Result<()> {
         let mut g = self.scratch.lock().unwrap();
-        if g.as_ref().is_none_or(|b| b.bytes() < max_elems * 4) {
+        if g.as_ref().is_none_or(|b| b.bytes() < max_elems * 4 * if self.gather_sum { self.world } else { 1 }) {
             if g.is_some() {
                 self.backend.synchronize(stream)?;
             }
-            *g = Some(self.backend.alloc(max_elems.max(1) * 4, MemKind::Device)?);
+            *g = Some(self.backend.alloc(max_elems.max(1) * 4 * if self.gather_sum { self.world } else { 1 }, MemKind::Device)?);
         }
         self.reserved.store(true, Ordering::Release);
         Ok(())

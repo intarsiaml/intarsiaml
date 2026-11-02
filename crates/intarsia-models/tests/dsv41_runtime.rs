@@ -484,6 +484,11 @@ fn verify_track(rt: &intarsia_core::dsv41::runtime::Dsv41Runtime, n_prompt: usiz
         let ids: Vec<u32> = if accept { cont[i..i + 4].to_vec() } else { vec![cont[i], 99, 98, 97] };
         let len0 = sb.len;
         let rows = rt.forward_rows(&mut sb, &ids).unwrap();
+        // the device argmax of the same pass: the ints the host argmax of every row gives (first index of the maximum)
+        sb.truncate(len0, &*rt.backend).unwrap();
+        let got = rt.forward_rows_ids(&mut sb, &ids).unwrap();
+        let want_ids: Vec<u32> = rows.iter().map(|r| intarsia_core::sampler::argmax(r) as u32).collect();
+        assert_eq!(got, want_ids, "device argmax of the verify rows at position {}", prompt.len() + i);
         let keep = if accept { 4 } else { 1 };
         for (k, row) in rows.iter().take(keep).enumerate() {
             let r = rel(&want[i + k], row);
@@ -502,6 +507,15 @@ fn verify_track(rt: &intarsia_core::dsv41::runtime::Dsv41Runtime, n_prompt: usiz
         sb.truncate(len0 + keep, &*rt.backend).unwrap();
         i += keep;
         round += 1;
+    }
+    // a drafting round of k Markov steps is the first k steps of the full round, bit for bit
+    let full = rt.draft(&sb, cont[0]).unwrap();
+    for k in [1usize, 3] {
+        let part = rt.draft_steps(&sb, cont[0], k).unwrap();
+        if let (Some(f), Some(p)) = (&full, &part) {
+            assert_eq!(p.ids, f.ids[..=k], "draft ids of {k} Markov steps");
+            assert_eq!(p.confidence.iter().map(|c| c.to_bits()).collect::<Vec<_>>(), f.confidence[..k].iter().map(|c| c.to_bits()).collect::<Vec<_>>(), "draft confidence of {k} steps");
+        }
     }
     (worst, worst_at, argmax_diff, all)
 }

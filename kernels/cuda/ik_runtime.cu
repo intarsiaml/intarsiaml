@@ -196,6 +196,32 @@ __global__ static void ik_f32_to_f16(const float* __restrict__ s, __half* __rest
     if (i < n) d[i] = __float2half_rn(s[i]);
 }
 
+// out = round(src[0] + src[1] + .. + src[world-1]) per element, in rank order (src: rank-major `[world, n]` f32 as an
+// all-gather leaves it). At world 2 the one f32 add is the all-reduce's own (IEEE addition commutes), so this is bitwise
+// `ncclAllReduce` + `ik_rt_f32_round`.
+__device__ static inline void ik_store_rn(__nv_bfloat16* d, float v) { *d = __float2bfloat16_rn(v); }
+__device__ static inline void ik_store_rn(__half* d, float v) { *d = __float2half_rn(v); }
+
+template <typename T>
+__global__ static void ik_f32_sum_round(const float* __restrict__ s, T* __restrict__ d, int world, size_t n) {
+    size_t i = (size_t)blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+    float acc = s[i];
+    for (int r = 1; r < world; ++r) acc = __fadd_rn(acc, s[(size_t)r * n + i]);
+    ik_store_rn(d + i, acc);
+}
+
+extern "C" int ik_rt_f32_sum_round(const void* src, int world, size_t n, void* dst, int dst_dtype, void* stream) {
+    if (n == 0) return 0;
+    if (world < 1) return (int)cudaErrorInvalidValue;
+    cudaStream_t st = (cudaStream_t)stream;
+    unsigned blocks = (unsigned)((n + 255) / 256);
+    if (dst_dtype == 0) ik_f32_sum_round<__nv_bfloat16><<<blocks, 256, 0, st>>>((const float*)src, (__nv_bfloat16*)dst, world, n);
+    else if (dst_dtype == 1) ik_f32_sum_round<__half><<<blocks, 256, 0, st>>>((const float*)src, (__half*)dst, world, n);
+    else return (int)cudaErrorInvalidValue;
+    return (int)cudaGetLastError();
+}
+
 extern "C" int ik_rt_f32_round(const void* src, void* dst, size_t n, int dst_dtype, void* stream) {
     if (n == 0) return 0;
     cudaStream_t st = (cudaStream_t)stream;

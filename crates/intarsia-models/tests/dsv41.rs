@@ -292,9 +292,11 @@ fn mia_dspark_graphs_record_with_the_official_structure() {
         // a prompt chunk of the same size keeps the last row's logits only
         let p = build_pass(&c, &w, o, tp, PassKind { all_rows: false, absorb: true, dpos: false }).unwrap();
         assert_eq!(p.logits.shape, [1, c.vocab]);
-        let d = build_draft(&c, &w, GraphOpts { t: 5, pos0: 101, act: DType::Bf16, cap: 4096 }, tp).unwrap();
+        let d = build_draft(&c, &w, GraphOpts { t: 5, pos0: 101, act: DType::Bf16, cap: 4096 }, tp, 4).unwrap();
         check(&d);
         assert_eq!(d.logits.shape, [5, c.vocab]);
+        assert_eq!(d.ids.as_ref().map(|a| a.shape.clone()), Some(vec![4]), "four Markov steps");
+        assert_eq!(d.stages.iter().flat_map(|s| &s.steps).filter(|s| s.op == Op::Argmax).count(), 4);
         assert_eq!(format!("{:?}", d.slots), format!("{:?}", v.slots), "the draft graph reads the verify graph's rings");
         let moes: Vec<_> = d.stages.iter().flat_map(|s| &s.steps).filter(|s| s.op == Op::MoeExperts).collect();
         assert_eq!(moes.len(), 3);
