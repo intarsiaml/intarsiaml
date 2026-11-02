@@ -540,3 +540,82 @@ fn verify_rows_track_decode_through_rollback_two_ranks() {
         assert!(*worst < 1e-5 && argmax_diff.is_empty(), "rank {r}: f32 TP=2 verify rows differ from decode: {worst:.3e} at {worst_at}");
     }
 }
+
+/// Device-position passes (`PassKind::dpos`, the graph CUDA graphs record) against the host-position graph on one runtime:
+/// the same prompt, then the same schedule of short passes (1 row, 2-4 row chunks across compressor group boundaries and,
+/// with `spec`, 4-row verify passes rolled back to 1 or kept), first with host positions, then with device positions
+/// (`INTARSIA_DSV41_DPOS_GRAPHS=1`: replayed CUDA graphs). Every pass's logits must be bitwise equal.
+/// `INTARSIA_DSV41_CACHE` (3-layer cache), `INTARSIA_DSV41_DP_PROMPT` / `_TOKENS` / `_CAP`, `INTARSIA_DSV41_DP_SPEC=1`.
+#[test]
+fn device_position_passes_equal_host_passes() {
+    let Some(cache) = std::env::var_os("INTARSIA_DSV41_CACHE").map(PathBuf::from) else {
+        println!("skipped: set INTARSIA_DSV41_CACHE");
+        return;
+    };
+    let cuda = std::env::var("INTARSIA_DSV41_BACKEND").as_deref() == Ok("cuda");
+    let act = if cuda || std::env::var("INTARSIA_DSV41_ACT").as_deref() == Ok("bf16") { DType::Bf16 } else { DType::F32 };
+    let backend: Arc<dyn Backend> = if cuda { cuda_backend() } else { intarsia_backend_cpu::CpuBackend::arc() };
+    let knob = |k: &str, d: usize| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
+    let (n_prompt, n_cont, cap) = (knob("INTARSIA_DSV41_DP_PROMPT", 110), knob("INTARSIA_DSV41_DP_TOKENS", 48), knob("INTARSIA_DSV41_DP_CAP", 512));
+    let spec = std::env::var("INTARSIA_DSV41_DP_SPEC").as_deref() == Ok("1");
+    let graphs = std::env::var("INTARSIA_DSV41_DPOS_GRAPHS").as_deref() == Ok("1");
+    let o = Dsv41Opts { cap, chunk: 64, engram_dir: PathBuf::from("off"), hot_mb: 0, act, spec };
+    let (rt, _) = load_runtime_with(&cache, backend, None, &o, None).unwrap();
+    let tok = |i: usize| ((i * 7919 + 13) % 30000 + 100) as u32;
+    let prompt: Vec<u32> = (0..n_prompt).map(tok).collect();
+    let cont: Vec<u32> = (0..n_cont + 8).map(|i| tok(n_prompt + i)).collect();
+    // the schedule: rows per step (0: a 4-row verify pass, rolled back to 1 row on even rounds)
+    let sched: Vec<usize> = if spec { vec![1, 0, 1, 0, 3, 1, 0, 2, 0, 1, 1] } else { vec![1, 1, 1, 3, 1, 4, 1, 2, 1, 1, 1] };
+    let run = |dev: bool| -> Vec<Vec<f32>> {
+        rt.set_device_position(dev);
+        if dev && graphs {
+            assert!(rt.set_graphs(true), "the backend cannot capture");
+        }
+        let mut st = rt.new_state().unwrap();
+        rt.forward(&mut st, &prompt, false).unwrap();
+        let (mut out, mut i, mut k, mut round) = (Vec::new(), 0usize, 0usize, 0usize);
+        while i < n_cont {
+            let n = sched[k % sched.len()];
+            k += 1;
+            if n == 0 {
+                let ids = vec![cont[i], cont[i + 1], 99, 98];
+                let len0 = st.len;
+                let rows = rt.forward_rows(&mut st, &ids).unwrap();
+                let keep = if round % 2 == 1 { 2 } else { 1 };
+                round += 1;
+                out.extend(rows.into_iter().take(keep));
+                st.truncate(len0 + keep, &*rt.backend).unwrap();
+                i += keep;
+            } else {
+                let n = n.min(n_cont - i);
+                out.push(rt.forward(&mut st, &cont[i..i + n], true).unwrap().unwrap());
+                i += n;
+            }
+        }
+        out
+    };
+    let host = run(false);
+    let dev = run(true);
+    let replays = rt.graph_replays();
+    assert_eq!(host.len(), dev.len());
+    let mut first_diff = None;
+    let mut worst = 0f32;
+    for (j, (a, b)) in host.iter().zip(&dev).enumerate() {
+        let d = a.iter().zip(b).map(|(x, y)| (x - y).abs()).fold(0f32, f32::max);
+        let same = a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits());
+        if !same && first_diff.is_none() {
+            first_diff = Some(j);
+        }
+        worst = worst.max(d);
+    }
+    println!(
+        "RUNTIME dpos vs host: {} passes ({} prompt, {} tokens, spec {spec}, graphs {graphs}, {replays} replays): first bitwise difference at pass {first_diff:?}, worst |diff| {worst:.3e}",
+        host.len(),
+        n_prompt,
+        n_cont
+    );
+    assert!(first_diff.is_none(), "device-position passes differ from host-position passes");
+    if graphs {
+        assert!(replays > 0, "no pass replayed a CUDA graph");
+    }
+}

@@ -19,7 +19,7 @@
 use super::config::Dsv41Config;
 use super::engram::{record_bytes, EngramTier, NgramHasher};
 use super::graph::{build_absorb, build_draft, build_markov, build_pass, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Stage, WeightShapes, VERIFY_MAX_ROWS};
-use crate::backend::{Backend, Buffer, MemKind, TensorRef};
+use crate::backend::{Backend, Buffer, GraphHandle, MemKind, TensorRef};
 use crate::comm::Comm;
 use crate::dtype::DType;
 use crate::error::{Error, Result};
@@ -66,9 +66,37 @@ struct Exec {
     scratch: Option<TensorRef>,
     /// Last fill written per workspace name: `(offset, count, value bits)`; a step that writes the name clears it.
     filled: HashMap<String, (usize, usize, u64)>,
-    /// Kernel choice per (stage, step name, op, rows class: 1 / 2..=16 / more). Step lists differ between a one-row pass
-    /// and a longer one (the MoE route tables), so the index alone does not name a step.
+    /// Kernel choice per (stage, step name, op, rows class: 1 / 2..=16 / more, plus 4 for a device-position step). Step
+    /// lists differ between a one-row pass and a longer one (the MoE route tables), so the index alone does not name a step.
     kernels: HashMap<(usize, String, crate::ops::Op, u8), usize>,
+    /// Bumped whenever the kernel scratch is reallocated (a captured graph holds the old address).
+    scratch_gen: u64,
+    /// Recording a CUDA graph: nothing may upload, allocate or synchronise.
+    capturing: bool,
+}
+
+/// A captured device-position pass (`INTARSIA_DSV41_GRAPHS=1`): the graph and its recorded segments, split before every
+/// Engram layer (the host waits for that layer's records and uploads them between two replays).
+struct Captured {
+    g: Dsv41Graph,
+    /// `(first stage, end stage, recording)`, in order.
+    segs: Vec<(usize, usize, GraphHandle)>,
+    /// The sequence state whose slot buffers the recording names (`SequenceState::id`).
+    state_id: u64,
+    /// `Exec::scratch_gen` at capture.
+    scratch_gen: u64,
+}
+
+/// Graph mode of the runtime: a device-position pass seen for the first time runs eagerly (it also warms every kernel up),
+/// the next one of the same shape is recorded and replayed.
+#[derive(Default)]
+struct Graphs {
+    /// `(rows, all_rows)` -> recording
+    captured: HashMap<(usize, bool), Captured>,
+    /// shapes that ran eagerly once
+    warm: std::collections::HashSet<(usize, bool)>,
+    /// replays since load (stderr note every `INTARSIA_DSV41_PROFILE` passes)
+    replays: u64,
 }
 
 /// Per-pass timing (decode profiling): host time spent waiting for Engram records.
@@ -119,6 +147,15 @@ pub struct Dsv41Runtime {
     /// blocks) is below this run the split-K GEMV `matmul_exl3_splitk` instead (selected here by name; the plain registry
     /// selection never picks it).
     splitk_grid: usize,
+    /// `INTARSIA_DSV41_DPOS=1` (or graphs on): passes of up to `VERIFY_MAX_ROWS` rows run the device-position graph
+    /// ([`PassKind::dpos`]); longer chunks keep the host-position graph.
+    dpos: std::sync::atomic::AtomicBool,
+    /// `INTARSIA_DSV41_GRAPHS=1` (default 0): one-row decode passes and verify passes replay CUDA graphs of the
+    /// device-position graph. Switched off for good when a capture fails.
+    graphs_on: std::sync::atomic::AtomicBool,
+    graphs: Mutex<Graphs>,
+    /// Largest f32 partial of a reduction (`Comm::reserve` before the first capture).
+    max_partial: usize,
 }
 
 /// Little-endian `dtype` elements as f32 (f32, bf16, f16).
@@ -166,13 +203,38 @@ impl Dsv41Runtime {
         let mut need: HashMap<String, (usize, DType)> = HashMap::new();
         let v = VERIFY_MAX_ROWS.min(opts.cap - 1);
         let probes = [(opts.chunk, 0), (opts.chunk, opts.cap.saturating_sub(opts.chunk)), (1, 0), (1, opts.cap - 1), (2, opts.cap - 2), (v, 0), (v, opts.cap - v)];
+        let env_on = |k: &str| std::env::var(k).is_ok_and(|v| v == "1");
+        let opprof_on = std::env::var_os("INTARSIA_DSV41_OPPROF").is_some_and(|v| v != "0");
+        let mut graphs_on = env_on("INTARSIA_DSV41_GRAPHS");
+        if graphs_on && (opprof_on || std::env::var_os("INTARSIA_DSV41_DUMP").is_some()) {
+            eprintln!("dsv41: INTARSIA_DSV41_GRAPHS ignored: per-op profiling / dumps synchronise after every step");
+            graphs_on = false;
+        }
+        if graphs_on && !backend.supports_graphs() {
+            eprintln!("dsv41: INTARSIA_DSV41_GRAPHS ignored: backend '{}' has no graph capture", backend.name());
+            graphs_on = false;
+        }
+        if graphs_on && comm.as_ref().is_some_and(|c| !c.capture_safe()) {
+            eprintln!("dsv41: INTARSIA_DSV41_GRAPHS ignored: the communicator's collectives are not capturable");
+            graphs_on = false;
+        }
+        let dpos = graphs_on || env_on("INTARSIA_DSV41_DPOS");
         let mut slot_specs = Vec::new();
         let mut graphs = Vec::new();
         for (t, pos0) in probes {
             let all_rows = opts.spec && t == v;
-            let g = build_pass(&cfg, &*shapes, GraphOpts { t, pos0, act: opts.act, cap: opts.cap }, opts.tp, PassKind { all_rows, absorb: opts.spec })?;
+            let g = build_pass(&cfg, &*shapes, GraphOpts { t, pos0, act: opts.act, cap: opts.cap }, opts.tp, PassKind { all_rows, absorb: opts.spec, dpos: false })?;
             slot_specs = g.slots.clone();
             graphs.push(g);
+            // the device-position graph of a short pass (sized always, so tests can switch it on: its capacity views are
+            // no larger than the host graph's at the largest position)
+            if t <= VERIFY_MAX_ROWS {
+                match build_pass(&cfg, &*shapes, GraphOpts { t, pos0, act: opts.act, cap: opts.cap }, opts.tp, PassKind { all_rows, absorb: opts.spec, dpos: true }) {
+                    Ok(g) => graphs.push(g),
+                    Err(e) if dpos => return Err(e),
+                    Err(_) => {}
+                }
+            }
         }
         let dspark = dspark_stages(&cfg, &*shapes);
         if opts.spec && dspark == 0 {
@@ -220,6 +282,21 @@ impl Dsv41Runtime {
                     }
                 }
             }
+        }
+        // the device position of the pass (`Step::pos`)
+        need.insert("host.pos".into(), (4, DType::I32));
+        // a captured collective must never allocate: reserve the largest f32 partial now
+        let max_partial = graphs
+            .iter()
+            .flat_map(|g| g.stages.iter().flat_map(|s| s.extras.iter()))
+            .filter_map(|(_, e)| match e {
+                Extra::AllReduceInto { partial, .. } => Some(partial.shape.iter().product::<usize>()),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0);
+        if let (true, Some(c)) = (graphs_on, comm.as_ref()) {
+            c.reserve(max_partial, 0)?;
         }
         let mut ws = HashMap::new();
         let mut ws_bytes = 0u64;
@@ -279,7 +356,7 @@ impl Dsv41Runtime {
             consts,
             engram,
             opts,
-            exec: Mutex::new(Exec { ws, scratch: None, filled: HashMap::new(), kernels: HashMap::new() }),
+            exec: Mutex::new(Exec { ws, scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false }),
             slot_specs,
             memory: RuntimeMemory::default(),
             last_pass: Mutex::new(PassStats::default()),
@@ -288,6 +365,10 @@ impl Dsv41Runtime {
             splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(16),
             dspark,
             confidence,
+            dpos: std::sync::atomic::AtomicBool::new(dpos),
+            graphs_on: std::sync::atomic::AtomicBool::new(graphs_on),
+            graphs: Mutex::new(Graphs::default()),
+            max_partial,
         };
         let state_per_seq = rt.slot_specs.iter().map(|s| s.bytes(rt.opts.cap) as u64).sum();
         rt.memory = RuntimeMemory { weights: weight_bytes, workspace: ws_bytes, constants: cbytes, scratch: 0, state_per_seq };
@@ -333,6 +414,36 @@ impl Dsv41Runtime {
             drop(acc);
             self.print_opprof();
         }
+    }
+
+    /// Device-position passes (`INTARSIA_DSV41_DPOS`) on or off from now on (tests: the same runtime both ways). Off also
+    /// turns graphs off; the workspace must have been sized for them (`INTARSIA_DSV41_DPOS=1` at load).
+    pub fn set_device_position(&self, on: bool) {
+        self.dpos.store(on, std::sync::atomic::Ordering::Relaxed);
+        if !on {
+            self.graphs_on.store(false, std::sync::atomic::Ordering::Relaxed);
+        }
+    }
+
+    /// CUDA graph replay of decode / verify passes on or off from now on (tests); on implies device positions. `false` when
+    /// the backend cannot capture.
+    pub fn set_graphs(&self, on: bool) -> bool {
+        let on = on && self.backend.supports_graphs() && self.comm.as_ref().is_none_or(|c| c.capture_safe());
+        if let (true, Some(c)) = (on, self.comm.as_ref()) {
+            if c.reserve(self.max_partial, 0).is_err() {
+                return false;
+            }
+        }
+        if on {
+            self.dpos.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
+        self.graphs_on.store(on, std::sync::atomic::Ordering::Relaxed);
+        on
+    }
+
+    /// Passes replayed from CUDA graphs since load.
+    pub fn graph_replays(&self) -> u64 {
+        self.graphs.lock().unwrap().replays
     }
 
     pub fn slot_specs(&self) -> &[SlotSpec] {
@@ -507,21 +618,19 @@ impl Dsv41Runtime {
     fn pass(&self, st: &mut SequenceState, ids: &[u32], want_logits: bool, all_rows: bool) -> Result<Option<Vec<f32>>> {
         let (t, pos0) = (ids.len(), st.len);
         let p0 = Instant::now();
-        let k = PassKind { all_rows, absorb: self.opts.spec };
+        let dpos = self.dpos.load(std::sync::atomic::Ordering::Relaxed) && t <= VERIFY_MAX_ROWS;
+        let k = PassKind { all_rows, absorb: self.opts.spec, dpos };
+        if dpos && (t == 1 || all_rows) && self.graphs_on.load(std::sync::atomic::Ordering::Relaxed) {
+            if let Some(r) = self.run_captured(st, ids, k, want_logits, p0)? {
+                return Ok(r);
+            }
+        }
         let g = build_pass(&self.cfg, &*self.shapes, GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp, k)?;
         self.run_graph(&g, st, t, ids, &[], want_logits, p0)
     }
 
-    /// Run graph `g` on `st` (its `t` rows at `st.len`): token ids `ids` (empty: none), the extra host inputs `host`
-    /// (`(workspace name, bytes)`), Engram rows for the graph's Engram layers. Returns the graph's logits when asked.
-    fn run_graph(&self, g: &Dsv41Graph, st: &SequenceState, t: usize, ids: &[u32], host: &[(&str, &[u8])], want_logits: bool, p0: Instant) -> Result<Option<Vec<f32>>> {
-        let pos0 = st.len;
-        if !ids.is_empty() && ids.len() != t {
-            return Err(Error::invalid(format!("deepseek_v41: {} ids for a graph of {t} rows", ids.len())));
-        }
-        self.touch();
-        let mut ex = self.exec.lock().unwrap();
-        // host inputs: token ids, the extras
+    /// Host inputs of a pass: token ids, the extras, the device position (when a step reads it).
+    fn upload_inputs(&self, ex: &Exec, g: &Dsv41Graph, pos0: usize, ids: &[u32], host: &[(&str, &[u8])]) -> Result<()> {
         if !ids.is_empty() {
             let idb: Vec<u8> = ids.iter().flat_map(|&v| (v as i32).to_le_bytes()).collect();
             let tid = ex.ws.get("host.token_ids").ok_or_else(|| Error::backend("no token id buffer"))?.clone();
@@ -531,9 +640,18 @@ impl Dsv41Runtime {
             let b = ex.ws.get(*name).ok_or_else(|| Error::backend(format!("no host buffer {name}")))?.clone();
             self.backend.upload(&b.buf, 0, data, 0)?;
         }
+        if g.stages.iter().any(|s| s.steps.iter().any(|x| x.pos)) {
+            let b = ex.ws.get("host.pos").ok_or_else(|| Error::backend("no position buffer"))?.clone();
+            self.backend.upload(&b.buf, b.offset, &(pos0 as i32).to_le_bytes(), 0)?;
+        }
+        Ok(())
+    }
+
+    /// Engram: hash and issue every Engram layer's rows of the pass now; layer -> (index, ticket).
+    fn issue_engram(&self, g: &Dsv41Graph, st: &SequenceState, ids: &[u32], t: usize) -> Result<HashMap<usize, (usize, super::engram::EngramTicket)>> {
+        let pos0 = st.len;
         let engram_layers: Vec<usize> = g.stages.iter().filter_map(|s| s.layer).collect();
-        // Engram: hash and issue every Engram layer's rows now
-        let mut tickets: HashMap<usize, (usize, super::engram::EngramTicket)> = HashMap::new();
+        let mut tickets = HashMap::new();
         if let Some(e) = self.engram.as_ref().filter(|_| !engram_layers.is_empty() && !ids.is_empty()) {
             let lim = self.opts.tp.layers.unwrap_or(usize::MAX);
             if e.hasher.layout.layer_ids.iter().any(|&l| l < lim) {
@@ -552,24 +670,24 @@ impl Dsv41Runtime {
                 }
             }
         }
-        let mut stats = PassStats { build_us: p0.elapsed().as_micros() as u64, ..Default::default() };
-        let e0 = Instant::now();
-        for (si, stage) in g.stages.iter().enumerate() {
-            if let Some(l) = stage.layer {
-                if let Some((_li, ticket)) = tickets.remove(&l) {
-                    let e = self.engram.as_ref().unwrap();
-                    let rb = record_bytes(e.hasher.layout.head_dim);
-                    let mut rec = vec![0u8; t * e.hasher.layout.cols() * rb];
-                    let w0 = Instant::now();
-                    e.tier.wait(ticket, &mut rec)?;
-                    stats.engram_wait_us += w0.elapsed().as_micros() as u64;
-                    let name = format!("host.engram.{l}.records");
-                    let b = ex.ws.get(&name).ok_or_else(|| Error::backend(format!("no buffer {name}")))?.clone();
-                    self.backend.upload(&b.buf, 0, &rec, 0)?;
-                }
-            }
-            self.run_stage(&mut ex, si, stage, st, t)?;
-        }
+        Ok(tickets)
+    }
+
+    /// Wait for Engram layer `l`'s records and upload them (right before the stage of layer `l`).
+    fn engram_records(&self, ex: &Exec, l: usize, ticket: super::engram::EngramTicket, t: usize, stats: &mut PassStats) -> Result<()> {
+        let e = self.engram.as_ref().unwrap();
+        let rb = record_bytes(e.hasher.layout.head_dim);
+        let mut rec = vec![0u8; t * e.hasher.layout.cols() * rb];
+        let w0 = Instant::now();
+        e.tier.wait(ticket, &mut rec)?;
+        stats.engram_wait_us += w0.elapsed().as_micros() as u64;
+        let name = format!("host.engram.{l}.records");
+        let b = ex.ws.get(&name).ok_or_else(|| Error::backend(format!("no buffer {name}")))?.clone();
+        self.backend.upload(&b.buf, 0, &rec, 0)
+    }
+
+    /// The logits of a pass that ran (a device sync), and its timing.
+    fn finish_pass(&self, ex: &Exec, g: &Dsv41Graph, st: &SequenceState, t: usize, want_logits: bool, mut stats: PassStats, e0: Instant, p0: Instant) -> Result<Option<Vec<f32>>> {
         stats.enqueue_us = e0.elapsed().as_micros() as u64;
         if !want_logits {
             stats.total_us = p0.elapsed().as_micros() as u64;
@@ -577,12 +695,188 @@ impl Dsv41Runtime {
             return Ok(None);
         }
         self.touch();
-        let lt = self.view(&ex, &g.logits, st, t)?;
+        let lt = self.view(ex, &g.logits, st, t)?;
         let mut bytes = vec![0u8; lt.nbytes()];
         self.backend.download(&lt.buf, lt.offset, &mut bytes, 0)?;
         stats.total_us = p0.elapsed().as_micros() as u64;
         self.note_pass(t, stats);
         Ok(Some(bytes.chunks_exact(4).map(|c| f32::from_le_bytes(c.try_into().unwrap())).collect()))
+    }
+
+    /// Run graph `g` on `st` (its `t` rows at `st.len`): token ids `ids` (empty: none), the extra host inputs `host`
+    /// (`(workspace name, bytes)`), Engram rows for the graph's Engram layers. Returns the graph's logits when asked.
+    fn run_graph(&self, g: &Dsv41Graph, st: &SequenceState, t: usize, ids: &[u32], host: &[(&str, &[u8])], want_logits: bool, p0: Instant) -> Result<Option<Vec<f32>>> {
+        if !ids.is_empty() && ids.len() != t {
+            return Err(Error::invalid(format!("deepseek_v41: {} ids for a graph of {t} rows", ids.len())));
+        }
+        self.touch();
+        let mut ex = self.exec.lock().unwrap();
+        self.upload_inputs(&ex, g, st.len, ids, host)?;
+        let mut tickets = self.issue_engram(g, st, ids, t)?;
+        let mut stats = PassStats { build_us: p0.elapsed().as_micros() as u64, ..Default::default() };
+        let e0 = Instant::now();
+        for (si, stage) in g.stages.iter().enumerate() {
+            if let Some((_li, ticket)) = stage.layer.and_then(|l| tickets.remove(&l)) {
+                self.engram_records(&ex, stage.layer.unwrap(), ticket, t, &mut stats)?;
+            }
+            self.run_stage(&mut ex, si, stage, st, t)?;
+        }
+        self.finish_pass(&ex, g, st, t, want_logits, stats, e0, p0)
+    }
+
+    /// A device-position pass as CUDA graph replays (`INTARSIA_DSV41_GRAPHS=1`). `None`: run it eagerly instead (the
+    /// first pass of its shape, which also warms every kernel up, or a capture that failed: graphs then stay off).
+    fn run_captured(&self, st: &SequenceState, ids: &[u32], k: PassKind, want_logits: bool, p0: Instant) -> Result<Option<Option<Vec<f32>>>> {
+        let t = ids.len();
+        let key = (t, k.all_rows);
+        let mut gs = self.graphs.lock().unwrap();
+        if !gs.warm.contains(&key) {
+            gs.warm.insert(key);
+            return Ok(None);
+        }
+        self.touch();
+        let mut ex = self.exec.lock().unwrap();
+        let stale = gs.captured.get(&key).is_none_or(|c| c.state_id != st.id || c.scratch_gen != ex.scratch_gen);
+        if stale {
+            gs.captured.remove(&key);
+            // the graph does not depend on the host position: built at 0, it serves every position
+            let g = build_pass(&self.cfg, &*self.shapes, GraphOpts { t, pos0: 0, act: self.opts.act, cap: self.opts.cap }, self.opts.tp, k)?;
+            match self.capture(&mut ex, &g, st, t) {
+                Ok(segs) => {
+                    let n: usize = segs.len();
+                    gs.captured.insert(key, Captured { g, segs, state_id: st.id, scratch_gen: ex.scratch_gen });
+                    if gs.captured.len() == 1 {
+                        eprintln!("dsv41: captured the {t}-row pass as {n} CUDA graph segments");
+                    }
+                }
+                Err(e) => {
+                    eprintln!("dsv41: CUDA graph capture of the {t}-row pass failed ({e}); graphs off, eager from now on");
+                    self.graphs_on.store(false, std::sync::atomic::Ordering::Relaxed);
+                    return Ok(None);
+                }
+            }
+        }
+        let c = gs.captured.get(&key).expect("captured");
+        self.upload_inputs(&ex, &c.g, st.len, ids, &[])?;
+        // fills (constant table cells) are host uploads: re-applied before every replay (cached while untouched)
+        for stage in &c.g.stages {
+            for (_, e) in &stage.extras {
+                if matches!(e, Extra::Fill { .. }) {
+                    self.extra_inner(&mut ex, e, st, t)?;
+                }
+            }
+        }
+        let mut tickets = self.issue_engram(&c.g, st, ids, t)?;
+        let mut stats = PassStats { build_us: p0.elapsed().as_micros() as u64, ..Default::default() };
+        let e0 = Instant::now();
+        for (first, _end, h) in &c.segs {
+            if let Some(l) = c.g.stages[*first].layer {
+                if let Some((_li, ticket)) = tickets.remove(&l) {
+                    self.engram_records(&ex, l, ticket, t, &mut stats)?;
+                }
+            }
+            self.backend.graph_replay(h, 0)?;
+        }
+        let out = self.finish_pass(&ex, &c.g, st, t, want_logits, stats, e0, p0)?;
+        gs.replays += 1;
+        Ok(Some(out))
+    }
+
+    /// Record `g` as segments split before every Engram layer's stage. Every kernel already ran once eagerly (the
+    /// warm-up pass), the scratch is grown first, the fills applied; nothing inside the recording uploads or allocates.
+    fn capture(&self, ex: &mut Exec, g: &Dsv41Graph, st: &SequenceState, t: usize) -> Result<Vec<(usize, usize, GraphHandle)>> {
+        // grow the scratch to the largest need of the graph outside the recording
+        let mut need = 0usize;
+        for (si, stage) in g.stages.iter().enumerate() {
+            for step in &stage.steps {
+                let (call, ki) = self.bind(ex, si, step, st, t)?;
+                need = need.max(self.kernel_list[ki].scratch_bytes(&ShapeInfo::from_call(&call)));
+            }
+            for (_, e) in &stage.extras {
+                if matches!(e, Extra::Fill { .. }) {
+                    self.extra_inner(ex, e, st, t)?;
+                }
+            }
+        }
+        self.grow_scratch(ex, need)?;
+        let engram: Vec<usize> = self.engram.as_ref().map_or(Vec::new(), |e| e.hasher.layout.layer_ids.clone());
+        let mut cuts: Vec<usize> = vec![0];
+        for (si, stage) in g.stages.iter().enumerate() {
+            if si > 0 && stage.layer.is_some_and(|l| engram.contains(&l)) {
+                cuts.push(si);
+            }
+        }
+        cuts.push(g.stages.len());
+        let mut segs = Vec::new();
+        ex.capturing = true;
+        let mut res = Ok(());
+        for w in cuts.windows(2) {
+            let (a, b) = (w[0], w[1]);
+            let rec = self.backend.graph_capture(0, &mut || {
+                for si in a..b {
+                    self.run_stage(ex, si, &g.stages[si], st, t)?;
+                }
+                Ok(())
+            });
+            match rec {
+                Ok(h) => segs.push((a, b, h)),
+                Err(e) => {
+                    res = Err(e);
+                    break;
+                }
+            }
+        }
+        ex.capturing = false;
+        res.map(|_| segs)
+    }
+
+    fn grow_scratch(&self, ex: &mut Exec, need: usize) -> Result<()> {
+        if need > 0 && ex.scratch.as_ref().is_none_or(|s| s.nbytes() < need) {
+            if ex.capturing {
+                return Err(Error::backend(format!("deepseek_v41: kernel scratch of {need} bytes needed inside a CUDA graph capture")));
+            }
+            let bytes = need.next_power_of_two().max(1 << 20);
+            let b = self.backend.alloc(bytes, MemKind::Device)?;
+            ex.scratch = Some(TensorRef::new(b, DType::U8, &[bytes]));
+            ex.scratch_gen += 1;
+        }
+        Ok(())
+    }
+
+    /// A step as a checked call on its buffers (scratch not yet set) and its kernel (chosen once per step key).
+    fn bind(&self, ex: &mut Exec, si: usize, step: &super::graph::Step, st: &SequenceState, t: usize) -> Result<(OpCall, usize)> {
+        let inputs: Vec<TensorRef> = step.inputs.iter().map(|a| self.view(ex, a, st, t)).collect::<Result<_>>()?;
+        let outputs: Vec<TensorRef> = step.outputs.iter().map(|a| self.view(ex, a, st, t)).collect::<Result<_>>()?;
+        let mut call = OpCall::new(step.op, inputs, outputs, step.attrs.clone());
+        if step.pos {
+            let p = ex.ws.get("host.pos").ok_or_else(|| Error::backend("no position buffer"))?;
+            call.pos = Some(TensorRef { buf: p.buf.clone(), offset: p.offset, dtype: DType::I32, shape: vec![1] });
+        }
+        call.check().map_err(|e| Error::model(format!("deepseek_v41 step {}: {e}", step.what)))?;
+        let cls = if t == 1 { 0 } else if t <= 16 { 1 } else { 2 };
+        let key = (si, step.what.clone(), step.op, cls | if step.pos { 4 } else { 0 });
+        let ki = match ex.kernels.get(&key) {
+            Some(&i) => i,
+            None => {
+                let k = self.reg.select(&call).map_err(|e| Error::model(format!("deepseek_v41 step {} ({}): {e}", step.what, step.op.as_str())))?;
+                let mut name = k.name.as_str();
+                if step.op == crate::ops::Op::MatmulExl3 && t == 1 && name == "matmul_exl3_gemv" {
+                    let n = call.outputs.first().map_or(0, |o| o.shape.get(1).copied().unwrap_or(0));
+                    let s = ShapeInfo::from_call(&call);
+                    if n / 128 < self.splitk_grid && self.kernel_list.iter().any(|x| x.name == "matmul_exl3_splitk" && x.op == step.op && x.accepts(&s)) {
+                        name = "matmul_exl3_splitk";
+                    }
+                }
+                let i = self
+                    .kernel_list
+                    .iter()
+                    .position(|x| x.name == name && x.op == step.op)
+                    .ok_or_else(|| Error::backend(format!("deepseek_v41: selected kernel {} is not in the backend's table", k.name)))?;
+                ex.kernels.insert(key, i);
+                i
+            }
+        };
+        Ok((call, ki))
     }
 
     fn run_stage(&self, ex: &mut Exec, si: usize, stage: &Stage, st: &SequenceState, t: usize) -> Result<()> {
@@ -591,8 +885,6 @@ impl Dsv41Runtime {
             while let Some((_, e)) = extras.next_if(|(k, _)| *k == j) {
                 self.extra(ex, e, st, t)?;
             }
-            let inputs: Vec<TensorRef> = step.inputs.iter().map(|a| self.view(ex, a, st, t)).collect::<Result<_>>()?;
-            let outputs: Vec<TensorRef> = step.outputs.iter().map(|a| self.view(ex, a, st, t)).collect::<Result<_>>()?;
             for a in &step.outputs {
                 if let Buf::Ws(n) = &a.buf {
                     // a write over a filled range undoes the fill (a shorter view that ends before it does not)
@@ -607,39 +899,12 @@ impl Dsv41Runtime {
                     }
                 }
             }
-            let mut call = OpCall::new(step.op, inputs, outputs, step.attrs.clone());
-            call.check().map_err(|e| Error::model(format!("deepseek_v41 step {}: {e}", step.what)))?;
-            let key = (si, step.what.clone(), step.op, if t == 1 { 0 } else if t <= 16 { 1 } else { 2 });
-            let ki = match ex.kernels.get(&key) {
-                Some(&i) => i,
-                None => {
-                    let k = self.reg.select(&call).map_err(|e| Error::model(format!("deepseek_v41 step {} ({}): {e}", step.what, step.op.as_str())))?;
-                    let mut name = k.name.as_str();
-                    if step.op == crate::ops::Op::MatmulExl3 && t == 1 && name == "matmul_exl3_gemv" {
-                        let n = call.outputs.first().map_or(0, |o| o.shape.get(1).copied().unwrap_or(0));
-                        let s = ShapeInfo::from_call(&call);
-                        if n / 128 < self.splitk_grid && self.kernel_list.iter().any(|x| x.name == "matmul_exl3_splitk" && x.op == step.op && x.accepts(&s)) {
-                            name = "matmul_exl3_splitk";
-                        }
-                    }
-                    let i = self
-                        .kernel_list
-                        .iter()
-                        .position(|x| x.name == name && x.op == step.op)
-                        .ok_or_else(|| Error::backend(format!("deepseek_v41: selected kernel {} is not in the backend's table", k.name)))?;
-                    ex.kernels.insert(key, i);
-                    i
-                }
-            };
+            let (mut call, ki) = self.bind(ex, si, step, st, t)?;
             let kimpl = &self.kernel_list[ki];
             let kname = kimpl.name.as_str();
             let need = kimpl.scratch_bytes(&ShapeInfo::from_call(&call));
             if need > 0 {
-                if ex.scratch.as_ref().is_none_or(|s| s.nbytes() < need) {
-                    let bytes = need.next_power_of_two().max(1 << 20);
-                    let b = self.backend.alloc(bytes, MemKind::Device)?;
-                    ex.scratch = Some(TensorRef::new(b, DType::U8, &[bytes]));
-                }
+                self.grow_scratch(ex, need)?;
                 call.scratch = Some(ex.scratch.as_ref().unwrap().reshaped(&[ex.scratch.as_ref().unwrap().numel()]).rows(0, need));
             }
             let op_t0 = self.opprof.as_ref().map(|_| Instant::now());
@@ -721,6 +986,10 @@ impl Dsv41Runtime {
                 let key = (*offset, *count, value.to_bits());
                 if ex.filled.get(buf) == Some(&key) {
                     return Ok(());
+                }
+                if ex.capturing {
+                    // a fill an earlier step of the same pass undid: it would have to run inside the recording
+                    return Err(Error::backend(format!("deepseek_v41: fill of {buf} inside a CUDA graph capture")));
                 }
                 let one: Vec<u8> = match dtype {
                     DType::I32 => (*value as i32).to_le_bytes().to_vec(),

@@ -284,13 +284,13 @@ fn mia_dspark_graphs_record_with_the_official_structure() {
     for world in [1] {
         let tp = GraphTp { world, layers: None, first: 0 };
         let o = GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 4096 };
-        let v = build_pass(&c, &w, o, tp, PassKind { all_rows: true, absorb: true }).unwrap();
+        let v = build_pass(&c, &w, o, tp, PassKind { all_rows: true, absorb: true, dpos: false }).unwrap();
         check(&v);
         assert_eq!(v.logits.shape, [4, c.vocab], "world {world}: every row's logits");
         assert_eq!(v.slots.len(), plain.slots.len() + 3, "one window ring per stage");
         assert!(v.stages.iter().any(|s| s.name == "dspark absorb"));
         // a prompt chunk of the same size keeps the last row's logits only
-        let p = build_pass(&c, &w, o, tp, PassKind { all_rows: false, absorb: true }).unwrap();
+        let p = build_pass(&c, &w, o, tp, PassKind { all_rows: false, absorb: true, dpos: false }).unwrap();
         assert_eq!(p.logits.shape, [1, c.vocab]);
         let d = build_draft(&c, &w, GraphOpts { t: 5, pos0: 101, act: DType::Bf16, cap: 4096 }, tp).unwrap();
         check(&d);
@@ -303,7 +303,7 @@ fn mia_dspark_graphs_record_with_the_official_structure() {
     let mk = build_markov(&c, &w, DType::Bf16).unwrap();
     check(&mk);
     assert_eq!(mk.logits.shape, [1, c.vocab]);
-    assert!(build_pass(&c, &w, GraphOpts { t: 17, pos0: 0, act: DType::Bf16, cap: 4096 }, GraphTp::default(), PassKind { all_rows: true, absorb: false }).is_err());
+    assert!(build_pass(&c, &w, GraphOpts { t: 17, pos0: 0, act: DType::Bf16, cap: 4096 }, GraphTp::default(), PassKind { all_rows: true, absorb: false, dpos: false }).is_err());
 
     // the block key table: row r sees window rows 0..=r (valid positions) and the block rows after it
     let win = c.window;

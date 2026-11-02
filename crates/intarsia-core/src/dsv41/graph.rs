@@ -63,6 +63,9 @@ pub struct Step {
     pub inputs: Vec<Arg>,
     pub outputs: Vec<Arg>,
     pub attrs: OpAttrs,
+    /// The step reads the pass's first position from the device (`OpCall::pos`, the runtime's `i32 [1]` position buffer)
+    /// instead of `attrs.pos0`: a device-position graph ([`PassKind::dpos`]), replayable at any position.
+    pub pos: bool,
 }
 
 /// Embedding, one layer, or the head.
@@ -162,6 +165,8 @@ struct Builder<'a> {
     tp: GraphTp,
     steps: Vec<Step>,
     extras: Vec<(usize, Extra)>,
+    /// Device-position graph ([`PassKind::dpos`]).
+    dpos: bool,
 }
 
 fn arg(buf: Buf, dtype: DType, shape: &[usize]) -> Arg {
@@ -201,7 +206,24 @@ impl Builder<'_> {
     }
 
     fn push(&mut self, op: Op, what: impl Into<String>, inputs: Vec<Arg>, outputs: Vec<Arg>, attrs: OpAttrs) {
-        self.steps.push(Step { op, what: what.into(), inputs, outputs, attrs });
+        self.steps.push(Step { op, what: what.into(), inputs, outputs, attrs, pos: false });
+    }
+
+    /// In a device-position graph, the last step pushed reads the position from the device; `ratio` is its
+    /// `dsv.ratio` there (the compressed latents' rope and slot writes, the sparse attention's visible rows).
+    fn positioned(&mut self, ratio: usize) {
+        if self.dpos {
+            let s = self.steps.last_mut().expect("a step");
+            s.pos = true;
+            s.attrs.dsv.ratio = ratio.max(1);
+        }
+    }
+
+    /// The last step's (an `ActQdq` into a shared slot) output shape: `[rows, width]` (the whole slot in a device-position
+    /// graph, the new groups' rows otherwise).
+    fn slot_rows(&mut self, rows: usize, width: usize) {
+        let s = self.steps.last_mut().expect("a step");
+        s.outputs[0].shape = vec![rows, width];
     }
 
     /// A host action after the steps pushed so far.
@@ -507,6 +529,12 @@ pub struct PassKind {
     pub all_rows: bool,
     /// Feed the DSpark stage rings from this pass's taps (every pass of a sequence that drafts; needs the stages loaded).
     pub absorb: bool,
+    /// Device-position graph (CUDA graph capture): every positioned step reads the pass's first position from the device
+    /// (`Step::pos`), and nothing depends on the host position: the shared compressed-KV / index-key views span the slot
+    /// capacity, the top-k width is `min(index_topk, capacity rows)` (-1 past the visible count), the compressor branch
+    /// is always emitted for `ceil(t / r)` groups, the slot writes take their row from the device. Bitwise the host
+    /// graph's results (docs/design/dsv41-ops.md "Device position"); `o.pos0` only bounds the call.
+    pub dpos: bool,
 }
 
 /// The plain forward graph ([`build_pass`] with the default [`PassKind`]).
@@ -538,7 +566,7 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     }
     let n_taps = c.mtp.as_ref().map_or(0, |m| m.target_layer_ids.len());
     let mut stages = Vec::new();
-    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new() };
+    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos: k.dpos };
 
     // embedding, expanded to hc_mult streams (Transformer.forward)
     let ids = arg(Buf::Host("token_ids".into()), DType::I32, &[t]);
@@ -671,7 +699,7 @@ pub fn build_absorb(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Gra
         return Err(Error::Unsupported("deepseek_v41: the DSpark stages are not loaded".into()));
     }
     let (slot_specs, _, rings) = slots(c, w, o.act, true);
-    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new() };
+    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos: false };
     let mh = arg(Buf::Host("dspark.mh".into()), o.act, &[o.t, n_taps * c.dim]);
     dspark_absorb(&mut b, mh, &rings)?;
     let st = b.stage("dspark absorb".into(), None, vec![format!("main_proj + {} stage rings", rings.len())]);
@@ -694,9 +722,11 @@ fn dspark_absorb(b: &mut Builder, mh: Arg, rings: &[usize]) -> Result<()> {
         let kv = b.matmul(mx.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
         let kv = b.rmsnorm(kv, &format!("{p}.kv_norm.weight"), "kv_n")?;
         let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv_rope".into()), &format!("{p}.rope(main_kv)"));
+        b.positioned(1);
         let kv = b.qdq(Arg { shape: vec![t, hd], ..kv }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("kv_q".into()), &format!("{p}.act_quant(main_kv)"));
         let ring = arg(Buf::Slot { slot, plane: 0, row0: 0 }, act, &[win + ROLLBACK_MARGIN, hd]);
         b.push(Op::WindowKv, format!("{p}.absorb"), vec![kv], vec![ws("win", act, &[win + t, hd]), ring], OpAttrs { window: win, pos0, ..Default::default() });
+        b.positioned(1);
     }
     Ok(())
 }
@@ -743,7 +773,7 @@ pub fn build_draft(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Grap
     }
     let (slot_specs, _, rings) = slots(c, w, act, true);
     let mut stages = Vec::new();
-    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new() };
+    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos: false };
     let ids = arg(Buf::Host("token_ids".into()), DType::I32, &[t]);
     let emb = b.weight("embed.weight")?;
     let h = ws("h", act, &[t, d]);
@@ -831,7 +861,7 @@ pub fn build_markov(c: &Dsv41Config, w: &dyn WeightShapes, act: DType) -> Result
     }
     let p = format!("mtp.{}.markov_head", n_st - 1);
     let o = GraphOpts { t: 1, pos0: 0, act, cap: 1 };
-    let mut b = Builder { c, w, o, tp: GraphTp::default(), steps: Vec::new(), extras: Vec::new() };
+    let mut b = Builder { c, w, o, tp: GraphTp::default(), steps: Vec::new(), extras: Vec::new(), dpos: false };
     let emb = b.weight(&format!("{p}.embed.weight"))?;
     let rank = emb.shape[1];
     let e = ws("dspark.markov_e", act, &[1, rank]);
@@ -854,17 +884,26 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     let qr = b.rmsnorm(qa, &format!("{p}.q_norm.weight"), "qr")?;
     let q = b.matmul(qr.clone(), &format!("{p}.wq_b"), Buf::Ws("q".into()), act)?;
     let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, Buf::Ws("q_rope".into()), &format!("{p}.rope(q)"));
+    b.positioned(1);
 
     // sliding-window KV: one latent, normed, rotated, fp8 round trip, into the ring
     let kv = b.matmul(n.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
     let kv = b.rmsnorm(kv, &format!("{p}.kv_norm.weight"), "kv_n")?;
     let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv_rope".into()), &format!("{p}.rope(kv)"));
+    b.positioned(1);
     let kv = b.qdq(Arg { shape: vec![t, hd], ..kv }, QdqFmt::Fp8E4m3, 32, QdqScale::Ue8m0, Buf::Ws("kv_q".into()), &format!("{p}.act_quant(kv)"));
     let winbuf = ws("win", act, &[win + t, hd]);
     let ring = arg(Buf::Slot { slot: ls.window, plane: 0, row0: 0 }, act, &[win + ROLLBACK_MARGIN, hd]);
     b.push(Op::WindowKv, format!("{p}.window_kv"), vec![kv], vec![winbuf.clone(), ring], OpAttrs { window: win, pos0, ..Default::default() });
+    b.positioned(1);
 
-    let (nk, groups) = if r > 0 { compressed_rows(pos0, t, r) } else { (0, 0) };
+    // device position: the shared views span the slot capacity (`nk` = its rows), `ceil(t / r)` groups always
+    let dpos = b.dpos;
+    let (nk, groups) = match r {
+        0 => (0, 0),
+        _ if dpos => (b.o.cap.div_ceil(r), t.div_ceil(r)),
+        _ => compressed_rows(pos0, t, r),
+    };
     let mut desc = format!("hc_attn(mqa hd{hd} + sink, window {win}");
     let (cmp, idx) = if r > 0 {
         let src = c.kv_source(l).expect("validated");
@@ -886,34 +925,39 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
                 let mut a = OpAttrs { pos0, ..Default::default() };
                 a.dsv.ratio = r;
                 b.push(Op::CompressPool, format!("{p}.compressor"), vec![ckv, cs], outs.clone(), a);
+                b.positioned(r);
                 outs[0].clone()
             } else {
                 b.matmul(n.clone(), &format!("{p}.compressor.wkv"), Buf::Ws("latent".into()), act)?
             };
-            if groups > 0 {
+            if groups > 0 || dpos {
                 let latent = b.rmsnorm(latent, &format!("{p}.compressor.norm.weight"), "latent_n")?;
                 // index keys from the pre-rope latent (Indexer.forward, owns_k), then the latent itself
                 let k = b.matmul(latent.clone(), &format!("{p}.indexer.wk"), Buf::Ws("index_k".into()), act)?;
                 let k = b.rmsnorm(k, &format!("{p}.indexer.k_norm.weight"), "index_k_n")?;
                 let k = b.rope(Arg { shape: vec![groups, 1, c.index_head_dim], ..k }, l, row0 * r, r, false, Buf::Ws("index_k_rope".into()), &format!("{p}.rope(index_k)"));
-                b.qdq(
-                    Arg { shape: vec![groups, c.index_head_dim], ..k },
-                    QdqFmt::Fp4E2m1,
-                    32,
-                    QdqScale::Ue8m0,
-                    Buf::Slot { slot: ik_slot, plane: 0, row0 },
-                    &format!("{p}.act_quant(index_k)"),
-                );
+                b.positioned(r);
+                // device position: the slot write takes the whole slot and its row `p / r` from the device
+                let slot_out = |slot: usize, w: usize| if dpos { (Buf::Slot { slot, plane: 0, row0: 0 }, nk, w) } else { (Buf::Slot { slot, plane: 0, row0 }, groups, w) };
+                let (ik_buf, ik_rows, ik_w) = slot_out(ik_slot, c.index_head_dim);
+                b.qdq(Arg { shape: vec![groups, c.index_head_dim], ..k }, QdqFmt::Fp4E2m1, 32, QdqScale::Ue8m0, ik_buf, &format!("{p}.act_quant(index_k)"));
+                b.slot_rows(ik_rows, ik_w);
+                b.positioned(r);
                 let lat = b.rope(Arg { shape: vec![groups, 1, hd], ..latent }, l, row0 * r, r, false, Buf::Ws("latent_rope".into()), &format!("{p}.rope(latent)"));
-                b.qdq(Arg { shape: vec![groups, hd], ..lat }, QdqFmt::Fp4E2m1, 16, QdqScale::E4m3, Buf::Slot { slot: cmp_slot, plane: 0, row0 }, &format!("{p}.act_quant(latent)"));
+                b.positioned(r);
+                let (cb, c_rows, c_w) = slot_out(cmp_slot, hd);
+                b.qdq(Arg { shape: vec![groups, hd], ..lat }, QdqFmt::Fp4E2m1, 16, QdqScale::E4m3, cb, &format!("{p}.act_quant(latent)"));
+                b.slot_rows(c_rows, c_w);
+                b.positioned(r);
             }
             desc.push_str(&format!(" + compressor(ratio {r})"));
         }
         let kk = c.index_topk.min(nk);
-        if isrc == l && nk > 0 {
+        if isrc == l && (nk > 0 || dpos) {
             // the indexer (Indexer.forward): fp4 query heads against the shared index keys
             let iq = b.matmul(qr, &format!("{p}.indexer.wq_b"), Buf::Ws("index_q".into()), act)?;
             let iq = b.rope(Arg { shape: vec![t, c.index_n_heads, c.index_head_dim], ..iq }, l, pos0, 1, false, Buf::Ws("index_q_rope".into()), &format!("{p}.rope(index_q)"));
+            b.positioned(1);
             let iq = b.qdq(iq, QdqFmt::Fp4E2m1, 32, QdqScale::Ue8m0, Buf::Ws("index_q_q".into()), &format!("{p}.act_quant(index_q)"));
             let iw = b.matmul(n.clone(), &format!("{p}.indexer.weights_proj"), Buf::Ws("index_w".into()), act)?;
             let keys = arg(Buf::Slot { slot: ik_slot, plane: 0, row0: 0 }, act, &[nk, c.index_head_dim]);
@@ -924,11 +968,13 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
             if c.candidate_source_layer == Some(l) {
                 let mask = ws("candidates", DType::U8, &[t, nb]);
                 b.push(Op::IndexerBlocks, format!("{p}.indexer.candidates"), vec![iq.clone(), keys.clone(), iw.clone()], vec![mask], OpAttrs { top_k: c.candidate_topk_blocks, ..a.clone() });
+                b.positioned(r);
                 desc.push_str(&format!(" + candidate blocks top{}", c.candidate_topk_blocks));
             }
             let cand = if c.uses_candidates(l) { ws("candidates", DType::U8, &[t, nb]) } else { arg(Buf::Const("empty_u8".into()), DType::U8, &[0]) };
             let idx = ws(&format!("topk_idxs.{l}"), DType::I32, &[t, kk]);
             b.push(Op::IndexerTopk, format!("{p}.indexer"), vec![iq, keys, iw, cand], vec![idx], OpAttrs { top_k: c.index_topk, ..a });
+            b.positioned(r);
             desc.push_str(&format!(" + indexer top{}{}", c.index_topk, if c.uses_candidates(l) { " in candidates" } else { "" }));
         }
         if src != l {
@@ -947,7 +993,9 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     let sink = b.weight(&format!("{p}.attn_sink"))?;
     let o = ws("o", act, &[t, h, hd]);
     b.push(Op::AttnSparse, format!("{p}.sparse_attn"), vec![q, winbuf, cmp, idx, sink], vec![o.clone()], OpAttrs { window: win, pos0, scale: (hd as f32).powf(-0.5), ..Default::default() });
+    b.positioned(r);
     let o = b.rope(o, l, pos0, 1, true, Buf::Ws("o_derot".into()), &format!("{p}.rope_inverse(o)"));
+    b.positioned(1);
 
     // grouped low-rank output: fp8 round trip (FP8 base checkpoint only), per-group projection, then wo_b. The official code
     // quantises `o` before `wo_a` only in its FP8 mode (`model.py:785`); the EXL3 checkpoint's reference engine (TensorFold)
