@@ -564,7 +564,7 @@ fn device_position_passes_equal_host_passes() {
     let tok = |i: usize| ((i * 7919 + 13) % 30000 + 100) as u32;
     let prompt: Vec<u32> = (0..n_prompt).map(tok).collect();
     let cont: Vec<u32> = (0..n_cont + 8).map(|i| tok(n_prompt + i)).collect();
-    // the schedule: rows per step (0: a 4-row verify pass, rolled back to 1 row on even rounds, then a drafting round)
+    // the schedule: rows per step (0: a verify pass of 4, 2 or 3 rows, rolled back to 1 or 2 rows, then a drafting round)
     let sched: Vec<usize> = if spec { vec![1, 0, 1, 0, 3, 1, 0, 2, 0, 1, 1] } else { vec![1, 1, 1, 3, 1, 4, 1, 2, 1, 1, 1] };
     let run = |dev: bool| -> Vec<Vec<f32>> {
         rt.set_device_position(dev);
@@ -578,10 +578,15 @@ fn device_position_passes_equal_host_passes() {
             let n = sched[k % sched.len()];
             k += 1;
             if n == 0 {
-                let ids = vec![cont[i], cont[i + 1], 99, 98];
+                // every verify width has its own recording: 4, 2 and 3 rows in turn
+                let ids = match round % 3 {
+                    0 => vec![cont[i], cont[i + 1], 99, 98],
+                    1 => vec![cont[i], 99],
+                    _ => vec![cont[i], cont[i + 1], 99],
+                };
                 let len0 = st.len;
                 let rows = rt.forward_rows(&mut st, &ids).unwrap();
-                let keep = if round % 2 == 1 { 2 } else { 1 };
+                let keep = if round % 2 == 1 && ids.len() > 2 { 2 } else { 1 };
                 round += 1;
                 out.extend(rows.into_iter().take(keep));
                 st.truncate(len0 + keep, &*rt.backend).unwrap();
