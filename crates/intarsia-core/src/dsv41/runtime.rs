@@ -786,6 +786,10 @@ impl Dsv41Runtime {
         let mut ex = self.exec.lock().unwrap();
         let stale = gs.captured.get(&key).is_none_or(|c| c.state_id != st.id || c.scratch_gen != ex.scratch_gen);
         if stale {
+            // a rank without a logits sync after its passes (TP rank 1) may still be running the old recording
+            if gs.captured.contains_key(&key) {
+                self.backend.synchronize(0)?;
+            }
             gs.captured.remove(&key);
             let g = build()?;
             match self.capture(&mut ex, &g, st, t) {

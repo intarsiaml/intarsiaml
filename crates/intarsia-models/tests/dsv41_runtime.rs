@@ -604,6 +604,10 @@ fn device_position_passes_equal_host_passes() {
     };
     let host = run(false);
     let dev = run(true);
+    // a fresh sequence state: every recording goes stale, is dropped after a stream sync and recaptured
+    let dev2 = run(true);
+    let bits = |v: &[Vec<f32>]| v.iter().flatten().map(|x| x.to_bits()).collect::<Vec<u32>>();
+    assert!(bits(&dev) == bits(&dev2), "the recaptured run differs from the first");
     let (r_pass, r_verify, r_draft) = rt.graph_replays();
     assert_eq!(host.len(), dev.len());
     let mut first_diff = None;
