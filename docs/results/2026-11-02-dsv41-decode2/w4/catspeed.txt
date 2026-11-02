@@ -1,0 +1,6 @@
+kind                         pf_a                shipped_a                     pf_b                shipped_b
+chat          47.1 (median  47.7)      46.4 (median  47.2)      48.1 (median  49.3)      46.5 (median  46.9)
+code          68.1 (median  67.0)      68.1 (median  67.4)      69.2 (median  68.3)      67.8 (median  66.8)
+prose         42.2 (median  41.9)      41.6 (median  41.3)      42.5 (median  42.3)      41.5 (median  41.4)
+recall        54.7 (median  54.7)      53.4 (median  53.3)      54.6 (median  53.9)      53.8 (median  53.1)
+all           51.3 (median  51.3)      50.6 (median  50.3)      51.9 (median  51.8)      50.7 (median  50.8)

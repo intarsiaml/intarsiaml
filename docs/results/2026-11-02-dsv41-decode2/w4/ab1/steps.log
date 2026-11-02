@@ -1,0 +1,117 @@
+15:38:10 config ab1: X=0; steps: lcat; nsys 0; bin $HOME/intarsia-dsv41-decode2/bin/intarsia
+15:38:12 ranks started (tag 153810)
+15:38:42 serve up=1 after 29 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.5 s = 6.66 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.9 s = 4.20 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.5 s (4.77 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.39 GiB -> 10.16 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793651916)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793651916)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793651916)
+dsv41: warm-up passes in 0.31 s
+dsv41: rank 0 after warm-up: MemAvailable 9.81 GiB, used since start 100.58 GiB, of which weights 98.90 GiB, non-weight 1.68 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 14.9 s = 6.96 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.48 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.0 s (5.10 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.70 GiB -> 10.35 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793651916)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793651916)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793651916)
+| code-ts-debounce | yes | 0.0 | 0.19 | 62.9 | # Debounce & Throttle in TypeScript Below are production-rea… |
+| code-go-worker-pool | yes | 0.0 | 0.18 | 70.6 | # Go Worker Pool with Context Cancellation and Error Collect… |
+| code-bash-backup | yes | 0.0 | 0.21 | 62.9 | # Robust Directory Backup Script ```bash #!/usr/bin/env bash… |
+| prose-lighthouse | yes | 0.0 | 0.15 | 43.2 | The salt spray had become a permanent perfume, and the const… |
+| prose-city-essay | yes | 0.0 | 0.15 | 39.5 | # The Geography of Belonging I knew my city had become home … |
+| prose-product-launch | yes | 0.0 | 0.14 | 39.6 | # Fresh from Our Oven to Your Doorstep: Introducing Neighbor… |
+| prose-mountain-letter | yes | 0.0 | 0.16 | 42.6 | Dear Sam, It’s just past nine, and the tent is glowing orang… |
+| prose-ocean-poem | yes | 0.0 | 0.16 | 40.0 | **Nocturne for the Unlit Sea** The sun has gone down like a … |
+| prose-robot-fable | yes | 0.0 | 0.16 | 39.3 | In a city of gleaming chrome and ceaseless motion, there liv… |
+| prose-travel | yes | 0.0 | 0.16 | 44.8 | The morning sun, still soft and buttery, spills over the lip… |
+| prose-history-scene | yes | 0.0 | 0.18 | 44.3 | The air in the workshop was thick with the smell of lamp oil… |
+
+## Dataset `/opt/code/intarsiaml/.worktrees/dsv41-decode2/scripts/dsv41-tp2/chat-rcp.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.417 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 46.7 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| chat-weekend-trip | yes | 0.0 | 0.43 | 46.2 | Here's a relaxed 2-day/2-night plan built around a small coa… |
+| chat-job-offer | yes | 0.0 | 0.46 | 44.2 | Given that time with two young kids is your priority, the 15… |
+| chat-sourdough | yes | 0.0 | 0.43 | 50.5 | Four hours at 19°C is almost certainly your problem. That's … |
+| chat-roommate | yes | 0.0 | 0.39 | 48.1 | Yes — let's make this concrete. Here's a plan that keeps it … |
+| chat-learn-piano | yes | 0.0 | 0.39 | 43.4 | Here's a realistic sketch of six months, assuming ~20–30 min… |
+| chat-houseplants | yes | 0.0 | 0.42 | 50.2 | With a north-facing window and frequent travel, you want pla… |
+| chat-budget | yes | 0.0 | 0.41 | 49.8 | Great — rent at about a third of your pay is on the higher s… |
+| chat-dog-training | yes | 0.0 | 0.42 | 40.8 | Good — that treat-taking tells you a lot. If she'll still ea… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261102-153844-adhoc-dsv41-intarsia-tp2-cat-ab1/result.json
+[localeval] logged to unanimis: 7081ccea-2c2e-453b-9375-6b44cf8212e4
+spec lcat recall-tcp-handshake: 256 tokens in 95 rounds = 2.69 a round
+spec lcat recall-photosynthesis: 256 tokens in 90 rounds = 2.84 a round
+spec lcat recall-french-revolution: 256 tokens in 108 rounds = 2.37 a round
+spec lcat recall-git-internals: 256 tokens in 89 rounds = 2.88 a round
+spec lcat recall-vaccines: 256 tokens in 111 rounds = 2.31 a round
+spec lcat recall-cpu-caches: 256 tokens in 105 rounds = 2.44 a round
+spec lcat recall-plate-tectonics: 256 tokens in 107 rounds = 2.39 a round
+spec lcat recall-http2: 256 tokens in 94 rounds = 2.72 a round
+spec lcat code-lru-cache: 256 tokens in 64 rounds = 4.00 a round
+spec lcat code-rate-limiter: 256 tokens in 79 rounds = 3.24 a round
+spec lcat code-json-parser: 256 tokens in 63 rounds = 4.06 a round
+spec lcat code-rust-cli: 256 tokens in 76 rounds = 3.37 a round
+spec lcat code-sql-schema: 256 tokens in 63 rounds = 4.06 a round
+spec lcat code-ts-debounce: 256 tokens in 79 rounds = 3.24 a round
+spec lcat code-go-worker-pool: 256 tokens in 70 rounds = 3.66 a round
+spec lcat code-bash-backup: 256 tokens in 80 rounds = 3.20 a round
+spec lcat prose-lighthouse: 256 tokens in 135 rounds = 1.90 a round
+spec lcat prose-city-essay: 256 tokens in 147 rounds = 1.74 a round
+spec lcat prose-product-launch: 256 tokens in 146 rounds = 1.75 a round
+spec lcat prose-mountain-letter: 256 tokens in 133 rounds = 1.92 a round
+spec lcat prose-ocean-poem: 256 tokens in 150 rounds = 1.71 a round
+spec lcat prose-robot-fable: 256 tokens in 147 rounds = 1.74 a round
+spec lcat prose-travel: 256 tokens in 132 rounds = 1.94 a round
+spec lcat prose-history-scene: 256 tokens in 130 rounds = 1.97 a round
+spec lcat chat-weekend-trip: 256 tokens in 119 rounds = 2.15 a round
+spec lcat chat-job-offer: 256 tokens in 124 rounds = 2.06 a round
+spec lcat chat-sourdough: 256 tokens in 108 rounds = 2.37 a round
+spec lcat chat-roommate: 256 tokens in 115 rounds = 2.23 a round
+spec lcat chat-learn-piano: 256 tokens in 130 rounds = 1.97 a round
+spec lcat chat-houseplants: 256 tokens in 107 rounds = 2.39 a round
+spec lcat chat-budget: 256 tokens in 109 rounds = 2.35 a round
+spec lcat chat-dog-training: 256 tokens in 140 rounds = 1.83 a round
+spec lcat code: 8 requests, 2048 tokens in 574 rounds = 3.568 a round; drafts accepted 1473/1982 = 74.3 %
+spec lcat prose: 8 requests, 2048 tokens in 1120 rounds = 1.829 a round; drafts accepted 924/1775 = 52.1 %
+spec lcat chat: 8 requests, 2048 tokens in 952 rounds = 2.151 a round; drafts accepted 1094/1925 = 56.8 %
+spec lcat other: 8 requests, 2048 tokens in 799 rounds = 2.563 a round; drafts accepted 1245/1938 = 64.2 %
+spec lcat all: 32 requests, 8192 tokens in 3445 rounds = 2.378 a round; drafts accepted 4736/7620 = 62.2 %
+dsv41: spec 256 tokens in 150 rounds (1.71 a round), 105/207 drafts accepted (51 %), by position 80/146 21/36 4/6
+dsv41: spec 256 tokens in 147 rounds (1.74 a round), 108/236 drafts accepted (46 %), by position 72/140 34/52 2/4
+dsv41: spec 256 tokens in 132 rounds (1.94 a round), 124/206 drafts accepted (60 %), by position 83/130 34/46 5/6 2/2
+dsv41: spec 256 tokens in 130 rounds (1.97 a round), 126/213 drafts accepted (59 %), by position 78/126 39/54 8/10 1/1
+dsv41: spec 256 tokens in 119 rounds (2.15 a round), 137/226 drafts accepted (61 %), by position 73/118 43/57 16/22 5/5
+dsv41: spec 256 tokens in 124 rounds (2.06 a round), 131/257 drafts accepted (51 %), by position 71/122 38/57 17/20 5/8
+dsv41: spec 256 tokens in 108 rounds (2.37 a round), 148/236 drafts accepted (63 %), by position 77/108 37/62 25/27 9/12
+dsv41: spec 256 tokens in 115 rounds (2.23 a round), 141/239 drafts accepted (59 %), by position 85/115 42/70 13/19 1/3
+dsv41: spec 256 tokens in 130 rounds (1.97 a round), 126/247 drafts accepted (51 %), by position 69/130 36/51 15/19 6/7
+dsv41: spec 256 tokens in 107 rounds (2.39 a round), 149/238 drafts accepted (63 %), by position 72/107 42/57 26/31 9/11
+dsv41: spec 256 tokens in 109 rounds (2.35 a round), 147/247 drafts accepted (60 %), by position 74/109 46/67 23/27 4/8
+dsv41: spec 256 tokens in 140 rounds (1.83 a round), 115/235 drafts accepted (49 %), by position 72/137 32/52 11/17
+spec total: 8192 tokens in 3445 rounds = 2.378 a round; drafts accepted 4736/7620 = 62.2 %
+15:41:38 config ab1 done
