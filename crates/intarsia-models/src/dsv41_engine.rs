@@ -20,7 +20,7 @@ use crate::tokenizer::HfCodec;
 use intarsia_core::comm::Comm;
 use intarsia_core::dsv41::config::Dsv41Config;
 use intarsia_core::dsv41::engram::EngramTier;
-use intarsia_core::dsv41::graph::GraphTp;
+use intarsia_core::dsv41::graph::{GraphTp, VERIFY_MAX_ROWS};
 use intarsia_core::dsv41::runtime::{fuse_shared_experts_at, Draft, Dsv41Runtime, EngramInputs, RuntimeOpts};
 use intarsia_core::engine::{ChatOpts, Engine, FinishReason, GenEvent, GenRequest, IncrementalDecoder, ModelInfo, StopMatcher, TextCodec};
 use intarsia_core::sampler::{Sampler, SamplingParams};
@@ -322,6 +322,8 @@ pub fn serve_rank(dir: &Path, backend: Arc<dyn Backend>, comm: Arc<dyn Comm>, mu
 struct SpecOpts {
     k: usize,
     min_conf: f32,
+    /// `INTARSIA_DSV41_SPEC_TRACE=1`: one stderr line per round (what a different k or floor would have done offline).
+    trace: bool,
 }
 
 #[derive(Default)]
@@ -329,6 +331,41 @@ struct SpecStats {
     rounds: usize,
     drafted: usize,
     accepted: usize,
+    /// Per draft position: rows checked (reached in the sequence), and accepted.
+    reached: [usize; VERIFY_MAX_ROWS],
+    ok: [usize; VERIFY_MAX_ROWS],
+    /// This round: the next position to check, its drafts' confidences, drafts accepted.
+    pos: usize,
+    conf: Vec<f32>,
+    round_ok: usize,
+}
+
+impl SpecStats {
+    fn check(&mut self, accepted: bool) {
+        self.reached[self.pos] += 1;
+        if accepted {
+            self.accepted += 1;
+            self.ok[self.pos] += 1;
+            self.round_ok += 1;
+        }
+        self.pos += 1;
+    }
+
+    /// `accepted/checked` per position, up to the last one reached.
+    fn by_row(&self) -> String {
+        (0..VERIFY_MAX_ROWS).filter(|&i| self.reached[i] > 0).map(|i| format!("{}/{}", self.ok[i], self.reached[i])).collect::<Vec<_>>().join(" ")
+    }
+
+    /// The round that just ended, as its trace line.
+    fn end_round(&mut self, trace: bool) {
+        if trace && !self.conf.is_empty() {
+            let c: Vec<String> = self.conf.iter().map(|v| format!("{v:.3}")).collect();
+            eprintln!("dsv41: spec round k={} conf={} ok={}", self.conf.len(), c.join(","), self.round_ok);
+        }
+        self.conf.clear();
+        self.pos = 0;
+        self.round_ok = 0;
+    }
 }
 
 struct Job {
@@ -398,9 +435,11 @@ impl Worker {
     fn next_rows(&mut self, tok: u32, spec: Option<SpecOpts>, stats: &mut SpecStats) -> Result<VecDeque<(Vec<f32>, Option<u32>)>> {
         let room = self.rt.opts.cap.saturating_sub(self.st.len + 1);
         if let Some(sp) = spec.filter(|_| room >= 2) {
+            stats.end_round(sp.trace);
             let d = self.draft(tok)?;
             let mut k = d.confidence.iter().take(sp.k).take_while(|&&c| c >= sp.min_conf).count().max(1).min(sp.k).min(room - 1);
             k = k.min(d.ids.len() - 1);
+            stats.conf.extend_from_slice(&d.confidence[..k.min(d.confidence.len())]);
             let mut ids = vec![tok];
             ids.extend_from_slice(&d.ids[1..=k]);
             let rows = self.verify(&ids)?;
@@ -503,10 +542,11 @@ impl Worker {
             // the sequence past it are dropped)
             let in_seq = match expect {
                 Some(d) if d == tok => {
-                    stats.accepted += 1;
+                    stats.check(true);
                     true
                 }
                 Some(_) => {
+                    stats.check(false);
                     let keep = self.st.len - rows.len();
                     rows.clear();
                     self.truncate(keep)?;
@@ -550,15 +590,17 @@ impl Worker {
             let keep = self.st.len - rows.len();
             self.truncate(keep)?;
         }
+        stats.end_round(spec.is_some_and(|s| s.trace));
         if stats.rounds > 0 {
             eprintln!(
-                "dsv41: spec {} tokens in {} rounds ({:.2} a round), {}/{} drafts accepted ({:.0} %)",
+                "dsv41: spec {} tokens in {} rounds ({:.2} a round), {}/{} drafts accepted ({:.0} %), by position {}",
                 n,
                 stats.rounds,
                 n as f64 / stats.rounds as f64,
                 stats.accepted,
                 stats.drafted,
-                100.0 * stats.accepted as f64 / stats.drafted.max(1) as f64
+                100.0 * stats.accepted as f64 / stats.drafted.max(1) as f64,
+                stats.by_row()
             );
         }
         if finish != FinishReason::Stop || stop_seq.is_none() {
@@ -667,7 +709,7 @@ impl Dsv41Engine {
             let k = env_usize("INTARSIA_DSV41_SPEC_K").unwrap_or(3).clamp(1, block.saturating_sub(1).max(1));
             let min_conf = std::env::var("INTARSIA_DSV41_SPEC_MIN_CONF").ok().and_then(|v| v.parse().ok()).unwrap_or(f32::NEG_INFINITY);
             eprintln!("dsv41: speculative decoding: up to {k} drafts a round, confidence floor {min_conf}");
-            SpecOpts { k, min_conf }
+            SpecOpts { k, min_conf, trace: std::env::var("INTARSIA_DSV41_SPEC_TRACE").is_ok_and(|v| v == "1") }
         });
         let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec };
         // warm-up: one short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back
