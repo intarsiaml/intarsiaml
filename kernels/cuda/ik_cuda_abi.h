@@ -185,6 +185,9 @@ int ik_matmul_exl3_gemm(const ik_tensor* x, const ik_tensor* trellis, const ik_t
 int ik_matmul_exl3_splitk(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
                           const ik_tensor* codebook, ik_tensor* out, const ik_scratch* scratch, void* stream);
 long long ik_matmul_exl3_splitk_scratch_bytes(long long M, long long K, long long N);
+/* Split-K with cp.async weight loads, four warps a program; same scratch; the trellis 16-byte aligned. */
+int ik_matmul_exl3_cp(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                      const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream);
 
 /* Row-exact multi-row twins of the decode GEMVs (rows_exact kernels, `OpCall::exact_rows`; hybrid continuous batching, stage R0):
  * the same arguments and launch contract as the 1-row-GEMV launcher named in each comment, any M in 1..=16, and row m of the

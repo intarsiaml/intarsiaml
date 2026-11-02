@@ -18,6 +18,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("matmul_exl3_gemm", Op::MatmulExl3),
     ("moe_experts_exl3", Op::MoeExperts),
     ("matmul_exl3_splitk", Op::MatmulExl3),
+    ("matmul_exl3_cp", Op::MatmulExl3),
 ];
 
 /// Rows `matmul_exl3_splitk` takes (one 16-row pass, kernels/cuda/exl3.cu).
@@ -161,6 +162,16 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol_f32(F32_OUT_TOL)
                     .scratch(splitk_scratch_bytes)
                     .priority(-10),
+                // split-K with the MoE kernel's cp.async loader; selected by name only, like matmul_exl3_splitk
+                "matmul_exl3_cp" => k
+                    .acts([DType::Bf16, DType::F16, DType::F32])
+                    .weights([DType::I16])
+                    .when(|s| (1..=SPLITK_MAX_ROWS).contains(&s.m) && shape_ok(s))
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_OUT_TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .scratch(splitk_scratch_bytes)
+                    .priority(-11),
                 // EXL3 routed experts (Op::MoeExperts with an i16 trellis arena, quant::exl3_moe): decode windows below 64 rows,
                 // prompt slices of 512 rows above; every width and codebook (device data, per matrix)
                 "moe_experts_exl3" => k
@@ -208,6 +219,16 @@ pub mod launch {
             s: *mut c_void,
         ) -> c_int;
         fn ik_matmul_exl3_splitk(
+            x: *const IkTensor,
+            trellis: *const IkTensor,
+            suh: *const IkTensor,
+            svh: *const IkTensor,
+            cb: *const IkTensor,
+            out: *mut IkTensor,
+            scratch: *const IkScratch,
+            s: *mut c_void,
+        ) -> c_int;
+        fn ik_matmul_exl3_cp(
             x: *const IkTensor,
             trellis: *const IkTensor,
             suh: *const IkTensor,
@@ -284,6 +305,7 @@ pub mod launch {
             let f = match kernel {
                 "matmul_exl3_gemm" => ik_matmul_exl3_gemm,
                 "matmul_exl3_splitk" => ik_matmul_exl3_splitk,
+                "matmul_exl3_cp" => ik_matmul_exl3_cp,
                 _ => ik_matmul_exl3_gemv,
             };
             let rc = unsafe {

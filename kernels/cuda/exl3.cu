@@ -22,6 +22,7 @@
 #include "ik_launch.h"
 #include "ik_quant.cuh"
 
+#include <cstdlib>
 #include <cuda_fp16.h>
 #include <cuda_bf16.h>
 
@@ -899,6 +900,16 @@ int splitk_count(int64_t K, int64_t N, int sms) {
     return best;
 }
 
+// Split count of ik_matmul_exl3_cp (four warps a program, TensorFold's plan): double S until the grid reaches 192 programs (four
+// on each of 48 SMs), while each warp keeps at least 8 k tiles. A function of (K, N) only. IK_EXL3_CP_S overrides it (bench).
+int cp_split_count(int64_t K, int64_t N) {
+    if (const char* e = getenv("IK_EXL3_CP_S")) return atoi(e);
+    const int64_t kt = K / 16, nb = N / 128;
+    int s = 1;
+    while (nb * s < 192 && 2 * s <= kMaxSplits && kt % (2 * s * 4) == 0 && kt / (2 * s * 4) >= 8) s *= 2;
+    return s;
+}
+
 template <int K2>
 int run_split(const half* xh, const uint32_t* T, long long stride_k, long long stride_nb, float* part, const half* svh,
               void* y, int y_dtype, const int* cbp, int M, int K, int N, int S, cudaStream_t s) {
@@ -936,6 +947,54 @@ int launch_split(int k2, const half* xh, const uint32_t* T, long long stride_k, 
 bool is_act(int dtype) { return dtype == IK_DTYPE_BF16 || dtype == IK_DTYPE_F16 || dtype == IK_DTYPE_F32; }
 
 }  // namespace
+
+namespace ik_exl3x {
+int launch_dense_cp(const half* xh, const uint32_t* T, float* part, const int* cbp, int k2, int M, int K, int N, int S,
+                    cudaStream_t s);
+}
+
+extern "C" long long ik_matmul_exl3_splitk_scratch_bytes(long long M, long long K, long long N);
+
+static int split_launch(bool cp, const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                        const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    if (!x || !out) return IK_ERR_INVALID_ARG;
+    if (!is_act(x->dtype) || !is_act(out->dtype)) return IK_ERR_DTYPE;
+    IK_TRY(ik_check_a(x, x->dtype, 2, 16));
+    IK_TRY(ik_check_a(out, out->dtype, 2, 16));
+    IK_TRY(ik_check_a(trellis, IK_DTYPE_I16, 3, 4));
+    IK_TRY(ik_check_a(suh, IK_DTYPE_F16, 1, 8));
+    IK_TRY(ik_check_a(svh, IK_DTYPE_F16, 1, 8));
+    IK_TRY(ik_check_a(cb, IK_DTYPE_I32, 1, 4));
+    const int64_t M = x->shape[0], K = x->shape[1];
+    const int64_t kt = trellis->shape[0], nt = trellis->shape[1], words = trellis->shape[2];
+    const int64_t N = 16 * nt;
+    if (words % 8 != 0 || words / 8 < 2 || words / 8 > 16) return IK_ERR_SHAPE;
+    const int k2 = (int)(words / 8);
+    if (16 * kt != K || K % 128 != 0 || N % 128 != 0 || suh->shape[0] != K || svh->shape[0] != N || cb->shape[0] != 1 ||
+        out->shape[0] != M || out->shape[1] != N)
+        return IK_ERR_SHAPE;
+    if (M == 0 || N == 0 || K == 0) return IK_OK;
+    if (M > 16 || K > 0x3fffffffLL || N > 0x3fffffffLL) return IK_ERR_SHAPE;
+    const int64_t need = ik_matmul_exl3_splitk_scratch_bytes(M, K, N);
+    if (!scratch || !scratch->data || scratch->bytes < need || ((uintptr_t)scratch->data & 15u) != 0) return IK_ERR_INVALID_ARG;
+    cudaStream_t s = IK_STREAM(stream);
+    half* xh = (half*)scratch->data;
+    float* part = (float*)((char*)scratch->data + ((M * K * 2 + 255) & ~255LL));
+    const int S = cp ? cp_split_count(K, N) : splitk_count(K, N, sm_count());
+    if (S < 1 || S > kMaxSplits) return IK_ERR_SHAPE;
+    rot_in_kernel<<<dim3((unsigned)((K / 128 + 3) / 4), (unsigned)M), 128, 0, s>>>(x->data, x->dtype, (const half*)suh->data,
+                                                                                   xh, (int)K);
+    IK_TRY(ik_launch_status());
+    if (cp) {
+        IK_TRY(ik_exl3x::launch_dense_cp(xh, (const uint32_t*)trellis->data, part, (const int*)cb->data, k2, (int)M, (int)K, (int)N, S, s));
+        split_finish_kernel<<<dim3((unsigned)(N / 128), (unsigned)M), 32, 0, s>>>(part, (const half*)svh->data, out->data, out->dtype,
+                                                                                 (int)M, (int)N, S);
+        return ik_launch_status();
+    }
+    const long long stride_k = (long long)nt * 4 * k2, stride_nb = 8LL * 4 * k2;
+    return launch_split(k2, xh, (const uint32_t*)trellis->data, stride_k, stride_nb, part, (const half*)svh->data, out->data,
+                        out->dtype, (const int*)cb->data, (int)M, (int)K, (int)N, S, s);
+}
 
 // Both launchers: the GEMV runs the rows in slices of kSliceRows, the GEMM in slices of kGemmSliceRows; each slice is a
 // rot_in and a linear / gemm launch.
@@ -1006,36 +1065,15 @@ long long ik_matmul_exl3_splitk_scratch_bytes(long long M, long long K, long lon
 
 int ik_matmul_exl3_splitk(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
                           const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream) {
-    if (!x || !out) return IK_ERR_INVALID_ARG;
-    if (!is_act(x->dtype) || !is_act(out->dtype)) return IK_ERR_DTYPE;
-    IK_TRY(ik_check_a(x, x->dtype, 2, 16));
-    IK_TRY(ik_check_a(out, out->dtype, 2, 16));
-    IK_TRY(ik_check_a(trellis, IK_DTYPE_I16, 3, 4));
-    IK_TRY(ik_check_a(suh, IK_DTYPE_F16, 1, 8));
-    IK_TRY(ik_check_a(svh, IK_DTYPE_F16, 1, 8));
-    IK_TRY(ik_check_a(cb, IK_DTYPE_I32, 1, 4));
-    const int64_t M = x->shape[0], K = x->shape[1];
-    const int64_t kt = trellis->shape[0], nt = trellis->shape[1], words = trellis->shape[2];
-    const int64_t N = 16 * nt;
-    if (words % 8 != 0 || words / 8 < 2 || words / 8 > 16) return IK_ERR_SHAPE;
-    const int k2 = (int)(words / 8);
-    if (16 * kt != K || K % 128 != 0 || N % 128 != 0 || suh->shape[0] != K || svh->shape[0] != N || cb->shape[0] != 1 ||
-        out->shape[0] != M || out->shape[1] != N)
-        return IK_ERR_SHAPE;
-    if (M == 0 || N == 0 || K == 0) return IK_OK;
-    if (M > 16 || K > 0x3fffffffLL || N > 0x3fffffffLL) return IK_ERR_SHAPE;
-    const int64_t need = ik_matmul_exl3_splitk_scratch_bytes(M, K, N);
-    if (!scratch || !scratch->data || scratch->bytes < need || ((uintptr_t)scratch->data & 15u) != 0) return IK_ERR_INVALID_ARG;
-    cudaStream_t s = IK_STREAM(stream);
-    half* xh = (half*)scratch->data;
-    float* part = (float*)((char*)scratch->data + ((M * K * 2 + 255) & ~255LL));
-    const int S = splitk_count(K, N, sm_count());
-    rot_in_kernel<<<dim3((unsigned)((K / 128 + 3) / 4), (unsigned)M), 128, 0, s>>>(x->data, x->dtype, (const half*)suh->data,
-                                                                                   xh, (int)K);
-    IK_TRY(ik_launch_status());
-    const long long stride_k = (long long)nt * 4 * k2, stride_nb = 8LL * 4 * k2;
-    return launch_split(k2, xh, (const uint32_t*)trellis->data, stride_k, stride_nb, part, (const half*)svh->data, out->data,
-                        out->dtype, (const int*)cb->data, (int)M, (int)K, (int)N, S, s);
+    return split_launch(false, x, trellis, suh, svh, cb, out, scratch, stream);
+}
+
+// The split-K op with the MoE kernel's cp.async loader (exl3_moe_cp.cu) and cp_split_count; the trellis must be 16-aligned.
+// Deterministic, and not bitwise ik_matmul_exl3_splitk: the splits and warps differ, so the sum order does.
+int ik_matmul_exl3_cp(const ik_tensor* x, const ik_tensor* trellis, const ik_tensor* suh, const ik_tensor* svh,
+                      const ik_tensor* cb, ik_tensor* out, const ik_scratch* scratch, void* stream) {
+    return split_launch(true, x, trellis, suh, svh, cb, out, scratch, stream);
 }
 
 }  // extern "C"
+
