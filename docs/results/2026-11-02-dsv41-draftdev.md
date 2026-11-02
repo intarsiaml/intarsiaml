@@ -58,3 +58,38 @@ Task 3 code is in the branch anyway, off by default (`INTARSIA_NCCL_GATHER=1`: `
 | 137 / 1028 / 4074 / 16308 | 42.8 / 44.2 / 42.1 / 40.5 | 43.7 / 41.1 / 40.6 / 40.0 | 38.7 / 37.6 / 40.0 / 40.6 |
 
 Gather: golden 640/640 identical to base (same 294 rounds, same accepts), speed inside the noise (mean 41.4 vs 42.4). Channels 1: slower (mean 39.2). MMLU on the 570 was not run (no speed case for it).
+
+## Task 4: TensorFold (BLACKFOLD) nsys profile, one 48-token request
+
+Window #7792 (both Sparks, vLLM restored). TensorFold head spark1 + worker spark2 in `ds41-prof-dd` containers (the recipe's image and files, mounted read only; host nsys 2025.3.2
+mounted in), `nsys launch --trace=cuda,nvtx --cuda-graph-trace=node`, `start/stop` around one request: 1222-token prompt (this lane's results prose), 48 greedy tokens, 16K pool,
+`TENSORFOLD_MEMORY_RESERVE_GIB=10.9` (11.6 failed the budget check once: weights 98.9 GiB vs 98.4 = 110.0 free - 11.6; coordinator approved 10.9). Scripts, analysis and logs: `docs/results/2026-11-02-dsv41-draftdev/tfprof/`
+(`run-tfprof.sh`, `bf-node-prof.sh`, `analyze.py`, `analysis-r{0,1}.txt`; the 4 MB CSVs are in `.scratch/tfprof/out`). The request ran 22 rounds, 25/44 drafts accepted (2.1 tokens a round).
+`grid_breakdown.py` did not fit: it splits passes at `AllGather` and TensorFold has only 83 of them (one per pass at the head); its per-layer collectives are its own RDMA kernels
+(`dsv41_rdma_stage` + `dsv41_rdma_collect`, 83 each a verify pass). `analyze.py` splits at `_embed_init` instead.
+
+Rank 0 (rank 1 is within 0.4 ms everywhere), median per pass; "kernel ms" is the sum of kernel durations on all streams, so it exceeds the span where side streams overlap:
+
+| | draft pass (5 rows, 3 stages + head) | verify pass (2-4 rows; 3 rows 32.2 ms, 2 rows 27.7, 4 rows 37.2) |
+|---|---:|---:|
+| span (first to last kernel) | 3.79 ms | 32.35 ms |
+| GPU idle inside the span | 0.01 ms | 0.05 ms |
+| kernels | 115 | 1250 |
+| kernel ms: MoE experts (`grouped_cp`, rows, `down_combine`) | 1.29 | 20.19 (80 launches, 40 layers x 2) |
+| kernel ms: dense linears (EXL3 `glinear`, `_gemm`, unpack, rotations) | 2.14 | 11.54 |
+| kernel ms: L2 prefetch (side stream, overlapped) | 0 | 9.37 |
+| kernel ms: hyper-connection | 0.29 | 4.81 |
+| kernel ms: collectives (RDMA stage + collect; 83 pairs) | 0.32 | 4.08 |
+| kernel ms: attention (sparse attn, KV, indexer, rope) | 0.20 | 3.53 |
+| kernel ms: router / norm / engram / embed+head | 0.58 | 1.0 |
+
+Round: draft start to next draft start 36.4 ms median (draft 3.8 + verify ~32.3 + two gaps of ~0.1 ms) for 2.1-2.2 tokens = about 16.7 ms/token, 60 tok/s on a request this short.
+Ours (window 1, same checkpoint family is not the same weights: Mia EXL3 vs BLACKFOLD): 51.5 ms a round (23.6 ms/token x 2.18), with a 52 ms 4-row verify against TensorFold's 37 ms, 
+so the verify pass is the gap, 15 ms of it; the draft pass is small in both after this lane's changes.
+What to take from it: (1) TensorFold's verify is **MoE 20 ms in 80 grouped_cp launches with the L2 prefetch overlapped on a side stream** (9.4 ms of kernel time hidden), and 11.5 ms of dense linears for 274 launches;
+(2) its collectives cost 4 ms of kernel time a pass for 83 stage/collect pairs and no NCCL in the layers, against our 80 NCCL all-reduces (about 36-50 us each, 3-4 ms): similar in total,
+so the collective cost is not the gap; (3) no idle between kernels in either pass (graphs), so TensorFold's advantage is kernel time, not launch overhead.
+
+Memory (the rules' 2.8 GiB watcher): MemAvailable fell from 110.9 to 3.5 GiB on spark1 (6.1 on spark2) while loading (42.5 s, `loaded in 42.5s`, a warm page cache) and stayed at 3.2-3.5 on spark1 through the capture.
+**The watcher killed the container on spark1 at 03:43:37 (2.4 GiB)** while the host ran `nsys stats` on the two reports, after the stop and the CSV export had completed: the traced request, both reports and both CSVs are complete,
+the planned untraced 128-token request did not run (no plain tok/s from TensorFold in this window). vLLM restored on both (03:47, `Up 3 minutes`, `fleetq mark-up`). Not retried, as agreed.

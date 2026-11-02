@@ -1,0 +1,22 @@
+03:42:18 spark1=110.9 spark2=112.0
+03:42:22 spark1=110.9 spark2=112.0
+03:42:25 spark1=110.9 spark2=110.1
+03:42:29 spark1=104.7 spark2=93.1
+03:42:33 spark1=83.9 spark2=68.2
+03:42:38 spark1=61.5 spark2=45.1
+03:42:41 spark1=38.2 spark2=25.2
+03:42:45 spark1=21.7 spark2=18.0
+03:42:49 spark1=14.4 spark2=17.9
+03:42:53 spark1=8.3 spark2=11.3
+03:42:57 spark1=5.7 spark2=10.9
+03:43:01 spark1=9.8 spark2=9.8
+03:43:05 spark1=4.0 spark2=6.8
+03:43:10 spark1=3.5 spark2=6.2
+03:43:13 spark1=3.5 spark2=6.1
+03:43:17 spark1=3.5 spark2=6.1
+03:43:21 spark1=3.5 spark2=6.1
+03:43:25 spark1=3.4 spark2=6.3
+03:43:29 spark1=3.2 spark2=6.2
+03:43:33 spark1=3.3 spark2=6.2
+ds41-prof-dd
+03:43:37 spark1=2.4 KILLED-spark1 spark2=85.0
