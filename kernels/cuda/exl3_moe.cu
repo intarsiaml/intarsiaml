@@ -22,7 +22,7 @@ namespace ik_exl3x {
 namespace {
 
 constexpr int kDecodeRows = 64;   // rows below which the decode kernel serves (TensorFold's EXACT_ROWS)
-constexpr int kPromptRows = 512;  // rows of a prompt slice (the scratch bound)
+constexpr int kPromptRows = 2048;  // rows of a prompt slice (the scratch bound; DeepSeek-V4.1's served chunk is the same)
 constexpr int kMaxE = 1024;       // experts a call (the grouping block's threads)
 constexpr int kChunk = 4096;      // ids the grouping block stages at a time
 

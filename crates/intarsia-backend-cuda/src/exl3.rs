@@ -4,7 +4,7 @@
 //! `matmul_exl3_gemv` serves every row count: the launcher runs `M` rows as slices of at most 128 (the rotated input of
 //! one slice at a time is the scratch), and every 16-row pass of a block decodes the weight tiles again, so it is a decode
 //! kernel first. `matmul_exl3_gemm` is the prefill kernel: a block decodes each weight tile once for 64 or 128 rows and
-//! runs mma against them, in slices of 512 rows. Its output is bit for bit the GEMV's (same mma chains, same sum order),
+//! runs mma against them, in slices of 2048 rows. Its output is bit for bit the GEMV's (same mma chains, same sum order),
 //! so which of the two runs changes no row's bits; it is registered from [`GEMM_MIN_TOKENS`] rows up. Both read the
 //! codebook on the device and take the width from the trellis shape, so one registration covers every width and
 //! codebook the op defines.
@@ -36,7 +36,7 @@ pub fn splitk_scratch_bytes(s: &ShapeInfo) -> usize {
 /// Rows below which `moe_experts_exl3` runs its decode kernel in one slice (kernels/cuda/exl3_moe.cu, `kDecodeRows`).
 pub const MOE_DECODE_ROWS: usize = 64;
 /// Rows of one prompt slice of `moe_experts_exl3` (`kPromptRows`).
-pub const MOE_PROMPT_ROWS: usize = 512;
+pub const MOE_PROMPT_ROWS: usize = 2048;
 /// Most experts a `moe_experts_exl3` call (`kMaxE`).
 pub const MOE_MAX_EXPERTS: usize = 1024;
 
@@ -173,7 +173,7 @@ pub fn all() -> Vec<KernelImpl> {
                     .scratch(splitk_scratch_bytes)
                     .priority(-11),
                 // EXL3 routed experts (Op::MoeExperts with an i16 trellis arena, quant::exl3_moe): decode windows below 64 rows,
-                // prompt slices of 512 rows above; every width and codebook (device data, per matrix)
+                // prompt slices of 2048 rows above; every width and codebook (device data, per matrix)
                 "moe_experts_exl3" => k
                     .acts([DType::Bf16, DType::F16, DType::F32])
                     .weights([DType::I16])

@@ -199,7 +199,7 @@ fn sub_call(hc: &HostCall, r0: usize, r1: usize) -> HostCall {
     HostCall { op: hc.op, inputs, outputs: vec![out], attrs: hc.attrs.clone() }
 }
 
-/// A row's output bits do not depend on the batch it runs in, nor on the path: T = 600 (two prompt slices) and T = 70
+/// A row's output bits do not depend on the batch it runs in, nor on the path: T = 2100 (two prompt slices) and T = 70
 /// (one prompt slice) against T = 40 / T = 1 (the decode kernel), bf16 and f32 outputs, mixed widths with the shared
 /// expert's slot. And two runs of the same call give the same bits.
 #[test]
@@ -208,12 +208,12 @@ fn rows_do_not_depend_on_the_batch_or_the_path() {
     let mut rng = SplitMix64::new(5);
     for odt in [DType::Bf16, DType::F32] {
         let (e, k, h, i) = (24usize, 6usize, 384usize, 256usize);
-        let hc = exl3_moe::case(&mut rng, 600, e, k, h, i, &|x, m| if x == e - 1 { 10 } else { [6, 4, 6][m as usize] }, Codebook::Mul1, true, DType::Bf16, odt, 10.0);
+        let hc = exl3_moe::case(&mut rng, 2100, e, k, h, i, &|x, m| if x == e - 1 { 10 } else { [6, 4, 6][m as usize] }, Codebook::Mul1, true, DType::Bf16, odt, 10.0);
         let full = run_host(&*cuda, KERNEL, &hc).unwrap().remove(0);
         let again = run_host(&*cuda, KERNEL, &hc).unwrap().remove(0);
         assert_eq!(full.data, again.data, "run to run ({odt})");
-        let rb = full.data.len() / 600;
-        for (r0, r1) in [(0, 70), (530, 600), (100, 140), (0, 1), (511, 512), (512, 513), (599, 600)] {
+        let rb = full.data.len() / 2100;
+        for (r0, r1) in [(0, 70), (2030, 2100), (100, 140), (0, 1), (511, 512), (512, 513), (2047, 2048), (2048, 2049), (2099, 2100)] {
             let part = run_host(&*cuda, KERNEL, &sub_call(&hc, r0, r1)).unwrap().remove(0);
             assert_eq!(part.data, full.data[r0 * rb..r1 * rb], "rows {r0}..{r1} ({odt})");
         }
