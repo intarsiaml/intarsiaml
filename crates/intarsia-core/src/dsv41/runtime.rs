@@ -73,6 +73,8 @@ struct Exec {
     scratch_gen: u64,
     /// Recording a CUDA graph: nothing may upload, allocate or synchronise.
     capturing: bool,
+    /// The graph being run or recorded is a verify pass ([`Dsv41Graph::verify`]).
+    verify: bool,
 }
 
 /// A captured device-position pass (`INTARSIA_DSV41_GRAPHS=1`): the graph and its recorded segments, split before every
@@ -157,6 +159,9 @@ pub struct Dsv41Runtime {
     /// blocks) is below this run the split-K GEMV `matmul_exl3_splitk` instead (selected here by name; the plain registry
     /// selection never picks it).
     splitk_grid: usize,
+    /// `INTARSIA_DSV41_EXL3_SPLITK_VERIFY` (default on, `0` = GEMV): verify passes take split-K on the same linears as the
+    /// one-row decode pass, so a verify row is bitwise the decode row. Plain decode and prefill are untouched.
+    splitk_verify: bool,
     /// `INTARSIA_DSV41_DPOS=1` (or graphs on): passes of up to `VERIFY_MAX_ROWS` rows run the device-position graph
     /// ([`PassKind::dpos`]); longer chunks keep the host-position graph.
     dpos: std::sync::atomic::AtomicBool,
@@ -380,13 +385,14 @@ impl Dsv41Runtime {
             consts,
             engram,
             opts,
-            exec: Mutex::new(Exec { ws, scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false }),
+            exec: Mutex::new(Exec { ws, scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false, verify: false }),
             slot_specs,
             memory: RuntimeMemory::default(),
             last_pass: Mutex::new(PassStats::default()),
             prof: Mutex::new((0, 0, 0, 0, 0)),
             opprof: std::env::var_os("INTARSIA_DSV41_OPPROF").filter(|v| v != "0").map(|_| Mutex::new(HashMap::new())),
             splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(16),
+            splitk_verify: std::env::var("INTARSIA_DSV41_EXL3_SPLITK_VERIFY").map_or(true, |v| v != "0"),
             dspark,
             confidence,
             dpos: std::sync::atomic::AtomicBool::new(dpos),
@@ -784,6 +790,7 @@ impl Dsv41Runtime {
         }
         self.touch();
         let mut ex = self.exec.lock().unwrap();
+        ex.verify = g.verify;
         self.upload_inputs(&ex, g, st.len, ids, host)?;
         let mut tickets = self.issue_engram(g, st, ids, t)?;
         let mut stats = PassStats { build_us: p0.elapsed().as_micros() as u64, ..Default::default() };
@@ -878,6 +885,7 @@ impl Dsv41Runtime {
     /// Record `g` as segments split before every Engram layer's stage. Every kernel already ran once eagerly (the
     /// warm-up pass), the scratch is grown first, the fills applied; nothing inside the recording uploads or allocates.
     fn capture(&self, ex: &mut Exec, g: &Dsv41Graph, st: &SequenceState, t: usize) -> Result<Vec<(usize, usize, GraphHandle)>> {
+        ex.verify = g.verify;
         // grow the scratch to the largest need of the graph outside the recording
         let mut need = 0usize;
         for (si, stage) in g.stages.iter().enumerate() {
@@ -947,13 +955,13 @@ impl Dsv41Runtime {
         }
         call.check().map_err(|e| Error::model(format!("deepseek_v41 step {}: {e}", step.what)))?;
         let cls = if t == 1 { 0 } else if t <= 16 { 1 } else { 2 };
-        let key = (si, step.what.clone(), step.op, cls | if step.pos { 4 } else { 0 });
+        let key = (si, step.what.clone(), step.op, cls | if step.pos { 4 } else { 0 } | if ex.verify { 8 } else { 0 });
         let ki = match ex.kernels.get(&key) {
             Some(&i) => i,
             None => {
                 let k = self.reg.select(&call).map_err(|e| Error::model(format!("deepseek_v41 step {} ({}): {e}", step.what, step.op.as_str())))?;
                 let mut name = k.name.as_str();
-                if step.op == crate::ops::Op::MatmulExl3 && t == 1 && name == "matmul_exl3_gemv" {
+                if step.op == crate::ops::Op::MatmulExl3 && (t == 1 || (ex.verify && self.splitk_verify)) && name == "matmul_exl3_gemv" {
                     let n = call.outputs.first().map_or(0, |o| o.shape.get(1).copied().unwrap_or(0));
                     let s = ShapeInfo::from_call(&call);
                     if n / 128 < self.splitk_grid && self.kernel_list.iter().any(|x| x.name == "matmul_exl3_splitk" && x.op == step.op && x.accepts(&s)) {
