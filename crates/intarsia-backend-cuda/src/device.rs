@@ -575,7 +575,7 @@ impl Backend for CudaBackend {
             bytes.push(t.nbytes());
         }
         // SAFETY: bounds-checked pointers into live device buffers, held by the recording's weights; the kernel only prefetches.
-        check("ik_rt_l2_prefetch", unsafe { ffi::ik_rt_l2_prefetch(ptrs.as_ptr(), bytes.as_ptr(), ptrs.len() as c_int, budget, s) })
+        check("ik_rt_l2_prefetch", unsafe { ffi::ik_rt_l2_prefetch(ptrs.as_ptr(), bytes.as_ptr(), ptrs.len() as std::ffi::c_int, budget, s) })
     }
 
     fn stream_record(&self, signal: StreamId) -> Result<u64> {
