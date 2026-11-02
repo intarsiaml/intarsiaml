@@ -179,15 +179,10 @@ pub struct Dsv41Runtime {
     /// `INTARSIA_DSV41_GRAPHS` (default on, `0` = eager): one-row decode passes and verify passes replay CUDA graphs of the
     /// device-position graph. Switched off for good when a capture fails.
     graphs_on: std::sync::atomic::AtomicBool,
-    /// A replayed recording may still run (a pass nobody synchronised: TP rank 1). The next eager pass waits for it first,
-    /// so a non-captured collective never overlaps a graph on the communicator (`NCCL_GRAPH_MIXING_SUPPORT=0` forbids that).
-    replay_outstanding: std::sync::atomic::AtomicBool,
-    /// `INTARSIA_DSV41_ENGRAM_ONEGRAPH=1`: one recording for the whole pass; all Engram records are waited for and uploaded
-    /// before it starts, instead of a segment per Engram layer with the wait overlapping the earlier layers.
+    /// `INTARSIA_DSV41_ENGRAM_ONEGRAPH` (default on, `0` = off): one recording for the whole pass, all Engram records waited
+    /// for and uploaded before it starts. Off: a segment per Engram layer, the wait overlapping the earlier layers; the first
+    /// collective of every recording starts late (0.2-0.7 ms in the traces), which costs more than the overlap saves.
     engram_one_graph: bool,
-    /// `INTARSIA_DSV41_ENGRAM_LATE_ISSUE=1`: a replayed pass starts its first segment before hashing and issuing the Engram
-    /// rows (ignored with `INTARSIA_DSV41_ENGRAM_ONEGRAPH`, which needs the records before it starts).
-    engram_late_issue: bool,
     graphs: Mutex<Graphs>,
     /// Largest f32 partial of a reduction (`Comm::reserve` before the first capture).
     max_partial: usize,
@@ -425,9 +420,7 @@ impl Dsv41Runtime {
             confidence,
             dpos: std::sync::atomic::AtomicBool::new(dpos),
             graphs_on: std::sync::atomic::AtomicBool::new(graphs_on),
-            replay_outstanding: std::sync::atomic::AtomicBool::new(false),
-            engram_one_graph: std::env::var("INTARSIA_DSV41_ENGRAM_ONEGRAPH").is_ok_and(|v| v == "1"),
-            engram_late_issue: std::env::var("INTARSIA_DSV41_ENGRAM_LATE_ISSUE").is_ok_and(|v| v == "1"),
+            engram_one_graph: std::env::var("INTARSIA_DSV41_ENGRAM_ONEGRAPH").map_or(true, |v| v != "0"),
             graphs: Mutex::new(Graphs::default()),
             max_partial,
         };
@@ -820,9 +813,6 @@ impl Dsv41Runtime {
             return Err(Error::invalid(format!("deepseek_v41: {} ids for a graph of {t} rows", ids.len())));
         }
         self.touch();
-        if self.replay_outstanding.swap(false, std::sync::atomic::Ordering::Relaxed) {
-            self.backend.synchronize(0)?;
-        }
         let mut ex = self.exec.lock().unwrap();
         ex.verify = g.verify;
         self.upload_inputs(&ex, g, st.len, ids, host)?;
@@ -894,10 +884,7 @@ impl Dsv41Runtime {
                 }
             }
         }
-        // (a recording that starts on an Engram layer needs its records before the first segment)
-        let first_is_engram = c.segs.first().and_then(|(f, _, _)| c.g.stages[*f].layer).is_some_and(|l| self.engram.as_ref().is_some_and(|e| e.hasher.layout.layer_ids.contains(&l)));
-        let late = self.engram_late_issue && !self.engram_one_graph && !first_is_engram;
-        let mut tickets = if late { HashMap::new() } else { self.issue_engram(&c.g, st, ids, t)? };
+        let mut tickets = self.issue_engram(&c.g, st, ids, t)?;
         let mut stats = PassStats { build_us: p0.elapsed().as_micros() as u64, ..Default::default() };
         let e0 = Instant::now();
         if self.engram_one_graph {
@@ -907,18 +894,14 @@ impl Dsv41Runtime {
                 self.engram_records(&ex, l, ticket, t, &mut stats)?;
             }
         }
-        for (si, (first, _end, h)) in c.segs.iter().enumerate() {
+        for (first, _end, h) in &c.segs {
             if let Some(l) = c.g.stages[*first].layer {
                 if let Some((_li, ticket)) = tickets.remove(&l) {
                     self.engram_records(&ex, l, ticket, t, &mut stats)?;
                 }
             }
             self.backend.graph_replay(h, 0)?;
-            if late && si == 0 {
-                tickets = self.issue_engram(&c.g, st, ids, t)?;
-            }
         }
-        self.replay_outstanding.store(want == Want::Nothing, std::sync::atomic::Ordering::Relaxed);
         for (base, lo, hi) in &c.writes {
             if let Some(&(o, n, _)) = ex.filled.get(base.as_str()) {
                 let es = ex.ws.get(base.as_str()).map_or(1, |w| esz(w.dtype));
