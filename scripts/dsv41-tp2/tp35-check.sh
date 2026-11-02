@@ -20,7 +20,7 @@ r() { ssh -n -o BatchMode=yes -o ConnectTimeout=10 "$1" "export FLEETQ_JOB=$FLEE
 stop() { for h in spark1 spark2; do r $h "p=\$(cat $LOGD/tp35-$h.pid 2>/dev/null); [ -n \"\$p\" ] && kill -TERM \$p 2>/dev/null; for i in \$(seq 1 20); do kill -0 \$p 2>/dev/null || break; sleep 1; done; kill -KILL \$p 2>/dev/null; true"; done; }
 trap stop EXIT
 log "binary $BIN md5 $(r spark1 "md5sum $BIN | cut -c1-12") (STAMP file: $(r spark1 "cat $SPARK_DIR/bin/STAMP")), INTARSIA_TP_SPIN_MS in env: '${INTARSIA_TP_SPIN_MS:-unset}'"
-r spark2 "mkdir -p $LOGD; nohup env $NCCLENV $BIN tp-worker --listen $WIP:$WPORT $FL > $LOGD/tp35-worker.log 2>&1 < /dev/null & echo \$! > $LOGD/tp35-spark2.pid"
+r spark2 "mkdir -p $LOGD; nohup env $NCCLENV $BIN tp-worker --serving --listen $WIP:$WPORT $FL > $LOGD/tp35-worker.log 2>&1 < /dev/null & echo \$! > $LOGD/tp35-spark2.pid"
 sleep 2
 r spark1 "mkdir -p $LOGD; nohup env $NCCLENV $BIN serve $FL --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name q35 --no-supervisor --no-ui > $LOGD/tp35-serve.log 2>&1 < /dev/null & echo \$! > $LOGD/tp35-spark1.pid"
 T0=$(date +%s); up=0

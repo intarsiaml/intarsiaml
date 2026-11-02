@@ -298,6 +298,14 @@ impl Builder<'_> {
         Ok(o)
     }
 
+    /// [`Self::matmul`] as a step of `lane` ([`Step::lane`]).
+    fn matmul_lane(&mut self, lane: u8, x: Arg, p: &str, out: Buf, odt: DType) -> Result<Arg> {
+        self.lane = lane;
+        let r = self.matmul(x, p, out, odt);
+        self.lane = 0;
+        r
+    }
+
     fn rmsnorm(&mut self, x: Arg, w: &str, out: &str) -> Result<Arg> {
         let wt = self.weight(w)?;
         let o = Arg { buf: Buf::Ws(out.into()), ..x.clone() };
@@ -940,14 +948,15 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     let r = c.ratio(l);
 
     // q: low rank, normed, rotated tail
-    let qa = b.matmul(n.clone(), &format!("{p}.wq_a"), Buf::Ws("qa".into()), act)?;
+    // (wq_a and wkv read the same rows and write buffers of their own: lanes 1 and 2, side by side when the runtime forks)
+    let qa = b.matmul_lane(1, n.clone(), &format!("{p}.wq_a"), Buf::Ws("qa".into()), act)?;
+    let kv = b.matmul_lane(2, n.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
     let qr = b.rmsnorm(qa, &format!("{p}.q_norm.weight"), "qr")?;
     let q = b.matmul(qr.clone(), &format!("{p}.wq_b"), Buf::Ws("q".into()), act)?;
     let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, Buf::Ws("q_rope".into()), &format!("{p}.rope(q)"));
     b.positioned(1);
 
     // sliding-window KV: one latent, normed, rotated, fp8 round trip, into the ring
-    let kv = b.matmul(n.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
     let kv = b.rmsnorm(kv, &format!("{p}.kv_norm.weight"), "kv_n")?;
     let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv_rope".into()), &format!("{p}.rope(kv)"));
     b.positioned(1);
@@ -974,8 +983,8 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
         if src == l {
             // the compressor (Compressor.forward): ratio 1 is a plain projection, above it softmax-gated pooling in f32
             let latent = if r > 1 {
-                let ckv = b.matmul(n.clone(), &format!("{p}.compressor.wkv"), Buf::Ws("cmp.kv".into()), DType::F32)?;
-                let cs = b.matmul(n.clone(), &format!("{p}.compressor.wgate"), Buf::Ws("cmp.score".into()), DType::F32)?;
+                let ckv = b.matmul_lane(1, n.clone(), &format!("{p}.compressor.wkv"), Buf::Ws("cmp.kv".into()), DType::F32)?;
+                let cs = b.matmul_lane(2, n.clone(), &format!("{p}.compressor.wgate"), Buf::Ws("cmp.score".into()), DType::F32)?;
                 let tail = ls.tail.expect("ratio > 1 sources have a tail ring");
                 let outs = vec![
                     ws("latent", act, &[groups, hd]),
@@ -1089,10 +1098,7 @@ fn wo_a(b: &mut Builder, p: &str, o: Arg) -> Result<Arg> {
         // the slices read and write buffers of their own: lanes 1..=4 (side by side when the runtime forks)
         for gi in 0..g {
             let x = Arg { buf: Buf::Ws(format!("o_groups[{gi}]")), dtype: act, shape: vec![t, gk] };
-            b.lane = (gi % 4 + 1) as u8;
-            let r = b.matmul(x, &format!("{p}.wo_a.slice.{gi}"), Buf::Ws(format!("oa_groups[{gi}]")), act);
-            b.lane = 0;
-            r?;
+            b.matmul_lane((gi % 4 + 1) as u8, x, &format!("{p}.wo_a.slice.{gi}"), Buf::Ws(format!("oa_groups[{gi}]")), act)?;
         }
         let oa = ws("oa", act, &[t, g, c.o_lora_rank]);
         b.push(Op::Transpose01, format!("{p}.wo_a(token-major)"), vec![ws("oa_groups", act, &[g, t, c.o_lora_rank])], vec![oa.clone()], OpAttrs::default());
