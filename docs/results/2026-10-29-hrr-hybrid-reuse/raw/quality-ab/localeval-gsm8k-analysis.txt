@@ -1,0 +1,6 @@
+localeval GSM8K flexible: n=200  A(default) 0.6950 (SE 0.0326)  B(exact) 0.6950 (SE 0.0326)  A-B +0.0000 paired SE 0.0000
+  answers differing 0: A right 0, B right 0, neither 0
+  arm A: 200 requests, 0 resumed (cached>0), 0 of those at a cold cut of their own prompt, mean uncached tokens 0
+  arm B: 200 requests, 0 resumed (cached>0), 0 of those at a cold cut of their own prompt, mean uncached tokens 0
+  requests arm A: 200 requests, 0 resumed (cached>0), 0 of those at a cold cut of their own prompt, mean uncached tokens 492
+  requests arm B: 200 requests, 0 resumed (cached>0), 0 of those at a cold cut of their own prompt, mean uncached tokens 492

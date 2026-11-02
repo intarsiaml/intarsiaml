@@ -145,6 +145,45 @@ Bug repro, A = 4096 tokens, B = A + " Summarize the above in one paragraph." (`r
 
 CUDA and HIP: read from the code only. Under `exact` they take the same branch and floor; by default they resume at any snapshot as on main. Not run (no spark run, tatooine untouched). DSv4.1 (`dsv41_engine.rs`) does not use `Model::reuse_len` (its own `restorable_len(common)` in `generate`); the merge is independent of it and its `ModelInfo` sets `reuse_cold_cuts_only: false`.
 
+## Does the default rule lower answer quality? (2026-11-02, head `e64c9ddfb`)
+
+Metal 35B, one binary (`e64c9ddfb`), `serve --spec off --max-seq 20000`, chunk 4096 (the served default). Arm A: `INTARSIA_PREFIX_REUSE` unset (default). Arm B: `=exact`. A and B ran back to back per test, in one fleetq slot (#7899, endor, owner claude-hrr; a logging proxy in front of `serve` records `prompt_tokens` and `cached_tokens` of every request). Raw, scripts and request logs: `raw/quality-ab/`.
+
+**Result: within noise. The standard localeval runs do not exercise reuse at all, so they say nothing; a multi-turn variant that does exercise it shows no significant difference.**
+
+**1. Standard localeval runs: reuse not exercised.** `localeval quality --thinking off --structured none --bench mmlu --limit 25` (1425 items, 5-shot, as in the scoreboard's Metal 35B row) and `--bench gsm8k --limit 200` (flexible).
+
+| | arm A (default) | arm B (`exact`) | A - B | answers differing |
+|---|---|---|---|---|
+| MMLU n=1425 (runs `20261102-154700-adhoc-hrr-A-mmlu`, `20261102-160041-adhoc-hrr-B-mmlu`) | 0.8428 (SE 0.0096) | 0.8428 (SE 0.0096) | 0.0000 | 0 |
+| GSM8K n=200 flexible (`20261102-161418-adhoc-hrr-A-gsm8k`, `20261102-161700-adhoc-hrr-B-gsm8k`) | 0.695 (SE 0.033) | 0.695 (SE 0.033) | 0.000 | 0 |
+
+Requests that resumed (`cached_tokens > 0`): arm A 0 of 1425 (MMLU) and 0 of 200 (GSM8K); arm B the same. Cause: a prompt is a fresh question after the same few-shot header, ~2.6k tokens (MMLU) under the 4096 chunk, and a hybrid state holds snapshots only at chunk cuts and at the previous prompt's `plen - 1`, which lies past the common prefix. Nothing to resume from, so both arms ran the same cold prefill and returned identical answers. The 0.8428 equals the scoreboard's 0.842.
+
+**2. Multi-turn variant (`raw/quality-ab/mt.py`), reuse exercised.** Each request extends the previous one, as a chat or a growing few-shot session does: one conversation per MMLU subject (the 5 dev shots, then the 25 test questions in turn, each followed by its gold answer, so both arms send byte-identical prompts), `/v1/completions`, greedy, 3 tokens; GSM8K: 10 conversations of 20 problems, gold worked solutions as history, `<think></think>` prefilled (thinking off), greedy, up to 400 tokens, flexible scoring. A first GSM8K attempt without the empty think block let the model think and truncated at 400 tokens (0.28 in both arms, identical answers); it is discarded (`mt-*-gsm8k-v1-thinking.json`).
+
+| | arm A (default) | arm B (`exact`) | A - B (paired SE) | answers differing | right in those: A / B / neither |
+|---|---|---|---|---|---|
+| MMLU n=1425 | 0.8575 (SE 0.0093) | 0.8618 (SE 0.0091) | -0.0042 (0.0030) | 26 | 6 / 12 / 8 |
+| GSM8K n=200 | 0.935 (SE 0.017) | 0.935 (SE 0.017) | 0.000 (0) | 0 (all 200 reply texts identical) | 0 / 0 / 0 |
+
+Reuse in the multi-turn runs:
+
+| | requests | resumed (cached > 0) | of those at a cold cut of their own prompt | mean uncached prompt tokens |
+|---|---|---|---|---|
+| MMLU arm A | 1425 | 1368 | 0 | 115 |
+| MMLU arm B | 1425 | 76 | 76 (the 4096 cut, past the first chunk) | 1507 |
+| GSM8K arm A | 200 | 190 | 0 | 161 |
+| GSM8K arm B | 200 | 0 | 0 | 1604 |
+
+Arm A resumed at the previous prompt's `plen - 1` (or its live state) in 96% (MMLU) and 95% (GSM8K) of requests, none of them a cold cut: this is the rule that changed the 35B's text in the A/B repro, applied 1368 and 190 times. Arm B resumed only where a 4096 cut exists.
+
+Reading it:
+* MMLU: arm A is 0.4 points lower, 1.4 paired SE, 6 against 12 on the 18 decided items (sign test two-sided p = 0.24): consistent with no difference; the 95% interval of A - B is about -1.0 to +0.2 points. At most a small effect could hide in it.
+* GSM8K: no answer or reply text differed across 200 greedy generations of up to 400 tokens after 190 default-rule resumes. The default does change bits (the A/B repro text differed from character 152), but not here.
+* So the evidence does not show a quality loss from the default on these two benchmarks; it cannot exclude a loss smaller than about 1 point on MMLU, and it does not cover long free-form generation after a resume (the repro's 256-token B text did differ from cold). This test says nothing about the qualify gate failure above (`long_code_4k continue`), which is a code prompt scored against a cold stream.
+* Limits: raw completions with gold-answer history, not the chat template with the model's own replies (those would make the two arms send different prompts); GSM8K history and prompt format are mine, so 0.935 is not comparable with the localeval 0.695 (different prompt: few-shot gold solutions, empty think block, 400 tokens).
+
 ## Follow-up (not done here)
 
 The small-pass splits above differ with 2+ rows per pass on this NVFP4 MoE model. Lane prc's Metal
