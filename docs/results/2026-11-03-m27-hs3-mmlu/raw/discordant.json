@@ -1,0 +1,7 @@
+{
+ "off_right_on_wrong": [],
+ "on_right_off_wrong": [
+  "mmlu-00303:abstract_algebra",
+  "mmlu-01052:marketing"
+ ]
+}

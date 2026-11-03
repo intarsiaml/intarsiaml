@@ -1,0 +1,35 @@
+[localeval] benchmark gsm8k (limit=300, shots=None, tasks=all)
+Overall GSM8K Accuracy: 0.056666666666666664
+# localeval: adhoc — 2026-11-03T15:54
+
+- model: `intarsia` on ? (?), url `http://127.0.0.1:18471/v1`
+- thinking: off; run kind: quality; label: m27-gsm-on
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --url http://127.0.0.1:18471/v1 --model intarsia --thinking off --structured none --bench gsm8k --limit 300 --label m27-gsm-on --recipe /opt/code/intarsiaml/.worktrees/m27-hs3/.scratch/intarsia serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name intarsia --max-seq 20000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18471`
+- result file: `results/20261103-155416-adhoc-m27-gsm-on/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+/opt/code/intarsiaml/.worktrees/m27-hs3/.scratch/intarsia serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name intarsia --max-seq 20000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18471
+````
+
+## Benchmarks (deepeval)
+
+| benchmark | score | n | TTFT s | prefill tok/s | decode tok/s | calls | errors | wall s |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| gsm8k | 0.787 | 300 | 0.69 | - | 40.0 | 300 | 0 | 1483.3 |
+
+- gsm8k scores: `gsm8k_flexible` 0.787 (primary); `gsm8k_bare_number` 0.057
+- gsm8k: 300 replies kept; 5 truncated (score 0); thinking verified off; mean output 166.83 tokens
+
+Benchmark speed is incidental (short, varying prompts); prefill '-' means no call had 1024+ uncached tokens. Quote the sweep for speed.
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261103-155416-adhoc-m27-gsm-on/result.json
+[localeval] logged to unanimis: 4b58a4e5-0812-498c-a79a-b11b4851d7be
