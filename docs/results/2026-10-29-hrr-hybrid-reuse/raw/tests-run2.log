@@ -1,0 +1,19 @@
+fleetq: #7233 running on endor: /opt/code/intarsiaml/.worktrees/hrr/run2.sh
+test result: ok. 147 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 11.34s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/batch_engine.rs (/opt/code/intarsiaml/.worktrees/hrr/target/release/deps/batch_engine-38d07e60f4584136)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.71s
+     Running tests/batch_recurrent.rs (/opt/code/intarsiaml/.worktrees/hrr/target/release/deps/batch_recurrent-d36435d2834928f5)
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.24s
+     Running tests/exact_reuse.rs (/opt/code/intarsiaml/.worktrees/hrr/target/release/deps/exact_reuse-e5da1d26c97781ce)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.12s
+     Running tests/hybrid.rs (/opt/code/intarsiaml/.worktrees/hrr/target/release/deps/hybrid-e478dbd0f090a9ba)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.89s
+B after A: cached 0, = cold
+A after B: cached 0, = cold
+A repeated: cached 4095, = cold
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 78.84s
+fleetq: #7233 done (exit 0)

@@ -1,6 +1,6 @@
 {
   "format": "intarsia-accuracy-baseline-v2",
-  "created_unix": 1793648646,
+  "created_unix": 1793660409,
   "tool_version": "0.0.1",
   "code": {
     "head": "",
@@ -10,7 +10,7 @@
   },
   "exec": {
     "cmdline": [
-      "/opt/code/intarsiaml/.worktrees/m27/target/release/intarsia",
+      "/opt/code/intarsiaml/.worktrees/m27/.scratch/intarsia-mrg",
       "accuracy",
       "--backend",
       "metal",
@@ -27,20 +27,23 @@
       "--decode-positions",
       "16",
       "--write-baseline",
-      "/opt/code/intarsiaml/.worktrees/m27/.scratch/acc/qwen3.8-27b-w4a16.metal.nax.baseline.json"
+      "/opt/code/intarsiaml/.worktrees/m27/golden/baselines/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.metal.baseline.json"
     ],
     "disable_list": "",
     "fault": "",
     "kernels": {
+      "add": "add_bf16",
       "argmax": "argmax_f32",
       "attn_decode": "attn_decode_bf16_splitkv",
-      "attn_prefill": "attn_prefill_bf16_flash_nax",
+      "attn_prefill": "attn_prefill_bf16_flash_nax+attn_prefill_bf16_splitkv_rows",
       "embedding": "embedding_bf16",
       "gate_split": "gate_split_bf16",
       "gdn_conv": "gdn_conv_bf16",
       "gdn_delta_rule": "gdn_delta_rule_bf16+gdn_delta_rule_bf16_pre",
-      "logits": "logits_bf16+logits_bf16_gemv",
+      "logits": "logits_bf16+logits_bf16_gemv+logits_bf16_gemv_rows",
+      "matmul": "matmul_bf16_gemv+matmul_bf16_nax",
       "matmul_mxfp4": "matmul_mxfp4_gemv+matmul_mxfp4_nax",
+      "matmul_pair": "matmul_pair_bf16_gemv+matmul_pair_bf16_nax",
       "qk_norm_rope_kv": "qk_norm_rope_kv_bf16",
       "rmsnorm": "rmsnorm_bf16",
       "rmsnorm_add": "rmsnorm_add_bf16",
@@ -69,8 +72,8 @@
     "kv_dtype": "bf16",
     "act_dtype": "bf16",
     "fp8_act": "recipe default",
-    "prefill_chunk": 256,
-    "prefill_chunk_source": "default",
+    "prefill_chunk": 2048,
+    "prefill_chunk_source": "recipe qwen3_5_vl, metal",
     "decode_positions": 16,
     "gate_class": "4bit"
   },

@@ -2189,3 +2189,19 @@ fn macro_steps_only_for_a_sole_prefill_with_nothing_decoding() {
     // B runs alone once A's prefill is done: its whole 3000 rows are one macro step
     assert_eq!(chunks_of(&tr, b), vec![(0, 3000)]);
 }
+
+/// Where a cold prefill leaves a recurrent state (`engine::Seq::prefill_step`): every plain chunk, then the token before the
+/// last; lane hrr's repro (chunk 4096): A = 4096 tokens cuts at 4095 only, B = 4105 at 4096 and 4104.
+#[test]
+fn recurrent_schedule_cuts_follow_the_solo_schedule() {
+    use intarsia_core::scheduler::recurrent_schedule_cuts;
+    assert_eq!(recurrent_schedule_cuts(4096, 4096, 0), vec![4095]);
+    assert_eq!(recurrent_schedule_cuts(4105, 4096, 0), vec![4096, 4104]);
+    assert_eq!(recurrent_schedule_cuts(4097, 4096, 0), vec![4096]);
+    assert_eq!(recurrent_schedule_cuts(8192, 4096, 0), vec![4096, 8191]);
+    assert_eq!(recurrent_schedule_cuts(1, 4096, 0), Vec::<usize>::new());
+    assert_eq!(recurrent_schedule_cuts(2, 4096, 0), vec![1]);
+    // a tail merge folds a short remainder into the last chunk: no cut at the chunk end
+    assert_eq!(recurrent_schedule_cuts(4105, 4096, 64), vec![4104]);
+    assert_eq!(recurrent_schedule_cuts(9000, 4096, 1024), vec![4096, 8999]);
+}

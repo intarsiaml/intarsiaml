@@ -66,6 +66,9 @@ pub struct Step {
     /// The step reads the pass's first position from the device (`OpCall::pos`, the runtime's `i32 [1]` position buffer)
     /// instead of `attrs.pos0`: a device-position graph ([`PassKind::dpos`]), replayable at any position.
     pub pos: bool,
+    /// 0: the pass's own stream. 1..=4: a lane of a fork the runtime opens in a recording (`INTARSIA_DSV41_LANES`), where the
+    /// steps of different lanes between two lane-0 steps may run side by side (they share no buffer). Ignored when not forking.
+    pub lane: u8,
 }
 
 /// Embedding, one layer, or the head.
@@ -173,6 +176,8 @@ struct Builder<'a> {
     extras: Vec<(usize, Extra)>,
     /// Device-position graph ([`PassKind::dpos`]).
     dpos: bool,
+    /// The lane the steps pushed now get ([`Step::lane`]).
+    lane: u8,
 }
 
 fn arg(buf: Buf, dtype: DType, shape: &[usize]) -> Arg {
@@ -212,7 +217,7 @@ impl Builder<'_> {
     }
 
     fn push(&mut self, op: Op, what: impl Into<String>, inputs: Vec<Arg>, outputs: Vec<Arg>, attrs: OpAttrs) {
-        self.steps.push(Step { op, what: what.into(), inputs, outputs, attrs, pos: false });
+        self.steps.push(Step { op, what: what.into(), inputs, outputs, attrs, pos: false, lane: self.lane });
     }
 
     /// In a device-position graph, the last step pushed reads the position from the device; `ratio` is its
@@ -291,6 +296,14 @@ impl Builder<'_> {
         let o = arg(out, odt, &[m, n]);
         self.push(op, p.to_string(), inputs, vec![o.clone()], attrs);
         Ok(o)
+    }
+
+    /// [`Self::matmul`] as a step of `lane` ([`Step::lane`]).
+    fn matmul_lane(&mut self, lane: u8, x: Arg, p: &str, out: Buf, odt: DType) -> Result<Arg> {
+        self.lane = lane;
+        let r = self.matmul(x, p, out, odt);
+        self.lane = 0;
+        r
     }
 
     fn rmsnorm(&mut self, x: Arg, w: &str, out: &str) -> Result<Arg> {
@@ -572,7 +585,7 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     }
     let n_taps = c.mtp.as_ref().map_or(0, |m| m.target_layer_ids.len());
     let mut stages = Vec::new();
-    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos: k.dpos };
+    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos: k.dpos, lane: 0 };
 
     // embedding, expanded to hc_mult streams (Transformer.forward)
     let ids = arg(Buf::Host("token_ids".into()), DType::I32, &[t]);
@@ -712,7 +725,7 @@ pub fn build_absorb(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Gra
         return Err(Error::Unsupported("deepseek_v41: the DSpark stages are not loaded".into()));
     }
     let (slot_specs, _, rings) = slots(c, w, o.act, true);
-    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos: false };
+    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos: false, lane: 0 };
     let mh = arg(Buf::Host("dspark.mh".into()), o.act, &[o.t, n_taps * c.dim]);
     dspark_absorb(&mut b, mh, &rings)?;
     let st = b.stage("dspark absorb".into(), None, vec![format!("main_proj + {} stage rings", rings.len())]);
@@ -800,7 +813,7 @@ fn draft_graph(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp,
     }
     let (slot_specs, _, rings) = slots(c, w, act, true);
     let mut stages = Vec::new();
-    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos };
+    let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos, lane: 0 };
     let ids = arg(Buf::Host("token_ids".into()), DType::I32, &[t]);
     let emb = b.weight("embed.weight")?;
     let h = ws("h", act, &[t, d]);
@@ -916,7 +929,7 @@ pub fn build_markov(c: &Dsv41Config, w: &dyn WeightShapes, act: DType) -> Result
     }
     let p = format!("mtp.{}.markov_head", n_st - 1);
     let o = GraphOpts { t: 1, pos0: 0, act, cap: 1 };
-    let mut b = Builder { c, w, o, tp: GraphTp::default(), steps: Vec::new(), extras: Vec::new(), dpos: false };
+    let mut b = Builder { c, w, o, tp: GraphTp::default(), steps: Vec::new(), extras: Vec::new(), dpos: false, lane: 0 };
     let emb = b.weight(&format!("{p}.embed.weight"))?;
     let rank = emb.shape[1];
     let e = ws("dspark.markov_e", act, &[1, rank]);
@@ -935,14 +948,15 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     let r = c.ratio(l);
 
     // q: low rank, normed, rotated tail
-    let qa = b.matmul(n.clone(), &format!("{p}.wq_a"), Buf::Ws("qa".into()), act)?;
+    // (wq_a and wkv read the same rows and write buffers of their own: lanes 1 and 2, side by side when the runtime forks)
+    let qa = b.matmul_lane(1, n.clone(), &format!("{p}.wq_a"), Buf::Ws("qa".into()), act)?;
+    let kv = b.matmul_lane(2, n.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
     let qr = b.rmsnorm(qa, &format!("{p}.q_norm.weight"), "qr")?;
     let q = b.matmul(qr.clone(), &format!("{p}.wq_b"), Buf::Ws("q".into()), act)?;
     let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, Buf::Ws("q_rope".into()), &format!("{p}.rope(q)"));
     b.positioned(1);
 
     // sliding-window KV: one latent, normed, rotated, fp8 round trip, into the ring
-    let kv = b.matmul(n.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
     let kv = b.rmsnorm(kv, &format!("{p}.kv_norm.weight"), "kv_n")?;
     let kv = b.rope(Arg { shape: vec![t, 1, hd], ..kv }, l, pos0, 1, false, Buf::Ws("kv_rope".into()), &format!("{p}.rope(kv)"));
     b.positioned(1);
@@ -969,8 +983,8 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
         if src == l {
             // the compressor (Compressor.forward): ratio 1 is a plain projection, above it softmax-gated pooling in f32
             let latent = if r > 1 {
-                let ckv = b.matmul(n.clone(), &format!("{p}.compressor.wkv"), Buf::Ws("cmp.kv".into()), DType::F32)?;
-                let cs = b.matmul(n.clone(), &format!("{p}.compressor.wgate"), Buf::Ws("cmp.score".into()), DType::F32)?;
+                let ckv = b.matmul_lane(1, n.clone(), &format!("{p}.compressor.wkv"), Buf::Ws("cmp.kv".into()), DType::F32)?;
+                let cs = b.matmul_lane(2, n.clone(), &format!("{p}.compressor.wgate"), Buf::Ws("cmp.score".into()), DType::F32)?;
                 let tail = ls.tail.expect("ratio > 1 sources have a tail ring");
                 let outs = vec![
                     ws("latent", act, &[groups, hd]),
@@ -1081,9 +1095,10 @@ fn wo_a(b: &mut Builder, p: &str, o: Arg) -> Result<Arg> {
         // EXL3 (Mia): one matmul per group slice on group-major rows
         let og = ws("o_groups", act, &[g, t, gk]);
         b.push(Op::Transpose01, format!("{p}.wo_a(group-major)"), vec![o], vec![og], OpAttrs::default());
+        // the slices read and write buffers of their own: lanes 1..=4 (side by side when the runtime forks)
         for gi in 0..g {
             let x = Arg { buf: Buf::Ws(format!("o_groups[{gi}]")), dtype: act, shape: vec![t, gk] };
-            b.matmul(x, &format!("{p}.wo_a.slice.{gi}"), Buf::Ws(format!("oa_groups[{gi}]")), act)?;
+            b.matmul_lane((gi % 4 + 1) as u8, x, &format!("{p}.wo_a.slice.{gi}"), Buf::Ws(format!("oa_groups[{gi}]")), act)?;
         }
         let oa = ws("oa", act, &[t, g, c.o_lora_rank]);
         b.push(Op::Transpose01, format!("{p}.wo_a(token-major)"), vec![ws("oa_groups", act, &[g, t, c.o_lora_rank])], vec![oa.clone()], OpAttrs::default());
