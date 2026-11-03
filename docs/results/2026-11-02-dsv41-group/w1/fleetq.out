@@ -1,0 +1,127 @@
+fleetq: #7953 waiting (#3 in line): in line behind #7946 "dsv41 prefill: final A/B base@512 vs final@default(512) vs final@2048, speed + golden; vLLM restored after" (claude-b7d2edb2) on spark1, spark2
+fleetq: #7953 waiting (#2 in line): in line behind #7947 "dsv41 prefill: MMLU 570 items at chunk 2048 (final binary); vLLM restored after" (claude-b7d2edb2) on spark1, spark2
+fleetq: #7953 waiting (#1 in line): needs spark1 to itself; running there: #7947 "dsv41 prefill: MMLU 570 items at chunk 2048 (final binary); vLLM restored after" (claude-b7d2edb2)
+fleetq: #7953 running on spark1, spark2: .scratch/w1.sh
+18:26:31 earlyoom on spark1: -m 2,1
+18:26:31 earlyoom on spark2: -m 2,1
+18:26:33 binary 1f9b6584f dirty=no 1102-1607; out /opt/code/intarsiaml/.worktrees/dsv41-group/.scratch/w1
+18:26:37 vLLM stopped on both
+18:26:42 ranks started (tag 182639)
+18:27:17 serve up=1 after 35 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 17.4 s = 5.95 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.9 s = 4.34 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 24.5 s (4.38 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 109.70 GiB -> 9.75 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793662030)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793662030)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793662031)
+dsv41: warm-up passes in 0.56 s
+dsv41: rank 0 after warm-up: MemAvailable 9.38 GiB, used since start 100.32 GiB, of which weights 98.90 GiB, non-weight 1.42 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 16.4 s = 6.29 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 2.5 s = 1.51 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 26.7 s (4.01 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 109.72 GiB -> 10.45 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793662030)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793662030)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793662031)
+18:27:23 nsys request: 96 tokens in 3 s: {"id":"cmpl-452312380001","object":"text_completion","created":1793662040,"model":"dsv41-intarsia","choices":[{"index":0,"text":" in 1450, when Johannes Gutenberg invented the movable type printing press. This invention revolutionized the way information was disseminated and marked the beginning of 
+Generated:
+	/home/nvidia/intarsia-dsv41-group/logs/nsys-r0-182639.nsys-rep
+Generated:
+	/home/nvidia/intarsia-dsv41-group/logs/nsys-r1-182639.nsys-rep
+-rw-rw-r-- 1 nvidia nvidia 29010953 Nov  2 18:27 /home/nvidia/intarsia-dsv41-group/logs/nsys-r0-182639_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  6672265 Nov  2 18:27 /home/nvidia/intarsia-dsv41-group/logs/nsys-r0-182639.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 17637376 Nov  2 18:27 /home/nvidia/intarsia-dsv41-group/logs/nsys-r0-182639.sqlite
+18:27:31 rank 0 breakdown:
+146639 GPU ops, 111 passes split at the logits all-gather (one per pass)
+decode steps analysed: 94
+  per token (start to start)         23.61 ms  -> 42.4 tok/s
+  GPU span of a step                  23.79 ms   (1312 GPU ops)
+  GPU busy (union)                    22.30 ms
+    compute kernels (sum)             24.22 ms
+    NCCL kernels (sum, incl. wait)     2.42 ms
+    memcpy / memset (sum)              0.25 ms
+  idle gaps inside the span            1.49 ms   (launch latency, host waits)
+  between steps (host: sample, build, Engram, logits copy)    -0.18 ms
+  top kernels per step:
+    grouped_cp_kernel                                   43.0 calls    9.289 ms  ( 39.3 %)
+    linear_kernel                                       58.5 calls    3.907 ms  ( 16.5 %)
+    ik_l2_prefetch_kernel                               38.7 calls    3.759 ms  ( 15.9 %)
+    nccl:AllReduce                                      44.0 calls    2.299 ms  (  9.7 %)
+    split_kernel                                       127.0 calls    1.573 ms  (  6.7 %)
+    dense_f16w_vec_kernel                               27.5 calls    1.111 ms  (  4.7 %)
+    hc_sub_partial                                      43.0 calls    0.993 ms  (  4.2 %)
+    rot_in_kernel                                      207.0 calls    0.567 ms  (  2.4 %)
+    hc_sub_finish                                       43.0 calls    0.479 ms  (  2.0 %)
+    split_finish_kernel                                127.0 calls    0.433 ms  (  1.8 %)
+    attn_sparse_mma                                     21.5 calls    0.380 ms  (  1.6 %)
+    moe_route_kernel                                    21.5 calls    0.254 ms  (  1.1 %)
+    [CUDA memcpy Device-to-Host]                         2.0 calls    0.249 ms  (  1.1 %)
+    transpose01_kernel                                 130.5 calls    0.219 ms  (  0.9 %)
+    rope_tail_kernel                                    74.0 calls    0.159 ms  (  0.7 %)
+    attn_sparse_merge                                   21.5 calls    0.137 ms  (  0.6 %)
+    rmsnorm_kernel                                      50.0 calls    0.126 ms  (  0.5 %)
+    window_build                                        23.0 calls    0.123 ms  (  0.5 %)
+-rw-rw-r-- 1 nvidia nvidia 28793597 Nov  2 18:27 /home/nvidia/intarsia-dsv41-group/logs/nsys-r1-182639_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  6591587 Nov  2 18:27 /home/nvidia/intarsia-dsv41-group/logs/nsys-r1-182639.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 17149952 Nov  2 18:27 /home/nvidia/intarsia-dsv41-group/logs/nsys-r1-182639.sqlite
+18:27:35 rank 1 breakdown:
+145593 GPU ops, 111 passes split at the logits all-gather (one per pass)
+decode steps analysed: 94
+  per token (start to start)         23.61 ms  -> 42.4 tok/s
+  GPU span of a step                  23.79 ms   (1303 GPU ops)
+  GPU busy (union)                    21.53 ms
+    compute kernels (sum)             23.65 ms
+    NCCL kernels (sum, incl. wait)     2.49 ms
+    memcpy / memset (sum)              0.00 ms
+  idle gaps inside the span            2.26 ms   (launch latency, host waits)
+  between steps (host: sample, build, Engram, logits copy)    -0.18 ms
+  top kernels per step:
+    grouped_cp_kernel                                   43.0 calls    9.288 ms  ( 39.3 %)
+    linear_kernel                                       58.5 calls    3.897 ms  ( 16.5 %)
+    ik_l2_prefetch_kernel                               38.7 calls    3.793 ms  ( 16.1 %)
+    nccl:AllReduce                                      44.0 calls    2.371 ms  ( 10.0 %)
+    split_kernel                                       127.0 calls    1.578 ms  (  6.7 %)
+    hc_sub_partial                                      43.0 calls    0.992 ms  (  4.2 %)
+    rot_in_kernel                                      207.0 calls    0.566 ms  (  2.4 %)
+    dense_f16w_vec_kernel                               25.5 calls    0.558 ms  (  2.4 %)
+    hc_sub_finish                                       43.0 calls    0.478 ms  (  2.0 %)
+    split_finish_kernel                                127.0 calls    0.427 ms  (  1.8 %)
+    attn_sparse_mma                                     21.5 calls    0.375 ms  (  1.6 %)
+    moe_route_kernel                                    21.5 calls    0.259 ms  (  1.1 %)
+    transpose01_kernel                                 130.5 calls    0.224 ms  (  0.9 %)
+    rope_tail_kernel                                    74.0 calls    0.160 ms  (  0.7 %)
+    attn_sparse_merge                                   21.5 calls    0.136 ms  (  0.6 %)
+    rmsnorm_kernel                                      50.0 calls    0.122 ms  (  0.5 %)
+    nccl:AllGather                                       1.0 calls    0.121 ms  (  0.5 %)
+    group_kernel                                        21.5 calls    0.118 ms  (  0.5 %)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793662030)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793662031)
+dsv41: warm-up passes in 0.56 s
+dsv41: rank 0 after warm-up: MemAvailable 9.38 GiB, used since start 100.32 GiB, of which weights 98.90 GiB, non-weight 1.42 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+dsv41: kernel scratch grew to 16777216 bytes (unix 1793662038)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793662038)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793662038)
+dsv41: spec 16 tokens in 7 rounds (2.29 a round), 9/15 drafts accepted (60 %), by position 7/7 2/6
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793662040)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793662040)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793662042)
+dsv41: spec 96 tokens in 55 rounds (1.75 a round), 40/108 drafts accepted (37 %), by position 24/55 8/19 5/7 3/3
+spec total: 112 tokens in 62 rounds = 1.806 a round; drafts accepted 49/123 = 39.8 %
+18:27:37 done
+18:27:37 restore (exit 0)
+scripts/dsv41-tp2/run-full.sh: line 23: 89157 Terminated: 15          ( while true; do
+    line="$(date +%T)"; for h in spark1 spark2;
+    do
+        a=$(ssh -n -o ConnectTimeout=5 $h "awk '/MemAvailable/{printf \"%.1f\", \$2/1048576}' /proc/meminfo" 2>/dev/null || echo NA); line="$line $h=$a"; if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then
+            ssh -n $h "pkill -KILL -f '[i]${SPARK_REL:1}/bin/intarsia'"; line="$line KILLED-$h";
+        fi;
+    done; echo "$line"; sleep 5;
+done ) > "$OUT/mem.log" 2>&1
