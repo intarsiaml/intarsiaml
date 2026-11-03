@@ -1,0 +1,5 @@
+# fleetq job 8207 output (ab-build.sh, spark2), cuobjdump -res-usage lines; REG = registers per thread, SHARED includes the 1 KB per-block reserve
+== base: cuobjdump -res-usage (attn_sparse_mma)
+  REG:107 STACK:0 SHARED:1792 LOCAL:0 CONSTANT[0]:1024
+== var: cuobjdump -res-usage (attn_sparse_mma)
+  REG:128 STACK:0 SHARED:2176 LOCAL:0 CONSTANT[0]:1024
