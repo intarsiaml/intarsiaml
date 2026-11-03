@@ -1,0 +1,18 @@
+NCCL version 2.30.7+cuda13.3
+rank 0: NCCL 23007, RDMA rocep1s0f1 gid 3 mtu 5, proxy pin -1, pdl 0, stage blocks 16, slots 4, 20480 max bytes
+path  bytes    gap_us  who          p50_us    p90_us    p99_us   mean_us    min_us    max_us n
+rdma  20480    0       min(r0,r1)       5.3       5.6       6.3       5.4       5.0       8.1 620
+rdma  20480    0       rank0          16.9      18.1      18.5      11.6       5.0      25.4 620
+rdma  20480    0       rank1          16.7      17.9      18.2      11.6       5.2      24.7 620
+rdma  20480    0       max(r0,r1)      17.8      18.1      18.6      17.8      16.7      25.4 620
+rank 0: bitwise check 5120 bf16 values nccl vs rdma: 0 differ
+null  20480    0       min(r0,r1)       1.4       1.4       1.5       1.4       1.4       1.5 620
+null  20480    0       rank0           1.4       1.4       2.2       1.7       1.4      96.6 620
+null  20480    0       rank1           1.5       1.5       1.5       1.5       1.4       1.7 620
+null  20480    0       max(r0,r1)       1.5       1.5       2.2       1.7       1.4      96.6 620
+nccl  20480    0       min(r0,r1)      27.0      28.8      30.9      27.1      23.0      34.0 620
+nccl  20480    0       rank0          27.9      30.0      32.2      27.6      23.0      34.1 620
+nccl  20480    0       rank1          27.8      29.8      32.1      27.6      23.7      34.0 620
+nccl  20480    0       max(r0,r1)      28.0      30.0      32.7      28.2      24.3      34.1 620
+rank 0: bitwise check 5120 bf16 values nccl vs rdma: 0 differ
+rank 0: done, rdma failed=0

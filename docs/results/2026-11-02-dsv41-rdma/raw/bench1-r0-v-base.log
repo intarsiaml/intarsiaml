@@ -1,0 +1,12 @@
+NCCL version 2.30.7+cuda13.3
+rank 0: NCCL 23007, RDMA rocep1s0f1 gid 3 mtu 5, proxy pin -1, pdl 0, stage blocks 16, slots 4, 81920 max bytes
+path  bytes    gap_us  who          p50_us    p90_us    p99_us   mean_us    min_us    max_us n
+rdma  20480    100     min(r0,r1)       6.1       6.9      10.8       6.3       5.1      25.5 1240
+rdma  20480    100     rank0          11.9      17.9      18.9      11.8       5.1      25.5 1240
+rdma  20480    100     rank1          12.2      17.9      18.8      11.9       5.2      26.8 1240
+rdma  20480    100     max(r0,r1)      17.4      18.2      19.0      17.4      11.8      26.8 1240
+rdma  81920    100     min(r0,r1)       6.2       6.9      15.7       6.8       5.4      39.9 1240
+rdma  81920    100     rank0          19.0      28.2      29.4      17.3       5.4      44.4 1240
+rdma  81920    100     rank1          18.3      28.2      29.2      17.2       5.6      49.2 1240
+rdma  81920    100     max(r0,r1)      27.9      28.4      30.0      27.7      17.6      49.2 1240
+rank 0: done, rdma failed=0

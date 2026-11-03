@@ -1,0 +1,5 @@
+rank 1: NCCL 23007, RDMA rocep1s0f1 gid 3 mtu 5, proxy pin -1, pdl 0, stage blocks 16, slots 4, 20480 max bytes
+path  bytes    gap_us  who          p50_us    p90_us    p99_us   mean_us    min_us    max_us n
+rank 1: bitwise check 5120 bf16 values nccl vs rdma: 0 differ
+rank 1: bitwise check 5120 bf16 values nccl vs rdma: 0 differ
+rank 1: done, rdma failed=0

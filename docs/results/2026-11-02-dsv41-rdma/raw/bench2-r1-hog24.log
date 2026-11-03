@@ -1,0 +1,7 @@
+rank 1: NCCL 23007, RDMA rocep1s0f1,roceP2p1s0f1 gid 3 mtu 5, proxy pin 7, pdl 0, stage blocks 16, slots 4, 81920 max bytes
+rank 1: DRAM hog on 24 blocks during the replays
+path  bytes    gap_us  who          p50_us    p90_us    p99_us   mean_us    min_us    max_us n
+rank 1: 20480 B gap 100: stage start->doorbell p50 77.3 us, doorbell->flag p50 104.4 (p10 69.8), flag->done p50 48.9
+rank 1: 40960 B gap 100: stage start->doorbell p50 99.9 us, doorbell->flag p50 86.2 (p10 60.1), flag->done p50 49.0
+rank 1: 81920 B gap 100: stage start->doorbell p50 77.9 us, doorbell->flag p50 86.6 (p10 59.7), flag->done p50 49.4
+rank 1: done, rdma failed=0
