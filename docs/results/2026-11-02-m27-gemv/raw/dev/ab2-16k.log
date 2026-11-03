@@ -1,0 +1,15 @@
+fleetq: #8033 waiting (#2 in line): in line behind #8032 "m27-gemv: pin hashes on pre-change GEMV (HEAD kernel)" (claude-m27-gemv) on endor
+fleetq:   #8032 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8032 set, or it will wait for #8032 to be released.
+fleetq: #8033 waiting (#1 in line): needs cpu quiet on endor, but #8032 "m27-gemv: pin hashes on pre-change GEMV (HEAD kernel)" (claude-m27-gemv) loads it
+fleetq:   #8032 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8032 set, or it will wait for #8032 to be released.
+fleetq: #8033 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/abgen.sh /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/ab2-16k docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-16384.txt 128 3 v1:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v1 v1hs2:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v1:INTARSIA_METAL_ATTN_HS=2 v1hs3:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v1:INTARSIA_METAL_ATTN_HS=3
+r1 v1: prefill 24620 ms (665.5 tok/s) | decode 6556 ms (19.37 tok/s)
+r1 v1hs2: prefill 25045 ms (654.2 tok/s) | decode 5328 ms (23.84 tok/s)
+r1 v1hs3: prefill 24605 ms (665.9 tok/s) | decode 5271 ms (24.09 tok/s)
+r2 v1hs2: prefill 24607 ms (665.8 tok/s) | decode 5356 ms (23.71 tok/s)
+r2 v1hs3: prefill 24545 ms (667.5 tok/s) | decode 5381 ms (23.60 tok/s)
+r2 v1: prefill 25219 ms (649.7 tok/s) | decode 6779 ms (18.74 tok/s)
+r3 v1hs3: prefill 25716 ms (637.1 tok/s) | decode 5387 ms (23.58 tok/s)
+r3 v1: prefill 25359 ms (646.1 tok/s) | decode 6745 ms (18.83 tok/s)
+r3 v1hs2: prefill 25997 ms (630.2 tok/s) | decode 5774 ms (22.00 tok/s)
+fleetq: #8033 done (exit 0)
