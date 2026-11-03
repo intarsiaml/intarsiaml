@@ -1,0 +1,52 @@
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 2/2 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 1/2 1/1 1/1
+dsv41: spec 4 tokens in 2 rounds (2.00 a round), 2/5 drafts accepted (40 %), by position 1/2 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 6/7 drafts accepted (86 %), by position 2/2 2/2 1/1 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 4/6 drafts accepted (67 %), by position 2/2 1/2 1/1 0/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 1/2 1/1 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 6/6 drafts accepted (100 %), by position 2/2 2/2 1/1 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 6/7 drafts accepted (86 %), by position 2/2 2/2 1/1 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 4/6 drafts accepted (67 %), by position 2/2 1/2 1/1 0/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/5 drafts accepted (100 %), by position 2/2 1/1 1/1 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/5 drafts accepted (100 %), by position 2/2 1/1 1/1 1/1
+dsv41: spec 3 tokens in 1 rounds (3.00 a round), 2/4 drafts accepted (50 %), by position 1/1 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 2/2 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 2/2 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/5 drafts accepted (100 %), by position 2/2 1/1 1/1 1/1
+dsv41: spec 12 tokens in 3 rounds (4.00 a round), 9/12 drafts accepted (75 %), by position 3/3 2/2 2/2 2/2
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/7 drafts accepted (71 %), by position 2/2 2/2 1/2
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 1/2 1/1 1/1
+dsv41: spec 7 tokens in 3 rounds (2.33 a round), 4/5 drafts accepted (80 %), by position 3/3 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/7 drafts accepted (71 %), by position 2/2 1/1 1/1 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 2/2 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/5 drafts accepted (100 %), by position 2/2 1/1 1/1 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/5 drafts accepted (100 %), by position 2/2 1/1 1/1 1/1
+dsv41: spec 11 tokens in 3 rounds (3.67 a round), 8/11 drafts accepted (73 %), by position 3/3 2/2 2/2 1/2
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 2/2 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/5 drafts accepted (100 %), by position 2/2 1/1 1/1 1/1
+dsv41: spec 7 tokens in 3 rounds (2.33 a round), 4/6 drafts accepted (67 %), by position 3/3 1/2
+dsv41: spec 5 tokens in 1 rounds (5.00 a round), 4/4 drafts accepted (100 %), by position 1/1 1/1 1/1 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 2/2 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 6/6 drafts accepted (100 %), by position 2/2 2/2 1/1 1/1
+dsv41: spec 7 tokens in 3 rounds (2.33 a round), 4/5 drafts accepted (80 %), by position 3/3 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 6/7 drafts accepted (86 %), by position 2/2 2/2 1/1 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 1/2 1/1 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 6/6 drafts accepted (100 %), by position 2/2 2/2 1/1 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 6/6 drafts accepted (100 %), by position 2/2 2/2 1/1 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 6/7 drafts accepted (86 %), by position 2/2 2/2 1/1 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 6/7 drafts accepted (86 %), by position 2/2 2/2 2/2
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 1/2 1/1 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 6/6 drafts accepted (100 %), by position 2/2 2/2 1/1 1/1
+dsv41: spec 15 tokens in 3 rounds (5.00 a round), 11/11 drafts accepted (100 %), by position 3/3 3/3 3/3 2/2
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 2/2 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/5 drafts accepted (100 %), by position 2/2 1/1 1/1 1/1
+dsv41: spec 7 tokens in 3 rounds (2.33 a round), 4/7 drafts accepted (57 %), by position 3/3 1/2
+dsv41: spec 5 tokens in 1 rounds (5.00 a round), 4/4 drafts accepted (100 %), by position 1/1 1/1 1/1 1/1
+dsv41: spec 8 tokens in 2 rounds (4.00 a round), 5/6 drafts accepted (83 %), by position 2/2 2/2 1/1 0/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/6 drafts accepted (83 %), by position 2/2 1/2 1/1 1/1
+dsv41: spec 7 tokens in 2 rounds (3.50 a round), 5/5 drafts accepted (100 %), by position 2/2 1/1 1/1 1/1
+dsv41: spec 10 tokens in 3 rounds (3.33 a round), 7/11 drafts accepted (64 %), by position 3/3 2/2 1/2 1/1
+dsv41: spec 5 tokens in 1 rounds (5.00 a round), 3/4 drafts accepted (75 %), by position 1/1 1/1 1/1 0/1
+dsv41: spec 9 tokens in 3 rounds (3.00 a round), 6/9 drafts accepted (67 %), by position 3/3 1/2 1/1 1/1
+dsv41: spec 9 tokens in 2 rounds (4.50 a round), 6/8 drafts accepted (75 %), by position 2/2 2/2 1/2 1/1
+dsv41: spec 5 tokens in 1 rounds (5.00 a round), 4/4 drafts accepted (100 %), by position 1/1 1/1 1/1 1/1

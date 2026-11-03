@@ -1,0 +1,57 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/chunk32k/.scratch/items.rest1.jsonl: 20 rows, judge=none
+# localeval: adhoc — 2026-11-03T15:39
+
+- model: `dsv41-intarsia` on ? (?), url `http://100.120.88.104:8899/v1`
+- thinking: off; run kind: quality; label: dsv41-chunk32k-ab8-rest1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --dataset /opt/code/intarsiaml/.worktrees/chunk32k/.scratch/items.rest1.jsonl --judge none --max-tokens 48 --label dsv41-chunk32k-ab8-rest1 --url http://100.120.88.104:8899/v1 --model dsv41-intarsia --thinking off --recipe intarsia a60292329 dirty=no 1102-1850 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 33000 arm env: INTARSIA_DSV41_CHUNK=2048, engram hot 1024 MiB`
+- result file: `results/20261103-153910-adhoc-dsv41-chunk32k-ab8-rest1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia a60292329 dirty=no 1102-1850 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 33000 arm env: INTARSIA_DSV41_CHUNK=2048, engram hot 1024 MiB
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/chunk32k/.scratch/items.rest1.jsonl` (20 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | 0.750 | 0.75 | 20 | 0 | 0 |
+| TTFT (s) | 39.9 | 1.0 | 20 | 0 | 0 |
+| Prefill (tok/s) | 772.3 | 1.0 | 20 | 0 | 0 |
+| Decode (tok/s) | - | - | 0 | 20 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| needle-03-d79 | yes | 1.0 | 40.10 | - | GT-5957-BG |
+| needle_dist-03-d63 | yes | 1.0 | 39.97 | - | JC-6550-VP |
+| needle_hop-03-d24 | no | 0.0 | 40.10 | - | NS-7384-JD |
+| qa_const-03-d40 | yes | 1.0 | 39.87 | - | "mxfp4_w_to_bf16" |
+| needle-04-d63 | yes | 1.0 | 40.05 | - | DN-1606-LR |
+| needle_dist-04-d55 | yes | 1.0 | 40.10 | - | YD-9274-JQ |
+| needle_hop-04-d48 | yes | 1.0 | 39.84 | - | KS-8284-LK |
+| qa_const-04-d25 | yes | 1.0 | 40.37 | - | [1, 2] |
+| needle-05-d55 | yes | 1.0 | 40.12 | - | CX-1281-LA |
+| needle_dist-05-d79 | yes | 1.0 | 39.91 | - | GH-3299-DT |
+| needle_hop-05-d63 | no | 0.0 | 39.81 | - | ZV-3259-GP |
+| qa_const-05-d68 | no | 0.0 | 39.11 | - | mxfp4_xprep_bf16 |
+| needle-06-d32 | yes | 1.0 | 39.08 | - | AF-4538-JP |
+| needle_dist-06-d87 | yes | 1.0 | 39.63 | - | ES-5525-ZM |
+| needle_hop-06-d80 | no | 0.0 | 40.09 | - | CB-2788-VC |
+| qa_const-06-d90 | yes | 1.0 | 40.35 | - | 1 << 30 |
+| needle-07-d70 | yes | 1.0 | 39.95 | - | KB-3611-WB |
+| needle_dist-07-d08 | yes | 1.0 | 40.08 | - | QN-6502-UC |
+| needle_hop-07-d86 | no | 0.0 | 40.11 | - | JU-6389-VB |
+| qa_const-07-d19 | yes | 1.0 | 40.25 | - | 16 * 2 * 8 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261103-153910-adhoc-dsv41-chunk32k-ab8-rest1/result.json
+[localeval] logged to unanimis: a8fb85cf-b1bd-47a9-a66c-5479b569a448
