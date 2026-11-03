@@ -22,6 +22,8 @@
 #![cfg(target_os = "macos")]
 
 mod attn;
+#[doc(hidden)]
+pub use attn::{head_plan_for_test, set_hsb_for_test};
 pub mod bench;
 mod buffer;
 pub mod decode;
