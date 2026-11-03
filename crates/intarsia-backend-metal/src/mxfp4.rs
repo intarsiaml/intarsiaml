@@ -45,6 +45,13 @@ pub fn nax_enabled() -> bool {
     *ON.get_or_init(|| std::env::var("INTARSIA_METAL_MXFP4_NAX").map_or(true, |v| v != "0"))
 }
 
+/// `INTARSIA_METAL_MXFP4_XFUSE=0` keeps the activation pre-pass dispatch before every GEMV (the GEMV then reads the QDQ'd copy, as before the fusion;
+/// bitwise the same result).
+pub fn xfuse_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_MXFP4_XFUSE").map_or(true, |v| v != "0"))
+}
+
 /// The NAX form serves the calls above the GEMV's 8 rows with K % 32 == 0 and a weight that fits [`NAX_MAX_W`].
 pub fn nax_ok(s: &ShapeInfo) -> bool {
     nax_enabled() && !s.mxfp4_a8 && s.m > GEMV_MB && s.k >= 32 && s.k % 32 == 0 && s.n * s.k <= NAX_MAX_W
@@ -146,23 +153,28 @@ impl MetalBackend {
         let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
         let pso_g = self.pso(gemv).ok_or_else(|| Error::backend(format!("metal: no pipeline '{gemv}'")))?;
         let px = OpP { dims: [u32_of(m, "M")?, u32_of(n, "N")?, u32_of(k, "K")?, 0, 0, 0, 0, 0], skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
-        let pg = OpP { skips: [sb.skip, ob.skip, 0, 0, 0], ..px };
+        // the GEMV reads x itself (QDQ in the lane) when x is 16-byte aligned: no pre-pass dispatch
+        let fused = xfuse_enabled() && xb.skip == 0 && xb.off % 16 == 0;
+        let mut pg = OpP { skips: [sb.skip, ob.skip, 0, 0, 0], ..px };
+        pg.dims[3] = fused as u32;
         let groups = m * (k / 32);
         let tx = pso_x.maxTotalThreadsPerThreadgroup().min(256);
         let m_blocks = if m == 1 { 1 } else { m.div_ceil(M_BLOCK) };
         self.with_encoder(|enc| {
-            // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`, the scratch size above).
-            unsafe {
-                enc.setComputePipelineState(pso_x);
-                for (i, b) in [&xb, &ab, &xs].into_iter().enumerate() {
-                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+            if !fused {
+                // SAFETY: offsets lie inside the buffers (TensorRef bounds were checked by `OpCall::check`, the scratch size above).
+                unsafe {
+                    enc.setComputePipelineState(pso_x);
+                    for (i, b) in [&xb, &ab, &xs].into_iter().enumerate() {
+                        enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                    }
                 }
+                set_bytes(enc, &px, 3);
+                enc.dispatchThreads_threadsPerThreadgroup(
+                    MTLSize { width: groups, height: 1, depth: 1 },
+                    MTLSize { width: tx, height: 1, depth: 1 },
+                );
             }
-            set_bytes(enc, &px, 3);
-            enc.dispatchThreads_threadsPerThreadgroup(
-                MTLSize { width: groups, height: 1, depth: 1 },
-                MTLSize { width: tx, height: 1, depth: 1 },
-            );
             // SAFETY: as above.
             unsafe {
                 enc.setComputePipelineState(pso_g);
@@ -171,6 +183,11 @@ impl MetalBackend {
                 }
             }
             set_bytes(enc, &pg, 4);
+            // SAFETY: as above; x and act are the call's own inputs (the GEMV reads them when `fused`, else never touches them).
+            unsafe {
+                enc.setBuffer_offset_atIndex(Some(&xb.mtl), xb.off, 5);
+                enc.setBuffer_offset_atIndex(Some(&ab.mtl), ab.off, 6);
+            }
             enc.dispatchThreadgroups_threadsPerThreadgroup(
                 MTLSize { width: n.div_ceil(ROWS_PER_TG), height: m_blocks, depth: 1 },
                 MTLSize { width: ROWS_PER_TG * 32, height: 1, depth: 1 },
