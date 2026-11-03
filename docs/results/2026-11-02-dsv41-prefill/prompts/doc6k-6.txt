@@ -1,0 +1,278 @@
+# DeepSeek V4.1 Flash: CUDA graphs for the decode and verify passes (lane dsv41/graphs)
+
+Lane `dsv41/graphs`, 2026-11-01, on `dsv41/plan`. Mia EXL3 2.9 bpw checkpoint, TP=2 over spark1 + spark2 (GB10, sm_121).
+Base numbers and the blockers this lane removes: docs/results/2026-11-01-dsv41-tp2.md, "Step 3: CUDA graphs for DSv4.1
+decode" and the speculation section.
+
+## Step 1: device-position kernels
+
+Every positioned op (`RopeTail`, `WindowKv`, `AttnSparse`, `CompressPool`, `IndexerBlocks`, `IndexerTopk`, and now
+`ActQdq` for the shared-slot writes) takes the pass's first position from `OpCall::pos` (`i32 [1]`) and runs on
+capacity-sized views. The rules (docs/design/dsv41-ops.md "Device position (CUDA graphs)"):
+
+- the shared compressed-KV / index-key views span the slot (`Ncap = cap / r` rows); the kernels read `N = (P + T) / r`
+  from the device and bound their work by it (score blocks past `N` exit before loading q, the selects run over `N`
+  entries);
+- top-k width fixed at `Kw = min(index_topk, Ncap)`, `-1` past `min(top_k, N)`; the candidate mask past `ceil(N / B)` is 0;
+- the compressor branch is always emitted for `ceil(t / r)` groups; `CompressPool` writes only the completed groups,
+  `ActQdq` writes rows `P / r ..` of the whole slot (a pending group's row is rewritten when the group completes, and no
+  reader sees it before);
+- `AttnSparse` computes its split count and tile partition on the device from `Kc = min(Kw, N)` exactly as the host does
+  from its idx width, so the result is bitwise the host call's (grid sized from `Kw`, extra splits exit).
+
+Without `OpCall::pos` every op is unchanged. FFI: `ik_act_qdq`, `ik_rope_tail`, `ik_attn_sparse` gained `ratio`;
+`ik_act_qdq`, `ik_compress_pool`, `ik_indexer_blocks`, `ik_indexer_topk` gained `pos` (`kernels/cuda/ik_cuda_abi_dsv41.h`).
+
+**Kernel admission on GB10** (`intarsia kernels test --backend cuda`, device-position cases: N = 0, N below and above
+top_k, ratio-2 groups complete and not, T = 1 and 4, Ncap > N, with and without candidates): all admitted.
+
+| kernel | cases | max_abs |
+|---|---|---|
+| rope_tail | 30 | 7.8e-8 |
+| window_kv | 30 | 0 |
+| act_qdq | 30 | 0 |
+| compress_pool | 34 | 1.0e-7 |
+| indexer_blocks | 46 | 0 |
+| indexer_topk | 58 | 0 |
+| attn_sparse | 42 | 3.9e-3 |
+
+**Bitwise device vs host on GB10** (`crates/intarsia-backend-cuda/tests/dsv41_dpos.rs`, 5/5): every op's device call
+against the host call on the same buffers over many P, both attention kernels (SIMT, MMA), both indexer score kernels,
+bf16 and f32, Ncap = 20000 for the indexer (the select switches between the multi-block and one-block forms at
+N = 16384). A captured graph of all seven device calls replays at 11 positions (also backwards) with the eager bits.
+
+**Cost of the capacity form** (us per call inside a graph of 50 launches, cap 32768, bf16; host -> device):
+
+| op | ratio, T | P=100 | P=1000 | P=8000 | P=30000 |
+|---|---|---|---|---|---|
+| indexer_topk | 1, 1 | 11.1 -> 15.2 | 11.7 -> 15.6 | 23.3 -> 27.4 | 58.4 -> 59.7 |
+| indexer_topk | 1, 4 | 14.1 -> 18.7 | 16.0 -> 19.7 | 29.0 -> 33.0 | 83.7 -> 85.2 |
+| indexer_topk | 2, 1 | 10.0 -> 14.2 | 11.7 -> 15.6 | 15.8 -> 19.0 | 36.9 -> 43.1 |
+| indexer_topk | 2, 4 | 11.5 -> 15.8 | 14.9 -> 19.0 | 19.4 -> 23.0 | 44.8 -> 50.9 |
+| indexer_blocks | all | +0.0 to +0.9 | +0.6 to +0.8 | +0.2 to +0.9 | +0.4 to +1.4 |
+| attn_sparse | all | +0.6 to +1.8 | +0.4 to +2.2 | +0.4 to +1.2 | +0.4 to +1.5 |
+
+`indexer_topk` pays about 4 us for three near-empty select kernels (the multi-block select is launched because the
+capacity is >= 16384 at both ratios): with 8 indexer layers about 30-50 us per pass.
+
+**The device-position graph** (`PassKind::dpos`, `crates/intarsia-core/src/dsv41/graph.rs`): the graph of a pass of up to
+16 rows with the rules above; `Step::pos` marks the steps that read the device position; it does not depend on the host
+position (built once at position 0, it serves every position). `INTARSIA_DSV41_DPOS=1` runs it eagerly for every pass of
+up to 16 rows (prefill chunks keep the host graph).
+
+- cpu f32, 3-layer cache (layers 0-2: ratios 0, 0, 2), `device_position_passes_equal_host_passes`: 110-token prompt,
+  then 30 short passes (1 row, 2-4 row chunks across group boundaries): every pass's logits bitwise equal to the host graph's.
+- CUDA bf16, GB10, the same test on the 3-layer cache with its DSpark part (fleetq #7724, binary `fb8b0dd26`):
+
+| run | passes | result |
+|---|---|---|
+| device-position eager vs host, 1100-token prompt (ratio-2 keys past `index_topk`), cap 2048, verify passes mixed in | 39 | bitwise equal |
+| CUDA graph replay vs host, same | 39 (25 replays: 1-row and 4-row verify) | bitwise equal |
+| CUDA graph replay vs host, 110-token prompt, no speculation | 30 (20 replays) | bitwise equal |
+
+- Stage-5a few-layer parity against the official layer outputs with `INTARSIA_DSV41_DPOS=1` (the 16-row prefill and both
+  decode steps on the device-position graph): passes, L2 rel_rms 2.4e-2 (the host graph's number in the tp2 results).
+- `verify_rows_track_decode_through_rollback` with `INTARSIA_DSV41_GRAPHS=1` (CUDA): median rel_rms 7.1e-3, worst 0.184 at
+  position 134, argmax flips at 134 / 155 / 167: the host graph's numbers exactly.
+- `speculative_greedy_equals_plain_greedy` on CUDA bf16 gives leading 4/48 equal tokens with graphs off, device positions
+  on, or graphs on, token for token the same as the binary from before this lane (`8589037c5`): the 3-layer model's
+  bf16 near-tie at token 4, not a graph effect (the test's exact form is cpu f32, 48/48).
+
+## Step 2: the one-row decode pass as CUDA graphs (window 1, fleetq #7734, binary `fb8b0dd26`)
+
+`INTARSIA_DSV41_GRAPHS=1` (`crates/intarsia-core/src/dsv41/runtime.rs`, `run_captured` / `capture`):
+
+- the first pass of a shape runs eagerly (it warms every kernel up and fills the constant cells);
+- the second pass records the device-position graph as segments split before each Engram layer (1 and 14: three
+  segments). Between replays the host waits for that layer's Engram records and uploads them;
+- each replay uploads the token id and the position (`host.pos`, `i32 [1]`) and re-applies the cached fills;
+- the scratch is grown before recording; `Comm::reserve` sizes NCCL's f32 partial buffer at load;
+- a recording is bound to the sequence state (`SequenceState::id`) and the scratch generation, and recaptured on a change;
+- a failed capture prints a note and switches graphs off for the run (eager from then on);
+- rank 1 (`tp-worker`) takes the same decision on its own: it sees the same pass sequence, and the collectives are
+  recorded into both ranks' graphs in the same order. No tp_remote protocol change.
+
+Both ranks print `captured the 1-row pass as 3 CUDA graph segments` once per sequence state.
+
+**Greedy tokens.** The 10 golden prompts x 64 tokens with graphs are identical to eager in the same window (640/640), and
+to the tp2 lane's window-12 spec-off golden from before this lane (640/640).
+
+**Per pass** (`INTARSIA_DSV41_PROFILE=64`, rank 0, medians over the window's 64-pass blocks):
+
+| | eager | graphs |
+|---|---|---|
+| host enqueue | 17.8 ms | 0.3 ms |
+| whole pass | 35.6 ms (41 blocks) | 31.3 ms (47 blocks) |
+
+The estimate in the tp2 results was "about 31 ms per token, about 32 tok/s": met. With enqueue gone, the pass is GPU time.
+
+**localeval speed** (decode tok/s, median of reps, 128 output tokens):
+
+| prompt tokens | eager | graphs | change |
+|---|---|---|---|
+| ~128 | 28.0 | 32.2 | +15 % |
+| ~1K | 28.1 | 32.0 | +14 % |
+| ~4K | 28.2 | 32.0 | +13 % |
+| ~16K | 27.5 | 30.8 | +12 % |
+
+Prefill is unchanged (chunks of 512 rows keep the host-position eager graph): 546 / 548 tok/s at 1K, 578 / 581 at 16K.
+
+**MMLU** (localeval, the same 570 items, graphs on, spec off): **0.882** (n 570, 0 errors, 0 truncated). The gate is 0.879 +- 0.01;
+eager scored 0.8825 in the tp2 lane.
+
+Captures over the whole window: each rank recorded 3 times, once per sequence state (the engine keeps its state across
+requests, rolling it back with `truncate`); no capture failed on either rank.
+
+## Step 3, first look: the verify pass as CUDA graphs (same window, configs ab2 / ab3)
+
+In this binary (`fb8b0dd26`) the 1-row decode pass and the verify passes (2-4 rows) replay graphs, while the DSpark
+drafting block still runs eagerly (its capture came after the binary, in `76279f3da`).
+
+| | spec, eager (ab2) | spec, graphs (ab3) |
+|---|---|---|
+| verify pass, 4 rows: enqueue / whole (rank 0, median) | 28.1 / 56.6 ms (987) | 0.5 / 52.5 ms (1156) |
+| drafting block, 5 rows: enqueue / whole | 0.5 / 4.9 ms | 0.5 / 4.8 ms |
+| tokens per round (localeval sweep + golden) | 2.21 (accept 40 %) | 2.29 (accept 43 %) |
+| greedy golden, 10 prompts x 64 | ab2 vs ab3: 640/640 identical | |
+
+**localeval decode tok/s** (median of reps; the spec rows' ranges are wide because acceptance depends on the text):
+
+| prompt tokens | eager | graphs | spec, eager | spec, graphs |
+|---|---|---|---|---|
+| ~128 | 28.0 | 32.2 | 33.5 (29.5-36.4) | 32.0 (31.5-32.5) |
+| ~1K | 28.1 | 32.0 | 30.9 | 35.4 |
+| ~4K | 28.2 | 32.0 | 33.5 | 37.2 |
+| ~16K | 27.5 | 30.8 | 32.9 | 36.1 |
+
+The verify pass is GPU bound. Its graph removes the 28 ms enqueue but saves only 4 ms of the 56 ms pass, because the
+eager pass overlapped most of that enqueue with GPU work. The tp2 results' "half of it is host enqueue" holds for
+enqueue, not for wall time. The levers table's estimate for graphs with speculation (-1.8 to -2.7 ms a token) holds:
+4.1 ms a pass / 2.29 tokens a round = -1.8 ms. A 4-row verify pass costs 52.5 ms of GPU against 31.3 ms for 1 row, so
+the 3 extra rows add 21 ms. That is the lever for speculation now (step 4).
+
+## Step 3: drafting block as a graph too (fix `9c4ddcaa9`, window 2, fleetq #7745)
+
+**A bug the 3-layer test caught.** Replaying drafts changed later decode passes (first bitwise difference at pass 20, worst
+|diff| 10.9). A replay runs no `run_stage`, so `Exec::filled` kept claiming fills that the replay's steps had overwritten.
+The DSpark block's route table (128 experts, top 3, `[5, 4]`) overwrites the cell that holds the main model's shared-expert
+id (384, top 6, cell 6), so the next decode replay skipped its fill and read another expert. Verify replays had hidden
+this: their tables hold the same value in that cell. Each recording now keeps the ranges its steps write and undoes the
+fills they cover after every replay.
+
+**Gates after the fix.** The named tests assert only on cpu f32, and the cpu cannot capture, so their CUDA runs prove
+nothing about graphs. The evidence that does:
+
+| check | where | result |
+|---|---|---|
+| `speculative_greedy_equals_plain_greedy`, `INTARSIA_DSV41_DPOS=1` (the graph that replays, drafts included) | endor, cpu f32, 3 layers | 48/48 |
+| `verify_rows_track_decode_through_rollback`, same | endor, cpu f32, 3 layers | worst rel_rms 0, no argmax difference |
+| `device_position_passes_equal_host_passes`, device position eager, drafts included, 1100-token prompt | GB10, bf16 | 51 passes bitwise equal |
+| same, replayed | GB10, bf16 | 51 passes bitwise equal (14 decode / 11 verify / 11 draft replays) |
+| same, replayed, 100-token prompt, 96 tokens (past the window ring wrap) | GB10, bf16 | 102 passes bitwise equal (29 / 23 / 16 replays) |
+| greedy golden, TP=2 full model, drafts replayed vs drafts eager (window 1 ab3) | Sparks | 640/640 identical |
+
+Each rank captured the 1-row pass, the 4-row verify pass and the 5-row block, and no capture failed.
+
+**Full model, speculation on, everything replayed** (binary `9c4ddcaa9`; rank 0, 1135 rounds):
+
+| | window 1, spec eager | window 1, verify replayed | window 2, all replayed |
+|---|---|---|---|
+| verify, 4 rows: whole pass | 56.6 ms | 52.5 ms | 52.9 ms |
+| drafting block: enqueue / whole | 0.5 / 4.9 ms | 0.5 / 4.8 ms | 0.06 / 4.8 ms |
+| tokens a round / drafts accepted | 2.21 / 40 % | 2.29 / 43 % | 2.34 / 44 % |
+
+**localeval decode tok/s** (median of 3 reps, 128 tokens, prompts differ per run by a nonce):
+
+| prompt tokens | graphs, spec off | graphs, spec on (window 2) | range of the spec rows | spec on vs off |
+|---|---|---|---|---|
+| ~128 | 32.2 | 39.0 | 37.1-42.0 | +21 % |
+| ~1K | 32.0 | 34.8 | 32.9-36.3 | +9 % |
+| ~4K | 32.0 | 35.0 | 34.8-36.9 | +9 % |
+| ~16K | 30.8 | 34.2 | 33.9-35.4 | +11 % |
+
+Replaying the block adds no speed of its own: its enqueue was already 0.5 ms. Window 1's verify-replayed row (32.0 / 35.4 /
+37.2 / 36.1) and this one differ only within what acceptance varies from run to run.
+
+Against the tp2 estimate: levers 1 and 2 together predicted 20.6-23.1 ms a token (43-48 tok/s). Measured 25.6-29.2 ms (34-39
+tok/s) is at most 1.42x, under the lane's 1.5x stop line. The miss is the verify pass (estimated 48 ms lower bound,
+measured 53 ms) and a drafter at the top of its range.
+
+## Step 4: where the time is now, ranked levers
+
+**Superseded in part:** the 7.1 ms a row below is an average across the 1-to-2 row step, and the estimates predate the measurements. See "Lever 2", "Lever 1" and "Ranked levers after window 6" below.
+
+nsys with `--cuda-graph-trace=node`, 48-token requests, rank 0 (rank 1's compute kernels within 0.1 ms; `scripts/dsv41-tp2/nsys_passes.py`):
+
+| kernel | decode, 1 row | verify, 4 rows | delta | draft, 5 rows |
+|---|---|---|---|---|
+| MoE `grouped_cp_kernel` | 8.87 ms | 20.20 ms | +11.33 | 1.02 |
+| EXL3 linears (`linear_kernel`, decode also `split_kernel` + finish) | 11.99 ms | 17.26 ms | +5.27 | 2.05 |
+| `nccl:AllReduce` (82 calls) | 3.24 ms | 4.48 ms | +1.24 | 0.58 |
+| `dense_f16w_vec_kernel` | 0.84 ms | 2.39 ms | +1.54 | 0.05 |
+| `hc_sub_partial` + `hc_sub_finish` | 2.03 ms | 2.46 ms | +0.43 | 0.19 |
+| GPU span / busy | 32.0 / 30.1 ms | 53.4 / 50.7 ms | | 6.6 / 4.3 ms |
+
+A round is 60.0 ms under nsys (verify + block back to back, no gap between passes), so at 2.34 tokens a round **25.7 ms a
+token, 39 tok/s** at best. The extra rows of a verify pass cost 7.1 ms each, and about half of that is the MoE (11.3 of 21.4 ms).
+
+Estimates in ms per token, on top of graphs and speculation (a per-round saving divided by 2.34). None is measured yet:
+
+| # | lever | saving | basis, and how sure |
+|---|---|---|---|
+| 1 | EXL3 linears at 4 rows: split-K applies only at 1 row today | -1.4 to -2.3 | decode reads the same weights in 12.0 ms, verify in 17.3; closes 3.3-5.3 ms a round. Fairly sure of the gap, not that all of it closes |
+| 2 | Fewer draft rows: `INTARSIA_DSV41_SPEC_K=2`, or a confidence floor | -0.5 to -2 | a row costs 7.1 ms against 25.7 ms a token, so a row must add 0.28 tokens to pay. Acceptance per row position is not measured. Config only, hours of work: try first |
+| 3 | MoE at 4 rows | -0.9 to -1.7 | assumes 10-20 % off 20.2 ms. Low confidence: bytes read per pass not measured, and the kernel may already be near memory bandwidth |
+| 4 | All-reduce (TF gathers over an RDMA ring) | -0.5 to -0.9 | 5.1 ms a round in 88 calls |
+| 5 | Gaps inside the passes | -0.5 to -1 | 2.7 ms in verify, 2.3 ms in the block a round. The block's gap includes the host Markov loop, which a graph cannot hold |
+
+All five: about 18-22 ms a token, 45-56 tok/s, against TF's 60.5. That sum assumes acceptance and the savings stay independent, so
+read it as an upper bound.
+
+## Which binary each gate ran on
+
+The fill fix `9c4ddcaa9` changed the code after a replay, and window 1 ran before it.
+
+| gate | binary | notes |
+|---|---|---|
+| Full model, spec off: golden 640/640, MMLU 0.882, speed | `fb8b0dd26` | before the fix; not rerun on the final code |
+| Full model, spec on, verify replayed: golden, speed | `fb8b0dd26` | drafts eager |
+| Full model, spec on, all replayed: golden 640/640 against the row above, speed | `9c4ddcaa9` | final code |
+| Full model, nsys, spec off and on | `9c4ddcaa9` | timing only, no golden |
+| 3-layer bitwise, CUDA, verify widths 4 / 2 / 3, eager and replayed | `640d18fad` (test change only) | 69 passes (21 decode / 14 verify / 16 draft replays) and 104 passes (31 / 23 / 18), all bitwise equal |
+| Plan diff against main, `cargo test --workspace` | `9c4ddcaa9` code | 0 failures |
+
+So spec-off decode replay on the final code rests on the 3-layer bitwise tests and the spec-on golden, not on a full-model
+spec-off golden. Verify widths 2 and 3 are covered only by
+the 3-layer tests: at `SPEC_K=3` with no confidence floor the full model records only the 4-row pass.
+
+## Memory
+
+Minimum MemAvailable per Spark while serving, GiB (`mem.log`, cache-backed weights, vLLM stopped; the watcher kills at 5):
+
+| | eager | graphs |
+|---|---|---|
+| spec off | 12.7 / 12.4 | 12.0 / 12.0 |
+| spec on | 8.9 / 8.7 | 8.8 / 8.6 |
+
+Graphs and the capacity-sized device-position workspace cost 0.1-0.7 GiB. The lowest readings of both windows were
+transients while ranks loaded and did not come from graphs: 6.9 GiB on spark2 at a spec-on load with graphs off, and 6.4 GiB
+on spark1 at a load under nsys.
+
+## Plan diff against main (fleetq #7748, #7749)
+
+Base main `e72ce1964`, head binary `9c4ddcaa9` (no change under `crates` or `kernels` since). This covers everything the port
+has changed relative to main, tp2's commits included.
+
+**The base is really main.** It was built from an empty tree with no copied target dir: 206 crates compiled, this run's
+stamp `plandiff-base-e72ce1964-1101210643` is in the binary, and `INTARSIA_DSV41_SPEC`, `ik_compress_pool` and `ik_hc_post` are
+absent from the base binary and present in the head binary. The earlier run #7744 of this lane was void: its base binary
+held `INTARSIA_DSV41_GRAPHS`, which its sources lack.
+
+| model | `plan show` | greedy, main vs head |
+|---|---|---|
+| Qwen3.6-35B NVFP4 | unchanged (76 lines; raw diff only a load time) | 64 tokens identical |
+| Qwen3-8B | unchanged (25 lines) | 64 tokens identical |
+| Qwen3-8B EXL3 4.0 bpw, plain | unchanged (18 lines) | does not load on either (no kernel for the f16 embedding path) |
+| Qwen3-8B EXL3 4.0 bpw, bf16plain | unchanged (22 lines) | same first token, then the same error on both |
+
+**No difference found.** #7748 printed "greedy DIFFERS" and exited 1 for 

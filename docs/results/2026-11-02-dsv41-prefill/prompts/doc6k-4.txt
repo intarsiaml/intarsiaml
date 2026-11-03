@@ -1,0 +1,199 @@
+# Phase 2a: HIP backend on one R9700, Qwen3-8B BF16
+
+*Measured on: HEAD 4963b4340184acb0120a90212256e8807d2367b4 plus an uncommitted worktree (dirty); committed afterwards as a7da13b89e5bac0f7d3c1f17c76c1aafd5b91941 (2026-10-13 02:54). The exact tree of each run was not recorded.*
+*Sections 1 to 9 were measured before the review and carry the old-tree stamp; section 10 (fix pass) re-measured the review's findings on a stamped tree and corrects errors in sections 1 to 9 in place where marked.*
+
+Date 2026-10-13. Host `tatooine` (Ryzen 9 9900X, 2x R9700 gfx1201 32 GB, ROCm 7.2.4 inside `intarsia-hip-dev:rocm7.2.4-rust1.90.0`).
+Everything ran on **one** card (`HIP_VISIBLE_DEVICES=0`, `GPU_MAX_HW_QUEUES=1`). Model `/data/models/intarsia/Qwen3-8B` (BF16, 16.38 GB), goldens
+`/data/models/intarsia/golden/qwen3-8b.safetensors` and `qwen3-8b-long.safetensors` (HF bf16 on the Spark GB10, same files as the CUDA gate).
+Backend description: [backends/hip.md](../backends/hip.md). Raw bench JSON: `2026-10-13-phase2a-hip-qwen3-8b-bench-speed.json`,
+`2026-10-13-phase2a-hip-qwen3-8b-chunk1024-bench-speed.json`.
+
+Verdict: every gate in the task passes. Decode is 36.9 tok/s at a short prompt, **96.4% of the 38.3 tok/s byte floor** (627 GB/s / 16.38 GB), 91.9% at a
+4k prompt. The native GEMV streams the 8B weights at 584.6 GB/s, **93.2% of 627 GB/s** (target >= 85%), but only 58% on the two small k/v projections.
+Prefill is 2.0k to 3.4k tok/s at the default 256-token chunk and 3.7k to 4.4k with `--prefill-chunk 1024`; that is where the gap to the leaders is.
+
+## 1. Build and kernel admission
+
+*Tree: 4963b43 + uncommitted worktree (dirty), later committed as a7da13b; exact tree not recorded.*
+
+Build (CPU slot, no GPU): `deploy/tatooine/dev.sh cargo build --release -p intarsia-cli --features hip` and
+`cargo test --release -p intarsia-backend-hip --no-run`; a full build of the kernels is 5 s. `cargo check --workspace` and
+`cargo test -p intarsia-backend-hip --lib` also pass on the Mac (stub path).
+
+`intarsia kernels test --backend hip --model /models/Qwen3-8B`: **21 kernels, 235 cases, 0 failures, all ADMITTED** (tolerances in `kernels.rs`).
+
+| Op | Kernel | Cases | max abs | rel L2 |
+|---|---|---:|---:|---:|
+| embedding | `embedding_bf16` | 6 | 0 | 0 |
+| rmsnorm | `rmsnorm_bf16` | 12 | 7.0e-4 | 2.7e-5 |
+| rmsnorm_add | `rmsnorm_add_bf16` | 12 | 6.4e-4 | 1.4e-5 |
+| add | `add_bf16` | 6 | 0 | 0 |
+| qk_norm | `qk_norm_bf16` | 18 | 1.4e-3 | 2.2e-5 |
+| rope | `rope_bf16` | 36 | 8.5e-4 | 1.1e-5 |
+| matmul | `matmul_bf16` (WMMA GEMM) | 21 | 3.2e-3 | 1.4e-4 |
+| matmul | `matmul_bf16_gemv` | 14 | 9.7e-4 | 2.0e-5 |
+| logits | `logits_bf16` / `logits_bf16_gemv` | 4 / 4 | 1.5e-6 / 1.3e-7 | 6.6e-7 / 9.9e-8 |
+| kv_append | `kv_append_bf16` (bf16 and fp8 cache) | 8 | 0 | 0 |
+| attn_prefill | `attn_prefill_bf16` / `_flash` (WMMA) / `_splitkv` | 21 / 6 / 12 | 2.0e-3 / 5.0e-3 / 1.2e-3 | 1.1e-4 / 2.4e-3 / 3.6e-5 |
+| attn_decode | `attn_decode_bf16` / `_splitkv` | 15 / 15 | 3.4e-3 / 3.4e-3 | 2.4e-4 / 2.4e-4 |
+| silu_glu, gate_split, sigmoid_mul | `*_bf16` | 9, 4, 4 | 7e-7, 0, 0 | 2e-8, 0, 0 |
+| argmax | `argmax_f32`, `argmax_bf16` | 4, 4 | 0 | 0 |
+
+`cargo test --release -p intarsia-backend-hip` (needs the GPU): admission sweep (default shapes), attention randomised sweep (SIMT, split-KV, flash vs cpu:
+40 / 40 / 125 / 46 / 72 cases per kernel, GQA 1..8, head_dim 32..256, odd lengths and offsets, deterministic kernels bit-identical on a rerun), thread-safety test,
+fingerprint test (contains the gfx arch and the HIP runtime / driver versions): 5 unit tests, 5 admission tests and the attention sweep pass. Plan for the 8B model
+(`intarsia plan show`): decode uses `matmul_bf16_gemv` (252 calls/step), `logits_bf16_gemv`, `attn_decode_bf16_splitkv` (scratch 532 KB), `rmsnorm_add_bf16`, `qk_norm_bf16`,
+`rope_bf16`, `kv_append_bf16`, `silu_glu_bf16`, `argmax_f32`; prefill uses `matmul_bf16` and `attn_prefill_bf16_flash` (scratch 749 KB for the split-KV verify path).
+
+## 2. Accuracy (`intarsia accuracy --backend hip --model /models/Qwen3-8B --golden /models/golden/<g> --mode both`)
+
+*Tree: 4963b43 + uncommitted worktree (dirty), later committed as a7da13b; exact tree not recorded.*
+
+Gate class bf16: top-1 >= 99.5%, mean KL <= 1.0e-3, no non-finite rows. Both goldens pass.
+
+| Golden | Mode | Positions | Top-1 | Mean KL | Max KL | Top-5 | Result |
+|---|---|---:|---:|---:|---:|---:|---|
+| `qwen3-8b` (8 prompts) | prefill | 434 | 100.00% | 5.623e-4 | 1.147e-2 | 98.43% | PASS |
+| `qwen3-8b` | decode (teacher-forced) | 128 | 100.00% | 9.611e-4 | 1.316e-2 | 97.81% | PASS |
+| `qwen3-8b-long` (10 prompts, 300 and 700 token) | prefill | 1434 | 99.51% | 7.866e-4 | 8.667e-2 | 97.68% | PASS |
+| `qwen3-8b-long` | decode (teacher-forced) | 160 | 100.00% | 8.810e-4 | 1.316e-2 | 97.75% | PASS |
+
+The margins are thin on two numbers: decode mean KL 9.6e-4 against the 1e-3 gate, and long-golden prefill top-1 99.51% against 99.5%. The Phase 0 CUDA run on the short golden scored 5.997e-4 prefill KL; the long prompts cross the 256-token chunk boundary (2 of 10 prompts), so multi-chunk prefill, the WMMA GEMM and the flash kernel are exercised.
+Worst long prompt `long_prose_300`: top-1 98.67%, max KL 2.4e-2. Greedy-match is informational (the gates are teacher-forced): 100% for the short golden; on the long golden the prefill-mode free-running match is 80.4% mean, worst prompt 0%, as with any bf16 engine
+once a near-tie argmax flips early.
+
+## 3. Generate and serve
+
+*Tree: 4963b43 + uncommitted worktree (dirty), later committed as a7da13b; exact tree not recorded.*
+
+`intarsia generate --backend hip --model /models/Qwen3-8B -p "The capital of France is" --max-tokens 40`: loads in 1.1 s, output
+" Paris. The capital of Italy is Rome. The capital of Spain is Madrid. The capital of Germany is Berlin. The capital of the Netherlands is Amsterdam. The capital of Belgium is Brussels. The capital of",
+prefill 5 tokens in 76 ms, decode 37.09 tok/s.
+
+Server (full command in [backends/hip.md](../backends/hip.md)): `docker run -d --name intarsia-serve --network host <dev.sh device/group/mount flags> ... intarsia serve --backend hip --model /models/Qwen3-8B --host 0.0.0.0 --port 8090
+--served-model-name qwen3-8b-intarsia-hip --max-seq 8192` (starts and answers `/health` in 55 s; admission runs at load, `serve` requires admitted kernels). curl from the Mac to `http://tatooine:8090`:
+
+* `POST /v1/chat/completions` streaming with `stream_options.include_usage`: role chunk, 24 content chunks, a usage chunk (`prompt_tokens 17, completion_tokens 24, cached_tokens 0`), `[DONE]`.
+  (Qwen3 thinks by default, so the visible text starts with `<think>`; that is the model, not the engine.)
+* `POST /v1/completions` with `ignore_eos` and `max_tokens 16`: exactly 16 tokens, `finish_reason "length"`.
+* `POST /v1/messages` streaming: `message_start`, `content_block_start`, `content_block_delta` text deltas, `message_delta` with `stop_reason max_tokens`; non-streaming returns a full message with usage.
+* `/health` ok; `/metrics` exposes weights 16.38 GB and KV bytes.
+
+## 4. Decode GEMV: the >= 85% of 627 GB/s target
+
+*Tree: 4963b43 + uncommitted worktree (dirty), later committed as a7da13b; exact tree not recorded.*
+
+`cargo test --release -p intarsia-backend-hip --test matmul_bench gemv -- --ignored --nocapture`: one launch per weight matrix, the weights rotate over >= 768 MB of
+distinct copies so the 64 MB Infinity Cache cannot serve them, launches back to back on one stream (so launch gaps are included). Final variant `INTARSIA_HIP_GEMV=1,8`
+(1 row per warp, 8 x 16 B non-temporal loads in flight per lane, 8 warps per block).
+
+| Shape (Qwen3-8B) | N x K | Time | GB/s | % of 627 |
+|---|---|---:|---:|---:|
+| q_proj | 4096 x 4096 | 60.3 us | 556.5 | 88.7 |
+| k_proj | 1024 x 4096 | 23.1 us | 362.7 | 57.8 |
+| v_proj | 1024 x 4096 | 22.7 us | 369.7 | 59.0 |
+| o_proj | 4096 x 4096 | 59.6 us | 563.0 | 89.8 |
+| gate_proj | 12288 x 4096 | 163.0 us | 617.5 | 98.5 |
+| up_proj | 12288 x 4096 | 163.9 us | 614.2 | 98.0 |
+| down_proj | 4096 x 12288 | 165.1 us | 609.6 | 97.2 |
+| lm_head (f32 out) | 151936 x 4096 | 2214.7 us | 562.0 | 89.6 |
+| **per token** | 15.14 GB | 25.89 ms | **584.6** | **93.2** |
+
+Weight-stream floor for the 15.14 GB a token really reads (the embedding table is a one-row gather) is 41.4 tok/s; GEMV-only ceiling at the measured rates is 38.6 tok/s.
+Variant sweep (aggregate GB/s per token, rows per warp R, loads in flight U): 1,8 **585.1**; 1,4 582.8; 2,8 582.1; 1,16 576.0; 2,4 578.4; 2,2 574.9; 4,4 573.1; 4,2 566.7.
+The small k/v projections (8 MB, 13 us at the roofline) are latency and launch bound: two sequential load rounds plus the reduction and the gap between launches. They cost
+about 0.65 ms of the 27 ms token; fusing k and v (or a graph) is the fix, not a different GEMV.
+
+## 5. Prefill kernels
+
+*Tree: 4963b43 + uncommitted worktree (dirty), later committed as a7da13b; exact tree not recorded.*
+
+GEMM (`matmul_bf16`, WMMA, tile 128x128 for M >= 128; TFLOPS counts 2MNK; the spec-sheet bf16 dense peak is about 190, not re-measured):
+
+| M | q/o 4096x4096 | gate 12288x4096 | down 4096x12288 |
+|---:|---:|---:|---:|
+| 64 | 20.3 | 17.0 | 23.5 |
+| 256 | 48.0 | 63.9 | 63.2 |
+| 512 | 57.7 | 78.2 | 70.5 |
+| 1024 | 73.1 | 73.5 | 72.2 |
+| 2048 | 80.4 | 81.2 | 79.2 |
+
+Putting token blocks on the grid's fast axis (resident blocks share one weight panel) took M = 1024 gate from 44.7 to 73.5 TFLOPS and M = 2048 from 48.8 to 81.2.
+Other tiles tried (4 waves of 64x64, 8 waves of 64x32, 128x64, 128x32, 64x32, 256x64) were equal or worse at M >= 256; the 128x128 default stays. Every tile passes admission.
+
+Attention (`--test attention -- --ignored`): decode split-KV 17.6 us at 1k context (238 GB/s of K+V), 32.9 us at 4k (510 GB/s), 66.6 us at 16k (1007 GB/s; the benchmark re-reads one cache, so anything above 627 GB/s is served from the 64 MB Infinity Cache); flash prefill 22 TFLOPS at 256-row chunks over 4k to 16k keys, 27 TFLOPS for 1024 rows, 16-17 TFLOPS at head_dim 256.
+
+## 6. `intarsia bench speed` (server above, run inside its container)
+
+*Tree: 4963b43 + uncommitted worktree (dirty), later committed as a7da13b; exact tree not recorded.*
+
+`intarsia bench speed --url http://127.0.0.1:8090 --model qwen3-8b-intarsia-hip --sizes 128,1024,4096 --gen 128 --reps 3 --gb-per-token 16.38 --bandwidth-gbs 627 --thinking off`
+(median of 3 after 1 warmup, forced 128 tokens; floor = 627 / 16.38 = 38.28 tok/s):
+
+| Prompt tokens | TTFT s | Prefill tok/s | Decode tok/s | % of floor |
+|---:|---:|---:|---:|---:|
+| 122 | 0.061 | 2007 | 36.91 | 96.4 |
+| 994 | 0.291 | 3386 | 36.32 | 94.9 |
+| 4095 | 1.325 | 3068 | 35.17 | 91.9 |
+
+Same sweep with `--prefill-chunk 1024` (gen 32): 997 tokens 0.224 s, 4412 tok/s prefill, 36.24 decode; 4140 tokens 1.112 s, 3714 tok/s prefill, 35.06 decode.
+Decode time per token is 27.1 ms at a short prompt, of which 25.9 ms is GEMV; the other 1.2 ms is attention, norms, rope, KV append, silu and launch gaps. At 4k the extra 1.3 ms is mostly
+decode attention (33 us per layer x 36 = 1.2 ms per token).
+
+The 38.3 tok/s floor follows the task (16.38 GB per token); against the 15.14 GB a token actually reads the same 36.9 tok/s is 89% of a 41.4 tok/s floor. For reference the Phase 1a
+Spark GB10 runs of this model decode at 14.9 tok/s at 221 GB/s (110% of its floor, 14.85 vs 13.49).
+
+## 7. Gaps and what to do next
+
+*Tree: 4963b43 + uncommitted worktree (dirty), later committed as a7da13b; exact tree not recorded.*
+
+1. **Prefill** (2.0-4.4k tok/s): GEMM at 48-81 TFLOPS is about 25-42% of peak and flash attention at 22-27 TFLOPS about 13%. Next: a double-buffered K loop with direct-to-LDS loads or
+   `ds_read_tr`, 256-row tiles for N = 12288, a K/V-prefetching flash kernel (the 4k prefill is attention-bound: 3068 vs 3386 tok/s at 1k), and a hipBLASLt route (`Fast`) for comparison.
+2. **k/v GEMV** at 58%: fuse the k and v projections (one launch, N = 2048) in the model block; HIP graphs for the decode step.
+3. **lm_head GEMV** at 89.6%: every variant gives 562 GB/s, so it is not the loop shape; page-table reach on the 1.2 GB matrix is a suspect (unverified), try a 2 MB-aligned allocation.
+4. **Decode attention at 4k+**: 33 us per layer against a 27 us byte floor (16.8 MB of K+V per layer at 627 GB/s); the split-count policy is shared with the CUDA backend and has not been tuned for this card.
+5. TP=2 over both cards, quantised weights (MXFP4 x FP8), GDN and MoE: radiance ports (`docs/research/radiance-port-plan.md`).
+
+## 8. Radiance downtime log
+
+*Tree: 4963b43 + uncommitted worktree (dirty), later committed as a7da13b; exact tree not recorded.*
+
+*(Corrected in the fix pass: the first version listed five takedowns and about 16 minutes. The fleetq log shows 13 takedowns and 29 minutes, and the 35B bursts were missing.)*
+
+GPU work took `radiance` down 13 times, each under a fleetq lease with `--takes-down radiance`. Times from `fleetq log` (job started, lease released = "must come back after", "is back after"); the last column is how long radiance stayed down after the lease was released, not a constant:
+
+| job | what | started | released | radiance back | started to back | released to back |
+|---|---|---|---|---|---:|---:|
+| #1389 | A: kernels admission + microbench | 01:30:10 | 01:31:44 | 01:32:14 | 2m04s | 0m30s |
+| #1393 | B: accuracy + serve + bench | 01:32:46 | 01:35:38 | 01:35:44 | 2m58s | 0m06s |
+| #1395 | C: GEMM/GEMV tuning | 01:36:56 | 01:41:13 | 01:41:15 | 4m19s | 0m02s |
+| #1399 | C2: GEMM order | 01:41:49 | 01:43:49 | 01:44:32 | 2m43s | 0m43s |
+| #1401 | D: final gates + serve + bench | 01:44:55 | 01:49:22 | 01:49:47 | 4m52s | 0m25s |
+| #1411 | 35B burst 1: kernels test + microbench | 02:02:55 | 02:03:11 | 02:03:47 | 0m52s | 0m36s |
+| #1414 | 35B burst 1: kernels + load + generate | 02:04:21 | 02:06:10 | 02:06:42 | 2m21s | 0m32s |
+| #1415 | 35B burst 2: accuracy + serve + bench | 02:07:26 | 02:08:55 | 02:09:02 | 1m36s | 0m07s |
+| #1420 | 35B burst 3: moe wmma + p1 + fp8 gemv | 02:14:57 | 02:16:20 | 02:16:37 | 1m40s | 0m17s |
+| #1423 | 35B burst 4: cached tile loads + fp8 dot2 | 02:20:00 | 02:21:17 | 02:21:52 | 1m52s | 0m35s |
+| #1430 | 35B burst 5: moe wmma register-A | 02:26:56 | 02:28:10 | 02:28:17 | 1m21s | 0m07s |
+| #1432 | 35B burst 6: gpu trace decode + prefill | 02:31:12 | 02:31:36 | 02:31:47 | 0m35s | 0m11s |
+| #1433 | 35B burst 7: prefill trace + bench | 02:33:28 | 02:34:55 | 02:35:17 | 1m49s | 0m22s |
+
+Total from job start to radiance back: **29 min 02 s** (13 takedowns: five dense-model bursts 17 min 16 s, eight 35B bursts 11 min 46 s); the longest wait after a release was 43 s (#1399), not 15 s.
+In one case the lease was released before radiance answered: the CPU-only job #1412 started on the same slots at 02:03:43, four seconds before radiance-rank0 was back (02:03:47, after #1411).
+The cause was the burst script: it called `fleetq release` and then started radiance (or waited a fixed 15 s) instead of waiting for `/v1/models` to answer first. Radiance was serving `Qwen3.8` when this was written.
+
+Reproduce a burst (the order matters: the lease is released only after radiance answers):
+
+```
+fleetq acquire --host tatooine --takes-down radiance --mem 30 --label "..." --wait      # prints the job id
+ssh tatooine systemctl --user stop radiance
+ssh tatooine "FLEETQ_JOB=<id> bash <script that runs dev.sh commands, HIP_VISIBLE_DEVICES=0>"
+ssh tatooine systemctl --user start radiance
+until curl -s -m 4 http://tatooine:8080/v1/models | grep -q '"data":\['; do sleep 5; done   # give up after about 3 minutes and do NOT release
+fleetq release <id>
+```
+
+## 9. Qwen3.6-35B-A3B NVFP4 on one R9700 (hybrid GDN + gated attention + sparse MoE)
+
+*Tree: 4963b43 + uncommitted worktree (dirty), later committed as a7da13b; exact tree not recorded.
