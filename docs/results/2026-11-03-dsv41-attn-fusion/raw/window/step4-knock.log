@@ -1,0 +1,30 @@
+== KNOCK=0
+attn CSA T512 Nc1024 Kw512      hash 4ee9a847ca24437f    1.3023 ms
+attn CSA T2048 Nc1024 Kw512     hash aa254a578fedfa25    5.0351 ms
+attn HCA T512 Nc32 Kw32         hash 90ad1d7fcca0b866    0.3863 ms
+attn CSA T37 Nc1024 Kw512       hash 21b89af74c9af5a2    0.1174 ms
+== KNOCK=1
+attn CSA T512 Nc1024 Kw512      hash 8e068c517f9d0383    0.9621 ms
+attn CSA T2048 Nc1024 Kw512     hash dc0b0234a39d0383    3.6364 ms
+attn HCA T512 Nc32 Kw32         hash 8e068c517f9d0383    0.2881 ms
+attn CSA T37 Nc1024 Kw512       hash 0b7c894816fb0383    0.0840 ms
+== KNOCK=2
+attn CSA T512 Nc1024 Kw512      hash 2af2cf31cd203333    1.0110 ms
+attn CSA T2048 Nc1024 Kw512     hash f0cc72167b92dad1    3.9434 ms
+attn HCA T512 Nc32 Kw32         hash 3cbeab8d00a616a7    0.3083 ms
+attn CSA T37 Nc1024 Kw512       hash fafa1fcdb5c865c5    0.0921 ms
+== KNOCK=3
+attn CSA T512 Nc1024 Kw512      hash 87a08e37d89d0383    1.0616 ms
+attn CSA T2048 Nc1024 Kw512     hash 90cb09ce079d0383    4.0949 ms
+attn HCA T512 Nc32 Kw32         hash 87a08e37d89d0383    0.3235 ms
+attn CSA T37 Nc1024 Kw512       hash ae778a83bc698383    0.0962 ms
+== KNOCK=4
+attn CSA T512 Nc1024 Kw512      hash 8e068c517f9d0383    1.1748 ms
+attn CSA T2048 Nc1024 Kw512     hash dc0b0234a39d0383    4.5284 ms
+attn HCA T512 Nc32 Kw32         hash 8e068c517f9d0383    0.3481 ms
+attn CSA T37 Nc1024 Kw512       hash 0b7c894816fb0383    0.1058 ms
+== KNOCK=5
+attn CSA T512 Nc1024 Kw512      hash 87a08e37d89d0383    0.6632 ms
+attn CSA T2048 Nc1024 Kw512     hash 90cb09ce079d0383    2.5200 ms
+attn HCA T512 Nc32 Kw32         hash 87a08e37d89d0383    0.2297 ms
+attn CSA T37 Nc1024 Kw512       hash ae778a83bc698383    0.0593 ms
