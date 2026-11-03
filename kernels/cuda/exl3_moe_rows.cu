@@ -12,7 +12,7 @@
 namespace ik_exl3x {
 namespace {
 
-constexpr int NT = 8, W = 4, PF = 1, G = 2;
+constexpr int NT = 8, W = 4, PF = 2, G = 2;  // PF: k tiles of weight words in flight per warp (1: 6.38 s, 2: 5.63 s, 3: 5.88 s for a 4.1K prompt, docs/results/2026-11-02-dsv41-prefill.md)
 constexpr int GR = 16 * G;
 constexpr int TPT = 16 * NT * 16 / (W * 32);  // a thread's outputs of a member tile in the warp sum
 

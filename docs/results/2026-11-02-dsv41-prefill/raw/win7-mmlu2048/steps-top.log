@@ -1,0 +1,9 @@
+17:47:42 earlyoom on spark1: -m 2,1
+17:47:43 earlyoom on spark2: -m 2,1
+17:47:45 binary 4794bbc05 dirty=no 1102-1341; out /opt/code/intarsiaml/.worktrees/dsv41-prefill/.scratch/win7
+17:47:49 vLLM stopped on both
+18:23:02 done
+18:23:02 restore (exit 0)
+18:26:29 vLLM on spark1 up (Up 3 minutes)
+18:26:30 vLLM on spark2 up (Up 3 minutes)
+18:26:30 restored

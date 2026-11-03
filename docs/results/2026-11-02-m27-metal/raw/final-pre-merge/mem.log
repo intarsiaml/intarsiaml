@@ -1,0 +1,5 @@
+fleetq: #7934 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27/.scratch/memrun.sh /opt/code/intarsiaml/.worktrees/m27/.scratch/intarsia-def /opt/code/intarsiaml/.worktrees/m27/.scratch/fin/mem16k
+finish=length prompt=16384 (cached 0) completion=32 | prefill 28374 ms (577.4 tok/s) | decode 2544 ms (12.18 tok/s)
+          2673000448  maximum resident set size
+          3748742368  peak memory footprint
+fleetq: #7934 done (exit 0)

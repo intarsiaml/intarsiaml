@@ -1,0 +1,38 @@
+14:08:00 preflight ok
+14:08:05 vLLM stopped
+14:08:10 memory: 14:08:09 spark1=110.9 spark2=111.4
+14:09:11 ready=1 after 61 s; 14:09:10 spark1=3.9 spark2=5.3
+warm1 wall 1.488 s {'prompt_tokens': 1031, 'completion_tokens': 1, 'total_tokens': 1032, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+warm4 wall 2.250 s {'prompt_tokens': 4104, 'completion_tokens': 1, 'total_tokens': 4105, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+warm1b wall 1.598 s {'prompt_tokens': 1033, 'completion_tokens': 1, 'total_tokens': 1034, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+14:09:27 mem before trace: 14:09:24 spark1=3.8 spark2=5.5
+traced1k1 wall 0.826 s {'prompt_tokens': 1034, 'completion_tokens': 1, 'total_tokens': 1035, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+traced4k1 wall 2.167 s {'prompt_tokens': 4106, 'completion_tokens': 1, 'total_tokens': 4107, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+traced1k2 wall 0.797 s {'prompt_tokens': 1034, 'completion_tokens': 1, 'total_tokens': 1035, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+traced4k2 wall 2.177 s {'prompt_tokens': 4106, 'completion_tokens': 1, 'total_tokens': 4107, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+traced1k3 wall 0.820 s {'prompt_tokens': 1034, 'completion_tokens': 1, 'total_tokens': 1035, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+traced4k3 wall 2.252 s {'prompt_tokens': 4106, 'completion_tokens': 1, 'total_tokens': 4107, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+[1/1] [0%                          ] tf-r0.nsys-rep[1/1] [0%                          ] tf-r0.nsys-rep[1/1] [===23%                      ] tf-r0.nsys-rep[1/1] [=========46%                ] tf-r0.nsys-rep[1/1] [================70%         ] tf-r0.nsys-rep[1/1] [==================75%       ] tf-r0.nsys-rep[1/1] [========================100%] tf-r0.nsys-rep[1/1] [========================100%] tf-r0.nsys-rep
+Generated:
+	/out/tf-r0.nsys-rep
+[1/1] [0%                          ] tf-r1.nsys-rep[1/1] [0%                          ] tf-r1.nsys-rep[1/1] [===23%                      ] tf-r1.nsys-rep[1/1] [=========46%                ] tf-r1.nsys-rep[1/1] [================70%         ] tf-r1.nsys-rep[1/1] [==================75%       ] tf-r1.nsys-rep[1/1] [========================100%] tf-r1.nsys-rep[1/1] [========================100%] tf-r1.nsys-rep
+Generated:
+	/out/tf-r1.nsys-rep
+plain1k1 wall 0.813 s {'prompt_tokens': 1034, 'completion_tokens': 1, 'total_tokens': 1035, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+plain4k1 wall 2.178 s {'prompt_tokens': 4106, 'completion_tokens': 1, 'total_tokens': 4107, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+plain1k2 wall 0.864 s {'prompt_tokens': 1034, 'completion_tokens': 1, 'total_tokens': 1035, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+plain4k2 wall 2.167 s {'prompt_tokens': 4106, 'completion_tokens': 1, 'total_tokens': 4107, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+plain1k3 wall 0.801 s {'prompt_tokens': 1034, 'completion_tokens': 1, 'total_tokens': 1035, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+plain4k3 wall 3.733 s {'prompt_tokens': 4106, 'completion_tokens': 1, 'total_tokens': 4107, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}}
+14:10:14 mem min so far: spark1=10.7 spark2=8.7
+-rw-rw-r-- 1 nvidia nvidia  611752 Nov  2 13:51 /home/nvidia/intarsia-dsv41-prefill/tf/tf-r0_cuda_gpu_trace.csv
+-rw-rw-r-- 1 root   root   1231572 Nov  2 14:10 /home/nvidia/intarsia-dsv41-prefill/tf/tf-r0.nsys-rep
+-rw-r--r-- 1 nvidia nvidia  929792 Nov  2 13:51 /home/nvidia/intarsia-dsv41-prefill/tf/tf-r0.sqlite
+-rw-rw-r-- 1 nvidia nvidia  611796 Nov  2 13:51 /home/nvidia/intarsia-dsv41-prefill/tf/tf-r1_cuda_gpu_trace.csv
+-rw-rw-r-- 1 root   root   1225579 Nov  2 14:10 /home/nvidia/intarsia-dsv41-prefill/tf/tf-r1.nsys-rep
+-rw-r--r-- 1 nvidia nvidia  909312 Nov  2 13:51 /home/nvidia/intarsia-dsv41-prefill/tf/tf-r1.sqlite
+14:10:20 done; 14:10:17 spark1=74.7 spark2=111.2
+14:10:20 restore
+14:13:32 spark1 vLLM Up 3 minutes
+14:13:33 spark2 vLLM Up 3 minutes
+14:13:33 restored
