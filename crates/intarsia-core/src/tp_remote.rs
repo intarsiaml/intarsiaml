@@ -431,7 +431,15 @@ pub trait RankModel {
     fn verify_rank(&self, _st: &mut Self::State, _ids: &[u32]) -> Result<()> {
         Err(Error::Unsupported("this model does not verify".into()))
     }
+    /// Waits for what this rank's passes left queued on the device, for [`serve_group`] when the primary closes the connection
+    /// (see [`drain_failure`]). `None`: a pass leaves nothing queued.
+    fn drain(&self) -> Option<Drain> {
+        None
+    }
 }
+
+/// See [`RankModel::drain`].
+pub type Drain = Box<dyn FnOnce() -> Result<()> + Send>;
 
 impl RankModel for Model {
     type State = SequenceState;
@@ -449,6 +457,9 @@ impl RankModel for Model {
     }
     fn state_len(st: &SequenceState) -> usize {
         st.len
+    }
+    fn drain(&self) -> Option<Drain> {
+        Some(self.peer_drain())
     }
 }
 
@@ -550,11 +561,26 @@ mod spin {
 /// Exit code of a rank process that left a failed group (the server's `EXIT_FAILED`).
 pub const EXIT_GROUP_FAILED: i32 = 87;
 
+/// How long a rank process waits for its queued work after the primary closed the connection ([`drain_failure`]).
+const DRAIN_LIMIT: Duration = Duration::from_secs(2);
+
+/// Set by the first [`abort_group_and_exit`]: the process is on its way out with that call's code.
+static LEAVING: AtomicBool = AtomicBool::new(false);
+
+fn park_forever() -> ! {
+    loop {
+        std::thread::park();
+    }
+}
+
 /// This rank cannot go on: the other rank is gone, or a pass failed here and the group is unusable (ADR-0006). Abort the
 /// communicator so nothing keeps waiting in a collective, wait a few seconds for that (`ncclCommAbort` on a context that hit a
 /// device trap may not return), then leave with `code` without running destructors, which would touch the same context. A
 /// supervisor restarts both ranks.
 pub fn abort_group_and_exit(comm: &Arc<dyn Comm>, code: i32, why: &str) -> ! {
+    if LEAVING.swap(true, Ordering::AcqRel) {
+        park_forever(); // another thread got here first and ends the process
+    }
     eprintln!("tensor parallel: rank {}: {why}; aborting the communicator and exiting with code {code}", comm.rank());
     let c = comm.clone();
     let (tx, rx) = channel();
@@ -578,7 +604,8 @@ pub fn abort_group_and_exit(comm: &Arc<dyn Comm>, code: i32, why: &str) -> ! {
 
 /// While a pass runs on this rank the serving thread cannot read the control stream, so a primary that died would go
 /// unnoticed: its half of the collectives never comes (NCCL has no time limit of its own). This thread polls the stream for the
-/// peer's hang-up (never reading it) and, if the peer is gone during a pass, leaves the group.
+/// peer's hang-up (never reading it) and, if the peer is gone during a pass, leaves the group. A pass that only enqueues its work
+/// is over long before that work is: such a hang-up reaches the serving loop as the end of the stream ([`drain_failure`]).
 #[cfg(target_os = "linux")]
 fn watch_peer(stream: TcpStream, in_pass: Arc<AtomicBool>, done: Arc<AtomicBool>, comm: Arc<dyn Comm>) {
     use std::os::fd::AsRawFd;
@@ -591,9 +618,29 @@ fn watch_peer(stream: TcpStream, in_pass: Arc<AtomicBool>, done: Arc<AtomicBool>
             if in_pass.load(Ordering::Acquire) {
                 abort_group_and_exit(&comm, EXIT_GROUP_FAILED, "the primary rank disconnected during a pass");
             }
-            // idle: the serving loop sees the end of the stream itself and returns; do not spin on the level-triggered flag
+            // between passes: the serving loop sees the end of the stream itself; do not spin on the level-triggered flag
             std::thread::sleep(Duration::from_millis(100));
         }
+    }
+}
+
+/// The primary closed the connection, which looks the same whether it exited or died. If it died, this rank's queued work can
+/// be parked in a collective that will never complete, and freeing the device memory that work uses waits for it for good (`cudaFree`
+/// on the sequences' buffers; docs/results/2026-11-02-dsv41-rdma.md section 6). So before anything is freed: why this rank must
+/// leave the group, or `None` when the work finished, which is what a primary that exited leaves behind.
+fn drain_failure<M: RankModel>(model: &M) -> Option<String> {
+    let drain = model.drain()?;
+    let (tx, rx) = channel();
+    let spawned = std::thread::Builder::new().name("tp-drain".into()).spawn(move || {
+        let _ = tx.send(drain());
+    });
+    if let Err(e) = spawned {
+        return Some(format!("the primary rank disconnected and the queued work cannot be waited for: {e}"));
+    }
+    match rx.recv_timeout(DRAIN_LIMIT) {
+        Ok(Ok(())) => None,
+        Ok(Err(e)) => Some(format!("the primary rank disconnected and the queued work failed: {e}")),
+        Err(_) => Some(format!("the primary rank disconnected and the queued work did not finish within {DRAIN_LIMIT:?}")),
     }
 }
 
@@ -602,11 +649,15 @@ pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
 }
 
 /// [`serve`] for a rank process: with the group's communicator it also leaves the group (see [`abort_group_and_exit`]) when a
-/// pass fails here, when the primary disconnects mid-pass, or on a protocol error, instead of looping on a dead group.
+/// pass fails here, when the primary disconnects mid-pass or leaves work here that cannot finish, or on a protocol error, instead
+/// of looping on a dead group.
 pub fn serve_group<M: RankModel>(model: &M, stream: TcpStream, comm: Arc<dyn Comm>) -> Result<u64> {
     let r = serve_inner(model, stream, Some(comm.clone()));
     if let Err(e) = &r {
         abort_group_and_exit(&comm, EXIT_GROUP_FAILED, &format!("serving stopped: {e}"));
+    }
+    if LEAVING.load(Ordering::Acquire) {
+        park_forever(); // the watch's abort let the pass end: the process's exit code is the watch's, not a normal return
     }
     r
 }
@@ -627,8 +678,6 @@ fn serve_inner<M: RankModel>(model: &M, stream: TcpStream, comm: Option<Arc<dyn 
         let (s2, ip, d2) = (stream.try_clone().map_err(io)?, in_pass.clone(), done.clone());
         std::thread::Builder::new().name("tp-peer-watch".into()).spawn(move || watch_peer(s2, ip, d2, c)).map_err(|e| Error::backend(format!("spawning the peer watch: {e}")))?;
     }
-    #[cfg(not(target_os = "linux"))]
-    let _ = &comm;
     #[cfg(target_os = "linux")]
     let spin = spin::Spin::new(&stream);
     let mut rd = BufReader::new(stream.try_clone().map_err(io)?);
@@ -659,7 +708,15 @@ fn serve_inner<M: RankModel>(model: &M, stream: TcpStream, comm: Option<Arc<dyn 
         }
         let (tag, b) = match read_frame(&mut rd) {
             Ok(f) => f,
-            Err(_) => return Ok(passes), // the primary closed the connection
+            Err(_) => {
+                // the primary closed the connection
+                if let Some(c) = &comm {
+                    if let Some(why) = drain_failure(model) {
+                        abort_group_and_exit(c, EXIT_GROUP_FAILED, &why);
+                    }
+                }
+                return Ok(passes);
+            }
         };
         #[cfg(target_os = "linux")]
         if let Some(sp) = &spin {
@@ -840,12 +897,133 @@ mod serve_tests {
         }
         fn abort(&self) {
             self.0.fetch_add(1, Ordering::SeqCst);
+            ABORTED.store(true, Ordering::SeqCst);
+            if std::env::var_os(CHILD).is_some() {
+                std::thread::sleep(Duration::from_millis(500)); // an abort that takes a while to return (392 ms on the Sparks)
+            }
         }
         fn stats(&self) -> crate::comm::CommStats {
             crate::comm::CommStats::default()
         }
         fn note_timed(&self, _d: Duration) {}
     }
+
+    const CHILD: &str = "INTARSIA_TP_SERVE_TEST_CHILD";
+    static ABORTED: AtomicBool = AtomicBool::new(false);
+    /// The code a child process exits with when [`serve_group`] returned `Ok(1)`.
+    const RETURNED: i32 = 42;
+
+    /// What the fake rank does when the primary closes the connection, and in its pass.
+    #[derive(Clone, Copy)]
+    enum Rank {
+        Stuck,
+        Drained,
+        DrainFails,
+        NothingQueued,
+        #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+        PassWaitsForAbort,
+    }
+    impl RankModel for Rank {
+        type State = usize;
+        fn new_state(&self) -> Result<usize> {
+            Ok(0)
+        }
+        fn forward_rank(&self, st: &mut usize, ids: &[u32], _graph: bool) -> Result<()> {
+            if matches!(self, Rank::PassWaitsForAbort) {
+                while !ABORTED.load(Ordering::SeqCst) {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+            }
+            *st += ids.len();
+            Ok(())
+        }
+        fn truncate(&self, _st: &mut usize, _len: usize) -> Result<()> {
+            Ok(())
+        }
+        fn snapshot(&self, _st: &mut usize, _keep: usize) -> Result<()> {
+            Ok(())
+        }
+        fn state_len(st: &usize) -> usize {
+            *st
+        }
+        fn drain(&self) -> Option<Drain> {
+            match self {
+                Rank::Stuck => Some(Box::new(|| loop {
+                    std::thread::sleep(Duration::from_secs(1));
+                })),
+                Rank::Drained => Some(Box::new(|| Ok(()))),
+                Rank::DrainFails => Some(Box::new(|| Err(Error::backend("stream failed")))),
+                Rank::NothingQueued | Rank::PassWaitsForAbort => None,
+            }
+        }
+    }
+
+    /// The body of a child process: a primary that runs one pass and disappears. `wait`: it does not wait for the pass's answer.
+    fn serve_one_pass_then_primary_gone(rank: Rank, wait: bool) -> ! {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        let primary = std::thread::spawn(move || {
+            let mut s = TcpStream::connect(addr).unwrap();
+            write_frame(&mut s, T_NEW, &1u64.to_le_bytes()).unwrap();
+            if wait {
+                assert_eq!(forward(&mut s, &[1]).0, 1);
+            } else {
+                let mut b = vec![0u8; 16];
+                b[..8].copy_from_slice(&1u64.to_le_bytes());
+                b.extend_from_slice(&1u32.to_le_bytes());
+                write_frame(&mut s, T_FORWARD, &b).unwrap();
+                std::thread::sleep(Duration::from_millis(100)); // the pass has started
+            }
+        });
+        let comm: Arc<dyn Comm> = Arc::new(AbortCount(Default::default()));
+        let r = serve_group(&rank, l.accept().unwrap().0, comm);
+        let _ = primary.join();
+        std::process::exit(if matches!(r, Ok(1)) { RETURNED } else { 1 })
+    }
+
+    /// `abort_group_and_exit` ends the process, so each case runs in a child process: this test binary again, on just `name`.
+    fn child_code(name: &str) -> Option<i32> {
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", &format!("tp_remote::serve_tests::{name}"), "--nocapture"])
+            .env(CHILD, "1")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .unwrap()
+            .code()
+    }
+
+    macro_rules! primary_gone_case {
+        ($name:ident, $rank:expr, $wait:expr, $code:expr, $why:literal) => {
+            #[test]
+            fn $name() {
+                if std::env::var_os(CHILD).is_some() {
+                    serve_one_pass_then_primary_gone($rank, $wait);
+                }
+                assert_eq!(child_code(stringify!($name)), Some($code), $why);
+            }
+        };
+    }
+    primary_gone_case!(
+        queued_work_that_cannot_finish_ends_the_rank_before_anything_is_freed,
+        Rank::Stuck,
+        true,
+        EXIT_GROUP_FAILED,
+        "the serving loop must not go on to free memory the stuck stream uses"
+    );
+    primary_gone_case!(queued_work_that_fails_ends_the_rank, Rank::DrainFails, true, EXIT_GROUP_FAILED, "a failed stream is a failed group");
+    primary_gone_case!(a_primary_that_left_nothing_stuck_is_a_clean_end, Rank::Drained, true, RETURNED, "a primary that exited is not a failure");
+    primary_gone_case!(a_rank_with_nothing_queued_does_not_wait, Rank::NothingQueued, true, RETURNED, "the DSv4.1 runtime's passes are synchronous");
+    // the race seen with INTARSIA_TP_PEER_SYNC=1: the abort lets the pass end, the serving loop reads the end of the stream and
+    // returns, and the process exited 0 while the watch was still waiting for the abort
+    #[cfg(target_os = "linux")]
+    primary_gone_case!(
+        the_exit_code_of_a_rank_leaving_mid_pass_is_not_lost_to_a_normal_return,
+        Rank::PassWaitsForAbort,
+        false,
+        EXIT_GROUP_FAILED,
+        "the serving thread returned while the watch was leaving"
+    );
 
     /// The remote rank dying must reach the engine from the reader thread: the engine thread may be stuck in a kernel.
     #[test]

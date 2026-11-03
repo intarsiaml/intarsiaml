@@ -2575,6 +2575,13 @@ impl Model {
         Ok(())
     }
 
+    /// Waits for what a remote rank's passes left on this stream, the only one its serving loop uses: without
+    /// [`Model::peer_sync`] that is most of a step's work.
+    pub(crate) fn peer_drain(&self) -> crate::tp_remote::Drain {
+        let (backend, stream) = (self.backend.clone(), self.stream);
+        Box::new(move || backend.synchronize(stream))
+    }
+
     fn run_peer(&self, ps: &mut SequenceState, ids: &[u32], mode: HeadMode, graph: bool) -> Result<()> {
         self.run_peer_inner(ps, ids, mode, graph)?;
         self.peer_sync()

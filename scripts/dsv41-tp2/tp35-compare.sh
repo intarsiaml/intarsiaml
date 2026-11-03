@@ -8,8 +8,12 @@
 #   f1     SIGKILL the worker (rank 1) 4 s into an 800-token reply: HTTP result of the request, /health every second, both exit codes
 #   again  restart both ranks: the short prompt must give the same ids as before the fault
 #   f2     SIGKILL the primary (rank 0) 4 s into an 800-token reply: the worker's fate and exit code
+#   after  restart both ranks after f2: both prompts must give the same ids as before the fault
+#   f3/f4  SIGTERM / SIGKILL the primary with no request running: the worker's fate and exit code
 # vLLM stays up (the 35B is about 11 GB a rank). Output in $OUT (default .scratch/tp35c-HHMM). Processes are started under a bash
 # wrapper that writes the exit code of the rank to a file; they are killed by PID only (the rank is the wrapper's child).
+# EXTRA_ENV: more environment for both ranks. WORKER_GDB=1: the worker runs under gdb (ptrace_scope 1 allows a debugger only on its
+# own child) and, 10 s after a fault, gets a SIGINT that makes gdb write every thread's stack to the worker log.
 source "$(dirname "${BASH_SOURCE[0]}")/spark-dir.sh"
 set -u
 : "${FLEETQ_JOB:?run under fleetq run}"
@@ -20,7 +24,7 @@ BIN_MAIN=${BIN_MAIN:?path of the baseline binary on the Sparks}; BIN_HEAD=${BIN_
 LOGD="$SPARK_DIR/logs"
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 WIP=10.100.152.3; WPORT=${WPORT:-29712}; SPORT=${SPORT:-8908}; SURL=http://100.120.88.104:$SPORT
-NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN"
+NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN ${EXTRA_ENV:-}"
 FL="-m $M35 --backend cuda --tp 2 --max-seq 8192 --mem-budget 20"
 P=${PROMPTS:-/opt/code/deepeval/tests/data/prompts/natural-v1}
 log() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
@@ -30,7 +34,8 @@ now_ms() { python3 -c 'import time; print(int(time.time()*1000))'; }
 # start_ranks <tag> <binary>: wrappers $LOGD/<tag>-{worker,serve}.{pid,exit}; the ranks' own PIDs are the wrappers' children
 start_ranks() {
   TAG=$1; BIN=$2
-  r spark2 "mkdir -p $LOGD; rm -f $LOGD/$TAG-worker.exit; nohup bash -c 'env $NCCLENV $BIN tp-worker --serving --listen $WIP:$WPORT $FL; echo \$? > $LOGD/$TAG-worker.exit' > $LOGD/$TAG-worker.log 2>&1 < /dev/null & echo \$! > $LOGD/$TAG-worker.pid"
+  local GDB=""; [[ ${WORKER_GDB:-0} == 1 ]] && GDB="gdb -q -batch -ex \"handle all nostop noprint pass\" -ex run -ex \"thread apply all bt 30\" -ex kill --args"
+  r spark2 "mkdir -p $LOGD; rm -f $LOGD/$TAG-worker.exit; nohup bash -c 'env $NCCLENV $GDB $BIN tp-worker --serving --listen $WIP:$WPORT $FL; echo \$? > $LOGD/$TAG-worker.exit' > $LOGD/$TAG-worker.log 2>&1 < /dev/null & echo \$! > $LOGD/$TAG-worker.pid"
   sleep 2
   r spark1 "mkdir -p $LOGD; rm -f $LOGD/$TAG-serve.exit; nohup bash -c 'env $NCCLENV $BIN serve $FL --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name q35 --no-supervisor --no-ui; echo \$? > $LOGD/$TAG-serve.exit' > $LOGD/$TAG-serve.log 2>&1 < /dev/null & echo \$! > $LOGD/$TAG-serve.pid"
   local T0 up=0
@@ -90,6 +95,7 @@ observe() { # <name> <seconds>: ms since the fault, /health code, both PIDs
       snapped=1
       [[ $a0 == up ]] && r spark1 "for t in /proc/$P0/task/*; do echo \"\$(cat \$t/comm) \$(awk '{print \$3}' \$t/stat) \$(cat \$t/wchan 2>/dev/null)\"; done; ss -tn | grep $WPORT" > "$OUT/$1.threads0" 2>&1
       [[ $a1 == up ]] && r spark2 "for t in /proc/$P1/task/*; do echo \"\$(cat \$t/comm) \$(awk '{print \$3}' \$t/stat) \$(cat \$t/wchan 2>/dev/null)\"; done; ss -tn | grep $WPORT" > "$OUT/$1.threads1" 2>&1
+      [[ $a1 == up && ${WORKER_GDB:-0} == 1 ]] && r spark2 "kill -INT $P1"
     fi
     [[ $a0 == gone && $a1 == gone ]] && break
     sleep 0.5
@@ -101,6 +107,7 @@ fault() { # <case> <victim: worker|serve>
   long_request "$c"
   sleep 4
   P0=$(rank_pid spark1 "$LOGD/$TAG-serve.pid"); P1=$(rank_pid spark2 "$LOGD/$TAG-worker.pid")
+  [[ ${WORKER_GDB:-0} == 1 ]] && P1=$(r spark2 "pgrep -P $P1 | head -1")
   log "[$TAG] $c: ranks' PIDs rank 0 $P0 (spark1), rank 1 $P1 (spark2)"
   TF=$(now_ms)
   if [[ $v == worker ]]; then r spark2 "kill -KILL $P1"; else r spark1 "kill -KILL $P0"; fi
@@ -117,10 +124,23 @@ fault() { # <case> <victim: worker|serve>
   cp_logs "$c"
   kill_all
 }
+idle_fault() { # <case> <signal>: the primary is signalled with no request running
+  local c=$1
+  P0=$(rank_pid spark1 "$LOGD/$TAG-serve.pid"); P1=$(rank_pid spark2 "$LOGD/$TAG-worker.pid")
+  TF=$(now_ms)
+  r spark1 "kill -$2 $P0"
+  observe "$c" 30
+  log "[$TAG] $c RESULT: SIG$2 to the idle primary; rank 0 gone at $(first "$OUT/$c.timeline" 'rank0=gone') ms; rank 1 gone at $(first "$OUT/$c.timeline" 'rank1=gone') ms"
+  sleep 3
+  log "[$TAG] $c exit codes: rank 0 (serve) $(exitcode spark1 "$TAG-serve"), rank 1 (worker) $(exitcode spark2 "$TAG-worker")"
+  r spark2 "grep -aiE 'tensor parallel|tp-worker' $LOGD/$TAG-worker.log | tail -4 | cut -c1-240" | tee -a "$OUT/steps.log"
+  cp_logs "$c"
+  kill_all
+}
 cp_logs() { scp -q "spark1:$SPARK_REL/logs/$TAG-serve.log" "$OUT/$TAG-$1.serve.log" 2> /dev/null; scp -q "spark2:$SPARK_REL/logs/$TAG-worker.log" "$OUT/$TAG-$1.worker.log" 2> /dev/null; }
 trap 'TAG=${TAG:-x}; kill_all' EXIT
 
-STAGES=${STAGES:-"ids f1 again f2"}   # a subset to repeat one fault: STAGES=f2
+STAGES=${STAGES:-"ids f1 again f2 after f3 f4"}   # a subset to repeat one fault: STAGES=f2
 has() { [[ " $STAGES " == *" $1 "* ]]; }
 for arm in $ARMS; do
   [[ $arm == main ]] && B=$BIN_MAIN || B=$BIN_HEAD
@@ -147,6 +167,24 @@ for arm in $ARMS; do
   if has f2; then
     if start_ranks "$arm" "$B"; then fault "$arm-f2" serve; else log "[$arm] start before f2 did not come up"; kill_all; fi
   fi
+  if has after; then
+    if start_ranks "$arm" "$B"; then
+      for k in n128 n4096; do
+        completion "$arm-$k-after" "$P/$k.txt"
+        cmp -s "$OUT/$arm-$k.ids" "$OUT/$arm-$k-after.ids" && log "[$arm] AFTER PRIMARY KILL: $k ids identical to the run before the fault" || log "[$arm] AFTER PRIMARY KILL: $k ids DIFFER"
+      done
+      cp_logs after
+      kill_all
+    else log "[$arm] restart after f2 did not come up"; cp_logs restart; kill_all; fi
+  fi
+  for c in "f3 TERM" "f4 KILL"; do
+    if has "${c% *}"; then
+      if start_ranks "$arm" "$B"; then
+        completion "$arm-${c% *}-warm" "$P/n128.txt"
+        idle_fault "$arm-${c% *}" "${c#* }"
+      else log "[$arm] start before ${c% *} did not come up"; kill_all; fi
+    fi
+  done
 done
 # head vs main
 for k in n128 n4096; do
