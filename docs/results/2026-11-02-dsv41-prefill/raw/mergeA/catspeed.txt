@@ -1,0 +1,6 @@
+kind                         main                     head
+chat          47.6 (median  48.6)      47.9 (median  49.1)
+code          68.6 (median  67.8)      69.7 (median  69.0)
+prose         42.5 (median  42.1)      43.3 (median  43.0)
+recall        54.1 (median  53.8)      54.9 (median  54.2)
+all           51.5 (median  50.9)      52.3 (median  51.6)
