@@ -130,6 +130,22 @@ pub fn unique_id() -> Result<[u8; 128]> {
 /// Open CUDA device `ordinal` and join rank `rank` of the `world`-rank NCCL communicator `id`. Blocks until every rank
 /// has joined. Call it before loading weights (a fresh process has the most room for NCCL's registered buffers).
 pub fn create(ordinal: usize, rank: usize, world: usize, id: [u8; 128]) -> Result<(Arc<dyn Backend>, Arc<dyn Comm>)> {
+    let (be, c) = create_concrete(ordinal, rank, world, id)?;
+    Ok((be as Arc<dyn Backend>, Arc::new(c) as Arc<dyn Comm>))
+}
+
+/// [`create`] for a two-process group with a control stream to the other rank (`intarsia serve --tp-remote` / `tp-worker`):
+/// the ranks first agree whether `rdma` (`INTARSIA_DSV41_RDMA=1`) is on, a byte each way on `ctl`; off, this is exactly
+/// [`create`]'s communicator; on, it is wrapped so the f32 partial all-reduces go over RDMA (see [`crate::rdma`]).
+pub fn create_with_rdma(ordinal: usize, rank: usize, world: usize, id: [u8; 128], ctl: &mut std::net::TcpStream, rdma: bool) -> Result<(Arc<dyn Backend>, Arc<dyn Comm>)> {
+    let (be, c) = create_concrete(ordinal, rank, world, id)?;
+    let c: Arc<dyn Comm> = Arc::new(c);
+    let on = crate::rdma::negotiate(ctl, rank, rdma)?;
+    let c = if on { crate::rdma::wrap(be.clone(), c, rank, ctl)? } else { c };
+    Ok((be as Arc<dyn Backend>, c))
+}
+
+fn create_concrete(ordinal: usize, rank: usize, world: usize, id: [u8; 128]) -> Result<(Arc<CudaBackend>, NcclComm)> {
     crate::disable::check_env()?;
     let l = lib()?;
     let be = Arc::new(CudaBackend::new(ordinal)?);
@@ -151,7 +167,7 @@ pub fn create(ordinal: usize, rank: usize, world: usize, id: [u8; 128]) -> Resul
         gather_sum: std::env::var("INTARSIA_NCCL_GATHER").is_ok_and(|v| v == "1"),
         counters: CommCounters::default(),
     };
-    Ok((be as Arc<dyn Backend>, Arc::new(c) as Arc<dyn Comm>))
+    Ok((be, c))
 }
 
 struct NcclComm {

@@ -461,7 +461,8 @@ impl ModelArgs {
             stream.write_all(&id)?;
             stream.flush()?;
             eprintln!("tensor parallel: rank 0 joining NCCL {} with the worker at {addr}", intarsia_backend_cuda::nccl::version().unwrap_or_default());
-            let (backend, comm) = intarsia_backend_cuda::nccl::create(self.device, 0, 2, id).map_err(|e| anyhow::anyhow!("{e}"))?;
+            let rdma = std::env::var("INTARSIA_DSV41_RDMA").is_ok_and(|v| v == "1");
+            let (backend, comm) = intarsia_backend_cuda::nccl::create_with_rdma(self.device, 0, 2, id, &mut stream, rdma).map_err(|e| anyhow::anyhow!("{e}"))?;
             Ok((backend, comm, stream))
         }
         #[cfg(not(feature = "cuda"))]
@@ -502,7 +503,8 @@ pub fn run_tp_worker(a: TpWorkerArgs) -> Result<()> {
         use std::io::Read;
         let mut id = [0u8; 128];
         stream.read_exact(&mut id)?;
-        let (backend, comm) = intarsia_backend_cuda::nccl::create(a.model.device, 1, 2, id).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let rdma = std::env::var("INTARSIA_DSV41_RDMA").is_ok_and(|v| v == "1");
+        let (backend, comm) = intarsia_backend_cuda::nccl::create_with_rdma(a.model.device, 1, 2, id, &mut stream, rdma).map_err(|e| anyhow::anyhow!("{e}"))?;
         eprintln!("tp-worker: joined NCCL {} as rank 1 on device {}", intarsia_backend_cuda::nccl::version().unwrap_or_default(), a.model.device);
         let n = intarsia_models::serve_remote_rank(&a.model.model, backend, comm, stream, &opts).map_err(|e| anyhow::anyhow!("{e}"))?;
         eprintln!("tp-worker: rank 0 disconnected after {n} forward passes");

@@ -65,6 +65,17 @@ extern "C" {
     pub fn ik_rt_f32_round(src: *const c_void, dst: *mut c_void, n: usize, dst_dtype: c_int, stream: S) -> c_int;
     pub fn ik_rt_f32_sum_round(src: *const c_void, world: c_int, n: usize, dst: *mut c_void, dst_dtype: c_int, stream: S) -> c_int;
     pub fn ik_rt_measure_bandwidth(gbs: *mut c_double) -> c_int;
+    // ---- kernels/cuda/ik_rdma.cu: direct RDMA all-reduce (INTARSIA_DSV41_RDMA) ----
+    pub fn ik_rdma_available() -> c_int;
+    pub fn ik_rdma_info_size() -> c_int;
+    pub fn ik_rdma_open(devs: *const c_char, gid: c_int, rank: c_int, max_bytes: usize, slots: c_int, err: *mut c_char, errlen: c_int) -> *mut c_void;
+    pub fn ik_rdma_info(h: *mut c_void, out: *mut c_void) -> c_int;
+    pub fn ik_rdma_connect(h: *mut c_void, peer: *const c_void, err: *mut c_char, errlen: c_int) -> c_int;
+    pub fn ik_rdma_start(h: *mut c_void, pin_cpu: c_int) -> c_int;
+    pub fn ik_rdma_exchange(h: *mut c_void, partial: *const c_void, out: *mut c_void, n: usize, stream: S) -> c_int;
+    pub fn ik_rdma_failed(h: *mut c_void, why: *mut c_char, len: c_int) -> c_int;
+    pub fn ik_rdma_abort(h: *mut c_void);
+    pub fn ik_rdma_close(h: *mut c_void);
     pub fn ik_rt_error_string(code: c_int) -> *const c_char;
     pub fn ik_rt_graph_begin(stream: S) -> c_int;
     pub fn ik_rt_graph_end(stream: S, exec: *mut *mut c_void) -> c_int;

@@ -168,6 +168,14 @@ fn lib_dirs(nvcc: &Path) -> Vec<PathBuf> {
     out
 }
 
+/// Is libibverbs (header and linkable library) installed? `kernels/cuda/ik_rdma.cu` (INTARSIA_DSV41_RDMA) is built with it,
+/// and the library linked, only then; otherwise that file compiles to stubs that say so and nothing else changes.
+fn verbs_available() -> bool {
+    let header = ["/usr/include/infiniband/verbs.h", "/usr/local/include/infiniband/verbs.h"].iter().any(|p| Path::new(p).is_file());
+    let lib = ["/usr/lib/aarch64-linux-gnu", "/usr/lib/x86_64-linux-gnu", "/usr/lib64", "/usr/lib", "/usr/local/lib"].iter().any(|d| Path::new(d).join("libibverbs.so").exists());
+    header && lib
+}
+
 fn main() {
     println!("cargo:rustc-check-cfg=cfg(ik_cuda)");
     println!("cargo:rerun-if-changed=build.rs");
@@ -208,6 +216,7 @@ fn main() {
         return;
     };
 
+    let verbs = verbs_available();
     let manifest = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
     let kdir = manifest.join("../../kernels/cuda").canonicalize().expect("kernels/cuda");
     let kroot = kdir.parent().unwrap().to_path_buf();
@@ -254,11 +263,13 @@ fn main() {
         };
         // Run in the kernels root (staged: a fixed path) with a relative source path and `-I .`. The output path is not embedded.
         let rel = src.strip_prefix(&kroot).unwrap_or(src);
+        let rdma_def = (verbs && src.file_stem().unwrap() == "ik_rdma").then_some("-DIK_HAVE_VERBS=1");
         let child = Command::new(&nvcc)
             .current_dir(&workdir)
             .args(["-c", "-O3", "--std=c++17", "-lineinfo", "--expt-relaxed-constexpr"])
             .args(&arch_args)
             .args(a_def)
+            .args(rdma_def)
             .args(["-Xcompiler", "-fPIC,-Wall"])
             .arg("-I")
             .arg(".")
@@ -298,4 +309,7 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=cublasLt");
     println!("cargo:rustc-link-lib=dylib=cudart");
     println!("cargo:rustc-link-lib=dylib=stdc++");
+    if verbs {
+        println!("cargo:rustc-link-lib=dylib=ibverbs");
+    }
 }

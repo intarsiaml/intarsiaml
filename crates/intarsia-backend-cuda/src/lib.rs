@@ -26,6 +26,9 @@ mod ffi;
 /// NCCL collectives for tensor parallelism across processes (docs/design/35b-tp2.md).
 #[cfg(ik_cuda)]
 pub mod nccl;
+/// Direct RDMA all-reduce of the f32 partials (`INTARSIA_DSV41_RDMA`), a wrapper over the NCCL communicator.
+#[cfg(ik_cuda)]
+pub mod rdma;
 /// NCCL collectives (stub: this build has no CUDA toolkit).
 #[cfg(not(ik_cuda))]
 pub mod nccl {
@@ -41,6 +44,16 @@ pub mod nccl {
         Err(none())
     }
     pub fn create(_ordinal: usize, _rank: usize, _world: usize, _id: [u8; 128]) -> Result<(Arc<dyn Backend>, Arc<dyn Comm>)> {
+        Err(none())
+    }
+    pub fn create_with_rdma(
+        _ordinal: usize,
+        _rank: usize,
+        _world: usize,
+        _id: [u8; 128],
+        _ctl: &mut std::net::TcpStream,
+        _rdma: bool,
+    ) -> Result<(Arc<dyn Backend>, Arc<dyn Comm>)> {
         Err(none())
     }
 }
