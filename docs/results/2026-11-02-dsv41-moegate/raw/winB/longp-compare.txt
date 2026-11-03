@@ -1,0 +1,9 @@
+== default vs .scratch/winB/ab0
+longp-long32k.json: text same, tokens same, logprobs bit-identical (16/16 equal, max abs diff 0); first token ' |' -1.050764 vs ' |' -1.050764
+longp-long64k.json: text same, tokens same, logprobs bit-identical (16/16 equal, max abs diff 0); first token '16' -0.323826 vs '16' -0.323826
+== default vs docs/results/2026-11-02-dsv41-prefill/raw/win4-base512
+longp-long32k.json: text same, tokens same, logprobs bit-identical (16/16 equal, max abs diff 0); first token ' |' -1.050764 vs ' |' -1.050764
+longp-long64k.json: text same, tokens same, logprobs bit-identical (16/16 equal, max abs diff 0); first token '16' -0.323826 vs '16' -0.323826
+== default vs docs/results/2026-11-02-dsv41-prefill/raw/win5/ab2
+longp-long32k.json: text same, tokens same, logprobs bit-identical (16/16 equal, max abs diff 0); first token ' |' -1.050764 vs ' |' -1.050764
+longp-long64k.json: text same, tokens same, logprobs bit-identical (16/16 equal, max abs diff 0); first token '16' -0.323826 vs '16' -0.323826

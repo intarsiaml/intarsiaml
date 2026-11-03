@@ -1,0 +1,78 @@
+     43     0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+      5 ptxas info    : Used 80 registers, used 1 barriers, 512 bytes smem
+      4 ptxas info    : Used 128 registers, used 1 barriers, 2048 bytes smem
+      4 ptxas info    : Used 128 registers, used 1 barriers, 1152 bytes smem
+      4 ptxas info    : Used 128 registers, used 1 barriers, 1024 bytes smem
+      3 ptxas info    : Used 128 registers, used 1 barriers, 24 bytes cumulative stack size, 1024 bytes smem
+      2 ptxas info    : Used 93 registers, used 1 barriers, 1024 bytes smem
+      2 ptxas info    : Used 92 registers, used 1 barriers, 1024 bytes smem
+      2 ptxas info    : Used 84 registers, used 1 barriers, 512 bytes smem
+      2 ptxas info    : Used 78 registers, used 1 barriers, 512 bytes smem
+      2 ptxas info    : Used 72 registers, used 1 barriers, 256 bytes smem
+      2 ptxas info    : Used 40 registers, used 1 barriers, 512 bytes smem
+
+=== M=512 N=384 K=5120 wpo=2 ===
+old R=16                 bitwise vs R=1: yes (0/196608 differ)
+old R=8                  bitwise vs R=1: yes (0/196608 differ)
+old R=32                 bitwise vs R=1: yes (0/196608 differ)
+tile 4x4                 bitwise vs R=1: yes (0/196608 differ)
+tile 8x4                 bitwise vs R=1: yes (0/196608 differ)
+tile 4x8                 bitwise vs R=1: yes (0/196608 differ)
+tile 8x8                 bitwise vs R=1: NO (98304/196608 differ)
+tile 16x4                bitwise vs R=1: NO (98304/196608 differ)
+tile 6x6                 bitwise vs R=1: NO (21760/196608 differ)
+old R=16                 min 0.627 ms  median 0.631 ms  (3.19 TFLOP/s at median)
+old R=8                  min 0.344 ms  median 0.348 ms  (5.78 TFLOP/s at median)
+old R=32                 min 0.688 ms  median 0.694 ms  (2.90 TFLOP/s at median)
+KO old R=16 no x loads   min 0.119 ms  median 0.121 ms  (16.66 TFLOP/s at median)
+KO old R=16 no fma       min 0.480 ms  median 0.484 ms  (4.16 TFLOP/s at median)
+tile 4x4                 min 0.422 ms  median 0.427 ms  (4.72 TFLOP/s at median)
+tile 8x4                 min 0.434 ms  median 0.439 ms  (4.59 TFLOP/s at median)
+tile 4x8                 min 0.447 ms  median 0.463 ms  (4.35 TFLOP/s at median)
+tile 8x8                 min 0.460 ms  median 0.463 ms  (4.35 TFLOP/s at median)
+tile 16x4                min 0.340 ms  median 0.344 ms  (5.85 TFLOP/s at median)
+tile 6x6                 min 0.357 ms  median 0.367 ms  (5.49 TFLOP/s at median)
+
+=== M=1034 N=384 K=5120 wpo=2 ===
+old R=16                 bitwise vs R=1: yes (0/397056 differ)
+old R=8                  bitwise vs R=1: yes (0/397056 differ)
+old R=32                 bitwise vs R=1: yes (0/397056 differ)
+tile 4x4                 bitwise vs R=1: yes (0/397056 differ)
+tile 8x4                 bitwise vs R=1: yes (0/397056 differ)
+tile 4x8                 bitwise vs R=1: yes (0/397056 differ)
+tile 8x8                 bitwise vs R=1: NO (198144/397056 differ)
+tile 16x4                bitwise vs R=1: NO (197376/397056 differ)
+tile 6x6                 bitwise vs R=1: NO (44032/397056 differ)
+old R=16                 min 1.271 ms  median 1.293 ms  (3.15 TFLOP/s at median)
+old R=8                  min 0.690 ms  median 0.700 ms  (5.81 TFLOP/s at median)
+old R=32                 min 1.387 ms  median 1.411 ms  (2.88 TFLOP/s at median)
+KO old R=16 no x loads   min 0.234 ms  median 0.238 ms  (17.09 TFLOP/s at median)
+KO old R=16 no fma       min 0.972 ms  median 0.989 ms  (4.11 TFLOP/s at median)
+tile 4x4                 min 0.878 ms  median 0.895 ms  (4.54 TFLOP/s at median)
+tile 8x4                 min 0.875 ms  median 0.893 ms  (4.55 TFLOP/s at median)
+tile 4x8                 min 0.934 ms  median 0.965 ms  (4.21 TFLOP/s at median)
+tile 8x8                 min 0.920 ms  median 0.936 ms  (4.34 TFLOP/s at median)
+tile 16x4                min 0.670 ms  median 0.686 ms  (5.92 TFLOP/s at median)
+tile 6x6                 min 0.725 ms  median 0.744 ms  (5.47 TFLOP/s at median)
+
+=== M=2048 N=384 K=5120 wpo=2 ===
+old R=16                 bitwise vs R=1: yes (0/786432 differ)
+old R=8                  bitwise vs R=1: yes (0/786432 differ)
+old R=32                 bitwise vs R=1: yes (0/786432 differ)
+tile 4x4                 bitwise vs R=1: yes (0/786432 differ)
+tile 8x4                 bitwise vs R=1: yes (0/786432 differ)
+tile 4x8                 bitwise vs R=1: yes (0/786432 differ)
+tile 8x8                 bitwise vs R=1: NO (393216/786432 differ)
+tile 16x4                bitwise vs R=1: NO (393216/786432 differ)
+tile 6x6                 bitwise vs R=1: NO (87296/786432 differ)
+old R=16                 min 5.013 ms  median 5.031 ms  (1.60 TFLOP/s at median)
+old R=8                  min 1.809 ms  median 1.817 ms  (4.43 TFLOP/s at median)
+old R=32                 min 5.627 ms  median 5.658 ms  (1.42 TFLOP/s at median)
+KO old R=16 no x loads   min 0.455 ms  median 0.456 ms  (17.67 TFLOP/s at median)
+KO old R=16 no fma       min 1.903 ms  median 1.905 ms  (4.23 TFLOP/s at median)
+tile 4x4                 min 1.884 ms  median 1.897 ms  (4.24 TFLOP/s at median)
+tile 8x4                 min 2.442 ms  median 2.454 ms  (3.28 TFLOP/s at median)
+tile 4x8                 min 1.848 ms  median 1.882 ms  (4.28 TFLOP/s at median)
+tile 8x8                 min 2.827 ms  median 2.872 ms  (2.80 TFLOP/s at median)
+tile 16x4                min 2.280 ms  median 2.296 ms  (3.51 TFLOP/s at median)
+tile 6x6                 min 1.774 ms  median 1.785 ms  (4.51 TFLOP/s at median)

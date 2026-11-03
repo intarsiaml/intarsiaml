@@ -1,0 +1,10 @@
+base c269ded36, stamp plandiff-base-c269ded36-1102203803
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 42s
+compiled 215 crates
+guard INTARSIA_DSV41_MOE_SMEMA: absent from the base binary, present in the branch binary
+branch binary: e80b230df dirty=no 1102-2030
+35b: plan show unchanged (      76 lines)
+8b: plan show unchanged (      25 lines)
+35b: 64 greedy tokens identical:  of the way sunlight interacts with Earth's atmosphere. Sunlight, which appears white, is actually m
+8b: 64 greedy tokens identical:  of the scattering of light. The scattered light that reaches our eyes is mostly in the blue region 

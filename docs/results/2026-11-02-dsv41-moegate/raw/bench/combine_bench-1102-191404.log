@@ -1,0 +1,11 @@
+NVCC FAILED
+kernels/cuda/exl3_moe_rows.cu(15): error: variable "ik_exl3x::<unnamed>::NT" has already been defined (previous definition at line 16 of kernels/cuda/exl3_moe_cp.cu)
+  constexpr int NT = 8, W = 4, PF = 2, G = 2;
+                ^
+
+kernels/cuda/exl3_moe_rows.cu(15): error: variable "ik_exl3x::<unnamed>::W" has already been defined (previous definition at line 17 of kernels/cuda/exl3_moe_cp.cu)
+  constexpr int NT = 8, W = 4, PF = 2, G = 2;
+                        ^
+
+2 errors detected in the compilation of "bench/combine_bench.cu".
+bash: line 1: ./bin/combine_bench: No such file or directory

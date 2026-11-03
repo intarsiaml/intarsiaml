@@ -1,0 +1,23 @@
+fleetq: #8035 waiting (#3 in line): in line behind #8020 "dsv41 prefill: build intarsia.dump (head + row dump hook)" (claude-b7d2edb2) on spark2
+fleetq: #8035 running on spark2: scripts/dsv41-tp2/build.sh
+stamp: f6f5e31fb dirty=no 1102-1929
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 00s
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-dsv41-moegate/src/crates/intarsia-backend-cuda)
+    Finished `release` profile [optimized] target(s) in 1.29s
+total 643852
+drwxrwxr-x 2 nvidia nvidia      4096 Nov  2 19:35 .
+drwxrwxr-x 7 nvidia nvidia      4096 Nov  2 19:29 ..
+-rwxrwxr-x 1 nvidia nvidia 123919056 Nov  2 19:17 dsv41_dense
+-rwxrwxr-x 1 nvidia nvidia 135315792 Nov  2 19:35 dsv41_runtime
+-rwxrwxr-x 1 nvidia nvidia 124492392 Nov  2 19:17 exl3_moe
+-rwxrwxr-x 1 nvidia nvidia 150788872 Nov  2 19:35 intarsia
+-rwxrwxr-x 1 nvidia nvidia 124916200 Nov  2 19:35 nccl_bench
+-rw-rw-r-- 1 nvidia nvidia        29 Nov  2 19:35 STAMP
+spark1: f6f5e31fb dirty=no 1102-1929
+afb78295cbcb
+spark2: f6f5e31fb dirty=no 1102-1929
+afb78295cbcb
+fleetq: #8035 done (exit 0)
