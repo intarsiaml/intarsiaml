@@ -374,7 +374,7 @@ impl RemoteSeq {
     }
 
     /// See [`RemotePeer::mark_unusable`].
-    pub(crate) fn mark_unusable(&self) {
+    pub fn mark_unusable(&self) {
         self.peer.mark_unusable();
     }
 

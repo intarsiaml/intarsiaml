@@ -452,18 +452,30 @@ struct Worker {
     failed: Arc<Mutex<Option<String>>>,
 }
 
+/// Collect the remote rank's answer to the pass just run here. A backend error on this rank fails the group (`group_failed`):
+/// the other rank may sit in a collective this rank no longer joins and never answer, so do not wait for it (the peer is
+/// marked unusable instead). Any other error still drains the answer, which keeps the two ranks in step.
+fn settle<T>(remote: &mut Option<RemoteSeq>, out: &Result<T>) -> Result<()> {
+    let Some(r) = remote else { return Ok(()) };
+    if matches!(out, Err(Error::Backend(_))) {
+        r.mark_unusable();
+        return Ok(());
+    }
+    let rr = r.finish();
+    if out.is_ok() {
+        rr
+    } else {
+        Ok(())
+    }
+}
+
 impl Worker {
     fn forward(&mut self, ids: &[u32], logits: bool) -> Result<Option<Vec<f32>>> {
         if let Some(r) = &self.remote {
             r.start_forward(ids, false)?;
         }
         let out = self.rt.forward(&mut self.st, ids, logits);
-        if let Some(r) = &mut self.remote {
-            let rr = r.finish();
-            if out.is_ok() {
-                rr?;
-            }
-        }
+        settle(&mut self.remote, &out)?;
         out
     }
 
@@ -474,12 +486,7 @@ impl Worker {
             r.start_draft(&[first])?;
         }
         let out = self.rt.draft_steps(&self.st, first, steps);
-        if let Some(r) = &mut self.remote {
-            let rr = r.finish();
-            if out.is_ok() {
-                rr?;
-            }
-        }
+        settle(&mut self.remote, &out)?;
         out?.ok_or_else(|| Error::backend("deepseek_v41: rank 0 got no draft"))
     }
 
@@ -494,12 +501,7 @@ impl Worker {
         } else {
             self.rt.forward_rows_ids(&mut self.st, ids).map(|t| t.into_iter().map(Row::Tok).collect())
         };
-        if let Some(r) = &mut self.remote {
-            let rr = r.finish();
-            if out.is_ok() {
-                rr?;
-            }
-        }
+        settle(&mut self.remote, &out)?;
         out
     }
 
