@@ -1,0 +1,20 @@
+tp-worker: waiting for rank 0 on 10.100.152.3:29701
+tp-worker: rank 0 connected from 10.100.152.1:55066
+Error: invalid op call: INTARSIA_DSV41_RDMA is 1 (required) on one rank and 0 (off) on the other: set it the same on both
+
+Stack backtrace:
+   0: std::backtrace::Backtrace::create
+   1: anyhow::error::<impl anyhow::Error>::msg
+   2: anyhow::__private::format_err
+   3: intarsia_cli::cmd::serve::run::{{closure}}
+   4: intarsia_cli::common::run_tp_worker
+   5: intarsia::main
+   6: std::sys::backtrace::__rust_begin_short_backtrace
+   7: std::rt::lang_start::{{closure}}
+   8: std::rt::lang_start_internal
+   9: main
+  10: __libc_start_call_main
+             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+  11: __libc_start_main_impl
+             at ./csu/../csu/libc-start.c:360:3
+  12: _start

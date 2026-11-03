@@ -1,0 +1,21 @@
+tp-worker: waiting for rank 0 on 10.100.152.3:29701
+tp-worker: rank 0 connected from 10.100.152.1:59166
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.4 s = 6.71 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.48 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.3 s (5.04 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.59 GiB -> 9.85 GiB
+dsv41: rank 1 serving rank 0's passes
+tp: remote rank reader spins 100 ms after a command
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682320)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682320)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682320)
+dsv41: kernel scratch grew to 33554432 bytes (unix 1793682323)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793682323)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793682324)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793682325)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 88 steps, 25 EXL3 linears (unix 1793682326)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793682326)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682328)

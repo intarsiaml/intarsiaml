@@ -1,0 +1,5 @@
+prefill, wall of one completion (1 output token), three timed repeats after two warm-up requests of each prompt, median; ab0 = NCCL (INTARSIA_DSV41_RDMA=0), ab1 = RDMA (=1); every chunk is above 256 KiB so it stays on NCCL
+ab0 prompt1k: median wall 1.580 s, 1034 tokens, 654 tok/s (n=3)
+ab0 prompt4k: median wall 5.972 s, 4106 tokens, 688 tok/s (n=3)
+ab1 prompt1k: median wall 1.590 s, 1034 tokens, 650 tok/s (n=3)
+ab1 prompt4k: median wall 5.971 s, 4106 tokens, 688 tok/s (n=3)

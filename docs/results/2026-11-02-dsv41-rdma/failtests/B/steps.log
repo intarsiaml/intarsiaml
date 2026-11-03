@@ -1,0 +1,63 @@
+23:52:56 earlyoom on spark1: -m 2,1
+23:52:57 earlyoom on spark2: -m 2,1
+23:52:59 binary 631310ae5 dirty=no 1102-2346; out /opt/code/intarsiaml/.worktrees/dsv41-rdma/.scratch/ftB
+23:53:03 vLLM stopped on both
+23:53:05 failtest: cases 'c0 e1 e2 c1 c2 c3'; MemAvailable before the first load: spark1 111 GiB, spark2 111 GiB
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+dsv41: the tensor-parallel group failed (backend error: download: unspecified launch failure (cudaError 719)); aborting the communicator and marking the engine failed
+rank 0: RDMA ring failed: aborted (the group failed)
+[watchdog] engine failed (tensor-parallel group failed: backend error: download: unspecified launch failure (cudaError 719)); exiting for restart
+[2026-11-02 23:54:58] spark-4e77:2278242:2285256 [0] init.cc:2742 (commDestroySync) NCCL WARN commDestroySync: comm 0xb423bbd9e780 rank 0 sync hostStream error 1
+[2026-11-02 23:54:58] spark-4e77:2278242:2285256 [0] init.cc:2745 (commDestroySync) NCCL WARN commDestroySync: comm 0xb423bbd9e780 rank 0 sync deviceStream error 1
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+rank 1: RDMA fault hook: no more sends after send 3000
+tp-worker: rank 0 disconnected after 72 forward passes
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+rank 0: RDMA fault hook: no more sends after send 3000
+dsv41: the tensor-parallel group failed (backend error: download: unspecified launch failure (cudaError 719)); aborting the communicator and marking the engine failed
+rank 0: RDMA ring failed: aborted (the group failed)
+[watchdog] engine failed (tensor-parallel group failed: backend error: download: unspecified launch failure (cudaError 719)); exiting for restart
+[2026-11-02 23:55:58] spark-4e77:2287687:2294368 [0] init.cc:2742 (commDestroySync) NCCL WARN commDestroySync: comm 0xbf565ebf8780 rank 0 sync hostStream error 1
+[2026-11-02 23:55:58] spark-4e77:2287687:2294368 [0] init.cc:2745 (commDestroySync) NCCL WARN commDestroySync: comm 0xbf565ebf8780 rank 0 sync deviceStream error 1
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tp-worker: rank 0 disconnected after 72 forward passes
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+dsv41: the remote tensor-parallel rank reported a failure: backend error: download: unspecified launch failure (cudaError 719); marking the engine failed
+rank 0: RDMA ring failed: aborted (the group failed)
+[watchdog] engine failed (tensor-parallel group failed: the remote tensor-parallel rank reported a failure: backend error: download: unspecified launch failure (cudaError 719)); exiting for restart
+[2026-11-02 23:56:39] spark-4e77:2296776:2298443 [0] init.cc:2745 (commDestroySync) NCCL WARN commDestroySync: comm 0xb7c1f63b16b0 rank 0 sync deviceStream error 1
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+rank 1: RDMA fault hook: queue pair of rail 0 moved to ERR after send 5000
+rank 1: RDMA ring failed: work completion on rail 0: Work Request Flushed Error
+tensor parallel: rank 1: serving stopped: backend error: download: unspecified launch failure (cudaError 719); aborting the communicator and exiting with code 87
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+rank 0: RDMA fault hook: queue pair of rail 0 moved to ERR after send 5000
+rank 0: RDMA ring failed: work completion on rail 0: Work Request Flushed Error
+dsv41: the remote tensor-parallel rank reported a failure: backend error: download: unspecified launch failure (cudaError 719); marking the engine failed
+[watchdog] engine failed (tensor-parallel group failed: the remote tensor-parallel rank reported a failure: backend error: download: unspecified launch failure (cudaError 719)); exiting for restart
+[2026-11-02 23:57:38] spark-4e77:2301658:2303324 [0] init.cc:2742 (commDestroySync) NCCL WARN commDestroySync: comm 0xc47f619736b0 rank 0 sync hostStream error 1
+[2026-11-02 23:57:38] spark-4e77:2301658:2303324 [0] init.cc:2745 (commDestroySync) NCCL WARN commDestroySync: comm 0xc47f619736b0 rank 0 sync deviceStream error 1
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1: serving stopped: backend error: download: unspecified launch failure (cudaError 719); aborting the communicator and exiting with code 87
+rank 1: RDMA ring failed: aborted (the group failed)
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+dsv41: the remote tensor-parallel rank reported a failure: backend error: download: unspecified launch failure (cudaError 719); marking the engine failed
+rank 0: RDMA ring failed: aborted (the group failed)
+[watchdog] engine failed (tensor-parallel group failed: the remote tensor-parallel rank reported a failure: backend error: download: unspecified launch failure (cudaError 719)); exiting for restart
+[2026-11-02 23:58:19] spark-4e77:2310596:2312273 [0] init.cc:2745 (commDestroySync) NCCL WARN commDestroySync: comm 0xc2c20e88c780 rank 0 sync deviceStream error 1
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+rank 1: RDMA fault hook: queue pair of rail 1 moved to ERR after send 5000
+rank 1: RDMA ring failed: work completion on rail 1: Work Request Flushed Error
+tensor parallel: rank 1: serving stopped: backend error: download: unspecified launch failure (cudaError 719); aborting the communicator and exiting with code 87
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+23:58:26 hook done
+23:58:26 done
+23:58:26 restore (exit 0)
+00:01:53 vLLM on spark1 up (Up 3 minutes)
+00:02:04 vLLM on spark2 up (Up 3 minutes)
+00:02:04 restored

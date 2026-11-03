@@ -1,6 +1,6 @@
 --spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
 prefill chunk 2048 (recipe qwen3_5_moe, cuda)
-mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
+mtp: drafter head 'mtp' loaded in 1.1 s (routed experts quantised to nvfp4)
 verify attention rows: engaged (one row-table attention launch per layer)
 quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
 --spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)

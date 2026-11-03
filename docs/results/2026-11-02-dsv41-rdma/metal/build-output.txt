@@ -1,0 +1,4 @@
+fleetq: #8159 running on endor: bash .scratch/metal-noop.sh build
+    Finished `release` profile [optimized] target(s) in 0.12s
+    Finished `release` profile [optimized] target(s) in 11.21s
+fleetq: #8159 done (exit 0)

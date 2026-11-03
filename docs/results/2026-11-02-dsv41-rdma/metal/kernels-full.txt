@@ -30,7 +30,8 @@ matmul         matmul_bf16_gemv_rows           7      0     0.000e0     0.000e0 
 matmul_pair    matmul_pair_bf16_gemv_rows     12      0     0.000e0     0.000e0  ADMITTED
 logits         logits_bf16_gemv_rows           2      0    1.056e-7    7.181e-8  ADMITTED
 attn_prefill   attn_prefill_bf16_splitkv_rows     13      0    1.309e-3    6.227e-5  ADMITTED
-matmul_mxfp4   matmul_mxfp4_gemv              79      0    3.401e-3    2.883e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv              87      0    3.401e-3    2.883e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_nax               31      0    1.961e-3    4.118e-5  ADMITTED
 gate_split     gate_split_bf16                 4      0     0.000e0     0.000e0  ADMITTED
 sigmoid_mul    sigmoid_mul_bf16                4      0     0.000e0     0.000e0  ADMITTED
 gdn_conv       gdn_conv_bf16                  20      0    1.096e-3    1.841e-5  ADMITTED
@@ -49,4 +50,4 @@ matmul_nvfp4   matmul_nvfp4_nax               14      0    2.392e-3    3.407e-5 
 matmul_fp8     matmul_fp8_gemv_rows           36      0    2.252e-3    8.245e-5  ADMITTED
 matmul_nvfp4   matmul_nvfp4_gemv_rows         18      0    1.330e-3    2.214e-5  ADMITTED
 moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
-48 kernels, 941 cases in 30.2s
+49 kernels, 980 cases in 32.0s

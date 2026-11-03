@@ -1,0 +1,38 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29701
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.7 s = 6.59 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.04 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.9 s (4.90 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.45 GiB -> 9.77 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793681832)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793681832)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793681832)
+dsv41: warm-up passes in 0.18 s
+dsv41: rank 0 after warm-up: MemAvailable 9.46 GiB, used since start 100.99 GiB, of which weights 98.90 GiB, non-weight 2.09 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+loaded 45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b on cuda (NVIDIA GB10) in 22.8s, context 32768 tokens
+intarsia server listening on http://0.0.0.0:8899
+dsv41: kernel scratch grew to 33554432 bytes (unix 1793681834)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793681834)
+dsv41: spec 22 tokens in 6 rounds (3.67 a round), 16/21 drafts accepted (76 %), by position 6/6 4/6 3/4 3/3
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793681835)
+dsv41: spec 64 tokens in 15 rounds (4.27 a round), 49/58 drafts accepted (84 %), by position 14/15 13/13 12/13 10/10
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793681836)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793681837)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793681837)
+rank 0: RDMA fault hook: queue pair of rail 0 moved to ERR after send 5000
+rank 0: RDMA ring failed: work completion on rail 0: Work Request Flushed Error
+dsv41: the remote tensor-parallel rank reported a failure: backend error: download: unspecified launch failure (cudaError 719); marking the engine failed
+[watchdog] engine failed (tensor-parallel group failed: the remote tensor-parallel rank reported a failure: backend error: download: unspecified launch failure (cudaError 719)); exiting for restart
+NCCL version 2.30.7+cuda13.3
+
+[2026-11-02 23:57:38] spark-4e77:2301658:2303324 [0] misc/strongstream.cc:424 (ncclStrongStreamSynchronize) NCCL WARN Cuda failure 'unspecified launch failure'
+
+[2026-11-02 23:57:38] spark-4e77:2301658:2303324 [0] init.cc:2742 (commDestroySync) NCCL WARN commDestroySync: comm 0xc47f619736b0 rank 0 sync hostStream error 1
+
+[2026-11-02 23:57:38] spark-4e77:2301658:2303324 [0] misc/strongstream.cc:424 (ncclStrongStreamSynchronize) NCCL WARN Cuda failure 'unspecified launch failure'
+
+[2026-11-02 23:57:38] spark-4e77:2301658:2303324 [0] init.cc:2745 (commDestroySync) NCCL WARN commDestroySync: comm 0xc47f619736b0 rank 0 sync deviceStream error 1

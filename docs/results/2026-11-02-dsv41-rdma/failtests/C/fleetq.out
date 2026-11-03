@@ -1,0 +1,360 @@
+fleetq: #8148 waiting (#1 in line): spark1-vllm is also taken down by #8147 "dsv41 rdma: failure tests B (muted sender e1/e2: device deadline with live peers; queue pair errors c1-c3); vLLM restored by the script" (claude-rdma)
+fleetq:   #8147 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8147 set, or it will wait for #8147 to be released.
+fleetq: #8148 running on spark1, spark2: bash .scratch/wFTC.sh
+00:02:05 earlyoom on spark1: -m 2,1
+00:02:06 earlyoom on spark2: -m 2,1
+00:02:08 binary 631310ae5 dirty=no 1102-2346; out /opt/code/intarsiaml/.worktrees/dsv41-rdma/.scratch/ftC
+00:02:12 vLLM stopped on both
+00:02:14 failtest: cases 'c0 d1 d2 d3 d4 d5 d7 d8 d9 d6'; MemAvailable before the first load: spark1 111 GiB, spark2 111 GiB
+00:02:14 === case c0: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20' rank0 '' rank1 '' pre0 '' pre1 ''
+00:02:17 ranks started (tag 000214)
+00:02:46 serve up=1 after 29 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 16.8 s = 6.14 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.93 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 24.4 s (4.40 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.21 GiB -> 10.00 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682163)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682163)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682163)
+dsv41: warm-up passes in 0.41 s
+dsv41: rank 0 after warm-up: MemAvailable 9.68 GiB, used since start 100.53 GiB, of which weights 98.90 GiB, non-weight 1.63 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 17.0 s = 6.08 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.21 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 24.6 s (4.36 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.32 GiB -> 9.52 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682163)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682163)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682163)
+00:02:48 pids: rank 0 (spark1) 2323684, rank 1 (spark2) 2540707
+00:03:02 baseline: capital 'We need answer one sentence. Capital France Paris. Need concise.</think>The capital of France is Par' long (    1791 bytes)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+00:03:03 case c0 ranks' log lines (rank 0):
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+00:03:03 case c0 ranks' log lines (rank 1):
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+00:03:04 leftover processes killed by PID after the case: rank0(2323684) rank1(2540707)
+00:03:09 memory back after 6 s: spark1 111 GiB (was 111), spark2 110 GiB (was 111)
+00:03:09 gpu check spark1: NVIDIA GB10, 0 % rc=0
+00:03:10 gpu check spark2: NVIDIA GB10, 0 % rc=0
+00:03:10 === case d1: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20 NCCL_IB_HCA=rocep1s0f1' rank0 '' rank1 '' pre ''
+00:03:12 ranks started (tag 000310)
+00:03:41 serve up=1 after 29 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.9 s = 6.50 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.86 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.1 s (4.86 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.48 GiB -> 9.80 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682216)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682216)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682216)
+dsv41: warm-up passes in 0.21 s
+dsv41: rank 0 after warm-up: MemAvailable 9.43 GiB, used since start 101.04 GiB, of which weights 98.90 GiB, non-weight 2.14 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.2 s = 6.80 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.47 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.1 s (5.09 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.14 GiB -> 9.93 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682216)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682216)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682216)
+00:03:43 pids: rank 0 (spark1) 2328680, rank 1 (spark2) 2545299
+00:03:54 RESULT d1: capital identical, count identical, long identical
+tensor parallel: rank 0: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1 (gid 3): needs 2 RDMA rails, NCCL_IB_HCA names 1; other rank: ring on rocep1s0f1 (gid 3): needs 2 RDMA rails, NCCL_IB_HCA names 1) [INTARSIA_DSV41_RDMA]
+tensor parallel: rank 1: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1 (gid 3): needs 2 RDMA rails, NCCL_IB_HCA names 1; other rank: ring on rocep1s0f1 (gid 3): needs 2 RDMA rails, NCCL_IB_HCA names 1) [INTARSIA_DSV41_RDMA]
+00:03:56 case d1 ranks' log lines (rank 0):
+tensor parallel: rank 0: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1 (gid 3): needs 2 RDMA rails, NCCL_IB_HCA names 1; other rank: ring on rocep1s0f1 (gid 3): needs 2 RDMA rails, NCCL_IB_HCA names 1) [INTARSIA_DSV41_RDMA]
+00:03:56 case d1 ranks' log lines (rank 1):
+tensor parallel: rank 1: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1 (gid 3): needs 2 RDMA rails, NCCL_IB_HCA names 1; other rank: ring on rocep1s0f1 (gid 3): needs 2 RDMA rails, NCCL_IB_HCA names 1) [INTARSIA_DSV41_RDMA]
+00:03:57 leftover processes killed by PID after the case: rank0(2328680) rank1(2545299)
+00:03:58 memory back after 3 s: spark1 106 GiB (was 111), spark2 111 GiB (was 111)
+00:03:58 gpu check spark1: NVIDIA GB10, 0 % rc=0
+00:03:59 gpu check spark2: NVIDIA GB10, 0 % rc=0
+00:03:59 === case d2: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20 NCCL_IB_HCA=rocepNOSUCH0,roceNOSUCH1' rank0 '' rank1 '' pre ''
+00:04:02 ranks started (tag 000359)
+00:04:25 serve up=1 after 23 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.9 s = 6.51 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.87 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.3 s (4.81 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.46 GiB -> 9.79 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682265)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682265)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682265)
+dsv41: warm-up passes in 0.32 s
+dsv41: rank 0 after warm-up: MemAvailable 9.46 GiB, used since start 101.00 GiB, of which weights 98.90 GiB, non-weight 2.10 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.5 s = 6.67 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.41 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.7 s (4.95 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.63 GiB -> 9.91 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682265)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682265)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682265)
+00:04:27 pids: rank 0 (spark1) 2333096, rank 1 (spark2) 2549889
+00:04:47 RESULT d2: capital identical, count identical, long identical
+tensor parallel: rank 0: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocepNOSUCH0,roceNOSUCH1 (gid 3): no RDMA device rocepNOSUCH0; other rank: ring on rocepNOSUCH0,roceNOSUCH1 (gid 3): no RDMA device rocepNOSUCH0) [INTARSIA_DSV41_RDMA]
+tensor parallel: rank 1: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocepNOSUCH0,roceNOSUCH1 (gid 3): no RDMA device rocepNOSUCH0; other rank: ring on rocepNOSUCH0,roceNOSUCH1 (gid 3): no RDMA device rocepNOSUCH0) [INTARSIA_DSV41_RDMA]
+00:04:48 case d2 ranks' log lines (rank 0):
+tensor parallel: rank 0: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocepNOSUCH0,roceNOSUCH1 (gid 3): no RDMA device rocepNOSUCH0; other rank: ring on rocepNOSUCH0,roceNOSUCH1 (gid 3): no RDMA device rocepNOSUCH0) [INTARSIA_DSV41_RDMA]
+00:04:48 case d2 ranks' log lines (rank 1):
+tensor parallel: rank 1: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocepNOSUCH0,roceNOSUCH1 (gid 3): no RDMA device rocepNOSUCH0; other rank: ring on rocepNOSUCH0,roceNOSUCH1 (gid 3): no RDMA device rocepNOSUCH0) [INTARSIA_DSV41_RDMA]
+00:04:49 leftover processes killed by PID after the case: rank0(2333096) rank1(2549889)
+00:04:54 memory back after 6 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+00:04:54 gpu check spark1: NVIDIA GB10, 0 % rc=0
+00:04:55 gpu check spark2: NVIDIA GB10, 0 % rc=0
+00:04:55 === case d3: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20' rank0 '' rank1 'INTARSIA_DSV41_RDMA=0' pre ''
+00:04:58 ranks started (tag 000455)
+00:05:21 serve up=1 after 23 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.7 s = 6.57 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.54 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.9 s (4.90 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.48 GiB -> 9.80 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682320)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682320)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682320)
+dsv41: warm-up passes in 0.21 s
+dsv41: rank 0 after warm-up: MemAvailable 9.45 GiB, used since start 101.03 GiB, of which weights 98.90 GiB, non-weight 2.13 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.4 s = 6.71 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.48 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.3 s (5.04 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.59 GiB -> 9.85 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682320)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682320)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682320)
+00:05:23 pids: rank 0 (spark1) 2337896, rank 1 (spark2) 2554671
+00:05:34 RESULT d3: capital identical, count identical, long identical
+00:05:35 case d3 ranks' log lines (rank 0):
+00:05:35 case d3 ranks' log lines (rank 1):
+00:05:37 leftover processes killed by PID after the case: rank0(2337896) rank1(2554671)
+00:05:41 memory back after 6 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+00:05:42 gpu check spark1: NVIDIA GB10, 0 % rc=0
+00:05:42 gpu check spark2: NVIDIA GB10, 0 % rc=0
+00:05:42 === case d4: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20' rank0 'INTARSIA_DSV41_RDMA=1' rank1 'INTARSIA_DSV41_RDMA=0' pre ''
+00:05:48 RESULT d4: rank 0 gone, rank 1 gone after 3 s
+00:05:49 pids: rank 0 (spark1) none, rank 1 (spark2) none
+Error: invalid op call: INTARSIA_DSV41_RDMA is 1 (required) on one rank and 0 (off) on the other: set it the same on both
+Error: invalid op call: INTARSIA_DSV41_RDMA is 1 (required) on one rank and 0 (off) on the other: set it the same on both
+00:05:50 leftover processes killed by PID after the case: none
+00:05:51 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+00:05:51 gpu check spark1: NVIDIA GB10, 0 % rc=0
+00:05:51 gpu check spark2: NVIDIA GB10, 0 % rc=0
+00:05:51 === case d5: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1,rocep1s0f0' rank0 '' rank1 '' pre ''
+00:05:54 ranks started (tag 000551)
+00:06:17 serve up=1 after 23 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.9 s = 6.49 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 6.13 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.1 s (4.85 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.44 GiB -> 9.79 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682377)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682377)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682377)
+dsv41: warm-up passes in 0.24 s
+dsv41: rank 0 after warm-up: MemAvailable 9.44 GiB, used since start 101.00 GiB, of which weights 98.90 GiB, non-weight 2.10 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.5 s = 6.69 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.50 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.3 s (5.02 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.59 GiB -> 9.83 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682377)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682377)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682377)
+00:06:19 pids: rank 0 (spark1) 2344010, rank 1 (spark2) 2560565
+00:06:30 RESULT d5: capital identical, count identical, long identical
+tensor parallel: rank 0: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1,roceP2p1s0f1,rocep1s0f0 (gid 3): 1 or 2 RDMA devices wanted, NCCL_IB_HCA names 3; other rank: ring on rocep1s0f1,roceP2p1s0f1,rocep1s0f0 (gid 3): 1 or 2 RDMA devices wanted, NCCL_IB_HCA names 3) [
+tensor parallel: rank 1: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1,roceP2p1s0f1,rocep1s0f0 (gid 3): 1 or 2 RDMA devices wanted, NCCL_IB_HCA names 3; other rank: ring on rocep1s0f1,roceP2p1s0f1,rocep1s0f0 (gid 3): 1 or 2 RDMA devices wanted, NCCL_IB_HCA names 3) [
+00:06:31 case d5 ranks' log lines (rank 0):
+tensor parallel: rank 0: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1,roceP2p1s0f1,rocep1s0f0 (gid 3): 1 or 2 RDMA devices wanted, NCCL_IB_HCA names 3; other rank: ring on rocep1s0f1,roceP2p1s0f1,rocep1s0f0 (gid 3): 1 or 2 RDM
+00:06:32 case d5 ranks' log lines (rank 1):
+tensor parallel: rank 1: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1,roceP2p1s0f1,rocep1s0f0 (gid 3): 1 or 2 RDMA devices wanted, NCCL_IB_HCA names 3; other rank: ring on rocep1s0f1,roceP2p1s0f1,rocep1s0f0 (gid 3): 1 or 2 RDM
+00:06:33 leftover processes killed by PID after the case: rank0(2344010) rank1(2560565)
+00:06:37 memory back after 6 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+00:06:38 gpu check spark1: NVIDIA GB10, 0 % rc=0
+00:06:38 gpu check spark2: NVIDIA GB10, 0 % rc=0
+00:06:38 === case d7: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20 NCCL_IB_HCA=rocep1s0f1 INTARSIA_DSV41_RDMA=1' rank0 '' rank1 '' pre ''
+00:06:41 ranks started (tag 000638)
+00:07:04 serve up=1 after 23 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.9 s = 6.51 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 6.07 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.9 s (4.89 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.48 GiB -> 9.79 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682424)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682424)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682424)
+dsv41: warm-up passes in 0.19 s
+dsv41: rank 0 after warm-up: MemAvailable 9.48 GiB, used since start 101.00 GiB, of which weights 98.90 GiB, non-weight 2.10 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.7 s = 6.59 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.04 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 22.0 s (4.87 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.61 GiB -> 9.88 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682424)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682424)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682424)
+00:07:05 pids: rank 0 (spark1) 2348410, rank 1 (spark2) 2565153
+00:07:16 RESULT d7: capital identical, count identical, long identical
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+00:07:18 case d7 ranks' log lines (rank 0):
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+00:07:18 case d7 ranks' log lines (rank 1):
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+00:07:19 leftover processes killed by PID after the case: rank0(2348410) rank1(2565153)
+00:07:24 memory back after 6 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+00:07:24 gpu check spark1: NVIDIA GB10, 0 % rc=0
+00:07:24 gpu check spark2: NVIDIA GB10, 0 % rc=0
+00:07:24 === case d8: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20 INTARSIA_DSV41_RDMA_FAULT=nolib' rank0 '' rank1 '' pre ''
+00:07:27 ranks started (tag 000725)
+00:07:56 serve up=1 after 29 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.8 s = 6.53 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.75 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.3 s (4.81 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.46 GiB -> 9.80 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682470)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682470)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682470)
+dsv41: warm-up passes in 0.20 s
+dsv41: rank 0 after warm-up: MemAvailable 9.45 GiB, used since start 101.01 GiB, of which weights 98.90 GiB, non-weight 2.11 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.4 s = 6.72 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.04 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.5 s (4.98 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.60 GiB -> 9.80 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682470)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682470)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682470)
+00:07:58 pids: rank 0 (spark1) 2352804, rank 1 (spark2) 2569536
+00:08:09 RESULT d8: capital identical, count identical, long identical
+tensor parallel: rank 0: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1,roceP2p1s0f1 (gid 3): libibverbs is not available (fault hook 'nolib'); other rank: ring on rocep1s0f1,roceP2p1s0f1 (gid 3): libibverbs is not available (fault hook 'nolib')) [INTARSIA_DSV41_RDMA]
+tensor parallel: rank 1: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1,roceP2p1s0f1 (gid 3): libibverbs is not available (fault hook 'nolib'); other rank: ring on rocep1s0f1,roceP2p1s0f1 (gid 3): libibverbs is not available (fault hook 'nolib')) [INTARSIA_DSV41_RDMA]
+00:08:11 case d8 ranks' log lines (rank 0):
+tensor parallel: rank 0: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1,roceP2p1s0f1 (gid 3): libibverbs is not available (fault hook 'nolib'); other rank: ring on rocep1s0f1,roceP2p1s0f1 (gid 3): libibverbs is not available (fa
+00:08:11 case d8 ranks' log lines (rank 1):
+tensor parallel: rank 1: RDMA exchange not used, f32 all-reduces stay on NCCL (open: ring on rocep1s0f1,roceP2p1s0f1 (gid 3): libibverbs is not available (fault hook 'nolib'); other rank: ring on rocep1s0f1,roceP2p1s0f1 (gid 3): libibverbs is not available (fa
+00:08:12 leftover processes killed by PID after the case: rank0(2352804) rank1(2569536)
+00:08:17 memory back after 6 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+00:08:17 gpu check spark1: NVIDIA GB10, 0 % rc=0
+00:08:18 gpu check spark2: NVIDIA GB10, 0 % rc=0
+00:08:18 === case d9: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20' rank0 '' rank1 'INTARSIA_DSV41_RDMA_FAULT=ping' pre ''
+00:08:20 ranks started (tag 000818)
+00:08:55 serve up=1 after 35 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.2 s = 6.79 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 6.07 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.4 s (5.02 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.46 GiB -> 9.80 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682533)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682533)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682533)
+dsv41: warm-up passes in 0.23 s
+dsv41: rank 0 after warm-up: MemAvailable 9.47 GiB, used since start 100.99 GiB, of which weights 98.90 GiB, non-weight 2.09 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.5 s = 6.69 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.55 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.8 s (4.93 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.60 GiB -> 9.86 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682533)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682533)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793682533)
+00:08:57 pids: rank 0 (spark1) 2357601, rank 1 (spark2) 2574318
+00:09:08 RESULT d9: capital identical, count identical, long identical
+tensor parallel: rank 0: RDMA exchange not used, f32 all-reduces stay on NCCL (ping: ping: no answer from the peer within 10000 ms (sent 2/2, received 0/2); other rank: fault hook 'ping') [INTARSIA_DSV41_RDMA]
+tensor parallel: rank 1: RDMA exchange not used, f32 all-reduces stay on NCCL (ping: fault hook 'ping'; other rank: ping: no answer from the peer within 10000 ms (sent 2/2, received 0/2)) [INTARSIA_DSV41_RDMA]
+00:09:09 case d9 ranks' log lines (rank 0):
+tensor parallel: rank 0: RDMA exchange not used, f32 all-reduces stay on NCCL (ping: ping: no answer from the peer within 10000 ms (sent 2/2, received 0/2); other rank: fault hook 'ping') [INTARSIA_DSV41_RDMA]
+00:09:09 case d9 ranks' log lines (rank 1):
+tensor parallel: rank 1: RDMA exchange not used, f32 all-reduces stay on NCCL (ping: fault hook 'ping'; other rank: ping: no answer from the peer within 10000 ms (sent 2/2, received 0/2)) [INTARSIA_DSV41_RDMA]
+00:09:11 leftover processes killed by PID after the case: rank0(2357601) rank1(2574318)
+00:09:16 memory back after 6 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+00:09:16 gpu check spark1: NVIDIA GB10, 0 % rc=0
+00:09:16 gpu check spark2: NVIDIA GB10, 0 % rc=0
+00:09:16 === case d6: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20' rank0 '' rank1 '' pre 'ulimit -l 4096; '
+00:09:19 ranks started (tag 000916)
+00:09:43 rank 1 exited
+00:09:43 serve up=0 after 24 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.5 s = 6.65 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.80 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.7 s (4.95 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.47 GiB -> 9.80 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682582)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682582)
+dsv41: the remote tensor-parallel rank reported a failure: backend error: ncclAllReduce: unhandled system error (run with NCCL_DEBUG=INFO for details) (ncclResult 2); marking the engine failed
+Error: loading /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 with tp=2 (rank 1 at 10.100.152.3:29701)
+    backend error: ncclAllReduce: internal error - please report this issue to the NCCL developers (ncclResult 3)
+   1: anyhow::error::<impl anyhow::Error>::msg
+[2026-11-03 00:09:42] spark-4e77:2362811:2363170 [0] proxy.cc:1862 (ncclProxyService) NCCL WARN [Service thread] Error encountered progressing operation=Connect, res=3, closing connection
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.0 s = 6.90 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.45 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 20.8 s (5.14 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.61 GiB -> 9.83 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793682582)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793682582)
+tensor parallel: rank 1: serving stopped: backend error: ncclAllReduce: unhandled system error (run with NCCL_DEBUG=INFO for details) (ncclResult 2); aborting the communicator and exiting with code 87
+00:09:44 restore (exit 1)
+scripts/dsv41-tp2/run-full.sh: line 25: 88800 Terminated: 15          ( while true; do
+    line="$(date +%T)"; for h in spark1 spark2;
+    do
+        a=$(ssh -n -o ConnectTimeout=5 $h "awk '/MemAvailable/{printf \"%.1f\", \$2/1048576}' /proc/meminfo" 2>/dev/null || echo NA); line="$line $h=$a"; if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then
+            ssh -n $h "pkill -KILL -f '[i]${SPARK_REL:1}/bin/intarsia'"; line="$line KILLED-$h";
+        fi;
+    done; echo "$line"; sleep 5;
+done ) > "$OUT/mem.log" 2>&1
+00:13:22 vLLM on spark1 up (Up 3 minutes)
+00:13:23 vLLM on spark2 up (Up 3 minutes)
+spark1-vllm confirmed back
+spark2-vllm confirmed back
+00:13:23 restored
+fleetq: #8148 done (exit 1); spark1-vllm, spark2-vllm must come back before others can use it

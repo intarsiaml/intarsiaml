@@ -1,0 +1,32 @@
+23:15:33 earlyoom on spark1: -m 2,1
+23:15:34 earlyoom on spark2: -m 2,1
+23:15:36 binary 85ceb159b dirty=no 1102-2308; out /opt/code/intarsiaml/.worktrees/dsv41-rdma/.scratch/ftA
+23:15:40 vLLM stopped on both
+23:15:42 failtest: cases 'c0 a1 a2 a3 a4'; MemAvailable before the first load: spark1 111 GiB, spark2 111 GiB
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+rank 0: RDMA ring failed: aborted (the group failed)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1: the primary rank disconnected during a pass; aborting the communicator and exiting with code 87
+rank 1: RDMA ring failed: aborted (the group failed)
+tensor parallel: rank 1: serving stopped: backend error: download: unspecified launch failure (cudaError 719); aborting the communicator and exiting with code 87
+tensor parallel: rank 1: communicator abort returned after 0 ms
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1: the primary rank disconnected during a pass; aborting the communicator and exiting with code 87
+rank 1: RDMA ring failed: aborted (the group failed)
+tensor parallel: rank 1: serving stopped: backend error: communicator aborted (another rank failed); aborting the communicator and exiting with code 87
+tensor parallel: rank 1: communicator abort returned after 0 ms
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+rank 0: RDMA ring failed: aborted (the group failed)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+23:29:19 hook done
+23:29:19 done
+23:29:19 restore (exit 0)
+23:32:56 vLLM on spark1 up (Up 3 minutes)
+23:32:57 vLLM on spark2 up (Up 3 minutes)
+23:32:57 restored

@@ -1,0 +1,7 @@
+00:05:42 === case d4: env 'INTARSIA_DSV41_RDMA_DEADLINE_S=20' rank0 'INTARSIA_DSV41_RDMA=1' rank1 'INTARSIA_DSV41_RDMA=0' pre ''
+00:05:48 RESULT d4: rank 0 gone, rank 1 gone after 3 s
+00:05:49 pids: rank 0 (spark1) none, rank 1 (spark2) none
+00:05:50 leftover processes killed by PID after the case: none
+00:05:51 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+00:05:51 gpu check spark1: NVIDIA GB10, 0 % rc=0
+00:05:51 gpu check spark2: NVIDIA GB10, 0 % rc=0

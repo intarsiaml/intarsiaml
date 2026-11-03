@@ -1,0 +1,21 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29701
+Error: invalid op call: INTARSIA_DSV41_RDMA is 1 (required) on one rank and 0 (off) on the other: set it the same on both
+
+Stack backtrace:
+   0: std::backtrace::Backtrace::create
+   1: anyhow::error::<impl anyhow::Error>::msg
+   2: anyhow::__private::format_err
+   3: intarsia_cli::cmd::serve::run::{{closure}}
+   4: intarsia_cli::common::ModelArgs::load
+   5: intarsia_cli::cmd::serve::run
+   6: intarsia::main
+   7: std::sys::backtrace::__rust_begin_short_backtrace
+   8: std::rt::lang_start::{{closure}}
+   9: std::rt::lang_start_internal
+  10: main
+  11: __libc_start_call_main
+             at ./csu/../sysdeps/nptl/libc_start_call_main.h:58:16
+  12: __libc_start_main_impl
+             at ./csu/../csu/libc-start.c:360:3
+  13: _start
+NCCL version 2.30.7+cuda13.3

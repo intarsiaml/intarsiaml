@@ -1,11 +1,14 @@
-fleetq: #8134 running on spark2: scripts/dsv41-tp2/plandiff.sh
-fleetq: #8134 went ahead of the line and must end within 51m (by Mon 22:54); it is stopped then
-base 4d9a5190e, stamp plandiff-base-4d9a5190e-1102220315
+fleetq: #8158 waiting (#2 in line): in line behind #8156 "dsv41 rdma: final-head golden 640 + catspeed, shipped defaults, no overrides; vLLM restored by the script" (claude-rdma) on spark2
+fleetq:   #8156 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8156 set, or it will wait for #8156 to be released.
+fleetq: #8158 waiting (#1 in line): #8156 "dsv41 rdma: final-head golden 640 + catspeed, shipped defaults, no overrides; vLLM restored by the script" (claude-rdma) needs cpu quiet on spark2, and this job loads it
+fleetq:   #8156 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8156 set, or it will wait for #8156 to be released.
+fleetq: #8158 running on spark2: scripts/dsv41-tp2/plandiff.sh
+base 85769c57a, stamp plandiff-base-85769c57a-1103005302
 warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
-    Finished `release` profile [optimized] target(s) in 5m 39s
+    Finished `release` profile [optimized] target(s) in 5m 51s
 compiled 215 crates
 guard INTARSIA_DSV41_RDMA: absent from the base binary, present in the branch binary
-branch binary: 99d13f76f dirty=no 1102-2154
+branch binary: 2dd8dc5bd dirty=no 1103-0033
 35b: plan show unchanged (      76 lines)
 8b: plan show unchanged (      25 lines)
-fleetq: #8134 done (exit 0)
+fleetq: #8158 done (exit 0)

@@ -1,0 +1,624 @@
+1793682133 MemFree=89.25 MemAvailable=111.01 Cached=22.97 Unevictable=0.02 AnonPages=0.39 Mapped=0.20 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682134 MemFree=89.25 MemAvailable=111.02 Cached=22.97 Unevictable=0.02 AnonPages=0.39 Mapped=0.20 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682135 MemFree=89.25 MemAvailable=111.02 Cached=22.97 Unevictable=0.02 AnonPages=0.39 Mapped=0.20 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682136 MemFree=89.26 MemAvailable=111.03 Cached=22.97 Unevictable=0.02 AnonPages=0.39 Mapped=0.20 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682137 MemFree=89.26 MemAvailable=111.03 Cached=22.97 Unevictable=0.02 AnonPages=0.39 Mapped=0.20 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682138 MemFree=85.86 MemAvailable=107.63 Cached=23.02 Unevictable=0.03 AnonPages=0.89 Mapped=0.45 Shmem=0.04 Slab=1.04 PageTables=0.03  rss=0.79
+1793682139 MemFree=80.71 MemAvailable=102.48 Cached=23.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.45 Shmem=0.05 Slab=1.05 PageTables=0.03  rss=0.85
+1793682140 MemFree=73.22 MemAvailable=94.99 Cached=23.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.45 Shmem=0.05 Slab=1.05 PageTables=0.03  rss=0.85
+1793682141 MemFree=66.21 MemAvailable=87.97 Cached=23.02 Unevictable=0.03 AnonPages=0.79 Mapped=0.45 Shmem=0.05 Slab=1.05 PageTables=0.03  rss=0.66
+1793682142 MemFree=60.83 MemAvailable=82.59 Cached=23.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.45 Shmem=0.05 Slab=1.06 PageTables=0.03  rss=0.85
+1793682143 MemFree=53.40 MemAvailable=75.17 Cached=23.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.45 Shmem=0.05 Slab=1.06 PageTables=0.03  rss=0.85
+1793682144 MemFree=46.52 MemAvailable=68.29 Cached=23.02 Unevictable=0.03 AnonPages=0.80 Mapped=0.45 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.67
+1793682145 MemFree=40.77 MemAvailable=62.54 Cached=23.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.45 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682146 MemFree=33.94 MemAvailable=55.71 Cached=23.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.45 Shmem=0.05 Slab=1.11 PageTables=0.03  rss=0.85
+1793682147 MemFree=27.20 MemAvailable=48.97 Cached=23.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.45 Shmem=0.05 Slab=1.12 PageTables=0.03  rss=0.85
+1793682148 MemFree=19.77 MemAvailable=41.53 Cached=23.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.45 Shmem=0.05 Slab=1.12 PageTables=0.03  rss=0.86
+1793682149 MemFree=13.28 MemAvailable=35.04 Cached=23.02 Unevictable=0.03 AnonPages=0.80 Mapped=0.45 Shmem=0.05 Slab=1.12 PageTables=0.03  rss=0.67
+1793682150 MemFree=7.37 MemAvailable=29.13 Cached=23.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.45 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.86
+1793682151 MemFree=5.62 MemAvailable=27.39 Cached=23.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.45 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.86
+1793682152 MemFree=1.51 MemAvailable=22.56 Cached=22.31 Unevictable=0.03 AnonPages=0.85 Mapped=0.45 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.76
+1793682153 MemFree=2.01 MemAvailable=18.80 Cached=17.88 Unevictable=0.03 AnonPages=0.80 Mapped=0.45 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.67
+1793682154 MemFree=1.13 MemAvailable=13.96 Cached=14.12 Unevictable=0.03 AnonPages=0.77 Mapped=0.33 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.55
+1793682155 MemFree=1.04 MemAvailable=9.51 Cached=9.33 Unevictable=0.03 AnonPages=0.88 Mapped=0.32 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.68
+1793682156 MemFree=2.93 MemAvailable=9.06 Cached=6.99 Unevictable=0.03 AnonPages=0.64 Mapped=0.32 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.44
+1793682157 MemFree=3.58 MemAvailable=9.02 Cached=6.30 Unevictable=0.03 AnonPages=0.62 Mapped=0.32 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.42
+1793682158 MemFree=4.51 MemAvailable=9.33 Cached=5.68 Unevictable=0.03 AnonPages=0.60 Mapped=0.32 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.40
+1793682159 MemFree=4.60 MemAvailable=9.01 Cached=5.28 Unevictable=0.03 AnonPages=0.59 Mapped=0.32 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.39
+1793682160 MemFree=3.54 MemAvailable=7.44 Cached=4.76 Unevictable=0.03 AnonPages=0.57 Mapped=0.32 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.37
+  top 0.00 COMMAND
+  top 0.37 intarsia
+  top 0.14 polkitd
+  top 0.07 gnome-shell
+  top 0.06 dockerd
+  top 0.05 systemd-journal
+1793682161 MemFree=5.45 MemAvailable=8.86 Cached=4.70 Unevictable=0.03 AnonPages=0.57 Mapped=0.32 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.37
+1793682162 MemFree=6.59 MemAvailable=10.00 Cached=4.70 Unevictable=0.03 AnonPages=0.63 Mapped=0.32 Shmem=0.05 Slab=1.12 PageTables=0.03  rss=0.43
+1793682163 MemFree=6.22 MemAvailable=9.67 Cached=4.79 Unevictable=0.03 AnonPages=0.74 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.63
+1793682164 MemFree=6.22 MemAvailable=9.67 Cached=4.79 Unevictable=0.03 AnonPages=0.74 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.63
+1793682165 MemFree=6.22 MemAvailable=9.67 Cached=4.79 Unevictable=0.03 AnonPages=0.74 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.63
+1793682166 MemFree=6.21 MemAvailable=9.66 Cached=4.79 Unevictable=0.03 AnonPages=0.74 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.63
+1793682167 MemFree=6.19 MemAvailable=9.64 Cached=4.80 Unevictable=0.03 AnonPages=0.74 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.63
+1793682168 MemFree=6.12 MemAvailable=9.57 Cached=4.80 Unevictable=0.03 AnonPages=0.77 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.66
+1793682169 MemFree=6.09 MemAvailable=9.54 Cached=4.80 Unevictable=0.03 AnonPages=0.79 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.68
+1793682170 MemFree=6.07 MemAvailable=9.52 Cached=4.80 Unevictable=0.03 AnonPages=0.81 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.70
+1793682171 MemFree=6.06 MemAvailable=9.51 Cached=4.80 Unevictable=0.03 AnonPages=0.82 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.71
+1793682173 MemFree=6.05 MemAvailable=9.51 Cached=4.80 Unevictable=0.03 AnonPages=0.82 Mapped=0.42 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.71
+1793682174 MemFree=6.05 MemAvailable=9.50 Cached=4.80 Unevictable=0.03 AnonPages=0.83 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.72
+1793682175 MemFree=6.02 MemAvailable=9.47 Cached=4.80 Unevictable=0.03 AnonPages=0.85 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.74
+1793682176 MemFree=6.01 MemAvailable=9.47 Cached=4.80 Unevictable=0.03 AnonPages=0.85 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.74
+1793682177 MemFree=6.00 MemAvailable=9.46 Cached=4.80 Unevictable=0.03 AnonPages=0.86 Mapped=0.41 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.75
+1793682178 MemFree=6.00 MemAvailable=9.45 Cached=4.80 Unevictable=0.03 AnonPages=0.86 Mapped=0.42 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.76
+1793682179 MemFree=5.97 MemAvailable=9.44 Cached=4.81 Unevictable=0.03 AnonPages=0.87 Mapped=0.42 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.76
+1793682180 MemFree=5.96 MemAvailable=9.43 Cached=4.82 Unevictable=0.03 AnonPages=0.87 Mapped=0.42 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.76
+1793682181 MemFree=5.96 MemAvailable=9.43 Cached=4.82 Unevictable=0.03 AnonPages=0.87 Mapped=0.42 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.77
+1793682182 MemFree=5.96 MemAvailable=9.43 Cached=4.82 Unevictable=0.03 AnonPages=0.88 Mapped=0.42 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.77
+1793682183 MemFree=5.94 MemAvailable=9.41 Cached=4.82 Unevictable=0.03 AnonPages=0.88 Mapped=0.42 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.77
+1793682184 MemFree=6.54 MemAvailable=10.01 Cached=4.82 Unevictable=0.02 AnonPages=0.37 Mapped=0.16 Shmem=0.10 Slab=1.12 PageTables=0.03  rss=0.00
+1793682185 MemFree=100.84 MemAvailable=104.32 Cached=4.71 Unevictable=0.02 AnonPages=0.37 Mapped=0.16 Shmem=0.00 Slab=1.06 PageTables=0.03  rss=0.00
+1793682186 MemFree=107.82 MemAvailable=111.29 Cached=4.71 Unevictable=0.02 AnonPages=0.37 Mapped=0.16 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682187 MemFree=107.82 MemAvailable=111.29 Cached=4.71 Unevictable=0.02 AnonPages=0.37 Mapped=0.16 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682188 MemFree=107.82 MemAvailable=111.29 Cached=4.71 Unevictable=0.02 AnonPages=0.37 Mapped=0.16 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682189 MemFree=107.82 MemAvailable=111.29 Cached=4.72 Unevictable=0.02 AnonPages=0.37 Mapped=0.16 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682190 MemFree=107.80 MemAvailable=111.28 Cached=4.72 Unevictable=0.02 AnonPages=0.37 Mapped=0.16 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682191 MemFree=107.80 MemAvailable=111.28 Cached=4.72 Unevictable=0.02 AnonPages=0.37 Mapped=0.17 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682192 MemFree=107.80 MemAvailable=111.28 Cached=4.72 Unevictable=0.02 AnonPages=0.37 Mapped=0.16 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682193 MemFree=107.54 MemAvailable=111.10 Cached=4.84 Unevictable=0.02 AnonPages=0.47 Mapped=0.29 Shmem=0.04 Slab=1.02 PageTables=0.03  rss=0.23
+1793682194 MemFree=101.73 MemAvailable=105.33 Cached=4.88 Unevictable=0.02 AnonPages=0.87 Mapped=0.42 Shmem=0.05 Slab=1.06 PageTables=0.03  rss=0.80
+1793682195 MemFree=96.51 MemAvailable=100.10 Cached=4.88 Unevictable=0.02 AnonPages=0.95 Mapped=0.42 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682196 MemFree=89.20 MemAvailable=92.80 Cached=4.88 Unevictable=0.02 AnonPages=0.76 Mapped=0.42 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.66
+1793682197 MemFree=84.08 MemAvailable=87.67 Cached=4.88 Unevictable=0.02 AnonPages=0.95 Mapped=0.42 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682198 MemFree=77.06 MemAvailable=80.66 Cached=4.88 Unevictable=0.02 AnonPages=0.81 Mapped=0.42 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.74
+1793682199 MemFree=71.89 MemAvailable=75.48 Cached=4.88 Unevictable=0.02 AnonPages=0.95 Mapped=0.42 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682200 MemFree=64.38 MemAvailable=67.97 Cached=4.88 Unevictable=0.02 AnonPages=0.95 Mapped=0.42 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682201 MemFree=59.37 MemAvailable=62.96 Cached=4.88 Unevictable=0.02 AnonPages=0.95 Mapped=0.42 Shmem=0.05 Slab=1.09 PageTables=0.03  rss=0.79
+1793682202 MemFree=52.65 MemAvailable=56.25 Cached=4.88 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.12 PageTables=0.03  rss=0.85
+1793682203 MemFree=46.01 MemAvailable=49.60 Cached=4.88 Unevictable=0.02 AnonPages=0.95 Mapped=0.42 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.85
+1793682204 MemFree=38.97 MemAvailable=42.56 Cached=4.88 Unevictable=0.02 AnonPages=0.77 Mapped=0.42 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.66
+1793682205 MemFree=33.54 MemAvailable=37.13 Cached=4.88 Unevictable=0.02 AnonPages=0.95 Mapped=0.42 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682206 MemFree=26.25 MemAvailable=29.85 Cached=4.88 Unevictable=0.02 AnonPages=0.76 Mapped=0.42 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.66
+1793682207 MemFree=21.15 MemAvailable=24.75 Cached=4.88 Unevictable=0.02 AnonPages=0.95 Mapped=0.42 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682208 MemFree=13.76 MemAvailable=17.36 Cached=4.88 Unevictable=0.02 AnonPages=0.92 Mapped=0.42 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.84
+1793682209 MemFree=8.73 MemAvailable=12.33 Cached=4.88 Unevictable=0.02 AnonPages=0.95 Mapped=0.42 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682210 MemFree=3.21 MemAvailable=6.81 Cached=4.88 Unevictable=0.02 AnonPages=0.78 Mapped=0.42 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.66
+  top 0.00 COMMAND
+  top 0.66 intarsia
+  top 0.14 polkitd
+  top 0.07 gnome-shell
+  top 0.06 dockerd
+  top 0.06 systemd-journal
+1793682211 MemFree=3.25 MemAvailable=6.85 Cached=4.88 Unevictable=0.02 AnonPages=0.78 Mapped=0.42 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.67
+  top 0.00 COMMAND
+  top 0.67 intarsia
+  top 0.14 polkitd
+  top 0.07 gnome-shell
+  top 0.06 dockerd
+  top 0.06 systemd-journal
+1793682212 MemFree=3.55 MemAvailable=7.15 Cached=4.88 Unevictable=0.02 AnonPages=0.78 Mapped=0.42 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.67
+  top 0.00 COMMAND
+  top 0.67 intarsia
+  top 0.14 polkitd
+  top 0.07 gnome-shell
+  top 0.06 dockerd
+  top 0.06 systemd-journal
+1793682213 MemFree=5.30 MemAvailable=8.90 Cached=4.88 Unevictable=0.02 AnonPages=0.78 Mapped=0.43 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.67
+1793682214 MemFree=5.25 MemAvailable=8.85 Cached=4.88 Unevictable=0.02 AnonPages=0.78 Mapped=0.42 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.67
+1793682215 MemFree=4.88 MemAvailable=8.48 Cached=4.88 Unevictable=0.02 AnonPages=0.78 Mapped=0.42 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.67
+1793682216 MemFree=5.83 MemAvailable=9.42 Cached=4.94 Unevictable=0.02 AnonPages=0.95 Mapped=0.52 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682217 MemFree=5.82 MemAvailable=9.42 Cached=4.94 Unevictable=0.02 AnonPages=0.95 Mapped=0.51 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682218 MemFree=5.82 MemAvailable=9.42 Cached=4.94 Unevictable=0.02 AnonPages=0.95 Mapped=0.51 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682219 MemFree=5.82 MemAvailable=9.42 Cached=4.94 Unevictable=0.02 AnonPages=0.96 Mapped=0.52 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682220 MemFree=5.82 MemAvailable=9.42 Cached=4.94 Unevictable=0.02 AnonPages=0.95 Mapped=0.52 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682221 MemFree=5.82 MemAvailable=9.41 Cached=4.94 Unevictable=0.02 AnonPages=0.96 Mapped=0.52 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682222 MemFree=5.81 MemAvailable=9.41 Cached=4.94 Unevictable=0.02 AnonPages=0.96 Mapped=0.52 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682223 MemFree=5.72 MemAvailable=9.32 Cached=4.94 Unevictable=0.02 AnonPages=0.99 Mapped=0.52 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.97
+1793682224 MemFree=5.66 MemAvailable=9.26 Cached=4.94 Unevictable=0.02 AnonPages=1.01 Mapped=0.52 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.00
+1793682226 MemFree=5.60 MemAvailable=9.20 Cached=4.94 Unevictable=0.02 AnonPages=1.04 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.03
+1793682227 MemFree=5.54 MemAvailable=9.14 Cached=4.94 Unevictable=0.02 AnonPages=1.07 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.05
+1793682228 MemFree=5.53 MemAvailable=9.13 Cached=4.94 Unevictable=0.02 AnonPages=1.07 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.06
+1793682229 MemFree=5.51 MemAvailable=9.11 Cached=4.94 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.07
+1793682230 MemFree=5.51 MemAvailable=9.11 Cached=4.94 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.07
+1793682231 MemFree=5.50 MemAvailable=9.10 Cached=4.94 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682232 MemFree=5.50 MemAvailable=9.10 Cached=4.94 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682233 MemFree=5.49 MemAvailable=9.09 Cached=4.94 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.09
+1793682234 MemFree=5.49 MemAvailable=9.09 Cached=4.94 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.09
+1793682235 MemFree=5.49 MemAvailable=9.09 Cached=4.94 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.09
+1793682236 MemFree=5.49 MemAvailable=9.09 Cached=4.94 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.09
+1793682237 MemFree=6.31 MemAvailable=9.91 Cached=4.95 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.00
+1793682238 MemFree=107.70 MemAvailable=111.31 Cached=4.84 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682239 MemFree=107.70 MemAvailable=111.30 Cached=4.84 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682240 MemFree=107.70 MemAvailable=111.30 Cached=4.84 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682241 MemFree=107.70 MemAvailable=111.30 Cached=4.84 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682242 MemFree=107.65 MemAvailable=111.25 Cached=4.84 Unevictable=0.02 AnonPages=0.38 Mapped=0.19 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.09
+1793682243 MemFree=104.32 MemAvailable=107.92 Cached=4.89 Unevictable=0.02 AnonPages=0.76 Mapped=0.43 Shmem=0.05 Slab=1.04 PageTables=0.03  rss=0.66
+1793682244 MemFree=96.80 MemAvailable=100.41 Cached=4.89 Unevictable=0.02 AnonPages=0.90 Mapped=0.43 Shmem=0.05 Slab=1.06 PageTables=0.03  rss=0.84
+1793682245 MemFree=91.79 MemAvailable=95.39 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682246 MemFree=84.20 MemAvailable=87.81 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682247 MemFree=79.12 MemAvailable=82.72 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682248 MemFree=71.69 MemAvailable=75.29 Cached=4.89 Unevictable=0.02 AnonPages=0.79 Mapped=0.43 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.72
+1793682249 MemFree=66.49 MemAvailable=70.09 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682250 MemFree=59.13 MemAvailable=62.73 Cached=4.89 Unevictable=0.02 AnonPages=0.81 Mapped=0.43 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.74
+1793682251 MemFree=52.35 MemAvailable=55.95 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.12 PageTables=0.03  rss=0.85
+1793682252 MemFree=47.36 MemAvailable=50.97 Cached=4.89 Unevictable=0.02 AnonPages=0.76 Mapped=0.43 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.66
+1793682253 MemFree=40.77 MemAvailable=44.37 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682254 MemFree=34.00 MemAvailable=37.60 Cached=4.89 Unevictable=0.02 AnonPages=0.76 Mapped=0.43 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.66
+1793682255 MemFree=28.36 MemAvailable=31.96 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682256 MemFree=20.98 MemAvailable=24.58 Cached=4.89 Unevictable=0.02 AnonPages=0.84 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.79
+1793682257 MemFree=15.96 MemAvailable=19.56 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682258 MemFree=9.02 MemAvailable=12.62 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682259 MemFree=4.03 MemAvailable=7.63 Cached=4.89 Unevictable=0.02 AnonPages=0.76 Mapped=0.43 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.66
+1793682260 MemFree=3.20 MemAvailable=6.80 Cached=4.89 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.67
+  top 0.00 COMMAND
+  top 0.67 intarsia
+  top 0.15 polkitd
+  top 0.07 gnome-shell
+  top 0.06 systemd-journal
+  top 0.05 dockerd
+1793682261 MemFree=5.58 MemAvailable=9.19 Cached=4.89 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.67
+1793682262 MemFree=4.05 MemAvailable=7.66 Cached=4.89 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.67
+1793682263 MemFree=3.24 MemAvailable=6.84 Cached=4.89 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.67
+  top 0.00 COMMAND
+  top 0.67 intarsia
+  top 0.15 polkitd
+  top 0.07 gnome-shell
+  top 0.06 systemd-journal
+  top 0.05 dockerd
+1793682264 MemFree=3.43 MemAvailable=7.03 Cached=4.89 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.67
+  top 0.00 COMMAND
+  top 0.67 intarsia
+  top 0.15 polkitd
+  top 0.07 gnome-shell
+  top 0.06 systemd-journal
+  top 0.05 dockerd
+1793682265 MemFree=5.85 MemAvailable=9.45 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=0.93
+1793682266 MemFree=5.82 MemAvailable=9.42 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=0.93
+1793682267 MemFree=5.79 MemAvailable=9.39 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=0.94
+1793682268 MemFree=5.68 MemAvailable=9.28 Cached=4.95 Unevictable=0.02 AnonPages=1.00 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=0.99
+1793682269 MemFree=5.67 MemAvailable=9.28 Cached=4.95 Unevictable=0.02 AnonPages=1.00 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=0.99
+1793682270 MemFree=5.67 MemAvailable=9.27 Cached=4.95 Unevictable=0.02 AnonPages=1.01 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.00
+1793682271 MemFree=5.61 MemAvailable=9.22 Cached=4.95 Unevictable=0.02 AnonPages=1.03 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.02
+1793682272 MemFree=5.61 MemAvailable=9.21 Cached=4.95 Unevictable=0.02 AnonPages=1.03 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.02
+1793682273 MemFree=5.55 MemAvailable=9.16 Cached=4.95 Unevictable=0.02 AnonPages=1.06 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.05
+1793682274 MemFree=5.55 MemAvailable=9.15 Cached=4.95 Unevictable=0.02 AnonPages=1.06 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.05
+1793682275 MemFree=5.55 MemAvailable=9.15 Cached=4.95 Unevictable=0.02 AnonPages=1.06 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.05
+1793682276 MemFree=5.53 MemAvailable=9.14 Cached=4.95 Unevictable=0.02 AnonPages=1.08 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.07
+1793682277 MemFree=5.53 MemAvailable=9.13 Cached=4.95 Unevictable=0.02 AnonPages=1.08 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.07
+1793682279 MemFree=5.53 MemAvailable=9.14 Cached=4.95 Unevictable=0.02 AnonPages=1.08 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.07
+1793682280 MemFree=5.53 MemAvailable=9.13 Cached=4.95 Unevictable=0.02 AnonPages=1.08 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.07
+1793682281 MemFree=5.52 MemAvailable=9.13 Cached=4.95 Unevictable=0.02 AnonPages=1.08 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.07
+1793682282 MemFree=5.52 MemAvailable=9.13 Cached=4.95 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682283 MemFree=5.52 MemAvailable=9.13 Cached=4.95 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682284 MemFree=5.52 MemAvailable=9.12 Cached=4.95 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682285 MemFree=5.51 MemAvailable=9.11 Cached=4.95 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682286 MemFree=5.51 MemAvailable=9.11 Cached=4.95 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682287 MemFree=5.51 MemAvailable=9.11 Cached=4.95 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682288 MemFree=5.50 MemAvailable=9.11 Cached=4.95 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682289 MemFree=5.49 MemAvailable=9.10 Cached=4.95 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682290 MemFree=6.46 MemAvailable=10.07 Cached=4.95 Unevictable=0.02 AnonPages=0.37 Mapped=0.17 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.00
+1793682291 MemFree=107.71 MemAvailable=111.31 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682292 MemFree=107.71 MemAvailable=111.31 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682293 MemFree=107.70 MemAvailable=111.31 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682294 MemFree=107.70 MemAvailable=111.31 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682295 MemFree=107.69 MemAvailable=111.30 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682296 MemFree=107.69 MemAvailable=111.30 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682297 MemFree=107.69 MemAvailable=111.30 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.17 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682298 MemFree=107.41 MemAvailable=111.02 Cached=4.89 Unevictable=0.02 AnonPages=0.48 Mapped=0.31 Shmem=0.04 Slab=1.02 PageTables=0.03  rss=0.25
+1793682299 MemFree=101.63 MemAvailable=105.24 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.06 PageTables=0.03  rss=0.85
+1793682300 MemFree=94.76 MemAvailable=98.37 Cached=4.89 Unevictable=0.02 AnonPages=0.76 Mapped=0.43 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.66
+1793682301 MemFree=89.09 MemAvailable=92.70 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682302 MemFree=82.81 MemAvailable=86.41 Cached=4.89 Unevictable=0.02 AnonPages=0.76 Mapped=0.43 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.66
+1793682303 MemFree=76.70 MemAvailable=80.30 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682304 MemFree=70.21 MemAvailable=73.82 Cached=4.89 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.66
+1793682305 MemFree=64.14 MemAvailable=67.74 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682306 MemFree=57.17 MemAvailable=60.78 Cached=4.89 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.10 PageTables=0.03  rss=0.66
+1793682307 MemFree=51.00 MemAvailable=54.60 Cached=4.89 Unevictable=0.02 AnonPages=0.76 Mapped=0.43 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.66
+1793682308 MemFree=45.72 MemAvailable=49.33 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.85
+1793682309 MemFree=38.24 MemAvailable=41.84 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682310 MemFree=33.42 MemAvailable=37.02 Cached=4.89 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.66
+1793682311 MemFree=25.84 MemAvailable=29.45 Cached=4.89 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682312 MemFree=18.44 MemAvailable=22.04 Cached=4.89 Unevictable=0.02 AnonPages=0.88 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.82
+1793682313 MemFree=13.12 MemAvailable=16.72 Cached=4.89 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.66
+1793682314 MemFree=5.67 MemAvailable=9.28 Cached=4.89 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.66
+1793682315 MemFree=3.25 MemAvailable=6.85 Cached=4.89 Unevictable=0.02 AnonPages=0.78 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 gnome-shell
+  top 0.07 systemd-journal
+  top 0.05 dockerd
+1793682316 MemFree=5.61 MemAvailable=9.21 Cached=4.89 Unevictable=0.02 AnonPages=0.78 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.68
+1793682317 MemFree=3.22 MemAvailable=6.83 Cached=4.89 Unevictable=0.02 AnonPages=0.78 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 gnome-shell
+  top 0.07 systemd-journal
+  top 0.05 dockerd
+1793682318 MemFree=3.25 MemAvailable=6.86 Cached=4.89 Unevictable=0.02 AnonPages=0.78 Mapped=0.43 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 gnome-shell
+  top 0.07 systemd-journal
+  top 0.05 dockerd
+1793682319 MemFree=3.23 MemAvailable=6.84 Cached=4.89 Unevictable=0.02 AnonPages=0.78 Mapped=0.43 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 gnome-shell
+  top 0.07 systemd-journal
+  top 0.05 dockerd
+1793682320 MemFree=5.90 MemAvailable=9.51 Cached=4.95 Unevictable=0.02 AnonPages=0.92 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=0.91
+1793682321 MemFree=5.82 MemAvailable=9.43 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=0.94
+1793682322 MemFree=5.80 MemAvailable=9.41 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=0.94
+1793682323 MemFree=5.70 MemAvailable=9.31 Cached=4.95 Unevictable=0.02 AnonPages=0.98 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=0.98
+1793682324 MemFree=5.63 MemAvailable=9.24 Cached=4.95 Unevictable=0.02 AnonPages=1.01 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.01
+1793682325 MemFree=5.59 MemAvailable=9.20 Cached=4.95 Unevictable=0.02 AnonPages=1.04 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.03
+1793682326 MemFree=5.53 MemAvailable=9.14 Cached=4.95 Unevictable=0.02 AnonPages=1.07 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.06
+1793682327 MemFree=5.52 MemAvailable=9.13 Cached=4.95 Unevictable=0.02 AnonPages=1.07 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.06
+1793682328 MemFree=5.51 MemAvailable=9.12 Cached=4.95 Unevictable=0.02 AnonPages=1.08 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.07
+1793682329 MemFree=5.50 MemAvailable=9.11 Cached=4.95 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.08
+1793682331 MemFree=5.50 MemAvailable=9.10 Cached=4.95 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.08
+1793682332 MemFree=5.49 MemAvailable=9.10 Cached=4.95 Unevictable=0.02 AnonPages=1.09 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.08
+1793682333 MemFree=5.49 MemAvailable=9.10 Cached=4.95 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.09
+1793682334 MemFree=5.49 MemAvailable=9.10 Cached=4.95 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.09
+1793682335 MemFree=5.48 MemAvailable=9.09 Cached=4.95 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.09
+1793682336 MemFree=5.48 MemAvailable=9.09 Cached=4.95 Unevictable=0.02 AnonPages=1.10 Mapped=0.52 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.09
+1793682337 MemFree=6.33 MemAvailable=9.94 Cached=4.95 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.10 Slab=1.13 PageTables=0.03  rss=0.00
+1793682338 MemFree=107.67 MemAvailable=111.27 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682339 MemFree=107.67 MemAvailable=111.27 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682340 MemFree=107.67 MemAvailable=111.27 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682341 MemFree=107.66 MemAvailable=111.27 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682342 MemFree=107.66 MemAvailable=111.26 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682343 MemFree=107.65 MemAvailable=111.26 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682344 MemFree=107.66 MemAvailable=111.27 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682345 MemFree=107.66 MemAvailable=111.27 Cached=4.85 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682346 MemFree=106.77 MemAvailable=110.43 Cached=4.94 Unevictable=0.02 AnonPages=0.79 Mapped=0.48 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.73
+1793682347 MemFree=107.60 MemAvailable=111.27 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682348 MemFree=107.61 MemAvailable=111.28 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682349 MemFree=107.61 MemAvailable=111.27 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682350 MemFree=107.61 MemAvailable=111.28 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682351 MemFree=107.61 MemAvailable=111.27 Cached=4.91 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682352 MemFree=107.58 MemAvailable=111.25 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682353 MemFree=107.58 MemAvailable=111.25 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682354 MemFree=107.58 MemAvailable=111.25 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682355 MemFree=104.10 MemAvailable=107.77 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.04 PageTables=0.03  rss=0.85
+1793682356 MemFree=98.95 MemAvailable=102.62 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.06 PageTables=0.03  rss=0.85
+1793682357 MemFree=91.57 MemAvailable=95.23 Cached=4.95 Unevictable=0.02 AnonPages=0.91 Mapped=0.43 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682358 MemFree=86.52 MemAvailable=90.19 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682359 MemFree=79.15 MemAvailable=82.82 Cached=4.95 Unevictable=0.02 AnonPages=0.82 Mapped=0.43 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.76
+1793682360 MemFree=74.13 MemAvailable=77.80 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682361 MemFree=66.58 MemAvailable=70.25 Cached=4.95 Unevictable=0.02 AnonPages=0.88 Mapped=0.43 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.80
+1793682362 MemFree=61.54 MemAvailable=65.21 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682363 MemFree=54.67 MemAvailable=58.34 Cached=4.95 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.11 PageTables=0.03  rss=0.66
+1793682364 MemFree=48.09 MemAvailable=51.76 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.85
+1793682365 MemFree=42.77 MemAvailable=46.44 Cached=4.95 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.66
+1793682366 MemFree=35.64 MemAvailable=39.31 Cached=4.95 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682367 MemFree=30.35 MemAvailable=34.02 Cached=4.95 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.67
+1793682368 MemFree=23.77 MemAvailable=27.43 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682369 MemFree=16.85 MemAvailable=20.51 Cached=4.95 Unevictable=0.02 AnonPages=0.77 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.67
+1793682370 MemFree=11.22 MemAvailable=14.89 Cached=4.95 Unevictable=0.02 AnonPages=0.95 Mapped=0.43 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682371 MemFree=5.40 MemAvailable=9.07 Cached=4.95 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.85
+1793682372 MemFree=3.16 MemAvailable=6.83 Cached=4.95 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682373 MemFree=3.85 MemAvailable=7.52 Cached=4.95 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.68
+1793682374 MemFree=4.90 MemAvailable=8.57 Cached=4.95 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.68
+1793682375 MemFree=3.18 MemAvailable=6.84 Cached=4.95 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682376 MemFree=3.18 MemAvailable=6.85 Cached=4.95 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682377 MemFree=5.76 MemAvailable=9.43 Cached=5.01 Unevictable=0.02 AnonPages=0.95 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682378 MemFree=5.74 MemAvailable=9.41 Cached=5.01 Unevictable=0.02 AnonPages=0.96 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682379 MemFree=5.65 MemAvailable=9.31 Cached=5.01 Unevictable=0.02 AnonPages=0.99 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.98
+1793682380 MemFree=5.59 MemAvailable=9.25 Cached=5.01 Unevictable=0.02 AnonPages=1.02 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.00
+1793682381 MemFree=5.53 MemAvailable=9.20 Cached=5.01 Unevictable=0.02 AnonPages=1.04 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.03
+1793682382 MemFree=5.52 MemAvailable=9.18 Cached=5.01 Unevictable=0.02 AnonPages=1.05 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.04
+1793682383 MemFree=5.46 MemAvailable=9.13 Cached=5.01 Unevictable=0.02 AnonPages=1.07 Mapped=0.53 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.06
+1793682385 MemFree=5.45 MemAvailable=9.12 Cached=5.01 Unevictable=0.02 AnonPages=1.08 Mapped=0.53 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682386 MemFree=5.45 MemAvailable=9.11 Cached=5.01 Unevictable=0.02 AnonPages=1.09 Mapped=0.53 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682387 MemFree=5.43 MemAvailable=9.10 Cached=5.01 Unevictable=0.02 AnonPages=1.09 Mapped=0.53 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.08
+1793682388 MemFree=5.43 MemAvailable=9.10 Cached=5.01 Unevictable=0.02 AnonPages=1.10 Mapped=0.53 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.09
+1793682389 MemFree=5.42 MemAvailable=9.09 Cached=5.01 Unevictable=0.02 AnonPages=1.10 Mapped=0.53 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.09
+1793682390 MemFree=5.42 MemAvailable=9.09 Cached=5.01 Unevictable=0.02 AnonPages=1.10 Mapped=0.53 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.09
+1793682391 MemFree=5.42 MemAvailable=9.09 Cached=5.01 Unevictable=0.02 AnonPages=1.10 Mapped=0.53 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.09
+1793682392 MemFree=5.42 MemAvailable=9.09 Cached=5.01 Unevictable=0.02 AnonPages=1.11 Mapped=0.53 Shmem=0.10 Slab=1.16 PageTables=0.03  rss=1.09
+1793682393 MemFree=6.25 MemAvailable=9.92 Cached=5.01 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.00
+1793682394 MemFree=107.63 MemAvailable=111.30 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682395 MemFree=107.63 MemAvailable=111.30 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682396 MemFree=107.63 MemAvailable=111.30 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682397 MemFree=107.63 MemAvailable=111.30 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682398 MemFree=107.62 MemAvailable=111.29 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682399 MemFree=107.62 MemAvailable=111.29 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682400 MemFree=107.62 MemAvailable=111.29 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682401 MemFree=107.62 MemAvailable=111.29 Cached=4.91 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682402 MemFree=104.14 MemAvailable=107.81 Cached=4.96 Unevictable=0.03 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.04 PageTables=0.03  rss=0.85
+1793682403 MemFree=96.66 MemAvailable=100.33 Cached=4.96 Unevictable=0.03 AnonPages=0.80 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.72
+1793682404 MemFree=91.64 MemAvailable=95.31 Cached=4.96 Unevictable=0.03 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682405 MemFree=84.43 MemAvailable=88.10 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.66
+1793682406 MemFree=79.18 MemAvailable=82.85 Cached=4.96 Unevictable=0.03 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682407 MemFree=72.29 MemAvailable=75.96 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.66
+1793682408 MemFree=66.68 MemAvailable=70.35 Cached=4.96 Unevictable=0.03 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682409 MemFree=60.74 MemAvailable=64.41 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.66
+1793682410 MemFree=52.59 MemAvailable=56.26 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.12 PageTables=0.03  rss=0.68
+1793682411 MemFree=48.36 MemAvailable=52.03 Cached=4.96 Unevictable=0.03 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.85
+1793682412 MemFree=41.13 MemAvailable=44.80 Cached=4.96 Unevictable=0.03 AnonPages=0.94 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682413 MemFree=36.00 MemAvailable=39.67 Cached=4.96 Unevictable=0.03 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682414 MemFree=28.55 MemAvailable=32.22 Cached=4.96 Unevictable=0.03 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682415 MemFree=23.52 MemAvailable=27.19 Cached=4.96 Unevictable=0.03 AnonPages=0.92 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.75
+1793682416 MemFree=16.06 MemAvailable=19.73 Cached=4.96 Unevictable=0.03 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682417 MemFree=8.64 MemAvailable=12.31 Cached=4.96 Unevictable=0.03 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682418 MemFree=3.74 MemAvailable=7.41 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.67
+  top 0.00 COMMAND
+  top 0.67 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682419 MemFree=3.13 MemAvailable=6.80 Cached=4.96 Unevictable=0.03 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682420 MemFree=3.13 MemAvailable=6.80 Cached=4.96 Unevictable=0.03 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682421 MemFree=3.30 MemAvailable=6.98 Cached=4.96 Unevictable=0.03 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682422 MemFree=3.17 MemAvailable=6.85 Cached=4.96 Unevictable=0.03 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682423 MemFree=4.84 MemAvailable=8.51 Cached=4.96 Unevictable=0.03 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.68
+1793682424 MemFree=5.80 MemAvailable=9.48 Cached=5.02 Unevictable=0.03 AnonPages=0.95 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682425 MemFree=5.78 MemAvailable=9.45 Cached=5.02 Unevictable=0.03 AnonPages=0.95 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682426 MemFree=5.71 MemAvailable=9.38 Cached=5.02 Unevictable=0.03 AnonPages=0.98 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.96
+1793682427 MemFree=5.65 MemAvailable=9.32 Cached=5.02 Unevictable=0.03 AnonPages=1.00 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.99
+1793682428 MemFree=5.62 MemAvailable=9.29 Cached=5.02 Unevictable=0.03 AnonPages=1.02 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.01
+1793682429 MemFree=5.59 MemAvailable=9.26 Cached=5.02 Unevictable=0.03 AnonPages=1.04 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.03
+1793682430 MemFree=5.58 MemAvailable=9.26 Cached=5.02 Unevictable=0.03 AnonPages=1.05 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.04
+1793682431 MemFree=5.57 MemAvailable=9.25 Cached=5.02 Unevictable=0.03 AnonPages=1.06 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.04
+1793682432 MemFree=5.57 MemAvailable=9.24 Cached=5.02 Unevictable=0.03 AnonPages=1.06 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.05
+1793682433 MemFree=5.55 MemAvailable=9.23 Cached=5.02 Unevictable=0.03 AnonPages=1.06 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.05
+1793682435 MemFree=5.55 MemAvailable=9.23 Cached=5.02 Unevictable=0.03 AnonPages=1.07 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.06
+1793682436 MemFree=5.55 MemAvailable=9.22 Cached=5.02 Unevictable=0.03 AnonPages=1.07 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.06
+1793682437 MemFree=5.55 MemAvailable=9.22 Cached=5.02 Unevictable=0.03 AnonPages=1.08 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.06
+1793682438 MemFree=5.54 MemAvailable=9.22 Cached=5.02 Unevictable=0.03 AnonPages=1.07 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.06
+1793682439 MemFree=5.66 MemAvailable=9.34 Cached=5.02 Unevictable=0.03 AnonPages=0.93 Mapped=0.34 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.00
+1793682440 MemFree=10.50 MemAvailable=14.17 Cached=4.91 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.11 PageTables=0.03  rss=0.00
+1793682441 MemFree=107.59 MemAvailable=111.27 Cached=4.91 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682442 MemFree=107.59 MemAvailable=111.27 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682443 MemFree=107.59 MemAvailable=111.27 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682444 MemFree=107.59 MemAvailable=111.27 Cached=4.91 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682445 MemFree=107.59 MemAvailable=111.27 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682446 MemFree=107.60 MemAvailable=111.27 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682447 MemFree=107.60 MemAvailable=111.27 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682448 MemFree=106.94 MemAvailable=110.62 Cached=4.96 Unevictable=0.02 AnonPages=0.71 Mapped=0.35 Shmem=0.04 Slab=1.02 PageTables=0.03  rss=0.57
+1793682449 MemFree=99.72 MemAvailable=103.40 Cached=4.96 Unevictable=0.02 AnonPages=0.76 Mapped=0.44 Shmem=0.05 Slab=1.06 PageTables=0.03  rss=0.66
+1793682450 MemFree=93.99 MemAvailable=97.67 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682451 MemFree=88.12 MemAvailable=91.80 Cached=4.96 Unevictable=0.02 AnonPages=0.76 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.66
+1793682452 MemFree=81.59 MemAvailable=85.27 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682453 MemFree=75.53 MemAvailable=79.20 Cached=4.96 Unevictable=0.02 AnonPages=0.76 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.66
+1793682454 MemFree=69.11 MemAvailable=72.79 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682455 MemFree=61.84 MemAvailable=65.52 Cached=4.96 Unevictable=0.02 AnonPages=0.76 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.66
+1793682456 MemFree=55.84 MemAvailable=59.52 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.10 PageTables=0.03  rss=0.85
+1793682457 MemFree=50.82 MemAvailable=54.49 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.85
+1793682458 MemFree=43.32 MemAvailable=47.00 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682459 MemFree=38.42 MemAvailable=42.10 Cached=4.96 Unevictable=0.02 AnonPages=0.85 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.67
+1793682460 MemFree=30.87 MemAvailable=34.55 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682461 MemFree=24.53 MemAvailable=28.21 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.66
+1793682462 MemFree=18.48 MemAvailable=22.16 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682463 MemFree=11.17 MemAvailable=14.85 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.67
+1793682464 MemFree=5.43 MemAvailable=9.10 Cached=4.96 Unevictable=0.02 AnonPages=0.93 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.85
+1793682465 MemFree=3.13 MemAvailable=6.81 Cached=4.96 Unevictable=0.02 AnonPages=0.79 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682466 MemFree=3.17 MemAvailable=6.85 Cached=4.96 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682467 MemFree=4.11 MemAvailable=7.78 Cached=4.96 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.68
+1793682468 MemFree=3.48 MemAvailable=7.16 Cached=4.96 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.07 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682469 MemFree=5.29 MemAvailable=8.96 Cached=4.96 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+1793682470 MemFree=6.50 MemAvailable=10.18 Cached=4.96 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.70
+1793682471 MemFree=5.75 MemAvailable=9.42 Cached=5.02 Unevictable=0.02 AnonPages=0.96 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682472 MemFree=5.74 MemAvailable=9.42 Cached=5.02 Unevictable=0.02 AnonPages=0.95 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682473 MemFree=5.74 MemAvailable=9.41 Cached=5.02 Unevictable=0.02 AnonPages=0.96 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682474 MemFree=5.74 MemAvailable=9.41 Cached=5.02 Unevictable=0.02 AnonPages=0.95 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682475 MemFree=5.74 MemAvailable=9.41 Cached=5.02 Unevictable=0.02 AnonPages=0.95 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682476 MemFree=5.74 MemAvailable=9.41 Cached=5.02 Unevictable=0.02 AnonPages=0.95 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682477 MemFree=5.73 MemAvailable=9.41 Cached=5.02 Unevictable=0.02 AnonPages=0.96 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.94
+1793682478 MemFree=5.64 MemAvailable=9.32 Cached=5.02 Unevictable=0.02 AnonPages=0.98 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=0.97
+1793682479 MemFree=5.58 MemAvailable=9.26 Cached=5.02 Unevictable=0.02 AnonPages=1.01 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.00
+1793682480 MemFree=5.53 MemAvailable=9.20 Cached=5.02 Unevictable=0.02 AnonPages=1.04 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.03
+1793682481 MemFree=5.52 MemAvailable=9.19 Cached=5.02 Unevictable=0.02 AnonPages=1.04 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.03
+1793682482 MemFree=5.46 MemAvailable=9.13 Cached=5.02 Unevictable=0.02 AnonPages=1.07 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.06
+1793682483 MemFree=5.44 MemAvailable=9.12 Cached=5.02 Unevictable=0.02 AnonPages=1.08 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.07
+1793682484 MemFree=5.44 MemAvailable=9.12 Cached=5.02 Unevictable=0.02 AnonPages=1.09 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.08
+1793682485 MemFree=5.43 MemAvailable=9.11 Cached=5.02 Unevictable=0.02 AnonPages=1.09 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.08
+1793682486 MemFree=5.43 MemAvailable=9.11 Cached=5.02 Unevictable=0.02 AnonPages=1.10 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.08
+1793682487 MemFree=5.42 MemAvailable=9.10 Cached=5.02 Unevictable=0.02 AnonPages=1.10 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.09
+1793682488 MemFree=5.42 MemAvailable=9.10 Cached=5.02 Unevictable=0.02 AnonPages=1.10 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.09
+1793682490 MemFree=5.39 MemAvailable=9.07 Cached=5.02 Unevictable=0.02 AnonPages=1.13 Mapped=0.54 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.09
+1793682491 MemFree=5.42 MemAvailable=9.10 Cached=5.02 Unevictable=0.02 AnonPages=1.11 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.09
+1793682492 MemFree=5.42 MemAvailable=9.09 Cached=5.02 Unevictable=0.02 AnonPages=1.11 Mapped=0.53 Shmem=0.10 Slab=1.15 PageTables=0.03  rss=1.09
+1793682493 MemFree=6.38 MemAvailable=10.06 Cached=5.02 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.10 Slab=1.13 PageTables=0.03  rss=0.00
+1793682494 MemFree=107.62 MemAvailable=111.30 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682495 MemFree=107.62 MemAvailable=111.30 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682496 MemFree=107.62 MemAvailable=111.29 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682497 MemFree=107.61 MemAvailable=111.29 Cached=4.91 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682498 MemFree=107.59 MemAvailable=111.26 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682499 MemFree=107.59 MemAvailable=111.26 Cached=4.91 Unevictable=0.02 AnonPages=0.36 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682500 MemFree=107.59 MemAvailable=111.26 Cached=4.91 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682501 MemFree=107.11 MemAvailable=110.79 Cached=4.96 Unevictable=0.02 AnonPages=0.58 Mapped=0.33 Shmem=0.04 Slab=1.02 PageTables=0.03  rss=0.38
+1793682502 MemFree=106.79 MemAvailable=110.46 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682503 MemFree=106.78 MemAvailable=110.46 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682504 MemFree=106.78 MemAvailable=110.46 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682505 MemFree=106.78 MemAvailable=110.46 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682506 MemFree=106.78 MemAvailable=110.46 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682507 MemFree=106.78 MemAvailable=110.46 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682508 MemFree=106.78 MemAvailable=110.46 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682509 MemFree=106.78 MemAvailable=110.46 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682510 MemFree=106.78 MemAvailable=110.46 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682511 MemFree=106.78 MemAvailable=110.46 Cached=4.96 Unevictable=0.03 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682512 MemFree=99.05 MemAvailable=102.73 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.06 PageTables=0.03  rss=0.85
+1793682513 MemFree=94.20 MemAvailable=97.88 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682514 MemFree=86.73 MemAvailable=90.40 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682515 MemFree=79.41 MemAvailable=83.08 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.67
+1793682516 MemFree=74.31 MemAvailable=77.98 Cached=4.96 Unevictable=0.02 AnonPages=0.92 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.72
+1793682517 MemFree=66.80 MemAvailable=70.47 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682518 MemFree=59.38 MemAvailable=63.06 Cached=4.96 Unevictable=0.02 AnonPages=0.79 Mapped=0.44 Shmem=0.05 Slab=1.09 PageTables=0.03  rss=0.71
+1793682519 MemFree=52.64 MemAvailable=56.32 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.12 PageTables=0.03  rss=0.85
+1793682520 MemFree=47.16 MemAvailable=50.83 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.66
+1793682521 MemFree=41.11 MemAvailable=44.79 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682522 MemFree=33.72 MemAvailable=37.39 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.66
+1793682523 MemFree=28.69 MemAvailable=32.37 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682524 MemFree=21.18 MemAvailable=24.85 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682525 MemFree=13.87 MemAvailable=17.55 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.66
+1793682526 MemFree=8.92 MemAvailable=12.60 Cached=4.96 Unevictable=0.02 AnonPages=0.84 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.66
+1793682527 MemFree=3.17 MemAvailable=6.85 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.67
+  top 0.00 COMMAND
+  top 0.67 intarsia
+  top 0.15 polkitd
+  top 0.08 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682528 MemFree=3.63 MemAvailable=7.31 Cached=4.96 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.08 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682529 MemFree=4.68 MemAvailable=8.36 Cached=4.96 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+1793682530 MemFree=3.17 MemAvailable=6.84 Cached=4.96 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.08 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682531 MemFree=3.17 MemAvailable=6.84 Cached=4.96 Unevictable=0.02 AnonPages=0.78 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.08 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682532 MemFree=6.44 MemAvailable=10.11 Cached=4.96 Unevictable=0.02 AnonPages=0.84 Mapped=0.44 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.74
+1793682533 MemFree=5.78 MemAvailable=9.46 Cached=5.02 Unevictable=0.02 AnonPages=0.95 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=0.94
+1793682534 MemFree=5.78 MemAvailable=9.46 Cached=5.02 Unevictable=0.02 AnonPages=0.96 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=0.94
+1793682535 MemFree=5.77 MemAvailable=9.45 Cached=5.02 Unevictable=0.02 AnonPages=0.96 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=0.94
+1793682536 MemFree=5.76 MemAvailable=9.43 Cached=5.02 Unevictable=0.02 AnonPages=0.96 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=0.94
+1793682537 MemFree=5.66 MemAvailable=9.34 Cached=5.02 Unevictable=0.02 AnonPages=0.99 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=0.97
+1793682538 MemFree=5.60 MemAvailable=9.27 Cached=5.02 Unevictable=0.02 AnonPages=1.01 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.00
+1793682539 MemFree=5.54 MemAvailable=9.22 Cached=5.02 Unevictable=0.02 AnonPages=1.04 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.03
+1793682540 MemFree=5.48 MemAvailable=9.16 Cached=5.02 Unevictable=0.02 AnonPages=1.07 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.06
+1793682541 MemFree=5.48 MemAvailable=9.15 Cached=5.02 Unevictable=0.02 AnonPages=1.07 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.06
+1793682542 MemFree=5.45 MemAvailable=9.13 Cached=5.02 Unevictable=0.02 AnonPages=1.09 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.07
+1793682543 MemFree=5.45 MemAvailable=9.13 Cached=5.02 Unevictable=0.02 AnonPages=1.09 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.08
+1793682545 MemFree=5.45 MemAvailable=9.12 Cached=5.02 Unevictable=0.02 AnonPages=1.09 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.08
+1793682546 MemFree=5.44 MemAvailable=9.12 Cached=5.02 Unevictable=0.02 AnonPages=1.10 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.08
+1793682547 MemFree=5.44 MemAvailable=9.12 Cached=5.02 Unevictable=0.02 AnonPages=1.10 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.09
+1793682548 MemFree=5.43 MemAvailable=9.11 Cached=5.02 Unevictable=0.02 AnonPages=1.10 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.09
+1793682549 MemFree=5.43 MemAvailable=9.10 Cached=5.02 Unevictable=0.02 AnonPages=1.11 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.09
+1793682550 MemFree=5.42 MemAvailable=9.10 Cached=5.02 Unevictable=0.02 AnonPages=1.11 Mapped=0.53 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=1.09
+1793682551 MemFree=6.19 MemAvailable=9.86 Cached=5.02 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.10 Slab=1.14 PageTables=0.03  rss=0.00
+1793682552 MemFree=85.95 MemAvailable=89.63 Cached=4.92 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.06 PageTables=0.03  rss=0.00
+1793682553 MemFree=107.61 MemAvailable=111.29 Cached=4.92 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682554 MemFree=107.61 MemAvailable=111.29 Cached=4.92 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682555 MemFree=107.61 MemAvailable=111.29 Cached=4.92 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682556 MemFree=107.61 MemAvailable=111.29 Cached=4.92 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682557 MemFree=107.62 MemAvailable=111.30 Cached=4.92 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682558 MemFree=107.62 MemAvailable=111.30 Cached=4.92 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682559 MemFree=107.62 MemAvailable=111.30 Cached=4.92 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.01 PageTables=0.03  rss=0.00
+1793682560 MemFree=106.79 MemAvailable=110.47 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.02 PageTables=0.03  rss=0.66
+1793682561 MemFree=99.03 MemAvailable=102.71 Cached=4.96 Unevictable=0.02 AnonPages=0.87 Mapped=0.44 Shmem=0.05 Slab=1.06 PageTables=0.03  rss=0.80
+1793682562 MemFree=93.98 MemAvailable=97.66 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682563 MemFree=86.61 MemAvailable=90.29 Cached=4.96 Unevictable=0.02 AnonPages=0.79 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.71
+1793682564 MemFree=81.58 MemAvailable=85.26 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.07 PageTables=0.03  rss=0.85
+1793682565 MemFree=74.20 MemAvailable=77.88 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.66
+1793682566 MemFree=69.16 MemAvailable=72.84 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682567 MemFree=61.68 MemAvailable=65.36 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.08 PageTables=0.03  rss=0.85
+1793682568 MemFree=55.84 MemAvailable=59.52 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.10 PageTables=0.03  rss=0.85
+1793682569 MemFree=48.37 MemAvailable=52.05 Cached=4.96 Unevictable=0.02 AnonPages=0.95 Mapped=0.44 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.85
+1793682570 MemFree=42.46 MemAvailable=46.13 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.13 PageTables=0.03  rss=0.66
+1793682571 MemFree=35.90 MemAvailable=39.58 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682572 MemFree=28.57 MemAvailable=32.25 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.68
+1793682573 MemFree=23.55 MemAvailable=27.23 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.14 PageTables=0.03  rss=0.85
+1793682574 MemFree=16.02 MemAvailable=19.70 Cached=4.96 Unevictable=0.02 AnonPages=0.96 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.85
+1793682575 MemFree=8.71 MemAvailable=12.39 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.15 PageTables=0.03  rss=0.67
+1793682576 MemFree=4.95 MemAvailable=8.62 Cached=4.96 Unevictable=0.02 AnonPages=0.77 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.67
+1793682577 MemFree=3.13 MemAvailable=6.81 Cached=4.96 Unevictable=0.02 AnonPages=0.79 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.08 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682578 MemFree=3.16 MemAvailable=6.84 Cached=4.96 Unevictable=0.02 AnonPages=0.79 Mapped=0.44 Shmem=0.05 Slab=1.17 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.08 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682579 MemFree=3.90 MemAvailable=7.57 Cached=4.96 Unevictable=0.02 AnonPages=0.79 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+1793682580 MemFree=3.57 MemAvailable=7.24 Cached=4.96 Unevictable=0.02 AnonPages=0.79 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.08 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682581 MemFree=3.16 MemAvailable=6.83 Cached=4.96 Unevictable=0.02 AnonPages=0.79 Mapped=0.44 Shmem=0.05 Slab=1.16 PageTables=0.03  rss=0.68
+  top 0.00 COMMAND
+  top 0.68 intarsia
+  top 0.15 polkitd
+  top 0.08 systemd-journal
+  top 0.07 gnome-shell
+  top 0.05 dockerd
+1793682582 MemFree=41.51 MemAvailable=45.18 Cached=4.96 Unevictable=0.02 AnonPages=0.91 Mapped=0.46 Shmem=0.04 Slab=1.10 PageTables=0.03  rss=0.82
+1793682583 MemFree=107.59 MemAvailable=111.27 Cached=4.92 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
+1793682584 MemFree=107.58 MemAvailable=111.26 Cached=4.92 Unevictable=0.02 AnonPages=0.37 Mapped=0.18 Shmem=0.00 Slab=1.02 PageTables=0.03  rss=0.00
