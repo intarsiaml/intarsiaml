@@ -429,14 +429,6 @@ pub fn hc_fused() -> bool {
 /// prefill chunk the fold is slower than the separate `HcPost`, at decode it saves ~6 us per sublayer on sm_121).
 pub const HC_FOLD_MAX_ROWS: usize = 16;
 
-/// Rows up to which the main graph's `HcSublayer` folds the previous `HcPost`: [`HC_FOLD_MAX_ROWS`], or
-/// `INTARSIA_DSV41_HC_FOLD_ROWS` (a row count; the fold is bitwise the separate `HcPost` followed by the unfolded op, so this only
-/// moves the step boundary, for A/B).
-pub fn hc_fold_rows() -> usize {
-    static N: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
-    *N.get_or_init(|| std::env::var("INTARSIA_DSV41_HC_FOLD_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(HC_FOLD_MAX_ROWS))
-}
-
 /// The other residual buffer (`x0` <-> `x1`).
 fn flip(x: &Arg) -> Arg {
     let other = if x.buf == Buf::Ws("x0".into()) { "x1" } else { "x0" };
@@ -610,7 +602,7 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     // HcMixes + HcPre + RmsNorm of every sublayer run as one HcSublayer; at T <= HC_FOLD_MAX_ROWS it also folds the
     // previous sublayer's HcPost, unless something reads the streams in between (an Engram merge or the DSpark tap of the
     // next layer, the head): then that HcPost is emitted on its own at the end of its layer.
-    let fold = hc_fused() && t <= hc_fold_rows();
+    let fold = hc_fused() && t <= HC_FOLD_MAX_ROWS;
     let reads_streams = |l: usize| {
         l >= n_layers
             || c.engram.as_ref().is_some_and(|e| e.layer_ids.contains(&l))

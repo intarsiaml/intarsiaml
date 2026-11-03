@@ -1,0 +1,11 @@
+17:04:35 winA: step 1 start
+17:05:01 winA: step 1 exit 0
+17:05:11 winA: gate 2 open
+17:05:11 winA: step 2 start
+17:10:59 winA: step 2 exit 0
+17:15:40 winA: gate 3 open
+17:15:40 winA: step 3 start
+17:30:41 winA: step 3 exit 0
+17:30:41 winA: step 4 start
+17:30:59 winA: step 4 exit 0
+17:30:59 winA: dispatcher done

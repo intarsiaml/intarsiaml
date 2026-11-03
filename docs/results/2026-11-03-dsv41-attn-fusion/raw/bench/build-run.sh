@@ -4,7 +4,7 @@
 set -eu
 SRC=${1:?repo src}; B=$(cd "$(dirname "$0")" && pwd); OUT=${OUT:-$HOME/intarsia-dsv41-attnfuse/bench}; mkdir -p "$OUT"
 export PATH=/usr/local/cuda/bin:$PATH
-FL="-c -O3 --std=c++17 -lineinfo --expt-relaxed-constexpr -arch=sm_121 -I $SRC/kernels/cuda"
+FL="-c -O3 --std=c++17 -lineinfo --expt-relaxed-constexpr -arch=sm_121 -I $SRC/kernels/cuda -I $SRC/kernels"
 for f in dsv41_misc dsv41_hc dsv41_hc_sub dsv41_attn; do nvcc $FL $SRC/kernels/cuda/$f.cu -o $OUT/$f.o & done
 wait
 nvcc -O3 --std=c++17 -arch=sm_121 $B/hc_rope_bench.cu $OUT/dsv41_misc.o $OUT/dsv41_hc.o $OUT/dsv41_hc_sub.o $OUT/dsv41_attn.o -o $OUT/hc_rope_bench
