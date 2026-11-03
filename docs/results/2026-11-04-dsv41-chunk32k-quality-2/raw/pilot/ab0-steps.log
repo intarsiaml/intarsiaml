@@ -1,0 +1,120 @@
+16:23:20 config ab0: INTARSIA_DSV41_CHUNK=512; steps: ldata_shards; nsys 0; bin $HOME/intarsia-dsv41-prefill/bin/intarsia
+16:23:22 ranks started (tag 162320)
+16:23:51 serve up=1 after 29 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 17.6 s = 5.87 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.71 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 25.3 s (4.23 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.304 GiB (chunk 512), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.36 GiB -> 9.98 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793741029)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793741029)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793741029)
+dsv41: warm-up passes in 0.40 s
+dsv41: rank 0 after warm-up: MemAvailable 9.55 GiB, used since start 100.82 GiB, of which weights 98.90 GiB, non-weight 1.92 GiB (workspace 0.304, scratch 0.004, state 0.203, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 18.4 s = 5.63 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 6.06 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 25.9 s (4.13 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.304 GiB (chunk 512), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.22 GiB -> 10.24 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793741029)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793741029)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793741029)
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| hop2-L1-32k-000 | no | 0.0 | 52.26 | 79.4 | The document states: "Ops ledger: the release nicknamed Quin… |
+| hop2-L2-32k-000 | no | 0.0 | 52.30 | 65.6 | The document states: "Ops ledger: the release nicknamed Jory… |
+| hop2-L3-32k-000 | no | 0.0 | 52.10 | 62.5 | The document states: "Release ledger: the release nicknamed … |
+| hop3-L1-32k-000 | no | 0.0 | 51.59 | 73.9 | The document states: "Registry entry: the release nicknamed … |
+| hop3-L2-32k-000 | no | 0.0 | 52.35 | 71.9 | The document states: "Release ledger: the release nicknamed … |
+| hop3-L3-32k-000 | no | 0.0 | 51.76 | 70.9 | The document states: "Ops ledger: the release nicknamed Wynb… |
+| agg_sum-L1-32k-000 | no | 0.0 | 52.04 | 76.3 | Halsel cluster shards: AU-8229-MY holds 802 units; SY-2610-L… |
+| agg_sum-L2-32k-000 | no | 0.0 | 52.50 | 76.9 | Storage shards of the Dunyar cluster: - ES-4295-SS: 800 unit… |
+| agg_sum-L3-32k-000 | no | 0.0 | 52.29 | 73.2 | Mardun cluster shards: ML-4372-CR 758, EV-7841-FS 994, XX-69… |
+| agg_max-L1-32k-000 | no | 0.0 | 52.11 | 59.1 | Gwenzan line releases mentioned: Gorgwen (343 failed tests),… |
+| agg_max-L2-32k-000 | no | 0.0 | 52.36 | 62.2 | The Halilk line releases mentioned: Yarbar (292), Torwyn (37… |
+| agg_max-L3-32k-000 | no | 0.0 | 50.96 | 68.5 | Releases of the Novilk line and their failed-test counts: - … |
+| repo_sum-L1-32k-000 | no | 0.0 | 51.82 | 70.7 | SLICES = 32 (crates/intarsia-backend-hip/tests/topk.rs: `con… |
+| repo_sum-L2-32k-000 | no | 0.0 | 52.29 | 81.4 | WARMUP = 5 (icb_check.rs: `const WARMUP: usize = 5;`) SLOT_B… |
+| repo_sum-L3-32k-000 | no | 0.0 | 51.96 | 82.9 | STATE_VERSION = 1 INFO_MAX = 256 ROWS = 5000 PLAN_POS = 4095… |
+| hop2-L1-32k-001 | no | 0.0 | 51.81 | 71.7 | The document states: "Change log: the release nicknamed Marp… |
+| hop2-L2-32k-001 | no | 0.0 | 52.39 | 80.2 | The document states: "Release ledger: the release nicknamed … |
+| hop2-L3-32k-001 | no | 0.0 | 51.62 | 65.8 | The document states: "Change log: the release nicknamed Brif… |
+| hop3-L1-32k-001 | no | 0.0 | 51.73 | 65.2 | The document states: "Change log: the release nicknamed Rosw… |
+| hop3-L2-32k-001 | no | 0.0 | 52.25 | 68.3 | The document states: "Change log: the release nicknamed Quin… |
+| hop3-L3-32k-001 | no | 0.0 | 51.53 | 73.2 | The document states: "Registry entry: the release nicknamed … |
+| agg_sum-L1-32k-001 | no | 0.0 | 52.24 | 71.7 | The document mentions storage shards of the Gorkel cluster: … |
+| agg_sum-L2-32k-001 | no | 0.0 | 52.15 | 69.8 | Derilk cluster shards: YN-6042-AU holds 968 units; ZQ-8637-D… |
+| agg_sum-L3-32k-001 | no | 0.0 | 52.15 | 73.1 | Dunros cluster shards: RG-8658-FK 762, UG-6723-HQ 142, MS-63… |
+| agg_max-L1-32k-001 | no | 0.0 | 52.28 | 63.4 | The document mentions several releases of the Jorquin line w… |
+| agg_max-L2-32k-001 | no | 0.0 | 52.48 | 66.9 | Releases of the Marilk line and their failed-test counts: - … |
+| agg_max-L3-32k-001 | no | 0.0 | 52.53 | 72.4 | Releases of the Bartor line and their failed-test counts: - … |
+| repo_sum-L1-32k-001 | no | 0.0 | 52.53 | 78.8 | DECODE_A = 6 (crates/intarsia-models/tests/graphs.rs: `const… |
+| repo_sum-L2-32k-001 | no | 0.0 | 50.52 | 76.0 | PLAN_PREFILL_ROWS = 300 (dsv41.rs) LAYERS = 10 (attn_f8kv.rs… |
+| repo_sum-L3-32k-001 | no | 0.0 | 51.93 | 78.0 | PLAN_PREFILL_ROWS = 300 (dsv41.rs) NB = 8 (fast.rs) CLOCK_UP… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261103-162353-adhoc-dsv41-chunk32k2-ab0-s32-00/result.json
+[localeval] logged to unanimis: 1387ee07-f172-4c68-8e05-8e6985fb6567
+[localeval] dataset /opt/code/intarsiaml/.worktrees/chunk32k-2/.scratch/pilot.s65-00.jsonl: 3 rows, judge=none
+# localeval: adhoc — 2026-11-03T16:50
+
+- model: `dsv41-intarsia` on ? (?), url `http://100.120.88.104:8899/v1`
+- thinking: off; run kind: quality; label: dsv41-chunk32k2-ab0-s65-00
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --dataset /opt/code/intarsiaml/.worktrees/chunk32k-2/.scratch/pilot.s65-00.jsonl --judge none --max-tokens 160 --label dsv41-chunk32k2-ab0-s65-00 --url http://100.120.88.104:8899/v1 --model dsv41-intarsia --thinking off --recipe intarsia a60292329 dirty=no 1102-1850 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000 arm env: INTARSIA_DSV41_CHUNK=512, engram hot 1024 MiB`
+- result file: `results/20261103-165032-adhoc-dsv41-chunk32k2-ab0-s65-00/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia a60292329 dirty=no 1102-1850 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000 arm env: INTARSIA_DSV41_CHUNK=512, engram hot 1024 MiB
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/chunk32k-2/.scratch/pilot.s65-00.jsonl` (3 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | 0.000 | 0.0 | 3 | 0 | 0 |
+| TTFT (s) | 109.7 | 1.0 | 3 | 0 | 0 |
+| Prefill (tok/s) | 584.6 | 1.0 | 3 | 0 | 0 |
+| Decode (tok/s) | 70.6 | 1.0 | 3 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| hop3-L2-65k-000 | no | 0.0 | 110.24 | 63.9 | The document states: "Release ledger: the release nicknamed … |
+| agg_sum-L2-65k-000 | no | 0.0 | 110.49 | 73.8 | Pelcor cluster shards: NC-1319-XW holds 119 units; WK-3560-C… |
+| repo_sum-L2-65k-000 | no | 0.0 | 108.49 | 74.1 | SLOT_BYTES = 8192 (crates/intarsia-engram/src/store.rs) GROU… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261103-165032-adhoc-dsv41-chunk32k2-ab0-s65-00/result.json
+[localeval] logged to unanimis: 746c88e8-0e60-49d3-9846-5370297a8f46
+dsv41: spec 89 tokens in 21 rounds (4.24 a round), 67/74 drafts accepted (91 %), by position 20/21 18/19 15/17 14/14
+dsv41: spec 93 tokens in 22 rounds (4.23 a round), 71/80 drafts accepted (89 %), by position 22/22 22/22 15/19 12/12
+dsv41: spec 147 tokens in 36 rounds (4.08 a round), 110/118 drafts accepted (93 %), by position 36/36 31/34 25/27 18/19
+dsv41: spec 106 tokens in 29 rounds (3.66 a round), 77/100 drafts accepted (77 %), by position 25/29 20/25 18/18 14/15
+dsv41: spec 99 tokens in 25 rounds (3.96 a round), 73/89 drafts accepted (82 %), by position 22/25 20/22 17/20 14/16
+dsv41: spec 142 tokens in 33 rounds (4.30 a round), 108/122 drafts accepted (89 %), by position 30/33 29/30 27/29 22/26
+dsv41: spec 85 tokens in 18 rounds (4.72 a round), 66/71 drafts accepted (93 %), by position 17/18 17/17 17/17 15/16
+dsv41: spec 86 tokens in 19 rounds (4.53 a round), 67/72 drafts accepted (93 %), by position 18/19 18/18 16/16 15/15
+dsv41: spec 73 tokens in 17 rounds (4.29 a round), 56/64 drafts accepted (88 %), by position 17/17 15/16 12/14 12/12
+dsv41: spec 82 tokens in 22 rounds (3.73 a round), 60/79 drafts accepted (76 %), by position 21/22 19/21 12/16 8/11
+dsv41: spec 91 tokens in 21 rounds (4.33 a round), 70/77 drafts accepted (91 %), by position 21/21 19/21 18/19 12/14
+dsv41: spec 84 tokens in 20 rounds (4.20 a round), 64/77 drafts accepted (83 %), by position 18/20 17/17 15/17 14/15
+spec total: 2815 tokens in 687 rounds = 4.098 a round; drafts accepted 2123/2467 = 86.1 %
+16:56:09 config ab0 done

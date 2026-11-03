@@ -1,0 +1,6 @@
+16:23:11 earlyoom on spark1: -m 2,1
+16:23:12 earlyoom on spark2: -m 2,1
+16:23:14 binary a60292329 dirty=no 1102-1850; out /opt/code/intarsiaml/.worktrees/chunk32k-2/.scratch/pilot-win
+16:23:18 vLLM stopped on both
+17:00:58 done
+17:00:58 restore (exit 0)

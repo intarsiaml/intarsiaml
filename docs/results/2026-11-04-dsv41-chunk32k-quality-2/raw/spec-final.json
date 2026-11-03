@@ -1,0 +1,133 @@
+{
+ "seed": "final",
+ "shard32": 25,
+ "shard65": 10,
+ "items": [
+  {
+   "kind": "hop2",
+   "level": 2,
+   "n": 8,
+   "k": 32
+  },
+  {
+   "kind": "hop2",
+   "level": 3,
+   "n": 22,
+   "k": 32
+  },
+  {
+   "kind": "hop3",
+   "level": 2,
+   "n": 8,
+   "k": 32
+  },
+  {
+   "kind": "hop3",
+   "level": 3,
+   "n": 22,
+   "k": 32
+  },
+  {
+   "kind": "agg_sum",
+   "level": 2,
+   "n": 6,
+   "k": 32
+  },
+  {
+   "kind": "agg_sum",
+   "level": 3,
+   "n": 12,
+   "k": 32
+  },
+  {
+   "kind": "agg_sum",
+   "level": 4,
+   "n": 12,
+   "k": 32
+  },
+  {
+   "kind": "agg_max",
+   "level": 2,
+   "n": 8,
+   "k": 32
+  },
+  {
+   "kind": "agg_max",
+   "level": 3,
+   "n": 22,
+   "k": 32
+  },
+  {
+   "kind": "repo_sum",
+   "level": 3,
+   "n": 10,
+   "k": 32
+  },
+  {
+   "kind": "repo_sum",
+   "level": 4,
+   "n": 20,
+   "k": 32
+  },
+  {
+   "kind": "hop2",
+   "level": 2,
+   "n": 2,
+   "k": 65
+  },
+  {
+   "kind": "hop2",
+   "level": 3,
+   "n": 4,
+   "k": 65
+  },
+  {
+   "kind": "hop3",
+   "level": 2,
+   "n": 2,
+   "k": 65
+  },
+  {
+   "kind": "hop3",
+   "level": 3,
+   "n": 4,
+   "k": 65
+  },
+  {
+   "kind": "agg_sum",
+   "level": 2,
+   "n": 2,
+   "k": 65
+  },
+  {
+   "kind": "agg_sum",
+   "level": 3,
+   "n": 4,
+   "k": 65
+  },
+  {
+   "kind": "agg_max",
+   "level": 2,
+   "n": 2,
+   "k": 65
+  },
+  {
+   "kind": "agg_max",
+   "level": 3,
+   "n": 4,
+   "k": 65
+  },
+  {
+   "kind": "repo_sum",
+   "level": 3,
+   "n": 2,
+   "k": 65
+  },
+  {
+   "kind": "repo_sum",
+   "level": 4,
+   "n": 4,
+   "k": 65
+  }
+ ]
+}
