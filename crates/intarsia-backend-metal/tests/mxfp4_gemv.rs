@@ -67,7 +67,8 @@ fn run_at(be: &MetalBackend, x: &Buffer, x_off: usize, w: &Buffer, sc: &Buffer, 
             t(&ab, DType::F32, &[1]),
         ],
         vec![t(&yb, if f32_out { DType::F32 } else { DType::Bf16 }, &[m, n])],
-        OpAttrs::default(),
+        // the model sets the W4A16 marker when the activations are not quantised: such calls take the fused GEMV (x read directly)
+        OpAttrs { mxfp4_w4a16: act == 0.0, ..OpAttrs::default() },
     );
     let need = be.kernels().iter().find(|q| q.name == GEMV).unwrap().scratch_bytes(&ShapeInfo::from_call(&cl));
     let sb = be.alloc(need + 8, MemKind::Device).unwrap();
@@ -90,7 +91,7 @@ const CASES: &[(usize, usize, usize, bool, f32)] = &[
     (3, 130, 1024, true, 0.0),
     (8, 70, 544, false, 0.0),
     (13, 64, 5120, false, 0.0),
-    // W4A4: the activations QDQ'd per group of 32 (in the lane when the GEMV reads x itself, else by the pre-pass)
+    // W4A4: the activations QDQ'd per group of 32 by the pre-pass
     (1, 130, 544, false, 1.0),
     (1, 515, 5120, true, 1.0),
     (3, 130, 1024, false, 1.0),

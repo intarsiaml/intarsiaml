@@ -45,8 +45,8 @@ pub fn nax_enabled() -> bool {
     *ON.get_or_init(|| std::env::var("INTARSIA_METAL_MXFP4_NAX").map_or(true, |v| v != "0"))
 }
 
-/// `INTARSIA_METAL_MXFP4_XFUSE=0` keeps the activation pre-pass dispatch before every GEMV (the GEMV then reads the QDQ'd copy, as before the fusion;
-/// bitwise the same result).
+/// `INTARSIA_METAL_MXFP4_XFUSE=0` keeps the activation pre-pass dispatch before every GEMV (the GEMV then reads the copy, as before the fusion;
+/// bitwise the same result). The fusion is for W4A16 calls only (`OpAttrs::mxfp4_w4a16`): a QDQ in every output row's simdgroup measured 1.9x to 3.4x slower.
 pub fn xfuse_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var("INTARSIA_METAL_MXFP4_XFUSE").map_or(true, |v| v != "0"))
@@ -153,8 +153,8 @@ impl MetalBackend {
         let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
         let pso_g = self.pso(gemv).ok_or_else(|| Error::backend(format!("metal: no pipeline '{gemv}'")))?;
         let px = OpP { dims: [u32_of(m, "M")?, u32_of(n, "N")?, u32_of(k, "K")?, 0, 0, 0, 0, 0], skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
-        // the GEMV reads x itself (QDQ in the lane) when x is 16-byte aligned: no pre-pass dispatch
-        let fused = xfuse_enabled() && xb.skip == 0 && xb.off % 16 == 0;
+        // a W4A16 call (act is 0, the pre-pass is a copy) with 16-byte aligned x: the GEMV reads x itself, no pre-pass dispatch
+        let fused = xfuse_enabled() && call.attrs.mxfp4_w4a16 && xb.skip == 0 && xb.off % 16 == 0;
         let mut pg = OpP { skips: [sb.skip, ob.skip, 0, 0, 0], ..px };
         pg.dims[3] = fused as u32;
         let groups = m * (k / 32);
@@ -183,10 +183,9 @@ impl MetalBackend {
                 }
             }
             set_bytes(enc, &pg, 4);
-            // SAFETY: as above; x and act are the call's own inputs (the GEMV reads them when `fused`, else never touches them).
+            // SAFETY: as above; x is the call's own input (the GEMV reads it when `fused`, else never touches it).
             unsafe {
                 enc.setBuffer_offset_atIndex(Some(&xb.mtl), xb.off, 5);
-                enc.setBuffer_offset_atIndex(Some(&ab.mtl), ab.off, 6);
             }
             enc.dispatchThreadgroups_threadsPerThreadgroup(
                 MTLSize { width: n.div_ceil(ROWS_PER_TG), height: m_blocks, depth: 1 },

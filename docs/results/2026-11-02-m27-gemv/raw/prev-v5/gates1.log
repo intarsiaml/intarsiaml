@@ -1,0 +1,15 @@
+fleetq: #8078 running on endor: zsh docs/results/2026-11-02-m27-gemv/raw/scripts/gates1.sh docs/results/2026-11-02-m27-gemv/raw /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v5 /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-main /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-main
+plan show Qwen3.6-35B-A3B-NVFP4 : identical
+plan show Qwen3.6-35B-A3B-NVFP4 --json: identical
+plan show Qwen3-8B : identical
+plan show Qwen3-8B --json: identical
+accuracy exit 0
+mtp p1: k2 == off
+mtp p2: k2 == off
+identity short: base == final-hs1
+identity short: base == final-hs1-nofuse
+identity short: base == final
+identity 4k: base == final-hs1
+identity 4k: base == final-hs1-nofuse
+identity 4k: base == final
+fleetq: #8078 done (exit 0)

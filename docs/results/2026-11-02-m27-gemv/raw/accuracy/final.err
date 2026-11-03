@@ -1,6 +1,6 @@
 --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
 prefill chunk 2048 (recipe qwen3_5_vl, metal)
-mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
 --mtp-draft-vocab 65536 (recipe qwen3_5_vl, metal; --mtp-draft-vocab 0 drafts with the full head)
 quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (opt-in --mxfp4-act): a deviation from the declared scheme and from a reference that runs it
 mxfp4 activations: none (--mxfp4-act)

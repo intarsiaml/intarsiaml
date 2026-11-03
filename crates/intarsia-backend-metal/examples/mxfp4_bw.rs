@@ -5,6 +5,7 @@
 //!   cargo run --release -p intarsia-backend-metal --example mxfp4_bw            all shapes
 //!   MXFP4_BW_SHAPE=17408x5120 ... mxfp4_bw                                      one shape (NxK)
 //!   MXFP4_BW_M=4                                                                 activation rows (default 1)
+//!   MXFP4_BW_ACT=1                                                               W4A4 (activations QDQ'd per group of 32; default 0 = W4A16)
 //!
 //! Run it inside a fleetq slot (`fleetq run --host endor --quiet gpu,cpu --mem 8 ...`).
 
@@ -62,7 +63,8 @@ fn main() {
         let ss: Vec<_> = (0..pool).map(|i| fill(sbytes, 400 + i as u64, &|b| 119 + b % 12)).collect();
         let x = fill(m * k * 2, 7, &|b| b & 0x3f | 0x3c);
         let act = be.alloc(16, MemKind::Device).unwrap();
-        be.upload(&act, 0, &0f32.to_le_bytes(), 0).unwrap();
+        let actv: f32 = std::env::var("MXFP4_BW_ACT").ok().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+        be.upload(&act, 0, &actv.to_le_bytes(), 0).unwrap();
         let y = be.alloc(m * n * 2 + 16, MemKind::Device).unwrap();
         let calls: Vec<OpCall> = (0..pool)
             .map(|i| {
@@ -70,7 +72,8 @@ fn main() {
                     Op::MatmulMxfp4,
                     vec![t(&x, DType::Bf16, &[m, k]), t(&ws[i], DType::U8, &[n, k / 2]), t(&ss[i], DType::U8, &[n, k / 32]), t(&act, DType::F32, &[1])],
                     vec![t(&y, DType::Bf16, &[m, n])],
-                    OpAttrs::default(),
+                    // the model marks a W4A16 call (act 0); such calls take the fused GEMV
+                    OpAttrs { mxfp4_w4a16: actv == 0.0, ..OpAttrs::default() },
                 );
                 let need = be.kernels().iter().find(|q| q.name == kernel).unwrap().scratch_bytes(&ShapeInfo::from_call(&c));
                 let sb = be.alloc(need + 8, MemKind::Device).unwrap();

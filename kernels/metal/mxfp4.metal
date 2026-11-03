@@ -6,8 +6,9 @@
 //                       rule "even", crates/intarsia-core/src/quant/mxfp4.rs)
 // Two dispatches per launch (one when the GEMV reads x itself, see `fused`):
 //   mxfp4_xprep_bf16       xs[M, K] (bf16 scratch) = act ? QDQ(x) : x, one thread per 32-element group. The QDQ result
-//                          (e2m1 * 2^e) is exact in bf16. Skipped when x is 16-byte aligned (OpP d = 1, "fused"): the GEMV then
-//                          loads x (buffer 5) and QDQs a group in the lane that owns it when act (buffer 6) says so.
+//                          (e2m1 * 2^e) is exact in bf16. Skipped for W4A16 calls (OpAttrs::mxfp4_w4a16, act is 0) with 16-byte
+//                          aligned x (OpP d = 1, "fused"): the GEMV then loads x (buffer 5) itself. W4A4 keeps the pre-pass: a
+//                          QDQ in every output row's simdgroup repeats each group's QDQ N times (measured 1.9x to 3.4x slower).
 //   mxfp4_gemv_bf16/_f32   one simdgroup per output row n, a lane per 32-element group (16 weight bytes + 1 scale byte +
 //                          32 activations per lane-iteration), MB activation rows per threadgroup row of the grid.
 //                          _m1 serves M == 1, _m8 any M (8 rows per grid row). Fixed reduction order: deterministic.
@@ -106,17 +107,14 @@ constant uint MX_SG = 4;  // simdgroups (= output rows) per threadgroup
 // consumed word by word, so the live state stays small); same products in the same order as `mxfp4_gemv_impl`.
 template <typename OutT>
 inline void mxfp4_gemv1_impl(device const ushort* xs, device const uchar* w, device const uchar* sc, device OutT* out,
-                             constant OpP& p, device const ushort* x, device const float* act, uint2 tg, uint sg, uint lane) {
+                             constant OpP& p, device const ushort* x, uint2 tg, uint sg, uint lane) {
     const ulong n = (ulong)tg.x * MX_SG + sg;
     if (n >= p.b) return;  // whole simdgroup exits together
     const uint ng = p.c / 32;
     device const packed_uint4* wr = (device const packed_uint4*)(w + n * (p.c / 2));
     device const uchar* sr = sc + p.s0 + n * ng;
-    // fused (p.d == 1): the activations come straight from x, QDQ'd in the lane when act says so (the pre-pass's result, bit for bit:
-    // a lane's group is the QDQ group); else from the pre-pass scratch xs
-    const bool fused = p.d == 1u;
-    const bool qdq = fused && act[0] != 0.f;
-    device const ushort* xsrc = fused ? x : xs;
+    // fused (p.d == 1, W4A16 only): the activations come straight from x (the pre-pass would copy them); else from the pre-pass scratch xs
+    device const ushort* xsrc = p.d == 1u ? x : xs;
     float acc = 0.f;
     for (uint u = lane; u < ng; u += 32) {
         const uint4 wv = uint4(wr[u]);
@@ -130,7 +128,6 @@ inline void mxfp4_gemv1_impl(device const ushort* xs, device const uchar* w, dev
                 xf[q * 8 + 2 * j + 1] = as_type<float>(xv[j] & 0xFFFF0000u);
             }
         }
-        if (qdq) mx_qdq32(xf);
         float t = 0.f;
         for (int q = 0; q < 4; ++q) {
             float wf[8];
@@ -146,7 +143,7 @@ inline void mxfp4_gemv1_impl(device const ushort* xs, device const uchar* w, dev
 // M > 1: MB activation rows per grid row; each weight group is decoded once and applied to every row.
 template <int MB, typename OutT>
 inline void mxfp4_gemv_impl(device const ushort* xs, device const uchar* w, device const uchar* sc, device OutT* out,
-                            constant OpP& p, device const ushort* x, device const float* act, uint2 tg, uint sg, uint lane) {
+                            constant OpP& p, device const ushort* x, uint2 tg, uint sg, uint lane) {
     const ulong n = (ulong)tg.x * MX_SG + sg;
     if (n >= p.b) return;  // whole simdgroup exits together
     const uint M = p.a, K = p.c;
@@ -154,9 +151,7 @@ inline void mxfp4_gemv_impl(device const ushort* xs, device const uchar* w, devi
     const uint ng = K / 32;
     device const packed_uint4* wr = (device const packed_uint4*)(w + n * (K / 2));
     device const uchar* sr = sc + p.s0 + n * ng;
-    const bool fused = p.d == 1u;  // see mxfp4_gemv1_impl
-    const bool qdq = fused && act[0] != 0.f;
-    device const ushort* xsrc = fused ? x : xs;
+    device const ushort* xsrc = p.d == 1u ? x : xs;  // see mxfp4_gemv1_impl
     float acc[MB];
     for (int m = 0; m < MB; ++m) acc[m] = 0.f;
     for (uint u = lane; u < ng; u += 32) {
@@ -169,25 +164,12 @@ inline void mxfp4_gemv_impl(device const ushort* xs, device const uchar* w, devi
             // 32 bf16 of the activation row as four 16-byte loads (xsrc is 16-byte aligned, K % 32 == 0)
             device const uint4* xp = (device const uint4*)(xsrc + (ulong)(m0 + m) * K + (ulong)u * 32);
             float t = 0.f;
-            if (qdq) {
-                float xf[32];
-                for (int q = 0; q < 4; ++q) {
-                    const uint4 xv = xp[q];
-                    for (int j = 0; j < 4; ++j) {
-                        xf[q * 8 + 2 * j] = as_type<float>(xv[j] << 16);
-                        xf[q * 8 + 2 * j + 1] = as_type<float>(xv[j] & 0xFFFF0000u);
-                    }
-                }
-                mx_qdq32(xf);
-                for (int e = 0; e < 32; ++e) t = fma(wf[e], xf[e], t);
-            } else {
-                for (int q = 0; q < 4; ++q) {
-                    const uint4 xv = xp[q];
-                    for (int j = 0; j < 4; ++j) {
-                        const uint pr = xv[j];
-                        t = fma(wf[q * 8 + 2 * j], as_type<float>(pr << 16), t);
-                        t = fma(wf[q * 8 + 2 * j + 1], as_type<float>(pr & 0xFFFF0000u), t);
-                    }
+            for (int q = 0; q < 4; ++q) {
+                const uint4 xv = xp[q];
+                for (int j = 0; j < 4; ++j) {
+                    const uint pr = xv[j];
+                    t = fma(wf[q * 8 + 2 * j], as_type<float>(pr << 16), t);
+                    t = fma(wf[q * 8 + 2 * j + 1], as_type<float>(pr & 0xFFFF0000u), t);
                 }
             }
             acc[m] = fma(t * MX_FOLD, s, acc[m]);
@@ -204,9 +186,8 @@ inline void mxfp4_gemv_impl(device const ushort* xs, device const uchar* w, devi
     kernel void NAME(device const ushort* xs [[buffer(0)]], device const uchar* w [[buffer(1)]],                    \
                      device const uchar* sc [[buffer(2)]], device OUT* out [[buffer(3)]],                           \
                      constant OpP& p [[buffer(4)]], device const ushort* x [[buffer(5)]],                            \
-                     device const float* act [[buffer(6)]], uint2 tg [[threadgroup_position_in_grid]],              \
-                     uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
-        IMPL(xs, w, sc, out, p, x, act, tg, sg, lane);                                                              \
+                     uint2 tg [[threadgroup_position_in_grid]], uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
+        IMPL(xs, w, sc, out, p, x, tg, sg, lane);                                                                   \
     }
 
 MX_GEMV(mxfp4_gemv_bf16_m1, mxfp4_gemv1_impl<ushort>, ushort)

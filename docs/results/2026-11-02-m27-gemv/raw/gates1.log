@@ -1,4 +1,4 @@
-fleetq: #8078 running on endor: zsh docs/results/2026-11-02-m27-gemv/raw/scripts/gates1.sh docs/results/2026-11-02-m27-gemv/raw /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v5 /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-main /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-main
+fleetq: #8105 running on endor: zsh docs/results/2026-11-02-m27-gemv/raw/scripts/gates1.sh docs/results/2026-11-02-m27-gemv/raw /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v7 /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-main /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-main
 plan show Qwen3.6-35B-A3B-NVFP4 : identical
 plan show Qwen3.6-35B-A3B-NVFP4 --json: identical
 plan show Qwen3-8B : identical
@@ -12,4 +12,4 @@ identity short: base == final
 identity 4k: base == final-hs1
 identity 4k: base == final-hs1-nofuse
 identity 4k: base == final
-fleetq: #8078 done (exit 0)
+fleetq: #8105 done (exit 0)
