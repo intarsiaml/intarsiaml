@@ -70,13 +70,19 @@ pids() {
 }
 # timeline: elapsed ms since $TF, /health code, both PIDs; ends when both are gone or after $1 s
 observe() { # <name> <seconds>
-  local end=$(( $(date +%s) + $2 )) h a0 a1
+  local end=$(( $(date +%s) + $2 )) h a0 a1 snapped=
   : > "$OUT/$1.timeline"
   while (( $(date +%s) < end )); do
     h=$(curl -s -m 2 -o /dev/null -w '%{http_code}' "$SURL/health" 2>/dev/null); [[ -n $h ]] || h=000
     a0=$(r spark1 "kill -0 ${P0:-0} 2>/dev/null && echo up || echo gone")
     a1=$(r spark2 "kill -0 ${P1:-0} 2>/dev/null && echo up || echo gone")
     echo "$(( $(now_ms) - TF )) ms health=$h rank0=$a0 rank1=$a1" >> "$OUT/$1.timeline"
+    # once, 25 s after the fault: what every thread of a surviving rank is doing (name, state, kernel wait channel)
+    if [[ -z $snapped ]] && (( $(now_ms) - TF > 25000 )); then
+      snapped=1
+      [[ $a0 == up ]] && r spark1 "for t in /proc/${P0:-0}/task/*; do echo \"\$(cat \$t/comm) \$(awk '{print \$3}' \$t/stat) \$(cat \$t/wchan 2>/dev/null)\"; done" > "$OUT/$1.threads0" 2>&1
+      [[ $a1 == up ]] && r spark2 "for t in /proc/${P1:-0}/task/*; do echo \"\$(cat \$t/comm) \$(awk '{print \$3}' \$t/stat) \$(cat \$t/wchan 2>/dev/null)\"; done" > "$OUT/$1.threads1" 2>&1
+    fi
     [[ $a0 == gone && $a1 == gone ]] && break
     sleep 0.3
   done

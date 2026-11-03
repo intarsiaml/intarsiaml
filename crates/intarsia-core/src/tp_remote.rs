@@ -163,6 +163,31 @@ pub struct RemotePeer {
     replies: Mutex<Receiver<Reply>>,
     next_sid: AtomicU64,
     dead: Arc<AtomicBool>,
+    lost: Arc<Mutex<Lost>>,
+}
+
+/// Why the group is gone, as the reader thread saw it, and whom to tell: the engine thread may sit in a kernel that never
+/// returns (the remote rank died mid-pass), so it cannot be the one to report the failure.
+#[derive(Default)]
+struct Lost {
+    why: Option<String>,
+    hook: Option<Box<dyn FnOnce(String) + Send>>,
+}
+
+impl Lost {
+    fn set(this: &Mutex<Lost>, why: String) {
+        let hook = {
+            let mut l = this.lock().unwrap_or_else(|e| e.into_inner());
+            if l.why.is_some() {
+                return;
+            }
+            l.why = Some(why.clone());
+            l.hook.take()
+        };
+        if let Some(h) = hook {
+            h(why);
+        }
+    }
 }
 
 impl RemotePeer {
@@ -174,6 +199,8 @@ impl RemotePeer {
         let (tx, rx) = channel();
         let dead = Arc::new(AtomicBool::new(false));
         let d2 = dead.clone();
+        let lost = Arc::new(Mutex::new(Lost::default()));
+        let l2 = lost.clone();
         std::thread::Builder::new()
             .name("tp-remote-reader".into())
             .spawn(move || loop {
@@ -185,6 +212,7 @@ impl RemotePeer {
                         let msg = String::from_utf8_lossy(&b[9..]).into_owned();
                         // a rejected acknowledgement changed nothing on the remote rank: the group stays usable
                         if if ack { status >= ACK_FAILED } else { status != 1 } {
+                            Lost::set(&l2, format!("the remote tensor-parallel rank reported a failure: {msg}"));
                             comm.abort();
                         }
                         if tx.send(Reply { ack, status, len, msg }).is_err() {
@@ -193,13 +221,28 @@ impl RemotePeer {
                     }
                     _ => {
                         d2.store(true, Ordering::SeqCst);
+                        Lost::set(&l2, "the connection to the remote tensor-parallel rank was lost".to_string());
                         comm.abort();
                         return;
                     }
                 }
             })
             .map_err(|e| Error::backend(format!("spawning the tensor-parallel reader: {e}")))?;
-        Ok(Arc::new(RemotePeer { w: Mutex::new(BufWriter::new(stream)), replies: Mutex::new(rx), next_sid: AtomicU64::new(1), dead }))
+        Ok(Arc::new(RemotePeer { w: Mutex::new(BufWriter::new(stream)), replies: Mutex::new(rx), next_sid: AtomicU64::new(1), dead, lost }))
+    }
+
+    /// Call `hook` with the reason once the remote rank reports a failure or the connection drops (at once if that has
+    /// happened already). It runs on the reader thread, before the communicator is aborted.
+    pub fn on_lost(&self, hook: impl FnOnce(String) + Send + 'static) {
+        let known = {
+            let mut l = self.lost.lock().unwrap_or_else(|e| e.into_inner());
+            if l.why.is_none() {
+                l.hook = Some(Box::new(hook));
+                return;
+            }
+            l.why.clone().unwrap()
+        };
+        hook(known);
     }
 
     fn send(&self, tag: u8, body: &[u8]) -> Result<()> {
@@ -772,5 +815,63 @@ mod serve_tests {
         assert_eq!(forward(&mut s, &[1]).0, 1);
         drop(s);
         assert_eq!(t.join().unwrap().unwrap(), 1);
+    }
+
+    /// A communicator that only counts aborts.
+    struct AbortCount(std::sync::atomic::AtomicUsize);
+    impl Comm for AbortCount {
+        fn name(&self) -> &str {
+            "abort-count"
+        }
+        fn rank(&self) -> usize {
+            0
+        }
+        fn world(&self) -> usize {
+            2
+        }
+        fn all_reduce_sum(&self, _x: &crate::backend::TensorRef, _s: crate::backend::StreamId) -> Result<()> {
+            unreachable!()
+        }
+        fn all_reduce_sum_into(&self, _p: &crate::backend::TensorRef, _o: &crate::backend::TensorRef, _s: crate::backend::StreamId) -> Result<()> {
+            unreachable!()
+        }
+        fn all_gather(&self, _s: &crate::backend::TensorRef, _r: &crate::backend::TensorRef, _st: crate::backend::StreamId) -> Result<()> {
+            unreachable!()
+        }
+        fn abort(&self) {
+            self.0.fetch_add(1, Ordering::SeqCst);
+        }
+        fn stats(&self) -> crate::comm::CommStats {
+            crate::comm::CommStats::default()
+        }
+        fn note_timed(&self, _d: Duration) {}
+    }
+
+    /// The remote rank dying must reach the engine from the reader thread: the engine thread may be stuck in a kernel.
+    #[test]
+    fn a_lost_connection_reports_to_the_hook_before_the_abort_whether_installed_before_or_after() {
+        for late in [false, true] {
+            let l = TcpListener::bind("127.0.0.1:0").unwrap();
+            let addr = l.local_addr().unwrap();
+            let far = std::thread::spawn(move || l.accept().unwrap().0);
+            let near = TcpStream::connect(addr).unwrap();
+            let far = far.join().unwrap();
+            let comm = Arc::new(AbortCount(Default::default()));
+            let peer = RemotePeer::new(near, comm.clone()).unwrap();
+            let (tx, rx) = channel();
+            if !late {
+                let tx = tx.clone();
+                peer.on_lost(move |why| tx.send(why).unwrap());
+            }
+            drop(far);
+            if late {
+                std::thread::sleep(Duration::from_millis(300));
+                peer.on_lost(move |why| tx.send(why).unwrap());
+            }
+            let why = rx.recv_timeout(Duration::from_secs(5)).expect("the hook runs");
+            assert!(why.contains("connection"), "{why}");
+            std::thread::sleep(Duration::from_millis(200));
+            assert_eq!(comm.0.load(Ordering::SeqCst), 1, "the communicator is aborted once");
+        }
     }
 }

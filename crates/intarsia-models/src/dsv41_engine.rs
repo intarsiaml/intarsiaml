@@ -848,6 +848,15 @@ impl Dsv41Engine {
             SpecOpts { k, min_conf, trace: std::env::var("INTARSIA_DSV41_SPEC_TRACE").is_ok_and(|v| v == "1"), choose, round_ms, draft_ms }
         });
         let failed = Arc::new(Mutex::new(None));
+        if let Some(p) = &peer {
+            // the engine thread may sit in a kernel that never returns once the other rank is gone: the peer's reader thread
+            // marks the engine failed (health 503, then the server exits for a restart) without waiting for it
+            let f = failed.clone();
+            p.on_lost(move |why| {
+                eprintln!("dsv41: {why}; marking the engine failed");
+                f.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(format!("tensor-parallel group failed: {why}"));
+            });
+        }
         let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone() };
         // warm-up: one short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back
         let wt = Instant::now();
