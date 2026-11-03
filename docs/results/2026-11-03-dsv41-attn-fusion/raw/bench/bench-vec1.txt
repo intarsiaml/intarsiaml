@@ -1,0 +1,38 @@
+env ROPE_VEC=1 HC_VEC=1
+rope q T512 H32 hd512             hash 189f69bbe1474fb2    0.1445 ms  (232 GB/s)
+rope o^-1 T512 H32 hd512          hash fd6d93cb73a3fbee    0.1440 ms  (233 GB/s)
+rope q T2048 H32 hd512            hash d4f623fa81e8d3e5    0.6228 ms  (216 GB/s)
+rope o^-1 T2048 H32 hd512         hash 9df1d42d9769ab17    0.6231 ms  (215 GB/s)
+rope kv T512 H1 hd512             hash 8e81ed57d3f63bc6    0.0040 ms  (259 GB/s)
+rope idx_q T512 H64 hd128         hash f5ef196e04ccd3db    0.0134 ms  (1248 GB/s)
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f    0.0034 ms  (76 GB/s)
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401    0.0123 ms  (335 GB/s)
+rope T500 H32 hd512 pos 40000     hash 84e0e400194fa31e    0.1233 ms  (266 GB/s)
+attn CSA T512 Nc1024 Kw512      hash 4ee9a847ca24437f    1.5990 ms
+attn CSA T2048 Nc1024 Kw512     hash aa254a578fedfa25    6.1966 ms
+attn HCA T512 Nc32 Kw32         hash 90ad1d7fcca0b866    0.4061 ms
+attn CSA T37 Nc1024 Kw512       hash 21b89af74c9af5a2    0.1331 ms
+hc S=4 D=5120  T=512   sep    h c9fb8596ee774800 n 0ddb821029531419 pre a4920ac2e59aecfd post 23c6f788173d32d6 comb 61ab3af6f7694982
+hc S=4 D=5120  T=512   fold   h c9fb8596ee774800 n 0ddb821029531419 pre a4920ac2e59aecfd post 23c6f788173d32d6 comb 61ab3af6f7694982
+hc S=4 D=5120  T=512   time ms: sep (post+unfolded) 0.6332 = post 0.2251 + unfolded 0.4168 | fold 0.8900
+hc S=4 D=5120  T=2048  sep    h 40d1f7146d5f526a n f7ab938a0e522277 pre 5df385db17b175cd post 974f9d116c3888cb comb e7ab3aa9fd0e702b
+hc S=4 D=5120  T=2048  fold   h 40d1f7146d5f526a n f7ab938a0e522277 pre 5df385db17b175cd post 974f9d116c3888cb comb e7ab3aa9fd0e702b
+hc S=4 D=5120  T=2048  time ms: sep (post+unfolded) 2.3270 = post 0.8879 + unfolded 1.4483 | fold 2.8459
+hc S=4 D=5120  T=11    sep    h 97e878a056034ab2 n 11a4a3ce4899f09c pre d4dabfc0ca2bc7e3 post 930b3f0e730ee242 comb eebd557c48961985
+hc S=4 D=5120  T=11    fold   h 97e878a056034ab2 n 11a4a3ce4899f09c pre d4dabfc0ca2bc7e3 post 930b3f0e730ee242 comb eebd557c48961985
+hc S=4 D=5120  T=11    time ms: sep (post+unfolded) 0.0348 = post 0.0061 + unfolded 0.0287 | fold 0.0478
+hc S=4 D=5120  T=37    sep    h bd053a90c9e2aae0 n 3f00afdb65eba7e6 pre 9be2f226b8719bdc post c83af49ce2eb8f0e comb eafc467613a03693
+hc S=4 D=5120  T=37    fold   h bd053a90c9e2aae0 n 3f00afdb65eba7e6 pre 9be2f226b8719bdc post c83af49ce2eb8f0e comb eafc467613a03693
+hc S=4 D=5120  T=37    time ms: sep (post+unfolded) 0.0697 = post 0.0103 + unfolded 0.0593 | fold 0.1086
+hc S=3 D=2048  T=70    sep    h dfbe57dbef57b006 n 2c0bf47c3e9ec7ef pre cacde441b1dc663a post 44bdf3eed8875847 comb 51794b791bb9a8bc
+hc S=3 D=2048  T=70    fold   h dfbe57dbef57b006 n 2c0bf47c3e9ec7ef pre cacde441b1dc663a post 44bdf3eed8875847 comb 51794b791bb9a8bc
+hc S=3 D=2048  T=70    time ms: sep (post+unfolded) 0.0346 = post 0.0082 + unfolded 0.0263 | fold 0.0407
+hc S=2 D=2048  T=70    sep    h 4f18043a98f084c0 n e520d898b25e2452 pre 2e98d7fc23139d6a post 718141ca0a015583 comb c5896b7140ebaf32
+hc S=2 D=2048  T=70    fold   h 4f18043a98f084c0 n e520d898b25e2452 pre 2e98d7fc23139d6a post 718141ca0a015583 comb c5896b7140ebaf32
+hc S=2 D=2048  T=70    time ms: sep (post+unfolded) 0.0267 = post 0.0062 + unfolded 0.0204 | fold 0.0268
+hc S=1 D=2048  T=33    sep    h cd0f543cfdc40f38 n 5420686656ba588c pre e63db8d09aca3a85 post 74552f1072b7ba3b comb d09cd0b91eb8c068
+hc S=1 D=2048  T=33    fold   h cd0f543cfdc40f38 n 5420686656ba588c pre e63db8d09aca3a85 post 74552f1072b7ba3b comb d09cd0b91eb8c068
+hc S=1 D=2048  T=33    time ms: sep (post+unfolded) 0.0164 = post 0.0040 + unfolded 0.0122 | fold 0.0123
+hc S=4 D=5000  T=70    sep    h 7b0186eceb5e5bf5 n ae43ae84e8b1af39 pre 878d022523eb6331 post 1d3094096d4bb956 comb 71ceb6aa2f328cec
+hc S=4 D=5000  T=70    fold   h 7b0186eceb5e5bf5 n ae43ae84e8b1af39 pre 878d022523eb6331 post 1d3094096d4bb956 comb 71ceb6aa2f328cec
+hc S=4 D=5000  T=70    time ms: sep (post+unfolded) 0.1146 = post 0.0164 + unfolded 0.0983 | fold 0.1270
