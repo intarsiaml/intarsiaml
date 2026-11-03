@@ -1,0 +1,49 @@
+     24     0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+      3 ptxas info    : Used 57 registers, used 1 barriers, 16384 bytes smem
+      3 ptxas info    : Used 21 registers, used 0 barriers
+      2 ptxas info    : Used 26 registers, used 1 barriers, 28672 bytes smem
+      2 ptxas info    : Used 255 registers, used 1 barriers, 32896 bytes smem
+      2 ptxas info    : Used 255 registers, used 1 barriers, 144 bytes cumulative stack size, 32896 bytes smem
+      2 ptxas info    : Used 14 registers, used 0 barriers
+      1 ptxas info    : Used 50 registers, used 0 barriers
+      1 ptxas info    : Used 255 registers, used 1 barriers, 88 bytes cumulative stack size, 32896 bytes smem
+      1 ptxas info    : Used 255 registers, used 1 barriers, 3016 bytes cumulative stack size, 32896 bytes smem
+      1 ptxas info    : Used 255 registers, used 1 barriers, 16 bytes cumulative stack size, 32896 bytes smem
+      1 ptxas info    : Used 255 registers, used 1 barriers, 16640 bytes smem
+R=2048 sigma=0.50 pairs=14336; routed members/expert mean 32.0 max 98; groups of 32: 629, of 64: 440 (shared expert 2048 members)
+arena 2.56 GB; gate+up bytes of all 385 experts 1.705 GB (3.00 bpw); at 254 GB/s the DRAM floor of gate/up is 6.71 ms, of all three 10.07 ms
+stream read of the arena: 2.56 GB in 11.43 ms = 224 GB/s (the practical DRAM floor rate)
+base shape via v2 (G2 NTW8 CS1), minB 1            bitwise vs base: yes (0 differ)
+base shape via v2, minB 3                          bitwise vs base: yes (0 differ)
+G2 NTW4 CS2 minB 2 (<=128 regs)                    bitwise vs base: yes (0 differ)
+G4 NTW2 CS2 minB 2 (<=128 regs)                    bitwise vs base: yes (0 differ)
+G4 NTW1 CS4 minB 1 (512 thr)                       bitwise vs base: yes (0 differ)
+G2 NTW4 CS2 (256 thr, 32 rows x 128 cols)          bitwise vs base: yes (0 differ)
+G2 NTW2 CS2 (256 thr, 32 rows x 64 cols)           bitwise vs base: yes (0 differ)
+G4 NTW2 CS2 (256 thr, 64 rows x 64 cols)           bitwise vs base: yes (0 differ)
+G4 NTW2 CS2 PF1                                    bitwise vs base: yes (0 differ)
+G3 NTW2 CS2 (256 thr, 48 rows x 64 cols)           bitwise vs base: yes (0 differ)
+G4 NTW1 CS4 (512 thr, 64 rows x 64 cols)           bitwise vs base: yes (0 differ)
+G2 NTW1 CS4 (512 thr, 32 rows x 64 cols)           bitwise vs base: yes (0 differ)
+G1 NTW2 CS2 (256 thr, 16 rows x 64 cols)           bitwise vs base: yes (0 differ)
+base (repo launch_rows, G2 NT8 W4, 128 thr)        min  21.459  median  21.678 ms  (x1.00 of base)
+base shape via v2 (G2 NTW8 CS1), minB 1            min  19.399  median  21.208 ms  (x0.98 of base)
+base shape via v2, minB 3                          min  39.563  median  40.275 ms  (x1.86 of base)
+G2 NTW4 CS2 minB 2 (<=128 regs)                    min  20.333  median  20.667 ms  (x0.95 of base)
+G4 NTW2 CS2 minB 2 (<=128 regs)                    min  81.215  median  83.183 ms  (x3.84 of base)
+G4 NTW1 CS4 minB 1 (512 thr)                       min  68.394  median  70.035 ms  (x3.23 of base)
+G2 NTW4 CS2 (256 thr, 32 rows x 128 cols)          min  19.316  median  19.729 ms  (x0.91 of base)
+G2 NTW2 CS2 (256 thr, 32 rows x 64 cols)           min  27.790  median  29.037 ms  (x1.34 of base)
+G4 NTW2 CS2 (256 thr, 64 rows x 64 cols)           min  24.924  median  25.209 ms  (x1.16 of base)
+G4 NTW2 CS2 PF1                                    min  22.213  median  22.577 ms  (x1.04 of base)
+G3 NTW2 CS2 (256 thr, 48 rows x 64 cols)           min  24.421  median  24.732 ms  (x1.14 of base)
+G4 NTW1 CS4 (512 thr, 64 rows x 64 cols)           min  67.265  median  68.847 ms  (x3.18 of base)
+G2 NTW1 CS4 (512 thr, 32 rows x 64 cols)           min  27.265  median  28.333 ms  (x1.31 of base)
+G1 NTW2 CS2 (256 thr, 16 rows x 64 cols)           min  36.626  median  37.371 ms  (x1.72 of base)
+KO base-shape no A loads                           min  11.596  median  12.173 ms  (x0.56 of base)
+KO base-shape no decode                            min  18.226  median  18.336 ms  (x0.85 of base)
+KO base-shape no mma                               min  13.033  median  13.564 ms  (x0.63 of base)
+KO base-shape no A, no decode                      min  10.822  median  11.527 ms  (x0.53 of base)
+KO G4 NTW2 CS2 no decode                           min  23.817  median  24.578 ms  (x1.13 of base)
+KO G4 NTW2 CS2 no A                                min  16.308  median  16.415 ms  (x0.76 of base)
+KO G4 NTW2 CS2 no mma                              min  21.204  median  22.262 ms  (x1.03 of base)

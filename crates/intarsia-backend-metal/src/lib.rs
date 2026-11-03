@@ -37,7 +37,7 @@ pub mod kernels;
 pub mod multirow;
 mod moe;
 pub mod fp8;
-mod mxfp4;
+pub mod mxfp4;
 pub mod nvfp4;
 mod rowtab;
 pub mod profile;
@@ -1045,8 +1045,8 @@ impl MetalBackend {
         if kernel == kernels::ATTN_PREFILL_BF16_SPLITKV_ROWS && call.op == Op::AttnPrefill {
             return self.launch_attn_rows(call);
         }
-        if kernel == mxfp4::MATMUL_MXFP4_GEMV && call.op == Op::MatmulMxfp4 {
-            return self.launch_mxfp4(call);
+        if matches!(kernel, mxfp4::MATMUL_MXFP4_GEMV | mxfp4::MATMUL_MXFP4_NAX) && call.op == Op::MatmulMxfp4 {
+            return self.launch_mxfp4(kernel, call);
         }
         if kernel == moe::MOE_TOPK_BF16 && call.op == Op::MoeTopk {
             return self.launch_moe_topk(call);

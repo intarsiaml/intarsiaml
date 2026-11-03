@@ -1,0 +1,51 @@
+fleetq: #8118 waiting (#4 in line): spark2 is held exclusively by #8096 "dsv41 moegate: prefill A/B window (old kernels / router R=8 / staged-A) x chunk 512, 2048; vLLM restored after" (claude-moegate); then in line behind #8098 "dsv41 rdma: ABAB decode by kind, RDMA off/on (vLLM restored by the script)" (claude-rdma) on spark2
+fleetq: #8118 waiting (#3 in line): in line behind #8109 "dsv41 moegate: gates window (golden 640 + 32K/65K longp, old kernels vs shipped defaults, chunk 512); vLLM restored after" (claude-moegate) on spark2
+fleetq: #8118 waiting (#2 in line): spark2 is held exclusively by #8109 "dsv41 moegate: gates window (golden 640 + 32K/65K longp, old kernels vs shipped defaults, chunk 512); vLLM restored after" (claude-moegate); then in line behind #8115 "dsv41 prefill: chunk-dependence 32K dumps at chunk 512/1024/2048 (CAP 33000; B2's 32K failed on the context limit); vLLM restored after" (claude-b7d2edb2) on spark2
+fleetq: #8118 waiting (#1 in line): #8115 "dsv41 prefill: chunk-dependence 32K dumps at chunk 512/1024/2048 (CAP 33000; B2's 32K failed on the context limit); vLLM restored after" (claude-b7d2edb2) needs cpu quiet on spark2, and this job loads it
+fleetq: #8118 running on spark2: bash .scratch/cuda-build.sh
+=== build head f2690aa76d1aaccf0384d15acbe295e1de1c8bf6 21:54:26
+deploy: spark2 (cuda) <- f2690aa76d1aaccf0384d15acbe295e1de1c8bf6 (LOG: m27-gemv row: real time, status PR pending)
+deploy: synced (3342 entries changed)
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 4m 01s
+repro-build: sha256 7c0b263d2e040b41eb912b50c74b74845238f26921161584d374bd111a0fde75  SOURCE_DATE_EPOCH=1793671874  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+
+=== reproducibility stamp (spark2:~/intarsia-deploy/m27-gemv-head/DEPLOY_STAMP.json) ===
+git        f2690aa76d1aaccf0384d15acbe295e1de1c8bf6  (f2690aa76d1aaccf0384d15acbe295e1de1c8bf6; tree c78abc18d06d)
+subject    LOG: m27-gemv row: real time, status PR pending
+backend    cuda
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock abad806a7bff1ddc  (built with --locked)
+cuda       Cuda compilation tools, release 13.0, V13.0.88
+gpu        n/a  compute -
+driver     n/a  (cuda toolkit -)
+host       n/a    
+binary     target/release/intarsia  sha256 7c0b263d2e040b41  148031112 bytes  
+smoke      skipped
+=== build main c269ded36 21:59:23
+deploy: spark2 (cuda) <- c269ded360ea47720819314193d901156e7bb6be (Merge pull request #281 from intarsiaml/dsv41/group)
+deploy: synced (3314 entries changed)
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 4m 00s
+repro-build: sha256 6bac670a5eb3e659f8fc8f203946c4a54d0748b7467a5c10d599a14ec456b7d5  SOURCE_DATE_EPOCH=1793668364  rustc=rustc 1.90.0 (1159e78c4 2025-09-14)
+
+=== reproducibility stamp (spark2:~/intarsia-deploy/m27-gemv-main/DEPLOY_STAMP.json) ===
+git        c269ded360ea47720819314193d901156e7bb6be  (c269ded36; tree bf274a24a438)
+subject    Merge pull request #281 from intarsiaml/dsv41/group
+backend    cuda
+rustc      rustc 1.90.0 (1159e78c4 2025-09-14)
+cargo      cargo 1.90.0 (840b83a10 2025-07-30)
+cargo.lock abad806a7bff1ddc  (built with --locked)
+cuda       Cuda compilation tools, release 13.0, V13.0.88
+gpu        n/a  compute -
+driver     n/a  (cuda toolkit -)
+host       n/a    
+binary     target/release/intarsia  sha256 6bac670a5eb3e659  148041208 bytes  
+smoke      skipped
+=== build done 22:04:17
+fleetq: #8118 done (exit 0)

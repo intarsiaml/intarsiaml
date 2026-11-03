@@ -1,0 +1,20 @@
+stamp: e80b230df dirty=no 1102-2030
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 01s
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-dsv41-moegate/src/crates/intarsia-backend-cuda)
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 14.30s
+total 615648
+drwxrwxr-x 2 nvidia nvidia      4096 Nov  2 19:35 .
+drwxrwxr-x 8 nvidia nvidia      4096 Nov  2 20:02 ..
+-rwxrwxr-x 1 nvidia nvidia 119726600 Nov  2 20:09 dsv41_dense
+-rwxrwxr-x 1 nvidia nvidia 128434976 Nov  2 20:36 dsv41_runtime
+-rwxrwxr-x 1 nvidia nvidia 120365160 Nov  2 20:09 exl3_moe
+-rwxrwxr-x 1 nvidia nvidia 143848608 Nov  2 20:36 intarsia
+-rwxrwxr-x 1 nvidia nvidia 118099688 Nov  2 20:36 nccl_bench
+-rw-rw-r-- 1 nvidia nvidia        29 Nov  2 20:36 STAMP
+spark1: e80b230df dirty=no 1102-2030
+0041e533a88e
+spark2: e80b230df dirty=no 1102-2030
+0041e533a88e

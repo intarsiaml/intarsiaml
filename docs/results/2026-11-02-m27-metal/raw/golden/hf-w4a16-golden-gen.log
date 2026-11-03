@@ -1,0 +1,23 @@
+fleetq: #7854 running on endor: /opt/code/intarsiaml/tools/.venv/bin/python -I tools/golden_quark_mxfp4.py --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --out .scratch/golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors --act none --quark-site /nonexistent
+[transformers] `causal_conv1d_fn` is falling back to its reference PyTorch implementation because `causal_conv1d` is not installed. This is correct but much slower; install `causal_conv1d` for the optimized kernel.
+[transformers] `chunk_gated_delta_rule` is falling back to its reference PyTorch implementation because `flash-linear-attention` is not installed. This is correct but much slower; install `flash-linear-attention` for the optimized kernel.
+layer 8/64  63s
+layer 16/64  129s
+layer 24/64  190s
+layer 32/64  250s
+layer 40/64  310s
+layer 48/64  370s
+layer 56/64  430s
+layer 64/64  489s
+[0] count               38 tokens  argmax_last=220
+[1] story               39 tokens  argmax_last=32577
+[2] code                87 tokens  argmax_last=262
+[3] science             79 tokens  argmax_last=1379
+[4] chat_short          18 tokens  argmax_last=248068
+[5] chat_system         32 tokens  argmax_last=248068
+[6] chat_multiturn      58 tokens  argmax_last=248068
+[7] chat_reasoning      90 tokens  argmax_last=248068
+[8] long_prose_300     300 tokens  argmax_last=2050
+[9] long_prose_700     700 tokens  argmax_last=18645
+wrote .scratch/golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors (0.2 MB) in 507s, 0 QDQ'd linears
+fleetq: #7854 done (exit 0)

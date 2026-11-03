@@ -1,0 +1,38 @@
+positions dumped: [3, 100, 511, 512, 1023, 1024, 2047, 2048, 4095, 4096, 8191, 8192, 16383, 16384, 32767]
+
+### pairwise distances (relative rms unless noted)
+
+| pair | logits @7999 | last hidden @7999 | logits @4095 | n(ffn) mean over positions at layers 1, 5, 10, 20, 30, 42 | indexer Jaccard (mean, min over layer x position) | router-id Jaccard (mean) |
+|---|---|---|---|---|---|---|
+| c512 vs c1024 | - | - | 3.28e-02 | 2.97e-03 / 3.68e-02 / 7.13e-02 / 1.50e-01 / 1.56e-01 / - | 0.8741, min 0.580 | 0.9092 |
+| c512 vs c2048 | - | - | 2.93e-02 | 2.98e-03 / 4.72e-02 / 7.25e-02 / 1.40e-01 / 1.56e-01 / - | 0.8751, min 0.598 | 0.9096 |
+| c1024 vs c2048 | - | - | 3.25e-02 | 2.51e-03 / 3.90e-02 / 5.58e-02 / 1.42e-01 / 1.46e-01 / - | 0.8741, min 0.580 | 0.9115 |
+
+### around the chunk boundaries (mean over layers 1..42 of the relative rms of n(ffn); mean indexer Jaccard) per position
+
+| pair | p511 | p512 | p1023 | p1024 | p2047 | p2048 | p4095 | p4096 |
+|---|---|---|---|---|---|---|---|---|
+| c512 vs c1024 | 8.61e-02 / 1.000 | 6.75e-02 / 0.998 | 1.19e-01 / 0.913 | 1.60e-01 / 0.909 | 7.20e-02 / 0.880 | 6.70e-02 / 0.884 | 9.07e-02 / 0.829 | 9.44e-02 / 0.836 |
+| c512 vs c2048 | 7.43e-02 / 1.000 | 6.08e-02 / 0.999 | 1.47e-01 / 0.919 | 1.75e-01 / 0.902 | 8.84e-02 / 0.870 | 7.25e-02 / 0.876 | 8.11e-02 / 0.835 | 6.91e-02 / 0.842 |
+| c1024 vs c2048 | 8.30e-02 / 1.000 | 7.17e-02 / 0.998 | 1.46e-01 / 0.916 | 1.62e-01 / 0.904 | 8.65e-02 / 0.879 | 7.68e-02 / 0.875 | 9.67e-02 / 0.830 | 9.75e-02 / 0.823 |
+
+### bit-equality of the parts with no incoming noise (all pairs, all dumped positions)
+
+- layer 0 sparse_attn: 45/45 bit-equal
+- layer 0 hc_attn n: 45/45 bit-equal
+- layer 0 hc_ffn n: 33/45 bit-equal
+- layer 0 router weights: 33/45 bit-equal
+- embedding: 45/45 bit-equal
+- Engram lookups (all Engram layers): 90/90 bit-equal
+
+### growth with depth (c-pairs, mean over positions of the relative rms of n(ffn); mean router-id Jaccard; mean indexer Jaccard of that layer)
+
+| pair | L0 | L1 | L2 | L3 | L5 | L8 | L12 | L16 | L20 | L30 | L40 | L42 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| c512 vs c1024 | 7.7e-07 | 3.0e-03 | 1.1e-02 | 1.6e-02 | 3.7e-02 | 5.5e-02 | 1.1e-01 | 1.4e-01 | 1.5e-01 | 1.6e-01 | - | - |
+| c512 vs c2048 | 6.0e-07 | 3.0e-03 | 1.1e-02 | 1.4e-02 | 4.7e-02 | 6.3e-02 | 1.1e-01 | 1.3e-01 | 1.4e-01 | 1.6e-01 | - | - |
+| c1024 vs c2048 | 4.0e-07 | 2.5e-03 | 9.9e-03 | 1.6e-02 | 3.9e-02 | 4.7e-02 | 1.0e-01 | 1.4e-01 | 1.4e-01 | 1.5e-01 | - | - |
+
+### each run against the mean of the others (leave-one-out centroid; relative rms of the logits at 7999 and of the last hidden)
+
+- head @4095: c512 2.652e-02, c1024 2.923e-02, c2048 2.624e-02

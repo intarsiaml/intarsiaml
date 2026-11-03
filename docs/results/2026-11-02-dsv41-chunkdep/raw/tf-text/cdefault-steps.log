@@ -1,0 +1,9 @@
+20:50:41 chunk default ready=1; 20:50:40 spark1=3.4 spark2=5.7
+doc8k wall 11.55 s {'prompt_tokens': 8000, 'completion_tokens': 64, 'total_tokens': 8064, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} 
+doc6k-1 wall 10.81 s {'prompt_tokens': 6000, 'completion_tokens': 64, 'total_tokens': 6064, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} 
+doc6k-2 wall 8.79 s {'prompt_tokens': 6000, 'completion_tokens': 64, 'total_tokens': 6064, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} 
+doc6k-3 wall 3.97 s {'prompt_tokens': 6000, 'completion_tokens': 64, 'total_tokens': 6064, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} 
+doc6k-4 wall 6.05 s {'prompt_tokens': 6000, 'completion_tokens': 64, 'total_tokens': 6064, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} 
+doc6k-5 wall 4.00 s {'prompt_tokens': 6000, 'completion_tokens': 64, 'total_tokens': 6064, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} 
+doc6k-6 wall 3.96 s {'prompt_tokens': 6000, 'completion_tokens': 64, 'total_tokens': 6064, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} 
+doc6k-7 wall 3.99 s {'prompt_tokens': 6000, 'completion_tokens': 64, 'total_tokens': 6064, 'prompt_tokens_details': {'cached_tokens': 0}, 'completion_tokens_details': {'reasoning_tokens': 0}} 

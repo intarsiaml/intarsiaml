@@ -558,6 +558,18 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Option<Vec<Case>> {
                         );
                     }
                 }
+                // the Qwen3.8-27B decode projections (lane m27-gemv, Metal's half-trick GEMV): the down projection (K = 17408 = 544 groups, so a lane's
+                // 17th group is the last one short of a 32-group stride) at one row and at the MTP verify's three, gate/up at three rows, an
+                // 8-row call at the 27B's z width. Appended again so the cases above keep their data; one K tail in the quick sweep.
+                let dec: &[(usize, usize, usize)] = if quick { &[(1, 40, 544)] } else { &[(1, 5120, 17408), (3, 5120, 17408), (3, 17408, 5120), (8, 6144, 5120)] };
+                for &(m, n, k) in dec {
+                    for odt in [DType::Bf16, DType::F32] {
+                        push(
+                            format!("M={m} N={n} K={k} x=bf16 out={odt} act=none (w4a16)"),
+                            matmul_mxfp4_w4a16_case(&mut rng, m, n, k, DType::Bf16, odt),
+                        );
+                    }
+                }
             }
         }
         Op::MoeTopk => {

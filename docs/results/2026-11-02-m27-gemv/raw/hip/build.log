@@ -1,0 +1,13 @@
+fleetq: #8119 running on tatooine-r9700, tatooine-r9700-2: bash .scratch/hip-build.sh
+=== hip build head f2690aa76d1aaccf0384d15acbe295e1de1c8bf6 21:13:50
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 1m 33s
+=== hip build main c269ded36 21:16:03
+     = note: `#[warn(unused_mut)]` on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 1m 33s
+=== hip build done 21:18:14
+fleetq: #8119 done (exit 0)

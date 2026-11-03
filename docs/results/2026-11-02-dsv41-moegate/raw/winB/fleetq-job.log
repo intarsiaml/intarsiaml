@@ -1,0 +1,170 @@
+fleetq: #8109 waiting (#4 in line): in line behind #8092 "dsv41 prefill: chunk-dependence 32K dumps at chunk 512/1024/2048 (CAP 33000; B2's 32K failed on the context limit); vLLM restored after" (claude-b7d2edb2) on spark1, spark2
+fleetq: #8109 waiting (#3 in line): in line behind #8096 "dsv41 moegate: prefill A/B window (old kernels / router R=8 / staged-A) x chunk 512, 2048; vLLM restored after" (claude-moegate) on spark1, spark2
+fleetq:   #8096 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8096 set, or it will wait for #8096 to be released.
+fleetq: #8109 waiting (#2 in line): spark1 is held exclusively by #8096 "dsv41 moegate: prefill A/B window (old kernels / router R=8 / staged-A) x chunk 512, 2048; vLLM restored after" (claude-moegate); then in line behind #8098 "dsv41 rdma: ABAB decode by kind, RDMA off/on (vLLM restored by the script)" (claude-rdma) on spark1, spark2
+fleetq:   #8096 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8096 set, or it will wait for #8096 to be released.
+fleetq: #8109 waiting (#1 in line): needs spark1 to itself; running there: #8098 "dsv41 rdma: ABAB decode by kind, RDMA off/on (vLLM restored by the script)" (claude-rdma)
+fleetq: #8109 running on spark1, spark2: env SPARK_DIR=intarsia-dsv41-moegate 'EARLYOOM_OK=3,2 2,1' 'STEPS=golden longp' CAP=66000 'LONG_PROMPTS=/opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/prompts/long32k.txt /opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/prompts/long64k.txt' MAX_MIN=24 OUT=/opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/winB 'AB=INTARSIA_DSV41_F16W_ROWS=16 INTARSIA_DSV41_MOE_SMEMA=0|INTARSIA_DSV41_NOOP=0' scripts/dsv41-tp2/run-full.sh
+21:35:56 earlyoom on spark1: -m 2,1
+21:35:57 earlyoom on spark2: -m 2,1
+21:36:00 binary e80b230df dirty=no 1102-2030; out /opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/winB
+21:36:04 vLLM stopped on both
+21:36:05 config ab0: INTARSIA_DSV41_F16W_ROWS=16 INTARSIA_DSV41_MOE_SMEMA=0; steps: golden longp; nsys 0; bin $HOME/intarsia-dsv41-moegate/bin/intarsia
+21:36:08 ranks started (tag 213605)
+21:36:39 serve up=1 after 31 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 16.1 s = 6.41 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.88 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 23.2 s (4.63 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.304 GiB (chunk 512), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.83 GiB -> 9.91 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793673395)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793673395)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793673395)
+dsv41: warm-up passes in 0.44 s
+dsv41: rank 0 after warm-up: MemAvailable 9.44 GiB, used since start 101.39 GiB, of which weights 98.90 GiB, non-weight 2.49 GiB (workspace 0.304, scratch 0.004, state 0.203, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 16.3 s = 6.33 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.91 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 25.4 s (4.21 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.304 GiB (chunk 512), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.32 GiB -> 10.38 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793673395)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793673395)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793673395)
+Using CPython 3.13.15
+Creating virtual environment at: .venv
+   Building intarsiaml @ file:///opt/code/intarsiaml/.worktrees/dsv41-moegate
+      Built intarsiaml @ file:///opt/code/intarsiaml/.worktrees/dsv41-moegate
+Installed 1 package in 1ms
+server max_model_len=66000
+[0] count                  35 prompt tokens, 64 generated, cached=0 head=[223, 907, 14, 223, 929, 14] 1s
+[1] story                  39 prompt tokens, 64 generated, cached=0 head=[34226, 304, 270, 4213, 14, 305] 3s
+[2] code                   80 prompt tokens, 64 generated, cached=0 head=[361, 855, 313, 818, 223, 20] 4s
+[3] science                76 prompt tokens, 64 generated, cached=0 head=[270, 21476, 19105, 40235, 14, 778] 7s
+[4] chat_short             32 prompt tokens, 64 generated, cached=0 head=[19, 16, 2619, 64574, 10935, 7405] 8s
+[5] chat_system            55 prompt tokens, 64 generated, cached=0 head=[671, 12709, 9238, 8295, 1754, 3525] 10s
+[6] chat_multiturn         91 prompt tokens, 64 generated, cached=0 head=[106239, 343, 1805, 114578, 11, 769] 12s
+[7] chat_reasoning         99 prompt tokens, 64 generated, cached=0 head=[5718, 734, 9487, 566, 3132, 513] 13s
+[8] long_prose_300        300 prompt tokens, 64 generated, cached=0 head=[579, 881, 710, 2887, 2624, 270] 15s
+[9] long_prose_700        700 prompt tokens, 64 generated, cached=0 head=[89425, 513, 270, 537, 329, 1045] 17s
+wrote /opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/winB/ab0/tok-intarsia-tp2.st (17.8 kB, 10 prompts) in 17s
+spec golden count: 64 tokens in 13 rounds = 4.92 a round
+spec golden story: 64 tokens in 33 rounds = 1.94 a round
+spec golden code: 64 tokens in 19 rounds = 3.37 a round
+spec golden science: 64 tokens in 55 rounds = 1.16 a round
+spec golden chat_short: 64 tokens in 32 rounds = 2.00 a round
+spec golden chat_system: 64 tokens in 30 rounds = 2.13 a round
+spec golden chat_multiturn: 64 tokens in 27 rounds = 2.37 a round
+spec golden chat_reasoning: 64 tokens in 20 rounds = 3.20 a round
+spec golden long_prose_300: 64 tokens in 28 rounds = 2.29 a round
+spec golden long_prose_700: 64 tokens in 28 rounds = 2.29 a round
+spec golden code: 1 requests, 64 tokens in 19 rounds = 3.368 a round; drafts accepted 45/62 = 72.6 %
+spec golden prose: 4 requests, 256 tokens in 144 rounds = 1.778 a round; drafts accepted 109/230 = 47.4 %
+spec golden chat: 4 requests, 256 tokens in 109 rounds = 2.349 a round; drafts accepted 147/257 = 57.2 %
+spec golden other: 1 requests, 64 tokens in 13 rounds = 4.923 a round; drafts accepted 51/52 = 98.1 %
+spec golden all: 10 requests, 640 tokens in 285 rounds = 2.246 a round; drafts accepted 352/601 = 58.6 %
+21:37:52 longp long32k.txt wall 53.9 s {'prompt_tokens': 32768, 'completion_tokens': 16, 'total_tokens': 32784, 'prompt_tokens_details': {'cached_tokens': 0}} ' | 100.00 / 2.51 | 100.00 /'
+21:39:41 longp long64k.txt wall 108.2 s {'prompt_tokens': 65000, 'completion_tokens': 16, 'total_tokens': 65016, 'prompt_tokens_details': {'cached_tokens': 0}} '16 was 2.2.3.7x the 8-row time'
+dsv41: spec 64 tokens in 30 rounds (2.13 a round), 34/65 drafts accepted (52 %), by position 21/28 9/19 3/6 1/1
+dsv41: spec 64 tokens in 27 rounds (2.37 a round), 37/58 drafts accepted (64 %), by position 19/27 12/17 4/5 2/2
+dsv41: spec 64 tokens in 20 rounds (3.20 a round), 44/68 drafts accepted (65 %), by position 18/20 12/18 8/10 6/7
+dsv41: kernel scratch grew to 134217728 bytes (unix 1793673414)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793673414)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793673414)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793673414)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793673415)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793673415)
+dsv41: spec 64 tokens in 28 rounds (2.29 a round), 36/59 drafts accepted (61 %), by position 20/28 9/17 5/6 2/2
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793673417)
+dsv41: spec 64 tokens in 28 rounds (2.29 a round), 35/49 drafts accepted (71 %), by position 22/27 9/14 3/5 1/1
+spec total: 640 tokens in 285 rounds = 2.246 a round; drafts accepted 352/601 = 58.6 %
+21:39:44 config ab0 done
+21:39:44 config ab1: INTARSIA_DSV41_NOOP=0; steps: golden longp; nsys 0; bin $HOME/intarsia-dsv41-moegate/bin/intarsia
+21:39:46 ranks started (tag 213944)
+21:40:15 serve up=1 after 29 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.7 s = 6.60 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 6.99 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.0 s (4.86 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.304 GiB (chunk 512), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.31 GiB -> 9.62 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793673609)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793673609)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793673610)
+dsv41: warm-up passes in 0.21 s
+dsv41: rank 0 after warm-up: MemAvailable 9.17 GiB, used since start 101.13 GiB, of which weights 98.90 GiB, non-weight 2.23 GiB (workspace 0.304, scratch 0.004, state 0.203, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.2 s = 6.80 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.47 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.1 s (5.08 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.304 GiB (chunk 512), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.60 GiB -> 9.87 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793673609)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793673609)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793673610)
+server max_model_len=66000
+[0] count                  35 prompt tokens, 64 generated, cached=0 head=[223, 907, 14, 223, 929, 14] 1s
+[1] story                  39 prompt tokens, 64 generated, cached=0 head=[34226, 304, 270, 4213, 14, 305] 3s
+[2] code                   80 prompt tokens, 64 generated, cached=0 head=[361, 855, 313, 818, 223, 20] 4s
+[3] science                76 prompt tokens, 64 generated, cached=0 head=[270, 21476, 19105, 40235, 14, 778] 7s
+[4] chat_short             32 prompt tokens, 64 generated, cached=0 head=[19, 16, 2619, 64574, 10935, 7405] 8s
+[5] chat_system            55 prompt tokens, 64 generated, cached=0 head=[671, 12709, 9238, 8295, 1754, 3525] 10s
+[6] chat_multiturn         91 prompt tokens, 64 generated, cached=0 head=[106239, 343, 1805, 114578, 11, 769] 11s
+[7] chat_reasoning         99 prompt tokens, 64 generated, cached=0 head=[5718, 734, 9487, 566, 3132, 513] 13s
+[8] long_prose_300        300 prompt tokens, 64 generated, cached=0 head=[579, 881, 710, 2887, 2624, 270] 14s
+[9] long_prose_700        700 prompt tokens, 64 generated, cached=0 head=[89425, 513, 270, 537, 329, 1045] 17s
+wrote /opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/winB/ab1/tok-intarsia-tp2.st (17.8 kB, 10 prompts) in 17s
+spec golden count: 64 tokens in 13 rounds = 4.92 a round
+spec golden story: 64 tokens in 33 rounds = 1.94 a round
+spec golden code: 64 tokens in 19 rounds = 3.37 a round
+spec golden science: 64 tokens in 55 rounds = 1.16 a round
+spec golden chat_short: 64 tokens in 32 rounds = 2.00 a round
+spec golden chat_system: 64 tokens in 30 rounds = 2.13 a round
+spec golden chat_multiturn: 64 tokens in 27 rounds = 2.37 a round
+spec golden chat_reasoning: 64 tokens in 20 rounds = 3.20 a round
+spec golden long_prose_300: 64 tokens in 28 rounds = 2.29 a round
+spec golden long_prose_700: 64 tokens in 28 rounds = 2.29 a round
+spec golden code: 1 requests, 64 tokens in 19 rounds = 3.368 a round; drafts accepted 45/62 = 72.6 %
+spec golden prose: 4 requests, 256 tokens in 144 rounds = 1.778 a round; drafts accepted 109/230 = 47.4 %
+spec golden chat: 4 requests, 256 tokens in 109 rounds = 2.349 a round; drafts accepted 147/257 = 57.2 %
+spec golden other: 1 requests, 64 tokens in 13 rounds = 4.923 a round; drafts accepted 51/52 = 98.1 %
+spec golden all: 10 requests, 640 tokens in 285 rounds = 2.246 a round; drafts accepted 352/601 = 58.6 %
+21:41:22 longp long32k.txt wall 47.5 s {'prompt_tokens': 32768, 'completion_tokens': 16, 'total_tokens': 32784, 'prompt_tokens_details': {'cached_tokens': 0}} ' | 100.00 / 2.51 | 100.00 /'
+21:42:57 longp long64k.txt wall 95.2 s {'prompt_tokens': 65000, 'completion_tokens': 16, 'total_tokens': 65016, 'prompt_tokens_details': {'cached_tokens': 0}} '16 was 2.2.3.7x the 8-row time'
+dsv41: spec 64 tokens in 30 rounds (2.13 a round), 34/65 drafts accepted (52 %), by position 21/28 9/19 3/6 1/1
+dsv41: spec 64 tokens in 27 rounds (2.37 a round), 37/58 drafts accepted (64 %), by position 19/27 12/17 4/5 2/2
+dsv41: spec 64 tokens in 20 rounds (3.20 a round), 44/68 drafts accepted (65 %), by position 18/20 12/18 8/10 6/7
+dsv41: kernel scratch grew to 134217728 bytes (unix 1793673630)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793673630)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793673630)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793673630)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793673630)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793673630)
+dsv41: spec 64 tokens in 28 rounds (2.29 a round), 36/59 drafts accepted (61 %), by position 20/28 9/17 5/6 2/2
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793673633)
+dsv41: spec 64 tokens in 28 rounds (2.29 a round), 35/49 drafts accepted (71 %), by position 22/27 9/14 3/5 1/1
+spec total: 640 tokens in 285 rounds = 2.246 a round; drafts accepted 352/601 = 58.6 %
+21:42:59 config ab1 done
+21:42:59 done
+21:42:59 restore (exit 0)
+scripts/dsv41-tp2/run-full.sh: line 25: 40322 Terminated: 15          ( while true; do
+    line="$(date +%T)"; for h in spark1 spark2;
+    do
+        a=$(ssh -n -o ConnectTimeout=5 $h "awk '/MemAvailable/{printf \"%.1f\", \$2/1048576}' /proc/meminfo" 2>/dev/null || echo NA); line="$line $h=$a"; if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then
+            ssh -n $h "pkill -KILL -f '[i]${SPARK_REL:1}/bin/intarsia'"; line="$line KILLED-$h";
+        fi;
+    done; echo "$line"; sleep 5;
+done ) > "$OUT/mem.log" 2>&1
+21:46:34 vLLM on spark1 up (Up 3 minutes)
+21:46:35 vLLM on spark2 up (Up 3 minutes)
+spark1-vllm confirmed back
+spark2-vllm confirmed back
+21:46:36 restored
+fleetq: #8109 done (exit 0); spark1-vllm, spark2-vllm must come back before others can use it

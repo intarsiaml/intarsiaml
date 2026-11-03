@@ -157,7 +157,11 @@ static int f16w_rows() {
     static int r = -1;
     if (r < 0) {
         const char* e = getenv("INTARSIA_DSV41_F16W_ROWS");
-        r = (e && e[0] == '1' && e[1] == 0) ? 1 : 16;
+        // 8 rows per weight read by default; 16 was the earlier default (slower, docs/results/2026-11-02-dsv41-moegate.md),
+        // 1 is the decode tile at every M. R never enters a row's sum, so every value gives the same bits.
+        r = 8;
+        if (e && e[0] == '1' && e[1] == 0) r = 1;
+        else if (e && e[0] == '1' && e[1] == '6' && e[2] == 0) r = 16;
     }
     return r;
 }
@@ -165,10 +169,12 @@ static int f16w_rows() {
 template <typename X, typename Y>
 int dense_f16w_typed(const X* xp, const __half* wp, Y* yp, int64_t M, int64_t N, int64_t K, bool vec, cudaStream_t s) {
     if (vec) {
-        // R = 1 for decode (no idle row registers), 16 rows per weight read in prefill. INTARSIA_DSV41_F16W_ROWS=1 keeps
-        // R = 1 at every M (diagnosis; R never enters a row's sum, so the bits are the same either way)
-        if (M == 1 || f16w_rows() == 1) launch_vec<X, Y, 1>(xp, wp, yp, (int)M, (int)N, (int)K, s);
-        else launch_vec<X, Y, 16>(xp, wp, yp, (int)M, (int)N, (int)K, s);
+        // R = 1 for decode (no idle row registers), 8 rows per weight read in prefill. INTARSIA_DSV41_F16W_ROWS=1 keeps
+        // R = 1 at every M, =16 the earlier prefill tile (diagnosis; R never enters a row's sum, so the bits are the same)
+        const int R = f16w_rows();
+        if (M == 1 || R == 1) launch_vec<X, Y, 1>(xp, wp, yp, (int)M, (int)N, (int)K, s);
+        else if (R == 16) launch_vec<X, Y, 16>(xp, wp, yp, (int)M, (int)N, (int)K, s);
+        else launch_vec<X, Y, 8>(xp, wp, yp, (int)M, (int)N, (int)K, s);
     } else {
         dim3 grid((unsigned)cdiv(N, kWarps), (unsigned)M);
         dense_f16w_kernel<X, Y><<<grid, kWarps * 32, 0, s>>>(xp, wp, yp, M, N, K);

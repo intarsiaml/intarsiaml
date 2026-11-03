@@ -1,0 +1,39 @@
+fleetq: #7872 running on endor: env CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/m27/target-test cargo test --release -p intarsia-backend-metal --test mxfp4_nax
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/m27/crates/intarsia-backend-metal)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1219:4
+     |
+1219 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 4.06s
+     Running tests/mxfp4_nax.rs (target-test/release/deps/mxfp4_nax-aa68146d6e519445)
+
+running 4 tests
+test nax_is_registered_for_m_above_the_gemv_rows_only ... ok
+test nax_rows_do_not_depend_on_the_call ... ok
+test nax_matches_the_gemv_within_accumulation_order ... ok
+test nax_w4a16_equals_the_bf16_nax_gemm_on_decoded_weights ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+fleetq: #7872 done (exit 0)

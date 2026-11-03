@@ -1,0 +1,108 @@
+== r1 M=1 a
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1: median    99.2 us ( 477.3 GB/s)  best    99.1 us ( 477.8 GB/s)
+mlp down               n=  5120 k=17408 m=1: median   101.9 us ( 464.8 GB/s)  best   101.4 us ( 466.8 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=1: median    62.9 us ( 443.0 GB/s)  best    62.1 us ( 448.5 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=1: median    40.5 us ( 412.3 GB/s)  best    40.5 us ( 413.0 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=1: median    41.0 us ( 407.7 GB/s)  best    41.0 us ( 408.0 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=1: median    72.4 us ( 461.8 GB/s)  best    72.1 us ( 463.9 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=1: median    10.8 us ( 258.6 GB/s)  best    10.7 us ( 259.7 GB/s)
+== r1 M=1 b
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1 h=26f5688829700e6b: median    84.9 us ( 557.9 GB/s)  best    84.8 us ( 558.4 GB/s)
+mlp down               n=  5120 k=17408 m=1 h=e59fa60fbacc5a12: median    88.3 us ( 536.2 GB/s)  best    88.3 us ( 536.4 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=1 h=fcc60dc1adfa2816: median    52.2 us ( 533.7 GB/s)  best    52.2 us ( 534.1 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=1 h=bcbcad7f52e45c5f: median    33.1 us ( 504.7 GB/s)  best    33.1 us ( 505.0 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=1 h=a1119671a9247bec: median    33.7 us ( 495.3 GB/s)  best    33.6 us ( 497.7 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=1 h=6334a955f3c60b62: median    61.6 us ( 542.3 GB/s)  best    61.4 us ( 544.3 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=1 h=4cabe485a4a7da72: median     8.5 us ( 327.9 GB/s)  best     8.4 us ( 331.1 GB/s)
+== r1 M=3 a
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3: median   164.5 us ( 287.8 GB/s)  best   164.4 us ( 288.0 GB/s)
+mlp down               n=  5120 k=17408 m=3: median   169.5 us ( 279.3 GB/s)  best   169.4 us ( 279.4 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=3: median   100.4 us ( 277.5 GB/s)  best   100.2 us ( 277.9 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=3: median    64.2 us ( 260.2 GB/s)  best    64.2 us ( 260.4 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=3: median    64.1 us ( 260.9 GB/s)  best    64.0 us ( 261.3 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=3: median   118.8 us ( 281.3 GB/s)  best   118.7 us ( 281.7 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=3: median    16.5 us ( 168.4 GB/s)  best    16.5 us ( 168.8 GB/s)
+== r1 M=3 b
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3 h=9726d42cb42ff651: median   132.9 us ( 356.2 GB/s)  best   132.8 us ( 356.6 GB/s)
+mlp down               n=  5120 k=17408 m=3 h=b3331c5f0de7f0a9: median   133.6 us ( 354.3 GB/s)  best   133.6 us ( 354.5 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=3 h=6983b29560b705af: median    81.2 us ( 343.1 GB/s)  best    81.1 us ( 343.5 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=3 h=ba30b4aba789f308: median    52.4 us ( 318.9 GB/s)  best    52.2 us ( 320.1 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=3 h=50dbcc84fefafe79: median    51.9 us ( 322.1 GB/s)  best    51.7 us ( 323.5 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=3 h=2e13355c61b73689: median    96.1 us ( 347.9 GB/s)  best    96.0 us ( 348.3 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=3 h=e0c1f372622aa21b: median    14.1 us ( 197.0 GB/s)  best    14.1 us ( 197.4 GB/s)
+== r1 M=8 a
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=8: median   330.4 us ( 143.3 GB/s)  best   330.2 us ( 143.4 GB/s)
+mlp down               n=  5120 k=17408 m=8: median   366.6 us ( 129.2 GB/s)  best   366.3 us ( 129.3 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=8: median   199.0 us ( 140.0 GB/s)  best   198.7 us ( 140.2 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=8: median   124.7 us ( 134.0 GB/s)  best   124.6 us ( 134.1 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=8: median   124.4 us ( 134.3 GB/s)  best   124.3 us ( 134.4 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=8: median   236.6 us ( 141.3 GB/s)  best   236.5 us ( 141.3 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=8: median    29.0 us (  96.2 GB/s)  best    28.9 us (  96.5 GB/s)
+== r1 M=8 b
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=8 h=ab88ed82b6658943: median   292.4 us ( 161.9 GB/s)  best   292.3 us ( 162.0 GB/s)
+mlp down               n=  5120 k=17408 m=8 h=00bed45a5215f72d: median   323.2 us ( 146.5 GB/s)  best   322.8 us ( 146.7 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=8 h=50610331679e9dec: median   175.4 us ( 158.8 GB/s)  best   175.4 us ( 158.8 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=8 h=0edd3705fc9ec32e: median   110.4 us ( 151.3 GB/s)  best   110.3 us ( 151.5 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=8 h=07df6569c7bd1377: median   109.2 us ( 153.0 GB/s)  best   109.0 us ( 153.3 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=8 h=5e3e1d4a78f37100: median   209.3 us ( 159.7 GB/s)  best   209.1 us ( 159.8 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=8 h=e22d6efa6dc978ea: median    26.1 us ( 106.6 GB/s)  best    26.0 us ( 107.0 GB/s)
+== r2 M=1 a
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1: median    98.9 us ( 478.8 GB/s)  best    98.5 us ( 480.7 GB/s)
+mlp down               n=  5120 k=17408 m=1: median   101.5 us ( 466.6 GB/s)  best   101.0 us ( 468.6 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=1: median    61.8 us ( 450.6 GB/s)  best    61.5 us ( 452.7 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=1: median    41.8 us ( 400.2 GB/s)  best    40.7 us ( 410.6 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=1: median    39.9 us ( 418.9 GB/s)  best    39.8 us ( 419.5 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=1: median    73.4 us ( 455.3 GB/s)  best    72.5 us ( 460.9 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=1: median    10.8 us ( 257.3 GB/s)  best    10.7 us ( 259.1 GB/s)
+== r2 M=1 b
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1 h=26f5688829700e6b: median    84.7 us ( 559.3 GB/s)  best    84.4 us ( 560.7 GB/s)
+mlp down               n=  5120 k=17408 m=1 h=e59fa60fbacc5a12: median    90.4 us ( 523.7 GB/s)  best    88.0 us ( 538.1 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=1 h=fcc60dc1adfa2816: median    52.2 us ( 533.1 GB/s)  best    52.0 us ( 535.6 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=1 h=bcbcad7f52e45c5f: median    34.1 us ( 490.8 GB/s)  best    33.6 us ( 497.4 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=1 h=a1119671a9247bec: median    33.5 us ( 498.2 GB/s)  best    33.5 us ( 498.5 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=1 h=6334a955f3c60b62: median    61.7 us ( 541.5 GB/s)  best    61.5 us ( 543.4 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=1 h=4cabe485a4a7da72: median     8.5 us ( 328.5 GB/s)  best     8.4 us ( 331.6 GB/s)
+== r2 M=3 a
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3: median   164.4 us ( 288.1 GB/s)  best   164.3 us ( 288.2 GB/s)
+mlp down               n=  5120 k=17408 m=3: median   169.4 us ( 279.5 GB/s)  best   169.1 us ( 280.0 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=3: median   100.2 us ( 278.0 GB/s)  best   100.0 us ( 278.5 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=3: median    64.2 us ( 260.3 GB/s)  best    64.2 us ( 260.3 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=3: median    64.2 us ( 260.3 GB/s)  best    63.9 us ( 261.4 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=3: median   118.7 us ( 281.5 GB/s)  best   118.7 us ( 281.7 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=3: median    16.5 us ( 168.6 GB/s)  best    16.5 us ( 168.7 GB/s)
+== r2 M=3 b
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3 h=9726d42cb42ff651: median   132.8 us ( 356.4 GB/s)  best   132.8 us ( 356.7 GB/s)
+mlp down               n=  5120 k=17408 m=3 h=b3331c5f0de7f0a9: median   133.6 us ( 354.4 GB/s)  best   133.6 us ( 354.5 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=3 h=6983b29560b705af: median    81.0 us ( 343.8 GB/s)  best    80.9 us ( 344.1 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=3 h=ba30b4aba789f308: median    52.4 us ( 319.0 GB/s)  best    52.3 us ( 319.3 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=3 h=50dbcc84fefafe79: median    51.8 us ( 322.5 GB/s)  best    51.7 us ( 323.5 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=3 h=2e13355c61b73689: median    96.2 us ( 347.4 GB/s)  best    96.1 us ( 347.7 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=3 h=e0c1f372622aa21b: median    14.2 us ( 196.0 GB/s)  best    14.1 us ( 197.1 GB/s)
+== r2 M=8 a
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=8: median   329.9 us ( 143.5 GB/s)  best   329.9 us ( 143.5 GB/s)
+mlp down               n=  5120 k=17408 m=8: median   366.3 us ( 129.3 GB/s)  best   365.8 us ( 129.4 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=8: median   198.7 us ( 140.1 GB/s)  best   198.7 us ( 140.2 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=8: median   124.8 us ( 133.9 GB/s)  best   124.8 us ( 133.9 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=8: median   124.5 us ( 134.2 GB/s)  best   124.3 us ( 134.4 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=8: median   236.4 us ( 141.4 GB/s)  best   236.4 us ( 141.4 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=8: median    28.9 us (  96.4 GB/s)  best    28.9 us (  96.5 GB/s)
+== r2 M=8 b
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=8 h=ab88ed82b6658943: median   292.3 us ( 162.0 GB/s)  best   292.1 us ( 162.1 GB/s)
+mlp down               n=  5120 k=17408 m=8 h=00bed45a5215f72d: median   322.8 us ( 146.7 GB/s)  best   322.7 us ( 146.7 GB/s)
+gdn in_proj_qkv        n= 10240 k= 5120 m=8 h=50610331679e9dec: median   175.3 us ( 158.9 GB/s)  best   175.3 us ( 158.9 GB/s)
+gdn in_proj_z          n=  6144 k= 5120 m=8 h=0edd3705fc9ec32e: median   110.4 us ( 151.4 GB/s)  best   110.3 us ( 151.6 GB/s)
+gdn/attn out_proj      n=  5120 k= 6144 m=8 h=07df6569c7bd1377: median   109.1 us ( 153.2 GB/s)  best   109.0 us ( 153.3 GB/s)
+attn q_proj (gated)    n= 12288 k= 5120 m=8 h=5e3e1d4a78f37100: median   209.3 us ( 159.7 GB/s)  best   209.2 us ( 159.7 GB/s)
+attn k/v proj          n=  1024 k= 5120 m=8 h=e22d6efa6dc978ea: median    26.1 us ( 106.7 GB/s)  best    26.1 us ( 106.9 GB/s)

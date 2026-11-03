@@ -1,0 +1,102 @@
+candidate: AMD Radeon Graphics (hip/gfx1201)   reference: cpu
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=135 K=160 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=135 K=160 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=4 N=137 K=256 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=4 N=137 K=256 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=2 N=1 K=64 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=2 N=1 K=64 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=3 K=96 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv      ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=3 K=96 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=17 N=136 K=256 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=7.321e-8 rel_l2=1.527e-8 M=17 N=136 K=256 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=135 K=160 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=135 K=160 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=4 N=137 K=256 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=4 N=137 K=256 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=2 N=1 K=64 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=2 N=1 K=64 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=3 K=96 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma       ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=3 K=96 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=17 N=136 K=256 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=7.321e-8 rel_l2=1.527e-8 M=17 N=136 K=256 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=135 K=160 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=135 K=160 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=4 N=137 K=256 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=4 N=137 K=256 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=2 N=1 K=64 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=2 N=1 K=64 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=3 K=96 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_v1    ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=3 K=96 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_fold  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_mma_fold  ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_mma_fold  ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_mma_fold  ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_mma_fold  ok    max_abs=0.000e0 rel_l2=0.000e0 M=17 N=136 K=256 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_fold  ok    max_abs=7.321e-8 rel_l2=1.527e-8 M=17 N=136 K=256 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_fold  ok    max_abs=0.000e0 rel_l2=0.000e0 M=4 N=137 K=256 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_fold  ok    max_abs=0.000e0 rel_l2=0.000e0 M=4 N=137 K=256 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_fold  ok    max_abs=0.000e0 rel_l2=0.000e0 M=2 N=1 K=64 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_mma_fold  ok    max_abs=0.000e0 rel_l2=0.000e0 M=2 N=1 K=64 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=dynamic
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=none
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=135 K=160 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=135 K=160 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=4 N=137 K=256 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=4 N=137 K=256 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=2 N=1 K=64 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=2 N=1 K=64 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=3 K=96 x=bf16 out=bf16 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=3 N=3 K=96 x=bf16 out=f32 act=none (w4a16)
+  matmul_mxfp4   matmul_mxfp4_a8_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_gemv   ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_gemv_rows ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_mma    ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=64 K=64 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_mma    ok    max_abs=0.000e0 rel_l2=0.000e0 M=1 N=40 K=96 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_mma    ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=64 K=64 x=bf16 out=bf16 act=fp8
+  matmul_mxfp4   matmul_mxfp4_a8_mma    ok    max_abs=0.000e0 rel_l2=0.000e0 M=5 N=40 K=96 x=bf16 out=bf16 act=fp8
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_mxfp4   matmul_mxfp4_gemv              16      0     0.000e0     0.000e0  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma               18      0    7.321e-8    1.527e-8  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma_v1            18      0    7.321e-8    1.527e-8  ADMITTED
+matmul_mxfp4   matmul_mxfp4_mma_fold          10      0    7.321e-8    1.527e-8  ADMITTED
+matmul_mxfp4   matmul_mxfp4_gemv_rows         16      0     0.000e0     0.000e0  ADMITTED
+matmul_mxfp4   matmul_mxfp4_a8_gemv            4      0     0.000e0     0.000e0  ADMITTED
+matmul_mxfp4   matmul_mxfp4_a8_gemv_rows       4      0     0.000e0     0.000e0  ADMITTED
+matmul_mxfp4   matmul_mxfp4_a8_mma             4      0     0.000e0     0.000e0  ADMITTED
+8 kernels, 90 cases in 0.0s

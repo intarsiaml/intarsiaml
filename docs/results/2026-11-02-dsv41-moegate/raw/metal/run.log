@@ -1,0 +1,13 @@
+fleetq: #8091 waiting (#1 in line): needs gpu quiet on endor, but #8090 "m27-gemv: speed A/B 16384, MTP off, main vs v5" (claude-m27-gemv) loads it
+fleetq: #8091 running on endor: .scratch/metal-noop.sh run
+Qwen3.6-35B-A3B-NVFP4 plan show unchanged (      52 lines)
+Qwen3.6-35B-A3B-NVFP4 n128: 256 ids identical
+Qwen3.6-35B-A3B-NVFP4 n4096: 256 ids identical
+Qwen3-8B plan show unchanged (      22 lines)
+Qwen3-8B n128: 256 ids identical
+Qwen3-8B n4096: 256 ids identical
+kernels test: 0 FAIL lines, 0 ok/pass lines; tail:
+matmul_nvfp4   matmul_nvfp4_gemv_rows         18      0    1.330e-3    2.214e-5  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 972 cases in 31.2s
+fleetq: #8091 done (exit 0)

@@ -296,7 +296,7 @@ pub const MATMUL_PAIR_BF16_NAX: &str = "matmul_pair_bf16_nax";
 /// the P2 flash kernel and falls back to it for operands it cannot take.
 pub const ATTN_PREFILL_BF16_FLASH_NAX: &str = "attn_prefill_bf16_flash_nax";
 pub const NAX_KERNELS: &[&str] =
-    &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX, crate::fp8::MATMUL_FP8_NAX, crate::nvfp4::MATMUL_NVFP4_NAX];
+    &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX, crate::fp8::MATMUL_FP8_NAX, crate::nvfp4::MATMUL_NVFP4_NAX, crate::mxfp4::MATMUL_MXFP4_NAX];
 
 pub fn requires_metal4(kernel: &str) -> bool {
     NAX_KERNELS.contains(&kernel)
@@ -365,6 +365,7 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::multirow::LOGITS_BF16_GEMV_ROWS, Op::Logits),
     (ATTN_PREFILL_BF16_SPLITKV_ROWS, Op::AttnPrefill),
     (crate::mxfp4::MATMUL_MXFP4_GEMV, Op::MatmulMxfp4),
+    (crate::mxfp4::MATMUL_MXFP4_NAX, Op::MatmulMxfp4),
     (GATE_SPLIT_BF16, Op::GateSplit),
     (SIGMOID_MUL_BF16, Op::SigmoidMul),
     (GDN_CONV_BF16, Op::GdnConv),
@@ -566,6 +567,17 @@ pub fn all() -> Vec<KernelImpl> {
                     .tol(PAIR_TOL)
                     .tol_f32(F32_TOL)
                     .scratch(crate::mxfp4::scratch),
+                // the prefill form: the weights decoded to bf16 into the scratch per call, then the fp8 NAX GEMM (mxfp4.rs); M > 8,
+                // above the GEMV (which stays for M <= 8 and for what does not fit). `INTARSIA_METAL_MXFP4_NAX=0` hides it.
+                crate::mxfp4::MATMUL_MXFP4_NAX => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(crate::mxfp4::nax_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(PAIR_TOL)
+                    .tol_f32(F32_TOL)
+                    .scratch(crate::mxfp4::nax_scratch)
+                    .priority(5),
                 // pure bit copy / f32 elementwise, one rounding: the hip entries' tolerance
                 GATE_SPLIT_BF16 | SIGMOID_MUL_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
                 // depthwise causal conv + SiLU; `weights` is the tap dtype, `k` the tap count
@@ -887,6 +899,7 @@ mod tests {
         "matmul_fp8_mma:matmul_fp8",
         "matmul_fp8_nax:matmul_fp8",
         "matmul_mxfp4_gemv:matmul_mxfp4",
+        "matmul_mxfp4_nax:matmul_mxfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",
         "matmul_nvfp4_gemv_rows:matmul_nvfp4",
         "matmul_nvfp4_mma:matmul_nvfp4",

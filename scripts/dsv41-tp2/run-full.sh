@@ -17,7 +17,9 @@ WIP=10.100.152.3; WPORT=29701; SPORT=8899; SURL=http://100.120.88.104:$SPORT
 LOGD="$SPARK_DIR/logs"
 NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-2} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
 # TP_SPIN_MS (default 100, 0 = off): rank 1 polls instead of blocking, two busy cores on spark2 during decode (user, 2026-11-02)
-DENV="INTARSIA_TP_SPIN_MS=${TP_SPIN_MS:-100} INTARSIA_DSV41_CAP=${CAP:-32768} INTARSIA_DSV41_CHUNK=${CHUNK:-512} INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-}"
+# CHUNK=engine leaves INTARSIA_DSV41_CHUNK unset (the engine default)
+CHUNK_ENV="INTARSIA_DSV41_CHUNK=${CHUNK:-512}"; [[ ${CHUNK:-} == engine ]] && CHUNK_ENV=""
+DENV="INTARSIA_TP_SPIN_MS=${TP_SPIN_MS:-100} INTARSIA_DSV41_CAP=${CAP:-32768} ${CHUNK_ENV} INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-}"
 VLLM_C=missioncntrl-guidance
 log() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
 r() { ssh -n -o BatchMode=yes -o ConnectTimeout=10 "$1" "export FLEETQ_JOB=$FLEETQ_JOB; $2"; }
@@ -206,6 +208,45 @@ if [[ " $STEPS " == *" nsys "* && ${NSYS:-0} == 1 ]]; then
     scp -q "$h:$SPARK_REL/logs/nsys-r$rk-$TAG*" "$OUT/" 2>/dev/null
     f=$(ls "$OUT"/nsys-r$rk-$TAG*gpu_trace*.csv 2>/dev/null | head -1)
     [[ -n $f ]] && { log "rank $rk breakdown:"; python3 "$S/nsys_breakdown.py" "$f" --tokens $((NT - 2)) | tee -a "$OUT/steps.log"; }
+  done
+fi
+# pfnsys (with NSYS=1): prefill only. PF_PROMPTS (default: the two prompt files of docs/results/2026-11-02-dsv41-prefill) each as one
+# max_tokens 1 request (each starts with a unique 'Run id' line, so no prefix is reused), one nsys session on both ranks, 3 s
+# apart, 3 rounds; then each prompt untraced 3 times for the plain wall time.
+# The CSVs go through docs/results/2026-11-02-dsv41-prefill/prefill_table.py.
+# pfplain: the same requests without nsys (warm-up, then 3 rounds of wall times), for many-config A/Bs.
+if [[ " $STEPS " == *" pfplain "* || ( " $STEPS " == *" pfnsys "* && ${NSYS:-0} == 1 ) ]]; then
+  PFNSYS=0; [[ " $STEPS " == *" pfnsys "* ]] && PFNSYS=1
+  PFD=$REPO/docs/results/2026-11-02-dsv41-prefill
+  PFP=${PF_PROMPTS:-$PFD/prompt1k.txt $PFD/prompt4k.txt}
+  pfreq() { local t0; t0=$(date +%s.%N)
+    curl -s -m 300 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":"Run id %s.\n" % sys.argv[2] + open(sys.argv[1]).read(),"max_tokens":1,"temperature":0}))' "$1" "$2-$RANDOM")" > "$OUT/pf-$2.json"
+    echo "pf $2 $(basename "$1") wall $(python3 -c 'import sys,time; print("%.3f" % (time.time() - float(sys.argv[1])))' "$t0") s $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("usage"))' "$OUT/pf-$2.json")" | tee -a "$OUT/steps.log"; }
+  for f in $PFP $PFP; do pfreq "$f" warm; done
+  if [[ $PFNSYS == 1 ]]; then
+    r spark1 "nsys start --session=dsv41r0x$TAG -o $LOGD/nsys-r0-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+    r spark2 "nsys start --session=dsv41r1x$TAG -o $LOGD/nsys-r1-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+    for rep in 1 2 3; do pi=0; for f in $PFP; do sleep 3; pfreq "$f" traced$pi-$rep; pi=$((pi + 1)); done; done; sleep 3
+    r spark1 "nsys stop --session=dsv41r0x$TAG" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+    r spark2 "nsys stop --session=dsv41r1x$TAG" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
+  fi
+  for rep in 1 2 3; do pi=0; for f in $PFP; do pfreq "$f" plain$pi-$rep; pi=$((pi + 1)); done; done
+  if [[ $PFNSYS == 1 ]]; then
+    for rk in 0 1; do
+      h=spark$((rk + 1))
+      r $h "nsys stats --report cuda_gpu_trace --format csv --output $LOGD/nsys-r$rk-$TAG $LOGD/nsys-r$rk-$TAG.nsys-rep > /dev/null 2>&1; ls -la $LOGD/nsys-r$rk-$TAG*" | tee -a "$OUT/steps.log"
+      scp -q "$h:$SPARK_REL/logs/nsys-r$rk-$TAG*gpu_trace*.csv" "$OUT/" 2>/dev/null
+    done
+  fi
+fi
+# longp: each file of LONG_PROMPTS (32K-64K tokens; set CAP above the longest) as one completion, 16 greedy tokens with the top 5
+# logprobs, saved as $OUT/longp-<name>.json. Compare two configs with docs/results/2026-11-02-dsv41-prefill/cmp_longp.py (chunk
+# invariance: the same tokens and the same logprobs bit for bit).
+if [[ " $STEPS " == *" longp "* ]]; then
+  for f in ${LONG_PROMPTS:?set LONG_PROMPTS}; do
+    t0=$(date +%s.%N)
+    curl -s -m 900 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":open(sys.argv[1]).read(),"max_tokens":16,"temperature":0,"logprobs":5}))' "$f")" > "$OUT/longp-$(basename "$f" .txt).json"
+    log "longp $(basename "$f") wall $(python3 -c 'import sys,time; print("%.1f" % (time.time() - float(sys.argv[1])))' "$t0") s $(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("usage"), repr(d["choices"][0]["text"][:60]))' "$OUT/longp-$(basename "$f" .txt).json" 2>&1 | tail -1)"
   done
 fi
 # localeval (the fleet's harness, /opt/code/deepeval) inside this slot (FLEETQ_JOB is set): speed sweep and MMLU

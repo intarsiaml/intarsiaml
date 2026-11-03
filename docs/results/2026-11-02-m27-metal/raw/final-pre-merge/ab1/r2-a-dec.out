@@ -1,0 +1,16 @@
+```rust
+/// Parses a single CSV line into a vector of fields.
+/// Handles quoted fields that may contain commas, newlines, and escaped quotes.
+///
+/// # Arguments
+/// * `line` - A string slice representing a single CSV line.
+///
+/// # Returns
+/// A vector of `String` representing the parsed fields.
+///
+/// # Examples
+/// ```
+/// let fields = parse_csv_line("hello,world,foo");
+/// assert_eq!(fields, vec!["hello", "world", "foo"]);
+///
+/// let fields = parse_csv_line("\"hello,

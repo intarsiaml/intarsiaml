@@ -1,0 +1,20 @@
+NVCC FAILED
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+    0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+/usr/bin/ld: /tmp/tmpxft_00174686_00000000-11_combine_bench.o: in function `ik_moe_experts_exl3':
+tmpxft_00174686_00000000-6_combine_bench.cudafe1.cpp:(.text+0x4bd8): undefined reference to `ik_exl3x::launch_rows(ik_exl3x::GroupedArgs const&, bool, CUstream_st*)'
+/usr/bin/ld: tmpxft_00174686_00000000-6_combine_bench.cudafe1.cpp:(.text+0x4c78): undefined reference to `ik_exl3x::launch_rows(ik_exl3x::GroupedArgs const&, bool, CUstream_st*)'
+collect2: error: ld returned 1 exit status
+bash: line 1: ./bin/combine_bench: No such file or directory

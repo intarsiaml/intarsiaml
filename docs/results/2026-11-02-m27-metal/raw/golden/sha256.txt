@@ -1,0 +1,1 @@
+45bc99e70a56c5e8e363a006716ab4fd246aa88204138db9f4526da02716e03a  docs/results/2026-11-02-m27-metal/raw/golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors

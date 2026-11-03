@@ -1,0 +1,268 @@
+# DeepSeek V4.1 Flash at TP=2: rank caches, runtime, engine (lane dsv41/tp2)
+
+Lane `dsv41/tp2`, 2026-10-31 / 11-01. Mia EXL3 2.9 bpw checkpoint
+(`Mia-AiLab/DeepSeek-V4.1-Flash-1017-EXL3-EAQ-v1-2.9-bpw` @ `45ee5d0f`), text only.
+
+## What is in the branch
+
+- **Per-rank weight cache** (`crates/intarsia-models/src/dsv41_cache.rs`, `intarsia dsv41-cache --model CKPT --out DIR --rank R
+  --world W [--layers N]`): an already-sharded safetensors checkpoint per rank on the Spark's local NVMe, plus config,
+  tokenizer, chat template and the Engram token map. Column-parallel EXL3 linears (`wq_b`, shared `w1`/`w3`, `head`) keep
+  `N / W` outputs. Row-parallel ones (`wo_b`, shared `w2`) keep `K / W` inputs. `attn_sink` keeps `H / W` heads. `wo_a`
+  keeps the rank's `o_groups / W` slices, renumbered from 0. Routed experts are stored as the built EXL3 `MoeExperts`
+  arena (`I / W` wide). Indexer, compressor, router, hc and Engram `wkv` are replicated; `mtp.*` and `bias_vl` are
+  dropped. The loader streams it with O_DIRECT (6.9 GB/s measured on spark2, 17.3 GiB few-layer cache), so the page
+  cache never holds the weights.
+  Caches built: spark1 `~/intarsia-dsv41-tp2/cache/r0of2` and spark2 `~/intarsia-dsv41-tp2/cache/r1of2`, 97 GB each.
+  `l3-*` are few-layer (`--layers 3`) caches for parity.
+- **TP graph** (`dsv41::graph::build_with(.., GraphTp { world, layers })`): heads, groups and experts per rank. The
+  collectives are stage extras, not ops (the op set is frozen):
+  - an f32 partial all-reduce after `wo_b` and after the MoE (`Comm::all_reduce_sum_into`, rounded once);
+  - an all-reduce of the gathered Engram rows (a rank's foreign rows are exact zeros);
+  - an all-gather of the head's logits.
+
+  `layers` truncates the model for few-layer runs.
+- **Fused routed + shared experts**: one `MoeExperts` launch per layer. The shared expert is expert 384 of a 385-row
+  arena, picked by a 7th slot of weight 1. At decode a fill writes that slot; prefill uses transpose, fill, transpose
+  (TensorFold's served-decode layout). `dsv41::runtime::fuse_shared_experts` appends it at load.
+- **Runtime** (`intarsia_core::dsv41::runtime`): an eager executor over the graph for one rank and one sequence.
+  - Engram: both layers' rows are hashed and issued as soon as a pass's token ids are known. The pass waits for layer
+    *l*'s records right before layer *l*, an eager split of the pass at layers 1 and 14.
+  - `touch` runs at pass start and before the logits read.
+- **Engine** (`crates/intarsia-models/src/dsv41_engine.rs`): the single-sequence `Engine` for `generate` / `serve`, with
+  prefix reuse down to the ring margin.
+  - A rank cache passed as `--model` is detected by `load_engine_group`.
+  - Rank 1 runs `intarsia tp-worker` with its own cache. `tp_remote::serve` is now generic over a `RankModel`
+    (`Model` is unchanged). The handshake fingerprint is the source checkpoint plus world, layers, capacity, chunk and
+    act.
+- **CUDA kernels added by this lane**: `transpose01`, `engram_gather`, `engram_merge` (admitted on GB10), plus
+  `logits_f16w` / `matmul_f16w`. The router `ffn.gate` and the indexer `weights_proj` are f16 in the checkpoint;
+  rounding them to bf16 would move expert choices.
+  `tests/dsv41.rs::every_step_resolves_to_a_cuda_kernel` checks the sm_121 registry against every step (TP=1 decode
+  and prefill shapes, and a TP=2 rank's).
+
+## Stage 5a: few-layer parity
+
+`crates/intarsia-models/tests/dsv41_runtime.rs`. The reference is the official code's layer outputs on 16 prefill rows,
+then decode at positions 16 and 17, layers 0-2. Only token ids and Engram rows come from the fixture; the rows are
+served by a tier keyed by the official hash ids, so a wrong hash errors. Each depth runs layers 0..l in the runtime.
+The table shows max |got - ref| / max |ref|, worst over the three steps.
+
+| run | L0 | L1 | L2 |
+|---|---|---|---|
+| CPU, 1 rank, fp32 | 4.4e-6 | 5.9e-6 | 3.6e-5 |
+| CPU, 2 ranks (host comm), fp32 | 4.4e-6 | 5.9e-6 | 3.6e-5 |
+| CPU, 1 rank, bf16 | 6.7e-3 | 4.1e-3 | 1.7e-2 |
+| CPU, 2 ranks, bf16 | 6.7e-3 | 2.2e-2 (a) | 2.8e-2 |
+| CUDA (GB10, spark2), 1 rank, bf16 | 7.1e-3 | 2.2e-2 (a) | 2.4e-2 |
+| CUDA, 1 rank, bf16, fused HcSublayer + f16w router kernel (`9eb46e656`) | 6.7e-3 | 2.3e-2 (a) | 2.3e-2 |
+
+(a) A routing near-tie at layer 1, decode step 1: summation order (two ranks, or CUDA) flips expert 270 to 78 (`INTARSIA_DSV41_ROUTES=1`
+prints the sets). In fp32 the two ranks match the one-rank result to rounding.
+
+With the fused HcSublayer (`INTARSIA_DSV41_HC_FUSED`, default on) and the f16-weight router / weights_proj kernel the
+same route flip appears and nothing else moves; L2 rel_rms 2.4e-2 (was 2.7e-2). Kernel admission in the same job (fleetq
+#7652): `hc_sublayer` 12 cases, max_abs 1.6e-7; `matmul_f16w` 21 cases, max_abs 4.9e-4, rel_l2 1.1e-5.
+Coverage limit: the fixture has 16 prefill rows, which is exactly `HC_FOLD_MAX_ROWS`, so 5a runs only the folded path. The
+unfolded path (T > 16, every real prefill chunk) and the HcPost exceptions at layers 14 and 37-39 have only the kernel
+admission behind them. The full-model goldens and the near-tie probe of windows 7 and 10 cover them end to end (see
+"Fused HcSublayer and the f16w router kernel" below).
+
+The CUDA fp32 flow is not run: the backend's shared kernels (embedding, norms) take bf16 activations only.
+
+## Stage 5b: full model, TP=2 across spark1 + spark2
+
+The first window was fleetq #7621, binary `2d20b0b4d`, run with `scripts/dsv41-tp2/run-full.sh`:
+- rank 0: spark1, `serve --tp 2 --tp-remote`;
+- rank 1: spark2, `tp-worker`;
+- NCCL 2.30.7 over ConnectX-7, `NCCL_MAX_NCHANNELS=2`, `NCCL_BUFFSIZE=1 MiB`;
+- capacity 32768, chunk 512, Engram hot tier 1 GiB.
+
+**Load:** 23 s per rank from vLLM down to serving (16 s O_DIRECT stream of 96.3 GiB at 6.1-6.4 GB/s, then the shared-expert
+fuse). Health was up 29 s after start.
+
+**Per-rank memory** (rank 0; rank 1 matches):
+
+| | GiB |
+|---|---|
+| weights | 95.43 |
+| workspace (chunk 512) | 0.24 |
+| sequence state (32K tokens) | 0.10 |
+| kernel scratch | 0.004 |
+| rest: CUDA context, NCCL, Engram tier incl. 1 GiB hot tier, host | 2.04 |
+| **non-weight total** | **2.38** (target <= 6) |
+| MemAvailable after warm-up | 13.3 |
+
+**Greedy text** (`golden_tf.py tokens` on tools/prompts/golden*.jsonl, raw completions, 64 tokens each): coherent on all 10
+prompts. Examples: counting goes on as "13, 14, 15, ..."; the code prompt completes `is_prime` correctly; the
+science prompt explains RuBisCO and photorespiration. In the ChatML prompts, the model sometimes runs on past `<|im_end|>`:
+these are raw completions with `ignore_eos`, which is expected. The file is `.scratch/full-w1/tok-intarsia-tp2.st`
+(not committed); 10 prompts x 64 tokens took 31 s including prefill.
+
+**Chat requests** failed in this window: the checkpoint's chat template calls `{}.copy()`, which minijinja lacks. Fixed in
+`d91129d4c` (`dict.copy()` / `list.copy()` in the template engine).
+
+**Token agreement with TensorFold:** not measured. No TensorFold token golden exists (`golden/dsv41` has none), and this
+lane may not run the TensorFold server. The `tok*.st` files under the dsv41-ref0 worktree's `.scratch/golden_tf/out`
+are test fixtures of `golden_tf.py` against a fake server (its `/v1/models` reports id `fake`), not TensorFold output. `golden_tf.py tokens --tokenizer` against intarsia writes the same
+`intarsia-golden-tokens-v1` format, so once a TensorFold golden is recorded on the same prompt set,
+`golden_tf.py compare` gives the agreement.
+
+### Second window (fleetq #7623, binary `2ab87ada3`)
+
+Same layout and settings as the first. Load 22.9 s, MemAvailable 110.5 -> 13.0 GiB after warm-up, non-weight 2.05 GiB
+on rank 0 (the startup log line: workspace 0.237, scratch 0.004, state 0.103, rest = CUDA context + NCCL + Engram + host).
+
+**Chat** works with the template fix. With the template's default (thinking on), the content is the reasoning, then
+`</think>`, then the answer. Example: "...Capital France Paris. Need concise.</think>The capital of France is Paris."
+That window's binary had no reasoning parser for DSv4.1. `5fea1a106` adds `think-tags`, so a request with
+`enable_thinking: true` gets `reasoning_content` split off at the single `</think>` token. Like every other model, a
+request that leaves thinking unset gets it all in `content`. Counting, `fibonacci` code and the lighthouse story are coherent.
+
+**Speed** (localeval, `results/20261101-015410-adhoc-dsv41-intarsia-tp2-speed`; one stream, 128 output tokens, median
+of 3, eager runtime without CUDA graphs):
+
+| prompt tokens | TTFT s | prefill tok/s | marginal prefill tok/s | decode tok/s |
+|---|---|---|---|---|
+| 117 | 0.48 | 241 | - | 24.8 |
+| 1028 | 1.92 | 536 | 634 | 24.6 |
+| 4094 | 7.21 | 568 | 580 | 24.7 |
+
+For reference, the Mia/TensorFold 2x-Spark server measures 89 / 56 / 59 tok/s decode (memory note, same checkpoint).
+Decode is eager: about 1400 launches a token plus 2 all-reduces per layer, with no CUDA graph. The Engram wait is
+0 ms (the rows are back before layer 1), and the graph build takes 0.08 ms.
+
+**MMLU** (localeval, `--thinking off`, `--limit 10` per subject): stopped at the window limit after 32 of 57 subjects.
+**Not the reference's protocol.** The window's binary ignored `response_format`: the DSv4.1 engine never applied the
+server's grammar mask. Each item therefore came back as free text, so deepeval's JSON parse failed and it retried with
+its own confinement prompt. Mia answered under the json_schema constraint, 7 output tokens per item. `5d5438cdb` makes the
+engine apply the mask: on the CPU 3-layer cache, a `MultipleChoiceSchema` request now returns `{"answer": "...`, and with
+thinking on the mask waits for `</think>`. Prompt rendering is the same in both runs: `enable_thinking: false` gives
+the template's chat mode, which ends the prompt in `</think>`.
+The per-subject accuracies are in the log (`.scratch/full-w2/mmlu10-partial.log`). The comparison uses the same items,
+the first 10 of each subject, from the Mia/TensorFold reference run (`results/20261031-195017-adhoc-dsv41-mia-tf-quality`,
+`--limit 25`, 0.879 overall):
+
+| | items | accuracy |
+|---|---|---|
+| intarsia TP=2 | 320 | **0.856** |
+| Mia/TensorFold, same 320 items | 320 | 0.875 |
+| Mia/TensorFold, 25 per subject, same 32 subjects | 800 | 0.871 |
+
+The gap is 6 of 320 items (274 vs 280). 11 subjects differ, in both directions (abstract_algebra 0.4 vs 0.6,
+high_school_physics 1.0 vs 0.9). The standard error at n = 320 is about 0.02, so this neither confirms nor fails the
+0.879 +- 0.01 gate. The gate is undetermined, and these numbers are a different-protocol first look.
+
+Each item took about 9 s here: 2600 prompt tokens plus a free-text answer and the retry. With the constraint, an item
+is one call of about 2600 prompt tokens and about 7 output tokens: roughly 5 s at 560 tok/s prefill. The 570-item
+same-item comparison then fits in one window (about 50 min), and `--limit 25` (1425 items) takes about 2 h.
+
+### Third window (fleetq #7630, binary `d6d05ecbc`): MMLU with the constraint
+
+Run with `STEPS="greedy mmlu" MMLU_LIMIT=10`, same protocol as the Mia reference: `--thinking off`, json_schema answers,
+mean output 7.01 tokens per item. The greedy chat outputs are byte-identical to window 2's.
+
+**MMLU 0.877** (570 items, all 57 subjects x 10; `results/20261101-024140-adhoc-dsv41-intarsia-tp2-mmlu`, 5.6 s per item).
+- `localeval compare` against the Mia run (0.879, n = 1425): delta -0.002, inside 2 SE (+-0.032), verdict noise.
+- Paired on the same 570 items (task + index, gold checked equal): Mia 0.8895, intarsia 0.8772. Both give the same answer on
+  550 / 570 (96.5 %); discordant pairs are 12 Mia-only vs 5 intarsia-only correct (exact binomial p ~ 0.14).
+- Against the gate (0.879 +- 0.01): 0.877 is inside.
+
+
+### Fourth window (fleetq #7632, binary `d6d05ecbc`): where a decode token's time goes
+
+Both ranks ran under `nsys launch` (`NSYS=1 STEPS=nsys`), and one 48-token forced-length completion was captured on both.
+`scripts/dsv41-tp2/nsys_breakdown.py` splits passes at the logits all-gather and analyses the last 40. Host-side numbers come
+from the capture's CUDA runtime table and from `INTARSIA_DSV41_PROFILE=16`. Per decode token:
+
+| | rank 0 | rank 1 |
+|---|---|---|
+| token period | 41.7 ms (24.0 tok/s) | 41.7 ms |
+| GPU busy (union of kernels) | 35.3 ms | 34.2 ms |
+| of which compute kernels | 31.5 ms | 32.0 ms |
+| of which NCCL (82 all-reduces + 1 gather, incl. waiting for the peer) | 3.8 ms | 2.2 ms |
+| idle gaps inside the pass | 6.4 ms: 4.8 ms of < 5 us gaps between ~2100 kernels, 1.5 ms at pass start | 4.9 ms |
+| between passes (rank 1 waits for rank 0's next pass over tp_remote) | 0.0 ms | 2.7 ms |
+| Engram wait | 0.01 ms | |
+
+Host on rank 0 (per pass): 2036 `cudaLaunchKernel` calls take 17.6 ms (8.7 us each), Rust per-step work 4.2 ms, and the
+logits download waits 19 ms for the GPU. The host is ahead of the GPU except at the start of a pass (sample, graph build,
+token-id upload).
+
+GPU kernels per token (rank 0):
+
+| kernel (launch grid) | calls | ms | note |
+|---|---|---|---|
+| EXL3 `linear_kernel`, grid 8 (`wo_a` slices, 2.5 MiB each) | 160 | 5.40 | about 78 GB/s: 8 blocks on the GPU |
+| EXL3 `linear_kernel`, grid 4 / 10 / 40 | 47 / 40 / 40 | 1.93 / 1.71 / 2.47 | small N, no split-K |
+| EXL3 `linear_kernel`, grid 128 (`wq_b`, `wo_b`, 12.5 MiB) | 40 | 2.58 | about 200 GB/s |
+| EXL3 `linear_kernel`, head (grid 505) | 1 | 1.05 | |
+| MoE `grouped_cp` gate/up and down (7 slots incl. the fused shared expert) | 40 + 40 | 5.93 + 2.98 | about 200 GB/s |
+| NCCL all-reduce | 82 | 3.73 | |
+| `hc_mix_partial` + `hc_mix_finish` + `hc_pre` + `hc_post` | 80 + 80 + 84 + 80 | 1.19 + 0.37 + 0.13 + 0.23 | |
+| `dense_f16w` (router gate, indexer weights_proj) | 40 + 8 | 1.03 + 0.15 | about 120 GB/s |
+
+For scale: a token reads about 3.9 GiB per rank (EXL3 linears about 1.8 GiB, 7 expert slots about 1.85 GiB, Engram `wkv`
+and head). At about 230 GB/s achievable that is about 17 ms of weight reads. (Correction, later the same day: Mia's
+17 ms per token is not a per-pass time. TensorFold decodes with the checkpoint's DSpark/MTP drafter at about 2.2 tokens a
+round; its own round-cost table puts one 1-row forward at 30 ms. See "Where the 2x decode gap is" below.)
+
+### EXL3 split-K for the small-grid decode linears (`58b2286b7`, threshold `2353db633`)
+
+`ik_matmul_exl3_splitk` is a new entry point in `kernels/cuda/exl3.cu`. It cuts K into S splits (S divides K / 128, the
+smallest S whose grid N / 128 x S reaches the SM count, at most 16). Each block stores its raw 128-column partial in f32;
+a second launch adds the partials in split order, then applies H, svh and the rounding like `linear_kernel`. It is
+deterministic, but not bitwise equal to the GEMV.
+- Other EXL3 models cannot pick it up. It is registered at priority -10, and the GEMV accepts every shape it does. Only the
+  DSv4.1 runtime selects it, by name, for one-row calls with grid N / 128 < `INTARSIA_DSV41_EXL3_SPLITK` (default 16,
+  0 = off).
+- The SASS of all 34 existing kernels in `exl3.cu` is identical before and after (cuobjdump on spark2,
+  `scripts/dsv41-tp2/splitk-gpu.sh`).
+- Admission sweep on GB10: 134 cases, 0 failures, max_abs 5.3e-3, rel_l2 1.7e-3 (GEMV: 7.0e-3 / 1.7e-3). The exl3 test
+  binary passes (10 tests, including the split-K sweep).
+
+Microbenchmark (M = 1, cold weights, us per call; `bench_splitk`):
+
+| shape (TP=2 rank) | grid | GEMV | split-K |
+|---|---|---|---|
+| wkv / compressor N=512 K=5120 | 4 | 45.2 | 12.3 |
+| wo_a slice N=1024 K=4096 | 8 | 37.9 | 17.9 |
+| wq_a N=1280 K=5120 | 10 | 46.7 | 29.1 |
+| indexer wq_b N=4096 K=1280 | 32 | 18.7 | 20.8 |
+| wo_b N=5120 K=4096 | 40 | 58.9 | 62.1 |
+
+That is 1.6-3.7x faster at grid 4-10 and 5-10 % slower at grid 32-40, so the threshold is 16.
+
+**End to end** (window 5, fleetq #7643, the same binary started twice in one window; localeval speed, A = split-K off, B = on):
+
+| prompt tokens | decode tok/s off | decode tok/s on | prefill tok/s off / on |
+|---|---|---|---|
+| 114 | 24.7 | 27.4 (+11 %) | 242 / 264 |
+| 1028 | 24.2 | 27.3 (+13 %) | 536 / 536 |
+| 4074 | 24.2 | 27.5 (+13 %) | 569 / 569 |
+| 16328 | 24.2 | 27.3 (+13 %) | 565 / 567 |
+
+Greedy chat with split-K off is byte-identical to windows 2 and 3. With it on, capital and count are identical, while
+code and story change after 68 / 302 characters and stay coherent.
+
+**MMLU with split-K on** (window 5, 570 items, same protocol as window 3): **0.879**
+(`results/20261101-050832-adhoc-dsv41-intarsia-tp2-mmlu-ab1`). Paired on the same items:
+
+| | items | first | second | same answer | only first right / only second right |
+|---|---|---|---|---|---|
+| Mia vs split-K on | 570 | 0.890 | 0.879 | 549 | 12 / 6 |
+| split-K off (window 3) vs on | 570 | 0.877 | 0.879 | 567 | 1 / 2 |
+
+**Profile with split-K on** (nsys, same 48-token request as window 4): 37.8 ms per token (26.5 tok/s) on both ranks.
+- GPU busy: 30.9 ms (window 4: 35.3), of which compute 27.7 and NCCL 3.2.
+- Idle gaps inside a pass: 7.0 ms (window 4: 6.4). The cause is about 250 extra finish launches per token.
+- The split-K calls take 4.9 ms per token (`split_kernel` + `split_finish_kernel`), where the same calls took 9.0 ms on the
+  GEMV.
+- `linear_kernel` (grid >= 32, plus the head) still takes 7.1 ms over 91 calls, the MoE `grouped_cp` 9.0 ms.
+
+### Near-tie check against TensorFold's greedy golden (window 6, fleetq #7645, binary `a904d271f`, split-K off)
+
+TensorFold's golden is `dsv41-golden-tf/tok-tensorfold-mia.st`; the intarsia golden it is compared with is window 1's.
+The prompt ids are identical, and the leading agreement was 335/640. For each first divergence,
+`scripts/dsv41-tp2/neartie.py` sent intarsia the prompt ids plus the common prefix as a raw completion (max_tokens 1,
+temperature 0, the new legacy 
