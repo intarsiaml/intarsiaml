@@ -29,6 +29,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 spec_ = importlib.util.spec_from_file_location("gen_items", os.path.join(HERE, "../../2026-11-03-dsv41-chunk32k-quality/raw/gen_items.py"))
 g1 = importlib.util.module_from_spec(spec_)
 spec_.loader.exec_module(g1)   # load_pool, Tok, word, code (set 1's helpers, same pinned commit)
+import subprocess
+g1.REPO = subprocess.run(["git", "-C", HERE, "rev-parse", "--show-toplevel"], check=True, capture_output=True, text=True).stdout.strip()  # any checkout holding SOURCE_COMMIT
 
 INTC = re.compile(r"^[ \t]*(?:pub(?:\([a-z]+\))? )?const ([A-Z][A-Z0-9_]+): (?:usize|u32|u64|i32|i64|u16|u8) = (\d[\d_]*);[ \t]*(?://.*)?$", re.M)
 TARGET = {32: (30000, 30900), 65: (63500, 64300)}

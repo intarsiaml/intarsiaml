@@ -77,7 +77,7 @@ def main():
     ap.add_argument("--arms", nargs="+", required=True)
     ap.add_argument("--since", default="00000000")
     ap.add_argument("--manifest", required=True)
-    ap.add_argument("--max-tokens", type=int, default=160)
+    ap.add_argument("--max-tokens", type=int, default=400)
     ap.add_argument("--out", required=True)
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
