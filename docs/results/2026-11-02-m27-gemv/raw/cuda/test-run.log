@@ -1,0 +1,15 @@
+fleetq: #8137 running on spark2: bash .scratch/cuda-test.sh
+fleetq: #8137 went ahead of the line and must end within 23m (by Mon 22:27); it is stopped then
+head mxfp4 quick rc=0
+head mxfp4 full rc=0
+head all quick rc=0
+head plan 35b rc=0
+head plan 8b rc=0
+main mxfp4 quick rc=0
+main mxfp4 full rc=0
+main all quick rc=0
+main plan 35b rc=0
+main plan 8b rc=0
+plan show 35b: identical (      76 lines)
+plan show 8b: identical (      25 lines)
+fleetq: #8137 done (exit 0)

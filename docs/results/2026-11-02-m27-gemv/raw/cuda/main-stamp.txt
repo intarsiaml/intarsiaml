@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "tool": "scripts/deploy.sh",
+  "created": "2026-11-03T03:04:14Z",
+  "git": {
+    "sha": "c269ded360ea47720819314193d901156e7bb6be",
+    "ref": "c269ded36",
+    "subject": "Merge pull request #281 from intarsiaml/dsv41/group",
+    "tree": "bf274a24a438d57a216628eb3fc3809edd02e35e"
+  },
+  "lock_sha256": "abad806a7bff1ddca2a17566e3503aaf7822c6f05f68f34ee8b69e56a39153bd",
+  "rust_toolchain_file_sha256_16": "3390e8ad06df7932",
+  "backend": "cuda",
+  "features": "cuda",
+  "deploy_host": "spark2",
+  "tree_dir": "intarsia-deploy/m27-gemv-main",
+  "toolchain": {
+    "rustc": "rustc 1
