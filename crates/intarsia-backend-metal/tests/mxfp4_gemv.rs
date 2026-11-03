@@ -2,7 +2,7 @@
 //! * the output stays close to an f64 reference over the decoded weights (bf16 / f32 outputs, K tails of one group);
 //! * the output **bits** are pinned: `PINNED` holds the FNV-1a hash of each case's output as the GEMV of lane m27 (the kernel before
 //!   the half-trick decode and the activation fusion, lane `u` summing groups `u, u + 32, ...` with an f32 fma chain, then `simd_sum`) produced it, so a decode or
-//!   load change that is meant to keep the numerics must keep these. `INTARSIA_PRINT_HASHES=1` prints the current ones.
+//!   load change that is meant to keep the numerics must keep these (the current hashes are printed on stderr, `--nocapture`).
 //! * a row's bits do not depend on the call's M.
 
 #![cfg(target_os = "macos")]
@@ -161,17 +161,13 @@ fn gemv_matches_the_f64_reference() {
 #[test]
 fn gemv_bits_are_pinned() {
     let be = backend();
-    let print = std::env::var("INTARSIA_PRINT_HASHES").is_ok();
     let mut got = vec![];
     for (i, &(m, n, k, f32_out, act)) in CASES.iter().enumerate() {
         let (xb, wb, sb, ..) = case_data(&be, i);
         got.push(fnv(&run_at(&be, &xb, 0, &wb, &sb, m, n, k, f32_out, act)));
     }
-    if print {
-        eprintln!("PINNED = {got:#018x?}");
-    } else {
-        assert_eq!(got, PINNED);
-    }
+    eprintln!("current hashes: {got:#018x?}");
+    assert_eq!(got, PINNED);
 }
 
 #[test]

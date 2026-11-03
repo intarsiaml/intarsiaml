@@ -168,17 +168,28 @@ inline void mxfp4_gemv_impl(device const ushort* xs, device const uchar* w, devi
             if (m0 + m >= M) break;
             // 32 bf16 of the activation row as four 16-byte loads (xsrc is 16-byte aligned, K % 32 == 0)
             device const uint4* xp = (device const uint4*)(xsrc + (ulong)(m0 + m) * K + (ulong)u * 32);
-            float xf[32];
-            for (int q = 0; q < 4; ++q) {
-                const uint4 xv = xp[q];
-                for (int j = 0; j < 4; ++j) {
-                    xf[q * 8 + 2 * j] = as_type<float>(xv[j] << 16);
-                    xf[q * 8 + 2 * j + 1] = as_type<float>(xv[j] & 0xFFFF0000u);
+            float t = 0.f;
+            if (qdq) {
+                float xf[32];
+                for (int q = 0; q < 4; ++q) {
+                    const uint4 xv = xp[q];
+                    for (int j = 0; j < 4; ++j) {
+                        xf[q * 8 + 2 * j] = as_type<float>(xv[j] << 16);
+                        xf[q * 8 + 2 * j + 1] = as_type<float>(xv[j] & 0xFFFF0000u);
+                    }
+                }
+                mx_qdq32(xf);
+                for (int e = 0; e < 32; ++e) t = fma(wf[e], xf[e], t);
+            } else {
+                for (int q = 0; q < 4; ++q) {
+                    const uint4 xv = xp[q];
+                    for (int j = 0; j < 4; ++j) {
+                        const uint pr = xv[j];
+                        t = fma(wf[q * 8 + 2 * j], as_type<float>(pr << 16), t);
+                        t = fma(wf[q * 8 + 2 * j + 1], as_type<float>(pr & 0xFFFF0000u), t);
+                    }
                 }
             }
-            if (qdq) mx_qdq32(xf);
-            float t = 0.f;
-            for (int e = 0; e < 32; ++e) t = fma(wf[e], xf[e], t);
             acc[m] = fma(t * MX_FOLD, s, acc[m]);
         }
     }
