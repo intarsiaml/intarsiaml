@@ -1,0 +1,9 @@
+     14     0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+      3 ptxas info    : Used 57 registers, used 1 barriers, 16384 bytes smem
+      3 ptxas info    : Used 48 registers, used 0 barriers
+      3 ptxas info    : Used 21 registers, used 0 barriers
+      2 ptxas info    : Used 17 registers, used 0 barriers
+      1 ptxas info    : Used 68 registers, used 0 barriers
+      1 ptxas info    : Used 50 registers, used 0 barriers
+      1 ptxas info    : Used 26 registers, used 1 barriers, 28672 bytes smem
+bash: line 1: ./bin/combine_bench: No such file or directory

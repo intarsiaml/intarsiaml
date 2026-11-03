@@ -1,0 +1,18 @@
+== moe_bench
+KO G4 NTW2 CS2 no A                                min  16.110  median  16.444 ms  (x0.77 of base)
+KO G4 NTW2 CS2 no mma                              min  20.521  median  21.517 ms  (x1.00 of base)
+log /opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/logs/moe_bench-1102-200204.log
+== combine_bench
+warp-per-item WPB=2                min 1.488 median 1.494 ms  (225 GB/s at median; DRAM floor at 254 GB/s 1.32 ms)
+warp-per-item WPB=1                min 1.491 median 1.500 ms  (224 GB/s at median; DRAM floor at 254 GB/s 1.32 ms)
+log /opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/logs/combine_bench-1102-200256.log
+== build.sh
+spark1: f20744e6d dirty=no 1102-2003
+df91b5b15a78
+spark2: f20744e6d dirty=no 1102-2003
+df91b5b15a78
+== test binaries
+-rwxrwxr-x 1 nvidia nvidia 143908024 Nov  2 20:08 intarsia
+-rwxrwxr-x 1 nvidia nvidia 118101192 Nov  2 20:08 nccl_bench
+-rw-rw-r-- 1 nvidia nvidia        29 Nov  2 20:08 STAMP
+== slot1 done
