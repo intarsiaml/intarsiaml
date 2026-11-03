@@ -1,0 +1,15 @@
+fleetq: #8089 waiting (#1 in line): #8088 "m27-gemv: speed A/B 4096, MTP off, main vs v5" (claude-m27-gemv) needs cpu quiet on endor, and this job loads it
+fleetq: #8089 running on endor: .scratch/metal-noop.sh build
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/noop-base/crates/intarsia-core)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/noop-base/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 20.79s
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/head-clone/crates/intarsia-core)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/head-clone/crates/intarsia-cli)
+    Finished `release` profile [optimized] target(s) in 21.54s
+-rwxr-xr-x@ 1 josef  staff  27542800 Nov  2 20:21 /opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/target-metal-base/release/intarsia
+-rwxr-xr-x@ 1 josef  staff  27542800 Nov  2 20:22 /opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/target-metal-head/release/intarsia
+7c5ff28be010f6d24225cab36222fcca
+841f666452832b1575cf747b6a64b022
+--label--out-dir--fingerprintmetal-base-c269ded360ea47720819314193d901156e7bb6be--timeout-s
+--label--out-dir--fingerprintmetal-head-e80b230dfdc322594942504fa6d2be27224d7bbf--timeout-s
+fleetq: #8089 done (exit 141)

@@ -1,0 +1,5 @@
+fleetq: #8122 waiting (#3 in line): in line behind #8109 "dsv41 moegate: gates window (golden 640 + 32K/65K longp, old kernels vs shipped defaults, chunk 512); vLLM restored after" (claude-moegate) on spark1
+fleetq:   #8109 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8109 set, or it will wait for #8109 to be released.
+fleetq: #8122 waiting (#2 in line): spark1 is held exclusively by #8109 "dsv41 moegate: gates window (golden 640 + 32K/65K longp, old kernels vs shipped defaults, chunk 512); vLLM restored after" (claude-moegate); then in line behind #8115 "dsv41 prefill: chunk-dependence 32K dumps at chunk 512/1024/2048 (CAP 33000; B2's 32K failed on the context limit); vLLM restored after" (claude-b7d2edb2) on spark1
+fleetq:   #8109 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8109 set, or it will wait for #8109 to be released.
+fleetq: #8122 waiting (#1 in line): #8115 "dsv41 prefill: chunk-dependence 32K dumps at chunk 512/1024/2048 (CAP 33000; B2's 32K failed on the context limit); vLLM restored after" (claude-b7d2edb2) needs cpu quiet on spark1, and this job loads it
