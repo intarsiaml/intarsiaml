@@ -93,9 +93,9 @@ TAG=$(date +%H%M%S)
 NL0=""; NL1=""
 # (with --cuda-graph-trace=node: replayed CUDA graphs show their kernels one by one)
 if [[ ${NSYS:-0} == 1 ]]; then NL0="nsys launch --session-new=dsv41r0x$TAG --trace=cuda,nvtx --cuda-graph-trace=node"; NL1="${NL0/dsv41r0x/dsv41r1x}"; fi
-r spark2 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $1 $NL1 $BIN tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2 > $LOGD/worker-$TAG.log 2>&1 < /dev/null &"
+r spark2 "mkdir -p $LOGD; ${R1PRE:-}nohup env $NCCLENV $DENV $1 ${R1ENV:-} $NL1 $BIN tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2 > $LOGD/worker-$TAG.log 2>&1 < /dev/null &"
 sleep 2
-r spark1 "mkdir -p $LOGD; nohup env $NCCLENV $DENV $1 $NL0 $BIN serve -m $C0 --backend cuda --tp 2 --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name dsv41-intarsia --no-supervisor --no-ui > $LOGD/serve-$TAG.log 2>&1 < /dev/null &"
+r spark1 "mkdir -p $LOGD; ${R0PRE:-}nohup env $NCCLENV $DENV $1 ${R0ENV:-} $NL0 $BIN serve -m $C0 --backend cuda --tp 2 --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name dsv41-intarsia --no-supervisor --no-ui > $LOGD/serve-$TAG.log 2>&1 < /dev/null &"
 log "ranks started (tag $TAG)"
 T0=$(date +%s); up=0
 while (( $(date +%s) - T0 < 900 )); do
@@ -352,6 +352,14 @@ if [[ " ${PRE:-} " == *" ncclbench "* ]]; then
     r spark1 "cat $LOGD/ncclbench-r0-c$nch.log" | tee "$OUT/ncclbench-r0-c$nch.txt" | tee -a "$OUT/steps.log"
     r spark2 "pkill -f '[b]in/nccl_bench'; cat $LOGD/ncclbench-r1-c$nch.log" > "$OUT/ncclbench-r1-c$nch.txt"
   done
+fi
+
+# HOOK=file: source it instead of the steps (failure tests: scripts/dsv41-tp2/failtest.sh). It has start_ranks, kill_ours, r, log,
+# $OUT, $SURL and the rest of this script; R0ENV / R1ENV / R0PRE / R1PRE (set before start_ranks) add environment or a shell
+# prefix (`ulimit -l 4096; `) to rank 0 / rank 1 only.
+if [[ -n ${HOOK:-} ]]; then
+  source "$HOOK"
+  log "hook done"; log "done"; exit 0
 fi
 
 # AB="ENV_A|ENV_B" (e.g. "INTARSIA_DSV41_EXL3_SPLITK=0|INTARSIA_DSV41_EXL3_SPLITK=48"): run the steps once per config, each with

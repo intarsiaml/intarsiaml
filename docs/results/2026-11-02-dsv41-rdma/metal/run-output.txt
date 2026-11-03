@@ -1,0 +1,12 @@
+fleetq: #8160 running on endor: bash .scratch/metal-noop.sh run
+Qwen3.6-35B-A3B-NVFP4 plan show unchanged (      52 lines)
+Qwen3.6-35B-A3B-NVFP4 n128: 256 ids identical
+Qwen3.6-35B-A3B-NVFP4 n4096: 256 ids identical
+Qwen3-8B plan show unchanged (      22 lines)
+Qwen3-8B n128: 256 ids identical
+Qwen3-8B n4096: 256 ids identical
+matmul_nvfp4   matmul_nvfp4_gemv_rows         18      0    1.330e-3    2.214e-5  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 980 cases in 32.0s
+kernels test rc 0; FAIL lines in the full output: 0; lines       53
+fleetq: #8160 done (exit 0)

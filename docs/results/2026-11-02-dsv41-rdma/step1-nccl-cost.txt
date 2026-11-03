@@ -1,0 +1,9 @@
+big passes used: rank 0 30, rank 1 30; kernels a pass r0 2458
+r0: collectives a pass median 83.0, duration sum a pass median 4.23 ms (min 3.45, max 8.66)
+    f32 all-reduce duration us: median 43.6 p10 27.1 p90 89.3 p99 313.0; wait before it us: median 2.2 p90 4.1
+r1: collectives a pass median 83.0, duration sum a pass median 4.52 ms (min 3.07, max 7.31)
+    f32 all-reduce duration us: median 40.5 p10 26.3 p90 85.9 p99 295.2; wait before it us: median 2.3 p90 4.2
+30 passes paired. Per pass (median): rank-0 GPU span 41.3 ms; sum of min(duration over the ranks) 3.38 ms; sum of |d0 - d1| (skew the early rank waited) 2.02 ms
+  f32 all-reduce: 80.0 a pass; min-over-ranks duration us median 35.1 p10 24.9 p90 59.2; |d0-d1| us median 7.9 p90 85.9
+  bf16 all-reduce: 2.0 a pass; min-over-ranks duration us median 30.5 p10 24.4 p90 40.4; |d0-d1| us median 8.3 p90 21.2
+  all-gather: 1.0 a pass; min-over-ranks duration us median 82.9 p10 51.8 p90 129.3; |d0-d1| us median 23.1 p90 166.4

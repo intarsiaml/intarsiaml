@@ -1,0 +1,18 @@
+We need answer. Need write Python function returns nth Fibonacci iteratively. Need decide indexing. Usually F(0)=0, F(1)=1. Provide function. Could include docstring and example. Need concise. Ensure iterative O(n), O(1). Maybe handle negative? Not necessary. Could mention n non-negative. Let's craft.</think>```python
+def fibonacci(n: int) -> int:
+    """Return the n-th Fibonacci number iteratively.
+
+    Uses the convention:
+        F(0) = 0
+        F(1) = 1
+        F(n) = F(n - 1) + F(n - 2)
+    """
+    if n < 0:
+        raise ValueError("n must be a non-negative integer")
+    if n == 0:
+        return 0
+    if n == 1:
+        return 1
+
+    prev, curr = 0, 1
+    for _ in range(2, n

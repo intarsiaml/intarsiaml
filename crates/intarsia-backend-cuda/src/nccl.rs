@@ -130,6 +130,21 @@ pub fn unique_id() -> Result<[u8; 128]> {
 /// Open CUDA device `ordinal` and join rank `rank` of the `world`-rank NCCL communicator `id`. Blocks until every rank
 /// has joined. Call it before loading weights (a fresh process has the most room for NCCL's registered buffers).
 pub fn create(ordinal: usize, rank: usize, world: usize, id: [u8; 128]) -> Result<(Arc<dyn Backend>, Arc<dyn Comm>)> {
+    let (be, c) = create_concrete(ordinal, rank, world, id)?;
+    Ok((be as Arc<dyn Backend>, Arc::new(c) as Arc<dyn Comm>))
+}
+
+/// [`create`] for a two-process group with a control stream to the other rank (`intarsia serve --tp-remote` / `tp-worker`):
+/// the ranks agree on `rdma` (`INTARSIA_DSV41_RDMA`: [`crate::rdma_policy::Wish`]) over `ctl` and set the ring up, or keep
+/// plain NCCL (see [`crate::rdma::wrap`]).
+pub fn create_with_rdma(ordinal: usize, rank: usize, world: usize, id: [u8; 128], ctl: &mut std::net::TcpStream, rdma: crate::rdma_policy::Wish) -> Result<(Arc<dyn Backend>, Arc<dyn Comm>)> {
+    let (be, c) = create_concrete(ordinal, rank, world, id)?;
+    let c: Arc<dyn Comm> = Arc::new(c);
+    let c = crate::rdma::wrap(be.clone(), c, rank, ctl, rdma)?;
+    Ok((be as Arc<dyn Backend>, c))
+}
+
+fn create_concrete(ordinal: usize, rank: usize, world: usize, id: [u8; 128]) -> Result<(Arc<CudaBackend>, NcclComm)> {
     crate::disable::check_env()?;
     let l = lib()?;
     let be = Arc::new(CudaBackend::new(ordinal)?);
@@ -151,7 +166,7 @@ pub fn create(ordinal: usize, rank: usize, world: usize, id: [u8; 128]) -> Resul
         gather_sum: std::env::var("INTARSIA_NCCL_GATHER").is_ok_and(|v| v == "1"),
         counters: CommCounters::default(),
     };
-    Ok((be as Arc<dyn Backend>, Arc::new(c) as Arc<dyn Comm>))
+    Ok((be, c))
 }
 
 struct NcclComm {

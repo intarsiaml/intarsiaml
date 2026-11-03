@@ -461,7 +461,8 @@ impl ModelArgs {
             stream.write_all(&id)?;
             stream.flush()?;
             eprintln!("tensor parallel: rank 0 joining NCCL {} with the worker at {addr}", intarsia_backend_cuda::nccl::version().unwrap_or_default());
-            let (backend, comm) = intarsia_backend_cuda::nccl::create(self.device, 0, 2, id).map_err(|e| anyhow::anyhow!("{e}"))?;
+            let rdma = rdma_wish(&self.model);
+            let (backend, comm) = intarsia_backend_cuda::nccl::create_with_rdma(self.device, 0, 2, id, &mut stream, rdma).map_err(|e| anyhow::anyhow!("{e}"))?;
             Ok((backend, comm, stream))
         }
         #[cfg(not(feature = "cuda"))]
@@ -469,6 +470,19 @@ impl ModelArgs {
             bail!("--tp-remote needs a build with the CUDA backend (--features cuda); address {addr}")
         }
     }
+}
+
+/// `INTARSIA_DSV41_RDMA`: whether the f32 partial all-reduces of a two-process group go over RDMA instead of NCCL. Unset =
+/// auto: tried for a DeepSeek-V4.1 model (any other model stays on NCCL), and NCCL, with one log line, if the setup fails on
+/// either rank (a down port, low memlock, one rail, an unreachable peer); `1` = required (an error where it cannot work); `0`
+/// = off. Both ranks' settings are exchanged at start (`intarsia_backend_cuda::rdma_policy`).
+#[cfg(feature = "cuda")]
+fn rdma_wish(model: &std::path::Path) -> intarsia_backend_cuda::rdma_policy::Wish {
+    let dsv41 = std::fs::read_to_string(model.join("config.json"))
+        .ok()
+        .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+        .is_some_and(|c| intarsia_core::dsv41::config::Dsv41Config::matches(&c));
+    intarsia_backend_cuda::rdma_policy::Wish::parse(std::env::var("INTARSIA_DSV41_RDMA").ok().as_deref(), dsv41)
 }
 
 /// `intarsia tp-worker`: rank 1 of a cross-process tensor-parallel group (docs/design/35b-tp2.md).
@@ -502,7 +516,8 @@ pub fn run_tp_worker(a: TpWorkerArgs) -> Result<()> {
         use std::io::Read;
         let mut id = [0u8; 128];
         stream.read_exact(&mut id)?;
-        let (backend, comm) = intarsia_backend_cuda::nccl::create(a.model.device, 1, 2, id).map_err(|e| anyhow::anyhow!("{e}"))?;
+        let rdma = rdma_wish(&a.model.model);
+        let (backend, comm) = intarsia_backend_cuda::nccl::create_with_rdma(a.model.device, 1, 2, id, &mut stream, rdma).map_err(|e| anyhow::anyhow!("{e}"))?;
         eprintln!("tp-worker: joined NCCL {} as rank 1 on device {}", intarsia_backend_cuda::nccl::version().unwrap_or_default(), a.model.device);
         let n = intarsia_models::serve_remote_rank(&a.model.model, backend, comm, stream, &opts).map_err(|e| anyhow::anyhow!("{e}"))?;
         eprintln!("tp-worker: rank 0 disconnected after {n} forward passes");

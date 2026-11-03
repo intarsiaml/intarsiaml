@@ -135,6 +135,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
         default_max_tokens: args.default_max_tokens,
         watchdog_s: args.watchdog_s,
         exit_on_stall: args.child,
+        exit_on_failed: args.model.tp_remote.is_some(),
         parent_pid,
         ui: !args.no_ui,
     };

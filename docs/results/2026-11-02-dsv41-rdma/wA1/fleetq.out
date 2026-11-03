@@ -1,0 +1,106 @@
+fleetq: #8081 waiting (#2 in line): in line behind #8072 "dsv41 prefill: chunk-dependence controls (equivalent kernel paths), 32K dumps, 8K whole chunk; vLLM restored after" (claude-b7d2edb2) on spark1, spark2
+fleetq: #8081 waiting (#1 in line): spark1-vllm is also taken down by #8072 "dsv41 prefill: chunk-dependence controls (equivalent kernel paths), 32K dumps, 8K whole chunk; vLLM restored after" (claude-b7d2edb2)
+fleetq: #8081 running on spark1, spark2: bash .scratch/wA1.sh
+20:26:00 earlyoom on spark1: -m 2,1
+20:26:01 earlyoom on spark2: -m 2,1
+20:26:04 binary 61d788c3c dirty=yes 1102-2003; out /opt/code/intarsiaml/.worktrees/dsv41-rdma/.scratch/wA1
+20:26:08 vLLM stopped on both
+20:26:12 ranks started (tag 202610)
+20:26:43 serve up=1 after 31 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 16.5 s = 6.26 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 6.12 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 23.8 s (4.50 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.10 GiB -> 9.75 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793669198)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793669198)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793669198)
+dsv41: warm-up passes in 0.35 s
+dsv41: rank 0 after warm-up: MemAvailable 9.45 GiB, used since start 100.65 GiB, of which weights 98.90 GiB, non-weight 1.75 GiB (workspace 0.302, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 16.2 s = 6.40 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 1.2 s = 3.04 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 24.9 s (4.30 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.302 GiB (chunk 512), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.96 GiB -> 10.31 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793669198)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793669198)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793669198)
+capital 'We need answer one sentence. Capital France Paris. Need concise.</think>The capital of France is Paris.' {'prompt_tokens': 42, 'completion_tokens': 22, 'total_tokens': 64, 'prompt_tokens_details': {'cached_tokens': 0}}
+count 'We need answer simple. Need count 1 to 20 separated by commas. Ensure exact.</think>1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,' {'prompt_tokens': 42, 'completion_tokens': 64, 'total_tokens': 106, 'prompt_tokens_details': {'cached_tokens': 0}}
+code 'We need answer. Need write Python function returns nth Fibonacci iteratively. Need decide indexing. Usually F(0)=0, F(1)=1. Provide function. Could include docstring and example. Need concise. Ensure iterative O(n), O(1). Maybe handle negative? Not necessary. Could mention n non-negative. Let\'s craft.</think>```python\ndef fibonacci(n: int) -> int:\n    """Return the n-th Fibonacci number iteratively.\n\n    Uses the convention:\n        F(0) = 0\n        F(1) = 1\n        F(n) = F(n - 1) + F(n - 2)\n    """\n    if n < 0:\n        raise ValueError("n must be a non-negative integer")\n    if n == 0:\n    ' {'prompt_tokens': 44, 'completion_tokens': 200, 'total_tokens': 244, 'prompt_tokens_details': {'cached_tokens': 0}}
+story "We need answer short paragraph. Need write creative. Need include lighthouse keeper finds message in bottle. Short paragraph. Could be evocative. Need no extra. Let's craft one paragraph. Maybe keeper old, storm, bottle, message. Keep concise.</think>Every evening, the lighthouse keeper climbed the spiral stairs to trim the lamp, and every morning he walked the shingle below, collecting whatever the sea had surrendered. One gray dawn, after a storm had shaken the windows all night, he found a green bottle wedged between two rocks, its cork sealed with wax and its glass clouded by salt. Inside " {'prompt_tokens': 46, 'completion_tokens': 192, 'total_tokens': 238, 'prompt_tokens_details': {'cached_tokens': 0}}
+spec greedy chat_capital: 22 tokens in 6 rounds = 3.67 a round
+spec greedy count: 64 tokens in 15 rounds = 4.27 a round
+spec greedy code_fib: 200 tokens in 59 rounds = 3.39 a round
+spec greedy story: 192 tokens in 90 rounds = 2.13 a round
+spec greedy code: 1 requests, 200 tokens in 59 rounds = 3.390 a round; drafts accepted 141/209 = 67.5 %
+spec greedy prose: 1 requests, 192 tokens in 90 rounds = 2.133 a round; drafts accepted 102/174 = 58.6 %
+spec greedy chat: 1 requests, 22 tokens in 6 rounds = 3.667 a round; drafts accepted 16/21 = 76.2 %
+spec greedy other: 1 requests, 64 tokens in 15 rounds = 4.267 a round; drafts accepted 49/58 = 84.5 %
+spec greedy all: 4 requests, 478 tokens in 170 rounds = 2.812 a round; drafts accepted 308/462 = 66.7 %
+Using CPython 3.13.15
+Creating virtual environment at: .venv
+   Building intarsiaml @ file:///opt/code/intarsiaml/.worktrees/dsv41-rdma
+      Built intarsiaml @ file:///opt/code/intarsiaml/.worktrees/dsv41-rdma
+Installed 1 package in 0.96ms
+server max_model_len=32768
+[0] count                  35 prompt tokens, 64 generated, cached=0 head=[223, 907, 14, 223, 929, 14] 1s
+[1] story                  39 prompt tokens, 64 generated, cached=0 head=[34226, 304, 270, 4213, 14, 305] 3s
+[2] code                   80 prompt tokens, 64 generated, cached=0 head=[361, 855, 313, 818, 223, 20] 4s
+[3] science                76 prompt tokens, 64 generated, cached=0 head=[270, 21476, 19105, 40235, 14, 778] 7s
+[4] chat_short             32 prompt tokens, 64 generated, cached=0 head=[19, 16, 2619, 64574, 10935, 7405] 8s
+[5] chat_system            55 prompt tokens, 64 generated, cached=0 head=[671, 12709, 9238, 8295, 1754, 3525] 10s
+[6] chat_multiturn         91 prompt tokens, 64 generated, cached=0 head=[106239, 343, 1805, 114578, 11, 769] 11s
+[7] chat_reasoning         99 prompt tokens, 64 generated, cached=0 head=[5718, 734, 9487, 566, 3132, 513] 13s
+[8] long_prose_300        300 prompt tokens, 64 generated, cached=0 head=[579, 881, 710, 2887, 2624, 270] 15s
+[9] long_prose_700        700 prompt tokens, 64 generated, cached=0 head=[89425, 513, 270, 537, 329, 1045] 18s
+wrote /opt/code/intarsiaml/.worktrees/dsv41-rdma/.scratch/wA1/tok-intarsia-tp2.st (17.8 kB, 10 prompts) in 18s
+spec golden count: 64 tokens in 13 rounds = 4.92 a round
+spec golden story: 64 tokens in 33 rounds = 1.94 a round
+spec golden code: 64 tokens in 19 rounds = 3.37 a round
+spec golden science: 64 tokens in 55 rounds = 1.16 a round
+spec golden chat_short: 64 tokens in 32 rounds = 2.00 a round
+spec golden chat_system: 64 tokens in 30 rounds = 2.13 a round
+spec golden chat_multiturn: 64 tokens in 27 rounds = 2.37 a round
+spec golden chat_reasoning: 64 tokens in 20 rounds = 3.20 a round
+spec golden long_prose_300: 64 tokens in 28 rounds = 2.29 a round
+spec golden long_prose_700: 64 tokens in 28 rounds = 2.29 a round
+spec golden code: 1 requests, 64 tokens in 19 rounds = 3.368 a round; drafts accepted 45/62 = 72.6 %
+spec golden prose: 4 requests, 256 tokens in 144 rounds = 1.778 a round; drafts accepted 109/230 = 47.4 %
+spec golden chat: 4 requests, 256 tokens in 109 rounds = 2.349 a round; drafts accepted 147/257 = 57.2 %
+spec golden other: 1 requests, 64 tokens in 13 rounds = 4.923 a round; drafts accepted 51/52 = 98.1 %
+spec golden all: 10 requests, 640 tokens in 285 rounds = 2.246 a round; drafts accepted 352/601 = 58.6 %
+dsv41: spec 64 tokens in 30 rounds (2.13 a round), 34/65 drafts accepted (52 %), by position 21/28 9/19 3/6 1/1
+dsv41: spec 64 tokens in 27 rounds (2.37 a round), 37/58 drafts accepted (64 %), by position 19/27 12/17 4/5 2/2
+dsv41: spec 64 tokens in 20 rounds (3.20 a round), 44/68 drafts accepted (65 %), by position 18/20 12/18 8/10 6/7
+dsv41: kernel scratch grew to 134217728 bytes (unix 1793669228)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793669228)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793669228)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793669228)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793669229)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793669229)
+dsv41: spec 64 tokens in 28 rounds (2.29 a round), 36/59 drafts accepted (61 %), by position 20/28 9/17 5/6 2/2
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793669231)
+dsv41: spec 64 tokens in 28 rounds (2.29 a round), 35/49 drafts accepted (71 %), by position 22/27 9/14 3/5 1/1
+spec total: 1118 tokens in 455 rounds = 2.457 a round; drafts accepted 660/1063 = 62.1 %
+20:27:14 done
+20:27:14 restore (exit 0)
+scripts/dsv41-tp2/run-full.sh: line 23: 63436 Terminated: 15          ( while true; do
+    line="$(date +%T)"; for h in spark1 spark2;
+    do
+        a=$(ssh -n -o ConnectTimeout=5 $h "awk '/MemAvailable/{printf \"%.1f\", \$2/1048576}' /proc/meminfo" 2>/dev/null || echo NA); line="$line $h=$a"; if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then
+            ssh -n $h "pkill -KILL -f '[i]${SPARK_REL:1}/bin/intarsia'"; line="$line KILLED-$h";
+        fi;
+    done; echo "$line"; sleep 5;
+done ) > "$OUT/mem.log" 2>&1
+20:30:51 vLLM on spark1 up (Up 3 minutes)
+20:30:52 vLLM on spark2 up (Up 3 minutes)
+spark1-vllm confirmed back
+spark2-vllm confirmed back
+20:30:53 restored
+fleetq: #8081 done (exit 0); spark1-vllm, spark2-vllm must come back before others can use it

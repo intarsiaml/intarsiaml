@@ -1,0 +1,12 @@
+intarsia R 0
+cuda00001c00008 S poll_schedule_timeout.constprop.0
+cuda-EvtHandlr S poll_schedule_timeout.constprop.0
+intarsia S ib_uverbs_event_read.isra.0
+intarsia S ib_uverbs_event_read.isra.0
+intarsia S poll_schedule_timeout.constprop.0
+intarsia S poll_schedule_timeout.constprop.0
+intarsia S poll_schedule_timeout.constprop.0
+tp-peer-watch S hrtimer_nanosleep
+intarsia R 0
+intarsia S futex_do_wait
+CLOSE-WAIT 0      0       10.100.152.3:29712    10.100.152.1:55428       

@@ -1,0 +1,37 @@
+23:36:19 earlyoom on spark1: -m 2,1
+23:36:20 earlyoom on spark2: -m 2,1
+23:36:22 binary 75779e917 dirty=no 1102-2333; out /opt/code/intarsiaml/.worktrees/dsv41-rdma/.scratch/ftA2
+23:36:26 vLLM stopped on both
+23:36:29 failtest: cases 'c0 a1 a4 b1 b2'; MemAvailable before the first load: spark1 111 GiB, spark2 111 GiB
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+dsv41: the connection to the remote tensor-parallel rank was lost; marking the engine failed
+rank 0: RDMA ring failed: aborted (the group failed)
+[watchdog] engine failed (tensor-parallel group failed: the connection to the remote tensor-parallel rank was lost); exiting for restart
+[2026-11-02 23:38:00] spark-4e77:2221951:2223638 [0] init.cc:2745 (commDestroySync) NCCL WARN commDestroySync: comm 0xac4fddb15870 rank 0 sync deviceStream error 1
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+dsv41: the connection to the remote tensor-parallel rank was lost; marking the engine failed
+rank 0: RDMA ring failed: aborted (the group failed)
+[watchdog] engine failed (tensor-parallel group failed: the connection to the remote tensor-parallel rank was lost); exiting for restart
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+dsv41: the remote tensor-parallel rank reported a failure: backend error: download: unspecified launch failure (cudaError 719); marking the engine failed
+rank 0: RDMA ring failed: aborted (the group failed)
+[watchdog] engine failed (tensor-parallel group failed: the remote tensor-parallel rank reported a failure: backend error: download: unspecified launch failure (cudaError 719)); exiting for restart
+[2026-11-02 23:42:07] spark-4e77:2249942:2251617 [0] init.cc:2742 (commDestroySync) NCCL WARN commDestroySync: comm 0xb0b0c18496b0 rank 0 sync hostStream error 1
+[2026-11-02 23:42:07] spark-4e77:2249942:2251617 [0] init.cc:2745 (commDestroySync) NCCL WARN commDestroySync: comm 0xb0b0c18496b0 rank 0 sync deviceStream error 1
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1: serving stopped: backend error: download: unspecified launch failure (cudaError 719); aborting the communicator and exiting with code 87
+rank 1: RDMA ring failed: aborted (the group failed)
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+23:42:16 hook done
+23:42:16 done
+23:42:16 restore (exit 0)
+23:45:52 vLLM on spark1 up (Up 3 minutes)
+23:46:03 vLLM on spark2 up (Up 3 minutes)
+23:46:03 restored

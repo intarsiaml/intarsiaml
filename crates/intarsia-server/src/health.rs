@@ -67,13 +67,14 @@ impl Progress {
     }
 }
 
-/// Background watchdog. With `exit_on_trip` the process exits with a distinct code so a
+/// Background watchdog. With `exit_on_trip` (or, for a failed engine only, `exit_on_failed`) the process exits with a distinct code so a
 /// supervisor can restart it; a wedged driver can hang `exit`, so an abort backs it up.
 pub fn spawn_watchdog(
     engine: std::sync::Arc<dyn Engine>,
     progress: std::sync::Arc<Progress>,
     metrics: std::sync::Arc<crate::metrics::Metrics>,
     exit_on_trip: bool,
+    exit_on_failed: bool,
     parent_pid: Option<u32>,
 ) {
     let r = std::thread::Builder::new().name("intarsia-watchdog".into()).spawn(move || loop {
@@ -101,7 +102,7 @@ pub fn spawn_watchdog(
                 );
                 die(EXIT_STALLED);
             }
-            Status::Failed(why) if exit_on_trip => {
+            Status::Failed(why) if exit_on_trip || exit_on_failed => {
                 eprintln!("[watchdog] engine failed ({why}); exiting for restart");
                 // Let in-flight error responses flush first.
                 std::thread::sleep(Duration::from_secs(2));

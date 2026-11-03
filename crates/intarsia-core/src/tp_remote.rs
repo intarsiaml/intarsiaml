@@ -163,6 +163,31 @@ pub struct RemotePeer {
     replies: Mutex<Receiver<Reply>>,
     next_sid: AtomicU64,
     dead: Arc<AtomicBool>,
+    lost: Arc<Mutex<Lost>>,
+}
+
+/// Why the group is gone, as the reader thread saw it, and whom to tell: the engine thread may sit in a kernel that never
+/// returns (the remote rank died mid-pass), so it cannot be the one to report the failure.
+#[derive(Default)]
+struct Lost {
+    why: Option<String>,
+    hook: Option<Box<dyn FnOnce(String) + Send>>,
+}
+
+impl Lost {
+    fn set(this: &Mutex<Lost>, why: String) {
+        let hook = {
+            let mut l = this.lock().unwrap_or_else(|e| e.into_inner());
+            if l.why.is_some() {
+                return;
+            }
+            l.why = Some(why.clone());
+            l.hook.take()
+        };
+        if let Some(h) = hook {
+            h(why);
+        }
+    }
 }
 
 impl RemotePeer {
@@ -174,6 +199,8 @@ impl RemotePeer {
         let (tx, rx) = channel();
         let dead = Arc::new(AtomicBool::new(false));
         let d2 = dead.clone();
+        let lost = Arc::new(Mutex::new(Lost::default()));
+        let l2 = lost.clone();
         std::thread::Builder::new()
             .name("tp-remote-reader".into())
             .spawn(move || loop {
@@ -185,6 +212,7 @@ impl RemotePeer {
                         let msg = String::from_utf8_lossy(&b[9..]).into_owned();
                         // a rejected acknowledgement changed nothing on the remote rank: the group stays usable
                         if if ack { status >= ACK_FAILED } else { status != 1 } {
+                            Lost::set(&l2, format!("the remote tensor-parallel rank reported a failure: {msg}"));
                             comm.abort();
                         }
                         if tx.send(Reply { ack, status, len, msg }).is_err() {
@@ -193,13 +221,28 @@ impl RemotePeer {
                     }
                     _ => {
                         d2.store(true, Ordering::SeqCst);
+                        Lost::set(&l2, "the connection to the remote tensor-parallel rank was lost".to_string());
                         comm.abort();
                         return;
                     }
                 }
             })
             .map_err(|e| Error::backend(format!("spawning the tensor-parallel reader: {e}")))?;
-        Ok(Arc::new(RemotePeer { w: Mutex::new(BufWriter::new(stream)), replies: Mutex::new(rx), next_sid: AtomicU64::new(1), dead }))
+        Ok(Arc::new(RemotePeer { w: Mutex::new(BufWriter::new(stream)), replies: Mutex::new(rx), next_sid: AtomicU64::new(1), dead, lost }))
+    }
+
+    /// Call `hook` with the reason once the remote rank reports a failure or the connection drops (at once if that has
+    /// happened already). It runs on the reader thread, before the communicator is aborted.
+    pub fn on_lost(&self, hook: impl FnOnce(String) + Send + 'static) {
+        let known = {
+            let mut l = self.lost.lock().unwrap_or_else(|e| e.into_inner());
+            if l.why.is_none() {
+                l.hook = Some(Box::new(hook));
+                return;
+            }
+            l.why.clone().unwrap()
+        };
+        hook(known);
     }
 
     fn send(&self, tag: u8, body: &[u8]) -> Result<()> {
@@ -226,7 +269,7 @@ impl RemotePeer {
 
     /// The group is unusable after a failed pass on this rank (the communicator is aborted, the remote rank may be
     /// stuck in a collective): later commands fail at once instead of waiting for answers that will not come.
-    pub(crate) fn mark_unusable(&self) {
+    pub fn mark_unusable(&self) {
         self.dead.store(true, Ordering::SeqCst);
     }
 
@@ -331,7 +374,7 @@ impl RemoteSeq {
     }
 
     /// See [`RemotePeer::mark_unusable`].
-    pub(crate) fn mark_unusable(&self) {
+    pub fn mark_unusable(&self) {
         self.peer.mark_unusable();
     }
 
@@ -504,8 +547,88 @@ mod spin {
     }
 }
 
+/// Exit code of a rank process that left a failed group (the server's `EXIT_FAILED`).
+pub const EXIT_GROUP_FAILED: i32 = 87;
+
+/// This rank cannot go on: the other rank is gone, or a pass failed here and the group is unusable (ADR-0006). Abort the
+/// communicator so nothing keeps waiting in a collective, wait a few seconds for that (`ncclCommAbort` on a context that hit a
+/// device trap may not return), then leave with `code` without running destructors, which would touch the same context. A
+/// supervisor restarts both ranks.
+pub fn abort_group_and_exit(comm: &Arc<dyn Comm>, code: i32, why: &str) -> ! {
+    eprintln!("tensor parallel: rank {}: {why}; aborting the communicator and exiting with code {code}", comm.rank());
+    let c = comm.clone();
+    let (tx, rx) = channel();
+    let t0 = std::time::Instant::now();
+    let _ = std::thread::Builder::new().name("tp-abort".into()).spawn(move || {
+        c.abort();
+        let _ = tx.send(());
+    });
+    match rx.recv_timeout(Duration::from_secs(3)) {
+        Ok(()) => eprintln!("tensor parallel: rank {}: communicator abort returned after {} ms", comm.rank(), t0.elapsed().as_millis()),
+        Err(_) => eprintln!("tensor parallel: rank {}: communicator abort did not return within 3 s; exiting anyway", comm.rank()),
+    }
+    #[cfg(unix)]
+    // SAFETY: _exit ends the process at once; that is the point (no destructors on a failed device context).
+    unsafe {
+        libc::_exit(code)
+    }
+    #[cfg(not(unix))]
+    std::process::exit(code)
+}
+
+/// While a pass runs on this rank the serving thread cannot read the control stream, so a primary that died would go
+/// unnoticed: its half of the collectives never comes (NCCL has no time limit of its own). This thread polls the stream for the
+/// peer's hang-up (never reading it) and, if the peer is gone during a pass, leaves the group.
+#[cfg(target_os = "linux")]
+fn watch_peer(stream: TcpStream, in_pass: Arc<AtomicBool>, done: Arc<AtomicBool>, comm: Arc<dyn Comm>) {
+    use std::os::fd::AsRawFd;
+    let fd = stream.as_raw_fd();
+    while !done.load(Ordering::Acquire) {
+        let mut p = libc::pollfd { fd, events: libc::POLLRDHUP, revents: 0 };
+        // SAFETY: one valid pollfd; the socket outlives the loop (this thread owns a clone).
+        let n = unsafe { libc::poll(&mut p, 1, 200) };
+        if n > 0 && p.revents & (libc::POLLRDHUP | libc::POLLHUP | libc::POLLERR) != 0 {
+            if in_pass.load(Ordering::Acquire) {
+                abort_group_and_exit(&comm, EXIT_GROUP_FAILED, "the primary rank disconnected during a pass");
+            }
+            // idle: the serving loop sees the end of the stream itself and returns; do not spin on the level-triggered flag
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    }
+}
+
 pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
+    serve_inner(model, stream, None)
+}
+
+/// [`serve`] for a rank process: with the group's communicator it also leaves the group (see [`abort_group_and_exit`]) when a
+/// pass fails here, when the primary disconnects mid-pass, or on a protocol error, instead of looping on a dead group.
+pub fn serve_group<M: RankModel>(model: &M, stream: TcpStream, comm: Arc<dyn Comm>) -> Result<u64> {
+    let r = serve_inner(model, stream, Some(comm.clone()));
+    if let Err(e) = &r {
+        abort_group_and_exit(&comm, EXIT_GROUP_FAILED, &format!("serving stopped: {e}"));
+    }
+    r
+}
+
+fn serve_inner<M: RankModel>(model: &M, stream: TcpStream, comm: Option<Arc<dyn Comm>>) -> Result<u64> {
     stream.set_nodelay(true).map_err(io)?;
+    let in_pass = Arc::new(AtomicBool::new(false));
+    let done = Arc::new(AtomicBool::new(false));
+    struct Done(Arc<AtomicBool>);
+    impl Drop for Done {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::Release);
+        }
+    }
+    let _done = Done(done.clone());
+    #[cfg(target_os = "linux")]
+    if let Some(c) = comm.clone() {
+        let (s2, ip, d2) = (stream.try_clone().map_err(io)?, in_pass.clone(), done.clone());
+        std::thread::Builder::new().name("tp-peer-watch".into()).spawn(move || watch_peer(s2, ip, d2, c)).map_err(|e| Error::backend(format!("spawning the peer watch: {e}")))?;
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = &comm;
     #[cfg(target_os = "linux")]
     let spin = spin::Spin::new(&stream);
     let mut rd = BufReader::new(stream.try_clone().map_err(io)?);
@@ -557,13 +680,15 @@ pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
                 if let Some(msg) = pending.take() {
                     // the primary is already in its own pass: leave the group (it aborts on this answer)
                     reply(&mut w, false, seqs.get(&sid).map_or(0, M::state_len), &msg)?;
-                    continue;
+                    return Err(Error::backend(msg));
                 }
                 let Some(st) = seqs.get_mut(&sid) else {
-                    reply(&mut w, false, 0, &format!("unknown sequence {sid}"))?;
-                    continue;
+                    let msg = format!("unknown sequence {sid}");
+                    reply(&mut w, false, 0, &msg)?;
+                    return Err(Error::backend(msg));
                 };
                 passes += 1;
+                in_pass.store(true, Ordering::Release);
                 let r = if flags & FWD_DRAFT != 0 {
                     model.draft_rank(st, &ids)
                 } else if flags & FWD_VERIFY != 0 {
@@ -571,9 +696,14 @@ pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
                 } else {
                     model.forward_rank(st, &ids, flags & FWD_GRAPH != 0)
                 };
+                in_pass.store(false, Ordering::Release);
                 match r {
                     Ok(()) => reply(&mut w, true, M::state_len(st), "")?,
-                    Err(e) => reply(&mut w, false, M::state_len(st), &e.to_string())?,
+                    Err(e) => {
+                        // a failed pass leaves the group unusable (the primary aborts on this answer): do not wait for more work
+                        reply(&mut w, false, M::state_len(st), &e.to_string())?;
+                        return Err(e);
+                    }
                 }
             }
             T_TRUNCATE => {
@@ -587,6 +717,9 @@ pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
                     },
                 };
                 ack(&mut w, status, seqs.get(&sid).map_or(0, M::state_len), &msg)?;
+                if status >= ACK_FAILED {
+                    return Err(Error::backend(msg));
+                }
             }
             T_SNAPSHOT => {
                 let keep = u64_at(&b, 1)? as usize;
@@ -599,12 +732,146 @@ pub fn serve<M: RankModel>(model: &M, stream: TcpStream) -> Result<u64> {
                     },
                 };
                 ack(&mut w, status, seqs.get(&sid).map_or(0, M::state_len), &msg)?;
+                if status >= ACK_FAILED {
+                    return Err(Error::backend(msg));
+                }
             }
             T_DROP => {
                 seqs.remove(&sid);
             }
             T_SHUTDOWN => return Ok(passes),
             other => return Err(Error::backend(format!("tensor-parallel connection: unknown command {other}"))),
+        }
+    }
+}
+
+#[cfg(test)]
+mod serve_tests {
+    use super::*;
+    use std::net::TcpListener;
+
+    /// A rank whose forward fails on the ids it is told to fail on.
+    struct Fake;
+    impl RankModel for Fake {
+        type State = usize;
+        fn new_state(&self) -> Result<usize> {
+            Ok(0)
+        }
+        fn forward_rank(&self, st: &mut usize, ids: &[u32], _graph: bool) -> Result<()> {
+            if ids == [666] {
+                return Err(Error::backend("launch failed: unspecified launch failure"));
+            }
+            *st += ids.len();
+            Ok(())
+        }
+        fn truncate(&self, st: &mut usize, len: usize) -> Result<()> {
+            *st = len;
+            Ok(())
+        }
+        fn snapshot(&self, _st: &mut usize, _keep: usize) -> Result<()> {
+            Ok(())
+        }
+        fn state_len(st: &usize) -> usize {
+            *st
+        }
+    }
+
+    fn forward(s: &mut TcpStream, ids: &[u32]) -> (u8, String) {
+        let mut b = 1u64.to_le_bytes().to_vec();
+        b.extend_from_slice(&0u64.to_le_bytes());
+        for i in ids {
+            b.extend_from_slice(&i.to_le_bytes());
+        }
+        write_frame(s, T_FORWARD, &b).unwrap();
+        let (tag, r) = read_frame(s).unwrap();
+        assert_eq!(tag, T_REPLY);
+        (r[0], String::from_utf8_lossy(&r[9..]).into_owned())
+    }
+
+    /// A pass that fails on this rank is answered (so the primary aborts) and then the rank stops serving: it used to go on
+    /// looping on a group that was already dead.
+    #[test]
+    fn a_failed_pass_is_answered_and_ends_serving() {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        let t = std::thread::spawn(move || serve(&Fake, l.accept().unwrap().0));
+        let mut s = TcpStream::connect(addr).unwrap();
+        write_frame(&mut s, T_NEW, &1u64.to_le_bytes()).unwrap();
+        assert_eq!(forward(&mut s, &[1, 2, 3]), (1, String::new()), "a good pass is answered ok");
+        let (ok, msg) = forward(&mut s, &[666]);
+        assert_eq!(ok, 0);
+        assert!(msg.contains("unspecified launch failure"), "{msg}");
+        let r = t.join().unwrap();
+        assert!(r.unwrap_err().to_string().contains("unspecified launch failure"), "serving ends with the pass's error");
+    }
+
+    #[test]
+    fn the_primary_closing_the_stream_ends_serving_cleanly() {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        let t = std::thread::spawn(move || serve(&Fake, l.accept().unwrap().0));
+        let mut s = TcpStream::connect(addr).unwrap();
+        write_frame(&mut s, T_NEW, &1u64.to_le_bytes()).unwrap();
+        assert_eq!(forward(&mut s, &[1]).0, 1);
+        drop(s);
+        assert_eq!(t.join().unwrap().unwrap(), 1);
+    }
+
+    /// A communicator that only counts aborts.
+    struct AbortCount(std::sync::atomic::AtomicUsize);
+    impl Comm for AbortCount {
+        fn name(&self) -> &str {
+            "abort-count"
+        }
+        fn rank(&self) -> usize {
+            0
+        }
+        fn world(&self) -> usize {
+            2
+        }
+        fn all_reduce_sum(&self, _x: &crate::backend::TensorRef, _s: crate::backend::StreamId) -> Result<()> {
+            unreachable!()
+        }
+        fn all_reduce_sum_into(&self, _p: &crate::backend::TensorRef, _o: &crate::backend::TensorRef, _s: crate::backend::StreamId) -> Result<()> {
+            unreachable!()
+        }
+        fn all_gather(&self, _s: &crate::backend::TensorRef, _r: &crate::backend::TensorRef, _st: crate::backend::StreamId) -> Result<()> {
+            unreachable!()
+        }
+        fn abort(&self) {
+            self.0.fetch_add(1, Ordering::SeqCst);
+        }
+        fn stats(&self) -> crate::comm::CommStats {
+            crate::comm::CommStats::default()
+        }
+        fn note_timed(&self, _d: Duration) {}
+    }
+
+    /// The remote rank dying must reach the engine from the reader thread: the engine thread may be stuck in a kernel.
+    #[test]
+    fn a_lost_connection_reports_to_the_hook_before_the_abort_whether_installed_before_or_after() {
+        for late in [false, true] {
+            let l = TcpListener::bind("127.0.0.1:0").unwrap();
+            let addr = l.local_addr().unwrap();
+            let far = std::thread::spawn(move || l.accept().unwrap().0);
+            let near = TcpStream::connect(addr).unwrap();
+            let far = far.join().unwrap();
+            let comm = Arc::new(AbortCount(Default::default()));
+            let peer = RemotePeer::new(near, comm.clone()).unwrap();
+            let (tx, rx) = channel();
+            if !late {
+                let tx = tx.clone();
+                peer.on_lost(move |why| tx.send(why).unwrap());
+            }
+            drop(far);
+            if late {
+                std::thread::sleep(Duration::from_millis(300));
+                peer.on_lost(move |why| tx.send(why).unwrap());
+            }
+            let why = rx.recv_timeout(Duration::from_secs(5)).expect("the hook runs");
+            assert!(why.contains("connection"), "{why}");
+            std::thread::sleep(Duration::from_millis(200));
+            assert_eq!(comm.0.load(Ordering::SeqCst), 1, "the communicator is aborted once");
         }
     }
 }

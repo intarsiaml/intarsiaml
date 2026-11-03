@@ -1,0 +1,6 @@
+kind                          wF2
+chat          50.5 (median  51.7)
+code          73.5 (median  72.7)
+prose         45.1 (median  44.9)
+recall        58.2 (median  57.8)
+all           55.0 (median  54.6)

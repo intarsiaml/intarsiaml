@@ -1,0 +1,10 @@
+01:13:32 stopping radiance (VRAM in use 65131 MiB)
+01:13:33 radiance stopped: VRAM in use 114 MiB, active=inactive
+01:13:44 main short exit 0: 257 words in ids line; spec: 0 round lines; --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|mtp: drafter head 'mtp' loaded in 0.2 s (routed experts quantised to nvfp4)|
+01:13:50 main 4k exit 0: 257 words in ids line; spec: 0 round lines; --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)|
+01:13:56 head short exit 0: 257 words in ids line; spec: 0 round lines; --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)|
+01:14:02 head 4k exit 0: 257 words in ids line; spec: 0 round lines; --spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)|mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)|
+01:14:02 COMPARE short: IDENTICAL head vs main (prompt=24)
+01:14:02 COMPARE 4k: IDENTICAL head vs main (prompt=4420)
+01:14:03 restarting radiance
+01:14:23 radiance: active, VRAM in use 65127 MiB
