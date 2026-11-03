@@ -29,6 +29,13 @@ pub mod nccl;
 /// Direct RDMA all-reduce of the f32 partials (`INTARSIA_DSV41_RDMA`), a wrapper over the NCCL communicator.
 #[cfg(ik_cuda)]
 pub mod rdma;
+/// Direct RDMA all-reduce (stub: this build has no CUDA toolkit).
+#[cfg(not(ik_cuda))]
+pub mod rdma {
+    pub fn usable() -> bool {
+        false
+    }
+}
 /// NCCL collectives (stub: this build has no CUDA toolkit).
 #[cfg(not(ik_cuda))]
 pub mod nccl {

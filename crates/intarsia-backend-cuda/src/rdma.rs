@@ -84,6 +84,14 @@ fn devices_from_env() -> Result<(String, c_int)> {
     Ok((hca, gid))
 }
 
+/// Can a ring be made here at all: libibverbs in the build and devices named by `NCCL_IB_HCA`. Decides the unset default of
+/// `INTARSIA_DSV41_RDMA` (a launch that cannot use RDMA stays on NCCL, quietly).
+pub fn usable() -> bool {
+    // SAFETY: plain FFI call.
+    let built = unsafe { ffi::ik_rdma_available() } != 0;
+    built && devices_from_env().is_ok()
+}
+
 /// Open the ring, swap queue-pair info with the other rank over the control stream, connect and start the proxy.
 pub fn wrap(backend: Arc<CudaBackend>, inner: Arc<dyn Comm>, rank: usize, ctl: &mut TcpStream) -> Result<Arc<dyn Comm>> {
     // SAFETY: plain FFI call.
