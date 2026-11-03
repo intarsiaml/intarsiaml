@@ -1,0 +1,14 @@
+16:20:20 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 6830bb321a29 stamp '81b056910 dirty=no 1103-1436'
+16:20:28 [head] serve up=1 after 6 s
+16:20:33 [head] head-f2: ranks' PIDs rank 0 3782652 (spark1), rank 1 3042950 (spark2)
+16:20:40 [head] head-f2 RESULT: killed serve; request ended 1217 ms after the kill (curl rc 52, HTTP 000); /health first 503 at  ms (never = empty); /health first 000 at 1027 ms; rank 0 gone at 2251 ms; rank 1 gone at 7302 ms
+16:20:40 [head] head-f2 response head:  HTTP 000 
+16:20:44 [head] head-f2 exit codes: rank 0 (serve) 137, rank 1 (worker) 87
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:34324
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tensor parallel: rank 1: the primary rank disconnected and the queued work did not finish within 2s; aborting the communicator and exiting with code 87
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+16:20:51 tp35-compare done

@@ -13,7 +13,8 @@
 # vLLM stays up (the 35B is about 11 GB a rank). Output in $OUT (default .scratch/tp35c-HHMM). Processes are started under a bash
 # wrapper that writes the exit code of the rank to a file; they are killed by PID only (the rank is the wrapper's child).
 # EXTRA_ENV: more environment for both ranks. WORKER_GDB=1: the worker runs under gdb (ptrace_scope 1 allows a debugger only on its
-# own child) and, 10 s after a fault, gets a SIGINT that makes gdb write every thread's stack to the worker log.
+# own child) and, 10 s after a fault, gets a SIGINT that makes gdb write every thread's stack to the worker log. SERVE_GDB=1: the
+# same for the primary; gdb then kills it, so a request still open at 10 s ends with curl rc 52 and an answered one with its HTTP code.
 source "$(dirname "${BASH_SOURCE[0]}")/spark-dir.sh"
 set -u
 : "${FLEETQ_JOB:?run under fleetq run}"
@@ -37,7 +38,8 @@ start_ranks() {
   local GDB=""; [[ ${WORKER_GDB:-0} == 1 ]] && GDB="gdb -q -batch -ex \"handle all nostop noprint pass\" -ex run -ex \"thread apply all bt 30\" -ex kill --args"
   r spark2 "mkdir -p $LOGD; rm -f $LOGD/$TAG-worker.exit; nohup bash -c 'env $NCCLENV $GDB $BIN tp-worker --serving --listen $WIP:$WPORT $FL; echo \$? > $LOGD/$TAG-worker.exit' > $LOGD/$TAG-worker.log 2>&1 < /dev/null & echo \$! > $LOGD/$TAG-worker.pid"
   sleep 2
-  r spark1 "mkdir -p $LOGD; rm -f $LOGD/$TAG-serve.exit; nohup bash -c 'env $NCCLENV $BIN serve $FL --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name q35 --no-supervisor --no-ui; echo \$? > $LOGD/$TAG-serve.exit' > $LOGD/$TAG-serve.log 2>&1 < /dev/null & echo \$! > $LOGD/$TAG-serve.pid"
+  local SGDB=""; [[ ${SERVE_GDB:-0} == 1 ]] && SGDB="gdb -q -batch -ex \"handle all nostop noprint pass\" -ex run -ex \"thread apply all bt 30\" -ex kill --args"
+  r spark1 "mkdir -p $LOGD; rm -f $LOGD/$TAG-serve.exit; nohup bash -c 'env $NCCLENV $SGDB $BIN serve $FL --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name q35 --no-supervisor --no-ui; echo \$? > $LOGD/$TAG-serve.exit' > $LOGD/$TAG-serve.log 2>&1 < /dev/null & echo \$! > $LOGD/$TAG-serve.pid"
   local T0 up=0
   T0=$(date +%s)
   while (( $(date +%s) - T0 < 420 )); do
@@ -96,6 +98,7 @@ observe() { # <name> <seconds>: ms since the fault, /health code, both PIDs
       [[ $a0 == up ]] && r spark1 "for t in /proc/$P0/task/*; do echo \"\$(cat \$t/comm) \$(awk '{print \$3}' \$t/stat) \$(cat \$t/wchan 2>/dev/null)\"; done; ss -tn | grep $WPORT" > "$OUT/$1.threads0" 2>&1
       [[ $a1 == up ]] && r spark2 "for t in /proc/$P1/task/*; do echo \"\$(cat \$t/comm) \$(awk '{print \$3}' \$t/stat) \$(cat \$t/wchan 2>/dev/null)\"; done; ss -tn | grep $WPORT" > "$OUT/$1.threads1" 2>&1
       [[ $a1 == up && ${WORKER_GDB:-0} == 1 ]] && r spark2 "kill -INT $P1"
+      [[ $a0 == up && ${SERVE_GDB:-0} == 1 ]] && r spark1 "kill -INT $P0"
     fi
     [[ $a0 == gone && $a1 == gone ]] && break
     sleep 0.5
@@ -108,6 +111,7 @@ fault() { # <case> <victim: worker|serve>
   sleep 4
   P0=$(rank_pid spark1 "$LOGD/$TAG-serve.pid"); P1=$(rank_pid spark2 "$LOGD/$TAG-worker.pid")
   [[ ${WORKER_GDB:-0} == 1 ]] && P1=$(r spark2 "pgrep -P $P1 | head -1")
+  [[ ${SERVE_GDB:-0} == 1 ]] && P0=$(r spark1 "pgrep -P $P0 | head -1")
   log "[$TAG] $c: ranks' PIDs rank 0 $P0 (spark1), rank 1 $P1 (spark2)"
   TF=$(now_ms)
   if [[ $v == worker ]]; then r spark2 "kill -KILL $P1"; else r spark1 "kill -KILL $P0"; fi
