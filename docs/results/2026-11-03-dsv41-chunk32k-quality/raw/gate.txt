@@ -1,0 +1,1 @@
+GATE pilot shard (chunk 512): 9/12 correct; needle 3/3, needle_dist 3/3, needle_hop 1/3, qa_const 2/3
