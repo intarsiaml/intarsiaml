@@ -316,7 +316,7 @@ pub fn serve_rank(dir: &Path, backend: Arc<dyn Backend>, comm: Arc<dyn Comm>, mu
         return Err(Error::invalid(format!("deepseek_v41: ranks disagree on the capacity ({cap} vs {})", o.cap)));
     }
     eprintln!("dsv41: rank {} serving rank 0's passes", comm.rank());
-    let n = intarsia_core::tp_remote::serve(&rt, stream);
+    let n = intarsia_core::tp_remote::serve_group(&rt, stream, comm.clone());
     log_memory_after_warmup(&rt, avail0, comm.rank());
     n
 }
@@ -447,6 +447,9 @@ struct Worker {
     eos: Vec<u32>,
     telemetry: Arc<Telemetry>,
     spec: Option<SpecOpts>,
+    /// Set when a tensor-parallel group failed for good (`Engine::failed`: /health turns 503, new requests are refused, and a
+    /// tp-remote server exits for a restart of both ranks).
+    failed: Arc<Mutex<Option<String>>>,
 }
 
 impl Worker {
@@ -556,10 +559,35 @@ impl Worker {
         Ok(())
     }
 
+    /// A device or group error at world > 1 leaves the group unusable (ADR-0006: the other rank may sit in a collective this
+    /// rank never joins, the context may hold a sticky trap). Abort the communicator (off thread: it may not return on a
+    /// trapped context), refuse the peer, mark the engine failed. No `reset`: it would talk to a rank that is gone.
+    fn group_failed(&mut self, e: &Error) -> bool {
+        let world = self.rt.comm.as_ref().map_or(1, |c| c.world());
+        if world < 2 || !matches!(e, Error::Backend(_)) {
+            return false;
+        }
+        if self.failed.lock().unwrap().is_some() {
+            return true;
+        }
+        eprintln!("dsv41: the tensor-parallel group failed ({e}); aborting the communicator and marking the engine failed");
+        if let Some(p) = &self.peer {
+            p.mark_unusable();
+        }
+        if let Some(c) = self.rt.comm.clone() {
+            let _ = std::thread::Builder::new().name("dsv41-abort".into()).spawn(move || c.abort());
+        }
+        *self.failed.lock().unwrap() = Some(format!("tensor-parallel group failed: {e}"));
+        true
+    }
+
     fn run(&mut self, job: Job) {
         let tx = job.tx.clone();
         if let Err(e) = self.generate(job) {
             let _ = tx.send(GenEvent::Error { message: e.to_string() });
+            if self.group_failed(&e) {
+                return;
+            }
             if let Err(e2) = self.reset() {
                 eprintln!("dsv41: reset after a failed request failed: {e2}");
             }
@@ -819,7 +847,8 @@ impl Dsv41Engine {
             }
             SpecOpts { k, min_conf, trace: std::env::var("INTARSIA_DSV41_SPEC_TRACE").is_ok_and(|v| v == "1"), choose, round_ms, draft_ms }
         });
-        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec };
+        let failed = Arc::new(Mutex::new(None));
+        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone() };
         // warm-up: one short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back
         let wt = Instant::now();
         w.forward(&[c.bos], true)?;
@@ -828,7 +857,6 @@ impl Dsv41Engine {
         eprintln!("dsv41: warm-up passes in {:.2} s", wt.elapsed().as_secs_f64());
         log_memory_after_warmup(&w.rt, avail0, 0);
         let (tx, rx): (Sender<Job>, Receiver<Job>) = channel();
-        let failed = Arc::new(Mutex::new(None));
         let f2 = failed.clone();
         std::thread::Builder::new()
             .name("dsv41-engine".into())

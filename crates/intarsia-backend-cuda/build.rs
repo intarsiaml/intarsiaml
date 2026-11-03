@@ -168,12 +168,11 @@ fn lib_dirs(nvcc: &Path) -> Vec<PathBuf> {
     out
 }
 
-/// Is libibverbs (header and linkable library) installed? `kernels/cuda/ik_rdma.cu` (INTARSIA_DSV41_RDMA) is built with it,
-/// and the library linked, only then; otherwise that file compiles to stubs that say so and nothing else changes.
+/// Is the libibverbs header installed? `kernels/cuda/ik_rdma.cu` (INTARSIA_DSV41_RDMA) is built with it only then (the library
+/// itself is dlopen'ed at run time, so it is not needed to link or to start); otherwise that file compiles to stubs that say
+/// so and nothing else changes.
 fn verbs_available() -> bool {
-    let header = ["/usr/include/infiniband/verbs.h", "/usr/local/include/infiniband/verbs.h"].iter().any(|p| Path::new(p).is_file());
-    let lib = ["/usr/lib/aarch64-linux-gnu", "/usr/lib/x86_64-linux-gnu", "/usr/lib64", "/usr/lib", "/usr/local/lib"].iter().any(|d| Path::new(d).join("libibverbs.so").exists());
-    header && lib
+    ["/usr/include/infiniband/verbs.h", "/usr/local/include/infiniband/verbs.h"].iter().any(|p| Path::new(p).is_file())
 }
 
 fn main() {
@@ -309,7 +308,5 @@ fn main() {
     println!("cargo:rustc-link-lib=dylib=cublasLt");
     println!("cargo:rustc-link-lib=dylib=cudart");
     println!("cargo:rustc-link-lib=dylib=stdc++");
-    if verbs {
-        println!("cargo:rustc-link-lib=dylib=ibverbs");
-    }
+    // libibverbs is dlopen'ed by kernels/cuda/ik_rdma.cu when a ring is opened: nothing to link, so the binary starts without it.
 }

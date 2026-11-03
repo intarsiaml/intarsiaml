@@ -68,7 +68,8 @@ extern "C" {
     // ---- kernels/cuda/ik_rdma.cu: direct RDMA all-reduce (INTARSIA_DSV41_RDMA) ----
     pub fn ik_rdma_available() -> c_int;
     pub fn ik_rdma_info_size() -> c_int;
-    pub fn ik_rdma_open(devs: *const c_char, gid: c_int, rank: c_int, max_bytes: usize, slots: c_int, err: *mut c_char, errlen: c_int) -> *mut c_void;
+    pub fn ik_rdma_open(devs: *const c_char, gid: c_int, rank: c_int, max_bytes: usize, slots: c_int, min_rails: c_int, deadline_s: c_double, fault: *const c_char, err: *mut c_char, errlen: c_int) -> *mut c_void;
+    pub fn ik_rdma_ping(h: *mut c_void, timeout_ms: c_int, err: *mut c_char, errlen: c_int) -> c_int;
     pub fn ik_rdma_info(h: *mut c_void, out: *mut c_void) -> c_int;
     pub fn ik_rdma_connect(h: *mut c_void, peer: *const c_void, err: *mut c_char, errlen: c_int) -> c_int;
     pub fn ik_rdma_start(h: *mut c_void, pin_cpu: c_int) -> c_int;

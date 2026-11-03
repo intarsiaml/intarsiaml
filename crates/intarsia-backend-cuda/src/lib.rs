@@ -29,13 +29,9 @@ pub mod nccl;
 /// Direct RDMA all-reduce of the f32 partials (`INTARSIA_DSV41_RDMA`), a wrapper over the NCCL communicator.
 #[cfg(ik_cuda)]
 pub mod rdma;
-/// Direct RDMA all-reduce (stub: this build has no CUDA toolkit).
-#[cfg(not(ik_cuda))]
-pub mod rdma {
-    pub fn usable() -> bool {
-        false
-    }
-}
+/// The `INTARSIA_DSV41_RDMA` setting and the lock-step setup of the ring with its fallback; no CUDA in it, so it is tested
+/// everywhere.
+pub mod rdma_policy;
 /// NCCL collectives (stub: this build has no CUDA toolkit).
 #[cfg(not(ik_cuda))]
 pub mod nccl {
@@ -59,7 +55,7 @@ pub mod nccl {
         _world: usize,
         _id: [u8; 128],
         _ctl: &mut std::net::TcpStream,
-        _rdma: bool,
+        _rdma: crate::rdma_policy::Wish,
     ) -> Result<(Arc<dyn Backend>, Arc<dyn Comm>)> {
         Err(none())
     }

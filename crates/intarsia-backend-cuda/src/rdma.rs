@@ -1,4 +1,4 @@
-//! Direct RDMA all-reduce for the TP=2 f32 partial sums (lane dsv41/rdma, `INTARSIA_DSV41_RDMA=1`;
+//! Direct RDMA all-reduce for the TP=2 f32 partial sums (lane dsv41/rdma, `INTARSIA_DSV41_RDMA`;
 //! docs/results/2026-11-02-dsv41-rdma.md). A [`Comm`] that wraps the NCCL communicator and takes over exactly one call:
 //! `all_reduce_sum_into` of an f32 partial into a bf16 output on stream 0 (80 of a decode pass's 83 collectives), through the
 //! stage / collect kernel pair and host proxy of `kernels/cuda/ik_rdma.cu`. Every other call is NCCL's. The kernels are plain
@@ -6,15 +6,17 @@
 //!
 //! The choice per call depends only on dtype, element count and stream, which both ranks see alike. The result is bitwise the
 //! NCCL pair's (`ncclAllReduce` f32 + `ik_rt_f32_round`): at world 2 `a + b == b + a`, rounded once to nearest even.
-//! With the switch off no wrapper exists: [`create_with_rdma`] returns the NCCL communicator itself.
+//! The setting has three states (unset = auto, `1` = required, `0` = off) and the setup is a lock-step exchange between the
+//! ranks that falls back to plain NCCL, with one log line, when anything about the ring fails ([`crate::rdma_policy`]).
+//! With the ring off no wrapper exists: [`wrap`] returns the NCCL communicator itself.
 
 use crate::device::CudaBackend;
 use crate::ffi;
+use crate::rdma_policy::{self, Outcome, RingOps, Wish};
 use intarsia_core::backend::{StreamId, TensorRef};
 use intarsia_core::comm::{ArNorm, Comm, CommCounters, CommStats};
 use intarsia_core::{DType, Error, Result};
-use std::ffi::{c_char, c_int, c_void, CStr};
-use std::io::{Read, Write};
+use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::net::TcpStream;
 use std::sync::Arc;
 use std::time::Duration;
@@ -22,6 +24,8 @@ use std::time::Duration;
 /// Largest partial the rings carry: 256 KiB of f32 (12 rows of the 5120-wide model); bigger calls (a prefill chunk) go to NCCL.
 const MAX_BYTES: usize = 256 * 1024;
 const SLOTS: c_int = 4;
+/// The host round trip of the setup (a first packet may wait for an ARP / route lookup).
+const PING_MS: c_int = 10_000;
 
 fn lib_err(buf: &[c_char]) -> String {
     // SAFETY: the C side wrote a NUL-terminated string into the buffer (or left it zeroed).
@@ -43,105 +47,93 @@ pub struct RdmaComm {
     counters: CommCounters,
 }
 
-/// Both ranks say whether they run the RDMA exchange; a difference is an error (one side would wait for bytes that never
-/// come). Rank 0 writes first, rank 1 reads first; both read what the other sent.
-pub fn negotiate(ctl: &mut TcpStream, rank: usize, mine: bool) -> Result<bool> {
-    let io = |e: std::io::Error| Error::backend(format!("INTARSIA_DSV41_RDMA handshake with the other rank: {e}"));
-    let mut theirs = [0u8; 1];
-    if rank == 0 {
-        ctl.write_all(&[mine as u8]).map_err(io)?;
-        ctl.flush().map_err(io)?;
-        ctl.read_exact(&mut theirs).map_err(io)?;
-    } else {
-        ctl.read_exact(&mut theirs).map_err(io)?;
-        ctl.write_all(&[mine as u8]).map_err(io)?;
-        ctl.flush().map_err(io)?;
-    }
-    if (theirs[0] != 0) != mine {
-        return Err(Error::invalid(format!(
-            "INTARSIA_DSV41_RDMA is {} on this rank and {} on the other: set it the same on both",
-            if mine { "1" } else { "unset" },
-            if theirs[0] != 0 { "1" } else { "unset" }
-        )));
-    }
-    Ok(mine)
+/// The real ring behind the setup's [`RingOps`].
+struct RealRing {
+    rank: usize,
+    h: *mut c_void,
 }
 
-/// The RDMA devices and GID index of the ring: the ones NCCL is told to use (`NCCL_IB_HCA`, one or two names, a `=` or `^`
-/// prefix not allowed; `NCCL_IB_GID_INDEX`, default 3), so a launch needs no new variable.
-fn devices_from_env() -> Result<(String, c_int)> {
-    let hca = std::env::var("NCCL_IB_HCA").unwrap_or_default();
-    if hca.is_empty() || hca.starts_with(['=', '^']) {
-        return Err(Error::invalid("INTARSIA_DSV41_RDMA needs NCCL_IB_HCA to name the RDMA device(s), e.g. rocep1s0f1,roceP2p1s0f1".to_string()));
+impl RingOps for RealRing {
+    fn open(&mut self, min_rails: i32) -> std::result::Result<(), String> {
+        let (devs, gid) = rdma_policy::devices(std::env::var("NCCL_IB_HCA").ok().as_deref(), std::env::var("NCCL_IB_GID_INDEX").ok().as_deref())?;
+        let deadline = rdma_policy::deadline_s(std::env::var("INTARSIA_DSV41_RDMA_DEADLINE_S").ok().as_deref());
+        let fault = std::env::var("INTARSIA_DSV41_RDMA_FAULT").unwrap_or_default();
+        let cd = CString::new(devs.clone()).map_err(|e| e.to_string())?;
+        let cf = CString::new(fault).map_err(|e| e.to_string())?;
+        let mut err = [0 as c_char; 256];
+        // SAFETY: valid NUL-terminated strings and error buffer.
+        let h = unsafe { ffi::ik_rdma_open(cd.as_ptr(), gid, self.rank as c_int, MAX_BYTES, SLOTS, min_rails, deadline, cf.as_ptr(), err.as_mut_ptr(), err.len() as c_int) };
+        if h.is_null() {
+            return Err(format!("ring on {devs} (gid {gid}): {}", lib_err(&err)));
+        }
+        self.h = h;
+        Ok(())
     }
-    let gid = match std::env::var("NCCL_IB_GID_INDEX") {
-        Ok(v) => v.trim().parse::<c_int>().map_err(|_| Error::invalid(format!("NCCL_IB_GID_INDEX '{v}' is not a number")))?,
-        Err(_) => 3,
+    fn info(&self) -> Vec<u8> {
+        // SAFETY: plain FFI call.
+        let n = unsafe { ffi::ik_rdma_info_size() } as usize;
+        assert!(n <= rdma_policy::INFO_MAX, "the ring's info block outgrew the setup frame");
+        let mut v = vec![0u8; n];
+        // SAFETY: `v` holds the info block's size; the handle is open.
+        unsafe { ffi::ik_rdma_info(self.h, v.as_mut_ptr() as *mut c_void) };
+        v
+    }
+    fn connect(&mut self, peer_info: &[u8]) -> std::result::Result<(), String> {
+        let mut err = [0 as c_char; 256];
+        // SAFETY: the peer's block is at least the info block's size (a frame carries INFO_MAX bytes).
+        let rc = unsafe { ffi::ik_rdma_connect(self.h, peer_info.as_ptr() as *const c_void, err.as_mut_ptr(), err.len() as c_int) };
+        if rc != 0 {
+            return Err(lib_err(&err));
+        }
+        Ok(())
+    }
+    fn ping(&mut self, timeout_ms: i32) -> std::result::Result<(), String> {
+        let mut err = [0 as c_char; 256];
+        // SAFETY: valid handle and buffer.
+        let rc = unsafe { ffi::ik_rdma_ping(self.h, timeout_ms, err.as_mut_ptr(), err.len() as c_int) };
+        if rc != 0 {
+            return Err(lib_err(&err));
+        }
+        Ok(())
+    }
+    fn discard(&mut self) {
+        if !self.h.is_null() {
+            // SAFETY: a ring that was never started: everything is freed.
+            unsafe { ffi::ik_rdma_close(self.h) };
+            self.h = std::ptr::null_mut();
+        }
+    }
+}
+
+/// Set the ring up between the two ranks over the control stream `ctl` and wrap `inner`, or keep plain NCCL: `wish` is this
+/// rank's setting. Auto falls back on any local or remote failure (one log line); required and a disagreement are errors.
+pub fn wrap(backend: Arc<CudaBackend>, inner: Arc<dyn Comm>, rank: usize, ctl: &mut TcpStream, wish: Wish) -> Result<Arc<dyn Comm>> {
+    let io = |e: std::io::Error| Error::backend(format!("RDMA setup: control stream: {e}"));
+    ctl.set_read_timeout(Some(rdma_policy::SETUP_TIMEOUT)).map_err(io)?;
+    ctl.set_write_timeout(Some(rdma_policy::SETUP_TIMEOUT)).map_err(io)?;
+    let mut ring = RealRing { rank, h: std::ptr::null_mut() };
+    let r = if wish == Wish::Off {
+        rdma_policy::setup(ctl, rank, wish, &mut ring, PING_MS)
+    } else {
+        // the pinned memory and the verbs objects belong to this thread's device context
+        backend.bind().map_err(|e| Error::backend(format!("RDMA setup: {e}")))?;
+        rdma_policy::setup(ctl, rank, wish, &mut ring, PING_MS)
     };
-    if hca.contains(':') {
-        return Err(Error::invalid("INTARSIA_DSV41_RDMA: NCCL_IB_HCA names devices without ports (port 1 is used)".to_string()));
+    ctl.set_read_timeout(None).map_err(io)?;
+    ctl.set_write_timeout(None).map_err(io)?;
+    match r.map_err(Error::invalid)? {
+        Outcome::Off => Ok(inner),
+        Outcome::Fallback(why) => {
+            eprintln!("tensor parallel: rank {rank}: RDMA exchange not used, f32 all-reduces stay on NCCL ({why}) [INTARSIA_DSV41_RDMA]");
+            Ok(inner)
+        }
+        Outcome::Ready => {
+            // SAFETY: plain FFI call; -1: the proxy thread is not pinned.
+            unsafe { ffi::ik_rdma_start(ring.h, -1) };
+            eprintln!("tensor parallel: rank {rank} f32 all-reduces over RDMA, up to {} KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)", MAX_BYTES / 1024);
+            Ok(Arc::new(RdmaComm { inner, backend, ring: Ring(ring.h), counters: CommCounters::default() }))
+        }
     }
-    Ok((hca, gid))
-}
-
-/// Can a ring be made here at all: libibverbs in the build and devices named by `NCCL_IB_HCA`. Decides the unset default of
-/// `INTARSIA_DSV41_RDMA` (a launch that cannot use RDMA stays on NCCL, quietly).
-pub fn usable() -> bool {
-    // SAFETY: plain FFI call.
-    let built = unsafe { ffi::ik_rdma_available() } != 0;
-    built && devices_from_env().is_ok()
-}
-
-/// Open the ring, swap queue-pair info with the other rank over the control stream, connect and start the proxy.
-pub fn wrap(backend: Arc<CudaBackend>, inner: Arc<dyn Comm>, rank: usize, ctl: &mut TcpStream) -> Result<Arc<dyn Comm>> {
-    // SAFETY: plain FFI call.
-    if unsafe { ffi::ik_rdma_available() } == 0 {
-        return Err(Error::Unsupported("INTARSIA_DSV41_RDMA=1: this binary was built without libibverbs".into()));
-    }
-    let (devs, gid) = devices_from_env()?;
-    backend.bind()?;
-    let cdevs = std::ffi::CString::new(devs.clone()).map_err(|e| Error::invalid(e.to_string()))?;
-    let mut err = [0 as c_char; 256];
-    // SAFETY: valid NUL-terminated device list and error buffer.
-    let h = unsafe { ffi::ik_rdma_open(cdevs.as_ptr(), gid, rank as c_int, MAX_BYTES, SLOTS, err.as_mut_ptr(), err.len() as c_int) };
-    if h.is_null() {
-        return Err(Error::backend(format!("RDMA ring on {devs} (gid {gid}): {}", lib_err(&err))));
-    }
-    let ring = Ring(h);
-    // SAFETY: plain FFI call.
-    let n = unsafe { ffi::ik_rdma_info_size() } as usize;
-    let mut mine = vec![0u8; n];
-    // SAFETY: `mine` holds the info block's size.
-    unsafe { ffi::ik_rdma_info(h, mine.as_mut_ptr() as *mut c_void) };
-    let mut theirs = vec![0u8; n];
-    let io = |e: std::io::Error| Error::backend(format!("RDMA queue-pair info exchange: {e}"));
-    if rank == 0 {
-        ctl.write_all(&mine).map_err(io)?;
-        ctl.flush().map_err(io)?;
-        ctl.read_exact(&mut theirs).map_err(io)?;
-    } else {
-        ctl.read_exact(&mut theirs).map_err(io)?;
-        ctl.write_all(&mine).map_err(io)?;
-        ctl.flush().map_err(io)?;
-    }
-    // SAFETY: `theirs` holds the peer's info block of the same size.
-    let rc = unsafe { ffi::ik_rdma_connect(h, theirs.as_ptr() as *const c_void, err.as_mut_ptr(), err.len() as c_int) };
-    if rc != 0 {
-        return Err(Error::backend(format!("RDMA connect: {}", lib_err(&err))));
-    }
-    // both ranks connected their queue pairs before either starts sending: one more round on the control stream
-    let (a, b) = ([1u8], &mut [0u8; 1]);
-    if rank == 0 {
-        ctl.write_all(&a).map_err(io)?;
-        ctl.read_exact(b).map_err(io)?;
-    } else {
-        ctl.read_exact(b).map_err(io)?;
-        ctl.write_all(&a).map_err(io)?;
-    }
-    // SAFETY: plain FFI call; -1: the proxy thread is not pinned.
-    unsafe { ffi::ik_rdma_start(h, -1) };
-    eprintln!("tensor parallel: rank {rank} f32 all-reduces over RDMA ({devs}, gid {gid}, up to {} KiB), the rest over NCCL (INTARSIA_DSV41_RDMA)", MAX_BYTES / 1024);
-    Ok(Arc::new(RdmaComm { inner, backend, ring, counters: CommCounters::default() }))
 }
 
 impl RdmaComm {
@@ -250,41 +242,5 @@ impl Drop for RdmaComm {
     fn drop(&mut self) {
         // SAFETY: valid ring handle; stops the proxy thread. The rings stay mapped (a graph may hold their addresses).
         unsafe { ffi::ik_rdma_close(self.ring.0) };
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::net::TcpListener;
-
-    #[test]
-    fn negotiate_agrees_and_both_ranks_refuse_a_difference() {
-        for (a, b, ok) in [(true, true, true), (false, false, true), (true, false, false), (false, true, false)] {
-            let l = TcpListener::bind("127.0.0.1:0").unwrap();
-            let addr = l.local_addr().unwrap();
-            let t = std::thread::spawn(move || negotiate(&mut l.accept().unwrap().0, 1, b));
-            let mut c = TcpStream::connect(addr).unwrap();
-            let r0 = negotiate(&mut c, 0, a);
-            let r1 = t.join().unwrap();
-            assert_eq!((r0.is_ok(), r1.is_ok()), (ok, ok), "rank 0 {a}, rank 1 {b}");
-            if ok {
-                assert_eq!((r0.unwrap(), r1.unwrap()), (a, b));
-            }
-        }
-    }
-
-    #[test]
-    fn devices_come_from_the_nccl_variables() {
-        // the env is process-wide: set and read within one test
-        std::env::set_var("NCCL_IB_HCA", "rocep1s0f1,roceP2p1s0f1");
-        std::env::set_var("NCCL_IB_GID_INDEX", "3");
-        assert_eq!(devices_from_env().unwrap(), ("rocep1s0f1,roceP2p1s0f1".to_string(), 3));
-        std::env::set_var("NCCL_IB_HCA", "mlx5_0:1");
-        assert!(devices_from_env().is_err());
-        std::env::set_var("NCCL_IB_HCA", "^mlx5_1");
-        assert!(devices_from_env().is_err());
-        std::env::remove_var("NCCL_IB_HCA");
-        assert!(devices_from_env().is_err());
     }
 }

@@ -97,6 +97,7 @@ struct RingDev {
     u64* seq; unsigned* staged;      // device scalars
     int slots; int rank; int world; u64 maxb;
     u64* t_bell; u64* t_flag;        // per-call probes (rank-local globaltimer), indexed by seq
+    int fence_all;                   // 1: every thread fences its stores before the barrier (the engine); 0: thread 0 only (the first version)
     u64 deadline_ns;                 // a spin gives up (sets nothing, just leaves) after this long: a dead peer never wedges the GPU
 };
 
@@ -113,6 +114,7 @@ __global__ void __launch_bounds__(512) rdma_stage(const float4* __restrict__ src
     const u64 q = s_seq; const int slot = (int)(q % r.slots);
     float4* dst = reinterpret_cast<float4*>(r.send + (size_t)slot * r.maxb);
     for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < n4; i += gridDim.x * blockDim.x) dst[i] = src[i];
+    if (r.fence_all) __threadfence_system();   // every thread orders its own stores before the barrier (the engine's kernel does)
     __syncthreads();
     if (threadIdx.x == 0) { __threadfence_system(); s_last = atomicAdd(r.staged, 1u) == gridDim.x - 1; }
     __syncthreads();
@@ -313,13 +315,13 @@ int main(int argc, char** argv) {
     if (argc < 6) DIE("usage: rdma_bench RANK IP PORT IBDEV GID [opts]");
     const int rank = atoi(argv[1]); const char* ip = argv[2]; const int port = atoi(argv[3]); const char* ibdev = argv[4]; const int gid = atoi(argv[5]);
     std::string modes = "nccl,rdma,null", sizes = "20480,40960,81920"; std::string gaps = "0,500";
-    int hog = 0, reps = 40, K = 64, pdl = 0, sblocks = 16, cblocks = 0, pin = -1, slots = 4, check = 1, skip = 2;
+    int fence = 1, hog = 0, reps = 40, K = 64, pdl = 0, sblocks = 16, cblocks = 0, pin = -1, slots = 4, check = 1, skip = 2;
     for (int i = 6; i + 1 < argc; i += 2) {
         std::string k = argv[i], v = argv[i + 1];
         if (k == "--modes") modes = v; else if (k == "--sizes") sizes = v; else if (k == "--gaps") gaps = v; else if (k == "--reps") reps = atoi(v.c_str());
         else if (k == "--k") K = atoi(v.c_str()); else if (k == "--pdl") pdl = atoi(v.c_str()); else if (k == "--stage-blocks") sblocks = atoi(v.c_str());
         else if (k == "--collect-blocks") cblocks = atoi(v.c_str()); else if (k == "--pin") pin = atoi(v.c_str()); else if (k == "--slots") slots = atoi(v.c_str());
-        else if (k == "--check") check = atoi(v.c_str()); else if (k == "--hog") hog = atoi(v.c_str()); else DIE("unknown option %s", k.c_str());
+        else if (k == "--check") check = atoi(v.c_str()); else if (k == "--hog") hog = atoi(v.c_str()); else if (k == "--fence") fence = atoi(v.c_str()); else DIE("unknown option %s", k.c_str());
     }
     CK(cudaSetDevice(0));
     sock_open(rank, ip, port);
@@ -356,7 +358,7 @@ int main(int argc, char** argv) {
         printf("rank %d: DRAM hog on %d blocks during the replays\n", rank, hog);
     }
     const u64 deadline_ns = 2000000000ull;   // every device spin gives up after 2 s
-    RingDev rd = ring.dev(d_bell, d_flag, deadline_ns);
+    RingDev rd = ring.dev(d_bell, d_flag, deadline_ns); rd.fence_all = fence;
     u64 calls_total = 0;   // calls issued so far on this rank (the same on both)
 
     u64 qcount = 0;   // rdma sequences consumed so far (the same on both ranks)

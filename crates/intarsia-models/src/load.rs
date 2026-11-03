@@ -271,6 +271,7 @@ pub fn serve_remote_rank(
     let weights = SchemedSource::open(dir)?;
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backend.name());
     let load_opts = LoadOptions { prefill_chunk: prefill_chunk.value, ..opts.load.clone() };
+    let group_comm = comm.clone();
     let tp = intarsia_core::model::TpRank { rank, world, comm: Some(comm) };
     let mut model = Model::load_shard(backend, &recipe, &dims, &weights, &load_opts, Arc::new(Telemetry::new()), tp)?;
     let fp = tp_fingerprint(dir, &recipe_source, &load_opts, opts, world);
@@ -285,7 +286,7 @@ pub fn serve_remote_rank(
         );
     }
     eprintln!("tensor-parallel rank {rank} of {world}: serving rank 0 ({} tokens of context)", model.plan.kv_cap_tokens);
-    let n = intarsia_core::tp_remote::serve(&model, stream);
+    let n = intarsia_core::tp_remote::serve_group(&model, stream, group_comm);
     let g = model.graph_stats();
     eprintln!(
         "tensor-parallel rank {rank}: decode graph enabled={} captures={} replays={}",

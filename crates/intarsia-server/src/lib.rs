@@ -54,6 +54,9 @@ pub struct ServerConfig {
     /// Exit the process (code [`EXIT_STALLED`] / [`EXIT_FAILED`]) when the watchdog trips,
     /// for a supervisor to restart.
     pub exit_on_stall: bool,
+    /// Exit the process (code [`EXIT_FAILED`]) once the engine reports itself failed, even without a supervisor (a tensor-parallel
+    /// group that lost a rank cannot recover in this process; whatever launched it restarts both ranks).
+    pub exit_on_failed: bool,
     /// Exit when this parent process is gone (the supervisor).
     pub parent_pid: Option<u32>,
     /// Serve the built-in web UI at `/` and `/ui/*` (`--no-ui` turns it off).
@@ -71,6 +74,7 @@ impl Default for ServerConfig {
             default_max_tokens: 4096,
             watchdog_s: 60.0,
             exit_on_stall: false,
+            exit_on_failed: false,
             parent_pid: None,
             ui: true,
         }
@@ -132,6 +136,7 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
                 state.progress.clone(),
                 state.metrics.clone(),
                 cfg.exit_on_stall,
+                cfg.exit_on_failed,
                 cfg.parent_pid,
             );
         }
