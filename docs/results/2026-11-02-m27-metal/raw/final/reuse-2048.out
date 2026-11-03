@@ -1,0 +1,18 @@
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 2048 (recipe qwen3_5_vl, metal); restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+count              both      SKIPPED: a prompt of 38 tokens cannot cross a chunk boundary at the default prefill chunk 2048 (no split above 2048 leaves room for turn 2)
+story              both      SKIPPED: a prompt of 39 tokens cannot cross a chunk boundary at the default prefill chunk 2048 (no split above 2048 leaves room for turn 2)
+code               both      SKIPPED: a prompt of 87 tokens cannot cross a chunk boundary at the default prefill chunk 2048 (no split above 2048 leaves room for turn 2)
+science            both      SKIPPED: a prompt of 79 tokens cannot cross a chunk boundary at the default prefill chunk 2048 (no split above 2048 leaves room for turn 2)
+chat_short         both      SKIPPED: a prompt of 18 tokens cannot cross a chunk boundary at the default prefill chunk 2048 (no split above 2048 leaves room for turn 2)
+chat_system        both      SKIPPED: a prompt of 32 tokens cannot cross a chunk boundary at the default prefill chunk 2048 (no split above 2048 leaves room for turn 2)
+chat_multiturn     both      SKIPPED: a prompt of 58 tokens cannot cross a chunk boundary at the default prefill chunk 2048 (no split above 2048 leaves room for turn 2)
+chat_reasoning     both      SKIPPED: a prompt of 90 tokens cannot cross a chunk boundary at the default prefill chunk 2048 (no split above 2048 leaves room for turn 2)
+long_prose_300     both      SKIPPED: a prompt of 300 tokens cannot cross a chunk boundary at the default prefill chunk 2048 (no split above 2048 leaves room for turn 2)
+long_prose_700     both      SKIPPED: a prompt of 700 tokens cannot cross a chunk boundary at the default prefill chunk 2048 (no split above 2048 leaves room for turn 2)
+prefix reuse: 0 prompt(s) judged, 10 skipped
+prefix reuse: 10 prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk 2048 (recipe qwen3_5_vl, metal): count, story, code, science, chat_short, chat_system, chat_multiturn, chat_reasoning, long_prose_300, long_prose_700; 0 judged
+prefix-reuse gate: FAIL (nothing ran: no prompt can cross a chunk boundary at prefill chunk 2048, so no restore was tested and this is not a pass; use a golden with longer prompts, or a smaller --prefill-chunk)
+golden gate: FAIL

@@ -77,6 +77,15 @@ kernel void mxfp4_xprep_bf16(device const ushort* x [[buffer(0)]], device const 
     for (int e = 0; e < 32; ++e) dp[e] = f2bf(f[e]);  // exact: e2m1 * 2^e fits bf16
 }
 
+// e2m1 code -> float without a table (the GEMV's weight decode, bit for bit the table's values): sign, then the 3-bit magnitude m as bits ((m << 22) + 0x3F000000) for m >= 2
+// (2^(m/2 - 1) * (1 + 0.5 * (m & 1)): 1, 1.5, 2, 3, 4, 6), 0.5 for m == 1, 0 for m == 0
+inline float mx_fp4_arith(uint c) {
+    const uint m = c & 7u;
+    const uint bits = m >= 2u ? ((m << 22) + 0x3F000000u) : (m == 1u ? 0x3F000000u : 0u);
+    return as_type<float>(bits | ((c & 8u) << 28));
+}
+#define MX_DEC(c) mx_fp4_arith(c)
+
 // ---- GEMV ---------------------------------------------------------------------------------------------------------
 
 constant uint MX_SG = 4;  // simdgroups (= output rows) per threadgroup
@@ -99,13 +108,22 @@ inline void mxfp4_gemv_impl(device const ushort* xs, device const uchar* w, devi
         float wf[32];
         for (int q = 0; q < 4; ++q) {
             const uint v = wv[q];
-            for (int b = 0; b < 8; ++b) wf[q * 8 + b] = kFp4[(v >> (4 * b)) & 0xFu];
+            for (int b = 0; b < 8; ++b) wf[q * 8 + b] = MX_DEC((v >> (4 * b)) & 0xFu);
         }
         for (int m = 0; m < MB; ++m) {
             if (m0 + m >= M) break;
-            device const ushort* xp = xs + (ulong)(m0 + m) * K + (ulong)u * 32;
+            // 32 bf16 of the activation row as four 16-byte loads (xs is 16-byte aligned, K % 32 == 0); same products, same
+            // order as one 2-byte load per element
+            device const uint4* xp = (device const uint4*)(xs + (ulong)(m0 + m) * K + (ulong)u * 32);
             float t = 0.f;
-            for (int e = 0; e < 32; ++e) t = fma(wf[e], bf2f(xp[e]), t);
+            for (int q = 0; q < 4; ++q) {
+                const uint4 xv = xp[q];
+                for (int j = 0; j < 4; ++j) {
+                    const uint pr = xv[j];
+                    t = fma(wf[q * 8 + 2 * j], as_type<float>(pr << 16), t);
+                    t = fma(wf[q * 8 + 2 * j + 1], as_type<float>(pr & 0xFFFF0000u), t);
+                }
+            }
             acc[m] = fma(t, s, acc[m]);
         }
     }
@@ -128,3 +146,29 @@ MX_GEMV(mxfp4_gemv_bf16_m1, 1, ushort)
 MX_GEMV(mxfp4_gemv_bf16_m8, 8, ushort)
 MX_GEMV(mxfp4_gemv_f32_m1, 1, float)
 MX_GEMV(mxfp4_gemv_f32_m8, 8, float)
+
+// ---- weight decode for the NAX GEMM (matmul_mxfp4_nax: gemm_nax_fp8.metal's GEMM, launcher mxfp4.rs) --------------------
+// `mxfp4_w_to_bf16`: W[N,K/2] codes * e8m0 scales -> bf16 [N,K] (e2m1 * 2^e: at most two significant bits, so the bf16 is
+// exact, as it is in the GEMV above; a NaN scale byte gives NaN), and the GEMM's scale pair [1, 0] (no weight scale, no input
+// scale) after the weights. p.b = N, p.c = K (K % 32 == 0), p.s0 = scale skip; one thread decodes one 32-weight group.
+// bind 0 W (4-byte aligned), 1 scales, 2 Wb (16-byte aligned), 3 scale pair, 4 OpP.
+kernel void mxfp4_w_to_bf16(device const uchar* w [[buffer(0)]], device const uchar* sc [[buffer(1)]],
+                            device uint4* wb [[buffer(2)]], device float* pair [[buffer(3)]],
+                            constant OpP& p [[buffer(4)]], uint g [[thread_position_in_grid]]) {
+    if (g == 0) {
+        pair[0] = 1.0f;
+        pair[1] = 0.0f;
+    }
+    if ((ulong)g >= (ulong)p.b * (p.c / 32)) return;
+    const uint4 wv = uint4(*(device const packed_uint4*)(w + (ulong)g * 16));
+    const float s = mx_e8m0(sc[p.s0 + (ulong)g]);
+    uint o[16];
+    for (int q = 0; q < 4; ++q) {
+        const uint v = wv[q];
+        for (int b = 0; b < 4; ++b) {  // elements 8q + 2b (low nibble) and 8q + 2b + 1 of the group
+            const float lo = kFp4[(v >> (8 * b)) & 0xFu] * s, hi = kFp4[(v >> (8 * b + 4)) & 0xFu] * s;
+            o[q * 4 + b] = (as_type<uint>(lo) >> 16) | (as_type<uint>(hi) & 0xFFFF0000u);
+        }
+    }
+    for (int i = 0; i < 4; ++i) wb[4 * (ulong)g + i] = uint4(o[4 * i], o[4 * i + 1], o[4 * i + 2], o[4 * i + 3]);
+}
