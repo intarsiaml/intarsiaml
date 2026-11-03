@@ -1,0 +1,10 @@
+fleetq: #8220 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/gates.sh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/gates /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.main-47af18777
+plan show Qwen3.6-35B-A3B-NVFP4 : identical
+plan show Qwen3.6-35B-A3B-NVFP4 --json: identical
+plan show Qwen3-8B : identical
+plan show Qwen3-8B --json: identical
+accuracy hsb3 exit 0
+accuracy off exit 0
+mtp p1 (HSB=3): k2 == off
+mtp p2 (HSB=3): k2 == off
+fleetq: #8220 done (exit 0)

@@ -1,0 +1,8 @@
+fleetq: #8222 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/ident-final.sh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/identity-final /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.main-47af18777 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2
+ident-final short off: base == hsb3 (     952 bytes)
+ident-final short k2: base == hsb3 (     952 bytes)
+ident-final 4k off: base == hsb3 (     910 bytes)
+ident-final 4k k2: base == hsb3 (     910 bytes)
+ident-final 16k off: base == hsb3 (     834 bytes)
+ident-final 16k k2: base == hsb3 (     834 bytes)
+fleetq: #8222 done (exit 0)
