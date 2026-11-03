@@ -1,0 +1,87 @@
+30 big passes (>= 1500 kernels); kernels per pass median 2458
+span per pass: median 41.31 ms (min 34.59, max 73.68)
+class               calls   sum ms    s0 ms  crit ms
+moe                 240.0   19.115    0.747   19.097
+dense.main          346.0    8.981    0.529    7.797
+nccl                 83.0    4.806    0.117    4.806
+hc                  171.0    2.830    0.117    2.830
+idle                  0.0    0.000    0.000    2.709
+dense.f16            52.0    2.181    1.142    2.181
+attn                324.0    1.815    0.058    1.815
+other               182.0    0.680    0.092    0.679
+dense.finish        254.0    0.870    0.019    0.599
+dense.rot_in        346.0    0.848    0.025    0.425
+dense.transpose     242.0    0.403    0.021    0.402
+dense.cast          139.0    0.267    0.008    0.267
+dense total        1379.0   13.551    1.744   11.671
+all                2455.4   50.227   10.306   43.607
+
+dense kernels by (kernel, grid x, grid y): calls per pass, median us, sum ms per pass
+  linear_kernel<<unnamed>                    40    1    41.0     43.5    2.036
+  split_kernel<<unnamed>                      8    8   160.0     10.9    1.907
+  linear_kernel<<unnamed>                   128    1    40.0     33.9    1.576
+  dense_f16w_vec_kernel<__nv_bfloat16, float,   16160    1     4.0    262.3    1.103
+  linear_kernel<<unnamed>                   505    1     1.0   1064.5    1.084
+  dense_f16w_vec_kernel<__nv_bfloat16, float,      96    1    40.0     24.2    1.001
+  linear_kernel<<unnamed>                   200    1     2.0    452.6    0.845
+  split_kernel<<unnamed>                     10    5    40.0     15.3    0.711
+  split_kernel<<unnamed>                      4   10    50.0      6.8    0.546
+  linear_kernel<<unnamed>                    32    1     8.0     35.4    0.253
+  transpose01_kernel<unsigned int>            1    1   160.0      1.3    0.233
+  split_finish_kernel                         8    2    58.7      3.3    0.220
+  rot_in_kernel                               8    2    73.3      2.0    0.188
+  split_finish_kernel                         8    3    48.0      3.3    0.182
+  rot_in_kernel                               8    3    60.0      2.3    0.160
+  split_finish_kernel                         8    5    37.3      3.5    0.144
+  rot_in_kernel                               8    5    46.7      2.2    0.129
+  rot_in_kernel                              10    2    33.4      2.4    0.092
+  dense_f16w_vec_kernel<__nv_bfloat16, __nv_bfloat16,      32    1     8.0      9.7    0.078
+  rot_in_kernel                              10    3    27.3      1.8    0.067
+  split_finish_kernel                         8    4    16.0      3.4    0.065
+  rot_in_kernel                               8    4    20.0      2.4    0.055
+  split_finish_kernel                         4    2    18.3      2.3    0.052
+  split_finish_kernel                         4    3    15.0      2.4    0.046
+  rot_in_kernel                              10    5    21.2      1.7    0.043
+  transpose01_kernel<uint4>                  16    1    14.7      2.3    0.039
+  split_finish_kernel                         4    5    11.7      2.6    0.038
+  split_finish_kernel                        10    2    14.7      2.1    0.034
+  transpose01_kernel<uint4>                  24    1    12.0      2.0    0.030
+  split_finish_kernel                        10    3    12.0      2.0    0.027
+  rot_in_kernel                               3    2    17.6      1.2    0.027
+  split_finish_kernel                        10    5     9.3      2.0    0.025
+  split_kernel<<unnamed>                      1    4     4.0      5.4    0.023
+  rot_in_kernel                               3    3    14.4      1.2    0.023
+  transpose01_kernel<uint4>                  40    1     9.3      1.8    0.022
+  transpose01_kernel<uint4>                   4    1    14.7      1.1    0.020
+  rot_in_kernel                              10    4     9.1      1.7    0.019
+  rot_in_kernel                               3    5    11.2      1.2    0.018
+  transpose01_kernel<uint4>                   6    1    12.0      1.2    0.018
+  split_finish_kernel                         4    4     5.0      2.4    0.014
+  transpose01_kernel<uint4>                  10    1     9.3      1.2    0.014
+  split_finish_kernel                        10    4     4.0      2.0    0.010
+  transpose01_kernel<uint4>                  32    1     4.0      2.0    0.010
+  rot_in_kernel                               3    4     4.8      1.2    0.008
+  transpose01_kernel<uint4>                 632    1     1.0      8.0    0.007
+  transpose01_kernel<uint4>                   8    1     4.0      1.2    0.006
+  rot_in_kernel                               1    2     1.6      2.5    0.005
+  split_finish_kernel                         1    2     1.6      2.6    0.005
+  split_finish_kernel                         1    1     1.1      3.3    0.004
+  split_finish_kernel                         1    3     1.0      3.0    0.003
+  rot_in_kernel                               1    1     1.1      2.7    0.003
+  rot_in_kernel                               1    3     1.0      1.9    0.002
+  rot_in_kernel                              12    2     0.7      1.4    0.002
+  transpose01_kernel<uint4>                  15    1     0.4      3.5    0.001
+  rot_in_kernel                              12    3     0.6      1.4    0.001
+  transpose01_kernel<uint4>                  23    1     0.3      3.6    0.001
+  transpose01_kernel<uint4>                  38    1     0.2      3.9    0.001
+  rot_in_kernel                              30    5     0.2      3.8    0.001
+  rot_in_kernel                              30    2     0.4      1.6    0.001
+  rot_in_kernel                              30    3     0.3      1.6    0.001
+  rot_in_kernel                              12    5     0.5      1.5    0.001
+  split_finish_kernel                         1    5     0.2      2.3    0.001
+  rot_in_kernel                               1    5     0.2      1.9    0.000
+  rot_in_kernel                              30    4     0.1      3.7    0.000
+  transpose01_kernel<uint4>                  30    1     0.1      3.6    0.000
+  rot_in_kernel                               1    4     0.1      3.5    0.000
+  rot_in_kernel                              12    4     0.2      1.4    0.000
+  split_finish_kernel                         1    4     0.1      2.6    0.000
