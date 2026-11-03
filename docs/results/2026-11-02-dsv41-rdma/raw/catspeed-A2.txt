@@ -1,0 +1,6 @@
+kind                         off1                      on1                     off2                      on2
+chat          47.3 (median  48.0)      50.7 (median  51.7)      47.9 (median  49.1)      50.7 (median  51.9)
+code          69.4 (median  68.5)      73.7 (median  72.9)      68.9 (median  68.3)      73.9 (median  73.4)
+prose         42.3 (median  42.2)      45.0 (median  44.7)      42.5 (median  42.1)      45.2 (median  45.0)
+recall        54.7 (median  53.6)      57.7 (median  56.4)      54.5 (median  53.7)      58.1 (median  57.1)
+all           51.6 (median  51.2)      54.9 (median  55.0)      51.8 (median  51.8)      55.1 (median  55.0)

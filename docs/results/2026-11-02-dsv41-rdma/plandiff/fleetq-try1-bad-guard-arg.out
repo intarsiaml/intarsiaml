@@ -1,0 +1,8 @@
+fleetq: #8133 running on spark2: scripts/dsv41-tp2/plandiff.sh
+fleetq: #8133 went ahead of the line and must end within 58m (by Mon 22:54); it is stopped then
+base 4d9a5190e, stamp plandiff-base-4d9a5190e-1102215631
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 54s
+compiled 215 crates
+over is in the sources of 4d9a5190e: not a usable guard
+fleetq: #8133 done (exit 3)

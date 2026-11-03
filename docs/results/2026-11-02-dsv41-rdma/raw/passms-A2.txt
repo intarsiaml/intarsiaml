@@ -1,0 +1,5 @@
+pass_ms (graph replay of the verify pass, from the spec trace) by rows k+1, median over all rounds of the arm; n rounds
+ab0 NCCL k=0:29.38(30) k=1:34.34(979) k=2:39.13(1241) k=3:43.70(621) k=4:48.12(574)
+ab1 RDMA k=0:27.08(30) k=1:32.33(979) k=2:36.85(1241) k=3:41.07(621) k=4:45.30(574)
+ab2 NCCL k=0:28.95(30) k=1:34.33(979) k=2:39.01(1241) k=3:43.57(621) k=4:48.22(574)
+ab3 RDMA k=0:27.07(30) k=1:32.22(979) k=2:36.70(1241) k=3:41.06(621) k=4:45.44(574)
