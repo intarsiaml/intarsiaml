@@ -1,0 +1,7 @@
+prefill chunk 2048 (recipe qwen3_5_vl, metal)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on Apple M5 Max in 0.5s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 20000 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 4096 tokens
+finish=length prompt=4096 (cached 0) completion=128 | prefill 5287 ms (774.7 tok/s) | decode 6003 ms (21.16 tok/s)
+steps=130 graph replays=0 (captures 0) eager decode steps=128 (profiled 0) top ops: argmax=0ms/128 attn_decode=0ms/2048 attn_prefill=0ms/32 embedding=0ms/130 gate_split=0ms/2080

@@ -1,0 +1,13 @@
+fleetq: #8029 waiting (#2 in line): in line behind #8021 "m27 final: speed rerun MTP off control, right after (merged)" (claude-m27) on endor
+fleetq: #8029 waiting (#1 in line): needs gpu quiet on endor, but #8021 "m27 final: speed rerun MTP off control, right after (merged)" (claude-m27) loads it
+fleetq: #8029 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/abgen.sh /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/ab2-4k docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-4096.txt 128 3 v1:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v1 v1hs2:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v1:INTARSIA_METAL_ATTN_HS=2 v1hs3:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v1:INTARSIA_METAL_ATTN_HS=3
+r1 v1: prefill 4426 ms (925.5 tok/s) | decode 5218 ms (24.34 tok/s)
+r1 v1hs2: prefill 5571 ms (735.2 tok/s) | decode 4843 ms (26.23 tok/s)
+r1 v1hs3: prefill 5642 ms (726.0 tok/s) | decode 4859 ms (26.14 tok/s)
+r2 v1hs2: prefill 5614 ms (729.7 tok/s) | decode 4842 ms (26.23 tok/s)
+r2 v1hs3: prefill 5517 ms (742.5 tok/s) | decode 4855 ms (26.16 tok/s)
+r2 v1: prefill 5584 ms (733.5 tok/s) | decode 5213 ms (24.36 tok/s)
+r3 v1hs3: prefill 5520 ms (742.1 tok/s) | decode 4846 ms (26.21 tok/s)
+r3 v1: prefill 5618 ms (729.1 tok/s) | decode 5240 ms (24.24 tok/s)
+r3 v1hs2: prefill 5660 ms (723.7 tok/s) | decode 4888 ms (25.98 tok/s)
+fleetq: #8029 done (exit 0)

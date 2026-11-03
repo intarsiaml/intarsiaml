@@ -1,0 +1,12 @@
+fleetq: #8090 waiting (#1 in line): needs cpu quiet on endor, but #8089 "dsv41 moegate: metal builds, head e80b230df vs origin/main c269ded36, stamped, separate target dirs" (claude-moegate) loads it
+fleetq: #8090 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/abgen.sh /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/ab5-16384 docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-16384.txt 128 3 main:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-main v5:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v5 v5hs3:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v5:INTARSIA_METAL_ATTN_HS=3
+r1 main: prefill 20031 ms (817.9 tok/s) | decode 6670 ms (19.04 tok/s)
+r1 v5: prefill 20159 ms (812.7 tok/s) | decode 6014 ms (21.12 tok/s)
+r1 v5hs3: prefill 20351 ms (805.1 tok/s) | decode 4760 ms (26.68 tok/s)
+r2 v5: prefill 20559 ms (796.9 tok/s) | decode 5887 ms (21.57 tok/s)
+r2 v5hs3: prefill 20352 ms (805.0 tok/s) | decode 4631 ms (27.42 tok/s)
+r2 main: prefill 20056 ms (816.9 tok/s) | decode 6548 ms (19.39 tok/s)
+r3 v5hs3: prefill 20411 ms (802.7 tok/s) | decode 4679 ms (27.14 tok/s)
+r3 main: prefill 20305 ms (806.9 tok/s) | decode 6633 ms (19.15 tok/s)
+r3 v5: prefill 20738 ms (790.1 tok/s) | decode 5889 ms (21.57 tok/s)
+fleetq: #8090 done (exit 0)

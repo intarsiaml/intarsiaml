@@ -1,0 +1,18 @@
+fleetq: #8121 running on tatooine-r9700, tatooine-r9700-2: bash .scratch/hip-window.sh
+[win] stop 21:18:19
+[win] radiance inactive
+head mxfp4 quick rc=0
+head mxfp4 full rc=0
+head all quick rc=0
+head plan 35b rc=0
+head plan 8b rc=0
+main mxfp4 quick rc=0
+main mxfp4 full rc=0
+main all quick rc=0
+main plan 35b rc=0
+main plan 8b rc=0
+plan show 35b: identical (      59 lines)
+plan show 8b: identical (      22 lines)
+[win] radiance active after 20 s
+[win] restored 21:19:24
+fleetq: #8121 done (exit 0); radiance-rank0, radiance-rank1 must come back before others can use it
