@@ -1,0 +1,12 @@
+01:21:45 === arm head: binary $HOME/intarsia-dsv41-rdma/bin/intarsia md5 a5a7db0536b9 stamp '2dd8dc5bd dirty=no 1103-0033'
+01:21:53 [head] serve up=1 after 6 s
+01:21:58 [head] head-f2: ranks' PIDs rank 0 2645511 (spark1), rank 1 2749823 (spark2)
+01:22:58 [head] head-f2 RESULT: killed serve; request ended 1295 ms after the kill (curl rc 52, HTTP 000); /health first 503 at  ms (never = empty); /health first 000 at 1116 ms; rank 0 gone at 2478 ms; rank 1 gone at  ms
+01:22:58 [head] head-f2 response head:  HTTP 000 
+01:23:02 [head] head-f2 exit codes: rank 0 (serve) 137, rank 1 (worker) none
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:55428
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+01:23:09 tp35-compare done

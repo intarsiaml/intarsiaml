@@ -1,0 +1,61 @@
+01:13:53 === arm main: binary $HOME/intarsia-dsv41-rdma-main/bin/intarsia md5 a8afd47f0f3f stamp '85769c57a dirty=no 1103-0106'
+01:14:08 [main] serve up=1 after 12 s
+01:14:08 [main] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+01:14:09 [main] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+01:14:13 [main] main-n128:      256 ids, first '248046 198 248045 248068 271 248069'
+01:14:16 [main] main-n4096:      256 ids, first '248046 198 248045 248068 198 8160'
+01:14:22 [main] main-f1: ranks' PIDs rank 0 2556593 (spark1), rank 1 2704824 (spark2)
+01:15:22 [main] main-f1 RESULT: killed worker; request ended 1678 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2428 ms
+01:15:22 [main] main-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+01:15:26 [main] main-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:56870
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 2704824 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-dsv41-rdma-main/bin/i
+01:15:41 [main] serve up=1 after 6 s
+01:15:46 [main] main-n128-again:      256 ids, first '248046 198 248045 248068 271 248069'
+01:15:46 [main] AFTER RESTART: n128 ids identical to the run before the fault
+01:16:01 [main] serve up=1 after 6 s
+01:16:06 [main] main-f2: ranks' PIDs rank 0 2568506 (spark1), rank 1 2716760 (spark2)
+01:17:07 [main] main-f2 RESULT: killed serve; request ended 1239 ms after the kill (curl rc 52, HTTP 000); /health first 503 at  ms (never = empty); /health first 000 at 1124 ms; rank 0 gone at 2419 ms; rank 1 gone at  ms
+01:17:07 [main] main-f2 response head:  HTTP 000 
+01:17:10 [main] main-f2 exit codes: rank 0 (serve) 137, rank 1 (worker) none
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:33614
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+01:17:18 === arm head: binary $HOME/intarsia-dsv41-rdma/bin/intarsia md5 a5a7db0536b9 stamp '2dd8dc5bd dirty=no 1103-0033'
+01:17:33 [head] serve up=1 after 12 s
+01:17:33 [head] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+01:17:34 [head] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+01:17:38 [head] head-n128:      256 ids, first '248046 198 248045 248068 271 248069'
+01:17:41 [head] head-n4096:      256 ids, first '248046 198 248045 248068 198 8160'
+01:17:47 [head] head-f1: ranks' PIDs rank 0 2579096 (spark1), rank 1 2726991 (spark2)
+01:18:47 [head] head-f1 RESULT: killed worker; request ended 1869 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2496 ms
+01:18:47 [head] head-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+01:18:51 [head] head-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:38534
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 2726991 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-dsv41-rdma/bin/intars
+01:19:06 [head] serve up=1 after 6 s
+01:19:11 [head] head-n128-again:      256 ids, first '248046 198 248045 248068 271 248069'
+01:19:11 [head] AFTER RESTART: n128 ids identical to the run before the fault
+01:19:26 [head] serve up=1 after 6 s
+01:19:31 [head] head-f2: ranks' PIDs rank 0 2590964 (spark1), rank 1 2738878 (spark2)
+01:20:32 [head] head-f2 RESULT: killed serve; request ended 1455 ms after the kill (curl rc 52, HTTP 000); /health first 503 at  ms (never = empty); /health first 000 at 1195 ms; rank 0 gone at 2474 ms; rank 1 gone at  ms
+01:20:32 [head] head-f2 response head:  HTTP 000 
+01:20:35 [head] head-f2 exit codes: rank 0 (serve) 137, rank 1 (worker) none
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:38680
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+01:20:43 COMPARE n128:      256 ids IDENTICAL head vs main
+01:20:43 COMPARE n4096:      256 ids IDENTICAL head vs main
+01:20:43 tp35-compare done
