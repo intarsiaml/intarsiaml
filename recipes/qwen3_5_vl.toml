@@ -79,11 +79,24 @@ mxfp4_act = "none"
 kind = "qwen3_5_mtp"
 prefix = "mtp"
 
+# Metal (M5 Max, 27B MXFP4 W4A16, lane m27, docs/results/2026-11-02-m27-metal.md): prefill chunk 2048 rows (builtin default 256). Every
+# chunk decodes each projection's weights to bf16 into the scratch once (`matmul_mxfp4_nax`) before the NAX GEMM, so a bigger chunk amortises
+# that decode: 4k / 16k prompt prefill 648 / 540 tok/s at 256, 807 / 758 at 2048 (4096: 782 at 4k; 1024: 716 / 688), plain `generate`, 2 reps.
+# `--prefill-chunk N` overrides. `busy_chunk` 256 keeps a prompt that arrives beside decoding streams from stalling them for a 2048-row step.
+[tuning.metal]
+prefill_chunk = 2048
+busy_chunk = 256
+# MTP on by default, as on CUDA below: `--spec mtp --spec-k 2` with the 65536-row draft head (`--spec off` or INTARSIA_SPEC_DEFAULT=0 opts out; skipped at
+# `--max-batch` > 1). Served localeval sweep, 3 reps: decode 22.4 / 21.9 / 18.2 -> 26.3 / 25.8 / 21.3 tok/s at 1k / 4k / 16k (x1.17), prefill within 3 to 7 %; greedy
+# text byte-identical to `--spec off` on 4 prompts; k3 is not faster (docs/results/2026-11-02-m27-metal.md). User decision 2026-11-02 16:58 EST (relayed by the coordinator).
+mtp_default_k = 2
+mtp_draft_vocab = 65536
+
 # Defaults only where they were measured. The MTP drafter's argmax runs over the first 65536 of the 248320 lm_head rows
 # (`--mtp-draft-vocab`; `--mtp-draft-vocab 0` is the full head). Output is unchanged (the verify pass keeps the full head). Measured on
 # the Qwen3.8-27B MXFP4 on HIP, k=2: +8 to +12% decode on natural text (acceptance within about 4 points of the full head), Rust code
 # +11.6%; Chinese acceptance 65.9% -> 51.4% and 16% slower than the full head (docs/results/2026-10-25-sp-hip-spec.md sections 6 and 8).
-# User decision 2026-10-25 11:05. Metal is not set here: not measured for the 27B. CUDA has its own [tuning.cuda] below.
+# User decision 2026-10-25 11:05. Metal and CUDA have their own [tuning.metal] / [tuning.cuda] tables.
 [tuning.hip]
 mtp_draft_vocab = 65536
 # `--spec mtp --spec-k 2` without --spec at in-process tensor parallelism (--tp N, N > 1, one sequence): exact (27B ids 18/18 at tp=2

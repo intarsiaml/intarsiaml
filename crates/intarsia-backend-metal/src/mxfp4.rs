@@ -13,11 +13,16 @@ use objc2_metal::{MTLComputeCommandEncoder, MTLComputePipelineState, MTLSize};
 
 /// `KernelImpl::name` of the kernel.
 pub const MATMUL_MXFP4_GEMV: &str = "matmul_mxfp4_gemv";
+/// The prefill form (M > 8): the weights decoded to bf16 into the scratch, then the fp8 NAX GEMM on the neural accelerators
+/// (needs the metal4.0 library, `INTARSIA_METAL_MXFP4_NAX`).
+pub const MATMUL_MXFP4_NAX: &str = "matmul_mxfp4_nax";
 
 const XPREP: &str = "mxfp4_xprep_bf16";
+/// Weight decode of the NAX form (mxfp4.metal).
+const W_TO_BF16: &str = "mxfp4_w_to_bf16";
 /// Shader entry points (kernels/metal/mxfp4.metal).
-pub const SHADERS: [&str; 5] =
-    [XPREP, "mxfp4_gemv_bf16_m1", "mxfp4_gemv_bf16_m8", "mxfp4_gemv_f32_m1", "mxfp4_gemv_f32_m8"];
+pub const SHADERS: [&str; 6] =
+    [XPREP, "mxfp4_gemv_bf16_m1", "mxfp4_gemv_bf16_m8", "mxfp4_gemv_f32_m1", "mxfp4_gemv_f32_m8", W_TO_BF16];
 
 /// Output rows (= simdgroups) per threadgroup (`MX_SG` in the shader) and activation rows per grid row of `_m8`.
 const ROWS_PER_TG: usize = 4;
@@ -28,12 +33,48 @@ pub fn scratch(s: &ShapeInfo) -> usize {
     s.m * s.k * 2 + 16
 }
 
+/// Largest weight (`N * K` elements) the NAX form decodes into its scratch per call (bf16: 256 MB); larger ones keep the GEMV.
+const NAX_MAX_W: usize = 128 << 20;
+
+/// Rows of the decode GEMV's launch; the NAX form takes the calls above it.
+const GEMV_MB: usize = 8;
+
+/// `INTARSIA_METAL_MXFP4_NAX=0` turns the NAX form off (`matmul_mxfp4_gemv` at every M again, bitwise the previous build).
+pub fn nax_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_METAL_MXFP4_NAX").map_or(true, |v| v != "0"))
+}
+
+/// The NAX form serves the calls above the GEMV's 8 rows with K % 32 == 0 and a weight that fits [`NAX_MAX_W`].
+pub fn nax_ok(s: &ShapeInfo) -> bool {
+    nax_enabled() && !s.mxfp4_a8 && s.m > GEMV_MB && s.k >= 32 && s.k % 32 == 0 && s.n * s.k <= NAX_MAX_W
+}
+
+/// NAX scratch: the QDQ'd activations (bf16 `[M,K]`), then, from the next 16-byte boundary, the decoded weights (bf16 `[N,K]`)
+/// and the GEMM's scale pair (2 f32); 16 + 16 bytes of slack for the two alignments.
+pub fn nax_scratch(s: &ShapeInfo) -> usize {
+    (s.m * s.k * 2).next_multiple_of(16) + s.n * s.k * 2 + 8 + 32
+}
+
+thread_local! {
+    static NAX_TILE: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test hook: run `f` with every `matmul_mxfp4_nax` launch of this thread on tile `gemm_nax::NAX_VARIANTS[tile]` instead of
+/// `pick_variant`'s (the tiles must give the same bits).
+pub fn with_nax_tile<R>(tile: usize, f: impl FnOnce() -> R) -> R {
+    NAX_TILE.with(|t| t.set(Some(tile)));
+    let r = f();
+    NAX_TILE.with(|t| t.set(None));
+    r
+}
+
 fn u32_of(v: usize, what: &str) -> Result<u32> {
     u32::try_from(v).map_err(|_| Error::invalid(format!("metal matmul_mxfp4_gemv: {what} = {v} exceeds u32")))
 }
 
 impl MetalBackend {
-    pub(crate) fn launch_mxfp4(&self, call: &OpCall) -> Result<()> {
+    pub(crate) fn launch_mxfp4(&self, kernel: &str, call: &OpCall) -> Result<()> {
         let (x, w, sc, act, out) = match (call.inputs.as_slice(), call.outputs.as_slice()) {
             ([x, w, sc, act], [out]) => (x, w, sc, act, out),
             _ => return Err(Error::invalid("metal matmul_mxfp4_gemv: expected 4 inputs / 1 output")),
@@ -75,7 +116,10 @@ impl MetalBackend {
         if wb.skip != 0 {
             return Err(Error::invalid("metal matmul_mxfp4_gemv: the weights must be 4-byte aligned"));
         }
-        let need = m * k * 2;
+        if kernel == MATMUL_MXFP4_NAX {
+            return self.launch_mxfp4_nax(call, (&xb, &wb, &sb, &ab, &ob), [m, n, k], f32_out);
+        }
+        let need = m * k * 2 + 15;
         let scratch = call
             .scratch
             .as_ref()
@@ -90,6 +134,8 @@ impl MetalBackend {
         if xs.skip != 0 {
             return Err(Error::invalid("metal matmul_mxfp4_gemv: the scratch must be 4-byte aligned"));
         }
+        // the GEMV loads the activations 16 bytes at a time: they start at the next 16-byte boundary of the scratch
+        let xs = crate::dense::Bind { mtl: xs.mtl.clone(), off: xs.off.next_multiple_of(16), skip: 0 };
 
         let gemv = match (f32_out, m == 1) {
             (false, true) => SHADERS[1],
@@ -128,6 +174,104 @@ impl MetalBackend {
             enc.dispatchThreadgroups_threadsPerThreadgroup(
                 MTLSize { width: n.div_ceil(ROWS_PER_TG), height: m_blocks, depth: 1 },
                 MTLSize { width: ROWS_PER_TG * 32, height: 1, depth: 1 },
+            );
+        })
+    }
+    /// `matmul_mxfp4_nax` in three dispatches: the activations QDQ'd (or copied) as in the GEMV form (`mxfp4_xprep_bf16`),
+    /// the weights decoded to bf16 and the scale pair `[1, 0]` (`mxfp4_w_to_bf16`), then the fp8 NAX GEMM (`gemm_nax_fp8_*`,
+    /// tile by `gemm_nax::pick_variant`) on those two, which stores bf16 / f32. Scratch: `[xs: M*K bf16]` then, from the next
+    /// 16-byte boundary, `[Wb: N*K bf16][scale pair: 2 f32]`.
+    fn launch_mxfp4_nax(
+        &self,
+        call: &OpCall,
+        (xb, wb, sb, ab, ob): (
+            &crate::dense::Bind,
+            &crate::dense::Bind,
+            &crate::dense::Bind,
+            &crate::dense::Bind,
+            &crate::dense::Bind,
+        ),
+        [m, n, k]: [usize; 3],
+        f32_out: bool,
+    ) -> Result<()> {
+        use crate::gemm_nax::{grid, pick_variant, NAX_VARIANTS};
+        let scratch = call
+            .scratch
+            .as_ref()
+            .ok_or_else(|| Error::invalid("metal matmul_mxfp4_nax: the scratch workspace (OpCall::scratch) is missing"))?;
+        let scratch_bytes = scratch.numel() * scratch.dtype.size_bytes();
+        let sbind = self.bind(scratch, DType::U8, true, "scratch")?;
+        if sbind.skip != 0 {
+            return Err(Error::invalid("metal matmul_mxfp4_nax: the scratch must be 4-byte aligned"));
+        }
+        // the GEMM reads A and Wb as 16-byte aligned tensors: xs from the next 16-byte boundary, Wb from the one after xs
+        let pad = sbind.off.next_multiple_of(16) - sbind.off;
+        let xbytes = (m * k * 2).next_multiple_of(16);
+        let wbytes = n * k * 2;
+        if scratch_bytes < pad + xbytes + wbytes + 8 {
+            return Err(Error::invalid(format!(
+                "metal matmul_mxfp4_nax: scratch of {scratch_bytes} bytes at offset {}, need {}",
+                sbind.off,
+                pad + xbytes + wbytes + 8
+            )));
+        }
+        let xs = crate::dense::Bind { mtl: sbind.mtl.clone(), off: sbind.off + pad, skip: 0 };
+        let wbf = crate::dense::Bind { mtl: sbind.mtl.clone(), off: sbind.off + pad + xbytes, skip: 0 };
+        let pair = crate::dense::Bind { mtl: sbind.mtl.clone(), off: sbind.off + pad + xbytes + wbytes, skip: 0 };
+        let v = match NAX_TILE.with(|t| t.get()) {
+            Some(i) => &NAX_VARIANTS[i],
+            None => pick_variant(m, n),
+        };
+        let vi = NAX_VARIANTS.iter().position(|x| x.shader == v.shader).expect("NAX variant table");
+        let gemm = crate::fp8::NAX_FP8_SHADERS[vi][f32_out as usize];
+        let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
+        let pso_w = self.pso(W_TO_BF16).ok_or_else(|| Error::backend(format!("metal: no pipeline '{W_TO_BF16}'")))?;
+        let pso_g = self
+            .pso(gemm)
+            .ok_or_else(|| Error::backend(format!("metal: no pipeline '{gemm}' (metal4.0 library not loaded)")))?;
+        let dims = [u32_of(m, "M")?, u32_of(n, "N")?, u32_of(k, "K")?, 0, 0, 0, 0, 0];
+        let px = OpP { dims, skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
+        let pw = OpP { dims, skips: [sb.skip, 0, 0, 0, 0], ..Default::default() };
+        let pg = crate::fp8::NaxFp8Params { m: dims[0], n: dims[1], k: dims[2], swz_log: 0, s_c: ob.skip, pad: [0; 3] };
+        let tx = pso_x.maxTotalThreadsPerThreadgroup().min(256);
+        let tw = pso_w.maxTotalThreadsPerThreadgroup().min(256);
+        let (gx, gy) = grid(v, pg.m, pg.n, 0);
+        self.with_encoder(|enc| {
+            // SAFETY: offsets lie inside the buffers (TensorRef bounds checked by `OpCall::check`, the scratch size above).
+            unsafe {
+                enc.setComputePipelineState(pso_x);
+                for (i, b) in [xb, ab, &xs].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+            }
+            set_bytes(enc, &px, 3);
+            enc.dispatchThreads_threadsPerThreadgroup(
+                MTLSize { width: m * (k / 32), height: 1, depth: 1 },
+                MTLSize { width: tx, height: 1, depth: 1 },
+            );
+            // SAFETY: as above.
+            unsafe {
+                enc.setComputePipelineState(pso_w);
+                for (i, b) in [wb, sb, &wbf, &pair].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+            }
+            set_bytes(enc, &pw, 4);
+            enc.dispatchThreads_threadsPerThreadgroup(
+                MTLSize { width: n * (k / 32), height: 1, depth: 1 },
+                MTLSize { width: tw, height: 1, depth: 1 },
+            );
+            // SAFETY: as above.
+            unsafe {
+                enc.setComputePipelineState(pso_g);
+                for (i, b) in [&xs, &wbf, &pair, ob].into_iter().enumerate() {
+                    enc.setBuffer_offset_atIndex(Some(&b.mtl), b.off, i);
+                }
+            }
+            set_bytes(enc, &pg, 4);
+            enc.dispatchThreadgroups_threadsPerThreadgroup(
+                MTLSize { width: gx, height: gy, depth: 1 },
+                MTLSize { width: v.threads() as usize, height: 1, depth: 1 },
             );
         })
     }

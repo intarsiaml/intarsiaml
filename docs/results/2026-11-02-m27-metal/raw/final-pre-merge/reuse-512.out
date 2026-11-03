@@ -1,0 +1,20 @@
+
+== mode: prefix reuse through generate (turn 2 reuses turn 1, vs a cold run) ==
+prefill chunk 512 (--prefill-chunk) NOT the recipe default: this run does not show that the default passes; restore check: logits bit-identical to a cold run whenever the reused length is a multiple of the chunk; stream tolerance (fixed, built-in): 0.25 nats, KL 1e-2
+prompt             case       split  turn2  cached   cold     agree  result
+count              both      SKIPPED: a prompt of 38 tokens cannot cross a chunk boundary at the default prefill chunk 512 (no split above 512 leaves room for turn 2)
+story              both      SKIPPED: a prompt of 39 tokens cannot cross a chunk boundary at the default prefill chunk 512 (no split above 512 leaves room for turn 2)
+code               both      SKIPPED: a prompt of 87 tokens cannot cross a chunk boundary at the default prefill chunk 512 (no split above 512 leaves room for turn 2)
+science            both      SKIPPED: a prompt of 79 tokens cannot cross a chunk boundary at the default prefill chunk 512 (no split above 512 leaves room for turn 2)
+chat_short         both      SKIPPED: a prompt of 18 tokens cannot cross a chunk boundary at the default prefill chunk 512 (no split above 512 leaves room for turn 2)
+chat_system        both      SKIPPED: a prompt of 32 tokens cannot cross a chunk boundary at the default prefill chunk 512 (no split above 512 leaves room for turn 2)
+chat_multiturn     both      SKIPPED: a prompt of 58 tokens cannot cross a chunk boundary at the default prefill chunk 512 (no split above 512 leaves room for turn 2)
+chat_reasoning     both      SKIPPED: a prompt of 90 tokens cannot cross a chunk boundary at the default prefill chunk 512 (no split above 512 leaves room for turn 2)
+long_prose_300     both      SKIPPED: a prompt of 300 tokens cannot cross a chunk boundary at the default prefill chunk 512 (no split above 512 leaves room for turn 2)
+long_prose_700     continue     698    716     713      0     32/32  ok
+long_prose_700     restore      698    700     512      0     32/32  ok
+long_prose_700     aligned      512    700     512      0     32/32  ok (logits bit-identical to the cold run)
+prefix reuse: 1 prompt(s) judged, 9 skipped
+prefix reuse: 9 prompt(s) skipped, none of their splits crosses a chunk boundary at prefill chunk 512 (--prefill-chunk): count, story, code, science, chat_short, chat_system, chat_multiturn, chat_reasoning, long_prose_300; 1 judged
+prefix-reuse gate: PASS
+golden gate: PASS

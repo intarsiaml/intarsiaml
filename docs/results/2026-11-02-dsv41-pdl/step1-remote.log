@@ -1,0 +1,68 @@
+0dbfcdcc6 dirty=no 1102-1650
+== ptx
+nvcc fatal   : Unknown option '--cuda-device-only'
+nvcc fatal   : Unknown option '--cuda-device-only'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nvidia/intarsia-dsv41-pdl/logs/step1/exl3_moe.cu.ptx'
+Traceback (most recent call last):
+  File "<string>", line 3, in <module>
+FileNotFoundError: [Errno 2] No such file or directory: '/home/nvidia/intarsia-dsv41-pdl/logs/step1/exl3_moe_cp.cu.ptx'
+== kernel tests, PDL on
+test bin target/release/deps/exl3_moe-ead4d03a77be2c9c
+
+running 6 tests
+test bench_dsv41_moe ... ignored
+test matches_the_cpu_reference_over_the_sweep ... ok
+test only_the_fp16_roundings_separate_it_from_the_reference ... ok
+test real_mia_experts_match_the_cpu_reference_and_shard ... ignored
+test rows_do_not_depend_on_the_batch_or_the_path ... ok
+test scratch_formula_mirrors_the_device_layout ... ok
+
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 4.25s
+
+== dsv41_runtime, graphs vs eager, PDL on
+rc 0
+      6 cuda graph: 229 nodes, 268 edges, 6 programmatic (no error)
+      2 cuda graph: 216 nodes, 255 edges, 6 programmatic (no error)
+      2 cuda graph: 188 nodes, 211 edges, 6 programmatic (no error)
+      1 test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 7.20s
+== generate A/B
+arm 0 rc 0 md5 5f61bbe50a9b ids 81b3d1e87dd9
+g0.err:finish=length prompt=25 (cached 0) completion=256 | prefill 26 ms (944.0 tok/s) | decode 3493 ms (73.00 tok/s)
+      2 cuda graph: 229 nodes, 268 edges, 0 programmatic 
+      2 cuda graph: 216 nodes, 255 edges, 0 programmatic 
+      1 cuda graph: 184 nodes, 207 edges, 0 programmatic 
+arm 1 rc 0 md5 5f61bbe50a9b ids 81b3d1e87dd9
+g1.err:finish=length prompt=25 (cached 0) completion=256 | prefill 26 ms (956.2 tok/s) | decode 3490 ms (73.07 tok/s)
+      2 cuda graph: 229 nodes, 268 edges, 6 programmatic 
+      2 cuda graph: 216 nodes, 255 edges, 6 programmatic 
+      1 cuda graph: 184 nodes, 207 edges, 6 programmatic 
+arm 0b rc 0 md5 5f61bbe50a9b ids 81b3d1e87dd9
+g0b.err:finish=length prompt=25 (cached 0) completion=256 | prefill 27 ms (936.6 tok/s) | decode 3498 ms (72.90 tok/s)
+      2 cuda graph: 229 nodes, 268 edges, 0 programmatic 
+      2 cuda graph: 216 nodes, 255 edges, 0 programmatic 
+      1 cuda graph: 184 nodes, 207 edges, 0 programmatic 
+arm 1b rc 0 md5 5f61bbe50a9b ids 81b3d1e87dd9
+g1b.err:finish=length prompt=25 (cached 0) completion=256 | prefill 26 ms (962.3 tok/s) | decode 3488 ms (73.12 tok/s)
+      2 cuda graph: 229 nodes, 268 edges, 6 programmatic 
+      2 cuda graph: 216 nodes, 255 edges, 6 programmatic 
+      1 cuda graph: 184 nodes, 207 edges, 6 programmatic 
+== nsys
+cuda graph: 216 nodes, 255 edges, 0 programmatic (no error)
+ segreg973cuda graph: 229 nodes, 268 edges, 0 programmatic (no error)
+-leaf Canterbury downs就叫cuda graph: 229 nodes, 268 edges, 0 programmatic (no error)
+ intermediatesSTEP人为arrocuda graph: 216 nodes, 255 edges, 0 programmatic (no error)
+finish=length prompt=25 (cached 0) completion=96 | prefill 27 ms (942.6 tok/s) | decode 1407 ms (67.51 tok/s)
+-rw-rw-r-- 1 nvidia nvidia 8108427 Nov  2 17:13 n0_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia 2137092 Nov  2 17:13 n0.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 5451776 Nov  2 17:13 n0.sqlite
+cuda graph: 216 nodes, 255 edges, 6 programmatic (no error)
+ segreg973cuda graph: 229 nodes, 268 edges, 6 programmatic (no error)
+-leaf Canterbury downs就叫cuda graph: 229 nodes, 268 edges, 6 programmatic (no error)
+ intermediatesSTEP人为arrocuda graph: 216 nodes, 255 edges, 6 programmatic (no error)
+finish=length prompt=25 (cached 0) completion=96 | prefill 29 ms (860.1 tok/s) | decode 1403 ms (67.70 tok/s)
+-rw-rw-r-- 1 nvidia nvidia 8108719 Nov  2 17:13 n1_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia 2136400 Nov  2 17:13 n1.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 5423104 Nov  2 17:13 n1.sqlite
+done-remote

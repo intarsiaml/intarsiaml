@@ -1,0 +1,8 @@
+fleetq: #7870 running on endor: /opt/code/intarsiaml/.worktrees/m27/target/release/intarsia kernels test --backend metal --op matmul_mxfp4
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+matmul_mxfp4   matmul_mxfp4_gemv              79      0    3.401e-3    2.883e-5  ADMITTED
+matmul_mxfp4   matmul_mxfp4_nax               31      0    1.961e-3    4.118e-5  ADMITTED
+2 kernels, 110 cases in 1.6s
+fleetq: #7870 done (exit 0)

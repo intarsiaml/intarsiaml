@@ -1,0 +1,6 @@
+kind                   final_head
+chat          48.1 (median  48.9)
+code          69.2 (median  69.0)
+prose         42.4 (median  42.3)
+recall        54.7 (median  54.5)
+all           51.9 (median  51.5)

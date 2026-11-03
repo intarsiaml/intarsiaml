@@ -321,7 +321,7 @@ pub fn serve_rank(dir: &Path, backend: Arc<dyn Backend>, comm: Arc<dyn Comm>, mu
     n
 }
 
-/// Speculative decoding settings (`INTARSIA_DSV41_SPEC_K`: most drafts a round, default 3, at most the block size - 1;
+/// Speculative decoding settings (`INTARSIA_DSV41_SPEC_K`: most drafts a round, default 4, at most the block size - 1;
 /// `INTARSIA_DSV41_SPEC_MIN_CONF`: verify the leading drafts whose confidence logit reaches it, at least one; default
 /// off).
 #[derive(Clone, Copy, Debug)]
@@ -338,11 +338,15 @@ struct SpecOpts {
     draft_ms: f64,
 }
 
-/// Measured at TP=2 with graphs and split-K on verify passes (docs/results/2026-11-01-dsv41-graphs.md, window 6): a pass of
-/// 1 .. 4 rows, whole-pass ms on rank 0. The 5-row entry is 4 rows plus the last step, not measured.
-const ROUND_MS: [f64; 5] = [31.3, 38.1, 42.9, 47.8, 52.7];
-/// Measured the same way: a round's period minus its verify pass (drafting block, Markov loop, host work).
-const DRAFT_MS: f64 = 9.0;
+/// Measured at TP=2 on the shipped binary (docs/results/2026-11-02-dsv41-decode2.md, window 2, `INTARSIA_DSV41_SPEC_TRACE=1`): the
+/// median whole-pass ms on rank 0 of a pass of 1 .. 4 rows over the 32 requests of the category set (1300 rounds or more each
+/// but the 1-row pass, 60), 5 rows from the k = 4 arm. Window 6 of docs/results/2026-11-01-dsv41-graphs.md had 31.3, 38.1, 42.9,
+/// 47.8, 52.7. The lane forks (`INTARSIA_DSV41_LANES`) take about 1 ms off each; the decisions depend on the steps between
+/// entries and on [`DRAFT_MS`], and the shipped arm used this table.
+const ROUND_MS: [f64; 5] = [31.1, 36.5, 41.2, 46.0, 50.8];
+/// Measured the same way: a round's period minus its verify pass (drafting block, Markov loop, host work). 9.0 before the draft
+/// round moved onto the device.
+const DRAFT_MS: f64 = 5.5;
 
 /// TensorFold's `chooseK` (`draft.zig`): the k in `0..=kmax` with the most expected tokens a millisecond. Expected tokens are
 /// 1 plus the sum of the prefix survivals, a survival being the product of the sigmoids of the confidences so far; the cost
@@ -376,6 +380,12 @@ struct SpecStats {
     round_ok: usize,
     /// A round is open (it may have chosen no draft, so `conf` can be empty).
     traced: bool,
+    /// This round's ms (`INTARSIA_DSV41_SPEC_TRACE`): drafting, the forward pass (verify or one row), and the round's period
+    /// (its start to the next round's start, which also holds the host work between rounds).
+    draft_ms: f64,
+    pass_ms: f64,
+    round_start: Option<Instant>,
+    period_ms: f64,
 }
 
 impl SpecStats {
@@ -397,8 +407,17 @@ impl SpecStats {
     /// The round that just ended, as its trace line.
     fn end_round(&mut self, trace: bool) {
         if trace && self.traced {
+            self.period_ms = self.round_start.map_or(0.0, |t| t.elapsed().as_secs_f64() * 1e3);
             let c: Vec<String> = self.conf.iter().map(|v| format!("{v:.3}")).collect();
-            eprintln!("dsv41: spec round k={} conf={} ok={}", self.conf.len(), c.join(","), self.round_ok);
+            eprintln!(
+                "dsv41: spec round k={} conf={} ok={} draft_ms={:.2} pass_ms={:.2} period_ms={:.2}",
+                self.conf.len(),
+                c.join(","),
+                self.round_ok,
+                self.draft_ms,
+                self.pass_ms,
+                self.period_ms
+            );
         }
         self.conf.clear();
         self.pos = 0;
@@ -487,7 +506,11 @@ impl Worker {
         let room = self.rt.opts.cap.saturating_sub(self.st.len + 1);
         if let Some(sp) = spec.filter(|_| room >= 2) {
             stats.end_round(sp.trace);
+            let t0 = Instant::now();
+            stats.round_start = Some(t0);
             let d = self.draft(tok, sp.k)?;
+            let t1 = Instant::now();
+            stats.draft_ms = t1.duration_since(t0).as_secs_f64() * 1e3;
             let mut k = if sp.choose {
                 choose_k(&d.confidence, sp.k, &sp.round_ms, sp.draft_ms)
             } else {
@@ -500,11 +523,13 @@ impl Worker {
                 // no draft is worth a row: the plain one-row pass
                 stats.rounds += 1;
                 let l = self.forward(&[tok], true)?.expect("logits");
+                stats.pass_ms = t1.elapsed().as_secs_f64() * 1e3;
                 return Ok(VecDeque::from([(Row::Logits(l), None)]));
             }
             let mut ids = vec![tok];
             ids.extend_from_slice(&d.ids[1..=k]);
             let rows = self.verify(&ids, logits)?;
+            stats.pass_ms = t1.elapsed().as_secs_f64() * 1e3;
             stats.rounds += 1;
             stats.drafted += k;
             return Ok(rows.into_iter().enumerate().map(|(i, r)| (r, ids.get(i + 1).copied())).collect());
@@ -767,6 +792,8 @@ impl Dsv41Engine {
                 kv_total_bytes: rt.memory.state_per_seq,
                 notes: vec![format!("deepseek_v41 rank 0 of {}", m.world)],
             },
+            // its own reuse path (`restorable_len` in `generate`), not `Model::reuse_len`
+            reuse_cold_cuts_only: false,
         };
         let st = rt.new_state()?;
         let remote_seq = match &peer {
@@ -776,7 +803,7 @@ impl Dsv41Engine {
         let telemetry = Arc::new(Telemetry::new());
         let spec = rt.opts.spec.then(|| {
             let block = rt.cfg.mtp.as_ref().map_or(1, |m| m.block_size);
-            let k = env_usize("INTARSIA_DSV41_SPEC_K").unwrap_or(3).clamp(1, block.saturating_sub(1).max(1));
+            let k = env_usize("INTARSIA_DSV41_SPEC_K").unwrap_or(4).clamp(1, block.saturating_sub(1).max(1));
             let min_conf = std::env::var("INTARSIA_DSV41_SPEC_MIN_CONF").ok().and_then(|v| v.parse().ok()).unwrap_or(f32::NEG_INFINITY);
             eprintln!("dsv41: speculative decoding: up to {k} drafts a round, confidence floor {min_conf}");
             let choose = std::env::var("INTARSIA_DSV41_SPEC_CHOOSE").map_or(true, |v| v != "0");

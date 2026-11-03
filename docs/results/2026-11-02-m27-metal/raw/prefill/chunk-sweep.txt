@@ -1,0 +1,12 @@
+fleetq: #7875 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27/.scratch/chunks.sh
+chunk 256 ctx 4096: prefill 6325 ms (647.6 tok/s) 
+chunk 256 ctx 16384: prefill 30325 ms (540.3 tok/s) 
+chunk 512 ctx 4096: prefill 5771 ms (709.7 tok/s) 
+chunk 512 ctx 16384: prefill 24515 ms (668.3 tok/s) 
+chunk 1024 ctx 4096: prefill 5721 ms (715.9 tok/s) 
+chunk 1024 ctx 16384: prefill 23829 ms (687.6 tok/s) 
+chunk 2048 ctx 4096: prefill 5074 ms (807.3 tok/s) 
+chunk 2048 ctx 16384: prefill 21603 ms (758.4 tok/s) 
+chunk 4096 ctx 4096: prefill 5239 ms (781.8 tok/s) 
+chunk 4096 ctx 16384: prefill 21738 ms (753.7 tok/s) 
+fleetq: #7875 done (exit 0)
