@@ -12,6 +12,7 @@
 #   b1  SIGSTOP rank 1 for 10 s (< the deadline), SIGCONT: the request must finish with identical text
 #   b2  SIGSTOP rank 1 for 45 s (> the deadline of 30 s), SIGCONT
 #   c1  fault hook on rank 1: queue pair of rail 0 to ERR after its 5000th send     c2  same on rank 0     c3  rail 1 of rank 1
+#   e1  fault hook on rank 1: no send after the 3000th (alive, TCP up: only the device deadline can end the wait)    e2  same on rank 0
 #   d1  one rail named (NCCL_IB_HCA=rocep1s0f1) on both      d2  a bad HCA name on both     d3  INTARSIA_DSV41_RDMA=0 on rank 1 only
 #   d4  INTARSIA_DSV41_RDMA=1 on rank 0, 0 on rank 1 (an error on both)      d5  three HCA names      d6  memlock 4 MiB (ulimit -l)
 #   d7  INTARSIA_DSV41_RDMA=1 with one rail named (required: one rail is allowed)    d8  fault hook "nolib" on both (no libibverbs)
@@ -45,7 +46,7 @@ print(json.dumps({"model": "dsv41-intarsia", "messages": [{"role": "user", "cont
 text_of() { python3 -c '
 import json, sys
 try:
-    d = json.load(open(sys.argv[1])); print((d["choices"][0]["message"]["content"]))
+    d = json.loads(open(sys.argv[1]).read().split("\nHTTP")[0]); print((d["choices"][0]["message"]["content"]))
 except Exception as e:
     print("<no text: %s>" % type(e).__name__)' "$1"; }
 # synchronous request -> $OUT/$1.resp, text in $OUT/$1.txt
@@ -171,10 +172,12 @@ run_case() {
     ( r spark2 "kill -STOP $P1"; sleep $secs; r spark2 "kill -CONT $P1 2>/dev/null; true" ) &
     observe $1 $(( secs + 60 ))
     wait $REQ_PID; verdict $1
-    [[ $1 == b1 ]] && log "RESULT b1 text vs the clean run: $(same_as_base $1 g-long)"
+    [[ $1 == b1 ]] && text_of "$OUT/$1.resp" > "$OUT/$1.txt" && log "RESULT b1 text vs the clean run: $(same_as_base $1 g-long)"
     finish $1 ;;
-  c1|c2|c3)
+  c1|c2|c3|e1|e2)
     case $1 in
+      e1) R1ENV="INTARSIA_DSV41_RDMA_FAULT=mute:3000" ;;
+      e2) R0ENV="INTARSIA_DSV41_RDMA_FAULT=mute:3000" ;;
       c1) R1ENV="INTARSIA_DSV41_RDMA_FAULT=qp-err:5000" ;;
       c2) R0ENV="INTARSIA_DSV41_RDMA_FAULT=qp-err:5000" ;;
       c3) R1ENV="INTARSIA_DSV41_RDMA_FAULT=qp-err:5000:1" ;;

@@ -186,7 +186,7 @@ struct Ring {
     std::thread proxy; std::atomic<bool> running{false}; std::atomic<bool> failed{false}; bool ever_started = false; char why[200] = {0};
     cpu_set_t pin; bool pinned = false;
     // test-only fault hook (INTARSIA_DSV41_RDMA_FAULT): move a rail's queue pair to the error state after the n-th send
-    ik_u64 fault_after = 0; int fault_rail = 0; bool fault_ping = false;
+    ik_u64 fault_after = 0; int fault_rail = 0; bool fault_ping = false; ik_u64 fault_mute = 0;   // mute:N -> no send after the N-th goes out
 
     static constexpr size_t LINE = 128;
     ~Ring() { if (!ever_started) teardown(); }
@@ -223,8 +223,9 @@ struct Ring {
             if (fault.rfind("qp-err:", 0) == 0) {
                 fault_after = strtoull(fault.c_str() + 7, nullptr, 10);
                 const size_t c = fault.find(':', 7); if (c != std::string::npos) fault_rail = atoi(fault.c_str() + c + 1);
-            } else if (fault == "ping") fault_ping = true;
-            else if (fault != "nolib") { err = "INTARSIA_DSV41_RDMA_FAULT: unknown value '" + fault + "' (qp-err:N[:RAIL], ping, nolib)"; return false; }
+            } else if (fault.rfind("mute:", 0) == 0) fault_mute = strtoull(fault.c_str() + 5, nullptr, 10);
+            else if (fault == "ping") fault_ping = true;
+            else if (fault != "nolib") { err = "INTARSIA_DSV41_RDMA_FAULT: unknown value '" + fault + "' (qp-err:N[:RAIL], mute:N, ping, nolib)"; return false; }
         }
         if (!load_verbs(fault == "nolib", err)) return false;
         const std::vector<std::string> names = split(devs);
@@ -338,6 +339,10 @@ struct Ring {
             while (posted < ring) {
                 busy = true;
                 const ik_u64 q = posted + 1; const int slot = (int)(q % slots);
+                if (fault_mute && q > fault_mute) {   // test hook: this rank stays alive but sends nothing more (the peer's wait can only end by its deadline)
+                    if (q == fault_mute + 1) fprintf(stderr, "rank %d: RDMA fault hook: no more sends after send %llu\n", rank, (unsigned long long)fault_mute);
+                    posted = q; continue;
+                }
                 const ik_u64 n = __atomic_load_n(sizes + slot, __ATOMIC_ACQUIRE);
                 const ik_u64 unit = n / 16 / nd * 16;   // rail d writes [unit * d, unit * (d + 1)); the last rail takes the rest
                 for (int d = 0; d < nd; ++d) {
