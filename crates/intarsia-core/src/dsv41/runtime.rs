@@ -1151,7 +1151,37 @@ impl Dsv41Runtime {
                 self.backend.synchronize(0)?;
                 self.opprof_add(t, kname, t0);
             }
-            if let Some(d) = dump_dir() {
+            if let Some(d) = dump_dir().filter(|_| dump_rows().is_some()) {
+                // INTARSIA_DSV41_DUMP_POS=<positions>[ INTARSIA_DSV41_DUMP_WHAT=<substrings>]: instead of every output, only the rows at
+                // these absolute positions of the outputs whose first dimension is the chunk's row count, of the steps whose name
+                // contains one of the substrings. File `{what}-o{k}.p{pos}.{dtype}.{row shape}.bin` carries no chunk-dependent number,
+                // so dumps of runs with different chunk sizes compare file by file (tools/dsv41/chunkdiff.py).
+                let (pos, what_f) = dump_rows().unwrap();
+                if what_f.is_empty() || what_f.iter().any(|w| step.what.contains(w.as_str())) {
+                    let pos0 = st.len;
+                    let hit: Vec<usize> = pos.iter().copied().filter(|&p| p >= pos0 && p < pos0 + t).collect();
+                    if !hit.is_empty() {
+                        self.backend.synchronize(0)?;
+                        for (k, o) in call.outputs.iter().enumerate() {
+                            // rows of the chunk, or a one-row output of a longer chunk (the head: the chunk's last row)
+                            let last_only = o.shape.first() == Some(&1) && t > 1;
+                            if o.shape.first() != Some(&t) && !last_only {
+                                continue;
+                            }
+                            let what: String = step.what.chars().map(|ch| if ch.is_ascii_alphanumeric() || ch == '.' || ch == '_' { ch } else { '-' }).collect();
+                            let shape = o.shape[1..].iter().map(|x| x.to_string()).collect::<Vec<_>>().join("x");
+                            for &p in &hit {
+                                if last_only && p != pos0 + t - 1 {
+                                    continue;
+                                }
+                                let bytes = self.backend.download_row_major(&o.rows(if last_only { 0 } else { p - pos0 }, 1))?;
+                                let f = d.join(format!("{what}-o{k}.p{p}.{}.{shape}.bin", format!("{:?}", o.dtype).to_lowercase()));
+                                std::fs::write(&f, &bytes).map_err(|e| Error::backend(format!("dump {}: {e}", f.display())))?;
+                            }
+                        }
+                    }
+                }
+            } else if let Some(d) = dump_dir() {
                 // INTARSIA_DSV41_DUMP=<dir>: every op's outputs after it ran (cross-backend diffs, tools/dsv41/dumpdiff.py)
                 self.backend.synchronize(0)?;
                 let n = DUMP_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
@@ -1501,6 +1531,18 @@ impl Out {
             Out::Logits(_) => unreachable!("logits where ids were asked"),
         }
     }
+}
+
+/// `INTARSIA_DSV41_DUMP_POS` (comma list of absolute positions) and `INTARSIA_DSV41_DUMP_WHAT` (comma list of step-name substrings).
+fn dump_rows() -> Option<(&'static [usize], &'static [String])> {
+    static D: std::sync::OnceLock<Option<(Vec<usize>, Vec<String>)>> = std::sync::OnceLock::new();
+    D.get_or_init(|| {
+        let pos: Vec<usize> = std::env::var("INTARSIA_DSV41_DUMP_POS").ok()?.split(',').filter_map(|x| x.trim().parse().ok()).collect();
+        let what: Vec<String> = std::env::var("INTARSIA_DSV41_DUMP_WHAT").ok().map(|w| w.split(',').filter(|x| !x.is_empty()).map(str::to_string).collect()).unwrap_or_default();
+        Some((pos, what))
+    })
+    .as_ref()
+    .map(|(p, w)| (p.as_slice(), w.as_slice()))
 }
 
 static DUMP_SEQ: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);

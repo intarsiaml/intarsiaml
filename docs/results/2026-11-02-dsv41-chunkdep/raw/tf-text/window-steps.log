@@ -1,0 +1,8 @@
+20:49:31 preflight ok
+20:49:35 vLLM stopped
+20:49:40 memory: 20:49:39 spark1=111.0 spark2=111.0
+20:53:25 done; 20:53:22 spark1=5.0 spark2=78.7
+20:53:25 restore
+20:56:46 spark1 vLLM Up 3 minutes
+20:56:47 spark2 vLLM Up 3 minutes
+20:56:48 restored

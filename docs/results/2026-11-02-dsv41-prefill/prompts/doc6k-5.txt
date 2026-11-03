@@ -1,0 +1,187 @@
+# Continuous batching for models with recurrent state (Qwen3.6-35B-A3B): design and CPU correctness prototype, lane rb, 2026-10-23
+
+**Status: design plus an opt-in CPU prototype. Draft PR, do not merge.** Branch `lane-rb/recurrent-batching`, base `origin/main` a312a794. No GPU was used and no
+GPU kernel was written. Every number below is one of: **measured** (cited to a file or run id), **derived** (arithmetic shown, from measured inputs), or
+**estimate** (a judgement; the assumption is named). Section 12 is the prototype's status and test output.
+
+## 0. Summary
+
+**The gap.** The composer (same quant, Spark GB10, Qwen3.6-35B-A3B NVFP4) has IntarsiaML at 74.2 tok/s at 1 stream, 75.2 at 4 and 75.2 at 16
+(`20261022-050829-adhoc-fx3-35b-intarsia-p1-conc`): it serves one sequence at a time. vLLM is 105.5 / 105.8 at 4 / 16 (+40.3% / +40.7%; both rows carry the
+`drop:gsm8k` quality flag, peer-not-production, and the production vLLM server runs `--max-num-seqs 2`, so it plateaus at about 105 from 4 streams on:
+composer catalog entry `sglang-continuous-batching-uncapped-running-requests`, quoting `2026-10-22-fx3-spark-standings.md`). SGLang, run with
+`--max-running-requests 16`, is 157.5 / 219.9 (quality ok). SGLang is the honest target; on the 8B a vLLM given `--max-num-seqs 16` reached 156 tok/s at 16 streams against SGLang's 91, so a properly
+configured vLLM would not stop at 105 either.
+
+**Root cause is wider than one line.** `engine/batch.rs:374` is the first of seven places that refuse or silently break hybrid batching (section 1). The one that
+decides the speed-up is not a refusal at all: **the speed-up is bounded by what a batched step can share, and on this model that is only the dense weights** (section 2).
+
+**The arithmetic (section 2).** One decode step reads about 2.4 GB at N = 1: 1.69 GB of dense weights that N sequences share (GDN and attention projections,
+shared expert, router, lm_head), plus 0.57 GB of routed experts (8 of 256 per layer), plus 0.13 GB of recurrent-state read-and-write and the KV that each
+sequence owns. Experts and state do not amortise. The bandwidth ceiling for N streams, anchored on the measured 12.4 ms graph step and the 74.2 tok/s serve rate,
+is **x2.2 at 4 streams (162-165 tok/s) and x3.1-3.6 at 16 (229-265 tok/s)**. SGLang's measured 157.5 / 219.9 sits at 95% / 83% of that ceiling, which is the validation
+that the model is not off by a factor.
+
+**Expected result of the plan (estimate, aggregate tok/s on the composer's concurrent metric):**
+
+| streams | now | ceiling (section 2) | expected after stages S1-S5 | vLLM (flagged) | SGLang |
+|---|---|---|---|---|---|
+| 1 | 74.2 | 74.2 | 74.2 (B=1 not slower, gate) | 69.7 | 68.1 |
+| 2 | ~74 (serial) | 116 | 95-105 | 105.9 | n/a |
+| 4 | 75.2 | 162-165 | **130-145 (x1.75-1.95; +24..+37% over vLLM)** | 105.5 | 157.5 |
+| 8 | n/a | 201-214 | 160-180 | n/a | n/a |
+| 16 | 75.2 | 229 (265 with expert grouping) | **185-205 (x2.5-2.75; +75..+94% over vLLM)**, 210-235 after S6 | 105.8 | 219.9 |
+
+Matching vLLM at 4 streams needs only x1.40, so the first stage that shares the dense weights across rows (S3) already closes the stated gap at 4 streams.
+
+**Staged plan (section 11).** S1 engine plumbing for hybrids (1.5 d, prototyped here on CPU), S2 CUDA bring-up that is exact by construction, no speed-up (4 d),
+S3 multi-row dense GEMVs and the fused decode ops (5 d, first speed-up, the gap at 4 streams closes), S4 N-token MoE decode, batched GDN, batched attention tables (5 d),
+S5 CUDA graphs per batch bucket (3 d), S6 expert grouping, HIP, Metal, mixed fold, prefix store and MTP at B > 1 (separate lanes). Critical path S1-S5: about 18
+working days of one engineer or agent lane (estimate).
+
+**Open questions, most important first (section 13):** (1) exactness policy on CUDA: the CUDA backend registers no `rows_exact` kernels, so a bitwise-to-solo
+batch needs new kernels; is a measured-but-not-bitwise mode acceptable if the kernels turn out not to be row-exact? (2) raise the batch cap from 8 to 16 for CUDA;
+(3) when `--max-batch > 1` is on, the solo step loses its fused decode ops unless they get multi-row kernels; (4) MTP and the prefix store stay B = 1 until after S5.
+
+## 1. What refuses or breaks today (not only `batch.rs:374`)
+
+| # | Where (origin/main a312a794) | What |
+|---|---|---|
+| 1 | `crates/intarsia-core/src/engine/batch.rs:374` | `BatchedEngine::new` returns `Unsupported("continuous batching on a model with recurrent state")` |
+| 2 | `crates/intarsia-core/src/model/batch.rs:45-54` | `enable_batch` accepts dense attention-only models: `Block::Gdn`, `Block::Moe` and gated attention are rejected |
+| 3 | `crates/intarsia-core/src/model/batch.rs:100-107` | `check_batch_row` rejects any state with `has_recurrent()` |
+| 4 | `crates/intarsia-core/src/model.rs:1554-1558` and `:1569-1573` | `run_layers` with `Seqs::Batch` returns `Unsupported` at a GDN block and at a MoE block |
+| 5 | `crates/intarsia-core/src/model/batch.rs:216` | `attn_block_batch` asserts there is no gate and passes `None` to `attn_out_proj`; the 10 attention layers of the 35B are gated, so the output gate would be dropped silently |
+| 6 | `crates/intarsia-core/src/model/batch.rs:22`, `scheduler.rs:47`, `model.rs:39` | `BATCH_MAX_ROWS` = `MAX_BATCH_CAP` = 8 (an operator decision for Metal's exact kernels); the 16-stream composer row needs 16 (`LOGIT_ROWS` is already 16) |
+| 7 | `crates/intarsia-core/src/model/batch.rs:56-61` | CUDA has no `rows_exact` kernels (`batch_capable()` is false), so `enable_batch` fails on CUDA before it gets to the model shape |
+
+Four more defects are in the plumbing and would fail or diverge **after** lifting 1-4 (all found by reading, the prototype fixes them for the CPU path):
+
+* **Prefix reuse fails the request.** `Scheduler::pick_slot` (`scheduler.rs:683-696`) uses `common_prefix(..).min(plen-1)` and then `truncate(slot, cached)`. A recurrent
+  state can only return to its current length, a snapshot or 0 (`state.rs:191-197, 209-249`); `LocalEngine` goes through `restorable_len` (`engine.rs:899-904`), the
+  scheduler does not. Result today: `Unsupported`, request failed, for any reuse that is not a snapshot length.
+* **The prefill schedule differs from solo.** `SlotModel::prefill_chunk` (`engine/batch.rs:123-129`) calls `Model::forward` per scheduler chunk. `Seq::prefill_step`
+  (`engine.rs:1122-1153`) additionally snapshots after every non-final chunk and runs the last prompt token alone after a snapshot at `plen-1`. Without that the solo
+  reference is not the batched run's chunk schedule (a 1-row decode kernel in one, a bigger chunk in the other) and no snapshot exists for later reuse.
+* **Speculation flag.** `BatchedEngine::submit` calls `Seq::build(.., false)` (`engine/batch.rs:436`), so `recurrent` is always false and an n-gram `--spec` request
+  would draft on a recurrent state (`engine.rs:512-513` refuses that only in `LocalEngine`).
+* **Memory plan.** `enable_batch` sizes `kv_cap_tokens` from the KV budget alone (`model/batch.rs:62-84`); recurrent slots (63 MB each plus snapshots) are not in it.
+
+## 2. Roofline: what N sequences can share
+
+Decode on this model is weight-bandwidth bound: nsys of one graph-replayed 35B step is 12 406 us for 724 launches with 98.6 us idle
+(`docs/results/2026-10-14-cuda-decode-fusion.md:73-91`), and every group runs at 185-220 GB/s of GB10's 273 GB/s peak (fp8 GEMV: 1.28 GB in 5.79 ms = 221 GB/s; GDN delta
+rule: 126 MB read+write in 0.673 ms = 187 GB/s). Bytes per step, from the checkpoint headers (`2026-10-23-rb-recurrent-batching/wbytes.txt`; script in the same directory):
+
+| group | bytes per decode token | shared by N rows? |
+|---|---|---|
+| GDN projections in_qkv/in_z/out/a/b/conv (30 layers, fp8) | 1 016.5 MB | yes (one weight read) |
+| attention q/k/v/o (10 layers, fp8) | 272.7 MB | yes |
+| shared expert (40 layers, nvfp4), router (bf16) | 70.8 + 41.9 MB | yes |
+| lm_head (nvfp4 + fp8 scales) | 286.1 MB | yes |
+| **dense subtotal** | **1 688 MB** | **once per step** |
+| routed experts, 8 of 256 per layer: 1.769 MB per expert x 8 x 40 | 566 MB | only the experts two rows both pick |
+| GDN state read + write: 2 x 30 x (98 304 + 2 097 152) B | 131.7 MB per sequence | no |
+| KV read, 10 layers x 2 x 2 x 256 x 2 B = 20 KiB per token | 21 MB per sequence at 1k context | no |
+
+Step bytes at N = 1: 2 407 MB; at the measured 12.406 ms that is an effective **194 GB/s (71% of peak)**. The 74.2 tok/s serve rate adds 1.07 ms of host time per step
+(13.48 ms per token against 12.41 ms of GPU), assumed to grow 0.05 ms per extra row (sampling, streaming).
+
+Routed experts per layer touched by N rows, uniform routing: `256 x (1 - (248/256)^N)` = 8.0 / 15.8 / 30.5 / 57.4 / 102.0 at N = 1 / 2 / 4 / 8 / 16. A real router is skewed, so
+this overstates distinct experts (understates sharing). Two expert modes are modelled: **grouped** (each distinct expert is read once) and **per-pair** (every (row, expert)
+pair reads its expert, which is what the existing decode kernel does if it is simply given N x 8 pairs). Aggregate tok/s, 1k context, anchored on the 194 GB/s and 74.2 tok/s
+(`2026-10-23-rb-recurrent-batching/roofline.py`, output in `roofline.txt`):
+
+| N | step bytes, grouped (MB) | agg tok/s, grouped | x over N=1 | step bytes, per-pair (MB) | agg tok/s, per-pair | x over N=1 |
+|---|---|---|---|---|---|---|
+| 1 | 2 407 | 74.2 | 1.00 | 2 407 | 74.2 | 1.00 |
+| 2 | 3 108 | 116.7 | 1.57 | 3 126 | 116.1 | 1.56 |
+| 4 | 4 460 | 165.2 | 2.23 | 4 564 | 161.7 | 2.18 |
+| 8 | 6 974 | 214.1 | 2.89 | 7 439 | 201.2 | 2.71 |
+| 16 | 11 348 | 265.3 | 3.58 | 13 191 | 229.2 | 3.09 |
+
+At 4096 context the same model gives 156.8 (grouped) / 153.6 (per-pair) at N = 4 and 244 / 213 at N = 16.
+
+Four consequences that shape the design:
+
+1. **Share the dense weights first; grouping experts is worth +2% at 4 streams and +16% at 16.** With uniform routing 4 rows pick 30.5 distinct experts of 32 pairs, so
+   per-pair is within 2% of grouped at 4 streams. An expert-grouped batched MoE kernel is stage S6, not the first thing to build.
+2. **GDN state traffic is the second largest per-row cost and cannot be shared**: 2.1 GB per step at N = 16, 18% of the step. Any scheme that moves the state
+   (gather/scatter, section 4) adds to it. The state must be read and written in place.
+3. **A batched GDN launch buys launch count, not bandwidth.** The existing single-sequence delta-rule kernel already runs at 187 GB/s, the step's effective bandwidth, so
+   N launches cost the same device time as one launch over N states (section 4). The device-side state table that graph capture needs is the real requirement.
+4. **Validation.** SGLang's measured 157.5 (x2.31 over its own 1 stream) and 219.9 (x3.23) against this model's grouped ceiling 165.2 (x2.23) and 265.3 (x3.58): 95% and 83%.
+   vLLM's flat 105.5 / 105.8 from 2 to 16 streams is its `--max-num-seqs 2` production setting, not a bandwidth limit, and carries a quality flag; do not size against it beyond the +40% headline.
+
+Not modelled and called out as risks: (a) multi-row GEMV compute at 16 rows (Metal measured the bf16 multi-row GEMV at 1.2x a 1-row launch at 8 rows and 2.6x at
+16, `docs/research/continuous-batching-design.md` section 4; the CUDA fp8/nvfp4 GEMVs have not been measured with more than 1 row); (b) per-row attention launches (3 per
+row-layer, 30 per row); (c) host time per step beyond 0.05 ms per row.
+
+## 3. State layout and the scheduler
+
+**Layout (unchanged from the Metal design, `docs/research/continuous-batching-design.md` section 3.2 option A): N independent `SequenceState`s, one per slot.** A slot
+holds that sequence's KV (`AttnKvState`, contiguous), its recurrent slots (`RecurrentState`, one buffer per GDN layer), its token list and up to
+`RECURRENT_SNAPSHOTS` = 4 snapshots (`state.rs:15`). `SlotModel` already owns `Vec<SequenceState>` (`engine/batch.rs:78-90`), `forward_batch` already takes
+`&mut [&mut SequenceState]`, and the recurrent buffers are allocated once per state (`SequenceState::new`, `state.rs:92-119`), so **slot addresses are fixed for the engine's lifetime**.
+That fact is what makes a device-side pointer table possible without an arena (section 4).
+
+**Memory at 63 MB per sequence** (derived: 30 layers x (98 304 B conv + 2 097 152 B delta state) = 65 863 680 B = 62.8 MiB; `gdn_block.rs:18-24`):
+
+| N | live recurrent state | + 4 snapshots per slot (worst case) | KV at 8k tokens per slot (20 KiB/token) | per-step state traffic (read + write) |
+|---|---|---|---|---|
+| 2 | 126 MiB | 628 MiB | 320 MiB | 263 MB |
+| 4 | 251 MiB | 1.23 GiB | 640 MiB | 527 MB |
+| 8 | 502 MiB | 2.45 GiB | 1.25 GiB | 1.05 GB |
+| 16 | 1 005 MiB | 4.9 GiB | 2.5 GiB | 2.1 GB |
+
+Against about 23 GB of weights on a 128 GB machine none of this is binding. Two things still need code: the memory plan must count the recurrent term
+(`enable_batch` today divides the KV budget by `N x bytes_per_token` only), and snapshots must be bounded under batching (see section 7: `RECURRENT_SNAPSHOTS` per slot becomes a
+configuration, 2 at N >= 8, until the prefix store takes over snapshot storage). With `--spec mtp` each sequence additionally holds `k` `SpecRows` buffers of 63 MB (PR #110, `state.rs`
+`SpecRows`), which is one reason MTP stays B = 1 (section 8).
+
+**Scheduler.** `scheduler::BatchEngine` needs no structural change: it already has slots, FIFO admission, decode-first iterations, a separate prefill sub-pass and idle-slot
+prefix reuse (`scheduler.rs:699-918`). Three hooks on the `BatchModel` trait are new for recurrent models:
+
+* `restorable_len(slot, want) -> usize` (default `want`): `pick_slot` asks the model for the length a slot can actually return to, so admission picks the slot with the longest *restorable* common prefix.
+* prefill for recurrent slots mirrors `Seq::prefill_step`: plain chunks of the scheduler's chunk size, a snapshot after each non-final chunk, and the final chunk split as `plen - pos - 1` tokens + snapshot + the last token alone. `SlotModel::prefill_chunk` does it, so the scheduler's chunk accounting is unchanged and the solo reference is the same schedule.
+* the slot count limit `MAX_BATCH_CAP` becomes backend-dependent (8 Metal, 16 CUDA proposed).
+
+## 4. Batched decode for GDN: gather/scatter, N launches, or a state table
+
+One decode token for N sequences means N independent T = 1 recurrences, one per slot: `conv_state_r <- shift(conv_state_r, qkv_r)`, `S_r <- decay(S_r, a_r) + beta_r k_r (v_r - S_r^T k_r)`,
+`core_r = S_r^T q_r` (`gdn.rs`, `docs/hybrid-models.md`). The projections that feed it (`in_qkv`, `in_z`, `in_b`, `in_a`) and the gated norm and `out_proj` after it are ordinary
+N-row GEMVs. Only the conv and delta rule touch per-sequence state. Per layer, per sequence: read and write 2.1 MB (`conv` 98 KB + `S` 2.1 MB).
+
+| option | state bytes moved per step | launches per step (30 layers) | graph-capturable | exact vs solo |
+|---|---|---|---|---|
+| **A. gather into `[N, ...]`, one batched kernel, scatter back** | 126 MB read+write by the kernel **plus** copy-in (r+w 126 MB) **plus** copy-out (r+w 126 MB) = **378 MB per sequence = 3.0x** | 30 + 60 copies | yes | yes (same kernel arithmetic) |
+| **B. N per-row launches on each slot's own buffers (the MTP verify loop and the attention rows do this)** | 126 MB per sequence (in place) | 30 x N | no unless the kernel args are static: a graph binds one `SequenceState::id` (`graph_step.rs:178-180`) | yes by construction (the T = 1 call is the decode call) |
+| **C. one launch over N states: kernel takes a device table `slot_of_row[N]` + static `slot_base[]` pointers, `blockIdx.z = row`** | 126 MB per sequence (in place) | 30 | yes (the table is rewritten per step like `ws.pos`) | yes (per row the same arithmetic, same CTA shape) |
+
+Step cost at N = 16 (derived): A moves 6.05 GB of state against 2.1 GB for B/C, +3.9 GB on an 11.3 GB step = **+35% step bytes**, a 26% throughput loss; ruled out. B and C move
+the same bytes, and the single-sequence kernel is already at bandwidth (126 MB in 673 us = 187 GB/s, `2026-10-14-cuda-decode-fusion.md`), so **B's device time equals C's** (16 x 673 us = 10.8 ms,
+the same as 2.1 GB / 194 GB/s). What C removes is 30 x (N - 1) launches (450 at N = 16, about 1-2 ms inside a graph, 5-8 ms eager) and the underfilled-GPU tail of each T = 1 launch
+(8 x 32 = 256 CTAs of 32 threads per layer, `gdn.cu:635-647`).
+
+**Recommendation.** Never A. Stage S2 uses B (it is exact by construction and needs no new kernel). Stage S4 builds the *table* version of the existing launches, which is what
+graph buckets require (the kernel reads its state address from a device table, so one captured graph serves any assignment of rows to slots); the single `blockIdx.z` launch (C) is then a
+small step (the CTAs have no cross-coupling) and is taken only if the profile shows the 450 extra graph nodes matter. An arena (one buffer `[slots, ...]` per layer) would give the same
+addresses with a slot index instead of a pointer table; it is not needed because slot buffers are already allocated once, and it would change `SequenceState` allocation, snapshot
+copies and the prefix-store restore path. Not recommended unless the table proves a bottleneck.
+
+What the table must cover for graphs to be state-independent, per layer: GDN conv state and `S` base per slot; K and V cache base per slot (attention); and per row the position
+(`ws.pos` becomes `[N]`), the token (`ws.ids` `[N]`) and the output rows (`ws.logits` / `ws.tok` `[N]`). A bucketed graph (N in 1, 2, 3, 4, 6, 8, 12, 16) is padded with a dummy slot whose
+outputs are discarded; one spare `SequenceState` is the cost (63 MB + a small KV).
+
+## 5. The rest of a batched hybrid step
+
+A decode layer of the 35B is norm -> block -> norm -> MoE. For N rows:
+
+* **Dense projections** (GDN `in_qkv`/`in_z`/`out`, attention `q`/`k`/`v`/`o`, shared expert, router, `lm_head`): multi-row GEMVs, one weight read for N rows. CUDA has fp8 `matmul_fp8_gemv` for M in 1..=4
+  and nvfp4 `matmul_nvfp4_gemv` for M in 1..=8; the fused pair kernels are M = 1 only (`quantmoe.rs:139, 217, 318`). 16 rows need new or extended kernels.
+* **Gated attention** (10 layers): q + gate projection once for N rows, `GateSplit` once, then **per row** QK-norm/rope/KV-append and `AttnDecode` on that row's cache (`attn_rows`, `model/batch.rs:205-235`), then
+  the output gate (`SigmoidMul`) and `o_proj` once for N rows. The gate must be threaded through `attn_block_batch` (defect 5 in section 1).
+* **GDN** (30 layers): section 4.
+* **MoE** (40 layers): router for N rows, top-8 per row, routed experts, gated shared expert, combine. The T = 1 CUDA path is a dedicated pair of kernels (`moe_experts_decode_v2_bf16`,
+  gate_up on a `(pair, I/8)` grid, down on `(token, H/8)`; `quantmoe.rs:92`, `DECODE_MAX_TOKENS = 1`); T in 2..31 uses the grouped warp-per-row kernel and T >= 32 the tensor-core kernel,
+  whose output differs by up to 3.5e-4 rel L2 (`docs/quant-moe.
