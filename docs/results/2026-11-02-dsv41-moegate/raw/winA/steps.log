@@ -1,0 +1,9 @@
+21:04:53 earlyoom on spark1: -m 2,1
+21:04:54 earlyoom on spark2: -m 2,1
+21:04:56 binary e80b230df dirty=no 1102-2030; out /opt/code/intarsiaml/.worktrees/dsv41-moegate/.scratch/winA
+21:05:00 vLLM stopped on both
+21:15:30 done
+21:15:30 restore (exit 0)
+21:18:55 vLLM on spark1 up (Up 3 minutes)
+21:19:06 vLLM on spark2 up (Up 3 minutes)
+21:19:07 restored

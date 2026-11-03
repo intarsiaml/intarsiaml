@@ -1,0 +1,17 @@
+     14     0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+      3 ptxas info    : Used 57 registers, used 1 barriers, 16384 bytes smem
+      3 ptxas info    : Used 48 registers, used 0 barriers
+      3 ptxas info    : Used 21 registers, used 0 barriers
+      2 ptxas info    : Used 17 registers, used 0 barriers
+      1 ptxas info    : Used 68 registers, used 0 barriers
+      1 ptxas info    : Used 50 registers, used 0 barriers
+      1 ptxas info    : Used 26 registers, used 1 barriers, 28672 bytes smem
+warp-per-item WPB=8                bitwise vs base: yes (0 differ)
+warp-per-item WPB=4                bitwise vs base: yes (0 differ)
+warp-per-item WPB=2                bitwise vs base: yes (0 differ)
+warp-per-item WPB=1                bitwise vs base: yes (0 differ)
+base combine_kernel<float>         min 1.505 median 1.552 ms  (216 GB/s at median; DRAM floor at 254 GB/s 1.32 ms)
+warp-per-item WPB=8                min 1.506 median 1.511 ms  (222 GB/s at median; DRAM floor at 254 GB/s 1.32 ms)
+warp-per-item WPB=4                min 1.523 median 1.534 ms  (219 GB/s at median; DRAM floor at 254 GB/s 1.32 ms)
+warp-per-item WPB=2                min 1.528 median 1.539 ms  (218 GB/s at median; DRAM floor at 254 GB/s 1.32 ms)
+warp-per-item WPB=1                min 1.534 median 1.543 ms  (217 GB/s at median; DRAM floor at 254 GB/s 1.32 ms)

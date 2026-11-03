@@ -1,0 +1,9 @@
+long_prose_300     n_prompt=   300 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+long_prose_700     n_prompt=   700 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+OVERALL leading-match 640/640 (100.00%)  prompts diverged: 0 []
+NOTE: after the first divergence the two continuations are no longer on the same text, so only the leading-match fraction is a top-1 agreement of the same positions; positionwise-equal is shown for orientation. Not a KL.
+---vs main golden
+long_prose_300     n_prompt=   300 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+long_prose_700     n_prompt=   700 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+OVERALL leading-match 640/640 (100.00%)  prompts diverged: 0 []
+NOTE: after the first divergence the two continuations are no longer on the same text, so only the leading-match fraction is a top-1 agreement of the same positions; positionwise-equal is shown for orientation. Not a KL.

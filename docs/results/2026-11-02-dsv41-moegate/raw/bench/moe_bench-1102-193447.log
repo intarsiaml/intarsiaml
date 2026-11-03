@@ -1,0 +1,63 @@
+     29     0 bytes stack frame, 0 bytes spill stores, 0 bytes spill loads
+      3 ptxas info    : Used 57 registers, used 1 barriers, 16384 bytes smem
+      3 ptxas info    : Used 21 registers, used 0 barriers
+      2 ptxas info    : Used 26 registers, used 1 barriers, 28672 bytes smem
+      2 ptxas info    : Used 255 registers, used 1 barriers, 32896 bytes smem
+      2 ptxas info    : Used 255 registers, used 1 barriers, 144 bytes cumulative stack size, 32896 bytes smem
+      2 ptxas info    : Used 14 registers, used 0 barriers
+      1 ptxas info    : Used 50 registers, used 0 barriers
+      1 ptxas info    : Used 255 registers, used 1 barriers, 88 bytes cumulative stack size, 32896 bytes smem
+      1 ptxas info    : Used 255 registers, used 1 barriers, 792 bytes cumulative stack size, 128 bytes smem
+      1 ptxas info    : Used 255 registers, used 1 barriers, 72 bytes cumulative stack size, 128 bytes smem
+      1 ptxas info    : Used 255 registers, used 1 barriers, 3016 bytes cumulative stack size, 32896 bytes smem
+R=2048 sigma=0.50 pairs=14336; routed members/expert mean 32.0 max 98; groups of 32: 629, of 64: 440 (shared expert 2048 members)
+arena 2.56 GB; gate+up bytes of all 385 experts 1.705 GB (3.00 bpw); at 254 GB/s the DRAM floor of gate/up is 6.71 ms, of all three 10.07 ms
+stream read of the arena: 2.56 GB in 10.74 ms = 238 GB/s (the practical DRAM floor rate)
+base shape via v2 (G2 NTW8 CS1), minB 1            bitwise vs base: yes (0 differ)
+base shape via v2, minB 3                          bitwise vs base: yes (0 differ)
+G2 NTW4 CS2 minB 2 (<=128 regs)                    bitwise vs base: yes (0 differ)
+G4 NTW2 CS2 minB 2 (<=128 regs)                    bitwise vs base: yes (0 differ)
+G4 NTW1 CS4 minB 1 (512 thr)                       bitwise vs base: yes (0 differ)
+REPO smem kernel (exl3_moe_rows.cu)                bitwise vs base: yes (0 differ)
+SMEM-A G2 NTW4 CS2 ST3 PF2                         bitwise vs base: yes (0 differ)
+SMEM-A G2 NTW4 CS2 ST2 PF2                         bitwise vs base: yes (0 differ)
+SMEM-A G2 NTW8 CS1 ST3 PF2 (128 thr)               bitwise vs base: yes (0 differ)
+SMEM-A G4 NTW2 CS2 ST3 PF2 (64x64)                 launch status 6
+SMEM-A G4 NTW4 CS2 ST3 PF2 (64x128)                launch status 6
+SMEM-A G2 NTW4 CS2 ST3 PF1                         bitwise vs base: yes (0 differ)
+G2 NTW4 CS2 (256 thr, 32 rows x 128 cols)          bitwise vs base: yes (0 differ)
+G2 NTW2 CS2 (256 thr, 32 rows x 64 cols)           bitwise vs base: yes (0 differ)
+G4 NTW2 CS2 (256 thr, 64 rows x 64 cols)           bitwise vs base: yes (0 differ)
+G4 NTW2 CS2 PF1                                    bitwise vs base: yes (0 differ)
+G3 NTW2 CS2 (256 thr, 48 rows x 64 cols)           bitwise vs base: yes (0 differ)
+G4 NTW1 CS4 (512 thr, 64 rows x 64 cols)           bitwise vs base: yes (0 differ)
+G2 NTW1 CS4 (512 thr, 32 rows x 64 cols)           bitwise vs base: yes (0 differ)
+G1 NTW2 CS2 (256 thr, 16 rows x 64 cols)           bitwise vs base: yes (0 differ)
+base (repo launch_rows, G2 NT8 W4, 128 thr)        min  20.090  median  20.924 ms  (x1.00 of base)
+base shape via v2 (G2 NTW8 CS1), minB 1            min  19.273  median  19.399 ms  (x0.93 of base)
+base shape via v2, minB 3                          min  37.851  median  38.328 ms  (x1.83 of base)
+G2 NTW4 CS2 minB 2 (<=128 regs)                    min  17.833  median  18.613 ms  (x0.89 of base)
+G4 NTW2 CS2 minB 2 (<=128 regs)                    min  77.771  median  78.616 ms  (x3.76 of base)
+G4 NTW1 CS4 minB 1 (512 thr)                       min  67.348  median  68.189 ms  (x3.26 of base)
+REPO smem kernel (exl3_moe_rows.cu)                min  24.255  median  24.259 ms  (x1.16 of base)
+SMEM-A G2 NTW4 CS2 ST3 PF2                         min  13.688  median  13.708 ms  (x0.66 of base)
+SMEM-A G2 NTW4 CS2 ST2 PF2                         min  13.663  median  14.396 ms  (x0.69 of base)
+SMEM-A G2 NTW8 CS1 ST3 PF2 (128 thr)               min  17.890  median  18.535 ms  (x0.89 of base)
+SMEM-A G4 NTW2 CS2 ST3 PF2 (64x64)                 min   0.002  median   0.002 ms  (x0.00 of base)
+SMEM-A G4 NTW4 CS2 ST3 PF2 (64x128)                min   0.001  median   0.002 ms  (x0.00 of base)
+SMEM-A G2 NTW4 CS2 ST3 PF1                         min  14.865  median  14.888 ms  (x0.71 of base)
+G2 NTW4 CS2 (256 thr, 32 rows x 128 cols)          min  18.723  median  18.744 ms  (x0.90 of base)
+G2 NTW2 CS2 (256 thr, 32 rows x 64 cols)           min  26.754  median  26.766 ms  (x1.28 of base)
+G4 NTW2 CS2 (256 thr, 64 rows x 64 cols)           min  25.100  median  25.194 ms  (x1.20 of base)
+G4 NTW2 CS2 PF1                                    min  21.747  median  21.769 ms  (x1.04 of base)
+G3 NTW2 CS2 (256 thr, 48 rows x 64 cols)           min  23.897  median  23.946 ms  (x1.14 of base)
+G4 NTW1 CS4 (512 thr, 64 rows x 64 cols)           min  67.677  median  68.067 ms  (x3.25 of base)
+G2 NTW1 CS4 (512 thr, 32 rows x 64 cols)           min  26.156  median  26.167 ms  (x1.25 of base)
+G1 NTW2 CS2 (256 thr, 16 rows x 64 cols)           min  35.795  median  37.579 ms  (x1.80 of base)
+KO base-shape no A loads                           min  11.010  median  11.012 ms  (x0.53 of base)
+KO base-shape no decode                            min  17.592  median  17.749 ms  (x0.85 of base)
+KO base-shape no mma                               min  12.767  median  13.533 ms  (x0.65 of base)
+KO base-shape no A, no decode                      min  10.547  median  10.991 ms  (x0.53 of base)
+KO G4 NTW2 CS2 no decode                           min  23.052  median  23.507 ms  (x1.12 of base)
+KO G4 NTW2 CS2 no A                                min  15.934  median  15.941 ms  (x0.76 of base)
+KO G4 NTW2 CS2 no mma                              min  20.484  median  21.487 ms  (x1.03 of base)

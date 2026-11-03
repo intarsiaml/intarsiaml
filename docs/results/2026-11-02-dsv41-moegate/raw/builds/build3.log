@@ -1,0 +1,20 @@
+stamp: f20744e6d dirty=no 1102-2003
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 23s
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-dsv41-moegate/src/crates/intarsia-backend-cuda)
+    Finished `release` profile [optimized] target(s) in 1.51s
+total 623764
+drwxrwxr-x 2 nvidia nvidia      4096 Nov  2 19:35 .
+drwxrwxr-x 8 nvidia nvidia      4096 Nov  2 20:02 ..
+-rwxrwxr-x 1 nvidia nvidia 123919056 Nov  2 19:17 dsv41_dense
+-rwxrwxr-x 1 nvidia nvidia 128434752 Nov  2 20:08 dsv41_runtime
+-rwxrwxr-x 1 nvidia nvidia 124492392 Nov  2 19:17 exl3_moe
+-rwxrwxr-x 1 nvidia nvidia 143908024 Nov  2 20:08 intarsia
+-rwxrwxr-x 1 nvidia nvidia 118101192 Nov  2 20:08 nccl_bench
+-rw-rw-r-- 1 nvidia nvidia        29 Nov  2 20:08 STAMP
+spark1: f20744e6d dirty=no 1102-2003
+df91b5b15a78
+spark2: f20744e6d dirty=no 1102-2003
+df91b5b15a78
