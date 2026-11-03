@@ -1,0 +1,144 @@
+== r1 act=0 M=1 XFUSE=1
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1 h=26f5688829700e6b: median    89.2 us ( 530.9 GB/s)  best    88.4 us ( 535.8 GB/s)
+== r1 act=0 M=1 XFUSE=1
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=1 h=e59fa60fbacc5a12: median    93.2 us ( 507.9 GB/s)  best    92.2 us ( 513.5 GB/s)
+== r1 act=0 M=1 XFUSE=1
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=1 h=4cabe485a4a7da72: median     6.9 us ( 402.4 GB/s)  best     6.9 us ( 406.2 GB/s)
+== r1 act=0 M=1 XFUSE=0
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1 h=26f5688829700e6b: median    85.2 us ( 556.1 GB/s)  best    85.0 us ( 556.9 GB/s)
+== r1 act=0 M=1 XFUSE=0
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=1 h=e59fa60fbacc5a12: median    90.2 us ( 525.0 GB/s)  best    89.5 us ( 528.8 GB/s)
+== r1 act=0 M=1 XFUSE=0
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=1 h=4cabe485a4a7da72: median     8.8 us ( 318.1 GB/s)  best     8.7 us ( 319.6 GB/s)
+== r1 act=0 M=3 XFUSE=1
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3 h=9726d42cb42ff651: median   132.9 us ( 356.2 GB/s)  best   132.6 us ( 357.1 GB/s)
+== r1 act=0 M=3 XFUSE=1
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=3 h=b3331c5f0de7f0a9: median   145.3 us ( 325.9 GB/s)  best   145.0 us ( 326.6 GB/s)
+== r1 act=0 M=3 XFUSE=1
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=3 h=e0c1f372622aa21b: median    12.4 us ( 224.6 GB/s)  best    12.4 us ( 225.1 GB/s)
+== r1 act=0 M=3 XFUSE=0
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3 h=9726d42cb42ff651: median   133.1 us ( 355.8 GB/s)  best   133.0 us ( 356.0 GB/s)
+== r1 act=0 M=3 XFUSE=0
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=3 h=b3331c5f0de7f0a9: median   137.2 us ( 345.0 GB/s)  best   134.0 us ( 353.5 GB/s)
+== r1 act=0 M=3 XFUSE=0
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=3 h=e0c1f372622aa21b: median    14.4 us ( 194.1 GB/s)  best    14.3 us ( 195.0 GB/s)
+== r1 act=1 M=1 XFUSE=1
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1 h=324967b06ea44d18: median    88.1 us ( 537.5 GB/s)  best    86.0 us ( 550.5 GB/s)
+== r1 act=1 M=1 XFUSE=1
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=1 h=6d4a934f79c50c0e: median    89.5 us ( 528.8 GB/s)  best    89.4 us ( 529.8 GB/s)
+== r1 act=1 M=1 XFUSE=1
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=1 h=d2433161c0d73d4c: median     9.5 us ( 291.7 GB/s)  best     9.4 us ( 296.0 GB/s)
+== r1 act=1 M=1 XFUSE=0
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1 h=324967b06ea44d18: median    85.8 us ( 551.8 GB/s)  best    85.8 us ( 552.0 GB/s)
+== r1 act=1 M=1 XFUSE=0
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=1 h=6d4a934f79c50c0e: median    90.3 us ( 524.1 GB/s)  best    90.2 us ( 525.2 GB/s)
+== r1 act=1 M=1 XFUSE=0
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=1 h=d2433161c0d73d4c: median     9.5 us ( 293.8 GB/s)  best     9.4 us ( 295.0 GB/s)
+== r1 act=1 M=3 XFUSE=1
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3 h=ad2e02a7a7e2eabe: median   134.3 us ( 352.5 GB/s)  best   134.3 us ( 352.7 GB/s)
+== r1 act=1 M=3 XFUSE=1
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=3 h=e4cb486cd4fd2c09: median   135.4 us ( 349.8 GB/s)  best   135.2 us ( 350.1 GB/s)
+== r1 act=1 M=3 XFUSE=1
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=3 h=04dbd957618d508c: median    15.4 us ( 181.1 GB/s)  best    15.2 us ( 182.9 GB/s)
+== r1 act=1 M=3 XFUSE=0
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3 h=ad2e02a7a7e2eabe: median   134.3 us ( 352.5 GB/s)  best   134.3 us ( 352.6 GB/s)
+== r1 act=1 M=3 XFUSE=0
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=3 h=e4cb486cd4fd2c09: median   135.2 us ( 350.2 GB/s)  best   135.1 us ( 350.6 GB/s)
+== r1 act=1 M=3 XFUSE=0
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=3 h=04dbd957618d508c: median    15.3 us ( 182.5 GB/s)  best    15.2 us ( 183.3 GB/s)
+== r2 act=0 M=1 XFUSE=1
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1 h=26f5688829700e6b: median    83.0 us ( 570.5 GB/s)  best    82.8 us ( 571.7 GB/s)
+== r2 act=0 M=1 XFUSE=1
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=1 h=e59fa60fbacc5a12: median    87.3 us ( 542.1 GB/s)  best    86.3 us ( 548.9 GB/s)
+== r2 act=0 M=1 XFUSE=1
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=1 h=4cabe485a4a7da72: median     6.8 us ( 407.3 GB/s)  best     6.8 us ( 411.6 GB/s)
+== r2 act=0 M=1 XFUSE=0
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1 h=26f5688829700e6b: median    87.4 us ( 541.9 GB/s)  best    86.7 us ( 546.3 GB/s)
+== r2 act=0 M=1 XFUSE=0
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=1 h=e59fa60fbacc5a12: median    89.6 us ( 528.6 GB/s)  best    88.4 us ( 535.8 GB/s)
+== r2 act=0 M=1 XFUSE=0
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=1 h=4cabe485a4a7da72: median     8.7 us ( 320.1 GB/s)  best     8.6 us ( 322.7 GB/s)
+== r2 act=0 M=3 XFUSE=1
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3 h=9726d42cb42ff651: median   133.0 us ( 356.0 GB/s)  best   132.8 us ( 356.6 GB/s)
+== r2 act=0 M=3 XFUSE=1
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=3 h=b3331c5f0de7f0a9: median   148.8 us ( 318.3 GB/s)  best   145.7 us ( 324.9 GB/s)
+== r2 act=0 M=3 XFUSE=1
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=3 h=e0c1f372622aa21b: median    12.4 us ( 224.0 GB/s)  best    12.4 us ( 224.6 GB/s)
+== r2 act=0 M=3 XFUSE=0
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3 h=9726d42cb42ff651: median   133.0 us ( 356.0 GB/s)  best   132.9 us ( 356.2 GB/s)
+== r2 act=0 M=3 XFUSE=0
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=3 h=b3331c5f0de7f0a9: median   134.0 us ( 353.4 GB/s)  best   133.8 us ( 353.8 GB/s)
+== r2 act=0 M=3 XFUSE=0
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=3 h=e0c1f372622aa21b: median    14.4 us ( 193.9 GB/s)  best    14.3 us ( 194.7 GB/s)
+== r2 act=1 M=1 XFUSE=1
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1 h=324967b06ea44d18: median    86.1 us ( 550.1 GB/s)  best    85.8 us ( 552.0 GB/s)
+== r2 act=1 M=1 XFUSE=1
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=1 h=6d4a934f79c50c0e: median    89.2 us ( 530.6 GB/s)  best    89.2 us ( 530.7 GB/s)
+== r2 act=1 M=1 XFUSE=1
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=1 h=d2433161c0d73d4c: median     9.6 us ( 289.3 GB/s)  best     9.5 us ( 292.5 GB/s)
+== r2 act=1 M=1 XFUSE=0
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=1 h=324967b06ea44d18: median    86.6 us ( 546.7 GB/s)  best    86.1 us ( 549.9 GB/s)
+== r2 act=1 M=1 XFUSE=0
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=1 h=6d4a934f79c50c0e: median    89.6 us ( 528.3 GB/s)  best    89.5 us ( 529.3 GB/s)
+== r2 act=1 M=1 XFUSE=0
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=1 h=d2433161c0d73d4c: median     9.7 us ( 287.8 GB/s)  best     9.6 us ( 289.7 GB/s)
+== r2 act=1 M=3 XFUSE=1
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3 h=ad2e02a7a7e2eabe: median   134.3 us ( 352.5 GB/s)  best   134.3 us ( 352.6 GB/s)
+== r2 act=1 M=3 XFUSE=1
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=3 h=e4cb486cd4fd2c09: median   135.4 us ( 349.8 GB/s)  best   135.3 us ( 349.9 GB/s)
+== r2 act=1 M=3 XFUSE=1
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=3 h=04dbd957618d508c: median    15.3 us ( 181.9 GB/s)  best    15.3 us ( 182.2 GB/s)
+== r2 act=1 M=3 XFUSE=0
+device: Apple M5 Max
+mlp gate/up            n= 17408 k= 5120 m=3 h=ad2e02a7a7e2eabe: median   134.2 us ( 352.7 GB/s)  best   134.2 us ( 352.8 GB/s)
+== r2 act=1 M=3 XFUSE=0
+device: Apple M5 Max
+mlp down               n=  5120 k=17408 m=3 h=e4cb486cd4fd2c09: median   135.3 us ( 350.0 GB/s)  best   135.2 us ( 350.1 GB/s)
+== r2 act=1 M=3 XFUSE=0
+device: Apple M5 Max
+attn k/v proj          n=  1024 k= 5120 m=3 h=04dbd957618d508c: median    15.3 us ( 181.9 GB/s)  best    15.3 us ( 182.2 GB/s)

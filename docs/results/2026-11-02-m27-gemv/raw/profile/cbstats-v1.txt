@@ -1,0 +1,1 @@
+30 steps: 948 dispatches and 9 command buffers per step, GPU busy 40.45 ms, wall 40.74 ms, GPU idle 0.29 ms (0.7 %)

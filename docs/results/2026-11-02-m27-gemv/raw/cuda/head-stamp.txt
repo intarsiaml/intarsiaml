@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "tool": "scripts/deploy.sh",
+  "created": "2026-11-03T02:59:21Z",
+  "git": {
+    "sha": "f2690aa76d1aaccf0384d15acbe295e1de1c8bf6",
+    "ref": "f2690aa76d1aaccf0384d15acbe295e1de1c8bf6",
+    "subject": "LOG: m27-gemv row: real time, status PR pending",
+    "tree": "c78abc18d06d10943de1f6ca88d25dd1d04ea4ec"
+  },
+  "lock_sha256": "abad806a7bff1ddca2a17566e3503aaf7822c6f05f68f34ee8b69e56a39153bd",
+  "rust_toolchain_file_sha256_16": "3390e8ad06df7932",
+  "backend": "cuda",
+  "features": "cuda",
+  "deploy_host": "spark2",
+  "tree_dir": "intarsia-deploy/m27-gemv-head",
+  "toolchai

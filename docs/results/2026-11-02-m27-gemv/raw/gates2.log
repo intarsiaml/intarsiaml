@@ -1,0 +1,4 @@
+fleetq: #8107 running on endor: zsh docs/results/2026-11-02-m27-gemv/raw/scripts/gates2.sh docs/results/2026-11-02-m27-gemv/raw /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v7 /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-main
+final kernels test exit 0
+base kernels test exit 0
+fleetq: #8107 done (exit 0)

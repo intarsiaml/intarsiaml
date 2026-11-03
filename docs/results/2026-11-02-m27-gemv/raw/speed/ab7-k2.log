@@ -1,0 +1,11 @@
+fleetq: #8116 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/abgen.sh /opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/ab7-k2 docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-4096.txt 128 3 maink2:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-main v7k2:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v7 v7hs3k2:/opt/code/intarsiaml/.worktrees/m27-gemv/.scratch/intarsia-v7:INTARSIA_METAL_ATTN_HS=3
+r1 maink2: prefill 5516 ms (742.5 tok/s) | decode 4825 ms (26.32 tok/s)
+r1 v7k2: prefill 5859 ms (699.1 tok/s) | decode 4190 ms (30.31 tok/s)
+r1 v7hs3k2: prefill 5078 ms (806.7 tok/s) | decode 3859 ms (32.91 tok/s)
+r2 v7k2: prefill 5017 ms (816.4 tok/s) | decode 4236 ms (29.98 tok/s)
+r2 v7hs3k2: prefill 4989 ms (821.0 tok/s) | decode 3900 ms (32.56 tok/s)
+r2 maink2: prefill 5316 ms (770.5 tok/s) | decode 4800 ms (26.46 tok/s)
+r3 v7hs3k2: prefill 5041 ms (812.5 tok/s) | decode 3861 ms (32.89 tok/s)
+r3 maink2: prefill 5037 ms (813.2 tok/s) | decode 4814 ms (26.38 tok/s)
+r3 v7k2: prefill 5326 ms (769.0 tok/s) | decode 4213 ms (30.15 tok/s)
+fleetq: #8116 done (exit 0)
