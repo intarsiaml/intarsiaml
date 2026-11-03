@@ -1,0 +1,2227 @@
+# c8k: should the 35B CUDA recipe raise `prefill_chunk` from 2048 to 8192?
+
+Lane c8k, 2026-10-24. Evidence for one user decision; the recipe default is not changed in this PR (`recipes/qwen3_5_moe.toml`
+untouched). Follows #125 (fp8-lt default-on, merged `6189466f`); every number below is main `6189466f` (fp8-lt default), CUDA,
+Qwen3.6-35B-A3B-NVFP4, GB10 (spark1 and spark2).
+
+## Result
+
+**Recommendation: adopt 8192 for the solo chunk, as a package, not as the one-line recipe edit.** The prefill gain is real and no
+accuracy gate moves. But the one-line edit (a) turns `qualify` acc-4k red on CUDA for a structural reason, and (b) makes the batching
+engine's busy chunk 8192 too, which lengthens the worst decode pause 1.75x (4k prompts) to 3.3x (16k). Both have a small, measured fix
+that this PR does not make (the brief says to change nothing):
+
+1. recipe `[tuning.cuda] prefill_chunk = 8192` (and the explanatory comment above it);
+2. `qualify` acc-4k: run its in-run reuse at `min(plan chunk, 1024)` like the separate capped run already does, or drop reuse from that
+   `--mode all` run (today: "nothing ran: no prompt can cross a chunk boundary at prefill chunk 8192 ... not a pass", exit 1);
+3. busy chunk default `min(solo, 2048)` for the 35B on CUDA (today `--busy-chunk 2048` does this per deployment; measured below);
+4. re-record the acc-short baseline at 8192 in the same change (identical numbers, see "Baseline").
+
+If the user prefers not to touch qualify and batching now, the evidence also supports leaving 2048 as it is: the gain is 6-11 % on
+prompts of 4k and longer and nothing below 2k changes.
+
+| | chunk 2048 (main) | chunk 8192 |
+|---|---|---|
+| Solo prefill, 4k / 16k tok/s | 6598 / 6059 | 7023 / 6733 (**+6.4 % / +11.1 %**) |
+| Solo prefill vs vLLM, 1k / 4k / 16k | -9.3 % / +2.2 % / -4.8 % | -9.0 % / +8.9 % / +5.8 % |
+| Accuracy and reuse gates run by hand (thresholds unchanged) | 1 FAIL in the new 12k s6000 control (below) | **0 FAIL** (table below) |
+| `qualify` acc-short / acc-long / acc-4k, real stages | PASS / PASS / PASS (exit 0) | PASS / PASS / **FAIL** (exit 1, structural) |
+| Decode stall when a prompt arrives beside 3 decoding streams, 4k prompt (max ITL) | 336 ms | **590 ms** |
+| same, 16k prompt | 383 ms | **1264 ms** |
+| 4-stream aggregate decode | 96 / 112 tok/s (4k burst / stagger) | 99 / 112 tok/s (no change) |
+| Stall with `--busy-chunk 2048` on top of 8192 | | 337 ms (4k), 382 ms (16k): the 2048 values |
+
+What the decision turns on:
+
+1. **Prefill gain is real and reproduces the lt numbers** (+8.9 % / +5.8 % vs vLLM at 4k / 16k here, +8.6 % / +6.4 % in the brief; 3
+   interleaved rounds, per-round spread about 1 point). 1k is unchanged (a 1k prompt is one chunk either way).
+2. **No accuracy gate moves.** KL goldens, acc-short against main's baseline, acc-4k accuracy and the prefix-reuse gate all pass at 8192
+   with no threshold touched. Thinner than the 2048 evidence, stated plainly: the reuse gate at 8192 can only be judged on the two 12k
+   prompts (a 4k prompt cannot cross an 8192 boundary), and `long_code_12k` continue has warm/cold 1.71x (limit 1.5x + 3e-3, passes at 71 %
+   of the limit).
+3. **The qualify acc-4k problem is structural, not numeric.** Its `--mode all` run on the 4k golden (prompts of 4064, 4064 and 4631 tokens)
+   needs at least one prompt that crosses a chunk boundary; at 8192 none can, so the gate reports FAIL with "nothing ran". The accuracy
+   part of that stage passes (floor PASS). The HIP recipe has the same shape at 4096 and survives only because `chat_reuse_4k` (4631)
+   still crosses it.
+4. **The cost is the decode stall under batching** (`--max-batch`, opt-in), not decode throughput. Steady-state ITL (p50 21-27 ms) and
+   aggregate decode are the same at both chunks. What changes is the worst single gap each time a new prompt is prefilled while others
+   decode: one chunk's worth of GEMMs, 336 ms -> 590 ms for a 4k prompt and 383 ms -> 1264 ms for 16k (vLLM, same window, 4k: max ITL
+   313-654 ms). The stalls are fewer and longer: total stalled time is about equal (see the ITL section). `--busy-chunk 2048` removes the
+   growth in full and keeps the solo prefill gain.
+5. **Not covered:** `--busy-chunk 2048` under solo 8192 is not KL-gated (the existing `real_35b_busy_chunk_prefill_kl_gate` hard-codes
+   solo 2048 and asserts it); it is by design not bitwise to the solo run, like the shipped 1024 busy chunk. Reuse at 8192 is judged on
+   two prompts. The 12k s6000 oracles (below) make a main-side gate look bad at chunk 2048 in a hand-run arm; qualify does not exercise
+   it (`q2048` passes).
+
+## Gates at chunk 8192 (fp8-lt default, thresholds unchanged)
+
+Binary: main `6189466f` clean (`head=6189466 code-tree=9cac1d016898 dirty=no`), `--prefill-chunk 8192` on the command line for the
+accuracy runs. batch_cuda_real and `qualify` at 8192 run on a Spark copy whose recipe has `prefill_chunk = 8192` (the recipe override;
+repo untouched, stamp `dirty=yes`; the override script edits both the `[tuning.cuda]` and `[tuning.metal]` lines, only the CUDA one
+matters on these boxes and only that one would change). Controls at 2048 are the same build, same session.
+
+| Gate | chunk 8192 | chunk 2048 (control) | Raw |
+|---|---|---|---|
+| KL golden short (10 prompts) | PASS | PASS | `raw/gates/ga2/kl-*-vllm-top20-c*.log` |
+| KL golden long (5 prompts) | PASS | PASS | `raw/gates/ga2/kl-*-vllm-long-top20-c*.log` |
+| KL golden 4k (3 prompts) | PASS | PASS | `raw/gates/ga2/kl-*-vllm-4k-top20-c*.log` |
+| acc-short vs main's baseline (`--pre-change c37a8d3`) | PASS (floor PASS, baseline PASS; `--allow-config-mismatch` for the chunk) | PASS | `raw/gates/ga2/accshort-c*.log` |
+| acc-4k accuracy (`--mode both`, `--min-top1 0` as qualify) | PASS | PASS | `raw/gates/ga2/acc4k-c*.log` |
+| Prefix reuse, long golden (5 prompts) | PASS: 2 judged (12k), 3 skipped (4k, cannot cross) | PASS without the s6000 oracles (`ru`); **FAIL with them** (`ru2`: `long_docs_12k` continue at split 6000, warm 7.9e-2 vs cold 3.7e-3, 21x), see Finding | `raw/gates/ru/reuse-L*.log`, `raw/gates/ru2/reuse-L2048.log` |
+| Prefix reuse, 12k at split 9500 (new oracles) | PASS: 2 of 2 judged | PASS 2 of 2 | `raw/gates/ru/reuse-S*.log` |
+| Prefix reuse, 4k golden | 8192: structurally cannot run (all 3 prompts skipped, FAIL by design); 2048: PASS 3 of 3; 1024: PASS 3 of 3 | | `raw/gates/ru/reuse-F*.log` |
+| batch_cuda_real (default tests, recipe override 8192) | 3 passed, 0 failed, 6 ignored | not rerun (lt flip run at 2048: `2026-10-23-lt-fp8-lt-reuse/raw/flip/batch.log`) | `raw/gates/gb/batch.log` |
+| batch_cuda_real `--ignored` long prompts (2.6k, 4k, 16k) | 1 passed: R0-R3 IDENTICAL to the LocalEngine, busy prefill chunk 8192 | at 2048: lt flip run | `raw/gates/gb/batch-long.log` |
+| `qualify` acc-short | PASS (floor only: "baseline not requested" in this run) | PASS | `raw/gates/q8192`, `raw/gates/q2048` |
+| `qualify` acc-long | PASS | PASS | same |
+| `qualify` acc-4k | **FAIL**: accuracy floor PASS, prefix reuse "nothing ran" | PASS (reuse at the 1024 cap: 3 of 3 judged with the new `-g4k` oracles) | same |
+
+Failed gates, counted: **chunk 8192: 1** (qualify acc-4k, structural: no prompt of the 4k golden can cross an 8192 chunk; the hand-run
+reuse arm F8192 fails the same way; every numeric gate passes). **Chunk 2048 (main, control): 1** (`long_docs_12k` continue at split 6000
+against the new s6000 oracle, hand-run only; `qualify` on the same tree passes). The 2048 FAIL is not an 8192 result: 8192 never runs
+that split (6000 does not cross an 8192 boundary).
+
+### KL goldens, per prompt (2048 / 8192)
+
+KL goldens use `accuracy --mode prefill`; short prompts are under 2048 tokens, so chunk 8192 is the same schedule (numbers identical to 6
+digits, a useful harness control). The long and 4k goldens are where the schedule differs.
+
+vllm-top20: gate 2048 PASS (multi-chunk prompts 0/10), 8192 PASS (multi-chunk 0/10)
+
+| prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy-track 2048 / 8192 (tokens before first divergence) |
+|---|---|---|---|---|
+| count | 100.00 / 100.00 | 3.718e-03 / 3.718e-03 | 3.718e-03 / 3.718e-03 | 38/38 / 38/38 |
+| story | 97.44 / 97.44 | 5.432e-03 / 5.432e-03 | 5.432e-03 / 5.432e-03 | 4/39 / 4/39 |
+| code | 98.85 / 98.85 | 1.018e-03 / 1.018e-03 | 1.018e-03 / 1.018e-03 | 11/87 / 11/87 |
+| science | 96.20 / 96.20 | 1.180e-02 / 1.180e-02 | 1.180e-02 / 1.180e-02 | 0/79 / 0/79 |
+| chat_short | 94.44 / 94.44 | 8.360e-03 / 8.360e-03 | 2.048e-02 / 2.048e-02 | 2/18 / 2/18 |
+| chat_system | 96.88 / 96.88 | 1.896e-02 / 1.896e-02 | 1.329e-02 / 1.329e-02 | 10/32 / 10/32 |
+| chat_multiturn | 96.55 / 96.55 | 8.936e-03 / 8.936e-03 | 2.456e-02 / 2.456e-02 | 2/58 / 2/58 |
+| chat_reasoning | 94.44 / 94.44 | 2.372e-02 / 2.372e-02 | 1.680e-02 / 1.680e-02 | 2/90 / 2/90 |
+| long_prose_300 | 99.00 / 99.00 | 2.881e-03 / 2.881e-03 | 2.881e-03 / 2.881e-03 | 0/300 / 0/300 |
+| long_prose_700 | 98.86 / 98.86 | 5.617e-03 / 5.617e-03 | 5.617e-03 / 5.617e-03 | 0/700 / 0/700 |
+
+vllm-long-top20: gate 2048 PASS (multi-chunk prompts 5/5), 8192 PASS (multi-chunk 2/5)
+
+| prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy-track 2048 / 8192 (tokens before first divergence) |
+|---|---|---|---|---|
+| long_docs_4k | 93.80 / 93.80 | 1.754e-02 / 1.802e-02 | 1.754e-02 / 1.802e-02 | 0/4064 / 0/4064 |
+| long_code_4k | 97.02 / 97.12 | 7.306e-03 / 7.289e-03 | 7.306e-03 / 7.289e-03 | 18/4064 / 21/4064 |
+| chat_reuse_4k | 87.39 / 87.76 | 2.775e-01 / 2.664e-01 | 8.541e-03 / 1.197e-02 | 8/4631 / 64/4631 |
+| long_docs_12k | 93.12 / 93.24 | 2.099e-02 / 2.080e-02 | 2.099e-02 / 2.080e-02 | 16/12064 / 5/12064 |
+| long_code_12k | 97.07 / 97.25 | 8.577e-03 / 8.642e-03 | 8.577e-03 / 8.642e-03 | 18/12064 / 21/12064 |
+
+vllm-4k-top20: gate 2048 PASS (multi-chunk prompts 3/3), 8192 PASS (multi-chunk 0/3)
+
+| prompt | top-1 % 2048 / 8192 | KL21 2048 / 8192 | KL21 scored 2048 / 8192 | greedy-track 2048 / 8192 (tokens before first divergence) |
+|---|---|---|---|---|
+| long_docs_4k | 93.75 / 93.63 | 1.659e-02 / 1.758e-02 | 1.659e-02 / 1.758e-02 | 0/4064 / 0/4064 |
+| long_code_4k | 96.73 / 96.97 | 7.168e-03 / 7.038e-03 | 7.168e-03 / 7.038e-03 | 18/4064 / 21/4064 |
+| chat_reuse_4k | 88.58 / 88.62 | 2.559e-01 / 2.587e-01 | 3.535e-02 / 2.652e-02 | 8/4631 / 64/4631 |
+
+Differences between the chunks are in both directions. No prompt other than `chat_reuse_4k` moves by more than 1.0e-3 in KL21 or
+0.4 points of top-1. `chat_reuse_4k` is the chunk-sensitive prompt the recipe comment names: its scored-rows KL21 goes 8.5e-3 -> 1.2e-2
+on the long golden and 3.5e-2 -> 2.7e-2 on the 4k golden (up on one, down on the other), its greedy-track 8 -> 64 tokens; the all-rows
+KL21 (2.7e-1) is dominated by the user turn, which the floor does not score. The gate passes at both chunks on all three goldens.
+
+### Prefix reuse (accuracy --mode reuse), per case
+
+Oracle-relative rule, unchanged: warm KL(oracle||warm) at most 1.5 x KL(oracle||cold) + 3e-3. All `restore` rows 32/32 and every `aligned`
+row bit-identical to the cold run (the reuse path is exact at chunk boundaries).
+
+| Arm (golden, chunk, split) | Prompt | cold KL(oracle) | warm KL(oracle) | warm/cold | limit (1.5x cold + 3e-3) | Verdict |
+|---|---|---:|---:|---:|---:|---|
+| long, **8192**, 12062 (default n-2) | long_docs_12k | 7.00e-3 | 5.22e-3 | 0.75x | 1.35e-2 | PASS |
+| long, **8192**, 12062 | long_code_12k | 3.25e-3 | 5.57e-3 | **1.71x** | 7.87e-3 | PASS (71 % of limit) |
+| long, **8192**, 9500 | long_docs_12k | 1.40e-2 | 4.97e-3 | 0.35x | 2.40e-2 | PASS |
+| long, **8192**, 9500 | long_code_12k | 2.58e-3 | 1.58e-3 | 0.61x | 6.88e-3 | PASS |
+| long, 8192 | 3 x 4k prompts | | | | | skipped: cannot cross a boundary |
+| long, 2048, 9500 (control) | long_docs_12k | 2.28e-2 | 1.54e-2 | 0.67x | 3.72e-2 | PASS |
+| long, 2048, 9500 | long_code_12k | 2.20e-3 | 3.22e-3 | 1.46x | 6.30e-3 | PASS |
+| long, 2048, 6000 (default split) | long_docs_12k | 3.74e-3 | 7.93e-2 | **21.2x** | 8.60e-3 | **FAIL** |
+| long, 2048, 6000 | long_code_12k | 2.46e-3 | 1.97e-3 | 0.80x | 6.69e-3 | PASS |
+| long, 2048 | long_docs_4k (s3072) / long_code_4k (s3072) / chat_reuse_4k (s4521) | 1.72e-2 / 1.03e-2 / 5.07e-3 | 1.53e-2 / 1.25e-2 / 4.38e-3 | 0.89x / 1.22x / 0.86x | 2.87e-2 / 1.85e-2 / 1.06e-2 | PASS x3 |
+| 4k golden, 2048 (new `-g4k` oracles) | long_docs_4k / long_code_4k / chat_reuse_4k | 8.50e-3 / 1.02e-2 / 5.07e-3 | 1.24e-2 / 1.53e-2 / 4.38e-3 | 1.46x / **1.50x** / 0.86x | 1.57e-2 / 1.83e-2 / 1.06e-2 | PASS x3 |
+| 4k golden, 1024 (qualify's cap) | long_docs_4k / long_code_4k / chat_reuse_4k | 1.10e-2 / 6.78e-3 / 4.38e-3 | 1.18e-2 / 8.88e-3 / 4.86e-3 | 1.07x / 1.31x / 1.11x | 1.96e-2 / 1.32e-2 / 9.58e-3 | PASS x3 |
+| 4k golden, 8192 | 3 prompts | | | | | all skipped: gate FAIL by design (nothing to judge) |
+
+### Finding: the 2048 s6000 control (a FAIL that is not an 8192 result)
+
+`long_docs_12k` continue at its default split 6000 against the new s6000 oracle fails at chunk 2048 (`ru2/reuse-L2048.log`): the cold run
+is 3.7e-3 from the oracle, the warm (prefix-restored) run 7.9e-2, 21x, limit 8.6e-3. Without an oracle for that split the gate judged the
+same case by greedy agreement only (`32/32 ok`), so this was not visible before the new oracles. `reuse-diag` on the same prompt
+(`raw/gates/rd`) says it is not a restore defect:
+
+| Run (long_docs_12k, split 6000) | mean KL(oracle \|\| cold) | mean KL(oracle \|\| warm) | Rule |
+|---|---:|---:|---|
+| chunk 2048 | 3.74e-3 | **7.93e-2** | FAIL (limit 8.60e-3) |
+| chunk 1024 (what `qualify` uses) | **8.48e-2** | 6.20e-3 | PASS (limit 1.30e-1) |
+| chunk 2048, `long_code_12k` | 2.46e-3 | 1.97e-3 | PASS |
+
+At chunk 2048 the engine's own diagnostics for these 32 rows: cold chunk 2048 vs cold chunk 1024 mean KL 4.2e-2 (max 1.22, one argmax
+flip); warm vs cold at the same chunk 4.5e-2; cold 2048 vs cold 2047 4.4e-3; cold 2048 vs cold 4096 bitwise identical; each run
+repeated is bitwise identical (deterministic). So for this prompt the logits of the 32 rows move by about the oracle distance when only
+the chunk schedule changes: whichever run lands on the far side of an unstable position is the one "far" from the oracle (cold at 1024,
+warm at 2048). The oracle-relative rule (warm <= 1.5 x cold + 3e-3) passes when cold is the far one and fails when warm is. That is my
+reading of the diagnostics, not proven by a bisect of the unstable position. It is the same class as the long_docs_4k near-tie of gc2,
+at 12k. Not touched: the rule, its factors, the oracle.
+
+Consequence for this PR: `golden/oracle` now holds a reference that a hand-run reuse at chunk 2048 and default split fails. `qualify`
+on main's tree passes with it present (`q2048`, exit 0: its reuse runs are capped at 1024), so nothing on main's gates turns red, but
+anyone running `accuracy --mode reuse --prefill-chunk 2048` on the long golden with this directory will see that FAIL. The s6000 files are
+in their own commit (`c8k: continue oracles s6000 ...`) so the user can drop them with one revert; I did not.
+
+## The references that were missing
+
+The prefix-reuse gate needs a prompt that crosses a chunk boundary and, for the oracle-relative rule, an f64 CPU `continue` oracle whose
+frozen split equals the split the gate runs. At 8192 only the two 12k prompts of the long golden can cross a boundary (the 4k golden has
+none; its prompts are 4064, 4064 and 4631 tokens). New files, all `golden/oracle/`, each built as in
+`2026-10-23-lt-fp8-lt-reuse.md` handoff and `2026-10-22-gc2` (frozen Metal cold stream on endor, f64 CPU oracle on endor, 38.7-38.9 GB
+RSS, 14 min for 4k, 42 min for 12k; `scripts/c8k/endor-oracles.sh`, `endor-oracles-v2.sh`):
+
+| File | Prompt | Frozen split | Frozen at chunk | For |
+|---|---|---|---|---|
+| `...continue-long_code_4k-s2000-g4k...` | 4k golden `long_code_4k` | 2000 | 1024 | acc-4k reuse at chunk <= 1024 (qualify's cap) |
+| `...continue-long_code_4k-s3072-g4k...` | same | 3072 | 2048 | acc-4k reuse at 2048 |
+| `...continue-long_docs_12k-s12062...`, `...long_code_12k-s12062...` | long golden 12k | 12062 | 8192 | reuse at 8192, default split (n - 2) |
+| `...long_docs_12k-s9500...`, `...long_code_12k-s9500...` | 12k with `reuse_split` 9500 | 9500 | 1024 | reuse at 8192 and 2048 with 2.5k tokens of new text after the restored prefix |
+| `...long_docs_12k-s6000...`, `...long_code_12k-s6000...` | 12k, default split at chunk <= 2048 | 6000 | 1024 | the chunk-2048 control |
+
+`long_docs_4k` (s2000, s3072) and `chat_reuse_4k` (s4521) `-g4k` files already existed (gc2, #123); with `long_code_4k` the 4k golden
+now has an oracle for every prompt at both qualify splits. `golden/reuse-splits/qwen36-35b-a3b-nvfp4-vllm-long-reuse-s9500.safetensors`
+is the long golden with `reuse_split = 9500` on the two 12k prompts (metadata only; arrays and ids byte for byte;
+`scripts/c8k/make_split_golden.py`). The oracle-build gate reports `FAIL` and exit 1 for every oracle (the "golden" is the teacher-forced
+input, KL 2.3 against meaningless reference rows); the dump is written regardless, as in gc2. Each file's sha256 matches its sidecar.
+
+## Speed, same window (spark2, retro down, vLLM up)
+
+Method: localeval (`/opt/code/deepeval`, local-model-bench skill), `speed --sizes 1024,4096,16384 --gen 128 --reps 3`, one warmup, 3
+interleaved rounds (vLLM, 2048, 8192; the middle round reversed), fresh server per visit, `--thinking off`. Prefill tok/s =
+uncached prompt tokens / TTFT, median of 3 reps per visit; in brackets the per-round values. vLLM: `vllm-openai:65b7662d`, retro's
+launcher flags with `--max-num-seqs 16` (lane vr), `--max-num-batched-tokens 8192`, fp8 KV, prefix caching on, on the same GPU. The
+`spark2-vllm`/retro container was stopped with `fleetq --takes-down retro` and restarted afterwards (health and a chat completion
+checked): down 1682 s in the measurement run. An earlier attempt (`raw/w0-aborted-script-edit`) stopped and restored retro after 484 s
+because I edited the script while bash was running it; no numbers from it are used.
+
+| prefill tok/s | 1024 | 4096 | 16384 |
+|---|---:|---:|---:|
+| vllm | 5494 (5480, 5494, 5520) | 6453 (6442, 6453, 6458) | 6362 (6309, 6362, 6363) |
+| i2048 | 5009 (4924, 5012, 5009) | 6598 (6527, 6598, 6598) | 6059 (5993, 6059, 6065) |
+| i8192 | 5005 (4986, 5035, 5005) | 7023 (7016, 7034, 7023) | 6733 (6740, 6733, 6724) |
+
+| vs vLLM (same round, median of rounds) | 1024 | 4096 | 16384 |
+|---|---:|---:|---:|
+| i2048 | -9.3 % (-10.1, -8.8, -9.3) | +2.2 % (+1.3, +2.2, +2.2) | -4.8 % (-5.0, -4.8, -4.7) |
+| i8192 | -9.0 % (-9.0, -8.4, -9.3) | +8.9 % (+8.9, +9.0, +8.8) | +5.8 % (+6.8, +5.8, +5.7) |
+
+| 4 streams (aggregate decode tok/s, per-stream, TTFT s) | 1k | 4k |
+|---|---|---|
+| vllm | 156.2 (159.7, 155.7, 156.2); 47.7; 0.60 | 104.4 (105.1, 104.4, 103.7); 45.9; 2.12 |
+| i2048 | 145.5 (145.5, 142.8, 147.2); 42.6; 0.51 | 96.2 (98.6, 96.2, 96.0); 34.5; 1.56 |
+| i8192 | 144.1 (144.1, 145.3, 142.7); 42.2; 0.50 | 99.6 (101.8, 99.2, 99.6); 34.9; 1.45 |
+
+Batched aggregate decode at both chunks (the `4 streams` table above, localeval `--concurrency 4`, `--max-batch 4`): at 1k prompts
+145.5 vs 144.1 tok/s, at 4k 96.2 vs 99.6 tok/s: equal within the 3 % round spread, slightly better at 8192 because the 4 prompts
+prefill in fewer, larger chunks (TTFT 1.56 s -> 1.45 s). vLLM aggregate is 156 / 104 tok/s.
+
+## Decode stall under batching (ITL, 4 streams)
+
+`scripts/c8k/itl-window.sh`, spark2, `--max-batch 4`, no vLLM, retro up and idle (0 running requests recorded before each visit),
+3 interleaved rounds. localeval's `--concurrency` reports aggregate and per-stream decode only (no ITL), so `scripts/c8k/itl4.py` reuses
+its client and prompt method and keeps every inter-token interval. Two scenarios, 4 streams of ~4k (and ~16k) tokens:
+**burst** (all four start together: three prompts prefill beside the first stream's decode) and **stagger** (A decodes; B, C, D arrive 1.5 s
+(4k) / 4 s (16k) apart, each prefilling beside the decoders). ITL = gap between streamed tokens, pooled over all streams.
+
+4k prompts, 4 streams (ms; median of rounds, per-round values in brackets)
+
+| arm | scenario | pooled ITL p50 | p99 | max | agg decode tok/s |
+|---|---|---:|---:|---:|---:|
+| chunk 2048 | burst | 22 (22, 23, 22) | 329 (327, 331, 329) | 338 (338, 337, 340) | 96 (96, 95, 96) |
+| chunk 2048 | stagger | 21 (21, 21, 21) | 27 (27, 26, 28) | 336 (336, 336, 336) | 112 (111, 112, 112) |
+| chunk 8192 | burst | 22 (22, 21, 22) | 584 (584, 583, 587) | 591 (594, 588, 591) | 99 (99, 102, 99) |
+| chunk 8192 | stagger | 21 (21, 20, 21) | 26 (28, 26, 26) | 590 (589, 590, 590) | 112 (112, 113, 112) |
+| chunk 8192 + --busy-chunk 2048 | burst | 22 (23, 22, 22) | 333 (333, 332, 334) | 338 (339, 338, 338) | 96 (96, 96, 96) |
+| chunk 8192 + --busy-chunk 2048 | stagger | 21 (21, 21, 20) | 32 (32, 26, 46) | 337 (337, 338, 335) | 112 (112, 111, 113) |
+
+16k prompts, 4 streams (ms; median of rounds, per-round values in brackets)
+
+| arm | scenario | pooled ITL p50 | p99 | max | agg decode tok/s |
+|---|---|---:|---:|---:|---:|
+| chunk 2048 | burst | 27 (27, 27, 27) | 373 (371, 374, 373) | 383 (383, 382, 385) | 35 (35, 35, 35) |
+| chunk 2048 | stagger | 26 (26, 26, 25) | 352 (352, 352, 351) | 383 (380, 383, 385) | 72 (72, 72, 72) |
+| chunk 8192 | burst | 27 (27, 27, 27) | 1249 (1249, 1252, 1249) | 1262 (1258, 1262, 1262) | 38 (38, 38, 38) |
+| chunk 8192 | stagger | 25 (24, 25, 25) | 36 (48, 32, 36) | 1264 (1265, 1264, 1262) | 75 (75, 74, 75) |
+| chunk 8192 + --busy-chunk 2048 | burst | 27 (27, 27, 27) | 373 (373, 371, 373) | 382 (381, 382, 384) | 36 (36, 36, 36) |
+| chunk 8192 + --busy-chunk 2048 | stagger | 26 (26, 26, 26) | 352 (348, 353, 352) | 382 (383, 380, 382) | 73 (73, 72, 73) |
+
+vLLM in the speed window (4 streams of ~4k, same two scenarios, 2 reps x 3 rounds; the prefill-A/B windows, `raw/w1`):
+
+| ITL, 4 streams of ~4k prompts (ms) | scenario | pooled p50 | pooled p99 | pooled max | agg tok/s |
+|---|---|---:|---:|---:|---:|
+| vllm | burst | 20 (20, 20, 20) | 33 (41, 28, 33) | 654 (654, 646, 655) | 105 |
+| vllm | stagger | 20 (20, 20, 20) | 147 (147, 149, 147) | 313 (392, 312, 313) | 112 |
+| i2048 | burst | 22 (22, 22, 22) | 329 (328, 331, 329) | 336 (336, 336, 336) | 97 |
+| i2048 | stagger | 20 (21, 20, 20) | 38 (41, 36, 38) | 336 (337, 336, 335) | 111 |
+| i8192 | burst | 22 (22, 22, 22) | 580 (580, 583, 578) | 588 (590, 588, 584) | 100 |
+| i8192 | stagger | 20 (20, 20, 20) | 33 (44, 33, 33) | 593 (595, 593, 589) | 113 |
+
+
+Reading: p50 and aggregate decode are unchanged. Intervals above 250 ms, per run (`pooled_itl_ms.gt_250ms` in `raw/i1/*.json`): 4k
+burst 12 of 508 at 2048 (2.4 %) vs 6 of 508 at 8192 (1.2 %); 16k burst 48 of 508 (9.4 %) vs 12 of 508 (2.4 %); stagger 12 of 1276 vs 6 of
+1276 (4k) and 48 of 1916 vs 12 of 1916 (16k). So the burst p99 *is* the stall, in the stagger scenario p99 stays at the decode floor and
+the **max** is the stall. Fewer, longer pauses: at 8192 the stalled intervals are half (4k) or a quarter (16k) as many, each 1.75x (4k) or
+3.3x (16k) as long; the total time the decoders spend stalled is about the same (4k: 12 x 336 ms = 4.0 s vs 6 x 590 ms = 3.5 s; 16k: 48 x
+383 ms = 18 s vs 12 x 1264 ms = 15 s), because the prefill work is the same and 8192 does it a little faster. What gets worse is the
+worst single pause, not the average. A stall is one
+chunk of prefill: 336 ms for a 2048-token chunk, 590 ms for a whole 4064-token prompt in one 8192 chunk, 1264 ms for a full 8192 chunk
+of a 16k prompt. `--busy-chunk 2048` returns all of it to the 2048 numbers (4k: 338 / 337 ms; 16k: 382 / 382 ms) while solo prefill stays
+at 8192.
+
+## Baseline
+
+`golden/baselines/qwen36-35b-a3b-nvfp4-vllm-top20.cuda.baseline.json` records `prefill chunk 2048`; the accuracy tool's strict config
+check refuses a baseline compare at another chunk ("WARNING: this run differs from the baseline: prefill chunk ..."), so the 8192 run
+used `--allow-config-mismatch` (identity of the golden is still checked; no limit changed). Every acc-short prompt is under 2048 tokens,
+so the run is the same single chunk and the mean KL is identical to the baseline's at both chunks (6.82514e-3 / 6.98641e-3). If the
+default is changed, the same change should re-record that baseline at 8192 (numbers will be identical) or the next qualify run reads a
+config mismatch.
+
+## Incidents and limits
+
+- **Shared Spark directories, my fault.** My build/rjob scripts rsynced into the shared `~/intarsia-decfuse/pf-golden` (and, from build.sh,
+  `pf-scripts/lt`). (1) `pf-golden` short and long goldens became symlinks to Mac paths: spark2 from about 23:10 to 00:24, spark1 from
+  about 00:16 to 00:24 (restored from the repo files, fleetq #4942/#4943); any other lane's accuracy run that read them in those windows
+  failed to open them. (2) New oracles appeared in `pf-golden/oracle`: `-g4k` and s12062 (spark1 from about 00:16, spark2 from about 23:10, first sync of each), s9500
+  (spark1 about 03:31, spark2 about 02:08), s6000 (spark1 about 03:31, spark2 05:12). The reuse gate finds oracles in the golden's directory, so a lane
+  running reuse on the long golden at chunk <= 2048 and split 6000 after those times would have been judged against s6000 and seen the
+  FAIL above. I checked the one reuse run I know of in the window (mp, spark1 `out/mpgB2/reuse.log`, 03:16): before s6000 arrived, and
+  the other files were "not used". I did not check other lanes' runs. (3) `pf-scripts/lt` was overwritten with main's copies (no
+  `--delete`). All lane files were moved out of the shared directory at about 05:25 and the lane now uses
+  `~/intarsia-decfuse/pf-golden-c8k` on both Sparks (`scripts/c8k/private-golden.sh`). A lane that wants these references copies them from
+  `golden/oracle` after this PR merges.
+- Spark gate attempt 1 (`raw/gates/ga`): the 8192 short, long and acc-short arms failed to open the symlinked goldens (counted, not hidden);
+  the whole set was rerun as `raw/gates/ga2`, which the tables use.
+- The first reuse job was released before it started (`#4926`); its remote script kept running after the local wrapper died and was
+  stopped by PID through fleetq. It produced no used output. The first speed-window attempt (`raw/w0-aborted-script-edit`) stopped and
+  restored retro after 484 s because I edited the script while bash was running it; no numbers from it are used.
+- `reuse-diag` runs print "Error: unsupported: cannot roll recurrent state back ..." for the restore case (diag mode keeps no snapshot
+  there); the non-diag runs judge restore fine. The continue lines are what the table uses.
+- Reuse at 8192 is judged on two prompts (12k docs, 12k code) at two splits each. Other lengths between 4k and 12k, and anything above
+  12k, are not covered (the repo's goldens have no such prompts).
+- The oracles are f64 CPU runs of one frozen Metal stream per prompt (teacher-forced). Their cold/warm distances change with the engine's
+  chunk (`KL(oracle||cold)` 1.40e-2 at 8192 vs 2.28e-2 at 2048 for `long_docs_12k` split 9500); the rule compares warm to cold of the
+  same run.
+- Speed numbers: one machine pair and one prompt generator (localeval filler text); ITL pooled across the streams of one server.
+- `qualify` here runs acc-short, acc-long and acc-4k only (the other stages skipped), `--no-unim`, and acc-short was floor-only ("baseline
+  not requested"); the baseline compare is the hand-run row.
+
+## Reproduce
+
+Spark side (fleetq slots, `--quiet gpu,cpu`): `scripts/c8k/build.sh` (tree `c8k-main`, plus `RECIPE_CHUNK=8192 TESTS=1` for `c8k-r8192`),
+`gatesA.sh` (KL goldens, acc-4k, acc-short), `gatesB.sh` (batch_cuda_real + long), `reuse.sh` (reuse arms), `qualify.sh`,
+`speed-window.sh` (localeval prefill + 4-stream aggregate, vLLM in the window, `--takes-down retro`), `itl-window.sh` (ITL).
+Table scripts: `gate-table.py`, `tables.py`, `itl-table.py`. Endor side: `metal-dump.sh`, `endor-oracles.sh`, `endor-oracles-v2.sh`.
+`trace.json` records the run.
+
+# hr3: row tables, graphs and the fused MoE block for batched decode on HIP (R3 port)
+
+Lane hr3, 2026-10-23 evening to 2026-10-24 early morning, tatooine card 0 (R9700, gfx1201), Qwen3.6-35B-A3B NVFP4, `serve --max-batch 16`.
+Ports the CUDA R3 work of [rb3](2026-10-23-rb3-batching-r3.md) (PR #121) to the HIP batching of
+[hb](2026-10-23-hb-hip-hybrid-batching.md) (PR #120). Branch `lane-hr3/hip-r3-batching`, base `origin/main` 6189466f (PR #125). Draft PR #127.
+Machine-readable trace: [trace.json](2026-10-24-hr3-hip-batching-r3/trace.json). Raw logs: `2026-10-24-hr3-hip-batching-r3/raw/`.
+
+## 1. Result
+
+Every decode row of a batched step is still bitwise the solo step (section 5). 35B aggregate decode, localeval, 1024-token prompt, 128
+generated, 3 reps per burst, `serve --max-batch 16` on both sides, main and branch served one after the other inside the same fleetq slot
+(`--quiet gpu,cpu`, radiance down), three bursts per cell (window 7, fleetq #4929; main = `origin/main` 6189466f, built the same way):
+
+| streams | main | hr3 | change | bursts main | bursts hr3 |
+|---|---|---|---|---|---|
+| 1 | 157.5 | **158.0** | +0.3% (noise, limit was -1%) | 157.4, 157.6, 157.4 | 158.1, 157.9, 157.9 |
+| 4 | 194.4 | **212.6** | +9.4% | 194.2, 194.1, 194.8 | 216.0, 211.3, 210.5 |
+| 16 | 231.8 | **257.1** | +10.9% | 230.8, 232.5, 232.1 | 255.8, 260.6, 254.9 |
+| 4, 4096-token prompts | 141.2 | **145.3** | +2.9% | one run of 3 reps | one run of 3 reps |
+
+An earlier window (6, fleetq #4905, tree before the last two small fixes, one burst per arm) gave the same picture: 4 streams 193.3 (main) vs 204.6, 16 streams 231.0 vs 256.6. The lane brief's main figures (157.8 / 195.2 / 234.7) agree with the main column within the burst-to-burst spread (about 1%, up to 3% at 4 streams). Prefill was not touched by this lane (no prefill code path changed).
+Single-stream decode does not move: a solo request runs the solo step, none of the new code is on its path.
+
+What each lever is worth (hr3 tree with one lever switched off, same window, three bursts, aggregate decode tok/s):
+
+| arm | 1 | 4 | 16 | 4 at 4k |
+|---|---|---|---|---|
+| main | 157.5 | 194.4 | 231.8 | 141.2 |
+| **hr3** | **158.0** | **212.6** | **257.1** | **145.3** |
+| no fused MoE block rows (`INTARSIA_HIP_DISABLE=moe_block_bf16_rows`) | 157.6 | 203.5 | 256.6 | 142.1 |
+| no graphs (`INTARSIA_BATCH_GRAPHS=0`, eager batched step) | 157.6 | 205.8 | 254.8 | 143.6 |
+| no row tables (`INTARSIA_ROW_TABLES=0`, one launch per row per op, which also rules out graphs) | 157.6 | 198.9 | 231.9 | 140.2 |
+
+* (a) row tables: +6.9% at 4 streams (198.9 to 212.6) and +10.9% at 16 (231.9 to 257.1), the largest part of the gain.
+* (b) graphs per row count: +3.3% at 4 streams, +0.9% at 16 (CUDA got +7% at 4 streams; the HIP step is less launch-bound).
+* (c) fused MoE block at 3 and 4 rows: +4.5% at 4 streams, nothing at 16 (the cap is 4 rows, see section 4).
+* (d) untouched; device sampling stays opt-in and is not available on HIP (section 2).
+
+Model-loop step time (`real_35b_batch_step_timing`, eager, greedy, no engine, window 7, rows 2..16), the final tree with and without the fused
+MoE block rows kernel (`INTARSIA_HIP_DISABLE=moe_block_bf16_rows`), and main's step from hb's last run (different session, shown for scale only;
+its "solo step" line is the test's cold first step, not a figure):
+
+| rows | main (hb #4620) ms | hr3 without moe rows ms | hr3 ms | hr3 tok/s aggregate |
+|---|---|---|---|---|
+| 2 | 9.6 | 9.43 | 9.44 | 212 |
+| 3 | | 12.11 | 11.63 | 258 |
+| 4 | 14.4 | 13.83 | 13.61 | 294 |
+| 5 | | 16.27 | 16.30 | 307 |
+| 6 | | 17.81 | 17.83 | 337 |
+| 8 | 24.2 | 22.23 | 22.14 | 361 |
+| 12 | | 30.86 | 30.77 | 390 |
+| 16 | 46.0 | 41.75 | 41.60 | 385 |
+
+The served numbers (213 and 257 tok/s at 4 and 16 streams) are far below the model-loop ones (294 and 385): see section 4 and the open points.
+
+## 2. What changed
+
+**(a) Row tables (HIP kernels in `kernels/hip`).** One launch per layer and op for all rows of a step, instead of one per row. The kernels take
+the table of device addresses of `OpCall::rows` (`u8 [rows, stride, 8]`, the same contract as CUDA's) and, where the row's position matters,
+the positions of all rows on the device (`pos`, `i32 [rows]`):
+
+| kernel (`row_table` in the registry) | twin of | grid |
+|---|---|---|
+| `gdn_conv_bf16_rows` | `gdn_conv_bf16` (T = 1: conv and state update in one kernel) | `.y` = row |
+| `gdn_delta_rule_bf16_v2_rows` | `gdn_delta_rule_bf16_v2` (T = 1), state at table entry plus byte offset | `.z` = row |
+| `kv_append_bf16_rows` | `kv_append_bf16` | one thread per (row, head, vector) |
+| `attn_decode_bf16_splitkv_rows` | `attn_decode_bf16_splitkv` with a device position (the one-row decode grid) | `.z` = row, scratch for `rows` rows |
+| `rope_bf16`, position per token | `rope_bf16` | `pos` of numel T > 1: token t at `pos[t]` |
+
+Each is the one-row kernel's code with the row's pointers taken from the table, so row r is the one-row launch on sequence r alone
+(`tests/row_tables.rs`, section 5). The solo step runs the fused `gdn_conv_delta_bf16` and `gate_split_qk_norm_rope_kv_bf16`; the batched step runs
+the chains of those folds with the row-table kernels, which the fusion table proves equal (`crate::fusion` gets HIP entries for
+`GateSplitQkNormRopeKv`, `QkNormRopeKv` and `GdnConvDelta`, each naming its existing bitwise test; `QkNorm` and `Rope` join the row-parallel ops of
+the batch-consistency check; `GateSplit` may run once over all rows or once per row). `model/batch.rs` does not use the per-sequence fold when
+row tables run (a launch bound to one sequence's cache cannot be in a batched graph).
+
+**(b) HIP graphs per batch size.** No new code: `Backend::supports_graphs` is already true on HIP, and the generic batched-graph path of rb3
+(`graph_step.rs`, one graph per row count, row tables rewritten before each replay) engages as soon as the step has no per-row launches left.
+The A/B above is the measurement. The `moe_block` kernel's sync counters are reset by the kernel itself, so replaying it in a graph is safe
+(`moe_block_graph_replay_is_bitwise_eager`, an existing test, passes).
+
+**(c) `moe_block_bf16_rows`.** `moe_block` fuses top-k, routed experts, shared expert and combine in one launch, but only at `T * K <= 16`, i.e.
+T <= 2 at top-8: steps of 3 or more rows ran the unfused chain (about 7 launches per layer). Every role of the kernel already works on one
+token, so lifting the bound to T <= 16 (`ik_moe_block_bf16_rows`, registered `rows_exact`, same kernel code, only the shape check differs) keeps
+each token bitwise the T = 1 launch on it alone: `moe_block_rows_are_the_solo_block_per_token` compares 1,252 tokens over 168 launches (T = 1..16,
+six shapes including the 35B's top-8 of 256, norm on and off, with routing ties) with T = 1 blocks, plus a negative control per launch.
+The batched step could not take it before: the block is only tried when the shared-gate logit was already computed by the router pair, and the pair
+is a one-row kernel. In `quant/moe.rs` a batched pass now computes the gate logit with its own GEMV (the second half of the pair, a registered
+equivalent) first, when a row-exact `MoeBlock` is selectable (`OpRunner::fused_available`, asked only with batching on and a row-exact pass, so
+nothing changes with batching off, section 5). **The model takes it for 3 and 4 rows only** (`MOE_BLOCK_ROWS_MAX` in `quantmoe.rs`): past
+that it is slower than the unfused chain (section 4). The kernel itself stays row-exact for 1..16.
+
+**(d) Multi-row fp8/nvfp4 GEMVs: not touched.** hb measured them ALU-bound past 4 rows; the profile below says why they are the next lever and what
+they cost (section 4), and no change was made.
+
+**Device sampling** stays opt-in (`INTARSIA_DEVICE_SAMPLING=1`, user decision 2026-10-23 17:57) and is not ported: HIP has no `topk_rows`
+(`supports_topk` is false), and the speed matrix is greedy, where it changes nothing.
+
+**Shared crates.** `plan.rs`: `admit` leaves row-table kernels to their base's admission (they cannot be graded with table-less cases) and queues
+the base kernel of a twin that no planned call uses, to be tested by its sweep (section 6); `GateSplit` joins `WIDE_OR_PER_ROW_OPS`, `QkNorm` and
+`Rope` join `ROW_PARALLEL_OPS`; unit test `batch_check_accepts_hip_folds_per_row_or_as_row_table_chains`. `fusion.rs`: the three HIP entries.
+`model.rs` and `quant/moe.rs`: `OpRunner::fused_available` and the gate-logit-first path above. `model/batch.rs`: eight lines. All inert on CUDA
+and Metal (no `MoeBlock` kernel there; section 5).
+
+## 3. Method
+
+* Speed: `intarsia serve --backend hip --model Qwen3.6-35B-A3B-NVFP4 --max-seq 8192 --max-batch 16` in the dev container on card 0, then
+  `localeval speed --url http://tatooine:8294/v1 --model intarsia --thinking off --sizes 1024 --gen 128 --reps 3 --concurrency 4,16` (and
+  `--sizes 4096 --concurrency 4`), inside the fleetq job (`--takes-down radiance --quiet gpu,cpu`). Main and branch are built by the same
+  command into separate cargo target volumes and served one after the other in the same job, so there is no drift between them; every arm is a
+  fresh server. Burst-to-burst spread is about 1% (up to 3% at 4 streams). Run ids are in trace.json.
+* Radiance was taken down for each window and restored at its end (both ranks `active` and `up` in `fleetq status`).
+* One lesson of the tooling: `rsync -a` keeps the edit time of a file, and cargo skips the rebuild when the build is newer than that time.
+  Twice a "final" serve binary was stale (one test binary rebuild proved it); the windows after that sync with `--no-times --checksum` and touch the
+  sources, and the serve binary's op list was checked from the model-loop test (`OPLIST`).
+
+## 4. Why the numbers are what they are
+
+Step profile of the final tree (`real_35b_batch_step_profile`, each op synchronised, so the wall is longer than the real step; ms per step):
+
+| B = 16 (op time sum 54.95 ms) | calls | ms | share |
+|---|---|---|---|
+| matmul_fp8 (attention and GDN projections) | 130 | 14.17 | 25.8% |
+| moe_experts (unfused chain, rows kernel) | 40 | 13.76 | 25.0% |
+| matmul_nvfp4 (shared expert and lm head) | 121 | 7.61 | 13.9% |
+| matmul (bf16: router, gate logit) | 140 | 6.03 | 11.0% |
+| gdn_delta_rule | 30 | 3.90 | 7.1% |
+| rmsnorm_add | 80 | 1.79 | 3.3% |
+| attn_decode, gdn_conv (now one launch per layer) | 10, 30 | 1.41, 1.05 | 4.5% |
+| moe_topk, silu_glu, moe_combine, gated_rmsnorm, rope, qk_norm, the rest | | 5.2 | 9.5% |
+
+At B = 4 (wall 23.9 ms profiled): moe_block 6.8, matmul_fp8 5.6, matmul 3.2, rmsnorm_add 1.8, gdn_delta_rule 1.7, nvfp4 0.7, the per-row ops 2.2.
+
+* **Row tables** remove the per-row launches of five ops: before, B = 16 meant 16 launches of each of conv, delta rule, append, rope, qk_norm and
+  attention per layer; now one. The remaining cost of these ops is 8.7% of the B = 16 step.
+* **The fused MoE block is slower past 4 rows.** Uncapped (all rows 3 to 16 through `moe_block_bf16_rows`) the model-loop step was 23.73 ms at 8 rows
+  (22.21 ms without) and 47.57 ms at 16 rows (41.75 ms without, window 7), +7% and +14%: the fused block reads each token's experts separately, while the
+  unfused `moe_experts_bf16_rows` shares an expert's weights between the rows routed to it (about half the expert reads at 16 rows). At 3 and 4 rows
+  the fused block still wins (12.11 to 11.63 ms, 13.83 to 13.61 ms; 4 streams +4.5% served), so the cap is 4. Raw logs for both runs are in `raw/`.
+* **(d) is the next lever.** At B = 16 the fp8, nvfp4 and bf16 GEMVs plus the expert chain are 76% of the profiled step; the fp8 GEMV alone is 25.8%
+  (109 us per call). hb found these kernels ALU-bound past 4 rows (they decode the weights once per row-tile), which the profile does not
+  contradict (the fp8 time grows 2.5x from B = 4 to B = 16 while the bytes read stay the same). A tensor-core (WMMA) multi-row fp8 kernel that is also
+  bitwise the one-row GEMV is a different kind of change (the accumulation order is part of the contract) and was not attempted here.
+* **Served vs model loop.** At 4 streams the model loop does 13.6 ms per step (294 tok/s aggregate) but serve delivers 213 tok/s, i.e. 18.8 ms per
+  step; at 16 streams 41.6 ms against 62 ms. So 5 to 20 ms per step is not in the model-loop step. Where it goes (scheduler and engine thread, per-row events and SSE, detokenising,
+  the host side of the batched step, prompt prefills of staggered streams inside the burst) was not profiled here, so it is an open point, not a finding.
+
+## 5. Gates
+
+All on the final tree (head `ef27cfed` for the GPU gates, see the PR for the exact head) unless marked.
+
+| gate | result | fleetq |
+|---|---|---|
+| G-B row-table kernels (`tests/row_tables.rs`, M = 1..16, 2 to 3 shapes each, positions 0..1199): conv 27.5 MB, delta rule 323 MB, KV append 33 MB, attention 2.2 MB, rope per-token positions 2.4 MB, and the fused solo `gdn_conv_delta_bf16` against conv + delta rule 300 MB, all byte-identical to the solo launches | 8 of 8 tests pass | #4929 (and #4905, #4903) |
+| negative controls (swapped table entries for conv, delta rule, KV append and attention, swapped positions for attention and rope each change the output) | pass, inside the 8 | same |
+| G-B `moe_block_bf16_rows` (`tests/moe_block.rs`): 168 launches, 1,252 tokens bitwise the T = 1 block, 144 negative controls differ; existing `moe_block` tests (chain equality, counters, graph replay, dispatch order, 6,000-launch sentinel stress) | 7 of 7 | #4929 |
+| G-B R0 regression (`rows_exact`, `rows_registry`) | 5 of 5 and 2 of 2 | #4929 |
+| G-C 35B (`real_35b_batched_decode_is_bitwise_the_solo_step`): batched decode == solo step | 17,550 (row, step) pairs bitwise identical, 3 tests pass 0 fail (35B bitwise, engine == LocalEngine, busy-chunk KL gate) | #4929 |
+| batched engine == LocalEngine, including the `--ignored` long-prompt test (`real_35b_batched_engine_long_prompts_equal_the_local_engine`, read unfiltered) | `1 passed; 0 failed`, 8 filtered out | #4929 |
+| tiny hybrid (`batch_recurrent`, HIP, N = 2..16 x 130 steps, decode beside prefill chunks, prefix reuse, memory plan) on the final head `301f70c1` | 10 of 10, 0 failed. The pick check now positively requires, on HIP, that a 4-row step of the tiny MoE picks the fused `moe_block_bf16_rows` and no `moe_experts` call (both MoE variants did) | #4939 (`raw/w8-tiny-hybrid.log`) |
+| HIP backend suite (`cargo test --no-fail-fast -p intarsia-backend-hip --tests`) | all 34 test binaries ok, 0 failed (`raw/w7-hip-suite.log`) | #4929 |
+| No-op, batching off, HIP: `plan show` text and `--json` byte-identical to main; 256 greedy ids after a 1.2k-token prompt identical; `--spec mtp --spec-k 2` ids identical to main and to spec off | identical (3,184 B and 12,961 B plans, ids sha equal) | #4929 |
+| No-op, CUDA (spark1): 8B and 35B plans byte-identical, 256 ids identical, `intarsia-core` lib 115 of 115, CUDA batching tests 10 of 10 | plans byte-identical (8B 8,758 B; 35B 3,505 B), 256 ids identical for both models (sha 2dd7fe93, e2c61289), `intarsia-core` 115 of 115, CUDA `batch_recurrent` 10 of 10; run on `04410e61` sources, the later commits change only `batch_recurrent.rs` (same logic on CUDA) | #4937 (`raw/noop-cuda-spark1.log`) |
+| No-op, Metal (endor): `plan show` text and json byte-identical for 8B (1,342 B / 8,371 B) and 35B (2,404 B / 10,605 B); 256 greedy ids and text identical for both (sha e2c61289, 67c1a0de); `batch_recurrent` on Metal 10 of 10; workspace tests: no failure except the two CUDA `rows_registry` pin tests that fail on main too (the log's first ids line says `DIFFER or empty` because it compared before the generation finished; the re-compare at the end of the same log says identical) | #4936 (`raw/noop-metal-4936.log`) |
+| Mac `cargo test --workspace --release --no-fail-fast` 871 passed, 2 failed, 17 ignored; the 2 failures are the `rows_registry` pin tests that also fail on main (section 6) (`raw/workspace-tests-mac.txt`) | local (Mac) |
+| `intarsia-core` unit tests (incl. `batch_check_accepts_hip_folds_per_row_or_as_row_table_chains`), `docs_env_vars` | 115 of 115, 2 of 2 | local |
+
+The first G-C run of the final tree failed once: `batched_hybrid_decode_is_bitwise_the_solo_step` asserted that the batched plan's `MoeExperts`
+picks contain a rows kernel, and with the fused block (3 to 4 rows) there are no `MoeExperts` calls. The numerical comparison in that test had not
+failed; the pick check was updated to accept `moe_block_bf16_rows` and the test re-run (10 of 10).
+
+## 6. Things found on the way
+
+* **The tests run without admission; `serve` does not.** The first `serve` of the branch failed at load with `no kernel for kv_append ... [admitted
+  kernels only]` while every G-B and G-C test was green: a row-table twin takes the admission of the kernel it twins
+  (`Registry::effective_admission`), and on HIP the plan never selects the base (the solo step runs the fused op), so the base stayed untested.
+  Same trap as rb3's first lesson. Fixed in `plan::admit` (queue the base, test it by its sweep). The load line then reported the row-table kernels
+  as `REJECTED` (the plan-shape admission graded them with calls that carry no table); it now skips them like the sweep does, and the load line has
+  no `REJECTED` (39 kernels checked, 636 cases).
+* **`INTARSIA_ROW_TABLES=0` failed to load on HIP** once the fusion table had the `GateSplitQkNormRopeKv` entry: the per-sequence fold, expanded to
+  its chain, counted `gate_split` B times where the rule wanted once. Fixed (`GateSplit` in `WIDE_OR_PER_ROW_OPS`) with a unit test for both forms.
+* **The HIP attention tests iterate every kernel of an op** and so called the row-table attention kernel without a table (`IK_ERR_INVALID_ARG`);
+  they skip `row_table` kernels now, as CUDA's do. Found by the full-suite run, not by the targeted ones.
+* **A batched step with the fused MoE block changed `plan show` with batching off** (a `moe_block` scratch of 18,432 B instead of 9,216 B): the new
+  gate-logit-first path was also taken by solo steps of two rows (prefill tails, `fused_ok` accepts `T * K <= 16`). Restricted to batched passes
+  (`batch_rows >= 2` and row-exact); the no-op gate is what caught it.
+* **Pre-existing failure on `origin/main`:** `cargo test --release -p intarsia-backend-cuda --test rows_registry` fails two tests on the Mac
+  (`ordinary_calls_pick_what_they_picked_before_the_rows_kernels` at `rows_registry.rs:178`, `exact_rows_calls_pick_the_rows_kernels_only` at `:186`).
+  This branch has no diff in `crates/intarsia-backend-cuda` or `kernels/cuda`, and `origin/main` has not moved since the branch point, so the
+  test binary is main's. The pin tables show why: they still expect `matmul_fp8_gemm_reg` / `matmul_fp8_pair_gemm_reg` where main now selects
+  `matmul_fp8_gemm_lt` and no pair kernel (the fp8 cuBLASLt default of #125). Not touched here.
+
+## 7. Decisions and open points
+
+* Row tables, graphs and the fused MoE block at 3 and 4 rows are on by default on HIP with `--max-batch`; nothing changes without `--max-batch`
+  (section 5, no-op). Switches: `INTARSIA_ROW_TABLES=0`, `INTARSIA_BATCH_GRAPHS=0`, `INTARSIA_HIP_DISABLE=moe_block_bf16_rows`.
+* Open (1): where the 5 to 20 ms per step between the model loop and `serve` go (section 4). Not specific to HIP, and larger than any kernel lever left.
+* Open (2): a bitwise multi-row fp8 GEMV (lever (d)); the fp8 GEMV is 25.8% of the B = 16 step.
+* Open (3): device sampling on HIP (`topk_rows`), opt-in per the user decision; the greedy matrix does not use it.
+* Open (4): the `rows_registry` pin tests fail on main (see section 6); a one-line fix of the expected tables, owner lane-lt.
+
+## 8. Reproduce
+
+```
+# G-B (tatooine, fleetq job with --takes-down radiance, dev container, HIP card 0):
+INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-hip --test row_tables --test moe_block --test rows_exact --test rows_registry -- --test-threads=1 --nocapture
+# G-C:
+INTARSIA_BATCH_TEST_BACKEND=hip INTARSIA_REQUIRE_GPU=1 INTARSIA_QWEN36_DIR=/models/Qwen3.6-35B-A3B-NVFP4 \
+  cargo test --release -p intarsia-models --test batch_recurrent --test batch_cuda_real -- --test-threads=1 --nocapture
+#   long prompts: ... --test batch_cuda_real -- --ignored real_35b_batched_engine_long_prompts_equal_the_local_engine
+#   model-loop timing: INTARSIA_TIMING_ROWS=2,3,4,5,6,8,12,16 ... -- --ignored real_35b_batch_step_timing   (profile: real_35b_batch_step_profile)
+# speed: intarsia serve --backend hip --model /models/Qwen3.6-35B-A3B-NVFP4 --max-seq 8192 --served-model-name intarsia --max-batch 16
+#        uv run --project /opt/code/deepeval localeval speed --url http://tatooine:8294/v1 --model intarsia --thinking off --sizes 1024 --gen 128 --reps 3 --concurrency 4,16
+# A/B switches: INTARSIA_ROW_TABLES=0  INTARSIA_BATCH_GRAPHS=0  INTARSIA_HIP_DISABLE=moe_block_bf16_rows
+# no-op: scripts/hr3/noop-gen.sh in the dev container of each tree (plan show --json, plan show, 256 greedy ids, --spec mtp --spec-k 2)
+```
+
+fleetq jobs: tatooine final windows #4929 (window 7: speed, no-op, G-B, G-C, long prompts, HIP suite) and #4939 (window 8: tiny hybrid after the pick-check fix); spark1 #4937; endor #4936. Earlier build and gate windows are in `raw/` and the PR history.
+
+# Why the Qwen3.8-27B MXFP4 accuracy gate fails on HIP (lane ac, 2026-10-25)
+
+User approval: 2026-10-25 11:05 (investigate; report before changing any golden in main; if the reference is at fault, prepare a
+re-record as a draft PR and stop for review). No GPU time was used for the findings below: they come from the committed logs of
+lane tp2 (`origin/lane-tp2/batch`, `docs/results/2026-10-25-tp2-hip/raw/`), the three engine dumps those runs wrote
+(`tatooine:~/tp2/out/{27b,w12,w13}/`), the three goldens (`tatooine:~/intarsiaml-p1/p1-golden/`), and offline arithmetic with the
+gate's own estimator. The GPU window of section 6 then ran (tatooine, fleetq #5329, 12:31-12:34, radiance back after 30 s) and gave the main-tree controls and the 27B baselines + noise envelopes.
+
+## 0. Verdict
+
+* **No evidence of an engine accuracy fault.** Measured builds: w9/w12/w13 and, in section 6, `bbc0cde` (main `5241377b` plus this PR's gate-only changes; no kernel or engine
+  code differs). `#144` was not measured. The 27B W4A4 output on this gate is bitwise unchanged from build `ba0fa9e` (w9) through `5bee812` (w12) to `020b28c` (w13, the merged tree): all 60 dump tensors
+  are equal. Its numbers (prefill 0.1799, decode 1.392x noise) are the same to the printed digit as lane T2's on 2026-10-22 and
+  lane M1's on 2026-10-21 (`#145` is bitwise against the previous main by its own gate).
+* **The two failures have two different causes, and neither is "the golden is wrong".**
+  1. **W4A16 golden (w12): a flag mismatch in the run.** The golden is W4A16 (activations none). The engine ran W4A4
+     (`mxfp4 activations: dynamic (declared by the checkpoint)`) because `stages-w12.sh` did not pass `--mxfp4-act none`. A W4A4
+     engine is 0.138 KL21 away from a W4A16 reference, exactly as far as the W4A4 HF reference itself is (0.139).
+  2. **W4A4 golden (w9): prefill passes; decode has failed since the gate was written** (1.392x the reference noise on
+     2026-10-21, 2026-10-22 and 2026-10-25). The reference-noise record the gate uses for decode was measured on the prefill rows
+     (all 1441, 0.197), not on the decode window (the last 16 rows of each prompt, 118 scored rows). On the window the same two HF
+     runs are 0.2527 apart. The engine's 0.3397 is 1.34x that. This is the follow-up the user deferred at LOG 2026-10-21 13:23
+     ("3 later").
+* **Correcting the reference record does not make the W4A4 decode verdict pass.** At factor 1 it is still FAIL (1.34x). Making
+  it pass needs a factor of at least 1.35, or a different judge for this class. That is the user's call; none was chosen here.
+
+## 1. What the three goldens are
+
+All three are HF `transformers` 5.19.0 + `torch` 2.14.1 with Quark MXFP4 emulation (weights dequantised to bf16), layer-streamed
+on endor's CPU, one full-sequence forward per prompt, 10 prompts (`golden.jsonl`, `golden_long.jsonl`), 1441 positions, top-20.
+None is vLLM: no vLLM golden exists for this model (T2, `2026-10-22-t2-27b-tp2.md` section 2). Model
+`amd/Qwen3.8-27B-Quark-AWQ-MXFP4` (snapshot `5233554c`). Built by lane M1 with `tools/golden_quark_mxfp4.py`
+(`2026-10-21-m1-qwen38-drill.md` section 5). Provenance files are added next to them in `golden/*.provenance.json` (the
+safetensors are gitignored and only exist on tatooine/endor).
+
+| golden | activations | KV | built (UTC) | sha256 (first 12) | gate role |
+|---|---|---|---|---|---|
+| `qwen3.8-27b-mxfp4-hfquark-top20` | dynamic fp4 (W4A4, 496 QDQ'd linears) | bf16 | 2026-10-21 14:05 | `1b32357eaa08` | the gate golden, ref-noise sidecar |
+| `qwen3.8-27b-mxfp4-hfquark-f32-top20` | dynamic fp4 (W4A4) | f32 | 2026-10-21 14:42 | `d5186d875800` | noise only (bf16 vs f32 of the same HF run) |
+| `qwen3.8-27b-mxfp4-hfquark-w4a16-top20` | none (W4A16, 0 QDQ'd linears) | bf16 | 2026-10-21 14:42 | `32e2b96d84cc` | gate golden for `--mxfp4-act none` only |
+
+## 2. W4A16 golden: the run did not match the golden
+
+* `scripts/tp2-hip/stages-w12.sh` (lane tp2, branch `lane-tp2/batch`): `run $D 0 600 acc-27b-tp1 accuracy ... --golden $G27 --mode
+  both ...` with `G27=.../qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors` and no `--mxfp4-act none`.
+* The run's own stderr (`raw/w12/acc-27b-tp1.err`) prints both sides: golden reference `activations none (Quark even_round), 0
+  QDQ'd linears`, engine `mxfp4 activations: dynamic (declared by the checkpoint)`. The gate does not compare the two.
+* Result (`raw/w12/acc-27b-tp1.out`): prefill KL21 0.1387 and decode 0.1897 against the W4A16 static floor 0.03 (no sidecar for
+  this golden), FAIL.
+* That 0.138 is the activation-format gap, not an engine error. Same pair of numbers, computed here with the gate's estimator
+  (`scripts/ac/w4a16.py`), scored rows, reference = the W4A16 golden:
+
+  | candidate | KL21 |
+  |---|---:|
+  | engine, W4A4 (the w12 dump) | 0.1380 |
+  | HF W4A4 bf16 golden | 0.1394 |
+  | HF W4A4 f32 golden | 0.1354 |
+
+  And M1 measured the engine at W4A16 against this golden on 2026-10-21: prefill 1.4e-3, decode 8.3e-4, PASS
+  (`2026-10-21-m1-qwen38-drill.md` section 5). T2 on 2026-10-22 (w6, `--mxfp4-act none`): 1.484e-3 (tp1) and 6.003e-4 (tp2),
+  PASS. Section 6 re-ran it on the main tree: 1.484e-3 / 9.84e-4, PASS.
+* Why it looks like a property of the checkpoint: it is a property of the flag. The same engine, same build, passes this golden
+  as W4A16 and fails it as W4A4.
+
+## 3. W4A4 golden: what the gate run used
+
+`raw/27b/acc-tp1-27b.out` (w9; w12 and w13 dumps are bitwise the same): golden W4A4 bf16, engine default flags (dynamic
+activations = the golden's mode, so this one is matched), prefill chunk 256, `--ref-noise` sidecar
+`qwen3.8-27b-mxfp4-hfquark-top20.safetensors.json` (precision_spread, all rows 0.197, no scored value).
+
+| mode | engine KL21 (scored rows) | limit (ref noise x 1) | ratio | verdict |
+|---|---:|---:|---:|---|
+| prefill (n=1279) | 0.1799 | 0.1970 | 0.91 | PASS |
+| decode (n=118) | 0.3397 | 0.1970 | 1.72 (1.392 on all rows) | FAIL |
+
+The sidecar was back-filled on 2026-10-21 from M1's table; its golden was "not available when this record was filled in" and was
+matched by name and position count only (`2026-10-21-a2-ref-noise-gate.md`). The goldens are available now. Re-measured with
+`intarsia ref-noise` (this PR's `golden/ref_noise/...json`, bound by FNV-1a `725eb3ea093c0264`): all rows 0.19692 (n=1441), scored
+rows 0.19913 (n=1279). The old 0.197 is reproduced. All 12 copies of the W4A4 golden on tatooine (every lane's `p1-golden`, incl.
+`~/intarsiaml-p1/`) have the same sha256 `1b32357eaa08...`, so the binding does not orphan any lane's `--ref-noise` run.
+
+## 4. Decode: the reference noise on the decode window
+
+The decode mode feeds the last 16 positions of each prompt through the single-token path (`dec_pos` in the dumps equals `arange(n-16, n)` for all 10
+prompts, checked directly; 118 of the 160 rows are scored). The same two HF runs, restricted to those rows (`scripts/ac/win.py`; the all-rows
+and scored numbers reproduce the Rust tool to 4 digits):
+
+| HF W4A4 bf16 vs f32 | all rows | scored rows |
+|---|---:|---:|
+| prefill rows (1441 / 1279) | 0.1969 | 0.1991 |
+| decode window (160 / 118) | 0.2227 | **0.2527** |
+
+Engine decode 0.3397 / 0.2527 = **1.34**. Not a pass at factor 1. The statistic is a mean over 118 rows with a heavy tail:
+
+* The 10 largest rows carry 89 % of the engine's decode sum (3 rows: 56 %). In the HF noise they carry 81 % (3 rows: 49 %).
+* The largest row is `chat_multiturn` position 55: engine decode 10.05, engine prefill 9.84, HF bf16-vs-f32 7.51. Its bf16
+  reference top-1 is token 326, the f32 and W4A16 references' top-1 is 248045. The reference itself flips there.
+* Per row, engine decode KL against the bf16 golden and the HF bf16-vs-f32 spread have Spearman rank correlation 0.91: the same
+  rows are hard for both.
+
+## 5. Is the engine's decode path wrong?
+
+All offline, on the three engine dumps. The dumps hold the engine's top-64 only, so this estimator reads lower than the gate's
+(decode scored 0.2915 here against 0.3397 in the gate); every comparison below uses the same estimator on both sides.
+
+| quantity (118 scored decode rows) | mean | bootstrap 95 % |
+|---|---:|---|
+| engine decode vs bf16 golden | 0.2915 | [0.113, 0.534] |
+| engine prefill vs bf16 golden, same rows | 0.2192 | [0.093, 0.416] |
+| HF bf16 vs f32, same rows | 0.2527 | [0.120, 0.430] |
+| engine decode vs engine prefill, same rows | 0.1619 (median 0.007) | [0.082, 0.263] |
+| paired: engine decode minus HF noise | +0.039 | [-0.059, +0.166] |
+| paired: engine decode minus engine prefill | +0.072 | [-0.012, +0.178] |
+
+* **Not distinguishable from the reference's own spread at this sample size.** Dropping `chat_multiturn` (5 rows) gives 0.2155
+  against noise 0.1974 (1.09x). Dropping it and `long_prose_700` gives 0.1135 against 0.0681 (1.67x) on 97 rows of small absolute
+  size; engine prefill on those rows is 0.0518. So the engine's decode rows sit above its prefill rows and above one HF spread
+  draw on the ordinary rows too. One draw of a heavy-tailed spread cannot say more than that.
+* **The decode path itself is right in W4A16.** Same engine, same GDN recurrence, attention, KV cache and state: decode KL
+  8.3e-4 against the W4A16 golden (M1) and 6.0e-4 (T2). Only the W4A4 activation rounding is added.
+* **Why decode and prefill differ in W4A4:** under W4A4 every MXFP4 product is exact (T2 section 3), so the engine's two paths differ only in
+  how the non-MXFP4 ops (norms, attention, GDN step) round to bf16. Rounding activations to fp4 turns a one-ulp difference at an
+  e2m1 near-tie into a whole step (M1 section 5). Engine decode against engine prefill is 0.16 mean with a median of 0.007: a few
+  rows flip, the rest agree. That is the same mechanism, at the same size, as HF bf16 against HF f32.
+* The W4A4 noise envelope of section 6 (chunk 256 -> 64) moves the decode mean by 5e-3 relative: the engine is near-deterministic under that perturbation, so it does not measure the activation-rounding sensitivity of section 5; the decisive control for "engine noise class" stays the engine-vs-engine row above (0.16, median 0.007).
+
+## 6. The GPU window (fleetq #5329, 2026-10-25 12:31-12:34, one R9700, build `bbc0cde` = main `5241377b` + this PR)
+
+Raw: `raw/` (`window.log`, `steps.log`, one `.out`/`.err` per run). Build stamp `head bbc0cde code-tree 2b4e07bd7337 clean`.
+
+| run | flags | prefill KL21 (scored) | decode KL21 (scored) | floor | baseline |
+|---|---|---:|---:|---|---|
+| W4A16 golden, **default flags** (control, as w12) | engine dynamic activations | 1.387e-1 | 1.897e-1 | FAIL (identical to w12 to the digit) | - |
+| W4A16 golden, `--mxfp4-act none` | `activations: none (--mxfp4-act)` | 1.484e-3 | 9.84e-4 | **PASS** (0.03) | recorded; gate with envelope PASS |
+| W4A4 golden, default flags | dynamic (declared) | 1.799e-1 (0.904x scored noise) | 3.397e-1 (1.706x scored noise; 1.34x the decode-window spread 0.2527) | prefill PASS, decode FAIL | recorded; gate with envelope PASS, decode floor report-only |
+
+The one flag flip on one build takes the W4A16 golden from FAIL 0.139 to PASS 1.5e-3: the w12 failure is the flag. The W4A16 prefill
+number equals T2's 2026-10-22 tp=1 value (1.484e-3) to four digits. The W4A4 numbers equal w9's. Envelope: prefill chunk 256 -> 64
+(`--noise-perturb chunk`); the engine is close to chunk-invariant (most prompts fit in 64 tokens and are untouched, the mean KL moves
+by 2e-4 relative, W4A4 decode 0.26985 -> 0.26857), so the baseline gate is a tight regression gate: any change in what the engine
+computes on the 27B moves it, and then the baseline is re-recorded, as for the CUDA 35B in `5c769c8a3`.
+
+## 7. Gate policy (coordinator decision, 2026-10-25; the user approved the investigation at 11:05)
+
+1. The W4A16 golden is the correctness gate for the 27B, prefill and decode, run with `--mxfp4-act none`.
+2. The W4A4 golden (default, dynamic activations) is gated two ways: prefill against the golden, as before (0.904x the scored noise);
+   decode as a regression gate against the engine's own recorded W4A4 baseline and noise envelope, not against the HF spread.
+3. The decode-window HF spread 0.2527 is context only, not a gate. No factor is chosen.
+
+Wiring: the sidecar of the W4A4 golden carries `floor_report_only: ["decode"]` (`refnoise.rs`, `accuracy.rs`, `docs/accuracy.md`). When
+a run is gated with `--baseline` the decode mode's absolute floor is printed as report-only and the baseline + envelope judge it.
+Without `--baseline` the floor keeps gating, so no mode is left without a gate (`a4-record` above shows it: floor FAIL, no baseline).
+Commands (inside the HIP image; `<M27>` the model dir):
+
+```
+# W4A16: correctness gate
+intarsia accuracy --backend hip --model <M27> --mxfp4-act none --golden golden/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.safetensors \
+  --mode both --decode-positions 16 --baseline golden/baselines/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.hip.baseline.json \
+  --noise-envelope golden/baselines/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.hip.envelope.json --pre-change <sha>
+# W4A4: prefill vs golden; decode vs baseline + envelope
+intarsia accuracy --backend hip --model <M27> --golden golden/qwen3.8-27b-mxfp4-hfquark-top20.safetensors --mode both --decode-positions 16 \
+  --baseline golden/baselines/qwen3.8-27b-mxfp4-hfquark-top20.hip.baseline.json \
+  --noise-envelope golden/baselines/qwen3.8-27b-mxfp4-hfquark-top20.hip.envelope.json --pre-change <sha>
+```
+
+`qualify` finds the W4A4 baseline by golden stem; it does not pass `--mxfp4-act none`, so the W4A16 run stays an explicit command.
+The goldens themselves remain untracked (provenance files only); a re-record needs them from tatooine/endor.
+
+## 8. What this PR contains
+
+The note; LOG row (accepted by the coordinator); the hash-bound W4A4 sidecar with `floor_report_only` (no per-prompt values, so
+`--self-vs-ref-noise` is unchanged); `golden/baselines/qwen3.8-27b-mxfp4-hfquark-{,w4a16-}top20.hip.{baseline,envelope}.json`; the
+`floor_report_only` code and tests (`cargo test --release -p intarsia-cli`: 173 passed, including a test that reads the four committed
+27B files and checks each baseline against its envelope and golden hash); provenance files; `scripts/ac/`; the window's raw logs
+(without the two 0.8 MB dumps).
+
+# DFlash parallel-draft speculation and the DCOCO corrector (`--spec dflash [--dcoco]`), lane dc, 2026-10-25
+
+Branch `lane-dc/dflash-dcoco`. Opt-in only; with the flags off nothing is loaded and `plan show` plus the 256 greedy ids
+of the 8B on CUDA are bitwise main. Raw metadata for this note is in `2026-10-25-dc-dflash-dcoco/raw/`.
+
+Status: phase 1 (scope note) accepted by the coordinator; **phases 2 and 3 done; cost gate tried, DFlash stays opt-in** (sections 10-12).
+
+## 0. Decision and sources
+
+User decision 2026-10-25 19:39 ("go dcoco"): add DFlash, then the DCOCO corrector on top, both default-off.
+
+| source | what we took | licence |
+|---|---|---|
+| arXiv 2610.12570, "Contextual Correction of Parallel Drafts for Speculative Decoding" | the corrector math (section 3), selection rule, stochastic rule (App. G), reported numbers | paper |
+| `TD-Labs/Qwen3-8B-DCOCO` (HF, sha 4080a604, 2026-10-14) | config and tensor names/shapes (section 2) | **Apache-2.0** (HF card) |
+| github.com/two-delta/DCOCO | README only (vLLM image + `vllm serve` recipe). **No code read, none copied.** | **no licence**: GitHub API `license: null`, `LICENSE` is 404, so all rights reserved. Implementation is from the paper and the checkpoint only |
+| vLLM `v1/spec_decode/dflash.py`, `model_executor/models/qwen3_dflash.py`, `v1/spec_decode/utils.py` (main) | DFlash semantics: query layout, context K/V, non-causal attention | Apache-2.0 |
+| z-lab/dflash MLX reference, vendored in `/opt/code/TensorFold/src/tensorfold/drafters/vendor/z_lab_dflash/model_mlx.py` | the reference forward and the spec loop; usable as an independent numerical reference | MIT (Z Lab) |
+
+## 1. DFlash in one page
+
+Target Qwen3-8B (36 layers, H=4096, 32 q heads, 8 kv heads, head_dim 128). Draft: 5 dense Qwen3 layers (same shapes,
+`intermediate_size` 12288, qk-norm, rope theta 1e6 neox), all `full_attention`, **non-causal**, plus `fc` and `hidden_norm`.
+
+**Features from the target.** `target_layer_ids = [0, 8, 16, 24, 32]` are 0-based layer indices. The tap is the *output* of
+layer i, i.e. the full residual stream after that layer (attention and MLP adds both applied), before any final norm.
+(z-lab: `_LayerHook` stores the layer output; vLLM's `eagle_aux_hidden_state_layer_ids = [1, 9, 17, 25, 33]` is the same
+five tensors seen as the input of layer i+1.) For every target position t, `feat_t = concat(out_0, out_8, out_16, out_24, out_32)`
+in that order, 20480 values. Prefill positions and every verified position produce features.
+
+**Context projection (shared by all 5 draft layers).**
+`h_ctx = hidden_norm(fc(feat))`, `fc` is [4096, 20480] no bias, `hidden_norm` an RMSNorm.
+For draft layer l: `K_ctx = rope(k_norm(k_proj_l(h_ctx)), pos)`, `V_ctx = v_proj_l(h_ctx)`, at the target's absolute
+positions. Note the context rows do **not** pass through the layer's `input_layernorm`, only the shared `hidden_norm`.
+These K/V persist in the draft's own KV cache (5 layers x 8 kv heads x 128 x 2 x bf16 = 20 KiB per token).
+
+**Block decode (one forward per round). Corrected after the MLX reference run (section 10.3).**
+Let P be the number of context rows, equal to the position of the anchor token `b` (the last committed token, which the
+target has not yet been fed). The query block is `[b, MASK x 14]` (`mask_token_id` 151669), **15 rows** (`dflash_config.block_size
+= 15`) at positions P..P+14. Per layer: `x = embed(tokens)`; `x += o_proj(attn(input_layernorm(x)))`; `x += mlp(post_attention_layernorm(x))`;
+the query rows' own K/V (same projections, qk-norm, rope at P..P+14) are appended **after** the context K/V and attended
+with **no causal mask** (every query row sees all context and all block rows). Final `norm`, then `lm_head` on **all 15
+rows, the anchor row included** (`sample_from_anchor: true`): row r predicts the token at position P+r+1, so row 0 (the
+anchor) drafts the token right after the anchor. **15 drafts, 16 verify rows.** (The z-lab convention of taking rows 1..15
+gives tau 1.04 with this checkpoint: it is the wrong layout here.) The block K/V are scratch: the next round overwrites
+positions P'.. with real context K/V.
+
+**Verify (unchanged from MTP/ngram).** Target forward on `[b, d1..d15]` (16 rows = `LOGIT_ROWS`), longest-prefix greedy
+match, commit accepted + 1 bonus, roll the target KV back. The next round's context is the features of the rows the verify
+produced for the committed positions (anchor row plus the accepted rows).
+
+Geometry note: `block_size = 15` is the number of query rows and of drafted slots; `sample_from_anchor: true` means the
+anchor row is sampled too; `causal: false` is the non-causal block attention. (Whether the query block has 15 or 16 rows
+(one extra unused mask row) is a statistical tie on the reference, tau 3.298 vs 3.261; we use 15, which is also cheaper.)
+
+## 2. Checkpoint (metadata only; weights not downloaded yet)
+
+`TD-Labs/Qwen3-8B-DCOCO`: one `model.safetensors` of 4,591,038,706 bytes, 70 tensors, all BF16, 2,295,515,649 parameters
+(raw: `raw/TD-Labs_Qwen3-8B-DCOCO.safetensors-header.tsv`, read with two HTTP range requests of the safetensors header).
+`architectures = ["DCOCODraftModel"]`, `model_type = qwen3`, `vocab_size = draft_vocab_size = 151936`,
+`tie_word_embeddings = false`.
+
+| tensor | shape | use |
+|---|---|---|
+| `layers.{0..4}.input_layernorm.weight`, `post_attention_layernorm.weight` | [4096] | RMSNorm, eps 1e-6 |
+| `layers.{i}.self_attn.q_proj / o_proj` | [4096,4096] | |
+| `layers.{i}.self_attn.k_proj / v_proj` | [1024,4096] | also applied to `h_ctx` |
+| `layers.{i}.self_attn.q_norm / k_norm.weight` | [128] | per-head RMSNorm |
+| `layers.{i}.mlp.gate_proj / up_proj` | [12288,4096] | SwiGLU |
+| `layers.{i}.mlp.down_proj` | [4096,12288] | |
+| `fc.weight` | [4096, 20480] | feature fusion |
+| `hidden_norm.weight`, `norm.weight` | [4096] | context norm, final norm |
+| `embed_tokens.weight` | [151936,4096] | draft's own copy (2.4 GB). DCOCO freezes it, so it is probably the target's table: **verify row 151669 (mask) and a sample of rows against Qwen3-8B in phase 2; use the draft's table if they differ** |
+| `lm_head.weight` | [151936,4096] | separate from the embedding (not tied), draft's own |
+| `dcoco.cand_proj.weight` | [128,4096] | W_cand |
+| `dcoco.ctx_h_proj.weight` | [128,4096] | W_ctx |
+| `dcoco.cand_ctx_proj.weight` | [128,256] | W_fuse |
+| `dcoco.ctx_out_norm.weight / .bias` | [128] | affine LayerNorm after W_fuse |
+| `dcoco.pair_proj.weight` | [128,8192] | W_pair |
+| `dcoco.trans_mlp.0.weight / .bias` | [256,386] / [256] | MLP layer 1 |
+| `dcoco.trans_mlp.2.weight / .bias` | [1,256] / [1] | MLP layer 2 (scalar) |
+
+Checks: draft sizes 5 x 193.4M (layers) + 83.9M (`fc`) + 2 x 622.1M (embed, lm_head) = 2,295.3M, and the 10 `dcoco.*`
+tensors sum to exactly 2,229,505 parameters, the paper's number for Qwen3-8B (App. A). `dcoco_candidate_topk = 16`,
+`dcoco_emb_dim = dcoco_state_dim = 128`, `dcoco_mlp_dim = 256`.
+
+Draft weights read per round on a 273 GB/s Spark: 5 layers + `fc` (2.1 GB) + `lm_head` (1.24 GB) = about 3.4 GB, against
+16.4 GB for the BF16 8B target. The draft costs about 20% of a verify step, so a round is about 1.2x a plain decode step.
+
+## 3. Corrector math (from the paper, section 4.2-4.3 and App. A, G)
+
+Per drafted slot i = 1..B (B = 15): hidden state `h_i` (4096), top-K draft candidates `c_ik` and their draft logits
+`l_i(k)`, K = 16. Let E be the (frozen) token embedding, `LN` a non-affine LayerNorm, `LN_gb` an affine one, r = 128.
+
+```text
+b_ik = LN(W_cand E[c_ik])                     W_cand  [r, d]        = dcoco.cand_proj
+g_i  = LN(W_ctx  h_i)                         W_ctx   [r, d]        = dcoco.ctx_h_proj
+z_ik = LN_gb(W_fuse [b_ik ; g_i])             W_fuse  [r, 2r]       = dcoco.cand_ctx_proj, ctx_out_norm
+s_p  = W_pair [h_p ; h_{p+1}]                 W_pair  [r, 2d]       = dcoco.pair_proj        (p = 1..B-1, once per slot pair)
+S_p(a,b) = l_{p+1}(b) + MLP([s_p ; z_pa ; z_{p+1,b} ; l_p(a) ; l_{p+1}(b)])      MLP: 386 -> 256, GELU, 256 -> 1
+```
+
+The MLP's output layer was zero-initialised in training, so at initialisation S_p(a,b) = l_{p+1}(b) and the selection below
+reproduces DFlash's argmax. Selection (prefix-first greedy, eq. 7): `k_1 = argmax_k l_1(k)`, then
+`k_{p+1} = argmax_b S_p(k_p, b)`. The draft block is `c_{p,k_p}`. Complexity: (B-1) K^2 = 3584 scores in the paper's
+batched pass, O(B K) for the walk. Verify is the unchanged linear verify.
+
+Implementation plan, no extra drafter pass:
+- The walk only ever needs row `a = k_p` of S_p, so it can be run lazily: 14 steps x 16 candidates = 224 MLP evaluations
+  instead of 3584. cpu-ref and the first CUDA version do exactly that.
+- MLP layer 1 is linear in its concatenated input, so split `W0 = [Ws | Wa | Wb | w_la | w_lb]` (128, 128, 128, 1, 1
+  columns; **column order is an assumption**, section 8): `pre = Ws s_p + Wa z_pa + Wb z_{p+1,b} + w_la l_p(a) + w_lb l_{p+1}(b) + bias`.
+  The three 128->256 projections are done once per slot or per candidate (Matmul), the pair grid is a broadcast add, so the
+  per-transition work is a 256-wide GELU and a dot. This reuses existing ops; no new GEMM kernel is needed.
+- Greedy exactness: the corrector only changes *which* tokens are proposed. Verify is the target's own greedy argmax, so
+  the committed ids are the target's regardless of the corrector's numerics (the paper's lossless claim, and the same
+  argument as MTP). Stochastic (App. G): the proposal is a point mass `p_j = 1[v = y_j]`, accept with probability
+  `q_j(y_j)` (min(1, q/p) with p = 1), on rejection resample from `q` restricted to `v != y_j` and renormalised. We only
+  ship greedy, so this stays out of scope until the engine has stochastic spec.
+- Paper numbers to compare against (Qwen3-8B, B200, vLLM, T=0, thinking off, ten-suite average, concurrency 1): vanilla
+  265.6 tok/s, DFlash 783.1 (2.95x, tau 3.913), DCOCO 959.7 (3.62x, tau 4.985); gain +18-23% at batch 1, narrowing with
+  concurrency. tau there = accepted drafts + 1.
+
+## 4. Mapping onto this repo
+
+Grounded in `crates/intarsia-core` at origin/main cf84efa43 (read in this phase; line numbers will drift).
+
+| piece | existing seam | what is new |
+|---|---|---|
+| mode | `spec.rs` `SpecMode {Off,Ngram,Mtp}`, `SpecConfig::parse`, `SPEC_K_MAX = 6` | `SpecMode::Dflash`. `SPEC_K_MAX` is 6 because of the 8-row GEMV cliff; DFlash needs k up to 15 (16 verify rows = `LOGIT_ROWS`, `VERIFY_MAX_ROWS = 16`). Dflash gets its own `DFLASH_K_MAX = 15`, others unchanged |
+| drafter | `model/mtp.rs` (`mtp_draft`, own `MtpState` with a pending queue and its own KV) | `model/dflash.rs`: loads the draft, owns a 5-slot draft `SequenceState`, ingest queue, block forward |
+| verify, accept, rollback | `Model::forward_verify`, `engine.rs` `spec_verify / spec_accept / spec_cut`, `st.truncate` for attention-only models | **unchanged** |
+| gate / back-off | `SpecGate`, `CostGate` (`spec.rs`) | the tap must keep recording on back-off (plain decode) steps; ingest is lazy (queued features), so a back-off step costs one 40 KB/token copy and the context never has holes |
+| target tap | `Model::run_layers` loop (`model.rs`, two ping-pong residual buffers, pending-add, fused norms) | copy the post-layer residual (pending add included) of layers 0, 8, 16, 24, 32 into a `[rows, 20480]` staging buffer. Needed on prefill chunks, decode, verify, the captured decode graph, and the fused paths. Off unless dflash is loaded, so the default op stream is unchanged |
+| attention | `AttnPrefill/AttnDecode`, contract "causal GQA" (`ops.rs`), `OpAttrs` has `window` only | new attr `causal: bool` (default true, not printed by `plan show` when true) so the default plan is byte-identical; non-causal variant for q_len = 16 over kv_len = P + 16 on cpu-ref and CUDA |
+| draft layers | no generic small-transformer runner (`mtp.rs` is a bespoke MoE layer) | dense Qwen3 `Block::Attn + Block::Dense` already loads via `recipes/qwen3.toml`; reuse those blocks with weights from the draft dir, plus `fc`, `hidden_norm`, and the K/V-from-`h_ctx` projection (existing Matmul + QkNorm + Rope + KvAppend ops) |
+| lm_head / top-K | `Logits`, `Argmax` ops | phase 2 needs `Argmax` on 15 rows; phase 3 needs top-16 values and ids per row (new op, cpu-ref + CUDA) |
+| corrector | none | `dcoco.*` weights, host-side lazy walk first, GPU later only if profiling asks for it |
+| batched | `--spec mtp` is refused with `--max-batch > 1` (LOG 2026-10-25 12:57) | same refusal for dflash; "4 streams" needs a decision (section 9) |
+
+Costs and risks specific to the engine:
+- **16-row verify exactness on CUDA.** The MTP doc's bitwise result covered at most 4 rows, and the `SPEC_K_MAX` comment
+  records an 8-row GEMV cliff. The exactness gate (dflash ids == spec-off ids) is only as good as 16-row verify
+  == 1-row decode, bit for bit. First step of phase 2 is a probe (below), before any drafter code.
+- **Tap off-by-one is silent.** A wrong layer index or a pre-add tap still passes exactness and just lowers acceptance. Gate:
+  per-slot argmax and tau against an independent reference.
+- **Prefix reuse and reset.** Draft KV is per sequence; any prefix-cache hit, truncate or sequence reset must reset or
+  truncate the draft KV to the same position (MTP has the same obligation in `MtpState`).
+- **Chunked prefill.** Features of each prefill chunk are ingested as the chunk finishes (never stored for the whole prompt:
+  8k tokens x 40 KB = 320 MB).
+
+## 5. CLI / recipe surface and gates
+
+```text
+intarsia run|serve --model <qwen3-8b dir> --spec dflash --spec-draft <dir> [--spec-k N (1..=15, default 15)] [--dcoco]
+```
+- `--spec-draft` is required with `--spec dflash`; the draft's `config.json` (`dflash_config`) supplies layer ids, mask id,
+  block size, top-K, corrector widths. No recipe change: the target's recipe is unchanged, the draft is validated against it
+  (hidden size, vocab, layer ids < n_layers, fc width = 5 x H). `--dcoco` requires the `dcoco.*` tensors and `--spec dflash`,
+  else a load error. Missing `--spec` leaves every existing path untouched.
+- Env (diagnostics only): `INTARSIA_DFLASH_TRACE` (per round: anchor, drafts, accepted), `INTARSIA_DFLASH_CHECK` (dump
+  per-slot argmax and top-16 for the reference comparison).
+- Same refusals as MTP: `--max-batch > 1`.
+- Model store for the checkpoint: `/home/nvidia/.cache/huggingface/hub/models--TD-Labs--Qwen3-8B-DCOCO` on spark1 (the HF
+  cache the 8B already lives in; 278 GB free), downloaded with `fleetq run --load net,disk`.
+
+Gates (defined before measuring; "no" on a hard gate stops the phase):
+
+| id | gate | phase | hard |
+|---|---|---|---|
+| G0 | flags off: `plan show` json+text md5 and 256 greedy ids on CUDA 8B equal main | all | yes |
+| G1 | 16-row CUDA verify probe: ngram k=15 (or spec-off continuation as drafts) gives ids and per-row argmax bitwise equal to 1-row decode; time verify16 vs decode1 | 2 | yes (else kernel work, see hours) |
+| G2 | cpu-ref: `--spec dflash` ids == spec-off ids on the golden prompts; random-weight tiny draft equals a numpy/python re-implementation | 2 | yes |
+| G3 | CUDA 8B: `--spec dflash` ids == spec-off on the golden prompts (short and 4k), acceptance counts logged | 2 | yes |
+| G4 | draft correctness vs an independent reference (z-lab MLX on endor with `$HOME/models/Qwen3-8B`, MIT; or vLLM 0.31 if an arm64 image runs on spark1): per-slot argmax and top-16 on a fixed context, then tau on chat-templated math/code/chat prompts, thinking off | 2 | tau within 5% of the reference, else the tap/draft has a bug |
+| G5 | go/no-go: tau (accepted+1) >= 2.5 and tok/s >= 1.5x spec-off at batch 1 on the same prompts (break-even tau is about 1.3) | 2 | yes, else stop and report |
+| G6 | `--dcoco` with the MLP forced to zero reproduces DFlash's drafts exactly (unit test); ids == spec-off | 3 | yes |
+| G7 | go/no-go: DCOCO tau >= 1.10 x DFlash tau and tok/s >= 1.05 x DFlash at batch 1; measured spec-off / DFlash / DFlash+DCOCO interleaved x3 via localeval at 1 and 4 clients | 3 | yes, else report, no ports |
+
+## 6. Hours (agent hours, including fleetq waits)
+
+| step | h |
+|---|---|
+| Phase 1 scope note, PR, LOG rows | 2 (this) |
+| 2a G1 16-row CUDA verify probe | 1.5 |
+| 2b loader, draft config validation, `SpecMode::Dflash`, CLI/serve flags, recipe checks | 3 |
+| 2c target feature tap (prefill, decode, verify, captured graph, fused/pending paths) | 4 |
+| 2d `causal` attr, cpu-ref non-causal, CUDA non-causal kernel | 4 |
+| 2e drafter: ingest, block forward, KV truncate/reset, gate interplay | 6 |
+| 2f cpu-ref tests (tiny random draft vs python reference; z-lab MLX numerics on endor) | 4 |
+| 2g CUDA gates G3-G5, reference run | 5 |
+| **phase 2 total** | **about 28** (+8 contingency if 16-row verify is not bitwise: row-exact kernels for M = 9..16) |
+| 3 corrector loader, top-16 op (cpu-ref, CUDA), host-side lazy walk, unit tests | 8 |
+| 3 localeval 3-way x 2 concurrencies x 3 interleaved, doc | 4 |
+| 3 optional GPU transition kernel (only if the walk shows in the profile) | 3 |
+| **phase 3 total** | **about 12-15** |
+| 4 HIP port (non-causal attn, tap, top-K) / Metal port | about 16 / 16 each, only if phase 3 pays |
+| batched DFlash (real multi-stream), only if wanted | 20+ |
+
+## 7. Phase 1 scope
+
+Phase 1 downloaded metadata only and wrote no code. Phase 2 results are in section 10; phase 3 results and ports: pending.
+
+## 8. Open items (resolved empirically in phase 2/3, not guessed)
+
+1. `sample_from_anchor: true`: resolved by the MLX reference (section 10.3): rows 0..14 including the anchor row.
+2. Whether the draft's `embed_tokens` row 151669 (mask) and the rest equals Qwen3-8B's table.
+3. Corrector unknowns the paper and tensor list do not pin: LayerNorm eps, GELU erf vs tanh, whether `h_i` is the draft's
+   final-norm output or the pre-norm residual, the concatenation order in the 386-wide MLP input (paper lists
+   `[s_p ; z_pa ; z_{p+1,b} ; l_p(a) ; l_{p+1}(b)]`, used as the default). Tests: Δ ≡ 0 reproduces DFlash (G6), and DCOCO tau
+   must beat DFlash tau (G7); the variants are cheap to try in cpu-ref.
+4. Whether the tap should include the pending add for layer 32 on the last-layer-fused path (it must; checked by G4).
+
+## 9. Decisions (coordinator, 2026-10-25 after the scope note was accepted)
+
+- "4 streams": phases 2 and 3 are gated **at batch 1 only**. The 4-client run against the serial server is report-only,
+  labelled "serial server, not batched speculation", and gates nothing.
+- Batched DFlash (real multi-stream speculation) is out of scope: **follow-up item, about 20 h, not started**.
+- Embedding mismatch (draft vs Qwen3-8B, mask row included) would have stopped the lane before any CUDA code; it does not
+  (section 10.2).
+- Corrector details the paper leaves open (LayerNorm eps, GELU variant, concat order) are chosen by acceptance rate on the
+  cpu-ref and logged in LOG.md.
+- Stop rule: if the 16-row probe (G1) shows verify is not bitwise, report before spending the extra ~8 h.
+
+## 10. Phase 2 results
+
+Raw logs: `2026-10-25-dc-dflash-dcoco/raw/`. Scripts: `scripts/dc/spark1.sh` (sync, build, probe, fetch; every call is a fleetq
+job), `tools/dc/tensor_cmp.py`. Probe test: `crates/intarsia-models/tests/verify16_cuda_real.rs`.
+
+### 10.1 G1: 16-row CUDA verify probe (Qwen3-8B BF16, spark1 GB10, fleetq #5441, #5447)
+
+`Model::verify_check` runs each id window through q single-row decode steps and through one `forward_verify`, from the
+same state, and compares the f32 logits. Windows: q = 2..16 at contexts 17, 130, 513, 1024, 1900, 3000 (random ids) plus 24
+windows of 16 ids that are the model's own greedy continuation (all accepted case). 1194 rows in all.
+
+| config | windows with a logit difference | worst abs logit diff | argmax mismatches | verify16 / decode1 (len 1024, 12 passes, probe timing only) |
+|---|---|---|---|---|
+| default (multi-row `AttnPrefill` in verify) | 78 of 120 | 3.79 | 3 (random ids) | 79.3 / 66.9 ms = 1.19 |
+| `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1` (one `AttnDecode` call per row) | **0** | **0** | 0 | 88.7 / 67.0 ms = 1.32 |
+
+(`raw/g1-verify16-probe.log`, `raw/g1-verify16-probe-perrow-attn.log`.) Finding: on the dense 8B the CUDA multi-row verify
+attention is **not** bitwise the decode step from about 100 context tokens on (exact up to length 17 for every q, and at 130
+for every q except 16; from 513 even q = 2 differs), while the `_rows` GEMV kernels are exact (all differences vanish when
+only attention is changed). So the existing CUDA `--spec ngram` on the dense 8B can in principle flip a greedy id at a
+near-tie; this is a pre-existing property, the 35B MTP gate did not see it. The fix is the existing HIP mechanism
+(`Backend::verify_attn_per_row`: one decode call per row, exact by construction). CUDA now answers it from an opt-in
+env var (default off, so nothing changes for the existing modes); DFlash will switch it on for its own verify through a
+Model-level flag, so the ~8 h row-exact-kernel contingency is not needed. Cost: verify16 is 1.32x a decode step instead of
+1.19x, so the break-even tau rises from about 1.4 to about 1.55 (draft included); G5's threshold (tau >= 2.5) is unchanged.
+
+### 10.2 Draft embedding and lm_head versus Qwen3-8B (cpu byte comparison on spark1, fleetq #5443)
+
+`TD-Labs/Qwen3-8B-DCOCO` downloaded to `/home/nvidia/.cache/huggingface/hub/models--TD-Labs--Qwen3-8B-DCOCO/snapshots/4080a604.../`
+(fleetq #5442; 4,591,038,706 bytes, sha256 `df240fec...cb12c` equals the `x-linked-etag`). `tools/dc/tensor_cmp.py` compares
+tensors byte for byte: `embed_tokens.weight` and `lm_head.weight` are **IDENTICAL** to Qwen3-8B's (all 151936 rows, so the
+mask row 151669 too); the controls `layers.0.self_attn.q_proj` and `norm.weight` differ, as they must (`raw/embed-cmp.log`).
+Decision: the draft **shares the target's embedding and lm_head**; the draft's own copies (2.5 GB) are not loaded.
+
+### 10.3 Independent reference: z-lab MLX DFlash on this Mac (Apple M5 Max, Qwen3-8B bf16), 16 chat-templated prompts
+
+Harness `tools/dc/ref/` (delegated worker, reviewed here), prompts `tools/dc/prompts_dc.jsonl` (6 math, 5 code, 5 chat; Qwen3
+chat template, thinking off), greedy, up to 192 tokens, results in `raw/ref/` (README.txt has commands and versions).
+The corrector in `dcoco_ref.py` is written from the paper only (no code from the unlicensed repo).
+
+| run | pooled tau (accepted + 1), 904-920 rounds |
+|---|---|
+| plain DFlash, 15-row block, rows 0..14 | 3.298 |
+| plain DFlash, 16-row block | 3.261 |
+| plain DFlash, z-lab layout (rows 1..15) | 1.041 (wrong layout for this checkpoint) |
+| DCOCO default (eps 1e-5, erf GELU, order `[s;za;zb;la;lb]`, h after final norm, raw logits) | 3.360 (+1.9%) |
+| DCOCO eps 1e-6 / tanh GELU / both | 3.360 (identical accepted counts) |
+| DCOCO logits log-softmaxed or minus top-1 | 3.353 |
+| DCOCO concat order `[za;zb;s;la;lb]` / `[s;zb;za;lb;la]` | 3.259 / 3.026 |
+| DCOCO h before the final norm | 3.133 |
+
+Findings: (1) the draft rows are 0..14 including the anchor row; the tap is the output of 0-based layer i for
+i in 0, 8, 16, 24, 32 (worked first try). (2) The corrector structure is confirmed by teacher-forced accuracy of slot p+1
+given the true slot p (7379 transitions): argmax 0.587, default corrector 0.748, all the wrong variants 0.54-0.58, so the
+concat order, the h tap and the fuse order are pinned; eps and GELU variant are indistinguishable (0.7477 vs 0.7479) and
+change drafts in 3-18 of 904 rounds without changing any accepted count. They stay at the PyTorch defaults (eps 1e-5, erf
+GELU). (3) The in-loop gain of the corrector on these prompts is only +1.9% pooled (math/code prompts with tau 4-8.5
+gain, chat prompts with tau 1.4-2.6 gain nothing), against +27% in the paper's ten suites (3.913 -> 4.985); the paper's
+suites are math/code heavy and its drafter is trained on its own corpus, so this may be the prompt mix; phase 3 measures
+it on our own runs and G7 decides. (4) Speculative output equals plain greedy for 9 of 16 prompts; the other 7 first differ
+at a bf16 near-tie (0 to 2 ulps, 4 exact ties) of the MLX 16-row verify versus 1-row decode: the MLX GPU verify is not
+row-exact either, which is why our own gate is the exactness in section 10.1.
+Fixtures for the Rust cpu-ref tests (not committed, 10-14 MB each): `/opt/code/intarsiaml/.worktrees/dc-ref/out/fixture_{math2,code1,chat2}.npz`.
+
+### 10.4 Phase 2 gates on CUDA (Qwen3-8B BF16, `--spec dflash`, spark1 GB10, greedy, 192 tokens)
+
+Code: `crates/intarsia-core/src/model/dflash.rs` (draft, ingest, taps via `run_layers`), `spec.rs` (`SpecMode::Dflash`,
+`DFLASH_K_MAX = 15`), `engine.rs` (`spec_dflash`), `state.rs` (`DflashState`), CLI `--spec dflash --spec-draft DIR`.
+Scripts: `scripts/dc/gates.sh`, `scripts/dc/spark1.sh`. Logs in `raw/`.
+
+| gate | result |
+|---|---|
+| G0 flags off vs main `5300bfde6` (`raw/g0-noop.log`) | PASS: `plan show` json (8758 B) and text (1478 B) byte-identical, 256 greedy ids identical for the short and the 4k prompt |
+| G2 cpu-ref (`tests/dflash_cpu.rs`, 6 tests) | PASS: tiny Qwen3 + random draft, ids equal spec-off for k = 1, 3, 7 with `spec_proposed > 0`, rollback and prefix reuse, partial acceptance (near-identity draft), f64 host reference of the draft (rel-L2 1.1e-2, 0 argmax flips), bad geometry refused |
+| draft vs MLX reference, real weights (`tests/dflash_fixture.rs`, `raw/g4-fixture-cuda.log`) | 45/45 drafts equal for reference features and for the real target prefill through the taps; block output rel-L2 0.9-3.0e-2 (bf16) |
+| G3 ids == spec-off, 16 chat-templated prompts, gate off (`raw/g4-tau-16.log`), plus 6 with the default gate (`raw/g3-ids.log`) | **PASS 16/16 and 6/6**, with verify passes 24-136 and 54-167 accepted drafts per prompt (drafting really ran) |
+| G4 acceptance vs the MLX reference, same 16 prompts, gate off | pooled tau (accepted + 1) **3.288 engine vs 3.298 reference** (-0.3%); per prompt 0.92-1.02 except the short-output chat prompts (1.29, 1.15: the reference run ends earlier or differs by a near-tie) |
+| G5 go/no-go (tau >= 2.5, >= 1.5x spec-off at batch 1) | **PASS**: pooled decode speedup **2.12x** (gate off, 16 prompts, 192 tokens, spec-off 15.4 tok/s): math 3.3-5.1x, code 1.4-4.0x, chat 0.91-1.54x |
+
+Reference note: the reference is the z-lab MLX DFlash on this Mac with the same checkpoint (section 10.3), not vLLM. A vLLM 0.31
+arm64 image run on spark1 was not attempted (the production vLLM services share the box; the MLX comparison already pins the
+layout to 0.3%). The paper's own numbers (tau 3.913 over its ten suites, 2.95x) are on B200 with math/code heavy suites; our
+pooled 3.29 is on 6 math, 5 code, 5 chat prompts.
+
+Finding: with the back-off gate off, chat prompts with tau < 1.5 (chat4: 1.40) run slower than spec-off (0.91x); the default
+`SpecGate` (backs off after consecutive passes with nothing accepted) is what protects them; its effect is part of the localeval
+runs in section 11.
+
+### 10.5 `--spec ngram` on CUDA (coordinator question: is it exact on the dense 8B?)
+
+Not reachable: `--spec ngram` is refused on CUDA at load ("--spec Ngram needs the Metal backend without tensor parallelism
+(backend cuda, tp 1)", `crates/intarsia-models/src/load.rs`; 18 of 18 runs of the 16 prompts plus the short and 4k prompts
+exited with that error, `raw/ngram-k4-ids.log`). So no CUDA user can hit the multi-row verify attention through ngram, and
+no ngram PR is needed. Metal is not affected by the CUDA attention-kernel finding of section 10.1 (it has its own row-exact
+verify contract, `docs/results/2026-10-15-metal-spec-g1.md`).
+
+The finding of section 10.1 does matter for the other speculative mode that is allowed on CUDA, `--spec mtp`: its verify
+passes take the same `AttnPrefill` multi-row call. The MTP gates on the hybrid 35B (10 attention layers of 40) were bitwise at
+128 and 1024 context; a model with more attention layers or longer contexts is the case the dense 8B probe says can flip a
+near-tie argmax. Not measured here (no dense MTP checkpoint on spark1 besides the 27B, which belongs to another lane). Cheap
+mitigation if wanted: switch `Backend::verify_attn_per_row` on for CUDA when `--spec mtp` is on (cost measured in section 10.1:
+verify16 1.32x vs 1.19x a decode step).
+
+## 11. Phase 3: DCOCO corrector (`--spec dflash --spec-draft DIR --dcoco`)
+
+Code: `crates/intarsia-core/src/model/dcoco.rs` (top-16 per slot on the device via `topk_rows`, `W_cand E[c]`, `W_ctx h` and the
+two halves of `W_pair` as bf16 projections, host-side lazy prefix-first walk of 14 x 16 transitions). Written from the paper and the
+checkpoint's tensor list; the unlicensed upstream repository was not read.
+
+### 11.1 Correctness gates (CUDA 8B)
+
+| gate | result |
+|---|---|
+| fixture: corrected drafts vs the MLX corrector (`tests/dflash_fixture.rs`, `raw/g6-fixture-dcoco-cuda.log`) | PASS 45/45 slots equal (real prefill through the taps, block rel-L2 1.4-3.0e-2); the corrected drafts differ from the plain argmax drafts, so the corrector is active |
+| G6 greedy ids == spec-off, 16 prompts, gate off (`raw/g6-dcoco.log`) | **PASS 16/16** |
+| G6 zero-MLP (`INTARSIA_DCOCO_ZERO=1`) reproduces plain DFlash | **PASS**: proposed/accepted counts identical to the plain DFlash run on all 4 prompts tried (math2 430/161, code1 516/154, chat2 1398/93, math5 544/154), ids identical to spec-off |
+
+### 11.2 Does it pay? (same 16 prompts, 192 tokens, gate off, spec-off 15.4 tok/s)
+
+| | pooled tau (accepted + 1) | pooled decode time vs plain DFlash |
+|---|---|---|
+| DFlash | 3.288 | 1.000 |
+| DFlash + DCOCO | 3.347 (**+1.8%**) | 1.078 (**7% slower**: a draft pass costs 25 ms against 16 ms, the corrector runs partly on the host) |
+
+Per prompt, DCOCO raises tau on 7 prompts, keeps it on 6 and lowers it on 3 (math3 7.96 -> 7.64, code5 6.33 -> 6.16, chat1 2.09 ->
+2.04); it is slower than plain DFlash on 15 of 16 prompts (only math6 gains, +9%). Full table: the analysis in `raw/g6-dcoco.log`
+against `raw/g4-tau-16.log`. The independent MLX run of section 10.3 gave the same +1.9%, so an implementation bug in either is unlikely.
+
+**G7 (DCOCO tau >= 1.10x DFlash and tok/s >= 1.05x): FAIL.** Coordinator rule (>= 5% pooled served gain and no category
+regressing): not met, so `--dcoco` stays an experimental opt-in flag. The paper reports tau 3.913 -> 4.985 (+27%) on ten
+suites with its own drafter training mix; our 16 single-turn prompts do not reproduce that. The assumption that might be wrong
+is that the checkpoint's corrector gain transfers from the paper's suites to these prompts; two independent implementations
+agree on the small gain. Phase 4 (HIP and Metal ports of DCOCO) is not warranted. DFlash itself on HIP/Metal is a follow-up
+(out of scope now).
+
+### 11.3 localeval, served, interleaved x3 (spark1, 8B BF16 CUDA, `intarsia serve --max-batch 1`, default back-off gate)
+
+Driver `scripts/dc/bench.sh`, summary `tools/dc/summarize_bench.py`, raw in `raw/bench/` (3 arms, filler sweep + gsm8k) and
+`raw/bench-cat/` (spec-off vs DFlash, `datasets/categories-rcp.jsonl`, 24 prompts x 256 tokens). Order per round: off, dflash,
+(dcoco); 3 rounds; one server start per arm.
+
+| set | spec off | DFlash | DFlash+DCOCO |
+|---|---|---|---|
+| categories-rcp, recall (8), decode tok/s | 15.4 | **28.6** (1.86x, range 1.86-1.87 over 3 rounds) | not run |
+| code (8) | 15.4 | **25.4** (1.65x) | not run |
+| prose (8) | 15.4 | 15.1 (**0.98x**; 6 of 8 prompts below 1.0: 0.92-0.96x, two above: 1.04, 1.14) | not run |
+| all 24 | 15.3 | 21.3 (1.39x, e2e 1.38x) | not run |
+| filler sweep, 1024 prompt, 1 stream | 15.2 | 18.1-18.9 | 15.1-18.4 |
+| filler sweep, 4 clients, serial server | 15.2 per stream | 19.8-20.0 | 16.3-17.2 |
+| gsm8k (20, ~12-token answers) score | 0.40 | 0.40 | 0.40 |
+
+Notes:
+- Answers: 0 of 72 answers differ between off and DFlash (greedy, text equality); gsm8k identical in all 9 runs.
+- "4 streams" is 4 concurrent clients on a serial `--max-batch 1` server, report-only, as agreed. Aggregate throughput cannot exceed
+  the 1-stream figure there; DFlash's value at 4 clients is the same per-request speedup, with queueing.
+- Prose regresses 2% with the default gate (pooled, stable over 3 rounds). The gate's `INTARSIA_SPEC_GATE` defaults were designed
+  for ngram/MTP; a DFlash-specific cost gate (a draft pass costs about 25% of a verify pass in time) would fix it. Not done: with
+  the flag off by default and the prose case 2% slower, I left the shared gate untouched.
+- DCOCO arm: only in the filler sweep (its prompts have low tau) where it is below plain DFlash; not repeated on categories-rcp since
+  section 11.2 already fails G7 (tau +1.8% at +7% decode time).
+
+### 10.6 `--spec mtp` failed to load on the 35B at `--max-seq 8192` (main as of 2026-10-26 ~00:30): not a limit, already fixed on main
+
+First try of the 35B MTP exactness check (back-off gate off, main binary built from origin/main `fecf2d24e`): all runs exited at model
+load with "MTP pass of 8192 rows at 0 (cap 8192, chunk 2048)" (`raw/mtp35-ids.log`). `--spec off` at the same settings loaded. A probe of
+the dev binary of this branch (cf84efa43 base, `raw/m35probe.log`) loads at `--max-seq` 4096, 6144 and 8192 with `--spec mtp`. The
+cause is the macro-prefill change #162 (35B CUDA recipe default 8192-row macro pass); origin/main `596b85eb8` ("Fix serve --spec mtp
+failing to start since #162") is the fix, and this branch now includes it (merge `b8fb4e6dd`). Nothing to do for this lane beyond
+re-running the 35B check on a fixed binary; this branch also turns the macro pass off when a DFlash draft is loaded (its feature taps
+are per chunk).
+
+## 12. DFlash cost gate and the default-on decision (coordinator request 2026-10-26): bar not met, DFlash stays opt-in
+
+Bar: spec-off vs DFlash with the gate, `categories-rcp`, interleaved x3; no category below 0.99x and recall/code within 3% of the
+ungated 1.86x/1.65x. Both runs: spark1, 8B BF16 CUDA, `intarsia serve --max-batch 1`, localeval, answers identical in 72/72.
+
+| run (raw) | gate | recall | code | prose | all 24 |
+|---|---|---|---|---|---|
+| section 11.3 (`raw/bench-cat/`) | none (only the shared back-off gate) | 1.86x | 1.65x | 0.98x | 1.39x |
+| gate v1 (`raw/gate/bench-cat/`) | measured-cost gate: window 8 consecutive, reprobe 64, plain steps still ingest | 1.85x | 1.63x | **0.98x** | 1.38x |
+| gate v2 (`raw/gate2/bench-cat/`) | smooth decision (running mean after 2 + 6 passes), reprobe 128, plain decode steps stash their features and the draft flushes them in one batch | **1.63x** (-12%) | **1.46x** (-11%) | 1.00x | 1.31x |
+
+Exactness: ids of `--spec dflash` equal spec-off on 18/18 prompts for the gate v1 and v2 builds, G0 (flags off) byte-identical to
+origin/main `b8fb4e6dd` (`raw/gate/g0-g3.log`, `raw/gate2/g0-g3.log`).
+
+What the diagnostic showed (`raw/gate/prosediag.log`, `prosediag2.log`, lighthouse prompt, 256 tokens, spec-off 16.64 s):
+- v1: plain steps under DFlash cost 67.4 ms against 65.2 ms (every step still ran the context projection) and the gate needed about 55
+  passes to fall back, because tau 1.4 sits at the 1.03 line and a consecutive-low counter keeps resetting: 17.59 s (0.95x).
+- v2: deferred ingest brings a plain step to 65.3 ms, the smooth decision falls back after about 19 passes: 16.38 s (1.02x).
+
+Why v2 failed the bar: the decision is taken on the first 8 passes of an answer, whose preamble accepts little ("Here is...", headings),
+and the fallback then lasts 128 tokens, so the high-acceptance body is decoded plainly. Recall-cpu-caches 1.58x -> 1.07x,
+code-bash-backup 1.55x -> 1.19x, code-lru-cache 1.97x -> 1.27x (round to round 1.25-1.96x: whether the gate fires at the start decides it).
+Prose lands at 1.00x only because it also falls back early.
+
+Two attempts at the gate failed the bar (v1 prose 0.98x; v2 recall/code -11 to -12%), so under the two-attempt rule I stopped.
+The assumption that looks wrong: that a mean over the first passes of a request predicts acceptance for the rest of it. A plausible third
+design (not tried): short fallback stretches (reprobe 16 to 32 tokens, cheap now that plain steps do not ingest) with the decision window
+reset by the first accepted run of 3+ tokens, or deciding per sliding window of the last 16 passes. Held-out check: not run, because the
+`categories-rcp` bar was not met; the 12 fresh prompts written for it (`tools/dc/heldout_prompts.jsonl`, 4 prose, 4 chat, 2 code,
+2 recall, written before the gate v2 result and never used for tuning) are ready to run.
+
+Shipped state (updated 2026-10-26): the v2 gate stays in the code (measured, ids-identical) but is OFF by default under `--spec dflash`
+(`CostParams` DFlash default `min_speedup = 0`, recipe `[dflash] cost_min_speedup = 0`). v2 trades 12% of the recall/code gain for prose
+parity, so ungated DFlash with the shared back-off gate (section 11.3: 1.86x / 1.65x / 0.98x) is what an opt-in user gets; the v2 gate is one
+switch away (`INTARSIA_SPEC_COSTGATE=1`, or `cost_min_speedup = 1.03` in `[dflash]`). No defaults change anywhere for runs without `--spec dflash`.
+
+## 13. 35B `--spec mtp`: ids-exact at long context only with per-row verify attention (now the default on CUDA)
+
+Not part of the DFlash work; found while checking that the #162 MTP load fix left `--spec mtp` exact. Model `nvidia/Qwen3.6-35B-A3B-NVFP4`
+on spark1 (GB10), `--spec mtp --spec-k 2` vs `--spec off`, greedy, 128 ids, raw repo-doc prompts (`scripts/dc/gates.sh mtp35`).
+
+**Finding.** The multi-row verify attention is not bitwise the single-row decode kernel at large positions (same cause as section 10.1), so
+speculation changed the ids at 16k and 32k:
+
+| context (prompt tokens) | multi-row (main `b8fb4e6dd`) | per-row, `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=1` | new default (no env) |
+| --- | --- | --- | --- |
+| 4k (3.3-3.5k) | 3 of 3 identical (`raw/mtp35-ids2.log`) | not run | 3 of 3 (`raw/mtp35-ids6-default.log`) |
+| 16k (13.7-15.4k) | 1 of 3 (`raw/mtp35-ids3.log`); first diff at id 17, 18 | 2 of 2 (`raw/mtp35-ids4-perrow.log`) | 3 of 3 |
+| 32k (27.4-28.1k) | 0 of 3 (`raw/mtp35-ids3.log`) | 2 of 2 (`raw/mtp35-ids5-perrow32k.log`) | 3 of 3 |
+
+The first 16k/32k run (`raw/mtp35-ids2-undersized-ctx.log`) is invalid: prompts over the 20480-token context, so off and mtp both errored. The script now
+sizes prompts at 2.3 chars per target token.
+
+**Decision (coordinator, 2026-10-26).** Accuracy ranks above speed: `--spec mtp` on CUDA runs per-row verify attention by default
+(`Backend::prefer_verify_attn_per_row`, called when the model loads an MTP head). Opt-out: `INTARSIA_CUDA_VERIFY_ATTN_PER_ROW=0` (back to the multi-row call;
+proof it is the old behaviour: 16k prompts 0 and 1 differ again, `raw/mtp35-ids7-optout.log`). No recipe key exists for this; none added. Documented in `docs/tuning.md`.
+HIP was per-row already; Metal and other backends are unchanged. Gate: 9 of 9 prompts (3 each at 4k, 16k, 32k) identical with the new default.
+
+**Speed.** `scripts/dc/bench35.sh`: `localeval speed` sweep (fleet method, 128 forced tokens, 3 reps, 1 stream) on a `serve --max-batch 1` server per arm, arms
+interleaved x2 in one fleetq window (`raw/bench35/`, localeval runs `results/20261026-0619..0628-adhoc-dc35-*` in /opt/code/deepeval). Decode tok/s, median of
+3 reps, then mean of the 2 rounds (round values in brackets):
+
+| prompt tokens | spec off | mtp multi-row (`=0`) | mtp per-row (new default) | per-row vs off | per-row vs multi-row |
+| --- | --- | --- | --- | --- | --- |
+| ~4.1k | 81.3 [81.2, 81.5] | 95.5 [98.4, 92.6] | 100.4 [98.6, 102.3] | 1.23x | 1.05x |
+| ~16.7k | 73.8 [73.6, 74.0] | 80.8 [82.1, 79.5] | 84.2 [86.9, 81.6] | 1.14x | 1.04x |
+| ~33.9k | 66.3 [65.9, 66.7] | 63.0 [62.2, 63.7] | 70.6 [73.1, 68.1] | 1.06x | 1.12x |
+
+Reading: per-row is NOT slower than spec-off at any length measured, and not slower than multi-row (the 4-5% gaps at 4k and 16k are inside the
+rep ranges, i.e. noise; at 32k it is faster). Multi-row at 32k is slower than spec-off (0.95x). A likely reason per-row does not cost speed here: the
+captured speculative step (`Model::spec_step_ok`) requires a per-row backend, so per-row also lets CUDA replay the captured verify step (not isolated by a
+separate measurement). Limits: the sweep prompt is localeval's filler text, whose draft acceptance is not representative of real answers (`raw/mtp35-ids4-perrow.log`
+shows 48-86% acceptance on repo-doc prompts, with per-row prompt 0 at 16k running mtp 73.9 vs off 75.5 tok/s, 0.98x); 1 stream only. So a low-acceptance prompt
+can still be slower than spec-off with per-row, as it can with any speculation.
+
+**G0 after the final merge** (branch head `4f80ef4f7` content vs origin/main `9e439f1b7`, 8B CUDA, flags off): `plan show` JSON 8758 B and text 1478 B byte-identical, 256 ids identical
+at short (md5 `b43773b5`) and 4k (md5 `8aca363b`) prompts (`raw/g0-noop-final.log`). The `--spec mtp` default changes nothing without `--spec mtp`.
+
+# CUDA MoE prefill L2-prefetch kernel (`INTARSIA_CUDA_MOE_W4A16_PF`): default-on
+
+Lane df, 2026-10-25. User decision 2026-10-25 00:06 EDT: "turn the MoE prefill speed-up on by default and use 8192-token prefill chunks on CUDA".
+This is the first half (the second is the chunk-8192 package). The kernel and its evidence are #129
+(`docs/results/2026-10-23-mp-cuda-moe-prefill.md`): the gate/up w4a16 routed-expert prefill schedule with L2 prefetch, for chunks of at most
+2048 tokens (64 pairs per expert at 256 experts, top-8), bitwise the same output as the old kernel. Speed is not re-measured here: #129's
+same-window numbers stand (prefill +7 % at 1k, ~+1 % at 4k and 16k, chunk 2048).
+
+Change: `pf_enabled` in `kernels/cuda/moe_w4a16.cu` is on unless `INTARSIA_CUDA_MOE_W4A16_PF=0`; `docs/tuning.md` row and a `docs/decisions/LOG.md` row.
+
+## Gates (spark2, `--quiet gpu,cpu`, lane-private golden dir `~/intarsia-decfuse/df-golden`, base = origin/main `73ac1bbf` build, dev = this branch)
+
+| gate | result | fleetq / raw |
+|---|---|---|
+| greedy ids, base (knob off, #129 merge) vs default build: 256 ids after a ~1.2k-token prompt and 64 ids after a ~4k-token prompt, Qwen3-8B and 35B | all four **identical** (35B 256 sha 2dd7fe93, 64 sha 5efcc225; 8B 256 sha e2c61289, 64 sha fcafb118) | #4965, `raw/dfA-noop/` |
+| `plan show` 8B (json) and 35B, base vs default build | byte-identical (8758 B, 3505 B): the plan does not name the knob | #4965 |
+| acc-short vs the committed CUDA baseline (`--pre-change c37a8d3`, stamped build) | PASS: prefill mean KL 6.82514e-3 (baseline 6.82514e-3, limit 7.84891e-3), decode 6.98641e-3 (6.98641e-3, 8.03437e-3): identical to main | #4977, `raw/dfA-acc3/` |
+| 3 KL goldens (short, long, 4k) at chunk 2048, knob unset | golden gate PASS x3; 21-way KL (scored rows) 5.408e-3 / 1.417e-2 / 1.214e-2, the same as #129's knob-on run; the full tables equal #129's control on main's build (`mpgA0`) line for line except the ref-noise sidecar path | #4966, `raw/dfA-acc/` |
+| prefix-reuse gate at chunk 2048 with the CPU continue oracles | PASS (5 of 5 judged) | #4967, `raw/dfA-gb/` |
+| `batch_cuda_real` (35B and 8B) | 3 passed, 0 failed, FAILED count 0 | #4967 |
+| `batch_cuda_real --ignored real_35b_batched_engine_long_prompts_equal_the_local_engine` | 1 passed, 0 failed | #4967 |
+| backend-cuda `moe_w4a16` (bitwise PF 0/1 x BM auto/32/64), `quantmoe`, `moe_nvfp4`; `docs_env_vars` | 4 / 13 / 5 passed, 2 passed | #4968 |
+| `intarsia kernels test --quick`, knob unset and `=0` | 77 kernels, 531 cases, 0 FAIL, both | #4968, `raw/mp-kt-*.txt` |
+
+The two binaries are the same code except the default (`INTARSIA_BUILD_STAMP` head 58602d3, code-tree 4a60e99bfa39). Opt-out: `INTARSIA_CUDA_MOE_W4A16_PF=0`.
+
+# hd: dense Qwen3-8B batched decode on HIP (lane hd, 2026-10-25)
+
+Branch `lane-hd/hip-dense-batching`. The gates ran on `main` 70ba3d22 plus this change. The branch was then rebased onto a later main
+whose new commits do not touch the 8B's HIP path: mxfp4 kernels, the prefill tail peel (off unless a recipe sets it, and `qwen3.toml`
+does not) and the MTP draft vocabulary. The guard that refused `--max-batch N` (N > 1) for dense models on HIP
+(`hip_batch_needs_hybrid`, commit 1ff822ac9, LOG row 2026-10-23 15:00) is removed, with its unit test `hip_guard_tests`. No kernel or
+engine code changes: the dense batched step was never stuck. Lane hb's run of the test was stopped before the test could finish
+(section "Why lane hb saw no output", with a control run on the tree of that day).
+
+## Result
+
+`real_qwen3_8b_batched_decode_is_bitwise_the_solo_step` (`crates/intarsia-models/tests/batch_cuda_real.rs`, assertions unchanged) on HIP,
+tatooine card 0 (R9700), Qwen3-8B bf16, guard removed, fleetq #5345:
+
+- **17,550 (row, step) pairs bitwise identical**: every N from 2 to 16, 130 consecutive steps each. The logits match bit for bit, the
+  on-device argmax token matches token for token, and the state is identical.
+- **577 s** for the whole test (571.6 s in the gate). Raw: [raw/2026-10-25-hd/run-1025-131205.log](raw/2026-10-25-hd/run-1025-131205.log).
+
+| N | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| gate time for 130 steps (s) | 10.7 | 13.7 | 17.2 | 20.5 | 24.1 | 27.5 | 31.0 | 47.6 | 41.6 | 47.7 | 48.9 | 53.9 | 56.8 | 61.6 | 67.6 |
+| batched step (ms) | 26.7 | 27.2 | 27.4 | 27.6 | 28.2 | 28.5 | 29.3 | 130.8 | 57.9 | 78.2 | 60.5 | 72.5 | 68.5 | 78.3 | 97.6 |
+| its N solo steps (ms) | 55.3 | 77.7 | 103.6 | 129.3 | 155.4 | 181.2 | 207.4 | 233.1 | 259.4 | 285.6 | 312.1 | 338.5 | 364.9 | 391.5 | 418.4 |
+
+Card 0 VRAM held steady at 25.4 GB (16.4 GB weights; 32 sequence states of 2,048 tokens of KV, 4.8 GB; workspace). GTT stayed at
+20 MiB, so nothing spilled to host memory.
+
+## Why lane hb saw "no output"
+
+The gate prints nothing until it ends, and on HIP it runs every N from 2 to 16. That is 135 rows x 130 steps = 17,550 solo reference
+steps of the dense 8B. Each one streams the 16.4 GB of bf16 weights at about 26 ms (about 630 GB/s, the card's bandwidth), so the solo
+reference alone takes about 460 s. The batched steps take another 110 s. Lane hb stopped the test at 8 minutes (480 s, fleetq #4592),
+before it could end. The 188% CPU it reported fits a host that is busy launching and waiting on the GPU, not a stuck host loop. For comparison, the
+hybrid 35B gate, with the same pair count, finishes in 205 s: about 3B active parameters in NVFP4 make its solo step several times
+cheaper.
+
+Control run, so that the result does not depend on later HIP work (row tables, batch graphs, new rows kernels). The tree the guard
+was added to (f3b9f19e5, the parent of 1ff822ac9, no guard yet) ran the same test unchanged, with a 25-minute cap (fleetq #5363):
+**17,550 pairs bitwise identical in 606.7 s**, test 612.8 s. Raw: [raw/2026-10-25-hd/control-f3b9f19e5.log](raw/2026-10-25-hd/control-f3b9f19e5.log).
+So the dense batched step worked on HIP when the guard went in. Lane hb's 480 s was simply shorter than the test.
+
+The gate now prints a line per batch size (time for its 130 steps, the batched and the solo ms per step), the prefill time and the
+batch KV plan (`common/batch_identity.rs`, `batch_cuda_real.rs` `load_with`). A long run is then visibly progressing. These are
+progress lines only; no assertion changed.
+
+## What changes for users
+
+`serve --max-batch N` (2..=16) on HIP now batches dense models too, opt-in as before. Without `--max-batch` nothing changes. This
+follows from removing the guard, which was the only HIP-specific refusal on the `load_engine` path (`Model::allow_recurrent_batch`).
+The served path itself was not run for the 8B here (see Open). The dense
+batched step runs the same kernels the gate proves bitwise: row tables, a graph per row count, `matmul_bf16_gemv_rows` and
+`logits_bf16_gemv_rows`. The busy prefill chunk for a dense model stays 256. Prefill in a busy engine is therefore bitwise the solo
+prefill only where the chunk schedules coincide, the same as dense on CUDA (`docs/tuning.md`, Batch row).
+
+## Open
+
+- **Batched dense step above 8 rows:** 29.3 ms at N = 8, then 57.9 to 130.8 ms at N = 9..16 (97.6 ms at 16). So 16 rows decode
+  164 tok/s in the model loop against 273 at 8 rows. This is the same register cliff lane mr found and fixed for
+  `logits_bf16_gemv_rows` (`gemv_kernel<M, 2, 4>` spills from M = 9, docs/results/2026-10-25-mr-hip-logits-rows.md).
+  `matmul_bf16_gemv_rows`, which carries every dense projection, still uses that template. It is a speed lever, not a correctness
+  issue: the rows stay bitwise. N = 9 is slower than N = 10; that is not explained.
+- Not measured here: served speed of the dense 8B at 4 and 16 streams on HIP, and an engine-level identity test for the dense model
+  (the 35B has `real_35b_batched_engine_equals_the_local_engine`; there is no 8B twin on any backend).
+
+# hg: the served-vs-in-process decode gap on HIP (2026-10-25)
+
+Lane hg, Qwen3.6-35B-A3B NVFP4 on one R9700 (tatooine, `serve --backend hip --max-batch 16`, base `origin/main` 73ac1bbf for the measurements, 2c2d9941 for the gates). Follows [hr3](2026-10-24-hr3-hip-batching-r3.md) (PR #127). Branch `lane-hg/hip-serve-gap`, PR #133.
+
+Machine-readable trace: [trace.json](2026-10-25-hg-hip-serve-gap/trace.json). Raw logs and scripts: `2026-10-25-hg-hip-serve-gap/raw/`, `scripts/hg/`.
+
+## 1. Result
+
+**There is no host-overhead gap to close.** hr3 left 212.6 / 257.1 tok/s served at 4 / 16 streams against 294 / 385 in the in-process step test and put the difference down to "5-20 ms per step outside the model step". Measured with a per-phase host timeline of the serving scheduler, that is wrong:
+
+| 16 streams decoding, 35B | served | in-process step test |
+|---|---|---|
+| decode-only iteration | **42.2 ms** (256-iteration window) | 41.6 ms |
+| steady aggregate decode | **375.6 tok/s** (15 streams: 378-389) | 385 tok/s |
+| GPU idle between two decode steps | **0.025-0.030 ms** | |
+| host work outside the model step (prepare, accept, detokenize, SSE send, metrics) | **about 0.07 ms** per step (0.2%) | |
+
+The remaining 2.4% between 375.6 and 385 is within the 15-stream run-to-run spread (378.1 / 382.3 / 387.5 / 389.4 on four server starts) and 16 against 15 rows.
+
+The gap is the metric. `localeval speed --concurrency` divides all generated tokens by the wall time of the whole burst (`speed.py:133`), and that wall contains the prefill of every prompt. With the hr3 doc's own numbers (991-token prompts at about 6.1k tok/s prefill, 128 decode steps of 41.6 ms at 16 rows and 13.6 ms at 4 rows):
+
+| streams | prefill (N x 991 / 6.1k tok/s) | decode (128 x step) | predicted wall | predicted tok/s | served (hr3) |
+|---|---|---|---|---|---|
+| 4 | 0.65 s | 1.74 s | 2.39 s | 214.3 | 212.6 |
+| 16 | 2.59 s | 5.33 s | 7.92 s | 258.6 | 257.1 |
+
+Both within 1%. The 16-stream burst spends 2.6 of 7.9 s in prefill, one prompt at a time.
+
+The radiance lead (native 1.11.0, device-side speculative acceptance, cb5a69a) was not inspected at the commit; it targets speculative acceptance, and intarsiaml's greedy batched path has no per-step host sampling to move (argmax runs on the device, 64 bytes come back) and only 0.07 ms of host work per step. What exists on HIP: nothing of either. `INTARSIA_DEVICE_SAMPLING=1` (`model/batch.rs:159`) needs `Backend::supports_topk`, which only the CUDA backend overrides (`intarsia-backend-cuda/src/device.rs:295`; default false at `backend.rs:319`), so it is a no-op on HIP; `INTARSIA_OVERLAP` (`engine/batch.rs:59-61`) is documented CUDA only. Neither affects this greedy benchmark (argmax runs on the device) and neither was changed.
+
+## 2. Host timeline (`INTARSIA_HOST_PROFILE=1`)
+
+New, off by default, measures only. One `host-profile` line per 256 iterations of each class (decode-only, decode+prefill, prefill-only) on stderr: mean ms per iteration per phase. Decode-only iterations with 14.6-16 rows, 35B, graph replay, greedy (`raw/dev-prof.log`, `raw/host-profile-table.txt`):
+
+| rows | wall ms | reap+admit | prepare | step-setup | upload | launch (graph replay call) | sync (wait for GPU) | step-tail | accept | metrics | on_token | detok | send | finish | gap |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 16.0 | 42.163 | 0.000 | 0.000 | 0.001 | 0.011 | 3.528 | 38.595 | 0.000 | 0.000 | 0.001 | 0.001 | 0.009 | 0.016 | 0.000 | 0.030 |
+| 15.6 | 41.974 | 0.000 | 0.000 | 0.025 | 0.008 | 3.479 | 38.438 | 0.000 | 0.000 | 0.000 | 0.001 | 0.007 | 0.014 | 0.000 | 0.025 |
+| 15.1 | 39.529 | 0.000 | 0.000 | 0.001 | 0.008 | 3.373 | 36.125 | 0.000 | 0.000 | 0.000 | 0.001 | 0.008 | 0.010 | 0.000 | 0.023 |
+| 3.95 | 13.950 | 0.000 | 0.000 | 0.048 | 0.005 | 1.505 | 12.385 | 0.000 | 0.000 | 0.000 | 0.000 | 0.002 | 0.003 | 0.000 | 0.007 |
+
+The `launch` column is host time inside the graph-replay call (the GPU starts on the first kernels while the host is still queuing the rest); `launch + sync` is the model step. `gap` is the time from the sync of one decode step returning to the next step's launch beginning: the span the GPU has nothing queued. Everything the brief listed as candidates (scheduler and admission, tokenizer and detokenize, sampling, copies, locks, SSE writes) is under 0.05 ms in total.
+
+Prefill iterations: a 1k prompt prefills as one 125-145 ms chunk (7.3k tok/s) with the solo chunk of 4096; 16 prompts in a burst are 16 such iterations, one per scheduler iteration, interleaved with one decode step of the already-running rows ("decode+prefill" 151-169 ms: about 23 ms decode plus 114-142 ms prefill).
+
+## 3. Stall when a prompt arrives during decode
+
+`scripts/hg/stall.py`: 15 streams (1k prompt, 512 generated) decode; once all have their first token, a 1k and then a 4k prompt (8 generated tokens) arrive. The 15 streams' per-token latency from the arrival to the new request's first token, 35B, one R9700:
+
+| `--busy-chunk` | steady ITL p50 / p99 (15 streams) | 1k arrival: TTFT, ITL mean / p99 / max of the 15 | 4k arrival: TTFT, ITL mean / p99 / max |
+|---|---|---|---|
+| 4096 (HIP default) | 38.6 / 54.5 ms | 0.22 s, 70.9 / 168 / 168 ms | 0.59 s, 130 / 430 / 430 ms |
+| 1024 | 38.2 / 54.8 ms | 0.30 s, 76.1 / 170 / 170 ms | 0.79 s, 107 / 162 / 162 ms |
+| 256 | 38.1 / 54.0 ms | 0.53 s, 83.4 / 107 / 107 ms | 1.87 s, 97.0 / 123 / 124 ms |
+
+Steady aggregate with 15 streams: 378.1 / 382.3 / 387.5 tok/s (default / 1024 / 256), the same within the run-to-run spread.
+
+The default stays 4096 on HIP: `load.rs:447-457` makes the busy chunk the solo chunk so that prefill beside decoding rows is bitwise the solo prefill (a smaller chunk changes the GEMM tiling; 1024 against 2048 measured KL 7.87e-3, 2.5x the ref-noise floor, on CUDA, [rb2](2026-10-23-rb2-cuda-batching.md) section 11). The table is the price of that: a 4k prompt arriving stalls every decoding stream for one ~430 ms chunk; `--busy-chunk 256` trades it for a 2.4-3.2x longer TTFT of the arriving prompt and is not bitwise (run `accuracy` before using it). The default stays in this PR; whether to change it is a user decision (open).
+
+Not measured here: 16 simultaneously decoding streams plus an arrival (the 16th slot is the arrival); `stall-dev-16.json` in `raw/` is a first run whose arrivals queued behind 16 busy slots, only its steady figures (375.6 tok/s, ITL p50 40.9 ms) are used.
+
+## 4. What the PR contains
+
+* `INTARSIA_HOST_PROFILE=1` (`crates/intarsia-core/src/hostprof.rs`, spans in `scheduler.rs`, `engine.rs`, `model/batch.rs`, `model/graph_step.rs`). Off: one relaxed atomic load per span.
+* `Telemetry::record_ops`: a graph replay counted its ~1,000 ops with one lock each; now one lock per replay. Telemetry only.
+* `docs/tuning.md` rows (knob, stall table), LOG row, this doc, `scripts/hg/` (stall.py, steady.sh, window and gate scripts).
+
+No kernel, plan, schedule or output changes. Batching off, nothing in the engine path differs.
+
+## 5. A/B against origin/main (same fleetq slot)
+
+`scripts/hg/ab.sh`: server restarted per visit (`win.sh up`), arms `base` (origin/main), `pk` (the packed-prefill build of PR #137, knob unset: it contains this PR's code and nothing else active), `pkpack` (same build, `INTARSIA_PACK_PREFILL=1`). Per visit: 2 rounds of `localeval speed` (1k prompt, 128 generated, 1 / 4 / 16 streams; 4k prompt, 4 streams) and `scripts/hg/stall.py` steady-state decode with the client-side inter-token latency (ITL, SSE timestamps, per-stream, 2 s window after every stream has its first token). `localeval`'s concurrency rows do not report ITL, so ITL comes from `stall.py`. Tables: median over rounds x visits, (min-max, n).
+
+The "1 stream" row is `localeval speed`'s single-stream decode figure (prefill excluded).
+
+### 5.1 Window B2 (fleetq #5054, visits base pk pkpack pkpack pk base)
+
+| load | origin/main | packed-prefill build, knob unset | INTARSIA_PACK_PREFILL=1 |
+|---|---|---|---|
+| 1 stream: tok/s | 162.8 (162.7-163.3, n=4) | 163.3 (159.7-165.9, n=4) | 162.5 (161.2-163.0, n=4) |
+| 4 streams @1k: tok/s | 214.9 (200.9-216.4, n=4) | 210.8 (207.6-215.5, n=4) | 227.2 (227.1-229.3, n=4) |
+| 16 streams @1k: tok/s | 259.7 (258.7-260.2, n=4) | 259.1 (256.2-260.6, n=4) | 288.2 (282.4-290.7, n=4) |
+| 4 streams @4k: tok/s | 146.1 (145.8-146.3, n=4) | 142.8 (141.6-145.3, n=4) | 145.6 (145.4-145.8, n=4) |
+
+| burst TTFT median s | origin/main | packed-prefill build, knob unset | INTARSIA_PACK_PREFILL=1 |
+|---|---|---|---|
+| 4 streams @1k | 0.37 (0.36-0.38, n=4) | 0.39 (0.37-0.41, n=4) | 0.46 (0.43-0.46, n=4) |
+| 16 streams @1k | 1.35 (1.33-1.36, n=4) | 1.35 (1.34-1.39, n=4) | 0.97 (0.95-0.98, n=4) |
+| 4 streams @4k | 1.02 (1.02-1.03, n=4) | 1.07 (1.02-1.08, n=4) | 1.03 (1.03-1.04, n=4) |
+
+| steady decode (stall.py), n streams | origin/main | packed-prefill build, knob unset | INTARSIA_PACK_PREFILL=1 |
+|---|---|---|---|
+| 1 | 162.9 tok/s, ITL p50 6.1 / p99 12.4 ms | 163.8 tok/s, ITL p50 3.1 / p99 24.8 ms | 163.1 tok/s, ITL p50 6.1 / p99 11.4 ms |
+| 4 | 285.4 tok/s, ITL p50 13.5 / p99 36.7 ms | 287.0 tok/s, ITL p50 13.5 / p99 25.5 ms | 283.2 tok/s, ITL p50 13.5 / p99 26.1 ms |
+| 16 | 386.8 tok/s, ITL p50 40.9 / p99 57.7 ms | 383.6 tok/s, ITL p50 41.0 / p99 58.4 ms | 391.2 tok/s, ITL p50 39.8 / p99 56.6 ms |
+
+### 5.2 Repeat (fleetq #5085, visits pk base pk base)
+
+The first run read low for the knob-unset build in two places: the 1-stream burst row (127 against 136 tok/s in 3 of 4 pk rounds, 136 in the others) and 4 streams at 4k (142.8 against 146.1). The knob-on arm, which runs the same binary, did not show it, and nothing in the unset path differs from main's except the profile spans (one atomic load each). The repeat, four more visits in ABAB order, shows no difference:
+
+| load | origin/main | packed-prefill build, knob unset | INTARSIA_PACK_PREFILL=1 |
+|---|---|---|---|
+| 1 stream: tok/s | 163.0 (162.8-163.1, n=4) | 163.1 (162.6-163.8, n=4) | - |
+| 4 streams @1k: tok/s | 215.2 (212.4-217.8, n=4) | 215.0 (213.4-217.6, n=4) | - |
+| 16 streams @1k: tok/s | 260.4 (259.7-260.9, n=4) | 260.1 (258.9-260.9, n=4) | - |
+| 4 streams @4k: tok/s | 146.2 (145.7-146.4, n=4) | 146.1 (145.7-147.4, n=4) | - |
+
+| burst TTFT median s | origin/main | packed-prefill build, knob unset | INTARSIA_PACK_PREFILL=1 |
+|---|---|---|---|
+| 4 streams @1k | 0.38 (0.37-0.39, n=4) | 0.38 (0.35-0.38, n=4) | - |
+| 16 streams @1k | 1.33 (1.30-1.35, n=4) | 1.33 (1.32-1.36, n=4) | - |
+| 4 streams @4k | 1.02 (1.02-1.03, n=4) | 1.02 (1.01-1.03, n=4) | - |
+
+| steady decode (stall.py), n streams | origin/main | packed-prefill build, knob unset | INTARSIA_PACK_PREFILL=1 |
+|---|---|---|---|
+| 1 | 162.9 tok/s, ITL p50 6.1 / p99 11.7 ms | 163.2 tok/s, ITL p50 6.1 / p99 16.7 ms | - |
+| 4 | 286.3 tok/s, ITL p50 13.4 / p99 30.1 ms | 284.2 tok/s, ITL p50 13.5 / p99 25.6 ms | - |
+| 16 | 382.7 tok/s, ITL p50 41.2 / p99 57.2 ms | 382.1 tok/s, ITL p50 40.8 / p99 57.4 ms | - |
+
+Read: knob-unset equals origin/main within 0.1% on every row of the repeat (single stream decode 163.1 vs 163.0, 16 streams 260.1 vs 260.4). The low readings of the first run were not the build: the 1-stream burst row was bimodal inside one server start (136 then 127 in visit 2), the repeat shows both builds at the same level, and the cause (GPU clock state or similar) was not isolated. Single-stream is within the 1% allowance in both runs (+0.3% and +0.1%).
+
+## 6. Packed prefill (PR #137, separate, opt-in)
+
+The burst's serial prefill is the measured gap, so lane 4 of the plan is built on top of this PR: `INTARSIA_PACK_PREFILL=1` runs the next chunks of several waiting prompts as one pass (row-wise kernels once over all rows; attention and the GatedDeltaNet recurrence per prompt). From 5.1, knob on against origin/main: 16 streams 259.7 -> 288.2 tok/s (+11%, TTFT median 1.35 -> 0.97 s), 4 streams 214.9 -> 227.2 (+5.7%), 1 stream and 4 streams at 4k unchanged (a 4k prompt is a single chunk). It is not part of this PR's code. Gates run for it (HIP window #5054, CUDA spark1 #5090, Metal endor #5089): HIP knob-unset no-op identical to origin/main (8 comparisons); `batch_recurrent` 11 passed on hip and cuda, including the packed-vs-solo test; `packed_rows` 5 passed; `real_35b_packed_prefill_equals_the_local_engine` passed (24 requests, 6 sampled, 8 and 16 slots, every chunk packed); CUDA and Metal no-op identical. Details in PR #137.
+
+## 7. Gates
+
+Status at this commit:
+
+| Gate | Where | Result |
+|---|---|---|
+| Batching-off no-op, plan show (json + text) and 256 greedy ids, 8B and 35B, short and 4k, vs origin/main 2c2d9941 | CUDA, **spark1** (the brief named spark2; spark2's queue was 2h43m, spark1 was free; same hardware class) fleetq #4994 | all byte-identical (`raw/cuda-spark1-job.log`, `raw/cuda/`) |
+| same | Metal, endor #4995 | all byte-identical (`raw/metal-job.log`, `raw/metal/`) |
+| Metal `kernels test` | endor | 44 kernels, 817 cases ADMITTED |
+| Workspace tests on the branch | endor (#5007) | everything passes except `intarsia-backend-cuda` `rows_registry` (2 tests), which fails identically on origin/main (checked in a separate worktree): pre-existing, not from this PR (`raw/metal-workspace-tests.log`) |
+| `cargo test -p intarsia-core --test scheduler` | local | 26 passed |
+| HIP batching-off no-op vs origin/main: plan show (json, text) and 256 greedy ids, 8B and 35B, short and 4k | tatooine, fleetq #5017, one R9700 per tree | all 8 comparisons identical (ids sha 5d882689 / 6203ecdb 8B, 0d079dea / d626e2f1 35B; plan json 8343 / 12961 B, text 1346 / 3184 B) (`raw/hip/gates-run.log`) |
+| HIP `batch_recurrent --test-threads=1` | #5017 | 10 passed, 0 failed |
+| HIP 35B `batch_cuda_real` (hip backend) | #5017 | 2 passed (35B batched decode bitwise solo, 35B engine equals LocalEngine) |
+| same, `--ignored real_35b_batched_engine_long_prompts_equal_the_local_engine` | #5017 | passed (56.8 s) |
+| `batch_cuda_real real_qwen3_8b_batched_decode_is_bitwise_the_solo_step` (dense 8B) | #5017, rerun with `INTARSIA_QWEN3_DIR` | **not applicable on HIP**: `Model::allow_recurrent_batch` refuses a dense model on hip (`hip_batch_needs_hybrid`, `model/batch.rs:781`, unchanged here); the refusing code is not touched by this PR, so the test cannot pass on origin/main either (not run there). The first run failed earlier on the unset env var (`raw/hip/g-8b.log`) |
+| HIP `kernels test --quick` | #5017 | 62 kernels, 333 cases, all ADMITTED |
+| HIP `packed_rows` (row-invariance of the 35B prefill kernels; for the packed-prefill PR) | #5017 | 5 passed: `matmul_nvfp4_mma`, `matmul_bf16`, `moe_topk_bf16_v2`, `moe_experts_bf16_v2` give each row the same bits packed (6 segments, 4,167 rows) as alone; a 15-row segment differs, 16 and up do not |
+
+radiance was restored and answered (`active`, 30 s) before the slot was released.
+
+## 8. Reproduce
+
+```
+# window (tatooine, fleetq job with --takes-down radiance --quiet gpu,cpu): scripts/hg/win.sh up hg <label> INTARSIA_HOST_PROFILE=1
+# steady state and stall: python3 scripts/hg/stall.py --url http://tatooine:8294/v1 --streams 15 --gen 512 --inject 1024,4096
+# no-op gates: scripts/hg/{hip-gates,cuda-noop,metal-noop}.sh (noop.sh run|cmp)
+```
+
+fleetq jobs: tatooine #4983 (window A: profile, stall); gates HIP, CUDA spark1 #4994, Metal endor #4995 and #5007.
+
+# l5r7: z-fast launch order for the grouped MoE projections (35B prefill)
+
+Branch `lane-l5r7/moe-zfast` (merged with origin/main 6b01ead74). Raw logs: `docs/results/2026-10-25-l5r7-moe-zfast/raw/{g1,g2,g3,ab}`.
+Origin: the fp8 WMMA lane (docs/results/2026-10-25-l5-moe-fp8-wmma.md) found most of its 1.30x over r7 was launch order, not the kernel. This lane keeps only the launch order.
+
+## Change
+`kMwZFast` in `moe_wmma.h`, `moe_wmma_r7.h`, `moe.hip`: grid is (pair tile, feature tile, expert slot) instead of (slot, feature tile, pair tile), so the pair tiles of one expert run together and share its weights through the L2. Same arithmetic per output element, so the output is bit for bit the same. Default ON; `INTARSIA_HIP_MOE_ZFAST=0` restores the old order (docs/tuning.md).
+
+## Served A/B (localeval speed, 35B, card 1, `--max-batch 1`, interleaved base/dev x3 visits, 3 reps each)
+Prefill tok/s, mean of 9 reps per arm (per-visit values in raw/ab/v*.txt):
+
+| prompt tokens | base | z-fast | prefill change | TTFT base -> z-fast |
+|---|---|---|---|---|
+| 512 | 4805 | 4896 | +1.9% | 0.101 -> 0.103 s |
+| 2048 | 8833 | 9274 | +5.0% | 0.226 -> 0.217 s |
+| 4096 | 9840 | 10336 | +5.0% | 0.416 -> 0.394 s |
+| 16384 | 8731 | 9190 | +5.3% | 1.908 -> 1.812 s |
+
+Consistency: at 16384 the per-visit means are base 8698/8780/8715, dev 9204/9177/9189 (every dev rep above every base rep). At 4096 the per-visit means are base 9592/10016/9912, dev 10383/10285/10341. Decode is not affected by the change; its numbers are noisy in this harness (spread 15 to 29% per visit, plus one implausible 5373 tok/s mean at 16384 base that comes from the harness output, not checked), so no decode claim is made. Stop rule was 3% served gain at 4k: met (5.0%).
+
+## Gates (all with the knob at its default ON unless noted)
+| gate | result | logs |
+|---|---|---|
+| tests/moe_pairs.rs (new order vs old order, bitwise), quantmoe | pass | g1, g2 hip_tests.log |
+| G-C batched==solo 35B, 17,550 pairs | identical, 166.8 s, 3/3 tests (on the merged tree) | g3/batch_cuda_real.log |
+| long-prompt engine test | pass | g1/g2 batch_cuda_real_long.log |
+| no-op: `plan show` + 256 ids, 35B and 27B | byte-identical to main | g1/g2 plan-*, gen-n35-* |
+| self-golden short (826,116 B) / long (19,198,812 B) | byte-identical to main; knob-off control too | g1/g2 *-short.log, *-long.log |
+| decode KL vs tracked baseline (floor 3.0e-2) | short 1.214e-2, long 9.273e-3, same for base and dev | g2 |
+
+Because the output is bitwise the same, no accuracy lanes (GSM8K, MTP) were needed beyond the identity checks above.
+
+## Status
+Draft PR, not merged: the coordinator/user decides. The window on tatooine ran under slot #5577 (released; rank1 restored per fleetq).
+
+# l7: grouped MoE block for 5 to 16 rows (HIP, Qwen3.6-35B-A3B, one R9700)
+
+Branch `lane-l7/moe-block-rows`, lane 7 of `docs/plans/2026-10-25-r9700-push.md`. Status: built, gates pass, default-on. Section 0 is the scope note as committed before any code; sections 1 to 5 are the results.
+
+## 0. Scope note (written before any code)
+
+### What the model runs at 5 to 16 rows today
+
+`MOE_BLOCK_ROWS_MAX = 4` (`crates/intarsia-backend-hip/src/quantmoe.rs`), so from 5 rows the model takes the unfused chain of
+`crates/intarsia-core/src/quant/moe.rs` `forward_folded`. Counted from the source and the hr3 OPLIST (`w7-step-profile.log`, `batch16`):
+
+| op (per layer) | kernel | launches at 16 rows (8 rows) |
+|---|---|---|
+| router, shared-gate logit | `matmul_bf16_gemv_rows` x2 | 2 (2) |
+| `moe_topk` | `moe_topk_bf16_v2` | 1 (1) |
+| `moe_experts` | `moe_experts_bf16_rows`: `moe_group_kernel`, `moe_gate_up_kernel`, `moe_down_kernel`, `moe_reduce_v8_kernel` (P = T*K > 16, so the grouped path, 8 pairs per weight pass) | 4 (4) |
+| shared gate, shared up | `matmul_nvfp4_gemv_rows`, rows in groups of at most 4 (`kRowsGroup`, `nvfp4.hip`), each group re-reads and re-decodes the weights | 8 (4) |
+| `silu_glu` | `silu_glu_bf16` (the fused `nvfp4_glu_kernel` is M = 1 only) | 1 (1) |
+| shared down | `matmul_nvfp4_gemv_rows` | 4 (2) |
+| `moe_combine` | `moe_combine_bf16` (`SharedDownCombine` is M = 1 only) | 1 (1) |
+| total | | **21 (15)** |
+
+The fused `moe_block_bf16_rows` (`moe_block.hip`) replaces everything after the two logit GEMVs with one launch, but it reads every
+token's 8 experts separately (no sharing between tokens that pick the same expert) and runs the shared expert once per token. hr3 s4: it
+wins up to 4 rows and loses past that (23.73 vs 22.21 ms at 8 rows, 47.57 vs 41.75 ms at 16).
+
+The unfused `moe_experts_bf16_rows` is **already grouped by expert** (the counting sort in `moe_group_kernel`, weights read once per expert and
+chunk of 8 pairs, per-pair arithmetic independent of the grouping, so token-exact). The plan's "block that groups tokens by expert" is
+therefore mostly there for the routed part. What is not grouped is everything around it.
+
+### Where the ms are (hr3 `real_35b_batch_step_profile`, B = 16, every op synchronised, 54.95 ms op sum, 41.6 ms unprofiled step)
+
+| piece | profiled ms/step | note |
+|---|---|---|
+| `moe_experts` (routed, 4 launches x 40) | 13.76 | bandwidth floor: about 100 distinct experts x 1.77 MB (gate_up 1.125 MB + down 0.56 MB incl. scales) x 40 = 7.1 GB; at the 585-627 GB/s measured read peak (`2026-10-13-hip-decode.md`) 11.3-12.1 ms, so at most about 1.1-1.5 ms is left in the kernels themselves |
+| shared expert: `matmul_nvfp4` 120 of 121 calls | about 4.6 (the 121st, the lm head, is about 3.0 at 16 rows per the `nvfp4.hip` comment) | 38 us per op profiled; a 0.5 MB weight is 1 us of traffic, so this is launch, tail and the 4x re-decode, not bandwidth |
+| `moe_topk`, `silu_glu`, `moe_combine` | 0.99 + 0.79 + 0.77 | mostly the per-op sync price (about 17 us per op: (55.6 - 41.6 ms) / 814 launches) |
+
+Not claimed: the profile syncs every op, so the sum overstates what graph replay pays. The plan's own bound for the routed part was about 4 ms; the
+kernel-only part of that is smaller (about 1.1-1.5 ms) if the 100-distinct-experts figure holds for real routing, which the profile does not record.
+
+### What I will change
+
+One new kernel entry, `moe_block_bf16_grouped`, registered for `Op::MoeBlock` for 5..16 rows (`rows_exact`), so the model's existing
+"gate logit first, then MoeBlock" path in `quant/moe.rs` takes it with no model change. Inside, a short chain of launches instead of a
+ticketed megakernel (no cross-block spin synchronisation to prove deadlock-free):
+
+1. `topk + group`: one block computes every token's top-k (`wave_topk`, the arithmetic of `moe_topk_v2_kernel`) and builds the expert-sorted pair
+   table (`moe_group_kernel`'s output), writing ids and weights.
+2. shared gate + up + silu for all rows in one pass over the weights (weights decoded once, one accumulator set per row, the lane order, the
+   16-element fma chain and the warp sum of `nvfp4_gemv_v2_kernel` per row, then `nvfp4_glu_kernel`'s epilogue rounding).
+3. routed gate_up and down (the existing grouped kernels, unchanged arithmetic) and `moe_reduce_v8`.
+4. shared down + combine epilogue for all rows in one pass (`shared_down_combine_kernel<1>`'s arithmetic per row).
+
+21 launches (15 at 8 rows) become about 8 including the two logit GEMVs. Every token's accumulation order is the order of the T = 1 block (each piece
+copies an already row-exact kernel's arithmetic), so it stays bitwise; `tests/moe_block.rs` is extended to compare 5..16 rows against the T = 1
+block, with a negative control. The fused `moe_block_bf16_rows` stays for 1..4 rows (it wins there).
+
+### Expected gain (central estimate, to be replaced by the microbench)
+
+What a removed launch is worth is not known well. Two data points disagree: `2026-10-19-p2prime-moeblock.md` s3 measured 3.9 us for a tiny
+1-block launch inside a graph replay (T = 1), while hr3's fused block at 3 and 4 rows (12.11 to 11.63 and 13.83 to 13.61 ms) removes about 9 launches
+per layer (360 per step) for a net 0.5 and 0.2 ms, i.e. only 0.6-1.3 us net per removed launch (the fused kernel has costs of its own).
+
+| lever | ms per step at 16 rows (8 rows) |
+|---|---|
+| 13 fewer launches x 40 layers, at 0.6-1.3 us net each | 0.3-0.7 (0.2-0.4) |
+| shared expert: one weight pass instead of 4 (2); 120 `matmul_nvfp4` ops at about 21 us real each (38 us profiled less the sync price) | 1.0-1.5 (0.4-0.8) |
+| routed kernels: not targeted in this phase (bound 1.1-1.5 ms) | 0 |
+| **total** | **about 1.3-2.2 ms of 41.6 = 3-5% model loop (8 rows: 0.6-1.2 of 22.2 = 3-5%)** |
+
+The bar is served tok/s, not the model-loop step: hr3 s4 has 62 ms served against 41.6 ms in the model loop at 16 streams (the served burst includes
+the prefills). 3% of served tok/s at 16 streams is about 1.9 ms per step (8.1 s burst wall x 3% / 128 steps), so the **go line is 1.9 ms
+of model-loop saving at 16 rows**, and the central estimate above straddles it. The first GPU window is therefore a microbench, with existing kernels only
+(`moe_rows_timing` in `tests/moe_block.rs`, T = 5, 8, 12, 16, graph replay, 16 layers): (a) the unfused chain as the model runs it, (b) topk + experts,
+(c) the shared pieces + combine, (d) one `matmul_nvfp4_gemv_v2` launch at M = 4 per shared matrix as an optimistic floor for a single 16-row weight pass,
+(e) a tiny launch, (f) the fused rows block, plus the distinct experts per layer. Available saving is about (c) - 3 x (d) plus the launch delta. **Build
+only if that reaches about 1.9 ms at 16 rows; otherwise the lane stops there and reports.**
+
+### Constraints for the build
+
+* The shared-expert arithmetic is copied from `moe_block.hip`'s own copies of the `nvfp4_glu_kernel` and `shared_down_combine_kernel<1>` epilogues, not
+  from `gemv_rows` + `silu_glu` + `moe_combine` (lane 1 option B may move those). The new op is tested against the T = 1 block and the unfused chain.
+* New device code goes in `moe_block.hip`; `nvfp4.hip` and `matmul.hip` belong to lane 1; the `quantmoe.rs` / `kernels.rs` registry diff stays minimal.
+* B = 1 no-op: the new kernel's scratch function must not enlarge the workspace when batching is off (hr3 once changed `plan show` that way).
+
+### Gates (from the lane table)
+
+`moe_block.rs` bitwise against the T = 1 block with a negative control; the 35B batched == solo G-C test (17,550 pairs); no-op at B = 1 (`plan show`
+and 256 ids identical to main); speed A/B with localeval at 1/4/8/16 streams, main against branch, interleaved x3.
+
+## 1. What was built
+
+* `kernels/hip/moe_block_grouped.hip`: `ik_moe_block_bf16_grouped`, registered `moe_block_bf16_grouped` for `Op::MoeBlock`, `rows_exact`, 3 to 16 rows.
+  Four launches: `moe_topk_bf16_v2`, `moe_experts_bf16_rows` (tokens grouped by expert, unchanged arithmetic), one shared-expert gate + up + silu pass for
+  all rows (`shared_glu_rows_kernel`), one shared-down + combine pass for all rows (`shared_down_combine_rows_kernel`). Per row the arithmetic is
+  `nvfp4_glu_kernel` / `shared_down_combine_kernel<1>`: same lane order, 16-element fma chains, scale per block, `ik_warp_sum`, same bf16 roundings.
+  The shared weights are read and decoded once instead of once per group of 4 rows.
+* `kernels/hip/moe.hip`: `moe_gate_up_g2_kernel<RW>` / `moe_down_g2_kernel<RW>`, the row-exact grouped projections with RW output rows per warp, no
+  shared-memory staging. Bit for bit the old kernels (same per-(pair, row) order); only the row-to-warp mapping and the loads differ. Used by
+  `moe_experts_bf16_rows` only. Knob `INTARSIA_HIP_MOE_G2=gu:dn`, default `2:2`, `0` = old kernels.
+* `quantmoe.rs`: the fused `moe_block_bf16_rows` keeps 1 to 2 rows while the grouped block is on (4 with `INTARSIA_HIP_MOE_GROUPED=0`); the grouped block serves 3 to 16.
+  Microbench: grouped is ahead of the fused rows block from 3 rows (118 against 128 us per layer at 3 rows with G2, 147 against 164 at 4; before G2 it was behind: 139 and 175).
+* Knobs (docs/tuning.md): `INTARSIA_HIP_MOE_GROUPED` (on, 0 disables), `INTARSIA_HIP_MOE_G2` (2:2, 0 disables). Both are in the backend fingerprint.
+
+The scope note's estimate for the build was 1.3 to 2.2 ms of 41.6; the microbench said otherwise (section 2), which is why the projections were rewritten
+as well (the routed part was NOT at its bandwidth floor: the one-row-per-warp kernels with 32 KiB staging were).
+
+## 2. Microbench: per layer, us, graph replay of 16 layers, median of 50, 3 rounds (`raw/w1-timing-old-projections.log`, `raw/w2-timing-g2-sweep.log`, `raw/bench.log`)
+
+Round 3 of each (the three rounds agree within 1 %; w2 values, `raw/w2-timing-g2-sweep.log`). (a) unfused chain as main runs it from 5 rows (G2 = 0),
+(f) fused rows block as main runs it up to 4 rows, (g) grouped block with the old projections (G2 = 0), then (a) and (g) with the new projections (G2 2:2).
+
+| rows | (a) main chain | (f) main fused rows | (g) grouped, G2 off | (a) G2 2:2 | (g) grouped, G2 2:2 | main chain to (g) | x 40 layers |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 5 | 215.7 | 196.3 | 207.4 | 180.3 | 171.4 | 44 us | 1.8 ms |
+| 8 | 312.4 | 310.7 | 302.8 | 249.1 | 240.4 | 72 us | 2.9 ms |
+| 12 | 450.7 | 457.2 | 438.2 | 354.0 | 341.6 | 109 us | 4.4 ms |
+| 16 | 589.3 | 609.5 | 566.4 | 459.7 | 436.5 | 153 us | 6.1 ms |
+
+At 3 and 4 rows (`raw/bench.log`): fused 127.9 and 163.8, grouped G2 off 138.8 and 174.8, grouped G2 2:2 118.0 and 146.9.
+In this bench the fused block is faster than main's chain at 5 rows (196 against 216), but not once the grouped projections exist (171), so the fused block gives way from 3 rows.
+Of the 153 us at 16 rows, about 130 us are the new grouped projections (G2 off to on, 566 to 437 for the grouped block), about 23 us the shared-expert pass and fewer launches ((a) 589 to (g) 566). The rows-per-warp
+sweep at 16 rows, gate_up:down (unfused chain, us per layer): 2:4 466, 1:4 477, **2:2 460**, 1:2 471, 2:1 508, 1:1 521: 2:2 is the default.
+Distinct experts per layer at 16 rows: mean 103.6 (min 97, max 111).
+
+## 3. Gates (all on tatooine card 0, radiance down and restored after each window)
+
+| gate | result | log |
+|---|---|---|
+| `moe_block.rs` bitwise against the T = 1 block (grouped: 240 launches, 1780 tokens; fused rows: 808 tokens; chain 52 cases; dispatch order 90; sentinel stress 6000 launches), graph replay bitwise eager | 11 passed, 0 failed | `raw/g-b-2.log` |
+| negative controls: 216 "token r vs solo block of next token" controls differ; tensor-core routed experts differ from the solo block in 4 of 16 tokens (the control that must fail does) | pass | `raw/g-b-2.log` |
+| `rows_exact`, `rows_registry` | 11 + 2 passed | `raw/g-b-2.log` |
+| 35B batched == solo G-C | **17,550 (row, step) pairs bitwise identical** in 165.7 s; tiny hybrid and `batch_recurrent` 11 passed | `raw/g-c-2.log` |
+| no-op at B = 1 | `plan show` text and json byte-identical for the 8B and the 35B; 256 greedy ids identical (8B and 35B, short and 4k prompt) | `raw/noop.log` |
+
+Notes: the first G-B window (`raw/g-b.log`) had one failure, `moe_block_grouped_negative_controls` control (b), tensor-core shared GEMVs giving the solo
+block on these activations. That is a property of the control, not of the kernel; (b) is reported only now, (a) and the next-token controls carry the claim.
+`batch_recurrent` now accepts a `moe_block_bf16_grouped` pick next to `moe_block_bf16_rows` as the fused block in a 4-row step.
+
+## 4. Speed A/B (localeval `speed`, 35B NVFP4, `serve --max-batch 16`, base = origin/main fecf2d24e, dev = this branch, interleaved base dev x3, 1024-token prompts, 128 tokens, 3 reps each; `raw/ab1/`)
+
+Aggregate decode tok/s, one value per interleaved pair (base, dev):
+
+| streams | main (3 runs) | branch (3 runs) | main mean | branch mean | change |
+|---:|---|---|---:|---:|---:|
+| 1 | 163.5, 163.3, 163.1 | 162.9, 163.2, 163.1 | 163.3 | 163.1 | -0.1 % |
+| 4 | 216.6, 214.5, 211.4 | 223.2, 220.7, 217.9 | 214.2 | 220.6 | +3.0 % |
+| 8 | 245.1, 248.0, 244.9 | 267.6, 265.5, 267.9 | 246.0 | 267.0 | +8.5 % |
+| 16 | 259.1, 259.5, 258.6 | 276.9, 279.9, 278.8 | 259.1 | 278.5 | +7.5 % |
+
+The plan expected +5 to 9 % at 8 to 16 streams and 0 at 1 to 2: that is what was measured. Run-to-run spread is under 1 % per arm, every branch run beats every main run at 4, 8 and 16 streams.
+Quiet window: the fleetq jobs ahead and behind were all `--quiet gpu,cpu`; radiance was down for the 40 s runs and restored by the trap.
+
+## 5. Default and rollback
+
+Default on: all four gates pass, +7.5 % at 16 streams (bar 3 %), -0.1 % at 1 stream (bar 1 %). Roll back with `INTARSIA_HIP_MOE_GROUPED=0` (the main rows block and
+chain come back, 1 to 4 rows fused) and `INTARSIA_HIP_MOE_G2=0` (the old one-row-per-warp projections). Not measured: model-loop step times per row count
+(`real_35b_batch_step_timing`, script section `TIMING` in `scripts/l7/gates.sh` is ready; fleetq job #5507 started it and I killed its client PID by mistake while trying to withdraw it, so there is no data; radiance came back by the script trap and was checked).
+
+# Lane l8: dense fp8 GEMM for prefill (bitwise), scope note
+
+Branch `lane-l8/fp8-gemm` off `origin/main` e5af0a159 (after #152/#153). Plan: `docs/plans/2026-10-25-r9700-push.md` Lane 8 (fp8 GEMM half;
+flash attention is not in this lane). Nothing in this section was run on a GPU: it is arithmetic on the committed profiles.
+
+## 0. Scope (written before any code)
+
+### 0.1 The kernel today
+
+`f8_gemm_kernel<WN, WM, TN, TM, OutT>` (`kernels/hip/ik_f8_gemm.h`, called from `matmul_fp8_mma_f8` in `fp8.hip`; row-major weights
+by default, the `frag` layout is opt-in `INTARSIA_HIP_FP8_FRAG`). W is the A operand (output features), the pre-quantised e4m3
+activations the B operand.
+
+| M, N | tile (weights x tokens) | block | wave tile | LDS (static) | used by (35B, M = 4096) |
+|---|---|---|---|---|---|
+| M >= 2048, N >= 8192 | 256 x 128 `<4,4,4,2>` | 16 waves (512 threads) | 64 x 32 | 2 x (256 + 128) x 80 B = 61,440 B | qkv / q+gate |
+| M >= 2048, N < 8192, >= one block per CU | 128 x 256 `<4,4,2,4>` | 16 waves | 32 x 64 | 61,440 B | z, out_proj, k / v |
+| other M >= 65 | 128 x 128 `<4,2,2,4>` | 8 waves | 32 x 64 | 2 x 256 x 80 = 40,960 B | tails |
+| M <= 64 | 128 x 16 / 32 / 64 | 4 waves | | small | not prefill |
+
+Pipeline: 64 k bytes per stage, one `__syncthreads` per stage, global -> registers (issued at the start of the stage) -> LDS (at its
+end), LDS double buffer, one 16 B `ds_read_b128` feeds two WMMAs. Resources from the compile (`raw/w0/f8bench-res.log`,
+hipcc 7.2.4 `-Rpass-analysis=kernel-resource-usage`, no scratch):
+
+| tile | VGPR | occupancy (waves / SIMD) | LDS |
+|---|---:|---:|---:|
+| 256 x 128 `<4,4,4,2>` | 150 | 8 | 61,440 B |
+| 128 x 256 `<4,4,2,4>` | 148 | 8 | 61,440 B |
+| 128 x 128 `<4,2,2,4>` | 153 | 6 | 40,960 B |
+
+The stage loop of the 256 x 128 kernel (`raw/w0/ref-4442-loop-tail.s`) already issues the WMMAs lo-all / hi-all with both 32-k groups'
+fragment reads hoisted, and ends every stage with `s_wait_loadcnt 0x0`, `s_barrier_signal`, `s_barrier_wait`, `global_inv scope:SCOPE_SE`.
+
+### 0.2 What a bitwise change can and cannot touch
+
+One output element is a chain of `v_wmma_f32_16x16x16_fp8_fp8` on one accumulator, in increasing k, where each WMMA sums the 16 products of the 8 + 8 k bytes the two lane halves hold (per 32-k group, lo WMMA = bytes
+0..7 and 16..23, hi WMMA = bytes 8..15 and 24..31), then one multiplication by `weight_scale * input_scale`.
+
+* Cannot change: which k enter which WMMA, the order of the WMMAs on one accumulator, a second accumulator per output (split-k or a
+  partial-sum tree), the epilogue arithmetic, the activation quantisation (`f8_actq_kernel`), hipBLASLt itself (its internal order
+  is not ours; it is a different set of bits, so it is out).
+* Can change: block / wave tile, how many waves, the LDS layout (swizzle instead of padding, stage size), the global-load distance
+  and register / LDS staging, the order in which *independent* accumulators are issued, `s_barrier` placement, instruction
+  scheduling, the epilogue's store pattern. Tile changes were already shown bitwise by hp (21 tiles x 11 shapes, partial M too).
+
+### 0.3 What is left to win
+
+From `docs/results/2026-10-22-hp-hip-prefill-roofline.md` (hp, rocprofv3, Qwen3.6-35B-A3B on one R9700, chunk 4096; hp's section 7
+numbers are the profile of today's main, because the hp tile table is what is in the tree):
+
+| | 4k | 16k |
+|---|---:|---:|
+| prefill span (profile) | 409.7 ms | 1783.8 ms |
+| dense fp8 projections (`f8_gemm_kernel`) | 58.3 ms (14.2 %) | 229.0 ms (12.8 %) |
+| rate today | about 180 TFLOP/s (work 10.47 TFLOP at 4k) | about 183 TFLOP/s |
+| hipBLASLt fp8 at the same shapes | about 284 TFLOP/s (244-306) | same |
+| fp8 WMMA issue peak (measured) | 377 TFLOP/s | |
+| 3 % of the span | 12.3 ms | 53.5 ms |
+
+Time saved if the kernel reaches a given rate (work fixed, share of the profile span):
+
+| rate | fp8 ms at 4k | saved at 4k | saved at 16k |
+|---|---:|---:|---:|
+| 200 TFLOP/s | 52.4 | 5.9 ms = 1.4 % | 19 ms = 1.1 % |
+| 228 TFLOP/s (80 % of hipBLASLt) | 46.0 | 12.3 ms = **3.0 %** | 44 ms = 2.5 % |
+| 250 TFLOP/s | 41.9 | 16.4 ms = 4.0 % | 61 ms = 3.4 % |
+| 284 TFLOP/s (hipBLASLt parity, upper bound) | 36.9 | 21.4 ms = 5.2 % | 81 ms = 4.6 % |
+
+The plan's "about 5 %" was written against the pre-hp 164 TFLOP/s; hp's tile table (already in main) took 8 ms of that, so what
+is left is **3 % at 80 % of hipBLASLt, 5.2 % at parity**. The upper bound is above the 3 % stop line, so the lane is not stopped
+on paper; the stop test is the microbenchmark: a candidate has to average at least about 228 TFLOP/s over qkv / z / out_proj / kv
+at M = 4096 (against 160-190 for the tiles in main) to be worth a served A/B.
+
+27B: it does not use this kernel. The committed rocprof profiles of the 27B prefill (`docs/results/2026-10-25-mx-hip-27b-prefill/raw/w1/prof-27-{1024,4096,16384}.txt`,
+default path) have 0 launches of `f8_gemm_kernel` or `f8_actq_kernel`; 88.6 % of the 4k kernel time is `dq_gemm_kernel<Mxfp4Policy,...>`. The
+opt-in `INTARSIA_HIP_MXFP4_FOLD=1` profile (`raw/w2/prof-f8-c4096-4096.txt`) runs `mxf8_gemm_kernel`, a separate copy in `mxfp4.hip` that a change
+to `ik_f8_gemm.h` would not reach. So there is no 27B A/B for this lane.
+
+## 1. Result: stopped before building (microbenchmark ceiling is about 2 % of the 4k prefill, below the 3 % bar)
+
+Four short card-0 windows (`raw/w1` .. `raw/w4`, downtime in `raw/w*/downtime.log`, 18-29 s of radiance downtime each; radiance
+answered `/v1/models` again after every window). All were `scripts/l8/f8bench.hip` runs: the current `f8_gemm_run` (`ref`) against
+candidate kernels in `scripts/l8/f8v.h`, 16 shapes (the 35B's four dense shapes at M = 4096 and 1024, partial M 2049 / 4089 / 3000 /
+300, odd N = 1000, K = 1056), best of 3 bursts of 30 launches.
+
+**Bitwise: every candidate output (all tiles, all shapes, partial M, N and K) is identical to `ref`.** The negative control (hi
+WMMA before lo on the same accumulator) differs on every shape, so the comparison can see a reorder. The candidates keep the
+per-output WMMA sequence exactly; they differ only in LDS layout, load distance, barrier type, tile and issue order.
+
+### 1.1 What was tried (TFLOP/s at M = 4096, `raw/w4/summary.txt`; ref is stable across windows: qkv 166 / 166 / 168 / 164)
+
+| kernel (tile weights x tokens, waves) | qkv 4096x8192x2048 | z 4096x4096x2048 | o 4096x2048x4096 | kv 4096x512x2048 |
+|---|---:|---:|---:|---:|
+| `ref` (main: 256x128 for qkv, 128x256 otherwise) | 168 | 176 | 181 | 156 |
+| 256x128, 16 waves, swizzled 64 B LDS rows, 2 stages of register prefetch, LDS-only barrier | 194 | 191 | 196 | 168 |
+| 256x256, 16 waves (wave tile 64x64, 213 VGPR, LDS 64 KB), same | 194 | 199 | 221 | 179 |
+| best of the family vs ref | +15 % | +13 % | +22 % | +15 % |
+| hipBLASLt fp8 (hp) | 271 | 296 | 306 | 244 |
+
+What moved the number (w1, w2, w4):
+
+* Two stages of global loads in flight (a second register set; stage k + 2 is loaded while stage k is consumed): +6..13 %. Three or
+  four stages: no further gain (4 stages equal 2; 3 is worse, an odd count makes the LDS buffer index dynamic).
+* LDS-only barrier (`fence(workgroup, "local")` + `s_barrier`, the pattern radiance's `lds_barrier()` uses) instead of
+  `__syncthreads()`: +1..5 % with two stages in flight, 0 with one. The reference loop ends each 64-k stage with
+  `s_wait_loadcnt 0; s_barrier_signal; s_barrier_wait; global_inv scope:SCOPE_SE` (`raw/w0`, ISA of the 256x128 kernel): every
+  stage drains the load queue and invalidates the L0 / L1 lines. This is the cause of "pf1 gets nothing, pf2 gets it".
+* The XOR-swizzled 64 B LDS row (no padding) with the swizzle matched to 32 LDS banks (`(row >> 1) & 3`): neutral to +3 % and
+  saves 20 % of the LDS (49 KB instead of 61 KB at 256x128, so 256x256 fits in 64 KB). My first swizzle assumed 64 banks and was
+  15 % slower than padding (`raw/w1`), which is how the bank count was found.
+* The 256x256 tile: +0..12 % over 256x128 on o / z / kv, but at M = 1024 N = 512 it is 2-3x slower (too few blocks); it would need
+  a dispatch rule like hp's.
+* Issue order of independent accumulators (lo-all then hi-all) and reading both 32-k groups up front: 0 (the compiler already
+  emits the lo-all / hi-all order, `raw/w0`).
+* Clamped, unpredicated global loads (radiance's trick to keep loads in flight across merges): **slower** (162 vs 194 at qkv),
+  because the compiler spilled the load ring to scratch (`raw/w4/f8bench-res.log`, 48..208 B/lane). One attempt, not pursued
+  (see the two-attempt rule; the assumption that might be wrong is that the compiler keeps the multi-stage ring in registers
+  without scratch once the predicates are gone).
+
+### 1.2 Why the ceiling is low: ablation (`raw/w3`, 256x128 swizzled kernel, outputs not bitwise, timing only)
+
+| variant | qkv | z | o | kv | what it leaves in |
+|---|---:|---:|---:|---:|---|
+| full kernel | 189 | 187 | 194 | 168 | everything |
+| fragments read from LDS once (no A reads) | 207 | 213 | 212 | 191 | |
+| no A and no B LDS reads | 203 | 211 | 217 | 199 | |
+| no global loads, no LDS stores | 245 | 238 | 244 | 212 | LDS reads, WMMA, barrier |
+| no global loads, no LDS reads (WMMA + barrier only) | 268-274 | 262-278 | 283-299 | 231-244 | pure WMMA issue with 4 waves / SIMD and a barrier per stage |
+| no WMMA (loads, stores, LDS reads, barrier) | 222 | 227 | 228 | 171 | the memory side alone |
+
+The WMMA-only loop with this block structure reaches 270-300 TFLOP/s (hipBLASLt: 271-306, the same range), and the memory side
+(global loads + LDS stores + LDS reads) alone runs at about 225. If the two overlapped perfectly the kernel would sit at about
+225-230 TFLOP/s (the 3 % line), and today they overlap to 190. So the 3 % bar needs a perfect overlap on the current structure, and a
+structural change beyond this lane's tile / scheduling scope to get past it (activations straight from global into the WMMA
+registers in a fragment-order scratch layout, as radiance's A operand does; weights would need the opt-in `frag` layout).
+
+### 1.3 Expected prefill gain from the best bitwise candidate
+
+Applying the M = 4096 speed-ups of 1.13..1.22 (mix of 256x128 and 256x256, +15 % taken as the central value) to hp's fp8 time:
+
+| | fp8 projections today | with +15 % | saved | share of the prefill span |
+|---|---:|---:|---:|---:|
+| 4k | 58.3 ms | 50.7 ms | 7.6 ms | **1.9 %** (of 409.7 ms) |
+| 16k | 229.0 ms | 199.1 ms | 29.9 ms | **1.7 %** (of 1783.8 ms) |
+
+Upper bound: if every shape got the best measured +22 % (the 256x256 tile on `o`), 58.3 ms -> 47.8 ms saves 10.5 ms = 2.6 % of the 4k
+span, still under 3 %. Against served time (the plan's table 1a: about 9700 tok/s at 4k, 422 ms) the central estimate is 7.6 / 422 = 1.8 %.
+
+This is below the lane's 3 % bar, so no served A/B was run and `f8_gemm_kernel` is unchanged on this branch (no default changes).
+The 27B does not call this kernel in its default path (see 0.3), so there is nothing to A/B there.
+
+## 2. Side finding (outside this lane): `__syncthreads()` is expensive in gfx12 main loops
+
+On gfx12 `__syncthreads()` is a workgroup acquire / release fence over all address spaces: the ISA shows `s_wait_loadcnt 0`
+before and `global_inv scope:SCOPE_SE` after every barrier (only the 256x128 fp8 kernel's ISA was checked: `raw/w0/ref-4442-loop-tail.s`).
+Other software-pipelined HIP kernels in `kernels/hip/` with one barrier per k-stage (the WMMA GEMMs, the MoE kernels, flash attention)
+likely pay it too (check each one's ISA), and it limits any global-load distance greater than one stage. The fix is a local-scope fence plus
+`__builtin_amdgcn_s_barrier()` (see `bar()` in `scripts/l8/f8v.h`), valid wherever the barrier only orders LDS traffic.
+This lane measured +1..5 % on the fp8 GEMM from it alone; the MoE GEMM (36-46 % of hipBLASLt) has not been tried.
+
+## 3. Gates
+
+| gate | status |
+|---|---|
+| `--test fp8_f8` | not run: no kernel change on the branch |
+| 256 ids at 1024 / 4089 / 4096 / 16384 / 16654 | not run, same reason |
+| re-profile | not run, same reason |
+| microbench bitwise vs main (`f8bench`, 16 shapes incl. partial M / N / K, 16-19 candidates per window) | all identical; negative control differs |
+
+## 4. Files
+
+`scripts/l8/f8v.h` (candidate kernels, bitwise-checked), `scripts/l8/f8bench.hip` (harness), `scripts/l8/{sync,build,win,run-window}.sh`,
+`scripts/l8/summ.py`; raw logs in `raw/w0..w4`. Tatooine dirs used: `~/intarsiaml-l8-src`, `~/intarsiaml-l8-w1..w4`.
+
+## 5. Decision needed
+
+Whether to take the ~1.9 % (4k) / 1.7 % (16k) anyway. The candidate is written and bitwise (`4444 s pf2 lb1` for M >= 2048 and N >= 2048,
+`4442 s pf2 lb1` for qkv-class shapes); integrating it into `ik_f8_gemm.h` (with the `frag` path), the dispatch table, `--test fp8_f8`, the
+256-id gate and a served A/B at 1k / 4k / 16k is about three more GPU windows. The brief's rule (stop below 3 %) says no; the call is the coordinator's.
+
+# mm step 2: fp8 multi-row GEMV on simdgroup matrices, row-exact (Metal, 35B batched decode)
+
+Lane mm, 2026-10-25, endor (Apple M5 Max, 128 GB), Qwen3.6-35B-A3B NVFP4, `serve --backend metal --max-batch 8`. Follows
+[mm step 1](2026-10-25-mm-metal-moe-grouped.md) (PR #136, merged 5b7205ca). Branch `lane-mm/metal-fp8-mmt` on main
+0b84f499, draft PR #141. Experiment history (losers included) on branch `lane-mm/metal-step2`.
+
+## Result
+
+localeval (`local-model-bench`), 35B, ~1k-token prompt, 512 generated, `--max-batch 8`, main 0b84f499 and the branch
+interleaved (main, branch, x 3) in one exclusive fleetq slot (#5157), median of the 3 reps. Aggregate decode tok/s (1
+stream: the sweep's decode median):
+
+| streams | main | branch | change |
+|---:|---:|---:|---:|
+| 1 | 123.2 | 123.5 | +0.2% |
+| 4 | 216.3 | 216.3 | 0 (4 rows: the new kernel is not used) |
+| 8 | 259.7 | 267.7 | **+3.1%** |
+| 16 (cap 8, two waves) | 255.0 | 266.4 | **+4.5%** |
+
+Per-rep values (`raw/speed/localeval-*-r{2,3,4}.log`): main 8 streams 264.5 / 259.7 / 253.3, branch 263.5 / 279.2 /
+267.7; main 16 streams 258.6 / 252.2 / 255.0, branch 260.4 / 266.4 / 268.2. A first pair in the earlier slot #5156
+(`raw/speed/localeval-{main,branch}.log`) ran slower for both arms (main 231.0 / branch 235.1 at 8 streams), probably
+other load on endor; it is kept but not in the medians (all 4 reps: +3.5% at 8, +3.9% at 16).
+
+The served gain is smaller than the step gain (-7.6% step time at B = 8), as in step 1: the served 8-stream wave spends
+part of its time below 8 rows (arrivals, prefill chunks of 2048 that stall decoding rows) and outside the GPU step.
+
+In process (`real_35b_batch_step_real_traffic`, ms per step, main 0b84f499 and branch A B A B in slot #5156,
+`raw/speed/step-time.log`):
+
+| B | main | branch | change |
+|---:|---:|---:|---:|
+| 1 | 8.13 | 8.23 | +1.2% (kernel not used; run noise) |
+| 2 | 10.34 | 10.05 | -2.8% (kernel not used; main rep 1 slow) |
+| 4 | 14.01 | 13.96 | 0 (kernel not used) |
+| 8 | 21.60 | 19.95 | **-7.6%** (370 to 401 tok/s) |
+
+Per-kernel B = 8 profile of the branch (`raw/speed/k8-branch.txt`, GPU sum, 804 launches per step):
+`matmul_fp8_gemv_rows` 6.82 ms (25.2%), MoE gate+up 6.53 ms (24.1%), nvfp4 rows 4.41 ms (16.3%), MoE down 3.82 ms
+(14.1%), GDN delta rule 1.52 ms, attention 1.17 ms. (Step 1's profile had fp8 rows at about 30%.)
+
+Every batched row stays bitwise the solo step (gates below); the new kernel has its own negative control that makes the
+fp8 rows gate fail. Batching off is byte-identical to main (no-op below): `matmul_fp8_gemv_rows` is selected only for
+`rows_exact` calls of the batched step.
+
+## What changed
+
+`matmul_fp8_gemv_rows` (the fp8 projections of the batched step: attention q/k/v/o, GDN in/out projections, about 30%
+of the B = 8 step after step 1) at **5..=8 rows** now runs on 8x8 float simdgroup matrices (`fp8_rows_mmt_{bf16,f32}`,
+`kernels/metal/fp8.metal`), after a pre-pass `fp8_xprep_t` that writes q(x) of all rows block-transposed (`xt[u][k][m]`,
+bf16, zero-padded to 8 rows) into the call's scratch.
+
+Why it is row-exact. Two facts measured on endor (`raw/probe/probe*.swift`, 262144 and 4 x 131072 elements):
+
+1. `simdgroup_multiply_accumulate` on float 8x8 equals, bit for bit, the per-element chain `c = fma(a[i][k], b[k][j], c)`
+   for k = 0..7 from c: all elements equal on wide-range, subnormal-producing, inf/NaN/-0 and cancellation data (NaN
+   positions identical). Reversed k order or `c + chain(0)` do not match (141813 / 191569 of 262144).
+2. `simd_sum` equals the xor butterfly 1, 2, 4, 8, 16 (4096 / 4096), i.e. the pairwise tree over lanes 0..31 in index order
+   (the 16..1 butterfly matches 1581 / 4096, a sequential sum 1275).
+
+The one-row kernel's value for (row m, output n) is: lane l sums the 16-term fma chains of blocks u = l, l + 32, ... in
+that order (`fp8_dot16`, NaN when the block holds a NaN code), then `simd_sum`, then the scale. The new kernel computes
+block u's chain for 8 outputs x 8 rows as two MMAs from 0 (k = 0..7, then 8..15; fma commutes in its multiplicands, so
+`W x q(x)^T` gives the same chain per element), sets a block whose weight row holds a NaN code to NaN, and adds it to the
+accumulator of class u mod 32. The 8 simdgroups of a threadgroup take classes 4s..4s+3 and fold them ((0+1)+(2+3)), the
+threadgroup folds the 8 results ((0+1)+(2+3))+((4+5)+(6+7)): the same pairwise tree. Same scale expression and rounding.
+
+Operand layout (measured): a lane's two elements of an 8x8 matrix are row `(lane & 16 ? 4 : 0) + ((lane >> 1) & 3)`,
+columns `((lane >> 3) & 1) * 4 + (lane & 1) * 2` and `+ 1`. With weights as the left operand a lane's weight bytes are two
+adjacent bytes of one row (one ushort load), its activations two adjacent rows of one k (one uint load).
+
+Selection: the kernel is padded to 8 rows, so it costs the same at M = 2 as at 8, while `_xd` adds a 4-row tile at M = 5.
+It takes M >= 5. `INTARSIA_METAL_FP8_ROWS_MMT=0` turns it off, `=N` (2..=8) moves the threshold (the gate runs it at 2).
+`INTARSIA_METAL_NEGCTL=fp8_mmt` swaps the two MMAs of a block (k = 8..15 first): the gate must fail.
+
+Scratch of `matmul_fp8_gemv_rows`: `max(M, 8) * K * 2 + 16` bytes (was `M * K * 2 + 16`).
+
+Micro timings, `timing_rows` (`raw/micro-gate.log`, us per launch, 200 launches):
+
+| N x K | `_xd` M = 5 | new M = 5 | `_xd` M = 8 | new M = 8 | change at 8 |
+|---|---:|---:|---:|---:|---:|
+| 8192 x 2048 | 50.8 | 52.6 | 62.3 | 52.5 | -16% |
+| 4096 x 2048 | 34.1 | 28.8 | 34.5 | 28.9 | -16% |
+| 512 x 2048 | 10.4 | 8.9 | 10.5 | 8.9 | -15% |
+| 2048 x 4096 | 36.4 | 32.2 | 36.1 | 32.2 | -11% |
+
+For scale, the one-row kernel at M = 1 reads 8192 x 2048 in 27 us (about 620 GB/s), so the new kernel is still about 2x
+the weight-streaming floor at 8 rows.
+
+## Tried and dropped (branch `lane-mm/metal-step2`)
+
+All gate-clean where they ran; none beat what is kept.
+
+| idea | result (8192 x 2048, M = 8, us) |
+|---|---|
+| `_xd` tile / unroll sweep (`MB, RS, UN`: 4,2,0,2 / 4,2,1,4 / 8,2,1,* / 8,1,1,*) | 56.7 to 67.9 vs 62.3, no stable gain |
+| `_xd` with f32 q(x) rows, swapped grid | 57.8 to 60.8, within noise of `_xd` |
+| word-interleaved f32 multi-row GEMV ("v2") | 91.9 |
+| simdgroup MMA with x as the left operand (byte weight loads) | 60.2 (-3%) |
+| same, 2 / 4 output tiles per simdgroup | 69.4 / 177.0 |
+| transposed MMA (kept) with q(x) as e4m3 bytes (W8A8) | 58.1 vs 52.8 bf16: decode ALU costs more than the traffic saved |
+
+Ablations of the x-as-left-operand MMA kernel (timing only): no MMA 56.0, no NaN shuffles 60.3, no activation loads 47.9:
+activation traffic and single-byte weight loads were the cost, which the transposed layout addresses.
+
+## Gates
+
+All on endor, branch a5663990, one exclusive slot #5124 (`scripts/mm/gates.sh`, logs in `raw/gates/`):
+
+| gate | result |
+|---|---|
+| `tests/rows_exact.rs` (default: new form at M >= 5) | pass |
+| fp8 rows gate with the new form at every M (`INTARSIA_METAL_FP8_ROWS_MMT=2`) and off (`=0`) | pass / pass |
+| `tests/row_tables.rs` | pass |
+| negative control `NEGCTL=fp8_mmt` (new form, MMAs of a block swapped) | gate fails as required: M = 5, first differing byte 9028 of 81944 |
+| negative controls `fp8_xd` / `moe_gu` / `moe_dn` | gate fails as required (bytes 29368 / 16594 / 58041) |
+| `kernels test --backend metal` | pass, 44 kernels, 817 cases |
+| G-C 35B batched == LocalEngine | pass, 4550 (row, step) pairs bitwise identical |
+| G-C long prompts 2.6k / 4k / 16k | pass |
+| `batch_recurrent` (metal) | pass, 11 tests |
+| dense Qwen3-8B batched | pass, 138 pairs + 48 rows beside prefill chunks bitwise |
+| workspace | 884 passed, 1 failed: `docs_env_vars` (the new env var had no `docs/tuning.md` row); row added in 111699cf, test passes |
+
+Gate strength checked before trusting it: with the NaN-flag shuffles removed, or with constant activations, the fp8 rows
+gate fails (NaN weights, M = 2..8 and odd N 130 / 33 / 65 are in its cases). The gate's NaN weight cases and the MMA
+probe's specials cover the NaN path. CUDA / HIP no-ops not run: no shared crate changed (only
+`crates/intarsia-backend-metal`, `kernels/metal`, tests, docs, scripts).
+
+## No-op (batching off) vs main 0b84f499
+
+Slot #5156, `scripts/mm/noop.sh` (`raw/noop/`): `plan show` text and `--json`, 256 greedy ids and the generated text
+after a short and a ~4k-token prompt, Qwen3-8B and the 35B: **12 of 12 IDENTICAL**.
+
+## Not done / next
+
+- 16-row tile: the kernel is written for R = 2 (two activation tiles per weight tile, weights read once), but Metal's
+  batched step caps at 8 rows (`BATCH_MAX_ROWS`); a 16-row cap needs the nvfp4, MoE and attention rows kernels too.
+- Single-stream command-buffer overhead: the step-1 serve profile put host gaps at about 1% of decode; not a lever.
+- The kernel is about 2x the weight-streaming floor at 8 rows; the remaining cost was not isolated further (no GPU
+  limiter counters from the command line).
+
+# mm: faster batched decode on Metal: row-exact MoE, fp8 and nvfp4 rows kernels (35B)
+
+Lane mm, 2026-10-25, endor (Apple M5 Max, 128 GB), Qwen3.6-35B-A3B NVFP4, `serve --backend metal --max-batch 8`. Follows
+[mr3](2026-10-23-mr3-metal-row-axis.md) (PR #126) and [mb](2026-10-23-mb-metal-hybrid-batching.md) (PR #124). Branch
+`lane-mm/metal-moe-grouped`, draft PR #136. Measured and gated against main 2c2d9941, then rebased on 971f1dcd (between the two, main
+changed only CUDA test files and docs).
+
+## Result
+
+localeval (`local-model-bench`), 35B, ~1k-token prompt, 512 generated, median of 3 reps after a warm-up, `--max-batch 8`,
+main 2c2d9941 and the branch back to back in one exclusive fleetq slot (#5062). Aggregate decode tok/s:
+
+| streams | main | branch | change |
+|---:|---:|---:|---:|
+| 1 | 123.2 | 124.2 | +0.8% |
+| 4 | 173.2 | 213.6 | +23% |
+| 8 | 189.3 | 243.2 | +28% |
+| 16 (cap 8, two waves) | 185.8 | 244.4 | +32% |
+
+In process, same slot (`real_35b_batch_step_real_traffic`, ms per step, mean of 2 runs, `raw/speed/step-time.log`):
+
+| B | main | branch | change |
+|---:|---:|---:|---:|
+| 1 | 8.00 | 8.00 | 0 |
+| 2 | 12.28 | 9.95 | -19% |
+| 4 | 18.64 | 13.74 | -26% |
+| 8 | 31.44 | 21.30 | -32% (254 to 376 tok/s) |
+
+The served gain (+28% at 8 streams) is smaller than the step gain (+48% tok/s at B = 8). The per-stream decode median at
+8 streams is 37.3 tok/s on the branch (26.8 ms per token) against a 21.3 ms step; main shows the same ~5.5 ms gap (27.2
+tok/s, 36.8 ms, against 31.4). That time is spent outside `forward_batch` (scheduler, sampling, streaming); not measured
+further here.
+
+Single stream is unchanged (+0.8% served, 8.00 ms in process in both arms). Every batched row stays bitwise the solo step: all gates below pass, and each new kernel has a negative control that makes
+its gate fail.
+
+Batching off is byte-identical to main (no-op below). The change only affects `--max-batch` decode, so per the lane rules it
+can go default-on; **recommendation: merge default-on**, each part has its own opt-out env var.
+
+## What changed
+
+Three row-exact kernels for the batched step (`forward_batch`, 2..8 rows), each keeping every row's arithmetic, order and
+roundings of the one-row kernel:
+
+1. **fp8 `matmul_fp8_gemv_rows`, `_xd` form** (`kernels/metal/fp8.metal`, `fp8_gemv_{bf16,f32}_m4_xd`). The staged form
+   had every threadgroup re-quantize all 8 activation rows into 32 KB of threadgroup memory (`q(x)` of 8 x K per threadgroup,
+   and the 32 KB capped the threadgroups per core). Now `fp8_xprep_bf16` writes `q(x)` of all rows once into the call's
+   scratch, and the GEMV reads it straight from device memory with a 4-row tile (4 measured faster than 8 or 2 at every 35B
+   shape). Same expression, same fma chain per row. `INTARSIA_METAL_FP8_ROWS_XD=0` takes the staged form back.
+2. **MoE `moe_experts_bf16_rows`, fat threadgroups** (`kernels/metal/moe.metal`, `moe_dec_gu_p` / `moe_dec_dn_p`). One
+   threadgroup row per (token, slot) pair, a simdgroup covers 2 weight rows of the pair's expert (was 1), the activation
+   block is loaded once for both. `INTARSIA_METAL_MOE_ROWS_FAT=0` takes back mb's kernels.
+3. **nvfp4 `matmul_nvfp4_gemv_rows`, narrow matrices** (`crates/intarsia-backend-metal/src/nvfp4.rs`). Matrices of at
+   most 4096 rows (the shared experts, 512 / 2048 rows) run the one-row shader over a grid of M threadgroup rows; the 8-row
+   shader gave them only 32 / 128 threadgroups. `INTARSIA_METAL_NV_ROWS_SPLIT=0` keeps the 8-row shader.
+
+Profiling: `INTARSIA_METAL_PROFILE=kernel` now labels every dispatch of a multi-dispatch launch (`<kernel>#n`) and gives
+the fp8 / nvfp4 weight shape and the MoE routing (distinct experts, pairs). New test `real_35b_batch_step_real_traffic`
+(`crates/intarsia-models/tests/batch_metal_real.rs`, ignored) and analyzer `scripts/mm/kprof.py`.
+
+## Profile (milestone 1)
+
+The per-kernel mode waits on every launch, which lowers the GPU clock: absolute sums are about 1.5x the real step. Read
+the shares. Raw traces in `raw/k*.jsonl.gz`. The "main" column is the branch's test binary with
+`INTARSIA_METAL_FP8_ROWS_XD=0` before the MoE and nvfp4 changes existed, so it ran main's kernels (`raw/k8base.jsonl.gz`);
+the branch column is the final build (`raw/speed/k8-branch.jsonl.gz`).
+
+| B = 8 share of GPU time | main | branch |
+|---|---:|---:|
+| MoE experts (gate-up, down, gather) | 42.1% | 36.9% |
+| fp8 GEMV rows | 33.8% | 30.4% |
+| nvfp4 shared-expert GEMV rows | 6.6% | 5.5% |
+| nvfp4 lm_head (248320 x 2048, f32 out) | 5.9% | 9.3% |
+| row-table kernels (delta rule, attention, conv, prologue) | 6.5% | 10.2% |
+| rest | 5.1% | 7.7% |
+
+- **MoE was 42%, not 24%.** The profiler labelled only the first of the MoE launch's three dispatches (gate-up), so mr3's
+  24% missed the down projection and the gather ("other" in its trace).
+- B = 16 (mr3's cap-16 chunking, two 8-row launches) has the same shares on main: 43.4% MoE, 34.3% fp8.
+- Real traffic: 46.6 distinct experts among the 64 (token, slot) pairs of a B = 8 MoE call; 25.5 of 32 at B = 4.
+
+## Why not "read each expert once"
+
+The brief asked for an expert-grouped kernel, so each expert's weights are read once per step. mb's `_x` kernels already
+do that: a leader pair serves up to 8 pairs of its expert (`moe_lead`, `MOE_XR = 8`). Ablation of the same fat kernel
+(gate-up 2, down 4 rows per simdgroup) with 8 / 4 / 2 / 1 pairs per leader (`raw/logs/micro2.log`, `timing_rows`, T = 8,
+us per call, mean of 2 reps):
+
+| pairs per threadgroup row | random | identical routing | overlap |
+|---|---:|---:|---:|
+| mb `_x` (1 row / simdgroup, 8 pairs) | 357 | 235 | 308 |
+| fat, 8 pairs | 243 | 216 | 234 |
+| fat, 4 pairs | 215 | 194 | 200 |
+| fat, 2 pairs | 207 | 181 | 190 |
+| fat, 1 pair | 212 | 157 | 168 |
+| fat, 1 pair, 2 / 2 rows (shipped, `micro3.log`) | 199 | 161 | 167 |
+
+With random routing 1, 2 and 4 pairs are within the spread; with shared experts 1 pair wins clearly. Grouping saves little
+DRAM traffic here (only 27% of pairs share an expert, and the second read of a block comes from the
+cache when the pairs run at about the same time), and it serializes the pairs of an expert in one threadgroup. In the
+real step, 1 pair per threadgroup row was 0.6 ms faster at B = 8 than 8 pairs (23.8 vs 24.4 ms, `raw/logs/step2.log`).
+The win came from fatter threadgroups (2 rows per simdgroup: fewer threadgroups and leader scans, more loads in flight),
+not from grouping. 2 rows beat 1 / 4 / 8 rows for both gate-up and down (`raw/logs/micro3.log`).
+
+## Next levers (milestone 3)
+
+- **16-row GEMV tile: not built, deprioritized.** With the `_xd` form the tile is no longer capped by threadgroup memory,
+  but the sweep goes the other way: a 4-row tile beat the 8-row one at every shape (fp8 8192 x 2048 at M = 8: 64 vs 75 us,
+  `raw/logs/micro3.log`). Cap 16 by chunking on the branch kernels: B = 16 39.5 ms/step, 405 tok/s vs 379 at B = 8 (+7%;
+  main: +3% per mr3, and 61.9 ms vs 31.3 here, no gain). The cap stays 8; raising it is a separate decision.
+- **Single-stream command-buffer overhead: not attempted** in this lane; B = 1 unchanged.
+- The branch's B = 8 profile is the map for the next lane: MoE 37%, fp8 GEMV rows 30% (the 8192 x 2048 gate/up of the
+  shared expert and the 2048 x 4096 output projections are the largest), row-table kernels 10%, lm_head 9% (nvfp4
+  248320 x 2048 with f32 out, still the 8-row shader). Outside the GPU, the ~5.5 ms per step that `serve` spends
+  outside `forward_batch` at 8 streams is now about a fifth of the served step.
+
+## Gates
+
+G-C, the long prompts, `batch_recurrent`, dense 8B and `kernels test` ran in job #5048 at commit 94e2ca06; G-B and the
+negative controls ran again in #5068 at the head commit. Between the two only the negative-control (`NEG = true`) forms of
+the MoE kernels changed; the default (`NEG = false`) code is the same, and so are the no-op and speed binaries (01f96dec).
+
+| Gate | Result | Log |
+|---|---|---|
+| G-B `tests/rows_exact.rs` (Metal) | pass, 7 of 7: fp8 1,344 cases / 6,720 rows (staged and `_xd`, unaligned scratch), nvfp4 168 / 840, MoE 168 / 840 (random, identical, overlapping routing), bf16 pair, row-parallel | `raw/gates2/gb-rows_exact.log` |
+| G-B `tests/row_tables.rs` (Metal) | pass, 8 of 8 | `raw/gates2/gb-row_tables.log` |
+| New negative controls, data level (`negative_controls_differ_from_the_one_row_calls`) | each differs from the one-row calls: fp8 rows swapped 2,040 / 4,096 bytes, q(x) skipped 2,542 / 4,096; MoE routing of two tokens swapped 7,444 / 32,768, grouped prefill path at T = 8 4 / 32,768 | `raw/gates2/gb-rows_exact.log` |
+| New negative controls, kernel level (`INTARSIA_METAL_NEGCTL`) | each makes its gate fail: `fp8_xd` (other association on odd blocks) at byte 29,368; `moe_gu` (split scale fma) at 16,594; `moe_dn` (reversed in-block chain) at 58,041 | `raw/gates2/neg-*.log` |
+| `intarsia kernels test --backend metal` | exit 0, 44 kernels, 817 cases | `raw/gates/kernels-test.log` |
+| G-C 35B: `forward_batch` N = 2..8 == solo step; BatchedEngine == LocalEngine | pass: 4,550 (row, step) pairs bitwise identical; engine test pass | `raw/gates/gc-35b.log` |
+| G-C long prompts 2.6k / 4k / 16k | pass | `raw/gates/gc-long.log` |
+| `batch_recurrent` (Metal) | pass, 10 of 10 | `raw/gates/batch_recurrent.log` |
+| Dense Qwen3-8B batched bitwise (`batch_metal`) | pass: 138 (row, step) pairs, 48 decode rows beside 256-token prefill chunks | `raw/gates/dense-8b.log` |
+| Metal batching-off no-op vs main (8B and 35B: `plan show` text and `--json`, 256 greedy ids and output text after an 11-token and a 4.6k-token prompt) | 12 of 12 byte-identical | `raw/noop/` |
+| Workspace tests | 879 passed, 3 failed. 2 are `intarsia-backend-cuda/tests/rows_registry.rs`, which fail on main 2c2d9941 too (the fp8 picks after the cuBLASLt default; PR #128 re-pinned them and was merged during
+the lane, so they pass on the rebased branch). 1 was `docs_env_vars` (a tuning row cited two files), fixed, passes on the branch | `raw/gates/workspace.log` |
+
+## Not run, and why
+
+- CUDA no-op (spark1 / spark2) and HIP no-op (tatooine): the branch touches only `intarsia-backend-metal`, Metal shaders,
+  one Metal-only test file, `docs/tuning.md` and scripts. No shared runtime crate changed, so per the lane rules they are
+  not required.
+
+## Raw
+
+`raw/gates/`, `raw/gates2/` (gate logs), `raw/noop/` (plan show and ids, both arms), `raw/speed/` (localeval and step time),
+`raw/logs/` (A/B and micro benchmark logs), `raw/k*.jsonl.gz` (per-kernel traces). Scripts: `scripts/mm/`.
+
+# mr2: where the batched Qwen3.8-27B MXFP4 decode step spends its time on HIP (lane mr, 2026-10-25)
+
+Status after #151 (2026-10-25): the harness changes named below are on main via #151, so this PR is now the doc, raw logs and scripts only. The lm_head cliff found here is fixed by #151 (16-row step 111 -> 100 ms). The ISA check listed under 'Not done' was done in docs/results/2026-10-25-mr-hip-logits-rows.md section 2. The numbers below are the 'before' that #151 cites.
+
+Branch `lane-mr/hip-27b-batch-profile` (off main 5e9cc6da, which contains #145). Measurement only: the one code change is in the test harness
+(`batch_cuda_real real_35b_batch_step_profile` takes `INTARSIA_TIMING_ROWS`, has warm-up steps and prints 40 rows; `rows_exact
+timing_mxfp4_rows` times the lm_head rows kernel up to M=16). Nothing in the engine or the kernels changed. Qwen3.8-27B-Quark-AWQ-MXFP4, one
+R9700 (card 0), HIP, tatooine with radiance down in fleetq slots, ~1000 tokens of context per sequence, decode-only steps (argmax head).
+Scripts: scripts/mr/profile.sh (+ build.sh, win.sh). Raw: docs/results/2026-10-25-mr-hip-27b-batch-profile/raw/.
+
+## Summary
+
+* The unprofiled batched step (`forward_batch`, graph-replayed): 30.3 ms at 1 row, 36.8 at 2, 42.1 at 4, 59.5 at 8, 82.7 at 12, 110.9 at 16
+  (33 / 54 / 95 / 134.5 / 145 / 144 tok/s aggregate). Aggregate saturates at ~145 tok/s from 12 rows on: past 8 rows each extra row costs
+  6.4 ms (8 -> 16) against 3.9 ms (4 -> 8).
+* **The MXFP4 GEMVs are still 66-69 % of the step** (`matmul_mxfp4_pair` 44 % + `matmul_mxfp4` 25 % at B=16) and rise 2.4x from B=2 to B=16 where
+  a weight-bound ideal is 1.0x. The GEMV time per extra row is constant (~12.5 us on the 17408x5120 shape) while the weight bytes are read once, which points at ALU rather than bytes (estimate below, not
+  confirmed with counters). This corrects the #145 doc, which said the remaining gap was not the MXFP4 GEMV: the step profile shows the GEMVs are the largest remaining item.
+* **lm_head rows has a cliff above 8 rows**: 4.4 ms flat up to M=8, then 7.8 ms at 12 and 15-17 ms at 16 (4x the 8-row cost for 2x the rows;
+  ideal: flat, the 2.5 GB of weights are streamed once). 12 % of the B=16 step, 22 % of the step growth from 8 to 16 rows.
+* GatedDeltaNet (7 %) and attention (3 %) are not the problem: both scale with the bytes per sequence and sit near their floors.
+* The pair launcher's two launches are not measurable at this granularity and bounded by <0.5 ms per step.
+* Served 27B aggregate at 8 streams was 61 tok/s against 134 tok/s of the bare 8-row step: more than half of the gap to the step is outside the
+  model step (prefills of the other streams, scheduling), see "Served vs bare step".
+
+## Unprofiled step time (`real_35b_batch_step_timing`, raw/timing.log)
+
+| rows B | 1 | 2 | 3 | 4 | 5 | 6 | 8 | 12 | 16 |
+|---|---|---|---|---|---|---|---|---|---|
+| ms per step | 30.3 | 36.8 | 39.2 | 42.1 | 46.2 | 50.4 | 59.5 | 82.7 | 110.9 |
+| aggregate tok/s | 33.0 | 54.4 | 76.6 | 95.0 | 108.1 | 119.2 | 134.5 | 145.1 | 144.3 |
+| ms per extra row | | 6.5 | 2.4 | 3.0 | 4.1 | 4.1 | 4.6 | 5.8 | 7.0 |
+
+(The "solo step 101 ms" line of that test is the eager one-row `forward`, not the captured graph the server replays; the server's one-row
+step is the 30.3 ms of B=1.)
+
+## Per-op profile (`real_35b_batch_step_profile`, profile_every=1: a sync after every op, 8 steps after 2 warm-up steps, ms per step)
+
+Profiling adds a sync per op (~1,400 ops per step), so the sum is above the unprofiled step (B=2: 50.5 against 36.8, B=16: 120.2 against 110.9); read the shares and the
+growth, not the absolute level of the small ops. The flat 9 ms of "everything else" is mostly that per-op overhead. **B=1 cannot be profiled this
+way**: the one-row step runs as a captured graph (or, solo, its ops are not timed one by one: op sum 5.3 ms against 31.9 wall), so B=2 is the
+low end here and the one-row reference is the unprofiled 30.3 ms and the kernel micro-timings below.
+
+| op (calls/step) | B=2 | B=4 | B=8 | B=12 | B=16 | B=16 / B=2 | ideal | share of step B=8 | B=16 |
+|---|---|---|---|---|---|---|---|---|---|
+| matmul_mxfp4_pair (176) | 21.36 | 23.17 | 31.72 | 42.55 | 52.62 | 2.46 | 1.0 (weight bytes) | 44% | 44% |
+| matmul_mxfp4 (144) | 12.62 | 14.43 | 18.84 | 24.43 | 30.29 | 2.40 | 1.0 (weight bytes) | 26% | 25% |
+| logits (1) | 4.26 | 4.29 | 4.42 | 7.78 | 15.01 | 3.52 | 1.0 (weight bytes) | 6% | 12% |
+| gdn_delta_rule (48) | 2.23 | 2.86 | 4.84 | 6.82 | 8.80 | 3.95 | 8.0 (state bytes per sequence) | 7% | 7% |
+| attn_decode (16) | 0.93 | 1.26 | 2.01 | 2.80 | 3.61 | 3.88 | 8.0 (KV bytes per sequence) | 3% | 3% |
+| everything else (norms, silu, gdn_conv, rope, qk_norm, kv_append, gate ops, ...) | 9.12 | 9.13 | 9.49 | 9.72 | 9.92 | 1.09 | 1.0 | 13% | 8% |
+| **op time sum** | **50.5** | **55.1** | **71.3** | **94.1** | **120.2** | 2.38 | | | |
+
+Ranked by share of the B=16 step: (1) `matmul_mxfp4_pair` 44 %, (2) `matmul_mxfp4` 25 %, (3) `logits` 12 %, (4) `gdn_delta_rule` 7 %, (5) `attn_decode` 3 %. The
+other ~50 op kinds are 8 % together and flat in B (norms, silu, rope, qk-norm, kv-append, gate ops, gdn_conv: row-wise kernels that do the same
+work per row but fill the GPU better with more rows).
+
+Growth of the step from 8 to 16 rows (48.9 ms profiled): pair +20.9, mxfp4 +11.4, logits +10.6, gdn_delta_rule +4.0, attn_decode +1.6, all others +0.4.
+From 2 to 8 rows (20.8 ms): pair +10.4, mxfp4 +6.2, gdn_delta_rule +2.6, attn_decode +1.1, logits +0.2.
+
+## Hypotheses
+
+* **GatedDeltaNet recurrent per-seq loop: killed.** `gdn_delta_rule` is one row-table launch per layer for all sequences (48 calls/step), 8.8 ms at 16
+  rows = 0.55 ms per sequence. The recurrent state is 149 MiB per sequence (plan note), read and written once per step: 0.31 GB per sequence
+  at the ~600 GB/s the card streams = 0.52 ms. So it sits at the byte floor; the only lever is the state size/precision, not the loop. `gdn_conv`
+  is 1.4 ms and flat.
+* **Attention rows: killed (small).** `attn_decode` 3.6 ms at 16 rows = 0.23 ms per sequence for ~64 MB of KV each (65,536 B/token, 1k tokens): 2x the
+  byte floor of 0.11 ms, 3 % of the step. Would matter at long context, not here.
+* **lm_head rows: confirmed, and it is a cliff, not a slope.** micro-timing of `logits_bf16_gemv_rows` (248320x5120 bf16, raw/micro.log): M=1 4.24 ms
+  (599 GB/s), 2 4.26, 4 4.34, 5 4.43, 6 4.45, 8 4.50, **12 7.85, 16 16.70 ms (152 GB/s)**. The same shape as the MXFP4 GEMV before #145: a kernel
+  that is fine to 8 rows and loses its register budget above. Ideal at 16 rows is ~4.5-5 ms.
+* **Pair launcher's two launches: killed.** At M >= 2 `matmul_mxfp4_pair_gemv_rows` is two launches of the rows kernel (the M=1 LDS fusion does not apply). The
+  step has 176 pair calls; two launches instead of one at graph-replay gaps of at most 2-3 us bounds the effect at 0.5 ms of a 59-111 ms step
+  (<1 %, an estimate). The pair op's time is the GEMV time of its two members (gate/up 17408x5120 twice: 2 x 272 us at M=16 in the micro-timing).
+
+## MXFP4 GEMV at 8-16 rows: ALU estimate (not confirmed)
+
+Rows kernel micro-timing (17408x5120, raw/micro.log): 80.4 us at M=1, 156.4 at M=8, 274.6 at M=16, i.e. 12.3-14.7 us per extra row, while the weights
+(45 MB) are read once. 89.1 M weight elements per row in 12.5 us is 7.1 T fma/s; add the bf16 unpack shared by two weight rows (about half an op per fma)
+and it is ~10.7 T VALU lane-ops/s. A single-issue R9700 lane rate is about 4096 lanes x ~2.9 GHz = 11.9 T/s (clock is an assumption; the advertised TFLOPS
+counts dual issue). So the kernel would be running at roughly 90 % of single-issue VALU, and more rows then cost proportionally. This arithmetic is an
+estimate; the check that would confirm it (instruction mix in the ISA, VOPD dual-issue use, or counters) was queued (fleetq #5260, cpu-only) but not run
+because tatooine was held exclusively by another job; `scripts/mr/isa.sh` is in the branch for whoever runs it.
+
+Row-exactness limits the options: the per-row summation order (one sequential fma chain per 32-element group, then a fixed warp-sum) must stay, which rules
+out WMMA/dot-instruction accumulation unless the M=1 path changes with it (that changes bits against main: a user decision, not made here).
+
+## Ranked levers (nothing implemented, per the brief)
+
+1. **`logits_bf16_gemv_rows` above 8 rows** (bf16 lm_head, kernels/hip/matmul.hip `gemv_dispatch<M>`): the same cliff #145 fixed for MXFP4. Micro: 4.5 ms at M=8, 7.8 at 12, 16.7 at 16 (ideal ~4.6). Profiled
+   step: 15.0 ms at B=16 against ~4.5 achievable, so about 10 ms of the 111 ms step (~9 %: 144 -> ~158 tok/s aggregate at 16 rows) and ~3 ms of the 83 ms step at 12 rows.
+   Cheapest fix on the list: the register-shape pattern from #145, row-exactness is the same argument (per-row lane order unchanged), one launcher, one test case in `rows_exact`. Whether the cause is a spill
+   should be checked first with `scripts/mr/isa.sh` (its second half prints VGPR/spill per `gemv_dispatch` M; not run). This is lane wg's file family (bf16 small-row), so coordinate before touching it.
+2. **MXFP4 GEMV ALU cost** (69 % of the step): needs fewer VALU ops per fma without changing the summation order. Candidates, each to be checked in the ISA first: packed/dual-issue use on gfx12,
+   cheaper fp4 -> f32 decode (the LUT/convert shared by 2 rows already), sharing the bf16 unpack across 4 weight rows for M <= 4 only (4 rows spilled above 6 in #145, so only a per-M choice helps).
+   Upside is bounded by the ALU floor; a 15 % GEMV gain is ~10 % of the step. Larger gains need the numerics decision above.
+
+Everything else: GatedDeltaNet and attention sit at their byte floors (killed above), the flat tail is 8 % of the step.
+
+## Served vs bare step
+
+localeval at `--max-batch 8` (PR #145 doc): 61.5 tok/s aggregate and 11.6 tok/s per stream at 8 streams. The bare 8-row step is 59.5 ms = 16.8 tok/s per
+stream, 134.5 aggregate. localeval's figure includes the streams' 1k-token prefills (~1 s each at ~980 tok/s, serialised) and scheduling between
+steps, so about half the served gap to the step is outside the model step. That is a serve-loop question (lane hg's serve-gap work), not
+an MXFP4 kernel one, and sets the ceiling for what step-time fixes can show in the served numbers: a 15 % faster step moves a prefill-diluted
+benchmark far less than 15 %.
+
+## Not done
+
+* B=1 per-op reference (graph-replayed; needs a profile mode that times ops inside a captured graph, or an eager one-row batched step).
+* ISA / instruction-mix check of the rows kernel and the VGPR/spill check of `logits_bf16_gemv_rows` (script ready, job not run: tatooine was held exclusively).
+* No per-launch timing inside the pair op (the <0.5 ms bound assumes 2-3 us per extra graph node, not measured), no GPU hardware counters (rocprof not used).
+* Nothing implemented, per the brief.
+
+# mr3: HIP lm_head rows kernel above 8 rows, and an ALU check of the MXFP4 rows kernel (lane mr, 2026-10-25)
+
+Branch `lane-mr/hip-logits-rows` (base `main` 5241377b). HIP only: kernels/hip/matmul.hip (one new kernel and launcher, used by
+`logits_bf16_gemv_rows` only), crates/intarsia-backend-hip/tests/rows_exact.rs, scripts/mr, docs. The other row-exact bf16 kernel
+(`matmul_bf16_gemv_rows`, the one lane wg's WMMA table dispatches) and every kernel at M <= 8 are untouched. The profile test-harness changes of
+PR #147 (`INTARSIA_TIMING_ROWS` in `real_35b_batch_step_profile`, lm_head timing to M=16) are repeated here so the gates run from one tree.
+
+## Result
+
+`logits_bf16_gemv_rows` at M = 9.

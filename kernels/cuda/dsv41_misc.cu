@@ -3,6 +3,7 @@
 // window_kv (Attention._window_kv, model.py:701), compress_pool (Compressor.forward, model.py:429-486, ratio > 1).
 // Contract: docs/design/dsv41-ops.md. Written from the official inference code (MIT, DeepSeek).
 #include "dsv41_common.cuh"
+#include <stdlib.h>
 
 using namespace dsv41;
 
@@ -234,6 +235,64 @@ __global__ void rope_tail_kernel(const Ti* __restrict__ x, const float* __restri
     }
 }
 
+// Prompt-chunk form of rope_tail (bf16 in and out, T >= 64 rows, rope tail 8-aligned): one block per row; the sin / cos table of
+// the row's `half` frequencies is computed once and shared by its N heads, the row is moved in 16-byte vectors, and a vector of
+// the rotated tail applies the same expressions as rope_tail_kernel to the same f32 inputs (the angle is formed the same way, one
+// sincosf per pair gives the values the two element-wise threads of a pair got), so the output is bitwise the element-wise
+// kernel's. INTARSIA_DSV41_ROPE_VEC=0 selects the element-wise kernel.
+constexpr int kRopeRowThreads = 128;
+constexpr int kRopeMaxHalf = 256;
+
+__global__ void __launch_bounds__(kRopeRowThreads) rope_tail_rows(const __nv_bfloat16* __restrict__ x, const float* __restrict__ f,
+                                                                  __nv_bfloat16* __restrict__ y, int64_t N, int64_t Dh, int64_t half,
+                                                                  int64_t pos0, int64_t stride, int inverse, const int* __restrict__ dpos,
+                                                                  int64_t ratio) {
+    __shared__ float sn_s[kRopeMaxHalf], cs_s[kRopeMaxHalf];
+    const int64_t t = blockIdx.x;
+    const int64_t base = Dh - 2 * half;
+    const int64_t p0 = dpos ? (int64_t)*dpos / ratio * ratio : pos0;
+    for (int j = threadIdx.x; j < half; j += blockDim.x) {
+        const float ang = (float)(p0 + t * stride) * f[j];
+        float sn, cs;
+        sincosf(ang, &sn, &cs);
+        if (inverse) sn = -sn;
+        sn_s[j] = sn;
+        cs_s[j] = cs;
+    }
+    __syncthreads();
+    const int vpr = (int)(Dh / 8);
+    const int64_t nvec = N * vpr;
+    const uint4* xr = reinterpret_cast<const uint4*>(x + t * N * Dh);
+    uint4* yr = reinterpret_cast<uint4*>(y + t * N * Dh);
+#pragma unroll 4
+    for (int64_t v = threadIdx.x; v < nvec; v += blockDim.x) {
+        const int c = (int)(v % vpr);
+        const int64_t e0 = (int64_t)c * 8;
+        uint4 u = xr[v];
+        if (e0 >= base) {
+            __nv_bfloat16* h = reinterpret_cast<__nv_bfloat16*>(&u);
+#pragma unroll
+            for (int q = 0; q < 4; ++q) {
+                const int j = (int)((e0 - base) >> 1) + q;
+                const float re = __bfloat162float(h[2 * q]), im = __bfloat162float(h[2 * q + 1]);
+                const float sn = sn_s[j], cs = cs_s[j];
+                h[2 * q] = __float2bfloat16_rn(re * cs - im * sn);
+                h[2 * q + 1] = __float2bfloat16_rn(re * sn + im * cs);
+            }
+        }
+        yr[v] = u;
+    }
+}
+
+static bool rope_vec_enabled() {
+    static int on = -1;
+    if (on < 0) {
+        const char* e = getenv("INTARSIA_DSV41_ROPE_VEC");
+        on = !(e && e[0] == '0');
+    }
+    return on == 1;
+}
+
 // ---------------------------------------------------------------------------------------------------------------- window_kv
 
 template <typename T>
@@ -391,6 +450,12 @@ extern "C" int ik_rope_tail(const ik_tensor* x, const ik_tensor* inv_freq, int64
     if (n == 0) return IK_OK;
     cudaStream_t s = IK_STREAM(stream);
     const int* dp = pos ? (const int*)pos->data : nullptr;
+    if (x->dtype == IK_DTYPE_BF16 && out->dtype == IK_DTYPE_BF16 && T >= 64 && Dh % 8 == 0 && (Dh - 2 * half) % 8 == 0 && half <= kRopeMaxHalf &&
+        ik_aligned16(x->data) && ik_aligned16(out->data) && rope_vec_enabled()) {
+        rope_tail_rows<<<(unsigned)T, kRopeRowThreads, 0, s>>>((const __nv_bfloat16*)x->data, (const float*)inv_freq->data,
+                                                              (__nv_bfloat16*)out->data, N, Dh, half, pos0, pos_stride, inverse, dp, ratio);
+        return ik_launch_status();
+    }
     DSV_FLOAT_DISPATCH(x->dtype, Ti, DSV_FLOAT_DISPATCH(out->dtype, To,
         rope_tail_kernel<Ti, To><<<grid1d(n, kThreads), kThreads, 0, s>>>((const Ti*)x->data, (const float*)inv_freq->data,
                                                                         (To*)out->data, T, N, Dh, half, pos0, pos_stride, inverse, dp, ratio)));

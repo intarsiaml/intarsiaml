@@ -9,8 +9,14 @@
 //  2. finish: one block per row. All threads collapse h with pre_in (f32, rounded to n's dtype as HcPre stores it), reduce the
 //     sum of squares, write n = y * rsqrt(mean(y^2) + eps) * (w + w_offset); warp 0 sums the partials in split order and lane
 //     0 runs hc_split_sinkhorn (shared with hc_mixes, dsv41_hc.cuh).
+// The partial kernel has two staging paths with the same arithmetic in the same order (so the same bits): the element-wise one
+// (any shape and dtype) and, for bf16 with D % 128 == 0, a vector one (8-byte loads, one chunk's loads for the next iteration
+// issued before the current chunk's dots, INTARSIA_DSV41_HC_VEC=0 selects the element-wise one).
 // Written from DeepSeek's official inference code (MIT): Block.hc_mixes / hc_pre / hc_post, model.py:950-968, kernel.py:406-475.
 #include "dsv41_hc.cuh"
+#include <stdint.h>
+#include <stdlib.h>
+#include <type_traits>
 
 using namespace dsv41;
 
@@ -116,6 +122,155 @@ __global__ void __launch_bounds__(kThreads) hc_sub_partial(const Tx* __restrict_
     }
 }
 
+
+// Vector staging (bf16 x, h_out; D % 128 == 0, so a chunk of 128 elements lies in one stream k). The same sums as hc_sub_partial in
+// the same order: a thread stages 4 consecutive elements of two rows per chunk (8-byte loads), the dots read the same shared-memory
+// tile. The loads of the next chunk of this block are issued before the dots of the current one.
+struct Stage {
+    uint2 px, x[4];
+    float pm, pc[4];
+};
+
+template <bool FOLD>
+IK_DEVI void stage_load(Stage& g, const __nv_bfloat16* __restrict__ x, const __nv_bfloat16* __restrict__ px, const float* __restrict__ pmix,
+                        const float* __restrict__ pcomb, int64_t t, int S, int64_t D, int64_t sd, int64_t e, int vec) {
+    if (FOLD) {
+        const int k = (int)(e / D);
+        const int64_t d = e - (int64_t)k * D + vec * 4;
+        g.px = *reinterpret_cast<const uint2*>(px + t * D + d);
+        g.pm = pmix[t * S + k];
+#pragma unroll
+        for (int j = 0; j < 4; ++j) {
+            if (j < S) {
+                g.x[j] = *reinterpret_cast<const uint2*>(x + (t * S + j) * D + d);
+                g.pc[j] = pcomb[(t * S + j) * S + k];
+            }
+        }
+    } else {
+        g.x[0] = *reinterpret_cast<const uint2*>(x + t * sd + e + vec * 4);
+    }
+}
+
+IK_DEVI void unpack4(uint2 u, float (&f)[4]) {
+    const __nv_bfloat162* h = reinterpret_cast<const __nv_bfloat162*>(&u);
+    const float2 a = __bfloat1622float2(h[0]), b = __bfloat1622float2(h[1]);
+    f[0] = a.x; f[1] = a.y; f[2] = b.x; f[3] = b.y;
+}
+
+template <bool FOLD>
+__global__ void __launch_bounds__(kThreads) hc_sub_partial_vec(const __nv_bfloat16* __restrict__ x, const float* __restrict__ fn,
+                                                             const __nv_bfloat16* __restrict__ px, const float* __restrict__ pmix,
+                                                             const float* __restrict__ pcomb, __nv_bfloat16* __restrict__ hout, int64_t T,
+                                                             int S, int64_t D, int m, int nsplit, float* __restrict__ part) {
+    __shared__ __align__(16) float xs[kTileRows][kChunk];
+    const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
+    const int64_t sd = (int64_t)S * D;
+    const int64_t t0 = (int64_t)blockIdx.y * kTileRows;
+    const int nt = (int)min((int64_t)kTileRows, T - t0);
+    const int64_t nchunk = cdiv(sd, kChunk);
+    float acc[kRowsPerWarp][kTileRows];
+#pragma unroll
+    for (int i = 0; i < kRowsPerWarp; ++i)
+#pragma unroll
+        for (int r = 0; r < kTileRows; ++r) acc[i][r] = 0.f;
+    // thread: rows r = threadIdx.x / 32 + 8 i (i = 0, 1), elements 4 * (threadIdx.x % 32) .. +3 of the chunk
+    const int sv = threadIdx.x & 31, sr = threadIdx.x >> 5;
+    Stage g[2];
+    int64_t ch = blockIdx.x;
+    if (ch < nchunk) {
+#pragma unroll
+        for (int i = 0; i < 2; ++i)
+            if (sr + 8 * i < nt) stage_load<FOLD>(g[i], x, px, pmix, pcomb, t0 + sr + 8 * i, S, D, sd, ch * kChunk, sv);
+    }
+    for (; ch < nchunk; ch += nsplit) {
+        const int64_t e0 = ch * kChunk;
+        __syncthreads();
+#pragma unroll
+        for (int i = 0; i < 2; ++i) {
+            const int r = sr + 8 * i;
+            float4 v = make_float4(0.f, 0.f, 0.f, 0.f);
+            if (r < nt) {
+                float f[4];
+                if (FOLD) {
+                    const int64_t t = t0 + r;
+                    float xv[4][4], pv[4];
+                    unpack4(g[i].px, pv);
+#pragma unroll
+                    for (int j = 0; j < 4; ++j)
+                        if (j < S) unpack4(g[i].x[j], xv[j]);
+                    __nv_bfloat16 hq[4];
+#pragma unroll
+                    for (int c = 0; c < 4; ++c) {
+                        float h = g[i].pm * pv[c];
+#pragma unroll
+                        for (int j = 0; j < 4; ++j)
+                            if (j < S) h = fmaf(g[i].pc[j], xv[j][c], h);
+                        hq[c] = __float2bfloat16_rn(h);
+                        f[c] = __bfloat162float(hq[c]);
+                    }
+                    const int k = (int)(e0 / D);
+                    const int64_t d = e0 - (int64_t)k * D + sv * 4;
+                    uint2 o;
+                    __nv_bfloat162* oh = reinterpret_cast<__nv_bfloat162*>(&o);
+                    oh[0] = __halves2bfloat162(hq[0], hq[1]);
+                    oh[1] = __halves2bfloat162(hq[2], hq[3]);
+                    *reinterpret_cast<uint2*>(hout + t * sd + (int64_t)k * D + d) = o;
+                } else {
+                    unpack4(g[i].x[0], f);
+                }
+                v = make_float4(f[0], f[1], f[2], f[3]);
+            }
+            *reinterpret_cast<float4*>(&xs[r][sv * 4]) = v;
+        }
+        // next chunk's loads, in flight during this chunk's dots
+        if (ch + nsplit < nchunk) {
+#pragma unroll
+            for (int i = 0; i < 2; ++i)
+                if (sr + 8 * i < nt) stage_load<FOLD>(g[i], x, px, pmix, pcomb, t0 + sr + 8 * i, S, D, sd, (ch + nsplit) * kChunk, sv);
+        }
+        __syncthreads();
+        const int64_t e = e0 + lane * 4;
+#pragma unroll
+        for (int i = 0; i < kRowsPerWarp; ++i) {
+            const int j = warp + kWarps * i;
+            if (j > m) continue;  // warp-uniform
+            float4 f;
+            if (j == m) f = make_float4(0.f, 0.f, 0.f, 0.f);
+            else f = __ldg(reinterpret_cast<const float4*>(fn + (int64_t)j * sd + e));
+#pragma unroll
+            for (int r = 0; r < kTileRows; ++r) {
+                if (r >= nt) break;
+                const float4 xv = *reinterpret_cast<const float4*>(&xs[r][lane * 4]);
+                if (j == m) {
+                    acc[i][r] = fmaf(xv.x, xv.x, fmaf(xv.y, xv.y, fmaf(xv.z, xv.z, fmaf(xv.w, xv.w, acc[i][r]))));
+                } else {
+                    acc[i][r] = fmaf(f.x, xv.x, fmaf(f.y, xv.y, fmaf(f.z, xv.z, fmaf(f.w, xv.w, acc[i][r]))));
+                }
+            }
+        }
+    }
+#pragma unroll
+    for (int i = 0; i < kRowsPerWarp; ++i) {
+        const int j = warp + kWarps * i;
+        if (j > m) continue;
+#pragma unroll
+        for (int r = 0; r < kTileRows; ++r) {
+            if (r >= nt) break;
+            const float v = ik_warp_sum(acc[i][r]);
+            if (lane == 0) part[((t0 + r) * nsplit + blockIdx.x) * (m + 1) + j] = v;
+        }
+    }
+}
+
+static bool hc_vec_enabled() {
+    static int on = -1;
+    if (on < 0) {
+        const char* e = getenv("INTARSIA_DSV41_HC_VEC");
+        on = !(e && e[0] == '0');
+    }
+    return on == 1;
+}
+
 // Th: dtype of the h read here (h_out with the fold, x without); To: n's dtype; Tw: norm weight dtype
 template <int S, typename Th, typename To, typename Tw>
 __global__ void __launch_bounds__(kThreads) hc_sub_finish(const Th* __restrict__ h, const float* __restrict__ pre_in, const Tw* __restrict__ w,
@@ -174,13 +329,31 @@ static int run_sub(const ik_tensor* x, const ik_tensor* fn, const ik_tensor* sca
     const int64_t T = x->shape[0], D = x->shape[2];
     const int m = (2 + S) * S;
     dim3 g((unsigned)ns, (unsigned)cdiv(T, kTileRows));
-    if (fold)
+    // vector staging: bf16, whole 128-element chunks inside one stream, aligned operands
+    bool launched = false;
+    if constexpr (std::is_same<Tx, __nv_bfloat16>::value && std::is_same<Th, __nv_bfloat16>::value) {
+        const bool vec = hc_vec_enabled() && D % kChunk == 0 && S <= 4 && ((uintptr_t)x->data % 8 == 0) && ((uintptr_t)fn->data % 16 == 0) &&
+                         (!fold || (((uintptr_t)px->data % 8 == 0) && ((uintptr_t)hout->data % 8 == 0)));
+        if (vec && fold) {
+            hc_sub_partial_vec<true><<<g, kThreads, 0, s>>>((const __nv_bfloat16*)x->data, (const float*)fn->data, (const __nv_bfloat16*)px->data,
+                                                          (const float*)pmix->data, (const float*)pcomb->data, (__nv_bfloat16*)hout->data, T, S, D,
+                                                          m, (int)ns, part);
+            launched = true;
+        } else if (vec) {
+            hc_sub_partial_vec<false><<<g, kThreads, 0, s>>>((const __nv_bfloat16*)x->data, (const float*)fn->data, nullptr, nullptr, nullptr,
+                                                           nullptr, T, S, D, m, (int)ns, part);
+            launched = true;
+        }
+    }
+    if (launched) {
+    } else if (fold) {
         hc_sub_partial<Tx, Th, true><<<g, kThreads, 0, s>>>((const Tx*)x->data, (const float*)fn->data, (const Tx*)px->data,
                                                            (const float*)pmix->data, (const float*)pcomb->data, (Th*)hout->data, T, S, D,
                                                            m, (int)ns, part);
-    else
+    } else {
         hc_sub_partial<Tx, Th, false><<<g, kThreads, 0, s>>>((const Tx*)x->data, (const float*)fn->data, nullptr, nullptr, nullptr, nullptr,
                                                             T, S, D, m, (int)ns, part);
+    }
     IK_TRY(ik_launch_status());
     const size_t smem = (size_t)D * sizeof(float);
     if (smem > 48 * 1024) cudaFuncSetAttribute(hc_sub_finish<S, Th, To, Tw>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);

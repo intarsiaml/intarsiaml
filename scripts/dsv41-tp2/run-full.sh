@@ -215,14 +215,15 @@ fi
 # apart, 3 rounds; then each prompt untraced 3 times for the plain wall time.
 # The CSVs go through docs/results/2026-11-02-dsv41-prefill/prefill_table.py.
 # pfplain: the same requests without nsys (warm-up, then 3 rounds of wall times), for many-config A/Bs.
+# pfreq FILE TAG: one max_tokens 1 request with a unique first line (no prefix reuse), wall time and usage to steps.log
+pfreq() { local t0; t0=$(date +%s.%N)
+  curl -s -m 300 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":"Run id %s.\n" % sys.argv[2] + open(sys.argv[1]).read(),"max_tokens":1,"temperature":0}))' "$1" "$2-$RANDOM")" > "$OUT/pf-$2.json"
+  echo "pf $2 $(basename "$1") wall $(python3 -c 'import sys,time; print("%.3f" % (time.time() - float(sys.argv[1])))' "$t0") s $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("usage"))' "$OUT/pf-$2.json")" | tee -a "$OUT/steps.log"; }
 if [[ " $STEPS " == *" pfplain "* || ( " $STEPS " == *" pfnsys "* && ${NSYS:-0} == 1 ) ]]; then
   PFNSYS=0; [[ " $STEPS " == *" pfnsys "* ]] && PFNSYS=1
   PFD=$REPO/docs/results/2026-11-02-dsv41-prefill
   PFP=${PF_PROMPTS:-$PFD/prompt1k.txt $PFD/prompt4k.txt}
-  pfreq() { local t0; t0=$(date +%s.%N)
-    curl -s -m 300 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":"Run id %s.\n" % sys.argv[2] + open(sys.argv[1]).read(),"max_tokens":1,"temperature":0}))' "$1" "$2-$RANDOM")" > "$OUT/pf-$2.json"
-    echo "pf $2 $(basename "$1") wall $(python3 -c 'import sys,time; print("%.3f" % (time.time() - float(sys.argv[1])))' "$t0") s $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("usage"))' "$OUT/pf-$2.json")" | tee -a "$OUT/steps.log"; }
-  for f in $PFP $PFP; do pfreq "$f" warm; done
+  for _w in $(seq 1 ${PF_WARM:-2}); do for f in $PFP; do pfreq "$f" warm; done; done
   if [[ $PFNSYS == 1 ]]; then
     r spark1 "nsys start --session=dsv41r0x$TAG -o $LOGD/nsys-r0-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
     r spark2 "nsys start --session=dsv41r1x$TAG -o $LOGD/nsys-r1-$TAG --force-overwrite=true --sample=none --cpuctxsw=none" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
@@ -230,7 +231,7 @@ if [[ " $STEPS " == *" pfplain "* || ( " $STEPS " == *" pfnsys "* && ${NSYS:-0} 
     r spark1 "nsys stop --session=dsv41r0x$TAG" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
     r spark2 "nsys stop --session=dsv41r1x$TAG" 2>&1 | tail -2 | tee -a "$OUT/steps.log"
   fi
-  for rep in 1 2 3; do pi=0; for f in $PFP; do pfreq "$f" plain$pi-$rep; pi=$((pi + 1)); done; done
+  for rep in $(seq 1 ${PF_REPS:-3}); do pi=0; for f in $PFP; do pfreq "$f" plain$pi-$rep; pi=$((pi + 1)); done; done
   if [[ $PFNSYS == 1 ]]; then
     for rk in 0 1; do
       h=spark$((rk + 1))
@@ -238,6 +239,13 @@ if [[ " $STEPS " == *" pfplain "* || ( " $STEPS " == *" pfnsys "* && ${NSYS:-0} 
       scp -q "$h:$SPARK_REL/logs/nsys-r$rk-$TAG*gpu_trace*.csv" "$OUT/" 2>/dev/null
     done
   fi
+fi
+# pflong: PL_PROMPTS (long prompts, set CAP above the longest) each PL_REPS (default 2) times as one max_tokens 1 request, PL_WARM (default 0)
+# untimed passes first; wall times in steps.log as `pf longN-<rep> <file> wall <s>`. For the 32K A/B of docs/results/2026-11-03-dsv41-attn-fusion.
+if [[ " $STEPS " == *" pflong "* ]]; then
+  PFP=${PL_PROMPTS:?set PL_PROMPTS}
+  for _w in $(seq 1 ${PL_WARM:-0}); do for f in $PFP; do pfreq "$f" warm; done; done
+  for rep in $(seq 1 ${PL_REPS:-2}); do pi=0; for f in $PFP; do pfreq "$f" long$pi-$rep; pi=$((pi + 1)); done; done
 fi
 # longp: each file of LONG_PROMPTS (32K-64K tokens; set CAP above the longest) as one completion, 16 greedy tokens with the top 5
 # logprobs, saved as $OUT/longp-<name>.json. Compare two configs with docs/results/2026-11-02-dsv41-prefill/cmp_longp.py (chunk

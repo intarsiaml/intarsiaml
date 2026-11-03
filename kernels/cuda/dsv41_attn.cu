@@ -231,6 +231,9 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_kernel(const T* __restri
 // both m-tiles, k = 32 keys) with mma.sync m16n8k16; the probabilities enter the second product rounded to bf16 (and the
 // row sums are taken of the rounded values, so the weights stay normalised). Q and the key tile live in shared memory with
 // rows padded by 8 elements (conflict-free fragment loads and ldmatrix).
+// PF (INTARSIA_DSV41_ATTN_PF, default on): the key tile of the next iteration is gathered into registers (global loads in flight
+// during this iteration's QK / softmax / PV) and written to shared memory at the top of the next one, instead of being fetched
+// after the barrier with nothing to overlap. The tiles, their order and every product and sum are those of the PF = false form.
 constexpr int kMmaKeys = 32;
 
 IK_DEVI void mma16816(float* c, unsigned a0, unsigned a1, unsigned a2, unsigned a3, unsigned b0, unsigned b1) {
@@ -251,6 +254,7 @@ static size_t attn_mma_smem(int64_t D) {
     return (size_t)(2 * kHeads * ld * 2 + kHeads * 33 * 4 + kHeads * 40 * 2);
 }
 
+template <bool PF>
 __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16* __restrict__ q, const __nv_bfloat16* __restrict__ win,
                                                             const __nv_bfloat16* __restrict__ cmp, const int* __restrict__ idx,
                                                             const float* __restrict__ sink, __nv_bfloat16* __restrict__ out,
@@ -299,6 +303,31 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
 #pragma unroll
         for (int j = 0; j < 8; ++j) acc[mt][j][0] = acc[mt][j][1] = acc[mt][j][2] = acc[mt][j][3] = 0.f;
 
+    // PF: this thread's share of a key tile, kMmaKeys * nv / kThreads = D / 64 (<= 8) vectors of rows v / nv, column vector v % nv
+    uint4 pf[8];
+    const int nit = (kMmaKeys * nv) / kThreads;
+    auto gather_regs = [&](int tl) {
+        const int64_t g0 = (int64_t)tl * kMmaKeys;
+#pragma unroll
+        for (int i = 0; i < 8; ++i) {
+            if (i < nit) {
+                const int v = threadIdx.x + kThreads * i;
+                const int r = v / nv, c = v % nv;
+                const int64_t e = g0 + r;
+                const __nv_bfloat16* src = nullptr;
+                if (e < W) {
+                    const int64_t row = t + 1 + e;
+                    if (p0 + row >= W) src = win + row * D;
+                } else if (e < nkeys) {
+                    const int cr = idx[t * Kw + (e - W)];
+                    if (cr >= 0 && cr < Nc) src = cmp + (int64_t)cr * D;
+                }
+                pf[i] = src ? __ldg(reinterpret_cast<const uint4*>(src) + c) : make_uint4(0, 0, 0, 0);
+            }
+        }
+    };
+    if (PF && split < ntiles) gather_regs(split);
+
     for (int tile = split; tile < ntiles; tile += nsplit) {
         const int64_t e0 = (int64_t)tile * kMmaKeys;
         __syncthreads();
@@ -318,16 +347,27 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
             valid[threadIdx.x] = ok;
             srcrow[threadIdx.x] = sr;
         }
-        __syncthreads();
-        for (int v = threadIdx.x; v < kMmaKeys * nv; v += kThreads) {
-            const int r = v / nv, c = v % nv;
-            uint4 x = make_uint4(0, 0, 0, 0);
-            if (valid[r]) {
-                const int64_t sr = srcrow[r];
-                const __nv_bfloat16* src = sr >= 0 ? win + sr * D : cmp + (-sr - 1) * D;
-                x = __ldg(reinterpret_cast<const uint4*>(src) + c);
+        if (PF) {
+#pragma unroll
+            for (int i = 0; i < 8; ++i) {
+                if (i < nit) {
+                    const int v = threadIdx.x + kThreads * i;
+                    *reinterpret_cast<uint4*>(Ks + (v / nv) * ld + (v % nv) * 8) = pf[i];
+                }
             }
-            *reinterpret_cast<uint4*>(Ks + r * ld + c * 8) = x;
+            if (tile + nsplit < ntiles) gather_regs(tile + nsplit);
+        } else {
+            __syncthreads();
+            for (int v = threadIdx.x; v < kMmaKeys * nv; v += kThreads) {
+                const int r = v / nv, c = v % nv;
+                uint4 x = make_uint4(0, 0, 0, 0);
+                if (valid[r]) {
+                    const int64_t sr = srcrow[r];
+                    const __nv_bfloat16* src = sr >= 0 ? win + sr * D : cmp + (-sr - 1) * D;
+                    x = __ldg(reinterpret_cast<const uint4*>(src) + c);
+                }
+                *reinterpret_cast<uint4*>(Ks + r * ld + c * 8) = x;
+            }
         }
         __syncthreads();
         // S tile (m-tile warp & 1, n-tile warp >> 1)
@@ -441,6 +481,15 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
     }
 }
 
+static bool attn_pf_enabled() {
+    static int on = -1;
+    if (on < 0) {
+        const char* e = getenv("INTARSIA_DSV41_ATTN_PF");
+        on = !(e && e[0] == '0');
+    }
+    return on == 1;
+}
+
 static bool attn_mma_enabled() {
     static int on = -1;
     if (on < 0) {
@@ -498,12 +547,19 @@ int launch(const ik_tensor* q, const ik_tensor* win, const ik_tensor* cmp, const
         const size_t smem = attn_mma_smem(D);
         static bool attr = false;
         if (!attr) {
-            cudaFuncSetAttribute(attn_sparse_mma, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)attn_mma_smem(kMaxD));
+            cudaFuncSetAttribute(attn_sparse_mma<false>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)attn_mma_smem(kMaxD));
+            cudaFuncSetAttribute(attn_sparse_mma<true>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)attn_mma_smem(kMaxD));
             attr = true;
         }
-        attn_sparse_mma<<<g, kThreads, smem, s>>>((const __nv_bfloat16*)q->data, (const __nv_bfloat16*)win->data, (const __nv_bfloat16*)cmp->data,
-                                                  (const int*)idx->data, (const float*)sink->data, (__nv_bfloat16*)out->data, part, H, D, W, Nc,
-                                                  Kw, pos0, dp, scale, nsplit, ratio);
+        // PF: prompt chunks only (a grid of several tiles per block would not matter at decode, where the splits cut the key list)
+        if (Tn > kMaxSplitRows && attn_pf_enabled())
+            attn_sparse_mma<true><<<g, kThreads, smem, s>>>((const __nv_bfloat16*)q->data, (const __nv_bfloat16*)win->data, (const __nv_bfloat16*)cmp->data,
+                                                           (const int*)idx->data, (const float*)sink->data, (__nv_bfloat16*)out->data, part, H, D, W,
+                                                           Nc, Kw, pos0, dp, scale, nsplit, ratio);
+        else
+            attn_sparse_mma<false><<<g, kThreads, smem, s>>>((const __nv_bfloat16*)q->data, (const __nv_bfloat16*)win->data, (const __nv_bfloat16*)cmp->data,
+                                                            (const int*)idx->data, (const float*)sink->data, (__nv_bfloat16*)out->data, part, H, D, W,
+                                                            Nc, Kw, pos0, dp, scale, nsplit, ratio);
         IK_TRY(ik_launch_status());
         if (nsplit > 1) {
             attn_sparse_merge<T, kMmaKeys><<<dim3((unsigned)Tn, (unsigned)H), 128, 0, s>>>(part, (const float*)sink->data, (T*)out->data, Tn, H, D,
