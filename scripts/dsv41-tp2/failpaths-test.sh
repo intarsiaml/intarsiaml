@@ -42,7 +42,7 @@ git -C $R worktree add $B 03f8dc2a3
 SPARK_DIR=~/intarsia-dsv41-failpaths BIN_NAME=intarsia.base fleetq run --host spark2 --load cpu --mem 16 --expect 45 --label "dsv41 failpaths: baseline build" -- $B/scripts/dsv41-tp2/build.sh
 SPARK_DIR=~/intarsia-dsv41-failpaths fleetq run --host spark2 --load cpu --mem 16 --expect 45 --label "dsv41 failpaths: fix build" -- $R/scripts/dsv41-tp2/build.sh
 git -C $R worktree remove $B
-# 2. The test. About 32 rank starts, guessed at 4.5 min each (load, kill, memory back), plus about 5 min for the supervised prefill and reply: MAX_MIN 165
+# 2. The test. About 32 rank starts, guessed at 4.5 min each (load, kill, memory back), plus the supervised prefill and reply: MAX_MIN 210
 #    bounds the cases, the vLLM restart comes on top. These times are guesses. Fewer kills (KILLS=10) save about 45 min.
 SPARK_DIR=~/intarsia-dsv41-failpaths EARLYOOM_OK="3,2 2,1" STEPS="" MAX_MIN=210 HOOK=$R/scripts/dsv41-tp2/failpaths-test.sh OUT=$R/.scratch/failpaths-\$(date +%m%d-%H%M) \\
   fleetq run --host spark1,spark2 --quiet gpu,cpu --mem spark1=105,spark2=105 --takes-down spark1-vllm,spark2-vllm --expect 240 \\

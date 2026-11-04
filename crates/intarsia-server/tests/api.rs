@@ -1732,6 +1732,7 @@ fn an_orphan_leaves_during_the_bind_retry() {
         bind_retry_serve(&s);
     }
     bind_retry_child("an_orphan_leaves_during_the_bind_retry", "orphan", intarsia_server::EXIT_ORPHANED);
+}
 
 /// Graceful shutdown waits for every open response, and an `/events` client (`intarsia top`) never closes its own: the
 /// stream must end with the shutdown signal, or the process lives until the supervisor kills it.
