@@ -1,0 +1,37 @@
+fleetq: #8202 running on endor: env X=1 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh off-A1 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed --spec off
+localeval exit 0
+fleetq: #8202 done (exit 0)
+fleetq: #8203 running on endor: env INTARSIA_METAL_ATTN_HSB=3 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh off-B1 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed --spec off
+localeval exit 0
+fleetq: #8203 done (exit 0)
+fleetq: #8204 running on endor: env INTARSIA_METAL_ATTN_HS=3 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh off-C1 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed --spec off
+localeval exit 0
+fleetq: #8204 done (exit 0)
+fleetq: #8205 running on endor: env INTARSIA_METAL_ATTN_HSB=3 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh off-B2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed --spec off
+localeval exit 0
+fleetq: #8205 done (exit 0)
+fleetq: #8206 running on endor: env X=1 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh off-A2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed --spec off
+localeval exit 0
+fleetq: #8206 done (exit 0)
+fleetq: #8209 running on endor: env INTARSIA_METAL_ATTN_HS=3 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh off-C2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed --spec off
+localeval exit 0
+fleetq: #8209 done (exit 0)
+fleetq: #8210 running on endor: env X=1 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh k2-A1 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed
+localeval exit 0
+fleetq: #8210 done (exit 0)
+fleetq: #8213 running on endor: env INTARSIA_METAL_ATTN_HSB=3 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh k2-B1 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed
+localeval exit 0
+fleetq: #8213 done (exit 0)
+fleetq: #8214 running on endor: env INTARSIA_METAL_ATTN_HS=3 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh k2-C1 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed
+localeval exit 0
+fleetq: #8214 done (exit 0)
+fleetq: #8215 running on endor: env INTARSIA_METAL_ATTN_HSB=3 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh k2-B2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed
+localeval exit 0
+fleetq: #8215 done (exit 0)
+fleetq: #8216 running on endor: env X=1 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh k2-A2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed
+localeval exit 0
+fleetq: #8216 done (exit 0)
+fleetq: #8217 running on endor: env INTARSIA_METAL_ATTN_HS=3 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/speed-arm.sh k2-C2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.hsb2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/speed
+localeval exit 0
+fleetq: #8217 done (exit 0)
+CHAIN-DONE

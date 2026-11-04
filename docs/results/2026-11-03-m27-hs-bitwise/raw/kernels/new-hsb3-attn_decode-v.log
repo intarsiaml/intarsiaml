@@ -1,0 +1,52 @@
+candidate: Apple M5 Max (metal/applegpu_g17s)   reference: cpu
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=2000 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=6.104e-5 rel_l2=3.788e-5 T=1 pos0=2000 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=9.191e-5 rel_l2=7.266e-6 T=1 pos0=40 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=2000 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=6.104e-5 rel_l2=4.270e-5 T=1 pos0=5000 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=8 D=256 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16       ok    max_abs=7.440e-5 rel_l2=5.014e-6 T=1 pos0=40 N=16 Nkv=8 D=256 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=1100 N=16 Nkv=8 D=256 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16       ok    max_abs=4.883e-4 rel_l2=4.828e-5 T=1 pos0=1500 N=16 Nkv=8 D=256 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=64 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=64 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=1100 N=4 Nkv=2 D=64 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16       ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=1500 N=4 Nkv=2 D=64 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=2000 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=4 Nkv=2 D=32 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=3.815e-6 rel_l2=2.363e-6 T=1 pos0=2000 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=16 Nkv=8 D=128 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=0 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=9.191e-5 rel_l2=7.266e-6 T=1 pos0=40 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=2000 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=5000 N=16 Nkv=2 D=256 q=bf16 kv=bf16
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=16 Nkv=8 D=256 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=7.440e-5 rel_l2=7.091e-6 T=1 pos0=40 N=16 Nkv=8 D=256 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=4.768e-7 rel_l2=4.415e-8 T=1 pos0=1100 N=16 Nkv=8 D=256 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=1500 N=16 Nkv=8 D=256 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=7 N=4 Nkv=2 D=64 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=40 N=4 Nkv=2 D=64 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=1100 N=4 Nkv=2 D=64 q=bf16 kv=bf16 window=0 scale=1
+  attn_decode    attn_decode_bf16_splitkv ok    max_abs=0.000e0 rel_l2=0.000e0 T=1 pos0=1500 N=4 Nkv=2 D=64 q=bf16 kv=bf16 window=0 scale=1
+
+op             kernel                      cases   fail     max_abs      rel_l2  result
+attn_decode    attn_decode_bf16               23      0    4.883e-4    4.828e-5  ADMITTED
+attn_decode    attn_decode_bf16_splitkv       23      0    9.191e-5    7.266e-6  ADMITTED
+2 kernels, 46 cases in 3.9s
