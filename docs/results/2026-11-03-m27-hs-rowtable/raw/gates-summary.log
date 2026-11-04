@@ -1,0 +1,41 @@
+fleetq: #8300 waiting (#2 in line): in line behind #8299 "m27 rowtable ABAB speed (mb8 16k, mb8 4k, mb4), one slot" (claude-m27-hsr) on endor
+fleetq:   #8299 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8299 set, or it will wait for #8299 to be released.
+fleetq: #8300 waiting (#1 in line): #8299 "m27 rowtable ABAB speed (mb8 16k, mb8 4k, mb4), one slot" (claude-m27-hsr) needs gpu quiet on endor, and this job loads it
+fleetq:   #8299 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8299 set, or it will wait for #8299 to be released.
+fleetq: #8300 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/docs/results/2026-11-03-m27-hs-rowtable/raw/scripts/gates-rt.sh /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/docs/results/2026-11-03-m27-hs-rowtable/raw/gates /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/.scratch/intarsia.rtm /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/.scratch/intarsia.def
+== 1/5 greedy ids + text: base vs rt (env unset) vs opt-out HSB=0
+ident short off: base vs rt: text same, ids same (256 ids)
+ident short off: base vs optout: text same, ids same (256 ids)
+ident short k2: base vs rt: text same, ids same (256 ids)
+ident short k2: base vs optout: text same, ids same (256 ids)
+ident 4k off: base vs rt: text same, ids same (256 ids)
+ident 4k off: base vs optout: text same, ids same (256 ids)
+ident 4k k2: base vs rt: text same, ids same (256 ids)
+ident 4k k2: base vs optout: text same, ids same (256 ids)
+ident 16k off: base vs rt: text same, ids same (256 ids)
+ident 16k off: base vs optout: text same, ids same (256 ids)
+ident 16k k2: base vs rt: text same, ids same (256 ids)
+ident 16k k2: base vs optout: text same, ids same (256 ids)
+== 2/5 kernels test, default binary vs base, no env
+base kernels test exit 0
+def kernels test exit 0
+27B-config attn_decode: logs DIFFER
+27B-config attn_prefill: logs DIFFER
+== 3/5 plan show
+plan show Qwen3.6-35B-A3B-NVFP4 : identical
+plan show Qwen3.6-35B-A3B-NVFP4 --json: identical
+plan show Qwen3-8B : identical
+plan show Qwen3-8B --json: identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 : identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 --json: identical
+== 4/5 accuracy
+accuracy exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy: byte-identical to the previous lane's default-binary run (m27-hs-bitwise gates-def/accuracy/def.out)
+accuracy: byte-identical to m27-gemv final.out
+== 5/5 MTP k2 == off (default binary)
+mtp p1: k2 == off
+mtp p2: k2 == off
+fleetq: #8300 done (exit 0)
+CHAIN-GATES-DONE

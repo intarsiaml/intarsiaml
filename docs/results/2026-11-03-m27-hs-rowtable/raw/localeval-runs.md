@@ -1,0 +1,24 @@
+# localeval run dirs (/opt/code/deepeval/results/<dir>/result.json) and unanimis record ids
+
+| tag | run dir | unanimis |
+|---|---|---|
+| A-mb4-16384 | 20261103-194220-adhoc-m27rt-A-mb4-16384 | 02afca66-ff81-4936-9007-dc8701f05215 |
+| A-mb4-4096 | 20261103-194038-adhoc-m27rt-A-mb4-4096 | a52233cb-52c6-4774-9b7e-ff694668480c |
+| C-mb4-16384 | 20261103-195425-adhoc-m27rt-C-mb4-16384 | 058a1721-e2f0-4590-946d-77776e17dec5 |
+| C-mb4-4096 | 20261103-195249-adhoc-m27rt-C-mb4-4096 | d1b56350-b76f-433e-8f0a-7cc62a89900a |
+| def-mb4-11-16384 | 20261103-235423-adhoc-m27rt-def-mb4-11-16384 | 7f00e706-7105-4811-bf6e-6cbe84ca0a1b |
+| def-mb4-11-4096 | 20261103-235239-adhoc-m27rt-def-mb4-11-4096 | 6ad7be9b-e959-4165-bca0-3c3c408fbab3 |
+| def-mb4-9-16384 | 20261103-234303-adhoc-m27rt-def-mb4-9-16384 | 018a1c11-a7e5-405f-ac46-f6b849aea8c2 |
+| def-mb4-9-4096 | 20261103-234119-adhoc-m27rt-def-mb4-9-4096 | 5566d80f-96a3-4e56-9b62-fffa977d91fc |
+| def-mb8-1-16384 | 20261103-215700-adhoc-m27rt-def-mb8-1-16384 | bd7c91c8-5728-4234-a675-34ffec7868e7 |
+| def-mb8-3-16384 | 20261103-223335-adhoc-m27rt-def-mb8-3-16384 | de5e6f22-d75b-4267-ae24-872aef73b72e |
+| def-mb8-5-4096 | 20261103-231021-adhoc-m27rt-def-mb8-5-4096 | bcefd31a-e9f0-4e57-86aa-81a2eccfe72b |
+| def-mb8-7-4096 | 20261103-232553-adhoc-m27rt-def-mb8-7-4096 | 8f43216c-3561-4d6b-8325-bfcbe0e389a0 |
+| rt-mb4-10-16384 | 20261103-234848-adhoc-m27rt-rt-mb4-10-16384 | 23f88f55-3613-49bd-8698-15648355672c |
+| rt-mb4-10-4096 | 20261103-234708-adhoc-m27rt-rt-mb4-10-4096 | 9dd4b0d4-eaef-4bf5-8fb0-72ea8136be4f |
+| rt-mb4-12-16384 | 20261104-000008-adhoc-m27rt-rt-mb4-12-16384 | a7f8972d-f353-4ab9-b1bf-eaa779c441c7 |
+| rt-mb4-12-4096 | 20261103-235828-adhoc-m27rt-rt-mb4-12-4096 | 985609bf-47d7-4b9f-89fc-49cb02f87e74 |
+| rt-mb8-2-16384 | 20261103-221558-adhoc-m27rt-rt-mb8-2-16384 | d4a366d2-07d0-468f-b01d-986ee5b06784 |
+| rt-mb8-4-16384 | 20261103-225246-adhoc-m27rt-rt-mb8-4-16384 | 56666fa3-1b23-4ffd-841a-ebb2c778cd56 |
+| rt-mb8-6-4096 | 20261103-231820-adhoc-m27rt-rt-mb8-6-4096 | 138e2777-b995-48d8-b66f-95a5740814bd |
+| rt-mb8-8-4096 | 20261103-233351-adhoc-m27rt-rt-mb8-8-4096 | f192e317-b461-4a8b-9028-34a3ce8bee11 |
