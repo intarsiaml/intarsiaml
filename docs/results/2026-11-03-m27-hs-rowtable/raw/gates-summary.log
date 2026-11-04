@@ -1,0 +1,10 @@
+fleetq: #8300 waiting (#2 in line): in line behind #8299 "m27 rowtable ABAB speed (mb8 16k, mb8 4k, mb4), one slot" (claude-m27-hsr) on endor
+fleetq:   #8299 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8299 set, or it will wait for #8299 to be released.
+fleetq: #8300 waiting (#1 in line): #8299 "m27 rowtable ABAB speed (mb8 16k, mb8 4k, mb4), one slot" (claude-m27-hsr) needs gpu quiet on endor, and this job loads it
+fleetq:   #8299 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8299 set, or it will wait for #8299 to be released.
+fleetq: #8300 running on endor: zsh /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/docs/results/2026-11-03-m27-hs-rowtable/raw/scripts/gates-rt.sh /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/docs/results/2026-11-03-m27-hs-rowtable/raw/gates /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/.scratch/intarsia.rtm /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/.scratch/intarsia.def
+== 1/5 greedy ids + text: base vs rt (env unset) vs opt-out HSB=0
+ident short off: base vs rt: text same, ids same (256 ids)
+ident short off: base vs optout: text same, ids same (256 ids)
+ident short k2: base vs rt: text same, ids same (256 ids)
+ident short k2: base vs optout: text same, ids same (256 ids)

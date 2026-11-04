@@ -1,0 +1,40 @@
+1220 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 4.35s
+     Running tests/hs_bitwise.rs (target-test/release/deps/hs_bitwise-a8552225156e16c1)
+
+running 1 test
+
+thread 'bitwise_head_split_is_bit_identical_to_the_unsplit_launch' (94245128) panicked at crates/intarsia-backend-metal/tests/hs_bitwise.rs:222:17:
+rowtab R=1 pos [1000] HSB=6: differs from the unsplit row-table launch
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test bitwise_head_split_is_bit_identical_to_the_unsplit_launch ... FAILED
+
+failures:
+
+failures:
+    bitwise_head_split_is_bit_identical_to_the_unsplit_launch
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.05s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test hs_bitwise`
