@@ -140,6 +140,29 @@ mod check {
         assert_bits(&format!("rope_tail P={p} ratio={ratio} T={t} {dt}"), &get(be, &od), &get(be, &oh));
     }
 
+    /// In place (`x` is the output): what the graph's attention `q` and `o` ropes launch with `GraphTp::rope_inplace`. The in-place
+    /// kernel visits the rope dims only and must leave exactly the bits of the copy kernel in the whole row, for a host position
+    /// and for a device position, at the model's head width (512) and at two narrower ones (128; 64 = only rope dims).
+    pub fn rope_in_place(be: &dyn Backend, rng: &mut SplitMix64, dt: DType, t: usize, ratio: usize, stride: usize, inverse: bool, p: usize) {
+        let f: Vec<f32> = (0..32).map(|j| 10000f32.powf(-(2 * j) as f32 / 64.0)).collect();
+        let f = put(be, &HostTensor::from_f32(&[32], &f));
+        let mut a = OpAttrs::default();
+        (a.dsv.ratio, a.dsv.pos_stride, a.dsv.inverse) = (ratio, stride, inverse);
+        let ah = OpAttrs { pos0: p / ratio * ratio, ..a.clone() };
+        let pos = pos_t(be, p);
+        for dh in [512usize, 128, 64] {
+            let xh = rnd(rng, dt, &[t, 4, dh], 1.0);
+            let (x, want) = (put(be, &xh), put(be, &HostTensor::zeros(dt, &[t, 4, dh])));
+            Launch::new(be, "rope_tail", Op::RopeTail, vec![x.clone(), f.clone()], vec![want.clone()], &ah, None).run(be);
+            for dev in [false, true] {
+                let xi = put(be, &xh);
+                let (at, ps) = if dev { (&a, Some(&pos)) } else { (&ah, None) };
+                Launch::new(be, "rope_tail", Op::RopeTail, vec![xi.clone(), f.clone()], vec![xi.clone()], at, ps).run(be);
+                assert_bits(&format!("rope_tail in place (dev {dev}) P={p} ratio={ratio} stride={stride} inverse={inverse} T={t} Dh={dh} {dt}"), &get(be, &xi), &get(be, &want));
+            }
+        }
+    }
+
     pub fn window(be: &dyn Backend, rng: &mut SplitMix64, dt: DType, t: usize, p: usize) {
         let (w, wc, d) = (128, 144, 512);
         let kv = put(be, &rnd(rng, dt, &[t, d], 1.0));
@@ -299,6 +322,7 @@ fn rope_window_qdq_pool_device_position_is_bitwise_the_host_call() {
             for (ratio, stride, inverse) in [(1, 1, false), (1, 1, true), (4, 4, false), (2, 2, false)] {
                 for p in [0usize, 1, 3, 4, 7, 127, 4093, 30000] {
                     check::rope(be, r, dt, t, ratio, stride, inverse, p);
+                    check::rope_in_place(be, r, dt, t, ratio, stride, inverse, p);
                 }
             }
             for p in [0usize, 1, 100, 127, 128, 129, 143, 144, 4095, 30001] {

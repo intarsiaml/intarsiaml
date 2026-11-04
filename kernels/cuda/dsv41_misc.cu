@@ -234,6 +234,31 @@ __global__ void rope_tail_kernel(const Ti* __restrict__ x, const float* __restri
     }
 }
 
+// rope_tail over the 2 * half rope dims only, in place (x == out, same dtype), so the base = Dh - 2 * half leading dims are not copied.
+// rope_tail_kernel cannot simply be launched with y == x: the two threads of a pair each read (re, im) and the even one stores before the odd
+// one loads. One thread per (re, im) pair loads both and stores both; it keeps the per-element arithmetic of rope_tail_kernel verbatim
+// (same `ang`, same sincosf, same sign flip for `inverse`, the same two expressions `re * cs - im * sn` and `re * sn + im * cs`).
+template <typename T>
+__global__ void rope_tail_ip_kernel(T* x, const float* __restrict__ f, int64_t Tn, int64_t N, int64_t Dh, int64_t half, int64_t pos0, int64_t stride,
+                                    int inverse, const int* __restrict__ dpos, int64_t ratio) {
+    const int64_t npair = Tn * N * half;
+    const int64_t base = Dh - 2 * half;
+    const int64_t p0 = dpos ? (int64_t)*dpos / ratio * ratio : pos0;
+    for (int64_t k = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; k < npair; k += (int64_t)gridDim.x * blockDim.x) {
+        const int64_t j = k % half;
+        const int64_t row = k / half;  // t * N + head
+        const int64_t t = row / N;
+        const int64_t pi = row * Dh + base + 2 * j;
+        const float re = ld(x, pi), im = ld(x, pi + 1);
+        const float ang = (float)(p0 + t * stride) * f[j];
+        float sn, cs;
+        sincosf(ang, &sn, &cs);
+        if (inverse) sn = -sn;
+        st(x, pi, re * cs - im * sn);
+        st(x, pi + 1, re * sn + im * cs);
+    }
+}
+
 // ---------------------------------------------------------------------------------------------------------------- window_kv
 
 template <typename T>
@@ -391,6 +416,13 @@ extern "C" int ik_rope_tail(const ik_tensor* x, const ik_tensor* inv_freq, int64
     if (n == 0) return IK_OK;
     cudaStream_t s = IK_STREAM(stream);
     const int* dp = pos ? (const int*)pos->data : nullptr;
+    if (x->data == out->data && x->dtype == out->dtype) {  // in place: only the rope dims are visited
+        const int64_t nw = T * N * half;
+        DSV_FLOAT_DISPATCH(x->dtype, Ti,
+            rope_tail_ip_kernel<Ti><<<grid1d(nw, kThreads), kThreads, 0, s>>>((Ti*)out->data, (const float*)inv_freq->data, T, N, Dh, half, pos0,
+                                                                              pos_stride, inverse, dp, ratio));
+        return ik_launch_status();
+    }
     DSV_FLOAT_DISPATCH(x->dtype, Ti, DSV_FLOAT_DISPATCH(out->dtype, To,
         rope_tail_kernel<Ti, To><<<grid1d(n, kThreads), kThreads, 0, s>>>((const Ti*)x->data, (const float*)inv_freq->data,
                                                                         (To*)out->data, T, N, Dh, half, pos0, pos_stride, inverse, dp, ratio)));

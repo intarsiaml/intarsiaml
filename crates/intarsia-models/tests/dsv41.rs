@@ -4,7 +4,7 @@
 
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::dsv41::config::Dsv41Config;
-use intarsia_core::dsv41::graph::{build, Buf, GraphOpts};
+use intarsia_core::dsv41::graph::{build, build_draft, build_with, Buf, Dsv41Graph, GraphOpts, GraphTp};
 use intarsia_core::state::{SharedKind, SlotSpec};
 use intarsia_core::{DType, Op};
 use intarsia_models::dsv41::{detect, plan, HeaderShapes};
@@ -229,8 +229,8 @@ fn every_step_resolves_to_a_cuda_kernel() {
     for (t, pos0) in [(1, 70_000), (16, 0), (16, 4096), (512, 0), (512, 8192)] {
         graphs.push((t, build(&c, &w, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }).unwrap()));
         if let Some((ws, m)) = &shapes_r0 {
-            let tp = intarsia_core::dsv41::graph::GraphTp { world: m.world, layers: m.layers, first: m.first_layer };
-            graphs.push((t, intarsia_core::dsv41::graph::build_with(&c, ws, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }, tp).unwrap()));
+            let tp = intarsia_core::dsv41::graph::GraphTp { world: m.world, layers: m.layers, first: m.first_layer, rope_inplace: false };
+            graphs.push((t, build_with(&c, ws, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }, tp).unwrap()));
         }
     }
     for (t, g) in graphs {
@@ -242,6 +242,83 @@ fn every_step_resolves_to_a_cuda_kernel() {
         }
     }
     assert!(missing.is_empty(), "steps without a CUDA kernel:\n{}", missing.iter().map(|(k, v)| format!("  {k}: {v}")).collect::<Vec<_>>().join("\n"));
+}
+
+/// `in_place_rope_leaves_no_reader_of_the_unrotated_rows`: compare a graph with `GraphTp::rope_inplace` to the one without and
+/// return the number of in-place `q` and `o` ropes.
+fn check_in_place_rope(base: &Dsv41Graph, ip: &Dsv41Graph) -> (usize, usize) {
+    assert_eq!(base.stages.len(), ip.stages.len());
+    let (mut n_q, mut n_o) = (0, 0);
+    for (sb, si) in base.stages.iter().zip(&ip.stages) {
+        // same steps in the same order, lanes and positions; the only difference is the rope output buffer and its readers
+        assert_eq!(sb.steps.len(), si.steps.len(), "{}", sb.name);
+        assert_eq!(sb.extras, si.extras, "{}", sb.name);
+        for (j, (a, b)) in sb.steps.iter().zip(&si.steps).enumerate() {
+            assert_eq!((a.op, &a.what, a.lane, a.pos), (b.op, &b.what, b.lane, b.pos));
+            let same = |x: &Buf, y: &Buf| match (x, y) {
+                (Buf::Ws(p), Buf::Ws(q)) => (p == "q_rope" && q == "q") || (p == "o_derot" && q == "o") || p == q,
+                _ => x == y,
+            };
+            assert!(a.inputs.iter().zip(&b.inputs).all(|(x, y)| same(&x.buf, &y.buf) && x.shape == y.shape && x.dtype == y.dtype), "{}: {}", sb.name, a.what);
+            assert!(a.outputs.iter().zip(&b.outputs).all(|(x, y)| same(&x.buf, &y.buf) && x.shape == y.shape && x.dtype == y.dtype), "{}: {}", sb.name, a.what);
+            // no step but the two ropes aliases an input
+            if !(b.op == Op::RopeTail && b.inputs[0].buf == b.outputs[0].buf) {
+                assert!(b.outputs.iter().all(|o| b.inputs.iter().all(|i| i.buf != o.buf)), "{}: {}", sb.name, b.what);
+                continue;
+            }
+            let (buf, inverse) = (&b.inputs[0].buf, b.attrs.dsv.inverse);
+            assert_eq!(buf, &Buf::Ws(if inverse { "o" } else { "q" }.into()), "{}: {}", sb.name, b.what);
+            assert_eq!(b.lane, 0, "{}: {}", sb.name, b.what);
+            // the producer is the nearest earlier step writing the buffer; nothing but the rope touches it before the rope
+            let prod = &si.steps[..j].iter().rposition(|s| s.outputs.iter().any(|x| &x.buf == buf)).unwrap();
+            let prod = *prod;
+            assert_eq!(si.steps[prod].lane, 0);
+            if inverse {
+                assert_eq!(si.steps[prod].op, Op::AttnSparse, "{}", sb.name);
+            } else {
+                assert!(si.steps[prod].what.ends_with(".wq_b"), "{}: q is produced by {}", sb.name, si.steps[prod].what);
+            }
+            for s in &si.steps[prod + 1..j] {
+                assert!(s.inputs.iter().chain(&s.outputs).all(|x| &x.buf != buf), "{}: {} touches the unrotated rows", sb.name, s.what);
+            }
+            // the first step after the rope that touches the buffer reads it, and it is the consumer of the rotated rows
+            let k = si.steps[j + 1..].iter().position(|s| s.inputs.iter().chain(&s.outputs).any(|x| &x.buf == buf));
+            let next = &si.steps[j + 1 + k.expect("a reader after the rope")];
+            assert!(next.inputs.iter().any(|x| &x.buf == buf) && next.outputs.iter().all(|x| &x.buf != buf), "{}: {}", sb.name, next.what);
+            if inverse {
+                assert!(next.what.contains("act_quant(o)") || next.what.contains("wo_a"), "{}: first reader of the de-rotated o is {}", sb.name, next.what);
+                n_o += 1;
+            } else {
+                assert_eq!((next.op, &next.inputs[0].buf), (Op::AttnSparse, buf), "{}: first reader of the rotated q is {}", sb.name, next.what);
+                n_q += 1;
+            }
+        }
+    }
+    (n_q, n_o)
+}
+
+/// `GraphTp::rope_inplace` (CUDA): the attention's `q` and `o` ropes write the buffer they read. Nothing may read the unrotated
+/// rows (between the step that produced the buffer and the rope only the rope touches it, and the first step after the rope
+/// is the attention for `q` and the output projection for `o`), the other steps, lanes and extras are unchanged, and the
+/// graph without the flag has no aliasing at all.
+#[test]
+fn in_place_rope_leaves_no_reader_of_the_unrotated_rows() {
+    let (c, w) = mia();
+    let off = GraphTp::default();
+    let on = GraphTp { rope_inplace: true, ..off };
+    for (t, pos0) in [(1, 4095), (4, 100), (16, 0), (512, 0), (512, 8192), (2048, 0)] {
+        let o = GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 };
+        let (base, ip) = (build_with(&c, &w, o, off).unwrap(), build_with(&c, &w, o, on).unwrap());
+        assert_eq!(check_in_place_rope(&base, &ip), (40, 40), "t = {t} pos0 = {pos0}: one q rope and one o rope per layer");
+        for st in base.stages.iter().flat_map(|s| s.steps.iter()) {
+            assert!(st.outputs.iter().all(|o| st.inputs.iter().all(|i| i.buf != o.buf)), "{}", st.what);
+        }
+    }
+    // the drafting graph (DSpark stages) has the same two ropes
+    let o = GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 131_072 };
+    let (base, ip) = (build_draft(&c, &w, o, off, 4).unwrap(), build_draft(&c, &w, o, on, 4).unwrap());
+    let (n_q, n_o) = check_in_place_rope(&base, &ip);
+    assert!(n_q > 0 && n_q == n_o, "draft graph: {n_q} q ropes, {n_o} o ropes");
 }
 
 /// Host cost of building the decode graph (the eager runtime builds one per pass): printed, bounded loosely.
@@ -282,7 +359,7 @@ fn mia_dspark_graphs_record_with_the_official_structure() {
     };
     let plain = build_with(&c, &w, GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 4096 }, GraphTp::default()).unwrap();
     for world in [1] {
-        let tp = GraphTp { world, layers: None, first: 0 };
+        let tp = GraphTp { world, layers: None, first: 0, rope_inplace: false };
         let o = GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 4096 };
         let v = build_pass(&c, &w, o, tp, PassKind { all_rows: true, absorb: true, dpos: false }).unwrap();
         check(&v);

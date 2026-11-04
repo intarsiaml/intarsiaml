@@ -256,7 +256,7 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
         (None, Some(l)) if l < n_layers => Some(engram_tier(&cfg, dir, o, rank, world)?),
         _ => None,
     };
-    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers, first: m.first_layer }, spec: o.spec };
+    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers, first: m.first_layer, rope_inplace: false }, spec: o.spec };
     let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, comm, weights, engram, opts)?;
     match (o.spec, rt.dspark) {
         (true, n) => eprintln!("dsv41: rank {rank}/{world}: speculative decoding on, {n} DSpark stages loaded from {}", mtp_dir.display()),

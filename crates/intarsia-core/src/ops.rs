@@ -42,7 +42,7 @@
 //! | `MoeRoute` | logits `[T,E]` f32, bias `[E]` f32 | weights `[T,K]` f32, ids `[T,K]` i32 (top-k of score + bias, weights the unbiased scores) | top_k, scale, norm_topk, temperature, dsv.score_func |
 //! | `SiluGluClamp` | gate `[R,I]`, up `[R,I]` | `[R,I]` (= silu(min(gate,l)) * clamp(up,-l,l)) | dsv.limit |
 //! | `ActQdq` | x `[..,N]` | same (quantise per block of N, dequantise) | dsv.qdq_fmt, dsv.qdq_block, dsv.qdq_scale |
-//! | `RopeTail` | x `[T,N,Dh]`, inv_freq `[rd/2]` f32 | `[T,N,Dh]` (last rd elements rotated as adjacent pairs, row t at pos0 + t*pos_stride) | pos0, dsv.pos_stride, dsv.inverse |
+//! | `RopeTail` | x `[T,N,Dh]`, inv_freq `[rd/2]` f32 | `[T,N,Dh]` (last rd elements rotated as adjacent pairs, row t at pos0 + t*pos_stride; **in place** is allowed when the graph asks for it, `GraphTp::rope_inplace`: the CUDA kernel then rotates the rd elements only) | pos0, dsv.pos_stride, dsv.inverse |
 //! | `WindowKv` | kv `[T,D]` | win `[W+T,D]`, ring `[Wc,D]` (**in place**) | window, pos0 |
 //! | `AttnSparse` | q `[T,H,D]`, win `[W+T,D]`, cmp `[Nc,D]`, idx `[T,Kc]` i32 (-1 none), sink `[H]` f32 | `[T,H,D]` (MQA over the window plus the indexed compressed rows, sink in the denominator) | window, pos0, scale |
 //! | `CompressPool` | kv `[T,D]` f32, score `[T,D]` f32 | out `[G,D]` (softmax-gated pooling of each completed group of ratio rows), kv / score rings `[Rc,D]` f32 (**in place**) | dsv.ratio, pos0 |

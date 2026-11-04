@@ -622,6 +622,9 @@ fn device_position_passes_equal_host_passes() {
     let dev2 = run(true);
     let bits = |v: &[Vec<f32>]| v.iter().flatten().map(|x| x.to_bits()).collect::<Vec<u32>>();
     assert!(bits(&dev) == bits(&dev2), "the recaptured run differs from the first");
+    // FNV-1a of every pass's output bits: equal across binaries (a base build, `INTARSIA_DSV41_ROPE_INPLACE=0`) means bit-identical engine output
+    let fnv = bits(&host).iter().fold(0xcbf29ce484222325u64, |h, b| (h ^ *b as u64).wrapping_mul(0x100000001b3));
+    println!("RUNTIME output hash {fnv:016x} over {} passes, {} values", host.len(), bits(&host).len());
     let (r_pass, r_verify, r_draft) = rt.graph_replays();
     assert_eq!(host.len(), dev.len());
     let mut first_diff = None;

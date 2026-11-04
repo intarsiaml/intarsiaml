@@ -3,7 +3,7 @@
 //! step is checked as an `OpCall` on shape-only tensors and resolved to the kernel the registry would pick.
 
 use super::config::Dsv41Config;
-use super::graph::{build, Buf, Dsv41Graph, GraphOpts, WeightShapes};
+use super::graph::{build_with, rope_inplace_for, Buf, Dsv41Graph, GraphOpts, GraphTp, WeightShapes};
 use crate::backend::Backend;
 use crate::dtype::DType;
 use crate::error::Result;
@@ -22,8 +22,9 @@ pub fn plan_json(model: &str, c: &Dsv41Config, w: &dyn WeightShapes, backend: &d
     let info = backend.info();
     let reg = Registry::new(backend.name(), &info, backend.kernels());
     let act = DType::Bf16;
-    let decode = build(c, w, GraphOpts { t: 1, pos0: PLAN_POS, act, cap })?;
-    let prefill = build(c, w, GraphOpts { t: prefill_rows, pos0: 0, act, cap })?;
+    let tp = GraphTp { rope_inplace: rope_inplace_for(backend.name()), ..GraphTp::default() };
+    let decode = build_with(c, w, GraphOpts { t: 1, pos0: PLAN_POS, act, cap }, tp)?;
+    let prefill = build_with(c, w, GraphOpts { t: prefill_rows, pos0: 0, act, cap }, tp)?;
 
     // op -> (kernel, contract status, calls per decode step)
     let mut ops: BTreeMap<(usize, String), (String, u64)> = BTreeMap::new();
