@@ -133,8 +133,10 @@ PLAN_MIN=$((BUILD_MIN + DOWN_MIN + RESTORE_MIN))
 for n in $SELECTED; do PLAN_MIN=$((PLAN_MIN + $(est "$n"))); done
 EXPECT=$(( (PLAN_MIN * 11 + 9) / 10 ))          # planned + 10 %, whole minutes: the honest high guess for fleetq --expect
 LABEL="dsv41 replay test, steps ${STEPS_ARG}: bounded-replay prefill off vs on (vLLM restored after)"
-# Same fleetq shape as run-full.sh / the chunk32k jobs: ONE job over both Sparks, the script starts both ranks itself.
-FQ=(fleetq run --host spark1,spark2 --quiet gpu,cpu --takes-down "$VLLM_ROLES" --mem spark1=105,spark2=105 --expect "$EXPECT"
+# Same fleetq shape as run-full.sh: ONE EXCLUSIVE job over both Sparks, the script starts both ranks itself. Exclusive (not
+# `--quiet gpu,cpu`) because the 5 GiB MemAvailable watcher SIGKILLs the ranks: a chunk32k-2 serve log showed 8.5 GiB available
+# at chunk 2048, so even a co-running `--load none` job of about 3.5 GiB would trip it. --mem 116 as in run-full.sh.
+FQ=(fleetq run --host spark1,spark2 --exclusive --takes-down "$VLLM_ROLES" --mem spark1=116,spark2=116 --expect "$EXPECT"
     --label "$LABEL" -- env REPLAY_TEST_INNER=1 "$SELF" ${PASS[@]+"${PASS[@]}"})
 
 if [[ $DRY == 1 ]]; then
