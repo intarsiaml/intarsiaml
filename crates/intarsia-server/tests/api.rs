@@ -33,6 +33,8 @@ struct Mock {
     queue_full: bool,
     /// `submit` refuses a prompt id at or past this, as the single-sequence engine does (`BadRequest`).
     vocab: Option<u32>,
+    /// A request that asks for `logprobs` gets this many traced logits rows of this many entries (`trace_logits`).
+    trace: Option<(usize, usize)>,
     /// The engine dies after this many tokens: the stream ends with an `Error` event instead of `Done`.
     die_after: Option<usize>,
     /// Structured output: a byte-level `tokenizer.json` (token 0 = EOS, 256 = `<tool_call>`, 257 = `</tool_call>`),
@@ -203,6 +205,12 @@ impl Engine for Mock {
         let plen = req.prompt.len();
         let max = req.max_tokens;
         let constrained = req.constraint.is_some().then(|| constrained_gen(&req, self.want.unwrap_or("")));
+        if let (Some((rows, vocab)), Some(tr)) = (self.trace, &req.trace_logits) {
+            let mut tr = tr.lock().unwrap();
+            for r in 0..rows {
+                tr.push((0..vocab).map(|j| ((j * 7 + r * 3) % 101) as f32 * 0.05).collect());
+            }
+        }
         self.reqs.lock().unwrap().push(req);
         let slow = self.slow;
         let die_after = self.die_after;
@@ -1727,4 +1735,54 @@ async fn graceful_shutdown_ends_the_events_stream() {
     let (ended, seen) = client.await.unwrap();
     assert!(ended, "the client's stream was cut, not ended");
     assert!(seen.contains("data:"), "the stream carried telemetry: {seen}");
+}
+
+/// `logprobs` of a completion: the chosen token's and the top-N of each generated position, from the traced logits.
+#[tokio::test]
+async fn completions_logprobs_shape() {
+    let mock = Arc::new(Mock { trace: Some((2, 100)), ..Default::default() });
+    let app = app_with(mock);
+    let (st, _, body) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc", "max_tokens": 2, "logprobs": 3}))).await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    let v: Value = serde_json::from_str(&body).unwrap();
+    let lp = &v["choices"][0]["logprobs"];
+    // one position per generated token id (the mock streams token 65 once)
+    let n = v["usage"]["completion_tokens"].as_u64().unwrap().min(1) as usize;
+    assert_eq!(lp["token_logprobs"].as_array().unwrap().len(), n, "{lp}");
+    assert_eq!(lp["tokens"].as_array().unwrap().len(), n);
+    let own = lp["token_logprobs"][0].as_f64().expect("the chosen token's log-probability is a number");
+    assert!(own <= 0.0 && own.is_finite(), "{own}");
+    let top = lp["top_logprobs_ids"][0].as_array().unwrap();
+    assert_eq!(top.len(), 3);
+    // best first, and a log-probability is at most 0
+    let l: Vec<f64> = top.iter().map(|t| t[1].as_f64().unwrap()).collect();
+    assert!(l[0] >= l[1] && l[1] >= l[2] && l[0] <= 0.0, "{l:?}");
+}
+
+/// Post-processing the traced logits is seconds of CPU on a real vocabulary and a long reply: it must not run on the
+/// async threads (the server has two), or `/health`, `/metrics` and every stream wait for it. One runtime thread makes
+/// the stall total: a timer task can only tick while the request is off it.
+#[tokio::test(flavor = "current_thread")]
+async fn completions_logprobs_do_not_stall_the_async_threads() {
+    let mock = Arc::new(Mock { trace: Some((2, 1_500_000)), ..Default::default() });
+    let app = app_with(mock);
+    let ticking = Arc::new(AtomicBool::new(true));
+    let t2 = ticking.clone();
+    let ticker = tokio::spawn(async move {
+        let (mut worst, mut last) = (std::time::Duration::ZERO, std::time::Instant::now());
+        while t2.load(Ordering::Relaxed) {
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            worst = worst.max(last.elapsed());
+            last = std::time::Instant::now();
+        }
+        worst
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    let t = std::time::Instant::now();
+    let (st, _, body) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc", "max_tokens": 2, "logprobs": 5}))).await;
+    let total = t.elapsed();
+    assert_eq!(st, StatusCode::OK, "{}", &body[..body.len().min(300)]);
+    ticking.store(false, Ordering::Relaxed);
+    let worst = ticker.await.unwrap();
+    assert!(worst < total / 3, "the timer stood still for {worst:?} of the request's {total:?}");
 }
