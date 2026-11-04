@@ -1,0 +1,473 @@
+diff --git a/crates/intarsia-core/src/dsv41/graph.rs b/crates/intarsia-core/src/dsv41/graph.rs
+index 897a7911b..c63029375 100644
+--- a/crates/intarsia-core/src/dsv41/graph.rs
++++ b/crates/intarsia-core/src/dsv41/graph.rs
+@@ -429,6 +429,14 @@ pub fn hc_fused() -> bool {
+ /// prefill chunk the fold is slower than the separate `HcPost`, at decode it saves ~6 us per sublayer on sm_121).
+ pub const HC_FOLD_MAX_ROWS: usize = 16;
+ 
++/// Rows up to which the main graph's `HcSublayer` folds the previous `HcPost`: [`HC_FOLD_MAX_ROWS`], or
++/// `INTARSIA_DSV41_HC_FOLD_ROWS` (a row count; the fold is bitwise the separate `HcPost` followed by the unfolded op, so this only
++/// moves the step boundary, for A/B).
++pub fn hc_fold_rows() -> usize {
++    static N: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
++    *N.get_or_init(|| std::env::var("INTARSIA_DSV41_HC_FOLD_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(HC_FOLD_MAX_ROWS))
++}
++
+ /// The other residual buffer (`x0` <-> `x1`).
+ fn flip(x: &Arg) -> Arg {
+     let other = if x.buf == Buf::Ws("x0".into()) { "x1" } else { "x0" };
+@@ -602,7 +610,7 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
+     // HcMixes + HcPre + RmsNorm of every sublayer run as one HcSublayer; at T <= HC_FOLD_MAX_ROWS it also folds the
+     // previous sublayer's HcPost, unless something reads the streams in between (an Engram merge or the DSpark tap of the
+     // next layer, the head): then that HcPost is emitted on its own at the end of its layer.
+-    let fold = hc_fused() && t <= HC_FOLD_MAX_ROWS;
++    let fold = hc_fused() && t <= hc_fold_rows();
+     let reads_streams = |l: usize| {
+         l >= n_layers
+             || c.engram.as_ref().is_some_and(|e| e.layer_ids.contains(&l))
+diff --git a/docs/tuning.md b/docs/tuning.md
+index 94af3e9a9..4a32979d2 100644
+--- a/docs/tuning.md
++++ b/docs/tuning.md
+@@ -193,6 +193,10 @@ numerics (`INTARSIA_CUDA_FAST_PREFILL`, `INTARSIA_CUDA_MOE_NVFP4`, `INTARSIA_TP_
+ | `INTARSIA_DSV41_DUMP_WHAT` | `crates/intarsia-core/src/dsv41/runtime.rs:1541` | unset: every step | DeepSeek-V4.1 diagnosis, with `INTARSIA_DSV41_DUMP_POS`: comma list of substrings; only steps whose name contains one of them are dumped (e.g. `hc_attn,hc_ffn,indexer,.ffn.gate`). | no |
+ | `INTARSIA_DSV41_EXL3_SPLITK` | `crates/intarsia-core/src/dsv41/runtime.rs:106` | 16 | DeepSeek-V4.1: one-row EXL3 linears whose GEMV grid (N / 128 blocks) is below this run the split-K GEMV `matmul_exl3_splitk` (K cut so the grid reaches the SM count; deterministic, not bitwise the GEMV). GB10 microbench: 1.6-3.7x faster at grid 4-10, 5-10 % slower at grid 32-40, hence 16. 0 = off (every linear on `matmul_exl3_gemv`, the earlier behaviour). | yes |
+ | `INTARSIA_DSV41_HC_FUSED` | `crates/intarsia-core/src/dsv41/graph.rs:379` | on | DeepSeek-V4.1: each hyper-connection sublayer (HcMixes + HcPre + RmsNorm) as one fused `HcSublayer`, which at T <= 16 also folds the previous sublayer's HcPost. `0` emits the separate ops (the graph before the fused op, step for step), for A/B and diagnosis. | yes (fused kernel, different rounding) |
++| `INTARSIA_DSV41_HC_FOLD_ROWS` | `crates/intarsia-core/src/dsv41/graph.rs:437` | 16 | DeepSeek-V4.1: rows up to which a pass folds the previous sublayer's HcPost into the next `HcSublayer` (one step fewer per sublayer, main graph only). A prompt chunk is above 16 rows; a larger value folds it as well (A/B of the prefill fold, lane attnfuse). | no (the fold is bitwise the separate `HcPost` + unfolded op) |
++| `INTARSIA_DSV41_HC_VEC` | `kernels/cuda/dsv41_hc_sub.cu:268` | on | DeepSeek-V4.1 `HcSublayer` partial kernel (bf16, D % 128 == 0): 8-byte staging loads with the next chunk's loads issued ahead of the dots. `0` runs the element-wise staging. | no (same sums in the same order) |
++| `INTARSIA_DSV41_ROPE_VEC` | `kernels/cuda/dsv41_misc.cu:290` | on | DeepSeek-V4.1 `RopeTail` on a prompt chunk (bf16, T >= 64 rows): one block per row, sin / cos once per frequency, 16-byte vectors. `0` runs the element-wise kernel. | no (same expressions on the same f32 inputs) |
++| `INTARSIA_DSV41_ATTN_PF` | `kernels/cuda/dsv41_attn.cu:487` | on | DeepSeek-V4.1 tensor-core `AttnSparse` on a prompt chunk (more than 16 rows): the next key tile is gathered into registers while the current one is computed. `0` fetches each tile after the barrier. | no (same tiles, same order, same products) |
+ | `INTARSIA_DSV41_F16W_ROWS` | `kernels/cuda/dsv41_dense.cu:159` | 8 | DeepSeek-V4.1 f16-weight router / `weights_proj` kernel: rows per weight read at M > 1. `16` is the earlier default, `1` the one-row tile at every M (diagnosis of the prefill A/B). A row's bits do not depend on it, so every value gives the same output. | no |
+ | `INTARSIA_DSV41_MOE_SMEMA` | `kernels/cuda/exl3_moe_rows.cu:413` | on | DeepSeek-V4.1 prompt-chunk MoE gate / up (T >= 64 rows): the activation rows are staged in shared memory with cp.async and read by ldmatrix (TensorFold's `grouped_mma` path). `0` runs the earlier kernel (per-lane global A loads) at every shape, for A/B. The mma sequence of every output is the same, so the bits are. | no |
+ | `INTARSIA_DSV41_F16W_SCALAR` | `kernels/cuda/dsv41_dense.cu:150` | unset (off) | DeepSeek-V4.1: `1` runs the f16-weight router / `weights_proj` linears on the scalar kernel at every shape, which is the kernel and sum order from before the vector path (numerics A/B of `f184b9377`). | yes |
+diff --git a/kernels/cuda/dsv41_attn.cu b/kernels/cuda/dsv41_attn.cu
+index da819e92c..be4d0e2f0 100644
+--- a/kernels/cuda/dsv41_attn.cu
++++ b/kernels/cuda/dsv41_attn.cu
+@@ -231,6 +231,9 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_kernel(const T* __restri
+ // both m-tiles, k = 32 keys) with mma.sync m16n8k16; the probabilities enter the second product rounded to bf16 (and the
+ // row sums are taken of the rounded values, so the weights stay normalised). Q and the key tile live in shared memory with
+ // rows padded by 8 elements (conflict-free fragment loads and ldmatrix).
++// PF (INTARSIA_DSV41_ATTN_PF, default on): the key tile of the next iteration is gathered into registers (global loads in flight
++// during this iteration's QK / softmax / PV) and written to shared memory at the top of the next one, instead of being fetched
++// after the barrier with nothing to overlap. The tiles, their order and every product and sum are those of the PF = false form.
+ constexpr int kMmaKeys = 32;
+ 
+ IK_DEVI void mma16816(float* c, unsigned a0, unsigned a1, unsigned a2, unsigned a3, unsigned b0, unsigned b1) {
+@@ -251,6 +254,7 @@ static size_t attn_mma_smem(int64_t D) {
+     return (size_t)(2 * kHeads * ld * 2 + kHeads * 33 * 4 + kHeads * 40 * 2);
+ }
+ 
++template <bool PF>
+ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16* __restrict__ q, const __nv_bfloat16* __restrict__ win,
+                                                             const __nv_bfloat16* __restrict__ cmp, const int* __restrict__ idx,
+                                                             const float* __restrict__ sink, __nv_bfloat16* __restrict__ out,
+@@ -299,6 +303,31 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
+ #pragma unroll
+         for (int j = 0; j < 8; ++j) acc[mt][j][0] = acc[mt][j][1] = acc[mt][j][2] = acc[mt][j][3] = 0.f;
+ 
++    // PF: this thread's share of a key tile, kMmaKeys * nv / kThreads = D / 64 (<= 8) vectors of rows v / nv, column vector v % nv
++    uint4 pf[8];
++    const int nit = (kMmaKeys * nv) / kThreads;
++    auto gather_regs = [&](int tl) {
++        const int64_t g0 = (int64_t)tl * kMmaKeys;
++#pragma unroll
++        for (int i = 0; i < 8; ++i) {
++            if (i < nit) {
++                const int v = threadIdx.x + kThreads * i;
++                const int r = v / nv, c = v % nv;
++                const int64_t e = g0 + r;
++                const __nv_bfloat16* src = nullptr;
++                if (e < W) {
++                    const int64_t row = t + 1 + e;
++                    if (p0 + row >= W) src = win + row * D;
++                } else if (e < nkeys) {
++                    const int cr = idx[t * Kw + (e - W)];
++                    if (cr >= 0 && cr < Nc) src = cmp + (int64_t)cr * D;
++                }
++                pf[i] = src ? __ldg(reinterpret_cast<const uint4*>(src) + c) : make_uint4(0, 0, 0, 0);
++            }
++        }
++    };
++    if (PF && split < ntiles) gather_regs(split);
++
+     for (int tile = split; tile < ntiles; tile += nsplit) {
+         const int64_t e0 = (int64_t)tile * kMmaKeys;
+         __syncthreads();
+@@ -318,16 +347,27 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
+             valid[threadIdx.x] = ok;
+             srcrow[threadIdx.x] = sr;
+         }
+-        __syncthreads();
+-        for (int v = threadIdx.x; v < kMmaKeys * nv; v += kThreads) {
+-            const int r = v / nv, c = v % nv;
+-            uint4 x = make_uint4(0, 0, 0, 0);
+-            if (valid[r]) {
+-                const int64_t sr = srcrow[r];
+-                const __nv_bfloat16* src = sr >= 0 ? win + sr * D : cmp + (-sr - 1) * D;
+-                x = __ldg(reinterpret_cast<const uint4*>(src) + c);
++        if (PF) {
++#pragma unroll
++            for (int i = 0; i < 8; ++i) {
++                if (i < nit) {
++                    const int v = threadIdx.x + kThreads * i;
++                    *reinterpret_cast<uint4*>(Ks + (v / nv) * ld + (v % nv) * 8) = pf[i];
++                }
++            }
++            if (tile + nsplit < ntiles) gather_regs(tile + nsplit);
++        } else {
++            __syncthreads();
++            for (int v = threadIdx.x; v < kMmaKeys * nv; v += kThreads) {
++                const int r = v / nv, c = v % nv;
++                uint4 x = make_uint4(0, 0, 0, 0);
++                if (valid[r]) {
++                    const int64_t sr = srcrow[r];
++                    const __nv_bfloat16* src = sr >= 0 ? win + sr * D : cmp + (-sr - 1) * D;
++                    x = __ldg(reinterpret_cast<const uint4*>(src) + c);
++                }
++                *reinterpret_cast<uint4*>(Ks + r * ld + c * 8) = x;
+             }
+-            *reinterpret_cast<uint4*>(Ks + r * ld + c * 8) = x;
+         }
+         __syncthreads();
+         // S tile (m-tile warp & 1, n-tile warp >> 1)
+@@ -441,6 +481,15 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
+     }
+ }
+ 
++static bool attn_pf_enabled() {
++    static int on = -1;
++    if (on < 0) {
++        const char* e = getenv("INTARSIA_DSV41_ATTN_PF");
++        on = !(e && e[0] == '0');
++    }
++    return on == 1;
++}
++
+ static bool attn_mma_enabled() {
+     static int on = -1;
+     if (on < 0) {
+@@ -498,12 +547,19 @@ int launch(const ik_tensor* q, const ik_tensor* win, const ik_tensor* cmp, const
+         const size_t smem = attn_mma_smem(D);
+         static bool attr = false;
+         if (!attr) {
+-            cudaFuncSetAttribute(attn_sparse_mma, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)attn_mma_smem(kMaxD));
++            cudaFuncSetAttribute(attn_sparse_mma<false>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)attn_mma_smem(kMaxD));
++            cudaFuncSetAttribute(attn_sparse_mma<true>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)attn_mma_smem(kMaxD));
+             attr = true;
+         }
+-        attn_sparse_mma<<<g, kThreads, smem, s>>>((const __nv_bfloat16*)q->data, (const __nv_bfloat16*)win->data, (const __nv_bfloat16*)cmp->data,
+-                                                  (const int*)idx->data, (const float*)sink->data, (__nv_bfloat16*)out->data, part, H, D, W, Nc,
+-                                                  Kw, pos0, dp, scale, nsplit, ratio);
++        // PF: prompt chunks only (a grid of several tiles per block would not matter at decode, where the splits cut the key list)
++        if (Tn > kMaxSplitRows && attn_pf_enabled())
++            attn_sparse_mma<true><<<g, kThreads, smem, s>>>((const __nv_bfloat16*)q->data, (const __nv_bfloat16*)win->data, (const __nv_bfloat16*)cmp->data,
++                                                           (const int*)idx->data, (const float*)sink->data, (__nv_bfloat16*)out->data, part, H, D, W,
++                                                           Nc, Kw, pos0, dp, scale, nsplit, ratio);
++        else
++            attn_sparse_mma<false><<<g, kThreads, smem, s>>>((const __nv_bfloat16*)q->data, (const __nv_bfloat16*)win->data, (const __nv_bfloat16*)cmp->data,
++                                                            (const int*)idx->data, (const float*)sink->data, (__nv_bfloat16*)out->data, part, H, D, W,
++                                                            Nc, Kw, pos0, dp, scale, nsplit, ratio);
+         IK_TRY(ik_launch_status());
+         if (nsplit > 1) {
+             attn_sparse_merge<T, kMmaKeys><<<dim3((unsigned)Tn, (unsigned)H), 128, 0, s>>>(part, (const float*)sink->data, (T*)out->data, Tn, H, D,
+diff --git a/kernels/cuda/dsv41_hc_sub.cu b/kernels/cuda/dsv41_hc_sub.cu
+index 9ae11a051..6f7773109 100644
+--- a/kernels/cuda/dsv41_hc_sub.cu
++++ b/kernels/cuda/dsv41_hc_sub.cu
+@@ -9,8 +9,14 @@
+ //  2. finish: one block per row. All threads collapse h with pre_in (f32, rounded to n's dtype as HcPre stores it), reduce the
+ //     sum of squares, write n = y * rsqrt(mean(y^2) + eps) * (w + w_offset); warp 0 sums the partials in split order and lane
+ //     0 runs hc_split_sinkhorn (shared with hc_mixes, dsv41_hc.cuh).
++// The partial kernel has two staging paths with the same arithmetic in the same order (so the same bits): the element-wise one
++// (any shape and dtype) and, for bf16 with D % 128 == 0, a vector one (8-byte loads, one chunk's loads for the next iteration
++// issued before the current chunk's dots, INTARSIA_DSV41_HC_VEC=0 selects the element-wise one).
+ // Written from DeepSeek's official inference code (MIT): Block.hc_mixes / hc_pre / hc_post, model.py:950-968, kernel.py:406-475.
+ #include "dsv41_hc.cuh"
++#include <stdint.h>
++#include <stdlib.h>
++#include <type_traits>
+ 
+ using namespace dsv41;
+ 
+@@ -116,6 +122,155 @@ __global__ void __launch_bounds__(kThreads) hc_sub_partial(const Tx* __restrict_
+     }
+ }
+ 
++
++// Vector staging (bf16 x, h_out; D % 128 == 0, so a chunk of 128 elements lies in one stream k). The same sums as hc_sub_partial in
++// the same order: a thread stages 4 consecutive elements of two rows per chunk (8-byte loads), the dots read the same shared-memory
++// tile. The loads of the next chunk of this block are issued before the dots of the current one.
++struct Stage {
++    uint2 px, x[4];
++    float pm, pc[4];
++};
++
++template <bool FOLD>
++IK_DEVI void stage_load(Stage& g, const __nv_bfloat16* __restrict__ x, const __nv_bfloat16* __restrict__ px, const float* __restrict__ pmix,
++                        const float* __restrict__ pcomb, int64_t t, int S, int64_t D, int64_t sd, int64_t e, int vec) {
++    if (FOLD) {
++        const int k = (int)(e / D);
++        const int64_t d = e - (int64_t)k * D + vec * 4;
++        g.px = *reinterpret_cast<const uint2*>(px + t * D + d);
++        g.pm = pmix[t * S + k];
++#pragma unroll
++        for (int j = 0; j < 4; ++j) {
++            if (j < S) {
++                g.x[j] = *reinterpret_cast<const uint2*>(x + (t * S + j) * D + d);
++                g.pc[j] = pcomb[(t * S + j) * S + k];
++            }
++        }
++    } else {
++        g.x[0] = *reinterpret_cast<const uint2*>(x + t * sd + e + vec * 4);
++    }
++}
++
++IK_DEVI void unpack4(uint2 u, float (&f)[4]) {
++    const __nv_bfloat162* h = reinterpret_cast<const __nv_bfloat162*>(&u);
++    const float2 a = __bfloat1622float2(h[0]), b = __bfloat1622float2(h[1]);
++    f[0] = a.x; f[1] = a.y; f[2] = b.x; f[3] = b.y;
++}
++
++template <bool FOLD>
++__global__ void __launch_bounds__(kThreads) hc_sub_partial_vec(const __nv_bfloat16* __restrict__ x, const float* __restrict__ fn,
++                                                             const __nv_bfloat16* __restrict__ px, const float* __restrict__ pmix,
++                                                             const float* __restrict__ pcomb, __nv_bfloat16* __restrict__ hout, int64_t T,
++                                                             int S, int64_t D, int m, int nsplit, float* __restrict__ part) {
++    __shared__ __align__(16) float xs[kTileRows][kChunk];
++    const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
++    const int64_t sd = (int64_t)S * D;
++    const int64_t t0 = (int64_t)blockIdx.y * kTileRows;
++    const int nt = (int)min((int64_t)kTileRows, T - t0);
++    const int64_t nchunk = cdiv(sd, kChunk);
++    float acc[kRowsPerWarp][kTileRows];
++#pragma unroll
++    for (int i = 0; i < kRowsPerWarp; ++i)
++#pragma unroll
++        for (int r = 0; r < kTileRows; ++r) acc[i][r] = 0.f;
++    // thread: rows r = threadIdx.x / 32 + 8 i (i = 0, 1), elements 4 * (threadIdx.x % 32) .. +3 of the chunk
++    const int sv = threadIdx.x & 31, sr = threadIdx.x >> 5;
++    Stage g[2];
++    int64_t ch = blockIdx.x;
++    if (ch < nchunk) {
++#pragma unroll
++        for (int i = 0; i < 2; ++i)
++            if (sr + 8 * i < nt) stage_load<FOLD>(g[i], x, px, pmix, pcomb, t0 + sr + 8 * i, S, D, sd, ch * kChunk, sv);
++    }
++    for (; ch < nchunk; ch += nsplit) {
++        const int64_t e0 = ch * kChunk;
++        __syncthreads();
++#pragma unroll
++        for (int i = 0; i < 2; ++i) {
++            const int r = sr + 8 * i;
++            float4 v = make_float4(0.f, 0.f, 0.f, 0.f);
++            if (r < nt) {
++                float f[4];
++                if (FOLD) {
++                    const int64_t t = t0 + r;
++                    float xv[4][4], pv[4];
++                    unpack4(g[i].px, pv);
++#pragma unroll
++                    for (int j = 0; j < 4; ++j)
++                        if (j < S) unpack4(g[i].x[j], xv[j]);
++                    __nv_bfloat16 hq[4];
++#pragma unroll
++                    for (int c = 0; c < 4; ++c) {
++                        float h = g[i].pm * pv[c];
++#pragma unroll
++                        for (int j = 0; j < 4; ++j)
++                            if (j < S) h = fmaf(g[i].pc[j], xv[j][c], h);
++                        hq[c] = __float2bfloat16_rn(h);
++                        f[c] = __bfloat162float(hq[c]);
++                    }
++                    const int k = (int)(e0 / D);
++                    const int64_t d = e0 - (int64_t)k * D + sv * 4;
++                    uint2 o;
++                    __nv_bfloat162* oh = reinterpret_cast<__nv_bfloat162*>(&o);
++                    oh[0] = __halves2bfloat162(hq[0], hq[1]);
++                    oh[1] = __halves2bfloat162(hq[2], hq[3]);
++                    *reinterpret_cast<uint2*>(hout + t * sd + (int64_t)k * D + d) = o;
++                } else {
++                    unpack4(g[i].x[0], f);
++                }
++                v = make_float4(f[0], f[1], f[2], f[3]);
++            }
++            *reinterpret_cast<float4*>(&xs[r][sv * 4]) = v;
++        }
++        // next chunk's loads, in flight during this chunk's dots
++        if (ch + nsplit < nchunk) {
++#pragma unroll
++            for (int i = 0; i < 2; ++i)
++                if (sr + 8 * i < nt) stage_load<FOLD>(g[i], x, px, pmix, pcomb, t0 + sr + 8 * i, S, D, sd, (ch + nsplit) * kChunk, sv);
++        }
++        __syncthreads();
++        const int64_t e = e0 + lane * 4;
++#pragma unroll
++        for (int i = 0; i < kRowsPerWarp; ++i) {
++            const int j = warp + kWarps * i;
++            if (j > m) continue;  // warp-uniform
++            float4 f;
++            if (j == m) f = make_float4(0.f, 0.f, 0.f, 0.f);
++            else f = __ldg(reinterpret_cast<const float4*>(fn + (int64_t)j * sd + e));
++#pragma unroll
++            for (int r = 0; r < kTileRows; ++r) {
++                if (r >= nt) break;
++                const float4 xv = *reinterpret_cast<const float4*>(&xs[r][lane * 4]);
++                if (j == m) {
++                    acc[i][r] = fmaf(xv.x, xv.x, fmaf(xv.y, xv.y, fmaf(xv.z, xv.z, fmaf(xv.w, xv.w, acc[i][r]))));
++                } else {
++                    acc[i][r] = fmaf(f.x, xv.x, fmaf(f.y, xv.y, fmaf(f.z, xv.z, fmaf(f.w, xv.w, acc[i][r]))));
++                }
++            }
++        }
++    }
++#pragma unroll
++    for (int i = 0; i < kRowsPerWarp; ++i) {
++        const int j = warp + kWarps * i;
++        if (j > m) continue;
++#pragma unroll
++        for (int r = 0; r < kTileRows; ++r) {
++            if (r >= nt) break;
++            const float v = ik_warp_sum(acc[i][r]);
++            if (lane == 0) part[((t0 + r) * nsplit + blockIdx.x) * (m + 1) + j] = v;
++        }
++    }
++}
++
++static bool hc_vec_enabled() {
++    static int on = -1;
++    if (on < 0) {
++        const char* e = getenv("INTARSIA_DSV41_HC_VEC");
++        on = !(e && e[0] == '0');
++    }
++    return on == 1;
++}
++
+ // Th: dtype of the h read here (h_out with the fold, x without); To: n's dtype; Tw: norm weight dtype
+ template <int S, typename Th, typename To, typename Tw>
+ __global__ void __launch_bounds__(kThreads) hc_sub_finish(const Th* __restrict__ h, const float* __restrict__ pre_in, const Tw* __restrict__ w,
+@@ -174,13 +329,31 @@ static int run_sub(const ik_tensor* x, const ik_tensor* fn, const ik_tensor* sca
+     const int64_t T = x->shape[0], D = x->shape[2];
+     const int m = (2 + S) * S;
+     dim3 g((unsigned)ns, (unsigned)cdiv(T, kTileRows));
+-    if (fold)
++    // vector staging: bf16, whole 128-element chunks inside one stream, aligned operands
++    bool launched = false;
++    if constexpr (std::is_same<Tx, __nv_bfloat16>::value && std::is_same<Th, __nv_bfloat16>::value) {
++        const bool vec = hc_vec_enabled() && D % kChunk == 0 && S <= 4 && ((uintptr_t)x->data % 8 == 0) && ((uintptr_t)fn->data % 16 == 0) &&
++                         (!fold || (((uintptr_t)px->data % 8 == 0) && ((uintptr_t)hout->data % 8 == 0)));
++        if (vec && fold) {
++            hc_sub_partial_vec<true><<<g, kThreads, 0, s>>>((const __nv_bfloat16*)x->data, (const float*)fn->data, (const __nv_bfloat16*)px->data,
++                                                          (const float*)pmix->data, (const float*)pcomb->data, (__nv_bfloat16*)hout->data, T, S, D,
++                                                          m, (int)ns, part);
++            launched = true;
++        } else if (vec) {
++            hc_sub_partial_vec<false><<<g, kThreads, 0, s>>>((const __nv_bfloat16*)x->data, (const float*)fn->data, nullptr, nullptr, nullptr,
++                                                           nullptr, T, S, D, m, (int)ns, part);
++            launched = true;
++        }
++    }
++    if (launched) {
++    } else if (fold) {
+         hc_sub_partial<Tx, Th, true><<<g, kThreads, 0, s>>>((const Tx*)x->data, (const float*)fn->data, (const Tx*)px->data,
+                                                            (const float*)pmix->data, (const float*)pcomb->data, (Th*)hout->data, T, S, D,
+                                                            m, (int)ns, part);
+-    else
++    } else {
+         hc_sub_partial<Tx, Th, false><<<g, kThreads, 0, s>>>((const Tx*)x->data, (const float*)fn->data, nullptr, nullptr, nullptr, nullptr,
+                                                             T, S, D, m, (int)ns, part);
++    }
+     IK_TRY(ik_launch_status());
+     const size_t smem = (size_t)D * sizeof(float);
+     if (smem > 48 * 1024) cudaFuncSetAttribute(hc_sub_finish<S, Th, To, Tw>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
+diff --git a/kernels/cuda/dsv41_misc.cu b/kernels/cuda/dsv41_misc.cu
+index cfc47db47..f54d6125a 100644
+--- a/kernels/cuda/dsv41_misc.cu
++++ b/kernels/cuda/dsv41_misc.cu
+@@ -3,6 +3,7 @@
+ // window_kv (Attention._window_kv, model.py:701), compress_pool (Compressor.forward, model.py:429-486, ratio > 1).
+ // Contract: docs/design/dsv41-ops.md. Written from the official inference code (MIT, DeepSeek).
+ #include "dsv41_common.cuh"
++#include <stdlib.h>
+ 
+ using namespace dsv41;
+ 
+@@ -234,6 +235,64 @@ __global__ void rope_tail_kernel(const Ti* __restrict__ x, const float* __restri
+     }
+ }
+ 
++// Prompt-chunk form of rope_tail (bf16 in and out, T >= 64 rows, rope tail 8-aligned): one block per row; the sin / cos table of
++// the row's `half` frequencies is computed once and shared by its N heads, the row is moved in 16-byte vectors, and a vector of
++// the rotated tail applies the same expressions as rope_tail_kernel to the same f32 inputs (the angle is formed the same way, one
++// sincosf per pair gives the values the two element-wise threads of a pair got), so the output is bitwise the element-wise
++// kernel's. INTARSIA_DSV41_ROPE_VEC=0 selects the element-wise kernel.
++constexpr int kRopeRowThreads = 128;
++constexpr int kRopeMaxHalf = 256;
++
++__global__ void __launch_bounds__(kRopeRowThreads) rope_tail_rows(const __nv_bfloat16* __restrict__ x, const float* __restrict__ f,
++                                                                  __nv_bfloat16* __restrict__ y, int64_t N, int64_t Dh, int64_t half,
++                                                                  int64_t pos0, int64_t stride, int inverse, const int* __restrict__ dpos,
++                                                                  int64_t ratio) {
++    __shared__ float sn_s[kRopeMaxHalf], cs_s[kRopeMaxHalf];
++    const int64_t t = blockIdx.x;
++    const int64_t base = Dh - 2 * half;
++    const int64_t p0 = dpos ? (int64_t)*dpos / ratio * ratio : pos0;
++    for (int j = threadIdx.x; j < half; j += blockDim.x) {
++        const float ang = (float)(p0 + t * stride) * f[j];
++        float sn, cs;
++        sincosf(ang, &sn, &cs);
++        if (inverse) sn = -sn;
++        sn_s[j] = sn;
++        cs_s[j] = cs;
++    }
++    __syncthreads();
++    const int vpr = (int)(Dh / 8);
++    const int64_t nvec = N * vpr;
++    const uint4* xr = reinterpret_cast<const uint4*>(x + t * N * Dh);
++    uint4* yr = reinterpret_cast<uint4*>(y + t * N * Dh);
++#pragma unroll 4
++    for (int64_t v = threadIdx.x; v < nvec; v += blockDim.x) {
++        const int c = (int)(v % vpr);
++        const int64_t e0 = (int64_t)c * 8;
++        uint4 u = xr[v];
++        if (e0 >= base) {
++            __nv_bfloat16* h = reinterpret_cast<__nv_bfloat16*>(&u);
++#pragma unroll
++            for (int q = 0; q < 4; ++q) {
++                const int j = (int)((e0 - base) >> 1) + q;
++                const float re = __bfloat162float(h[2 * q]), im = __bfloat162float(h[2 * q + 1]);
++                const float sn = sn_s[j], cs = cs_s[j];
++                h[2 * q] = __float2bfloat16_rn(re * cs - im * sn);
++                h[2 * q + 1] = __float2bfloat16_rn(re * sn + im * cs);
++            }
++        }
++        yr[v] = u;
++    }
++}
++
++static bool rope_vec_enabled() {
++    static int on = -1;
++    if (on < 0) {
++        const char* e = getenv("INTARSIA_DSV41_ROPE_VEC");
++        on = !(e && e[0] == '0');
++    }
++    return on == 1;
++}
++
+ // ---------------------------------------------------------------------------------------------------------------- window_kv
+ 
+ template <typename T>
+@@ -391,6 +450,12 @@ extern "C" int ik_rope_tail(const ik_tensor* x, const ik_tensor* inv_freq, int64
+     if (n == 0) return IK_OK;
+     cudaStream_t s = IK_STREAM(stream);
+     const int* dp = pos ? (const int*)pos->data : nullptr;
++    if (x->dtype == IK_DTYPE_BF16 && out->dtype == IK_DTYPE_BF16 && T >= 64 && Dh % 8 == 0 && (Dh - 2 * half) % 8 == 0 && half <= kRopeMaxHalf &&
++        ik_aligned16(x->data) && ik_aligned16(out->data) && rope_vec_enabled()) {
++        rope_tail_rows<<<(unsigned)T, kRopeRowThreads, 0, s>>>((const __nv_bfloat16*)x->data, (const float*)inv_freq->data,
++                                                              (__nv_bfloat16*)out->data, N, Dh, half, pos0, pos_stride, inverse, dp, ratio);
++        return ik_launch_status();
++    }
+     DSV_FLOAT_DISPATCH(x->dtype, Ti, DSV_FLOAT_DISPATCH(out->dtype, To,
+         rope_tail_kernel<Ti, To><<<grid1d(n, kThreads), kThreads, 0, s>>>((const Ti*)x->data, (const float*)inv_freq->data,
+                                                                         (To*)out->data, T, N, Dh, half, pos0, pos_stride, inverse, dp, ratio)));

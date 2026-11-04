@@ -1,0 +1,153 @@
+diff --git a/kernels/cuda/dsv41_attn.cu b/kernels/cuda/dsv41_attn.cu
+index da819e92c..daa3cd334 100644
+--- a/kernels/cuda/dsv41_attn.cu
++++ b/kernels/cuda/dsv41_attn.cu
+@@ -246,25 +246,49 @@ IK_DEVI void ldsm_x2_trans(unsigned& r0, unsigned& r1, const void* p) {
+ 
+ IK_DEVI unsigned lds32(const __nv_bfloat16* p) { return *reinterpret_cast<const unsigned*>(p); }
+ 
++#ifdef ATTN_2BLK
++// ATTN_2BLK (bench-only experiment): Q is not staged in shared memory (the A fragments are read from global per tile), so the block holds the
++// key tile, S and P only, about 41 KB, and two blocks fit one SM's 100 KB. The next tile's key metadata is prepared one tile ahead
++// (double-buffered), which removes one of the five barriers per tile.
++static size_t attn_mma_smem(int64_t D) {
++    const int64_t ld = D + 8;
++    return (size_t)(kHeads * 0 + kMmaKeys * ld * 2 + kHeads * 33 * 4 + kHeads * 40 * 2);
++}
++#else
+ static size_t attn_mma_smem(int64_t D) {
+     const int64_t ld = D + 8;
+     return (size_t)(2 * kHeads * ld * 2 + kHeads * 33 * 4 + kHeads * 40 * 2);
+ }
++#endif
+ 
+-__global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16* __restrict__ q, const __nv_bfloat16* __restrict__ win,
++#ifdef ATTN_2BLK
++#define ATTN_MMA_BOUNDS __launch_bounds__(kThreads, 2)
++#else
++#define ATTN_MMA_BOUNDS __launch_bounds__(kThreads)
++#endif
++__global__ void ATTN_MMA_BOUNDS attn_sparse_mma(const __nv_bfloat16* __restrict__ q, const __nv_bfloat16* __restrict__ win,
+                                                             const __nv_bfloat16* __restrict__ cmp, const int* __restrict__ idx,
+                                                             const float* __restrict__ sink, __nv_bfloat16* __restrict__ out,
+                                                             float* __restrict__ part, int64_t H, int64_t D, int64_t W, int64_t Nc, int64_t Kw,
+                                                             int64_t pos0, const int* __restrict__ dpos, float scale, int nsplit, int64_t ratio) {
+     extern __shared__ __align__(16) unsigned char smem_raw[];
+     const int ld = (int)D + 8;
++#ifdef ATTN_2BLK
++    __nv_bfloat16* Ks = reinterpret_cast<__nv_bfloat16*>(smem_raw);
++#else
+     __nv_bfloat16* Qs = reinterpret_cast<__nv_bfloat16*>(smem_raw);
+     __nv_bfloat16* Ks = Qs + kHeads * ld;
++#endif
+     float* Ss = reinterpret_cast<float*>(Ks + kMmaKeys * ld);  // [32][33]
+     __nv_bfloat16* Ps = reinterpret_cast<__nv_bfloat16*>(Ss + kHeads * 33);  // [32][40]
+     __shared__ float alpha_s[kHeads], m_s[kHeads], l_s[kHeads];
++#ifdef ATTN_2BLK
++    __shared__ int valid_b[2][kMmaKeys];
++    __shared__ int64_t srcrow_b[2][kMmaKeys];
++#else
+     __shared__ int valid[kMmaKeys];
+     __shared__ int64_t srcrow[kMmaKeys];
++#endif
+ 
+     const int split = blockIdx.x;
+     const int64_t t = blockIdx.y;
+@@ -281,12 +305,14 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
+     const int ntiles = (int)cdiv(nkeys, kMmaKeys);
+     const int nv = (int)(D / 8);  // 16-byte vectors per row
+ 
++#ifndef ATTN_2BLK
+     for (int v = threadIdx.x; v < kHeads * nv; v += kThreads) {
+         const int r = v / nv, c = v % nv;
+         uint4 x = make_uint4(0, 0, 0, 0);
+         if (r < nh) x = __ldg(reinterpret_cast<const uint4*>(q + ((t * H + h0 + r) * D)) + c);
+         *reinterpret_cast<uint4*>(Qs + r * ld + c * 8) = x;
+     }
++#endif
+     if (threadIdx.x < kHeads) {
+         m_s[threadIdx.x] = kInitMax;
+         l_s[threadIdx.x] = 0.f;
+@@ -299,6 +325,40 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
+ #pragma unroll
+         for (int j = 0; j < 8; ++j) acc[mt][j][0] = acc[mt][j][1] = acc[mt][j][2] = acc[mt][j][3] = 0.f;
+ 
++#ifdef ATTN_2BLK
++    // key metadata of tile `tl` (lane = key), as the five-barrier loop computes it at the top of the tile
++    auto key_meta = [&](int tl, int& ok, int64_t& sr) {
++        const int64_t e = (int64_t)tl * kMmaKeys + threadIdx.x;
++        ok = 0;
++        sr = 0;
++        if (e < W) {
++            const int64_t row = t + 1 + e;
++            ok = (p0 + row >= W);
++            sr = row;
++        } else if (e < nkeys) {
++            const int c = idx[t * Kw + (e - W)];
++            ok = (c >= 0 && c < Nc);
++            sr = -(int64_t)c - 1;
++        }
++    };
++    if (threadIdx.x < kMmaKeys && split < ntiles) {
++        int ok;
++        int64_t sr;
++        key_meta(split, ok, sr);
++        valid_b[0][threadIdx.x] = ok;
++        srcrow_b[0][threadIdx.x] = sr;
++    }
++    int cur = 0;
++    for (int tile = split; tile < ntiles; tile += nsplit, cur ^= 1) {
++        __syncthreads();  // this tile's metadata is written; the previous tile's keys, P and alpha are consumed
++        const int* valid = valid_b[cur];
++        const int64_t* srcrow = srcrow_b[cur];
++        // the next tile's metadata: the idx load is issued before the gather, the shared stores follow it
++        int nok = 0;
++        int64_t nsr = 0;
++        const bool has_next = tile + nsplit < ntiles;
++        if (threadIdx.x < kMmaKeys && has_next) key_meta(tile + nsplit, nok, nsr);
++#else
+     for (int tile = split; tile < ntiles; tile += nsplit) {
+         const int64_t e0 = (int64_t)tile * kMmaKeys;
+         __syncthreads();
+@@ -319,6 +379,7 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
+             srcrow[threadIdx.x] = sr;
+         }
+         __syncthreads();
++#endif
+         for (int v = threadIdx.x; v < kMmaKeys * nv; v += kThreads) {
+             const int r = v / nv, c = v % nv;
+             uint4 x = make_uint4(0, 0, 0, 0);
+@@ -329,17 +390,32 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
+             }
+             *reinterpret_cast<uint4*>(Ks + r * ld + c * 8) = x;
+         }
++#ifdef ATTN_2BLK
++        if (threadIdx.x < kMmaKeys && has_next) {
++            valid_b[cur ^ 1][threadIdx.x] = nok;
++            srcrow_b[cur ^ 1][threadIdx.x] = nsr;
++        }
++#endif
+         __syncthreads();
+         // S tile (m-tile warp & 1, n-tile warp >> 1)
+         {
+             const int mt = warp & 1, nt = warp >> 1;
+             float c4[4] = {0.f, 0.f, 0.f, 0.f};
+             if (mt * 16 < nh) {
++#ifdef ATTN_2BLK
++                const __nv_bfloat16* qa = q + (t * H + h0 + mt * 16 + g) * D + 2 * tq;  // rows g and g + 8 are 8 * H-row strides apart
++                const int64_t q8 = 8 * D;
++#define ATTN_QLD(p) __ldg(reinterpret_cast<const unsigned*>(p))
++#else
+                 const __nv_bfloat16* qa = Qs + (mt * 16 + g) * ld + 2 * tq;
++                const int64_t q8 = 8 * ld;
++#define ATTN_QLD(p) lds32(p)
++#endif
+                 const __nv_bfloat16* kb = Ks + (nt * 8 + g) * ld + 2 * tq;
+                 for (int k0 = 0; k0 < D; k0 += 16)
+-                    mma16816(c4, lds32(qa + k0), lds32(qa + 8 * ld + k0), lds32(qa + k0 + 8), lds32(qa + 8 * ld + k0 + 8), lds32(kb + k0),
++                    mma16816(c4, ATTN_QLD(qa + k0), ATTN_QLD(qa + q8 + k0), ATTN_QLD(qa + k0 + 8), ATTN_QLD(qa + q8 + k0 + 8), lds32(kb + k0),
+                              lds32(kb + k0 + 8));
++#undef ATTN_QLD
+             }
+             float* srow = Ss + (mt * 16 + g) * 33 + nt * 8 + 2 * tq;
+             srow[0] = c4[0] * scale;
