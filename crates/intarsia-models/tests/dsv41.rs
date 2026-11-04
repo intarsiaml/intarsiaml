@@ -4,7 +4,7 @@
 
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::dsv41::config::Dsv41Config;
-use intarsia_core::dsv41::graph::{build, build_draft, build_with, Buf, Dsv41Graph, GraphOpts, GraphTp};
+use intarsia_core::dsv41::graph::{build, build_draft, build_draft_dpos, build_pass, build_with, Buf, Dsv41Graph, GraphOpts, GraphTp, PassKind};
 use intarsia_core::state::{SharedKind, SlotSpec};
 use intarsia_core::{DType, Op};
 use intarsia_models::dsv41::{detect, plan, HeaderShapes};
@@ -255,6 +255,10 @@ fn check_in_place_rope(base: &Dsv41Graph, ip: &Dsv41Graph) -> (usize, usize) {
         assert_eq!(sb.extras, si.extras, "{}", sb.name);
         for (j, (a, b)) in sb.steps.iter().zip(&si.steps).enumerate() {
             assert_eq!((a.op, &a.what, a.lane, a.pos), (b.op, &b.what, b.lane, b.pos));
+            // (a device-position step is checked with its position tensor by the runtime, not as a plain host call)
+            if !b.pos {
+                b.phantom_call().unwrap_or_else(|e| panic!("{}: {}: {e}", sb.name, b.what));
+            }
             let same = |x: &Buf, y: &Buf| match (x, y) {
                 (Buf::Ws(p), Buf::Ws(q)) => (p == "q_rope" && q == "q") || (p == "o_derot" && q == "o") || p == q,
                 _ => x == y,
@@ -314,11 +318,30 @@ fn in_place_rope_leaves_no_reader_of_the_unrotated_rows() {
             assert!(st.outputs.iter().all(|o| st.inputs.iter().all(|i| i.buf != o.buf)), "{}", st.what);
         }
     }
-    // the drafting graph (DSpark stages) has the same two ropes
-    let o = GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 131_072 };
-    let (base, ip) = (build_draft(&c, &w, o, off, 4).unwrap(), build_draft(&c, &w, o, on, 4).unwrap());
-    let (n_q, n_o) = check_in_place_rope(&base, &ip);
-    assert!(n_q > 0 && n_q == n_o, "draft graph: {n_q} q ropes, {n_o} o ropes");
+    // what the CUDA runtime really runs: the device-position graphs (CUDA graph capture; `dpos` makes every positioned step read the
+    // position from the device) of the 1 to 4 row passes, plain, verify (all rows) and with the DSpark absorb
+    for (t, all_rows, absorb) in [(1, false, false), (1, false, true), (4, true, true), (4, true, false), (3, false, true)] {
+        let o = GraphOpts { t, pos0: 131_072 - t, act: DType::Bf16, cap: 131_072 };
+        let k = PassKind { all_rows, absorb, dpos: true };
+        let (base, ip) = match (build_pass(&c, &w, o, off, k), build_pass(&c, &w, o, on, k)) {
+            (Ok(b), Ok(i)) => (b, i),
+            (Err(e), Err(_)) => {
+                println!("skipped t = {t} absorb {absorb}: {e}");
+                continue;
+            }
+            (b, i) => panic!("t = {t}: {:?} / {:?}", b.err(), i.err()),
+        };
+        assert_eq!(check_in_place_rope(&base, &ip), (40, 40), "dpos t = {t} all_rows = {all_rows} absorb = {absorb}");
+        assert!(ip.stages.iter().flat_map(|s| &s.steps).any(|s| s.pos && s.op == Op::RopeTail), "a dpos graph has positioned ropes");
+    }
+    // the drafting graphs (DSpark stages), host and device position, have the same two ropes
+    let o = GraphOpts { t: 5, pos0: 100, act: DType::Bf16, cap: 131_072 };
+    for dpos in [false, true] {
+        let mk = |tp: GraphTp| if dpos { build_draft_dpos(&c, &w, o, tp, 4) } else { build_draft(&c, &w, o, tp, 4) };
+        let (base, ip) = (mk(off).unwrap(), mk(on).unwrap());
+        let (n_q, n_o) = check_in_place_rope(&base, &ip);
+        assert!(n_q > 0 && n_q == n_o, "draft graph (dpos {dpos}): {n_q} q ropes, {n_o} o ropes");
+    }
 }
 
 /// Host cost of building the decode graph (the eager runtime builds one per pass): printed, bounded loosely.
