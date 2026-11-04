@@ -1,19 +1,19 @@
-[21:14:02] == driver on endor.kuepker.haus: host spark2, repo /opt/code/intarsiaml/.worktrees/attn-tfblock, logs to /opt/code/intarsiaml/.worktrees/attn-tfblock/docs/results/2026-11-03-dsv41-attn-tfblock/raw/bench/../run
-[21:14:02] == D1. new build tree on spark2 and the files it needs (kernels/{abi,common,cuda} and this bench dir; nothing else)
+[21:20:30] == driver on endor.kuepker.haus: host spark2, repo /opt/code/intarsiaml/.worktrees/attn-tfblock, logs to /opt/code/intarsiaml/.worktrees/attn-tfblock/docs/results/2026-11-03-dsv41-attn-tfblock/raw/bench/../run
+[21:20:30] == D1. new build tree on spark2 and the files it needs (kernels/{abi,common,cuda} and this bench dir; nothing else)
 DRY: ssh spark2 rm\ -rf\ ~/intarsia-dsv41-tfblock\ \&\&\ mkdir\ -p\ ~/intarsia-dsv41-tfblock/src/kernels\ ~/intarsia-dsv41-tfblock/bench\ ~/intarsia-dsv41-tfblock/logs
 DRY: tar -C /opt/code/intarsiaml/.worktrees/attn-tfblock/kernels -cf - abi common cuda | ssh spark2 'tar -C ~/intarsia-dsv41-tfblock/src/kernels -xf -'
 DRY: tar -C /opt/code/intarsiaml/.worktrees/attn-tfblock/docs/results/2026-11-03-dsv41-attn-tfblock/raw/bench -cf - . | ssh spark2 'tar -C ~/intarsia-dsv41-tfblock/bench -xf -'
-[21:14:02] == D2. remote part (ssh -tt so that a dropped connection or the fleetq deadline hangs the remote command up)
+[21:20:30] == D2. remote part (ssh -tt so that a dropped connection or the fleetq deadline hangs the remote command up)
 DRY: ssh -tt spark2 'bash ~/intarsia-dsv41-tfblock/bench/attn-tfblock-bench.sh --remote --pairs 6 --iters 20 --reps 15' | tr -d '\r' | tee <log>
 ---- the remote part, dry run (nothing executes) ----
-[21:14:02] == remote part on endor.kuepker.haus, pairs 6, iters 20, reps 15, nvcc jobs 4
+[21:20:30] == remote part on endor.kuepker.haus, pairs 6, iters 20, reps 15, nvcc jobs 4
 DRY: mkdir -p ~/intarsia-dsv41-tfblock/obj ~/intarsia-dsv41-tfblock/logs
-[21:14:02] == 0. preflight
+[21:20:30] == 0. preflight
 DRY: command -v nvcc cuobjdump python3 patch xargs; nvcc --version | tail -2; nvidia-smi -L
 DRY: awk '/MemAvailable/ {printf "MemAvailable %.1f GB\n", $2/1048576}' /proc/meminfo; systemctl is-active earlyoom || true
 DRY: A=$(awk '/MemAvailable/ {print int($2/1048576)}' /proc/meminfo); [ "$A" -ge 20 ] || { echo "only $A GB available, refusing to build (need 20)"; exit 4; }
 DRY: md5sum ~/intarsia-dsv41-tfblock/src/kernels/cuda/dsv41_attn.cu ~/intarsia-dsv41-tfblock/src/kernels/cuda/dsv41_misc.cu | tee ~/intarsia-dsv41-tfblock/logs/src-md5.txt; echo 'recorded dsv41_attn.cu md5 of the A/B baseline (main 47af18777): b036645eb9f9e9f7edabc4662f4ce2b1; a different md5 may legitimately move the recorded hashes, calibration then decides'
-[21:14:02] == 1. sources: unmodified copies, patched copies (flags only enable variants), occupancy probe appended
+[21:20:30] == 1. sources: unmodified copies, patched copies (flags only enable variants), occupancy probe appended
 DRY: cp ~/intarsia-dsv41-tfblock/src/kernels/cuda/dsv41_attn.cu ~/intarsia-dsv41-tfblock/obj/attn_base_src.cu
 DRY: cp ~/intarsia-dsv41-tfblock/src/kernels/cuda/dsv41_attn.cu ~/intarsia-dsv41-tfblock/obj/attn_var_src.cu
 DRY: patch ~/intarsia-dsv41-tfblock/obj/attn_var_src.cu < ~/intarsia-dsv41-tfblock/bench/attn-tfblock.patch
@@ -23,7 +23,7 @@ DRY: cat ~/intarsia-dsv41-tfblock/obj/attn_base_src.cu ~/intarsia-dsv41-tfblock/
 DRY: cat ~/intarsia-dsv41-tfblock/obj/attn_var_src.cu ~/intarsia-dsv41-tfblock/bench/occ_probe.inc > ~/intarsia-dsv41-tfblock/obj/attn_var.cu
 DRY: sed 's#"../../../../../kernels/abi/ik_abi.h"#"abi/ik_abi.h"#' ~/intarsia-dsv41-tfblock/bench/attn_ab_bench.cu > ~/intarsia-dsv41-tfblock/obj/attn_ab_bench.cu
 DRY: sed 's#"../../../../../kernels/abi/ik_abi.h"#"abi/ik_abi.h"#' ~/intarsia-dsv41-tfblock/bench/rope_ip_bench.cu > ~/intarsia-dsv41-tfblock/obj/rope_ip_bench.cu
-[21:14:02] == 2. build, at most 4 nvcc at a time (flags of crates/intarsia-backend-cuda/build.rs; sm_121)
+[21:20:30] == 2. build, at most 4 nvcc at a time (flags of crates/intarsia-backend-cuda/build.rs; sm_121); a variant that fails to build is dropped, not fatal
 DRY: [c-hc] nvcc -c -O3 --std=c++17 -lineinfo --expt-relaxed-constexpr -arch=sm_121 -I ~/intarsia-dsv41-tfblock/src/kernels/cuda -I ~/intarsia-dsv41-tfblock/src/kernels ~/intarsia-dsv41-tfblock/src/kernels/cuda/dsv41_hc.cu -o ~/intarsia-dsv41-tfblock/obj/hc.o > ~/intarsia-dsv41-tfblock/logs/c-hc.log 2>&1
 DRY: [c-hc_sub] nvcc -c -O3 --std=c++17 -lineinfo --expt-relaxed-constexpr -arch=sm_121 -I ~/intarsia-dsv41-tfblock/src/kernels/cuda -I ~/intarsia-dsv41-tfblock/src/kernels ~/intarsia-dsv41-tfblock/src/kernels/cuda/dsv41_hc_sub.cu -o ~/intarsia-dsv41-tfblock/obj/hc_sub.o > ~/intarsia-dsv41-tfblock/logs/c-hc_sub.log 2>&1
 DRY: [c-misc_base] nvcc -c -O3 --std=c++17 -lineinfo --expt-relaxed-constexpr -arch=sm_121 -I ~/intarsia-dsv41-tfblock/src/kernels/cuda -I ~/intarsia-dsv41-tfblock/src/kernels ~/intarsia-dsv41-tfblock/src/kernels/cuda/dsv41_misc.cu -o ~/intarsia-dsv41-tfblock/obj/misc_base.o > ~/intarsia-dsv41-tfblock/logs/c-misc_base.log 2>&1
@@ -44,7 +44,8 @@ DRY: [l-rope_base] nvcc -O3 --std=c++17 -arch=sm_121 ~/intarsia-dsv41-tfblock/ob
 DRY: [l-rope_ip] nvcc -O3 --std=c++17 -arch=sm_121 ~/intarsia-dsv41-tfblock/obj/rope_ip_bench.o ~/intarsia-dsv41-tfblock/obj/misc_ip.o ~/intarsia-dsv41-tfblock/obj/hc.o ~/intarsia-dsv41-tfblock/obj/hc_sub.o ~/intarsia-dsv41-tfblock/obj/attn_base.o -o ~/intarsia-dsv41-tfblock/obj/rope_ip > ~/intarsia-dsv41-tfblock/logs/l-rope_ip.log 2>&1
 DRY: [l-rope_ipshfl] nvcc -O3 --std=c++17 -arch=sm_121 ~/intarsia-dsv41-tfblock/obj/rope_ip_bench.o ~/intarsia-dsv41-tfblock/obj/misc_ipshfl.o ~/intarsia-dsv41-tfblock/obj/hc.o ~/intarsia-dsv41-tfblock/obj/hc_sub.o ~/intarsia-dsv41-tfblock/obj/attn_base.o -o ~/intarsia-dsv41-tfblock/obj/rope_ipshfl > ~/intarsia-dsv41-tfblock/logs/l-rope_ipshfl.log 2>&1
 DRY: ls ~/intarsia-dsv41-tfblock/obj/jobs/l-*.sh | xargs -P4 -n1 bash
-[21:14:02] == 3. resource usage (spills must stay LOCAL 0 for the E2 objects), rope SASS contraction
+[21:20:30] built: attention variants [ e2 e2e5 e5 ], rope variants [ ip ipshfl ], failed [ ]
+[21:20:30] == 3. resource usage (spills must stay LOCAL 0 for the E2 objects), rope SASS contraction
 DRY: echo '== attn_base.o'; cuobjdump -res-usage ~/intarsia-dsv41-tfblock/obj/attn_base.o 2>&1 | grep -A1 'attn_sparse_mma' | grep -v '^--' | tee -a ~/intarsia-dsv41-tfblock/logs/res-usage.txt
 DRY: echo '== attn_e2.o'; cuobjdump -res-usage ~/intarsia-dsv41-tfblock/obj/attn_e2.o 2>&1 | grep -A1 'attn_sparse_mma' | grep -v '^--' | tee -a ~/intarsia-dsv41-tfblock/logs/res-usage.txt
 DRY: echo '== attn_e2e5.o'; cuobjdump -res-usage ~/intarsia-dsv41-tfblock/obj/attn_e2e5.o 2>&1 | grep -A1 'attn_sparse_mma' | grep -v '^--' | tee -a ~/intarsia-dsv41-tfblock/logs/res-usage.txt
@@ -52,10 +53,10 @@ DRY: echo '== attn_e5.o'; cuobjdump -res-usage ~/intarsia-dsv41-tfblock/obj/attn
 DRY: cuobjdump -sass ~/intarsia-dsv41-tfblock/obj/misc_base.o 2>/dev/null | awk -v tag=base -v out=~/intarsia-dsv41-tfblock/logs/rope-sass-base.txt -f ~/intarsia-dsv41-tfblock/bench/rope-sass.awk | tee -a ~/intarsia-dsv41-tfblock/logs/rope-sass-summary.txt
 DRY: cuobjdump -sass ~/intarsia-dsv41-tfblock/obj/misc_ip.o 2>/dev/null | awk -v tag=ip -v out=~/intarsia-dsv41-tfblock/logs/rope-sass-ip.txt -f ~/intarsia-dsv41-tfblock/bench/rope-sass.awk | tee -a ~/intarsia-dsv41-tfblock/logs/rope-sass-summary.txt
 DRY: cuobjdump -sass ~/intarsia-dsv41-tfblock/obj/misc_ipshfl.o 2>/dev/null | awk -v tag=ipshfl -v out=~/intarsia-dsv41-tfblock/logs/rope-sass-ipshfl.txt -f ~/intarsia-dsv41-tfblock/bench/rope-sass.awk | tee -a ~/intarsia-dsv41-tfblock/logs/rope-sass-summary.txt
-[21:14:02] == 4. calibration: the unmodified kernel must reproduce 1.30 ms (CSA T=512), 5.04 ms (CSA T=2048) and the recorded hashes, else stop
-DRY: { echo '## pair 0 base <time>'; ~/intarsia-dsv41-tfblock/obj/ab_base 20 15; } > ~/intarsia-dsv41-tfblock/logs/calib-ab.log ; { echo '## pair 0 base'; ~/intarsia-dsv41-tfblock/obj/rope_base 20 0; } > ~/intarsia-dsv41-tfblock/logs/calib-rope.log
+[21:20:30] == 4. calibration: the unmodified attention kernel must reproduce 1.30 ms (CSA T=512), 5.04 ms (CSA T=2048) and the recorded hashes, else stop (rope hashes only flag E3)
+DRY: { echo '## pair 0 base <time>'; ~/intarsia-dsv41-tfblock/obj/ab_base 20 15; } > ~/intarsia-dsv41-tfblock/logs/calib-ab.log ; { echo '## pair 0 base'; ~/intarsia-dsv41-tfblock/obj/rope_base 20 0; } > ~/intarsia-dsv41-tfblock/logs/calib-rope.log   (rope part only if the rope bench built)
 DRY: python3 -I ~/intarsia-dsv41-tfblock/bench/tfblock-table.py calib --ab ~/intarsia-dsv41-tfblock/logs/calib-ab.log --rope ~/intarsia-dsv41-tfblock/logs/calib-rope.log --expected ~/intarsia-dsv41-tfblock/bench/expected-hashes.txt --tol 0.06   (exit 3 = stop)
-[21:14:02] == 5. alternating A/B: 6 pairs, variants interleaved per round, odd pairs base first, even pairs variant first; each process 15 reps x 20 launches
+[21:20:30] == 5. alternating A/B: 6 pairs, variants interleaved per round, odd pairs base first, even pairs variant first; each process 15 reps x 20 launches
 DRY: pair 1 e2: { echo '## pair 1 base <time>'; ~/intarsia-dsv41-tfblock/obj/ab_base 20 15; } >> ~/intarsia-dsv41-tfblock/logs/ab-e2.log   (order: base var)
 DRY: pair 1 e2: { echo '## pair 1 var <time>'; ~/intarsia-dsv41-tfblock/obj/ab_e2 20 15; } >> ~/intarsia-dsv41-tfblock/logs/ab-e2.log   (order: base var)
 DRY: pair 1 e2e5: { echo '## pair 1 base <time>'; ~/intarsia-dsv41-tfblock/obj/ab_base 20 15; } >> ~/intarsia-dsv41-tfblock/logs/ab-e2e5.log   (order: base var)
@@ -66,14 +67,14 @@ DRY: pair 1 ip: { echo '## pair 1 base <time>'; ~/intarsia-dsv41-tfblock/obj/rop
 DRY: pair 1 ip: { echo '## pair 1 var <time>'; ~/intarsia-dsv41-tfblock/obj/rope_ip 20 1; } >> ~/intarsia-dsv41-tfblock/logs/rope-ip.log   (order: base var)
 DRY: pair 1 ipshfl: { echo '## pair 1 base <time>'; ~/intarsia-dsv41-tfblock/obj/rope_base 20 0; } >> ~/intarsia-dsv41-tfblock/logs/rope-base.log   (order: base var)
 DRY: pair 1 ipshfl: { echo '## pair 1 var <time>'; ~/intarsia-dsv41-tfblock/obj/rope_ipshfl 20 1; } >> ~/intarsia-dsv41-tfblock/logs/rope-ipshfl.log   (order: base var)
-DRY: (the loop repeats for pairs 2..6 with the order swapped on even pairs; attention variants: e2 e2e5 e5; rope variants: ip ipshfl)
-[21:14:02] == 6. tables and verdicts
-DRY: python3 -I ~/intarsia-dsv41-tfblock/bench/tfblock-table.py ab --variant e2=~/intarsia-dsv41-tfblock/logs/ab-e2.log --variant e2e5=~/intarsia-dsv41-tfblock/logs/ab-e2e5.log --variant e5=~/intarsia-dsv41-tfblock/logs/ab-e5.log --blocks e2=2,e2e5=2,e5=1 --stop e2=12 --stop e2e5=12 --expected ~/intarsia-dsv41-tfblock/bench/expected-hashes.txt | tee ~/intarsia-dsv41-tfblock/logs/table-ab.txt
-DRY: python3 -I ~/intarsia-dsv41-tfblock/bench/tfblock-table.py rope --base ~/intarsia-dsv41-tfblock/logs/rope-base.log --variant ip=~/intarsia-dsv41-tfblock/logs/rope-ip.log --variant ipshfl=~/intarsia-dsv41-tfblock/logs/rope-ipshfl.log --expected ~/intarsia-dsv41-tfblock/bench/expected-hashes.txt | tee ~/intarsia-dsv41-tfblock/logs/table-rope.txt
-[21:14:02] == done (build trees are removed by the exit trap)
+DRY: (the loop repeats for pairs 2..6 with the order swapped on even pairs; attention variants:  e2 e2e5 e5; rope variants:  ip ipshfl)
+[21:20:30] == 6. tables and verdicts
+DRY: python3 -I ~/intarsia-dsv41-tfblock/bench/tfblock-table.py ab  --variant e2=~/intarsia-dsv41-tfblock/logs/ab-e2.log --variant e2e5=~/intarsia-dsv41-tfblock/logs/ab-e2e5.log --variant e5=~/intarsia-dsv41-tfblock/logs/ab-e5.log --blocks e2=2,e2e5=2,e5=1  --stop e2=12 --stop e2e5=12 --expected ~/intarsia-dsv41-tfblock/bench/expected-hashes.txt | tee ~/intarsia-dsv41-tfblock/logs/table-ab.txt
+DRY: python3 -I ~/intarsia-dsv41-tfblock/bench/tfblock-table.py rope --base ~/intarsia-dsv41-tfblock/logs/rope-base.log  --variant ip=~/intarsia-dsv41-tfblock/logs/rope-ip.log --variant ipshfl=~/intarsia-dsv41-tfblock/logs/rope-ipshfl.log --expected ~/intarsia-dsv41-tfblock/bench/expected-hashes.txt | tee ~/intarsia-dsv41-tfblock/logs/table-rope.txt
+[21:20:30] == done (build trees are removed by the exit trap)
 ---- end of remote dry run ----
-[21:14:02] == D3. (exit trap) fetch logs to /opt/code/intarsiaml/.worktrees/attn-tfblock/docs/results/2026-11-03-dsv41-attn-tfblock/raw/bench/../run, remove ~/intarsia-dsv41-tfblock on spark2
-[21:14:02] == driver cleanup (exit 0): fetch logs, remove intarsia-dsv41-tfblock on spark2
+[21:20:30] == D3. (exit trap) fetch logs to /opt/code/intarsiaml/.worktrees/attn-tfblock/docs/results/2026-11-03-dsv41-attn-tfblock/raw/bench/../run, remove ~/intarsia-dsv41-tfblock on spark2
+[21:20:30] == driver cleanup (exit 0): fetch logs, remove intarsia-dsv41-tfblock on spark2
 DRY: mkdir -p /opt/code/intarsiaml/.worktrees/attn-tfblock/docs/results/2026-11-03-dsv41-attn-tfblock/raw/bench/../run
 DRY: ssh spark2 'tar -C ~/intarsia-dsv41-tfblock/logs -cf - .' | tar -C /opt/code/intarsiaml/.worktrees/attn-tfblock/docs/results/2026-11-03-dsv41-attn-tfblock/raw/bench/../run -xf -
 DRY: ssh spark2 rm\ -rf\ ~/intarsia-dsv41-tfblock\ \&\&\ test\ \!\ -e\ ~/intarsia-dsv41-tfblock\ \&\&\ echo\ removed\ ~/intarsia-dsv41-tfblock\ on\ spark2

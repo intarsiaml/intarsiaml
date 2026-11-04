@@ -31,6 +31,7 @@ cat > "$W/bin/nvcc" <<'EOF'
 #!/bin/bash
 out=""; prev=""; for a in "$@"; do [ "$prev" = -o ] && out=$a; prev=$a; done
 echo "nvcc $*" >> "$FAKE_LOG"
+if [ -n "${FAKE_FAIL:-}" ] && [[ "$*" == *"$FAKE_FAIL"* ]]; then echo "fake nvcc: error: simulated compile failure" ; exit 1; fi
 [ -z "$out" ] && { echo "Cuda compilation tools (FAKE nvcc)"; exit 0; }
 case "$(basename "$out")" in
   ab_*|rope_*) printf '#!/bin/bash\ncat %s/%s\n' "$FAKE_CANNED" "$(basename "$out")" > "$out"; chmod +x "$out";;
@@ -58,12 +59,28 @@ grep -E "^\[|VERDICT|CALIBRATION|^removed|E5 on top" "$W/run1.txt" | cut -c1-150
 echo "remote home after the run: [$(ls "$FAKE_HOME")]  (empty = ~/intarsia-dsv41-tfblock removed)"
 echo "logs fetched: $(ls "$W/drv/docs/results/2026-11-03-dsv41-attn-tfblock/raw/run" | wc -l) files"
 echo "nvcc invocations: $(grep -c . "$FAKE_LOG"); distinct -D flag sets:"; grep -o -E -- '-D[A-Z_0-9]+' "$FAKE_LOG" | sort | uniq -c
-echo "### 3. calibration failure (one recorded hash altered; must stop with exit 3, still fetch logs and remove the remote tree)"
-python3 -I - "$W/canned/ab_base" <<'EOF'
+reset() { rm -rf "$W/canned"; cp -R "$W/canned.orig" "$W/canned"; rm -rf "$W/drv/docs/results/2026-11-03-dsv41-attn-tfblock/raw/run"; }
+sub() { python3 -I - "$1" "$2" "$3" <<'EOF'
 import sys
-p = sys.argv[1]; s = open(p).read(); open(p, 'w').write(s.replace('aa254a578fedfa25', 'aa254a578fedfa26'))
+p, a, b = sys.argv[1:4]; s = open(p).read(); assert a in s; open(p, 'w').write(s.replace(a, b))
 EOF
-rm -rf "$W/drv/docs/results/2026-11-03-dsv41-attn-tfblock/raw/run"
+}
+RUN="$W/drv/docs/results/2026-11-03-dsv41-attn-tfblock/raw/run"
+cp -R "$W/canned" "$W/canned.orig"
+echo "### 3. attention calibration failure (one recorded attention hash altered; must stop with exit 3, still fetch logs and remove the remote tree)"
+reset; sub "$W/canned/ab_base" aa254a578fedfa25 aa254a578fedfa26
 env PATH="$W/fbin:$W/bin:$PATH" FLEETQ_JOB=999 bash "$D" > "$W/run2.txt" 2>&1; echo "exit $?"
 grep -E "FAIL|CALIBRATION" "$W/run2.txt" | cut -c1-150
-echo "remote home after the failed run: [$(ls "$FAKE_HOME")]; fetched: $(ls "$W/drv/docs/results/2026-11-03-dsv41-attn-tfblock/raw/run" | wc -l) files, incl. calib.txt: $(ls "$W/drv/docs/results/2026-11-03-dsv41-attn-tfblock/raw/run" | grep -c '^calib.txt$')"
+echo "remote home after the failed run: [$(ls "$FAKE_HOME")]; fetched: $(ls "$RUN" | wc -l) files, incl. calib.txt: $(ls "$RUN" | grep -c '^calib.txt$')"
+echo "### 4. rope hashes differ from the recorded ones but variants equal the in-job base (must NOT stop the attention experiments; E3 gets a note, not NEGATIVE)"
+reset; for n in rope_base rope_ip rope_ipshfl; do sub "$W/canned/$n" d5ab75e0c17ef387 0000000000000001; done
+env PATH="$W/fbin:$W/bin:$PATH" FLEETQ_JOB=999 bash "$D" > "$W/run3.txt" 2>&1; echo "exit $?"
+grep -E "note rope|CALIBRATION|VERDICT" "$W/run3.txt" | cut -c1-230
+echo "### 5. one rope variant differs from the in-job base (that variant NEGATIVE, the other fine, attention untouched)"
+reset; sub "$W/canned/rope_ip" a163e645ec6f9b6d a163e645ec6f9b6e
+env PATH="$W/fbin:$W/bin:$PATH" FLEETQ_JOB=999 bash "$D" > "$W/run4.txt" 2>&1; echo "exit $?"
+grep -E "VERDICT (ip|ipshfl)" "$W/run4.txt" | cut -c1-200
+echo "### 6. one variant fails to build (e2e5; must be reported and dropped, the others still run; exit 6)"
+reset; FAKE_FAIL="-DATTN_TFBLOCK -DATTN_SM4" env PATH="$W/fbin:$W/bin:$PATH" FLEETQ_JOB=999 FAKE_FAIL="-DATTN_TFBLOCK -DATTN_SM4" bash "$D" > "$W/run5.txt" 2>&1; echo "exit $?"
+grep -E "BUILD FAILED|^\[.*built:|VERDICT|BUILD FAILURES" "$W/run5.txt" | cut -c1-200
+echo "remote home after the last run: [$(ls "$FAKE_HOME")]"

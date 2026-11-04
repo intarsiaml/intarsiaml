@@ -1,7 +1,7 @@
-[21:14:08] patch --dry-run against the current kernels
-patching file '/opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/selftest.F14bJf/a.cu'
-patching file '/opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/selftest.F14bJf/m.cu'
-[21:14:08] calibration code on the recorded unmodified runs (must PASS)
+[21:20:29] patch --dry-run against the current kernels
+patching file '/opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/selftest.Fyz7uc/a.cu'
+patching file '/opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/selftest.Fyz7uc/m.cu'
+[21:20:29] calibration code on the recorded unmodified runs (must PASS)
 calibration (unmodified kernel; recorded: ab-run-1.log hashes, 1.30 ms at CSA T=512, 5.04 ms at CSA T=2048)
   ok   CSA T512 Nc1024 Kw512: median 1.3042 ms vs recorded 1.30 ms (tolerance 6%)
   ok   CSA T2048 Nc1024 Kw512: median 5.0366 ms vs recorded 5.04 ms (tolerance 6%)
@@ -10,18 +10,10 @@ calibration (unmodified kernel; recorded: ab-run-1.log hashes, 1.30 ms at CSA T=
   ok   hash HCA T512 Nc32 Kw32: 90ad1d7fcca0b866 vs recorded 90ad1d7fcca0b866
   ok   hash CSA T37 Nc1024 Kw512: 21b89af74c9af5a2 vs recorded 21b89af74c9af5a2
   ok   hash CSA T11 Nc1024 Kw512: e450cadc14aad612 vs recorded e450cadc14aad612
-  ok   hash rope q T512 H32 hd512: d5ab75e0c17ef387 vs recorded d5ab75e0c17ef387
-  ok   hash rope o^-1 T512 H32 hd512: b1ea9a443bb9d683 vs recorded b1ea9a443bb9d683
-  ok   hash rope q T2048 H32 hd512: af34abaeb838d38f vs recorded af34abaeb838d38f
-  ok   hash rope o^-1 T2048 H32 hd512: 0dc838ce8f472ac5 vs recorded 0dc838ce8f472ac5
-  ok   hash rope kv T512 H1 hd512: a163e645ec6f9b6d vs recorded a163e645ec6f9b6d
-  ok   hash rope idx_q T512 H64 hd128: 438fbaea945c36da vs recorded 438fbaea945c36da
-  ok   hash rope cmp T128 H1 hd512 stride4: a8a92705497fbe7f vs recorded a8a92705497fbe7f
-  ok   hash rope T63 H32 hd512 (old path): e52eb860edb55401 vs recorded e52eb860edb55401
-  ok   hash rope T500 H32 hd512 pos 40000: 0e4ab8592fa58014 vs recorded 0e4ab8592fa58014
+  ok   rope: all 9 unmodified rope hashes equal the recorded bench-vec0.txt
   probe base: {'blocks': 1, 'regs': 107, 'local': None, 'total': 74112}
-CALIBRATION PASS
-[21:14:08] table code on the recorded attn-2blk A/B (must print the 2blk doc's rows and NEGATIVE (stop rule))
+CALIBRATION (attention) PASS
+[21:20:30] table code on the recorded attn-2blk A/B (must print the 2blk doc's rows and NEGATIVE (stop rule))
 
 === var  (log /opt/code/intarsiaml/.worktrees/attn-tfblock/docs/results/2026-11-03-dsv41-attn-fusion/raw/bench/ab-run-1.log)
   probe base: 107 regs/thread, local None B, 74112 B smem/block, active blocks per SM 1
@@ -36,7 +28,7 @@ CALIBRATION PASS
 
 SUMMARY
   var: NEGATIVE (stop rule): gain -0.4% at CSA T=2048 < 12%
-[21:14:08] rope table code on the recorded row-vector run (must print MISMATCH / NEGATIVE)
+[21:20:30] rope table code on the recorded row-vector run (must print MISMATCH / NEGATIVE)
   VERDICT vec1: NEGATIVE: hash mismatch or missing result at q T512 H32 hd512, o^-1 T512 H32 hd512, q T2048 H32 hd512, o^-1 T2048 H32 hd512, kv T512 H1 hd512, idx_q T512 H64 hd128, T500 H32 hd512 pos 40000. Bit identity is the gate; this is not tuning.
 
 SUMMARY (rope)

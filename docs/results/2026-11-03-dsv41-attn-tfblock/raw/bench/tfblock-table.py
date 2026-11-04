@@ -93,20 +93,26 @@ def cmd_calib(a):
         ok &= good
         print(f"  {'ok  ' if good else 'FAIL'} hash {shape}: {','.join(sorted(got))} vs recorded {want}")
     if a.rope:
+        # NOT a stop condition: bench-vec0.txt came from an older bench build (the element-wise path selected by an env switch main does not have), so a
+        # difference only means "the E3 verdict must be read against the in-job base, not the recorded hashes"; it never blocks the attention experiments
         r = parse_rope([a.rope])
+        diff = []
         for shape, runs in r.items():
             want = exp.get(("rope", shape))
             got = {x[0] for x in runs}
-            good = want is not None and got == {want}
-            ok &= good
-            print(f"  {'ok  ' if good else 'FAIL'} hash rope {shape}: {','.join(sorted(got))} vs recorded {want}")
+            if want is None or got != {want}:
+                diff.append(shape)
         if not r:
-            print("  FAIL rope: no result"); ok = False
+            print("  note rope: no rope result in the calibration run (E3 will have no base)")
+        elif diff:
+            print(f"  note rope: unmodified rope hashes differ from the recorded bench-vec0.txt at {len(diff)} of {len(r)} shapes ({', '.join(diff)}): informational, flags E3 only")
+        else:
+            print(f"  ok   rope: all {len(r)} unmodified rope hashes equal the recorded bench-vec0.txt")
     if "base" in probe:
         print(f"  probe base: {probe['base']}")
         if probe["base"]["blocks"] != 1:
             print("  FAIL base should report 1 active block per SM"); ok = False
-    print("CALIBRATION " + ("PASS" if ok else "FAIL: stop, do not read the variants"))
+    print("CALIBRATION (attention) " + ("PASS" if ok else "FAIL: stop, do not read the variants"))
     return 0 if ok else 3
 
 
@@ -177,32 +183,37 @@ def cmd_rope(a):
     exp = load_expected(a.expected)
     base = parse_rope(a.base)
     base_ms = {s: med([x[2] for x in r]) for s, r in base.items()}
+    base_hash = {s: {x[0] for x in r} for s, r in base.items()}
+    # the recorded hashes are context only: the gate is the unmodified kernel built in the same job
+    stale = [s for s in base if exp.get(("rope", s)) is not None and base_hash[s] != {exp[("rope", s)]}]
     summary = []
     for spec in a.variant:
         name, path = spec.split("=", 1)
         v = parse_rope([path])
         print(f"\n=== {name}  (log {path})")
-        print(f"  {'shape':28s} {'base ms':>8s} {'var ms':>8s} {'var/base':>8s}  hashes")
+        print(f"  {'shape':28s} {'base ms':>8s} {'var ms':>8s} {'var/base':>8s}  hashes (against the in-job unmodified kernel)")
         bad = []
         for s, r in base.items():
             vr = v.get(s, [])
             if not vr:
                 print(f"  {s:28s} no variant result"); bad.append(s); continue
-            hs = {x[0] for x in r} | {x[0] for x in vr}
-            want = exp.get(("rope", s))
-            same = len(hs) == 1 and (want is None or hs == {want})
+            vh = {x[0] for x in vr}
+            same = len(base_hash[s]) == 1 and vh == base_hash[s]
             if not same:
                 bad.append(s)
             vm = med([x[2] for x in vr])
-            print(f"  {s:28s} {base_ms[s]:8.4f} {vm:8.4f} {vm / base_ms[s]:8.3f}  {'identical ' + next(iter(hs)) if same else 'MISMATCH ' + ','.join(sorted(hs))}")
+            tag = ("identical " + next(iter(vh))) if same else ("MISMATCH base " + ",".join(sorted(base_hash[s])) + " variant " + ",".join(sorted(vh)))
+            print(f"  {s:28s} {base_ms[s]:8.4f} {vm:8.4f} {vm / base_ms[s]:8.3f}  {tag}")
         q, o = "q T2048 H32 hd512", "o^-1 T2048 H32 hd512"
         if not bad and q in base_ms and o in base_ms:
             vq, vo = med([x[2] for x in v[q]]), med([x[2] for x in v[o]])
             save = 80 * ((base_ms[q] - vq) + (base_ms[o] - vo))
-            verdict = (f"bit-identical on all {len(base)} rope shapes; at T=2048 the pair (q, o^-1) goes {base_ms[q] + base_ms[o]:.3f} -> {vq + vo:.3f} ms per layer-chunk; "
+            verdict = (f"bit-identical to the in-job unmodified kernel on all {len(base)} rope shapes; at T=2048 the pair (q, o^-1) goes {base_ms[q] + base_ms[o]:.3f} -> {vq + vo:.3f} ms per layer-chunk; "
                        f"extrapolated saving {save:.0f} ms per 4K request (80 layer-chunks at chunk 2048, from the fusion/tfblock report; not measured in situ)")
         else:
             verdict = f"NEGATIVE: hash mismatch or missing result at {', '.join(bad)}. Bit identity is the gate; this is not tuning."
+        if stale:
+            verdict += f"  [note: the in-job unmodified kernel differs from the recorded bench-vec0.txt at {len(stale)} shapes (source or build changed since that run); the comparison above is against the in-job base]"
         print("  VERDICT " + name + ": " + verdict)
         summary.append((name, verdict))
     print("\nSUMMARY (rope)")

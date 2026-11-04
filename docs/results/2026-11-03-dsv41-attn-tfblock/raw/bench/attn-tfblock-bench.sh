@@ -94,9 +94,10 @@ if [ "$MODE" = remote ]; then
     runsh "sed 's#\"../../../../../kernels/abi/ik_abi.h\"#\"abi/ik_abi.h\"#' $B/$f.cu > $O/$f.cu"
   done
 
-  log "== 2. build, at most $JOBS nvcc at a time (flags of crates/intarsia-backend-cuda/build.rs; sm_121)"
+  log "== 2. build, at most $JOBS nvcc at a time (flags of crates/intarsia-backend-cuda/build.rs; sm_121); a variant that fails to build is dropped, not fatal"
   FL="-c -O3 --std=c++17 -lineinfo --expt-relaxed-constexpr -arch=sm_121 -I $SRC/kernels/cuda -I $SRC/kernels"
   BL="-c -O3 --std=c++17 -arch=sm_121 -I $SRC/kernels"
+  LK="-O3 --std=c++17 -arch=sm_121"
   K=$SRC/kernels/cuda
   # each job is a small script file (portable: no xargs -I, whose replacement limit is 255 bytes on BSD)
   J=$O/jobs
@@ -104,10 +105,11 @@ if [ "$MODE" = remote ]; then
     local kind=$1 name=$2; shift 2
     if [ "$DRY" = 1 ]; then echo "DRY: [$kind-$name] $* > $L/$kind-$name.log 2>&1"; else mkdir -p "$J"; echo "$* > $L/$kind-$name.log 2>&1" > "$J/$kind-$name.sh"; fi
   }
-  runjobs() {  # runjobs <kind>: at most $JOBS at a time; on failure show the tails of that kind's logs
-    [ "$DRY" = 1 ] && { echo "DRY: ls $J/$1-*.sh | xargs -P$JOBS -n1 bash"; return 0; }
-    ls "$J"/$1-*.sh | xargs -P"$JOBS" -n1 bash || { log "$1 step failed; tails of the logs:"; for f in "$L"/$1-*.log; do echo "== $f"; tail -n 15 "$f"; done; exit 5; }
-  }
+  # all jobs of a kind run, at most $JOBS at a time; failures are found from the missing outputs (the untested variants may well fail to build)
+  runjobs() { if [ "$DRY" = 1 ]; then echo "DRY: ls $J/$1-*.sh | xargs -P$JOBS -n1 bash"; else ls "$J"/$1-*.sh 2>/dev/null | xargs -P"$JOBS" -n1 bash || true; fi; }
+  built() { [ "$DRY" = 1 ] || [ -s "$1" ]; }
+  FAILED=""
+  failed() { FAILED="$FAILED $1"; log "BUILD FAILED: $1 (tail of $2)"; if [ "$DRY" != 1 ]; then tail -n 30 "$2" || true; fi; }
   job c hc nvcc $FL $K/dsv41_hc.cu -o $O/hc.o
   job c hc_sub nvcc $FL $K/dsv41_hc_sub.cu -o $O/hc_sub.o
   job c misc_base nvcc $FL $K/dsv41_misc.cu -o $O/misc_base.o
@@ -127,63 +129,83 @@ if [ "$MODE" = remote ]; then
     MEMPID=$!
   fi
   runjobs c
+  # what the attention A/B cannot do without: the unmodified kernel and the bench
+  for o in hc hc_sub misc_base attn_base attn_ab_bench; do built "$O/$o.o" || { failed "$o" "$L/c-$o.log"; log "a mandatory object is missing: stopping"; exit 5; }; done
+  VOK=""; ROK=""; RDO=1
+  for v in $VARIANTS; do if built "$O/attn_$v.o"; then VOK="$VOK $v"; else failed "attn_$v" "$L/c-attn_$v.log"; fi; done
+  built "$O/rope_ip_bench.o" || { failed rope_ip_bench "$L/c-rope_ip_bench.log"; RDO=0; }
+  if [ $RDO = 1 ]; then for v in $RVARIANTS; do if built "$O/misc_$v.o"; then ROK="$ROK $v"; else failed "misc_$v" "$L/c-misc_$v.log"; fi; done; fi
   # links: the proven recipe of ab-build.sh (bench + hc/hc_sub + misc + the attention object); every binary links the same non-attention objects
-  LK="-O3 --std=c++17 -arch=sm_121"
-  for v in base $VARIANTS; do job l ab_$v nvcc $LK $O/attn_ab_bench.o $O/misc_base.o $O/hc.o $O/hc_sub.o $O/attn_$v.o -o $O/ab_$v; done
-  job l rope_base nvcc $LK $O/rope_ip_bench.o $O/misc_base.o $O/hc.o $O/hc_sub.o $O/attn_base.o -o $O/rope_base
-  for v in $RVARIANTS; do job l rope_$v nvcc $LK $O/rope_ip_bench.o $O/misc_$v.o $O/hc.o $O/hc_sub.o $O/attn_base.o -o $O/rope_$v; done
+  job l ab_base nvcc $LK $O/attn_ab_bench.o $O/misc_base.o $O/hc.o $O/hc_sub.o $O/attn_base.o -o $O/ab_base
+  for v in $VOK; do job l ab_$v nvcc $LK $O/attn_ab_bench.o $O/misc_base.o $O/hc.o $O/hc_sub.o $O/attn_$v.o -o $O/ab_$v; done
+  if [ $RDO = 1 ]; then
+    job l rope_base nvcc $LK $O/rope_ip_bench.o $O/misc_base.o $O/hc.o $O/hc_sub.o $O/attn_base.o -o $O/rope_base
+    for v in $ROK; do job l rope_$v nvcc $LK $O/rope_ip_bench.o $O/misc_$v.o $O/hc.o $O/hc_sub.o $O/attn_base.o -o $O/rope_$v; done
+  fi
   runjobs l
+  built "$O/ab_base" || { failed ab_base "$L/l-ab_base.log"; log "the unmodified attention bench did not link: stopping"; exit 5; }
+  V2=""; for v in $VOK; do if built "$O/ab_$v"; then V2="$V2 $v"; else failed "ab_$v" "$L/l-ab_$v.log"; fi; done; VOK=$V2
+  if [ $RDO = 1 ] && ! built "$O/rope_base"; then failed rope_base "$L/l-rope_base.log"; RDO=0; ROK=""; fi
+  R2=""; for v in $ROK; do if built "$O/rope_$v"; then R2="$R2 $v"; else failed "rope_$v" "$L/l-rope_$v.log"; fi; done; ROK=$R2
   if [ -n "$MEMPID" ]; then kill "$MEMPID" 2>/dev/null || true; wait "$MEMPID" 2>/dev/null || true; MEMPID=; fi
+  log "built: attention variants [$VOK ], rope variants [$ROK ], failed [$FAILED ]"
+
   log "== 3. resource usage (spills must stay LOCAL 0 for the E2 objects), rope SASS contraction"
-  for v in base $VARIANTS; do
+  for v in base $VOK; do
     runsh "echo '== attn_$v.o'; cuobjdump -res-usage $O/attn_$v.o 2>&1 | grep -A1 'attn_sparse_mma' | grep -v '^--' | tee -a $L/res-usage.txt"
   done
-  for v in base $RVARIANTS; do
+  if [ $RDO = 1 ]; then for v in base $ROK; do
     # per rope_tail kernel: FFMA / FMUL / FADD / MUFU counts, and the SASS itself for diagnosing a hash mismatch without another window
     runsh "cuobjdump -sass $O/misc_$v.o 2>/dev/null | awk -v tag=$v -v out=$L/rope-sass-$v.txt -f $B/rope-sass.awk | tee -a $L/rope-sass-summary.txt"
-  done
+  done; fi
 
-  log "== 4. calibration: the unmodified kernel must reproduce 1.30 ms (CSA T=512), 5.04 ms (CSA T=2048) and the recorded hashes, else stop"
+  log "== 4. calibration: the unmodified attention kernel must reproduce 1.30 ms (CSA T=512), 5.04 ms (CSA T=2048) and the recorded hashes, else stop (rope hashes only flag E3)"
   stamp() { echo "## pair $1 $2 $(date +%T)"; }
   if [ "$DRY" = 1 ]; then
-    echo "DRY: { echo '## pair 0 base <time>'; $O/ab_base $ITERS $REPS; } > $L/calib-ab.log ; { echo '## pair 0 base'; $O/rope_base $ITERS 0; } > $L/calib-rope.log"
+    echo "DRY: { echo '## pair 0 base <time>'; $O/ab_base $ITERS $REPS; } > $L/calib-ab.log ; { echo '## pair 0 base'; $O/rope_base $ITERS 0; } > $L/calib-rope.log   (rope part only if the rope bench built)"
     echo "DRY: python3 -I $B/tfblock-table.py calib --ab $L/calib-ab.log --rope $L/calib-rope.log --expected $B/expected-hashes.txt --tol $TOL   (exit 3 = stop)"
   else
-    { stamp 0 base; "$O/ab_base" "$ITERS" "$REPS"; } > "$L/calib-ab.log"
-    { stamp 0 base; "$O/rope_base" "$ITERS" 0; } > "$L/calib-rope.log"
-    cat "$L/calib-ab.log" | cut -c1-170
-    if ! python3 -I "$B/tfblock-table.py" calib --ab "$L/calib-ab.log" --rope "$L/calib-rope.log" --expected "$B/expected-hashes.txt" --tol "$TOL" | tee "$L/calib.txt"; then
-      log "CALIBRATION FAILED: stopping before the variants (the recorded numbers are not reproduced on this box/build)"; exit 3
+    { stamp 0 base; "$O/ab_base" "$ITERS" "$REPS"; } > "$L/calib-ab.log" 2>&1 || log "ab_base exited non-zero (see $L/calib-ab.log); calibration below decides"
+    RCAL=""
+    if [ $RDO = 1 ]; then { stamp 0 base; "$O/rope_base" "$ITERS" 0; } > "$L/calib-rope.log" 2>&1 || log "rope_base exited non-zero (see $L/calib-rope.log)"; RCAL="--rope $L/calib-rope.log"; fi
+    cut -c1-170 "$L/calib-ab.log"
+    if ! python3 -I "$B/tfblock-table.py" calib --ab "$L/calib-ab.log" $RCAL --expected "$B/expected-hashes.txt" --tol "$TOL" | tee "$L/calib.txt"; then
+      log "ATTENTION CALIBRATION FAILED: stopping before the variants (the recorded numbers are not reproduced on this box/build)"; exit 3
     fi
   fi
 
   log "== 5. alternating A/B: $PAIRS pairs, variants interleaved per round, odd pairs base first, even pairs variant first; each process $REPS reps x $ITERS launches"
   for i in $(seq 1 "$PAIRS"); do
-    for v in $VARIANTS; do
-      if [ $((i % 2)) = 1 ]; then order="base var"; else order="var base"; fi
+    if [ $((i % 2)) = 1 ]; then order="base var"; else order="var base"; fi
+    for v in $VOK; do
       for role in $order; do
         bin=$O/ab_$v; [ "$role" = base ] && bin=$O/ab_base
         if [ "$DRY" = 1 ]; then [ "$i" = 1 ] && echo "DRY: pair $i $v: { echo '## pair $i $role <time>'; $bin $ITERS $REPS; } >> $L/ab-$v.log   (order: $order)"
-        else { stamp "$i" "$role"; "$bin" "$ITERS" "$REPS"; } >> "$L/ab-$v.log"; fi
+        else { stamp "$i" "$role"; "$bin" "$ITERS" "$REPS"; } >> "$L/ab-$v.log" 2>&1 || log "RUN FAILED: $bin (pair $i, see $L/ab-$v.log); the table shows the missing results as NEGATIVE"; fi
       done
     done
-    for v in $RVARIANTS; do
-      if [ $((i % 2)) = 1 ]; then order="base var"; else order="var base"; fi
+    for v in $ROK; do
       for role in $order; do
         if [ "$role" = base ]; then bin=$O/rope_base; mode=0; out=$L/rope-base.log; else bin=$O/rope_$v; mode=1; out=$L/rope-$v.log; fi
         if [ "$DRY" = 1 ]; then [ "$i" = 1 ] && echo "DRY: pair $i $v: { echo '## pair $i $role <time>'; $bin $ITERS $mode; } >> $out   (order: $order)"
-        else { stamp "$i" "$role"; "$bin" "$ITERS" "$mode"; } >> "$out"; fi
+        else { stamp "$i" "$role"; "$bin" "$ITERS" "$mode"; } >> "$out" 2>&1 || log "RUN FAILED: $bin (pair $i, see $out)"; fi
       done
     done
   done
-  [ "$DRY" = 1 ] && echo "DRY: (the loop repeats for pairs 2..$PAIRS with the order swapped on even pairs; attention variants: $VARIANTS; rope variants: $RVARIANTS)"
+  [ "$DRY" = 1 ] && echo "DRY: (the loop repeats for pairs 2..$PAIRS with the order swapped on even pairs; attention variants: $VOK; rope variants: $ROK)"
 
   log "== 6. tables and verdicts"
-  AB="--variant e2=$L/ab-e2.log --variant e2e5=$L/ab-e2e5.log --variant e5=$L/ab-e5.log --blocks e2=2,e2e5=2,e5=1 --stop e2=12 --stop e2e5=12 --expected $B/expected-hashes.txt"
-  RP="--base $L/rope-base.log --variant ip=$L/rope-ip.log --variant ipshfl=$L/rope-ipshfl.log --expected $B/expected-hashes.txt"
-  runsh "python3 -I $B/tfblock-table.py ab $AB | tee $L/table-ab.txt"
-  runsh "python3 -I $B/tfblock-table.py rope $RP | tee $L/table-rope.txt"
+  AB=""; BLK=""; STP=""
+  for v in $VOK; do
+    AB="$AB --variant $v=$L/ab-$v.log"
+    case $v in e2|e2e5) BLK="$BLK,$v=2"; STP="$STP --stop $v=12";; e5) BLK="$BLK,$v=1";; esac
+  done
+  RP=""; for v in $ROK; do RP="$RP --variant $v=$L/rope-$v.log"; done
+  if [ -n "$VOK" ]; then runsh "python3 -I $B/tfblock-table.py ab $AB ${BLK:+--blocks ${BLK#,}} $STP --expected $B/expected-hashes.txt | tee $L/table-ab.txt"; fi
+  if [ -n "$ROK" ]; then runsh "python3 -I $B/tfblock-table.py rope --base $L/rope-base.log $RP --expected $B/expected-hashes.txt | tee $L/table-rope.txt"; fi
+  if [ -n "$FAILED" ]; then log "BUILD FAILURES (variants missing from the tables above):$FAILED; compiler output in $L/c-*.log and $L/l-*.log"; fi
   log "== done (build trees are removed by the exit trap)"
+  [ -z "$FAILED" ] || exit 6
   exit 0
 fi
 
