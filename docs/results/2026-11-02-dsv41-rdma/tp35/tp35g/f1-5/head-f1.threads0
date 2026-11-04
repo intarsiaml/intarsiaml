@@ -1,0 +1,15 @@
+intarsia S futex_do_wait
+cuda00002000009 S poll_schedule_timeout.constprop.0
+cuda-EvtHandlr S poll_schedule_timeout.constprop.0
+intarsia S ib_uverbs_event_read.isra.0
+intarsia S ib_uverbs_event_read.isra.0
+intarsia S poll_schedule_timeout.constprop.0
+intarsia S poll_schedule_timeout.constprop.0
+tp-remote-reade S futex_do_wait
+intarsia-engine S futex_do_wait
+intarsia-http S futex_do_wait
+intarsia-http S ep_poll
+intarsia-watchd S hrtimer_nanosleep
+intarsia-http S futex_do_wait
+intarsia-engine S futex_do_wait
+CLOSE-WAIT 0      0                   10.100.152.1:51742    10.100.152.3:29712       

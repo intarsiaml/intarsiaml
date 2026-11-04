@@ -1,0 +1,150 @@
+fleetq: #8175 waiting (#1 in line): #8174 "dsv41 chunk32k: 52 long-context items at chunk 512 vs 2048 (localeval, vLLM restored after)" (claude-c8e51313) needs gpu quiet on spark1, and this job loads it
+fleetq: #8175 running on spark1, spark2: .scratch/tp35f/run.sh
+16:09:30 === arm main: binary $HOME/intarsia-dsv41-rdma/bin/intarsia md5 a5a7db0536b9 stamp '2dd8dc5bd dirty=no 1103-0033'
+16:09:39 [main] serve up=1 after 6 s
+16:09:39 [main] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+16:09:40 [main] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+16:09:45 [main] main-n128:      256 ids, first '248046 198 248045 248068 271 248069'
+16:09:48 [main] main-n4096:      256 ids, first '248046 198 248045 248068 198 8160'
+16:09:54 [main] main-f1: ranks' PIDs rank 0 3725482 (spark1), rank 1 2986344 (spark2)
+16:10:54 [main] main-f1 RESULT: killed worker; request ended 1417 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2388 ms
+16:10:54 [main] main-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+16:10:58 [main] main-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:53370
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 2986344 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-dsv41-rdma/bin/intars
+16:11:13 [main] serve up=1 after 6 s
+16:11:18 [main] main-n128-again:      256 ids, first '248046 198 248045 248068 271 248069'
+16:11:18 [main] AFTER RESTART: n128 ids identical to the run before the fault
+16:11:33 [main] serve up=1 after 6 s
+16:11:38 [main] main-f2: ranks' PIDs rank 0 3737559 (spark1), rank 1 2998190 (spark2)
+16:12:39 [main] main-f2 RESULT: killed serve; request ended 1462 ms after the kill (curl rc 52, HTTP 000); /health first 503 at  ms (never = empty); /health first 000 at 1115 ms; rank 0 gone at 2373 ms; rank 1 gone at  ms
+16:12:39 [main] main-f2 response head:  HTTP 000 
+16:12:43 [main] main-f2 exit codes: rank 0 (serve) 137, rank 1 (worker) none
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:34440
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+16:12:58 [main] serve up=1 after 6 s
+16:13:03 [main] main-n128-after:      256 ids, first '248046 198 248045 248068 271 248069'
+16:13:03 [main] AFTER PRIMARY KILL: n128 ids identical to the run before the fault
+16:13:07 [main] main-n4096-after:      256 ids, first '248046 198 248045 248068 198 8160'
+16:13:07 [main] AFTER PRIMARY KILL: n4096 ids identical to the run before the fault
+16:13:25 [main] serve up=1 after 7 s
+16:13:29 [main] main-f3-warm:      256 ids, first '248046 198 248045 248068 271 248069'
+16:13:34 [main] main-f3 RESULT: SIGTERM to the idle primary; rank 0 gone at 3117 ms; rank 1 gone at 3117 ms
+16:13:38 [main] main-f3 exit codes: rank 0 (serve) 0, rank 1 (worker) 0
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:41532
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tp-worker: rank 0 disconnected after 257 forward passes
+16:13:54 [main] serve up=1 after 6 s
+16:13:59 [main] main-f4-warm:      256 ids, first '248046 198 248045 248068 271 248069'
+16:14:04 [main] main-f4 RESULT: SIGKILL to the idle primary; rank 0 gone at 3462 ms; rank 1 gone at 3462 ms
+16:14:07 [main] main-f4 exit codes: rank 0 (serve) 137, rank 1 (worker) 0
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:48270
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tp-worker: rank 0 disconnected after 257 forward passes
+16:14:16 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 6830bb321a29 stamp '81b056910 dirty=no 1103-1436'
+16:14:31 [head] serve up=1 after 12 s
+16:14:31 [head] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+16:14:31 [head] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+16:14:36 [head] head-n128:      256 ids, first '248046 198 248045 248068 271 248069'
+16:14:39 [head] head-n4096:      256 ids, first '248046 198 248045 248068 198 8160'
+16:14:45 [head] head-f1: ranks' PIDs rank 0 3753590 (spark1), rank 1 3014130 (spark2)
+16:16:40 [head] head-f1 RESULT: killed worker; request ended 116041 ms after the kill (curl rc 28, HTTP 000); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2478 ms
+16:16:40 [head] head-f1 response head:  HTTP 000 
+16:16:44 [head] head-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:47586
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 3014130 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-tp35-exit/bin/intarsi
+16:17:00 [head] serve up=1 after 6 s
+16:17:04 [head] head-n128-again:      256 ids, first '248046 198 248045 248068 271 248069'
+16:17:04 [head] AFTER RESTART: n128 ids identical to the run before the fault
+16:17:20 [head] serve up=1 after 5 s
+16:17:25 [head] head-f2: ranks' PIDs rank 0 3765978 (spark1), rank 1 3026794 (spark2)
+16:17:33 [head] head-f2 RESULT: killed serve; request ended 1332 ms after the kill (curl rc 52, HTTP 000); /health first 503 at  ms (never = empty); /health first 000 at 1338 ms; rank 0 gone at 2596 ms; rank 1 gone at 7841 ms
+16:17:33 [head] head-f2 response head:  HTTP 000 
+16:17:37 [head] head-f2 exit codes: rank 0 (serve) 137, rank 1 (worker) 87
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:35620
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tensor parallel: rank 1: the primary rank disconnected and the queued work did not finish within 2s; aborting the communicator and exiting with code 87
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+16:17:53 [head] serve up=1 after 7 s
+16:17:57 [head] head-n128-after:      256 ids, first '248046 198 248045 248068 271 248069'
+16:17:57 [head] AFTER PRIMARY KILL: n128 ids identical to the run before the fault
+16:18:01 [head] head-n4096-after:      256 ids, first '248046 198 248045 248068 198 8160'
+16:18:01 [head] AFTER PRIMARY KILL: n4096 ids identical to the run before the fault
+16:18:16 [head] serve up=1 after 6 s
+16:18:20 [head] head-f3-warm:      256 ids, first '248046 198 248045 248068 271 248069'
+16:18:23 [head] head-f3 RESULT: SIGTERM to the idle primary; rank 0 gone at 2367 ms; rank 1 gone at 2367 ms
+16:18:27 [head] head-f3 exit codes: rank 0 (serve) 0, rank 1 (worker) 0
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:51814
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tp-worker: rank 0 disconnected after 257 forward passes
+16:18:41 [head] serve up=1 after 5 s
+16:18:46 [head] head-f4-warm:      256 ids, first '248046 198 248045 248068 271 248069'
+16:18:50 [head] head-f4 RESULT: SIGKILL to the idle primary; rank 0 gone at 2779 ms; rank 1 gone at 2779 ms
+16:18:53 [head] head-f4 exit codes: rank 0 (serve) 137, rank 1 (worker) 0
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:36054
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tp-worker: rank 0 disconnected after 257 forward passes
+16:19:00 COMPARE n128:      256 ids IDENTICAL head vs main
+16:19:00 COMPARE n4096:      256 ids IDENTICAL head vs main
+16:19:00 tp35-compare done
+16:19:06 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 6830bb321a29 stamp '81b056910 dirty=no 1103-1436'
+16:19:14 [head] serve up=1 after 6 s
+16:19:19 [head] head-f2: ranks' PIDs rank 0 3775053 (spark1), rank 1 3036233 (spark2)
+16:19:26 [head] head-f2 RESULT: killed serve; request ended 1243 ms after the kill (curl rc 52, HTTP 000); /health first 503 at  ms (never = empty); /health first 000 at 1075 ms; rank 0 gone at 2257 ms; rank 1 gone at 7176 ms
+16:19:26 [head] head-f2 response head:  HTTP 000 
+16:19:30 [head] head-f2 exit codes: rank 0 (serve) 137, rank 1 (worker) 87
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:39852
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tensor parallel: rank 1: the primary rank disconnected and the queued work did not finish within 2s; aborting the communicator and exiting with code 87
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+16:19:37 tp35-compare done
+16:19:42 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 6830bb321a29 stamp '81b056910 dirty=no 1103-1436'
+16:19:51 [head] serve up=1 after 6 s
+16:19:56 [head] head-f2: ranks' PIDs rank 0 3778834 (spark1), rank 1 3039670 (spark2)
+16:20:03 [head] head-f2 RESULT: killed serve; request ended 1603 ms after the kill (curl rc 52, HTTP 000); /health first 503 at  ms (never = empty); /health first 000 at 1042 ms; rank 0 gone at 2298 ms; rank 1 gone at 7264 ms
+16:20:03 [head] head-f2 response head:  HTTP 000 
+16:20:07 [head] head-f2 exit codes: rank 0 (serve) 137, rank 1 (worker) 87
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:33648
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tensor parallel: rank 1: the primary rank disconnected and the queued work did not finish within 2s; aborting the communicator and exiting with code 87
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+16:20:14 tp35-compare done
+16:20:20 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 6830bb321a29 stamp '81b056910 dirty=no 1103-1436'
+16:20:28 [head] serve up=1 after 6 s
+16:20:33 [head] head-f2: ranks' PIDs rank 0 3782652 (spark1), rank 1 3042950 (spark2)
+16:20:40 [head] head-f2 RESULT: killed serve; request ended 1217 ms after the kill (curl rc 52, HTTP 000); /health first 503 at  ms (never = empty); /health first 000 at 1027 ms; rank 0 gone at 2251 ms; rank 1 gone at 7302 ms
+16:20:40 [head] head-f2 response head:  HTTP 000 
+16:20:44 [head] head-f2 exit codes: rank 0 (serve) 137, rank 1 (worker) 87
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:34324
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+tensor parallel: rank 1: the primary rank disconnected and the queued work did not finish within 2s; aborting the communicator and exiting with code 87
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+16:20:51 tp35-compare done
+fleetq: #8175 done (exit 0)
