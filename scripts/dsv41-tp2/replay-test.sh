@@ -4,7 +4,7 @@
 # the path and then measure speed and quality. Each stops the run at the first failure; each step's PASS criterion is stated
 # here and enforced by an exit status (replay-test-lib.py, whose criteria replay-test-lib-selftest.py tests on synthetic data):
 #   1  off vs on, prompts of at most 128 tokens (no cut): greedy ids identical (also: every prompt really is <= 128 ids)
-#   2  golden ids (tools/prompts/golden*.jsonl, 10 x 64): this branch with replay off vs the binary of origin/main 7eeb23f2f:
+#   2  golden ids (tools/prompts/golden*.jsonl, 10 x 64): this branch with replay off vs the binary of the merged base MAIN_REF (default 84ef3166c = origin/main 809674eb9 + dsv41/attn-wire; the branch's default path must equal it):
 #      640 of 640 identical
 #   3  GATE, encoder half bit-identical: off and on serve the same request sequence (replay-prompts-gate.jsonl: an encoder-only
 #      chunk and a crossing chunk, a crossing chunk then a whole chunk under the floor, a resumed prefill) with the position
@@ -29,7 +29,7 @@
 #   Q_TOKENS (400, max_tokens of the quality replies), S3_CHUNKS ("512 2048"), S3_SIZES (4096,32768), S3_REPS (2), KILL_GIB (5),
 #   GATE_CHUNKS ("512 2048"; step 3), ALIVE_TRIES (4 ssh tries before a rank counts as unreachable),
 #   EARLYOOM_OK ("3,2 2,1"), STOP_EPOCH (unix time after which step 5 starts no new shard), XENV (extra engine env, both ranks),
-#   RAW (results folder), TF_IDS (TensorFold token file for step 4), MAIN_WT (checkout of origin/main 7eeb23f2f, built for step 2).
+#   RAW (results folder), TF_IDS (TensorFold token file for step 5), MAIN_REF (the baseline commit for step 2), MAIN_WT (checkout of it, built for step 2).
 # Inner mode (REPLAY_TEST_INNER=1 plus FLEETQ_JOB) is what the fleetq job runs; set both only when you hold a slot yourself
 # (`fleetq acquire --host spark1,spark2 --takes-down spark1-vllm,spark2-vllm ...`).
 set -u -o pipefail
@@ -50,7 +50,7 @@ WIP=10.100.152.3; WPORT=29701; SPORT=8899; SURL=http://100.120.88.104:$SPORT
 NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-2} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
 CAP=${CAP:-66000}                      # 32K prompts at step 3 and 64K items at step 5 (chunk32k-2 used 66000)
 TOK=${TOKENIZER:-/opt/code/intarsiaml/.worktrees/dsv41-official/mia/tokenizer.json}
-MAIN_REF=7eeb23f2f; MAIN_WT=${MAIN_WT:-$(dirname "$REPO")/dsv41-replay-main}
+MAIN_REF=${MAIN_REF:-84ef3166c}; MAIN_WT=${MAIN_WT:-$(dirname "$REPO")/dsv41-replay-main}
 RESDIR=${RESDIR:-$REPO/docs/results/2026-11-03-dsv41-replay}; RAW=${RAW:-$RESDIR/raw}
 # TensorFold's greedy ids for the golden prompt set (step 5). The record docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt
 # holds only the summary table and snippets, not the ids; the ids it was computed from are this file (docs/results/2026-11-01-dsv41-tp2.md).
