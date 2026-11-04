@@ -483,6 +483,23 @@ fn settle<T>(remote: &mut Option<RemoteSeq>, out: &Result<T>) -> Result<()> {
     }
 }
 
+/// Runs the jobs until the engine is dropped. A panic can come after a pass was sent, with the other rank parked in its collectives, so it takes
+/// the route of any other failure. Without that, dropping the worker tells the other rank to free a sequence on the parked stream, where
+/// `cudaFree` blocks and `watch_peer`, which only acts during a pass, does not see the hang-up.
+fn engine_loop(w: &mut Worker, rx: Receiver<Job>, failed: &Arc<Mutex<Option<String>>>) {
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        for job in rx.iter() {
+            w.run(job);
+        }
+    }));
+    if let Err(p) = r {
+        let msg = p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+        let msg = format!("dsv41 engine worker panicked: {msg}");
+        w.group_failed(&Error::backend(msg.clone()));
+        *failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg);
+    }
+}
+
 impl Worker {
     fn forward(&mut self, ids: &[u32], logits: bool) -> Result<Option<Vec<f32>>> {
         if let Some(r) = &self.remote {
@@ -1011,15 +1028,7 @@ impl Dsv41Engine {
         std::thread::Builder::new()
             .name("dsv41-engine".into())
             .spawn(move || {
-                let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    for job in rx.iter() {
-                        w.run(job);
-                    }
-                }));
-                if let Err(p) = r {
-                    let msg = p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
-                    *f2.lock().unwrap() = Some(format!("dsv41 engine worker panicked: {msg}"));
-                }
+                engine_loop(&mut w, rx, &f2);
             })
             .map_err(|e| Error::backend(format!("spawning the engine worker: {e}")))?;
         Ok(Dsv41Engine { tx: Mutex::new(tx), info, codec, telemetry, failed })
@@ -1175,6 +1184,7 @@ mod failpath_tests {
         cancel_after: Option<(usize, Arc<AtomicBool>)>,
         forwards: usize,
         fail_wait: bool,
+        panic_on_forward: bool,
     }
     impl Script {
         fn tok(&self, len: usize) -> u32 {
@@ -1187,6 +1197,7 @@ mod failpath_tests {
             l
         }
         pub(super) fn forward(&mut self, st: &mut SequenceState, ids: &[u32], logits: bool) -> Result<Option<Vec<f32>>> {
+            assert!(!self.panic_on_forward, "scripted panic");
             st.commit(ids);
             self.forwards += 1;
             self.logits_asked.push(logits);
@@ -1367,41 +1378,49 @@ mod failpath_tests {
         Forward,
         Draft,
         Verify,
+        Freed,
     }
 
     /// The other rank: passes "enqueue" and answer OK, as a real rank 1's enqueue-only passes do, and it notes what it was told.
     #[derive(Clone, Default)]
     struct Recorder(Arc<Mutex<Vec<Told>>>, Arc<Mutex<Vec<usize>>>);
-    impl RankModel for Recorder {
-        type State = usize;
-        fn new_state(&self) -> Result<usize> {
-            self.0.lock().unwrap().push(Told::New);
-            Ok(0)
+    /// A sequence on the other rank: freeing one is what parks a real rank 1 for good when its stream is parked.
+    struct RecSeq(usize, Arc<Mutex<Vec<Told>>>);
+    impl Drop for RecSeq {
+        fn drop(&mut self) {
+            self.1.lock().unwrap().push(Told::Freed);
         }
-        fn forward_rank(&self, st: &mut usize, ids: &[u32], _graph: bool) -> Result<()> {
+    }
+    impl RankModel for Recorder {
+        type State = RecSeq;
+        fn new_state(&self) -> Result<RecSeq> {
+            self.0.lock().unwrap().push(Told::New);
+            Ok(RecSeq(0, self.0.clone()))
+        }
+        fn forward_rank(&self, st: &mut RecSeq, ids: &[u32], _graph: bool) -> Result<()> {
             self.0.lock().unwrap().push(Told::Forward);
             self.1.lock().unwrap().push(ids.len());
-            *st += ids.len();
+            st.0 += ids.len();
             Ok(())
         }
-        fn verify_rank(&self, st: &mut usize, ids: &[u32]) -> Result<()> {
+        fn verify_rank(&self, st: &mut RecSeq, ids: &[u32]) -> Result<()> {
             self.0.lock().unwrap().push(Told::Verify);
-            *st += ids.len();
+            st.0 += ids.len();
             Ok(())
         }
-        fn draft_rank(&self, _st: &mut usize, _ids: &[u32]) -> Result<()> {
+        fn draft_rank(&self, _st: &mut RecSeq, _ids: &[u32]) -> Result<()> {
             self.0.lock().unwrap().push(Told::Draft);
             Ok(())
         }
-        fn truncate(&self, st: &mut usize, len: usize) -> Result<()> {
-            *st = len;
+        fn truncate(&self, st: &mut RecSeq, len: usize) -> Result<()> {
+            st.0 = len;
             Ok(())
         }
-        fn snapshot(&self, _st: &mut usize, _keep: usize) -> Result<()> {
+        fn snapshot(&self, _st: &mut RecSeq, _keep: usize) -> Result<()> {
             Ok(())
         }
-        fn state_len(st: &usize) -> usize {
-            *st
+        fn state_len(st: &RecSeq) -> usize {
+            st.0
         }
     }
 
@@ -1446,7 +1465,8 @@ mod failpath_tests {
             let Group { w, told, served, .. } = self;
             drop(w);
             served.join().unwrap().unwrap();
-            let t = told.0.lock().unwrap().clone();
+            // what closing the connection frees is not something it was told
+            let t = told.0.lock().unwrap().iter().copied().filter(|t| *t != Told::Freed).collect();
             t
         }
         /// As far as the sequences go, `len` tokens are in.
@@ -1489,25 +1509,21 @@ mod failpath_tests {
         }
     }
 
-    /// The engine's test and the runtime's own check are one check: at no position does the engine start a round the runtime refuses.
+    /// `draft_steps` refuses what the check as it stood before `draft_fits` refused, spelled out here, and `next_rows` drafts at every position
+    /// the old test allowed and the runtime accepts, so no round that could run has gone.
     #[test]
-    fn draft_fits_is_exactly_what_the_runtime_accepts_and_differs_from_the_old_test_only_near_the_capacity() {
+    fn draft_fits_refuses_what_the_runtime_refused_and_no_round_that_ran_is_lost() {
         let g = group();
-        let block = g.w.rt.cfg.mtp.as_ref().unwrap().block_size;
-        assert_eq!(block, 5);
+        assert_eq!(g.w.rt.cfg.mtp.as_ref().unwrap().block_size, 5);
         let mut st = g.w.rt.new_state().unwrap();
         for len in 0..=CAP {
             st.len = len;
             st.tokens = vec![1; len];
             let refused = g.w.rt.draft_steps(&st, 1, 4).is_err_and(|e| e.to_string().contains("a draft block at position"));
+            assert_eq!(refused, len == 0 || len + 5 > CAP, "the runtime's limit moved, at {len}");
             assert_eq!(g.w.rt.draft_fits(len), !refused, "at {len}");
-            let old_test = CAP.saturating_sub(len + 1) >= 2;
-            let now = old_test && g.w.rt.draft_fits(len);
-            if len >= 1 && len + block <= CAP {
-                assert!(now && old_test, "a round that ran before runs now, at {len}");
-            } else if len >= 1 {
-                assert!(!now, "at {len}");
-            }
+            let could_run_before = CAP.saturating_sub(len + 1) >= 2 && !refused;
+            assert_eq!(could_run_before, g.w.rt.draft_fits(len), "at {len}");
         }
     }
 
@@ -1614,6 +1630,25 @@ mod failpath_tests {
         g.w.after_failure(&Error::Other("structured output: the constraint allows no token here".into()));
         assert!(g.w.failed.lock().unwrap().is_none());
         assert_eq!(g.finish(), [Told::New, Told::New]);
+    }
+
+    /// A panic after a pass was sent: the other rank is parked, so it must hear nothing more, least of all a free; it leaves on the hang-up.
+    #[test]
+    fn an_engine_panic_after_a_pass_was_sent_fails_the_group_and_sends_no_free() {
+        let mut g = scripted(4, vec![1], false);
+        g.w.script.as_mut().unwrap().panic_on_forward = true;
+        let (jobs, rx) = channel();
+        let (tx, _events) = channel();
+        jobs.send(Job { req: GenRequest { prompt: vec![1; 4], max_tokens: 1, temperature: 1.0, ..Default::default() }, tx }).unwrap();
+        drop(jobs);
+        let failed = g.w.failed.clone();
+        engine_loop(&mut g.w, rx, &failed);
+        assert!(failed.lock().unwrap().as_deref().is_some_and(|m| m.contains("panicked: scripted panic")), "{failed:?}");
+        drop(g.w.remote.take()); // what dropping the worker does first
+        std::thread::sleep(Duration::from_millis(300)); // the far end would have read a free by now
+        let told = g.told.0.lock().unwrap().clone();
+        assert_eq!(told, [Told::New, Told::Forward], "the other rank was told to free a sequence while parked");
+        g.finish();
     }
 
     // ------- second review: requests through the real `generate`, rank 0's passes scripted
@@ -1759,10 +1794,11 @@ mod failpath_tests {
         assert_eq!(*sizes.lock().unwrap(), [8, 8, 4, 1], "the first request's passes only");
     }
 
-    /// A cancel takes effect between two chunks. Each chunk went to rank 1 alone and was answered before the next: rank 1 holds exactly
-    /// the chunks rank 0 ran, at the same length, with no collective of a chunk rank 0 will not run. The next request goes on from there.
+    /// A cancel takes effect between two chunks: rank 1 was told exactly the chunks rank 0 ran, at the same length, and the next request goes on
+    /// from there. That is the message order only. The recorder has no collectives, so that they pair is for the Spark case `cancel` to show: ids
+    /// after a mid-prefill cancel equal to a cold run's.
     #[test]
-    fn a_cancel_between_prefill_chunks_leaves_both_ranks_in_step() {
+    fn a_cancel_between_prefill_chunks_tells_both_ranks_the_same_chunks() {
         let mut g = scripted(20, vec![1], false);
         let cancel = Arc::new(AtomicBool::new(false));
         g.w.script.as_mut().unwrap().cancel_after = Some((1, cancel.clone()));

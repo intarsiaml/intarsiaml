@@ -277,18 +277,27 @@ fn rollback_within_the_margin_equals_never_drafting() {
     }
 }
 
-/// How far below the furthest row written a sequence can really go on the real (reference) kernels, whatever the checks say. Rows drafted
-/// past `accepted` and cut are what a chain of cuts leaves in the rings: 17 below is still bit-identical to never drafting (the margin of 16
-/// plus the one row a pass does not read), 18 is not. `SequenceState::ring_cut_ok` has to draw the line exactly here.
+/// The check against the kernels: at each distance below the furthest row written, `SequenceState`'s check accepts a chain of cuts exactly when the real
+/// (reference) kernels then give what never drafting gives. The rows drafted past `accepted` and cut are what such a chain leaves in the rings.
 #[test]
-fn the_rings_survive_17_rows_below_the_furthest_written_and_not_18() {
+fn the_ring_check_accepts_exactly_what_the_kernels_survive() {
+    use intarsia_core::state::{RingKind, SequenceState, SlotSpec};
+    let cpu = intarsia_backend_cpu::CpuBackend::new();
     for (r, accepted) in [(2usize, 101usize), (2, 100), (1, 90), (3, 61), (3, 62), (3, 63)] {
         let c = base(r, DType::Bf16, None);
         let real = tokens(&c, N + 40, 0xC0FFEE ^ r as u64);
         let (want, _) = run(&c, &real, &[accepted, 3, 1, N - accepted - 4]);
         let skip = accepted * c.h * c.d;
-        assert!(rollback_run(&c, accepted, 17).0 == want[skip..], "ratio {r}, accepted {accepted}: 17 rows must survive");
-        assert!(rollback_run(&c, accepted, 18).0 != want[skip..], "ratio {r}, accepted {accepted}: 18 rows must not (the control)");
+        for draft in [1, 4, 16, 17, 18, 19, 24] {
+            let survives = rollback_run(&c, accepted, draft).0 == want[skip..];
+            let specs = [SlotSpec::Ring { rows: c.w + 16, width: 2, planes: 1, dtype: DType::F32, margin: 16, kind: RingKind::WindowKv }];
+            let mut st = SequenceState::new(&cpu, &specs, 4096).unwrap();
+            st.commit(&vec![1; accepted + draft]);
+            // the first cut of the chain goes to within the margin of `accepted`; a single cut of 17 or more is refused whatever the mark says
+            st.truncate(accepted + draft.min(16), &cpu).unwrap();
+            let accepts = st.restorable_len(accepted) == accepted;
+            assert_eq!(accepts, survives, "ratio {r}, accepted {accepted}, {draft} rows below the mark: the check says {accepts}, the kernels {survives}");
+        }
     }
 }
 
