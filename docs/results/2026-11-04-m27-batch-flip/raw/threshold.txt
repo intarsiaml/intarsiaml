@@ -1,0 +1,28 @@
+plen  tail(mod256) solo-pass-tail | first id diff | bit-equal rows | top5 max dlp | KL mean, max
+  259    3   259 | 157   |   0/158 | 5.9608 | 2.17e-03 9.04e-02
+  260    4   260 | 197   |   0/198 | 6.0988 | 1.63e-02 3.18e+00
+  262    6   262 | None  |   0/200 | 5.2421 | 4.92e-03 9.34e-01
+  265    9   265 | None  |   0/200 | 7.0018 | 6.89e-03 2.96e-01
+  266   10   266 | None  | 200/200 | 0.0000 | 0.00e+00 0.00e+00
+  273   17   273 | None  | 200/200 | 0.0000 | 0.00e+00 0.00e+00
+  289   33   289 | None  | 200/200 | 0.0000 | 0.00e+00 0.00e+00
+  320   64   320 | None  | 200/200 | 0.0000 | 0.00e+00 0.00e+00
+  516    4   516 | 22    |   0/ 23 | 0.2942 | 3.57e-05 2.41e-04
+ 1028    4  1028 | 195   |   0/196 | 7.3312 | 1.43e-02 2.90e+00
+ 1540    4  1540 | None  |   0/200 | 0.3584 | 1.62e-04 1.47e-02
+ 1088   64  1088 | None  | 200/200 | 0.0000 | 0.00e+00 0.00e+00
+ 1412  132  1412 | None  | 200/200 | 0.0000 | 0.00e+00 0.00e+00
+
+q4 (772), last pass t rows (body t-1), vs solo one-pass and vs 256 schedule
+t= 6 id184=1834   first-diff-vs-256=25 gap=+nan | vs solo bit-equal 0/26 | vs C=256 bit-equal 0/26
+t= 9 id184=1834   first-diff-vs-256=25 gap=+nan | vs solo bit-equal 0/26 | vs C=256 bit-equal 0/26
+t=10 id184=557    first-diff-vs-256=184 gap=-0.021435 | vs solo bit-equal 200/200 | vs C=256 bit-equal 0/185
+t=17 id184=557    first-diff-vs-256=184 gap=-0.021435 | vs solo bit-equal 200/200 | vs C=256 bit-equal 0/185
+t=18 id184=557    first-diff-vs-256=184 gap=-0.021435 | vs solo bit-equal 200/200 | vs C=256 bit-equal 0/185
+t=33 id184=557    first-diff-vs-256=184 gap=-0.021435 | vs solo bit-equal 200/200 | vs C=256 bit-equal 0/185
+t=34 id184=557    first-diff-vs-256=184 gap=-0.021435 | vs solo bit-equal 200/200 | vs C=256 bit-equal 0/185
+
+peel 16
+q3: peel solo vs peel behind first diff None bit-equal 200/200 | peel behind == no-peel behind: True | peel solo == no-peel solo: True
+q4: peel solo vs peel behind first diff None bit-equal 200/200 | peel behind == no-peel behind: True | peel solo == no-peel solo: False
+q5: peel solo vs peel behind first diff None bit-equal 200/200 | peel behind == no-peel behind: True | peel solo == no-peel solo: True

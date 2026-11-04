@@ -314,14 +314,16 @@ lm_head = { tensor = "h" }
     }
 
     #[test]
-    fn only_the_hip_27b_recipe_sets_a_prefill_peel() {
+    fn only_the_hip_and_metal_27b_recipe_sets_a_prefill_peel() {
         // the peel is opt-in elsewhere (`INTARSIA_PREFILL_PEEL` with a larger `--prefill-chunk`). The 27B on HIP ships chunk 2048 + peel 16
         // (lane H27P: ids identical to chunk 256 on all 18 gate prompts; the peel keeps a 1..16-row tail on the small-M row kernels as the
         // 256 schedule does), see docs/results/2026-10-27-h27p-hip-27b-prefill.md
+        // The 27B on Metal ships peel 8, so that its solo and busy schedules give the same bits, see docs/results/2026-11-04-m27-batch-flip.md
         let (_, vl) =
             select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForConditionalGeneration"]}), &[]).unwrap();
         assert_eq!(vl.resolve_prefill_chunk(None, "hip").value, 2048);
         assert_eq!(vl.resolve_prefill_peel("hip").0, 16);
+        assert_eq!(vl.resolve_prefill_peel("metal").0, 8);
         assert_eq!(vl.resolve_prefill_chunk(None, "cuda").value, 256);
         let archs = [
             "Qwen3_5ForConditionalGeneration",
@@ -332,7 +334,7 @@ lm_head = { tensor = "h" }
         for arch in archs {
             let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
             for be in ["cuda", "hip", "metal", "cpu"] {
-                if arch == "Qwen3_5ForConditionalGeneration" && be == "hip" {
+                if arch == "Qwen3_5ForConditionalGeneration" && (be == "hip" || be == "metal") {
                     continue;
                 }
                 assert_eq!(r.resolve_prefill_peel(be), (0, "default".to_string()), "{arch} {be}");

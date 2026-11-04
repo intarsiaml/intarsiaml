@@ -11,7 +11,7 @@
 //!   official safetensors); default `~/dsv41-engram`.
 //! - `INTARSIA_DSV41_ENGRAM_HOT_MB`: hot-tier size (TinyLFU only, no pinned profile); default 0 (off).
 //! - `INTARSIA_DSV41_CAP`: token capacity of the sequence (default 32768); `INTARSIA_DSV41_CHUNK`: prefill chunk (default
-//!   the `--prefill-chunk`, else 512).
+//!   the `--prefill-chunk`, else 2048).
 
 use crate::chat_template::ChatTemplateSource;
 use crate::dsv41::{detect, HeaderShapes};
@@ -59,13 +59,22 @@ impl Dsv41Opts {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
         Dsv41Opts {
             cap: env_usize("INTARSIA_DSV41_CAP").unwrap_or(32768),
-            chunk: env_usize("INTARSIA_DSV41_CHUNK").or(prefill_chunk).unwrap_or(512),
+            chunk: resolve_chunk(env_usize("INTARSIA_DSV41_CHUNK"), prefill_chunk),
             engram_dir: std::env::var_os("INTARSIA_DSV41_ENGRAM").map(PathBuf::from).unwrap_or_else(|| Path::new(&home).join("dsv41-engram")),
             hot_mb: env_usize("INTARSIA_DSV41_ENGRAM_HOT_MB").unwrap_or(0),
             act: if std::env::var("INTARSIA_DSV41_ACT").as_deref() == Ok("f32") { DType::F32 } else { DType::Bf16 },
             spec: spec_on(std::env::var("INTARSIA_DSV41_SPEC").ok().as_deref(), dir.join(MTP_DIR).join(MANIFEST).exists()),
         }
     }
+}
+
+/// Prefill rows per pass when neither `INTARSIA_DSV41_CHUNK` nor `--prefill-chunk` is given: 2048 since 2026-11-04 (user decision;
+/// was 512; docs/results/2026-11-04-dsv41-chunk32k-quality-2.md). This path takes no recipe `[tuning]` chunk, so the default lives here.
+pub const DEFAULT_CHUNK: usize = 2048;
+
+/// The env value wins over the `--prefill-chunk` flag, which wins over [`DEFAULT_CHUNK`].
+fn resolve_chunk(env: Option<usize>, flag: Option<usize>) -> usize {
+    env.or(flag).unwrap_or(DEFAULT_CHUNK)
 }
 
 /// Unset: on when the cache has its DSpark sub-cache. Set: `1` is on, anything else off.
@@ -1117,6 +1126,19 @@ mod spec_default_tests {
         assert!(spec_on(Some("1"), false));
         assert!(!spec_on(Some("0"), true));
         assert!(!spec_on(Some("off"), true));
+    }
+}
+
+#[cfg(test)]
+mod chunk_default_tests {
+    use super::*;
+
+    #[test]
+    fn the_chunk_is_env_then_flag_then_2048() {
+        assert_eq!(resolve_chunk(None, None), 2048);
+        assert_eq!(resolve_chunk(None, Some(1024)), 1024);
+        assert_eq!(resolve_chunk(Some(512), Some(1024)), 512);
+        assert_eq!(resolve_chunk(Some(512), None), 512);
     }
 }
 

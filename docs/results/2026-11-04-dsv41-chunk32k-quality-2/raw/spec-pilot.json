@@ -1,0 +1,115 @@
+{
+ "seed": "pilot",
+ "shard32": 40,
+ "shard65": 10,
+ "items": [
+  {
+   "kind": "hop2",
+   "level": 1,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "hop2",
+   "level": 2,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "hop2",
+   "level": 3,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "hop3",
+   "level": 1,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "hop3",
+   "level": 2,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "hop3",
+   "level": 3,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "agg_sum",
+   "level": 1,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "agg_sum",
+   "level": 2,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "agg_sum",
+   "level": 3,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "agg_max",
+   "level": 1,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "agg_max",
+   "level": 2,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "agg_max",
+   "level": 3,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "repo_sum",
+   "level": 1,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "repo_sum",
+   "level": 2,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "repo_sum",
+   "level": 3,
+   "n": 2,
+   "k": 32
+  },
+  {
+   "kind": "hop3",
+   "level": 2,
+   "n": 1,
+   "k": 65
+  },
+  {
+   "kind": "agg_sum",
+   "level": 2,
+   "n": 1,
+   "k": 65
+  },
+  {
+   "kind": "repo_sum",
+   "level": 2,
+   "n": 1,
+   "k": 65
+  }
+ ]
+}
