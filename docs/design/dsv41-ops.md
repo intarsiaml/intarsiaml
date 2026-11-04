@@ -35,10 +35,17 @@ those two cases (lane 1b's fixtures should cover both, plus a chunked prefill). 
 `AttnSparse`, `CompressPool`, `IndexerBlocks`, `IndexerTopk`, and `ActQdq` in its row-offset form) also accept a device-side
 position (`OpCall::pos`, `i32 [1]`) for graph replay, with capacity-sized shapes ("Device position" below). `D` = 512 (head_dim), `S` = 4 (hc_mult), `H` = 64 heads, `W` = 128 (window).
 
-Outputs never alias inputs: the graph ping-pongs the residual (`x0` / `x1`) and gives every intermediate its own
-workspace name, so a kernel may write an output before it has read all of an input (`HcPost` mixes across streams,
-`EngramMerge` reads every stream). The only in-place tensors are the state rings of `WindowKv` and `CompressPool`, which
-are outputs only (tested in `crates/intarsia-models/tests/dsv41.rs`).
+Outputs never alias inputs, with two exceptions: the graph ping-pongs the residual (`x0` / `x1`) and gives every intermediate
+its own workspace name, so a kernel may write an output before it has read all of an input (`HcPost` mixes across streams,
+`EngramMerge` reads every stream). The exceptions are (1) the state rings of `WindowKv` and `CompressPool`, which are
+outputs only, and (2) `RopeTail` of the attention's `q` and `o` on the CUDA backend (`GraphTp::rope_inplace`, default on
+there, `INTARSIA_DSV41_ROPE_INPLACE=0` off): the output is then the input tensor itself, the same pointer and dtype. The
+kernel (`ik_rope_tail`) reads and writes only the `rd` rope elements of each row and leaves the others, and it refuses any
+other overlap of `x` and `out` (one pointer with two dtypes, a partial overlap) with `IK_ERR_INVALID_ARG`. Under (2) the
+unrotated rows no longer exist after the rope, so no later step may read `ws:q` / `ws:o` except as the rotated rows' one
+consumer (`AttnSparse`, `act_quant(o)` / `wo_a`); any new reader of `q` or `o`, or any graph that replays a rope without
+re-running its producer, must keep that true. Both are tested in `crates/intarsia-models/tests/dsv41.rs`
+(`in_place_rope_*`, `the_unrotated_read_check_fails_on_an_injected_late_reader`).
 
 Activation dtype is bf16 unless stated; "float" means bf16 / f16 / f32. Ops that the official code runs in fp32 take or
 produce f32 where it matters (hyper-connection mixes, router logits, compressor inputs).
@@ -58,7 +65,7 @@ them with that error (`crates/intarsia-backend-cpu/tests/admission.rs` asserts b
 | 48 | `MoeRoute` | logits `[T,E]` f32, bias `[E]` f32 -> weights `[T,K]` f32, ids `[T,K]` i32 | `top_k`, `scale` (route_scale 1.5), `norm_topk`, `temperature` (gate_temp, 1), `dsv.score_func` (sqrt-softplus) | `Gate.forward` `model.py:811`: experts chosen by `score + bias`, weights are the unbiased scores, normalised (+1e-20) then scaled | ref |
 | 49 | `SiluGluClamp` | gate `[R,I]`, up `[R,I]` -> `[R,I]` = silu(min(gate, l)) * clamp(up, -l, l) | `dsv.limit` (swiglu_limit 10; 0 = no clamp) | `Expert.forward` `model.py:832` | ref |
 | 50 | `ActQdq` | x `[.., N]` float -> same shape and dtype: quantise per block of the last dim, dequantise | `dsv.qdq_fmt` (e4m3 / e2m1), `dsv.qdq_block`, `dsv.qdq_scale` (ue8m0 power of two, e4m3, f32) | `act_quant` `kernel.py:98` (amax floor 1e-4, `fast_round_scale`), `fp4_act_quant` `kernel.py:184` (floors 6*2^-126 / 6*2^-9 for e4m3 scales) | ref |
-| 51 | `RopeTail` | x `[T,N,Dh]`, inv_freq `[rd/2]` f32 -> rotated copy: the last `rd` elements as adjacent (re, im) pairs, row `t` at position `pos0 + t*pos_stride`, angle `pos * inv_freq[i]` (f32) | `pos0`, `dsv.pos_stride` (ratio for compressed latents: a group stands for its first token), `dsv.inverse` (de-rotation of the attention output) | `apply_rotary_emb` `model.py:392`; tables `precompute_freqs_cis` `model.py:369` (`Dsv41Config::inv_freq`) | ref |
+| 51 | `RopeTail` | x `[T,N,Dh]`, inv_freq `[rd/2]` f32 -> rotated copy (or, CUDA, in place: `out` is `x`, see the aliasing rule above): the last `rd` elements as adjacent (re, im) pairs, row `t` at position `pos0 + t*pos_stride`, angle `pos * inv_freq[i]` (f32) | `pos0`, `dsv.pos_stride` (ratio for compressed latents: a group stands for its first token), `dsv.inverse` (de-rotation of the attention output) | `apply_rotary_emb` `model.py:392`; tables `precompute_freqs_cis` `model.py:369` (`Dsv41Config::inv_freq`) | ref |
 | 52 | `WindowKv` | kv `[T,D]` -> win `[W+T,D]`, ring `[Wc,D]` (in place, `Wc >= W`) | `window`, `pos0` | `Attention._window_kv` `model.py:701` | ref |
 | 53 | `AttnSparse` | q `[T,H,D]`, win `[W+T,D]`, cmp `[Nc,D]`, idx `[T,Kc]` i32, sink `[H]` f32 -> o `[T,H,D]` | `window`, `pos0`, `scale` (head_dim^-0.5) | `sparse_attn` `kernel.py:311-404`, window rows `get_window_topk_idxs` `model.py:410` | ref |
 | 54 | `CompressPool` | kv `[T,D]` f32, score `[T,D]` f32 -> out `[G,D]`, kv ring `[Rc,D]` f32, score ring `[Rc,D]` f32 (rings in place) | `dsv.ratio` (>= 2), `pos0` | `Compressor.forward` `model.py:429-486` (ratio > 1) | ref |
