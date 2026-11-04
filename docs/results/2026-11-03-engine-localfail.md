@@ -62,3 +62,18 @@ Known limits, left as they are:
 - `dsv41_engine.rs` and `state.rs` are untouched.
 
 Test runs, round 2 (endor, cpu, via fleetq #8305 and #8310, no slot held after): `cargo test -p intarsia-models --test engine_localfail --test tp_mtp --test tp_batch --test batch_engine`: 9 + 8 + 15 + 9 passed; `-p intarsia-server`: 19 + 41 + 3 passed; `-p intarsia-core`: 169 + 2 + 37 passed; `cargo test --workspace --no-fail-fast`: 1248 passed, 0 failed, 29 ignored.
+
+## Gates (no-op check against origin/main 1d6a20799; branch head 97cd1f2e8)
+
+Both binaries `cargo build --release --locked -p intarsia-cli --features metal`, own target dirs, from the branch head and a detached `origin/main` worktree (the branch's merge-base is `origin/main`); build #8311 (`--load cpu`, `raw/scripts/build.sh`, `raw/build.log`). Gates on endor, #8312 (`raw/scripts/gates-lf.sh`, log `raw/gates-summary.log`, data `raw/gates/`) and #8316 (`raw/scripts/acc-long.sh`, `raw/acc-long.log`). Recipe and models from the m27 hs-rowtable gates (#8300). No `INTARSIA_METAL_*` env set.
+
+| gate | result |
+|---|---|
+| `plan show --backend metal` text and `--json`, 35B (Qwen3.6-35B-A3B-NVFP4), 8B (Qwen3-8B), 27B (Qwen3.8-27B-Quark-AWQ-MXFP4), base vs new | **byte-identical, 6 of 6** |
+| `kernels test --backend metal`, base and new | 49 kernels, 980 cases, **0 FAIL** both; logs differ only in the wall-time line (36.0 s vs 31.2 s) |
+| `generate` greedy, 256 ids (`--ignore-eos --spec off`), short chat prompt and 4K prompt (`prompt-4096.txt`), 27B and 8B, single stream | **ids and text identical, 4 of 4 cells** |
+| `serve --max-batch 1` (LocalEngine) and `--max-batch 4` (batched engine), 27B, 256 ids per request: short and 4K one at a time, then short, 4K, 900 and 1800 characters at once | **ids identical, 6 of 6 requests at each batch size** (each equal to base) |
+| 8B goldens (`/opt/code/intarsiaml/golden`, `accuracy --mode both` against `golden/baselines/qwen3-8b-fp32` and `-long-fp32` metal baselines) | both floor PASS, baseline PASS, golden gate PASS; `.out` of base and new **byte-identical** (the first long run used `--decode-positions 16`, the baseline has 64: refused by both binaries identically, rerun with 64 in #8316) |
+| HTTP, new binary, server up (27B, both batch sizes) | normal completion 200 (256 ids); `{"prompt":[999999999]}` to `/v1/completions` **400** `bad request: token id 999999999 >= vocab 248320`; `/health` 200 before and after; next normal request 200 with ids identical to the first |
+
+Not run: base binary with the out-of-vocab prompt (contrast, not a gate); workspace tests (passed earlier on this head, see above).

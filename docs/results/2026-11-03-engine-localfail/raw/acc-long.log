@@ -1,0 +1,7 @@
+fleetq: #8316 running on endor: zsh /opt/code/intarsiaml/.worktrees/engine-localfail/docs/results/2026-11-03-engine-localfail/raw/scripts/acc-long.sh docs/results/2026-11-03-engine-localfail/raw/gates /opt/code/intarsiaml/.worktrees/engine-localfail/.scratch/intarsia.new /opt/code/intarsiaml/.worktrees/engine-localfail/.scratch/intarsia.base
+accuracy qwen3-8b-long-fp32 base exit 0
+accuracy qwen3-8b-long-fp32 new exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy qwen3-8b-long-fp32: base and new byte-identical
+fleetq: #8316 done (exit 0)
