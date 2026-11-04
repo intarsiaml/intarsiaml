@@ -33,7 +33,7 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 fn env_usize(k: &str) -> Option<usize> {
     std::env::var(k).ok().and_then(|v| v.parse().ok())
@@ -453,6 +453,9 @@ struct Worker {
     /// `INTARSIA_DSV41_TEST_RANK0_FAIL_PASS=N` (failure tests only, `scripts/dsv41-tp2/failpaths-test.sh`): the forward pass after `N` more
     /// of them, counted after the warm-up, fails on this rank (rank 0) once it was sent to the other rank, as a failed `cudaMalloc` would.
     fail_pass: Option<usize>,
+    /// Tests: stands in for this rank's half of the passes (`failpath_tests`, no weights there).
+    #[cfg(test)]
+    script: Option<failpath_tests::Script>,
 }
 
 /// Collect the remote rank's answer to the pass just run here. A failure of this rank's half fails the group whatever its kind,
@@ -478,9 +481,33 @@ impl Worker {
         if let Some(r) = &self.remote {
             r.start_forward(ids, false)?;
         }
-        let out = self.test_fault().and_then(|()| self.rt.forward(&mut self.st, ids, logits));
+        let out = self.test_fault().and_then(|()| self.rank0_forward(ids, logits));
         settle(&mut self.remote, &out)?;
+        self.telemetry.step();
         out
+    }
+
+    fn rank0_forward(&mut self, ids: &[u32], logits: bool) -> Result<Option<Vec<f32>>> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.forward(&mut self.st, ids, logits);
+        }
+        self.rt.forward(&mut self.st, ids, logits)
+    }
+
+    /// A prompt, one pass a chunk (the chunks `Dsv41Runtime::forward` would cut, and the last one's logits): the other rank is told one
+    /// chunk at a time and has answered it before the next, the watchdog sees each chunk as progress, and a cancel can end it between two
+    /// chunks with both ranks at the same length and no collective outstanding (`None`).
+    fn prefill(&mut self, ids: &[u32], cancel: Option<&std::sync::atomic::AtomicBool>) -> Result<Option<Vec<f32>>> {
+        let n = ids.len().div_ceil(self.rt.opts.chunk);
+        let mut out = None;
+        for (i, c) in ids.chunks(self.rt.opts.chunk).enumerate() {
+            if cancel.is_some_and(|c| c.load(std::sync::atomic::Ordering::Relaxed)) {
+                return Ok(None);
+            }
+            out = self.forward(c, i + 1 == n)?;
+        }
+        Ok(out)
     }
 
     /// See [`Worker::fail_pass`].
@@ -504,9 +531,18 @@ impl Worker {
         if let Some(r) = &self.remote {
             r.start_draft(&[first])?;
         }
-        let out = self.rt.draft_steps(&self.st, first, steps);
+        let out = self.rank0_draft(first, steps);
         settle(&mut self.remote, &out)?;
+        self.telemetry.step();
         out?.ok_or_else(|| Error::backend("deepseek_v41: rank 0 got no draft"))
+    }
+
+    fn rank0_draft(&mut self, first: u32, steps: usize) -> Result<Option<Draft>> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.draft(&self.st, first, steps);
+        }
+        self.rt.draft_steps(&self.st, first, steps)
     }
 
     /// A verify pass on both ranks (appended to the sequence): every row's logits, or (`logits` false) every row's
@@ -515,13 +551,22 @@ impl Worker {
         if let Some(r) = &self.remote {
             r.start_verify(ids)?;
         }
-        let out = if logits {
+        let out = self.rank0_verify(ids, logits);
+        settle(&mut self.remote, &out)?;
+        self.telemetry.step();
+        out
+    }
+
+    fn rank0_verify(&mut self, ids: &[u32], logits: bool) -> Result<Vec<Row>> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.verify(&mut self.st, ids, logits);
+        }
+        if logits {
             self.rt.forward_rows(&mut self.st, ids).map(|rows| rows.into_iter().map(Row::Logits).collect())
         } else {
             self.rt.forward_rows_ids(&mut self.st, ids).map(|t| t.into_iter().map(Row::Tok).collect())
-        };
-        settle(&mut self.remote, &out)?;
-        out
+        }
     }
 
     /// The logits rows after `tok` (not yet in the sequence): with speculation a drafting round and a verify pass of
@@ -605,29 +650,59 @@ impl Worker {
 
     fn run(&mut self, job: Job) {
         let tx = job.tx.clone();
+        let (t0, plen) = (Instant::now(), job.req.prompt.len());
+        self.telemetry.request_started();
         if let Err(e) = self.generate(job) {
+            // closes the request as the main engine does: left running, an idle server reads as stalled to the watchdog
+            self.telemetry.request_finished("error", plen, 0, 0, t0.elapsed(), Duration::ZERO, t0.elapsed());
             let _ = tx.send(GenEvent::Error { message: e.to_string() });
-            if self.group_failed(&e) {
-                return;
-            }
-            if let Err(e2) = self.reset() {
-                eprintln!("dsv41: reset after a failed request failed: {e2}");
-                // the peer's handle is gone by now: the next request would run collectives the other rank is never told about
-                self.group_failed(&Error::backend(format!("reset after a failed request: {e2}")));
-            }
+            self.after_failure(&e);
         }
+    }
+
+    /// What a failed request leaves to do. A request refused by validation changed nothing, so the cached sequence stays.
+    fn after_failure(&mut self, e: &Error) {
+        if self.group_failed(e) || matches!(e, Error::BadRequest(_)) {
+            return;
+        }
+        if let Err(e2) = self.reset() {
+            eprintln!("dsv41: reset after a failed request failed: {e2}");
+            // the peer's handle is gone by now: the next request would run collectives the other rank is never told about
+            self.group_failed(&Error::backend(format!("reset after a failed request: {e2}")));
+        }
+    }
+
+    /// Ends a request cancelled before its first token, as the main engine's `cancel_outcome`.
+    fn finish_cancelled(&self, req: &GenRequest, tx: &Sender<GenEvent>, cached: usize, t0: Instant) {
+        let prefill = t0.elapsed();
+        self.telemetry.request_finished(FinishReason::Cancelled.as_str(), req.prompt.len(), 0, cached, prefill, Duration::ZERO, prefill);
+        let _ = tx.send(GenEvent::Done {
+            finish_reason: FinishReason::Cancelled,
+            prompt_tokens: req.prompt.len(),
+            completion_tokens: 0,
+            cached_tokens: cached,
+            stop_sequence: None,
+            prefill_ms: prefill.as_secs_f64() * 1e3,
+            decode_ms: 0.0,
+            prefill_chunk: None,
+        });
     }
 
     fn generate(&mut self, job: Job) -> Result<()> {
         let Job { req, tx } = job;
         let t0 = Instant::now();
-        self.telemetry.request_started();
+        if req.cancel.as_ref().is_some_and(|c| c.load(std::sync::atomic::Ordering::Relaxed)) {
+            self.finish_cancelled(&req, &tx, 0, t0);
+            return Ok(());
+        }
         if req.prompt.is_empty() {
             return Err(Error::BadRequest("empty prompt".into()));
         }
-        if req.prompt.len() + req.max_tokens.max(1) > self.rt.opts.cap {
-            return Err(Error::BadRequest(format!("prompt {} + max_tokens {} exceed the context {}", req.prompt.len(), req.max_tokens, self.rt.opts.cap)));
+        if req.prompt.len() >= self.rt.opts.cap {
+            return Err(Error::BadRequest(format!("prompt {} leaves no room in the context {}", req.prompt.len(), self.rt.opts.cap)));
         }
+        // what fits, as the main engine (`Seq::admit`): a client's fixed max_tokens above the room left is not an error
+        let max_tokens = req.max_tokens.min(self.rt.opts.cap - req.prompt.len());
         // prefix reuse: the common prefix, if the state can roll back to it (ring margin), else from scratch
         let common = self.st.tokens.iter().zip(&req.prompt).take_while(|(a, b)| a == b).count().min(req.prompt.len() - 1);
         let keep = self.st.restorable_len(common);
@@ -639,12 +714,17 @@ impl Worker {
         // argmax, so the reply is the target model's own greedy reply, up to verify-row numerics)
         let spec = self.spec.filter(|_| req.temperature <= 0.0 && req.constraint.is_none() && req.trace_logits.is_none());
         let mut stats = SpecStats::default();
-        let mut rows: VecDeque<(Row, Option<u32>)> = VecDeque::from([(Row::Logits(self.forward(&req.prompt[keep..].to_vec(), true)?.expect("logits")), None)]);
+        let Some(first) = self.prefill(&req.prompt[keep..], req.cancel.as_deref())? else {
+            self.finish_cancelled(&req, &tx, cached, t0);
+            return Ok(());
+        };
+        let mut rows: VecDeque<(Row, Option<u32>)> = VecDeque::from([(Row::Logits(first), None)]);
         let prefill = t0.elapsed();
         let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
         let mut sampler = Sampler::new(params, req.seed);
         let mut dec = IncrementalDecoder::new();
-        let mut stops = StopMatcher::new(&req.stop);
+        // like the main engine (and vLLM), stop strings are not checked until `min_tokens` tokens exist
+        let mut stops = StopMatcher::new(if req.min_tokens > 0 { &[] } else { &req.stop });
         // structured output: the server's compiled constraint masks the host logits each step (computed inline: the
         // mask costs far less than this engine's decode step)
         let mut cons = match &req.constraint {
@@ -699,7 +779,7 @@ impl Worker {
                 }
                 None => false,
             };
-            let is_eos = !req.ignore_eos && (self.eos.contains(&tok) || req.stop_ids.contains(&tok));
+            let is_eos = req.stop_ids.contains(&tok) || (!req.ignore_eos && self.eos.contains(&tok));
             if is_eos {
                 finish = FinishReason::Stop;
                 break;
@@ -708,6 +788,9 @@ impl Worker {
                 c.commit(tok)?;
             }
             let text = dec.push(&*self.codec, tok)?;
+            if req.min_tokens > 0 && n == req.min_tokens + 1 {
+                stops = StopMatcher::new(&req.stop);
+            }
             let (out, hit) = stops.push(&text);
             if tx.send(GenEvent::Token { id: tok, text: out }).is_err() {
                 finish = FinishReason::Cancelled;
@@ -715,10 +798,10 @@ impl Worker {
             }
             if hit {
                 finish = FinishReason::Stop;
-                stop_seq = req.stop.iter().find(|s| text.contains(s.as_str())).cloned();
+                stop_seq = stops.matched().map(String::from);
                 break;
             }
-            if n >= req.max_tokens || self.st.len - rows.len() + 1 >= self.rt.opts.cap {
+            if n >= max_tokens || self.st.len - rows.len() + 1 >= self.rt.opts.cap {
                 finish = FinishReason::Length;
                 break;
             }
@@ -881,7 +964,7 @@ impl Dsv41Engine {
                 f.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(format!("tensor-parallel group failed: {why}"));
             });
         }
-        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone(), fail_pass: None };
+        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone(), fail_pass: None, #[cfg(test)] script: None };
         // warm-up: one short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back
         let wt = Instant::now();
         w.forward(&[c.bos], true)?;
@@ -1028,6 +1111,52 @@ mod failpath_tests {
     use std::time::Duration;
 
     const CAP: usize = 64;
+    const VOCAB: usize = 16;
+    const EOS: u32 = 15;
+
+    /// Rank 0's half of the passes without weights: the rows after position `start + i` are `reply[i]` (the last one for ever after).
+    #[derive(Default)]
+    pub(super) struct Script {
+        start: usize,
+        reply: Vec<u32>,
+        /// Which forward passes asked for logits.
+        logits_asked: Vec<bool>,
+        /// Set this flag once this many forward passes have run (a client gone during the prefill).
+        cancel_after: Option<(usize, Arc<AtomicBool>)>,
+        forwards: usize,
+    }
+    impl Script {
+        fn tok(&self, len: usize) -> u32 {
+            let i = len.saturating_sub(self.start).min(self.reply.len().saturating_sub(1));
+            self.reply.get(i).copied().unwrap_or(0)
+        }
+        fn logits(&self, len: usize) -> Vec<f32> {
+            let mut l = vec![-100f32; VOCAB];
+            l[self.tok(len) as usize] = 100.0;
+            l
+        }
+        pub(super) fn forward(&mut self, st: &mut SequenceState, ids: &[u32], logits: bool) -> Result<Option<Vec<f32>>> {
+            st.commit(ids);
+            self.forwards += 1;
+            self.logits_asked.push(logits);
+            if let Some((k, c)) = &self.cancel_after {
+                if self.forwards >= *k {
+                    c.store(true, Ordering::SeqCst);
+                }
+            }
+            Ok(logits.then(|| self.logits(st.len)))
+        }
+        pub(super) fn draft(&mut self, st: &SequenceState, first: u32, steps: usize) -> Result<Option<Draft>> {
+            let mut ids = vec![first];
+            ids.extend((0..steps).map(|i| self.tok(st.len + 1 + i)));
+            Ok(Some(Draft { ids, confidence: vec![20.0; steps] }))
+        }
+        pub(super) fn verify(&mut self, st: &mut SequenceState, ids: &[u32], logits: bool) -> Result<Vec<Row>> {
+            st.commit(ids);
+            let l0 = st.len - ids.len();
+            Ok((0..ids.len()).map(|j| if logits { Row::Logits(self.logits(l0 + j + 1)) } else { Row::Tok(self.tok(l0 + j + 1)) }).collect())
+        }
+    }
 
     /// The cpu backend with two faults to switch on: `cudaMalloc` failing, and a stream parked in a collective.
     #[derive(Default)]
@@ -1142,7 +1271,7 @@ mod failpath_tests {
             let tok = serde_json::json!({
                 "version": "1.0", "truncation": null, "padding": null, "added_tokens": [], "normalizer": null,
                 "pre_tokenizer": {"type": "Whitespace"}, "post_processor": null, "decoder": null,
-                "model": {"type": "WordLevel", "vocab": {"t0": 0}, "unk_token": "t0"}
+                "model": {"type": "WordLevel", "vocab": (0..VOCAB).map(|i| (format!("t{i}"), serde_json::Value::from(i))).collect::<serde_json::Map<_, _>>(), "unk_token": "t0"}
             });
             std::fs::write(dir.join("tokenizer.json"), tok.to_string()).unwrap();
             let c = HfCodec::load(&dir, &ChatTemplateSource::Auto).unwrap();
@@ -1163,7 +1292,7 @@ mod failpath_tests {
 
     /// The other rank: passes "enqueue" and answer OK, as a real rank 1's enqueue-only passes do, and it notes what it was told.
     #[derive(Clone, Default)]
-    struct Recorder(Arc<Mutex<Vec<Told>>>);
+    struct Recorder(Arc<Mutex<Vec<Told>>>, Arc<Mutex<Vec<usize>>>);
     impl RankModel for Recorder {
         type State = usize;
         fn new_state(&self) -> Result<usize> {
@@ -1172,6 +1301,7 @@ mod failpath_tests {
         }
         fn forward_rank(&self, st: &mut usize, ids: &[u32], _graph: bool) -> Result<()> {
             self.0.lock().unwrap().push(Told::Forward);
+            self.1.lock().unwrap().push(ids.len());
             *st += ids.len();
             Ok(())
         }
@@ -1223,7 +1353,7 @@ mod failpath_tests {
         let st = rt.new_state().unwrap();
         let remote = Some(peer.new_state().unwrap());
         let spec = Some(spec_opts());
-        let w = Worker { rt, peer: Some(peer), st, remote, codec: codec(), eos: vec![], telemetry: Arc::new(Telemetry::new()), spec, failed, fail_pass: None };
+        let w = Worker { rt, peer: Some(peer), st, remote, codec: codec(), eos: vec![EOS], telemetry: Arc::new(Telemetry::new()), spec, failed, fail_pass: None, script: None };
         Group { w, told, served, faults }
     }
 
@@ -1248,6 +1378,7 @@ mod failpath_tests {
         }
         fn run(&mut self, req: GenRequest) -> Vec<GenEvent> {
             let (tx, rx) = channel();
+            self.w.telemetry.request_enqueued(); // as `Dsv41Engine::submit`
             self.w.run(Job { req, tx });
             rx.try_iter().collect()
         }
@@ -1366,29 +1497,231 @@ mod failpath_tests {
         settle(&mut None, &Err::<(), _>(Error::Memory("x".into()))).unwrap();
     }
 
-    /// What may continue: a request refused before anything was sent. The other rank saw no pass, the group stays healthy and serves
-    /// the next request (only the sequences are replaced, by `reset`).
+    /// What may continue: a request refused before anything was sent. The other rank saw nothing, the group stays healthy, and the
+    /// cached sequence stays for the next turn of the conversation (no `reset`).
     #[test]
-    fn a_request_refused_before_anything_was_sent_does_not_fail_the_group() {
-        let mut g = group();
+    fn a_request_refused_before_anything_was_sent_changes_nothing() {
+        let mut g = scripted(8, vec![1, 2, 3], false);
+        let ok = done(&g.run(GenRequest { prompt: vec![1; 8], max_tokens: 2, temperature: 1.0, ..Default::default() }));
+        assert_eq!(ok.0, FinishReason::Length);
+        let held = g.w.st.tokens.clone();
         for bad in [GenRequest { prompt: vec![], max_tokens: 1, ..Default::default() }, GenRequest { prompt: vec![1; CAP], max_tokens: 1, ..Default::default() }] {
             let ev = g.run(bad);
-            assert!(matches!(ev.last(), Some(GenEvent::Error { message }) if message.contains("bad request") || message.contains("empty") || message.contains("exceed")), "{ev:?}");
+            assert!(matches!(ev.last(), Some(GenEvent::Error { message }) if message.contains("bad request")), "{ev:?}");
             assert!(g.w.failed.lock().unwrap().is_none(), "a validation error is not a group failure");
+            assert_eq!(g.w.telemetry.snapshot().running, 0, "the request is closed: an idle server must not read as stalled");
         }
-        assert!(g.w.remote.as_ref().unwrap().start_forward(&[1], false).is_ok(), "the peer is still usable");
-        assert_eq!(g.finish(), [Told::New, Told::New, Told::New, Told::Forward], "two resets and the forward above: no pass from the refused requests");
+        assert_eq!(g.w.st.tokens, held, "the cached sequence survives");
+        let next = done(&g.run(GenRequest { prompt: [held.clone(), vec![1]].concat(), max_tokens: 1, temperature: 1.0, ..Default::default() }));
+        assert_eq!(next.3, held.len(), "the next turn reuses it");
+        assert_eq!(g.finish(), [Told::New, Told::Forward, Told::Forward, Told::Forward], "one sequence, and no pass from the refused requests");
     }
 
     /// `reset` takes the peer's handle down first. If it then fails on this rank (`cudaMalloc`; the old state is still held while the new
     /// one is allocated), `remote` stays `None`: a later request would run its collectives alone, with the other rank never told.
     #[test]
-    fn a_reset_that_fails_after_a_refused_request_fails_the_group() {
+    fn a_reset_that_fails_fails_the_group() {
         let mut g = group();
         g.faults.alloc_fails.store(true, Ordering::SeqCst);
-        let _ = g.run(GenRequest { prompt: vec![], max_tokens: 1, ..Default::default() });
+        g.w.after_failure(&Error::Other("structured output: the constraint allows no token here".into()));
         assert!(g.w.failed.lock().unwrap().is_some(), "a healthy-looking engine with no way to the other rank");
         g.finish();
+    }
+
+    /// An error between passes (nothing outstanding on either rank) still only replaces the sequences.
+    #[test]
+    fn an_error_between_passes_resets_both_ranks_and_keeps_the_group() {
+        let mut g = group();
+        g.w.after_failure(&Error::Other("structured output: the constraint allows no token here".into()));
+        assert!(g.w.failed.lock().unwrap().is_none());
+        assert_eq!(g.finish(), [Told::New, Told::New]);
+    }
+
+    // ------- second review: requests through the real `generate`, rank 0's passes scripted
+
+    fn scripted(plen: usize, reply: Vec<u32>, spec: bool) -> Group {
+        let mut g = group();
+        g.w.script = Some(Script { start: plen, reply, ..Default::default() });
+        if !spec {
+            g.w.spec = None;
+        }
+        g
+    }
+
+    /// (finish reason, completion tokens, stop sequence, cached tokens) of a reply that must have ended in `Done`.
+    fn done(ev: &[GenEvent]) -> (FinishReason, usize, Option<String>, usize) {
+        match ev.last() {
+            Some(GenEvent::Done { finish_reason, completion_tokens, stop_sequence, cached_tokens, .. }) => (*finish_reason, *completion_tokens, stop_sequence.clone(), *cached_tokens),
+            other => panic!("no Done: {other:?}"),
+        }
+    }
+
+    fn text(ev: &[GenEvent]) -> String {
+        ev.iter().filter_map(|e| if let GenEvent::Token { text, .. } = e { Some(text.as_str()) } else { None }).collect()
+    }
+
+    fn ask(g: &mut Group, plen: usize, max_tokens: usize, f: impl FnOnce(GenRequest) -> GenRequest) -> Vec<GenEvent> {
+        g.run(f(GenRequest { prompt: vec![1; plen], max_tokens, temperature: 1.0, ..Default::default() }))
+    }
+
+    /// A reply longer than `--watchdog-s` must count as progress, a prefill too: `Progress` only looks at `steps_total`.
+    #[test]
+    fn every_pass_ticks_the_watchdog_each_prefill_chunk_too() {
+        let mut g = scripted(20, vec![1, 2, 3, 4, 5], false);
+        done(&ask(&mut g, 20, 5, |r| r));
+        assert_eq!(g.w.telemetry.steps_total(), 3 + 4, "3 prefill chunks of 8, 8, 4 rows and 4 decode passes");
+        g.finish();
+        let mut g = scripted(4, vec![1, 2, 3, 4, 5, 6, 7, 8], true);
+        done(&ask(&mut g, 4, 8, |r| GenRequest { temperature: 0.0, ..r }));
+        let t = g.w.telemetry.steps_total();
+        let told = g.finish();
+        assert_eq!(t as usize, told.iter().filter(|t| **t != Told::New).count(), "drafting rounds and verify passes too: {told:?}");
+    }
+
+    /// The prompt goes as the same passes `Dsv41Runtime::forward` cuts, on both ranks: only the last one reads logits.
+    #[test]
+    fn a_prompt_is_cut_into_the_runtimes_chunks_and_only_the_last_reads_logits() {
+        for (plen, want) in [(20usize, vec![8usize, 8, 4]), (16, vec![8, 8]), (3, vec![3]), (9, vec![8, 1])] {
+            let mut g = scripted(plen, vec![1], false);
+            done(&ask(&mut g, plen, 1, |r| r));
+            let asked = g.w.script.as_ref().unwrap().logits_asked.clone();
+            let sizes = g.told.1.clone();
+            g.finish();
+            assert_eq!(*sizes.lock().unwrap(), want, "prompt of {plen}");
+            let last = want.len() - 1;
+            assert_eq!(asked, (0..want.len()).map(|i| i == last).collect::<Vec<_>>(), "prompt of {plen}");
+        }
+    }
+
+    #[test]
+    fn a_failed_request_closes_its_telemetry() {
+        let mut g = group();
+        g.w.fail_pass = Some(0);
+        let _ = g.run(req(1.0));
+        let s = g.w.telemetry.snapshot();
+        assert_eq!((s.running, s.waiting), (0, 0), "busy for ever: the watchdog calls an idle server stalled");
+        g.finish();
+    }
+
+    /// Cancelled while queued: no pass on either rank, and the sequence of the conversation before it is not cut for a prompt nobody waits for.
+    #[test]
+    fn a_request_cancelled_while_queued_touches_nothing() {
+        let mut g = scripted(20, vec![1], false);
+        done(&ask(&mut g, 20, 2, |r| r));
+        let held = g.w.st.tokens.clone();
+        let cancel = Arc::new(AtomicBool::new(true));
+        let ev = g.run(GenRequest { prompt: vec![9; 20], max_tokens: 5, temperature: 1.0, cancel: Some(cancel), ..Default::default() });
+        assert_eq!(done(&ev), (FinishReason::Cancelled, 0, None, 0));
+        assert_eq!(g.w.telemetry.snapshot().running, 0);
+        assert_eq!(g.w.st.tokens, held, "the cached sequence stays");
+        let sizes = g.told.1.clone();
+        g.finish();
+        assert_eq!(*sizes.lock().unwrap(), [8, 8, 4, 1], "the first request's passes only");
+    }
+
+    /// A cancel takes effect between two chunks. Each chunk went to rank 1 alone and was answered before the next: rank 1 holds exactly
+    /// the chunks rank 0 ran, at the same length, with no collective of a chunk rank 0 will not run. The next request goes on from there.
+    #[test]
+    fn a_cancel_between_prefill_chunks_leaves_both_ranks_in_step() {
+        let mut g = scripted(20, vec![1], false);
+        let cancel = Arc::new(AtomicBool::new(false));
+        g.w.script.as_mut().unwrap().cancel_after = Some((1, cancel.clone()));
+        let ev = ask(&mut g, 20, 5, |r| GenRequest { cancel: Some(cancel.clone()), ..r });
+        assert_eq!(done(&ev), (FinishReason::Cancelled, 0, None, 0));
+        assert_eq!(g.w.st.len, 8, "one chunk ran");
+        assert_eq!(g.w.remote.as_ref().unwrap().len, 8, "rank 1 answered that chunk at the same length");
+        assert!(g.w.failed.lock().unwrap().is_none());
+        assert_eq!(*g.told.1.lock().unwrap(), [8], "and was told no more");
+        g.w.script.as_mut().unwrap().cancel_after = None;
+        let again = ask(&mut g, 20, 1, |r| r);
+        assert_eq!(done(&again).3, 8, "the retry reuses the chunk");
+        assert_eq!(g.w.remote.as_ref().unwrap().len, 20);
+        let sizes = g.told.1.clone();
+        g.finish();
+        assert_eq!(*sizes.lock().unwrap(), [8, 8, 4], "the same cuts as a cold prefill");
+    }
+
+    /// As `engine.rs` (`stops.matched()`): a stop string over two tokens is reported, and the one that fired, not the first in the last token.
+    #[test]
+    fn the_stop_sequence_reported_is_the_one_that_fired() {
+        let mut g = scripted(4, vec![1, 2, 3], false);
+        let ev = ask(&mut g, 4, 3, |r| GenRequest { stop: vec!["t1 t2".into()], ..r });
+        assert_eq!(done(&ev).0, FinishReason::Stop);
+        assert_eq!(done(&ev).2.as_deref(), Some("t1 t2"), "spans two tokens");
+        g.finish();
+        let mut g = scripted(4, vec![1, 2, 3], false);
+        let ev = ask(&mut g, 4, 3, |r| GenRequest { stop: vec!["t2".into(), "t1 t2".into()], ..r });
+        assert_eq!(done(&ev).2.as_deref(), Some("t1 t2"), "starts first, though the other is first in the request and in the last token");
+        g.finish();
+    }
+
+    /// As `Seq::build`: `ignore_eos` drops the model's EOS ids from the stop set, not the request's `stop_ids`.
+    #[test]
+    fn ignore_eos_keeps_stop_ids() {
+        let mut g = scripted(4, vec![1, 2, 7, 3], false);
+        let ev = ask(&mut g, 4, 4, |r| GenRequest { ignore_eos: true, stop_ids: vec![7], ..r });
+        assert_eq!(done(&ev).0, FinishReason::Stop);
+        assert_eq!(done(&ev).1, 3);
+        assert!(!text(&ev).contains("t7"), "a stop id is not emitted: {:?}", text(&ev));
+        g.finish();
+        let mut g = scripted(4, vec![1, EOS, 2], false);
+        let ev = ask(&mut g, 4, 3, |r| GenRequest { ignore_eos: true, ..r });
+        assert_eq!(done(&ev).0, FinishReason::Length, "the model's EOS is not a stop");
+        g.finish();
+        let mut g = scripted(4, vec![1, EOS, 2], false);
+        assert_eq!(done(&ask(&mut g, 4, 3, |r| r)).0, FinishReason::Stop, "and without ignore_eos it is");
+        g.finish();
+    }
+
+    /// As `tests/min_tokens.rs`, `stop_strings_wait_for_min_tokens`: an early match is ignored, and the matcher starts at token `min_tokens + 1`.
+    #[test]
+    fn stop_strings_wait_for_min_tokens() {
+        let reply = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        let mut g = scripted(4, reply.clone(), false);
+        let ev = ask(&mut g, 4, 8, |r| GenRequest { stop: vec!["t2".into()], ..r });
+        assert_eq!((done(&ev).0, done(&ev).1), (FinishReason::Stop, 2), "alone it stops at its first match");
+        g.finish();
+        let mut g = scripted(4, reply.clone(), false);
+        let ev = ask(&mut g, 4, 8, |r| GenRequest { min_tokens: 4, stop: vec!["t2".into()], ..r });
+        assert_eq!((done(&ev).0, done(&ev).1), (FinishReason::Length, 8), "the only match is inside the window");
+        assert!(text(&ev).contains("t2"), "{:?}", text(&ev));
+        g.finish();
+        let mut g = scripted(4, reply, false);
+        let ev = ask(&mut g, 4, 8, |r| GenRequest { min_tokens: 4, stop: vec!["t5".into()], ..r });
+        assert_eq!((done(&ev).0, done(&ev).1), (FinishReason::Stop, 5), "token min_tokens + 1 is checked");
+        g.finish();
+    }
+
+    /// As `Seq::admit`: `max_tokens.min(cap - prompt)`, finish reason length. A client's fixed 64000 is not an HTTP 500.
+    #[test]
+    fn max_tokens_is_clamped_to_the_room_left() {
+        for spec in [false, true] {
+            let mut g = scripted(CAP - 10, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 14], spec);
+            let ev = ask(&mut g, CAP - 10, 64000, |r| GenRequest { temperature: if spec { 0.0 } else { 1.0 }, ignore_eos: true, ..r });
+            assert_eq!((done(&ev).0, done(&ev).1), (FinishReason::Length, 10), "spec {spec}: {ev:?}");
+            g.finish();
+        }
+        let mut g = scripted(CAP, vec![1], false);
+        assert!(matches!(ask(&mut g, CAP, 1, |r| r).last(), Some(GenEvent::Error { .. })), "a prompt with no room is still refused");
+        g.finish();
+    }
+
+    /// The control flow of speculation against plain passes: the same reply, and the rows past its end out of the sequence.
+    #[test]
+    fn speculation_and_plain_passes_give_the_same_reply() {
+        let reply = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let run = |spec: bool, n: usize| {
+            let mut g = scripted(4, reply.clone(), spec);
+            let ev = ask(&mut g, 4, n, |r| GenRequest { temperature: 0.0, ..r });
+            let (t, len) = (text(&ev), g.w.st.len);
+            g.finish();
+            (t, len)
+        };
+        for n in [1, 2, 3, 6, 9] {
+            let (a, b) = (run(false, n), run(true, n));
+            assert_eq!(a, b, "{n} tokens");
+            assert_eq!(a.1, 4 + n - 1, "the last token is not in the sequence yet");
+        }
     }
 
     // ------- #1: rank 1 when the primary dies with work parked

@@ -49,30 +49,53 @@ Same class, found on the way: `reset` sets `remote = None`, then allocates a new
 
 What still does not fail the group, and how that was established:
 
-- **Request validation** (`generate`, before the first send). Test: the far end records no pass, `failed` stays empty, and the peer still works.
+- **Request validation** (`generate`, before the first send). Test: the far end records no pass from the refused requests, `failed` stays empty, and the next turn reuses the cached sequence (`a_request_refused_before_anything_was_sent_changes_nothing`).
 - **A rejected truncate.** The acknowledgement says rank 1 changed nothing (`ack_status`), and the reader only treats `ACK_FAILED` as failure. By reading.
 - **Errors between passes** (constraint, decoder). By reading: rank 0's last pass read its logits or ids back, which is a device sync, so all its collectives completed and rank 1's matching ones can. The whole warm-up and decode path reads back; only the non-last prefill chunks do not, and they are inside `rt.forward`.
 - **A failed graph capture on one rank** is still swallowed (graphs off, eager from then on, as before). Nothing runs during a recording and the eager pass issues the same collectives from the same graph. By reading only.
 
+## 4. Second review (`dsv41_engine.rs`, `state.rs`, the server)
+
+A second review gave 14 findings, 11 distinct defects once duplicates are merged. Each was fixed only after reading the code it points at; none was refuted. One is left open on purpose.
+
+| Finding | Effect before | Fix | Test (fails with the fix reverted) |
+|---|---|---|---|
+| Ring rollback counted from `len`, not the furthest row written | Chained cuts read overwritten window and compressor rows: **wrong output, no error**. Two requests are enough, greedy or not | `SequenceState::ring_high`; a cut must stay within `margin` of `len` and `margin + 1` of the mark, otherwise reuse is refused | `after_dropped_draft_rows_the_band_of_18_or_more_is_refused`, `two_requests_without_speculation_are_refused_too` |
+| The engine never ticked `steps_total` | The stall watchdog (`--watchdog-s`) fired on any request longer than the limit | `telemetry.step()` after every pass; the prompt now goes one chunk a pass so a prefill ticks too | `every_pass_ticks_the_watchdog_each_prefill_chunk_too` |
+| A failed request left `running = 1` | An idle server read as stalled | `request_finished("error", ..)` in `run` | `a_failed_request_closes_its_telemetry` |
+| A validation error reset the cached sequence | The next turn lost its prefix | `BadRequest` from before the first send keeps it | `a_request_refused_before_anything_was_sent_changes_nothing` |
+| Cancel not honoured while queued or during prefill | A departed client held the engine for the whole prefill | Checked on entry and between chunks | `a_request_cancelled_while_queued_touches_nothing`, `a_cancel_between_prefill_chunks_leaves_both_ranks_in_step` |
+| `stop_sequence` missing or wrong for a match over several tokens | Wrong field in the reply | `stops.matched()`, as `engine.rs` | `the_stop_sequence_reported_is_the_one_that_fired` |
+| `ignore_eos` also turned off `stop_ids` | The reply ran past a requested stop id | `stop_ids` always stop, as `Seq::build` | `ignore_eos_keeps_stop_ids` |
+| Stop strings active before `min_tokens` | The reply ended early | No matching until token `min_tokens + 1`, as the main engine | `stop_strings_wait_for_min_tokens` |
+| `max_tokens` above the room left was an error | HTTP 500 for a client's fixed limit | Clamped, finish reason `length`, as `Seq::admit` | `max_tokens_is_clamped_to_the_room_left` |
+| A taken port restarted a supervised server for ever | The whole model reloaded on every restart | The child exits `EXIT_FATAL` on a bind failure | `a_supervised_server_stops_when_its_port_is_taken` |
+
+The ring limit comes from the kernels, not from reading: `the_rings_survive_17_rows_below_the_furthest_written_and_not_18` runs the reference kernels at ratios 1, 2 and 3, and 17 rows below the mark is bit-identical to never drafting while 18 is not. That test passes on both old and new checks, because it pins the line the check has to draw.
+
+**Left open:** finding 7, overlapping lane scratch slices (`runtime.rs:1138`). `wq_a` and `wkv` in one fork need different scratch sizes, so their declared slices can overlap on a GPU with more than 50 SMs. It is reachable only with a build for another architecture: the default build targets `sm_121` and the device check refuses others, and GB10 at 48 SMs has a 7168-byte gap at one row. This comes from the review's reading and arithmetic; I did not run it. It needs a fix before DSv4.1 runs on such a GPU.
+
 ## Tests
 
-`crates/intarsia-models/src/dsv41_engine.rs`, `mod failpath_tests`, 13 tests, no GPU: a real `Worker` and `Dsv41Runtime` facing a real `RemotePeer` and `tp_remote::serve`, whose far end records what it was told. The fake backend adds a failing `alloc` and a parked stream 0. Rank 1's exit runs in a child process through the real `serve_group`. Each row reverts one fix with the tests in place (`--expect 12`, job #8265; `INTARSIA_TP_REMOTE_TIMEOUT_S=3`, because the old `settle` waits for a reply).
+`crates/intarsia-models/src/dsv41_engine.rs`, `mod failpath_tests`, 24 tests after the second review (section 4), no GPU: a real `Worker` and `Dsv41Runtime` facing a real `RemotePeer` and `tp_remote::serve`, whose far end records what it was told. The fake backend adds a failing `alloc` and a parked stream 0. Rank 1's exit runs in a child process through the real `serve_group`. Each row reverts one fix on the final code, with the tests in place (job #8290; `INTARSIA_TP_REMOTE_TIMEOUT_S=3`, because the old `settle` waits for a reply).
 
 | Fix reverted | Tests failing without it | Message | With the fix |
 |---|---|---|---|
 | #1 `drain()` | `rank_1_leaves_the_group_when_the_primary_is_gone_and_stream_0_is_parked`, `the_runtime_drains_stream_0` | exit 42 (the loop returned) instead of 87 | pass |
-| #2 `draft_fits` in `next_rows` | `near_the_capacity_a_greedy_step_is_a_plain_pass_not_a_drafting_round` | at 60 of 64 tokens: `[New, Draft]` instead of `[New, Forward]` | pass |
+| #2 `draft_fits` in `next_rows` | `near_the_capacity_a_greedy_step_is_a_plain_pass_not_a_drafting_round` | `[New, Draft]` instead of `[New, Forward]` | pass |
 | #3 `settle` | `a_rank_local_error_after_the_pass_was_sent_fails_the_group`, `a_failure_inside_the_runtime_fails_the_group`, `settle_does_not_wait_for_the_other_rank_after_a_failure_and_the_error_is_a_backend_error` | `failed` stays empty | pass |
-| #3 failed `reset` | `a_reset_that_fails_after_a_refused_request_fails_the_group` | `failed` stays empty | pass |
-| none | | | 13 of 13 |
+| #3 failed `reset` | `a_reset_that_fails_fails_the_group` | `failed` stays empty | pass |
+| none | | | 24 of 24 |
 
-The other 6 pass in every arm, on purpose, because they pin what must not change. The one exception to "the test catches the defect end to end": the near-cap test checks what rank 1 is told, not an actual exit 87, because the far end is a recorder. The refusal itself is pinned by `draft_fits_is_exactly_what_the_runtime_accepts...`, and the exit is what the Spark case `near` shows.
+The section 4 fixes were reverted the same way, one at a time, in jobs #8277 and #8278; each test in its table failed without its fix.
 
-`cargo test --workspace --no-fail-fast` (#8266): 1241 passed, 29 ignored, 1 failed. The failure was this lane's own: `docs/tuning.md` rows for the two new variables (`docs_env_vars`). Fixed and that test re-run green (#8273).
+The tests no row names pin what must not change. The one exception to "the test catches the defect end to end": the near-cap test checks what rank 1 is told, not an actual exit 87, because the far end is a recorder. The refusal itself is pinned by `draft_fits_is_exactly_what_the_runtime_accepts...`, and the exit is what the Spark case `near` shows.
+
+`cargo test --workspace --no-fail-fast`: 1258 passed, 0 failed, 29 ignored (#8279, exit 0). An earlier run (#8266) had one failure of this lane's own, missing `docs/tuning.md` rows for the two new variables, fixed before commit `7d9e17cb1`.
 
 ## The normal path
 
-`git diff --stat -- crates`: 3 files changed, 504 insertions(+), 17 deletions(-), of which all but about 60 lines are the test module. No file under `kernels/`, no `graph.rs`, no `tp_remote.rs` beyond a test's message.
+`git diff --stat 5786176be -- crates`: 9 files changed, 1042 insertions(+), 41 deletions(-). Of those, 697 lines are `failpath_tests`, and `dsv41_chunked.rs` and `serve_bind.rs` are tests too. No file under `kernels/`, no `graph.rs`, no `tp_remote.rs` beyond a test's message.
 
 Normal-path lines that changed, and the evidence for each:
 
@@ -82,14 +105,17 @@ Normal-path lines that changed, and the evidence for each:
 | `next_rows`: `room >= 2 && draft_fits(len)` | `where_the_block_fits...`: rank 1 is told to draft at 1, 2, 8, 32, cap-6, cap-5. `draft_fits_is_exactly...`: at every position 0..=64, `draft_fits` is exactly what `draft_steps` accepts, and every position where a round could run before still runs one |
 | `draft_steps`: `!draft_fits(pos0)`, was `pos0 == 0 \|\| pos0 + t > cap` | The same test |
 | `forward`: `test_fault().and_then(..)` | Unset it is a match on `None`, then the same call. Read in `load` after the warm-up, on rank 0 only |
+| Prompt sent chunk by chunk (`Worker::prefill`) | `Dsv41Runtime::forward` cuts `min(left, chunk)` and asks logits only of the last, so each rank runs the same passes; only the messages between the ranks change. `a_prompt_is_cut_into_the_runtimes_chunks_and_only_the_last_reads_logits` pins the cuts. Each chunk now also waits for rank 1's answer: **the prefill speed effect is not measured** |
+| `ring_cut_ok` in `restorable_len` and `check_ring_cut` | `the_normal_paths_are_unchanged`: one cut as before, 2000 rounds of verify rejections never refused. Reuse is refused only in the band, which costs a full prefill there |
+| `telemetry.step()` after each pass | Counter only |
 
 This is control flow, and those tests stop before any kernel runs: **no bitwise numeric check has run.** The gates that would, `speculative_greedy_equals_plain_greedy` and the rest of `tests/dsv41_runtime.rs`, skip without a rank cache and fixtures, which endor does not have. The Spark case `golden` compares fix and main.
 
 ## Spark script
 
-`scripts/dsv41-tp2/failpaths-test.sh`: with no argument it prints the two builds and the fleetq command and runs nothing. Under `run-full.sh` as its `HOOK`, vLLM goes down and is always restored, with memfine and the watcher at the 5 GiB line. Cases: `near` (#2), `force` (#3, `INTARSIA_DSV41_TEST_RANK0_FAIL_PASS`), `golden` (main against fix), `kill` (#1: 20 SIGKILLs of rank 0 at random times mid-decode, temperature 0.7, default deadline, rank 1's exit code and seconds in `kill.tsv`, plus 2 on main), and optionally `kill35`.
+`scripts/dsv41-tp2/failpaths-test.sh`: with no argument it prints the two builds and the fleetq command and runs nothing. Under `run-full.sh` as its `HOOK`, vLLM goes down and is always restored, with memfine and the watcher at the 5 GiB line. Cases: `near` (#2), `force` (#3, `INTARSIA_DSV41_TEST_RANK0_FAIL_PASS`), `ring` (chained cuts), `cancel`, `supervised`, `golden` (main against fix), `kill` (#1: 20 SIGKILLs of rank 0 at random times mid-decode, temperature 0.7, default deadline, rank 1's exit code and seconds in `kill.tsv`, plus 2 on main), and optionally `kill35`.
 
-Checked: `bash -n`, the printed commands, `--dry-run` (all cases through a stubbed ssh and curl, with `bash -n` on every remote command it produced), and `fleetq when` accepting the job's flags (estimated start Wed 07:05). **It has never run on a Spark**, so its timings (about 4.5 min a run, `--expect 180`) are guesses, and at that length it cannot fit before vLLM is due back on a morning that needs it.
+Checked: `bash -n`, the printed commands, `--dry-run` (all cases through a stubbed ssh and curl, with `bash -n` on every remote command it produced), and `fleetq when` accepting the job's flags (estimated start Wed 07:05). **It has never run on a Spark**, so its timings (about 4.5 min a run, `--expect 195`) are guesses, and at that length it cannot fit before vLLM is due back on a morning that needs it.
 
 ## Not checked
 
@@ -100,6 +126,9 @@ Only Sparks can show:
 - A real near-cap request end to end, including the plain pass's numbers at the last positions.
 - The forced rank-0 failure end to end, and how rank 1 leaves when its parked collectives never pair. The wrong sums and the hang of section 3 are inference; the fix is meant to make them unreachable, and no run has shown them happening.
 - Whether a real `cudaMalloc` failure on rank 0 arrives as `Error::Memory` under memory pressure, rather than the watcher or earlyoom killing the rank first. The injection is one level above `grow_scratch`.
+- The chained-cut fix on the real kernels and rings, and whether the old binary really gives different ids there (Spark case `ring`; the reference kernels show it).
+- A supervised 65k-token prefill and a long reply against the real watchdog (case `supervised`; memory at that capacity is not measured).
+- Prefill speed with one message per chunk.
 - The tests on Linux. They ran on macOS, where `watch_peer` is compiled out, so the watch thread never ran beside these tests.
 
 Also not done: no 35B change, and PR #293's files were left alone (`engine.rs`, `model.rs`, `tp_hybrid.rs` untouched here).

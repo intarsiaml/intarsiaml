@@ -33,6 +33,15 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// How [`serve`]'s error starts when the listening socket could not be had.
+const BIND_FAILED: &str = "bind";
+
+/// Whether [`serve`] failed because it could not bind: a supervised child exits [`EXIT_FATAL`] then, since a restart would reload the
+/// whole model only to find the port still taken.
+pub fn is_bind_failure(e: &intarsia_core::Error) -> bool {
+    matches!(e, intarsia_core::Error::Other(m) if m.starts_with(BIND_FAILED))
+}
+
 pub use health::{EXIT_FATAL, EXIT_FAILED, EXIT_ORPHANED, EXIT_STALLED};
 pub use metrics::Metrics;
 
@@ -127,7 +136,7 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
         let addr = format!("{}:{}", cfg.host, cfg.port);
         let listener = tokio::net::TcpListener::bind(&addr)
             .await
-            .map_err(|e| intarsia_core::Error::Other(format!("bind {addr}: {e}")))?;
+            .map_err(|e| intarsia_core::Error::Other(format!("{BIND_FAILED} {addr}: {e}")))?;
         let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
         let state = AppState::new(engine.clone(), name, &cfg);
         if cfg.watchdog_s > 0.0 || cfg.parent_pid.is_some() {

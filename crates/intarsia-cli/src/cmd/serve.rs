@@ -126,6 +126,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
         pin_prefixes(&*engine, path)?;
     }
     let parent_pid = args.child.then(|| std::env::var("INTARSIA_SUPERVISOR_PID").ok()?.parse().ok()).flatten();
+    let child = args.child;
     let cfg = intarsia_server::ServerConfig {
         host: args.host,
         port: args.port,
@@ -139,7 +140,15 @@ pub fn run(args: ServeArgs) -> Result<()> {
         parent_pid,
         ui: !args.no_ui,
     };
-    intarsia_server::serve(engine, cfg).map_err(|e| anyhow::anyhow!("{e}"))
+    match intarsia_server::serve(engine, cfg) {
+        Ok(()) => Ok(()),
+        // Restarting would reload the whole model to find the port still taken: tell the supervisor to stop.
+        Err(e) if child && intarsia_server::is_bind_failure(&e) => {
+            eprintln!("Error: {e}");
+            std::process::exit(intarsia_server::EXIT_FATAL);
+        }
+        Err(e) => Err(anyhow::anyhow!("{e}")),
+    }
 }
 
 /// `--prefix-store-pin`: prefill every listed prefix into the store and pin it (before the server takes requests).

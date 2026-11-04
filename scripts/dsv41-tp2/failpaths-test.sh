@@ -8,8 +8,14 @@
 # Run the printed commands in order. The test is one fleetq job over both Sparks: vLLM down for the window and always restored,
 # memfine and the watcher with the 5 GiB kill line, all by run-full.sh, which sources this file as its HOOK.
 #
-# Cases (CASES, default "near force golden kill"; "kill35" adds the 35B comparison). MAX_MIN bounds them, so the kills go last:
-#   near    #2. Greedy requests of cap-5, cap-4, cap-3, cap-2 tokens and max_tokens 8, then a reply that fills the capacity from below, at
+# Cases (CASES, default "near force ring cancel supervised golden kill"; "kill35" adds the 35B comparison). MAX_MIN bounds them, so the kills go last:
+#   ring    chained cuts. A greedy reply of 14 tokens on a 200-token prompt (rows dropped behind it), the same prompt again, and a cold run of it:
+#           the ids must match on the fix; `cached` shows the reuse refused in the band. On the baseline binary too: the ids may differ there.
+#   cancel  a 12k-token prefill abandoned after 2 s by the client, then the same prompt: both ranks up, /health 200, ids equal to a cold run.
+#   supervised  a supervised `serve` (no --no-supervisor, default --watchdog-s 60), INTARSIA_DSV41_CAP=70000: a prefill of SUP_PROMPT (default 65000)
+#           tokens and a temperature 0.7 reply of SUP_REPLY (default 3500) tokens, each longer than 60 s. Expected: HTTP 200, no `[supervisor]` restart,
+#           /health 200. Main (BASE_SUPERVISED=1 to see it): exit 86. Memory at that capacity has not been measured: watch memfine.
+#   near   #2. Greedy requests of cap-5, cap-4, cap-3, cap-2 tokens and max_tokens 8, then a reply that fills the capacity from below, at
 #           INTARSIA_DSV41_CAP=2048. Expected: HTTP 200, finish_reason length, both ranks up, /health 200. Main: both ranks exit 87 at cap-4.
 #   force   #3. FORCE_RUNS (default 3) times: rank 0 fails forward pass FORCE_PASS (default 30) of a temperature 0.7 reply with
 #           INTARSIA_DSV41_TEST_RANK0_FAIL_PASS. Expected: HTTP 500, /health 503, both ranks exit 87.
@@ -32,10 +38,11 @@ git -C $R worktree add $R/.worktrees/failpaths-base 5786176be
 SPARK_DIR=~/intarsia-dsv41-failpaths BIN_NAME=intarsia.base fleetq run --host spark2 --load cpu --mem 16 --expect 30 --label "dsv41 failpaths: baseline build" -- $R/.worktrees/failpaths-base/scripts/dsv41-tp2/build.sh
 SPARK_DIR=~/intarsia-dsv41-failpaths fleetq run --host spark2 --load cpu --mem 16 --expect 30 --label "dsv41 failpaths: fix build" -- $R/scripts/dsv41-tp2/build.sh
 git -C $R worktree remove $R/.worktrees/failpaths-base
-# 2. The test. Guessed at about 4.5 min a run (load, kill, memory back): MAX_MIN 150 bounds the cases, the vLLM restart comes on top.
-SPARK_DIR=~/intarsia-dsv41-failpaths EARLYOOM_OK="3,2 2,1" STEPS="" MAX_MIN=150 HOOK=$R/scripts/dsv41-tp2/failpaths-test.sh OUT=$R/.scratch/failpaths-\$(date +%m%d-%H%M) \\
-  fleetq run --host spark1,spark2 --quiet gpu,cpu --mem spark1=105,spark2=105 --takes-down spark1-vllm,spark2-vllm --expect 180 \\
-  --label "dsv41 failpaths: 20 rank 0 kills, near-cap, forced rank 0 failure; vLLM restored after" -- $R/scripts/dsv41-tp2/run-full.sh
+# 2. The test. About 32 rank starts, guessed at 4.5 min each (load, kill, memory back), plus about 5 min for the supervised prefill and reply: MAX_MIN 165
+#    bounds the cases, the vLLM restart comes on top. These times are guesses: it has never run. Fewer kills (KILLS=10) save about 45 min.
+SPARK_DIR=~/intarsia-dsv41-failpaths EARLYOOM_OK="3,2 2,1" STEPS="" MAX_MIN=165 HOOK=$R/scripts/dsv41-tp2/failpaths-test.sh OUT=$R/.scratch/failpaths-\$(date +%m%d-%H%M) \\
+  fleetq run --host spark1,spark2 --quiet gpu,cpu --mem spark1=105,spark2=105 --takes-down spark1-vllm,spark2-vllm --expect 195 \\
+  --label "dsv41 failpaths: 20 rank 0 kills, near-cap, forced failure, chained cuts, cancel, supervised 65k; vLLM restored after" -- $R/scripts/dsv41-tp2/run-full.sh
 CMD
   exit 0
 fi
@@ -44,7 +51,7 @@ fi
 if [[ ${1:-} == --dry-run ]]; then
   DRY=$(cd "$(dirname "$0")/../.." && pwd)/.scratch/failpaths-dry; rm -rf "$DRY"; mkdir -p "$DRY"
   OUT=$DRY; SPARK_REL=x; SPARK_DIR='$HOME/x'; LOGD=l; WIP=w; WPORT=1; SPORT=2; SURL=http://stub; BIN=b; C0=c0; C1=c1; NCCLENV=""; DENV=""; TAG=t
-  CASES=${CASES:-near force golden kill kill35}; KILLS=2; BASE_KILLS=1; KILLS35=1; FORCE_RUNS=1; KILL_MIN=0; KILL_MAX=1
+  CASES=${CASES:-near force ring cancel supervised golden kill kill35}; KILLS=2; SUP_PROMPT=10; SUP_REPLY=5; BASE_KILLS=1; KILLS35=1; FORCE_RUNS=1; KILL_MIN=0; KILL_MAX=1
   log() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
   left() { echo 99999; }
   r() {
@@ -68,7 +75,7 @@ if [[ ${1:-} == --dry-run ]]; then
   }
 fi
 
-MY_CASES=${CASES:-near force golden kill}
+MY_CASES=${CASES:-near force ring cancel supervised golden kill}
 CASES=" " # failtest.sh: its helpers (chat1, finish, cleanup, text_of, ...) and none of its cases
 source "$(dirname "$SELF")/failtest.sh"
 
@@ -79,7 +86,7 @@ start_ranks() {
   TAG=$(date +%H%M%S)
   r spark2 "mkdir -p $LOGD; rm -f $LOGD/worker-$TAG.exit; ${R1PRE:-}nohup bash -c 'env $NCCLENV $DENV $1 ${R1ENV:-} $BIN tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2; echo \$? > $LOGD/worker-$TAG.exit' > $LOGD/worker-$TAG.log 2>&1 < /dev/null & echo \$! > $LOGD/worker-$TAG.pid"
   sleep 2
-  r spark1 "mkdir -p $LOGD; rm -f $LOGD/serve-$TAG.exit; ${R0PRE:-}nohup bash -c 'env $NCCLENV $DENV $1 ${R0ENV:-} $BIN serve -m $C0 --backend cuda --tp 2 --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name dsv41-intarsia --no-supervisor --no-ui; echo \$? > $LOGD/serve-$TAG.exit' > $LOGD/serve-$TAG.log 2>&1 < /dev/null & echo \$! > $LOGD/serve-$TAG.pid"
+  r spark1 "mkdir -p $LOGD; rm -f $LOGD/serve-$TAG.exit; ${R0PRE:-}nohup bash -c 'env $NCCLENV $DENV $1 ${R0ENV:-} $BIN serve -m $C0 --backend cuda --tp 2 --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name dsv41-intarsia ${SUPERVISE:---no-supervisor} --no-ui; echo \$? > $LOGD/serve-$TAG.exit' > $LOGD/serve-$TAG.log 2>&1 < /dev/null & echo \$! > $LOGD/serve-$TAG.pid"
   log "ranks started (tag $TAG, $BIN) env '$1' rank0 '${R0ENV:-}' rank1 '${R1ENV:-}'"
   wait_health 900 || exit 1
 }
@@ -215,6 +222,65 @@ case_force() {
   OUT=$OUT0
 }
 
+ids_req() { # <name> <prompt tokens> <first id> <max_tokens> [curl limit s]: /v1/completions on token ids, temperature 0, no EOS stop; ids in $OUT/<name>.ids
+  python3 -c '
+import json, sys
+print(json.dumps({"model": "dsv41-intarsia", "prompt": [int(sys.argv[2]) + i % 1000 for i in range(int(sys.argv[1]))], "temperature": 0, "max_tokens": int(sys.argv[3]), "ignore_eos": True, "return_token_ids": True}))' "$2" "$3" "$4" > "$OUT/$1.req"
+  curl -s -m "${5:-600}" -w '\nHTTP %{http_code}\n' "$SURL/v1/completions" -H 'content-type: application/json' -d @"$OUT/$1.req" > "$OUT/$1.resp" 2>"$OUT/$1.curlerr"
+  python3 -c '
+import json, sys
+try:
+    d = json.loads(open(sys.argv[1]).read().split("\nHTTP")[0]); c = d["choices"][0]
+    print(" ".join(str(i) for i in c.get("token_ids", [])), "| cached", (d.get("usage", {}).get("prompt_tokens_details") or {}).get("cached_tokens"))
+except Exception as e:
+    print("<no ids: %s>" % type(e).__name__)' "$OUT/$1.resp" > "$OUT/$1.ids"
+}
+ids_same() { [[ "$(sed 's/ | cached.*//' "$1")" == "$(sed 's/ | cached.*//' "$2")" ]] && echo identical || echo DIFFERENT; }
+
+case_ring() {
+  local arm
+  CASE=ring
+  for arm in fix base; do
+    OUT=$OUT0/ring/$arm; mkdir -p "$OUT"
+    BIN=$BIN_FIX; [[ $arm == base ]] && BIN=$BIN_BASE
+    start_ranks ""; pids
+    ids_req a 200 100 14     # rows dropped behind the reply
+    ids_req b 200 100 64     # the same prompt: 15 tokens cut, 18 or more below the furthest row when 3 or more rows were dropped
+    ids_req u 600 2000 4     # an unrelated prompt: the sequence restarts
+    ids_req cold 200 100 64
+    log "RESULT ring $arm: reply after the chained cut vs cold $(ids_same "$OUT/b.ids" "$OUT/cold.ids") (b $(sed 's/.*| //' "$OUT/b.ids"), cold $(sed 's/.*| //' "$OUT/cold.ids"))"
+    finish "$arm"
+  done
+  BIN=$BIN_FIX; OUT=$OUT0
+}
+
+case_cancel() {
+  CASE=cancel; OUT=$OUT0/cancel; mkdir -p "$OUT"
+  start_ranks ""; pids
+  ids_req gone 12000 100 16 2 # the client leaves during the prefill
+  ids_req retry 12000 100 16
+  ids_req u 600 2000 4
+  ids_req cold 12000 100 16
+  log "RESULT cancel: retry vs cold $(ids_same "$OUT/retry.ids" "$OUT/cold.ids") (retry $(sed 's/.*| //' "$OUT/retry.ids")), /health $(curl -s -m 2 -o /dev/null -w '%{http_code}' "$SURL/health"), rank 0 exit '$(exitcode spark1 serve)', rank 1 exit '$(exitcode spark2 worker)'"
+  finish cancel
+  OUT=$OUT0
+}
+
+case_supervised() { # <binary> <name>: rank 0's PID here is the supervisor's; the child leaves with it (its parent check)
+  CASE=supervised; OUT=$OUT0/supervised-$2; mkdir -p "$OUT"
+  BIN=$1; SUPERVISE=" "
+  start_ranks "INTARSIA_DSV41_CAP=70000"; pids
+  local t0; t0=$(date +%s)
+  ids_req prefill "${SUP_PROMPT:-65000}" 100 8 900
+  log "RESULT supervised $2 prefill of ${SUP_PROMPT:-65000} tokens: HTTP $(http_of "$OUT/prefill.resp") after $(( $(date +%s) - t0 )) s, /health $(curl -s -m 2 -o /dev/null -w '%{http_code}' "$SURL/health")"
+  t0=$(date +%s)
+  sampled_json "${SUP_REPLY:-3500}" 0.7 1 "$P_LONG" > "$OUT/reply.req"
+  curl -s -m 900 -w '\nHTTP %{http_code}\n' "$SURL/v1/chat/completions" -H 'content-type: application/json' -d @"$OUT/reply.req" > "$OUT/reply.resp" 2>"$OUT/reply.curlerr"
+  log "RESULT supervised $2 reply of ${SUP_REPLY:-3500} tokens: HTTP $(http_of "$OUT/reply.resp") after $(( $(date +%s) - t0 )) s, /health $(curl -s -m 2 -o /dev/null -w '%{http_code}' "$SURL/health"), supervisor restarts: $(r spark1 "grep -ac 'restart #' $LOGD/serve-$TAG.log; true")"
+  finish supervised
+  SUPERVISE=""; BIN=$BIN_FIX; OUT=$OUT0
+}
+
 case_kill35() { # the 35B on the fix's binary: same kill, its own flags (11 GB a rank)
   local M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
   local FL="-m $M35 --backend cuda --tp 2 --max-seq 8192 --mem-budget 20" tsv=$OUT0/kill35.tsv i d res code
@@ -246,6 +312,9 @@ for c in $MY_CASES; do
   case $c in
     near) case_near ;;
     force) case_force ;;
+    ring) case_ring ;;
+    cancel) case_cancel ;;
+    supervised) case_supervised "$BIN_FIX" fix; [[ ${BASE_SUPERVISED:-0} == 1 ]] && case_supervised "$BIN_BASE" base ;;
     golden) case_golden ;;
     kill) case_kill "$BIN_FIX" "${KILLS:-20}" "$OUT0/kill.tsv"; case_kill "$BIN_BASE" "${BASE_KILLS:-2}" "$OUT0/kill.tsv" ;;
     kill35) case_kill35 ;;
