@@ -51,7 +51,7 @@ What still does not fail the group, and how that was established:
 
 - **Request validation** (`generate`, before the first send). Test: the far end records no pass from the refused requests, `failed` stays empty, and the next turn reuses the cached sequence (`a_request_refused_before_anything_was_sent_changes_nothing`).
 - **A rejected truncate.** The acknowledgement says rank 1 changed nothing (`ack_status`), and the reader only treats `ACK_FAILED` as failure. By reading.
-- **Errors between passes** (constraint, decoder). By reading: rank 0's last pass read its logits or ids back, which is a device sync, so all its collectives completed and rank 1's matching ones can. The whole warm-up and decode path reads back; only the non-last prefill chunks do not, and they are inside `rt.forward`.
+- **Errors between passes** (constraint, decoder). By reading: rank 0's last pass read its logits or ids back, which is a device sync, so all its collectives completed and rank 1's matching ones can. The whole warm-up and decode path reads back. Prefill chunks before the last do not: a cancel between chunks can leave their collectives running, all of them paired, because rank 1 has answered each chunk it was told. The next pass queues behind them on both ranks. That they pair is by reading; the Spark case `cancel` is what can show it.
 - **A failed graph capture on one rank** is still swallowed (graphs off, eager from then on, as before). Nothing runs during a recording and the eager pass issues the same collectives from the same graph. By reading only.
 
 ## 4. Second review (`dsv41_engine.rs`, `state.rs`, the server)
@@ -61,7 +61,7 @@ A second review gave 14 findings, 11 distinct defects once duplicates are merged
 | Finding | Effect before | Fix | Test (fails with the fix reverted) |
 |---|---|---|---|
 | Ring rollback counted from `len`, not the furthest row written | Chained cuts read overwritten window and compressor rows: **wrong output, no error**. Two requests are enough, greedy or not | `SequenceState::ring_high`; a cut must stay within `margin` of `len` and `margin + 1` of the mark, otherwise reuse is refused | `after_dropped_draft_rows_the_band_of_18_or_more_is_refused`, `two_requests_without_speculation_are_refused_too` |
-| The engine never ticked `steps_total` | The stall watchdog (`--watchdog-s`) fired on any request longer than the limit | `telemetry.step()` after every pass; the prompt now goes one chunk a pass so a prefill ticks too | `every_pass_ticks_the_watchdog_each_prefill_chunk_too` |
+| The engine never ticked `steps_total` | The stall watchdog (`--watchdog-s`) fired on any request longer than the limit | `telemetry.step()` after every pass; the prompt now goes one chunk a pass so a prefill ticks too | `every_pass_ticks_the_watchdog_each_prefill_chunk_too` (see section 5 for what a tick means) |
 | A failed request left `running = 1` | An idle server read as stalled | `request_finished("error", ..)` in `run` | `a_failed_request_closes_its_telemetry` |
 | A validation error reset the cached sequence | The next turn lost its prefix | `BadRequest` from before the first send keeps it | `a_request_refused_before_anything_was_sent_changes_nothing` |
 | Cancel not honoured while queued or during prefill | A departed client held the engine for the whole prefill | Checked on entry and between chunks | `a_request_cancelled_while_queued_touches_nothing`, `a_cancel_between_prefill_chunks_leaves_both_ranks_in_step` |
@@ -71,13 +71,33 @@ A second review gave 14 findings, 11 distinct defects once duplicates are merged
 | `max_tokens` above the room left was an error | HTTP 500 for a client's fixed limit | Clamped, finish reason `length`, as `Seq::admit` | `max_tokens_is_clamped_to_the_room_left` |
 | A taken port restarted a supervised server for ever | The whole model reloaded on every restart | The child exits `EXIT_FATAL` on a bind failure | `a_supervised_server_stops_when_its_port_is_taken` |
 
-The ring limit comes from the kernels, not from reading: `the_rings_survive_17_rows_below_the_furthest_written_and_not_18` runs the reference kernels at ratios 1, 2 and 3, and 17 rows below the mark is bit-identical to never drafting while 18 is not. That test passes on both old and new checks, because it pins the line the check has to draw.
+The ring limit comes from the kernels, not from reading: `the_ring_check_accepts_exactly_what_the_kernels_survive` runs the reference kernels at ratios 1, 2 and 3 and compares them with `SequenceState`'s check at 1 to 24 rows below the mark: 17 is bit-identical to never drafting, 18 is not, and the check agrees at each.
 
 **Left open:** finding 7, overlapping lane scratch slices (`runtime.rs:1138`). `wq_a` and `wkv` in one fork need different scratch sizes, so their declared slices can overlap on a GPU with more than 50 SMs. It is reachable only with a build for another architecture: the default build targets `sm_121` and the device check refuses others, and GB10 at 48 SMs has a 7168-byte gap at one row. This comes from the review's reading and arithmetic; I did not run it. It needs a fix before DSv4.1 runs on such a GPU.
 
+## 5. Third review
+
+An Opus review of this branch, also by reading.
+
+**Prefill ticks and cancels followed the enqueue.** Chunks before the last are `Want::Nothing`, so the ticks added in section 4 said what the host queued. At 18 to 28 ms an enqueue and 0.84 s a 512-row chunk (the review's numbers), a 65000-token prompt then blocks about 106 s in the last read-back, past the 60 s watchdog. Whether launches queue that deep cannot be read from the code, so the fix does not depend on it: `Worker::prefill` waits for stream 0 every `PREFILL_SYNC_ROWS` = 4096 rows.
+- Why 4096: 8 default chunks, about 6.7 s at 0.84 s a chunk, so a device nine times slower still passes the watchdog. A larger `INTARSIA_DSV41_CHUNK` waits every chunk.
+- Why not a non-blocking query: `Backend` has none, and adding one touches every backend.
+- Cost: by arithmetic, at most one enqueue of device idle per wait, about 0.4 %. **Not measured.**
+- Rank-local: no collective is added, and `a_long_prefill_ticks_with_the_device_not_the_enqueue` pins that the same 127 passes reach rank 1 with the same cuts. It runs on a virtual device clock, so it models the device rather than measuring one. Spark case `supervised` is the real check; it reports INCONCLUSIVE if the prefill stays under the watchdog.
+
+**Every bind failure was fatal.** A supervised server now retries `EADDRINUSE` and `EADDRNOTAVAIL` for 120 s (`INTARSIA_BIND_RETRY_S`) with the model loaded, then exits 78. 120 s outlasts the supervisor's own 30 s grace for a stopping server. Other bind errors and an unsupervised server fail at once. The restart case is tested with a listener that holds the port and lets go, not with a real restart.
+
+**An engine panic could hang rank 1.** The panic handler now calls `group_failed`, so the peer is dead before `Worker` drops and no `T_DROP` is sent. Rank 1 leaves on the hang-up through `drain`. Tested at the message level: no free reaches the far end. Rank 1's actual exit after a panic is not tested.
+
+**Recorded, not fixed:** `ring_high` does not count draft-block writes (`graph.rs:903`, `runtime.rs:640`, `state.rs:270`). `draft_steps` writes the DSpark stage rings without a commit. The same is true on main. By the review's reading it only affects draft acceptance, since verify rows decide the tokens; I read the lines and did not test it.
+
+**Tests the review called weak:** `draft_fits_refuses_what_the_runtime_refused...` now spells the old limit out; the ring test now calls the check; the cancel test is renamed to what it shows, the message order, and the pairing is left to Spark case `cancel`.
+
+Each fix reverted on the final code (#8306): without the wait, 3 tests fail, one with 106.6 s without a tick against the 60 s watchdog; without the retry, all 3 of `serve_bind`; without the panic route, the panic test; without the ring check, 3 tests, one with the check accepting 18 rows the kernels do not survive. All pass with the fixes: 30 `failpath_tests`, 3 `serve_bind`, 9 `dsv41_chunked`.
+
 ## Tests
 
-`crates/intarsia-models/src/dsv41_engine.rs`, `mod failpath_tests`, 25 tests after the second review (section 4), no GPU: a real `Worker` and `Dsv41Runtime` facing a real `RemotePeer` and `tp_remote::serve`, whose far end records what it was told. The fake backend adds a failing `alloc` and a parked stream 0. Rank 1's exit runs in a child process through the real `serve_group`. Each row reverts one fix on the final code, with the tests in place (job #8290; `INTARSIA_TP_REMOTE_TIMEOUT_S=3`, because the old `settle` waits for a reply).
+`crates/intarsia-models/src/dsv41_engine.rs`, `mod failpath_tests`, 30 tests after the third review (section 5), no GPU: a real `Worker` and `Dsv41Runtime` facing a real `RemotePeer` and `tp_remote::serve`, whose far end records what it was told. The fake backend adds a failing `alloc` and a parked stream 0. Rank 1's exit runs in a child process through the real `serve_group`. Each row reverts one fix on the final code, with the tests in place (job #8290; `INTARSIA_TP_REMOTE_TIMEOUT_S=3`, because the old `settle` waits for a reply).
 
 | Fix reverted | Tests failing without it | Message | With the fix |
 |---|---|---|---|
@@ -85,13 +105,13 @@ The ring limit comes from the kernels, not from reading: `the_rings_survive_17_r
 | #2 `draft_fits` in `next_rows` | `near_the_capacity_a_greedy_step_is_a_plain_pass_not_a_drafting_round` | `[New, Draft]` instead of `[New, Forward]` | pass |
 | #3 `settle` | `a_rank_local_error_after_the_pass_was_sent_fails_the_group`, `a_failure_inside_the_runtime_fails_the_group`, `settle_does_not_wait_for_the_other_rank_after_a_failure_and_the_error_is_a_backend_error` | `failed` stays empty | pass |
 | #3 failed `reset` | `a_reset_that_fails_fails_the_group` | `failed` stays empty | pass |
-| none | | | 24 of 24 (the 25th was added after this run) |
+| none | | | 24 of 24 at that run; see section 5 for the final count |
 
 The section 4 fixes were reverted the same way, one at a time, in jobs #8277 and #8278; each test in its table failed without its fix.
 
 The tests no row names pin what must not change. The one exception to "the test catches the defect end to end": the near-cap test checks what rank 1 is told, not an actual exit 87, because the far end is a recorder. The refusal itself is pinned by `draft_fits_is_exactly_what_the_runtime_accepts...`, and the exit is what the Spark case `near` shows.
 
-`cargo test --workspace --no-fail-fast`: 1259 passed, 0 failed, 29 ignored (#8294, exit 0). An earlier run (#8266) had one failure of this lane's own, missing `docs/tuning.md` rows for the two new variables, fixed before commit `7d9e17cb1`.
+`cargo test --workspace --no-fail-fast`: 1266 passed, 0 failed, 29 ignored (#8333, exit 0, at `885b510f4`). Earlier: #8266 failed on this lane's own missing `docs/tuning.md` rows, fixed; #8308 was stopped by fleetq (exit -15) and gives no result.
 
 ## The normal path
 
@@ -132,7 +152,8 @@ Only Sparks can show:
 - Whether a real `cudaMalloc` failure on rank 0 arrives as `Error::Memory` under memory pressure, rather than the watcher or earlyoom killing the rank first. The injection is one level above `grow_scratch`.
 - The chained-cut fix on the real kernels and rings, and whether the old binary really gives different ids there (Spark case `ring`; the reference kernels show it).
 - A supervised 65k-token prefill and a long reply against the real watchdog (case `supervised`; memory at that capacity is not measured).
-- Prefill speed with one message per chunk.
+- Prefill speed with one message per chunk and a device wait per 4096 rows.
+- That collectives pair after a mid-prefill cancel (case `cancel`), and rank 1's exit after an engine panic.
 - The tests on Linux. They ran on macOS, where `watch_peer` is compiled out, so the watch thread never ran beside these tests.
 
 Also not done: no 35B change, and PR #293's files were left alone (`engine.rs`, `model.rs`, `tp_hybrid.rs` untouched here).
