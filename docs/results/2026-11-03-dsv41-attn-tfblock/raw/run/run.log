@@ -1,0 +1,163 @@
+[05:04:18] == remote part on spark-fa00, pairs 6, iters 20, reps 15, nvcc jobs 4
+[05:04:18] == 0. preflight
+/usr/local/cuda/bin/nvcc
+/usr/local/cuda/bin/cuobjdump
+/usr/bin/python3
+/usr/bin/patch
+/usr/bin/xargs
+Cuda compilation tools, release 13.0, V13.0.88
+Build cuda_13.0.r13.0/compiler.36424714_0
+GPU 0: NVIDIA GB10 (UUID: GPU-06e1d8e9-66a4-aff6-a73e-3396037258ca)
+MemAvailable 74.8 GB
+active
+b036645eb9f9e9f7edabc4662f4ce2b1  /home/nvidia/intarsia-dsv41-tfblock/src/kernels/cuda/dsv41_attn.cu
+a0f7642c9010c71eecdb8f13eaa3bb25  /home/nvidia/intarsia-dsv41-tfblock/src/kernels/cuda/dsv41_misc.cu
+recorded dsv41_attn.cu md5 of the A/B baseline (main 47af18777): b036645eb9f9e9f7edabc4662f4ce2b1; a different md5 may legitimately move the recorded hashes, calibration then decides
+[05:04:18] == 1. sources: unmodified copies, patched copies (flags only enable variants), occupancy probe appended
+patching file /home/nvidia/intarsia-dsv41-tfblock/obj/attn_var_src.cu
+patching file /home/nvidia/intarsia-dsv41-tfblock/obj/misc_var.cu
+[05:04:18] == 2. build, at most 4 nvcc at a time (flags of crates/intarsia-backend-cuda/build.rs; sm_121); a variant that fails to build is dropped, not fatal
+[05:04:32] built: attention variants [ e2 e2e5 e5 ], rope variants [ ip ipshfl ], failed [ ]
+[05:04:32] == 3. resource usage (spills must stay LOCAL 0 for the E2 objects), rope SASS contraction
+== attn_base.o
+ Function _ZN45_GLOBAL__N__ffdeb5af_12_attn_base_cu_1eef702015attn_sparse_mmaEPK13__nv_bfloat16S2_S2_PKiPKfPS0_PfllllllS4_fil:
+  REG:107 STACK:0 SHARED:1792 LOCAL:0 CONSTANT[0]:1024 TEXTURE:0 SURFACE:0 SAMPLER:0
+== attn_e2.o
+ Function _ZN44_GLOBAL__N__33826e5a_11_attn_var_cu_1eef702019attn_sparse_mma_tfbEPK13__nv_bfloat16S2_S2_PKiPKfPS0_PfllllllS4_fil:
+  REG:246 STACK:0 SHARED:1984 LOCAL:0 CONSTANT[0]:1024 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN44_GLOBAL__N__33826e5a_11_attn_var_cu_1eef702015attn_sparse_mmaEPK13__nv_bfloat16S2_S2_PKiPKfPS0_PfllllllS4_fil:
+  REG:107 STACK:0 SHARED:1792 LOCAL:0 CONSTANT[0]:1024 TEXTURE:0 SURFACE:0 SAMPLER:0
+== attn_e2e5.o
+ Function _ZN44_GLOBAL__N__33826e5a_11_attn_var_cu_1eef702019attn_sparse_mma_tfbEPK13__nv_bfloat16S2_S2_PKiPKfPS0_PfllllllS4_fil:
+  REG:244 STACK:0 SHARED:1984 LOCAL:0 CONSTANT[0]:1024 TEXTURE:0 SURFACE:0 SAMPLER:0
+ Function _ZN44_GLOBAL__N__33826e5a_11_attn_var_cu_1eef702015attn_sparse_mmaEPK13__nv_bfloat16S2_S2_PKiPKfPS0_PfllllllS4_fil:
+  REG:125 STACK:0 SHARED:1792 LOCAL:0 CONSTANT[0]:1024 TEXTURE:0 SURFACE:0 SAMPLER:0
+== attn_e5.o
+ Function _ZN44_GLOBAL__N__33826e5a_11_attn_var_cu_1eef702015attn_sparse_mmaEPK13__nv_bfloat16S2_S2_PKiPKfPS0_PfllllllS4_fil:
+  REG:125 STACK:0 SHARED:1792 LOCAL:0 CONSTANT[0]:1024 TEXTURE:0 SURFACE:0 SAMPLER:0
+rope sass base _ZN46_GLOBAL__N__1b3851ca_13_dsv41_misc_cu_b19386af16rope_tail_kernelIf6__halfEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass base _ZN46_GLOBAL__N__1b3851ca_13_dsv41_misc_cu_b19386af16rope_tail_kernelI13__nv_bfloat166__halfEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass base _ZN46_GLOBAL__N__1b3851ca_13_dsv41_misc_cu_b19386af16rope_tail_kernelI6__halfS1_EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass base _ZN46_GLOBAL__N__1b3851ca_13_dsv41_misc_cu_b19386af16rope_tail_kernelIf13__nv_bfloat16EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass base _ZN46_GLOBAL__N__1b3851ca_13_dsv41_misc_cu_b19386af16rope_tail_kernelIffEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass base _ZN46_GLOBAL__N__1b3851ca_13_dsv41_misc_cu_b19386af16rope_tail_kernelI13__nv_bfloat16S1_EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass base _ZN46_GLOBAL__N__1b3851ca_13_dsv41_misc_cu_b19386af16rope_tail_kernelI6__half13__nv_bfloat16EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass base _ZN46_GLOBAL__N__1b3851ca_13_dsv41_misc_cu_b19386af16rope_tail_kernelI13__nv_bfloat16fEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass base _ZN46_GLOBAL__N__1b3851ca_13_dsv41_misc_cu_b19386af16rope_tail_kernelI6__halffEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI6__half13__nv_bfloat16EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af19rope_tail_ip_kernelI6__halfEEvPT_PKflllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelIffEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelIf13__nv_bfloat16EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af19rope_tail_ip_kernelIfEEvPT_PKflllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af19rope_tail_ip_kernelI13__nv_bfloat16EEvPT_PKflllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelIf6__halfEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI6__halfS1_EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI13__nv_bfloat16fEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI13__nv_bfloat16S1_EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI13__nv_bfloat166__halfEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ip _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI6__halffEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI6__half13__nv_bfloat16EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af19rope_tail_ip_kernelI6__halfEEvPT_PKflllllliPKil: FFMA 13 FMUL 5 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelIffEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelIf13__nv_bfloat16EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af19rope_tail_ip_kernelIfEEvPT_PKflllllliPKil: FFMA 13 FMUL 5 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af19rope_tail_ip_kernelI13__nv_bfloat16EEvPT_PKflllllliPKil: FFMA 13 FMUL 5 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelIf6__halfEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI6__halfS1_EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI13__nv_bfloat16fEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI13__nv_bfloat16S1_EEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI13__nv_bfloat166__halfEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+rope sass ipshfl _ZN44_GLOBAL__N__14ac8edd_11_misc_var_cu_b19386af16rope_tail_kernelI6__halffEEvPKT_PKfPT0_lllllliPKil: FFMA 13 FMUL 6 FADD 0 MUFU 5
+[05:04:34] == 4. calibration: the unmodified attention kernel must reproduce 1.30 ms (CSA T=512), 5.04 ms (CSA T=2048) and the recorded hashes, else stop (rope hashes only flag E3)
+## pair 0 base 05:04:34
+probe: SMs 48 | smem/SM 102400 B, reserved/block 1024 B, per-block max 49152 B, optin 101376 B | threads/SM 1536, regs/SM 65536 | kernel: regs/thread 107, static smem 768
+attn CSA T512 Nc1024 Kw512    hash 4ee9a847ca24437f min 1.3013 med 1.3026 max 1.3294 ms | reps: 1.3294 1.3015 1.3032 1.3192 1.3042 1.3181 1.3022 1.3224 1.3013 1.3216 1.30
+attn CSA T2048 Nc1024 Kw512   hash aa254a578fedfa25 min 5.0306 med 5.0326 max 5.0685 ms | reps: 5.0487 5.0482 5.0308 5.0318 5.0313 5.0316 5.0480 5.0318 5.0306 5.0333 5.06
+attn HCA T512 Nc32 Kw32       hash 90ad1d7fcca0b866 min 0.3757 med 0.3769 max 0.4088 ms | reps: 0.3790 0.4069 0.3767 0.3767 0.4088 0.3769 0.4074 0.3765 0.3762 0.4060 0.37
+attn CSA T37 Nc1024 Kw512     hash 21b89af74c9af5a2 min 0.1171 med 0.1175 max 0.1306 ms | reps: 0.1174 0.1173 0.1175 0.1176 0.1171 0.1173 0.1175 0.1190 0.1306 0.1195 0.11
+attn CSA T11 Nc1024 Kw512     hash e450cadc14aad612 min 0.1109 med 0.1115 max 0.1344 ms | reps: 0.1114 0.1112 0.1109 0.1115 0.1344 0.1260 0.1137 0.1115 0.1115 0.1118 0.11
+calibration (unmodified kernel; recorded: ab-run-1.log hashes, 1.30 ms at CSA T=512, 5.04 ms at CSA T=2048)
+  ok   CSA T512 Nc1024 Kw512: median 1.3026 ms vs recorded 1.30 ms (tolerance 6%)
+  ok   CSA T2048 Nc1024 Kw512: median 5.0326 ms vs recorded 5.04 ms (tolerance 6%)
+  ok   hash CSA T512 Nc1024 Kw512: 4ee9a847ca24437f vs recorded 4ee9a847ca24437f
+  ok   hash CSA T2048 Nc1024 Kw512: aa254a578fedfa25 vs recorded aa254a578fedfa25
+  ok   hash HCA T512 Nc32 Kw32: 90ad1d7fcca0b866 vs recorded 90ad1d7fcca0b866
+  ok   hash CSA T37 Nc1024 Kw512: 21b89af74c9af5a2 vs recorded 21b89af74c9af5a2
+  ok   hash CSA T11 Nc1024 Kw512: e450cadc14aad612 vs recorded e450cadc14aad612
+  ok   rope: all 9 unmodified rope hashes equal the recorded bench-vec0.txt
+  probe base: {'blocks': 1, 'regs': 107, 'local': 0, 'total': 74112}
+CALIBRATION (attention) PASS
+[05:04:39] == 5. alternating A/B: 6 pairs, variants interleaved per round, odd pairs base first, even pairs variant first; each process 15 reps x 20 launches
+[05:07:12] == 6. tables and verdicts
+
+=== e2  (log /home/nvidia/intarsia-dsv41-tfblock/logs/ab-e2.log)
+  probe base: 107 regs/thread, local 0 B, 74112 B smem/block, active blocks per SM 1
+  probe var : 246 regs/thread, local 0 B, 37632 B smem/block, active blocks per SM 2
+  shape                       base ms           [range]   var ms           [range] var/base  min/min    gain  hashes
+  CSA T512 Nc1024 Kw512        1.3034 [1.3014,1.3048]   1.2710 [1.2681,1.2801]    0.975    0.975   +2.5%  identical 4ee9a847ca24437f  (n base 6, var 6)
+  CSA T2048 Nc1024 Kw512       5.0337 [5.0318,5.0378]   5.0279 [5.0265,5.0333]    0.999    0.999   +0.1%  identical aa254a578fedfa25  (n base 6, var 6)
+  HCA T512 Nc32 Kw32           0.3791 [0.3732,0.3807]   0.3831 [0.3746,0.3875]    1.011    1.003   -1.1%  identical 90ad1d7fcca0b866  (n base 6, var 6)
+  CSA T37 Nc1024 Kw512         0.1177 [0.1170,0.1182]   0.1168 [0.1168,0.1168]    0.993    0.999   +0.7%  identical 21b89af74c9af5a2  (n base 6, var 6)
+  CSA T11 Nc1024 Kw512         0.1099 [0.1075,0.1134]   0.1107 [0.1080,0.1134]    1.008    1.005   -0.8%  identical e450cadc14aad612  (n base 6, var 6)
+  VERDICT e2: NEGATIVE (stop rule): gain +0.1% at CSA T=2048 < 12%
+
+=== e2e5  (log /home/nvidia/intarsia-dsv41-tfblock/logs/ab-e2e5.log)
+  probe base: 107 regs/thread, local 0 B, 74112 B smem/block, active blocks per SM 1
+  probe var : 244 regs/thread, local 0 B, 37632 B smem/block, active blocks per SM 2
+  shape                       base ms           [range]   var ms           [range] var/base  min/min    gain  hashes
+  CSA T512 Nc1024 Kw512        1.3026 [1.3010,1.3053]   1.1532 [1.1402,1.1646]    0.885    0.875  +11.5%  identical 4ee9a847ca24437f  (n base 6, var 6)
+  CSA T2048 Nc1024 Kw512       5.0354 [5.0330,5.0394]   4.5233 [4.5167,4.5270]    0.898    0.897  +10.2%  identical aa254a578fedfa25  (n base 6, var 6)
+  HCA T512 Nc32 Kw32           0.3788 [0.3662,0.3872]   0.3477 [0.3368,0.3640]    0.918    0.921   +8.2%  identical 90ad1d7fcca0b866  (n base 6, var 6)
+  CSA T37 Nc1024 Kw512         0.1171 [0.1168,0.1180]   0.1066 [0.1064,0.1066]    0.910    0.909   +9.0%  identical 21b89af74c9af5a2  (n base 6, var 6)
+  CSA T11 Nc1024 Kw512         0.1101 [0.1085,0.1112]   0.1037 [0.1004,0.1058]    0.941    0.927   +5.9%  identical e450cadc14aad612  (n base 6, var 6)
+  VERDICT e2e5: NEGATIVE (stop rule): gain +10.2% at CSA T=2048 < 12%
+
+=== e5  (log /home/nvidia/intarsia-dsv41-tfblock/logs/ab-e5.log)
+  probe base: 107 regs/thread, local 0 B, 74112 B smem/block, active blocks per SM 1
+  probe var : 125 regs/thread, local 0 B, 74112 B smem/block, active blocks per SM 1
+  shape                       base ms           [range]   var ms           [range] var/base  min/min    gain  hashes
+  CSA T512 Nc1024 Kw512        1.3022 [1.2977,1.3056]   1.2081 [1.2047,1.2095]    0.928    0.928   +7.2%  identical 4ee9a847ca24437f  (n base 6, var 6)
+  CSA T2048 Nc1024 Kw512       5.0371 [5.0324,5.0391]   4.6547 [4.6518,4.6564]    0.924    0.924   +7.6%  identical aa254a578fedfa25  (n base 6, var 6)
+  HCA T512 Nc32 Kw32           0.3767 [0.3716,0.3858]   0.3570 [0.3518,0.3588]    0.948    0.947   +5.2%  identical 90ad1d7fcca0b866  (n base 6, var 6)
+  CSA T37 Nc1024 Kw512         0.1176 [0.1168,0.1187]   0.1086 [0.1086,0.1086]    0.923    0.929   +7.7%  identical 21b89af74c9af5a2  (n base 6, var 6)
+  CSA T11 Nc1024 Kw512         0.1103 [0.1089,0.1153]   0.1082 [0.1060,0.1096]    0.981    0.971   +1.9%  identical e450cadc14aad612  (n base 6, var 6)
+  VERDICT e5: INFORMATIONAL: gain +7.6% at CSA T=2048, all hashes identical (no stop rule set for e5)
+
+E5 on top of E2 at CSA T=2048 (median of the two variants' process medians): e2e5 / e2 = 0.900
+
+SUMMARY
+  e2: NEGATIVE (stop rule): gain +0.1% at CSA T=2048 < 12%
+  e2e5: NEGATIVE (stop rule): gain +10.2% at CSA T=2048 < 12%
+  e5: INFORMATIONAL: gain +7.6% at CSA T=2048, all hashes identical (no stop rule set for e5)
+
+=== ip  (log /home/nvidia/intarsia-dsv41-tfblock/logs/rope-ip.log)
+  shape                         base ms   var ms var/base  hashes (against the in-job unmodified kernel)
+  q T512 H32 hd512               0.1381   0.0103    0.075  identical d5ab75e0c17ef387
+  o^-1 T512 H32 hd512            0.1393   0.0102    0.073  identical b1ea9a443bb9d683
+  q T2048 H32 hd512              0.5861   0.0308    0.053  identical af34abaeb838d38f
+  o^-1 T2048 H32 hd512           0.5785   0.0308    0.053  identical 0dc838ce8f472ac5
+  kv T512 H1 hd512               0.0052   0.0023    0.442  identical a163e645ec6f9b6d
+  idx_q T512 H64 hd128           0.0496   0.0164    0.331  identical 438fbaea945c36da
+  cmp T128 H1 hd512 stride4      0.0040   0.0022    0.550  identical a8a92705497fbe7f
+  T63 H32 hd512 (old path)       0.0124   0.0041    0.331  identical e52eb860edb55401
+  T500 H32 hd512 pos 40000       0.1298   0.0102    0.079  identical 0e4ab8592fa58014
+  VERDICT ip: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.165 -> 0.062 ms per layer-chunk; extrapolated saving 88 ms per 4K request (80 layer-chunks at chunk 2048, from the fusion/tfblock report; not measured in situ)
+
+=== ipshfl  (log /home/nvidia/intarsia-dsv41-tfblock/logs/rope-ipshfl.log)
+  shape                         base ms   var ms var/base  hashes (against the in-job unmodified kernel)
+  q T512 H32 hd512               0.1381   0.0185    0.134  identical d5ab75e0c17ef387
+  o^-1 T512 H32 hd512            0.1393   0.0185    0.133  identical b1ea9a443bb9d683
+  q T2048 H32 hd512              0.5861   0.0656    0.112  identical af34abaeb838d38f
+  o^-1 T2048 H32 hd512           0.5785   0.0656    0.113  identical 0dc838ce8f472ac5
+  kv T512 H1 hd512               0.0052   0.0032    0.615  identical a163e645ec6f9b6d
+  idx_q T512 H64 hd128           0.0496   0.0343    0.690  identical 438fbaea945c36da
+  cmp T128 H1 hd512 stride4      0.0040   0.0027    0.688  identical a8a92705497fbe7f
+  T63 H32 hd512 (old path)       0.0124   0.0042    0.339  identical e52eb860edb55401
+  T500 H32 hd512 pos 40000       0.1298   0.0185    0.143  identical 0e4ab8592fa58014
+  VERDICT ipshfl: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.165 -> 0.131 ms per layer-chunk; extrapolated saving 83 ms per 4K request (80 layer-chunks at chunk 2048, from the fusion/tfblock report; not measured in situ)
+
+SUMMARY (rope)
+  ip: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.165 -> 0.062 ms per layer-chunk; extrapolated saving 88 ms per 4K request (80 layer-chunks at chunk 2048, from the fusion/tfblock report; not measured in situ)
+  ipshfl: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.165 -> 0.131 ms per layer-chunk; extrapolated saving 83 ms per 4K request (80 layer-chunks at chunk 2048, from the fusion/tfblock report; not measured in situ)
+[05:07:12] == done (build trees are removed by the exit trap)
+[05:07:12] removed build trees /home/nvidia/intarsia-dsv41-tfblock/obj and /home/nvidia/intarsia-dsv41-tfblock/src (logs kept in /home/nvidia/intarsia-dsv41-tfblock/logs, exit 0)

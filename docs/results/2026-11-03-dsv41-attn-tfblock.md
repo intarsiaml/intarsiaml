@@ -2,9 +2,37 @@
 
 Date 2026-11-03 (evening), branch `dsv41/attn-tfblock` (worktree `.worktrees/attn-tfblock`, from origin/main `7eeb23f2f`). Follows the Fable report `.worktrees/fable-attn/report.md` (experiments E2, E3, E5 and its "stop" list), [the 2blk doc](2026-11-03-dsv41-attn-2blk.md) and [the fusion doc](2026-11-03-dsv41-attn-fusion.md).
 
-## Status: prepared, NOT compiled with nvcc, NOT run
+## Status: run on spark2 (fleetq #8282, 2026-11-04 05:04-05:07 EST, exit 0)
 
-No nvcc, no GPU and no fleet access tonight (both Sparks are reserved; no fleetq job was queued). There is **no result in this document**. What exists is a single script that builds and runs everything in one fleetq job when a Spark frees up (`fleetq when` says spark2 about 07:05 behind #8255), the patches it applies, and the offline checks listed under "What was checked tonight". `kernels/cuda` on the branch is unchanged; every variant sits behind a `-D` flag in a bench copy, as `attn-2blk.patch` did. Everything is under `docs/results/2026-11-03-dsv41-attn-tfblock/raw/bench/`.
+E2 is negative, E5 and E3 (`ip`) are candidates. Every variant built, calibration passed, and every hash matched the unmodified kernel in the same job, on all five attention shapes and all nine rope shapes. These are kernel-level timings from the bench; nothing is wired into the engine, and `kernels/cuda` on the branch is unchanged. Sections 1 to 7 are the text written before the run, with its predictions left as written.
+
+Attention, median of 6 process medians per side, alternating base and variant:
+
+| variant | CSA T=2048 base -> var (ms) | gain T=2048 | T=512 | HCA T=512 | T=37 | T=11 | regs/thread | blocks per SM | verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| e2 | 5.0337 -> 5.0279 | +0.1 % | +2.5 % | -1.1 % | +0.7 % | -0.8 % | 246 | 2 | NEGATIVE (under 12 %) |
+| e2e5 | 5.0354 -> 4.5233 | +10.2 % | +11.5 % | +8.2 % | +9.0 % | +5.9 % | 244 | 2 | NEGATIVE (under 12 %) |
+| e5 | 5.0371 -> 4.6547 | +7.6 % | +7.2 % | +5.2 % | +7.7 % | +1.9 % | 125 | 1 | informational, no stop rule |
+
+- **E2 is valid and still gains nothing.** No spills (local 0 B) and two resident blocks per SM against one, so the occupancy the report expected to pay 15 to 30 % was achieved and paid +0.1 %. The report's reasoning does not hold on this box.
+- **Almost all of e2e5's gain is E5.** e2e5 / e2 is 0.900. Compared across their separate base pairs, e2e5 is about 2.8 % faster than e5 alone at T=2048, for twice the registers and a second kernel.
+- **E4 was not run.** Section 7 says to look at `e2e5 / e2` before deciding on E2 + E4; that decision is open.
+
+Rope, base -> variant in ms, all nine shapes bit-identical to the unmodified kernel in the job:
+
+| variant | q T=2048 | o^-1 T=2048 | q T=512 | pair T=2048 | extrapolated saving per 4K request |
+|---|---|---|---|---|---|
+| ip | 0.5861 -> 0.0308 | 0.5785 -> 0.0308 | 0.1381 -> 0.0103 | 1.165 -> 0.062 | 88 ms |
+| ipshfl | 0.5861 -> 0.0656 | 0.5785 -> 0.0656 | 0.1381 -> 0.0185 | 1.165 -> 0.131 | 83 ms |
+
+- **`ip` is the E3 candidate:** it is faster than `ipshfl` and equally bit-identical. The 88 ms multiplies 80 layer-chunks at chunk 2048 by the bench saving; it was not measured in the engine.
+- **Still unchecked for E3:** whether anything in `graph.rs` reads the unrotated `q` or `o` after the aliasing, and the `dpos` path.
+
+Not run: golden, plandiff, any serve or prefill measurement, the `dpos` launches of attention and rope, and 16 heads per rank. The job took about 3 minutes against the 10 to 14 planned. Logs are in `raw/run/`; the `rope-sass-*.txt` files (3.5 MB) are not committed, because no hash differed.
+
+## What was prepared before the run
+
+One script builds and runs everything in one fleetq job, with the patches it applies and the offline checks listed under "What was checked tonight". Every variant sits behind a `-D` flag in a bench copy, as `attn-2blk.patch` did. Everything is under `docs/results/2026-11-03-dsv41-attn-tfblock/raw/bench/`.
 
 ## 1. The variants
 
@@ -113,7 +141,7 @@ All outputs are in `raw/selftest/`.
 - **Parse and device-lowering check without the toolkit** (`syntax-check/check.sh`, `syntax-check.txt`): Homebrew clang 23.1.2 has the NVPTX backend; with minimal stand-in headers (`syntax-check/*.h`, because the CUDA SDK is not installed) all seven kernel configurations (`dsv41_attn.cu` base, e5, e2, e2e5; `dsv41_misc.cu` base, ip, ipshfl) parse, type-check and lower to PTX for sm_120, and the probe-appended attention files and both bench files parse on the host side. Structural counts of the PTX, as expected: tfb kernel 64 `mma.sync` (32 QK + 32 PV, both fully unrolled) against 33 in the old kernel, 6 `bar.sync` sites (Q staging, loop top, gather, S, softmax, epilogue), 40 shuffles in both softmaxes (5 levels x 2 trees x 4 rows, same in e5), static shared 960 B against 768 B. In clang's PTX the three rope kernels (original, `ip`, `ipshfl`) contract `re*cs - im*sn` and `re*sn + im*cs` into the same FMA shapes. **This is a syntax and lowering check, not a compile**: clang is not nvcc, the headers are stand-ins, ptxas never ran (so nothing about registers, spills, occupancy or SASS), and clang's PTX is not what nvcc emits.
 - CI's "cargo check (linux, cuda cfgs)" job cannot cover the `.cu` side: `INTARSIA_CUDA_CHECK_ONLY=1` makes `build.rs` return before compiling any kernel, and the workflow comment says it does not check that the `.cu` sources compile. Since `kernels/cuda` is unchanged on this branch it would see nothing either way. It would be relevant only after the variant is wired into the engine.
 
-## 6. Not checked
+## 6. Not checked (written before the run; the Status section has what #8282 settled)
 
 - **Nothing was compiled by nvcc and nothing ran on a GPU.** Whether nvcc accepts the new kernel and the patches, the register count, spills, whether two blocks really become resident (the occupancy probe decides), every timing, and every hash: unknown. The E2 numbers in the report (15 to 30 % of the kernel) remain the report's reasoning.
 - Whether the SASS contraction of the in-place rope kernels matches the original (the clang PTX agreeing is weak evidence); the job collects the SASS and the hash decides.

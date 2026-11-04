@@ -1,0 +1,30 @@
+
+=== ip  (log /home/nvidia/intarsia-dsv41-tfblock/logs/rope-ip.log)
+  shape                         base ms   var ms var/base  hashes (against the in-job unmodified kernel)
+  q T512 H32 hd512               0.1381   0.0103    0.075  identical d5ab75e0c17ef387
+  o^-1 T512 H32 hd512            0.1393   0.0102    0.073  identical b1ea9a443bb9d683
+  q T2048 H32 hd512              0.5861   0.0308    0.053  identical af34abaeb838d38f
+  o^-1 T2048 H32 hd512           0.5785   0.0308    0.053  identical 0dc838ce8f472ac5
+  kv T512 H1 hd512               0.0052   0.0023    0.442  identical a163e645ec6f9b6d
+  idx_q T512 H64 hd128           0.0496   0.0164    0.331  identical 438fbaea945c36da
+  cmp T128 H1 hd512 stride4      0.0040   0.0022    0.550  identical a8a92705497fbe7f
+  T63 H32 hd512 (old path)       0.0124   0.0041    0.331  identical e52eb860edb55401
+  T500 H32 hd512 pos 40000       0.1298   0.0102    0.079  identical 0e4ab8592fa58014
+  VERDICT ip: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.165 -> 0.062 ms per layer-chunk; extrapolated saving 88 ms per 4K request (80 layer-chunks at chunk 2048, from the fusion/tfblock report; not measured in situ)
+
+=== ipshfl  (log /home/nvidia/intarsia-dsv41-tfblock/logs/rope-ipshfl.log)
+  shape                         base ms   var ms var/base  hashes (against the in-job unmodified kernel)
+  q T512 H32 hd512               0.1381   0.0185    0.134  identical d5ab75e0c17ef387
+  o^-1 T512 H32 hd512            0.1393   0.0185    0.133  identical b1ea9a443bb9d683
+  q T2048 H32 hd512              0.5861   0.0656    0.112  identical af34abaeb838d38f
+  o^-1 T2048 H32 hd512           0.5785   0.0656    0.113  identical 0dc838ce8f472ac5
+  kv T512 H1 hd512               0.0052   0.0032    0.615  identical a163e645ec6f9b6d
+  idx_q T512 H64 hd128           0.0496   0.0343    0.690  identical 438fbaea945c36da
+  cmp T128 H1 hd512 stride4      0.0040   0.0027    0.688  identical a8a92705497fbe7f
+  T63 H32 hd512 (old path)       0.0124   0.0042    0.339  identical e52eb860edb55401
+  T500 H32 hd512 pos 40000       0.1298   0.0185    0.143  identical 0e4ab8592fa58014
+  VERDICT ipshfl: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.165 -> 0.131 ms per layer-chunk; extrapolated saving 83 ms per 4K request (80 layer-chunks at chunk 2048, from the fusion/tfblock report; not measured in situ)
+
+SUMMARY (rope)
+  ip: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.165 -> 0.062 ms per layer-chunk; extrapolated saving 88 ms per 4K request (80 layer-chunks at chunk 2048, from the fusion/tfblock report; not measured in situ)
+  ipshfl: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.165 -> 0.131 ms per layer-chunk; extrapolated saving 83 ms per 4K request (80 layer-chunks at chunk 2048, from the fusion/tfblock report; not measured in situ)
