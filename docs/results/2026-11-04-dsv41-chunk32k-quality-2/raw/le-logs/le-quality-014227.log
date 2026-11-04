@@ -1,0 +1,62 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/chunk32k-2/.scratch/final.s32-00.jsonl: 25 rows, judge=none
+# localeval: adhoc — 2026-11-04T01:42
+
+- model: `dsv41-intarsia` on ? (?), url `http://100.120.88.104:8899/v1`
+- thinking: off; run kind: quality; label: dsv41-chunk32k2-ab2-s32-00
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --dataset /opt/code/intarsiaml/.worktrees/chunk32k-2/.scratch/final.s32-00.jsonl --judge none --max-tokens 400 --label dsv41-chunk32k2-ab2-s32-00 --url http://100.120.88.104:8899/v1 --model dsv41-intarsia --thinking off --recipe intarsia a60292329 dirty=no 1102-1850 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000 arm env: INTARSIA_DSV41_CHUNK=512 INTARSIA_DSV41_HC_FUSED=0, engram hot 1024 MiB`
+- result file: `results/20261104-014227-adhoc-dsv41-chunk32k2-ab2-s32-00/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia a60292329 dirty=no 1102-1850 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000 arm env: INTARSIA_DSV41_CHUNK=512 INTARSIA_DSV41_HC_FUSED=0, engram hot 1024 MiB
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/chunk32k-2/.scratch/final.s32-00.jsonl` (25 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | 0.800 | 0.8 | 25 | 0 | 0 |
+| TTFT (s) | 52.1 | 1.0 | 25 | 0 | 0 |
+| Prefill (tok/s) | 593.6 | 1.0 | 25 | 0 | 0 |
+| Decode (tok/s) | 71.0 | 1.0 | 25 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| hop2-L3-32k-000 | yes | 1.0 | 52.07 | 64.4 | The document states: "Ops ledger: the release nicknamed Tory… |
+| hop3-L3-32k-000 | yes | 1.0 | 52.19 | 69.9 | The document states: "Release ledger: the release nicknamed … |
+| agg_sum-L3-32k-000 | yes | 1.0 | 52.29 | 80.0 | Pelmar cluster shards: AR-6283-PN 326, VZ-2258-VQ 256, YN-60… |
+| agg_sum-L4-32k-000 | no | 0.0 | 52.20 | 67.2 | Marwyn cluster shards: - RT-2266-QW: 915 - ZL-8966-EK: 198 -… |
+| agg_max-L3-32k-000 | yes | 1.0 | 52.34 | 62.8 | Releases of the Peleld line and their failed-test counts: - … |
+| repo_sum-L4-32k-000 | yes | 1.0 | 50.58 | 72.1 | RING = 4096; WARMUP = 5; PRE_MIN_T = 64; EXIT_FAILED = 87; P… |
+| hop2-L3-32k-001 | yes | 1.0 | 52.34 | 76.5 | The document states: "Tracker note: the release nicknamed El… |
+| hop3-L3-32k-001 | yes | 1.0 | 52.13 | 68.0 | The document states: "Registry entry: the release nicknamed … |
+| agg_sum-L3-32k-001 | yes | 1.0 | 52.51 | 80.6 | Storage shards of the Rostor cluster mentioned: - DX-8430-GW… |
+| agg_sum-L4-32k-001 | no | 0.0 | 52.51 | 78.8 | Wynbri cluster shards: UC-8590-WQ 602, GF-2465-UZ 448, ME-23… |
+| agg_max-L3-32k-001 | yes | 1.0 | 52.46 | 71.3 | The document mentions several releases of the Bribri line wi… |
+| repo_sum-L4-32k-001 | yes | 1.0 | 51.68 | 75.0 | EXIT_FAILED = 87; HOLD = 16; CONV_TILE = 32; RING = 4096; LA… |
+| hop2-L3-32k-002 | yes | 1.0 | 52.27 | 71.5 | The document states: "Registry entry: the release nicknamed … |
+| hop3-L3-32k-002 | yes | 1.0 | 52.23 | 70.0 | The document states: "Change log: the release nicknamed Lume… |
+| agg_sum-L3-32k-002 | no | 0.0 | 52.48 | 76.5 | Derder cluster shards: TJ-1836-JR 787, VW-9275-LR 961, UU-99… |
+| agg_sum-L4-32k-002 | yes | 1.0 | 52.17 | 77.6 | Barfal cluster shards: SP-2710-CW 977; NN-6916-AH 429; ZL-87… |
+| agg_max-L3-32k-002 | yes | 1.0 | 52.29 | 59.1 | Releases of the Kelwyn line mentioned: Gorfal (109), Quinilk… |
+| repo_sum-L4-32k-002 | yes | 1.0 | 51.05 | 66.8 | REPS dispatch_cost.rs = 15 VOCAB batch_recurrent_load.rs = 9… |
+| hop2-L3-32k-003 | yes | 1.0 | 52.18 | 68.6 | The document states: "Registry entry: the release nicknamed … |
+| hop3-L3-32k-003 | yes | 1.0 | 52.22 | 69.5 | The document states: "Registry entry: the release nicknamed … |
+| agg_sum-L3-32k-003 | no | 0.0 | 52.24 | 73.9 | Dergor cluster shards: - TN-5692-LW: 689 - MQ-9570-FV: 321 -… |
+| agg_sum-L4-32k-003 | no | 0.0 | 52.61 | 68.4 | Gwentor cluster shards: ZH-2757-CE 756, KH-1676-KF 294, AD-9… |
+| agg_max-L3-32k-003 | yes | 1.0 | 52.24 | 71.6 | Releases of the Jorfen line and their failed-test counts: - … |
+| repo_sum-L4-32k-003 | yes | 1.0 | 50.51 | 65.6 | IK_MAX_DIMS = 6; NKIND = 3; STATE_VERSION = 1; ROWS = 64; GR… |
+| hop2-L3-32k-004 | yes | 1.0 | 52.21 | 70.0 | The document states: "Change log: the release nicknamed Ilky… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261104-014227-adhoc-dsv41-chunk32k2-ab2-s32-00/result.json
+[localeval] logged to unanimis: 08e07b07-057f-4a71-952d-9bd87aea6416
