@@ -1,0 +1,32 @@
+fleetq: #8244 running on endor: zsh docs/results/2026-11-03-m27-hs-rowtable/raw/scripts/build.sh intarsia.rt
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling objc2-metal v0.3.2
+   Compiling intarsia-engram v0.0.1 (/opt/code/intarsiaml/.worktrees/m27-hs-rowtable/crates/intarsia-engram)
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.worktrees/m27-hs-rowtable/crates/intarsia-backend-cpu)
+   Compiling intarsia-server v0.0.1 (/opt/code/intarsiaml/.worktrees/m27-hs-rowtable/crates/intarsia-server)
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/m27-hs-rowtable/crates/intarsia-models)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml/.worktrees/m27-hs-rowtable/crates/intarsia-cli)
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1889:13
+     |
+1889 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 26.60s
+fleetq: #8244 done (exit 0)

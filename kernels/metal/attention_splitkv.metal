@@ -534,7 +534,7 @@ kernel void attn_rows_combine(device ushort* out [[buffer(0)]],
 // K at entry [r, index], V at [r, index + 1]. q is [R, N, D], out [R, N, D] (s3 = leading elements skipped of out).
 //
 // Arguments (`OpP`): a = target threadgroups for the policy, b = N, c = Nkv, d = D, e = cap, h = max_split (grid y and the
-// scratch stride; at least every row's nsplit), pad = min_keys, f0 = scale, s0 = R, s1 = HS, s2 = table stride, s3 = skip
+// scratch stride; at least every row's nsplit), pad = min_keys, f0 = scale, s0 = R, s1 = HS | GPREF << 8 (the bitwise head split above), s2 = table stride, s3 = skip
 // of out, s4 = table index. Scratch: R slabs of [N * max_split * (D + 2)] floats.
 // stage 1 grid: (Nkv * HS, max_split, R); bind: 0 q, 1 table, 2 out, 3 pos, 4 scratch, 5 OpP.
 // stage 2 grid: (N, R), D threads; bind: 0 out, 1 pos, 2 scratch, 3 OpP.
@@ -553,16 +553,16 @@ kernel void attn_decode_rowtab_t(device const ushort* q [[buffer(0)]],
 
     const uint n = p.b, nkv = p.c, d = p.d;
     const uint cap = p.e;
-    const uint hs = max(p.s1, 1u);
+    const uint hs = ask_hs(p.s1);
     const uint row = tg.z;
     const uint vkv = tg.x;
     const uint kvh = hs == 1 ? vkv : vkv / hs, hg = vkv - kvh * hs;
     const int pos_raw = posbuf[row];
     const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
-    const uint nsplit = ask_nsplit(visible, nkv * hs, p.h, p.pad, p.a);
+    const uint nsplit = ask_nsplit(visible, nkv * ask_pol(p.s1), p.h, p.pad, p.a);
     const uint sp = tg.y;
     if (sp >= nsplit) return;  // uniform over the threadgroup
-    const uint nsg = askr_nsg(true, nkv * hs, nsplit, GP, d);
+    const uint nsg = askr_nsg(true, nkv * ask_pol(p.s1), nsplit, ask_gpn(p.s1, GP), d);
     const uint kgrp = n / nkv;
     const uint grp = kgrp / hs;
     const uint head0 = kvh * kgrp + hg * grp;
@@ -677,7 +677,7 @@ kernel void attn_decode_rowtab_combine(device ushort* out [[buffer(0)]],
     const uint head = tg.x, row = tg.y;
     const int pos_raw = posbuf[row];
     const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
-    const uint nsplit = ask_nsplit(visible, nkv * max(p.s1, 1u), p.h, p.pad, p.a);
+    const uint nsplit = ask_nsplit(visible, nkv * ask_pol(p.s1), p.h, p.pad, p.a);
     if (nsplit == 1) return;
     device const float* part_r = part + row * (n * p.h * (d + 2));
     device const float2* ml = (device const float2*)(part_r + n * p.h * d) + head * p.h;
