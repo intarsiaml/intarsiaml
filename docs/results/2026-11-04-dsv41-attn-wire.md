@@ -1,6 +1,6 @@
 # DSv4.1 CUDA prefill: interleaved softmax (E5) and in-place q / o rope (E3) wired into the engine
 
-Date 2026-11-04 (early morning EST), branch `dsv41/attn-wire` (worktree `.worktrees/dsv41-attn-wire`, from `6f56a2c2d` plus `git merge origin/main` at local ref `3c57d50a2`). Local commits only: nothing is merged or pushed. Follows [the tfblock bench doc](2026-11-03-dsv41-attn-tfblock.md) (fleetq #8282: E2 negative, E5 and E3 `ip` bench-proven at kernel level). E2 (`ATTN_TFBLOCK`, `attn_sparse_mma_tfb`) is not brought in and nothing of it is left in the tree.
+Date 2026-11-04 (early morning EST), branch `dsv41/attn-wire` (worktree `.worktrees/dsv41-attn-wire`, from `6f56a2c2d` plus `git merge origin/main` at local ref `3c57d50a2`). At the end of the day (12:00 to 13:00 EST) the branch was merged with `origin/dsv41/failpaths` (`dbe5581ae`, PR #299) and gated again: section "Gates of the merge with failpaths". Pushed as `dsv41/attn-wire`; not merged to main, no PR yet. Follows [the tfblock bench doc](2026-11-03-dsv41-attn-tfblock.md) (fleetq #8282: E2 negative, E5 and E3 `ip` bench-proven at kernel level). E2 (`ATTN_TFBLOCK`, `attn_sparse_mma_tfb`) is not brought in and nothing of it is left in the tree.
 
 ## Status
 
@@ -9,6 +9,7 @@ Both changes are in. Through the engine they are bit-identical to a literal `ori
 | check | result |
 |---|---|
 | `cargo test --workspace --no-fail-fast` on endor, final run on the last commit (fleetq "workspace (final)") | 1231 passed, 0 failed, 29 ignored |
+| after the merge with `dsv41/failpaths`, head `ccb37aa94`: workspace 1295 passed, 0 failed; Metal and CUDA no-op gates vs `dbe5581ae`; TP=2 golden at chunk 2048 and 512, with `ROPE_INPLACE=0`, 32K and 125990-token prompts bit-identical | see "Gates of the merge with failpaths" |
 | first run (#8344), before the last test edits | 1229 passed, 2 failed, 29 ignored; both failures were mine and are fixed (below) |
 | CI cuda-cfg check (`INTARSIA_CUDA_CHECK_ONLY=1 cargo check --locked -p intarsia-backend-cuda --all-targets` and `-p intarsia-cli --features cuda`, #8346) | pass |
 | spark2, one job (#8347, 05:24 to 05:37 EST, `--quiet gpu,cpu --mem 20 --expect 60`): nvcc build of the whole tree | pass, 5 m 12 s for the CLI at `MAX_JOBS=4` |
@@ -136,10 +137,62 @@ Every one of the 24 head requests is faster than every base request of the same 
 
 In every config the lowest value (6.4 to 7.3 GiB) is in the weight load, not in a prefill; "after load" is from 45 s on, which includes the longp 65K run in ab0 and ab1. At chunk 2048 the steady minimum is 6.97 to 7.50 GiB for both binaries, at chunk 512 it is 8.5 GiB. Head against base: ab0 to ab1 is 0.33 / 0.21 GiB lower, ab2 to ab3 is 0.08 / 0.12 GiB higher, so there is no systematic change in what the box has available. What does change is the engine's workspace, as it should with the aliasing: **1.136 GiB -> 1.011 GiB at chunk 2048 and 0.304 -> 0.273 GiB at chunk 512** per rank (`q_rope` and `o_derot` no longer exist; the "memory" line in each `serve-*.log`). The watcher (kill line 5 GiB, unchanged) never fired. The lowest margin above the line was 1.37 GiB (spark2, base, chunk 512, during load) and 1.97 GiB for the head at 2048 steady state on spark2. The 0.6 GiB margin of last night's chunk 2048 run was not reproduced in this window (why was not investigated).
 
+## Gates of the merge with failpaths (2026-11-04, 12:00 to 13:00 EST)
+
+Merged `origin/dsv41/failpaths` (`dbe5581ae`, includes `origin/main` `809674eb9`) into the branch; `origin/main` had not moved since the last merge. No textual conflict at all (not even `LOG.md`). **One semantic conflict:** failpaths' warm-up panic test in `crates/intarsia-models/src/dsv41_engine.rs` (line 1394) builds a `GraphTp` literal with three fields, and the branch added a fourth (`rope_inplace`); the merge compiled but `cargo test --workspace` did not (`E0063`, first run #8429). Fixed in `ccb37aa94` by naming the field (`rope_inplace: false`; `Dsv41Runtime::new` sets it from the backend either way). Nothing else of either lane's behaviour needed a change: the engine keeps failpaths' failure routes and the branch's in-place rope side by side. Head under test: `ccb37aa94` (binaries stamped `ccb37aa94 dirty=no`; later commits are scripts and docs only). Base for every comparison: `dbe5581ae`, built as `intarsia.base` from `git archive`. Scripts and logs: `2026-11-04-dsv41-attn-wire/raw-gates/` (Metal gate script is the failpaths lane's `gates-lf.sh`, unchanged; the CUDA gate script is new: it runs the already built binaries, so there is no build step and no wait loop, which is where failpaths' first CUDA attempt broke on zsh array indices under `bash -s`).
+
+| gate | job | result |
+|---|---|---|
+| `cargo test --workspace --no-fail-fast`, head `ccb37aa94`, endor, `--load cpu` | #8431 (#8429 failed to compile, see above) | exit 0: **1295 passed, 0 failed, 29 ignored** |
+| Metal release builds of head and base, own target dirs | #8433 | ok |
+| Metal `plan show` text and `--json`, 35B (Qwen3.6-35B-A3B-NVFP4), 8B (Qwen3-8B), 27B (Qwen3.8-27B-Quark-AWQ-MXFP4), head vs base | #8434, endor, `--exclusive --mem 24` | **byte-identical, 6 of 6** (2634/11332, 1342/8371, 3263/14784 bytes) |
+| Metal `kernels test` | #8434 | 49 kernels, 980 cases, **0 FAIL** both; logs differ only in the wall-time line (31.4 s vs 31.1 s) |
+| Metal `generate` greedy, 256 ids (`--ignore-eos --spec off`), short chat prompt and 4K prompt, 27B and 8B | #8434 | **ids and text identical, 4 of 4** |
+| Metal 8B goldens `qwen3-8b-fp32` (16 decode positions), `qwen3-8b-long-fp32` (64), `accuracy --mode both` | #8434 | both floor PASS, baseline PASS, golden gate PASS; `.out` of head and base byte-identical |
+| nvcc builds on spark2 of base `dbe5581ae` and head `ccb37aa94` (binaries to both Sparks, md5 equal on both) | #8432, `--load cpu --mem 40` | ok, 5 min each |
+| CUDA on spark1: `plan show` 35B and 8B, text and `--json`; `kernels test --backend cuda --quick` | #8435, `--mem 20` | `plan show` **identical 4 of 4** (4017/15570, 1543/8968 bytes); 106 kernels, 918 cases, **0 FAIL** both; logs identical apart from wall time |
+
+### The Spark windows (TP=2, 40 layers, full model; vLLM down on both, memfine and the watcher at the 5 GiB line throughout)
+
+Two jobs, because the first one's 126K comparison turned out empty. Head = `ccb37aa94` (`bin/intarsia`), base = `dbe5581ae` (`bin/intarsia.base`); every config is a fresh start of both ranks. "Golden" = 10 prompts x 64 greedy tokens (`golden_tf.py compare`), "longp" = one completion of 16 greedy tokens with top-5 logprobs (`cmp_longp.py`).
+
+**Window 1, fleetq #8436** (12:30 to 12:47 EST, `--exclusive --mem 116 --expect 150`, vLLM back at 12:47): raw `raw-window2/`.
+
+| config | what | result |
+|---|---|---|
+| ab0 base, ab1 head, chunk 2048, cap 65536 | golden | **640/640 identical, 0 prompts diverged** (`golden-compare-ab0-vs-ab1.txt`) |
+| ab2 head, chunk 2048, `INTARSIA_DSV41_ROPE_INPLACE=0` | golden | **640/640** against ab0 (base) and against ab1 (head). The switch took effect: ab2's serve log has workspace 1.136 GiB (base's figure), ab1's 1.011 GiB |
+| ab3 base, ab4 head, chunk 512, cap 65536 | golden | **640/640 identical** (and ab0 against ab3: 640/640, chunk 2048 and 512 agree on this set) |
+| ab3 vs ab4 | longp 32768 tokens | text, tokens and top-5 logprobs **bit-identical** (16/16, max abs diff 0); wall 47.5 s (base), 46.7 s (head), one request each |
+| ab5 head, ab6 base, chunk 2048, cap 131072 | longp 126014 tokens | **no result**: the prompt ended in a question and both binaries returned end-of-sequence as the first token (1 completion token, empty text, finish `stop`), so there was nothing to compare. Both ran to the end without a kill and the memory figures below are valid; the prompt (`make_long128k.py`) was changed and the pair rerun |
+
+**Window 2, fleetq #8437** (12:47 to 12:57 EST, `--expect 60`, vLLM back at 12:57): ab0 head and ab1 base, chunk 2048, `INTARSIA_DSV41_CAP=131072` (this is the server's `max_model_len`: `context_len` is the engine's capacity), `LONGP_IGNORE_EOS=1` (new, in `run-full.sh`; the model did not hit EOS this time, so it changed nothing). Raw `raw-window3/`.
+
+- Prompt: `long64k.txt` plus the markdown files under `docs/`, cut at a line break, no question at the end: **125990 tokens** by the DSv4.1 tokenizer (sha256 `5193caebddbae4ee...`, rebuilt by `make_long128k.py`; the file is not committed, 390 KB). Completion text `'| nvfp4 matmul (M <= 4) | `mat'`.
+- **Head against base: text, tokens and top-5 logprobs bit-identical** (16/16 equal, max abs diff 0; first token `|` at -0.000099, the 16 token logprobs range from -1.66 to -0.00002, so the top-5 lists are not degenerate). Wall 144.9 s (head), 154.9 s (base), one request each: a single sample, not a timing result.
+- Not shown by this run: whether the attention kernel took an `nsplit > 1` path at this context; the engine does not log it.
+
+**Memory budget, written before the 126K launch.** `state_per_seq` is rings (constant in the capacity) plus the compressed caches (linear in it): 0.104 GiB at 32768 and 0.201 GiB at 65536 tokens in earlier logs, so about 0.397 GiB at 131072 (the log printed **0.397 GiB**, one sequence resident at a time as far as the engine shows). The workspace barely depends on the capacity (1.011 -> 1.026 GiB head, 1.136 -> 1.151 base). Expected cost over the 65536 configuration: about +0.2 GiB per resident sequence, against 2.0 to 2.5 GiB of margin above the 5 GiB line in the steady state of the last window, so 126K stays within the line. Not in the formula: on-demand kernel scratch (the engine grows it, 512 MiB seen at the first long chunk) and anything at the longest contexts; memfine was the backstop and never fired (no `KILLED` in either `mem.log`). The length was not reduced.
+
+Lowest MemAvailable per rank (GiB, 1 s memfine; the first number includes the weight load, which is where the lowest values are; the number in brackets is from the "serve up" line on):
+
+| config | spark1 | spark2 |
+|---|---|---|
+| window 1 ab0 / ab1 (golden, chunk 2048, base / head) | 7.32 (8.68) / 6.90 (8.96) | 7.30 (8.32) / 6.95 (8.09) |
+| window 1 ab2 (ROPE_INPLACE=0) | 7.48 (8.74) | 6.85 (7.92) |
+| window 1 ab3 / ab4 (chunk 512, 32K) | 7.77 (9.64) / 7.80 (9.65) | 6.85 (8.72) / 6.87 (8.76) |
+| **126K, window 1 ab5 head / ab6 base** (empty answer, but a full 126K prefill ran) | 7.94 (8.09) / 7.93 (7.93) | 6.81 (7.02) / 6.85 (6.90) |
+| **126K, window 2 ab0 head / ab1 base** | **7.41 (7.57) / 7.01 (7.03)** | **7.47 (7.47) / 6.85 (6.95)** |
+
+Lowest over the 126K runs: **spark1 7.01 GiB** (base, window 2), **spark2 6.81 GiB** (head, window 1, during load; 6.90 GiB at the lowest after load). 1.8 to 2.0 GiB above the kill line. Head and base differ by 0.1 to 0.6 GiB in either direction between runs of the same binary, as in the last window; no systematic change. earlyoom was at `-m 2,1` on both Sparks (allowed list `3,2 2,1`).
+
+vLLM was restored on both Sparks after each job (the script's trap; `docker ps` shows `missioncntrl-guidance` up, `/v1/models` answers 200 on both, `fleetq status` shows spark1-vllm and spark2-vllm up). `~/intarsia-dsv41-attnwire` was removed from both Sparks.
+
 ## Not run
 
-- Golden and `longp` at chunk 512 (timing only at 512), and golden against TensorFold's reference tokens (this window compares branch to base, as asked).
-- Contexts over 128K, and `nsplit > 1` at the long `Nc` of such contexts (the 65000-token prompt is the longest).
+- Golden against TensorFold's reference tokens (the windows compare branch to base, as asked). (Golden and the 32K longp at chunk 512 and a 126K prompt were run in the merge windows above.)
+- Contexts over 126K tokens, and whether `nsplit > 1` was taken at the long `Nc` of the 126K prompt (not logged).
+- With failpaths merged: `longp` 32K and 65K at chunk 2048 (run before the merge, section "The TP=2 window"; the merge windows ran 32K at chunk 512 and 126K at 2048), the failure-path cases of failpaths' own script on the merged head, any HIP run.
 - The `kernels test --quick -m <dsv41 dir>` form does not work for DSv4.1 (`config.json missing 'num_experts'`: the sweep reads Qwen-style configs); the default `--quick` sweep covers the DSv4.1 ops at its own shapes. Not a regression.
 - A split of the 2 to 3 % between E5 and E3 (would need a head build with one of them off; `INTARSIA_DSV41_ROPE_INPLACE=0` switches E3 off at run time, E5 has no switch).
 

@@ -255,7 +255,7 @@ fi
 if [[ " $STEPS " == *" longp "* ]]; then
   for f in ${LONG_PROMPTS:?set LONG_PROMPTS}; do
     t0=$(date +%s.%N)
-    curl -s -m 900 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":open(sys.argv[1]).read(),"max_tokens":16,"temperature":0,"logprobs":5}))' "$f")" > "$OUT/longp-$(basename "$f" .txt).json"
+    curl -s -m 900 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,os,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":open(sys.argv[1]).read(),"max_tokens":16,"temperature":0,"logprobs":5,**({"ignore_eos":True} if os.environ.get("LONGP_IGNORE_EOS") == "1" else {})}))' "$f")" > "$OUT/longp-$(basename "$f" .txt).json"
     log "longp $(basename "$f") wall $(python3 -c 'import sys,time; print("%.1f" % (time.time() - float(sys.argv[1])))' "$t0") s $(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("usage"), repr(d["choices"][0]["text"][:60]))' "$OUT/longp-$(basename "$f" .txt).json" 2>&1 | tail -1)"
   done
 fi

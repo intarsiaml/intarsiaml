@@ -1,0 +1,46 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29701
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.4 s = 6.72 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.38 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.0 s (4.87 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.304 GiB (chunk 512), constants 0.000 GiB, state 0.201 GiB per sequence at 65536 tokens; MemAvailable 111.09 GiB -> 10.63 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793813636)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793813637)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793813637)
+dsv41: warm-up passes in 0.34 s
+dsv41: rank 0 after warm-up: MemAvailable 10.20 GiB, used since start 100.89 GiB, of which weights 98.90 GiB, non-weight 1.99 GiB (workspace 0.304, scratch 0.004, state 0.201, constants 0.000, rest = CUDA context + NCCL + engram + host)
+loaded 45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b on cuda (NVIDIA GB10) in 23.4s, context 65536 tokens
+intarsia server listening on http://0.0.0.0:8899
+dsv41: kernel scratch grew to 16777216 bytes (unix 1793813644)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813644)
+dsv41: spec 64 tokens in 13 rounds (4.92 a round), 51/52 drafts accepted (98 %), by position 13/13 13/13 13/13 12/12
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813645)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813646)
+dsv41: spec 64 tokens in 33 rounds (1.94 a round), 30/58 drafts accepted (52 %), by position 21/33 9/18
+dsv41: kernel scratch grew to 33554432 bytes (unix 1793813647)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813647)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813648)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793813648)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813648)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813648)
+dsv41: spec 64 tokens in 19 rounds (3.37 a round), 45/62 drafts accepted (73 %), by position 15/19 11/13 10/10 9/9
+dsv41: spec 64 tokens in 55 rounds (1.16 a round), 8/64 drafts accepted (12 %), by position 6/55 1/6 1/1
+dsv41: spec 64 tokens in 32 rounds (2.00 a round), 32/66 drafts accepted (48 %), by position 20/32 8/16 3/3 1/1
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793813653)
+dsv41: spec 64 tokens in 30 rounds (2.13 a round), 34/65 drafts accepted (52 %), by position 21/28 9/19 3/6 1/1
+dsv41: spec 64 tokens in 27 rounds (2.37 a round), 37/58 drafts accepted (64 %), by position 19/27 12/17 4/5 2/2
+dsv41: spec 64 tokens in 20 rounds (3.20 a round), 44/68 drafts accepted (65 %), by position 18/20 12/18 8/10 6/7
+dsv41: kernel scratch grew to 134217728 bytes (unix 1793813656)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793813657)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813657)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813657)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813657)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793813657)
+dsv41: spec 64 tokens in 28 rounds (2.29 a round), 36/59 drafts accepted (61 %), by position 20/28 9/17 5/6 2/2
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793813659)
+dsv41: spec 64 tokens in 28 rounds (2.29 a round), 35/49 drafts accepted (71 %), by position 22/27 9/14 3/5 1/1
+NCCL version 2.30.7+cuda13.3
