@@ -74,6 +74,9 @@ struct Exec {
     scratch_gen: u64,
     /// Recording a CUDA graph: nothing may upload, allocate or synchronise.
     capturing: bool,
+    /// Position of the first row of the graph being run (`st.len`, or `st.len + first` for a bounded-replay decoder part, whose
+    /// rows start later in the chunk): the row selection of `INTARSIA_DSV41_DUMP_POS` reads it.
+    row0: usize,
     /// `INTARSIA_DSV41_L2_PREFETCH`, during a capture: weights to prefetch after step `(stage, step)` ([`Self::prefetch_plan`]).
     pf_plan: HashMap<(usize, usize), Vec<TensorRef>>,
     /// A prefetch launch since the segment's start (the prefetch stream has to rejoin before the capture ends).
@@ -428,7 +431,7 @@ impl Dsv41Runtime {
             consts,
             engram,
             opts,
-            exec: Mutex::new(Exec { ws, pf_plan: HashMap::new(), pf_out: false, scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false, verify: false }),
+            exec: Mutex::new(Exec { ws, pf_plan: HashMap::new(), pf_out: false, scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false, row0: 0, verify: false }),
             slot_specs,
             memory: RuntimeMemory::default(),
             last_pass: Mutex::new(PassStats::default()),
@@ -668,7 +671,7 @@ impl Dsv41Runtime {
                 self.run_graph(&e, st, t, ids, &[], Want::Nothing, p0)?;
                 let d = build(t - first, pos0 + first, ReplayPart::Decoder, first)?;
                 // no token ids: the decoder part starts from the encoder part's streams (and has no Engram layer)
-                self.run_graph(&d, st, t - first, &[], &[], want, p0)
+                self.run_graph_at(&d, st, replay::decoder_pos0(replay::Chunk::Cross { first }, pos0), t - first, &[], &[], want, p0)
             }
         }
     }
@@ -920,13 +923,21 @@ impl Dsv41Runtime {
     /// Run graph `g` on `st` (its `t` rows at `st.len`): token ids `ids` (empty: none), the extra host inputs `host`
     /// (`(workspace name, bytes)`), Engram rows for the graph's Engram layers. Returns the graph's logits when asked.
     fn run_graph(&self, g: &Dsv41Graph, st: &SequenceState, t: usize, ids: &[u32], host: &[(&str, &[u8])], want: Want, p0: Instant) -> Result<Option<Out>> {
+        self.run_graph_at(g, st, st.len, t, ids, host, want, p0)
+    }
+
+    /// [`Self::run_graph`] for a graph whose first row is at position `pos0` (`st.len`, but for the decoder part of a
+    /// bounded-replay chunk, which starts `first` rows into the chunk the state has not yet committed).
+    #[allow(clippy::too_many_arguments)]
+    fn run_graph_at(&self, g: &Dsv41Graph, st: &SequenceState, pos0: usize, t: usize, ids: &[u32], host: &[(&str, &[u8])], want: Want, p0: Instant) -> Result<Option<Out>> {
         if !ids.is_empty() && ids.len() != t {
             return Err(Error::invalid(format!("deepseek_v41: {} ids for a graph of {t} rows", ids.len())));
         }
         self.touch();
         let mut ex = self.exec.lock().unwrap();
         ex.verify = g.verify;
-        self.upload_inputs(&ex, g, st.len, ids, host)?;
+        ex.row0 = pos0;
+        self.upload_inputs(&ex, g, pos0, ids, host)?;
         let mut tickets = self.issue_engram(g, st, ids, t)?;
         let mut stats = PassStats { build_us: p0.elapsed().as_micros() as u64, ..Default::default() };
         let e0 = Instant::now();
@@ -986,6 +997,7 @@ impl Dsv41Runtime {
             }
         }
         let c = gs.captured.get(&key).expect("captured");
+        ex.row0 = st.len;
         self.upload_inputs(&ex, &c.g, st.len, ids, host)?;
         // fills (constant table cells) are host uploads: re-applied before every replay (cached while untouched)
         for stage in &c.g.stages {
@@ -1260,8 +1272,8 @@ impl Dsv41Runtime {
                 // so dumps of runs with different chunk sizes compare file by file (tools/dsv41/chunkdiff.py).
                 let (pos, what_f) = dump_rows().unwrap();
                 if what_f.is_empty() || what_f.iter().any(|w| step.what.contains(w.as_str())) {
-                    let pos0 = st.len;
-                    let hit: Vec<usize> = pos.iter().copied().filter(|&p| p >= pos0 && p < pos0 + t).collect();
+                    let pos0 = ex.row0;
+                    let hit = replay::dump_hits(pos, pos0, t);
                     if !hit.is_empty() {
                         self.backend.synchronize(0)?;
                         for (k, o) in call.outputs.iter().enumerate() {

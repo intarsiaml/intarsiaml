@@ -63,6 +63,20 @@ pub fn decoder_rows(k: Chunk, t: usize) -> usize {
     }
 }
 
+/// Position of the first row of the decoder part of a chunk of kind `k` that starts at `pos0`: the rows it runs are the chunk's
+/// from `first` on, which the state (still at `pos0`, the chunk is committed after both parts) does not know.
+pub fn decoder_pos0(k: Chunk, pos0: usize) -> usize {
+    match k {
+        Chunk::Cross { first } => pos0 + first,
+        _ => pos0,
+    }
+}
+
+/// The positions of `INTARSIA_DSV41_DUMP_POS` that fall in the `t` rows of a graph whose first row is at `pos0`.
+pub fn dump_hits(pos: &[usize], pos0: usize, t: usize) -> Vec<usize> {
+    pos.iter().copied().filter(|&p| p >= pos0 && p < pos0 + t).collect()
+}
+
 /// Decoder-half rows of a whole prefill of `total` tokens from `start` (chunks of at most `chunk` rows) under `floor`:
 /// `total - max(start, floor)`, which the per-chunk [`decoder_rows`] must sum to.
 pub fn prefill_decoder_rows(total: usize, start: usize, chunk: usize, floor: usize) -> usize {
@@ -185,6 +199,27 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn position_dumps_of_a_crossing_chunk_use_each_parts_own_first_row() {
+        // 4106 tokens, chunk 2048, the middle chunk [2048, 4096) crosses the floor 3978: encoder part on all 2048 rows,
+        // decoder part on the last 118 (positions 3978..4096)
+        let (floor, pos0, t) = (3978, 2048, 2048);
+        let k = classify(floor, pos0, t);
+        let Chunk::Cross { first } = k else { panic!("{k:?}") };
+        let dec0 = decoder_pos0(k, pos0);
+        assert_eq!(dec0, floor);
+        let want = [3977, 3978, 4000, 4095, 4096, 100];
+        assert_eq!(dump_hits(&want, pos0, t), [3977, 3978, 4000, 4095]);
+        assert_eq!(dump_hits(&want, dec0, t - first), [3978, 4000, 4095], "the decoder part's rows are 3978..4096");
+        // what the part would have selected at the state's position (the old behaviour): the wrong rows
+        assert_ne!(dump_hits(&want, pos0, t - first), dump_hits(&want, dec0, t - first));
+        // the row index inside the part's output is `p - dec0`
+        assert_eq!(4000 - dec0, 22);
+        // every other kind starts where the state is
+        assert_eq!(decoder_pos0(Chunk::Whole, 5000), 5000);
+        assert_eq!(decoder_pos0(Chunk::Encoder, 0), 0);
     }
 
     #[test]
