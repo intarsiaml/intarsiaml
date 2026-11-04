@@ -176,7 +176,7 @@ PLAN_MIN=0; BUILD_MIN=0
 if [[ ${NO_BUILD:-0} != 1 ]]; then BUILD_MIN=$BUILD_BR_MIN; has 2 && BUILD_MIN=$((BUILD_MIN + BUILD_MAIN_MIN)); fi
 PLAN_MIN=$((BUILD_MIN + DOWN_MIN + RESTORE_MIN))
 for n in $SELECTED; do PLAN_MIN=$((PLAN_MIN + $(est "$n"))); done
-EXPECT=$(( (PLAN_MIN * 11 + 9) / 10 ))          # planned + 10 %, whole minutes: the honest high guess for fleetq --expect
+EXPECT=${EXPECT_MIN:-$(( (PLAN_MIN * 11 + 9) / 10 ))}   # planned + 10 %, whole minutes: the honest high guess for fleetq --expect (EXPECT_MIN overrides)
 LABEL="dsv41 replay test, steps ${STEPS_ARG}: bounded-replay prefill off vs on (vLLM restored after)"
 # Same fleetq shape as run-full.sh: ONE EXCLUSIVE job over both Sparks, the script starts both ranks itself. Exclusive (not
 # `--quiet gpu,cpu`) because the 5 GiB MemAvailable watcher SIGKILLs the ranks: a chunk32k-2 serve log showed 8.5 GiB available
@@ -202,7 +202,7 @@ if [[ $DRY == 1 ]]; then
   echo "END   ~${RESTORE_MIN} min  docker start $VLLM_C on both, wait for 'Application startup complete', fleetq mark-up $VLLM_ROLES"
   echo
   echo "PLANNED DURATION: ${PLAN_MIN} min ($(fmt "$PLAN_MIN")); fleetq --expect ${EXPECT} (planned + 10 %)"
-  for sh in $Q_SHARDS; do ls "$QDIR/final.$sh.jsonl" >/dev/null 2>&1 || echo "NOTE: frozen shard $QDIR/final.$sh.jsonl is missing: step 5 would fail"; done
+  has 6 && for sh in $Q_SHARDS; do ls "$QDIR/final.$sh.jsonl" >/dev/null 2>&1 || echo "NOTE: frozen shard $QDIR/final.$sh.jsonl is missing: step 6 would fail"; done
   [[ -f $TF_IDS ]] || echo "NOTE: $TF_IDS missing: step 5 (a) would print SKIPPED"
   for f in replay-prompts-gate.jsonl replay-prompts-decode.jsonl; do [[ -f $S/$f ]] || echo "NOTE: $S/$f is missing: steps 3 and 5 would fail"; done
   echo
