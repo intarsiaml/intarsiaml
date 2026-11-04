@@ -77,3 +77,5 @@ Both binaries `cargo build --release --locked -p intarsia-cli --features metal`,
 | HTTP, new binary, server up (27B, both batch sizes) | normal completion 200 (256 ids); `{"prompt":[999999999]}` to `/v1/completions` **400** `bad request: token id 999999999 >= vocab 248320`; `/health` 200 before and after; next normal request 200 with ids identical to the first |
 
 Not run: base binary with the out-of-vocab prompt (contrast, not a gate); workspace tests (passed earlier on this head, see above).
+
+CUDA gate (spark1): **not yet run**. Queued as fleetq #8314 behind #8183 (`raw/scripts/gates-cuda.sh`, builds head and origin/main in `~/intarsia-localfail` on spark1, 3 cargo jobs each, `plan show` 35B and 8B text and `--json`, `kernels test --backend cuda --quick`, copies logs to `raw/cuda/`, removes the tree); estimated start 06:40 EST. Result to be appended here.
