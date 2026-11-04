@@ -328,11 +328,12 @@ pub mod launch {
 
         fn exl3_err(kernel: &str, rc: c_int, call: &OpCall) -> Error {
             let dts: Vec<_> = call.inputs.iter().map(|t| t.dtype).collect();
-            Error::backend(format!(
-                "ik_{kernel} returned {} ({rc}); inputs {dts:?} shapes {:?}",
+            intarsia_core::backend::launch_status_error(
+                kernel,
+                rc,
                 status_name(rc),
-                call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()
-            ))
+                &format!("inputs {dts:?} shapes {:?}", call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()),
+            )
         }
     }
 }

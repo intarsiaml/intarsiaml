@@ -1,71 +1,14 @@
 //! Failure paths of the single-sequence engine: one bad request or one device error must never leave an engine that
 //! reports healthy while it fails every request (docs/results/2026-11-03-engine-localfail.md).
 //!
-//! `Flaky` wraps the cpu backend and fails launches on demand, with the error of the test's choosing: a stand-in for a
-//! sticky device error (`Error::Backend`) or an allocation failure on one rank (`Error::Memory`).
+//! `Flaky` (tests/common) wraps the cpu backend and fails launches on demand, with the error of the test's choosing.
 mod common;
 use common::*;
-use intarsia_core::backend::{Backend, Buffer, DeviceInfo, MemKind, StreamId};
+use intarsia_core::backend::Backend;
 use intarsia_core::model::{LoadOptions, Model};
-use intarsia_core::{
-    DType, Engine, EngineMeta, Error, FinishReason, GenEvent, GenRequest, KernelImpl, LocalEngine, OpCall, Result, Telemetry,
-};
-use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use intarsia_core::{DType, Engine, EngineMeta, Error, FinishReason, GenEvent, GenRequest, LocalEngine, Telemetry};
+use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
-
-const OK: u8 = 0;
-const FAIL_BACKEND: u8 = 1;
-const FAIL_MEMORY: u8 = 2;
-
-/// The cpu backend that fails every launch while `mode` is not `OK`.
-struct Flaky {
-    inner: Arc<dyn Backend>,
-    mode: AtomicU8,
-}
-
-impl Flaky {
-    fn new() -> Arc<Flaky> {
-        Arc::new(Flaky { inner: intarsia_backend_cpu::CpuBackend::arc(), mode: AtomicU8::new(OK) })
-    }
-    fn set(&self, mode: u8) {
-        self.mode.store(mode, Ordering::SeqCst);
-    }
-}
-
-impl Backend for Flaky {
-    fn name(&self) -> &str {
-        self.inner.name()
-    }
-    fn info(&self) -> DeviceInfo {
-        self.inner.info()
-    }
-    fn alloc(&self, bytes: usize, kind: MemKind) -> Result<Buffer> {
-        self.inner.alloc(bytes, kind)
-    }
-    fn upload(&self, dst: &Buffer, o: usize, src: &[u8], s: StreamId) -> Result<()> {
-        self.inner.upload(dst, o, src, s)
-    }
-    fn download(&self, src: &Buffer, o: usize, dst: &mut [u8], s: StreamId) -> Result<()> {
-        self.inner.download(src, o, dst, s)
-    }
-    fn copy(&self, d: &Buffer, d_o: usize, s: &Buffer, s_o: usize, n: usize, st: StreamId) -> Result<()> {
-        self.inner.copy(d, d_o, s, s_o, n, st)
-    }
-    fn kernels(&self) -> Vec<KernelImpl> {
-        self.inner.kernels()
-    }
-    fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> Result<()> {
-        match self.mode.load(Ordering::SeqCst) {
-            FAIL_BACKEND => return Err(Error::backend("injected device error (test)")),
-            FAIL_MEMORY => return Err(Error::Memory("injected allocation failure (test)".into())),
-            _ => {}
-        }
-        self.inner.launch(kernel, call, stream)
-    }
-    fn synchronize(&self, s: StreamId) -> Result<()> {
-        self.inner.synchronize(s)
-    }
-}
 
 fn opts() -> LoadOptions {
     LoadOptions { max_seq: 64, kv_dtype: Some(DType::F32), act_dtype: Some(DType::F32), ..Default::default() }
@@ -86,18 +29,18 @@ fn solo() -> (LocalEngine, Arc<Flaky>) {
 
 /// One engine over two ranks joined by the host communicator; rank 0 runs on the `Flaky` device.
 fn tp2() -> (LocalEngine, Arc<Flaky>) {
-    tp2_flaky(0)
+    let (e, bes) = tp2_flaky();
+    (e, bes[0].clone())
 }
 
-/// [`tp2`] with the `Flaky` device on rank `rank`.
-fn tp2_flaky(rank: usize) -> (LocalEngine, Arc<Flaky>) {
+/// [`tp2`] with a `Flaky` device on each rank.
+fn tp2_flaky() -> (LocalEngine, [Arc<Flaky>; 2]) {
     let t = tiny_weights(DType::F32, 1);
-    let be = Flaky::new();
-    let mut backends: Vec<Arc<dyn Backend>> = vec![intarsia_backend_cpu::CpuBackend::arc(), intarsia_backend_cpu::CpuBackend::arc()];
-    backends[rank] = be.clone();
+    let bes = [Flaky::new(), Flaky::new()];
+    let backends: Vec<Arc<dyn Backend>> = bes.iter().map(|b| b.clone() as Arc<dyn Backend>).collect();
     let comms = intarsia_core::HostCommGroup::new(backends.clone());
     let m = Model::load_tp(backends, comms, &recipe(), &dims(), &t.weights, &opts(), Arc::new(Telemetry::new())).unwrap();
-    (engine_of(m), be)
+    (engine_of(m), bes)
 }
 
 fn req(prompt: Vec<u32>) -> GenRequest {
@@ -196,6 +139,26 @@ fn device_error_fails_the_engine() {
     assert!(e.forward_logits(&[65]).is_err());
 }
 
+/// An error the backend calls one-off (a Metal command buffer that ended in Error status: the next buffer runs, the
+/// speculative pipeline resets after it) is that request's error: the engine keeps serving instead of reloading.
+#[test]
+fn a_transient_backend_error_does_not_fail_the_engine() {
+    let (e, be) = solo();
+    be.set_transient(true);
+    assert!(finish(&e, req(prompt(6))).is_ok());
+    be.set(FAIL_BACKEND);
+    let err = finish(&e, req(prompt(6))).unwrap_err();
+    assert!(err.contains("injected device error"), "{err}");
+    be.set(OK);
+    assert_eq!(e.failed(), None, "a one-off backend error fails the engine");
+    finish(&e, req(prompt(6))).expect("serves again");
+    // the same error from a backend that calls it sticky does fail it (`device_error_fails_the_engine`)
+    be.set_transient(false);
+    be.set(FAIL_BACKEND);
+    assert!(finish(&e, req(prompt(6))).is_err());
+    assert!(e.failed().is_some());
+}
+
 /// Requests already queued behind the one that hits the device error are answered, each with an error, not dropped.
 #[test]
 fn queued_requests_drain_after_a_device_error() {
@@ -214,20 +177,22 @@ fn queued_requests_drain_after_a_device_error() {
     assert_eq!((t.running, t.waiting), (0, 0), "counters stay consistent");
 }
 
-/// A failed pass aborts a tensor-parallel communicator for good, whatever the error that ended it (here an allocation
-/// failure on rank 0, not a device error): the engine fails instead of answering every later request with "communicator
-/// aborted" while `/health` stays 200.
+/// A failed pass aborts a tensor-parallel communicator for good, whatever the error that ended it: the engine fails instead
+/// of answering every later request with "communicator aborted" while `/health` stays 200. The backends here call their errors
+/// transient, so it is the group's abort alone that fails the engine (a peer's failure reaches rank 0 as the communicator's
+/// own "aborted" `Backend` error, which a default backend would call a device fault).
 #[test]
 fn aborted_tp_group_fails_the_engine() {
     for rank in [0, 1] {
-        let (e, be) = tp2_flaky(rank);
+        let (e, bes) = tp2_flaky();
+        bes[0].set_transient(true);
         assert!(finish(&e, req(prompt(6))).is_ok());
         assert_eq!(e.failed(), None);
-        be.set(FAIL_MEMORY);
+        bes[rank].set(FAIL_MEMORY);
         assert!(finish(&e, req(prompt(6))).is_err(), "rank {rank}");
-        be.set(OK);
+        bes[rank].set(OK);
         let why = e.failed().unwrap_or_else(|| panic!("rank {rank}: the aborted group left the engine healthy"));
-        assert!(why.contains("tensor-parallel group aborted") || why.contains("device error"), "{why}");
+        assert!(why.contains("tensor-parallel group aborted"), "{why}");
         assert!(e.submit(req(prompt(6))).is_err(), "a failed engine accepts no work");
     }
 }

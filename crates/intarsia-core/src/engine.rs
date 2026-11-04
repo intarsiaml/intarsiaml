@@ -975,6 +975,7 @@ fn run_job(sh: &Shared, job: Job) {
     let res = generate_one(sh, &mut g, req, tx.clone(), &mut generated);
     let kv = (g.state.used_bytes() as u64, g.state.total_bytes() as u64, g.state.len as u64, g.state.cap as u64);
     let group_aborted = g.model.tp_group_aborted();
+    let sticky = res.as_ref().err().is_some_and(|e| g.model.backend.is_sticky_fault(e));
     drop(g);
     sh.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
     match res {
@@ -982,7 +983,7 @@ fn run_job(sh: &Shared, job: Job) {
         Ok(o) => report_done(&sh.telemetry, &tx, o, None),
         Err(e) => {
             // before the error event, so a client that sees it also sees the engine failed
-            if let Some(why) = fatal(&e, group_aborted) {
+            if let Some(why) = fatal(&e, sticky, group_aborted) {
                 eprintln!("engine failed: {why}");
                 sh.failed.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(why);
             }
@@ -991,14 +992,15 @@ fn run_job(sh: &Shared, job: Job) {
     }
 }
 
-/// Why a failed request leaves the engine unable to serve any more, when it does. A device error is sticky (a wedged CUDA
-/// or HIP context stays so: docs/observability.md), so every later request would fail the same way while `/health` said
-/// ok; the engine fails instead and the supervisor restarts the process, as the batched scheduler does for
-/// `BatchModel::is_fatal`. So does a tensor-parallel group whose communicator the failed pass aborted (`group_aborted`),
-/// whatever the error that ended it: the abort is never undone. A `BadRequest` and the like are the request's own and
-/// leave a healthy engine alone.
-fn fatal(e: &Error, group_aborted: bool) -> Option<String> {
-    if matches!(e, Error::Backend(_)) {
+/// Why a failed request leaves the engine unable to serve any more, when it does. A sticky device fault (`sticky`, the
+/// backend's own call: `Backend::is_sticky_fault`; a wedged CUDA or HIP context stays so, docs/observability.md) would
+/// fail every later request the same way while `/health` said ok; the engine fails instead and the supervisor restarts the
+/// process, as the batched scheduler does for `BatchModel::is_fatal`. A launcher refusing a call, or a Metal command
+/// buffer that failed once, is not one. A tensor-parallel group whose communicator the failed pass aborted (`group_aborted`)
+/// fails the engine whatever the error that ended it: the abort is never undone. A `BadRequest` and the like are the
+/// request's own and leave a healthy engine alone.
+fn fatal(e: &Error, sticky: bool, group_aborted: bool) -> Option<String> {
+    if sticky {
         Some(format!("device error: {e}"))
     } else if group_aborted {
         Some(format!("tensor-parallel group aborted: {e}"))
@@ -1212,9 +1214,9 @@ fn queued_outcome(plen: usize, reason: FinishReason) -> Outcome {
 }
 
 /// Reject a prompt id the model has no embedding row for. A forward over one fails (on a tensor-parallel group it aborts
-/// the communicator for good), so it is refused before anything runs; the batched engine does the same in
-/// `SeqAdapter::admit`.
-pub(crate) fn check_prompt_ids(prompt: &[u32], vocab: usize) -> Result<()> {
+/// the communicator for good), so it is refused before anything runs: `LocalEngine::submit` checks it, which is the one
+/// place every single-sequence request passes; the batched engine does the same in `SeqAdapter::admit`.
+fn check_prompt_ids(prompt: &[u32], vocab: usize) -> Result<()> {
     match prompt.iter().find(|&&t| t as usize >= vocab) {
         Some(bad) => Err(Error::BadRequest(format!("token id {bad} >= vocab {vocab}"))),
         None => Ok(()),
@@ -1240,7 +1242,6 @@ impl Seq {
         let t_start = Instant::now();
         let plen = req.prompt.len();
         check_prompt(plen, st.cap)?;
-        check_prompt_ids(&req.prompt, model.dims.vocab)?;
         let recurrent = st.has_recurrent();
         // a prewarm computes the whole prompt (no token to sample), a request keeps >= 1 token to compute
         let max_reuse = if req.prewarm.is_some() { plen } else { plen - 1 };
