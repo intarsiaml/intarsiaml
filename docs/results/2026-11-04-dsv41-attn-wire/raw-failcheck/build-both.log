@@ -1,0 +1,31 @@
+fleetq: #8441 running on spark2: bash .scratch/failcheck/build-both.sh
+fleetq: #8441 went ahead of the line and must end within 8h12m (by Wed 22:00); it is stopped then
+[13:47:40] base = 03f8dc2a3d61fbe266b5fd53b8cd14849f270441
+[13:48:24] == base build (nvcc, MAX_JOBS=4)
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 02s
+spark1: intarsia.base 842e81d7a9d5
+spark2: intarsia.base 842e81d7a9d5
+[13:53:31] == head build
+stamp: 18825975a dirty=no 1104-1353
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 16s
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 14.21s
+total 522644
+drwxrwxr-x 2 nvidia nvidia      4096 Nov  4 14:00 .
+drwxrwxr-x 6 nvidia nvidia      4096 Nov  4 13:53 ..
+-rwxrwxr-x 1 nvidia nvidia 128643504 Nov  4 14:00 dsv41_runtime
+-rwxrwxr-x 1 nvidia nvidia 144203808 Nov  4 14:00 intarsia
+-rwxrwxr-x 1 nvidia nvidia 144149808 Nov  4 13:53 intarsia.base
+-rwxrwxr-x 1 nvidia nvidia 118236384 Nov  4 14:00 nccl_bench
+-rw-rw-r-- 1 nvidia nvidia        29 Nov  4 14:00 STAMP
+spark1: 18825975a dirty=no 1104-1353
+6a1ac10ae7dd
+spark2: 18825975a dirty=no 1104-1353
+6a1ac10ae7dd
+[14:00:10] done
+fleetq: #8441 done (exit 0)

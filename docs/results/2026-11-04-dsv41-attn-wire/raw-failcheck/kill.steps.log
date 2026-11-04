@@ -1,0 +1,176 @@
+14:15:26 ranks started (tag 141523, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:15:49 serve up=1 after 23 s
+14:15:50 pids: rank 0 (spark1) 3168709, rank 1 (spark2) 1212320
+14:16:03 RESULT kill intarsia 1: killed at 4.91 s, rank 1 exit 87 after 7.4 s (queued work did not finish)
+14:16:04 leftover processes killed by PID after the case: none
+14:16:05 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:16:05 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:16:05 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:16:08 ranks started (tag 141605, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:16:31 serve up=1 after 23 s
+14:16:32 pids: rank 0 (spark1) 3172165, rank 1 (spark2) 1217765
+14:16:42 RESULT kill intarsia 2: killed at 2.90 s, rank 1 exit 87 after 6.8 s (queued work did not finish)
+14:16:43 leftover processes killed by PID after the case: none
+14:16:43 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:16:44 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:16:44 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:16:47 ranks started (tag 141644, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:17:10 serve up=1 after 23 s
+14:17:11 pids: rank 0 (spark1) 3175601, rank 1 (spark2) 1222967
+14:17:23 RESULT kill intarsia 3: killed at 3.91 s, rank 1 exit 87 after 7.3 s (queued work did not finish)
+14:17:23 leftover processes killed by PID after the case: none
+14:17:24 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:17:25 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:17:25 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:17:28 ranks started (tag 141725, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:17:51 serve up=1 after 23 s
+14:17:52 pids: rank 0 (spark1) 3179044, rank 1 (spark2) 1228364
+14:18:02 RESULT kill intarsia 4: killed at 2.90 s, rank 1 exit 87 after 7.2 s (queued work did not finish)
+14:18:03 leftover processes killed by PID after the case: none
+14:18:04 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:18:04 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:18:04 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:18:07 ranks started (tag 141804, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:18:36 serve up=1 after 29 s
+14:18:37 pids: rank 0 (spark1) 3182482, rank 1 (spark2) 1233612
+14:18:52 RESULT kill intarsia 5: killed at 7.77 s, rank 1 exit 87 after 7.3 s (queued work did not finish)
+14:18:53 leftover processes killed by PID after the case: none
+14:18:53 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:18:54 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:18:54 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:18:57 ranks started (tag 141854, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:19:20 serve up=1 after 23 s
+14:19:21 pids: rank 0 (spark1) 3186542, rank 1 (spark2) 1239506
+14:19:33 RESULT kill intarsia 6: killed at 8.80 s, rank 1 exit 0 after 2.8 s (no path logged)
+14:19:34 leftover processes killed by PID after the case: none
+14:19:34 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:19:35 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:19:35 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:19:38 ranks started (tag 141935, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:20:07 serve up=1 after 29 s
+14:20:08 pids: rank 0 (spark1) 3189998, rank 1 (spark2) 1243675
+14:20:25 RESULT kill intarsia 7: killed at 9.66 s, rank 1 exit 87 after 7.5 s (queued work did not finish)
+14:20:26 leftover processes killed by PID after the case: none
+14:20:27 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:20:27 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:20:27 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:20:30 ranks started (tag 142027, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:20:59 serve up=1 after 29 s
+14:21:00 pids: rank 0 (spark1) 3194092, rank 1 (spark2) 1249767
+14:21:15 RESULT kill intarsia 8: killed at 7.35 s, rank 1 exit 87 after 7.1 s (queued work did not finish)
+14:21:15 leftover processes killed by PID after the case: none
+14:21:16 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:21:16 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:21:17 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:21:20 ranks started (tag 142117, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:21:43 serve up=1 after 23 s
+14:21:44 pids: rank 0 (spark1) 3218297, rank 1 (spark2) 1255641
+14:21:58 RESULT kill intarsia 9: killed at 6.44 s, rank 1 exit 87 after 7.4 s (queued work did not finish)
+14:21:59 leftover processes killed by PID after the case: none
+14:22:00 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:22:00 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:22:01 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:22:04 ranks started (tag 142201, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:22:27 serve up=1 after 23 s
+14:22:28 pids: rank 0 (spark1) 3248732, rank 1 (spark2) 1261120
+14:22:41 RESULT kill intarsia 10: killed at 6.12 s, rank 1 exit 87 after 6.8 s (queued work did not finish)
+14:22:42 leftover processes killed by PID after the case: none
+14:22:43 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:22:43 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:22:44 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:22:46 ranks started (tag 142244, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:23:10 serve up=1 after 24 s
+14:23:10 pids: rank 0 (spark1) 3263930, rank 1 (spark2) 1266601
+14:23:32 RESULT kill intarsia 11: killed at 14.09 s, rank 1 exit 87 after 7.5 s (queued work did not finish)
+14:23:33 leftover processes killed by PID after the case: none
+14:23:34 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:23:34 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:23:35 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:23:37 ranks started (tag 142335, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:24:00 serve up=1 after 23 s
+14:24:01 pids: rank 0 (spark1) 3267821, rank 1 (spark2) 1272479
+14:24:19 RESULT kill intarsia 12: killed at 10.19 s, rank 1 exit 87 after 7.0 s (queued work did not finish)
+14:24:19 leftover processes killed by PID after the case: none
+14:24:20 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:24:21 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:24:21 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:24:24 ranks started (tag 142421, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:24:47 serve up=1 after 23 s
+14:24:48 pids: rank 0 (spark1) 3271493, rank 1 (spark2) 1277975
+14:24:57 RESULT kill intarsia 13: killed at 2.62 s, rank 1 exit 87 after 6.8 s (queued work did not finish)
+14:24:58 leftover processes killed by PID after the case: none
+14:24:59 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:24:59 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:25:00 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:25:02 ranks started (tag 142500, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:25:26 serve up=1 after 24 s
+14:25:27 pids: rank 0 (spark1) 3274975, rank 1 (spark2) 1283088
+14:25:43 RESULT kill intarsia 14: killed at 8.68 s, rank 1 exit 87 after 7.3 s (queued work did not finish)
+14:25:44 leftover processes killed by PID after the case: none
+14:25:45 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:25:45 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:25:45 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:25:48 ranks started (tag 142545, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:26:11 serve up=1 after 23 s
+14:26:12 pids: rank 0 (spark1) 3278668, rank 1 (spark2) 1288746
+14:26:27 RESULT kill intarsia 15: killed at 6.76 s, rank 1 exit 87 after 7.5 s (queued work did not finish)
+14:26:27 leftover processes killed by PID after the case: none
+14:26:28 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:26:28 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:26:29 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:26:32 ranks started (tag 142629, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:26:55 serve up=1 after 23 s
+14:26:55 pids: rank 0 (spark1) 3282146, rank 1 (spark2) 1294405
+14:27:09 RESULT kill intarsia 16: killed at 6.52 s, rank 1 exit 87 after 6.8 s (queued work did not finish)
+14:27:10 leftover processes killed by PID after the case: none
+14:27:11 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:27:12 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:27:12 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:27:15 ranks started (tag 142712, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:27:38 serve up=1 after 23 s
+14:27:39 pids: rank 0 (spark1) 3285799, rank 1 (spark2) 1299706
+14:27:53 RESULT kill intarsia 17: killed at 6.08 s, rank 1 exit 87 after 7.4 s (queued work did not finish)
+14:27:53 leftover processes killed by PID after the case: none
+14:27:54 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:27:54 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:27:55 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:27:58 ranks started (tag 142755, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:28:21 serve up=1 after 23 s
+14:28:21 pids: rank 0 (spark1) 3289255, rank 1 (spark2) 1305340
+14:28:37 RESULT kill intarsia 18: killed at 7.60 s, rank 1 exit 87 after 7.3 s (queued work did not finish)
+14:28:38 leftover processes killed by PID after the case: none
+14:28:38 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:28:39 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:28:39 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:28:42 ranks started (tag 142839, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:29:05 serve up=1 after 23 s
+14:29:06 pids: rank 0 (spark1) 3292911, rank 1 (spark2) 1310998
+14:29:18 RESULT kill intarsia 19: killed at 4.78 s, rank 1 exit 87 after 7.1 s (queued work did not finish)
+14:29:19 leftover processes killed by PID after the case: none
+14:29:19 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:29:20 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:29:20 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:29:23 ranks started (tag 142920, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:29:46 serve up=1 after 23 s
+14:29:47 pids: rank 0 (spark1) 3296371, rank 1 (spark2) 1316256
+14:29:57 RESULT kill intarsia 20: killed at 2.47 s, rank 1 exit 87 after 7.3 s (queued work did not finish)
+14:29:58 leftover processes killed by PID after the case: none
+14:29:59 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:29:59 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:29:59 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:30:02 ranks started (tag 142959, $HOME/intarsia-dsv41-attnwire/bin/intarsia.base) env '' rank0 '' rank1 ''
+14:30:25 serve up=1 after 23 s
+14:30:26 pids: rank 0 (spark1) 3299793, rank 1 (spark2) 1321521
+14:33:41 RESULT kill intarsia.base 1: killed at 12.19 s, rank 1 exit 0 after 182.7 s (no path logged)
+14:33:42 leftover processes killed by PID after the case: none
+14:33:43 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:33:43 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:33:44 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:33:46 ranks started (tag 143344, $HOME/intarsia-dsv41-attnwire/bin/intarsia.base) env '' rank0 '' rank1 ''
+14:34:09 serve up=1 after 23 s
+14:34:10 pids: rank 0 (spark1) 3310464, rank 1 (spark2) 1382061
+14:37:28 RESULT kill intarsia.base 0: killed at 14.41 s, rank 1 exit 0 after 183.1 s (no path logged)
+14:37:29 leftover processes killed by PID after the case: none
+14:37:30 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:37:30 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:37:30 gpu check spark2: NVIDIA GB10, 96 % rc=0

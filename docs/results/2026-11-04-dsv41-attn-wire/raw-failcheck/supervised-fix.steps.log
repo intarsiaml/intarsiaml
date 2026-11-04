@@ -1,0 +1,11 @@
+14:08:44 ranks started (tag 140842, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env 'INTARSIA_DSV41_CAP=70000' rank0 '' rank1 ''
+14:09:07 serve up=1 after 23 s
+14:09:08 pids: rank 0 (spark1) 3146142, rank 1 (spark2) 1189781
+14:10:34 RESULT supervised fix prefill of 65000 tokens: PASS, HTTP 200 after 86 s, /health 200, watchdog or restart lines 0
+14:12:14 RESULT supervised fix reply of 3500 tokens: HTTP 200 after 99 s, /health 200, supervisor restarts: 0
+14:12:14 case supervised ranks' log lines (rank 0):
+14:12:14 case supervised ranks' log lines (rank 1):
+14:12:16 leftover processes killed by PID after the case: rank0(3146142) rank1(1189781)
+14:12:20 memory back after 6 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:12:20 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:12:21 gpu check spark2: NVIDIA GB10, 0 % rc=0

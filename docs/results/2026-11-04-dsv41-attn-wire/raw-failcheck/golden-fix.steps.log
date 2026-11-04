@@ -1,0 +1,9 @@
+14:12:24 ranks started (tag 141221, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:12:47 serve up=1 after 23 s
+14:12:48 pids: rank 0 (spark1) 3157066, rank 1 (spark2) 1200687
+14:13:45 case fix ranks' log lines (rank 0):
+14:13:45 case fix ranks' log lines (rank 1):
+14:13:47 leftover processes killed by PID after the case: rank0(3157066) rank1(1200687)
+14:13:51 memory back after 6 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:13:52 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:13:52 gpu check spark2: NVIDIA GB10, 0 % rc=0

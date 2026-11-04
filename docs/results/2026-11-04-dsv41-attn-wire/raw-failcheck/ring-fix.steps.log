@@ -1,0 +1,10 @@
+14:06:12 ranks started (tag 140609, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 '' rank1 ''
+14:06:36 serve up=1 after 24 s
+14:06:36 pids: rank 0 (spark1) 3133019, rank 1 (spark2) 1176768
+14:06:42 RESULT ring fix: reply after the chained cut vs cold identical (b cached 0, cold cached 0)
+14:06:43 case fix ranks' log lines (rank 0):
+14:06:43 case fix ranks' log lines (rank 1):
+14:06:44 leftover processes killed by PID after the case: rank0(3133019) rank1(1176768)
+14:06:49 memory back after 6 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:06:49 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:06:49 gpu check spark2: NVIDIA GB10, 0 % rc=0
