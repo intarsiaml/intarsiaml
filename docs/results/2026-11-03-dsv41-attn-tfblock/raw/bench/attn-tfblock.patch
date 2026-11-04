@@ -1,0 +1,333 @@
+--- a/kernels/cuda/dsv41_attn.cu
++++ b/kernels/cuda/dsv41_attn.cu
+@@ -249,7 +249,56 @@
+ static size_t attn_mma_smem(int64_t D) {
+     const int64_t ld = D + 8;
+     return (size_t)(2 * kHeads * ld * 2 + kHeads * 33 * 4 + kHeads * 40 * 2);
++}
++
++#ifdef ATTN_SM4
++// ATTN_SM4 (bench-only experiment E5): the online softmax of a warp's four rows 4w..4w+3 as four independent chains advanced together
++// (loads, then the four max trees level by level, then exp / bf16 rounding, then the four sum trees level by level, then the stores and
++// the four lane-0 updates), with one __syncwarp for the four rows instead of one per row. Per row the arithmetic is the loop's:
++// the same xor offsets 16, 8, 4, 2, 1 in the same order for max and for sum, the same bf16 rounding of p, the same alpha / l / m update.
++// nh is not needed here: the rows of a head group that is not full are computed and never read, as in the loop.
++IK_DEVI void softmax_rows4(const float* Ss, __nv_bfloat16* Ps, const int* valid, float* m_s, float* l_s, float* alpha_s, int warp, int lane) {
++    float sv[4], mo[4], mx[4];
++#pragma unroll
++    for (int i = 0; i < 4; ++i) {
++        const int r = warp * 4 + i;
++        sv[i] = valid[lane] ? Ss[r * 33 + lane] : -INFINITY;
++        mo[i] = m_s[r];
++        mx[i] = sv[i];
++    }
++#pragma unroll
++    for (int o = 16; o > 0; o >>= 1) {
++#pragma unroll
++        for (int i = 0; i < 4; ++i) mx[i] = fmaxf(mx[i], __shfl_xor_sync(0xffffffffu, mx[i], o));
++    }
++    __nv_bfloat16 pb[4];
++    float mn[4], sum[4];
++#pragma unroll
++    for (int i = 0; i < 4; ++i) {
++        mn[i] = fmaxf(mo[i], mx[i]);
++        pb[i] = __float2bfloat16_rn(expf(sv[i] - mn[i]));
++        sum[i] = __bfloat162float(pb[i]);
++    }
++#pragma unroll
++    for (int o = 16; o > 0; o >>= 1) {
++#pragma unroll
++        for (int i = 0; i < 4; ++i) sum[i] += __shfl_xor_sync(0xffffffffu, sum[i], o);
++    }
++#pragma unroll
++    for (int i = 0; i < 4; ++i) Ps[(warp * 4 + i) * 40 + lane] = pb[i];
++    __syncwarp();
++    if (lane == 0) {
++#pragma unroll
++        for (int i = 0; i < 4; ++i) {
++            const int r = warp * 4 + i;
++            const float a = expf(mo[i] - mn[i]);
++            alpha_s[r] = a;
++            l_s[r] = l_s[r] * a + sum[i];
++            m_s[r] = mn[i];
++        }
++    }
+ }
++#endif
+ 
+ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16* __restrict__ q, const __nv_bfloat16* __restrict__ win,
+                                                             const __nv_bfloat16* __restrict__ cmp, const int* __restrict__ idx,
+@@ -349,6 +398,9 @@
+         }
+         __syncthreads();
+         // online softmax: warp w rows 4w..4w+3, lane = key
++#ifdef ATTN_SM4
++        softmax_rows4(Ss, Ps, valid, m_s, l_s, alpha_s, warp, lane);
++#else
+ #pragma unroll
+         for (int i = 0; i < 4; ++i) {
+             const int r = warp * 4 + i;
+@@ -366,6 +418,7 @@
+                 m_s[r] = mn;
+             }
+         }
++#endif
+         __syncthreads();
+         // O = O * alpha + P K
+         {
+@@ -435,11 +488,227 @@
+                         pm[0] = m;
+                         pm[1] = l;
+                     }
++                }
++            }
++        }
++    }
++}
++
++#ifdef ATTN_TFBLOCK
++// ---- ATTN_TFBLOCK (bench-only experiment E2): the TensorFold-shaped block of attn_sparse_mma, D = 512 only -------------------------
++// 16 heads and 128 threads (4 warps) per block, grid z = H / 16; the warp's Q fragments (32 k-steps x 4 registers = 128) are loaded once
++// before the tile loop and live in registers, so the block holds the key tile, S and P only (36672 B dynamic + 960 B static) and two
++// blocks share an SM (__launch_bounds__(128, 2): at most 256 registers per thread). Every accumulator sees the operands of
++// attn_sparse_mma in the same order: QK is one (m-tile 0, n-tile = warp) chain of 32 mma over k = 0..512, the softmax rows are the same
++// rows with the same trees, PV is one chain per (n-tile) accumulator (alpha scaling, mma ks = 0, mma ks = 1) with 16 n-tiles per warp.
++// The key metadata is prepared one tile ahead (as attn-2blk.patch did), so there are four barriers per tile.
++constexpr int kTfThreads = 128;
++constexpr int kTfHeads = 16;
++constexpr int kTfD = 512;
++constexpr int kTfLd = kTfD + 8;
++
++static size_t attn_mma_smem_tfb() { return (size_t)(kMmaKeys * kTfLd * 2 + kTfHeads * 33 * 4 + kTfHeads * 40 * 2); }
++
++__global__ void __launch_bounds__(kTfThreads, 2)
++    attn_sparse_mma_tfb(const __nv_bfloat16* __restrict__ q, const __nv_bfloat16* __restrict__ win, const __nv_bfloat16* __restrict__ cmp,
++                        const int* __restrict__ idx, const float* __restrict__ sink, __nv_bfloat16* __restrict__ out, float* __restrict__ part,
++                        int64_t H, int64_t D, int64_t W, int64_t Nc, int64_t Kw, int64_t pos0, const int* __restrict__ dpos, float scale,
++                        int nsplit, int64_t ratio) {
++    extern __shared__ __align__(16) unsigned char smem_raw[];
++    constexpr int ld = kTfLd;
++    __nv_bfloat16* Ks = reinterpret_cast<__nv_bfloat16*>(smem_raw);
++    float* Ss = reinterpret_cast<float*>(Ks + kMmaKeys * ld);  // [16][33]
++    __nv_bfloat16* Ps = reinterpret_cast<__nv_bfloat16*>(Ss + kTfHeads * 33);  // [16][40]
++    __shared__ float alpha_s[kTfHeads], m_s[kTfHeads], l_s[kTfHeads];
++    __shared__ int valid_b[2][kMmaKeys];
++    __shared__ int64_t srcrow_b[2][kMmaKeys];
++
++    const int split = blockIdx.x;
++    const int64_t t = blockIdx.y;
++    const int64_t h0 = (int64_t)blockIdx.z * kTfHeads;  // the host sends this kernel only H % 16 == 0 and D == 512: all 16 heads exist
++    const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
++    const int g = lane >> 2, tq = lane & 3;
++    const AttnEff ef = attn_eff<kMmaKeys>(dpos, pos0, gridDim.y, W, Nc, Kw, ratio, nsplit);
++    if (split >= ef.nsplit) return;  // grid sized for the capacity (block-uniform)
++    nsplit = ef.nsplit;
++    Nc = ef.nc;
++    const int64_t p0 = ef.p0, Kc = ef.kc;
++    const int64_t nkeys = W + Kc;
++    const int ntiles = (int)cdiv(nkeys, kMmaKeys);
++    constexpr int nv = kTfD / 8;  // 16-byte vectors per row
++
++    // Q (16 heads x 512) goes through the key-tile buffer in the layout attn_sparse_mma gives Qs (row stride ld), then each thread reads
++    // the fragments the old QK loop read with lds32, into registers.
++    for (int v = threadIdx.x; v < kTfHeads * nv; v += kTfThreads) {
++        const int r = v / nv, c = v % nv;
++        const uint4 x = __ldg(reinterpret_cast<const uint4*>(q + ((t * H + h0 + r) * kTfD)) + c);
++        *reinterpret_cast<uint4*>(Ks + r * ld + c * 8) = x;
++    }
++    if (threadIdx.x < kTfHeads) {
++        m_s[threadIdx.x] = kInitMax;
++        l_s[threadIdx.x] = 0.f;
++    }
++    __syncthreads();
++    unsigned qf[kTfD / 16][4];
++    {
++        const __nv_bfloat16* qa = Ks + g * ld + 2 * tq;
++#pragma unroll
++        for (int kk = 0; kk < kTfD / 16; ++kk) {
++            const int k0 = kk * 16;
++            qf[kk][0] = lds32(qa + k0);
++            qf[kk][1] = lds32(qa + 8 * ld + k0);
++            qf[kk][2] = lds32(qa + k0 + 8);
++            qf[kk][3] = lds32(qa + 8 * ld + k0 + 8);
++        }
++    }
++    // output columns of this warp: [cw, cw + 128), 16 n-tiles; one m-tile
++    constexpr int ncol = kTfD / 4;
++    const int cw = warp * ncol;
++    float acc[ncol / 8][4];
++#pragma unroll
++    for (int j = 0; j < ncol / 8; ++j) acc[j][0] = acc[j][1] = acc[j][2] = acc[j][3] = 0.f;
++
++    // key metadata of tile `tl` (lane = key), as attn_sparse_mma computes it at the top of the tile
++    auto key_meta = [&](int tl, int& ok, int64_t& sr) {
++        const int64_t e = (int64_t)tl * kMmaKeys + threadIdx.x;
++        ok = 0;
++        sr = 0;
++        if (e < W) {
++            const int64_t row = t + 1 + e;
++            ok = (p0 + row >= W);
++            sr = row;
++        } else if (e < nkeys) {
++            const int c = idx[t * Kw + (e - W)];
++            ok = (c >= 0 && c < Nc);
++            sr = -(int64_t)c - 1;
++        }
++    };
++    if (threadIdx.x < kMmaKeys && split < ntiles) {
++        int ok;
++        int64_t sr;
++        key_meta(split, ok, sr);
++        valid_b[0][threadIdx.x] = ok;
++        srcrow_b[0][threadIdx.x] = sr;
++    }
++    int cur = 0;
++    for (int tile = split; tile < ntiles; tile += nsplit, cur ^= 1) {
++        __syncthreads();  // this tile's metadata is written (and, first time, the Q fragments are read); the previous tile's keys, P, alpha are consumed
++        const int* valid = valid_b[cur];
++        const int64_t* srcrow = srcrow_b[cur];
++        // the next tile's metadata: the idx load is issued before the gather, the shared stores follow it
++        int nok = 0;
++        int64_t nsr = 0;
++        const bool has_next = tile + nsplit < ntiles;
++        if (threadIdx.x < kMmaKeys && has_next) key_meta(tile + nsplit, nok, nsr);
++        for (int v = threadIdx.x; v < kMmaKeys * nv; v += kTfThreads) {
++            const int r = v / nv, c = v % nv;
++            uint4 x = make_uint4(0, 0, 0, 0);
++            if (valid[r]) {
++                const int64_t sr = srcrow[r];
++                const __nv_bfloat16* src = sr >= 0 ? win + sr * kTfD : cmp + (-sr - 1) * kTfD;
++                x = __ldg(reinterpret_cast<const uint4*>(src) + c);
++            }
++            *reinterpret_cast<uint4*>(Ks + r * ld + c * 8) = x;
++        }
++        if (threadIdx.x < kMmaKeys && has_next) {
++            valid_b[cur ^ 1][threadIdx.x] = nok;
++            srcrow_b[cur ^ 1][threadIdx.x] = nsr;
++        }
++        __syncthreads();  // keys gathered
++        // S tile (m-tile 0, n-tile warp): the 32 chained mma of attn_sparse_mma's warps with mt = 0, nt = warp
++        {
++            const int nt = warp;
++            float c4[4] = {0.f, 0.f, 0.f, 0.f};
++            const __nv_bfloat16* kb = Ks + (nt * 8 + g) * ld + 2 * tq;
++#pragma unroll
++            for (int kk = 0; kk < kTfD / 16; ++kk)
++                mma16816(c4, qf[kk][0], qf[kk][1], qf[kk][2], qf[kk][3], lds32(kb + kk * 16), lds32(kb + kk * 16 + 8));
++            float* srow = Ss + g * 33 + nt * 8 + 2 * tq;
++            srow[0] = c4[0] * scale;
++            srow[1] = c4[1] * scale;
++            srow[8 * 33] = c4[2] * scale;
++            srow[8 * 33 + 1] = c4[3] * scale;
++        }
++        __syncthreads();  // S written
++        // online softmax: warp w rows 4w..4w+3, lane = key
++#ifdef ATTN_SM4
++        softmax_rows4(Ss, Ps, valid, m_s, l_s, alpha_s, warp, lane);
++#else
++#pragma unroll
++        for (int i = 0; i < 4; ++i) {
++            const int r = warp * 4 + i;
++            const float sv = valid[lane] ? Ss[r * 33 + lane] : -INFINITY;
++            const float mo = m_s[r];
++            const float mn = fmaxf(mo, ik_warp_max(sv));
++            const __nv_bfloat16 pb = __float2bfloat16_rn(expf(sv - mn));
++            const float sum = ik_warp_sum(__bfloat162float(pb));
++            Ps[r * 40 + lane] = pb;
++            __syncwarp();
++            if (lane == 0) {
++                const float a = expf(mo - mn);
++                alpha_s[r] = a;
++                l_s[r] = l_s[r] * a + sum;
++                m_s[r] = mn;
++            }
++        }
++#endif
++        __syncthreads();  // P and alpha written
++        // O = O * alpha + P K
++        {
++            float al[2];
++            al[0] = alpha_s[g];
++            al[1] = alpha_s[g + 8];
++#pragma unroll
++            for (int j = 0; j < ncol / 8; ++j) {
++                acc[j][0] *= al[0];
++                acc[j][1] *= al[0];
++                acc[j][2] *= al[1];
++                acc[j][3] *= al[1];
++            }
++#pragma unroll
++            for (int ks = 0; ks < 2; ++ks) {
++                unsigned a[4];
++                const __nv_bfloat16* pa = Ps + g * 40 + ks * 16 + 2 * tq;
++                a[0] = lds32(pa);
++                a[1] = lds32(pa + 8 * 40);
++                a[2] = lds32(pa + 8);
++                a[3] = lds32(pa + 8 * 40 + 8);
++#pragma unroll
++                for (int j = 0; j < ncol / 8; ++j) {
++                    unsigned b0, b1;
++                    ldsm_x2_trans(b0, b1, Ks + (ks * 16 + (lane & 15)) * ld + cw + j * 8);
++                    mma16816(acc[j], a[0], a[1], a[2], a[3], b0, b1);
+                 }
+             }
+         }
+     }
++    __syncthreads();
++#pragma unroll
++    for (int hr = 0; hr < 2; ++hr) {
++        const int r = g + 8 * hr;
++        const int64_t h = h0 + r;
++        const float m = m_s[r], l = l_s[r];
++        const float inv = nsplit == 1 ? 1.f / (l + expf(sink[h] - m)) : 1.f;
++#pragma unroll
++        for (int j = 0; j < ncol / 8; ++j) {
++            const int col = cw + j * 8 + 2 * tq;
++            const float v0 = acc[j][2 * hr], v1 = acc[j][2 * hr + 1];
++            if (nsplit == 1) {
++                *reinterpret_cast<__nv_bfloat162*>(out + (t * H + h) * kTfD + col) = __floats2bfloat162_rn(v0 * inv, v1 * inv);
++            } else {
++                const int64_t slot = (t * H + h) * nsplit + split;
++                part[slot * kTfD + col] = v0;
++                part[slot * kTfD + col + 1] = v1;
++                if (warp == 0 && j == 0 && tq == 0) {
++                    float* pm = part + (int64_t)gridDim.y * H * nsplit * kTfD + slot * 2;
++                    pm[0] = m;
++                    pm[1] = l;
++                }
++            }
++        }
++    }
+ }
++#endif  // ATTN_TFBLOCK
+ 
+ static bool attn_mma_enabled() {
+     static int on = -1;
+@@ -493,6 +762,27 @@
+         part = (float*)scratch->data;
+     }
+     dim3 g((unsigned)nsplit, (unsigned)Tn, (unsigned)cdiv(H, kHeads));
++#ifdef ATTN_TFBLOCK
++    if (mma && D == kTfD) {  // mma implies H % 16 == 0; the 16-head block takes grid z = H / 16
++        const dim3 gt((unsigned)nsplit, (unsigned)Tn, (unsigned)(H / kTfHeads));
++        const size_t smem = attn_mma_smem_tfb();
++        static bool attr = false;
++        if (!attr) {
++            cudaFuncSetAttribute(attn_sparse_mma_tfb, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)smem);
++            attr = true;
++        }
++        attn_sparse_mma_tfb<<<gt, kTfThreads, smem, s>>>((const __nv_bfloat16*)q->data, (const __nv_bfloat16*)win->data, (const __nv_bfloat16*)cmp->data,
++                                                         (const int*)idx->data, (const float*)sink->data, (__nv_bfloat16*)out->data, part, H, D, W, Nc,
++                                                         Kw, pos0, dp, scale, nsplit, ratio);
++        IK_TRY(ik_launch_status());
++        if (nsplit > 1) {
++            attn_sparse_merge<T, kMmaKeys><<<dim3((unsigned)Tn, (unsigned)H), 128, 0, s>>>(part, (const float*)sink->data, (T*)out->data, Tn, H, D,
++                                                                                          nsplit, dp, W, Nc, Kw, ratio);
++            IK_TRY(ik_launch_status());
++        }
++        return IK_OK;
++    }
++#endif
+     if (mma) {
+         static_assert(kMmaKeys == 32, "split policy assumes 32-key tiles");
+         const size_t smem = attn_mma_smem(D);

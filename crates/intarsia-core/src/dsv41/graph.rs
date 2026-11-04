@@ -140,11 +140,15 @@ pub struct GraphTp {
     /// Start at this layer (a layer-range test cache, `intarsia dsv41-cache --first-layer`): the embedding feeds layer
     /// `first` directly. Not a model; for exactness checks of the layers in the range.
     pub first: usize,
+    /// Rotate the attention's `q` and de-rotate its `o` in place ([`rope_inplace_for`]): the `RopeTail` output is the
+    /// input buffer, so a kernel that supports it visits the rope dims only and the unrotated rows are not copied.
+    /// [`Dsv41Runtime::new`](super::runtime::Dsv41Runtime::new) overwrites it from its backend; only direct `build*` callers set it.
+    pub rope_inplace: bool,
 }
 
 impl Default for GraphTp {
     fn default() -> Self {
-        GraphTp { world: 1, layers: None, first: 0 }
+        GraphTp { world: 1, layers: None, first: 0, rope_inplace: false }
     }
 }
 
@@ -323,6 +327,17 @@ impl Builder<'_> {
         o
     }
 
+    /// The output buffer of the rope of `x`: `x`'s own buffer when [`GraphTp::rope_inplace`] (no step reads the unrotated
+    /// rows afterwards: `q` is read only by this rope and then by the attention, `o` only by this rope and then by the
+    /// output projection), else the workspace buffer `name`.
+    fn rope_dst(&self, x: &Arg, name: &str) -> Buf {
+        if self.tp.rope_inplace {
+            x.buf.clone()
+        } else {
+            Buf::Ws(name.into())
+        }
+    }
+
     fn qdq(&mut self, x: Arg, fmt: QdqFmt, block: usize, scale: QdqScale, out: Buf, what: &str) -> Arg {
         let mut a = OpAttrs::default();
         (a.dsv.qdq_fmt, a.dsv.qdq_block, a.dsv.qdq_scale) = (fmt, block, scale);
@@ -423,6 +438,15 @@ struct PendingPost {
 pub fn hc_fused() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
     *ON.get_or_init(|| std::env::var("INTARSIA_DSV41_HC_FUSED").map_or(true, |v| v != "0"))
+}
+
+/// Whether the graph for `backend` (its [`Backend::name`](crate::backend::Backend::name)) rotates `q` and `o` in place
+/// ([`GraphTp::rope_inplace`]). Only the CUDA backend, whose `rope_tail` takes an in-place path when `x` and `out` share
+/// a buffer; the cpu reference runs the same graph with the separate `q_rope` / `o_derot` buffers, as before.
+/// `INTARSIA_DSV41_ROPE_INPLACE=0` turns it off (A/B and diagnosis).
+pub fn rope_inplace_for(backend: &str) -> bool {
+    // read at each runtime / plan construction (not cached), so a test can build one runtime per setting in one process
+    backend == "cuda" && std::env::var("INTARSIA_DSV41_ROPE_INPLACE").map_or(true, |v| v != "0")
 }
 
 /// Rows up to which an `HcSublayer` folds the previous sublayer's `HcPost` (docs/design/dsv41-ops.md: on a 4096-row
@@ -673,7 +697,8 @@ pub fn build_replay(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Gra
         let h = ws("h", act, &[t, d]);
         b.push(Op::Embedding, "embed", vec![ids, emb], vec![h.clone()], OpAttrs::default());
         // the residual ping-pongs between two buffers: HcPost mixes across streams and EngramMerge reads every stream, so no
-        // step's output aliases its input (outputs never alias inputs in this graph, except the state rings marked in place)
+        // step's output aliases its input (outputs never alias inputs in this graph, except the state rings marked in place
+        // and, with `GraphTp::rope_inplace` (CUDA), the `q` and `o` ropes of the attention)
         let x = ws("x0", act, &[t, s, d]);
         b.push(Op::HcExpand, "hc_expand", vec![h], vec![x.clone()], OpAttrs::default());
         stages.push(b.stage("embed".into(), None, vec!["embed".into(), format!("hc_expand x{s}")]));
@@ -990,7 +1015,8 @@ fn dspark_attention(b: &mut Builder, i: usize, ring: usize, n: &Arg) -> Result<A
     let qa = b.matmul(n.clone(), &format!("{p}.wq_a"), Buf::Ws("qa".into()), act)?;
     let qr = b.rmsnorm(qa, &format!("{p}.q_norm.weight"), "qr")?;
     let q = b.matmul(qr, &format!("{p}.wq_b"), Buf::Ws("q".into()), act)?;
-    let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, Buf::Ws("q_rope".into()), &format!("{p}.rope(q)"));
+    let out = b.rope_dst(&q, "q_rope");
+    let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, out, &format!("{p}.rope(q)"));
     b.positioned(1);
     let kv = b.matmul(n.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
     let kv = b.rmsnorm(kv, &format!("{p}.kv_norm.weight"), "kv_n")?;
@@ -1006,7 +1032,8 @@ fn dspark_attention(b: &mut Builder, i: usize, ring: usize, n: &Arg) -> Result<A
     let o = ws("o", act, &[t, h, hd]);
     // host position even in the device-position graph (built at `window`, see `build_draft_dpos`)
     b.push(Op::AttnSparse, format!("{p}.sparse_attn"), vec![q, winbuf.clone(), winbuf, idx, sink], vec![o.clone()], OpAttrs { window: win, pos0, scale: (hd as f32).powf(-0.5), ..Default::default() });
-    let o = b.rope(o, l, pos0, 1, true, Buf::Ws("o_derot".into()), &format!("{p}.rope_inverse(o)"));
+    let out = b.rope_dst(&o, "o_derot");
+    let o = b.rope(o, l, pos0, 1, true, out, &format!("{p}.rope_inverse(o)"));
     b.positioned(1);
     // the fp8 round trip before wo_a only in the FP8 checkpoint's mode, as in the model's attention
     let o = if matches!(c.quant, Dsv41Quant::Fp8 { .. }) {
@@ -1122,7 +1149,8 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     let kv = b.matmul_lane(2, n.clone(), &format!("{p}.wkv"), Buf::Ws("kv".into()), act)?;
     let qr = b.rmsnorm(qa, &format!("{p}.q_norm.weight"), "qr")?;
     let q = b.matmul(qr.clone(), &format!("{p}.wq_b"), Buf::Ws("q".into()), act)?;
-    let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, Buf::Ws("q_rope".into()), &format!("{p}.rope(q)"));
+    let out = b.rope_dst(&q, "q_rope");
+    let q = b.rope(Arg { shape: vec![t, h, hd], ..q }, l, pos0, 1, false, out, &format!("{p}.rope(q)"));
     b.positioned(1);
 
     // sliding-window KV: one latent, normed, rotated, fp8 round trip, into the ring
@@ -1199,7 +1227,8 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
     let apos0 = pos0.checked_sub(ar.floor).ok_or_else(|| Error::invalid(format!("deepseek_v41 graph: layer {l} at position {pos0} under the replay floor {}", ar.floor)))?;
     b.push(Op::AttnSparse, format!("{p}.sparse_attn"), vec![q, winbuf, cmp, idx, sink], vec![o.clone()], OpAttrs { window: win, pos0: apos0, scale: (hd as f32).powf(-0.5), ..Default::default() });
     b.positioned(r);
-    let o = b.rope(o, l, pos0, 1, true, Buf::Ws("o_derot".into()), &format!("{p}.rope_inverse(o)"));
+    let out = b.rope_dst(&o, "o_derot");
+    let o = b.rope(o, l, pos0, 1, true, out, &format!("{p}.rope_inverse(o)"));
     b.positioned(1);
 
     // grouped low-rank output: fp8 round trip (FP8 base checkpoint only), per-group projection, then wo_b. The official code

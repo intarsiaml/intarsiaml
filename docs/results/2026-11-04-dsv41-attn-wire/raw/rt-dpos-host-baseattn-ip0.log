@@ -1,0 +1,15 @@
+
+running 1 test
+test device_position_passes_equal_host_passes ... [dsv41-cache] loaded rank 0 of 1 cache /home/nvidia/intarsia-dsv41-tp2/cache/l3-r0of1: 579 tensors, 17.29 GiB in 2.7 s = 6.77 GB/s (O_DIRECT)
+dsv41: rank 0/1: loaded 17.29 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/l3-r0of1 in 3.6 s (5.14 GB/s)
+dsv41: WARNING: INTARSIA_DSV41_ENGRAM=off: Engram rows are zero, the output is NOT the model's
+dsv41: rank 0/1: speculative decoding off (INTARSIA_DSV41_SPEC is set and not 1)
+dsv41: rank 0/1 memory: weights 16.39 GiB, workspace 0.036 GiB (chunk 64), constants 0.000 GiB, state 0.007 GiB per sequence at 512 tokens; MemAvailable 74.87 GiB -> 58.12 GiB
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793788646)
+dsv41: kernel scratch grew to 33554432 bytes (unix 1793788646)
+RUNTIME output hash b9622ff2274210b3 over 30 passes, 3878400 values
+RUNTIME dpos vs host: 30 passes (110 prompt, 48 tokens, spec false, graphs false, replays: 0 decode / 0 verify / 0 draft): first bitwise difference at pass None, worst |diff| 0.000e0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 4.98s
+

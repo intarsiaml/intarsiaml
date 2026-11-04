@@ -1,0 +1,31 @@
+fleetq: #8398 running on spark2: bash .scratch/build-both.sh
+[09:21:45] base = origin/main 809674eb94c5ef40e515b7b5fe572c613991dbde
+[09:23:43] == base build (nvcc, MAX_JOBS=4)
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 01s
+spark1: intarsia.base 53350de91e34
+spark2: intarsia.base 53350de91e34
+[09:28:49] == head build
+stamp: 91cb61fc8 dirty=no 1104-0928
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 4m 59s
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 13.61s
+total 522632
+drwxrwxr-x 2 nvidia nvidia      4096 Nov  4 09:35 .
+drwxrwxr-x 6 nvidia nvidia      4096 Nov  4 09:28 ..
+-rwxrwxr-x 1 nvidia nvidia 128644320 Nov  4 09:35 dsv41_runtime
+-rwxrwxr-x 1 nvidia nvidia 144199712 Nov  4 09:35 intarsia
+-rwxrwxr-x 1 nvidia nvidia 144148760 Nov  4 09:28 intarsia.base
+-rwxrwxr-x 1 nvidia nvidia 118236448 Nov  4 09:35 nccl_bench
+-rw-rw-r-- 1 nvidia nvidia        29 Nov  4 09:35 STAMP
+spark1: 91cb61fc8 dirty=no 1104-0928
+20465987b87c
+spark2: 91cb61fc8 dirty=no 1104-0928
+20465987b87c
+[09:35:36] done
+fleetq: #8398 done (exit 0)
+rc=0

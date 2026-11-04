@@ -18,7 +18,7 @@
 
 use super::config::Dsv41Config;
 use super::engram::{record_bytes, EngramTier, NgramHasher};
-use super::graph::{build_absorb, build_draft, build_draft_dpos, build_pass, build_replay, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Replay, ReplayPart, Stage, WeightShapes, VERIFY_MAX_ROWS};
+use super::graph::{rope_inplace_for, build_absorb, build_draft, build_draft_dpos, build_pass, build_replay, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Replay, ReplayPart, Stage, WeightShapes, VERIFY_MAX_ROWS};
 use super::replay;
 use crate::backend::{Backend, Buffer, GraphHandle, MemKind, TensorRef};
 use crate::comm::Comm;
@@ -246,8 +246,9 @@ impl Dsv41Runtime {
         comm: Option<Arc<dyn Comm>>,
         weights: HashMap<String, TensorRef>,
         engram: Option<EngramInputs>,
-        opts: RuntimeOpts,
+        mut opts: RuntimeOpts,
     ) -> Result<Dsv41Runtime> {
+        opts.tp.rope_inplace = rope_inplace_for(backend.name());
         let world = comm.as_ref().map_or(1, |c| c.world());
         if world != opts.tp.world {
             return Err(Error::invalid(format!("deepseek_v41 runtime: communicator of {world} ranks, graph for {}", opts.tp.world)));
