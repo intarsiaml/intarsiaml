@@ -1,0 +1,14 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+p2050               2050  2050    94.00   1.577e-2   1.435e-2   1.435e-2    2.749e0   0.0702   0.0707    91.56   55/2050      0
+p2056               2056  2056    96.11   1.137e-2   1.030e-2   1.030e-2   6.503e-1   0.0738   0.0749    92.42   51/2056      0
+p1030               1030  1030    93.50   1.333e-2   1.184e-2   1.184e-2   3.115e-1   0.0977   0.0975    92.00   16/1030      0
+OVERALL                   5136    94.74   1.352e-2   1.222e-2   1.222e-2    2.749e0   0.0772   0.0777    91.99      2.4%      0
+prefill floor [4bit]: top-1 (all rows) 94.74% (not gated for this class) ok | 21-way KL (scored rows, n=5136) 1.222e-2 (need <= 3.0e-2) ok [all rows, n=5136: 1.222e-2, reported only] | tail mass (all rows) ours 0.0777 vs ref 0.0772, excess +0.0006 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.222e-2 PASS
+gate-definition: kl_floor [prefill]: old def: PASS 1.222e-2 (21-way KL over all rows <= static floor) | current def: PASS 1.222e-2 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 2.2% of positions before the first argmax divergence, worst prompt 1.6% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
