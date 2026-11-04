@@ -69,7 +69,7 @@ A second review gave 14 findings, 11 distinct defects once duplicates are merged
 | `ignore_eos` also turned off `stop_ids` | The reply ran past a requested stop id | `stop_ids` always stop, as `Seq::build` | `ignore_eos_keeps_stop_ids` |
 | Stop strings active before `min_tokens` | The reply ended early | No matching until token `min_tokens + 1`, as the main engine | `stop_strings_wait_for_min_tokens` |
 | `max_tokens` above the room left was an error | HTTP 500 for a client's fixed limit | Clamped, finish reason `length`, as `Seq::admit` | `max_tokens_is_clamped_to_the_room_left` |
-| A taken port restarted a supervised server for ever | The whole model reloaded on every restart | The child exits `EXIT_FATAL` on a bind failure | `a_supervised_server_stops_when_its_port_is_taken` |
+| A taken port restarted a supervised server for ever | The whole model reloaded on every restart | The child exits `EXIT_FATAL` on a bind failure, after the retry of section 5 | `a_port_that_stays_taken_stops_the_supervisor_after_the_retry` |
 
 The ring limit comes from the kernels, not from reading: `the_ring_check_accepts_exactly_what_the_kernels_survive` runs the reference kernels at ratios 1, 2 and 3 and compares them with `SequenceState`'s check at 1 to 24 rows below the mark: 17 is bit-identical to never drafting, 18 is not, and the check agrees at each.
 
@@ -85,15 +85,17 @@ An Opus review of this branch, also by reading.
 - Cost: by arithmetic, at most one enqueue of device idle per wait, about 0.4 %. **Not measured.**
 - Rank-local: no collective is added, and `a_long_prefill_ticks_with_the_device_not_the_enqueue` pins that the same 127 passes reach rank 1 with the same cuts. It runs on a virtual device clock, so it models the device rather than measuring one. Spark case `supervised` is the real check; it reports INCONCLUSIVE if the prefill stays under the watchdog.
 
-**Every bind failure was fatal.** A supervised server now retries `EADDRINUSE` and `EADDRNOTAVAIL` for 120 s (`INTARSIA_BIND_RETRY_S`) with the model loaded, then exits 78. 120 s outlasts the supervisor's own 30 s grace for a stopping server. Other bind errors and an unsupervised server fail at once. The restart case is tested with a listener that holds the port and lets go, not with a real restart.
+**Every bind failure was fatal.** A supervised server now retries `EADDRINUSE` and `EADDRNOTAVAIL` for 120 s (`INTARSIA_BIND_RETRY_S`) with the model loaded, then exits 78. 120 s outlasts the supervisor's own 30 s grace for a stopping server. Other bind errors and an unsupervised server fail at once. The restart case is tested with a listener that holds the port and lets go, not with a real restart. The watchdog now starts before the bind, so during the retry a failed group still exits 87 and an orphan still exits 88; a retry that ends in the watchdog's 2 s flush also exits 87, not 78.
 
-**An engine panic could hang rank 1.** The panic handler now calls `group_failed`, so the peer is dead before `Worker` drops and no `T_DROP` is sent. Rank 1 leaves on the hang-up through `drain`. Tested at the message level: no free reaches the far end. Rank 1's actual exit after a panic is not tested.
+**An engine panic could hang rank 1.** The panic handler now calls `group_failed`, so the peer is dead before `Worker` drops and no `T_DROP` is sent. Rank 1 leaves on the hang-up through `drain`. Warm-up runs on the loader's thread, so it has its own catch with the same route. `group_failed` changes its state first and its log line cannot panic on a closed stderr (a child with a dead stderr pipe tests it). Tested at the message level: no free reaches the far end. Rank 1's actual exit after a panic is not tested.
 
 **Recorded, not fixed:** `ring_high` does not count draft-block writes (`graph.rs:903`, `runtime.rs:640`, `state.rs:270`). `draft_steps` writes the DSpark stage rings without a commit. The same is true on main. By the review's reading it only affects draft acceptance, since verify rows decide the tokens; I read the lines and did not test it.
 
-**Tests the review called weak:** `draft_fits_refuses_what_the_runtime_refused...` now spells the old limit out; the ring test now calls the check; the cancel test is renamed to what it shows, the message order, and the pairing is left to Spark case `cancel`.
+**Tests the review called weak:** `next_rows_drafts_exactly_where_the_block_fits...` spells the limit out and goes through `next_rows`; the ring test now calls the check; the cancel test is renamed to what it shows, the message order, and the pairing is left to Spark case `cancel`.
 
-Each fix reverted on the final code (#8306): without the wait, 3 tests fail, one with 106.6 s without a tick against the 60 s watchdog; without the retry, all 3 of `serve_bind`; without the panic route, the panic test; without the ring check, 3 tests, one with the check accepting 18 rows the kernels do not survive. All pass with the fixes: 30 `failpath_tests`, 3 `serve_bind`, 9 `dsv41_chunked`.
+Each fix reverted on the final code (#8306): without the wait, 3 tests fail, one with 106.6 s without a tick against the 60 s watchdog; without the retry, all 3 of `serve_bind`; without the panic route, the panic test; without the ring check, 3 tests, one with the check accepting 18 rows the kernels do not survive. All pass with the fixes: 32 `failpath_tests`, 3 `serve_bind`, 9 `dsv41_chunked`, 40 server `api` tests.
+
+Last round (#8335, #8336), each fix reverted: warm-up panic route, closed-stderr log, watchdog before the bind, and the 87 at the end of a retry each fail their own test.
 
 ## Tests
 
@@ -109,9 +111,9 @@ Each fix reverted on the final code (#8306): without the wait, 3 tests fail, one
 
 The section 4 fixes were reverted the same way, one at a time, in jobs #8277 and #8278; each test in its table failed without its fix.
 
-The tests no row names pin what must not change. The one exception to "the test catches the defect end to end": the near-cap test checks what rank 1 is told, not an actual exit 87, because the far end is a recorder. The refusal itself is pinned by `draft_fits_is_exactly_what_the_runtime_accepts...`, and the exit is what the Spark case `near` shows.
+The tests no row names pin what must not change. The one exception to "the test catches the defect end to end": the near-cap test checks what rank 1 is told, not an actual exit 87, because the far end is a recorder. The refusal itself is pinned by `next_rows_drafts_exactly_where_the_block_fits...`, and the exit is what the Spark case `near` shows.
 
-`cargo test --workspace --no-fail-fast`: 1266 passed, 0 failed, 29 ignored (#8333, exit 0, at `885b510f4`). Earlier: #8266 failed on this lane's own missing `docs/tuning.md` rows, fixed; #8308 was stopped by fleetq (exit -15) and gives no result.
+`cargo test --workspace --no-fail-fast`: 1271 passed, 0 failed, 29 ignored (#8337, exit 0, at `07f23e1ec`). Earlier: #8266 failed on this lane's own missing `docs/tuning.md` rows, fixed; #8308 was stopped by fleetq (exit -15) and gives no result.
 
 ## The normal path
 
@@ -122,7 +124,7 @@ Normal-path lines that changed, and the evidence for each:
 | Line | Evidence |
 |---|---|
 | `settle`'s `Ok` arm: `r.finish()`, was `let rr = r.finish(); if out.is_ok() { rr }` | Same call in the same order. `settle_on_a_good_pass_waits_for_the_answer_as_before` |
-| `next_rows`: `room >= 2 && draft_fits(len)` | `where_the_block_fits...`: rank 1 is told to draft at 1, 2, 8, 32, cap-6, cap-5. `draft_fits_is_exactly...`: at every position 0..=64, `draft_fits` is exactly what `draft_steps` accepts, and every position where a round could run before still runs one |
+| `next_rows`: `room >= 2 && draft_fits(len)` | `where_the_block_fits...`: rank 1 is told to draft at 1, 2, 8, 32, cap-6, cap-5. `next_rows_drafts_exactly_where_the_block_fits...`: through `next_rows` at every position below 64, a round exactly at 1 to 59, and `draft_steps` refuses the limit spelled out in the test |
 | `draft_steps`: `!draft_fits(pos0)`, was `pos0 == 0 \|\| pos0 + t > cap` | The same test |
 | `forward`: `test_fault().and_then(..)` | Unset it is a match on `None`, then the same call. Read in `load` after the warm-up, on rank 0 only |
 | Prompt sent chunk by chunk (`Worker::prefill`) | `Dsv41Runtime::forward` cuts `min(left, chunk)` and asks logits only of the last, so each rank runs the same passes; only the messages between the ranks change. `a_prompt_is_cut_into_the_runtimes_chunks_and_only_the_last_reads_logits` pins the cuts. Each chunk now also waits for rank 1's answer: **the prefill speed effect is not measured** |
