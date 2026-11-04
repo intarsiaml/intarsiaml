@@ -1,0 +1,8 @@
+prefill chunk 2048 (recipe qwen3_5_vl, metal)
+intarsia-backend-metal: keep-warm: registered the file at 0x7000000000, 19.80 GB
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+Error: loading /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4
+
+Caused by:
+    unsupported: a 9-row batched step runs matmul_mxfp4 on matmul_mxfp4_nax, which is not a row-exact (`rows_exact`) kernel and not the solo step's (matmul_mxfp4_gemv): a different kernel reduces in a different order, so rows would not be bitwise the solo step

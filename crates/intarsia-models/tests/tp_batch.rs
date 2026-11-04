@@ -139,10 +139,15 @@ struct Setup {
     rows: usize,
     /// The host communicator's wait for the other rank (mutant tests: seconds, so a dropped collective fails fast).
     timeout: Option<Duration>,
+    /// Rank 0 runs on `common::Flaky` (left in `FLAKY`, for the test to fail).
+    flaky: bool,
 }
 
+/// The `Flaky` backend of the last model loaded with `Setup::flaky`.
+static FLAKY: std::sync::Mutex<Option<Arc<common::Flaky>>> = std::sync::Mutex::new(None);
+
 fn setup(kind: Kind) -> Setup {
-    Setup { kind, world: 2, vocab: false, arnorm: false, rows: ROWS, timeout: None }
+    Setup { kind, world: 2, vocab: false, arnorm: false, rows: ROWS, timeout: None, flaky: false }
 }
 
 fn vocab_of(kind: Kind) -> u32 {
@@ -177,7 +182,12 @@ fn load_with_comms(s: Setup, tel: Arc<Telemetry>) -> (Model, Vec<Arc<ArNormComm>
         tp_arnorm: s.arnorm,
         ..Default::default()
     };
-    let backends: Vec<Arc<dyn Backend>> = (0..s.world).map(|_| CpuBackend::arc()).collect();
+    let mut backends: Vec<Arc<dyn Backend>> = (0..s.world).map(|_| CpuBackend::arc()).collect();
+    if s.flaky {
+        let f = common::Flaky::new();
+        backends[0] = f.clone();
+        *FLAKY.lock().unwrap() = Some(f);
+    }
     let mut fusing = Vec::new();
     let mut m = if s.world == 1 {
         Model::load(backends[0].clone(), &recipe, &dims, &weights, &opts, tel).unwrap()
@@ -534,4 +544,25 @@ fn tp2_batched_engine_equals_the_tp2_solo_engine_over_128_tokens() {
         let mx = eng.metrics();
         assert!(mx.batch_hist[2..].iter().sum::<u64>() > 0, "no batched decode pass ran: {:?}", mx.batch_hist);
     }
+}
+
+/// A batched tensor-parallel step that fails aborts the communicator: the model records it (`Model::tp_group_aborted`), whatever
+/// the error that ended the step (an allocation failure on rank 0 here), so a `LocalEngine` over it fails instead of serving
+/// errors.
+#[test]
+fn a_failed_tp_batched_step_marks_the_group_aborted() {
+    let m = model(Setup { flaky: true, ..setup(Kind::Dense) });
+    let flaky = FLAKY.lock().unwrap().take().unwrap();
+    let v = m.dims.vocab as u32;
+    let mut sts: Vec<SequenceState> = (0..3).map(|_| m.new_state().unwrap()).collect();
+    for (i, st) in sts.iter_mut().enumerate() {
+        m.forward(st, &prompt(i, 3 + 4 * i, v), HeadMode::LastArgmax, None).unwrap();
+    }
+    assert!(!m.tp_group_aborted());
+    flaky.set(common::FAIL_MEMORY);
+    let mut refs: Vec<&mut SequenceState> = sts.iter_mut().collect();
+    let err = m.forward_batch(&mut refs, &[2, 3, 4], &[HeadMode::LastArgmax; 3]).unwrap_err();
+    flaky.set(common::OK);
+    assert!(matches!(err, intarsia_core::Error::Memory(_)), "{err}");
+    assert!(m.tp_group_aborted(), "the failed step aborted the group and the model does not know");
 }

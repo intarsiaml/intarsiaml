@@ -1,0 +1,44 @@
+fleetq: #8299 waiting (#1 in line): needs cpu quiet on endor, but #8280 "engine-localfail: build+tests (held across steps)" (claude-c8e51313) loads it
+fleetq: #8299 waiting (#1 in line): needs cpu quiet on endor, but #8296 "dsv41 replay: final cargo check cuda cfgs + cargo test --workspace on the commit" (claude-c8e51313) loads it
+fleetq: #8299 running on endor: zsh docs/results/2026-11-03-m27-hs-rowtable/raw/scripts/speed-driver.sh
+21:56:36 start def mb8 sizes=16384 conc=8,16 #1
+localeval 16384 exit 0
+22:15:36 done  def mb8 #1 exit 0
+22:15:37 start rt mb8 sizes=16384 conc=8,16 #2
+localeval 16384 exit 0
+22:33:13 done  rt mb8 #2 exit 0
+22:33:13 start def mb8 sizes=16384 conc=8,16 #3
+localeval 16384 exit 0
+22:52:24 done  def mb8 #3 exit 0
+22:52:24 start rt mb8 sizes=16384 conc=8,16 #4
+localeval 16384 exit 0
+23:09:59 done  rt mb8 #4 exit 0
+23:09:59 start def mb8 sizes=4096 conc=8,16 #5
+localeval 4096 exit 0
+23:17:58 done  def mb8 #5 exit 0
+23:17:58 start rt mb8 sizes=4096 conc=8,16 #6
+localeval 4096 exit 0
+23:25:31 done  rt mb8 #6 exit 0
+23:25:31 start def mb8 sizes=4096 conc=8,16 #7
+localeval 4096 exit 0
+23:33:29 done  def mb8 #7 exit 0
+23:33:29 start rt mb8 sizes=4096 conc=8,16 #8
+localeval 4096 exit 0
+23:41:00 done  rt mb8 #8 exit 0
+23:41:00 start def mb4 sizes=4096 16384 conc=4 #9
+localeval 4096 exit 0
+localeval 16384 exit 0
+23:46:49 done  def mb4 #9 exit 0
+23:46:49 start rt mb4 sizes=4096 16384 conc=4 #10
+localeval 4096 exit 0
+localeval 16384 exit 0
+23:52:20 done  rt mb4 #10 exit 0
+23:52:21 start def mb4 sizes=4096 16384 conc=4 #11
+localeval 4096 exit 0
+localeval 16384 exit 0
+23:58:09 done  def mb4 #11 exit 0
+23:58:09 start rt mb4 sizes=4096 16384 conc=4 #12
+localeval 4096 exit 0
+localeval 16384 exit 0
+00:03:40 done  rt mb4 #12 exit 0
+fleetq: #8299 done (exit 0)

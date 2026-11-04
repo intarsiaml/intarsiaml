@@ -1,0 +1,27 @@
+fleetq: #8314 waiting (#1 in line): #8183 "dsv41 chunk32k-2: ~180 multi-fact long-context items, chunk 512 / 2048 / HC_FUSED=0 (localeval, vLLM restored after, stops 06:30)" (claude-c8e51313) needs gpu quiet on spark1, and this job loads it
+fleetq:   #8183 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8183 set, or it will wait for #8183 to be released.
+fleetq: #8314 running on spark1: zsh /opt/code/intarsiaml/.worktrees/engine-localfail/docs/results/2026-11-03-engine-localfail/raw/scripts/gates-cuda.sh /opt/code/intarsiaml/.worktrees/engine-localfail/docs/results/2026-11-03-engine-localfail/raw/cuda
+new 427c4d2430e04829cb8de0ebfbf95a218a443508 base 3c57d50a2942463e789d781d3e536aafc9f66b5b
+tail: option used in invalid context -- 2
+plan 35b new exit 0
+plan 35b new json exit 0
+plan 8b new exit 0
+plan 8b new json exit 0
+avail GB before kernels: 79
+kernels new exit 0
+plan 35b base exit 0
+plan 35b base json exit 0
+plan 8b base exit 0
+plan 8b base json exit 0
+avail GB before kernels: 79
+kernels base exit 0
+REMOTE_DONE
+plan show 35b txt: identical (4017 bytes)
+plan show 35b json: identical (15570 bytes)
+plan show 8b txt: identical (1543 bytes)
+plan show 8b json: identical (8968 bytes)
+kernels base: 0 FAIL lines; 106 kernels, 918 cases in 6.2s
+kernels new: 0 FAIL lines; 106 kernels, 918 cases in 6.5s
+kernels logs identical apart from wall time
+cleaned
+fleetq: #8314 done (exit 0)

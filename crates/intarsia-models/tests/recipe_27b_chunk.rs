@@ -17,7 +17,8 @@ fn shipped_27b_recipe_prefill_chunk() {
         );
     }
     assert_eq!(r.resolve_prefill_peel("hip").0, 16, "tails of 1..16 rows keep the 256 schedule (small-M row kernels)");
-    for b in ["cuda", "metal", "cpu"] {
+    assert_eq!(r.resolve_prefill_peel("metal").0, 8, "tails of 1..8 rows keep the busy schedule (GEMV at M <= 8)");
+    for b in ["cuda", "cpu"] {
         assert_eq!(r.resolve_prefill_peel(b).0, 0, "{b} has no peel");
     }
     assert_eq!(r.resolve_busy_chunk("hip"), Some(256), "beside decoding streams the prefill chunk stays 256");

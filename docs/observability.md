@@ -92,13 +92,14 @@ the child dies. The child exits by itself with a distinct code when its watchdog
 | 0 | clean shutdown (SIGTERM/Ctrl-C) | exits 0 |
 | 2, 78 | bad command line, model or recipe did not load | exits, no restart |
 | 86 | watchdog: no engine step for `--watchdog-s` with work queued | restart |
-| 87 | engine worker failed (panic) | restart |
+| 87 | engine failed: worker panic, a device error (`Error::Backend`), or an aborted tensor-parallel group | restart |
 | 88 | the supervisor vanished | (child gone) |
 | other / signal | crash, OOM kill | restart |
 
 A wedged CUDA context has sticky errors, so a fresh process is the only recovery. SIGTERM to the
 supervisor is forwarded to the child (30 s grace, then SIGKILL). `--no-supervisor` runs the server in
-the foreground without restarts, for debugging: the watchdog then only turns `/health` to 503.
+the foreground without restarts, for debugging: the watchdog then only turns `/health` to 503 (with `--tp-remote` or
+`--tp` above 1 it exits 87 on a failed engine, for an init system that restarts it).
 
 Debug hooks (worker thread, any build): `INTARSIA_DEBUG_STALL_S=n` sleeps n seconds at the start of
 every request (forces a stall); `INTARSIA_DEBUG_PANIC=1` panics there. For testing the watchdog only.

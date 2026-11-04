@@ -1,0 +1,4 @@
+53c53
+< 49 kernels, 980 cases in 36.0s
+---
+> 49 kernels, 980 cases in 31.2s

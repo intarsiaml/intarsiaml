@@ -203,8 +203,8 @@ fn cancel_and_errors_leave_others_alone() {
         }
         rxs.push(eng.submit(r).unwrap());
     }
-    // an out-of-vocab token is rejected at admission, a too-long prompt as well
-    let bad = eng.submit(GenRequest { prompt: vec![1, 2, 99_999], ..Default::default() }).unwrap();
+    // an out-of-vocab token is refused at submit (a 400 for the client, not a 500 from the scheduler), a too-long prompt at admission
+    let bad = eng.submit(GenRequest { prompt: vec![1, 2, 99_999], ..Default::default() }).unwrap_err();
     let long = eng.submit(GenRequest { prompt: vec![5; 4000], ..Default::default() }).unwrap();
     flag.store(true, Ordering::Relaxed);
     for (i, rx) in rxs.iter().enumerate() {
@@ -215,7 +215,7 @@ fn cancel_and_errors_leave_others_alone() {
             assert_eq!(got, Out { cached_tokens: got.cached_tokens, ..clone_out(&want[i]) }, "case {i}");
         }
     }
-    assert!(collect(&bad).unwrap_err().contains("vocab"));
+    assert!(matches!(&bad, intarsia_core::Error::BadRequest(m) if m.contains("vocab")), "{bad}");
     assert!(collect(&long).unwrap_err().contains("does not fit"));
     let snap = tel.snapshot();
     assert_eq!((snap.running, snap.waiting), (0, 0), "{snap:?}");

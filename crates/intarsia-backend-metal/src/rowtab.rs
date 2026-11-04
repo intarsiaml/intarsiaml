@@ -13,7 +13,7 @@
 //! [`MetalBackend::device_address`] registers every buffer it hands out (weakly), and a row-table dispatch declares the
 //! registered set resident in the encoder it is encoded into (`useResources`, once per encoder and per change of the set).
 
-use crate::attn::{decode_splits, head_split, policy, MAX_GROUP, MAX_SG, MAX_SPLIT, TG_FLOATS};
+use crate::attn::{decode_splits, head_plan, policy, MAX_GROUP, MAX_SG, MAX_SPLIT, TG_FLOATS};
 use crate::dense::{Bind, OpP};
 use crate::{set_bytes, MetalBackend};
 use intarsia_core::{DType, Error, Op, OpCall, Result, ShapeInfo};
@@ -372,11 +372,13 @@ impl MetalBackend {
         let q = self.bind(&i[0], bf, false, "q")?;
         let out = self.bind(&o[0], bf, true, "out")?;
         let grp = n / nkv;
-        let hs = head_split(grp, d);
+        // the solo launch's head plan (`head_plan`, incl. the bitwise split of the 27B): the per-row work partition must be its own
+        let hp = head_plan(grp, d);
+        let hs = hp.hs;
         let nkvv = nkv * hs;
         // a full cache bounds every row's split count (the shader derives each row's own from its position and idles the
         // surplus threadgroups); the policy is monotone in the visible keys and capped at MAX_SPLIT, as is the solo launch's
-        let max_split = decode_splits(cap, nkvv, MAX_SPLIT);
+        let max_split = decode_splits(cap, hp.policy_kv(nkv), MAX_SPLIT);
         let need = rows * n * max_split * (d + 2) * 4;
         let scratch = call.scratch.as_ref().ok_or_else(|| {
             Error::invalid("metal attn_decode_bf16_splitkv_rows: the scratch workspace (OpCall::scratch) is missing")
@@ -397,13 +399,13 @@ impl MetalBackend {
         u(rows * n * max_split * (d + 2), "R*N*max_split*(D+2)")?;
         let p = OpP {
             dims: [u(target, "target")?, u(n, "N")?, u(nkv, "Nkv")?, u(d, "D")?, u(cap, "cap")?, 0, 0, u(max_split, "max_split")?],
-            skips: [u(rows, "R")?, u(hs, "head split")?, tab.stride, out.skip, tab.index],
+            skips: [u(rows, "R")?, u(hp.s1(), "head split")?, tab.stride, out.skip, tab.index],
             f0: a.scale,
             f1: 0.0,
             pad: u(min_keys, "min_keys")?,
         };
         let gp = (grp / hs).next_power_of_two();
-        let nsg = MAX_SG.min((TG_FLOATS / (gp * d)).max(1));
+        let nsg = MAX_SG.min((TG_FLOATS / (gp.max(hp.gpref) * d)).max(1));
         let (name1, name2) = (ATTN_ROWTAB_SHADERS[gp.trailing_zeros() as usize], ATTN_ROWTAB_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
