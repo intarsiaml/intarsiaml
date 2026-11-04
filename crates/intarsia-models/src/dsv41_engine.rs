@@ -83,6 +83,10 @@ pub fn fingerprint(m: &Manifest, o: &Dsv41Opts) -> String {
     if m.first_layer > 0 {
         base.push_str(&format!(" | first layer {}", m.first_layer));
     }
+    // bounded-replay prefill (opt-in): the ranks must cut at the same place; off, the fingerprint is the one before it existed
+    if intarsia_core::dsv41::replay::enabled() {
+        base.push_str(" | replay");
+    }
     // the spec-off fingerprint is the one before speculation existed, so old and new binaries still pair without it
     if o.spec {
         format!("{base} | dspark spec")
@@ -609,6 +613,8 @@ impl Worker {
         // prefix reuse: the common prefix, if the state can roll back to it (ring margin), else from scratch
         let common = self.st.tokens.iter().zip(&req.prompt).take_while(|(a, b)| a == b).count().min(req.prompt.len() - 1);
         let keep = self.st.restorable_len(common);
+        // bounded replay (opt-in): rows whose decoder-layer window keys were skipped cannot serve a resume below the new floor
+        let keep = self.rt.replay_keep(&self.st, keep, req.prompt.len());
         if keep != self.st.len {
             self.truncate(keep)?;
         }

@@ -1,0 +1,42 @@
+//! Scratch (not committed): FNV-1a digest of the Debug text of the default graphs, to compare before/after a change.
+use intarsia_core::dsv41::config::Dsv41Config;
+use intarsia_core::dsv41::graph::{build_draft, build_pass, GraphOpts, GraphTp, PassKind};
+use intarsia_core::DType;
+use intarsia_models::dsv41::{detect, HeaderShapes};
+use std::path::Path;
+
+fn fnv(s: &str) -> u64 {
+    let mut h = 0xcbf29ce484222325u64;
+    for b in s.bytes() {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
+}
+
+#[test]
+fn digest() {
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/dsv41/mia_headers");
+    let c: Dsv41Config = detect(&dir).unwrap().unwrap();
+    let w = HeaderShapes::open(&dir).unwrap();
+    for world in [1usize, 2] {
+        let tp = GraphTp { world, layers: None, first: 0 };
+        for (t, pos0) in [(1usize, 4095usize), (8, 0), (16, 130), (17, 5), (128, 0), (128, 3978), (512, 0), (512, 8192), (2048, 2048), (1, 70_000)] {
+            for (all_rows, absorb, dpos) in [(false, false, false), (false, true, false), (true, true, false), (false, false, true), (true, true, true)] {
+                if all_rows && t > 16 {
+                    continue;
+                }
+                let k = PassKind { all_rows, absorb, dpos };
+                let g = build_pass(&c, &w, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }, tp, k);
+                let txt = match g {
+                    Ok(g) => format!("{:?}", (&g.stages, &g.slots, g.residual_streams, &g.logits, &g.ids, g.world, g.verify, g.cap)),
+                    Err(e) => format!("ERR {e}"),
+                };
+                println!("DIGEST world={world} t={t} pos0={pos0} rows={all_rows} absorb={absorb} dpos={dpos} {:016x} len={}", fnv(&txt), txt.len());
+            }
+        }
+    }
+    let tp = GraphTp::default();
+    let d = build_draft(&c, &w, GraphOpts { t: 5, pos0: 101, act: DType::Bf16, cap: 4096 }, tp, 4).unwrap();
+    println!("DIGEST draft {:016x}", fnv(&format!("{:?}", d.stages)));
+}

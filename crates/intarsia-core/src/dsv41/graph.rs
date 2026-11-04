@@ -431,7 +431,9 @@ pub const HC_FOLD_MAX_ROWS: usize = 16;
 
 /// The other residual buffer (`x0` <-> `x1`).
 fn flip(x: &Arg) -> Arg {
-    let other = if x.buf == Buf::Ws("x0".into()) { "x1" } else { "x0" };
+    // (`x0@row` is a view of `x0` that starts that many rows in: the decoder part of a bounded-replay prefill)
+    let is_x0 = matches!(&x.buf, Buf::Ws(n) if n.split('@').next() == Some("x0"));
+    let other = if is_x0 { "x1" } else { "x0" };
     Arg { buf: Buf::Ws(other.into()), ..x.clone() }
 }
 
@@ -561,8 +563,75 @@ pub fn build_with(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     build_pass(c, w, o, tp, PassKind::default())
 }
 
+/// Which layers a bounded-replay prefill graph holds (`replay.rs`; `Whole` is every graph that is not a replay graph).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ReplayPart {
+    /// The embedding, every layer, the head.
+    #[default]
+    Whole,
+    /// The embedding, layers `0..cut`, then layer `cut`'s attention-sublayer mixes and kv-source update (compressed KV and
+    /// index keys of every row) and nothing else: no head. It leaves the residual streams of its `t` rows in the workspace
+    /// for the decoder part.
+    Encoder,
+    /// Layers `cut..` and the head on `t` rows that are rows `first..first + t` of the encoder part's streams (read in place
+    /// from the workspace); layer `cut`'s kv-source update is not repeated.
+    Decoder,
+}
+
+/// A bounded-replay build ([`build_replay`]): `Replay::default()` is the plain graph.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Replay {
+    pub part: ReplayPart,
+    /// The decoder half's first layer.
+    pub cut: usize,
+    /// First prompt position the decoder layers see a window key at (0: none is dropped). The decoder layers' sparse attention
+    /// is built at `pos0 - floor`, which makes its window validity test (`pos0 + row >= window`) mean "position >= floor".
+    pub floor: usize,
+    /// `Decoder` part: the rows of the encoder part's streams this graph starts at.
+    pub first: usize,
+}
+
+/// The workspace buffer the residual streams are in after `cut` layers of the embedding's expand (`x0` / `x1` ping-pong): two
+/// flips per layer (the attention's and the FFN's `HcPost`) and one per Engram layer (`EngramMerge`).
+fn handoff_streams(c: &Dsv41Config, cut: usize) -> &'static str {
+    let engram = c.engram.as_ref().map_or(0, |e| e.layer_ids.iter().filter(|&&l| l < cut).count());
+    if (2 * cut + engram) % 2 == 0 {
+        "x0"
+    } else {
+        "x1"
+    }
+}
+
 /// The forward graph of one chunk with the extras of `k`.
 pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp, k: PassKind) -> Result<Dsv41Graph> {
+    build_replay(c, w, o, tp, k, Replay::default())
+}
+
+/// [`build_pass`] for a bounded-replay prefill (`replay.rs`): the encoder part or the decoder part of a chunk, or a whole chunk
+/// whose decoder layers drop the window keys before `r.floor`. With `Replay::default()` this is exactly [`build_pass`].
+pub fn build_replay(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: GraphTp, k: PassKind, r: Replay) -> Result<Dsv41Graph> {
+    let replaying = r.part != ReplayPart::Whole || r.floor > 0;
+    if replaying {
+        let bad = |m: String| Err(Error::invalid(format!("deepseek_v41 replay graph: {m}")));
+        if k.all_rows || k.dpos {
+            return bad("a replay graph is a host-position prompt pass (no verify rows, no device position)".into());
+        }
+        if tp.layers.is_some() || tp.first != 0 {
+            return bad("a truncated model has no decoder half".into());
+        }
+        if r.cut == 0 || r.cut >= c.n_layers || r.cut != super::replay::cut_layer(c.n_layers) {
+            return bad(format!("cut {} of {} layers", r.cut, c.n_layers));
+        }
+        if r.part != ReplayPart::Decoder && r.first != 0 {
+            return bad(format!("first row {} outside a decoder part", r.first));
+        }
+        if o.pos0 < r.floor && r.part != ReplayPart::Encoder {
+            return bad(format!("rows from position {} under the floor {}", o.pos0, r.floor));
+        }
+        if r.part == ReplayPart::Decoder && c.engram.as_ref().is_some_and(|e| e.layer_ids.iter().any(|&l| l >= r.cut)) {
+            return bad("an Engram layer in the decoder half".into());
+        }
+    }
     if k.all_rows && !(1..=VERIFY_MAX_ROWS).contains(&o.t) {
         return Err(Error::invalid(format!("deepseek_v41: a verify pass of {} rows (1..={VERIFY_MAX_ROWS})", o.t)));
     }
@@ -579,7 +648,13 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     if tp.first >= n_layers {
         return Err(Error::invalid(format!("deepseek_v41 graph: first layer {} of {n_layers}", tp.first)));
     }
-    let absorb = k.absorb && dspark_absorbs(c, w, tp.first, n_layers);
+    // a replay part holds a range of the layers: the encoder part `tp.first..cut`, the decoder part `cut..n_layers`
+    let (lo, hi) = match r.part {
+        ReplayPart::Whole => (tp.first, n_layers),
+        ReplayPart::Encoder => (tp.first, r.cut),
+        ReplayPart::Decoder => (r.cut, n_layers),
+    };
+    let absorb = k.absorb && dspark_absorbs(c, w, lo, hi);
     if k.absorb && dspark_stages(c, w) == 0 {
         return Err(Error::Unsupported("deepseek_v41: DSpark absorb without the DSpark stages".into()));
     }
@@ -587,29 +662,36 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
     let mut stages = Vec::new();
     let mut b = Builder { c, w, o, tp, steps: Vec::new(), extras: Vec::new(), dpos: k.dpos, lane: 0 };
 
-    // embedding, expanded to hc_mult streams (Transformer.forward)
-    let ids = arg(Buf::Host("token_ids".into()), DType::I32, &[t]);
-    let emb = b.weight("embed.weight")?;
-    let h = ws("h", act, &[t, d]);
-    b.push(Op::Embedding, "embed", vec![ids, emb], vec![h.clone()], OpAttrs::default());
-    // the residual ping-pongs between two buffers: HcPost mixes across streams and EngramMerge reads every stream, so no
-    // step's output aliases its input (outputs never alias inputs in this graph, except the state rings marked in place)
-    let mut x = ws("x0", act, &[t, s, d]);
-    b.push(Op::HcExpand, "hc_expand", vec![h], vec![x.clone()], OpAttrs::default());
-    stages.push(b.stage("embed".into(), None, vec!["embed".into(), format!("hc_expand x{s}")]));
+    let (mut x, mut pre_mix) = if r.part == ReplayPart::Decoder {
+        // the decoder part starts from the encoder part's streams and last FFN pre-mix, rows `first..` of the workspace
+        // buffers they were left in (`name@row`: a view that starts that many rows in)
+        (ws(&format!("{}@{}", handoff_streams(c, r.cut), r.first), act, &[t, s, d]), ws(&format!("hc_ffn.pre@{}", r.first), DType::F32, &[t, s]))
+    } else {
+        // embedding, expanded to hc_mult streams (Transformer.forward)
+        let ids = arg(Buf::Host("token_ids".into()), DType::I32, &[t]);
+        let emb = b.weight("embed.weight")?;
+        let h = ws("h", act, &[t, d]);
+        b.push(Op::Embedding, "embed", vec![ids, emb], vec![h.clone()], OpAttrs::default());
+        // the residual ping-pongs between two buffers: HcPost mixes across streams and EngramMerge reads every stream, so no
+        // step's output aliases its input (outputs never alias inputs in this graph, except the state rings marked in place)
+        let x = ws("x0", act, &[t, s, d]);
+        b.push(Op::HcExpand, "hc_expand", vec![h], vec![x.clone()], OpAttrs::default());
+        stages.push(b.stage("embed".into(), None, vec!["embed".into(), format!("hc_expand x{s}")]));
 
-    let mut pre_mix = arg(Buf::Const("hc.one_hot_pre_mix".into()), DType::F32, &[t, s]);
+        (x, arg(Buf::Const("hc.one_hot_pre_mix".into()), DType::F32, &[t, s]))
+    };
     // HcMixes + HcPre + RmsNorm of every sublayer run as one HcSublayer; at T <= HC_FOLD_MAX_ROWS it also folds the
     // previous sublayer's HcPost, unless something reads the streams in between (an Engram merge or the DSpark tap of the
-    // next layer, the head): then that HcPost is emitted on its own at the end of its layer.
-    let fold = hc_fused() && t <= HC_FOLD_MAX_ROWS;
+    // next layer, the head): then that HcPost is emitted on its own at the end of its layer. A replay part never folds
+    // (its streams are handed over at a layer boundary).
+    let fold = hc_fused() && t <= HC_FOLD_MAX_ROWS && r.part == ReplayPart::Whole;
     let reads_streams = |l: usize| {
         l >= n_layers
             || c.engram.as_ref().is_some_and(|e| e.layer_ids.contains(&l))
             || c.mtp.as_ref().is_some_and(|m| m.target_layer_ids.contains(&l))
     };
     let mut pending: Option<PendingPost> = None;
-    for l in tp.first..n_layers {
+    for l in lo..hi {
         let p = format!("layers.{l}");
         let mut blocks = Vec::new();
         // Engram (Transformer.forward, before the block): rows hashed on the host, fetched from the tier
@@ -643,7 +725,8 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
         }
         let (n, [attn_pre, attn_post, attn_comb], x1) = b.hc_sublayer(&x, &format!("{p}.hc_attn"), "hc_attn", "attn", pre_mix.clone(), &format!("{p}.attn_norm.weight"), pending.take())?;
         x = x1;
-        let attn_out = attention(&mut b, l, &lslots[l], &n, &mut blocks)?;
+        let ar = AttnReplay { skip_kv_update: r.part == ReplayPart::Decoder && l == r.cut, floor: if l >= r.cut { r.floor } else { 0 } };
+        let attn_out = attention(&mut b, l, &lslots[l], &n, &mut blocks, ar)?;
         pending = Some(PendingPost { out: attn_out, post: attn_post, comb: attn_comb, what: format!("{p}.hc_post(attn)") });
         if !fold {
             x = b.flush_post(&x, &mut pending);
@@ -663,6 +746,22 @@ pub fn build_pass(c: &Dsv41Config, w: &dyn WeightShapes, o: GraphOpts, tp: Graph
         stages.push(b.stage(format!("layer {l}"), Some(l), blocks));
     }
     debug_assert!(pending.is_none());
+
+    if r.part == ReplayPart::Encoder {
+        // layer `cut`'s attention-sublayer mixes and its kv-source update of every row (TensorFold `prompt.replayCut`: the
+        // layer's attnMixes and kvSourceUpdate over the whole chunk), then the chunk ends: no head, nothing read back. The
+        // streams and the last FFN pre-mix stay in the workspace for the decoder part, in the buffers it names.
+        let l = r.cut;
+        if x.buf != Buf::Ws(handoff_streams(c, l).into()) || pre_mix.buf != Buf::Ws("hc_ffn.pre".into()) {
+            return Err(Error::invalid(format!("deepseek_v41 replay graph: the streams after {l} layers are in {:?} / {:?}", x.buf, pre_mix.buf)));
+        }
+        let p = format!("layers.{l}");
+        let (n, _mixes, _x) = b.hc_sublayer(&x, &format!("{p}.hc_attn"), "hc_attn", "attn", pre_mix.clone(), &format!("{p}.attn_norm.weight"), None)?;
+        kv_source_update(&mut b, l, &lslots[l], &n)?;
+        stages.push(b.stage(format!("layer {l} (kv-source update only)"), Some(l), vec!["hc_attn mixes".into(), format!("kv-source update (ratio {})", c.ratio(l))]));
+        let logits = ws("logits", DType::F32, &[1, c.vocab]);
+        return Ok(Dsv41Graph { stages, slots: slot_specs, residual_streams: s, mtp: mtp_blocks(c, w), cap: o.cap, logits, ids: None, world: tp.world, verify: false });
+    }
 
     // DSpark absorb: this chunk's taps into every stage's window ring (DSparkAttention.forward's main_kv; the official
     // driver writes one position per drafting round, here every pass writes its rows, verify rows included: a rejected
@@ -939,8 +1038,78 @@ pub fn build_markov(c: &Dsv41Config, w: &dyn WeightShapes, act: DType) -> Result
     Ok(Dsv41Graph { stages: vec![st], slots: Vec::new(), residual_streams: c.hc_mult, mtp: Vec::new(), cap: 1, logits, ids: None, world: 1, verify: false })
 }
 
+/// What a bounded-replay build changes in a layer's attention (`Replay`); the default changes nothing.
+#[derive(Clone, Copy, Debug, Default)]
+struct AttnReplay {
+    /// The layer's kv-source update was done by the encoder part: leave it out (the layer's compressed KV and index keys
+    /// for every row are already in the shared slots).
+    skip_kv_update: bool,
+    /// The sparse attention drops the window keys before this position ([`Replay::floor`]).
+    floor: usize,
+}
+
+/// The kv-source update of layer `l` (a layer that is its own kv source): its compressor, then the index keys and the
+/// compressed latents of the groups the chunk completes into the shared slots. Reads the layer's attention input `n` only.
+/// This is `attention`'s compressor block, unchanged, as a function of its own so that the encoder part of a bounded-replay
+/// prefill can run it without the rest of the attention.
+fn kv_source_update(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg) -> Result<()> {
+    let c = b.c;
+    let (t, act, pos0) = (b.o.t, b.o.act, b.o.pos0);
+    let hd = c.head_dim;
+    let p = format!("layers.{l}.attn");
+    let r = c.ratio(l);
+    let dpos = b.dpos;
+    let (nk, groups) = match r {
+        0 => (0, 0),
+        _ if dpos => (b.o.cap.div_ceil(r), t.div_ceil(r)),
+        _ => compressed_rows(pos0, t, r),
+    };
+    let cmp_slot = ls.cmp.expect("kv readers have a slot");
+    let ik_slot = ls.index_k.expect("kv readers have a slot");
+    let row0 = pos0 / r;
+    // the compressor (Compressor.forward): ratio 1 is a plain projection, above it softmax-gated pooling in f32
+    let latent = if r > 1 {
+        let ckv = b.matmul_lane(1, n.clone(), &format!("{p}.compressor.wkv"), Buf::Ws("cmp.kv".into()), DType::F32)?;
+        let cs = b.matmul_lane(2, n.clone(), &format!("{p}.compressor.wgate"), Buf::Ws("cmp.score".into()), DType::F32)?;
+        let tail = ls.tail.expect("ratio > 1 sources have a tail ring");
+        let outs = vec![
+            ws("latent", act, &[groups, hd]),
+            arg(Buf::Slot { slot: tail, plane: 0, row0: 0 }, DType::F32, &[tail_rows(r), hd]),
+            arg(Buf::Slot { slot: tail, plane: 1, row0: 0 }, DType::F32, &[tail_rows(r), hd]),
+        ];
+        let mut a = OpAttrs { pos0, ..Default::default() };
+        a.dsv.ratio = r;
+        b.push(Op::CompressPool, format!("{p}.compressor"), vec![ckv, cs], outs.clone(), a);
+        b.positioned(r);
+        outs[0].clone()
+    } else {
+        b.matmul(n.clone(), &format!("{p}.compressor.wkv"), Buf::Ws("latent".into()), act)?
+    };
+    if groups > 0 || dpos {
+        let latent = b.rmsnorm(latent, &format!("{p}.compressor.norm.weight"), "latent_n")?;
+        // index keys from the pre-rope latent (Indexer.forward, owns_k), then the latent itself
+        let k = b.matmul(latent.clone(), &format!("{p}.indexer.wk"), Buf::Ws("index_k".into()), act)?;
+        let k = b.rmsnorm(k, &format!("{p}.indexer.k_norm.weight"), "index_k_n")?;
+        let k = b.rope(Arg { shape: vec![groups, 1, c.index_head_dim], ..k }, l, row0 * r, r, false, Buf::Ws("index_k_rope".into()), &format!("{p}.rope(index_k)"));
+        b.positioned(r);
+        // device position: the slot write takes the whole slot and its row `p / r` from the device
+        let slot_out = |slot: usize, w: usize| if dpos { (Buf::Slot { slot, plane: 0, row0: 0 }, nk, w) } else { (Buf::Slot { slot, plane: 0, row0 }, groups, w) };
+        let (ik_buf, ik_rows, ik_w) = slot_out(ik_slot, c.index_head_dim);
+        b.qdq(Arg { shape: vec![groups, c.index_head_dim], ..k }, QdqFmt::Fp4E2m1, 32, QdqScale::Ue8m0, ik_buf, &format!("{p}.act_quant(index_k)"));
+        b.slot_rows(ik_rows, ik_w);
+        b.positioned(r);
+        let lat = b.rope(Arg { shape: vec![groups, 1, hd], ..latent }, l, row0 * r, r, false, Buf::Ws("latent_rope".into()), &format!("{p}.rope(latent)"));
+        b.positioned(r);
+        let (cb, c_rows, c_w) = slot_out(cmp_slot, hd);
+        b.qdq(Arg { shape: vec![groups, hd], ..lat }, QdqFmt::Fp4E2m1, 16, QdqScale::E4m3, cb, &format!("{p}.act_quant(latent)"));
+        b.slot_rows(c_rows, c_w);
+        b.positioned(r);
+    }
+    Ok(())
+}
+
 /// The attention of layer `l` (`Attention.forward`); returns its `[t, dim]` output.
-fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut Vec<String>) -> Result<Arg> {
+fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut Vec<String>, ar: AttnReplay) -> Result<Arg> {
     let c = b.c;
     let (t, act, pos0) = (b.o.t, b.o.act, b.o.pos0);
     let (h, hd, win) = (c.n_heads / b.tp.world, c.head_dim, c.window);
@@ -968,7 +1137,7 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
 
     // device position: the shared views span the slot capacity (`nk` = its rows), `ceil(t / r)` groups always
     let dpos = b.dpos;
-    let (nk, groups) = match r {
+    let (nk, _groups) = match r {
         0 => (0, 0),
         _ if dpos => (b.o.cap.div_ceil(r), t.div_ceil(r)),
         _ => compressed_rows(pos0, t, r),
@@ -979,45 +1148,9 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
         let isrc = c.index_source(l).expect("validated");
         let cmp_slot = ls.cmp.expect("kv readers have a slot");
         let ik_slot = ls.index_k.expect("kv readers have a slot");
-        let row0 = pos0 / r;
         if src == l {
-            // the compressor (Compressor.forward): ratio 1 is a plain projection, above it softmax-gated pooling in f32
-            let latent = if r > 1 {
-                let ckv = b.matmul_lane(1, n.clone(), &format!("{p}.compressor.wkv"), Buf::Ws("cmp.kv".into()), DType::F32)?;
-                let cs = b.matmul_lane(2, n.clone(), &format!("{p}.compressor.wgate"), Buf::Ws("cmp.score".into()), DType::F32)?;
-                let tail = ls.tail.expect("ratio > 1 sources have a tail ring");
-                let outs = vec![
-                    ws("latent", act, &[groups, hd]),
-                    arg(Buf::Slot { slot: tail, plane: 0, row0: 0 }, DType::F32, &[tail_rows(r), hd]),
-                    arg(Buf::Slot { slot: tail, plane: 1, row0: 0 }, DType::F32, &[tail_rows(r), hd]),
-                ];
-                let mut a = OpAttrs { pos0, ..Default::default() };
-                a.dsv.ratio = r;
-                b.push(Op::CompressPool, format!("{p}.compressor"), vec![ckv, cs], outs.clone(), a);
-                b.positioned(r);
-                outs[0].clone()
-            } else {
-                b.matmul(n.clone(), &format!("{p}.compressor.wkv"), Buf::Ws("latent".into()), act)?
-            };
-            if groups > 0 || dpos {
-                let latent = b.rmsnorm(latent, &format!("{p}.compressor.norm.weight"), "latent_n")?;
-                // index keys from the pre-rope latent (Indexer.forward, owns_k), then the latent itself
-                let k = b.matmul(latent.clone(), &format!("{p}.indexer.wk"), Buf::Ws("index_k".into()), act)?;
-                let k = b.rmsnorm(k, &format!("{p}.indexer.k_norm.weight"), "index_k_n")?;
-                let k = b.rope(Arg { shape: vec![groups, 1, c.index_head_dim], ..k }, l, row0 * r, r, false, Buf::Ws("index_k_rope".into()), &format!("{p}.rope(index_k)"));
-                b.positioned(r);
-                // device position: the slot write takes the whole slot and its row `p / r` from the device
-                let slot_out = |slot: usize, w: usize| if dpos { (Buf::Slot { slot, plane: 0, row0: 0 }, nk, w) } else { (Buf::Slot { slot, plane: 0, row0 }, groups, w) };
-                let (ik_buf, ik_rows, ik_w) = slot_out(ik_slot, c.index_head_dim);
-                b.qdq(Arg { shape: vec![groups, c.index_head_dim], ..k }, QdqFmt::Fp4E2m1, 32, QdqScale::Ue8m0, ik_buf, &format!("{p}.act_quant(index_k)"));
-                b.slot_rows(ik_rows, ik_w);
-                b.positioned(r);
-                let lat = b.rope(Arg { shape: vec![groups, 1, hd], ..latent }, l, row0 * r, r, false, Buf::Ws("latent_rope".into()), &format!("{p}.rope(latent)"));
-                b.positioned(r);
-                let (cb, c_rows, c_w) = slot_out(cmp_slot, hd);
-                b.qdq(Arg { shape: vec![groups, hd], ..lat }, QdqFmt::Fp4E2m1, 16, QdqScale::E4m3, cb, &format!("{p}.act_quant(latent)"));
-                b.slot_rows(c_rows, c_w);
-                b.positioned(r);
+            if !ar.skip_kv_update {
+                kv_source_update(b, l, ls, n)?;
             }
             desc.push_str(&format!(" + compressor(ratio {r})"));
         }
@@ -1061,7 +1194,10 @@ fn attention(b: &mut Builder, l: usize, ls: &LayerSlots, n: &Arg, blocks: &mut V
 
     let sink = b.weight(&format!("{p}.attn_sink"))?;
     let o = ws("o", act, &[t, h, hd]);
-    b.push(Op::AttnSparse, format!("{p}.sparse_attn"), vec![q, winbuf, cmp, idx, sink], vec![o.clone()], OpAttrs { window: win, pos0, scale: (hd as f32).powf(-0.5), ..Default::default() });
+    // bounded replay: the window validity test of the kernel is `pos0 + row >= window`, so building the call at `pos0 - floor`
+    // drops the window keys at positions before `floor` (no change with the default floor 0)
+    let apos0 = pos0.checked_sub(ar.floor).ok_or_else(|| Error::invalid(format!("deepseek_v41 graph: layer {l} at position {pos0} under the replay floor {}", ar.floor)))?;
+    b.push(Op::AttnSparse, format!("{p}.sparse_attn"), vec![q, winbuf, cmp, idx, sink], vec![o.clone()], OpAttrs { window: win, pos0: apos0, scale: (hd as f32).powf(-0.5), ..Default::default() });
     b.positioned(r);
     let o = b.rope(o, l, pos0, 1, true, Buf::Ws("o_derot".into()), &format!("{p}.rope_inverse(o)"));
     b.positioned(1);

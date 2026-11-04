@@ -1,0 +1,442 @@
+#!/bin/bash
+# Lane dsv41/replay: tests of the opt-in bounded-replay prefill (INTARSIA_DSV41_REPLAY=1: layers 20-39 run only on the last 128
+# prompt rows, layers 0-19 and layer 20's kv-source update on all rows; default off). It changes numerics, so five steps measure
+# speed and quality, each stopping the run at the first failure:
+#   1  off vs on, prompts of at most 128 tokens (no cut): greedy ids must be identical
+#   2  golden ids (tools/prompts/golden*.jsonl, 10 x 64): this branch with replay off vs the binary of origin/main 7eeb23f2f: 640/640
+#   3  ABAB prefill timing (off, on, off, on) at 4K and 32K tokens, chunk 512 and 2048, localeval speed; a table, no threshold
+#   4  greedy agreement of on (and off, for reference) with TensorFold's token ids on the golden prompts
+#   5  paired localeval quality off vs on on the frozen chunk32k-2 set (150 items at 31K + 30 at 64K), split by fact position
+# Run it by name; it queues itself as ONE fleetq job over both Sparks (rank 0 spark1 `serve --tp-remote`, rank 1 spark2
+# `tp-worker`, the script starts both over ssh, as run-full.sh does; so no `--each`), takes the two vLLM containers down and
+# ALWAYS brings them back (EXIT trap). The Sparks are shared: queue it, do not run its inner part by hand.
+#   scripts/dsv41-tp2/replay-test.sh [--dry-run] [--steps 1,3]
+# Knobs (environment): SPARK_DIR (default ~/intarsia-dsv41-replay on the Sparks), NO_BUILD=1 (binaries already in place),
+#   CAP (66000), Q_SHARDS (frozen shards to run, default all 9 = 180 items; e.g. "s32-00 s65-00" for a pilot), Q_CHUNK (512),
+#   Q_TOKENS (400, max_tokens of the quality replies), S3_CHUNKS ("512 2048"), S3_SIZES (4096,32768), S3_REPS (2), KILL_GIB (5),
+#   EARLYOOM_OK ("3,2 2,1"), STOP_EPOCH (unix time after which step 5 starts no new shard), XENV (extra engine env, both ranks),
+#   RAW (results folder), TF_IDS (TensorFold token file for step 4), MAIN_WT (checkout of origin/main 7eeb23f2f, built for step 2).
+# Inner mode (REPLAY_TEST_INNER=1 plus FLEETQ_JOB) is what the fleetq job runs; set both only when you hold a slot yourself
+# (`fleetq acquire --host spark1,spark2 --takes-down spark1-vllm,spark2-vllm ...`).
+set -u -o pipefail
+S="$(cd "$(dirname "$0")" && pwd)"; SELF="$S/replay-test.sh"; REPO="$(cd "$S/../.." && pwd)"
+
+# ---- the vLLM restore, the way run-full.sh does it: `docker start` the guidance container on both Sparks, wait for a
+# "Application startup complete" line newer than StartedAt, then `fleetq mark-up`. Container name: one place.
+VLLM_C=missioncntrl-guidance
+VLLM_ROLES=spark1-vllm,spark2-vllm
+
+# ---- configuration
+SPARK_DIR_IN=${SPARK_DIR:-intarsia-dsv41-replay}; SPARK_DIR=$SPARK_DIR_IN
+source "$S/spark-dir.sh"
+[[ $SPARK_REL == i* ]] || { echo "SPARK_DIR '$SPARK_DIR_IN' must start with the letter i (pkill patterns use [i]...)"; exit 2; }
+BIN_BR="$SPARK_DIR/bin/intarsia"; BIN_MAIN="$SPARK_DIR/bin/intarsia.main"; LOGD="$SPARK_DIR/logs"
+C0='$HOME/intarsia-dsv41-tp2/cache/r0of2'; C1='$HOME/intarsia-dsv41-tp2/cache/r1of2'
+WIP=10.100.152.3; WPORT=29701; SPORT=8899; SURL=http://100.120.88.104:$SPORT
+NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-2} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
+CAP=${CAP:-66000}                      # 32K prompts at step 3 and 64K items at step 5 (chunk32k-2 used 66000)
+TOK=${TOKENIZER:-/opt/code/intarsiaml/.worktrees/dsv41-official/mia/tokenizer.json}
+MAIN_REF=7eeb23f2f; MAIN_WT=${MAIN_WT:-$(dirname "$REPO")/dsv41-replay-main}
+RESDIR=${RESDIR:-$REPO/docs/results/2026-11-03-dsv41-replay}; RAW=${RAW:-$RESDIR/raw}
+# TensorFold's greedy ids for the golden prompt set (step 4). The record docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt
+# holds only the summary table and snippets, not the ids; the ids it was computed from are this file (docs/results/2026-11-01-dsv41-tp2.md).
+TF_IDS=${TF_IDS:-/opt/code/intarsiaml/.worktrees/dsv41-golden-tf/tok-tensorfold-mia.st}
+# frozen question set of dsv41/chunk32k-2 (shards are gitignored there: referenced by path, checked by sha256)
+C32=${C32:-/opt/code/intarsiaml/.worktrees/chunk32k-2}
+Q2RAW=$C32/docs/results/2026-11-04-dsv41-chunk32k-quality-2/raw; QDIR=${QDIR:-$C32/.scratch}
+Q_SHARDS=${Q_SHARDS:-s32-00 s65-00 s32-01 s65-01 s32-02 s65-02 s32-03 s32-04 s32-05}
+Q_CHUNK=${Q_CHUNK:-512}; Q_TOKENS=${Q_TOKENS:-400}
+S3_CHUNKS=${S3_CHUNKS:-512 2048}; S3_SIZES=${S3_SIZES:-4096,32768}; S3_REPS=${S3_REPS:-2}
+
+# ---- the plan: minutes per piece (guesses, high on purpose; measured: load 31 s, 32K item ~54 s, shard of 25 items 22 min)
+BUILD_MAIN_MIN=30; BUILD_BR_MIN=25; DOWN_MIN=3; RESTORE_MIN=12
+est_shard() { case $1 in s65-*) echo 52 ;; *) echo 48 ;; esac; }   # off + on arm, two rank starts
+est() {
+  local n=$1 t=0 sh c
+  case $n in
+    1) echo 8 ;;
+    2) echo 10 ;;
+    3) c=0; for _ in $S3_CHUNKS; do c=$((c + 1)); done; echo $((c * 4 * 6)) ;;     # 4 configs a chunk x (start 2 + 4K 0.5 + 32K 3 + slack)
+    4) echo 8 ;;
+    5) for sh in $Q_SHARDS; do t=$((t + $(est_shard "$sh"))); done; echo $((t + 3)) ;;
+  esac
+}
+name_of() {
+  case $1 in
+    1) echo "off vs on, prompts <= 128 tokens: identical ids" ;;
+    2) echo "golden ids, off vs main binary $MAIN_REF: 640/640" ;;
+    3) echo "ABAB prefill timing 4K/32K, chunk 512/2048 (localeval speed)" ;;
+    4) echo "greedy agreement with TensorFold ids (golden prompts)" ;;
+    5) echo "paired localeval quality off vs on (frozen chunk32k-2 set)" ;;
+  esac
+}
+fmt() { printf '%dh%02dm' $(($1 / 60)) $(($1 % 60)); }
+
+describe() {
+  case $1 in
+    1) cat <<EOF
+     for mode in off on: restart both ranks (branch binary, chunk 512, INTARSIA_DSV41_REPLAY=1 only for on, on BOTH ranks)
+       python tools/dsv41/golden_tf.py tokens --base-url $SURL/v1 --model dsv41-intarsia --no-draft-field --tokenizer \$TOK \\
+         --prompts tools/prompts/golden.jsonl --long-prompts 127,128 --long-continue 64 --out raw/step1/tok-\$mode.st
+     replay-test-lib.py tokcmp tok-off.st tok-on.st --require-identical --max-prompt 128      (every prompt <= 128 ids, ids equal)
+EOF
+    ;;
+    2) cat <<EOF
+     build origin/main $MAIN_REF in \$MAIN_WT (git worktree, $MAIN_WT) with its scripts/dsv41-tp2/build.sh, BIN_NAME=intarsia.main
+     restart ranks with $BIN_MAIN, then with $BIN_BR (replay unset); each:
+       python tools/dsv41/golden_tf.py tokens ... --tokenizer \$TOK --out raw/step2/tok-{main,off}.st      (default prompts: 10 x 64)
+     replay-test-lib.py tokcmp tok-main.st tok-off.st --require-total 640                       (640 of 640 tokens identical)
+EOF
+    ;;
+    3) cat <<EOF
+     for chunk in $S3_CHUNKS; for pass in 1 2; for mode in off on   (= off, on, off, on):  restart ranks, INTARSIA_DSV41_CHUNK=\$chunk
+       cd /opt/code/deepeval && uv run localeval speed --sizes $S3_SIZES --gen 8 --reps $S3_REPS --label dsv41replay-speed-c\$chunk-\$mode\$pass \\
+         --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "<stamp, chunk, mode>"     (inside our fleetq slot: FLEETQ_JOB is set)
+     replay-test-lib.py speedtab raw/step3/speed-table.md <cells>      (prefill seconds = TTFT median per cell, on/off ratio)
+EOF
+    ;;
+    4) cat <<EOF
+     TensorFold ids: $TF_IDS (sha256 logged; if missing: "SKIPPED: record lacks ..." and the step passes)
+     off ids: raw/step2/tok-off.st when step 2 produced them, else one more start; on ids: a start with INTARSIA_DSV41_REPLAY=1
+     replay-test-lib.py tokcmp tok-tensorfold.st tok-{off,on}.st     (leading match and equal positions per prompt)
+EOF
+    ;;
+    5) cat <<EOF
+     shards ($Q_SHARDS) of $QDIR/final.<shard>.jsonl, sha256-checked against $Q2RAW/items.sha256.json
+     for shard: for arm in off on: restart ranks (chunk $Q_CHUNK), then
+       cd /opt/code/deepeval && uv run localeval quality --dataset final.<shard>.jsonl --judge none --max-tokens $Q_TOKENS \\
+         --label dsv41replay-<arm>-<shard> --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "..."
+     replay-test-lib.py quality $Q2RAW/items.manifest.json raw/step5/pairs.txt raw/step5/quality.md
+       (accuracy overall and by earliest / latest fact depth and fact count, discordant counts, McNemar exact p)
+EOF
+    ;;
+  esac
+}
+
+# ---- arguments
+DRY=0; STEPS_ARG="1,2,3,4,5"; PASS=()
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --dry-run) DRY=1; shift ;;
+    --steps) STEPS_ARG=${2:?--steps needs a list like 1,3}; PASS+=(--steps "$2"); shift 2 ;;
+    -h|--help) sed -n 2,24p "$0"; exit 0 ;;
+    *) echo "unknown argument '$1' (--dry-run, --steps 1,3)"; exit 2 ;;
+  esac
+done
+SELECTED=${STEPS_ARG//,/ }
+for n in $SELECTED; do case $n in [1-5]) ;; *) echo "--steps: '$n' is not a step (1..5)"; exit 2 ;; esac; done
+has() { [[ " $SELECTED " == *" $1 "* ]]; }
+
+PLAN_MIN=0; BUILD_MIN=0
+if [[ ${NO_BUILD:-0} != 1 ]]; then BUILD_MIN=$BUILD_BR_MIN; has 2 && BUILD_MIN=$((BUILD_MIN + BUILD_MAIN_MIN)); fi
+PLAN_MIN=$((BUILD_MIN + DOWN_MIN + RESTORE_MIN))
+for n in $SELECTED; do PLAN_MIN=$((PLAN_MIN + $(est "$n"))); done
+EXPECT=$(( (PLAN_MIN * 11 + 9) / 10 ))          # planned + 10 %, whole minutes: the honest high guess for fleetq --expect
+LABEL="dsv41 replay test, steps ${STEPS_ARG}: bounded-replay prefill off vs on (vLLM restored after)"
+# Same fleetq shape as run-full.sh / the chunk32k jobs: ONE job over both Sparks, the script starts both ranks itself.
+FQ=(fleetq run --host spark1,spark2 --quiet gpu,cpu --takes-down "$VLLM_ROLES" --mem spark1=105,spark2=105 --expect "$EXPECT"
+    --label "$LABEL" -- env REPLAY_TEST_INNER=1 "$SELF" ${PASS[@]+"${PASS[@]}"})
+
+if [[ $DRY == 1 ]]; then
+  echo "DRY RUN: nothing is run, no host is contacted."
+  echo "binary under test: $BIN_BR (this branch $(git -C "$REPO" rev-parse --short=9 HEAD), replay unset = off; INTARSIA_DSV41_REPLAY=1 = on)"
+  echo "results folder:    $RAW"
+  echo "SPARK_DIR:         $SPARK_DIR_IN (build.sh syncs the source and builds there)"
+  echo
+  [[ ${NO_BUILD:-0} == 1 ]] && echo "PREP  build skipped (NO_BUILD=1): binaries must already be in $SPARK_DIR/bin" || {
+    echo "PREP  ~${BUILD_MIN} min  build"
+    has 2 && echo "     git -C $REPO worktree add --detach $MAIN_WT $MAIN_REF   (if absent), then"
+    has 2 && echo "     BIN_NAME=intarsia.main SPARK_DIR=$SPARK_REL $MAIN_WT/scripts/dsv41-tp2/build.sh     (CLI baseline only, beside the real binary)"
+    echo "     SPARK_DIR=$SPARK_REL $S/build.sh     (this branch; build.sh rsyncs to spark2, cargo build --release --features cuda, copies to both)"; }
+  echo "PREP  ~${DOWN_MIN} min  preflight (earlyoom -m in '${EARLYOOM_OK:-3,2 2,1}', binaries, caches, equal STAMPs, REPLAY string in the binary), docker stop -t 60 $VLLM_C on both"
+  for n in $SELECTED; do
+    echo "STEP $n  ~$(est "$n") min  $(name_of "$n")"; describe "$n"
+  done
+  echo "END   ~${RESTORE_MIN} min  docker start $VLLM_C on both, wait for 'Application startup complete', fleetq mark-up $VLLM_ROLES"
+  echo
+  echo "PLANNED DURATION: ${PLAN_MIN} min ($(fmt "$PLAN_MIN")); fleetq --expect ${EXPECT} (planned + 10 %)"
+  for sh in $Q_SHARDS; do ls "$QDIR/final.$sh.jsonl" >/dev/null 2>&1 || echo "NOTE: frozen shard $QDIR/final.$sh.jsonl is missing: step 5 would fail"; done
+  [[ -f $TF_IDS ]] || echo "NOTE: $TF_IDS missing: step 4 would print SKIPPED"
+  echo
+  echo "fleetq command:"
+  printf '  '
+  for a in "${FQ[@]}"; do case $a in *[\ \(\)\;\&\|\<\>\$\"\']*) printf "'%s' " "$a" ;; *) printf '%s ' "$a" ;; esac; done
+  echo
+  exit 0
+fi
+
+if [[ ${REPLAY_TEST_INNER:-0} != 1 ]]; then
+  echo "planned ${PLAN_MIN} min ($(fmt "$PLAN_MIN")), steps ${STEPS_ARG}; queueing as one fleetq job over spark1,spark2 (--expect ${EXPECT})"
+  exec "${FQ[@]}"
+fi
+: "${FLEETQ_JOB:?inner mode runs inside a fleetq job (fleetq run ... or FLEETQ_JOB=<id> of a slot you hold)}"
+
+# ============================================================ inner part: runs inside the fleetq job
+mkdir -p "$RAW"
+LOG=$RAW/steps.log
+log() { echo "$(date +%T) $*" | tee -a "$LOG"; }
+r() { ssh -n -o BatchMode=yes -o ConnectTimeout=10 -o ServerAliveInterval=15 -o ServerAliveCountMax=6 "$1" "export FLEETQ_JOB=$FLEETQ_JOB; $2"; }
+lib() { uv run --no-project --with numpy --with safetensors python "$S/replay-test-lib.py" "$@"; }
+FAIL_WHY=""; STEP_NOTE=""
+fail() { FAIL_WHY="$*"; return 1; }
+RUN0=$(date +%s)
+log "replay-test start: steps $SELECTED, planned ${PLAN_MIN} min, fleetq job $FLEETQ_JOB, out $RAW"
+
+# ---- memory watchers and the restore (as in run-full.sh)
+STOPPED=0; WATCH=""; BGPID=""
+RES_N=(); RES_ST=(); RES_EL=(); RES_PL=()
+summary() {
+  local i
+  log "================ SUMMARY (total elapsed $(( ($(date +%s) - RUN0) / 60 )) min, planned ${PLAN_MIN} min) ================"
+  for ((i = 0; i < ${#RES_N[@]}; i++)); do
+    log "STEP ${RES_N[$i]}: ${RES_ST[$i]}  elapsed $(( RES_EL[i] / 60 ))m$(( RES_EL[i] % 60 ))s (planned ${RES_PL[$i]} min)  $(name_of "${RES_N[$i]}")"
+  done
+}
+kill_ours() { for h in spark1 spark2; do r $h "pkill -TERM -f '[i]${SPARK_REL:1}/bin/intarsia'; for i in \$(seq 1 20); do pgrep -f '[i]${SPARK_REL:1}/bin/intarsia' >/dev/null || break; sleep 1; done; pkill -KILL -f '[i]${SPARK_REL:1}/bin/intarsia'; true"; done; }
+restore() {
+  local rc=$?
+  trap - EXIT INT TERM HUP
+  [[ -z $BGPID ]] || killtree "$BGPID"
+  summary
+  log "restore (exit $rc)"
+  [[ -z $WATCH ]] || kill "$WATCH" 2>/dev/null
+  if [[ $STOPPED == 1 ]]; then
+    kill_ours
+    for h in spark1 spark2; do r $h "pkill -f '[b]in/memfine.sh'; true"; done
+    for h in spark1 spark2; do scp -q "$h:$SPARK_REL/logs/$h-${MF:-none}" "$RAW/" 2>/dev/null; done
+    # a `docker logs --since` prints nothing on these hosts; wait for a "startup complete" line stamped (UTC) after StartedAt
+    for h in spark1 spark2; do r $h "docker start $VLLM_C >/dev/null" || log "WARNING: docker start on $h failed"; done
+    for h in spark1 spark2; do
+      local ok=0 i
+      for i in $(seq 1 120); do
+        r $h "s=\$(docker inspect -f '{{.State.StartedAt}}' $VLLM_C); t=\$(docker logs -t --tail 2000 $VLLM_C 2>&1 | grep 'Application startup complete' | tail -1 | cut -d' ' -f1); [[ -n \$t && \$t > \$s ]]" && { ok=1; break; }
+        sleep 10
+      done
+      [[ $ok == 1 ]] && log "vLLM on $h up ($(r $h "docker ps --filter name=$VLLM_C --format {{.Status}}"))" || log "WARNING: vLLM on $h not up after 20 min"
+    done
+    fleetq mark-up spark1-vllm; fleetq mark-up spark2-vllm
+  fi
+  log "restored; the main-binary checkout $MAIN_WT stays for reruns (remove: git -C $REPO worktree remove $MAIN_WT)"
+  exit $rc
+}
+trap restore EXIT
+trap 'log "interrupted"; exit 130' INT TERM HUP
+
+# kill a process and its children (macOS has no setsid)
+killtree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do killtree "$c"; done; kill -TERM "$1" 2>/dev/null; return 0; }
+ranks_alive() {
+  r spark1 "pgrep -f '[i]${SPARK_REL:1}/bin/intarsia[^ ]* serve' >/dev/null" && r spark2 "pgrep -f '[i]${SPARK_REL:1}/bin/intarsia[^ ]* tp-worker' >/dev/null"
+}
+# bgrun MAX_SECONDS LOGFILE cmd...: run in the background and poll every 15 s (no single wait is long): stops at MAX_SECONDS, at the
+# step deadline, or (WATCH_RANKS=1) when a rank has died. Output goes to LOGFILE; its tail to the steps log. Returns the command's status.
+bgrun() {
+  local max=$1 lf=$2 t0 rc; shift 2; t0=$(date +%s)
+  ( "$@" ) > "$lf" 2>&1 < /dev/null &
+  BGPID=$!
+  while kill -0 "$BGPID" 2>/dev/null; do
+    sleep 15
+    kill -0 "$BGPID" 2>/dev/null || break
+    if (( $(date +%s) - t0 > max )); then killtree "$BGPID"; log "timeout after ${max}s: $*"; tail -n 15 "$lf" | tee -a "$LOG"; BGPID=""; return 124; fi
+    if (( $(date +%s) > STEP_DEADLINE )); then killtree "$BGPID"; log "step deadline passed: $*"; BGPID=""; return 124; fi
+    if [[ ${WATCH_RANKS:-0} == 1 ]] && ! ranks_alive; then killtree "$BGPID"; log "a rank died during: $*"; tail -n 15 "$lf" | tee -a "$LOG"; BGPID=""; return 125; fi
+  done
+  wait "$BGPID"; rc=$?; BGPID=""
+  tail -n "${BG_TAIL:-40}" "$lf" | tee -a "$LOG"
+  return $rc
+}
+STEP_DEADLINE=$(( $(date +%s) + 86400 ))
+
+# ---- build (the repo's own build.sh; it runs inside our slot, vLLM still up)
+prep_build() {
+  if [[ ${NO_BUILD:-0} == 1 ]]; then log "NO_BUILD=1: using the binaries in $SPARK_DIR/bin"; return 0; fi
+  STEP_DEADLINE=$(( $(date +%s) + 2 * 60 * BUILD_MIN ))
+  if has 2; then
+    if [[ ! -d $MAIN_WT ]]; then git -C "$REPO" worktree add --detach "$MAIN_WT" "$MAIN_REF" 2>&1 | tee -a "$LOG" || return 1; fi
+    [[ "$(git -C "$MAIN_WT" rev-parse --short=9 HEAD)" == "$MAIN_REF" ]] || { log "$MAIN_WT is not at $MAIN_REF"; return 1; }
+    log "build main $MAIN_REF -> $BIN_MAIN"
+    BG_TAIL=8 bgrun $((BUILD_MAIN_MIN * 120)) "$RAW/build-main.log" env BIN_NAME=intarsia.main SPARK_DIR="$SPARK_REL" "$MAIN_WT/scripts/dsv41-tp2/build.sh" || return 1
+  fi
+  log "build this branch -> $BIN_BR"
+  BG_TAIL=8 bgrun $((BUILD_BR_MIN * 120)) "$RAW/build-branch.log" env SPARK_DIR="$SPARK_REL" "$S/build.sh" || return 1
+  grep -a "stamp:" "$RAW/build-branch.log" | tail -1 | grep -q "dirty=yes" && log "WARNING: the branch binary was built from a dirty tree (uncommitted changes in crates/ or kernels/)"
+  return 0
+}
+
+preflight() {
+  local h eo
+  for h in spark1 spark2; do
+    # EARLYOOM_OK: the earlyoom -m settings the user has set on purpose; never changed here, our watcher stops us at KILL_GIB above either kill line
+    eo=$(r $h 'cat /proc/$(pgrep -x earlyoom)/cmdline | tr "\0" " "' | grep -oE -- '-m [0-9]+,[0-9]+' | cut -c4-)
+    [[ " ${EARLYOOM_OK:-3,2 2,1} " == *" $eo "* ]] || { log "earlyoom on $h is at -m '$eo', not one of '${EARLYOOM_OK:-3,2 2,1}'; not starting"; return 1; }
+    log "earlyoom on $h: -m $eo"
+    r $h "test -x $BIN_BR && test -f ~/intarsia-nccl/libnccl.so.2" || { log "binary $BIN_BR or the NCCL library missing on $h"; return 1; }
+    has 2 && { r $h "test -x $BIN_MAIN" || { log "baseline $BIN_MAIN missing on $h"; return 1; }; }
+    r $h "grep -qa INTARSIA_DSV41_REPLAY $BIN_BR" || { log "$BIN_BR on $h does not contain INTARSIA_DSV41_REPLAY: built from a tree without the replay feature"; return 1; }
+  done
+  r spark1 "test -f $C0/manifest.json" && r spark2 "test -f $C1/manifest.json" || { log "rank cache missing"; return 1; }
+  [[ "$(r spark1 "cat $SPARK_DIR/bin/STAMP")" == "$(r spark2 "cat $SPARK_DIR/bin/STAMP")" ]] || { log "binary stamps differ"; return 1; }
+  STAMP=$(r spark1 "cat $SPARK_DIR/bin/STAMP"); log "binary $STAMP; out $RAW"
+  LE_RECIPE="intarsia $STAMP scripts/dsv41-tp2/replay-test.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap $CAP, engram hot ${HOT_MB:-1024} MiB"
+}
+
+vllm_down() {
+  for h in spark1 spark2; do r $h "docker stop -t 60 $VLLM_C >/dev/null"; STOPPED=1; done
+  log "vLLM stopped on both"
+  # our own watcher: kill our ranks on a box under KILL_GIB (default 5) GiB available; memfine.sh logs every second on each box
+  ( while true; do
+      line="$(date +%T)"
+      for h in spark1 spark2; do
+        a=$(ssh -n -o ConnectTimeout=5 $h "awk '/MemAvailable/{printf \"%.1f\", \$2/1048576}' /proc/meminfo" 2>/dev/null || echo NA)
+        line="$line $h=$a"
+        if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then ssh -n $h "pkill -KILL -f '[i]${SPARK_REL:1}/bin/intarsia'"; line="$line KILLED-$h"; fi
+      done
+      echo "$line"; sleep 5
+    done ) > "$RAW/mem.log" 2>&1 & WATCH=$!; disown "$WATCH"
+  MF=memfine-$(date +%H%M%S).log
+  for h in spark1 spark2; do
+    scp -q "$S/memfine.sh" "$h:$SPARK_REL/bin/memfine.sh"
+    r $h "mkdir -p $LOGD; nohup bash $SPARK_DIR/bin/memfine.sh ${KILL_GIB:-5} '[i]${SPARK_REL:1}/bin/intarsia' > $LOGD/$h-$MF 2>&1 < /dev/null &"
+  done
+}
+
+# ---- engine: start_ranks BIN CHUNK MODE (off|on|main). The SAME env string goes to both ranks; INTARSIA_DSV41_REPLAY is removed
+# first (env -u) so an inherited value never leaks into off/main, and set to 1 for on.
+start_ranks() {
+  local bin=$1 chunk=$2 mode=$3 renv t0 up=0
+  renv="INTARSIA_TP_SPIN_MS=${TP_SPIN_MS:-100} INTARSIA_DSV41_CAP=$CAP INTARSIA_DSV41_CHUNK=$chunk INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-}"
+  [[ $mode == on ]] && renv="$renv INTARSIA_DSV41_REPLAY=1"
+  TAG=$(date +%H%M%S)
+  r spark2 "mkdir -p $LOGD; nohup env -u INTARSIA_DSV41_REPLAY $NCCLENV $renv $bin tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2 > $LOGD/worker-$TAG.log 2>&1 < /dev/null &"
+  sleep 2
+  r spark1 "mkdir -p $LOGD; nohup env -u INTARSIA_DSV41_REPLAY $NCCLENV $renv $bin serve -m $C0 --backend cuda --tp 2 --tp-remote $WIP:$WPORT --port $SPORT --host 0.0.0.0 --served-model-name dsv41-intarsia --no-supervisor --no-ui > $LOGD/serve-$TAG.log 2>&1 < /dev/null &"
+  log "ranks started (tag $TAG, $(basename "$bin"), chunk $chunk, replay $mode)"
+  t0=$(date +%s)
+  while (( $(date +%s) - t0 < 900 )); do
+    curl -sf -m 5 "$SURL/health" >/dev/null && { up=1; break; }
+    r spark1 "pgrep -f '[i]${SPARK_REL:1}/bin/intarsia[^ ]* serve' >/dev/null" || { log "rank 0 exited"; break; }
+    r spark2 "pgrep -f '[i]${SPARK_REL:1}/bin/intarsia[^ ]* tp-worker' >/dev/null" || { log "rank 1 exited"; break; }
+    sleep 5
+  done
+  log "serve up=$up after $(( $(date +%s) - t0 )) s"
+  r spark1 "grep -aEi 'dsv41|error|panick|replay' $LOGD/serve-$TAG.log | tail -25" | tee -a "$LOG"
+  r spark2 "grep -aEi 'dsv41|error|panick|replay' $LOGD/worker-$TAG.log | tail -15" | tee -a "$LOG"
+  [[ $up == 1 ]] || { fail "ranks did not come up (see $LOG)"; return 1; }
+}
+# serve_cfg NAME BIN CHUNK MODE cmd...: fresh ranks, run cmd, keep the logs, stop the ranks. Returns cmd's status.
+serve_cfg() {
+  local name=$1 bin=$2 chunk=$3 mode=$4 rc; shift 4
+  kill_ours
+  start_ranks "$bin" "$chunk" "$mode" || { scp -q "spark1:$SPARK_REL/logs/serve-$TAG.log" "$RAW/serve-$name.log" 2>/dev/null; kill_ours; return 1; }
+  WATCH_RANKS=1 "$@"; rc=$?
+  scp -q "spark1:$SPARK_REL/logs/serve-$TAG.log" "$RAW/serve-$name.log" 2>/dev/null; scp -q "spark2:$SPARK_REL/logs/worker-$TAG.log" "$RAW/worker-$name.log" 2>/dev/null
+  kill_ours
+  return $rc
+}
+
+# ---- clients
+# gold OUT NOTE promptargs...: greedy token ids (tools/dsv41/golden_tf.py tokens), temperature 0, ignore_eos
+gold() {
+  local out=$1 note=$2; shift 2
+  bgrun 1200 "$out.log" bash -c 'cd "$1" && shift && exec uv run --with numpy --with safetensors --with tokenizers python tools/dsv41/golden_tf.py tokens "$@"' _ "$REPO" \
+    --base-url "$SURL/v1" --model dsv41-intarsia --no-draft-field --tokenizer "$TOK" --out "$out" --note "$note $STAMP cap $CAP" "$@"
+}
+# le ...: localeval inside our slot (FLEETQ_JOB is set, so it does not queue again)
+le() { ( cd /opt/code/deepeval && uv run localeval "$@" --url "$SURL/v1" --model dsv41-intarsia --thinking off --recipe "$LE_RECIPE" ); }
+result_of() { grep -ao '/[^ ]*/results/[^ ]*result.json' "$1" | tail -1; }
+
+# ============================================================ the steps
+step1() {
+  local d=$RAW/step1 mode; mkdir -p "$d"
+  for mode in off on; do
+    serve_cfg "s1-$mode" "$BIN_BR" 512 $mode gold "$d/tok-$mode.st" "step1 replay=$mode" \
+      --prompts "$REPO/tools/prompts/golden.jsonl" --long-prompts 127,128 --long-continue 64 || { fail "ids for replay=$mode could not be generated (${FAIL_WHY:-see $d/tok-$mode.st.log})"; return 1; }
+  done
+  lib tokcmp "$d/tok-off.st" "$d/tok-on.st" --name-a off --name-b on --require-identical --max-prompt 128 > "$d/compare.txt" 2>&1; local rc=$?
+  tee -a "$LOG" < "$d/compare.txt"
+  [[ $rc == 0 ]] || { fail "off and on differ on a prompt of at most 128 tokens (or a prompt is longer than 128): $d/compare.txt"; return 1; }
+}
+
+step2() {
+  local d=$RAW/step2; mkdir -p "$d"
+  serve_cfg s2-main "$BIN_MAIN" 512 main gold "$d/tok-main.st" "step2 main $MAIN_REF" || { fail "golden ids of the main binary failed (${FAIL_WHY:-see $d/tok-main.st.log})"; return 1; }
+  serve_cfg s2-off "$BIN_BR" 512 off gold "$d/tok-off.st" "step2 branch replay=off" || { fail "golden ids of this branch (replay off) failed (${FAIL_WHY:-see $d/tok-off.st.log})"; return 1; }
+  lib tokcmp "$d/tok-main.st" "$d/tok-off.st" --name-a main --name-b off --require-total 640 > "$d/compare.txt" 2>&1; local rc=$?
+  tee -a "$LOG" < "$d/compare.txt"
+  [[ $rc == 0 ]] || { fail "golden ids of this branch (replay off) are not 640/640 identical to the main binary: $d/compare.txt"; return 1; }
+}
+
+speed_cell() { # CHUNK MODE PASS
+  local d=$RAW/step3 label="dsv41replay-speed-c$1-$2$3" res
+  BG_TAIL=25 bgrun 1500 "$d/le-$label.log" le speed --sizes "$S3_SIZES" --gen 8 --reps "$S3_REPS" --label "$label" || return 1
+  res=$(result_of "$d/le-$label.log"); [[ -f $res ]] || { fail "no result.json in $d/le-$label.log"; return 1; }
+  cp "$res" "$d/result-c$1-$2$3.json"; echo "$1:$2:$3:$d/result-c$1-$2$3.json" >> "$d/cells.txt"
+}
+step3() {
+  local d=$RAW/step3 chunk pass mode; mkdir -p "$d"; : > "$d/cells.txt"
+  for chunk in $S3_CHUNKS; do
+    for pass in 1 2; do for mode in off on; do   # ABAB: off, on, off, on
+      serve_cfg "s3-c$chunk-$mode$pass" "$BIN_BR" "$chunk" $mode speed_cell "$chunk" $mode $pass || { fail "speed cell chunk $chunk $mode pass $pass failed (${FAIL_WHY:-see $d})"; return 1; }
+    done; done
+  done
+  lib speedtab "$d/speed-table.md" $(cat "$d/cells.txt") | tee -a "$LOG"
+}
+
+step4() {
+  local d=$RAW/step4 mode; mkdir -p "$d"
+  if [[ ! -f $TF_IDS ]]; then
+    log "SKIPPED: record lacks TensorFold token ids (docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt has the summary only, and $TF_IDS is not there)"
+    STEP_NOTE="SKIPPED"; return 0
+  fi
+  lib sha256 "$TF_IDS" | tee -a "$LOG"
+  if [[ -f $RAW/step2/tok-off.st ]]; then cp "$RAW/step2/tok-off.st" "$d/tok-off.st"; log "off ids: reused from step 2"; else
+    serve_cfg s4-off "$BIN_BR" 512 off gold "$d/tok-off.st" "step4 replay=off" || { fail "ids for replay=off failed (${FAIL_WHY:-see $d})"; return 1; }
+  fi
+  serve_cfg s4-on "$BIN_BR" 512 on gold "$d/tok-on.st" "step4 replay=on" || { fail "ids for replay=on failed (${FAIL_WHY:-see $d})"; return 1; }
+  for mode in off on; do
+    log "TensorFold vs $mode (leading = tokens before the first difference, equal = equal positions):"
+    lib tokcmp "$TF_IDS" "$d/tok-$mode.st" --name-a TF --name-b $mode > "$d/compare-tf-$mode.txt" 2>&1 || { fail "tokcmp TF vs $mode failed: $d/compare-tf-$mode.txt"; return 1; }
+    tee -a "$LOG" < "$d/compare-tf-$mode.txt"
+  done
+  log "reference: docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt, TF vs an earlier intarsia golden: leading 335/640, positionwise 398/640"
+  lib tokcmp "$d/tok-off.st" "$d/tok-on.st" --name-a off --name-b on | tee "$d/compare-off-on.txt" | tail -4 | tee -a "$LOG"
+}
+
+q_arm() { # SHARD ARM
+  local d=$RAW/step5 label="dsv41replay-$2-$1" res
+  BG_TAIL=15 bgrun $((90 * 60)) "$d/le-$label.log" le quality --dataset "$QDIR/final.$1.jsonl" --judge none --max-tokens "$Q_TOKENS" --label "$label" || return 1
+  res=$(result_of "$d/le-$label.log"); [[ -f $res ]] || { fail "no result.json in $d/le-$label.log"; return 1; }
+  cp "$res" "$d/result-$2-$1.json"
+}
+step5() {
+  local d=$RAW/step5 sh arm st=0; mkdir -p "$d"; : > "$d/pairs.txt"
+  [[ -f $Q2RAW/items.sha256.json && -f $Q2RAW/items.manifest.json ]] || { fail "frozen item files missing: $Q2RAW/items.{sha256,manifest}.json (branch dsv41/chunk32k-2)"; return 1; }
+  cp "$Q2RAW/items.sha256.json" "$d/"; lib sha256 "$Q2RAW/items.manifest.json" | tee -a "$LOG"
+  # shellcheck disable=SC2086
+  lib checksha "$Q2RAW/items.sha256.json" "$QDIR" final. $Q_SHARDS | tee -a "$LOG"
+  [[ ${PIPESTATUS[0]} == 0 ]] || { fail "a frozen shard is missing or its sha256 differs; regenerate in $C32: uv run --no-project --with tokenizers python docs/results/2026-11-04-dsv41-chunk32k-quality-2/raw/gen_items2.py --spec <spec-final.json> --out .scratch/final"; return 1; }
+  for sh in $Q_SHARDS; do
+    if [[ -n ${STOP_EPOCH:-} ]] && (( $(date +%s) + 120 * 60 > STOP_EPOCH )); then log "STOP_EPOCH close: not starting shard $sh or the later ones"; STEP_NOTE="PARTIAL"; break; fi
+    for arm in off on; do
+      serve_cfg "s5-$sh-$arm" "$BIN_BR" "$Q_CHUNK" $arm q_arm "$sh" $arm || { fail "shard $sh arm $arm failed (${FAIL_WHY:-see $d})"; st=1; break; }
+    done
+    [[ $st == 0 ]] || break
+    echo "$sh $d/result-off-$sh.json $d/result-on-$sh.json" >> "$d/pairs.txt"
+  done
+  [[ -s $d/pairs.txt ]] && lib quality "$Q2RAW/items.manifest.json" "$d/pairs.txt" "$d/quality.md" | tee -a "$LOG"
+  return $st
+}
+
+# ============================================================ main
+prep_build || { fail "build failed (see $RAW/build-*.log)"; log "PREP FAILED: $FAIL_WHY"; exit 1; }
+preflight || { log "PREP FAILED: preflight"; exit 1; }
+vllm_down
+RC=0
+for n in $SELECTED; do
+  t0=$(date +%s); FAIL_WHY=""; STEP_NOTE=""; STEP_DEADLINE=$(( t0 + 2 * 60 * $(est "$n") ))
+  log "=== STEP $n: $(name_of "$n") (planned $(est "$n") min) ==="
+  if "step$n"; then st="PASS${STEP_NOTE:+ ($STEP_NOTE)}"; [[ $STEP_NOTE == SKIPPED ]] && st=SKIPPED; else st=FAIL; fi
+  RES_N+=("$n"); RES_ST+=("$st"); RES_EL+=($(( $(date +%s) - t0 ))); RES_PL+=("$(est "$n")")
+  if [[ $st == FAIL ]]; then log "STEP $n FAILED: ${FAIL_WHY:-no reason recorded; see $LOG}"; RC=1; break; fi
+  log "STEP $n $st in $(( ($(date +%s) - t0) / 60 )) min"
+done
+exit $RC

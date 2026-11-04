@@ -7,4 +7,5 @@ pub mod engram;
 pub mod config;
 pub mod graph;
 pub mod plan;
+pub mod replay;
 pub mod runtime;

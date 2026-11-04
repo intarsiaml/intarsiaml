@@ -18,7 +18,8 @@
 
 use super::config::Dsv41Config;
 use super::engram::{record_bytes, EngramTier, NgramHasher};
-use super::graph::{build_absorb, build_draft, build_draft_dpos, build_pass, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Stage, WeightShapes, VERIFY_MAX_ROWS};
+use super::graph::{build_absorb, build_draft, build_draft_dpos, build_pass, build_replay, build_with, PassKind, dspark_idx, dspark_stages, Arg, Buf, Dsv41Graph, Extra, GraphOpts, GraphTp, Replay, ReplayPart, Stage, WeightShapes, VERIFY_MAX_ROWS};
+use super::replay;
 use crate::backend::{Backend, Buffer, GraphHandle, MemKind, TensorRef};
 use crate::comm::Comm;
 use crate::dtype::DType;
@@ -193,6 +194,9 @@ pub struct Dsv41Runtime {
     graphs: Mutex<Graphs>,
     /// Largest f32 partial of a reduction (`Comm::reserve` before the first capture).
     max_partial: usize,
+    /// `INTARSIA_DSV41_REPLAY=1` (default off): prefill runs the decoder half on the last `window` rows only
+    /// ([`super::replay`]). Both ranks must agree (handshake fingerprint). Changes numerics.
+    replay: bool,
 }
 
 /// Little-endian `dtype` elements as f32 (f32, bf16, f16).
@@ -250,6 +254,16 @@ impl Dsv41Runtime {
             let first = cfg.engram.as_ref().unwrap().layer_ids.iter().min().copied().unwrap_or(0);
             if opts.tp.layers.is_none_or(|l| l > first) {
                 return Err(Error::invalid("deepseek_v41 runtime: the model has Engram layers but no Engram tier was given"));
+            }
+        }
+        let replay = replay::enabled();
+        if replay {
+            replay::supported(&cfg, &opts.tp)?;
+            // the replay drops window keys by shifting the sparse attention's position (the kernels' window test is
+            // `pos0 + row >= window`): read in the CUDA kernel (kernels/cuda/dsv41_attn.cu) and the cpu reference
+            // (dsv41_ref.rs) only, and only the CUDA kernel is meant to run it
+            if backend.name() != "cuda" {
+                return Err(Error::Unsupported(format!("deepseek_v41 {}=1: not implemented for the {} backend", replay::ENV, backend.name())));
             }
         }
         let info = backend.info();
@@ -432,6 +446,7 @@ impl Dsv41Runtime {
             engram_one_graph: std::env::var("INTARSIA_DSV41_ENGRAM_ONEGRAPH").map_or(true, |v| v != "0"),
             graphs: Mutex::new(Graphs::default()),
             max_partial,
+            replay,
         };
         let state_per_seq = rt.slot_specs.iter().map(|s| s.bytes(rt.opts.cap) as u64).sum();
         rt.memory = RuntimeMemory { weights: weight_bytes, workspace: ws_bytes, constants: cbytes, scratch: 0, state_per_seq };
@@ -547,12 +562,19 @@ impl Dsv41Runtime {
         if st.len + ids.len() > self.opts.cap {
             return Err(Error::BadRequest(format!("deepseek_v41: {} + {} tokens exceed the capacity {}", st.len, ids.len(), self.opts.cap)));
         }
+        // bounded replay (opt-in): the prompt's replay floor, for a prefill of more than one row; None: the plain passes below
+        let floor = self.replay_floor(st, ids.len())?;
+        let start = st.len;
         let mut out = None;
         let mut i = 0;
         while i < ids.len() {
             let n = (ids.len() - i).min(self.opts.chunk);
             let last = i + n == ids.len();
-            let r = self.pass(st, &ids[i..i + n], if logits && last { Want::Logits } else { Want::Nothing }, false);
+            let want = if logits && last { Want::Logits } else { Want::Nothing };
+            let r = match floor {
+                Some(f) if f > 0 => self.pass_replay(st, &ids[i..i + n], want, f),
+                _ => self.pass(st, &ids[i..i + n], want, false),
+            };
             match r {
                 Ok(l) => {
                     st.commit(&ids[i..i + n]);
@@ -563,12 +585,92 @@ impl Dsv41Runtime {
                 Err(e) => {
                     // the rows this pass wrote are undefined: the sequence restarts
                     let _ = st.truncate(0, &*self.backend);
+                    st.replay_from = 0;
                     return Err(e);
                 }
             }
             i += n;
         }
+        if let Some(f) = floor {
+            // bookkeeping check of the replay passes: they never commit (`forward` does, once per chunk), so the sequence has
+            // advanced by exactly the rows given; a mismatch fails here and not as wrong numbers
+            if st.len != start + ids.len() || st.tokens.len() != st.len {
+                let _ = st.truncate(0, &*self.backend);
+                st.replay_from = 0;
+                return Err(Error::backend(format!("deepseek_v41 replay: sequence length {} / {} tokens after {} rows from {start}", st.len, st.tokens.len(), ids.len())));
+            }
+            st.replay_from = f;
+        }
         Ok(out)
+    }
+
+    /// The replay floor of the prefill `ids` appended to `st` (bounded replay, [`super::replay`]): `Some(floor)` when the option
+    /// is on and the forward has more than one row (a one-row forward is a decode step: its window never reaches below the
+    /// floor, and it runs the plain pass). A floor of 0 (a prompt of at most `window` tokens: nothing to cut) also runs the
+    /// plain passes, bit for bit. Errors when `st` was built by a replay whose floor lies above this one's and the rows between are
+    /// kept: their decoder-layer window keys were never written ([`replay::reuse_ok`]; the engine prefills such a request from
+    /// scratch, [`Self::replay_keep`]).
+    fn replay_floor(&self, st: &SequenceState, rows: usize) -> Result<Option<usize>> {
+        if !self.replay || rows < 2 {
+            return Ok(None);
+        }
+        let f = replay::floor(st.len + rows, self.cfg.window);
+        if !replay::reuse_ok(st.len, f, st.replay_from) {
+            return Err(Error::Unsupported(format!(
+                "deepseek_v41 {}=1: resuming {} tokens whose decoder-layer window keys are valid from {} only, under a floor of {f}",
+                replay::ENV,
+                st.len,
+                st.replay_from
+            )));
+        }
+        Ok(Some(f))
+    }
+
+    /// How many of the `keep` cached tokens a request of `prompt_len` tokens may resume from (bounded replay: `keep`, or 0
+    /// when the cached rows' decoder-layer window keys cannot serve the rows after them, [`replay::reuse_ok`]). Without the
+    /// option: `keep`.
+    pub fn replay_keep(&self, st: &SequenceState, keep: usize, prompt_len: usize) -> usize {
+        if !self.replay || keep == 0 || replay::reuse_ok(keep, replay::floor(prompt_len, self.cfg.window), st.replay_from) {
+            keep
+        } else {
+            0
+        }
+    }
+
+    /// One prefill chunk of a bounded-replay prompt whose decoder half starts at position `floor` ([`super::replay`]): an
+    /// encoder-only chunk, a chunk the floor falls in (the encoder part on all rows, then the decoder half on the rows from the
+    /// floor on, in the workspace the encoder part left them in) or a chunk of rows all at or past the floor. Both ranks derive
+    /// the same plan from the same `(floor, st.len, ids.len())` and so run the same graphs with the same collectives.
+    fn pass_replay(&self, st: &mut SequenceState, ids: &[u32], want: Want, floor: usize) -> Result<Option<Out>> {
+        let (t, pos0) = (ids.len(), st.len);
+        let p0 = Instant::now();
+        let cut = replay::cut_layer(self.cfg.n_layers);
+        let k = PassKind { all_rows: false, absorb: self.opts.spec, dpos: false };
+        let o = |t: usize, pos0: usize| GraphOpts { t, pos0, act: self.opts.act, cap: self.opts.cap };
+        let build = |t: usize, pos0: usize, part: ReplayPart, first: usize| {
+            build_replay(&self.cfg, &*self.shapes, o(t, pos0), self.opts.tp, k, Replay { part, cut, floor, first })
+        };
+        match replay::classify(floor, pos0, t) {
+            replay::Chunk::Whole => {
+                let g = build(t, pos0, ReplayPart::Whole, 0)?;
+                self.run_graph(&g, st, t, ids, &[], want, p0)
+            }
+            replay::Chunk::Encoder => {
+                // the chunk with the prompt's last row is never encoder-only (floor < total), so nothing is asked of the head
+                if want != Want::Nothing {
+                    return Err(Error::invalid("deepseek_v41 replay: an encoder-only chunk has no logits"));
+                }
+                let g = build(t, pos0, ReplayPart::Encoder, 0)?;
+                self.run_graph(&g, st, t, ids, &[], Want::Nothing, p0)
+            }
+            replay::Chunk::Cross { first } => {
+                let e = build(t, pos0, ReplayPart::Encoder, 0)?;
+                self.run_graph(&e, st, t, ids, &[], Want::Nothing, p0)?;
+                let d = build(t - first, pos0 + first, ReplayPart::Decoder, first)?;
+                // no token ids: the decoder part starts from the encoder part's streams (and has no Engram layer)
+                self.run_graph(&d, st, t - first, &[], &[], want, p0)
+            }
+        }
     }
 
     /// One verify-sized pass (`2..=VERIFY_MAX_ROWS` rows, or 1) appended to the sequence: the full-vocabulary f32 logits
@@ -1299,6 +1401,7 @@ impl Dsv41Runtime {
                 let base = ws_base(n);
                 let b = ex.ws.get(base).ok_or_else(|| Error::backend(format!("no workspace {base}")))?;
                 let off = ws_index(n).map_or(0, |i| i * numel * esz(a.dtype));
+                let off = off + ws_row0(n).map_or(0, |r| r * (numel / a.shape.first().copied().unwrap_or(1).max(1)) * esz(a.dtype));
                 mk(&b.buf, b.offset + off)
             }
             Buf::Host(n) => {
@@ -1361,10 +1464,21 @@ impl Dsv41Runtime {
 
 /// `name` without a `[i]` slice suffix.
 fn ws_base(n: &str) -> &str {
+    if let Some((b, r)) = n.split_once('@') {
+        if r.parse::<usize>().is_ok() {
+            return b;
+        }
+    }
     match n.strip_suffix(']').and_then(|x| x.rsplit_once('[')) {
         Some((b, i)) if i.parse::<usize>().is_ok() => b,
         _ => n.strip_suffix(".last_row").unwrap_or(n),
     }
+}
+
+/// `name@row`: a view of workspace `name` that starts `row` rows in (the decoder part of a bounded-replay prefill reads the
+/// encoder part's streams from the first kept row).
+fn ws_row0(n: &str) -> Option<usize> {
+    n.split_once('@').and_then(|(_, r)| r.parse().ok())
 }
 
 fn ws_index(n: &str) -> Option<usize> {
