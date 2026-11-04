@@ -265,6 +265,108 @@ fn cases(t: usize, pos: usize, nk_ratio1: usize) -> Vec<(String, &'static str, H
     v
 }
 
+// ---- E5 bit guard ---------------------------------------------------------------------------------------------------------
+
+/// `std::mt19937` (the bench's generator).
+struct Mt19937 {
+    mt: [u32; 624],
+    i: usize,
+}
+
+impl Mt19937 {
+    fn new(seed: u32) -> Self {
+        let mut mt = [0u32; 624];
+        mt[0] = seed;
+        for i in 1..624 {
+            mt[i] = 1812433253u32.wrapping_mul(mt[i - 1] ^ (mt[i - 1] >> 30)).wrapping_add(i as u32);
+        }
+        Mt19937 { mt, i: 624 }
+    }
+    fn next(&mut self) -> u32 {
+        if self.i >= 624 {
+            for k in 0..624 {
+                let y = (self.mt[k] & 0x8000_0000) | (self.mt[(k + 1) % 624] & 0x7fff_ffff);
+                self.mt[k] = self.mt[(k + 397) % 624] ^ (y >> 1) ^ if y & 1 != 0 { 0x9908_b0df } else { 0 };
+            }
+            self.i = 0;
+        }
+        let mut y = self.mt[self.i];
+        self.i += 1;
+        y ^= y >> 11;
+        y ^= (y << 7) & 0x9d2c_5680;
+        y ^= (y << 15) & 0xefc6_0000;
+        y ^ (y >> 18)
+    }
+    /// libstdc++'s `std::uniform_real_distribution<float>(lo, hi)` over a 32-bit engine: `generate_canonical<float, 24>` takes one draw,
+    /// `float(u) / 2^32` (capped below 1), then `v * (hi - lo) + lo`. For the bench's symmetric ranges `hi - lo` is a power of two, so
+    /// the product is exact and fused or not makes no difference.
+    fn uniform(&mut self, lo: f32, hi: f32) -> f32 {
+        let mut v = self.next() as f32 / 4294967296.0f32;
+        if v >= 1.0 {
+            v = f32::from_bits(1.0f32.to_bits() - 1);
+        }
+        v * (hi - lo) + lo
+    }
+}
+
+fn bf16_rne(f: f32) -> u16 {
+    let b = f.to_bits();
+    ((b + 0x7fff + ((b >> 16) & 1)) >> 16) as u16
+}
+
+fn fnv64(d: &[u8]) -> u64 {
+    d.iter().fold(1469598103934665603u64, |h, b| (h ^ *b as u64).wrapping_mul(1099511628211))
+}
+
+fn bench_bf16(n: usize, scale: f32, seed: u32) -> HostTensor {
+    let mut g = Mt19937::new(seed);
+    let data: Vec<u8> = (0..n).flat_map(|_| bf16_rne(g.uniform(-scale, scale)).to_le_bytes()).collect();
+    HostTensor::new(BF, vec![n], data).unwrap()
+}
+
+/// E5 (the interleaved four-row softmax of `attn_sparse_mma`) is bit-identical to the old per-row form: the five attention shapes of
+/// fleetq #8282 (`docs/results/2026-11-03-dsv41-attn-tfblock/raw/bench/attn_ab_bench.cu`, same generators, seeds and shapes) must hash to
+/// what the unmodified kernel gave there (`expected-hashes.txt`, all six base pairs agreed). The sweep above judges by tolerance, so it
+/// cannot see a one-ulp change; this can. Control: `INTARSIA_DSV41_ATTN_SIMT=1` runs the SIMT kernel, whose bits differ, and must fail it.
+#[test]
+fn attn_sparse_mma_is_bitwise_the_8282_base_kernel() {
+    let Some(cuda) = device() else { return };
+    let (h, d, w) = (32usize, 512usize, 128usize);
+    // (name, T, Nc, Kw, pos0, ratio, hash of the unmodified kernel)
+    let cases: [(&str, usize, usize, usize, usize, usize, u64); 5] = [
+        ("CSA T512 Nc1024 Kw512", 512, 1024, 512, 3072, 4, 0x4ee9a847ca24437f),
+        ("CSA T2048 Nc1024 Kw512", 2048, 1024, 512, 2048, 4, 0xaa254a578fedfa25),
+        ("HCA T512 Nc32 Kw32", 512, 32, 32, 3072, 128, 0x90ad1d7fcca0b866),
+        ("CSA T37 Nc1024 Kw512", 37, 1024, 512, 4000, 4, 0x21b89af74c9af5a2),
+        ("CSA T11 Nc1024 Kw512", 11, 1024, 512, 4000, 4, 0xe450cadc14aad612),
+    ];
+    let mut bad = Vec::new();
+    for (name, t, nc, kw, pos0, ratio, want) in cases {
+        let with_shape = |x: HostTensor, shape: &[usize]| HostTensor::new(x.dtype, shape.to_vec(), x.data).unwrap();
+        let q = with_shape(bench_bf16(t * h * d, 1.0, 41), &[t, h, d]);
+        let win = with_shape(bench_bf16((w + t) * d, 1.0, 42), &[w + t, d]);
+        let cmp = with_shape(bench_bf16(nc * d, 1.0, 43), &[nc, d]);
+        let mut g = Mt19937::new(44);
+        let idx: Vec<i32> = (0..t * kw).map(|_| { let v = (g.next() as i64 % (nc + nc / 16) as i64) as i32; if v >= nc as i32 { -1 } else { v } }).collect();
+        let mut gs = Mt19937::new(45);
+        let sink: Vec<f32> = (0..h).map(|_| gs.uniform(-1.0, 1.0)).collect();
+        let mut attrs = OpAttrs { window: w, pos0, scale: 1.0 / (d as f32).sqrt(), ..OpAttrs::default() };
+        attrs.dsv.ratio = ratio;
+        let call = HostCall {
+            op: Op::AttnSparse,
+            inputs: vec![q, win, cmp, HostTensor::from_i32(&[t, kw], &idx), HostTensor::from_f32(&[h], &sink)],
+            outputs: vec![out(BF, &[t, h, d])],
+            attrs,
+        };
+        let got = fnv64(&run_host(&*cuda, "attn_sparse", &call).unwrap()[0].data);
+        println!("{} {name:<24} hash {got:016x} want {want:016x}", if got == want { "ok  " } else { "FAIL" });
+        if got != want {
+            bad.push(name);
+        }
+    }
+    assert!(bad.is_empty(), "attn_sparse differs from the unmodified kernel's recorded bits on: {bad:?}");
+}
+
 /// Every lane kernel at the model's shapes against the cpu reference, judged by the kernel's own tolerance.
 #[test]
 fn real_shapes_against_the_cpu_reference() {

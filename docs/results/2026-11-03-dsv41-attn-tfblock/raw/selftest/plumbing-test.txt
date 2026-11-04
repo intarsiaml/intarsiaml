@@ -1,0 +1,67 @@
+### 1. without a fleetq slot (must refuse, exit 2)
+[21:19:47] == driver on endor.kuepker.haus: host spark2, repo /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/drv, logs to /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plum
+refusing to touch spark2 outside a fleetq slot (FLEETQ_JOB is not set). Run it as:
+  fleetq run --host spark2 --quiet gpu,cpu --mem 14 --expect 20 --label 'dsv41 attn-tfblock: E2/E5/E3 build + A/B (one job)' -- bash /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/dr
+exit 2
+### 2. normal run (driver + remote halves, fake spark)
+exit 0
+[21:19:47] == driver on endor.kuepker.haus: host spark2, repo /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/drv, logs to /opt/code/
+[21:19:47] == D1. new build tree on spark2 and the files it needs (kernels/{abi,common,cuda} and this bench dir; nothing else)
+[21:19:47] == D2. remote part (ssh -tt so that a dropped connection or the fleetq deadline hangs the remote command up)
+[21:19:47] == remote part on endor.kuepker.haus, pairs 6, iters 20, reps 15, nvcc jobs 4
+[21:19:47] == 0. preflight
+[21:19:47] == 1. sources: unmodified copies, patched copies (flags only enable variants), occupancy probe appended
+[21:19:47] == 2. build, at most 4 nvcc at a time (flags of crates/intarsia-backend-cuda/build.rs; sm_121); a variant that fails to build is dropped, n
+[21:19:48] built: attention variants [ e2 e2e5 e5 ], rope variants [ ip ipshfl ], failed [ ]
+[21:19:48] == 3. resource usage (spills must stay LOCAL 0 for the E2 objects), rope SASS contraction
+[21:19:48] == 4. calibration: the unmodified attention kernel must reproduce 1.30 ms (CSA T=512), 5.04 ms (CSA T=2048) and the recorded hashes, else s
+CALIBRATION (attention) PASS
+[21:19:49] == 5. alternating A/B: 6 pairs, variants interleaved per round, odd pairs base first, even pairs variant first; each process 15 reps x 20 l
+[21:19:50] == 6. tables and verdicts
+  VERDICT e2: NEGATIVE (stop rule): gain -0.3% at CSA T=2048 < 12%
+  VERDICT e2e5: NEGATIVE (stop rule): gain -0.3% at CSA T=2048 < 12%
+  VERDICT e5: INFORMATIONAL: gain -0.3% at CSA T=2048, all hashes identical (no stop rule set for e5)
+E5 on top of E2 at CSA T=2048 (median of the two variants' process medians): e2e5 / e2 = 1.000
+  VERDICT ip: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.144 -> 1.144 ms per layer-chunk;
+  VERDICT ipshfl: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.144 -> 1.144 ms per layer-ch
+[21:19:51] == done (build trees are removed by the exit trap)
+[21:19:51] removed build trees /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/fakehome/intarsia-dsv41-tfblock/obj and /opt/code/inta
+[21:19:52] == D3. (exit trap) fetch logs to /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/drv/docs/results/2026-11-03-dsv41-attn-tf
+[21:19:52] == driver cleanup (exit 0): fetch logs, remove intarsia-dsv41-tfblock on spark2
+removed /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/fakehome/intarsia-dsv41-tfblock on spark2
+remote home after the run: []  (empty = ~/intarsia-dsv41-tfblock removed)
+logs fetched:       36 files
+nvcc invocations: 19; distinct -D flag sets:
+   2 -DATTN_SM4
+   2 -DATTN_TFBLOCK
+   1 -DROPE_INPLACE
+   1 -DROPE_INPLACE_SHFL
+### 3. attention calibration failure (one recorded attention hash altered; must stop with exit 3, still fetch logs and remove the remote tree)
+exit 3
+  FAIL hash CSA T2048 Nc1024 Kw512: aa254a578fedfa26 vs recorded aa254a578fedfa25
+CALIBRATION (attention) FAIL: stop, do not read the variants
+[21:19:54] ATTENTION CALIBRATION FAILED: stopping before the variants (the recorded numbers are not reproduced on this box/build)
+remote home after the failed run: []; fetched:       28 files, incl. calib.txt: 1
+### 4. rope hashes differ from the recorded ones but variants equal the in-job base (must NOT stop the attention experiments; E3 gets a note, not NEGATIVE)
+exit 0
+  note rope: unmodified rope hashes differ from the recorded bench-vec0.txt at 1 of 9 shapes (q T512 H32 hd512): informational, flags E3 only
+CALIBRATION (attention) PASS
+  VERDICT e2: NEGATIVE (stop rule): gain -0.3% at CSA T=2048 < 12%
+  VERDICT e2e5: NEGATIVE (stop rule): gain -0.3% at CSA T=2048 < 12%
+  VERDICT e5: INFORMATIONAL: gain -0.3% at CSA T=2048, all hashes identical (no stop rule set for e5)
+  VERDICT ip: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.144 -> 1.144 ms per layer-chunk; extrapolated saving 0 ms per 4K request (80 layer-chunks at chunk 2048, from th
+  VERDICT ipshfl: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.144 -> 1.144 ms per layer-chunk; extrapolated saving 0 ms per 4K request (80 layer-chunks at chunk 2048, fro
+### 5. one rope variant differs from the in-job base (that variant NEGATIVE, the other fine, attention untouched)
+exit 0
+  VERDICT ip: NEGATIVE: hash mismatch or missing result at kv T512 H1 hd512. Bit identity is the gate; this is not tuning.
+  VERDICT ipshfl: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.144 -> 1.144 ms per layer-chunk; extrapolated saving 0 ms per 4K request (80 l
+### 6. one variant fails to build (e2e5; must be reported and dropped, the others still run; exit 6)
+exit 6
+[21:20:10] BUILD FAILED: attn_e2e5 (tail of /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/fakehome/intarsia-dsv41-tfblock/logs/c-attn_e2e5.log)
+[21:20:10] built: attention variants [ e2 e5 ], rope variants [ ip ipshfl ], failed [ attn_e2e5 ]
+  VERDICT e2: NEGATIVE (stop rule): gain -0.3% at CSA T=2048 < 12%
+  VERDICT e5: INFORMATIONAL: gain -0.3% at CSA T=2048, all hashes identical (no stop rule set for e5)
+  VERDICT ip: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.144 -> 1.144 ms per layer-chunk; extrapolated saving 0 ms per 4K request (80 layer
+  VERDICT ipshfl: bit-identical to the in-job unmodified kernel on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.144 -> 1.144 ms per layer-chunk; extrapolated saving 0 ms per 4K request (80 l
+[21:20:11] BUILD FAILURES (variants missing from the tables above): attn_e2e5; compiler output in /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/fakehome/intarsia-dsv41-tfblock/logs/
+remote home after the last run: []

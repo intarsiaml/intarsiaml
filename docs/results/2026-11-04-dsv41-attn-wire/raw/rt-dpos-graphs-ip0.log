@@ -1,0 +1,27 @@
+
+running 1 test
+test device_position_passes_equal_host_passes ... [dsv41-cache] loaded rank 0 of 1 cache /home/nvidia/intarsia-dsv41-tp2/cache/l3-r0of1: 579 tensors, 17.29 GiB in 2.7 s = 6.99 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 1 cache /home/nvidia/intarsia-dsv41-tp2/cache/l3-r0of1/mtp: 286 tensors, 6.75 GiB in 1.1 s = 6.85 GB/s (O_DIRECT)
+dsv41: rank 0/1: loaded 24.04 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/l3-r0of1 in 5.0 s (5.17 GB/s)
+dsv41: WARNING: INTARSIA_DSV41_ENGRAM=off: Engram rows are zero, the output is NOT the model's
+dsv41: rank 0/1: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/l3-r0of1/mtp
+dsv41: rank 0/1 memory: weights 23.13 GiB, workspace 0.050 GiB (chunk 64), constants 0.000 GiB, state 0.008 GiB per sequence at 512 tokens; MemAvailable 74.71 GiB -> 50.94 GiB
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793788328)
+dsv41: kernel scratch grew to 33554432 bytes (unix 1793788328)
+dsv41: kernel scratch grew to 67108864 bytes (unix 1793788328)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 106 steps, 42 EXL3 linears (unix 1793788329)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 119 steps, 37 EXL3 linears (unix 1793788329)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 119 steps, 42 EXL3 linears (unix 1793788329)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 119 steps, 42 EXL3 linears (unix 1793788329)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 119 steps, 42 EXL3 linears (unix 1793788329)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 106 steps, 42 EXL3 linears (unix 1793788329)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 119 steps, 42 EXL3 linears (unix 1793788329)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 119 steps, 37 EXL3 linears (unix 1793788329)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 119 steps, 42 EXL3 linears (unix 1793788329)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 119 steps, 42 EXL3 linears (unix 1793788329)
+RUNTIME output hash e5278faf840fd764 over 52 passes, 5042063 values
+RUNTIME dpos vs host: 52 passes (140 prompt, 48 tokens, spec true, graphs true, replays: 31 decode / 23 verify / 25 draft): first bitwise difference at pass None, worst |diff| 0.000e0
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 7.16s
+

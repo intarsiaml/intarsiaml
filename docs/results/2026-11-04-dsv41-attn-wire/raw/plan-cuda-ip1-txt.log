@@ -1,0 +1,106 @@
+model crates/intarsia-models/tests/fixtures/dsv41/mia_headers  family deepseek_v41  backend cuda  device NVIDIA GB10  (graph only: the model does not execute yet)
+act bf16  residual streams 4 (hyper-connections)  decode step at position 4095  1179 steps/decode step  prefill 300 rows: 1413 steps
+
+state slots (51, 18 MiB at 4096 tokens):
+    0..39  window_kv      144 rows x 512 x 1 planes bf16
+   40..40  compress_tail  18 rows x 512 x 2 planes f32
+   41..41  compressed_kv  ratio 2 width 512  written by layer 2, read by [2,3,4,5,6,7]
+   42..42  index_k        ratio 2 width 128  written by layer 2, read by [2]
+   43..43  compress_tail  18 rows x 512 x 2 planes f32
+   44..44  compressed_kv  ratio 2 width 512  written by layer 8, read by [8,9,10,11,12,13]
+   45..45  index_k        ratio 2 width 128  written by layer 8, read by [8]
+   46..46  compress_tail  18 rows x 512 x 2 planes f32
+   47..47  compressed_kv  ratio 2 width 512  written by layer 14, read by [14,15,16,17,18,19]
+   48..48  index_k        ratio 2 width 128  written by layer 14, read by [14]
+   49..49  compressed_kv  ratio 1 width 512  written by layer 20, read by [20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39]
+   50..50  index_k        ratio 1 width 128  written by layer 20, read by [20,24,28,32,36]
+
+layers (40):
+    0..0   hc_attn(mqa hd512 + sink, window 128) + hc_moe(384x top6 + shared)
+    1..1   engram + hc_attn(mqa hd512 + sink, window 128) + hc_moe(384x top6 + shared)
+    2..2   hc_attn(mqa hd512 + sink, window 128 + compressor(ratio 2) + indexer top512) + hc_moe(384x top6 + shared)
+    3..7   hc_attn(mqa hd512 + sink, window 128 + cmp(ratio 2) of layer 2, idx of layer 2) + hc_moe(384x top6 + shared)
+    8..8   hc_attn(mqa hd512 + sink, window 128 + compressor(ratio 2) + indexer top512) + hc_moe(384x top6 + shared)
+    9..13  hc_attn(mqa hd512 + sink, window 128 + cmp(ratio 2) of layer 8, idx of layer 8) + hc_moe(384x top6 + shared)
+   14..14  engram + hc_attn(mqa hd512 + sink, window 128 + compressor(ratio 2) + indexer top512) + hc_moe(384x top6 + shared)
+   15..19  hc_attn(mqa hd512 + sink, window 128 + cmp(ratio 2) of layer 14, idx of layer 14) + hc_moe(384x top6 + shared)
+   20..20  hc_attn(mqa hd512 + sink, window 128 + compressor(ratio 1) + candidate blocks top2048 + indexer top512) + hc_moe(384x top6 + shared)
+   21..23  hc_attn(mqa hd512 + sink, window 128 + cmp(ratio 1) of layer 20, idx of layer 20) + hc_moe(384x top6 + shared)
+   24..24  hc_attn(mqa hd512 + sink, window 128 + indexer top512 in candidates + cmp(ratio 1) of layer 20) + hc_moe(384x top6 + shared)
+   25..27  hc_attn(mqa hd512 + sink, window 128 + cmp(ratio 1) of layer 20, idx of layer 24) + hc_moe(384x top6 + shared)
+   28..28  hc_attn(mqa hd512 + sink, window 128 + indexer top512 in candidates + cmp(ratio 1) of layer 20) + hc_moe(384x top6 + shared)
+   29..31  hc_attn(mqa hd512 + sink, window 128 + cmp(ratio 1) of layer 20, idx of layer 28) + hc_moe(384x top6 + shared)
+   32..32  hc_attn(mqa hd512 + sink, window 128 + indexer top512 in candidates + cmp(ratio 1) of layer 20) + hc_moe(384x top6 + shared)
+   33..35  hc_attn(mqa hd512 + sink, window 128 + cmp(ratio 1) of layer 20, idx of layer 32) + hc_moe(384x top6 + shared)
+   36..36  hc_attn(mqa hd512 + sink, window 128 + indexer top512 in candidates + cmp(ratio 1) of layer 20) + hc_moe(384x top6 + shared)
+   37..39  dspark_tap + hc_attn(mqa hd512 + sink, window 128 + cmp(ratio 1) of layer 20, idx of layer 36) + hc_moe(384x top6 + shared)
+
+op                kernel                       status          calls/step
+embedding         embedding_bf16               existing        1
+rmsnorm           rmsnorm_bf16                 existing        89
+matmul            matmul_f16w                  existing        8
+logits            logits_f16w                  existing        40
+moe_experts       moe_experts_exl3             existing        40
+matmul_exl3       matmul_exl3_gemv             existing        502
+hc_expand         hc_expand                    dsv41 cpu ref   1
+hc_pre            hc_pre                       dsv41 cpu ref   4
+hc_post           hc_post                      dsv41 cpu ref   6
+moe_route         moe_route                    dsv41 cpu ref   40
+act_qdq           act_qdq                      dsv41 cpu ref   56
+rope_tail         rope_tail                    dsv41 cpu ref   136
+window_kv         window_kv                    dsv41 cpu ref   40
+attn_sparse       attn_sparse                  dsv41 cpu ref   40
+compress_pool     compress_pool                dsv41 cpu ref   3
+indexer_blocks    indexer_blocks               dsv41 cpu ref   1
+indexer_topk      indexer_topk                 dsv41 cpu ref   8
+transpose01       transpose01                  dsv41 cpu ref   80
+engram_gather     engram_gather                dsv41 cpu ref   2
+engram_merge      engram_merge                 dsv41 cpu ref   2
+hc_sublayer       hc_sublayer                  dsv41 cpu ref   80
+
+per-layer op sequence (decode step):
+  embed     ( 2) embedding hc_expand
+  layer 0   (28) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts hc_post
+  layer 1   (30) engram_gather matmul_exl3 engram_merge hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 2   (42) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv matmul_exl3 matmul_exl3 compress_pool rmsnorm matmul_exl3 rmsnorm rope_tail act_qdq rope_tail act_qdq matmul_exl3 rope_tail act_qdq matmul indexer_topk attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 3   (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 4   (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 5   (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 6   (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 7   (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 8   (42) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv matmul_exl3 matmul_exl3 compress_pool rmsnorm matmul_exl3 rmsnorm rope_tail act_qdq rope_tail act_qdq matmul_exl3 rope_tail act_qdq matmul indexer_topk attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 9   (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 10  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 11  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 12  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 13  (28) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts hc_post
+  layer 14  (45) engram_gather matmul_exl3 engram_merge hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv matmul_exl3 matmul_exl3 compress_pool rmsnorm matmul_exl3 rmsnorm rope_tail act_qdq rope_tail act_qdq matmul_exl3 rope_tail act_qdq matmul indexer_topk attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 15  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 16  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 17  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 18  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 19  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 20  (41) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv matmul_exl3 rmsnorm matmul_exl3 rmsnorm rope_tail act_qdq rope_tail act_qdq matmul_exl3 rope_tail act_qdq matmul indexer_blocks indexer_topk attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 21  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 22  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 23  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 24  (32) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv matmul_exl3 rope_tail act_qdq matmul indexer_topk attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 25  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 26  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 27  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 28  (32) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv matmul_exl3 rope_tail act_qdq matmul indexer_topk attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 29  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 30  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 31  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 32  (32) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv matmul_exl3 rope_tail act_qdq matmul indexer_topk attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 33  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 34  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 35  (27) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts
+  layer 36  (33) hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv matmul_exl3 rope_tail act_qdq matmul indexer_topk attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts hc_post
+  layer 37  (29) hc_pre hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts hc_post
+  layer 38  (29) hc_pre hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts hc_post
+  layer 39  (29) hc_pre hc_sublayer matmul_exl3 matmul_exl3 rmsnorm matmul_exl3 rope_tail rmsnorm rope_tail act_qdq window_kv attn_sparse rope_tail transpose01 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 matmul_exl3 transpose01 matmul_exl3 hc_sublayer logits moe_route moe_experts hc_post
+  head      ( 3) hc_pre rmsnorm matmul_exl3
+mtp block mtp.0: 128 experts top 3 (2 found), parsed, not executed
+mtp block mtp.1: 128 experts top 3 (2 found), parsed, not executed
+mtp block mtp.2: 128 experts top 3 (2 found), parsed, not executed

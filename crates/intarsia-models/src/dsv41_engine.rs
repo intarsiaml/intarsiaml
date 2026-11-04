@@ -266,7 +266,7 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
         (None, Some(l)) if l < n_layers => Some(engram_tier(&cfg, dir, o, rank, world)?),
         _ => None,
     };
-    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers, first: m.first_layer }, spec: o.spec };
+    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers, first: m.first_layer, ..GraphTp::default() }, spec: o.spec };
     let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, comm, weights, engram, opts)?;
     match (o.spec, rt.dspark) {
         (true, n) => eprintln!("dsv41: rank {rank}/{world}: speculative decoding on, {n} DSpark stages loaded from {}", mtp_dir.display()),
@@ -1391,7 +1391,7 @@ mod failpath_tests {
         let tier = ZeroTier { layout: intarsia_engram::HashLayout::dsv41().layout().clone(), shard: intarsia_core::dsv41::engram::EngramShard { rank: 0, world: 1 } };
         let hash = intarsia_engram::HashLayout::dsv41();
         let engram = EngramInputs { tier: Arc::new(tier), hasher: hash.hasher.clone(), token_map: vec![] };
-        let opts = RuntimeOpts { act: DType::Bf16, cap: CAP, chunk: 8, tp: GraphTp { world: 1, layers: None, first: 0 }, spec: true };
+        let opts = RuntimeOpts { act: DType::Bf16, cap: CAP, chunk: 8, tp: GraphTp { world: 1, layers: None, first: 0, rope_inplace: false }, spec: true };
         comm.world.store(1, Ordering::SeqCst);
         let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, Some(comm.clone() as Arc<dyn Comm>), weights, Some(engram), opts).unwrap();
         comm.world.store(2, Ordering::SeqCst);

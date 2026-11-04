@@ -123,6 +123,11 @@ fn assert_bits(what: &str, got: &[u8], want: &[u8]) {
 // ---- one op at one position: device result vs the host-equivalent result ------------------------------------------------
 
 /// Bitwise check of every op at one configuration; returns how many comparisons ran.
+extern "C" {
+    /// `kernels/cuda/dsv41_misc.cu`: how many `ik_rope_tail` launches took the in-place path.
+    fn ik_rope_inplace_launches() -> i64;
+}
+
 mod check {
     use super::*;
 
@@ -138,6 +143,34 @@ mod check {
         let ah = OpAttrs { pos0: p / ratio * ratio, ..a };
         Launch::new(be, "rope_tail", Op::RopeTail, vec![x, f], vec![oh.clone()], &ah, None).run(be);
         assert_bits(&format!("rope_tail P={p} ratio={ratio} T={t} {dt}"), &get(be, &od), &get(be, &oh));
+    }
+
+    /// In place (`x` is the output): what the graph's attention `q` and `o` ropes launch with `GraphTp::rope_inplace`. The in-place
+    /// kernel visits the rope dims only and must leave exactly the bits of the copy kernel in the whole row, for a host position
+    /// and for a device position, at the model's head width (512) and at two narrower ones (128; 64 = only rope dims).
+    pub fn rope_in_place(be: &dyn Backend, rng: &mut SplitMix64, dt: DType, t: usize, ratio: usize, stride: usize, inverse: bool, p: usize) {
+        let f: Vec<f32> = (0..32).map(|j| 10000f32.powf(-(2 * j) as f32 / 64.0)).collect();
+        let f = put(be, &HostTensor::from_f32(&[32], &f));
+        let mut a = OpAttrs::default();
+        (a.dsv.ratio, a.dsv.pos_stride, a.dsv.inverse) = (ratio, stride, inverse);
+        let ah = OpAttrs { pos0: p / ratio * ratio, ..a.clone() };
+        let pos = pos_t(be, p);
+        for dh in [512usize, 128, 64] {
+            let xh = rnd(rng, dt, &[t, 4, dh], 1.0);
+            let (x, want) = (put(be, &xh), put(be, &HostTensor::zeros(dt, &[t, 4, dh])));
+            let n0 = unsafe { ik_rope_inplace_launches() };
+            Launch::new(be, "rope_tail", Op::RopeTail, vec![x.clone(), f.clone()], vec![want.clone()], &ah, None).run(be);
+            assert_eq!(unsafe { ik_rope_inplace_launches() }, n0, "the copy rope (x != out) took the in-place path");
+            for dev in [false, true] {
+                let xi = put(be, &xh);
+                let (at, ps) = if dev { (&a, Some(&pos)) } else { (&ah, None) };
+                let n1 = unsafe { ik_rope_inplace_launches() };
+                Launch::new(be, "rope_tail", Op::RopeTail, vec![xi.clone(), f.clone()], vec![xi.clone()], at, ps).run(be);
+                // the bits alone cannot say which kernel ran: the library counts its in-place launches
+                assert_eq!(unsafe { ik_rope_inplace_launches() }, n1 + 1, "the aliased rope did not take the in-place path (dev {dev})");
+                assert_bits(&format!("rope_tail in place (dev {dev}) P={p} ratio={ratio} stride={stride} inverse={inverse} T={t} Dh={dh} {dt}"), &get(be, &xi), &get(be, &want));
+            }
+        }
     }
 
     pub fn window(be: &dyn Backend, rng: &mut SplitMix64, dt: DType, t: usize, p: usize) {
@@ -299,6 +332,7 @@ fn rope_window_qdq_pool_device_position_is_bitwise_the_host_call() {
             for (ratio, stride, inverse) in [(1, 1, false), (1, 1, true), (4, 4, false), (2, 2, false)] {
                 for p in [0usize, 1, 3, 4, 7, 127, 4093, 30000] {
                     check::rope(be, r, dt, t, ratio, stride, inverse, p);
+                    check::rope_in_place(be, r, dt, t, ratio, stride, inverse, p);
                 }
             }
             for p in [0usize, 1, 100, 127, 128, 129, 143, 144, 4095, 30001] {
@@ -558,4 +592,31 @@ fn device_position_timing() {
             }
         }
     }
+}
+
+/// An aliased rope that is not the same tensor is refused, not run: one pointer with two dtypes, and a partial overlap.
+#[test]
+fn rope_refuses_aliases_other_than_the_same_tensor() {
+    let Some(be) = device() else { return };
+    let be = &*be;
+    let mut rng = SplitMix64::new(47);
+    let f: Vec<f32> = (0..32).map(|j| 10000f32.powf(-(2 * j) as f32 / 64.0)).collect();
+    let f = put(be, &HostTensor::from_f32(&[32], &f));
+    let (t, n, dh) = (4usize, 2usize, 128usize);
+    let x = put(be, &rnd(&mut rng, DType::F32, &[2 * t * n * dh], 1.0));
+    let call = |inp: TensorRef, out: TensorRef| {
+        let mut a = OpAttrs::default();
+        (a.dsv.ratio, a.dsv.pos_stride) = (1, 1);
+        let c = OpCall::new(Op::RopeTail, vec![inp, f.clone()], vec![out], a);
+        c.check().unwrap();
+        be.launch("rope_tail", &c, 0)
+    };
+    let view = |dt: DType, row0: usize| TensorRef { dtype: dt, shape: vec![t, n, dh], offset: x.offset + row0 * n * dh * 4, ..x.clone() };
+    // the same bytes as f32 in and bf16 out (a bf16 [t, n, dh] is half the bytes, so it lies inside the f32 one)
+    assert!(call(view(DType::F32, 0), view(DType::Bf16, 0)).is_err(), "one pointer, two dtypes");
+    // the f32 tensor shifted by one row of the other: overlapping, not equal
+    assert!(call(view(DType::F32, 0), view(DType::F32, 1)).is_err(), "partial overlap");
+    // disjoint halves and the very same tensor still run
+    assert!(call(view(DType::F32, 0), view(DType::F32, 4)).is_ok(), "disjoint");
+    assert!(call(view(DType::F32, 0), view(DType::F32, 0)).is_ok(), "same tensor");
 }

@@ -1,0 +1,11 @@
+calibration (unmodified kernel; recorded: ab-run-1.log hashes, 1.30 ms at CSA T=512, 5.04 ms at CSA T=2048)
+  ok   CSA T512 Nc1024 Kw512: median 1.3026 ms vs recorded 1.30 ms (tolerance 6%)
+  ok   CSA T2048 Nc1024 Kw512: median 5.0326 ms vs recorded 5.04 ms (tolerance 6%)
+  ok   hash CSA T512 Nc1024 Kw512: 4ee9a847ca24437f vs recorded 4ee9a847ca24437f
+  ok   hash CSA T2048 Nc1024 Kw512: aa254a578fedfa25 vs recorded aa254a578fedfa25
+  ok   hash HCA T512 Nc32 Kw32: 90ad1d7fcca0b866 vs recorded 90ad1d7fcca0b866
+  ok   hash CSA T37 Nc1024 Kw512: 21b89af74c9af5a2 vs recorded 21b89af74c9af5a2
+  ok   hash CSA T11 Nc1024 Kw512: e450cadc14aad612 vs recorded e450cadc14aad612
+  ok   rope: all 9 unmodified rope hashes equal the recorded bench-vec0.txt
+  probe base: {'blocks': 1, 'regs': 107, 'local': 0, 'total': 74112}
+CALIBRATION (attention) PASS

@@ -4,7 +4,8 @@
 
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::dsv41::config::Dsv41Config;
-use intarsia_core::dsv41::graph::{build, Buf, GraphOpts};
+use intarsia_core::dsv41::graph::WeightShapes;
+use intarsia_core::dsv41::graph::{build, build_draft, build_draft_dpos, build_pass, build_with, Buf, Dsv41Graph, GraphOpts, GraphTp, PassKind};
 use intarsia_core::state::{SharedKind, SlotSpec};
 use intarsia_core::{DType, Op};
 use intarsia_models::dsv41::{detect, plan, HeaderShapes};
@@ -229,8 +230,8 @@ fn every_step_resolves_to_a_cuda_kernel() {
     for (t, pos0) in [(1, 70_000), (16, 0), (16, 4096), (512, 0), (512, 8192)] {
         graphs.push((t, build(&c, &w, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }).unwrap()));
         if let Some((ws, m)) = &shapes_r0 {
-            let tp = intarsia_core::dsv41::graph::GraphTp { world: m.world, layers: m.layers, first: m.first_layer };
-            graphs.push((t, intarsia_core::dsv41::graph::build_with(&c, ws, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }, tp).unwrap()));
+            let tp = intarsia_core::dsv41::graph::GraphTp { world: m.world, layers: m.layers, first: m.first_layer, rope_inplace: false };
+            graphs.push((t, build_with(&c, ws, GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 }, tp).unwrap()));
         }
     }
     for (t, g) in graphs {
@@ -242,6 +243,316 @@ fn every_step_resolves_to_a_cuda_kernel() {
         }
     }
     assert!(missing.is_empty(), "steps without a CUDA kernel:\n{}", missing.iter().map(|(k, v)| format!("  {k}: {v}")).collect::<Vec<_>>().join("\n"));
+}
+
+/// Which attention buffer a step touches: `(reads, writes)` of the workspace buffer `name` (inputs and outputs), counting the
+/// `Extra` host actions of the stage at their positions as touches too (none of them may name `q` or `o`).
+fn touches(s: &intarsia_core::dsv41::graph::Step, name: &str) -> (bool, bool) {
+    let b = Buf::Ws(name.into());
+    (s.inputs.iter().any(|x| x.buf == b), s.outputs.iter().any(|x| x.buf == b))
+}
+
+fn extra_names(e: &intarsia_core::dsv41::graph::Extra) -> Vec<Buf> {
+    use intarsia_core::dsv41::graph::Extra;
+    match e {
+        Extra::AllReduce { x } => vec![x.buf.clone()],
+        Extra::AllReduceInto { partial, out } => vec![partial.buf.clone(), out.buf.clone()],
+        Extra::AllGather { send, recv } => vec![send.buf.clone(), recv.buf.clone()],
+        Extra::Fill { buf, .. } => vec![Buf::Ws(buf.clone())],
+    }
+}
+
+/// The base graph (no flag): `ws:q` is written by `wq_b` and read by `rope(q)` only, `ws:o` is written by the attention and read by
+/// `rope_inverse(o)` only, and `ws:q_rope` / `ws:o_derot` carry the rotated rows to their one consumer. Returns the number of ropes.
+fn check_base_buffers(base: &Dsv41Graph) -> usize {
+    let mut ropes = 0;
+    for st in &base.stages {
+        for (_, e) in &st.extras {
+            for b in extra_names(e) {
+                assert!(!matches!(&b, Buf::Ws(n) if ["q", "o", "q_rope", "o_derot"].contains(&n.as_str())), "{}: an extra names {b:?}", st.name);
+            }
+        }
+        for s in &st.steps {
+            let ok = |name: &str, rd: &dyn Fn() -> bool, wr: &dyn Fn() -> bool| {
+                let (r, w) = touches(s, name);
+                assert!(!r || rd(), "{}: {} reads the unrotated ws:{name}", st.name, s.what);
+                assert!(!w || wr(), "{}: {} writes ws:{name}", st.name, s.what);
+            };
+            ok("q", &|| s.what.ends_with("rope(q)"), &|| s.what.ends_with(".wq_b"));
+            ok("o", &|| s.what.ends_with("rope_inverse(o)"), &|| s.op == Op::AttnSparse);
+            ok("q_rope", &|| s.op == Op::AttnSparse, &|| s.what.ends_with("rope(q)"));
+            ok("o_derot", &|| s.what.contains("act_quant(o)") || s.what.contains("wo_a"), &|| s.what.ends_with("rope_inverse(o)"));
+            ropes += usize::from(s.what.ends_with("rope(q)") || s.what.ends_with("rope_inverse(o)"));
+        }
+    }
+    ropes
+}
+
+/// The graph with `GraphTp::rope_inplace`, in execution order over ALL stages: each of `ws:q` and `ws:o` is `Raw` after its producer
+/// and `Rotated` after the in-place rope; the rope must find it `Raw`, and every other reader anywhere later in the graph (any
+/// stage) must find it `Rotated` (so a reader of the unrotated rows, in a later step or a later layer, fails). Returns the number
+/// of in-place `q` and `o` ropes.
+fn check_no_unrotated_read(ip: &Dsv41Graph) -> (usize, usize) {
+    #[derive(Clone, Copy, PartialEq, Debug)]
+    enum St {
+        Unwritten,
+        Raw,
+        Rotated,
+    }
+    let (mut q, mut o) = (St::Unwritten, St::Unwritten);
+    let (mut n_q, mut n_o) = (0, 0);
+    for st in &ip.stages {
+        for (_, e) in &st.extras {
+            for b in extra_names(e) {
+                assert!(!matches!(&b, Buf::Ws(n) if ["q", "o", "q_rope", "o_derot"].contains(&n.as_str())), "{}: an extra names {b:?}", st.name);
+            }
+        }
+        for s in &st.steps {
+            for n in ["q_rope", "o_derot"] {
+                assert_eq!(touches(s, n), (false, false), "{}: {} still uses ws:{n}", st.name, s.what);
+            }
+            let in_place = s.op == Op::RopeTail && s.inputs[0].buf == s.outputs[0].buf;
+            for (name, state) in [("q", &mut q), ("o", &mut o)] {
+                let (r, w) = touches(s, name);
+                if !r && !w {
+                    continue;
+                }
+                let is_q = name == "q";
+                if in_place {
+                    assert_eq!(s.attrs.dsv.inverse, !is_q, "{}: {} rotates the wrong way", st.name, s.what);
+                    assert_eq!(*state, St::Raw, "{}: {} finds ws:{name} {:?}, not freshly produced", st.name, s.what, *state);
+                    assert_eq!(s.lane, 0, "{}: {}", st.name, s.what);
+                    *state = St::Rotated;
+                    if is_q { n_q += 1 } else { n_o += 1 }
+                } else if w {
+                    // a producer: wq_b (q) / the attention (o), on lane 0, not reading the buffer it writes
+                    assert!(!r, "{}: {} reads and writes ws:{name}", st.name, s.what);
+                    assert!(if is_q { s.what.ends_with(".wq_b") } else { s.op == Op::AttnSparse }, "{}: {} writes ws:{name}", st.name, s.what);
+                    assert_eq!(s.lane, 0, "{}: {}", st.name, s.what);
+                    *state = St::Raw;
+                } else {
+                    // a plain reader: legal only on the rotated rows, and only the consumer
+                    assert_eq!(*state, St::Rotated, "{}: {} reads ws:{name} while it is {:?} (unrotated rows)", st.name, s.what, *state);
+                    let ok = if is_q { s.op == Op::AttnSparse && s.inputs[0].buf == Buf::Ws("q".into()) } else { s.what.contains("act_quant(o)") || s.what.contains("wo_a") };
+                    assert!(ok, "{}: {} is not the consumer of the rotated ws:{name}", st.name, s.what);
+                }
+            }
+        }
+    }
+    (n_q, n_o)
+}
+
+/// `in_place_rope_leaves_no_reader_of_the_unrotated_rows`: the base graph is checked by [`check_base_buffers`], the flagged one by
+/// [`check_no_unrotated_read`], and the two must be the same graph except for the two ropes' output buffers (`q_rope` -> `q`,
+/// `o_derot` -> `o`): same steps, lanes, positions, extras, shapes and dtypes. Returns the number of in-place `q` and `o` ropes.
+fn check_in_place_rope(base: &Dsv41Graph, ip: &Dsv41Graph) -> (usize, usize) {
+    assert_eq!(base.stages.len(), ip.stages.len());
+    let ropes = check_base_buffers(base);
+    for (sb, si) in base.stages.iter().zip(&ip.stages) {
+        assert_eq!(sb.steps.len(), si.steps.len(), "{}", sb.name);
+        assert_eq!(sb.extras, si.extras, "{}", sb.name);
+        for (a, b) in sb.steps.iter().zip(&si.steps) {
+            assert_eq!((a.op, &a.what, a.lane, a.pos), (b.op, &b.what, b.lane, b.pos));
+            // (a device-position step is checked with its position tensor by the runtime, not as a plain host call)
+            if !b.pos {
+                b.phantom_call().unwrap_or_else(|e| panic!("{}: {}: {e}", sb.name, b.what));
+            }
+            // the rename is exactly: q_rope -> q, o_derot -> o; `q` and `o` themselves keep their names (the base graph touches them
+            // only at the producer and the rope, checked above)
+            let same = |x: &Buf, y: &Buf| match (x, y) {
+                (Buf::Ws(p), Buf::Ws(q)) => (p == "q_rope" && q == "q") || (p == "o_derot" && q == "o") || p == q,
+                _ => x == y,
+            };
+            for (x, y) in a.inputs.iter().zip(&b.inputs).chain(a.outputs.iter().zip(&b.outputs)) {
+                assert!(same(&x.buf, &y.buf) && x.shape == y.shape && x.dtype == y.dtype, "{}: {}", sb.name, a.what);
+            }
+            // no step but the two ropes aliases an input
+            if !(b.op == Op::RopeTail && b.inputs[0].buf == b.outputs[0].buf) {
+                assert!(b.outputs.iter().all(|o| b.inputs.iter().all(|i| i.buf != o.buf)), "{}: {}", sb.name, b.what);
+            }
+        }
+    }
+    let (n_q, n_o) = check_no_unrotated_read(ip);
+    assert_eq!(n_q + n_o, ropes, "every attention rope is in place");
+    (n_q, n_o)
+}
+
+/// Every graph form the CUDA runtime builds, flagged against unflagged, under `check_in_place_rope`; `layers` is the number of
+/// attention layers (ropes per kind) of the graph. `label` names the configuration in the assertion messages.
+fn in_place_rope_battery(label: &str, c: &Dsv41Config, w: &dyn intarsia_core::dsv41::graph::WeightShapes, world: usize, layers: usize) {
+    let off = GraphTp { world, ..GraphTp::default() };
+    let on = GraphTp { rope_inplace: true, ..off };
+    for (t, pos0) in [(1, 4095), (4, 100), (16, 0), (512, 0), (512, 8192), (2048, 0)] {
+        let o = GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 };
+        let (base, ip) = (build_with(c, w, o, off).unwrap_or_else(|e| panic!("{label}: {e}")), build_with(c, w, o, on).unwrap());
+        assert_eq!(check_in_place_rope(&base, &ip), (layers, layers), "{label}: t = {t} pos0 = {pos0}: one q rope and one o rope per layer");
+    }
+    // the device-position graphs (CUDA graph capture) of the 1 to 4 row passes, plain, verify (all rows) and with the DSpark absorb
+    for (t, all_rows, absorb) in [(1, false, false), (1, false, true), (4, true, true), (4, true, false), (3, false, true)] {
+        let o = GraphOpts { t, pos0: 131_072 - t, act: DType::Bf16, cap: 131_072 };
+        let k = PassKind { all_rows, absorb, dpos: true };
+        let (base, ip) = match (build_pass(c, w, o, off, k), build_pass(c, w, o, on, k)) {
+            (Ok(b), Ok(i)) => (b, i),
+            (Err(e), Err(_)) => {
+                println!("{label}: skipped t = {t} absorb {absorb}: {e}");
+                continue;
+            }
+            (b, i) => panic!("{label}: t = {t}: {:?} / {:?}", b.err(), i.err()),
+        };
+        assert_eq!(check_in_place_rope(&base, &ip), (layers, layers), "{label}: dpos t = {t} all_rows = {all_rows} absorb = {absorb}");
+        assert!(ip.stages.iter().flat_map(|s| &s.steps).any(|s| s.pos && s.op == Op::RopeTail), "a dpos graph has positioned ropes");
+    }
+    // the drafting graphs (DSpark stages), host and device position
+    let o = GraphOpts { t: 5, pos0: 100, act: DType::Bf16, cap: 131_072 };
+    for dpos in [false, true] {
+        let mk = |tp: GraphTp| if dpos { build_draft_dpos(c, w, o, tp, 4) } else { build_draft(c, w, o, tp, 4) };
+        let (base, ip) = (mk(off).unwrap_or_else(|e| panic!("{label}: {e}")), mk(on).unwrap());
+        let (n_q, n_o) = check_in_place_rope(&base, &ip);
+        assert!(n_q > 0 && n_q == n_o, "{label}: draft graph (dpos {dpos}): {n_q} q ropes, {n_o} o ropes");
+    }
+}
+
+#[test]
+fn in_place_rope_leaves_no_reader_of_the_unrotated_rows() {
+    let (c, w) = mia();
+    in_place_rope_battery("exl3 world 1", &c, &w, 1, 40);
+}
+
+/// The Mia header shapes as another configuration: `dense_wo_a` hides the EXL3 `wo_a` slices and gives each layer the dense
+/// block-diagonal `wo_a.weight` (the base after convert.py); `world` shards what a rank holds under tensor parallelism (the
+/// `wq_b` columns, the `wo_b` rows, the sinks, the routed and shared experts' intermediate width, the head's vocabulary), as
+/// the rank cache does; the graph reads the trellis shapes for every EXL3 linear, so those are the shapes changed.
+struct Variant<'a> {
+    inner: &'a HeaderShapes,
+    c: &'a Dsv41Config,
+    dense_wo_a: bool,
+    world: usize,
+}
+
+impl intarsia_core::dsv41::graph::WeightShapes for Variant<'_> {
+    fn get(&self, name: &str) -> Option<(DType, Vec<usize>)> {
+        let (c, world) = (self.c, self.world);
+        if self.dense_wo_a {
+            if name.contains(".wo_a.slice.") {
+                return None;
+            }
+            if let Some(p) = name.strip_suffix(".wo_a.weight") {
+                self.inner.get(&format!("{p}.wq_b.trellis"))?;
+                return Some((DType::Bf16, vec![c.o_groups / world * c.o_lora_rank, c.n_heads * c.head_dim / c.o_groups]));
+            }
+        }
+        let (dt, mut s) = self.inner.get(name)?;
+        if world > 1 {
+            let last2 = name.rsplit('.').take(2).collect::<Vec<_>>(); // ["trellis", "w1"]
+            if name.ends_with(".attn.wq_b.trellis") {
+                s[1] /= world;
+            } else if name.ends_with(".attn.wo_b.trellis") {
+                s[0] /= world;
+            } else if name.ends_with(".attn.attn_sink") {
+                s[0] /= world;
+            } else if (name.contains(".experts.") || name.contains(".shared_experts.")) && last2[0] == "trellis" {
+                match last2[1] {
+                    "w1" | "w3" => s[1] /= world,
+                    "w2" => s[0] /= world,
+                    _ => {}
+                }
+            } else if name == "head.trellis" {
+                s[1] /= world;
+            } else if name == "head.weight" {
+                s[0] /= world;
+            }
+        }
+        Some((dt, s))
+    }
+}
+
+/// The configurations the first test does not reach: the FP8 checkpoint's `act_quant(o)` between the de-rotation and `wo_a`, the dense
+/// grouped `wo_a`, and a rank of TP=2 (the collectives are `Extra`s in the stages), with the flag on.
+#[test]
+fn in_place_rope_in_the_fp8_dense_and_tp_configurations() {
+    let (c, w) = mia();
+    let fp8 = Dsv41Config { quant: intarsia_core::dsv41::config::Dsv41Quant::Fp8 { block: 128, expert_fp4: false }, ..c.clone() };
+    let v = |dense_wo_a, world| Variant { inner: &w, c: &c, dense_wo_a, world };
+    // FP8 mode emits the act_quant(o) step: assert it is really in the flagged graph and is the consumer
+    let o = GraphOpts { t: 16, pos0: 0, act: DType::Bf16, cap: 131_072 };
+    let g = build_with(&fp8, &w, o, GraphTp { rope_inplace: true, ..GraphTp::default() }).unwrap();
+    assert_eq!(g.stages.iter().flat_map(|s| &s.steps).filter(|s| s.what.ends_with("act_quant(o)")).count(), 40);
+    in_place_rope_battery("fp8 act_quant(o), world 1", &fp8, &w, 1, 40);
+    in_place_rope_battery("dense wo_a, world 1", &c, &v(true, 1), 1, 40);
+    in_place_rope_battery("dense wo_a + fp8, world 1", &fp8, &v(true, 1), 1, 40);
+    in_place_rope_battery("exl3, TP=2 rank", &c, &v(false, 2), 2, 40);
+    in_place_rope_battery("dense wo_a + fp8, TP=2 rank", &fp8, &v(true, 2), 2, 40);
+    // TP: the collectives sit in the stages as extras; none names q or o (check_base_buffers / check_no_unrotated_read assert it) and
+    // there are some, so the extras path really ran
+    let g = build_with(&c, &v(false, 2), o, GraphTp { world: 2, rope_inplace: true, ..GraphTp::default() }).unwrap();
+    assert!(g.stages.iter().any(|s| !s.extras.is_empty()), "a TP graph has collectives");
+}
+
+/// A copy of the graph with one extra step appended to stage `stage`.
+fn with_step(g: &Dsv41Graph, stage: usize, at: usize, s: intarsia_core::dsv41::graph::Step) -> Dsv41Graph {
+    let mut g = g.clone();
+    g.stages[stage].steps.insert(at, s);
+    g
+}
+
+/// The check has teeth: a reader of the unrotated rows injected anywhere later in the graph (a later step, a later layer, before the
+/// next layer's producer or between it and its rope) makes it fail, for `q` and for `o`; so does a second writer.
+#[test]
+fn the_unrotated_read_check_fails_on_an_injected_late_reader() {
+    let (c, w) = mia();
+    let o = GraphOpts { t: 16, pos0: 0, act: DType::Bf16, cap: 131_072 };
+    let off = GraphTp::default();
+    let on = GraphTp { rope_inplace: true, ..off };
+    let (base, ip) = (build_with(&c, &w, o, off).unwrap(), build_with(&c, &w, o, on).unwrap());
+    assert_eq!(check_in_place_rope(&base, &ip), (40, 40));
+    let reader = |name: &str, shape: &[usize]| intarsia_core::dsv41::graph::Step {
+        op: Op::Add,
+        what: format!("injected late reader of ws:{name}"),
+        inputs: vec![intarsia_core::dsv41::graph::Arg { buf: Buf::Ws(name.into()), dtype: DType::Bf16, shape: shape.to_vec() }; 2],
+        outputs: vec![intarsia_core::dsv41::graph::Arg { buf: Buf::Ws("injected".into()), dtype: DType::Bf16, shape: shape.to_vec() }],
+        attrs: Default::default(),
+        pos: false,
+        lane: 0,
+    };
+    // the check must fail, and fail with `needle` (not on a bad insertion index of this test)
+    let fails = |f: &dyn Fn(), needle: &str| -> bool {
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(f)) {
+            Ok(()) => false,
+            Err(e) => {
+                let m = e.downcast_ref::<String>().cloned().or_else(|| e.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+                println!("  caught: {m}");
+                m.contains(needle)
+            }
+        }
+    };
+    let pos = |g: &Dsv41Graph, stage: usize, f: &dyn Fn(&intarsia_core::dsv41::graph::Step) -> bool| g.stages[stage].steps.iter().position(|s| f(s)).unwrap();
+    let shape = ip.stages[2].steps[pos(&ip, 2, &|s| s.what.ends_with("rope(q)"))].outputs[0].shape.clone();
+    // 1. nothing injected: fine (control for the lines below)
+    check_no_unrotated_read(&ip);
+    // 2. flagged graph: a reader of ws:q in layer 1 after its producer and before its rope reads the unrotated rows; so does a reader
+    //    of ws:o between the attention and its rope
+    let wq_b = pos(&ip, 2, &|s| s.what.ends_with(".wq_b"));
+    let g = with_step(&ip, 2, wq_b + 1, reader("q", &shape));
+    assert!(fails(&|| drop(check_no_unrotated_read(&g)), "unrotated rows"), "q read between wq_b and its rope");
+    let attn = pos(&ip, 2, &|s| s.op == Op::AttnSparse);
+    let g = with_step(&ip, 2, attn + 1, reader("o", &shape));
+    assert!(fails(&|| drop(check_no_unrotated_read(&g)), "unrotated rows"), "o read between the attention and its rope");
+    // 3. a stray reader of ws:q at the start of layer 1 (it holds layer 0's rotated q: not the attention, refused); a stray reader of
+    //    ws:o at the end of layer 9, long after its rope
+    let g = with_step(&ip, 2, 0, reader("q", &shape));
+    assert!(fails(&|| drop(check_no_unrotated_read(&g)), "is not the consumer"), "a stray reader of ws:q");
+    let g = with_step(&ip, 10, ip.stages[10].steps.len(), reader("o", &shape));
+    assert!(fails(&|| drop(check_no_unrotated_read(&g)), "is not the consumer"), "a stray reader of ws:o in layer 9");
+    // 4. the base graph, where those readers WOULD read unrotated rows
+    let g = with_step(&base, 5, pos(&base, 5, &|s| s.what.ends_with("rope(q)")) + 1, reader("q", &shape));
+    assert!(fails(&|| drop(check_base_buffers(&g)), "reads the unrotated ws:q"), "base: a late reader of the unrotated q");
+    let g = with_step(&base, 5, base.stages[5].steps.len(), reader("o", &shape));
+    assert!(fails(&|| drop(check_base_buffers(&g)), "reads the unrotated ws:o"), "base: a late reader of the unrotated o");
+    // 5. the rope applied twice (a replayed rope without its producer)
+    let rope_q = pos(&ip, 2, &|s| s.what.ends_with("rope(q)"));
+    let dup = ip.stages[2].steps[rope_q].clone();
+    let g = with_step(&ip, 2, rope_q + 1, dup);
+    assert!(fails(&|| drop(check_no_unrotated_read(&g)), "not freshly produced"), "a rope applied twice");
 }
 
 /// Host cost of building the decode graph (the eager runtime builds one per pass): printed, bounded loosely.
@@ -282,7 +593,7 @@ fn mia_dspark_graphs_record_with_the_official_structure() {
     };
     let plain = build_with(&c, &w, GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 4096 }, GraphTp::default()).unwrap();
     for world in [1] {
-        let tp = GraphTp { world, layers: None, first: 0 };
+        let tp = GraphTp { world, layers: None, first: 0, rope_inplace: false };
         let o = GraphOpts { t: 4, pos0: 100, act: DType::Bf16, cap: 4096 };
         let v = build_pass(&c, &w, o, tp, PassKind { all_rows: true, absorb: true, dpos: false }).unwrap();
         check(&v);

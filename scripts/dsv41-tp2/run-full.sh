@@ -255,7 +255,7 @@ fi
 if [[ " $STEPS " == *" longp "* ]]; then
   for f in ${LONG_PROMPTS:?set LONG_PROMPTS}; do
     t0=$(date +%s.%N)
-    curl -s -m 900 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":open(sys.argv[1]).read(),"max_tokens":16,"temperature":0,"logprobs":5}))' "$f")" > "$OUT/longp-$(basename "$f" .txt).json"
+    curl -s -m 900 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,os,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":open(sys.argv[1]).read(),"max_tokens":16,"temperature":0,"logprobs":5,**({"ignore_eos":True} if os.environ.get("LONGP_IGNORE_EOS") == "1" else {})}))' "$f")" > "$OUT/longp-$(basename "$f" .txt).json"
     log "longp $(basename "$f") wall $(python3 -c 'import sys,time; print("%.1f" % (time.time() - float(sys.argv[1])))' "$t0") s $(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("usage"), repr(d["choices"][0]["text"][:60]))' "$OUT/longp-$(basename "$f" .txt).json" 2>&1 | tail -1)"
   done
 fi
@@ -384,10 +384,12 @@ if [[ -n ${AB:-} ]]; then
     v="NSYS_AB$i"; NSYS_SAVE=${NSYS:-0}; NSYS=${!v:-$NSYS_SAVE}
     # BIN_ABi: another binary for this config (same path prefix, so kill_ours and the watcher still match it)
     v="BIN_AB$i"; BIN_SAVE=$BIN; BIN=${!v:-$BIN}
+    # LONG_ABi: another LONG_PROMPTS list for this config (the longp step)
+    v="LONG_AB$i"; LONG_SAVE=${LONG_PROMPTS:-}; LONG_PROMPTS=${!v:-${LONG_PROMPTS:-}}
     log "config ab$i: $cfg; steps: $STEPS; nsys $NSYS; bin $BIN"
     start_ranks "$cfg"
     run_steps
-    STEPS=$STEPS_SAVE; NSYS=$NSYS_SAVE; BIN=$BIN_SAVE
+    STEPS=$STEPS_SAVE; NSYS=$NSYS_SAVE; BIN=$BIN_SAVE; LONG_PROMPTS=$LONG_SAVE
     kill_ours; log "config ab$i done"
     i=$((i + 1))
   done

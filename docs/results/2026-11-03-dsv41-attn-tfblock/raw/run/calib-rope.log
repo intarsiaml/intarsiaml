@@ -1,0 +1,11 @@
+## pair 0 base 05:04:37
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1438 med 0.1441 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1352 med 0.1354 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5742 med 0.5928 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5742 med 0.5751 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0052 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0522 med 0.0530 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0040 med 0.0041 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0124 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1312 med 0.1315 ms
