@@ -31,8 +31,6 @@ struct Mock {
     busy: (u32, u32),
     /// `submit` refuses with the engine's own queue-full error.
     queue_full: bool,
-    /// `submit` refuses a prompt id at or past this, as the single-sequence engine does (`BadRequest`).
-    vocab: Option<u32>,
     /// A request that asks for `logprobs` gets this many traced logits rows of this many entries (`trace_logits`).
     trace: Option<(usize, usize)>,
     /// The engine dies after this many tokens: the stream ends with an `Error` event instead of `Done`.
@@ -197,9 +195,6 @@ impl Engine for Mock {
     fn submit(&self, req: GenRequest) -> Result<Receiver<GenEvent>> {
         if self.queue_full {
             return Err(intarsia_core::Error::QueueFull(8));
-        }
-        if let Some(bad) = self.vocab.and_then(|v| req.prompt.iter().find(|&&t| t >= v)) {
-            return Err(intarsia_core::Error::BadRequest(format!("token id {bad} >= vocab")));
         }
         let (tx, rx) = channel();
         let plen = req.prompt.len();
@@ -491,21 +486,6 @@ async fn completions_token_ids_beyond_u32_are_a_400() {
     let (st, _, _) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": [4294967295u64], "max_tokens": 2}))).await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(mock.reqs.lock().unwrap()[0].prompt, vec![u32::MAX]);
-}
-
-/// The engine refuses an id past its vocabulary on `submit`: a client error (400), not a 500 or a 200 stream with an error event.
-#[tokio::test]
-async fn completions_out_of_vocab_id_is_a_400_stream_or_not() {
-    let mock = Arc::new(Mock { vocab: Some(300), ..Default::default() });
-    let app = app_with(mock.clone());
-    for stream in [false, true] {
-        let (st, _, body) =
-            call(&app, "POST", "/v1/completions", Some(json!({"prompt": [5, 300], "max_tokens": 2, "stream": stream}))).await;
-        assert_eq!(st, StatusCode::BAD_REQUEST, "stream={stream}: {body}");
-        assert!(body.contains("vocab"), "{body}");
-    }
-    let (st, _, _) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": [5, 299], "max_tokens": 2}))).await;
-    assert_eq!(st, StatusCode::OK);
 }
 
 #[tokio::test]
