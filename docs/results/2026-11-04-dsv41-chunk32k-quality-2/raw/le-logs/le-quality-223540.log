@@ -1,0 +1,47 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/chunk32k-2/.scratch/final.s65-01.jsonl: 10 rows, judge=none
+# localeval: adhoc — 2026-11-03T22:35
+
+- model: `dsv41-intarsia` on ? (?), url `http://100.120.88.104:8899/v1`
+- thinking: off; run kind: quality; label: dsv41-chunk32k2-ab0-s65-01
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --dataset /opt/code/intarsiaml/.worktrees/chunk32k-2/.scratch/final.s65-01.jsonl --judge none --max-tokens 400 --label dsv41-chunk32k2-ab0-s65-01 --url http://100.120.88.104:8899/v1 --model dsv41-intarsia --thinking off --recipe intarsia a60292329 dirty=no 1102-1850 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000 arm env: INTARSIA_DSV41_CHUNK=512, engram hot 1024 MiB`
+- result file: `results/20261103-223540-adhoc-dsv41-chunk32k2-ab0-s65-01/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia a60292329 dirty=no 1102-1850 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000 arm env: INTARSIA_DSV41_CHUNK=512, engram hot 1024 MiB
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/chunk32k-2/.scratch/final.s65-01.jsonl` (10 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | 0.600 | 0.6 | 10 | 0 | 0 |
+| TTFT (s) | 111.1 | 1.0 | 10 | 0 | 0 |
+| Prefill (tok/s) | 579.3 | 1.0 | 10 | 0 | 0 |
+| Decode (tok/s) | 70.2 | 1.0 | 10 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| agg_max-L3-65k-001 | yes | 1.0 | 111.34 | 58.6 | Releases of the Ilkzan line mentioned: Jorhal (200), Eldwyn … |
+| repo_sum-L4-65k-001 | yes | 1.0 | 110.36 | 69.2 | HOLD = 16 (feedback.rs) NKV = 2 (exl3_model.rs) PLAN_POS = 4… |
+| hop2-L3-65k-002 | yes | 1.0 | 111.10 | 73.5 | The document states: "Change log: the release nicknamed Novb… |
+| hop3-L3-65k-002 | yes | 1.0 | 110.92 | 70.0 | The document states: "Registry entry: the release nicknamed … |
+| agg_sum-L3-65k-002 | no | 0.0 | 111.82 | 76.1 | Ulmquin shards: EA-1765-AL 353, KL-5839-XR 190, DQ-9293-JW 1… |
+| agg_sum-L4-65k-002 | no | 0.0 | 111.19 | 74.7 | Storage shards of the Gwenhal cluster: - UA-1081-BY: 110 uni… |
+| agg_max-L3-65k-002 | no | 0.0 | 111.52 | 70.7 | The document lists several releases of the Hoxeld line with … |
+| repo_sum-L4-65k-002 | yes | 1.0 | 109.30 | 69.4 | REPS dispatch_cost.rs = 15 CLOCK_UPTIME_RAW profile.rs = 8 V… |
+| hop2-L3-65k-003 | yes | 1.0 | 111.49 | 75.0 | The document states: "Tracker note: the release nicknamed Ma… |
+| hop3-L3-65k-003 | no | 0.0 | 111.58 | 64.9 | The document states: "Ops ledger: the release nicknamed Lume… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261103-223540-adhoc-dsv41-chunk32k2-ab0-s65-01/result.json
+[localeval] logged to unanimis: ac053bdd-329f-4677-b4df-46d82542bdd1

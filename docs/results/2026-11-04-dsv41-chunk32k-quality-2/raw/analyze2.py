@@ -137,15 +137,15 @@ def main():
             if sub:
                 A_, B_, C_, D_ = tab(r1, sub)
                 L.append(f"| {kd} | {len(sub)} | {A_ + B_} | {A_ + C_} | {B_} | {C_} | {D_} | {sum(1 for x in sub if final_of(r0[x]) != final_of(r1[x]))} |")
-        for title, keyf, vals in (("level", lambda m: m["level"], (1, 2, 3)), ("size", lambda m: m["k"], (32, 65)),
-                                  ("span of the facts (fraction of the document)", lambda m: 0 if m["span"] < 0.3 else 1 if m["span"] < 0.6 else 2, (0, 1, 2))):
+        for title, keyf, vals in (("level", lambda m: m["level"], (1, 2, 3, 4)), ("size", lambda m: m["k"], (32, 65)),
+                                  ("span of the facts (fraction of the document)", lambda m: 0 if m["span"] < 0.7 else 1 if m["span"] < 0.85 else 2, (0, 1, 2))):
             L.append(f"\n**By {title}**\n")
             L.append(f"| {title} | items | {ref} correct | {lab} correct | only {ref} | only {lab} | both wrong |\n|---|---|---|---|---|---|---|")
             for v in vals:
                 sub = [x for x in names if keyf(man[x]) == v]
                 if sub:
                     A_, B_, C_, D_ = tab(r1, sub)
-                    nm = {0: "span < 0.3", 1: "0.3 to 0.6", 2: ">= 0.6"}[v] if title.startswith("span") else str(v)
+                    nm = {0: "span < 0.7", 1: "0.7 to 0.85", 2: ">= 0.85"}[v] if title.startswith("span") else str(v)
                     L.append(f"| {nm} | {len(sub)} | {A_ + B_} | {A_ + C_} | {B_} | {C_} | {D_} |")
         L.append("\nDiscordant items: " + (", ".join(f"`{x}` ({ref} {'right' if r0[x]['success'] else 'wrong'}, {lab} {'right' if r1[x]['success'] else 'wrong'})" for x in names if bool(r0[x]['success']) != bool(r1[x]['success'])) or "none") + "\n")
     if len(arms) >= 3:
