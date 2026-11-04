@@ -33,6 +33,7 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
+use std::io::Write;
 use std::time::{Duration, Instant};
 
 fn env_usize(k: &str) -> Option<usize> {
@@ -493,11 +494,28 @@ fn engine_loop(w: &mut Worker, rx: Receiver<Job>, failed: &Arc<Mutex<Option<Stri
         }
     }));
     if let Err(p) = r {
-        let msg = p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
-        let msg = format!("dsv41 engine worker panicked: {msg}");
-        w.group_failed(&Error::backend(msg.clone()));
-        *failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg);
+        panic_route(w, &*p, failed);
     }
+}
+
+/// What a panic leaves to do once caught, wherever it was caught. Returns the message.
+fn panic_route(w: &mut Worker, p: &(dyn std::any::Any + Send), failed: &Arc<Mutex<Option<String>>>) -> String {
+    let msg = p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+    let msg = format!("dsv41 engine worker panicked: {msg}");
+    w.group_failed(&Error::backend(msg.clone()));
+    *failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg.clone());
+    msg
+}
+
+/// One short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back. It runs on the loader's thread, outside [`engine_loop`],
+/// so a panic takes the same route here: the error drops the worker with the peer already dead, and no free goes to a parked rank.
+fn warm_up(w: &mut Worker, bos: u32, failed: &Arc<Mutex<Option<String>>>) -> Result<()> {
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        w.forward(&[bos], true)?;
+        w.forward(&[bos], true)?;
+        w.truncate(0)
+    }));
+    r.unwrap_or_else(|p| Err(Error::backend(panic_route(w, &*p, failed))))
 }
 
 impl Worker {
@@ -684,17 +702,21 @@ impl Worker {
         if world < 2 || !matches!(e, Error::Backend(_)) {
             return false;
         }
-        if self.failed.lock().unwrap().is_some() {
-            return true;
-        }
-        eprintln!("dsv41: the tensor-parallel group failed ({e}); aborting the communicator and marking the engine failed");
         if let Some(p) = &self.peer {
             p.mark_unusable();
+        }
+        {
+            let mut failed = self.failed.lock().unwrap_or_else(|e| e.into_inner());
+            if failed.is_some() {
+                return true;
+            }
+            *failed = Some(format!("tensor-parallel group failed: {e}"));
         }
         if let Some(c) = self.rt.comm.clone() {
             let _ = std::thread::Builder::new().name("dsv41-abort".into()).spawn(move || c.abort());
         }
-        *self.failed.lock().unwrap() = Some(format!("tensor-parallel group failed: {e}"));
+        // last and not `eprintln!`, which panics on a closed stderr: this is what runs after a panic
+        let _ = writeln!(std::io::stderr(), "dsv41: the tensor-parallel group failed ({e}); aborting the communicator and marking the engine failed");
         true
     }
 
@@ -716,7 +738,7 @@ impl Worker {
             return;
         }
         if let Err(e2) = self.reset() {
-            eprintln!("dsv41: reset after a failed request failed: {e2}");
+            let _ = writeln!(std::io::stderr(), "dsv41: reset after a failed request failed: {e2}");
             // the peer's handle is gone by now: the next request would run collectives the other rank is never told about
             self.group_failed(&Error::backend(format!("reset after a failed request: {e2}")));
         }
@@ -1010,16 +1032,13 @@ impl Dsv41Engine {
             // marks the engine failed (health 503, then the server exits for a restart) without waiting for it
             let f = failed.clone();
             p.on_lost(move |why| {
-                eprintln!("dsv41: {why}; marking the engine failed");
                 f.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(format!("tensor-parallel group failed: {why}"));
+                let _ = writeln!(std::io::stderr(), "dsv41: {why}; marking the engine failed");
             });
         }
         let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone(), fail_pass: None, prefill_sync_rows: PREFILL_SYNC_ROWS, #[cfg(test)] script: None };
-        // warm-up: one short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back
         let wt = Instant::now();
-        w.forward(&[c.bos], true)?;
-        w.forward(&[c.bos], true)?;
-        w.truncate(0)?;
+        warm_up(&mut w, c.bos, &failed)?;
         eprintln!("dsv41: warm-up passes in {:.2} s", wt.elapsed().as_secs_f64());
         w.fail_pass = env_usize("INTARSIA_DSV41_TEST_RANK0_FAIL_PASS");
         log_memory_after_warmup(&w.rt, avail0, 0);
@@ -1509,10 +1528,10 @@ mod failpath_tests {
         }
     }
 
-    /// `draft_steps` refuses what the check as it stood before `draft_fits` refused, spelled out here, and `next_rows` drafts at every position
-    /// the old test allowed and the runtime accepts, so no round that could run has gone.
+    /// Through the real `next_rows`, at every position: a drafting round exactly where the block fits (the limit spelled out), and the runtime refuses
+    /// the rest, so no round the runtime could run is lost and none it would refuse is started.
     #[test]
-    fn draft_fits_refuses_what_the_runtime_refused_and_no_round_that_ran_is_lost() {
+    fn next_rows_drafts_exactly_where_the_block_fits_and_the_runtime_refuses_the_rest() {
         let g = group();
         assert_eq!(g.w.rt.cfg.mtp.as_ref().unwrap().block_size, 5);
         let mut st = g.w.rt.new_state().unwrap();
@@ -1521,9 +1540,11 @@ mod failpath_tests {
             st.tokens = vec![1; len];
             let refused = g.w.rt.draft_steps(&st, 1, 4).is_err_and(|e| e.to_string().contains("a draft block at position"));
             assert_eq!(refused, len == 0 || len + 5 > CAP, "the runtime's limit moved, at {len}");
-            assert_eq!(g.w.rt.draft_fits(len), !refused, "at {len}");
-            let could_run_before = CAP.saturating_sub(len + 1) >= 2 && !refused;
-            assert_eq!(could_run_before, g.w.rt.draft_fits(len), "at {len}");
+        }
+        g.finish();
+        for len in 0..CAP {
+            let want = if (1..=CAP - 5).contains(&len) { Told::Draft } else { Told::Forward };
+            assert_eq!(told_at(len), [Told::New, want], "at {len} of {CAP} tokens");
         }
     }
 
@@ -1649,6 +1670,40 @@ mod failpath_tests {
         let told = g.told.0.lock().unwrap().clone();
         assert_eq!(told, [Told::New, Told::Forward], "the other rank was told to free a sequence while parked");
         g.finish();
+    }
+
+    /// The same in the warm-up, on the loader's thread.
+    #[test]
+    fn a_panic_in_the_warm_up_fails_the_group_and_sends_no_free() {
+        let mut g = scripted(4, vec![1], false);
+        g.w.script.as_mut().unwrap().panic_on_forward = true;
+        let failed = g.w.failed.clone();
+        let e = warm_up(&mut g.w, 1, &failed).unwrap_err();
+        assert!(matches!(e, Error::Backend(_)) && e.to_string().contains("scripted panic"), "{e}");
+        assert!(failed.lock().unwrap().is_some());
+        drop(g.w.remote.take());
+        std::thread::sleep(Duration::from_millis(300));
+        assert_eq!(*g.told.0.lock().unwrap(), [Told::New, Told::Forward], "the other rank was told to free a sequence while parked");
+        g.finish();
+    }
+
+    /// In a child whose stderr is a pipe with no reader, where `eprintln!` panics.
+    #[test]
+    fn the_failure_route_survives_a_closed_stderr() {
+        const NAME: &str = "the_failure_route_survives_a_closed_stderr";
+        if std::env::var_os(CHILD).is_some() {
+            let mut g = group();
+            let mut fds = [0; 2];
+            unsafe {
+                assert_eq!(libc::pipe(fds.as_mut_ptr()), 0);
+                libc::close(fds[0]);
+                libc::dup2(fds[1], 2);
+            }
+            g.w.group_failed(&Error::backend("the group failed"));
+            let ok = g.w.failed.lock().unwrap().is_some() && g.w.remote.as_ref().unwrap().start_forward(&[1], false).is_err();
+            std::process::exit(if ok { RETURNED } else { 1 });
+        }
+        assert_eq!(child_code(NAME), Some(RETURNED));
     }
 
     // ------- second review: requests through the real `generate`, rank 0's passes scripted
