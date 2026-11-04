@@ -1,0 +1,43 @@
+### 1. without a fleetq slot (must refuse, exit 2)
+[21:13:51] == driver on endor.kuepker.haus: host spark2, repo /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/drv, logs to /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plum
+refusing to touch spark2 outside a fleetq slot (FLEETQ_JOB is not set). Run it as:
+  fleetq run --host spark2 --quiet gpu,cpu --mem 14 --expect 20 --label 'dsv41 attn-tfblock: E2/E5/E3 build + A/B (one job)' -- bash /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/dr
+exit 2
+### 2. normal run (driver + remote halves, fake spark)
+exit 0
+[21:13:51] == driver on endor.kuepker.haus: host spark2, repo /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/drv, logs to /opt/code/
+[21:13:51] == D1. new build tree on spark2 and the files it needs (kernels/{abi,common,cuda} and this bench dir; nothing else)
+[21:13:51] == D2. remote part (ssh -tt so that a dropped connection or the fleetq deadline hangs the remote command up)
+[21:13:51] == remote part on endor.kuepker.haus, pairs 6, iters 20, reps 15, nvcc jobs 4
+[21:13:51] == 0. preflight
+[21:13:51] == 1. sources: unmodified copies, patched copies (flags only enable variants), occupancy probe appended
+[21:13:51] == 2. build, at most 4 nvcc at a time (flags of crates/intarsia-backend-cuda/build.rs; sm_121)
+[21:13:52] == 3. resource usage (spills must stay LOCAL 0 for the E2 objects), rope SASS contraction
+[21:13:52] == 4. calibration: the unmodified kernel must reproduce 1.30 ms (CSA T=512), 5.04 ms (CSA T=2048) and the recorded hashes, else stop
+CALIBRATION PASS
+[21:13:52] == 5. alternating A/B: 6 pairs, variants interleaved per round, odd pairs base first, even pairs variant first; each process 15 reps x 20 l
+[21:13:53] == 6. tables and verdicts
+  VERDICT e2: NEGATIVE (stop rule): gain -0.3% at CSA T=2048 < 12%
+  VERDICT e2e5: NEGATIVE (stop rule): gain -0.3% at CSA T=2048 < 12%
+  VERDICT e5: INFORMATIONAL: gain -0.3% at CSA T=2048, all hashes identical (no stop rule set for e5)
+E5 on top of E2 at CSA T=2048 (median of the two variants' process medians): e2e5 / e2 = 1.000
+  VERDICT ip: bit-identical on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.144 -> 1.144 ms per layer-chunk; extrapolated saving 0 ms per 4K
+  VERDICT ipshfl: bit-identical on all 9 rope shapes; at T=2048 the pair (q, o^-1) goes 1.144 -> 1.144 ms per layer-chunk; extrapolated saving 0 ms pe
+[21:13:53] == done (build trees are removed by the exit trap)
+[21:13:53] removed build trees /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/fakehome/intarsia-dsv41-tfblock/obj and /opt/code/inta
+[21:13:56] == D3. (exit trap) fetch logs to /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/drv/docs/results/2026-11-03-dsv41-attn-tf
+[21:13:56] == driver cleanup (exit 0): fetch logs, remove intarsia-dsv41-tfblock on spark2
+removed /opt/code/intarsiaml/.worktrees/attn-tfblock/.worktrees/plumbing/fakehome/intarsia-dsv41-tfblock on spark2
+remote home after the run: []  (empty = ~/intarsia-dsv41-tfblock removed)
+logs fetched:       36 files
+nvcc invocations: 19; distinct -D flag sets:
+   2 -DATTN_SM4
+   2 -DATTN_TFBLOCK
+   1 -DROPE_INPLACE
+   1 -DROPE_INPLACE_SHFL
+### 3. calibration failure (one recorded hash altered; must stop with exit 3, still fetch logs and remove the remote tree)
+exit 3
+  FAIL hash CSA T2048 Nc1024 Kw512: aa254a578fedfa26 vs recorded aa254a578fedfa25
+CALIBRATION FAIL: stop, do not read the variants
+[21:13:57] CALIBRATION FAILED: stopping before the variants (the recorded numbers are not reproduced on this box/build)
+remote home after the failed run: []; fetched:       28 files, incl. calib.txt: 1

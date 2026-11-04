@@ -1,0 +1,10 @@
+clang: Homebrew clang version 23.1.2
+device-only compile to PTX (sm_120): 7 configurations ok
+host-only parse: probe-appended attention files (base, variant with and without flags), attn_ab_bench.cu, rope_ip_bench.cu ok
+ptx            kernel                     mma.sync bar.sync  shfl ldmatrix static smem B
+attn_base      attn_sparse_mma                  33        6    40       16           768
+attn_e5        attn_sparse_mma                  33        6    40       16           768
+attn_e2        attn_sparse_mma                  33        6    40       16           768
+attn_e2        attn_sparse_mma_tfb              64        6    40       32           960
+attn_e2e5      attn_sparse_mma                  33        6    40       16           768
+attn_e2e5      attn_sparse_mma_tfb              64        6    40       32           960

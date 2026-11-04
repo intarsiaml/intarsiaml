@@ -1,0 +1,90 @@
+--- a/kernels/cuda/dsv41_misc.cu
++++ b/kernels/cuda/dsv41_misc.cu
+@@ -231,8 +231,71 @@
+         sincosf(ang, &sn, &cs);
+         if (inverse) sn = -sn;
+         st(y, i, ((e - base) & 1) ? re * sn + im * cs : re * cs - im * sn);
++    }
++}
++
++#if defined(ROPE_INPLACE) || defined(ROPE_INPLACE_SHFL)
++// ROPE_INPLACE / ROPE_INPLACE_SHFL (bench-only experiment E3): rope_tail over the 2 * half rope dims only, in place (x == out, same dtype), so the
++// base = Dh - 2 * half leading dims are not copied. rope_tail_kernel cannot simply be launched with y == x: its two threads of a pair each
++// read (re, im) and the even one stores before the odd one loads. Both variants keep the per-element arithmetic of rope_tail_kernel verbatim
++// (same `ang`, same sincosf, same sign flip for `inverse`, the same two expressions `re * cs - im * sn` and `re * sn + im * cs`).
++// ROPE_INPLACE: one thread per (re, im) pair, loads both, stores both (sincosf once per pair).
++// ROPE_INPLACE_SHFL: one thread per element as in rope_tail_kernel, the partner's value comes from the adjacent lane by __shfl_xor_sync, which
++// orders every load of a pair before either store; each thread evaluates only its own element's expression, as the ternary of the original does.
++#ifdef ROPE_INPLACE
++constexpr int kRopeIpThreadsPerPair = 1;
++template <typename T>
++__global__ void rope_tail_ip_kernel(T* x, const float* __restrict__ f, int64_t Tn, int64_t N, int64_t Dh, int64_t half, int64_t pos0, int64_t stride,
++                                    int inverse, const int* __restrict__ dpos, int64_t ratio) {
++    const int64_t npair = Tn * N * half;
++    const int64_t base = Dh - 2 * half;
++    const int64_t p0 = dpos ? (int64_t)*dpos / ratio * ratio : pos0;
++    for (int64_t k = (int64_t)blockIdx.x * blockDim.x + threadIdx.x; k < npair; k += (int64_t)gridDim.x * blockDim.x) {
++        const int64_t j = k % half;
++        const int64_t row = k / half;  // t * N + head
++        const int64_t t = row / N;
++        const int64_t pi = row * Dh + base + 2 * j;
++        const float re = ld(x, pi), im = ld(x, pi + 1);
++        const float ang = (float)(p0 + t * stride) * f[j];
++        float sn, cs;
++        sincosf(ang, &sn, &cs);
++        if (inverse) sn = -sn;
++        st(x, pi, re * cs - im * sn);
++        st(x, pi + 1, re * sn + im * cs);
++    }
++}
++#else
++constexpr int kRopeIpThreadsPerPair = 2;
++template <typename T>
++__global__ void rope_tail_ip_kernel(T* x, const float* __restrict__ f, int64_t Tn, int64_t N, int64_t Dh, int64_t half, int64_t pos0, int64_t stride,
++                                    int inverse, const int* __restrict__ dpos, int64_t ratio) {
++    const int64_t nr = Tn * N * 2 * half;  // rope elements, an even count: lane 2m and 2m + 1 of a warp hold one pair
++    const int64_t base = Dh - 2 * half;
++    const int64_t p0 = dpos ? (int64_t)*dpos / ratio * ratio : pos0;
++    const int64_t step = (int64_t)gridDim.x * blockDim.x;
++    // the trip count is uniform over a block (blockDim.x is a multiple of 32), so every lane reaches the shuffle
++    for (int64_t k0 = (int64_t)blockIdx.x * blockDim.x; k0 < nr; k0 += step) {
++        const int64_t k = k0 + threadIdx.x;
++        const bool act = k < nr;
++        const int64_t row = act ? k / (2 * half) : 0;
++        const int64_t c = act ? k % (2 * half) : 0;
++        const int64_t i = row * Dh + base + c;
++        const float v = act ? ld(x, i) : 0.f;
++        const float o = __shfl_xor_sync(0xffffffffu, v, 1);
++        if (act) {
++            const int64_t t = row / N;
++            const int64_t j = c >> 1;
++            const float re = (c & 1) ? o : v, im = (c & 1) ? v : o;
++            const float ang = (float)(p0 + t * stride) * f[j];
++            float sn, cs;
++            sincosf(ang, &sn, &cs);
++            if (inverse) sn = -sn;
++            st(x, i, (c & 1) ? re * sn + im * cs : re * cs - im * sn);
++        }
+     }
+ }
++#endif
++#endif
+ 
+ // ---------------------------------------------------------------------------------------------------------------- window_kv
+ 
+@@ -391,6 +454,15 @@
+     if (n == 0) return IK_OK;
+     cudaStream_t s = IK_STREAM(stream);
+     const int* dp = pos ? (const int*)pos->data : nullptr;
++#if defined(ROPE_INPLACE) || defined(ROPE_INPLACE_SHFL)
++    if (x->data == out->data && x->dtype == out->dtype) {  // in place: only the rope dims are visited
++        const int64_t nw = T * N * half * kRopeIpThreadsPerPair;
++        DSV_FLOAT_DISPATCH(x->dtype, Ti,
++            rope_tail_ip_kernel<Ti><<<grid1d(nw, kThreads), kThreads, 0, s>>>((Ti*)out->data, (const float*)inv_freq->data, T, N, Dh, half, pos0,
++                                                                              pos_stride, inverse, dp, ratio));
++        return ik_launch_status();
++    }
++#endif
+     DSV_FLOAT_DISPATCH(x->dtype, Ti, DSV_FLOAT_DISPATCH(out->dtype, To,
+         rope_tail_kernel<Ti, To><<<grid1d(n, kThreads), kThreads, 0, s>>>((const Ti*)x->data, (const float*)inv_freq->data,
+                                                                         (To*)out->data, T, N, Dh, half, pos0, pos_stride, inverse, dp, ratio)));
