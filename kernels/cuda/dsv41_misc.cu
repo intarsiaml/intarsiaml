@@ -2,6 +2,8 @@
 // model.py:832), act_qdq (act_quant / fp4_act_quant, kernel.py:98 / 184), rope_tail (apply_rotary_emb, model.py:392),
 // window_kv (Attention._window_kv, model.py:701), compress_pool (Compressor.forward, model.py:429-486, ratio > 1).
 // Contract: docs/design/dsv41-ops.md. Written from the official inference code (MIT, DeepSeek).
+#include <atomic>
+
 #include "dsv41_common.cuh"
 
 using namespace dsv41;
@@ -404,6 +406,10 @@ extern "C" int ik_act_qdq(const ik_tensor* x, int32_t fmt, int64_t block, int32_
     return ik_launch_status();
 }
 
+// launches of the in-place path (host launches; a replayed CUDA graph does not count again); read by tests through ik_rope_inplace_launches()
+static std::atomic<long long> g_rope_inplace_launches{0};
+extern "C" long long ik_rope_inplace_launches() { return g_rope_inplace_launches.load(std::memory_order_relaxed); }
+
 extern "C" int ik_rope_tail(const ik_tensor* x, const ik_tensor* inv_freq, int64_t pos0, int64_t pos_stride, int64_t ratio,
                             int32_t inverse, ik_tensor* out, const ik_tensor* pos, void* stream) {
     IK_TRY(check_float(x, 3));
@@ -416,7 +422,16 @@ extern "C" int ik_rope_tail(const ik_tensor* x, const ik_tensor* inv_freq, int64
     if (n == 0) return IK_OK;
     cudaStream_t s = IK_STREAM(stream);
     const int* dp = pos ? (const int*)pos->data : nullptr;
-    if (x->data == out->data && x->dtype == out->dtype) {  // in place: only the rope dims are visited
+    // Aliasing: x and out are either disjoint or the very same tensor (same pointer, same dtype: in place, only the rope dims are visited).
+    // A shared pointer with another dtype, or a partial overlap, would race in the copy kernel's __restrict__ loads and stores: refused.
+    {
+        const char* xb = (const char*)x->data;
+        const char* ob = (const char*)out->data;
+        const size_t xe = (size_t)n * (x->dtype == IK_DTYPE_F32 ? 4 : 2), oe = (size_t)n * (out->dtype == IK_DTYPE_F32 ? 4 : 2);
+        if (xb < ob + oe && ob < xb + xe && (xb != ob || x->dtype != out->dtype)) return IK_ERR_INVALID_ARG;
+    }
+    if (x->data == out->data) {
+        g_rope_inplace_launches.fetch_add(1, std::memory_order_relaxed);
         const int64_t nw = T * N * half;
         DSV_FLOAT_DISPATCH(x->dtype, Ti,
             rope_tail_ip_kernel<Ti><<<grid1d(nw, kThreads), kThreads, 0, s>>>((Ti*)out->data, (const float*)inv_freq->data, T, N, Dh, half, pos0,
