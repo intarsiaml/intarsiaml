@@ -1,0 +1,21 @@
+fleetq: #8231 running on spark2: scripts/dsv41-tp2/build.sh
+fleetq: #8231 went ahead of the line and must end within 48m (by Tue 20:00); it is stopped then
+stamp: 08795c8c8 dirty=no 1103-1911
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 31.67s
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 13.54s
+total 381628
+drwxrwxr-x 2 nvidia nvidia      4096 Nov  3 14:43 .
+drwxrwxr-x 5 nvidia nvidia      4096 Nov  3 14:36 ..
+-rwxrwxr-x 1 nvidia nvidia 128573032 Nov  3 19:13 dsv41_runtime
+-rwxrwxr-x 1 nvidia nvidia 144128008 Nov  3 19:13 intarsia
+-rwxrwxr-x 1 nvidia nvidia 118171392 Nov  3 19:13 nccl_bench
+-rw-rw-r-- 1 nvidia nvidia        29 Nov  3 19:13 STAMP
+spark1: 08795c8c8 dirty=no 1103-1911
+9ddf85cab4b5
+spark2: 08795c8c8 dirty=no 1103-1911
+9ddf85cab4b5
+fleetq: #8231 done (exit 0)
