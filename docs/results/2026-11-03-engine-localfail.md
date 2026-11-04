@@ -78,4 +78,4 @@ Both binaries `cargo build --release --locked -p intarsia-cli --features metal`,
 
 Not run: base binary with the out-of-vocab prompt (contrast, not a gate); workspace tests (passed earlier on this head, see above).
 
-CUDA gate (spark1): **not yet run**. Queued as fleetq #8314 behind #8183 (`raw/scripts/gates-cuda.sh`, builds head and origin/main in `~/intarsia-localfail` on spark1, 3 cargo jobs each, `plan show` 35B and 8B text and `--json`, `kernels test --backend cuda --quick`, copies logs to `raw/cuda/`, removes the tree); estimated start 06:40 EST. Result to be appended here.
+CUDA gate (spark1, fleetq #8314, exit 0): head `427c4d243` against origin/main `3c57d50a2`, both built in the job. `plan show` is identical for 35B and 8B, text and `--json`. `kernels test --backend cuda --quick` gives 0 FAIL on both sides (106 kernels, 918 cases), and the logs are identical apart from wall time. Logs are in `raw/cuda/` and `raw/cuda-summary.log`. This is a no-op check: it does not exercise the outage paths on a Spark.
