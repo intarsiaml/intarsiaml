@@ -1,0 +1,205 @@
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/aarch64-linux-gnu/libthread_db.so.1".
+[New Thread 0xffffb71b08c0 (LWP 4105065)]
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+[New Thread 0xffffb69a08c0 (LWP 4105069)]
+[New Thread 0xffffb4beb8c0 (LWP 4105085)]
+[New Thread 0xfffda9d508c0 (LWP 4105191)]
+[New Thread 0xfffda95408c0 (LWP 4105192)]
+[Thread 0xffffb71b08c0 (LWP 4105065) exited]
+[New Thread 0xffffb71b08c0 (LWP 4105193)]
+[New Thread 0xfffda8d308c0 (LWP 4105194)]
+[New Thread 0xfffd922f08c0 (LWP 4105195)]
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+[New Thread 0xfffdaa52b8c0 (LWP 4105196)]
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 35 kernel(s) checked, 0 case(s) run, 499 cached
+[New Thread 0xfffda85208c0 (LWP 4105197)]
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10 x2 (tp=2, nccl comm)) in 5.5s, context 8192 tokens
+[New Thread 0xfffda83108c0 (LWP 4105198)]
+[New Thread 0xfffd91ae08c0 (LWP 4105199)]
+[New Thread 0xfffd918d08c0 (LWP 4105200)]
+intarsia server listening on http://0.0.0.0:8908
+[New Thread 0xfffd916c08c0 (LWP 4105201)]
+[New Thread 0xfffd914b08c0 (LWP 4105385)]
+[New Thread 0xfffd912a08c0 (LWP 4105386)]
+[New Thread 0xfffd90a908c0 (LWP 4105387)]
+[Thread 0xfffd912a08c0 (LWP 4105386) exited]
+[Thread 0xfffd914b08c0 (LWP 4105385) exited]
+[Thread 0xfffd922f08c0 (LWP 4105195) exited]
+
+Thread 1 "intarsia" received signal SIGINT, Interrupt.
+syscall () at ../sysdeps/unix/sysv/linux/aarch64/syscall.S:38
+warning: 38	../sysdeps/unix/sysv/linux/aarch64/syscall.S: No such file or directory
+
+Thread 18 (Thread 0xfffd90a908c0 (LWP 4105387) "intarsia-engine"):
+#0  0x0000ffffc91e1d6c in __futex_abstimed_wait_common64 (private=<optimized out>, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0xaaaab3546118) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=<optimized out>, abstime=0x0, clockid=0, expected=0, futex_word=0xaaaab3546118) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0xaaaab3546118, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=<optimized out>) at ./nptl/futex-internal.c:139
+#3  0x0000ffffc91ee100 in do_futex_wait (sem=sem@entry=0xaaaab3546118, abstime=0x0, clockid=0) at ./nptl/sem_waitcommon.c:111
+#4  0x0000ffffc91ee1c0 in __new_sem_wait_slow64 (sem=0xaaaab3546118, abstime=0x0, clockid=0) at ./nptl/sem_waitcommon.c:183
+#5  0x0000ffffc36ef924 in ?? () from /lib/aarch64-linux-gnu/libcuda.so.1
+#6  0x0000ffffc36fd968 in ?? () from /lib/aarch64-linux-gnu/libcuda.so.1
+#7  0x0000ffffc91e582c in start_thread (arg=0xfffda8521000) at ./nptl/pthread_create.c:447
+#8  0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 15 (Thread 0xfffd916c08c0 (LWP 4105201) "intarsia-http"):
+#0  syscall () at ../sysdeps/unix/sysv/linux/aarch64/syscall.S:38
+#1  0x0000aaaaabaa0930 in std::sys::sync::condvar::futex::Condvar::wait_timeout ()
+#2  0x0000aaaaab27251c in tokio::runtime::blocking::pool::Inner::run ()
+#3  0x0000aaaaab2669ec in std::sys::backtrace::__rust_begin_short_backtrace ()
+#4  0x0000aaaaab2835bc in core::ops::function::FnOnce::call_once{{vtable.shim}} ()
+#5  0x0000aaaaaba99d8c in std::sys::pal::unix::thread::Thread::new::thread_start ()
+#6  0x0000ffffc91e582c in start_thread (arg=0xfffda8311000) at ./nptl/pthread_create.c:447
+#7  0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 14 (Thread 0xfffd918d08c0 (LWP 4105200) "intarsia-watchd"):
+#0  0x0000ffffc921bd90 in __GI___clock_nanosleep (clock_id=<optimized out>, clock_id@entry=0, flags=flags@entry=0, req=0xfffd918cfa58, rem=0xfffd918cfa58) at ../sysdeps/unix/sysv/linux/clock_nanosleep.c:78
+#1  0x0000ffffc92260bc in __GI___nanosleep (req=<optimized out>, rem=<optimized out>) at ../sysdeps/unix/sysv/linux/nanosleep.c:25
+#2  0x0000aaaaaba863c0 in std::thread::sleep ()
+#3  0x0000aaaaab0ac20c in std::sys::backtrace::__rust_begin_short_backtrace ()
+#4  0x0000aaaaab0c9e2c in core::ops::function::FnOnce::call_once{{vtable.shim}} ()
+#5  0x0000aaaaaba99d8c in std::sys::pal::unix::thread::Thread::new::thread_start ()
+#6  0x0000ffffc91e582c in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#7  0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 13 (Thread 0xfffd91ae08c0 (LWP 4105199) "intarsia-http"):
+#0  syscall () at ../sysdeps/unix/sysv/linux/aarch64/syscall.S:38
+#1  0x0000aaaaabaa07dc in std::sys::sync::condvar::futex::Condvar::wait ()
+#2  0x0000aaaaab265958 in tokio::runtime::scheduler::multi_thread::park::Inner::park_condvar ()
+#3  0x0000aaaaab26544c in tokio::runtime::scheduler::multi_thread::park::Parker::park ()
+#4  0x0000aaaaab26eaa0 in tokio::runtime::scheduler::multi_thread::worker::Context::park_internal ()
+#5  0x0000aaaaab26e334 in tokio::runtime::scheduler::multi_thread::worker::Context::run ()
+#6  0x0000aaaaab280c08 in tokio::runtime::context::scoped::Scoped<T>::set ()
+#7  0x0000aaaaab265090 in tokio::runtime::context::runtime::enter_runtime ()
+#8  0x0000aaaaab26d9d8 in tokio::runtime::scheduler::multi_thread::worker::run ()
+#9  0x0000aaaaab272e60 in <tokio::runtime::blocking::task::BlockingTask<T> as core::future::future::Future>::poll ()
+#10 0x0000aaaaab288d78 in tokio::runtime::task::core::Core<T,S>::poll ()
+#11 0x0000aaaaab27ed98 in tokio::runtime::task::harness::Harness<T,S>::poll ()
+#12 0x0000aaaaab2725ec in tokio::runtime::blocking::pool::Inner::run ()
+#13 0x0000aaaaab2669ec in std::sys::backtrace::__rust_begin_short_backtrace ()
+#14 0x0000aaaaab2835bc in core::ops::function::FnOnce::call_once{{vtable.shim}} ()
+#15 0x0000aaaaaba99d8c in std::sys::pal::unix::thread::Thread::new::thread_start ()
+#16 0x0000ffffc91e582c in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#17 0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 12 (Thread 0xfffda83108c0 (LWP 4105198) "intarsia-http"):
+#0  0x0000ffffc924be74 in __GI_epoll_pwait (epfd=57, events=0xaaaab882bd80, maxevents=1024, timeout=-1, set=0x0) at ../sysdeps/unix/sysv/linux/epoll_pwait.c:40
+#1  0x0000aaaaab795d84 in mio::poll::Poll::poll ()
+#2  0x0000aaaaab286188 in tokio::runtime::io::driver::Driver::turn ()
+#3  0x0000aaaaab266070 in tokio::runtime::time::Driver::park_internal ()
+#4  0x0000aaaaab265400 in tokio::runtime::scheduler::multi_thread::park::Parker::park ()
+#5  0x0000aaaaab26eaa0 in tokio::runtime::scheduler::multi_thread::worker::Context::park_internal ()
+#6  0x0000aaaaab26e334 in tokio::runtime::scheduler::multi_thread::worker::Context::run ()
+#7  0x0000aaaaab280c08 in tokio::runtime::context::scoped::Scoped<T>::set ()
+#8  0x0000aaaaab265090 in tokio::runtime::context::runtime::enter_runtime ()
+#9  0x0000aaaaab26d9d8 in tokio::runtime::scheduler::multi_thread::worker::run ()
+#10 0x0000aaaaab272e60 in <tokio::runtime::blocking::task::BlockingTask<T> as core::future::future::Future>::poll ()
+#11 0x0000aaaaab288d78 in tokio::runtime::task::core::Core<T,S>::poll ()
+#12 0x0000aaaaab27ed98 in tokio::runtime::task::harness::Harness<T,S>::poll ()
+#13 0x0000aaaaab2725ec in tokio::runtime::blocking::pool::Inner::run ()
+#14 0x0000aaaaab2669ec in std::sys::backtrace::__rust_begin_short_backtrace ()
+#15 0x0000aaaaab2835bc in core::ops::function::FnOnce::call_once{{vtable.shim}} ()
+#16 0x0000aaaaaba99d8c in std::sys::pal::unix::thread::Thread::new::thread_start ()
+#17 0x0000ffffc91e582c in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#18 0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 11 (Thread 0xfffda85208c0 (LWP 4105197) "intarsia-engine"):
+#0  syscall () at ../sysdeps/unix/sysv/linux/aarch64/syscall.S:38
+#1  0x0000aaaaaba86828 in std::thread::Thread::park ()
+#2  0x0000aaaaab907514 in std::sync::mpmc::list::Channel<T>::recv::{{closure}} ()
+#3  0x0000aaaaab9026f4 in std::sys::backtrace::__rust_begin_short_backtrace ()
+#4  0x0000aaaaab9da5e0 in core::ops::function::FnOnce::call_once{{vtable.shim}} ()
+#5  0x0000aaaaaba99d8c in std::sys::pal::unix::thread::Thread::new::thread_start ()
+#6  0x0000ffffc91e582c in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#7  0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 10 (Thread 0xfffdaa52b8c0 (LWP 4105196) "tp-remote-reade"):
+#0  0x0000ffffc91e1d6c in __futex_abstimed_wait_common64 (private=0, cancel=true, abstime=0x0, op=393, expected=0, futex_word=0xfffd800030d0) at ./nptl/futex-internal.c:57
+#1  __futex_abstimed_wait_common (cancel=true, private=0, abstime=0x0, clockid=0, expected=0, futex_word=0xfffd800030d0) at ./nptl/futex-internal.c:87
+#2  __GI___futex_abstimed_wait_cancelable64 (futex_word=futex_word@entry=0xfffd800030d0, expected=expected@entry=0, clockid=clockid@entry=0, abstime=abstime@entry=0x0, private=private@entry=0) at ./nptl/futex-internal.c:139
+#3  0x0000ffffc91e49f0 in __pthread_cond_wait_common (abstime=0x0, clockid=0, mutex=0xfffd80003078, cond=0xfffd800030a8) at ./nptl/pthread_cond_wait.c:503
+#4  ___pthread_cond_wait (cond=0xfffd800030a8, mutex=0xfffd80003078) at ./nptl/pthread_cond_wait.c:627
+#5  0x0000ffffc94b7dc0 in std::condition_variable::wait(std::unique_lock<std::mutex>&) () from /lib/aarch64-linux-gnu/libstdc++.so.6
+#6  0x0000ffffb728c090 [PAC] in ncclIntruQueueMpscDequeueAll<ncclCommCallback, &ncclCommCallback::next> (me=me@entry=0xaaaab40d0e58, waitSome=true) at include/utils.h:518
+#7  0x0000ffffb728ee00 in ncclCommPollCallbacks (comm=0xaaaab3fae070, waitSome=<optimized out>) at include/comm.h:817
+#8  0x0000ffffb7282750 in commDestroySync (job_=job_@entry=0xfffdaa52a8e0) at init.cc:2752
+#9  0x0000ffffb7283280 in commReclaim (job_=<optimized out>) at init.cc:2853
+#10 0x0000ffffb726d6fc in ncclAsyncJobMain (arg=arg@entry=0xfffd800054b0) at group.cc:77
+#11 0x0000ffffb726ee0c in asyncJobLaunch (asyncJobsMain=asyncJobsMain@entry=0xfffd800055c0, groupAbortFlag=groupAbortFlag@entry=0xfffd800055bc) at group.cc:479
+#12 0x0000ffffb726f244 in groupLaunch (job_=job_@entry=0xfffd80005530, simInfo=simInfo@entry=0x0) at group.cc:626
+#13 0x0000ffffb7271640 in ncclGroupEndInternal (simInfo=simInfo@entry=0x0) at group.cc:862
+#14 0x0000ffffb72849c4 in ncclCommAbort (comm=<optimized out>) at init.cc:3060
+#15 0x0000aaaaab900dec in std::sys::backtrace::__rust_begin_short_backtrace ()
+#16 0x0000aaaaab9dc808 in core::ops::function::FnOnce::call_once{{vtable.shim}} ()
+#17 0x0000aaaaaba99d8c in std::sys::pal::unix::thread::Thread::new::thread_start ()
+#18 0x0000ffffc91e582c in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#19 0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 8 (Thread 0xfffda8d308c0 (LWP 4105194) "intarsia"):
+#0  0x0000ffffc9240bdc in __GI___poll (fds=fds@entry=0xfffd84004c90, nfds=nfds@entry=74, timeout=timeout@entry=500) at ../sysdeps/unix/sysv/linux/poll.c:41
+#1  0x0000ffffb7296898 in ncclProxyService (_args=0xaaaab6b4a210) at proxy.cc:1780
+#2  0x0000ffffc94f1ae0 in ?? () from /lib/aarch64-linux-gnu/libstdc++.so.6
+#3  0x0000ffffc91e582c [PAC] in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#4  0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 7 (Thread 0xffffb71b08c0 (LWP 4105193) "intarsia"):
+#0  0x0000ffffc9240bdc in __GI___poll (fds=0xfffd8c000b70, nfds=4, timeout=<optimized out>) at ../sysdeps/unix/sysv/linux/poll.c:41
+#1  0x0000ffffb73a5be8 in rasThreadMain () at ras/ras.cc:614
+#2  0x0000ffffc94f1ae0 in ?? () from /lib/aarch64-linux-gnu/libstdc++.so.6
+#3  0x0000ffffc91e582c [PAC] in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#4  0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 6 (Thread 0xfffda95408c0 (LWP 4105192) "intarsia"):
+#0  0x0000ffffc9241248 in __GI___libc_read (nbytes=16, buf=0xfffda953fe18, fd=38) at ../sysdeps/unix/sysv/linux/read.c:26
+#1  __GI___libc_read (fd=38, buf=0xfffda953fe18, nbytes=16) at ../sysdeps/unix/sysv/linux/read.c:24
+#2  0x0000ffffb4065360 in ibv_get_async_event () from /lib/aarch64-linux-gnu/libibverbs.so
+#3  0x0000ffffb72f8320 [PAC] in wrap_ibv_get_async_event (context=<optimized out>, event=event@entry=0xfffda953ff10) at misc/ibvwrap.cc:140
+#4  0x0000ffffb7351610 in ncclIbAsyncThreadMain (args=0xffffc337da00 <ncclIbDevs+4416>) at transport/net_ib/common.cc:114
+#5  0x0000ffffc94f1ae0 in ?? () from /lib/aarch64-linux-gnu/libstdc++.so.6
+#6  0x0000ffffc91e582c [PAC] in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#7  0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 5 (Thread 0xfffda9d508c0 (LWP 4105191) "intarsia"):
+#0  0x0000ffffc9241248 in __GI___libc_read (nbytes=16, buf=0xfffda9d4fe18, fd=36) at ../sysdeps/unix/sysv/linux/read.c:26
+#1  __GI___libc_read (fd=36, buf=0xfffda9d4fe18, nbytes=16) at ../sysdeps/unix/sysv/linux/read.c:24
+#2  0x0000ffffb4065360 in ibv_get_async_event () from /lib/aarch64-linux-gnu/libibverbs.so
+#3  0x0000ffffb72f8320 [PAC] in wrap_ibv_get_async_event (context=<optimized out>, event=event@entry=0xfffda9d4ff10) at misc/ibvwrap.cc:140
+#4  0x0000ffffb7351610 in ncclIbAsyncThreadMain (args=0xffffc337c8c0 <ncclIbDevs>) at transport/net_ib/common.cc:114
+#5  0x0000ffffc94f1ae0 in ?? () from /lib/aarch64-linux-gnu/libstdc++.so.6
+#6  0x0000ffffc91e582c [PAC] in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#7  0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 4 (Thread 0xffffb4beb8c0 (LWP 4105085) "cuda-EvtHandlr"):
+#0  0x0000ffffc9240bdc in __GI___poll (fds=0xfffcd5c97120, nfds=9, timeout=<optimized out>) at ../sysdeps/unix/sysv/linux/poll.c:41
+#1  0x0000ffffc370ec90 in ?? () from /lib/aarch64-linux-gnu/libcuda.so.1
+#2  0x0000ffffc37bcd90 in ?? () from /lib/aarch64-linux-gnu/libcuda.so.1
+#3  0x0000ffffc36fd968 in ?? () from /lib/aarch64-linux-gnu/libcuda.so.1
+#4  0x0000ffffc91e582c in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#5  0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 3 (Thread 0xffffb69a08c0 (LWP 4105069) "cuda00002000009"):
+#0  0x0000ffffc9240bdc in __GI___poll (fds=0xaaaab33c9f00, nfds=3, timeout=<optimized out>) at ../sysdeps/unix/sysv/linux/poll.c:41
+#1  0x0000ffffc370ec90 in ?? () from /lib/aarch64-linux-gnu/libcuda.so.1
+#2  0x0000ffffc37bcd90 in ?? () from /lib/aarch64-linux-gnu/libcuda.so.1
+#3  0x0000ffffc36fd968 in ?? () from /lib/aarch64-linux-gnu/libcuda.so.1
+#4  0x0000ffffc91e582c in start_thread (arg=0xffffc90b0000) at ./nptl/pthread_create.c:447
+#5  0x0000ffffc924bb4c in thread_start () at ../sysdeps/unix/sysv/linux/aarch64/clone3.S:76
+
+Thread 1 (Thread 0xffffc90af8c0 (LWP 4105006) "intarsia"):
+#0  syscall () at ../sysdeps/unix/sysv/linux/aarch64/syscall.S:38
+#1  0x0000aaaaabaa07dc in std::sys::sync::condvar::futex::Condvar::wait ()
+#2  0x0000aaaaab268a34 in tokio::runtime::park::Inner::park ()
+#3  0x0000aaaaab0b44b4 in tokio::runtime::park::CachedParkThread::block_on ()
+#4  0x0000aaaaab088984 in tokio::runtime::context::runtime::enter_runtime ()
+#5  0x0000aaaaab097318 in tokio::runtime::runtime::Runtime::block_on ()
+#6  0x0000aaaaab06404c in intarsia_server::serve ()
+#7  0x0000aaaaaae2b594 in intarsia_cli::cmd::serve::run ()
+#8  0x0000aaaaaac39744 in intarsia::main ()
+#9  0x0000aaaaaac375dc in std::sys::backtrace::__rust_begin_short_backtrace ()
+#10 0x0000aaaaaac3755c in std::rt::lang_start::{{closure}} ()
+#11 0x0000aaaaaba85728 in std::rt::lang_start_internal ()
+#12 0x0000aaaaaac3b878 in main ()
+Kill the program being debugged? (y or n) [answered Y; input not from terminal]
+[Inferior 1 (process 4105006) killed]

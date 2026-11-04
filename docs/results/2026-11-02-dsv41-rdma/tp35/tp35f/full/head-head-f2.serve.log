@@ -1,0 +1,8 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 35 kernel(s) checked, 0 case(s) run, 499 cached
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on cuda (NVIDIA GB10 x2 (tp=2, nccl comm)) in 5.3s, context 8192 tokens
+intarsia server listening on http://0.0.0.0:8908
+bash: line 1: 3765978 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-tp35-exit/bin/intarsia serve -m /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 --backend cuda --tp 2 --max-seq 8192 --mem-budget 20 --tp-remote 10.100.152.3:29712 --port 8908 --host 0.0.0.0 --served-model-name q35 --no-supervisor --no-ui

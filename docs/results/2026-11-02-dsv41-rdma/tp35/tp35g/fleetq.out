@@ -1,0 +1,123 @@
+fleetq: #8232 running on spark1, spark2: .scratch/tp35g/f1loop.sh
+fleetq: #8232 went ahead of the line and must end within 46m (by Tue 20:00); it is stopped then
+19:13:07 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 9ddf85cab4b5 stamp '08795c8c8 dirty=no 1103-1911'
+19:13:21 [head] serve up=1 after 11 s
+19:13:22 [head] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+19:13:22 [head] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+19:13:27 [head] head-f1: ranks' PIDs rank 0 32023 (spark1), rank 1 3293437 (spark2)
+19:14:27 [head] head-f1 RESULT: killed worker; request ended 1595 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2391 ms
+19:14:27 [head] head-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+19:14:31 [head] head-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:35504
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 3293437 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-tp35-exit/bin/intarsi
+19:14:38 tp35-compare done
+19:14:44 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 9ddf85cab4b5 stamp '08795c8c8 dirty=no 1103-1911'
+19:14:52 [head] serve up=1 after 6 s
+19:14:52 [head] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+19:14:53 [head] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+19:14:57 [head] head-f1: ranks' PIDs rank 0 43836 (spark1), rank 1 3304603 (spark2)
+19:15:58 [head] head-f1 RESULT: killed worker; request ended 1463 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2438 ms
+19:15:58 [head] head-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+19:16:02 [head] head-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:42194
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 3304603 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-tp35-exit/bin/intarsi
+19:16:09 tp35-compare done
+19:16:15 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 9ddf85cab4b5 stamp '08795c8c8 dirty=no 1103-1911'
+19:16:24 [head] serve up=1 after 6 s
+19:16:24 [head] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+19:16:24 [head] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+19:16:29 [head] head-f1: ranks' PIDs rank 0 55544 (spark1), rank 1 3315777 (spark2)
+19:17:31 [head] head-f1 RESULT: killed worker; request ended 1542 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2372 ms
+19:17:31 [head] head-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+19:17:35 [head] head-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:55364
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 3315777 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-tp35-exit/bin/intarsi
+19:17:41 tp35-compare done
+19:17:47 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 9ddf85cab4b5 stamp '08795c8c8 dirty=no 1103-1911'
+19:17:56 [head] serve up=1 after 6 s
+19:17:56 [head] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+19:17:57 [head] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+19:18:01 [head] head-f1: ranks' PIDs rank 0 67256 (spark1), rank 1 3326918 (spark2)
+19:19:02 [head] head-f1 RESULT: killed worker; request ended 1192 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2265 ms
+19:19:02 [head] head-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+19:19:06 [head] head-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:34572
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 3326918 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-tp35-exit/bin/intarsi
+19:19:13 tp35-compare done
+19:19:19 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 9ddf85cab4b5 stamp '08795c8c8 dirty=no 1103-1911'
+19:19:27 [head] serve up=1 after 6 s
+19:19:27 [head] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+19:19:28 [head] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+19:19:33 [head] head-f1: ranks' PIDs rank 0 78959 (spark1), rank 1 3338002 (spark2)
+19:20:33 [head] head-f1 RESULT: killed worker; request ended 1286 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2407 ms
+19:20:33 [head] head-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+19:20:36 [head] head-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:51742
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 3338002 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-tp35-exit/bin/intarsi
+19:20:43 tp35-compare done
+19:20:49 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 9ddf85cab4b5 stamp '08795c8c8 dirty=no 1103-1911'
+19:20:58 [head] serve up=1 after 6 s
+19:20:58 [head] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+19:20:59 [head] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+19:21:04 [head] head-f1: ranks' PIDs rank 0 91123 (spark1), rank 1 3348946 (spark2)
+19:22:04 [head] head-f1 RESULT: killed worker; request ended 1404 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2838 ms
+19:22:04 [head] head-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+19:22:08 [head] head-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:44644
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 3348946 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-tp35-exit/bin/intarsi
+19:22:16 tp35-compare done
+19:22:23 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 9ddf85cab4b5 stamp '08795c8c8 dirty=no 1103-1911'
+19:22:31 [head] serve up=1 after 5 s
+19:22:32 [head] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+19:22:32 [head] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+19:22:37 [head] head-f1: ranks' PIDs rank 0 160307 (spark1), rank 1 3359312 (spark2)
+19:23:38 [head] head-f1 RESULT: killed worker; request ended 1417 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2590 ms
+19:23:38 [head] head-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+19:23:42 [head] head-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:44828
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 3359312 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-tp35-exit/bin/intarsi
+19:23:49 tp35-compare done
+19:23:55 === arm head: binary $HOME/intarsia-tp35-exit/bin/intarsia md5 9ddf85cab4b5 stamp '08795c8c8 dirty=no 1103-1911'
+19:24:04 [head] serve up=1 after 6 s
+19:24:04 [head] startup lines: tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712|
+19:24:05 [head] worker lines: tp-worker: joined NCCL 2.30.7 as rank 1 on device 0|
+19:24:09 [head] head-f1: ranks' PIDs rank 0 171483 (spark1), rank 1 3369924 (spark2)
+19:25:10 [head] head-f1 RESULT: killed worker; request ended 1547 ms after the kill (curl rc 0, HTTP 500); /health first 503 at  ms (never = empty); /health first 000 at  ms; rank 0 gone at  ms; rank 1 gone at 2463 ms
+19:25:10 [head] head-f1 response head: {"error":{"message":"backend error: the remote tensor-parallel rank is gone (or the group failed earlier)","type":"server_error","param":null,"code":500}} HTTP 500 
+19:25:14 [head] head-f1 exit codes: rank 0 (serve) none, rank 1 (worker) 137
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29712
+tensor parallel x2 across processes: rank 1 is remote (8192 tokens of context)
+tp-worker: waiting for rank 0 on 10.100.152.3:29712
+tp-worker: rank 0 connected from 10.100.152.1:48048
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+bash: line 1: 3369924 Killed                  env INTARSIA_NCCL_LIB=$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=WARN $HOME/intarsia-tp35-exit/bin/intarsi
+19:25:20 tp35-compare done
+fleetq: #8232 done (exit 0)
