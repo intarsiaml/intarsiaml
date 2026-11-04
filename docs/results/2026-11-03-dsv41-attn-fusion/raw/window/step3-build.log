@@ -1,0 +1,19 @@
+stamp: 74a669c36 dirty=no 1103-1705
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 4m 59s
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 14.15s
+total 525760
+drwxrwxr-x 2 nvidia nvidia      4096 Nov  3 16:23 .
+drwxrwxr-x 5 nvidia nvidia      4096 Nov  3 17:04 ..
+-rwxrwxr-x 1 nvidia nvidia 129751240 Nov  3 17:10 dsv41_runtime
+-rwxrwxr-x 1 nvidia nvidia 145236320 Nov  3 17:10 intarsia
+-rwxrwxr-x 1 nvidia nvidia 144058688 Nov  3 16:23 intarsia.main
+-rwxrwxr-x 1 nvidia nvidia 119351144 Nov  3 17:10 nccl_bench
+-rw-rw-r-- 1 nvidia nvidia        29 Nov  3 17:10 STAMP
+spark1: 74a669c36 dirty=no 1103-1705
+4bbd889d1ee8
+spark2: 74a669c36 dirty=no 1103-1705
+4bbd889d1ee8

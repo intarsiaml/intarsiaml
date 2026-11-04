@@ -1,0 +1,87 @@
+[localeval] dataset /opt/code/deepeval/datasets/m27-hs3-longctx-b.jsonl: 50 rows, judge=none
+# localeval: adhoc — 2026-11-03T16:30
+
+- model: `intarsia` on ? (?), url `http://127.0.0.1:18471/v1`
+- thinking: off; run kind: quality; label: m27-long-b-off
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --url http://127.0.0.1:18471/v1 --model intarsia --thinking off --structured none --dataset /opt/code/deepeval/datasets/m27-hs3-longctx-b.jsonl --judge none --max-tokens 128 --label m27-long-b-off --recipe /opt/code/intarsiaml/.worktrees/m27-hs3/.scratch/intarsia serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name intarsia --max-seq 20000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18471`
+- result file: `results/20261103-163004-adhoc-m27-long-b-off/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+/opt/code/intarsiaml/.worktrees/m27-hs3/.scratch/intarsia serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name intarsia --max-seq 20000 --profile-every 0 --no-supervisor --no-ui --host 127.0.0.1 --port 18471
+````
+
+## Dataset `/opt/code/deepeval/datasets/m27-hs3-longctx-b.jsonl` (50 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | 1.000 | 1.0 | 50 | 0 | 0 |
+| TTFT (s) | 3.236 | 1.0 | 50 | 0 | 0 |
+| Prefill (tok/s) | 708.1 | 1.0 | 50 | 0 | 0 |
+| Decode (tok/s) | 28.4 | 1.0 | 50 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| lc050-R0198 | yes | 1.0 | 18.83 | 29.7 | Record R-0198 is owned by yarrow-otter and has the vault cod… |
+| lc051-R0152 | yes | 1.0 | 2.78 | 27.3 | Record R-0152 is owned by azure-marten and has the vault cod… |
+| lc052-R0251 | yes | 1.0 | 2.79 | 30.9 | Record R-0251 is owned by maple-marten and has the vault cod… |
+| lc053-R0038 | yes | 1.0 | 2.83 | 30.3 | Record R-0038 is owned by north-falcon and has the vault cod… |
+| lc054-R0168 | yes | 1.0 | 2.83 | 28.8 | Record R-0168 is owned by glade-ibis and has the vault code … |
+| lc055-R0353 | yes | 1.0 | 2.92 | 27.9 | Record R-0353 is owned by pearl-stoat and has the vault code… |
+| lc056-R0217 | yes | 1.0 | 2.86 | 30.9 | Record R-0217 is owned by maple-falcon and has the vault cod… |
+| lc057-R0197 | yes | 1.0 | 2.88 | 27.8 | Record R-0197 is owned by umber-quail and has the vault code… |
+| lc058-R0382 | yes | 1.0 | 2.91 | 26.8 | Record R-0382 is owned by violet-quail and has the vault cod… |
+| lc059-R0027 | yes | 1.0 | 2.94 | 26.8 | Record R-0027 is owned by cedar-falcon and has the vault cod… |
+| lc060-R0023 | yes | 1.0 | 2.88 | 27.7 | Record R-0023 is owned by fern-ibis and has the vault code h… |
+| lc061-R0276 | yes | 1.0 | 3.01 | 28.0 | Record R-0276 has the vault code willow-lynx-9206 and is own… |
+| lc062-R0308 | yes | 1.0 | 2.92 | 29.7 | Record R-0308 is owned by maple-vole and has the vault code … |
+| lc063-R0226 | yes | 1.0 | 2.89 | 26.0 | Record R-0226 is owned by ember-ibis and has the vault code … |
+| lc064-R0020 | yes | 1.0 | 2.97 | 30.8 | Record R-0020 is owned by umber-vole and has the vault code … |
+| lc065-R0101 | yes | 1.0 | 2.95 | 24.7 | Record R-0101 is owned by azure-quail and has the vault code… |
+| lc066-R0011 | yes | 1.0 | 2.94 | 27.7 | Record R-0011 is owned by azure-tern and has the vault code … |
+| lc067-R0222 | yes | 1.0 | 3.01 | 28.8 | Record R-0222 is owned by willow-marten and has the vault co… |
+| lc068-R0036 | yes | 1.0 | 2.95 | 26.8 | Record R-0036 is owned by tidal-vole and has the vault code … |
+| lc069-R0041 | yes | 1.0 | 2.97 | 29.8 | Record R-0041 is owned by raven-stoat and has the vault code… |
+| lc070-R0172 | yes | 1.0 | 2.99 | 28.8 | Record R-0172 is owned by birch-badger and has the vault cod… |
+| lc071-R0094 | yes | 1.0 | 2.95 | 26.9 | Record R-0094 is owned by violet-wren and has the vault code… |
+| lc072-R0256 | yes | 1.0 | 2.96 | 25.4 | Record R-0256 has the vault code cedar-lynx-1094 and is owne… |
+| lc073-R0008 | yes | 1.0 | 2.93 | 28.8 | Record R-0008 is owned by quartz-newt and has the vault code… |
+| lc074-R0100 | yes | 1.0 | 2.95 | 25.3 | Record R-0100 has the vault code harbor-tern-5475 and is own… |
+| lc075-R0306 | yes | 1.0 | 2.96 | 27.9 | Record R-0306 is owned by willow-quail and has the vault cod… |
+| lc076-R0161 | yes | 1.0 | 2.93 | 28.9 | Record R-0161 is owned by lilac-marten and has the vault cod… |
+| lc077-R0189 | yes | 1.0 | 2.95 | 28.9 | Record R-0189 is owned by lilac-marten and has the vault cod… |
+| lc078-R0015 | yes | 1.0 | 2.89 | 30.9 | Record R-0015 is owned by onyx-quail and has the vault code … |
+| lc079-R0180 | yes | 1.0 | 2.92 | 27.9 | Record R-0180 is owned by tidal-vole and has the vault code … |
+| lc080-R0039 | yes | 1.0 | 2.97 | 30.5 | Record R-0039 is owned by onyx-quail and has the vault code … |
+| lc081-R0124 | yes | 1.0 | 2.89 | 27.8 | Record R-0124 is owned by violet-wren and has the vault code… |
+| lc082-R0010 | yes | 1.0 | 2.91 | 28.9 | Record R-0010 is owned by slate-stoat and has the vault code… |
+| lc083-R0279 | yes | 1.0 | 2.91 | 28.8 | Record R-0279 is owned by maple-falcon and has the vault cod… |
+| lc084-R0130 | yes | 1.0 | 2.91 | 28.8 | Record R-0130 is owned by glade-lynx and has the vault code … |
+| lc085-R0192 | yes | 1.0 | 2.90 | 28.8 | Record R-0192 is owned by dune-stoat and has the vault code … |
+| lc086-R0040 | yes | 1.0 | 2.91 | 28.8 | Record R-0040 is owned by maple-osprey and has the vault cod… |
+| lc087-R0288 | yes | 1.0 | 2.92 | 27.1 | Record R-0288 is owned by ember-stoat and has the vault code… |
+| lc088-R0082 | yes | 1.0 | 2.87 | 29.7 | Record R-0082 is owned by yarrow-heron and has the vault cod… |
+| lc089-R0371 | yes | 1.0 | 2.93 | 31.0 | Record R-0371 is owned by north-tern and has the vault code … |
+| lc090-R0213 | yes | 1.0 | 2.91 | 30.9 | Record R-0213 is owned by xenon-plover and has the vault cod… |
+| lc091-R0085 | yes | 1.0 | 2.90 | 27.9 | Record R-0085 is owned by dune-marten and has the vault code… |
+| lc092-R0030 | yes | 1.0 | 2.88 | 27.8 | Record R-0030 is owned by zephyr-ibis and has the vault code… |
+| lc093-R0000 | yes | 1.0 | 2.96 | 29.3 | Record R-0000 is owned by birch-lynx and has the vault code … |
+| lc094-R0080 | yes | 1.0 | 3.00 | 28.0 | Record R-0080 is owned by zephyr-plover and has the vault co… |
+| lc095-R0333 | yes | 1.0 | 2.86 | 26.2 | Record R-0333 is owned by yarrow-badger and has the vault co… |
+| lc096-R0245 | yes | 1.0 | 2.93 | 30.9 | Record R-0245 is owned by maple-robin and has the vault code… |
+| lc097-R0150 | yes | 1.0 | 2.92 | 28.5 | Record R-0150 is owned by pearl-badger and has the vault cod… |
+| lc098-R0186 | yes | 1.0 | 2.86 | 28.8 | Record R-0186 is owned by onyx-vole and has the vault code t… |
+| lc099-R0230 | yes | 1.0 | 2.94 | 26.3 | Record R-0230 is owned by jade-quail and has the vault code … |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261103-163004-adhoc-m27-long-b-off/result.json
+[localeval] logged to unanimis: 0d6052dd-2626-4b94-8baf-f4395663d261

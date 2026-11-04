@@ -1,0 +1,20 @@
+fleetq: #8181 running on spark2: scripts/dsv41-tp2/build.sh
+stamp: 47af18777 dirty=no 1103-1616
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 5m 01s
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 13.68s
+total 381604
+drwxrwxr-x 2 nvidia nvidia      4096 Nov  3 16:23 .
+drwxrwxr-x 4 nvidia nvidia      4096 Nov  3 16:16 ..
+-rwxrwxr-x 1 nvidia nvidia 128570064 Nov  3 16:23 dsv41_runtime
+-rwxrwxr-x 1 nvidia nvidia 144058688 Nov  3 16:23 intarsia
+-rwxrwxr-x 1 nvidia nvidia 118171408 Nov  3 16:23 nccl_bench
+-rw-rw-r-- 1 nvidia nvidia        29 Nov  3 16:23 STAMP
+spark1: 47af18777 dirty=no 1103-1616
+cd999c284925
+spark2: 47af18777 dirty=no 1103-1616
+cd999c284925
+fleetq: #8181 done (exit 0)

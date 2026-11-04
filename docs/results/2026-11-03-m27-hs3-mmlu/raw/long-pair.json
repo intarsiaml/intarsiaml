@@ -1,0 +1,53 @@
+{
+ "n_pairs": 100,
+ "only_off": 0,
+ "only_on": 0,
+ "off_score": 1.0,
+ "on_score": 1.0,
+ "off_right_on_wrong": 0,
+ "on_right_off_wrong": 0,
+ "mcnemar_p": 1.0,
+ "diff": 0.0,
+ "ci95": [
+  0.0,
+  0.0
+ ],
+ "trunc_off": 0,
+ "trunc_on": 0,
+ "items_text_differs": 2,
+ "first_diverge_token_median": 7.0,
+ "first_diverge_token_min": 7,
+ "first_diverge_token_max": 7,
+ "discordant_off_right_on_wrong": [],
+ "discordant_on_right_off_wrong": [],
+ "diverge": [
+  [
+   "lc018-R0386",
+   7
+  ],
+  [
+   "lc022-R0304",
+   7
+  ]
+ ],
+ "ttft_median_off": 2.913148811960127,
+ "decode_tok_s_median_off": 28.00936113849962,
+ "ttft_first5_off": [
+  18.82626612507738,
+  2.85173820797354,
+  2.8159515419974923,
+  2.8584840419935063,
+  2.8792245419463143
+ ],
+ "prompt_tokens_median_off": 16392.0,
+ "ttft_median_on": 2.936712979513686,
+ "decode_tok_s_median_on": 37.01818302077827,
+ "ttft_first5_on": [
+  18.826349457958713,
+  2.8249937909422442,
+  2.7981639170320705,
+  2.8999239169061184,
+  2.874401874956675
+ ],
+ "prompt_tokens_median_on": 16392.0
+}
