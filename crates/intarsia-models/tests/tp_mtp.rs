@@ -11,14 +11,14 @@
 //!   GPU backend's numerics (the HIP runs are in docs/results/2026-10-26-dfh-hip-dflash.md).
 
 mod common;
-use common::ByteCodec;
+use common::{ByteCodec, Flaky, FAIL_MEMORY, OK};
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::model::{DraftScript, HeadMode, LoadOptions, Model, StepOut};
 use intarsia_core::recipe::ModelDims;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::spec::{SpecConfig, SpecMode};
 use intarsia_core::weights::{MemWeights, WeightSource};
-use intarsia_core::{DType, Engine, EngineMeta, FinishReason, GenEvent, GenRequest, HostTensor, LocalEngine, Telemetry};
+use intarsia_core::{DType, Engine, EngineMeta, Error, FinishReason, GenEvent, GenRequest, HostTensor, LocalEngine, Telemetry};
 use intarsia_models::SafeTensors;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -546,4 +546,36 @@ fn loader_default_matches_off() {
     let b = load(true, false, &bare);
     assert_eq!(run(&*b.engine, req(PROMPTS[0], 20)), run(&*off.engine, req(PROMPTS[0], 20)));
     assert_eq!(b.engine.telemetry().spec_steps, 0, "no head: the default is not applied");
+}
+
+/// A failed MTP pass aborts the communicator (`Model::mtp_draft_tp`, `Model::mtp_catch_up`): the group is dead from then on,
+/// and the engine learns it from the model, whatever the error that ended the pass (an allocation failure on rank 0 here).
+#[test]
+fn a_failed_mtp_pass_marks_the_group_aborted() {
+    let (recipe, dims) = spec();
+    for catch_up in [false, true] {
+        let be = Flaky::new();
+        let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = vec![be.clone(), CpuBackend::arc()];
+        let comms = intarsia_core::HostCommGroup::new(backends.clone());
+        let tel = Arc::new(Telemetry::new());
+        let m = Model::load_tp(backends, comms, &recipe, &dims, &weights(), &opts(Some(3), false, 40), tel).unwrap();
+        let m = finish(m, Some(3));
+        let mut st = m.new_state().unwrap();
+        st.mtp.as_mut().expect("MTP state").active = true;
+        let p = PROMPTS[0];
+        let next = match m.forward(&mut st, p, HeadMode::LastArgmax, None).unwrap() {
+            StepOut::Token(t) => t,
+            o => panic!("prefill gave {o:?}"),
+        };
+        // the head's first draft syncs its cache; a verify pass queues its rows without running the head over them
+        m.mtp_draft(&mut st, next, 3).unwrap();
+        let next = *m.forward_verify(&mut st, &[next, 5, 6]).unwrap().last().unwrap();
+        assert!(!m.tp_group_aborted());
+        assert!(st.mtp.as_ref().unwrap().pending_rows >= 2, "rows are queued for the catch-up");
+        be.set(FAIL_MEMORY);
+        let err = if catch_up { m.mtp_catch_up(&mut st).unwrap_err() } else { m.mtp_draft(&mut st, next, 3).unwrap_err() };
+        be.set(OK);
+        assert!(matches!(err, Error::Memory(_)), "catch_up {catch_up}: {err}");
+        assert!(m.tp_group_aborted(), "catch_up {catch_up}: the failed pass aborted the group and the model does not know");
+    }
 }

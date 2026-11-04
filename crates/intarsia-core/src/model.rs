@@ -1880,10 +1880,9 @@ impl Model {
             res
         });
         st.peers = peers;
-        let hn = match out {
+        let hn = match self.note_tp_pass(out) {
             Ok(hn) => hn,
             Err(e) => {
-                self.tp_aborted.store(true, std::sync::atomic::Ordering::Relaxed);
                 if st.has_recurrent() {
                     let _ = st.reset(&*self.backend);
                 }
@@ -2491,11 +2490,17 @@ impl Model {
             res
         });
         st.peers = peers;
-        if out.is_err() {
-            // a failure on any rank aborted the communicator (rank 0 above, a peer through its guard)
+        // a failure on any rank aborted the communicator (rank 0 above, a peer through its guard)
+        self.note_tp_pass(out)
+    }
+
+    /// Pass the result of a tensor-parallel pass through, recording a failure: every pass that returns an error aborted the
+    /// communicator (`Model::forward_tp`, the verify, MTP and batched passes), which is never undone ([`Model::tp_group_aborted`]).
+    pub(crate) fn note_tp_pass<T>(&self, r: Result<T>) -> Result<T> {
+        if r.is_err() {
             self.tp_aborted.store(true, std::sync::atomic::Ordering::Relaxed);
         }
-        out
+        r
     }
 
     /// Whether a tensor-parallel pass failed on this group: the communicator is aborted for good (the abort is never

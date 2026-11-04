@@ -582,7 +582,7 @@ impl Model {
         for (st, p) in states.iter_mut().zip(taken) {
             st.peers = p;
         }
-        res?;
+        self.note_tp_pass(res)?;
         let out = self.batch_outputs(tok, modes)?;
         for (st, &id) in states.iter_mut().zip(ids) {
             st.commit_decode(&[id]);
