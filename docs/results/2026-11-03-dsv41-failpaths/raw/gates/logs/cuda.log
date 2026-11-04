@@ -1,0 +1,45 @@
+fleetq: #8394 running on spark1: zsh /opt/code/intarsiaml/.worktrees/failpaths-gates/scripts/gates-cuda.sh /opt/code/intarsiaml/.worktrees/failpaths-gates/out/cuda
+new 3dc076b238916cd5914994b39ed5cbcaaecf78d3 base 809674eb94c5ef40e515b7b5fe572c613991dbde
+tail: option used in invalid context -- 2
+plan 35b new exit 127
+plan 35b new json exit 127
+plan 8b new exit 127
+plan 8b new json exit 127
+avail GB before kernels: 78
+kernels new exit 127
+plan 35b base exit 0
+plan 35b base json exit 0
+plan 8b base exit 0
+plan 8b base json exit 0
+avail GB before kernels: 79
+kernels base exit 0
+REMOTE_DONE
+plan show 35b txt: DIFFERS or missing
+plan show 35b json: DIFFERS or missing
+plan show 8b txt: DIFFERS or missing
+plan show 8b json: DIFFERS or missing
+kernels base: 0 FAIL lines; 106 kernels, 918 cases in 6.5s
+kernels new: 0 FAIL lines; bash: line 16: /home/nvidia/intarsia-failpaths/target-new/release/intarsia: No such file or directory
+kernels logs differ:
+1,109c1
+< candidate: NVIDIA GB10 (cuda/sm_121)   reference: cpu
+< 
+< op             kernel                      cases   fail     max_abs      rel_l2  result
+< embedding      embedding_bf16                  2      0     0.000e0     0.000e0  ADMITTED
+< rmsnorm        rmsnorm_bf16                    4      0     0.000e0     0.000e0  ADMITTED
+< rmsnorm_add    rmsnorm_add_bf16                4      0     0.000e0     0.000e0  ADMITTED
+< add            add_bf16                        2      0     0.000e0     0.000e0  ADMITTED
+< qk_norm        qk_norm_bf16                    4      0    2.273e-3    2.185e-4  ADMITTED
+< rope           rope_bf16                       8      0     0.000e0     0.000e0  ADMITTED
+< matmul         matmul_bf16                     4      0     0.000e0     0.000e0  ADMITTED
+< matmul         matmul_bf16_gemv                4      0     0.000e0     0.000e0  ADMITTED
+< matmul         matmul_bf16_gemv_rows           4      0     0.000e0     0.000e0  ADMITTED
+< matmul         matmul_bf16_inv                 2      0     0.000e0     0.000e0  ADMITTED
+< logits         logits_bf16                     2      0    3.058e-7    2.208e-7  ADMITTED
+< logits         logits_bf16_gemv                2      0    1.084e-7    6.024e-8  ADMITTED
+< logits         logits_bf16_gemv_rows           2      0    1.084e-7    6.024e-8  ADMITTED
+< kv_append      kv_append_bf16                  8      0     0.000e0     0.000e0  ADMITTED
+< attn_prefill   attn_prefill_bf16              12      0    3.173e-4    2.320e-5  ADMITTED
+< attn_decode    attn_decode_bf16                9      0     0.000e0     0.000e0  ADMITTED
+cleaned
+fleetq: #8394 done (exit 0)

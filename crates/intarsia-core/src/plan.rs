@@ -210,6 +210,7 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
         id: 0,
         slots,
         len,
+        ring_high: len,
         cap,
         tokens: vec![0; len],
         snapshots: Vec::new(),
