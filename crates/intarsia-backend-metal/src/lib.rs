@@ -22,6 +22,8 @@
 #![cfg(target_os = "macos")]
 
 mod attn;
+#[doc(hidden)]
+pub use attn::{head_plan_for_test, set_hsb_for_test};
 pub mod bench;
 mod buffer;
 pub mod decode;
@@ -702,6 +704,13 @@ impl Drop for MetalBackend {
 impl Backend for MetalBackend {
     fn name(&self) -> &str {
         "metal"
+    }
+
+    /// A command buffer that ends in Error status fails that buffer (`wait`, `synchronize`) and nothing after it: the next
+    /// buffer runs, and the speculative pipeline resets its state after one (`spec_pipe`). So none of this backend's errors
+    /// is a sticky device fault that fails the engine.
+    fn is_sticky_fault(&self, _e: &intarsia_core::Error) -> bool {
+        false
     }
 
     /// 16 rows (lane mdec, docs/results/2026-10-29-mdec-metal-decode.md): the multi-row GEMVs take 8 rows per launch and a

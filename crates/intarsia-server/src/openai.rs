@@ -381,6 +381,38 @@ fn top_logprobs(row: &[f32], chosen: u32, n: usize) -> (f32, Vec<(u32, f32)>) {
     (lp(chosen), idx.into_iter().map(|i| (i, lp(i))).collect())
 }
 
+/// The completions `logprobs` object of a reply that generated `ids`, from the traced logits `rows` (one per position).
+fn logprobs_json(e: &dyn intarsia_core::Engine, ids: &[u32], rows: &[Vec<f32>], n: usize) -> intarsia_core::Result<Value> {
+    let steps: Vec<(u32, f32, Vec<(u32, f32)>)> = ids
+        .iter()
+        .zip(rows)
+        .map(|(&tok, row)| {
+            let (lp, top) = top_logprobs(row, tok, n);
+            (tok, lp, top)
+        })
+        .collect();
+    let mut want: Vec<u32> = steps.iter().flat_map(|(t, _, top)| std::iter::once(*t).chain(top.iter().map(|x| x.0))).collect();
+    want.sort_unstable();
+    want.dedup();
+    let texts: Vec<String> = want.iter().map(|&i| e.detokenize(&[i])).collect::<intarsia_core::Result<_>>()?;
+    let text_of = |i: u32| texts[want.binary_search(&i).unwrap()].clone();
+    let mut top_maps = Vec::new();
+    for (_, _, top) in &steps {
+        let mut m = Map::new();
+        for &(i, l) in top {
+            m.entry(text_of(i)).or_insert(json!(l));
+        }
+        top_maps.push(Value::Object(m));
+    }
+    Ok(json!({
+        "tokens": steps.iter().map(|s| text_of(s.0)).collect::<Vec<_>>(),
+        "token_logprobs": steps.iter().map(|s| s.1).collect::<Vec<_>>(),
+        "top_logprobs": top_maps,
+        // not in the OpenAI schema: the same top-N as [id, logprob, text] (decoded strings can collide)
+        "top_logprobs_ids": steps.iter().map(|s| s.2.iter().map(|&(i, l)| json!([i, l, text_of(i)])).collect::<Vec<_>>()).collect::<Vec<_>>(),
+    }))
+}
+
 pub async fn completions(
     State(st): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -397,17 +429,22 @@ enum PromptIn {
     Ids(Vec<u32>),
 }
 
+/// Token ids as the engine takes them; one that does not fit 32 bits is the client's mistake, not token `n mod 2^32`.
+fn token_ids(a: &[Value], what: &str) -> Result<Vec<u32>, ApiError> {
+    a.iter()
+        .map(|x| x.as_u64().and_then(|n| u32::try_from(n).ok()))
+        .collect::<Option<_>>()
+        .ok_or_else(|| ApiError::bad_request(F, format!("{what} must hold integers below 2^32")))
+}
+
 fn parse_prompt(v: &Value) -> Result<PromptIn, ApiError> {
-    let ids = |a: &Vec<Value>| -> Option<Vec<u32>> { a.iter().map(|x| x.as_u64().map(|n| n as u32)).collect() };
     match v {
         Value::String(s) => Ok(PromptIn::Text(s.clone())),
         Value::Array(a) if a.is_empty() => Err(ApiError::bad_request(F, "prompt must not be empty")),
-        Value::Array(a) if a.iter().all(Value::is_u64) => Ok(PromptIn::Ids(ids(a).unwrap_or_default())),
+        Value::Array(a) if a.iter().all(Value::is_u64) => token_ids(a, "prompt token ids").map(PromptIn::Ids),
         Value::Array(a) if a.len() == 1 => match &a[0] {
             Value::String(s) => Ok(PromptIn::Text(s.clone())),
-            Value::Array(inner) => ids(inner)
-                .map(PromptIn::Ids)
-                .ok_or_else(|| ApiError::bad_request(F, "prompt token arrays must hold integers")),
+            Value::Array(inner) => token_ids(inner, "prompt token arrays").map(PromptIn::Ids),
             _ => Err(ApiError::bad_request(F, "invalid prompt")),
         },
         Value::Array(_) => Err(ApiError::bad_request(F, "batched prompts are not supported (one prompt per request)")),
@@ -468,36 +505,9 @@ async fn completions_inner(
         }
         if let (Some(n), Some(tr)) = (n_lp, &trace) {
             let rows = std::mem::take(&mut *tr.lock().unwrap());
-            let steps: Vec<(u32, f32, Vec<(u32, f32)>)> = c
-                .ids
-                .iter()
-                .zip(&rows)
-                .map(|(&tok, row)| {
-                    let (lp, top) = top_logprobs(row, tok, n);
-                    (tok, lp, top)
-                })
-                .collect();
-            let mut want: Vec<u32> = steps.iter().flat_map(|(t, _, top)| std::iter::once(*t).chain(top.iter().map(|x| x.0))).collect();
-            want.sort_unstable();
-            want.dedup();
-            let w2 = want.clone();
-            let texts: Vec<String> = blocking_as(&st.engine, F, move |e| w2.iter().map(|&i| e.detokenize(&[i])).collect::<intarsia_core::Result<Vec<_>>>()).await?;
-            let text_of = |i: u32| texts[want.binary_search(&i).unwrap()].clone();
-            let mut top_maps = Vec::new();
-            for (_, _, top) in &steps {
-                let mut m = Map::new();
-                for &(i, l) in top {
-                    m.entry(text_of(i)).or_insert(json!(l));
-                }
-                top_maps.push(Value::Object(m));
-            }
-            v["choices"][0]["logprobs"] = json!({
-                "tokens": steps.iter().map(|s| text_of(s.0)).collect::<Vec<_>>(),
-                "token_logprobs": steps.iter().map(|s| s.1).collect::<Vec<_>>(),
-                "top_logprobs": top_maps,
-                // not in the OpenAI schema: the same top-N as [id, logprob, text] (decoded strings can collide)
-                "top_logprobs_ids": steps.iter().map(|s| s.2.iter().map(|&(i, l)| json!([i, l, text_of(i)])).collect::<Vec<_>>()).collect::<Vec<_>>(),
-            });
+            let ids = c.ids.clone();
+            // full-vocabulary work per generated token: seconds of CPU for a long reply, so not on the async threads
+            v["choices"][0]["logprobs"] = blocking_as(&st.engine, F, move |e| logprobs_json(e, &ids, &rows, n)).await?;
         }
         v["usage"] = with_chunk(usage(c.prompt_tokens, c.completion_tokens, c.cached_tokens), rid, c.prefill_chunk);
         return Ok(Json(v).into_response());

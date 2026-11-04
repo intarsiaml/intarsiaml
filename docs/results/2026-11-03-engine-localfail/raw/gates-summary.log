@@ -1,0 +1,65 @@
+fleetq: #8312 running on endor: zsh /opt/code/intarsiaml/.worktrees/engine-localfail/docs/results/2026-11-03-engine-localfail/raw/scripts/gates-lf.sh docs/results/2026-11-03-engine-localfail/raw/gates /opt/code/intarsiaml/.worktrees/engine-localfail/.scratch/intarsia.new /opt/code/intarsiaml/.worktrees/engine-localfail/.scratch/intarsia.base
+== 1/5 plan show (text and --json), base vs new
+plan show Qwen3.6-35B-A3B-NVFP4 : identical (2634 bytes)
+plan show Qwen3.6-35B-A3B-NVFP4 --json: identical (11332 bytes)
+plan show Qwen3-8B : identical (1342 bytes)
+plan show Qwen3-8B --json: identical (8371 bytes)
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 : identical (3161 bytes)
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 --json: identical (14763 bytes)
+== 2/5 kernels test --backend metal
+base kernels test exit 0
+new kernels test exit 0
+FAIL lines: base 0 new 0
+matmul_nvfp4   matmul_nvfp4_gemv_rows         18      0    1.330e-3    2.214e-5  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 980 cases in 31.2s
+kernels logs differ:
+53c53
+< 49 kernels, 980 cases in 36.0s
+---
+> 49 kernels, 980 cases in 31.2s
+== 3/5 single-stream generate ids: 27B and 8B, short and 4K, --spec off, base vs new
+ident 27b short: text same, ids same (256 base ids, 256 new ids)
+ident 27b 4k: text same, ids same (256 base ids, 256 new ids)
+ident 8b short: text same, ids same (256 base ids, 256 new ids)
+ident 8b 4k: text same, ids same (256 base ids, 256 new ids)
+== 4/5 serve 27B: --max-batch 1 (LocalEngine) and 4 (batched), ids base vs new, and the HTTP check on new
+base-mb1: /health 200
+{'short': (200, 256), '4k': (200, 256)} conc {'short': (200, 256), 'c900': (200, 256), 'c1800': (200, 256), '4k': (200, 256)}
+base-mb1: /health after 200, alive yes
+new-mb1: /health 200
+{'short': (200, 256), '4k': (200, 256)} conc {'short': (200, 256), 'c900': (200, 256), 'c1800': (200, 256), '4k': (200, 256)}
+oov 400 {"error":{"message":"bad request: token id 999999999 >= vocab 248320","type":"invalid_request_error","param":null,"code":400}} | after 200 same ids as before: True
+new-mb1: /health after 200, alive yes
+base-mb4: /health 200
+{'short': (200, 256), '4k': (200, 256)} conc {'short': (200, 256), 'c900': (200, 256), 'c1800': (200, 256), '4k': (200, 256)}
+base-mb4: /health after 200, alive yes
+new-mb4: /health 200
+{'short': (200, 256), '4k': (200, 256)} conc {'short': (200, 256), 'c900': (200, 256), 'c1800': (200, 256), '4k': (200, 256)}
+oov 400 {"error":{"message":"bad request: token id 999999999 >= vocab 248320","type":"invalid_request_error","param":null,"code":400}} | after 200 same ids as before: True
+new-mb4: /health after 200, alive yes
+serve mb1 single-stream short: ids identical (256 ids), status 200
+serve mb1 single-stream 4k: ids identical (256 ids), status 200
+serve mb1 concurrent short: ids identical
+serve mb1 concurrent c900: ids identical
+serve mb1 concurrent c1800: ids identical
+serve mb1 concurrent 4k: ids identical
+serve mb1 new: oov status 400 body '{"error":{"message":"bad request: token id 999999999 >= vocab 248320","type":"invalid_request_error","param":null,"code"'; next request status 200, ids same as first True
+serve mb4 single-stream short: ids identical (256 ids), status 200
+serve mb4 single-stream 4k: ids identical (256 ids), status 200
+serve mb4 concurrent short: ids identical
+serve mb4 concurrent c900: ids identical
+serve mb4 concurrent c1800: ids identical
+serve mb4 concurrent 4k: ids identical
+serve mb4 new: oov status 400 body '{"error":{"message":"bad request: token id 999999999 >= vocab 248320","type":"invalid_request_error","param":null,"code"'; next request status 200, ids same as first True
+== 5/5 accuracy 8B goldens (new vs base byte-compare)
+accuracy qwen3-8b-fp32 base exit 0
+accuracy qwen3-8b-fp32 new exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy qwen3-8b-fp32: base and new byte-identical
+accuracy qwen3-8b-long-fp32 base exit 1
+accuracy qwen3-8b-long-fp32 new exit 1
+accuracy qwen3-8b-long-fp32: base and new byte-identical
+== done
+fleetq: #8312 done (exit 0)

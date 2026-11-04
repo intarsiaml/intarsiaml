@@ -1,6 +1,6 @@
 #!/bin/bash
 # Lane dsv41/failpaths (docs/results/2026-11-03-dsv41-failpaths.md): the three failure paths of the DSv4.1 TP=2 pair on the Sparks.
-# NOT RUN ON SPARKS YET. Checked only with `bash -n` and `--dry-run` (every ssh and curl stubbed).
+# Run through fleetq over both Sparks as the printed commands say; `--dry-run` stubs every ssh and curl.
 #
 #   scripts/dsv41-tp2/failpaths-test.sh                print the build and test commands, run nothing
 #   scripts/dsv41-tp2/failpaths-test.sh --dry-run      the cases' control flow with ssh and curl stubbed (local, no fleet)
@@ -8,7 +8,7 @@
 # Run the printed commands in order. The test is one fleetq job over both Sparks: vLLM down for the window and always restored,
 # memfine and the watcher with the 5 GiB kill line, all by run-full.sh, which sources this file as its HOOK.
 #
-# Cases (CASES, default "near force ring cancel supervised golden kill"; "kill35" adds the 35B comparison). MAX_MIN bounds them, so the kills go last:
+# Cases (CASES, default "near force ring cancel supervised prefill golden kill"; "kill35" adds the 35B comparison). MAX_MIN bounds them, so the kills go last:
 #   ring    chained cuts. A greedy reply of 14 tokens on a 200-token prompt (rows dropped behind it), the same prompt again, and a cold run of it:
 #           the ids must match on the fix; `cached` shows the reuse refused in the band. On the baseline binary too: the ids may differ there.
 #   cancel  a 12k-token prefill abandoned after 2 s by the client, then the same prompt: both ranks up, /health 200, ids equal to a cold run. Only this
@@ -21,6 +21,8 @@
 #           ranks exit 87 at cap-4.
 #   force   #3. FORCE_RUNS (default 3) times: rank 0 fails forward pass FORCE_PASS (default 30) of a temperature 0.7 reply with
 #           INTARSIA_DSV41_TEST_RANK0_FAIL_PASS. Expected: HTTP 500, /health 503, both ranks exit 87.
+#   prefill the cost of the device wait: base, fix, base, fix with fresh ranks, each timing PREFILL_RUNS (default 2) cold prompts of PREFILL_TOKENS (default
+#           24000) tokens and one reply token at the same chunk (run-full.sh's INTARSIA_DSV41_CHUNK=512). In $OUT/prefill.tsv. Fix minus base includes the one message per chunk.
 #   golden  the baseline binary (bin/intarsia.base, main) against the fix: chat texts (greedy, seeded temperature 0.7, a long prefill)
 #           must be identical. The evidence that the normal path did not move.
 #   kill    #1. KILLS (default 20) times: fresh ranks, a temperature 0.7 reply of 800 tokens, SIGKILL rank 0 at a random time KILL_MIN..KILL_MAX s
@@ -33,17 +35,17 @@
 
 SELF="${BASH_SOURCE[0]}"
 if [[ $SELF == "$0" && ${1:-} != --dry-run ]]; then
-  R=$(cd "$(dirname "$0")/../.." && pwd)
+  R=$(cd "$(dirname "$0")/../.." && pwd); B=$(dirname "$R")/failpaths-base
   cat <<CMD
 # 1. Binaries, vLLM stays up. The baseline first: both builds use the same SPARK_DIR, and the fix's build must be the last.
-git -C $R worktree add $R/.worktrees/failpaths-base 5786176be
-SPARK_DIR=~/intarsia-dsv41-failpaths BIN_NAME=intarsia.base fleetq run --host spark2 --load cpu --mem 16 --expect 30 --label "dsv41 failpaths: baseline build" -- $R/.worktrees/failpaths-base/scripts/dsv41-tp2/build.sh
-SPARK_DIR=~/intarsia-dsv41-failpaths fleetq run --host spark2 --load cpu --mem 16 --expect 30 --label "dsv41 failpaths: fix build" -- $R/scripts/dsv41-tp2/build.sh
-git -C $R worktree remove $R/.worktrees/failpaths-base
+git -C $R worktree add $B 03f8dc2a3
+SPARK_DIR=~/intarsia-dsv41-failpaths BIN_NAME=intarsia.base fleetq run --host spark2 --load cpu --mem 16 --expect 45 --label "dsv41 failpaths: baseline build" -- $B/scripts/dsv41-tp2/build.sh
+SPARK_DIR=~/intarsia-dsv41-failpaths fleetq run --host spark2 --load cpu --mem 16 --expect 45 --label "dsv41 failpaths: fix build" -- $R/scripts/dsv41-tp2/build.sh
+git -C $R worktree remove $B
 # 2. The test. About 32 rank starts, guessed at 4.5 min each (load, kill, memory back), plus about 5 min for the supervised prefill and reply: MAX_MIN 165
-#    bounds the cases, the vLLM restart comes on top. These times are guesses: it has never run. Fewer kills (KILLS=10) save about 45 min.
-SPARK_DIR=~/intarsia-dsv41-failpaths EARLYOOM_OK="3,2 2,1" STEPS="" MAX_MIN=165 HOOK=$R/scripts/dsv41-tp2/failpaths-test.sh OUT=$R/.scratch/failpaths-\$(date +%m%d-%H%M) \\
-  fleetq run --host spark1,spark2 --quiet gpu,cpu --mem spark1=105,spark2=105 --takes-down spark1-vllm,spark2-vllm --expect 195 \\
+#    bounds the cases, the vLLM restart comes on top. These times are guesses. Fewer kills (KILLS=10) save about 45 min.
+SPARK_DIR=~/intarsia-dsv41-failpaths EARLYOOM_OK="3,2 2,1" STEPS="" MAX_MIN=210 HOOK=$R/scripts/dsv41-tp2/failpaths-test.sh OUT=$R/.scratch/failpaths-\$(date +%m%d-%H%M) \\
+  fleetq run --host spark1,spark2 --quiet gpu,cpu --mem spark1=105,spark2=105 --takes-down spark1-vllm,spark2-vllm --expect 240 \\
   --label "dsv41 failpaths: 20 rank 0 kills, near-cap, forced failure, chained cuts, cancel, supervised 65k; vLLM restored after" -- $R/scripts/dsv41-tp2/run-full.sh
 CMD
   exit 0
@@ -53,7 +55,7 @@ fi
 if [[ ${1:-} == --dry-run ]]; then
   DRY=$(cd "$(dirname "$0")/../.." && pwd)/.scratch/failpaths-dry; rm -rf "$DRY"; mkdir -p "$DRY"
   OUT=$DRY; SPARK_REL=x; SPARK_DIR='$HOME/x'; LOGD=l; WIP=w; WPORT=1; SPORT=2; SURL=http://stub; BIN=b; C0=c0; C1=c1; NCCLENV=""; DENV=""; TAG=t
-  CASES=${CASES:-near force ring cancel supervised golden kill kill35}; KILLS=2; SUP_PROMPT=10; SUP_REPLY=5; BASE_KILLS=1; KILLS35=1; FORCE_RUNS=1; KILL_MIN=0; KILL_MAX=1
+  CASES=${CASES:-near force ring cancel supervised prefill golden kill kill35}; KILLS=2; SUP_PROMPT=10; SUP_REPLY=5; BASE_KILLS=1; KILLS35=1; FORCE_RUNS=1; KILL_MIN=0; KILL_MAX=1
   log() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
   left() { echo 99999; }
   r() {
@@ -77,7 +79,7 @@ if [[ ${1:-} == --dry-run ]]; then
   }
 fi
 
-MY_CASES=${CASES:-near force ring cancel supervised golden kill}
+MY_CASES=${CASES:-near force ring cancel supervised prefill golden kill}
 CASES=" " # failtest.sh: its helpers (chat1, finish, cleanup, text_of, ...) and none of its cases
 source "$(dirname "$SELF")/failtest.sh"
 
@@ -292,6 +294,46 @@ case_supervised() { # <binary> <name>: rank 0's PID here is the supervisor's; th
   SUPERVISE=""; BIN=$BIN_FIX; OUT=$OUT0
 }
 
+case_prefill() {
+  local tsv=$OUT0/prefill.tsv arm i k t name
+  CASE=prefill; OUT=$OUT0/prefill; mkdir -p "$OUT"
+  printf 'order\tarm\trun\tseconds\thttp\tprefill_chunk\n' > "$tsv"
+  k=0
+  for arm in base fix base fix; do
+    k=$(( k + 1 )); BIN=$BIN_FIX; [[ $arm == base ]] && BIN=$BIN_BASE
+    start_ranks ""; pids
+    for i in $(seq 1 "${PREFILL_RUNS:-2}"); do
+      name=p$k-$i
+      python3 -c '
+import json, sys
+print(json.dumps({"model": "dsv41-intarsia", "prompt": [int(sys.argv[2]) + i % 1000 for i in range(int(sys.argv[1]))], "temperature": 0, "max_tokens": 1, "ignore_eos": True, "return_token_ids": True}))' "${PREFILL_TOKENS:-24000}" $(( 3000 + i * 1000 )) > "$OUT/$name.req"
+      t=$(curl -s -m 600 -o "$OUT/$name.resp" -w '%{time_total} %{http_code}' "$SURL/v1/completions" -H 'content-type: application/json' -d @"$OUT/$name.req")
+      printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$k" "$arm" "$i" "${t%% *}" "${t##* }" "$(python3 -c '
+import json, sys
+try:
+    print(json.load(open(sys.argv[1]))["usage"]["prompt_tokens_details"].get("prefill_chunk"))
+except Exception:
+    print("?")' "$OUT/$name.resp")" >> "$tsv"
+      log "RESULT prefill $arm (order $k) run $i: ${t%% *} s, HTTP ${t##* }"
+    done
+    finish "prefill-$k"
+  done
+  log "RESULT prefill mean s: $(awk -F'\t' 'NR>1{s[$2]+=$4; n[$2]++} END{for(a in s) printf "%s %.2f  ", a, s[a]/n[a]}' "$tsv")"
+  BIN=$BIN_FIX; OUT=$OUT0
+}
+
+case_near_base() { # the defect itself, on the baseline binary: expected both ranks exit 87 at cap-4
+  local cap=2048 res0 res1
+  CASE=near-base; OUT=$OUT0/near-base; mkdir -p "$OUT"; BIN=$BIN_BASE
+  start_ranks "INTARSIA_DSV41_CAP=$cap"; pids
+  TF=$(now_ms)
+  near_req at4 $(( cap - 4 )) 4
+  res0=$(wait_exit spark1 serve 60); res1=$(wait_exit spark2 worker 60)
+  log "RESULT near baseline at cap-4: rank 0 $(echo $res0), rank 1 $(echo $res1) (seconds, exit code)"
+  finish near-base
+  BIN=$BIN_FIX; OUT=$OUT0
+}
+
 case_kill35() { # the 35B on the fix's binary: same kill, its own flags (11 GB a rank)
   local M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
   local FL="-m $M35 --backend cuda --tp 2 --max-seq 8192 --mem-budget 20" tsv=$OUT0/kill35.tsv i d res code
@@ -321,7 +363,8 @@ case_kill35() { # the 35B on the fix's binary: same kill, its own flags (11 GB a
 for c in $MY_CASES; do
   [[ $(left) -lt 240 ]] && { log "out of time before case $c"; break; }
   case $c in
-    near) case_near ;;
+    near) case_near; case_near_base ;;
+    prefill) case_prefill ;;
     force) case_force ;;
     ring) case_ring ;;
     cancel) case_cancel ;;

@@ -773,6 +773,10 @@ impl Worker {
         if req.prompt.len() >= self.rt.opts.cap {
             return Err(Error::BadRequest(format!("prompt {} leaves no room in the context {}", req.prompt.len(), self.rt.opts.cap)));
         }
+        // as `LocalEngine::submit`: an id with no embedding row would fail the pass after it was sent, which fails the group
+        if let Some(bad) = req.prompt.iter().find(|&&t| t as usize >= self.rt.cfg.vocab) {
+            return Err(Error::BadRequest(format!("token id {bad} >= vocab {}", self.rt.cfg.vocab)));
+        }
         // what fits, as the main engine (`Seq::admit`): a client's fixed max_tokens above the room left is not an error
         let max_tokens = req.max_tokens.min(self.rt.opts.cap - req.prompt.len());
         // prefix reuse: the common prefix, if the state can roll back to it (ring margin), else from scratch
@@ -1631,6 +1635,15 @@ mod failpath_tests {
         let next = done(&g.run(GenRequest { prompt: [held.clone(), vec![1]].concat(), max_tokens: 1, temperature: 1.0, ..Default::default() }));
         assert_eq!(next.3, held.len(), "the next turn reuses it");
         assert_eq!(g.finish(), [Told::New, Told::Forward, Told::Forward, Told::Forward], "one sequence, and no pass from the refused requests");
+    }
+
+    #[test]
+    fn a_prompt_id_beyond_the_vocabulary_is_refused_before_anything_is_sent() {
+        let mut g = scripted(4, vec![1], false);
+        let ev = g.run(GenRequest { prompt: vec![1, u32::MAX], max_tokens: 1, ..Default::default() });
+        assert!(matches!(ev.last(), Some(GenEvent::Error { message }) if message.contains("bad request")), "{ev:?}");
+        assert!(g.w.failed.lock().unwrap().is_none());
+        assert_eq!(g.finish(), [Told::New], "no pass on either rank");
     }
 
     /// `reset` takes the peer's handle down first. If it then fails on this rank (`cudaMalloc`; the old state is still held while the new

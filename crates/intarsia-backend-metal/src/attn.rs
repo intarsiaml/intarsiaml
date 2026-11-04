@@ -14,6 +14,7 @@ use crate::kernels::*;
 use crate::{set_bytes, MetalBackend};
 use intarsia_core::{DType, Error, OpCall, Result, ShapeInfo};
 use objc2_metal::{MTLComputeCommandEncoder, MTLSize};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::OnceLock;
 
 /// Most splits a launch uses (the scratch bound `splitkv_scratch` and the shader's grid are sized by it).
@@ -79,6 +80,68 @@ pub fn head_split(grp: usize, d: usize) -> usize {
     }
 }
 
+/// Head-split plan of a decode-attention launch: `hs` threadgroups per kv head, and, for the bitwise split, `gpref` = the
+/// register-group size of the UNSPLIT launch (0 = the plain head split above, which changes the work partition).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct HeadPlan {
+    pub hs: usize,
+    pub gpref: usize,
+}
+
+/// Default of the bitwise head split (`INTARSIA_METAL_ATTN_HSB=<n>`; 0 = off, the opt-out): query heads per kv head split
+/// over `n` threadgroups for the Qwen3.8-27B full attention (group 6, head_dim 256) with the work partition of the unsplit
+/// launch (docs/results/2026-11-03-m27-hs-bitwise.md).
+const HSB_DEFAULT: usize = 3;
+
+/// The bitwise head split: like `head_split`, the `grp` query heads of a kv head run in `n` threadgroups of `grp / n`
+/// heads (smaller register groups: GP 2 instead of 8 for n = 3), but the split count (policy fed `nkv`, not `nkv * n`)
+/// and the simdgroup count (derived from the unsplit GP) are those of the unsplit launch, so the key partition and the
+/// merge order, and with them every bit of the output, are those of `hs = 1`. Only grp 6 / head_dim 256; an explicit
+/// `INTARSIA_METAL_ATTN_HS` takes precedence.
+pub(crate) fn head_plan(grp: usize, d: usize) -> HeadPlan {
+    static B: OnceLock<usize> = OnceLock::new();
+    static HS_ENV: OnceLock<bool> = OnceLock::new();
+    let ov = HSB_OVERRIDE.load(Ordering::Relaxed);
+    let b = if ov != usize::MAX {
+        ov
+    } else {
+        *B.get_or_init(|| {
+            std::env::var("INTARSIA_METAL_ATTN_HSB").ok().and_then(|v| v.trim().parse().ok()).unwrap_or(HSB_DEFAULT)
+        })
+    };
+    let hs_env = *HS_ENV.get_or_init(|| std::env::var_os("INTARSIA_METAL_ATTN_HS").is_some());
+    if !hs_env && grp == 6 && d == 256 && b >= 2 && grp % b == 0 {
+        return HeadPlan { hs: b, gpref: grp.next_power_of_two() };
+    }
+    HeadPlan { hs: head_split(grp, d), gpref: 0 }
+}
+
+static HSB_OVERRIDE: AtomicUsize = AtomicUsize::new(usize::MAX);
+
+/// Test hook: force `INTARSIA_METAL_ATTN_HSB` for the launches that follow (`None` = back to the environment / default).
+#[doc(hidden)]
+pub fn set_hsb_for_test(v: Option<usize>) {
+    HSB_OVERRIDE.store(v.unwrap_or(usize::MAX), Ordering::Relaxed);
+}
+
+/// Test hook: `(head split, unsplit GP or 0)` the launches use for a group / head_dim.
+#[doc(hidden)]
+pub fn head_plan_for_test(grp: usize, d: usize) -> (usize, usize) {
+    let p = head_plan(grp, d);
+    (p.hs, p.gpref)
+}
+
+impl HeadPlan {
+    /// kv head count the split policy and the simdgroup rule see.
+    pub(crate) fn policy_kv(&self, nkv: usize) -> usize {
+        if self.gpref != 0 { nkv } else { nkv * self.hs }
+    }
+    /// `OpP::s1`: head split in the low byte, the unsplit GP of a bitwise split above it.
+    pub(crate) fn s1(&self) -> usize {
+        self.hs | (self.gpref << 8)
+    }
+}
+
 fn u32_of(v: usize, what: &str) -> Result<u32> {
     u32::try_from(v).map_err(|_| Error::invalid(format!("metal: {what} = {v} exceeds u32")))
 }
@@ -114,14 +177,16 @@ impl MetalBackend {
         let (pos, use_dev) = self.pos_bind(call)?;
         let grp = n / nkv;
         // the head split makes the threadgroup grid and the split policy see `hs` virtual kv heads per kv head
-        let hs = head_split(grp, d);
+        let hp = head_plan(grp, d);
+        let hs = hp.hs;
         let nkvv = nkv * hs;
+        let npol = hp.policy_kv(nkv);
         // host position: the exact split count of this call; device position: the bound for a full cache (the shader
         // derives the real count from the position it reads and idles the surplus threadgroups)
         let max_split = if use_dev == 1 {
-            decode_splits(cap, nkvv, MAX_SPLIT)
+            decode_splits(cap, npol, MAX_SPLIT)
         } else {
-            decode_splits((a.pos0 + 1).min(cap), nkvv, MAX_SPLIT)
+            decode_splits((a.pos0 + 1).min(cap), npol, MAX_SPLIT)
         };
         let need = n * max_split * (d + 2) * 4;
         let scratch = call.scratch.as_ref().ok_or_else(|| {
@@ -150,7 +215,7 @@ impl MetalBackend {
                 use_dev,
                 u32_of(max_split, "max_split")?,
             ],
-            skips: [0, u32_of(hs, "head split")?, 0, out.skip, 0],
+            skips: [0, u32_of(hp.s1(), "head split")?, 0, out.skip, 0],
             f0: a.scale,
             f1: 0.0,
             pad: u32_of(min_keys, "min_keys")?,
@@ -160,8 +225,8 @@ impl MetalBackend {
         let gp = (grp / hs).next_power_of_two();
         // few threadgroups (short context): 8 simdgroups each put more loads in flight; a full wave of them: 4, which
         // lets more threadgroups share a core (b2a sweeps: 4k 47 us vs 60 us, 1k 21 us vs 23 us)
-        let nsg = if use_dev == 0 && nkvv * max_split <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
-        let nsg = nsg.min((TG_FLOATS / (gp * d)).max(1));
+        let nsg = if use_dev == 0 && npol * max_split <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
+        let nsg = nsg.min((TG_FLOATS / (gp.max(hp.gpref) * d)).max(1));
         let (name1, name2) = (ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
@@ -266,10 +331,12 @@ impl MetalBackend {
         );
         let (pos, use_dev) = self.pos_bind(call)?;
         let grp = n / nkv;
-        let hs = head_split(grp, d); // as the 1-row launch: the per-row work partition must be the same
+        let hp = head_plan(grp, d); // as the 1-row launch: the per-row work partition must be the same
+        let hs = hp.hs;
         let nkvv = nkv * hs;
+        let npol = hp.policy_kv(nkv);
         let last = if use_dev == 1 { cap } else { (a.pos0 + t).min(cap) };
-        let max_split = decode_splits(last, nkvv, MAX_SPLIT);
+        let max_split = decode_splits(last, npol, MAX_SPLIT);
         let need = t * n * max_split * (d + 2) * 4;
         let scratch = call.scratch.as_ref().ok_or_else(|| {
             Error::invalid("metal attn_prefill_bf16_splitkv_rows: the scratch workspace (OpCall::scratch) is missing")
@@ -296,7 +363,7 @@ impl MetalBackend {
                 use_dev,
                 u32_of(max_split, "max_split")?,
             ],
-            skips: [u32_of(t, "rows")?, u32_of(hs, "head split")?, 0, out.skip, 0],
+            skips: [u32_of(t, "rows")?, u32_of(hp.s1(), "head split")?, 0, out.skip, 0],
             f0: a.scale,
             f1: 0.0,
             pad: u32_of(min_keys, "min_keys")?,
@@ -305,8 +372,8 @@ impl MetalBackend {
         u32_of(t * n * max_split * (d + 2), "R*N*max_split*(D+2)")?;
         let gp = (grp / hs).next_power_of_two();
         // threadgroup shape: the largest simdgroup count any row's 1-row launch uses (row 0: the fewest splits)
-        let first_splits = decode_splits(if use_dev == 1 { cap } else { (a.pos0 + 1).min(cap) }, nkvv, MAX_SPLIT);
-        let nsg = rows_nsg(use_dev == 0, nkvv, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp, d);
+        let first_splits = decode_splits(if use_dev == 1 { cap } else { (a.pos0 + 1).min(cap) }, npol, MAX_SPLIT);
+        let nsg = rows_nsg(use_dev == 0, npol, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp.max(hp.gpref), d);
         let (name1, name2) = (ATTN_ROWS_SHADERS[gp.trailing_zeros() as usize], ATTN_ROWS_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;

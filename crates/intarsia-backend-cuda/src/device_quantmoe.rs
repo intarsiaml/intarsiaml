@@ -548,11 +548,12 @@ impl CudaBackend {
         };
         if rc != 0 {
             let dts: Vec<_> = call.inputs.iter().map(|t| t.dtype).collect();
-            return Err(Error::backend(format!(
-                "ik_{kernel} returned {} ({rc}); inputs {dts:?} shapes {:?}",
+            return Err(intarsia_core::backend::launch_status_error(
+                kernel,
+                rc,
                 status_name(rc),
-                call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()
-            )));
+                &format!("inputs {dts:?} shapes {:?}", call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()),
+            ));
         }
         Ok(())
     }

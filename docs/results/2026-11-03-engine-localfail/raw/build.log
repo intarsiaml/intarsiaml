@@ -1,0 +1,16 @@
+fleetq: #8311 running on endor: zsh /opt/code/intarsiaml/.worktrees/engine-localfail/docs/results/2026-11-03-engine-localfail/raw/scripts/build.sh
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 35.91s
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 36.48s
+97cd1f2e86ae386540dfa726e954d7e8721479bc
+1d6a2079922898b83df77bf46d6a9ff8bce06ce2
+559dfc79a0025025a646c1035dc9ded9c63e451b228922ad2506db2db52e23bb  /opt/code/intarsiaml/.worktrees/engine-localfail/.scratch/intarsia.new
+e98c7b5ed4256780b06586a896064d14a2cf34312f99caee13acc0c53e12b4c1  /opt/code/intarsiaml/.worktrees/engine-localfail/.scratch/intarsia.base
+fleetq: #8311 done (exit 0)

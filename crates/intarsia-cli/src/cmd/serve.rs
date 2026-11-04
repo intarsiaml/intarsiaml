@@ -140,7 +140,8 @@ pub fn run(args: ServeArgs) -> Result<()> {
         default_max_tokens: args.default_max_tokens,
         watchdog_s: args.watchdog_s,
         exit_on_stall: args.child,
-        exit_on_failed: args.model.tp_remote.is_some(),
+        // a tensor-parallel group cannot recover once a rank failed (its communicator stays aborted): exit for a restart
+        exit_on_failed: args.model.tp_remote.is_some() || args.model.tp > 1,
         parent_pid,
         ui: !args.no_ui,
     };

@@ -33,6 +33,9 @@ pub struct AppState {
     pub source: Arc<str>,
     /// Structured output's token table and parser factory, built on the first constrained request.
     pub grammar: Arc<std::sync::OnceLock<Result<Arc<crate::structured::GrammarEnv>, String>>>,
+    /// Flips to true when the server is shutting down: the streams that never end on their own (`/events`) end then, so
+    /// the graceful shutdown that waits for every open response can finish ([`crate::Shutdown`]).
+    pub shutdown: Arc<tokio::sync::watch::Sender<bool>>,
     inflight: Arc<AtomicUsize>,
     counter: Arc<AtomicU64>,
     salt: u64,
@@ -70,6 +73,7 @@ impl AppState {
             progress: Arc::new(Progress::new(Duration::from_secs_f64(cfg.watchdog_s.max(0.0)))),
             source: Arc::from("unknown"),
             grammar: Arc::new(std::sync::OnceLock::new()),
+            shutdown: Arc::new(tokio::sync::watch::channel(false).0),
             inflight: Arc::new(AtomicUsize::new(0)),
             counter: Arc::new(AtomicU64::new(0)),
             salt: now.as_nanos() as u64 & 0xffff_ffff,

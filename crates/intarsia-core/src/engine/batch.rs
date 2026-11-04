@@ -667,6 +667,9 @@ impl Engine for BatchedEngine {
         if let Some(why) = self.engine.failed() {
             return Err(Error::Other(format!("engine failed: {why}")));
         }
+        // refused here, so the server answers 400: from `admit` it reached the client as a 500 (a 200 stream with an error
+        // event when streaming); `admit` keeps its check for the slot path
+        super::check_prompt_ids(&req.prompt, self.vocab)?;
         let (etx, erx) = channel();
         let plen = req.prompt.len();
         let seq = Seq::build(&self.env, req, etx.clone(), self.verify_rows, self.recurrent);

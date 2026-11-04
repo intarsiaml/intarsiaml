@@ -1,0 +1,16 @@
+fleetq: #8239 waiting (#1 in line): needs gpu quiet on endor, but #8237 "PR 290 metal no-op + workspace tests" (claude-b8454fd8) loads it
+fleetq: #8239 running on endor: zsh docs/results/2026-11-03-m27-hs-rowtable/raw/scripts/conc-arm.sh A-mb4 /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/.scratch/intarsia.def docs/results/2026-11-03-m27-hs-rowtable/raw/ab-hs3 4 4
+localeval 4096 exit 0
+localeval 16384 exit 0
+fleetq: #8239 done (exit 0)
+fleetq: #8241 waiting (#1 in line): needs gpu quiet on endor, but #8240 "PR 290 metal: kernels and workspace tests, full result" (claude-b8454fd8) loads it
+fleetq: #8241 running on endor: zsh docs/results/2026-11-03-m27-hs-rowtable/raw/scripts/conc-arm.sh C-mb4 /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/.scratch/intarsia.def docs/results/2026-11-03-m27-hs-rowtable/raw/ab-hs3 4 4
+localeval 4096 exit 0
+localeval 16384 exit 0
+fleetq: #8241 done (exit 0)
+fleetq: #8242 running on endor: zsh docs/results/2026-11-03-m27-hs-rowtable/raw/scripts/conc-arm.sh C-mb16 /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/.scratch/intarsia.def docs/results/2026-11-03-m27-hs-rowtable/raw/ab-hs3 16 16
+SERVER FAILED
+fleetq: #8242 done (exit 1)
+fleetq: #8243 running on endor: zsh docs/results/2026-11-03-m27-hs-rowtable/raw/scripts/conc-arm.sh A-mb16 /opt/code/intarsiaml/.worktrees/m27-hs-rowtable/.scratch/intarsia.def docs/results/2026-11-03-m27-hs-rowtable/raw/ab-hs3 16 16
+SERVER FAILED
+fleetq: #8243 done (exit 1)

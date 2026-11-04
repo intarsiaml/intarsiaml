@@ -463,7 +463,7 @@ impl Model {
             res
         });
         st.peers = peers;
-        out
+        self.note_tp_pass(out)
     }
 
     fn mtp_catch_up_rank(&self, st: &mut SequenceState) -> Result<()> {
@@ -541,7 +541,7 @@ impl Model {
             res
         });
         st.peers = peers;
-        out
+        self.note_tp_pass(out)
     }
 
     /// One rank's share of [`Model::mtp_draft`]: `Solo` (one rank), `Lead` (rank 0: drafts, sends each chained id on),
