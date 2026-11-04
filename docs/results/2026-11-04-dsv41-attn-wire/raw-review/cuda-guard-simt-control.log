@@ -1,0 +1,57 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1220:4
+     |
+1220 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: function `ik_rdma_available` is never used
+  --> crates/intarsia-backend-cuda/src/ffi.rs:69:12
+   |
+69 |     pub fn ik_rdma_available() -> c_int;
+   |            ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.04s
+     Running tests/dsv41.rs (target/release/deps/dsv41-70bbb7b9b8c35c88)
+
+running 1 test
+test attn_sparse_mma_is_bitwise_the_8282_base_kernel ... FAIL CSA T512 Nc1024 Kw512    hash c2b9db5da0cde5fa want 4ee9a847ca24437f
+FAIL CSA T2048 Nc1024 Kw512   hash e6b480627f992691 want aa254a578fedfa25
+FAIL HCA T512 Nc32 Kw32       hash 898bf28f280dd208 want 90ad1d7fcca0b866
+FAIL CSA T37 Nc1024 Kw512     hash b0237a5dc5df5b57 want 21b89af74c9af5a2
+FAIL CSA T11 Nc1024 Kw512     hash b10a44be4661fe4b want e450cadc14aad612
+
+thread 'attn_sparse_mma_is_bitwise_the_8282_base_kernel' panicked at crates/intarsia-backend-cuda/tests/dsv41.rs:367:5:
+attn_sparse differs from the unmodified kernel's recorded bits on: ["CSA T512 Nc1024 Kw512", "CSA T2048 Nc1024 Kw512", "HCA T512 Nc32 Kw32", "CSA T37 Nc1024 Kw512", "CSA T11 Nc1024 Kw512"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    attn_sparse_mma_is_bitwise_the_8282_base_kernel
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.83s
+
+error: test failed, to rerun pass `-p intarsia-backend-cuda --test dsv41`

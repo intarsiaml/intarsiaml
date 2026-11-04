@@ -1,0 +1,55 @@
+   Compiling intarsia-core v0.0.1 (/home/nvidia/intarsia-dsv41-attnwire/src/crates/intarsia-core)
+   Compiling intarsia-backend-cuda v0.0.1 (/home/nvidia/intarsia-dsv41-attnwire/src/crates/intarsia-backend-cuda)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1220:4
+     |
+1220 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+   Compiling intarsia-backend-cpu v0.0.1 (/home/nvidia/intarsia-dsv41-attnwire/src/crates/intarsia-backend-cpu)
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: function `ik_rdma_available` is never used
+  --> crates/intarsia-backend-cuda/src/ffi.rs:69:12
+   |
+69 |     pub fn ik_rdma_available() -> c_int;
+   |            ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+warning: unused doc comment
+   --> crates/intarsia-backend-cuda/tests/dsv41_dpos.rs:125:1
+    |
+125 |   /// Bitwise check of every op at one configuration; returns how many comparisons ran.
+    |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+126 | / extern "C" {
+127 | |     /// `kernels/cuda/dsv41_misc.cu`: how many `ik_rope_tail` launches took the in-place path.
+128 | |     fn ik_rope_inplace_launches() -> i64;
+129 | | }
+    | |_- rustdoc does not generate documentation for extern blocks
+    |
+    = help: use `//` for a plain comment
+    = note: `#[warn(unused_doc_comments)]` on by default
+
+warning: `intarsia-backend-cuda` (test "dsv41_dpos") generated 1 warning
+    Finished `release` profile [optimized] target(s) in 5m 06s
+  Executable tests/dsv41.rs (target/release/deps/dsv41-70bbb7b9b8c35c88)
+  Executable tests/dsv41_dpos.rs (target/release/deps/dsv41_dpos-645603304ced35a3)
