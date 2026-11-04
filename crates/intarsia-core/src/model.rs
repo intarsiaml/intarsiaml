@@ -2074,6 +2074,11 @@ impl Model {
         Ok(())
     }
 
+    /// The remote rank's handle, when this shard drives one.
+    pub(crate) fn remote_peer(&self) -> Option<Arc<crate::tp_remote::RemotePeer>> {
+        self.remote.clone()
+    }
+
     /// Every rank must hold the same number of tokens: clamp this shard's KV capacity to `cap` (the smallest any rank of
     /// the group can hold, agreed in `crate::tp_remote::handshake`) and re-resolve the plan for it.
     pub fn clamp_kv_cap(&mut self, cap: usize) -> Result<()> {
