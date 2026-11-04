@@ -156,7 +156,12 @@ fn bitwise_head_split_is_bit_identical_to_the_unsplit_launch() {
         assert_eq!(head_plan_for_test(4, 128), (1, 0), "the 8B shape (HSB={hsb})");
         assert_eq!(head_plan_for_test(6, 128), (1, 0), "group 6 at head_dim 128 (HSB={hsb})");
     }
+    // the shipped default (no override, variable unset): the bitwise split is on for the 27B shape; Some(0) above is the opt-out
+    // and gave the unsplit launch the comparisons were made against
     set_hsb_for_test(None);
+    if std::env::var_os("INTARSIA_METAL_ATTN_HSB").is_none() && std::env::var_os("INTARSIA_METAL_ATTN_HS").is_none() {
+        assert_eq!(head_plan_for_test(6, 256), (3, 8), "default");
+    }
     eprintln!("hs_bitwise: {windows} (pos, HSB) windows bit-identical to the unsplit 24/4/256 launch");
 
     // every other shape ignores the setting: the 8B (32 / 8 / 128), the 35B group of 8 (16 / 2 / 256, HS 4 by default), a

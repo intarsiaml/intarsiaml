@@ -1,0 +1,12 @@
+fleetq: #8226 running on endor: env X=1 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/batched.sh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/batched base1 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.main-47af18777
+base1 {'1-short': 455, '1-4k': 465, '2-short': 455, '2-4k': 465}
+fleetq: #8226 done (exit 0)
+fleetq: #8227 running on endor: env X=1 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/batched.sh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/batched base2 /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.main-47af18777
+base2 {'1-short': 455, '1-4k': 465, '2-short': 455, '2-4k': 465}
+fleetq: #8227 done (exit 0)
+fleetq: #8228 running on endor: env X=1 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/batched.sh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/batched def /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.def
+def {'1-short': 455, '1-4k': 465, '2-short': 455, '2-4k': 465}
+fleetq: #8228 done (exit 0)
+fleetq: #8229 running on endor: env INTARSIA_METAL_ATTN_HSB=0 zsh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/scripts/batched.sh /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/docs/results/2026-11-03-m27-hs-bitwise/raw/batched optout /opt/code/intarsiaml/.worktrees/m27-hs-bitwise/.scratch/intarsia.def
+optout {'1-short': 455, '1-4k': 465, '2-short': 455, '2-4k': 465}
+fleetq: #8229 done (exit 0)

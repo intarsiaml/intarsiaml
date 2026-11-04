@@ -1,0 +1,5 @@
+fleetq: #8238 running on endor: env CARGO_TARGET_DIR=/opt/code/intarsiaml/.worktrees/m27-hs-bitwise/target-test cargo test --release -p intarsia-backend-metal --test hs_bitwise -- --nocapture
+thread 'bitwise_head_split_is_bit_identical_to_the_unsplit_launch' (93925230) panicked at crates/intarsia-backend-metal/tests/hs_bitwise.rs:133:17:
+1-row dev=false pos 1000 HSB=6: differs from the unsplit launch
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+fleetq: #8238 done (exit 101)

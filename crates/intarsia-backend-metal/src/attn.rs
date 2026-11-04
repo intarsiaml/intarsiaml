@@ -88,9 +88,10 @@ pub(crate) struct HeadPlan {
     pub gpref: usize,
 }
 
-/// Default of the bitwise head split (`INTARSIA_METAL_ATTN_HSB=<n>`; 0 = off): query heads per kv head split over `n`
-/// threadgroups for the Qwen3.8-27B full attention (group 6, head_dim 256) with the work partition of the unsplit launch.
-const HSB_DEFAULT: usize = 0;
+/// Default of the bitwise head split (`INTARSIA_METAL_ATTN_HSB=<n>`; 0 = off, the opt-out): query heads per kv head split
+/// over `n` threadgroups for the Qwen3.8-27B full attention (group 6, head_dim 256) with the work partition of the unsplit
+/// launch (docs/results/2026-11-03-m27-hs-bitwise.md).
+const HSB_DEFAULT: usize = 3;
 
 /// The bitwise head split: like `head_split`, the `grp` query heads of a kv head run in `n` threadgroups of `grp / n`
 /// heads (smaller register groups: GP 2 instead of 8 for n = 3), but the split count (policy fed `nkv`, not `nkv * n`)
