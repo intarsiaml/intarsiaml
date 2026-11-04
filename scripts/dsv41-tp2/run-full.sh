@@ -384,10 +384,12 @@ if [[ -n ${AB:-} ]]; then
     v="NSYS_AB$i"; NSYS_SAVE=${NSYS:-0}; NSYS=${!v:-$NSYS_SAVE}
     # BIN_ABi: another binary for this config (same path prefix, so kill_ours and the watcher still match it)
     v="BIN_AB$i"; BIN_SAVE=$BIN; BIN=${!v:-$BIN}
+    # LONG_ABi: another LONG_PROMPTS list for this config (the longp step)
+    v="LONG_AB$i"; LONG_SAVE=${LONG_PROMPTS:-}; LONG_PROMPTS=${!v:-${LONG_PROMPTS:-}}
     log "config ab$i: $cfg; steps: $STEPS; nsys $NSYS; bin $BIN"
     start_ranks "$cfg"
     run_steps
-    STEPS=$STEPS_SAVE; NSYS=$NSYS_SAVE; BIN=$BIN_SAVE
+    STEPS=$STEPS_SAVE; NSYS=$NSYS_SAVE; BIN=$BIN_SAVE; LONG_PROMPTS=$LONG_SAVE
     kill_ours; log "config ab$i done"
     i=$((i + 1))
   done
