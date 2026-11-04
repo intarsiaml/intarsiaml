@@ -8,3 +8,34 @@ ident short off: base vs rt: text same, ids same (256 ids)
 ident short off: base vs optout: text same, ids same (256 ids)
 ident short k2: base vs rt: text same, ids same (256 ids)
 ident short k2: base vs optout: text same, ids same (256 ids)
+ident 4k off: base vs rt: text same, ids same (256 ids)
+ident 4k off: base vs optout: text same, ids same (256 ids)
+ident 4k k2: base vs rt: text same, ids same (256 ids)
+ident 4k k2: base vs optout: text same, ids same (256 ids)
+ident 16k off: base vs rt: text same, ids same (256 ids)
+ident 16k off: base vs optout: text same, ids same (256 ids)
+ident 16k k2: base vs rt: text same, ids same (256 ids)
+ident 16k k2: base vs optout: text same, ids same (256 ids)
+== 2/5 kernels test, default binary vs base, no env
+base kernels test exit 0
+def kernels test exit 0
+27B-config attn_decode: logs DIFFER
+27B-config attn_prefill: logs DIFFER
+== 3/5 plan show
+plan show Qwen3.6-35B-A3B-NVFP4 : identical
+plan show Qwen3.6-35B-A3B-NVFP4 --json: identical
+plan show Qwen3-8B : identical
+plan show Qwen3-8B --json: identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 : identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 --json: identical
+== 4/5 accuracy
+accuracy exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy: byte-identical to the previous lane's default-binary run (m27-hs-bitwise gates-def/accuracy/def.out)
+accuracy: byte-identical to m27-gemv final.out
+== 5/5 MTP k2 == off (default binary)
+mtp p1: k2 == off
+mtp p2: k2 == off
+fleetq: #8300 done (exit 0)
+CHAIN-GATES-DONE

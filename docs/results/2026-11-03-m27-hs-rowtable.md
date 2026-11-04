@@ -10,14 +10,14 @@ Branch `m27/hs-rowtable` (local, not pushed; `origin/main` merged in after #292 
 
 Yes, by construction. `attn_decode_rowtab_t<GP>` (`kernels/metal/attention_splitkv.metal`) is the same template body as the 1-row kernel (same `ask_step`, same per-lane `qv[GP][8]`, `acc[GP][8]`, `m[GP]`, `l[GP]`). `launch_attn_rowtab` (`crates/intarsia-backend-metal/src/rowtab.rs`) picked `gp = (grp / hs).next_power_of_two()` with `hs = head_split(grp, d)`, which is 1 for group 6 at head_dim 256: GP = 8, i.e. 128 floats of q and accumulator per lane for 6 real heads (2 zero-padded), the footprint the 1-row launch had before #292. The 35B (group 8) already ran its row-table kernel at HS=4 (GP 2). The register spill itself was not measured (no GPU counters read), as in the previous lane; the evidence is the A/B below.
 
-How much of a batched step this is cannot be read from a per-op timer in serve mode, so the quick A/B used the existing non-bitwise `INTARSIA_METAL_ATTN_HS=3` (the row-table path honours it) at `--max-batch 4`, MTP off, binary `.scratch/intarsia.def`, `localeval speed --concurrency 4 --gen 512 --reps 1`, one run per arm (jobs #8239 A, #8241 HS=3; raw in `raw/ab-hs3/`):
+There is no per-op timer in serve mode, but the server's step timer (`intarsia_batch_step_seconds_sum / _count`, saved per serve) gives a per-step figure: the quick A/B used the existing non-bitwise `INTARSIA_METAL_ATTN_HS=3` (the row-table path honours it) at `--max-batch 4`, MTP off, binary `.scratch/intarsia.def`, `localeval speed --concurrency 4 --gen 512 --reps 1`, one run per arm (jobs #8239 A, #8241 HS=3; raw in `raw/ab-hs3/`):
 
 | prompt | A: default (aggregate tok/s, per-stream median) | C: HS=3 | C / A |
 |---|---|---|---|
 | 4 K, 4 streams | 28.4, 9.2 | 30.7, 10.1 | x1.081 |
 | 16 K, 4 streams | 11.4, 5.2 | 13.1, 6.1 | x1.149 |
 
-Above the 5 % bar at 4 K and 16 K (single runs, so indicative only), so the lane went ahead. The aggregate is completion tokens over the wall of the burst, and the burst's prefill (about 4.6 s per 4 K and 22 s per 16 K prompt, serialised) is the same in both arms, so the decode-phase gain is larger than the aggregate figure; for 16 K x 16 streams below, wall 718 s -> 655 s, of which roughly 355 s is prefill, i.e. about 17 % of the decode phase (derived, rough).
+Per decode step (server timer over the same 2290 steps in both arms, 4 K and 16 K cells together): 261.43 s -> 234.42 s, i.e. **-10.3 % per step** (114.2 -> 102.4 ms mean, mixed prefill-chunk iterations included equally in both). Above the 5 % bar at 4 K and 16 K (single runs, so indicative only), so the lane went ahead. The aggregate is completion tokens over the wall of the burst, whose prefill (about 4.6 s per 4 K and 22 s per 16 K prompt, serialised) is the same in both arms and is a large share of the wall, so the aggregate understates the per-step gain (section 5 has the per-step figures of the ABAB arms).
 
 ## 2. `--max-batch 16` is refused for the 27B on Metal
 
@@ -40,7 +40,7 @@ The step-1 jobs at `--max-batch 16` (#8242, #8243) failed at load, both times fo
 
 | run | job | requests | identical to the baseline's ids (def-mb2 reference) | steps with 2 or more rows |
 |---|---|---|---|---|
-| def MB=2 / 4 / 8, 2 rounds each | #8251, #8253, #8257 | 24 + 24 + 24 | reference; def-mb4 and def-mb8 24/24 equal def-mb2 | 2218 of 2558 / 1104 of 1430 ... see `raw/ident/*-batch-counters.txt` |
+| def MB=2 / 4 / 8, 2 rounds each | #8251, #8253, #8257 | 24 + 24 + 24 | reference; def-mb4 and def-mb8 24/24 equal def-mb2 | 2218 of 2558 / 1296 of 1430 / 926 of 1024 |
 | **rt MB=2**, 2 rounds | #8252 | 24 | 23 | 2219 of 2557 |
 | **rt MB=4**, 2 rounds | #8256 | 24 | 24 (also 24/24 vs def-mb4) | 1296 of 1430 |
 | **rt MB=8**, 2 rounds | #8259 | 24 | 24 (also 24/24 vs def-mb8) | 926 of 1024 |
@@ -48,6 +48,8 @@ The step-1 jobs at `--max-batch 16` (#8242, #8243) failed at load, both times fo
 | def MB=2, 6 rounds x2 | #8267, #8268 | 72 + 72 | 71, 72 | (as above) |
 
 The batch counter (`intarsia_batch_decode_rows_total{rows=N}` from `/metrics`, saved per run) shows that most decode steps were multi-row steps, so the row-table launch ran thousands of times in each run (for example rt MB=8: 330 eight-row steps, 926 steps with two or more rows). In the speed runs the counters of both arms are identical (for example MB=8, 16 K: 2259 multi-row steps of 3034 in each arm).
+
+**That the changed launcher ran.** The counter proves multi-row steps happened; that they went through `launch_attn_rowtab` follows from the design (every multi-row decode step with row tables runs `attn_decode_bf16_splitkv_rows`, the 1-row path is taken only at one row) and from the A/B of section 5: the only code difference between the two binaries is that launcher, the step counts are identical (for example 3034 steps in each arm at MB=8 and 16 K), and every B cell is above every A cell of its config (6 configs, 12 cells per arm) and every B serve has a shorter mean step than both A serves. The bit evidence for the row-table launch is `hs_bitwise.rs`, the batched-id runs and `row_tables.rs` inside the workspace tests (below); the gate script of section 6 is single-sequence and does not reach it.
 
 **The one difference class, and why it is not this change.** 3 requests in 408 differ in ids from the reference, always request q4 (the 3000-character prompt, about 800 tokens), always at generated token 184 with the same alternative (id 557 3799 instead of 14663 974: "The text was cut off" instead of "The text cuts off"): rt-mb2 round 2, rt flake4 round 6, **and the baseline binary** flake2 round 4 (`raw/ident/flake2-def-mb2-ids.json`). The baseline flips at the same token with the same alternative, 1 in 192 baseline requests against 2 in 216 for rt, which is not distinguishable. It is a pre-existing near-tie in the batched engine that resolves differently from run to run (what varies was not found: not the attention kernel, since the 4301-position sweep and 300 repeats are bit-stable). It is not caused by this change; a follow-up task was flagged for it. By the strict reading ("ids identical per request"), though, a rare 1-in-100 flip exists with both binaries, and the claim here is: **no difference attributable to the change was found, and the baseline has the same flip.**
 
@@ -66,15 +68,37 @@ The batch counter (`intarsia_batch_decode_rows_total{rows=N}` from `/metrics`, s
 
 Per-stream decode tok/s (median over the streams of a cell, includes interleaved prefill of the others) moves the same way: 16 K x 8 streams 2.64 -> 2.98, 16 K x 16 streams 1.78 -> 1.94, 4 K x 8 streams 4.82 -> 5.24. Single-stream decode in the same serves is unchanged (25.4 to 25.7 tok/s at 16 K, 27.6 to 27.7 at 4 K, in every arm), as expected since the 1-row launch was already bitwise-split.
 
+Per decode step, from the server's own timer (`intarsia_batch_step_seconds_sum / _count` at the end of each serve, same step counts in both arms; the step includes the prefill chunk of a mixed iteration, equally in both; `raw/speed-step-ms.md`):
+
+| max-batch | prompts | A mean step ms (2 serves) | B mean step ms | B / A |
+|---|---|---|---|---|
+| 4 | 4 K + 16 K cells | 113.6 (113.4, 113.8) | 105.9 (106.0, 105.8) | 0.932 |
+| 8 | 16 K cells | 345.6 (343.9, 347.3) | 315.7 (316.2, 315.3) | 0.914 |
+| 8 | 4 K cells | 189.6 (189.9, 189.3) | 177.7 (177.9, 177.5) | 0.937 |
+
+So a decode step is 6 to 9 % shorter, with prefill-chunk time inside it; the pure decode part shortens more. Compared with the non-bitwise `INTARSIA_METAL_ATTN_HS=3` of section 1 (single run, MB=4, aggregate +8.1 % at 4 K and +14.9 % at 16 K, per step -10.3 %), the bitwise variant gets +5.5 % and +8.6 % aggregate and -6.8 % per step, i.e. roughly 60 to 70 % of HS=3's gain at MB=4, whereas single-stream the two were within noise (previous lane). Possible reasons (not tested): HS=3 also uses 4 simdgroups and 10 splits, which makes the combine cheaper; or the single HS=3 run is a lucky pair. `localeval compare` calls speed deltas under 10 % noise; the relevant noise estimate here is the ABAB spread above (at most 1.7 % between the cells of an arm, and B above A in every one of the 6 configs).
+
 **Stop rule:** at 16 streams and 16 K the aggregate gain is +9.2 % (>= 5 %): cleared. The gain is smaller than the single-stream +24 % at 16 K because the burst wall is about half prefill, which this change does not touch.
 
 ## 6. Gates
 
-GATES_PLACEHOLDER
+Gates ran on the post-merge rebuild `.scratch/intarsia.rtm` (sha256 in `raw/binaries.sha256`) against the baseline `.scratch/intarsia.def`, script `raw/scripts/gates-rt.sh` (job #8300, summary `raw/gates-summary.log`, data `raw/gates/`); the identity and speed runs above used `intarsia.rt` (same Metal code, built before the merge of `origin/main`, whose new files `tp_remote.rs` and `model.rs` are not Metal). **Which gates reach the row-table launch:** none of the gates in this table does (the id checks and MTP are single-sequence `generate`; the `kernels test` sweep has `attn_decode_bf16_splitkv` and `attn_prefill_bf16_splitkv_rows` but not `attn_decode_bf16_splitkv_rows`). They are no-regression gates for the rest of the engine; the row-table bit evidence is section 4 and `row_tables.rs` inside the workspace tests.
+
+| gate | result |
+|---|---|
+| `kernels test --backend metal`, baseline vs this lane | 49 kernels, 980 cases, **0 FAIL**, every row ADMITTED; `diff` of the two logs: only the wall-time line (38.4 s vs 42.9 s) |
+| 27B-config sweep `kernels test -m <27B dir> --op attn_decode -v` and `--op attn_prefill -v` | **0 FAIL**; `diff` of baseline and this lane: only the wall-time line (4.2 s vs 4.4 s, 12.0 s vs 11.9 s); the script's `cmp` printed "DIFFER" for that reason, as last lane |
+| `plan show` text and `--json`, 35B, 8B and also the 27B, baseline vs this lane | **byte-identical, 6 of 6** |
+| 27B accuracy (`accuracy --mode both --decode-positions 16 --baseline golden/baselines/qwen3.8-27b-mxfp4-hfquark-w4a16-top20.metal.baseline.json --mxfp4-act none --max-seq 4096`) | floor PASS, baseline PASS, golden gate PASS; `raw/gates/accuracy/rt.out` **byte-identical** to the previous lane's default-binary run (`2026-11-03-m27-hs-bitwise/raw/gates-def/accuracy/def.out`) and to `2026-11-02-m27-gemv/raw/accuracy/final.out` |
+| MTP k2 == `--spec off` greedy text, 256 tokens, 2 prompts | identical, both |
+| single-sequence greedy ids and text, short / 4 K / 16 K, MTP off and k2, baseline vs this lane (and vs `INTARSIA_METAL_ATTN_HSB=0`) | all 12 cells ids same, text same (256 ids each); opt-out also 12 of 12 |
+| `cargo test --workspace --release --no-fail-fast` (#8298, post-merge tree, `--load cpu`) | **1230 passed, 0 failed, 29 ignored** (`raw/cargo-test-workspace.summary.log`; includes `hs_bitwise` and `row_tables`) |
+| footprint `git diff --name-only origin/main...HEAD \| grep -vE '^(docs/\|crates/intarsia-backend-metal/\|kernels/metal/\|scripts/)'` | **empty** (re-run on the final HEAD, see the report) |
+
 
 ## 7. Recommendation
 
-REC_PLACEHOLDER
+**Default-on with the rest of HSB** (it shares the existing opt-out `INTARSIA_METAL_ATTN_HSB=0`, which now covers the row-table launch too). Reasons: the change is 3 lines of launcher plus the shader helpers the 1-row path already uses; bit identity is demonstrated at kernel level (675 row-table windows, 4301-position sweep, two mutation checks that fail) and at serving level (ids per request at `--max-batch` 2, 4, 8, with the only differences a pre-existing flip the baseline shows equally often); the stop rule is cleared at +9.2 % aggregate (16 streams over 8 slots, 16 K) and the 6 configs give +5.5 % to +9.2 % with at most 1.7 % spread, per decode step -6 to -9 %; every other shape keeps its exact launch; all gates pass. Caveats for the coordinator: the 16-stream cell is 16 requests over `--max-batch 8` because 16 is refused for the 27B; the batched ids check compares 12 requests per round with a rare shared flip (a follow-up task exists); and the post-merge binary `intarsia.rtm` was not the one timed (same Metal code).
 
 ## 8. Jobs and commands
 
