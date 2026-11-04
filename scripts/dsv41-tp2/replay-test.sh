@@ -226,9 +226,21 @@ trap 'log "interrupted"; exit 130' INT TERM HUP
 
 # kill a process and its children (macOS has no setsid)
 killtree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do killtree "$c"; done; kill -TERM "$1" 2>/dev/null; return 0; }
-ranks_alive() {
-  r spark1 "pgrep -f '[i]${SPARK_REL:1}/bin/intarsia[^ ]* serve' >/dev/null" && r spark2 "pgrep -f '[i]${SPARK_REL:1}/bin/intarsia[^ ]* tp-worker' >/dev/null"
+# alive HOST PATTERN: 0 = process there, 1 = the host answered and there is none (a dead rank), 2 = the host could not be asked
+# (ssh exit 255 on every one of ALIVE_TRIES tries, 5 s apart: step 5 polls for hours, one network blip must not kill an arm)
+ALIVE_TRIES=${ALIVE_TRIES:-4}
+alive() {
+  local rc i
+  for ((i = 1; i <= ALIVE_TRIES; i++)); do
+    r "$1" "pgrep -f '$2' >/dev/null"; rc=$?
+    [[ $rc != 255 ]] && return $((rc != 0))
+    log "ssh to $1 failed (try $i of $ALIVE_TRIES)"; sleep 5
+  done
+  return 2
 }
+RANK0_PAT="[i]${SPARK_REL:1}/bin/intarsia[^ ]* serve"; RANK1_PAT="[i]${SPARK_REL:1}/bin/intarsia[^ ]* tp-worker"
+# ranks_alive: both ranks run (0), or one is gone / the host was unreachable for ALIVE_TRIES tries in a row (1)
+ranks_alive() { alive spark1 "$RANK0_PAT" && alive spark2 "$RANK1_PAT"; }
 # bgrun MAX_SECONDS LOGFILE cmd...: run in the background and poll every 15 s (no single wait is long): stops at MAX_SECONDS, at the
 # step deadline, or (WATCH_RANKS=1) when a rank has died. Output goes to LOGFILE; its tail to the steps log. Returns the command's status.
 bgrun() {
@@ -315,8 +327,8 @@ start_ranks() {
   t0=$(date +%s)
   while (( $(date +%s) - t0 < 900 )); do
     curl -sf -m 5 "$SURL/health" >/dev/null && { up=1; break; }
-    r spark1 "pgrep -f '[i]${SPARK_REL:1}/bin/intarsia[^ ]* serve' >/dev/null" || { log "rank 0 exited"; break; }
-    r spark2 "pgrep -f '[i]${SPARK_REL:1}/bin/intarsia[^ ]* tp-worker' >/dev/null" || { log "rank 1 exited"; break; }
+    alive spark1 "$RANK0_PAT" || { log "rank 0 exited or spark1 unreachable"; break; }
+    alive spark2 "$RANK1_PAT" || { log "rank 1 exited or spark2 unreachable"; break; }
     sleep 5
   done
   log "serve up=$up after $(( $(date +%s) - t0 )) s"
