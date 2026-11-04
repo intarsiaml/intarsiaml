@@ -1,0 +1,36 @@
+control identical to BEFORE
+mode     prompt      n  rows diffrows  first |  KLb tail16  KLa tail16 |    KLb all    KLa all | top1 flips b->a
+prefill  p513      513   513        1    512 |  9.6269e-05  1.0041e-04 | 1.6146e-04 1.6159e-04 | 509->509
+prefill  d577      577   577        0   None |  1.3718e-04  1.3718e-04 | 1.5809e-04 1.5809e-04 | 573->573
+prefill  p514      514   514        2    512 |  3.2177e-04  3.2275e-04 | 1.3968e-04 1.3971e-04 | 511->511
+prefill  d578      578   578        0   None |  1.3284e-04  1.3284e-04 | 1.4183e-04 1.4183e-04 | 574->574
+prefill  p516      516   516        4    512 |  1.8001e-04  1.7051e-04 | 1.7592e-04 1.7563e-04 | 512->512
+prefill  d580      580   580        0   None |  1.8730e-04  1.8730e-04 | 1.8204e-04 1.8204e-04 | 576->576
+prefill  p520      520   520        8    512 |  1.8923e-04  1.4540e-04 | 2.6469e-04 2.6334e-04 | 517->517
+prefill  d584      584   584        0   None |  2.3493e-04  2.3493e-04 | 2.6212e-04 2.6212e-04 | 581->581
+prefill  p521      521   521        0   None |  1.2680e-04  1.2680e-04 | 1.2967e-04 1.2967e-04 | 518->518
+prefill  d585      585   585        0   None |  1.3343e-04  1.3343e-04 | 1.4082e-04 1.4082e-04 | 581->581
+prefill  p524      524   524        0   None |  1.3213e-04  1.3213e-04 | 1.2747e-04 1.2747e-04 | 523->523
+prefill  d588      588   588        0   None |  1.6056e-04  1.6056e-04 | 1.3270e-04 1.3270e-04 | 587->587
+prefill  p1028    1028  1028        4   1024 |  1.1557e-04  1.2158e-04 | 1.3856e-04 1.3865e-04 | 1022->1022
+prefill  d1092    1092  1092        0   None |  5.2532e-04  5.2532e-04 | 1.4807e-04 1.4807e-04 | 1086->1086
+decode ( p513       64    64        0   None |  1.1101e-04  1.1101e-04 | 2.1162e-04 2.1162e-04 | 63->63
+decode ( d577       64    64       64      0 |  1.0555e-04  9.6752e-05 | 1.0786e-04 1.1371e-04 | 64->64
+decode ( p514       64    64        0   None |  7.1157e-04  7.1157e-04 | 2.4116e-04 2.4116e-04 | 64->64
+decode ( d578       64    64       64      0 |  1.3431e-04  1.3291e-04 | 1.3305e-04 1.5548e-04 | 63->64
+decode ( p516       64    64        0   None |  1.7141e-04  1.7141e-04 | 1.5757e-04 1.5757e-04 | 64->64
+decode ( d580       64    64       64      0 |  1.9687e-04  2.2274e-04 | 1.4355e-04 1.7389e-04 | 64->64
+decode ( p520       64    64        0   None |  1.3489e-04  1.3489e-04 | 1.4163e-04 1.4163e-04 | 64->64
+decode ( d584       64    64       64      0 |  1.9361e-04  1.9372e-04 | 2.3824e-04 2.4874e-04 | 63->64
+decode ( p521       64    64        0   None |  6.1101e-04  6.1101e-04 | 3.6960e-04 3.6960e-04 | 63->63
+decode ( d585       64    64        0   None |  1.6467e-04  1.6467e-04 | 1.8236e-04 1.8236e-04 | 63->63
+decode ( p524       64    64        0   None |  1.3308e-04  1.3308e-04 | 2.0456e-04 2.0456e-04 | 64->64
+decode ( d588       64    64        0   None |  1.7207e-04  1.7207e-04 | 1.5020e-04 1.5020e-04 | 63->63
+decode ( p1028      64    64        0   None |  1.0886e-04  1.0886e-04 | 1.2097e-04 1.2097e-04 | 64->64
+decode ( d1092      64    64       64      0 |  6.9264e-04  2.5692e-04 | 3.1448e-04 1.7812e-04 | 64->64
+prefill: 5 prompts reached by the peel; KL(before) - KL(after) over whole window: mean +2.780e-07 +- 2.8e-07 (se); after closer on 2, before closer on 3
+prefill: 5 prompts reached by the peel; KL(before) - KL(after) over last 16 rows: mean +8.441e-06 +- 9.2e-06 (se); after closer on 2, before closer on 3
+prefill: mean KL21 on those prompts, before 1.7606e-04 after 1.7578e-04; last-16 rows before 1.8057e-04 after 1.7213e-04
+decode: 5 prompts reached by the peel; KL(before) - KL(after) over whole window: mean +1.345e-05 +- 3.1e-05 (se); after closer on 1, before closer on 4
+decode: 5 prompts reached by the peel; KL(before) - KL(after) over last 16 rows: mean +8.399e-05 +- 8.8e-05 (se); after closer on 3, before closer on 2
+decode: mean KL21 on those prompts, before 1.8744e-04 after 1.7399e-04; last-16 rows before 2.6460e-04 after 1.8061e-04

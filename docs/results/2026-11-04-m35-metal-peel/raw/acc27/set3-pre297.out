@@ -1,0 +1,27 @@
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+d833                 833    64   100.00   7.602e-4   7.310e-4   7.310e-4   1.942e-2   0.0523   0.0526    98.75     64/64      0
+d834                 834    64    98.44   2.241e-4   2.005e-4   2.005e-4   2.177e-3   0.0710   0.0711    98.75     53/64      0
+d835                 835    64   100.00   2.174e-4   1.927e-4   1.927e-4   2.246e-3   0.0672   0.0670    99.69     64/64      0
+d836                 836    64   100.00   1.564e-4   1.393e-4   1.393e-4   6.884e-4   0.0809   0.0810    99.06     64/64      0
+d837                 837    64   100.00   1.875e-4   1.596e-4   1.596e-4   3.248e-3   0.0861   0.0860    99.06     64/64      0
+d838                 838    64   100.00   8.079e-5   6.940e-5   6.940e-5   6.867e-4   0.0384   0.0384    98.75     64/64      0
+d839                 839    64   100.00   1.196e-4   1.117e-4   1.117e-4   2.237e-3   0.0520   0.0520    99.38     64/64      0
+d840                 840    64    98.44   1.759e-4   1.651e-4   1.651e-4   3.096e-3   0.0307   0.0305    98.75     62/64      0
+d1345               1345    64   100.00   1.381e-4   1.391e-4   1.391e-4   1.928e-3   0.0059   0.0059    98.12     64/64      0
+d1347               1347    64   100.00   1.033e-3   1.113e-3   1.113e-3   2.467e-2   0.0117   0.0112    97.19     64/64      0
+d1349               1349    64    98.44   5.165e-4   4.913e-4   4.913e-4   1.495e-2   0.0591   0.0589    98.75     36/64      0
+d1351               1351    64   100.00   2.528e-4   2.132e-4   2.132e-4   4.395e-3   0.0942   0.0942    98.75     64/64      0
+d1601               1601    64   100.00   2.081e-4   1.895e-4   1.895e-4   1.877e-3   0.0350   0.0349    99.06     64/64      0
+d1603               1603    64   100.00   2.328e-4   2.172e-4   2.172e-4   3.379e-3   0.0542   0.0543    99.69     64/64      0
+d1605               1605    64    98.44   4.762e-4   4.206e-4   4.206e-4   1.989e-2   0.0504   0.0505    99.69     11/64      0
+d1607               1607    64    98.44   1.919e-4   1.794e-4   1.794e-4   2.488e-3   0.0525   0.0526    98.44     27/64      0
+OVERALL                   1024    99.51   3.107e-4   2.958e-4   2.958e-4   2.467e-2   0.0526   0.0526    98.87     87.2%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 99.51% (not gated for this class) ok | 21-way KL (scored rows, n=1024) 2.958e-4 (need <= 3.0e-2) ok [all rows, n=1024: 2.958e-4, reported only] | tail mass (all rows) ours 0.0526 vs ref 0.0526, excess -0.0000 (|.| <= 0.02) ok | non-finite rows 0 ok => PASS
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 2.958e-4 PASS
+gate-definition: kl_floor [decode]: old def: PASS 2.958e-4 (21-way KL over all rows <= static floor) | current def: PASS 2.958e-4 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [decode (teacher-forced)]: mean 87.2% of positions before the first argmax divergence, worst prompt 17.2% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
