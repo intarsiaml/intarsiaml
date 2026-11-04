@@ -142,6 +142,7 @@ pub struct GraphTp {
     pub first: usize,
     /// Rotate the attention's `q` and de-rotate its `o` in place ([`rope_inplace_for`]): the `RopeTail` output is the
     /// input buffer, so a kernel that supports it visits the rope dims only and the unrotated rows are not copied.
+    /// [`Dsv41Runtime::new`](super::runtime::Dsv41Runtime::new) overwrites it from its backend; only direct `build*` callers set it.
     pub rope_inplace: bool,
 }
 
@@ -444,8 +445,8 @@ pub fn hc_fused() -> bool {
 /// a buffer; the cpu reference runs the same graph with the separate `q_rope` / `o_derot` buffers, as before.
 /// `INTARSIA_DSV41_ROPE_INPLACE=0` turns it off (A/B and diagnosis).
 pub fn rope_inplace_for(backend: &str) -> bool {
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    backend == "cuda" && *ON.get_or_init(|| std::env::var("INTARSIA_DSV41_ROPE_INPLACE").map_or(true, |v| v != "0"))
+    // read at each runtime / plan construction (not cached), so a test can build one runtime per setting in one process
+    backend == "cuda" && std::env::var("INTARSIA_DSV41_ROPE_INPLACE").map_or(true, |v| v != "0")
 }
 
 /// Rows up to which an `HcSublayer` folds the previous sublayer's `HcPost` (docs/design/dsv41-ops.md: on a 4096-row

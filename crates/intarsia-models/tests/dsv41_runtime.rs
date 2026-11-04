@@ -573,21 +573,29 @@ fn device_position_passes_equal_host_passes() {
     let (n_prompt, n_cont, cap) = (knob("INTARSIA_DSV41_DP_PROMPT", 110), knob("INTARSIA_DSV41_DP_TOKENS", 48), knob("INTARSIA_DSV41_DP_CAP", 512));
     let spec = std::env::var("INTARSIA_DSV41_DP_SPEC").as_deref() == Ok("1");
     let graphs = std::env::var("INTARSIA_DSV41_DPOS_GRAPHS").as_deref() == Ok("1");
-    let o = Dsv41Opts { cap, chunk: 64, engram_dir: PathBuf::from("off"), hot_mb: 0, act, spec };
-    let (rt, _) = load_runtime_with(&cache, backend, None, &o, None).unwrap();
+    // `INTARSIA_DSV41_DP_CHUNK` (default 64): the prefill chunk; 2048 with a prompt of 4200 and a cap of 8192 runs T = 2048 chunks and
+    // gives the indexer more than `index_topk` compressed rows to choose from
+    let o = Dsv41Opts { cap, chunk: knob("INTARSIA_DSV41_DP_CHUNK", 64), engram_dir: PathBuf::from("off"), hot_mb: 0, act, spec };
+    // one runtime per `INTARSIA_DSV41_ROPE_INPLACE` setting (read when the runtime is built; the cpu backend ignores it)
+    let make_rt = |inplace: bool| {
+        std::env::set_var("INTARSIA_DSV41_ROPE_INPLACE", if inplace { "1" } else { "0" });
+        load_runtime_with(&cache, backend.clone(), None, &o, None).unwrap().0
+    };
+    let rt = make_rt(true);
     let tok = |i: usize| ((i * 7919 + 13) % 30000 + 100) as u32;
     let prompt: Vec<u32> = (0..n_prompt).map(tok).collect();
     let cont: Vec<u32> = (0..n_cont + 8).map(|i| tok(n_prompt + i)).collect();
     // the schedule: rows per step (0: a verify pass of 4, 2 or 3 rows, rolled back to 1 or 2 rows, then a drafting round)
     let sched: Vec<usize> = if spec { vec![1, 0, 1, 0, 3, 1, 0, 2, 0, 1, 1] } else { vec![1, 1, 1, 3, 1, 4, 1, 2, 1, 1, 1] };
-    let run = |dev: bool| -> Vec<Vec<f32>> {
+    let run_on = |rt: &Dsv41Runtime, dev: bool| -> Vec<Vec<f32>> {
         rt.set_device_position(dev);
         if dev && graphs {
             assert!(rt.set_graphs(true), "the backend cannot capture");
         }
         let mut st = rt.new_state().unwrap();
-        rt.forward(&mut st, &prompt, false).unwrap();
-        let (mut out, mut i, mut k, mut round) = (Vec::new(), 0usize, 0usize, 0usize);
+        // the prefill's last-row logits are part of the output too
+        let prefill = rt.forward(&mut st, &prompt, true).unwrap().expect("prefill logits");
+        let (mut out, mut i, mut k, mut round) = (vec![prefill], 0usize, 0usize, 0usize);
         while i < n_cont {
             let n = sched[k % sched.len()];
             k += 1;
@@ -616,6 +624,7 @@ fn device_position_passes_equal_host_passes() {
         }
         out
     };
+    let run = |dev: bool| run_on(&rt, dev);
     let host = run(false);
     let dev = run(true);
     // a fresh sequence state: every recording goes stale, is dropped after a stream sync and recaptured
@@ -653,4 +662,13 @@ fn device_position_passes_equal_host_passes() {
             }
         }
     }
+    // the same runs with the q / o ropes out of place (`INTARSIA_DSV41_ROPE_INPLACE=0`, the graph and the copy kernel of main): bit-identical
+    // on the CUDA backend, where the setting changes the graph and the kernel (on the cpu backend it changes nothing)
+    drop(rt); // one runtime's weights on the device at a time
+    let rt_off = make_rt(false);
+    let (host_off, dev_off) = (run_on(&rt_off, false), run_on(&rt_off, true));
+    std::env::remove_var("INTARSIA_DSV41_ROPE_INPLACE");
+    assert!(bits(&host) == bits(&host_off), "in-place ropes: the host-position outputs differ from the out-of-place ropes'");
+    assert!(bits(&dev) == bits(&dev_off), "in-place ropes: the device-position outputs differ from the out-of-place ropes'");
+    println!("RUNTIME in-place == out-of-place ropes: bitwise equal over {} passes (host and device position)", host.len());
 }
