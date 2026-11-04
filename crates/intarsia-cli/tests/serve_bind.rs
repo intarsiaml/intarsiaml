@@ -45,32 +45,45 @@ fn stderr_of(c: &mut Child) -> String {
     err
 }
 
-/// The exit code, or panics after `limit`.
-fn exit_code(c: &mut Child, limit: Duration) -> Option<i32> {
+/// Runs the server to its exit: the exit code, its stderr, and how long it ran after it said it would retry, which leaves out the model load.
+fn to_exit(mut c: Child, limit: Duration) -> (Option<i32>, String, Option<Duration>) {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let out = c.stderr.take().unwrap();
+    let reader = std::thread::spawn(move || {
+        let mut all = String::new();
+        for line in std::io::BufRead::lines(std::io::BufReader::new(out)).map_while(|l| l.ok()) {
+            if line.contains("retrying for up to") {
+                let _ = tx.send(Instant::now());
+            }
+            all.push_str(&line);
+            all.push('\n');
+        }
+        all
+    });
     let t0 = Instant::now();
-    loop {
+    let code = loop {
         if let Some(s) = c.try_wait().unwrap() {
-            return s.code();
+            break s.code();
         }
         if t0.elapsed() > limit {
-            stop(c);
+            stop(&mut c);
             panic!("still running after {limit:?}");
         }
-        std::thread::sleep(Duration::from_millis(100));
-    }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    let ended = Instant::now();
+    let err = reader.join().unwrap();
+    (code, err, rx.try_recv().ok().map(|t| ended.duration_since(t)))
 }
 
 #[test]
 fn a_port_that_stays_taken_stops_the_supervisor_after_the_retry() {
     let taken = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = taken.local_addr().unwrap().port().to_string();
-    let t0 = Instant::now();
-    let mut c = serve("127.0.0.1", &port, Some("2"));
-    let code = exit_code(&mut c, Duration::from_secs(60));
-    let err = stderr_of(&mut c);
+    let (code, err, retried) = to_exit(serve("127.0.0.1", &port, Some("2")), Duration::from_secs(60));
     assert_eq!(code, Some(intarsia_server::EXIT_FATAL), "{err}");
     assert!(err.contains(&format!("bind 127.0.0.1:{port}")), "the model must have loaded and the bind failed (a load error is 78 too): {err}");
-    assert!(t0.elapsed() >= Duration::from_secs(2), "{:?}: it did not retry", t0.elapsed());
+    assert!(retried.is_some_and(|d| d >= Duration::from_millis(1500)), "{retried:?}: it did not retry for 2 s: {err}");
     assert_eq!(err.matches("[supervisor] started server").count(), 1, "{err}");
 }
 
@@ -110,10 +123,7 @@ fn a_port_a_stopping_server_still_holds_is_taken_over_without_a_reload() {
 /// An address the network has not brought up yet (192.0.2.1 is reserved for documentation, so never on this box) is retried too.
 #[test]
 fn an_address_not_available_is_retried_too() {
-    let t0 = Instant::now();
-    let mut c = serve("192.0.2.1", "18999", Some("2"));
-    let code = exit_code(&mut c, Duration::from_secs(60));
-    let err = stderr_of(&mut c);
+    let (code, err, retried) = to_exit(serve("192.0.2.1", "18999", Some("2")), Duration::from_secs(60));
     assert_eq!(code, Some(intarsia_server::EXIT_FATAL), "{err}");
-    assert!(err.contains("retrying for up to 2 s") && t0.elapsed() >= Duration::from_secs(2), "{:?}: {err}", t0.elapsed());
+    assert!(retried.is_some_and(|d| d >= Duration::from_millis(1500)), "{retried:?}: it did not retry for 2 s: {err}");
 }

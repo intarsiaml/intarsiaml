@@ -138,11 +138,9 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
         .map_err(|e| intarsia_core::Error::Other(format!("tokio runtime: {e}")))?;
     rt.block_on(async move {
         let addr = format!("{}:{}", cfg.host, cfg.port);
-        let Some(listener) = bind_retrying(&addr, cfg.bind_retry_s).await? else {
-            return Ok(()); // stopped while waiting for the port
-        };
         let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
         let state = AppState::new(engine.clone(), name, &cfg);
+        let probe = engine.clone();
         if cfg.watchdog_s > 0.0 || cfg.parent_pid.is_some() {
             health::spawn_watchdog(
                 engine,
@@ -153,6 +151,10 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
                 cfg.parent_pid,
             );
         }
+        // After the watchdog, which also covers the retry: a failed group still exits 87 and an orphan still leaves.
+        let Some(listener) = bind_retrying(&addr, cfg.bind_retry_s, &*probe).await? else {
+            return Ok(()); // stopped while waiting for the port
+        };
         let app = app(state, cfg.ui);
         tracing::info!("intarsia server listening on http://{addr}");
         eprintln!("intarsia server listening on http://{addr}");
@@ -165,7 +167,7 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
 
 /// Bind `addr`, retrying what can clear by itself for up to `retry_s`: a port a stopping server still holds (a restart after exit 86 or 87
 /// can get there first), an address the network has not brought up yet. Anything else fails at once. `None`: asked to stop meanwhile.
-async fn bind_retrying(addr: &str, retry_s: f64) -> intarsia_core::Result<Option<tokio::net::TcpListener>> {
+async fn bind_retrying(addr: &str, retry_s: f64, engine: &dyn Engine) -> intarsia_core::Result<Option<tokio::net::TcpListener>> {
     use std::io::ErrorKind::{AddrInUse, AddrNotAvailable};
     let t0 = std::time::Instant::now();
     let mut told = false;
@@ -176,6 +178,11 @@ async fn bind_retrying(addr: &str, retry_s: f64) -> intarsia_core::Result<Option
             Ok(l) => return Ok(Some(l)),
             Err(e) => e,
         };
+        // the watchdog waits 2 s before it exits 87: a retry that ends meanwhile must not turn that into a fatal 78
+        if retry_s > 0.0 && engine.failed().is_some() {
+            eprintln!("cannot bind {addr} ({e}) and the engine failed; exiting for restart");
+            std::process::exit(EXIT_FAILED);
+        }
         if !matches!(e.kind(), AddrInUse | AddrNotAvailable) || t0.elapsed().as_secs_f64() >= retry_s {
             return Err(intarsia_core::Error::Other(format!("{BIND_FAILED} {addr}: {e}")));
         }

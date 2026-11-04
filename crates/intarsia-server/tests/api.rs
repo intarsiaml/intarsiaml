@@ -1650,3 +1650,62 @@ async fn anthropic_required_tool_use_waits_for_the_close_tag_when_thinking() {
     }
     assert!(mock.reqs.lock().unwrap().iter().all(|r| r.constraint.is_some()));
 }
+
+/// `serve` in a child process, on a port this test holds: the watchdog must act during the bind retry. `want`: the child's exit code.
+fn bind_retry_child(name: &str, what: &str, want: i32) {
+    let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = taken.local_addr().unwrap().port();
+    let t0 = std::time::Instant::now();
+    let code = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", name, "--nocapture"])
+        .env("BIND_TEST_CHILD", format!("{what} {port}"))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .unwrap()
+        .code();
+    assert_eq!(code, Some(want));
+    assert!(t0.elapsed() < std::time::Duration::from_secs(20), "{:?}: it sat out the retry", t0.elapsed());
+    drop(taken);
+}
+
+/// In the child: serve with a 30 s bind retry; the exit code says what ended it.
+fn bind_retry_serve(spec: &str) -> ! {
+    let (what, port) = spec.split_once(' ').unwrap();
+    let cfg = intarsia_server::ServerConfig {
+        port: port.parse().unwrap(),
+        bind_retry_s: if what == "failed-short" { 0.5 } else { 30.0 },
+        watchdog_s: 60.0,
+        exit_on_failed: true,
+        parent_pid: (what == "orphan").then_some(1),
+        ui: false,
+        ..Default::default()
+    };
+    let r = intarsia_server::serve(Arc::new(Mock { fail: what.starts_with("failed"), ..Default::default() }), cfg);
+    std::process::exit(if r.is_err() { 3 } else { 4 });
+}
+
+#[test]
+fn a_failed_engine_exits_87_during_the_bind_retry() {
+    if let Ok(s) = std::env::var("BIND_TEST_CHILD") {
+        bind_retry_serve(&s);
+    }
+    bind_retry_child("a_failed_engine_exits_87_during_the_bind_retry", "failed", intarsia_server::EXIT_FAILED);
+}
+
+/// A retry that ends inside the 2 s the watchdog waits before it exits: 87, not the fatal bind error.
+#[test]
+fn a_failed_engine_exits_87_when_the_bind_retry_ends_first() {
+    if let Ok(s) = std::env::var("BIND_TEST_CHILD") {
+        bind_retry_serve(&s);
+    }
+    bind_retry_child("a_failed_engine_exits_87_when_the_bind_retry_ends_first", "failed-short", intarsia_server::EXIT_FAILED);
+}
+
+#[test]
+fn an_orphan_leaves_during_the_bind_retry() {
+    if let Ok(s) = std::env::var("BIND_TEST_CHILD") {
+        bind_retry_serve(&s);
+    }
+    bind_retry_child("an_orphan_leaves_during_the_bind_retry", "orphan", intarsia_server::EXIT_ORPHANED);
+}
