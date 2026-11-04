@@ -1686,3 +1686,45 @@ async fn anthropic_required_tool_use_waits_for_the_close_tag_when_thinking() {
     }
     assert!(mock.reqs.lock().unwrap().iter().all(|r| r.constraint.is_some()));
 }
+
+/// Graceful shutdown waits for every open response, and an `/events` client (`intarsia top`) never closes its own: the
+/// stream must end with the shutdown signal, or the process lives until the supervisor kills it.
+#[tokio::test]
+async fn graceful_shutdown_ends_the_events_stream() {
+    use std::io::{Read, Write};
+    let (app, stop) = intarsia_server::router_with_shutdown(Arc::new(Mock::default()), &Default::default());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (fire, signal) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).with_graceful_shutdown(stop.after(async { let _ = signal.await; })).await
+    });
+    // a client that reads the stream until it ends (an answer to a Connection: close request ends with the stream)
+    let client = tokio::task::spawn_blocking(move || {
+        let mut s = std::net::TcpStream::connect(addr).unwrap();
+        s.set_read_timeout(Some(std::time::Duration::from_secs(10))).unwrap();
+        s.write_all(b"GET /events HTTP/1.1\r\nHost: t\r\nConnection: close\r\n\r\n").unwrap();
+        let mut seen = Vec::new();
+        let mut buf = [0u8; 4096];
+        let mut ended = false;
+        loop {
+            match s.read(&mut buf) {
+                Ok(0) => {
+                    ended = true;
+                    break;
+                }
+                Ok(n) => seen.extend_from_slice(&buf[..n]),
+                Err(_) => break,
+            }
+        }
+        (ended, String::from_utf8_lossy(&seen).into_owned())
+    });
+    // the stream is flowing, then the server is told to stop
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    fire.send(()).unwrap();
+    let done = tokio::time::timeout(std::time::Duration::from_secs(5), server).await;
+    assert!(done.is_ok(), "the server is still waiting for the /events stream five seconds after the shutdown signal");
+    let (ended, seen) = client.await.unwrap();
+    assert!(ended, "the client's stream was cut, not ended");
+    assert!(seen.contains("data:"), "the stream carried telemetry: {seen}");
+}

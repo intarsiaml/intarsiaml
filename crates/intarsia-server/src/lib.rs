@@ -88,9 +88,29 @@ pub fn router(engine: Arc<dyn Engine>, served_model_name: Option<String>) -> Rou
 
 /// Build the router from a full config.
 pub fn router_with(engine: Arc<dyn Engine>, cfg: &ServerConfig) -> Router {
+    router_with_shutdown(engine, cfg).0
+}
+
+/// [`router_with`] and the handle that ends its endless streams at shutdown (see [`Shutdown`]).
+pub fn router_with_shutdown(engine: Arc<dyn Engine>, cfg: &ServerConfig) -> (Router, Shutdown) {
     let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
     let state = AppState::new(engine, name, cfg);
-    app(state, cfg.ui)
+    let stop = Shutdown(state.shutdown.clone());
+    (app(state, cfg.ui), stop)
+}
+
+/// Ends the streams that never finish by themselves when the server is told to stop. axum's graceful shutdown waits for
+/// every open response, and `/events` (held open for good by `intarsia top` and the TUI, which reconnect forever) kept the
+/// process, and the GPU memory it holds, alive until the supervisor's SIGKILL 30 s later. Generations in flight still
+/// finish: their length is bounded.
+pub struct Shutdown(Arc<tokio::sync::watch::Sender<bool>>);
+
+impl Shutdown {
+    /// Resolves with `signal`, after ending the `/events` streams: pass it to `with_graceful_shutdown`.
+    pub async fn after(self, signal: impl std::future::Future<Output = ()>) {
+        signal.await;
+        self.0.send_replace(true);
+    }
 }
 
 fn app(state: AppState, ui: bool) -> Router {
@@ -130,6 +150,7 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
             .map_err(|e| intarsia_core::Error::Other(format!("bind {addr}: {e}")))?;
         let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
         let state = AppState::new(engine.clone(), name, &cfg);
+        let stop = Shutdown(state.shutdown.clone());
         if cfg.watchdog_s > 0.0 || cfg.parent_pid.is_some() {
             health::spawn_watchdog(
                 engine,
@@ -144,7 +165,7 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
         tracing::info!("intarsia server listening on http://{addr}");
         eprintln!("intarsia server listening on http://{addr}");
         axum::serve(listener, app)
-            .with_graceful_shutdown(shutdown_signal())
+            .with_graceful_shutdown(stop.after(shutdown_signal()))
             .await
             .map_err(|e| intarsia_core::Error::Other(format!("server: {e}")))
     })
@@ -229,11 +250,16 @@ async fn prometheus(State(st): State<AppState>) -> Response {
 
 async fn events(State(st): State<AppState>) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
     let tick = tokio::time::interval(Duration::from_millis(200));
+    let mut stop = st.shutdown.subscribe();
     let stream = futures_util::stream::unfold((st, tick), |(st, mut tick)| async move {
         tick.tick().await;
         let snap = blocking(&st.engine, |e| Ok(e.telemetry())).await.ok()?;
         let ev = Event::default().json_data(&snap).unwrap_or_else(|_| Event::default().data("{}"));
         Some((Ok(ev), (st, tick)))
+    });
+    // ends with the server's shutdown, or the graceful shutdown would wait for this stream for good
+    let stream = futures_util::StreamExt::take_until(stream, async move {
+        let _ = stop.wait_for(|stopping| *stopping).await;
     });
     Sse::new(stream).keep_alive(KeepAlive::default())
 }
