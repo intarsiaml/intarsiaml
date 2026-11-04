@@ -226,6 +226,28 @@ fn bitwise_head_split_is_bit_identical_to_the_unsplit_launch() {
     }
     eprintln!("hs_bitwise: {rt_windows} row-table (rows, positions, HSB) windows bit-identical to the unsplit row-table launch");
 
+    // diagnostic, opt-in (`HSB_SWEEP=<reps>`): every position 0..=4300 as a 2-row table (p, 4300 - p) against the unsplit launch, and
+    // `reps` repeats of the same HSB=3 launch (a race in the kernel would show as a launch that differs from its own repeat)
+    if let Some(reps) = std::env::var("HSB_SWEEP").ok().and_then(|v| v.parse::<usize>().ok()) {
+        let mut n = 0;
+        for p in 0..=4300usize {
+            let pos = [p, 4300 - p];
+            set_hsb_for_test(Some(0));
+            let want = c.rowtab(&pos);
+            set_hsb_for_test(Some(3));
+            assert!(c.rowtab(&pos) == want, "sweep rowtab {pos:?}: differs from the unsplit launch");
+            n += 1;
+        }
+        for pos in [[1000usize, 3000], [800, 1500], [2047, 1], [4096, 4097]] {
+            set_hsb_for_test(Some(3));
+            let first = c.rowtab(&pos);
+            for i in 0..reps {
+                assert!(c.rowtab(&pos) == first, "repeat {i} of rowtab {pos:?} differs from the first launch");
+            }
+        }
+        eprintln!("hs_bitwise: sweep of {n} 2-row positions and {reps} repeats bit-identical");
+    }
+
     // the split is live for this shape (not silently ignored), and only for it
     for (hsb, want) in [(0usize, (1usize, 0usize)), (2, (2, 8)), (3, (3, 8)), (6, (6, 8)), (4, (1, 0))] {
         set_hsb_for_test(Some(hsb));
