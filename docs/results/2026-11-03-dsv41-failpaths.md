@@ -77,7 +77,7 @@ The ring limit comes from the kernels, not from reading: `the_rings_survive_17_r
 
 ## Tests
 
-`crates/intarsia-models/src/dsv41_engine.rs`, `mod failpath_tests`, 24 tests after the second review (section 4), no GPU: a real `Worker` and `Dsv41Runtime` facing a real `RemotePeer` and `tp_remote::serve`, whose far end records what it was told. The fake backend adds a failing `alloc` and a parked stream 0. Rank 1's exit runs in a child process through the real `serve_group`. Each row reverts one fix on the final code, with the tests in place (job #8290; `INTARSIA_TP_REMOTE_TIMEOUT_S=3`, because the old `settle` waits for a reply).
+`crates/intarsia-models/src/dsv41_engine.rs`, `mod failpath_tests`, 25 tests after the second review (section 4), no GPU: a real `Worker` and `Dsv41Runtime` facing a real `RemotePeer` and `tp_remote::serve`, whose far end records what it was told. The fake backend adds a failing `alloc` and a parked stream 0. Rank 1's exit runs in a child process through the real `serve_group`. Each row reverts one fix on the final code, with the tests in place (job #8290; `INTARSIA_TP_REMOTE_TIMEOUT_S=3`, because the old `settle` waits for a reply).
 
 | Fix reverted | Tests failing without it | Message | With the fix |
 |---|---|---|---|
@@ -85,13 +85,13 @@ The ring limit comes from the kernels, not from reading: `the_rings_survive_17_r
 | #2 `draft_fits` in `next_rows` | `near_the_capacity_a_greedy_step_is_a_plain_pass_not_a_drafting_round` | `[New, Draft]` instead of `[New, Forward]` | pass |
 | #3 `settle` | `a_rank_local_error_after_the_pass_was_sent_fails_the_group`, `a_failure_inside_the_runtime_fails_the_group`, `settle_does_not_wait_for_the_other_rank_after_a_failure_and_the_error_is_a_backend_error` | `failed` stays empty | pass |
 | #3 failed `reset` | `a_reset_that_fails_fails_the_group` | `failed` stays empty | pass |
-| none | | | 24 of 24 |
+| none | | | 24 of 24 (the 25th was added after this run) |
 
 The section 4 fixes were reverted the same way, one at a time, in jobs #8277 and #8278; each test in its table failed without its fix.
 
 The tests no row names pin what must not change. The one exception to "the test catches the defect end to end": the near-cap test checks what rank 1 is told, not an actual exit 87, because the far end is a recorder. The refusal itself is pinned by `draft_fits_is_exactly_what_the_runtime_accepts...`, and the exit is what the Spark case `near` shows.
 
-`cargo test --workspace --no-fail-fast`: 1258 passed, 0 failed, 29 ignored (#8279, exit 0). An earlier run (#8266) had one failure of this lane's own, missing `docs/tuning.md` rows for the two new variables, fixed before commit `7d9e17cb1`.
+`cargo test --workspace --no-fail-fast`: 1259 passed, 0 failed, 29 ignored (#8294, exit 0). An earlier run (#8266) had one failure of this lane's own, missing `docs/tuning.md` rows for the two new variables, fixed before commit `7d9e17cb1`.
 
 ## The normal path
 
@@ -109,13 +109,17 @@ Normal-path lines that changed, and the evidence for each:
 | `ring_cut_ok` in `restorable_len` and `check_ring_cut` | `the_normal_paths_are_unchanged`: one cut as before, 2000 rounds of verify rejections never refused. Reuse is refused only in the band, which costs a full prefill there |
 | `telemetry.step()` after each pass | Counter only |
 
+Only DSv4.1's `graph.rs` emits `SlotSpec::Ring`, so `ring_cut_ok` never runs for another model: `ring_margin()` is `None` there. For those models the evidence is that plus the workspace suite. The real `compress_ratios` are 0 and 2 in the Mia config, so the ring test's ratios 1, 2 and 3 cover the one in use.
+
 This is control flow, and those tests stop before any kernel runs: **no bitwise numeric check has run.** The gates that would, `speculative_greedy_equals_plain_greedy` and the rest of `tests/dsv41_runtime.rs`, skip without a rank cache and fixtures, which endor does not have. The Spark case `golden` compares fix and main.
 
 ## Spark script
 
 `scripts/dsv41-tp2/failpaths-test.sh`: with no argument it prints the two builds and the fleetq command and runs nothing. Under `run-full.sh` as its `HOOK`, vLLM goes down and is always restored, with memfine and the watcher at the 5 GiB line. Cases: `near` (#2), `force` (#3, `INTARSIA_DSV41_TEST_RANK0_FAIL_PASS`), `ring` (chained cuts), `cancel`, `supervised`, `golden` (main against fix), `kill` (#1: 20 SIGKILLs of rank 0 at random times mid-decode, temperature 0.7, default deadline, rank 1's exit code and seconds in `kill.tsv`, plus 2 on main), and optionally `kill35`.
 
-Checked: `bash -n`, the printed commands, `--dry-run` (all cases through a stubbed ssh and curl, with `bash -n` on every remote command it produced), and `fleetq when` accepting the job's flags (estimated start Wed 07:05). **It has never run on a Spark**, so its timings (about 4.5 min a run, `--expect 195`) are guesses, and at that length it cannot fit before vLLM is due back on a morning that needs it.
+`build.sh` supports `BIN_NAME` and its `--delete` only touches `src/`; `run-full.sh` restores vLLM from an EXIT trap, so an `exit 1` here still restores it (both by reading).
+
+Checked: `bash -n`, the printed commands, `--dry-run` (all cases through a stubbed ssh and curl, with `bash -n` on every remote command it produced, and an assertion that the forced fault stays in case `force`), and `fleetq when` accepting the job's flags (estimated start Wed 07:05). **It has never run on a Spark**, so its timings (about 4.5 min a run, `--expect 195`) are guesses, and at that length it cannot fit before vLLM is due back on a morning that needs it.
 
 ## Not checked
 

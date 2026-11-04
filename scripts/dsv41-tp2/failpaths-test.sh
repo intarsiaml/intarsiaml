@@ -15,8 +15,9 @@
 #   supervised  a supervised `serve` (no --no-supervisor, default --watchdog-s 60), INTARSIA_DSV41_CAP=70000: a prefill of SUP_PROMPT (default 65000)
 #           tokens and a temperature 0.7 reply of SUP_REPLY (default 3500) tokens, each longer than 60 s. Expected: HTTP 200, no `[supervisor]` restart,
 #           /health 200. Main (BASE_SUPERVISED=1 to see it): exit 86. Memory at that capacity has not been measured: watch memfine.
-#   near   #2. Greedy requests of cap-5, cap-4, cap-3, cap-2 tokens and max_tokens 8, then a reply that fills the capacity from below, at
-#           INTARSIA_DSV41_CAP=2048. Expected: HTTP 200, finish_reason length, both ranks up, /health 200. Main: both ranks exit 87 at cap-4.
+#   near    #2. Greedy requests of cap-5, cap-4, cap-3, cap-2 tokens with max_tokens that just fit, one above the room (clamped), then a reply that fills
+#           the capacity from below, at INTARSIA_DSV41_CAP=2048. Expected: HTTP 200, finish_reason length, both ranks up, /health 200. Main, by reading: both
+#           ranks exit 87 at cap-4.
 #   force   #3. FORCE_RUNS (default 3) times: rank 0 fails forward pass FORCE_PASS (default 30) of a temperature 0.7 reply with
 #           INTARSIA_DSV41_TEST_RANK0_FAIL_PASS. Expected: HTTP 500, /health 503, both ranks exit 87.
 #   golden  the baseline binary (bin/intarsia.base, main) against the fix: chat texts (greedy, seeded temperature 0.7, a long prefill)
@@ -195,10 +196,11 @@ case_near() {
   local cap=2048
   CASE=near; OUT=$OUT0/near; mkdir -p "$OUT"
   start_ranks "INTARSIA_DSV41_CAP=$cap"; pids
-  near_req below $(( cap - 5 )) 8
-  near_req at4 $(( cap - 4 )) 8
-  near_req at3 $(( cap - 3 )) 8
-  near_req at2 $(( cap - 2 )) 8
+  near_req below $(( cap - 5 )) 5
+  near_req at4 $(( cap - 4 )) 4 # max_tokens that fit: valid on main too, so the case shows draft_fits and not the clamp
+  near_req at3 $(( cap - 3 )) 3
+  near_req at2 $(( cap - 2 )) 2
+  near_req clamp $(( cap - 4 )) 64
   near_req fill $(( cap - 300 )) 300
   near_req well 1000 64
   finish near
@@ -209,7 +211,7 @@ case_force() {
   local i h res0 res1
   CASE=force; OUT=$OUT0/force; mkdir -p "$OUT"
   for i in $(seq 1 "${FORCE_RUNS:-3}"); do
-    R0ENV="INTARSIA_DSV41_TEST_RANK0_FAIL_PASS=${FORCE_PASS:-30}"
+    local R0ENV="INTARSIA_DSV41_TEST_RANK0_FAIL_PASS=${FORCE_PASS:-30}" # local: the later cases must not inherit the fault
     start_ranks ""; pids
     TF=$(now_ms)
     sampled_bg "f$i" 400 0.7 "$i" "$P_LONG"
@@ -321,4 +323,7 @@ for c in $MY_CASES; do
     *) log "unknown case $c" ;;
   esac
 done
+if [[ -n ${DRY:-} ]]; then # the forced fault belongs to case force alone
+  L=$(grep -rl FAIL_PASS --include=ssh.log "$DRY" | grep -v '/force/'); [[ -z $L ]] || { log "dry run: the fault leaked into $L"; exit 1; }
+fi
 log "failpaths: done; results in $OUT0"

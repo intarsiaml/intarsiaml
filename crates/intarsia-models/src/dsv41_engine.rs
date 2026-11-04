@@ -1641,6 +1641,16 @@ mod failpath_tests {
         assert_eq!(*sizes.lock().unwrap(), [8, 8, 4], "the same cuts as a cold prefill");
     }
 
+    /// The same prompt twice: the last token runs again, so the prefill is never empty (an empty one would read as a cancel).
+    #[test]
+    fn an_identical_prompt_runs_its_last_token_and_replies() {
+        let mut g = scripted(8, vec![1, 2, 3], false);
+        done(&ask(&mut g, 8, 1, |r| r));
+        let again = ask(&mut g, 8, 2, |r| r);
+        assert_eq!(done(&again), (FinishReason::Length, 2, None, 7));
+        g.finish();
+    }
+
     /// As `engine.rs` (`stops.matched()`): a stop string over two tokens is reported, and the one that fired, not the first in the last token.
     #[test]
     fn the_stop_sequence_reported_is_the_one_that_fired() {
