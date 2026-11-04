@@ -27,7 +27,7 @@
 #           must be identical. The evidence that the normal path did not move.
 #   kill    #1. KILLS (default 20) times: fresh ranks, a temperature 0.7 reply of 800 tokens, SIGKILL rank 0 at a random time KILL_MIN..KILL_MAX s
 #           into it, at the default deadline (no INTARSIA_DSV41_RDMA_DEADLINE_S). Rank 1's exit code and seconds to exit, and which path took
-#           it out, in $OUT/kill.tsv. Expected: 87, under about 8 s (drain 2 s + abort limit 3 s + detection; the 35B took 7.2 to 7.8 s).
+#           it out, in $OUT/kill.tsv. Expected: 87 at about 7 s (drain 2 s + abort limit 3 s + detection), or 0 at 2 to 3 s when nothing was parked (2 of 20 on 2026-11-04).
 #           BASE_KILLS (default 2) the same on the baseline binary: expected 34 s or more, not 87.
 #   kill35  KILLS35 (default 4) kills of rank 0 of the Qwen3.6-35B at TP=2, temperature 0.7 (the 35B lane's numbers were greedy).
 #

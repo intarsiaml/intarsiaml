@@ -1,6 +1,6 @@
 # DSv4.1 TP=2: three failure paths (lane dsv41/failpaths, 2026-11-03)
 
-Branch `dsv41/failpaths` from origin/main `5786176be`, local only. **Nothing here has run on a GPU or a Spark.** The tests run the real `Worker` and `Dsv41Runtime` on the cpu backend on endor (macOS), with graphs from the Mia checkpoint's headers and no weights. `scripts/dsv41-tp2/failpaths-test.sh` is written and dry-run only.
+Branch `dsv41/failpaths` from origin/main `5786176be`, local only. The unit tests run the real `Worker` and `Dsv41Runtime` on the cpu backend on endor (macOS), with graphs from the Mia checkpoint's headers and no weights. The Spark run is in section 6: fleetq job #8376, 2026-11-04, binary `f4e6fed89` against baseline `03f8dc2a3`.
 
 | | Claim | Verdict | Fix |
 |---|---|---|---|
@@ -97,6 +97,29 @@ Each fix reverted on the final code (#8306): without the wait, 3 tests fail, one
 
 Last round (#8335, #8336), each fix reverted: warm-up panic route, closed-stderr log, watchdog before the bind, and the 87 at the end of a retry each fail their own test.
 
+## 6. Spark run (#8376, 2026-11-04 08:29 to 09:17 EST)
+
+Main at `03f8dc2a3` (PR 296) was merged first; fix binary `f4e6fed89` (the later commits change a test and docs only), baseline `intarsia.base` built from `03f8dc2a3`. Both at `INTARSIA_DSV41_CHUNK=512`. No KILLED line from the 5 GiB watcher; lowest MemAvailable 6.7 GiB on spark1, 6.5 GiB on spark2. Raw: `.scratch/failpaths-run1/` (not committed).
+
+| Case | Expected | Result | Verdict |
+|---|---|---|---|
+| near | 200, ranks up at cap-5 to cap-2 | All 7 requests HTTP 200, finish `length`, /health 200, both ranks up. **Baseline at cap-4: HTTP 500, /health 503, ranks exit 87 at 7.0 and 7.4 s** | Pass; defect 2 reproduced |
+| force | 500, 503, 87, 87 | 3 of 3. Rank 0 exits at 5.0 to 5.6 s, rank 1 at 10.0 to 10.7 s (from the request's start) | Pass |
+| ring | Fix's ids equal a cold run's | Fix: identical, reuse refused (cached 0). **Baseline: reuses 199 tokens and differs from the cold run at the first token (237 against 225)**: the wrong output of section 4, on real kernels | Pass; defect reproduced |
+| cancel | Up, 200, ids equal a cold run's | Retry after a mid-prefill cancel: cached 2048, identical to cold, /health 200, both ranks up | Pass |
+| supervised | 200, no restart | 65000-token prefill 88 s, 3500-token reply 97 s, both past the 60 s watchdog, HTTP 200, 0 restarts | Pass; the baseline control (`BASE_SUPERVISED`) was not run |
+| golden | Identical | 7 texts (greedy, 2 seeded at temperature 0.7, a 9000-word prefill) and 2 token-id runs (200 and 12000 tokens) identical, non-empty | Pass |
+| kill | 87, about 8 s | Fix, 20 kills at temperature 0.7: **18 exit 87 at 6.8 to 7.5 s, 2 exit 0 at 2.1 and 2.9 s**. Baseline: exit 0 at 183.3 and 182.7 s | Fix holds; defect 1 reproduced; see below |
+
+**Kill: 2 of 20 differ from the header's "87".** Those workers log `rank 0 disconnected` with no failure: the kill landed with nothing parked, the drain finished, and they exit 0. That is the rule #290 set ("a primary that left nothing stuck still gives exit 0", decision of 2026-11-03 17:45), and the GPU is free sooner. The script header's expectation was too narrow. A process manager that restarts rank 1 only on a non-zero exit would not restart it in those runs. The baseline holds the GPU for 183 s, about the 180 s ring deadline, and also exits 0.
+
+**Prefill cost of the device wait: none measurable.** 24000-token cold prompts, four alternating rank starts, 4 runs an arm: baseline mean 32.09 s (32.06 to 32.13), fix 32.10 s (32.08 to 32.16), +0.03 %, inside the spread. This includes the one message per chunk. The chunk comes from the environment on both; the response's `prefill_chunk` field is empty on this engine.
+
+**Interactions with PR 296.** Conflicts in `server/lib.rs`, `tests/api.rs` and `LOG.md`; all kept.
+- Watchdog: main's `wants_watchdog` decides whether it starts and this branch keeps it before the bind, so `exit_on_failed` covers the retry too.
+- Sticky faults: `fatal()` and `is_sticky_fault` are in `LocalEngine`; `Dsv41Engine` has its own `group_failed` and does not call them. At world 1 a `Backend` error on DSv4.1 still does not fail the engine. No conflict, but the two rules differ.
+- Vocabulary: main refuses out-of-range ids in `LocalEngine::submit`, which DSv4.1 does not use. With this branch such an id past the send would fail the group, so `generate` now refuses it first. Tested with the recorder, not on a Spark.
+
 ## Tests
 
 `crates/intarsia-models/src/dsv41_engine.rs`, `mod failpath_tests`, 30 tests after the third review (section 5), no GPU: a real `Worker` and `Dsv41Runtime` facing a real `RemotePeer` and `tp_remote::serve`, whose far end records what it was told. The fake backend adds a failing `alloc` and a parked stream 0. Rank 1's exit runs in a child process through the real `serve_group`. Each row reverts one fix on the final code, with the tests in place (job #8290; `INTARSIA_TP_REMOTE_TIMEOUT_S=3`, because the old `settle` waits for a reply).
@@ -113,7 +136,7 @@ The section 4 fixes were reverted the same way, one at a time, in jobs #8277 and
 
 The tests no row names pin what must not change. The one exception to "the test catches the defect end to end": the near-cap test checks what rank 1 is told, not an actual exit 87, because the far end is a recorder. The refusal itself is pinned by `next_rows_drafts_exactly_where_the_block_fits...`, and the exit is what the Spark case `near` shows.
 
-`cargo test --workspace --no-fail-fast`: 1271 passed, 0 failed, 29 ignored (#8337, exit 0, at `07f23e1ec`). Earlier: #8266 failed on this lane's own missing `docs/tuning.md` rows, fixed; #8308 was stopped by fleetq (exit -15) and gives no result.
+`cargo test --workspace --no-fail-fast`: 1291 passed, 0 failed, 29 ignored (#8374, exit 0, at `2f533701e`, after merging main). Earlier: #8368 did not compile (the merge dropped a closing brace in `tests/api.rs`, fixed); #8266 failed on this lane's own missing `docs/tuning.md` rows, fixed; #8308 was stopped by fleetq (exit -15) and gives no result.
 
 ## The normal path
 
@@ -141,21 +164,16 @@ This is control flow, and those tests stop before any kernel runs: **no bitwise 
 
 `build.sh` supports `BIN_NAME` and its `--delete` only touches `src/`; `run-full.sh` restores vLLM from an EXIT trap, so an `exit 1` here still restores it (both by reading).
 
-Checked: `bash -n`, the printed commands, `--dry-run` (all cases through a stubbed ssh and curl, with `bash -n` on every remote command it produced, and an assertion that the forced fault stays in case `force`), and `fleetq when` accepting the job's flags (estimated start Wed 07:05). **It has never run on a Spark**, so its timings (about 4.5 min a run, `--expect 195`) are guesses, and at that length it cannot fit before vLLM is due back on a morning that needs it.
+Before the first real run, checked: `bash -n`, the printed commands, `--dry-run` (all cases through a stubbed ssh and curl, with `bash -n` on every remote command it produced, and an assertion that the forced fault stays in case `force`), and `fleetq when` accepting the job's flags (estimated start Wed 07:05). It has now run (section 6): about 40 s a rank start, not the guessed 4.5 min.
 
 ## Not checked
 
-Only Sparks can show:
-
-- Rank 1's real exit code and time on a parked CUDA stream: that `cudaStreamSynchronize` blocks rather than erroring, with NCCL and with the RDMA ring, and how often the watch gets there first.
-- Numerics of the fix against main (`golden`).
-- A real near-cap request end to end, including the plain pass's numbers at the last positions.
-- The forced rank-0 failure end to end, and how rank 1 leaves when its parked collectives never pair. The wrong sums and the hang of section 3 are inference; the fix is meant to make them unreachable, and no run has shown them happening.
-- Whether a real `cudaMalloc` failure on rank 0 arrives as `Error::Memory` under memory pressure, rather than the watcher or earlyoom killing the rank first. The injection is one level above `grow_scratch`.
-- The chained-cut fix on the real kernels and rings, and whether the old binary really gives different ids there (Spark case `ring`; the reference kernels show it).
-- A supervised 65k-token prefill and a long reply against the real watchdog (case `supervised`; memory at that capacity is not measured).
-- Prefill speed with one message per chunk and a device wait per 4096 rows.
-- That collectives pair after a mid-prefill cancel (case `cancel`), and rank 1's exit after an engine panic.
-- The tests on Linux. They ran on macOS, where `watch_peer` is compiled out, so the watch thread never ran beside these tests.
+- The supervised case's control: the baseline against the same 65000-token prefill.
+- `kill35`: not in this run.
+- A real `cudaMalloc` failure on rank 0. The force case injects one level above `grow_scratch`.
+- Rank 1's exit after an engine panic, on a GPU.
+- `ring_high` not counting draft-block writes (section 5): recorded, not tested.
+- Finding 7, lane scratch overlap (section 4): open, only reachable on another architecture.
+- Bitwise numerics beyond golden's 9 outputs, and any chunk other than 512.
 
 Also not done: no 35B change, and PR #293's files were left alone (`engine.rs`, `model.rs`, `tp_hybrid.rs` untouched here).
