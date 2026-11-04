@@ -340,3 +340,37 @@ fn every_replay_step_resolves_to_a_cuda_kernel() {
     assert!(steps > 1000, "{steps}");
     assert!(missing.is_empty(), "steps without a CUDA kernel:\n{}", missing.iter().map(|(k, v)| format!("  {k}: {v}")).collect::<Vec<_>>().join("\n"));
 }
+
+/// `scripts/dsv41-tp2/replay-test.sh` step 3 compares position dumps of these steps (`GATE_WHAT`, a substring filter of the dump
+/// hook): every name must select a step of the right graph part whose output has one row per input row (the hook only dumps
+/// outputs whose first dimension is the chunk's row count), and no other layer's step may match by accident. A rename in
+/// `graph.rs` breaks this test, not the first GPU window.
+#[test]
+fn the_gate_script_names_steps_that_exist() {
+    let script = include_str!("../../../scripts/dsv41-tp2/replay-test.sh");
+    let line = script.lines().find(|l| l.starts_with("GATE_WHAT=")).expect("GATE_WHAT in the script");
+    let what: Vec<&str> = line.trim_start_matches("GATE_WHAT=").trim_matches('\'').split(',').collect();
+    assert_eq!(what.len(), 8, "{what:?}");
+    let (c, w) = mia();
+    let (t, pos0, floor) = (512usize, 1024usize, 1072usize);
+    let enc = enc(&c, &w, t, pos0, floor, 1);
+    let dec = dec(&c, &w, 118, floor, floor, 394, 1, PLAIN);
+    let whole = build_pass(&c, &w, opts(t, 0), tp(1), PLAIN).unwrap();
+    let hits = |g: &Dsv41Graph, pat: &str| -> Vec<(String, Vec<usize>)> {
+        g.stages.iter().flat_map(|s| s.steps.iter()).filter(|s| s.what.contains(pat)).map(|s| (s.what.clone(), s.outputs.iter().map(|o| o.shape[0]).collect())).collect()
+    };
+    for pat in &what {
+        let in_enc = hits(&enc, pat);
+        let in_dec = hits(&dec, pat);
+        let in_whole = hits(&whole, pat);
+        if pat.starts_with("layers.39.") {
+            assert!(in_enc.is_empty() && in_dec.len() == 1 && in_whole.len() == 1, "{pat}: enc {in_enc:?} dec {in_dec:?}");
+            assert_eq!(in_dec[0].1, [118], "{pat}: the output must have one row per row of the decoder part");
+        } else {
+            assert_eq!(in_enc.len(), 1, "{pat}: {in_enc:?} (each name must select exactly one step of the encoder part)");
+            assert_eq!(in_whole.len(), 1, "{pat}: {in_whole:?}");
+            assert!(in_enc[0].1.iter().all(|&r| r == t), "{pat}: output rows {:?} are not the chunk's {t} rows, the dump hook would skip it", in_enc[0].1);
+            assert!(in_dec.is_empty(), "{pat}: the decoder part must not repeat it: {in_dec:?}");
+        }
+    }
+}

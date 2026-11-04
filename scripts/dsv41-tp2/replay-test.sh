@@ -1,19 +1,33 @@
 #!/bin/bash
 # Lane dsv41/replay: tests of the opt-in bounded-replay prefill (INTARSIA_DSV41_REPLAY=1: layers 20-39 run only on the last 128
-# prompt rows, layers 0-19 and layer 20's kv-source update on all rows; default off). It changes numerics, so five steps measure
-# speed and quality, each stopping the run at the first failure:
-#   1  off vs on, prompts of at most 128 tokens (no cut): greedy ids must be identical
-#   2  golden ids (tools/prompts/golden*.jsonl, 10 x 64): this branch with replay off vs the binary of origin/main 7eeb23f2f: 640/640
-#   3  ABAB prefill timing (off, on, off, on) at 4K and 32K tokens, chunk 512 and 2048, localeval speed; a table, no threshold
-#   4  greedy agreement of on (and off, for reference) with TensorFold's token ids on the golden prompts
-#   5  paired localeval quality off vs on on the frozen chunk32k-2 set (150 items at 31K + 30 at 64K), split by fact position
+# prompt rows, layers 0-19 and layer 20's kv-source update on all rows; default off). It changes numerics, so six steps check
+# the path and then measure speed and quality. Each stops the run at the first failure; each step's PASS criterion is stated
+# here and enforced by an exit status (replay-test-lib.py, whose criteria replay-test-lib-selftest.py tests on synthetic data):
+#   1  off vs on, prompts of at most 128 tokens (no cut): greedy ids identical (also: every prompt really is <= 128 ids)
+#   2  golden ids (tools/prompts/golden*.jsonl, 10 x 64): this branch with replay off vs the binary of origin/main 7eeb23f2f:
+#      640 of 640 identical
+#   3  GATE, encoder half bit-identical: off and on serve the same request sequence (replay-prompts-gate.jsonl: an encoder-only
+#      chunk and a crossing chunk, a crossing chunk then a whole chunk under the floor, a resumed prefill) with the position
+#      dump (INTARSIA_DSV41_DUMP) on layer 0 / 9 / 19 outputs and layer 20's kv-source steps: all dumps byte-identical on both
+#      ranks; and layer 39 absent below the floors, present above, different at the first replayed rows (replay really on)
+#   4  ABAB prefill timing (off, on, off, on) at 4K and 32K tokens, chunk 512 and 2048, localeval speed: no errors, on/off prefill
+#      time at most 1.05 in every cell (a replay that is slower than off is broken)
+#   5  agreement: (a) on vs TensorFold's ids on the golden prompts, where the replay is active (prompts of more than 128 ids): not
+#      worse than off by more than 8 of 64 tokens per prompt, prompts of <= 128 ids identical off vs on; (b) on vs off over 160
+#      decode tokens of three long prompts (the decode window ring): same lengths, at least 30 % equal positions (a tripwire
+#      against garbage, nothing finer)
+#   6  paired localeval quality off vs on on the frozen chunk32k-2 set (150 items at 31K + 30 at 64K): at least 90 % of the items
+#      scored in both arms; on not worse than off by 0.10 or more, nor by more than 0.05 with McNemar p < 0.05. No oracle exists
+#      (off and on differ by design), the items depend on compressed KV rather than the recent window, so this step detects a
+#      large loss only; see docs/results/2026-11-03-dsv41-replay.md
 # Run it by name; it queues itself as ONE fleetq job over both Sparks (rank 0 spark1 `serve --tp-remote`, rank 1 spark2
 # `tp-worker`, the script starts both over ssh, as run-full.sh does; so no `--each`), takes the two vLLM containers down and
 # ALWAYS brings them back (EXIT trap). The Sparks are shared: queue it, do not run its inner part by hand.
-#   scripts/dsv41-tp2/replay-test.sh [--dry-run] [--steps 1,3]
+#   scripts/dsv41-tp2/replay-test.sh [--dry-run] [--steps 1,3]      (steps 1 to 6; default all)
 # Knobs (environment): SPARK_DIR (default ~/intarsia-dsv41-replay on the Sparks), NO_BUILD=1 (binaries already in place),
 #   CAP (66000), Q_SHARDS (frozen shards to run, default all 9 = 180 items; e.g. "s32-00 s65-00" for a pilot), Q_CHUNK (512),
 #   Q_TOKENS (400, max_tokens of the quality replies), S3_CHUNKS ("512 2048"), S3_SIZES (4096,32768), S3_REPS (2), KILL_GIB (5),
+#   GATE_CHUNKS ("512 2048"; step 3), ALIVE_TRIES (4 ssh tries before a rank counts as unreachable),
 #   EARLYOOM_OK ("3,2 2,1"), STOP_EPOCH (unix time after which step 5 starts no new shard), XENV (extra engine env, both ranks),
 #   RAW (results folder), TF_IDS (TensorFold token file for step 4), MAIN_WT (checkout of origin/main 7eeb23f2f, built for step 2).
 # Inner mode (REPLAY_TEST_INNER=1 plus FLEETQ_JOB) is what the fleetq job runs; set both only when you hold a slot yourself
@@ -38,8 +52,13 @@ CAP=${CAP:-66000}                      # 32K prompts at step 3 and 64K items at 
 TOK=${TOKENIZER:-/opt/code/intarsiaml/.worktrees/dsv41-official/mia/tokenizer.json}
 MAIN_REF=7eeb23f2f; MAIN_WT=${MAIN_WT:-$(dirname "$REPO")/dsv41-replay-main}
 RESDIR=${RESDIR:-$REPO/docs/results/2026-11-03-dsv41-replay}; RAW=${RAW:-$RESDIR/raw}
-# TensorFold's greedy ids for the golden prompt set (step 4). The record docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt
+# TensorFold's greedy ids for the golden prompt set (step 5). The record docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt
 # holds only the summary table and snippets, not the ids; the ids it was computed from are this file (docs/results/2026-11-01-dsv41-tp2.md).
+# They come from TensorFold's served lane (run-golden.sh: start.sh, 2048-row chunks, replay = prompt length - window always on) with
+# TF_DS_REPLAY_FLOOR unset (nothing sets it; model.zig:151 defaults it off). That flag only matters for chunks of at most 16 rows
+# (prompt.zig ring_extra) whose window reaches below the floor; the prompts here are single chunks of 300 and 700 rows (gather path,
+# floor honoured either way), the others are at most 99 ids (no cut), and decode rows never reach below the floor. So the ids are
+# the masked-floor semantics ours implements, and the comparison is meaningful for long_prose_300 / long_prose_700 only.
 TF_IDS=${TF_IDS:-/opt/code/intarsiaml/.worktrees/dsv41-golden-tf/tok-tensorfold-mia.st}
 # frozen question set of dsv41/chunk32k-2 (shards are gitignored there: referenced by path, checked by sha256)
 C32=${C32:-/opt/code/intarsiaml/.worktrees/chunk32k-2}
@@ -47,6 +66,14 @@ Q2RAW=$C32/docs/results/2026-11-04-dsv41-chunk32k-quality-2/raw; QDIR=${QDIR:-$C
 Q_SHARDS=${Q_SHARDS:-s32-00 s65-00 s32-01 s65-01 s32-02 s65-02 s32-03 s32-04 s32-05}
 Q_CHUNK=${Q_CHUNK:-512}; Q_TOKENS=${Q_TOKENS:-400}
 S3_CHUNKS=${S3_CHUNKS:-512 2048}; S3_SIZES=${S3_SIZES:-4096,32768}; S3_REPS=${S3_REPS:-2}
+GATE_CHUNKS=${GATE_CHUNKS:-512 2048}
+# step 3 dump selection: positions that fall in the encoder-only, crossing and whole chunks of the gate prompts (floors 1072 for
+# the 1200-token prompt, 1372 for the 1500-token one, 484 for the 612-token one), and the steps compared. A name filter is a
+# substring match: layers.0. / layers.9. / layers.19. do not match each other; layer 20's rope / act_quant of the kv source are
+# the encoder part's last steps (ratio 1: one compressed row per input row, so the hook selects them); layer 39 shows the decoder half.
+GATE_POS=5,300,483,484,511,512,600,700,1000,1071,1072,1100,1199,1200,1300,1371,1372,1373,1450,1499
+GATE_WHAT='layers.0.hc_post(ffn),layers.9.hc_post(ffn),layers.19.hc_post(ffn),layers.20.attn.rope(index_k),layers.20.attn.rope(latent),layers.20.attn.act_quant(index_k),layers.20.attn.act_quant(latent),layers.39.hc_post(ffn)'
+GATE_ARGS=(--min-files 100 --absent 300,700,1000 --present 1100,1199,1450,1499 --differ 1372,1373)
 
 # ---- the plan: minutes per piece (guesses, high on purpose; measured: load 31 s, 32K item ~54 s, shard of 25 items 22 min)
 BUILD_MAIN_MIN=30; BUILD_BR_MIN=25; DOWN_MIN=3; RESTORE_MIN=12
@@ -56,18 +83,20 @@ est() {
   case $n in
     1) echo 8 ;;
     2) echo 10 ;;
-    3) c=0; for _ in $S3_CHUNKS; do c=$((c + 1)); done; echo $((c * 4 * 6)) ;;     # 4 configs a chunk x (start 2 + 4K 0.5 + 32K 3 + slack)
-    4) echo 8 ;;
-    5) for sh in $Q_SHARDS; do t=$((t + $(est_shard "$sh"))); done; echo $((t + 3)) ;;
+    3) c=0; for _ in $GATE_CHUNKS; do c=$((c + 1)); done; echo $((c * 2 * 8 + 2)) ;;   # a chunk: 2 starts x (start 5 + 3 prompts 1 + copy 1 + slack 1)
+    4) c=0; for _ in $S3_CHUNKS; do c=$((c + 1)); done; echo $((c * 4 * 6)) ;;     # 4 configs a chunk x (start 2 + 4K 0.5 + 32K 3 + slack)
+    5) echo 30 ;;                                                                  # 2 starts x (start 5 + 10 golden x 64 tokens 5 + 3 long decodes 4 + slack)
+    6) for sh in $Q_SHARDS; do t=$((t + $(est_shard "$sh"))); done; echo $((t + 3)) ;;
   esac
 }
 name_of() {
   case $1 in
     1) echo "off vs on, prompts <= 128 tokens: identical ids" ;;
     2) echo "golden ids, off vs main binary $MAIN_REF: 640/640" ;;
-    3) echo "ABAB prefill timing 4K/32K, chunk 512/2048 (localeval speed)" ;;
-    4) echo "greedy agreement with TensorFold ids (golden prompts)" ;;
-    5) echo "paired localeval quality off vs on (frozen chunk32k-2 set)" ;;
+    3) echo "GATE: encoder half (layers 0-19, layer 20 kv source) bit-identical off vs on; decoder half skipped below the floor" ;;
+    4) echo "ABAB prefill timing 4K/32K, chunk 512/2048 (localeval speed), on/off <= 1.05" ;;
+    5) echo "agreement: on vs TensorFold ids (golden prompts) and on vs off over 160 decode tokens" ;;
+    6) echo "paired localeval quality off vs on (frozen chunk32k-2 set): no large loss" ;;
   esac
 }
 fmt() { printf '%dh%02dm' $(($1 / 60)) $(($1 % 60)); }
@@ -89,24 +118,40 @@ EOF
 EOF
     ;;
     3) cat <<EOF
-     for chunk in $S3_CHUNKS; for pass in 1 2; for mode in off on   (= off, on, off, on):  restart ranks, INTARSIA_DSV41_CHUNK=\$chunk
-       cd /opt/code/deepeval && uv run localeval speed --sizes $S3_SIZES --gen 8 --reps $S3_REPS --label dsv41replay-speed-c\$chunk-\$mode\$pass \\
-         --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "<stamp, chunk, mode>"     (inside our fleetq slot: FLEETQ_JOB is set)
-     replay-test-lib.py speedtab raw/step3/speed-table.md <cells>      (prefill seconds = TTFT median per cell, on/off ratio)
+     PASS when: every encoder-half dump (layers 0 / 9 / 19 outputs, layer 20 rope + act_quant of the kv source) is byte-identical off vs on
+       on both ranks (>= 100 dumps), the on run has no layer-39 dump at positions below every floor (300 700 1000), both runs have it
+       above (1100 1199 1450 1499), and layer 39 differs off vs on at the first replayed rows (1372 1373).
+     for chunk in $GATE_CHUNKS; for mode in off on: restart both ranks (INTARSIA_DSV41_REPLAY=1 for on) with
+       INTARSIA_DSV41_DUMP=\$SPARK_DIR/dump/g\$chunk-\$mode INTARSIA_DSV41_DUMP_POS=$GATE_POS INTARSIA_DSV41_DUMP_WHAT=<8 step names>
+       python tools/dsv41/golden_tf.py tokens ... --prompts scripts/dsv41-tp2/replay-prompts-gate.jsonl     (in this order, one sequence:
+         g_A_1200 cold: chunk 512 = encoder, encoder, crossing; g_C_1500 extends it: resumed prefill, crossing; g_B_612 (code corpus):
+         chunk 512 = crossing then a whole chunk under the floor)
+       copy the dump folders of both ranks back; replay-test-lib.py gatecmp off on ${GATE_ARGS[*]}
 EOF
     ;;
     4) cat <<EOF
-     TensorFold ids: $TF_IDS (sha256 logged; if missing: "SKIPPED: record lacks ..." and the step passes)
-     off ids: raw/step2/tok-off.st when step 2 produced them, else one more start; on ids: a start with INTARSIA_DSV41_REPLAY=1
-     replay-test-lib.py tokcmp tok-tensorfold.st tok-{off,on}.st     (leading match and equal positions per prompt)
+     PASS when: no localeval error, and the mean on/off prefill time (TTFT median of the two passes) is at most 1.05 for every chunk and size.
+     for chunk in $S3_CHUNKS; for pass in 1 2; for mode in off on   (= off, on, off, on):  restart ranks, INTARSIA_DSV41_CHUNK=\$chunk
+       cd /opt/code/deepeval && uv run localeval speed --sizes $S3_SIZES --gen 8 --reps $S3_REPS --label dsv41replay-speed-c\$chunk-\$mode\$pass \\
+         --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "<stamp, chunk, mode>"     (inside our fleetq slot: FLEETQ_JOB is set)
+     replay-test-lib.py speedtab raw/step4/speed-table.md --max-ratio 1.05 --expect-cells <4 x chunks> <cells>
 EOF
     ;;
     5) cat <<EOF
+     PASS when: (a) on vs TensorFold (on the prompts of more than 128 ids, i.e. long_prose_300 / _700): on's equal positions are not below
+       off's minus 8 of 64, prompts of <= 128 ids identical off vs on (TF ids: $TF_IDS; sha256 logged; if missing (a) prints SKIPPED);
+       (b) on vs off over 160 decode tokens of d_1200, d_4106 (extends d_1200: resumed prefill), d_612: same lengths, >= 30 % equal positions.
+     for mode in off on: restart ranks (chunk 512); golden_tf.py tokens --prompts golden.jsonl golden_long.jsonl replay-prompts-decode.jsonl
+     replay-test-lib.py tfagree TF.st tok-off.st tok-on.st ; replay-test-lib.py tokcmp tok-off.st tok-on.st --prefix d_ --min-equal-pct 30 --same-lengths
+EOF
+    ;;
+    6) cat <<EOF
+     PASS when: >= 90 % of the items scored in both arms, on not worse than off by 0.10 or more, nor by > 0.05 with McNemar exact p < 0.05.
      shards ($Q_SHARDS) of $QDIR/final.<shard>.jsonl, sha256-checked against $Q2RAW/items.sha256.json
      for shard: for arm in off on: restart ranks (chunk $Q_CHUNK), then
        cd /opt/code/deepeval && uv run localeval quality --dataset final.<shard>.jsonl --judge none --max-tokens $Q_TOKENS \\
          --label dsv41replay-<arm>-<shard> --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "..."
-     replay-test-lib.py quality $Q2RAW/items.manifest.json raw/step5/pairs.txt raw/step5/quality.md
+     replay-test-lib.py quality $Q2RAW/items.manifest.json raw/step6/pairs.txt raw/step6/quality.md --expect-items <90 % of the shard items>
        (accuracy overall and by earliest / latest fact depth and fact count, discordant counts, McNemar exact p)
 EOF
     ;;
@@ -114,7 +159,7 @@ EOF
 }
 
 # ---- arguments
-DRY=0; STEPS_ARG="1,2,3,4,5"; PASS=()
+DRY=0; STEPS_ARG="1,2,3,4,5,6"; PASS=()
 while [[ $# -gt 0 ]]; do
   case $1 in
     --dry-run) DRY=1; shift ;;
@@ -124,7 +169,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 SELECTED=${STEPS_ARG//,/ }
-for n in $SELECTED; do case $n in [1-5]) ;; *) echo "--steps: '$n' is not a step (1..5)"; exit 2 ;; esac; done
+for n in $SELECTED; do case $n in [1-6]) ;; *) echo "--steps: '$n' is not a step (1..6)"; exit 2 ;; esac; done
 has() { [[ " $SELECTED " == *" $1 "* ]]; }
 
 PLAN_MIN=0; BUILD_MIN=0
@@ -158,7 +203,8 @@ if [[ $DRY == 1 ]]; then
   echo
   echo "PLANNED DURATION: ${PLAN_MIN} min ($(fmt "$PLAN_MIN")); fleetq --expect ${EXPECT} (planned + 10 %)"
   for sh in $Q_SHARDS; do ls "$QDIR/final.$sh.jsonl" >/dev/null 2>&1 || echo "NOTE: frozen shard $QDIR/final.$sh.jsonl is missing: step 5 would fail"; done
-  [[ -f $TF_IDS ]] || echo "NOTE: $TF_IDS missing: step 4 would print SKIPPED"
+  [[ -f $TF_IDS ]] || echo "NOTE: $TF_IDS missing: step 5 (a) would print SKIPPED"
+  for f in replay-prompts-gate.jsonl replay-prompts-decode.jsonl; do [[ -f $S/$f ]] || echo "NOTE: $S/$f is missing: steps 3 and 5 would fail"; done
   echo
   echo "fleetq command:"
   printf '  '
@@ -288,6 +334,10 @@ preflight() {
     r $h "grep -qa INTARSIA_DSV41_REPLAY $BIN_BR" || { log "$BIN_BR on $h does not contain INTARSIA_DSV41_REPLAY: built from a tree without the replay feature"; return 1; }
   done
   r spark1 "test -f $C0/manifest.json" && r spark2 "test -f $C1/manifest.json" || { log "rank cache missing"; return 1; }
+  # the replay (cut at layer 20, decoder half = layers 20-39) is refused on a truncated or layer-range model: the caches must be whole
+  local mchk="import json,os,sys; m=json.load(open(os.path.expandvars(sys.argv[1]))); sys.exit(0 if m.get('layers') is None and not m.get('first_layer') and m.get('world') == 2 else 1)"
+  r spark1 "python3 -c \"$mchk\" $C0/manifest.json" && r spark2 "python3 -c \"$mchk\" $C1/manifest.json" || { log "a rank cache manifest has layers / first_layer set or world != 2: the replay would refuse it"; return 1; }
+  [[ -f $S/replay-prompts-gate.jsonl && -f $S/replay-prompts-decode.jsonl ]] || { log "replay-prompts-{gate,decode}.jsonl missing in $S"; return 1; }
   [[ "$(r spark1 "cat $SPARK_DIR/bin/STAMP")" == "$(r spark2 "cat $SPARK_DIR/bin/STAMP")" ]] || { log "binary stamps differ"; return 1; }
   STAMP=$(r spark1 "cat $SPARK_DIR/bin/STAMP"); log "binary $STAMP; out $RAW"
   LE_RECIPE="intarsia $STAMP scripts/dsv41-tp2/replay-test.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap $CAP, engram hot ${HOT_MB:-1024} MiB"
@@ -317,7 +367,7 @@ vllm_down() {
 # first (env -u) so an inherited value never leaks into off/main, and set to 1 for on.
 start_ranks() {
   local bin=$1 chunk=$2 mode=$3 renv t0 up=0
-  renv="INTARSIA_TP_SPIN_MS=${TP_SPIN_MS:-100} INTARSIA_DSV41_CAP=$CAP INTARSIA_DSV41_CHUNK=$chunk INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-}"
+  renv="INTARSIA_TP_SPIN_MS=${TP_SPIN_MS:-100} INTARSIA_DSV41_CAP=$CAP INTARSIA_DSV41_CHUNK=$chunk INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-} ${SRV_ENV:-}"
   [[ $mode == on ]] && renv="$renv INTARSIA_DSV41_REPLAY=1"
   TAG=$(date +%H%M%S)
   r spark2 "mkdir -p $LOGD; nohup env -u INTARSIA_DSV41_REPLAY $NCCLENV $renv $bin tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2 > $LOGD/worker-$TAG.log 2>&1 < /dev/null &"
@@ -379,50 +429,81 @@ step2() {
   [[ $rc == 0 ]] || { fail "golden ids of this branch (replay off) are not 640/640 identical to the main binary: $d/compare.txt"; return 1; }
 }
 
+# ---- step 3: the gate. serve_cfg runs its command with the ranks up and SRV_ENV (dump settings) in the engine's environment.
+gate_dump_dir() { echo "$SPARK_DIR/dump/g$1-$2"; }   # CHUNK MODE; the same relative path on both Sparks
+step3() {
+  local d=$RAW/step3 chunk mode h rc=0; mkdir -p "$d"
+  for chunk in $GATE_CHUNKS; do
+    for mode in off on; do
+      for h in spark1 spark2; do r $h "rm -rf $(gate_dump_dir "$chunk" "$mode")"; done
+      SRV_ENV="INTARSIA_DSV41_DUMP=$(gate_dump_dir "$chunk" "$mode") INTARSIA_DSV41_DUMP_POS=$GATE_POS INTARSIA_DSV41_DUMP_WHAT='$GATE_WHAT'"
+      serve_cfg "s3-c$chunk-$mode" "$BIN_BR" "$chunk" $mode gold "$d/tok-c$chunk-$mode.st" "step3 gate chunk $chunk replay=$mode" \
+        --prompts "$S/replay-prompts-gate.jsonl" || { SRV_ENV=""; fail "gate requests for chunk $chunk replay=$mode failed (${FAIL_WHY:-see $d})"; return 1; }
+      SRV_ENV=""
+      for h in spark1 spark2; do
+        scp -rq "$h:$SPARK_REL/dump/g$chunk-$mode" "$d/$h-c$chunk-$mode" 2>/dev/null || { fail "could not copy the dumps of $h (chunk $chunk, $mode)"; return 1; }
+      done
+    done
+    for h in spark1 spark2; do
+      log "gate, chunk $chunk, $h: encoder half off vs on"
+      lib gatecmp "$d/$h-c$chunk-off" "$d/$h-c$chunk-on" "${GATE_ARGS[@]}" > "$d/gate-c$chunk-$h.txt" 2>&1; rc=$?
+      tee -a "$LOG" < "$d/gate-c$chunk-$h.txt"
+      [[ $rc == 0 ]] || { fail "gate failed on $h at chunk $chunk: $d/gate-c$chunk-$h.txt"; return 1; }
+    done
+  done
+}
+
 speed_cell() { # CHUNK MODE PASS
-  local d=$RAW/step3 label="dsv41replay-speed-c$1-$2$3" res
+  local d=$RAW/step4 label="dsv41replay-speed-c$1-$2$3" res
   BG_TAIL=25 bgrun 1500 "$d/le-$label.log" le speed --sizes "$S3_SIZES" --gen 8 --reps "$S3_REPS" --label "$label" || return 1
   res=$(result_of "$d/le-$label.log"); [[ -f $res ]] || { fail "no result.json in $d/le-$label.log"; return 1; }
   cp "$res" "$d/result-c$1-$2$3.json"; echo "$1:$2:$3:$d/result-c$1-$2$3.json" >> "$d/cells.txt"
 }
-step3() {
-  local d=$RAW/step3 chunk pass mode; mkdir -p "$d"; : > "$d/cells.txt"
+step4() {
+  local d=$RAW/step4 chunk pass mode n=0 rc; mkdir -p "$d"; : > "$d/cells.txt"
   for chunk in $S3_CHUNKS; do
     for pass in 1 2; do for mode in off on; do   # ABAB: off, on, off, on
-      serve_cfg "s3-c$chunk-$mode$pass" "$BIN_BR" "$chunk" $mode speed_cell "$chunk" $mode $pass || { fail "speed cell chunk $chunk $mode pass $pass failed (${FAIL_WHY:-see $d})"; return 1; }
+      serve_cfg "s4-c$chunk-$mode$pass" "$BIN_BR" "$chunk" $mode speed_cell "$chunk" $mode $pass || { fail "speed cell chunk $chunk $mode pass $pass failed (${FAIL_WHY:-see $d})"; return 1; }
+      n=$((n + 1))
     done; done
   done
-  lib speedtab "$d/speed-table.md" $(cat "$d/cells.txt") | tee -a "$LOG"
+  lib speedtab "$d/speed-table.md" --max-ratio 1.05 --expect-cells "$n" $(cat "$d/cells.txt") | tee -a "$LOG"; rc=${PIPESTATUS[0]}
+  [[ $rc == 0 ]] || fail "timing criterion failed (on/off prefill time above 1.05 or a cell with errors): $d/speed-table.md"
 }
 
-step4() {
-  local d=$RAW/step4 mode; mkdir -p "$d"
+step5() {
+  local d=$RAW/step5 mode rc=0; mkdir -p "$d"
+  for mode in off on; do
+    serve_cfg "s5-$mode" "$BIN_BR" 512 $mode gold "$d/tok-$mode.st" "step5 replay=$mode" \
+      --prompts "$REPO/tools/prompts/golden.jsonl" "$REPO/tools/prompts/golden_long.jsonl" "$S/replay-prompts-decode.jsonl" || { fail "ids for replay=$mode failed (${FAIL_WHY:-see $d})"; return 1; }
+  done
+  # (b) the decode window ring: 160 decode tokens after prompts above the floor, on vs off (a tripwire against garbage: 30 % equal positions)
+  lib tokcmp "$d/tok-off.st" "$d/tok-on.st" --name-a off --name-b on --prefix d_ --min-equal-pct 30 --same-lengths > "$d/compare-decode.txt" 2>&1; rc=$?
+  tee -a "$LOG" < "$d/compare-decode.txt"
+  [[ $rc == 0 ]] || { fail "on vs off over 160 decode tokens: $d/compare-decode.txt"; return 1; }
+  # (a) TensorFold's ids (served lane, replay always on, TF_DS_REPLAY_FLOOR unset: see the comment at TF_IDS)
   if [[ ! -f $TF_IDS ]]; then
-    log "SKIPPED: record lacks TensorFold token ids (docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt has the summary only, and $TF_IDS is not there)"
-    STEP_NOTE="SKIPPED"; return 0
+    log "(a) SKIPPED: TensorFold's ids are not at $TF_IDS (docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt has the summary only)"
+    STEP_NOTE="(a) SKIPPED, (b) passed"; return 0
   fi
   lib sha256 "$TF_IDS" | tee -a "$LOG"
-  if [[ -f $RAW/step2/tok-off.st ]]; then cp "$RAW/step2/tok-off.st" "$d/tok-off.st"; log "off ids: reused from step 2"; else
-    serve_cfg s4-off "$BIN_BR" 512 off gold "$d/tok-off.st" "step4 replay=off" || { fail "ids for replay=off failed (${FAIL_WHY:-see $d})"; return 1; }
-  fi
-  serve_cfg s4-on "$BIN_BR" 512 on gold "$d/tok-on.st" "step4 replay=on" || { fail "ids for replay=on failed (${FAIL_WHY:-see $d})"; return 1; }
-  for mode in off on; do
-    log "TensorFold vs $mode (leading = tokens before the first difference, equal = equal positions):"
-    lib tokcmp "$TF_IDS" "$d/tok-$mode.st" --name-a TF --name-b $mode > "$d/compare-tf-$mode.txt" 2>&1 || { fail "tokcmp TF vs $mode failed: $d/compare-tf-$mode.txt"; return 1; }
-    tee -a "$LOG" < "$d/compare-tf-$mode.txt"
-  done
-  log "reference: docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt, TF vs an earlier intarsia golden: leading 335/640, positionwise 398/640"
-  lib tokcmp "$d/tok-off.st" "$d/tok-on.st" --name-a off --name-b on | tee "$d/compare-off-on.txt" | tail -4 | tee -a "$LOG"
+  lib tokcmp "$TF_IDS" "$d/tok-off.st" --name-a TF --name-b off --common > "$d/compare-tf-off.txt" 2>&1
+  lib tokcmp "$TF_IDS" "$d/tok-on.st" --name-a TF --name-b on --common > "$d/compare-tf-on.txt" 2>&1
+  tail -n 14 "$d/compare-tf-off.txt" "$d/compare-tf-on.txt" | tee -a "$LOG"
+  lib tfagree "$TF_IDS" "$d/tok-off.st" "$d/tok-on.st" > "$d/tfagree.txt" 2>&1; rc=$?
+  tee -a "$LOG" < "$d/tfagree.txt"
+  log "reference: docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt, TF vs an earlier intarsia golden: leading 335/640, positionwise 398/640 (the 8 prompts of <= 99 ids already diverge there, with no cut)"
+  [[ $rc == 0 ]] || { fail "on is worse than off against TensorFold's ids, or off != on on a short prompt: $d/tfagree.txt"; return 1; }
 }
 
 q_arm() { # SHARD ARM
-  local d=$RAW/step5 label="dsv41replay-$2-$1" res
+  local d=$RAW/step6 label="dsv41replay-$2-$1" res
   BG_TAIL=15 bgrun $((90 * 60)) "$d/le-$label.log" le quality --dataset "$QDIR/final.$1.jsonl" --judge none --max-tokens "$Q_TOKENS" --label "$label" || return 1
   res=$(result_of "$d/le-$label.log"); [[ -f $res ]] || { fail "no result.json in $d/le-$label.log"; return 1; }
   cp "$res" "$d/result-$2-$1.json"
 }
-step5() {
-  local d=$RAW/step5 sh arm st=0; mkdir -p "$d"; : > "$d/pairs.txt"
+step6() {
+  local d=$RAW/step6 sh arm st=0 rc items=0 n; mkdir -p "$d"; : > "$d/pairs.txt"
   [[ -f $Q2RAW/items.sha256.json && -f $Q2RAW/items.manifest.json ]] || { fail "frozen item files missing: $Q2RAW/items.{sha256,manifest}.json (branch dsv41/chunk32k-2)"; return 1; }
   cp "$Q2RAW/items.sha256.json" "$d/"; lib sha256 "$Q2RAW/items.manifest.json" | tee -a "$LOG"
   # shellcheck disable=SC2086
@@ -431,12 +512,18 @@ step5() {
   for sh in $Q_SHARDS; do
     if [[ -n ${STOP_EPOCH:-} ]] && (( $(date +%s) + 120 * 60 > STOP_EPOCH )); then log "STOP_EPOCH close: not starting shard $sh or the later ones"; STEP_NOTE="PARTIAL"; break; fi
     for arm in off on; do
-      serve_cfg "s5-$sh-$arm" "$BIN_BR" "$Q_CHUNK" $arm q_arm "$sh" $arm || { fail "shard $sh arm $arm failed (${FAIL_WHY:-see $d})"; st=1; break; }
+      serve_cfg "s6-$sh-$arm" "$BIN_BR" "$Q_CHUNK" $arm q_arm "$sh" $arm || { fail "shard $sh arm $arm failed (${FAIL_WHY:-see $d})"; st=1; break; }
     done
     [[ $st == 0 ]] || break
     echo "$sh $d/result-off-$sh.json $d/result-on-$sh.json" >> "$d/pairs.txt"
+    n=$(wc -l < "$QDIR/final.$sh.jsonl"); items=$((items + n))
   done
-  [[ -s $d/pairs.txt ]] && lib quality "$Q2RAW/items.manifest.json" "$d/pairs.txt" "$d/quality.md" | tee -a "$LOG"
+  if [[ -s $d/pairs.txt ]]; then
+    lib quality "$Q2RAW/items.manifest.json" "$d/pairs.txt" "$d/quality.md" --expect-items $((items * 9 / 10)) | tee -a "$LOG"; rc=${PIPESTATUS[0]}
+    [[ $rc == 0 ]] || { fail "quality criterion failed (too few items scored, or on lost accuracy): $d/quality.md"; st=1; }
+  else
+    fail "no shard completed"; st=1
+  fi
   return $st
 }
 

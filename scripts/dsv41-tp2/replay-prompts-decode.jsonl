@@ -1,0 +1,3 @@
+{"name": "d_1200", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 0, "max_tokens": 1200, "continue": 160}
+{"name": "d_4106", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 0, "max_tokens": 4106, "continue": 160}
+{"name": "d_612", "kind": "raw", "file": "corpus_code.txt", "skip_tokens": 0, "max_tokens": 612, "continue": 160}
