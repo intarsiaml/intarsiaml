@@ -758,7 +758,7 @@ impl HipBackend {
         let b =
             buf.downcast::<HipBuffer>().ok_or_else(|| Error::backend("buffer does not belong to the hip backend"))?;
         if offset.checked_add(len).is_none_or(|e| e > b.bytes) {
-            return Err(Error::backend(format!("access of {len} bytes at {offset} outside a {}-byte buffer", b.bytes)));
+            return Err(Error::invalid(format!("access of {len} bytes at {offset} outside a {}-byte buffer", b.bytes)));
         }
         Ok((b.ptr as *mut u8).wrapping_add(offset))
     }
@@ -1470,11 +1470,12 @@ impl Backend for HipBackend {
         }
         if rc != 0 {
             let dts: Vec<DType> = call.inputs.iter().map(|t| t.dtype).collect();
-            return Err(Error::backend(format!(
-                "ik_{kernel} returned {} ({rc}); inputs {dts:?} shapes {:?}",
+            return Err(intarsia_core::backend::launch_status_error(
+                kernel,
+                rc,
                 ffi::status_name(rc),
-                call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()
-            )));
+                &format!("inputs {dts:?} shapes {:?}", call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()),
+            ));
         }
         Ok(())
     }

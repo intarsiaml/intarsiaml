@@ -498,6 +498,15 @@ pub trait Backend: Send + Sync {
         Err(Error::Unsupported(format!("backend '{}' has no graph replay", self.name())))
     }
 
+    /// Whether `e`, an error this backend's calls returned, means the device cannot be used any more: a sticky fault (CUDA
+    /// and HIP: an illegal address or a wedged context stays until a new process), so the single-sequence engine fails
+    /// instead of answering every later request with it. Default: every `Error::Backend` is one. A backend whose errors
+    /// leave the device as it was says no (Metal: a command buffer that ended in Error status fails that buffer only, and
+    /// the speculative pipeline resets its state after it).
+    fn is_sticky_fault(&self, e: &Error) -> bool {
+        matches!(e, Error::Backend(_))
+    }
+
     /// Identity of this host + kernel pack for admission caching: anything that can change a
     /// kernel's numerics (device, arch; backends add driver/toolkit/pack hash). Admission results
     /// are cached per fingerprint.
@@ -507,9 +516,47 @@ pub trait Backend: Send + Sync {
     }
 }
 
+/// The error for the nonzero `ik_status` a CUDA / HIP kernel launcher returned (`kernels/abi/ik_abi.h`). Codes 1 to 5 are
+/// the launcher refusing the call before it touched the device (null or bad attribute, dtype, shape, stride, a feature not
+/// compiled in): the caller's call was wrong and the device is as it was, so they are `InvalidCall` / `Unsupported`, which
+/// no engine treats as a device fault (a request-chosen row count can reach one). Code 6 (the runtime reported a launch
+/// error, `cudaGetLastError`) and any other value are device faults: `Backend`. `detail` follows the status name.
+pub fn launch_status_error(kernel: &str, code: i32, name: &str, detail: &str) -> Error {
+    let msg = format!("ik_{kernel} returned {name} ({code}); {detail}");
+    match code {
+        1..=4 => Error::InvalidCall(msg),
+        5 => Error::Unsupported(msg),
+        _ => Error::Backend(msg),
+    }
+}
+
 /// Upload a whole host slice into a fresh buffer.
 pub fn upload_new(backend: &dyn Backend, data: &[u8]) -> Result<Buffer> {
     let b = backend.alloc(data.len(), MemKind::Device)?;
     backend.upload(&b, 0, data, 0)?;
     Ok(b)
+}
+
+#[cfg(test)]
+mod launch_status_tests {
+    use super::*;
+
+    /// Which `ik_status` codes are device faults (a sticky error the engine cannot recover from) and which the launcher's
+    /// own argument checks (a wrong call, the device untouched).
+    #[test]
+    fn only_a_launch_error_is_a_device_fault() {
+        for (code, name) in [(1, "IK_ERR_INVALID_ARG"), (2, "IK_ERR_DTYPE"), (3, "IK_ERR_SHAPE"), (4, "IK_ERR_STRIDE")] {
+            let e = launch_status_error("matmul", code, name, "shapes []");
+            assert!(matches!(e, Error::InvalidCall(_)), "{name}: {e}");
+        }
+        let e = launch_status_error("matmul", 5, "IK_ERR_UNSUPPORTED", "");
+        assert!(matches!(e, Error::Unsupported(_)), "{e}");
+        for code in [6, 7, -1] {
+            let e = launch_status_error("matmul", code, "IK_ERR_LAUNCH", "");
+            assert!(matches!(e, Error::Backend(_)), "{code}: {e}");
+        }
+        // the message keeps what the old one said
+        let e = launch_status_error("matmul", 3, "IK_ERR_SHAPE", "inputs [Bf16] shapes [[1, 2]]");
+        assert_eq!(e.to_string(), "invalid op call: ik_matmul returned IK_ERR_SHAPE (3); inputs [Bf16] shapes [[1, 2]]");
+    }
 }

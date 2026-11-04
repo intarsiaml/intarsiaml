@@ -812,6 +812,8 @@ impl Engine for LocalEngine {
         if let Some(why) = self.shared.failure() {
             return Err(Error::Other(format!("engine failed: {why}")));
         }
+        // the server answers a BadRequest from here with 400; checked before the request queues or touches the cache
+        check_prompt_ids(&req.prompt, self.info.vocab)?;
         let (etx, erx) = channel();
         self.shared.telemetry.request_enqueued();
         let guard = self.tx.lock().unwrap();
@@ -972,12 +974,38 @@ fn run_job(sh: &Shared, job: Job) {
     let mut generated = 0;
     let res = generate_one(sh, &mut g, req, tx.clone(), &mut generated);
     let kv = (g.state.used_bytes() as u64, g.state.total_bytes() as u64, g.state.len as u64, g.state.cap as u64);
+    let group_aborted = g.model.tp_group_aborted();
+    let sticky = res.as_ref().err().is_some_and(|e| g.model.backend.is_sticky_fault(e));
     drop(g);
     sh.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
     match res {
         // the chunk size is reported only by the batched engine (its scheduler picks it per request)
         Ok(o) => report_done(&sh.telemetry, &tx, o, None),
-        Err(e) => report_error(&sh.telemetry, &tx, plen, generated, t_total.elapsed(), &e),
+        Err(e) => {
+            // before the error event, so a client that sees it also sees the engine failed
+            if let Some(why) = fatal(&e, sticky, group_aborted) {
+                eprintln!("engine failed: {why}");
+                sh.failed.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(why);
+            }
+            report_error(&sh.telemetry, &tx, plen, generated, t_total.elapsed(), &e)
+        }
+    }
+}
+
+/// Why a failed request leaves the engine unable to serve any more, when it does. A sticky device fault (`sticky`, the
+/// backend's own call: `Backend::is_sticky_fault`; a wedged CUDA or HIP context stays so, docs/observability.md) would
+/// fail every later request the same way while `/health` said ok; the engine fails instead and the supervisor restarts the
+/// process, as the batched scheduler does for `BatchModel::is_fatal`. A launcher refusing a call, or a Metal command
+/// buffer that failed once, is not one. A tensor-parallel group whose communicator the failed pass aborted (`group_aborted`)
+/// fails the engine whatever the error that ended it: the abort is never undone. A `BadRequest` and the like are the
+/// request's own and leave a healthy engine alone.
+fn fatal(e: &Error, sticky: bool, group_aborted: bool) -> Option<String> {
+    if sticky {
+        Some(format!("device error: {e}"))
+    } else if group_aborted {
+        Some(format!("tensor-parallel group aborted: {e}"))
+    } else {
+        None
     }
 }
 
@@ -1170,6 +1198,29 @@ pub(crate) struct Seq {
     predraft: Option<Predraft>,
     /// The next pass's ids, already in `ws.ids` (`Model::spec_pipe_step`).
     staged: Option<Staged>,
+}
+
+/// The outcome of a request of `plen` prompt tokens that ended before it held any state.
+fn queued_outcome(plen: usize, reason: FinishReason) -> Outcome {
+    Outcome {
+        reason,
+        stop_sequence: None,
+        prompt_tokens: plen,
+        completion_tokens: 0,
+        cached_tokens: 0,
+        prefill: Duration::ZERO,
+        decode: Duration::ZERO,
+    }
+}
+
+/// Reject a prompt id the model has no embedding row for. A forward over one fails (on a tensor-parallel group it aborts
+/// the communicator for good), so it is refused before anything runs: `LocalEngine::submit` checks it, which is the one
+/// place every single-sequence request passes; the batched engine does the same in `SeqAdapter::admit`.
+fn check_prompt_ids(prompt: &[u32], vocab: usize) -> Result<()> {
+    match prompt.iter().find(|&&t| t as usize >= vocab) {
+        Some(bad) => Err(Error::BadRequest(format!("token id {bad} >= vocab {vocab}"))),
+        None => Ok(()),
+    }
 }
 
 /// Reject prompts a sequence of capacity `cap` cannot take.
@@ -1396,15 +1447,7 @@ impl Seq {
 
     /// The outcome of a request that ended before it held any state (cancelled while queued).
     pub(crate) fn queued_outcome(&self, reason: FinishReason) -> Outcome {
-        Outcome {
-            reason,
-            stop_sequence: None,
-            prompt_tokens: self.plen,
-            completion_tokens: 0,
-            cached_tokens: 0,
-            prefill: Duration::ZERO,
-            decode: Duration::ZERO,
-        }
+        queued_outcome(self.plen, reason)
     }
 
     /// Whether the next token to take is the first (it comes out of the final prefill chunk).
@@ -2169,6 +2212,11 @@ fn generate_one(
     generated: &mut usize,
 ) -> Result<Outcome> {
     let Inner { model, state: st } = g;
+    if req.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed)) {
+        // cancelled while queued: answered before `Seq::new` cuts the cache back to this prompt's prefix, which would
+        // throw away what the conversation before it left (its next turn would prefill from scratch)
+        return Ok(queued_outcome(req.prompt.len(), FinishReason::Cancelled));
+    }
     let mut seq = Seq::new(sh, model, st, req, tx)?;
     let r = run_seq(&mut seq, model, st);
     // entries captured on the device during this request go to their tier now (a no-op when already settled)
