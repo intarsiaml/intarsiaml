@@ -450,22 +450,26 @@ struct Worker {
     /// Set when a tensor-parallel group failed for good (`Engine::failed`: /health turns 503, new requests are refused, and a
     /// tp-remote server exits for a restart of both ranks).
     failed: Arc<Mutex<Option<String>>>,
+    /// `INTARSIA_DSV41_TEST_RANK0_FAIL_PASS=N` (failure tests only, `scripts/dsv41-tp2/failpaths-test.sh`): the forward pass after `N` more
+    /// of them, counted after the warm-up, fails on this rank (rank 0) once it was sent to the other rank, as a failed `cudaMalloc` would.
+    fail_pass: Option<usize>,
 }
 
-/// Collect the remote rank's answer to the pass just run here. A backend error on this rank fails the group (`group_failed`):
-/// the other rank may sit in a collective this rank no longer joins and never answer, so do not wait for it (the peer is
-/// marked unusable instead). Any other error still drains the answer, which keeps the two ranks in step.
+/// Collect the remote rank's answer to the pass just run here. A failure of this rank's half fails the group whatever its kind,
+/// so nothing is waited for (the peer is marked unusable instead): the other rank was already sent the pass and only enqueues
+/// it, so it answers OK and stays parked in collectives this rank no longer joins, where the next request's would pair with them
+/// (wrong sums or a hang, no error). A non-backend error comes back as a backend error, which is what `group_failed` acts on.
 fn settle<T>(remote: &mut Option<RemoteSeq>, out: &Result<T>) -> Result<()> {
     let Some(r) = remote else { return Ok(()) };
-    if matches!(out, Err(Error::Backend(_))) {
-        r.mark_unusable();
-        return Ok(());
-    }
-    let rr = r.finish();
-    if out.is_ok() {
-        rr
-    } else {
-        Ok(())
+    match out {
+        Ok(_) => r.finish(),
+        Err(e) => {
+            r.mark_unusable();
+            match e {
+                Error::Backend(_) => Ok(()),
+                e => Err(Error::backend(format!("deepseek_v41: this rank's half of a pass failed after the other rank was sent it: {e}"))),
+            }
+        }
     }
 }
 
@@ -474,9 +478,24 @@ impl Worker {
         if let Some(r) = &self.remote {
             r.start_forward(ids, false)?;
         }
-        let out = self.rt.forward(&mut self.st, ids, logits);
+        let out = self.test_fault().and_then(|()| self.rt.forward(&mut self.st, ids, logits));
         settle(&mut self.remote, &out)?;
         out
+    }
+
+    /// See [`Worker::fail_pass`].
+    fn test_fault(&mut self) -> Result<()> {
+        match self.fail_pass {
+            None => Ok(()),
+            Some(0) => {
+                self.fail_pass = None;
+                Err(Error::Memory("INTARSIA_DSV41_TEST_RANK0_FAIL_PASS: injected rank 0 failure".into()))
+            }
+            Some(n) => {
+                self.fail_pass = Some(n - 1);
+                Ok(())
+            }
+        }
     }
 
     /// One DSpark drafting round on both ranks after the sequence's last row, `first` the round's first token: the
@@ -509,7 +528,8 @@ impl Worker {
     /// `[tok, drafts..]` (each row tagged with the draft it checks; the last row checks none), else a plain step.
     fn next_rows(&mut self, tok: u32, spec: Option<SpecOpts>, stats: &mut SpecStats, logits: bool) -> Result<VecDeque<(Row, Option<u32>)>> {
         let room = self.rt.opts.cap.saturating_sub(self.st.len + 1);
-        if let Some(sp) = spec.filter(|_| room >= 2) {
+        // the drafting block is longer than the rows a verify pass would add: near the capacity only plain steps fit
+        if let Some(sp) = spec.filter(|_| room >= 2 && self.rt.draft_fits(self.st.len)) {
             stats.end_round(sp.trace);
             let t0 = Instant::now();
             stats.round_start = Some(t0);
@@ -592,6 +612,8 @@ impl Worker {
             }
             if let Err(e2) = self.reset() {
                 eprintln!("dsv41: reset after a failed request failed: {e2}");
+                // the peer's handle is gone by now: the next request would run collectives the other rank is never told about
+                self.group_failed(&Error::backend(format!("reset after a failed request: {e2}")));
             }
         }
     }
@@ -859,13 +881,14 @@ impl Dsv41Engine {
                 f.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(format!("tensor-parallel group failed: {why}"));
             });
         }
-        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone() };
+        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone(), fail_pass: None };
         // warm-up: one short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back
         let wt = Instant::now();
         w.forward(&[c.bos], true)?;
         w.forward(&[c.bos], true)?;
         w.truncate(0)?;
         eprintln!("dsv41: warm-up passes in {:.2} s", wt.elapsed().as_secs_f64());
+        w.fail_pass = env_usize("INTARSIA_DSV41_TEST_RANK0_FAIL_PASS");
         log_memory_after_warmup(&w.rt, avail0, 0);
         let (tx, rx): (Sender<Job>, Receiver<Job>) = channel();
         let f2 = failed.clone();
@@ -982,5 +1005,457 @@ mod choose_k_tests {
     fn the_first_best_wins_a_tie() {
         // equal value at k = 0 and k = 1: 1 / 10 = 1.5 / 15, with a survival of exactly 0.5
         assert_eq!(choose_k(&[0.0], 1, &[5.0, 10.0], 5.0), 0);
+    }
+}
+
+/// The failure paths of a TP=2 group, without a GPU: the real [`Worker`] and [`Dsv41Runtime`] (graphs from the Mia checkpoint's
+/// headers, on the cpu backend, no weights loaded) in front of a real [`RemotePeer`] and `tp_remote::serve`, whose far end only
+/// records what it was told to run. Without weights a pass stops at its first step, on this rank only, which is all these tests
+/// need of it: a real failure after the other rank was sent the pass.
+#[cfg(test)]
+mod failpath_tests {
+    use super::*;
+    use intarsia_backend_cpu::CpuBackend;
+    use intarsia_core::backend::{Buffer, DeviceInfo, MemKind, StreamId};
+    use intarsia_core::comm::CommStats;
+    use intarsia_core::dsv41::graph::GraphTp;
+    use intarsia_core::ops::OpCall;
+    use intarsia_core::registry::KernelImpl;
+    use intarsia_core::tp_remote::{serve, serve_group, RankModel, EXIT_GROUP_FAILED};
+    use intarsia_core::TensorRef;
+    use std::net::{TcpListener, TcpStream};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::Duration;
+
+    const CAP: usize = 64;
+
+    /// The cpu backend with two faults to switch on: `cudaMalloc` failing, and a stream parked in a collective.
+    #[derive(Default)]
+    struct Faults {
+        alloc_fails: AtomicBool,
+        stream0_parked: AtomicBool,
+    }
+    struct FaultBackend(CpuBackend, Arc<Faults>);
+    impl Backend for FaultBackend {
+        fn name(&self) -> &str {
+            self.0.name()
+        }
+        fn info(&self) -> DeviceInfo {
+            self.0.info()
+        }
+        fn alloc(&self, bytes: usize, kind: MemKind) -> Result<Buffer> {
+            if self.1.alloc_fails.load(Ordering::SeqCst) {
+                return Err(Error::Memory(format!("cudaMalloc of {bytes} bytes failed")));
+            }
+            self.0.alloc(bytes, kind)
+        }
+        fn upload(&self, dst: &Buffer, off: usize, src: &[u8], s: StreamId) -> Result<()> {
+            self.0.upload(dst, off, src, s)
+        }
+        fn download(&self, src: &Buffer, off: usize, dst: &mut [u8], s: StreamId) -> Result<()> {
+            self.0.download(src, off, dst, s)
+        }
+        fn copy(&self, dst: &Buffer, d: usize, src: &Buffer, o: usize, bytes: usize, s: StreamId) -> Result<()> {
+            self.0.copy(dst, d, src, o, bytes, s)
+        }
+        fn kernels(&self) -> Vec<KernelImpl> {
+            self.0.kernels()
+        }
+        fn launch(&self, k: &str, c: &OpCall, s: StreamId) -> Result<()> {
+            self.0.launch(k, c, s)
+        }
+        fn synchronize(&self, s: StreamId) -> Result<()> {
+            while s == 0 && self.1.stream0_parked.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_secs(1));
+            }
+            self.0.synchronize(s)
+        }
+    }
+
+    /// A two-rank group's communicator as rank `rank` sees it: collectives fail (no test gets that far), aborts are counted. The
+    /// fixture's shapes are the unsharded checkpoint's, which only build a graph of one rank, so it says world 1 while [`runtime`]
+    /// builds the graphs and 2 from then on: the graphs do not matter here, what the engine does about a group does.
+    struct TestComm {
+        rank: usize,
+        world: std::sync::atomic::AtomicUsize,
+    }
+    fn test_comm(rank: usize) -> Arc<TestComm> {
+        Arc::new(TestComm { rank, world: 2.into() })
+    }
+    impl Comm for TestComm {
+        fn name(&self) -> &str {
+            "test"
+        }
+        fn rank(&self) -> usize {
+            self.rank
+        }
+        fn world(&self) -> usize {
+            self.world.load(Ordering::SeqCst)
+        }
+        fn all_reduce_sum(&self, _x: &TensorRef, _s: StreamId) -> Result<()> {
+            Err(Error::backend("test comm"))
+        }
+        fn all_reduce_sum_into(&self, _p: &TensorRef, _o: &TensorRef, _s: StreamId) -> Result<()> {
+            Err(Error::backend("test comm"))
+        }
+        fn all_gather(&self, _s: &TensorRef, _r: &TensorRef, _st: StreamId) -> Result<()> {
+            Err(Error::backend("test comm"))
+        }
+        fn abort(&self) {}
+        fn stats(&self) -> CommStats {
+            CommStats::default()
+        }
+        fn note_timed(&self, _d: Duration) {}
+    }
+
+    fn fixture() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/dsv41/mia_headers")
+    }
+
+    /// The real runtime of rank `rank` of 2 with speculation on: capacity [`CAP`], no weights but the confidence head, whose bytes
+    /// the constructor reads.
+    fn runtime(faults: &Arc<Faults>, comm: &Arc<TestComm>) -> Dsv41Runtime {
+        let cfg = detect(&fixture()).unwrap().expect("a DeepSeek-V4.1 config");
+        let shapes = HeaderShapes::open(&fixture()).unwrap();
+        let backend: Arc<dyn Backend> = Arc::new(FaultBackend(CpuBackend::new(), faults.clone()));
+        let mut weights = std::collections::HashMap::new();
+        let m = cfg.mtp.as_ref().expect("the fixture has DSpark stages");
+        let name = format!("mtp.{}.confidence_head.proj.weight", m.n_layers - 1);
+        let (dt, shape) = intarsia_core::dsv41::graph::WeightShapes::get(&shapes, &name).expect("the confidence head");
+        let bytes = shape.iter().product::<usize>() * dt.size_bytes();
+        weights.insert(name, TensorRef::new(backend.alloc(bytes, MemKind::Device).unwrap(), dt, &shape));
+        let tier = ZeroTier { layout: intarsia_engram::HashLayout::dsv41().layout().clone(), shard: intarsia_core::dsv41::engram::EngramShard { rank: 0, world: 1 } };
+        let hash = intarsia_engram::HashLayout::dsv41();
+        let engram = EngramInputs { tier: Arc::new(tier), hasher: hash.hasher.clone(), token_map: vec![] };
+        let opts = RuntimeOpts { act: DType::Bf16, cap: CAP, chunk: 8, tp: GraphTp { world: 1, layers: None, first: 0 }, spec: true };
+        comm.world.store(1, Ordering::SeqCst);
+        let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, Some(comm.clone() as Arc<dyn Comm>), weights, Some(engram), opts).unwrap();
+        comm.world.store(2, Ordering::SeqCst);
+        rt
+    }
+
+    fn codec() -> Arc<HfCodec> {
+        static C: std::sync::OnceLock<Arc<HfCodec>> = std::sync::OnceLock::new();
+        C.get_or_init(|| {
+            let dir = std::env::temp_dir().join(format!("intarsia-dsv41-failpaths-{}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            let tok = serde_json::json!({
+                "version": "1.0", "truncation": null, "padding": null, "added_tokens": [], "normalizer": null,
+                "pre_tokenizer": {"type": "Whitespace"}, "post_processor": null, "decoder": null,
+                "model": {"type": "WordLevel", "vocab": {"t0": 0}, "unk_token": "t0"}
+            });
+            std::fs::write(dir.join("tokenizer.json"), tok.to_string()).unwrap();
+            let c = HfCodec::load(&dir, &ChatTemplateSource::Auto).unwrap();
+            let _ = std::fs::remove_dir_all(&dir);
+            Arc::new(c)
+        })
+        .clone()
+    }
+
+    /// What the other rank was told to run.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum Told {
+        New,
+        Forward,
+        Draft,
+        Verify,
+    }
+
+    /// The other rank: passes "enqueue" and answer OK, as a real rank 1's enqueue-only passes do, and it notes what it was told.
+    #[derive(Clone, Default)]
+    struct Recorder(Arc<Mutex<Vec<Told>>>);
+    impl RankModel for Recorder {
+        type State = usize;
+        fn new_state(&self) -> Result<usize> {
+            self.0.lock().unwrap().push(Told::New);
+            Ok(0)
+        }
+        fn forward_rank(&self, st: &mut usize, ids: &[u32], _graph: bool) -> Result<()> {
+            self.0.lock().unwrap().push(Told::Forward);
+            *st += ids.len();
+            Ok(())
+        }
+        fn verify_rank(&self, st: &mut usize, ids: &[u32]) -> Result<()> {
+            self.0.lock().unwrap().push(Told::Verify);
+            *st += ids.len();
+            Ok(())
+        }
+        fn draft_rank(&self, _st: &mut usize, _ids: &[u32]) -> Result<()> {
+            self.0.lock().unwrap().push(Told::Draft);
+            Ok(())
+        }
+        fn truncate(&self, st: &mut usize, len: usize) -> Result<()> {
+            *st = len;
+            Ok(())
+        }
+        fn snapshot(&self, _st: &mut usize, _keep: usize) -> Result<()> {
+            Ok(())
+        }
+        fn state_len(st: &usize) -> usize {
+            *st
+        }
+    }
+
+    fn connected() -> (TcpStream, TcpStream) {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let near = TcpStream::connect(l.local_addr().unwrap()).unwrap();
+        (near, l.accept().unwrap().0)
+    }
+
+    /// Rank 0's engine worker, connected to a [`Recorder`].
+    struct Group {
+        w: Worker,
+        told: Recorder,
+        served: std::thread::JoinHandle<Result<u64>>,
+        faults: Arc<Faults>,
+    }
+
+    fn group() -> Group {
+        let faults = Arc::new(Faults::default());
+        let comm = test_comm(0);
+        let rt = runtime(&faults, &comm);
+        let (near, far) = connected();
+        let told = Recorder::default();
+        let t2 = told.clone();
+        let served = std::thread::spawn(move || serve(&t2, far));
+        let peer = RemotePeer::new(near, comm).unwrap();
+        let failed = Arc::new(Mutex::new(None));
+        let st = rt.new_state().unwrap();
+        let remote = Some(peer.new_state().unwrap());
+        let spec = Some(spec_opts());
+        let w = Worker { rt, peer: Some(peer), st, remote, codec: codec(), eos: vec![], telemetry: Arc::new(Telemetry::new()), spec, failed, fail_pass: None };
+        Group { w, told, served, faults }
+    }
+
+    fn spec_opts() -> SpecOpts {
+        SpecOpts { k: 4, min_conf: f32::NEG_INFINITY, trace: false, choose: true, round_ms: ROUND_MS, draft_ms: DRAFT_MS }
+    }
+
+    impl Group {
+        /// Everything the other rank was told, once the connection is closed and it has read all of it.
+        fn finish(self) -> Vec<Told> {
+            let Group { w, told, served, .. } = self;
+            drop(w);
+            served.join().unwrap().unwrap();
+            let t = told.0.lock().unwrap().clone();
+            t
+        }
+        /// As far as the sequences go, `len` tokens are in.
+        fn at(mut self, len: usize) -> Self {
+            self.w.st.len = len;
+            self.w.st.tokens = vec![1; len];
+            self
+        }
+        fn run(&mut self, req: GenRequest) -> Vec<GenEvent> {
+            let (tx, rx) = channel();
+            self.w.run(Job { req, tx });
+            rx.try_iter().collect()
+        }
+    }
+
+    fn told_at(len: usize) -> Vec<Told> {
+        let mut g = group().at(len);
+        let _ = g.w.next_rows(1, Some(spec_opts()), &mut SpecStats::default(), false);
+        g.finish()
+    }
+
+    // ------- #2: a greedy request near the capacity
+
+    /// The two positions where `room >= 2` allowed a drafting round that `draft_steps` refuses, on both ranks: the worker left the
+    /// group and both ranks exited 87.
+    #[test]
+    fn near_the_capacity_a_greedy_step_is_a_plain_pass_not_a_drafting_round() {
+        for len in [CAP - 4, CAP - 3] {
+            assert_eq!(told_at(len), [Told::New, Told::Forward], "at {len} of {CAP} tokens");
+        }
+        assert_eq!(told_at(CAP - 2), [Told::New, Told::Forward], "the last position that already was a plain pass");
+    }
+
+    /// Nothing changes where a block fits: the worker is told to draft at every position it was told to before.
+    #[test]
+    fn where_the_block_fits_a_greedy_step_still_starts_with_a_drafting_round() {
+        for len in [1, 2, 8, CAP / 2, CAP - 6, CAP - 5] {
+            assert_eq!(told_at(len), [Told::New, Told::Draft], "at {len} of {CAP} tokens");
+        }
+    }
+
+    /// The engine's test and the runtime's own check are one check: at no position does the engine start a round the runtime refuses.
+    #[test]
+    fn draft_fits_is_exactly_what_the_runtime_accepts_and_differs_from_the_old_test_only_near_the_capacity() {
+        let g = group();
+        let block = g.w.rt.cfg.mtp.as_ref().unwrap().block_size;
+        assert_eq!(block, 5);
+        let mut st = g.w.rt.new_state().unwrap();
+        for len in 0..=CAP {
+            st.len = len;
+            st.tokens = vec![1; len];
+            let refused = g.w.rt.draft_steps(&st, 1, 4).is_err_and(|e| e.to_string().contains("a draft block at position"));
+            assert_eq!(g.w.rt.draft_fits(len), !refused, "at {len}");
+            let old_test = CAP.saturating_sub(len + 1) >= 2;
+            let now = old_test && g.w.rt.draft_fits(len);
+            if len >= 1 && len + block <= CAP {
+                assert!(now && old_test, "a round that ran before runs now, at {len}");
+            } else if len >= 1 {
+                assert!(!now, "at {len}");
+            }
+        }
+    }
+
+    // ------- #3: an error on rank 0 only, after the pass was sent
+
+    fn req(temperature: f32) -> GenRequest {
+        GenRequest { prompt: vec![1, 2, 3], max_tokens: 4, temperature, ..Default::default() }
+    }
+
+    /// `cudaMalloc` failing on rank 0 (`grow_scratch`) is `Error::Memory`. The worker answered OK and stays parked in its collectives.
+    /// The group must fail: no reset, no new sequence on the worker, the next requests' collectives must not pair with the parked ones.
+    #[test]
+    fn a_rank_local_error_after_the_pass_was_sent_fails_the_group() {
+        let mut g = group();
+        g.w.fail_pass = Some(0);
+        let ev = g.run(req(1.0));
+        assert!(matches!(ev.last(), Some(GenEvent::Error { message }) if message.contains("injected rank 0 failure")), "{ev:?}");
+        let why = g.w.failed.lock().unwrap().clone();
+        assert!(why.is_some_and(|w| w.contains("tensor-parallel group failed")), "/health stays 200 and the group desynchronised");
+        assert!(g.w.remote.as_ref().unwrap().start_forward(&[1], false).is_err(), "nothing more goes to the other rank");
+        assert_eq!(g.finish(), [Told::New, Told::Forward], "no second sequence on the other rank");
+    }
+
+    /// The same with the error the runtime itself raises for a step it cannot run, not an injected one.
+    #[test]
+    fn a_failure_inside_the_runtime_fails_the_group() {
+        let mut g = group();
+        let ev = g.run(req(0.0));
+        assert!(matches!(ev.last(), Some(GenEvent::Error { .. })), "{ev:?}");
+        assert!(g.w.failed.lock().unwrap().is_some(), "{ev:?}");
+        assert_eq!(g.finish(), [Told::New, Told::Forward]);
+    }
+
+    #[test]
+    fn settle_does_not_wait_for_the_other_rank_after_a_failure_and_the_error_is_a_backend_error() {
+        let (near, far) = connected();
+        let comm: Arc<dyn Comm> = test_comm(0);
+        let peer = RemotePeer::new(near, comm).unwrap();
+        let mut remote = Some(peer.new_state().unwrap());
+        // nobody answers on `far`: a wait would last the 600 s reply timeout
+        let e = settle(&mut remote, &Err::<(), _>(Error::Memory("cudaMalloc".into()))).unwrap_err();
+        assert!(matches!(e, Error::Backend(_)) && e.to_string().contains("cudaMalloc"), "{e}");
+        // a backend error stays the pass's own, as before
+        settle(&mut remote, &Err::<(), _>(Error::backend("launch failed"))).unwrap();
+        drop(far);
+    }
+
+    #[test]
+    fn settle_on_a_good_pass_waits_for_the_answer_as_before() {
+        let (near, far) = connected();
+        let comm: Arc<dyn Comm> = test_comm(0);
+        let peer = RemotePeer::new(near, comm).unwrap();
+        let served = std::thread::spawn(move || serve(&Recorder::default(), far));
+        let mut remote = Some(peer.new_state().unwrap());
+        remote.as_ref().unwrap().start_forward(&[1, 2], false).unwrap();
+        settle(&mut remote, &Ok(())).unwrap();
+        assert_eq!(remote.as_ref().unwrap().len, 2, "the answer was read");
+        drop(remote);
+        drop(peer);
+        served.join().unwrap().unwrap();
+    }
+
+    /// One rank's single-process run has no other rank to wait for or fail: its errors stay what they are.
+    #[test]
+    fn without_a_remote_rank_settle_changes_nothing() {
+        settle(&mut None, &Err::<(), _>(Error::Memory("x".into()))).unwrap();
+    }
+
+    /// What may continue: a request refused before anything was sent. The other rank saw no pass, the group stays healthy and serves
+    /// the next request (only the sequences are replaced, by `reset`).
+    #[test]
+    fn a_request_refused_before_anything_was_sent_does_not_fail_the_group() {
+        let mut g = group();
+        for bad in [GenRequest { prompt: vec![], max_tokens: 1, ..Default::default() }, GenRequest { prompt: vec![1; CAP], max_tokens: 1, ..Default::default() }] {
+            let ev = g.run(bad);
+            assert!(matches!(ev.last(), Some(GenEvent::Error { message }) if message.contains("bad request") || message.contains("empty") || message.contains("exceed")), "{ev:?}");
+            assert!(g.w.failed.lock().unwrap().is_none(), "a validation error is not a group failure");
+        }
+        assert!(g.w.remote.as_ref().unwrap().start_forward(&[1], false).is_ok(), "the peer is still usable");
+        assert_eq!(g.finish(), [Told::New, Told::New, Told::New, Told::Forward], "two resets and the forward above: no pass from the refused requests");
+    }
+
+    /// `reset` takes the peer's handle down first. If it then fails on this rank (`cudaMalloc`; the old state is still held while the new
+    /// one is allocated), `remote` stays `None`: a later request would run its collectives alone, with the other rank never told.
+    #[test]
+    fn a_reset_that_fails_after_a_refused_request_fails_the_group() {
+        let mut g = group();
+        g.faults.alloc_fails.store(true, Ordering::SeqCst);
+        let _ = g.run(GenRequest { prompt: vec![], max_tokens: 1, ..Default::default() });
+        assert!(g.w.failed.lock().unwrap().is_some(), "a healthy-looking engine with no way to the other rank");
+        g.finish();
+    }
+
+    // ------- #1: rank 1 when the primary dies with work parked
+
+    const CHILD: &str = "INTARSIA_DSV41_FAILPATH_CHILD";
+    const RETURNED: i32 = 42;
+
+    /// Rank 1 in a child process, as `serve_rank` runs it: the real runtime in `serve_group`, a primary that creates its sequence
+    /// and disappears.
+    fn rank1_then_primary_gone(parked: bool) -> ! {
+        let faults = Arc::new(Faults::default());
+        let comm = test_comm(1);
+        let rt = runtime(&faults, &comm);
+        faults.stream0_parked.store(parked, Ordering::SeqCst);
+        let (near, far) = connected();
+        let primary = std::thread::spawn(move || {
+            let peer = RemotePeer::new(near, test_comm(0)).unwrap();
+            let seq = peer.new_state().unwrap();
+            std::thread::sleep(Duration::from_millis(200));
+            drop(seq);
+            drop(peer);
+        });
+        let r = serve_group(&rt, far, comm);
+        let _ = primary.join();
+        std::process::exit(if r.is_ok() { RETURNED } else { 1 })
+    }
+
+    fn child_code(name: &str) -> Option<i32> {
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", &format!("dsv41_engine::failpath_tests::{name}"), "--nocapture"])
+            .env(CHILD, "1")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .unwrap()
+            .code()
+    }
+
+    #[test]
+    fn rank_1_leaves_the_group_when_the_primary_is_gone_and_stream_0_is_parked() {
+        if std::env::var_os(CHILD).is_some() {
+            rank1_then_primary_gone(true);
+        }
+        let t0 = Instant::now();
+        assert_eq!(child_code("rank_1_leaves_the_group_when_the_primary_is_gone_and_stream_0_is_parked"), Some(EXIT_GROUP_FAILED), "the serving loop returned on a stream parked in a collective");
+        assert!(t0.elapsed() < Duration::from_secs(60), "{:?}", t0.elapsed());
+    }
+
+    #[test]
+    fn rank_1_exits_cleanly_when_the_primary_is_gone_and_its_work_finished() {
+        if std::env::var_os(CHILD).is_some() {
+            rank1_then_primary_gone(false);
+        }
+        assert_eq!(child_code("rank_1_exits_cleanly_when_the_primary_is_gone_and_its_work_finished"), Some(RETURNED), "a primary that exited is not a failure");
+    }
+
+    /// The drain is on stream 0, the only one a pass's collectives use; the fake parks that one alone.
+    #[test]
+    fn the_runtime_drains_stream_0() {
+        let faults = Arc::new(Faults::default());
+        let rt = runtime(&faults, &test_comm(1));
+        let drain = rt.drain().expect("the runtime's passes leave work queued");
+        faults.stream0_parked.store(true, Ordering::SeqCst);
+        let (tx, rx) = channel();
+        std::thread::spawn(move || tx.send(drain()));
+        assert!(rx.recv_timeout(Duration::from_millis(500)).is_err(), "the drain waited for a stream the passes do not use");
+        faults.stream0_parked.store(false, Ordering::SeqCst);
+        rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
     }
 }

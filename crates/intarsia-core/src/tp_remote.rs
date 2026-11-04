@@ -1027,7 +1027,7 @@ mod serve_tests {
     );
     primary_gone_case!(queued_work_that_fails_ends_the_rank, Rank::DrainFails, true, EXIT_GROUP_FAILED, "a failed stream is a failed group");
     primary_gone_case!(a_primary_that_left_nothing_stuck_is_a_clean_end, Rank::Drained, true, RETURNED, "a primary that exited is not a failure");
-    primary_gone_case!(a_rank_with_nothing_queued_does_not_wait, Rank::NothingQueued, true, RETURNED, "the DSv4.1 runtime's passes are synchronous");
+    primary_gone_case!(a_rank_with_nothing_queued_does_not_wait, Rank::NothingQueued, true, RETURNED, "a model without a drain (the trait's default) has nothing to wait for");
     // the race seen with INTARSIA_TP_PEER_SYNC=1: the abort lets the pass end, the serving loop reads the end of the stream and
     // returns, and the process exited 0 while the watch was still waiting for the abort
     #[cfg(target_os = "linux")]
