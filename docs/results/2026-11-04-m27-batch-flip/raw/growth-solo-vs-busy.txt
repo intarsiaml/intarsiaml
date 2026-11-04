@@ -1,0 +1,16 @@
+258 rows 105 row0 top3 dlp 7.60e-02 median top3 dlp per 25 rows 2.3e-02 3.5e-02 7.4e-02 8.9e-02 1.8e+00
+   spikes (row, KL, top3 dlp, top lp solo): [(104, 0.59, 4.135, -0.009), (100, 0.3207, 1.798, -0.088), (95, 0.0046, 4.486, -0.0)]
+260 rows 197 row0 top3 dlp 2.22e-02 median top3 dlp per 25 rows 1.6e-02 4.5e-02 6.4e-02 5.8e-02 2.1e-01 5.1e-01 3.0e-01 5.6e-01
+   spikes (row, KL, top3 dlp, top lp solo): [(138, 0.2127, 2.976, -0.165), (137, 0.0562, 0.753, -0.138), (86, 0.019, 1.905, -0.037)]
+262 rows 200 row0 top3 dlp 1.87e-02 median top3 dlp per 25 rows 2.2e-02 4.0e-02 3.7e-02 3.3e-02 5.8e-02 1.1e-01 6.5e-02 7.2e-02
+   spikes (row, KL, top3 dlp, top lp solo): [(188, 0.9335, 3.179, -0.032), (143, 0.0175, 0.451, -0.612), (107, 0.0083, 0.142, -0.865)]
+265 rows 200 row0 top3 dlp 1.67e-02 median top3 dlp per 25 rows 3.2e-02 2.9e-02 7.2e-02 2.1e-01 1.7e-01 3.6e-01 2.5e-01 3.6e-01
+   spikes (row, KL, top3 dlp, top lp solo): [(182, 0.2957, 1.58, -0.353), (81, 0.2685, 4.701, -0.164), (146, 0.1713, 7.002, -0.0)]
+516 rows 22 row0 top3 dlp 6.65e-03 median top3 dlp per 25 rows 1.7e-02
+   spikes (row, KL, top3 dlp, top lp solo): [(20, 0.0002, 0.015, -1.279), (2, 0.0001, 0.018, -0.564), (6, 0.0001, 0.012, -0.685)]
+772 rows 184 row0 top3 dlp 3.30e-02 median top3 dlp per 25 rows 5.3e-02 3.6e-02 6.4e-02 6.5e-02 4.4e-02 5.0e-02 2.9e-02 3.3e-02
+   spikes (row, KL, top3 dlp, top lp solo): [(0, 0.003, 0.033, -1.848), (24, 0.0021, 0.103, -1.31), (3, 0.0009, 0.064, -0.342)]
+1028 rows 195 row0 top3 dlp 1.44e-02 median top3 dlp per 25 rows 3.0e-02 5.5e-02 4.9e-02 8.0e-02 4.9e-02 6.6e-02 7.0e-02 3.1e-01
+   spikes (row, KL, top3 dlp, top lp solo): [(63, 2.8969, 7.331, -0.611), (129, 0.1033, 0.64, -0.628), (113, 0.0372, 2.242, -0.008)]
+1540 rows 200 row0 top3 dlp 2.33e-02 median top3 dlp per 25 rows 4.6e-02 3.7e-02 5.8e-02 4.0e-02 3.6e-02 4.3e-02 5.4e-02 3.2e-02
+   spikes (row, KL, top3 dlp, top lp solo): [(4, 0.0147, 0.358, -0.241), (36, 0.0009, 0.07, -1.301), (128, 0.0007, 0.056, -0.555)]

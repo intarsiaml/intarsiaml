@@ -169,3 +169,19 @@ async fn pinned_prefill_and_store_off() {
     let (_, metrics) = call(&off, "GET", "/metrics", None).await;
     assert!(!metrics.contains("intarsia_prefix_store"));
 }
+
+/// A prompt id past the vocabulary (the fixture's is 96) is the client's mistake, from a real engine: a 400 for a plain and
+/// for a streaming request (it was a 500, and a 200 stream ending in an error event), and the engine serves the next request.
+#[tokio::test(flavor = "multi_thread")]
+async fn out_of_vocab_prompt_id_is_a_400_from_a_real_engine() {
+    let app = intarsia_server::router(engine(false), None);
+    for stream in [false, true] {
+        let (st, body) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": [5, 96], "max_tokens": 2, "stream": stream}))).await;
+        assert_eq!(st, StatusCode::BAD_REQUEST, "stream={stream}: {body}");
+        assert!(body.contains("vocab"), "{body}");
+    }
+    let (st, body) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": [5, 95], "max_tokens": 2}))).await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    let (st, _) = call(&app, "GET", "/health", None).await;
+    assert_eq!(st, StatusCode::OK);
+}

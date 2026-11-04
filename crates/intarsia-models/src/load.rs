@@ -783,7 +783,7 @@ fn load_dsv41(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> 
         engine: Arc::new(engine),
         max_batch: 1,
         recipe_source: "deepseek_v41 (rank cache)".into(),
-        prefill_chunk: PrefillChunk { value: chunk, source: "INTARSIA_DSV41_CHUNK / --prefill-chunk / 512".into() },
+        prefill_chunk: PrefillChunk { value: chunk, source: "INTARSIA_DSV41_CHUNK / --prefill-chunk / 2048".into() },
         chat_template_source: Some(dir.join("chat_template.jinja").display().to_string()),
     })
 }

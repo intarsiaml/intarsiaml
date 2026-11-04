@@ -1,0 +1,808 @@
+{
+ "source_commit": "47af187778c025a2379bc3924f075db910afadd2",
+ "spec": {
+  "seed": "pilot",
+  "shard32": 40,
+  "shard65": 10,
+  "items": [
+   {
+    "kind": "hop2",
+    "level": 1,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "hop2",
+    "level": 2,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "hop2",
+    "level": 3,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "hop3",
+    "level": 1,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "hop3",
+    "level": 2,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "hop3",
+    "level": 3,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "agg_sum",
+    "level": 1,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "agg_sum",
+    "level": 2,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "agg_sum",
+    "level": 3,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "agg_max",
+    "level": 1,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "agg_max",
+    "level": 2,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "agg_max",
+    "level": 3,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "repo_sum",
+    "level": 1,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "repo_sum",
+    "level": 2,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "repo_sum",
+    "level": 3,
+    "n": 2,
+    "k": 32
+   },
+   {
+    "kind": "hop3",
+    "level": 2,
+    "n": 1,
+    "k": 65
+   },
+   {
+    "kind": "agg_sum",
+    "level": 2,
+    "n": 1,
+    "k": 65
+   },
+   {
+    "kind": "repo_sum",
+    "level": 2,
+    "n": 1,
+    "k": 65
+   }
+  ]
+ },
+ "items": [
+  {
+   "idx": 0,
+   "name": "hop2-L1-32k-000",
+   "kind": "hop2",
+   "level": 1,
+   "k": 32,
+   "nfacts": 2,
+   "doc_tokens": 30801,
+   "depths": [
+    0.113,
+    0.156
+   ],
+   "span": 0.044,
+   "depth": 0.113,
+   "prompt_tokens_est": 30904,
+   "expected": "FINAL: [XE-3807-AG]",
+   "question": "What is the rollback token of the release nicknamed Quinros?",
+   "prompt_sha256": "6c1b47180bdb9fe78c900893b5950c3da44160c53c8a02892349c155be00b969"
+  },
+  {
+   "idx": 1,
+   "name": "hop2-L2-32k-000",
+   "kind": "hop2",
+   "level": 2,
+   "k": 32,
+   "nfacts": 2,
+   "doc_tokens": 30765,
+   "depths": [
+    0.536,
+    0.796
+   ],
+   "span": 0.26,
+   "depth": 0.536,
+   "prompt_tokens_est": 30869,
+   "expected": "FINAL: [VQ-8000-DB]",
+   "question": "What is the rollback token of the release nicknamed Joryar?",
+   "prompt_sha256": "1f29d06644a623508a8a571c4c24ebebe465b94af31f73fbdc7348131de87bba"
+  },
+  {
+   "idx": 2,
+   "name": "hop2-L3-32k-000",
+   "kind": "hop2",
+   "level": 3,
+   "k": 32,
+   "nfacts": 2,
+   "doc_tokens": 30648,
+   "depths": [
+    0.088,
+    0.726
+   ],
+   "span": 0.638,
+   "depth": 0.088,
+   "prompt_tokens_est": 30751,
+   "expected": "FINAL: [KK-4045-DD]",
+   "question": "What is the rollback token of the release nicknamed Rosfen?",
+   "prompt_sha256": "6531c01ab7e3b140f4be68e96bf6daa10d645bdba3a14d0cdb7de883eb7274f8"
+  },
+  {
+   "idx": 3,
+   "name": "hop3-L1-32k-000",
+   "kind": "hop3",
+   "level": 1,
+   "k": 32,
+   "nfacts": 3,
+   "doc_tokens": 30517,
+   "depths": [
+    0.246,
+    0.266,
+    0.284
+   ],
+   "span": 0.038,
+   "depth": 0.246,
+   "prompt_tokens_est": 30625,
+   "expected": "FINAL: [GM-4788-XW]",
+   "question": "What is the rollback token of the team that owns the release nicknamed Orvcor?",
+   "prompt_sha256": "7aeaabaf40a8423286215c59c9f0c2ebbd24f3f86d7ca36d278f74be145f56b3"
+  },
+  {
+   "idx": 4,
+   "name": "hop3-L2-32k-000",
+   "kind": "hop3",
+   "level": 2,
+   "k": 32,
+   "nfacts": 3,
+   "doc_tokens": 30867,
+   "depths": [
+    0.311,
+    0.829,
+    0.892
+   ],
+   "span": 0.581,
+   "depth": 0.311,
+   "prompt_tokens_est": 30975,
+   "expected": "FINAL: [WZ-5201-SY]",
+   "question": "What is the rollback token of the team that owns the release nicknamed Zancal?",
+   "prompt_sha256": "c4bf6714cdabc59773d568577c8dc9520d5e1487871c49f2b761ee764899f0db"
+  },
+  {
+   "idx": 5,
+   "name": "hop3-L3-32k-000",
+   "kind": "hop3",
+   "level": 3,
+   "k": 32,
+   "nfacts": 3,
+   "doc_tokens": 30444,
+   "depths": [
+    0.105,
+    0.555,
+    0.903
+   ],
+   "span": 0.798,
+   "depth": 0.105,
+   "prompt_tokens_est": 30552,
+   "expected": "FINAL: [AZ-1014-AF]",
+   "question": "What is the rollback token of the team that owns the release nicknamed Wynbri?",
+   "prompt_sha256": "c578a1a849771a22a6312f398a390c2f08f8dbf519e99c07c394728682345fa3"
+  },
+  {
+   "idx": 6,
+   "name": "agg_sum-L1-32k-000",
+   "kind": "agg_sum",
+   "level": 1,
+   "k": 32,
+   "nfacts": 3,
+   "doc_tokens": 30767,
+   "depths": [
+    0.111,
+    0.544,
+    0.649
+   ],
+   "span": 0.538,
+   "depth": 0.111,
+   "prompt_tokens_est": 30884,
+   "expected": "FINAL: [1473]",
+   "question": "What is the total number of units held by all storage shards of the Halsel cluster? Give the sum as digits only.",
+   "prompt_sha256": "149ac7d64fe39456704a1a37cdc4a84c8a6557287bb199849647b794ecf74d85"
+  },
+  {
+   "idx": 7,
+   "name": "agg_sum-L2-32k-000",
+   "kind": "agg_sum",
+   "level": 2,
+   "k": 32,
+   "nfacts": 5,
+   "doc_tokens": 30885,
+   "depths": [
+    0.081,
+    0.242,
+    0.7,
+    0.701,
+    0.801
+   ],
+   "span": 0.72,
+   "depth": 0.081,
+   "prompt_tokens_est": 31001,
+   "expected": "FINAL: [3624]",
+   "question": "What is the total number of units held by all storage shards of the Dunyar cluster? Give the sum as digits only.",
+   "prompt_sha256": "e0980a84abcedb9138290368bed8668bf36b26616949d7c7662408a209832d3c"
+  },
+  {
+   "idx": 8,
+   "name": "agg_sum-L3-32k-000",
+   "kind": "agg_sum",
+   "level": 3,
+   "k": 32,
+   "nfacts": 8,
+   "doc_tokens": 30762,
+   "depths": [
+    0.057,
+    0.097,
+    0.108,
+    0.265,
+    0.571,
+    0.682,
+    0.838,
+    0.91
+   ],
+   "span": 0.853,
+   "depth": 0.057,
+   "prompt_tokens_est": 30879,
+   "expected": "FINAL: [4930]",
+   "question": "What is the total number of units held by all storage shards of the Mardun cluster? Give the sum as digits only.",
+   "prompt_sha256": "84d351b4c48a194619b72d2a047d6049ef83ab6be1cdb595642c48d72a144540"
+  },
+  {
+   "idx": 9,
+   "name": "agg_max-L1-32k-000",
+   "kind": "agg_max",
+   "level": 1,
+   "k": 32,
+   "nfacts": 4,
+   "doc_tokens": 30788,
+   "depths": [
+    0.201,
+    0.71,
+    0.711,
+    0.836
+   ],
+   "span": 0.635,
+   "depth": 0.201,
+   "prompt_tokens_est": 30898,
+   "expected": "FINAL: [Gorgwen]",
+   "question": "Which release of the Gwenzan line recorded the most failed tests? Give the release name.",
+   "prompt_sha256": "96cd1dd1407e5010376ff8c221d7fc2104724c61e806166cf88e2413abcb73ed"
+  },
+  {
+   "idx": 10,
+   "name": "agg_max-L2-32k-000",
+   "kind": "agg_max",
+   "level": 2,
+   "k": 32,
+   "nfacts": 6,
+   "doc_tokens": 30820,
+   "depths": [
+    0.06,
+    0.17,
+    0.298,
+    0.453,
+    0.526,
+    0.862
+   ],
+   "span": 0.802,
+   "depth": 0.06,
+   "prompt_tokens_est": 30928,
+   "expected": "FINAL: [Torwyn]",
+   "question": "Which release of the Halilk line recorded the most failed tests? Give the release name.",
+   "prompt_sha256": "89cd046457802916bbe90fae0f10288c847edd9be099afde644f3e0b40ac6456"
+  },
+  {
+   "idx": 11,
+   "name": "agg_max-L3-32k-000",
+   "kind": "agg_max",
+   "level": 3,
+   "k": 32,
+   "nfacts": 8,
+   "doc_tokens": 30142,
+   "depths": [
+    0.113,
+    0.293,
+    0.484,
+    0.539,
+    0.636,
+    0.883,
+    0.953,
+    0.999
+   ],
+   "span": 0.886,
+   "depth": 0.113,
+   "prompt_tokens_est": 30250,
+   "expected": "FINAL: [Hoxdun]",
+   "question": "Which release of the Novilk line recorded the most failed tests? Give the release name.",
+   "prompt_sha256": "d9b8d18d4eaba5a0f34b78849f2a02477327c84d402c3b5f7fb8f1fb65cd25e6"
+  },
+  {
+   "idx": 12,
+   "name": "repo_sum-L1-32k-000",
+   "kind": "repo_sum",
+   "level": 1,
+   "k": 32,
+   "nfacts": 2,
+   "doc_tokens": 30706,
+   "depths": [
+    0.055,
+    0.588
+   ],
+   "span": 0.533,
+   "depth": 0.055,
+   "prompt_tokens_est": 30851,
+   "expected": "FINAL: [34]",
+   "question": "Add up the values of these integer constants: SLICES in the file crates/intarsia-backend-hip/tests/topk.rs; NKV in the file crates/intarsia-models/tests/common/mod.rs. Give the sum as digits only.",
+   "prompt_sha256": "a76477e7c5e0cd3cc09330d593d0800dcf7fd3bbadfc7819f0f6034fc150c87f"
+  },
+  {
+   "idx": 13,
+   "name": "repo_sum-L2-32k-000",
+   "kind": "repo_sum",
+   "level": 2,
+   "k": 32,
+   "nfacts": 3,
+   "doc_tokens": 30996,
+   "depths": [
+    0.248,
+    0.394,
+    0.558
+   ],
+   "span": 0.309,
+   "depth": 0.248,
+   "prompt_tokens_est": 31168,
+   "expected": "FINAL: [8261]",
+   "question": "Add up the values of these integer constants: WARMUP in the file crates/intarsia-backend-metal/examples/icb_check.rs; SLOT_BYTES in the file crates/intarsia-engram/src/store.rs; DEFAULT_TOPK in the file crates/intarsia-cli/src/cmd/accuracy/selfgolden.rs. Give the sum as digits only.",
+   "prompt_sha256": "63f7cc17480d1abbb7aa4d4472d7e0bf4a10d91d3000830507b7f69d713b8dcc"
+  },
+  {
+   "idx": 14,
+   "name": "repo_sum-L3-32k-000",
+   "kind": "repo_sum",
+   "level": 3,
+   "k": 32,
+   "nfacts": 4,
+   "doc_tokens": 30956,
+   "depths": [
+    0.0,
+    0.167,
+    0.251,
+    0.768
+   ],
+   "span": 0.768,
+   "depth": 0.0,
+   "prompt_tokens_est": 31145,
+   "expected": "FINAL: [9352]",
+   "question": "Add up the values of these integer constants: STATE_VERSION in the file crates/intarsia-cli/src/cmd/qualify/state.rs; INFO_MAX in the file crates/intarsia-backend-cuda/src/rdma_policy.rs; ROWS in the file crates/intarsia-engram/tests/io.rs; PLAN_POS in the file crates/intarsia-core/src/dsv41/plan.rs. Give the sum as digits only.",
+   "prompt_sha256": "ea8c8eca1dc7092bc00593c4da4af98760ff3e0152c0cb3335589bf3eb3728d1"
+  },
+  {
+   "idx": 15,
+   "name": "hop2-L1-32k-001",
+   "kind": "hop2",
+   "level": 1,
+   "k": 32,
+   "nfacts": 2,
+   "doc_tokens": 30646,
+   "depths": [
+    0.475,
+    0.513
+   ],
+   "span": 0.038,
+   "depth": 0.475,
+   "prompt_tokens_est": 30749,
+   "expected": "FINAL: [GE-7273-KH]",
+   "question": "What is the rollback token of the release nicknamed Marpel?",
+   "prompt_sha256": "0ba5163384a7f1534de60aa5ae353df8de1b1a7d19dbcace214be7fcb719fd84"
+  },
+  {
+   "idx": 16,
+   "name": "hop2-L2-32k-001",
+   "kind": "hop2",
+   "level": 2,
+   "k": 32,
+   "nfacts": 2,
+   "doc_tokens": 30875,
+   "depths": [
+    0.087,
+    0.442
+   ],
+   "span": 0.355,
+   "depth": 0.087,
+   "prompt_tokens_est": 30978,
+   "expected": "FINAL: [KV-8782-NP]",
+   "question": "What is the rollback token of the release nicknamed Novlum?",
+   "prompt_sha256": "77e295f70a649dfe8aff2205aaead50361afd8ed21962a368549a0f4c999be2d"
+  },
+  {
+   "idx": 17,
+   "name": "hop2-L3-32k-001",
+   "kind": "hop2",
+   "level": 3,
+   "k": 32,
+   "nfacts": 2,
+   "doc_tokens": 30513,
+   "depths": [
+    0.145,
+    0.918
+   ],
+   "span": 0.773,
+   "depth": 0.145,
+   "prompt_tokens_est": 30616,
+   "expected": "FINAL: [PM-1428-KE]",
+   "question": "What is the rollback token of the release nicknamed Brifen?",
+   "prompt_sha256": "a28f526a665d93f393542933a58b7ad84e055785d2b416501bd141443dea06a2"
+  },
+  {
+   "idx": 18,
+   "name": "hop3-L1-32k-001",
+   "kind": "hop3",
+   "level": 1,
+   "k": 32,
+   "nfacts": 3,
+   "doc_tokens": 30623,
+   "depths": [
+    0.14,
+    0.146,
+    0.176
+   ],
+   "span": 0.036,
+   "depth": 0.14,
+   "prompt_tokens_est": 30730,
+   "expected": "FINAL: [QQ-3087-WN]",
+   "question": "What is the rollback token of the team that owns the release nicknamed Roswyn?",
+   "prompt_sha256": "b92010d2fb990defd5258361935514ed74953e416a783698ca455b574397550b"
+  },
+  {
+   "idx": 19,
+   "name": "hop3-L2-32k-001",
+   "kind": "hop3",
+   "level": 2,
+   "k": 32,
+   "nfacts": 3,
+   "doc_tokens": 30785,
+   "depths": [
+    0.214,
+    0.241,
+    0.887
+   ],
+   "span": 0.673,
+   "depth": 0.214,
+   "prompt_tokens_est": 30893,
+   "expected": "FINAL: [SU-6103-RU]",
+   "question": "What is the rollback token of the team that owns the release nicknamed Quingwen?",
+   "prompt_sha256": "9ea666b9ce3a0d8302d3e6e579c38da2585a16043e1d1249862cc9aa116d1dfd"
+  },
+  {
+   "idx": 20,
+   "name": "hop3-L3-32k-001",
+   "kind": "hop3",
+   "level": 3,
+   "k": 32,
+   "nfacts": 3,
+   "doc_tokens": 30419,
+   "depths": [
+    0.154,
+    0.618,
+    0.938
+   ],
+   "span": 0.784,
+   "depth": 0.154,
+   "prompt_tokens_est": 30527,
+   "expected": "FINAL: [RP-6009-RU]",
+   "question": "What is the rollback token of the team that owns the release nicknamed Dunulm?",
+   "prompt_sha256": "b4d1d18001911636aa4b4482c7b82ddbaba937b0f558fa41bf6168ed509e7906"
+  },
+  {
+   "idx": 21,
+   "name": "agg_sum-L1-32k-001",
+   "kind": "agg_sum",
+   "level": 1,
+   "k": 32,
+   "nfacts": 3,
+   "doc_tokens": 30868,
+   "depths": [
+    0.351,
+    0.435,
+    0.696
+   ],
+   "span": 0.345,
+   "depth": 0.351,
+   "prompt_tokens_est": 30985,
+   "expected": "FINAL: [1620]",
+   "question": "What is the total number of units held by all storage shards of the Gorkel cluster? Give the sum as digits only.",
+   "prompt_sha256": "d899b59dd6b1a1f31e3db362f40de5cbb98b4117f0adfe262eeb23873538c210"
+  },
+  {
+   "idx": 22,
+   "name": "agg_sum-L2-32k-001",
+   "kind": "agg_sum",
+   "level": 2,
+   "k": 32,
+   "nfacts": 5,
+   "doc_tokens": 30871,
+   "depths": [
+    0.386,
+    0.563,
+    0.595,
+    0.695,
+    0.925
+   ],
+   "span": 0.539,
+   "depth": 0.386,
+   "prompt_tokens_est": 30987,
+   "expected": "FINAL: [3640]",
+   "question": "What is the total number of units held by all storage shards of the Derilk cluster? Give the sum as digits only.",
+   "prompt_sha256": "ca1c5fb751f85561a0bbd66b392fe8f5638205950c6b3c586820a700ec3889bf"
+  },
+  {
+   "idx": 23,
+   "name": "agg_sum-L3-32k-001",
+   "kind": "agg_sum",
+   "level": 3,
+   "k": 32,
+   "nfacts": 8,
+   "doc_tokens": 30628,
+   "depths": [
+    0.26,
+    0.315,
+    0.337,
+    0.432,
+    0.537,
+    0.681,
+    0.805,
+    0.978
+   ],
+   "span": 0.718,
+   "depth": 0.26,
+   "prompt_tokens_est": 30744,
+   "expected": "FINAL: [4548]",
+   "question": "What is the total number of units held by all storage shards of the Dunros cluster? Give the sum as digits only.",
+   "prompt_sha256": "6f4b5cd5c18b15468a860ec27b9e46fb36783d29f019d83d69ce79ee2ce1af5f"
+  },
+  {
+   "idx": 24,
+   "name": "agg_max-L1-32k-001",
+   "kind": "agg_max",
+   "level": 1,
+   "k": 32,
+   "nfacts": 4,
+   "doc_tokens": 30760,
+   "depths": [
+    0.079,
+    0.094,
+    0.536,
+    0.654
+   ],
+   "span": 0.574,
+   "depth": 0.079,
+   "prompt_tokens_est": 30869,
+   "expected": "FINAL: [Quinulm]",
+   "question": "Which release of the Jorquin line recorded the most failed tests? Give the release name.",
+   "prompt_sha256": "7c268985a759200f44a37676e2515e4189fc373ce59427b4bd0383d228da79d8"
+  },
+  {
+   "idx": 25,
+   "name": "agg_max-L2-32k-001",
+   "kind": "agg_max",
+   "level": 2,
+   "k": 32,
+   "nfacts": 6,
+   "doc_tokens": 30854,
+   "depths": [
+    0.101,
+    0.11,
+    0.281,
+    0.704,
+    0.705,
+    0.909
+   ],
+   "span": 0.808,
+   "depth": 0.101,
+   "prompt_tokens_est": 30962,
+   "expected": "FINAL: [Barbar]",
+   "question": "Which release of the Marilk line recorded the most failed tests? Give the release name.",
+   "prompt_sha256": "328b3c69b8bce3acfce46f20df647a344961695357b9b5fad1ebc6913ccfb60c"
+  },
+  {
+   "idx": 26,
+   "name": "agg_max-L3-32k-001",
+   "kind": "agg_max",
+   "level": 3,
+   "k": 32,
+   "nfacts": 8,
+   "doc_tokens": 30812,
+   "depths": [
+    0.09,
+    0.156,
+    0.163,
+    0.267,
+    0.385,
+    0.459,
+    0.516,
+    0.557
+   ],
+   "span": 0.467,
+   "depth": 0.09,
+   "prompt_tokens_est": 30920,
+   "expected": "FINAL: [Torcor]",
+   "question": "Which release of the Bartor line recorded the most failed tests? Give the release name.",
+   "prompt_sha256": "8f3da64c967fce53cebe91fe98c33d012e3365c9d841fa63f4f78a0a92b47d5f"
+  },
+  {
+   "idx": 27,
+   "name": "repo_sum-L1-32k-001",
+   "kind": "repo_sum",
+   "level": 1,
+   "k": 32,
+   "nfacts": 2,
+   "doc_tokens": 30954,
+   "depths": [
+    0.464,
+    0.772
+   ],
+   "span": 0.308,
+   "depth": 0.464,
+   "prompt_tokens_est": 31101,
+   "expected": "FINAL: [126]",
+   "question": "Add up the values of these integer constants: DECODE_A in the file crates/intarsia-models/tests/graphs.rs; TARGET_TGS in the file crates/intarsia-backend-metal/src/attn.rs. Give the sum as digits only.",
+   "prompt_sha256": "d942a2545e47ade327a0cbd5b5971b37c92d76b931c7be044aaa9f4b9029dba8"
+  },
+  {
+   "idx": 28,
+   "name": "repo_sum-L2-32k-001",
+   "kind": "repo_sum",
+   "level": 2,
+   "k": 32,
+   "nfacts": 3,
+   "doc_tokens": 30108,
+   "depths": [
+    0.316,
+    0.701,
+    0.845
+   ],
+   "span": 0.529,
+   "depth": 0.316,
+   "prompt_tokens_est": 30284,
+   "expected": "FINAL: [315]",
+   "question": "Add up the values of these integer constants: PLAN_PREFILL_ROWS in the file crates/intarsia-models/src/dsv41.rs; LAYERS in the file crates/intarsia-backend-cuda/tests/attn_f8kv.rs; WARMUP in the file crates/intarsia-backend-metal/examples/gemv_bw.rs. Give the sum as digits only.",
+   "prompt_sha256": "36aac6ce3207816e11c0267de347e91bf5575ec28218dfd7e46a85f0fa42bba4"
+  },
+  {
+   "idx": 29,
+   "name": "repo_sum-L3-32k-001",
+   "kind": "repo_sum",
+   "level": 3,
+   "k": 32,
+   "nfacts": 4,
+   "doc_tokens": 30859,
+   "depths": [
+    0.054,
+    0.189,
+    0.253,
+    0.794
+   ],
+   "span": 0.74,
+   "depth": 0.054,
+   "prompt_tokens_est": 31049,
+   "expected": "FINAL: [348]",
+   "question": "Add up the values of these integer constants: PLAN_PREFILL_ROWS in the file crates/intarsia-models/src/dsv41.rs; NB in the file crates/intarsia-backend-cpu/src/fast.rs; CLOCK_UPTIME_RAW in the file crates/intarsia-backend-metal/src/profile.rs; SCALE_BLOCK in the file crates/intarsia-core/src/dsv41/engram.rs. Give the sum as digits only.",
+   "prompt_sha256": "9a730415ec1b1dc9c1444ed44f7ecdb11ca3315ddd2ffe20971c4eaa0d85bddf"
+  },
+  {
+   "idx": 30,
+   "name": "hop3-L2-65k-000",
+   "kind": "hop3",
+   "level": 2,
+   "k": 65,
+   "nfacts": 3,
+   "doc_tokens": 64248,
+   "depths": [
+    0.367,
+    0.647,
+    0.812
+   ],
+   "span": 0.445,
+   "depth": 0.367,
+   "prompt_tokens_est": 64356,
+   "expected": "FINAL: [CY-2932-DF]",
+   "question": "What is the rollback token of the team that owns the release nicknamed Yarnov?",
+   "prompt_sha256": "16c842040bba0e4863bb5b3203928b830b8f8df3f4ea26c6f36fb8db845438a8"
+  },
+  {
+   "idx": 31,
+   "name": "agg_sum-L2-65k-000",
+   "kind": "agg_sum",
+   "level": 2,
+   "k": 65,
+   "nfacts": 5,
+   "doc_tokens": 64231,
+   "depths": [
+    0.323,
+    0.324,
+    0.44,
+    0.538,
+    0.939
+   ],
+   "span": 0.616,
+   "depth": 0.323,
+   "prompt_tokens_est": 64347,
+   "expected": "FINAL: [1773]",
+   "question": "What is the total number of units held by all storage shards of the Pelcor cluster? Give the sum as digits only.",
+   "prompt_sha256": "ee884f03ca44ff11a029f97b6bc4a1befc8744f1f68641374ae5e3df7606b11d"
+  },
+  {
+   "idx": 32,
+   "name": "repo_sum-L2-65k-000",
+   "kind": "repo_sum",
+   "level": 2,
+   "k": 65,
+   "nfacts": 3,
+   "doc_tokens": 63580,
+   "depths": [
+    0.0,
+    0.49,
+    0.833
+   ],
+   "span": 0.833,
+   "depth": 0.0,
+   "prompt_tokens_est": 63743,
+   "expected": "FINAL: [8295]",
+   "question": "Add up the values of these integer constants: SLOT_BYTES in the file crates/intarsia-engram/src/store.rs; GROUP in the file crates/intarsia-core/src/quant/nvfp4.rs; EXIT_FAILED in the file crates/intarsia-server/src/health.rs. Give the sum as digits only.",
+   "prompt_sha256": "2a071581b49daf8b9182210ed81f67f2d520b8bf2ab1dc2342f84cb8bc3615f2"
+  }
+ ]
+}

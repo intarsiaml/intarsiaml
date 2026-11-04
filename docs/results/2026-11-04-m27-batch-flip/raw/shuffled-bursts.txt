@@ -1,0 +1,27 @@
+r 1 start-order [0, 2, 4, 1] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r 2 start-order [1, 0, 2, 4] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r 3 start-order [2, 0, 4, 1] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r 4 start-order [4, 2, 1, 0] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r 5 start-order [2, 4, 1, 0] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r 6 start-order [1, 0, 2, 4] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r 7 start-order [4, 2, 1, 0] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r 8 start-order [2, 4, 0, 1] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r 9 start-order [0, 1, 2, 4] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r10 start-order [0, 1, 2, 4] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r11 start-order [4, 1, 0, 2] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r12 start-order [4, 2, 0, 1] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r13 start-order [4, 1, 2, 0] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r14 start-order [1, 0, 2, 4] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r15 start-order [0, 4, 1, 2] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r16 start-order [1, 2, 0, 4] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r17 start-order [4, 1, 2, 0] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r18 start-order [0, 4, 2, 1] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r19 start-order [1, 0, 2, 4] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r20 start-order [1, 4, 2, 0] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r21 start-order [4, 0, 1, 2] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r22 start-order [4, 2, 1, 0] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r23 start-order [1, 2, 4, 0] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+r24 start-order [0, 4, 1, 2] C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] differs=False first_diff=None id184=14663
+table (C, chunks, differs from ref): count
+(256, '[256, 256, 256, 4]', False) 24
+q0/q1/q2 requests differing from their own r1: 0 of 72

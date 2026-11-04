@@ -1,0 +1,26 @@
+NAX off, q4: solo vs behind first diff None bit-equal 200/200 id184=506 gap=+nan
+nax0-len
+  plen 260   tail   4 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 1028  tail   4 first diff None  bit-equal 200/200 KL mean 0.00e+00
+peel16-len
+  plen 257   tail   1 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 258   tail   2 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 259   tail   3 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 260   tail   4 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 265   tail   9 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 266   tail  10 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 513   tail   1 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 1028  tail   4 first diff None  bit-equal 200/200 KL mean 0.00e+00
+peel8-len
+  plen 257   tail   1 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 258   tail   2 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 259   tail   3 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 260   tail   4 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 265   tail   9 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 266   tail  10 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 513   tail   1 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 1028  tail   4 first diff None  bit-equal 200/200 KL mean 0.00e+00
+nopeel-len
+  plen 257   tail   1 first diff None  bit-equal 200/200 KL mean 0.00e+00
+  plen 258   tail   2 first diff 105   bit-equal 0/106 KL mean 3.37e-02
+  plen 513   tail   1 first diff None  bit-equal 200/200 KL mean 0.00e+00
