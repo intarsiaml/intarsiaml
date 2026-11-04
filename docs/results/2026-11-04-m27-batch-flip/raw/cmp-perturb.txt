@@ -1,0 +1,88 @@
+plen 258 row 100 solo id 51544 top ids [51544, 36334]
+   solo(NAX)            same-context=True  first-diff-vs-solo=None  lp[51544]=-0.0883 lp[36334]=-3.8241
+   busy(tail4 or 2,..)  same-context=True  first-diff-vs-solo=105   lp[51544]=-0.5363 lp[36334]=-2.0259
+   nax0                 same-context=True  first-diff-vs-solo=106   lp[51544]=-0.2239 lp[36334]=-2.7976
+   kvf32                (no row)
+   tail3                same-context=True  first-diff-vs-solo=105   lp[51544]=-1.2799 lp[36334]=-1.6712
+   tail5                same-context=True  first-diff-vs-solo=105   lp[51544]=-0.8476 lp[36334]=-1.8191
+   tail7                same-context=True  first-diff-vs-solo=105   lp[51544]=-0.2976 lp[36334]=-2.6847
+   f64 ref              same-context=True  first-diff-vs-solo=None  lp[51544]=-0.3885 lp[36334]=-2.5810
+   forced one-pass      lp[51544]=-2.1352 lp[36334]=-1.4910
+plen 258 row 104 solo id 220 top ids [220, 383]
+   solo(NAX)            same-context=True  first-diff-vs-solo=None  lp[220]=-0.0085 lp[383]=-4.9444
+   busy(tail4 or 2,..)  same-context=True  first-diff-vs-solo=105   lp[220]=-0.6373 lp[383]=-0.8094
+   nax0                 same-context=True  first-diff-vs-solo=106   lp[220]=-0.2911 lp[383]=-1.4100
+   kvf32                (no row)
+   tail3                same-context=True  first-diff-vs-solo=105   lp[220]=-0.3672 lp[383]=-1.2100
+   tail5                same-context=True  first-diff-vs-solo=105   lp[220]=-0.0536 lp[383]=-3.0226
+   tail7                same-context=True  first-diff-vs-solo=105   lp[220]=-0.1628 lp[383]=-1.9427
+   f64 ref              same-context=True  first-diff-vs-solo=None  lp[220]=-0.0441 lp[383]=-3.2776
+   forced one-pass      lp[220]=-0.1305 lp[383]=-2.1467
+plen 258 row 105 solo id 17 top ids [17, 16]
+   solo(NAX)            same-context=True  first-diff-vs-solo=None  lp[17]=-0.0317 lp[16]=-4.0011
+   busy(tail4 or 2,..)  same-context=True  first-diff-vs-solo=105   lp[17]=-2.8193 lp[16]=-3.2512
+   nax0                 same-context=True  first-diff-vs-solo=106   lp[17]=-0.7361 lp[16]=-2.2397
+   kvf32                (no row)
+   tail3                same-context=True  first-diff-vs-solo=105   lp[17]=-2.0712 lp[16]=-1.6610
+   tail5                same-context=True  first-diff-vs-solo=105   lp[17]=-1.0889 lp[16]=-2.6361
+   tail7                same-context=True  first-diff-vs-solo=105   lp[17]=-1.5011 lp[16]=-2.3660
+   f64 ref              same-context=True  first-diff-vs-solo=None  lp[17]=-0.4776 lp[16]=-2.9024
+plen 260 row 138 solo id 19 top ids [19, 15]
+   solo(NAX)            same-context=True  first-diff-vs-solo=None  lp[19]=-0.1651 lp[15]=-2.7901
+   busy(tail4 or 2,..)  same-context=True  first-diff-vs-solo=197   lp[19]=-0.0429 lp[15]=-5.7666
+   nax0                 same-context=True  first-diff-vs-solo=197   lp[19]=-0.0841 lp[15]=-3.5158
+   kvf32                (no row)
+   tail3                same-context=True  first-diff-vs-solo=None  lp[19]=-0.1564 lp[15]=-2.5861
+   tail5                same-context=True  first-diff-vs-solo=None  lp[19]=-0.0302 lp[15]=-4.1502
+   tail7                same-context=True  first-diff-vs-solo=None  lp[19]=-0.5681 lp[15]=-1.5797
+   f64 ref              same-context=True  first-diff-vs-solo=197   lp[19]=-0.0023 lp[15]=-7.7051
+   forced one-pass      lp[19]=-0.0109 lp[15]=-5.9618
+plen 260 row 197 solo id 1834 top ids [1834, 383]
+   solo(NAX)            same-context=True  first-diff-vs-solo=None  lp[1834]=-0.0089 lp[383]=-5.5692
+   busy(tail4 or 2,..)  same-context=True  first-diff-vs-solo=197   lp[1834]=-3.1893 lp[383]=-11.6680
+   nax0                 same-context=True  first-diff-vs-solo=197   lp[1834]=-2.8219 lp[383]=nan
+   kvf32                (no row)
+   tail3                same-context=True  first-diff-vs-solo=None  lp[1834]=-0.2467 lp[383]=nan
+   tail5                same-context=True  first-diff-vs-solo=None  lp[1834]=-0.0012 lp[383]=-9.3463
+   tail7                same-context=True  first-diff-vs-solo=None  lp[1834]=-0.0010 lp[383]=-13.5841
+   f64 ref              same-context=True  first-diff-vs-solo=197   lp[1834]=-5.6126 lp[383]=-8.4701
+   forced one-pass      lp[1834]=-0.0009 lp[383]=nan
+plen 262 row 188 solo id 1834 top ids [1834, 279]
+   solo(NAX)            same-context=True  first-diff-vs-solo=None  lp[1834]=-0.0322 lp[279]=-4.0375
+   busy(tail4 or 2,..)  same-context=True  first-diff-vs-solo=None  lp[1834]=-0.9563 lp[279]=-7.2164
+   nax0                 same-context=False first-diff-vs-solo=150   lp[1834]=nan lp[279]=nan
+   kvf32                (no row)
+   tail3                same-context=False first-diff-vs-solo=160   lp[1834]=-0.3571 lp[279]=nan
+   tail5                same-context=False first-diff-vs-solo=67    lp[1834]=nan lp[279]=nan
+   tail7                same-context=False first-diff-vs-solo=160   lp[1834]=-0.4582 lp[279]=nan
+   f64 ref              same-context=False first-diff-vs-solo=150   lp[1834]=nan lp[279]=nan
+   forced one-pass      lp[1834]=-0.0612 lp[279]=-3.5553
+plen 1028 row 63 solo id 21 top ids [21, 21059]
+   solo(NAX)            same-context=True  first-diff-vs-solo=None  lp[21]=-0.6107 lp[21059]=-0.8750
+   busy(tail4 or 2,..)  same-context=True  first-diff-vs-solo=195   lp[21]=-0.0020 lp[21059]=-8.2062
+   nax0                 same-context=True  first-diff-vs-solo=195   lp[21]=-0.0017 lp[21059]=nan
+   kvf32                (no row)
+   tail3                same-context=False first-diff-vs-solo=21    lp[21]=-7.9905 lp[21059]=nan
+   tail5                same-context=True  first-diff-vs-solo=None  lp[21]=-0.4726 lp[21059]=-1.0336
+   tail7                same-context=True  first-diff-vs-solo=None  lp[21]=-0.0006 lp[21059]=nan
+   f64 ref              same-context=False first-diff-vs-solo=21    lp[21]=-8.2165 lp[21059]=nan
+   forced one-pass      lp[21]=-0.9499 lp[21059]=-0.6002
+plen 1028 row 129 solo id 23198 top ids [23198, 3838]
+   solo(NAX)            same-context=True  first-diff-vs-solo=None  lp[23198]=-0.6278 lp[3838]=-1.6041
+   busy(tail4 or 2,..)  same-context=True  first-diff-vs-solo=195   lp[23198]=-1.0571 lp[3838]=-1.2277
+   nax0                 same-context=True  first-diff-vs-solo=195   lp[23198]=-0.3314 lp[3838]=-2.2431
+   kvf32                (no row)
+   tail3                same-context=False first-diff-vs-solo=21    lp[23198]=nan lp[3838]=nan
+   tail5                same-context=True  first-diff-vs-solo=None  lp[23198]=-1.0683 lp[3838]=-1.2133
+   tail7                same-context=True  first-diff-vs-solo=None  lp[23198]=-0.1588 lp[3838]=-3.4647
+   f64 ref              (no row)
+   forced one-pass      lp[23198]=-1.3055 lp[3838]=-1.1370
+plen 1028 row 195 solo id 21208 top ids [21208, 22]
+   solo(NAX)            same-context=True  first-diff-vs-solo=None  lp[21208]=-0.1873 lp[22]=-1.9081
+   busy(tail4 or 2,..)  same-context=True  first-diff-vs-solo=195   lp[21208]=nan lp[22]=-0.0009
+   nax0                 same-context=True  first-diff-vs-solo=195   lp[21208]=nan lp[22]=-0.0020
+   kvf32                (no row)
+   tail3                same-context=False first-diff-vs-solo=21    lp[21208]=nan lp[22]=nan
+   tail5                same-context=True  first-diff-vs-solo=None  lp[21208]=-0.3490 lp[22]=-1.3096
+   tail7                same-context=True  first-diff-vs-solo=None  lp[21208]=-0.1574 lp[22]=-2.0356
+   f64 ref              (no row)

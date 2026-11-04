@@ -1,0 +1,1 @@
+Text tables from the cmp-*.py readers in scripts/, run from the worktree root with the raw JSON under .scratch/logs/ (not kept: about 30 MB of per-row logprobs and server traces). scripts/*.sh are the fleetq job bodies and reproduce them.

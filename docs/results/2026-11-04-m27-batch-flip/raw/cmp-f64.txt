@@ -1,0 +1,39 @@
+plen 258: reference 108 rows, wall 904 s
+   solo-NAX  first id diff vs ref None  rows 108  KL(ref||path) median 3.95e-05 mean 1.12e-02 max 0.862@105  row0 4.06e-05
+   busy      first id diff vs ref 105   rows 106  KL(ref||path) median 3.38e-05 mean 1.68e-02 max 1.170@105  row0 1.27e-04
+   allGEMV   first id diff vs ref 106   rows 107  KL(ref||path) median 1.02e-05 mean 4.99e-03 max 0.244@105  row0 1.18e-04
+   tail3     first id diff vs ref 105   rows 106  KL(ref||path) median 2.61e-05 mean 2.27e-02 max 1.615@105  row0 8.53e-05
+   tail5     first id diff vs ref 105   rows 106  KL(ref||path) median 2.90e-05 mean 4.90e-03 max 0.216@105  row0 1.19e-04
+   tail7     first id diff vs ref 105   rows 106  KL(ref||path) median 2.62e-05 mean 5.64e-03 max 0.448@105  row0 1.80e-04
+   solo vs busy (path-to-path)     rows 106  KL median 3.92e-06 mean 3.37e-02 max 2.648
+   row 100 ref same-context=True ref top 51544 ref lp[51544]=-0.3885 ref lp[36334]=-2.5810
+   row 104 ref same-context=True ref top 220 ref lp[220]=-0.0441 ref lp[383]=-3.2776
+   row 105 ref same-context=True ref top 17 ref lp[17]=-0.4776 ref lp[16]=-2.9024
+plen 260: reference 200 rows, wall 1358 s
+   solo-NAX  first id diff vs ref 197   rows 198  KL(ref||path) median 2.33e-05 mean 4.15e-02 max 7.317@197  row0 1.16e-05
+   busy      first id diff vs ref 197   rows 198  KL(ref||path) median 4.42e-05 mean 2.57e-03 max 0.266@137  row0 1.18e-05
+   allGEMV   first id diff vs ref 197   rows 198  KL(ref||path) median 3.88e-05 mean 3.97e-02 max 7.175@197  row0 8.65e-06
+   tail3     first id diff vs ref 197   rows 198  KL(ref||path) median 2.76e-05 mean 4.51e-02 max 8.638@197  row0 1.33e-05
+   tail5     first id diff vs ref 197   rows 198  KL(ref||path) median 3.51e-05 mean 1.56e-03 max 0.126@137  row0 1.42e-05
+   tail7     first id diff vs ref 197   rows 198  KL(ref||path) median 3.65e-05 mean 4.37e-03 max 0.554@138  row0 1.04e-05
+   solo vs busy (path-to-path)     rows 198  KL median 1.73e-05 mean 1.63e-02 max 3.181
+   row 138 ref same-context=True ref top 19 ref lp[19]=-0.0023 ref lp[15]=-7.7051
+   row 197 ref same-context=True ref top 16384 ref lp[1834]=-5.6126 ref lp[383]=-8.4701
+plen 262: reference 192 rows, wall 1312 s
+   solo-NAX  first id diff vs ref 150   rows 151  KL(ref||path) median 2.08e-06 mean 7.92e-04 max 0.084@107  row0 4.64e-03
+   busy      first id diff vs ref 150   rows 151  KL(ref||path) median 4.97e-06 mean 7.46e-04 max 0.046@107  row0 7.16e-03
+   allGEMV   first id diff vs ref None  rows 192  KL(ref||path) median 4.69e-06 mean 1.69e-03 max 0.268@107  row0 1.27e-03
+   tail3     first id diff vs ref 150   rows 151  KL(ref||path) median 2.38e-06 mean 4.45e-04 max 0.027@107  row0 8.02e-03
+   tail5     first id diff vs ref 67    rows  68  KL(ref||path) median 2.05e-06 mean 2.22e-04 max 0.009@0  row0 9.42e-03
+   tail7     first id diff vs ref 150   rows 151  KL(ref||path) median 2.20e-06 mean 2.57e-03 max 0.222@107  row0 6.30e-03
+   solo vs busy (path-to-path)     rows 200  KL median 6.83e-06 mean 4.92e-03 max 0.934
+   row 188 ref same-context=False ref top 314 ref lp[1834]=nan ref lp[279]=nan
+plen 1028: reference 66 rows, wall 1295 s
+   solo-NAX  first id diff vs ref 21    rows  22  KL(ref||path) median 6.57e-07 mean 1.20e-05 max 0.000@18  row0 1.17e-05
+   busy      first id diff vs ref 21    rows  22  KL(ref||path) median 2.82e-06 mean 2.72e-05 max 0.000@21  row0 9.76e-06
+   allGEMV   first id diff vs ref 21    rows  22  KL(ref||path) median 5.89e-07 mean 2.21e-05 max 0.000@7  row0 1.04e-04
+   tail3     first id diff vs ref None  rows  66  KL(ref||path) median 2.81e-06 mean 6.41e-04 max 0.041@32  row0 7.63e-06
+   tail5     first id diff vs ref 21    rows  22  KL(ref||path) median 1.46e-06 mean 2.45e-05 max 0.000@21  row0 1.64e-05
+   tail7     first id diff vs ref 21    rows  22  KL(ref||path) median 3.29e-06 mean 2.99e-05 max 0.000@6  row0 1.48e-05
+   solo vs busy (path-to-path)     rows 196  KL median 1.05e-06 mean 1.43e-02 max 2.897
+   row 63 ref same-context=False ref top 22 ref lp[21]=-8.2165 ref lp[21059]=nan

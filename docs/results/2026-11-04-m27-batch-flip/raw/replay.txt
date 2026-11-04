@@ -1,0 +1,42 @@
+cell                             =ref  1st diff id184    lp(14663)     lp(557)  gap 14663-557
+s1/00-A                          False 184      557      -1.209953   -1.188519      -0.021435
+s1/01-A                          False 184      557      -1.209953   -1.188519      -0.021435
+s1/02-A                          False 184      557      -1.209953   -1.188519      -0.021435
+s1/03-A0                         False 184      557    (no logprobs)
+s1/04-B                          True  None     14663    -1.203806   -1.213703       0.009897
+s1/05-B                          True  None     14663    -1.203806   -1.213703       0.009897
+s1/06-B                          True  None     14663    -1.203806   -1.213703       0.009897
+s1/07-B0                         True  None     14663  (no logprobs)
+s1/08-Bq3                        True  None     14663    -1.203806   -1.213703       0.009897
+s1/09-Aa                         False 184      557      -1.209953   -1.188519      -0.021435
+s1/10-Aa3                        False 184      557      -1.209953   -1.188519      -0.021435
+s2/00-A                          False 184      557      -1.209953   -1.188519      -0.021435
+s2/01-B                          False 184      557      -1.209953   -1.188519      -0.021435
+s2/02-B                          False 184      557      -1.209953   -1.188519      -0.021435
+s2/03-Bq3                        False 184      557      -1.209953   -1.188519      -0.021435
+s3/00-Acold                      False 184      557      -1.209953   -1.188519      -0.021435
+s3/01-Awarm_solo                 False 184      557      -1.209953   -1.188519      -0.021435
+s3/02-Awarm_behind               True  None     14663    -1.203806   -1.213703       0.009897
+s4/00-Bcold                      True  None     14663    -1.203806   -1.213703       0.009897
+s4/01-Bwarm_solo                 False 184      557      -1.209953   -1.188519      -0.021435
+s4/02-Bwarm_behind               True  None     14663    -1.203806   -1.213703       0.009897
+
+largest |logprob difference| over shared top-20 ids, rows 0..183, against s1/00-A
+s1/01-A                          bit-equal rows 0..183: True   max diff 0.000000 at row None
+s1/02-A                          bit-equal rows 0..183: True   max diff 0.000000 at row None
+s1/04-B                          bit-equal rows 0..183: False  max diff 0.262486 at row 4
+s1/05-B                          bit-equal rows 0..183: False  max diff 0.262486 at row 4
+s1/06-B                          bit-equal rows 0..183: False  max diff 0.262486 at row 4
+s1/08-Bq3                        bit-equal rows 0..183: False  max diff 0.262486 at row 4
+s1/09-Aa                         bit-equal rows 0..183: True   max diff 0.000000 at row None
+s1/10-Aa3                        bit-equal rows 0..183: True   max diff 0.000000 at row None
+s2/00-A                          bit-equal rows 0..183: True   max diff 0.000000 at row None
+s2/01-B                          bit-equal rows 0..183: True   max diff 0.000000 at row None
+s2/02-B                          bit-equal rows 0..183: True   max diff 0.000000 at row None
+s2/03-Bq3                        bit-equal rows 0..183: True   max diff 0.000000 at row None
+s3/00-Acold                      bit-equal rows 0..183: True   max diff 0.000000 at row None
+s3/01-Awarm_solo                 bit-equal rows 0..183: True   max diff 0.000000 at row None
+s3/02-Awarm_behind               bit-equal rows 0..183: False  max diff 0.262486 at row 4
+s4/00-Bcold                      bit-equal rows 0..183: False  max diff 0.262486 at row 4
+s4/01-Bwarm_solo                 bit-equal rows 0..183: True   max diff 0.000000 at row None
+s4/02-Bwarm_behind               bit-equal rows 0..183: False  max diff 0.262486 at row 4

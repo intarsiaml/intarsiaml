@@ -1,0 +1,63 @@
+plen 258
+   HF-bf16   rows 200 KL median 2.6e-05 mean 1.4e-02 max 1.010@158 dlp>1 rows  33 row0 dlp 0.2660 50-row medians [0.091, 0.136, 0.62, 0.155]
+   solo-NAX  rows 200 KL median 2.5e-05 mean 3.2e-02 max 2.793@105 dlp>1 rows  32 row0 dlp 0.2805 50-row medians [0.061, 0.122, 0.573, 0.126]
+   busy      rows 106 KL median 3.7e-05 mean 8.6e-03 max 0.323@100 dlp>1 rows  13 row0 dlp 0.2178 50-row medians [0.061, 0.181, 1.476]
+   allGEMV   rows 107 KL median 1.9e-05 mean 7.8e-03 max 0.596@105 dlp>1 rows  14 row0 dlp 0.3020 50-row medians [0.066, 0.204, 0.822]
+   tail3     rows 106 KL median 2.2e-05 mean 3.6e-02 max 2.627@105 dlp>1 rows  13 row0 dlp 0.2784 50-row medians [0.06, 0.189, 1.32]
+   tail5     rows 106 KL median 3.1e-05 mean 7.6e-03 max 0.597@100 dlp>1 rows   9 row0 dlp 0.1943 50-row medians [0.063, 0.135, 0.885]
+   tail7     rows 106 KL median 2.5e-05 mean 3.5e-03 max 0.187@105 dlp>1 rows   9 row0 dlp 0.0988 50-row medians [0.066, 0.188, 0.791]
+   f64-ref   rows 108 KL median 2.5e-05 mean 6.1e-03 max 0.305@105 dlp>1 rows  16 row0 dlp 0.2235 50-row medians [0.074, 0.239, 0.4]
+   cpu-f32   rows 108 KL median 3.3e-05 mean 2.2e-02 max 1.844@105 dlp>1 rows  14 row0 dlp 0.0339 50-row medians [0.054, 0.292, 0.695]
+   row 100: HF-f32 top 51544 [51544] f32 -0.0885 hf-bf16 -0.4991 solo -0.0883 busy -0.5363 | [36334] f32 -3.8335 hf-bf16 -2.1241 solo -3.8241 busy -2.0259
+   row 104: HF-f32 top 220 [220] f32 -0.1238 hf-bf16 -0.9186 solo -0.0085 busy -0.6373 | [383] f32 -2.2315 hf-bf16 -0.5436 solo -4.9444 busy -0.8094
+   row 105: HF-f32 top 279 [17] f32 -1.2889 hf-bf16 -0.3225 solo -0.0317 busy -2.8193 | [16] f32 -2.8124 hf-bf16 -1.9475 solo -4.0011 busy -3.2512
+plen 260
+   HF-bf16   rows 200 KL median 4.9e-05 mean 1.7e-03 max 0.116@101 dlp>1 rows  32 row0 dlp 0.0418 50-row medians [0.08, 0.144, 0.299, 0.529]
+   solo-NAX  rows 200 KL median 5.3e-05 mean 3.7e-03 max 0.357@106 dlp>1 rows  31 row0 dlp 0.0328 50-row medians [0.075, 0.193, 0.331, 0.527]
+   busy      rows 198 KL median 6.3e-05 mean 1.8e-02 max 3.184@197 dlp>1 rows  34 row0 dlp 0.0110 50-row medians [0.058, 0.154, 0.437, 0.631]
+   allGEMV   rows 198 KL median 6.7e-05 mean 1.8e-02 max 2.807@197 dlp>1 rows  39 row0 dlp 0.0170 50-row medians [0.06, 0.099, 0.402, 0.891]
+   tail3     rows 200 KL median 7.7e-05 mean 3.7e-03 max 0.241@197 dlp>1 rows  38 row0 dlp 0.0638 50-row medians [0.071, 0.14, 0.341, 0.536]
+   tail5     rows 200 KL median 5.8e-05 mean 2.0e-03 max 0.270@101 dlp>1 rows  34 row0 dlp 0.0380 50-row medians [0.066, 0.155, 0.31, 0.647]
+   tail7     rows 200 KL median 5.6e-05 mean 4.2e-03 max 0.470@138 dlp>1 rows  32 row0 dlp 0.0168 50-row medians [0.071, 0.155, 0.348, 0.483]
+   f64-ref   rows 198 KL median 6.0e-05 mean 3.1e-02 max 5.587@197 dlp>1 rows  36 row0 dlp 0.0178 50-row medians [0.055, 0.099, 0.364, 0.413]
+   cpu-f32   rows 198 KL median 4.6e-05 mean 2.7e-02 max 4.544@197 dlp>1 rows  34 row0 dlp 0.0247 50-row medians [0.061, 0.122, 0.351, 0.409]
+   row 138: HF-f32 top 19 [19] f32 -0.0329 hf-bf16 -0.0511 solo -0.1651 busy -0.0429 | [15] f32 -5.6318 hf-bf16 -4.3011 solo -2.7901 busy -5.7666
+   row 197: HF-f32 top 1834 [1834] f32 -0.0037 hf-bf16 -0.0034 solo -0.0089 busy -3.1893 | [383] f32 -9.7282 hf-bf16 -7.1284 solo -5.5692 busy -11.6680
+plen 262
+   HF-bf16   rows 200 KL median 2.0e-05 mean 2.3e-03 max 0.226@188 dlp>1 rows   6 row0 dlp 0.0878 50-row medians [0.08, 0.119, 0.234, 0.12]
+   solo-NAX  rows 200 KL median 2.2e-05 mean 1.5e-03 max 0.122@143 dlp>1 rows   7 row0 dlp 0.0499 50-row medians [0.068, 0.119, 0.157, 0.104]
+   busy      rows 200 KL median 2.9e-05 mean 7.0e-03 max 1.048@188 dlp>1 rows  10 row0 dlp 0.0423 50-row medians [0.063, 0.127, 0.154, 0.097]
+   allGEMV   rows 151 KL median 2.6e-05 mean 9.5e-04 max 0.060@143 dlp>1 rows   2 row0 dlp 0.0331 50-row medians [0.046, 0.095, 0.123, 0.176]
+   tail3     rows 161 KL median 3.6e-05 mean 1.3e-03 max 0.126@143 dlp>1 rows   6 row0 dlp 0.0481 50-row medians [0.057, 0.109, 0.15, 0.067]
+   tail5     rows  68 KL median 7.0e-05 mean 5.0e-04 max 0.013@0 dlp>1 rows   1 row0 dlp 0.0401 50-row medians [0.078, 0.194]
+   tail7     rows 161 KL median 2.7e-05 mean 3.5e-03 max 0.452@143 dlp>1 rows   8 row0 dlp 0.0633 50-row medians [0.079, 0.139, 0.134, 0.075]
+   f64-ref   rows 151 KL median 2.8e-05 mean 1.6e-03 max 0.142@143 dlp>1 rows   5 row0 dlp 0.0922 50-row medians [0.069, 0.081, 0.137, 0.056]
+   row 188: HF-f32 top 1834 [1834] f32 -0.1189 hf-bf16 -0.0251 solo -0.0322 busy -0.9563 | [279] f32 -2.6192 hf-bf16 -5.2751 solo -4.0375 busy -7.2164
+plen 772
+   HF-bf16   rows 200 KL median 1.5e-06 mean 5.2e-04 max 0.046@3 dlp>1 rows   0 row0 dlp 0.0958 50-row medians [0.094, 0.101, 0.078, 0.072]
+   solo-NAX  rows 200 KL median 2.7e-06 mean 4.2e-04 max 0.038@3 dlp>1 rows   0 row0 dlp 0.0879 50-row medians [0.065, 0.069, 0.064, 0.049]
+   busy      rows 185 KL median 2.6e-06 mean 4.2e-04 max 0.028@3 dlp>1 rows   0 row0 dlp 0.0769 50-row medians [0.075, 0.078, 0.064, 0.05]
+   row 184: HF-f32 top 557 [14663] f32 -1.2147 hf-bf16 -1.2084 solo -1.2100 busy -1.2038 | [557] f32 -1.2049 hf-bf16 -1.2084 solo -1.1885 busy -1.2137
+plen 1028
+   HF-bf16   rows 200 KL median 9.1e-06 mean 1.0e-02 max 1.607@195 dlp>1 rows  22 row0 dlp 1.0871 50-row medians [0.135, 0.27, 0.165, 0.18]
+   solo-NAX  rows 200 KL median 1.0e-05 mean 1.1e-02 max 1.878@195 dlp>1 rows  25 row0 dlp 0.8362 50-row medians [0.154, 0.22, 0.178, 0.18]
+   busy      rows 196 KL median 8.3e-06 mean 2.7e-03 max 0.441@63 dlp>1 rows  21 row0 dlp 0.8218 50-row medians [0.15, 0.248, 0.191, 0.307]
+   allGEMV   rows 196 KL median 1.4e-05 mean 6.4e-04 max 0.060@129 dlp>1 rows  20 row0 dlp 0.9662 50-row medians [0.082, 0.204, 0.113, 0.392]
+   tail3     rows  22 KL median 3.4e-06 mean -1.5e-03 max 0.000@6 dlp>1 rows   1 row0 dlp 0.7231 50-row medians [0.106]
+   tail5     rows 200 KL median 1.2e-05 mean 1.1e-02 max 1.284@195 dlp>1 rows  18 row0 dlp 0.9560 50-row medians [0.126, 0.279, 0.217, 0.247]
+   tail7     rows 200 KL median 9.3e-06 mean 1.2e-02 max 2.009@195 dlp>1 rows  17 row0 dlp 0.9078 50-row medians [0.129, 0.234, 0.19, 0.189]
+   f64-ref   rows  22 KL median 9.0e-06 mean 1.7e-02 max 0.369@15 dlp>1 rows   1 row0 dlp 0.6376 50-row medians [0.036]
+   cpu-f32   rows  22 KL median 5.4e-06 mean -1.6e-03 max 0.000@6 dlp>1 rows   1 row0 dlp 0.3668 50-row medians [0.036]
+   row 63: HF-f32 top 21 [21] f32 -0.1078 hf-bf16 -0.0006 solo -0.6107 busy -0.0020 | [21059] f32 -2.4938 hf-bf16 nan solo -0.8750 busy -8.2062
+   row 129: HF-f32 top 23198 [23198] f32 -0.7624 hf-bf16 -1.0934 solo -0.6278 busy -1.0571 | [3838] f32 -1.6137 hf-bf16 -1.2184 solo -1.6041 busy -1.2277
+
+median over prompts of per-prompt median and mean KL(HF f32 || path)
+   HF-bf16   prompts 5 median-of-medians 2.0e-05 median-of-means 2.3e-03
+   solo-NAX  prompts 5 median-of-medians 2.2e-05 median-of-means 3.7e-03
+   busy      prompts 5 median-of-medians 2.9e-05 median-of-means 7.0e-03
+   allGEMV   prompts 4 median-of-medians 2.2e-05 median-of-means 4.4e-03
+   tail3     prompts 4 median-of-medians 2.9e-05 median-of-means 2.5e-03
+   tail5     prompts 4 median-of-medians 4.4e-05 median-of-means 4.8e-03
+   tail7     prompts 4 median-of-medians 2.6e-05 median-of-means 3.9e-03
+   f64-ref   prompts 4 median-of-medians 2.6e-05 median-of-means 1.1e-02
+   cpu-f32   prompts 3 median-of-medians 3.3e-05 median-of-means 2.2e-02

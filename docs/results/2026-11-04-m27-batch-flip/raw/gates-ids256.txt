@@ -1,0 +1,24 @@
+plen tail exposed | main solo==behind (first diff) | peel solo==behind | peel solo==main solo (first diff) | peel behind==main behind
+   48  48 False | True  None | True  | True  None | True  ids 256
+  108 108 False | True  None | True  | True  None | True  ids 256
+  233 233 False | True  None | True  | True  None | True  ids 256
+  258   2 True  | False 105  | True  | False 105  | True  ids 256
+  259   3 True  | False 157  | True  | False 157  | True  ids 256
+  260   4 True  | False 197  | True  | False 197  | True  ids 256
+  262   6 True  | True  None | True  | True  None | True  ids 256
+  265   9 True  | True  None | True  | True  None | True  ids 256
+  266  10 False | True  None | True  | True  None | True  ids 256
+  273  17 False | True  None | True  | True  None | True  ids 256
+  320  64 False | True  None | True  | True  None | True  ids 256
+  465 209 False | True  None | True  | True  None | True  ids 256
+  516   4 True  | False 22   | True  | False 22   | True  ids 256
+  772   4 True  | False 184  | True  | False 184  | True  ids 256
+ 1028   4 True  | False 195  | True  | False 195  | True  ids 256
+ 1088  64 False | True  None | True  | True  None | True  ids 256
+ 1272 248 False | True  None | True  | True  None | True  ids 256
+ 1412 132 False | True  None | True  | True  None | True  ids 256
+ 1540   4 True  | True  None | True  | True  None | True  ids 256
+ 2055   7 False | True  None | True  | True  None | True  ids 256
+ 2861  45 False | True  None | True  | True  None | True  ids 256
+ 4099   3 False | True  None | True  | True  None | True  ids 256
+ 5770 138 False | True  None | True  | True  None | True  ids 256
