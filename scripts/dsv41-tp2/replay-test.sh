@@ -1,6 +1,6 @@
 #!/bin/bash
 # Lane dsv41/replay: tests of the opt-in bounded-replay prefill (INTARSIA_DSV41_REPLAY=1: layers 20-39 run only on the last 128
-# prompt rows, layers 0-19 and layer 20's kv-source update on all rows; default off). It changes numerics, so six steps check
+# prompt rows, layers 0-19 and layer 20's kv-source update on all rows; default off). It changes numerics, so seven steps check
 # the path and then measure speed and quality. Each stops the run at the first failure; each step's PASS criterion is stated
 # here and enforced by an exit status (replay-test-lib.py, whose criteria replay-test-lib-selftest.py tests on synthetic data):
 #   1  off vs on, prompts of at most 128 tokens (no cut): greedy ids identical (also: every prompt really is <= 128 ids)
@@ -20,16 +20,31 @@
 #      scored in both arms; on not worse than off by 0.10 or more, nor by more than 0.05 with McNemar p < 0.05. No oracle exists
 #      (off and on differ by design), the items depend on compressed KV rather than the recent window, so this step detects a
 #      large loss only; see docs/results/2026-11-03-dsv41-replay.md
+#   7  paired localeval quality off vs on on the recent-window set (scripts/dsv41-tp2/replay-recent-gen.py: one planted code per
+#      prompt at a measured token distance from the prompt end, 6 distance buckets x 4K and 30K prompts x 12 items, exact scoring,
+#      no judge). The reading rule (which off-vs-on loss in which bucket is a DEFECT) is fixed in the doc, "Step 7", before any
+#      data. The step FAILS when the measurement is invalid (a dataset sha256 that differs, an empty reply or call error, a server
+#      prompt_tokens that differs from the manifest, a prefix-cache hit, an item missing in an arm); a DEFECT per the rule is its
+#      reported status (the later steps still run, the job exits 1). Replay stays opt-in whatever it says.
 # Run it by name; it queues itself as ONE fleetq job over both Sparks (rank 0 spark1 `serve --tp-remote`, rank 1 spark2
 # `tp-worker`, the script starts both over ssh, as run-full.sh does; so no `--each`), takes the two vLLM containers down and
 # ALWAYS brings them back (EXIT trap). The Sparks are shared: queue it, do not run its inner part by hand.
-#   scripts/dsv41-tp2/replay-test.sh [--dry-run] [--steps 1,3]      (steps 1 to 6; default all)
+#   scripts/dsv41-tp2/replay-test.sh [--dry-run] [--steps 1,3]      (steps 1 to 7, run in the order given; default 1,2,3,4,5,6,7)
 # Knobs (environment): SPARK_DIR (default ~/intarsia-dsv41-replay on the Sparks), NO_BUILD=1 (binaries already in place),
 #   CAP (66000), Q_SHARDS (frozen shards to run, default all 9 = 180 items; e.g. "s32-00 s65-00" for a pilot), Q_CHUNK (512),
 #   Q_TOKENS (400, max_tokens of the quality replies), S3_CHUNKS ("512 2048"), S3_SIZES (4096,32768), S3_REPS (2), KILL_GIB (5),
 #   GATE_CHUNKS ("512 2048"; step 3), ALIVE_TRIES (4 ssh tries before a rank counts as unreachable),
-#   EARLYOOM_OK ("3,2 2,1"), STOP_EPOCH (unix time after which step 5 starts no new shard), XENV (extra engine env, both ranks),
-#   RAW (results folder), TF_IDS (TensorFold token file for step 5), MAIN_REF (the baseline commit for step 2), MAIN_WT (checkout of it, built for step 2).
+#   EARLYOOM_OK ("3,2 2,1"), XENV (extra engine env, both ranks),
+#   RAW (results folder), TF_IDS (TensorFold token file for step 5), MAIN_REF (the baseline commit for step 2), MAIN_WT (checkout of it, built for step 2),
+#   Q2RAW / QDIR (manifest + sha256 and the shards of the frozen chunk32k-2 set, step 6; the shards are gitignored: regenerate with
+#   the command step 6 prints when they are missing),
+#   STOP_EPOCH (unix time: no step starts after it, step 6 starts no shard within S6_MARGIN_MIN (120) minutes of it, step 7 starts no
+#   unit whose on arm would start after it; RESTORE_BY_EPOCH (default STOP_EPOCH + 90 min) is when vLLM must be back: every step's
+#   deadline is capped at RESTORE_BY_EPOCH - RESTORE_MIN),
+#   step 7: S7_PLAN (units CHUNK:LENGTHS, default "2048:4k,32k"; e.g. "2048:4k,32k 512:4k"), S7_K4 / S7_K32 (items per bucket used of
+#   each length, at most 12; the files are ordered round robin over the buckets), S7_TOKENS (40, max_tokens of the replies), RDIR
+#   (the generated item files, default .scratch/recent-window/data), R_MAN / R_SHA (the committed manifest and sha256s),
+#   CONT_AFTER (steps whose failure does not end the run, e.g. "7"; the job still exits 1).
 # Inner mode (REPLAY_TEST_INNER=1 plus FLEETQ_JOB) is what the fleetq job runs; set both only when you hold a slot yourself
 # (`fleetq acquire --host spark1,spark2 --takes-down spark1-vllm,spark2-vllm ...`).
 set -u -o pipefail
@@ -62,11 +77,15 @@ RESDIR=${RESDIR:-$REPO/docs/results/2026-11-03-dsv41-replay}; RAW=${RAW:-$RESDIR
 TF_IDS=${TF_IDS:-/opt/code/intarsiaml/.worktrees/dsv41-golden-tf/tok-tensorfold-mia.st}
 # frozen question set of dsv41/chunk32k-2 (shards are gitignored there: referenced by path, checked by sha256)
 C32=${C32:-/opt/code/intarsiaml/.worktrees/chunk32k-2}
-Q2RAW=$C32/docs/results/2026-11-04-dsv41-chunk32k-quality-2/raw; QDIR=${QDIR:-$C32/.scratch}
+Q2RAW=${Q2RAW:-$C32/docs/results/2026-11-04-dsv41-chunk32k-quality-2/raw}; QDIR=${QDIR:-$C32/.scratch}
 Q_SHARDS=${Q_SHARDS:-s32-00 s65-00 s32-01 s65-01 s32-02 s65-02 s32-03 s32-04 s32-05}
 Q_CHUNK=${Q_CHUNK:-512}; Q_TOKENS=${Q_TOKENS:-400}
 S3_CHUNKS=${S3_CHUNKS:-512 2048}; S3_SIZES=${S3_SIZES:-4096,32768}; S3_REPS=${S3_REPS:-2}
 GATE_CHUNKS=${GATE_CHUNKS:-512 2048}
+# step 7: the recent-window item set (generated by replay-recent-gen.py, gitignored; manifest and sha256s are committed)
+RDIR=${RDIR:-$REPO/.scratch/recent-window/data}; R_MAN=${R_MAN:-$S/replay-recent.manifest.json}; R_SHA=${R_SHA:-$S/replay-recent.sha256.json}
+S7_PLAN=${S7_PLAN:-2048:4k,32k}; S7_TOKENS=${S7_TOKENS:-40}; S7_K4=${S7_K4:-12}; S7_K32=${S7_K32:-12}; S7_START_S=${S7_START_S:-90}     # a rank restart took 58-60 s from kill to kill (23-30 s of it to /health) in fleetq #8415 / #8423
+S6_MARGIN_MIN=${S6_MARGIN_MIN:-120}
 # step 3 dump selection: positions that fall in the encoder-only, crossing and whole chunks of the gate prompts (floors 1072 for
 # the 1200-token prompt, 1372 for the 1500-token one, 484 for the 612-token one), and the steps compared. A name filter is a
 # substring match: layers.0. / layers.9. / layers.19. do not match each other; layer 20's rope / act_quant of the kv source are
@@ -77,6 +96,24 @@ GATE_ARGS=(--min-files 100 --absent 300,700,1000 --present 1100,1199,1450,1499 -
 
 # ---- the plan: minutes per piece (guesses, high on purpose; measured: load 31 s, 32K item ~54 s, shard of 25 items 22 min)
 BUILD_MAIN_MIN=30; BUILD_BR_MIN=25; DOWN_MIN=3; RESTORE_MIN=12
+[[ -z ${STOP_EPOCH:-} ]] || RESTORE_BY=${RESTORE_BY_EPOCH:-$((STOP_EPOCH + 90 * 60))}   # when vLLM must be back (default: 90 min after STOP_EPOCH)
+# step 7 cost, deciseconds per item (a reply of at most S7_TOKENS tokens): the prefill time (TTFT) of the chunk32k-2 quality run at
+# 31K prompts (median 40.2 s at chunk 2048, 52.8 s at 512; scaled to the 30.4K mean here) for the off arm, 0.50 of it for the on arm
+# (step 4: 16.7 s / 33.4 s at 2048, 19.9 / 40.4 at 512), the 4K figures from step 4 (4.0 / 2.2 s at 2048, 4.8 / 2.6 at 512); +1 s of decode
+s7_ds() { # CHUNK LENGTH ARM
+  case $1:$2:$3 in
+    2048:4k:off) echo 50 ;; 2048:4k:on) echo 32 ;; 2048:32k:off) echo 410 ;; 2048:32k:on) echo 210 ;;
+    512:4k:off) echo 58 ;; 512:4k:on) echo 36 ;; 512:32k:off) echo 530 ;; 512:32k:on) echo 270 ;;
+    *) echo 600 ;;    # a chunk size nobody measured: slower than every figure above
+  esac
+}
+s7_items() { local k=$S7_K4; [[ $1 == 32k ]] && k=$S7_K32; echo $((6 * k)); }
+s7_arm_s() { # CHUNK LENGTHS ARM: seconds of one arm = rank start + the items of each length
+  local t=$S7_START_S ln
+  for ln in ${2//,/ }; do t=$((t + $(s7_items "$ln") * $(s7_ds "$1" "$ln" "$3") / 10)); done
+  echo $t
+}
+s7_unit_s() { echo $(( $(s7_arm_s "${1%%:*}" "${1#*:}" off) + $(s7_arm_s "${1%%:*}" "${1#*:}" on) )); }
 est_shard() { case $1 in s65-*) echo 52 ;; *) echo 48 ;; esac; }   # off + on arm, two rank starts
 est() {
   local n=$1 t=0 sh c
@@ -87,6 +124,7 @@ est() {
     4) c=0; for _ in $S3_CHUNKS; do c=$((c + 1)); done; echo $((c * 4 * 6)) ;;     # 4 configs a chunk x (start 2 + 4K 0.5 + 32K 3 + slack)
     5) echo 30 ;;                                                                  # 2 starts x (start 5 + 10 golden x 64 tokens 5 + 3 long decodes 4 + slack)
     6) for sh in $Q_SHARDS; do t=$((t + $(est_shard "$sh"))); done; echo $((t + 3)) ;;
+    7) for sh in $S7_PLAN; do t=$((t + $(s7_unit_s "$sh"))); done; echo $(( (t + 59) / 60 + 1 )) ;;       # + the sha check and the analysis
   esac
 }
 name_of() {
@@ -97,6 +135,7 @@ name_of() {
     4) echo "ABAB prefill timing 4K/32K, chunk 512/2048 (localeval speed), on/off <= 1.05" ;;
     5) echo "agreement: on vs TensorFold ids (golden prompts) and on vs off over 160 decode tokens" ;;
     6) echo "paired localeval quality off vs on (frozen chunk32k-2 set): no large loss" ;;
+    7) echo "recent-window items (planted code at a measured distance from the prompt end), off vs on, per distance bucket: reading rule" ;;
   esac
 }
 fmt() { printf '%dh%02dm' $(($1 / 60)) $(($1 % 60)); }
@@ -155,21 +194,36 @@ EOF
        (accuracy overall and by earliest / latest fact depth and fact count, discordant counts, McNemar exact p)
 EOF
     ;;
+    7) cat <<EOF
+     PASS when the measurement is valid and the reading rule (docs/results/2026-11-03-dsv41-replay.md, "Step 7") finds no DEFECT; FAIL when invalid.
+     items: $RDIR/recent.{4k,32k}.jsonl (12 per distance bucket per length; ${S7_K4} / ${S7_K32} used), manifest $R_MAN, both sha256-checked
+       against $R_SHA before any arm starts; localeval rows are {name, input, expected_output}, scored by the last code in the reply
+     units (S7_PLAN='$S7_PLAN'), each: for arm in off on: restart ranks (chunk of the unit), then per length
+       cd /opt/code/deepeval && uv run localeval quality --dataset <file> --judge none --max-tokens $S7_TOKENS --label dsv41replay-s7-c<chunk>-<arm>-<len> \\
+         --url $SURL/v1 --model dsv41-intarsia --thinking off --recipe "..."
+       replay-test-lib.py recentcheck after every call: an error or empty reply, a prompt_tokens differing from the manifest or a cached_tokens > 0 stops the step
+     replay-test-lib.py recent $R_MAN raw/step7/pairs.txt raw/step7/recent.md
+       (accuracy off vs on by distance bucket and length, b = off right on wrong, c = on right off wrong, one-sided p; the rule per chunk size)
+     a unit starts only if its on arm would start before STOP_EPOCH and the unit plus the vLLM restore ends before RESTORE_BY_EPOCH
+EOF
+    ;;
   esac
 }
 
 # ---- arguments
-DRY=0; STEPS_ARG="1,2,3,4,5,6"; PASS=()
+DRY=0; STEPS_ARG="1,2,3,4,5,6,7"; PASS=()
 while [[ $# -gt 0 ]]; do
   case $1 in
     --dry-run) DRY=1; shift ;;
     --steps) STEPS_ARG=${2:?--steps needs a list like 1,3}; PASS+=(--steps "$2"); shift 2 ;;
-    -h|--help) sed -n 2,24p "$0"; exit 0 ;;
+    -h|--help) sed -n 2,49p "$0"; exit 0 ;;
     *) echo "unknown argument '$1' (--dry-run, --steps 1,3)"; exit 2 ;;
   esac
 done
 SELECTED=${STEPS_ARG//,/ }
-for n in $SELECTED; do case $n in [1-6]) ;; *) echo "--steps: '$n' is not a step (1..6)"; exit 2 ;; esac; done
+for n in $SELECTED; do case $n in [1-7]) ;; *) echo "--steps: '$n' is not a step (1..7)"; exit 2 ;; esac; done
+for u in $S7_PLAN; do [[ $u =~ ^[0-9]+:(4k|32k)(,(4k|32k))*$ ]] || { echo "S7_PLAN unit '$u' is not CHUNK:4k[,32k]"; exit 2; }; done
+(( S7_K4 >= 1 && S7_K4 <= 12 && S7_K32 >= 1 && S7_K32 <= 12 )) || { echo "S7_K4 / S7_K32 must be 1..12"; exit 2; }
 has() { [[ " $SELECTED " == *" $1 "* ]]; }
 
 PLAN_MIN=0; BUILD_MIN=0
@@ -181,8 +235,15 @@ LABEL="dsv41 replay test, steps ${STEPS_ARG}: bounded-replay prefill off vs on (
 # Same fleetq shape as run-full.sh: ONE EXCLUSIVE job over both Sparks, the script starts both ranks itself. Exclusive (not
 # `--quiet gpu,cpu`) because the 5 GiB MemAvailable watcher SIGKILLs the ranks: a chunk32k-2 serve log showed 8.5 GiB available
 # at chunk 2048, so even a co-running `--load none` job of about 3.5 GiB would trip it. --mem 116 as in run-full.sh.
+# the knobs the inner run reads travel IN the command (resolved values), so the printed command is the whole truth and no queue
+# runner has to inherit this shell's environment
+FWD=()
+for v in NO_BUILD CAP Q_SHARDS Q_CHUNK Q_TOKENS S3_CHUNKS S3_SIZES S3_REPS GATE_CHUNKS KILL_GIB EARLYOOM_OK ALIVE_TRIES XENV HOT_MB TP_SPIN_MS \
+         STOP_EPOCH RESTORE_BY_EPOCH CONT_AFTER MAIN_REF TF_IDS C32 QDIR Q2RAW RDIR R_MAN R_SHA S7_PLAN S7_TOKENS S7_K4 S7_K32 S7_START_S S6_MARGIN_MIN; do
+  [[ -n ${!v+x} ]] && FWD+=("$v=${!v}")
+done
 FQ=(fleetq run --host spark1,spark2 --exclusive --takes-down "$VLLM_ROLES" --mem spark1=116,spark2=116 --expect "$EXPECT"
-    --label "$LABEL" -- env REPLAY_TEST_INNER=1 "$SELF" ${PASS[@]+"${PASS[@]}"})
+    --label "$LABEL" -- env REPLAY_TEST_INNER=1 ${FWD[@]+"${FWD[@]}"} "$SELF" ${PASS[@]+"${PASS[@]}"})
 
 if [[ $DRY == 1 ]]; then
   echo "DRY RUN: nothing is run, no host is contacted."
@@ -203,6 +264,28 @@ if [[ $DRY == 1 ]]; then
   echo
   echo "PLANNED DURATION: ${PLAN_MIN} min ($(fmt "$PLAN_MIN")); fleetq --expect ${EXPECT} (planned + 10 %)"
   has 6 && for sh in $Q_SHARDS; do ls "$QDIR/final.$sh.jsonl" >/dev/null 2>&1 || echo "NOTE: frozen shard $QDIR/final.$sh.jsonl is missing: step 6 would fail"; done
+  has 6 && for f in items.sha256.json items.manifest.json; do [[ -f $Q2RAW/$f ]] || echo "NOTE: $Q2RAW/$f is missing: step 6 would fail"; done
+  if has 6 && [[ -f $Q2RAW/items.sha256.json ]]; then
+    # shellcheck disable=SC2086
+    python3 "$S/replay-test-lib.py" checksha "$Q2RAW/items.sha256.json" "$QDIR" final. $Q_SHARDS | sed 's/^/step 6 shard sha256: /'
+  fi
+  if has 7; then
+    for f in "$R_MAN" "$R_SHA"; do [[ -f $f ]] || echo "NOTE: $f is missing: step 7 would fail"; done
+    if [[ -f $R_SHA ]]; then python3 "$S/replay-test-lib.py" checksha "$R_SHA" "$RDIR" recent. 4k 32k | sed 's/^/step 7 item files: /'; fi
+  fi
+  if [[ -n ${STOP_EPOCH:-} ]]; then
+    echo
+    echo "SCHEDULE CHECK (STOP_EPOCH $STOP_EPOCH = $(TZ=America/New_York date -r "$STOP_EPOCH" '+%a %Y-%m-%d %H:%M %Z'), vLLM back by RESTORE_BY $(TZ=America/New_York date -r "$RESTORE_BY" '+%H:%M %Z'), restore takes up to ${RESTORE_MIN} min):"
+    echo "  every step's deadline is capped at $(TZ=America/New_York date -r "$((RESTORE_BY - RESTORE_MIN * 60))" '+%H:%M %Z'); a step that would start at or after STOP_EPOCH is skipped"
+    has 5 && echo "  step 5: starts only before STOP_EPOCH (planned $(est 5) min, deadline 2x that, capped as above)"
+    has 6 && echo "  step 6: a shard starts only if STOP_EPOCH is at least ${S6_MARGIN_MIN} min away: latest shard start $(TZ=America/New_York date -r "$((STOP_EPOCH - S6_MARGIN_MIN * 60))" '+%H:%M %Z'); a shard is planned $(est_shard s32-00) to $(est_shard s65-00) min, so the last one ends by about $(TZ=America/New_York date -r "$((STOP_EPOCH - S6_MARGIN_MIN * 60 + 52 * 60))" '+%H:%M %Z') (hard stop: the cap above)"
+    if has 7; then
+      for u in $S7_PLAN; do
+        echo "  step 7 unit $u: planned $(( $(s7_unit_s "$u") / 60 )) min (off arm $(( $(s7_arm_s "${u%%:*}" "${u#*:}" off) / 60 )), on arm $(( $(s7_arm_s "${u%%:*}" "${u#*:}" on) / 60 ))); latest start = the earlier of $(TZ=America/New_York date -r "$((STOP_EPOCH - $(s7_arm_s "${u%%:*}" "${u#*:}" off)))" '+%H:%M %Z') (on arm must start before STOP_EPOCH) and $(TZ=America/New_York date -r "$((RESTORE_BY - RESTORE_MIN * 60 - $(s7_unit_s "$u")))" '+%H:%M %Z') (unit + restore done by RESTORE_BY)"
+      done
+    fi
+    echo "  plan, if the job starts at its earliest: ${PLAN_MIN} min; to finish all selected steps before STOP_EPOCH it must start by $(TZ=America/New_York date -r "$((STOP_EPOCH - (PLAN_MIN - RESTORE_MIN) * 60))" '+%a %H:%M %Z'); later starts run the units that still fit"
+  fi
   [[ -f $TF_IDS ]] || echo "NOTE: $TF_IDS missing: step 5 (a) would print SKIPPED"
   for f in replay-prompts-gate.jsonl replay-prompts-decode.jsonl; do [[ -f $S/$f ]] || echo "NOTE: $S/$f is missing: steps 3 and 5 would fail"; done
   echo
@@ -510,7 +593,7 @@ step6() {
   lib checksha "$Q2RAW/items.sha256.json" "$QDIR" final. $Q_SHARDS | tee -a "$LOG"
   [[ ${PIPESTATUS[0]} == 0 ]] || { fail "a frozen shard is missing or its sha256 differs; regenerate in $C32: uv run --no-project --with tokenizers python docs/results/2026-11-04-dsv41-chunk32k-quality-2/raw/gen_items2.py --spec <spec-final.json> --out .scratch/final"; return 1; }
   for sh in $Q_SHARDS; do
-    if [[ -n ${STOP_EPOCH:-} ]] && (( $(date +%s) + 120 * 60 > STOP_EPOCH )); then log "STOP_EPOCH close: not starting shard $sh or the later ones"; STEP_NOTE="PARTIAL"; break; fi
+    if [[ -n ${STOP_EPOCH:-} ]] && (( $(date +%s) + S6_MARGIN_MIN * 60 > STOP_EPOCH )); then log "STOP_EPOCH close: not starting shard $sh or the later ones"; STEP_NOTE="PARTIAL"; break; fi
     for arm in off on; do
       serve_cfg "s6-$sh-$arm" "$BIN_BR" "$Q_CHUNK" $arm q_arm "$sh" $arm || { fail "shard $sh arm $arm failed (${FAIL_WHY:-see $d})"; st=1; break; }
     done
@@ -527,6 +610,58 @@ step6() {
   return $st
 }
 
+# ---- step 7: the recent-window items. One unit = a chunk size and the lengths run at it; per unit an off arm then an on arm (fresh
+# ranks each), the same dataset files in both. s7_file LEN: the file to run (the first 6*K rows of the frozen file when K < 12: the
+# files are ordered round robin over the 6 buckets, so a head is balanced).
+s7_file() {
+  local ln=$1 k=$S7_K4 f=$RDIR/recent.$1.jsonl
+  [[ $ln == 32k ]] && k=$S7_K32
+  [[ $k == 12 ]] && { echo "$f"; return 0; }
+  head -n $((6 * k)) "$f" > "$RAW/step7/recent.$ln.k$k.jsonl" && echo "$RAW/step7/recent.$ln.k$k.jsonl"
+}
+s7_arm() { # CHUNK ARM LENGTHS
+  local chunk=$1 arm=$2 d=$RAW/step7 ln f label res to
+  for ln in ${3//,/ }; do
+    f=$(s7_file "$ln") || { fail "could not cut the $ln file"; return 1; }
+    label="dsv41replay-s7-c$chunk-$arm-$ln"
+    to=$(( 2 * $(s7_items "$ln") * $(s7_ds "$chunk" "$ln" off) / 10 + 900 ))
+    BG_TAIL=12 bgrun "$to" "$d/le-$label.log" le quality --dataset "$f" --judge none --max-tokens "$S7_TOKENS" --label "$label" || { fail "localeval $label failed or timed out (see $d/le-$label.log)"; return 1; }
+    res=$(result_of "$d/le-$label.log"); [[ -f $res ]] || { fail "no result.json in $d/le-$label.log"; return 1; }
+    cp "$res" "$d/result-c$chunk-$arm-$ln.json"
+    lib recentcheck "$R_MAN" "$d/result-c$chunk-$arm-$ln.json" | tee -a "$LOG"
+    [[ ${PIPESTATUS[0]} == 0 ]] || { fail "an invalid reply set from the server ($label): an error or EMPTY reply, a prompt_tokens that differs from the manifest, or a prefix-cache hit; $d/result-c$chunk-$arm-$ln.json"; return 1; }
+  done
+}
+step7() {
+  local d=$RAW/step7 u chunk lens ln rc ran=0 now off_s pair_s files=""
+  mkdir -p "$d"; : > "$d/pairs.txt"
+  # the frozen item files: both sha256-checked before any arm starts (a regenerated or edited file would move every distance)
+  lib sha256 "$R_MAN" | tee -a "$LOG"
+  lib checksha "$R_SHA" "$RDIR" recent. 4k 32k | tee -a "$LOG"
+  [[ ${PIPESTATUS[0]} == 0 ]] || { fail "the item files in $RDIR are missing or their sha256 differs from $R_SHA; regenerate: uv run --no-project --with tokenizers python $S/replay-recent-gen.py --out $RDIR --n4 12 --n32 12 (it must give the committed sha256s)"; return 1; }
+  for u in $S7_PLAN; do
+    chunk=${u%%:*}; lens=${u#*:}
+    now=$(date +%s); off_s=$(s7_arm_s "$chunk" "$lens" off); pair_s=$(s7_unit_s "$u")
+    if [[ -n ${STOP_EPOCH:-} ]]; then
+      if (( now + off_s > STOP_EPOCH )); then log "STOP_EPOCH: unit $u not started (its on arm would start after it)"; STEP_NOTE="PARTIAL"; continue; fi
+      if (( now + pair_s + RESTORE_MIN * 60 > RESTORE_BY )); then log "RESTORE_BY: unit $u not started (it and the vLLM restore would end after $(TZ=America/New_York date -r "$RESTORE_BY" '+%a %H:%M %Z'))"; STEP_NOTE="PARTIAL"; continue; fi
+    fi
+    log "step 7 unit $u: chunk $chunk, lengths $lens, planned $((pair_s / 60)) min"
+    for arm in off on; do
+      serve_cfg "s7-c$chunk-$arm" "$BIN_BR" "$chunk" $arm s7_arm "$chunk" $arm "$lens" || { fail "unit $u, arm $arm failed (${FAIL_WHY:-see $d})"; return 1; }
+    done
+    files=""; for ln in ${lens//,/ }; do files="$files $d/result-c$chunk-off-$ln.json $d/result-c$chunk-on-$ln.json"; done
+    echo "$chunk$files" >> "$d/pairs.txt"; ran=$((ran + 1))
+  done
+  if (( ran == 0 )); then log "step 7: no unit started (STOP_EPOCH / RESTORE_BY)"; STEP_NOTE="SKIPPED"; return 0; fi
+  lib recent "$R_MAN" "$d/pairs.txt" "$d/recent.md" | tee -a "$LOG"; rc=${PIPESTATUS[0]}
+  case $rc in
+    0) return 0 ;;
+    2) STEP_NOTE="DEFECT per the reading rule, see $d/recent.md"; return 0 ;;
+    *) fail "the step 7 measurement is invalid (INVALID MEASUREMENT at the top of $d/recent.md)"; return 1 ;;
+  esac
+}
+
 # ============================================================ main
 prep_build || { fail "build failed (see $RAW/build-*.log)"; log "PREP FAILED: $FAIL_WHY"; exit 1; }
 preflight || { log "PREP FAILED: preflight"; exit 1; }
@@ -534,10 +669,25 @@ vllm_down
 RC=0
 for n in $SELECTED; do
   t0=$(date +%s); FAIL_WHY=""; STEP_NOTE=""; STEP_DEADLINE=$(( t0 + 2 * 60 * $(est "$n") ))
+  if [[ -n ${STOP_EPOCH:-} ]]; then
+    # no new step after STOP_EPOCH, and no step may run past the time vLLM must be back (less the restore itself)
+    if (( t0 >= STOP_EPOCH )); then
+      log "STOP_EPOCH passed: step $n not started"
+      RES_N+=("$n"); RES_ST+=("SKIPPED (STOP_EPOCH)"); RES_EL+=(0); RES_PL+=("$(est "$n")"); continue
+    fi
+    (( STEP_DEADLINE > RESTORE_BY - RESTORE_MIN * 60 )) && STEP_DEADLINE=$(( RESTORE_BY - RESTORE_MIN * 60 ))
+  fi
   log "=== STEP $n: $(name_of "$n") (planned $(est "$n") min) ==="
-  if "step$n"; then st="PASS${STEP_NOTE:+ ($STEP_NOTE)}"; [[ $STEP_NOTE == SKIPPED ]] && st=SKIPPED; else st=FAIL; fi
+  if "step$n"; then
+    st="PASS${STEP_NOTE:+ ($STEP_NOTE)}"; [[ $STEP_NOTE == SKIPPED ]] && st=SKIPPED
+    [[ $STEP_NOTE == DEFECT* ]] && { st="$STEP_NOTE"; RC=1; }
+  else st=FAIL; fi
   RES_N+=("$n"); RES_ST+=("$st"); RES_EL+=($(( $(date +%s) - t0 ))); RES_PL+=("$(est "$n")")
-  if [[ $st == FAIL ]]; then log "STEP $n FAILED: ${FAIL_WHY:-no reason recorded; see $LOG}"; RC=1; break; fi
+  if [[ $st == FAIL ]]; then
+    log "STEP $n FAILED: ${FAIL_WHY:-no reason recorded; see $LOG}"; RC=1
+    [[ " ${CONT_AFTER:-} " == *" $n "* ]] && { log "CONT_AFTER lists step $n: the later steps still run"; continue; }
+    break
+  fi
   log "STEP $n $st in $(( ($(date +%s) - t0) / 60 )) min"
 done
 exit $RC

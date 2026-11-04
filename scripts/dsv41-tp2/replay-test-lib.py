@@ -26,6 +26,7 @@ Commands (each prints a table; the exit code is 1 when a stated requirement fail
       step 7 (recent-window items, scripts/dsv41-tp2/replay-recent-gen.py): paired off/on accuracy by distance bucket and length,
       discordant counts, the pre-registered reading rule. Exit 1 = invalid measurement (error or empty reply, prompt_tokens
       differing from the manifest, cached_tokens > 0, an item missing in an arm), 2 = valid and a DEFECT, 0 = no defect.
+  recentcheck MANIFEST.json RESULT.json   the integrity part of `recent` on one result file (a broken server stops the step early)
   rulepower [PAIRS_PER_BUCKET [NOISE_RATE]]   how often the reading rule fires for a given true loss (Monte Carlo, seeded)
   quality MANIFEST.json PAIRS.txt OUT.md [--expect-items N] [--max-loss D] [--alpha A]
       paired off/on accuracy; PAIRS.txt lines: `shard off_result.json on_result.json`. Exit 1 when fewer than N items are scored in
@@ -534,6 +535,55 @@ def rulepower(argv):
     return 0
 
 
+def call_problems(man, cases):
+    """cases: name -> localeval case. Returns (calls with an error or an EMPTY reply, prompt_tokens differing from the manifest,
+    cached_tokens above 0, number of cases without cached_tokens, names not in the manifest)."""
+    bad, tokbad, cachedbad, cachedunk, unknown = [], [], [], 0, []
+    for nm, cs in cases.items():
+        if nm not in man:
+            unknown.append(nm)
+            continue
+        if cs.get("error") or not (cs.get("actual_output") or "").strip():
+            bad.append(nm)
+        sp = cs.get("speed") or {}
+        if sp.get("prompt_tokens") != man[nm]["total_tokens"]:
+            tokbad.append(f"{nm}: server prompt_tokens {sp.get('prompt_tokens')}, manifest {man[nm]['total_tokens']}")
+        ct = sp.get("cached_tokens")
+        if ct is None:
+            cachedunk += 1
+        elif ct != 0:
+            cachedbad.append(f"{nm}: cached_tokens {ct}")
+    return bad, tokbad, cachedbad, cachedunk, unknown
+
+
+def recentcheck(argv):
+    """recentcheck MANIFEST.json RESULT.json: the integrity checks of `recent` on one result file (one arm, one dataset), run right
+    after the call so that a broken server stops the step early. Exit 1 on any error / empty reply / prompt_tokens differing from the
+    manifest / cached_tokens above 0 / case missing from the manifest."""
+    man = {m["name"]: m for m in json.load(open(argv[0]))["items"]}
+    cases = {}
+    rows = 0
+    for ds in json.load(open(argv[1]))["datasets"]:
+        rows += ds["rows"]
+        for cs in ds["cases"]:
+            cases[cs["name"]] = cs
+    bad, tokbad, cachedbad, cachedunk, unknown = call_problems(man, cases)
+    problems = []
+    if len(cases) != rows:
+        problems.append(f"{rows} dataset rows but {len(cases)} distinct cases")
+    if bad:
+        problems.append(f"{len(bad)} calls with an error or an EMPTY reply: {', '.join(sorted(bad)[:10])}")
+    if tokbad:
+        problems.append(f"{len(tokbad)} prompt_tokens differ from the manifest: {'; '.join(tokbad[:3])}")
+    if cachedbad:
+        problems.append(f"prefix-cache hits: {'; '.join(cachedbad[:3])}")
+    if unknown:
+        problems.append(f"cases not in the manifest: {', '.join(unknown[:5])}")
+    print(f"recentcheck {os.path.basename(argv[1])}: {len(cases)} cases, " + ("PROBLEMS: " + " | ".join(problems) if problems else "all replies non-empty, prompt_tokens as the manifest, cached_tokens 0")
+          + (f" ({cachedunk} without cached_tokens)" if cachedunk else ""))
+    return 1 if problems else 0
+
+
 def recent(argv):
     """recent MANIFEST.json PAIRS.txt OUT.md [--expect-items N]
     PAIRS.txt lines: `chunk off_result.json on_result.json [off_result.json on_result.json ...]` (one pair of files per dataset
@@ -565,23 +615,13 @@ def recent(argv):
                     ran[a] += ds["rows"]
                     for cs in ds["cases"]:
                         arm[a][cs["name"]] = cs
-        bad = {"off": [], "on": []}      # call errors / empty replies
-        tokbad, cachedbad, cachedunk = [], [], 0
+        bad, tokbad, cachedbad, cachedunk = {}, [], [], 0
         for a in ("off", "on"):
-            for nm, cs in arm[a].items():
-                if nm not in man:
-                    invalid.append(f"chunk {chunk}: case {nm} is not in the manifest")
-                    continue
-                if cs.get("error") or not (cs.get("actual_output") or "").strip():
-                    bad[a].append(nm)
-                sp = cs.get("speed") or {}
-                if sp.get("prompt_tokens") != man[nm]["total_tokens"]:
-                    tokbad.append(f"{a} {nm}: server prompt_tokens {sp.get('prompt_tokens')}, manifest {man[nm]['total_tokens']}")
-                ct = sp.get("cached_tokens")
-                if ct is None:
-                    cachedunk += 1
-                elif ct != 0:
-                    cachedbad.append(f"{a} {nm}: cached_tokens {ct}")
+            bad[a], tb, cb, cu, unknown = call_problems(man, arm[a])
+            tokbad += [f"{a} {x}" for x in tb]
+            cachedbad += [f"{a} {x}" for x in cb]
+            cachedunk += cu
+            invalid += [f"chunk {chunk}: case {x} is not in the manifest" for x in unknown]
         for a in ("off", "on"):
             if len(arm[a]) != ran[a]:
                 invalid.append(f"chunk {chunk} {a}: {ran[a]} dataset rows but {len(arm[a])} distinct cases (duplicate names?)")
@@ -670,7 +710,7 @@ def main():
         for p in a:
             print(sha(p), os.path.basename(p))
         return 0
-    return {"tokcmp": tokcmp, "speedtab": speedtab, "quality": quality, "checksha": checksha, "tfagree": tfagree, "gatecmp": gatecmp, "recent": recent, "rulepower": rulepower}[cmd](a)
+    return {"tokcmp": tokcmp, "speedtab": speedtab, "quality": quality, "checksha": checksha, "tfagree": tfagree, "gatecmp": gatecmp, "recent": recent, "recentcheck": recentcheck, "rulepower": rulepower}[cmd](a)
 
 
 if __name__ == "__main__":
