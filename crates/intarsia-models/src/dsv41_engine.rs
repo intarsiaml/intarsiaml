@@ -438,6 +438,11 @@ struct Job {
     tx: Sender<GenEvent>,
 }
 
+/// Rows of a prefill rank 0 may have queued before it waits for the device. The wait must stay well under the shortest default watchdog
+/// (60 s, `--watchdog-s`): at the 0.84 s a 512-row chunk takes, 4096 rows (8 chunks) are 6.7 s, and a device nine times slower still passes.
+/// What it costs is at most one pass's enqueue (18 to 28 ms) of device idle time per wait, about 0.4 %, by arithmetic: not measured.
+const PREFILL_SYNC_ROWS: usize = 4096;
+
 struct Worker {
     rt: Dsv41Runtime,
     peer: Option<Arc<RemotePeer>>,
@@ -453,6 +458,8 @@ struct Worker {
     /// `INTARSIA_DSV41_TEST_RANK0_FAIL_PASS=N` (failure tests only, `scripts/dsv41-tp2/failpaths-test.sh`): the forward pass after `N` more
     /// of them, counted after the warm-up, fails on this rank (rank 0) once it was sent to the other rank, as a failed `cudaMalloc` would.
     fail_pass: Option<usize>,
+    /// [`PREFILL_SYNC_ROWS`], smaller in tests.
+    prefill_sync_rows: usize,
     /// Tests: stands in for this rank's half of the passes (`failpath_tests`, no weights there).
     #[cfg(test)]
     script: Option<failpath_tests::Script>,
@@ -496,16 +503,25 @@ impl Worker {
     }
 
     /// A prompt, one pass a chunk (the chunks `Dsv41Runtime::forward` would cut, and the last one's logits): the other rank is told one
-    /// chunk at a time and has answered it before the next, the watchdog sees each chunk as progress, and a cancel can end it between two
-    /// chunks with both ranks at the same length and no collective outstanding (`None`).
+    /// chunk at a time and has answered it before the next. A cancel can end it between two chunks (`None`): both ranks have then been told the
+    /// same chunks, whose collectives may still be running on the device, all of them paired.
+    ///
+    /// The passes before the last only enqueue, so a tick or a cancel check says what the host queued, not what the device did. Every
+    /// [`PREFILL_SYNC_ROWS`] rows this rank waits for the device, which keeps it at most that far ahead.
     fn prefill(&mut self, ids: &[u32], cancel: Option<&std::sync::atomic::AtomicBool>) -> Result<Option<Vec<f32>>> {
         let n = ids.len().div_ceil(self.rt.opts.chunk);
         let mut out = None;
+        let mut queued = 0;
         for (i, c) in ids.chunks(self.rt.opts.chunk).enumerate() {
             if cancel.is_some_and(|c| c.load(std::sync::atomic::Ordering::Relaxed)) {
                 return Ok(None);
             }
             out = self.forward(c, i + 1 == n)?;
+            queued += c.len();
+            if queued >= self.prefill_sync_rows && i + 1 < n {
+                self.device_wait()?;
+                queued = 0;
+            }
         }
         Ok(out)
     }
@@ -535,6 +551,23 @@ impl Worker {
         settle(&mut self.remote, &out)?;
         self.telemetry.step();
         out?.ok_or_else(|| Error::backend("deepseek_v41: rank 0 got no draft"))
+    }
+
+    /// A failed wait fails the group like a failed pass: the peer has queued the same work.
+    fn device_wait(&mut self) -> Result<()> {
+        let out = self.rank0_device_wait();
+        if out.is_err() {
+            settle(&mut self.remote, &out)?;
+        }
+        out
+    }
+
+    fn rank0_device_wait(&mut self) -> Result<()> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.device_wait();
+        }
+        self.rt.device_wait()
     }
 
     fn rank0_draft(&mut self, first: u32, steps: usize) -> Result<Option<Draft>> {
@@ -964,7 +997,7 @@ impl Dsv41Engine {
                 f.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(format!("tensor-parallel group failed: {why}"));
             });
         }
-        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone(), fail_pass: None, #[cfg(test)] script: None };
+        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone(), fail_pass: None, prefill_sync_rows: PREFILL_SYNC_ROWS, #[cfg(test)] script: None };
         // warm-up: one short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back
         let wt = Instant::now();
         w.forward(&[c.bos], true)?;
@@ -1115,15 +1148,33 @@ mod failpath_tests {
     const EOS: u32 = 15;
 
     /// Rank 0's half of the passes without weights: the rows after position `start + i` are `reply[i]` (the last one for ever after).
+    /// A device on a virtual clock: a pass enqueues at once and takes `s_per_row` on the device; the host only waits in a read-back or a
+    /// device wait. This is what a real `Want::Nothing` pass does and the instant scripted passes do not.
+    #[derive(Default)]
+    struct VirtualDevice {
+        s_per_row: f64,
+        now: f64,
+        done: f64,
+        last_tick: f64,
+        /// The longest time without a tick, which is what the watchdog sees.
+        max_gap: f64,
+        /// Set the cancel flag once the clock reaches this.
+        cancel_at: Option<(f64, Arc<AtomicBool>)>,
+        waits: usize,
+    }
+
     #[derive(Default)]
     pub(super) struct Script {
         start: usize,
         reply: Vec<u32>,
+        /// A device that takes time: see [`VirtualDevice`].
+        device: Option<VirtualDevice>,
         /// Which forward passes asked for logits.
         logits_asked: Vec<bool>,
         /// Set this flag once this many forward passes have run (a client gone during the prefill).
         cancel_after: Option<(usize, Arc<AtomicBool>)>,
         forwards: usize,
+        fail_wait: bool,
     }
     impl Script {
         fn tok(&self, len: usize) -> u32 {
@@ -1139,12 +1190,40 @@ mod failpath_tests {
             st.commit(ids);
             self.forwards += 1;
             self.logits_asked.push(logits);
+            if let Some(d) = &mut self.device {
+                d.done = d.done.max(d.now) + d.s_per_row * ids.len() as f64;
+                if logits {
+                    d.now = d.done;
+                }
+                d.max_gap = d.max_gap.max(d.now - d.last_tick);
+                d.last_tick = d.now;
+                if let Some((t, c)) = &d.cancel_at {
+                    if d.now >= *t {
+                        c.store(true, Ordering::SeqCst);
+                    }
+                }
+            }
             if let Some((k, c)) = &self.cancel_after {
                 if self.forwards >= *k {
                     c.store(true, Ordering::SeqCst);
                 }
             }
             Ok(logits.then(|| self.logits(st.len)))
+        }
+        pub(super) fn device_wait(&mut self) -> Result<()> {
+            if self.fail_wait {
+                return Err(Error::Memory("the device wait failed".into()));
+            }
+            if let Some(d) = &mut self.device {
+                d.now = d.now.max(d.done);
+                d.waits += 1;
+                if let Some((t, c)) = &d.cancel_at {
+                    if d.now >= *t {
+                        c.store(true, Ordering::SeqCst);
+                    }
+                }
+            }
+            Ok(())
         }
         pub(super) fn draft(&mut self, st: &SequenceState, first: u32, steps: usize) -> Result<Option<Draft>> {
             let mut ids = vec![first];
@@ -1353,7 +1432,7 @@ mod failpath_tests {
         let st = rt.new_state().unwrap();
         let remote = Some(peer.new_state().unwrap());
         let spec = Some(spec_opts());
-        let w = Worker { rt, peer: Some(peer), st, remote, codec: codec(), eos: vec![EOS], telemetry: Arc::new(Telemetry::new()), spec, failed, fail_pass: None, script: None };
+        let w = Worker { rt, peer: Some(peer), st, remote, codec: codec(), eos: vec![EOS], telemetry: Arc::new(Telemetry::new()), spec, failed, fail_pass: None, prefill_sync_rows: PREFILL_SYNC_ROWS, script: None };
         Group { w, told, served, faults }
     }
 
@@ -1576,6 +1655,67 @@ mod failpath_tests {
         let t = g.w.telemetry.steps_total();
         let told = g.finish();
         assert_eq!(t as usize, told.iter().filter(|t| **t != Told::New).count(), "drafting rounds and verify passes too: {told:?}");
+    }
+
+    /// 65000 tokens at the default chunk, on a device that takes 0.84 s a chunk: a group of a real `Want::Nothing` pass ticks for the enqueue only,
+    /// then blocks in the last chunk's read-back for 106 s, past the 60 s watchdog: exit 86. The wait bounds the time without a tick.
+    fn slow_prefill(cancel_at: Option<(f64, Arc<AtomicBool>)>) -> Group {
+        let mut g = scripted(65000, vec![1], false);
+        g.w.rt.opts.cap = 70000;
+        g.w.rt.opts.chunk = 512;
+        g.w.script.as_mut().unwrap().device = Some(VirtualDevice { s_per_row: 0.84 / 512.0, cancel_at, ..Default::default() });
+        g
+    }
+
+    #[test]
+    fn a_long_prefill_ticks_with_the_device_not_the_enqueue() {
+        let mut g = slow_prefill(None);
+        done(&ask(&mut g, 65000, 1, |r| r));
+        let d = g.w.script.as_ref().unwrap().device.as_ref().unwrap();
+        assert!(d.max_gap < 15.0, "{:.1} s without a tick against the 60 s watchdog", d.max_gap);
+        assert_eq!(d.waits, 15, "one wait per 4096 rows before the last chunk");
+        let (forwards, sizes) = (g.w.script.as_ref().unwrap().forwards, g.told.1.clone());
+        g.finish();
+        let told = sizes.lock().unwrap();
+        assert_eq!((forwards, told.len()), (127, 127), "the waits add no pass and send nothing to the other rank");
+        assert!(told[..126].iter().all(|n| *n == 512), "and leave the cuts alone");
+    }
+
+    /// A cancel at 10 s of device time stops the prefill within one wait's rows of where the device was, not after the whole prompt.
+    #[test]
+    fn a_cancel_during_a_long_prefill_stops_near_where_the_device_is() {
+        let cancel = Arc::new(AtomicBool::new(false));
+        let mut g = slow_prefill(Some((10.0, cancel.clone())));
+        let ev = ask(&mut g, 65000, 1, |r| GenRequest { cancel: Some(cancel.clone()), ..r });
+        assert_eq!(done(&ev).0, FinishReason::Cancelled);
+        let at_cancel = (10.0 * 512.0 / 0.84) as usize;
+        assert!(g.w.st.len <= at_cancel + PREFILL_SYNC_ROWS, "{} rows queued, the device at about {at_cancel}", g.w.st.len);
+        g.finish();
+    }
+
+    /// The wait is on a stream the passes use, and on this rank alone.
+    #[test]
+    fn the_device_wait_blocks_on_stream_0() {
+        let faults = Arc::new(Faults::default());
+        let rt = Arc::new(runtime(&faults, &test_comm(0)));
+        faults.stream0_parked.store(true, Ordering::SeqCst);
+        let (tx, rx) = channel();
+        let r2 = rt.clone();
+        std::thread::spawn(move || tx.send(r2.device_wait()));
+        assert!(rx.recv_timeout(Duration::from_millis(500)).is_err(), "it did not wait for the stream");
+        faults.stream0_parked.store(false, Ordering::SeqCst);
+        rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    }
+
+    #[test]
+    fn a_failed_device_wait_fails_the_group() {
+        let mut g = scripted(40, vec![1], false);
+        g.w.prefill_sync_rows = 16;
+        g.w.script.as_mut().unwrap().fail_wait = true;
+        let ev = ask(&mut g, 40, 1, |r| r);
+        assert!(matches!(ev.last(), Some(GenEvent::Error { .. })), "{ev:?}");
+        assert!(g.w.failed.lock().unwrap().is_some());
+        assert_eq!(g.finish(), [Told::New, Told::Forward, Told::Forward], "the two chunks before the wait, nothing after it");
     }
 
     /// The prompt goes as the same passes `Dsv41Runtime::forward` cuts, on both ranks: only the last one reads logits.

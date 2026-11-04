@@ -621,6 +621,12 @@ impl Dsv41Runtime {
         }
     }
 
+    /// Wait for everything queued on this rank to finish on the device (a pass's last work is on stream 0, see `drain`). Rank-local: it adds
+    /// no collective and changes no pass.
+    pub fn device_wait(&self) -> Result<()> {
+        self.backend.synchronize(0)
+    }
+
     /// Whether a drafting round's whole block fits after a sequence of `len` tokens ([`Self::draft_steps`] refuses it otherwise, on
     /// every rank): `len >= 1` and `len + block_size <= cap`.
     pub fn draft_fits(&self, len: usize) -> bool {
