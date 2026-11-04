@@ -1,0 +1,52 @@
+fleetq: #8397 waiting (#4 in line): in line behind #8392 "m35-peel: Llama/Qwen2.5 exposure check, 35B busy-chunk 4096 evidence" (claude-c8e51313) on endor
+fleetq:   #8392 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8392 set, or it will wait for #8392 to be released.
+fleetq: #8397 waiting (#1 in line): needs endor to itself; running there: #8391 "m35-peel: 35B CPU oracle at exposed lengths" (claude-c8e51313), #8396 "failpaths gates: cargo test --workspace 3dc076b23" (claude-c8e51313)
+fleetq:   #8391 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8391 set, or it will wait for #8391 to be released.
+fleetq: #8397 waiting (#1 in line): needs endor to itself; running there: #8396 "failpaths gates: cargo test --workspace 3dc076b23" (claude-c8e51313); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #8396 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8396 set, or it will wait for #8396 to be released.
+fleetq: #8397 waiting (#1 in line): needs endor to itself; running there: #8396 "failpaths gates: cargo test --workspace 3dc076b23" (claude-c8e51313), #8403 "m35-peel: 35B accuracy on Metal vs CPU oracle, main/branch" (claude-c8e51313)
+fleetq:   #8396 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8396 set, or it will wait for #8396 to be released.
+fleetq: #8397 waiting (#1 in line): needs endor to itself; running there: #8396 "failpaths gates: cargo test --workspace 3dc076b23" (claude-c8e51313); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #8396 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8396 set, or it will wait for #8396 to be released.
+fleetq: #8397 waiting (#1 in line): needs endor to itself; running there: #8396 "failpaths gates: cargo test --workspace 3dc076b23" (claude-c8e51313), #8406 "m35-peel: 27B accuracy set 2; Llama/Qwen2.5 exposure; 35B busy-chunk 4096 evidence" (claude-c8e51313)
+fleetq:   #8396 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8396 set, or it will wait for #8396 to be released.
+fleetq: #8397 waiting (#1 in line): needs endor to itself; running there: #8406 "m35-peel: 27B accuracy set 2; Llama/Qwen2.5 exposure; 35B busy-chunk 4096 evidence" (claude-c8e51313)
+fleetq:   #8406 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8406 set, or it will wait for #8406 to be released.
+fleetq: #8397 running on endor: zsh /opt/code/intarsiaml/.worktrees/failpaths-gates/scripts/run-gates.sh
+== 1/5 plan show (text and --json), base vs new
+plan show Qwen3.6-35B-A3B-NVFP4 : identical (2634 bytes)
+plan show Qwen3.6-35B-A3B-NVFP4 --json: identical (11332 bytes)
+plan show Qwen3-8B : identical (1342 bytes)
+plan show Qwen3-8B --json: identical (8371 bytes)
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 : identical (3263 bytes)
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 --json: identical (14784 bytes)
+== 2/5 kernels test --backend metal
+base kernels test exit 0
+new kernels test exit 0
+FAIL lines: base 0 new 0
+matmul_nvfp4   matmul_nvfp4_gemv_rows         18      0    1.330e-3    2.214e-5  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 980 cases in 31.2s
+kernels logs differ:
+53c53
+< 49 kernels, 980 cases in 31.4s
+---
+> 49 kernels, 980 cases in 31.2s
+== 3/5 single-stream generate ids: 27B and 8B, short and 4K, --spec off, base vs new
+ident 27b short: text same, ids same (256 base ids, 256 new ids)
+ident 27b 4k: text same, ids same (256 base ids, 256 new ids)
+ident 8b short: text same, ids same (256 base ids, 256 new ids)
+ident 8b 4k: text same, ids same (256 base ids, 256 new ids)
+== 5/5 accuracy 8B goldens (new vs base byte-compare)
+accuracy qwen3-8b-fp32 base exit 0
+accuracy qwen3-8b-fp32 new exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy qwen3-8b-fp32: base and new byte-identical
+accuracy qwen3-8b-long-fp32 base exit 0
+accuracy qwen3-8b-long-fp32 new exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy qwen3-8b-long-fp32: base and new byte-identical
+== done
+fleetq: #8397 done (exit 0)

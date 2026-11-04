@@ -277,6 +277,107 @@ fn rollback_within_the_margin_equals_never_drafting() {
     }
 }
 
+/// The check against the kernels: at each distance below the furthest row written, `SequenceState`'s check accepts a chain of cuts exactly when the real
+/// (reference) kernels then give what never drafting gives. The rows drafted past `accepted` and cut are what such a chain leaves in the rings.
+#[test]
+fn the_ring_check_accepts_exactly_what_the_kernels_survive() {
+    use intarsia_core::state::{RingKind, SequenceState, SlotSpec};
+    let cpu = intarsia_backend_cpu::CpuBackend::new();
+    for (r, accepted) in [(2usize, 101usize), (2, 100), (1, 90), (3, 61), (3, 62), (3, 63)] {
+        let c = base(r, DType::Bf16, None);
+        let real = tokens(&c, N + 40, 0xC0FFEE ^ r as u64);
+        let (want, _) = run(&c, &real, &[accepted, 3, 1, N - accepted - 4]);
+        let skip = accepted * c.h * c.d;
+        for draft in [1, 4, 16, 17, 18, 19, 24] {
+            let survives = rollback_run(&c, accepted, draft).0 == want[skip..];
+            let specs = [SlotSpec::Ring { rows: c.w + 16, width: 2, planes: 1, dtype: DType::F32, margin: 16, kind: RingKind::WindowKv }];
+            let mut st = SequenceState::new(&cpu, &specs, 4096).unwrap();
+            st.commit(&vec![1; accepted + draft]);
+            // the first cut of the chain goes to within the margin of `accepted`; a single cut of 17 or more is refused whatever the mark says
+            st.truncate(accepted + draft.min(16), &cpu).unwrap();
+            let accepts = st.restorable_len(accepted) == accepted;
+            assert_eq!(accepts, survives, "ratio {r}, accepted {accepted}, {draft} rows below the mark: the check says {accepts}, the kernels {survives}");
+        }
+    }
+}
+
+/// The checks on a real `SequenceState` with DeepSeek-V4.1's rings: chained cuts count from the furthest row written.
+mod chained_cuts {
+    use intarsia_backend_cpu::CpuBackend;
+    use intarsia_core::state::{RingKind, SequenceState, SlotSpec};
+    use intarsia_core::DType;
+
+    fn state(written: usize) -> SequenceState {
+        let specs = [SlotSpec::Ring { rows: 128 + 16, width: 2, planes: 1, dtype: DType::F32, margin: 16, kind: RingKind::WindowKv }];
+        let mut st = SequenceState::new(&CpuBackend::new(), &specs, 4096).unwrap();
+        st.commit(&vec![1; written]);
+        st
+    }
+
+    /// Speculation: a verify pass of `k` rows dropped at the reply's end, then a next request that shares a prefix.
+    #[test]
+    fn after_dropped_draft_rows_the_band_of_18_or_more_is_refused() {
+        let b = CpuBackend::new();
+        for k in [1usize, 2, 3, 4] {
+            for c2 in 0..=16usize {
+                let mut st = state(1000);
+                st.commit(&vec![2; k]);
+                st.truncate(1000, &b).unwrap();
+                let want = 1000 - c2;
+                let reused = st.restorable_len(want);
+                if k + c2 >= 18 {
+                    assert_eq!(reused, 0, "dropped {k}, cut {c2}: the rings lost rows this prefix reads");
+                    assert!(st.truncate(want, &b).is_err(), "dropped {k}, cut {c2}");
+                } else {
+                    assert_eq!(reused, want, "dropped {k}, cut {c2}: outside the band reuse stays");
+                    st.truncate(want, &b).unwrap();
+                }
+            }
+        }
+    }
+
+    /// Without speculation, temperature > 0 too: B cuts 16 and adds one token, C cuts 16 from there. 31 below the furthest row.
+    #[test]
+    fn two_requests_without_speculation_are_refused_too() {
+        let b = CpuBackend::new();
+        let mut st = state(1000);
+        assert_eq!(st.restorable_len(984), 984);
+        st.truncate(984, &b).unwrap();
+        st.commit(&[3]);
+        assert_eq!(st.len, 985);
+        assert_eq!(st.restorable_len(969), 0, "969 + 16 >= 985, but the rings hold rows up to 999");
+        assert!(st.truncate(969, &b).is_err());
+    }
+
+    #[test]
+    fn the_normal_paths_are_unchanged() {
+        let b = CpuBackend::new();
+        // one cut, measured from the length as before
+        let st = state(1000);
+        assert_eq!((st.restorable_len(984), st.restorable_len(983), st.restorable_len(1000)), (984, 0, 1000));
+        // verify-pass rejections mid-reply: cut at most 4, write on, again and again
+        let mut st = state(1000);
+        for i in 0..2000usize {
+            st.commit(&[4; 5]);
+            let keep = st.len - 1 - i % 5;
+            assert_eq!(st.restorable_len(keep), keep);
+            st.truncate(keep, &b).unwrap();
+        }
+        // the mark goes once the length has passed it
+        let mut st = state(1000);
+        st.truncate(984, &b).unwrap();
+        st.commit(&[5; 16]);
+        assert_eq!(st.restorable_len(984), 984, "16 below the mark and the length");
+        st.commit(&[5; 16]);
+        assert_eq!(st.restorable_len(1000), 1000);
+        // from empty the mark is gone
+        let mut st = state(1000);
+        st.truncate(0, &b).unwrap();
+        st.commit(&[6; 10]);
+        assert_eq!(st.restorable_len(5), 5);
+    }
+}
+
 #[test]
 fn rollback_beyond_the_margin_is_detected_as_unsafe() {
     // negative control: window ring of exactly W rows (no margin) loses rows a rollback needs
