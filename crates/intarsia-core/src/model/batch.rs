@@ -1116,6 +1116,7 @@ impl Model {
             test_bug: self.test_bug.clone(),
             peers: Vec::new(),
             remote: None,
+            tp_aborted: std::sync::atomic::AtomicBool::new(false),
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(self.row_invariant_prefill()),

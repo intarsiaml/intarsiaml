@@ -86,9 +86,15 @@ fn solo() -> (LocalEngine, Arc<Flaky>) {
 
 /// One engine over two ranks joined by the host communicator; rank 0 runs on the `Flaky` device.
 fn tp2() -> (LocalEngine, Arc<Flaky>) {
+    tp2_flaky(0)
+}
+
+/// [`tp2`] with the `Flaky` device on rank `rank`.
+fn tp2_flaky(rank: usize) -> (LocalEngine, Arc<Flaky>) {
     let t = tiny_weights(DType::F32, 1);
     let be = Flaky::new();
-    let backends: Vec<Arc<dyn Backend>> = vec![be.clone(), intarsia_backend_cpu::CpuBackend::arc()];
+    let mut backends: Vec<Arc<dyn Backend>> = vec![intarsia_backend_cpu::CpuBackend::arc(), intarsia_backend_cpu::CpuBackend::arc()];
+    backends[rank] = be.clone();
     let comms = intarsia_core::HostCommGroup::new(backends.clone());
     let m = Model::load_tp(backends, comms, &recipe(), &dims(), &t.weights, &opts(), Arc::new(Telemetry::new())).unwrap();
     (engine_of(m), be)
@@ -206,4 +212,33 @@ fn queued_requests_drain_after_a_device_error() {
     assert!(e.failed().is_some());
     let t = e.telemetry();
     assert_eq!((t.running, t.waiting), (0, 0), "counters stay consistent");
+}
+
+/// A failed pass aborts a tensor-parallel communicator for good, whatever the error that ended it (here an allocation
+/// failure on rank 0, not a device error): the engine fails instead of answering every later request with "communicator
+/// aborted" while `/health` stays 200.
+#[test]
+fn aborted_tp_group_fails_the_engine() {
+    for rank in [0, 1] {
+        let (e, be) = tp2_flaky(rank);
+        assert!(finish(&e, req(prompt(6))).is_ok());
+        assert_eq!(e.failed(), None);
+        be.set(FAIL_MEMORY);
+        assert!(finish(&e, req(prompt(6))).is_err(), "rank {rank}");
+        be.set(OK);
+        let why = e.failed().unwrap_or_else(|| panic!("rank {rank}: the aborted group left the engine healthy"));
+        assert!(why.contains("tensor-parallel group aborted") || why.contains("device error"), "{why}");
+        assert!(e.submit(req(prompt(6))).is_err(), "a failed engine accepts no work");
+    }
+}
+
+/// The same error on one device is the request's own: a failed allocation does not fail an engine without a group.
+#[test]
+fn memory_error_on_one_device_is_not_fatal() {
+    let (e, be) = solo();
+    be.set(FAIL_MEMORY);
+    assert!(finish(&e, req(prompt(6))).unwrap_err().contains("injected allocation failure"));
+    be.set(OK);
+    assert_eq!(e.failed(), None);
+    finish(&e, req(prompt(6))).expect("serves again");
 }

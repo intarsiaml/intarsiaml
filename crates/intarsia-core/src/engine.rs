@@ -974,6 +974,7 @@ fn run_job(sh: &Shared, job: Job) {
     let mut generated = 0;
     let res = generate_one(sh, &mut g, req, tx.clone(), &mut generated);
     let kv = (g.state.used_bytes() as u64, g.state.total_bytes() as u64, g.state.len as u64, g.state.cap as u64);
+    let group_aborted = g.model.tp_group_aborted();
     drop(g);
     sh.telemetry.set_kv(kv.0, kv.1, kv.2, kv.3);
     match res {
@@ -981,7 +982,7 @@ fn run_job(sh: &Shared, job: Job) {
         Ok(o) => report_done(&sh.telemetry, &tx, o, None),
         Err(e) => {
             // before the error event, so a client that sees it also sees the engine failed
-            if let Some(why) = fatal(&e) {
+            if let Some(why) = fatal(&e, group_aborted) {
                 eprintln!("engine failed: {why}");
                 sh.failed.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(why);
             }
@@ -993,9 +994,17 @@ fn run_job(sh: &Shared, job: Job) {
 /// Why a failed request leaves the engine unable to serve any more, when it does. A device error is sticky (a wedged CUDA
 /// or HIP context stays so: docs/observability.md), so every later request would fail the same way while `/health` said
 /// ok; the engine fails instead and the supervisor restarts the process, as the batched scheduler does for
-/// `BatchModel::is_fatal`. A `BadRequest` and the like are the request's own and leave a healthy engine alone.
-fn fatal(e: &Error) -> Option<String> {
-    matches!(e, Error::Backend(_)).then(|| format!("device error: {e}"))
+/// `BatchModel::is_fatal`. So does a tensor-parallel group whose communicator the failed pass aborted (`group_aborted`),
+/// whatever the error that ended it: the abort is never undone. A `BadRequest` and the like are the request's own and
+/// leave a healthy engine alone.
+fn fatal(e: &Error, group_aborted: bool) -> Option<String> {
+    if matches!(e, Error::Backend(_)) {
+        Some(format!("device error: {e}"))
+    } else if group_aborted {
+        Some(format!("tensor-parallel group aborted: {e}"))
+    } else {
+        None
+    }
 }
 
 fn common_prefix(a: &[u32], b: &[u32]) -> usize {

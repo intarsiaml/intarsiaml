@@ -497,6 +497,9 @@ pub struct Model {
     /// Tensor parallelism across processes (rank 0 only): the other rank runs in another process, driven over a
     /// connection (`crate::tp_remote`, docs/design/35b-tp2.md). Exclusive with `peers`.
     remote: Option<Arc<crate::tp_remote::RemotePeer>>,
+    /// A tensor-parallel pass failed and aborted the communicator (rank 0 only): the group serves nothing more, whatever
+    /// the error that ended the pass ([`Model::tp_group_aborted`]).
+    tp_aborted: std::sync::atomic::AtomicBool,
     /// Set for the duration of a speculative verify pass ([`Model::forward_verify`]): every op call is marked
     /// `OpCall::exact_rows`, so the registry gives it a row-exact kernel (or fails). Never set otherwise.
     exact_rows: std::sync::atomic::AtomicBool,
@@ -1564,6 +1567,7 @@ impl Model {
             test_bug,
             peers: Vec::new(),
             remote: None,
+            tp_aborted: std::sync::atomic::AtomicBool::new(false),
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(inv_want),
@@ -1879,6 +1883,7 @@ impl Model {
         let hn = match out {
             Ok(hn) => hn,
             Err(e) => {
+                self.tp_aborted.store(true, std::sync::atomic::Ordering::Relaxed);
                 if st.has_recurrent() {
                     let _ = st.reset(&*self.backend);
                 }
@@ -2486,7 +2491,17 @@ impl Model {
             res
         });
         st.peers = peers;
+        if out.is_err() {
+            // a failure on any rank aborted the communicator (rank 0 above, a peer through its guard)
+            self.tp_aborted.store(true, std::sync::atomic::Ordering::Relaxed);
+        }
         out
+    }
+
+    /// Whether a tensor-parallel pass failed on this group: the communicator is aborted for good (the abort is never
+    /// undone), so every later pass fails and only a new process recovers. False without tensor parallelism.
+    pub fn tp_group_aborted(&self) -> bool {
+        self.tp_aborted.load(std::sync::atomic::Ordering::Relaxed)
     }
 
     /// Tensor-parallel forward with the other rank in another process: send it the pass, run rank 0's here, then read its
@@ -2517,9 +2532,14 @@ impl Model {
                     c.abort();
                 }
                 rs.mark_unusable();
+                self.tp_aborted.store(true, std::sync::atomic::Ordering::Relaxed);
                 return r0;
             }
-            rs.finish()?;
+            if let Err(e) = rs.finish() {
+                // the remote rank failed or stopped answering: its reader thread has aborted the communicator
+                self.tp_aborted.store(true, std::sync::atomic::Ordering::Relaxed);
+                return Err(e);
+            }
             r0
         })();
         st.remote = Some(rs);
