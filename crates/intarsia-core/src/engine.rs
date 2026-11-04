@@ -812,6 +812,8 @@ impl Engine for LocalEngine {
         if let Some(why) = self.shared.failure() {
             return Err(Error::Other(format!("engine failed: {why}")));
         }
+        // the server answers a BadRequest from here with 400; checked before the request queues or touches the cache
+        check_prompt_ids(&req.prompt, self.info.vocab)?;
         let (etx, erx) = channel();
         self.shared.telemetry.request_enqueued();
         let guard = self.tx.lock().unwrap();
@@ -1172,6 +1174,16 @@ pub(crate) struct Seq {
     staged: Option<Staged>,
 }
 
+/// Reject a prompt id the model has no embedding row for. A forward over one fails (on a tensor-parallel group it aborts
+/// the communicator for good), so it is refused before anything runs; the batched engine does the same in
+/// `SeqAdapter::admit`.
+pub(crate) fn check_prompt_ids(prompt: &[u32], vocab: usize) -> Result<()> {
+    match prompt.iter().find(|&&t| t as usize >= vocab) {
+        Some(bad) => Err(Error::BadRequest(format!("token id {bad} >= vocab {vocab}"))),
+        None => Ok(()),
+    }
+}
+
 /// Reject prompts a sequence of capacity `cap` cannot take.
 fn check_prompt(plen: usize, cap: usize) -> Result<()> {
     if plen == 0 {
@@ -1191,6 +1203,7 @@ impl Seq {
         let t_start = Instant::now();
         let plen = req.prompt.len();
         check_prompt(plen, st.cap)?;
+        check_prompt_ids(&req.prompt, model.dims.vocab)?;
         let recurrent = st.has_recurrent();
         // a prewarm computes the whole prompt (no token to sample), a request keeps >= 1 token to compute
         let max_reuse = if req.prewarm.is_some() { plen } else { plen - 1 };

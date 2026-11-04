@@ -397,17 +397,22 @@ enum PromptIn {
     Ids(Vec<u32>),
 }
 
+/// Token ids as the engine takes them; one that does not fit 32 bits is the client's mistake, not token `n mod 2^32`.
+fn token_ids(a: &[Value], what: &str) -> Result<Vec<u32>, ApiError> {
+    a.iter()
+        .map(|x| x.as_u64().and_then(|n| u32::try_from(n).ok()))
+        .collect::<Option<_>>()
+        .ok_or_else(|| ApiError::bad_request(F, format!("{what} must hold integers below 2^32")))
+}
+
 fn parse_prompt(v: &Value) -> Result<PromptIn, ApiError> {
-    let ids = |a: &Vec<Value>| -> Option<Vec<u32>> { a.iter().map(|x| x.as_u64().map(|n| n as u32)).collect() };
     match v {
         Value::String(s) => Ok(PromptIn::Text(s.clone())),
         Value::Array(a) if a.is_empty() => Err(ApiError::bad_request(F, "prompt must not be empty")),
-        Value::Array(a) if a.iter().all(Value::is_u64) => Ok(PromptIn::Ids(ids(a).unwrap_or_default())),
+        Value::Array(a) if a.iter().all(Value::is_u64) => token_ids(a, "prompt token ids").map(PromptIn::Ids),
         Value::Array(a) if a.len() == 1 => match &a[0] {
             Value::String(s) => Ok(PromptIn::Text(s.clone())),
-            Value::Array(inner) => ids(inner)
-                .map(PromptIn::Ids)
-                .ok_or_else(|| ApiError::bad_request(F, "prompt token arrays must hold integers")),
+            Value::Array(inner) => token_ids(inner, "prompt token arrays").map(PromptIn::Ids),
             _ => Err(ApiError::bad_request(F, "invalid prompt")),
         },
         Value::Array(_) => Err(ApiError::bad_request(F, "batched prompts are not supported (one prompt per request)")),
