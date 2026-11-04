@@ -1198,6 +1198,19 @@ pub(crate) struct Seq {
     staged: Option<Staged>,
 }
 
+/// The outcome of a request of `plen` prompt tokens that ended before it held any state.
+fn queued_outcome(plen: usize, reason: FinishReason) -> Outcome {
+    Outcome {
+        reason,
+        stop_sequence: None,
+        prompt_tokens: plen,
+        completion_tokens: 0,
+        cached_tokens: 0,
+        prefill: Duration::ZERO,
+        decode: Duration::ZERO,
+    }
+}
+
 /// Reject a prompt id the model has no embedding row for. A forward over one fails (on a tensor-parallel group it aborts
 /// the communicator for good), so it is refused before anything runs; the batched engine does the same in
 /// `SeqAdapter::admit`.
@@ -1433,15 +1446,7 @@ impl Seq {
 
     /// The outcome of a request that ended before it held any state (cancelled while queued).
     pub(crate) fn queued_outcome(&self, reason: FinishReason) -> Outcome {
-        Outcome {
-            reason,
-            stop_sequence: None,
-            prompt_tokens: self.plen,
-            completion_tokens: 0,
-            cached_tokens: 0,
-            prefill: Duration::ZERO,
-            decode: Duration::ZERO,
-        }
+        queued_outcome(self.plen, reason)
     }
 
     /// Whether the next token to take is the first (it comes out of the final prefill chunk).
@@ -2206,6 +2211,11 @@ fn generate_one(
     generated: &mut usize,
 ) -> Result<Outcome> {
     let Inner { model, state: st } = g;
+    if req.cancel.as_ref().is_some_and(|c| c.load(Ordering::Relaxed)) {
+        // cancelled while queued: answered before `Seq::new` cuts the cache back to this prompt's prefix, which would
+        // throw away what the conversation before it left (its next turn would prefill from scratch)
+        return Ok(queued_outcome(req.prompt.len(), FinishReason::Cancelled));
+    }
     let mut seq = Seq::new(sh, model, st, req, tx)?;
     let r = run_seq(&mut seq, model, st);
     // entries captured on the device during this request go to their tier now (a no-op when already settled)

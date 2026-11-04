@@ -242,3 +242,32 @@ fn memory_error_on_one_device_is_not_fatal() {
     assert_eq!(e.failed(), None);
     finish(&e, req(prompt(6))).expect("serves again");
 }
+
+/// A request cancelled while it waited (its client went away) is answered without touching the cache: the conversation
+/// before it keeps its prefix (it was cut to nothing, and the next turn prefilled from scratch).
+#[test]
+fn cancelled_queued_request_keeps_the_warm_cache() {
+    let a = prompt(20);
+    let mut next = a.clone();
+    next.extend([7, 8, 9]);
+    // what the follow-up reuses with nothing in between
+    let reference = {
+        let (e, _) = solo();
+        finish(&e, req(a.clone())).unwrap();
+        finish(&e, req(next.clone())).unwrap()
+    };
+    assert!(reference >= a.len(), "the follow-up reuses the conversation ({reference} tokens)");
+
+    let (e, _) = solo();
+    finish(&e, req(a)).unwrap();
+    // a different prompt whose cancel flag is set before the worker pops it
+    let mut other = prompt(20);
+    other[0] += 1;
+    let cancel = Arc::new(AtomicBool::new(true));
+    let (reason, cached) = run(&e, GenRequest { cancel: Some(cancel), ..req(other) }).unwrap();
+    assert_eq!((reason, cached), (FinishReason::Cancelled, 0));
+    assert_eq!(finish(&e, req(next)).unwrap(), reference, "the cancelled request wiped the cache");
+    assert_eq!(e.failed(), None);
+    let t = e.telemetry();
+    assert_eq!((t.running, t.waiting), (0, 0), "counters stay consistent");
+}
