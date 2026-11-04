@@ -1,0 +1,30 @@
+14:04:01 ranks started (tag 140358, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 'INTARSIA_DSV41_TEST_RANK0_FAIL_PASS=30' rank1 ''
+14:04:30 serve up=1 after 29 s
+14:04:30 pids: rank 0 (spark1) 3118684, rank 1 (spark2) 1161262
+14:04:41 RESULT force 1: HTTP 500 ({"error":{"message":"backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: memory plan: INTARSIA_DSV41_TEST_RANK0_FAI), /health 503; rank 0: 5.1 87, rank 1: 10.2 87 (seconds after the request started, exit code); expected 500, 503, 87, 87
+14:04:41 case f1 ranks' log lines (rank 0):
+14:04:41 case f1 ranks' log lines (rank 1):
+14:04:42 leftover processes killed by PID after the case: none
+14:04:43 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:04:43 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:04:44 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:04:46 ranks started (tag 140444, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 'INTARSIA_DSV41_TEST_RANK0_FAIL_PASS=30' rank1 ''
+14:05:15 serve up=1 after 29 s
+14:05:17 pids: rank 0 (spark1) 3123571, rank 1 (spark2) 1166546
+14:05:27 RESULT force 2: HTTP 500 ({"error":{"message":"backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: memory plan: INTARSIA_DSV41_TEST_RANK0_FAI), /health 503; rank 0: 4.8 87, rank 1: 10.0 87 (seconds after the request started, exit code); expected 500, 503, 87, 87
+14:05:27 case f2 ranks' log lines (rank 0):
+14:05:27 case f2 ranks' log lines (rank 1):
+14:05:28 leftover processes killed by PID after the case: none
+14:05:29 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:05:29 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:05:30 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:05:32 ranks started (tag 140530, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env '' rank0 'INTARSIA_DSV41_TEST_RANK0_FAIL_PASS=30' rank1 ''
+14:05:56 serve up=1 after 24 s
+14:05:56 pids: rank 0 (spark1) 3128511, rank 1 (spark2) 1171855
+14:06:06 RESULT force 3: HTTP 500 ({"error":{"message":"backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: memory plan: INTARSIA_DSV41_TEST_RANK0_FAI), /health 503; rank 0: 4.9 87, rank 1: 10.0 87 (seconds after the request started, exit code); expected 500, 503, 87, 87
+14:06:07 case f3 ranks' log lines (rank 0):
+14:06:07 case f3 ranks' log lines (rank 1):
+14:06:08 leftover processes killed by PID after the case: none
+14:06:08 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:06:09 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:06:09 gpu check spark2: NVIDIA GB10, 0 % rc=0

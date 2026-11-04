@@ -1,0 +1,28 @@
+14:38:19 serve up=1 after 46 s
+14:38:20 pids: rank 0 (spark1) 3321212, rank 1 (spark2) 1442801
+14:38:25 RESULT kill35 1: killed at 3.30 s, rank 1 exit 0 after 1.6 s
+14:38:26 leftover processes killed by PID after the case: none
+14:38:26 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:38:27 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:38:27 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:38:36 serve up=1 after 6 s
+14:38:37 pids: rank 0 (spark1) 3325959, rank 1 (spark2) 1447815
+14:38:51 RESULT kill35 2: killed at 7.71 s, rank 1 exit 87 after 6.8 s
+14:38:52 leftover processes killed by PID after the case: none
+14:38:53 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:38:53 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:38:54 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:39:02 serve up=1 after 6 s
+14:39:03 pids: rank 0 (spark1) 3328370, rank 1 (spark2) 1451754
+14:39:12 RESULT kill35 3: killed at 2.00 s, rank 1 exit 87 after 6.8 s
+14:39:13 leftover processes killed by PID after the case: none
+14:39:13 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:39:14 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:39:14 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:39:23 serve up=1 after 6 s
+14:39:23 pids: rank 0 (spark1) 3330529, rank 1 (spark2) 1455423
+14:39:37 RESULT kill35 4: killed at 7.58 s, rank 1 exit 87 after 6.3 s
+14:39:38 leftover processes killed by PID after the case: none
+14:39:39 memory back after 3 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:39:39 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:39:40 gpu check spark2: NVIDIA GB10, 0 % rc=0

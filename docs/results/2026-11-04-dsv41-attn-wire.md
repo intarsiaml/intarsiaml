@@ -199,3 +199,24 @@ vLLM was restored on both Sparks after each job (the script's trap; `docker ps` 
 ## Reproduce
 
 `raw/attnwire-spark.sh` (driver; `killmine.sh` and `memwatch.sh` are its helpers): copies the tree to `~/intarsia-dsv41-attnwire` on spark2 (target seeded from `~/intarsia-dsv41-tp2/src/target`), `MAX_JOBS=4`, a memory watch that kills only this job's processes below 10 GB available (lowest seen 50 GB), fetches the logs to `raw/` and removes the directory. Its exit code was 1 only because of the two `kernels test -m` lines above; their logs were deleted. Logs in `raw/`.
+
+## Failure-path test on the merged head (2026-11-04, 14:02 to 14:43 EST)
+
+`scripts/dsv41-tp2/failpaths-test.sh` (failpaths' own script, unchanged) on the merged head, the gate PR #299 and #300 together had not had. Branch `dsv41/attn-wire-failcheck` (from `18825975a`, `dsv41/attn-wire` not pushed). Binaries rebuilt (the Sparks' copies had been removed), #8441, `--load cpu --mem 40`, 5 min each: `intarsia` stamped `18825975a dirty=no` (crates and kernels equal `ccb37aa94`; only `run-full.sh` differs), `intarsia.base` = `03f8dc2a3` (main before failpaths, as in failpaths' own run, so the base arms reproduce the defects and golden compares the merged head against it). md5 equal on both Sparks. One exclusive job over both Sparks, **#8442**, `--exclusive --mem 116 --takes-down spark1-vllm,spark2-vllm`, `--expect 180`, `MAX_MIN=120`, `INTARSIA_DSV41_CHUNK=512` (run-full.sh default, as the failpaths run), `CASES="near force ring cancel supervised golden kill kill35"`, `EARLYOOM_OK="3,2 2,1"` (both at `-m 2,1`), memfine and the watcher at the 5 GiB line. vLLM down 14:02:11, back 14:43:09 (docker "Up 3 minutes", `/v1/models` 200 on both afterwards). The job ran 37 minutes; the script was not edited. Raw (compact): `2026-11-04-dsv41-attn-wire/raw-failcheck/`.
+
+| Case | Expected (failpaths doc, section 6) | Result on the merged head | Verdict |
+|---|---|---|---|
+| near | 200, ranks up at cap-5 to cap-2 | All 7 requests HTTP 200, finish `length`, /health 200. Baseline at cap-4: HTTP 500, /health 503, both ranks exit 87 at 6.5 s (rank 0) and 7.6 s (rank 1) | Pass; defect reproduced on the base |
+| force | 500, 503, 87, 87 | 3 of 3: HTTP 500, /health 503; rank 0 exits 87 at 4.8 to 5.1 s, rank 1 at 10.0 to 10.2 s (from the request's start) | Pass |
+| ring | Fix's ids equal a cold run's | Fix: identical, reuse refused (cached 0). Base: differs from the cold run (cached 199) | Pass; defect reproduced on the base |
+| cancel | Up, 200, ids equal a cold run's | Retry after the mid-prefill cancel: cached 2048, identical to cold, /health 200 | Pass |
+| supervised | 200, no restart | 65000-token prefill 86 s, 3500-token reply 99 s (both past the 60 s watchdog): HTTP 200, /health 200, 0 restarts. No baseline control (as before) | Pass |
+| golden | Identical | 7 texts (greedy, two seeded at temperature 0.7, one 9000-word prefill) and 2 token-id runs (200 and 12000 tokens) identical to the base, all non-empty | Pass |
+| kill | 87 at 6.8 to 7.5 s on 18 of 20, exit 0 at 2.1 and 2.9 s on 2 of 20 (#290's rule) | **19 of 20 exit 87 at 6.8 to 7.5 s, 1 of 20 exit 0 at 2.8 s** (run 6; the worker logged no failure path, the same signature as last run's exit-0 cases). Baseline (2 kills): exit 0 at 182.7 and 183.1 s | Inside the expectation; nothing new |
+| kill35 | none stated | See below | Observation |
+
+**kill35 (new, never run before).** The script's case, unchanged, ran first time without script work: Qwen3.6-35B-A3B NVFP4, TP=2, temperature 0.7, 800-token reply, rank 0 SIGKILLed at a random time. 4 kills: **3 exit 87 at 6.3, 6.8 and 6.8 s, 1 exit 0 at 1.6 s** (kill at 3.3 s; its worker log reads `rank 0 disconnected after 281 forward passes`, nothing parked). The earlier 35B figure for the 87 path was 7.2 to 7.8 s (failpaths doc, "Timing correction"). Four samples: it shows the same two outcomes as the DSv4.1 pair, no more.
+
+**Memory.** Lowest MemAvailable over the job (memfine, 1 s, weight loads included): **spark1 6.17 GiB, spark2 6.60 GiB**; the 5 GiB watcher never fired. Detail in `raw-failcheck/memsum.txt`; no per-binary comparison was made.
+
+**Not covered:** `ring_high` still does not count draft-block writes (failpaths doc, "Recorded, not fixed"); the `ring` case does not test that and nothing here changes that status. The `prefill` case was not run (not one of the seven). Chunk 2048 was not used for these cases (512 as in failpaths' run). `BASE_KILLS=0` was passed to skip the base kills but the script's `seq 1 0` counts down on macOS, so two base kills ran (about 6 minutes, harmless; on a Linux host it would skip them). `~/intarsia-dsv41-attnwire` removed from both Sparks (#8444); `~/intarsia-dsv41-replay` untouched.
