@@ -1,0 +1,13 @@
+prompt             n_prompt  cont off/on  leading    equal  identical
+count                    35    64/64       64/64    64/64   yes
+story                    39    64/64       64/64    64/64   yes
+code                     80    64/64       64/64    64/64   yes
+science                  76    64/64       64/64    64/64   yes
+chat_short               32    64/64       64/64    64/64   yes
+chat_system              55    64/64       64/64    64/64   yes
+chat_multiturn           91    64/64       64/64    64/64   yes
+chat_reasoning           99    64/64       64/64    64/64   yes
+long_code_127           127    64/64       64/64    64/64   yes
+long_code_128           128    64/64       64/64    64/64   yes
+TOTAL off vs on: leading-match 640/640 (100.00%), equal positions 640/640 (100.00%), identical prompts 10/10; off holds 640 continuation tokens
+REQUIREMENT MET

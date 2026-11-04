@@ -37,7 +37,7 @@ const CUT: usize = 20;
 const PLAIN: PassKind = PassKind { all_rows: false, absorb: false, dpos: false };
 
 fn tp(world: usize) -> GraphTp {
-    GraphTp { world, layers: None, first: 0 }
+    GraphTp { world, layers: None, first: 0, rope_inplace: false }
 }
 
 /// A step as text (op, name, buffers, attributes): two steps are the same step when these are equal.
@@ -255,7 +255,7 @@ fn replay_graphs_refuse_what_they_do_not_do() {
     assert!(build_replay(&c, &w, opts(512, 3000), tp(1), PLAIN, part(ReplayPart::Whole, 3978)).is_err());
     assert!(build_replay(&c, &w, opts(118, 3000), tp(1), PLAIN, part(ReplayPart::Decoder, 3978)).is_err());
     // a truncated model, a wrong cut
-    assert!(build_replay(&c, &w, opts(512, 4096), GraphTp { world: 1, layers: Some(30), first: 0 }, PLAIN, part(ReplayPart::Whole, 3978)).is_err());
+    assert!(build_replay(&c, &w, opts(512, 4096), GraphTp { world: 1, layers: Some(30), first: 0, rope_inplace: false }, PLAIN, part(ReplayPart::Whole, 3978)).is_err());
     assert!(build_replay(&c, &w, opts(512, 4096), tp(1), PLAIN, Replay { part: ReplayPart::Whole, cut: 10, floor: 3978, first: 0 }).is_err());
     // a decoder half with an Engram layer in it
     let mut e = c.clone();
