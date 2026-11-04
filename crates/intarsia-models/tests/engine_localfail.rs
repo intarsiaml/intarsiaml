@@ -158,3 +158,52 @@ fn out_of_vocab_prompt_is_a_bad_request() {
         assert_eq!((t.running, t.waiting), (0, 0), "a refused request leaves no count behind");
     }
 }
+
+/// A request that only the client got wrong (too long, empty) is an error for it and leaves a healthy engine as it was,
+/// on one device and on a group.
+#[test]
+fn bad_requests_are_not_fatal() {
+    for (e, _be) in [solo(), tp2()] {
+        assert!(finish(&e, req(prompt(6))).is_ok());
+        let too_long = finish(&e, req(prompt(70))).unwrap_err();
+        assert!(too_long.contains("context window"), "{too_long}");
+        let empty = finish(&e, req(Vec::new())).unwrap_err();
+        assert!(empty.contains("empty prompt"), "{empty}");
+        assert_eq!(e.failed(), None);
+        finish(&e, req(prompt(8))).expect("the engine still serves");
+    }
+}
+
+/// A device error stays (a wedged context fails every launch after it): the engine fails with the first one, so the
+/// server answers 503, `/health` says so and the supervisor restarts the process, instead of 500 for every request.
+#[test]
+fn device_error_fails_the_engine() {
+    let (e, be) = solo();
+    assert!(finish(&e, req(prompt(6))).is_ok());
+    be.set(FAIL_BACKEND);
+    let err = finish(&e, req(prompt(6))).unwrap_err();
+    assert!(err.contains("injected device error"), "{err}");
+    let why = e.failed().expect("the device error fails the engine");
+    assert!(why.contains("injected device error"), "{why}");
+    be.set(OK);
+    assert!(e.submit(req(prompt(6))).is_err(), "a failed engine accepts no work");
+    assert!(e.forward_logits(&[65]).is_err());
+}
+
+/// Requests already queued behind the one that hits the device error are answered, each with an error, not dropped.
+#[test]
+fn queued_requests_drain_after_a_device_error() {
+    let (e, be) = solo();
+    be.set(FAIL_BACKEND);
+    let rxs: Vec<_> = (0..4).filter_map(|_| e.submit(req(prompt(6))).ok()).collect();
+    assert!(!rxs.is_empty(), "the first request is accepted");
+    for rx in rxs {
+        match rx.recv().expect("answered") {
+            GenEvent::Error { .. } => {}
+            other => panic!("expected an error, got {other:?}"),
+        }
+    }
+    assert!(e.failed().is_some());
+    let t = e.telemetry();
+    assert_eq!((t.running, t.waiting), (0, 0), "counters stay consistent");
+}

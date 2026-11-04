@@ -979,8 +979,23 @@ fn run_job(sh: &Shared, job: Job) {
     match res {
         // the chunk size is reported only by the batched engine (its scheduler picks it per request)
         Ok(o) => report_done(&sh.telemetry, &tx, o, None),
-        Err(e) => report_error(&sh.telemetry, &tx, plen, generated, t_total.elapsed(), &e),
+        Err(e) => {
+            // before the error event, so a client that sees it also sees the engine failed
+            if let Some(why) = fatal(&e) {
+                eprintln!("engine failed: {why}");
+                sh.failed.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(why);
+            }
+            report_error(&sh.telemetry, &tx, plen, generated, t_total.elapsed(), &e)
+        }
     }
+}
+
+/// Why a failed request leaves the engine unable to serve any more, when it does. A device error is sticky (a wedged CUDA
+/// or HIP context stays so: docs/observability.md), so every later request would fail the same way while `/health` said
+/// ok; the engine fails instead and the supervisor restarts the process, as the batched scheduler does for
+/// `BatchModel::is_fatal`. A `BadRequest` and the like are the request's own and leave a healthy engine alone.
+fn fatal(e: &Error) -> Option<String> {
+    matches!(e, Error::Backend(_)).then(|| format!("device error: {e}"))
 }
 
 fn common_prefix(a: &[u32], b: &[u32]) -> usize {
