@@ -151,7 +151,7 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
         let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
         let state = AppState::new(engine.clone(), name, &cfg);
         let stop = Shutdown(state.shutdown.clone());
-        if cfg.watchdog_s > 0.0 || cfg.parent_pid.is_some() {
+        if wants_watchdog(&cfg) {
             health::spawn_watchdog(
                 engine,
                 state.progress.clone(),
@@ -169,6 +169,12 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
             .await
             .map_err(|e| intarsia_core::Error::Other(format!("server: {e}")))
     })
+}
+
+/// Whether `serve` runs the watchdog: a stall limit, a supervisor to watch for, or an exit on a failed engine (which only the
+/// watchdog performs: with `--watchdog-s 0` and no supervisor it was never started, so a failed engine never exited).
+fn wants_watchdog(cfg: &ServerConfig) -> bool {
+    cfg.watchdog_s > 0.0 || cfg.parent_pid.is_some() || cfg.exit_on_failed
 }
 
 async fn shutdown_signal() {
@@ -262,4 +268,18 @@ async fn events(State(st): State<AppState>) -> Sse<impl futures_util::Stream<Ite
         let _ = stop.wait_for(|stopping| *stopping).await;
     });
     Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_failed_engine_exit_needs_the_watchdog_even_without_a_stall_limit() {
+        let off = ServerConfig { watchdog_s: 0.0, ..Default::default() };
+        assert!(!wants_watchdog(&off));
+        assert!(wants_watchdog(&ServerConfig { exit_on_failed: true, ..off.clone() }));
+        assert!(wants_watchdog(&ServerConfig { parent_pid: Some(1), ..off.clone() }));
+        assert!(wants_watchdog(&ServerConfig { watchdog_s: 60.0, ..off }));
+    }
 }
