@@ -11,7 +11,8 @@
 # Cases (CASES, default "near force ring cancel supervised golden kill"; "kill35" adds the 35B comparison). MAX_MIN bounds them, so the kills go last:
 #   ring    chained cuts. A greedy reply of 14 tokens on a 200-token prompt (rows dropped behind it), the same prompt again, and a cold run of it:
 #           the ids must match on the fix; `cached` shows the reuse refused in the band. On the baseline binary too: the ids may differ there.
-#   cancel  a 12k-token prefill abandoned after 2 s by the client, then the same prompt: both ranks up, /health 200, ids equal to a cold run.
+#   cancel  a 12k-token prefill abandoned after 2 s by the client, then the same prompt: both ranks up, /health 200, ids equal to a cold run. Only this
+#           shows the ranks in step after a cancel: the unit test has no collectives. `cached` above 0 on the retry shows the cancel landed mid-prefill.
 #   supervised  a supervised `serve` (no --no-supervisor, default --watchdog-s 60), INTARSIA_DSV41_CAP=70000: a prefill of SUP_PROMPT (default 65000)
 #           tokens and a temperature 0.7 reply of SUP_REPLY (default 3500) tokens, each longer than 60 s. Expected: HTTP 200, no `[supervisor]` restart,
 #           /health 200. Main (BASE_SUPERVISED=1 to see it): exit 86. Memory at that capacity has not been measured: watch memfine.
@@ -142,6 +143,7 @@ case_golden() {
     OUT=$O/$arm; mkdir -p "$OUT"
     start_ranks ""; pids
     chat1 g-cap 48 "$P_CAP"; chat1 g-cnt 64 "$P_CNT"; chat1 g-code 200 "$P_CODE"; chat1 g-long 400 "$P_LONG"; chat1 g-pref 16 "@$OUT0/prefill-prompt.txt"
+    ids_req i-200 200 100 256; ids_req i-12k 12000 100 64 # token ids, not only text; 12000 rows cross the prefill's device waits (one per 4096 rows)
     for s in 1 2; do
       sampled_json 200 0.7 $s "$P_LONG" > "$OUT/s$s.req"
       curl -s -m 300 "$SURL/v1/chat/completions" -H 'content-type: application/json' -d @"$OUT/s$s.req" > "$OUT/s$s.resp"
@@ -152,6 +154,9 @@ case_golden() {
   for f in g-cap g-cnt g-code g-long g-pref s1 s2; do
     cmp -s "$O/fix/$f.txt" "$O/base/$f.txt" && v=identical || v=DIFFERENT
     log "RESULT golden $f: fix vs baseline $v"
+  done
+  for f in i-200 i-12k; do
+    log "RESULT golden ids $f: fix vs baseline $(ids_same "$O/fix/$f.ids" "$O/base/$f.ids") ($(wc -w < "$O/fix/$f.ids") words)"
   done
   BIN=$BIN_FIX; OUT=$OUT0
 }
@@ -274,7 +279,11 @@ case_supervised() { # <binary> <name>: rank 0's PID here is the supervisor's; th
   start_ranks "INTARSIA_DSV41_CAP=70000"; pids
   local t0; t0=$(date +%s)
   ids_req prefill "${SUP_PROMPT:-65000}" 100 8 900
-  log "RESULT supervised $2 prefill of ${SUP_PROMPT:-65000} tokens: HTTP $(http_of "$OUT/prefill.resp") after $(( $(date +%s) - t0 )) s, /health $(curl -s -m 2 -o /dev/null -w '%{http_code}' "$SURL/health")"
+  local took=$(( $(date +%s) - t0 )) stalled v
+  stalled=$(r spark1 "grep -ac 'exit 86\|restart #' $LOGD/serve-$TAG.log; true")
+  # a prefill under the watchdog shows nothing either way: only one that outlasts it would be killed with ticks that follow the enqueue
+  v=PASS; (( took <= 60 )) && v="INCONCLUSIVE (under the 60 s watchdog: raise SUP_PROMPT)"; [[ ${stalled:-0} != 0 || $(http_of "$OUT/prefill.resp") != 200 ]] && v=FAIL
+  log "RESULT supervised $2 prefill of ${SUP_PROMPT:-65000} tokens: $v, HTTP $(http_of "$OUT/prefill.resp") after $took s, /health $(curl -s -m 2 -o /dev/null -w '%{http_code}' "$SURL/health"), watchdog or restart lines $stalled"
   t0=$(date +%s)
   sampled_json "${SUP_REPLY:-3500}" 0.7 1 "$P_LONG" > "$OUT/reply.req"
   curl -s -m 900 -w '\nHTTP %{http_code}\n' "$SURL/v1/chat/completions" -H 'content-type: application/json' -d @"$OUT/reply.req" > "$OUT/reply.resp" 2>"$OUT/reply.curlerr"
