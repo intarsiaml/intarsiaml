@@ -164,6 +164,109 @@ expect("quality on lost 6 (p < 0.05 needs more): 0.06 loss, p 0.03", q(off_ok, [
 expect("quality on lost 3 (noise)", q(off_ok, [(i % 2 == 0) and i >= 6 for i in range(N)], ["--expect-items", "90"]), 0)
 expect("quality too few items", q(off_ok[:50], off_ok[:50], ["--expect-items", "90"]), 1)
 expect("quality on garbage (all wrong)", q(off_ok, [False] * N, ["--expect-items", "90"]), 1)
+
+
+# ---- step 7: the recent-window scorer, the reading rule and the analysis (replay-test-lib.py `recent`)
+def sc(reply, exp="QK-4821-MT"):
+    return lib.score_code(reply, exp)
+
+
+expect("scorer: the bare code", sc("QK-4821-MT"), 1)
+expect("scorer: code in a sentence with a full stop", sc("The code is QK-4821-MT."), 1)
+expect("scorer: lower case", sc("qk-4821-mt"), 1)
+expect("scorer: a decoy's code", sc("ZZ-1111-AA"), 0)
+expect("scorer: the right code extended by a letter", sc("QK-4821-MTX"), 0)
+expect("scorer: the right code extended by a hyphen group", sc("QK-4821-MT-2"), 0)
+expect("scorer: a letter before it", sc("AQK-4821-MT"), 0)
+expect("scorer: a digit too many", sc("QK-48210-MT"), 0)
+expect("scorer: no code at all", sc("I cannot find it."), 0)
+expect("scorer: working then the right code last", sc("Not ZZ-1111-AA. FINAL: QK-4821-MT"), 1)
+expect("scorer: the right code then a decoy last", sc("QK-4821-MT or ZZ-1111-AA"), 0)
+expect("scorer: empty reply is None, not wrong", sc(""), None)
+expect("scorer: blank reply is None", sc(" \n "), None)
+
+
+def fires(cells):
+    return lib.rule_fires({k: (24, 24, b, c) for k, (b, c) in cells.items()})
+
+
+expect("rule: bucket 2, b 4 c 0", fires({2: (4, 0)}), True)
+expect("rule: bucket 2, b 3 c 0", fires({2: (3, 0)}), False)
+expect("rule: bucket 3, b 5 c 1 (diff 4)", fires({3: (5, 1)}), True)
+expect("rule: bucket 1, b 5 c 2 (diff 3)", fires({1: (5, 2)}), False)
+expect("rule: bucket 4 (secondary), b 4 c 0", fires({4: (4, 0)}), False)
+expect("rule: bucket 4 (secondary), b 5 c 0", fires({4: (5, 0)}), True)
+expect("rule: far control, b 5 c 0", fires({6: (5, 0)}), True)
+expect("rule: bucket 2, on better by 6", fires({2: (0, 6)}), False)
+expect("rule: three primary cells b 3 each (pooled 9, p 0.002)", fires({1: (3, 0), 2: (3, 0), 3: (3, 0)}), True)
+expect("rule: three primary cells b 2 each (pooled 6, p 0.016)", fires({1: (2, 0), 2: (2, 0), 3: (2, 0)}), False)
+expect("rule: noise only (b 1 c 1 everywhere)", fires({k: (1, 1) for k in range(1, 7)}), False)
+expect("p_one_sided(4,0) is 1/16", abs(lib.p_one_sided(4, 0) - 1 / 16) < 1e-12, True)
+
+NI = 4
+man7 = os.path.join(T, "man7.json")
+items7 = []
+for ln, tot in (("4k", 4000), ("32k", 30400)):
+    for bk in range(1, 7):
+        for i in range(NI):
+            items7.append({"name": f"rw-{ln}-b{bk}-{i:02d}", "idx": len(items7), "length": ln, "bucket": bk, "total_tokens": tot + i,
+                           "expected": f"QK-{1000 + len(items7)}-MT", "decoys": [{"code": "ZZ-1111-AA"}], "d_start": 10 * bk,
+                           "chunks": {"2048": {"window_spans_chunks": False}}})
+json.dump({"items": items7}, open(man7, "w"))
+
+
+def res7(name, fn, ptok=None, cached=0, drop=(), err=(), empty=()):
+    cases = []
+    for m in items7:
+        if m["name"] in drop:
+            continue
+        rep = fn(m)
+        if m["name"] in empty:
+            rep = ""
+        cases.append({"name": m["name"], "success": rep.strip().endswith(m["expected"]), "actual_output": rep,
+                      "error": "boom" if m["name"] in err else None,
+                      "speed": {"prompt_tokens": m["total_tokens"] if ptok is None else ptok, "cached_tokens": cached}})
+    p = os.path.join(T, name)
+    json.dump({"datasets": [{"dataset": "x", "rows": len(items7), "cases": cases}]}, open(p, "w"))
+    return p
+
+
+right7 = lambda m: m["expected"]
+def lose7(buckets, n):
+    """the first n items (manifest order) of each listed bucket get a decoy's code"""
+    seen = {}
+    def f(m):
+        k = seen[m["bucket"]] = seen.get(m["bucket"], -1) + 1
+        return "ZZ-1111-AA" if m["bucket"] in buckets and k < n else m["expected"]
+    return f
+
+
+def rec(off, on, extra=()):
+    pr = os.path.join(T, "pairs7.txt")
+    open(pr, "w").write(f"2048 {off} {on}\n")
+    return run(lib.recent, [man7, pr, os.path.join(T, "r7.md")] + list(extra))[0]
+
+
+o7 = res7("o7.json", right7)
+expect("recent: identical arms", rec(o7, res7("n7.json", right7)), 0)
+expect("recent: on loses 4 of 8 in bucket 2 (DEFECT)", rec(o7, res7("n7b.json", lose7({2}, 4))), 2)
+expect("recent: on loses 2 of 8 in bucket 2 (b 2: no defect)", rec(o7, res7("n7c.json", lose7({2}, 2))), 0)
+expect("recent: on loses in the far control, 4 of 8 (secondary rule needs 5)", rec(o7, res7("n7d.json", lose7({6}, 4))), 0)
+expect("recent: an empty reply is INVALID", rec(o7, res7("n7e.json", right7, empty={"rw-4k-b3-01"})), 1)
+expect("recent: a call error is INVALID", rec(o7, res7("n7f.json", right7, err={"rw-4k-b3-01"})), 1)
+expect("recent: server prompt_tokens differs from the manifest", rec(o7, res7("n7g.json", right7, ptok=4096)), 1)
+expect("recent: prefix-cache hit (cached_tokens 7)", rec(o7, res7("n7h.json", right7, cached=7)), 1)
+expect("recent: an item missing in the on arm", rec(o7, res7("n7i.json", right7, drop={"rw-32k-b1-00"})), 1)
+expect("recent: fewer pairs than --expect-items", rec(o7, res7("n7j.json", right7), ["--expect-items", str(len(items7) + 1)]), 1)
+shaj = os.path.join(T, "sha7.json")
+os.makedirs(os.path.join(T, "ds7"), exist_ok=True)
+open(os.path.join(T, "ds7", "recent.4k.jsonl"), "w").write("x\n")
+json.dump({"4k": lib.sha(os.path.join(T, "ds7", "recent.4k.jsonl"))}, open(shaj, "w"))
+expect("checksha: dataset equal", run(lib.checksha, [shaj, os.path.join(T, "ds7"), "recent.", "4k"])[0], 0)
+open(os.path.join(T, "ds7", "recent.4k.jsonl"), "w").write("y\n")
+expect("checksha: dataset differs", run(lib.checksha, [shaj, os.path.join(T, "ds7"), "recent.", "4k"])[0], 1)
+expect("checksha: dataset missing", run(lib.checksha, [shaj, os.path.join(T, "ds7"), "recent.", "32k"])[0], 1)
+
 shutil.rmtree(T, ignore_errors=True)
 print("SELFTEST FAILED: " + ", ".join(FAILS) if FAILS else "SELFTEST PASSED")
 sys.exit(1 if FAILS else 0)

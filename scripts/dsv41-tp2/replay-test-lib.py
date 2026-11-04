@@ -22,6 +22,11 @@ Commands (each prints a table; the exit code is 1 when a stated requirement fail
       the mean on/off ratio of any (chunk, size) exceeds R, a cell has errors, or fewer than N cells were read.
   sha256 FILE...                         print sha256 and name
   checksha SHA.json DIR PREFIX KEY...    each DIR/PREFIX+KEY+.jsonl against SHA.json[KEY]; exit 1 on any mismatch
+  recent MANIFEST.json PAIRS.txt OUT.md [--expect-items N]
+      step 7 (recent-window items, scripts/dsv41-tp2/replay-recent-gen.py): paired off/on accuracy by distance bucket and length,
+      discordant counts, the pre-registered reading rule. Exit 1 = invalid measurement (error or empty reply, prompt_tokens
+      differing from the manifest, cached_tokens > 0, an item missing in an arm), 2 = valid and a DEFECT, 0 = no defect.
+  rulepower [PAIRS_PER_BUCKET [NOISE_RATE]]   how often the reading rule fires for a given true loss (Monte Carlo, seeded)
   quality MANIFEST.json PAIRS.txt OUT.md [--expect-items N] [--max-loss D] [--alpha A]
       paired off/on accuracy; PAIRS.txt lines: `shard off_result.json on_result.json`. Exit 1 when fewer than N items are scored in
       both arms, or on is worse than off by at least D (default 0.10) or by more than 0.05 with McNemar p < A (default 0.05).
@@ -30,6 +35,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import sys
 
 
@@ -440,13 +446,231 @@ def checksha(argv):
     return 1 if bad else 0
 
 
+# ---- step 7: the recent-window item set (docs/results/2026-11-03-dsv41-replay.md, "Reading rule for step 7")
+# Items: scripts/dsv41-tp2/replay-recent-gen.py. Each plants one `Vault <Name> code: XX-9999-XX.` line at a measured token
+# distance from the end of the prompt the server prefills; the reply must end in that code. Buckets by the distance of the FIRST
+# token of the fact line (tokens from it to the end of the prompt, template tokens included): 1 <= 64, 2 65-128 (the whole line is
+# in the replayed rows), 3 129-256 (the whole line is below the floor), 4 257-1024, 5 1025-4096, 6 far control (>= half the prompt).
+BUCKET_LABELS = {1: "<=64", 2: "65-128", 3: "129-256", 4: "257-1024", 5: "1025-4096", 6: "far (>= half)"}
+PRIMARY = (1, 2, 3)        # distance <= 256: the rows the replay recomputes, and the first rows below its floor
+CODE_RE = re.compile(r"(?<![A-Z0-9])[A-Z]{2}-\d{4}-[A-Z]{2}(?![A-Z0-9]|-[A-Z0-9])")
+# the reading rule (fixed before any data; the doc states the same numbers)
+RULE = {"primary_b": 4, "primary_diff": 4, "second_b": 5, "second_diff": 5, "pooled_p": 0.01}
+
+
+def score_code(reply, expected):
+    """1 when the LAST code-shaped string (XX-9999-XX, whole token) of the reply equals `expected` (case-insensitive), 0 for no code,
+    another code, or an extended / truncated code; None for an empty reply (a failed call, never scored as wrong)."""
+    if not (reply or "").strip():
+        return None
+    m = CODE_RE.findall(reply.upper())
+    return int(bool(m) and m[-1] == expected.upper())
+
+
+def p_one_sided(b, c):
+    """Exact one-sided sign-test p of b or more 'off right, on wrong' among the b + c discordant pairs (1.0 without any)."""
+    n = b + c
+    return 1.0 if n == 0 else sum(math.comb(n, i) for i in range(b, n + 1)) / 2 ** n
+
+
+def read_rule(cells):
+    """cells: bucket -> (n, off_correct, b, c), pooled over lengths. Returns [(defect?, text)] for the pre-registered reading rule:
+    DEFECT when, in any of buckets 1-3, b >= 4 and b - c >= 4; or in bucket 4, 5 or 6, b >= 5 and b - c >= 5; or the pooled buckets
+    1-3 have one-sided p <= 0.01. b = off right and on wrong, c = off wrong and on right."""
+    out = []
+    for k in sorted(cells):
+        n, off_ok, b, c = cells[k]
+        need_b, need_d = (RULE["primary_b"], RULE["primary_diff"]) if k in PRIMARY else (RULE["second_b"], RULE["second_diff"])
+        hit = b >= need_b and b - c >= need_d
+        note = f"bucket {BUCKET_LABELS[k]}: n {n}, off right {off_ok}, off right/on wrong b={b}, on right/off wrong c={c}, p1={p_one_sided(b, c):.3f}"
+        if hit:
+            out.append((True, f"DEFECT {note} (needs b >= {need_b} and b - c >= {need_d})"))
+        elif c >= need_b and c - b >= need_d:
+            out.append((False, f"note: on BETTER than off, review {note}"))
+        elif off_ok < 2 * n / 3:
+            out.append((False, f"uninformative (off right on {off_ok} of {n} only) {note}"))
+        else:
+            out.append((False, f"no defect {note}"))
+    prim = [cells[k] for k in PRIMARY if k in cells]
+    if prim:
+        n, off_ok, b, c = (sum(x[i] for x in prim) for i in range(4))
+        p = p_one_sided(b, c)
+        hit = p <= RULE["pooled_p"] and b > c
+        out.append((hit, f"{'DEFECT' if hit else 'no defect'} pooled buckets 1-3: n {n}, b={b}, c={c}, one-sided p={p:.4f} (needs <= {RULE['pooled_p']})"))
+    return out
+
+
+def rule_fires(cells):
+    return any(d for d, _ in read_rule(cells))
+
+
+def rulepower(argv):
+    """Probability that the rule fires, by Monte Carlo (seeded): every pair is concordant, or discordant by noise (rate r, split
+    evenly: 'off right on wrong' r/2, the reverse r/2), or a true loss (rate q: off right, on wrong). Same q in every bucket 1-3
+    ('window') or in no bucket ('none'); buckets 4-6 get noise only. Pairs per bucket: n (24 = both lengths)."""
+    import random
+    n_cell, r, sims = int(argv[0]) if argv else 24, float(argv[1]) if len(argv) > 1 else 0.07, 40000
+    rng = random.Random("rulepower")
+    print(f"pairs per bucket {n_cell}, noise discordance rate {r} (chunk32k-2: 13 of 180), {sims} runs each\n")
+    print("| true loss q (window buckets 1-3) | P(rule fires) |\n|---:|---:|")
+    for q in (0.0, 0.05, 0.10, 0.15, 0.20, 0.30, 0.50):
+        hits = 0
+        for _ in range(sims):
+            cells = {}
+            for k in range(1, 7):
+                b = c = 0
+                for _ in range(n_cell):
+                    u = rng.random()
+                    qq = q if k in PRIMARY else 0.0
+                    if u < qq:
+                        b += 1
+                    elif u < qq + r / 2:
+                        b += 1
+                    elif u < qq + r:
+                        c += 1
+                cells[k] = (n_cell, n_cell, b, c)
+            hits += rule_fires(cells)
+        print(f"| {q:.2f} | {hits / sims:.3f} |")
+    return 0
+
+
+def recent(argv):
+    """recent MANIFEST.json PAIRS.txt OUT.md [--expect-items N]
+    PAIRS.txt lines: `chunk off_result.json on_result.json [off_result.json on_result.json ...]` (one pair of files per dataset
+    run, 4K and 32K). Exit 1 when the measurement is invalid (a call error or empty reply, a prompt_tokens that differs from the
+    manifest, cached_tokens above 0, an item not scored in both arms, fewer than N pairs); 2 when valid and the reading rule
+    finds a DEFECT (the run goes on, the step is reported as DEFECT); 0 otherwise."""
+    expect_items = None
+    rest = argv[3:]
+    while rest:
+        if rest[0] == "--expect-items":
+            expect_items, rest = int(rest[1]), rest[2:]
+        else:
+            raise SystemExit(f"recent: unknown argument {rest[0]}")
+    man = {m["name"]: m for m in json.load(open(argv[0]))["items"]}
+    L, invalid, defect = [], [], False
+    chunks = []
+    for line in open(argv[1]):
+        f = line.split()
+        if f:
+            chunks.append((f[0], f[1:]))
+    for chunk, files in chunks:
+        if len(files) % 2:
+            raise SystemExit(f"recent: chunk {chunk}: an odd number of result files")
+        arm = {"off": {}, "on": {}}
+        ran = {"off": 0, "on": 0}
+        for i in range(0, len(files), 2):
+            for a, p in (("off", files[i]), ("on", files[i + 1])):
+                for ds in json.load(open(p))["datasets"]:
+                    ran[a] += ds["rows"]
+                    for cs in ds["cases"]:
+                        arm[a][cs["name"]] = cs
+        bad = {"off": [], "on": []}      # call errors / empty replies
+        tokbad, cachedbad, cachedunk = [], [], 0
+        for a in ("off", "on"):
+            for nm, cs in arm[a].items():
+                if nm not in man:
+                    invalid.append(f"chunk {chunk}: case {nm} is not in the manifest")
+                    continue
+                if cs.get("error") or not (cs.get("actual_output") or "").strip():
+                    bad[a].append(nm)
+                sp = cs.get("speed") or {}
+                if sp.get("prompt_tokens") != man[nm]["total_tokens"]:
+                    tokbad.append(f"{a} {nm}: server prompt_tokens {sp.get('prompt_tokens')}, manifest {man[nm]['total_tokens']}")
+                ct = sp.get("cached_tokens")
+                if ct is None:
+                    cachedunk += 1
+                elif ct != 0:
+                    cachedbad.append(f"{a} {nm}: cached_tokens {ct}")
+        for a in ("off", "on"):
+            if len(arm[a]) != ran[a]:
+                invalid.append(f"chunk {chunk} {a}: {ran[a]} dataset rows but {len(arm[a])} distinct cases (duplicate names?)")
+            if bad[a]:
+                invalid.append(f"chunk {chunk} {a}: {len(bad[a])} calls with an error or an EMPTY reply: {', '.join(sorted(bad[a])[:12])}")
+        if tokbad:
+            invalid.append(f"chunk {chunk}: {len(tokbad)} prompt_tokens differ from the manifest (the distances are then not those of the manifest): {'; '.join(tokbad[:4])}")
+        if cachedbad:
+            invalid.append(f"chunk {chunk}: prefix-cache hits (the chunk schedule and the floor change): {'; '.join(cachedbad[:4])}")
+        names = sorted((set(arm["off"]) & set(arm["on"])) - set(bad["off"]) - set(bad["on"]), key=lambda n: man[n]["idx"] if n in man else 0)
+        names = [n for n in names if n in man]
+        if set(arm["off"]) ^ set(arm["on"]):
+            invalid.append(f"chunk {chunk}: {len(set(arm['off']) ^ set(arm['on']))} items scored in one arm only")
+        if len(names) < max(ran["off"], ran["on"]):
+            invalid.append(f"chunk {chunk}: only {len(names)} of {max(ran['off'], ran['on'])} items scored in both arms")
+        if expect_items is not None and len(names) < expect_items:
+            invalid.append(f"chunk {chunk}: {len(names)} pairs scored, expected at least {expect_items}")
+        ok = {"off": {}, "on": {}}
+        lastcode = {"off": {}, "on": {}}
+        for a in ("off", "on"):
+            for nm in names:
+                rep = arm[a][nm].get("actual_output") or ""
+                ok[a][nm] = score_code(rep, man[nm]["expected"])
+                m = CODE_RE.findall(rep.upper())
+                lastcode[a][nm] = m[-1] if m else None
+        L.append(f"## chunk {chunk}: {len(names)} pairs scored in both arms (off ran {ran['off']} rows, on {ran['on']})\n")
+        cell = {}                       # (length, bucket) -> [n, off_ok, on_ok, b, c]
+        for nm in names:
+            m = man[nm]
+            x = cell.setdefault((m["length"], m["bucket"]), [0, 0, 0, 0, 0])
+            o, n_ = ok["off"][nm], ok["on"][nm]
+            x[0] += 1
+            x[1] += o
+            x[2] += n_
+            x[3] += bool(o and not n_)
+            x[4] += bool(n_ and not o)
+        lens = sorted({k[0] for k in cell}, key=lambda s: int(s.rstrip("k")))
+        L.append("| length | distance bucket | pairs | off right | on right | b: off right, on wrong | c: on right, off wrong | one-sided p(b) |\n|---|---|---:|---:|---:|---:|---:|---:|")
+        for ln in lens:
+            for k in range(1, 7):
+                x = cell.get((ln, k))
+                if x:
+                    L.append(f"| {ln} | {BUCKET_LABELS[k]} | {x[0]} | {x[1]} | {x[2]} | {x[3]} | {x[4]} | {p_one_sided(x[3], x[4]):.3f} |")
+        pooled = {}
+        for (ln, k), x in cell.items():
+            y = pooled.setdefault(k, [0, 0, 0, 0, 0])
+            for i in range(5):
+                y[i] += x[i]
+        L.append("\n**Pooled over lengths (the cells the reading rule reads)**\n")
+        L.append("| distance bucket | pairs | off right | on right | b | c | one-sided p(b) |\n|---|---:|---:|---:|---:|---:|---:|")
+        for k in sorted(pooled):
+            y = pooled[k]
+            L.append(f"| {BUCKET_LABELS[k]} | {y[0]} | {y[1]} | {y[2]} | {y[3]} | {y[4]} | {p_one_sided(y[3], y[4]):.3f} |")
+        verdict = read_rule({k: (y[0], y[1], y[3], y[4]) for k, y in pooled.items()})
+        L.append(f"\n**Reading rule, chunk {chunk}**\n")
+        for d, t in verdict:
+            L.append(f"- {t}")
+        defect = defect or any(d for d, _ in verdict)
+        # diagnostics (not part of the rule)
+        for a in ("off", "on"):
+            dec = sum(1 for nm in names if lastcode[a][nm] and lastcode[a][nm] in {d["code"].upper() for d in man[nm]["decoys"]})
+            nocode = sum(1 for nm in names if lastcode[a][nm] is None)
+            hedged = sum(1 for nm in names if len(set(CODE_RE.findall((arm[a][nm].get("actual_output") or "").upper()))) > 1)
+            L.append(f"- {a}: {sum(ok[a].values())} right; wrong answer is a decoy's code: {dec}; no code in the reply: {nocode}; reply names more than one code: {hedged}")
+        loc = sum(bool(arm[a][nm].get("success")) != bool(ok[a][nm]) for a in ("off", "on") for nm in names)
+        L.append(f"- localeval's own 'contains expected' score and this scorer disagree on {loc} replies (a hedged reply that also names the code)")
+        disc = [nm for nm in names if bool(ok["off"][nm]) != bool(ok["on"][nm])]
+        L.append("\nDiscordant items (distance of the fact line's first token, floor-chunk flags at this chunk): " + (", ".join(
+            f"`{nm}` (d {man[nm]['d_start']}, off {'right' if ok['off'][nm] else 'wrong'}, on {'right' if ok['on'][nm] else 'wrong'}, "
+            f"window spans 2 chunks {man[nm]['chunks'].get(str(chunk), {}).get('window_spans_chunks')})" for nm in disc) or "none"))
+        if cachedunk:
+            L.append(f"\nnote: {cachedunk} replies carried no cached_tokens, prefix reuse not checked for them")
+        L.append("")
+    if invalid:
+        L = ["# INVALID MEASUREMENT\n"] + [f"- {t}" for t in invalid] + [""] + L
+    else:
+        L = [f"# step 7: recent-window items, off vs on: {'DEFECT per the reading rule' if defect else 'no defect per the reading rule'}\n"] + L
+    open(argv[2], "w").write("\n".join(L) + "\n")
+    print("\n".join(L))
+    return 1 if invalid else (2 if defect else 0)
+
+
 def main():
     cmd, a = sys.argv[1], sys.argv[2:]
     if cmd == "sha256":
         for p in a:
             print(sha(p), os.path.basename(p))
         return 0
-    return {"tokcmp": tokcmp, "speedtab": speedtab, "quality": quality, "checksha": checksha, "tfagree": tfagree, "gatecmp": gatecmp}[cmd](a)
+    return {"tokcmp": tokcmp, "speedtab": speedtab, "quality": quality, "checksha": checksha, "tfagree": tfagree, "gatecmp": gatecmp, "recent": recent, "rulepower": rulepower}[cmd](a)
 
 
 if __name__ == "__main__":
