@@ -177,3 +177,21 @@ Before the first real run, checked: `bash -n`, the printed commands, `--dry-run`
 - Bitwise numerics beyond golden's 9 outputs, and any chunk other than 512.
 
 Also not done: no 35B change, and PR #293's files were left alone (`engine.rs`, `model.rs`, `tp_hybrid.rs` untouched here).
+
+## Gates (no-op check against origin/main 809674eb9; branch head 3dc076b23)
+
+No-op gates for the shared-file changes (`plan.rs`, `state.rs`, `tp_remote.rs`, `serve.rs`, server `lib.rs`). Scripts are the engine-localfail ones with paths and SHAs changed (`raw/gates/scripts/`), plus two differences: `gates-lf.sh` has its `serve` section removed (see Not run), and `gates-cuda.sh` waits for its remote builds with `jobs -r` (the original polled zsh-indexed PIDs under `bash -s`). Logs in `raw/gates/`.
+
+| gate | job | result |
+|---|---|---|
+| Metal builds, `cargo build --release --locked -p intarsia-cli --features metal`, own target dir per binary (branch head, detached `origin/main` worktree) | #8395, endor, `--load cpu` | ok |
+| `plan show --backend metal` text and `--json`, 35B (Qwen3.6-35B-A3B-NVFP4), 8B (Qwen3-8B), 27B (Qwen3.8-27B-Quark-AWQ-MXFP4), base vs new | #8397, endor, `--exclusive --mem 24` | **byte-identical, 6 of 6** |
+| `kernels test --backend metal`, base and new | #8397 | 49 kernels, 980 cases, **0 FAIL** both; logs differ only in the wall-time line (31.4 s vs 31.2 s) |
+| `generate` greedy, 256 ids (`--ignore-eos --spec off`), short chat prompt and 4K prompt, 27B and 8B | #8397 | **ids and text identical, 4 of 4 cells** |
+| 8B goldens `qwen3-8b-fp32` (16 decode positions) and `qwen3-8b-long-fp32` (64), `accuracy --mode both` against the metal baselines | #8397 | both floor PASS, baseline PASS, golden gate PASS; `.out` of base and new byte-identical |
+| CUDA on spark1: `plan show` 35B and 8B, text and `--json`; `kernels test --backend cuda --quick` | #8399, `--load cpu --mem 60` | `plan show` identical 4 of 4; 106 kernels, 918 cases, **0 FAIL** both; logs identical apart from wall time |
+| `cargo test --workspace --no-fail-fast` at 3dc076b23 | #8396, endor, `--load cpu` | exit 0: 1292 passed, 0 failed, 29 ignored |
+
+CUDA job #8394 (first attempt) is not a result: the script's wait loop used zsh array indices under `bash -s`, so it read the binaries before the branch build finished (`No such file`, exit 127 on the new side). Kept in `raw/gates/cuda-run1-failed/` and `raw/gates/logs/cuda.log`; #8399 is the same script with the loop fixed.
+
+Not run: `serve` (LocalEngine and batched, HTTP and out-of-vocab checks) was not part of this request, and the failure paths on a Spark are covered by section 6, not here; a base-vs-new comparison on other models than 35B, 8B and 27B.
