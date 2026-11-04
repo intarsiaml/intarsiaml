@@ -68,6 +68,16 @@ inline uint ask_chunk(uint visible, uint nsplit) {
     return (c + ASK_CHUNK_ALIGN - 1) / ASK_CHUNK_ALIGN * ASK_CHUNK_ALIGN;
 }
 
+// Bitwise head split (`s1` bits 8..15 = GPREF, 0 = off): the query heads of a kv head run in `s1 & 255` threadgroups of fewer heads
+// each (as the head split above), but the work partition is that of the unsplit launch: the split-count policy sees the kv head
+// count Nkv, not Nkv * HS, and the simdgroup count is the one the unsplit GPREF-head register footprint gets. Each head's
+// arithmetic is independent of the others', so with the same key partition, simdgroup count and merge order the bits are those
+// of HS = 1. ask_hs: the head split; ask_pol: kv head count multiplier of the split policy; ask_gpn: GP the simdgroup count is
+// derived from.
+inline uint ask_hs(uint s1) { return max(s1 & 255u, 1u); }
+inline uint ask_pol(uint s1) { return (s1 >> 8) != 0 ? 1u : ask_hs(s1); }
+inline uint ask_gpn(uint s1, uint gp) { return (s1 >> 8) != 0 ? (s1 >> 8) : gp; }
+
 // One step of the main loop: ASK_U units (KPS keys each) of this simdgroup. FULL: every key of the step exists, so the
 // bounds selects of the partial last step drop out (the arithmetic is the same, bit for bit).
 template <uint GP, bool FULL>
@@ -136,10 +146,10 @@ kernel void attn_decode_splitkv_t(device const ushort* q [[buffer(0)]],
 
     const uint n = p.b, nkv = p.c, d = p.d;
     const uint cap = p.e;
-    const uint hs = max(p.s1, 1u);
+    const uint hs = ask_hs(p.s1);
     const int pos_raw = p.g != 0 ? posbuf[0] : (int)p.f;
     const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);  // clamped, as the other decode kernels
-    const uint nsplit = ask_nsplit(visible, nkv * hs, p.h, p.pad, p.a);
+    const uint nsplit = ask_nsplit(visible, nkv * ask_pol(p.s1), p.h, p.pad, p.a);
     const uint sp = tg.y;
     if (sp >= nsplit) return;  // uniform over the threadgroup
     const uint kvh = hs == 1 ? tg.x : tg.x / hs, hg = tg.x - kvh * hs;
@@ -256,7 +266,7 @@ kernel void attn_decode_bf16_combine(device ushort* out [[buffer(0)]],
     const uint n = p.b, nkv = p.c, d = p.d;
     const int pos_raw = p.g != 0 ? posbuf[0] : (int)p.f;
     const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
-    const uint nsplit = ask_nsplit(visible, nkv * max(p.s1, 1u), p.h, p.pad, p.a);
+    const uint nsplit = ask_nsplit(visible, nkv * ask_pol(p.s1), p.h, p.pad, p.a);
     if (nsplit == 1) return;  // stage 1 wrote the output
     device const float2* ml = (device const float2*)(part + n * p.h * d) + head * p.h;
     device const float* acc = part + head * p.h * d + di;
@@ -343,15 +353,15 @@ kernel void attn_rows_splitkv_t(device const ushort* q [[buffer(0)]],
     const uint n = p.b, nkv = p.c, d = p.d;
     const uint cap = p.e;
     const uint rows = p.s0;
-    const uint hs = max(p.s1, 1u);
+    const uint hs = ask_hs(p.s1);
     const uint vkv = tg.x / rows, row = tg.x - vkv * rows;  // x = (kvh * HS + hg) * R + row: the R threadgroups of a K / V slice are adjacent
     const uint kvh = hs == 1 ? vkv : vkv / hs, hg = vkv - kvh * hs;
     const int pos_raw = (p.g != 0 ? posbuf[0] : (int)p.f) + (int)row;
     const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
-    const uint nsplit = ask_nsplit(visible, nkv * hs, p.h, p.pad, p.a);
+    const uint nsplit = ask_nsplit(visible, nkv * ask_pol(p.s1), p.h, p.pad, p.a);
     const uint sp = tg.y;
     if (sp >= nsplit) return;  // uniform over the threadgroup
-    const uint nsg = askr_nsg(p.g == 0, nkv * hs, nsplit, GP, d);
+    const uint nsg = askr_nsg(p.g == 0, nkv * ask_pol(p.s1), nsplit, ask_gpn(p.s1, GP), d);
     const uint kgrp = n / nkv;
     const uint grp = kgrp / hs;
     const uint head0 = kvh * kgrp + hg * grp;
@@ -467,7 +477,7 @@ kernel void attn_rows_combine(device ushort* out [[buffer(0)]],
     const uint head = tg.x, row = tg.y;
     const int pos_raw = (p.g != 0 ? posbuf[0] : (int)p.f) + (int)row;
     const uint visible = min((uint)max(pos_raw, 0) + 1u, p.e);
-    const uint nsplit = ask_nsplit(visible, nkv * max(p.s1, 1u), p.h, p.pad, p.a);
+    const uint nsplit = ask_nsplit(visible, nkv * ask_pol(p.s1), p.h, p.pad, p.a);
     if (nsplit == 1) return;
     device const float* part_r = part + row * (n * p.h * (d + 2));
     device const float2* ml = (device const float2*)(part_r + n * p.h * d) + head * p.h;
