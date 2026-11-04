@@ -127,7 +127,11 @@ pub fn run(args: ServeArgs) -> Result<()> {
     }
     let parent_pid = args.child.then(|| std::env::var("INTARSIA_SUPERVISOR_PID").ok()?.parse().ok()).flatten();
     let child = args.child;
+    // A supervised child outlasts a server that is stopping (the supervisor's own grace is 30 s) before it gives up; by hand, a taken port is
+    // reported at once.
+    let bind_retry_s = if child { std::env::var("INTARSIA_BIND_RETRY_S").ok().and_then(|v| v.parse().ok()).unwrap_or(120.0) } else { 0.0 };
     let cfg = intarsia_server::ServerConfig {
+        bind_retry_s,
         host: args.host,
         port: args.port,
         served_model_name: args.served_model_name,
@@ -142,7 +146,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
     };
     match intarsia_server::serve(engine, cfg) {
         Ok(()) => Ok(()),
-        // Restarting would reload the whole model to find the port still taken: tell the supervisor to stop.
+        // The port stayed taken for the whole retry: a restart would only reload the model to try it again, so tell the supervisor to stop.
         Err(e) if child && intarsia_server::is_bind_failure(&e) => {
             eprintln!("Error: {e}");
             std::process::exit(intarsia_server::EXIT_FATAL);
