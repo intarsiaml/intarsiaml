@@ -1,0 +1,81 @@
+10:03:00 config ab4: INTARSIA_DSV41_CHUNK=512; steps: lspeed; nsys 0; bin $HOME/intarsia-dsv41-attnwire/bin/intarsia.base
+10:03:03 ranks started (tag 100300)
+10:03:26 serve up=1 after 23 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.5 s = 6.67 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.28 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.4 s (5.00 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 0.304 GiB (chunk 512), constants 0.000 GiB, state 0.201 GiB per sequence at 65536 tokens; MemAvailable 110.47 GiB -> 9.79 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793804605)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793804605)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793804605)
+dsv41: warm-up passes in 0.18 s
+dsv41: rank 0 after warm-up: MemAvailable 9.37 GiB, used since start 101.10 GiB, of which weights 98.90 GiB, non-weight 2.20 GiB (workspace 0.304, scratch 0.004, state 0.201, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.2 s = 6.79 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.63 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.5 s (4.98 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 0.304 GiB (chunk 512), constants 0.000 GiB, state 0.201 GiB per sequence at 65536 tokens; MemAvailable 110.38 GiB -> 9.58 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793804605)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793804605)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793804605)
+# localeval: adhoc — 2026-11-04T10:03
+
+- model: `dsv41-intarsia` on ? (?), url `http://100.120.88.104:8899/v1`
+- thinking: off; run kind: speed; label: dsv41-intarsia-tp2-speed-ab4
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --sizes 4096,32768 --gen 128 --reps 3 --label dsv41-intarsia-tp2-speed-ab4 --url http://100.120.88.104:8899/v1 --model dsv41-intarsia --thinking off --recipe intarsia 91cb61fc8 dirty=no 1104-0928 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 65536 chunk 2048, engram hot 1024 MiB`
+- result file: `results/20261104-100329-adhoc-dsv41-intarsia-tp2-speed-ab4/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia 91cb61fc8 dirty=no 1104-0928 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 65536 chunk 2048, engram hot 1024 MiB
+````
+
+## Speed sweep
+
+served `dsv41-intarsia`, fingerprint `None`, ctx 65536, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4097 | 4.99 | 822 (819–826) | - | 46.8 (45.3–48.2) | 56.0 (53.9–64.5) | - | - | 128 |
+| 33280 | 41.34 | 805 (804–806) | 803 | 47.0 (46.1–51.2) | 60.8 (57.7–63.9) | - | - | 128 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 11.0% at 32768 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261104-100329-adhoc-dsv41-intarsia-tp2-speed-ab4/result.json
+[localeval] logged to unanimis: 61cf339e-2b0c-411b-82d9-08a2532b2afe
+spec lspeed all: 6 requests, 768 tokens in 351 rounds = 2.188 a round; drafts accepted 414/809 = 51.2 %
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793804619)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793804619)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793804619)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793804619)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793804619)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793804620)
+dsv41: spec 128 tokens in 58 rounds (2.21 a round), 69/138 drafts accepted (50 %), by position 39/58 17/34 7/8 6/6
+dsv41: spec 128 tokens in 60 rounds (2.13 a round), 68/144 drafts accepted (47 %), by position 40/60 15/34 7/8 6/6
+dsv41: spec 128 tokens in 58 rounds (2.21 a round), 69/139 drafts accepted (50 %), by position 38/58 18/33 7/12 6/6
+dsv41: spec 128 tokens in 55 rounds (2.33 a round), 73/121 drafts accepted (60 %), by position 40/55 27/39 6/10
+dsv41: spec 128 tokens in 61 rounds (2.10 a round), 66/128 drafts accepted (52 %), by position 36/60 25/34 5/10
+dsv41: spec 128 tokens in 59 rounds (2.17 a round), 69/139 drafts accepted (50 %), by position 40/59 23/39 6/12
+spec total: 768 tokens in 351 rounds = 2.188 a round; drafts accepted 414/809 = 51.2 %
+10:06:12 config ab4 done

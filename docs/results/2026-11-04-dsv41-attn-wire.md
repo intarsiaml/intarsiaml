@@ -4,7 +4,7 @@ Date 2026-11-04 (early morning EST), branch `dsv41/attn-wire` (worktree `.worktr
 
 ## Status
 
-Both changes are in and bit-identical through the engine on the 3-layer cache on spark2; no throughput was measured in the engine (the gain is the bench's, extrapolated). What did not run is listed under "Still needs a window".
+Both changes are in. Through the engine they are bit-identical to a literal `origin/main` build: golden 640/640 and the 32K and 65K `longp` prompts at TP=2 on the full 40-layer model (section "The TP=2 window"). The engine gain is about 2 to 3 % of prefill, not the kernel-level figures; decode is unchanged. What did not run is listed under "Not run".
 
 | check | result |
 |---|---|
@@ -84,7 +84,7 @@ An Opus review found no output-changing defect by reading but called the guardin
 1. **The unrotated-read check now walks the whole graph.** `check_no_unrotated_read` follows `ws:q` and `ws:o` through every stage in execution order as `Unwritten` / `Raw` (after `wq_b` or the attention) / `Rotated` (after the in-place rope): the rope must find `Raw`, and any other step anywhere later that touches the buffer must find `Rotated` and be the one consumer (`AttnSparse` input 0; `act_quant(o)` or `wo_a`). `Extra`s that name `q`, `o`, `q_rope` or `o_derot` fail it. `check_base_buffers` does the same for the unflagged graph (`ws:q` is touched only by `wq_b` and `rope(q)`, `ws:o` only by the attention and `rope_inverse(o)`), and the buffer rename between the two graphs is now exactly `q_rope -> q`, `o_derot -> o`, so a later reader of the unrotated rows in the base graph cannot be mapped onto the rotated buffer. Proof it bites: `the_unrotated_read_check_fails_on_an_injected_late_reader` injects readers into copies of the graphs and requires the panic to carry the right message: a reader of `q` between `wq_b` and its rope ("unrotated rows"), a reader of `o` between the attention and its rope ("unrotated rows"), a stray reader of `q` at the start of the next layer and of `o` at the end of layer 9 ("is not the consumer"), late readers of the unrotated `q` and `o` in the base graph ("reads the unrotated"), and a rope applied twice ("not freshly produced"). The old first-toucher check, run on those graphs, would have accepted the layer 9 and base cases (it looked only at the first step after the rope, in its own stage).
 2. **Configurations with the flag on.** `in_place_rope_in_the_fp8_dense_and_tp_configurations`: FP8 mode (`act_quant(o)` between the de-rotation and `wo_a`, 40 of them asserted), the dense grouped `wo_a` (the EXL3 slices hidden, `wo_a.weight` supplied), both, and a rank of TP=2 (a `Variant` shape wrapper shards the `wq_b` columns, `wo_b` rows, sinks, routed and shared experts and the head as the rank cache does), each through the same battery: decode and prefill-shaped host graphs, the device-position pass graphs (plain, verify, absorb) and the draft graphs, each against the unflagged graph. TP=2 here is the graph with `world = 2` and its collective `Extra`s; no TP run.
 3. **Engine hash asserted in the test.** `device_position_passes_equal_host_passes` builds a second runtime with `INTARSIA_DSV41_ROPE_INPLACE=0` and asserts its host-position and device-position outputs are bitwise those of the in-place runtime (`rope_inplace_for` is no longer cached, so one process can build both). It still skips without `INTARSIA_DSV41_CACHE` (it is a cache-gated test, like its neighbours), so the evidence is the Spark run. **E5 bit guard:** `attn_sparse_mma_is_bitwise_the_8282_base_kernel` (`crates/intarsia-backend-cuda/tests/dsv41.rs`) regenerates the five attention shapes of #8282 with the bench's generators (`std::mt19937`, libstdc++'s float `uniform_real_distribution`, written out in Rust) and asserts the five recorded hashes of the unmodified kernel (`expected-hashes.txt`). On spark2 all five match (`4ee9a847ca24437f`, `aa254a578fedfa25`, `90ad1d7fcca0b866`, `21b89af74c9af5a2`, `e450cadc14aad612`), which also shows the Rust generators reproduce the bench inputs bit for bit. Negative control: with `INTARSIA_DSV41_ATTN_SIMT=1` (the SIMT kernel) it fails on all five shapes (`raw-review/cuda-guard-simt-control.log`). It is a CUDA test, so it runs on a Spark and skips elsewhere.
-4. **Engine configuration.** The test keeps the prefill logits in the compared output and takes `INTARSIA_DSV41_DP_CHUNK`. Run on spark2 with chunk 2048, prompt 4200, cap 8192, 24 decode tokens and replayed CUDA graphs (17 passes, 2 197 760 values): in-place equals out-of-place, host equals device position. The default run (chunk 64, 140 prompt, speculation, graphs: 53 passes) also passes. **Not covered, because a 3-layer world-1 cache cannot reach it:** 16 heads per rank (the TP=2 head count; needs the two-rank caches), more than about 2100 compressed rows (a 128K context), the 40-layer stack, and `nsplit > 1` at long `Nc`.
+4. **Engine configuration.** The test keeps the prefill logits in the compared output and takes `INTARSIA_DSV41_DP_CHUNK`. Run on spark2 with chunk 2048, prompt 4200, cap 8192, 24 decode tokens and replayed CUDA graphs (17 passes, 2 197 760 values): in-place equals out-of-place, host equals device position. The default run (chunk 64, 140 prompt, speculation, graphs: 53 passes) also passes. **Not covered by that 3-layer world-1 run (the TP=2 window below covers the first two):** 32 heads per rank (the TP=2 head count: 64 heads over 2 ranks, and `kHeads = 32` in `attn_sparse_mma`; an earlier draft of this sentence said 16, which was wrong), the 40-layer stack, and more than about 2100 compressed rows (a 128K context) and `nsplit > 1` at long `Nc`.
 5. **The dpos test now shows the in-place path ran.** Bits alone cannot (the copy kernel gives the same bits), so `kernels/cuda/dsv41_misc.cu` counts in-place launches (`ik_rope_inplace_launches`, declared in `ik_cuda_abi_dsv41.h`) and `check::rope_in_place` asserts the counter rises by one for every aliased launch (host and device position) and not for the out-of-place launch. The counter counts host launches; a replayed CUDA graph does not count again, so the engine runs prove the graph and bits, not the kernel choice per replay.
 6. **Refusal.** `ik_rope_tail` returns `IK_ERR_INVALID_ARG` when `x` and `out` overlap and are not the same tensor (one pointer with two dtypes, or a partial overlap). Test `rope_refuses_aliases_other_than_the_same_tensor` (passes on spark2): f32 in / bf16 out at one pointer, a one-row-shifted overlap, both refused; disjoint halves and the same tensor run.
 7. **Contract.** `docs/design/dsv41-ops.md`: the "outputs never alias inputs" rule now names the `RopeTail` exception and what it requires of the graph.
@@ -100,13 +100,48 @@ Two things to know, as the review asked:
 - **The graph fingerprint omits `rope_inplace`** (`dsv41_engine::fingerprint`: source, world, layers, cap, chunk, act, spec). Two ranks with different `INTARSIA_DSV41_ROPE_INPLACE` settings are therefore not refused at the handshake. That is harmless only while the change is bitwise (it is: both settings give the same bits, above). The same is already true of `INTARSIA_DSV41_HC_FUSED` and `INTARSIA_DSV41_LANES`. If the in-place rope ever stops being bitwise, add it to the fingerprint.
 - **This branch does not contain `dsv41/replay`**, so the unrotated-read check says nothing about replay graphs. Whichever of the two merges second must re-run `in_place_rope_leaves_no_reader_of_the_unrotated_rows` (and the injection test) against the replay graphs; a replay that re-runs a rope without its producer would double-rotate (the "rope applied twice" injection is that case).
 
-## Still needs a window (not run, by the brief)
+## The TP=2 window (2026-11-04 09:47 to 10:19 EST, fleetq #8402)
 
-- `scripts/dsv41-tp2/run-full.sh`, golden, and any TP=2 job; vLLM stays up. The engine claim here is the 3-layer, single-rank, short-prompt one.
-- A prefill measurement through the engine. The bench figures are kernel level (E5 +7.6 % CSA T=2048, E3 q + o^-1 pair 1.165 -> 0.062 ms); the 88 ms per 4K request is an extrapolation and was not measured.
-- TP=2 and the 40-layer, long-context (128K, `nsplit > 1` at long Nc) runs.
-- A literal `origin/main` binary for the A/B (this doc used the env switch and main's attention file).
+One exclusive job over both Sparks (`--takes-down spark1-vllm,spark2-vllm`, `scripts/dsv41-tp2/run-full.sh` through `raw-window/window.sh`), after the merge of `origin/main` (PRs #296, #297, #298; chunk default 2048) into the branch, head `91cb61fc8`. Binaries built in a `--load cpu` job on spark2 (#8398, `raw-window/build-both.sh`): `intarsia.base` is the literal `origin/main` at `809674eb9` (git archive, nothing of this branch), `intarsia` is the branch. Rank caches `r0of2` / `r1of2`, cap 65536, engram hot 1024 MiB, rank 1 spin 100 ms, `earlyoom -m 2,1` on both. Eight configs, each a fresh start of both ranks, alternating base and head: ab0 base, ab1 head, ab2 base, ab3 head at chunk 2048, then ab4 to ab7 the same at chunk 512. ab0 and ab1 also ran golden and `longp`. The vLLM containers were stopped at 09:47:26 and were up again on both Sparks at 10:19:12 (docker "Up 3 minutes", fleetq `up`, restored by the script's trap; no failure path was taken).
+
+### Bit identity (full 40-layer model, TP=2, chunk 2048)
+
+- **Golden**, 10 prompts x 64 greedy tokens, base against head (`golden_tf.py compare`, `raw-window/golden-compare-base-vs-head.txt`): **640/640 identical, 0 prompts diverged.** No first differing token exists.
+- **Long context** (`longp`: 16 greedy tokens with top-5 logprobs; `cmp_longp.py`, `raw-window/longp-compare-base-vs-head.txt`): the 32768-token prompt and the 65000-token prompt are **bit-identical** in text, tokens and all top-5 logprobs (16/16, max abs diff 0). Wall: 36.3 s and 73.3 s (base), same for head within noise.
+- Both golden and `longp` ran at chunk 2048 only, the shipped default; chunk 512 was timed but not compared for tokens.
+
+### Prefill and TTFT through the engine (localeval `speed`, `--gen 128 --reps 3`, medians of the 6 requests of the two rounds)
+
+localeval builds each prompt to about the size asked, so the token count differs by a few tokens between configs (4075 to 4097 at "4096", 33277 to 33323 at "32768"); prefill tok/s is the fairer figure, TTFT is listed too.
+
+| chunk | prompt | base TTFT s | head TTFT s | base prefill tok/s | head prefill tok/s | gain (tok/s) |
+|---|---|---|---|---|---|---|
+| 2048 | 4K | 4.18 | 4.05 | 980 | 1009 | +3.0 % |
+| 2048 | 32K | 34.41 | 33.44 | 968 | 996 | +2.9 % |
+| 512 | 4K | 5.00 | 4.86 | 820 | 839 | +2.3 % |
+| 512 | 32K | 41.45 | 40.58 | 803 | 820 | +2.1 % |
+
+Every one of the 24 head requests is faster than every base request of the same cell (the rounds do not overlap; e.g. 32K at 2048: base 34.32 to 34.49 s, head 33.35 to 33.51 s). Decode is unchanged within noise (46.9 to 49.2 tok/s for both, medians 47.6 / 46.9 at 4K and 48.2 / 47.4 at 32K for chunk 2048). **What the engine shows:** about 130 ms less TTFT for a 4K request at chunk 2048 and 140 ms at 512 (E5 and E3 together; the window does not split them). The kernel-level E5 gain (+7.6 % of the attention kernel) is a small part of a request, and the 88 ms per 4K request extrapolated for E3 alone cannot be told apart from the total here. The gain is real and repeatable, but it is 2 to 3 %, not more. Chunk 2048 over chunk 512 is the larger lever (+19 % prefill at 4K for the base, +20 % for the head). Raw: `raw-window/ab*/le-speed-*.log`.
+
+### Memory (1 s `memfine` on both ranks, `raw-window/*-memfine-094726.log`)
+
+| config | spark1 min MemAvailable GiB (after load) | spark2 min (after load) |
+|---|---|---|
+| ab0 base 2048 (golden, longp 65K, speed) | 7.34 (7.48) | 7.18 (7.18) |
+| ab1 head 2048 (same steps) | 6.84 (7.15) | 6.73 (6.97) |
+| ab2 base 2048 (speed) | 6.85 (7.42) | 6.56 (7.27) |
+| ab3 head 2048 (speed) | 6.85 (7.50) | 6.51 (7.39) |
+| ab4 / ab6 base 512 | 6.81 / 6.82 (8.66 / 8.65) | 6.63 / 6.37 (8.52 / 8.52) |
+| ab5 / ab7 head 512 | 6.77 / 6.80 (8.70 / 8.68) | 6.60 / 6.61 (8.56 / 8.55) |
+
+In every config the lowest value (6.4 to 7.3 GiB) is in the weight load, not in a prefill; "after load" is from 45 s on, which includes the longp 65K run in ab0 and ab1. At chunk 2048 the steady minimum is 6.97 to 7.50 GiB for both binaries, at chunk 512 it is 8.5 GiB. Head against base: ab0 to ab1 is 0.33 / 0.21 GiB lower, ab2 to ab3 is 0.08 / 0.12 GiB higher, so there is no systematic change in what the box has available. What does change is the engine's workspace, as it should with the aliasing: **1.136 GiB -> 1.011 GiB at chunk 2048 and 0.304 -> 0.273 GiB at chunk 512** per rank (`q_rope` and `o_derot` no longer exist; the "memory" line in each `serve-*.log`). The watcher (kill line 5 GiB, unchanged) never fired. The lowest margin above the line was 1.37 GiB (spark2, base, chunk 512, during load) and 1.97 GiB for the head at 2048 steady state on spark2. The 0.6 GiB margin of last night's chunk 2048 run was not reproduced in this window (why was not investigated).
+
+## Not run
+
+- Golden and `longp` at chunk 512 (timing only at 512), and golden against TensorFold's reference tokens (this window compares branch to base, as asked).
+- Contexts over 128K, and `nsplit > 1` at the long `Nc` of such contexts (the 65000-token prompt is the longest).
 - The `kernels test --quick -m <dsv41 dir>` form does not work for DSv4.1 (`config.json missing 'num_experts'`: the sweep reads Qwen-style configs); the default `--quick` sweep covers the DSv4.1 ops at its own shapes. Not a regression.
+- A split of the 2 to 3 % between E5 and E3 (would need a head build with one of them off; `INTARSIA_DSV41_ROPE_INPLACE=0` switches E3 off at run time, E5 has no switch).
 
 ## Reproduce
 

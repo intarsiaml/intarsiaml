@@ -1,0 +1,2 @@
+longp-long32k.json: text same, tokens same, logprobs bit-identical (16/16 equal, max abs diff 0); first token ' |' -1.067911 vs ' |' -1.067911
+longp-long64k.json: text same, tokens same, logprobs bit-identical (16/16 equal, max abs diff 0); first token '16' -0.347483 vs '16' -0.347483

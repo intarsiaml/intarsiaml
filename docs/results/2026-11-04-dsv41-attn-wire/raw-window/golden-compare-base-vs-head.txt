@@ -1,0 +1,12 @@
+count              n_prompt=    35 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+story              n_prompt=    39 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+code               n_prompt=    80 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+science            n_prompt=    76 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+chat_short         n_prompt=    32 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+chat_system        n_prompt=    55 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+chat_multiturn     n_prompt=    91 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+chat_reasoning     n_prompt=    99 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+long_prose_300     n_prompt=   300 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+long_prose_700     n_prompt=   700 cont=64/64  IDENTICAL  leading-match 64/64  positionwise-equal 100.0%
+OVERALL leading-match 640/640 (100.00%)  prompts diverged: 0 []
+NOTE: after the first divergence the two continuations are no longer on the same text, so only the leading-match fraction is a top-1 agreement of the same positions; positionwise-equal is shown for orientation. Not a KL.
