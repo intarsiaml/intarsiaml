@@ -1,0 +1,15 @@
+== f64 teacher-forced one pass vs f64 free-run at the same row (reference self-consistency)
+260 row 197 forced top 1834 -0.2932 free top 16384 -0.0275 KL 3.75e+00 max |dlp| top5 5.3194
+== reference at swing rows, same context as the solo stream
+262 row 188 ref top 1834 [1834] ref -0.3426 solo -0.0322 busy -0.9563 [279] ref -6.7898 solo -4.0375 busy -7.2164
+1028 row 63 ref top 21 [21] ref -0.0049 solo -0.6107 busy -0.0020 [21059] ref nan solo -0.8750 busy -8.2062
+260 row 197 ref top 1834 [1834] ref -0.2932 solo -0.0089 busy -3.1893 [383] ref -7.7746 solo -5.5692 busy -11.6680
+== CPU f32 kernels vs f64 reference: a pure precision perturbation, no Metal, no GEMV / NAX split
+258: wall 506s first id diff vs f64 None, vs Metal solo None; rows 108; KL median 1.09e-05 mean 5.42e-03 max 0.468@105; top-3 dlp row0 0.1332, 50-row medians [0.06, 0.264, 0.484] rows with dlp>1: 10
+260: wall 747s first id diff vs f64 197, vs Metal solo 197; rows 198; KL median 2.05e-05 mean 3.32e-03 max 0.204@137; top-3 dlp row0 0.0357, 50-row medians [0.075, 0.088, 0.276, 0.413] rows with dlp>1: 28
+1028: wall 1064s first id diff vs f64 38, vs Metal solo 21; rows 39; KL median 1.20e-06 mean 5.07e-04 max 0.019@32; top-3 dlp row0 1.0044, 50-row medians [0.049] rows with dlp>1: 3
+== median KL(ref||path) per prompt, rows sharing context with the reference, and how each path ranks
+258 tail7: rows 105 med 2.6e-05 mean 1.4e-03  tail5: rows 105 med 2.8e-05 mean 2.9e-03  allGEMV: rows 106 med 1.0e-05 mean 4.0e-03  cpu-f32: rows 108 med 1.1e-05 mean 5.4e-03  busy: rows 105 med 3.4e-05 mean 5.8e-03  tail3: rows 105 med 2.3e-05 mean 7.5e-03  solo-NAX: rows 108 med 3.9e-05 mean 1.1e-02
+260 tail3: rows 197 med 2.7e-05 mean 1.5e-03  tail5: rows 197 med 3.8e-05 mean 1.6e-03  busy: rows 197 med 4.3e-05 mean 2.5e-03  cpu-f32: rows 197 med 2.0e-05 mean 3.3e-03  allGEMV: rows 197 med 3.8e-05 mean 3.4e-03  tail7: rows 197 med 3.5e-05 mean 4.4e-03  solo-NAX: rows 197 med 2.3e-05 mean 4.5e-03
+262 tail5: rows 67 med 1.5e-06 mean 2.2e-04  tail3: rows 150 med 2.3e-06 mean 4.2e-04  busy: rows 150 med 4.8e-06 mean 7.4e-04  solo-NAX: rows 150 med 2.0e-06 mean 7.8e-04  allGEMV: rows 192 med 4.7e-06 mean 1.7e-03  tail7: rows 150 med 2.1e-06 mean 2.6e-03
+1028 solo-NAX: rows 21 med 8.6e-07 mean 1.3e-05  tail5: rows 21 med 8.6e-07 mean 1.4e-05  busy: rows 21 med 2.7e-06 mean 1.5e-05  allGEMV: rows 21 med 3.9e-07 mean 2.1e-05  tail7: rows 21 med 2.6e-06 mean 2.3e-05  cpu-f32: rows 38 med 1.2e-06 mean 5.2e-04  tail3: rows 66 med 2.8e-06 mean 6.4e-04

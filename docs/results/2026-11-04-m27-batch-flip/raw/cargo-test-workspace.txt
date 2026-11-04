@@ -1,0 +1,7 @@
+fleetq: #8360 waiting (#2 in line): in line behind #8357 "m27 peel: localeval scout 2, exposed prompt lengths" (claude-c8e51313) on endor
+fleetq:   #8357 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8357 set, or it will wait for #8357 to be released.
+fleetq: #8360 running on endor: zsh .scratch/test-ws.sh
+fleetq: #8360 went ahead of the line and must end within 54m (by Wed 06:40); it is stopped then
+cargo test exit 0
+1230 passed, 0 failed, 29 ignored
+fleetq: #8360 done (exit 0)

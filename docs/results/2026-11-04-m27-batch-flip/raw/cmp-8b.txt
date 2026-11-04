@@ -1,0 +1,2 @@
+8B plen 257 first id diff None rows 200 bit-equal 0 KL median 2.5e-07 mean 1.6e-05 max 0.000 dlp>1 rows 6 row0 0.0811 50-row medians [0.054, 0.054, 0.067, 0.091]
+8B plen 259 first id diff None rows 200 bit-equal 0 KL median 3.9e-07 mean 3.3e-05 max 0.001 dlp>1 rows 7 row0 0.0322 50-row medians [0.047, 0.06, 0.06, 0.065]

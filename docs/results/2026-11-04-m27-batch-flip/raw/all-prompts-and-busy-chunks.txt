@@ -1,0 +1,30 @@
+prompt plen | ids: first diff solo vs behind | bit-equal rows | top1 |dlp| median, max | top5 max | KL mean, max | solo=ref behind=ref
+q0     48 | None  | 200/200 | 0.0000 0.0000 | 0.0000 | 0.00e+00 0.00e+00 | True True
+q1    108 | None  | 200/200 | 0.0000 0.0000 | 0.0000 | 0.00e+00 0.00e+00 | True True
+q2    233 | None  | 200/200 | 0.0000 0.0000 | 0.0000 | 0.00e+00 0.00e+00 | True True
+q3    465 | None  | 200/200 | 0.0000 0.0000 | 0.0000 | 0.00e+00 0.00e+00 | True True
+q4    772 | 184   |   0/185 | 0.0000 0.0411 | 0.2424 | 6.99e-05 3.01e-03 | False True
+q5   1272 | None  | 200/200 | 0.0000 0.0000 | 0.0000 | 0.00e+00 0.00e+00 | True True
+q6   2055 | None  | 200/200 | 0.0000 0.0000 | 0.0000 | 0.00e+00 0.00e+00 | True True
+q7   2861 | None  | 200/200 | 0.0000 0.0000 | 0.0000 | 0.00e+00 0.00e+00 | True True
+q8   4099 | None  | 200/200 | 0.0000 0.0000 | 0.0000 | 0.00e+00 0.00e+00 | True True
+q9   5770 | None  | 200/200 | 0.0000 0.0000 | 0.0000 | 0.00e+00 0.00e+00 | True True
+
+q4 behind a decoding row at other busy chunks, and solo variants
+solo-2048  id184=557    lp14663=-1.209953 lp557=-1.188519 gap=-0.021435
+behind-256 id184=14663  lp14663=-1.203806 lp557=-1.213703 gap=+0.009897
+bc32       id184=14663  lp14663=-1.203806 lp557=-1.213703 gap=+0.009897 | vs solo: bit-equal 0/185 first-diff 184 | vs 256: bit-equal 200/200 first-diff None
+bc64       id184=14663  lp14663=-1.203806 lp557=-1.213703 gap=+0.009897 | vs solo: bit-equal 0/185 first-diff 184 | vs 256: bit-equal 200/200 first-diff None
+bc128      id184=14663  lp14663=-1.203806 lp557=-1.213703 gap=+0.009897 | vs solo: bit-equal 0/185 first-diff 184 | vs 256: bit-equal 200/200 first-diff None
+bc512      id184=557    lp14663=-1.209953 lp557=-1.188519 gap=-0.021435 | vs solo: bit-equal 200/200 first-diff None | vs 256: bit-equal 0/185 first-diff 184
+bc771      id184=557    lp14663=-1.209953 lp557=-1.188519 gap=-0.021435 | vs solo: bit-equal 200/200 first-diff None | vs 256: bit-equal 0/185 first-diff 184
+pc256      id184=14663  lp14663=-1.203806 lp557=-1.213703 gap=+0.009897 | vs solo: bit-equal 0/185 first-diff 184 | vs 256: bit-equal 200/200 first-diff None
+mb1        id184=557    lp14663=-1.209953 lp557=-1.188519 gap=-0.021435 | vs solo: bit-equal 200/200 first-diff None | vs 256: bit-equal 0/185 first-diff 184
+all ['2048/0', '256/1']
+bc32 ['2048/0', '32/1']
+bc64 ['2048/0', '64/1']
+bc128 ['128/1', '2048/0']
+bc512 ['2048/0', '512/1']
+bc771 ['2048/0', '771/1']
+pc256 ['256/0']
+mb1 []

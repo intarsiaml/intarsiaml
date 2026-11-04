@@ -1,0 +1,38 @@
+fleetq: #8338 running on endor: zsh .scratch/gates-a.sh
+== plan show
+plan show Qwen3.6-35B-A3B-NVFP4 : identical
+plan show Qwen3.6-35B-A3B-NVFP4 --json: identical
+plan show Qwen3-8B : identical
+plan show Qwen3-8B --json: identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 : DIFFERS
+2a3
+> prefill tail peel 8 rows (a pass's last 1..=8 rows past a multiple of 256 run alone, as at chunk 256)
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 --json: DIFFERS
+786a787
+>   "prefill_peel": 8,
+== kernels test
+main kernels test exit 0
+peel kernels test exit 0
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 980 cases in 32.8s
+53c53
+< 49 kernels, 980 cases in 36.1s
+---
+> 49 kernels, 980 cases in 32.8s
+== accuracy 27B
+accuracy main exit 0
+    prompt             check                  baseline    this run       limit  source    env delta k needed
+baseline gate, decode (teacher-forced) (160 positions):
+  metric               baseline     this run        limit  
+    prompt             check                  baseline    this run       limit  source    env delta k needed
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy peel exit 0
+    prompt             check                  baseline    this run       limit  source    env delta k needed
+baseline gate, decode (teacher-forced) (160 positions):
+  metric               baseline     this run        limit  
+    prompt             check                  baseline    this run       limit  source    env delta k needed
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy: main and peel byte-identical
+fleetq: #8338 done (exit 0)

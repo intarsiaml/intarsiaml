@@ -1,0 +1,10 @@
+plens [48, 108, 233, 465, 772, 1272, 2055, 2861, 4099, 5770, 8159, 10543]
+r1 q4 id=4 C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] ids==ref True first_diff=None id184=14663
+r2 q4 id=16 C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] ids==ref True first_diff=None id184=14663
+r3 q4 id=28 C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] ids==ref True first_diff=None id184=14663
+r4 q4 id=39 C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] ids==ref True first_diff=None id184=14663
+r5 q4 id=52 C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] ids==ref True first_diff=None id184=14663
+r6 q4 id=64 C=256 decoding=1 cached=0 chunks=[256, 256, 256, 4] ids==ref True first_diff=None id184=14663
+requests differing from ref: [] of 72
+C=2048 per plen: Counter({48: 6, 108: 3, 233: 3})
+cached>0: 0
