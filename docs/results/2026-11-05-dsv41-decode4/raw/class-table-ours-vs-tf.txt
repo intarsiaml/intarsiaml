@@ -48,7 +48,8 @@
   idle          0.00     0.83         0
   total         4.29     4.42
 
-== ours rounds: 36; period 47.13 ms (mean 50.52); verify span 42.66; draft span 4.50; gap verify->draft 0.000; gap draft->verify 0.000
+== ours rounds: 36; period 47.13 ms (mean 50.52)
+   idle gaps over 50 us per round (verify chunk + draft chunk): total median 1.658 ms; largest two, median 1.002 and 0.541 ms
    rows 2: 2 rounds, period median 42.73
    rows 3: 19 rounds, period median 45.46
    rows 4: 7 rounds, period median 51.92
@@ -104,7 +105,23 @@
   idle          0.00     0.01         0
   total         4.63     3.74
 
-== TF rounds: 20; period 36.28 ms (mean 37.24); verify span 32.35; draft span 3.82; gap verify->draft 0.119; gap draft->verify 0.065
+== TF rounds: 20; period 36.28 ms (mean 37.24)
+   idle gaps over 50 us per round (verify chunk + draft chunk): total median 0.119 ms; largest two, median 0.118 and 0.071 ms
    rows 2: 3 rounds, period median 31.86
    rows 3: 12 rounds, period median 36.27
    rows 4: 5 rounds, period median 42.09
+
+### ours, spec off (w1 ab2): one-row passes
+
+== ours 1-row decode (spec off): 94 passes, span median 26.08 ms, kernels 2253
+  class         ksum     crit  launches
+  dense        11.85     9.71      1159
+  moe           9.27     9.26       200
+  coll          1.22     1.22       163
+  hc            2.72     2.72       171
+  attn          2.17     2.17       347
+  other         0.80     0.80       134
+  prefetch      7.27     0.00        79
+  idle          0.00     0.22         0
+  total        35.29    26.10
+period 26.81 ms
