@@ -1,0 +1,13 @@
+prompt             n_prompt   TF~off    TF~on   off~on  note
+count                    35    64/64    64/64    64/64  
+story                    39    11/64    11/64    64/64  
+code                     80    49/64    49/64    64/64  
+science                  76    64/64    64/64    64/64  
+chat_short               32     6/64     6/64    64/64  
+chat_system              55     9/64     9/64    64/64  
+chat_multiturn           91    50/64    50/64    64/64  
+chat_reasoning           99     9/64     9/64    64/64  
+long_prose_300          300    64/64    64/64    64/64  replay active
+long_prose_700          700    64/64    64/64    64/64  replay active
+prompts with the replay active: 2; TF agreement there: off 128, on 128 positions
+REQUIREMENT MET
