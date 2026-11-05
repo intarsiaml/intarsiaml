@@ -37,7 +37,8 @@ Both levers ship **opt-in, default off**. Only the user flips a default. D's def
   - `std` carrier, 5 prompts, prefill mode over every position plus a 2048-token teacher-forced decode window:
     `cmtp-4k-0` (3858 tokens) and `cmtp-16k-0` (15469), the existing `scripts/cmtp/ids-prompts`; `code-16k` (16384, `crates/**/*.rs`);
     `docs-32k` (32768) and `docs-64k` (65536), `docs/results/*.md` (no 32k or 64k ids-prompt existed; distinct text, nothing repeated).
-  - `dec8k` carrier, `code-16k` and `docs-32k`, decode mode, an 8192-token teacher-forced window (state rounded at every token, 8192 times).
+  - `dec8k` carrier, `code-16k`, decode mode, an 8192-token teacher-forced window (state rounded at every token, 8192 times; the 2048-token
+    windows at the end of the 32k and 64k prompts cover decode over a long KV cache).
   - `INTARSIA_ACC_POS_DUMP` gives KL against position.
 - Needle: vault-register rows (`scripts/spark35num/mkneedle.py`, the format of deepeval's `m27-hs3-longctx`, which is only ~12k tokens): 12 rows of
   32.8k+ tokens and 8 rows of 65.5k+ tokens, the asked record at depth 5 % to 95 %; `localeval quality --dataset ... --judge none` (Contains expected).

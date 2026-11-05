@@ -4,7 +4,7 @@
 dummies, k = 1): the real reference is the baseline arm's own self-golden dump, so no vLLM golden (made with an fp8 KV cache)
 confounds the fp8-KV comparison. Deterministic. Run from the repo root:
   uv run --with numpy --with safetensors --with tokenizers scripts/spark35num/mkcarrier.py <tokenizer.json> <out_dir>
-Writes <out_dir>/std.safetensors (5 prompts, prefill + decode window) and dec8k.safetensors (2 prompts, long decode window), and
+Writes <out_dir>/std.safetensors (5 prompts, prefill + decode window) and dec8k.safetensors (1 prompt, code-16k: an 8192-token decode window), and
 prompts.json (name, tokens, source)."""
 import glob, json, pathlib, sys
 import numpy as np
@@ -48,5 +48,5 @@ def write(path, sel):
     print(path, [(n, len(i)) for n, i, _ in sel])
 
 write(out / "std.safetensors", prompts)
-write(out / "dec8k.safetensors", [p for p in prompts if p[0] in ("code-16k", "docs-32k")])
+write(out / "dec8k.safetensors", [p for p in prompts if p[0] in ("code-16k",)])
 json.dump([{"name": n, "tokens": len(i), "source": w} for n, i, w in prompts], open(out / "prompts.json", "w"), indent=1)
