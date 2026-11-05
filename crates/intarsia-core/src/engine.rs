@@ -414,8 +414,8 @@ struct Shared {
     codec: Arc<dyn TextCodec>,
     eos: Vec<u32>,
     spec: crate::spec::SpecConfig,
-    /// Set when the worker panicked: the engine accepts no more work.
-    failed: Mutex<Option<String>>,
+    /// Set when the worker panicked or a remote rank was lost: the engine accepts no more work.
+    failed: Arc<Mutex<Option<String>>>,
     /// The prefix store and how requests use it (`EngineMeta::prefix_store`).
     store: Option<StorePolicy>,
 }
@@ -740,13 +740,23 @@ impl LocalEngine {
             );
             drop(g);
         }
+        let failed = Arc::new(Mutex::new(None));
+        if let Some(peer) = model.remote_peer() {
+            // the engine thread may sit in a kernel that never returns once the other rank is gone: the peer's reader thread
+            // marks the engine failed (health 503, then the server exits for a restart) without waiting for it
+            let f = Arc::clone(&failed);
+            peer.on_lost(move |why| {
+                eprintln!("tensor parallel: {why}; marking the engine failed");
+                f.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(format!("tensor-parallel group failed: {why}"));
+            });
+        }
         let shared = Arc::new(Shared {
             inner: Mutex::new(Inner { model, state }),
             telemetry,
             codec,
             eos: meta.eos_ids,
             spec: meta.spec,
-            failed: Mutex::new(None),
+            failed,
             store,
         });
         let (tx, rx) = channel::<Job>();

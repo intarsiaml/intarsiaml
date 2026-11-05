@@ -17,7 +17,7 @@ use intarsia_core::quant::{nvfp4, Fp8Act};
 use intarsia_core::recipe::ModelDims;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::weights::{MemWeights, WeightSource};
-use intarsia_core::{DType, HostTensor, Telemetry};
+use intarsia_core::{DType, Engine, EngineMeta, GenRequest, HostTensor, LocalEngine, Telemetry};
 use intarsia_models::SafeTensors;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -332,6 +332,65 @@ fn load_remote(w: &MemWeights, act: DType) -> (Model, std::thread::JoinHandle<u6
     m.clamp_kv_cap(cap).unwrap();
     m.attach_remote(tp_remote::RemotePeer::new(s, comms[0].clone()).unwrap()).unwrap();
     (m, server)
+}
+
+/// Rank 0 of a group whose other rank only holds its end of the connection: dropping that end is the rank dying.
+fn primary_of_a_rank_to_lose(w: &MemWeights) -> (Model, std::net::TcpStream) {
+    use intarsia_core::model::TpRank;
+    use intarsia_core::tp_remote;
+    let (recipe, dims) = dims();
+    let backends: Vec<Arc<dyn Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let far = std::thread::spawn(move || {
+        let (mut s, _) = listener.accept().unwrap();
+        tp_remote::handshake(&mut s, "fixture", usize::MAX).unwrap();
+        s
+    });
+    let mut s = std::net::TcpStream::connect(addr).unwrap();
+    let tp = TpRank { rank: 0, world: 2, comm: Some(comms[0].clone()) };
+    let mut m = Model::load_shard(backends[0].clone(), &recipe, &dims, w, &opts(DType::F32), Arc::new(Telemetry::new()), tp).unwrap();
+    let cap = tp_remote::handshake(&mut s, "fixture", m.plan.kv_cap_tokens).unwrap();
+    m.clamp_kv_cap(cap).unwrap();
+    m.attach_remote(tp_remote::RemotePeer::new(s, comms[0].clone()).unwrap()).unwrap();
+    (m, far.join().unwrap())
+}
+
+/// The engine must learn of it from the connection alone, with no request running: the server turns `/health` to 503 and
+/// exits on this, while requests only ever saw an error each.
+fn assert_lost_rank_fails(e: &dyn Engine, lose: impl FnOnce()) {
+    assert_eq!(e.failed(), None, "the group is up");
+    lose();
+    let t = std::time::Instant::now();
+    while e.failed().is_none() {
+        assert!(t.elapsed().as_secs() < 5, "the engine never heard that the rank was lost");
+        std::thread::sleep(std::time::Duration::from_millis(5));
+    }
+    assert!(e.failed().unwrap().contains("tensor-parallel group failed: the connection"), "{:?}", e.failed());
+    let req = GenRequest { prompt: prompt(), max_tokens: 1, ..Default::default() };
+    assert!(e.submit(req).is_err(), "a failed engine accepts no work");
+}
+
+fn engine_meta() -> EngineMeta {
+    EngineMeta { id: "tiny-hybrid".into(), ..Default::default() }
+}
+
+#[test]
+fn losing_the_remote_rank_fails_the_single_sequence_engine() {
+    let _g = env();
+    let (m, far) = primary_of_a_rank_to_lose(&weights());
+    let e = LocalEngine::new(m, Arc::new(common::ByteCodec), engine_meta(), Arc::new(Telemetry::new())).unwrap();
+    assert_lost_rank_fails(&e, move || drop(far));
+}
+
+#[test]
+fn a_rank_lost_before_the_engine_starts_fails_the_start() {
+    let _g = env();
+    let (m, far) = primary_of_a_rank_to_lose(&weights());
+    drop(far);
+    std::thread::sleep(std::time::Duration::from_millis(200));
+    assert!(LocalEngine::new(m, Arc::new(common::ByteCodec), engine_meta(), Arc::new(Telemetry::new())).is_err());
 }
 
 fn weights_clone(w: &MemWeights) -> MemWeights {
