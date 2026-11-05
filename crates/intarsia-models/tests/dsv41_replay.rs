@@ -1,4 +1,4 @@
-//! Bounded-replay prefill graphs (`INTARSIA_DSV41_REPLAY=1`, `intarsia_core::dsv41::replay`) of the real Mia checkpoint (the
+//! Bounded-replay prefill graphs (`INTARSIA_DSV41_REPLAY`, `intarsia_core::dsv41::replay`) of the real Mia checkpoint (the
 //! header-only fixture: every tensor's dtype and shape): the encoder part, the decoder part and a whole chunk under a floor
 //! are recorded as checked `OpCall`s on the cpu backend and compared, step by step, with the plain graph. Nothing here runs a
 //! kernel; the numerics of the replay are not tested by this file (docs/results/2026-11-03-dsv41-replay.md).

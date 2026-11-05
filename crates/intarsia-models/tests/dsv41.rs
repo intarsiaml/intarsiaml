@@ -402,7 +402,7 @@ fn in_place_rope_battery(label: &str, c: &Dsv41Config, w: &dyn intarsia_core::ds
         assert_eq!(check_in_place_rope(&base, &ip), (layers, layers), "{label}: dpos t = {t} all_rows = {all_rows} absorb = {absorb}");
         assert!(ip.stages.iter().flat_map(|s| &s.steps).any(|s| s.pos && s.op == Op::RopeTail), "a dpos graph has positioned ropes");
     }
-    // the bounded-replay prefill graphs (INTARSIA_DSV41_REPLAY=1, `replay.rs`): the encoder part (layers 0..cut, then the cut layer's
+    // the bounded-replay prefill graphs (`INTARSIA_DSV41_REPLAY`, `replay.rs`): the encoder part (layers 0..cut, then the cut layer's
     // mixes and kv-source update: no attention q / o at the cut layer), the decoder part (layers cut.., read from the encoder
     // part's streams) and a whole chunk under the floor. Same checks: the flagged graph is the unflagged one with the two
     // ropes' buffers renamed, and no step reads an unrotated q / o. One q rope and one o rope per attention layer of the part.

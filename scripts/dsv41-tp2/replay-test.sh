@@ -1,10 +1,10 @@
 #!/bin/bash
-# Lane dsv41/replay: tests of the opt-in bounded-replay prefill (INTARSIA_DSV41_REPLAY=1: layers 20-39 run only on the last 128
-# prompt rows, layers 0-19 and layer 20's kv-source update on all rows; default off). It changes numerics, so seven steps check
+# Lane dsv41/replay: tests of the bounded-replay prefill (layers 20-39 run only on the last 128 prompt rows, layers 0-19 and
+# layer 20's kv-source update on all rows; on by default where supported, INTARSIA_DSV41_REPLAY=0 off). It changes numerics, so eight steps check
 # the path and then measure speed and quality. Each stops the run at the first failure; each step's PASS criterion is stated
 # here and enforced by an exit status (replay-test-lib.py, whose criteria replay-test-lib-selftest.py tests on synthetic data):
 #   1  off vs on, prompts of at most 128 tokens (no cut): greedy ids identical (also: every prompt really is <= 128 ids)
-#   2  golden ids (tools/prompts/golden*.jsonl, 10 x 64): this branch with replay off vs the binary of the merged base MAIN_REF (default 84ef3166c = origin/main 809674eb9 + dsv41/attn-wire; the branch's default path must equal it):
+#   2  golden ids (tools/prompts/golden*.jsonl, 10 x 64): this branch with replay off vs the binary of the merged base MAIN_REF (default c39dcaeb3 = origin/main before the default turned on; the branch's default path must equal it):
 #      640 of 640 identical
 #   3  GATE, encoder half bit-identical: off and on serve the same request sequence (replay-prompts-gate.jsonl: an encoder-only
 #      chunk and a crossing chunk, a crossing chunk then a whole chunk under the floor, a resumed prefill) with the position
@@ -25,11 +25,13 @@
 #      no judge). The reading rule (which off-vs-on loss in which bucket is a DEFECT) is fixed in the doc, "Step 7", before any
 #      data. The step FAILS when the measurement is invalid (a dataset sha256 that differs, an empty reply or call error, a server
 #      prompt_tokens that differs from the manifest, a prefix-cache hit, an item missing in an arm); a DEFECT per the rule is its
-#      reported status (the later steps still run, the job exits 1). Replay stays opt-in whatever it says.
+#      reported status (the later steps still run, the job exits 1).
+#   8  the default: both ranks with the variable unset vs INTARSIA_DSV41_REPLAY=1, golden ids at chunk 2048: 640 of 640 identical,
+#      and both ranks log that the replay is on
 # Run it by name; it queues itself as ONE fleetq job over both Sparks (rank 0 spark1 `serve --tp-remote`, rank 1 spark2
 # `tp-worker`, the script starts both over ssh, as run-full.sh does; so no `--each`), takes the two vLLM containers down and
 # ALWAYS brings them back (EXIT trap). The Sparks are shared: queue it, do not run its inner part by hand.
-#   scripts/dsv41-tp2/replay-test.sh [--dry-run] [--steps 1,3]      (steps 1 to 7, run in the order given; default 1,2,3,4,5,6,7)
+#   scripts/dsv41-tp2/replay-test.sh [--dry-run] [--steps 1,3]      (steps 1 to 8, run in the order given; default 1,2,3,4,5,6,7,8)
 # Knobs (environment): SPARK_DIR (default ~/intarsia-dsv41-replay on the Sparks), NO_BUILD=1 (binaries already in place),
 #   CAP (66000), Q_SHARDS (frozen shards to run, default all 9 = 180 items; e.g. "s32-00 s65-00" for a pilot), Q_CHUNK (512),
 #   Q_TOKENS (400, max_tokens of the quality replies), S3_CHUNKS ("512 2048"), S3_SIZES (4096,32768), S3_REPS (2), KILL_GIB (5),
@@ -65,7 +67,7 @@ WIP=10.100.152.3; WPORT=29701; SPORT=8899; SURL=http://100.120.88.104:$SPORT
 NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-2} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
 CAP=${CAP:-66000}                      # 32K prompts at step 3 and 64K items at step 5 (chunk32k-2 used 66000)
 TOK=${TOKENIZER:-/opt/code/intarsiaml/.worktrees/dsv41-official/mia/tokenizer.json}
-MAIN_REF=${MAIN_REF:-84ef3166c}; MAIN_WT=${MAIN_WT:-$(dirname "$REPO")/dsv41-replay-main}
+MAIN_REF=${MAIN_REF:-c39dcaeb3}; MAIN_WT=${MAIN_WT:-$(dirname "$REPO")/dsv41-replay-main}
 RESDIR=${RESDIR:-$REPO/docs/results/2026-11-03-dsv41-replay}; RAW=${RAW:-$RESDIR/raw}
 # TensorFold's greedy ids for the golden prompt set (step 5). The record docs/results/2026-11-01-dsv41-tensorfold-token-agreement.txt
 # holds only the summary table and snippets, not the ids; the ids it was computed from are this file (docs/results/2026-11-01-dsv41-tp2.md).
@@ -125,6 +127,7 @@ est() {
     5) echo 30 ;;                                                                  # 2 starts x (start 5 + 10 golden x 64 tokens 5 + 3 long decodes 4 + slack)
     6) for sh in $Q_SHARDS; do t=$((t + $(est_shard "$sh"))); done; echo $((t + 3)) ;;
     7) for sh in $S7_PLAN; do t=$((t + $(s7_unit_s "$sh"))); done; echo $(( (t + 59) / 60 + 1 )) ;;       # + the sha check and the analysis
+    8) echo 12 ;;                                                                  # 2 starts x (start 2 + 10 golden x 64 tokens 3 + slack 1)
   esac
 }
 name_of() {
@@ -136,6 +139,7 @@ name_of() {
     5) echo "agreement: on vs TensorFold ids (golden prompts) and on vs off over 160 decode tokens" ;;
     6) echo "paired localeval quality off vs on (frozen chunk32k-2 set): no large loss" ;;
     7) echo "recent-window items (planted code at a measured distance from the prompt end), off vs on, per distance bucket: reading rule" ;;
+    8) echo "the default: variable unset vs =1, golden ids 640/640 at chunk 2048, both ranks log replay on" ;;
   esac
 }
 fmt() { printf '%dh%02dm' $(($1 / 60)) $(($1 % 60)); }
@@ -207,11 +211,17 @@ EOF
      a unit starts only if its on arm would start before STOP_EPOCH and the unit plus the vLLM restore ends before RESTORE_BY_EPOCH
 EOF
     ;;
+    8) cat <<EOF
+     for mode in default on: restart both ranks (branch binary, chunk 2048; the variable unset for default, =1 for on)
+       the golden ids as in step 2, and grep 'bounded-replay prefill on' in the serve and the worker log
+     replay-test-lib.py tokcmp tok-default.st tok-on.st --require-total 640
+EOF
+    ;;
   esac
 }
 
 # ---- arguments
-DRY=0; STEPS_ARG="1,2,3,4,5,6,7"; PASS=()
+DRY=0; STEPS_ARG="1,2,3,4,5,6,7,8"; PASS=()
 while [[ $# -gt 0 ]]; do
   case $1 in
     --dry-run) DRY=1; shift ;;
@@ -221,7 +231,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 SELECTED=${STEPS_ARG//,/ }
-for n in $SELECTED; do case $n in [1-7]) ;; *) echo "--steps: '$n' is not a step (1..7)"; exit 2 ;; esac; done
+for n in $SELECTED; do case $n in [1-8]) ;; *) echo "--steps: '$n' is not a step (1..8)"; exit 2 ;; esac; done
 for u in $S7_PLAN; do [[ $u =~ ^[0-9]+:(4k|32k)(,(4k|32k))*$ ]] || { echo "S7_PLAN unit '$u' is not CHUNK:4k[,32k]"; exit 2; }; done
 (( S7_K4 >= 1 && S7_K4 <= 12 && S7_K32 >= 1 && S7_K32 <= 12 )) || { echo "S7_K4 / S7_K32 must be 1..12"; exit 2; }
 has() { [[ " $SELECTED " == *" $1 "* ]]; }
@@ -446,12 +456,12 @@ vllm_down() {
   done
 }
 
-# ---- engine: start_ranks BIN CHUNK MODE (off|on|main). The SAME env string goes to both ranks; INTARSIA_DSV41_REPLAY is removed
-# first (env -u) so an inherited value never leaks into off/main, and set to 1 for on.
+# ---- engine: start_ranks BIN CHUNK MODE (off|on|main|default). The SAME env string goes to both ranks; INTARSIA_DSV41_REPLAY is
+# removed first (env -u) so an inherited value never leaks, then set to 1 for on, 0 for off and main, and left unset for default.
 start_ranks() {
   local bin=$1 chunk=$2 mode=$3 renv t0 up=0
   renv="INTARSIA_TP_SPIN_MS=${TP_SPIN_MS:-100} INTARSIA_DSV41_CAP=$CAP INTARSIA_DSV41_CHUNK=$chunk INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-} ${SRV_ENV:-}"
-  [[ $mode == on ]] && renv="$renv INTARSIA_DSV41_REPLAY=1"
+  case $mode in on) renv="$renv INTARSIA_DSV41_REPLAY=1" ;; off|main) renv="$renv INTARSIA_DSV41_REPLAY=0" ;; esac
   TAG=$(date +%H%M%S)
   r spark2 "mkdir -p $LOGD; nohup env -u INTARSIA_DSV41_REPLAY $NCCLENV $renv $bin tp-worker --listen $WIP:$WPORT -m $C1 --backend cuda --tp 2 > $LOGD/worker-$TAG.log 2>&1 < /dev/null &"
   sleep 2
@@ -510,6 +520,19 @@ step2() {
   lib tokcmp "$d/tok-main.st" "$d/tok-off.st" --name-a main --name-b off --require-total 640 > "$d/compare.txt" 2>&1; local rc=$?
   tee -a "$LOG" < "$d/compare.txt"
   [[ $rc == 0 ]] || { fail "golden ids of this branch (replay off) are not 640/640 identical to the main binary: $d/compare.txt"; return 1; }
+}
+
+step8() {
+  local d=$RAW/step8 mode f; mkdir -p "$d"
+  for mode in default on; do
+    serve_cfg "s8-$mode" "$BIN_BR" 2048 $mode gold "$d/tok-$mode.st" "step8 replay=$mode" || { fail "golden ids for replay=$mode failed (${FAIL_WHY:-see $d/tok-$mode.st.log})"; return 1; }
+    for f in serve worker; do
+      grep -q 'bounded-replay prefill on' "$RAW/$f-s8-$mode.log" || { fail "$f of replay=$mode does not log the replay on: $RAW/$f-s8-$mode.log"; return 1; }
+    done
+  done
+  lib tokcmp "$d/tok-default.st" "$d/tok-on.st" --name-a default --name-b on --require-total 640 > "$d/compare.txt" 2>&1; local rc=$?
+  tee -a "$LOG" < "$d/compare.txt"
+  [[ $rc == 0 ]] || { fail "golden ids with the variable unset are not 640/640 identical to =1: $d/compare.txt"; return 1; }
 }
 
 # ---- step 3: the gate. serve_cfg runs its command with the ranks up and SRV_ENV (dump settings) in the engine's environment.

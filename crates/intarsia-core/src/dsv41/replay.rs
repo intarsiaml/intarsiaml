@@ -1,4 +1,4 @@
-//! Bounded-replay prefill (opt-in: `INTARSIA_DSV41_REPLAY=1`, default off). Design and what is untested:
+//! Bounded-replay prefill (default on where [`supported`] and on CUDA; `INTARSIA_DSV41_REPLAY=0` turns it off). Design and what is untested:
 //! docs/results/2026-11-03-dsv41-replay.md.
 //!
 //! TensorFold runs the decoder half of the model (layers `n_layers / 2 ..`) only on the last `window` rows of a prompt. Layer
@@ -16,9 +16,48 @@ use crate::error::{Error, Result};
 /// The environment variable (read once per runtime and by the handshake fingerprint; both ranks must agree).
 pub const ENV: &str = "INTARSIA_DSV41_REPLAY";
 
-/// `INTARSIA_DSV41_REPLAY=1`.
-pub fn enabled() -> bool {
-    std::env::var(ENV).is_ok_and(|v| v == "1")
+/// What `INTARSIA_DSV41_REPLAY` asks for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Setting {
+    /// Unset: on when the model and the backend support it, off otherwise.
+    Auto,
+    /// `1`: on, and the load fails when the model or the backend cannot run it.
+    On,
+    /// `0` or any other value: off, bit-identical to the path without the option.
+    Off,
+}
+
+/// [`Setting`] of a value of the variable.
+pub fn parse(v: Option<&str>) -> Setting {
+    match v {
+        None => Setting::Auto,
+        Some("1") => Setting::On,
+        Some(_) => Setting::Off,
+    }
+}
+
+/// The variable's [`Setting`].
+pub fn setting() -> Setting {
+    parse(std::env::var(ENV).ok().as_deref())
+}
+
+/// Does this model on this backend run the replay? [`Setting::On`] fails where [`Setting::Auto`] falls back to off. The
+/// replay drops window keys by shifting the sparse attention's position (the kernels' window test is `pos0 + row >= window`):
+/// read in the CUDA kernel (kernels/cuda/dsv41_attn.cu) and the cpu reference (dsv41_ref.rs) only, and only the CUDA kernel is
+/// meant to run it.
+pub fn resolve(s: Setting, c: &Dsv41Config, tp: &GraphTp, backend: &str) -> Result<bool> {
+    let check = || {
+        supported(c, tp)?;
+        if backend != "cuda" {
+            return Err(Error::Unsupported(format!("deepseek_v41 {ENV}=1: not implemented for the {backend} backend")));
+        }
+        Ok(())
+    };
+    match s {
+        Setting::Off => Ok(false),
+        Setting::On => check().map(|()| true),
+        Setting::Auto => Ok(check().is_ok()),
+    }
 }
 
 /// The decoder half's first layer (TensorFold: `c.layers / 2`).
@@ -248,6 +287,30 @@ mod tests {
     fn mia() -> Dsv41Config {
         let v: serde_json::Value = serde_json::from_str(include_str!("../../../intarsia-models/tests/fixtures/dsv41/mia-config.json")).unwrap();
         Dsv41Config::from_json(&v).unwrap()
+    }
+
+    #[test]
+    fn the_setting_is_on_where_supported_unless_turned_off() {
+        assert_eq!(parse(None), Setting::Auto);
+        assert_eq!(parse(Some("1")), Setting::On);
+        assert_eq!(parse(Some("0")), Setting::Off);
+        assert_eq!(parse(Some("")), Setting::Off);
+        let c = mia();
+        let tp = GraphTp::default();
+        let cut = GraphTp { layers: Some(3), ..tp };
+        for (s, t, backend, want) in [
+            (Setting::Auto, &tp, "cuda", Some(true)),
+            (Setting::Auto, &tp, "hip", Some(false)),
+            (Setting::Auto, &tp, "metal", Some(false)),
+            (Setting::Auto, &cut, "cuda", Some(false)),
+            (Setting::On, &tp, "cuda", Some(true)),
+            (Setting::On, &tp, "hip", None),
+            (Setting::On, &cut, "cuda", None),
+            (Setting::Off, &tp, "cuda", Some(false)),
+            (Setting::Off, &cut, "hip", Some(false)),
+        ] {
+            assert_eq!(resolve(s, &c, t, backend).ok(), want, "{s:?} on {backend}");
+        }
     }
 
     #[test]

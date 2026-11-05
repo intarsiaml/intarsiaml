@@ -197,7 +197,7 @@ pub struct Dsv41Runtime {
     graphs: Mutex<Graphs>,
     /// Largest f32 partial of a reduction (`Comm::reserve` before the first capture).
     max_partial: usize,
-    /// `INTARSIA_DSV41_REPLAY=1` (default off): prefill runs the decoder half on the last `window` rows only
+    /// [`replay::resolve`] (default on where supported, `INTARSIA_DSV41_REPLAY=0` off): prefill runs the decoder half on the last `window` rows only
     /// ([`super::replay`]). Both ranks must agree (handshake fingerprint). Changes numerics.
     replay: bool,
 }
@@ -260,15 +260,9 @@ impl Dsv41Runtime {
                 return Err(Error::invalid("deepseek_v41 runtime: the model has Engram layers but no Engram tier was given"));
             }
         }
-        let replay = replay::enabled();
+        let replay = replay::resolve(replay::setting(), &cfg, &opts.tp, backend.name())?;
         if replay {
-            replay::supported(&cfg, &opts.tp)?;
-            // the replay drops window keys by shifting the sparse attention's position (the kernels' window test is
-            // `pos0 + row >= window`): read in the CUDA kernel (kernels/cuda/dsv41_attn.cu) and the cpu reference
-            // (dsv41_ref.rs) only, and only the CUDA kernel is meant to run it
-            if backend.name() != "cuda" {
-                return Err(Error::Unsupported(format!("deepseek_v41 {}=1: not implemented for the {} backend", replay::ENV, backend.name())));
-            }
+            eprintln!("dsv41: bounded-replay prefill on ({}=0 turns it off)", replay::ENV);
         }
         let info = backend.info();
         let reg = Registry::new(backend.name(), &info, backend.kernels());
@@ -621,13 +615,17 @@ impl Dsv41Runtime {
         let f = replay::floor(st.len + rows, self.cfg.window);
         if !replay::reuse_ok(st.len, f, st.replay_from) {
             return Err(Error::Unsupported(format!(
-                "deepseek_v41 {}=1: resuming {} tokens whose decoder-layer window keys are valid from {} only, under a floor of {f}",
-                replay::ENV,
+                "deepseek_v41 bounded replay: resuming {} tokens whose decoder-layer window keys are valid from {} only, under a floor of {f}",
                 st.len,
                 st.replay_from
             )));
         }
         Ok(Some(f))
+    }
+
+    /// Does this runtime run the bounded-replay prefill ([`replay::resolve`])? Both ranks must agree (handshake fingerprint).
+    pub fn replay_on(&self) -> bool {
+        self.replay
     }
 
     /// How many of the `keep` cached tokens a request of `prompt_len` tokens may resume from (bounded replay: `keep`, or 0

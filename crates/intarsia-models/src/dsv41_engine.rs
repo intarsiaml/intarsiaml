@@ -88,13 +88,13 @@ pub fn is_rank_cache(dir: &Path) -> bool {
 }
 
 /// What both ranks must agree on (handshake).
-pub fn fingerprint(m: &Manifest, o: &Dsv41Opts) -> String {
+pub fn fingerprint(m: &Manifest, o: &Dsv41Opts, replay: bool) -> String {
     let mut base = format!("dsv41 source {} | world {} | layers {:?} | cap {} | chunk {} | act {}", m.source_fingerprint, m.world, m.layers, o.cap, o.chunk, o.act);
     if m.first_layer > 0 {
         base.push_str(&format!(" | first layer {}", m.first_layer));
     }
-    // bounded-replay prefill (opt-in): the ranks must cut at the same place; off, the fingerprint is the one before it existed
-    if intarsia_core::dsv41::replay::enabled() {
+    // bounded-replay prefill: the ranks must cut at the same place; off, the fingerprint is the one before it existed
+    if replay {
         base.push_str(" | replay");
     }
     // the spec-off fingerprint is the one before speculation existed, so old and new binaries still pair without it
@@ -325,7 +325,7 @@ pub fn serve_rank(dir: &Path, backend: Arc<dyn Backend>, comm: Arc<dyn Comm>, mu
     let o = Dsv41Opts::from_env(dir, prefill_chunk);
     let avail0 = mem_available();
     let (rt, m) = load_runtime(dir, backend, Some(comm.clone()), &o)?;
-    let cap = intarsia_core::tp_remote::handshake(&mut stream, &fingerprint(&m, &o), o.cap)?;
+    let cap = intarsia_core::tp_remote::handshake(&mut stream, &fingerprint(&m, &o, rt.replay_on()), o.cap)?;
     if cap != o.cap {
         return Err(Error::invalid(format!("deepseek_v41: ranks disagree on the capacity ({cap} vs {})", o.cap)));
     }
@@ -965,7 +965,7 @@ impl Dsv41Engine {
         let (rt, m) = load_runtime(dir, backend.clone(), comm.clone(), &o)?;
         let peer = match remote {
             Some(mut stream) => {
-                let cap = intarsia_core::tp_remote::handshake(&mut stream, &fingerprint(&m, &o), o.cap)?;
+                let cap = intarsia_core::tp_remote::handshake(&mut stream, &fingerprint(&m, &o, rt.replay_on()), o.cap)?;
                 if cap != o.cap {
                     return Err(Error::invalid(format!("deepseek_v41: ranks disagree on the capacity ({cap} vs {})", o.cap)));
                 }
