@@ -1,0 +1,79 @@
+17:30:43 job 8566: stopping radiance
+17:30:47 == tp2-v1-A
+[localeval] 1 streams: aggregate 162.5 tok/s
+[localeval] 4 streams: aggregate 305.5 tok/s
+[localeval] 8 streams: aggregate 397.3 tok/s
+[localeval] 16 streams: aggregate 475.3 tok/s
+streams 1: ttft p50 0.121 p95 0.137 max 0.137 (n=3), packed passes 0, packed chunks 0
+streams 4: ttft p50 0.286 p95 0.489 max 0.528 (n=12), packed passes 0, packed chunks 0
+streams 8: ttft p50 0.531 p95 0.912 max 0.946 (n=24), packed passes 0, packed chunks 0
+streams 16: ttft p50 0.993 p95 1.862 max 1.889 (n=48), packed passes 0, packed chunks 0
+17:31:44 == tp2-v2-B
+[localeval] 1 streams: aggregate 164.1 tok/s
+[localeval] 4 streams: aggregate 305.4 tok/s
+[localeval] 8 streams: aggregate 408.0 tok/s
+[localeval] 16 streams: aggregate 476.1 tok/s
+streams 1: ttft p50 0.126 p95 0.157 max 0.157 (n=3), packed passes 0, packed chunks 0
+streams 4: ttft p50 0.317 p95 0.454 max 0.456 (n=12), packed passes 0, packed chunks 0
+streams 8: ttft p50 0.512 p95 0.911 max 0.915 (n=24), packed passes 0, packed chunks 0
+streams 16: ttft p50 0.972 p95 1.857 max 1.862 (n=48), packed passes 0, packed chunks 0
+17:32:41 == tp2-v3-A
+[localeval] 1 streams: aggregate 163.5 tok/s
+[localeval] 4 streams: aggregate 308.0 tok/s
+[localeval] 8 streams: aggregate 397.2 tok/s
+[localeval] 16 streams: aggregate 476.8 tok/s
+streams 1: ttft p50 0.123 p95 0.185 max 0.185 (n=3), packed passes 0, packed chunks 0
+streams 4: ttft p50 0.303 p95 0.486 max 0.498 (n=12), packed passes 0, packed chunks 0
+streams 8: ttft p50 0.531 p95 0.911 max 0.95 (n=24), packed passes 0, packed chunks 0
+streams 16: ttft p50 0.989 p95 1.856 max 1.895 (n=48), packed passes 0, packed chunks 0
+17:33:38 == tp2-v4-B
+[localeval] 1 streams: aggregate 165.3 tok/s
+[localeval] 4 streams: aggregate 306.4 tok/s
+[localeval] 8 streams: aggregate 410.7 tok/s
+[localeval] 16 streams: aggregate 478.3 tok/s
+streams 1: ttft p50 0.125 p95 0.16 max 0.16 (n=3), packed passes 0, packed chunks 0
+streams 4: ttft p50 0.302 p95 0.456 max 0.469 (n=12), packed passes 0, packed chunks 0
+streams 8: ttft p50 0.511 p95 0.91 max 0.91 (n=24), packed passes 0, packed chunks 0
+streams 16: ttft p50 0.974 p95 1.861 max 1.926 (n=48), packed passes 0, packed chunks 0
+17:34:34 == tp1-v5-A
+[localeval] 1 streams: aggregate 134.0 tok/s
+[localeval] 4 streams: aggregate 246.0 tok/s
+[localeval] 8 streams: aggregate 337.2 tok/s
+[localeval] 16 streams: aggregate 396.3 tok/s
+streams 1: ttft p50 0.189 p95 0.217 max 0.217 (n=3), packed passes 0, packed chunks 0
+streams 4: ttft p50 0.362 p95 0.501 max 0.51 (n=12), packed passes 3, packed chunks 6
+streams 8: ttft p50 0.568 p95 0.976 max 1.001 (n=24), packed passes 6, packed chunks 15
+streams 16: ttft p50 1.05 p95 1.739 max 1.788 (n=48), packed passes 15, packed chunks 42
+17:35:41 == tp1-v6-B
+[localeval] 1 streams: aggregate 141.6 tok/s
+[localeval] 4 streams: aggregate 245.7 tok/s
+[localeval] 8 streams: aggregate 320.6 tok/s
+[localeval] 16 streams: aggregate 361.4 tok/s
+streams 1: ttft p50 0.151 p95 0.158 max 0.158 (n=3), packed passes 0, packed chunks 0
+streams 4: ttft p50 0.353 p95 0.553 max 0.559 (n=12), packed passes 0, packed chunks 0
+streams 8: ttft p50 0.629 p95 1.093 max 1.142 (n=24), packed passes 0, packed chunks 0
+streams 16: ttft p50 1.175 p95 2.257 max 2.284 (n=48), packed passes 0, packed chunks 0
+17:36:48 == tp1-v7-A
+[localeval] 1 streams: aggregate 135.0 tok/s
+[localeval] 4 streams: aggregate 246.2 tok/s
+[localeval] 8 streams: aggregate 329.0 tok/s
+[localeval] 16 streams: aggregate 398.7 tok/s
+streams 1: ttft p50 0.15 p95 0.215 max 0.215 (n=3), packed passes 0, packed chunks 0
+streams 4: ttft p50 0.365 p95 0.503 max 0.565 (n=12), packed passes 3, packed chunks 6
+streams 8: ttft p50 0.562 p95 0.934 max 0.984 (n=24), packed passes 6, packed chunks 15
+streams 16: ttft p50 1.045 p95 1.731 max 1.767 (n=48), packed passes 15, packed chunks 42
+17:37:54 == tp1-v8-B
+[localeval] 1 streams: aggregate 139.2 tok/s
+[localeval] 4 streams: aggregate 247.4 tok/s
+[localeval] 8 streams: aggregate 316.1 tok/s
+[localeval] 16 streams: aggregate 362.0 tok/s
+streams 1: ttft p50 0.151 p95 0.233 max 0.233 (n=3), packed passes 0, packed chunks 0
+streams 4: ttft p50 0.365 p95 0.554 max 0.584 (n=12), packed passes 0, packed chunks 0
+streams 8: ttft p50 0.616 p95 1.09 max 1.094 (n=24), packed passes 0, packed chunks 0
+streams 16: ttft p50 1.206 p95 2.242 max 2.309 (n=48), packed passes 0, packed chunks 0
+17:39:02 == gates
+17:39:40 35b packed test exit 0: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 37.52s 
+17:39:46 kernel tests exit 0: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.35s 
+17:39:46 all done
+17:39:46 starting radiance
+17:39:57 radiance answers (after 15 s)

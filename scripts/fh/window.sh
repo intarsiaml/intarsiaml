@@ -14,7 +14,7 @@
 # Knobs: TPS="2 1"  ARMS="A B A B"  SKIP_LE=1 (ttft.py only)  GATES=0.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq (see the header)}"
-OUT=${1:?outdir}; mkdir -p "$OUT"
+OUT=${1:?outdir}; mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd)   # absolute: localeval runs from its own directory
 H=$(cd "$(dirname "$0")" && pwd); LE=/opt/code/deepeval
 PORT=8296; NAME=intarsia; URL=http://tatooine:$PORT/v1
 R='~/intarsiaml-g2b-fh'   # expanded by the remote shell
