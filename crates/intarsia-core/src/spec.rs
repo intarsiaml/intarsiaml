@@ -141,6 +141,125 @@ pub fn accept(drafts: &[u32], out: &[u32]) -> usize {
     drafts.iter().zip(out).take_while(|(d, o)| d == o).count()
 }
 
+/// Speculation for sampled requests (temperature > 0; `INTARSIA_SPEC_SAMPLED`, [`Model::set_spec_sampled`](crate::model::Model)):
+/// off (the default: sampled requests take plain steps), or one of two acceptance rules that keep the output distribution
+/// exactly that of plain sampling from the target. Single-sequence engine, `--spec mtp`, one rank only.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SampledSpec {
+    #[default]
+    Off,
+    /// Greedy (argmax) drafts; at each verify row draw `x` from the processed target distribution, accept iff `x` is the
+    /// draft, else emit `x` and stop (speculative sampling with a point-mass draft: acceptance `p_target(draft)`).
+    Match,
+    /// Sampled drafts (each drawn from the processed draft distribution `q`), standard speculative rejection sampling: accept
+    /// `x` with probability `min(1, p(x) / q(x))`, on a reject emit a draw from `normalize(max(0, p - q))` and stop.
+    Reject,
+}
+
+impl SampledSpec {
+    /// `INTARSIA_SPEC_SAMPLED`: unset, `0` or `off`: off; `1` or `reject`: [`SampledSpec::Reject`]; `match`: [`SampledSpec::Match`].
+    pub fn parse(v: &str) -> Option<SampledSpec> {
+        match v {
+            "" | "0" | "off" => Some(SampledSpec::Off),
+            "1" | "reject" => Some(SampledSpec::Reject),
+            "match" => Some(SampledSpec::Match),
+            _ => None,
+        }
+    }
+
+    /// The process default (`INTARSIA_SPEC_SAMPLED`, read once; an unknown value is off with a warning).
+    pub fn from_env() -> SampledSpec {
+        static V: std::sync::OnceLock<SampledSpec> = std::sync::OnceLock::new();
+        *V.get_or_init(|| {
+            let v = std::env::var("INTARSIA_SPEC_SAMPLED").unwrap_or_default();
+            SampledSpec::parse(&v).unwrap_or_else(|| {
+                eprintln!("INTARSIA_SPEC_SAMPLED={v}: unknown (0, 1 / reject, match); sampled speculation stays off");
+                SampledSpec::Off
+            })
+        })
+    }
+}
+
+/// The probability of accepting draft `x` drawn from `q` against the target `p`: `min(1, p(x) / q(x))` (0 when `q(x) = 0`,
+/// which a draw from `q` never gives).
+pub fn accept_prob(p: &crate::sampler::Dist, q: &crate::sampler::Dist, x: u32) -> f64 {
+    let qx = q.prob(x);
+    if qx <= 0.0 {
+        return 0.0;
+    }
+    (p.prob(x) / qx).min(1.0)
+}
+
+/// The residual distribution of a rejected draft: `normalize(max(0, p - q))`, over `p`'s support (the whole target
+/// vocabulary `p` allows, also the tokens `q` cannot draw). `None` when it has no mass (`p <= q` everywhere, i.e. `p == q`:
+/// then a draft is never rejected, except for rounding).
+pub fn residual(p: &crate::sampler::Dist, q: &crate::sampler::Dist) -> Option<crate::sampler::Dist> {
+    let n = p.ids.iter().chain(&q.ids).map(|&i| i as usize + 1).max().unwrap_or(0);
+    let mut qd = vec![0f64; n];
+    for (&i, &x) in q.ids.iter().zip(&q.probs) {
+        qd[i as usize] = x;
+    }
+    let mut ids = Vec::with_capacity(p.ids.len());
+    let mut probs = Vec::with_capacity(p.ids.len());
+    for (&i, &x) in p.ids.iter().zip(&p.probs) {
+        let r = x - qd[i as usize];
+        if r > 0.0 {
+            ids.push(i);
+            probs.push(r);
+        }
+    }
+    let s: f64 = probs.iter().sum();
+    if !(s > 0.0) {
+        return None;
+    }
+    for x in probs.iter_mut() {
+        *x /= s;
+    }
+    Some(crate::sampler::Dist { ids, probs })
+}
+
+/// One sampled verify pass ([`SampledSpec`]). `drafts` = `d_1..d_m`; `q[i]` is the distribution `d_{i+1}` was drawn from
+/// ([`SampledSpec::Reject`]) or `None` (greedy drafts, [`SampledSpec::Match`]); `target(i)` is the processed target
+/// distribution of verify row `i` (row 0 was fed the last emitted token, row `i` was fed `d_i`), asked for only for the rows
+/// that decide a token, in order; `u()` is the request's uniform draw. Returns the tokens to emit (`d_1..d_j`, then one
+/// residual, rejection or bonus token) and `j`, the drafts accepted. The KV rows to keep are those of rows `0..=j`.
+pub fn accept_sampled(
+    drafts: &[u32],
+    q: Option<&[crate::sampler::Dist]>,
+    target: &mut dyn FnMut(usize) -> crate::sampler::Dist,
+    u: &mut dyn FnMut() -> f64,
+) -> (Vec<u32>, usize) {
+    if let Some(q) = q {
+        assert_eq!(q.len(), drafts.len(), "one draft distribution per draft");
+    }
+    let mut emit = Vec::with_capacity(drafts.len() + 1);
+    for (i, &d) in drafts.iter().enumerate() {
+        let p = target(i);
+        match q {
+            None => {
+                let x = p.pick(u());
+                emit.push(x);
+                if x != d {
+                    return (emit, i);
+                }
+            }
+            Some(q) => {
+                if u() < accept_prob(&p, &q[i], d) {
+                    emit.push(d);
+                    continue;
+                }
+                let r = residual(&p, &q[i]).unwrap_or(p);
+                emit.push(r.pick(u()));
+                return (emit, i);
+            }
+        }
+    }
+    let p = target(drafts.len());
+    emit.push(p.pick(u()));
+    let j = drafts.len();
+    (emit, j)
+}
+
 /// Gate defaults, chosen by replaying the engine loop over 26 greedy streams (`docs/results/2026-10-15-metal-spec-g2g3.md`):
 /// suffixes of one token are not drafted from (they are the main source of rejected passes on open-ended text), and six
 /// consecutive rejected passes back off for 2, 4, 8, .. 32 plain steps.
@@ -924,6 +1043,387 @@ pub fn trace_enabled() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // ---------------------------------------------------------------------------------------------------------------
+    // sampled speculation: exactness in law
+    // ---------------------------------------------------------------------------------------------------------------
+
+    use crate::sampler::{dist, Dist, SamplingParams};
+    use std::collections::BTreeMap;
+
+    type Law = BTreeMap<Vec<u32>, f64>;
+    type RowFn = dyn Fn(&[u32]) -> Vec<f32>;
+
+    /// Deterministic pseudo-random logits of a context (`salt` tells target and draft apart).
+    fn hashed_row(ctx: &[u32], salt: u64, v: usize, scale: f32) -> Vec<f32> {
+        let mut h = salt.wrapping_mul(0x9E37_79B9_7F4A_7C15) ^ ctx.len() as u64;
+        for &t in ctx {
+            h = (h ^ t as u64).wrapping_mul(0x100_0000_01B3).rotate_left(17);
+        }
+        let mut r = crate::rng::SplitMix64::new(h);
+        (0..v).map(|_| r.normal() * scale).collect()
+    }
+
+    /// A test case: target and draft logits as functions of the context, and the sampling parameters both go through.
+    struct Case {
+        name: &'static str,
+        target: Box<RowFn>,
+        draft: Box<RowFn>,
+        params: SamplingParams,
+    }
+
+    const V: usize = 4;
+
+    fn cases() -> Vec<Case> {
+        let t1 = SamplingParams { temperature: 1.0, top_k: 0, top_p: 1.0 };
+        let mut out = vec![
+            Case { name: "plain", target: Box::new(|c| hashed_row(c, 1, V, 1.5)), draft: Box::new(|c| hashed_row(c, 2, V, 1.5)), params: t1.clone() },
+            // target only on {0, 1}, draft only on {2, 3}: every draft is rejected, every token comes from the residual
+            Case {
+                name: "disjoint supports",
+                target: Box::new(|c| {
+                    let mut r = hashed_row(c, 3, V, 1.0);
+                    r[2] = f32::NEG_INFINITY;
+                    r[3] = f32::NEG_INFINITY;
+                    r
+                }),
+                draft: Box::new(|c| {
+                    let mut r = hashed_row(c, 4, V, 1.0);
+                    r[0] = f32::NEG_INFINITY;
+                    r[1] = f32::NEG_INFINITY;
+                    r
+                }),
+                params: t1.clone(),
+            },
+            // the draft never proposes the target's mode
+            Case {
+                name: "draft zero on the target mode",
+                target: Box::new(|c| hashed_row(c, 5, V, 2.0)),
+                draft: Box::new(|c| {
+                    let t = hashed_row(c, 5, V, 2.0);
+                    let mut r = hashed_row(c, 6, V, 1.0);
+                    r[crate::sampler::argmax(&t)] = f32::NEG_INFINITY;
+                    r
+                }),
+                params: t1.clone(),
+            },
+            // a reduced draft vocabulary (the `--mtp-draft-vocab` prefix): draft 0 past id 2
+            Case {
+                name: "reduced draft vocab",
+                target: Box::new(|c| hashed_row(c, 7, V, 1.0)),
+                draft: Box::new(|c| {
+                    let mut r = hashed_row(c, 7, V, 1.0);
+                    r[2] = f32::NEG_INFINITY;
+                    r[3] = f32::NEG_INFINITY;
+                    r
+                }),
+                params: t1.clone(),
+            },
+            // top-p truncation (and temperature) on both distributions
+            Case {
+                name: "top-p 0.6, temperature 0.8",
+                target: Box::new(|c| hashed_row(c, 8, V, 1.0)),
+                draft: Box::new(|c| hashed_row(c, 9, V, 1.0)),
+                params: SamplingParams { temperature: 0.8, top_k: 0, top_p: 0.6 },
+            },
+            Case {
+                name: "top-k 2, top-p 0.9",
+                target: Box::new(|c| hashed_row(c, 10, V, 1.0)),
+                draft: Box::new(|c| hashed_row(c, 11, V, 1.0)),
+                params: SamplingParams { temperature: 1.3, top_k: 2, top_p: 0.9 },
+            },
+            // a perfect draft: the residual is empty and never used
+            Case { name: "draft equals target", target: Box::new(|c| hashed_row(c, 12, V, 1.0)), draft: Box::new(|c| hashed_row(c, 12, V, 1.0)), params: t1 },
+        ];
+        out.shrink_to_fit();
+        out
+    }
+
+    /// Plain sampling's law of the next `l` tokens after `ctx`.
+    fn target_law(c: &Case, ctx: &[u32], l: usize) -> Law {
+        let mut out = Law::new();
+        if l == 0 {
+            out.insert(vec![], 1.0);
+            return out;
+        }
+        let p = dist(&(c.target)(ctx), &c.params);
+        for (&y, &py) in p.ids.iter().zip(&p.probs) {
+            let mut ctx2 = ctx.to_vec();
+            ctx2.push(y);
+            for (s, ps) in target_law(c, &ctx2, l - 1) {
+                let mut seq = vec![y];
+                seq.extend(s);
+                *out.entry(seq).or_default() += py * ps;
+            }
+        }
+        out
+    }
+
+    /// The exact law of one sampled pass with `k` drafts after `ctx`, from [`accept_prob`] and [`residual`] (`Reject`) or the
+    /// match rule over argmax drafts (`Match`): the emitted sequences and their probabilities.
+    fn pass_law(c: &Case, ctx: &[u32], k: usize, variant: SampledSpec) -> Vec<(Vec<u32>, f64)> {
+        fn rec(c: &Case, ctx: &[u32], drafts: Vec<u32>, k: usize, prob: f64, variant: SampledSpec, out: &mut Vec<(Vec<u32>, f64)>) {
+            let mut here = ctx.to_vec();
+            here.extend(&drafts);
+            let p = dist(&(c.target)(&here), &c.params);
+            let emit = |y: u32, w: f64, out: &mut Vec<(Vec<u32>, f64)>| {
+                let mut s = drafts.clone();
+                s.push(y);
+                out.push((s, w));
+            };
+            if drafts.len() == k {
+                for (&y, &py) in p.ids.iter().zip(&p.probs) {
+                    emit(y, prob * py, out);
+                }
+                return;
+            }
+            match variant {
+                SampledSpec::Match => {
+                    let d = crate::sampler::argmax(&(c.draft)(&here)) as u32;
+                    for (&y, &py) in p.ids.iter().zip(&p.probs) {
+                        if y == d {
+                            let mut d2 = drafts.clone();
+                            d2.push(d);
+                            rec(c, ctx, d2, k, prob * py, variant, out);
+                        } else {
+                            emit(y, prob * py, out);
+                        }
+                    }
+                }
+                _ => {
+                    let q = dist(&(c.draft)(&here), &c.params);
+                    for (&x, &qx) in q.ids.iter().zip(&q.probs) {
+                        let a = accept_prob(&p, &q, x);
+                        if a > 0.0 {
+                            let mut d2 = drafts.clone();
+                            d2.push(x);
+                            rec(c, ctx, d2, k, prob * qx * a, variant, out);
+                        }
+                        if a < 1.0 {
+                            let r = residual(&p, &q).unwrap_or_else(|| p.clone());
+                            for (&y, &ry) in r.ids.iter().zip(&r.probs) {
+                                emit(y, prob * qx * (1.0 - a) * ry, out);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        let mut out = Vec::new();
+        rec(c, ctx, Vec::new(), k, 1.0, variant, &mut out);
+        out
+    }
+
+    /// The law of the next `l` tokens when every step is a sampled pass of `k` drafts (the engine's loop, truncated to `l`).
+    fn spec_law(c: &Case, ctx: &[u32], l: usize, k: usize, variant: SampledSpec) -> Law {
+        let mut out = Law::new();
+        if l == 0 {
+            out.insert(vec![], 1.0);
+            return out;
+        }
+        for (s, ps) in pass_law(c, ctx, k, variant) {
+            if s.len() >= l {
+                *out.entry(s[..l].to_vec()).or_default() += ps;
+                continue;
+            }
+            let mut ctx2 = ctx.to_vec();
+            ctx2.extend(&s);
+            for (t, pt) in spec_law(c, &ctx2, l - s.len(), k, variant) {
+                let mut seq = s.clone();
+                seq.extend(t);
+                *out.entry(seq).or_default() += ps * pt;
+            }
+        }
+        out
+    }
+
+    fn max_diff(a: &Law, b: &Law) -> f64 {
+        a.keys().chain(b.keys()).map(|k| (a.get(k).unwrap_or(&0.0) - b.get(k).unwrap_or(&0.0)).abs()).fold(0.0, f64::max)
+    }
+
+    /// Exact enumeration: the law of `k + 2` tokens generated by sampled passes equals plain sampling's, for every case,
+    /// both variants and k = 1..4 (several passes, prefix-dependent target and draft distributions).
+    #[test]
+    fn sampled_spec_law_is_the_target_law_exactly() {
+        for c in cases() {
+            for k in 1..=4 {
+                let ctx = [1u32, 3, 0];
+                let l = k + 2;
+                let want = target_law(&c, &ctx, l);
+                let total: f64 = want.values().sum();
+                assert!((total - 1.0).abs() < 1e-12, "{}: target law sums to {total}", c.name);
+                for variant in [SampledSpec::Reject, SampledSpec::Match] {
+                    let got = spec_law(&c, &ctx, l, k, variant);
+                    let d = max_diff(&want, &got);
+                    assert!(d < 1e-12, "{} k {k} {variant:?}: max |law difference| {d:e}", c.name);
+                }
+            }
+        }
+    }
+
+    /// The enumeration is sensitive: drawing a rejected token from the target instead of the residual changes the law.
+    #[test]
+    fn sampled_spec_enumeration_catches_a_wrong_residual() {
+        let c = &cases()[0];
+        let ctx = [2u32];
+        let p = dist(&(c.target)(&ctx), &c.params);
+        let q = dist(&(c.draft)(&ctx), &c.params);
+        // one pass, k = 1, first token: right = p; wrong = sum_x q(x) a(x) [x] + sum_x q(x) (1 - a(x)) p
+        let mut wrong = vec![0f64; V];
+        for (&x, &qx) in q.ids.iter().zip(&q.probs) {
+            let a = accept_prob(&p, &q, x);
+            wrong[x as usize] += qx * a;
+            for (&y, &py) in p.ids.iter().zip(&p.probs) {
+                wrong[y as usize] += qx * (1.0 - a) * py;
+            }
+        }
+        let d = (0..V as u32).map(|y| (wrong[y as usize] - p.prob(y)).abs()).fold(0.0, f64::max);
+        assert!(d > 1e-3, "the wrong residual is indistinguishable here ({d:e})");
+        let right: Law = pass_law(c, &ctx, 1, SampledSpec::Reject).into_iter().fold(Law::new(), |mut m, (s, w)| {
+            *m.entry(s[..1].to_vec()).or_default() += w;
+            m
+        });
+        for y in 0..V as u32 {
+            assert!((right.get(&vec![y]).copied().unwrap_or(0.0) - p.prob(y)).abs() < 1e-12);
+        }
+    }
+
+    /// Wilson-Hilferty upper quantile of chi-square(df) at standard-normal quantile `z`.
+    fn chi2_crit(df: f64, z: f64) -> f64 {
+        let a = 2.0 / (9.0 * df);
+        df * (1.0 - a + z * a.sqrt()).powi(3)
+    }
+
+    /// Pearson statistic of `counts` (n draws) against the law `want` (cells with expectation < 5 pooled), and its df.
+    fn chi2(counts: &BTreeMap<Vec<u32>, u64>, want: &Law, n: u64) -> (f64, f64) {
+        let (mut stat, mut cells) = (0.0, 0usize);
+        let (mut pool_o, mut pool_e) = (0.0, 0.0);
+        for (k, &p) in want {
+            let e = p * n as f64;
+            let o = *counts.get(k).unwrap_or(&0) as f64;
+            if e < 5.0 {
+                pool_o += o;
+                pool_e += e;
+                continue;
+            }
+            stat += (o - e) * (o - e) / e;
+            cells += 1;
+        }
+        if pool_e > 0.0 {
+            stat += (pool_o - pool_e) * (pool_o - pool_e) / pool_e.max(1e-9);
+            cells += 1;
+        }
+        // draws outside the law's support are impossible
+        assert!(counts.keys().all(|k| want.contains_key(k)), "a draw outside the target's support");
+        (stat, (cells - 1) as f64)
+    }
+
+    /// Generate `l` tokens after `ctx` by sampled passes of `k` drafts with the RNG-driven driver ([`accept_sampled`]);
+    /// `wrong` replaces the residual by the target (the positive control).
+    fn drive_sampled(c: &Case, ctx: &[u32], l: usize, k: usize, variant: SampledSpec, rng: &mut crate::rng::SplitMix64, wrong: bool) -> Vec<u32> {
+        let mut u = || (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64;
+        let mut out = Vec::new();
+        let mut hist = ctx.to_vec();
+        while out.len() < l {
+            let mut drafts = Vec::new();
+            let mut qs = Vec::new();
+            for _ in 0..k {
+                let mut here = hist.clone();
+                here.extend(&drafts);
+                let row = (c.draft)(&here);
+                let d = match variant {
+                    SampledSpec::Match => crate::sampler::argmax(&row) as u32,
+                    _ => {
+                        let q = dist(&row, &c.params);
+                        let x = q.pick(u());
+                        qs.push(q);
+                        x
+                    }
+                };
+                drafts.push(d);
+            }
+            let (emit, _) = if wrong {
+                // the bug: on a reject, draw from the target
+                let mut emit = Vec::new();
+                let mut done = false;
+                for i in 0..k {
+                    let mut here = hist.clone();
+                    here.extend(&drafts[..i]);
+                    let p = dist(&(c.target)(&here), &c.params);
+                    if u() < accept_prob(&p, &qs[i], drafts[i]) {
+                        emit.push(drafts[i]);
+                    } else {
+                        emit.push(p.pick(u()));
+                        done = true;
+                        break;
+                    }
+                }
+                if !done {
+                    let mut here = hist.clone();
+                    here.extend(&drafts);
+                    emit.push(dist(&(c.target)(&here), &c.params).pick(u()));
+                }
+                (emit, 0)
+            } else {
+                let h = hist.clone();
+                let ds = drafts.clone();
+                let target = |i: usize| {
+                    let mut here = h.clone();
+                    here.extend(&ds[..i]);
+                    dist(&(c.target)(&here), &c.params)
+                };
+                accept_sampled(&drafts, (variant == SampledSpec::Reject).then_some(&qs[..]), &mut { target }, &mut u)
+            };
+            hist.extend(&emit);
+            out.extend(emit);
+        }
+        out.truncate(l);
+        out
+    }
+
+    /// Monte Carlo of the RNG-driven driver against the exact target law (fixed seed, so deterministic): every case, both
+    /// variants, k = 2, the joint law of 3 tokens; and the wrong-residual driver fails the same test (power).
+    #[test]
+    fn sampled_spec_driver_samples_the_target_law() {
+        let n = 60_000u64;
+        let z = 5.0; // one-sided p ~ 3e-7 per test
+        for c in cases() {
+            let ctx = [0u32, 2];
+            let (k, l) = (2, 3);
+            let want = target_law(&c, &ctx, l);
+            for variant in [SampledSpec::Reject, SampledSpec::Match] {
+                let mut rng = crate::rng::SplitMix64::new(0x5eed ^ k as u64);
+                let mut counts = BTreeMap::new();
+                for _ in 0..n {
+                    *counts.entry(drive_sampled(&c, &ctx, l, k, variant, &mut rng, false)).or_insert(0u64) += 1;
+                }
+                let (stat, df) = chi2(&counts, &want, n);
+                assert!(stat < chi2_crit(df, z), "{} {variant:?}: chi2 {stat:.1} on {df} df", c.name);
+            }
+        }
+        // positive control on the plain case: drawing a rejected token from the target is detected
+        let c = &cases()[0];
+        let ctx = [0u32, 2];
+        let want = target_law(c, &ctx, 3);
+        let mut rng = crate::rng::SplitMix64::new(77);
+        let mut counts = BTreeMap::new();
+        for _ in 0..n {
+            *counts.entry(drive_sampled(c, &ctx, 3, 2, SampledSpec::Reject, &mut rng, true)).or_insert(0u64) += 1;
+        }
+        let (stat, df) = chi2(&counts, &want, n);
+        assert!(stat > chi2_crit(df, z), "the wrong residual passed: chi2 {stat:.1} on {df} df");
+    }
+
+    #[test]
+    fn sampled_spec_parse() {
+        assert_eq!(SampledSpec::parse(""), Some(SampledSpec::Off));
+        assert_eq!(SampledSpec::parse("0"), Some(SampledSpec::Off));
+        assert_eq!(SampledSpec::parse("1"), Some(SampledSpec::Reject));
+        assert_eq!(SampledSpec::parse("reject"), Some(SampledSpec::Reject));
+        assert_eq!(SampledSpec::parse("match"), Some(SampledSpec::Match));
+        assert_eq!(SampledSpec::parse("yes"), None);
+        let _ = Dist::point(0);
+    }
 
     #[test]
     fn propose_longest_suffix_most_recent() {

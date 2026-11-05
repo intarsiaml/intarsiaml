@@ -570,6 +570,9 @@ pub struct Model {
     /// The pipelined MTP step (`model/spec_pipe.rs`): 0 = the backend's default (Metal with `INTARSIA_METAL_MTP_GPU_ACCEPT`
     /// not `0`), 1 = on, 2 = off ([`Model::set_spec_pipe`]).
     spec_pipe: std::sync::atomic::AtomicU8,
+    /// Speculation for sampled requests ([`crate::spec::SampledSpec`]): 0 = `INTARSIA_SPEC_SAMPLED`, else 1 + the variant's
+    /// index ([`Model::set_spec_sampled`]).
+    spec_sampled: std::sync::atomic::AtomicU8,
     /// Dispatches of a speculative feedback step submitted before the previous token is read (`model/feedback.rs`).
     feedback_hold: usize,
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
@@ -1613,6 +1616,7 @@ impl Model {
             coll_trace: coll_trace::CollTrace::new(std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1")),
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             spec_pipe: std::sync::atomic::AtomicU8::new(0),
+            spec_sampled: std::sync::atomic::AtomicU8::new(0),
             feedback_hold,
             tail_merge,
             prefill_peel,
@@ -1781,12 +1785,27 @@ impl Model {
     pub fn forward_verify(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<u32>> {
         let pos = st.len;
         self.det_tap_begin();
-        let r = self.forward_verify_inner(st, ids)?;
+        let r = self.forward_verify_run(st, ids, None)?;
         self.det_tap_flush(pos, ids.len())?;
         Ok(r)
     }
 
-    fn forward_verify_inner(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<u32>> {
+    /// [`Model::forward_verify`] that also returns the logits of every row (`[q][V]`, rank 0), read back before the drafter's
+    /// hooks run. For sampled speculation ([`crate::spec::SampledSpec`]): row `t`'s logits are bitwise a single-token decode
+    /// step's at position `st.len + t`, so the processed distribution is plain sampling's there.
+    pub fn forward_verify_logits(&self, st: &mut SequenceState, ids: &[u32]) -> Result<(Vec<u32>, Vec<Vec<f32>>)> {
+        let pos = st.len;
+        self.det_tap_begin();
+        let mut rows = Vec::new();
+        let r = self.forward_verify_run(st, ids, Some(&mut rows))?;
+        self.det_tap_flush(pos, ids.len())?;
+        if rows.len() != ids.len() {
+            return Err(Error::invalid("forward_verify_logits: no logits rows (tensor-parallel verify is not supported)"));
+        }
+        Ok((r, rows))
+    }
+
+    fn forward_verify_run(&self, st: &mut SequenceState, ids: &[u32], rows: Option<&mut Vec<Vec<f32>>>) -> Result<Vec<u32>> {
         Self::check_forward(st, ids, HeadMode::LastArgmax, false)?;
         let q = ids.len();
         let Some(tok) = &self.verify_tok else {
@@ -1831,6 +1850,15 @@ impl Model {
         };
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
+        if let Some(rows) = rows {
+            let v = self.dims.vocab;
+            let mut l = vec![0u8; q * v * 4];
+            self.backend.download(&self.ws.logits, 0, &mut l, self.stream)?;
+            *rows = l
+                .chunks_exact(v * 4)
+                .map(|r| r.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect())
+                .collect();
+        }
         st.commit_verify(ids);
         if recurrent {
             st.spec_rows.saved = q - 1;

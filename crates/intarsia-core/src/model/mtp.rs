@@ -410,6 +410,30 @@ impl Model {
         r
     }
 
+    /// Speculation for sampled requests on this model: `Some(v)` sets it, `None` returns to `INTARSIA_SPEC_SAMPLED`. Read when
+    /// a request starts (tests compare the variants on one process).
+    pub fn set_spec_sampled(&self, v: Option<crate::spec::SampledSpec>) {
+        use crate::spec::SampledSpec;
+        let b = match v {
+            None => 0,
+            Some(SampledSpec::Off) => 1,
+            Some(SampledSpec::Match) => 2,
+            Some(SampledSpec::Reject) => 3,
+        };
+        self.spec_sampled.store(b, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    /// The sampled-speculation variant requests use ([`Model::set_spec_sampled`], else `INTARSIA_SPEC_SAMPLED`).
+    pub fn spec_sampled(&self) -> crate::spec::SampledSpec {
+        use crate::spec::SampledSpec;
+        match self.spec_sampled.load(std::sync::atomic::Ordering::Relaxed) {
+            1 => SampledSpec::Off,
+            2 => SampledSpec::Match,
+            3 => SampledSpec::Reject,
+            _ => SampledSpec::from_env(),
+        }
+    }
+
     /// Rows the MTP queue can still take before a pass would overflow it (`--spec auto`: while the DFlash draft proposes, the
     /// head only queues).
     pub fn mtp_queue_room(&self, st: &SequenceState) -> usize {
@@ -486,9 +510,31 @@ impl Model {
     /// own output. Afterwards the head's cache holds the committed positions only (`kv.len == st.len`, empty queue).
     pub fn mtp_draft(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
         if self.peers.is_empty() {
-            return self.mtp_draft_rank(st, next, k, DraftLink::Solo);
+            return self.mtp_draft_rank(st, next, k, DraftLink::Solo, None);
         }
         self.mtp_draft_tp(st, next, k)
+    }
+
+    /// [`Model::mtp_draft`] with sampled drafts ([`crate::spec::SampledSpec::Reject`], one rank only): each draft is
+    /// `pick(row)` of the head's logits row (`[V]`, the reduced draft head's rows past its prefix at `-inf`, so the draft
+    /// distribution is 0 there), and the next chained pass embeds that token. The head's cache ends as in `mtp_draft`.
+    pub fn mtp_draft_sampled(&self, st: &mut SequenceState, next: u32, k: usize, pick: &mut dyn FnMut(&[f32]) -> u32) -> Result<Vec<u32>> {
+        if !self.peers.is_empty() {
+            return Err(Error::Unsupported("sampled MTP drafts under tensor parallelism".into()));
+        }
+        self.mtp_draft_rank(st, next, k, DraftLink::Solo, Some(pick))
+    }
+
+    /// The drafter head's logits row the last `draft_head_argmax` left in `ws.logits`, widened to the vocabulary (`-inf` past
+    /// the reduced head's prefix).
+    fn draft_logits_row(&self) -> Result<Vec<f32>> {
+        let v = self.dims.vocab;
+        let n = self.draft_head.as_ref().map_or(v, |h| h.n).min(v);
+        let mut b = vec![0u8; n * 4];
+        self.backend.download(&self.ws.logits, 0, &mut b, self.stream)?;
+        let mut row: Vec<f32> = b.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        row.resize(v, f32::NEG_INFINITY);
+        Ok(row)
     }
 
     /// [`Model::mtp_draft`] with in-process tensor-parallel peers (lane dfh): every rank runs the head's catch-up and chained
@@ -512,7 +558,7 @@ impl Model {
                 .zip(rxs)
                 .map(|((m, ps), rx)| {
                     sc.spawn(move || {
-                        let r = m.mtp_draft_rank(&mut ps.st, next, k, DraftLink::Follow(rx));
+                        let r = m.mtp_draft_rank(&mut ps.st, next, k, DraftLink::Follow(rx), None);
                         if r.is_err() {
                             if let Some(c) = &m.tp.comm {
                                 c.abort();
@@ -523,7 +569,7 @@ impl Model {
                 })
                 .collect();
             // the senders move into rank 0's run: they drop when it returns, so a peer waiting for an id never outlives it
-            let r0 = self.mtp_draft_rank(st, next, k, DraftLink::Lead(txs));
+            let r0 = self.mtp_draft_rank(st, next, k, DraftLink::Lead(txs), None);
             if r0.is_err() {
                 comm0.abort();
             }
@@ -546,7 +592,14 @@ impl Model {
 
     /// One rank's share of [`Model::mtp_draft`]: `Solo` (one rank), `Lead` (rank 0: drafts, sends each chained id on),
     /// `Follow` (a peer: runs the same passes on the ids rank 0 sends; returns no drafts).
-    fn mtp_draft_rank(&self, st: &mut SequenceState, next: u32, k: usize, link: DraftLink) -> Result<Vec<u32>> {
+    fn mtp_draft_rank(
+        &self,
+        st: &mut SequenceState,
+        next: u32,
+        k: usize,
+        link: DraftLink,
+        mut pick: Option<&mut dyn FnMut(&[f32]) -> u32>,
+    ) -> Result<Vec<u32>> {
         let head =
             self.mtp.as_ref().ok_or_else(|| Error::invalid("--spec mtp without the MTP head (LoadOptions::mtp)"))?;
         let m = st.mtp.as_ref().ok_or_else(|| Error::invalid("sequence without MTP state"))?;
@@ -562,6 +615,11 @@ impl Model {
         }
         let profile = false;
         let first = self.mtp_run_pending(st, n, Some(next), profile);
+        // sampled drafts: the head's logits row is still in `ws.logits` after its argmax
+        let first = first.and_then(|t| match pick.as_mut() {
+            Some(f) => Ok(f(&self.draft_logits_row()?)),
+            None => Ok(t),
+        });
         let first = match first {
             Ok(t) => t,
             Err(e) => {
@@ -599,7 +657,11 @@ impl Model {
                 let out = self.mtp_layer(head, &m.kv, &ids, &hid, profile)?;
                 m.kv.commit(&ids);
                 if !matches!(link, DraftLink::Follow(_)) {
-                    drafts.push(self.draft_head_argmax(&out, 0, profile)?);
+                    let t = self.draft_head_argmax(&out, 0, profile)?;
+                    drafts.push(match pick.as_mut() {
+                        Some(f) => f(&self.draft_logits_row()?),
+                        None => t,
+                    });
                 }
                 if self.recorder.lock().unwrap().is_none() {
                     self.backend.copy(&head.chain, 0, &out.buf, out.offset, m.row_bytes, 0)?;
@@ -624,8 +686,10 @@ impl Model {
         if matches!(link, DraftLink::Follow(_)) {
             return Ok(Vec::new());
         }
-        if let Some(d) = self.scripted_drafts(st, next, drafts.len()) {
-            drafts = d;
+        if pick.is_none() {
+            if let Some(d) = self.scripted_drafts(st, next, drafts.len()) {
+                drafts = d;
+            }
         }
         Ok(drafts)
     }
