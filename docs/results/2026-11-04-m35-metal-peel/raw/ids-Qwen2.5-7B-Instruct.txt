@@ -1,0 +1,5 @@
+model Qwen2.5-7B-Instruct main binary, 256 greedy ids, solo vs behind a decoding row
+prompt 258 plen 258 mod256 2: solo == behind (256 ids)
+prompt 260 plen 260 mod256 4: solo == behind (256 ids)
+prompt 265 plen 265 mod256 9: solo == behind (256 ids)
+prompt 1028 plen 1028 mod256 4: solo == behind (256 ids)

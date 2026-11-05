@@ -1,0 +1,16 @@
+{"name": "p515", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 211, "max_tokens": 515}
+{"name": "d579", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 211, "max_tokens": 579}
+{"name": "p517", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 252, "max_tokens": 517}
+{"name": "d581", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 252, "max_tokens": 581}
+{"name": "p518", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 293, "max_tokens": 518}
+{"name": "d582", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 293, "max_tokens": 582}
+{"name": "p519", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 334, "max_tokens": 519}
+{"name": "d583", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 334, "max_tokens": 583}
+{"name": "p522", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 375, "max_tokens": 522}
+{"name": "d586", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 375, "max_tokens": 586}
+{"name": "p1026", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 416, "max_tokens": 1026}
+{"name": "d1090", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 416, "max_tokens": 1090}
+{"name": "p1032", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 457, "max_tokens": 1032}
+{"name": "d1096", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 457, "max_tokens": 1096}
+{"name": "p1034", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 498, "max_tokens": 1034}
+{"name": "d1098", "kind": "raw", "file": "corpus_docs.txt", "skip_tokens": 498, "max_tokens": 1098}

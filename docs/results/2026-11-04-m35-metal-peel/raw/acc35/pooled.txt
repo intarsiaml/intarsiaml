@@ -1,0 +1,6 @@
+prefill: 3 prompts reached; mean KL before 1.2158e-02 after 1.2162e-02 (after/before 1.000, median per-prompt ratio 1.000); paired diff (before - after) -4.237e-06 +- 5.2e-06 se (t -0.82); after closer on 1, farther on 2; sign-test p 1.000
+   rows that differ: 14; after closer on 4, farther on 10; median per-row ratio after/before 1.196 (rows of one prompt are correlated, so this is descriptive, not a test)
+   per prompt (before, after): p2050:1.43e-02/1.44e-02, p2056:1.03e-02/1.03e-02, p1030:1.18e-02/1.18e-02
+decode : 9 prompts reached; mean KL before 1.2899e-02 after 3.0405e-02 (after/before 2.357, median per-prompt ratio 0.906); paired diff (before - after) -1.751e-02 +- 1.8e-02 se (t -0.95); after closer on 7, farther on 2; sign-test p 0.180
+   rows that differ: 288; after closer on 139, farther on 149; median per-row ratio after/before 1.032 (rows of one prompt are correlated, so this is descriptive, not a test)
+   per prompt (before, after): d2082:2.58e-02/1.91e-01, d1062:1.20e-02/9.85e-03, d2083:1.31e-02/1.15e-02, d2086:1.11e-02/1.30e-02, d804:7.83e-03/6.24e-03, d2081:1.25e-02/1.19e-02, d2084:6.32e-03/5.73e-03, d2087:1.57e-02/1.52e-02, d2088:1.17e-02/8.91e-03
