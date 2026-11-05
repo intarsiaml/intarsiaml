@@ -394,6 +394,54 @@ fn real_shapes_against_the_cpu_reference() {
 
 /// attn_sparse prefill rows (T > 16: one block per query and head group, the direct-write branch, no split merge) and the
 /// split / direct boundary, at the model's head shape, against the cpu reference.
+/// `INTARSIA_DSV41_HC_SIDE`: the two halves of `hc_sublayer` (`DsvAttrs::hc_mode` 1: the fold and the norm; 2: the mixing dots on the stored h
+/// and the Sinkhorn) give the fused launch's bytes, fold or not, at the row counts of decode, verify and the draft block.
+#[test]
+fn hc_sublayer_halves_equal_the_fused_launch_bit_for_bit() {
+    let Some(cuda) = device() else { return };
+    let m = (2 + S) * S;
+    for t in [1usize, 2, 3, 5, 16] {
+        for fold in [false, true] {
+            let mut rng = SplitMix64::new(0x4c51 + t as u64);
+            let r = &mut rng;
+            let mut at = OpAttrs { eps: 1e-20, ..OpAttrs::default() };
+            (at.dsv.iters, at.dsv.hc_eps) = (20, 1e-6);
+            let mut inputs = vec![
+                rand_t(r, BF, &[t, S, D], 1.0),
+                rand_t(r, DType::F32, &[m, S * D], 0.01),
+                rand_t(r, DType::F32, &[3], 0.5),
+                rand_t(r, DType::F32, &[m], 0.5),
+                rand_t(r, DType::F32, &[t, S], 0.7),
+                rand_t(r, BF, &[D], 1.0),
+            ];
+            let h_shape: Vec<usize> = if fold { vec![t, S, D] } else { vec![0] };
+            if fold {
+                inputs.extend([rand_t(r, BF, &[t, D], 1.0), rand_t(r, DType::F32, &[t, S], 1.0), rand_t(r, DType::F32, &[t, S, S], 0.5)]);
+            } else {
+                inputs.extend([HostTensor::zeros(BF, &[0]), HostTensor::zeros(DType::F32, &[0]), HostTensor::zeros(DType::F32, &[0])]);
+            }
+            let outs = |h: Option<HostTensor>| {
+                vec![out(BF, &[t, D]), out(DType::F32, &[t, S]), out(DType::F32, &[t, S]), out(DType::F32, &[t, S, S]), OutSpec { dtype: BF, shape: h_shape.clone(), init: h }]
+            };
+            let call = |mode: u8, h: Option<HostTensor>| {
+                let mut a = at.clone();
+                a.dsv.hc_mode = mode;
+                HostCall { op: Op::HcSublayer, inputs: inputs.clone(), outputs: outs(h), attrs: a }
+            };
+            let whole = run_host(&*cuda, "hc_sublayer", &call(0, None)).unwrap();
+            let main = run_host(&*cuda, "hc_sublayer", &call(1, None)).unwrap();
+            let side = run_host(&*cuda, "hc_sublayer", &call(2, Some(main[4].clone()))).unwrap();
+            assert_eq!(whole[0].data, main[0].data, "n, fold={fold} T={t}");
+            assert_eq!(whole[4].data, main[4].data, "h_out, fold={fold} T={t}");
+            for (i, name) in [(1, "pre"), (2, "post"), (3, "comb")] {
+                assert_eq!(whole[i].data, side[i].data, "{name}, fold={fold} T={t}");
+            }
+            assert!(whole[1].data.iter().any(|&b| b != 0), "the reference wrote pre");
+            assert!(main[1].data.iter().all(|&b| b == 0), "the main half leaves pre alone");
+        }
+    }
+}
+
 #[test]
 fn attn_sparse_prefill_rows_against_the_cpu_reference() {
     let Some(cuda) = device() else { return };
