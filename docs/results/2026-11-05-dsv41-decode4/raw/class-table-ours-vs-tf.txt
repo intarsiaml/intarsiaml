@@ -1,0 +1,110 @@
+### ours (w1 ab0, spec on, TF prompt 96 tokens)
+
+== ours verify 3 rows: 19 passes, span median 40.42 ms, kernels 2458
+  class         ksum     crit  launches
+  dense        14.62    12.18      1343
+  moe          18.51    18.49       200
+  coll          2.25     2.25       163
+  hc            2.91     2.91       171
+  attn          2.70     2.69       356
+  other         0.84     0.84       146
+  prefetch      8.02     0.00        79
+  idle          0.00     0.95         0
+  total        49.84    40.31
+
+== ours verify 4 rows: 7 passes, span median 46.40 ms, kernels 2458
+  class         ksum     crit  launches
+  dense        15.33    12.69      1343
+  moe          22.82    22.79       200
+  coll          2.72     2.72       163
+  hc            3.16     3.16       171
+  attn          3.17     3.16       356
+  other         0.83     0.83       146
+  prefetch      8.21     0.00        79
+  idle          0.00     0.83         0
+  total        56.25    46.19
+
+== ours verify 5 rows: 8 passes, span median 51.69 ms, kernels 2458
+  class         ksum     crit  launches
+  dense        15.60    12.94      1343
+  moe          28.16    28.14       200
+  coll          2.47     2.47       163
+  hc            3.20     3.20       171
+  attn          3.19     3.19       356
+  other         0.82     0.82       146
+  prefetch      8.21     0.00        79
+  idle          0.00     0.82         0
+  total        61.65    51.58
+
+== ours draft block: 36 passes, span median 4.50 ms, kernels 159
+  class         ksum     crit  launches
+  dense         1.98     1.74        78
+  moe           1.20     1.20        15
+  coll          0.26     0.26        13
+  hc            0.23     0.23        15
+  attn          0.10     0.10        21
+  other         0.06     0.06        12
+  prefetch      0.46     0.00         5
+  idle          0.00     0.83         0
+  total         4.29     4.42
+
+== ours rounds: 36; period 47.13 ms (mean 50.52); verify span 42.66; draft span 4.50; gap verify->draft 0.000; gap draft->verify 0.000
+   rows 2: 2 rounds, period median 42.73
+   rows 3: 19 rounds, period median 45.46
+   rows 4: 7 rounds, period median 51.92
+   rows 5: 8 rounds, period median 56.26
+
+### TF (draftdev tfprof, 1222-token prompt, 48 tokens)
+
+== TF verify 2 rows: 3 passes, span median 27.66 ms, kernels 1250
+  class         ksum     crit  launches
+  dense        10.97     7.36       274
+  moe          16.30    13.41        80
+  coll          3.35     1.18       168
+  hc            4.35     2.98       320
+  attn          3.41     1.80       158
+  other         0.97     0.70       130
+  prefetch      9.05     0.00       120
+  idle          0.00     0.25         0
+  total        48.41    27.68
+
+== TF verify 3 rows: 12 passes, span median 32.19 ms, kernels 1250
+  class         ksum     crit  launches
+  dense        11.67     7.64       274
+  moe          20.13    17.36        80
+  coll          3.27     1.26       168
+  hc            4.73     3.02       320
+  attn          3.48     1.88       158
+  other         1.09     0.75       130
+  prefetch      9.49     0.00       120
+  idle          0.00     0.20         0
+  total        53.86    32.10
+
+== TF verify 4 rows: 5 passes, span median 37.19 ms, kernels 1250
+  class         ksum     crit  launches
+  dense        11.70     7.58       274
+  moe          24.82    22.00        80
+  coll          3.24     1.30       168
+  hc            4.62     2.92       320
+  attn          3.63     1.93       158
+  other         1.09     0.76       130
+  prefetch      9.26     0.00       120
+  idle          0.00     0.18         0
+  total        58.37    36.66
+
+== TF draft block: 20 passes, span median 3.82 ms, kernels 115
+  class         ksum     crit  launches
+  dense         2.11     1.77        26
+  moe           1.28     1.13         6
+  coll          0.28     0.10        22
+  hc            0.25     0.17        13
+  attn          0.19     0.14        17
+  other         0.53     0.42        31
+  prefetch      0.00     0.00         0
+  idle          0.00     0.01         0
+  total         4.63     3.74
+
+== TF rounds: 20; period 36.28 ms (mean 37.24); verify span 32.35; draft span 3.82; gap verify->draft 0.119; gap draft->verify 0.065
+   rows 2: 3 rounds, period median 31.86
+   rows 3: 12 rounds, period median 36.27
+   rows 4: 5 rounds, period median 42.09
