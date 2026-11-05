@@ -1,0 +1,1781 @@
+{
+ "run_id": "20261105-164500-adhoc-dsv41-intarsia-tp2-cat-ab3",
+ "kind": "quality",
+ "label": "dsv41-intarsia-tp2-cat-ab3",
+ "started_at": "2026-11-05T16:45:00-05:00",
+ "finished_at": "2026-11-05T16:47:33-05:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://100.120.88.104:8899/v1",
+  "model": "dsv41-intarsia",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "intarsia cc47e4352 dirty=no 1105-1605 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 32768 chunk engine, engram hot 1024 MiB"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval quality --dataset /opt/code/deepeval/datasets/categories-rcp.jsonl --dataset /opt/code/intarsiaml/.worktrees/dsv41-decode4/scripts/dsv41-tp2/chat-rcp.jsonl --judge none --max-tokens 256 --label dsv41-intarsia-tp2-cat-ab3 --url http://100.120.88.104:8899/v1 --model dsv41-intarsia --thinking off --recipe intarsia cc47e4352 dirty=no 1105-1605 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 32768 chunk engine, engram hot 1024 MiB",
+  "git": "a43b846"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": null,
+ "benchmarks": [],
+ "datasets": [
+  {
+   "dataset": "/opt/code/deepeval/datasets/categories-rcp.jsonl",
+   "rows": 24,
+   "judge": null,
+   "metrics": {
+    "Contains expected": {
+     "mean": null,
+     "pass_rate": null,
+     "n": 0,
+     "n_na": 24,
+     "errors": 0
+    },
+    "TTFT (s)": {
+     "mean": 0.194,
+     "pass_rate": 1.0,
+     "n": 24,
+     "n_na": 0,
+     "errors": 0
+    },
+    "Prefill (tok/s)": {
+     "mean": null,
+     "pass_rate": null,
+     "n": 0,
+     "n_na": 24,
+     "errors": 0
+    },
+    "Decode (tok/s)": {
+     "mean": 60.215,
+     "pass_rate": 1.0,
+     "n": 24,
+     "n_na": 0,
+     "errors": 0
+    }
+   },
+   "cases": [
+    {
+     "name": "recall-tcp-handshake",
+     "success": true,
+     "actual_output": "# TCP Three-Way Handshake and Four-Way Teardown\n\nTCP is a connection-oriented protocol, meaning both endpoints must agree on a connection before data can flow, and both must agree before it closes. This is achieved through the **three-way handshake** (connection establishment) and the **four-way teardown** (connection termination).\n\n---\n\n## 1. The TCP Three-Way Handshake\n\nBefore any data is exchanged, the client and server synchronize sequence numbers and confirm bidirectional reachability.\n\n### Step 1: SYN (Client \u2192 Server)\n\n- The client picks an initial sequence number (**ISN**, call it `x`) \u2014 typically randomized for security.\n- It sends a segment with the **SYN flag set** and `seq = x`.\n- No data is carried (though options like MSS, window scaling, SACK-permitted may be included).\n- Client state: **SYN_SENT**.\n\n### Step 2: SYN-ACK (Server \u2192 Client)\n\n- The server allocates its own ISN (`y`) and responds with **both SYN and ACK flags set**.\n- `seq = y` (server's ISN), `ack = x + 1` (acknowledging the client's SYN",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 39,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.19087725004646927,
+      "prefill_tok_s": 204.31979185840854,
+      "decode_tok_s": 59.25157535299981,
+      "peak_decode_tok_s": 140.8,
+      "total_s": 4.494702916010283,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.191,
+       "success": true,
+       "reason": "TTFT (s) = 0.191 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=39, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 59.252,
+       "success": true,
+       "reason": "Decode (tok/s) = 59.252 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "recall-photosynthesis",
+     "success": true,
+     "actual_output": "# Photosynthesis: The Two Stages\n\nPhotosynthesis converts light energy into chemical energy (glucose) and occurs in the chloroplast. It has two linked stages: the **light-dependent reactions** (in the thylakoid membranes) and the **Calvin cycle** (in the stroma).\n\n---\n\n## Stage 1: Light-Dependent Reactions\n\n**Location:** Thylakoid membranes of the chloroplast (specifically the photosystems embedded there).\n\n**Purpose:** Convert light energy into ATP and NADPH, and split water to release O\u2082.\n\n### Step by step:\n\n1. **Light absorption by Photosystem II (PSII)**\n   - Chlorophyll and accessory pigments in PSII absorb photons.\n   - Excited electrons are passed to the primary electron acceptor, leaving PSII \"electron-deficient.\"\n\n2. **Photolysis of water (water splitting)**\n   - An enzyme complex (oxygen-evolving complex) splits water: **2 H\u2082O \u2192 4 H\u207a + 4 e\u207b + O\u2082**\n   - The electrons replace those lost by PSII; **O\u2082 is released** as a byproduct; protons accumulate in the thylakoid lumen.\n\n3. **Electron transport chain (ETC)**\n   - Electrons",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 32,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.17669504194054753,
+      "prefill_tok_s": 181.10298765919543,
+      "decode_tok_s": 65.77699129573583,
+      "peak_decode_tok_s": 93.4,
+      "total_s": 4.053578083985485,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.177,
+       "success": true,
+       "reason": "TTFT (s) = 0.177 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=32, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 65.777,
+       "success": true,
+       "reason": "Decode (tok/s) = 65.777 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "recall-french-revolution",
+     "success": true,
+     "actual_output": "# The French Revolution, 1789\u20131799: Causes, Phases, and Consequences\n\n## I. Main Causes\n\n**Structural and social:**\n- **Rigid social hierarchy** (the *Ancien R\u00e9gime*): society divided into three estates \u2014 clergy (First), nobility (Second), and everyone else (Third Estate, ~97% of the population). The Third Estate bore most taxes while the first two enjoyed privileges and exemptions.\n- **Rising bourgeoisie** \u2014 merchants, professionals, and lawyers who were economically powerful but politically excluded.\n- **Peasant grievances** \u2014 feudal dues, tithes, and hunger amid poor harvests (especially 1788).\n\n**Political:**\n- **Absolutist monarchy** \u2014 Louis XVI ruled by divine right, but the monarchy was indecisive and lacked reform capacity.\n- **Financial crisis** \u2014 debt from the Seven Years' War and American Revolutionary War, an inefficient tax system, and resistance of nobles to taxation forced Louis XVI to convene the **Estates-General** (May 1789), the first since 1614.\n\n**Intellectual:**\n- **Enlightenment ideas** \u2014 Montesquieu (separation of powers), Rousseau (popular sovereignty, general will), Voltaire (",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 37,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.17280079203192145,
+      "prefill_tok_s": 214.11938895028328,
+      "decode_tok_s": 56.207064113795084,
+      "peak_decode_tok_s": 86.2,
+      "total_s": 4.709703707951121,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.173,
+       "success": true,
+       "reason": "TTFT (s) = 0.173 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=37, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 56.207,
+       "success": true,
+       "reason": "Decode (tok/s) = 56.207 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "recall-git-internals",
+     "success": true,
+     "actual_output": "# How Git Stores Data Internally\n\nGit is fundamentally a **content-addressable filesystem** \u2014 a key-value store where keys are SHA-1 (or SHA-256) hashes of content, and values are objects. Everything else (branches, tags, the index) is built on top of this simple model.\n\n## The Four Object Types\n\nAll objects live in `.git/objects/` and are stored as zlib-compressed files. Each object's filename is its hash, split as `ab/cdef...` (first two chars = directory, rest = filename).\n\n### 1. Blobs\nA blob stores **file content only** \u2014 no filename, no permissions, no metadata. Just bytes.\n\n```\nblob <size>\\0<content>\n```\n\nTwo files with identical content share one blob. Renaming a file doesn't create a new blob; changing one byte does.\n\n### 2. Trees\nA tree represents a **directory listing**. Each entry contains:\n- mode (e.g., `100644` regular file, `100755` executable, `040000` directory, `120000` symlink)\n- object type (blob or tree)\n- SHA-1 of the child object\n- filename\n\n```",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 40,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.18782504193950444,
+      "prefill_tok_s": 212.96414784181644,
+      "decode_tok_s": 63.37808091205773,
+      "peak_decode_tok_s": 90.4,
+      "total_s": 4.216681499965489,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.188,
+       "success": true,
+       "reason": "TTFT (s) = 0.188 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=40, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 63.378,
+       "success": true,
+       "reason": "Decode (tok/s) = 63.378 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "recall-vaccines",
+     "success": true,
+     "actual_output": "# How Three Vaccine Platforms Train the Immune System\n\n## mRNA vaccines (e.g., Pfizer-BioNTech, Moderna COVID-19 vaccines)\n\n**Mechanism:** An mRNA molecule encoding a viral antigen (classically the spike protein) is packaged in lipid nanoparticles. After injection, cells take up the nanoparticles and translate the mRNA into the antigen protein, which is then displayed on the cell surface and processed into peptides presented on MHC class I molecules. This mimics what happens during a real intracellular infection: the immune system sees the antigen, dendritic cells mature and migrate to lymph nodes, and both CD8\u207a cytotoxic T cells and CD4\u207a helper T cells are primed, along with B cells that produce neutralizing antibodies. The mRNA itself is transient and degrades within days; it never enters the nucleus and cannot integrate into the genome.\n\n**Storage:** Historically the most demanding of the three. Early COVID-19 mRNA vaccines required ultra-cold storage (\u221270 \u00b0C for Pfizer, \u221220 \u00b0C for Moderna), though reformulated versions extended refrigerator stability to about 10 weeks (Pfizer) or 30 days (Moderna). This cold-chain burden is the main logistical drawback and has limited deployment in low-resource settings.\n\n**Typical side effects:**",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 34,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.16996008402202278,
+      "prefill_tok_s": 200.04697100287623,
+      "decode_tok_s": 55.376419173215034,
+      "peak_decode_tok_s": 88.2,
+      "total_s": 4.777860500034876,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.17,
+       "success": true,
+       "reason": "TTFT (s) = 0.17 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=34, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 55.376,
+       "success": true,
+       "reason": "Decode (tok/s) = 55.376 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "recall-cpu-caches",
+     "success": true,
+     "actual_output": "# How CPU Caches Work\n\n## The Basic Problem\n\nMain memory (DRAM) is ~100\u2013300 cycles away from the CPU. A cache hit in L1 is ~4 cycles. So the CPU keeps small, fast copies of recently-used memory close by. Caches are organized in a hierarchy (L1 \u2192 L2 \u2192 L3 \u2192 DRAM), each level larger and slower than the one above.\n\n## Cache Lines\n\nCaches don't move individual bytes \u2014 they move **cache lines**, typically **64 bytes** on x86/ARM. When you touch one byte, the whole 64-byte line is fetched. This exploits **spatial locality**: if you access `arr[i]`, you'll likely access `arr[i+1]` soon.\n\nConsequences:\n- Sequential access is fast; strided access that touches a new line per element wastes bandwidth.\n- A line is the unit of coherence and of transfer \u2014 everything below operates on lines, not bytes.\n\n## Associativity\n\nA cache is divided into **sets**, each holding some number of **ways** (slots). A memory address maps to exactly one set (via index bits), but can occupy any way within that set.\n\n- **Direct-mapped** (1 way",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 40,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.18348099989816546,
+      "prefill_tok_s": 218.00622419869393,
+      "decode_tok_s": 55.747268273100524,
+      "peak_decode_tok_s": 80.5,
+      "total_s": 4.760776457958855,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.183,
+       "success": true,
+       "reason": "TTFT (s) = 0.183 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=40, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 55.747,
+       "success": true,
+       "reason": "Decode (tok/s) = 55.747 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "recall-plate-tectonics",
+     "success": true,
+     "actual_output": "# Plate Tectonics: A Complete Overview\n\nPlate tectonics is the unifying theory of geology. It states that Earth's rigid outer shell\u2014the **lithosphere**\u2014is broken into roughly 15\u201320 large slabs (plates) that move over the weaker, partially molten **asthenosphere** beneath them, driven largely by convection in the mantle and by slab pull at subduction zones. Plates move at roughly 1\u201310 cm per year\u2014about the rate fingernails grow.\n\n---\n\n## The Three Types of Plate Boundaries\n\n### 1. Divergent Boundaries (plates move apart)\n\n**What happens:** Tensional forces pull the lithosphere apart. Magma rises to fill the gap, cools, and creates new crust. This is where seafloor spreading occurs.\n\n**Landforms produced:**\n- **Rift valleys** \u2014 On continents, stretching thins and cracks the crust; the central block drops between parallel normal faults. The **East African Rift** is the classic active example; the **Rio Grande Rift** in New Mexico is another. If rifting continues, the continent splits and a new ocean basin forms (as the Red Sea is doing today).\n- **Mid-ocean ridges** \u2014 Under the oceans, divergent",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 38,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.1742119169794023,
+      "prefill_tok_s": 218.12514699837024,
+      "decode_tok_s": 56.28219103862677,
+      "peak_decode_tok_s": 70.9,
+      "total_s": 4.70508466695901,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.174,
+       "success": true,
+       "reason": "TTFT (s) = 0.174 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=38, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 56.282,
+       "success": true,
+       "reason": "Decode (tok/s) = 56.282 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "recall-http2",
+     "success": true,
+     "actual_output": "# HTTP/1.1 vs HTTP/2 vs HTTP/3\n\n## HTTP/1.1 (1997)\n\n**Connection model:** One request per connection at a time (persistent connections keep the TCP socket open, but requests are still serialized). Browsers work around this by opening 6\u20138 parallel TCP connections per origin.\n\n**Multiplexing:** None at the protocol level. Pipelining existed on paper but was rarely used because responses must return in order and intermediaries handled it poorly.\n\n**Header compression:** None. Every request repeats full headers (cookies, User-Agent, etc.) as plain text \u2014 often hundreds of bytes per request.\n\n**Head-of-line (HOL) blocking:** Two layers of it:\n- *HTTP-level:* A slow response blocks all subsequent responses on that connection (why pipelining failed).\n- *TCP-level:* A lost packet stalls delivery of all later bytes on the connection until retransmission.\n\n**Transport:** TCP.\n\n---\n\n## HTTP/2 (2015)\n\n**Connection model:** One TCP connection per origin carrying many concurrent streams.\n\n**Multiplexing:** True multiplexing \u2014 requests and responses are split into frames tagged with a stream ID, interleaved on a single connection. Elim",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 44,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.25589149992447346,
+      "prefill_tok_s": 171.94787639678,
+      "decode_tok_s": 60.028112577441696,
+      "peak_decode_tok_s": 80.3,
+      "total_s": 4.5039958748966455,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.256,
+       "success": true,
+       "reason": "TTFT (s) = 0.256 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=44, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 60.028,
+       "success": true,
+       "reason": "Decode (tok/s) = 60.028 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "code-lru-cache",
+     "success": true,
+     "actual_output": "# LRU Cache Implementation\n\n```python\nfrom __future__ import annotations\n\nfrom typing import Dict, Generic, Optional, TypeVar\n\nK = TypeVar(\"K\")\nV = TypeVar(\"V\")\n\n\nclass _Node(Generic[K, V]):\n    \"\"\"Doubly-linked list node holding a key-value pair.\"\"\"\n\n    __slots__ = (\"key\", \"value\", \"prev\", \"next\")\n\n    def __init__(self, key: K, value: V) -> None:\n        self.key: K = key\n        self.value: V = value\n        self.prev: Optional[_Node[K, V]] = None\n        self.next: Optional[_Node[K, V]] = None\n\n\nclass LRUCache(Generic[K, V]):\n    \"\"\"A fixed-capacity Least Recently Used (LRU) cache.\n\n    All operations (``get``, ``put``, ``delete``) run in O(1) time by\n    combining a hash map with a doubly-linked list that tracks recency.\n\n    The most recently used item is kept at the head of the list; the least\n    recently used item is kept at the tail and is evicted when capacity is\n    exceeded.\n\n    Args:",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 46,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.2055145000340417,
+      "prefill_tok_s": 223.82848895031978,
+      "decode_tok_s": 82.952310709424,
+      "peak_decode_tok_s": 134.3,
+      "total_s": 3.2832757079740986,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.206,
+       "success": true,
+       "reason": "TTFT (s) = 0.206 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=46, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 82.952,
+       "success": true,
+       "reason": "Decode (tok/s) = 82.952 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "code-rate-limiter",
+     "success": true,
+     "actual_output": "# Thread-Safe Token-Bucket Rate Limiter\n\nBelow is a complete implementation with a context-manager interface, type hints, docstrings, and unit tests using a fake clock.\n\n## Implementation\n\n```python\n\"\"\"\nThread-safe token-bucket rate limiter.\n\nA token bucket holds up to `capacity` tokens and refills at `rate` tokens per\nsecond. Each acquisition consumes one token; if none are available the caller\nblocks until a token becomes available (or raises if `blocking=False`).\n\"\"\"\n\nfrom __future__ import annotations\n\nimport threading\nimport time\nfrom types import TracebackType\nfrom typing import Callable, Optional, Type\n\n\nclass TokenBucket:\n    \"\"\"\n    A thread-safe token-bucket rate limiter usable as a context manager.\n\n    Example\n    -------\n    >>> bucket = TokenBucket(rate=10, capacity=10)\n    >>> with bucket:            # blocks until a token is available\n    ...     do_work()\n\n    Parameters\n    ----------\n    rate:\n        Tokens added per second. Must be > 0.\n    capacity:\n        Maximum number of tokens the bucket can hold. Must be >= 1.\n    clock:\n        Callable returning the current time in seconds. Defaults to",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 39,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.18000095896422863,
+      "prefill_tok_s": 216.6655123640226,
+      "decode_tok_s": 68.64967690832746,
+      "peak_decode_tok_s": 99.7,
+      "total_s": 3.89788033394143,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.18,
+       "success": true,
+       "reason": "TTFT (s) = 0.18 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=39, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 68.65,
+       "success": true,
+       "reason": "Decode (tok/s) = 68.65 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "code-json-parser",
+     "success": true,
+     "actual_output": "# Recursive-Descent JSON Parser\n\n```python\nclass JSONParseError(Exception):\n    def __init__(self, msg, pos, text):\n        self.pos = pos\n        self.text = text\n        # Show a caret pointing at the error position\n        line_start = text.rfind('\\n', 0, pos) + 1\n        line_end = text.find('\\n', pos)\n        if line_end == -1:\n            line_end = len(text)\n        line = text[line_start:line_end]\n        col = pos - line_start\n        pointer = ' ' * col + '^'\n        super().__init__(f\"{msg} at position {pos} (line {text.count(chr(10), 0, pos)+1}, col {col+1})\\n  {line}\\n  {pointer}\")\n\n\nclass JSONParser:\n    def __init__(self, text):\n        self.text = text\n        self.pos = 0\n        self.n = len(text)\n\n    # ---- helpers ----\n    def peek(self):\n        return self.text[self.pos] if self.pos < self.n else ''\n\n    def error(self, msg):\n        raise JSONParseError(msg, self.pos, self",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 44,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.2019499579910189,
+      "prefill_tok_s": 217.87575713165916,
+      "decode_tok_s": 81.53878394042637,
+      "peak_decode_tok_s": 116.0,
+      "total_s": 3.332622415968217,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.202,
+       "success": true,
+       "reason": "TTFT (s) = 0.202 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=44, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 81.539,
+       "success": true,
+       "reason": "Decode (tok/s) = 81.539 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "code-rust-cli",
+     "success": true,
+     "actual_output": "# Word Frequency Counter in Rust\n\nBelow is a complete, well-commented Rust program that reads a text file, counts word frequencies, and prints the top 20 most common words.\n\n## `Cargo.toml`\n\n```toml\n[package]\nname = \"word_freq\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\n```\n\nNo external dependencies are required \u2014 we'll use only the standard library.\n\n## `src/main.rs`\n\n```rust\n//! A command-line tool that counts word frequencies in a text file\n//! and prints the top 20 most common words.\n//!\n//! Usage:\n//!     word_freq <path-to-text-file>\n//!\n//! Words are defined as sequences of alphanumeric characters (plus\n//! apostrophes and hyphens), case-insensitive.\n\nuse std::collections::HashMap;\nuse std::env;\nuse std::fs;\nuse std::process;\n\n/// Number of top words to display.\nconst TOP_N: usize = 20;\n\nfn main() {\n    // Collect command-line arguments. The first element is the program\n    // name, so we expect exactly one additional argument (the file path).\n    let args: Vec<String",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 38,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.18260875006671995,
+      "prefill_tok_s": 208.095176086118,
+      "decode_tok_s": 70.75104430767459,
+      "peak_decode_tok_s": 128.7,
+      "total_s": 3.789805666077882,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.183,
+       "success": true,
+       "reason": "TTFT (s) = 0.183 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=38, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 70.751,
+       "success": true,
+       "reason": "Decode (tok/s) = 70.751 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "code-sql-schema",
+     "success": true,
+     "actual_output": "# PostgreSQL Library System Schema\n\n## Schema Design\n\n```sql\n-- ============================================================\n-- EXTENSIONS\n-- ============================================================\nCREATE EXTENSION IF NOT EXISTS pg_trgm;  -- for fuzzy title search\n\n-- ============================================================\n-- AUTHORS\n-- ============================================================\nCREATE TABLE authors (\n    author_id     BIGSERIAL PRIMARY KEY,\n    first_name    VARCHAR(100) NOT NULL,\n    last_name     VARCHAR(100) NOT NULL,\n    birth_date    DATE,\n    nationality   VARCHAR(80),\n    bio           TEXT,\n    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()\n);\n\nCREATE INDEX idx_authors_last_name ON authors (last_name);\nCREATE INDEX idx_authors_full_name ON authors (lower(first_name || ' ' || last_name));\n\n-- ============================================================\n-- BOOKS\n-- ============================================================\nCREATE TABLE books (\n    book_id       BIGSERIAL PRIMARY KEY,\n    isbn          VARCHAR(20) UNIQUE,\n    title         VARCHAR(300) NOT NULL,\n    publisher     VARCHAR(200),\n    published_year SMALLINT CHECK (published_year BETWEEN 1400 AND 2100),\n    genre         VARCHAR(80),\n    total_copies  INTEGER",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 39,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.35054270806722343,
+      "prefill_tok_s": 111.25605839879854,
+      "decode_tok_s": 86.50512915753261,
+      "peak_decode_tok_s": 218.1,
+      "total_s": 3.3018409999785945,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.351,
+       "success": true,
+       "reason": "TTFT (s) = 0.351 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=39, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 86.505,
+       "success": true,
+       "reason": "Decode (tok/s) = 86.505 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "code-ts-debounce",
+     "success": true,
+     "actual_output": "# Debounce & Throttle in TypeScript\n\nBelow are production-ready implementations with full generic typing, `cancel`/`flush` methods, JSDoc, and Jest tests using fake timers.\n\n---\n\n## `debounce.ts`\n\n```typescript\n/**\n * A debounced function with additional control methods.\n */\nexport interface DebouncedFunction<TArgs extends unknown[], TReturn> {\n  /** Invoke the debounced function. */\n  (...args: TArgs): void;\n  /**\n   * Cancel any pending invocation. The pending call will not be executed.\n   */\n  cancel(): void;\n  /**\n   * Immediately invoke the pending call (if any) and return its result.\n   * If no call is pending, returns `undefined`.\n   */\n  flush(): TReturn | undefined;\n  /** Returns `true` if a call is currently pending. */\n  pending(): boolean;\n}\n\n/**\n * Creates a debounced version of `fn` that delays invoking `fn` until\n * `wait` milliseconds have elapsed since the last time the debounced\n * function was invoked.\n *\n * @typeParam TArgs - Argument tuple of the wrapped function.\n * @typeParam TReturn - Return type of the wrapped function.\n * @param fn - The",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 38,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.18262470792979002,
+      "prefill_tok_s": 208.07699259734932,
+      "decode_tok_s": 68.32444469286415,
+      "peak_decode_tok_s": 93.2,
+      "total_s": 3.918362582917325,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.183,
+       "success": true,
+       "reason": "TTFT (s) = 0.183 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=38, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 68.324,
+       "success": true,
+       "reason": "Decode (tok/s) = 68.324 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "code-go-worker-pool",
+     "success": true,
+     "actual_output": "# Go Worker Pool with Context Cancellation and Error Collection\n\nHere's a complete, production-ready worker pool implementation:\n\n```go\npackage main\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"fmt\"\n\t\"sync\"\n\t\"time\"\n)\n\n// Job represents a unit of work to be processed.\ntype Job struct {\n\tID    int\n\tValue int\n}\n\n// Result holds the outcome of processing a job.\ntype Result struct {\n\tJobID int\n\tValue int\n\tErr   error\n}\n\n// WorkerPool manages a pool of workers processing jobs from a channel.\ntype WorkerPool struct {\n\tnumWorkers int\n\tjobs       <-chan Job\n\tprocess    func(ctx context.Context, job Job) (int, error)\n}\n\n// NewWorkerPool creates a new worker pool.\nfunc NewWorkerPool(numWorkers int, jobs <-chan Job, process func(ctx context.Context, job Job) (int, error)) *WorkerPool {\n\treturn &WorkerPool{\n\t\tnumWorkers: numWorkers,\n\t\tjobs:       jobs,\n\t\tprocess:    process,\n\t}\n}\n\n// Run starts the workers and blocks until all jobs are processed or the\n// context is cancelled. It returns all results (including errors) collected",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 38,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.17402825003955513,
+      "prefill_tok_s": 218.35535317606724,
+      "decode_tok_s": 75.8578359053408,
+      "peak_decode_tok_s": 125.5,
+      "total_s": 3.535718125058338,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.174,
+       "success": true,
+       "reason": "TTFT (s) = 0.174 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=38, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 75.858,
+       "success": true,
+       "reason": "Decode (tok/s) = 75.858 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "code-bash-backup",
+     "success": true,
+     "actual_output": "# Robust Directory Backup Script\n\n```bash\n#!/usr/bin/env bash\n#\n# backup.sh - Back up a directory to a timestamped tar.gz, retain the last 7\n#             backups, log all activity, and exit with clear error messages.\n#\n# Usage: ./backup.sh <source_directory> [backup_directory]\n#\n# Exit codes:\n#   0 - Success\n#   1 - Invalid arguments / usage error\n#   2 - Source directory missing or unreadable\n#   3 - Backup directory could not be created or is not writable\n#   4 - tar failed to create the archive\n#   5 - Log file could not be written\n#   6 - Cleanup (retention) step failed\n#\n\n# ---------------------------------------------------------------------------\n# Strict mode: fail fast on errors, unset variables, or failed pipes.\n# This prevents silent failures and makes debugging much easier.\n# ---------------------------------------------------------------------------\nset -euo pipefail\n\n# ---------------------------------------------------------------------------\n# Configuration\n# ---------------------------------------------------------------------------\nRETENTION_COUNT=7          # Number of backups to keep\nTIMESTAMP=\"$(date +%Y%m%d_%H%M%S)\"   # e.g. 20250115_143022\n\n#",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 46,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.20640166697558016,
+      "prefill_tok_s": 222.8664170887843,
+      "decode_tok_s": 68.69291381227715,
+      "peak_decode_tok_s": 97.2,
+      "total_s": 3.9217651250073686,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.206,
+       "success": true,
+       "reason": "TTFT (s) = 0.206 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=46, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 68.693,
+       "success": true,
+       "reason": "Decode (tok/s) = 68.693 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "prose-lighthouse",
+     "success": true,
+     "actual_output": "The salt spray had become a permanent perfume, and the constant roar of the Atlantic was the only music Elias had known for forty years. His world was the lighthouse: a stout, white tower on a jagged outcrop of rock, a solitary finger pointing at the sky. His companions were the gulls, the wind, and the steady, rhythmic sweep of the great lamp.\n\nEvery Tuesday, the supply boat brought him provisions. It also brought mail, though it was rarely for him. A bill, a circular, perhaps a Christmas card from a cousin he barely remembered. So when the boatman handed him a thick, cream-colored envelope with no return address, Elias felt a flicker of something he hadn\u2019t experienced in years: curiosity.\n\nThe handwriting was elegant, looping and deliberate, the ink a deep, confident blue. It was addressed simply to \u201cThe Keeper of the Light.\u201d He waited until his evening duties were done, the lamp lit and rotating its great, silent beam across the darkening sea. Then, in the quiet of his small, stone-walled quarters, he opened it.\n\n*Dear Keeper,*\n\n*You don\u2019t know me. My name is Clara, and I live in a city far from your shore. I am writing to",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 28,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.15355008305050433,
+      "prefill_tok_s": 182.35092709647373,
+      "decode_tok_s": 47.16161008643467,
+      "peak_decode_tok_s": 60.9,
+      "total_s": 5.563615458086133,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.154,
+       "success": true,
+       "reason": "TTFT (s) = 0.154 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=28, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 47.162,
+       "success": true,
+       "reason": "Decode (tok/s) = 47.162 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "prose-city-essay",
+     "success": true,
+     "actual_output": "# The Geography of Belonging\n\nI knew my city had become home the morning I realized I no longer needed to think about which way to turn. I was walking to the bakery on the corner of Pine and Fourth, and my feet carried me there while my mind wandered elsewhere entirely. That small act of unconscious navigation\u2014the body trusting the streets it had memorized\u2014felt more like belonging than any address ever could.\n\nHome is rarely the monuments. Tourists photograph the cathedral and the riverfront, and they are beautiful, but they don't make me feel held. What makes a city feel like home is the accumulation of small, repeated encounters: the barista who starts my coffee before I reach the counter, the crossing guard who nods at me every weekday morning, the man at the newsstand who saves me the last copy of the Saturday paper. These rituals are unremarkable individually, but together they form a kind of quiet contract\u2014I am expected here, and I expect to be here.\n\nThere is also the geography of familiarity, the way certain corners become landmarks of personal history. The bench where I ate lunch the day I got the job. The pharmacy where the pharmacist once talked me through a frightening diagnosis with more patience than my insurance deserved. The alley where",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 28,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.15301370806992054,
+      "prefill_tok_s": 182.99014090427264,
+      "decode_tok_s": 43.448382236360786,
+      "peak_decode_tok_s": 60.0,
+      "total_s": 6.02516362501774,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.153,
+       "success": true,
+       "reason": "TTFT (s) = 0.153 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=28, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 43.448,
+       "success": true,
+       "reason": "Decode (tok/s) = 43.448 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "prose-product-launch",
+     "success": true,
+     "actual_output": "# Fresh from Our Oven to Your Doorstep: Introducing Neighborhood Delivery! \ud83e\udd50\n\nHello, friends and neighbors!\n\nThere's something magical about the smell of fresh bread drifting through the neighborhood on a Saturday morning. For years, you've walked through our little bakery doors, greeted us by name, and carried home warm loaves tucked under your arm. Those moments\u2014the conversations across the counter, the flour-dusted smiles, the joy of a perfectly flaky croissant\u2014are the heart of what we do.\n\nAnd now, we're bringing that warmth straight to your doorstep.\n\n**We're thrilled to announce our brand-new neighborhood delivery service!**\n\n## Why We're Doing This\n\nOver the past few months, so many of you have shared how much you'd love our fresh-baked goods without making the trip\u2014new parents with little ones, folks working from home, neighbors who aren't as mobile as they used to be, and, let's be honest, anyone who simply loves the idea of breakfast arriving at their door. We listened. We brainstormed. We tested (and tasted!) more batches of cinnamon rolls than we care to admit. And today, we're finally ready to share the news.\n\n## What You Can Expect\n\nStarting **Monday, [",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 26,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.19616399996448308,
+      "prefill_tok_s": 132.5421586259838,
+      "decode_tok_s": 44.087406888972595,
+      "peak_decode_tok_s": 58.9,
+      "total_s": 5.980218707933091,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.196,
+       "success": true,
+       "reason": "TTFT (s) = 0.196 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=26, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 44.087,
+       "success": true,
+       "reason": "Decode (tok/s) = 44.087 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "prose-mountain-letter",
+     "success": true,
+     "actual_output": "Dear Sam,\n\nIt\u2019s just past nine, and the tent is glowing orange from my headlamp. I\u2019m writing this on the back of the route map because I wanted to talk to you before tomorrow, and satellite calls are a luxury up here. Outside, the wind is doing its slow, patient work on the ridge, and the glacier below us creaks like an old house settling. Tomorrow, if the weather holds, I\u2019ll go for the summit.\n\nI know you worry. You\u2019ve always been the one who reads the news stories I\u2019d rather not think about, the one who asks, \u201cBut why?\u201d when I tell you where I\u2019m headed next. So let me try to answer that, at least a little.\n\nPeople think mountaineers are chasing the top. That\u2019s part of it, sure. But the summit isn\u2019t really the point. The point is everything that gets you there: the slow, deliberate rhythm of breathing at altitude, the way your whole world narrows to the next step, the next handhold, the next breath. Up here, there\u2019s no room for the noise of ordinary life. No emails, no deadlines, no wondering what you should have said at that party three weeks",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 30,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.16009762499015778,
+      "prefill_tok_s": 187.38566547657587,
+      "decode_tok_s": 47.681193817795446,
+      "peak_decode_tok_s": 69.2,
+      "total_s": 5.508203667006455,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.16,
+       "success": true,
+       "reason": "TTFT (s) = 0.16 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=30, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 47.681,
+       "success": true,
+       "reason": "Decode (tok/s) = 47.681 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "prose-ocean-poem",
+     "success": true,
+     "actual_output": "**Nocturne for the Unlit Sea**\n\nThe sun has gone down like a stone dropped in a well,\nand the ocean takes the darkness into itself\nthe way an old man takes a memory\u2014\nslowly, without protest, until it fills him.\n\nOut past the breakers the water turns to ink,\na breathing blackness that lifts and settles,\nlifts and settles, as though the sea were asleep\nand dreaming of the moon it cannot hold.\n\nThe horizon is a seam where two darknesses meet\nand fail to recognize each other\u2014\nthe sky's deep bruise of indigo above,\nthe water's oil-black patience below.\n\nSomewhere a gull cries once and is silent,\nand the sound falls into the troughs between waves\nlike a coin into a fountain, swallowed whole.\n\nThe tide rehearses its ancient argument with the shore,\narriving, withdrawing, arriving again,\nnever winning, never tired of the attempt.\nIts voice is a whisper with gravel in it,\na hushing that hushes nothing.\n\nFar out, a single light\u2014a fishing boat, perhaps,\nor a star that lost its way and sank\u2014\nburns a small hole in the dark\nand is reflected, trembling, in the swell,\na needle of gold stitching water",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 31,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.23020941705908626,
+      "prefill_tok_s": 134.6599995605021,
+      "decode_tok_s": 44.20788378626816,
+      "peak_decode_tok_s": 56.3,
+      "total_s": 5.998542500077747,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.23,
+       "success": true,
+       "reason": "TTFT (s) = 0.23 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=31, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 44.208,
+       "success": true,
+       "reason": "Decode (tok/s) = 44.208 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "prose-robot-fable",
+     "success": true,
+     "actual_output": "In a city of gleaming chrome and ceaseless motion, there lived a small robot named Pip. Pip was a service unit, designed for efficiency. His purpose was to complete tasks with lightning speed, his every action optimized for the shortest possible path from problem to solution. He zipped through corridors, his sensors flashing, his joints whirring, a tiny whirlwind of productivity. The city\u2019s motto, etched on every building, was \"Faster is Better,\" and Pip was its most devout follower.\n\nOne day, Pip was assigned a new, peculiar task. An eccentric old inventor, who lived on the city's outskirts, had requested a service robot to tend her garden. Pip arrived at the address, his processors whirring with planned routes and watering schedules. But instead of a neat, geometric plot, he found a wild, sprawling tangle of green. Vines climbed over rusted metal sculptures, and flowers of every color bloomed in chaotic abandon. The inventor, a woman with kind eyes and soil-stained hands, simply pointed to a small, empty patch of earth and handed him a packet of seeds.\n\n\"Plant these,\" she said, \"and tend to them.\"\n\nPip scanned the packet. The instructions were simple: \"Plant seed.",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 29,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.15501954196952283,
+      "prefill_tok_s": 187.07318852549224,
+      "decode_tok_s": 43.769393261372265,
+      "peak_decode_tok_s": 60.9,
+      "total_s": 5.981129750027321,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.155,
+       "success": true,
+       "reason": "TTFT (s) = 0.155 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=29, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 43.769,
+       "success": true,
+       "reason": "Decode (tok/s) = 43.769 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "prose-travel",
+     "success": true,
+     "actual_output": "The morning sun, still soft and buttery, spills over the lip of the harbour and paints the cobblestones in hues of gold and rose. The air is a thick, intoxicating cocktail: a sharp, briny tang of the sea, the sweet perfume of ripe fruit, and the earthy, metallic scent of fish scales glinting on ice. This is the heart of the coastal town, and it is already beating.\n\nThe soundscape is a symphony of chaos. The rhythmic *thwack-thwack-thwack* of a fishmonger\u2019s cleaver against a wooden block provides the percussion. Over it, a chorus of voices rises and falls. A woman with a voice like gravel and honey haggles over the price of silver sardines, her hands a blur of motion. A young boy, barefoot and quick, darts between the stalls, his laughter a bright, fleeting melody. The low, mournful cry of a gull circling overhead adds a plaintive note, a reminder of the ever-present ocean just yards away.\n\nThe market is a feast for the senses. Mountains of glistening fish are laid out on beds of crushed ice: ruby-red mullet, sleek and silver mackerel, and the translucent,",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 32,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.16107495897449553,
+      "prefill_tok_s": 198.66526866579463,
+      "decode_tok_s": 49.714581442159925,
+      "peak_decode_tok_s": 67.0,
+      "total_s": 5.294719374971464,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.161,
+       "success": true,
+       "reason": "TTFT (s) = 0.161 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=32, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 49.715,
+       "success": true,
+       "reason": "Decode (tok/s) = 49.715 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "prose-history-scene",
+     "success": true,
+     "actual_output": "The air in the workshop was thick with the smell of lamp oil, wet ink, and the sharp, metallic tang of hot lead. I wiped a smear of grease from my forehead with the back of my hand, my gaze fixed on the master. Johannes Gutenberg stood before the great wooden press, his brow furrowed in concentration, his fingers tracing the grain of a freshly inked forme.\n\n\u201cFaster, Pieter,\u201d he grunted, not looking at me. \u201cThe ink must be worked into the type before it dries. Every second counts.\u201d\n\nI nodded, my arms already aching. I was fifteen, apprenticed to the man they called the sorcerer of Mainz. The other boys in the guild whispered that he was in league with the devil, that his strange machine of wood and iron was an abomination. But I had seen it. I had seen a page of the Bible emerge from the press, the letters so crisp and uniform they looked like they had been breathed onto the paper by angels. It was no devilry. It was a miracle.\n\nMy job was to ink the type. I took a leather ball stuffed with horsehair, dabbed it into the pot of viscous, oil-based ink, and began to beat it against the",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 36,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.24113475007470697,
+      "prefill_tok_s": 149.29411869855625,
+      "decode_tok_s": 49.77794927440509,
+      "peak_decode_tok_s": 63.7,
+      "total_s": 5.366854500025511,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.241,
+       "success": true,
+       "reason": "TTFT (s) = 0.241 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=36, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 49.778,
+       "success": true,
+       "reason": "Decode (tok/s) = 49.778 (no threshold)",
+       "error": null
+      }
+     }
+    }
+   ],
+   "speed": {
+    "calls": 24,
+    "errors": 0,
+    "prompt_tokens": {
+     "median": 38.0,
+     "min": 26,
+     "max": 46,
+     "n": 24,
+     "spread_pct": 52.6
+    },
+    "completion_tokens": {
+     "median": 256.0,
+     "min": 256,
+     "max": 256,
+     "n": 24,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.183,
+     "min": 0.153,
+     "max": 0.351,
+     "n": 24,
+     "spread_pct": 108.2
+    },
+    "prefill_tok_s": null,
+    "prefill_tok_s_all": {
+     "median": 202.183,
+     "min": 111.256,
+     "max": 223.828,
+     "n": 24,
+     "spread_pct": 55.7
+    },
+    "decode_tok_s": {
+     "median": 57.767,
+     "min": 43.448,
+     "max": 86.505,
+     "n": 24,
+     "spread_pct": 74.5
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_calls": 0,
+    "wall_s": 110.9,
+    "prefill_note": "no call had >= 1024 uncached prompt tokens; prefill_tok_s_all is overhead-dominated. Use `localeval speed` for prefill."
+   },
+   "judge_speed": null,
+   "error": null
+  },
+  {
+   "dataset": "/opt/code/intarsiaml/.worktrees/dsv41-decode4/scripts/dsv41-tp2/chat-rcp.jsonl",
+   "rows": 8,
+   "judge": null,
+   "metrics": {
+    "Contains expected": {
+     "mean": null,
+     "pass_rate": null,
+     "n": 0,
+     "n_na": 8,
+     "errors": 0
+    },
+    "TTFT (s)": {
+     "mean": 0.273,
+     "pass_rate": 1.0,
+     "n": 8,
+     "n_na": 0,
+     "errors": 0
+    },
+    "Prefill (tok/s)": {
+     "mean": null,
+     "pass_rate": null,
+     "n": 0,
+     "n_na": 8,
+     "errors": 0
+    },
+    "Decode (tok/s)": {
+     "mean": 51.675,
+     "pass_rate": 1.0,
+     "n": 8,
+     "n_na": 0,
+     "errors": 0
+    }
+   },
+   "cases": [
+    {
+     "name": "chat-weekend-trip",
+     "success": true,
+     "actual_output": "Here's a relaxed 2-day/2-night plan built around a small coastal town \u2014 I'll use a generic example (say, a drive-to beach town within a few hours of you), and you can swap in a real place near you.\n\n**Budget sketch (~$300 total)**\n- Lodging: 2 nights budget motel/Airbnb ~$180\n- Gas: ~$50 round trip\n- Food: ~$60 (mix of groceries + 2 casual meals)\n- Activities/parking: ~$10\n- Leaves a small buffer.\n\n**Day 1 (Friday) \u2014 Arrive & unwind**\n- Late afternoon: drive in, check in, drop bags.\n- Sunset walk on the beach or town pier (10\u201315 min, flat).\n- Casual dinner (fish tacos / pizza) or groceries for a simple meal.\n- Early night \u2014 no agenda.\n\n**Day 2 (Saturday) \u2014 The easy-walk day**\n- Slow morning: coffee, breakfast at the rental.\n- Late morning: one easy nature walk \u2014 a flat coastal trail, boardwalk, or lighthouse path, 1\u20132 miles, no elevation. Bring water.\n- Lunch in town.\n- Afternoon: pick one \u2014 nap/read",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 69,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.3407300829421729,
+      "prefill_tok_s": 202.5063340583002,
+      "decode_tok_s": 50.587443372541394,
+      "peak_decode_tok_s": 78.2,
+      "total_s": 5.384851207956672,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.341,
+       "success": true,
+       "reason": "TTFT (s) = 0.341 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=69, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 50.587,
+       "success": true,
+       "reason": "Decode (tok/s) = 50.587 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "chat-job-offer",
+     "success": true,
+     "actual_output": "Given that time with two young kids is your priority, the 15% raise deserves careful scrutiny \u2014 because a longer commute effectively \"taxes\" your raise in hours, and those hours come directly out of family time. Here's a framework and a set of questions.\n\n## How to think about it\n\n**1. Convert the commute into a real cost.**\n- Calculate the *extra* daily commute time (round trip), then multiply by your working days per year. That's hours lost annually.\n- Divide the raise by those extra hours to get your effective hourly gain \u2014 often it looks much smaller than 15%.\n- Also factor in costs: fuel/transit, childcare extending hours, maybe a second car or more takeout.\n\n**2. Think in \"net time,\" not gross pay.**\nA 15% raise on, say, $80k is ~$12k. If the commute adds 1.5 hours/day \u00d7 250 days = ~375 hours/year, that's roughly $32/hour of \"lost time\" \u2014 but the real question is what those 375 hours are worth to you (bedtime stories, school pickup, weekend energy).\n\n**3. Consider the smaller team as a double-edged sword.**\nSmaller team can",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 80,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.2649961659917608,
+      "prefill_tok_s": 301.89116020073794,
+      "decode_tok_s": 49.32082404293679,
+      "peak_decode_tok_s": 83.3,
+      "total_s": 5.435324291000143,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.265,
+       "success": true,
+       "reason": "TTFT (s) = 0.265 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=80, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 49.321,
+       "success": true,
+       "reason": "Decode (tok/s) = 49.321 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "chat-sourdough",
+     "success": true,
+     "actual_output": "Four hours at 19\u00b0C is almost certainly your problem. That's quite cool for sourdough, and a starter that takes 8 hours to double is on the sluggish side \u2014 which means your dough is likely underproofed when it goes in the oven. Underproofed dough = dense, gummy crumb.\n\nHere's what I'd change, in order of impact:\n\n**1. Extend bulk fermentation significantly.**\nAt 19\u00b0C, most doughs need 6\u20138+ hours to bulk properly, not 4. Don't go by the clock \u2014 go by the dough. Look for:\n- 50\u201375% rise (not doubling \u2014 sourdough bulk is usually judged by partial rise)\n- Domed, slightly jiggly surface\n- Visible bubbles on top and sides\n- Dough pulls away from the bowl edges a bit\n\n**2. Warm things up if you can.**\nEven moving to 22\u201324\u00b0C will speed everything up and make results more predictable. A turned-off oven with the light on, a warm spot near a radiator, or a proofing box all work. At 19\u00b0C you're fighting the cold the whole way.\n\n**3. Strengthen your starter.**",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 79,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.26173399994149804,
+      "prefill_tok_s": 301.8331589234025,
+      "decode_tok_s": 56.11722345468105,
+      "peak_decode_tok_s": 95.2,
+      "total_s": 4.809270791942254,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.262,
+       "success": true,
+       "reason": "TTFT (s) = 0.262 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=79, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 56.117,
+       "success": true,
+       "reason": "Decode (tok/s) = 56.117 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "chat-roommate",
+     "success": true,
+     "actual_output": "Yes \u2014 let's make this concrete. Here's a plan that keeps it low-drama but actually gets somewhere.\n\n## Before the conversation\n- **Pick a calm moment**, not right after finding a dirty sink. \"Hey, got a sec?\" beats a passive-aggressive sigh.\n- **Decide what you actually want**: a fair split (alternate days? each person does their own dishes same-day?) is easier to agree to than \"do better.\"\n\n## What to say\nKeep it short, factual, and non-blaming. Something like:\n\n> \"Hey, I wanted to bring something up because it's been bugging me. The dishes have been piling up and I've ended up doing most of them. I don't mind pitching in, but I'd like us to split it more evenly. Could we figure out a system that works for both of us?\"\n\nA few tips:\n- **Use \"I\" statements** (\"I've been doing most of them\") rather than \"you never...\"\n- **Name the pattern, not the person** \u2014 it's about the dishes, not their character.\n- **Propose a specific system** so it's easy to say yes to: \"How about whoever cooks doesn't do dishes, and we",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 72,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.24509920901618898,
+      "prefill_tok_s": 293.7585979530613,
+      "decode_tok_s": 52.31946597978402,
+      "peak_decode_tok_s": 79.1,
+      "total_s": 5.122115125064738,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.245,
+       "success": true,
+       "reason": "TTFT (s) = 0.245 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=72, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 52.319,
+       "success": true,
+       "reason": "Decode (tok/s) = 52.319 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "chat-learn-piano",
+     "success": true,
+     "actual_output": "Here's a realistic sketch of six months, assuming ~20\u201330 min practice, 4\u20135 days a week. Adjust to taste.\n\n**Months 1\u20132: Foundations**\n- Sitting posture, hand shape, relaxed arms; bench height.\n- Note names, treble and bass clefs, basic rhythm (quarter/eighth notes, counting aloud).\n- Five-finger patterns in C, G, F; simple two-hand coordination (melody RH, root notes LH).\n- First chords: C, F, G, Am \u2014 practice switching cleanly.\n- Ear training starts: sing/hum roots, clap rhythms.\n- Goal: play a simple 8-bar tune hands together, slowly.\n\n**Months 3\u20134: Chords and simple jazz harmony**\n- Major/minor triads in all keys (at least white keys), then 7th chords: maj7, min7, dom7.\n- ii\u2013V\u2013I in C and F (Dm7\u2013G7\u2013Cmaj7); arpeggiate and block-chord it.\n- Basic comping: LH root + RH chord, simple rhythms (whole/half notes, then light syncopation).\n- Swing feel intro: triplet subdivision, \"",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 64,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.2880585000384599,
+      "prefill_tok_s": 222.1770924706443,
+      "decode_tok_s": 48.1477077323113,
+      "peak_decode_tok_s": 76.3,
+      "total_s": 5.58429625001736,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.288,
+       "success": true,
+       "reason": "TTFT (s) = 0.288 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=64, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 48.148,
+       "success": true,
+       "reason": "Decode (tok/s) = 48.148 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "chat-houseplants",
+     "success": true,
+     "actual_output": "With a north-facing window and frequent travel, you want plants that tolerate low light **and** long gaps between waterings. Here's what to buy and how to keep them alive.\n\n## Buy these (in order of toughness)\n\n1. **Snake plant (Sansevieria)** \u2014 the single hardest houseplant to kill. Tolerates low light, needs water maybe every 3\u20134 weeks (less in winter). Buy one small pot; don't repot it.\n2. **ZZ plant (Zamioculcas zamiifolia)** \u2014 stores water in its rhizomes, survives months of neglect, fine in low light. Water every 3\u20134 weeks.\n3. **Pothos (Epipremnum aureum)** \u2014 trailing vine, very forgiving, will survive low light (just grows slower). Water every 2\u20133 weeks when the soil is dry.\n4. **Cast iron plant (Aspidistra elatior)** \u2014 literally named for its toughness; handles low light and drought.\n\nSkip succulents, ferns, calatheas, and most flowering plants \u2014 they'll struggle in your conditions.\n\n## How to look after them (the short version)\n\n- **Watering:** When you're home, water",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 72,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.253913167049177,
+      "prefill_tok_s": 283.56150583579347,
+      "decode_tok_s": 56.497246077056154,
+      "peak_decode_tok_s": 87.6,
+      "total_s": 4.770569166983478,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.254,
+       "success": true,
+       "reason": "TTFT (s) = 0.254 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=72, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 56.497,
+       "success": true,
+       "reason": "Decode (tok/s) = 56.497 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "chat-budget",
+     "success": true,
+     "actual_output": "Great \u2014 rent at about a third of your pay is on the higher side but manageable. Here's a simple, beginner-friendly split for the rest of your money each month.\n\n## The basic framework (after rent)\n\nThink of your remaining pay in three buckets, in this order:\n\n**1. Essentials \u2014 roughly 50% of what's left**\n- Groceries, utilities, phone, transport, insurance, minimum loan payments\n- This is non-negotiable spending. Track it loosely at first.\n\n**2. Savings & debt payoff \u2014 roughly 20%**\n- Split this between:\n  - A small **emergency fund** first (aim for one month of expenses, then build to 3\u20136 months)\n  - **Extra payments on the student loan** once the emergency fund has a starter cushion\n- Keep the emergency fund in a separate savings account so you don't dip into it.\n\n**3. Flexible spending \u2014 roughly 30%**\n- Eating out, hobbies, subscriptions, clothes, fun\n- This is your guilt-free money \u2014 but when it's gone, it's gone.\n\n## A practical monthly routine\n\n1. **Payday:** Rent and essentials come out first. Move the savings/debt amount to a separate account immediately \u2014",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 78,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.2535147910239175,
+      "prefill_tok_s": 307.6743557445577,
+      "decode_tok_s": 54.82560016806486,
+      "peak_decode_tok_s": 70.9,
+      "total_s": 4.907750291051343,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.254,
+       "success": true,
+       "reason": "TTFT (s) = 0.254 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=78, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 54.826,
+       "success": true,
+       "reason": "Decode (tok/s) = 54.826 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "chat-dog-training",
+     "success": true,
+     "actual_output": "Good \u2014 that treat-taking tells you a lot. If she'll still eat when a dog is at a distance, she's not over threshold yet, which means you have a working window to train in. Here's how I'd sequence it.\n\n## Work on first: leash pulling\n\nTackle this before the barking, for two reasons: it's the simpler behavior, and a dog who walks calmly on a loose leash is physically easier to manage when a dog appears. Also, pulling and barking often feed each other \u2014 a dog who's straining forward is already aroused before she even sees another dog.\n\n**The method (reward loose leash, never punish tension):**\n- Start indoors or in a low-distraction spot. Reward her for being beside you with slack in the leash \u2014 mark and treat frequently at first.\n- The moment the leash goes tight, **stop moving**. Stand still until she stops pulling (even turns back toward you), then mark and reward, then continue.\n- Change direction when she surges ahead \u2014 keep her guessing where you're going so she has to watch you.\n- Keep sessions to 5\u201310 minutes, a couple times a day. Short and frequent beats long and frustrating.\n- Use a front-clip harness or a plain flat collar \u2014",
+     "expected_output": null,
+     "speed": {
+      "prompt_tokens": 76,
+      "cached_tokens": 0,
+      "completion_tokens": 256,
+      "reasoning_tokens": null,
+      "ttft_s": 0.27503133402206004,
+      "prefill_tok_s": 276.3321505538133,
+      "decode_tok_s": 45.58516741159493,
+      "peak_decode_tok_s": 60.8,
+      "total_s": 5.869007375091314,
+      "prefill_reliable": false,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: no expected_output for this row",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 0.275,
+       "success": true,
+       "reason": "TTFT (s) = 0.275 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 0.0,
+       "success": true,
+       "reason": "N/A: Prefill (tok/s) not measurable for this call (uncached prompt tokens=76, need >= 1024)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 45.585,
+       "success": true,
+       "reason": "Decode (tok/s) = 45.585 (no threshold)",
+       "error": null
+      }
+     }
+    }
+   ],
+   "speed": {
+    "calls": 8,
+    "errors": 0,
+    "prompt_tokens": {
+     "median": 74.0,
+     "min": 64,
+     "max": 80,
+     "n": 8,
+     "spread_pct": 21.6
+    },
+    "completion_tokens": {
+     "median": 256.0,
+     "min": 256,
+     "max": 256,
+     "n": 8,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.263,
+     "min": 0.245,
+     "max": 0.341,
+     "n": 8,
+     "spread_pct": 36.3
+    },
+    "prefill_tok_s": null,
+    "prefill_tok_s_all": {
+     "median": 288.66,
+     "min": 202.506,
+     "max": 307.674,
+     "n": 8,
+     "spread_pct": 36.4
+    },
+    "decode_tok_s": {
+     "median": 51.453,
+     "min": 45.585,
+     "max": 56.497,
+     "n": 8,
+     "spread_pct": 21.2
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_calls": 0,
+    "wall_s": 41.9,
+    "prefill_note": "no call had >= 1024 uncached prompt tokens; prefill_tok_s_all is overhead-dominated. Use `localeval speed` for prefill."
+   },
+   "judge_speed": null,
+   "error": null
+  }
+ ],
+ "warnings": []
+}
