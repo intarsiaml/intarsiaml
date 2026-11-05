@@ -12,7 +12,7 @@ echo "window 1 on $HOST, $(date +%T), head $(git -C "$REPO" rev-parse --short HE
 for st in $STAGES; do case $st in
   build)
     BASE=$(git -C "$REPO" merge-base HEAD origin/main); echo "main = $BASE" | tee "$RES/main-ref.txt"
-    "$H/build.sh" "$BASE" main && "$H/build.sh" WORKTREE dev || { echo "BUILD FAILED"; exit 1; } ;;
+    "$H/build.sh" "$BASE" main && "$H/build.sh" HEAD dev || { echo "BUILD FAILED"; exit 1; } ;;
   data)
     (cd "$REPO" && uv run --with numpy --with safetensors --with tokenizers scripts/spark35num/mkcarrier.py "$TOK" "$RES/data") > "$RES/data-carriers.log" 2>&1
     (cd "$REPO" && uv run --with tokenizers scripts/spark35num/mkneedle.py "$TOK" "$RES/data") > "$RES/data-needle.log" 2>&1
