@@ -94,8 +94,10 @@ pub fn fingerprint(m: &Manifest, o: &Dsv41Opts, replay: bool) -> String {
         base.push_str(&format!(" | first layer {}", m.first_layer));
     }
     // bounded-replay prefill: the ranks must cut at the same place; off, the fingerprint is the one before it existed
+    // "skip": the primary may tell the other rank to run a prefill chunk without its decoder half (`FWD_ENCODER`), which a peer built
+    // before it would not understand: such binaries refuse to pair
     if replay {
-        base.push_str(" | replay");
+        base.push_str(" | replay skip");
     }
     // the spec-off fingerprint is the one before speculation existed, so old and new binaries still pair without it
     if o.spec {
@@ -542,6 +544,26 @@ impl Worker {
         out
     }
 
+    /// [`Worker::forward`] for a prefill chunk whose decoder half is dead work ([`Dsv41Runtime::skips_decoder_half`]): both ranks run it
+    /// encoder-only, no logits.
+    fn forward_encoder(&mut self, ids: &[u32]) -> Result<()> {
+        if let Some(r) = &self.remote {
+            r.start_encoder(ids)?;
+        }
+        let out = self.test_fault().and_then(|()| self.rank0_forward_encoder(ids));
+        settle(&mut self.remote, &out)?;
+        self.telemetry.step();
+        out
+    }
+
+    fn rank0_forward_encoder(&mut self, ids: &[u32]) -> Result<()> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.forward_encoder(&mut self.st, ids);
+        }
+        self.rt.forward_encoder_only(&mut self.st, ids)
+    }
+
     fn rank0_forward(&mut self, ids: &[u32], logits: bool) -> Result<Option<Vec<f32>>> {
         #[cfg(test)]
         if let Some(s) = &mut self.script {
@@ -564,7 +586,15 @@ impl Worker {
             if cancel.is_some_and(|c| c.load(std::sync::atomic::Ordering::Relaxed)) {
                 return Ok(None);
             }
-            out = self.forward(c, i + 1 == n)?;
+            // the rows after this chunk: when none of them reads this chunk's decoder-layer window keys, its decoder half (which the
+            // replay runs on the chunk's last `window` rows) is dead work, and the chunk runs encoder-only on both ranks
+            let ahead = ids.len() - (i * self.rt.opts.chunk + c.len());
+            if self.rt.skips_decoder_half(&self.st, c.len(), ahead) {
+                self.forward_encoder(c)?;
+                out = None;
+            } else {
+                out = self.forward(c, i + 1 == n)?;
+            }
             queued += c.len();
             if queued >= self.prefill_sync_rows && i + 1 < n {
                 self.device_wait()?;
@@ -1272,6 +1302,9 @@ mod failpath_tests {
             }
             Ok(logits.then(|| self.logits(st.len)))
         }
+        pub(super) fn forward_encoder(&mut self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+            self.forward(st, ids, false).map(|_| ())
+        }
         pub(super) fn device_wait(&mut self) -> Result<()> {
             if self.fail_wait {
                 return Err(Error::Memory("the device wait failed".into()));
@@ -1429,6 +1462,7 @@ mod failpath_tests {
         Forward,
         Draft,
         Verify,
+        Encoder,
         Freed,
     }
 
@@ -1450,6 +1484,12 @@ mod failpath_tests {
         }
         fn forward_rank(&self, st: &mut RecSeq, ids: &[u32], _graph: bool) -> Result<()> {
             self.0.lock().unwrap().push(Told::Forward);
+            self.1.lock().unwrap().push(ids.len());
+            st.0 += ids.len();
+            Ok(())
+        }
+        fn forward_rank_encoder(&self, st: &mut RecSeq, ids: &[u32]) -> Result<()> {
+            self.0.lock().unwrap().push(Told::Encoder);
             self.1.lock().unwrap().push(ids.len());
             st.0 += ids.len();
             Ok(())
@@ -1810,6 +1850,21 @@ mod failpath_tests {
         let told = sizes.lock().unwrap();
         assert_eq!((forwards, told.len()), (127, 127), "the waits add no pass and send nothing to the other rank");
         assert!(told[..126].iter().all(|n| *n == 512), "and leave the cuts alone");
+    }
+
+    /// A prefill chunk without its decoder half is a forward of its own on the wire (`FWD_ENCODER`): the other rank is told "encoder",
+    /// not "forward", and both ranks' sequences advance by the chunk. The decision itself (`skips_decoder_half`) needs the CUDA replay and
+    /// is tested in `dsv41::replay` (`decoder_dead`) and on the Sparks.
+    #[test]
+    fn an_encoder_only_chunk_is_told_to_the_other_rank_as_one() {
+        let mut g = group();
+        g.w.script = Some(Script::default());
+        g.w.forward_encoder(&[1, 2, 3]).unwrap();
+        g.w.forward(&[4, 5], false).unwrap();
+        assert_eq!(g.w.st.len, 5);
+        let sizes = g.told.1.clone();
+        assert_eq!(g.finish(), [Told::New, Told::Encoder, Told::Forward]);
+        assert_eq!(*sizes.lock().unwrap(), [3, 2], "the chunk's rows went to the other rank in order");
     }
 
     /// A cancel at 10 s of device time stops the prefill within one wait's rows of where the device was, not after the whole prompt.

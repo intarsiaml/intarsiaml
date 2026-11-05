@@ -1,0 +1,18 @@
+ttft plain mt=1                                     prompt 4112 first_event      17 ms first_content    2413 ms total    2414 ms
+ttft plain mt=8                                     prompt 4112 first_event      18 ms first_content    2307 ms total    2480 ms
+ttft plain mt=128                                   prompt 4112 first_event      20 ms first_content    2360 ms total    4504 ms
+ttft ignore_eos mt=128                              prompt 4112 first_event      14 ms first_content    2265 ms total    4573 ms
+ttft min_tokens=128 mt=128                          prompt 4112 first_event      15 ms first_content    2301 ms total    4813 ms
+ttft ignore_eos+min_tokens=128 mt=128 (localeval)   prompt 4112 first_event      18 ms first_content    2321 ms total    4638 ms
+ttft plain mt=1                                     prompt 4112 first_event      17 ms first_content    2320 ms total    2320 ms
+ttft plain mt=8                                     prompt 4112 first_event      15 ms first_content    2267 ms total    2416 ms
+ttft plain mt=128                                   prompt 4112 first_event      48 ms first_content    2295 ms total    4687 ms
+ttft ignore_eos mt=128                              prompt 4112 first_event      17 ms first_content    2353 ms total    4715 ms
+ttft min_tokens=128 mt=128                          prompt 4112 first_event      17 ms first_content    2319 ms total    4707 ms
+ttft ignore_eos+min_tokens=128 mt=128 (localeval)   prompt 4112 first_event      15 ms first_content    2286 ms total    4588 ms
+ttft plain mt=1                                     prompt 4113 first_event      16 ms first_content    2274 ms total    2274 ms
+ttft plain mt=8                                     prompt 4112 first_event      16 ms first_content    2269 ms total    2457 ms
+ttft plain mt=128                                   prompt 4112 first_event      18 ms first_content    2307 ms total    4533 ms
+ttft ignore_eos mt=128                              prompt 4112 first_event      16 ms first_content    2376 ms total    4866 ms
+ttft min_tokens=128 mt=128                          prompt 4112 first_event      17 ms first_content    2303 ms total    4539 ms
+ttft ignore_eos+min_tokens=128 mt=128 (localeval)   prompt 4111 first_event      21 ms first_content    2406 ms total    4798 ms
