@@ -1,0 +1,3 @@
+fleetq: #8588 waiting (#4 in line): spark1 is held exclusively by #8579 "dsv41 sampled-spec window: gate, kill test, ABAB T0.7/1.0, G-test; vLLM restored by run-full.sh" (claude-1943a70c); then in line behind #8580 "lane-ds: CUDA in-process device draws test (default on)" (claude-1943a70c-ds) on spark1
+fleetq:   #8579 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8579 set, or it will wait for #8579 to be released.
+fleetq: #8588 is cancelled, so it will not run: bash -c 'for s in plan ids fallback; do echo "=== $s"; scripts/d8/spark1.sh gates $s; done'
