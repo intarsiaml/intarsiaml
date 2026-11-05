@@ -45,7 +45,7 @@ for st in $STAGES; do case $st in
   lanes)
     fb=$(free_gb); echo "lanes: MemAvailable $fb GB"
     # priority order: the D / C evidence first, the noise reference and the combination next, the real-layout equality check last
-    KL1="base cemu fp8"; SV1="main base fp8 cemu"; KL2="noise cdemu"; SV2="cdemu creal"; KL3="creal"
+    KL1=${KL1-"base cemu fp8"}; SV1=${SV1-"main base fp8 cemu"}; KL2=${KL2-"noise cdemu"}; SV2=${SV2-"cdemu creal"}; KL3=${KL3-"creal"}
     if (( fb >= 100 )); then
       echo "vLLM is down: KL lane and serve lane in parallel (MEMB=40 each)"
       (for a in "$KL1" "$KL2" "$KL3"; do MEMB=40 ARMS="$a" "$H/kl.sh"; done) > "$RES/lane-kl.log" 2>&1 &
