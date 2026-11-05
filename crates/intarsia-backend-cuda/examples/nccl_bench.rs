@@ -10,6 +10,12 @@
 //! two ways: `pipe` = `iters` calls queued back to back and one sync, `sync` = one call and a device sync each time
 //! (the model's collectives sit between kernels of the same stream, so `pipe` is the closer to what a pass pays).
 //! Env: INTARSIA_NCCL_LIB (libnccl path), NCCL_* as for the engine.
+//! `NB_BYTES=a,b,c` replaces the payload list (default: the decode sizes up to 128 KiB, 1 MiB, 21176320 = a 1034-row
+//! prefill all-reduce, 41943040 = a 2048-row one). Payloads of 1 MiB and more run `NB_BIG_ITERS` (default 40) calls, and
+//! the line gets the all-reduce bandwidth in GB/s (bytes one rank contributes over the `pipe` time).
+//! `NB_COLD=N` (needs a payload of 1 MiB or more; the last one is used) adds an idle-start test after the table: N rounds of
+//! sleep `NB_COLD_MS` (default 3000, the gap between requests), then (a) the big all-reduce alone, (b) a 16 KiB all-reduce,
+//! `NB_COLD_LEAD_MS` (default 7) later the big one, (c) the big one again at once (warm). Medians of us, per call.
 
 use intarsia_core::{DType, MemKind, TensorRef};
 use std::io::{Read, Write};
@@ -43,7 +49,12 @@ fn main() {
     };
     eprintln!("rank {rank}: NCCL {}", intarsia_backend_cuda::nccl::version().unwrap_or_default());
     let (be, comm) = intarsia_backend_cuda::nccl::create(device, rank, 2, id).expect("nccl create");
-    let max_n = 32768usize; // 128 KiB of f32
+    let sizes: Vec<usize> = match std::env::var("NB_BYTES") {
+        Ok(v) => v.split(',').map(|x| x.trim().parse().expect("NB_BYTES: comma-separated byte counts")).collect(),
+        Err(_) => vec![16384, 32768, 49152, 65536, 98304, 131072, 1 << 20, 21_176_320, 41_943_040],
+    };
+    let big_iters: usize = std::env::var("NB_BIG_ITERS").ok().and_then(|v| v.parse().ok()).unwrap_or(40);
+    let max_n = sizes.iter().max().copied().unwrap_or(131072).max(16384) / 4;
     let mk = |dt: DType, n: usize| {
         let b = be.alloc((n * 4).max(256), MemKind::Device).expect("alloc");
         be.zero(&b, 0).expect("zero");
@@ -53,13 +64,15 @@ fn main() {
     let (rb, _, _) = mk(DType::F32, 2 * max_n);
     let (ob, _, _) = mk(DType::Bf16, max_n);
     comm.reserve(max_n, 0).expect("reserve");
-    println!("rank {rank}  bytes/rank   ar_inplace(pipe,sync)  ar_into_bf16(pipe,sync)  ag(pipe,sync)   [us per call]");
-    for bytes in [16384usize, 32768, 49152, 65536, 98304, 131072] {
+    println!("rank {rank}  bytes/rank   ar_inplace(pipe,sync)  ar_into_bf16(pipe,sync)  ag(pipe,sync)   [us per call]   ar_inplace GB/s");
+    for &bytes in &sizes {
         let n = bytes / 4;
+        let (iters, warm) = if bytes >= 1 << 20 { (big_iters, 10) } else { (iters, 50) };
         let send = TensorRef::new(sb.clone(), DType::F32, &[n]);
         let recv = TensorRef::new(rb.clone(), DType::F32, &[2 * n]);
         let out = TensorRef::new(ob.clone(), DType::Bf16, &[n]);
         let mut row = Vec::new();
+        let mut gbps = 0.0f64;
         for mode in 0..3 {
             let run = |c: usize, sync_each: bool| {
                 let t0 = Instant::now();
@@ -76,11 +89,57 @@ fn main() {
                 be.synchronize(0).expect("sync");
                 t0.elapsed().as_secs_f64() * 1e6 / c as f64
             };
-            run(50, false); // warm
+            run(warm, false); // warm
             let pipe = run(iters, false);
-            let sync = run(iters / 3, true);
+            let sync = run((iters / 3).max(3), true);
             row.push(format!("{pipe:7.1} {sync:7.1}"));
+            if mode == 0 {
+                gbps = bytes as f64 / (pipe * 1e-6) / 1e9;
+            }
         }
-        println!("rank {rank}  {bytes:>9}   {}", row.join("   "));
+        println!("rank {rank}  {bytes:>9}   {}   {gbps:6.2}", row.join("   "));
+    }
+    if let Some(rounds) = std::env::var("NB_COLD").ok().and_then(|v| v.parse::<usize>().ok()) {
+        let idle = std::time::Duration::from_millis(std::env::var("NB_COLD_MS").ok().and_then(|v| v.parse().ok()).unwrap_or(3000));
+        let lead = std::time::Duration::from_micros((std::env::var("NB_COLD_LEAD_MS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(7.0) * 1000.0) as u64);
+        let big = sizes.iter().copied().filter(|&b| b >= 1 << 20).max().expect("NB_COLD needs a payload of 1 MiB or more");
+        let big_t = TensorRef::new(sb.clone(), DType::F32, &[big / 4]);
+        let tiny_t = TensorRef::new(sb.clone(), DType::F32, &[4096]);
+        let timed = |f: &dyn Fn()| {
+            let t0 = Instant::now();
+            f();
+            be.synchronize(0).expect("sync");
+            t0.elapsed().as_secs_f64() * 1e6
+        };
+        let (mut cold, mut pre, mut pre_tiny, mut warm) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+        for _ in 0..3 {
+            comm.all_reduce_sum(&big_t, 0).expect("ar");
+        }
+        be.synchronize(0).expect("sync");
+        for _ in 0..rounds {
+            std::thread::sleep(idle);
+            cold.push(timed(&|| comm.all_reduce_sum(&big_t, 0).expect("ar")));
+            warm.push(timed(&|| comm.all_reduce_sum(&big_t, 0).expect("ar")));
+            std::thread::sleep(idle);
+            let t0 = Instant::now();
+            comm.all_reduce_sum(&tiny_t, 0).expect("ar tiny");
+            std::thread::sleep(lead);
+            let t1 = Instant::now();
+            comm.all_reduce_sum(&big_t, 0).expect("ar");
+            be.synchronize(0).expect("sync");
+            let t2 = Instant::now();
+            pre.push((t2 - t1).as_secs_f64() * 1e6);
+            pre_tiny.push((t2 - t0).as_secs_f64() * 1e6);
+        }
+        let med = |v: &mut Vec<f64>| {
+            v.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            v[v.len() / 2]
+        };
+        println!(
+            "rank {rank}  cold test ({rounds} rounds, idle {} ms, lead {} us, {big} bytes): median us: after-idle {:.0}  warm-at-once {:.0}  after-idle-with-16KiB-lead {:.0} (tiny issue to big done {:.0})",
+            idle.as_millis(), lead.as_micros(), med(&mut cold), med(&mut warm), med(&mut pre), med(&mut pre_tiny)
+        );
+        println!("rank {rank}  cold all: {:?}", cold.iter().map(|v| *v as i64).collect::<Vec<_>>());
+        println!("rank {rank}  lead all: {:?}", pre.iter().map(|v| *v as i64).collect::<Vec<_>>());
     }
 }
