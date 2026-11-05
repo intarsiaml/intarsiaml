@@ -110,6 +110,11 @@ busy_chunk = 2048
 # or fewer is never cut (docs/results/2026-11-04-m35-peel-period.md).
 prefill_peel = 8
 prefill_peel_period = 2048
+# `--spec mtp --spec-k 2` is the default at tp=1 on Metal when no `--spec` is given (user decision 2026-11-05 17:06 EST, "flip 1"; same exclusions as on CUDA: `--spec off` or
+# `INTARSIA_SPEC_DEFAULT=0` opts out, `--max-batch` above 1, a configured prefix store and checkpoints without the MTP head keep plain decode). The pipelined step
+# (`INTARSIA_METAL_MTP_GPU_ACCEPT`, docs/results/2026-10-29-mmtp-metal-gpu-accept.md) is on by default. Speed, prefill cost, memory and the greedy-id check against
+# `--spec off`: docs/results/2026-11-05-metal35-mtp-default.md.
+mtp_default_k = 2
 
 # 4096 on HIP: every MoE layer reads all 256 experts once per chunk, so at 256 tokens a 4k prompt re-reads the expert weights 16
 # times. 35B prefill on one R9700 at 128 / 1024 / 4096 tokens goes 1254 / 2112 / 2033 tok/s (256) to 1231 / 3094 / 3585 (4096), 3058

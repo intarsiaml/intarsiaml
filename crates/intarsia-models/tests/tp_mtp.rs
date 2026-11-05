@@ -436,7 +436,7 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
 }
 
 /// G0 for the shipped recipes: exactly these (recipe, backend) pairs make `--spec mtp` the default, so every other model and backend
-/// (the 8B, CUDA and Metal, HIP at tp=1, the 35B everywhere, CPU) runs without --spec as before.
+/// (the 8B, CUDA and Metal, HIP at tp=1, the 35B on HIP and CPU) runs without --spec as before.
 #[test]
 fn only_the_measured_recipe_backend_pairs_default_to_mtp() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes");
@@ -457,7 +457,7 @@ fn only_the_measured_recipe_backend_pairs_default_to_mtp() {
         }
     }
     got.sort();
-    assert_eq!(got, ["qwen3_5_moe cuda tp1 2", "qwen3_5_vl cuda tp1 2", "qwen3_5_vl hip tp 2", "qwen3_5_vl metal tp1 2"], "the recipes that turn MTP on by default");
+    assert_eq!(got, ["qwen3_5_moe cuda tp1 2", "qwen3_5_moe metal tp1 2", "qwen3_5_vl cuda tp1 2", "qwen3_5_vl hip tp 2", "qwen3_5_vl metal tp1 2"], "the recipes that turn MTP on by default");
 }
 
 fn single_rank_loader_default_matches_off() {
