@@ -51,6 +51,33 @@ finish reason and token counts with its solo **spec-off** run:
 The cpu kernels compute every row with the one-row loop, so this proves the engine logic (rollback per slot, head queue / catch-up, plain-draft switch,
 packed feed), not GPU numerics; the CUDA greedy-ids gate below covers the device.
 
+## Phase B (opt-in `INTARSIA_BATCHED_VERIFY=1`, built while the fleet queue was full)
+
+Phase A's solo passes cost a whole weight pass per drafting sequence, so they cannot pay at 2 or more streams. Phase B batches the verify:
+
+- `Model::forward_verify_batch(states, ids)`: the verify rows of several sequences as one ragged list through the existing packed path
+  (`Seqs::Packed`, a segment per sequence) under `exact_rows`. Projections, MoE, norms and the head run once over all rows on the row-exact
+  kernels; attention and the GatedDeltaNet recurrence run per segment through the solo verify code (per-row attention where the backend needs it;
+  the delta rule row by row with the per-row state saves, now also in the multi-segment branch of `gdn_block_segs`). Each state ends as after its
+  own `forward_verify` (committed rows, `spec_rows.saved`, head queue). Passes are capped at 16 rows (`VERIFY_MAX_ROWS`); the engine splits larger
+  sets into several passes.
+- Scheduler: `SeqStep::Verify(ids)`, `BatchModel::verify_step`, `BatchSeq::accept_verify`. A sequence that drafts while others decode returns its
+  `[tok, drafts]` (`Seq::prepare_with(.., defer_verify)`: the draft is still the solo `mtp_draft`), the scheduler runs one `verify_step` for all of
+  them, then each sequence accepts and rolls back through the same `Seq::verify_pass` / `spec_accept` as a solo pass (the seam the sampled-spec lane
+  changes). At B = 1 nothing changes (the captured solo step runs).
+- Verified runs are delivered in the iteration they were verified (`BatchSeq::next_ready`), so the drafting sequences stay in phase and verify
+  together; without this the passes mostly held one sequence.
+- The busy-batch drafter check (`SpecGate::allow(busy)`) does not apply to a deferred verify (it exists because a solo pass beside a batched step is
+  a whole extra weight pass).
+- Still per sequence: the draft (one head pass per drafting sequence). A batched head is the next step if the measurement says the draft dominates.
+
+CPU tests (`crates/intarsia-models/tests/mtp.rs`):
+
+| test | result |
+|---|---|
+| `batched_verify_pass_equals_each_sequences_solo_verify` (model level: 3 states, 24 rounds of segment lengths 1..4, drafts accepted and rejected; verify tokens, head drafts after rollback, and a later decode step's logits bitwise equal the solo states') | pass, 77 of 105 drafts accepted |
+| `batched_verify_engine_equals_solo` (engine: 4 interleaved sequences, k = 1..3, scripted per-sequence patterns; then 6 requests on 4 slots drafting at B <= 2) | pass; verify passes by sequences per pass, k=1: 1 / 20 / 17 / 32 passes of 1 / 2 / 3 / 4 sequences; k=2: 5 / 15 / 28 / 13; k=3: 0 / 21 / 11 / 14 |
+
 ## Status
 
 Phase A built and CPU-tested; CUDA gates and the spark1 speed run are in progress.
