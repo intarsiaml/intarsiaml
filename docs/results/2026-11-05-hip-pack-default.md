@@ -6,7 +6,7 @@ Lane `lane-fh/hip-pack-default` (branch off origin/main `602a1fcfe`), 2026-11-05
 ## 1. Decisions and approvals
 
 - User, 2026-11-05 17:06 EST, relayed in the lane brief: "flip 2". Scope: packed multi-prompt prefill becomes the default on HIP for the hybrid MoE, as it already is on CUDA (SRV16, `docs/decisions/LOG.md`).
-- User, 2026-11-05 17:08 EST, as quoted by the coordinator in a mid-task message (not seen by the lane as a user message): "radiance down OK". This covers taking radiance down on tatooine for phase B. The lane did not stop radiance on the strength of that relay alone; see section 5.
+- User approval, relayed by coordinator (2026-11-05, about 17:06 EST; the first relay said 17:08): "radiance down OK, start 2, keep building". It covers taking radiance down on tatooine for phase B. The lane first held phase B because the earlier relay was an agent message; the coordinator then repeated the user's words and the user's project memory note "Perf push 11-05" (17:08 EST: "deferrals lifted; flips 1+2, radiance down OK") says the same, so phase B went ahead.
 
 ## 2. Change
 
