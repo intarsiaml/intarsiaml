@@ -9,7 +9,10 @@ ARMS=${ARMS:-"main base fp8 cemu cdemu"}; TASKS=${TASKS:-"greedy needle mmlu gsm
 trap 'stop_server' EXIT INT TERM
 spec() { case $1 in
   main) echo "main||" ;; base) echo "dev||" ;; fp8) echo "dev||--kv-dtype fp8" ;;
-  cemu) echo "dev|INTARSIA_CUDA_GDN_STATE_BF16_EMU=1|" ;; cdemu) echo "dev|INTARSIA_CUDA_GDN_STATE_BF16_EMU=1|--kv-dtype fp8" ;; esac; }
+  cemu) echo "dev|INTARSIA_CUDA_GDN_STATE_BF16_EMU=1|" ;; cdemu) echo "dev|INTARSIA_CUDA_GDN_STATE_BF16_EMU=1|--kv-dtype fp8" ;;
+  creal) echo "dev|INTARSIA_GDN_STATE=bf16|" ;; cdreal) echo "dev|INTARSIA_GDN_STATE=bf16|--kv-dtype fp8" ;; esac; }
+# tasks per arm: main is only the ids gate; the real layout (must equal its emulation) skips the accuracy evals
+arm_tasks() { case $1 in main) echo greedy ;; creal|cdreal) echo "greedy needle" ;; *) echo "$TASKS" ;; esac; }
 le() { ( cd /opt/code/deepeval && FLEETQ_JOB=$FLEETQ_JOB uv run localeval quality --url "http://$HN:$PORT/v1" --model intarsia --thinking off --ignore-busy --no-unim "$@" ); }
 for arm in $ARMS; do
   IFS='|' read -r bin envs extra <<< "$(spec "$arm")"
@@ -17,7 +20,7 @@ for arm in $ARMS; do
   echo "== serve $arm $(date +%T)"
   start_server "$arm" "$bin" "$envs" $extra || continue
   R="spark35 intarsia serve --backend cuda --max-seq ${MAXSEQ:-73728} --mem-budget ${MEMB:-45} bin=$bin env='$envs' $extra"
-  for t in $TASKS; do
+  for t in $(arm_tasks $arm); do
     case $t in
       greedy) python3 "$H/../fp8kv/greedy.py" run --url "http://$HN:$PORT/v1" --gen 1024 --out "$RES/greedy-$arm.json" > "$RES/greedy-$arm.log" 2>&1; tail -1 "$RES/greedy-$arm.log" ;;
       needle) for n in 32k 64k; do

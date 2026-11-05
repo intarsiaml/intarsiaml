@@ -6,6 +6,7 @@
 #   fp8   : --kv-dtype fp8                         (D)
 #   cemu  : INTARSIA_CUDA_GDN_STATE_BF16_EMU=1      (C, emulated bf16 state)
 #   cdemu : both                                   (C+D)
+#   creal : the real bf16 state layout (INTARSIA_GDN_STATE=bf16): must equal cemu (same values, half the bytes); cdreal: with fp8 KV
 # Two carriers (scripts/spark35num/mkcarrier.py): std (5 prompts 3.9k..65k: prefill, all positions, + a 2048-token teacher-forced decode
 # window) and dec8k (16k, 32k: an 8192-token decode window). Needs build.sh to have made bin/dev; carriers in $L/carriers.
 set -uo pipefail
@@ -15,7 +16,7 @@ LOOSE="--allow-config-mismatch --allow-unstamped --allow-same-code --self-max-kl
 spec() { case $1 in
   base) echo "dev||" ;; noise) echo "dev||--prefill-chunk 1024" ;; fp8) echo "dev||--kv-dtype fp8" ;;
   cemu) echo "dev|INTARSIA_CUDA_GDN_STATE_BF16_EMU=1|" ;; cdemu) echo "dev|INTARSIA_CUDA_GDN_STATE_BF16_EMU=1|--kv-dtype fp8" ;;
-  noise-fp8) echo "dev||--prefill-chunk 1024 --kv-dtype fp8" ;; esac; }
+  creal) echo "dev|INTARSIA_GDN_STATE=bf16|" ;; cdreal) echo "dev|INTARSIA_GDN_STATE=bf16|--kv-dtype fp8" ;; esac; }
 run_acc() { # run_acc <set std|dec8k> <arm>
   local set=$1 arm=$2 bin envs extra gold mode dp ms sg
   IFS='|' read -r bin envs extra <<< "$(spec "$arm")"
@@ -29,6 +30,6 @@ run_acc() { # run_acc <set std|dec8k> <arm>
 for arm in $ARMS; do
   fits 14 "kl $arm" || continue
   run_acc std $arm
-  [[ ${SKIP_DEC8K:-0} = 1 ]] || run_acc dec8k $arm
+  [[ ${SKIP_DEC8K:-0} = 1 || $arm = creal || $arm = cdreal ]] || run_acc dec8k $arm
 done
 echo "== kl done $(date +%T)"
