@@ -16,6 +16,10 @@ use crate::error::{Error, Result};
 /// The environment variable (read once per runtime and by the handshake fingerprint; both ranks must agree).
 pub const ENV: &str = "INTARSIA_DSV41_REPLAY";
 
+/// `INTARSIA_DSV41_REPLAY_SKIP` (default on, `0` = off; read by the primary only, which tells the other rank per chunk): a prefill
+/// chunk whose decoder half no later row of the prompt reads is run encoder-only ([`decoder_dead`]).
+pub const SKIP_ENV: &str = "INTARSIA_DSV41_REPLAY_SKIP";
+
 /// What `INTARSIA_DSV41_REPLAY` asks for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Setting {
@@ -126,6 +130,37 @@ pub fn prefill_decoder_rows(total: usize, start: usize, chunk: usize, floor: usi
         pos += t;
     }
     rows
+}
+
+/// The engine prefills a prompt one chunk at a time (`dsv41_engine::Worker::prefill`), and each chunk's [`floor`] is that of the
+/// rows the state holds after it: `end - window`. So every chunk of at least `window` rows runs the decoder half on its last
+/// `window` rows, as if the prompt ended there. Is that work dead for the call ending at position `end`, with `ahead` more
+/// prompt rows to come in chunks of `chunk`?
+///
+/// A later call `k` (ending at `end_k`) runs decoder rows from `end_k - window` on, and their sliding windows start at that
+/// floor (the replay graphs drop the keys below it; a plain one-row pass reads the same `window - 1` keys), so it reads the
+/// decoder-layer window keys written at positions `>= end_k - window` and nothing below. The call is dead when no *live* later
+/// call reads below its end: the last call is live (it feeds the head); an earlier call is live when its end lies above
+/// the lowest floor of a live call after it. Dead calls write window-ring rows (the decoder layers' keys and the DSpark stage rings)
+/// at positions that every read leaves alone and that live calls overwrite, and nothing else: the compressed KV and index keys
+/// of the decoder half are layer `cut`'s, written by the encoder part of every call. Skipping their decoder half is bit-identical.
+/// Only for `chunk >= window` (a shorter chunk would put a later call's floor below this call's end, and [`reuse_ok`] would
+/// refuse the later call).
+pub fn decoder_dead(end: usize, ahead: usize, chunk: usize, window: usize) -> bool {
+    if ahead == 0 || chunk < window || window == 0 {
+        return false;
+    }
+    // ends of the later calls, the last one first
+    let last = end + ahead;
+    let mut lo = last.saturating_sub(window);
+    let mut e = end + ahead.div_ceil(chunk).saturating_sub(1) * chunk;
+    while e > end {
+        if e > lo {
+            lo = lo.min(e.saturating_sub(window));
+        }
+        e -= chunk;
+    }
+    end <= lo
 }
 
 /// May a prefill that resumes a state at `keep` tokens run under `floor`? The state's decoder-layer window rings hold valid keys
@@ -267,6 +302,64 @@ mod tests {
         assert_eq!(prefill_decoder_rows(4020, 4000, 512, floor(4020, 128)), 20);
         // 100 cached, 4000 more: the first chunks are encoder-only
         assert_eq!(prefill_decoder_rows(4100, 100, 512, floor(4100, 128)), 128);
+    }
+
+    #[test]
+    fn only_the_last_chunks_decoder_half_is_read() {
+        let (c, w) = (2048, 128);
+        // 4106 tokens: [0, 2048) is dead; [2048, 4096) is read by the 10-row tail (floor 3978 < 4096); the tail is last
+        assert!(decoder_dead(2048, 2058, c, w));
+        assert!(!decoder_dead(4096, 10, c, w));
+        assert!(!decoder_dead(4106, 0, c, w));
+        // 4096 tokens: the second chunk is last, the first is dead
+        assert!(decoder_dead(2048, 2048, c, w));
+        // a tail of at least `window` rows hides the chunk before it
+        assert!(decoder_dead(2048, 128, c, w), "[2048, 2176) has floor 2048, nothing below is read");
+        assert!(!decoder_dead(2048, 127, c, w), "a 127-row tail's floor 2047 reads position 2047");
+        assert!(!decoder_dead(2048, 1, c, w));
+        // 32768 tokens in 16 chunks: all but the last are dead
+        for e in (2048..32768).step_by(2048) {
+            assert!(decoder_dead(e, 32768 - e, c, w), "end {e}");
+        }
+        // the 4106-token prompt at chunk 512: chunks ending 512 .. 3584 are dead, 4096 is read by the tail
+        for e in (512..=3584).step_by(512) {
+            assert!(decoder_dead(e, 4106 - e, 512, w), "end {e}");
+        }
+        assert!(!decoder_dead(4096, 10, 512, w));
+        // chunks below the window are never skipped (a later floor would sit below this call's end)
+        assert!(!decoder_dead(64, 4000, 64, w));
+        assert!(!decoder_dead(2048, 2058, 100, w));
+    }
+
+    /// The rule against the definition: simulate every call's reads (a call ending at `e` reads positions `>= e - window`, the last
+    /// call and every call that a live call reads below its end), and compare with [`decoder_dead`] for many shapes.
+    #[test]
+    fn decoder_dead_matches_a_direct_simulation() {
+        for window in [1usize, 4, 128] {
+            for chunk in [window, window + 1, 2 * window, 3 * window + 5, 512] {
+                if chunk < window {
+                    continue;
+                }
+                for total in [1usize, 2, window, window + 1, chunk, chunk + 1, 2 * chunk, 2 * chunk + window - 1, 2 * chunk + window, 5 * chunk + 7, 40 * chunk] {
+                    // ends of the calls of a prefill of `total` rows from 0
+                    let mut ends = Vec::new();
+                    let mut e = 0;
+                    while e < total {
+                        e = (e + chunk).min(total);
+                        ends.push(e);
+                    }
+                    let n = ends.len();
+                    let mut live = vec![false; n];
+                    live[n - 1] = true;
+                    for j in (0..n - 1).rev() {
+                        live[j] = (j + 1..n).any(|k| live[k] && ends[j] > ends[k].saturating_sub(window));
+                    }
+                    for j in 0..n {
+                        assert_eq!(decoder_dead(ends[j], total - ends[j], chunk, window), !live[j], "window {window} chunk {chunk} total {total} call {j}");
+                    }
+                }
+            }
+        }
     }
 
     #[test]

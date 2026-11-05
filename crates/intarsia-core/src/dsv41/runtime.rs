@@ -200,6 +200,9 @@ pub struct Dsv41Runtime {
     /// [`replay::resolve`] (default on where supported, `INTARSIA_DSV41_REPLAY=0` off): prefill runs the decoder half on the last `window` rows only
     /// ([`super::replay`]). Both ranks must agree (handshake fingerprint). Changes numerics.
     replay: bool,
+    /// [`replay::SKIP_ENV`] (default on, `0` off; only meaningful with `replay`): the primary runs a prefill chunk whose decoder half no
+    /// later row reads encoder-only ([`Dsv41Runtime::skips_decoder_half`]) and tells the other rank so.
+    replay_skip: bool,
 }
 
 /// Little-endian `dtype` elements as f32 (f32, bf16, f16).
@@ -445,6 +448,7 @@ impl Dsv41Runtime {
             graphs: Mutex::new(Graphs::default()),
             max_partial,
             replay,
+            replay_skip: std::env::var(replay::SKIP_ENV).map_or(true, |v| v != "0"),
         };
         let state_per_seq = rt.slot_specs.iter().map(|s| s.bytes(rt.opts.cap) as u64).sum();
         rt.memory = RuntimeMemory { weights: weight_bytes, workspace: ws_bytes, constants: cbytes, scratch: 0, state_per_seq };
@@ -554,6 +558,29 @@ impl Dsv41Runtime {
     /// Run `ids` through the model on `st` in chunks of at most `opts.chunk` rows, appending them to the sequence.
     /// With `logits`, returns the full-vocabulary f32 logits of the last row (every rank gets them).
     pub fn forward(&self, st: &mut SequenceState, ids: &[u32], logits: bool) -> Result<Option<Vec<f32>>> {
+        self.forward_with(st, ids, logits, false)
+    }
+
+    /// Does the prefill call of `rows` rows appended to `st` run a decoder half that no later row of the prompt reads, with `ahead`
+    /// more rows to come ([`replay::decoder_dead`])? The primary asks it for every chunk but the last of a prompt and, when it is
+    /// true, runs [`Self::forward_encoder_only`] on both ranks instead of [`Self::forward`]. False with the replay or
+    /// `INTARSIA_DSV41_REPLAY_SKIP=0` off, for a call that would not cross its own floor, and for a chunk size below the window.
+    pub fn skips_decoder_half(&self, st: &SequenceState, rows: usize, ahead: usize) -> bool {
+        self.replay
+            && self.replay_skip
+            && rows > self.cfg.window
+            && rows <= self.opts.chunk
+            && replay::decoder_dead(st.len + rows, ahead, self.opts.chunk, self.cfg.window)
+    }
+
+    /// A prefill chunk without its decoder half ([`Self::skips_decoder_half`]): layers `0..cut` and layer `cut`'s kv-source update on
+    /// every row, as an encoder-only chunk of a replay prefill. The state advances by the chunk; its decoder-layer window keys are
+    /// valid from the chunk's end only (`replay_from`). Both ranks run it, on the primary's word.
+    pub fn forward_encoder_only(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+        self.forward_with(st, ids, false, true).map(|_| ())
+    }
+
+    fn forward_with(&self, st: &mut SequenceState, ids: &[u32], logits: bool, encoder_only: bool) -> Result<Option<Vec<f32>>> {
         if ids.is_empty() {
             return Err(Error::invalid("deepseek_v41: empty forward pass"));
         }
@@ -562,6 +589,13 @@ impl Dsv41Runtime {
         }
         // bounded replay (opt-in): the prompt's replay floor, for a prefill of more than one row; None: the plain passes below
         let floor = self.replay_floor(st, ids.len())?;
+        if encoder_only {
+            // the primary's decision, checked here: a chunk that does not cross its floor has no decoder half to skip
+            let ok = !logits && self.replay && ids.len() <= self.opts.chunk && floor.is_some_and(|f| f > st.len && f < st.len + ids.len());
+            if !ok {
+                return Err(Error::invalid("deepseek_v41: an encoder-only prefill chunk needs the replay on, no logits, one chunk and a floor inside it"));
+            }
+        }
         let start = st.len;
         let mut out = None;
         let mut i = 0;
@@ -570,7 +604,7 @@ impl Dsv41Runtime {
             let last = i + n == ids.len();
             let want = if logits && last { Want::Logits } else { Want::Nothing };
             let r = match floor {
-                Some(f) if f > 0 => self.pass_replay(st, &ids[i..i + n], want, f),
+                Some(f) if f > 0 => self.pass_replay(st, &ids[i..i + n], want, f, encoder_only),
                 _ => self.pass(st, &ids[i..i + n], want, false),
             };
             match r {
@@ -597,7 +631,8 @@ impl Dsv41Runtime {
                 st.replay_from = 0;
                 return Err(Error::backend(format!("deepseek_v41 replay: sequence length {} / {} tokens after {} rows from {start}", st.len, st.tokens.len(), ids.len())));
             }
-            st.replay_from = f;
+            // an encoder-only chunk wrote no decoder-layer window keys: valid from the chunk's end on
+            st.replay_from = if encoder_only { st.len } else { f };
         }
         Ok(out)
     }
@@ -643,7 +678,7 @@ impl Dsv41Runtime {
     /// encoder-only chunk, a chunk the floor falls in (the encoder part on all rows, then the decoder half on the rows from the
     /// floor on, in the workspace the encoder part left them in) or a chunk of rows all at or past the floor. Both ranks derive
     /// the same plan from the same `(floor, st.len, ids.len())` and so run the same graphs with the same collectives.
-    fn pass_replay(&self, st: &mut SequenceState, ids: &[u32], want: Want, floor: usize) -> Result<Option<Out>> {
+    fn pass_replay(&self, st: &mut SequenceState, ids: &[u32], want: Want, floor: usize, encoder_only: bool) -> Result<Option<Out>> {
         let (t, pos0) = (ids.len(), st.len);
         let p0 = Instant::now();
         let cut = replay::cut_layer(self.cfg.n_layers);
@@ -652,7 +687,8 @@ impl Dsv41Runtime {
         let build = |t: usize, pos0: usize, part: ReplayPart, first: usize| {
             build_replay(&self.cfg, &*self.shapes, o(t, pos0), self.opts.tp, k, Replay { part, cut, floor, first })
         };
-        match replay::classify(floor, pos0, t) {
+        let kind = if encoder_only { replay::Chunk::Encoder } else { replay::classify(floor, pos0, t) };
+        match kind {
             replay::Chunk::Whole => {
                 let g = build(t, pos0, ReplayPart::Whole, 0)?;
                 self.run_graph(&g, st, t, ids, &[], want, p0)
@@ -1610,6 +1646,9 @@ impl crate::tp_remote::RankModel for Dsv41Runtime {
     }
     fn forward_rank(&self, st: &mut SequenceState, ids: &[u32], _graph: bool) -> Result<()> {
         self.forward(st, ids, false).map(|_| ())
+    }
+    fn forward_rank_encoder(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+        self.forward_encoder_only(st, ids)
     }
     fn truncate(&self, st: &mut SequenceState, len: usize) -> Result<()> {
         st.truncate(len, &*self.backend)

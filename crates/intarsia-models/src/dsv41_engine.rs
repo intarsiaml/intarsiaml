@@ -94,8 +94,10 @@ pub fn fingerprint(m: &Manifest, o: &Dsv41Opts, replay: bool) -> String {
         base.push_str(&format!(" | first layer {}", m.first_layer));
     }
     // bounded-replay prefill: the ranks must cut at the same place; off, the fingerprint is the one before it existed
+    // "skip": the primary may tell the other rank to run a prefill chunk without its decoder half (`FWD_ENCODER`), which a peer built
+    // before it would not understand: such binaries refuse to pair
     if replay {
-        base.push_str(" | replay");
+        base.push_str(" | replay skip");
     }
     // the spec-off fingerprint is the one before speculation existed, so old and new binaries still pair without it
     if o.spec {
@@ -542,6 +544,26 @@ impl Worker {
         out
     }
 
+    /// [`Worker::forward`] for a prefill chunk whose decoder half is dead work ([`Dsv41Runtime::skips_decoder_half`]): both ranks run it
+    /// encoder-only, no logits.
+    fn forward_encoder(&mut self, ids: &[u32]) -> Result<()> {
+        if let Some(r) = &self.remote {
+            r.start_encoder(ids)?;
+        }
+        let out = self.test_fault().and_then(|()| self.rank0_forward_encoder(ids));
+        settle(&mut self.remote, &out)?;
+        self.telemetry.step();
+        out
+    }
+
+    fn rank0_forward_encoder(&mut self, ids: &[u32]) -> Result<()> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.forward_encoder(&mut self.st, ids);
+        }
+        self.rt.forward_encoder_only(&mut self.st, ids)
+    }
+
     fn rank0_forward(&mut self, ids: &[u32], logits: bool) -> Result<Option<Vec<f32>>> {
         #[cfg(test)]
         if let Some(s) = &mut self.script {
@@ -564,7 +586,15 @@ impl Worker {
             if cancel.is_some_and(|c| c.load(std::sync::atomic::Ordering::Relaxed)) {
                 return Ok(None);
             }
-            out = self.forward(c, i + 1 == n)?;
+            // the rows after this chunk: when none of them reads this chunk's decoder-layer window keys, its decoder half (which the
+            // replay runs on the chunk's last `window` rows) is dead work, and the chunk runs encoder-only on both ranks
+            let ahead = ids.len() - (i * self.rt.opts.chunk + c.len());
+            if self.rt.skips_decoder_half(&self.st, c.len(), ahead) {
+                self.forward_encoder(c)?;
+                out = None;
+            } else {
+                out = self.forward(c, i + 1 == n)?;
+            }
             queued += c.len();
             if queued >= self.prefill_sync_rows && i + 1 < n {
                 self.device_wait()?;
@@ -1271,6 +1301,9 @@ mod failpath_tests {
                 }
             }
             Ok(logits.then(|| self.logits(st.len)))
+        }
+        pub(super) fn forward_encoder(&mut self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+            self.forward(st, ids, false).map(|_| ())
         }
         pub(super) fn device_wait(&mut self) -> Result<()> {
             if self.fail_wait {
