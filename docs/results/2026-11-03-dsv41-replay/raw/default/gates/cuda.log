@@ -1,0 +1,27 @@
+fleetq: #8479 waiting (#1 in line): spark1 is held exclusively by #8477 "dsv41 replay test, steps 2,3,8: bounded-replay prefill off vs on (vLLM restored after)" (claude-a5796c72)
+fleetq:   #8477 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8477 set, or it will wait for #8477 to be released.
+fleetq: #8479 running on spark1: zsh /opt/code/intarsiaml/.worktrees/replay-gates/scripts/gates-cuda.sh /opt/code/intarsiaml/.worktrees/replay-gates/out/cuda
+new 1ffa366b4a1c42ef9b0d4d43c490914a312c43ab base c39dcaeb3c97b0912c54de619b7d43dd624d40eb
+tail: option used in invalid context -- 2
+plan 35b new exit 0
+plan 35b new json exit 0
+plan 8b new exit 0
+plan 8b new json exit 0
+avail GB before kernels: 78
+kernels new exit 0
+plan 35b base exit 0
+plan 35b base json exit 0
+plan 8b base exit 0
+plan 8b base json exit 0
+avail GB before kernels: 79
+kernels base exit 0
+REMOTE_DONE
+plan show 35b txt: identical (4017 bytes)
+plan show 35b json: identical (15570 bytes)
+plan show 8b txt: identical (1543 bytes)
+plan show 8b json: identical (8968 bytes)
+kernels base: 0 FAIL lines; 106 kernels, 918 cases in 6.2s
+kernels new: 0 FAIL lines; 106 kernels, 918 cases in 6.5s
+kernels logs identical apart from wall time
+cleaned
+fleetq: #8479 done (exit 0)
