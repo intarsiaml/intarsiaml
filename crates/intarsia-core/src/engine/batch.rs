@@ -62,7 +62,7 @@ pub struct BatchedOptions {
     /// Packed prefill (`INTARSIA_PACK_PREFILL=1` on, `=0` off): the next chunks of several waiting prompts run in one pass
     /// (`Model::forward_packed`) on a hybrid (recurrent) model; each prompt's state is its solo prefill's when every row-wise kernel is
     /// independent of the other rows of the call. `None` (unset): the backend's default (`Backend::pack_prefill_default`: on for
-    /// CUDA, lane srv16; off elsewhere).
+    /// CUDA, lane srv16, and HIP, lane fh; off elsewhere).
     pub pack_prefill: Option<bool>,
     /// Most body rows of one packed pass (`INTARSIA_PACK_ROWS`, default [`PACK_ROWS_DEFAULT`], 0: the workspace bound only); see
     /// [`SchedulerConfig::pack_rows`].
