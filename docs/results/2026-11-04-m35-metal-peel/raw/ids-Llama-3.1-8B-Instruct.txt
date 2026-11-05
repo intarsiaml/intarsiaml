@@ -1,0 +1,5 @@
+model Llama-3.1-8B-Instruct main binary, 256 greedy ids, solo vs behind a decoding row
+prompt 258 plen 259 mod256 3: solo == behind (256 ids)
+prompt 260 plen 261 mod256 5: solo == behind (256 ids)
+prompt 265 plen 266 mod256 10: solo == behind (256 ids)
+prompt 1028 plen 1029 mod256 5: solo == behind (256 ids)

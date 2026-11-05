@@ -727,6 +727,18 @@ impl Dsv41Runtime {
         }
     }
 
+    /// Wait for everything queued on this rank to finish on the device (a pass's last work is on stream 0, see `drain`). Rank-local: it adds
+    /// no collective and changes no pass.
+    pub fn device_wait(&self) -> Result<()> {
+        self.backend.synchronize(0)
+    }
+
+    /// Whether a drafting round's whole block fits after a sequence of `len` tokens ([`Self::draft_steps`] refuses it otherwise, on
+    /// every rank): `len >= 1` and `len + block_size <= cap`.
+    pub fn draft_fits(&self, len: usize) -> bool {
+        self.cfg.mtp.as_ref().is_some_and(|m| len > 0 && len + m.block_size <= self.opts.cap)
+    }
+
     /// One DSpark drafting round after the sequence's last row (position `st.len - 1`, whose taps the pass that ran it
     /// absorbed): the block `[first, noise, ..]` through the stages and the head on every rank (the head's gather), then
     /// on rank 0 the Markov loop and the confidence head (`DSparkBlock.forward_head`, greedy). Rank 0 gets
@@ -740,7 +752,7 @@ impl Dsv41Runtime {
     pub fn draft_steps(&self, st: &SequenceState, first: u32, steps: usize) -> Result<Option<Draft>> {
         let m = self.cfg.mtp.as_ref().filter(|_| self.dspark > 0 && self.opts.spec).ok_or_else(|| Error::Unsupported("deepseek_v41: drafting needs the DSpark stages and the runtime's spec option".into()))?;
         let (t, pos0) = (m.block_size, st.len);
-        if pos0 == 0 || pos0 + t > self.opts.cap {
+        if !self.draft_fits(pos0) {
             return Err(Error::invalid(format!("deepseek_v41: a draft block at position {pos0} (capacity {})", self.opts.cap)));
         }
         let p0 = Instant::now();
@@ -1616,6 +1628,12 @@ impl crate::tp_remote::RankModel for Dsv41Runtime {
     fn draft_rank(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
         let first = *ids.first().ok_or_else(|| Error::invalid("deepseek_v41: a drafting round without its first id"))?;
         self.draft(st, first).map(|_| ())
+    }
+    /// A pass here is enqueue-only unless it reads something back (`Want::Nothing`, every pass but a verify's), and it all ends on stream 0:
+    /// the collectives run there and the lanes and the prefetch stream join it before the pass ends.
+    fn drain(&self) -> Option<crate::tp_remote::Drain> {
+        let backend = self.backend.clone();
+        Some(Box::new(move || backend.synchronize(0)))
     }
 }
 

@@ -1,0 +1,14 @@
+tail: option used in invalid context -- 2
+plan 35b new exit 127
+plan 35b new json exit 127
+plan 8b new exit 127
+plan 8b new json exit 127
+avail GB before kernels: 78
+kernels new exit 127
+plan 35b base exit 0
+plan 35b base json exit 0
+plan 8b base exit 0
+plan 8b base json exit 0
+avail GB before kernels: 79
+kernels base exit 0
+REMOTE_DONE

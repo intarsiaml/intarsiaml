@@ -1,0 +1,5 @@
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+Error: loading /Users/josef/models/Qwen3.6-35B-A3B-NVFP4
+
+Caused by:
+    invalid op call: prefill tail peel 8 rows must be below its period 8 (INTARSIA_PREFILL_PEEL, INTARSIA_PREFILL_PEEL_PERIOD, recipe)

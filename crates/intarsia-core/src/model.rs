@@ -578,6 +578,9 @@ pub struct Model {
     /// Prefill tail peel in rows (recipe `[tuning.<backend>] prefill_peel`, `INTARSIA_PREFILL_PEEL`; 0 = off):
     /// [`crate::scheduler::peel_tail`] in [`Model::forward_chunks`].
     prefill_peel: usize,
+    /// Period of the tail peel in rows ([`Model::forward_chunks`], recipe `prefill_peel_period`, `INTARSIA_PREFILL_PEEL_PERIOD`;
+    /// [`crate::recipe::DEFAULT_PEEL_PERIOD`] = 256 when unset): every forward pass of one load, and the decode twin's copy, cuts at it.
+    prefill_peel_period: usize,
     /// Opt-in macro prefill pass size in rows (`INTARSIA_PREFILL_MACRO`, [`LoadOptions::prefill_macro`]; a multiple of the chunk,
     /// at least two chunks, else 0 = off): [`Model::forward`] of a recurrent-state sequence cuts its prompt into the usual chunks and
     /// runs up to this many rows of consecutive chunks as ONE layer-by-layer pass (`Seqs::Packed` with one state, each chunk a segment),
@@ -780,6 +783,11 @@ impl Model {
     /// Prefill tail peel in rows (0 = off, the default; [`crate::scheduler::peel_tail`]).
     pub fn prefill_peel(&self) -> usize {
         self.prefill_peel
+    }
+
+    /// Period of the prefill tail peel in rows ([`crate::scheduler::peel_tail`]; only meaningful while [`Model::prefill_peel`] is above 0).
+    pub fn prefill_peel_period(&self) -> usize {
+        self.prefill_peel_period
     }
 
     /// Rows of a macro prefill pass (0 = off, the default; `INTARSIA_PREFILL_MACRO`, see the field). Callers that feed a long
@@ -1289,6 +1297,18 @@ impl Model {
                 Some(v) => v,
                 None => recipe.resolve_prefill_peel(b.name()).0,
             };
+        // its period (`INTARSIA_PREFILL_PEEL_PERIOD` over the recipe's `prefill_peel_period`; 256 when neither sets it); the recipe checks
+        // its own pair, a knob can break the pair, so the pair in use is checked here
+        let prefill_peel_period =
+            match crate::scheduler::parse_peel_period(std::env::var(crate::scheduler::PEEL_PERIOD_ENV).ok().as_deref())? {
+                Some(v) => v,
+                None => recipe.resolve_prefill_peel_period(b.name()).0,
+            };
+        if prefill_peel >= prefill_peel_period {
+            return Err(Error::invalid(format!(
+                "prefill tail peel {prefill_peel} rows must be below its period {prefill_peel_period} (INTARSIA_PREFILL_PEEL, INTARSIA_PREFILL_PEEL_PERIOD, recipe)"
+            )));
+        }
         // the opt-in macro prefill pass: several chunks of one prompt in one layer-by-layer pass (hybrid models, one rank)
         // (`LoadOptions::prefill_macro`, then `INTARSIA_PREFILL_MACRO`, then the recipe's `[tuning.<backend>] prefill_macro`; never
         // more rows than the context holds)
@@ -1596,6 +1616,7 @@ impl Model {
             feedback_hold,
             tail_merge,
             prefill_peel,
+            prefill_peel_period,
             macro_rows,
             macro_cap: macro_rows,
             macro_split: macro_split_ops()?,
@@ -2562,7 +2583,7 @@ impl Model {
         let mut pos = 0;
         while pos < ids.len() {
             let n = crate::scheduler::next_prefill_chunk_tm(ids.len() - pos, self.ws.max_tokens, avoid, self.tail_merge);
-            let n = crate::scheduler::peel_tail(n, self.prefill_peel);
+            let n = crate::scheduler::peel_tail(n, self.prefill_peel, self.prefill_peel_period);
             out.push(&ids[pos..pos + n]);
             pos += n;
         }

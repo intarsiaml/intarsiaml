@@ -210,6 +210,7 @@ pub fn phantom_state(specs: &[SlotSpec], cap: usize, len: usize) -> SequenceStat
         id: 0,
         slots,
         len,
+        ring_high: len,
         cap,
         tokens: vec![0; len],
         snapshots: Vec::new(),
@@ -1029,6 +1030,10 @@ pub fn plan_json(model: &Model, model_id: &str) -> Value {
     // additive and only when on, so a plan without the prefill tail peel is unchanged
     if model.prefill_peel() > 0 {
         v["prefill_peel"] = model.prefill_peel().into();
+        // and only when not the default 256, so every plan with a default period is unchanged
+        if model.prefill_peel_period() != crate::recipe::DEFAULT_PEEL_PERIOD {
+            v["prefill_peel_period"] = model.prefill_peel_period().into();
+        }
     }
     // additive and only when a backend re-laid weights out at load (lane wg: HIP `INTARSIA_HIP_FP8_FRAG=1`), so a default plan is unchanged
     if let Some(l) = model.backend.layout_report() {

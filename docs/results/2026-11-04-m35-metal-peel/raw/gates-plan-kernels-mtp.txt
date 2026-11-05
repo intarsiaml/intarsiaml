@@ -1,0 +1,45 @@
+#### gates-a
+== plan show
+plan show Qwen3.6-35B-A3B-NVFP4 : DIFFERS
+2a3
+> prefill tail peel 8 rows (a pass's last 1..=8 rows past a multiple of 256 run alone, as at chunk 256)
+plan show Qwen3.6-35B-A3B-NVFP4 --json: DIFFERS
+597a598
+>   "prefill_peel": 8,
+plan show Qwen3-8B : identical
+plan show Qwen3-8B --json: identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 : identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 --json: identical
+plan show Llama-3.1-8B-Instruct : identical
+plan show Llama-3.1-8B-Instruct --json: identical
+plan show Qwen2.5-7B-Instruct : identical
+plan show Qwen2.5-7B-Instruct --json: identical
+== kernels test
+main kernels test exit 0
+peel kernels test exit 0
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 980 cases in 30.7s
+0
+53c53
+< 49 kernels, 980 cases in 30.6s
+---
+> 49 kernels, 980 cases in 30.7s
+#### mtp
+generate 2050 off exit 0
+generate 2050 k2 exit 0
+generate 2050 default exit 0
+mtp 2050: k2 == off
+mtp 2050: default == off
+generate 2057 off exit 0
+generate 2057 k2 exit 0
+generate 2057 default exit 0
+mtp 2057: k2 == off
+mtp 2057: default == off
+generate 6146 off exit 0
+generate 6146 k2 exit 0
+generate 6146 default exit 0
+mtp 6146: k2 == off
+mtp 6146: default == off
+#### 8B ids (main binary)
+ids main exit 0
+fleetq: #8383 done (exit 0)

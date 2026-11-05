@@ -1,0 +1,59 @@
+14:02:04 earlyoom on spark1: -m 2,1
+14:02:05 earlyoom on spark2: -m 2,1
+14:02:07 binary 18825975a dirty=no 1104-1353; out /opt/code/intarsiaml/.worktrees/dsv41-attn-wire/.scratch/failcheck/run1
+14:02:11 vLLM stopped on both
+14:02:13 failtest: cases ' '; MemAvailable before the first load: spark1 111 GiB, spark2 111 GiB
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+dsv41: the remote tensor-parallel rank reported a failure: invalid op call: deepseek_v41: a draft block at position 2044 (capacity 2048); marking the engine failed
+rank 0: RDMA ring failed: aborted (the group failed)
+dsv41: reset after a failed request failed: backend error: the remote tensor-parallel rank is gone (or the group failed earlier)
+[watchdog] engine failed (tensor-parallel group failed: the remote tensor-parallel rank reported a failure: invalid op call: deepseek_v41: a draft block at position 2044 (capacity 2048)); exiting for restart
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1: serving stopped: invalid op call: deepseek_v41: a draft block at position 2044 (capacity 2048); aborting the communicator and exiting with code 87
+rank 1: RDMA ring failed: aborted (the group failed)
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+dsv41: the tensor-parallel group failed (backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: memory plan: INTARSIA_DSV41_TEST_RANK0_FAIL_PASS: injected rank 0 failure); aborting the communicator and marking the engi
+rank 0: RDMA ring failed: aborted (the group failed)
+[watchdog] engine failed (tensor-parallel group failed: backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: memory plan: INTARSIA_DSV41_TEST_RANK0_FAIL_PASS: injected rank 0 failure); exiting for restart
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1: the primary rank disconnected and the queued work did not finish within 2s; aborting the communicator and exiting with code 87
+rank 1: RDMA ring failed: aborted (the group failed)
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+dsv41: the tensor-parallel group failed (backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: memory plan: INTARSIA_DSV41_TEST_RANK0_FAIL_PASS: injected rank 0 failure); aborting the communicator and marking the engi
+rank 0: RDMA ring failed: aborted (the group failed)
+[watchdog] engine failed (tensor-parallel group failed: backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: memory plan: INTARSIA_DSV41_TEST_RANK0_FAIL_PASS: injected rank 0 failure); exiting for restart
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1: the primary rank disconnected and the queued work did not finish within 2s; aborting the communicator and exiting with code 87
+rank 1: RDMA ring failed: aborted (the group failed)
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+dsv41: the tensor-parallel group failed (backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: memory plan: INTARSIA_DSV41_TEST_RANK0_FAIL_PASS: injected rank 0 failure); aborting the communicator and marking the engi
+rank 0: RDMA ring failed: aborted (the group failed)
+[watchdog] engine failed (tensor-parallel group failed: backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: memory plan: INTARSIA_DSV41_TEST_RANK0_FAIL_PASS: injected rank 0 failure); exiting for restart
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1: the primary rank disconnected and the queued work did not finish within 2s; aborting the communicator and exiting with code 87
+rank 1: RDMA ring failed: aborted (the group failed)
+tensor parallel: rank 1: communicator abort did not return within 3 s; exiting anyway
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+14:39:40 failpaths: done; results in /opt/code/intarsiaml/.worktrees/dsv41-attn-wire/.scratch/failcheck/run1
+14:39:40 hook done
+14:39:40 done
+14:39:40 restore (exit 0)
+14:43:07 vLLM on spark1 up (Up 3 minutes)
+14:43:09 vLLM on spark2 up (Up 3 minutes)
+14:43:09 restored

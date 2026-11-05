@@ -17,7 +17,7 @@ use std::time::Duration;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::scheduler::{
     chunk_schedule, chunk_schedule_tm, effective_tail_merge, next_prefill_chunk, next_prefill_chunk_tm, parse_peel,
-    parse_tail_merge, peel_tail, BatchEngine, BatchModel, BatchSeq, EndKind, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
+    parse_peel_period, parse_tail_merge, peel_tail, BatchEngine, BatchModel, BatchSeq, EndKind, RequestId, Row, Scheduler, SchedulerConfig, SeqStep,
     TraceEvent,
 };
 use intarsia_core::{Error, FinishReason, Result};
@@ -1923,9 +1923,14 @@ fn tail_merge_fits_the_workspace() {
 
 /// Kernel-level passes `(start, rows)` of one forward call of `len` rows at workspace `chunk` (`Model::forward_chunks`).
 fn forward_passes(start: usize, len: usize, chunk: usize, peel: usize, out: &mut Vec<(usize, usize)>) {
+    forward_passes_p(start, len, chunk, peel, 256, out);
+}
+
+/// [`forward_passes`] with the peel period of a recipe's `prefill_peel_period`.
+fn forward_passes_p(start: usize, len: usize, chunk: usize, peel: usize, period: usize, out: &mut Vec<(usize, usize)>) {
     let mut pos = 0;
     while pos < len {
-        let n = peel_tail(next_prefill_chunk_tm(len - pos, chunk, false, 0), peel);
+        let n = peel_tail(next_prefill_chunk_tm(len - pos, chunk, false, 0), peel, period);
         out.push((start + pos, n));
         pos += n;
     }
@@ -2000,18 +2005,98 @@ fn prefill_peel_knob_parse() {
 fn prefill_peel_rule() {
     // off, or a pass of at most 256 rows, or a tail outside 1..=peel: unchanged
     for n in 1..=3000 {
-        assert_eq!(peel_tail(n, 0), n);
+        assert_eq!(peel_tail(n, 0, 256), n);
+        assert_eq!(peel_tail(n, 0, 2048), n);
     }
     for n in 1..=256 {
-        assert_eq!(peel_tail(n, 8), n);
+        assert_eq!(peel_tail(n, 8, 256), n);
     }
-    assert_eq!(peel_tail(260, 8), 256);
-    assert_eq!(peel_tail(264, 8), 256);
-    assert_eq!(peel_tail(265, 8), 265);
-    assert_eq!(peel_tail(4096, 8), 4096);
-    assert_eq!(peel_tail(4097, 8), 4096);
-    assert_eq!(peel_tail(4360, 8), 4352);
-    assert_eq!(peel_tail(4361, 8), 4361);
+    assert_eq!(peel_tail(260, 8, 256), 256);
+    assert_eq!(peel_tail(264, 8, 256), 256);
+    assert_eq!(peel_tail(265, 8, 256), 265);
+    assert_eq!(peel_tail(4096, 8, 256), 4096);
+    assert_eq!(peel_tail(4097, 8, 256), 4096);
+    assert_eq!(peel_tail(4360, 8, 256), 4352);
+    assert_eq!(peel_tail(4361, 8, 256), 4361);
+}
+
+#[test]
+fn prefill_peel_period_knob_parse() {
+    assert_eq!(parse_peel_period(None).unwrap(), None);
+    assert_eq!(parse_peel_period(Some(" ")).unwrap(), None);
+    assert_eq!(parse_peel_period(Some("1")).unwrap(), Some(1));
+    assert_eq!(parse_peel_period(Some("2048")).unwrap(), Some(2048));
+    assert!(parse_peel_period(Some("0")).is_err());
+    assert!(parse_peel_period(Some("-1")).is_err());
+    assert!(parse_peel_period(Some("x")).is_err());
+}
+
+#[test]
+fn prefill_peel_rule_at_period_2048() {
+    // the 35B on Metal: peel 8, period 2048. A pass of at most 2048 rows is never cut, whatever its tail
+    for n in 1..=2048 {
+        assert_eq!(peel_tail(n, 8, 2048), n, "n {n}");
+    }
+    // 2049..=2056 leave a 1..=8-row tail past 2048: cut. 2057 (tail 9) and 2058 (tail 10) are not
+    for n in 2049..=2056 {
+        assert_eq!(peel_tail(n, 8, 2048), 2048, "n {n}");
+    }
+    for n in [2057, 2058, 2064, 2300, 4095] {
+        assert_eq!(peel_tail(n, 8, 2048), n, "n {n}");
+    }
+    assert_eq!(peel_tail(4096, 8, 2048), 4096);
+    assert_eq!(peel_tail(4097, 8, 2048), 4096);
+    assert_eq!(peel_tail(4104, 8, 2048), 4096);
+    assert_eq!(peel_tail(4105, 8, 2048), 4105);
+    assert_eq!(peel_tail(6145, 8, 2048), 6144);
+    // what the period changes: the period 256 cuts 258 / 260 / 265 / 4360, the period 2048 does not (and cuts nothing else of these)
+    for n in [258usize, 260, 264, 516, 1028, 1540, 2056, 4360] {
+        assert_eq!(peel_tail(n, 8, 256), if n % 256 <= 8 { n - n % 256 } else { n }, "n {n}");
+    }
+    for n in [258usize, 260, 264, 516, 1028, 1540, 4360] {
+        assert_eq!(peel_tail(n, 8, 2048), n, "n {n}");
+    }
+    // a period of 1 never cuts (a tail of 1..=peel rows past a multiple of 1 is empty)
+    for n in 1..=3000 {
+        assert_eq!(peel_tail(n, 0, 1), n);
+        assert_eq!(peel_tail(n, 8, 1), n);
+    }
+}
+
+#[test]
+fn prefill_peel_period_2048_pass_sequences() {
+    let passes = |len: usize, chunk: usize, peel: usize, period: usize| {
+        let mut out = Vec::new();
+        forward_passes_p(0, len, chunk, peel, period, &mut out);
+        out
+    };
+    // n = 6145 rows, the 35B's solo body at chunk 4096 and its busy body at chunk 2048: both end in the 1-row pass, and the
+    // 2049 rows after the first 4096 run as 2048 + 1 instead of one pass of 2049
+    assert_eq!(passes(6145, 4096, 8, 2048), vec![(0, 4096), (4096, 2048), (6144, 1)]);
+    assert_eq!(passes(6145, 4096, 0, 2048), vec![(0, 4096), (4096, 2049)]);
+    assert_eq!(passes(6145, 2048, 8, 2048), vec![(0, 2048), (2048, 2048), (4096, 2048), (6144, 1)]);
+    // 2049..=2056 solo (chunk 4096) take the busy schedule's cut; 2057 and 2058 do not need one
+    for n in 2049..=2056 {
+        assert_eq!(passes(n, 4096, 8, 2048), vec![(0, 2048), (2048, n - 2048)], "n {n}");
+        assert_eq!(passes(n, 2048, 8, 2048), vec![(0, 2048), (2048, n - 2048)], "n {n}");
+    }
+    for n in [2057usize, 2058] {
+        assert_eq!(passes(n, 4096, 8, 2048), vec![(0, n)], "n {n}");
+    }
+    // ... and the period 256 would also cut a 258-row pass, which the period 2048 leaves alone
+    assert_eq!(passes(258, 4096, 8, 256), vec![(0, 256), (256, 2)]);
+    assert_eq!(passes(258, 4096, 8, 2048), vec![(0, 258)]);
+    // the busy chunk never peels (no pass above 2048 rows), the solo chunk changes only the lengths with a tail of 1..=8 rows past 2048 mod 4096
+    for len in 1..=20000usize {
+        assert_eq!(passes(len, 2048, 8, 2048), passes(len, 2048, 0, 2048), "busy len {len}");
+        let changed = passes(len, 4096, 8, 2048) != passes(len, 4096, 0, 2048);
+        assert_eq!(changed, (2049..=2056).contains(&(len % 4096)), "solo len {len}");
+    }
+    // the small passes of the solo schedule are the busy schedule's, as at period 256 for the 27B
+    for len in 1..=9000usize {
+        let (busy, solo) = (passes(len, 2048, 8, 2048), passes(len, 4096, 8, 2048));
+        same_small_passes(&busy, &solo, 8).unwrap_or_else(|e| panic!("len {len}: {e}"));
+    }
 }
 
 #[test]

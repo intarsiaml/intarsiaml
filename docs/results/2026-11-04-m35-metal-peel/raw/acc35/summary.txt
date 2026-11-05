@@ -1,0 +1,6 @@
+
+exposed: 7 windows, mean KL before 1.375e-02 after 3.680e-02, median ratio 0.95, after closer on 5, farther on 2
+
+peeled, not exposed: 2 windows, mean KL before 9.909e-03 after 8.040e-03, median ratio 0.81, after closer on 2, farther on 0
+
+all: 9 windows, mean KL before 1.290e-02 after 3.041e-02, median ratio 0.91, after closer on 7, farther on 2

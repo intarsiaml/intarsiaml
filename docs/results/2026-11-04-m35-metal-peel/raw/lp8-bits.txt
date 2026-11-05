@@ -1,0 +1,7 @@
+Qwen3-8B, main binary, exp3.py of the m27 flip lane: top-20 log-probs of 200 decode rows, solo vs behind a decoding row (background 800 tokens, started 1 s before)
+plen 258 mod256 2: first id diff None, bit-equal top-20 rows 200 / 200, KL mean 0.00e+00 max 0.000; schedules (solo / behind): C=2048 decoding=0 passes=[258] / C=256 decoding=1 passes=[256, 2]
+plen 260 mod256 4: first id diff None, bit-equal top-20 rows 200 / 200, KL mean 0.00e+00 max 0.000; schedules (solo / behind): C=2048 decoding=0 passes=[260] / C=256 decoding=1 passes=[256, 4]
+plen 265 mod256 9: first id diff None, bit-equal top-20 rows 200 / 200, KL mean 0.00e+00 max 0.000; schedules (solo / behind): C=2048 decoding=0 passes=[265] / C=2048 decoding=0 passes=[265]
+plen 266 mod256 10: first id diff None, bit-equal top-20 rows 200 / 200, KL mean 0.00e+00 max 0.000; schedules (solo / behind): C=2048 decoding=0 passes=[266] / C=256 decoding=1 passes=[256, 10]
+plen 772 mod256 4: first id diff None, bit-equal top-20 rows 200 / 200, KL mean 0.00e+00 max 0.000; schedules (solo / behind): C=2048 decoding=0 passes=[772] / C=256 decoding=1 passes=[256]..[4]
+plen 1028 mod256 4: first id diff None, bit-equal top-20 rows 200 / 200, KL mean 0.00e+00 max 0.000; schedules (solo / behind): C=2048 decoding=0 passes=[1028] / C=256 decoding=1 passes=[256]..[4]

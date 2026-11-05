@@ -1,0 +1,25 @@
+fleetq: #8399 running on spark1: zsh /opt/code/intarsiaml/.worktrees/failpaths-gates/scripts/gates-cuda.sh /opt/code/intarsiaml/.worktrees/failpaths-gates/out/cuda
+new 3dc076b238916cd5914994b39ed5cbcaaecf78d3 base 809674eb94c5ef40e515b7b5fe572c613991dbde
+tail: option used in invalid context -- 2
+plan 35b new exit 0
+plan 35b new json exit 0
+plan 8b new exit 0
+plan 8b new json exit 0
+avail GB before kernels: 79
+kernels new exit 0
+plan 35b base exit 0
+plan 35b base json exit 0
+plan 8b base exit 0
+plan 8b base json exit 0
+avail GB before kernels: 79
+kernels base exit 0
+REMOTE_DONE
+plan show 35b txt: identical (4017 bytes)
+plan show 35b json: identical (15570 bytes)
+plan show 8b txt: identical (1543 bytes)
+plan show 8b json: identical (8968 bytes)
+kernels base: 0 FAIL lines; 106 kernels, 918 cases in 6.4s
+kernels new: 0 FAIL lines; 106 kernels, 918 cases in 6.4s
+kernels logs identical apart from wall time
+cleaned
+fleetq: #8399 done (exit 0)

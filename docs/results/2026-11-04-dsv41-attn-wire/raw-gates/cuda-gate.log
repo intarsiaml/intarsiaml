@@ -1,0 +1,29 @@
+fleetq: #8435 running on spark1: zsh docs/results/2026-11-04-dsv41-attn-wire/raw-gates/scripts/gates-cuda.sh docs/results/2026-11-04-dsv41-attn-wire/raw-gates/cuda
+fleetq: #8435 went ahead of the line and must end within 9h37m (by Wed 22:00); it is stopped then
+ccb37aa94 dirty=no 1104-1216
+34260a05e506f08bdc22059aa1d73baa  ../bin/intarsia
+3da18bfd81f75ed0538728589d47ded7  ../bin/intarsia.base
+               total        used        free      shared  buff/cache   available
+Mem:             121          42          56           0          24          79
+35b=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 8b=/home/nvidia/models/Qwen3-8B
+plan 35b head exit 0
+plan 35b head json exit 0
+plan 8b head exit 0
+plan 8b head json exit 0
+avail GB before kernels: 79
+kernels head exit 0
+plan 35b base exit 0
+plan 35b base json exit 0
+plan 8b base exit 0
+plan 8b base json exit 0
+avail GB before kernels: 79
+kernels base exit 0
+REMOTE_DONE
+plan show 35b txt: identical (4017 bytes)
+plan show 35b json: identical (15570 bytes)
+plan show 8b txt: identical (1543 bytes)
+plan show 8b json: identical (8968 bytes)
+kernels base: 0 FAIL lines; 106 kernels, 918 cases in 6.5s
+kernels head: 0 FAIL lines; 106 kernels, 918 cases in 6.8s
+kernels logs identical apart from wall time
+fleetq: #8435 done (exit 0)
