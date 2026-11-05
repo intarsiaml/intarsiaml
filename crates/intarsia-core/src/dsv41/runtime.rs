@@ -1105,6 +1105,7 @@ impl Dsv41Runtime {
     /// warm-up pass), the scratch is grown first, the fills applied; nothing inside the recording uploads or allocates.
     fn capture(&self, ex: &mut Exec, g: &Dsv41Graph, st: &SequenceState, t: usize) -> Result<Vec<(usize, usize, GraphHandle)>> {
         ex.verify = g.verify;
+        ex.hc_out.clear();
         // grow the scratch to the largest need of the graph outside the recording
         let mut need = 0usize;
         let mut hc_need = 0usize;
