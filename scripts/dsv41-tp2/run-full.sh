@@ -369,8 +369,8 @@ nb_arms() {
     local nch; for nch in ${NB_CHANNELS:-2 1}; do echo "c$nch|NCCL_MAX_NCHANNELS=$nch"; done
   fi
 }
-nb_one() { # TAG ENV [extra env for both ranks] [file stem]
-  local tag=$1 aenv=$2 xenv=${3:-} stem=${4:-ncclbench} NB="$SPARK_DIR/bin/nccl_bench" to=${NB_TIMEOUT:-90}
+nb_one() { # TAG ENV [extra env for both ranks] [file stem] [timeout s]
+  local tag=$1 aenv=$2 xenv=${3:-} stem=${4:-ncclbench} NB="$SPARK_DIR/bin/nccl_bench" to=${5:-${NB_TIMEOUT:-90}}
   r spark2 "mkdir -p $LOGD; pkill -f '[b]in/nccl_bench'; nohup timeout $to env $NCCLENV $aenv $xenv $NB serve $WIP:29711 0 300 > $LOGD/$stem-r1-$tag.log 2>&1 < /dev/null &"
   sleep 2
   r spark1 "mkdir -p $LOGD; timeout $to env $NCCLENV $aenv $xenv $NB connect $WIP:29711 0 300 > $LOGD/$stem-r0-$tag.log 2>&1"
@@ -386,7 +386,7 @@ if [[ " ${PRE:-} " == *" ncclbench "* ]]; then
     if [[ ${NB_DEBUG:-0} == 1 && $tag =~ ${NB_DEBUG_RE:-.} ]]; then nb_one "$tag" "$aenv" "NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL" ncclbench-dbg; fi
     if [[ -n ${NB_COLD:-} && ( ( -z ${NB_COLD_ARM:-} && $first == 1 ) || ${NB_COLD_ARM:-} == "$tag" ) ]]; then
       for lb in ${NB_COLD_LEADS:-16384 4194304}; do
-        nb_one "$tag" "$aenv" "NB_BYTES=41943040 NB_BIG_ITERS=3 NB_COLD=$NB_COLD NB_COLD_LEAD_BYTES=$lb ${NB_COLD_ENV:-}" ncclbench-cold$lb
+        nb_one "$tag" "$aenv" "NB_BYTES=41943040 NB_BIG_ITERS=3 NB_COLD=$NB_COLD NB_COLD_LEAD_BYTES=$lb ${NB_COLD_ENV:-}" ncclbench-cold$lb $(( NB_COLD * 7 + 60 ))
         grep -a 'cold' "$OUT/ncclbench-cold$lb-r0-$tag.txt" | tee -a "$OUT/steps.log"
       done
     fi
