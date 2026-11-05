@@ -2,7 +2,8 @@
 # Lane bm: CUDA gates on spark1, Mac side, inside a fleetq slot (FLEETQ_JOB set):
 #   fleetq run --host spark1 --quiet gpu,cpu --mem 50 --expect 60 --label "bm: CUDA gates" -- scripts/bm/gates.sh
 # (1) plan show, branch vs main, no opt-in: byte-identical json; and with the opt-in (memory note). (2) kernels test --quick.
-# (3) greedy ids: solo spec-off server vs batched-MTP servers (6 concurrent prompts of different lengths and max_tokens).
+# (3) greedy ids: solo spec-off server vs batched-MTP servers, phase A (solo passes) and B (INTARSIA_BATCHED_VERIFY=1), 6 concurrent
+# prompts of different lengths and max_tokens.
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}"
 HOST=spark1; HN=spark-4e77; PORT=8192
@@ -40,7 +41,9 @@ ids bmtp4 "INTARSIA_BATCHED_MTP=4" 6 --max-batch 4 --spec mtp --spec-k 2 --spec-
 ids bmtp16 "INTARSIA_BATCHED_MTP=8" 6 --max-batch 16 --spec mtp --spec-k 2 --spec-off-at 9
 ids bmtp1 "INTARSIA_BATCHED_MTP=1" 6 --max-batch 16 --spec mtp --spec-k 2
 ids plain16 "" 6 --max-batch 16
-for n in bmtp4 bmtp16 bmtp1 plain16; do
+ids bver5 "INTARSIA_BATCHED_MTP=5 INTARSIA_BATCHED_VERIFY=1" 6 --max-batch 8 --spec mtp --spec-k 2 --spec-off-at 9
+ids bver8k3 "INTARSIA_BATCHED_MTP=8 INTARSIA_BATCHED_VERIFY=1" 6 --max-batch 16 --spec mtp --spec-k 3 --spec-off-at 9
+for n in bmtp4 bmtp16 bmtp1 plain16 bver5 bver8k3; do
   python3 - "$O/ids-solo-off.json" "$O/ids-$n.json" <<'PY' | tee -a $O/ids.txt
 import json, sys
 a, b = (json.load(open(p)) for p in sys.argv[1:3])
