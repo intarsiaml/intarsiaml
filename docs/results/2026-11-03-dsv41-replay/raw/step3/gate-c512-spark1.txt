@@ -1,0 +1,11 @@
+encoder half (layers 0, 9, 19 outputs; layer 20 rope / act_quant of the kv source): 140 dumps, 140 identical, 0 differ, 0 missing from on
+layer 39 at 300: off yes, on no  (on must not have it: below every floor)
+layer 39 at 700: off yes, on no  (on must not have it: below every floor)
+layer 39 at 1000: off yes, on no  (on must not have it: below every floor)
+layer 39 at 1100: off yes, on yes  (both must have it)
+layer 39 at 1199: off yes, on yes  (both must have it)
+layer 39 at 1450: off yes, on yes  (both must have it)
+layer 39 at 1499: off yes, on yes  (both must have it)
+layer 39 at 1372: off vs on differ  (must differ: the first replayed rows lose their window keys below the floor)
+layer 39 at 1373: off vs on differ  (must differ: the first replayed rows lose their window keys below the floor)
+REQUIREMENT MET

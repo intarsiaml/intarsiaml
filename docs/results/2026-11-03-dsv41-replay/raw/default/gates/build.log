@@ -1,0 +1,16 @@
+fleetq: #8480 running on endor: zsh /opt/code/intarsiaml/.worktrees/replay-gates/scripts/build.sh
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 1m 04s
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 1m 05s
+1ffa366b4a1c42ef9b0d4d43c490914a312c43ab
+c39dcaeb3c97b0912c54de619b7d43dd624d40eb
+0f0fb75168c34bca6d7d815ef7b0f55524da6d7b819d2bf95b27e4f2d819fff4  /opt/code/intarsiaml/.worktrees/replay-gates/intarsia.new
+9bbfcb68aec665d9592cc58e83f7503c4322c7cb6dcd4bdd11afd2220eb9cd56  /opt/code/intarsiaml/.worktrees/replay-gates/intarsia.base
+fleetq: #8480 done (exit 0)

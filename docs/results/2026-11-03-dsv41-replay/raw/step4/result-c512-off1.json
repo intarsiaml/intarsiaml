@@ -1,0 +1,157 @@
+{
+ "run_id": "20261104-111136-adhoc-dsv41replay-speed-c512-off1",
+ "kind": "speed",
+ "label": "dsv41replay-speed-c512-off1",
+ "started_at": "2026-11-04T11:11:36-05:00",
+ "finished_at": "2026-11-04T11:13:13-05:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://100.120.88.104:8899/v1",
+  "model": "dsv41-intarsia",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "intarsia 9956d10fb dirty=no 1104-1033 scripts/dsv41-tp2/replay-test.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000, engram hot 1024 MiB"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed --sizes 4096,32768 --gen 8 --reps 2 --label dsv41replay-speed-c512-off1 --url http://100.120.88.104:8899/v1 --model dsv41-intarsia --thinking off --recipe intarsia 9956d10fb dirty=no 1104-1033 scripts/dsv41-tp2/replay-test.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000, engram hot 1024 MiB",
+  "git": "a43b846"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "dsv41-intarsia"
+   ],
+   "root": "45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b",
+   "owned_by": "intarsia",
+   "max_model_len": 66000
+  },
+  "gen_tokens": 8,
+  "reps": 2,
+  "tokens_per_filler_sentence": 20.27,
+  "rows": [
+   {
+    "target_prompt_tokens": 4096,
+    "prompt_tokens": 4074,
+    "completion_tokens": {
+     "median": 8.0,
+     "min": 8,
+     "max": 8,
+     "n": 2,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 4.821,
+     "min": 4.821,
+     "max": 4.821,
+     "n": 2,
+     "spread_pct": 0.0
+    },
+    "prefill_tok_s": {
+     "median": 845.08,
+     "min": 845.025,
+     "max": 845.135,
+     "n": 2,
+     "spread_pct": 0.0
+    },
+    "decode_tok_s": {
+     "median": 31.801,
+     "min": 25.863,
+     "max": 37.739,
+     "n": 2,
+     "spread_pct": 37.3
+    },
+    "peak_decode_tok_s": null,
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 2,
+    "marginal_prefill_tok_s": null
+   },
+   {
+    "target_prompt_tokens": 32768,
+    "prompt_tokens": 33259,
+    "completion_tokens": {
+     "median": 8.0,
+     "min": 8,
+     "max": 8,
+     "n": 2,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 40.255,
+     "min": 40.251,
+     "max": 40.26,
+     "n": 2,
+     "spread_pct": 0.0
+    },
+    "prefill_tok_s": {
+     "median": 826.201,
+     "min": 826.164,
+     "max": 826.238,
+     "n": 2,
+     "spread_pct": 0.0
+    },
+    "decode_tok_s": {
+     "median": 36.328,
+     "min": 35.601,
+     "max": 37.055,
+     "n": 2,
+     "spread_pct": 4.0
+    },
+    "peak_decode_tok_s": null,
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": true,
+    "forced_length": true,
+    "errors": [],
+    "reps": 2,
+    "marginal_prefill_tok_s": 823.6
+   }
+  ],
+  "skipped": [],
+  "concurrency": [],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "dsv41-intarsia",
+  "activity_checks": {
+   "idle": 5,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": [
+   "decode spread 37.3% at 4096 tokens: noisy; rerun before comparing"
+  ]
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": [
+  "decode spread 37.3% at 4096 tokens: noisy; rerun before comparing"
+ ]
+}

@@ -5,7 +5,7 @@
 use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::dsv41::config::Dsv41Config;
 use intarsia_core::dsv41::graph::WeightShapes;
-use intarsia_core::dsv41::graph::{build, build_draft, build_draft_dpos, build_pass, build_with, Buf, Dsv41Graph, GraphOpts, GraphTp, PassKind};
+use intarsia_core::dsv41::graph::{build, build_draft, build_draft_dpos, build_pass, build_replay, build_with, Buf, Dsv41Graph, GraphOpts, GraphTp, PassKind, Replay, ReplayPart};
 use intarsia_core::state::{SharedKind, SlotSpec};
 use intarsia_core::{DType, Op};
 use intarsia_models::dsv41::{detect, plan, HeaderShapes};
@@ -402,6 +402,38 @@ fn in_place_rope_battery(label: &str, c: &Dsv41Config, w: &dyn intarsia_core::ds
         assert_eq!(check_in_place_rope(&base, &ip), (layers, layers), "{label}: dpos t = {t} all_rows = {all_rows} absorb = {absorb}");
         assert!(ip.stages.iter().flat_map(|s| &s.steps).any(|s| s.pos && s.op == Op::RopeTail), "a dpos graph has positioned ropes");
     }
+    // the bounded-replay prefill graphs (`INTARSIA_DSV41_REPLAY`, `replay.rs`): the encoder part (layers 0..cut, then the cut layer's
+    // mixes and kv-source update: no attention q / o at the cut layer), the decoder part (layers cut.., read from the encoder
+    // part's streams) and a whole chunk under the floor. Same checks: the flagged graph is the unflagged one with the two
+    // ropes' buffers renamed, and no step reads an unrotated q / o. One q rope and one o rope per attention layer of the part.
+    if layers == 40 {
+        let cut = 20;
+        for (part, t, pos0, first, absorb, want) in [
+            (ReplayPart::Encoder, 512, 0, 0, false, cut),
+            (ReplayPart::Encoder, 2048, 2048, 0, true, cut),
+            (ReplayPart::Encoder, 17, 3961, 0, false, cut),
+            (ReplayPart::Decoder, 118, 3978, 1930, false, layers - cut),
+            (ReplayPart::Decoder, 118, 3978, 1930, true, layers - cut),
+            (ReplayPart::Decoder, 128, 3978, 0, false, layers - cut),
+            (ReplayPart::Decoder, 1, 3978, 2047, false, layers - cut),
+            (ReplayPart::Whole, 512, 4096, 0, false, layers),
+            (ReplayPart::Whole, 16, 4100, 0, true, layers),
+        ] {
+            let o = GraphOpts { t, pos0, act: DType::Bf16, cap: 131_072 };
+            let k = PassKind { all_rows: false, absorb, dpos: false };
+            let r = Replay { part, cut, floor: 3978, first };
+            let (base, ip) = match (build_replay(c, w, o, off, k, r), build_replay(c, w, o, on, k, r)) {
+                (Ok(b), Ok(i)) => (b, i),
+                (Err(e), Err(_)) => {
+                    println!("{label}: skipped replay {part:?} t = {t} absorb {absorb}: {e}");
+                    continue;
+                }
+                (b, i) => panic!("{label}: replay {part:?} t = {t}: {:?} / {:?}", b.err(), i.err()),
+            };
+            assert_eq!(check_in_place_rope(&base, &ip), (want, want), "{label}: replay {part:?} t = {t} pos0 = {pos0} absorb = {absorb}");
+            check_rope_rows(&ip, t, pos0);
+        }
+    }
     // the drafting graphs (DSpark stages), host and device position
     let o = GraphOpts { t: 5, pos0: 100, act: DType::Bf16, cap: 131_072 };
     for dpos in [false, true] {
@@ -409,6 +441,61 @@ fn in_place_rope_battery(label: &str, c: &Dsv41Config, w: &dyn intarsia_core::ds
         let (base, ip) = (mk(off).unwrap_or_else(|e| panic!("{label}: {e}")), mk(on).unwrap());
         let (n_q, n_o) = check_in_place_rope(&base, &ip);
         assert!(n_q > 0 && n_q == n_o, "{label}: draft graph (dpos {dpos}): {n_q} q ropes, {n_o} o ropes");
+    }
+}
+
+/// Every attention rope of a graph of `t` rows at `pos0` rotates exactly the graph's own rows at the graph's own positions (never a
+/// row range of another graph: the decoder part of a replay chunk is `t - first` rows at `pos0 + first`), and `q` / `o` are produced
+/// and consumed at that row count. The sparse attention may be built at a shifted position (the replay floor) but its ropes may not.
+fn check_rope_rows(g: &Dsv41Graph, t: usize, pos0: usize) {
+    let mut ropes = 0;
+    for st in &g.stages {
+        for s in &st.steps {
+            let q_or_o = s.what.ends_with(".rope(q)") || s.what.ends_with(".rope_inverse(o)");
+            if q_or_o {
+                ropes += 1;
+                assert_eq!(s.inputs[0].shape[0], t, "{}: {} rotates {} rows of a {t}-row graph", st.name, s.what, s.inputs[0].shape[0]);
+                assert_eq!(s.attrs.pos0, pos0, "{}: {} rotates at position {} in a graph at {pos0}", st.name, s.what, s.attrs.pos0);
+            }
+            if s.what.ends_with(".wq_b") || s.op == Op::AttnSparse {
+                assert_eq!(s.outputs[0].shape[0], t, "{}: {}", st.name, s.what);
+            }
+            if s.what.ends_with(".rope(kv)") || s.what.ends_with(".rope(index_q)") {
+                assert_eq!((s.inputs[0].shape[0], s.attrs.pos0), (t, pos0), "{}: {}", st.name, s.what);
+            }
+        }
+    }
+    assert!(ropes > 0, "no attention rope found");
+}
+
+/// A bounded-replay chunk that crosses the floor runs two graphs one after the other on the same workspace: the encoder part, then the
+/// decoder part. With `q` and `o` rotated in place, the pair must behave as one graph for the checks: concatenated in execution
+/// order, no step reads an unrotated q / o (the decoder part's first layer finds nothing of the encoder part's left over, it
+/// produces `q` first), and every rotation happens once per producer. Also for the chunk sizes at the ends (a 1-row decoder part,
+/// the whole 128).
+#[test]
+fn in_place_rope_across_the_replay_cut() {
+    let (c, w) = mia();
+    let on = GraphTp { rope_inplace: true, ..GraphTp::default() };
+    let k = PassKind { all_rows: false, absorb: true, dpos: false };
+    for (chunk_t, pos0, floor) in [(2048usize, 2048usize, 3978usize), (512, 3584, 3978), (512, 3500, 3978), (130, 3900, 3978)] {
+        let first = floor - pos0;
+        let kept = chunk_t - first;
+        let o = |t, p| GraphOpts { t, pos0: p, act: DType::Bf16, cap: 131_072 };
+        let enc = build_replay(&c, &w, o(chunk_t, pos0), on, k, Replay { part: ReplayPart::Encoder, cut: 20, floor, first: 0 }).unwrap();
+        let dec = build_replay(&c, &w, o(kept, floor), on, k, Replay { part: ReplayPart::Decoder, cut: 20, floor, first }).unwrap();
+        check_rope_rows(&enc, chunk_t, pos0);
+        check_rope_rows(&dec, kept, floor);
+        assert_eq!(check_no_unrotated_read(&enc), (20, 20));
+        assert_eq!(check_no_unrotated_read(&dec), (20, 20));
+        let mut both = enc.clone();
+        both.stages.extend(dec.stages.iter().cloned());
+        assert_eq!(check_no_unrotated_read(&both), (40, 40), "encoder part then decoder part ({chunk_t} rows at {pos0}, floor {floor})");
+        // the decoder part never names the encoder part's q / o rows: its first q / o touch is a producer
+        let first_touch = dec.stages.iter().flat_map(|s| s.steps.iter()).find(|s| touches(s, "q").0 || touches(s, "q").1).unwrap();
+        assert!(first_touch.what.ends_with(".wq_b"), "{}", first_touch.what);
+        let first_o = dec.stages.iter().flat_map(|s| s.steps.iter()).find(|s| touches(s, "o").0 || touches(s, "o").1).unwrap();
+        assert_eq!(first_o.op, Op::AttnSparse, "{}", first_o.what);
     }
 }
 

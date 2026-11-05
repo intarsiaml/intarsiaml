@@ -299,6 +299,10 @@ pub struct SequenceState {
     pub dflash: Option<Box<DflashState>>,
     /// Per-row recurrent state of the last verify pass (speculative decoding on a model with recurrent slots).
     pub spec_rows: SpecRows,
+    /// DeepSeek-V4.1 bounded-replay prefill (`INTARSIA_DSV41_REPLAY`, `dsv41::replay`): the decoder layers' window rings hold
+    /// valid keys for positions `replay_from..len` only, the earlier rows skipped those layers. 0 (always, for every other
+    /// model and for DeepSeek-V4.1 without the option): nothing was skipped.
+    pub replay_from: usize,
 }
 
 impl SequenceState {
@@ -362,6 +366,7 @@ impl SequenceState {
             mtp: None,
             dflash: None,
             spec_rows: SpecRows::default(),
+            replay_from: 0,
         })
     }
 

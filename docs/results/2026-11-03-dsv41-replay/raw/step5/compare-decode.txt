@@ -1,0 +1,6 @@
+prompt             n_prompt  cont off/on  leading    equal  identical
+d_1200                 1200   160/160       6/160   22/160  NO
+d_4106                 4106   160/160      10/160   11/160  NO
+d_612                   612   160/160     127/160  127/160  NO
+TOTAL off vs on: leading-match 143/480 (29.79%), equal positions 160/480 (33.33%), identical prompts 0/3; off holds 480 continuation tokens
+REQUIREMENT MET

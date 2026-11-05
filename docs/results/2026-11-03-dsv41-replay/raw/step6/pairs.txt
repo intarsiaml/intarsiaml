@@ -1,0 +1,3 @@
+s32-00 /opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step6/result-off-s32-00.json /opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step6/result-on-s32-00.json
+s65-00 /opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step6/result-off-s65-00.json /opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step6/result-on-s65-00.json
+s32-01 /opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step6/result-off-s32-01.json /opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step6/result-on-s32-01.json
