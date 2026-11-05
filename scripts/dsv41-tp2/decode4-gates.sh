@@ -11,6 +11,8 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 RP='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH; export MAX_JOBS=4 CARGO_BUILD_JOBS=4;'
 ssh -n spark2 "$RP cd $SPARK_DIR/src && INTARSIA_REQUIRE_GPU=1 cargo test --release -p intarsia-backend-cuda --test dsv41 -- hc_sublayer_halves real_shapes --nocapture 2>&1 | tail -25" > "$O/kernel-tests.log" 2>&1
 cat "$O/kernel-tests.log"
+# PASS marks the new test ran and passed (a window job queued behind this one checks it before it takes the Sparks down)
+rm -f "$O/PASS"; grep -q "test result: ok. 2 passed" "$O/kernel-tests.log" && ! grep -q "FAILED\|panicked" "$O/kernel-tests.log" && touch "$O/PASS"
 ssh spark1 "mkdir -p $SPARK_DIR/gates" && ssh spark1 'bash -s' > "$O/spark.log" 2>&1 <<REMOTE
 T=$SPARK_DIR; cd \$T/gates; cat ../bin/STAMP; free -g | head -2
 M35=\$(ls -d \$HOME/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/* | head -1); M8=\$HOME/models/Qwen3-8B

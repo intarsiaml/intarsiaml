@@ -186,7 +186,7 @@ pub struct Dsv41Runtime {
     /// linears read: after a layer's `wq_b` its `wo_a` and `wo_b`, after its experts the next layer's `wq_a`, `wkv`, `wq_b`
     /// (16 MiB a launch). Changes no numbers.
     l2_prefetch: bool,
-    /// `INTARSIA_DSV41_HC_SIDE=1` (default off): in a recorded pass an `HcSublayer` runs as two launches, the main half (the fold of the previous
+    /// `INTARSIA_DSV41_HC_SIDE=1` (default off; `2` = the same with the side stream at the default priority, `device.rs`): in a recorded pass an `HcSublayer` runs as two launches, the main half (the fold of the previous
     /// sublayer's post and the norm, which the sublayer reads at once) and the side half on [`HC_STREAM`] (the mixing dots on the stored `h` and the
     /// Sinkhorn: the next sublayer's `pre`, `post`, `comb`), joined where the next `HcSublayer` reads them. Same kernel bodies and
     /// reduction orders as the fused launches: changes no numbers.
@@ -431,7 +431,7 @@ impl Dsv41Runtime {
             }
         };
         let l2_prefetch = std::env::var("INTARSIA_DSV41_L2_PREFETCH").map_or(true, |v| v != "0") && backend.stream_fork();
-        let hc_side = std::env::var("INTARSIA_DSV41_HC_SIDE").is_ok_and(|v| v == "1") && backend.stream_fork();
+        let hc_side = std::env::var("INTARSIA_DSV41_HC_SIDE").is_ok_and(|v| v == "1" || v == "2") && backend.stream_fork();
         let lanes = std::env::var("INTARSIA_DSV41_LANES").map_or(true, |v| v != "0") && backend.stream_fork();
         let mut rt = Dsv41Runtime {
             cfg,

@@ -153,10 +153,14 @@ impl CudaBackend {
         while s.len() <= id as usize {
             let mut h: *mut c_void = std::ptr::null_mut();
             // SAFETY: valid out-pointer; the device is bound by the caller.
-            // stream 0 carries the ordinary work; every other stream is the decode lane (R3d): highest priority
+            // stream 0 carries the ordinary work; every other stream is the decode lane (R3d): highest priority.
+            // Except the DSv4.1 hyper-connection side stream (6) under INTARSIA_DSV41_HC_SIDE=2: the default priority of stream 0 (the
+            // lowest), so its dots do not take SMs from the sublayer's kernels on stream 0 (window w3: with it at the highest, the
+            // sublayer's first projections got slower by as much as the chain gained)
             let id_new = s.len();
+            let hc_plain = id_new == 6 && std::env::var("INTARSIA_DSV41_HC_SIDE").is_ok_and(|v| v == "2");
             check("cudaStreamCreate", unsafe {
-                if id_new == 0 {
+                if id_new == 0 || hc_plain {
                     ffi::ik_rt_stream_create(&mut h)
                 } else {
                     ffi::ik_rt_stream_create_high_priority(&mut h)
