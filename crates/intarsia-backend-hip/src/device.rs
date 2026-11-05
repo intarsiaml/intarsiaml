@@ -1548,7 +1548,7 @@ impl Backend for HipBackend {
     }
 
     /// Device-side top-k for sampling (`ik_topk_f32`, kernels/hip/topk.hip: the CUDA kernel's ABI and exact ordering). The model only
-    /// uses it with `INTARSIA_DEVICE_SAMPLING=1`.
+    /// uses it unless `INTARSIA_DEVICE_SAMPLING=0`.
     fn supports_topk(&self) -> bool {
         true
     }

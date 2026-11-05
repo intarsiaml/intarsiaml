@@ -1,0 +1,4 @@
+v1-on: MemAvailable 53865 MB with the server up
+v2-off: MemAvailable 54998 MB with the server up
+v3-on: MemAvailable 55061 MB with the server up
+v4-off: MemAvailable 55033 MB with the server up
