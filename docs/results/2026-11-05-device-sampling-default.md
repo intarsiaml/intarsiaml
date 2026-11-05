@@ -11,9 +11,9 @@ Lane `lane-ds/device-sampling-default`, 2026-11-05. Branch `lane-ds/device-sampl
 
 No, for clients that omit `top_k`, which is what plain OpenAI and Anthropic clients do.
 
-* `crates/intarsia-server/src/api.rs` (`Sampling::into_request`): temperature defaults to 1.0, `top_p` to 1.0, and `top_k` to 0 (`Some(k) if k > 0 => k`, anything else 0). `openai.rs` and `anthropic.rs` pass the client's optional `top_k` through unchanged; the server reads no `generation_config.json` and no recipe default.
+* `crates/intarsia-server/src/api.rs` (`Sampling::into_request`): temperature defaults to 1.0, `top_p` to 1.0, and `top_k` to 0 (`Some(k) if k > 0 => k`, anything else 0). `openai.rs` and `anthropic.rs` pass the client's optional `top_k` through unchanged; the server applies no default `top_k` of its own. The engine reads the checkpoint's `generation_config.json` only for EOS ids (`intarsia-models/src/load.rs:103`); the Qwen3.6-35B-A3B-NVFP4 checkpoint ships `top_k 20`, `top_p 0.95`, temperature 1.0 in it, so the model vendor's own sampling recipe is a top-k one.
 * `Seq::topk_for` (`crates/intarsia-core/src/engine.rs`) takes the device path only for `1 <= top_k <= 64`. `top_k = 0` means the whole-vocabulary softmax, so those requests keep downloading the `[B, V]` logits and sorting the row on the host.
-* So flipping the switch helps requests that send `top_k` (the Qwen recommended settings do: `top_k 20`; localeval's sampled targets with `top_k`), and does nothing for omit-`top_k` traffic. Measured below: temperature 1.0 without `top_k`, 16 streams, 169.7 tok/s in both arms, against 249.7 tok/s for the same server with `top_k 40`.
+* So flipping the switch helps requests that send `top_k` (the Qwen recommended settings do: `top_k 20`; localeval's sampled targets with `top_k`), and does nothing for omit-`top_k` traffic. Measured below at 16 streams: no `top_k` (temperature 1.0) 169.7 tok/s in both arms; `top_k 40` (temperature 0.7) 222.4 tok/s on the host path and 249.7 tok/s on the device path. So giving omit-`top_k` traffic a `top_k` would be worth about 1.31x from the smaller host sort alone and about 1.47x with the device path (the two targets differ in temperature, 1.0 against 0.7).
 
 Options for the omit-`top_k` case:
 
@@ -23,11 +23,11 @@ Options for the omit-`top_k` case:
 | (b) server or recipe default `top_k` (for example 20 or 40) | Exact on the device path, but it changes which tokens can be drawn from every omit-`top_k` request (the mass beyond the top 64 at temperature 1.0 is removed) | a user decision, not built |
 | (c) leave it | exact | what this lane does |
 
-Recommendation for the user: (b) is the cheapest way to make default traffic fast, and the model vendors' own sampling recommendations already ship `top_k` (Qwen3 `top_k 20`); it should be a per-recipe key read from the model's `generation_config.json` rather than a global constant, and it needs the user's OK because it changes the sampled distribution.
+Recommendation for the user: (b) is the cheapest way to make default traffic fast and the checkpoint already ships the value (`top_k 20`); it would be a per-recipe default read from `generation_config.json` rather than a global constant, and it needs the user's OK because it changes the sampled distribution of every omit-`top_k` request. Recorded as open decision O15 in `docs/decisions/LOG.md`.
 
 ## The change
 
-* `crates/intarsia-core/src/model/batch.rs`: device sampling buffers are allocated and `HeadMode::LastTopK` is offered unless `INTARSIA_DEVICE_SAMPLING=0` (was: only when `=1`). The switch is `device_sampling_switch` with a unit test. Applies where `Backend::supports_topk()` is true (CUDA and HIP); Metal and CPU answer false, so nothing changes there.
+* `crates/intarsia-core/src/model/batch.rs`: device sampling buffers are allocated and `HeadMode::LastTopK` is offered unless `INTARSIA_DEVICE_SAMPLING=0` (was: only when `=1`). The switch is `device_sampling_switch` with a unit test. Applies where `Backend::supports_topk()` is true; the overrides are in the CUDA and HIP backends only (`grep 'fn supports_topk' crates`: cuda `device.rs:362`, hip `device.rs:1552`, trait default false at `backend.rs:478`), so Metal and CPU are unchanged.
 * Comments updated in `model.rs`, `intarsia-backend-hip/src/device.rs`, `tests/batch_cuda_real.rs` (the test now skips only with `=0`).
 * Docs: `docs/tuning.md` env table row, `docs/decisions/LOG.md` defaults table (CUDA and HIP batched decode rows) and a new LOG row, `docs/backends/hip.md`. The task named `docs/tuning.md` lines 95-96; those lines are in `docs/decisions/LOG.md`.
 
@@ -60,9 +60,19 @@ Server MemAvailable with the server up: 54 to 55 GB in all four visits (`raw/mem
 
 ## Gates
 
-CUDA_TEST_PLACEHOLDER
+| gate | result | job |
+|---|---|---|
+| CUDA release build of the final source (the rsync excludes only `.git`, `.scratch`, `target*`, `.worktrees`, `docs/results`, so the binary is exactly the committed code) | ok, `~/intarsiaml-ds/src/target/release/intarsia` md5 `d711631b...` | fleetq #8552 (first build), #8567 (final source) |
+| Served equality, device against host, 16 concurrent, 21 cells | 21 / 21 identical | #8568 |
+| Sampled aggregate tok/s at 4 and 16 streams, default against `=0`, ABAB, localeval | 1.07x and 1.12x | #8568 |
+| `cargo test --workspace --no-fail-fast` (endor; includes the new unit test `device_sampling_is_on_unless_set_to_zero`, which first compiles there) | PENDING | #8598 queued |
+| Metal no-op on endor: `plan show` (35B, 8B), `kernels test`, 256 greedy ids (8B short and 4k, 35B short), goldens `qwen3-8b-fp32` and `-long-fp32` | PENDING | #8634 queued |
+| In-process CUDA draws test `real_35b_device_sampling_draws_the_host_tokens` with the new default | not run: dropped (#8580 released), redundant with the served 21/21 and queued behind exclusive DSv4.1 windows | |
+| `cargo check -p intarsia-core` | ok (run on endor outside a fleetq slot, no GPU, deviation from the fleet rule) | |
 
 ## Not run
 
 * HIP served check (tatooine busy with another lane's window; no slot was sent). HIP's device path rests on the 2026-10-27 lane htk evidence (LOG 10-27 01:15: 21/21 served cells identical, 3360 draws equal, 1.07x / 1.09x). The change is the same line for HIP.
 * Options (a) and (b) for omit-`top_k` traffic, see above.
+* Equality was gated on 35B tp1 CUDA only. Tensor-parallel runs (the vocab-parallel head; device top-k reads rank 0's logits only) and the other batched models also default to the device path now, and are not gated here.
+* `spark1:~/intarsiaml-ds` (source, target, server logs) was created for the build and left in place.

@@ -4,7 +4,9 @@
 [ -n "${FLEETQ_JOB:-}" ] || exit 2
 cd /opt/code/intarsiaml/.worktrees/device-sampling || exit 2
 S=$PWD/.scratch; O=$PWD/docs/results/2026-11-05-device-sampling-default/raw/endor; mkdir -p $O
-B=$S/intarsia.main; F=$S/intarsia.ds; W=/Users/josef/models; G=/opt/code/intarsiaml/golden
+B=$S/intarsia.main; F=$S/intarsia.ds;
+[ -x $B -a -x $F ] || { echo "missing $B or $F (the build job did not finish)"; exit 3; }
+ W=/Users/josef/models; G=/opt/code/intarsiaml/golden
 P4=docs/results/raw/2026-10-15-metal-longctx-profile/prompts/prompt-4096.txt
 echo "== plan show"
 for mdl in Qwen3.6-35B-A3B-NVFP4 Qwen3-8B; do for fmt in "" "--json"; do
@@ -24,13 +26,13 @@ gen() { # gen <bin> <tag> <model> <prompt-text> <name>
 for spec in "Qwen3-8B|short|The history of the printing press begins" "Qwen3-8B|4k|$(cat $P4)" "Qwen3.6-35B-A3B-NVFP4|short|The history of the printing press begins"; do
   mdl=${spec%%|*}; r=${spec#*|}; nm=${r%%|*}; pr=${r#*|}
   a=$(gen $B main $mdl "$pr" $mdl-$nm); b=$(gen $F ds $mdl "$pr" $mdl-$nm)
-  n=$(grep -a -c . $O/ids-$mdl-$nm.ds.err)
-  [ "$a" = "$b" -a -n "$a" ] && echo "ids $mdl $nm: identical ($a)" || echo "ids $mdl $nm: DIFFERS ($a vs $b)"
+  n=$(grep -a -c '^ids' $O/ids-$mdl-$nm.ds.err); n2=$(grep -a -c '^ids' $O/ids-$mdl-$nm.main.err)
+  [ "$n" -ge 1 -a "$n2" -ge 1 -a "$a" = "$b" ] && echo "ids $mdl $nm: identical ($a)" || echo "ids $mdl $nm: DIFFERS ($a vs $b)"
 done
 echo "== goldens"
 for g in qwen3-8b-fp32 qwen3-8b-long-fp32; do
   for t in main ds; do bin=$B; [ $t = ds ] && bin=$F
     $bin accuracy --model $W/Qwen3-8B --backend metal --golden $G/$g.safetensors --gate-class bf16 --max-seq 8192 > $O/golden-$g.$t.txt 2>&1; echo "golden $g $t exit $?"
   done
-  diff <(grep -aE 'KL|top-1|PASS|FAIL' $O/golden-$g.main.txt) <(grep -aE 'KL|top-1|PASS|FAIL' $O/golden-$g.ds.txt) > /dev/null && echo "golden $g: same figures" || echo "golden $g: figures DIFFER"
+  grep -aq PASS $O/golden-$g.main.txt && grep -aq PASS $O/golden-$g.ds.txt && diff <(grep -aE 'KL|top-1|PASS|FAIL' $O/golden-$g.main.txt) <(grep -aE 'KL|top-1|PASS|FAIL' $O/golden-$g.ds.txt) > /dev/null && echo "golden $g: PASS, same figures" || echo "golden $g: NOT PASS or figures DIFFER"
 done
