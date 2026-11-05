@@ -56,7 +56,7 @@ localeval 0.4.0 `speed`, 1024-token prompts, 128 forced tokens, 2 reps, burst at
 
 Every default visit beat both neighbouring `=0` visits at 4 and 16 streams. The no-`top_k` row is the point of the first section: default API traffic is unchanged by the flip, and costs about a third of the throughput of the same server when the request carries `top_k`.
 
-Server MemAvailable with the server up: 54 to 55 GB in all four visits (`raw/mem.txt`); the device buffers are `BATCH_MAX_ROWS * 64 * (4 + 4) + ... + BATCH_MAX_ROWS * 32 * 64 * 8` bytes, well under 1 MB per row slot.
+Server MemAvailable with the server up: 54 to 55 GB in all four visits (`raw/mem.txt`). Job: fleetq #8568 (`--quiet gpu,cpu --mem 46`), both sections.
 
 ## Gates
 
@@ -65,8 +65,8 @@ Server MemAvailable with the server up: 54 to 55 GB in all four visits (`raw/mem
 | CUDA release build of the final source (the rsync excludes only `.git`, `.scratch`, `target*`, `.worktrees`, `docs/results`, so the binary is exactly the committed code) | ok, `~/intarsiaml-ds/src/target/release/intarsia` md5 `d711631b...` | fleetq #8552 (first build), #8567 (final source) |
 | Served equality, device against host, 16 concurrent, 21 cells | 21 / 21 identical | #8568 |
 | Sampled aggregate tok/s at 4 and 16 streams, default against `=0`, ABAB, localeval | 1.07x and 1.12x | #8568 |
-| `cargo test --workspace --no-fail-fast` (endor; includes the new unit test `device_sampling_is_on_unless_set_to_zero`, which first compiles there) | PENDING | #8598 queued |
-| Metal no-op on endor: `plan show` (35B, 8B), `kernels test`, 256 greedy ids (8B short and 4k, 35B short), goldens `qwen3-8b-fp32` and `-long-fp32` | PENDING | #8634 queued |
+| `cargo test --workspace --no-fail-fast` (endor; includes the new unit test `device_sampling_is_on_unless_set_to_zero`, which first compiles there) | PENDING: queued as #8644 (an earlier submission, #8598, was cancelled by the server while waiting); endor's line is 12 jobs long, estimated start after 20:51 | #8644 |
+| Metal no-op on endor: `plan show` (35B, 8B), `kernels test`, 256 greedy ids (8B short and 4k, 35B short), goldens `qwen3-8b-fp32` and `-long-fp32` | PENDING: not queued. The exclusive job needs the two Metal binaries that #8644 builds (`.scratch/intarsia.main`, `.scratch/intarsia.ds`), and a queued #8634 would have run ahead of #8644 and failed its guard. Run `raw/scripts/endor-gates.sh` in an `--exclusive --mem 24 --expect 45` slot after #8644 | |
 | In-process CUDA draws test `real_35b_device_sampling_draws_the_host_tokens` with the new default | not run: dropped (#8580 released), redundant with the served 21/21 and queued behind exclusive DSv4.1 windows | |
 | `cargo check -p intarsia-core` | ok (run on endor outside a fleetq slot, no GPU, deviation from the fleet rule) | |
 
