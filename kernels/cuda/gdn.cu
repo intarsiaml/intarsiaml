@@ -97,6 +97,14 @@ constexpr int kWarpsPerBlock = 4;
 IK_DEVI float softplus(float x) { return x > 20.f ? x : log1pf(expf(x)); }
 IK_DEVI float sigmoidf(float x) { return 1.f / (1.f + expf(-x)); }
 
+// Lane spark35 (INTARSIA_CUDA_GDN_STATE_BF16_EMU=1, dev only): the delta-rule state is still f32 in memory, but every kernel rounds
+// it to bf16 (round to nearest even) at its final store. A state stored as bf16 would hold exactly these values and the kernels
+// load and compute in f32 either way, so the emulation gives the output of a bf16 state (docs/results/2026-11-05-spark35-numerics.md).
+__device__ __forceinline__ float ik_round_bf16(float x) { return ik_b2f(ik_f2b(x)); }
+__device__ __forceinline__ float4 ik_round_bf16(float4 v) {
+    return make_float4(ik_round_bf16(v.x), ik_round_bf16(v.y), ik_round_bf16(v.z), ik_round_bf16(v.w));
+}
+
 // Per-token inputs of one warp that do not depend on the state: normalised q (scaled) and k, v, beta, decay.
 template <int PL>
 struct Tok {
@@ -389,7 +397,7 @@ __global__ void __launch_bounds__(32) gdn_delta_lanes_kernel(
 // ROWS (batched decode, row-table launch): grid.z is the sequence. Row r is the T = 1 call on that sequence's own inputs
 // (qkv, a, b rows r, output row r) and its own state, the buffer whose device address is entry [r][tindex] of the row table
 // `tab` plus `toff` bytes. Everything after those pointers is the same code, so row r is bitwise the one-row launch.
-template <int DK, int LPR, bool ROWS = false>
+template <int DK, int LPR, bool ROWS = false, bool EMU = false>
 __global__ void __launch_bounds__(32) gdn_delta_split_kernel(
     const ik_bf16* __restrict__ qkv, const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ b,
     const ik_bf16* __restrict__ a_log, const ik_bf16* __restrict__ dt_bias, float eps, ik_bf16* __restrict__ o,
@@ -526,7 +534,7 @@ __global__ void __launch_bounds__(32) gdn_delta_split_kernel(
     }
     __syncwarp();  // every lane's initial tile reads are long done; make the ordering explicit before reusing the tile
 #pragma unroll
-    for (int i = 0; i < NG; ++i) sst[mine + i] = s[i];
+    for (int i = 0; i < NG; ++i) sst[mine + i] = EMU ? ik_round_bf16(s[i]) : s[i];
     __syncwarp();
 #pragma unroll
     for (int m = 0; m < NG; ++m) {
@@ -546,7 +554,7 @@ __global__ void __launch_bounds__(32) gdn_delta_split_kernel(
 //
 // WPB warps per block, each with its own RPW rows (the q / k norm is redone per warp, as in the split kernel).
 // ROWS (batched decode, row-table launch): as in gdn_delta_split_kernel, grid.z is the sequence.
-template <int DK, int RPW, int WPB, bool ROWS>
+template <int DK, int RPW, int WPB, bool ROWS, bool EMU = false>
 __global__ void __launch_bounds__(32 * WPB) gdn_delta_dec_kernel(
     const ik_bf16* __restrict__ qkv, const ik_bf16* __restrict__ a, const ik_bf16* __restrict__ b,
     const ik_bf16* __restrict__ a_log, const ik_bf16* __restrict__ dt_bias, float eps, ik_bf16* __restrict__ o,
@@ -632,7 +640,7 @@ __global__ void __launch_bounds__(32 * WPB) gdn_delta_dec_kernel(
     }
 #pragma unroll
     for (int r = 0; r < RPW; ++r)
-        if (r < nrows) blk[r * (DK / 4) + lane] = s[r];
+        if (r < nrows) blk[r * (DK / 4) + lane] = EMU ? ik_round_bf16(s[r]) : s[r];
     __syncwarp();
     if (lane < nrows) {
         float c = 0.f;
@@ -664,33 +672,43 @@ inline int gdn_dec_wpb() {
     return v;
 }
 
-template <int RPW, int WPB, bool ROWS>
+// INTARSIA_CUDA_GDN_STATE_BF16_EMU = 1: round the delta-rule state to bf16 at the end of every launch of the dec and split kernels
+// (see ik_round_bf16). Read once per process. Off: the kernels are the default instantiations.
+inline bool gdn_state_emu() {
+    static const bool v = [] {
+        const char* e = getenv("INTARSIA_CUDA_GDN_STATE_BF16_EMU");
+        return e && e[0] == '1' && e[1] == 0;
+    }();
+    return v;
+}
+
+template <int RPW, int WPB, bool ROWS, bool EMU>
 void gdn_dec_launch(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log, const ik_tensor* dt_bias,
                     float eps, ik_tensor* o, float* state, int Hk, int Hv, int dv, int R, const uint8_t* tab, int64_t stride,
                     int64_t index, int64_t byte_off, cudaStream_t s) {
     const dim3 grid((unsigned)((dv + RPW * WPB - 1) / (RPW * WPB)), (unsigned)Hv, (unsigned)R);
-    gdn_delta_dec_kernel<128, RPW, WPB, ROWS><<<grid, 32 * WPB, 0, s>>>(
+    gdn_delta_dec_kernel<128, RPW, WPB, ROWS, EMU><<<grid, 32 * WPB, 0, s>>>(
         (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,
         (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, state, Hk, Hv, dv, tab, stride, index, byte_off);
 }
 
-template <int RPW, bool ROWS>
+template <int RPW, bool ROWS, bool EMU>
 void gdn_dec_wpb_launch(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log,
                         const ik_tensor* dt_bias, float eps, ik_tensor* o, float* state, int Hk, int Hv, int dv, int R,
                         const uint8_t* tab, int64_t stride, int64_t index, int64_t byte_off, cudaStream_t s) {
     switch (gdn_dec_wpb() ? gdn_dec_wpb() : R >= 12 ? 2 : 1) {
-        case 2: gdn_dec_launch<RPW, 2, ROWS>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s); break;
-        case 4: gdn_dec_launch<RPW, 4, ROWS>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s); break;
-        default: gdn_dec_launch<RPW, 1, ROWS>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s);
+        case 2: gdn_dec_launch<RPW, 2, ROWS, EMU>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s); break;
+        case 4: gdn_dec_launch<RPW, 4, ROWS, EMU>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s); break;
+        default: gdn_dec_launch<RPW, 1, ROWS, EMU>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s);
     }
 }
 
 // the decode kernel for T = 1, dk = 128 (ROWS: R rows through the row table)
-template <bool ROWS>
+template <bool ROWS, bool EMU = false>
 void gdn_dec_run(const ik_tensor* qkv, const ik_tensor* a, const ik_tensor* b, const ik_tensor* a_log, const ik_tensor* dt_bias,
                  float eps, ik_tensor* o, float* state, int Hk, int Hv, int dv, int R, const uint8_t* tab, int64_t stride,
                  int64_t index, int64_t byte_off, cudaStream_t s) {
-#define IK_GDN_DEC(RPW) gdn_dec_wpb_launch<RPW, ROWS>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s)
+#define IK_GDN_DEC(RPW) gdn_dec_wpb_launch<RPW, ROWS, EMU>(qkv, a, b, a_log, dt_bias, eps, o, state, Hk, Hv, dv, R, tab, stride, index, byte_off, s)
     switch (gdn_dec_rpw()) {
         case 2: IK_GDN_DEC(2); break;
         case 4: IK_GDN_DEC(4); break;
@@ -856,13 +874,21 @@ int ik_gdn_delta_rule_bf16_split(const ik_tensor* qkv, const ik_tensor* a, const
     }();
     cudaStream_t s = IK_STREAM(stream);
     if (T == 1 && dk == 128 && gdn_dec_rpw() > 0) {  // decode: the same bits from the decode kernel
-        gdn_dec_run<false>(qkv, a, b, a_log, dt_bias, eps, o, (float*)state->data, (int)Hk, (int)Hv, (int)dv, 1, nullptr, 0, 0, 0, s);
+        if (gdn_state_emu())
+            gdn_dec_run<false, true>(qkv, a, b, a_log, dt_bias, eps, o, (float*)state->data, (int)Hk, (int)Hv, (int)dv, 1, nullptr, 0, 0, 0, s);
+        else
+            gdn_dec_run<false>(qkv, a, b, a_log, dt_bias, eps, o, (float*)state->data, (int)Hk, (int)Hv, (int)dv, 1, nullptr, 0, 0, 0, s);
         return ik_launch_status();
     }
-#define IK_GDN_SPLIT(DK, LPR)                                                                                        \
-    gdn_delta_split_kernel<DK, LPR><<<dim3((unsigned)((dv + (32 / LPR) - 1) / (32 / LPR)), (unsigned)Hv), 32, 0, s>>>( \
+#define IK_GDN_SPLIT_ARGS(DK, LPR)                                                                                    \
+    <<<dim3((unsigned)((dv + (32 / LPR) - 1) / (32 / LPR)), (unsigned)Hv), 32, 0, s>>>(                                \
         (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,    \
         (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, (float*)state->data, T, (int)Hk, (int)Hv, (int)dv)
+#define IK_GDN_SPLIT(DK, LPR)                                                                                        \
+    do {                                                                                                             \
+        if (gdn_state_emu()) gdn_delta_split_kernel<DK, LPR, false, true> IK_GDN_SPLIT_ARGS(DK, LPR);                \
+        else gdn_delta_split_kernel<DK, LPR> IK_GDN_SPLIT_ARGS(DK, LPR);                                             \
+    } while (0)
     if (dk == 128) {
         if (lpr_env == 4) IK_GDN_SPLIT(128, 4);
         else if (lpr_env == 8) IK_GDN_SPLIT(128, 8);
@@ -873,6 +899,7 @@ int ik_gdn_delta_rule_bf16_split(const ik_tensor* qkv, const ik_tensor* a, const
         else IK_GDN_SPLIT(64, 2);
     }
 #undef IK_GDN_SPLIT
+#undef IK_GDN_SPLIT_ARGS
     return ik_launch_status();
 }
 
@@ -946,16 +973,24 @@ int ik_gdn_delta_rule_bf16_split_rows(const ik_tensor* qkv, const ik_tensor* a, 
     }();
     cudaStream_t s = IK_STREAM(stream);
     if (dk == 128 && gdn_dec_rpw() > 0) {
-        gdn_dec_run<true>(qkv, a, b, a_log, dt_bias, eps, o, nullptr, (int)Hk, (int)Hv, (int)dv, (int)R, (const uint8_t*)tab->data,
-                          stride, index, byte_off, s);
+        if (gdn_state_emu())
+            gdn_dec_run<true, true>(qkv, a, b, a_log, dt_bias, eps, o, nullptr, (int)Hk, (int)Hv, (int)dv, (int)R,
+                                    (const uint8_t*)tab->data, stride, index, byte_off, s);
+        else
+            gdn_dec_run<true>(qkv, a, b, a_log, dt_bias, eps, o, nullptr, (int)Hk, (int)Hv, (int)dv, (int)R, (const uint8_t*)tab->data,
+                              stride, index, byte_off, s);
         return ik_launch_status();
     }
+#define IK_GDN_SPLIT_ROWS_ARGS(DK, LPR)                                                                                   \
+    <<<dim3((unsigned)((dv + (32 / LPR) - 1) / (32 / LPR)), (unsigned)Hv, (unsigned)R), 32, 0, s>>>(                      \
+        (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,        \
+        (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, nullptr, 1, (int)Hk, (int)Hv, (int)dv,                    \
+        (const uint8_t*)tab->data, stride, index, byte_off)
 #define IK_GDN_SPLIT_ROWS(DK, LPR)                                                                                        \
-    gdn_delta_split_kernel<DK, LPR, true>                                                                                 \
-        <<<dim3((unsigned)((dv + (32 / LPR) - 1) / (32 / LPR)), (unsigned)Hv, (unsigned)R), 32, 0, s>>>(                  \
-            (const ik_bf16*)qkv->data, (const ik_bf16*)a->data, (const ik_bf16*)b->data, (const ik_bf16*)a_log->data,    \
-            (const ik_bf16*)dt_bias->data, eps, (ik_bf16*)o->data, nullptr, 1, (int)Hk, (int)Hv, (int)dv,                \
-            (const uint8_t*)tab->data, stride, index, byte_off)
+    do {                                                                                                                  \
+        if (gdn_state_emu()) gdn_delta_split_kernel<DK, LPR, true, true> IK_GDN_SPLIT_ROWS_ARGS(DK, LPR);                 \
+        else gdn_delta_split_kernel<DK, LPR, true> IK_GDN_SPLIT_ROWS_ARGS(DK, LPR);                                       \
+    } while (0)
     if (dk == 128) {
         if (lpr_env == 4) IK_GDN_SPLIT_ROWS(128, 4);
         else if (lpr_env == 8) IK_GDN_SPLIT_ROWS(128, 8);
@@ -966,6 +1001,7 @@ int ik_gdn_delta_rule_bf16_split_rows(const ik_tensor* qkv, const ik_tensor* a, 
         else IK_GDN_SPLIT_ROWS(64, 2);
     }
 #undef IK_GDN_SPLIT_ROWS
+#undef IK_GDN_SPLIT_ROWS_ARGS
     return ik_launch_status();
 }
 
