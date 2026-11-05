@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Lane spark35, window 1 (one fleetq slot on $HOST, --quiet gpu,cpu): builds, gates, the KL arms (D, and C by emulation) and the serve arms
 # (greedy ids, needle at 32k / 64k, MMLU, GSM8K). Run from the repo root of the lane worktree:
-#   HOST=spark2 fleetq run --host spark2 --quiet gpu,cpu --mem 60 --expect 170 --label "spark35: ..." -- scripts/spark35num/w1.sh
+#   HOST=spark2 fleetq run --host spark2 --quiet gpu,cpu --mem 74 --expect 170 --label "spark35: ..." -- scripts/spark35num/w1.sh
 # STAGES selects (default: build data gates lanes). BUDGET_MIN (default 165) bounds the window: an arm that does not fit is skipped.
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
@@ -36,9 +36,9 @@ for st in $STAGES; do case $st in
   lanes)
     fb=$(free_gb); echo "lanes: MemAvailable $fb GB"
     if (( fb >= 100 )); then
-      echo "vLLM is down: KL lane and serve lane in parallel (MEMB=40 each)"
-      MEMB=40 "$H/kl.sh" > "$RES/lane-kl.log" 2>&1 &
-      MEMB=40 PORT=8196 "$H/serve.sh" > "$RES/lane-serve.log" 2>&1 &
+      echo "vLLM is down: KL lane and serve lane in parallel (MEMB=36 each)"
+      MEMB=36 "$H/kl.sh" > "$RES/lane-kl.log" 2>&1 &
+      MEMB=36 PORT=8196 "$H/serve.sh" > "$RES/lane-serve.log" 2>&1 &
       wait
     else
       echo "vLLM is up: sequential, MEMB=45"
