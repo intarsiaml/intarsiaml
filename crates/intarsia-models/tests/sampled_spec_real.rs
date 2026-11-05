@@ -70,7 +70,9 @@ fn sampled_spec_real_model_runs() {
             _ => {}
         })
         .unwrap();
-        assert_eq!(ids.len(), k + 2);
+        // a held-back text tail goes out after the last token as one more `Token` event repeating the last id
+        assert!(ids.len() == k + 2 || (ids.len() == k + 3 && ids[k + 2] == ids[k + 1]), "{ids:?}");
+        ids.truncate(k + 2);
         let line = ids.iter().map(|i| i.to_string()).collect::<Vec<_>>().join(" ");
         match f.as_mut() {
             Some(f) => writeln!(f, "{seed} {line}").unwrap(),

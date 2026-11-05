@@ -16,7 +16,17 @@ for cfg in A B; do
     done
   done
 done
-printf '%s\n' "${tasks[@]}" | xargs -P "$par" -L 1 bash -c '
+# resume: a shard whose log says the test passed is done; an unfinished shard starts over
+todo=()
+for t in "${tasks[@]}"; do
+  set -- $t
+  f=$out/$1-$2-$3
+  if grep -q "test result: ok" "$f.log" 2>/dev/null; then continue; fi
+  rm -f "$f.txt"; todo+=("$t")
+done
+echo "${#todo[@]} of ${#tasks[@]} shards to run"
+[ ${#todo[@]} -eq 0 ] && exit 0
+printf '%s\n' "${todo[@]}" | xargs -P "$par" -L 1 bash -c '
   cfg=$0 arm=$1 seed0=$2 cnt=$3
   INTARSIA_TEST_REAL_MODEL=1 INTARSIA_SS_MODEL='"$model"' INTARSIA_SPEC_SAMPLED=$arm INTARSIA_SS_CFG=$cfg \
   INTARSIA_SS_SEED0=$seed0 INTARSIA_SS_N=$cnt INTARSIA_SS_OUT='"$out"'/$cfg-$arm-$seed0.txt \
