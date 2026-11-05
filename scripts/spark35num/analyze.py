@@ -25,7 +25,7 @@ def pos_quarters(path, mode, prompt):
     with gzip.open(path, "rt") as f:
         for l in f:
             p = l.split("\t")
-            if p[0] == mode and p[1] == prompt: rows.append((int(p[2]), float(p[5])))
+            if p[0].startswith(mode) and p[1] == prompt: rows.append((int(p[2]), float(p[5])))
     if len(rows) < 8: return None
     rows.sort(); q = len(rows) // 4
     mean = lambda r: sum(k for _, k in r) / len(r)
