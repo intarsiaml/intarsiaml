@@ -103,8 +103,9 @@ pub struct ModelArgs {
     /// `--no-graphs` or `INTARSIA_SPEC_GRAPH=0`); elsewhere self-consistent greedy over the verify rows. Greedy requests only
     /// (sampled requests fall back to plain decode). Unset: `off`, except where the recipe makes MTP the default for this
     /// backend (`[tuning.<backend>] mtp_default_tp_k` under tensor parallelism: the Qwen3.8-27B on HIP at `--tp 2`; `mtp_default_k`
-    /// on one rank: the Qwen3.6-35B-A3B on CUDA); `--spec off`
-    /// or `INTARSIA_SPEC_DEFAULT=0` opts out.
+    /// on one rank: the Qwen3.6-35B-A3B on CUDA) or `--spec dflash` (`[tuning.<backend>] dflash_default_draft`: the dense Qwen3-8B on
+    /// CUDA at one rank and one sequence, with the draft checkpoint found in the local Hugging Face cache; no draft there, or one for
+    /// another model, means plain decode); `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out.
     ///
     /// `--spec auto --spec-draft DIR` (lane asp): loads both the MTP head (2 drafts per pass) and the DFlash2 draft (`--spec-k`, default 7)
     /// and picks the drafter per pass by measured tokens per ms (running acceptance times the pass cost, an idle drafter probed now and

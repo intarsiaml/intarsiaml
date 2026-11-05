@@ -384,6 +384,11 @@ pub struct BackendTuning {
     /// pass ([`Recipe::resolve_mtp_default`]). `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out. Per backend only, set only where
     /// measured (the Qwen3.6-35B-A3B on CUDA, lane cmtp).
     pub mtp_default_k: Option<usize>,
+    /// With one rank (tp = 1) on this backend, one sequence and no `--spec` given: run `--spec dflash` with the draft checkpoint of this
+    /// Hugging Face repo id (`TD-Labs/Qwen3-8B-DCOCO`), looked up in the local hub cache (or `INTARSIA_DFLASH_DRAFT=DIR`). A missing,
+    /// unreadable or mismatching draft leaves plain decode (one stderr line). `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out. Per
+    /// backend only, set only where measured ([`Recipe::resolve_dflash_default`]).
+    pub dflash_default_draft: Option<String>,
     /// MXFP4 projections on this backend: the activation mode when `--mxfp4-act` is not given (`"dynamic"`, `"none"` or `"fp8"`;
     /// wins over `[defaults] mxfp4_act`, loses to the flag). For a mode only some backends implement: the Qwen3.8-27B sets `"fp8"`
     /// (W4A8) under `[tuning.hip]`, so CUDA and Metal keep the `[defaults]` W4A16.
@@ -469,6 +474,11 @@ impl Recipe {
     pub fn resolve_mtp_default_tp(&self, backend: &str) -> Option<usize> {
         self.mtp.as_ref()?;
         self.tuning.backends.get(backend).and_then(|b| b.mtp_default_tp_k).filter(|&k| k > 0)
+    }
+
+    /// The recipe's single-rank DFlash default for `backend` (`[tuning.<backend>] dflash_default_draft`): the draft's repo id.
+    pub fn resolve_dflash_default(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.dflash_default_draft.as_deref()).filter(|r| !r.is_empty())
     }
 
     /// The recipe's single-rank (tp = 1) MTP default for `backend` (`[tuning.<backend>] mtp_default_k`): `Some(k)` when the recipe has an

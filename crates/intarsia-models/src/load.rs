@@ -441,6 +441,105 @@ fn mtp_default_allowed(opts: &EngineOptions, local: bool) -> bool {
         && !std::env::var("INTARSIA_SPEC_DEFAULT").is_ok_and(|v| v == "0")
 }
 
+/// The recipe's DFlash default (lane d8; the dense Qwen3-8B on CUDA): `Some((repo id, k))` when no `--spec` was given (`spec_auto`), the
+/// group is one local rank on `backend`, one sequence (DFlash does not batch), no prefix store (a drafting request bypasses it), the recipe
+/// sets `[tuning.<backend>] dflash_default_draft`, and `INTARSIA_SPEC_DEFAULT` is not `0`. A lone `--spec-k N` sets only the draft length
+/// (1..=`DFLASH_K_MAX`); else `DFLASH_K_DEFAULT`. Decided before any `--spec dflash` is set, so `--max-batch` above 1 and the other
+/// backends never reach the hard refusals of an explicit `--spec dflash`.
+pub fn dflash_default(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool) -> Option<(String, usize)> {
+    if world != 1 || !mtp_default_allowed(opts, local) || prefix_store_given(opts) || opts.spec_draft.is_some() || opts.dcoco {
+        return None;
+    }
+    let repo = recipe.resolve_dflash_default(backend)?;
+    let k = if opts.spec_k_given { opts.spec.k } else { intarsia_core::spec::DFLASH_K_DEFAULT };
+    (1..=intarsia_core::spec::DFLASH_K_MAX).contains(&k).then(|| (repo.to_string(), k))
+}
+
+/// The local directory of the draft checkpoint `repo` (`Org/Name`): `INTARSIA_DFLASH_DRAFT` (a directory) if set, else the newest
+/// snapshot of `models--Org--Name` in the Hugging Face hub cache (`HF_HUB_CACHE`, `HF_HOME/hub` or `~/.cache/huggingface/hub`) that holds
+/// `config.json` and `model.safetensors`. `None` when it is not on this machine (the default then stays off; nothing is downloaded).
+pub fn find_dflash_draft(repo: &str) -> Option<PathBuf> {
+    let has = |d: &Path| d.join("config.json").is_file() && d.join("model.safetensors").is_file();
+    if let Some(d) = std::env::var_os("INTARSIA_DFLASH_DRAFT").filter(|v| !v.is_empty()) {
+        let d = PathBuf::from(d);
+        return has(&d).then_some(d);
+    }
+    let hub = std::env::var_os("HF_HUB_CACHE")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HF_HOME").filter(|v| !v.is_empty()).map(|h| PathBuf::from(h).join("hub")))
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".cache/huggingface/hub")))?;
+    let snaps = hub.join(format!("models--{}", repo.replace('/', "--"))).join("snapshots");
+    let mut found: Vec<(std::time::SystemTime, PathBuf)> = std::fs::read_dir(&snaps)
+        .ok()?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|d| has(d))
+        .map(|d| (d.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH), d))
+        .collect();
+    found.sort();
+    found.pop().map(|(_, d)| d)
+}
+
+/// Whether a DFlash v1 draft belongs to this target (the loader would otherwise fail after reading the target's weights): same hidden
+/// size, head geometry and vocabulary, taps inside the target's layers, a v1 draft (CUDA runs no DFlash2), no corrector needed.
+pub fn dflash_draft_fits(c: &intarsia_core::model::DflashConfig, dims: &intarsia_core::recipe::ModelDims) -> std::result::Result<(), String> {
+    if c.v2 {
+        return Err("a DFlash2 draft (CUDA runs the DFlash v1 draft only)".into());
+    }
+    if (c.hidden, c.n_heads, c.n_kv_heads, c.head_dim, c.vocab) != (dims.hidden, dims.n_heads, dims.n_kv_heads, dims.head_dim, dims.vocab) {
+        return Err(format!(
+            "the draft is for another target (hidden {} heads {}/{} head_dim {} vocab {}; this model {} {}/{} {} {})",
+            c.hidden, c.n_heads, c.n_kv_heads, c.head_dim, c.vocab, dims.hidden, dims.n_heads, dims.n_kv_heads, dims.head_dim, dims.vocab
+        ));
+    }
+    if c.layer_ids.is_empty() || c.layer_ids.iter().any(|&l| l >= dims.n_layers) {
+        return Err(format!("the draft taps layers {:?}, the target has {}", c.layer_ids, dims.n_layers));
+    }
+    Ok(())
+}
+
+/// Applies the recipe's DFlash default ([`dflash_default`]) to `opts`: `Some(opts with --spec dflash and the draft)` when it applies and the
+/// draft is on this machine and fits the target; every other case is `None` (plain decode) with one stderr line where a default was
+/// asked for, never an error.
+pub fn apply_dflash_default(
+    opts: &EngineOptions,
+    recipe: &intarsia_core::recipe::Recipe,
+    dims: &intarsia_core::recipe::ModelDims,
+    backend: &str,
+    world: usize,
+    local: bool,
+) -> Option<EngineOptions> {
+    let (repo, k) = dflash_default(opts, recipe, backend, world, local).filter(|_| opts.spec.mode == intarsia_core::spec::SpecMode::Off && !opts.load.mtp)?;
+    let note = |why: String| eprintln!("--spec dflash default of recipe {} on {backend} ({repo}) not applied: {why}; --spec off", recipe.model.family);
+    let Some(d) = find_dflash_draft(&repo) else {
+        note("the draft checkpoint is not in the local Hugging Face cache (set INTARSIA_DFLASH_DRAFT=DIR, or give `--spec dflash --spec-draft DIR`)".to_string());
+        return None;
+    };
+    let dl = match open_dflash(Some(&d), false) {
+        Ok(dl) => dl,
+        Err(e) => {
+            note(format!("{e}"));
+            return None;
+        }
+    };
+    if let Err(why) = dflash_draft_fits(&dl.config, dims) {
+        note(why);
+        return None;
+    }
+    eprintln!(
+        "--spec dflash --spec-k {k}{} --spec-draft {}: the default of recipe {} on {backend} ([tuning.{backend}] dflash_default_draft; \
+         --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)",
+        if opts.spec_k_given { " (k from --spec-k)" } else { "" },
+        d.display(),
+        recipe.model.family
+    );
+    let mut o = opts.clone();
+    o.spec = intarsia_core::spec::SpecConfig { mode: intarsia_core::spec::SpecMode::Dflash, k };
+    o.spec_draft = Some(d);
+    Some(o)
+}
+
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
     if crate::dsv41_engine::is_rank_cache(dir) {
         return load_dsv41(dir, group, opts);
@@ -508,11 +607,26 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             &defaulted
         }
         None => {
-            if opts.spec_auto && opts.spec_k_given && opts.spec.mode == intarsia_core::spec::SpecMode::Off && !opts.load.mtp && !skipped_by_store {
+            if opts.spec_auto
+                && opts.spec_k_given
+                && opts.spec.mode == intarsia_core::spec::SpecMode::Off
+                && !opts.load.mtp
+                && !skipped_by_store
+                && backends.first().is_none_or(|b0| dflash_default(opts, &recipe, b0.name(), backends.len(), local).is_none())
+            {
                 eprintln!("warning: --spec-k {} has no effect without --spec here (no recipe speculation default applies); speculation is off", opts.spec.k);
             }
             opts
         }
+    };
+    // The recipe's DFlash default (lane d8; the dense Qwen3-8B on CUDA): see `apply_dflash_default`.
+    let dflash_defaulted;
+    let opts = match apply_dflash_default(opts, &recipe, &dims, backends.first().map_or("cpu", |b| b.name()), backends.len(), local) {
+        Some(o) => {
+            dflash_defaulted = o;
+            &dflash_defaulted
+        }
+        None => opts,
     };
     // Batching is opt-in: without `--max-batch` the engine decodes one sequence at a time whatever the recipe declares.
     // The most rows are the backend's (`Backend::batch_row_cap`: Metal 16, CUDA 16).
