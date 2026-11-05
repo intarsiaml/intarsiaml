@@ -1,0 +1,12 @@
+
+
+## Warnings
+
+- decode spread 69.8% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-142241-adhoc-dsv41-prefill3-diag-gen8/result.json
+[localeval] logged to unanimis: 31bcd855-5552-4542-8f74-a45395a1094e

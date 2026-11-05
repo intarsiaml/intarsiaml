@@ -1,0 +1,35 @@
+size  arm  rep prompts (residue mod 256) ttfts
+  3861 main 1 prompts [3847, 3846, 3844] residues [7, 6, 4] ttft [4.77, 4.91, 4.73] decode [28.4, 28.5, 29.4]
+  3861 main 3 prompts [3845, 3844, 3842] residues [5, 4, 2] ttft [4.7, 4.84, 4.85] decode [28.0, 28.0, 28.2]
+  3861 peel 2 prompts [3840, 3846, 3845] residues [0, 6, 5] ttft [4.61, 4.86, 4.85] decode [28.1, 28.2, 28.3]
+  3861 peel 4 prompts [3844, 3843, 3842] residues [4, 3, 2] ttft [4.66, 4.85, 4.86] decode [27.9, 27.9, 28.2]
+   EXPOSED only: n 6/5  ttft median 4.805 -> 4.850 s  (+0.045 s)  prefill 800 -> 792 tok/s (-1.0%)  decode 28.3 -> 28.2
+   all reps: n 6/6 ttft median 4.805 -> 4.850  prefill 800 -> 793 (-1.0%)
+  4096 main 1 prompts [4087, 4092, 4089] residues [247, 252, 249] ttft [4.88, 5.02, 5.03] decode [27.8, 27.8, 28.0]
+  4096 main 3 prompts [4091, 4090, 4090] residues [251, 250, 250] ttft [5.27, 5.31, 5.27] decode [28.5, 28.3, 28.3]
+  4096 peel 2 prompts [4089, 4090, 4089] residues [249, 250, 249] ttft [4.95, 5.06, 5.07] decode [28.2, 27.9, 27.9]
+  4096 peel 4 prompts [4087, 4092, 4089] residues [247, 252, 249] ttft [4.97, 5.08, 5.09] decode [28.0, 28.0, 28.3]
+   all reps: n 6/6 ttft median 5.150 -> 5.065  prefill 795 -> 807 (+1.6%)
+  4372 main 1 prompts [4358, 4359, 4361] residues [6, 7, 9] ttft [5.16, 5.53, 5.47] decode [28.3, 27.9, 28.1]
+  4372 main 3 prompts [4356, 4359, 4356] residues [4, 7, 4] ttft [5.48, 5.53, 5.51] decode [28.3, 27.8, 28.0]
+  4372 peel 2 prompts [4361, 4359, 4360] residues [9, 7, 8] ttft [5.45, 5.6, 5.59] decode [28.1, 28.0, 28.1]
+  4372 peel 4 prompts [4358, 4357, 4360] residues [6, 5, 8] ttft [5.46, 5.62, 5.57] decode [28.0, 28.0, 28.0]
+   EXPOSED only: n 6/6  ttft median 5.495 -> 5.580 s  (+0.085 s)  prefill 793 -> 781 tok/s (-1.4%)  decode 28.1 -> 28.0
+   all reps: n 6/6 ttft median 5.495 -> 5.580  prefill 793 -> 781 (-1.4%)
+ 16381 main 1 prompts [16645, 16647, 16648] residues [5, 7, 8] ttft [21.78, 21.88, 22.02] decode [26.0, 25.9, 25.7]
+ 16381 main 3 prompts [16643, 16646, 16644] residues [3, 6, 4] ttft [21.8, 22.02, 22.03] decode [25.9, 26.0, 25.9]
+ 16381 peel 2 prompts [16644, 16649, 16649] residues [4, 9, 9] ttft [21.73, 21.94, 22.07] decode [26.0, 25.9, 25.9]
+ 16381 peel 4 prompts [16649, 16645, 16644] residues [9, 5, 4] ttft [21.85, 21.98, 22.03] decode [25.9, 25.9, 25.9]
+   EXPOSED only: n 6/6  ttft median 21.950 -> 21.960 s  (+0.010 s)  prefill 758 -> 758 tok/s (-0.0%)  decode 25.9 -> 25.9
+   all reps: n 6/6 ttft median 21.950 -> 21.960  prefill 758 -> 758 (-0.0%)
+ 16384 main 1 prompts [16651, 16655, 16655] residues [11, 15, 15] ttft [21.77, 21.95, 21.94] decode [26.0, 25.9, 26.0]
+ 16384 main 3 prompts [16681, 16675, 16678] residues [41, 35, 38] ttft [21.77, 22.0, 22.0] decode [25.8, 25.7, 25.8]
+ 16384 peel 2 prompts [16679, 16676, 16678] residues [39, 36, 38] ttft [21.76, 22.05, 21.98] decode [25.9, 25.9, 25.8]
+ 16384 peel 4 prompts [16653, 16656, 16659] residues [13, 16, 19] ttft [21.9, 22.2, 22.09] decode [26.2, 26.1, 25.9]
+   all reps: n 6/6 ttft median 21.945 -> 22.015  prefill 759 -> 758 (-0.2%)
+ 16396 main 1 prompts [16644, 16641, 16640] residues [4, 1, 0] ttft [21.63, 21.82, 21.79] decode [26.0, 25.9, 25.7]
+ 16396 main 3 prompts [16641, 16642, 16643] residues [1, 2, 3] ttft [21.69, 21.93, 22.0] decode [25.8, 25.5, 25.6]
+ 16396 peel 2 prompts [16663, 16666, 16667] residues [23, 26, 27] ttft [21.76, 21.86, 21.84] decode [26.0, 26.1, 26.0]
+ 16396 peel 4 prompts [16644, 16641, 16641] residues [4, 1, 1] ttft [21.81, 21.85, 21.86] decode [25.9, 25.9, 25.8]
+   EXPOSED only: n 3/1  ttft median 21.930 -> 21.810 s  (-0.120 s)  prefill 759 -> 763 tok/s (+0.6%)  decode 25.6 -> 25.9
+   all reps: n 6/6 ttft median 21.805 -> 21.845  prefill 763 -> 763 (-0.1%)

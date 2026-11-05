@@ -31,6 +31,8 @@ struct Mock {
     busy: (u32, u32),
     /// `submit` refuses with the engine's own queue-full error.
     queue_full: bool,
+    /// A request that asks for `logprobs` gets this many traced logits rows of this many entries (`trace_logits`).
+    trace: Option<(usize, usize)>,
     /// The engine dies after this many tokens: the stream ends with an `Error` event instead of `Done`.
     die_after: Option<usize>,
     /// Structured output: a byte-level `tokenizer.json` (token 0 = EOS, 256 = `<tool_call>`, 257 = `</tool_call>`),
@@ -198,6 +200,12 @@ impl Engine for Mock {
         let plen = req.prompt.len();
         let max = req.max_tokens;
         let constrained = req.constraint.is_some().then(|| constrained_gen(&req, self.want.unwrap_or("")));
+        if let (Some((rows, vocab)), Some(tr)) = (self.trace, &req.trace_logits) {
+            let mut tr = tr.lock().unwrap();
+            for r in 0..rows {
+                tr.push((0..vocab).map(|j| ((j * 7 + r * 3) % 101) as f32 * 0.05).collect());
+            }
+        }
         self.reqs.lock().unwrap().push(req);
         let slow = self.slow;
         let die_after = self.die_after;
@@ -462,6 +470,22 @@ async fn completions_variants() {
         .collect();
     assert_eq!(text, "Hello");
     assert!(body.contains("cached_tokens"));
+}
+
+/// A token id that does not fit 32 bits was cut to its low bits (4294967301 ran as token 5) and answered 200.
+#[tokio::test]
+async fn completions_token_ids_beyond_u32_are_a_400() {
+    let (app, mock) = app();
+    for prompt in [json!([4294967301u64]), json!([[5, 4294967297u64]]), json!([1, 2, u64::MAX])] {
+        let (st, _, body) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": prompt, "max_tokens": 2}))).await;
+        assert_eq!(st, StatusCode::BAD_REQUEST, "{prompt}: {body}");
+        assert!(body.contains("below 2^32"), "{body}");
+    }
+    assert!(mock.reqs.lock().unwrap().is_empty(), "nothing reached the engine");
+    // the largest id that fits is passed through unchanged
+    let (st, _, _) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": [4294967295u64], "max_tokens": 2}))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(mock.reqs.lock().unwrap()[0].prompt, vec![u32::MAX]);
 }
 
 #[tokio::test]
@@ -1649,4 +1673,155 @@ async fn anthropic_required_tool_use_waits_for_the_close_tag_when_thinking() {
         }
     }
     assert!(mock.reqs.lock().unwrap().iter().all(|r| r.constraint.is_some()));
+}
+
+/// `serve` in a child process, on a port this test holds: the watchdog must act during the bind retry. `want`: the child's exit code.
+fn bind_retry_child(name: &str, what: &str, want: i32) {
+    let taken = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = taken.local_addr().unwrap().port();
+    let t0 = std::time::Instant::now();
+    let code = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", name, "--nocapture"])
+        .env("BIND_TEST_CHILD", format!("{what} {port}"))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .unwrap()
+        .code();
+    assert_eq!(code, Some(want));
+    assert!(t0.elapsed() < std::time::Duration::from_secs(20), "{:?}: it sat out the retry", t0.elapsed());
+    drop(taken);
+}
+
+/// In the child: serve with a 30 s bind retry; the exit code says what ended it.
+fn bind_retry_serve(spec: &str) -> ! {
+    let (what, port) = spec.split_once(' ').unwrap();
+    let cfg = intarsia_server::ServerConfig {
+        port: port.parse().unwrap(),
+        bind_retry_s: if what == "failed-short" { 0.5 } else { 30.0 },
+        watchdog_s: 60.0,
+        exit_on_failed: true,
+        parent_pid: (what == "orphan").then_some(1),
+        ui: false,
+        ..Default::default()
+    };
+    let r = intarsia_server::serve(Arc::new(Mock { fail: what.starts_with("failed"), ..Default::default() }), cfg);
+    std::process::exit(if r.is_err() { 3 } else { 4 });
+}
+
+#[test]
+fn a_failed_engine_exits_87_during_the_bind_retry() {
+    if let Ok(s) = std::env::var("BIND_TEST_CHILD") {
+        bind_retry_serve(&s);
+    }
+    bind_retry_child("a_failed_engine_exits_87_during_the_bind_retry", "failed", intarsia_server::EXIT_FAILED);
+}
+
+/// A retry that ends inside the 2 s the watchdog waits before it exits: 87, not the fatal bind error.
+#[test]
+fn a_failed_engine_exits_87_when_the_bind_retry_ends_first() {
+    if let Ok(s) = std::env::var("BIND_TEST_CHILD") {
+        bind_retry_serve(&s);
+    }
+    bind_retry_child("a_failed_engine_exits_87_when_the_bind_retry_ends_first", "failed-short", intarsia_server::EXIT_FAILED);
+}
+
+#[test]
+fn an_orphan_leaves_during_the_bind_retry() {
+    if let Ok(s) = std::env::var("BIND_TEST_CHILD") {
+        bind_retry_serve(&s);
+    }
+    bind_retry_child("an_orphan_leaves_during_the_bind_retry", "orphan", intarsia_server::EXIT_ORPHANED);
+}
+
+/// Graceful shutdown waits for every open response, and an `/events` client (`intarsia top`) never closes its own: the
+/// stream must end with the shutdown signal, or the process lives until the supervisor kills it.
+#[tokio::test]
+async fn graceful_shutdown_ends_the_events_stream() {
+    use std::io::{Read, Write};
+    let (app, stop) = intarsia_server::router_with_shutdown(Arc::new(Mock::default()), &Default::default());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (fire, signal) = tokio::sync::oneshot::channel::<()>();
+    let server = tokio::spawn(async move {
+        axum::serve(listener, app).with_graceful_shutdown(stop.after(async { let _ = signal.await; })).await
+    });
+    // a client that reads the stream until it ends (an answer to a Connection: close request ends with the stream)
+    let client = tokio::task::spawn_blocking(move || {
+        let mut s = std::net::TcpStream::connect(addr).unwrap();
+        s.set_read_timeout(Some(std::time::Duration::from_secs(10))).unwrap();
+        s.write_all(b"GET /events HTTP/1.1\r\nHost: t\r\nConnection: close\r\n\r\n").unwrap();
+        let mut seen = Vec::new();
+        let mut buf = [0u8; 4096];
+        let mut ended = false;
+        loop {
+            match s.read(&mut buf) {
+                Ok(0) => {
+                    ended = true;
+                    break;
+                }
+                Ok(n) => seen.extend_from_slice(&buf[..n]),
+                Err(_) => break,
+            }
+        }
+        (ended, String::from_utf8_lossy(&seen).into_owned())
+    });
+    // the stream is flowing, then the server is told to stop
+    tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+    fire.send(()).unwrap();
+    let done = tokio::time::timeout(std::time::Duration::from_secs(5), server).await;
+    assert!(done.is_ok(), "the server is still waiting for the /events stream five seconds after the shutdown signal");
+    let (ended, seen) = client.await.unwrap();
+    assert!(ended, "the client's stream was cut, not ended");
+    assert!(seen.contains("data:"), "the stream carried telemetry: {seen}");
+}
+
+/// `logprobs` of a completion: the chosen token's and the top-N of each generated position, from the traced logits.
+#[tokio::test]
+async fn completions_logprobs_shape() {
+    let mock = Arc::new(Mock { trace: Some((2, 100)), ..Default::default() });
+    let app = app_with(mock);
+    let (st, _, body) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc", "max_tokens": 2, "logprobs": 3}))).await;
+    assert_eq!(st, StatusCode::OK, "{body}");
+    let v: Value = serde_json::from_str(&body).unwrap();
+    let lp = &v["choices"][0]["logprobs"];
+    // one position per generated token id (the mock streams token 65 once)
+    let n = v["usage"]["completion_tokens"].as_u64().unwrap().min(1) as usize;
+    assert_eq!(lp["token_logprobs"].as_array().unwrap().len(), n, "{lp}");
+    assert_eq!(lp["tokens"].as_array().unwrap().len(), n);
+    let own = lp["token_logprobs"][0].as_f64().expect("the chosen token's log-probability is a number");
+    assert!(own <= 0.0 && own.is_finite(), "{own}");
+    let top = lp["top_logprobs_ids"][0].as_array().unwrap();
+    assert_eq!(top.len(), 3);
+    // best first, and a log-probability is at most 0
+    let l: Vec<f64> = top.iter().map(|t| t[1].as_f64().unwrap()).collect();
+    assert!(l[0] >= l[1] && l[1] >= l[2] && l[0] <= 0.0, "{l:?}");
+}
+
+/// Post-processing the traced logits is seconds of CPU on a real vocabulary and a long reply: it must not run on the
+/// async threads (the server has two), or `/health`, `/metrics` and every stream wait for it. One runtime thread makes
+/// the stall total: a timer task can only tick while the request is off it.
+#[tokio::test(flavor = "current_thread")]
+async fn completions_logprobs_do_not_stall_the_async_threads() {
+    let mock = Arc::new(Mock { trace: Some((2, 1_500_000)), ..Default::default() });
+    let app = app_with(mock);
+    let ticking = Arc::new(AtomicBool::new(true));
+    let t2 = ticking.clone();
+    let ticker = tokio::spawn(async move {
+        let (mut worst, mut last) = (std::time::Duration::ZERO, std::time::Instant::now());
+        while t2.load(Ordering::Relaxed) {
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            worst = worst.max(last.elapsed());
+            last = std::time::Instant::now();
+        }
+        worst
+    });
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+    let t = std::time::Instant::now();
+    let (st, _, body) = call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc", "max_tokens": 2, "logprobs": 5}))).await;
+    let total = t.elapsed();
+    assert_eq!(st, StatusCode::OK, "{}", &body[..body.len().min(300)]);
+    ticking.store(false, Ordering::Relaxed);
+    let worst = ticker.await.unwrap();
+    assert!(worst < total / 3, "the timer stood still for {worst:?} of the request's {total:?}");
 }

@@ -1,0 +1,16 @@
+14:02:16 ranks started (tag 140213, $HOME/intarsia-dsv41-attnwire/bin/intarsia) env 'INTARSIA_DSV41_CAP=2048' rank0 '' rank1 ''
+14:02:45 serve up=1 after 29 s
+14:02:46 pids: rank 0 (spark1) 3107847, rank 1 (spark2) 1150925
+14:02:50 RESULT near below (prompt 2043, max_tokens 5): HTTP 200, /health 200, rank 0 exit '', rank 1 exit '', finish length
+14:02:51 RESULT near at4 (prompt 2044, max_tokens 4): HTTP 200, /health 200, rank 0 exit '', rank 1 exit '', finish length
+14:02:52 RESULT near at3 (prompt 2045, max_tokens 3): HTTP 200, /health 200, rank 0 exit '', rank 1 exit '', finish length
+14:02:52 RESULT near at2 (prompt 2046, max_tokens 2): HTTP 200, /health 200, rank 0 exit '', rank 1 exit '', finish length
+14:02:53 RESULT near clamp (prompt 2044, max_tokens 64): HTTP 200, /health 200, rank 0 exit '', rank 1 exit '', finish length
+14:03:04 RESULT near fill (prompt 1748, max_tokens 300): HTTP 200, /health 200, rank 0 exit '', rank 1 exit '', finish length
+14:03:08 RESULT near well (prompt 1000, max_tokens 64): HTTP 200, /health 200, rank 0 exit '', rank 1 exit '', finish length
+14:03:08 case near ranks' log lines (rank 0):
+14:03:08 case near ranks' log lines (rank 1):
+14:03:10 leftover processes killed by PID after the case: rank0(3107847) rank1(1150925)
+14:03:14 memory back after 6 s: spark1 111 GiB (was 111), spark2 110 GiB (was 111)
+14:03:15 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:03:15 gpu check spark2: NVIDIA GB10, 0 % rc=0

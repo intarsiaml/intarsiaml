@@ -1,0 +1,132 @@
+## pair 1 base 05:04:59
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1352 med 0.1357 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1312 med 0.1313 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5728 med 0.5766 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5731 med 0.5808 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0052 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0492 med 0.0499 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0039 med 0.0039 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0123 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1347 med 0.1349 ms
+## pair 1 base 05:05:02
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1318 med 0.1379 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1376 med 0.1416 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5732 med 0.5985 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5732 med 0.5912 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0053 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0492 med 0.0494 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0039 med 0.0040 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0129 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1326 med 0.1328 ms
+## pair 2 base 05:05:25
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1369 med 0.1371 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1380 med 0.1387 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5752 med 0.5850 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5746 med 0.5753 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0050 med 0.0052 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0492 med 0.0493 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0039 med 0.0040 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0124 med 0.0124 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1296 med 0.1298 ms
+## pair 2 base 05:05:28
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1345 med 0.1346 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1340 med 0.1348 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5724 med 0.5732 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5729 med 0.5757 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0051 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0533 med 0.0534 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0038 med 0.0039 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0124 med 0.0133 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1273 med 0.1281 ms
+## pair 3 base 05:05:50
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1362 med 0.1366 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1353 med 0.1356 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5738 med 0.5921 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5745 med 0.5807 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0051 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0503 med 0.0506 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0039 med 0.0040 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0124 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1308 med 0.1313 ms
+## pair 3 base 05:05:53
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1378 med 0.1384 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1327 med 0.1331 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5744 med 0.5785 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5740 med 0.5929 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0050 med 0.0051 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0492 med 0.0492 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0039 med 0.0039 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0131 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1284 med 0.1287 ms
+## pair 4 base 05:06:17
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1410 med 0.1417 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1397 med 0.1401 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5726 med 0.5990 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5757 med 0.5953 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0052 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0492 med 0.0492 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0039 med 0.0041 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0123 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1327 med 0.1330 ms
+## pair 4 base 05:06:20
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1358 med 0.1360 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1405 med 0.1410 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5761 med 0.5937 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5748 med 0.5755 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0051 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0492 med 0.0492 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0039 med 0.0040 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0124 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1344 med 0.1345 ms
+## pair 5 base 05:06:41
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1427 med 0.1430 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1410 med 0.1415 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5746 med 0.5762 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5752 med 0.5763 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0052 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0574 med 0.0575 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0039 med 0.0040 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0124 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1211 med 0.1214 ms
+## pair 5 base 05:06:44
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1428 med 0.1430 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1396 med 0.1399 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5753 med 0.5938 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5721 med 0.5734 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0052 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0592 med 0.0594 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0038 med 0.0040 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0124 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1295 med 0.1297 ms
+## pair 6 base 05:07:08
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1431 med 0.1434 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1269 med 0.1274 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5747 med 0.5872 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5757 med 0.5823 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0052 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0492 med 0.0501 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0040 med 0.0040 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0133 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1273 med 0.1276 ms
+## pair 6 base 05:07:11
+rope_ip_bench mode 0 (out of place) iters 20 reps 9
+rope q T512 H32 hd512             hash d5ab75e0c17ef387 min 0.1420 med 0.1424 ms
+rope o^-1 T512 H32 hd512          hash b1ea9a443bb9d683 min 0.1398 med 0.1403 ms
+rope q T2048 H32 hd512            hash af34abaeb838d38f min 0.5745 med 0.5748 ms
+rope o^-1 T2048 H32 hd512         hash 0dc838ce8f472ac5 min 0.5740 med 0.5754 ms
+rope kv T512 H1 hd512             hash a163e645ec6f9b6d min 0.0051 med 0.0052 ms
+rope idx_q T512 H64 hd128         hash 438fbaea945c36da min 0.0491 med 0.0492 ms
+rope cmp T128 H1 hd512 stride4    hash a8a92705497fbe7f min 0.0039 med 0.0040 ms
+rope T63 H32 hd512 (old path)     hash e52eb860edb55401 min 0.0123 med 0.0124 ms
+rope T500 H32 hd512 pos 40000     hash 0e4ab8592fa58014 min 0.1294 med 0.1296 ms

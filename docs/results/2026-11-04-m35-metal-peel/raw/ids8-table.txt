@@ -1,0 +1,9 @@
+plen mod256 mod4096 exp | main: solo sched / behind sched / solo==behind | peel==main solo / behind
+  258   2  258 Y | 258 / 256+2 / EQ | 
+  260   4  260 Y | 260 / 256+4 / EQ | 
+  265   9  265 Y | 265 / 256+9 / EQ | 
+  266  10  266 - | 266 / 256+10 / EQ | 
+  772   4  772 Y | 772 / 256+4 (4 passes) / EQ | 
+ 1028   4 1028 Y | 1028 / 256+4 (5 passes) / EQ | 
+ 1088  64 1088 - | 1088 / 256+64 (5 passes) / EQ | 
+ 2056   8 2056 - | 2048+8 / 256+8 (9 passes) / EQ | 

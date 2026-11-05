@@ -1,0 +1,10 @@
+control identical to BEFORE
+mode     prompt      n  rows diffrows  first |  KLb tail16  KLa tail16 |    KLb all    KLa all | top1 flips b->a
+decode ( d2081      32    32       32      0 |  1.2668e-02  1.1640e-02 | 1.2521e-02 1.1949e-02 | 30->32
+decode ( d2084      32    32       32      0 |  4.9427e-03  5.3969e-03 | 6.3230e-03 5.7315e-03 | 30->30
+decode ( d2087      32    32       32      0 |  1.0133e-02  1.2639e-02 | 1.5706e-02 1.5240e-02 | 29->32
+decode ( d2088      32    32       32      0 |  1.2392e-02  9.0820e-03 | 1.1713e-02 8.9096e-03 | 32->31
+prefill no prompt differs
+decode: 4 prompts reached by the peel; KL(before) - KL(after) over whole window: mean +1.108e-03 +- 5.7e-04 (se); after closer on 4, before closer on 0
+decode: 4 prompts reached by the peel; KL(before) - KL(after) over last 16 rows: mean +3.447e-04 +- 1.2e-03 (se); after closer on 2, before closer on 2
+decode: mean KL21 on those prompts, before 1.1566e-02 after 1.0457e-02; last-16 rows before 1.0034e-02 after 9.6894e-03

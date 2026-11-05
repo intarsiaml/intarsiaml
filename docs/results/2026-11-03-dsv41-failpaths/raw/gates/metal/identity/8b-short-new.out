@@ -1,0 +1,42 @@
+Here's a Rust function that parses a CSV line into fields, handling quoted commas, along with unit tests using the `rstest` and `csv` crates. This implementation supports quoted fields with commas inside them, as per the standard CSV format.
+
+---
+
+### ✅ Prerequisites
+
+Make sure you have the following crates in your `Cargo.toml`:
+
+```toml
+[dependencies]
+csv = "1.1.6"
+rstest = "0.16.0"
+```
+
+---
+
+### 📜 `src/main.rs`
+
+```rust
+use csv::ReaderBuilder;
+use rstest::rstest;
+use std::io::Cursor;
+
+/// Parses a CSV line into fields, handling quoted commas.
+pub fn parse_csv_line(line: &str) -> Vec<String> {
+    let mut reader = ReaderBuilder::new()
+        .has_headers(false)
+        .from_reader(Cursor::new(line));
+    let mut fields = Vec::new();
+
+    for result in reader.records() {
+        if let Ok(record) = result {
+            fields.push(record.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(","));
+        }
+    }
+
+    fields
+}
+
+#[rstest]
+#[case::empty_line("")]
+#[case

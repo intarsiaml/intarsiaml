@@ -1,0 +1,87 @@
+diag warm comp mt=1 wall 0.907 s {'prompt_tokens': 1031, 'completion_tokens': 1, 'total_tokens': 1032, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-natural-comp1 comp mt=1 wall 2.587 s {'prompt_tokens': 4107, 'completion_tokens': 1, 'total_tokens': 4108, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-comp1 comp mt=1 wall 2.298 s {'prompt_tokens': 4081, 'completion_tokens': 1, 'total_tokens': 4082, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-chat1 chat mt=1 wall 2.451 s {'prompt_tokens': 4111, 'completion_tokens': 1, 'total_tokens': 4112, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-chat8 chat mt=8 wall 2.579 s {'prompt_tokens': 4111, 'completion_tokens': 8, 'total_tokens': 4119, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-chat128 chat mt=128 wall 4.867 s {'prompt_tokens': 4112, 'completion_tokens': 128, 'total_tokens': 4240, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-natural-comp1 comp mt=1 wall 2.560 s {'prompt_tokens': 4107, 'completion_tokens': 1, 'total_tokens': 4108, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-comp1 comp mt=1 wall 2.302 s {'prompt_tokens': 4081, 'completion_tokens': 1, 'total_tokens': 4082, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-chat1 chat mt=1 wall 2.430 s {'prompt_tokens': 4112, 'completion_tokens': 1, 'total_tokens': 4113, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-chat8 chat mt=8 wall 2.578 s {'prompt_tokens': 4112, 'completion_tokens': 8, 'total_tokens': 4120, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-chat128 chat mt=128 wall 4.768 s {'prompt_tokens': 4112, 'completion_tokens': 128, 'total_tokens': 4240, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-natural-comp1 comp mt=1 wall 2.572 s {'prompt_tokens': 4107, 'completion_tokens': 1, 'total_tokens': 4108, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-comp1 comp mt=1 wall 2.351 s {'prompt_tokens': 4081, 'completion_tokens': 1, 'total_tokens': 4082, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-chat1 chat mt=1 wall 2.497 s {'prompt_tokens': 4112, 'completion_tokens': 1, 'total_tokens': 4113, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-chat8 chat mt=8 wall 2.579 s {'prompt_tokens': 4112, 'completion_tokens': 8, 'total_tokens': 4120, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag replay-filler-chat128 chat mt=128 wall 4.689 s {'prompt_tokens': 4112, 'completion_tokens': 128, 'total_tokens': 4240, 'prompt_tokens_details': {'cached_tokens': 0}}
+
+````
+hook scripts/dsv41-tp2/prefill3-diag-hook.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, cap 40000, chunk engine default
+````
+
+## Speed sweep
+
+served `dsv41-intarsia`, fingerprint `None`, ctx 40000, 2 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4096 | 2.31 | 1776 (1758–1794) | - | 51.5 (50.7–52.4) | - | - | - | 8 |
+| 33319 | 18.82 | 1771 (1769–1773) | 1770 | 38.7 (37.9–39.6) | - | - | - | 8 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-134837-adhoc-dsv41-prefill3-diag-replay/result.json
+[localeval] logged to unanimis: 29dfbf22-faec-45a4-8d60-f7388ef42ef9
+diag warm comp mt=1 wall 1.353 s {'prompt_tokens': 1031, 'completion_tokens': 1, 'total_tokens': 1032, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-natural-comp1 comp mt=1 wall 4.411 s {'prompt_tokens': 4107, 'completion_tokens': 1, 'total_tokens': 4108, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-comp1 comp mt=1 wall 4.024 s {'prompt_tokens': 4081, 'completion_tokens': 1, 'total_tokens': 4082, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-chat1 chat mt=1 wall 4.187 s {'prompt_tokens': 4112, 'completion_tokens': 1, 'total_tokens': 4113, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-chat8 chat mt=8 wall 4.353 s {'prompt_tokens': 4112, 'completion_tokens': 8, 'total_tokens': 4120, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-chat128 chat mt=128 wall 6.496 s {'prompt_tokens': 4112, 'completion_tokens': 128, 'total_tokens': 4240, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-natural-comp1 comp mt=1 wall 4.385 s {'prompt_tokens': 4107, 'completion_tokens': 1, 'total_tokens': 4108, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-comp1 comp mt=1 wall 4.027 s {'prompt_tokens': 4081, 'completion_tokens': 1, 'total_tokens': 4082, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-chat1 chat mt=1 wall 4.180 s {'prompt_tokens': 4112, 'completion_tokens': 1, 'total_tokens': 4113, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-chat8 chat mt=8 wall 4.315 s {'prompt_tokens': 4112, 'completion_tokens': 8, 'total_tokens': 4120, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-chat128 chat mt=128 wall 6.564 s {'prompt_tokens': 4112, 'completion_tokens': 128, 'total_tokens': 4240, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-natural-comp1 comp mt=1 wall 4.358 s {'prompt_tokens': 4107, 'completion_tokens': 1, 'total_tokens': 4108, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-comp1 comp mt=1 wall 4.030 s {'prompt_tokens': 4081, 'completion_tokens': 1, 'total_tokens': 4082, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-chat1 chat mt=1 wall 4.162 s {'prompt_tokens': 4112, 'completion_tokens': 1, 'total_tokens': 4113, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-chat8 chat mt=8 wall 4.257 s {'prompt_tokens': 4112, 'completion_tokens': 8, 'total_tokens': 4120, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag off-filler-chat128 chat mt=128 wall 6.292 s {'prompt_tokens': 4112, 'completion_tokens': 128, 'total_tokens': 4240, 'prompt_tokens_details': {'cached_tokens': 0}}
+
+## Speed sweep
+
+served `dsv41-intarsia`, fingerprint `None`, ctx 40000, 2 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 4095 | 4.04 | 1014 (1007–1021) | - | 44.3 (37.5–51.1) | - | - | - | 8 |
+| 33279 | 33.29 | 1000 (998–1001) | 998 | 39.6 (38.5–40.8) | - | - | - | 8 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 30.6% at 4096 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-135105-adhoc-dsv41-prefill3-diag-off/result.json
+[localeval] logged to unanimis: 65e0e51a-7701-4961-8ce3-f0b449697b98
+diag warm comp mt=1 wall 2.787 s {'prompt_tokens': 4103, 'completion_tokens': 1, 'total_tokens': 4104, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag warm chat mt=1 wall 2.487 s {'prompt_tokens': 4106, 'completion_tokens': 1, 'total_tokens': 4107, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag traced-filler-comp1 comp mt=1 wall 2.382 s {'prompt_tokens': 4081, 'completion_tokens': 1, 'total_tokens': 4082, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag traced-filler-chat16 chat mt=16 wall 2.741 s {'prompt_tokens': 4112, 'completion_tokens': 16, 'total_tokens': 4128, 'prompt_tokens_details': {'cached_tokens': 0}}
+diag traced-natural-comp1 comp mt=1 wall 2.650 s {'prompt_tokens': 4107, 'completion_tokens': 1, 'total_tokens': 4108, 'prompt_tokens_details': {'cached_tokens': 0}}

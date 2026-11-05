@@ -1,0 +1,16 @@
+default 4k rw-4k-b1-00 3738 55 None stop True
+default 4k rw-4k-b2-00 4218 42 None stop True
+default 4k rw-4k-b3-00 4158 53 None stop True
+default 4k rw-4k-b4-00 3938 53 None stop True
+default 4k rw-4k-b5-00 4250 39 None stop True
+default 4k rw-4k-b6-00 4350 41 None stop True
+default 4k rw-4k-b1-01 4158 47 None stop True
+default 4k rw-4k-b2-01 3738 43 None stop True
+default 32k hop2-L3-32k-000 31030 202 None stop True
+default 32k hop3-L3-32k-000 31036 396 None stop True
+default 32k agg_sum-L3-32k-000 30981 1413 None stop True
+default 32k agg_sum-L4-32k-001 31053 1536 None length False
+default 32k agg_max-L3-32k-000 31045 1536 None length False
+default 32k repo_sum-L4-32k-000 30546 266 None stop True
+default 32k hop2-L3-32k-001 31036 194 None stop True
+default 32k hop3-L3-32k-001 30906 378 None stop True

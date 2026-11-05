@@ -17,7 +17,9 @@ WIP=10.100.152.3; WPORT=29701; SPORT=8899; SURL=http://100.120.88.104:$SPORT
 LOGD="$SPARK_DIR/logs"
 NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-2} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
 # TP_SPIN_MS (default 100, 0 = off): rank 1 polls instead of blocking, two busy cores on spark2 during decode (user, 2026-11-02)
-# CHUNK=engine leaves INTARSIA_DSV41_CHUNK unset (the engine default)
+# CHUNK=engine leaves INTARSIA_DSV41_CHUNK unset (the engine default, 2048 since 2026-11-04). The script keeps its own explicit 512:
+# its golden / speed / long-prompt steps are compared against runs and reference tokens taken at 512 (chunk 2048 is not bit-for-bit 512),
+# so the engine flip does not move them. Run with CHUNK=2048 (or CHUNK=engine) to test the shipped default.
 CHUNK_ENV="INTARSIA_DSV41_CHUNK=${CHUNK:-512}"; [[ ${CHUNK:-} == engine ]] && CHUNK_ENV=""
 DENV="INTARSIA_TP_SPIN_MS=${TP_SPIN_MS:-100} INTARSIA_DSV41_CAP=${CAP:-32768} ${CHUNK_ENV} INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-}"
 VLLM_C=missioncntrl-guidance
@@ -253,7 +255,7 @@ fi
 if [[ " $STEPS " == *" longp "* ]]; then
   for f in ${LONG_PROMPTS:?set LONG_PROMPTS}; do
     t0=$(date +%s.%N)
-    curl -s -m 900 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":open(sys.argv[1]).read(),"max_tokens":16,"temperature":0,"logprobs":5}))' "$f")" > "$OUT/longp-$(basename "$f" .txt).json"
+    curl -s -m 900 "$SURL/v1/completions" -H 'content-type: application/json' -d "$(python3 -c 'import json,os,sys; print(json.dumps({"model":"dsv41-intarsia","prompt":open(sys.argv[1]).read(),"max_tokens":16,"temperature":0,"logprobs":5,**({"ignore_eos":True} if os.environ.get("LONGP_IGNORE_EOS") == "1" else {})}))' "$f")" > "$OUT/longp-$(basename "$f" .txt).json"
     log "longp $(basename "$f") wall $(python3 -c 'import sys,time; print("%.1f" % (time.time() - float(sys.argv[1])))' "$t0") s $(python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get("usage"), repr(d["choices"][0]["text"][:60]))' "$OUT/longp-$(basename "$f" .txt).json" 2>&1 | tail -1)"
   done
 fi
@@ -382,10 +384,12 @@ if [[ -n ${AB:-} ]]; then
     v="NSYS_AB$i"; NSYS_SAVE=${NSYS:-0}; NSYS=${!v:-$NSYS_SAVE}
     # BIN_ABi: another binary for this config (same path prefix, so kill_ours and the watcher still match it)
     v="BIN_AB$i"; BIN_SAVE=$BIN; BIN=${!v:-$BIN}
+    # LONG_ABi: another LONG_PROMPTS list for this config (the longp step)
+    v="LONG_AB$i"; LONG_SAVE=${LONG_PROMPTS:-}; LONG_PROMPTS=${!v:-${LONG_PROMPTS:-}}
     log "config ab$i: $cfg; steps: $STEPS; nsys $NSYS; bin $BIN"
     start_ranks "$cfg"
     run_steps
-    STEPS=$STEPS_SAVE; NSYS=$NSYS_SAVE; BIN=$BIN_SAVE
+    STEPS=$STEPS_SAVE; NSYS=$NSYS_SAVE; BIN=$BIN_SAVE; LONG_PROMPTS=$LONG_SAVE
     kill_ours; log "config ab$i done"
     i=$((i + 1))
   done

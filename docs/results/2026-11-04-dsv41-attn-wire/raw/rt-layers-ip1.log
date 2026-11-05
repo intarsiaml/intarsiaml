@@ -1,0 +1,24 @@
+
+running 1 test
+test few_layer_runtime_matches_the_official_layer_outputs ... [dsv41-cache] loaded rank 0 of 1 cache /home/nvidia/intarsia-dsv41-tp2/cache/l3-r0of1: 579 tensors, 17.29 GiB in 2.6 s = 7.05 GB/s (O_DIRECT)
+dsv41: rank 0/1: loaded 17.29 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/l3-r0of1 in 3.5 s (5.36 GB/s)
+dsv41: rank 0/1: speculative decoding off (INTARSIA_DSV41_SPEC is set and not 1)
+dsv41: rank 0/1 memory: weights 16.39 GiB, workspace 0.008 GiB (chunk 16), constants 0.000 GiB, state 0.007 GiB per sequence at 512 tokens; MemAvailable 74.78 GiB -> 57.93 GiB
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793788321)
+dsv41: kernel scratch grew to 134217728 bytes (unix 1793788321)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 33 steps, 13 EXL3 linears (unix 1793788321)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 64 steps, 26 EXL3 linears (unix 1793788321)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 106 steps, 42 EXL3 linears (unix 1793788321)
+RUNTIME L0 s0: max_abs/max|ref| 6.711e-3  rel_rms 3.799e-3
+RUNTIME L0 s1: max_abs/max|ref| 3.546e-3  rel_rms 3.187e-3
+RUNTIME L0 s2: max_abs/max|ref| 5.464e-3  rel_rms 3.892e-3
+RUNTIME L1 s0: max_abs/max|ref| 4.132e-3  rel_rms 3.579e-3
+RUNTIME L1 s1: max_abs/max|ref| 2.254e-2  rel_rms 3.524e-2
+RUNTIME L1 s2: max_abs/max|ref| 7.194e-3  rel_rms 6.445e-3
+RUNTIME L2 s0: max_abs/max|ref| 8.333e-3  rel_rms 4.279e-3
+RUNTIME L2 s1: max_abs/max|ref| 2.322e-2  rel_rms 3.103e-2
+RUNTIME L2 s2: max_abs/max|ref| 1.915e-2  rel_rms 2.410e-2
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 4.11s
+

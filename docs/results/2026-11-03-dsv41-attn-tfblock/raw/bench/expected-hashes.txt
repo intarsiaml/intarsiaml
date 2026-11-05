@@ -1,0 +1,16 @@
+# recorded hashes of the unmodified kernels: attn from ab-run-1.log (base processes, all 6 pairs agree), rope from bench-vec0.txt
+# format: <kind> <shape name> <hash>
+attn CSA T512 Nc1024 Kw512 4ee9a847ca24437f
+attn CSA T2048 Nc1024 Kw512 aa254a578fedfa25
+attn HCA T512 Nc32 Kw32 90ad1d7fcca0b866
+attn CSA T37 Nc1024 Kw512 21b89af74c9af5a2
+attn CSA T11 Nc1024 Kw512 e450cadc14aad612
+rope q T512 H32 hd512 d5ab75e0c17ef387
+rope o^-1 T512 H32 hd512 b1ea9a443bb9d683
+rope q T2048 H32 hd512 af34abaeb838d38f
+rope o^-1 T2048 H32 hd512 0dc838ce8f472ac5
+rope kv T512 H1 hd512 a163e645ec6f9b6d
+rope idx_q T512 H64 hd128 438fbaea945c36da
+rope cmp T128 H1 hd512 stride4 a8a92705497fbe7f
+rope T63 H32 hd512 (old path) e52eb860edb55401
+rope T500 H32 hd512 pos 40000 0e4ab8592fa58014

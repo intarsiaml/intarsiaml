@@ -1,0 +1,141 @@
+# Qwen3.5 / Qwen3.6 hybrid MoE (Qwen3_5MoeForConditionalGeneration, e.g. Qwen3.6-35B-A3B): GatedDeltaNet layers and
+# gated full-attention layers interleaved by config.json text_config.layer_types (3x linear_attention, then 1x
+# full_attention), zero-centred RMSNorm, partial rotary (0.25 of head_dim), sparse MoE FFN with a gated shared expert.
+# Text weights live under model.language_model.*; the vision tower is ignored, the MTP head ([mtp]) is loaded only for
+# `--spec mtp`.
+# Quantisation (FP8 projections, NVFP4 routed experts) is detected per tensor from the checkpoint, not named here.
+[model]
+match.architectures = ["Qwen3_5MoeForConditionalGeneration", "Qwen3_5MoeForCausalLM"]
+family = "qwen3_5_moe"
+chat_template = "hf"
+reasoning_parser = "think-tags"
+tool_parser = "hermes"
+norm_offset = 1.0        # RMSNorm scale is 1 + weight (not the gated norm inside GatedDeltaNet)
+
+[layer]
+pattern = ["attn", "moe"]              # only used for a layer without a type
+pattern_by_layer = "layer_types"       # config.json key
+
+[layer.by_type]
+full_attention = ["attn", "moe"]
+linear_attention = ["gdn", "moe"]
+
+[layer.attn]
+kind = "gqa"
+gated = true                           # q_proj = [q | output gate] per head
+q = "model.language_model.layers.{i}.self_attn.q_proj"
+k = "model.language_model.layers.{i}.self_attn.k_proj"
+v = "model.language_model.layers.{i}.self_attn.v_proj"
+o = "model.language_model.layers.{i}.self_attn.o_proj"
+q_norm = "model.language_model.layers.{i}.self_attn.q_norm"
+k_norm = "model.language_model.layers.{i}.self_attn.k_norm"
+rope = "default"                       # text-only: all three mrope axes carry the same position, i.e. plain rope
+
+[layer.gdn]
+kind = "gated_delta_net"
+in_qkv = "model.language_model.layers.{i}.linear_attn.in_proj_qkv"
+in_z = "model.language_model.layers.{i}.linear_attn.in_proj_z"
+in_b = "model.language_model.layers.{i}.linear_attn.in_proj_b"
+in_a = "model.language_model.layers.{i}.linear_attn.in_proj_a"
+conv = "model.language_model.layers.{i}.linear_attn.conv1d"
+a_log = "model.language_model.layers.{i}.linear_attn.A_log"
+dt_bias = "model.language_model.layers.{i}.linear_attn.dt_bias"
+norm = "model.language_model.layers.{i}.linear_attn.norm"
+out = "model.language_model.layers.{i}.linear_attn.out_proj"
+
+# The sparse MoE block (router + routed experts + gated shared expert) is built by the quantmoe code
+# (intarsia_core::quant::moe) from this module prefix.
+[layer.moe]
+kind = "qwen3_5_moe"
+prefix = "model.language_model.layers.{i}.mlp"
+
+[layer.norms]
+pre_attn = "model.language_model.layers.{i}.input_layernorm"
+pre_gdn = "model.language_model.layers.{i}.input_layernorm"
+pre_moe = "model.language_model.layers.{i}.post_attention_layernorm"
+
+[top]
+embed = "model.language_model.embed_tokens"
+final_norm = "model.language_model.norm"
+lm_head = { tensor = "lm_head", tied_to = "model.language_model.embed_tokens" }
+
+[defaults]
+# bf16 KV cache (bitwise gates). fp8_e4m3 (`--kv-dtype fp8`, or this key in a copy of the recipe passed with `--recipe`) is the
+# opt-in vLLM serves this checkpoint with: measured cost and speed in docs/results/2026-10-29-fp8kv-opt-in.md.
+kv_dtype = "bf16"
+max_batch = 32
+
+# Prefill chunk per backend (an explicit --prefill-chunk wins; unlisted backends use 256). 2048 on CUDA: 35B prefill at
+# 4k goes from 2397 to 4654 tok/s, the 35b-short accuracy gate passes (prefill KL 5.43e-3 vs 6.27e-3) and 35b-long
+# fails only on chat_reuse_4k, which is chunk-sensitive (docs/results/2026-10-13-prefill-cuda.md, phase1b.md section 9).
+[tuning.cuda]
+prefill_chunk = 2048
+# Macro prefill pass (INTARSIA_PREFILL_MACRO, docs/tuning.md): up to 8192 rows of consecutive 2048-row chunks of a prompt run as ONE
+# layer-by-layer pass (the routed experts read their weights once for 4 chunks; attention, the GatedDeltaNet recurrence and the vendor
+# GEMMs stay chunk-sized), bitwise the same logits and state as the chunk-by-chunk schedule (35B: 1.5k / 4k / 8.3k / 16.6k tokens,
+# `real_35b_macro_prefill_is_bitwise_the_plain_schedule`). 4k +5.4 %, 16k +10.0 % prefill tok/s, 1k unchanged
+# (docs/results/2026-10-25-sk-spark-prefill.md). Single-sequence engine (`serve` without `--max-batch`, `generate`) and, since
+# docs/results/2026-10-25-sk2-serve-macro.md, `serve --max-batch` for a prompt that prefills alone with nothing decoding.
+prefill_macro = 8192
+# `--spec mtp --spec-k 2` is the default at tp=1 on CUDA when no `--spec` is given (`--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out; `--max-batch`
+# above 1, a configured prefix store and checkpoints without the MTP head keep plain decode). The macro prefill pass runs with the head (lane mpf), so prefill
+# is about 0.7 % below `--spec off` (the noise floor) and decode is 1.17-1.5x in every category on prompts under 4.8k, about 1.13x at 16k and 1.05x at 34k
+# (docs/results/2026-10-27-mpf-macro-prefill-mtp.md, section 9; lane cmtp before it).
+mtp_default_k = 2
+
+# 4096 on Metal (lane chunk4k, 2026-10-29): 4096-row chunks give the MoE expert GEMMs 128 rows per expert (64 at 2048) and
+# amortise the fp8 weight decode over twice the rows: served 35B prefill about +7.5 % at 4k (best start against best start; paired median
+# +11 %) and +2 to +6 % at 16k (noisy) over 2048, 6 interleaved rounds on endor, decode and 1-16 stream burst unchanged, greedy ids bitwise equal
+# (docs/results/2026-10-29-chunk4k-metal.md). Before that 2048 (user-delegated 2026-10-22
+# 19:41): at the 256 default `qualify` on the 4k golden fails the prefix-reuse gate on long_docs_4k `continue` (streams diverge at
+# token 8, docs/results/2026-10-22-gc-gate-coverage.md); 2048 amortises the expert reads the same way as on CUDA
+# (docs/results/2026-10-22-gc2-metal-35b-chunk2048.md). The chunk is part of the accuracy baseline identity:
+# golden/baselines/qwen36-35b*.metal.* were re-recorded with it. At 4096 the 4k documents (4064 tokens) cannot cross a chunk
+# boundary, so `accuracy --mode all` judges prefix reuse only on chat_reuse_4k (as on HIP, below); `qualify` also runs the
+# reuse check at chunk 1024, which judges all three.
+# Beside decoding streams (`serve --max-batch` > 1) a prompt prefills in 2048-row steps, not 4096: the scheduler runs `busy_chunk` for
+# a request whose prefill starts while a stream decodes and `prefill_chunk` otherwise (crates/intarsia-core/src/scheduler.rs,
+# `prefill_plan`: `n_decoding > 0`, chosen on the request's first chunk), so a neighbour's worst step stays the ~0.4 s it was at 2048 rows instead of ~0.7 s.
+# Single-stream and idle-server prefill keep 4096. The 35B's prefill is chunk-invariant bitwise on Metal
+# (docs/results/2026-10-29-chunk4k-metal.md), unlike CUDA where a smaller busy chunk moves the KL.
+[tuning.metal]
+prefill_chunk = 4096
+busy_chunk = 4096
+
+# 4096 on HIP: every MoE layer reads all 256 experts once per chunk, so at 256 tokens a 4k prompt re-reads the expert weights 16
+# times. 35B prefill on one R9700 at 128 / 1024 / 4096 tokens goes 1254 / 2112 / 2033 tok/s (256) to 1231 / 3094 / 3585 (4096), 3058
+# at 16k; 4096 fits the 29 GB budget at max-seq 17408. Prefill is chunk-invariant bit for bit on HIP (short and long golden give the
+# same numbers at 256, 1024, 2048 and 4096). At 4096 the prefix-reuse gate can run only on chat_reuse_4k: the two 4k documents
+# (4064 tokens) cannot cross a 4096-token chunk boundary and are reported as skipped (the gate fails only if no prompt could
+# be judged), so only chat_reuse_4k is judged (at 256 long_docs_4k fails the continue case, on the base build too;
+# docs/results/2026-10-17-hip-prefill.md, docs/results/2026-10-21-m3-accuracy-debt.md 2.8).
+[tuning.hip]
+prefill_chunk = 4096
+# Macro prefill pass (INTARSIA_PREFILL_MACRO, docs/tuning.md), model loop only, no HIP kernel changed: up to 8192 rows (two 4096-row
+# chunks) of a prompt run as ONE layer-by-layer pass, so the routed experts read their weights once per pass; attention, the GatedDeltaNet
+# recurrence and the vendor-style GEMMs stay chunk-sized. The chunk stays 4096 (a 2048 chunk loses 2 % at 4k). A prompt of one chunk
+# (up to 4k) takes the plain path: 1k and 4k are unchanged, 16k +3.4 to +4.9 % prefill tok/s. 16384 rows would give +4.5 % but costs 15 % of
+# the context under `serve --max-batch 16` (16223 -> 13788 tokens at --max-seq 17408; 8192 costs 5.0 %, 15410) because the workspace grows
+# with the pass; single-stream context is unchanged at either size. docs/results/2026-10-26-l7m-hip-macro-prefill.md. Capped by --max-seq.
+prefill_macro = 8192
+
+# `intarsia accuracy` only. chat_turns: the KL floor skips the system and user turns of chat prompts (ChatML). No
+# reuse_logit_tol / reuse_kl_tol yet: they must be measured once on a known-good build of this model (a GPU run) and
+# written here; until then the judge uses its built-in constants, calibrated on dense Qwen3-8B
+# (docs/results/2026-10-21-m3-accuracy-debt.md, 2.8: on this model decode-written KV moves the rows more than that).
+[accuracy]
+chat_turns = "chatml"
+# tensor parallelism (`--tp` > 1) gate (coordinator, 2026-10-25, docs/decisions/LOG.md): mutants killed through a direct partial-sum
+# check, tp=2 run-to-run ids identical, mean KL(tp vs vLLM) <= KL(tp1 vs vLLM) x 1.02 (scripts/tp2-hip/tp-gate.py; per prompt report-only);
+# KL(tp vs tp1) is reported, not gating. `tp_ref_noise_factor` (the tolerance of `accuracy --self-golden <tp1 dump> --self-vs-ref-noise`
+# for a `--tp` > 1 run) is therefore deliberately UNSET: HIP tp=2 measures 1.66x the vLLM re-run noise there (CUDA tp=2 1.10x), which
+# does not separate it from a 0.3 % partial-scale bug (docs/results/2026-10-25-tp2-hip.md).
+
+# Multi-token-prediction head (`mtp.*`, bf16 in the NVFP4 checkpoint): fc over [norm(embed) | norm(hidden)], one gated
+# full-attention + MoE layer, a final norm, the model's lm_head. Read only by `--spec mtp` (speculative decoding with
+# the head as drafter, docs/results/2026-10-22-mtp-spec-decode.md); without that flag nothing under `mtp.*` is loaded.
+
+[mtp]
+
+kind = "qwen3_5_mtp"
+prefix = "mtp"

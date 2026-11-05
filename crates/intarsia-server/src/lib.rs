@@ -33,11 +33,23 @@ use std::convert::Infallible;
 use std::sync::Arc;
 use std::time::Duration;
 
+/// How [`serve`]'s error starts when the listening socket could not be had.
+const BIND_FAILED: &str = "bind";
+
+/// Whether [`serve`] failed because it could not bind, after [`ServerConfig::bind_retry_s`]: a supervised child exits [`EXIT_FATAL`] then,
+/// since a restart would reload the whole model only to try the same port again.
+pub fn is_bind_failure(e: &intarsia_core::Error) -> bool {
+    matches!(e, intarsia_core::Error::Other(m) if m.starts_with(BIND_FAILED))
+}
+
 pub use health::{EXIT_FATAL, EXIT_FAILED, EXIT_ORPHANED, EXIT_STALLED};
 pub use metrics::Metrics;
 
 #[derive(Clone, Debug)]
 pub struct ServerConfig {
+    /// Seconds to keep trying a port that is in use or an address not there yet (0 = fail at once). The model is already loaded when the
+    /// server binds, so this costs no reload.
+    pub bind_retry_s: f64,
     pub host: String,
     pub port: u16,
     /// Model name reported in responses and `/v1/models` (default: the engine's model id).
@@ -66,6 +78,7 @@ pub struct ServerConfig {
 impl Default for ServerConfig {
     fn default() -> Self {
         ServerConfig {
+            bind_retry_s: 0.0,
             host: "127.0.0.1".into(),
             port: 8090,
             served_model_name: None,
@@ -88,9 +101,29 @@ pub fn router(engine: Arc<dyn Engine>, served_model_name: Option<String>) -> Rou
 
 /// Build the router from a full config.
 pub fn router_with(engine: Arc<dyn Engine>, cfg: &ServerConfig) -> Router {
+    router_with_shutdown(engine, cfg).0
+}
+
+/// [`router_with`] and the handle that ends its endless streams at shutdown (see [`Shutdown`]).
+pub fn router_with_shutdown(engine: Arc<dyn Engine>, cfg: &ServerConfig) -> (Router, Shutdown) {
     let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
     let state = AppState::new(engine, name, cfg);
-    app(state, cfg.ui)
+    let stop = Shutdown(state.shutdown.clone());
+    (app(state, cfg.ui), stop)
+}
+
+/// Ends the streams that never finish by themselves when the server is told to stop. axum's graceful shutdown waits for
+/// every open response, and `/events` (held open for good by `intarsia top` and the TUI, which reconnect forever) kept the
+/// process, and the GPU memory it holds, alive until the supervisor's SIGKILL 30 s later. Generations in flight still
+/// finish: their length is bounded.
+pub struct Shutdown(Arc<tokio::sync::watch::Sender<bool>>);
+
+impl Shutdown {
+    /// Resolves with `signal`, after ending the `/events` streams: pass it to `with_graceful_shutdown`.
+    pub async fn after(self, signal: impl std::future::Future<Output = ()>) {
+        signal.await;
+        self.0.send_replace(true);
+    }
 }
 
 fn app(state: AppState, ui: bool) -> Router {
@@ -125,12 +158,11 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
         .map_err(|e| intarsia_core::Error::Other(format!("tokio runtime: {e}")))?;
     rt.block_on(async move {
         let addr = format!("{}:{}", cfg.host, cfg.port);
-        let listener = tokio::net::TcpListener::bind(&addr)
-            .await
-            .map_err(|e| intarsia_core::Error::Other(format!("bind {addr}: {e}")))?;
         let name = cfg.served_model_name.clone().unwrap_or_else(|| engine.info().id);
         let state = AppState::new(engine.clone(), name, &cfg);
-        if cfg.watchdog_s > 0.0 || cfg.parent_pid.is_some() {
+        let stop = Shutdown(state.shutdown.clone());
+        let probe = engine.clone();
+        if wants_watchdog(&cfg) {
             health::spawn_watchdog(
                 engine,
                 state.progress.clone(),
@@ -140,14 +172,56 @@ pub fn serve(engine: Arc<dyn Engine>, cfg: ServerConfig) -> intarsia_core::Resul
                 cfg.parent_pid,
             );
         }
+        // After the watchdog, which also covers the retry: a failed group still exits 87 and an orphan still leaves.
+        let Some(listener) = bind_retrying(&addr, cfg.bind_retry_s, &*probe).await? else {
+            return Ok(()); // stopped while waiting for the port
+        };
         let app = app(state, cfg.ui);
         tracing::info!("intarsia server listening on http://{addr}");
         eprintln!("intarsia server listening on http://{addr}");
         axum::serve(listener, app)
-            .with_graceful_shutdown(shutdown_signal())
+            .with_graceful_shutdown(stop.after(shutdown_signal()))
             .await
             .map_err(|e| intarsia_core::Error::Other(format!("server: {e}")))
     })
+}
+
+/// Bind `addr`, retrying what can clear by itself for up to `retry_s`: a port a stopping server still holds (a restart after exit 86 or 87
+/// can get there first), an address the network has not brought up yet. Anything else fails at once. `None`: asked to stop meanwhile.
+async fn bind_retrying(addr: &str, retry_s: f64, engine: &dyn Engine) -> intarsia_core::Result<Option<tokio::net::TcpListener>> {
+    use std::io::ErrorKind::{AddrInUse, AddrNotAvailable};
+    let t0 = std::time::Instant::now();
+    let mut told = false;
+    let stop = shutdown_signal();
+    tokio::pin!(stop);
+    loop {
+        let e = match tokio::net::TcpListener::bind(addr).await {
+            Ok(l) => return Ok(Some(l)),
+            Err(e) => e,
+        };
+        // the watchdog waits 2 s before it exits 87: a retry that ends meanwhile must not turn that into a fatal 78
+        if retry_s > 0.0 && engine.failed().is_some() {
+            eprintln!("cannot bind {addr} ({e}) and the engine failed; exiting for restart");
+            std::process::exit(EXIT_FAILED);
+        }
+        if !matches!(e.kind(), AddrInUse | AddrNotAvailable) || t0.elapsed().as_secs_f64() >= retry_s {
+            return Err(intarsia_core::Error::Other(format!("{BIND_FAILED} {addr}: {e}")));
+        }
+        if !told {
+            eprintln!("cannot bind {addr} ({e}); retrying for up to {retry_s} s");
+            told = true;
+        }
+        tokio::select! {
+            _ = &mut stop => return Ok(None),
+            _ = tokio::time::sleep(std::time::Duration::from_millis(500)) => {}
+        }
+    }
+}
+
+/// Whether `serve` runs the watchdog: a stall limit, a supervisor to watch for, or an exit on a failed engine (which only the
+/// watchdog performs: with `--watchdog-s 0` and no supervisor it was never started, so a failed engine never exited).
+fn wants_watchdog(cfg: &ServerConfig) -> bool {
+    cfg.watchdog_s > 0.0 || cfg.parent_pid.is_some() || cfg.exit_on_failed
 }
 
 async fn shutdown_signal() {
@@ -229,11 +303,30 @@ async fn prometheus(State(st): State<AppState>) -> Response {
 
 async fn events(State(st): State<AppState>) -> Sse<impl futures_util::Stream<Item = Result<Event, Infallible>>> {
     let tick = tokio::time::interval(Duration::from_millis(200));
+    let mut stop = st.shutdown.subscribe();
     let stream = futures_util::stream::unfold((st, tick), |(st, mut tick)| async move {
         tick.tick().await;
         let snap = blocking(&st.engine, |e| Ok(e.telemetry())).await.ok()?;
         let ev = Event::default().json_data(&snap).unwrap_or_else(|_| Event::default().data("{}"));
         Some((Ok(ev), (st, tick)))
     });
+    // ends with the server's shutdown, or the graceful shutdown would wait for this stream for good
+    let stream = futures_util::StreamExt::take_until(stream, async move {
+        let _ = stop.wait_for(|stopping| *stopping).await;
+    });
     Sse::new(stream).keep_alive(KeepAlive::default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_failed_engine_exit_needs_the_watchdog_even_without_a_stall_limit() {
+        let off = ServerConfig { watchdog_s: 0.0, ..Default::default() };
+        assert!(!wants_watchdog(&off));
+        assert!(wants_watchdog(&ServerConfig { exit_on_failed: true, ..off.clone() }));
+        assert!(wants_watchdog(&ServerConfig { parent_pid: Some(1), ..off.clone() }));
+        assert!(wants_watchdog(&ServerConfig { watchdog_s: 60.0, ..off }));
+    }
 }

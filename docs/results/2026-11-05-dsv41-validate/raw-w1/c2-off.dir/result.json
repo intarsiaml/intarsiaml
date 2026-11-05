@@ -1,0 +1,722 @@
+{
+ "run_id": "20261105-154220-adhoc-dsv41validate-c2-off",
+ "kind": "quality",
+ "label": "dsv41validate-c2-off",
+ "started_at": "2026-11-05T15:42:20-05:00",
+ "finished_at": "2026-11-05T15:49:19-05:00",
+ "target": {
+  "name": "adhoc",
+  "url": "http://100.120.88.104:8899/v1",
+  "model": "dsv41-intarsia",
+  "host": "",
+  "engine": "",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {},
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "intarsia 1faac7bf5 dirty=no 1105-1503 scripts/dsv41-tp2/validate-test.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000, chunk 2048, engram hot 1024 MiB"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval quality --dataset /opt/code/intarsiaml/.worktrees/dsv41-validate/.scratch/c2-qfirst12.jsonl --judge none --max-tokens 400 --label dsv41validate-c2-off --url http://100.120.88.104:8899/v1 --model dsv41-intarsia --thinking off --recipe intarsia 1faac7bf5 dirty=no 1105-1503 scripts/dsv41-tp2/validate-test.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000, chunk 2048, engram hot 1024 MiB",
+  "git": "a43b846"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": null,
+ "benchmarks": [],
+ "datasets": [
+  {
+   "dataset": "/opt/code/intarsiaml/.worktrees/dsv41-validate/.scratch/c2-qfirst12.jsonl",
+   "rows": 12,
+   "judge": null,
+   "metrics": {
+    "Contains expected": {
+     "mean": 1.0,
+     "pass_rate": 1.0,
+     "n": 12,
+     "n_na": 0,
+     "errors": 0
+    },
+    "TTFT (s)": {
+     "mean": 33.329,
+     "pass_rate": 1.0,
+     "n": 12,
+     "n_na": 0,
+     "errors": 0
+    },
+    "Prefill (tok/s)": {
+     "mean": 928.016,
+     "pass_rate": 1.0,
+     "n": 12,
+     "n_na": 0,
+     "errors": 0
+    },
+    "Decode (tok/s)": {
+     "mean": 77.273,
+     "pass_rate": 1.0,
+     "n": 12,
+     "n_na": 0,
+     "errors": 0
+    }
+   },
+   "cases": [
+    {
+     "name": "hop2-L3-32k-000-qfirst",
+     "success": true,
+     "actual_output": "The document states: \"Ops ledger: the release nicknamed Toryar is tracked in this ledger as the Novder release.\" and \"Change log: the rollback token of the Novder release was set to WG-5384-KT.\"\n\nFINAL: WG-5384-KT",
+     "expected_output": "FINAL: WG-5384-KT",
+     "speed": {
+      "prompt_tokens": 31001,
+      "cached_tokens": 0,
+      "completion_tokens": 59,
+      "reasoning_tokens": null,
+      "ttft_s": 33.37022979196627,
+      "prefill_tok_s": 929.0016938230181,
+      "decode_tok_s": 69.82078029120096,
+      "peak_decode_tok_s": 100.6,
+      "total_s": 34.204275834024884,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: WG-5384-KT'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.37,
+       "success": true,
+       "reason": "TTFT (s) = 33.37 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 929.002,
+       "success": true,
+       "reason": "Prefill (tok/s) = 929.002 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 69.821,
+       "success": true,
+       "reason": "Decode (tok/s) = 69.821 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "hop3-L3-32k-000-qfirst",
+     "success": true,
+     "actual_output": "The document states: \"Release ledger: the release nicknamed Yarsel is tracked in this ledger as the Novder release.\" and \"Registry entry: the Novder release is owned by the Fennov team.\" and \"Ops ledger: the rollback token of the Fennov team was set to HW-4357-JS.\"\n\nFINAL: HW-4357-JS",
+     "expected_output": "FINAL: HW-4357-JS",
+     "speed": {
+      "prompt_tokens": 31007,
+      "cached_tokens": 0,
+      "completion_tokens": 79,
+      "reasoning_tokens": null,
+      "ttft_s": 33.382626625010744,
+      "prefill_tok_s": 928.8364378364736,
+      "decode_tok_s": 75.0719499705906,
+      "peak_decode_tok_s": 123.2,
+      "total_s": 34.42168137500994,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: HW-4357-JS'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.383,
+       "success": true,
+       "reason": "TTFT (s) = 33.383 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 928.836,
+       "success": true,
+       "reason": "Prefill (tok/s) = 928.836 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 75.072,
+       "success": true,
+       "reason": "Decode (tok/s) = 75.072 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "agg_sum-L3-32k-000-qfirst",
+     "success": true,
+     "actual_output": "The Pelmar cluster storage shards mentioned:\n- AR-6283-PN: 326 units\n- VZ-2258-VQ: 256 units\n- YN-6064-DK: 952 units\n- SA-2055-MW: 759 units\n- QE-7989-CZ: 196 units\n- CC-6403-AU: 659 units\n- MJ-8513-YF: 995 units\n- CH-3233-HF: 587 units\n\nSum: 326 + 256 + 952 + 759 + 196 + 659 + 995 + 587 = 4730\n\nFINAL: 4730",
+     "expected_output": "FINAL: 4730",
+     "speed": {
+      "prompt_tokens": 30952,
+      "cached_tokens": 0,
+      "completion_tokens": 145,
+      "reasoning_tokens": null,
+      "ttft_s": 33.37688395800069,
+      "prefill_tok_s": 927.3484019343446,
+      "decode_tok_s": 79.01257688462114,
+      "peak_decode_tok_s": 108.8,
+      "total_s": 35.20232008304447,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: 4730'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.377,
+       "success": true,
+       "reason": "TTFT (s) = 33.377 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 927.348,
+       "success": true,
+       "reason": "Prefill (tok/s) = 927.348 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 79.013,
+       "success": true,
+       "reason": "Decode (tok/s) = 79.013 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "agg_sum-L4-32k-001-qfirst",
+     "success": true,
+     "actual_output": "Storage shards of the Wynbri cluster: UC-8590-WQ 602, GF-2465-UZ 448, ME-2305-SK 115, NN-4788-UV 807, CV-8248-RS 373, XZ-1175-WK 482, YN-4580-PQ 978, WN-1371-FW 859, ZP-7391-WP 774, HD-7936-WL 228, DJ-1012-UQ 373, EY-4026-ZY 103.\nSum: 602+448=1050; +115=1165; +807=1972; +373=2345; +482=2827; +978=3805; +859=4664; +774=5438; +228=5666; +373=6039; +103=6142.\nFINAL: 6142",
+     "expected_output": "FINAL: 6142",
+     "speed": {
+      "prompt_tokens": 31024,
+      "cached_tokens": 0,
+      "completion_tokens": 200,
+      "reasoning_tokens": null,
+      "ttft_s": 33.471988875069655,
+      "prefill_tok_s": 926.8645527994619,
+      "decode_tok_s": 81.0297125561064,
+      "peak_decode_tok_s": 103.5,
+      "total_s": 35.933149875025265,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: 6142'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.472,
+       "success": true,
+       "reason": "TTFT (s) = 33.472 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 926.865,
+       "success": true,
+       "reason": "Prefill (tok/s) = 926.865 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 81.03,
+       "success": true,
+       "reason": "Decode (tok/s) = 81.03 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "agg_max-L3-32k-000-qfirst",
+     "success": true,
+     "actual_output": "The document contains several tracker notes and ledgers for the Peleld line:\n- Falwyn of the Peleld line: 32 failed tests\n- Yarvex of the Peleld line: 139 failed tests\n- Hoxcal of the Peleld line: 106 failed tests\n- Quincal of the Peleld line: 333 failed tests\n- Goreld of the Peleld line: 226 failed tests\n- Dunvex of the Peleld line: 351 failed tests\n- Gornov of the Peleld line: 394 failed tests\n- Wynilk of the Peleld line: 145 failed tests\n\nThe highest is Gornov (394).\n\nFINAL: Gornov",
+     "expected_output": "FINAL: Gornov",
+     "speed": {
+      "prompt_tokens": 31016,
+      "cached_tokens": 0,
+      "completion_tokens": 155,
+      "reasoning_tokens": null,
+      "ttft_s": 33.43601349997334,
+      "prefill_tok_s": 927.622546869253,
+      "decode_tok_s": 67.86617187357531,
+      "peak_decode_tok_s": 115.2,
+      "total_s": 35.70837829192169,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: Gornov'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.436,
+       "success": true,
+       "reason": "TTFT (s) = 33.436 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 927.623,
+       "success": true,
+       "reason": "Prefill (tok/s) = 927.623 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 67.866,
+       "success": true,
+       "reason": "Decode (tok/s) = 67.866 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "repo_sum-L4-32k-000-qfirst",
+     "success": true,
+     "actual_output": "RING = 4096 (coll_trace.rs); WARMUP = 5 (icb_check.rs); PRE_MIN_T = 64 (gdn.rs); EXIT_FAILED = 87 (health.rs); POS_BYTES = 256 (verify_attn_rows.rs); IK_MAX_DIMS = 6 (ffi.rs).\nSum: 4096 + 5 + 64 + 87 + 256 + 6 = 4514.\nFINAL: 4514",
+     "expected_output": "FINAL: 4514",
+     "speed": {
+      "prompt_tokens": 30517,
+      "cached_tokens": 0,
+      "completion_tokens": 105,
+      "reasoning_tokens": null,
+      "ttft_s": 32.64942608401179,
+      "prefill_tok_s": 934.6871801505869,
+      "decode_tok_s": 83.46984692845227,
+      "peak_decode_tok_s": 123.0,
+      "total_s": 33.90137641702313,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: 4514'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 32.649,
+       "success": true,
+       "reason": "TTFT (s) = 32.649 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 934.687,
+       "success": true,
+       "reason": "Prefill (tok/s) = 934.687 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 83.47,
+       "success": true,
+       "reason": "Decode (tok/s) = 83.47 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "hop2-L3-32k-001-qfirst",
+     "success": true,
+     "actual_output": "The document states: \"Tracker note: the release nicknamed Eldquin is tracked in this ledger as the Quinjor release.\" And: \"Release ledger: the rollback token of the Quinjor release was set to SF-3400-FY.\"\n\nFINAL: SF-3400-FY",
+     "expected_output": "FINAL: SF-3400-FY",
+     "speed": {
+      "prompt_tokens": 31007,
+      "cached_tokens": 0,
+      "completion_tokens": 60,
+      "reasoning_tokens": null,
+      "ttft_s": 33.511306916945614,
+      "prefill_tok_s": 925.2697925762106,
+      "decode_tok_s": 70.62612906806181,
+      "peak_decode_tok_s": 90.7,
+      "total_s": 34.35005549993366,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: SF-3400-FY'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.511,
+       "success": true,
+       "reason": "TTFT (s) = 33.511 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 925.27,
+       "success": true,
+       "reason": "Prefill (tok/s) = 925.27 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 70.626,
+       "success": true,
+       "reason": "Decode (tok/s) = 70.626 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "hop3-L3-32k-001-qfirst",
+     "success": true,
+     "actual_output": "The release nicknamed Vexfal is tracked in this ledger as the Lumvex release. The Lumvex release is owned by the Derbar team. The rollback token of the Derbar team was set to GM-1410-MY.\n\nFINAL: GM-1410-MY",
+     "expected_output": "FINAL: GM-1410-MY",
+     "speed": {
+      "prompt_tokens": 30877,
+      "cached_tokens": 0,
+      "completion_tokens": 59,
+      "reasoning_tokens": null,
+      "ttft_s": 33.43098954099696,
+      "prefill_tok_s": 923.6041296993329,
+      "decode_tok_s": 86.19267630099853,
+      "peak_decode_tok_s": 110.8,
+      "total_s": 34.10697483306285,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: GM-1410-MY'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.431,
+       "success": true,
+       "reason": "TTFT (s) = 33.431 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 923.604,
+       "success": true,
+       "reason": "Prefill (tok/s) = 923.604 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 86.193,
+       "success": true,
+       "reason": "Decode (tok/s) = 86.193 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "agg_sum-L3-32k-001-qfirst",
+     "success": true,
+     "actual_output": "The Rostor cluster storage shards mentioned: DX-8430-GW holds 286 units, PX-9936-PB holds 544 units, WK-4279-EB holds 808 units, SL-7647-XL holds 631 units, FQ-7964-DZ holds 485 units, MA-7604-NX holds 808 units, SW-4556-QB holds 962 units, DL-5055-CR holds 737 units.\n\nSum: 286 + 544 + 808 + 631 + 485 + 808 + 962 + 737 = 5261.\n\nFINAL: 5261",
+     "expected_output": "FINAL: 5261",
+     "speed": {
+      "prompt_tokens": 31023,
+      "cached_tokens": 0,
+      "completion_tokens": 137,
+      "reasoning_tokens": null,
+      "ttft_s": 33.46116454096045,
+      "prefill_tok_s": 927.1344983233967,
+      "decode_tok_s": 77.35803353344173,
+      "peak_decode_tok_s": 108.4,
+      "total_s": 35.222688582958654,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: 5261'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.461,
+       "success": true,
+       "reason": "TTFT (s) = 33.461 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 927.134,
+       "success": true,
+       "reason": "Prefill (tok/s) = 927.134 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 77.358,
+       "success": true,
+       "reason": "Decode (tok/s) = 77.358 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "agg_sum-L4-32k-002-qfirst",
+     "success": true,
+     "actual_output": "Storage shards of the Barfal cluster:\n- SP-2710-CW: 977\n- NN-6916-AH: 429\n- ZL-8707-KW: 760\n- AB-3928-LH: 426\n- NV-3776-DV: 248\n- UG-3425-RC: 201\n- YZ-3188-LC: 667\n- MV-9629-AS: 149\n- UQ-6559-KC: 983\n- BL-7495-JD: 793\n- HE-8102-DN: 270\n- AF-6256-FZ: 585\n\nSum: 977+429+760+426+248+201+667+149+983+793+270+585 = 6488\n\nFINAL: 6488",
+     "expected_output": "FINAL: 6488",
+     "speed": {
+      "prompt_tokens": 30913,
+      "cached_tokens": 0,
+      "completion_tokens": 182,
+      "reasoning_tokens": null,
+      "ttft_s": 33.303258333937265,
+      "prefill_tok_s": 928.2274932389573,
+      "decode_tok_s": 82.39480892744689,
+      "peak_decode_tok_s": 116.8,
+      "total_s": 35.50514033390209,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: 6488'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.303,
+       "success": true,
+       "reason": "TTFT (s) = 33.303 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 928.227,
+       "success": true,
+       "reason": "Prefill (tok/s) = 928.227 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 82.395,
+       "success": true,
+       "reason": "Decode (tok/s) = 82.395 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "agg_max-L3-32k-001-qfirst",
+     "success": true,
+     "actual_output": "The document lists several releases of the Bribri line with failed test counts:\n- Eldquin of the Bribri line: 297 failed tests\n- Caleld of the Bribri line: 301 failed tests\n- Torquin of the Bribri line: 252 failed tests\n- Dunjor of the Bribri line: 119 failed tests\n- Derorv of the Bribri line: 371 failed tests\n- Briorv of the Bribri line: 216 failed tests\n- Yarcal of the Bribri line: 359 failed tests\n- Dungwen of the Bribri line: 186 failed tests\n\nThe highest is Derorv with 371 failed tests.\n\nFINAL: Derorv",
+     "expected_output": "FINAL: Derorv",
+     "speed": {
+      "prompt_tokens": 31009,
+      "cached_tokens": 0,
+      "completion_tokens": 159,
+      "reasoning_tokens": null,
+      "ttft_s": 33.45122283301316,
+      "prefill_tok_s": 926.9915229944024,
+      "decode_tok_s": 78.34402547776483,
+      "peak_decode_tok_s": 103.4,
+      "total_s": 35.468018832965754,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: Derorv'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.451,
+       "success": true,
+       "reason": "TTFT (s) = 33.451 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 926.992,
+       "success": true,
+       "reason": "Prefill (tok/s) = 926.992 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 78.344,
+       "success": true,
+       "reason": "Decode (tok/s) = 78.344 (no threshold)",
+       "error": null
+      }
+     }
+    },
+    {
+     "name": "repo_sum-L4-32k-001-qfirst",
+     "success": true,
+     "actual_output": "EXIT_FAILED = 87 (health.rs); HOLD = 16 (feedback.rs); CONV_TILE = 32 (gdn.rs); RING = 4096 (coll_trace.rs); LAYER = 14 (io.rs); NSEQ = 6 (m3_verify_cost.rs).\nSum: 87 + 16 + 32 + 4096 + 14 + 6 = 4251.\n\nFINAL: 4251",
+     "expected_output": "FINAL: 4251",
+     "speed": {
+      "prompt_tokens": 30807,
+      "cached_tokens": 0,
+      "completion_tokens": 99,
+      "reasoning_tokens": null,
+      "ttft_s": 33.104441832983866,
+      "prefill_tok_s": 930.6001942405568,
+      "decode_tok_s": 76.0879485028071,
+      "peak_decode_tok_s": 104.0,
+      "total_s": 34.447616040939465,
+      "prefill_reliable": true,
+      "decode_reliable": true,
+      "server_prefill_tok_s": null,
+      "server_decode_tok_s": null,
+      "tokens_source": "usage"
+     },
+     "error": null,
+     "metrics": {
+      "Contains expected": {
+       "score": 1.0,
+       "success": true,
+       "reason": "found expected 'FINAL: 4251'",
+       "error": null
+      },
+      "TTFT (s)": {
+       "score": 33.104,
+       "success": true,
+       "reason": "TTFT (s) = 33.104 (no threshold)",
+       "error": null
+      },
+      "Prefill (tok/s)": {
+       "score": 930.6,
+       "success": true,
+       "reason": "Prefill (tok/s) = 930.6 (no threshold)",
+       "error": null
+      },
+      "Decode (tok/s)": {
+       "score": 76.088,
+       "success": true,
+       "reason": "Decode (tok/s) = 76.088 (no threshold)",
+       "error": null
+      }
+     }
+    }
+   ],
+   "speed": {
+    "calls": 12,
+    "errors": 0,
+    "prompt_tokens": {
+     "median": 31004.0,
+     "min": 30517,
+     "max": 31024,
+     "n": 12,
+     "spread_pct": 1.6
+    },
+    "completion_tokens": {
+     "median": 121.0,
+     "min": 59,
+     "max": 200,
+     "n": 12,
+     "spread_pct": 116.5
+    },
+    "ttft_s": {
+     "median": 33.407,
+     "min": 32.649,
+     "max": 33.511,
+     "n": 12,
+     "spread_pct": 2.6
+    },
+    "prefill_tok_s": {
+     "median": 927.485,
+     "min": 923.604,
+     "max": 934.687,
+     "n": 12,
+     "spread_pct": 1.2
+    },
+    "prefill_tok_s_all": {
+     "median": 927.485,
+     "min": 923.604,
+     "max": 934.687,
+     "n": 12,
+     "spread_pct": 1.2
+    },
+    "decode_tok_s": {
+     "median": 77.851,
+     "min": 67.866,
+     "max": 86.193,
+     "n": 12,
+     "spread_pct": 23.5
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_calls": 0,
+    "wall_s": 418.5
+   },
+   "judge_speed": null,
+   "error": null
+  }
+ ],
+ "warnings": []
+}

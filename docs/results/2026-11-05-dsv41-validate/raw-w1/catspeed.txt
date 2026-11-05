@@ -1,0 +1,6 @@
+kind                      default
+chat          50.5 (median  51.3)
+code          73.8 (median  73.1)
+prose         45.2 (median  45.1)
+recall        58.3 (median  57.7)
+all           55.1 (median  54.9)

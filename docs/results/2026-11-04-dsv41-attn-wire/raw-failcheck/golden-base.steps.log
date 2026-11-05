@@ -1,0 +1,18 @@
+14:13:55 ranks started (tag 141352, $HOME/intarsia-dsv41-attnwire/bin/intarsia.base) env '' rank0 '' rank1 ''
+14:14:18 serve up=1 after 23 s
+14:14:19 pids: rank 0 (spark1) 3162878, rank 1 (spark2) 1206528
+14:15:17 case base ranks' log lines (rank 0):
+14:15:17 case base ranks' log lines (rank 1):
+14:15:18 leftover processes killed by PID after the case: rank0(3162878) rank1(1206528)
+14:15:22 memory back after 6 s: spark1 111 GiB (was 111), spark2 111 GiB (was 111)
+14:15:23 gpu check spark1: NVIDIA GB10, 0 % rc=0
+14:15:23 gpu check spark2: NVIDIA GB10, 0 % rc=0
+14:15:23 RESULT golden g-cap: fix vs baseline identical
+14:15:23 RESULT golden g-cnt: fix vs baseline identical
+14:15:23 RESULT golden g-code: fix vs baseline identical
+14:15:23 RESULT golden g-long: fix vs baseline identical
+14:15:23 RESULT golden g-pref: fix vs baseline identical
+14:15:23 RESULT golden s1: fix vs baseline identical
+14:15:23 RESULT golden s2: fix vs baseline identical
+14:15:23 RESULT golden ids i-200: fix vs baseline identical (     259 words)
+14:15:23 RESULT golden ids i-12k: fix vs baseline identical (      67 words)

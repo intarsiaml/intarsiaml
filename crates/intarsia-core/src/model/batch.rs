@@ -582,7 +582,7 @@ impl Model {
         for (st, p) in states.iter_mut().zip(taken) {
             st.peers = p;
         }
-        res?;
+        self.note_tp_pass(res)?;
         let out = self.batch_outputs(tok, modes)?;
         for (st, &id) in states.iter_mut().zip(ids) {
             st.commit_decode(&[id]);
@@ -1116,6 +1116,7 @@ impl Model {
             test_bug: self.test_bug.clone(),
             peers: Vec::new(),
             remote: None,
+            tp_aborted: std::sync::atomic::AtomicBool::new(false),
             exact_rows: std::sync::atomic::AtomicBool::new(false),
             prefill_inv: std::sync::atomic::AtomicBool::new(false),
             inv_on: std::sync::atomic::AtomicBool::new(self.row_invariant_prefill()),
@@ -1144,6 +1145,7 @@ impl Model {
             feedback_hold: self.feedback_hold,
             tail_merge: 0,
             prefill_peel: self.prefill_peel,
+            prefill_peel_period: self.prefill_peel_period,
             macro_rows: 0, // the decode twin never prefills a prompt
             macro_cap: 0,
             macro_split: Vec::new(),

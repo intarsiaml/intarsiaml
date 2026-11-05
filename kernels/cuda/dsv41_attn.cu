@@ -251,6 +251,53 @@ static size_t attn_mma_smem(int64_t D) {
     return (size_t)(2 * kHeads * ld * 2 + kHeads * 33 * 4 + kHeads * 40 * 2);
 }
 
+// Online softmax of a warp's four rows 4w..4w+3 as four independent chains advanced together
+// (loads, then the four max trees level by level, then exp / bf16 rounding, then the four sum trees level by level, then the stores and
+// the four lane-0 updates), with one __syncwarp for the four rows instead of one per row. Per row the arithmetic is that of the former per-row loop:
+// the same xor offsets 16, 8, 4, 2, 1 in the same order for max and for sum, the same bf16 rounding of p, the same alpha / l / m update.
+// nh is not needed here: the rows of a head group that is not full are computed and never read, as in the loop.
+IK_DEVI void softmax_rows4(const float* Ss, __nv_bfloat16* Ps, const int* valid, float* m_s, float* l_s, float* alpha_s, int warp, int lane) {
+    float sv[4], mo[4], mx[4];
+#pragma unroll
+    for (int i = 0; i < 4; ++i) {
+        const int r = warp * 4 + i;
+        sv[i] = valid[lane] ? Ss[r * 33 + lane] : -INFINITY;
+        mo[i] = m_s[r];
+        mx[i] = sv[i];
+    }
+#pragma unroll
+    for (int o = 16; o > 0; o >>= 1) {
+#pragma unroll
+        for (int i = 0; i < 4; ++i) mx[i] = fmaxf(mx[i], __shfl_xor_sync(0xffffffffu, mx[i], o));
+    }
+    __nv_bfloat16 pb[4];
+    float mn[4], sum[4];
+#pragma unroll
+    for (int i = 0; i < 4; ++i) {
+        mn[i] = fmaxf(mo[i], mx[i]);
+        pb[i] = __float2bfloat16_rn(expf(sv[i] - mn[i]));
+        sum[i] = __bfloat162float(pb[i]);
+    }
+#pragma unroll
+    for (int o = 16; o > 0; o >>= 1) {
+#pragma unroll
+        for (int i = 0; i < 4; ++i) sum[i] += __shfl_xor_sync(0xffffffffu, sum[i], o);
+    }
+#pragma unroll
+    for (int i = 0; i < 4; ++i) Ps[(warp * 4 + i) * 40 + lane] = pb[i];
+    __syncwarp();
+    if (lane == 0) {
+#pragma unroll
+        for (int i = 0; i < 4; ++i) {
+            const int r = warp * 4 + i;
+            const float a = expf(mo[i] - mn[i]);
+            alpha_s[r] = a;
+            l_s[r] = l_s[r] * a + sum[i];
+            m_s[r] = mn[i];
+        }
+    }
+}
+
 __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16* __restrict__ q, const __nv_bfloat16* __restrict__ win,
                                                             const __nv_bfloat16* __restrict__ cmp, const int* __restrict__ idx,
                                                             const float* __restrict__ sink, __nv_bfloat16* __restrict__ out,
@@ -349,23 +396,7 @@ __global__ void __launch_bounds__(kThreads) attn_sparse_mma(const __nv_bfloat16*
         }
         __syncthreads();
         // online softmax: warp w rows 4w..4w+3, lane = key
-#pragma unroll
-        for (int i = 0; i < 4; ++i) {
-            const int r = warp * 4 + i;
-            const float sv = valid[lane] ? Ss[r * 33 + lane] : -INFINITY;
-            const float mo = m_s[r];
-            const float mn = fmaxf(mo, ik_warp_max(sv));
-            const __nv_bfloat16 pb = __float2bfloat16_rn(expf(sv - mn));
-            const float sum = ik_warp_sum(__bfloat162float(pb));
-            Ps[r * 40 + lane] = pb;
-            __syncwarp();
-            if (lane == 0) {
-                const float a = expf(mo - mn);
-                alpha_s[r] = a;
-                l_s[r] = l_s[r] * a + sum;
-                m_s[r] = mn;
-            }
-        }
+        softmax_rows4(Ss, Ps, valid, m_s, l_s, alpha_s, warp, lane);
         __syncthreads();
         // O = O * alpha + P K
         {

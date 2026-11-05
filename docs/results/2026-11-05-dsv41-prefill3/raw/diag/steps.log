@@ -1,0 +1,101 @@
+13:47:09 earlyoom on spark1: -m 2,1
+13:47:10 earlyoom on spark2: -m 2,1
+13:47:12 binary 1ffa366b4 dirty=no 1105-0703; out /opt/code/intarsiaml/.worktrees/dsv41-prefill3/docs/results/2026-11-05-dsv41-prefill3/raw/diag
+13:47:16 vLLM stopped on both
+13:47:20 ranks started (tag 134717)
+13:47:50 serve up=1 after 30 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 16.6 s = 6.23 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 6.95 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 23.6 s (4.54 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.005 GiB (chunk 2048), constants 0.000 GiB, state 0.125 GiB per sequence at 40000 tokens; MemAvailable 110.28 GiB -> 8.87 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793904466)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793904466)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793904466)
+dsv41: warm-up passes in 0.41 s
+dsv41: rank 0 after warm-up: MemAvailable 8.54 GiB, used since start 101.74 GiB, of which weights 98.90 GiB, non-weight 2.84 GiB (workspace 1.005, scratch 0.004, state 0.125, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 16.8 s = 6.15 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.42 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 24.6 s (4.36 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.005 GiB (chunk 2048), constants 0.000 GiB, state 0.125 GiB per sequence at 40000 tokens; MemAvailable 110.76 GiB -> 9.05 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793904466)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793904466)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793904466)
+13:48:36 replay: localeval speed, step 4 of the replay doc (4096 and 32768, --gen 8, --reps 2)
+13:49:28 ranks started (tag 134925)
+13:49:51 serve up=1 after 23 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.1 s = 6.86 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.74 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.5 s (4.98 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.005 GiB (chunk 2048), constants 0.000 GiB, state 0.125 GiB per sequence at 40000 tokens; MemAvailable 110.31 GiB -> 8.90 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793904591)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793904591)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793904591)
+dsv41: warm-up passes in 0.18 s
+dsv41: rank 0 after warm-up: MemAvailable 8.56 GiB, used since start 101.76 GiB, of which weights 98.90 GiB, non-weight 2.86 GiB (workspace 1.005, scratch 0.004, state 0.125, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.4 s = 6.71 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.79 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.5 s (4.99 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.005 GiB (chunk 2048), constants 0.000 GiB, state 0.125 GiB per sequence at 40000 tokens; MemAvailable 110.35 GiB -> 8.94 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793904591)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793904591)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793904591)
+13:51:04 off: localeval speed, step 4 of the replay doc (4096 and 32768, --gen 8, --reps 2)
+13:52:30 ranks started (tag 135228)
+13:52:59 serve up=1 after 29 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.7 s = 6.58 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.07 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.0 s (4.88 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.005 GiB (chunk 2048), constants 0.000 GiB, state 0.125 GiB per sequence at 40000 tokens; MemAvailable 109.63 GiB -> 8.13 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793904774)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793904774)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793904774)
+dsv41: warm-up passes in 0.18 s
+dsv41: rank 0 after warm-up: MemAvailable 7.75 GiB, used since start 101.88 GiB, of which weights 98.90 GiB, non-weight 2.98 GiB (workspace 1.005, scratch 0.004, state 0.125, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.2 s = 6.79 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.38 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.4 s (5.00 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.005 GiB (chunk 2048), constants 0.000 GiB, state 0.125 GiB per sequence at 40000 tokens; MemAvailable 109.69 GiB -> 8.30 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793904774)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793904774)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793904774)
+Generated:
+	/home/nvidia/intarsia-dsv41-prefill3/logs/nsys-r0-135228.nsys-rep
+Generated:
+	/home/nvidia/intarsia-dsv41-prefill3/logs/nsys-r1-135228.nsys-rep
+-rw-rw-r-- 1 nvidia nvidia 6864163 Nov  5 13:53 /home/nvidia/intarsia-dsv41-prefill3/logs/nsys-r0-135228_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia 2698229 Nov  5 13:53 /home/nvidia/intarsia-dsv41-prefill3/logs/nsys-r0-135228.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 6742016 Nov  5 13:53 /home/nvidia/intarsia-dsv41-prefill3/logs/nsys-r0-135228.sqlite
+-rw-rw-r-- 1 nvidia nvidia 6849194 Nov  5 13:53 /home/nvidia/intarsia-dsv41-prefill3/logs/nsys-r1-135228_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia 2674677 Nov  5 13:53 /home/nvidia/intarsia-dsv41-prefill3/logs/nsys-r1-135228.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 6705152 Nov  5 13:53 /home/nvidia/intarsia-dsv41-prefill3/logs/nsys-r1-135228.sqlite
+13:53:37 hook done
+13:53:37 done
+13:53:37 restore (exit 0)
+13:57:23 vLLM on spark1 up (Up 3 minutes)
+13:57:24 vLLM on spark2 up (Up 3 minutes)
+13:57:24 restored

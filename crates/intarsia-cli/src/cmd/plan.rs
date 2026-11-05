@@ -62,10 +62,18 @@ pub fn render(p: &Value) -> String {
         p["reference_only"]
     );
     if let Some(n) = p["prefill_peel"].as_u64() {
-        let _ = writeln!(
-            o,
-            "prefill tail peel {n} rows (a pass's last 1..={n} rows past a multiple of 256 run alone, as at chunk 256)"
-        );
+        // the period only when it is not the default 256 (then the line below is the one every other model prints)
+        if let Some(period) = p["prefill_peel_period"].as_u64() {
+            let _ = writeln!(
+                o,
+                "prefill tail peel {n} rows, period {period} (a pass of more than {period} rows whose length mod {period} is 1..={n} runs those last rows alone)"
+            );
+        } else {
+            let _ = writeln!(
+                o,
+                "prefill tail peel {n} rows (a pass's last 1..={n} rows past a multiple of 256 run alone, as at chunk 256)"
+            );
+        }
     }
     if p["tp"].is_object() {
         let t = &p["tp"];

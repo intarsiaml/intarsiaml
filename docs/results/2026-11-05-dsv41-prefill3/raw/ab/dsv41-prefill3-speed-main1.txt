@@ -1,0 +1,22 @@
+| 1026 | 0.71 | 1443 (1427–1469) | - | 34.7 (30.9–37.7) | - | - | - | 8 |
+| 4093 | 2.33 | 1758 (1756–1758) | 1898 | 51.5 (34.4–52.7) | - | - | - | 8 |
+| 16350 | 9.26 | 1765 (1761–1768) | 1768 | 50.6 (38.1–75.3) | - | - | - | 8 |
+| 33303 | 19.22 | 1732 (1726–1733) | 1702 | 40.5 (38.7–41.4) | - | - | - | 8 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 19.3% at 1024 tokens: noisy; rerun before comparing
+- decode spread 35.5% at 4096 tokens: noisy; rerun before comparing
+- decode spread 73.7% at 16384 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-141252-adhoc-dsv41-prefill3-speed-main1/result.json
+[localeval] logged to unanimis: c3538936-8c7c-4b60-b414-bc9985cf9bd9

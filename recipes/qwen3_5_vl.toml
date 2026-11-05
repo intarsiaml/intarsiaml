@@ -86,6 +86,10 @@ prefix = "mtp"
 [tuning.metal]
 prefill_chunk = 2048
 busy_chunk = 256
+# Tail peel 8: a prefill pass of M <= 8 rows runs `matmul_mxfp4_gemv`, a longer one `matmul_mxfp4_nax`, with other bits. The 256-row busy schedule ends a prompt
+# whose body length mod 256 is 1..8 in such a pass; the 2048 chunk ran those rows inside its big pass, so the stream depended on what else ran. The peel gives the solo
+# schedule the same short pass. 8 is the boundary on Metal: bodies of 9 and 16 rows are bitwise a longer pass (docs/results/2026-11-04-m27-batch-flip.md).
+prefill_peel = 8
 # MTP on by default, as on CUDA below: `--spec mtp --spec-k 2` with the 65536-row draft head (`--spec off` or INTARSIA_SPEC_DEFAULT=0 opts out; skipped at
 # `--max-batch` > 1). Served localeval sweep, 3 reps: decode 22.4 / 21.9 / 18.2 -> 26.3 / 25.8 / 21.3 tok/s at 1k / 4k / 16k (x1.17), prefill within 3 to 7 %; greedy
 # text byte-identical to `--spec off` on 4 prompts; k3 is not faster (docs/results/2026-11-02-m27-metal.md). User decision 2026-11-02 16:58 EST (relayed by the coordinator).

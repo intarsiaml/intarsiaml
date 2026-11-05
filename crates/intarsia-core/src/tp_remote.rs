@@ -70,6 +70,10 @@ pub const FWD_DRAFT: u64 = 2;
 /// `Forward` flag: a speculative verify pass (the head's logits of every row; [`RankModel::verify_rank`]). Like
 /// [`FWD_DRAFT`], only sent by models whose handshake fingerprint says they speculate.
 pub const FWD_VERIFY: u64 = 4;
+/// `Forward` flag: a prefill chunk run without its decoder half ([`RankModel::forward_rank_encoder`]; DeepSeek-V4.1's bounded replay
+/// when no later row reads the chunk's decoder-layer window keys). Only models whose handshake fingerprint says they know it send it
+/// (DeepSeek-V4.1's names `replay skip`), so an older peer, which would ignore the bit and run the whole chunk, refuses to pair.
+pub const FWD_ENCODER: u64 = 8;
 
 /// How long the primary waits for a forward's answer after its own pass finished (the remote runs the same pass at
 /// the same time, so this only fires on a hung or dead rank). `INTARSIA_TP_REMOTE_TIMEOUT_S` overrides it.
@@ -334,6 +338,11 @@ impl RemoteSeq {
         self.start_flagged(ids, FWD_DRAFT)
     }
 
+    /// Send this sequence's next prefill chunk as an encoder-only one ([`FWD_ENCODER`]); answered like a forward ([`RemoteSeq::finish`]).
+    pub fn start_encoder(&self, ids: &[u32]) -> Result<()> {
+        self.start_flagged(ids, FWD_ENCODER)
+    }
+
     /// Send this sequence's next verify pass ([`FWD_VERIFY`]); answered like a forward ([`RemoteSeq::finish`]).
     pub fn start_verify(&self, ids: &[u32]) -> Result<()> {
         self.start_flagged(ids, FWD_VERIFY)
@@ -436,6 +445,10 @@ pub trait RankModel {
     /// This rank's half of the primary's drafting round ([`FWD_DRAFT`]); the sequence is unchanged.
     fn draft_rank(&self, _st: &mut Self::State, _ids: &[u32]) -> Result<()> {
         Err(Error::Unsupported("this model does not draft".into()))
+    }
+    /// This rank's half of the primary's encoder-only prefill chunk ([`FWD_ENCODER`]): appended to the sequence like a forward.
+    fn forward_rank_encoder(&self, _st: &mut Self::State, _ids: &[u32]) -> Result<()> {
+        Err(Error::Unsupported("this model does not skip a decoder half".into()))
     }
     /// This rank's half of the primary's verify pass ([`FWD_VERIFY`]): appended to the sequence like a forward.
     fn verify_rank(&self, _st: &mut Self::State, _ids: &[u32]) -> Result<()> {
@@ -760,6 +773,8 @@ fn serve_inner<M: RankModel>(model: &M, stream: TcpStream, comm: Option<Arc<dyn 
                     model.draft_rank(st, &ids)
                 } else if flags & FWD_VERIFY != 0 {
                     model.verify_rank(st, &ids)
+                } else if flags & FWD_ENCODER != 0 {
+                    model.forward_rank_encoder(st, &ids)
                 } else {
                     model.forward_rank(st, &ids, flags & FWD_GRAPH != 0)
                 };
@@ -870,6 +885,25 @@ mod serve_tests {
         assert!(msg.contains("unspecified launch failure"), "{msg}");
         let r = t.join().unwrap();
         assert!(r.unwrap_err().to_string().contains("unspecified launch failure"), "serving ends with the pass's error");
+    }
+
+    /// `FWD_ENCODER` reaches `forward_rank_encoder`; a model that does not implement it answers the forward with an error (and stops
+    /// serving, as for any failed pass) instead of running the whole chunk.
+    #[test]
+    fn an_encoder_forward_needs_a_model_that_knows_it() {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        let t = std::thread::spawn(move || serve(&Fake, l.accept().unwrap().0));
+        let mut s = TcpStream::connect(addr).unwrap();
+        write_frame(&mut s, T_NEW, &1u64.to_le_bytes()).unwrap();
+        let mut b = 1u64.to_le_bytes().to_vec();
+        b.extend_from_slice(&FWD_ENCODER.to_le_bytes());
+        b.extend_from_slice(&7u32.to_le_bytes());
+        write_frame(&mut s, T_FORWARD, &b).unwrap();
+        let (tag, r) = read_frame(&mut s).unwrap();
+        assert_eq!((tag, r[0]), (T_REPLY, 0));
+        assert!(String::from_utf8_lossy(&r[9..]).contains("does not skip a decoder half"));
+        assert!(t.join().unwrap().is_err());
     }
 
     #[test]
@@ -1027,7 +1061,7 @@ mod serve_tests {
     );
     primary_gone_case!(queued_work_that_fails_ends_the_rank, Rank::DrainFails, true, EXIT_GROUP_FAILED, "a failed stream is a failed group");
     primary_gone_case!(a_primary_that_left_nothing_stuck_is_a_clean_end, Rank::Drained, true, RETURNED, "a primary that exited is not a failure");
-    primary_gone_case!(a_rank_with_nothing_queued_does_not_wait, Rank::NothingQueued, true, RETURNED, "the DSv4.1 runtime's passes are synchronous");
+    primary_gone_case!(a_rank_with_nothing_queued_does_not_wait, Rank::NothingQueued, true, RETURNED, "a model without a drain (the trait's default) has nothing to wait for");
     // the race seen with INTARSIA_TP_PEER_SYNC=1: the abort lets the pass end, the serving loop reads the end of the stream and
     // returns, and the process exited 0 while the watch was still waiting for the abort
     #[cfg(target_os = "linux")]

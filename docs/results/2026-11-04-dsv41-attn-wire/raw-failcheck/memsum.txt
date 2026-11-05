@@ -1,0 +1,4 @@
+Lowest MemAvailable (GiB) over the whole job #8442 (14:02:07 to 14:39:40, vLLM down), memfine 1 s samples, 2208 per Spark; includes weight loads:
+spark1 6.17 at 14:26:50 (kill run 15 start)
+spark2 6.60 at 14:23:08
+The 5 s watcher (mem.log): 0 KILLED lines; kill line 5 GiB.

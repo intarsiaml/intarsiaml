@@ -265,6 +265,9 @@ pub struct SequenceState {
     pub slots: Vec<StateSlot>,
     /// Tokens processed so far (KV rows filled in every attention slot).
     pub len: usize,
+    /// The furthest position any pass wrote since the rings were last zeroed: a cut leaves its rows in the [`SlotSpec::Ring`] slots, where
+    /// they overwrite older positions that share a slot, so what a ring can still give back is counted from here, not from `len`.
+    pub(crate) ring_high: usize,
     /// Capacity in tokens of the attention slots.
     pub cap: usize,
     /// Token ids whose state is held (prefix-reuse key); `tokens.len() == len`.
@@ -296,6 +299,10 @@ pub struct SequenceState {
     pub dflash: Option<Box<DflashState>>,
     /// Per-row recurrent state of the last verify pass (speculative decoding on a model with recurrent slots).
     pub spec_rows: SpecRows,
+    /// DeepSeek-V4.1 bounded-replay prefill (`INTARSIA_DSV41_REPLAY`, `dsv41::replay`): the decoder layers' window rings hold
+    /// valid keys for positions `replay_from..len` only, the earlier rows skipped those layers. 0 (always, for every other
+    /// model and for DeepSeek-V4.1 without the option): nothing was skipped.
+    pub replay_from: usize,
 }
 
 impl SequenceState {
@@ -347,6 +354,7 @@ impl SequenceState {
             id,
             slots,
             len: 0,
+            ring_high: 0,
             cap,
             tokens: Vec::new(),
             snapshots: Vec::new(),
@@ -358,6 +366,7 @@ impl SequenceState {
             mtp: None,
             dflash: None,
             spec_rows: SpecRows::default(),
+            replay_from: 0,
         })
     }
 
@@ -391,10 +400,18 @@ impl SequenceState {
             .min()
     }
 
+    /// Whether every ring slot still holds the rows a sequence cut to `len` reads, with `margin` the slots' margin. A pass at `len` reads
+    /// back to `len - window + 1` in a ring of `window + margin` rows (and the compressor's pending rows, no further back in slots), so
+    /// a stale row at position `len + margin + 1` is the first that hurts: chained cuts may reach `margin + 1` below the furthest row
+    /// written, and one cut still only `margin` below the current length.
+    fn ring_cut_ok(&self, len: usize, margin: usize) -> bool {
+        len + margin >= self.len && len + margin + 1 >= self.ring_high
+    }
+
     /// Refuse a cut from `self.len` to `len` that a ring slot cannot follow (0, the empty state, always works).
     fn check_ring_cut(&self, len: usize) -> Result<()> {
         if let Some(m) = self.ring_margin() {
-            if len != 0 && len + m < self.len {
+            if len != 0 && !self.ring_cut_ok(len, m) {
                 return Err(Error::Unsupported(format!(
                     "cannot roll ring state (sliding-window KV, compressor tail) back from {} to {len} tokens: margin {m}",
                     self.len
@@ -598,7 +615,7 @@ impl SequenceState {
     /// length, a snapshot, or 0 (the zero state). Without recurrent slots every length qualifies.
     pub fn restorable_len(&self, want: usize) -> usize {
         let want = want.min(self.len);
-        if self.ring_margin().is_some_and(|m| want + m < self.len) {
+        if self.ring_margin().is_some_and(|m| !self.ring_cut_ok(want, m)) {
             return 0;
         }
         if !self.has_recurrent() || want == self.len {
@@ -775,6 +792,7 @@ impl SequenceState {
                     backend.zero(&r.buf, 0)?;
                 }
             }
+            self.ring_high = 0;
         }
         self.spec_rows.saved = 0;
         self.drop_snapshots_above(len);
@@ -795,6 +813,7 @@ impl SequenceState {
     pub fn load_prefix(&mut self, tokens: &[u32]) {
         let len = tokens.len();
         self.len = len;
+        self.ring_high = len;
         self.tokens.clear();
         self.tokens.extend_from_slice(tokens);
         self.snapshots.clear();
@@ -819,6 +838,7 @@ impl SequenceState {
     pub fn advance_rows(&mut self, n: usize) {
         self.passes.push(Pass { start: self.len, end: self.len + n, rows: 1, kind: PassKind::Plain });
         self.len += n;
+        self.ring_high = self.ring_high.max(self.len);
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {
                 a.len = self.len;
@@ -879,6 +899,7 @@ impl SequenceState {
     fn commit_pass(&mut self, ids: &[u32], rows: usize, kind: PassKind) {
         self.passes.push(Pass { start: self.len, end: self.len + ids.len(), rows, kind });
         self.len += ids.len();
+        self.ring_high = self.ring_high.max(self.len);
         self.tokens.extend_from_slice(ids);
         for s in self.slots.iter_mut() {
             if let StateSlot::AttnKv(a) = s {

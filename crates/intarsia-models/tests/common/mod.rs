@@ -6,7 +6,9 @@ use intarsia_core::model::{LoadOptions, Model};
 use intarsia_core::recipe::{ModelDims, Recipe};
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::weights::MemWeights;
-use intarsia_core::{DType, HostTensor, Result, Telemetry};
+use intarsia_core::backend::{Backend, Buffer, DeviceInfo, MemKind, StreamId};
+use intarsia_core::{DType, Error, HostTensor, KernelImpl, OpCall, Result, Telemetry};
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Arc;
 
 pub mod arnorm_comm;
@@ -248,3 +250,72 @@ pub fn naive_logits(raw: &Tiny, ids: &[u32]) -> Vec<Vec<f64>> {
         })
         .collect()
 }
+
+// ---------------------------------------------------------------------------
+// fault injection
+// ---------------------------------------------------------------------------
+
+/// `Flaky::set` modes: the error every launch returns: a stand-in for a device error (`Error::Backend`) or an allocation
+/// failure on one rank (`Error::Memory`).
+pub const OK: u8 = 0;
+pub const FAIL_BACKEND: u8 = 1;
+pub const FAIL_MEMORY: u8 = 2;
+
+/// The cpu backend that fails every launch while its mode is not `OK`.
+pub struct Flaky {
+    inner: Arc<dyn Backend>,
+    mode: AtomicU8,
+    transient: AtomicBool,
+}
+
+impl Flaky {
+    pub fn new() -> Arc<Flaky> {
+        Arc::new(Flaky { inner: intarsia_backend_cpu::CpuBackend::arc(), mode: AtomicU8::new(OK), transient: AtomicBool::new(false) })
+    }
+    pub fn set(&self, mode: u8) {
+        self.mode.store(mode, Ordering::SeqCst);
+    }
+    /// Its errors leave the device as it was (a Metal command buffer that failed once): `is_sticky_fault` says no.
+    pub fn set_transient(&self, transient: bool) {
+        self.transient.store(transient, Ordering::SeqCst);
+    }
+}
+
+impl Backend for Flaky {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+    fn info(&self) -> DeviceInfo {
+        self.inner.info()
+    }
+    fn alloc(&self, bytes: usize, kind: MemKind) -> Result<Buffer> {
+        self.inner.alloc(bytes, kind)
+    }
+    fn upload(&self, dst: &Buffer, o: usize, src: &[u8], s: StreamId) -> Result<()> {
+        self.inner.upload(dst, o, src, s)
+    }
+    fn download(&self, src: &Buffer, o: usize, dst: &mut [u8], s: StreamId) -> Result<()> {
+        self.inner.download(src, o, dst, s)
+    }
+    fn copy(&self, d: &Buffer, d_o: usize, s: &Buffer, s_o: usize, n: usize, st: StreamId) -> Result<()> {
+        self.inner.copy(d, d_o, s, s_o, n, st)
+    }
+    fn kernels(&self) -> Vec<KernelImpl> {
+        self.inner.kernels()
+    }
+    fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> Result<()> {
+        match self.mode.load(Ordering::SeqCst) {
+            FAIL_BACKEND => return Err(Error::backend("injected device error (test)")),
+            FAIL_MEMORY => return Err(Error::Memory("injected allocation failure (test)".into())),
+            _ => {}
+        }
+        self.inner.launch(kernel, call, stream)
+    }
+    fn synchronize(&self, s: StreamId) -> Result<()> {
+        self.inner.synchronize(s)
+    }
+    fn is_sticky_fault(&self, e: &Error) -> bool {
+        !self.transient.load(Ordering::SeqCst) && matches!(e, Error::Backend(_))
+    }
+}
+

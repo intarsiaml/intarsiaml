@@ -314,15 +314,28 @@ lm_head = { tensor = "h" }
     }
 
     #[test]
-    fn only_the_hip_27b_recipe_sets_a_prefill_peel() {
+    fn only_the_hip_and_metal_27b_and_metal_35b_recipes_set_a_prefill_peel() {
         // the peel is opt-in elsewhere (`INTARSIA_PREFILL_PEEL` with a larger `--prefill-chunk`). The 27B on HIP ships chunk 2048 + peel 16
         // (lane H27P: ids identical to chunk 256 on all 18 gate prompts; the peel keeps a 1..16-row tail on the small-M row kernels as the
         // 256 schedule does), see docs/results/2026-10-27-h27p-hip-27b-prefill.md
+        // The 27B on Metal ships peel 8, so that its solo and busy schedules give the same bits, see docs/results/2026-11-04-m27-batch-flip.md
+        // The 35B on Metal ships peel 8 with period 2048 (its busy chunk), so that its solo and busy schedules give the same bits and
+        // no other length moves, see docs/results/2026-11-04-m35-peel-period.md
         let (_, vl) =
             select_recipe(&serde_json::json!({"architectures": ["Qwen3_5ForConditionalGeneration"]}), &[]).unwrap();
         assert_eq!(vl.resolve_prefill_chunk(None, "hip").value, 2048);
         assert_eq!(vl.resolve_prefill_peel("hip").0, 16);
+        assert_eq!(vl.resolve_prefill_peel("metal").0, 8);
         assert_eq!(vl.resolve_prefill_chunk(None, "cuda").value, 256);
+        // the 27B's peels keep the default period 256 (busy chunk 256)
+        assert_eq!(vl.resolve_prefill_peel_period("hip").0, 256);
+        assert_eq!(vl.resolve_prefill_peel_period("metal").0, 256);
+        let (_, moe) =
+            select_recipe(&serde_json::json!({"architectures": ["Qwen3_5MoeForConditionalGeneration"]}), &[]).unwrap();
+        assert_eq!(moe.resolve_prefill_peel("metal").0, 8);
+        assert_eq!(moe.resolve_prefill_peel_period("metal").0, 2048);
+        assert_eq!(moe.resolve_prefill_chunk(None, "metal").value, 4096);
+        assert_eq!(moe.resolve_busy_chunk("metal"), Some(2048));
         let archs = [
             "Qwen3_5ForConditionalGeneration",
             "Qwen3_5ForCausalLM",
@@ -332,10 +345,14 @@ lm_head = { tensor = "h" }
         for arch in archs {
             let (_, r) = select_recipe(&serde_json::json!({"architectures": [arch]}), &[]).unwrap();
             for be in ["cuda", "hip", "metal", "cpu"] {
-                if arch == "Qwen3_5ForConditionalGeneration" && be == "hip" {
+                if arch == "Qwen3_5ForConditionalGeneration" && (be == "hip" || be == "metal") {
+                    continue;
+                }
+                if arch == "Qwen3_5MoeForConditionalGeneration" && be == "metal" {
                     continue;
                 }
                 assert_eq!(r.resolve_prefill_peel(be), (0, "default".to_string()), "{arch} {be}");
+                assert_eq!(r.resolve_prefill_peel_period(be), (256, "default".to_string()), "{arch} {be}");
             }
         }
         // a peel is a tail of a 256-row pass: 256 or more is refused
@@ -343,5 +360,32 @@ lm_head = { tensor = "h" }
         let r = parse_recipe(&format!("{TUNED}[tuning]\nprefill_peel = 4\n[tuning.hip]\nprefill_peel = 8\n")).unwrap();
         assert_eq!(r.resolve_prefill_peel("hip").0, 8);
         assert_eq!(r.resolve_prefill_peel("cuda"), (4, "recipe x, base".to_string()));
+        assert_eq!(r.resolve_prefill_peel_period("hip"), (256, "default".to_string()));
+    }
+
+    #[test]
+    fn prefill_peel_period_is_validated_and_resolved_per_backend() {
+        // the period resolves like the peel: the backend table, then the base value, then 256
+        let r = parse_recipe(&format!(
+            "{TUNED}[tuning]\nprefill_peel = 4\nprefill_peel_period = 512\n[tuning.metal]\nprefill_peel = 8\nprefill_peel_period = 2048\n"
+        ))
+        .unwrap();
+        assert_eq!(r.resolve_prefill_peel_period("metal"), (2048, "recipe x, metal".to_string()));
+        assert_eq!(r.resolve_prefill_peel_period("hip"), (512, "recipe x, base".to_string()));
+        assert_eq!(r.resolve_prefill_peel("metal").0, 8);
+        // a peel of 256 or more is fine below a larger period, and refused at or above it
+        assert!(parse_recipe(&format!("{TUNED}[tuning.metal]\nprefill_peel = 300\nprefill_peel_period = 2048\n")).is_ok());
+        assert!(parse_recipe(&format!("{TUNED}[tuning.metal]\nprefill_peel = 2048\nprefill_peel_period = 2048\n")).is_err());
+        assert!(parse_recipe(&format!("{TUNED}[tuning.metal]\nprefill_peel = 8\nprefill_peel_period = 8\n")).is_err());
+        assert!(parse_recipe(&format!("{TUNED}[tuning.metal]\nprefill_peel = 8\nprefill_peel_period = 4\n")).is_err());
+        // a period of 0 is refused, with or without a peel
+        assert!(parse_recipe(&format!("{TUNED}[tuning.metal]\nprefill_peel_period = 0\n")).is_err());
+        assert!(parse_recipe(&format!("{TUNED}[tuning]\nprefill_peel_period = 0\n")).is_err());
+        // a backend table that sets only a period is checked against the base peel, and the other way round
+        assert!(parse_recipe(&format!("{TUNED}[tuning]\nprefill_peel = 8\n[tuning.metal]\nprefill_peel_period = 4\n")).is_err());
+        assert!(parse_recipe(&format!("{TUNED}[tuning]\nprefill_peel_period = 4\n[tuning.metal]\nprefill_peel = 8\n")).is_err());
+        assert!(parse_recipe(&format!("{TUNED}[tuning]\nprefill_peel_period = 2048\n[tuning.metal]\nprefill_peel = 8\n")).is_ok());
+        // a peel of 256 with no period is still refused (default period 256)
+        assert!(parse_recipe(&format!("{TUNED}[tuning.metal]\nprefill_peel = 256\n")).is_err());
     }
 }

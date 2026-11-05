@@ -1,0 +1,8 @@
+512:off:1:/opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step4/result-c512-off1.json
+512:on:1:/opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step4/result-c512-on1.json
+512:off:2:/opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step4/result-c512-off2.json
+512:on:2:/opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step4/result-c512-on2.json
+2048:off:1:/opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step4/result-c2048-off1.json
+2048:on:1:/opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step4/result-c2048-on1.json
+2048:off:2:/opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step4/result-c2048-off2.json
+2048:on:2:/opt/code/intarsiaml/.worktrees/dsv41-replay/docs/results/2026-11-03-dsv41-replay/raw/step4/result-c2048-on2.json

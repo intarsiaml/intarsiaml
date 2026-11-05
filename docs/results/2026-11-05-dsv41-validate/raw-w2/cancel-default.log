@@ -1,0 +1,3 @@
+default delay 0.02 state 2048
+default B3 after cancel 1 cached 0 equal to cold True prefix 64
+default B3 after cancel 2 cached 0 equal to cold True prefix 64

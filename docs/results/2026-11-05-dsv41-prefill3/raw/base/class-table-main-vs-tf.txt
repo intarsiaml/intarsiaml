@@ -1,0 +1,40 @@
+
+### 1034-token prompt, rank 0, median of requests; ms per request (launches per request)
+class                                                            ours                 tf   ratio   gap ms
+moe gate/up                                             265.9 (   80)      263.4 (   40)   1.01x       2.4
+moe down                                                122.6 (   40)      117.9 (   40)   1.04x       4.7
+moe other (group, rot, epilogue, combine, cp)            49.6 (  160)       47.7 (  292)   1.04x       2.0
+router gate                                              19.8 (   48)       10.4 (   48)   1.90x       9.4
+dense linears (gemm, linear, rot_in, transpose)          96.9 ( 1029)      116.4 (  772)   0.83x     -19.5
+collectives (nccl)                                       88.1 (   83)       71.4 (   83)   1.23x      16.7
+collectives (f32->bf16 convert, rdma)                     4.1 (   80)        7.5 (  106)   0.54x      -3.5
+hyper-connection                                         61.8 (  247)       55.1 (  184)   1.12x       6.8
+attention core                                           46.7 (   40)       30.0 (   46)   1.56x      16.7
+rope                                                      1.6 (  139)        6.0 (   91)   0.26x      -4.4
+index (score, select, top-k)                              0.9 (   18)        2.4 (   19)   0.36x      -1.6
+kv (window, compress, qdq, ring)                          0.9 (  154)        0.7 (   65)   1.26x       0.2
+engram                                                    1.5 (    4)        1.5 (    2)   1.00x       0.0
+other                                                     9.4 (  736)        1.1 (  120)   8.55x       8.3
+GPU busy (sum)                                                  770.1              733.2   1.05x      36.9
+
+### 4106-token prompt, rank 0, median of requests; ms per request (launches per request)
+class                                                            ours                 tf   ratio   gap ms
+moe gate/up                                             731.7 (  160)      603.0 (   60)   1.21x     128.7
+moe down                                                329.4 (   80)      289.5 (   60)   1.14x      39.8
+moe other (group, rot, epilogue, combine, cp)           225.0 (  560)      210.0 (  592)   1.07x      14.9
+router gate                                              91.6 (  144)       33.6 (   71)   2.73x      58.0
+dense linears (gemm, linear, rot_in, transpose)         328.5 ( 3084)      321.2 ( 1777)   1.02x       7.3
+collectives (nccl)                                      273.4 (  169)      237.2 (  208)   1.15x      36.2
+collectives (f32->bf16 convert, rdma)                    24.7 (  320)       25.2 (  153)   0.98x      -0.5
+hyper-connection                                        218.9 (  665)      197.7 (  439)   1.11x      21.3
+attention core                                          186.1 (  160)      115.3 (  126)   1.61x      70.8
+rope                                                      7.2 (  417)       14.6 (  222)   0.49x      -7.5
+index (score, select, top-k)                              6.0 (   54)       11.5 (   41)   0.52x      -5.5
+kv (window, compress, qdq, ring)                          3.3 (  462)        2.5 (  161)   1.34x       0.8
+engram                                                    6.3 (   12)        6.4 (    6)   0.99x      -0.1
+other                                                    39.5 ( 2205)        3.3 (  272)  12.14x      36.2
+GPU busy (sum)                                                 2470.6             2069.9   1.19x     400.7
+
+ours: 6 requests
+
+tf: 6 requests

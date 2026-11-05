@@ -59,9 +59,13 @@ int ik_act_qdq(const ik_tensor* x, int32_t fmt, int64_t block, int32_t scale_fmt
 
 /* rope_tail: x [T,N,Dh], inv_freq f32 [rd/2] -> out: the last rd elements rotated as adjacent (re, im) pairs, row t at
  * position (pos ? floor(*pos / ratio) * ratio : pos0) + t * pos_stride, angle = f32(pos) * inv_freq[i] in f32; inverse
- * rotates by -angle. ratio (>= 1) only matters with `pos`. */
+ * rotates by -angle. ratio (>= 1) only matters with `pos`. `out` may be `x` itself (same pointer, same dtype): then only the rd
+ * rope elements of each row are read and written (the other Dh - rd are left as they are). Any other overlap of x and out,
+ * including one pointer with two dtypes, returns IK_ERR_INVALID_ARG. */
 int ik_rope_tail(const ik_tensor* x, const ik_tensor* inv_freq, int64_t pos0, int64_t pos_stride, int64_t ratio, int32_t inverse,
                  ik_tensor* out, const ik_tensor* pos, void* stream);
+/* Number of ik_rope_tail launches that took the in-place path since the library loaded (tests: proves the path ran). */
+long long ik_rope_inplace_launches(void);
 
 /* window_kv: kv [T,D] -> win [W+T,D] (rows < W from ring slots p % Wc of positions pos0-W+r, zero below 0; then the chunk),
  * ring [Wc,D] updated in place with the chunk's last min(T,Wc) rows. kv, win and ring share one dtype. Two launches (the

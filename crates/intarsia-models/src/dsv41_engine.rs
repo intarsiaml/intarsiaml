@@ -11,7 +11,7 @@
 //!   official safetensors); default `~/dsv41-engram`.
 //! - `INTARSIA_DSV41_ENGRAM_HOT_MB`: hot-tier size (TinyLFU only, no pinned profile); default 0 (off).
 //! - `INTARSIA_DSV41_CAP`: token capacity of the sequence (default 32768); `INTARSIA_DSV41_CHUNK`: prefill chunk (default
-//!   the `--prefill-chunk`, else 512).
+//!   the `--prefill-chunk`, else 2048).
 
 use crate::chat_template::ChatTemplateSource;
 use crate::dsv41::{detect, HeaderShapes};
@@ -33,7 +33,8 @@ use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
+use std::io::Write;
+use std::time::{Duration, Instant};
 
 fn env_usize(k: &str) -> Option<usize> {
     std::env::var(k).ok().and_then(|v| v.parse().ok())
@@ -58,13 +59,22 @@ impl Dsv41Opts {
         let home = std::env::var("HOME").unwrap_or_else(|_| ".".into());
         Dsv41Opts {
             cap: env_usize("INTARSIA_DSV41_CAP").unwrap_or(32768),
-            chunk: env_usize("INTARSIA_DSV41_CHUNK").or(prefill_chunk).unwrap_or(512),
+            chunk: resolve_chunk(env_usize("INTARSIA_DSV41_CHUNK"), prefill_chunk),
             engram_dir: std::env::var_os("INTARSIA_DSV41_ENGRAM").map(PathBuf::from).unwrap_or_else(|| Path::new(&home).join("dsv41-engram")),
             hot_mb: env_usize("INTARSIA_DSV41_ENGRAM_HOT_MB").unwrap_or(0),
             act: if std::env::var("INTARSIA_DSV41_ACT").as_deref() == Ok("f32") { DType::F32 } else { DType::Bf16 },
             spec: spec_on(std::env::var("INTARSIA_DSV41_SPEC").ok().as_deref(), dir.join(MTP_DIR).join(MANIFEST).exists()),
         }
     }
+}
+
+/// Prefill rows per pass when neither `INTARSIA_DSV41_CHUNK` nor `--prefill-chunk` is given: 2048 since 2026-11-04 (user decision;
+/// was 512; docs/results/2026-11-04-dsv41-chunk32k-quality-2.md). This path takes no recipe `[tuning]` chunk, so the default lives here.
+pub const DEFAULT_CHUNK: usize = 2048;
+
+/// The env value wins over the `--prefill-chunk` flag, which wins over [`DEFAULT_CHUNK`].
+fn resolve_chunk(env: Option<usize>, flag: Option<usize>) -> usize {
+    env.or(flag).unwrap_or(DEFAULT_CHUNK)
 }
 
 /// Unset: on when the cache has its DSpark sub-cache. Set: `1` is on, anything else off.
@@ -78,10 +88,16 @@ pub fn is_rank_cache(dir: &Path) -> bool {
 }
 
 /// What both ranks must agree on (handshake).
-pub fn fingerprint(m: &Manifest, o: &Dsv41Opts) -> String {
+pub fn fingerprint(m: &Manifest, o: &Dsv41Opts, replay: bool) -> String {
     let mut base = format!("dsv41 source {} | world {} | layers {:?} | cap {} | chunk {} | act {}", m.source_fingerprint, m.world, m.layers, o.cap, o.chunk, o.act);
     if m.first_layer > 0 {
         base.push_str(&format!(" | first layer {}", m.first_layer));
+    }
+    // bounded-replay prefill: the ranks must cut at the same place; off, the fingerprint is the one before it existed
+    // "skip": the primary may tell the other rank to run a prefill chunk without its decoder half (`FWD_ENCODER`), which a peer built
+    // before it would not understand: such binaries refuse to pair
+    if replay {
+        base.push_str(" | replay skip");
     }
     // the spec-off fingerprint is the one before speculation existed, so old and new binaries still pair without it
     if o.spec {
@@ -256,7 +272,7 @@ pub fn load_runtime_with(dir: &Path, backend: Arc<dyn Backend>, comm: Option<Arc
         (None, Some(l)) if l < n_layers => Some(engram_tier(&cfg, dir, o, rank, world)?),
         _ => None,
     };
-    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers, first: m.first_layer }, spec: o.spec };
+    let opts = RuntimeOpts { act: o.act, cap: o.cap, chunk: o.chunk, tp: GraphTp { world, layers: m.layers, first: m.first_layer, ..GraphTp::default() }, spec: o.spec };
     let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, comm, weights, engram, opts)?;
     match (o.spec, rt.dspark) {
         (true, n) => eprintln!("dsv41: rank {rank}/{world}: speculative decoding on, {n} DSpark stages loaded from {}", mtp_dir.display()),
@@ -311,7 +327,7 @@ pub fn serve_rank(dir: &Path, backend: Arc<dyn Backend>, comm: Arc<dyn Comm>, mu
     let o = Dsv41Opts::from_env(dir, prefill_chunk);
     let avail0 = mem_available();
     let (rt, m) = load_runtime(dir, backend, Some(comm.clone()), &o)?;
-    let cap = intarsia_core::tp_remote::handshake(&mut stream, &fingerprint(&m, &o), o.cap)?;
+    let cap = intarsia_core::tp_remote::handshake(&mut stream, &fingerprint(&m, &o, rt.replay_on()), o.cap)?;
     if cap != o.cap {
         return Err(Error::invalid(format!("deepseek_v41: ranks disagree on the capacity ({cap} vs {})", o.cap)));
     }
@@ -438,6 +454,11 @@ struct Job {
     tx: Sender<GenEvent>,
 }
 
+/// Rows of a prefill rank 0 may have queued before it waits for the device. The wait must stay well under the shortest default watchdog
+/// (60 s, `--watchdog-s`): at the 0.84 s a 512-row chunk takes, 4096 rows (8 chunks) are 6.7 s, and a device nine times slower still passes.
+/// What it costs is at most one pass's enqueue (18 to 28 ms) of device idle time per wait, about 0.4 %, by arithmetic: not measured.
+const PREFILL_SYNC_ROWS: usize = 4096;
+
 struct Worker {
     rt: Dsv41Runtime,
     peer: Option<Arc<RemotePeer>>,
@@ -450,23 +471,66 @@ struct Worker {
     /// Set when a tensor-parallel group failed for good (`Engine::failed`: /health turns 503, new requests are refused, and a
     /// tp-remote server exits for a restart of both ranks).
     failed: Arc<Mutex<Option<String>>>,
+    /// `INTARSIA_DSV41_TEST_RANK0_FAIL_PASS=N` (failure tests only, `scripts/dsv41-tp2/failpaths-test.sh`): the forward pass after `N` more
+    /// of them, counted after the warm-up, fails on this rank (rank 0) once it was sent to the other rank, as a failed `cudaMalloc` would.
+    fail_pass: Option<usize>,
+    /// [`PREFILL_SYNC_ROWS`], smaller in tests.
+    prefill_sync_rows: usize,
+    /// Tests: stands in for this rank's half of the passes (`failpath_tests`, no weights there).
+    #[cfg(test)]
+    script: Option<failpath_tests::Script>,
 }
 
-/// Collect the remote rank's answer to the pass just run here. A backend error on this rank fails the group (`group_failed`):
-/// the other rank may sit in a collective this rank no longer joins and never answer, so do not wait for it (the peer is
-/// marked unusable instead). Any other error still drains the answer, which keeps the two ranks in step.
+/// Collect the remote rank's answer to the pass just run here. A failure of this rank's half fails the group whatever its kind,
+/// so nothing is waited for (the peer is marked unusable instead): the other rank was already sent the pass and only enqueues
+/// it, so it answers OK and stays parked in collectives this rank no longer joins, where the next request's would pair with them
+/// (wrong sums or a hang, no error). A non-backend error comes back as a backend error, which is what `group_failed` acts on.
 fn settle<T>(remote: &mut Option<RemoteSeq>, out: &Result<T>) -> Result<()> {
     let Some(r) = remote else { return Ok(()) };
-    if matches!(out, Err(Error::Backend(_))) {
-        r.mark_unusable();
-        return Ok(());
+    match out {
+        Ok(_) => r.finish(),
+        Err(e) => {
+            r.mark_unusable();
+            match e {
+                Error::Backend(_) => Ok(()),
+                e => Err(Error::backend(format!("deepseek_v41: this rank's half of a pass failed after the other rank was sent it: {e}"))),
+            }
+        }
     }
-    let rr = r.finish();
-    if out.is_ok() {
-        rr
-    } else {
-        Ok(())
+}
+
+/// Runs the jobs until the engine is dropped. A panic can come after a pass was sent, with the other rank parked in its collectives, so it takes
+/// the route of any other failure. Without that, dropping the worker tells the other rank to free a sequence on the parked stream, where
+/// `cudaFree` blocks and `watch_peer`, which only acts during a pass, does not see the hang-up.
+fn engine_loop(w: &mut Worker, rx: Receiver<Job>, failed: &Arc<Mutex<Option<String>>>) {
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        for job in rx.iter() {
+            w.run(job);
+        }
+    }));
+    if let Err(p) = r {
+        panic_route(w, &*p, failed);
     }
+}
+
+/// What a panic leaves to do once caught, wherever it was caught. Returns the message.
+fn panic_route(w: &mut Worker, p: &(dyn std::any::Any + Send), failed: &Arc<Mutex<Option<String>>>) -> String {
+    let msg = p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
+    let msg = format!("dsv41 engine worker panicked: {msg}");
+    w.group_failed(&Error::backend(msg.clone()));
+    *failed.lock().unwrap_or_else(|e| e.into_inner()) = Some(msg.clone());
+    msg
+}
+
+/// One short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back. It runs on the loader's thread, outside [`engine_loop`],
+/// so a panic takes the same route here: the error drops the worker with the peer already dead, and no free goes to a parked rank.
+fn warm_up(w: &mut Worker, bos: u32, failed: &Arc<Mutex<Option<String>>>) -> Result<()> {
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        w.forward(&[bos], true)?;
+        w.forward(&[bos], true)?;
+        w.truncate(0)
+    }));
+    r.unwrap_or_else(|p| Err(Error::backend(panic_route(w, &*p, failed))))
 }
 
 impl Worker {
@@ -474,9 +538,85 @@ impl Worker {
         if let Some(r) = &self.remote {
             r.start_forward(ids, false)?;
         }
-        let out = self.rt.forward(&mut self.st, ids, logits);
+        let out = self.test_fault().and_then(|()| self.rank0_forward(ids, logits));
         settle(&mut self.remote, &out)?;
+        self.telemetry.step();
         out
+    }
+
+    /// [`Worker::forward`] for a prefill chunk whose decoder half is dead work ([`Dsv41Runtime::skips_decoder_half`]): both ranks run it
+    /// encoder-only, no logits.
+    fn forward_encoder(&mut self, ids: &[u32]) -> Result<()> {
+        if let Some(r) = &self.remote {
+            r.start_encoder(ids)?;
+        }
+        let out = self.test_fault().and_then(|()| self.rank0_forward_encoder(ids));
+        settle(&mut self.remote, &out)?;
+        self.telemetry.step();
+        out
+    }
+
+    fn rank0_forward_encoder(&mut self, ids: &[u32]) -> Result<()> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.forward_encoder(&mut self.st, ids);
+        }
+        self.rt.forward_encoder_only(&mut self.st, ids)
+    }
+
+    fn rank0_forward(&mut self, ids: &[u32], logits: bool) -> Result<Option<Vec<f32>>> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.forward(&mut self.st, ids, logits);
+        }
+        self.rt.forward(&mut self.st, ids, logits)
+    }
+
+    /// A prompt, one pass a chunk (the chunks `Dsv41Runtime::forward` would cut, and the last one's logits): the other rank is told one
+    /// chunk at a time and has answered it before the next. A cancel can end it between two chunks (`None`): both ranks have then been told the
+    /// same chunks, whose collectives may still be running on the device, all of them paired.
+    ///
+    /// The passes before the last only enqueue, so a tick or a cancel check says what the host queued, not what the device did. Every
+    /// [`PREFILL_SYNC_ROWS`] rows this rank waits for the device, which keeps it at most that far ahead.
+    fn prefill(&mut self, ids: &[u32], cancel: Option<&std::sync::atomic::AtomicBool>) -> Result<Option<Vec<f32>>> {
+        let n = ids.len().div_ceil(self.rt.opts.chunk);
+        let mut out = None;
+        let mut queued = 0;
+        for (i, c) in ids.chunks(self.rt.opts.chunk).enumerate() {
+            if cancel.is_some_and(|c| c.load(std::sync::atomic::Ordering::Relaxed)) {
+                return Ok(None);
+            }
+            // the rows after this chunk: when none of them reads this chunk's decoder-layer window keys, its decoder half (which the
+            // replay runs on the chunk's last `window` rows) is dead work, and the chunk runs encoder-only on both ranks
+            let ahead = ids.len() - (i * self.rt.opts.chunk + c.len());
+            if self.rt.skips_decoder_half(&self.st, c.len(), ahead) {
+                self.forward_encoder(c)?;
+                out = None;
+            } else {
+                out = self.forward(c, i + 1 == n)?;
+            }
+            queued += c.len();
+            if queued >= self.prefill_sync_rows && i + 1 < n {
+                self.device_wait()?;
+                queued = 0;
+            }
+        }
+        Ok(out)
+    }
+
+    /// See [`Worker::fail_pass`].
+    fn test_fault(&mut self) -> Result<()> {
+        match self.fail_pass {
+            None => Ok(()),
+            Some(0) => {
+                self.fail_pass = None;
+                Err(Error::Memory("INTARSIA_DSV41_TEST_RANK0_FAIL_PASS: injected rank 0 failure".into()))
+            }
+            Some(n) => {
+                self.fail_pass = Some(n - 1);
+                Ok(())
+            }
+        }
     }
 
     /// One DSpark drafting round on both ranks after the sequence's last row, `first` the round's first token: the
@@ -485,9 +625,35 @@ impl Worker {
         if let Some(r) = &self.remote {
             r.start_draft(&[first])?;
         }
-        let out = self.rt.draft_steps(&self.st, first, steps);
+        let out = self.rank0_draft(first, steps);
         settle(&mut self.remote, &out)?;
+        self.telemetry.step();
         out?.ok_or_else(|| Error::backend("deepseek_v41: rank 0 got no draft"))
+    }
+
+    /// A failed wait fails the group like a failed pass: the peer has queued the same work.
+    fn device_wait(&mut self) -> Result<()> {
+        let out = self.rank0_device_wait();
+        if out.is_err() {
+            settle(&mut self.remote, &out)?;
+        }
+        out
+    }
+
+    fn rank0_device_wait(&mut self) -> Result<()> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.device_wait();
+        }
+        self.rt.device_wait()
+    }
+
+    fn rank0_draft(&mut self, first: u32, steps: usize) -> Result<Option<Draft>> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.draft(&self.st, first, steps);
+        }
+        self.rt.draft_steps(&self.st, first, steps)
     }
 
     /// A verify pass on both ranks (appended to the sequence): every row's logits, or (`logits` false) every row's
@@ -496,20 +662,30 @@ impl Worker {
         if let Some(r) = &self.remote {
             r.start_verify(ids)?;
         }
-        let out = if logits {
+        let out = self.rank0_verify(ids, logits);
+        settle(&mut self.remote, &out)?;
+        self.telemetry.step();
+        out
+    }
+
+    fn rank0_verify(&mut self, ids: &[u32], logits: bool) -> Result<Vec<Row>> {
+        #[cfg(test)]
+        if let Some(s) = &mut self.script {
+            return s.verify(&mut self.st, ids, logits);
+        }
+        if logits {
             self.rt.forward_rows(&mut self.st, ids).map(|rows| rows.into_iter().map(Row::Logits).collect())
         } else {
             self.rt.forward_rows_ids(&mut self.st, ids).map(|t| t.into_iter().map(Row::Tok).collect())
-        };
-        settle(&mut self.remote, &out)?;
-        out
+        }
     }
 
     /// The logits rows after `tok` (not yet in the sequence): with speculation a drafting round and a verify pass of
     /// `[tok, drafts..]` (each row tagged with the draft it checks; the last row checks none), else a plain step.
     fn next_rows(&mut self, tok: u32, spec: Option<SpecOpts>, stats: &mut SpecStats, logits: bool) -> Result<VecDeque<(Row, Option<u32>)>> {
         let room = self.rt.opts.cap.saturating_sub(self.st.len + 1);
-        if let Some(sp) = spec.filter(|_| room >= 2) {
+        // the drafting block is longer than the rows a verify pass would add: near the capacity only plain steps fit
+        if let Some(sp) = spec.filter(|_| room >= 2 && self.rt.draft_fits(self.st.len)) {
             stats.end_round(sp.trace);
             let t0 = Instant::now();
             stats.round_start = Some(t0);
@@ -569,46 +745,88 @@ impl Worker {
         if world < 2 || !matches!(e, Error::Backend(_)) {
             return false;
         }
-        if self.failed.lock().unwrap().is_some() {
-            return true;
-        }
-        eprintln!("dsv41: the tensor-parallel group failed ({e}); aborting the communicator and marking the engine failed");
         if let Some(p) = &self.peer {
             p.mark_unusable();
+        }
+        {
+            let mut failed = self.failed.lock().unwrap_or_else(|e| e.into_inner());
+            if failed.is_some() {
+                return true;
+            }
+            *failed = Some(format!("tensor-parallel group failed: {e}"));
         }
         if let Some(c) = self.rt.comm.clone() {
             let _ = std::thread::Builder::new().name("dsv41-abort".into()).spawn(move || c.abort());
         }
-        *self.failed.lock().unwrap() = Some(format!("tensor-parallel group failed: {e}"));
+        // last and not `eprintln!`, which panics on a closed stderr: this is what runs after a panic
+        let _ = writeln!(std::io::stderr(), "dsv41: the tensor-parallel group failed ({e}); aborting the communicator and marking the engine failed");
         true
     }
 
     fn run(&mut self, job: Job) {
         let tx = job.tx.clone();
+        let (t0, plen) = (Instant::now(), job.req.prompt.len());
+        self.telemetry.request_started();
         if let Err(e) = self.generate(job) {
+            // closes the request as the main engine does: left running, an idle server reads as stalled to the watchdog
+            self.telemetry.request_finished("error", plen, 0, 0, t0.elapsed(), Duration::ZERO, t0.elapsed());
             let _ = tx.send(GenEvent::Error { message: e.to_string() });
-            if self.group_failed(&e) {
-                return;
-            }
-            if let Err(e2) = self.reset() {
-                eprintln!("dsv41: reset after a failed request failed: {e2}");
-            }
+            self.after_failure(&e);
         }
+    }
+
+    /// What a failed request leaves to do. A request refused by validation changed nothing, so the cached sequence stays.
+    fn after_failure(&mut self, e: &Error) {
+        if self.group_failed(e) || matches!(e, Error::BadRequest(_)) {
+            return;
+        }
+        if let Err(e2) = self.reset() {
+            let _ = writeln!(std::io::stderr(), "dsv41: reset after a failed request failed: {e2}");
+            // the peer's handle is gone by now: the next request would run collectives the other rank is never told about
+            self.group_failed(&Error::backend(format!("reset after a failed request: {e2}")));
+        }
+    }
+
+    /// Ends a request cancelled before its first token, as the main engine's `cancel_outcome`.
+    fn finish_cancelled(&self, req: &GenRequest, tx: &Sender<GenEvent>, cached: usize, t0: Instant) {
+        let prefill = t0.elapsed();
+        self.telemetry.request_finished(FinishReason::Cancelled.as_str(), req.prompt.len(), 0, cached, prefill, Duration::ZERO, prefill);
+        let _ = tx.send(GenEvent::Done {
+            finish_reason: FinishReason::Cancelled,
+            prompt_tokens: req.prompt.len(),
+            completion_tokens: 0,
+            cached_tokens: cached,
+            stop_sequence: None,
+            prefill_ms: prefill.as_secs_f64() * 1e3,
+            decode_ms: 0.0,
+            prefill_chunk: None,
+        });
     }
 
     fn generate(&mut self, job: Job) -> Result<()> {
         let Job { req, tx } = job;
         let t0 = Instant::now();
-        self.telemetry.request_started();
+        if req.cancel.as_ref().is_some_and(|c| c.load(std::sync::atomic::Ordering::Relaxed)) {
+            self.finish_cancelled(&req, &tx, 0, t0);
+            return Ok(());
+        }
         if req.prompt.is_empty() {
             return Err(Error::BadRequest("empty prompt".into()));
         }
-        if req.prompt.len() + req.max_tokens.max(1) > self.rt.opts.cap {
-            return Err(Error::BadRequest(format!("prompt {} + max_tokens {} exceed the context {}", req.prompt.len(), req.max_tokens, self.rt.opts.cap)));
+        if req.prompt.len() >= self.rt.opts.cap {
+            return Err(Error::BadRequest(format!("prompt {} leaves no room in the context {}", req.prompt.len(), self.rt.opts.cap)));
         }
+        // as `LocalEngine::submit`: an id with no embedding row would fail the pass after it was sent, which fails the group
+        if let Some(bad) = req.prompt.iter().find(|&&t| t as usize >= self.rt.cfg.vocab) {
+            return Err(Error::BadRequest(format!("token id {bad} >= vocab {}", self.rt.cfg.vocab)));
+        }
+        // what fits, as the main engine (`Seq::admit`): a client's fixed max_tokens above the room left is not an error
+        let max_tokens = req.max_tokens.min(self.rt.opts.cap - req.prompt.len());
         // prefix reuse: the common prefix, if the state can roll back to it (ring margin), else from scratch
         let common = self.st.tokens.iter().zip(&req.prompt).take_while(|(a, b)| a == b).count().min(req.prompt.len() - 1);
         let keep = self.st.restorable_len(common);
+        // bounded replay (opt-in): rows whose decoder-layer window keys were skipped cannot serve a resume below the new floor
+        let keep = self.rt.replay_keep(&self.st, keep, req.prompt.len());
         if keep != self.st.len {
             self.truncate(keep)?;
         }
@@ -617,12 +835,17 @@ impl Worker {
         // argmax, so the reply is the target model's own greedy reply, up to verify-row numerics)
         let spec = self.spec.filter(|_| req.temperature <= 0.0 && req.constraint.is_none() && req.trace_logits.is_none());
         let mut stats = SpecStats::default();
-        let mut rows: VecDeque<(Row, Option<u32>)> = VecDeque::from([(Row::Logits(self.forward(&req.prompt[keep..].to_vec(), true)?.expect("logits")), None)]);
+        let Some(first) = self.prefill(&req.prompt[keep..], req.cancel.as_deref())? else {
+            self.finish_cancelled(&req, &tx, cached, t0);
+            return Ok(());
+        };
+        let mut rows: VecDeque<(Row, Option<u32>)> = VecDeque::from([(Row::Logits(first), None)]);
         let prefill = t0.elapsed();
         let params = SamplingParams { temperature: req.temperature, top_k: req.top_k, top_p: req.top_p };
         let mut sampler = Sampler::new(params, req.seed);
         let mut dec = IncrementalDecoder::new();
-        let mut stops = StopMatcher::new(&req.stop);
+        // like the main engine (and vLLM), stop strings are not checked until `min_tokens` tokens exist
+        let mut stops = StopMatcher::new(if req.min_tokens > 0 { &[] } else { &req.stop });
         // structured output: the server's compiled constraint masks the host logits each step (computed inline: the
         // mask costs far less than this engine's decode step)
         let mut cons = match &req.constraint {
@@ -677,7 +900,7 @@ impl Worker {
                 }
                 None => false,
             };
-            let is_eos = !req.ignore_eos && (self.eos.contains(&tok) || req.stop_ids.contains(&tok));
+            let is_eos = req.stop_ids.contains(&tok) || (!req.ignore_eos && self.eos.contains(&tok));
             if is_eos {
                 finish = FinishReason::Stop;
                 break;
@@ -686,6 +909,9 @@ impl Worker {
                 c.commit(tok)?;
             }
             let text = dec.push(&*self.codec, tok)?;
+            if req.min_tokens > 0 && n == req.min_tokens + 1 {
+                stops = StopMatcher::new(&req.stop);
+            }
             let (out, hit) = stops.push(&text);
             if tx.send(GenEvent::Token { id: tok, text: out }).is_err() {
                 finish = FinishReason::Cancelled;
@@ -693,10 +919,10 @@ impl Worker {
             }
             if hit {
                 finish = FinishReason::Stop;
-                stop_seq = req.stop.iter().find(|s| text.contains(s.as_str())).cloned();
+                stop_seq = stops.matched().map(String::from);
                 break;
             }
-            if n >= req.max_tokens || self.st.len - rows.len() + 1 >= self.rt.opts.cap {
+            if n >= max_tokens || self.st.len - rows.len() + 1 >= self.rt.opts.cap {
                 finish = FinishReason::Length;
                 break;
             }
@@ -769,7 +995,7 @@ impl Dsv41Engine {
         let (rt, m) = load_runtime(dir, backend.clone(), comm.clone(), &o)?;
         let peer = match remote {
             Some(mut stream) => {
-                let cap = intarsia_core::tp_remote::handshake(&mut stream, &fingerprint(&m, &o), o.cap)?;
+                let cap = intarsia_core::tp_remote::handshake(&mut stream, &fingerprint(&m, &o, rt.replay_on()), o.cap)?;
                 if cap != o.cap {
                     return Err(Error::invalid(format!("deepseek_v41: ranks disagree on the capacity ({cap} vs {})", o.cap)));
                 }
@@ -855,32 +1081,22 @@ impl Dsv41Engine {
             // marks the engine failed (health 503, then the server exits for a restart) without waiting for it
             let f = failed.clone();
             p.on_lost(move |why| {
-                eprintln!("dsv41: {why}; marking the engine failed");
                 f.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(format!("tensor-parallel group failed: {why}"));
+                let _ = writeln!(std::io::stderr(), "dsv41: {why}; marking the engine failed");
             });
         }
-        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone() };
-        // warm-up: one short pass on both ranks (kernel choice, scratch, NCCL buffers), then roll back
+        let mut w = Worker { rt, peer, st, remote: remote_seq, codec: codec.clone(), eos, telemetry: telemetry.clone(), spec, failed: failed.clone(), fail_pass: None, prefill_sync_rows: PREFILL_SYNC_ROWS, #[cfg(test)] script: None };
         let wt = Instant::now();
-        w.forward(&[c.bos], true)?;
-        w.forward(&[c.bos], true)?;
-        w.truncate(0)?;
+        warm_up(&mut w, c.bos, &failed)?;
         eprintln!("dsv41: warm-up passes in {:.2} s", wt.elapsed().as_secs_f64());
+        w.fail_pass = env_usize("INTARSIA_DSV41_TEST_RANK0_FAIL_PASS");
         log_memory_after_warmup(&w.rt, avail0, 0);
         let (tx, rx): (Sender<Job>, Receiver<Job>) = channel();
         let f2 = failed.clone();
         std::thread::Builder::new()
             .name("dsv41-engine".into())
             .spawn(move || {
-                let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    for job in rx.iter() {
-                        w.run(job);
-                    }
-                }));
-                if let Err(p) = r {
-                    let msg = p.downcast_ref::<String>().cloned().or_else(|| p.downcast_ref::<&str>().map(|s| s.to_string())).unwrap_or_default();
-                    *f2.lock().unwrap() = Some(format!("dsv41 engine worker panicked: {msg}"));
-                }
+                engine_loop(&mut w, rx, &f2);
             })
             .map_err(|e| Error::backend(format!("spawning the engine worker: {e}")))?;
         Ok(Dsv41Engine { tx: Mutex::new(tx), info, codec, telemetry, failed })
@@ -950,6 +1166,19 @@ mod spec_default_tests {
 }
 
 #[cfg(test)]
+mod chunk_default_tests {
+    use super::*;
+
+    #[test]
+    fn the_chunk_is_env_then_flag_then_2048() {
+        assert_eq!(resolve_chunk(None, None), 2048);
+        assert_eq!(resolve_chunk(None, Some(1024)), 1024);
+        assert_eq!(resolve_chunk(Some(512), Some(1024)), 512);
+        assert_eq!(resolve_chunk(Some(512), None), 512);
+    }
+}
+
+#[cfg(test)]
 mod choose_k_tests {
     use super::{choose_k, DRAFT_MS, ROUND_MS};
 
@@ -982,5 +1211,921 @@ mod choose_k_tests {
     fn the_first_best_wins_a_tie() {
         // equal value at k = 0 and k = 1: 1 / 10 = 1.5 / 15, with a survival of exactly 0.5
         assert_eq!(choose_k(&[0.0], 1, &[5.0, 10.0], 5.0), 0);
+    }
+}
+
+/// The failure paths of a TP=2 group, without a GPU: the real [`Worker`] and [`Dsv41Runtime`] (graphs from the Mia checkpoint's
+/// headers, on the cpu backend, no weights loaded) in front of a real [`RemotePeer`] and `tp_remote::serve`, whose far end only
+/// records what it was told to run. Without weights a pass stops at its first step, on this rank only, which is all these tests
+/// need of it: a real failure after the other rank was sent the pass.
+#[cfg(test)]
+mod failpath_tests {
+    use super::*;
+    use intarsia_backend_cpu::CpuBackend;
+    use intarsia_core::backend::{Buffer, DeviceInfo, MemKind, StreamId};
+    use intarsia_core::comm::CommStats;
+    use intarsia_core::dsv41::graph::GraphTp;
+    use intarsia_core::ops::OpCall;
+    use intarsia_core::registry::KernelImpl;
+    use intarsia_core::tp_remote::{serve, serve_group, RankModel, EXIT_GROUP_FAILED};
+    use intarsia_core::TensorRef;
+    use std::net::{TcpListener, TcpStream};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::time::Duration;
+
+    const CAP: usize = 64;
+    const VOCAB: usize = 16;
+    const EOS: u32 = 15;
+
+    /// Rank 0's half of the passes without weights: the rows after position `start + i` are `reply[i]` (the last one for ever after).
+    /// A device on a virtual clock: a pass enqueues at once and takes `s_per_row` on the device; the host only waits in a read-back or a
+    /// device wait. This is what a real `Want::Nothing` pass does and the instant scripted passes do not.
+    #[derive(Default)]
+    struct VirtualDevice {
+        s_per_row: f64,
+        now: f64,
+        done: f64,
+        last_tick: f64,
+        /// The longest time without a tick, which is what the watchdog sees.
+        max_gap: f64,
+        /// Set the cancel flag once the clock reaches this.
+        cancel_at: Option<(f64, Arc<AtomicBool>)>,
+        waits: usize,
+    }
+
+    #[derive(Default)]
+    pub(super) struct Script {
+        start: usize,
+        reply: Vec<u32>,
+        /// A device that takes time: see [`VirtualDevice`].
+        device: Option<VirtualDevice>,
+        /// Which forward passes asked for logits.
+        logits_asked: Vec<bool>,
+        /// Set this flag once this many forward passes have run (a client gone during the prefill).
+        cancel_after: Option<(usize, Arc<AtomicBool>)>,
+        forwards: usize,
+        fail_wait: bool,
+        panic_on_forward: bool,
+    }
+    impl Script {
+        fn tok(&self, len: usize) -> u32 {
+            let i = len.saturating_sub(self.start).min(self.reply.len().saturating_sub(1));
+            self.reply.get(i).copied().unwrap_or(0)
+        }
+        fn logits(&self, len: usize) -> Vec<f32> {
+            let mut l = vec![-100f32; VOCAB];
+            l[self.tok(len) as usize] = 100.0;
+            l
+        }
+        pub(super) fn forward(&mut self, st: &mut SequenceState, ids: &[u32], logits: bool) -> Result<Option<Vec<f32>>> {
+            assert!(!self.panic_on_forward, "scripted panic");
+            st.commit(ids);
+            self.forwards += 1;
+            self.logits_asked.push(logits);
+            if let Some(d) = &mut self.device {
+                d.done = d.done.max(d.now) + d.s_per_row * ids.len() as f64;
+                if logits {
+                    d.now = d.done;
+                }
+                d.max_gap = d.max_gap.max(d.now - d.last_tick);
+                d.last_tick = d.now;
+                if let Some((t, c)) = &d.cancel_at {
+                    if d.now >= *t {
+                        c.store(true, Ordering::SeqCst);
+                    }
+                }
+            }
+            if let Some((k, c)) = &self.cancel_after {
+                if self.forwards >= *k {
+                    c.store(true, Ordering::SeqCst);
+                }
+            }
+            Ok(logits.then(|| self.logits(st.len)))
+        }
+        pub(super) fn forward_encoder(&mut self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+            self.forward(st, ids, false).map(|_| ())
+        }
+        pub(super) fn device_wait(&mut self) -> Result<()> {
+            if self.fail_wait {
+                return Err(Error::Memory("the device wait failed".into()));
+            }
+            if let Some(d) = &mut self.device {
+                d.now = d.now.max(d.done);
+                d.waits += 1;
+                if let Some((t, c)) = &d.cancel_at {
+                    if d.now >= *t {
+                        c.store(true, Ordering::SeqCst);
+                    }
+                }
+            }
+            Ok(())
+        }
+        pub(super) fn draft(&mut self, st: &SequenceState, first: u32, steps: usize) -> Result<Option<Draft>> {
+            let mut ids = vec![first];
+            ids.extend((0..steps).map(|i| self.tok(st.len + 1 + i)));
+            Ok(Some(Draft { ids, confidence: vec![20.0; steps] }))
+        }
+        pub(super) fn verify(&mut self, st: &mut SequenceState, ids: &[u32], logits: bool) -> Result<Vec<Row>> {
+            st.commit(ids);
+            let l0 = st.len - ids.len();
+            Ok((0..ids.len()).map(|j| if logits { Row::Logits(self.logits(l0 + j + 1)) } else { Row::Tok(self.tok(l0 + j + 1)) }).collect())
+        }
+    }
+
+    /// The cpu backend with two faults to switch on: `cudaMalloc` failing, and a stream parked in a collective.
+    #[derive(Default)]
+    struct Faults {
+        alloc_fails: AtomicBool,
+        stream0_parked: AtomicBool,
+    }
+    struct FaultBackend(CpuBackend, Arc<Faults>);
+    impl Backend for FaultBackend {
+        fn name(&self) -> &str {
+            self.0.name()
+        }
+        fn info(&self) -> DeviceInfo {
+            self.0.info()
+        }
+        fn alloc(&self, bytes: usize, kind: MemKind) -> Result<Buffer> {
+            if self.1.alloc_fails.load(Ordering::SeqCst) {
+                return Err(Error::Memory(format!("cudaMalloc of {bytes} bytes failed")));
+            }
+            self.0.alloc(bytes, kind)
+        }
+        fn upload(&self, dst: &Buffer, off: usize, src: &[u8], s: StreamId) -> Result<()> {
+            self.0.upload(dst, off, src, s)
+        }
+        fn download(&self, src: &Buffer, off: usize, dst: &mut [u8], s: StreamId) -> Result<()> {
+            self.0.download(src, off, dst, s)
+        }
+        fn copy(&self, dst: &Buffer, d: usize, src: &Buffer, o: usize, bytes: usize, s: StreamId) -> Result<()> {
+            self.0.copy(dst, d, src, o, bytes, s)
+        }
+        fn kernels(&self) -> Vec<KernelImpl> {
+            self.0.kernels()
+        }
+        fn launch(&self, k: &str, c: &OpCall, s: StreamId) -> Result<()> {
+            self.0.launch(k, c, s)
+        }
+        fn synchronize(&self, s: StreamId) -> Result<()> {
+            while s == 0 && self.1.stream0_parked.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_secs(1));
+            }
+            self.0.synchronize(s)
+        }
+    }
+
+    /// A two-rank group's communicator as rank `rank` sees it: collectives fail (no test gets that far), aborts are counted. The
+    /// fixture's shapes are the unsharded checkpoint's, which only build a graph of one rank, so it says world 1 while [`runtime`]
+    /// builds the graphs and 2 from then on: the graphs do not matter here, what the engine does about a group does.
+    struct TestComm {
+        rank: usize,
+        world: std::sync::atomic::AtomicUsize,
+    }
+    fn test_comm(rank: usize) -> Arc<TestComm> {
+        Arc::new(TestComm { rank, world: 2.into() })
+    }
+    impl Comm for TestComm {
+        fn name(&self) -> &str {
+            "test"
+        }
+        fn rank(&self) -> usize {
+            self.rank
+        }
+        fn world(&self) -> usize {
+            self.world.load(Ordering::SeqCst)
+        }
+        fn all_reduce_sum(&self, _x: &TensorRef, _s: StreamId) -> Result<()> {
+            Err(Error::backend("test comm"))
+        }
+        fn all_reduce_sum_into(&self, _p: &TensorRef, _o: &TensorRef, _s: StreamId) -> Result<()> {
+            Err(Error::backend("test comm"))
+        }
+        fn all_gather(&self, _s: &TensorRef, _r: &TensorRef, _st: StreamId) -> Result<()> {
+            Err(Error::backend("test comm"))
+        }
+        fn abort(&self) {}
+        fn stats(&self) -> CommStats {
+            CommStats::default()
+        }
+        fn note_timed(&self, _d: Duration) {}
+    }
+
+    fn fixture() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/dsv41/mia_headers")
+    }
+
+    /// The real runtime of rank `rank` of 2 with speculation on: capacity [`CAP`], no weights but the confidence head, whose bytes
+    /// the constructor reads.
+    fn runtime(faults: &Arc<Faults>, comm: &Arc<TestComm>) -> Dsv41Runtime {
+        let cfg = detect(&fixture()).unwrap().expect("a DeepSeek-V4.1 config");
+        let shapes = HeaderShapes::open(&fixture()).unwrap();
+        let backend: Arc<dyn Backend> = Arc::new(FaultBackend(CpuBackend::new(), faults.clone()));
+        let mut weights = std::collections::HashMap::new();
+        let m = cfg.mtp.as_ref().expect("the fixture has DSpark stages");
+        let name = format!("mtp.{}.confidence_head.proj.weight", m.n_layers - 1);
+        let (dt, shape) = intarsia_core::dsv41::graph::WeightShapes::get(&shapes, &name).expect("the confidence head");
+        let bytes = shape.iter().product::<usize>() * dt.size_bytes();
+        weights.insert(name, TensorRef::new(backend.alloc(bytes, MemKind::Device).unwrap(), dt, &shape));
+        let tier = ZeroTier { layout: intarsia_engram::HashLayout::dsv41().layout().clone(), shard: intarsia_core::dsv41::engram::EngramShard { rank: 0, world: 1 } };
+        let hash = intarsia_engram::HashLayout::dsv41();
+        let engram = EngramInputs { tier: Arc::new(tier), hasher: hash.hasher.clone(), token_map: vec![] };
+        let opts = RuntimeOpts { act: DType::Bf16, cap: CAP, chunk: 8, tp: GraphTp { world: 1, layers: None, first: 0, rope_inplace: false }, spec: true };
+        comm.world.store(1, Ordering::SeqCst);
+        let rt = Dsv41Runtime::new(cfg, Box::new(shapes), backend, Some(comm.clone() as Arc<dyn Comm>), weights, Some(engram), opts).unwrap();
+        comm.world.store(2, Ordering::SeqCst);
+        rt
+    }
+
+    fn codec() -> Arc<HfCodec> {
+        static C: std::sync::OnceLock<Arc<HfCodec>> = std::sync::OnceLock::new();
+        C.get_or_init(|| {
+            let dir = std::env::temp_dir().join(format!("intarsia-dsv41-failpaths-{}", std::process::id()));
+            std::fs::create_dir_all(&dir).unwrap();
+            let tok = serde_json::json!({
+                "version": "1.0", "truncation": null, "padding": null, "added_tokens": [], "normalizer": null,
+                "pre_tokenizer": {"type": "Whitespace"}, "post_processor": null, "decoder": null,
+                "model": {"type": "WordLevel", "vocab": (0..VOCAB).map(|i| (format!("t{i}"), serde_json::Value::from(i))).collect::<serde_json::Map<_, _>>(), "unk_token": "t0"}
+            });
+            std::fs::write(dir.join("tokenizer.json"), tok.to_string()).unwrap();
+            let c = HfCodec::load(&dir, &ChatTemplateSource::Auto).unwrap();
+            let _ = std::fs::remove_dir_all(&dir);
+            Arc::new(c)
+        })
+        .clone()
+    }
+
+    /// What the other rank was told to run.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    enum Told {
+        New,
+        Forward,
+        Draft,
+        Verify,
+        Encoder,
+        Freed,
+    }
+
+    /// The other rank: passes "enqueue" and answer OK, as a real rank 1's enqueue-only passes do, and it notes what it was told.
+    #[derive(Clone, Default)]
+    struct Recorder(Arc<Mutex<Vec<Told>>>, Arc<Mutex<Vec<usize>>>);
+    /// A sequence on the other rank: freeing one is what parks a real rank 1 for good when its stream is parked.
+    struct RecSeq(usize, Arc<Mutex<Vec<Told>>>);
+    impl Drop for RecSeq {
+        fn drop(&mut self) {
+            self.1.lock().unwrap().push(Told::Freed);
+        }
+    }
+    impl RankModel for Recorder {
+        type State = RecSeq;
+        fn new_state(&self) -> Result<RecSeq> {
+            self.0.lock().unwrap().push(Told::New);
+            Ok(RecSeq(0, self.0.clone()))
+        }
+        fn forward_rank(&self, st: &mut RecSeq, ids: &[u32], _graph: bool) -> Result<()> {
+            self.0.lock().unwrap().push(Told::Forward);
+            self.1.lock().unwrap().push(ids.len());
+            st.0 += ids.len();
+            Ok(())
+        }
+        fn forward_rank_encoder(&self, st: &mut RecSeq, ids: &[u32]) -> Result<()> {
+            self.0.lock().unwrap().push(Told::Encoder);
+            self.1.lock().unwrap().push(ids.len());
+            st.0 += ids.len();
+            Ok(())
+        }
+        fn verify_rank(&self, st: &mut RecSeq, ids: &[u32]) -> Result<()> {
+            self.0.lock().unwrap().push(Told::Verify);
+            st.0 += ids.len();
+            Ok(())
+        }
+        fn draft_rank(&self, _st: &mut RecSeq, _ids: &[u32]) -> Result<()> {
+            self.0.lock().unwrap().push(Told::Draft);
+            Ok(())
+        }
+        fn truncate(&self, st: &mut RecSeq, len: usize) -> Result<()> {
+            st.0 = len;
+            Ok(())
+        }
+        fn snapshot(&self, _st: &mut RecSeq, _keep: usize) -> Result<()> {
+            Ok(())
+        }
+        fn state_len(st: &RecSeq) -> usize {
+            st.0
+        }
+    }
+
+    fn connected() -> (TcpStream, TcpStream) {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let near = TcpStream::connect(l.local_addr().unwrap()).unwrap();
+        (near, l.accept().unwrap().0)
+    }
+
+    /// Rank 0's engine worker, connected to a [`Recorder`].
+    struct Group {
+        w: Worker,
+        told: Recorder,
+        served: std::thread::JoinHandle<Result<u64>>,
+        faults: Arc<Faults>,
+    }
+
+    fn group() -> Group {
+        let faults = Arc::new(Faults::default());
+        let comm = test_comm(0);
+        let rt = runtime(&faults, &comm);
+        let (near, far) = connected();
+        let told = Recorder::default();
+        let t2 = told.clone();
+        let served = std::thread::spawn(move || serve(&t2, far));
+        let peer = RemotePeer::new(near, comm).unwrap();
+        let failed = Arc::new(Mutex::new(None));
+        let st = rt.new_state().unwrap();
+        let remote = Some(peer.new_state().unwrap());
+        let spec = Some(spec_opts());
+        let w = Worker { rt, peer: Some(peer), st, remote, codec: codec(), eos: vec![EOS], telemetry: Arc::new(Telemetry::new()), spec, failed, fail_pass: None, prefill_sync_rows: PREFILL_SYNC_ROWS, script: None };
+        Group { w, told, served, faults }
+    }
+
+    fn spec_opts() -> SpecOpts {
+        SpecOpts { k: 4, min_conf: f32::NEG_INFINITY, trace: false, choose: true, round_ms: ROUND_MS, draft_ms: DRAFT_MS }
+    }
+
+    impl Group {
+        /// Everything the other rank was told, once the connection is closed and it has read all of it.
+        fn finish(self) -> Vec<Told> {
+            let Group { w, told, served, .. } = self;
+            drop(w);
+            served.join().unwrap().unwrap();
+            // what closing the connection frees is not something it was told
+            let t = told.0.lock().unwrap().iter().copied().filter(|t| *t != Told::Freed).collect();
+            t
+        }
+        /// As far as the sequences go, `len` tokens are in.
+        fn at(mut self, len: usize) -> Self {
+            self.w.st.len = len;
+            self.w.st.tokens = vec![1; len];
+            self
+        }
+        fn run(&mut self, req: GenRequest) -> Vec<GenEvent> {
+            let (tx, rx) = channel();
+            self.w.telemetry.request_enqueued(); // as `Dsv41Engine::submit`
+            self.w.run(Job { req, tx });
+            rx.try_iter().collect()
+        }
+    }
+
+    fn told_at(len: usize) -> Vec<Told> {
+        let mut g = group().at(len);
+        let _ = g.w.next_rows(1, Some(spec_opts()), &mut SpecStats::default(), false);
+        g.finish()
+    }
+
+    // ------- #2: a greedy request near the capacity
+
+    /// The two positions where `room >= 2` allowed a drafting round that `draft_steps` refuses, on both ranks: the worker left the
+    /// group and both ranks exited 87.
+    #[test]
+    fn near_the_capacity_a_greedy_step_is_a_plain_pass_not_a_drafting_round() {
+        for len in [CAP - 4, CAP - 3] {
+            assert_eq!(told_at(len), [Told::New, Told::Forward], "at {len} of {CAP} tokens");
+        }
+        assert_eq!(told_at(CAP - 2), [Told::New, Told::Forward], "the last position that already was a plain pass");
+    }
+
+    /// Nothing changes where a block fits: the worker is told to draft at every position it was told to before.
+    #[test]
+    fn where_the_block_fits_a_greedy_step_still_starts_with_a_drafting_round() {
+        for len in [1, 2, 8, CAP / 2, CAP - 6, CAP - 5] {
+            assert_eq!(told_at(len), [Told::New, Told::Draft], "at {len} of {CAP} tokens");
+        }
+    }
+
+    /// Through the real `next_rows`, at every position: a drafting round exactly where the block fits (the limit spelled out), and the runtime refuses
+    /// the rest, so no round the runtime could run is lost and none it would refuse is started.
+    #[test]
+    fn next_rows_drafts_exactly_where_the_block_fits_and_the_runtime_refuses_the_rest() {
+        let g = group();
+        assert_eq!(g.w.rt.cfg.mtp.as_ref().unwrap().block_size, 5);
+        let mut st = g.w.rt.new_state().unwrap();
+        for len in 0..=CAP {
+            st.len = len;
+            st.tokens = vec![1; len];
+            let refused = g.w.rt.draft_steps(&st, 1, 4).is_err_and(|e| e.to_string().contains("a draft block at position"));
+            assert_eq!(refused, len == 0 || len + 5 > CAP, "the runtime's limit moved, at {len}");
+        }
+        g.finish();
+        for len in 0..CAP {
+            let want = if (1..=CAP - 5).contains(&len) { Told::Draft } else { Told::Forward };
+            assert_eq!(told_at(len), [Told::New, want], "at {len} of {CAP} tokens");
+        }
+    }
+
+    // ------- #3: an error on rank 0 only, after the pass was sent
+
+    fn req(temperature: f32) -> GenRequest {
+        GenRequest { prompt: vec![1, 2, 3], max_tokens: 4, temperature, ..Default::default() }
+    }
+
+    /// `cudaMalloc` failing on rank 0 (`grow_scratch`) is `Error::Memory`. The worker answered OK and stays parked in its collectives.
+    /// The group must fail: no reset, no new sequence on the worker, the next requests' collectives must not pair with the parked ones.
+    #[test]
+    fn a_rank_local_error_after_the_pass_was_sent_fails_the_group() {
+        let mut g = group();
+        g.w.fail_pass = Some(0);
+        let ev = g.run(req(1.0));
+        assert!(matches!(ev.last(), Some(GenEvent::Error { message }) if message.contains("injected rank 0 failure")), "{ev:?}");
+        let why = g.w.failed.lock().unwrap().clone();
+        assert!(why.is_some_and(|w| w.contains("tensor-parallel group failed")), "/health stays 200 and the group desynchronised");
+        assert!(g.w.remote.as_ref().unwrap().start_forward(&[1], false).is_err(), "nothing more goes to the other rank");
+        assert_eq!(g.finish(), [Told::New, Told::Forward], "no second sequence on the other rank");
+    }
+
+    /// The same with the error the runtime itself raises for a step it cannot run, not an injected one.
+    #[test]
+    fn a_failure_inside_the_runtime_fails_the_group() {
+        let mut g = group();
+        let ev = g.run(req(0.0));
+        assert!(matches!(ev.last(), Some(GenEvent::Error { .. })), "{ev:?}");
+        assert!(g.w.failed.lock().unwrap().is_some(), "{ev:?}");
+        assert_eq!(g.finish(), [Told::New, Told::Forward]);
+    }
+
+    #[test]
+    fn settle_does_not_wait_for_the_other_rank_after_a_failure_and_the_error_is_a_backend_error() {
+        let (near, far) = connected();
+        let comm: Arc<dyn Comm> = test_comm(0);
+        let peer = RemotePeer::new(near, comm).unwrap();
+        let mut remote = Some(peer.new_state().unwrap());
+        // nobody answers on `far`: a wait would last the 600 s reply timeout
+        let e = settle(&mut remote, &Err::<(), _>(Error::Memory("cudaMalloc".into()))).unwrap_err();
+        assert!(matches!(e, Error::Backend(_)) && e.to_string().contains("cudaMalloc"), "{e}");
+        // a backend error stays the pass's own, as before
+        settle(&mut remote, &Err::<(), _>(Error::backend("launch failed"))).unwrap();
+        drop(far);
+    }
+
+    #[test]
+    fn settle_on_a_good_pass_waits_for_the_answer_as_before() {
+        let (near, far) = connected();
+        let comm: Arc<dyn Comm> = test_comm(0);
+        let peer = RemotePeer::new(near, comm).unwrap();
+        let served = std::thread::spawn(move || serve(&Recorder::default(), far));
+        let mut remote = Some(peer.new_state().unwrap());
+        remote.as_ref().unwrap().start_forward(&[1, 2], false).unwrap();
+        settle(&mut remote, &Ok(())).unwrap();
+        assert_eq!(remote.as_ref().unwrap().len, 2, "the answer was read");
+        drop(remote);
+        drop(peer);
+        served.join().unwrap().unwrap();
+    }
+
+    /// One rank's single-process run has no other rank to wait for or fail: its errors stay what they are.
+    #[test]
+    fn without_a_remote_rank_settle_changes_nothing() {
+        settle(&mut None, &Err::<(), _>(Error::Memory("x".into()))).unwrap();
+    }
+
+    /// What may continue: a request refused before anything was sent. The other rank saw nothing, the group stays healthy, and the
+    /// cached sequence stays for the next turn of the conversation (no `reset`).
+    #[test]
+    fn a_request_refused_before_anything_was_sent_changes_nothing() {
+        let mut g = scripted(8, vec![1, 2, 3], false);
+        let ok = done(&g.run(GenRequest { prompt: vec![1; 8], max_tokens: 2, temperature: 1.0, ..Default::default() }));
+        assert_eq!(ok.0, FinishReason::Length);
+        let held = g.w.st.tokens.clone();
+        for bad in [GenRequest { prompt: vec![], max_tokens: 1, ..Default::default() }, GenRequest { prompt: vec![1; CAP], max_tokens: 1, ..Default::default() }] {
+            let ev = g.run(bad);
+            assert!(matches!(ev.last(), Some(GenEvent::Error { message }) if message.contains("bad request")), "{ev:?}");
+            assert!(g.w.failed.lock().unwrap().is_none(), "a validation error is not a group failure");
+            assert_eq!(g.w.telemetry.snapshot().running, 0, "the request is closed: an idle server must not read as stalled");
+        }
+        assert_eq!(g.w.st.tokens, held, "the cached sequence survives");
+        let next = done(&g.run(GenRequest { prompt: [held.clone(), vec![1]].concat(), max_tokens: 1, temperature: 1.0, ..Default::default() }));
+        assert_eq!(next.3, held.len(), "the next turn reuses it");
+        assert_eq!(g.finish(), [Told::New, Told::Forward, Told::Forward, Told::Forward], "one sequence, and no pass from the refused requests");
+    }
+
+    #[test]
+    fn a_prompt_id_beyond_the_vocabulary_is_refused_before_anything_is_sent() {
+        let mut g = scripted(4, vec![1], false);
+        let ev = g.run(GenRequest { prompt: vec![1, u32::MAX], max_tokens: 1, ..Default::default() });
+        assert!(matches!(ev.last(), Some(GenEvent::Error { message }) if message.contains("bad request")), "{ev:?}");
+        assert!(g.w.failed.lock().unwrap().is_none());
+        assert_eq!(g.finish(), [Told::New], "no pass on either rank");
+    }
+
+    /// `reset` takes the peer's handle down first. If it then fails on this rank (`cudaMalloc`; the old state is still held while the new
+    /// one is allocated), `remote` stays `None`: a later request would run its collectives alone, with the other rank never told.
+    #[test]
+    fn a_reset_that_fails_fails_the_group() {
+        let mut g = group();
+        g.faults.alloc_fails.store(true, Ordering::SeqCst);
+        g.w.after_failure(&Error::Other("structured output: the constraint allows no token here".into()));
+        assert!(g.w.failed.lock().unwrap().is_some(), "a healthy-looking engine with no way to the other rank");
+        g.finish();
+    }
+
+    /// An error between passes (nothing outstanding on either rank) still only replaces the sequences.
+    #[test]
+    fn an_error_between_passes_resets_both_ranks_and_keeps_the_group() {
+        let mut g = group();
+        g.w.after_failure(&Error::Other("structured output: the constraint allows no token here".into()));
+        assert!(g.w.failed.lock().unwrap().is_none());
+        assert_eq!(g.finish(), [Told::New, Told::New]);
+    }
+
+    /// A panic after a pass was sent: the other rank is parked, so it must hear nothing more, least of all a free; it leaves on the hang-up.
+    #[test]
+    fn an_engine_panic_after_a_pass_was_sent_fails_the_group_and_sends_no_free() {
+        let mut g = scripted(4, vec![1], false);
+        g.w.script.as_mut().unwrap().panic_on_forward = true;
+        let (jobs, rx) = channel();
+        let (tx, _events) = channel();
+        jobs.send(Job { req: GenRequest { prompt: vec![1; 4], max_tokens: 1, temperature: 1.0, ..Default::default() }, tx }).unwrap();
+        drop(jobs);
+        let failed = g.w.failed.clone();
+        engine_loop(&mut g.w, rx, &failed);
+        assert!(failed.lock().unwrap().as_deref().is_some_and(|m| m.contains("panicked: scripted panic")), "{failed:?}");
+        drop(g.w.remote.take()); // what dropping the worker does first
+        std::thread::sleep(Duration::from_millis(300)); // the far end would have read a free by now
+        let told = g.told.0.lock().unwrap().clone();
+        assert_eq!(told, [Told::New, Told::Forward], "the other rank was told to free a sequence while parked");
+        g.finish();
+    }
+
+    /// The same in the warm-up, on the loader's thread.
+    #[test]
+    fn a_panic_in_the_warm_up_fails_the_group_and_sends_no_free() {
+        let mut g = scripted(4, vec![1], false);
+        g.w.script.as_mut().unwrap().panic_on_forward = true;
+        let failed = g.w.failed.clone();
+        let e = warm_up(&mut g.w, 1, &failed).unwrap_err();
+        assert!(matches!(e, Error::Backend(_)) && e.to_string().contains("scripted panic"), "{e}");
+        assert!(failed.lock().unwrap().is_some());
+        drop(g.w.remote.take());
+        std::thread::sleep(Duration::from_millis(300));
+        assert_eq!(*g.told.0.lock().unwrap(), [Told::New, Told::Forward], "the other rank was told to free a sequence while parked");
+        g.finish();
+    }
+
+    /// In a child whose stderr is a pipe with no reader, where `eprintln!` panics.
+    #[test]
+    fn the_failure_route_survives_a_closed_stderr() {
+        const NAME: &str = "the_failure_route_survives_a_closed_stderr";
+        if std::env::var_os(CHILD).is_some() {
+            let mut g = group();
+            let mut fds = [0; 2];
+            unsafe {
+                assert_eq!(libc::pipe(fds.as_mut_ptr()), 0);
+                libc::close(fds[0]);
+                libc::dup2(fds[1], 2);
+            }
+            g.w.group_failed(&Error::backend("the group failed"));
+            let ok = g.w.failed.lock().unwrap().is_some() && g.w.remote.as_ref().unwrap().start_forward(&[1], false).is_err();
+            std::process::exit(if ok { RETURNED } else { 1 });
+        }
+        assert_eq!(child_code(NAME), Some(RETURNED));
+    }
+
+    // ------- second review: requests through the real `generate`, rank 0's passes scripted
+
+    fn scripted(plen: usize, reply: Vec<u32>, spec: bool) -> Group {
+        let mut g = group();
+        g.w.script = Some(Script { start: plen, reply, ..Default::default() });
+        if !spec {
+            g.w.spec = None;
+        }
+        g
+    }
+
+    /// (finish reason, completion tokens, stop sequence, cached tokens) of a reply that must have ended in `Done`.
+    fn done(ev: &[GenEvent]) -> (FinishReason, usize, Option<String>, usize) {
+        match ev.last() {
+            Some(GenEvent::Done { finish_reason, completion_tokens, stop_sequence, cached_tokens, .. }) => (*finish_reason, *completion_tokens, stop_sequence.clone(), *cached_tokens),
+            other => panic!("no Done: {other:?}"),
+        }
+    }
+
+    fn text(ev: &[GenEvent]) -> String {
+        ev.iter().filter_map(|e| if let GenEvent::Token { text, .. } = e { Some(text.as_str()) } else { None }).collect()
+    }
+
+    fn ask(g: &mut Group, plen: usize, max_tokens: usize, f: impl FnOnce(GenRequest) -> GenRequest) -> Vec<GenEvent> {
+        g.run(f(GenRequest { prompt: vec![1; plen], max_tokens, temperature: 1.0, ..Default::default() }))
+    }
+
+    /// A reply longer than `--watchdog-s` must count as progress, a prefill too: `Progress` only looks at `steps_total`.
+    #[test]
+    fn every_pass_ticks_the_watchdog_each_prefill_chunk_too() {
+        let mut g = scripted(20, vec![1, 2, 3, 4, 5], false);
+        done(&ask(&mut g, 20, 5, |r| r));
+        assert_eq!(g.w.telemetry.steps_total(), 3 + 4, "3 prefill chunks of 8, 8, 4 rows and 4 decode passes");
+        g.finish();
+        let mut g = scripted(4, vec![1, 2, 3, 4, 5, 6, 7, 8], true);
+        done(&ask(&mut g, 4, 8, |r| GenRequest { temperature: 0.0, ..r }));
+        let t = g.w.telemetry.steps_total();
+        let told = g.finish();
+        assert_eq!(t as usize, told.iter().filter(|t| **t != Told::New).count(), "drafting rounds and verify passes too: {told:?}");
+    }
+
+    /// 65000 tokens at the default chunk, on a device that takes 0.84 s a chunk: a group of a real `Want::Nothing` pass ticks for the enqueue only,
+    /// then blocks in the last chunk's read-back for 106 s, past the 60 s watchdog: exit 86. The wait bounds the time without a tick.
+    fn slow_prefill(cancel_at: Option<(f64, Arc<AtomicBool>)>) -> Group {
+        let mut g = scripted(65000, vec![1], false);
+        g.w.rt.opts.cap = 70000;
+        g.w.rt.opts.chunk = 512;
+        g.w.script.as_mut().unwrap().device = Some(VirtualDevice { s_per_row: 0.84 / 512.0, cancel_at, ..Default::default() });
+        g
+    }
+
+    #[test]
+    fn a_long_prefill_ticks_with_the_device_not_the_enqueue() {
+        let mut g = slow_prefill(None);
+        done(&ask(&mut g, 65000, 1, |r| r));
+        let d = g.w.script.as_ref().unwrap().device.as_ref().unwrap();
+        assert!(d.max_gap < 15.0, "{:.1} s without a tick against the 60 s watchdog", d.max_gap);
+        assert_eq!(d.waits, 15, "one wait per 4096 rows before the last chunk");
+        let (forwards, sizes) = (g.w.script.as_ref().unwrap().forwards, g.told.1.clone());
+        g.finish();
+        let told = sizes.lock().unwrap();
+        assert_eq!((forwards, told.len()), (127, 127), "the waits add no pass and send nothing to the other rank");
+        assert!(told[..126].iter().all(|n| *n == 512), "and leave the cuts alone");
+    }
+
+    /// A prefill chunk without its decoder half is a forward of its own on the wire (`FWD_ENCODER`): the other rank is told "encoder",
+    /// not "forward", and both ranks' sequences advance by the chunk. The decision itself (`skips_decoder_half`) needs the CUDA replay and
+    /// is tested in `dsv41::replay` (`decoder_dead`) and on the Sparks.
+    #[test]
+    fn an_encoder_only_chunk_is_told_to_the_other_rank_as_one() {
+        let mut g = group();
+        g.w.script = Some(Script::default());
+        g.w.forward_encoder(&[1, 2, 3]).unwrap();
+        g.w.forward(&[4, 5], false).unwrap();
+        assert_eq!(g.w.st.len, 5);
+        let sizes = g.told.1.clone();
+        assert_eq!(g.finish(), [Told::New, Told::Encoder, Told::Forward]);
+        assert_eq!(*sizes.lock().unwrap(), [3, 2], "the chunk's rows went to the other rank in order");
+    }
+
+    /// A cancel at 10 s of device time stops the prefill within one wait's rows of where the device was, not after the whole prompt.
+    #[test]
+    fn a_cancel_during_a_long_prefill_stops_near_where_the_device_is() {
+        let cancel = Arc::new(AtomicBool::new(false));
+        let mut g = slow_prefill(Some((10.0, cancel.clone())));
+        let ev = ask(&mut g, 65000, 1, |r| GenRequest { cancel: Some(cancel.clone()), ..r });
+        assert_eq!(done(&ev).0, FinishReason::Cancelled);
+        let at_cancel = (10.0 * 512.0 / 0.84) as usize;
+        assert!(g.w.st.len <= at_cancel + PREFILL_SYNC_ROWS, "{} rows queued, the device at about {at_cancel}", g.w.st.len);
+        g.finish();
+    }
+
+    /// The wait is on a stream the passes use, and on this rank alone.
+    #[test]
+    fn the_device_wait_blocks_on_stream_0() {
+        let faults = Arc::new(Faults::default());
+        let rt = Arc::new(runtime(&faults, &test_comm(0)));
+        faults.stream0_parked.store(true, Ordering::SeqCst);
+        let (tx, rx) = channel();
+        let r2 = rt.clone();
+        std::thread::spawn(move || tx.send(r2.device_wait()));
+        assert!(rx.recv_timeout(Duration::from_millis(500)).is_err(), "it did not wait for the stream");
+        faults.stream0_parked.store(false, Ordering::SeqCst);
+        rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+    }
+
+    #[test]
+    fn a_failed_device_wait_fails_the_group() {
+        let mut g = scripted(40, vec![1], false);
+        g.w.prefill_sync_rows = 16;
+        g.w.script.as_mut().unwrap().fail_wait = true;
+        let ev = ask(&mut g, 40, 1, |r| r);
+        assert!(matches!(ev.last(), Some(GenEvent::Error { .. })), "{ev:?}");
+        assert!(g.w.failed.lock().unwrap().is_some());
+        assert_eq!(g.finish(), [Told::New, Told::Forward, Told::Forward], "the two chunks before the wait, nothing after it");
+    }
+
+    /// The prompt goes as the same passes `Dsv41Runtime::forward` cuts, on both ranks: only the last one reads logits.
+    #[test]
+    fn a_prompt_is_cut_into_the_runtimes_chunks_and_only_the_last_reads_logits() {
+        for (plen, want) in [(20usize, vec![8usize, 8, 4]), (16, vec![8, 8]), (3, vec![3]), (9, vec![8, 1])] {
+            let mut g = scripted(plen, vec![1], false);
+            done(&ask(&mut g, plen, 1, |r| r));
+            let asked = g.w.script.as_ref().unwrap().logits_asked.clone();
+            let sizes = g.told.1.clone();
+            g.finish();
+            assert_eq!(*sizes.lock().unwrap(), want, "prompt of {plen}");
+            let last = want.len() - 1;
+            assert_eq!(asked, (0..want.len()).map(|i| i == last).collect::<Vec<_>>(), "prompt of {plen}");
+        }
+    }
+
+    #[test]
+    fn a_failed_request_closes_its_telemetry() {
+        let mut g = group();
+        g.w.fail_pass = Some(0);
+        let _ = g.run(req(1.0));
+        let s = g.w.telemetry.snapshot();
+        assert_eq!((s.running, s.waiting), (0, 0), "busy for ever: the watchdog calls an idle server stalled");
+        g.finish();
+    }
+
+    /// Cancelled while queued: no pass on either rank, and the sequence of the conversation before it is not cut for a prompt nobody waits for.
+    #[test]
+    fn a_request_cancelled_while_queued_touches_nothing() {
+        let mut g = scripted(20, vec![1], false);
+        done(&ask(&mut g, 20, 2, |r| r));
+        let held = g.w.st.tokens.clone();
+        let cancel = Arc::new(AtomicBool::new(true));
+        let ev = g.run(GenRequest { prompt: vec![9; 20], max_tokens: 5, temperature: 1.0, cancel: Some(cancel), ..Default::default() });
+        assert_eq!(done(&ev), (FinishReason::Cancelled, 0, None, 0));
+        assert_eq!(g.w.telemetry.snapshot().running, 0);
+        assert_eq!(g.w.st.tokens, held, "the cached sequence stays");
+        let sizes = g.told.1.clone();
+        g.finish();
+        assert_eq!(*sizes.lock().unwrap(), [8, 8, 4, 1], "the first request's passes only");
+    }
+
+    /// A cancel takes effect between two chunks: rank 1 was told exactly the chunks rank 0 ran, at the same length, and the next request goes on
+    /// from there. That is the message order only. The recorder has no collectives, so that they pair is for the Spark case `cancel` to show: ids
+    /// after a mid-prefill cancel equal to a cold run's.
+    #[test]
+    fn a_cancel_between_prefill_chunks_tells_both_ranks_the_same_chunks() {
+        let mut g = scripted(20, vec![1], false);
+        let cancel = Arc::new(AtomicBool::new(false));
+        g.w.script.as_mut().unwrap().cancel_after = Some((1, cancel.clone()));
+        let ev = ask(&mut g, 20, 5, |r| GenRequest { cancel: Some(cancel.clone()), ..r });
+        assert_eq!(done(&ev), (FinishReason::Cancelled, 0, None, 0));
+        assert_eq!(g.w.st.len, 8, "one chunk ran");
+        assert_eq!(g.w.remote.as_ref().unwrap().len, 8, "rank 1 answered that chunk at the same length");
+        assert!(g.w.failed.lock().unwrap().is_none());
+        assert_eq!(*g.told.1.lock().unwrap(), [8], "and was told no more");
+        g.w.script.as_mut().unwrap().cancel_after = None;
+        let again = ask(&mut g, 20, 1, |r| r);
+        assert_eq!(done(&again).3, 8, "the retry reuses the chunk");
+        assert_eq!(g.w.remote.as_ref().unwrap().len, 20);
+        let sizes = g.told.1.clone();
+        g.finish();
+        assert_eq!(*sizes.lock().unwrap(), [8, 8, 4], "the same cuts as a cold prefill");
+    }
+
+    /// The same prompt twice: the last token runs again, so the prefill is never empty (an empty one would read as a cancel).
+    #[test]
+    fn an_identical_prompt_runs_its_last_token_and_replies() {
+        let mut g = scripted(8, vec![1, 2, 3], false);
+        done(&ask(&mut g, 8, 1, |r| r));
+        let again = ask(&mut g, 8, 2, |r| r);
+        assert_eq!(done(&again), (FinishReason::Length, 2, None, 7));
+        g.finish();
+    }
+
+    /// As `engine.rs` (`stops.matched()`): a stop string over two tokens is reported, and the one that fired, not the first in the last token.
+    #[test]
+    fn the_stop_sequence_reported_is_the_one_that_fired() {
+        let mut g = scripted(4, vec![1, 2, 3], false);
+        let ev = ask(&mut g, 4, 3, |r| GenRequest { stop: vec!["t1 t2".into()], ..r });
+        assert_eq!(done(&ev).0, FinishReason::Stop);
+        assert_eq!(done(&ev).2.as_deref(), Some("t1 t2"), "spans two tokens");
+        g.finish();
+        let mut g = scripted(4, vec![1, 2, 3], false);
+        let ev = ask(&mut g, 4, 3, |r| GenRequest { stop: vec!["t2".into(), "t1 t2".into()], ..r });
+        assert_eq!(done(&ev).2.as_deref(), Some("t1 t2"), "starts first, though the other is first in the request and in the last token");
+        g.finish();
+    }
+
+    /// As `Seq::build`: `ignore_eos` drops the model's EOS ids from the stop set, not the request's `stop_ids`.
+    #[test]
+    fn ignore_eos_keeps_stop_ids() {
+        let mut g = scripted(4, vec![1, 2, 7, 3], false);
+        let ev = ask(&mut g, 4, 4, |r| GenRequest { ignore_eos: true, stop_ids: vec![7], ..r });
+        assert_eq!(done(&ev).0, FinishReason::Stop);
+        assert_eq!(done(&ev).1, 3);
+        assert!(!text(&ev).contains("t7"), "a stop id is not emitted: {:?}", text(&ev));
+        g.finish();
+        let mut g = scripted(4, vec![1, EOS, 2], false);
+        let ev = ask(&mut g, 4, 3, |r| GenRequest { ignore_eos: true, ..r });
+        assert_eq!(done(&ev).0, FinishReason::Length, "the model's EOS is not a stop");
+        g.finish();
+        let mut g = scripted(4, vec![1, EOS, 2], false);
+        assert_eq!(done(&ask(&mut g, 4, 3, |r| r)).0, FinishReason::Stop, "and without ignore_eos it is");
+        g.finish();
+    }
+
+    /// As `tests/min_tokens.rs`, `stop_strings_wait_for_min_tokens`: an early match is ignored, and the matcher starts at token `min_tokens + 1`.
+    #[test]
+    fn stop_strings_wait_for_min_tokens() {
+        let reply = vec![1, 2, 3, 4, 5, 6, 7, 8];
+        let mut g = scripted(4, reply.clone(), false);
+        let ev = ask(&mut g, 4, 8, |r| GenRequest { stop: vec!["t2".into()], ..r });
+        assert_eq!((done(&ev).0, done(&ev).1), (FinishReason::Stop, 2), "alone it stops at its first match");
+        g.finish();
+        let mut g = scripted(4, reply.clone(), false);
+        let ev = ask(&mut g, 4, 8, |r| GenRequest { min_tokens: 4, stop: vec!["t2".into()], ..r });
+        assert_eq!((done(&ev).0, done(&ev).1), (FinishReason::Length, 8), "the only match is inside the window");
+        assert!(text(&ev).contains("t2"), "{:?}", text(&ev));
+        g.finish();
+        let mut g = scripted(4, reply, false);
+        let ev = ask(&mut g, 4, 8, |r| GenRequest { min_tokens: 4, stop: vec!["t5".into()], ..r });
+        assert_eq!((done(&ev).0, done(&ev).1), (FinishReason::Stop, 5), "token min_tokens + 1 is checked");
+        g.finish();
+    }
+
+    /// As `Seq::admit`: `max_tokens.min(cap - prompt)`, finish reason length. A client's fixed 64000 is not an HTTP 500.
+    #[test]
+    fn max_tokens_is_clamped_to_the_room_left() {
+        for spec in [false, true] {
+            let mut g = scripted(CAP - 10, vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 14, 14], spec);
+            let ev = ask(&mut g, CAP - 10, 64000, |r| GenRequest { temperature: if spec { 0.0 } else { 1.0 }, ignore_eos: true, ..r });
+            assert_eq!((done(&ev).0, done(&ev).1), (FinishReason::Length, 10), "spec {spec}: {ev:?}");
+            g.finish();
+        }
+        let mut g = scripted(CAP, vec![1], false);
+        assert!(matches!(ask(&mut g, CAP, 1, |r| r).last(), Some(GenEvent::Error { .. })), "a prompt with no room is still refused");
+        g.finish();
+    }
+
+    /// The control flow of speculation against plain passes: the same reply, and the rows past its end out of the sequence.
+    #[test]
+    fn speculation_and_plain_passes_give_the_same_reply() {
+        let reply = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let run = |spec: bool, n: usize| {
+            let mut g = scripted(4, reply.clone(), spec);
+            let ev = ask(&mut g, 4, n, |r| GenRequest { temperature: 0.0, ..r });
+            let (t, len) = (text(&ev), g.w.st.len);
+            g.finish();
+            (t, len)
+        };
+        for n in [1, 2, 3, 6, 9] {
+            let (a, b) = (run(false, n), run(true, n));
+            assert_eq!(a, b, "{n} tokens");
+            assert_eq!(a.1, 4 + n - 1, "the last token is not in the sequence yet");
+        }
+    }
+
+    // ------- #1: rank 1 when the primary dies with work parked
+
+    const CHILD: &str = "INTARSIA_DSV41_FAILPATH_CHILD";
+    const RETURNED: i32 = 42;
+
+    /// Rank 1 in a child process, as `serve_rank` runs it: the real runtime in `serve_group`, a primary that creates its sequence
+    /// and disappears.
+    fn rank1_then_primary_gone(parked: bool) -> ! {
+        let faults = Arc::new(Faults::default());
+        let comm = test_comm(1);
+        let rt = runtime(&faults, &comm);
+        faults.stream0_parked.store(parked, Ordering::SeqCst);
+        let (near, far) = connected();
+        let primary = std::thread::spawn(move || {
+            let peer = RemotePeer::new(near, test_comm(0)).unwrap();
+            let seq = peer.new_state().unwrap();
+            std::thread::sleep(Duration::from_millis(200));
+            drop(seq);
+            drop(peer);
+        });
+        let r = serve_group(&rt, far, comm);
+        let _ = primary.join();
+        std::process::exit(if r.is_ok() { RETURNED } else { 1 })
+    }
+
+    fn child_code(name: &str) -> Option<i32> {
+        std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", &format!("dsv41_engine::failpath_tests::{name}"), "--nocapture"])
+            .env(CHILD, "1")
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .status()
+            .unwrap()
+            .code()
+    }
+
+    #[test]
+    fn rank_1_leaves_the_group_when_the_primary_is_gone_and_stream_0_is_parked() {
+        if std::env::var_os(CHILD).is_some() {
+            rank1_then_primary_gone(true);
+        }
+        let t0 = Instant::now();
+        assert_eq!(child_code("rank_1_leaves_the_group_when_the_primary_is_gone_and_stream_0_is_parked"), Some(EXIT_GROUP_FAILED), "the serving loop returned on a stream parked in a collective");
+        assert!(t0.elapsed() < Duration::from_secs(60), "{:?}", t0.elapsed());
+    }
+
+    #[test]
+    fn rank_1_exits_cleanly_when_the_primary_is_gone_and_its_work_finished() {
+        if std::env::var_os(CHILD).is_some() {
+            rank1_then_primary_gone(false);
+        }
+        assert_eq!(child_code("rank_1_exits_cleanly_when_the_primary_is_gone_and_its_work_finished"), Some(RETURNED), "a primary that exited is not a failure");
+    }
+
+    /// The drain is on stream 0, the only one a pass's collectives use; the fake parks that one alone.
+    #[test]
+    fn the_runtime_drains_stream_0() {
+        let faults = Arc::new(Faults::default());
+        let rt = runtime(&faults, &test_comm(1));
+        let drain = rt.drain().expect("the runtime's passes leave work queued");
+        faults.stream0_parked.store(true, Ordering::SeqCst);
+        let (tx, rx) = channel();
+        std::thread::spawn(move || tx.send(drain()));
+        assert!(rx.recv_timeout(Duration::from_millis(500)).is_err(), "the drain waited for a stream the passes do not use");
+        faults.stream0_parked.store(false, Ordering::SeqCst);
+        rx.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
     }
 }

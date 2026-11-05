@@ -1,0 +1,12 @@
+prompt             n_prompt   cont TF/on  leading    equal  identical
+count                    35    64/64       64/64    64/64   yes
+story                    39    64/64       11/64    11/64   NO
+code                     80    64/64       49/64    49/64   NO
+science                  76    64/64       64/64    64/64   yes
+chat_short               32    64/64        3/64     6/64   NO
+chat_system              55    64/64        9/64     9/64   NO
+chat_multiturn           91    64/64       50/64    50/64   NO
+chat_reasoning           99    64/64        8/64     9/64   NO
+long_prose_300          300    64/64       64/64    64/64   yes
+long_prose_700          700    64/64       64/64    64/64   yes
+TOTAL TF vs on: leading-match 386/640 (60.31%), equal positions 390/640 (60.94%), identical prompts 4/10; TF holds 640 continuation tokens

@@ -331,6 +331,9 @@ impl Default for Defaults {
 /// Prefill chunk used when neither the flag nor the recipe says otherwise.
 pub const DEFAULT_PREFILL_CHUNK: usize = 256;
 
+/// Period of the prefill tail peel when a recipe sets no `prefill_peel_period`: the default chunk ([`crate::scheduler::peel_tail`]).
+pub const DEFAULT_PEEL_PERIOD: usize = DEFAULT_PREFILL_CHUNK;
+
 /// Performance defaults a recipe may carry: `[tuning] prefill_chunk = N` for every backend, `[tuning.<backend>]`
 /// (`cpu`, `cuda`, `hip`) to override it for one. A backend without a table falls back to the base value. Same for
 /// `prefill_peel` ([`Recipe::resolve_prefill_peel`], [`crate::scheduler::peel_tail`]).
@@ -340,6 +343,8 @@ pub struct Tuning {
     /// Default of `--mtp-draft-vocab` for every backend (a multiple of 8; unset or 0: the full head). Measured defaults only.
     pub mtp_draft_vocab: Option<usize>,
     pub prefill_peel: Option<usize>,
+    /// Period of the tail peel in rows ([`Recipe::resolve_prefill_peel_period`]; unset: [`DEFAULT_PEEL_PERIOD`]).
+    pub prefill_peel_period: Option<usize>,
     /// Macro prefill pass size in rows ([`Recipe::resolve_prefill_macro`], `INTARSIA_PREFILL_MACRO`; unset or 0: off).
     pub prefill_macro: Option<usize>,
     #[serde(flatten)]
@@ -359,10 +364,13 @@ pub struct BackendTuning {
     pub prefill_chunk: Option<usize>,
     /// Default of `--mtp-draft-vocab` for this backend (see [`Tuning::mtp_draft_vocab`]).
     pub mtp_draft_vocab: Option<usize>,
-    /// Tail peel in rows (0 = off): a forward pass longer than [`DEFAULT_PREFILL_CHUNK`] rows whose length mod
-    /// [`DEFAULT_PREFILL_CHUNK`] is `1..=prefill_peel` runs those last rows as their own pass, as the default chunk
-    /// schedule would ([`crate::scheduler::peel_tail`]).
+    /// Tail peel in rows (0 = off): a forward pass longer than the peel period ([`DEFAULT_PEEL_PERIOD`] = 256 unless
+    /// `prefill_peel_period` is set) rows whose length mod the period is `1..=prefill_peel` runs those last rows as their own
+    /// pass, as the default chunk schedule would at period 256 ([`crate::scheduler::peel_tail`]).
     pub prefill_peel: Option<usize>,
+    /// Period of the tail peel in rows (at least 1, above `prefill_peel`; unset: [`DEFAULT_PEEL_PERIOD`]). Set it to a busy
+    /// chunk when the peel must cut only where that schedule ends a pass in a short tail (the 35B on Metal: 2048).
+    pub prefill_peel_period: Option<usize>,
     /// Macro prefill pass size in rows for this backend (see [`Tuning::prefill_macro`]).
     pub prefill_macro: Option<usize>,
     /// Prefill chunk in rows while other sequences are decoding (`serve --max-batch` > 1), for this backend ([`Recipe::resolve_busy_chunk`]);
@@ -481,6 +489,19 @@ impl Recipe {
             return (v, format!("recipe {family}, base"));
         }
         (0, "default".into())
+    }
+
+    /// Period of the prefill tail peel for `backend` ([`crate::scheduler::peel_tail`]): the recipe's value for that backend,
+    /// then its base value, then [`DEFAULT_PEEL_PERIOD`]. `(rows, source)`.
+    pub fn resolve_prefill_peel_period(&self, backend: &str) -> (usize, String) {
+        let family = &self.model.family;
+        if let Some(v) = self.tuning.backends.get(backend).and_then(|b| b.prefill_peel_period) {
+            return (v, format!("recipe {family}, {backend}"));
+        }
+        if let Some(v) = self.tuning.prefill_peel_period {
+            return (v, format!("recipe {family}, base"));
+        }
+        (DEFAULT_PEEL_PERIOD, "default".into())
     }
 }
 
@@ -627,15 +648,27 @@ impl Recipe {
         if dv.into_iter().any(|&n| n % 8 != 0) {
             return Err(Error::model("recipe [tuning] mtp_draft_vocab must be a multiple of 8 (0: the full head)"));
         }
-        let peels = self
-            .tuning
-            .prefill_peel
-            .iter()
-            .chain(self.tuning.backends.values().filter_map(|b| b.prefill_peel.as_ref()));
-        if peels.into_iter().any(|&p| p >= DEFAULT_PREFILL_CHUNK) {
-            return Err(Error::model(format!(
-                "recipe [tuning] prefill_peel must be below {DEFAULT_PREFILL_CHUNK} (rows of a tail)"
-            )));
+        // the peel must be below its period (the rows of a tail), and the period at least 1; checked per table, with the base
+        // value standing in for a backend table that sets only one of the two
+        let tables = std::iter::once(("[tuning]", self.tuning.prefill_peel, self.tuning.prefill_peel_period)).chain(
+            self.tuning.backends.iter().map(|(k, b)| (k.as_str(), b.prefill_peel, b.prefill_peel_period)),
+        );
+        for (name, peel, period) in tables {
+            let is_backend = name != "[tuning]";
+            if period == Some(0) {
+                return Err(Error::model("recipe [tuning] prefill_peel_period must be at least 1"));
+            }
+            let (peel_eff, period_eff) = if is_backend {
+                (peel.or(self.tuning.prefill_peel), period.or(self.tuning.prefill_peel_period))
+            } else {
+                (peel, period)
+            };
+            let period_eff = period_eff.unwrap_or(DEFAULT_PEEL_PERIOD);
+            if peel_eff.is_some_and(|p| p >= period_eff) {
+                return Err(Error::model(format!(
+                    "recipe [tuning] prefill_peel must be below its period {period_eff} (rows of a tail)"
+                )));
+            }
         }
         if self.tuning.backends.values().any(|b| b.busy_chunk == Some(0)) {
             return Err(Error::model("recipe [tuning.<backend>] busy_chunk must be at least 1"));
