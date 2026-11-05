@@ -2408,8 +2408,8 @@ mod failpath_tests {
             }
             c
         };
-        // 5 positions, family alpha 0.01: each test at 0.002. Power: 6000 draws over 14 degrees of freedom detect Cohen's w = 0.08 with
-        // power 0.8 at this alpha (noncentral chi-square, computed outside: see docs/results/2026-11-05-dsv41-sampled-spec.md).
+        // 5 positions, family alpha 0.01: each test at 0.002. Power (noncentral chi-square, computed outside, see
+        // docs/results/2026-11-05-dsv41-sampled-spec.md): 6000 draws detect Cohen's w = 0.063 (6 degrees of freedom) to 0.071 (14) with power 0.8.
         let alpha = 0.002;
         for cons in [false, true] {
             let (on, off) = (count(true, 1.0, 1_000_000, cons), count(false, 1.0, 1, cons));
