@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Lane dsv41/prefill3: per-kernel-class GPU time per request, ours against TensorFold, from two nsys cuda_gpu_trace CSVs of rank 0.
 
-Usage: classes.py ours=TRACE.csv tf=TRACE.csv [--prompts 1034,4106] [--top 25]
+Usage: classes.py ours=TRACE.csv tf=TRACE.csv [--prompts 1034,4106]
+A trace that holds one prompt only: ENGINE=TRACE.csv|4106 (all its requests are that prompt; it appears in that prompt's table only).
 
 Requests are split at idle gaps of >= 1 s and alternate over --prompts (token counts), as in 2026-11-02-dsv41-prefill/class_table.py.
 Time per class is "excl" (prefill_table.excl_times: the kernel that started last among those running gets the wall time, so PDL waits
@@ -97,28 +98,35 @@ def tabulate(path, rules, prompts):
 def main():
     args = [a for a in sys.argv[1:] if "=" in a and not a.startswith("--")]
     prompts = [int(x) for x in (sys.argv[sys.argv.index("--prompts") + 1] if "--prompts" in sys.argv else "1034,4106").split(",")]
-    res = {}
+    res, only = {}, {}
     for a in args:
         eng, path = a.split("=", 1)
-        res[eng] = tabulate(path, OURS if eng.startswith("ours") else TF, prompts)
+        if "|" in path:
+            path, one = path.split("|", 1)
+            only[eng] = int(one)
+            res[eng] = tabulate(path, OURS if eng.startswith("ours") else TF, [int(one)])
+        else:
+            res[eng] = tabulate(path, OURS if eng.startswith("ours") else TF, prompts)
     engs = list(res)
     for pi, p in enumerate(prompts):
+        shown = [e for e in engs if only.get(e, p) == p]
         print(f"\n### {p}-token prompt, rank 0, median of requests; ms per request (launches per request)")
-        print(f"{'class':50s} " + " ".join(f"{e:>18s}" for e in engs) + ("   ratio" if len(engs) == 2 else "") + ("   gap ms" if len(engs) == 2 else ""))
+        print(f"{'class':50s} " + " ".join(f"{e:>18s}" for e in shown) + ("   ratio" if len(shown) == 2 else "") + ("   gap ms" if len(shown) == 2 else ""))
         for c in ORDER + ["GPU busy (sum)"]:
             cells, vals = [], []
-            for e in engs:
+            for e in shown:
                 per, cnt, busy, _ = res[e]
+                pi_e = 0 if e in only else pi
                 if c == "GPU busy (sum)":
-                    v = st.median(busy[pi]) if busy[pi] else 0.0
+                    v = st.median(busy[pi_e]) if busy[pi_e] else 0.0
                     cells.append(f"{v:18.1f}")
                 else:
-                    v = st.median(per[pi][c]) if per[pi][c] else 0.0
-                    n = int(st.median(cnt[pi][c])) if cnt[pi][c] else 0
+                    v = st.median(per[pi_e][c]) if per[pi_e][c] else 0.0
+                    n = int(st.median(cnt[pi_e][c])) if cnt[pi_e][c] else 0
                     cells.append(f"{v:10.1f} ({n:5d})".rjust(18))
                 vals.append(v)
             tail = ""
-            if len(engs) == 2:
+            if len(shown) == 2:
                 tail = f"  {vals[0] / vals[1]:5.2f}x  {vals[0] - vals[1]:8.1f}" if vals[1] > 0.05 else f"  {'-':>6s}  {vals[0] - vals[1]:8.1f}"
             if max(vals) > 0.05:
                 print(f"{c:50s} " + " ".join(cells) + tail)
