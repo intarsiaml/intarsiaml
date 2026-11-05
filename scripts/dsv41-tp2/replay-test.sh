@@ -35,7 +35,7 @@
 # Knobs (environment): SPARK_DIR (default ~/intarsia-dsv41-replay on the Sparks), NO_BUILD=1 (binaries already in place),
 #   CAP (66000), Q_SHARDS (frozen shards to run, default all 9 = 180 items; e.g. "s32-00 s65-00" for a pilot), Q_CHUNK (512),
 #   Q_TOKENS (400, max_tokens of the quality replies), S3_CHUNKS ("512 2048"), S3_SIZES (4096,32768), S3_REPS (2), KILL_GIB (5),
-#   GATE_CHUNKS ("512 2048"; step 3), ALIVE_TRIES (4 ssh tries before a rank counts as unreachable),
+#   GATE_CHUNKS ("512 2048"; step 3), ALIVE_TRIES (4 ssh tries before a host counts as unreachable; an unreachable host never stops the ranks),
 #   EARLYOOM_OK ("3,2 2,1"), XENV (extra engine env, both ranks),
 #   RAW (results folder), TF_IDS (TensorFold token file for step 5), MAIN_REF (the baseline commit for step 2), MAIN_WT (checkout of it, built for step 2),
 #   Q2RAW / QDIR (manifest + sha256 and the shards of the frozen chunk32k-2 set, step 6; the shards are gitignored: regenerate with
@@ -378,12 +378,20 @@ alive() {
   return 2
 }
 RANK0_PAT="[i]${SPARK_REL:1}/bin/intarsia[^ ]* serve"; RANK1_PAT="[i]${SPARK_REL:1}/bin/intarsia[^ ]* tp-worker"
-# ranks_alive: both ranks run (0), or one is gone / the host was unreachable for ALIVE_TRIES tries in a row (1)
-ranks_alive() { alive spark1 "$RANK0_PAT" && alive spark2 "$RANK1_PAT"; }
+# ranks_alive: both ranks run (0), a host answered that its rank is gone (1), or a host could not be asked and no rank is known gone (2).
+# 2 says nothing about the ranks: an ssh drop from this Mac once stopped two healthy ranks (#8476, 2026-11-05)
+ranks_alive() {
+  local a=0 b=0
+  alive spark1 "$RANK0_PAT" || a=$?
+  alive spark2 "$RANK1_PAT" || b=$?
+  (( a == 1 || b == 1 )) && return 1
+  (( a == 2 || b == 2 )) && return 2
+  return 0
+}
 # bgrun MAX_SECONDS LOGFILE cmd...: run in the background and poll every 15 s (no single wait is long): stops at MAX_SECONDS, at the
-# step deadline, or (WATCH_RANKS=1) when a rank has died. Output goes to LOGFILE; its tail to the steps log. Returns the command's status.
+# step deadline, or (WATCH_RANKS=1) when a host says its rank has died; an unreachable host only logs. Output goes to LOGFILE; its tail to the steps log. Returns the command's status.
 bgrun() {
-  local max=$1 lf=$2 t0 rc; shift 2; t0=$(date +%s)
+  local max=$1 lf=$2 t0 rc ra; shift 2; t0=$(date +%s)
   ( "$@" ) > "$lf" 2>&1 < /dev/null &
   BGPID=$!
   while kill -0 "$BGPID" 2>/dev/null; do
@@ -391,7 +399,11 @@ bgrun() {
     kill -0 "$BGPID" 2>/dev/null || break
     if (( $(date +%s) - t0 > max )); then killtree "$BGPID"; log "timeout after ${max}s: $*"; tail -n 15 "$lf" | tee -a "$LOG"; BGPID=""; return 124; fi
     if (( $(date +%s) > STEP_DEADLINE )); then killtree "$BGPID"; log "step deadline passed: $*"; BGPID=""; return 124; fi
-    if [[ ${WATCH_RANKS:-0} == 1 ]] && ! ranks_alive; then killtree "$BGPID"; log "a rank died during: $*"; tail -n 15 "$lf" | tee -a "$LOG"; BGPID=""; return 125; fi
+    if [[ ${WATCH_RANKS:-0} == 1 ]]; then
+      ra=0; ranks_alive || ra=$?
+      if (( ra == 1 )); then killtree "$BGPID"; log "a rank died during: $*"; tail -n 15 "$lf" | tee -a "$LOG"; BGPID=""; return 125; fi
+      (( ra == 2 )) && log "a host is unreachable, ranks left running, still watching: $*"
+    fi
   done
   wait "$BGPID"; rc=$?; BGPID=""
   tail -n "${BG_TAIL:-40}" "$lf" | tee -a "$LOG"
@@ -459,7 +471,7 @@ vllm_down() {
 # ---- engine: start_ranks BIN CHUNK MODE (off|on|main|default). The SAME env string goes to both ranks; INTARSIA_DSV41_REPLAY is
 # removed first (env -u) so an inherited value never leaks, then set to 1 for on, 0 for off and main, and left unset for default.
 start_ranks() {
-  local bin=$1 chunk=$2 mode=$3 renv t0 up=0
+  local bin=$1 chunk=$2 mode=$3 renv t0 up=0 ra
   renv="INTARSIA_TP_SPIN_MS=${TP_SPIN_MS:-100} INTARSIA_DSV41_CAP=$CAP INTARSIA_DSV41_CHUNK=$chunk INTARSIA_DSV41_ENGRAM=\$HOME/dsv41-engram INTARSIA_DSV41_ENGRAM_HOT_MB=${HOT_MB:-1024} RUST_BACKTRACE=1 ${XENV:-} ${SRV_ENV:-}"
   case $mode in on) renv="$renv INTARSIA_DSV41_REPLAY=1" ;; off|main) renv="$renv INTARSIA_DSV41_REPLAY=0" ;; esac
   TAG=$(date +%H%M%S)
@@ -470,8 +482,10 @@ start_ranks() {
   t0=$(date +%s)
   while (( $(date +%s) - t0 < 900 )); do
     curl -sf -m 5 "$SURL/health" >/dev/null && { up=1; break; }
-    alive spark1 "$RANK0_PAT" || { log "rank 0 exited or spark1 unreachable"; break; }
-    alive spark2 "$RANK1_PAT" || { log "rank 1 exited or spark2 unreachable"; break; }
+    ra=0; alive spark1 "$RANK0_PAT" || ra=$?
+    (( ra == 1 )) && { log "rank 0 exited"; break; }
+    ra=0; alive spark2 "$RANK1_PAT" || ra=$?
+    (( ra == 1 )) && { log "rank 1 exited"; break; }
     sleep 5
   done
   log "serve up=$up after $(( $(date +%s) - t0 )) s"
