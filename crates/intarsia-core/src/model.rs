@@ -1843,6 +1843,11 @@ impl Model {
         Ok(b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
     }
 
+    /// Rows one pass of the workspace holds.
+    pub fn ws_rows(&self) -> usize {
+        self.ws.max_tokens
+    }
+
     /// Lane bm phase B: the verify passes of several sequences as ONE pass over the weights. `ids[i]` (1 to [`Model::verify_rows`]
     /// tokens, `[next, drafts...]`) is fed to `states[i]` at its current length; returns each sequence's greedy token per row, and
     /// leaves every state exactly as its own [`Model::forward_verify`] would (rows committed, the recurrent state after every row

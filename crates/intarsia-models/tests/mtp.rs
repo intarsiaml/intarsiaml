@@ -1675,6 +1675,7 @@ fn batched_mtp(
     mtp_max_b: usize,
     script: Option<DraftScript>,
     pack: bool,
+    verify: bool,
 ) -> (intarsia_core::BatchedEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let (recipe, dims) = dims();
@@ -1692,6 +1693,7 @@ fn batched_mtp(
     o.spec_off_at = rows + 1;
     o.pack_prefill = Some(pack);
     o.pack_half = false;
+    o.batched_verify = verify;
     // every request is queued before the first iteration admits anything, so the sequences decode side by side
     o.hold_start = true;
     let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k }, ..Default::default() };
@@ -1735,9 +1737,14 @@ fn mixed_reqs(n: usize, lens: &[usize], seed: u64) -> Vec<GenRequest> {
 /// Run `reqs` on the spec-off solo engine and on the batched-MTP engine (all submitted at once) and compare every sequence's
 /// greedy ids, finish reason and counts. Returns the batched run's telemetry.
 fn check_batched_mtp(w: &MemWeights, reqs: Vec<GenRequest>, chunk: usize, rows: usize, k: usize, mtp_max_b: usize, script: Option<DraftScript>, pack: bool) -> intarsia_core::TelemetrySnapshot {
+    check_batched_mtp_v(w, reqs, chunk, rows, k, mtp_max_b, script, pack, false)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_batched_mtp_v(w: &MemWeights, reqs: Vec<GenRequest>, chunk: usize, rows: usize, k: usize, mtp_max_b: usize, script: Option<DraftScript>, pack: bool, verify: bool) -> intarsia_core::TelemetrySnapshot {
     let off = solo_off(w, chunk);
     let want: Vec<Out> = reqs.iter().map(|r| run(&off, r.clone())).collect();
-    let (eng, tel) = batched_mtp(w, chunk, rows, k, mtp_max_b, script, pack);
+    let (eng, tel) = batched_mtp(w, chunk, rows, k, mtp_max_b, script, pack, verify);
     let rxs: Vec<_> = reqs.into_iter().map(|r| eng.submit(r).unwrap()).collect();
     eng.release();
     for (i, (rx, w)) in rxs.iter().zip(&want).enumerate() {
@@ -1746,10 +1753,14 @@ fn check_batched_mtp(w: &MemWeights, reqs: Vec<GenRequest>, chunk: usize, rows: 
     }
     let m = eng.metrics();
     assert!(!pack || m.pack_passes > 0, "nothing was packed: {m:?}");
+    assert!(!verify || m.verify_hist[2..].iter().sum::<u64>() > 0, "no batched verify pass of several sequences: {m:?}");
     eprintln!(
-        "rows {rows} k {k} B<={mtp_max_b} pack {pack}: decode steps {}, batch hist {:?}, packed passes {}; spec passes {}, drafted {}, accepted {}",
+        "rows {rows} k {k} B<={mtp_max_b} pack {pack} batched verify {verify}: decode steps {}, batch hist {:?}, verify passes {} ({} rows, by sequences {:?}), packed passes {}; spec passes {}, drafted {}, accepted {}",
         m.decode_steps,
         m.batch_hist,
+        m.verify_steps,
+        m.verify_rows,
+        &m.verify_hist[..5],
         m.pack_passes,
         tel.snapshot().spec_steps,
         tel.snapshot().spec_proposed,
@@ -1898,4 +1909,22 @@ fn batched_verify_pass_equals_each_sequences_solo_verify() {
         assert!(a.iter().zip(&b).all(|(x, y)| x.to_bits() == y.to_bits()), "seq {i}: a later decode step is bitwise the solo state's");
     }
     eprintln!("batched verify: {accepted} of {proposed} drafts accepted over 24 rounds");
+}
+
+/// Lane bm phase B on the engine: the drafting sequences of a step verify in ONE ragged pass (`BatchedOptions::batched_verify`);
+/// interleaved sequences of different lengths, per-sequence accept / reject patterns, k = 1..3, the plain/draft switch and slot
+/// reuse, and every sequence still equals its solo spec-off run.
+#[test]
+fn batched_verify_engine_equals_solo() {
+    let w = weights(11);
+    let reqs = mixed_reqs(4, &[13, 6, 21, 30], 900);
+    let truth = truth_of(&w, &reqs, 16);
+    for k in 1..=3 {
+        let t = check_batched_mtp_v(&w, reqs.clone(), 16, 4, k, 4, Some(scripted(truth.clone(), 31 + k as u64)), false, true);
+        assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: drafts accepted and rejected ({t:?})");
+    }
+    let reqs = mixed_reqs(6, &[13, 6, 21, 30, 9, 17], 950);
+    let truth = truth_of(&w, &reqs, 16);
+    let t = check_batched_mtp_v(&w, reqs, 16, 4, 2, 2, Some(scripted(truth, 77)), false, true);
+    assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "drafts accepted and rejected ({t:?})");
 }
