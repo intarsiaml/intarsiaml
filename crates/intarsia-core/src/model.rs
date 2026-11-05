@@ -2374,16 +2374,13 @@ impl Model {
             if ids.len() < Self::PACK_MIN_ROWS {
                 return Err(Error::invalid(format!("a packed segment has {} rows (at least {})", ids.len(), Self::PACK_MIN_ROWS)));
             }
-            if st.mtp.is_some() {
-                return Err(Error::Unsupported("packed prefill of a state with an MTP head".into()));
-            }
             all.extend_from_slice(ids);
         }
         for (st, _) in items.iter_mut() {
             st.spec_rows.saved = 0;
         }
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
-        {
+        let hn = {
             let mut lo = 0;
             let segs: Vec<Seg<'_>> = items
                 .iter()
@@ -2405,12 +2402,26 @@ impl Model {
             if split {
                 *self.macro_ctx.lock().unwrap() = None;
             }
-            r?;
-        }
+            r?
+        };
         for (st, ids) in items.iter_mut() {
             st.commit(ids);
         }
         self.telemetry.step();
+        if self.mtp.is_some() {
+            // lane bm (batched MTP): each prompt's MTP head takes its rows and catches up, as after a solo prefill chunk
+            let mut lo = 0;
+            let segs: Vec<(usize, usize)> = items
+                .iter()
+                .map(|(_, ids)| {
+                    let s = (lo, ids.len());
+                    lo += ids.len();
+                    s
+                })
+                .collect();
+            let mut sts: Vec<&mut SequenceState> = items.iter_mut().map(|(st, _)| &mut **st).collect();
+            self.mtp_after_rows(&mut sts, &hn, &segs, true, profile)?;
+        }
         Ok(())
     }
 

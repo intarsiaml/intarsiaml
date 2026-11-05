@@ -34,6 +34,18 @@ use crate::telemetry::{Telemetry, TelemetrySnapshot};
 /// Prefill chunk used while other sequences decode (design 8.1: 256 while others decode, the model's chunk alone).
 pub const BUSY_PREFILL_CHUNK: usize = 256;
 
+/// `INTARSIA_BATCHED_MTP=N` (lane bm, opt-in): `--spec mtp` with `--max-batch` > 1, drafting while at most `N` sequences decode
+/// ([`BatchedOptions::mtp_max_b`]). Unset, empty or `0`: off (`--spec mtp` stays refused with the batching engine).
+pub fn batched_mtp_env() -> Result<usize> {
+    match std::env::var("INTARSIA_BATCHED_MTP") {
+        Err(_) => Ok(0),
+        Ok(v) if v.is_empty() => Ok(0),
+        Ok(v) => v.parse::<usize>().ok().filter(|&n| n <= MAX_BATCH_CAP).ok_or_else(|| {
+            Error::invalid(format!("INTARSIA_BATCHED_MTP={v}: a sequence count 0..={MAX_BATCH_CAP} (draft while at most that many decode)"))
+        }),
+    }
+}
+
 /// Knobs of [`BatchedEngine::new`].
 #[derive(Clone, Debug)]
 pub struct BatchedOptions {
@@ -70,6 +82,9 @@ pub struct BatchedOptions {
     /// A packed pass takes at most half of the waiting prompts (default on, `INTARSIA_PACK_HALF=0` off); see
     /// [`SchedulerConfig::pack_half`].
     pub pack_half: bool,
+    /// Batched MTP speculation (lane bm, opt-in, [`batched_mtp_env`]): `--spec mtp` drafts while at most this many sequences
+    /// decode (and `spec_off_at` allows it); wider steps run plain batched decode. 0: `--spec mtp` is refused here (the default).
+    pub mtp_max_b: usize,
     /// Tests only: start the scheduler thread held, so that a whole workload is submitted before its first iteration admits
     /// anything (see [`BatchedEngine::release`]). Always false from [`BatchedOptions::new`].
     #[doc(hidden)]
@@ -113,6 +128,7 @@ impl BatchedOptions {
             pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").ok().map(|v| v == "1"),
             pack_rows: std::env::var("INTARSIA_PACK_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(PACK_ROWS_DEFAULT),
             pack_half: std::env::var("INTARSIA_PACK_HALF").map(|v| v != "0").unwrap_or(true),
+            mtp_max_b: 0,
             hold_start: false,
         }
     }
@@ -556,8 +572,14 @@ impl BatchedEngine {
                 opts.max_batch
             )));
         }
-        if meta.spec.mode == crate::spec::SpecMode::Mtp {
-            return Err(Error::Unsupported("--spec mtp with the batching engine (use --max-batch 1)".into()));
+        let mtp = meta.spec.mode == crate::spec::SpecMode::Mtp;
+        if mtp && opts.mtp_max_b == 0 {
+            return Err(Error::Unsupported(
+                "--spec mtp with the batching engine (use --max-batch 1, or opt in with INTARSIA_BATCHED_MTP=N)".into(),
+            ));
+        }
+        if mtp && !model.has_mtp() {
+            return Err(Error::invalid("--spec mtp needs the model loaded with its MTP head (LoadOptions::mtp)"));
         }
         if meta.spec.enabled() && model.verify_rows() < meta.spec.verify_rows() {
             return Err(Error::invalid(format!(
@@ -578,7 +600,8 @@ impl BatchedEngine {
             if !model.recurrent_batch() {
                 return Err(Error::Unsupported("continuous batching on a model with recurrent state".into()));
             }
-            if meta.spec.enabled() {
+            // batched MTP rolls a sequence's recurrent state back through its verify pass's per-row copies (lane bm)
+            if meta.spec.enabled() && !mtp {
                 return Err(Error::Unsupported(
                     "speculative decoding on a model with recurrent state needs the single-sequence engine (--max-batch 1)".into(),
                 ));
@@ -601,6 +624,13 @@ impl BatchedEngine {
         let mut cfg = opts.scheduler_config(solo_chunk);
         if opts.pack_prefill.is_none() {
             cfg.pack_prefill = model.backend.pack_prefill_default();
+        }
+        if mtp {
+            // lane bm: the per-step choice. A sequence drafts (its own draft and verify pass on its slot, `Seq::prepare`) only while
+            // at most `mtp_max_b` sequences decode; a wider step is plain batched decode, which only queues the heads' rows
+            cfg.spec_off_at = cfg.spec_off_at.min(opts.mtp_max_b + 1);
+            // a reused prefix would need the head's cache to cover it: every request starts its slot empty (which also syncs the head)
+            cfg.prefix_reuse = false;
         }
         if recurrent && model.batch_snapshots() == 0 {
             // the prefix store stays at batch 1 on this backend: a recurrent slot cannot be rewound, so no slot is a reuse

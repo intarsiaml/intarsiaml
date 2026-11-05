@@ -533,9 +533,13 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             )));
         }
         // MTP drafting and the prefix store stay at one sequence (needs per-row hidden outputs and k x 63 MB of spec rows per
-        // sequence): refuse before the weights are read, not after
-        if matches!(opts.spec.mode, intarsia_core::spec::SpecMode::Mtp | intarsia_core::spec::SpecMode::Auto) {
-            return Err(Error::Unsupported("--spec mtp/auto with the batching engine (use --max-batch 1)".into()));
+        // sequence): refuse before the weights are read, not after. Lane bm: `INTARSIA_BATCHED_MTP=N` (opt-in) lets `--spec mtp`
+        // batch on one rank, each sequence drafting while at most N decode.
+        let batched_mtp = intarsia_core::engine::batched_mtp_env()? > 0 && backends.len() == 1 && local;
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Auto || (opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && !batched_mtp) {
+            return Err(Error::Unsupported(
+                "--spec mtp/auto with the batching engine (use --max-batch 1; INTARSIA_BATCHED_MTP=N opts --spec mtp in at --tp 1)".into(),
+            ));
         }
     }
     // `--spec dflash`: the draft checkpoint, read and checked before the target's weights
@@ -747,6 +751,14 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         let mut bo = intarsia_core::BatchedOptions::new(max_batch.value, queue);
         if let Some(n) = opts.spec_off_at {
             bo.spec_off_at = n;
+        }
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp {
+            bo.mtp_max_b = intarsia_core::engine::batched_mtp_env()?;
+            eprintln!(
+                "batched MTP (INTARSIA_BATCHED_MTP={}): a sequence drafts while at most {} sequences decode",
+                bo.mtp_max_b,
+                bo.mtp_max_b.min(bo.spec_off_at.saturating_sub(1))
+            );
         }
         if let Some(n) = opts.busy_chunk {
             bo.busy_chunk = n;
