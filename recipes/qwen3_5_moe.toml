@@ -97,10 +97,19 @@ mtp_default_k = 2
 # a request whose prefill starts while a stream decodes and `prefill_chunk` otherwise (crates/intarsia-core/src/scheduler.rs,
 # `prefill_plan`: `n_decoding > 0`, chosen on the request's first chunk), so a neighbour's worst step stays the ~0.4 s it was at 2048 rows instead of ~0.7 s.
 # Single-stream and idle-server prefill keep 4096. The 35B's prefill is chunk-invariant bitwise on Metal
-# (docs/results/2026-10-29-chunk4k-metal.md), unlike CUDA where a smaller busy chunk moves the KL.
+# (docs/results/2026-10-29-chunk4k-metal.md) except for a tail of 1..8 body rows past 2048 (prompt length mod 4096 in 2050..2057): see the peel below.
+# On CUDA a smaller busy chunk moves the KL.
 [tuning.metal]
 prefill_chunk = 4096
 busy_chunk = 2048
+# Tail peel 8, period 2048: a prefill pass of M <= 8 rows runs the GEMV kernels, a longer one the NAX GEMM, with other bits. The 2048-row busy schedule ends a prompt
+# whose length mod 4096 is 2050..2057 in such a pass ([2048, 2..9]); the 4096 chunk ran those rows inside its big pass, so the stream depended on what else ran.
+# The peel gives both schedules the same short pass. 8 is the boundary: a tail of 10 or more is already bitwise a longer pass. The period is the busy chunk, so the
+# peel cuts a pass of more than 2048 rows whose length mod 2048 is 1..8 and nothing else (the default period 256 would also split every prompt whose length mod 256
+# is 2..9 above 256 tokens, where solo and busy already agree: 120 of 4096 lengths change bits for 8 exposed). Keep the period equal to `busy_chunk`; a pass of 2048 rows
+# or fewer is never cut (docs/results/2026-11-04-m35-peel-period.md).
+prefill_peel = 8
+prefill_peel_period = 2048
 
 # 4096 on HIP: every MoE layer reads all 256 experts once per chunk, so at 256 tokens a 4k prompt re-reads the expert weights 16
 # times. 35B prefill on one R9700 at 128 / 1024 / 4096 tokens goes 1254 / 2112 / 2033 tok/s (256) to 1231 / 3094 / 3585 (4096), 3058

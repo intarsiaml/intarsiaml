@@ -1,0 +1,11 @@
+35B on main, recipe copy with busy_chunk = 4096 (= the solo chunk), 256 greedy ids; main = the shipped recipe (busy 2048)
+plen | busy4096 solo == busy4096 behind | busy4096 solo == main solo | busy4096 behind == main solo | main solo == main behind
+  258 | True | True | True | True
+ 1028 | True | True | True | True
+ 2050 | True | True | True | False
+ 2052 | True | True | True | False
+ 2056 | True | True | True | False
+ 2057 | True | True | True | False
+ 2058 | True | True | True | True
+ 6146 | True | True | True | False
+ 6153 | True | True | True | False

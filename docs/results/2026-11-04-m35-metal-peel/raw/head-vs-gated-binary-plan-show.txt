@@ -1,0 +1,6 @@
+plan show head vs gated peel binary Qwen3.6-35B-A3B-NVFP4 : identical
+plan show head vs gated peel binary Qwen3.6-35B-A3B-NVFP4 --json: identical
+plan show head vs gated peel binary Qwen3-8B : identical
+plan show head vs gated peel binary Qwen3-8B --json: identical
+plan show head vs gated peel binary Qwen3.8-27B-Quark-AWQ-MXFP4 : identical
+plan show head vs gated peel binary Qwen3.8-27B-Quark-AWQ-MXFP4 --json: identical

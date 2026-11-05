@@ -436,18 +436,33 @@ pub fn parse_peel(v: Option<&str>) -> Result<Option<usize>> {
     }
 }
 
-/// Prefill tail peel (`peel` rows, 0 = off = `n`): a forward pass of `n` rows, longer than the default chunk
-/// ([`crate::recipe::DEFAULT_PREFILL_CHUNK`], 256), whose length mod 256 is `1..=peel`, runs its first `n - n % 256` rows
-/// first and its last `n % 256` rows as their own pass. The default chunk schedule cuts a pass at the same rows (a pass
-/// at a larger chunk starts where a 256-row pass would and is cut into 256-row passes plus that remainder), so the
-/// short tail runs with exactly the row count, and so the small-row kernels (HIP: the MXFP4 GEMV at <= 8 rows, split-KV
-/// attention at <= 16), that the default schedule runs it with. Passes of more rows take the same kernels at either size
-/// where every kernel is row-invariant above `peel` rows (HIP 27B with peel 16, docs/results/2026-10-25-mx-hip-27b-prefill.md
-/// section 4): with the peel a larger chunk gives the bits of the default one. Returns the rows of the first pass.
-pub fn peel_tail(n: usize, peel: usize) -> usize {
-    let r = crate::recipe::DEFAULT_PREFILL_CHUNK;
-    let t = n % r;
-    if peel > 0 && n > r && t >= 1 && t <= peel {
+/// Env knob: `INTARSIA_PREFILL_PEEL_PERIOD=<rows>` overrides the recipe's `prefill_peel_period` (unset / empty: the recipe).
+pub const PEEL_PERIOD_ENV: &str = "INTARSIA_PREFILL_PEEL_PERIOD";
+
+/// Parse [`PEEL_PERIOD_ENV`]: `None` / empty = not set (the recipe decides), a row count of at least 1 otherwise.
+pub fn parse_peel_period(v: Option<&str>) -> Result<Option<usize>> {
+    match v.map(str::trim) {
+        None | Some("") => Ok(None),
+        Some(s) => match s.parse::<usize>() {
+            Ok(n) if n >= 1 => Ok(Some(n)),
+            _ => Err(Error::invalid(format!("{PEEL_PERIOD_ENV}={s} (a row count of at least 1)"))),
+        },
+    }
+}
+
+/// Prefill tail peel (`peel` rows, 0 = off = `n`, `period` rows, [`crate::recipe::DEFAULT_PEEL_PERIOD`] = 256 unless a recipe
+/// says otherwise): a forward pass of `n` rows, longer than `period`, whose length mod `period` is `1..=peel`, runs its first
+/// `n - n % period` rows first and its last `n % period` rows as their own pass. At the default period 256 that is where
+/// the default chunk schedule cuts a pass (a pass at a larger chunk starts where a 256-row pass would and is cut into 256-row
+/// passes plus that remainder), so the short tail runs with exactly the row count, and so the small-row kernels (HIP: the MXFP4
+/// GEMV at <= 8 rows, split-KV attention at <= 16), that the default schedule runs it with. Passes of more rows take the same
+/// kernels at either size where every kernel is row-invariant above `peel` rows (HIP 27B with peel 16,
+/// docs/results/2026-10-25-mx-hip-27b-prefill.md section 4): with the peel a larger chunk gives the bits of the default one.
+/// A period equal to a busy chunk (the 35B on Metal: 2048) makes the peel cut only where that schedule ends a pass in a short
+/// tail, and nowhere else. Returns the rows of the first pass.
+pub fn peel_tail(n: usize, peel: usize, period: usize) -> usize {
+    let t = n % period.max(1);
+    if peel > 0 && n > period && t >= 1 && t <= peel {
         n - t
     } else {
         n

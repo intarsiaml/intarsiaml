@@ -1,0 +1,19 @@
+fleetq: #8474 running on endor: zsh .scratch/env-check.sh
+== INTARSIA_PREFILL_PEEL_PERIOD=256
+exit 0
+3:prefill tail peel 8 rows (a pass's last 1..=8 rows past a multiple of 256 run alone, as at chunk 256)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+== INTARSIA_PREFILL_PEEL_PERIOD=8
+exit 1
+    invalid op call: prefill tail peel 8 rows must be below its period 8 (INTARSIA_PREFILL_PEEL, INTARSIA_PREFILL_PEEL_PERIOD, recipe)
+== INTARSIA_PREFILL_PEEL_PERIOD=0
+exit 1
+    invalid op call: INTARSIA_PREFILL_PEEL_PERIOD=0 (a row count of at least 1)
+== INTARSIA_PREFILL_PEEL=0
+exit 0
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+== INTARSIA_PREFILL_PEEL=16
+exit 0
+3:prefill tail peel 16 rows, period 2048 (a pass of more than 2048 rows whose length mod 2048 is 1..=16 runs those last rows alone)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+fleetq: #8474 done (exit 0)

@@ -1428,7 +1428,7 @@ fn cost_gate_with_scripted_drafts_stays_identical() {
 /// `recipe_dv` and the load option `opt` (`None`: the flag was not given).
 fn drafts_of(w: &MemWeights, recipe_dv: Option<usize>, opt: Option<usize>) -> Vec<Vec<u32>> {
     let (mut recipe, dims) = dims();
-    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, mxfp4_act: None, busy_chunk: None, tp_partial: None });
+    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_peel_period: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, mxfp4_act: None, busy_chunk: None, tp_partial: None });
     let opts = LoadOptions {
         max_seq: 512,
         prefill_chunk: 8,
@@ -1606,4 +1606,57 @@ fn mtp_model_takes_the_macro_prefill_pass_and_the_head_follows() {
     assert_eq!((c.spec_steps, c.spec_proposed, c.spec_accepted), (w.spec_steps, w.spec_proposed, w.spec_accepted), "KV-only head ingest in pieces == in one pass");
     assert!(m.spec_steps > 0 && m.spec_proposed > 0, "the head drafted after a macro prefill");
     assert_eq!((c.spec_steps, c.spec_proposed, c.spec_accepted), (m.spec_steps, m.spec_proposed, m.spec_accepted), "same drafts");
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// prefill tail peel period (recipe `prefill_peel_period`)
+// ------------------------------------------------------------------------------------------------------------------
+
+/// A model loaded with the recipe's `prefill_peel` and `prefill_peel_period` for the backend: the period reaches the model (and so
+/// every pass of `Model::forward_chunks`), it is part of the prefix-store key only when it is not the default 256, and a peel that
+/// is not below its period is refused at load.
+#[test]
+fn prefill_peel_period_reaches_the_model_and_the_prefix_store_key() {
+    let w = weights(11);
+    let load = |peel: Option<usize>, period: Option<usize>| {
+        let (mut recipe, dims) = dims();
+        recipe.tuning.backends.insert(
+            "cpu".into(),
+            intarsia_core::recipe::BackendTuning {
+                prefill_chunk: None, mtp_draft_vocab: None, prefill_peel: peel, prefill_peel_period: period, prefill_macro: None,
+                mtp_default_tp_k: None, mtp_default_k: None, mxfp4_act: None, busy_chunk: None, tp_partial: None,
+            },
+        );
+        let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), profile_every: 0, ..Default::default() };
+        let backend: Arc<dyn Backend> = CpuBackend::arc();
+        Model::load(backend, &recipe, &dims, &w, &opts, Arc::new(Telemetry::new()))
+    };
+    let key = |m: &mut Model| {
+        m.configure_plan(&Default::default(), None).unwrap();
+        intarsia_core::prefix_store::describe_build(m, "m", &Default::default())
+    };
+    let mut off = load(None, None).unwrap();
+    assert_eq!((off.prefill_peel(), off.prefill_peel_period()), (0, 256));
+    let k_off = key(&mut off);
+    assert!(!k_off.contains("|peel"), "{k_off}");
+    // the default period: the key is the one a 256-period peel had before the knob existed
+    let mut p256 = load(Some(8), None).unwrap();
+    assert_eq!((p256.prefill_peel(), p256.prefill_peel_period()), (8, 256));
+    let k256 = key(&mut p256);
+    assert!(k256.ends_with("|peel8"), "{k256}");
+    let mut p256b = load(Some(8), Some(256)).unwrap();
+    // (the key also carries the recipe's debug dump, which spells the explicit 256 out; the peel suffix is the default's)
+    assert_eq!(p256b.prefill_peel_period(), 256);
+    assert!(key(&mut p256b).ends_with("|peel8"));
+    // a period other than 256 changes the key and reaches the model
+    let mut p2048 = load(Some(8), Some(2048)).unwrap();
+    assert_eq!((p2048.prefill_peel(), p2048.prefill_peel_period()), (8, 2048));
+    let k2048 = key(&mut p2048);
+    assert!(k2048.ends_with("|peel8|period2048"), "{k2048}");
+    assert_ne!(k2048, k256);
+    // the peel must be below its period
+    assert!(load(Some(8), Some(8)).is_err());
+    assert!(load(Some(8), Some(4)).is_err());
+    assert!(load(Some(300), None).is_err());
+    assert!(load(Some(300), Some(2048)).is_ok());
 }

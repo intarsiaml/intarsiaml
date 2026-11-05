@@ -1,0 +1,13 @@
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+d2082               2082    32    93.75   1.278e-1   1.912e-1   1.912e-1    3.228e0   0.0051   0.0317    86.25     18/32      0
+d1062               1062    32    93.75   1.034e-2   9.846e-3   9.846e-3   6.094e-2   0.0405   0.0404    88.75      2/32      0
+OVERALL                     64    93.75   6.905e-2   1.005e-1   1.005e-1    3.228e0   0.0228   0.0361    87.50     31.2%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 93.75% (not gated for this class) ok | 21-way KL (scored rows, n=64) 1.005e-1 (need <= 3.0e-2) FAIL [all rows, n=64: 1.005e-1, reported only] | tail mass (all rows) ours 0.0361 vs ref 0.0228, excess +0.0133 (|.| <= 0.02) ok | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.005e-1 FAIL
+gate-definition: kl_floor [decode]: old def: FAIL 1.005e-1 (21-way KL over all rows <= static floor) | current def: FAIL 1.005e-1 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [decode (teacher-forced)]: mean 31.2% of positions before the first argmax divergence, worst prompt 6.2% (informational)
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
