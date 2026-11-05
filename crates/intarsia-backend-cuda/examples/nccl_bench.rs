@@ -14,8 +14,8 @@
 //! prefill all-reduce, 41943040 = a 2048-row one). Payloads of 1 MiB and more run `NB_BIG_ITERS` (default 40) calls, and
 //! the line gets the all-reduce bandwidth in GB/s (bytes one rank contributes over the `pipe` time).
 //! `NB_COLD=N` (needs a payload of 1 MiB or more; the last one is used) adds an idle-start test after the table: N rounds of
-//! sleep `NB_COLD_MS` (default 3000, the gap between requests), then (a) the big all-reduce alone, (b) a 16 KiB all-reduce,
-//! `NB_COLD_LEAD_MS` (default 7) later the big one, (c) the big one again at once (warm). Medians of us, per call.
+//! sleep `NB_COLD_MS` (default 3000, the gap between requests), then (a) the big all-reduce alone, (b) an all-reduce of
+//! `NB_COLD_LEAD_BYTES` (default 16384), `NB_COLD_LEAD_MS` (default 7) later the big one, (c) the big one again at once (warm). Medians of us, per call.
 
 use intarsia_core::{DType, MemKind, TensorRef};
 use std::io::{Read, Write};
@@ -104,7 +104,8 @@ fn main() {
         let lead = std::time::Duration::from_micros((std::env::var("NB_COLD_LEAD_MS").ok().and_then(|v| v.parse::<f64>().ok()).unwrap_or(7.0) * 1000.0) as u64);
         let big = sizes.iter().copied().filter(|&b| b >= 1 << 20).max().expect("NB_COLD needs a payload of 1 MiB or more");
         let big_t = TensorRef::new(sb.clone(), DType::F32, &[big / 4]);
-        let tiny_t = TensorRef::new(sb.clone(), DType::F32, &[4096]);
+        let lead_bytes: usize = std::env::var("NB_COLD_LEAD_BYTES").ok().and_then(|v| v.parse().ok()).unwrap_or(16384);
+        let tiny_t = TensorRef::new(sb.clone(), DType::F32, &[lead_bytes / 4]);
         let timed = |f: &dyn Fn()| {
             let t0 = Instant::now();
             f();
@@ -136,7 +137,7 @@ fn main() {
             v[v.len() / 2]
         };
         println!(
-            "rank {rank}  cold test ({rounds} rounds, idle {} ms, lead {} us, {big} bytes): median us: after-idle {:.0}  warm-at-once {:.0}  after-idle-with-16KiB-lead {:.0} (tiny issue to big done {:.0})",
+            "rank {rank}  cold test ({rounds} rounds, idle {} ms, lead {} us, {big} bytes): median us: after-idle {:.0}  warm-at-once {:.0}  after-idle-with-{lead_bytes}-byte-lead {:.0} (tiny issue to big done {:.0})",
             idle.as_millis(), lead.as_micros(), med(&mut cold), med(&mut warm), med(&mut pre), med(&mut pre_tiny)
         );
         println!("rank {rank}  cold all: {:?}", cold.iter().map(|v| *v as i64).collect::<Vec<_>>());
