@@ -1462,6 +1462,7 @@ mod failpath_tests {
         Forward,
         Draft,
         Verify,
+        Encoder,
         Freed,
     }
 
@@ -1483,6 +1484,12 @@ mod failpath_tests {
         }
         fn forward_rank(&self, st: &mut RecSeq, ids: &[u32], _graph: bool) -> Result<()> {
             self.0.lock().unwrap().push(Told::Forward);
+            self.1.lock().unwrap().push(ids.len());
+            st.0 += ids.len();
+            Ok(())
+        }
+        fn forward_rank_encoder(&self, st: &mut RecSeq, ids: &[u32]) -> Result<()> {
+            self.0.lock().unwrap().push(Told::Encoder);
             self.1.lock().unwrap().push(ids.len());
             st.0 += ids.len();
             Ok(())
@@ -1843,6 +1850,21 @@ mod failpath_tests {
         let told = sizes.lock().unwrap();
         assert_eq!((forwards, told.len()), (127, 127), "the waits add no pass and send nothing to the other rank");
         assert!(told[..126].iter().all(|n| *n == 512), "and leave the cuts alone");
+    }
+
+    /// A prefill chunk without its decoder half is a forward of its own on the wire (`FWD_ENCODER`): the other rank is told "encoder",
+    /// not "forward", and both ranks' sequences advance by the chunk. The decision itself (`skips_decoder_half`) needs the CUDA replay and
+    /// is tested in `dsv41::replay` (`decoder_dead`) and on the Sparks.
+    #[test]
+    fn an_encoder_only_chunk_is_told_to_the_other_rank_as_one() {
+        let mut g = group();
+        g.w.script = Some(Script::default());
+        g.w.forward_encoder(&[1, 2, 3]).unwrap();
+        g.w.forward(&[4, 5], false).unwrap();
+        assert_eq!(g.w.st.len, 5);
+        let sizes = g.told.1.clone();
+        assert_eq!(g.finish(), [Told::New, Told::Encoder, Told::Forward]);
+        assert_eq!(*sizes.lock().unwrap(), [3, 2], "the chunk's rows went to the other rank in order");
     }
 
     /// A cancel at 10 s of device time stops the prefill within one wait's rows of where the device was, not after the whole prompt.

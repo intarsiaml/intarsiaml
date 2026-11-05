@@ -887,6 +887,25 @@ mod serve_tests {
         assert!(r.unwrap_err().to_string().contains("unspecified launch failure"), "serving ends with the pass's error");
     }
 
+    /// `FWD_ENCODER` reaches `forward_rank_encoder`; a model that does not implement it answers the forward with an error (and stops
+    /// serving, as for any failed pass) instead of running the whole chunk.
+    #[test]
+    fn an_encoder_forward_needs_a_model_that_knows_it() {
+        let l = TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = l.local_addr().unwrap();
+        let t = std::thread::spawn(move || serve(&Fake, l.accept().unwrap().0));
+        let mut s = TcpStream::connect(addr).unwrap();
+        write_frame(&mut s, T_NEW, &1u64.to_le_bytes()).unwrap();
+        let mut b = 1u64.to_le_bytes().to_vec();
+        b.extend_from_slice(&FWD_ENCODER.to_le_bytes());
+        b.extend_from_slice(&7u32.to_le_bytes());
+        write_frame(&mut s, T_FORWARD, &b).unwrap();
+        let (tag, r) = read_frame(&mut s).unwrap();
+        assert_eq!((tag, r[0]), (T_REPLY, 0));
+        assert!(String::from_utf8_lossy(&r[9..]).contains("does not skip a decoder half"));
+        assert!(t.join().unwrap().is_err());
+    }
+
     #[test]
     fn the_primary_closing_the_stream_ends_serving_cleanly() {
         let l = TcpListener::bind("127.0.0.1:0").unwrap();
