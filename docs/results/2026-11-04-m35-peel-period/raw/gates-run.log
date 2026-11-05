@@ -1,0 +1,79 @@
+fleetq: #8463 waiting (#1 in line): needs 30 GB on endor; 23 GB free of 110
+fleetq: #8463 running on endor: zsh .scratch/gates-run.sh
+#### ids
+ids main exit 0
+ids peel exit 0
+GATE 1 (peel build): solo == behind, overlap confirmed in the trace
+  2050: solo==behind EQ  main solo==behind DIFF@23  peel schedules solo [2050] behind [2048, 2] (decoding 1)  overlap OK
+  2052: solo==behind EQ  main solo==behind DIFF@25  peel schedules solo [2052] behind [2048, 4] (decoding 1)  overlap OK
+  2055: solo==behind EQ  main solo==behind DIFF@70  peel schedules solo [2055] behind [2048, 7] (decoding 1)  overlap OK
+  2056: solo==behind EQ  main solo==behind DIFF@147  peel schedules solo [2056] behind [2048, 8] (decoding 1)  overlap OK
+  2057: solo==behind EQ  main solo==behind DIFF@24  peel schedules solo [2057] behind [2048, 9] (decoding 1)  overlap OK
+  6146: solo==behind EQ  main solo==behind DIFF@46  peel schedules solo [4096, 2050] behind [2048, 2048, 2048, 2] (decoding 1)  overlap OK
+  6153: solo==behind EQ  main solo==behind DIFF@10  peel schedules solo [4096, 2057] behind [2048, 2048, 2048, 9] (decoding 1)  overlap OK
+GATE 1: 7 of 7
+GATE 2 (peel == main, solo and behind, 256 ids)
+  258: solo EQ  behind EQ  overlap peel OK main OK
+  260: solo EQ  behind EQ  overlap peel OK main OK
+  265: solo EQ  behind EQ  overlap peel OK main OK
+  516: solo EQ  behind EQ  overlap peel OK main OK
+  772: solo EQ  behind EQ  overlap peel OK main OK
+  1028: solo EQ  behind EQ  overlap peel OK main OK
+  1540: solo EQ  behind EQ  overlap peel OK main OK
+  4356: solo EQ  behind EQ  overlap peel OK main OK
+  2058: solo EQ  behind EQ  overlap peel OK main OK
+  2064: solo EQ  behind EQ  overlap peel OK main OK
+  2300: solo EQ  behind EQ  overlap peel OK main OK
+  6154: solo EQ  behind EQ  overlap peel OK main OK
+  48: solo EQ  behind EQ  overlap peel OK main OK
+  233: solo EQ  behind EQ  overlap peel OK main OK
+  266: solo EQ  behind EQ  overlap peel OK main OK
+  4099: solo EQ  behind EQ  overlap peel OK main OK
+  4101: solo EQ  behind EQ  overlap peel OK main OK
+  4105: solo EQ  behind EQ  overlap peel OK main OK
+  5770: solo EQ  behind EQ  overlap peel OK main OK
+GATE 2: 19 of 19
+#### plan show + kernels
+== plan show
+plan show Qwen3.6-35B-A3B-NVFP4 : DIFFERS
+2a3
+> prefill tail peel 8 rows, period 2048 (a pass of more than 2048 rows whose length mod 2048 is 1..=8 runs those last rows alone)
+plan show Qwen3.6-35B-A3B-NVFP4 --json: DIFFERS
+597a598,599
+>   "prefill_peel": 8,
+>   "prefill_peel_period": 2048,
+plan show Qwen3-8B : identical
+plan show Qwen3-8B --json: identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 : identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 --json: identical
+plan show Llama-3.1-8B-Instruct : identical
+plan show Llama-3.1-8B-Instruct --json: identical
+plan show Qwen2.5-7B-Instruct : identical
+plan show Qwen2.5-7B-Instruct --json: identical
+== kernels test
+main kernels test exit 0
+peel kernels test exit 0
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 980 cases in 36.5s
+0
+53c53
+< 49 kernels, 980 cases in 35.3s
+---
+> 49 kernels, 980 cases in 36.5s
+#### mtp
+generate 2050 off exit 0
+generate 2050 k2 exit 0
+generate 2050 default exit 0
+mtp 2050: k2 == off
+mtp 2050: default == off
+generate 2057 off exit 0
+generate 2057 k2 exit 0
+generate 2057 default exit 0
+mtp 2057: k2 == off
+mtp 2057: default == off
+generate 6146 off exit 0
+generate 6146 k2 exit 0
+generate 6146 default exit 0
+mtp 6146: k2 == off
+mtp 6146: default == off
+fleetq: #8463 done (exit 0)

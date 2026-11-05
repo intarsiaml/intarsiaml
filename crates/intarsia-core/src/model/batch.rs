@@ -1145,6 +1145,7 @@ impl Model {
             feedback_hold: self.feedback_hold,
             tail_merge: 0,
             prefill_peel: self.prefill_peel,
+            prefill_peel_period: self.prefill_peel_period,
             macro_rows: 0, // the decode twin never prefills a prompt
             macro_cap: 0,
             macro_split: Vec::new(),
