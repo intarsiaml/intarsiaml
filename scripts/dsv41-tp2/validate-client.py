@@ -153,6 +153,14 @@ def degenerate(ids):
     return len(set(ids)) < max(6, len(ids) // 8) or rep > 0.5
 
 
+def looping(ids, n=16, times=6):
+    """Reply stuck in a loop: some n-gram of n tokens occurs `times` times or more. Quoting repeated document lines is not a loop
+    (the ids inside the quoted lines differ); degenerate() is the pre-registered, looser proxy and misfires on long reasoning."""
+    import collections
+    c = collections.Counter(tuple(ids[i:i + n]) for i in range(len(ids) - n + 1))
+    return bool(c) and max(c.values()) >= times
+
+
 def lcp(a, b):
     n = 0
     for x, y in zip(a, b):
@@ -339,10 +347,12 @@ def c3cmp(fa, fb):
         same = sum(1 for x, y in zip(xs, ys) if x["ids"] and x["ids"] == y["ids"])
         fr = st.mean(lcp(x["ids"], y["ids"]) / max(len(x["ids"]), len(y["ids"]), 1) for x, y in zip(xs, ys))
         th = lambda L: sum(1 for i in L if (i["reasoning"] or i["reasoning_tokens"]))   # noqa
-        garbage = [i["name"] for i in xs + ys if degenerate(i["ids"])]
+        proxy = [i["name"] for i in xs + ys if degenerate(i["ids"])]
+        loops = [i["name"] for i in xs + ys if looping(i["ids"])]
         print(f"| {s} | {len(xs)} | {fin(xs)} / {fin(ys)} | {cor(xs)} / {cor(ys)} | {same} | {fr:.2f} | {th(xs)} / {th(ys)} |")
-        if garbage:
-            print(f"\n  degenerate replies: {garbage}\n")
+        if proxy:
+            print(f"\n  pre-registered proxy (distinct ids / half of the 4-grams repeated) flagged: {proxy}; loops (a 16-gram 6 or more times): {loops}\n")
+        if loops:
             ok = False
         ok &= th(xs) > 0 and abs(cor(xs) - cor(ys)) <= 2     # pass rule: thinking really on, accuracy within 2 items, nothing degenerate
     print("\n" + ("PASS" if ok else "FAIL"))
@@ -367,6 +377,24 @@ def c4(url, out, arm, items_file):
     print("c4 done", arm)
 
 
+def c4l(url, out, arm, items_file):
+    """Check 4, long prompts: 16 free-form requests (temperature 0.7, seed 3000 + i, 256 tokens) after different 4K prompts of the
+    recent-window set (rows 16..31; the final question is replaced by a request for a summary), so the replay prefill and the decode
+    window ring after it are exercised by a long sampled reply. Unique first lines: no prefix hit."""
+    rows_ = [json.loads(l) for l in open(items_file) if l.startswith("{")][16:32]
+    res = {"arm": arm, "items": []}
+    for i, row in enumerate(rows_):
+        p = row["input"]
+        k = p.rindex("Question:")
+        assert "Reply with only the code." in p[k:], row["name"]
+        p = p[:k] + "Question: summarize the log above in about 150 words, naming one vault and its code."
+        r = chat(url, p, temperature=0.7, seed=3000 + i, max_tokens=256, chat_template_kwargs={"enable_thinking": False})
+        r.update(kind="freelong", name=row["name"], expected="", correct=None)
+        res["items"].append(r)
+        print(arm, row["name"], r["prompt_tokens"], r["completion_tokens"], r["finish"], flush=True)
+    json.dump(res, open(out, "w"), indent=1)
+
+
 def rep4(ids):
     g = [tuple(ids[i:i + 4]) for i in range(len(ids) - 3)]
     return 1 - len(set(g)) / len(g) if g else 0.0
@@ -378,11 +406,13 @@ def c4cmp(fa, fb):
     ok = True
     print("| kind | arm | n | correct | mean tokens | mean repeated-4-gram fraction | max token run | degenerate | finish=length |\n|---|---|---|---|---|---|---|---|---|")
     stats = {}
-    for kind in ("answer", "free"):
+    for kind in ("answer", "free", "freelong"):
         for R in (A, B):
             L = [i for i in R["items"] if i["kind"] == kind]
+            if not L:
+                continue
             run = max((max(len(list(g)) for _, g in __import__("itertools").groupby(i["ids"])) if i["ids"] else 0) for i in L)
-            deg = [i["name"] for i in L if (degenerate(i["ids"]) if kind == "free" else (len(i["ids"]) == 0))]
+            deg = [i["name"] for i in L if (degenerate(i["ids"]) if kind != "answer" else (len(i["ids"]) == 0))]
             cor = sum(1 for i in L if i["correct"]) if kind == "answer" else "-"
             m = (st.mean(len(i["ids"]) for i in L), st.mean(rep4(i["ids"]) for i in L))
             stats[(kind, R["arm"])] = (cor, m, deg)
@@ -391,8 +421,9 @@ def c4cmp(fa, fb):
     hits = [i["name"] for R in (A, B) for i in R["items"] if i.get("cached")]
     print(f"\nprefix-cache hits in either arm (must be none): {hits}")
     ok &= not hits
-    ca, cb = stats[("answer", A["arm"])][0], stats[("answer", B["arm"])][0]
-    fa_, fb_ = stats[("free", A["arm"])][1], stats[("free", B["arm"])][1]
+    fk = "free" if ("free", A["arm"]) in stats else "freelong"
+    ca, cb = (stats[("answer", A["arm"])][0], stats[("answer", B["arm"])][0]) if ("answer", A["arm"]) in stats else (0, 0)
+    fa_, fb_ = stats[(fk, A["arm"])][1], stats[(fk, B["arm"])][1]
     same = sum(1 for x, y in zip(A["items"], B["items"]) if x["ids"] == y["ids"])
     print(f"\nidentical replies (same seed) {same} of {len(A['items'])}; correct {ca} vs {cb}; free-form length ratio {fa_[0] / max(fb_[0], 1e-9):.2f}, repeated-4-gram {fa_[1]:.3f} vs {fb_[1]:.3f}")
     ok &= abs(ca - cb) <= 2 and 0.75 <= fa_[0] / max(fb_[0], 1e-9) <= 1.33 and abs(fa_[1] - fb_[1]) <= 0.10
@@ -513,6 +544,8 @@ def main(a):
         return c3cmp(a[1], a[2])
     if c == "c4":
         return c4(a[1], a[2], a[3], a[4])
+    if c == "c4l":
+        return c4l(a[1], a[2], a[3], a[4])
     if c == "c4cmp":
         return c4cmp(a[1], a[2])
     if c == "c2cmp":

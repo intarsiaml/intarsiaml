@@ -1,0 +1,16 @@
+default rw-4k-b5-02 3813 242 stop
+default rw-4k-b6-02 4226 227 stop
+default rw-4k-b1-03 4193 239 stop
+default rw-4k-b2-03 3713 244 stop
+default rw-4k-b3-03 4098 256 length
+default rw-4k-b4-03 4225 256 length
+default rw-4k-b5-03 4225 256 length
+default rw-4k-b6-03 4013 209 stop
+default rw-4k-b1-04 4224 256 length
+default rw-4k-b2-04 4227 256 length
+default rw-4k-b3-04 4098 222 stop
+default rw-4k-b4-04 4325 181 stop
+default rw-4k-b5-04 3913 256 length
+default rw-4k-b6-04 3711 204 stop
+default rw-4k-b1-05 4013 256 length
+default rw-4k-b2-05 4133 242 stop

@@ -9,7 +9,7 @@
 #   S4 default  : speed A again;  S5 skip0: speed B again                  (ABAB)
 # Usage: scripts/dsv41-tp2/validate-test.sh [--dry-run]     (queues itself as one fleetq job; inner mode needs FLEETQ_JOB)
 # Knobs: SPARK_DIR (intarsia-dsv41-validate), CAP (66000), KILL_GIB (5), EXPECT_MIN (140), RAW, ONLY ("S1 S2 ..."),
-#   (ONLY is comma separated)  C3_TOKENS (1536), SP_SIZES (1024,65536), SP_REPS (2), EARLYOOM_OK ("3,2 2,1"), HOT_MB, TP_SPIN_MS, XENV.
+#   (ONLY is comma separated)  C3_TOKENS (1536), SP_SIZES (1024,63700; the first window used 65536, which localeval renders as 67.6K tokens: refused over CAP 66000), SP_REPS (2), EARLYOOM_OK ("3,2 2,1"), HOT_MB, TP_SPIN_MS, XENV.
 set -u -o pipefail
 S="$(cd "$(dirname "$0")" && pwd)"; SELF="$S/validate-test.sh"; REPO="$(cd "$S/../.." && pwd)"
 
@@ -30,13 +30,13 @@ CAP=${CAP:-66000}                      # 32K prompts at step 3 and 64K items at 
 TOK=${TOKENIZER:-/opt/code/intarsiaml/.worktrees/dsv41-official/mia/tokenizer.json}
 RESDIR=${RESDIR:-$REPO/docs/results/2026-11-05-dsv41-validate}; RAW=${RAW:-$RESDIR/raw}
 ITEMS=${ITEMS:-$REPO/.scratch}      # c2-qfirst12.jsonl c3-last8.jsonl recent/recent.4k.jsonl (regenerate: see the results doc)
-C3_TOKENS=${C3_TOKENS:-1536}; SP_SIZES=${SP_SIZES:-1024,65536}; SP_REPS=${SP_REPS:-2}
+C3_TOKENS=${C3_TOKENS:-1536}; SP_SIZES=${SP_SIZES:-1024,63700}; SP_REPS=${SP_REPS:-2}
 ONLY=${ONLY:-S1,S2,S3,S4,S5}
 EXPECT=${EXPECT_MIN:-140}
 PLAN_MIN=$EXPECT
 VC=$S/validate-client.py
 FQ=(fleetq run --host spark1,spark2 --exclusive --takes-down "$VLLM_ROLES" --mem spark1=116,spark2=116 --expect "$EXPECT"
-    --label "dsv41/validate: replay + dead-chunk hardware checks (vLLM restored after)" -- env REPLAY_TEST_INNER=1 SPARK_DIR="$SPARK_DIR_IN" CAP="$CAP" ONLY="$ONLY" EXPECT_MIN="$EXPECT" C3_TOKENS="$C3_TOKENS" SP_SIZES="$SP_SIZES" SP_REPS="$SP_REPS" ${KILL_GIB:+KILL_GIB=$KILL_GIB} ${XENV:+XENV="$XENV"} "$SELF")
+    --label "dsv41/validate: replay + dead-chunk hardware checks (vLLM restored after)" -- env REPLAY_TEST_INNER=1 SPARK_DIR="$SPARK_DIR_IN" RAW="$RAW" CAP="$CAP" ONLY="$ONLY" EXPECT_MIN="$EXPECT" C3_TOKENS="$C3_TOKENS" SP_SIZES="$SP_SIZES" SP_REPS="$SP_REPS" ${KILL_GIB:+KILL_GIB=$KILL_GIB} ${XENV:+XENV="$XENV"} "$SELF")
 if [[ ${1:-} == --dry-run ]]; then echo "DRY RUN: nothing is run."; printf '%q ' "${FQ[@]}"; echo; echo "sessions: $ONLY; items in $ITEMS:"; ls -la "$ITEMS"/c2-qfirst12.jsonl "$ITEMS"/c3-last8.jsonl "$ITEMS"/recent/recent.4k.jsonl; exit 0; fi
 if [[ ${REPLAY_TEST_INNER:-0} != 1 ]]; then echo "queueing as one fleetq job over spark1,spark2 (--expect $EXPECT)"; exec "${FQ[@]}"; fi
 : "${FLEETQ_JOB:?inner mode runs inside a fleetq job}"
@@ -250,8 +250,17 @@ S2() { t_c1 off; t_c2 off; t_c3 off; t_c4 off; }
 S3() { t_c1 skip0; t_speed skip0_1; }
 S4() { t_speed def2; }
 S5() { t_speed skip0_2; }
-sess_min() { case $1 in S1) echo 50 ;; S2) echo 55 ;; S3) echo 20 ;; S4) echo 12 ;; S5) echo 14 ;; esac; }
-sess_mode() { case $1 in S2) echo off ;; S3|S5) echo skip0 ;; *) echo default ;; esac; }
+# second window (the first one's speed rows failed: localeval's 65536-token filler is 67.6K real tokens, over CAP 66000; the
+# longest size that fits is 63700 -> about 65.8K): cancel landing at 2048 rows with short close delays, long-prompt sampled replies, ABAB speed
+t_cancel() { task "cancel-$1" 900 uv run --no-project --with tokenizers python "$S/validate-cancel.py" "$SURL" "$RAW/cancel-$1.json" "$1" "$TOK" ${CANCEL_DELAYS:-0.02 0.05 0.1 0.2 0.35 0.5 0.8}; }
+t_c4l() { task "c4l-$1" 1200 uv run --no-project python "$VC" c4l "$SURL" "$RAW/c4l-$1.json" "$1" "$ITEMS/recent/recent.4k.jsonl"; }
+F1() { t_cancel default; t_c4l default; t_speed def1b; }
+F2() { t_cancel skip0; t_speed skip0_1b; }
+F3() { t_speed def2b; }
+F4() { t_speed skip0_2b; }
+F5() { t_c4l off; }
+sess_min() { case $1 in S1) echo 50 ;; S2) echo 55 ;; S3) echo 20 ;; S4) echo 12 ;; S5) echo 14 ;; F1) echo 14 ;; F2) echo 12 ;; F3) echo 8 ;; F4) echo 10 ;; F5) echo 8 ;; esac; }
+sess_mode() { case $1 in S2|F5) echo off ;; S3|S5|F2|F4) echo skip0 ;; *) echo default ;; esac; }
 
 prep_ok=1
 preflight || { log "PREP FAILED: preflight"; exit 1; }

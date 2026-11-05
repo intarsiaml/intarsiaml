@@ -1,0 +1,417 @@
+15:24:44 validate-test start: sessions S1,S2,S3,S4,S5, planned 140 min, fleetq job 8522, out /opt/code/intarsiaml/.worktrees/dsv41-validate/docs/results/2026-11-05-dsv41-validate/raw
+15:24:44 earlyoom on spark1: -m 2,1
+15:24:45 earlyoom on spark2: -m 2,1
+15:24:48 binary 1faac7bf5 dirty=no 1105-1503; out /opt/code/intarsiaml/.worktrees/dsv41-validate/docs/results/2026-11-05-dsv41-validate/raw
+15:24:52 vLLM stopped on both
+15:24:53 === SESSION S1: mode default, chunk 2048, CAP 66000 (planned 50 min) ===
+15:24:57 ranks started (tag 152454, intarsia, chunk 2048, replay default)
+15:25:26 serve up=1 after 29 s
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 16.2 s = 6.39 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 6.71 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.7 s (4.71 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.28 GiB -> 8.87 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793910322)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793910322)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793910322)
+dsv41: warm-up passes in 0.36 s
+dsv41: rank 0 after warm-up: MemAvailable 8.45 GiB, used since start 101.83 GiB, of which weights 98.90 GiB, non-weight 2.93 GiB (workspace 1.011, scratch 0.004, state 0.203, constants 0.000, rest = CUDA context + NCCL + engram + host)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 16.6 s = 6.23 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 6.18 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 23.8 s (4.50 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.19 GiB -> 9.02 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793910322)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793910322)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793910322)
+15:25:27 --- task c1-default (max 900s)
+c1 done default landing (0.8, 4096)
+15:27:02 task c1-default rc=0 in 95 s
+15:27:02 --- task speed-def1 (max 1800s)
+intarsia 1faac7bf5 dirty=no 1105-1503 scripts/dsv41-tp2/validate-test.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000, chunk 2048, engram hot 1024 MiB
+````
+
+## Speed sweep
+
+served `dsv41-intarsia`, fingerprint `None`, ctx 66000, 2 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1028 | 0.72 | 1434 (1430–1439) | - | 51.6 (51.3–52.0) | - | - | - | 8 |
+| None | - | - * | - | - | - | - | - | - |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-152702-adhoc-dsv41validate-speed-def1/result.json
+[localeval] logged to unanimis: 7a6ad723-dc84-49f8-8f29-39f6de890895
+15:27:17 task speed-def1 rc=0 in 15 s
+15:27:17 --- task c2-default (max 2400s)
+| Decode (tok/s) | 76.3 | 1.0 | 12 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| hop2-L3-32k-000-qfirst | yes | 1.0 | 16.80 | 70.8 | The document states: "Ops ledger: the release nicknamed Tory… |
+| hop3-L3-32k-000-qfirst | yes | 1.0 | 16.84 | 79.3 | The document states: "Release ledger: the release nicknamed … |
+| agg_sum-L3-32k-000-qfirst | yes | 1.0 | 16.82 | 77.2 | The Pelmar cluster storage shards mentioned: - AR-6283-PN: 3… |
+| agg_sum-L4-32k-001-qfirst | yes | 1.0 | 16.88 | 81.2 | Storage shards of the Wynbri cluster: UC-8590-WQ 602, GF-246… |
+| agg_max-L3-32k-000-qfirst | yes | 1.0 | 19.70 | 58.0 | The document contains many tracker notes and ledgers for the… |
+| repo_sum-L4-32k-000-qfirst | yes | 1.0 | 18.82 | 86.9 | RING = 4096 (coll_trace.rs) WARMUP = 5 (icb_check.rs) PRE_MI… |
+| hop2-L3-32k-001-qfirst | yes | 1.0 | 19.33 | 76.1 | The document states: "Tracker note: the release nicknamed El… |
+| hop3-L3-32k-001-qfirst | yes | 1.0 | 19.19 | 72.2 | The release nicknamed Vexfal is tracked in this ledger as th… |
+| agg_sum-L3-32k-001-qfirst | yes | 1.0 | 16.96 | 79.3 | The Rostor cluster storage shards mentioned: DX-8430-GW hold… |
+| agg_sum-L4-32k-002-qfirst | yes | 1.0 | 16.86 | 82.4 | Storage shards of the Barfal cluster: - SP-2710-CW: 977 - NN… |
+| agg_max-L3-32k-001-qfirst | yes | 1.0 | 16.95 | 75.3 | The document lists several releases of the Bribri line with … |
+| repo_sum-L4-32k-001-qfirst | yes | 1.0 | 16.84 | 76.7 | EXIT_FAILED = 87 (health.rs); HOLD = 16 (feedback.rs); CONV_… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-152717-adhoc-dsv41validate-c2-default/result.json
+[localeval] logged to unanimis: a8eef380-67af-49a5-b97e-7e3413eed846
+15:31:13 task c2-default rc=0 in 236 s
+15:31:13 --- task c3-default (max 3000s)
+default 4k rw-4k-b1-00 3738 55 None stop True
+default 4k rw-4k-b2-00 4218 42 None stop True
+default 4k rw-4k-b3-00 4158 53 None stop True
+default 4k rw-4k-b4-00 3938 53 None stop True
+default 4k rw-4k-b5-00 4250 39 None stop True
+default 4k rw-4k-b6-00 4350 41 None stop True
+default 4k rw-4k-b1-01 4158 47 None stop True
+default 4k rw-4k-b2-01 3738 43 None stop True
+default 32k hop2-L3-32k-000 31030 202 None stop True
+default 32k hop3-L3-32k-000 31036 396 None stop True
+default 32k agg_sum-L3-32k-000 30981 1413 None stop True
+default 32k agg_sum-L4-32k-001 31053 1536 None length False
+default 32k agg_max-L3-32k-000 31045 1536 None length False
+default 32k repo_sum-L4-32k-000 30546 266 None stop True
+default 32k hop2-L3-32k-001 31036 194 None stop True
+default 32k hop3-L3-32k-001 30906 378 None stop True
+15:35:26 task c3-default rc=0 in 253 s
+15:35:26 --- task c4-default (max 900s)
+c4 done default
+15:37:00 task c4-default rc=0 in 94 s
+15:37:00 --- task catspeed-default (max 1500s)
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.259 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 50.7 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| chat-weekend-trip | yes | 0.0 | 0.29 | 51.8 | Here's a relaxed 2-day/2-night plan built around a small coa… |
+| chat-job-offer | yes | 0.0 | 0.27 | 48.2 | Given that time with two young kids is your priority, the 15… |
+| chat-sourdough | yes | 0.0 | 0.26 | 54.9 | Four hours at 19°C is almost certainly your problem. That's … |
+| chat-roommate | yes | 0.0 | 0.25 | 50.8 | Yes — let's make this concrete. Here's a plan that keeps it … |
+| chat-learn-piano | yes | 0.0 | 0.24 | 46.6 | Here's a realistic sketch of six months, assuming ~20–30 min… |
+| chat-houseplants | yes | 0.0 | 0.25 | 55.4 | With a north-facing window and frequent travel, you want pla… |
+| chat-budget | yes | 0.0 | 0.26 | 53.8 | Great — rent at about a third of your pay is on the higher s… |
+| chat-dog-training | yes | 0.0 | 0.26 | 44.4 | Good — that treat-taking tells you a lot. If she'll still ea… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-153702-adhoc-dsv41validate-cat-default/result.json
+[localeval] logged to unanimis: 176d1a42-6cf5-4c9b-aa25-19fbee93d48a
+15:39:39 task catspeed-default rc=0 in 159 s
+15:39:41 === SESSION S2: mode off, chunk 2048, CAP 66000 (planned 55 min) ===
+15:39:45 ranks started (tag 153942, intarsia, chunk 2048, replay off)
+15:40:14 serve up=1 after 29 s
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.6 s = 6.65 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.27 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.1 s (4.84 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.27 GiB -> 8.86 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793911208)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793911208)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793911208)
+dsv41: warm-up passes in 0.18 s
+dsv41: rank 0 after warm-up: MemAvailable 8.44 GiB, used since start 101.82 GiB, of which weights 98.90 GiB, non-weight 2.92 GiB (workspace 1.011, scratch 0.004, state 0.203, constants 0.000, rest = CUDA context + NCCL + engram + host)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.6 s = 6.62 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 6.82 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 22.2 s (4.84 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.25 GiB -> 8.77 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793911208)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793911208)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793911208)
+15:40:14 --- task c1-off (max 900s)
+c1 done off landing (0.8, 2048)
+15:42:20 task c1-off rc=0 in 126 s
+15:42:20 --- task c2-off (max 2400s)
+| Decode (tok/s) | 77.3 | 1.0 | 12 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| hop2-L3-32k-000-qfirst | yes | 1.0 | 33.37 | 69.8 | The document states: "Ops ledger: the release nicknamed Tory… |
+| hop3-L3-32k-000-qfirst | yes | 1.0 | 33.38 | 75.1 | The document states: "Release ledger: the release nicknamed … |
+| agg_sum-L3-32k-000-qfirst | yes | 1.0 | 33.38 | 79.0 | The Pelmar cluster storage shards mentioned: - AR-6283-PN: 3… |
+| agg_sum-L4-32k-001-qfirst | yes | 1.0 | 33.47 | 81.0 | Storage shards of the Wynbri cluster: UC-8590-WQ 602, GF-246… |
+| agg_max-L3-32k-000-qfirst | yes | 1.0 | 33.44 | 67.9 | The document contains several tracker notes and ledgers for … |
+| repo_sum-L4-32k-000-qfirst | yes | 1.0 | 32.65 | 83.5 | RING = 4096 (coll_trace.rs); WARMUP = 5 (icb_check.rs); PRE_… |
+| hop2-L3-32k-001-qfirst | yes | 1.0 | 33.51 | 70.6 | The document states: "Tracker note: the release nicknamed El… |
+| hop3-L3-32k-001-qfirst | yes | 1.0 | 33.43 | 86.2 | The release nicknamed Vexfal is tracked in this ledger as th… |
+| agg_sum-L3-32k-001-qfirst | yes | 1.0 | 33.46 | 77.4 | The Rostor cluster storage shards mentioned: DX-8430-GW hold… |
+| agg_sum-L4-32k-002-qfirst | yes | 1.0 | 33.30 | 82.4 | Storage shards of the Barfal cluster: - SP-2710-CW: 977 - NN… |
+| agg_max-L3-32k-001-qfirst | yes | 1.0 | 33.45 | 78.3 | The document lists several releases of the Bribri line with … |
+| repo_sum-L4-32k-001-qfirst | yes | 1.0 | 33.10 | 76.1 | EXIT_FAILED = 87 (health.rs); HOLD = 16 (feedback.rs); CONV_… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-154220-adhoc-dsv41validate-c2-off/result.json
+[localeval] logged to unanimis: 2ab1a979-b6c1-4a95-b699-0eed2cdb3d84
+15:49:25 task c2-off rc=0 in 425 s
+15:49:25 --- task c3-off (max 3000s)
+off 4k rw-4k-b1-00 3738 55 None stop True
+off 4k rw-4k-b2-00 4218 42 None stop True
+off 4k rw-4k-b3-00 4158 57 None stop True
+off 4k rw-4k-b4-00 3938 53 None stop True
+off 4k rw-4k-b5-00 4250 39 None stop True
+off 4k rw-4k-b6-00 4350 41 None stop True
+off 4k rw-4k-b1-01 4158 47 None stop True
+off 4k rw-4k-b2-01 3738 43 None stop True
+off 32k hop2-L3-32k-000 31030 202 None stop True
+off 32k hop3-L3-32k-000 31036 288 None stop True
+off 32k agg_sum-L3-32k-000 30981 1536 None length False
+off 32k agg_sum-L4-32k-001 31053 1536 None length False
+off 32k agg_max-L3-32k-000 31045 1536 None length False
+off 32k repo_sum-L4-32k-000 30546 264 None stop True
+off 32k hop2-L3-32k-001 31036 194 None stop True
+off 32k hop3-L3-32k-001 30906 246 None stop True
+15:56:01 task c3-off rc=0 in 396 s
+15:56:01 --- task c4-off (max 900s)
+c4 done off
+15:58:07 task c4-off rc=0 in 126 s
+15:58:09 === SESSION S3: mode skip0, chunk 2048, CAP 66000 (planned 20 min) ===
+15:58:12 ranks started (tag 155810, intarsia, chunk 2048, replay skip0)
+15:58:41 serve up=1 after 29 s
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.5 s = 6.68 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.64 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.8 s (4.93 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.06 GiB -> 8.85 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793912315)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793912315)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793912316)
+dsv41: warm-up passes in 0.18 s
+dsv41: rank 0 after warm-up: MemAvailable 8.39 GiB, used since start 101.67 GiB, of which weights 98.90 GiB, non-weight 2.77 GiB (workspace 1.011, scratch 0.004, state 0.203, constants 0.000, rest = CUDA context + NCCL + engram + host)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.7 s = 6.59 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 6.84 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 22.2 s (4.82 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.20 GiB -> 8.80 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793912315)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793912315)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793912316)
+15:58:42 --- task c1-skip0 (max 900s)
+c1 done skip0 landing (0.8, 2048)
+16:00:16 task c1-skip0 rc=0 in 94 s
+16:00:16 --- task speed-skip0_1 (max 1800s)
+
+served `dsv41-intarsia`, fingerprint `None`, ctx 66000, 2 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1025 | 0.72 | 1433 (1425–1441) | - | 45.1 (37.7–52.5) | - | - | - | 8 |
+| None | - | - * | - | - | - | - | - | - |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 32.7% at 1024 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-160017-adhoc-dsv41validate-speed-skip0_1/result.json
+[localeval] logged to unanimis: a7e94d84-7a48-480f-9d9c-da4fa1b58acd
+16:00:31 task speed-skip0_1 rc=0 in 15 s
+16:00:34 === SESSION S4: mode default, chunk 2048, CAP 66000 (planned 12 min) ===
+16:00:38 ranks started (tag 160035, intarsia, chunk 2048, replay default)
+16:01:01 serve up=1 after 23 s
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.2 s = 6.82 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.10 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.4 s (5.00 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.74 GiB -> 8.83 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793912461)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793912461)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793912461)
+dsv41: warm-up passes in 0.18 s
+dsv41: rank 0 after warm-up: MemAvailable 8.40 GiB, used since start 102.35 GiB, of which weights 98.90 GiB, non-weight 3.44 GiB (workspace 1.011, scratch 0.004, state 0.203, constants 0.000, rest = CUDA context + NCCL + engram + host)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.4 s = 6.70 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 6.89 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.9 s (4.90 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.25 GiB -> 8.83 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793912461)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793912461)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793912461)
+16:01:02 --- task speed-def2 (max 1800s)
+
+served `dsv41-intarsia`, fingerprint `None`, ctx 66000, 2 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1027 | 0.71 | 1439 (1436–1443) | - | 37.4 (22.2–52.5) | - | - | - | 8 |
+| None | - | - * | - | - | - | - | - | - |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 81.0% at 1024 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-160102-adhoc-dsv41validate-speed-def2/result.json
+[localeval] logged to unanimis: 0f563167-8943-4fef-9191-61024edd257a
+16:01:17 task speed-def2 rc=0 in 15 s
+16:01:20 === SESSION S5: mode skip0, chunk 2048, CAP 66000 (planned 14 min) ===
+16:01:23 ranks started (tag 160121, intarsia, chunk 2048, replay skip0)
+16:01:47 serve up=1 after 24 s
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.6 s = 6.62 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.21 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.1 s (4.86 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.27 GiB -> 8.83 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793912506)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793912506)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793912506)
+dsv41: warm-up passes in 0.18 s
+dsv41: rank 0 after warm-up: MemAvailable 8.41 GiB, used since start 101.87 GiB, of which weights 98.90 GiB, non-weight 2.96 GiB (workspace 1.011, scratch 0.004, state 0.203, constants 0.000, rest = CUDA context + NCCL + engram + host)
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.1 s = 6.84 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.15 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.1 s (5.09 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.23 GiB -> 8.83 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793912506)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793912506)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793912506)
+16:01:48 --- task speed-skip0_2 (max 1800s)
+
+served `dsv41-intarsia`, fingerprint `None`, ctx 66000, 2 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1028 | 0.73 | 1410 (1389–1431) | - | 43.0 (30.2–55.7) | - | - | - | 8 |
+| None | - | - * | - | - | - | - | - | - |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 59.2% at 1024 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-160148-adhoc-dsv41validate-speed-skip0_2/result.json
+[localeval] logged to unanimis: 8b5e4bd6-5880-40d6-a3aa-b261b1cf9470
+16:02:03 task speed-skip0_2 rc=0 in 15 s
+16:02:06 TASK c1-default rc=0
+16:02:06 TASK speed-def1 rc=0
+16:02:06 TASK c2-default rc=0
+16:02:06 TASK c3-default rc=0
+16:02:06 TASK c4-default rc=0
+16:02:06 TASK catspeed-default rc=0
+16:02:06 TASK c1-off rc=0
+16:02:06 TASK c2-off rc=0
+16:02:06 TASK c3-off rc=0
+16:02:06 TASK c4-off rc=0
+16:02:06 TASK c1-skip0 rc=0
+16:02:06 TASK speed-skip0_1 rc=0
+16:02:06 TASK speed-def2 rc=0
+16:02:06 TASK speed-skip0_2 rc=0
+16:02:06 ================ SUMMARY (total elapsed 37 min, planned 140 min) ================
+16:02:06 STEP S1: OK  elapsed 14m48s (planned 50 min)  S1
+16:02:06 STEP S2: OK  elapsed 18m28s (planned 55 min)  S2
+16:02:06 STEP S3: OK  elapsed 2m25s (planned 20 min)  S3
+16:02:06 STEP S4: OK  elapsed 0m46s (planned 12 min)  S4
+16:02:06 STEP S5: OK  elapsed 0m46s (planned 14 min)  S5
+16:02:06 restore (exit 0)
+16:05:39 vLLM on spark1 up (Up 3 minutes)
+16:05:40 vLLM on spark2 up (Up 3 minutes)
+16:05:40 restored
