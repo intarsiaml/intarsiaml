@@ -1,0 +1,9 @@
+rank 1: rank 0 connected from 10.100.152.1:52356
+rank 1: NCCL 2.30.7
+rank 1  bytes/rank   ar_inplace(pipe,sync)  ar_into_bf16(pipe,sync)  ag(pipe,sync)   [us per call]   ar_inplace GB/s
+rank 1      16384      23.8    61.8      25.2    33.3      19.8    26.8     0.69
+rank 1      32768      27.2    35.8      29.0    37.9      23.3    29.8     1.20
+rank 1      65536      42.5   105.2      31.4    39.9      24.8    34.0     1.54
+rank 1     131072      42.5    44.9      43.2    47.0      31.0    39.6     3.09
+rank 1    1048576     111.2   115.9     114.0   114.9      81.4    84.0     9.43
+rank 1   41943040    1994.1  1991.1    2251.2  2294.0    2259.0  2305.7    21.03

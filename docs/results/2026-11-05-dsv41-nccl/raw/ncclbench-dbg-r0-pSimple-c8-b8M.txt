@@ -1,0 +1,195 @@
+rank 0: NCCL 2.30.7
+spark-4e77:334717:334717 [0] NCCL INFO ncclOsDlopen(libnccl-env.so) failed: libnccl-env.so: cannot open shared object file: No such file or directory
+spark-4e77:334717:334717 [0] NCCL INFO ENV/Plugin: Could not find: libnccl-env.so
+spark-4e77:334717:334717 [0] NCCL INFO cudaDriverVersion 13000
+spark-4e77:334717:334717 [0] NCCL INFO NCCL version 2.30.7+cuda13.3
+spark-4e77:334717:334717 [0] NCCL INFO NCCL git version HEAD a5187fa2e
+spark-4e77:334717:334717 [0] NCCL INFO ncclOsDlopen(libnccl-net.so) failed: libnccl-net.so: cannot open shared object file: No such file or directory
+spark-4e77:334717:334717 [0] NCCL INFO NET/Plugin: Could not find: libnccl-net.so
+spark-4e77:334717:334717 [0] NCCL INFO NET/IB : Using [0]rocep1s0f1:1/RoCE [1]roceP2p1s0f1:1/RoCE [RO]; OOB enp1s0f1np1:10.100.152.1<0>
+spark-4e77:334717:334717 [0] NCCL INFO Initialized NET plugin IB
+spark-4e77:334717:334717 [0] NCCL INFO Assigned NET plugin IB to comm
+spark-4e77:334717:334717 [0] NCCL INFO ncclOsDlopen(libnccl-rma.so) failed: libnccl-rma.so: cannot open shared object file: No such file or directory
+spark-4e77:334717:334717 [0] NCCL INFO RMA/Plugin: Could not find: libnccl-rma.so
+spark-4e77:334717:334717 [0] NCCL INFO RMA/Plugin: Failed to load external plugin libnccl-rma.so, dlHandle: (nil), ncclRma: (nil)
+spark-4e77:334717:334717 [0] NCCL INFO RMA/Plugin: Assigned plugin RMA_IB_PROXY to comm
+spark-4e77:334717:334717 [0] NCCL INFO ncclOsDlopen(libnccl-gin.so) failed: libnccl-gin.so: cannot open shared object file: No such file or directory
+spark-4e77:334717:334717 [0] NCCL INFO GIN/Plugin: Could not find: libnccl-gin.so
+spark-4e77:334717:334717 [0] NCCL INFO GIN/Plugin: Failed to load external plugin libnccl-gin.so, dlHandle: (nil), ncclGin: (nil)
+spark-4e77:334717:334717 [0] NCCL INFO GIN/Plugin: Assigned plugin GIN_IB_GDAKI type 3 to comm
+spark-4e77:334717:334717 [0] NCCL INFO Using network IB
+spark-4e77:334717:334717 [0] NCCL INFO Loaded NVML from libnvidia-ml.so.1
+spark-4e77:334717:334717 [0] NCCL INFO [Rank 0] ncclCommInitRank comm 0xb44c63c5d4a0 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId f01000 commId 0xf71f8cf7b94c0552 - Init START
+spark-4e77:334717:334717 [0] NCCL INFO RAS client listening socket at 127.0.0.1<28028>
+spark-4e77:334717:334717 [0] NCCL INFO ncclTopoGetCpuAffinity: Affinity for GPU 0 is empty, ignoring. (GPU affinity =  ; CPU affinity = 0-19).
+spark-4e77:334717:334717 [0] NCCL INFO Rank 0: 2 Net devices
+spark-4e77:334717:334717 [0] NCCL INFO Rank 0: 0 CollNet devices
+spark-4e77:334717:334717 [0] NCCL INFO Local Net device counts across ranks: min 2 max 2
+spark-4e77:334717:334717 [0] NCCL INFO Local CollNet device counts across ranks: min 0 max 0
+spark-4e77:334717:334717 [0] NCCL INFO comm 0xb44c63c5d4a0 rank 0 nRanks 2 nNodes 2 localRanks 1 localRank 0 MNNVL 0
+spark-4e77:334717:334717 [0] NCCL INFO Channel 00/08 : 0 1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 01/08 : 0 1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 02/08 : 0 1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 03/08 : 0 1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 04/08 : 0 1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 05/08 : 0 1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 06/08 : 0 1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 07/08 : 0 1
+spark-4e77:334717:334717 [0] NCCL INFO Trees [0] 1/-1/-1->0->-1 [1] 1/-1/-1->0->-1 [2] 1/-1/-1->0->-1 [3] 1/-1/-1->0->-1 [4] 1/-1/-1->0->-1 [5] 1/-1/-1->0->-1 [6] 1/-1/-1->0->-1 [7] 1/-1/-1->0->-1
+spark-4e77:334717:334717 [0] NCCL INFO P2P Chunksize set to 262144
+spark-4e77:334717:334717 [0] NCCL INFO Tuning P2P operations with maxP2pPeers = 2
+spark-4e77:334717:334717 [0] NCCL INFO ncclOsDlopen(libnccl-profiler.so) failed: libnccl-profiler.so: cannot open shared object file: No such file or directory
+spark-4e77:334717:334717 [0] NCCL INFO PROFILER/Plugin: Could not find: libnccl-profiler.so
+spark-4e77:334717:334717 [0] NCCL INFO Check P2P Type isAllDirectP2p 1 directMode 0 isAllCudaP2p 1
+spark-4e77:334717:334856 [0] NCCL INFO [Proxy Service] Device 0 CPU core 2
+spark-4e77:334717:334856 [0] NCCL INFO proxy listening socket at 10.100.152.1<39071>
+spark-4e77:334717:334857 [0] NCCL INFO [Proxy Service UDS] Device 0 CPU core 3
+spark-4e77:334717:334717 [0] NCCL INFO ncclOsDlopen(libnccl-tuner.so) failed: libnccl-tuner.so: cannot open shared object file: No such file or directory
+spark-4e77:334717:334717 [0] NCCL INFO TUNER/Plugin: Could not find: libnccl-tuner.so
+spark-4e77:334717:334717 [0] NCCL INFO   Algorithm   |                            Tree                  |                            Ring                  |                   CollNetDirect                  |
+spark-4e77:334717:334717 [0] NCCL INFO   Protocol    |             LL |          LL128 |         Simple |             LL |          LL128 |         Simple |             LL |          LL128 |         Simple |
+spark-4e77:334717:334717 [0] NCCL INFO  Max NThreads |            512 |            640 |            512 |            512 |            640 |            256 |              0 |              0 |            640 |
+spark-4e77:334717:334717 [0] NCCL INFO     Broadcast |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     9.3/   0.0 |    18.0/   0.0 |    22.4/   7.7 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO        Reduce |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     9.3/   0.0 |    18.0/   0.0 |    22.4/   7.7 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO     AllGather |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |    11.6/   0.0 |    22.5/   0.0 |    22.4/  15.4 |     5.0/   0.0 |     8.5/   0.0 |    14.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO ReduceScatter |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |    11.6/   0.0 |    22.5/   0.0 |    22.4/  15.4 |     5.0/   0.0 |     8.5/   0.0 |    14.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO     AllReduce |    16.8/   0.0 |    31.0/   0.0 |    36.4/   3.0 |    16.6/   0.0 |    31.0/   0.0 |    36.4/   7.7 |     5.0/   0.0 |     8.5/   0.0 |    14.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO   Algorithm   |                    CollNetChain                  |                            NVLS                  |                        NVLSTree                  |
+spark-4e77:334717:334717 [0] NCCL INFO   Protocol    |             LL |          LL128 |         Simple |             LL |          LL128 |         Simple |             LL |          LL128 |         Simple |
+spark-4e77:334717:334717 [0] NCCL INFO  Max NThreads |              0 |              0 |            640 |              0 |              0 |            640 |              0 |              0 |            640 |
+spark-4e77:334717:334717 [0] NCCL INFO     Broadcast |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO        Reduce |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO     AllGather |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO ReduceScatter |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO     AllReduce |     5.0/   0.0 |     8.5/   0.0 |    14.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO   Algorithm   |                             PAT                  |
+spark-4e77:334717:334717 [0] NCCL INFO   Protocol    |             LL |          LL128 |         Simple |             LL |          LL128 |         Simple |             LL |          LL128 |         Simple |
+spark-4e77:334717:334717 [0] NCCL INFO  Max NThreads |              0 |              0 |            rank 0  bytes/rank   ar_inplace(pipe,sync)  ar_into_bf16(pipe,sync)  ag(pipe,sync)   [us per call]   ar_inplace GB/s
+  0 |
+spark-4e77:334717:334717 [0] NCCL INFO     Broadcast |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO        Reduce |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO     AllGather |     0.0/   0.0 |     0.0/   0.0 |    17.6/   5.8 |
+spark-4e77:334717:334717 [0] NCCL INFO ReduceScatter |     0.0/   0.0 |     0.0/   0.0 |    17.6/   5.8 |
+spark-4e77:334717:334717 [0] NCCL INFO     AllReduce |     0.0/   0.0 |     0.0/   0.0 |     0.0/   0.0 |
+spark-4e77:334717:334717 [0] NCCL INFO threadThresholds 8/8/64 | 16/8/64 | 512 | 512
+spark-4e77:334717:334717 [0] NCCL INFO 8 coll channels, 8 collnet channels, 0 nvls channels, 8 p2p channels, 2 p2p channels per peer
+spark-4e77:334717:334717 [0] NCCL INFO Symmetric memory is not supported. cuMemEnable 1, globalGinSupport 0, cuMemGdrSupport 0
+spark-4e77:334717:334717 [0] NCCL INFO CC Off, workFifoBytes 1048576
+spark-4e77:334717:334717 [0] NCCL INFO ncclCommInitRank comm 0xb44c63c5d4a0 rank 0 nranks 2 cudaDev 0 nvmlDev 0 busId f01000 commId 0xf71f8cf7b94c0552 - Init COMPLETE
+spark-4e77:334717:334717 [0] NCCL INFO Init timings - ncclCommInitRank: rank 0 nranks 2 total 0.37 (kernels 0.19, alloc 0.04, bootstrap 0.12, allgathers 0.00, topo 0.01, graphs 0.00, connections 0.00, rest 0.00)
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 0 sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334886 [0] NCCL INFO [Proxy Progress] Device 0 CPU core 4
+spark-4e77:334717:334717 [0] NCCL INFO Channel 00/0 : 1[0] -> 0[0] [receive] via NET/IB/0
+spark-4e77:334717:334717 [0] NCCL INFO Channel 01/0 : 1[0] -> 0[0] [receive] via NET/IB/1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 02/0 : 1[0] -> 0[0] [receive] via NET/IB/0
+spark-4e77:334717:334717 [0] NCCL INFO Channel 03/0 : 1[0] -> 0[0] [receive] via NET/IB/1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 04/0 : 1[0] -> 0[0] [receive] via NET/IB/0
+spark-4e77:334717:334717 [0] NCCL INFO Channel 05/0 : 1[0] -> 0[0] [receive] via NET/IB/1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 06/0 : 1[0] -> 0[0] [receive] via NET/IB/0
+spark-4e77:334717:334717 [0] NCCL INFO Channel 07/0 : 1[0] -> 0[0] [receive] via NET/IB/1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 00/0 : 0[0] -> 1[0] [send] via NET/IB/0
+spark-4e77:334717:334717 [0] NCCL INFO Channel 01/0 : 0[0] -> 1[0] [send] via NET/IB/1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 02/0 : 0[0] -> 1[0] [send] via NET/IB/0
+spark-4e77:334717:334717 [0] NCCL INFO Channel 03/0 : 0[0] -> 1[0] [send] via NET/IB/1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 04/0 : 0[0] -> 1[0] [send] via NET/IB/0
+spark-4e77:334717:334717 [0] NCCL INFO Channel 05/0 : 0[0] -> 1[0] [send] via NET/IB/1
+spark-4e77:334717:334717 [0] NCCL INFO Channel 06/0 : 0[0] -> 1[0] [send] via NET/IB/0
+spark-4e77:334717:334717 [0] NCCL INFO Channel 07/0 : 0[0] -> 1[0] [send] via NET/IB/1
+spark-4e77:334717:334717 [0] NCCL INFO Connected all rings, use ring PXN 0 GDR 0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 1 sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 2 sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 3 sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 4 sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 5 sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 6 sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 7 sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 8 sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 9 sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount a sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount b sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount c sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount d sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount e sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount f sendbuff 0x21b1400000 recvbuff 0x21b1400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 10 sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 11 sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 12 sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 13 sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 14 sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 15 sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 16 sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 17 sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 18 sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 19 sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 1a sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 1b sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 1c sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 1d sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 1e sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: opCount 1f sendbuff 0x21b1400000 recvbuff 0x21bb400000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllReduce: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 20 sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO Symmetric VA size=124GB
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 21 sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 22 sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 23 sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 24 sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 25 sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 26 sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 27 sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 28 sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 29 sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 2a sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 2b sendbuff 0x21b1400000 recvbuff 0x21b3c00000 rank 0   41943040    1905.4  2057.4    2242.3  2559.3    2377.3  2465.3    22.01
+count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 2c sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 2d sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 2e sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: opCount 2f sendbuff 0x21b1400000 recvbuff 0x21b3c00000 count 10485760 datatype 7 op 0 root 0 comm 0xb44c63c5d4a0 [nranks=2] stream 0xb44c62f0b8f0
+spark-4e77:334717:334717 [0] NCCL INFO AllGather: 41943040 Bytes -> Algo RING proto SIMPLE channel{Lo..Hi}={0..7}

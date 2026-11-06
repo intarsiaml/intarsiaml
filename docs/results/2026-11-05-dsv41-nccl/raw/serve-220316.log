@@ -1,0 +1,101 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29701
+tensor parallel: rank 0 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.5 s = 6.68 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.35 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.8 s (4.92 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.21 GiB -> 8.79 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793934223)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793934223)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793934223)
+dsv41: warm-up passes in 0.30 s
+dsv41: rank 0 after warm-up: MemAvailable 8.76 GiB, used since start 101.45 GiB, of which weights 98.90 GiB, non-weight 2.55 GiB (workspace 1.011, scratch 0.004, state 0.203, constants 0.000, rest = CUDA context + NCCL + engram + host)
+loaded 45ee5d0fd106c94a3d77f721e09cbb2f50e5a16b on cuda (NVIDIA GB10) in 23.6s, context 66000 tokens
+intarsia server listening on http://0.0.0.0:8899
+dsv41: kernel scratch grew to 16777216 bytes (unix 1793934230)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934231)
+dsv41: spec 64 tokens in 13 rounds (4.92 a round), 51/52 drafts accepted (98 %), by position 13/13 13/13 13/13 12/12
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934231)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934232)
+dsv41: spec 64 tokens in 33 rounds (1.94 a round), 30/58 drafts accepted (52 %), by position 21/33 9/18
+dsv41: kernel scratch grew to 33554432 bytes (unix 1793934233)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934233)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934234)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793934234)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934234)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934234)
+dsv41: spec 64 tokens in 19 rounds (3.37 a round), 45/62 drafts accepted (73 %), by position 15/19 11/13 10/10 9/9
+dsv41: spec 64 tokens in 55 rounds (1.16 a round), 8/64 drafts accepted (12 %), by position 6/55 1/6 1/1
+dsv41: spec 64 tokens in 32 rounds (2.00 a round), 32/66 drafts accepted (48 %), by position 20/32 8/16 3/3 1/1
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793934239)
+dsv41: spec 64 tokens in 30 rounds (2.13 a round), 34/65 drafts accepted (52 %), by position 21/28 9/19 3/6 1/1
+dsv41: spec 64 tokens in 27 rounds (2.37 a round), 37/58 drafts accepted (64 %), by position 19/27 12/17 4/5 2/2
+dsv41: spec 64 tokens in 20 rounds (3.20 a round), 44/68 drafts accepted (65 %), by position 18/20 12/18 8/10 6/7
+dsv41: kernel scratch grew to 134217728 bytes (unix 1793934242)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793934243)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934243)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934243)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934243)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934243)
+dsv41: spec 64 tokens in 27 rounds (2.37 a round), 37/59 drafts accepted (63 %), by position 21/27 9/18 5/6 2/2
+dsv41: kernel scratch grew to 268435456 bytes (unix 1793934244)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793934245)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934245)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793934245)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934245)
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934245)
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934246)
+dsv41: spec 64 tokens in 27 rounds (2.37 a round), 36/47 drafts accepted (77 %), by position 22/26 11/13 2/5 1/1
+dsv41: kernel scratch grew to 536870912 bytes (unix 1793934248)
+dsv41: captured the 5-row drafting block as 1 CUDA graph segment(s), 104 steps, 25 EXL3 linears (unix 1793934251)
+dsv41: captured the 3-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934251)
+dsv41: captured the 4-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934251)
+dsv41: spec 8 tokens in 3 rounds (2.67 a round), 5/7 drafts accepted (71 %), by position 3/3 2/2
+dsv41: spec 8 tokens in 4 rounds (2.00 a round), 4/10 drafts accepted (40 %), by position 3/4 1/2
+dsv41: captured the 5-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934253)
+dsv41: spec 8 tokens in 3 rounds (2.67 a round), 5/8 drafts accepted (62 %), by position 3/3 2/2 0/1
+dsv41: spec 8 tokens in 3 rounds (2.67 a round), 5/7 drafts accepted (71 %), by position 3/3 2/2
+dsv41: spec 8 tokens in 3 rounds (2.67 a round), 5/7 drafts accepted (71 %), by position 3/3 2/2
+dsv41: spec 8 tokens in 4 rounds (2.00 a round), 4/10 drafts accepted (40 %), by position 3/4 1/2
+dsv41: spec 8 tokens in 4 rounds (2.00 a round), 4/11 drafts accepted (36 %), by position 3/4 1/2
+dsv41: spec 8 tokens in 4 rounds (2.00 a round), 4/11 drafts accepted (36 %), by position 3/4 1/2
+dsv41: spec 8 tokens in 3 rounds (2.67 a round), 5/7 drafts accepted (71 %), by position 3/3 2/2
+dsv41: captured the 2-row verify pass as 1 CUDA graph segment(s), 1199 steps, 346 EXL3 linears (unix 1793934289)
+dsv41: spec 256 tokens in 95 rounds (2.69 a round), 160/252 drafts accepted (63 %), by position 72/95 48/69 25/33 15/17
+dsv41: spec 256 tokens in 90 rounds (2.84 a round), 166/232 drafts accepted (72 %), by position 72/90 50/67 29/37 15/16
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793934300)
+dsv41: spec 256 tokens in 108 rounds (2.37 a round), 147/228 drafts accepted (64 %), by position 72/106 47/57 21/29 7/7
+dsv41: spec 256 tokens in 89 rounds (2.88 a round), 167/260 drafts accepted (64 %), by position 75/89 55/74 28/40 9/18
+dsv41: spec 256 tokens in 111 rounds (2.31 a round), 145/224 drafts accepted (65 %), by position 73/110 48/61 19/26 5/8
+dsv41: spec 256 tokens in 105 rounds (2.44 a round), 151/257 drafts accepted (59 %), by position 72/105 49/70 24/30 6/6
+dsv41: spec 256 tokens in 107 rounds (2.39 a round), 148/245 drafts accepted (60 %), by position 78/107 39/67 23/27 8/9
+dsv41: spec 256 tokens in 94 rounds (2.72 a round), 161/240 drafts accepted (67 %), by position 70/94 55/66 24/35 12/13
+dsv41: spec 256 tokens in 64 rounds (4.00 a round), 192/226 drafts accepted (85 %), by position 60/64 54/59 43/49 35/37
+dsv41: spec 256 tokens in 79 rounds (3.24 a round), 177/253 drafts accepted (70 %), by position 65/79 53/65 37/45 22/27
+dsv41: spec 256 tokens in 63 rounds (4.06 a round), 193/242 drafts accepted (80 %), by position 57/63 52/57 47/51 37/43
+dsv41: spec 256 tokens in 76 rounds (3.37 a round), 180/257 drafts accepted (70 %), by position 66/76 47/65 39/45 28/32
+dsv41: spec 256 tokens in 63 rounds (4.06 a round), 193/235 drafts accepted (82 %), by position 60/63 55/59 44/53 34/37
+dsv41: spec 256 tokens in 79 rounds (3.24 a round), 177/263 drafts accepted (67 %), by position 64/79 50/64 38/43 25/30
+dsv41: spec 256 tokens in 70 rounds (3.66 a round), 185/247 drafts accepted (75 %), by position 60/70 53/60 43/50 29/34
+dsv41: spec 256 tokens in 80 rounds (3.20 a round), 176/259 drafts accepted (68 %), by position 61/80 51/60 40/45 24/30
+dsv41: spec 256 tokens in 135 rounds (1.90 a round), 121/226 drafts accepted (54 %), by position 78/134 36/55 6/10 1/1
+dsv41: spec 256 tokens in 147 rounds (1.74 a round), 109/229 drafts accepted (48 %), by position 80/147 24/43 4/6 1/1
+dsv41: spec 256 tokens in 146 rounds (1.75 a round), 109/242 drafts accepted (45 %), by position 76/144 28/54 4/7 1/1
+dsv41: spec 256 tokens in 133 rounds (1.92 a round), 122/216 drafts accepted (56 %), by position 86/132 30/50 6/10
+dsv41: spec 256 tokens in 150 rounds (1.71 a round), 105/207 drafts accepted (51 %), by position 80/146 21/36 4/6
+dsv41: spec 256 tokens in 147 rounds (1.74 a round), 108/236 drafts accepted (46 %), by position 72/140 34/52 2/4
+dsv41: spec 256 tokens in 132 rounds (1.94 a round), 124/206 drafts accepted (60 %), by position 83/130 34/46 5/6 2/2
+dsv41: spec 256 tokens in 130 rounds (1.97 a round), 126/213 drafts accepted (59 %), by position 78/126 39/54 8/10 1/1
+dsv41: spec 256 tokens in 119 rounds (2.15 a round), 137/226 drafts accepted (61 %), by position 73/118 43/57 16/22 5/5
+dsv41: spec 256 tokens in 124 rounds (2.06 a round), 131/257 drafts accepted (51 %), by position 71/122 38/57 17/20 5/8
+dsv41: spec 256 tokens in 108 rounds (2.37 a round), 148/236 drafts accepted (63 %), by position 77/108 37/62 25/27 9/12
+dsv41: spec 256 tokens in 115 rounds (2.23 a round), 141/239 drafts accepted (59 %), by position 85/115 42/70 13/19 1/3
+dsv41: spec 256 tokens in 130 rounds (1.97 a round), 126/247 drafts accepted (51 %), by position 69/130 36/51 15/19 6/7
+dsv41: spec 256 tokens in 107 rounds (2.39 a round), 149/238 drafts accepted (63 %), by position 72/107 42/57 26/31 9/11
+dsv41: spec 256 tokens in 109 rounds (2.35 a round), 147/247 drafts accepted (60 %), by position 74/109 46/67 23/27 4/8
+dsv41: spec 256 tokens in 140 rounds (1.83 a round), 115/235 drafts accepted (49 %), by position 72/137 32/52 11/17
+NCCL version 2.30.7+cuda13.3

@@ -1,0 +1,53 @@
+[localeval] calibrated: 20.3 tokens/sentence, 34 base tokens, ctx=66000
+[localeval]   1024 tok rep 1/3: prompt=1030 ttft=0.71s prefill=1452 tok/s decode=42.5 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 2/3: prompt=1031 ttft=0.71s prefill=1450 tok/s decode=42.9 tok/s peak=0.0 tok/s out=8
+[localeval]   1024 tok rep 3/3: prompt=1027 ttft=0.71s prefill=1446 tok/s decode=28.6 tok/s peak=0.0 tok/s out=8
+[localeval]   4096 tok rep 1/3: prompt=4076 ttft=2.14s prefill=1904 tok/s decode=55.2 tok/s peak=0.0 tok/s out=8
+[localeval]   4096 tok rep 2/3: prompt=4077 ttft=2.14s prefill=1907 tok/s decode=52.0 tok/s peak=0.0 tok/s out=8
+[localeval]   4096 tok rep 3/3: prompt=4082 ttft=2.20s prefill=1857 tok/s decode=93.7 tok/s peak=0.0 tok/s out=8
+[localeval]  16384 tok rep 1/3: prompt=16330 ttft=8.12s prefill=2011 tok/s decode=35.4 tok/s peak=0.0 tok/s out=8
+[localeval]  16384 tok rep 2/3: prompt=16329 ttft=8.13s prefill=2008 tok/s decode=72.8 tok/s peak=0.0 tok/s out=8
+[localeval]  16384 tok rep 3/3: prompt=16334 ttft=8.12s prefill=2011 tok/s decode=38.7 tok/s peak=0.0 tok/s out=8
+# localeval: adhoc — 2026-11-06T07:27
+
+- model: `dsv41-intarsia` on ? (?), url `http://100.120.88.104:8899/v1`
+- thinking: off; run kind: speed; label: dsv41-intarsia-tp2-speed-ab2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --sizes 1024,4096,16384 --gen 8 --reps 3 --label dsv41-intarsia-tp2-speed-ab2 --url http://100.120.88.104:8899/v1 --model dsv41-intarsia --thinking off --recipe intarsia 84d7676af dirty=no 1106-0710 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000 chunk engine, engram hot 1024 MiB`
+- result file: `results/20261106-072719-adhoc-dsv41-intarsia-tp2-speed-ab2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia 84d7676af dirty=no 1106-0710 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000 chunk engine, engram hot 1024 MiB
+````
+
+## Speed sweep
+
+served `dsv41-intarsia`, fingerprint `None`, ctx 66000, 3 reps, 8 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1030 | 0.71 | 1450 (1446–1452) | - | 42.5 (28.6–42.9) | - | - | - | 8 |
+| 4077 | 2.14 | 1904 (1857–1907) | 2131 | 55.2 (52.0–93.7) | - | - | - | 8 |
+| 16330 | 8.12 | 2011 (2008–2011) | 2048 | 38.7 (35.4–72.8) | - | - | - | 8 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Warnings
+
+- decode spread 33.5% at 1024 tokens: noisy; rerun before comparing
+- decode spread 75.5% at 4096 tokens: noisy; rerun before comparing
+- decode spread 96.5% at 16384 tokens: noisy; rerun before comparing
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261106-072719-adhoc-dsv41-intarsia-tp2-speed-ab2/result.json
+[localeval] logged to unanimis: fecdd844-a9a5-416a-b46a-14360ce542e2
