@@ -55,6 +55,15 @@ TensorFold keeps 3.2-4.4 tokens/round from a ~15-node DFlash2 tree, our MTP keep
 * Greedy ids `--spec dflash --spec-k 2..7` equal `--spec off` at short-0 and 4k-1 (3135-token prompt: the window is active), 256 tokens
   (`raw/p1-try`, `raw/p1-try-mr`, `raw/p1-try-lrs`, `raw/p1-k`).
 
+### Pre-registered speed rule, phase 1 (written before the ABAB window)
+
+Same lane binary (merged main: MR default on), `INTARSIA_METAL_LOGITS_ROWS=1` in both arms, a fresh `serve --max-batch 1` per visit,
+visits A B A B (A = MTP k2, B = DFlash2 k7), localeval suite cell `speed-spec` (natural-v1 1k / 4k / 16k, 256 tokens); categories once per
+arm; TensorFold one visit in the same window. `--spec dflash` stays opt-in whatever the result. **DFlash2 k7 counts as a win over MTP k2
+on Metal if B / A of the two-visit medians is >= 1.05 at natural-v1 4k and no natural-v1 cell is below 0.95**; otherwise phase 1 is
+"correct, measured, slower" and the numbers go to the tree / verify-cost decision. TensorFold's categories: it may not honour
+`min_tokens` / `ignore_eos`; its rows are compared by decode tok/s over whatever length it generated (flagged in the table).
+
 ### First traces (eager, `INTARSIA_SPEC_TRACE=1`, short-0, 256 tokens, fleetq exclusive)
 
 | arm | knobs | tokens a pass | draft ms (head) | verify + rollback ms | pass ms | decode tok/s |
@@ -105,8 +114,8 @@ round that is ~22 tok/s, below MTP k2 (50.6 short with LOGITS_ROWS). So:
 * One DFlash2 block pass as today (rows [anchor, MASK x 7]); keep per row the top-k (k = 4, device top-k later) logits and ids and the
   selector projection `hproj` (already downloaded for the selector).
 * Best-first search: node score = sum over its path of log-softmax over siblings of `logit + selector_edge(parent token, hproj[d])`
-  (the edge term our `Selector::select` already computes greedily); pop up to R - 1 nodes; children of a popped node = top-4 of row d + 1.
-  Depth d uses block row d + 1 (rows only see the anchor and MASKs, so row d's candidates do not depend on the parent: the parent enters
+  (the edge term our `Selector::select` already computes greedily); pop up to R - 1 nodes; children of a popped node at depth d = top-4 of block row d + 1.
+  Depth d uses block row d (rows only see the anchor and MASKs, so row d's candidates do not depend on the parent: the parent enters
   only through the selector edge). With R - 1 = 7 and every pop on the best path the result is the existing greedy chain.
 * Output: `TreeDraft { tokens[n], parent[n] (-1 = anchor row), depth[n] }`, parents before children, n <= R - 1.
 
