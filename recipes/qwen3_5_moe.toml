@@ -87,6 +87,12 @@ mtp_default_k = 2
 # tok/s, 2-16 streams within 0-3 % of plain, greedy ids per sequence equal to solo spec-off (docs/results/2026-11-05-batched-mtp.md).
 # `INTARSIA_BATCHED_MTP=0` (or `--spec off`) turns it off.
 batched_mtp = 1
+# GatedDeltaNet delta-rule state stored bf16 (half the bytes of the recurrent slot; f32 compute, one round to nearest even per launch). Lane spark35
+# (docs/results/2026-11-05-spark35-numerics.md): KL 0.5x to 1.6x of a benign chunk-schedule perturbation at 4k to 64k and over 8192 decode tokens, no drift,
+# needle 12/12 and 8/8, MMLU / GSM8K inside 2 SE, 16-stream aggregate +8.3 %. User decision 2026-11-06: flip the C default and keep D opt-in.
+# `INTARSIA_GDN_STATE=f32` turns it off (the env var wins over this key); the debug switches `INTARSIA_CUDA_GDN_SPLIT=0`, `INTARSIA_CUDA_GDN_LANES=1`
+# and `INTARSIA_CUDA_FAST_PREFILL=1` select f32-only kernels and then need `INTARSIA_GDN_STATE=f32` as well (else the load refuses).
+gdn_state = "bf16"
 
 # 4096 on Metal (lane chunk4k, 2026-10-29): 4096-row chunks give the MoE expert GEMMs 128 rows per expert (64 at 2048) and
 # amortise the fp8 weight decode over twice the rows: served 35B prefill about +7.5 % at 4k (best start against best start; paired median

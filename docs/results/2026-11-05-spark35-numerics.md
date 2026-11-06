@@ -3,6 +3,8 @@
 Lane `lane-sn/spark35-numerics`, 2026-11-05, branch `lane-sn/spark35-numerics` from `main` 5390e65b4. CUDA only, `nvidia/Qwen3.6-35B-A3B-NVFP4`,
 the model both Sparks serve through vLLM for Mission Control (spark1 at 32K context, spark2 at 128K). Raw: `docs/results/2026-11-05-spark35-numerics/raw/`.
 
+**User decision 2026-11-06: flip the C default and keep D opt-in.** The C flip is branch `lane-sn/gdn-bf16-default` (recipe `[tuning.cuda] gdn_state = "bf16"`; off switch `INTARSIA_GDN_STATE=f32`); D stays opt-in (`--kv-dtype fp8_e4m3`).
+
 **Status (2026-11-06 08:45 EST): all rules are now measured. Round 1 (J1 to J3, 2026-11-05 evening, dev `7a7aa47b2`) gave Q5 to Q8 but no KL data (kl.sh bug, fixed). Round 2
 (2026-11-06 morning, branch merged with `origin/main`, dev `1f4281d4c`) re-ran the gates and the KL arms: Q1 to Q4 PASS for D, C and C+D. By the rule below ("An arm passes a lever
 if it passes Q1 to Q6") D, C and C+D each pass, and C passes Q8. Only the user flips a default; none is flipped on this branch (the D flip commit `4d9003f67` is reverted).**
