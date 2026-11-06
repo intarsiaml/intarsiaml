@@ -7,3 +7,5 @@
 10:20:44 round 1 radiance ho-recall: localeval exit 0 results/20261106-102038-df-radiance-df-rad1-radiance-ho-recall-r1/result.json
 10:21:01 round 1 radiance rcp-code: localeval exit 0 results/20261106-102045-df-radiance-df-rad1-radiance-rcp-code-r1/result.json
 10:21:31 round 1 radiance rcp-prose: localeval exit 0 results/20261106-102101-df-radiance-df-rad1-radiance-rcp-prose-r1/result.json
+10:21:51 round 1 radiance rcp-recall: localeval exit 0 results/20261106-102132-df-radiance-df-rad1-radiance-rcp-recall-r1/result.json
+10:21:51 done
