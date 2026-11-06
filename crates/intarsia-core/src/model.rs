@@ -901,7 +901,7 @@ impl Model {
         };
         let kv = match opts.kv_dtype {
             Some(d) => d,
-            None => recipe.resolve_kv_dtype(b.name())?,
+            None => recipe.kv_dtype()?,
         };
         let final_norm = load(&recipe.top.final_norm, 0, Some(&[dims.hidden]))?;
 
