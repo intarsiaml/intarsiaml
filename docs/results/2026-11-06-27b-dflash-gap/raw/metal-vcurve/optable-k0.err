@@ -1,0 +1,23 @@
+prefill chunk 2048 (recipe qwen3_5_vl, metal)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on Apple M5 Max in 0.4s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 41 tokens
+finish=length prompt=41 (cached 0) completion=96 | prefill 820 ms (50.0 tok/s) | decode 16475 ms (5.77 tok/s)
+op table (estimated ms over all launches; total 17175.7 ms):
+op                               ms  share%    calls   timed
+matmul_mxfp4                9807.12   57.10    48112   48112
+rmsnorm_add                 2023.44   11.78    12416   12416
+silu_glu                    1565.10    9.11    10864   10864
+gdn_delta_rule               739.78    4.31     4656    4656
+gdn_conv                     678.81    3.95     4656    4656
+rmsnorm                      670.02    3.90     4753    4753
+logits                       557.08    3.24       96      96
+attn_decode                  257.22    1.50     1536    1536
+qk_norm_rope_kv              239.57    1.39     1552    1552
+gate_split                   232.68    1.35     1552    1552
+sigmoid_mul                  221.14    1.29     1552    1552
+embedding                    157.25    0.92       97      97
+argmax                        23.88    0.14       96      96
+attn_prefill                   2.64    0.02       16      16
+steps=97 graph replays=0 (captures 0) eager decode steps=96 (profiled 96) top ops: matmul_mxfp4=9807ms/48112 rmsnorm_add=2023ms/12416 silu_glu=1565ms/10864 gdn_delta_rule=740ms/4656 gdn_conv=679ms/4656

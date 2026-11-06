@@ -1,0 +1,9 @@
+10:18:03 radiance answers, model Qwen3.8
+10:19:12 suite speed-plain exit 0: results/20261106-101804-adhoc-df-rad1-radiance-speed-plain/result.json
+10:20:02 suite speed-spec exit 3: results/20261106-101913-adhoc-df-rad1-radiance-speed-spec/result.json
+10:20:16 round 1 radiance ho-chat: localeval exit 0 results/20261106-102003-df-radiance-df-rad1-radiance-ho-chat-r1/result.json
+10:20:22 round 1 radiance ho-code: localeval exit 0 results/20261106-102017-df-radiance-df-rad1-radiance-ho-code-r1/result.json
+10:20:38 round 1 radiance ho-prose: localeval exit 0 results/20261106-102022-df-radiance-df-rad1-radiance-ho-prose-r1/result.json
+10:20:44 round 1 radiance ho-recall: localeval exit 0 results/20261106-102038-df-radiance-df-rad1-radiance-ho-recall-r1/result.json
+10:21:01 round 1 radiance rcp-code: localeval exit 0 results/20261106-102045-df-radiance-df-rad1-radiance-rcp-code-r1/result.json
+10:21:31 round 1 radiance rcp-prose: localeval exit 0 results/20261106-102101-df-radiance-df-rad1-radiance-rcp-prose-r1/result.json

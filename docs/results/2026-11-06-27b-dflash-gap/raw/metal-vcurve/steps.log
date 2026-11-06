@@ -1,0 +1,17 @@
+10:16:01 short-0 k0 exit 0 ids PASS |  | decode 8819 ms (28.92 tok/s)
+10:16:09 short-0 k1 exit 0 ids PASS | draft 4.31 verify+rollback 47.91 ms n=132 | decode 7096 ms (35.93 tok/s)
+10:16:17 short-0 k2 exit 0 ids PASS | draft 7.66 verify+rollback 60.30 ms n=102 | decode 7245 ms (35.20 tok/s)
+10:16:25 short-0 k3 exit 0 ids PASS | draft 11.13 verify+rollback 75.72 ms n=83 | decode 7599 ms (33.56 tok/s)
+10:16:35 short-0 k4 exit 0 ids PASS | draft 14.54 verify+rollback 91.15 ms n=73 | decode 8185 ms (31.15 tok/s)
+10:16:45 short-0 k5 exit 0 ids PASS | draft 17.96 verify+rollback 106.77 ms n=70 | decode 9289 ms (27.45 tok/s)
+10:16:56 short-0 k6 exit 0 ids PASS | draft 21.27 verify+rollback 123.00 ms n=68 | decode 10444 ms (24.42 tok/s)
+10:17:09 4k-1 k0 exit 0 ids PASS |  | decode 8804 ms (28.96 tok/s)
+10:17:21 4k-1 k1 exit 0 ids PASS | draft 4.60 verify+rollback 48.87 ms n=136 | decode 7484 ms (34.07 tok/s)
+10:17:33 4k-1 k2 exit 0 ids PASS | draft 8.18 verify+rollback 63.85 ms n=102 | decode 7633 ms (33.41 tok/s)
+10:17:46 4k-1 k3 exit 0 ids PASS | draft 11.68 verify+rollback 79.97 ms n=89 | decode 8526 ms (29.91 tok/s)
+10:17:59 4k-1 k4 exit 0 ids PASS | draft 15.12 verify+rollback 95.37 ms n=77 | decode 8965 ms (28.44 tok/s)
+10:18:13 4k-1 k5 exit 0 ids PASS | draft 18.56 verify+rollback 111.57 ms n=75 | decode 10294 ms (24.77 tok/s)
+10:18:29 4k-1 k6 exit 0 ids PASS | draft 21.77 verify+rollback 127.43 ms n=70 | decode 11057 ms (23.06 tok/s)
+10:18:46 optable k0 exit 0
+10:18:59 optable k6 exit 0
+10:18:59 all done

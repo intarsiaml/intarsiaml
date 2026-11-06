@@ -1,0 +1,31 @@
+prefill chunk 2048 (recipe qwen3_5_vl, metal)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, metal; --mtp-draft-vocab 0 drafts with the full head)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+speculative decoding: Mtp, up to 6 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax logits=logits_bf16_gemv argmax=argmax_f32 logits=logits_bf16_gemv_rows
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on Apple M5 Max in 0.4s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.88 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 41 tokens
+finish=length prompt=41 (cached 0) completion=96 | prefill 781 ms (52.5 tok/s) | decode 11172 ms (8.50 tok/s)
+op table (estimated ms over all launches; total 17359.2 ms):
+op                               ms  share%    calls   timed
+logits                      6810.02   39.23      189      29
+matmul_mxfp4                4590.60   26.44    14880   14880
+gdn_delta_rule              1431.92    8.25     9120    9120
+gdn_conv                    1312.91    7.56     9120    9120
+embedding                    773.55    4.46      192      32
+rmsnorm_add                  666.73    3.84     4160    3840
+silu_glu                     507.14    2.92     3520    3360
+matmul                       453.03    2.61      804       4
+rmsnorm                      274.20    1.58     1956    1476
+qk_norm_rope_kv              110.24    0.64      642     482
+gate_split                    94.83    0.55      640     480
+sigmoid_mul                   92.03    0.53      640     480
+attn_prefill                  83.32    0.48      488     464
+matmul_pair                   62.90    0.36      322       2
+argmax                        42.35    0.24      189      29
+add                           26.73    0.15      162       2
+attn_decode                   26.67    0.15      152      16
+spec: verify passes=28 proposed=160 accepted=67 (acceptance 41.9%, 3.39 tokens per pass)
+steps=30 graph replays=0 (captures 0) eager decode steps=1 (profiled 1) top ops: matmul_mxfp4=4591ms/14880 gdn_delta_rule=1432ms/9120 gdn_conv=1313ms/9120 logits=1045ms/189 rmsnorm_add=615ms/4160

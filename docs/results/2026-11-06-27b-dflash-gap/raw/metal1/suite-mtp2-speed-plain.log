@@ -1,0 +1,71 @@
+[localeval]  probe probe-copy: out=256 decode=43.4 tok/s
+[localeval]  probe probe-prose: out=256 decode=28.8 tok/s
+[localeval]  probe probe-prose: out=256 decode=29.2 tok/s
+[localeval]  probe probe-copy: out=256 decode=41.4 tok/s
+[localeval]  probe probe-copy: out=256 decode=42.0 tok/s
+[localeval]  probe probe-prose: out=256 decode=27.2 tok/s
+[localeval] cell speed-plain (speed)
+[localeval]     128 r0 p0: in=125 out=256 ttft=0.378s prefill=0 decode=30.8
+[localeval]    1024 r0 p1: in=1025 out=256 ttft=1.405s prefill=730 decode=34.3
+[localeval]    4096 r0 p2: in=4101 out=256 ttft=5.017s prefill=817 decode=36.2
+[localeval]   16384 r0 p3: in=16373 out=256 ttft=20.977s prefill=781 decode=30.8
+[localeval]    1024 r1 p0: in=1022 out=256 ttft=1.676s prefill=610 decode=34.6
+[localeval]    4096 r1 p1: in=4098 out=256 ttft=5.085s prefill=806 decode=33.1
+[localeval]   16384 r1 p2: in=16371 out=256 ttft=21.517s prefill=761 decode=32.0
+[localeval]     128 r1 p3: in=121 out=257 ttft=0.391s prefill=0 decode=30.2
+[localeval]    4096 r2 p0: in=4097 out=256 ttft=5.132s prefill=798 decode=33.7
+[localeval]   16384 r2 p1: in=16372 out=256 ttft=21.667s prefill=756 decode=31.0
+[localeval]     128 r2 p2: in=124 out=256 ttft=0.409s prefill=0 decode=27.7
+[localeval]    1024 r2 p3: in=1022 out=256 ttft=1.402s prefill=729 decode=33.3
+[localeval]    1024 r3 p0: in=1025 out=256 ttft=1.414s prefill=725 decode=35.0
+[localeval]    1024 r4 p0: in=1025 out=256 ttft=1.470s prefill=697 decode=33.9
+# localeval: adhoc — 2026-11-06T09:53
+
+- model: `qwen38-27b` on ? (?), url `http://127.0.0.1:8297/v1`
+- thinking: off; run kind: suite; label: df-metal-mtp2-speed-plain
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval suite --url http://127.0.0.1:8297/v1 --model qwen38-27b --thinking off --tokenizer-repo Vontra/Qwen3.8-27B-MLX-4bit --tokenizer-revision 70ae7fac63274ff2eac54152031433374cb80f2f --lane spec:mtp --drafter mtp --max-num-seqs 1 --max-context 20480 --power-mode default --tier adhoc --cells speed-plain --label df-metal-mtp2-speed-plain --recipe intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480  (default MTP k2 for mtp2; lane df) --wait-idle 60`
+- result file: `results/20261106-095304-adhoc-df-metal-mtp2-speed-plain/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480  (default MTP k2 for mtp2; lane df)
+````
+
+## Suite
+
+- suite `llm-inference-suite` v1 (sha256 `2721aa3d13e9`), tier **adhoc** (ad hoc: never a suite result)
+- cells run: speed-plain; skipped: -; rejected: none
+- lane `spec:mtp` (source counters, verified True); probe ratio 1.459; idle check metrics; context 20480 (max_model_len)
+- tokenizer: {"repo": "Vontra/Qwen3.8-27B-MLX-4bit", "revision": "70ae7fac63274ff2eac54152031433374cb80f2f", "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523"}
+- protocol compliance: request-shape, timing-defs, client-token-count, gen-length, nonce-first, cache-hit-reject, warmup-per-round, warmup-run-start, latin-square-order, quiet-slot, idle-check, spread-d2, retry-drop-one, spec-arm-plain-report, reps-raw, lane-counters, lane-probe, context-limit, sampling-pinned, tiers, exit-codes, power-mode
+- exit code 0 (0 pass, 3 rejected, 2 harness error)
+
+
+## Speed sweep
+
+served `qwen38-27b`, fingerprint `None`, ctx 20480, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 124 | 0.39 | - * | - | 30.2 (27.7–30.8) | 45.1 (36.6–46.2) | - | - | 256 |
+| 1025 | 1.41 | 727 (697–730) | 885 | 34.1 (33.3–35.0) | 40.3 (40.0–43.8) | - | - | 256 |
+| 4098 | 5.08 | 806 (798–818) | 836 | 33.7 (33.1–36.2) | 40.0 (39.0–41.3) | - | - | 256 |
+| 16372 | 21.52 | 761 (756–780) | 747 | 31.0 (30.8–32.0) | 37.3 (37.1–38.3) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Suite run (PROTOCOL.md): requests are one user message with a fresh nonce first, temperature 0, top_p 1, seed 0, ignore_eos (else logit_bias -100 on the EOS ids) with max_tokens = gen_tokens; t0 is when the last request byte is sent; tokens are counted by re-tokenizing the output with the pinned tokenizer (server counts are kept beside them and may differ by at most 2%); one discarded full-length request per size precedes the first round, and one discarded max_tokens-1 warmup precedes each round; rounds interleave the sizes in a cyclic (Latin-square) order; a cell's statistic is the median of its valid reps, its spread the range normalised to n = 3 with d2; a cell over its gate gets 2 extra reps once, then may drop the one rep farthest from the median, else it is rejected. Concurrency is a closed loop of N clients measured in a window that opens when every client has completed one request.
+
+[localeval] saved /opt/code/deepeval/results/20261106-095304-adhoc-df-metal-mtp2-speed-plain/result.json
+[localeval] logged to unanimis: 708ee7fe-3c1b-4f36-8250-efde09502ef3
