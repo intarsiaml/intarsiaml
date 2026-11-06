@@ -9,8 +9,8 @@ WT=/opt/code/intarsiaml/.worktrees/device-sampling; OUT=$WT/docs/results/2026-11
 rs() { ssh -n -o BatchMode=yes "$H" "$@"; }
 trap 'rs "rm -rf ~/intarsiaml-ds-rx"' EXIT
 rs 'rm -rf ~/intarsiaml-ds-rx; mkdir -p ~/intarsiaml-ds-rx/branch ~/intarsiaml-ds-rx/main'
-(cd $WT && git archive $BR) | ssh -o BatchMode=yes $H 'tar -x -C ~/intarsiaml-ds-rx/branch'
-(cd $WT && git archive $MN) | ssh -o BatchMode=yes $H 'tar -x -C ~/intarsiaml-ds-rx/main'
+(cd $WT && git archive $BR ':(exclude)docs/results') | ssh -o BatchMode=yes $H 'tar -x -C ~/intarsiaml-ds-rx/branch'
+(cd $WT && git archive $MN ':(exclude)docs/results') | ssh -o BatchMode=yes $H 'tar -x -C ~/intarsiaml-ds-rx/main'
 rs 'free -g | sed -n 2p; nvidia-smi --query-gpu=memory.used,memory.total --format=csv,noheader; which gdb' | tee "$OUT/box.txt"
 for t in branch main; do
   echo "== build $t $(date +%T)"
