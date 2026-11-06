@@ -1,0 +1,9 @@
+fleetq: #8538 running on endor: zsh .scratch/build.sh
+== build branch 133bbf3f4 17:14:25
+    Finished `release` profile [optimized] target(s) in 33.53s
+== build main 602a1fcfe 17:15:07
+    Finished `release` profile [optimized] target(s) in 16.75s
+-rwxr-xr-x@ 1 josef  staff  27531632 Nov  5 17:14 /opt/code/intarsiaml/.worktrees/flip-metal-mtp/.scratch/intarsia.branch
+-rwxr-xr-x@ 1 josef  staff  27531632 Nov  5 17:15 /opt/code/intarsiaml/.worktrees/flip-metal-mtp/.scratch/intarsia.main
+== done 17:15:24
+fleetq: #8538 done (exit 0)

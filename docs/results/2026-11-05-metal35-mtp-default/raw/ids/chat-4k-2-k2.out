@@ -1,0 +1,10 @@
+This is a highly technical, internal engineering log documenting the validation of Tensor Parallelism (TP) on AMD Instinct R9700 GPUs using the HIP backend. The document serves as a "gate" decision record for merging TP=2 support into the main branch.
+
+Here is a critical review of the document, analyzing its strengths, weaknesses, and missing elements.
+
+### 1. What is Convincing (Strengths)
+
+**A. Rigorous, Multi-Layered Correctness Verification**
+The most compelling aspect of this document is the depth of the correctness checks. It does not rely on a single metric (like KL divergence) but employs a hierarchy of proofs:
+*   **Direct Partial Sum Checks (Check 1):** The use of deterministic and probabilistic bounds (`BOUND_DET` and `BOUND_PROB`) to catch partial-scale bugs is mathematically robust. The fact that they caught a 0.3% scale bug that KL divergence missed is a strong argument for the necessity of this specific test suite.
+*   **Bitwise Reproducibility:** The claim that `tp=2` runs are bitwise identical across runs (Section 1.4) is a gold standard for distributed deep learning. It eliminates non-d

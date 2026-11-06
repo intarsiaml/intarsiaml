@@ -1,0 +1,29 @@
+Error>>,
+}
+
+/// A single-threaded engine that processes requests one at a time.
+pub struct LocalEngine {
+    shared: Arc<Shared>,
+    tx: Sender<GenRequest>,
+    rx: Mutex<Receiver<GenEvent>>,
+}
+
+impl LocalEngine {
+    pub fn new(model: Model, codec: Arc<dyn TextCodec>, meta: EngineMeta) -> Self {
+        let (tx, rx) = channel();
+        let (tx2, rx2) = channel();
+        let shared = Arc::new(Shared {
+            inner: Mutex::new(Inner { model, state: SequenceState::default() }),
+            telemetry: Arc::new(Telemetry::default()),
+            codec,
+            eos: meta.eos_ids,
+            failed: Mutex::new(None),
+        });
+        let worker = Worker { tx: tx2, shared: shared.clone() };
+        std::thread::Builder::new().name("intarsia-worker".into()).spawn(move || worker.run(rx)).expect("spawn worker");
+        LocalEngine { shared, tx, rx: Mutex::new(rx2) }
+    }
+}
+
+struct Worker {
+    tx

@@ -1,0 +1,21 @@
+q.shape[0], q.shape[1]) != (n, k) {
+                return Err(Error::model(format!(
+                    "tensor '{prefix}' shape mismatch: expected [{n}, {k}], got {:?}",
+                    q.shape
+                )));
+            }
+            weights_bytes.set(weights_bytes.get() + q.nbytes() as u64);
+            Ok(q)
+        };
+        let load_moe = |tmpl: &str, layer: usize, n: usize, k: usize, num_experts: usize, topk: usize| -> Result<MoeWeights> {
+            let prefix = Recipe::expand(tmpl, layer);
+            let w = crate::quant::load_moe(src, &prefix, b, &qopts, num_experts, topk)?;
+            if (w.shape[0], w.shape[1]) != (n, k) {
+                return Err(Error::model(format!(
+                    "tensor '{prefix}' shape mismatch: expected [{n}, {k}], got {:?}",
+                    w.shape
+                )));
+            }
+            weights_bytes.set(weights_bytes.get() + w.nbytes() as u64);
+            Ok(w)
+       

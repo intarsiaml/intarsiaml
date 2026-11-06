@@ -1,0 +1,35 @@
+
+    if n < 2:
+        return False
+    for i in range(2, int(n**0.5) + 1):
+        if n % i == 0:
+            return False
+    return True
+
+
+def is_fibonacci(n: int) -> bool:
+    """Return True if n is a Fibonacci number."""
+    a, b = 0, 1
+    while a < n:
+        a, b = b, a + b
+    return a == n
+
+
+def main():
+    n = int(input("Enter a number: "))
+    fib_numbers = fibonacci(n)
+    print("Fibonacci numbers:", fib_numbers)
+
+    prime_fib_numbers = [num for num in fib_numbers if is_prime(num)]
+    print("Prime Fibonacci numbers:", prime_fib_numbers)
+
+    is_fib = is_fibonacci(n)
+    print(f"{n} is a Fibonacci number: {is_fib}")
+
+
+if __name__ == "__main__":
+    main()# Fibonacci Number Generator
+def fibonacci(n: int) -> list[int]:
+    """Return the first n Fibonacci numbers."""
+    result = []
+    a,
