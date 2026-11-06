@@ -9,7 +9,7 @@ Lane `dsv41/sampled-spec`, branch `dsv41/sampled-spec`, 2026-11-05. Base: `origi
 | 0.7 | 36.2 / 36.2 tok/s | 51.9 / 52.3 | **+43 % / +44 %** |
 | 1.0 | 36.5 / 36.4 | 51.7 / 51.6 | **+42 % / +42 %** |
 
-The flag is opt-in; making it the default is a user decision, because sampled text is no longer draw-for-draw the text main gives for a seed (section 2). Greedy ids are unchanged (golden 640/640 and 1120/1120 with the flag off and on).
+The flag is opt-in; making it the default is a user decision. Whether a seed gives main's text is probably yes, but it is not established (section 2). Greedy ids are unchanged (golden 640/640 and 1120/1120 with the flag off and on).
 
 ## 1. The change (`crates/intarsia-models/src/dsv41_engine.rs`)
 
@@ -49,9 +49,9 @@ Power of the scripted G-test (noncentral chi-square, alpha 0.002, 6000 draws): d
 
 No position rejects at the planned alpha. Two cells are below 0.005 (position 4 of the first run, position 5 of the pooled sets) and are not the same position in the replication; with 6 positions x 3 tests, one or two such p-values are within chance (the smallest, 0.0043, is 0.026 after Bonferroni over its 6 positions), but this test cannot rule out a difference smaller than w of about 0.1. Verify rows run multi-row kernels, so a small numeric difference from the decode row is expected and is the same kind of difference as greedy speculation's near-ties.
 
-**What is not exact: draws for a given seed.** The scripted test shows identical ids for identical seeds because its verify rows are bit-identical to its decode rows. On the real model the constrained requests did give **identical text with the flag on and off for 32 of 32** (16 requests at T 0.7 with seeds, 16 greedy; `raw-w3/cons-*`) and 8 of 8 token counts in window 2, but the real verify rows are not bit-identical to 1-row passes, so on other prompts a draw near a boundary can move. Sampled output follows the same distribution, not always the same text for a seed, hence opt-in.
+**Draws for a given seed: probably identical to main, not shown.** The guarantee is the distribution, not the text. In the scripted test the ids are identical for identical seeds. On the real model: the 32 seeded or greedy constrained requests gave **identical text with the flag on and off, 32 of 32** (about 1950 tokens, 16 of them seeded at T 0.7 with about 970 draws, `raw-w3/cons-*`), and 8 of 8 token counts in window 2. The repo claims verify rows are bitwise the decode row (`docs/tuning.md` rows for `SPEC_K` and `SPEC_CHOOSE`, `commit_verify`), and `forward_rows` is the same pass as `forward_rows_ids` with the logits read back instead of their argmax. If that holds, flag-on sampled output is seed-for-seed main's output. **Not compared:** the 64 sampled catspeed requests of section 3 (`sampcat.py` did not record ids; it now does, `speed.ids`, so one off/on pass of about 10 minutes settles it). Keep the flag opt-in until then; the decision on default-on is the user's.
 
-Greedy requests under a constraint now speculate with the flag on; their ids can differ from main's by verify-row numerics at near-ties, as unconstrained greedy speculation already can.
+Greedy requests under a constraint now speculate with the flag on; their ids should equal main's unless a verify row differs numerically at a near-tie, as unconstrained greedy speculation already can (the 16 greedy constrained requests gave identical text).
 
 ## 3. Speed (windows #8579 (killed), #8609, #8636; spark1 + spark2, vLLM down and restored by `run-full.sh`, memory watcher at 5 GiB: lowest 6.5 GiB available, no kill)
 
@@ -101,7 +101,7 @@ Because the retention came out at 1.0, the window arms ran with `INTARSIA_DSV41_
 
 ## 6. Not run, or uncertain
 
-- Draw-for-draw equality with main for a seed on the real model (only the scripted target, and 32/32 constrained texts, show it).
+- Draw-for-draw equality with main for a seed on the 64 sampled catspeed requests (only the scripted target and the 32 constrained texts show it; ids are recorded from now on).
 - A real-model G-test with the production `CHOOSE=1` (the G-test arm used `CHOOSE=0 K=4` so every position 2..5 comes from a verify row). A test at temperatures other than 1.0 and of top-k / top-p on the real model (the scripted test covers top-k / top-p).
 - 4K+ prompts and cached prefixes at T > 0 on the real model; long runs; tool-call (lazy) constraints; cancel mid-round at T > 0 (the cancel path is the greedy one).
 - Device top-k (`HeadMode::LastTopK`) sampling for the verify rows; the host draws cost about 1 ms a row, the largest remaining part of the gap to greedy speculation (next lever: 7 % at T 0.7).
