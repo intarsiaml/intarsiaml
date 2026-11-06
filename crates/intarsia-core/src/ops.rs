@@ -452,6 +452,10 @@ pub struct OpAttrs {
     /// `QTensor::act_fp8`). Read by kernel selection (`ShapeInfo::mxfp4_a8`): only kernels registered for W4A8 serve it, every
     /// other MXFP4 kernel declines it, because they read any nonzero `act` as W4A4; false for every other op.
     pub mxfp4_a8: bool,
+    /// `AttnDecode` (lane dw, `INTARSIA_DFLASH_WIN_SPLIT`, on unless `=0`): the DFlash2 draft's block attention asks for a split-KV kernel over its window. Read by
+    /// kernel selection only (`ShapeInfo::win_split`): a kernel registered for it (HIP `attn_decode_bf16_window_splitkv`) may take the call, every other
+    /// kernel ignores it, so the results of the target's attention (and any call that leaves it false) are untouched. False for every other call.
+    pub win_split: bool,
     /// The DeepSeek-V4.1 ops' own attributes (`crate::dsv41::ops::DsvAttrs`); every other op ignores them.
     pub dsv: crate::dsv41::ops::DsvAttrs,
 }
@@ -480,6 +484,7 @@ impl Default for OpAttrs {
             fp8_static_act: false,
             mxfp4_w4a16: false,
             mxfp4_a8: false,
+            win_split: false,
             dsv: Default::default(),
         }
     }
@@ -931,6 +936,9 @@ pub struct ShapeInfo {
     /// selection: a kernel that reads only bf16 activations (CUDA's tensor-core `matmul_mxfp4_mma`) is registered for these calls alone,
     /// because the device-side `act` value is invisible at plan time.
     pub mxfp4_w4a16: bool,
+    /// `OpAttrs::win_split` of the call (the DFlash2 draft's windowed decode attention may use the split-KV window kernel). Read by kernel selection:
+    /// the kernel that implements it is registered for these calls alone.
+    pub win_split: bool,
     /// An input of the call is in a non-row-major layout (`backend::Layout`: HIP fragment-order fp8 weights). Only kernels registered
     /// `.frag_ok()` accept the call, so a kernel that reads row-major bytes can never be selected for it.
     pub frag: bool,
@@ -962,6 +970,7 @@ impl ShapeInfo {
             fp8_static_act: call.attrs.fp8_static_act,
             mxfp4_a8: call.attrs.mxfp4_a8,
             mxfp4_w4a16: call.attrs.mxfp4_w4a16,
+            win_split: call.attrs.win_split,
             ..Default::default()
         };
         match call.op {

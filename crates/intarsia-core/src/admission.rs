@@ -615,6 +615,45 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                     }
                 }
             }
+            // lane dw (`OpAttrs::win_split`, the DFlash2 draft's windowed block attention): the split-KV window kernel is registered for these calls
+            // alone, so without cases it would stay untested and `serve` (admitted kernels only) could not select it. The draft's heads
+            // (32/8 and the tp2 half 16/4, D = 128) and a G = 8 shape; windows 5, 2051 (the draft's 2048 + 7 - r class: past the visible keys at the
+            // short positions, cutting the context at a key that is not a tile or split boundary at 2100), 2054 and, in the full sweep, 0 (all keys)
+            // and 1037; scale 1/sqrt(D) as the draft.
+            if op == Op::AttnDecode {
+                let wheads: &[(usize, usize, usize)] = &[(32, 8, 128), (16, 4, 128), (16, 2, 256)];
+                let wwin: &[usize] = if quick { &[5, 2051] } else { &[0, 5, 1037, 2051, 2054] };
+                let wtp: &[(usize, usize)] = if quick { &[(1, 7), (1, 40), (1, 2100)] } else { &[(1, 7), (1, 40), (1, 300), (1, 2100), (1, 2500)] };
+                for &(n, nkv, d) in wheads {
+                    for &w in wwin {
+                        for &(t, p) in wtp {
+                            let cap = p + t + 3;
+                            let q = rand_t(&mut rng, DType::Bf16, &[t, n, d], 2.0 / (d as f32).sqrt());
+                            let kc = rand_t(&mut rng, DType::Bf16, &[nkv, cap, d], 1.0);
+                            let vc = rand_t(&mut rng, DType::Bf16, &[nkv, cap, d], 1.0);
+                            push(
+                                format!("T={t} pos0={p} N={n} Nkv={nkv} D={d} q=bf16 kv=bf16 window={w} win_split"),
+                                HostCall {
+                                    op,
+                                    inputs: vec![q, kc, vc],
+                                    outputs: vec![OutSpec::new(DType::Bf16, &[t, n, d])],
+                                    attrs: OpAttrs {
+                                        pos0: p,
+                                        scale: 1.0 / (d as f32).sqrt(),
+                                        n_heads: n,
+                                        n_kv_heads: nkv,
+                                        head_dim: d,
+                                        kv_cap: cap,
+                                        window: w,
+                                        win_split: true,
+                                        ..attrs()
+                                    },
+                                },
+                            );
+                        }
+                    }
+                }
+            }
         }
         Op::ShortConv => {
             for c in short_conv_sweep(cfg, &mut rng) {
