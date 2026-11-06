@@ -6,12 +6,12 @@
 
 mod common;
 
+use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, MemKind, TensorRef};
 use intarsia_core::quant::cases::{random_experts, random_routing, HostExperts};
 use intarsia_core::quant::reference::{moe_experts_token, ExpertsRef};
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::{DType, HostTensor, Op, OpAttrs, OpCall, ShapeInfo};
-use intarsia_backend_metal::MetalBackend;
 
 const E: usize = 256;
 const K: usize = 8;
@@ -61,7 +61,14 @@ fn run_with(
 }
 
 /// `run_with` at bf16 output, aligned block scales.
-fn run(be: &MetalBackend, x: &HostTensor, ids: &HostTensor, ws: &HostTensor, ex: &HostExperts, woff: usize) -> intarsia_core::Result<Vec<f32>> {
+fn run(
+    be: &MetalBackend,
+    x: &HostTensor,
+    ids: &HostTensor,
+    ws: &HostTensor,
+    ex: &HostExperts,
+    woff: usize,
+) -> intarsia_core::Result<Vec<f32>> {
     run_with(be, x, ids, ws, ex, woff, 0, DType::Bf16)
 }
 
@@ -88,7 +95,14 @@ fn reference(x: &HostTensor, ids: &[i32], ws: &[f32], ex: &HostExperts, odt: DTy
             s.spawn(move || {
                 for (j, o) in oc.chunks_mut(H).enumerate() {
                     let ti = c * chunk + j;
-                    let r = moe_experts_token(er, &xf[ti * H..(ti + 1) * H], &ids[ti * K..(ti + 1) * K], &ws[ti * K..(ti + 1) * K], DType::Bf16, odt);
+                    let r = moe_experts_token(
+                        er,
+                        &xf[ti * H..(ti + 1) * H],
+                        &ids[ti * K..(ti + 1) * K],
+                        &ws[ti * K..(ti + 1) * K],
+                        DType::Bf16,
+                        odt,
+                    );
                     o.copy_from_slice(&r);
                 }
             });
@@ -174,7 +188,15 @@ fn moe_experts_skewed_routing_runs_several_tiles_per_expert() {
     let ids = HostTensor::from_i32(&[t, K], &idv);
     let want = reference(&x, &idv, &ws.to_f32(), &ex, DType::Bf16);
     let got = run(&be, &x, &ids, &ws, &ex, 0).unwrap();
-    grade(&got, &want, &format!("T={t} skewed (rows/expert {}..{})", rows[..hot].iter().min().unwrap(), rows[..hot].iter().max().unwrap()));
+    grade(
+        &got,
+        &want,
+        &format!(
+            "T={t} skewed (rows/expert {}..{})",
+            rows[..hot].iter().min().unwrap(),
+            rows[..hot].iter().max().unwrap()
+        ),
+    );
 }
 
 /// Prefill chunks at the real shape (T = 256: ~8 rows per expert, 8-row tiles; T = 2048: ~64 rows, 64-row tiles, many experts
@@ -215,12 +237,18 @@ fn moe_experts_odd_scale_offsets_and_f32_output() {
         let got = run_with(&be, &x, &ids, &ws, &ex, 0, 0, DType::Bf16).unwrap();
         grade(&got, &want, &format!("T={t} ({path}) aligned"));
         let odd = run_with(&be, &x, &ids, &ws, &ex, 8, 5, DType::Bf16).unwrap();
-        assert!(got.iter().zip(&odd).all(|(a, b)| a.to_bits() == b.to_bits()), "T={t} ({path}): odd scale offsets differ");
+        assert!(
+            got.iter().zip(&odd).all(|(a, b)| a.to_bits() == b.to_bits()),
+            "T={t} ({path}): odd scale offsets differ"
+        );
         let want32 = reference(&x, &ids.to_i32().unwrap(), &ws.to_f32(), &ex, DType::F32);
         let got32 = run_with(&be, &x, &ids, &ws, &ex, 0, 0, DType::F32).unwrap();
         grade(&got32, &want32, &format!("T={t} ({path}) f32 out"));
         let odd32 = run_with(&be, &x, &ids, &ws, &ex, 8, 5, DType::F32).unwrap();
-        assert!(got32.iter().zip(&odd32).all(|(a, b)| a.to_bits() == b.to_bits()), "T={t} ({path}): f32 out, odd scale offsets differ");
+        assert!(
+            got32.iter().zip(&odd32).all(|(a, b)| a.to_bits() == b.to_bits()),
+            "T={t} ({path}): f32 out, odd scale offsets differ"
+        );
     }
 }
 
@@ -247,7 +275,13 @@ fn moe_experts_rows_do_not_depend_on_the_tile() {
     for t in [3usize, 10, 24, 40, 100] {
         let small = call(t);
         let same = small.iter().zip(&big[..t * H]).filter(|(a, b)| a.to_bits() == b.to_bits()).count();
-        assert_eq!(same, t * H, "T={t}: {} of {} outputs differ from the same tokens in the 300-token call", t * H - same, t * H);
+        assert_eq!(
+            same,
+            t * H,
+            "T={t}: {} of {} outputs differ from the same tokens in the 300-token call",
+            t * H - same,
+            t * H
+        );
     }
 }
 
@@ -264,8 +298,16 @@ fn moe_topk_matches_the_reference_with_ties() {
                 let vals: Vec<f32> = (0..t * e).map(|_| (rng.next_u64() % 6) as f32 * 0.5 - 1.0).collect();
                 let lg = HostTensor::from_f32_as(dt, &[t, e], &vals);
                 let (ww, wi) = intarsia_core::quant::reference::moe_topk(&lg.to_f32(), t, e, k, norm, dt);
-                let (wo, io) = (put(&be, &HostTensor::zeros(DType::F32, &[t, k]), 0), put(&be, &HostTensor::zeros(DType::I32, &[t, k]), 0));
-                let call = OpCall::new(Op::MoeTopk, vec![put(&be, &lg, 0)], vec![wo.clone(), io.clone()], OpAttrs { top_k: k, norm_topk: norm, ..OpAttrs::default() });
+                let (wo, io) = (
+                    put(&be, &HostTensor::zeros(DType::F32, &[t, k]), 0),
+                    put(&be, &HostTensor::zeros(DType::I32, &[t, k]), 0),
+                );
+                let call = OpCall::new(
+                    Op::MoeTopk,
+                    vec![put(&be, &lg, 0)],
+                    vec![wo.clone(), io.clone()],
+                    OpAttrs { top_k: k, norm_topk: norm, ..OpAttrs::default() },
+                );
                 call.check().unwrap();
                 be.launch("moe_topk_bf16", &call, 0).unwrap();
                 be.synchronize(0).unwrap();
@@ -295,10 +337,22 @@ fn moe_combine_matches_the_reference_and_refuses_f32_output() {
         let routed = HostTensor::from_f32_as(DType::Bf16, &[t, h], &rng.normal_vec(t * h, 1.0));
         let shared = HostTensor::from_f32_as(DType::Bf16, &[t, h], &rng.normal_vec(t * h, 1.0));
         let gate = HostTensor::from_f32_as(DType::Bf16, &[t, 1], &rng.normal_vec(t, 2.0));
-        let want = intarsia_core::quant::reference::moe_combine(&routed.to_f32(), &shared.to_f32(), &gate.to_f32(), t, h, DType::Bf16);
+        let want = intarsia_core::quant::reference::moe_combine(
+            &routed.to_f32(),
+            &shared.to_f32(),
+            &gate.to_f32(),
+            t,
+            h,
+            DType::Bf16,
+        );
         let mk = |odt: DType, ooff: usize| {
             let out = put(&be, &HostTensor::zeros(odt, &[t, h]), ooff);
-            let call = OpCall::new(Op::MoeCombine, vec![put(&be, &routed, 0), put(&be, &shared, 2), put(&be, &gate, 6)], vec![out.clone()], OpAttrs::default());
+            let call = OpCall::new(
+                Op::MoeCombine,
+                vec![put(&be, &routed, 0), put(&be, &shared, 2), put(&be, &gate, 6)],
+                vec![out.clone()],
+                OpAttrs::default(),
+            );
             (call, out)
         };
         let (call, out) = mk(DType::Bf16, 2);

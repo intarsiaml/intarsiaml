@@ -31,18 +31,18 @@ mod dense;
 mod fill;
 pub mod flash;
 pub mod flash_nax;
+pub mod fp8;
 mod fused;
 mod gdn;
 pub mod gemm_nax;
 mod host;
 pub mod kernels;
-pub mod multirow;
 mod moe;
-pub mod fp8;
+pub mod multirow;
 pub mod mxfp4;
 pub mod nvfp4;
-mod rowtab;
 pub mod profile;
+mod rowtab;
 
 pub use buffer::{MetalBuffer, MtlBuffer};
 pub use host::KeepMode;
@@ -93,7 +93,11 @@ fn make_pso(device: &ProtocolObject<dyn MTLDevice>, lib: &ProtocolObject<dyn MTL
     // ICB-encodable, so the spike's indirect-command-buffer check can use the same pipelines
     desc.setSupportIndirectCommandBuffers(true);
     device
-        .newComputePipelineStateWithDescriptor_options_reflection_error(&desc, objc2_metal::MTLPipelineOption::None, None)
+        .newComputePipelineStateWithDescriptor_options_reflection_error(
+            &desc,
+            objc2_metal::MTLPipelineOption::None,
+            None,
+        )
         .map_err(|e| err(name, e))
 }
 
@@ -449,7 +453,8 @@ impl MetalBackend {
                 })
             });
             if let Some(p) = st.prof.as_mut() {
-                let host = profile::Host { open: st.opened, commit: commit.unwrap_or(0.0), committed: profile::host_now() };
+                let host =
+                    profile::Host { open: st.opened, commit: commit.unwrap_or(0.0), committed: profile::host_now() };
                 p.note(cb.clone(), label, st.dispatches, host);
             }
             Self::track(st, cb);
@@ -480,7 +485,11 @@ impl MetalBackend {
         self.with_encoder_opt(true, f)
     }
 
-    fn with_encoder_opt(&self, indirect: bool, f: impl FnOnce(&ProtocolObject<dyn MTLComputeCommandEncoder>)) -> Result<()> {
+    fn with_encoder_opt(
+        &self,
+        indirect: bool,
+        f: impl FnOnce(&ProtocolObject<dyn MTLComputeCommandEncoder>),
+    ) -> Result<()> {
         let mut st = self.stream.lock().unwrap();
         if st.open.is_none() {
             let cb = self.queue.commandBuffer().ok_or_else(|| Error::backend("metal: commandBuffer failed"))?;
@@ -1066,14 +1075,20 @@ impl MetalBackend {
         if kernel == moe::MOE_COMBINE_BF16 && call.op == Op::MoeCombine {
             return self.launch_moe_combine(call);
         }
-        if matches!(kernel, fp8::MATMUL_FP8_GEMV | fp8::MATMUL_FP8_MMA | fp8::MATMUL_FP8_NAX | fp8::MATMUL_FP8_GEMV_ROWS) && call.op == Op::MatmulFp8 {
+        if matches!(
+            kernel,
+            fp8::MATMUL_FP8_GEMV | fp8::MATMUL_FP8_MMA | fp8::MATMUL_FP8_NAX | fp8::MATMUL_FP8_GEMV_ROWS
+        ) && call.op == Op::MatmulFp8
+        {
             return self.launch_fp8(kernel, call);
         }
         if matches!(
             kernel,
-            nvfp4::MATMUL_NVFP4_GEMV | nvfp4::MATMUL_NVFP4_MMA | nvfp4::MATMUL_NVFP4_NAX | nvfp4::MATMUL_NVFP4_GEMV_ROWS
-        )
-            && call.op == Op::MatmulNvfp4
+            nvfp4::MATMUL_NVFP4_GEMV
+                | nvfp4::MATMUL_NVFP4_MMA
+                | nvfp4::MATMUL_NVFP4_NAX
+                | nvfp4::MATMUL_NVFP4_GEMV_ROWS
+        ) && call.op == Op::MatmulNvfp4
         {
             return self.launch_nvfp4(kernel, call);
         }

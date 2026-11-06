@@ -25,7 +25,12 @@ fn main() {
 
     let be = MetalBackend::new().expect("metal backend");
     println!("device: {}", be.device().name());
-    let t = |b: &intarsia_core::backend::Buffer, dt: DType, shape: &[usize]| TensorRef { buf: b.clone(), offset: 0, dtype: dt, shape: shape.to_vec() };
+    let t = |b: &intarsia_core::backend::Buffer, dt: DType, shape: &[usize]| TensorRef {
+        buf: b.clone(),
+        offset: 0,
+        dtype: dt,
+        shape: shape.to_vec(),
+    };
     let fill = |bytes: usize, seed: u64, f: &dyn Fn(u8) -> u8| -> intarsia_core::backend::Buffer {
         let mut r = Rng(seed | 1);
         let v: Vec<u8> = (0..bytes).map(|_| f((r.next_u64() >> 40) as u8)).collect();
@@ -70,12 +75,18 @@ fn main() {
             .map(|i| {
                 let mut c = OpCall::new(
                     Op::MatmulMxfp4,
-                    vec![t(&x, DType::Bf16, &[m, k]), t(&ws[i], DType::U8, &[n, k / 2]), t(&ss[i], DType::U8, &[n, k / 32]), t(&act, DType::F32, &[1])],
+                    vec![
+                        t(&x, DType::Bf16, &[m, k]),
+                        t(&ws[i], DType::U8, &[n, k / 2]),
+                        t(&ss[i], DType::U8, &[n, k / 32]),
+                        t(&act, DType::F32, &[1]),
+                    ],
                     vec![t(&y, DType::Bf16, &[m, n])],
                     // the model marks a W4A16 call (act 0); such calls take the fused GEMV
                     OpAttrs { mxfp4_w4a16: actv == 0.0, ..OpAttrs::default() },
                 );
-                let need = be.kernels().iter().find(|q| q.name == kernel).unwrap().scratch_bytes(&ShapeInfo::from_call(&c));
+                let need =
+                    be.kernels().iter().find(|q| q.name == kernel).unwrap().scratch_bytes(&ShapeInfo::from_call(&c));
                 let sb = be.alloc(need + 8, MemKind::Device).unwrap();
                 c.scratch = Some(t(&sb, DType::U8, &[need + 8]));
                 c
@@ -92,7 +103,8 @@ fn main() {
         be.synchronize(0).unwrap();
         let mut raw = vec![0u8; m * n * 2];
         be.download(&y, 0, &mut raw, 0).unwrap();
-        let hash = raw.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, &b| (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3));
+        let hash =
+            raw.iter().fold(0xcbf2_9ce4_8422_2325u64, |h, &b| (h ^ b as u64).wrapping_mul(0x0000_0100_0000_01b3));
         run(pool.min(20));
         let reps = (pool * 4).max(400);
         let mut best = f64::MAX;

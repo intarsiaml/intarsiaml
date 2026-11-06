@@ -43,7 +43,11 @@ fn e4m3(n: usize, seed: u64, nan_at: Option<usize>) -> Vec<u8> {
     let mut w: Vec<u8> = (0..n)
         .map(|_| {
             let b = (r.next_u64() >> 32) as u8;
-            if b & 0x7F == 0x7F { b & 0xFE } else { b }
+            if b & 0x7F == 0x7F {
+                b & 0xFE
+            } else {
+                b
+            }
         })
         .collect();
     if let Some(i) = nan_at {
@@ -64,7 +68,15 @@ struct Run<'a> {
 }
 
 impl<'a> Run<'a> {
-    fn new(be: &'a MetalBackend, m_total: usize, n: usize, k: usize, scales: [f32; 2], seed: u64, nan_at: Option<usize>) -> Self {
+    fn new(
+        be: &'a MetalBackend,
+        m_total: usize,
+        n: usize,
+        k: usize,
+        scales: [f32; 2],
+        seed: u64,
+        nan_at: Option<usize>,
+    ) -> Self {
         let x = rand_bf16(m_total * k, seed);
         let w = e4m3(n * k, seed + 1, nan_at);
         Run { be, k, n, xb: up(be, 0, as_bytes(&x)), wb: up(be, 8, &w), sb: up(be, 4, &f32_bytes(&scales)), w_off: 8 }
@@ -80,11 +92,16 @@ impl<'a> Run<'a> {
         let odt = if f32_out { DType::F32 } else { DType::Bf16 };
         let mut cl = OpCall::new(
             Op::MatmulFp8,
-            vec![t(&self.xb, r0 * k * 2, DType::Bf16, &[m, k]), t(&self.wb, self.w_off, DType::Fp8E4m3, &[n, k]), t(&self.sb, 4, DType::F32, &[2])],
+            vec![
+                t(&self.xb, r0 * k * 2, DType::Bf16, &[m, k]),
+                t(&self.wb, self.w_off, DType::Fp8E4m3, &[n, k]),
+                t(&self.sb, 4, DType::F32, &[2]),
+            ],
             vec![t(&yb, y_off, odt, &[m, n])],
             OpAttrs::default(),
         );
-        let need = self.be.kernels().iter().find(|q| q.name == kernel).unwrap().scratch_bytes(&ShapeInfo::from_call(&cl));
+        let need =
+            self.be.kernels().iter().find(|q| q.name == kernel).unwrap().scratch_bytes(&ShapeInfo::from_call(&cl));
         if need > 0 {
             let b = self.be.alloc(need, MemKind::Device).unwrap();
             self.be.upload(&b, 0, &vec![0xEEu8; need], 0).unwrap();
@@ -111,8 +128,15 @@ fn f32s(raw: &[u8]) -> Vec<f32> {
 }
 
 /// Shapes of the 35B projections at chunk-sized and ragged M, plus odd tails of M, N and K.
-const SHAPES: &[(usize, usize, usize)] =
-    &[(9, 64, 64), (37, 130, 48), (130, 100, 80), (300, 512, 2048), (333, 777, 2048), (2048, 4096, 2048), (700, 2048, 4096)];
+const SHAPES: &[(usize, usize, usize)] = &[
+    (9, 64, 64),
+    (37, 130, 48),
+    (130, 100, 80),
+    (300, 512, 2048),
+    (333, 777, 2048),
+    (2048, 4096, 2048),
+    (700, 2048, 4096),
+];
 
 /// f32 out = the unscaled f32 product times the scale (one float multiply), bf16 out = that rounded to nearest even once.
 #[test]
@@ -125,7 +149,8 @@ fn nax_scales_the_float_product_and_rounds_once() {
             let unit = Run::new(&be, m, n, k, [1.0, 0.0], 100 + si as u64, None);
             let u = f32s(&unit.go(NAX, 0, m, 0, true, None));
             // same data, scales (ws, is): W8A8 re-quantises x, so only is == 0 can be derived from the unit run
-            let scaled = Run { sb: up(&be, 4, &f32_bytes(&[ws, is])), xb: unit.xb.clone(), wb: unit.wb.clone(), ..unit };
+            let scaled =
+                Run { sb: up(&be, 4, &f32_bytes(&[ws, is])), xb: unit.xb.clone(), wb: unit.wb.clone(), ..unit };
             let f = f32s(&scaled.go(NAX, 0, m, 0, true, None));
             let b = bf(&scaled.go(NAX, 0, m, 0, false, None));
             if is == 0.0 {
@@ -177,11 +202,26 @@ fn nax_rows_do_not_depend_on_the_call() {
         let got = bf(&r.go(NAX, 0, m_big, 0, false, Some(tile)));
         assert!(got == want, "{} differs from the picked tile on a {m_big}-row call", NAX_VARIANTS[tile].shader);
     }
-    for (r0, rows) in [(0usize, 9usize), (7, 10), (40, 11), (1000, 15), (17, 17), (100, 64), (819, 205), (1091, 9), (512, 512), (3, 1097)] {
+    for (r0, rows) in [
+        (0usize, 9usize),
+        (7, 10),
+        (40, 11),
+        (1000, 15),
+        (17, 17),
+        (100, 64),
+        (819, 205),
+        (1091, 9),
+        (512, 512),
+        (3, 1097),
+    ] {
         for tile in [None, Some(0), Some(2), Some(3)] {
             let y_off = 2 * (r0 % 3);
             let got = bf(&r.go(NAX, r0, rows, y_off, false, tile));
-            assert!(got == want[r0 * n..(r0 + rows) * n], "rows {r0}..{} of a {rows}-row call (tile {tile:?}) differ", r0 + rows);
+            assert!(
+                got == want[r0 * n..(r0 + rows) * n],
+                "rows {r0}..{} of a {rows}-row call (tile {tile:?}) differ",
+                r0 + rows
+            );
             let gf = f32s(&r.go(NAX, r0, rows, 4 * (r0 % 3), true, tile));
             let wf = f32s(&r.go(NAX, 0, m_big, 0, true, None));
             assert!(
@@ -238,7 +278,10 @@ fn nax_is_registered_for_m_above_the_gemv_rows_only() {
         ..Default::default()
     };
     for m in 1..=8 {
-        assert!(!nax.accepts(&shape(m, 8192, 2048)) && !nax.accepts(&shape(m, 2048, 4096)), "M = {m} stays on the decode kernels");
+        assert!(
+            !nax.accepts(&shape(m, 8192, 2048)) && !nax.accepts(&shape(m, 2048, 4096)),
+            "M = {m} stays on the decode kernels"
+        );
     }
     for m in [9usize, 15, 16, 300, 2048] {
         assert!(nax.accepts(&shape(m, 8192, 2048)) && nax.accepts(&shape(m, 2048, 4096)), "M = {m}");

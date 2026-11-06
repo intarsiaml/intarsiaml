@@ -92,7 +92,11 @@ mod imp {
             use objc2_metal::MTLComputePipelineState;
             for n in intarsia_backend_metal::kernels::ATTN_DECODE_SPLITKV_SHADERS {
                 if let Some(pso) = be.pso(n) {
-                    println!("pso {n}: max threads/tg {}, static tg mem {}", pso.maxTotalThreadsPerThreadgroup(), pso.staticThreadgroupMemoryLength());
+                    println!(
+                        "pso {n}: max threads/tg {}, static tg mem {}",
+                        pso.maxTotalThreadsPerThreadgroup(),
+                        pso.staticThreadgroupMemoryLength()
+                    );
                 }
             }
         }
@@ -102,7 +106,12 @@ mod imp {
             let cap = if cap_fixed > 0 { cap_fixed.max(ctx) } else { ctx.next_multiple_of(64) };
             let pos_buf = be.alloc(4, MemKind::Device).unwrap();
             be.upload(&pos_buf, 0, &((ctx - 1) as i32).to_le_bytes(), 0).unwrap();
-            let t = |b: &Buffer, shape: &[usize]| TensorRef { buf: b.clone(), offset: 0, dtype: DType::Bf16, shape: shape.to_vec() };
+            let t = |b: &Buffer, shape: &[usize]| TensorRef {
+                buf: b.clone(),
+                offset: 0,
+                dtype: DType::Bf16,
+                shape: shape.to_vec(),
+            };
             let q = rand_buf(&be, heads * dim, &mut rng);
             let out = be.alloc(heads * dim * 2, MemKind::Device).unwrap();
             let caches: Vec<(Buffer, Buffer)> = (0..layers)
@@ -146,7 +155,8 @@ mod imp {
                         let mut c = c.clone();
                         c.scratch = scratch.clone();
                         if devpos {
-                            c.pos = Some(TensorRef { buf: pos_buf.clone(), offset: 0, dtype: DType::I32, shape: vec![1] });
+                            c.pos =
+                                Some(TensorRef { buf: pos_buf.clone(), offset: 0, dtype: DType::I32, shape: vec![1] });
                         }
                         be.launch(kernel, &c, 0).unwrap();
                     }

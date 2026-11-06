@@ -209,8 +209,13 @@ pub const ATTN_DECODE_SPLITKV_SHADERS: [&str; 5] = [
 /// `AttnPrefill` with 2..=8 query rows (speculative-decoding verification), bitwise the 1-row `attn_decode_bf16_splitkv`
 /// call per row (attention_splitkv.metal, launcher `attn.rs`, G0b). Registered below the prefill kernels (priority -1).
 pub const ATTN_PREFILL_BF16_SPLITKV_ROWS: &str = "attn_prefill_bf16_splitkv_rows";
-pub const ATTN_ROWS_SHADERS: [&str; 5] =
-    ["attn_rows_splitkv_g1", "attn_rows_splitkv_g2", "attn_rows_splitkv_g4", "attn_rows_splitkv_g8", "attn_rows_combine"];
+pub const ATTN_ROWS_SHADERS: [&str; 5] = [
+    "attn_rows_splitkv_g1",
+    "attn_rows_splitkv_g2",
+    "attn_rows_splitkv_g4",
+    "attn_rows_splitkv_g8",
+    "attn_rows_combine",
+];
 pub const COPY_U4: &str = "copy_u4";
 pub const READ_XOR_U4: &str = "read_xor_u4";
 /// `Backend::zero` / `Backend::copy` kernels (copy.metal): 16-byte vector forms plus byte forms for the unaligned rest.
@@ -278,7 +283,8 @@ pub const EXPERIMENT_SHADERS: &[&str] = &[
 /// `gemm_nax::NAX_VARIANTS` entry. Not part of [`shader_names`]: a failure to load them only drops the kernels in
 /// [`requires_metal4`], never `MetalBackend::new`.
 pub fn metal4_shaders() -> Vec<&'static str> {
-    let mut v: Vec<&'static str> = crate::gemm_nax::NAX_VARIANTS.iter().flat_map(|v| [v.shader, v.pair_shader]).collect();
+    let mut v: Vec<&'static str> =
+        crate::gemm_nax::NAX_VARIANTS.iter().flat_map(|v| [v.shader, v.pair_shader]).collect();
     v.extend(crate::flash_nax::NAX_FLASH_VARIANTS.iter().map(|f| f.name));
     v.extend(crate::fp8::NAX_FP8_SHADERS.iter().flatten());
     v.extend(crate::moe::NAX_MM_GU.iter().chain(&crate::moe::NAX_MM_DN));
@@ -295,8 +301,14 @@ pub const MATMUL_PAIR_BF16_NAX: &str = "matmul_pair_bf16_nax";
 /// `AttnPrefill` on the neural accelerators (attention_flash_nax.metal, launcher flash_nax.rs): head_dim 128; ranks above
 /// the P2 flash kernel and falls back to it for operands it cannot take.
 pub const ATTN_PREFILL_BF16_FLASH_NAX: &str = "attn_prefill_bf16_flash_nax";
-pub const NAX_KERNELS: &[&str] =
-    &[MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX, ATTN_PREFILL_BF16_FLASH_NAX, crate::fp8::MATMUL_FP8_NAX, crate::nvfp4::MATMUL_NVFP4_NAX, crate::mxfp4::MATMUL_MXFP4_NAX];
+pub const NAX_KERNELS: &[&str] = &[
+    MATMUL_BF16_NAX,
+    MATMUL_PAIR_BF16_NAX,
+    ATTN_PREFILL_BF16_FLASH_NAX,
+    crate::fp8::MATMUL_FP8_NAX,
+    crate::nvfp4::MATMUL_NVFP4_NAX,
+    crate::mxfp4::MATMUL_MXFP4_NAX,
+];
 
 pub fn requires_metal4(kernel: &str) -> bool {
     NAX_KERNELS.contains(&kernel)
@@ -305,6 +317,7 @@ pub fn requires_metal4(kernel: &str) -> bool {
 pub fn shader_names() -> Vec<&'static str> {
     let mut v: Vec<&'static str> = GEMV_VARIANTS.iter().map(|g| g.name).collect();
     v.extend(crate::mxfp4::SHADERS);
+    v.extend(crate::mxfp4::MR_SHADERS);
     v.extend(crate::gdn::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
@@ -517,10 +530,7 @@ pub fn all() -> Vec<KernelImpl> {
                 crate::multirow::MATMUL_BF16_GEMV_ROWS => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| {
-                        (2..=crate::CHUNK_ROWS_MAX).contains(&s.m)
-                            && s.out.is_none_or(|d| d == DType::Bf16)
-                    })
+                    .when(|s| (2..=crate::CHUNK_ROWS_MAX).contains(&s.m) && s.out.is_none_or(|d| d == DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(BF16_TOL)
                     .priority(-1)
@@ -529,11 +539,7 @@ pub fn all() -> Vec<KernelImpl> {
                 crate::multirow::MATMUL_PAIR_BF16_GEMV_ROWS => k
                     .acts(bf)
                     .weights(bf)
-                    .when(|s| {
-                        (2..=crate::CHUNK_ROWS_MAX).contains(&s.m)
-                            && s.k % 8 == 0
-                            && s.out == Some(DType::Bf16)
-                    })
+                    .when(|s| (2..=crate::CHUNK_ROWS_MAX).contains(&s.m) && s.k % 8 == 0 && s.out == Some(DType::Bf16))
                     .exact(Exactness::Deterministic)
                     .tol(PAIR_TOL)
                     .priority(-1)
@@ -581,19 +587,13 @@ pub fn all() -> Vec<KernelImpl> {
                 // pure bit copy / f32 elementwise, one rounding: the hip entries' tolerance
                 GATE_SPLIT_BF16 | SIGMOID_MUL_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
                 // depthwise causal conv + SiLU; `weights` is the tap dtype, `k` the tap count
-                GDN_CONV_BF16 | SHORT_CONV_BF16 => k
-                    .acts(bf)
-                    .weights(bf)
-                    .when(crate::gdn::conv_ok)
-                    .exact(Exactness::Deterministic)
-                    .tol(BF16_TOL),
+                GDN_CONV_BF16 | SHORT_CONV_BF16 => {
+                    k.acts(bf).weights(bf).when(crate::gdn::conv_ok).exact(Exactness::Deterministic).tol(BF16_TOL)
+                }
                 // sequential recurrence, one simdgroup per state row: fixed reduction order; `weights` is A_log's dtype
-                GDN_DELTA_RULE_BF16 => k
-                    .acts(bf)
-                    .weights(bf)
-                    .when(crate::gdn::delta_ok)
-                    .exact(Exactness::Deterministic)
-                    .tol(BF16_TOL),
+                GDN_DELTA_RULE_BF16 => {
+                    k.acts(bf).weights(bf).when(crate::gdn::delta_ok).exact(Exactness::Deterministic).tol(BF16_TOL)
+                }
                 // the same recurrence for T >= 64 with the per-token norms and gates done once per head in a prep pass: bitwise
                 // `gdn_delta_rule_bf16` (tests/gdn.rs). `INTARSIA_METAL_GDN_PRE=0` hides it.
                 GDN_DELTA_RULE_BF16_PRE => k
@@ -843,7 +843,15 @@ mod tests {
             best.map(|k| k.name.clone())
         };
         let (bf, f8, u8_) = (Some(DType::Bf16), Some(DType::Fp8E4m3), Some(DType::U8));
-        let sh = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { m, n, k, act: bf, out: bf, weight: w, ..Default::default() };
+        let sh = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo {
+            m,
+            n,
+            k,
+            act: bf,
+            out: bf,
+            weight: w,
+            ..Default::default()
+        };
         // (what, op, shape): the ops each fold replaces, at the 35B decode shapes (hidden 2048, k / v 2 x 256, o_proj 2048 x
         // 4096, shared down 2048 x 512), and the 8B's input norm (hidden 4096, bf16 weights: no fold applies to the 8B)
         let cases: Vec<(&str, Op, ShapeInfo)> = vec![
@@ -860,7 +868,8 @@ mod tests {
             ("8b attn input norm", Op::RmsNormAdd, sh(1, 0, 4096, None)),
             ("8b k/v pair", Op::MatmulPair, sh(1, 1024, 4096, bf)),
         ];
-        let got: Vec<String> = cases.iter().map(|(w, op, s)| format!("{w}: {}", pick(*op, s).unwrap_or_else(|| "-".into()))).collect();
+        let got: Vec<String> =
+            cases.iter().map(|(w, op, s)| format!("{w}: {}", pick(*op, s).unwrap_or_else(|| "-".into()))).collect();
         eprintln!("PINS\n{}", got.join("\n"));
         assert_eq!(got, PHASE1_PINS, "the selection of the unfused ops moved");
     }
@@ -1016,12 +1025,17 @@ mod tests {
                 (format!("35b m={m} kv append"), Op::KvAppend, heads(m, 2, 0, 256)),
                 (format!("35b m={m} prologue"), Op::QkNormRopeKv, heads(m, 16, 2, 256)),
                 (format!("35b m={m} fold P4a"), Op::GateSplitQkNormRopeKv, heads(m, 16, 2, 256)),
-                (format!("35b m={m} gdn conv"), Op::GdnConv, ShapeInfo { m, n: 8192, k: 4, act: bf, out: bf, weight: bf, ..Default::default() }),
+                (
+                    format!("35b m={m} gdn conv"),
+                    Op::GdnConv,
+                    ShapeInfo { m, n: 8192, k: 4, act: bf, out: bf, weight: bf, ..Default::default() },
+                ),
                 (format!("35b m={m} gdn delta"), Op::GdnDeltaRule, gdn(m, 128)),
                 (format!("35b m={m} fold P3"), Op::GdnConvDelta, gdn(m, 4)),
             ]);
         }
-        let got: Vec<String> = cases.iter().map(|(w, op, s)| format!("{w}: {}", pick(*op, s).unwrap_or_else(|| "-".into()))).collect();
+        let got: Vec<String> =
+            cases.iter().map(|(w, op, s)| format!("{w}: {}", pick(*op, s).unwrap_or_else(|| "-".into()))).collect();
         eprintln!("PINS\n{}", got.join("\n"));
         assert_eq!(got, PHASE2_PINS, "the selection of the unfused ops moved");
     }
@@ -1055,7 +1069,10 @@ mod tests {
     fn moe_block_is_absent_and_the_unfused_selection_is_pinned() {
         use intarsia_core::ShapeInfo;
         let ks = all();
-        assert!(!ks.iter().any(|k| k.op == Op::MoeBlock), "MoeBlock is registered: the model would take the fused path here");
+        assert!(
+            !ks.iter().any(|k| k.op == Op::MoeBlock),
+            "MoeBlock is registered: the model would take the fused path here"
+        );
         let pick = |op: Op, s: &ShapeInfo| -> Option<String> {
             let mut best: Option<&KernelImpl> = None;
             for k in ks.iter().filter(|k| k.op == op && k.accepts(s)) {
@@ -1066,8 +1083,17 @@ mod tests {
             best.map(|k| k.name.clone())
         };
         let (bf, u8_) = (Some(DType::Bf16), Some(DType::U8));
-        let sh = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { m, n, k, act: bf, out: bf, weight: w, ..Default::default() };
-        let moe = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { experts: 256, top_k: 8, ..sh(m, n, k, w) };
+        let sh = |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo {
+            m,
+            n,
+            k,
+            act: bf,
+            out: bf,
+            weight: w,
+            ..Default::default()
+        };
+        let moe =
+            |m: usize, n: usize, k: usize, w: Option<DType>| ShapeInfo { experts: 256, top_k: 8, ..sh(m, n, k, w) };
         let mut cases: Vec<(String, Op, ShapeInfo)> = Vec::new();
         for m in [1usize, 2] {
             cases.extend([
@@ -1082,7 +1108,8 @@ mod tests {
                 (format!("35b m={m} fold P2'"), Op::MoeBlock, moe(m, 512, 2048, u8_)),
             ]);
         }
-        let got: Vec<String> = cases.iter().map(|(w, op, s)| format!("{w}: {}", pick(*op, s).unwrap_or_else(|| "-".into()))).collect();
+        let got: Vec<String> =
+            cases.iter().map(|(w, op, s)| format!("{w}: {}", pick(*op, s).unwrap_or_else(|| "-".into()))).collect();
         eprintln!("PINS\n{}", got.join("\n"));
         assert_eq!(got, MOE_BLOCK_PINS, "the selection of the unfused ops moved");
     }

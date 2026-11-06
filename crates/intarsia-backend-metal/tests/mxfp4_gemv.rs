@@ -49,12 +49,33 @@ fn fnv(raw: &[u8]) -> u64 {
 }
 
 /// Output bytes of the GEMV on rows `r0..r0+m` of `x`.
-fn run(be: &MetalBackend, x: &Buffer, w: &Buffer, sc: &Buffer, r0: usize, m: usize, n: usize, k: usize, f32_out: bool) -> Vec<u8> {
+fn run(
+    be: &MetalBackend,
+    x: &Buffer,
+    w: &Buffer,
+    sc: &Buffer,
+    r0: usize,
+    m: usize,
+    n: usize,
+    k: usize,
+    f32_out: bool,
+) -> Vec<u8> {
     run_at(be, x, r0 * k * 2, w, sc, m, n, k, f32_out, 0.0)
 }
 
 /// As [`run`], with x at byte offset `x_off` and the `act` flag (1: W4A4, the activations QDQ'd to MXFP4 per group of 32).
-fn run_at(be: &MetalBackend, x: &Buffer, x_off: usize, w: &Buffer, sc: &Buffer, m: usize, n: usize, k: usize, f32_out: bool, act: f32) -> Vec<u8> {
+fn run_at(
+    be: &MetalBackend,
+    x: &Buffer,
+    x_off: usize,
+    w: &Buffer,
+    sc: &Buffer,
+    m: usize,
+    n: usize,
+    k: usize,
+    f32_out: bool,
+    act: f32,
+) -> Vec<u8> {
     let esz = if f32_out { 4 } else { 2 };
     let yb = be.alloc(m * n * esz + 16, MemKind::Device).unwrap();
     let ab = up(be, &act.to_le_bytes());
@@ -152,7 +173,10 @@ fn gemv_matches_the_f64_reference() {
                 // bf16 output rounding (2^-8 relative) plus the f32 accumulation error, scaled by the sum of magnitudes
                 let tol = if f32_out { 1e-5 } else { 5e-3 } * s.abs().max(mag * 1e-2).max(1e-6);
                 worst = worst.max((got - s).abs() / tol);
-                assert!((got - s).abs() <= tol, "case {i} (M={m} N={n} K={k}) row {r} col {c}: got {got}, reference {s}");
+                assert!(
+                    (got - s).abs() <= tol,
+                    "case {i} (M={m} N={n} K={k}) row {r} col {c}: got {got}, reference {s}"
+                );
             }
         }
         eprintln!("case {i}: M={m} N={n} K={k} f32_out={f32_out}: worst error / tolerance {worst:.3}");
@@ -205,4 +229,48 @@ fn an_unaligned_x_takes_the_prepass_and_gives_the_same_bits() {
             assert_eq!(got, want, "x at byte offset {off}, act {act}");
         }
     }
+}
+
+/// Lane df: the M-row shaders (`mxfp4_gemv_*_mr{M}p{P}`, `INTARSIA_METAL_MXFP4_MR`) give every row the bits of the M = 1 call on that row
+/// alone, for M = 2..=8, P = 2 and 4, bf16 and f32 out, W4A16 (fused x read) and W4A4 (pre-pass), N not a multiple of 4 * P (tail
+/// simdgroups), K of one group, a tail of groups and the 27B's, and x at an unaligned offset (pre-pass path).
+#[test]
+fn m_row_shaders_are_bitwise_the_one_row_call_per_row() {
+    use intarsia_backend_metal::mxfp4::with_mr;
+    let be = backend();
+    let mut cases = 0;
+    for &(n, k) in &[(37usize, 32usize), (130, 544), (515, 5120), (64, 17408)] {
+        let x = rand_bf16(8 * k + 8, 400 + n as u64);
+        let (w, sc, _) = weights(n, k, 401 + k as u64);
+        let (xb, wb, sb) = (upload(&be, &x), up(&be, &w), up(&be, &sc));
+        for &f32_out in &[false, true] {
+            for &act in &[0.0f32, 1.0] {
+                for &x_off in &[0usize, 4] {
+                    let esz = if f32_out { 4 } else { 2 };
+                    let one: Vec<Vec<u8>> = (0..8)
+                        .map(|r| with_mr(0, || run_at(&be, &xb, x_off + r * k * 2, &wb, &sb, 1, n, k, f32_out, act)))
+                        .collect();
+                    for m in 2..=8usize {
+                        let old = with_mr(0, || run_at(&be, &xb, x_off, &wb, &sb, m, n, k, f32_out, act));
+                        for p in [1usize, 2, 4] {
+                            let got = with_mr(p, || run_at(&be, &xb, x_off, &wb, &sb, m, n, k, f32_out, act));
+                            assert_eq!(
+                                got, old,
+                                "mr p{p} vs m8: N {n} K {k} M {m} f32 {f32_out} act {act} x_off {x_off}"
+                            );
+                            for r in 0..m {
+                                assert_eq!(
+                                    &got[r * n * esz..(r + 1) * n * esz],
+                                    &one[r][..],
+                                    "mr p{p} row {r} vs M = 1: N {n} K {k} M {m} f32 {f32_out} act {act} x_off {x_off}"
+                                );
+                            }
+                            cases += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    eprintln!("m-row shader cases bitwise: {cases}");
 }

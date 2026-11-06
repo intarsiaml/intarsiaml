@@ -25,7 +25,9 @@ mod imp {
     use intarsia_backend_metal::bench::{self, stats};
     use intarsia_backend_metal::{encode_gemv, set_bytes, GemvParams, MetalBackend, MtlBuffer};
     use objc2::runtime::ProtocolObject;
-    use objc2_metal::{MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue, MTLComputeCommandEncoder, MTLSize};
+    use objc2_metal::{
+        MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue, MTLComputeCommandEncoder, MTLSize,
+    };
 
     const PEAK_GBS: f64 = 614.0;
 
@@ -323,7 +325,10 @@ mod imp {
                 }
                 round += 1;
             }
-            println!("idle utilization readings per round: {:?}; waited-for-idle polls (reading >10%): {discarded}", utils);
+            println!(
+                "idle utilization readings per round: {:?}; waited-for-idle polls (reading >10%): {discarded}",
+                utils
+            );
             let base_med = stats(&mut samples[0].clone()).median;
             for (ci, cand) in cands.iter().enumerate() {
                 let s = stats(&mut samples[ci]);
@@ -348,11 +353,17 @@ mod imp {
     }
 
     fn a8_cands(is_pair: bool) -> Vec<Cand> {
-        let c = |name: &'static str, kind, rows_per_tg, sg: u32, off| Cand { name, kind, rows_per_tg, threads: 32 * sg, off };
+        let c = |name: &'static str, kind, rows_per_tg, sg: u32, off| Cand {
+            name,
+            kind,
+            rows_per_tg,
+            threads: 32 * sg,
+            off,
+        };
         if is_pair {
             vec![
-                c("gemv_pair_bf16", Kind::Pair, 4, 4, 0), // aligned 16-byte reference
-                c("gemv_pair_bf16_a8", Kind::Pair, 4, 4, 8), // current a8
+                c("gemv_pair_bf16", Kind::Pair, 4, 4, 0),         // aligned 16-byte reference
+                c("gemv_pair_bf16_a8", Kind::Pair, 4, 4, 8),      // current a8
                 c("gemv_pair_bf16_rt_u2s8", Kind::Pair, 1, 8, 0), // aligned rt reference
                 c("gemv_pair_bf16_rt_a8u4s8", Kind::Pair, 1, 8, 8),
                 c("gemv_pair_bf16_rt_a8u8s4", Kind::Pair, 1, 4, 8),
@@ -362,8 +373,8 @@ mod imp {
             ]
         } else {
             vec![
-                c("gemv_bf16_r1u4s4", Kind::Single, 4, 4, 0), // aligned 16-byte reference
-                c("gemv_bf16_a8u8s4", Kind::Single, 4, 4, 8), // current a8
+                c("gemv_bf16_r1u4s4", Kind::Single, 4, 4, 0),  // aligned 16-byte reference
+                c("gemv_bf16_a8u8s4", Kind::Single, 4, 4, 8),  // current a8
                 c("gemv_bf16_rt_u2s8", Kind::Single, 1, 8, 0), // aligned rt reference
                 c("gemv_bf16_rt_a8u4s8", Kind::Single, 1, 8, 8),
                 c("gemv_bf16_rt_a8u8s4", Kind::Single, 1, 4, 8),

@@ -1,0 +1,14 @@
+Hello! Welcome to the team. This document is a technical specification and status report for a new speculative decoding feature called **DFlash with the DCOCO Corrector**.
+
+As a new engineer, your goal is to understand **what** this feature does, **how** it works under the hood, and **where** the code lives. Below is a detailed breakdown tailored for someone joining the project.
+
+---
+
+### 1. High-Level Summary: What is this?
+
+This feature implements **Speculative Decoding** to speed up inference for the **Qwen3-8B** model.
+
+*   **The Problem:** Large Language Models (LLMs) generate tokens one by one, which is slow.
+*   **The Solution (Speculative Decoding):** Use a smaller, faster "Draft Model" to predict several tokens ahead. Then, use the main "Target Model" to verify them all at once. If the draft is correct, we skip the slow target computation for those tokens.
+*   **The Innovation (DFlash + DCOCO):**
+    *   **DFlash:** A specific architecture for the draft model that uses "non-causal" attention (looking ahead) and taps into specific layers of the target model for context.

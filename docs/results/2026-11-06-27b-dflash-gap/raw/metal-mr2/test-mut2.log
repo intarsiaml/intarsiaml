@@ -1,0 +1,46 @@
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/dflash27/crates/intarsia-backend-metal)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1235:4
+     |
+1235 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 4.31s
+     Running tests/mxfp4_gemv.rs (target/release/deps/mxfp4_gemv-2801c5c214c9c653)
+
+running 1 test
+
+thread 'm_row_shaders_are_bitwise_the_one_row_call_per_row' (127881487) panicked at crates/intarsia-backend-metal/tests/mxfp4_gemv.rs:232:29:
+assertion `left == right` failed: mr p1 vs m8: N 37 K 32 M 3 f32 false act 0 x_off 0
+  left: [16, 62, 146, 190, 110, 191, 52, 190, 112, 65, 25, 62, 241, 191, 143, 66, 234, 188, 63, 64, 153, 62, 243, 192, 42, 192, 48, 190, 4, 192, 196, 188, 79, 192, 86, 62, 74, 194, 212, 189, 85, 194, 129, 66, 29, 66, 156, 188, 81, 192, 34, 66, 5, 66, 61, 62, 156, 193, 246, 194, 6, 63, 67, 192, 76, 65, 85, 63, 72, 60, 169, 189, 205, 61, 240, 63, 209, 192, 193, 193, 153, 189, 185, 65, 115, 190, 241, 61, 10, 65, 85, 60, 81, 65, 16, 64, 157, 64, 214, 193, 222, 188, 139, 192, 2, 61, 132, 192, 164, 189, 102, 194, 29, 190, 120, 65, 155, 66, 161, 65, 114, 61, 149, 193, 210, 66, 133, 66, 202, 62, 241, 193, 160, 193, 175, 191, 97, 64, 204, 193, 179, 190, 213, 188, 71, 63, 48, 61, 240, 63, 209, 192, 193, 193, 153, 189, 185, 65, 115, 190, 241, 61, 10, 65, 85, 60, 81, 65, 16, 64, 157, 64, 214, 193, 222, 188, 139, 192, 2, 61, 132, 192, 164, 189, 102, 194, 29, 190, 120, 65, 155, 66, 161, 65, 114, 61, 149, 193, 210, 66, 133, 66, 202, 62, 241, 193, 160, 193, 175, 191, 97, 64, 204, 193, 179, 190, 213, 188, 71, 63, 48, 61]
+ right: [16, 62, 146, 190, 110, 191, 52, 190, 112, 65, 25, 62, 241, 191, 143, 66, 234, 188, 63, 64, 153, 62, 243, 192, 42, 192, 48, 190, 4, 192, 196, 188, 79, 192, 86, 62, 74, 194, 212, 189, 85, 194, 129, 66, 29, 66, 156, 188, 81, 192, 34, 66, 5, 66, 61, 62, 156, 193, 246, 194, 6, 63, 67, 192, 76, 65, 85, 63, 72, 60, 169, 189, 205, 61, 240, 63, 209, 192, 193, 193, 153, 189, 185, 65, 115, 190, 241, 61, 10, 65, 85, 60, 81, 65, 16, 64, 157, 64, 214, 193, 222, 188, 139, 192, 2, 61, 132, 192, 164, 189, 102, 194, 29, 190, 120, 65, 155, 66, 161, 65, 114, 61, 149, 193, 210, 66, 133, 66, 202, 62, 241, 193, 160, 193, 175, 191, 97, 64, 204, 193, 179, 190, 213, 188, 71, 63, 48, 61, 142, 62, 254, 192, 239, 191, 34, 61, 56, 193, 8, 63, 193, 192, 109, 66, 124, 188, 56, 64, 118, 63, 20, 65, 55, 194, 203, 62, 171, 64, 145, 187, 4, 193, 189, 187, 186, 193, 201, 190, 7, 194, 158, 193, 158, 65, 129, 188, 146, 65, 149, 65, 35, 67, 91, 64, 150, 65, 106, 194, 219, 190, 87, 191, 150, 193, 44, 62, 18, 61, 82, 191, 21, 189]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test m_row_shaders_are_bitwise_the_one_row_call_per_row ... FAILED
+
+failures:
+
+failures:
+    m_row_shaders_are_bitwise_the_one_row_call_per_row
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.46s
+
+error: test failed, to rerun pass `-p intarsia-backend-metal --test mxfp4_gemv`

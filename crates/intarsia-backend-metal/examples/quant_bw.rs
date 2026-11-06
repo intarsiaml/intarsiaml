@@ -25,7 +25,12 @@ fn main() {
         let g = intarsia_backend_metal::bench::measure_copy_gbs(&be, mb << 20, 5, 30).unwrap();
         println!("copy ceiling, one dispatch of {mb} MB: {g:.0} GB/s (read + write)");
     }
-    let t = |b: &intarsia_core::backend::Buffer, dt: DType, shape: &[usize]| TensorRef { buf: b.clone(), offset: 0, dtype: dt, shape: shape.to_vec() };
+    let t = |b: &intarsia_core::backend::Buffer, dt: DType, shape: &[usize]| TensorRef {
+        buf: b.clone(),
+        offset: 0,
+        dtype: dt,
+        shape: shape.to_vec(),
+    };
     let fill = |bytes: usize, seed: u64| -> intarsia_core::backend::Buffer {
         let mut r = Rng(seed | 1);
         let v: Vec<u8> = (0..bytes).map(|_| (r.next_u64() >> 40) as u8 & 0x77).collect();
@@ -49,7 +54,8 @@ fn main() {
         ("nvfp4 lm_head", Op::MatmulNvfp4, 248320, 2048, 1),
     ] {
         let wbytes = if op == Op::MatmulFp8 { n * k } else { n * k / 2 };
-        let pool = std::env::var("QBW_POOL").ok().and_then(|v| v.parse().ok()).unwrap_or((POOL_BYTES / wbytes).clamp(2, 256));
+        let pool =
+            std::env::var("QBW_POOL").ok().and_then(|v| v.parse().ok()).unwrap_or((POOL_BYTES / wbytes).clamp(2, 256));
         let ws: Vec<_> = (0..pool).map(|i| fill(wbytes, 10 + i as u64)).collect();
         let bs: Vec<_> = (0..pool).map(|i| fill(n * k / 16, 400 + i as u64)).collect();
         let x = fill(m * k * 2, 7);
@@ -58,15 +64,26 @@ fn main() {
         sb.extend(0.5f32.to_le_bytes());
         be.upload(&sc, 0, &sb, 0).unwrap();
         let y = be.alloc(m * n * 4, MemKind::Device).unwrap();
-        let (kernel, f32_out) = if op == Op::MatmulFp8 { ("matmul_fp8_gemv", false) } else { ("matmul_nvfp4_gemv", true) };
+        let (kernel, f32_out) =
+            if op == Op::MatmulFp8 { ("matmul_fp8_gemv", false) } else { ("matmul_nvfp4_gemv", true) };
         let calls: Vec<OpCall> = (0..pool)
             .map(|i| {
                 if op == Op::MatmulFp8 {
-                    OpCall::new(op, vec![t(&x, DType::Bf16, &[m, k]), t(&ws[i], DType::Fp8E4m3, &[n, k]), t(&sc, DType::F32, &[2])], vec![t(&y, DType::Bf16, &[m, n])], OpAttrs::default())
+                    OpCall::new(
+                        op,
+                        vec![t(&x, DType::Bf16, &[m, k]), t(&ws[i], DType::Fp8E4m3, &[n, k]), t(&sc, DType::F32, &[2])],
+                        vec![t(&y, DType::Bf16, &[m, n])],
+                        OpAttrs::default(),
+                    )
                 } else {
                     OpCall::new(
                         op,
-                        vec![t(&x, DType::Bf16, &[m, k]), t(&ws[i], DType::U8, &[n, k / 2]), t(&bs[i], DType::Fp8E4m3, &[n, k / 16]), t(&sc, DType::F32, &[1])],
+                        vec![
+                            t(&x, DType::Bf16, &[m, k]),
+                            t(&ws[i], DType::U8, &[n, k / 2]),
+                            t(&bs[i], DType::Fp8E4m3, &[n, k / 16]),
+                            t(&sc, DType::F32, &[1]),
+                        ],
                         vec![t(&y, if f32_out { DType::F32 } else { DType::Bf16 }, &[m, n])],
                         OpAttrs::default(),
                     )
@@ -85,6 +102,9 @@ fn main() {
         run(reps);
         let us = t0.elapsed().as_secs_f64() / reps as f64 * 1e6;
         let bytes = wbytes + if op == Op::MatmulNvfp4 { n * k / 16 } else { 0 };
-        println!("{what:22} {kernel:18} n={n:6} k={k:5} m={m}: {us:8.1} us/call  {:6.1} GB/s weight bytes", bytes as f64 / (us * 1e-6) / 1e9);
+        println!(
+            "{what:22} {kernel:18} n={n:6} k={k:5} m={m}: {us:8.1} us/call  {:6.1} GB/s weight bytes",
+            bytes as f64 / (us * 1e-6) / 1e9
+        );
     }
 }

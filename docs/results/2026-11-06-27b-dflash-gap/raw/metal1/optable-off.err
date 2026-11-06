@@ -1,0 +1,23 @@
+prefill chunk 2048 (recipe qwen3_5_vl, metal)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on Apple M5 Max in 0.4s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.03 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 41 tokens
+finish=length prompt=41 (cached 0) completion=96 | prefill 790 ms (51.9 tok/s) | decode 16234 ms (5.85 tok/s)
+op table (estimated ms over all launches; total 16901.0 ms):
+op                               ms  share%    calls   timed
+matmul_mxfp4                9686.18   57.31    48112   48112
+rmsnorm_add                 1966.85   11.64    12416   12416
+silu_glu                    1563.86    9.25    10864   10864
+gdn_delta_rule               732.73    4.34     4656    4656
+rmsnorm                      661.33    3.91     4753    4753
+gdn_conv                     658.69    3.90     4656    4656
+logits                       550.81    3.26       96      96
+attn_decode                  252.87    1.50     1536    1536
+qk_norm_rope_kv              233.82    1.38     1552    1552
+gate_split                   226.88    1.34     1552    1552
+sigmoid_mul                  210.00    1.24     1552    1552
+embedding                    136.90    0.81       97      97
+argmax                        17.52    0.10       96      96
+attn_prefill                   2.56    0.02       16      16
+steps=97 graph replays=0 (captures 0) eager decode steps=96 (profiled 96) top ops: matmul_mxfp4=9686ms/48112 rmsnorm_add=1967ms/12416 silu_glu=1564ms/10864 gdn_delta_rule=733ms/4656 rmsnorm=661ms/4753

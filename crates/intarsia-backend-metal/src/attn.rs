@@ -134,7 +134,11 @@ pub fn head_plan_for_test(grp: usize, d: usize) -> (usize, usize) {
 impl HeadPlan {
     /// kv head count the split policy and the simdgroup rule see.
     pub(crate) fn policy_kv(&self, nkv: usize) -> usize {
-        if self.gpref != 0 { nkv } else { nkv * self.hs }
+        if self.gpref != 0 {
+            nkv
+        } else {
+            nkv * self.hs
+        }
     }
     /// `OpP::s1`: head split in the low byte, the unsplit GP of a bitwise split above it.
     pub(crate) fn s1(&self) -> usize {
@@ -157,11 +161,8 @@ impl MetalBackend {
         if t * n * d == 0 {
             return Ok(());
         }
-        let shape_ok = t == 1
-            && nkv > 0
-            && n % nkv == 0
-            && n / nkv <= MAX_GROUP
-            && matches!(d, 8 | 16 | 32 | 64 | 128 | 256);
+        let shape_ok =
+            t == 1 && nkv > 0 && n % nkv == 0 && n / nkv <= MAX_GROUP && matches!(d, 8 | 16 | 32 | 64 | 128 | 256);
         let (ka, va) = (self.mbuf(&i[1].buf)?.base + i[1].offset, self.mbuf(&i[2].buf)?.base + i[2].offset);
         let qa = self.mbuf(&i[0].buf)?.base + i[0].offset;
         if !shape_ok || ka % 16 != 0 || va % 16 != 0 || qa % 16 != 0 {
@@ -227,7 +228,8 @@ impl MetalBackend {
         // lets more threadgroups share a core (b2a sweeps: 4k 47 us vs 60 us, 1k 21 us vs 23 us)
         let nsg = if use_dev == 0 && npol * max_split <= FEW_TGS { MAX_SG } else { MAX_SG / 2 };
         let nsg = nsg.min((TG_FLOATS / (gp.max(hp.gpref) * d)).max(1));
-        let (name1, name2) = (ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
+        let (name1, name2) =
+            (ATTN_DECODE_SPLITKV_SHADERS[gp.trailing_zeros() as usize], ATTN_DECODE_SPLITKV_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;
         // with one split stage 1 writes the output itself; a device position decides that on the GPU
@@ -373,7 +375,8 @@ impl MetalBackend {
         let gp = (grp / hs).next_power_of_two();
         // threadgroup shape: the largest simdgroup count any row's 1-row launch uses (row 0: the fewest splits)
         let first_splits = decode_splits(if use_dev == 1 { cap } else { (a.pos0 + 1).min(cap) }, npol, MAX_SPLIT);
-        let nsg = rows_nsg(use_dev == 0, npol, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp.max(hp.gpref), d);
+        let nsg =
+            rows_nsg(use_dev == 0, npol, if use_dev == 1 { usize::MAX / 2 } else { first_splits }, gp.max(hp.gpref), d);
         let (name1, name2) = (ATTN_ROWS_SHADERS[gp.trailing_zeros() as usize], ATTN_ROWS_SHADERS[4]);
         let pso1 = self.pso(name1).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name1}'")))?;
         let pso2 = self.pso(name2).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name2}'")))?;

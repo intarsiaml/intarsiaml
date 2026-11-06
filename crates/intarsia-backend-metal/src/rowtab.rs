@@ -46,8 +46,13 @@ const DELTA_ROWS_SHADERS: [(usize, &str); 4] = [
     (256, "gdn_delta_rule_bf16_rows_dk256"),
 ];
 const QK_ROWS: &str = "qk_norm_rope_kv_bf16_rows";
-const ATTN_ROWTAB_SHADERS: [&str; 5] =
-    ["attn_decode_rowtab_g1", "attn_decode_rowtab_g2", "attn_decode_rowtab_g4", "attn_decode_rowtab_g8", "attn_decode_rowtab_combine"];
+const ATTN_ROWTAB_SHADERS: [&str; 5] = [
+    "attn_decode_rowtab_g1",
+    "attn_decode_rowtab_g2",
+    "attn_decode_rowtab_g4",
+    "attn_decode_rowtab_g8",
+    "attn_decode_rowtab_combine",
+];
 const KV_ROWS: &str = "kv_append_bf16_rows";
 
 pub fn shader_names() -> Vec<&'static str> {
@@ -163,7 +168,10 @@ impl MetalBackend {
     }
 
     fn row_tab(&self, call: &OpCall) -> Result<Tab> {
-        let r = call.rows.as_ref().ok_or_else(|| Error::invalid(format!("metal {}: a row-table kernel needs OpCall::rows", call.op)))?;
+        let r = call
+            .rows
+            .as_ref()
+            .ok_or_else(|| Error::invalid(format!("metal {}: a row-table kernel needs OpCall::rows", call.op)))?;
         let b = self.bind(&r.ptrs, DType::U8, false, "row table")?;
         if b.skip != 0 || b.off % 8 != 0 {
             return Err(Error::invalid("metal row table: the address table must be 8-byte aligned"));
@@ -171,12 +179,20 @@ impl MetalBackend {
         if r.byte_off % 2 != 0 {
             return Err(Error::invalid("metal row table: byte_off must be even"));
         }
-        Ok(Tab { b, stride: dim(r.stride, "table stride")?, index: dim(r.index, "table index")?, byte_off: dim(r.byte_off, "byte_off")? })
+        Ok(Tab {
+            b,
+            stride: dim(r.stride, "table stride")?,
+            index: dim(r.index, "table index")?,
+            byte_off: dim(r.byte_off, "byte_off")?,
+        })
     }
 
     /// The per-row positions of a row-table call (i32 `[rows]`), bound.
     fn row_pos(&self, call: &OpCall, rows: usize) -> Result<Bind> {
-        let p = call.pos.as_ref().ok_or_else(|| Error::invalid(format!("metal {}: a row-table call needs OpCall::pos", call.op)))?;
+        let p = call
+            .pos
+            .as_ref()
+            .ok_or_else(|| Error::invalid(format!("metal {}: a row-table call needs OpCall::pos", call.op)))?;
         if p.numel() != rows {
             return Err(Error::invalid(format!("metal {}: {} positions for {rows} rows", call.op, p.numel())));
         }
@@ -200,8 +216,11 @@ impl MetalBackend {
                     return Ok(());
                 }
                 let tab = self.row_tab(call)?;
-                let (x, w, y) =
-                    (self.bind(&i[0], bf, false, "x")?, self.bind(&i[1], bf, false, "taps")?, self.bind(&o[0], bf, true, "y")?);
+                let (x, w, y) = (
+                    self.bind(&i[0], bf, false, "x")?,
+                    self.bind(&i[1], bf, false, "taps")?,
+                    self.bind(&o[0], bf, true, "y")?,
+                );
                 dim(rows * c, "R*C")?;
                 dim(c * k, "C*K")?;
                 let p = OpP {
@@ -273,7 +292,16 @@ impl MetalBackend {
                 dim(total, "R*Nkv*D")?;
                 dim(nkv * cap * d, "Nkv*cap*D")?;
                 let p = OpP {
-                    dims: [dim(rows, "R")?, dim(nkv, "Nkv")?, dim(d, "D")?, dim(cap, "cap")?, tab.stride, tab.index, 0, 0],
+                    dims: [
+                        dim(rows, "R")?,
+                        dim(nkv, "Nkv")?,
+                        dim(d, "D")?,
+                        dim(cap, "cap")?,
+                        tab.stride,
+                        tab.index,
+                        0,
+                        0,
+                    ],
                     skips: [src.skip, 0, 0, 0, 0],
                     ..Default::default()
                 };
@@ -361,7 +389,9 @@ impl MetalBackend {
             return Ok(());
         }
         if !(nkv > 0 && n % nkv == 0 && n / nkv <= MAX_GROUP && matches!(d, 8 | 16 | 32 | 64 | 128 | 256)) {
-            return Err(Error::invalid(format!("metal {ATTN_DECODE_BF16_SPLITKV_ROWS}: {n} query / {nkv} kv heads of {d}")));
+            return Err(Error::invalid(format!(
+                "metal {ATTN_DECODE_BF16_SPLITKV_ROWS}: {n} query / {nkv} kv heads of {d}"
+            )));
         }
         let qa = self.mbuf(&i[0].buf)?.base + i[0].offset;
         if qa % 16 != 0 {
@@ -398,7 +428,16 @@ impl MetalBackend {
         u(nkv * cap * d, "Nkv*cap*D")?;
         u(rows * n * max_split * (d + 2), "R*N*max_split*(D+2)")?;
         let p = OpP {
-            dims: [u(target, "target")?, u(n, "N")?, u(nkv, "Nkv")?, u(d, "D")?, u(cap, "cap")?, 0, 0, u(max_split, "max_split")?],
+            dims: [
+                u(target, "target")?,
+                u(n, "N")?,
+                u(nkv, "Nkv")?,
+                u(d, "D")?,
+                u(cap, "cap")?,
+                0,
+                0,
+                u(max_split, "max_split")?,
+            ],
             skips: [u(rows, "R")?, u(hp.s1(), "head split")?, tab.stride, out.skip, tab.index],
             f0: a.scale,
             f1: 0.0,

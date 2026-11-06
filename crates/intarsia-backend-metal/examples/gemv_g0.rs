@@ -475,11 +475,8 @@ mod imp {
                 .into_iter()
                 .filter(|r| rows_filter.as_ref().is_none_or(|f| f.contains(r) || *r == 1))
                 .collect();
-            let pers: Vec<usize> = mr::MR_PER_TG
-                .iter()
-                .copied()
-                .filter(|p| per_filter.as_ref().is_none_or(|f| f.contains(p)))
-                .collect();
+            let pers: Vec<usize> =
+                mr::MR_PER_TG.iter().copied().filter(|p| per_filter.as_ref().is_none_or(|f| f.contains(p))).collect();
             for &r in &mr_rows {
                 for &p in &pers {
                     // R = 1 is the sanity instance (same kernel as serving); only the P = 1 form is timed

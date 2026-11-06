@@ -8,9 +8,7 @@
 mod common;
 
 use common::*;
-use intarsia_backend_metal::gemm_nax::{
-    encode_nax, pick_variant, NaxParams, NaxVariant, NAX_MIN_M, NAX_VARIANTS,
-};
+use intarsia_backend_metal::gemm_nax::{encode_nax, pick_variant, NaxParams, NaxVariant, NAX_MIN_M, NAX_VARIANTS};
 use intarsia_backend_metal::kernels::{MATMUL_BF16, MATMUL_BF16_NAX, MATMUL_PAIR_BF16_NAX};
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, Buffer, MemKind};
@@ -54,7 +52,8 @@ fn run_variant(
         b.downcast::<intarsia_backend_metal::MetalBuffer>().unwrap()
     }
     let (xm, wm, ym) = (mtl(xb), mtl(wb), mtl(yb));
-    be.with_encoder(|enc| encode_nax(enc, pso, v, (xm.mtl(), xo & !3), (wm.mtl(), wo & !3), (ym.mtl(), yo & !3), &p)).unwrap();
+    be.with_encoder(|enc| encode_nax(enc, pso, v, (xm.mtl(), xo & !3), (wm.mtl(), wo & !3), (ym.mtl(), yo & !3), &p))
+        .unwrap();
     be.synchronize(0).unwrap();
 }
 
@@ -105,7 +104,12 @@ fn nax_matches_f64_reference() {
             let y = read_u16(&be, &yb, yo, m * n);
             for &mi in &sample_rows(m) {
                 let refs = reference(&w, &x[mi * k..(mi + 1) * k], k, n);
-                check(&y[mi * n..(mi + 1) * n], &refs, 0..n, &format!("{} m={m} n={n} k={k} off={xo},{wo},{yo} row {mi}", v.shader));
+                check(
+                    &y[mi * n..(mi + 1) * n],
+                    &refs,
+                    0..n,
+                    &format!("{} m={m} n={n} k={k} off={xo},{wo},{yo} row {mi}", v.shader),
+                );
             }
             // guard bytes around y untouched (stores past the M / N edge would land here)
             let raw = read_u16(&be, &yb, 0, (yo + m * n * 2 + 16) / 2);
@@ -158,7 +162,18 @@ fn nax_rows_do_not_depend_on_the_call() {
         assert!(read_u16(&be, &y2, 0, m_big * n) == want, "{} differs from {}", v.shader, base.shader);
     }
     // calls of other sizes over row ranges of x, outputs written at odd offsets
-    for (r0, rows) in [(0usize, 5usize), (7, 2), (40, 11), (1000, 15), (17, 17), (100, 64), (819, 205), (1019, 5), (512, 512), (3, 1021)] {
+    for (r0, rows) in [
+        (0usize, 5usize),
+        (7, 2),
+        (40, 11),
+        (1000, 15),
+        (17, 17),
+        (100, 64),
+        (819, 205),
+        (1019, 5),
+        (512, 512),
+        (3, 1021),
+    ] {
         for v in NAX_VARIANTS {
             let yo = 2 * (r0 % 3);
             let y2 = be.alloc(yo + rows * n * 2 + 16, MemKind::Device).unwrap();
@@ -212,9 +227,18 @@ fn nax_kernels_are_registered_for_prefill_shapes_only() {
             ..Default::default()
         };
         assert!(k.accepts(&shape(NAX_MIN_M, 4096)) && k.accepts(&shape(1024, 12288)), "{name}: prefill shapes");
-        assert!(k.accepts(&shape(NAX_MIN_M, 4096)) && k.accepts(&shape(11, 4096)), "{name}: a prompt's short tail chunk");
-        assert!(!k.accepts(&shape(1, 4096)) && !k.accepts(&shape(NAX_MIN_M - 1, 4096)), "{name}: M = 1 is the decode GEMV's");
-        assert!(k.priority > gemm.priority && k.priority < gemv.priority, "{name}: above the tiled GEMM, below the GEMV class");
+        assert!(
+            k.accepts(&shape(NAX_MIN_M, 4096)) && k.accepts(&shape(11, 4096)),
+            "{name}: a prompt's short tail chunk"
+        );
+        assert!(
+            !k.accepts(&shape(1, 4096)) && !k.accepts(&shape(NAX_MIN_M - 1, 4096)),
+            "{name}: M = 1 is the decode GEMV's"
+        );
+        assert!(
+            k.priority > gemm.priority && k.priority < gemv.priority,
+            "{name}: above the tiled GEMM, below the GEMV class"
+        );
     }
 }
 
@@ -283,7 +307,24 @@ fn nax_mid_size_chunks_keep_row_bits() {
         })
         .collect();
     // (rows, first row): from just past the chunk-sized range to the 2048-row chunk, multiples of 64 and of 128 included
-    for (rows, r0) in [(513usize, 7usize), (600, 1448), (640, 100), (700, 20), (800, 3), (952, 1096), (1100, 948), (1200, 9), (1280, 50), (1344, 700), (1366, 682), (1433, 615), (1536, 512), (1850, 198), (2047, 1), (2048, 0)] {
+    for (rows, r0) in [
+        (513usize, 7usize),
+        (600, 1448),
+        (640, 100),
+        (700, 20),
+        (800, 3),
+        (952, 1096),
+        (1100, 948),
+        (1200, 9),
+        (1280, 50),
+        (1344, 700),
+        (1366, 682),
+        (1433, 615),
+        (1536, 512),
+        (1850, 198),
+        (2047, 1),
+        (2048, 0),
+    ] {
         let m = rows;
         let tile = pick_variant(m, n);
         let ys: Vec<_> = (0..3).map(|_| be.alloc(m * n * 2, MemKind::Device).unwrap()).collect();
@@ -324,7 +365,14 @@ fn nax_launch_picks_tiles_without_changing_bits() {
         read_u16(&be, &yb, 0, m * n)
     };
     let big = run(1024, 12288, 0); // 64x64 / two simdgroups
-    for (m, n, r0) in [(256usize, 1024usize, 300usize), (205, 256, 0), (17, 12288, 1007), (1024, 1024, 0), (222, 4096, 300), (256, 4096, 5)] {
+    for (m, n, r0) in [
+        (256usize, 1024usize, 300usize),
+        (205, 256, 0),
+        (17, 12288, 1007),
+        (1024, 1024, 0),
+        (222, 4096, 300),
+        (256, 4096, 5),
+    ] {
         let got = run(m, n, r0);
         for r in 0..m {
             assert!(
@@ -350,7 +398,10 @@ fn nax_pair_is_bitwise_two_singles() {
         let w0 = rand_bf16(n0 * k, 72);
         let w1 = rand_bf16(n1 * k, 73);
         let (xb, w0b, w1b) = (upload_at(&be, xo, &x), upload_at(&be, w0o, &w0), upload_at(&be, w1o, &w1));
-        let (a0, a1) = (be.alloc(y0o + m * n0 * 2 + 16, MemKind::Device).unwrap(), be.alloc(y1o + m * n1 * 2 + 16, MemKind::Device).unwrap());
+        let (a0, a1) = (
+            be.alloc(y0o + m * n0 * 2 + 16, MemKind::Device).unwrap(),
+            be.alloc(y1o + m * n1 * 2 + 16, MemKind::Device).unwrap(),
+        );
         for (b, nb) in [(&a0, y0o + m * n0 * 2 + 16), (&a1, y1o + m * n1 * 2 + 16)] {
             be.upload(b, 0, &vec![0xEEu8; nb], 0).unwrap();
         }

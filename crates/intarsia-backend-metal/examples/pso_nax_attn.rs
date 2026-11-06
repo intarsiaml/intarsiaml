@@ -22,7 +22,12 @@ fn main() {
         if v.nsg % g == 0 {
             let bq = 16 * (v.nsg / g);
             for &t in &ts {
-                println!("  T {t}: {} x {nkv} = {} threadgroups of {} threads", t.div_ceil(bq), t.div_ceil(bq) * nkv, v.nsg * 32);
+                println!(
+                    "  T {t}: {} x {nkv} = {} threadgroups of {} threads",
+                    t.div_ceil(bq),
+                    t.div_ceil(bq) * nkv,
+                    v.nsg * 32
+                );
             }
         }
     }

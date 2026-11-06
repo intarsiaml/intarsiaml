@@ -1,0 +1,66 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1235:4
+     |
+1235 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/dflash27/crates/intarsia-backend-metal)
+    Finished `release` profile [optimized] target(s) in 0.30s
+     Running tests/df_verify_bench.rs (target/release/deps/df_verify_bench-a952650ea5b143b5)
+
+running 1 test
+DFBENCH mxfp4 17408x5120 M=1: rows launch 63.7 us (0.98x M=1, 744 GB/s), 1 one-row launches 64.4 us; 
+DFBENCH mxfp4 17408x5120 M=2: rows launch 102.1 us (1.57x M=1, 464 GB/s), 2 one-row launches 126.2 us; mr p2 73.6 us (1.14x M=1), mr p4 75.2 us (1.16x M=1)
+DFBENCH mxfp4 17408x5120 M=3: rows launch 133.9 us (2.06x M=1, 354 GB/s), 3 one-row launches 186.3 us; mr p2 84.6 us (1.31x M=1), mr p4 88.0 us (1.36x M=1)
+DFBENCH mxfp4 17408x5120 M=4: rows launch 171.9 us (2.65x M=1, 275 GB/s), 4 one-row launches 246.9 us; mr p2 105.5 us (1.63x M=1), mr p4 131.4 us (2.03x M=1)
+DFBENCH mxfp4 17408x5120 M=5: rows launch 199.4 us (3.07x M=1, 237 GB/s), 5 one-row launches 306.4 us; mr p2 231.2 us (3.56x M=1), mr p4 205.4 us (3.17x M=1)
+DFBENCH mxfp4 17408x5120 M=6: rows launch 230.7 us (3.56x M=1, 205 GB/s), 6 one-row launches 371.1 us; mr p2 262.6 us (4.05x M=1), mr p4 247.9 us (3.82x M=1)
+DFBENCH mxfp4 17408x5120 M=7: rows launch 262.1 us (4.04x M=1, 181 GB/s), 7 one-row launches 427.8 us; mr p2 350.4 us (5.40x M=1), mr p4 324.8 us (5.01x M=1)
+DFBENCH mxfp4 17408x5120 M=8: rows launch 293.8 us (4.53x M=1, 161 GB/s), 8 one-row launches 504.2 us; mr p2 243.1 us (3.75x M=1), mr p4 272.1 us (4.20x M=1)
+DFBENCH mxfp4 5120x17408 M=1: rows launch 66.1 us (0.99x M=1, 717 GB/s), 1 one-row launches 66.0 us; 
+DFBENCH mxfp4 5120x17408 M=2: rows launch 106.0 us (1.59x M=1, 447 GB/s), 2 one-row launches 127.7 us; mr p2 78.2 us (1.17x M=1), mr p4 71.3 us (1.07x M=1)
+DFBENCH mxfp4 5120x17408 M=3: rows launch 139.1 us (2.08x M=1, 340 GB/s), 3 one-row launches 188.3 us; mr p2 93.3 us (1.40x M=1), mr p4 83.7 us (1.25x M=1)
+DFBENCH mxfp4 5120x17408 M=4: rows launch 172.0 us (2.58x M=1, 275 GB/s), 4 one-row launches 255.0 us; mr p2 112.4 us (1.68x M=1), mr p4 134.6 us (2.02x M=1)
+DFBENCH mxfp4 5120x17408 M=5: rows launch 208.1 us (3.12x M=1, 228 GB/s), 5 one-row launches 315.4 us; mr p2 266.6 us (4.00x M=1), mr p4 215.0 us (3.22x M=1)
+DFBENCH mxfp4 5120x17408 M=6: rows launch 246.5 us (3.69x M=1, 192 GB/s), 6 one-row launches 378.1 us; mr p2 269.8 us (4.04x M=1), mr p4 253.3 us (3.80x M=1)
+DFBENCH mxfp4 5120x17408 M=7: rows launch 287.9 us (4.31x M=1, 164 GB/s), 7 one-row launches 440.2 us; mr p2 389.2 us (5.83x M=1), mr p4 337.3 us (5.05x M=1)
+DFBENCH mxfp4 5120x17408 M=8: rows launch 329.9 us (4.94x M=1, 144 GB/s), 8 one-row launches 503.1 us; mr p2 257.0 us (3.85x M=1), mr p4 281.8 us (4.22x M=1)
+DFBENCH mxfp4 12288x5120 M=1: rows launch 40.6 us (0.97x M=1, 823 GB/s), 1 one-row launches 41.1 us; 
+DFBENCH mxfp4 12288x5120 M=2: rows launch 73.5 us (1.76x M=1, 455 GB/s), 2 one-row launches 78.7 us; mr p2 51.6 us (1.24x M=1), mr p4 55.3 us (1.33x M=1)
+DFBENCH mxfp4 12288x5120 M=3: rows launch 96.4 us (2.31x M=1, 347 GB/s), 3 one-row launches 114.9 us; mr p2 60.6 us (1.45x M=1), mr p4 67.6 us (1.62x M=1)
+DFBENCH mxfp4 12288x5120 M=4: rows launch 119.3 us (2.86x M=1, 280 GB/s), 4 one-row launches 153.0 us; mr p2 76.7 us (1.84x M=1), mr p4 97.0 us (2.33x M=1)
+DFBENCH mxfp4 12288x5120 M=5: rows launch 142.3 us (3.42x M=1, 235 GB/s), 5 one-row launches 189.3 us; mr p2 169.2 us (4.06x M=1), mr p4 150.6 us (3.62x M=1)
+DFBENCH mxfp4 12288x5120 M=6: rows launch 165.6 us (3.98x M=1, 202 GB/s), 6 one-row launches 227.9 us; mr p2 188.2 us (4.52x M=1), mr p4 180.7 us (4.34x M=1)
+DFBENCH mxfp4 12288x5120 M=7: rows launch 187.5 us (4.50x M=1, 178 GB/s), 7 one-row launches 265.3 us; mr p2 255.1 us (6.13x M=1), mr p4 236.4 us (5.67x M=1)
+DFBENCH mxfp4 12288x5120 M=8: rows launch 209.8 us (5.04x M=1, 159 GB/s), 8 one-row launches 301.8 us; mr p2 174.2 us (4.18x M=1), mr p4 197.2 us (4.73x M=1)
+DFBENCH mxfp4 5120x6144 M=1: rows launch 23.6 us (1.04x M=1, 708 GB/s), 1 one-row launches 22.6 us; 
+DFBENCH mxfp4 5120x6144 M=2: rows launch 40.2 us (1.78x M=1, 416 GB/s), 2 one-row launches 43.7 us; mr p2 29.0 us (1.28x M=1), mr p4 27.2 us (1.20x M=1)
+DFBENCH mxfp4 5120x6144 M=3: rows launch 52.6 us (2.32x M=1, 318 GB/s), 3 one-row launches 63.8 us; mr p2 34.5 us (1.52x M=1), mr p4 32.8 us (1.45x M=1)
+DFBENCH mxfp4 5120x6144 M=4: rows launch 64.3 us (2.84x M=1, 260 GB/s), 4 one-row launches 82.9 us; mr p2 45.2 us (2.00x M=1), mr p4 51.7 us (2.28x M=1)
+DFBENCH mxfp4 5120x6144 M=5: rows launch 75.9 us (3.35x M=1, 220 GB/s), 5 one-row launches 103.5 us; mr p2 96.5 us (4.26x M=1), mr p4 81.7 us (3.61x M=1)
+DFBENCH mxfp4 5120x6144 M=6: rows launch 87.6 us (3.87x M=1, 191 GB/s), 6 one-row launches 123.4 us; mr p2 99.3 us (4.39x M=1), mr p4 96.0 us (4.24x M=1)
+DFBENCH mxfp4 5120x6144 M=7: rows launch 99.0 us (4.37x M=1, 169 GB/s), 7 one-row launches 143.9 us; mr p2 139.2 us (6.15x M=1), mr p4 124.2 us (5.48x M=1)
+DFBENCH mxfp4 5120x6144 M=8: rows launch 109.9 us (4.85x M=1, 152 GB/s), 8 one-row launches 163.2 us; mr p2 93.2 us (4.12x M=1), mr p4 103.4 us (4.57x M=1)
+test df_verify_kernels_27b ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.32s
+

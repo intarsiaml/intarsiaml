@@ -1,0 +1,37 @@
+10:27:17 mxfp4_gemv tests exit 0: test a_rows_bits_do_not_depend_on_the_calls_m ... ok|test an_unaligned_x_takes_the_prepass_and_gives_the_same_bits ... ok|test gemv_bits_are_pinned ... ok|test gemv_matches_the_f64_reference ... ok|m-row shader cases bitwise: 672|test m_row_shaders_are_bitwise_the_one_row_call_per_row ... ok|test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s|
+10:27:22 planted fault 1 (last weight row of a simdgroup sums each word in reverse order): exit 101 (CAUGHT) mr p1 vs m8: N 515 K 5120 M 2
+10:27:27 planted fault 2 (row stride slip from row 2): exit 101 (CAUGHT)
+10:27:35 bench exit 0
+DFBENCH mxfp4 17408x5120 M=1: rows launch 62.0 us (0.70x M=1, 763 GB/s), 1 one-row launches 63.3 us; 
+DFBENCH mxfp4 17408x5120 M=2: rows launch 102.4 us (1.15x M=1, 462 GB/s), 2 one-row launches 122.2 us; mr p1 73.1 us (0.82x M=1), mr p2 70.2 us (0.79x M=1), mr p4 74.3 us (0.84x M=1)
+DFBENCH mxfp4 17408x5120 M=3: rows launch 134.4 us (1.51x M=1, 352 GB/s), 3 one-row launches 185.3 us; mr p1 84.0 us (0.95x M=1), mr p2 83.3 us (0.94x M=1), mr p4 88.1 us (0.99x M=1)
+DFBENCH mxfp4 17408x5120 M=4: rows launch 167.3 us (1.89x M=1, 283 GB/s), 4 one-row launches 251.7 us; mr p1 106.0 us (1.19x M=1), mr p2 106.1 us (1.20x M=1), mr p4 132.2 us (1.49x M=1)
+DFBENCH mxfp4 17408x5120 M=5: rows launch 199.1 us (2.24x M=1, 238 GB/s), 5 one-row launches 308.3 us; mr p1 199.2 us (2.24x M=1), mr p2 231.5 us (2.61x M=1), mr p4 207.1 us (2.33x M=1)
+DFBENCH mxfp4 17408x5120 M=6: rows launch 231.5 us (2.61x M=1, 204 GB/s), 6 one-row launches 366.4 us; mr p1 231.5 us (2.61x M=1), mr p2 262.5 us (2.96x M=1), mr p4 248.3 us (2.80x M=1)
+DFBENCH mxfp4 17408x5120 M=7: rows launch 263.1 us (2.96x M=1, 180 GB/s), 7 one-row launches 419.5 us; mr p1 262.3 us (2.96x M=1), mr p2 349.7 us (3.94x M=1), mr p4 323.7 us (3.65x M=1)
+DFBENCH mxfp4 17408x5120 M=8: rows launch 292.7 us (3.30x M=1, 162 GB/s), 8 one-row launches 479.0 us; mr p1 242.8 us (2.74x M=1), mr p2 242.8 us (2.74x M=1), mr p4 271.9 us (3.06x M=1)
+DFBENCH mxfp4 5120x17408 M=1: rows launch 65.5 us (0.95x M=1, 723 GB/s), 1 one-row launches 65.9 us; 
+DFBENCH mxfp4 5120x17408 M=2: rows launch 104.8 us (1.53x M=1, 452 GB/s), 2 one-row launches 128.6 us; mr p1 71.3 us (1.04x M=1), mr p2 77.1 us (1.12x M=1), mr p4 71.2 us (1.04x M=1)
+DFBENCH mxfp4 5120x17408 M=3: rows launch 139.5 us (2.03x M=1, 339 GB/s), 3 one-row launches 188.4 us; mr p1 84.3 us (1.23x M=1), mr p2 92.0 us (1.34x M=1), mr p4 83.6 us (1.22x M=1)
+DFBENCH mxfp4 5120x17408 M=4: rows launch 172.4 us (2.51x M=1, 275 GB/s), 4 one-row launches 250.2 us; mr p1 112.0 us (1.63x M=1), mr p2 112.1 us (1.63x M=1), mr p4 134.2 us (1.96x M=1)
+DFBENCH mxfp4 5120x17408 M=5: rows launch 205.9 us (3.00x M=1, 230 GB/s), 5 one-row launches 312.4 us; mr p1 206.9 us (3.02x M=1), mr p2 264.0 us (3.85x M=1), mr p4 209.6 us (3.05x M=1)
+DFBENCH mxfp4 5120x17408 M=6: rows launch 245.4 us (3.58x M=1, 193 GB/s), 6 one-row launches 373.6 us; mr p1 245.1 us (3.57x M=1), mr p2 270.2 us (3.94x M=1), mr p4 253.5 us (3.70x M=1)
+DFBENCH mxfp4 5120x17408 M=7: rows launch 286.8 us (4.18x M=1, 165 GB/s), 7 one-row launches 438.1 us; mr p1 286.9 us (4.18x M=1), mr p2 387.5 us (5.65x M=1), mr p4 336.7 us (4.91x M=1)
+DFBENCH mxfp4 5120x17408 M=8: rows launch 330.3 us (4.82x M=1, 143 GB/s), 8 one-row launches 497.1 us; mr p1 258.9 us (3.77x M=1), mr p2 259.2 us (3.78x M=1), mr p4 282.8 us (4.12x M=1)
+DFBENCH mxfp4 12288x5120 M=1: rows launch 41.3 us (0.97x M=1, 809 GB/s), 1 one-row launches 41.1 us; 
+DFBENCH mxfp4 12288x5120 M=2: rows launch 73.9 us (1.73x M=1, 452 GB/s), 2 one-row launches 79.1 us; mr p1 50.3 us (1.18x M=1), mr p2 50.1 us (1.17x M=1), mr p4 55.8 us (1.31x M=1)
+DFBENCH mxfp4 12288x5120 M=3: rows launch 97.1 us (2.27x M=1, 344 GB/s), 3 one-row launches 116.6 us; mr p1 60.2 us (1.41x M=1), mr p2 60.5 us (1.41x M=1), mr p4 66.5 us (1.56x M=1)
+DFBENCH mxfp4 12288x5120 M=4: rows launch 121.3 us (2.84x M=1, 275 GB/s), 4 one-row launches 153.8 us; mr p1 76.9 us (1.80x M=1), mr p2 76.0 us (1.78x M=1), mr p4 97.6 us (2.28x M=1)
+DFBENCH mxfp4 12288x5120 M=5: rows launch 143.0 us (3.35x M=1, 234 GB/s), 5 one-row launches 191.5 us; mr p1 143.4 us (3.35x M=1), mr p2 169.5 us (3.97x M=1), mr p4 151.6 us (3.55x M=1)
+DFBENCH mxfp4 12288x5120 M=6: rows launch 165.9 us (3.88x M=1, 201 GB/s), 6 one-row launches 229.3 us; mr p1 165.1 us (3.86x M=1), mr p2 188.5 us (4.41x M=1), mr p4 181.6 us (4.25x M=1)
+DFBENCH mxfp4 12288x5120 M=7: rows launch 188.6 us (4.41x M=1, 177 GB/s), 7 one-row launches 267.1 us; mr p1 189.2 us (4.43x M=1), mr p2 255.7 us (5.98x M=1), mr p4 236.9 us (5.54x M=1)
+DFBENCH mxfp4 12288x5120 M=8: rows launch 209.9 us (4.91x M=1, 159 GB/s), 8 one-row launches 304.3 us; mr p1 174.3 us (4.08x M=1), mr p2 174.3 us (4.08x M=1), mr p4 198.2 us (4.64x M=1)
+DFBENCH mxfp4 5120x6144 M=1: rows launch 22.5 us (0.99x M=1, 742 GB/s), 1 one-row launches 23.1 us; 
+DFBENCH mxfp4 5120x6144 M=2: rows launch 42.2 us (1.85x M=1, 396 GB/s), 2 one-row launches 43.2 us; mr p1 27.9 us (1.22x M=1), mr p2 28.0 us (1.23x M=1), mr p4 27.0 us (1.18x M=1)
+DFBENCH mxfp4 5120x6144 M=3: rows launch 52.9 us (2.32x M=1, 316 GB/s), 3 one-row launches 64.0 us; mr p1 32.3 us (1.42x M=1), mr p2 35.4 us (1.55x M=1), mr p4 32.5 us (1.42x M=1)
+DFBENCH mxfp4 5120x6144 M=4: rows launch 63.8 us (2.79x M=1, 262 GB/s), 4 one-row launches 84.1 us; mr p1 46.1 us (2.02x M=1), mr p2 46.3 us (2.03x M=1), mr p4 52.0 us (2.28x M=1)
+DFBENCH mxfp4 5120x6144 M=5: rows launch 75.2 us (3.29x M=1, 222 GB/s), 5 one-row launches 104.0 us; mr p1 75.6 us (3.31x M=1), mr p2 95.1 us (4.17x M=1), mr p4 81.0 us (3.55x M=1)
+DFBENCH mxfp4 5120x6144 M=6: rows launch 88.1 us (3.86x M=1, 190 GB/s), 6 one-row launches 123.6 us; mr p1 87.2 us (3.82x M=1), mr p2 99.3 us (4.35x M=1), mr p4 95.8 us (4.20x M=1)
+DFBENCH mxfp4 5120x6144 M=7: rows launch 98.6 us (4.32x M=1, 169 GB/s), 7 one-row launches 144.5 us; mr p1 99.4 us (4.35x M=1), mr p2 138.6 us (6.07x M=1), mr p4 124.0 us (5.43x M=1)
+DFBENCH mxfp4 5120x6144 M=8: rows launch 109.3 us (4.79x M=1, 153 GB/s), 8 one-row launches 163.8 us; mr p1 92.6 us (4.05x M=1), mr p2 92.3 us (4.04x M=1), mr p4 103.9 us (4.55x M=1)
+10:27:35 done

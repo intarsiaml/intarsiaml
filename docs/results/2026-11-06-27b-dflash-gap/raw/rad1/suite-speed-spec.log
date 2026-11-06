@@ -1,0 +1,78 @@
+[localeval]  probe probe-copy: out=256 decode=443.1 tok/s
+[localeval]  probe probe-prose: out=256 decode=136.7 tok/s
+[localeval]  probe probe-prose: out=256 decode=130.6 tok/s
+[localeval]  probe probe-copy: out=256 decode=445.8 tok/s
+[localeval]  probe probe-copy: out=256 decode=471.4 tok/s
+[localeval]  probe probe-prose: out=256 decode=115.4 tok/s
+[localeval] cell speed-spec (speed)
+[localeval]     128 r0 p0: in=124 out=256 ttft=0.045s prefill=0 decode=265.5
+[localeval]    1024 r0 p1: in=1020 out=255 ttft=0.192s prefill=5313 decode=194.6
+[localeval]    4096 r0 p2: in=4064 out=256 ttft=0.656s prefill=6191 decode=191.6
+[localeval]   16384 r0 p3: in=16386 out=256 ttft=2.815s prefill=5821 decode=141.3
+[localeval]    1024 r1 p0: in=1018 out=256 ttft=0.192s prefill=5307 decode=199.1
+[localeval]    4096 r1 p1: in=4068 out=256 ttft=0.658s prefill=6186 decode=189.4
+[localeval]   16384 r1 p2: in=16388 out=256 ttft=2.816s prefill=5819 decode=148.8
+[localeval]     128 r1 p3: in=125 out=256 ttft=0.046s prefill=0 decode=340.9
+[localeval]    4096 r2 p0: in=4061 out=256 ttft=0.656s prefill=6190 decode=178.9
+[localeval]   16384 r2 p1: in=16387 out=256 ttft=2.815s prefill=5821 decode=153.8
+[localeval]     128 r2 p2: in=130 out=256 ttft=0.045s prefill=0 decode=334.4
+[localeval]    1024 r2 p3: in=1017 out=256 ttft=0.190s prefill=5349 decode=205.1
+[localeval]     128 r3 p0: in=127 out=256 ttft=0.045s prefill=0 decode=272.0
+[localeval]     128 r4 p0: in=127 out=256 ttft=0.045s prefill=0 decode=349.9
+# localeval: adhoc — 2026-11-06T10:19
+
+- model: `Qwen3.8` on ? (?), url `http://tatooine:8080/v1`
+- thinking: off; run kind: suite; label: df-rad1-radiance-speed-spec
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval suite --url http://tatooine:8080/v1 --model Qwen3.8 --thinking off --tokenizer-repo Vontra/Qwen3.8-27B-MLX-4bit --tokenizer-revision 70ae7fac63274ff2eac54152031433374cb80f2f --lane spec:dflash --drafter dflash2 --kv-dtype fp8 --group-size 32 --max-num-seqs 16 --power-mode default --tier adhoc --cells speed-spec --label df-rad1-radiance-speed-spec --recipe radiance 1.17.0 (tatooine, ~/.local/opt/radiance/radiance-native.sh, qwen3.8-27b-mxfp4.rad, --tp 2, its DFlash2 drafter, --num-speculative-tokens 7, --kv-cache-dtype fp8, --tp-wire wht6, extra --prefill-interleave 2 --checkpoint-slots 160 --draft-short-from 8), read-only reference, lane df --wait-idle 120`
+- result file: `results/20261106-101913-adhoc-df-rad1-radiance-speed-spec/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+radiance 1.17.0 (tatooine, ~/.local/opt/radiance/radiance-native.sh, qwen3.8-27b-mxfp4.rad, --tp 2, its DFlash2 drafter, --num-speculative-tokens 7, --kv-cache-dtype fp8, --tp-wire wht6, extra --prefill-interleave 2 --checkpoint-slots 160 --draft-short-from 8), read-only reference, lane df
+````
+
+server-reported (llamacpp_props, server_info, version):
+
+````json
+{"llamacpp_props":{"default_generation_settings":{"n_ctx":200000,"params":{"n_predict":-1,"max_tokens":-1,"seed":-1,"temperature":0.699999988079071,"dynatemp_range":0.0,"dynatemp_exponent":1.0,"top_k":20,"top_p":0.949999988079071,"min_p":0.0,"top_n_sigma":-1.0,"typical_p":1.0,"typ_p":1.0,"xtc_probability":0.0,"xtc_threshold":0.10000000149011612,"repeat_last_n":64,"repeat_penalty":1.0,"presence_penalty":0.0,"frequency_penalty":0.0,"dry_multiplier":0.0,"dry_base":1.75,"dry_allowed_length":2,"dry_penalty_last_n":-1,"dry_sequence_breakers":["\n",":","\"","*"],"mirostat":0,"mirostat_tau":5.0,"mirostat_eta":0.1,"stop":[],"n_keep":0,"n_discard":0,"ignore_eos":false,"stream":true,"logit_bias":[],"n_probs":0,"min_keep":0,"grammar":"","grammar_lazy":false,"grammar_triggers":[],"preserved_tokens":[],"chat_format":"","reasoning_format":"auto","reasoning_in_content":false,"generation_prompt":"","samplers":["penalties","dry","temperature","top_k","top_p","min_p","typ_p","xtc"],"backend_sampling":false,"post_sampling_probs":false,"lora":[]}},"total_slots":16,"model_path":"/models/qwen3.8-27b-mxfp4.rad","build_info":"radiance 1.17.0","modalities":{"vision":true,"video":true,"audio":false},"n_ctx":200000},"server_info":{"server":{"model":"Qwen3.8","version":"1.17.0","max_model_len":200000,"max_num_seqs":16,"queue_cap":128,"default_max_tokens":null,"max_tokens_cap":null,"max_n":16,"max_stop_strings":64,"max_stop_bytes":4096,"uptime_s":71,"in_flight":0},"request_defaults":{"temperature":0.69999 ... (full in result.json)
+````
+
+## Suite
+
+- suite `llm-inference-suite` v1 (sha256 `2721aa3d13e9`), tier **adhoc** (ad hoc: never a suite result)
+- cells run: speed-spec; skipped: -; rejected: speed-spec:128
+- lane `spec:dflash2` (source counters, verified True); probe ratio 3.415; idle check metrics; context 200000 (max_model_len)
+- tokenizer: {"repo": "Vontra/Qwen3.8-27B-MLX-4bit", "revision": "70ae7fac63274ff2eac54152031433374cb80f2f", "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523"}
+- protocol compliance: request-shape, timing-defs, client-token-count, gen-length, nonce-first, cache-hit-reject, warmup-per-round, warmup-run-start, latin-square-order, quiet-slot, idle-check, spread-d2, retry-drop-one, spec-arm-plain-report, reps-raw, lane-counters, lane-probe, context-limit, sampling-pinned, tiers, exit-codes, quant-identity, power-mode
+- exit code 3 (0 pass, 3 rejected, 2 harness error)
+
+- REJECTED speed-spec 128: spread (prefill_rejected None, decode_rejected True)
+
+## Speed sweep
+
+served `Qwen3.8`, fingerprint `radiance-1.17.0`, ctx 200000, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 127 | 0.04 | - * | - | 334.4 (265.5–349.9) | 1052.0 (559.1–1569.9) | 3426 | 334.4 | 256 |
+| 1018 | 0.19 | 5313 (5307–5349) | 6061 | 199.1 (194.6–205.1) | 550.4 (532.5–5195.8) | 5563 | 205.0 | 256 |
+| 4064 | 0.66 | 6190 (6186–6191) | 6565 | 189.4 (178.9–191.6) | 7415.2 (734.8–9025.1) | 6309 | 189.4 | 256 |
+| 16387 | 2.81 | 5821 (5819–5821) | 5708 | 148.8 (141.3–153.8) | 288.5 (275.3–330.2) | 5859 | 148.8 | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Suite run (PROTOCOL.md): requests are one user message with a fresh nonce first, temperature 0, top_p 1, seed 0, ignore_eos (else logit_bias -100 on the EOS ids) with max_tokens = gen_tokens; t0 is when the last request byte is sent; tokens are counted by re-tokenizing the output with the pinned tokenizer (server counts are kept beside them and may differ by at most 2%); one discarded full-length request per size precedes the first round, and one discarded max_tokens-1 warmup precedes each round; rounds interleave the sizes in a cyclic (Latin-square) order; a cell's statistic is the median of its valid reps, its spread the range normalised to n = 3 with d2; a cell over its gate gets 2 extra reps once, then may drop the one rep farthest from the median, else it is rejected. Concurrency is a closed loop of N clients measured in a window that opens when every client has completed one request.
+
+[localeval] saved /opt/code/deepeval/results/20261106-101913-adhoc-df-rad1-radiance-speed-spec/result.json
+[localeval] logged to unanimis: fc42d445-c000-4691-8789-09bf2e42e6c4

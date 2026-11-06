@@ -211,10 +211,9 @@ impl MetalBackend {
             return Err(Error::NoKernel(format!("metal kernel '{kernel}' for op 'matmul_fp8'")));
         }
         let need = m * k * 2;
-        let scratch = call
-            .scratch
-            .as_ref()
-            .ok_or_else(|| Error::invalid("metal matmul_fp8_mma: the scratch workspace (OpCall::scratch) is missing"))?;
+        let scratch = call.scratch.as_ref().ok_or_else(|| {
+            Error::invalid("metal matmul_fp8_mma: the scratch workspace (OpCall::scratch) is missing")
+        })?;
         if scratch.numel() * scratch.dtype.size_bytes() < need {
             return Err(Error::invalid(format!(
                 "metal matmul_fp8_mma: scratch of {} bytes, need {need}",
@@ -274,10 +273,9 @@ impl MetalBackend {
     ) -> Result<()> {
         use crate::gemm_nax::{grid, pick_variant, NAX_VARIANTS};
         let (m, n, k) = (pdims[0] as usize, pdims[1] as usize, pdims[2] as usize);
-        let scratch = call
-            .scratch
-            .as_ref()
-            .ok_or_else(|| Error::invalid("metal matmul_fp8_nax: the scratch workspace (OpCall::scratch) is missing"))?;
+        let scratch = call.scratch.as_ref().ok_or_else(|| {
+            Error::invalid("metal matmul_fp8_nax: the scratch workspace (OpCall::scratch) is missing")
+        })?;
         let scratch_bytes = scratch.numel() * scratch.dtype.size_bytes();
         let sb_bind = self.bind(scratch, DType::U8, true, "scratch")?;
         if sb_bind.skip != 0 {
@@ -303,9 +301,9 @@ impl MetalBackend {
         let gemm = NAX_FP8_SHADERS[vi][f32_out as usize];
         let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
         let pso_w = self.pso(W_TO_BF16).ok_or_else(|| Error::backend(format!("metal: no pipeline '{W_TO_BF16}'")))?;
-        let pso_g = self.pso(gemm).ok_or_else(|| {
-            Error::backend(format!("metal: no pipeline '{gemm}' (metal4.0 library not loaded)"))
-        })?;
+        let pso_g = self
+            .pso(gemm)
+            .ok_or_else(|| Error::backend(format!("metal: no pipeline '{gemm}' (metal4.0 library not loaded)")))?;
         let px = OpP { dims: pdims, skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
         let pw = OpP { dims: pdims, ..Default::default() };
         let pg = NaxFp8Params { m: pdims[0], n: pdims[1], k: pdims[2], swz_log: 0, s_c: ob.skip, pad: [0; 3] };
@@ -522,7 +520,11 @@ fn mmt_neg() -> bool {
 
 /// q(x) bytes the `matmul_fp8_gemv_rows` form for M rows reads from the scratch (without the 16 bytes of alignment slack).
 fn rows_scratch_q(m: usize, k: usize) -> usize {
-    if m >= mmt_min() { MMT_ROWS * k * 2 } else { m * k * 2 }
+    if m >= mmt_min() {
+        MMT_ROWS * k * 2
+    } else {
+        m * k * 2
+    }
 }
 
 /// The `_xd` form of `matmul_fp8_gemv_rows` (on unless `INTARSIA_METAL_FP8_ROWS_XD=0`, which takes the staged form back).

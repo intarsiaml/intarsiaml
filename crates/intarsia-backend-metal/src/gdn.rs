@@ -127,8 +127,11 @@ impl MetalBackend {
                 if n == 0 {
                     return Ok(());
                 }
-                let (x, q, g) =
-                    (self.bind(&i[0], bf, false, "x")?, self.bind(&o[0], bf, true, "q")?, self.bind(&o[1], bf, true, "gate")?);
+                let (x, q, g) = (
+                    self.bind(&i[0], bf, false, "x")?,
+                    self.bind(&o[0], bf, true, "q")?,
+                    self.bind(&o[1], bf, true, "gate")?,
+                );
                 let p = OpP {
                     dims: [dim(n, "T*N*D")?, dim(d, "D")?, 0, 0, 0, 0, 0, 0],
                     skips: [x.skip, q.skip, g.skip, 0, 0],
@@ -142,8 +145,11 @@ impl MetalBackend {
                 if n == 0 {
                     return Ok(());
                 }
-                let (a, g, out) =
-                    (self.bind(&i[0], bf, false, "a")?, self.bind(&i[1], bf, false, "g")?, self.bind(&o[0], bf, true, "out")?);
+                let (a, g, out) = (
+                    self.bind(&i[0], bf, false, "a")?,
+                    self.bind(&i[1], bf, false, "g")?,
+                    self.bind(&o[0], bf, true, "out")?,
+                );
                 let p = OpP {
                     dims: [dim(n, "elements")?, 0, 0, 0, 0, 0, 0, 0],
                     skips: [a.skip, g.skip, out.skip, 0, 0],
@@ -155,15 +161,19 @@ impl MetalBackend {
                 // ShortConv reads the [T,3C] projection (B | C | x per row): the channel count is the taps' leading dim
                 let short = call.op == Op::ShortConv;
                 let (t, c, k) = (i[0].shape[0], i[1].shape[0], i[1].shape[1]);
-                let (shaders, state_pass) = if short { (&SHORT_CONV_SHADERS, SHORT_CONV_STATE) } else { (&CONV_SHADERS, CONV_STATE) };
+                let (shaders, state_pass) =
+                    if short { (&SHORT_CONV_SHADERS, SHORT_CONV_STATE) } else { (&CONV_SHADERS, CONV_STATE) };
                 let Some(&shader) = shaders.get(k.wrapping_sub(2)) else {
                     return Err(Error::invalid(format!("metal {kernel}: {k} taps (2..=8 supported)")));
                 };
                 if t * c == 0 {
                     return Ok(());
                 }
-                let (x, w, y) =
-                    (self.bind(&i[0], bf, false, "x")?, self.bind(&i[1], bf, false, "taps")?, self.bind(&o[0], bf, true, "y")?);
+                let (x, w, y) = (
+                    self.bind(&i[0], bf, false, "x")?,
+                    self.bind(&i[1], bf, false, "taps")?,
+                    self.bind(&o[0], bf, true, "y")?,
+                );
                 let st = self.bind(&o[1], DType::F32, true, "conv state")?;
                 dim(t * c * if short { 3 } else { 1 }, "T*C")?;
                 dim(c * k, "C*K")?;
@@ -175,7 +185,12 @@ impl MetalBackend {
                     skips: [x.skip, w.skip, y.skip, 0, 0],
                     ..Default::default()
                 };
-                self.dispatch(shader, &[&x, &w, &y, &st], &p, Grid::Groups { x: c.div_ceil(CONV_TG), y: tiles, threads: CONV_TG })?;
+                self.dispatch(
+                    shader,
+                    &[&x, &w, &y, &st],
+                    &p,
+                    Grid::Groups { x: c.div_ceil(CONV_TG), y: tiles, threads: CONV_TG },
+                )?;
                 if tiles > 1 {
                     self.dispatch(state_pass, &[&x, &st], &p, Grid::Threads(c))?;
                 }
@@ -228,7 +243,10 @@ impl MetalBackend {
         let bf = DType::Bf16;
         let d = intarsia_core::gdn::DeltaDims::from_call(call);
         let Some(&(_, prep, rec)) = DELTA_PRE_SHADERS.iter().find(|s| s.0 == d.dk) else {
-            return Err(Error::invalid(format!("metal gdn_delta_rule_bf16_pre: dk = {} (32/64/128/256 supported)", d.dk)));
+            return Err(Error::invalid(format!(
+                "metal gdn_delta_rule_bf16_pre: dk = {} (32/64/128/256 supported)",
+                d.dk
+            )));
         };
         if d.t * d.hv * d.dv == 0 {
             return Ok(());
@@ -241,10 +259,9 @@ impl MetalBackend {
         }
         let (qk_floats, gate_floats) = pre_floats(d.t, d.hk, d.hv, d.dk);
         let need = 4 * (qk_floats + gate_floats);
-        let scratch = call
-            .scratch
-            .as_ref()
-            .ok_or_else(|| Error::invalid("metal gdn_delta_rule_bf16_pre: the scratch workspace (OpCall::scratch) is missing"))?;
+        let scratch = call.scratch.as_ref().ok_or_else(|| {
+            Error::invalid("metal gdn_delta_rule_bf16_pre: the scratch workspace (OpCall::scratch) is missing")
+        })?;
         if scratch.numel() * scratch.dtype.size_bytes() < need {
             return Err(Error::invalid(format!(
                 "metal gdn_delta_rule_bf16_pre: scratch of {} bytes, need {need}",

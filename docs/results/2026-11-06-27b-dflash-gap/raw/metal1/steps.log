@@ -1,0 +1,21 @@
+09:44:05 short-0 off exit 0 ids-vs-off PASS |  |  | finish=length prompt=41 (cached 0) completion=256 | prefill 2509 ms (16.3 tok/s) | decode 8569 ms (29.76 tok/s)|
+09:44:13 short-0 mtp2e exit 0 ids-vs-off PASS | mean draft 7.68 verify+rollback 60.25 ms n=102 |  | finish=length prompt=41 (cached 0) completion=256 | prefill 457 ms (89.8 tok/s) | decode 7241 ms (35.22 tok/s)|
+09:44:13 short-0 mtp7e exit 1 ids-vs-off FAIL |  |  | 
+09:44:21 short-0 mtp2 exit 0 ids-vs-off PASS |  | pipe step 68.20 ms n=102 | finish=length prompt=41 (cached 0) completion=256 | prefill 475 ms (86.4 tok/s) | decode 7287 ms (34.99 tok/s)|
+09:44:35 4k-1 off exit 0 ids-vs-off PASS |  |  | finish=length prompt=3135 (cached 0) completion=256 | prefill 3737 ms (838.9 tok/s) | decode 9220 ms (27.66 tok/s)|
+09:44:47 4k-1 mtp2e exit 0 ids-vs-off PASS | mean draft 9.32 verify+rollback 69.65 ms n=102 |  | finish=length prompt=3135 (cached 0) completion=256 | prefill 3888 ms (806.3 tok/s) | decode 8353 ms (30.53 tok/s)|
+09:44:48 4k-1 mtp7e exit 1 ids-vs-off FAIL |  |  | 
+09:45:00 4k-1 mtp2 exit 0 ids-vs-off PASS |  | pipe step 76.13 ms n=102 | finish=length prompt=3135 (cached 0) completion=256 | prefill 3852 ms (814.0 tok/s) | decode 8070 ms (31.60 tok/s)|
+09:45:17 optable off exit 0
+09:45:17 optable mtp7e exit 1
+09:45:17 serve off
+09:51:38 suite off speed-plain exit 0 results/20261106-094541-adhoc-df-metal-off-speed-plain/result.json
+09:51:39 serve mtp2
+09:58:22 suite mtp2 speed-plain exit 0 results/20261106-095304-adhoc-df-metal-mtp2-speed-plain/result.json
+10:03:23 suite mtp2 speed-spec exit 0 results/20261106-095823-adhoc-df-metal-mtp2-speed-spec/result.json
+10:03:24 serve tf
+10:06:59 suite tf speed-plain exit 0 results/20261106-100343-adhoc-df-metal-tf-speed-plain/result.json
+10:10:09 suite tf speed-spec exit 3 results/20261106-100659-adhoc-df-metal-tf-speed-spec/result.json
+10:10:10 serve tfnone
+10:15:23 suite tfnone speed-plain exit 0 results/20261106-101025-adhoc-df-metal-tfnone-speed-plain/result.json
+10:15:24 done
