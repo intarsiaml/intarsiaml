@@ -188,9 +188,13 @@ inline void mxfp4_gemv_impl(device const ushort* xs, device const uchar* w, devi
 // once for all M rows. Bits: every (weight row, activation row) pair keeps `mxfp4_gemv1_impl`'s chain exactly: the lane's groups
 // u = lane, lane + 32, ..; per group t = fma chain over the 32 elements in element order (here carried across the four words in
 // `t[p][m]`), then acc = fma(t * MX_FOLD, s, acc); then simd_sum. Only the loop nesting and the registers change.
-template <int M, int P, typename OutT>
+// LUT = true (lane dm, `INTARSIA_METAL_MXFP4_MR=12 / 14`): the codes are decoded through a 256-entry threadgroup table of byte -> two
+// floats (`mx_lut_init`, filled from `mx_x2` itself, so every value is the same float), one table load per two elements instead of the
+// mask / shift / convert sequence; products and chain order unchanged.
+template <int M, int P, typename OutT, bool LUT = false>
 inline void mxfp4_gemv_mr_impl(device const ushort* xs, device const uchar* w, device const uchar* sc, device OutT* out,
-                               constant OpP& p, device const ushort* x, uint2 tg, uint sg, uint lane) {
+                               constant OpP& p, device const ushort* x, uint2 tg, uint sg, uint lane,
+                               threadgroup const float2* lut = nullptr) {
     const ulong n0 = ((ulong)tg.x * MX_SG + sg) * P;
     if (n0 >= p.b) return;  // whole simdgroup exits together
     const uint K = p.c;
@@ -215,7 +219,17 @@ inline void mxfp4_gemv_mr_impl(device const ushort* xs, device const uchar* w, d
             for (int m = 0; m < M; ++m) t[q][m] = 0.f;
         for (int c = 0; c < 4; ++c) {
             float wf[P][8];
-            for (int q = 0; q < P; ++q) mx_dec8(wv[q][c], wf[q]);
+            for (int q = 0; q < P; ++q) {
+                if (LUT) {
+                    for (int i = 0; i < 4; ++i) {
+                        const float2 v = lut[extract_bits(wv[q][c], 8 * i, 8)];
+                        wf[q][2 * i] = v.x;
+                        wf[q][2 * i + 1] = v.y;
+                    }
+                } else {
+                    mx_dec8(wv[q][c], wf[q]);
+                }
+            }
             for (int m = 0; m < M; ++m) {
                 const uint4 xv = ((device const uint4*)(xsrc + (ulong)m * K + (ulong)u * 32))[c];
                 float xf[8];
@@ -317,6 +331,22 @@ inline void mxfp4_gemv_mma_impl(device const ushort* xs, device const uchar* w, 
         mxfp4_gemv_mma_impl<OUT>(xs, w, sc, out, p, x, tg, sg, lane, slots, idx);                                   \
     }
 
+// byte b -> (element of the low nibble, element of the high nibble), as `mx_x2` decodes them; filled by the threadgroup's threads.
+inline void mx_lut_init(threadgroup float2* lut, uint tid, uint nthreads) {
+    for (uint b = tid; b < 256; b += nthreads) lut[b] = mx_x2((b & 0xFu) | ((b >> 4) << 16));
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+}
+
+#define MX_GEMV_LUT(NAME, MM, PP, OUT)                                                                              \
+    kernel void NAME(device const ushort* xs [[buffer(0)]], device const uchar* w [[buffer(1)]],                    \
+                     device const uchar* sc [[buffer(2)]], device OUT* out [[buffer(3)]],                           \
+                     constant OpP& p [[buffer(4)]], device const ushort* x [[buffer(5)]],                            \
+                     uint2 tg [[threadgroup_position_in_grid]], uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
+        threadgroup float2 lut[256];                                                                                \
+        mx_lut_init(lut, sg * 32 + lane, MX_SG * 32);                                                               \
+        mxfp4_gemv_mr_impl<MM, PP, OUT, true>(xs, w, sc, out, p, x, tg, sg, lane, lut);                             \
+    }
+
 #define MX_GEMV(NAME, IMPL, OUT)                                                                                  \
     kernel void NAME(device const ushort* xs [[buffer(0)]], device const uchar* w [[buffer(1)]],                    \
                      device const uchar* sc [[buffer(2)]], device OUT* out [[buffer(3)]],                           \
@@ -387,3 +417,33 @@ kernel void mxfp4_w_to_bf16(device const uchar* w [[buffer(0)]], device const uc
 // lane dm: M = 2..8 on simdgroup matrices (`INTARSIA_METAL_MXFP4_MR=8`)
 MX_GEMV_MMA(mxfp4_gemv_bf16_mma, ushort)
 MX_GEMV_MMA(mxfp4_gemv_f32_mma, float)
+
+// lane dm: M = 2..8, P = 2 / 4, LUT decode (`INTARSIA_METAL_MXFP4_MR=12 / 14`)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr2p2l, 2, 2, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr2p2l, 2, 2, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr3p2l, 3, 2, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr3p2l, 3, 2, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr4p2l, 4, 2, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr4p2l, 4, 2, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr5p2l, 5, 2, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr5p2l, 5, 2, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr6p2l, 6, 2, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr6p2l, 6, 2, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr7p2l, 7, 2, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr7p2l, 7, 2, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr8p2l, 8, 2, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr8p2l, 8, 2, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr2p4l, 2, 4, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr2p4l, 2, 4, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr3p4l, 3, 4, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr3p4l, 3, 4, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr4p4l, 4, 4, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr4p4l, 4, 4, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr5p4l, 5, 4, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr5p4l, 5, 4, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr6p4l, 6, 4, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr6p4l, 6, 4, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr7p4l, 7, 4, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr7p4l, 7, 4, float)
+MX_GEMV_LUT(mxfp4_gemv_bf16_mr8p4l, 8, 4, ushort)
+MX_GEMV_LUT(mxfp4_gemv_f32_mr8p4l, 8, 4, float)

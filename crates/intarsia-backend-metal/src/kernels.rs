@@ -319,6 +319,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::mxfp4::SHADERS);
     v.extend(crate::mxfp4::MR_SHADERS);
     v.extend(crate::mxfp4::MMA_SHADERS);
+    v.extend(crate::mxfp4::MR_LUT_SHADERS);
     v.extend(crate::gdn::shader_names());
     v.extend(crate::dflash::shader_names());
     v.extend(crate::moe::SHADERS);

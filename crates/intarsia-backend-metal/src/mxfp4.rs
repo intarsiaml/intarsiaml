@@ -61,9 +61,41 @@ pub const MR_SHADERS: [&str; 28] = [
 /// `simdgroup_multiply_accumulate` is a sequential k-ascending chain, see mxfp4.metal), bf16 then f32 out.
 pub const MMA_SHADERS: [&str; 2] = ["mxfp4_gemv_bf16_mma", "mxfp4_gemv_f32_mma"];
 
+/// Lane dm: `MR_SHADERS` with the codes decoded through a threadgroup byte table (knob values 12 / 14 = P 2 / 4; same order as `MR_SHADERS`).
+pub const MR_LUT_SHADERS: [&str; 28] = [
+    "mxfp4_gemv_bf16_mr2p2l",
+    "mxfp4_gemv_f32_mr2p2l",
+    "mxfp4_gemv_bf16_mr3p2l",
+    "mxfp4_gemv_f32_mr3p2l",
+    "mxfp4_gemv_bf16_mr4p2l",
+    "mxfp4_gemv_f32_mr4p2l",
+    "mxfp4_gemv_bf16_mr5p2l",
+    "mxfp4_gemv_f32_mr5p2l",
+    "mxfp4_gemv_bf16_mr6p2l",
+    "mxfp4_gemv_f32_mr6p2l",
+    "mxfp4_gemv_bf16_mr7p2l",
+    "mxfp4_gemv_f32_mr7p2l",
+    "mxfp4_gemv_bf16_mr8p2l",
+    "mxfp4_gemv_f32_mr8p2l",
+    "mxfp4_gemv_bf16_mr2p4l",
+    "mxfp4_gemv_f32_mr2p4l",
+    "mxfp4_gemv_bf16_mr3p4l",
+    "mxfp4_gemv_f32_mr3p4l",
+    "mxfp4_gemv_bf16_mr4p4l",
+    "mxfp4_gemv_f32_mr4p4l",
+    "mxfp4_gemv_bf16_mr5p4l",
+    "mxfp4_gemv_f32_mr5p4l",
+    "mxfp4_gemv_bf16_mr6p4l",
+    "mxfp4_gemv_f32_mr6p4l",
+    "mxfp4_gemv_bf16_mr7p4l",
+    "mxfp4_gemv_f32_mr7p4l",
+    "mxfp4_gemv_bf16_mr8p4l",
+    "mxfp4_gemv_f32_mr8p4l",
+];
+
 /// `INTARSIA_METAL_MXFP4_MR`: unset or `1` (default, user decision 2026-11-06) = the M = 2..=8 calls of `matmul_mxfp4_gemv` take
 /// `MR_SHADERS` where they measured faster ([`mr_auto`]); `0` = the `_m8` shader (the pre-2026-11-06 path); `2` or `4` = every M = 2..=8
-/// call with that P (A/B); `8` = every M = 2..=8 call on `MMA_SHADERS` (lane dm, opt-in). Bitwise the same output in every setting (tests/mxfp4_gemv.rs).
+/// call with that P (A/B); `8` = every M = 2..=8 call on `MMA_SHADERS` (lane dm, opt-in); `12` / `14` = P 2 / 4 with the table decode (`MR_LUT_SHADERS`, lane dm). Bitwise the same output in every setting (tests/mxfp4_gemv.rs).
 pub fn mr_knob() -> usize {
     static P: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
     *P.get_or_init(|| match std::env::var("INTARSIA_METAL_MXFP4_MR").ok().as_deref().map(str::trim) {
@@ -71,6 +103,8 @@ pub fn mr_knob() -> usize {
         Some("2") => 2,
         Some("4") => 4,
         Some("8") => 8,
+        Some("12") => 12,
+        Some("14") => 14,
         _ => 1,
     })
 }
@@ -225,9 +259,10 @@ impl MetalBackend {
             1 => mr_auto(m, n),
             p => p,
         };
-        let mr = if (2..=M_BLOCK).contains(&m) && matches!(mr, 2 | 4 | 8) { mr } else { 0 };
+        let mr = if (2..=M_BLOCK).contains(&m) && matches!(mr, 2 | 4 | 8 | 12 | 14) { mr } else { 0 };
         let gemv = match (f32_out, m == 1) {
             _ if mr == 8 => MMA_SHADERS[usize::from(f32_out)],
+            _ if mr > 8 => MR_LUT_SHADERS[((usize::from(mr == 14) * 7 + (m - 2)) * 2) + usize::from(f32_out)],
             _ if mr > 0 => mr_shader(f32_out, m, mr),
             (false, true) => SHADERS[1],
             (false, false) => SHADERS[2],
@@ -279,6 +314,7 @@ impl MetalBackend {
             // the MMA shader: 8 output rows per simdgroup, MMA_SG = 2 simdgroups per threadgroup
             let (gx, gy, tw) = match mr {
                 8 => (n.div_ceil(16), 1, 64),
+                12 | 14 => (n.div_ceil(ROWS_PER_TG * (mr - 10)), 1, ROWS_PER_TG * 32),
                 1.. => (n.div_ceil(ROWS_PER_TG * mr), 1, ROWS_PER_TG * 32),
                 0 => (n.div_ceil(ROWS_PER_TG), m_blocks, ROWS_PER_TG * 32),
             };

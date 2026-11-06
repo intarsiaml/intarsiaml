@@ -252,7 +252,7 @@ fn m_row_shaders_are_bitwise_the_one_row_call_per_row() {
                         .collect();
                     for m in 2..=8usize {
                         let old = with_mr(0, || run_at(&be, &xb, x_off, &wb, &sb, m, n, k, f32_out, act));
-                        for p in [1usize, 2, 4, 8] {
+                        for p in [1usize, 2, 4, 8, 12, 14] {
                             let got = with_mr(p, || run_at(&be, &xb, x_off, &wb, &sb, m, n, k, f32_out, act));
                             assert_eq!(
                                 got, old,
