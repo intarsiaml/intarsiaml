@@ -114,17 +114,21 @@ Every `auto` visit beat both neighbouring `none` visits by more than 30 percent.
 
 | gate | result | job |
 |---|---|---|
-| CUDA release build of the final source (the rsync excludes only `.git`, `.scratch`, `target*`, `.worktrees`, `docs/results`, so the binary is exactly the committed code) | ok, `~/intarsiaml-ds/src/target/release/intarsia` md5 `d711631b...` | fleetq #8552 (first build), #8567 (final source) |
+| CUDA release build (device-sampling change; rsync excludes `.git`, `.scratch`, `target*`, `.worktrees`, `docs/results`) | ok | #8552, #8567 |
+| CUDA release build of the generation-config change, inside the ABAB job | ok | #8650 |
 | Served equality, device against host, 16 concurrent, 21 cells | 21 / 21 identical | #8568 |
-| Sampled aggregate tok/s at 4 and 16 streams, default against `=0`, ABAB, localeval | 1.07x and 1.12x | #8568 |
-| `cargo test --workspace --no-fail-fast` (endor; includes the new unit test `device_sampling_is_on_unless_set_to_zero`, which first compiles there) | PENDING: queued as #8644 (an earlier submission, #8598, was cancelled by the server while waiting); endor's line is 12 jobs long, estimated start after 20:51 | #8644 |
-| Metal no-op on endor: `plan show` (35B, 8B), `kernels test`, 256 greedy ids (8B short and 4k, 35B short), goldens `qwen3-8b-fp32` and `-long-fp32` | PENDING: not queued. The exclusive job needs the two Metal binaries that #8644 builds (`.scratch/intarsia.main`, `.scratch/intarsia.ds`), and a queued #8634 would have run ahead of #8644 and failed its guard. Run `raw/scripts/endor-gates.sh` in an `--exclusive --mem 24 --expect 45` slot after #8644 | |
-| In-process CUDA draws test `real_35b_device_sampling_draws_the_host_tokens` with the new default | not run: dropped (#8580 released), redundant with the served 21/21 and queued behind exclusive DSv4.1 windows | |
-| `cargo check -p intarsia-core` | ok (run on endor outside a fleetq slot, no GPU, deviation from the fleet rule) | |
+| Sampled ABAB, default against `INTARSIA_DEVICE_SAMPLING=0`, `top_k 40` | 1.07x (4 streams), 1.12x (16) | #8568 |
+| Served equality, new sampling defaults against `--generation-config none`, 21 cells | 19 / 21 identical; greedy cells identical; the 2 that differ send no `top_k` (the intended change) | #8650 |
+| ABAB, default requests (no `top_k`/`top_p`), new defaults against `none` | 1.32x (4 streams), 1.52x (16) | #8650 |
+| `cargo test -p intarsia-server` (spark2, Linux CPU features): 25 lib + 46 api + 3 tests, including the 6 `sampling_defaults_tests` unit tests and the 2 integration tests | ok (one earlier run had the timing test `completions_logprobs_do_not_stall_the_async_threads` fail once, unrelated to this change, passing in the first and the final run) | #8649, #8651, #8655 |
+| `cargo test --workspace --exclude intarsia-backend-metal --no-fail-fast` (spark2): 1263 passed, 0 failed, 46 ignored, one test binary crashed | **1 target failed**: `intarsia-backend-cuda --test rows_exact` died with SIGSEGV after listing its tests (`raw/spark2-test-workspace.txt` line 862). Not in the diff (no file under `crates/intarsia-backend-cuda` changed against `602a1fcfe`); the run was a `--load cpu` slot that executed CUDA tests on spark2's GPU for about 70 s (deviation from the fleet rule, workspace tests on a Spark run GPU tests too). A GPU-quiet retry (#8681) never started within the time available and was cancelled. Earlier failures in the same flow were the Metal crate's macOS-only `kernels` module (does not compile on Linux, excluded) and a docs row (`docs_env_vars`: `INTARSIA_GENERATION_CONFIG`, added) | #8651, #8655 |
+| `cargo test --workspace --no-fail-fast` on endor (the macOS run, builds the Metal main and branch binaries too) | NOT RUN: queued as #8644, estimated start Fri 03:31 | #8644 |
+| Metal no-op on endor (`plan show`, `kernels test`, greedy ids, goldens) | NOT RUN: needs #8644's binaries; script ready (`raw/scripts/endor-gates.sh`), run in an `--exclusive --mem 24 --expect 45` slot after #8644 | |
+| In-process CUDA draws test `real_35b_device_sampling_draws_the_host_tokens` | not run: dropped (#8580 released), redundant with the served 21/21 | |
+| `~/intarsiaml-ds` on spark1 (1.2 GB) and spark2 (29 GB) | removed inside fleetq slots #8687, #8688 | |
 
 ## Not run
 
 * HIP served check (tatooine busy with another lane's window; no slot was sent). HIP's device path rests on the 2026-10-27 lane htk evidence (LOG 10-27 01:15: 21/21 served cells identical, 3360 draws equal, 1.07x / 1.09x). The change is the same line for HIP.
-* Options (a) and (b) for omit-`top_k` traffic, see above.
 * Equality was gated on 35B tp1 CUDA only. Tensor-parallel runs (the vocab-parallel head; device top-k reads rank 0's logits only) and the other batched models also default to the device path now, and are not gated here.
-* `spark1:~/intarsiaml-ds` (source, target, server logs) was created for the build and left in place.
+* HIP: the generation-config change is backend-independent; the HIP device top-k default rests on the 2026-10-27 evidence.
