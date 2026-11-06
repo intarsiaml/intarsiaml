@@ -16,7 +16,7 @@ Lane `lane-lh/lmhead-fp8-default`, worktree `.worktrees/lmhead-fp8-default`, bas
 - Test `shipped_27b_recipe_lm_head_quant` in `crates/intarsia-models/tests/recipe_27b_chunk.rs` pins the three keys.
 - Rows in `docs/tuning.md`, `docs/recipes.md`, `docs/decisions/LOG.md`.
 
-The fp8 head is one f32 scale per tensor (not per row), as in the opt-in lane. The 27B has an MTP draft head that shares the lm_head, so the one change covers both.
+The fp8 head is one f32 scale per tensor (not per row), as in the opt-in lane. The MTP draft head is the first 65536 rows of the same head tensor (first lane doc), so the one change covers both.
 
 ## Quality: not re-measured on Metal and HIP, measured on CUDA
 
@@ -43,7 +43,7 @@ CUDA (spark1, jobs #8745, #8752; raw `raw/cuda-gates/`):
 
 - `plan show` byte-identical base vs head for the 8B and the 35B, text and JSON. 27B head+off byte-identical to base. 27B base vs head: 6 changed lines in the text plan (`logits_bf16*` out, `matmul_fp8_gemv`, `_rows`, `_mma` in), 54 in the JSON.
 - 27B ids, MTP k2 default, 256 ids: head run 1 == run 2 (`e94b8a9f` short, `06f2648f` 4k); head+off == base (`6d1d4ebc`, `d2e0487f`); head vs base differ, as intended.
-- 35B ids head vs base: {CUDA35}
+- 35B ids head vs base: identical, short (`4e8fc691`) and 4k (`905cb3f0`), 256 ids each.
 - `kernels test` was not run on CUDA (no change to a CUDA kernel in this lane).
 
 HIP (tatooine): {HIP_GATES}
