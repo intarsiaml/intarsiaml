@@ -7,6 +7,14 @@ Lane `lane-bm/batched-mtp`, 2026-11-05. Base: `origin/main` 602a1fcfe.
 The user approved starting this work on 2026-11-05 at 17:08 EST ("start 2"), reversing their 2026-10-25 deferral (design note
 `docs/results/2026-10-25-sp-batched-mtp-design.md` on `lane-sp/batched-mtp-design`, revision 2).
 
+## User decision: N=1 default (2026-11-05, about 19:45 EST)
+
+Relayed by the coordinator after #309 merged (opt-in, main 196e768b6): the user decided "N=1 default". Implemented on branch
+`lane-bm/batched-mtp-default` as a recipe default, `[tuning.cuda] batched_mtp = 1` and `[tuning.metal] batched_mtp = 1` in `recipes/qwen3_5_moe.toml`
+(the measured model), read only at tp = 1 in-process; HIP and every tp > 1 stay off; `INTARSIA_BATCHED_MTP` wins (`0` off);
+`INTARSIA_BATCHED_VERIFY` stays off. On CUDA the recipe's `--spec mtp` default now also applies to a `--max-batch` > 1 server; on Metal the 35B has
+no `--spec mtp` default, so N = 1 applies to an explicit `--spec mtp --max-batch` > 1 without the env var. Other recipes (the 27B, the 8B) are unchanged.
+
 ## Coordinator direction (2026-11-05, during the lane)
 
 Copied from the coordinator's message: Fable's engine review (`.worktrees/perf-ideas/fable-engine/report.md`, idea 1) recommends two phases.
