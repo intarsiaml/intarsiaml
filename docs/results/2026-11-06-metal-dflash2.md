@@ -28,6 +28,17 @@ Worktree `/opt/code/intarsiaml/.worktrees/metal-dflash2`.
   default >= 1.05x, ids == `--spec off`, plan show unchanged). Ship opt-in first with the usual gates and an ABAB; the coordinator takes
   default-on to the user. Let #8833 run; keep the tree pieces on the branch, no more tree work until the GEMV result is in.
 
+- 2026-11-06 ~13:50, coordinator (by message): lane dh is finished (#323 merged, main 3f46da4f7); land the dry-run ingest fix
+  (3c70a7917) on main myself as its own small PR (`lane-dm/dflash-dryrun-ingest`): CPU regression test beside dh's window test if CPU
+  can show it (else say so in the PR body); gates: Metal `plan show` 8B / 27B / 35B byte-identical to main under `--spec off` and mtp,
+  `serve --spec dflash` on 27B Metal survives a pass with < 7 accepted and greedy ids == `--spec off`, `cargo test --workspace` (skip the
+  endor-only `completions_logprobs_do_not_stall_the_async_threads`); no HIP window needed. Open the PR with the error, cause and gate job
+  ids, message the coordinator (merges on green CI). Then rebase this branch onto main, rerun the phase 1 ABAB (mtp2 / dfl7 alternating,
+  then dfl3), and record that visits 2, 4 and 5 of #8833 are invalid.
+- **#8833 visits 2, 4 and 5 (the DFlash2 arms) are invalid**: `serve` failed every request after the first pass that accepted < 7 drafts
+  (`no kernel for matmul on metal/applegpu_g17s (m=1 n=5120 k=5120 act=Some(Bf16) w=Some(Bf16)) [admitted kernels only]`): the DFlash dry
+  run planned the context ingest at block rows only. Visits 1, 3 (MTP k2) and 6 (TensorFold) are valid.
+
 ## Goal
 
 Close the acceptance half of the Metal gap against TensorFold (90.3 tok/s at natural-v1 4k vs our MTP k2 31.1, 0.34x;
