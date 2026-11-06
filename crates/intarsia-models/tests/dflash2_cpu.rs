@@ -491,6 +491,49 @@ fn dflash2_plan_covers_the_windowed_draft_and_serves_past_the_window() {
     assert!(tel.snapshot().spec_steps > 0, "the draft ran");
 }
 
+/// Lane dm: `serve --spec dflash` on Metal failed every request after the first pass that accepted fewer than all drafts with
+/// `no kernel for matmul on metal/applegpu_g17s (m=1 n=5120 k=5120 act=Some(Bf16) w=Some(Bf16)) [admitted kernels only]` (the
+/// draft's per-tap `fc` projection of one context row). A pass ingests as many context rows as it emitted (1 ..= block), but the
+/// plan's draft probe ingested block rows only, and Metal serves the M = 1 bf16 projection with another kernel than M = block, which
+/// was therefore never admitted. The cpu backend runs one kernel at every M, so it cannot fail the way Metal did; this checks the
+/// cause: the calls the draft adds to the plan (those a plan without the draft lacks) include its context ingest's k / v projection
+/// (`[kv heads * head_dim, H]` on the ingest's rows) at every row count 1 ..= block.
+#[test]
+fn dflash2_plan_covers_the_context_ingest_at_every_row_count() {
+    use intarsia_core::plan::PlanOptions;
+    let planned = |dflash: bool| {
+        let (recipe, dims) = target_spec();
+        let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+        let opts = LoadOptions {
+            max_seq: 512,
+            prefill_chunk: 8,
+            act_dtype: Some(DType::F32),
+            kv_dtype: Some(DType::F32),
+            profile_every: 0,
+            dflash: dflash.then(|| dflash_load(draft_weights(5))),
+            ..Default::default()
+        };
+        let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &src, &opts, Arc::new(Telemetry::new())).unwrap();
+        m.enable_verify(4).unwrap();
+        let reference = CpuBackend::arc();
+        let po = PlanOptions { admit: true, require_admitted: true, no_cache: true, ..Default::default() };
+        m.configure_plan(&po, Some(&*reference)).unwrap();
+        m.resolved
+            .unique_calls
+            .iter()
+            .map(|c| (format!("{:?}", c.call.op), c.call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()))
+            .collect::<std::collections::BTreeSet<_>>()
+    };
+    let (with, without) = (planned(true), planned(false));
+    let kv = vec![DNKV * DHD, H];
+    let mut rows: Vec<usize> = with.difference(&without).filter(|(_, sh)| sh.get(1) == Some(&kv)).map(|(_, sh)| sh[0][0]).collect();
+    rows.sort_unstable();
+    rows.dedup();
+    for t in 1..=BLOCK {
+        assert!(rows.contains(&t), "the plan has no draft context ingest of {t} row(s) (planned row counts {rows:?})");
+    }
+}
+
 /// Drafts from the true greedy continuation with a mistake at a pseudo-random offset (or none): every pass accepts all, some
 /// or none of its drafts, so the recurrent rollback runs to every length.
 fn scripted(truth: Arc<Mutex<Vec<Vec<u32>>>>, seed: u64) -> DraftScript {
