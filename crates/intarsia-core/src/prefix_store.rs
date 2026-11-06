@@ -1438,7 +1438,8 @@ pub fn describe_build(model: &crate::model::Model, model_id: &str, cfg: &PrefixS
         plan,
         (&cfg.boundary_tokens, &cfg.header_end_tokens, &cfg.cut_roles),
         model.weights_bytes,
-    ) + &if model.prefill_peel() > 0 {
+    ) + &(if model.gdn_state_dt != crate::DType::F32 { format!("|gdnstate{}", model.gdn_state_dt.name()) } else { String::new() })
+        + &if model.prefill_peel() > 0 {
         // the period only when not the default 256, so the key of every model with a 256-period peel is unchanged
         match model.prefill_peel_period() {
             crate::recipe::DEFAULT_PEEL_PERIOD => format!("|peel{}", model.prefill_peel()),

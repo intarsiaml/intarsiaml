@@ -1106,6 +1106,12 @@ impl Model {
                         let lin: LinearDims = dims.linear.ok_or_else(|| {
                             Error::model("the recipe has a gdn block but config.json has no linear attention dimensions")
                         })?;
+                        if gdn_state_dt != DType::F32 && !matches!(lin.k_head_dim, 64 | 128) {
+                            return Err(Error::Unsupported(format!(
+                                "delta-rule state dtype {gdn_state_dt} with a key head dim of {} (the split / decode kernels take 64 and 128)",
+                                lin.k_head_dim
+                            )));
+                        }
                         let (c, vdim, hv) = (lin.conv_dim(), lin.v_heads * lin.v_head_dim, lin.v_heads);
                         let slot = slot_specs.len();
                         slot_specs.push(SlotSpec::Recurrent { bytes: gdn_block::state_bytes(&lin, b.gdn_conv_dtype(), gdn_state_dt) });
