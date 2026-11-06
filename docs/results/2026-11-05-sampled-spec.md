@@ -253,6 +253,25 @@ CUDA (spark1, fleetq #8652, base `602a1fcfe` and branch `c28ad2d3f` built there;
 `plan show` 35B text and json **identical**; `kernels test --backend cuda --quick` 106 kernels, 918 cases, exit 0; greedy ids 35B
 `--spec mtp --spec-k 2`, short and 4K, base vs branch with `INTARSIA_SPEC_SAMPLED=1`: **identical 2 / 2**.
 
+## 4b. Gates after the merge with `d40d93896` and the default-on change (head `986f6951a`)
+
+`INTARSIA_SPEC_SAMPLED` unset on both binaries (main `d40d93896` vs branch `986f6951a`):
+
+| check | result |
+|---|---|
+| `cargo test --workspace --no-fail-fast` (endor, fleetq #8716, `--load cpu`) | exit 0: **1336 passed, 0 failed, 32 ignored** (`raw/workspace-test-summary-merged.txt`) |
+| Metal `plan show` text + json, 27B / 35B / 8B (fleetq #8722, `scripts/sampled-spec/default-metal.sh`) | **identical 6 / 6** |
+| Metal greedy ids 27B (MTP default) / 35B (`--spec mtp --spec-k 2`), short + 4K | **identical 4 / 4** |
+| Metal default active, T 0.7, 96 tokens | main: 0 verify passes; branch: startup line `speculation Match (default ...)`, 27B 42 passes 63.1 % accepted, 35B 41 passes 65.9 % |
+| CUDA 35B tp=1 `plan show` json (spark1, fleetq #8720, `scripts/sampled-spec/default-cuda.sh`) | **identical** |
+| CUDA greedy ids 35B `--spec mtp --spec-k 2`, short + 4K | **identical 2 / 2** |
+| CUDA default active, T 0.7 | main: 0 verify passes; branch: `speculation Match (default ...)`, 42 passes, 61.9 % accepted |
+| `~/intarsiaml-ss` on spark1 | removed at the end of #8720 |
+
+Not rerun after the default change: `kernels test` (no kernel or plan code changed: the change is the env default and one log line;
+the earlier Metal and CUDA runs stand), the speed tables (they already measured `match` explicitly), the statistical gate (the
+accept code is unchanged).
+
 ## 5. Recommendation
 
 - **Single recommendation: `match`, opt-in for now.** Per the coordinator's decision below, `INTARSIA_SPEC_SAMPLED=1` now
