@@ -14,6 +14,7 @@ HEAD_BIN=$R/target/release/intarsia; BASE_BIN=$R/.scratch/base/target/release/in
 PD=$R/scripts/tp2-hip/noop/prompts; H=$HOME/models
 M8=$H/Qwen3-8B; ML=$H/Llama-3.1-8B-Instruct; M35=$H/Qwen3.6-35B-A3B-NVFP4; M27=$H/Qwen3.8-27B-Quark-AWQ-MXFP4
 [[ -n "${FLEETQ_JOB:-}" ]] || { echo "not inside a fleetq slot" >&2; exit 2; }
+zsh $R/scripts/lmhead/mrebuild.sh | tee $O/rebuild.txt
 [[ -z "${INTARSIA_LMHEAD_QUANT:-}" ]] || { echo "INTARSIA_LMHEAD_QUANT is set in the environment"; exit 2; }
 echo "head: $(ls -la $HEAD_BIN | awk '{print $6,$7,$8}')  base: $(ls -la $BASE_BIN | awk '{print $6,$7,$8}')  $(git -C $R rev-parse --short=9 HEAD)" | tee $O/binaries.txt
 # arm name -> binary and env
