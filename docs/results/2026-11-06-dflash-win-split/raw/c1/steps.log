@@ -1,0 +1,35 @@
+14:02:30 guard: [guard] radiance stopped 2026-11-06 14:02:30
+14:02:30 round 1 arm dfl7-on: starting server
+14:03:15 round 1 arm dfl7-on ho-chat: localeval exit 0 results/20261106-140253-dw-dfl7-on-dw-c1-dfl7-on-ho-chat-r1/result.json
+14:03:23 round 1 arm dfl7-on ho-code: localeval exit 0 results/20261106-140316-dw-dfl7-on-dw-c1-dfl7-on-ho-code-r1/result.json
+14:03:52 round 1 arm dfl7-on ho-prose: localeval exit 0 results/20261106-140324-dw-dfl7-on-dw-c1-dfl7-on-ho-prose-r1/result.json
+14:04:02 round 1 arm dfl7-on ho-recall: localeval exit 0 results/20261106-140352-dw-dfl7-on-dw-c1-dfl7-on-ho-recall-r1/result.json
+14:04:29 round 1 arm dfl7-on rcp-code: localeval exit 0 results/20261106-140403-dw-dfl7-on-dw-c1-dfl7-on-rcp-code-r1/result.json
+14:05:22 round 1 arm dfl7-on rcp-prose: localeval exit 0 results/20261106-140430-dw-dfl7-on-dw-c1-dfl7-on-rcp-prose-r1/result.json
+14:05:56 round 1 arm dfl7-on rcp-recall: localeval exit 0 results/20261106-140523-dw-dfl7-on-dw-c1-dfl7-on-rcp-recall-r1/result.json
+14:05:57 round 1 arm dfl7-on2: starting server
+14:06:41 round 1 arm dfl7-on2 ho-chat: localeval exit 0 results/20261106-140619-dw-dfl7-on2-dw-c1-dfl7-on2-ho-chat-r1/result.json
+14:06:50 round 1 arm dfl7-on2 ho-code: localeval exit 0 results/20261106-140642-dw-dfl7-on2-dw-c1-dfl7-on2-ho-code-r1/result.json
+14:07:18 round 1 arm dfl7-on2 ho-prose: localeval exit 0 results/20261106-140650-dw-dfl7-on2-dw-c1-dfl7-on2-ho-prose-r1/result.json
+14:07:29 round 1 arm dfl7-on2 ho-recall: localeval exit 0 results/20261106-140718-dw-dfl7-on2-dw-c1-dfl7-on2-ho-recall-r1/result.json
+14:07:56 round 1 arm dfl7-on2 rcp-code: localeval exit 0 results/20261106-140729-dw-dfl7-on2-dw-c1-dfl7-on2-rcp-code-r1/result.json
+14:08:48 round 1 arm dfl7-on2 rcp-prose: localeval exit 0 results/20261106-140756-dw-dfl7-on2-dw-c1-dfl7-on2-rcp-prose-r1/result.json
+14:09:22 round 1 arm dfl7-on2 rcp-recall: localeval exit 0 results/20261106-140848-dw-dfl7-on2-dw-c1-dfl7-on2-rcp-recall-r1/result.json
+14:09:23 round 2 arm dfl7-on: starting server
+14:10:07 round 2 arm dfl7-on ho-chat: localeval exit 0 results/20261106-140945-dw-dfl7-on-dw-c1-dfl7-on-ho-chat-r2/result.json
+14:10:15 round 2 arm dfl7-on ho-code: localeval exit 0 results/20261106-141008-dw-dfl7-on-dw-c1-dfl7-on-ho-code-r2/result.json
+14:10:44 round 2 arm dfl7-on ho-prose: localeval exit 0 results/20261106-141016-dw-dfl7-on-dw-c1-dfl7-on-ho-prose-r2/result.json
+14:10:54 round 2 arm dfl7-on ho-recall: localeval exit 0 results/20261106-141044-dw-dfl7-on-dw-c1-dfl7-on-ho-recall-r2/result.json
+14:11:21 round 2 arm dfl7-on rcp-code: localeval exit 0 results/20261106-141055-dw-dfl7-on-dw-c1-dfl7-on-rcp-code-r2/result.json
+14:12:14 round 2 arm dfl7-on rcp-prose: localeval exit 0 results/20261106-141122-dw-dfl7-on-dw-c1-dfl7-on-rcp-prose-r2/result.json
+14:12:48 round 2 arm dfl7-on rcp-recall: localeval exit 0 results/20261106-141214-dw-dfl7-on-dw-c1-dfl7-on-rcp-recall-r2/result.json
+14:12:49 round 2 arm dfl7-on2: starting server
+14:13:34 round 2 arm dfl7-on2 ho-chat: localeval exit 0 results/20261106-141311-dw-dfl7-on2-dw-c1-dfl7-on2-ho-chat-r2/result.json
+14:13:42 round 2 arm dfl7-on2 ho-code: localeval exit 0 results/20261106-141334-dw-dfl7-on2-dw-c1-dfl7-on2-ho-code-r2/result.json
+14:14:10 round 2 arm dfl7-on2 ho-prose: localeval exit 0 results/20261106-141342-dw-dfl7-on2-dw-c1-dfl7-on2-ho-prose-r2/result.json
+14:14:21 round 2 arm dfl7-on2 ho-recall: localeval exit 0 results/20261106-141410-dw-dfl7-on2-dw-c1-dfl7-on2-ho-recall-r2/result.json
+14:14:48 round 2 arm dfl7-on2 rcp-code: localeval exit 0 results/20261106-141421-dw-dfl7-on2-dw-c1-dfl7-on2-rcp-code-r2/result.json
+14:15:40 round 2 arm dfl7-on2 rcp-prose: localeval exit 0 results/20261106-141448-dw-dfl7-on2-dw-c1-dfl7-on2-rcp-prose-r2/result.json
+14:16:14 round 2 arm dfl7-on2 rcp-recall: localeval exit 0 results/20261106-141540-dw-dfl7-on2-dw-c1-dfl7-on2-rcp-recall-r2/result.json
+14:16:15 done, time left 1271s
+14:16:25 guard: [guard] radiance answers 2026-11-06 14:16:25 (after 15 s)
