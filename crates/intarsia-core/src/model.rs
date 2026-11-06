@@ -2296,9 +2296,19 @@ impl Model {
         r
     }
 
-    /// Fewest rows a segment of a packed prefill pass may have: below it the kernels a prompt's solo chunk picks (the GEMV-style
-    /// MoE path under 16 tokens, the dense GEMV up to 4 rows) are not the ones the packed call picks.
+    /// Fewest rows a segment of a packed prefill pass may have unless the backend says otherwise ([`Backend::pack_min_rows`]):
+    /// below it the kernels a prompt's solo chunk picks (HIP: the GEMV-style MoE path under 16 tokens, the dense GEMV up to 4 rows)
+    /// are not the ones the packed call picks.
     pub const PACK_MIN_ROWS: usize = 16;
+
+    /// Fewest rows a segment of a packed prefill pass ([`Model::forward_packed`]) or a chunk of a macro pass may have on this
+    /// model's backend ([`Backend::pack_min_rows`]; CUDA 33, lane pf). `INTARSIA_PACK_MIN_ROWS=<n>` overrides it (a diagnostic
+    /// knob: `16` brings back the CUDA rule before lane pf, to reproduce its divergence).
+    pub fn pack_min_rows(&self) -> usize {
+        static V: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
+        let o = *V.get_or_init(|| std::env::var("INTARSIA_PACK_MIN_ROWS").ok().and_then(|v| v.trim().parse().ok()));
+        o.unwrap_or_else(|| self.backend.pack_min_rows()).max(1)
+    }
 
     /// Whether every segment of a packed pass takes the same attention path in every attention block (fused gated prologue or
     /// not: it decides which q buffer holds the block's output, and the output projection reads one buffer for all rows).
@@ -2351,7 +2361,7 @@ impl Model {
     /// prompt's solo prefill would run next (no head: the rows feed no logits). The row-wise kernels run once over the
     /// concatenated rows, attention, KV append and the GatedDeltaNet recurrence once per prompt on its own state, so each
     /// state ends bitwise what `forward(st, ids, HeadMode::None, None)` leaves, when every row-wise kernel is independent of the
-    /// other rows of the call (`tests/packed_rows.rs`; each segment has at least [`Model::PACK_MIN_ROWS`] rows and the total
+    /// other rows of the call (`tests/packed_rows.rs`; each segment has at least [`Model::pack_min_rows`] rows and the total
     /// fits one workspace pass). On an error every recurrent state is reset, as after a failed solo forward.
     pub fn forward_packed(&self, items: &mut [(&mut SequenceState, &[u32])]) -> Result<()> {
         let r = self.forward_packed_inner(items);
@@ -2376,8 +2386,8 @@ impl Model {
         let mut all: Vec<u32> = Vec::with_capacity(total);
         for (st, ids) in items.iter() {
             Self::check_forward(st, ids, HeadMode::None, false)?;
-            if ids.len() < Self::PACK_MIN_ROWS {
-                return Err(Error::invalid(format!("a packed segment has {} rows (at least {})", ids.len(), Self::PACK_MIN_ROWS)));
+            if ids.len() < self.pack_min_rows() {
+                return Err(Error::invalid(format!("a packed segment has {} rows (at least {})", ids.len(), self.pack_min_rows())));
             }
             if st.mtp.is_some() {
                 return Err(Error::Unsupported("packed prefill of a state with an MTP head".into()));
@@ -2781,7 +2791,7 @@ impl Model {
     }
 
     /// The macro schedule of a forward pass over `chunks`: `(k, per)` = the first `k` chunks (all but a trailing chunk too short
-    /// to be a segment, [`Model::PACK_MIN_ROWS`]) are cut into passes of `per` chunks. `(0, 1)` = off: the macro knob is unset, the
+    /// to be a segment, [`Model::pack_min_rows`]) are cut into passes of `per` chunks. `(0, 1)` = off: the macro knob is unset, the
     /// pass is a single chunk, the head wants every row, the state has no recurrence (the packed kernels are validated on
     /// hybrid models only) or cannot be packed (MTP head, tensor parallelism, Gemma layers).
     fn macro_plan(&self, st: &SequenceState, chunks: &[&[u32]], mode: HeadMode) -> (usize, usize) {
@@ -2793,7 +2803,8 @@ impl Model {
         {
             return (0, 1);
         }
-        let k = chunks.iter().take_while(|c| c.len() >= Self::PACK_MIN_ROWS).count();
+        let min = self.pack_min_rows();
+        let k = chunks.iter().take_while(|c| c.len() >= min).count();
         if k < 2 {
             return (0, 1);
         }

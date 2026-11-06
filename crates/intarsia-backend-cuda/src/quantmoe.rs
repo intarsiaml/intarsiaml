@@ -140,6 +140,14 @@ pub const NVFP4_MIN_TOKENS: usize = 1024;
 /// docs/results/2026-10-18-cuda-moe-w4a16.md, which had them even at 1024 and 15 to 24 % apart at 2048 and 4096).
 pub const W4A16_MIN_TOKENS: usize = 768;
 
+/// Fewest rows of a packed prefill segment on CUDA (`Backend::pack_min_rows`, lane pf): from here on the MoE experts
+/// (`moe_experts_mma_bf16`, bitwise `moe_experts_w4a16_bf16` above it) and the dense NVFP4 GEMM (`matmul_nvfp4_gemm`, bitwise
+/// `matmul_nvfp4_gemm_reg` / the fused `matmul_nvfp4_glu_gemm` chain) are the kernels every larger call picks too
+/// (tests/packed_rows.rs). Below it a segment alone takes `moe_experts_bf16` / `matmul_nvfp4_gemv` / `matmul_nvfp4_mma`.
+pub fn pack_min_rows() -> usize {
+    MMA_MIN_TOKENS.max(GEMM_MIN_TOKENS)
+}
+
 /// Scratch bytes of `moe_experts_nvfp4_mma_bf16`: the grouped kernel's, plus the quantised activations
 /// (`xq` u8 `[T,H/2]`, `xs` e4m3 `[T,H/16]`, `xg` f32 `[T]`, and the same three for the sorted `h` `[P,I]`), each region
 /// rounded up to 256 bytes (kernels/cuda/moe_nvfp4_mma_sm120a.cu, `scratch_layout`).

@@ -543,6 +543,12 @@ pub enum TraceEvent {
         len: usize,
         last: bool,
     },
+    /// A packed prefill pass (lane pf): these requests' chunks ran together, `(request, body rows)` in pass order; their
+    /// `Chunk` events follow in the same iteration.
+    Pack {
+        iter: u64,
+        segs: Vec<(RequestId, usize)>,
+    },
     /// One batched decode step over these requests (row order), with the speculation gate value offered.
     Decode {
         iter: u64,
@@ -1297,6 +1303,7 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             usize::MAX
         };
         let mut picked: Vec<usize> = Vec::new();
+        let mut bodies: Vec<usize> = Vec::new();
         let mut rows = 0usize;
         let order = std::iter::once(i).chain((0..self.active.len()).filter(|&j| j != i && matches!(self.active[j].phase, Phase::Prefilling { .. })));
         for j in order {
@@ -1306,10 +1313,13 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             }
             rows += body;
             picked.push(j);
+            bodies.push(body);
         }
         if picked.len() < 2 {
             return None;
         }
+        let segs = picked.iter().zip(&bodies).map(|(&j, &b)| (self.active[j].id, b)).collect();
+        self.ev(TraceEvent::Pack { iter: self.iter, segs });
         // plan every picked chunk (the schedule is the solo one: the same chunk, the same head), then one pass
         let mut plans: Vec<(RequestId, usize, Chunk, Option<M::Mode>)> = Vec::with_capacity(picked.len());
         for &j in &picked {
