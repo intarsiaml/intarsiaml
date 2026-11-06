@@ -94,8 +94,8 @@ Because the retention came out at 1.0, the window arms ran with `INTARSIA_DSV41_
 | gate | result |
 |---|---|
 | `cargo test --workspace --no-fail-fast` (endor, #8610, head `825821c6b`) | exit 0: **1330 passed, 0 failed, 29 ignored** |
-| after the retention default change (1.0): `cargo test -p intarsia-models --lib dsv41_engine`, `docs_env_vars` | see section 7 |
-| footprint check | prints only `crates/intarsia-models/src/dsv41_engine.rs`; Metal no-op: see section 7 |
+| after the retention default change (1.0): `cargo test -p intarsia-models --lib dsv41_engine`, `docs_env_vars` | not run (section 7) |
+| footprint check | prints only `crates/intarsia-models/src/dsv41_engine.rs`; Metal no-op: not run (section 7) |
 | CUDA on spark1 (#8583): `plan show` 35B / 8B, text and `--json`; `kernels test --backend cuda --quick` | **identical to main's stored outputs 4 of 4**; 106 kernels, 918 cases, 0 FAIL, log identical apart from wall time (`raw/gates/cuda/`, reference `2026-11-05-dsv41-prefill3/raw/gates/cuda`) |
 | golden 640/640 (1120/1120) at TP=2, flag off and on | identical (section 2) |
 
@@ -109,9 +109,10 @@ Because the retention came out at 1.0, the window arms ran with `INTARSIA_DSV41_
 - `cargo test` runs on endor from this session before the workspace job were not in a fleetq slot (`cargo test -p intarsia-models --lib sampled` etc., a few seconds of CPU each).
 - Window #8579 was killed at 18:02 by another lane's `pkill`; its gate (both arms), traced arm and the off1 T 0.7 arm completed; the rest was rerun as #8609 (`SKIP_GATE=1 SKIP_TRACE=1`). vLLM was restored by `run-full.sh` on the signal path and confirmed up on both Sparks.
 
-## 7. Metal no-op and final checks
+## 7. Metal no-op and final checks: not run
 
-TBD
+- **Metal no-op not run.** The footprint check prints `crates/intarsia-models/src/dsv41_engine.rs`, so the Metal no-op (plan show, kernels test, greedy ids, goldens) applies. The Metal head and base release binaries were built (fleetq #8611: head `825821c6b`, base `0391ab6b3`; built before the retention default change to 1.0, a constant that cannot reach a Metal path), but the gate job (#8676) was queued behind about ten Metal jobs and `fleetq when` gave an estimated start 7 h away, so it was cancelled. Ready to run from the worktree root in an endor slot: `zsh docs/results/2026-11-05-dsv41-sampled-spec/raw/gates/scripts/gates-metal.sh OUTDIR .scratch/gates/intarsia.new .scratch/gates/intarsia.base` (the binaries sit in `.scratch/gates/`, which is not committed; `build-metal.sh` rebuilds them). The change is in the DSv4.1 CUDA engine's request loop (`Dsv41Engine`), which no Metal model uses.
+- **Final lib tests after the last edits not run.** `cargo test -p intarsia-models --lib dsv41_engine` and `docs_env_vars` were queued on endor and spark2 for after the retention-default change (7 h estimate) and cancelled. They passed on the commit before it: the workspace run (#8610, `825821c6b`: 1330 passed, 0 failed, 29 ignored, including the six new tests), and `docs_env_vars` on the first version of the two `tuning.md` rows. Since then: `RETENTION` 0.8 -> 1.0 (a constant and its comment), the numerics cell of the `SPEC_SAMPLED` row (now `unverified`; the row still has 5 cells, checked by script, not by the test), `sampcat.py`, docs.
 
 ## Files
 
