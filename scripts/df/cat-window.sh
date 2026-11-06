@@ -33,13 +33,13 @@ if [[ ${DRY:-0} == 1 ]]; then
     # ARMSEQ (lane df): explicit arm order per round, rounds separated by ";" (overrides ARMS and ROUNDS), e.g. "mtp2 mtp3;mtp3 off mtp2"
     [[ -n ${ARMSEQ:-} ]] && order=$(echo "$ARMSEQ" | cut -d';' -f$(( r - R0 + 1 )))
     for arm in $order; do
-      echo "DRY round $r arm $arm: HIP_VISIBLE_DEVICES=$GPUS serve --backend hip --model $M27 $spec $TPA --max-batch 1 --mem-budget 29 --max-seq ${MAXSEQ:-20480}, files: $(ls "$HERE"/../dfh/cats/*.jsonl | xargs -n1 basename | tr '\n' ' ')"
+      echo "DRY round $r arm $arm: HIP_VISIBLE_DEVICES=$GPUS serve --backend hip --model $M27 ${spec:-} $TPA --max-batch 1 --mem-budget 29 --max-seq ${MAXSEQ:-20480}, files: $(ls "$HERE"/../dfh/cats/*.jsonl | xargs -n1 basename | tr '\n' ' ')"
     done
   done
   echo "DRY PRE=${PRE:-} IDARMS=${IDARMS:-} TPS=${TPS:-} IDNAMES=${IDNAMES:-} VERIFY8=${VERIFY8:-0} SOAK=${SOAK:-0} SOAK_ARMS=${SOAK_ARMS:-mtp2} SOAK_REF=${SOAK_REF:-2} CAP=$CAP GEN=$GEN"
   exit 0
 fi
-FIFO=$(mktemp -u "$REPO/target/dfguard.XXXXXX"); mkfifo "$FIFO"
+mkdir -p "$REPO/target"; FIFO=$(mktemp -u "$REPO/target/dfguard.XXXXXX"); mkfifo "$FIFO"
 $SSH 'mkdir -p ~/intarsiaml-df/.df' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE"/stages-*.sh tatooine:intarsiaml-df/.df/
 $SSH 'bash ~/intarsiaml-df/.df/guard.sh' > "$OUT/guard.log" 2>&1 < "$FIFO" &
 GUARD=$!
