@@ -319,6 +319,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::mxfp4::SHADERS);
     v.extend(crate::mxfp4::MR_SHADERS);
     v.extend(crate::gdn::shader_names());
+    v.extend(crate::dflash::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
@@ -402,6 +403,9 @@ pub const TABLE: &[(&str, Op)] = &[
     (crate::rowtab::KV_APPEND_BF16_ROWS, Op::KvAppend),
     (crate::rowtab::QK_NORM_ROPE_KV_BF16_ROWS, Op::QkNormRopeKv),
     (crate::rowtab::ATTN_DECODE_BF16_SPLITKV_ROWS, Op::AttnDecode),
+    // lane dm: the DFlash2 draft's conv and its sliding-window decode (`.ext()`, never picked by plain calls)
+    (crate::dflash::DYN_CONV_BF16, Op::DynConv),
+    (crate::dflash::ATTN_DECODE_BF16_WINDOW, Op::AttnDecode),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -586,6 +590,19 @@ pub fn all() -> Vec<KernelImpl> {
                     .priority(5),
                 // pure bit copy / f32 elementwise, one rounding: the hip entries' tolerance
                 GATE_SPLIT_BF16 | SIGMOID_MUL_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
+                // lane dm (DFlash2 draft, the hip entries): f32 conv along the block rows, one rounding
+                crate::dflash::DYN_CONV_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
+                // the sliding-window decode: the plain decode shaders over the window's keys (dflash.rs). `.ext()`: the only Metal
+                // kernel that takes `OpAttrs::window > 0`; priority -1 keeps every plain call on the kernel it had.
+                crate::dflash::ATTN_DECODE_BF16_WINDOW => k
+                    .acts(bf)
+                    .weights(bf)
+                    .ext()
+                    .when(crate::dflash::window_ok)
+                    .exact(Exactness::Deterministic)
+                    .tol(BF16_TOL)
+                    .priority(-1)
+                    .scratch(crate::dflash::window_scratch),
                 // depthwise causal conv + SiLU; `weights` is the tap dtype, `k` the tap count
                 GDN_CONV_BF16 | SHORT_CONV_BF16 => {
                     k.acts(bf).weights(bf).when(crate::gdn::conv_ok).exact(Exactness::Deterministic).tol(BF16_TOL)
@@ -883,10 +900,12 @@ mod tests {
         "attn_decode_bf16:attn_decode",
         "attn_decode_bf16_splitkv:attn_decode",
         "attn_decode_bf16_splitkv_rows:attn_decode",
+        "attn_decode_bf16_window:attn_decode",
         "attn_prefill_bf16:attn_prefill",
         "attn_prefill_bf16_flash:attn_prefill",
         "attn_prefill_bf16_flash_nax:attn_prefill",
         "attn_prefill_bf16_splitkv_rows:attn_prefill",
+        "dyn_conv_bf16:dyn_conv",
         "embedding_bf16:embedding",
         "gate_split_bf16:gate_split",
         "gdn_conv_bf16:gdn_conv",
@@ -934,7 +953,8 @@ mod tests {
 
     /// Core-op fusion phase 1 changes no kernel table here: the full registered list (name and op, sorted) is pinned to
     /// origin/main's (`4962d8fa`) plus the two ops added by rope scaling / projection bias (`add_bias`, `rope_scaled`: no existing
-    /// op gains or loses a kernel) and `short_conv` (LFM2, lane nab2: a new op, no existing op changes), so the plan has the same candidates as before.
+    /// op gains or loses a kernel) and `short_conv` (LFM2, lane nab2: a new op, no existing op changes), and lane dm's DFlash2 draft kernels (`dyn_conv_bf16`, a
+    /// new op; `attn_decode_bf16_window`, `.ext()` and priority -1, so no plain call can pick it), so the plan has the same candidates as before.
     #[test]
     fn kernel_list_is_unchanged_by_core_op_fusion_p1() {
         let mut got: Vec<String> = all().iter().map(|k| format!("{}:{}", k.name, k.op)).collect();

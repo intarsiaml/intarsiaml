@@ -408,6 +408,10 @@ impl MetalBackend {
         }
         let (wo, xo, yo) = (wb.base + w.offset, xb.base + x.offset, yb.base + y.offset);
         if !(k % 8 == 0 && wo % 16 == 0 && xo % 16 == 0 && yo % 4 == 0) || !MR_ROWS.contains(&m) {
+            // lane dm: where the 1-row launch takes `gemv_f32o_scalar` (operands not 16-byte aligned), its M-row twin
+            if crate::dflash::logits_rows_on() && (2..=16).contains(&m) && !(k % 8 == 0 && wo % 16 == 0 && xo % 16 == 0) {
+                return self.launch_logits_rows_scalar(x, w, y);
+            }
             for r in 0..m {
                 self.launch_dense(
                     crate::kernels::LOGITS_BF16_GEMV,
