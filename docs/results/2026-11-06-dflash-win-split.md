@@ -150,5 +150,15 @@ Run-to-run noise (lane dh's table reads 0.3-0.5 % between repeated visits); ho-c
 DFlash2 draft (left unset, a draft whose kv heads or ffn do not divide by the world stays whole on rank 0; `=1` forces the split and refuses it at load);
 WIN_SPLIT only where the backend registers the kernel (HIP; `ShapeInfo::win_split` is read by no other backend's kernel selection). The measurements above
 used explicit `=1`. After the flip the arms are: A = both `=0`, B = `INTARSIA_DFLASH_TP=0`, C = `INTARSIA_DFLASH_WIN_SPLIT=0`, D = knobs unset.
-Merged with main e45bd5e3c (#324, `dflash_dry_run`) before the flip. Window t2 (below, filled when run) checks the plans and one ids run on the flipped head.
+Merged with main e45bd5e3c (#324, `dflash_dry_run`) before the flip. 
+
+### Window t2: the flipped head (fleetq #8864, radiance down 14:50:32 to 14:53:16, answering again after 30 s; build #8860; raw in `raw/t2/`)
+
+Head dc40777 (merged with main e45bd5e3c), binary `dw-intarsia`; `dw-intarsia-base` is main 3f46da4f7 (the t1 base). Knobs unset unless said.
+
+| Check | Result |
+|---|---|
+| `plan show` JSON and text, main vs flipped head: 27B tp2 `--spec off`, `--spec mtp` k2; 35B tp2 `--spec off`, `--spec mtp` k2 (both refuse the same way: MoE head under TP); 8B tp1 `--spec off` | 10 of 10 SAME |
+| 27B DFlash k7 tp2 plan, `--max-seq 4096` JSON and text, 20480 text: knobs unset against `INTARSIA_DFLASH_TP=1 INTARSIA_DFLASH_WIN_SPLIT=1` (lane dw's t1 knob-on plans) | 3 of 3 SAME; 20480 lists `attn_decode_bf16_window_splitkv` once, with both `=0` zero times and the 4096 JSON differs |
+| `generate --spec dflash --spec-k 7` tp2, short-0, knobs unset, 256 ids against `--spec off` | PASS (draft total 7.47 ms, decode 113.8 tok/s: arm D) |
 
