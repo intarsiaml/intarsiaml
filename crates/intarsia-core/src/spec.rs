@@ -157,27 +157,43 @@ pub enum SampledSpec {
 }
 
 impl SampledSpec {
-    /// `INTARSIA_SPEC_SAMPLED`: unset, `0` or `off`: off; `1` or `match`: [`SampledSpec::Match`]; `reject`: [`SampledSpec::Reject`]
-    /// (coordinator decision 2026-11-05: `1` is the recommended variant, `match`).
+    /// An `INTARSIA_SPEC_SAMPLED` value: `0` or `off`: off; `1` or `match`: [`SampledSpec::Match`]; `reject`:
+    /// [`SampledSpec::Reject`] (coordinator decision 2026-11-05: `1` is the recommended variant, `match`). Unset is not a value
+    /// here: see [`SampledSpec::from_env`].
     pub fn parse(v: &str) -> Option<SampledSpec> {
         match v {
-            "" | "0" | "off" => Some(SampledSpec::Off),
+            "0" | "off" => Some(SampledSpec::Off),
             "1" | "match" => Some(SampledSpec::Match),
             "reject" => Some(SampledSpec::Reject),
             _ => None,
         }
     }
 
-    /// The process default (`INTARSIA_SPEC_SAMPLED`, read once; an unknown value is off with a warning).
-    pub fn from_env() -> SampledSpec {
-        static V: std::sync::OnceLock<SampledSpec> = std::sync::OnceLock::new();
+    /// The process setting (`INTARSIA_SPEC_SAMPLED`, read once): `None` when unset or empty (the backend default applies,
+    /// [`SampledSpec::default_for`]); an unknown value is off with a warning.
+    pub fn from_env() -> Option<SampledSpec> {
+        static V: std::sync::OnceLock<Option<SampledSpec>> = std::sync::OnceLock::new();
         *V.get_or_init(|| {
             let v = std::env::var("INTARSIA_SPEC_SAMPLED").unwrap_or_default();
-            SampledSpec::parse(&v).unwrap_or_else(|| {
+            if v.is_empty() {
+                return None;
+            }
+            Some(SampledSpec::parse(&v).unwrap_or_else(|| {
                 eprintln!("INTARSIA_SPEC_SAMPLED={v}: unknown (0, 1 / match, reject); sampled speculation stays off");
                 SampledSpec::Off
-            })
+            }))
         })
+    }
+
+    /// The default when `INTARSIA_SPEC_SAMPLED` is unset (user decision 2026-11-05 ~20:10 EST, "sampled default on"): `match` on
+    /// the CUDA and Metal backends, off elsewhere (HIP, whose captured verify replay was not checked with the logits read-back,
+    /// and the CPU reference).
+    pub fn default_for(backend: &str) -> SampledSpec {
+        if matches!(backend, "cuda" | "metal") {
+            SampledSpec::Match
+        } else {
+            SampledSpec::Off
+        }
     }
 }
 
@@ -1417,7 +1433,11 @@ mod tests {
 
     #[test]
     fn sampled_spec_parse() {
-        assert_eq!(SampledSpec::parse(""), Some(SampledSpec::Off));
+        assert_eq!(SampledSpec::parse(""), None);
+        assert_eq!(SampledSpec::default_for("metal"), SampledSpec::Match);
+        assert_eq!(SampledSpec::default_for("cuda"), SampledSpec::Match);
+        assert_eq!(SampledSpec::default_for("hip"), SampledSpec::Off);
+        assert_eq!(SampledSpec::default_for("cpu"), SampledSpec::Off);
         assert_eq!(SampledSpec::parse("0"), Some(SampledSpec::Off));
         assert_eq!(SampledSpec::parse("1"), Some(SampledSpec::Match));
         assert_eq!(SampledSpec::parse("reject"), Some(SampledSpec::Reject));

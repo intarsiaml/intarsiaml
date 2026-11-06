@@ -474,14 +474,15 @@ impl Model {
         self.spec_sampled.store(b, std::sync::atomic::Ordering::Relaxed);
     }
 
-    /// The sampled-speculation variant requests use ([`Model::set_spec_sampled`], else `INTARSIA_SPEC_SAMPLED`).
+    /// The sampled-speculation variant requests use ([`Model::set_spec_sampled`], else `INTARSIA_SPEC_SAMPLED`, else the backend
+    /// default [`crate::spec::SampledSpec::default_for`]).
     pub fn spec_sampled(&self) -> crate::spec::SampledSpec {
         use crate::spec::SampledSpec;
         match self.spec_sampled.load(std::sync::atomic::Ordering::Relaxed) {
             1 => SampledSpec::Off,
             2 => SampledSpec::Match,
             3 => SampledSpec::Reject,
-            _ => SampledSpec::from_env(),
+            _ => SampledSpec::from_env().unwrap_or_else(|| SampledSpec::default_for(self.backend.name())),
         }
     }
 

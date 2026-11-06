@@ -14,7 +14,7 @@ and CUDA 2 / 2; plans identical; goldens PASS). Served decode on natural-v1 1k /
 | CUDA 35B tp=1 (1 round) | x1.335 | **x1.222 (66 %)** | x1.161 (48 %) | **x1.150 (45 %)** | x1.106 (32 %) |
 
 (%) = share of the greedy MTP gain that survives. `reject` wins where a decode step is slow (27B); `match` wins where it is fast
-(35B), because `reject` pays k draft-row downloads and k full-vocabulary softmaxes on the host per pass. Opt-in, default off.
+(35B), because `reject` pays k draft-row downloads and k full-vocabulary softmaxes on the host per pass. Default on with `match` on CUDA and Metal since the user's decision below; `0` turns it off.
 
 ## Messages received during the lane
 
@@ -47,14 +47,20 @@ Coordinator, 2026-11-05, after the first report (copied as asked):
 >
 > The default stays off until the user decides.
 
+User decision, relayed by the coordinator: 2026-11-05, about 20:10 EST: "sampled default on". Implemented as: unset
+`INTARSIA_SPEC_SAMPLED` = `match` on the CUDA and Metal backends (wherever `--spec mtp` runs, explicitly or by the recipe default:
+CUDA 35B, Metal 35B, Metal 27B); off on HIP (its captured verify replay was not checked with the logits read-back, and its MTP
+default is tp > 1, which sampled speculation does not cover) and on the cpu reference; `0` / `off` turns it off, `reject` selects
+the other variant. Startup prints `sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)`.
+
 ## The change
 
-`INTARSIA_SPEC_SAMPLED` (default off; `Model::set_spec_sampled` for tests):
+`INTARSIA_SPEC_SAMPLED` (default `match` on CUDA and Metal, off elsewhere; `Model::set_spec_sampled` for tests):
 
 | value | variant | draft | accept rule at verify row i | on reject |
 |---|---|---|---|---|
-| unset, `0`, `off` | off | - | sampled requests take plain steps (main's behaviour) | - |
-| `1`, `match` | `SampledSpec::Match` | the MTP head's argmax (main's draft path, unchanged) | draw x from the processed target distribution p_i; accept iff x == d_i | emit x, stop |
+| `0`, `off` (unset on HIP / cpu) | off | - | sampled requests take plain steps (main's behaviour) | - |
+| `1`, `match` (unset on CUDA / Metal) | `SampledSpec::Match` | the MTP head's argmax (main's draft path, unchanged) | draw x from the processed target distribution p_i; accept iff x == d_i | emit x, stop |
 | `reject` | `SampledSpec::Reject` | drawn from the head's processed distribution q_i with the request's RNG | accept d_i with probability min(1, p_i(d_i) / q_i(d_i)) | emit a draw from normalize(max(0, p_i - q_i)), stop |
 
 All k accepted: a bonus token is drawn from p_k. Both rules are exact in law (section 2).
@@ -252,7 +258,7 @@ CUDA (spark1, fleetq #8652, base `602a1fcfe` and branch `c28ad2d3f` built there;
 - **Single recommendation: `match`, opt-in for now.** Per the coordinator's decision below, `INTARSIA_SPEC_SAMPLED=1` now
   selects `match` (the gates above ran with `1` = `reject`; every speed and statistical arm named its variant explicitly, so
   only the no-op greedy-id runs used `1`, and greedy requests never reach either variant).
-- **Not default-on yet.** Exactness is shown, and greedy is untouched, but the sampled output for a seed differs from spec-off
+- **Superseded by the user's decision (default on, `match`):** the original recommendation was not default-on yet. Exactness is shown, and greedy is untouched, but the sampled output for a seed differs from spec-off
   (same law, other tokens), the best variant depends on the model and backend, and the Metal numbers drift 10-20 % between rounds.
 - If one variant is to become the default for sampled traffic (the server's default temperature is 1.0), **`match` on the 35B
   (Metal and CUDA: x1.10-1.22) and `reject` on the 27B (Metal: x1.09-1.12)**; a recipe key per model would express that. `match`
