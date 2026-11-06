@@ -1,0 +1,12 @@
+nproc: 24
+CPU(s):                                  24
+Model name:                              AMD Ryzen 9 9900X 12-Core Processor
+Thread(s) per core:                      2
+CPU(s) scaling MHz:                      62%
+NUMA node(s):                            1
+               total        used        free      shared  buff/cache   available
+Mem:              61          32          12           0          17          29
+Swap:              7           0           7
+847525 bash -c lscpu | grep -E 'Model name|^CPU\(s\)|Thread|NUMA node\(s\)'; free -g; pgrep -af 'systemctl --user start radiance' || echo 'no stray radiance-start timers'; for c in card0 card1; do echo $c $(grep PCI_SLOT_NAME /sys/class/drm/$c/device/uevent); done
+card0 PCI_SLOT_NAME=0000:03:00.0
+card1 PCI_SLOT_NAME=0000:07:00.0
