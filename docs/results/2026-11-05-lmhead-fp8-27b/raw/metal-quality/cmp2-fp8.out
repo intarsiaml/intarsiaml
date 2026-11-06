@@ -5,3 +5,39 @@ prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     ma
 4k-1                3981  3981    98.17   7.266e-4   6.930e-4   6.930e-4   6.924e-3   0.0293   0.0294    97.99   35/3981      0
 4k-2                4336  4336    96.49   9.754e-4   9.197e-4   9.197e-4   1.012e-2   0.0405   0.0408    97.03    4/4336      0
 16k-0              15469 15469    98.82   5.126e-4   4.939e-4   4.939e-4   1.880e-2   0.0192   0.0193    98.45  22/15469      0
+16k-1              15844 15844    98.02   6.790e-4   6.568e-4   6.568e-4   8.773e-3   0.0204   0.0205    97.86  35/15844      0
+16k-2              16293 16293    97.27   7.493e-4   7.192e-4   7.192e-4   1.879e-2   0.0235   0.0236    97.41   4/16293      0
+OVERALL                  59781    97.94   6.796e-4   6.518e-4   6.518e-4   1.880e-2   0.0242   0.0243    97.86      0.2%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                 6.5176e-4  (limit 1.0000e0)  ok
+  max position KL(21-way)                         1.8801e-2  (limit 1.0000e2)  ok
+  top-1 flips                                      1.2340e3  (limit 5.9781e4)  ok
+  mean |tail diff|                                4.0870e-4  (limit 1.0000e0)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [4k-2]                  9.1966e-4  (limit 1.0000e3)  ok
+SELF-STATS mode=prefill positions=59781 mean_kl21=6.517643e-4 max_kl21=1.880079e-2 flips=1234 flip_pct=2.0642 tail_abs=4.087037e-4 worst_prompt_kl21=9.196597e-4
+prefill self-golden => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+4k-0                3858   128    99.22   3.861e-4   3.812e-4   3.812e-4   2.982e-3   0.0099   0.0100    97.81   120/128      0
+4k-1                3981   128   100.00   7.573e-4   7.041e-4   7.041e-4   5.880e-3   0.0485   0.0488    98.44   128/128      0
+4k-2                4336   128    96.09   1.077e-3   1.036e-3   1.036e-3   4.184e-3   0.0285   0.0286    96.41    43/128      0
+16k-0              15469   128    96.88   8.668e-4   8.481e-4   8.481e-4   4.720e-3   0.0233   0.0237    98.44    12/128      0
+16k-1              15844   128   100.00   1.876e-4   1.818e-4   1.818e-4   3.771e-3   0.0072   0.0072    97.97   128/128      0
+16k-2              16293   128   100.00   1.562e-4   1.461e-4   1.461e-4   3.393e-3   0.0113   0.0113    98.12   128/128      0
+OVERALL                    768    98.70   5.718e-4   5.495e-4   5.495e-4   5.880e-3   0.0215   0.0216    97.86     72.8%      0
+decode (teacher-forced) vs the other build's logits (same weights):
+  mean KL(21-way)                                 5.4953e-4  (limit 1.0000e0)  ok
+  max position KL(21-way)                         5.7777e-3  (limit 1.0000e2)  ok
+  top-1 flips                                      1.0000e1  (limit 7.6800e2)  ok
+  mean |tail diff|                                3.5966e-4  (limit 1.0000e0)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [4k-2]                  1.0359e-3  (limit 1.0000e3)  ok
+SELF-STATS mode=decode positions=768 mean_kl21=5.495283e-4 max_kl21=5.777711e-3 flips=10 flip_pct=1.3021 tail_abs=3.596613e-4 worst_prompt_kl21=1.035851e-3
+decode (teacher-forced) self-golden => PASS
+greedy-match [prefill]: mean 0.3% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 72.8% of positions before the first argmax divergence, worst prompt 9.4% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS
