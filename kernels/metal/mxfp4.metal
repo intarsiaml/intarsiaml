@@ -182,7 +182,65 @@ inline void mxfp4_gemv_impl(device const ushort* xs, device const uchar* w, devi
     }
 }
 
-#define MX_GEMV(NAME, IMPL, OUT)                                                                                    \
+// M = 2..8 (lane df, `INTARSIA_METAL_MXFP4_MR`): P output rows per simdgroup, exactly M activation rows. The `_m8` form above
+// widens every activation row's bf16 once per output row and is issue-bound (M = 8 costs 4.8x M = 1 at the 27B shapes); here the
+// activations of one 8-element word are widened once per simdgroup and used for its P weight rows, and each weight word is decoded
+// once for all M rows. Bits: every (weight row, activation row) pair keeps `mxfp4_gemv1_impl`'s chain exactly: the lane's groups
+// u = lane, lane + 32, ..; per group t = fma chain over the 32 elements in element order (here carried across the four words in
+// `t[p][m]`), then acc = fma(t * MX_FOLD, s, acc); then simd_sum. Only the loop nesting and the registers change.
+template <int M, int P, typename OutT>
+inline void mxfp4_gemv_mr_impl(device const ushort* xs, device const uchar* w, device const uchar* sc, device OutT* out,
+                               constant OpP& p, device const ushort* x, uint2 tg, uint sg, uint lane) {
+    const ulong n0 = ((ulong)tg.x * MX_SG + sg) * P;
+    if (n0 >= p.b) return;  // whole simdgroup exits together
+    const uint K = p.c;
+    const uint ng = K / 32;
+    device const ushort* xsrc = p.d == 1u ? x : xs;  // see mxfp4_gemv1_impl
+    // rows past N (a tail simdgroup) read row n0's weights and store nothing
+    device const packed_uint4* wr[P];
+    device const uchar* sr[P];
+    for (int q = 0; q < P; ++q) {
+        const ulong n = n0 + q < p.b ? n0 + q : n0;
+        wr[q] = (device const packed_uint4*)(w + n * (K / 2));
+        sr[q] = sc + p.s0 + n * ng;
+    }
+    float acc[P][M];
+    for (int q = 0; q < P; ++q)
+        for (int m = 0; m < M; ++m) acc[q][m] = 0.f;
+    for (uint u = lane; u < ng; u += 32) {
+        uint4 wv[P];
+        for (int q = 0; q < P; ++q) wv[q] = uint4(wr[q][u]);
+        float t[P][M];
+        for (int q = 0; q < P; ++q)
+            for (int m = 0; m < M; ++m) t[q][m] = 0.f;
+        for (int c = 0; c < 4; ++c) {
+            float wf[P][8];
+            for (int q = 0; q < P; ++q) mx_dec8(wv[q][c], wf[q]);
+            for (int m = 0; m < M; ++m) {
+                const uint4 xv = ((device const uint4*)(xsrc + (ulong)m * K + (ulong)u * 32))[c];
+                float xf[8];
+                for (int j = 0; j < 4; ++j) {
+                    xf[2 * j] = as_type<float>(xv[j] << 16);
+                    xf[2 * j + 1] = as_type<float>(xv[j] & 0xFFFF0000u);
+                }
+                for (int q = 0; q < P; ++q)
+                    for (int b = 0; b < 8; ++b) t[q][m] = fma(wf[q][b], xf[b], t[q][m]);
+            }
+        }
+        for (int q = 0; q < P; ++q) {
+            const float s = mx_e8m0(sr[q][u]);
+            for (int m = 0; m < M; ++m) acc[q][m] = fma(t[q][m] * MX_FOLD, s, acc[q][m]);
+        }
+    }
+    for (int q = 0; q < P; ++q) {
+        for (int m = 0; m < M; ++m) {
+            const float r = simd_sum(acc[q][m]);
+            if (lane == 0 && n0 + q < p.b) store_out(out + p.s1, (ulong)m * p.b + n0 + q, r);
+        }
+    }
+}
+
+#define MX_GEMV(NAME, IMPL, OUT)                                                                                  \
     kernel void NAME(device const ushort* xs [[buffer(0)]], device const uchar* w [[buffer(1)]],                    \
                      device const uchar* sc [[buffer(2)]], device OUT* out [[buffer(3)]],                           \
                      constant OpP& p [[buffer(4)]], device const ushort* x [[buffer(5)]],                            \
@@ -194,6 +252,35 @@ MX_GEMV(mxfp4_gemv_bf16_m1, mxfp4_gemv1_impl<ushort>, ushort)
 MX_GEMV(mxfp4_gemv_bf16_m8, (mxfp4_gemv_impl<8, ushort>), ushort)
 MX_GEMV(mxfp4_gemv_f32_m1, mxfp4_gemv1_impl<float>, float)
 MX_GEMV(mxfp4_gemv_f32_m8, (mxfp4_gemv_impl<8, float>), float)
+// lane df: M = 2..8 rows, P = 2 or 4 output rows per simdgroup (`INTARSIA_METAL_MXFP4_MR`)
+MX_GEMV(mxfp4_gemv_bf16_mr2p2, (mxfp4_gemv_mr_impl<2, 2, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr2p2, (mxfp4_gemv_mr_impl<2, 2, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr3p2, (mxfp4_gemv_mr_impl<3, 2, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr3p2, (mxfp4_gemv_mr_impl<3, 2, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr4p2, (mxfp4_gemv_mr_impl<4, 2, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr4p2, (mxfp4_gemv_mr_impl<4, 2, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr5p2, (mxfp4_gemv_mr_impl<5, 2, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr5p2, (mxfp4_gemv_mr_impl<5, 2, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr6p2, (mxfp4_gemv_mr_impl<6, 2, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr6p2, (mxfp4_gemv_mr_impl<6, 2, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr7p2, (mxfp4_gemv_mr_impl<7, 2, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr7p2, (mxfp4_gemv_mr_impl<7, 2, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr8p2, (mxfp4_gemv_mr_impl<8, 2, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr8p2, (mxfp4_gemv_mr_impl<8, 2, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr2p4, (mxfp4_gemv_mr_impl<2, 4, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr2p4, (mxfp4_gemv_mr_impl<2, 4, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr3p4, (mxfp4_gemv_mr_impl<3, 4, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr3p4, (mxfp4_gemv_mr_impl<3, 4, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr4p4, (mxfp4_gemv_mr_impl<4, 4, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr4p4, (mxfp4_gemv_mr_impl<4, 4, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr5p4, (mxfp4_gemv_mr_impl<5, 4, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr5p4, (mxfp4_gemv_mr_impl<5, 4, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr6p4, (mxfp4_gemv_mr_impl<6, 4, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr6p4, (mxfp4_gemv_mr_impl<6, 4, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr7p4, (mxfp4_gemv_mr_impl<7, 4, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr7p4, (mxfp4_gemv_mr_impl<7, 4, float>), float)
+MX_GEMV(mxfp4_gemv_bf16_mr8p4, (mxfp4_gemv_mr_impl<8, 4, ushort>), ushort)
+MX_GEMV(mxfp4_gemv_f32_mr8p4, (mxfp4_gemv_mr_impl<8, 4, float>), float)
 
 // ---- weight decode for the NAX GEMM (matmul_mxfp4_nax: gemm_nax_fp8.metal's GEMM, launcher mxfp4.rs) --------------------
 // `mxfp4_w_to_bf16`: W[N,K/2] codes * e8m0 scales -> bf16 [N,K] (e2m1 * 2^e: at most two significant bits, so the bf16 is

@@ -1,0 +1,63 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1235:4
+     |
+1235 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/mxfp4_gemv.rs (target/release/deps/mxfp4_gemv-2801c5c214c9c653)
+
+running 5 tests
+case 0: M=1 N=100 K=32 f32_out=false: worst error / tolerance 0.730
+case 1: M=1 N=130 K=544 f32_out=false: worst error / tolerance 0.665
+test a_rows_bits_do_not_depend_on_the_calls_m ... ok
+test an_unaligned_x_takes_the_prepass_and_gives_the_same_bits ... ok
+case 2: M=1 N=1024 K=5120 f32_out=false: worst error / tolerance 0.766
+case 3: M=1 N=515 K=5120 f32_out=true: worst error / tolerance 0.070
+current hashes: [
+    0x65880f8cedb93641,
+    0x5d3578fa00011ac2,
+    0x1c893ceae6174fba,
+    0x43cfc1c517cc6e47,
+    0xd9585f21e41268e4,
+    0xf26e4815c35cf82a,
+    0x47d6b5fdca459a02,
+    0xfefd654b46c19d7a,
+    0xac2caa0658ca3e60,
+    0xc69df258a56ba1e8,
+    0xff6bcd72a7f71c6f,
+    0x759fe9a88d78b18b,
+    0x49896804784d8402,
+    0x30b77bebfa2059e4,
+]
+test gemv_bits_are_pinned ... ok
+case 4: M=1 N=5120 K=17408 f32_out=false: worst error / tolerance 0.765
+case 5: M=3 N=130 K=1024 f32_out=false: worst error / tolerance 0.735
+case 6: M=3 N=130 K=1024 f32_out=true: worst error / tolerance 0.097
+case 7: M=8 N=70 K=544 f32_out=false: worst error / tolerance 0.735
+case 8: M=13 N=64 K=5120 f32_out=false: worst error / tolerance 0.757
+test gemv_matches_the_f64_reference ... ok
+m-row shader cases bitwise: 672
+test m_row_shaders_are_bitwise_the_one_row_call_per_row ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+

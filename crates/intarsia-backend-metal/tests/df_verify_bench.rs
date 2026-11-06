@@ -66,7 +66,12 @@ fn df_verify_kernels_27b() {
                 vec![TensorRef { buf: yb.clone(), offset: r0 * n * 2, dtype: DType::Bf16, shape: vec![m, n] }],
                 OpAttrs { mxfp4_w4a16: true, ..OpAttrs::default() },
             );
-            let need = be.kernels().iter().find(|q| q.name == "matmul_mxfp4_gemv").unwrap().scratch_bytes(&ShapeInfo::from_call(&cl));
+            let need = be
+                .kernels()
+                .iter()
+                .find(|q| q.name == "matmul_mxfp4_gemv")
+                .unwrap()
+                .scratch_bytes(&ShapeInfo::from_call(&cl));
             let s = be.alloc(need + 16, MemKind::Device).unwrap();
             cl.scratch = Some(t(&s, DType::U8, &[need.max(16)]));
             cl
@@ -75,18 +80,34 @@ fn df_verify_kernels_27b() {
         let t1 = time_us(&be, 50, || be.launch("matmul_mxfp4_gemv", &one[0], 0).unwrap());
         for m in 1..=8usize {
             let cm = call(m, 0);
-            let rows = time_us(&be, 50, || be.launch("matmul_mxfp4_gemv", &cm, 0).unwrap());
+            let rows = intarsia_backend_metal::mxfp4::with_mr(0, || {
+                time_us(&be, 50, || be.launch("matmul_mxfp4_gemv", &cm, 0).unwrap())
+            });
+            let mr: Vec<String> = [1usize, 2, 4]
+                .iter()
+                .filter(|_| m >= 2)
+                .map(|&p| {
+                    let us = intarsia_backend_metal::mxfp4::with_mr(p, || {
+                        time_us(&be, 50, || be.launch("matmul_mxfp4_gemv", &cm, 0).unwrap())
+                    });
+                    format!("mr p{p} {us:.1} us ({:.2}x M=1)", us / t1)
+                })
+                .collect();
             let serial = time_us(&be, 50, || {
                 for c in &one[..m] {
                     be.launch("matmul_mxfp4_gemv", c, 0).unwrap();
                 }
             });
             eprintln!(
-                "DFBENCH mxfp4 {n}x{k} M={m}: rows launch {rows:.1} us ({:.2}x M=1, {:.0} GB/s), {m} one-row launches {serial:.1} us",
+                "DFBENCH mxfp4 {n}x{k} M={m}: rows launch {rows:.1} us ({:.2}x M=1, {:.0} GB/s), {m} one-row launches {serial:.1} us; {}",
                 rows / t1,
-                (n * k / 2 + n * k / 32) as f64 / rows / 1e3
+                (n * k / 2 + n * k / 32) as f64 / rows / 1e3,
+                mr.join(", ")
             );
         }
+    }
+    if std::env::var_os("DFBENCH_NO_LOGITS").is_some() {
+        return;
     }
     // bf16 lm_head logits (f32 out), 248320 x 5120: logits_bf16_gemv (M = 1), logits_bf16_gemv_rows (M = 2..8, the verify head),
     // logits_bf16 (the generic kernel)
@@ -100,7 +121,10 @@ fn df_verify_kernels_27b() {
     let lcall = |m: usize, r0: usize| {
         OpCall::new(
             Op::Logits,
-            vec![TensorRef { buf: xb.clone(), offset: r0 * k * 2, dtype: DType::Bf16, shape: vec![m, k] }, t(&wb, DType::Bf16, &[n, k])],
+            vec![
+                TensorRef { buf: xb.clone(), offset: r0 * k * 2, dtype: DType::Bf16, shape: vec![m, k] },
+                t(&wb, DType::Bf16, &[n, k]),
+            ],
             vec![TensorRef { buf: yb.clone(), offset: r0 * n * 4, dtype: DType::F32, shape: vec![m, n] }],
             OpAttrs::default(),
         )

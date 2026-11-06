@@ -137,8 +137,18 @@ fn rand_e4m3(n: usize, seed: u64, nan_every: usize) -> Vec<u8> {
 /// (N, K) of the 35B's fp8 projections: GDN in_qkv (conv_dim 8192) / in_z (4096) / out (K = 4096), attention q+gate (8192) /
 /// k, v (512) / o (K = 4096); plus odd shapes (N not a multiple of the rows per threadgroup, K = 48, 16) and K = 5120 (the quantised
 /// 27B lm_head, lane lmhead-fp8: past the staged form's K <= 4096, so only the `_xd` and simdgroup-matrix forms run it).
-const FP8_SHAPES: &[(usize, usize)] =
-    &[(8192, 2048), (4096, 2048), (512, 2048), (2048, 4096), (130, 512), (33, 48), (65, 16), (4096, 4096), (260, 5120), (33, 5120)];
+const FP8_SHAPES: &[(usize, usize)] = &[
+    (8192, 2048),
+    (4096, 2048),
+    (512, 2048),
+    (2048, 4096),
+    (130, 512),
+    (33, 48),
+    (65, 16),
+    (4096, 4096),
+    (260, 5120),
+    (33, 5120),
+];
 
 #[allow(clippy::too_many_arguments)]
 fn fp8_case(

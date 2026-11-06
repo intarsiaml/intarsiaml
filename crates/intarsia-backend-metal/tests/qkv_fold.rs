@@ -62,7 +62,12 @@ fn with_off(be: &MetalBackend, v: &[u16], off: usize, shape: &[usize]) -> Tensor
 
 fn norm_weights(n: usize, seed: u64) -> Vec<u16> {
     // 1 +- 0.25 like a real norm weight: bf16 of (1 + 0.5 * (u - 0.5)), u from the unit-range generator
-    rand_bf16(n, seed).iter().map(|&b| intarsia_backend_metal::bench::f32_to_bf16(1.0 + 0.25 * intarsia_backend_metal::bench::bf16_to_f32(b))).collect()
+    rand_bf16(n, seed)
+        .iter()
+        .map(|&b| {
+            intarsia_backend_metal::bench::f32_to_bf16(1.0 + 0.25 * intarsia_backend_metal::bench::bf16_to_f32(b))
+        })
+        .collect()
 }
 
 fn operands(be: &MetalBackend, c: &Cfg, seed: u64) -> Operands {
@@ -184,7 +189,9 @@ fn prefill_rows_are_bitwise() {
 #[test]
 fn head_dims_and_partial_rotary() {
     // D 64 / 96 / 128 / 256 (96 and 64 are not 128-wide threadgroups), rotary a quarter of the head, zero-centred norms
-    for (n, nkv, d, rd) in [(8, 2, 64, 0), (12, 4, 96, 0), (16, 2, 256, 0), (16, 2, 256, 64), (16, 2, 256, 0), (4, 2, 128, 32)] {
+    for (n, nkv, d, rd) in
+        [(8, 2, 64, 0), (12, 4, 96, 0), (16, 2, 256, 0), (16, 2, 256, 64), (16, 2, 256, 0), (4, 2, 128, 32)]
+    {
         for w_offset in [0.0, 1.0] {
             check_bitwise(Cfg { n, nkv, d, rotary_dim: rd, w_offset, t: 3, pos0: 11, cap: 64, ..DEC }, 300 + d as u64);
         }
@@ -212,7 +219,10 @@ fn prefill_form_head_counts_off_the_threadgroup_group() {
     // partial last groups (and a v / k / q boundary inside a group); full rotation, D 128, T > 1
     for (n, nkv) in [(4, 2), (14, 2), (16, 4), (9, 3), (5, 1), (1, 1)] {
         for w_offset in [0.0, 1.0] {
-            check_bitwise(Cfg { n, nkv, t: 9, pos0: 30_000, cap: 40_000, w_offset, ..DEC }, 600 + (n * 10 + nkv) as u64);
+            check_bitwise(
+                Cfg { n, nkv, t: 9, pos0: 30_000, cap: 40_000, w_offset, ..DEC },
+                600 + (n * 10 + nkv) as u64,
+            );
         }
     }
     // a device-resident position and the cache end inside the token block

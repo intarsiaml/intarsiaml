@@ -72,7 +72,10 @@ impl Cache {
     }
 
     fn kv(&self) -> Vec<TensorRef> {
-        vec![tr(&self.kb, self.off, &[self.nkv, self.cap, self.d]), tr(&self.vb, self.off, &[self.nkv, self.cap, self.d])]
+        vec![
+            tr(&self.kb, self.off, &[self.nkv, self.cap, self.d]),
+            tr(&self.vb, self.off, &[self.nkv, self.cap, self.d]),
+        ]
     }
 
     /// Multi-row call on `k` rows of `q` (q buffer at byte offset `qoff`), output rows as u16.
@@ -130,7 +133,10 @@ impl Cache {
 /// first / last cache row, plus a spread.
 fn positions(cap: usize, k: usize) -> Vec<usize> {
     let mut v: Vec<usize> = vec![0, 1, 2, 7, 31, 32, 33];
-    for b in (128usize..=2048).step_by(128).chain([1024, 1025, 1792, 1793, 480, 960, 1440, 1920, 2400, 2880, 3360, 3840, 4320, 4800, 8160, 8640]) {
+    for b in (128usize..=2048)
+        .step_by(128)
+        .chain([1024, 1025, 1792, 1793, 480, 960, 1440, 1920, 2400, 2880, 3360, 3840, 4320, 4800, 8160, 8640])
+    {
         for dlt in 0..=k + 1 {
             v.push(b.saturating_sub(dlt));
         }
@@ -269,7 +275,9 @@ fn rows_registration_is_below_serving() {
     for m in 2..=8 {
         assert!(k.accepts(&shape(m, 32, 8, 128)), "m {m}");
     }
-    for (s, why) in [(shape(1, 32, 8, 128), "one row"), (shape(9, 32, 8, 128), "nine rows"), (shape(4, 32, 8, 96), "D = 96")] {
+    for (s, why) in
+        [(shape(1, 32, 8, 128), "one row"), (shape(9, 32, 8, 128), "nine rows"), (shape(4, 32, 8, 96), "D = 96")]
+    {
         assert!(!k.accepts(&s), "{why}");
     }
     assert_eq!(k.scratch_bytes(&shape(4, 32, 8, 128)), 4 * 32 * 64 * 130 * 4);

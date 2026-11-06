@@ -37,7 +37,8 @@ fn main() {
             if name == "__metadata__" {
                 continue;
             }
-            let (a, b) = (v["data_offsets"][0].as_u64().unwrap() as usize, v["data_offsets"][1].as_u64().unwrap() as usize);
+            let (a, b) =
+                (v["data_offsets"][0].as_u64().unwrap() as usize, v["data_offsets"][1].as_u64().unwrap() as usize);
             if (base + a) % 16 == 0 {
                 continue;
             }
@@ -67,7 +68,11 @@ fn main() {
             std::hint::black_box(&buf);
         }
     }
-    println!("tensors at 8 mod 16: {n_t}, {:.3} GB total, {:.3} GB without the embedding table (streamed by decode GEMVs)", total as f64 / 1e9, total_nonembed as f64 / 1e9);
+    println!(
+        "tensors at 8 mod 16: {n_t}, {:.3} GB total, {:.3} GB without the embedding table (streamed by decode GEMVs)",
+        total as f64 / 1e9,
+        total_nonembed as f64 / 1e9
+    );
     println!(
         "alloc {:.1} ms, copy (upload) {:.1} ms = {:.1} GB/s, source page-in {:.1} ms",
         alloc_s * 1e3,

@@ -24,6 +24,79 @@ const W_TO_BF16: &str = "mxfp4_w_to_bf16";
 pub const SHADERS: [&str; 6] =
     [XPREP, "mxfp4_gemv_bf16_m1", "mxfp4_gemv_bf16_m8", "mxfp4_gemv_f32_m1", "mxfp4_gemv_f32_m8", W_TO_BF16];
 
+/// Lane df: the M-row GEMV with P output rows per simdgroup (`mxfp4_gemv_mr_impl<M, P>`, M = 2..=8, P = 2 or 4), bitwise the `_m1`
+/// shader per row (tests/mxfp4_gemv.rs). Order: P 2 then 4, M 2..=8, bf16 then f32 output.
+pub const MR_SHADERS: [&str; 28] = [
+    "mxfp4_gemv_bf16_mr2p2",
+    "mxfp4_gemv_f32_mr2p2",
+    "mxfp4_gemv_bf16_mr3p2",
+    "mxfp4_gemv_f32_mr3p2",
+    "mxfp4_gemv_bf16_mr4p2",
+    "mxfp4_gemv_f32_mr4p2",
+    "mxfp4_gemv_bf16_mr5p2",
+    "mxfp4_gemv_f32_mr5p2",
+    "mxfp4_gemv_bf16_mr6p2",
+    "mxfp4_gemv_f32_mr6p2",
+    "mxfp4_gemv_bf16_mr7p2",
+    "mxfp4_gemv_f32_mr7p2",
+    "mxfp4_gemv_bf16_mr8p2",
+    "mxfp4_gemv_f32_mr8p2",
+    "mxfp4_gemv_bf16_mr2p4",
+    "mxfp4_gemv_f32_mr2p4",
+    "mxfp4_gemv_bf16_mr3p4",
+    "mxfp4_gemv_f32_mr3p4",
+    "mxfp4_gemv_bf16_mr4p4",
+    "mxfp4_gemv_f32_mr4p4",
+    "mxfp4_gemv_bf16_mr5p4",
+    "mxfp4_gemv_f32_mr5p4",
+    "mxfp4_gemv_bf16_mr6p4",
+    "mxfp4_gemv_f32_mr6p4",
+    "mxfp4_gemv_bf16_mr7p4",
+    "mxfp4_gemv_f32_mr7p4",
+    "mxfp4_gemv_bf16_mr8p4",
+    "mxfp4_gemv_f32_mr8p4",
+];
+
+/// `INTARSIA_METAL_MXFP4_MR`: `1` = the M = 2..=8 calls of `matmul_mxfp4_gemv` take `MR_SHADERS` where they measured faster
+/// ([`mr_auto`]); `2` or `4` = every M = 2..=8 call with that P (A/B); unset or `0` = the `_m8` shader (default). Bitwise the same output
+/// in every setting (tests/mxfp4_gemv.rs).
+pub fn mr_knob() -> usize {
+    static P: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
+    *P.get_or_init(|| match std::env::var("INTARSIA_METAL_MXFP4_MR").ok().as_deref().map(str::trim) {
+        Some("1") => 1,
+        Some("2") => 2,
+        Some("4") => 4,
+        _ => 0,
+    })
+}
+
+/// The P of the auto setting for an M x N call, 0 = the `_m8` shader. From the 27B-shape bench (docs/results/2026-11-06-27b-dflash-gap.md,
+/// M5 Max): M 2..=4 and 8 gain (M = 3: 2.1-2.3x of M = 1 down to 1.25-1.45x); M 5..=7 measured slower than `_m8` and keep it; P = 4
+/// wins for outputs of at most 8192 rows at M <= 3 (the down and out projections), P = 2 elsewhere.
+pub fn mr_auto(m: usize, n: usize) -> usize {
+    match m {
+        2 | 3 if n <= 8192 => 4,
+        2..=4 | 8 => 2,
+        _ => 0,
+    }
+}
+
+thread_local! {
+    static MR_FORCE: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+}
+
+/// Test hook: run `f` with this thread's `matmul_mxfp4_gemv` launches as the knob value `p` (0 = the `_m8` shader, 1 = auto, 2 / 4 = that P) whatever the env says.
+pub fn with_mr<R>(p: usize, f: impl FnOnce() -> R) -> R {
+    MR_FORCE.with(|t| t.set(Some(p)));
+    let r = f();
+    MR_FORCE.with(|t| t.set(None));
+    r
+}
+
+fn mr_shader(f32_out: bool, m: usize, p: usize) -> &'static str {
+    MR_SHADERS[((usize::from(p == 4) * 7 + (m - 2)) * 2) + usize::from(f32_out)]
+}
+
 /// Output rows (= simdgroups) per threadgroup (`MX_SG` in the shader) and activation rows per grid row of `_m8`.
 const ROWS_PER_TG: usize = 4;
 const M_BLOCK: usize = 8;
@@ -127,10 +200,9 @@ impl MetalBackend {
             return self.launch_mxfp4_nax(call, (&xb, &wb, &sb, &ab, &ob), [m, n, k], f32_out);
         }
         let need = m * k * 2 + 15;
-        let scratch = call
-            .scratch
-            .as_ref()
-            .ok_or_else(|| Error::invalid("metal matmul_mxfp4_gemv: the scratch workspace (OpCall::scratch) is missing"))?;
+        let scratch = call.scratch.as_ref().ok_or_else(|| {
+            Error::invalid("metal matmul_mxfp4_gemv: the scratch workspace (OpCall::scratch) is missing")
+        })?;
         if scratch.numel() * scratch.dtype.size_bytes() < need {
             return Err(Error::invalid(format!(
                 "metal matmul_mxfp4_gemv: scratch of {} bytes, need {need}",
@@ -144,7 +216,13 @@ impl MetalBackend {
         // the GEMV loads the activations 16 bytes at a time: they start at the next 16-byte boundary of the scratch
         let xs = crate::dense::Bind { mtl: xs.mtl.clone(), off: xs.off.next_multiple_of(16), skip: 0 };
 
+        let mr = match MR_FORCE.with(|t| t.get()).unwrap_or_else(mr_knob) {
+            1 => mr_auto(m, n),
+            p => p,
+        };
+        let mr = if (2..=M_BLOCK).contains(&m) && matches!(mr, 2 | 4) { mr } else { 0 };
         let gemv = match (f32_out, m == 1) {
+            _ if mr > 0 => mr_shader(f32_out, m, mr),
             (false, true) => SHADERS[1],
             (false, false) => SHADERS[2],
             (true, true) => SHADERS[3],
@@ -152,7 +230,11 @@ impl MetalBackend {
         };
         let pso_x = self.pso(XPREP).ok_or_else(|| Error::backend(format!("metal: no pipeline '{XPREP}'")))?;
         let pso_g = self.pso(gemv).ok_or_else(|| Error::backend(format!("metal: no pipeline '{gemv}'")))?;
-        let px = OpP { dims: [u32_of(m, "M")?, u32_of(n, "N")?, u32_of(k, "K")?, 0, 0, 0, 0, 0], skips: [xb.skip, 0, 0, 0, 0], ..Default::default() };
+        let px = OpP {
+            dims: [u32_of(m, "M")?, u32_of(n, "N")?, u32_of(k, "K")?, 0, 0, 0, 0, 0],
+            skips: [xb.skip, 0, 0, 0, 0],
+            ..Default::default()
+        };
         // a W4A16 call (act is 0, the pre-pass is a copy) with 16-byte aligned x: the GEMV reads x itself, no pre-pass dispatch
         let fused = xfuse_enabled() && call.attrs.mxfp4_w4a16 && xb.skip == 0 && xb.off % 16 == 0;
         let mut pg = OpP { skips: [sb.skip, ob.skip, 0, 0, 0], ..px };
@@ -187,8 +269,10 @@ impl MetalBackend {
             unsafe {
                 enc.setBuffer_offset_atIndex(Some(&xb.mtl), xb.off, 5);
             }
+            // the M-row shader: P output rows per simdgroup, one grid row (M <= 8)
+            let (gx, gy) = if mr > 0 { (n.div_ceil(ROWS_PER_TG * mr), 1) } else { (n.div_ceil(ROWS_PER_TG), m_blocks) };
             enc.dispatchThreadgroups_threadsPerThreadgroup(
-                MTLSize { width: n.div_ceil(ROWS_PER_TG), height: m_blocks, depth: 1 },
+                MTLSize { width: gx, height: gy, depth: 1 },
                 MTLSize { width: ROWS_PER_TG * 32, height: 1, depth: 1 },
             );
         })
@@ -211,10 +295,9 @@ impl MetalBackend {
         f32_out: bool,
     ) -> Result<()> {
         use crate::gemm_nax::{grid, pick_variant, NAX_VARIANTS};
-        let scratch = call
-            .scratch
-            .as_ref()
-            .ok_or_else(|| Error::invalid("metal matmul_mxfp4_nax: the scratch workspace (OpCall::scratch) is missing"))?;
+        let scratch = call.scratch.as_ref().ok_or_else(|| {
+            Error::invalid("metal matmul_mxfp4_nax: the scratch workspace (OpCall::scratch) is missing")
+        })?;
         let scratch_bytes = scratch.numel() * scratch.dtype.size_bytes();
         let sbind = self.bind(scratch, DType::U8, true, "scratch")?;
         if sbind.skip != 0 {

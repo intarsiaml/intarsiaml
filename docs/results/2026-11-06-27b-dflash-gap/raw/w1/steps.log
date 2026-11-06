@@ -1,0 +1,9 @@
+10:23:27 guard: [guard] radiance stopped 2026-11-06 10:23:26
+10:23:27 pre: ids gate (arms dfl mtp2, tp1 tp2, cap 1800 s)
+10:24:37 pre: ids exit 0
+10:24:38 pre: 
+10:24:38 round 1 arm off: starting server
+10:25:48 round 1 arm off ho-chat: localeval exit 0 results/20261106-102510-df-off-df-w1-off-ho-chat-r1/result.json
+10:26:09 round 1 arm off ho-code: localeval exit 0 results/20261106-102549-df-off-df-w1-off-ho-code-r1/result.json
+10:26:48 round 1 arm off ho-prose: localeval exit 0 results/20261106-102609-df-off-df-w1-off-ho-prose-r1/result.json
+10:27:08 round 1 arm off ho-recall: localeval exit 0 results/20261106-102648-df-off-df-w1-off-ho-recall-r1/result.json

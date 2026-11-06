@@ -113,8 +113,17 @@ struct Fp8Case {
     f32_out: bool,
 }
 
-const FP8_CASES: &[(usize, usize, usize)] =
-    &[(1, 40, 96), (1, 512, 2048), (1, 2048, 4096), (3, 33, 48), (8, 130, 512), (8, 64, 2048), (9, 33, 48), (70, 130, 512), (200, 100, 64)];
+const FP8_CASES: &[(usize, usize, usize)] = &[
+    (1, 40, 96),
+    (1, 512, 2048),
+    (1, 2048, 4096),
+    (3, 33, 48),
+    (8, 130, 512),
+    (8, 64, 2048),
+    (9, 33, 48),
+    (70, 130, 512),
+    (200, 100, 64),
+];
 
 fn run_fp8(be: &MetalBackend, kernel: &str, c: &Fp8Case, w_off: usize, seed: u64) {
     let (m, n, k) = (c.m, c.n, c.k);
@@ -129,7 +138,8 @@ fn run_fp8(be: &MetalBackend, kernel: &str, c: &Fp8Case, w_off: usize, seed: u64
     let wa: Vec<u8> = w.iter().map(|b| b & 0x7F).collect();
     let l1 = matmul_fp8(&xa, m, k, &wa, n, [ws.abs(), c.is]);
     let (xo, so, yo) = (2usize, 4usize, 2usize);
-    let (xb, wb, sb) = (upload_bytes(be, xo, &bf16_bytes(&x)), upload_bytes(be, w_off, &w), upload_bytes(be, so, &f32_bytes(&scales)));
+    let (xb, wb, sb) =
+        (upload_bytes(be, xo, &bf16_bytes(&x)), upload_bytes(be, w_off, &w), upload_bytes(be, so, &f32_bytes(&scales)));
     let ysz = yo + m * n * 4 + 16;
     let yb = be.alloc(ysz, MemKind::Device).unwrap();
     be.upload(&yb, 0, &vec![0xEEu8; ysz], 0).unwrap();
@@ -187,7 +197,17 @@ fn fp8_matches_the_oracle() {
 /// One NVFP4 GEMM against the oracle, x at byte `xo` of its buffer (2: a leading element skip, which the NAX form hands to
 /// `mma`).
 #[allow(clippy::too_many_arguments)]
-fn run_nvfp4_x(be: &MetalBackend, kernel: &str, m: usize, n: usize, k: usize, f32_out: bool, w_off: usize, xo: usize, seed: u64) {
+fn run_nvfp4_x(
+    be: &MetalBackend,
+    kernel: &str,
+    m: usize,
+    n: usize,
+    k: usize,
+    f32_out: bool,
+    w_off: usize,
+    xo: usize,
+    seed: u64,
+) {
     let x = rand_bf16(m * k, seed);
     let w = rand_bytes(n * k / 2, seed + 1);
     let bs = rand_block_scales(n * k / 16, seed + 2);
@@ -200,7 +220,8 @@ fn run_nvfp4_x(be: &MetalBackend, kernel: &str, m: usize, n: usize, k: usize, f3
     let l1 = matmul_nvfp4(&xa, m, k, &wa, &ba, gs, n);
     let (bo, go) = (3usize, 4usize);
     let xb = upload_bytes(be, xo, &bf16_bytes(&x));
-    let (wb, bb, gb) = (upload_bytes(be, w_off, &w), upload_bytes(be, bo, &bs), upload_bytes(be, go, &gs.to_le_bytes()));
+    let (wb, bb, gb) =
+        (upload_bytes(be, w_off, &w), upload_bytes(be, bo, &bs), upload_bytes(be, go, &gs.to_le_bytes()));
     let ysz = m * n * 4 + 32;
     let yb = be.alloc(ysz, MemKind::Device).unwrap();
     be.upload(&yb, 0, &vec![0xEEu8; ysz], 0).unwrap();
@@ -230,10 +251,19 @@ fn run_nvfp4_x(be: &MetalBackend, kernel: &str, m: usize, n: usize, k: usize, f3
 #[test]
 fn nvfp4_matches_the_oracle() {
     let be = backend();
-    for (ci, &(m, n, k)) in
-        [(1usize, 40usize, 48usize), (1, 512, 2048), (1, 2048, 512), (4, 33, 80), (8, 130, 512), (9, 33, 48), (70, 130, 512), (200, 100, 64), (1, 3000, 2048)]
-            .iter()
-            .enumerate()
+    for (ci, &(m, n, k)) in [
+        (1usize, 40usize, 48usize),
+        (1, 512, 2048),
+        (1, 2048, 512),
+        (4, 33, 80),
+        (8, 130, 512),
+        (9, 33, 48),
+        (70, 130, 512),
+        (200, 100, 64),
+        (1, 3000, 2048),
+    ]
+    .iter()
+    .enumerate()
     {
         for f32_out in [false, true] {
             for kernel in ["matmul_nvfp4_gemv", "matmul_nvfp4_mma", "matmul_nvfp4_nax"] {
@@ -306,7 +336,11 @@ fn w8a8_quantiser_is_bit_exact_over_every_bf16_pattern() {
                 }
             })
             .collect();
-        let (xb, wb, sb) = (upload_bytes(&be, 0, &bf16_bytes(&x)), upload_bytes(&be, 8, &w), upload_bytes(&be, 0, &f32_bytes(&[1.0, is])));
+        let (xb, wb, sb) = (
+            upload_bytes(&be, 0, &bf16_bytes(&x)),
+            upload_bytes(&be, 8, &w),
+            upload_bytes(&be, 0, &f32_bytes(&[1.0, is])),
+        );
         for kernel in ["matmul_fp8_mma", "matmul_fp8_nax", "matmul_fp8_gemv"] {
             let yb = be.alloc(rows * k * 4 + 16, MemKind::Device).unwrap();
             be.upload(&yb, 0, &vec![0xEEu8; rows * k * 4 + 16], 0).unwrap();
@@ -314,7 +348,11 @@ fn w8a8_quantiser_is_bit_exact_over_every_bf16_pattern() {
             for r0 in (0..rows).step_by(step) {
                 let mut cl = OpCall::new(
                     Op::MatmulFp8,
-                    vec![t(&xb, r0 * k * 2, DType::Bf16, &[step, k]), t(&wb, 8, DType::Fp8E4m3, &[k, k]), t(&sb, 0, DType::F32, &[2])],
+                    vec![
+                        t(&xb, r0 * k * 2, DType::Bf16, &[step, k]),
+                        t(&wb, 8, DType::Fp8E4m3, &[k, k]),
+                        t(&sb, 0, DType::F32, &[2]),
+                    ],
                     vec![t(&yb, r0 * k * 4, DType::F32, &[step, k])],
                     OpAttrs::default(),
                 );

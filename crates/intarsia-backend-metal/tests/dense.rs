@@ -354,7 +354,13 @@ fn rope_scaled_matches_f64_reference() {
                 Op::RopeScaled,
                 vec![t(&xb, xo, DType::Bf16, &[tt, nh, d]), t(&tb, 0, DType::F32, &[rd / 2])],
                 vec![t(&out, oo, DType::Bf16, &[tt, nh, d])],
-                OpAttrs { pos0, head_dim: d, rotary_dim: rd, rope_mscale: freqs.attention_factor, ..Default::default() },
+                OpAttrs {
+                    pos0,
+                    head_dim: d,
+                    rotary_dim: rd,
+                    rope_mscale: freqs.attention_factor,
+                    ..Default::default()
+                },
             );
             if dev {
                 call.pos = Some(TensorRef { buf: posb.clone(), offset: 0, dtype: DType::I32, shape: vec![1] });
@@ -372,12 +378,20 @@ fn rope_scaled_matches_f64_reference() {
                             let half = rd / 2;
                             let k = i % half;
                             let ang = (pos0 + tok) as f64 * freqs.inv_freq[k] as f64;
-                            let (s, c) = (ang.sin() * freqs.attention_factor as f64, ang.cos() * freqs.attention_factor as f64);
-                            if i < half { xf(k) * c - xf(k + half) * s } else { xf(k + half) * c + xf(k) * s }
+                            let (s, c) =
+                                (ang.sin() * freqs.attention_factor as f64, ang.cos() * freqs.attention_factor as f64);
+                            if i < half {
+                                xf(k) * c - xf(k + half) * s
+                            } else {
+                                xf(k + half) * c + xf(k) * s
+                            }
                         };
                         let g = bf16_to_f32(got[base + i]) as f64;
                         // f32 angle (positions up to 70000) and bf16 output: a few percent of the unit-scale input
-                        assert!((g - want).abs() <= 0.02 * want.abs() + 0.02, "table {ti} pos0 {pos0} [{tok},{h},{i}]: {g} vs {want}");
+                        assert!(
+                            (g - want).abs() <= 0.02 * want.abs() + 0.02,
+                            "table {ti} pos0 {pos0} [{tok},{h},{i}]: {g} vs {want}"
+                        );
                     }
                 }
             }
@@ -394,15 +408,14 @@ fn add_bias_matches_reference_in_place_and_at_odd_offsets() {
     let (rows, cols) = (5usize, 301usize);
     let x = rand_bf16(rows * cols, 31);
     let bias = rand_bf16(cols, 32);
-    let want: Vec<u16> = x
-        .iter()
-        .enumerate()
-        .map(|(i, v)| f32_to_bf16(bf16_to_f32(*v) + bf16_to_f32(bias[i % cols])))
-        .collect();
-    for (xo, bo, oo, in_place) in [(0usize, 0usize, 0usize, false), (2, 2, 0, false), (2, 0, 2, true), (0, 2, 0, true)] {
+    let want: Vec<u16> =
+        x.iter().enumerate().map(|(i, v)| f32_to_bf16(bf16_to_f32(*v) + bf16_to_f32(bias[i % cols]))).collect();
+    for (xo, bo, oo, in_place) in [(0usize, 0usize, 0usize, false), (2, 2, 0, false), (2, 0, 2, true), (0, 2, 0, true)]
+    {
         let xb = upload_at(&be, xo, &x);
         let bb = upload_at(&be, bo, &bias);
-        let (out, out_off) = if in_place { (xb.clone(), xo) } else { (be.alloc(oo + x.len() * 2 + 16, MemKind::Device).unwrap(), oo) };
+        let (out, out_off) =
+            if in_place { (xb.clone(), xo) } else { (be.alloc(oo + x.len() * 2 + 16, MemKind::Device).unwrap(), oo) };
         let call = OpCall::new(
             Op::AddBias,
             vec![t(&xb, xo, DType::Bf16, &[rows, cols]), t(&bb, bo, DType::Bf16, &[cols])],

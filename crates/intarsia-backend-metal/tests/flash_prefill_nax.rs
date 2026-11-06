@@ -366,7 +366,16 @@ fn registry_splits_are_bitwise_the_single_call() {
     let reg = Registry::new("metal", &r.be.info(), r.be.kernels());
     let whole = run_once(&r, &cs, ATTN_PREFILL_BF16_FLASH_NAX, scale, 0);
     check(&cs, &whole, &want, "single call");
-    for split in [vec![256, 44], vec![300], vec![150, 150], vec![100, 200], vec![253, 47], vec![288, 12], vec![298, 2], vec![7, 293]] {
+    for split in [
+        vec![256, 44],
+        vec![300],
+        vec![150, 150],
+        vec![100, 200],
+        vec![253, 47],
+        vec![288, 12],
+        vec![298, 2],
+        vec![7, 293],
+    ] {
         let out = out_buf(&r.be, &cs, 0);
         let mut t0 = 0;
         for &nt in &split {

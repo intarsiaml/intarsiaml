@@ -314,15 +314,15 @@ fn splitkv_matches_f64_reference() {
         c(1, 16, 1, 16, 600, 1024, z),                  // MQA, D = 16
         c(1, 2, 1, 8, 400, 512, z),                     // D = 8: one lane per key
         c(1, 32, 8, 128, 4000, 4096, [16, 32, 48, 16]), // 16-byte aligned, non-zero offsets
-        c(1, 32, 8, 128, 4000, 4096, [2, 0, 0, 2]),     // q / out at odd element offsets: q not 16-byte aligned, falls back
-        c(1, 32, 8, 128, 4000, 4096, [4, 0, 0, 0]),     // q 4 mod 16: falls back to the single-pass kernel (vector q loads)
-        c(1, 32, 8, 128, 4000, 4096, [16, 0, 0, 2]),    // q 16-byte aligned, out at an odd element offset (skip)
-        c(1, 16, 2, 128, 20000, 20480, z),              // 2 kv heads, 60 splits: the combine's second and later batches
-        c(1, 8, 1, 128, 30000, 30720, z),               // 1 kv head: 64 splits (the cap)
-        c(1, 32, 8, 128, 4000, 4096, [0, 2, 2, 0]),     // caches 2 mod 4: falls back to the single-pass kernel
-        c(1, 4, 2, 96, 500, 512, z),                    // D = 96: not a power of two, falls back
-        c(1, 4, 4, 30, 33, 64, [0, 2, 0, 2]),           // D = 30, MHA: falls back
-        c(1, 18, 2, 128, 500, 512, z),                  // group 9: falls back
+        c(1, 32, 8, 128, 4000, 4096, [2, 0, 0, 2]), // q / out at odd element offsets: q not 16-byte aligned, falls back
+        c(1, 32, 8, 128, 4000, 4096, [4, 0, 0, 0]), // q 4 mod 16: falls back to the single-pass kernel (vector q loads)
+        c(1, 32, 8, 128, 4000, 4096, [16, 0, 0, 2]), // q 16-byte aligned, out at an odd element offset (skip)
+        c(1, 16, 2, 128, 20000, 20480, z),          // 2 kv heads, 60 splits: the combine's second and later batches
+        c(1, 8, 1, 128, 30000, 30720, z),           // 1 kv head: 64 splits (the cap)
+        c(1, 32, 8, 128, 4000, 4096, [0, 2, 2, 0]), // caches 2 mod 4: falls back to the single-pass kernel
+        c(1, 4, 2, 96, 500, 512, z),                // D = 96: not a power of two, falls back
+        c(1, 4, 4, 30, 33, 64, [0, 2, 0, 2]),       // D = 30, MHA: falls back
+        c(1, 18, 2, 128, 500, 512, z),              // group 9: falls back
     ];
     for (i, cs) in cases.iter().enumerate() {
         run_case(cs, Op::AttnDecode, ATTN_DECODE_BF16_SPLITKV, 400 + i as u64);

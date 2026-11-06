@@ -28,7 +28,10 @@ use crate::{buffer::MetalBuffer, MetalBackend, MtlBuffer};
 use intarsia_core::backend::{Buffer, HostMemory};
 use intarsia_core::{Error, Result};
 use objc2::runtime::ProtocolObject;
-use objc2_metal::{MTLBlitCommandEncoder, MTLCommandBuffer, MTLCommandBufferStatus, MTLCommandEncoder, MTLCommandQueue, MTLBuffer, MTLDevice, MTLResourceOptions};
+use objc2_metal::{
+    MTLBlitCommandEncoder, MTLBuffer, MTLCommandBuffer, MTLCommandBufferStatus, MTLCommandEncoder, MTLCommandQueue,
+    MTLDevice, MTLResourceOptions,
+};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr::NonNull;
@@ -222,7 +225,11 @@ impl Drop for KeepWarm {
 }
 
 /// Commit a command buffer on `queue` that blits one byte out of every registered buffer (no wait); `None` when empty.
-fn keepwarm_touch(sh: &KwShared, queue: &ProtocolObject<dyn MTLCommandQueue>, scratch: &MtlBuffer) -> Option<crate::CommandBuffer> {
+fn keepwarm_touch(
+    sh: &KwShared,
+    queue: &ProtocolObject<dyn MTLCommandQueue>,
+    scratch: &MtlBuffer,
+) -> Option<crate::CommandBuffer> {
     let bufs = sh.bufs.lock().unwrap();
     if bufs.is_empty() {
         return None;
@@ -269,7 +276,9 @@ fn residency_loop(sh: Arc<KwShared>, queue: Xfer<crate::Queue>, device: Xfer<cra
                         set = Some(s);
                     }
                     Err(e) => {
-                        eprintln!("intarsia-backend-metal: keep-warm: no residency set ({e:?}), using GPU touches instead");
+                        eprintln!(
+                            "intarsia-backend-metal: keep-warm: no residency set ({e:?}), using GPU touches instead"
+                        );
                         return false;
                     }
                 }
@@ -306,7 +315,9 @@ fn keepwarm_loop(sh: Arc<KwShared>, queue: Xfer<crate::Queue>, scratch: Xfer<Mtl
         // The engine's own command buffers touch every weight; only a quiet engine (nothing committed for half a period)
         // or a newly registered file needs a touch. Never queue a second one behind one that has not run yet.
         let quiet = now_ms().saturating_sub(sh.last_commit.load(Ordering::Relaxed)) >= sh.period_ms / 2;
-        let pending = prev.as_ref().is_some_and(|c| !matches!(c.status(), MTLCommandBufferStatus::Completed | MTLCommandBufferStatus::Error));
+        let pending = prev
+            .as_ref()
+            .is_some_and(|c| !matches!(c.status(), MTLCommandBufferStatus::Completed | MTLCommandBufferStatus::Error));
         if (n != seen || quiet) && !pending {
             prev = keepwarm_touch(&sh, &queue, &scratch);
             seen = n;
@@ -355,7 +366,14 @@ impl MetalBackend {
             }
         }
         let last_commit = self.stream.lock().unwrap().last_commit.clone();
-        let shared = Arc::new(KwShared { bufs: Mutex::new(Vec::new()), stop: AtomicBool::new(false), period_ms, mode, last_commit, touches: AtomicU64::new(0) });
+        let shared = Arc::new(KwShared {
+            bufs: Mutex::new(Vec::new()),
+            stop: AtomicBool::new(false),
+            period_ms,
+            mode,
+            last_commit,
+            touches: AtomicU64::new(0),
+        });
         let sh = shared.clone();
         let thread = match mode {
             KeepMode::Blit => {
@@ -370,7 +388,10 @@ impl MetalBackend {
                         let dev = d.0.clone();
                         if !residency_loop(sh.clone(), q, Xfer(d.0)) {
                             // no residency set after all: GPU touches from a queue of this thread's own
-                            if let (Some(tq), Some(sc)) = (dev.newCommandQueue(), dev.newBufferWithLength_options(256, MTLResourceOptions::StorageModeShared)) {
+                            if let (Some(tq), Some(sc)) = (
+                                dev.newCommandQueue(),
+                                dev.newBufferWithLength_options(256, MTLResourceOptions::StorageModeShared),
+                            ) {
                                 keepwarm_loop(sh, Xfer(tq), Xfer(sc));
                             }
                         }
