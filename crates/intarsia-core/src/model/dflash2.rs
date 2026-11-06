@@ -170,11 +170,13 @@ pub(super) struct Draft2 {
     /// Candidates per block row the drafts are picked from: the selector's `top_k`, 1 (the argmax) without it. Every rank of a
     /// split draft knows it (each sends rank 0 the top candidates of its vocabulary shard).
     pub(super) cand: usize,
-    /// Lane dh item 2 (`INTARSIA_DFLASH_DEVICE_TOPK=1`, default off, a backend with `Backend::topk_rows`): each row's candidates
+    /// Lane dh item 2 (`INTARSIA_DFLASH_DEVICE_TOPK`, default on since 2026-11-06, `=0` off; only a backend with `Backend::topk_rows`,
+    /// `supports_topk()`: HIP and CUDA, and CUDA refuses DFlash2 drafts at load, so HIP is the only backend it runs on and the only one the
+    /// evidence covers; the CPU backend always takes the host path): each row's candidates
     /// taken on the device (ids i32 `[block, cand]`, values f32 `[block, cand]`, NaN flags i32 `[block]`, the kernel's scratch), so
     /// only `cand` values a row are downloaded instead of the row's logits. `None`: the host takes them from the downloaded logits.
     pub(super) topk: Option<[Buffer; 4]>,
-    /// `INTARSIA_DFLASH_DEVICE_TOPK=check`: the device top-k as `1`, and the host's from the downloaded logits as well, every
+    /// `INTARSIA_DFLASH_DEVICE_TOPK=check`: the device top-k as unset, and the host's from the downloaded logits as well, every
     /// difference printed (`dflash2 topk check`): the GPU gate that the device candidates are the host's.
     pub(super) topk_check: bool,
 }
@@ -373,7 +375,8 @@ pub(super) fn load2(
     let cand = if has_selector { c.selector_top_k.min(c.vocab) } else { 1 };
     let topk_env = std::env::var("INTARSIA_DFLASH_DEVICE_TOPK").unwrap_or_default();
     let topk_check = topk_env.trim() == "check";
-    let device_topk = (topk_env.trim() == "1" || topk_check) && b.supports_topk() && cand <= 64;
+    // On unless `=0`: the device top-k is the default where the backend has one (HIP; CPU has none and always takes the host path).
+    let device_topk = topk_env.trim() != "0" && b.supports_topk() && cand <= 64;
     let topk = if device_topk {
         let r = t.max(1);
         let mk = |bytes: usize| -> Result<Buffer> {
