@@ -55,7 +55,7 @@ trap cleanup EXIT
 # output fetched into raw/<W>/ids/
 if [[ -n ${PRE:-} ]]; then  # lane dh: any stages-<PRE>.sh
   say "pre: ids gate (arms ${IDARMS:-dfl mtp2}, ${TPS:-tp1 tp2}, cap ${PRE_CAP:-1200} s)"
-  $SSH "rm -rf ~/intarsiaml-dh/.dh/out/$W-ids; mkdir -p ~/intarsiaml-dh/.dh/out/$W-ids; IDARMS='${IDARMS:-dfl mtp2}' TPS='${TPS:-tp1 tp2}' IDNAMES='${IDNAMES:-}' VERIFY8='${VERIFY8:-0}' timeout ${PRE_CAP:-1200} bash ~/intarsiaml-dh/.dh/stages-${PRE}.sh ~/intarsiaml-dh/.dh/out/$W-ids" \
+  $SSH "rm -rf ~/intarsiaml-dh/.dh/out/$W-ids; mkdir -p ~/intarsiaml-dh/.dh/out/$W-ids; IDARMS='${IDARMS:-dfl mtp2}' TPS='${TPS:-tp1 tp2}' IDNAMES='${IDNAMES:-}' VERIFY8='${VERIFY8:-0}' ${PREENV:-} timeout ${PRE_CAP:-1200} bash ~/intarsiaml-dh/.dh/stages-${PRE}.sh ~/intarsiaml-dh/.dh/out/$W-ids" \
     < /dev/null > "$OUT/ids-pre.log" 2>&1
   say "pre: ids exit $?"
   mkdir -p "$OUT/ids"; scp -q "tatooine:intarsiaml-dh/.dh/out/$W-ids/*" "$OUT/ids/" 2>/dev/null
