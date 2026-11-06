@@ -39,6 +39,10 @@ Worktree `/opt/code/intarsiaml/.worktrees/metal-dflash2`.
   (`no kernel for matmul on metal/applegpu_g17s (m=1 n=5120 k=5120 act=Some(Bf16) w=Some(Bf16)) [admitted kernels only]`): the DFlash dry
   run planned the context ingest at block rows only. Visits 1, 3 (MTP k2) and 6 (TensorFold) are valid.
 
+- 2026-11-06 ~14:45, coordinator (by message): #324 merged as main e45bd5e3c. Rebase `lane-dm/metal-dflash2` onto origin/main and
+  rerun the phase 1 ABAB as planned. Continue the table-lookup e2m1 decode for the M-row GEMV. (Sent before my LUT result reached the
+  coordinator: the LUT form measured slower and was reverted; see phase 3. Reported back instead of continuing it.)
+
 ## Goal
 
 Close the acceptance half of the Metal gap against TensorFold (90.3 tok/s at natural-v1 4k vs our MTP k2 31.1, 0.34x;
