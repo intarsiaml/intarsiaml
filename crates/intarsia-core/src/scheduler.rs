@@ -165,15 +165,27 @@ pub trait BatchModel {
     }
     /// Trace hook: request `id` was admitted to `slot`, which now holds `cached` reused tokens. No effect on outputs.
     fn on_admit(&mut self, _slot: usize, _id: RequestId, _cached: usize) {}
+    /// Lane bm: whether [`BatchModel::verify_step`] runs (a sequence may return [`SeqStep::Verify`] only then).
+    fn batched_verify(&self) -> bool {
+        false
+    }
+    /// Lane bm: ONE verify pass over the rows of every drafting sequence, `(slot, [next, drafts...])`; per row the greedy
+    /// token of each fed position. Inner `Err`: that request fails alone; outer `Err`: fatal, as [`BatchModel::decode_step`].
+    fn verify_step(&mut self, _rows: &[(usize, Vec<u32>)]) -> Result<Vec<Result<Vec<u32>>>> {
+        Err(Error::Unsupported("batched verify".into()))
+    }
 }
 
 /// What a decoding sequence needs this iteration ([`BatchSeq::prepare`]).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SeqStep<Mode> {
     /// A plain decode row: feed `token`, run the head in `mode`, hand the row's output to [`BatchSeq::accept`].
     Plain(u32, Mode),
     /// The next token is already known (a verified speculative run): no row, go straight to [`BatchSeq::on_token`].
     Ready,
+    /// Lane bm: the sequence drafted; verify `[next, drafts...]` in the step's batched verify pass ([`BatchModel::verify_step`])
+    /// and hand the rows' greedy tokens to [`BatchSeq::accept_verify`].
+    Verify(Vec<u32>),
 }
 
 /// The per-request side of the scheduler. One value per submitted request; it streams its own tokens and sends its own
@@ -202,6 +214,15 @@ pub trait BatchSeq<M: BatchModel>: Send {
     fn prepare(&mut self, model: &mut M, slot: usize, spec_allowed: bool, busy: bool) -> Result<SeqStep<M::Mode>>;
     /// The output of this sequence's row or final chunk: becomes the next token.
     fn accept(&mut self, out: M::Out) -> Result<()>;
+    /// Lane bm: the greedy tokens of this sequence's rows of the batched verify pass (after [`SeqStep::Verify`]): accept, roll
+    /// `slot` back past the rejected rows, and make the first emitted token the next one ([`BatchSeq::on_token`]).
+    fn accept_verify(&mut self, _model: &mut M, _slot: usize, _out: Vec<u32>) -> Result<()> {
+        Err(Error::Unsupported("batched verify".into()))
+    }
+    /// Lane bm: make the next already-verified token current, if one is queued (`true`), for [`BatchSeq::on_token`].
+    fn next_ready(&mut self) -> bool {
+        false
+    }
     /// Account for the next token (stop ids / EOS, stop strings, streaming, `max_tokens`, client gone). `true`: done.
     fn on_token(&mut self) -> Result<bool>;
     /// Cancellation requested (flag set, or the client went away).
@@ -604,6 +625,10 @@ pub struct BatchMetrics {
     /// Batched decode passes; `batch_hist[b]` counts passes of `b` rows (index 0 unused).
     pub decode_steps: u64,
     pub batch_hist: [u64; MAX_BATCH_CAP + 1],
+    /// Lane bm: batched verify passes (`BatchModel::verify_step`), their rows, and `verify_hist[n]` = passes of `n` sequences.
+    pub verify_steps: u64,
+    pub verify_rows: u64,
+    pub verify_hist: [u64; MAX_BATCH_CAP + 1],
     pub prefill_chunks: u64,
     pub prefill_tokens: u64,
     /// Packed prefill passes (`pack_prefill`) and the chunks they carried; a chunk run alone counts in neither.
@@ -1133,6 +1158,8 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             let mut rows: Vec<Row<M::Mode>> = Vec::with_capacity(b);
             let mut row_of: Vec<RequestId> = Vec::with_capacity(b);
             let mut ready: Vec<RequestId> = Vec::new();
+            let mut verify: Vec<(usize, Vec<u32>)> = Vec::new();
+            let mut verify_of: Vec<RequestId> = Vec::new();
             let mut failed: Vec<(RequestId, Error)> = Vec::new();
             let prof_prepare = crate::hostprof::span(crate::hostprof::Cat::Prepare);
             for &i in &decoding {
@@ -1143,6 +1170,10 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                         row_of.push(a.id);
                     }
                     Ok(SeqStep::Ready) => ready.push(a.id),
+                    Ok(SeqStep::Verify(ids)) => {
+                        verify.push((a.slot, ids));
+                        verify_of.push(a.id);
+                    }
                     Err(e) => failed.push((a.id, e)),
                 }
             }
@@ -1152,6 +1183,43 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
                     self.fail_active(i, e);
                     if self.failed.is_some() {
                         return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
+                    }
+                }
+            }
+            if !verify.is_empty() {
+                // lane bm: the drafting sequences' verify rows as ONE pass (`BatchModel::verify_step`), then acceptance and
+                // rollback per sequence
+                let step_result = self.model.verify_step(&verify);
+                let outs = match step_result {
+                    Ok(o) if o.len() == verify.len() => o,
+                    Ok(o) => {
+                        self.fail_all(&format!("verify step returned {} sequences for {}", o.len(), verify.len()));
+                        return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
+                    }
+                    Err(e) => {
+                        self.fail_all(&e.to_string());
+                        return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
+                    }
+                };
+                stepped = true;
+                {
+                    let mut m = self.metrics.lock().unwrap();
+                    m.verify_steps += 1;
+                    m.verify_rows += verify.iter().map(|(_, v)| v.len() as u64).sum::<u64>();
+                    m.verify_hist[verify.len()] += 1;
+                }
+                for (id, out) in verify_of.iter().zip(outs) {
+                    let i = self.index_of(*id).expect("verify row of a live request");
+                    let slot = self.active[i].slot;
+                    let res = out.and_then(|o| self.active[i].seq.accept_verify(&mut self.model, slot, o));
+                    match res {
+                        Ok(()) => ready.push(*id),
+                        Err(e) => {
+                            self.fail_active(i, e);
+                            if self.failed.is_some() {
+                                return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
+                            }
+                        }
                     }
                 }
             }
@@ -1216,11 +1284,24 @@ impl<M: BatchModel, S: BatchSeq<M>> Scheduler<M, S> {
             // account the new tokens in admission order
             let now = Instant::now();
             let order: Vec<RequestId> = self.active.iter().map(|a| a.id).filter(|id| ready.contains(id)).collect();
+            let drain = self.model.batched_verify();
             for id in order {
                 let i = self.index_of(id).expect("ready request is live");
                 self.token_done(i, now);
                 if self.failed.is_some() {
                     return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
+                }
+                // lane bm: with batched verify passes a verified run goes out in the iteration it was verified, so the drafting
+                // sequences stay in phase and verify together next step (instead of one token per iteration each)
+                while drain {
+                    let Some(i) = self.index_of(id) else { break };
+                    if !self.active[i].seq.next_ready() {
+                        break;
+                    }
+                    self.token_done(i, now);
+                    if self.failed.is_some() {
+                        return DecodeOut { fatal: true, decoding: decoding.len(), stepped };
+                    }
                 }
             }
         }

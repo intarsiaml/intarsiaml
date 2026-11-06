@@ -273,6 +273,57 @@ impl Model {
         self.mtp.is_some()
     }
 
+    /// Device bytes one more sequence's drafter needs beside its KV (lane bm, batched MTP): the per-row recurrent copies of a
+    /// verify pass (`mtp_k` of them, hybrid models only) and the head's hidden-row queue. The head's own attention cache is
+    /// already part of the plan's bytes per token. 0 without the head.
+    pub fn mtp_slot_bytes(&self) -> u64 {
+        let Some(head) = &self.mtp else { return 0 };
+        let rec: u64 = self
+            .slot_specs
+            .iter()
+            .map(|s| match s {
+                SlotSpec::Recurrent { bytes } => *bytes as u64,
+                _ => 0,
+            })
+            .sum();
+        rec * self.mtp_k as u64 + (head.pending_rows * self.dims.hidden * self.act.size_bytes()) as u64
+    }
+
+    /// After a pass over several sequences (lane bm, batched MTP): queue the rows `segs[i] = (lo, len)` of `hn` (the pass's
+    /// final-normed hidden rows) for `states[i]`'s MTP head. All rows are queued before any head runs (a head pass overwrites
+    /// the workspace `hn` lives in). Then:
+    ///  * `catch_up`: every head catches up over its queued rows but the newest, as the single-sequence pass does after each
+    ///    chunk (a packed prefill);
+    ///  * otherwise the heads do not run (a batched decode step): a sequence drafts only while the batch is small, and its
+    ///    draft ([`Model::mtp_draft`]) catches the head up over all queued rows in one pass, instead of one head pass per
+    ///    sequence per batched step. A queue that is nearly full is caught up here.
+    ///
+    /// Drafts only propose, so none of this changes a token.
+    pub(super) fn mtp_after_rows(
+        &self,
+        states: &mut [&mut SequenceState],
+        hn: &TensorRef,
+        segs: &[(usize, usize)],
+        catch_up: bool,
+        profile: bool,
+    ) -> Result<()> {
+        if self.mtp.is_none() {
+            return Ok(());
+        }
+        for (st, &(lo, len)) in states.iter_mut().zip(segs) {
+            if st.mtp.is_some() {
+                self.mtp_after_forward(st, &hn.rows(lo, len), len, false, profile)?;
+            }
+        }
+        for st in states.iter_mut() {
+            // room for the next step's row (a verify pass's rows follow a draft, which empties the queue)
+            if st.mtp.as_ref().is_some_and(|m| m.active && m.synced) && (catch_up || self.mtp_queue_room(st) < 2) {
+                self.mtp_catch_up_rank(st)?;
+            }
+        }
+        Ok(())
+    }
+
     /// The drafter state a new sequence gets (`None` without the head).
     pub(super) fn new_mtp_state(&self, cap: usize) -> Result<Option<Box<MtpState>>> {
         let Some(head) = &self.mtp else { return Ok(None) };
