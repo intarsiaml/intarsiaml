@@ -136,7 +136,7 @@ pub fn build(cands: &[Vec<(f32, u32)>], anchor: u32, p: TreeParams, edge: &dyn F
     let mut t = TreeDraft::default();
     let mut heap = BinaryHeap::new();
     let mut seq = 0usize;
-    let mut push_children = |heap: &mut BinaryHeap<Front>, parent: Option<usize>, ptok: u32, pscore: f32, depth: usize, seq: &mut usize| {
+    let push_children = |heap: &mut BinaryHeap<Front>, parent: Option<usize>, ptok: u32, pscore: f32, depth: usize, seq: &mut usize| {
         let Some(row) = cands.get(depth - 1) else { return };
         if row.is_empty() {
             return;
