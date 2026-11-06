@@ -3,6 +3,7 @@
 #   fleetq run --host spark1 --quiet gpu,cpu --mem 50 --expect 60 --label "..." -- ssh spark1 'bash -s plan' < scripts/lmhead/cgates.sh      (then: ids)
 # plan: `plan show` (text, JSON) of the 27B base / head / head+off, and of the 8B and 35B base / head: 8B and 35B byte-identical, 27B head+off == base,
 #       27B base vs head differ by the head lines only (diff kept).
+# ids35: the 35B, variable unset, head vs base (short and ~3.5k prompts).
 # ids : 256 greedy ids of the 27B (default flags = MTP k2 draft head 65536 from the recipe), short and ~3.5k prompts: head run 1, head run 2 (deterministic?),
 #       head+off (== base?), base.
 set -uo pipefail
@@ -43,5 +44,16 @@ ids)
   for p in short 4k; do
     c() { cmp -s $O/gen-$1-$p.ids $O/gen-$2-$p.ids && [ -s $O/gen-$1-$p.ids ] && echo "ids $p: $1 == $2 ($(tr ',' '\n' < $O/gen-$1-$p.ids | wc -l) ids, sha $(shasum $O/gen-$1-$p.ids | cut -c1-8))" || echo "ids $p: $1 vs $2 DIFFER or empty"; }
     c head1 head2; c off base; c head1 base
+  done ;;
+ids35)
+  # 35B (NVFP4 head, no lm_head_quant in its recipe): the variable unset, head vs base must be identical.
+  ids() { local ms=8192
+    run $1 generate -m $M35 --backend cuda --mem-budget 45 --max-seq $ms --chat --no-think --temperature 0 --profile-every 0 --ignore-eos --show-ids \
+      -p "$(cat $PD/$3.txt)" --max-tokens 256 < /dev/null > $O/gen35-$2-$3.out 2> $O/gen35-$2-$3.err
+    grep -a '^ids:' $O/gen35-$2-$3.err > $O/gen35-$2-$3.ids; echo "[ids35] $2 $3: $(tr ',' '\n' < $O/gen35-$2-$3.ids | wc -l) ids $(date +%T)"
+  }
+  for p in short 4k; do ids head head $p; ids base base $p; done
+  for p in short 4k; do
+    cmp -s $O/gen35-head-$p.ids $O/gen35-base-$p.ids && [ -s $O/gen35-head-$p.ids ] && echo "ids35 $p: head == base ($(tr ',' '\n' < $O/gen35-head-$p.ids | wc -l) ids, sha $(shasum $O/gen35-head-$p.ids | cut -c1-8))" || echo "ids35 $p: head vs base DIFFER or empty"
   done ;;
 esac
