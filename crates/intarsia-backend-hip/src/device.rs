@@ -1174,6 +1174,9 @@ impl Backend for HipBackend {
                 "attn_decode_bf16_window" => {
                     ffi::ik_attn_decode_bf16_window(i(0), i(1), i(2), a.pos0 as i64, a.window as i64, a.scale, o, pos, s)
                 }
+                "attn_decode_bf16_window_splitkv" => {
+                    ffi::ik_attn_decode_bf16_window_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.window as i64, a.scale, o, sc, pos, s)
+                }
                 "dyn_conv_bf16" => ffi::ik_dyn_conv_bf16(i(0), i(1), i(2), o, s),
                 "attn_decode_bf16_splitkv" => {
                     ffi::ik_attn_decode_bf16_splitkv(i(0), i(1), i(2), a.pos0 as i64, a.scale, o, sc, pos, s)

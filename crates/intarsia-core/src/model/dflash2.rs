@@ -179,6 +179,10 @@ pub(super) struct Draft2 {
     /// `INTARSIA_DFLASH_DEVICE_TOPK=check`: the device top-k as unset, and the host's from the downloaded logits as well, every
     /// difference printed (`dflash2 topk check`): the GPU gate that the device candidates are the host's.
     pub(super) topk_check: bool,
+    /// Lane dw (`INTARSIA_DFLASH_WIN_SPLIT=1`, default off): the block's attention calls set `OpAttrs::win_split`, so a backend with a split-KV
+    /// kernel for the sliding window (HIP `attn_decode_bf16_window_splitkv`) takes them; the other backends ignore it. Only this draft's
+    /// attention can differ in bits; the target's attention never sets it.
+    pub(super) win_split: bool,
 }
 
 /// The `[2*K*G, H]` kernel projection split into its two branches (rows `0..K*G` and `K*G..2*K*G`), each its own buffer.
@@ -387,10 +391,12 @@ pub(super) fn load2(
     } else {
         None
     };
+    let win_split = std::env::var("INTARSIA_DFLASH_WIN_SPLIT").is_ok_and(|v| v.trim() == "1");
     Ok(Draft2 {
         cand,
         topk,
         topk_check,
+        win_split,
         selector,
         sel_out,
         layers,
@@ -532,6 +538,7 @@ impl Model {
                     head_dim: hd,
                     kv_cap: slot.cap,
                     window: win,
+                    win_split: d2.win_split,
                     ..Default::default()
                 };
                 self.exec(Op::AttnDecode, vec![q3(0).rows(r, 1), kc.clone(), vc.clone()], vec![ao.rows(r, 1)], attrs, profile)?;

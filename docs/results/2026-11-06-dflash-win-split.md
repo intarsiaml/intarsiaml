@@ -13,6 +13,10 @@ Tatooine: lane dh's tree `~/intarsiaml-dh` and volume `intarsia-cargo-dh` only. 
   `attn_decode_bf16_window` is also the Gemma sliding-layer kernel (`model.rs:1308`), so it is left exactly as it is; the draft gets a separate kernel
   behind a separate attribute.
 * Ship as opt-in behind `INTARSIA_DFLASH_WIN_SPLIT=1`; a default flip is the user's call (numbers only).
+* Coordinator, mid-task: lane dm opens a small PR changing `dflash_dry_run` (`crates/intarsia-core/src/model/dflash.rs`) to record context
+  ingest at every M from 1 to 8 (a Metal serve fix). This lane does not edit that function (its changes: `ops.rs`, `model/dflash2.rs`,
+  `admission.rs`, the HIP backend, one new kernel file, `docs/tuning.md`), so the hunks stay separate. Merge `origin/main` into the branch once that
+  PR lands, and note it here.
 * Standing approval to take radiance down via fleetq `--takes-down radiance`, windows <= 35 min.
 
 ## What changes (design, written before measuring)
