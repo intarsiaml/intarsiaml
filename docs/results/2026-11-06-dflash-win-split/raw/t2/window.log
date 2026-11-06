@@ -1,0 +1,54 @@
+[window] job 8864 t2; stopping radiance 2026-11-06 14:50:29
+[window] radiance stopped 2026-11-06 14:50:32
+14:50:37 plan-base-off exit 0: 
+14:50:42 plantext-base-off exit 0: 
+14:50:47 plan-base-mtp2 exit 0: --spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+14:50:52 plantext-base-mtp2 exit 0: --spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+14:51:03 plan-base-35off exit 0: 
+14:51:08 plantext-base-35off exit 0: 
+14:51:10 plan-base-35mtp2 exit 1: Error: loading /models/intarsia/Qwen3.6-35B-A3B-NVFP4 with tp=2|    unsupported: --spec mtp under tensor parallelism with an MoE head (its experts are not sharded)|
+14:51:12 plantext-base-35mtp2 exit 1: Error: loading /models/intarsia/Qwen3.6-35B-A3B-NVFP4 with tp=2|    unsupported: --spec mtp under tensor parallelism with an MoE head (its experts are not sharded)|
+14:51:18 plan-base-8off exit 0: 
+14:51:19 plantext-base-8off exit 0: 
+14:51:24 plan-dev-off exit 0: 
+14:51:29 plantext-dev-off exit 0: 
+14:51:34 plan-dev-mtp2 exit 0: --spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+14:51:40 plantext-dev-mtp2 exit 0: --spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+14:51:48 plan-dev-35off exit 0: 
+14:51:52 plantext-dev-35off exit 0: 
+14:51:55 plan-dev-35mtp2 exit 1: Error: loading /models/intarsia/Qwen3.6-35B-A3B-NVFP4 with tp=2|    unsupported: --spec mtp under tensor parallelism with an MoE head (its experts are not sharded)|
+14:51:57 plantext-dev-35mtp2 exit 1: Error: loading /models/intarsia/Qwen3.6-35B-A3B-NVFP4 with tp=2|    unsupported: --spec mtp under tensor parallelism with an MoE head (its experts are not sharded)|
+14:51:59 plan-dev-8off exit 0: 
+14:52:01 plantext-dev-8off exit 0: 
+14:52:01 SAME plan json off, knobs unset (plan-base-off.out == plan-dev-off.out)
+14:52:01 SAME plan text off, knobs unset (plantext-base-off.out == plantext-dev-off.out)
+14:52:01 SAME plan json mtp2, knobs unset (plan-base-mtp2.out == plan-dev-mtp2.out)
+14:52:01 SAME plan text mtp2, knobs unset (plantext-base-mtp2.out == plantext-dev-mtp2.out)
+14:52:01 SAME plan json 35off, knobs unset (plan-base-35off.out == plan-dev-35off.out)
+14:52:01 SAME plan text 35off, knobs unset (plantext-base-35off.out == plantext-dev-35off.out)
+14:52:01 SAME plan json 35mtp2, knobs unset (plan-base-35mtp2.out == plan-dev-35mtp2.out)
+14:52:01 SAME plan text 35mtp2, knobs unset (plantext-base-35mtp2.out == plantext-dev-35mtp2.out)
+14:52:01 SAME plan json 8off, knobs unset (plan-base-8off.out == plan-dev-8off.out)
+14:52:01 SAME plan text 8off, knobs unset (plantext-base-8off.out == plantext-dev-8off.out)
+14:52:07 plan-dev-dfl7 exit 0: --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_del|
+14:52:13 plantext-dev-dfl7 exit 0: --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_del|
+14:52:19 plan-dev-dfl7-on exit 0 [INTARSIA_DFLASH_TP=1 INTARSIA_DFLASH_WIN_SPLIT=1]: --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_del|
+14:52:24 plantext-dev-dfl7-on exit 0 [INTARSIA_DFLASH_TP=1 INTARSIA_DFLASH_WIN_SPLIT=1]: --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_del|
+14:52:32 plan-dev-dfl7-off exit 0 [INTARSIA_DFLASH_TP=0 INTARSIA_DFLASH_WIN_SPLIT=0]: --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_del|
+14:52:39 plantext-dev-dfl7-off exit 0 [INTARSIA_DFLASH_TP=0 INTARSIA_DFLASH_WIN_SPLIT=0]: --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_del|
+14:52:39 SAME plan json dfl7 4096: unset == both =1 (plan-dev-dfl7.out == plan-dev-dfl7-on.out)
+14:52:39 SAME plan text dfl7 4096: unset == both =1 (plantext-dev-dfl7.out == plantext-dev-dfl7-on.out)
+14:52:39 DIFF plan json dfl7 4096: unset vs both =0 (expected DIFF) (plan-dev-dfl7.out != plan-dev-dfl7-off.out)
+14:52:45 plantext-dev-dfl7-20k exit 0: --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_del|
+14:52:51 plantext-dev-dfl7-on-20k exit 0 [INTARSIA_DFLASH_TP=1 INTARSIA_DFLASH_WIN_SPLIT=1]: --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_del|
+14:52:58 plantext-dev-dfl7-off-20k exit 0 [INTARSIA_DFLASH_TP=0 INTARSIA_DFLASH_WIN_SPLIT=0]: --spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)|speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_del|
+14:52:58 SAME plan text dfl7 20480: unset == both =1 (plantext-dev-dfl7-20k.out == plantext-dev-dfl7-on-20k.out)
+14:52:58 plan lists the new kernel (20480): unset 1 both=1 1 both=0 0
+14:53:07 gen-short-0-off exit 0 [INTARSIA_SPEC_TRACE=1]: finish=length prompt=41 (cached 0) completion=256 | prefill 83 ms (494.1 tok/s) | decode 4333 ms (58.84 tok/s)|
+14:53:16 gen-short-0-unset exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 293 drafted 2 accepted 2 emits 3|spec: mtp draft 7.517 ms, verify + rollback 19.726 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 86 ms (476.0 tok/s) | decode 2241 ms (113.77 tok/s)|spec: verify passes=70 proposed=482 accepted=183 (acceptance 38.0%, 3.61 tokens per pass)|
+14:53:16 PASS ids unset tp2 short-0
+14:53:16 unset trace: dflash2 total 7.47 ms n=66 | finish=length prompt=41 (cached 0) completion=256 | prefill 86 ms (476.0 tok/s) | decode 2241 ms (113.77 tok/s)
+14:53:16 t2 done
+[window] stages done 2026-11-06 14:53:16 (exit 0)
+[window] starting radiance 2026-11-06 14:53:16
+[window] radiance answers 2026-11-06 14:53:41 (after 30 s)

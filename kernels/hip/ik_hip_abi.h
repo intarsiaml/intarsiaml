@@ -126,6 +126,11 @@ int ik_attn_decode_bf16_splitkv_rows(const ik_tensor* q, const ik_tensor* kc0, c
 int ik_dyn_conv_bf16(const ik_tensor* x, const ik_tensor* k, const ik_tensor* base, ik_tensor* out, void* stream);
 int ik_attn_decode_bf16_window(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, int64_t window, float scale,
                                ik_tensor* out, const ik_tensor* pos, void* stream);
+/* Lane dw (kernels/hip/attention_win_splitkv.hip): ik_attn_decode_bf16_window with the key range split over blocks (split-KV, two stages, scratch as
+ * ik_attn_decode_bf16_splitkv with one row: float acc[N][nsplit][D] + float2 ml[N][nsplit], nsplit <= 64). T == 1, D in {32, 64, 128, 256}, q heads per
+ * kv head <= 8, 16-byte aligned caches. Not bitwise ik_attn_decode_bf16_window. Registered `.ext()` for calls with OpAttrs::win_split only. */
+int ik_attn_decode_bf16_window_splitkv(const ik_tensor* q, const ik_tensor* kc, const ik_tensor* vc, int64_t pos0, int64_t window, float scale,
+                                       ik_tensor* out, const ik_scratch* scratch, const ik_tensor* pos, void* stream);
 
 /* Row-exact multi-row twins of the decode kernels (lane hb, hybrid continuous batching on HIP, docs/results/2026-10-23-hb-hip-hybrid-batching.md):
  * row m (token t of the MoE) of an M-row call is BITWISE the one-row kernel on row m alone, for every M from 1 to 16

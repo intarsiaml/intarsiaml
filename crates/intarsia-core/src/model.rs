@@ -185,7 +185,8 @@ pub struct LoadOptions {
     pub dflash: Option<DflashLoad>,
     /// Lane dh: split a DFlash2 draft over the tensor-parallel ranks (heads and ffn columns, the drafts' logits on each rank's
     /// vocabulary shard, top candidates merged on rank 0) instead of running it whole on rank 0. `None` =
-    /// `INTARSIA_DFLASH_TP` (`1` on; unset or anything else off, the default). In-process ranks only; nothing changes at tp=1.
+    /// `INTARSIA_DFLASH_TP` (unset = on, the default since 2026-11-06; `=0` off). In-process ranks only; nothing changes at tp=1. Left
+    /// unset, a draft whose kv heads or ffn do not divide by the world stays whole on rank 0; `Some(true)` / `=1` ask for the split and refuse it.
     pub dflash_tp: Option<bool>,
     /// Macro prefill pass size in rows (see [`Model::macro_rows`]): `None` = `INTARSIA_PREFILL_MACRO` (unset = off); `Some(0)` off.
     pub prefill_macro: Option<usize>,
@@ -1444,10 +1445,18 @@ impl Model {
             None
         };
         // the DFlash drafter (`--spec dflash`): read only when asked for
-        // lane dh: the DFlash2 draft split over in-process tensor-parallel ranks (`INTARSIA_DFLASH_TP=1`, default off)
+        // lane dh: the DFlash2 draft split over in-process tensor-parallel ranks (`INTARSIA_DFLASH_TP`, on unless `=0`; `=1` also forces it,
+        // so a draft that cannot be split then fails to load instead of staying whole on rank 0)
         let dflash_tp = tp.world > 1
             && opts.dflash.as_ref().is_some_and(|d| d.config.v2)
-            && opts.dflash_tp.unwrap_or_else(|| std::env::var("INTARSIA_DFLASH_TP").is_ok_and(|v| v.trim() == "1"));
+            && match opts.dflash_tp {
+                Some(on) => on,
+                None => match std::env::var("INTARSIA_DFLASH_TP").map(|v| v.trim().to_string()).as_deref() {
+                    Ok("0") => false,
+                    Ok("1") => true,
+                    _ => opts.dflash.as_ref().is_some_and(|d| d.config.n_kv_heads % tp.world == 0 && d.config.intermediate % tp.world == 0),
+                },
+            };
         let dflash_head = match &opts.dflash {
             // tensor parallelism (lane dfh): the drafter lives on rank 0 alone (the taps are the residual stream, which every rank
             // holds whole after its all-reduce); with a vocab-parallel head rank 0 also keeps a whole copy of the head for the

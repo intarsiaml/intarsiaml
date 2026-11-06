@@ -1,0 +1,45 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1236:4
+     |
+1236 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.05s
+     Running tests/win_splitkv.rs (/target/release/deps/win_splitkv-4a3e6fee2f005c39)
+
+running 1 test
+WSBENCH N=32 Nkv=8 D=128 pos0=4102 window=2054 attn_decode_bf16_window: 93.8 us a call
+WSBENCH N=32 Nkv=8 D=128 pos0=4102 window=2054 attn_decode_bf16_window_splitkv: 22.7 us a call
+WSBENCH N=32 Nkv=8 D=128 pos0=4102 window=2048 attn_decode_bf16_window: 90.9 us a call
+WSBENCH N=32 Nkv=8 D=128 pos0=4102 window=2048 attn_decode_bf16_window_splitkv: 23.2 us a call
+WSBENCH N=32 Nkv=8 D=128 pos0=2500 window=2054 attn_decode_bf16_window: 93.5 us a call
+WSBENCH N=32 Nkv=8 D=128 pos0=2500 window=2054 attn_decode_bf16_window_splitkv: 22.8 us a call
+WSBENCH N=16 Nkv=4 D=128 pos0=4102 window=2054 attn_decode_bf16_window: 93.8 us a call
+WSBENCH N=16 Nkv=4 D=128 pos0=4102 window=2054 attn_decode_bf16_window_splitkv: 20.7 us a call
+WSBENCH N=16 Nkv=4 D=128 pos0=4102 window=2048 attn_decode_bf16_window: 91.0 us a call
+WSBENCH N=16 Nkv=4 D=128 pos0=4102 window=2048 attn_decode_bf16_window_splitkv: 16.4 us a call
+WSBENCH N=16 Nkv=4 D=128 pos0=2500 window=2054 attn_decode_bf16_window: 93.6 us a call
+WSBENCH N=16 Nkv=4 D=128 pos0=2500 window=2054 attn_decode_bf16_window_splitkv: 20.7 us a call
+test window_splitkv_bench ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 1.92s
+
