@@ -45,6 +45,27 @@ impl TreeDraft {
     pub fn is_chain(&self) -> bool {
         self.parent.iter().enumerate().all(|(i, p)| *p == i.checked_sub(1))
     }
+    /// The same tree in depth-first preorder (children in their current order). A verify pass walks its rows in this order so the
+    /// attention cache rows `len0 + 1 ..= len0 + depth` always hold the current row's ancestors (each row writes its own K / V at
+    /// `len0 + depth` just before its attention call, overwriting only nodes whose subtree is finished).
+    pub fn preorder(&self) -> TreeDraft {
+        let mut order = Vec::with_capacity(self.len());
+        let mut stack: Vec<usize> = (0..self.len()).rev().filter(|&i| self.parent[i].is_none()).collect();
+        while let Some(i) = stack.pop() {
+            order.push(i);
+            stack.extend((0..self.len()).rev().filter(|&j| self.parent[j] == Some(i)));
+        }
+        let mut new_of = vec![0usize; self.len()];
+        for (n, &o) in order.iter().enumerate() {
+            new_of[o] = n;
+        }
+        TreeDraft {
+            tokens: order.iter().map(|&o| self.tokens[o]).collect(),
+            parent: order.iter().map(|&o| self.parent[o].map(|p| new_of[p])).collect(),
+            depth: order.iter().map(|&o| self.depth[o]).collect(),
+            score: order.iter().map(|&o| self.score[o]).collect(),
+        }
+    }
     /// Greedy acceptance against the verify rows' tokens: `target[0]` is the target's token after the anchor, `target[1 + i]` the
     /// target's token after node `i`. Returns the accepted node path (possibly empty) and the emitted tokens (accepted drafts + the
     /// bonus token of the last accepted row), as the chain's `spec::accept` does.
@@ -199,6 +220,31 @@ mod tests {
             let best = row.iter().copied().max_by(|x, y| (x.0 + edge(prev, d + 1, x.1)).total_cmp(&(y.0 + edge(prev, d + 1, y.1)))).unwrap();
             assert_eq!(t.tokens[d], best.1);
             prev = best.1;
+        }
+    }
+
+    #[test]
+    fn preorder_keeps_the_tree_and_puts_each_subtree_together() {
+        for seed in 1..30u64 {
+            let c = rows(7, 8, seed);
+            let edge = |a: u32, d: usize, b: u32| (((a * 7 + b * 3 + d as u32) % 11) as f32 - 5.0) / 3.0;
+            let t = build(&c, 1, TreeParams { budget: 15, children: 4, edge_w: 1.0, tau: 1.0 }, &edge);
+            let p = t.preorder();
+            assert_eq!(p.len(), t.len());
+            // same set of root-to-node token paths
+            let paths = |x: &TreeDraft| {
+                let mut v: Vec<Vec<u32>> = (0..x.len()).map(|i| x.path(i).iter().map(|&j| x.tokens[j]).collect()).collect();
+                v.sort();
+                v
+            };
+            assert_eq!(paths(&t), paths(&p));
+            // DFS invariant: when row i is visited, the rows still "open" at depths 1..depth(i)-1 are exactly its ancestors
+            let mut open: Vec<usize> = Vec::new();
+            for i in 0..p.len() {
+                open.truncate(p.depth[i] - 1);
+                assert_eq!(open, p.path(i)[..p.depth[i] - 1].to_vec(), "seed {seed} row {i}");
+                open.push(i);
+            }
         }
     }
 

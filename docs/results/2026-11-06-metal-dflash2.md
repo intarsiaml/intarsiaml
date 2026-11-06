@@ -128,12 +128,15 @@ round that is ~22 tok/s, below MTP k2 (50.6 short with LOGITS_ROWS). So:
 Every row's computation must be bitwise the one-row decode of its own path. Per op family:
 
 * **Row-wise ops** (projections, norms, MLP, head, argmax): unchanged; a row's result depends only on its own input row.
-* **Rope / KV append**: per-row positions (`OpCall::pos` per token already exists for verify rows); a row's K/V are written to the
-  cache slot `len0 + i` (its row index), not its position.
-* **Full attention** (16 of 64 layers): the verify already runs one decode call per row. Tree form: a decode call whose keys are the
-  context `0 .. len0` followed by the row's ancestor rows (cache slots of its path, in depth order) and itself: an index list per row.
-  New Metal kernel `attn_decode_bf16_path` (the split-KV decode with key index `j < len0 -> j`, `j >= len0 -> slot[path[j - len0]]`),
-  tested bitwise against the plain decode over a cache holding the path's keys contiguously (as the window kernel test does).
+* **Row order**: the rows are the tree in depth-first preorder (`TreeDraft::preorder`): parents before children and each subtree
+  contiguous.
+* **Rope**: per-row positions `len0 + depth(r)` (a position table, as the captured verify pass already passes one).
+* **KV append + full attention** (16 of 64 layers; the verify already runs one decode call per row): no batched append. Row r, in
+  preorder, appends its own K / V at slot `len0 + depth(r)` and then runs the plain one-row decode at that position. Preorder guarantees
+  slots `len0 .. len0 + depth(r) - 1` hold exactly r's path at that moment (a slot is overwritten only after the subtree that used it is
+  finished), so every row is bitwise the plain decode of its own path with **existing kernels** (no path / mask kernel). The fused
+  prologue (qk-norm + rope + append) is not used in a tree pass (it appends all rows at once); the unfused ops are bitwise the same.
+  The pass keeps each attention layer's roped K and V rows (one copy per layer into a side buffer) for the commit.
 * **GatedDeltaNet** (48 layers): the verify runs the conv and the delta rule one row at a time and saves the state after each row
   (`SpecRows`). Tree form: row i starts from its parent's saved state instead of the live state. Implemented as: before row i, copy
   snapshot[parent(i)] (or the pre-pass state for the anchor's children... the anchor row itself starts from the live state) into the
@@ -143,13 +146,12 @@ Every row's computation must be bitwise the one-row decode of its own path. Per 
 * **Acceptance**: walk from the anchor: target token of the current row; the child whose token equals it is the next row; stop when
   none does. Emits the path's target tokens (as the chain does).
 * **Commit**: recurrent state = snapshot of the last accepted row (as `spec_rollback` copies saved row m - 1 today, by node index);
-  full-attention KV: move the accepted path's rows from slots `len0 + i` to `len0 + depth` (a few rows x 16 layers x 2 KiB, a gather
-  copy); the DFlash2 context ingest and the tap staging take the accepted rows only (the same gather on the taps' staging rows).
+  full-attention KV: re-append the accepted path's rows from the side buffer at `len0 + depth` (one-row `KvAppend`s, 16 layers); the DFlash2 context ingest and the tap staging take the accepted rows only (the same gather on the taps' staging rows).
 * MTP is unaffected (`--spec dflash` only); `--spec off` / `mtp` never build a tree.
 
 ### Gates for phase 2
 
-* Unit: tree builder (host) property tests (parents before children, budget, chain when the tree degenerates); path attention bitwise
+* Unit: tree builder (host) property tests (parents before children, budget, chain when the tree degenerates, preorder invariant); no new attention kernel
   test; tree GDN: a tree verify's row logits bitwise equal the sequential decode of each row's path (CPU backend and Metal, small model).
 * End to end: greedy ids == `--spec off` (short-0, 4k-1, 16k), `plan show` / `kernels test` no-op for the other models and spec modes.
 * Speed rule (pre-registered before the ABAB): tree at R rows vs chain at R - 1 drafts, same binary: tokens a pass >= +8 % and tok/s
