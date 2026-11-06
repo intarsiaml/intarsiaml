@@ -1,0 +1,6 @@
+plan show json: branch == main d40d93896 (byte-identical)
+plan show notes differ:
+3c3
+< mtp: drafter head 'mtp' loaded in 1.1 s (routed experts quantised to nvfp4)
+---
+> mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)

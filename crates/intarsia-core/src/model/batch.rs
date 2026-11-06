@@ -162,14 +162,17 @@ impl Model {
         // slot is created (`Model::new_state`). The plan's workspace already holds one sequence's worth of them; the other
         // `max_rows - 1` come out of the KV budget.
         let per_state = self.recurrent_bytes_per_state() * (1 + self.batch_snapshots() as u64);
-        let rec_extra = (max_rows as u64 - 1) * per_state;
+        // lane bm (batched MTP): each slot also holds its drafter's verify-row copies and hidden-row queue (`Model::new_state`)
+        let mtp_state = self.mtp_slot_bytes();
+        let rec_extra = (max_rows as u64 - 1) * (per_state + mtp_state);
         if rec_extra > 0 {
             self.plan.workspace_bytes += rec_extra;
             self.plan.notes.push(format!(
-                "{} MiB of the KV budget reserved for the recurrent state of {max_rows} batched sequences (live + {} snapshots each, {} MiB per sequence)",
+                "{} MiB of the KV budget reserved for the recurrent state of {max_rows} batched sequences (live + {} snapshots each, {} MiB per sequence{})",
                 rec_extra >> 20,
                 self.batch_snapshots(),
-                per_state >> 20
+                per_state >> 20,
+                if mtp_state > 0 { format!(", + {} MiB of MTP drafter state", mtp_state >> 20) } else { String::new() }
             ));
         }
         // the vocab-parallel batched head's gather tile (every rank) comes out of the KV budget too
@@ -212,7 +215,7 @@ impl Model {
         if self.tp.rank == 0
             && self.topk.is_none()
             && self.backend.supports_topk()
-            && std::env::var("INTARSIA_DEVICE_SAMPLING").is_ok_and(|v| v == "1")
+            && std::env::var("INTARSIA_DEVICE_SAMPLING").ok().as_deref().map_or(true, device_sampling_switch)
         {
             let m = Self::BATCH_MAX_ROWS;
             self.topk = Some(TopkBufs {
@@ -391,8 +394,16 @@ impl Model {
         let out = self.batch_outputs(tok, modes)?;
         for (st, &id) in states.iter_mut().zip(ids) {
             st.commit_decode(&[id]);
+            // a plain pass ends the window in which the last verify pass's rows could be rolled back to (as `forward` does)
+            st.spec_rows.saved = 0;
         }
         self.telemetry.step();
+        if self.mtp.is_some() {
+            // lane bm (batched MTP): the eager and the captured step both leave the final-normed hidden rows in ws.n
+            let hn = self.view(&self.ws.n, self.act, &[b, self.dims.hidden]);
+            let segs: Vec<(usize, usize)> = (0..b).map(|r| (r, 1)).collect();
+            self.mtp_after_rows(states, &hn, &segs, false, false)?;
+        }
         Ok(out)
     }
 
@@ -1143,6 +1154,7 @@ impl Model {
             coll_trace: super::coll_trace::CollTrace::new(false),
             token_feedback: std::sync::atomic::AtomicBool::new(false),
             spec_pipe: std::sync::atomic::AtomicU8::new(0),
+            spec_sampled: std::sync::atomic::AtomicU8::new(0),
             feedback_hold: self.feedback_hold,
             tail_merge: 0,
             prefill_peel: self.prefill_peel,
@@ -1229,8 +1241,22 @@ fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
     Ok(())
 }
 
+/// `INTARSIA_DEVICE_SAMPLING`: device-side top-k sampling is on unless the variable is `0`.
+fn device_sampling_switch(v: &str) -> bool {
+    v != "0"
+}
+
 #[cfg(test)]
 mod hip_guard_tests {
+    use super::device_sampling_switch;
+
+    #[test]
+    fn device_sampling_is_on_unless_set_to_zero() {
+        // unset takes `map_or(true, ..)` at the call site
+        assert!(device_sampling_switch("1") && device_sampling_switch(""));
+        assert!(!device_sampling_switch("0"));
+    }
+
     use super::hip_batch_needs_hybrid;
 
     #[test]

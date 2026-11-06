@@ -352,7 +352,25 @@ struct SpecOpts {
     round_ms: [f64; ROUND_MS.len()],
     /// `INTARSIA_DSV41_SPEC_DRAFT_MS`: a round's ms outside its forward pass ([`DRAFT_MS`]).
     draft_ms: f64,
+    /// `INTARSIA_DSV41_SPEC_SAMPLED` (default on since 2026-11-05, user decision; `0` = greedy requests only, as before): speculate for sampled
+    /// (temperature > 0) and constrained requests too. The verify rows
+    /// then come back as logits (`Row::Logits`) and the consumer loop draws from each, accepting the draft iff the draw equals it.
+    sampled: bool,
+    /// `INTARSIA_DSV41_SPEC_RETENTION` ([`RETENTION`]): the share of the confidence head's (greedy) survival that holds for a sampled or
+    /// constrained request, whose draft is accepted with the probability the target gives it, not with certainty. [`choose_k`] scales
+    /// each position's survival by it; 1.0 for greedy requests.
+    retention: f64,
 }
+
+/// `INTARSIA_DSV41_SPEC_SAMPLED`: on unless it is `0`.
+fn spec_sampled_on(v: Option<&str>) -> bool {
+    v != Some("0")
+}
+
+/// Default of `INTARSIA_DSV41_SPEC_RETENTION`: the share of a draft's greedy acceptance that survives sampling at temperature 0.7 to 1.0.
+/// Measured 1.0 (docs/results/2026-11-05-dsv41-sampled-spec.md): the draft is accepted as often under sampling as under argmax (68 / 76 / 88 / 95 %
+/// by position at T 0.7 against 67 / 73 / 81 / 84 % greedy), and 0.8 was not faster than 1.0 (51.5 against 51.9 and 52.3 tok/s).
+const RETENTION: f64 = 1.0;
 
 /// Measured at TP=2 on the shipped binary (docs/results/2026-11-02-dsv41-decode2.md, window 2, `INTARSIA_DSV41_SPEC_TRACE=1`): the
 /// median whole-pass ms on rank 0 of a pass of 1 .. 4 rows over the 32 requests of the category set (1300 rounds or more each
@@ -366,12 +384,17 @@ const DRAFT_MS: f64 = 5.5;
 
 /// TensorFold's `chooseK` (`draft.zig`): the k in `0..=kmax` with the most expected tokens a millisecond. Expected tokens are
 /// 1 plus the sum of the prefix survivals, a survival being the product of the sigmoids of the confidences so far; the cost
-/// is `round_ms[k] + draft_ms` (`round_ms[k]`: a pass of `k + 1` rows). The first best wins.
-fn choose_k(conf: &[f32], kmax: usize, round_ms: &[f64], draft_ms: f64) -> usize {
+/// is `round_ms[k] + draft_ms` (`round_ms[k]`: a pass of `k + 1` rows). The first best wins. `retention` (1.0 for a greedy request) scales
+/// each position's survival: a sampled draft is accepted with the probability the target gives it, which is below the greedy
+/// confidence the head learned.
+fn choose_k(conf: &[f32], kmax: usize, round_ms: &[f64], draft_ms: f64, retention: f64) -> usize {
     let (mut best, mut best_v, mut surv, mut tokens) = (0, -1.0f64, 1.0f64, 1.0f64);
     for k in 0..=kmax.min(conf.len()).min(round_ms.len().saturating_sub(1)) {
         if k > 0 {
             surv /= 1.0 + (-(conf[k - 1] as f64)).exp();
+            if retention != 1.0 {
+                surv *= retention;
+            }
             tokens += surv;
         }
         let v = tokens / (round_ms[k] + draft_ms);
@@ -380,6 +403,17 @@ fn choose_k(conf: &[f32], kmax: usize, round_ms: &[f64], draft_ms: f64) -> usize
         }
     }
     best
+}
+
+/// Softmax of `logits` at `temperature` (greedy: 1 for the argmax), at `tok`: what a verify row accepts the draft `tok` with.
+fn target_prob(logits: &[f32], tok: usize, temperature: f32) -> f32 {
+    if temperature <= 0.0 {
+        return (intarsia_core::sampler::argmax(logits) == tok) as u8 as f32;
+    }
+    let t = temperature as f64;
+    let max = logits.iter().copied().fold(f32::NEG_INFINITY, f32::max) as f64;
+    let z: f64 = logits.iter().map(|&l| ((l as f64 - max) / t).exp()).sum();
+    (((logits[tok] as f64 - max) / t).exp() / z) as f32
 }
 
 #[derive(Default)]
@@ -402,6 +436,9 @@ struct SpecStats {
     pass_ms: f64,
     round_start: Option<Instant>,
     period_ms: f64,
+    /// `INTARSIA_DSV41_SPEC_TRACE=1` on a sampled or constrained request: the probability the target gave each draft checked this
+    /// round (softmax of the masked logits at the request's temperature; top-k / top-p not applied).
+    pd: Vec<f32>,
 }
 
 impl SpecStats {
@@ -426,16 +463,18 @@ impl SpecStats {
             self.period_ms = self.round_start.map_or(0.0, |t| t.elapsed().as_secs_f64() * 1e3);
             let c: Vec<String> = self.conf.iter().map(|v| format!("{v:.3}")).collect();
             eprintln!(
-                "dsv41: spec round k={} conf={} ok={} draft_ms={:.2} pass_ms={:.2} period_ms={:.2}",
+                "dsv41: spec round k={} conf={} ok={} pd={} draft_ms={:.2} pass_ms={:.2} period_ms={:.2}",
                 self.conf.len(),
                 c.join(","),
                 self.round_ok,
+                self.pd.iter().map(|v| format!("{v:.3}")).collect::<Vec<_>>().join(","),
                 self.draft_ms,
                 self.pass_ms,
                 self.period_ms
             );
         }
         self.conf.clear();
+        self.pd.clear();
         self.pos = 0;
         self.round_ok = 0;
         self.traced = false;
@@ -693,7 +732,7 @@ impl Worker {
             let t1 = Instant::now();
             stats.draft_ms = t1.duration_since(t0).as_secs_f64() * 1e3;
             let mut k = if sp.choose {
-                choose_k(&d.confidence, sp.k, &sp.round_ms, sp.draft_ms)
+                choose_k(&d.confidence, sp.k, &sp.round_ms, sp.draft_ms, sp.retention)
             } else {
                 d.confidence.iter().take(sp.k).take_while(|&&c| c >= sp.min_conf).count().max(1).min(sp.k)
             };
@@ -833,7 +872,11 @@ impl Worker {
         let cached = keep;
         // speculative decoding: greedy requests without a grammar or a logits trace (the accepted tokens are the target's
         // argmax, so the reply is the target model's own greedy reply, up to verify-row numerics)
-        let spec = self.spec.filter(|_| req.temperature <= 0.0 && req.constraint.is_none() && req.trace_logits.is_none());
+        // (INTARSIA_DSV41_SPEC_SAMPLED=1: sampled and constrained requests too, see `spec_logits`)
+        let plain_greedy = req.temperature <= 0.0 && req.constraint.is_none();
+        let spec = self.spec.filter(|s| req.trace_logits.is_none() && (plain_greedy || s.sampled)).map(|s| SpecOpts { retention: if plain_greedy { 1.0 } else { s.retention }, ..s });
+        // a request whose draws or masks read the verify rows' logits: the device argmax of a row would be the wrong token
+        let spec_logits = !plain_greedy;
         let mut stats = SpecStats::default();
         let Some(first) = self.prefill(&req.prompt[keep..], req.cancel.as_deref())? else {
             self.finish_cancelled(&req, &tx, cached, t0);
@@ -879,6 +922,9 @@ impl Worker {
                 if !c.compute_mask()?.apply(&mut logits) {
                     return Err(Error::Other("structured output: the constraint allows no token here".into()));
                 }
+            }
+            if let (Some(_), Some(d)) = (spec.filter(|s| s.trace), expect) {
+                stats.pd.push(target_prob(&logits, d as usize, req.temperature));
             }
             if req.temperature <= 0.0 { intarsia_core::sampler::argmax(&logits) as u32 } else { sampler.sample(&logits) as u32 }
               }
@@ -932,8 +978,9 @@ impl Worker {
             }
             if !in_seq {
                 // device argmax unless something reads the logits of the rows to come: the min_tokens mask (applies while `n` is
-                // below it; a row consumed later sees a larger `n`), a constraint or a logits trace (neither speculates)
-                rows = self.next_rows(tok, spec, &mut stats, n < req.min_tokens)?;
+                // below it; a row consumed later sees a larger `n`), a sampled or constrained request (`spec_logits`: it draws from the rows)
+                // or a logits trace (which never speculates)
+                rows = self.next_rows(tok, spec, &mut stats, spec_logits || n < req.min_tokens)?;
             }
         }
         // drafts past the reply's end stay out of the sequence (the next request's prefix match sees the reply only)
@@ -1073,7 +1120,12 @@ impl Dsv41Engine {
             if choose {
                 eprintln!("dsv41: speculative decoding: k per round from the confidence head, pass ms {round_ms:?}, round overhead {draft_ms} ms");
             }
-            SpecOpts { k, min_conf, trace: std::env::var("INTARSIA_DSV41_SPEC_TRACE").is_ok_and(|v| v == "1"), choose, round_ms, draft_ms }
+            let sampled = spec_sampled_on(std::env::var("INTARSIA_DSV41_SPEC_SAMPLED").ok().as_deref());
+            let retention = std::env::var("INTARSIA_DSV41_SPEC_RETENTION").ok().and_then(|v| v.parse().ok()).filter(|r: &f64| *r > 0.0 && *r <= 1.0).unwrap_or(RETENTION);
+            if sampled {
+                eprintln!("dsv41: speculative decoding also for sampled and constrained requests (INTARSIA_DSV41_SPEC_SAMPLED=0 turns it off; retention {retention})");
+            }
+            SpecOpts { k, min_conf, trace: std::env::var("INTARSIA_DSV41_SPEC_TRACE").is_ok_and(|v| v == "1"), choose, round_ms, draft_ms, sampled, retention }
         });
         let failed = Arc::new(Mutex::new(None));
         if let Some(p) = &peer {
@@ -1184,33 +1236,56 @@ mod choose_k_tests {
 
     #[test]
     fn confident_drafts_take_every_row_and_hopeless_ones_none() {
-        assert_eq!(choose_k(&[20.0, 20.0, 20.0, 20.0], 4, &ROUND_MS, DRAFT_MS), 4);
-        assert_eq!(choose_k(&[20.0, 20.0, 20.0, 20.0], 3, &ROUND_MS, DRAFT_MS), 3);
-        assert_eq!(choose_k(&[-20.0, 20.0, 20.0, 20.0], 4, &ROUND_MS, DRAFT_MS), 0);
+        assert_eq!(choose_k(&[20.0, 20.0, 20.0, 20.0], 4, &ROUND_MS, DRAFT_MS, 1.0), 4);
+        assert_eq!(choose_k(&[20.0, 20.0, 20.0, 20.0], 3, &ROUND_MS, DRAFT_MS, 1.0), 3);
+        assert_eq!(choose_k(&[-20.0, 20.0, 20.0, 20.0], 4, &ROUND_MS, DRAFT_MS, 1.0), 0);
     }
 
     #[test]
     fn a_row_pays_only_above_its_share_of_the_round() {
         // two rows: tokens 1 + s against 50 ms, one row 1 against 40.3 ms, so a draft needs s > 0.241 (logit -1.145)
         let (r, d) = (&[31.3, 41.0][..], 9.0);
-        assert_eq!(choose_k(&[-1.2], 1, r, d), 0);
-        assert_eq!(choose_k(&[-1.1], 1, r, d), 1);
+        assert_eq!(choose_k(&[-1.2], 1, r, d, 1.0), 0);
+        assert_eq!(choose_k(&[-1.1], 1, r, d, 1.0), 1);
+    }
+
+    #[test]
+    fn sampled_speculation_is_on_unless_the_knob_is_zero() {
+        use super::spec_sampled_on;
+        assert!(spec_sampled_on(None) && spec_sampled_on(Some("1")) && spec_sampled_on(Some("")));
+        assert!(!spec_sampled_on(Some("0")));
+    }
+
+    /// A sampled draft is accepted with the target's probability, so the same confidence buys fewer tokens: the margin of the test above moves
+    /// by the retention, and 1.0 is the greedy choice.
+    #[test]
+    fn retention_scales_each_positions_survival() {
+        let (r, d) = (&[31.3, 41.0][..], 9.0);
+        // survival sigmoid(-1.1) = 0.2497 passes the 0.241 line; times 0.9 it does not
+        assert_eq!(choose_k(&[-1.1], 1, r, d, 1.0), 1);
+        assert_eq!(choose_k(&[-1.1], 1, r, d, 0.9), 0);
+        // a confident draft still wins, and k never grows with a smaller retention
+        for c in [[2.0f32, 1.0, 0.5, 0.0], [4.0, 3.0, 2.0, 1.0], [0.3, 0.3, 0.3, 0.3]] {
+            let (hi, lo) = (choose_k(&c, 4, &ROUND_MS, DRAFT_MS, 1.0), choose_k(&c, 4, &ROUND_MS, DRAFT_MS, 0.6));
+            assert!(lo <= hi, "{c:?}: {lo} > {hi}");
+        }
+        assert_eq!(choose_k(&[20.0; 4], 4, &ROUND_MS, DRAFT_MS, 0.8), 4);
     }
 
     #[test]
     fn a_weak_draft_ends_the_prefix_but_a_strong_later_one_can_carry_it() {
         // the survival is a product, so a later draft counts only through the earlier ones
-        assert_eq!(choose_k(&[20.0, -20.0, 20.0, 20.0], 4, &ROUND_MS, DRAFT_MS), 1);
+        assert_eq!(choose_k(&[20.0, -20.0, 20.0, 20.0], 4, &ROUND_MS, DRAFT_MS, 1.0), 1);
         // short lists and tables bound k
-        assert_eq!(choose_k(&[20.0], 4, &ROUND_MS, DRAFT_MS), 1);
-        assert_eq!(choose_k(&[], 4, &ROUND_MS, DRAFT_MS), 0);
-        assert_eq!(choose_k(&[20.0, 20.0], 4, &[31.3], DRAFT_MS), 0);
+        assert_eq!(choose_k(&[20.0], 4, &ROUND_MS, DRAFT_MS, 1.0), 1);
+        assert_eq!(choose_k(&[], 4, &ROUND_MS, DRAFT_MS, 1.0), 0);
+        assert_eq!(choose_k(&[20.0, 20.0], 4, &[31.3], DRAFT_MS, 1.0), 0);
     }
 
     #[test]
     fn the_first_best_wins_a_tie() {
         // equal value at k = 0 and k = 1: 1 / 10 = 1.5 / 15, with a survival of exactly 0.5
-        assert_eq!(choose_k(&[0.0], 1, &[5.0, 10.0], 5.0), 0);
+        assert_eq!(choose_k(&[0.0], 1, &[5.0, 10.0], 5.0, 1.0), 0);
     }
 }
 
@@ -1266,8 +1341,53 @@ mod failpath_tests {
         forwards: usize,
         fail_wait: bool,
         panic_on_forward: bool,
+        /// A target whose next-token scores depend on the whole context and have several peaks ([`ScriptModel`]), in place of `reply`.
+        model: Option<ScriptModel>,
+        /// Every verify pass: (sequence length before it, rows, passes of any kind so far).
+        verifies: Vec<(usize, usize, usize)>,
+        passes: usize,
+    }
+
+    /// A scripted target for the sampled tests: the scores of the row after a context are a fixed function of the context, spread over the
+    /// vocabulary (so a draw at temperature 0.7 or 1.0 often is not the argmax). The draft is the target's argmax, or its second best
+    /// where the context hashes to 0 mod `wrong_every` (0: never).
+    #[derive(Clone, Copy)]
+    struct ScriptModel {
+        wrong_every: u64,
+        /// The EOS id has a finite score (else it is never drawn).
+        eos: bool,
+    }
+    fn mix(mut x: u64) -> u64 {
+        x = x.wrapping_add(0x9E37_79B9_7F4A_7C15);
+        x = (x ^ (x >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        x = (x ^ (x >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        x ^ (x >> 31)
+    }
+    impl ScriptModel {
+        fn key(ctx: &[u32]) -> u64 {
+            let n = ctx.len();
+            mix((ctx[n - 1] as u64) << 40 ^ (ctx.get(n.wrapping_sub(2)).copied().unwrap_or(99) as u64) << 20 ^ n as u64)
+        }
+        fn logits(&self, ctx: &[u32]) -> Vec<f32> {
+            let k = Self::key(ctx);
+            let mut l: Vec<f32> = (0..VOCAB as u64).map(|v| 12.0 * (mix(k ^ (v + 1).wrapping_mul(0x2545_F491_4F6C_DD1D)) >> 40) as f32 / (1u64 << 24) as f32).collect();
+            if !self.eos {
+                l[EOS as usize] = f32::NEG_INFINITY;
+            }
+            l
+        }
+        fn draft(&self, ctx: &[u32]) -> u32 {
+            let l = self.logits(ctx);
+            let mut ord: Vec<usize> = (0..VOCAB).collect();
+            ord.sort_by(|&a, &b| l[b].partial_cmp(&l[a]).unwrap().then(a.cmp(&b)));
+            let wrong = self.wrong_every > 0 && Self::key(ctx) % self.wrong_every == 0;
+            ord[wrong as usize] as u32
+        }
     }
     impl Script {
+        fn ctx_logits(&self, st: &SequenceState, upto: usize) -> Option<Vec<f32>> {
+            self.model.map(|m| m.logits(&st.tokens[..upto]))
+        }
         fn tok(&self, len: usize) -> u32 {
             let i = len.saturating_sub(self.start).min(self.reply.len().saturating_sub(1));
             self.reply.get(i).copied().unwrap_or(0)
@@ -1281,6 +1401,7 @@ mod failpath_tests {
             assert!(!self.panic_on_forward, "scripted panic");
             st.commit(ids);
             self.forwards += 1;
+            self.passes += 1;
             self.logits_asked.push(logits);
             if let Some(d) = &mut self.device {
                 d.done = d.done.max(d.now) + d.s_per_row * ids.len() as f64;
@@ -1300,7 +1421,7 @@ mod failpath_tests {
                     c.store(true, Ordering::SeqCst);
                 }
             }
-            Ok(logits.then(|| self.logits(st.len)))
+            Ok(logits.then(|| self.ctx_logits(st, st.len).unwrap_or_else(|| self.logits(st.len))))
         }
         pub(super) fn forward_encoder(&mut self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
             self.forward(st, ids, false).map(|_| ())
@@ -1322,12 +1443,28 @@ mod failpath_tests {
         }
         pub(super) fn draft(&mut self, st: &SequenceState, first: u32, steps: usize) -> Result<Option<Draft>> {
             let mut ids = vec![first];
+            if let Some(m) = self.model {
+                let mut ctx = st.tokens.clone();
+                ctx.push(first);
+                for _ in 0..steps {
+                    let d = m.draft(&ctx);
+                    ids.push(d);
+                    ctx.push(d);
+                }
+                return Ok(Some(Draft { ids, confidence: vec![20.0; steps] }));
+            }
             ids.extend((0..steps).map(|i| self.tok(st.len + 1 + i)));
             Ok(Some(Draft { ids, confidence: vec![20.0; steps] }))
         }
         pub(super) fn verify(&mut self, st: &mut SequenceState, ids: &[u32], logits: bool) -> Result<Vec<Row>> {
             st.commit(ids);
             let l0 = st.len - ids.len();
+            self.passes += 1;
+            self.verifies.push((l0, ids.len(), self.passes));
+            if let Some(m) = self.model {
+                assert!(logits, "a model scripted with scores is read through its logits");
+                return Ok((0..ids.len()).map(|j| Row::Logits(m.logits(&st.tokens[..l0 + j + 1]))).collect());
+            }
             Ok((0..ids.len()).map(|j| if logits { Row::Logits(self.logits(l0 + j + 1)) } else { Row::Tok(self.tok(l0 + j + 1)) }).collect())
         }
     }
@@ -1547,7 +1684,7 @@ mod failpath_tests {
     }
 
     fn spec_opts() -> SpecOpts {
-        SpecOpts { k: 4, min_conf: f32::NEG_INFINITY, trace: false, choose: true, round_ms: ROUND_MS, draft_ms: DRAFT_MS }
+        SpecOpts { k: 4, min_conf: f32::NEG_INFINITY, trace: false, choose: true, round_ms: ROUND_MS, draft_ms: DRAFT_MS, sampled: false, retention: 1.0 }
     }
 
     impl Group {
@@ -2058,6 +2195,249 @@ mod failpath_tests {
             let (a, b) = (run(false, n), run(true, n));
             assert_eq!(a, b, "{n} tokens");
             assert_eq!(a.1, 4 + n - 1, "the last token is not in the sequence yet");
+        }
+    }
+
+    // ------- sampled and constrained speculation (INTARSIA_DSV41_SPEC_SAMPLED): the accept rule, scripted
+
+    use intarsia_core::constrain::{ConstraintSpec, TokenConstraint, TokenMask};
+
+    /// A constraint whose mask depends on how many tokens were committed: token `t` is allowed at step `n` unless `(t + n) % 3 == 0`. The
+    /// draft (the unmasked argmax) breaks it often, and a mask read at the wrong step (before an earlier row's commit) would show.
+    #[derive(Debug)]
+    struct Parity;
+    struct ParityRun(usize);
+    impl ConstraintSpec for Parity {
+        fn start(&self) -> Result<Box<dyn TokenConstraint>> {
+            Ok(Box::new(ParityRun(0)))
+        }
+    }
+    impl TokenConstraint for ParityRun {
+        fn active(&self) -> bool {
+            true
+        }
+        fn compute_mask(&mut self) -> Result<TokenMask> {
+            let mut m = TokenMask::none(VOCAB);
+            (0..VOCAB as u32).filter(|t| (*t as usize + self.0) % 3 != 0).for_each(|t| m.allow(t));
+            Ok(m)
+        }
+        fn commit(&mut self, _tok: u32) -> Result<()> {
+            self.0 += 1;
+            Ok(())
+        }
+    }
+
+    fn modeled(model: ScriptModel) -> Group {
+        let mut g = group();
+        g.w.script = Some(Script { start: 4, reply: vec![0], model: Some(model), ..Default::default() });
+        g
+    }
+
+    /// One request on `g` with speculation on (sampled allowed) or off: the ids, why it ended, the sequence length after it, and the
+    /// rounds' outcomes (drafts accepted of drafts made, for each verify pass that the next one followed at once).
+    fn gen(g: &mut Group, on: bool, max_tokens: usize, f: impl FnOnce(GenRequest) -> GenRequest) -> (Vec<u32>, FinishReason, usize, Vec<(usize, usize)>) {
+        g.w.spec = on.then(|| SpecOpts { sampled: true, ..spec_opts() });
+        g.w.script.as_mut().unwrap().verifies.clear();
+        let ev = ask(g, 4, max_tokens, f);
+        let ids = ev.iter().filter_map(|e| if let GenEvent::Token { id, text } = e { (!text.is_empty() || *id != 0).then_some(*id) } else { None }).collect();
+        let v = &g.w.script.as_ref().unwrap().verifies;
+        let rounds = v.windows(2).filter(|w| w[1].2 == w[0].2 + 1).map(|w| (w[1].0 - w[0].0 - 1, w[0].1 - 1)).collect();
+        (ids, done(&ev).0, g.w.st.len, rounds)
+    }
+
+    /// Speculative sampling with a point-mass draft is exact: with a seed, the draw of every row consumed is the draw plain sampling makes
+    /// there (the scripted target's rows depend on the accepted context only), so the ids match one for one. Rounds in which the
+    /// draft is accepted all the way (the bonus row's draw) and rounds with a rejection (the draw replaces the draft, the rows after it are
+    /// dropped) must both occur, or the test says nothing.
+    fn same_ids_as_plain(model: ScriptModel, temps: &[f32], max_tokens: &[usize], f: impl Fn(GenRequest, u64) -> GenRequest) -> (usize, usize, usize) {
+        let mut g = modeled(model);
+        let (mut full, mut rej, mut stopped) = (0, 0, 0);
+        for &t in temps {
+            for &mt in max_tokens {
+                for seed in 0..60u64 {
+                    let mk = |r: GenRequest| f(GenRequest { temperature: t, seed: Some(seed), ..r }, seed);
+                    let (a, fa, la, _) = gen(&mut g, false, mt, mk);
+                    let (b, fb, lb, rounds) = gen(&mut g, true, mt, mk);
+                    assert_eq!((&a, fa, la), (&b, fb, lb), "T {t} max {mt} seed {seed}");
+                    full += rounds.iter().filter(|(acc, d)| acc == d).count();
+                    rej += rounds.iter().filter(|(acc, d)| acc < d).count();
+                    stopped += (fa == FinishReason::Stop) as usize;
+                }
+            }
+        }
+        (full, rej, stopped)
+    }
+
+    #[test]
+    fn sampled_speculation_emits_the_ids_plain_sampling_does() {
+        for wrong_every in [0, 3] {
+            let (full, rej, _) = same_ids_as_plain(ScriptModel { wrong_every, eos: false }, &[0.7, 1.0], &[16], |r, _| r);
+            assert!(full > 10 && rej > 100, "wrong_every {wrong_every}: {full} rounds accepted to the bonus row, {rej} with a rejection");
+        }
+        // top-k and top-p cut the distribution the draw is from; the rule is the same
+        let (full, rej, _) = same_ids_as_plain(ScriptModel { wrong_every: 0, eos: false }, &[0.8], &[16], |r, seed| GenRequest { top_k: 3 + (seed % 3) as usize, top_p: 0.9, ..r });
+        assert!(full > 10 && rej > 10, "{full} {rej}");
+    }
+
+    /// The mask of each row is computed after the commits of the rows before it, and a draft the mask forbids is rejected.
+    #[test]
+    fn constrained_speculation_emits_the_ids_plain_decoding_does() {
+        for wrong_every in [0, 3] {
+            // sampled under the mask, and greedy under the mask (the draft is the unmasked argmax)
+            let (full, rej, _) = same_ids_as_plain(ScriptModel { wrong_every, eos: false }, &[0.7, 1.0, 0.0], &[16], |r, _| GenRequest { constraint: Some(Arc::new(Parity)), ..r });
+            assert!(full > 5 && rej > 100, "wrong_every {wrong_every}: {full} {rej}");
+        }
+    }
+
+    /// `min_tokens` masks EOS (and the stop ids) for its first rows, EOS drawn inside a round ends the reply there, `max_tokens` can end it
+    /// in the middle of a round: in each the speculating request's ids, finish reason and sequence length are plain sampling's.
+    #[test]
+    fn sampled_speculation_ends_where_plain_sampling_does() {
+        let eos = ScriptModel { wrong_every: 3, eos: true };
+        let (_, rej, stopped) = same_ids_as_plain(eos, &[1.0], &[1, 2, 3, 5, 6, 7, 9, 16], |r, seed| GenRequest { min_tokens: (seed % 7) as usize, ..r });
+        assert!(rej > 50 && stopped > 30, "{rej} rejections, {stopped} replies ended on EOS");
+        let (_, _, stopped) = same_ids_as_plain(eos, &[0.7], &[16], |r, seed| GenRequest { min_tokens: 3, stop_ids: vec![(seed % 4) as u32 + 1], constraint: (seed % 2 == 0).then(|| Arc::new(Parity) as _), ..r });
+        assert!(stopped > 30, "{stopped}");
+    }
+
+    /// Flag off (the default): a sampled or constrained request decodes plain, as on main; a greedy one still speculates.
+    #[test]
+    fn without_the_flag_only_greedy_requests_speculate() {
+        let speculated = |f: &dyn Fn(GenRequest) -> GenRequest| {
+            let mut g = modeled(ScriptModel { wrong_every: 3, eos: false });
+            ask(&mut g, 4, 12, |r| f(r));
+            g.finish().iter().any(|t| *t == Told::Verify)
+        };
+        assert!(!speculated(&|r| GenRequest { temperature: 0.7, seed: Some(1), ..r }));
+        assert!(!speculated(&|r| GenRequest { temperature: 0.0, constraint: Some(Arc::new(Parity)), ..r }));
+        // the greedy script needs argmax rows, not logits: greedy keeps the device-argmax verify (`Row::Tok`), which the model-scripted
+        // verify refuses, so check it on the reply-scripted target
+        let mut g = scripted(4, vec![1, 2, 3, 4, 5, 6, 7, 8], true);
+        ask(&mut g, 4, 8, |r| GenRequest { temperature: 0.0, ..r });
+        assert!(g.finish().contains(&Told::Verify));
+        // and with the flag, the sampled request does speculate
+        let mut g = modeled(ScriptModel { wrong_every: 3, eos: false });
+        g.w.spec = Some(SpecOpts { sampled: true, ..spec_opts() });
+        ask(&mut g, 4, 12, |r| GenRequest { temperature: 0.7, seed: Some(1), ..r });
+        assert!(g.finish().contains(&Told::Verify));
+    }
+
+    /// The upper tail of a chi-square distribution (Numerical Recipes `gammq`).
+    fn chi2_sf(x: f64, df: f64) -> f64 {
+        let (a, x) = (df / 2.0, x / 2.0);
+        if x <= 0.0 {
+            return 1.0;
+        }
+        let lg = {
+            let c = [76.18009172947146, -86.50532032941677, 24.01409824083091, -1.231739572450155, 0.1208650973866179e-2, -0.5395239384953e-5];
+            let mut y = a;
+            let tmp = a + 5.5 - (a + 0.5) * (a + 5.5).ln();
+            let mut ser = 1.000000000190015;
+            for cj in c {
+                y += 1.0;
+                ser += cj / y;
+            }
+            -tmp + (2.5066282746310005 * ser / a).ln()
+        };
+        if x < a + 1.0 {
+            let (mut ap, mut sum, mut del) = (a, 1.0 / a, 1.0 / a);
+            for _ in 0..1000 {
+                ap += 1.0;
+                del *= x / ap;
+                sum += del;
+                if del.abs() < sum.abs() * 1e-15 {
+                    break;
+                }
+            }
+            1.0 - sum * (-x + a * x.ln() - lg).exp()
+        } else {
+            let tiny = 1e-300;
+            let (mut b, mut c, mut d) = (x + 1.0 - a, 1.0 / tiny, 1.0 / (x + 1.0 - a));
+            let mut h = d;
+            for i in 1..1000 {
+                let an = -(i as f64) * (i as f64 - a);
+                b += 2.0;
+                d = an * d + b;
+                if d.abs() < tiny {
+                    d = tiny;
+                }
+                c = b + an / c;
+                if c.abs() < tiny {
+                    c = tiny;
+                }
+                d = 1.0 / d;
+                let del = d * c;
+                h *= del;
+                if (del - 1.0).abs() < 1e-15 {
+                    break;
+                }
+            }
+            (-x + a * x.ln() - lg).exp() * h
+        }
+    }
+
+    /// G-test of homogeneity of two count vectors (bins under 10 pooled counts merged): (G, df, p).
+    fn g_test(a: &[usize], b: &[usize]) -> (f64, usize, f64) {
+        let (mut ra, mut rb, mut oa, mut ob) = (vec![], vec![], 0, 0);
+        for (&x, &y) in a.iter().zip(b) {
+            if x + y >= 10 {
+                ra.push(x);
+                rb.push(y);
+            } else {
+                oa += x;
+                ob += y;
+            }
+        }
+        if oa + ob >= 10 {
+            ra.push(oa);
+            rb.push(ob);
+        }
+        let (na, nb) = (ra.iter().sum::<usize>() as f64, rb.iter().sum::<usize>() as f64);
+        let mut g = 0.0;
+        for (&x, &y) in ra.iter().zip(&rb) {
+            let t = (x + y) as f64;
+            for (o, n) in [(x as f64, na), (y as f64, nb)] {
+                if o > 0.0 {
+                    g += 2.0 * o * (o / (t * n / (na + nb))).ln();
+                }
+            }
+        }
+        let df = ra.len() - 1;
+        (g, df, chi2_sf(g, df as f64))
+    }
+
+    /// Next-token frequencies at positions 1 .. k + 1 of a reply, speculating against plain sampling, disjoint seeds (the same seeds would
+    /// make the arms nearly the same draws and the p-value meaningless). A negative control (temperature 0.7 against 1.0) must be rejected.
+    #[test]
+    fn sampled_speculation_has_plain_samplings_token_frequencies() {
+        const N: usize = 3000;
+        const POS: usize = 5;
+        let count = |on: bool, temp: f32, seed0: u64, cons: bool| {
+            let mut g = modeled(ScriptModel { wrong_every: 3, eos: false });
+            let mut c = vec![vec![0usize; VOCAB]; POS];
+            for i in 0..N as u64 {
+                let (ids, ..) = gen(&mut g, on, POS, |r| GenRequest { temperature: temp, seed: Some(seed0 + i), constraint: cons.then(|| Arc::new(Parity) as _), ..r });
+                for (p, t) in ids.iter().enumerate() {
+                    c[p][*t as usize] += 1;
+                }
+            }
+            c
+        };
+        // 5 positions, family alpha 0.01: each test at 0.002. Power (noncentral chi-square, computed outside, see
+        // docs/results/2026-11-05-dsv41-sampled-spec.md): 6000 draws detect Cohen's w = 0.063 (6 degrees of freedom) to 0.071 (14) with power 0.8.
+        let alpha = 0.002;
+        for cons in [false, true] {
+            let (on, off) = (count(true, 1.0, 1_000_000, cons), count(false, 1.0, 1, cons));
+            for p in 0..POS {
+                let (g, df, pv) = g_test(&on[p], &off[p]);
+                eprintln!("G-test constrained {cons} position {}: G {g:.2} df {df} p {pv:.4}", p + 1);
+                assert!(pv > alpha, "constrained {cons}, position {}: G {g:.1} df {df} p {pv:.5}", p + 1);
+            }
+            // control: another temperature is another distribution, which the test must see
+            let hot = count(true, 0.7, 2_000_000, cons);
+            let (g, df, pv) = g_test(&hot[0], &off[0]);
+            eprintln!("G-test control T 0.7 against 1.0 (constrained {cons}) position 1: G {g:.2} df {df} p {pv:.3e}");
+            assert!(pv < 1e-6, "the test cannot tell T 0.7 from 1.0: p {pv}");
         }
     }
 

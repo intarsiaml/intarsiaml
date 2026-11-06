@@ -18,7 +18,7 @@
 //! model's verify row count (`Model::enable_verify`), so the catch-up ids never overlap the verify input.
 //!
 //! Same kernels on the same inputs in the same order as the eager step (the head passes as in `mtp_draft_rank`, the verify
-//! pass as in `forward_verify_inner`): only the buffer the embeddings read their ids from and where command buffers end
+//! pass as in `forward_verify_run`): only the buffer the embeddings read their ids from and where command buffers end
 //! change. CUDA and HIP run the same sequence as one captured graph (`spec_graph.rs`), with acceptance and rollback on the
 //! host after the one download, as here. Acceptance stays the host's `spec::accept`; rollback is the same
 //! `SequenceState::spec_rollback` (GPU copies of the saved recurrent rows, queued without a wait).

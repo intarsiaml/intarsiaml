@@ -1,0 +1,217 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1222:4
+     |
+1222 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: intarsia-backend-hip@0.0.1: intarsia-backend-hip: hipcc not found, building the stub (set ROCM_PATH)
+warning: function `ik_rdma_available` is never used
+  --> crates/intarsia-backend-cuda/src/ffi.rs:69:12
+   |
+69 |     pub fn ik_rdma_available() -> c_int;
+   |            ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+warning: value assigned to `reason` is never read
+    --> crates/intarsia-models/tests/batch_cuda_real.rs:1640:45
+     |
+1640 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+     |                                             ^^^^^^
+     |
+     = help: maybe it is overwritten before being read?
+     = note: `#[warn(unused_assignments)]` on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:265:8
+    |
+265 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings
+    Finished `release` profile [optimized] target(s) in 0.08s
+     Running tests/batch_cuda_real.rs (target/release/deps/batch_cuda_real-04b3b0a4e867e960)
+
+running 1 test
+test real_35b_forced_packs_are_bitwise_solo_prefill ... FORCEDPACK pack_min_rows 16 (backend 33), pack_rows_max 2048
+FORCEDPACK gate prompt tokens [15, 103, 17, 201, 15, 82]
+FORCEDPACK gate pack: prompts 1, 2, 3, 5: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [248046, 198, 248045, 248068, 271, 248069, 271, 760, 11679] vs solo [248046, 198, 248045, 248068, 271, 248069, 271, 760, 11679])
+FORCEDPACK gate pack: prompts 1, 2, 3, 5: segment 1 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(2); ids [7054, 11, 10033, 3069, 220, 16, 369, 524, 6306] vs solo [7054, 11, 3300, 279, 9944, 7911, 1954, 314, 220])
+FORCEDPACK gate pack: prompts 1, 2, 3, 5: segment 2 (200 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [7860, 5437, 1029, 279, 10814, 314, 279, 8323, 21440] vs solo [7860, 5437, 1029, 279, 10814, 314, 279, 8323, 21440])
+FORCEDPACK gate pack: prompts 1, 2, 3, 5: segment 3 (81 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [36491, 1083, 5753, 25, 561, 8831, 369, 6217, 3242] vs solo [36491, 1083, 5753, 25, 561, 8831, 369, 6217, 3242])
+FORCEDPACK gate pack: prompts 2, 5: segment 0 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(2); ids [7054, 11, 10033, 3069, 220, 16, 369, 524, 6306] vs solo [7054, 11, 3300, 279, 9944, 7911, 1954, 314, 220])
+FORCEDPACK gate pack: prompts 2, 5: segment 1 (81 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [36491, 1083, 5753, 25, 561, 8831, 369, 6217, 3242] vs solo [36491, 1083, 5753, 25, 561, 8831, 369, 6217, 3242])
+FORCEDPACK body 15 first, beside 102 (bodies [15, 102]): refused (invalid op call: a packed segment has 15 rows (at least 16))
+FORCEDPACK body 15 second, after 102 (bodies [102, 15]): refused (invalid op call: a packed segment has 15 rows (at least 16))
+FORCEDPACK body 15 first, beside 300 (bodies [15, 300]): refused (invalid op call: a packed segment has 15 rows (at least 16))
+FORCEDPACK body 15 second, after 300 (bodies [300, 15]): refused (invalid op call: a packed segment has 15 rows (at least 16))
+FORCEDPACK bodies 15 + 15 (bodies [15, 15]): refused (invalid op call: a packed segment has 15 rows (at least 16))
+FORCEDPACK body 16 first, beside 102: segment 0 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [16, 13, 271, 71093, 12305, 198, 2, 4091, 264] vs solo [16, 13, 271, 71093, 12305, 198, 2, 4091, 264])
+FORCEDPACK body 16 first, beside 102: segment 1 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 16 second, after 102: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 16 second, after 102: segment 1 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [16, 13, 271, 71093, 12305, 198, 2, 4091, 264] vs solo [16, 13, 271, 71093, 12305, 198, 2, 4091, 264])
+FORCEDPACK body 16 first, beside 300: segment 0 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [16, 13, 271, 71093, 12305, 198, 2, 4091, 264] vs solo [16, 13, 271, 71093, 12305, 198, 2, 4091, 264])
+FORCEDPACK body 16 first, beside 300: segment 1 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 16 second, after 300: segment 0 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 16 second, after 300: segment 1 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [16, 13, 271, 71093, 12305, 198, 2, 4091, 264] vs solo [16, 13, 271, 71093, 12305, 198, 2, 4091, 264])
+FORCEDPACK bodies 16 + 16: segment 0 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [16, 13, 271, 71093, 12305, 198, 2, 4091, 264] vs solo [16, 13, 271, 71093, 12305, 198, 2, 4091, 264])
+FORCEDPACK bodies 16 + 16: segment 1 (16 rows): DIFFERS (state blocks differing 68/70, first differing logits row Some(0), first differing id None; ids [314, 279, 198, 26547, 13, 271, 760, 3377, 369] vs solo [314, 279, 198, 26547, 13, 271, 760, 3377, 369])
+FORCEDPACK body 17 first, beside 102: segment 0 (17 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [13, 271, 71093, 12305, 198, 2, 1061, 369, 264] vs solo [13, 271, 71093, 12305, 198, 2, 1061, 369, 264])
+FORCEDPACK body 17 first, beside 102: segment 1 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 17 second, after 102: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 17 second, after 102: segment 1 (17 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [13, 271, 71093, 12305, 198, 2, 1061, 369, 264] vs solo [13, 271, 71093, 12305, 198, 2, 1061, 369, 264])
+FORCEDPACK body 17 first, beside 300: segment 0 (17 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [13, 271, 71093, 12305, 198, 2, 1061, 369, 264] vs solo [13, 271, 71093, 12305, 198, 2, 1061, 369, 264])
+FORCEDPACK body 17 first, beside 300: segment 1 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 17 second, after 300: segment 0 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 17 second, after 300: segment 1 (17 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [13, 271, 71093, 12305, 198, 2, 1061, 369, 264] vs solo [13, 271, 71093, 12305, 198, 2, 1061, 369, 264])
+FORCEDPACK bodies 17 + 17: segment 0 (17 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [13, 271, 71093, 12305, 198, 2, 1061, 369, 264] vs solo [13, 271, 71093, 12305, 198, 2, 1061, 369, 264])
+FORCEDPACK bodies 17 + 17: segment 1 (17 rows): DIFFERS (state blocks differing 68/70, first differing logits row Some(0), first differing id Some(6); ids [20, 4, 271, 40, 599, 264, 220, 16, 17] vs solo [20, 4, 271, 40, 599, 264, 3377, 440, 821])
+FORCEDPACK body 20 first, beside 102: segment 0 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942] vs solo [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942])
+FORCEDPACK body 20 first, beside 102: segment 1 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 20 second, after 102: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 20 second, after 102: segment 1 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942] vs solo [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942])
+FORCEDPACK body 20 first, beside 300: segment 0 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942] vs solo [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942])
+FORCEDPACK body 20 first, beside 300: segment 1 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 20 second, after 300: segment 0 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 20 second, after 300: segment 1 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942] vs solo [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942])
+FORCEDPACK bodies 20 + 20: segment 0 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942] vs solo [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942])
+FORCEDPACK bodies 20 + 20: segment 1 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [12, 18, 13, 271, 71093, 12305, 198, 727, 1228] vs solo [12, 18, 13, 271, 71093, 12305, 198, 727, 1228])
+FORCEDPACK body 24 first, beside 102: segment 0 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144] vs solo [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144])
+FORCEDPACK body 24 first, beside 102: segment 1 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 24 second, after 102: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 24 second, after 102: segment 1 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144] vs solo [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144])
+FORCEDPACK body 24 first, beside 300: segment 0 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144] vs solo [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144])
+FORCEDPACK body 24 first, beside 300: segment 1 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 24 second, after 300: segment 0 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 24 second, after 300: segment 1 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144] vs solo [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144])
+FORCEDPACK bodies 24 + 24: segment 0 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144] vs solo [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144])
+FORCEDPACK bodies 24 + 24: segment 1 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [1603, 494, 264, 3743, 1558, 13, 198, 760, 1786] vs solo [1603, 494, 264, 3743, 1558, 13, 198, 760, 1786])
+FORCEDPACK body 31 first, beside 102: segment 0 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(5); ids [310, 660, 1142, 1364, 735, 198, 91, 1510, 1524] vs solo [310, 660, 1142, 1364, 735, 1510, 1524, 38681, 5945])
+FORCEDPACK body 31 first, beside 102: segment 1 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 31 second, after 102: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 31 second, after 102: segment 1 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(5); ids [310, 660, 1142, 1364, 735, 198, 91, 1510, 1524] vs solo [310, 660, 1142, 1364, 735, 1510, 1524, 38681, 5945])
+FORCEDPACK body 31 first, beside 300: segment 0 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(5); ids [310, 660, 1142, 1364, 735, 198, 91, 1510, 1524] vs solo [310, 660, 1142, 1364, 735, 1510, 1524, 38681, 5945])
+FORCEDPACK body 31 first, beside 300: segment 1 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 31 second, after 300: segment 0 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 31 second, after 300: segment 1 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(5); ids [310, 660, 1142, 1364, 735, 198, 91, 1510, 1524] vs solo [310, 660, 1142, 1364, 735, 1510, 1524, 38681, 5945])
+FORCEDPACK bodies 31 + 31: segment 0 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(5); ids [310, 660, 1142, 1364, 735, 198, 91, 1510, 1524] vs solo [310, 660, 1142, 1364, 735, 1510, 1524, 38681, 5945])
+FORCEDPACK bodies 31 + 31: segment 1 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [198, 26035, 261, 1056, 279, 6857, 12, 16, 9584] vs solo [198, 26035, 261, 1056, 279, 6857, 12, 16, 9584])
+FORCEDPACK body 32 first, beside 102: segment 0 (32 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [1524, 44272, 31789, 735, 198, 91, 1510, 1524, 44272] vs solo [1524, 44272, 31789, 735, 198, 91, 1510, 1524, 44272])
+FORCEDPACK body 32 first, beside 102: segment 1 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 32 second, after 102: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 32 second, after 102: segment 1 (32 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [1524, 44272, 31789, 735, 198, 91, 1510, 1524, 44272] vs solo [1524, 44272, 31789, 735, 198, 91, 1510, 1524, 44272])
+FORCEDPACK body 32 first, beside 300: segment 0 (32 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [1524, 44272, 31789, 735, 198, 91, 1510, 1524, 44272] vs solo [1524, 44272, 31789, 735, 198, 91, 1510, 1524, 44272])
+FORCEDPACK body 32 first, beside 300: segment 1 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 32 second, after 300: segment 0 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 32 second, after 300: segment 1 (32 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [1524, 44272, 31789, 735, 198, 91, 1510, 1524, 44272] vs solo [1524, 44272, 31789, 735, 198, 91, 1510, 1524, 44272])
+FORCEDPACK bodies 32 + 32: segment 0 (32 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [1524, 44272, 31789, 735, 198, 91, 1510, 1524, 44272] vs solo [1524, 44272, 31789, 735, 198, 91, 1510, 1524, 44272])
+FORCEDPACK bodies 32 + 32: segment 1 (32 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [17, 318, 20, 13, 24, 68, 12, 19, 681] vs solo [17, 318, 20, 13, 24, 68, 12, 19, 681])
+FORCEDPACK body 33 first, beside 102: segment 0 (33 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 364, 94450, 76, 8, 735, 198, 91, 1510] vs solo [63, 364, 94450, 76, 8, 735, 198, 91, 1510])
+FORCEDPACK body 33 first, beside 102: segment 1 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 33 second, after 102: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 33 second, after 102: segment 1 (33 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 364, 94450, 76, 8, 735, 198, 91, 1510] vs solo [63, 364, 94450, 76, 8, 735, 198, 91, 1510])
+FORCEDPACK body 33 first, beside 300: segment 0 (33 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 364, 94450, 76, 8, 735, 198, 91, 1510] vs solo [63, 364, 94450, 76, 8, 735, 198, 91, 1510])
+FORCEDPACK body 33 first, beside 300: segment 1 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 33 second, after 300: segment 0 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 33 second, after 300: segment 1 (33 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 364, 94450, 76, 8, 735, 198, 91, 1510] vs solo [63, 364, 94450, 76, 8, 735, 198, 91, 1510])
+FORCEDPACK bodies 33 + 33: segment 0 (33 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 364, 94450, 76, 8, 735, 198, 91, 1510] vs solo [63, 364, 94450, 76, 8, 735, 198, 91, 1510])
+FORCEDPACK bodies 33 + 33: segment 1 (33 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [6851, 318, 20, 13, 24, 68, 12, 19, 8] vs solo [6851, 318, 20, 13, 24, 68, 12, 19, 8])
+FORCEDPACK body 34 first, beside 102: segment 0 (34 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [1510, 549, 1882, 91192, 63, 735, 198, 91, 53405] vs solo [1510, 549, 1882, 91192, 63, 735, 198, 91, 53405])
+FORCEDPACK body 34 first, beside 102: segment 1 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 34 second, after 102: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 34 second, after 102: segment 1 (34 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [1510, 549, 1882, 91192, 63, 735, 198, 91, 53405] vs solo [1510, 549, 1882, 91192, 63, 735, 198, 91, 53405])
+FORCEDPACK body 34 first, beside 300: segment 0 (34 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [1510, 549, 1882, 91192, 63, 735, 198, 91, 53405] vs solo [1510, 549, 1882, 91192, 63, 735, 198, 91, 53405])
+FORCEDPACK body 34 first, beside 300: segment 1 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 34 second, after 300: segment 0 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 34 second, after 300: segment 1 (34 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [1510, 549, 1882, 91192, 63, 735, 198, 91, 53405] vs solo [1510, 549, 1882, 91192, 63, 735, 198, 91, 53405])
+FORCEDPACK bodies 34 + 34: segment 0 (34 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [1510, 549, 1882, 91192, 63, 735, 198, 91, 53405] vs solo [1510, 549, 1882, 91192, 63, 735, 198, 91, 53405])
+FORCEDPACK bodies 34 + 34: segment 1 (34 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [24, 68, 12, 19, 553, 271, 4272, 11, 279] vs solo [24, 68, 12, 19, 553, 271, 4272, 11, 279])
+FORCEDPACK body 40 first, beside 102: segment 0 (40 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [81779, 1202, 4920, 942, 30096, 1506, 667, 52953, 13050] vs solo [81779, 1202, 4920, 942, 30096, 1506, 667, 52953, 13050])
+FORCEDPACK body 40 first, beside 102: segment 1 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 40 second, after 102: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 40 second, after 102: segment 1 (40 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [81779, 1202, 4920, 942, 30096, 1506, 667, 52953, 13050] vs solo [81779, 1202, 4920, 942, 30096, 1506, 667, 52953, 13050])
+FORCEDPACK body 40 first, beside 300: segment 0 (40 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [81779, 1202, 4920, 942, 30096, 1506, 667, 52953, 13050] vs solo [81779, 1202, 4920, 942, 30096, 1506, 667, 52953, 13050])
+FORCEDPACK body 40 first, beside 300: segment 1 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 40 second, after 300: segment 0 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 40 second, after 300: segment 1 (40 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [81779, 1202, 4920, 942, 30096, 1506, 667, 52953, 13050] vs solo [81779, 1202, 4920, 942, 30096, 1506, 667, 52953, 13050])
+FORCEDPACK bodies 40 + 40: segment 0 (40 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [81779, 1202, 4920, 942, 30096, 1506, 667, 52953, 13050] vs solo [81779, 1202, 4920, 942, 30096, 1506, 667, 52953, 13050])
+FORCEDPACK bodies 40 + 40: segment 1 (40 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [20, 87, 421, 314, 4101, 17562, 28, 17, 579] vs solo [20, 87, 421, 314, 4101, 17562, 28, 17, 579])
+FORCEDPACK body 64 first, beside 102: segment 0 (64 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [12, 2972, 32, 3074, 4202, 1406, 332, 27718, 445] vs solo [12, 2972, 32, 3074, 4202, 1406, 332, 27718, 445])
+FORCEDPACK body 64 first, beside 102: segment 1 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 64 second, after 102: segment 0 (102 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [63, 321, 1510, 70227, 80, 63, 369, 279, 1132] vs solo [63, 321, 1510, 70227, 80, 63, 369, 279, 1132])
+FORCEDPACK body 64 second, after 102: segment 1 (64 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [12, 2972, 32, 3074, 4202, 1406, 332, 27718, 445] vs solo [12, 2972, 32, 3074, 4202, 1406, 332, 27718, 445])
+FORCEDPACK body 64 first, beside 300: segment 0 (64 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [12, 2972, 32, 3074, 4202, 1406, 332, 27718, 445] vs solo [12, 2972, 32, 3074, 4202, 1406, 332, 27718, 445])
+FORCEDPACK body 64 first, beside 300: segment 1 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 64 second, after 300: segment 0 (300 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [91, 4277, 91, 4277, 91, 4277, 91, 198, 91] vs solo [91, 4277, 91, 4277, 91, 4277, 91, 198, 91])
+FORCEDPACK body 64 second, after 300: segment 1 (64 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [12, 2972, 32, 3074, 4202, 1406, 332, 27718, 445] vs solo [12, 2972, 32, 3074, 4202, 1406, 332, 27718, 445])
+FORCEDPACK bodies 64 + 64: segment 0 (64 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [12, 2972, 32, 3074, 4202, 1406, 332, 27718, 445] vs solo [12, 2972, 32, 3074, 4202, 1406, 332, 27718, 445])
+FORCEDPACK bodies 64 + 64: segment 1 (64 rows): bitwise solo (state blocks differing 0/70, first differing logits row None, first differing id None; ids [11, 694, 440, 264, 220, 16, 68, 12, 19] vs solo [11, 694, 440, 264, 220, 16, 68, 12, 19])
+FORCEDPACK 52 packs ran, 5 refused, 32 segments differ
+
+thread 'real_35b_forced_packs_are_bitwise_solo_prefill' panicked at crates/intarsia-models/tests/batch_cuda_real.rs:1950:5:
+packed segments that are not their solo prefill:
+gate pack: prompts 1, 2, 3, 5: segment 1 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(2); ids [7054, 11, 10033, 3069, 220, 16, 369, 524, 6306] vs solo [7054, 11, 3300, 279, 9944, 7911, 1954, 314, 220])
+gate pack: prompts 2, 5: segment 0 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(2); ids [7054, 11, 10033, 3069, 220, 16, 369, 524, 6306] vs solo [7054, 11, 3300, 279, 9944, 7911, 1954, 314, 220])
+body 16 first, beside 102: segment 0 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [16, 13, 271, 71093, 12305, 198, 2, 4091, 264] vs solo [16, 13, 271, 71093, 12305, 198, 2, 4091, 264])
+body 16 second, after 102: segment 1 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [16, 13, 271, 71093, 12305, 198, 2, 4091, 264] vs solo [16, 13, 271, 71093, 12305, 198, 2, 4091, 264])
+body 16 first, beside 300: segment 0 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [16, 13, 271, 71093, 12305, 198, 2, 4091, 264] vs solo [16, 13, 271, 71093, 12305, 198, 2, 4091, 264])
+body 16 second, after 300: segment 1 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [16, 13, 271, 71093, 12305, 198, 2, 4091, 264] vs solo [16, 13, 271, 71093, 12305, 198, 2, 4091, 264])
+bodies 16 + 16: segment 0 (16 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [16, 13, 271, 71093, 12305, 198, 2, 4091, 264] vs solo [16, 13, 271, 71093, 12305, 198, 2, 4091, 264])
+bodies 16 + 16: segment 1 (16 rows): DIFFERS (state blocks differing 68/70, first differing logits row Some(0), first differing id None; ids [314, 279, 198, 26547, 13, 271, 760, 3377, 369] vs solo [314, 279, 198, 26547, 13, 271, 760, 3377, 369])
+body 17 first, beside 102: segment 0 (17 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [13, 271, 71093, 12305, 198, 2, 1061, 369, 264] vs solo [13, 271, 71093, 12305, 198, 2, 1061, 369, 264])
+body 17 second, after 102: segment 1 (17 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [13, 271, 71093, 12305, 198, 2, 1061, 369, 264] vs solo [13, 271, 71093, 12305, 198, 2, 1061, 369, 264])
+body 17 first, beside 300: segment 0 (17 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [13, 271, 71093, 12305, 198, 2, 1061, 369, 264] vs solo [13, 271, 71093, 12305, 198, 2, 1061, 369, 264])
+body 17 second, after 300: segment 1 (17 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [13, 271, 71093, 12305, 198, 2, 1061, 369, 264] vs solo [13, 271, 71093, 12305, 198, 2, 1061, 369, 264])
+bodies 17 + 17: segment 0 (17 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [13, 271, 71093, 12305, 198, 2, 1061, 369, 264] vs solo [13, 271, 71093, 12305, 198, 2, 1061, 369, 264])
+bodies 17 + 17: segment 1 (17 rows): DIFFERS (state blocks differing 68/70, first differing logits row Some(0), first differing id Some(6); ids [20, 4, 271, 40, 599, 264, 220, 16, 17] vs solo [20, 4, 271, 40, 599, 264, 3377, 440, 821])
+body 20 first, beside 102: segment 0 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942] vs solo [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942])
+body 20 second, after 102: segment 1 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942] vs solo [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942])
+body 20 first, beside 300: segment 0 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942] vs solo [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942])
+body 20 second, after 300: segment 1 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942] vs solo [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942])
+bodies 20 + 20: segment 0 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942] vs solo [14, 2082, 13050, 14, 2082, 24822, 81779, 4920, 942])
+bodies 20 + 20: segment 1 (20 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [12, 18, 13, 271, 71093, 12305, 198, 727, 1228] vs solo [12, 18, 13, 271, 71093, 12305, 198, 727, 1228])
+body 24 first, beside 102: segment 0 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144] vs solo [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144])
+body 24 second, after 102: segment 1 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144] vs solo [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144])
+body 24 first, beside 300: segment 0 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144] vs solo [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144])
+body 24 second, after 300: segment 1 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144] vs solo [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144])
+bodies 24 + 24: segment 0 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144] vs solo [264, 3074, 3545, 11, 748, 1017, 369, 874, 1144])
+bodies 24 + 24: segment 1 (24 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [1603, 494, 264, 3743, 1558, 13, 198, 760, 1786] vs solo [1603, 494, 264, 3743, 1558, 13, 198, 760, 1786])
+body 31 first, beside 102: segment 0 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(5); ids [310, 660, 1142, 1364, 735, 198, 91, 1510, 1524] vs solo [310, 660, 1142, 1364, 735, 1510, 1524, 38681, 5945])
+body 31 second, after 102: segment 1 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(5); ids [310, 660, 1142, 1364, 735, 198, 91, 1510, 1524] vs solo [310, 660, 1142, 1364, 735, 1510, 1524, 38681, 5945])
+body 31 first, beside 300: segment 0 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(5); ids [310, 660, 1142, 1364, 735, 198, 91, 1510, 1524] vs solo [310, 660, 1142, 1364, 735, 1510, 1524, 38681, 5945])
+body 31 second, after 300: segment 1 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(5); ids [310, 660, 1142, 1364, 735, 198, 91, 1510, 1524] vs solo [310, 660, 1142, 1364, 735, 1510, 1524, 38681, 5945])
+bodies 31 + 31: segment 0 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id Some(5); ids [310, 660, 1142, 1364, 735, 198, 91, 1510, 1524] vs solo [310, 660, 1142, 1364, 735, 1510, 1524, 38681, 5945])
+bodies 31 + 31: segment 1 (31 rows): DIFFERS (state blocks differing 69/70, first differing logits row Some(0), first differing id None; ids [198, 26035, 261, 1056, 279, 6857, 12, 16, 9584] vs solo [198, 26035, 261, 1056, 279, 6857, 12, 16, 9584])
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    real_35b_forced_packs_are_bitwise_solo_prefill
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 26 filtered out; finished in 82.01s
+
+error: test failed, to rerun pass `-p intarsia-models --test batch_cuda_real`

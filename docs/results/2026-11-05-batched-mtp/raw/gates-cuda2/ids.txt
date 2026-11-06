@@ -1,0 +1,5 @@
+ids-bmtp4.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-bmtp1.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-plain16.json identical per sequence: [True, True, False, True, True, True] MISMATCH
+ids-bver5.json identical per sequence: [True, True, False, True, True, True] MISMATCH
+ids-bver8k3.json identical per sequence: [True, True, False, True, True, True] MISMATCH

@@ -207,7 +207,7 @@ async fn chat_inner(
         e.tokenize(&text, false)
     })
     .await?;
-    let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
+    let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens, &st.sampling_defaults)?;
     structured::attach(&st, F, &mut gen, plan, think).await?;
     let rx = start(&st, F, gen)?;
 
@@ -472,7 +472,7 @@ async fn completions_inner(
             (ids, if req.echo { t } else { String::new() })
         }
     };
-    let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
+    let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens, &st.sampling_defaults)?;
     structured::attach(&st, F, &mut gen, plan, false).await?;
     let n_lp = req.logprobs.map(|n| n.min(20) as usize);
     if n_lp.is_some() && req.common.stream {

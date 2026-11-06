@@ -1,0 +1,13 @@
+Hello! Welcome to the team. This document is a technical post-mortem and implementation note for a feature branch called `lane-dc/dflash-dcoco`. It details the integration of two speculative decoding techniques—**DFlash** and **DCOCO**—into our inference engine (Intarsia) for the Qwen3-8B model.
+
+Here is a detailed breakdown of what was done, why, and what the results were, structured for a new engineer to understand the architecture, the implementation challenges, and the final status.
+
+---
+
+### 1. High-Level Summary
+*   **Goal:** Speed up inference for Qwen3-8B using speculative decoding.
+*   **Components Added:**
+    1.  **DFlash:** A parallel-drafting mechanism that uses a smaller "draft model" to predict multiple tokens at once.
+    2.  **DCOCO:** A "corrector" module that refines the drafts produced by DFlash to increase the acceptance rate.
+*   **Status:** Both features are implemented and tested. However, **both are opt-in only** (disabled by default).
+    *   **DFlash** works well but has a cost-gating issue where it slows down

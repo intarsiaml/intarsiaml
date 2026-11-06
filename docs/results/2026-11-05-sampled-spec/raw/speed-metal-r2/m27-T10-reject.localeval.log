@@ -1,0 +1,61 @@
+[localeval]  probe probe-copy: out=196 decode=18.5 tok/s
+[localeval]  probe probe-prose: out=256 decode=23.8 tok/s
+[localeval]  probe probe-prose: out=256 decode=25.0 tok/s
+[localeval]  probe probe-copy: out=217 decode=20.0 tok/s
+[localeval]  probe probe-copy: out=234 decode=20.0 tok/s
+[localeval]  probe probe-prose: out=256 decode=19.7 tok/s
+[localeval] cell speed-spec (speed)
+[localeval]    1024 r0 p0: in=1017 out=256 ttft=2.289s prefill=444 decode=23.0
+[localeval]    4096 r0 p1: in=4064 out=256 ttft=6.902s prefill=589 decode=23.2
+[localeval]    4096 r1 p0: in=4067 out=256 ttft=7.162s prefill=568 decode=23.3
+[localeval]    1024 r1 p1: in=1018 out=256 ttft=2.474s prefill=412 decode=22.8
+[localeval]    1024 r2 p0: in=1021 out=256 ttft=2.099s prefill=486 decode=22.3
+[localeval]    4096 r2 p1: in=4066 out=256 ttft=7.339s prefill=554 decode=23.0
+[localeval]    1024 r3 p0: in=1019 out=256 ttft=2.324s prefill=439 decode=20.5
+[localeval]    1024 r4 p0: in=1018 out=256 ttft=2.338s prefill=435 decode=21.9
+# localeval: ss-t10 — 2026-11-05T21:33
+
+- model: `ss` on endor (intarsia (lane-ss/sampled-spec)), url `http://127.0.0.1:18431/v1`
+- thinking: off; run kind: suite; label: ss-m27-T10-reject
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval suite ss-t10 --tier adhoc --cells speed-spec --lane spec:mtp --suite /opt/code/intarsiaml/.worktrees/spec-sampled/.scratch/suite/suite-spec.json --tokenizer-file /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4/tokenizer.json --label ss-m27-T10-reject --recipe INTARSIA_SPEC_SAMPLED=reject /opt/code/intarsiaml/.worktrees/spec-sampled/.scratch/intarsia.br serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --port 18431 --model-id ss --max-seq 8192 --max-batch 1 --no-supervisor --no-ui --spec mtp --spec-k 2`
+- result file: `results/20261105-213315-ss-t10-ss-m27-T10-reject/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+INTARSIA_SPEC_SAMPLED=reject /opt/code/intarsiaml/.worktrees/spec-sampled/.scratch/intarsia.br serve --backend metal --model /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --port 18431 --model-id ss --max-seq 8192 --max-batch 1 --no-supervisor --no-ui --spec mtp --spec-k 2
+````
+
+## Suite
+
+- suite `llm-inference-suite` v1 (sha256 `364cc77c6b28`), tier **adhoc** (ad hoc: never a suite result)
+- cells run: speed-spec; skipped: -; rejected: none
+- lane `spec:mtp` (source counters, verified True); probe ratio 0.838; idle check metrics; context 8192 (max_model_len)
+- tokenizer: {"repo": null, "revision": null, "sha256": "0997f410c57a1f4e53b09e4be8f4a172d90edd9564368fb0847030937229b9f3"}
+- protocol compliance: request-shape, timing-defs, client-token-count, gen-length, nonce-first, cache-hit-reject, warmup-per-round, warmup-run-start, latin-square-order, quiet-slot, idle-check, spread-d2, retry-drop-one, spec-arm-plain-report, reps-raw, lane-counters, lane-probe, context-limit, sampling-pinned, tiers, exit-codes
+- exit code 0 (0 pass, 3 rejected, 2 harness error)
+
+
+## Speed sweep
+
+served `ss`, fingerprint `None`, ctx 8192, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1018 | 2.33 | 437 (412–444) | - | 22.4 (20.5–23.0) | 27.4 (26.2–28.2) | - | - | 256 |
+| 4066 | 7.16 | 568 (554–589) | 631 | 23.2 (23.0–23.3) | 30.9 (30.8–31.1) | - | - | 256 |
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Suite run (PROTOCOL.md): requests are one user message with a fresh nonce first, temperature 0, top_p 1, seed 0, ignore_eos (else logit_bias -100 on the EOS ids) with max_tokens = gen_tokens; t0 is when the last request byte is sent; tokens are counted by re-tokenizing the output with the pinned tokenizer (server counts are kept beside them and may differ by at most 2%); one discarded full-length request per size precedes the first round, and one discarded max_tokens-1 warmup precedes each round; rounds interleave the sizes in a cyclic (Latin-square) order; a cell's statistic is the median of its valid reps, its spread the range normalised to n = 3 with d2; a cell over its gate gets 2 extra reps once, then may drop the one rep farthest from the median, else it is rejected. Concurrency is a closed loop of N clients measured in a window that opens when every client has completed one request.
+
+[localeval] saved /opt/code/deepeval/results/20261105-213315-ss-t10-ss-m27-T10-reject/result.json
+[localeval] logged to unanimis: 4f9b17dd-a2f6-49b9-82ce-84f0b4fa7e19

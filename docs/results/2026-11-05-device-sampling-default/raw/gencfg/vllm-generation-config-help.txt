@@ -1,0 +1,18 @@
+fleetq: #8648 running on spark1: ssh spark1 'docker exec missioncntrl-guidance vllm serve --help=all 2>&1 | grep -n -A6 -e "--generation-config" | head -14; docker exec missioncntrl-guidance grep -rn "default_sampling_params" /usr/local/lib/python3*/dist-packages/vllm/entrypoints/openai/serving_chat.py 2>/dev/null | head -3'
+fleetq: #8648 went ahead of the line and must end within 70m (by Thu 20:11); it is stopped then
+fleetq: the deadline stops the local ssh; the remote command may keep running unless it ends with the connection (ssh -tt gives it a terminal that hangs up), so stop it yourself if it does not
+251:  --generation-config GENERATION_CONFIG
+252-                        The folder path to the generation config. Defaults to
+253-                        `"auto"`, the generation config will be loaded from
+254-                        model path. If set to `"vllm"`, no generation config
+255-                        is loaded, vLLM defaults will be used. If set to a
+256-                        folder path, the generation config will be loaded from
+257-                        the specified folder path. If `max_new_tokens` is
+--
+354:                        `--generation-config vllm`, only the override
+355-                        parameters are used.
+356-                        Should either be a valid JSON string or JSON keys
+357-                        passed individually. (default: {})
+358-  --pooler-config POOLER_CONFIG
+359-                        Pooler config which controls the behaviour of output
+fleetq: #8648 done (exit 0)

@@ -1,0 +1,4 @@
+prefill chunk 2048 (recipe qwen3, metal)
+loaded Qwen3-8B on Apple M5 Max in 0.4s: 36 layers, hidden 4096, act bf16, kv bf16, weights 16.38 GB, context 4096 tokens (recipe builtin:qwen3, chat template tokenizer_config.json)
+prompt: 4096 tokens
+Error: generation failed: bad request: prompt of 4096 tokens does not fit the context window of 4096 tokens

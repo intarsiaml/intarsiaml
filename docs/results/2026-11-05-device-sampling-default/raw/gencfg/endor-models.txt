@@ -1,0 +1,7 @@
+Llama-3.1-8B-Instruct/             {'do_sample': True, 'temperature': 0.6, 'top_p': 0.9}
+MiniCPM-V-4.7-35B-A3B-MLX-4bit/    {'do_sample': True, 'temperature': 1.0, 'top_p': 0.95, 'top_k': 20}
+Qwen2.5-7B-Instruct/               {'do_sample': True, 'temperature': 0.7, 'top_p': 0.8, 'top_k': 20, 'repetition_penalty': 1.05}
+Qwen3-8B/                          {'do_sample': True, 'temperature': 0.6, 'top_p': 0.95, 'top_k': 20}
+Qwen3.6-35B-A3B-NVFP4/             {'do_sample': True, 'temperature': 1.0, 'top_p': 0.95, 'top_k': 20}
+Qwen3.8-27B-Quark-AWQ-MXFP4/       {'do_sample': True, 'temperature': 1.0, 'top_p': 0.95, 'top_k': 20}
+qwen38-27b/                        {'do_sample': True, 'temperature': 1.0, 'top_p': 0.95, 'top_k': 20}

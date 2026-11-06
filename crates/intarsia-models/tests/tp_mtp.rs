@@ -436,7 +436,7 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
 }
 
 /// G0 for the shipped recipes: exactly these (recipe, backend) pairs make `--spec mtp` the default, so every other model and backend
-/// (the 8B, CUDA and Metal, HIP at tp=1, the 35B everywhere, CPU) runs without --spec as before.
+/// (the 8B, CUDA and Metal, HIP at tp=1, the 35B on HIP and CPU) runs without --spec as before.
 #[test]
 fn only_the_measured_recipe_backend_pairs_default_to_mtp() {
     let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes");
@@ -457,7 +457,7 @@ fn only_the_measured_recipe_backend_pairs_default_to_mtp() {
         }
     }
     got.sort();
-    assert_eq!(got, ["qwen3_5_moe cuda tp1 2", "qwen3_5_vl cuda tp1 2", "qwen3_5_vl hip tp 2", "qwen3_5_vl metal tp1 2"], "the recipes that turn MTP on by default");
+    assert_eq!(got, ["qwen3_5_moe cuda tp1 2", "qwen3_5_moe metal tp1 2", "qwen3_5_vl cuda tp1 2", "qwen3_5_vl hip tp 2", "qwen3_5_vl metal tp1 2"], "the recipes that turn MTP on by default");
 }
 
 fn single_rank_loader_default_matches_off() {
@@ -578,4 +578,50 @@ fn a_failed_mtp_pass_marks_the_group_aborted() {
         assert!(matches!(err, Error::Memory(_)), "catch_up {catch_up}: {err}");
         assert!(m.tp_group_aborted(), "catch_up {catch_up}: the failed pass aborted the group and the model does not know");
     }
+}
+
+/// Batched MTP default (lane bm, user decision 2026-11-05 ~19:45 EST "N=1 default"): `[tuning.<backend>] batched_mtp` gives N at tp = 1
+/// in-process only; `INTARSIA_BATCHED_MTP` wins (`0` off); a batched server takes the recipe's `mtp_default_k` only where N > 0. The
+/// shipped recipes set it for exactly the measured pairs (the 35B on CUDA and Metal): HIP and every tp > 1 stay off.
+#[test]
+fn batched_mtp_default_only_where_measured_and_env_wins() {
+    let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    use intarsia_models::load::{batched_mtp_for, mtp_default, tp_mtp_default};
+    let moe = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_moe.toml")).unwrap();
+    std::env::remove_var("INTARSIA_BATCHED_MTP");
+    assert_eq!(batched_mtp_for(&moe, "cuda", 1, true).unwrap(), 1, "35B cuda tp1");
+    assert_eq!(batched_mtp_for(&moe, "metal", 1, true).unwrap(), 1, "35B metal tp1");
+    assert_eq!(batched_mtp_for(&moe, "hip", 1, true).unwrap(), 0, "35B hip stays off");
+    assert_eq!(batched_mtp_for(&moe, "cuda", 2, true).unwrap(), 0, "tp 2 stays off");
+    assert_eq!(batched_mtp_for(&moe, "cuda", 1, false).unwrap(), 0, "a rank in another process stays off");
+    let batch = intarsia_models::EngineOptions { spec_auto: true, max_batch: Some(16), ..Default::default() };
+    assert_eq!(mtp_default(&batch, &moe, "cuda", 1, true), Some(2), "a --max-batch 16 server on CUDA takes the MTP default");
+    assert_eq!(mtp_default(&batch, &moe, "hip", 1, true), None, "not on HIP");
+    let vl = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_vl.toml")).unwrap();
+    assert_eq!(tp_mtp_default(&batch, &vl, "hip", 2, true), None, "HIP tp 2 batched server: unchanged, off");
+    assert_eq!(mtp_default(&batch, &vl, "metal", 1, true), None, "a recipe without batched_mtp keeps its MTP default single-sequence");
+    std::env::set_var("INTARSIA_BATCHED_MTP", "0");
+    let off = (batched_mtp_for(&moe, "cuda", 1, true).unwrap(), mtp_default(&batch, &moe, "cuda", 1, true));
+    std::env::set_var("INTARSIA_BATCHED_MTP", "3");
+    let three = (batched_mtp_for(&moe, "hip", 1, true).unwrap(), batched_mtp_for(&moe, "cuda", 2, true).unwrap());
+    std::env::remove_var("INTARSIA_BATCHED_MTP");
+    assert_eq!(off, (0, None), "INTARSIA_BATCHED_MTP=0 turns it and the batched MTP default off");
+    assert_eq!(three, (3, 0), "the env var sets N on any backend at tp 1, never at tp 2");
+    // the shipped recipes: exactly the measured pairs
+    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../recipes");
+    let mut got = Vec::new();
+    for e in std::fs::read_dir(&dir).unwrap() {
+        let path = e.unwrap().path();
+        if path.extension().is_none_or(|x| x != "toml") {
+            continue;
+        }
+        let r = intarsia_models::parse_recipe(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        for backend in ["cpu", "cuda", "hip", "metal"] {
+            if let Some(n) = r.resolve_batched_mtp(backend) {
+                got.push(format!("{} {backend} {n}", r.model.family));
+            }
+        }
+    }
+    got.sort();
+    assert_eq!(got, ["qwen3_5_moe cuda 1", "qwen3_5_moe metal 1"], "the recipes that turn batched MTP on by default");
 }

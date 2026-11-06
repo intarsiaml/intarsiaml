@@ -43,6 +43,7 @@ pub fn is_bind_failure(e: &intarsia_core::Error) -> bool {
 }
 
 pub use health::{EXIT_FATAL, EXIT_FAILED, EXIT_ORPHANED, EXIT_STALLED};
+pub use api::SamplingDefaults;
 pub use metrics::Metrics;
 
 #[derive(Clone, Debug)]
@@ -73,6 +74,9 @@ pub struct ServerConfig {
     pub parent_pid: Option<u32>,
     /// Serve the built-in web UI at `/` and `/ui/*` (`--no-ui` turns it off).
     pub ui: bool,
+    /// Sampling for the fields a request leaves out (default: the built-ins; `serve` fills it from the checkpoint's
+    /// `generation_config.json` unless `--generation-config none`).
+    pub sampling_defaults: SamplingDefaults,
 }
 
 impl Default for ServerConfig {
@@ -90,6 +94,7 @@ impl Default for ServerConfig {
             exit_on_failed: false,
             parent_pid: None,
             ui: true,
+            sampling_defaults: SamplingDefaults::default(),
         }
     }
 }
@@ -289,6 +294,7 @@ async fn prometheus(State(st): State<AppState>) -> Response {
     match r {
         Ok((snap, info, batch)) => {
             let mut body = metrics::render(&snap, &info, &st.metrics);
+            body.push_str(&st.sampling_defaults.metric());
             if let Some(b) = batch {
                 body.push_str(&metrics::render_batch(&b));
             }

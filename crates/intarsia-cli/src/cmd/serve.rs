@@ -37,6 +37,13 @@ pub struct ServeArgs {
     /// value is faster but not bitwise (1024: mean 21-way KL 7.87e-3, 2.5x the ref-noise floor; docs/results/2026-10-23-rb2-cuda-batching.md).
     #[arg(long, value_parser = clap::value_parser!(u16).range(16..=2048))]
     pub busy_chunk: Option<u16>,
+    /// Sampling for the fields a request leaves out: `auto` (default) takes `temperature`, `top_p` and `top_k` from the
+    /// checkpoint's `generation_config.json`, as vLLM's `--generation-config auto` does; a value the request sends always
+    /// wins. `none` uses the built-ins (temperature 1.0, top_p 1.0, top_k off). A directory path reads its
+    /// `generation_config.json` instead. The environment variable `INTARSIA_GENERATION_CONFIG` sets it when the flag is absent.
+    /// `min_p` and `repetition_penalty` in the file are not supported and ignored.
+    #[arg(long)]
+    pub generation_config: Option<String>,
     /// `max_tokens` for requests that name none, also bounded by the context (0 = only the context).
     #[arg(long, default_value_t = 4096)]
     pub default_max_tokens: usize,
@@ -125,6 +132,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
     if let Some(path) = &args.prefix_store_pin {
         pin_prefixes(&*engine, path)?;
     }
+    let sampling_defaults = sampling_defaults(args.generation_config.as_deref(), &args.model.model);
     let parent_pid = args.child.then(|| std::env::var("INTARSIA_SUPERVISOR_PID").ok()?.parse().ok()).flatten();
     let child = args.child;
     // A supervised child outlasts a server that is stopping (the supervisor's own grace is 30 s) before it gives up; by hand, a taken port is
@@ -144,6 +152,7 @@ pub fn run(args: ServeArgs) -> Result<()> {
         exit_on_failed: args.model.tp_remote.is_some() || args.model.tp > 1,
         parent_pid,
         ui: !args.no_ui,
+        sampling_defaults,
     };
     match intarsia_server::serve(engine, cfg) {
         Ok(()) => Ok(()),
@@ -154,6 +163,26 @@ pub fn run(args: ServeArgs) -> Result<()> {
         }
         Err(e) => Err(anyhow::anyhow!("{e}")),
     }
+}
+
+/// `--generation-config` (or `INTARSIA_GENERATION_CONFIG`): the sampling a request without its own values gets; logged once.
+fn sampling_defaults(flag: Option<&str>, model_dir: &std::path::Path) -> intarsia_server::SamplingDefaults {
+    let env = std::env::var("INTARSIA_GENERATION_CONFIG").ok();
+    let mode = flag.map(str::to_string).or(env).unwrap_or_else(|| "auto".into());
+    let dir = match mode.as_str() {
+        "none" => None,
+        "auto" => Some(model_dir.to_path_buf()),
+        path => Some(std::path::PathBuf::from(path)),
+    };
+    let (d, warns) = match &dir {
+        Some(dir) => intarsia_server::SamplingDefaults::from_dir(dir),
+        None => Default::default(),
+    };
+    for w in warns {
+        eprintln!("generation config: {w}");
+    }
+    eprintln!("sampling defaults: {}", d.describe());
+    d
 }
 
 /// `--prefix-store-pin`: prefill every listed prefix into the store and pin it (before the server takes requests).

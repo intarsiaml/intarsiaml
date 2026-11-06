@@ -1,0 +1,96 @@
+A-0-0.log: cfg A seeds 0..375 in 856.2 s; spec steps 0 proposed 0 accepted 0
+A-0-0.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 856.58s
+A-0-1125.log: cfg A seeds 1125..1500 in 574.4 s; spec steps 0 proposed 0 accepted 0
+A-0-1125.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 574.76s
+A-0-1500.log: cfg A seeds 1500..1875 in 869.7 s; spec steps 0 proposed 0 accepted 0
+A-0-1500.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 870.68s
+A-0-1875.log: cfg A seeds 1875..2250 in 864.3 s; spec steps 0 proposed 0 accepted 0
+A-0-1875.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 864.70s
+A-0-2250.log: cfg A seeds 2250..2625 in 858.0 s; spec steps 0 proposed 0 accepted 0
+A-0-2250.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 858.34s
+A-0-2625.log: cfg A seeds 2625..3000 in 867.3 s; spec steps 0 proposed 0 accepted 0
+A-0-2625.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 867.69s
+A-0-375.log: cfg A seeds 375..750 in 864.9 s; spec steps 0 proposed 0 accepted 0
+A-0-375.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 865.25s
+A-0-750.log: cfg A seeds 750..1125 in 863.4 s; spec steps 0 proposed 0 accepted 0
+A-0-750.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 863.79s
+A-match-2000000.log: cfg A seeds 2000000..2000375 in 524.7 s; spec steps 642 proposed 1017 accepted 292
+A-match-2000000.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 524.93s
+A-match-2000375.log: cfg A seeds 2000375..2000750 in 527.8 s; spec steps 634 proposed 1009 accepted 284
+A-match-2000375.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 528.03s
+A-match-2000750.log: cfg A seeds 2000750..2001125 in 532.6 s; spec steps 658 proposed 1033 accepted 274
+A-match-2000750.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 532.79s
+A-match-2001125.log: cfg A seeds 2001125..2001500 in 527.1 s; spec steps 648 proposed 1023 accepted 289
+A-match-2001125.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 527.25s
+A-match-2001500.log: cfg A seeds 2001500..2001875 in 533.2 s; spec steps 653 proposed 1028 accepted 268
+A-match-2001500.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 533.40s
+A-match-2001875.log: cfg A seeds 2001875..2002250 in 525.9 s; spec steps 638 proposed 1013 accepted 292
+A-match-2001875.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 526.15s
+A-match-2002250.log: cfg A seeds 2002250..2002625 in 529.9 s; spec steps 651 proposed 1026 accepted 277
+A-match-2002250.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 530.14s
+A-match-2002625.log: cfg A seeds 2002625..2003000 in 493.1 s; spec steps 625 proposed 1000 accepted 315
+A-match-2002625.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 493.27s
+A-reject-1000000.log: cfg A seeds 1000000..1000375 in 588.8 s; spec steps 500 proposed 875 accepted 493
+A-reject-1000000.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 589.09s
+A-reject-1000375.log: cfg A seeds 1000375..1000750 in 464.9 s; spec steps 499 proposed 874 accepted 484
+A-reject-1000375.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 465.30s
+A-reject-1000750.log: cfg A seeds 1000750..1001125 in 458.8 s; spec steps 504 proposed 879 accepted 500
+A-reject-1000750.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 459.21s
+A-reject-1001125.log: cfg A seeds 1001125..1001500 in 456.5 s; spec steps 493 proposed 868 accepted 502
+A-reject-1001125.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 456.82s
+A-reject-1001500.log: cfg A seeds 1001500..1001875 in 454.5 s; spec steps 481 proposed 856 accepted 509
+A-reject-1001500.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 454.90s
+A-reject-1001875.log: cfg A seeds 1001875..1002250 in 455.0 s; spec steps 494 proposed 869 accepted 508
+A-reject-1001875.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 455.37s
+A-reject-1002250.log: cfg A seeds 1002250..1002625 in 455.3 s; spec steps 498 proposed 873 accepted 505
+A-reject-1002250.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 455.62s
+A-reject-1002625.log: cfg A seeds 1002625..1003000 in 454.1 s; spec steps 490 proposed 865 accepted 511
+A-reject-1002625.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 454.49s
+B-0-0.log: cfg B seeds 0..375 in 420.5 s; spec steps 0 proposed 0 accepted 0
+B-0-0.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 420.73s
+B-0-1125.log: cfg B seeds 1125..1500 in 416.8 s; spec steps 0 proposed 0 accepted 0
+B-0-1125.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 417.03s
+B-0-1500.log: cfg B seeds 1500..1875 in 419.2 s; spec steps 0 proposed 0 accepted 0
+B-0-1500.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 419.42s
+B-0-1875.log: cfg B seeds 1875..2250 in 420.1 s; spec steps 0 proposed 0 accepted 0
+B-0-1875.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 420.31s
+B-0-2250.log: cfg B seeds 2250..2625 in 419.1 s; spec steps 0 proposed 0 accepted 0
+B-0-2250.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 419.32s
+B-0-2625.log: cfg B seeds 2625..3000 in 421.9 s; spec steps 0 proposed 0 accepted 0
+B-0-2625.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 422.03s
+B-0-375.log: cfg B seeds 375..750 in 419.9 s; spec steps 0 proposed 0 accepted 0
+B-0-375.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 420.05s
+B-0-750.log: cfg B seeds 750..1125 in 419.5 s; spec steps 0 proposed 0 accepted 0
+B-0-750.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 419.74s
+B-match-2000000.log: cfg B seeds 2000000..2000375 in 358.2 s; spec steps 481 proposed 856 accepted 562
+B-match-2000000.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 358.44s
+B-match-2000375.log: cfg B seeds 2000375..2000750 in 360.1 s; spec steps 478 proposed 853 accepted 558
+B-match-2000375.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 360.34s
+B-match-2000750.log: cfg B seeds 2000750..2001125 in 362.9 s; spec steps 490 proposed 865 accepted 543
+B-match-2000750.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 363.09s
+B-match-2001125.log: cfg B seeds 2001125..2001500 in 355.8 s; spec steps 478 proposed 853 accepted 574
+B-match-2001125.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 355.96s
+B-match-2001500.log: cfg B seeds 2001500..2001875 in 355.7 s; spec steps 479 proposed 854 accepted 571
+B-match-2001500.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 355.92s
+B-match-2001875.log: cfg B seeds 2001875..2002250 in 354.1 s; spec steps 473 proposed 848 accepted 576
+B-match-2001875.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 354.33s
+B-match-2002250.log: cfg B seeds 2002250..2002625 in 351.1 s; spec steps 484 proposed 859 accepted 563
+B-match-2002250.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 351.26s
+B-match-2002625.log: cfg B seeds 2002625..2003000 in 296.6 s; spec steps 471 proposed 846 accepted 572
+B-match-2002625.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 296.78s
+B-reject-1000000.log: cfg B seeds 1000000..1000375 in 339.1 s; spec steps 498 proposed 873 accepted 581
+B-reject-1000000.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 339.24s
+B-reject-1000375.log: cfg B seeds 1000375..1000750 in 344.3 s; spec steps 517 proposed 892 accepted 561
+B-reject-1000375.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 344.51s
+B-reject-1000750.log: cfg B seeds 1000750..1001125 in 345.6 s; spec steps 511 proposed 886 accepted 561
+B-reject-1000750.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 345.77s
+B-reject-1001125.log: cfg B seeds 1001125..1001500 in 340.8 s; spec steps 495 proposed 870 accepted 572
+B-reject-1001125.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 341.00s
+B-reject-1001500.log: cfg B seeds 1001500..1001875 in 346.4 s; spec steps 504 proposed 879 accepted 554
+B-reject-1001500.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 346.58s
+B-reject-1001875.log: cfg B seeds 1001875..1002250 in 340.8 s; spec steps 504 proposed 879 accepted 576
+B-reject-1001875.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 340.96s
+B-reject-1002250.log: cfg B seeds 1002250..1002625 in 348.4 s; spec steps 517 proposed 892 accepted 555
+B-reject-1002250.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 348.64s
+B-reject-1002625.log: cfg B seeds 1002625..1003000 in 351.5 s; spec steps 511 proposed 886 accepted 567
+B-reject-1002625.log: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 351.73s

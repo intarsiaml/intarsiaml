@@ -1,0 +1,16 @@
+The sky appears blue due to a phenomenon called **Rayleigh scattering**. Here is a step-by-step explanation of why this happens:
+
+### 1. Sunlight Contains All Colors
+Sunlight may appear white, but it is actually composed of all the colors of the visible spectrum (red, orange, yellow, green, blue, indigo, and violet). Each color has a different wavelength:
+- **Red, orange, and yellow** have longer wavelengths.
+- **Blue and violet** have shorter wavelengths.
+
+### 2. Interaction with Earth’s Atmosphere
+As sunlight enters Earth’s atmosphere, it collides with gas molecules (primarily nitrogen and oxygen) and small particles. These collisions cause the light to scatter in different directions.
+
+### 3. Rayleigh Scattering
+The amount of scattering depends on the wavelength of the light. According to **Rayleigh’s Law**, the intensity of scattered light is inversely proportional to the fourth power of its wavelength:
+$$ I \propto \frac{1}{\lambda^4} $$
+This means that shorter wavelengths (blue and violet) are scattered much more strongly than longer wavelengths (red and yellow).
+
+- Blue light is scattered about **10 times more** than red light

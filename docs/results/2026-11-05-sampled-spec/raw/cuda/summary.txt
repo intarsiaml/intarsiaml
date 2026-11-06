@@ -1,0 +1,5 @@
+plan show json: identical
+plan show text: identical
+kernels exit 0 106 kernels, 918 cases in 6.5s
+ids short identical
+ids 4k identical

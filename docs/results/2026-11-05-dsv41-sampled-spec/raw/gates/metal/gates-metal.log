@@ -1,0 +1,49 @@
+fleetq: #8713 waiting (#4 in line): in line behind #8696 "lane-ds: Metal no-op (plan show, kernels test, greedy ids, goldens) main vs branch" (claude-1943a70c-ds) on endor
+fleetq: #8713 waiting (#3 in line): endor is held exclusively by #8696 "lane-ds: Metal no-op (plan show, kernels test, greedy ids, goldens) main vs branch" (claude-1943a70c-ds); then in line behind #8699 "bm-default: Metal no-op 8B/27B + 35B ids (N=1 default)" (claude-1943a70c) on endor
+fleetq:   #8699 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8699 set, or it will wait for #8699 to be released.
+fleetq: #8713 waiting (#2 in line): endor is held exclusively by #8699 "bm-default: Metal no-op 8B/27B + 35B ids (N=1 default)" (claude-1943a70c); then in line behind #8700 "bm-default: cargo test --workspace --no-fail-fast" (claude-1943a70c) on endor
+fleetq:   #8699 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8699 set, or it will wait for #8699 to be released.
+fleetq: #8713 waiting (#1 in line): needs endor to itself; running there: #8700 "bm-default: cargo test --workspace --no-fail-fast" (claude-1943a70c); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #8700 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8700 set, or it will wait for #8700 to be released.
+fleetq: #8713 waiting (#1 in line): needs endor to itself; running there: #8700 "bm-default: cargo test --workspace --no-fail-fast" (claude-1943a70c), #8717 "ss: check + spec unit tests (default on)" (claude-1943a70c); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #8700 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8700 set, or it will wait for #8700 to be released.
+fleetq: #8713 waiting (#1 in line): needs endor to itself; running there: #8717 "ss: check + spec unit tests (default on)" (claude-1943a70c); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq:   #8717 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8717 set, or it will wait for #8717 to be released.
+fleetq: #8713 running on endor: zsh .scratch/gates/gates-metal.sh docs/results/2026-11-05-dsv41-sampled-spec/raw/gates/metal .scratch/gates/intarsia.new .scratch/gates/intarsia.base
+== 1/5 plan show (text and --json), base vs new
+plan show Qwen3.6-35B-A3B-NVFP4 : identical (2762 bytes)
+plan show Qwen3.6-35B-A3B-NVFP4 --json: identical (11384 bytes)
+plan show Qwen3-8B : identical (1342 bytes)
+plan show Qwen3-8B --json: identical (8371 bytes)
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 : identical (3263 bytes)
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 --json: identical (14784 bytes)
+== 2/5 kernels test --backend metal
+base kernels test exit 0
+new kernels test exit 0
+FAIL lines: base 0 new 0
+matmul_nvfp4   matmul_nvfp4_gemv_rows         18      0    1.330e-3    2.214e-5  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 980 cases in 31.3s
+kernels logs differ:
+53c53
+< 49 kernels, 980 cases in 35.9s
+---
+> 49 kernels, 980 cases in 31.3s
+== 3/5 single-stream generate ids: 27B and 8B, short and 4K, --spec off, base vs new
+ident 27b short: text same, ids same (256 base ids, 256 new ids)
+ident 27b 4k: text same, ids same (256 base ids, 256 new ids)
+ident 8b short: text same, ids same (256 base ids, 256 new ids)
+ident 8b 4k: text same, ids same (256 base ids, 256 new ids)
+== 5/5 accuracy 8B goldens (new vs base byte-compare)
+accuracy qwen3-8b-fp32 base exit 0
+accuracy qwen3-8b-fp32 new exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy qwen3-8b-fp32: base and new byte-identical
+accuracy qwen3-8b-long-fp32 base exit 0
+accuracy qwen3-8b-long-fp32 new exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy qwen3-8b-long-fp32: base and new byte-identical
+== done
+fleetq: #8713 done (exit 0)

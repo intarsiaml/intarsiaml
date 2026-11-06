@@ -231,6 +231,21 @@ impl Model {
                 let mut s_state = TensorRef::new(rec.buf.clone(), self.gdn_state_dt, &[hv, dv, dk]);
                 s_state.offset = state_s_offset(l, conv_dt);
                 let (lo, len) = (sg.lo, sg.len);
+                if self.verifying() && len > 1 {
+                    // a batched verify pass (lane bm, `Model::forward_verify_batch`): this sequence's rows one at a time with the
+                    // state after every row but the last saved, exactly as the solo verify branch below runs them (unfused)
+                    let save = sg.st.spec_rows.bufs.len() >= len - 1 && self.recorder.lock().unwrap().is_none();
+                    let off = sg.st.recurrent_offset(g.slot);
+                    for r in 0..len {
+                        let (qkv, a, b, conv, core) =
+                            (qkv.rows(lo + r, 1), a.rows(lo + r, 1), b.rows(lo + r, 1), conv.rows(lo + r, 1), core.rows(lo + r, 1));
+                        self.conv_delta(g, &qkv, &a, &b, &conv, &core, &s_state, &conv_state, &delta_attrs, profile)?;
+                        if save && r + 1 < len {
+                            self.backend.copy(&sg.st.spec_rows.bufs[r], off, &rec.buf, 0, rec.bytes, 0)?;
+                        }
+                    }
+                    continue;
+                }
                 let (qkv, a, b, conv, core) = (qkv.rows(lo, len), a.rows(lo, len), b.rows(lo, len), conv.rows(lo, len), core.rows(lo, len));
                 self.conv_delta(g, &qkv, &a, &b, &conv, &core, &s_state, &conv_state, &delta_attrs, profile)?;
             }

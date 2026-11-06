@@ -28,6 +28,8 @@ pub struct AppState {
     pub max_running: usize,
     /// `max_tokens` when the client sends none (0 = as much as the context allows).
     pub default_max_tokens: usize,
+    /// Sampling for the fields a request leaves out (the checkpoint's `generation_config.json`, see [`SamplingDefaults`]).
+    pub sampling_defaults: Arc<SamplingDefaults>,
     pub progress: Arc<Progress>,
     /// Bounded `source` metric label of the request this clone serves (see [`AppState::for_request`]).
     pub source: Arc<str>,
@@ -70,6 +72,7 @@ impl AppState {
             max_queue: cfg.max_queue,
             max_running: cfg.max_running.max(1),
             default_max_tokens: cfg.default_max_tokens,
+            sampling_defaults: Arc::new(cfg.sampling_defaults.clone()),
             progress: Arc::new(Progress::new(Duration::from_secs_f64(cfg.watchdog_s.max(0.0)))),
             source: Arc::from("unknown"),
             grammar: Arc::new(std::sync::OnceLock::new()),
@@ -405,6 +408,93 @@ pub struct Sampling {
     pub stop_ids: Vec<u32>,
 }
 
+/// What a request that leaves a sampling field out gets: the checkpoint's own `generation_config.json`, as vLLM does with
+/// `--generation-config auto` (the default there). A field the request sends always wins; a field the file does not have
+/// falls back to the built-in (temperature 1.0, `top_p` 1.0, `top_k` 0 = off). `SamplingDefaults::default()` is the built-ins
+/// alone (`--generation-config none`). `min_p` and `repetition_penalty` are not supported by the engine and are not applied.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SamplingDefaults {
+    pub temperature: Option<f32>,
+    pub top_p: Option<f32>,
+    /// 0 = off.
+    pub top_k: Option<usize>,
+    /// The file these came from (`None`: the built-ins only).
+    pub source: Option<String>,
+}
+
+impl SamplingDefaults {
+    /// Read `<dir>/generation_config.json`. A missing file gives the built-ins; the second value lists what was ignored or wrong.
+    pub fn from_dir(dir: &std::path::Path) -> (SamplingDefaults, Vec<String>) {
+        let path = dir.join("generation_config.json");
+        let text = match std::fs::read_to_string(&path) {
+            Ok(t) => t,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return (SamplingDefaults::default(), Vec::new()),
+            Err(e) => return (SamplingDefaults::default(), vec![format!("{}: {e}", path.display())]),
+        };
+        match serde_json::from_str::<Value>(&text) {
+            Ok(v) => {
+                let (mut d, warns) = SamplingDefaults::from_json(&v);
+                d.source = Some(path.display().to_string());
+                (d, warns)
+            }
+            Err(e) => (SamplingDefaults::default(), vec![format!("{}: {e}", path.display())]),
+        }
+    }
+
+    /// The sampling fields of a `generation_config.json` document. A value out of the range the API accepts is dropped, with a warning.
+    pub fn from_json(v: &Value) -> (SamplingDefaults, Vec<String>) {
+        let mut d = SamplingDefaults::default();
+        let mut warns = Vec::new();
+        if let Some(t) = v.get("temperature").and_then(Value::as_f64) {
+            if (0.0..=10.0).contains(&t) {
+                d.temperature = Some(t as f32);
+            } else {
+                warns.push(format!("temperature {t} outside [0, 10], ignored"));
+            }
+        }
+        if let Some(p) = v.get("top_p").and_then(Value::as_f64) {
+            if p > 0.0 && p <= 1.0 {
+                d.top_p = Some(p as f32);
+            } else {
+                warns.push(format!("top_p {p} outside (0, 1], ignored"));
+            }
+        }
+        if let Some(k) = v.get("top_k").and_then(Value::as_i64) {
+            d.top_k = Some(k.max(0) as usize);
+        }
+        if v.get("min_p").and_then(Value::as_f64).is_some_and(|m| m > 0.0) {
+            warns.push("min_p is not supported, ignored".into());
+        }
+        if v.get("repetition_penalty").and_then(Value::as_f64).is_some_and(|r| r != 1.0) {
+            warns.push("repetition_penalty is not supported, ignored".into());
+        }
+        (d, warns)
+    }
+
+    /// The values a request that names nothing is sampled with.
+    pub fn effective(&self) -> (f32, f32, usize) {
+        (self.temperature.unwrap_or(1.0), self.top_p.unwrap_or(1.0), self.top_k.unwrap_or(0))
+    }
+
+    /// One line for the startup log.
+    pub fn describe(&self) -> String {
+        let (t, p, k) = self.effective();
+        match &self.source {
+            Some(s) => format!("temperature={t} top_p={p} top_k={k} (from {s}; a request's own values win)"),
+            None => format!("temperature={t} top_p={p} top_k={k} (built-in; no checkpoint generation_config applied)"),
+        }
+    }
+
+    /// The `intarsia_sampling_defaults` metric line (value 1), labelled with the effective values.
+    pub fn metric(&self) -> String {
+        let (t, p, k) = self.effective();
+        let src = self.source.as_deref().unwrap_or("builtin").replace('\\', "\\\\").replace('"', "\\\"");
+        format!(
+            "# HELP intarsia_sampling_defaults Sampling a request without its own values gets (the checkpoint's generation_config.json, or the built-ins).\n# TYPE intarsia_sampling_defaults gauge\nintarsia_sampling_defaults{{source=\"{src}\",temperature=\"{t}\",top_p=\"{p}\",top_k=\"{k}\"}} 1\n"
+        )
+    }
+}
+
 impl Sampling {
     pub fn into_request(
         self,
@@ -412,13 +502,14 @@ impl Sampling {
         flavor: Flavor,
         context_len: usize,
         default_max_tokens: usize,
+        defaults: &SamplingDefaults,
     ) -> Result<GenRequest, ApiError> {
         let bad = |m: &str| ApiError::bad_request(flavor, m);
-        let temperature = self.temperature.unwrap_or(1.0);
+        let temperature = self.temperature.or(defaults.temperature).unwrap_or(1.0);
         if !(temperature >= 0.0) || temperature > 10.0 {
             return Err(bad("temperature must be in [0, 10]"));
         }
-        let top_p = self.top_p.unwrap_or(1.0);
+        let top_p = self.top_p.or(defaults.top_p).unwrap_or(1.0);
         if !(top_p > 0.0 && top_p <= 1.0) {
             return Err(bad("top_p must be in (0, 1]"));
         }
@@ -436,9 +527,10 @@ impl Sampling {
             )));
         }
         let prompt_len = prompt.len();
+        // a `top_k` the request sends wins, 0 and negative (off) included
         let top_k = match self.top_k {
-            Some(k) if k > 0 => k as usize,
-            _ => 0,
+            Some(k) => k.max(0) as usize,
+            None => defaults.top_k.unwrap_or(0),
         };
         Ok(GenRequest {
             prompt,
@@ -515,4 +607,84 @@ pub fn sse_json(name: Option<&str>, v: &Value) -> Event {
         None => Event::default(),
     };
     e.data(v.to_string())
+}
+
+#[cfg(test)]
+mod sampling_defaults_tests {
+    use super::*;
+
+    fn qwen() -> SamplingDefaults {
+        SamplingDefaults::from_json(&json!({"temperature": 1.0, "top_k": 20, "top_p": 0.95, "do_sample": true})).0
+    }
+
+    fn req(s: Sampling, d: &SamplingDefaults) -> GenRequest {
+        s.into_request(vec![1, 2, 3], Flavor::OpenAi, 64, 0, d).unwrap()
+    }
+
+    #[test]
+    fn checkpoint_beats_built_in() {
+        let r = req(Sampling::default(), &qwen());
+        assert_eq!((r.temperature, r.top_p, r.top_k), (1.0, 0.95, 20));
+        let r = req(Sampling::default(), &SamplingDefaults::from_json(&json!({"temperature": 0.6, "top_k": 20, "top_p": 0.95})).0);
+        assert_eq!(r.temperature, 0.6);
+    }
+
+    #[test]
+    fn built_in_without_a_file_or_a_field() {
+        let r = req(Sampling::default(), &SamplingDefaults::default());
+        assert_eq!((r.temperature, r.top_p, r.top_k), (1.0, 1.0, 0));
+        // a file with only some fields leaves the others at the built-in
+        let r = req(Sampling::default(), &SamplingDefaults::from_json(&json!({"top_k": 20})).0);
+        assert_eq!((r.temperature, r.top_p, r.top_k), (1.0, 1.0, 20));
+    }
+
+    #[test]
+    fn request_beats_checkpoint() {
+        let s = Sampling { temperature: Some(0.0), top_p: Some(1.0), top_k: Some(0), ..Default::default() };
+        let r = req(s, &qwen());
+        assert_eq!((r.temperature, r.top_p, r.top_k), (0.0, 1.0, 0), "greedy, top_p 1 and top_k off sent by the request stay");
+        let s = Sampling { temperature: Some(0.3), top_k: Some(-1), ..Default::default() };
+        let r = req(s, &qwen());
+        assert_eq!((r.temperature, r.top_p, r.top_k), (0.3, 0.95, 0), "top_k -1 is off, and the unsent top_p is the checkpoint's");
+        let s = Sampling { top_k: Some(5), ..Default::default() };
+        assert_eq!(req(s, &qwen()).top_k, 5);
+    }
+
+    #[test]
+    fn off_switch_is_todays_behaviour() {
+        // `--generation-config none` is `SamplingDefaults::default()`: what into_request gave before the defaults existed
+        let r = req(Sampling::default(), &SamplingDefaults::default());
+        assert_eq!((r.temperature, r.top_p, r.top_k), (1.0, 1.0, 0));
+        assert!(SamplingDefaults::default().source.is_none());
+    }
+
+    #[test]
+    fn bad_and_unsupported_values_are_dropped_with_a_warning() {
+        let (d, w) = SamplingDefaults::from_json(&json!({"temperature": 11.0, "top_p": 0.0, "top_k": -1, "min_p": 0.05, "repetition_penalty": 1.1}));
+        assert_eq!((d.temperature, d.top_p, d.top_k), (None, None, Some(0)));
+        assert_eq!(w.len(), 4, "{w:?}");
+        let (d, w) = SamplingDefaults::from_json(&json!({"min_p": 0.0, "repetition_penalty": 1.0}));
+        assert_eq!(d, SamplingDefaults::default());
+        assert!(w.is_empty());
+    }
+
+    #[test]
+    fn missing_file_is_the_built_in_and_a_present_one_is_read() {
+        let dir = std::env::temp_dir().join(format!("intarsia-gencfg-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let (d, w) = SamplingDefaults::from_dir(&dir);
+        assert_eq!(d, SamplingDefaults::default());
+        assert!(w.is_empty());
+        std::fs::write(dir.join("generation_config.json"), r#"{"temperature": 0.6, "top_k": 20, "top_p": 0.95}"#).unwrap();
+        let (d, w) = SamplingDefaults::from_dir(&dir);
+        assert!(w.is_empty());
+        assert_eq!(d.effective(), (0.6, 0.95, 20));
+        assert!(d.source.as_deref().unwrap().ends_with("generation_config.json"));
+        assert!(d.describe().contains("top_k=20") && d.metric().contains("top_k=\"20\""));
+        std::fs::write(dir.join("generation_config.json"), "{not json").unwrap();
+        let (d, w) = SamplingDefaults::from_dir(&dir);
+        assert_eq!(d, SamplingDefaults::default());
+        assert_eq!(w.len(), 1);
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }

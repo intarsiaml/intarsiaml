@@ -1,0 +1,9 @@
+
+
+<think>
+Here's a thinking process:
+
+1.  **Understand the User's Request:**
+   - **Input:** Source code for `taskq.py` (a small in-process job queue), existing tests, and a bug report.
+   - **Bug Report:**
+     - Problem 1: A handler exceeding its timeout keeps running in its thread after the worker marks the job as failed and schedules a retry. This causes duplicate processing (zombie thread

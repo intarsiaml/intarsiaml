@@ -384,6 +384,11 @@ pub struct BackendTuning {
     /// pass ([`Recipe::resolve_mtp_default`]). `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out. Per backend only, set only where
     /// measured (the Qwen3.6-35B-A3B on CUDA, lane cmtp).
     pub mtp_default_k: Option<usize>,
+    /// Batched MTP default on this backend at tp = 1 (lane bm, user decision 2026-11-05 ~19:45 EST "N=1 default"): `--spec mtp` with
+    /// `--max-batch` > 1 drafts while at most this many sequences decode, and the recipe's `mtp_default_k` also applies to a batched
+    /// server. `INTARSIA_BATCHED_MTP` wins (`0`: off). Per backend only, set only where measured (the Qwen3.6-35B-A3B on CUDA and Metal:
+    /// docs/results/2026-11-05-batched-mtp.md); unset (HIP, every tp > 1): off.
+    pub batched_mtp: Option<usize>,
     /// MXFP4 projections on this backend: the activation mode when `--mxfp4-act` is not given (`"dynamic"`, `"none"` or `"fp8"`;
     /// wins over `[defaults] mxfp4_act`, loses to the flag). For a mode only some backends implement: the Qwen3.8-27B sets `"fp8"`
     /// (W4A8) under `[tuning.hip]`, so CUDA and Metal keep the `[defaults]` W4A16.
@@ -396,6 +401,9 @@ pub struct BackendTuning {
     /// ([`Recipe::resolve_gdn_state`]). Unset: `"f32"`. Per backend only (CUDA is the one that supports `"bf16"`), set only where an
     /// accuracy gate passed (lane spark35, `docs/results/2026-11-05-spark35-numerics.md`).
     pub gdn_state: Option<String>,
+    /// Quantise the `lm_head` at load on this backend (`"fp8"` or `"mxfp4"`, [`crate::quant::head`]) when `INTARSIA_LMHEAD_QUANT` is not
+    /// set. It changes outputs: opt-in, no shipped recipe sets it (lane lmhead-fp8). Per backend only; CUDA ignores it (not gated there).
+    pub lm_head_quant: Option<String>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -457,6 +465,11 @@ impl Recipe {
         DraftVocab { value: 0, source: "default".into() }
     }
 
+    /// The recipe's `lm_head_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
+    pub fn lm_head_quant(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.lm_head_quant.as_deref())
+    }
+
     /// The MXFP4 activation mode the recipe picks for `backend` when `--mxfp4-act` is absent: `[tuning.<backend>] mxfp4_act`, else
     /// `[defaults] mxfp4_act`, else `None` (what the checkpoint declares decides).
     pub fn mxfp4_act_for(&self, backend: &str) -> Option<crate::quant::Mxfp4Act> {
@@ -480,6 +493,13 @@ impl Recipe {
     pub fn resolve_mtp_default(&self, backend: &str) -> Option<usize> {
         self.mtp.as_ref()?;
         self.tuning.backends.get(backend).and_then(|b| b.mtp_default_k).filter(|&k| k > 0)
+    }
+
+    /// The recipe's batched MTP default for `backend` (`[tuning.<backend>] batched_mtp`, lane bm): `Some(n)` when the recipe has an
+    /// `[mtp]` head and sets a nonzero value for that backend.
+    pub fn resolve_batched_mtp(&self, backend: &str) -> Option<usize> {
+        self.mtp.as_ref()?;
+        self.tuning.backends.get(backend).and_then(|b| b.batched_mtp).filter(|&n| n > 0)
     }
 
     /// Prefill tail peel for `backend` ([`crate::scheduler::peel_tail`]): the recipe's value for that backend, then its
@@ -688,6 +708,9 @@ impl Recipe {
         }
         if let Some(v) = self.tuning.backends.values().filter_map(|b| b.gdn_state.as_deref()).find(|v| !matches!(*v, "f32" | "bf16")) {
             return Err(Error::model(format!("recipe [tuning.<backend>] gdn_state = \"{v}\" (f32 or bf16)")));
+        }
+        for v in self.tuning.backends.values().filter_map(|b| b.lm_head_quant.as_deref()) {
+            crate::quant::head::HeadQuant::parse(v)?;
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {

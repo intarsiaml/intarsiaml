@@ -904,6 +904,42 @@ async fn default_max_tokens_is_bounded() {
 }
 
 
+#[tokio::test]
+async fn checkpoint_sampling_defaults_reach_every_endpoint_and_the_request_wins() {
+    let defaults = intarsia_server::SamplingDefaults::from_json(&json!({"temperature": 0.6, "top_k": 20, "top_p": 0.95})).0;
+    let mock = Arc::new(Mock::default());
+    let cfg = intarsia_server::ServerConfig { sampling_defaults: defaults, ..Default::default() };
+    let app = intarsia_server::router_with(mock.clone(), &cfg);
+    // nothing sent: the checkpoint's values, on all three endpoints
+    call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc"}))).await;
+    call(&app, "POST", "/v1/chat/completions", Some(json!({"messages": [{"role": "user", "content": "hi"}]}))).await;
+    call(&app, "POST", "/v1/messages", Some(json!({"max_tokens": 8, "messages": [{"role": "user", "content": "hi"}]}))).await;
+    // the request's own values win, greedy and top_k off included
+    call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc", "temperature": 0.0, "top_p": 1.0, "top_k": 0}))).await;
+    call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc", "temperature": 0.3, "top_k": 7}))).await;
+    let r = mock.reqs.lock().unwrap().clone();
+    assert_eq!(r.len(), 5);
+    for q in &r[..3] {
+        assert!((q.temperature - 0.6).abs() < 1e-6 && (q.top_p - 0.95).abs() < 1e-6 && q.top_k == 20, "{q:?}");
+    }
+    assert_eq!((r[3].temperature, r[3].top_p, r[3].top_k), (0.0, 1.0, 0));
+    assert!((r[4].temperature - 0.3).abs() < 1e-6 && (r[4].top_p - 0.95).abs() < 1e-6 && r[4].top_k == 7);
+    // /metrics tells what they are
+    let (st, _, body) = call(&app, "GET", "/metrics", None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(body.contains("intarsia_sampling_defaults{source=\"builtin\",temperature=\"0.6\",top_p=\"0.95\",top_k=\"20\"} 1"), "{body}");
+}
+
+#[tokio::test]
+async fn without_checkpoint_defaults_a_bare_request_is_what_it_was() {
+    let (app, mock) = app();
+    call(&app, "POST", "/v1/completions", Some(json!({"prompt": "abc"}))).await;
+    let r = mock.reqs.lock().unwrap()[0].clone();
+    assert_eq!((r.temperature, r.top_p, r.top_k), (1.0, 1.0, 0));
+    let (_, _, body) = call(&app, "GET", "/metrics", None).await;
+    assert!(body.contains("intarsia_sampling_defaults{source=\"builtin\",temperature=\"1\",top_p=\"1\",top_k=\"0\"} 1"), "{body}");
+}
+
 /// Engine-shaped scripted stream: an empty-text token, and a tail event that repeats the last id
 /// (text held back at the end) after three real tokens plus the uncounted-in-events EOS.
 fn scripted_mock() -> Arc<Mock> {

@@ -1,0 +1,6 @@
+kind                      r08-t07
+chat          47.9 (median  48.9)
+code          68.6 (median  71.2)
+prose         42.7 (median  43.1)
+recall        53.2 (median  53.5)
+all           51.5 (median  50.5)

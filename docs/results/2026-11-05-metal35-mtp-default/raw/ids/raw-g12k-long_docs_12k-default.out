@@ -1,0 +1,14 @@
+ bf16). The MoE block is a single `Op::Moe` in the plan (the engine does not schedule
+sub-ops).
+
+## Kernel admission (3.2)
+
+`quant::admit` returns `AdmitResult::Admitted` when the op's `scales` and `layout` match a registered kernel's
+preconditions (e.g. `nvfp4` with `layout == Layout::RowMajor` and `scales.len() == 2`). The oracle path is always
+available (cpu-ref `dequant_ref` + reference matmul).
+
+## CUDA kernels (ABI: `ik_abi.h`)
+
+* `fp8.cu`: `fp8_matmul` (bf16 or fp8 activations, `scales` tensor `[weight_scale, input_scale]`, `Layout::RowMajor`).
+  Uses `cublasLtMatmul` (fp8) or `cublasLtMatmul` (bf16) when admitted; falls back to the reference.
+* `nvfp4.cu`: `nvfp4_matmul` (bf16 activations, `scales` tensor `[weight_scale, input_scale]`, `Layout::Row
