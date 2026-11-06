@@ -1002,10 +1002,10 @@ int ik_gdn_delta_rule_bf16_split_rows(const ik_tensor* qkv, const ik_tensor* a, 
             gdn_dec_run<true, false, ik_bf16>(qkv, a, b, a_log, dt_bias, eps, o, nullptr, (int)Hk, (int)Hv, (int)dv, (int)R,
                                               (const uint8_t*)tab->data, stride, index, byte_off, s);
         else if (gdn_state_emu())
-            gdn_dec_run<true, true>(qkv, a, b, a_log, dt_bias, eps, o, nullptr, (int)Hk, (int)Hv, (int)dv, (int)R,
+            gdn_dec_run<true, true, float>(qkv, a, b, a_log, dt_bias, eps, o, nullptr, (int)Hk, (int)Hv, (int)dv, (int)R,
                                     (const uint8_t*)tab->data, stride, index, byte_off, s);
         else
-            gdn_dec_run<true>(qkv, a, b, a_log, dt_bias, eps, o, nullptr, (int)Hk, (int)Hv, (int)dv, (int)R, (const uint8_t*)tab->data,
+            gdn_dec_run<true, false, float>(qkv, a, b, a_log, dt_bias, eps, o, nullptr, (int)Hk, (int)Hv, (int)dv, (int)R, (const uint8_t*)tab->data,
                               stride, index, byte_off, s);
         return ik_launch_status();
     }
