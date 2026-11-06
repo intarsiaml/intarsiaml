@@ -38,10 +38,15 @@ pub const BUSY_PREFILL_CHUNK: usize = 256;
 /// `INTARSIA_BATCHED_MTP=N` (lane bm, opt-in): `--spec mtp` with `--max-batch` > 1, drafting while at most `N` sequences decode
 /// ([`BatchedOptions::mtp_max_b`]). Unset, empty or `0`: off (`--spec mtp` stays refused with the batching engine).
 pub fn batched_mtp_env() -> Result<usize> {
+    Ok(batched_mtp_env_opt()?.unwrap_or(0))
+}
+
+/// [`batched_mtp_env`], `None` when the variable is unset or empty (the recipe's `[tuning.<backend>] batched_mtp` default then applies).
+pub fn batched_mtp_env_opt() -> Result<Option<usize>> {
     match std::env::var("INTARSIA_BATCHED_MTP") {
-        Err(_) => Ok(0),
-        Ok(v) if v.is_empty() => Ok(0),
-        Ok(v) => v.parse::<usize>().ok().filter(|&n| n <= MAX_BATCH_CAP).ok_or_else(|| {
+        Err(_) => Ok(None),
+        Ok(v) if v.is_empty() => Ok(None),
+        Ok(v) => v.parse::<usize>().ok().filter(|&n| n <= MAX_BATCH_CAP).map(Some).ok_or_else(|| {
             Error::invalid(format!("INTARSIA_BATCHED_MTP={v}: a sequence count 0..={MAX_BATCH_CAP} (draft while at most that many decode)"))
         }),
     }

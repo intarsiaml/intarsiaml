@@ -384,6 +384,11 @@ pub struct BackendTuning {
     /// pass ([`Recipe::resolve_mtp_default`]). `--spec off` or `INTARSIA_SPEC_DEFAULT=0` opts out. Per backend only, set only where
     /// measured (the Qwen3.6-35B-A3B on CUDA, lane cmtp).
     pub mtp_default_k: Option<usize>,
+    /// Batched MTP default on this backend at tp = 1 (lane bm, user decision 2026-11-05 ~19:45 EST "N=1 default"): `--spec mtp` with
+    /// `--max-batch` > 1 drafts while at most this many sequences decode, and the recipe's `mtp_default_k` also applies to a batched
+    /// server. `INTARSIA_BATCHED_MTP` wins (`0`: off). Per backend only, set only where measured (the Qwen3.6-35B-A3B on CUDA and Metal:
+    /// docs/results/2026-11-05-batched-mtp.md); unset (HIP, every tp > 1): off.
+    pub batched_mtp: Option<usize>,
     /// MXFP4 projections on this backend: the activation mode when `--mxfp4-act` is not given (`"dynamic"`, `"none"` or `"fp8"`;
     /// wins over `[defaults] mxfp4_act`, loses to the flag). For a mode only some backends implement: the Qwen3.8-27B sets `"fp8"`
     /// (W4A8) under `[tuning.hip]`, so CUDA and Metal keep the `[defaults]` W4A16.
@@ -484,6 +489,13 @@ impl Recipe {
     pub fn resolve_mtp_default(&self, backend: &str) -> Option<usize> {
         self.mtp.as_ref()?;
         self.tuning.backends.get(backend).and_then(|b| b.mtp_default_k).filter(|&k| k > 0)
+    }
+
+    /// The recipe's batched MTP default for `backend` (`[tuning.<backend>] batched_mtp`, lane bm): `Some(n)` when the recipe has an
+    /// `[mtp]` head and sets a nonzero value for that backend.
+    pub fn resolve_batched_mtp(&self, backend: &str) -> Option<usize> {
+        self.mtp.as_ref()?;
+        self.tuning.backends.get(backend).and_then(|b| b.batched_mtp).filter(|&n| n > 0)
     }
 
     /// Prefill tail peel for `backend` ([`crate::scheduler::peel_tail`]): the recipe's value for that backend, then its
