@@ -17,6 +17,10 @@ Worktree `/opt/code/intarsiaml/.worktrees/metal-dflash2`.
 - 2026-11-06, coordinator (by message): #322 merged (main 551c56181), MR now default-on; branch `lane-dm/metal-logits-rows` off origin/main
   now and run the gates with MR unset (default).
 
+- 2026-11-06 ~13:45, coordinator (by message): leave `lane-dm/metal-logits-rows` unmerged (no fleet config runs a bf16 27B head; the fp8
+  head is the user's default on all backends); keep the branch and its results doc (`docs/results/2026-11-06-metal-logits-rows.md` on that
+  branch) as the record. Continue DFlash2 phase 1 against the fp8-head main; the bar is MTP k2 at 59 tok/s at short-0.
+
 ## Goal
 
 Close the acceptance half of the Metal gap against TensorFold (90.3 tok/s at natural-v1 4k vs our MTP k2 31.1, 0.34x;
