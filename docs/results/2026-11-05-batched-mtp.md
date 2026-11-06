@@ -78,6 +78,34 @@ CPU tests (`crates/intarsia-models/tests/mtp.rs`):
 | `batched_verify_pass_equals_each_sequences_solo_verify` (model level: 3 states, 24 rounds of segment lengths 1..4, drafts accepted and rejected; verify tokens, head drafts after rollback, and a later decode step's logits bitwise equal the solo states') | pass, 77 of 105 drafts accepted |
 | `batched_verify_engine_equals_solo` (engine: 4 interleaved sequences, k = 1..3, scripted per-sequence patterns; then 6 requests on 4 slots drafting at B <= 2) | pass; verify passes by sequences per pass, k=1: 1 / 20 / 17 / 32 passes of 1 / 2 / 3 / 4 sequences; k=2: 5 / 15 / 28 / 13; k=3: 0 / 21 / 11 / 14 |
 
+## Gates
+
+| gate | where | result |
+|---|---|---|
+| `cargo test --workspace --no-fail-fast` | endor, fleetq #8608, tree 29e123586 (phase A + B) | 1327 passed, 0 failed, 29 ignored (230 test binaries) |
+| CUDA `plan show` (35B NVFP4, `--max-seq 8192 --mem-budget 40`, json), branch vs main 602a1fcfe | spark1, fleetq #8614 (`raw/gates-cuda2/`) | byte-identical (15570 B; the recipe's tp1 MTP default is on here, so the MTP plan is covered too) |
+| CUDA `kernels test --backend cuda --quick` | spark1, #8614 | 106 kernels, 918 cases, 0 not admitted / failed |
+| CUDA greedy ids, 6 concurrent prompts of different lengths and `max_tokens` (`scripts/bm/ids.py`) vs the solo spec-off server, 35B NVFP4 tp1 | spark1, #8614 (`raw/gates-cuda2/`; repeats `raw/gates-cuda3/`, scripts `scripts/bm/gates2.sh` .. `gates4.sh`) | see below |
+| Metal no-op, goldens, ids, speed | endor, fleetq #8616 (queued) | pending |
+
+CUDA greedy ids (6 sequences; `ALL` = every sequence equals its solo spec-off ids):
+
+| server | drafted / accepted | result |
+|---|---|---|
+| phase A, `INTARSIA_BATCHED_MTP=4 --max-batch 4` | 101 / 81 | ALL |
+| phase A, `INTARSIA_BATCHED_MTP=1 --max-batch 16` | 3 / 3 | ALL |
+| phase B, `=5 INTARSIA_BATCHED_VERIFY=1 --max-batch 8`, k=2 | 305 / 227 | sequence 2 differs from token 2 on, **identical to the plain batched run below** |
+| phase B, `=8 ... --max-batch 16`, k=3 | 1312 / 839 | the same sequence 2 difference, identical to plain batched |
+| phase B, as above with `INTARSIA_PACK_PREFILL=0` | 314 / 235 | ALL |
+| plain batched `--max-batch 16`, branch | 0 | sequence 2 differs (2 of 2 runs) |
+| plain batched `--max-batch 16`, **main 602a1fcfe** | 0 | ALL in 2 runs, sequence 2 differs from token 2 in 2 runs (4 runs) |
+| plain batched, branch, `INTARSIA_PACK_PREFILL=0` | 0 | ALL |
+
+Finding (not this lane's): on main, the CUDA batched engine with packed prefill on (the CUDA default since SRV16) intermittently gives one of
+six concurrent prompts a different greedy continuation from token 2 on; with packing off it matched in every run here. Which prompts pack
+together depends on arrival timing, so it is schedule-dependent. Batched MTP (A and B) reproduces the plain batched engine's tokens exactly in
+those runs, so the verify path adds no difference of its own. Raw: `raw/gates-cuda2/` (first set), `raw/gates-cuda3/` (main and no-pack repeats).
+
 ## Status
 
 Phase A built and CPU-tested; CUDA gates and the spark1 speed run are in progress.
