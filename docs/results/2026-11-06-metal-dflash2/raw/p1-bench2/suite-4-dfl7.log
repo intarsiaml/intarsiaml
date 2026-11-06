@@ -1,0 +1,71 @@
+[localeval]  probe probe-copy: out=256 decode=72.0 tok/s
+[localeval]  probe probe-prose: out=256 decode=21.9 tok/s
+[localeval]  probe probe-prose: out=256 decode=22.3 tok/s
+[localeval]  probe probe-copy: out=256 decode=73.9 tok/s
+[localeval]  probe probe-copy: out=256 decode=72.5 tok/s
+[localeval]  probe probe-prose: out=256 decode=23.5 tok/s
+[localeval] cell speed-spec (speed)
+[localeval]     128 r0 p0: in=130 out=256 ttft=0.357s prefill=0 decode=57.0
+[localeval]    1024 r0 p1: in=1017 out=256 ttft=1.373s prefill=741 decode=30.4
+[localeval]    4096 r0 p2: in=4067 out=256 ttft=4.808s prefill=846 decode=28.1
+[localeval]   16384 r0 p3: in=16385 out=256 ttft=20.953s prefill=782 decode=19.9
+[localeval]    1024 r1 p0: in=1018 out=256 ttft=1.349s prefill=755 decode=32.5
+[localeval]    4096 r1 p1: in=4068 out=256 ttft=4.834s prefill=842 decode=29.1
+[localeval]   16384 r1 p2: in=16386 out=256 ttft=20.967s prefill=782 decode=20.6
+[localeval]     128 r1 p3: in=128 out=256 ttft=0.364s prefill=0 decode=52.2
+[localeval]    4096 r2 p0: in=4064 out=256 ttft=4.901s prefill=829 decode=25.7
+[localeval]   16384 r2 p1: in=16387 out=256 ttft=21.143s prefill=775 decode=20.1
+[localeval]     128 r2 p2: in=128 out=256 ttft=0.351s prefill=0 decode=54.2
+[localeval]    1024 r2 p3: in=1018 out=256 ttft=1.384s prefill=736 decode=30.3
+[localeval]    4096 r3 p0: in=4064 out=256 ttft=4.839s prefill=840 decode=34.1
+[localeval]    4096 r4 p0: in=4067 out=256 ttft=4.800s prefill=847 decode=28.5
+# localeval: adhoc — 2026-11-06T15:30
+
+- model: `qwen38-27b-dfl7` on ? (?), url `http://127.0.0.1:8298/v1`
+- thinking: off; run kind: suite; label: dm-p1-v4-dfl7-speed-spec
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval suite --url http://127.0.0.1:8298/v1 --model qwen38-27b-dfl7 --thinking off --tokenizer-repo Vontra/Qwen3.8-27B-MLX-4bit --tokenizer-revision 70ae7fac63274ff2eac54152031433374cb80f2f --lane spec:dflash --drafter dflash2 --max-num-seqs 1 --max-context 20480 --power-mode default --tier adhoc --cells speed-spec --label dm-p1-v4-dfl7-speed-spec --recipe intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec dflash --spec-k 7 --spec-draft z-lab-DFlash2 env  (lane dm, e5dd96a2d) --wait-idle 60`
+- result file: `results/20261106-153058-adhoc-dm-p1-v4-dfl7-speed-spec/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec dflash --spec-k 7 --spec-draft z-lab-DFlash2 env  (lane dm, e5dd96a2d)
+````
+
+## Suite
+
+- suite `llm-inference-suite` v1 (sha256 `2721aa3d13e9`), tier **adhoc** (ad hoc: never a suite result)
+- cells run: speed-spec; skipped: -; rejected: none
+- lane `spec:dflash2` (source counters, verified True); probe ratio 3.257; idle check metrics; context 20480 (max_model_len)
+- tokenizer: {"repo": "Vontra/Qwen3.8-27B-MLX-4bit", "revision": "70ae7fac63274ff2eac54152031433374cb80f2f", "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523"}
+- protocol compliance: request-shape, timing-defs, client-token-count, gen-length, nonce-first, cache-hit-reject, warmup-per-round, warmup-run-start, latin-square-order, quiet-slot, idle-check, spread-d2, retry-drop-one, spec-arm-plain-report, reps-raw, lane-counters, lane-probe, context-limit, sampling-pinned, tiers, exit-codes, power-mode
+- exit code 0 (0 pass, 3 rejected, 2 harness error)
+
+
+## Speed sweep
+
+served `qwen38-27b-dfl7`, fingerprint `None`, ctx 20480, 3 reps, 256 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 128 | 0.36 | - * | - | 54.2 (52.2–57.0) | 73.5 (71.8–77.0) | - | - | 256 |
+| 1018 | 1.37 | 741 (736–755) | 876 | 30.4 (30.3–32.5) | 49.8 (48.9–50.1) | - | - | 256 |
+| 4067 | 4.82 | 844 (829–847) | 884 | 28.3 (25.7–29.1) | 47.4 (46.8–56.2) | - | - | 256 |
+| 16386 | 20.97 | 782 (775–782) | 763 | 20.1 (19.9–20.6) | 35.0 (33.8–40.9) | - | - | 256 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Suite run (PROTOCOL.md): requests are one user message with a fresh nonce first, temperature 0, top_p 1, seed 0, ignore_eos (else logit_bias -100 on the EOS ids) with max_tokens = gen_tokens; t0 is when the last request byte is sent; tokens are counted by re-tokenizing the output with the pinned tokenizer (server counts are kept beside them and may differ by at most 2%); one discarded full-length request per size precedes the first round, and one discarded max_tokens-1 warmup precedes each round; rounds interleave the sizes in a cyclic (Latin-square) order; a cell's statistic is the median of its valid reps, its spread the range normalised to n = 3 with d2; a cell over its gate gets 2 extra reps once, then may drop the one rep farthest from the median, else it is rejected. Concurrency is a closed loop of N clients measured in a window that opens when every client has completed one request.
+
+[localeval] saved /opt/code/deepeval/results/20261106-153058-adhoc-dm-p1-v4-dfl7-speed-spec/result.json
+[localeval] logged to unanimis: 40aa94b5-e827-4fbe-9a8b-270801f752f3

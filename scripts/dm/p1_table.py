@@ -13,6 +13,6 @@ for line in open(sys.argv[1]):
     for r in d["speed"]["rows"]:
         dt = r.get("decode_tok_s") or {}
         cells.append(f"{r['target_prompt_tokens']}: {dt.get('median')} ({dt.get('min')}-{dt.get('max')})")
-    ss = d.get("workload", {}).get("spec_stats", {})
+    ss = (d.get("workload") or {}).get("spec_stats") or {}
     acc = ss.get("acceptance_rate")
     print(f"v{v} {arm:5s} | " + " | ".join(cells) + f" | accept {acc}")

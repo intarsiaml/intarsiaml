@@ -1,0 +1,4 @@
+[targets.dm-dfl7]
+url = "http://127.0.0.1:8298/v1"
+model = "qwen38-27b-dfl7"
+extra_body = { ignore_eos = true, min_tokens = 512 }
