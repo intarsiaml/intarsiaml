@@ -65,7 +65,8 @@ TensorFold keeps 3.2-4.4 tokens/round from a ~15-node DFlash2 tree, our MTP keep
   windowed calls (the zero-key / no-kernel symptom: `n = 0` in the HIP message was the windowed `attn_decode` missing from the plan).
 * `logits_rows_scalar_m{2..16}` (`INTARSIA_METAL_LOGITS_ROWS`): the M-row twin of `gemv_f32o_scalar`. The 27B lm_head sits at byte 8 mod
   16, so every head call is the scalar kernel (5.8 ms) and the M-row verify / draft head was M one-row launches. Split into its own PR
-  (coordinator, see Decisions).
+  (coordinator, see Decisions); removed from this branch after the coordinator's 13:45 decision (the record is branch
+  `lane-dm/metal-logits-rows`).
 
 ### Correctness gates
 

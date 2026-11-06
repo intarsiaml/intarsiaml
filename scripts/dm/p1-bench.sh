@@ -2,7 +2,7 @@
 # Lane dm phase 1 on endor (ONE exclusive fleetq slot): a fresh server per visit, localeval suite cell speed-spec (natural-v1
 # 1k/4k/16k, 256 forced tokens) every visit; the 7 categories (scripts/dfh/cats, 512 forced tokens, `localeval quality --judge none`)
 # on the visits named in CATV. Arms: mtp2 (default MTP k2), dflK (--spec dflash --spec-k K), tf (TensorFold DFlash2, the endor service's
-# binary on its own port). Ours run with ENVS (default INTARSIA_METAL_LOGITS_ROWS=1; MR is default on).
+# binary on its own port). Ours run with ENVS (default none; MR is default on).
 #   VISITS="mtp2 dfl7 mtp2 dfl7 dfl3 tf" CATV="1 2 5 6" zsh scripts/dm/p1-bench.sh <binary> <out dir>
 set -u
 BIN=${1:?binary}; O=${2:?out dir}; mkdir -p $O; O=${O:A}
@@ -29,10 +29,10 @@ for arm in ${=VISITS:-mtp2 dfl7 mtp2 dfl7 tf}; do
       rec="tensorfold Vontra/Qwen3.8-27B-MLX-4bit --context 20480 (endor service binary, $(basename $(readlink -f $TF 2>/dev/null || echo $TF)); DFlash2 tree drafter default; lane dm)" ;;
     *)
       case $arm in mtp2) spec=(--spec mtp --spec-k 2); lane=spec:mtp; dr=mtp ;; dfl*) spec=(--spec dflash --spec-k ${arm#dfl} --spec-draft $DRAFT); lane=spec:dflash; dr=dflash2 ;; esac
-      env ${=ENVS:-INTARSIA_METAL_LOGITS_ROWS=1} $BIN serve --backend metal --model $M --served-model-name qwen38-27b-$arm --max-seq 20480 --max-batch 1 --profile-every 0 --no-supervisor $spec \
+      env ${=ENVS:-} $BIN serve --backend metal --model $M --served-model-name qwen38-27b-$arm --max-seq 20480 --max-batch 1 --profile-every 0 --no-supervisor $spec \
         --host 127.0.0.1 --port $PORT > $O/serve-$v-$arm.out 2> $O/serve-$v-$arm.err < /dev/null &
       SPID=$!
-      rec="intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 ${${spec[*]}//$DRAFT/z-lab-DFlash2} env ${ENVS:-INTARSIA_METAL_LOGITS_ROWS=1} (lane dm, $(git -C $R rev-parse --short HEAD))" ;;
+      rec="intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 ${${spec[*]}//$DRAFT/z-lab-DFlash2} env ${ENVS:-} (lane dm, $(git -C $R rev-parse --short HEAD))" ;;
   esac
   if ! up; then say "visit $v arm $arm: server failed"; tail -20 $O/serve-$v-$arm.err >> $O/steps.log; down; continue; fi
   mid=$(curl -s http://127.0.0.1:$PORT/v1/models | python3 -c "import sys,json; print(json.load(sys.stdin)['data'][0]['id'])")
