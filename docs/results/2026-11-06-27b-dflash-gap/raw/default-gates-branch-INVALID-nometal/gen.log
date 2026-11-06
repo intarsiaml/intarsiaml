@@ -1,0 +1,16 @@
+27b-short-0-lane-default exit 1  
+27b-short-0-lane-off exit 1  
+27b-short-0-lane-mr0 exit 1  
+27b-short-0-base-default exit 0 decode 7310 ms (34.88 tok/s) spec: verify passes=106 proposed=212 accepted=148 (acceptance 69.8%, 2.40 tokens per pass)
+8b-short-0-lane-default exit 1  
+8b-short-0-base-default exit 0 decode 7052 ms (36.16 tok/s) 
+35b-short-0-lane-default exit 1  
+35b-short-0-base-default exit 0 decode 1360 ms (187.55 tok/s) spec: verify passes=98 proposed=196 accepted=155 (acceptance 79.1%, 2.58 tokens per pass)
+27b-4k-1-lane-default exit 1  
+27b-4k-1-lane-off exit 1  
+27b-4k-1-lane-mr0 exit 1  
+27b-4k-1-base-default exit 0 decode 7416 ms (34.39 tok/s) spec: verify passes=106 proposed=211 accepted=149 (acceptance 70.6%, 2.41 tokens per pass)
+8b-4k-1-lane-default exit 1  
+8b-4k-1-base-default exit 0 decode 7182 ms (35.51 tok/s) 
+35b-4k-1-lane-default exit 1  
+35b-4k-1-base-default exit 0 decode 1623 ms (157.08 tok/s) spec: verify passes=110 proposed=219 accepted=145 (acceptance 66.2%, 2.32 tokens per pass)
