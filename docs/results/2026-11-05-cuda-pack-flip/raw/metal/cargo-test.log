@@ -1,0 +1,456 @@
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.27
+   Compiling quote v1.0.47
+   Compiling libc v0.2.190
+   Compiling serde_core v1.0.229
+   Compiling itoa v1.0.18
+   Compiling serde v1.0.229
+   Compiling allocator-api2 v0.2.21
+   Compiling foldhash v0.2.0
+   Compiling equivalent v1.0.2
+   Compiling cfg-if v1.0.5
+   Compiling memchr v2.8.3
+   Compiling zmij v1.0.23
+   Compiling serde_json v1.0.154
+   Compiling thiserror v2.0.21
+   Compiling bitflags v2.13.2
+   Compiling zerocopy v0.8.62
+   Compiling objc2 v0.6.5
+   Compiling objc2-encode v4.1.0
+   Compiling either v1.19.0
+   Compiling crossbeam-utils v0.8.23
+   Compiling crossbeam-epoch v0.9.21
+   Compiling crossbeam-deque v0.8.8
+   Compiling rayon-core v1.13.0
+   Compiling hashbrown v0.17.1
+   Compiling intarsia-backend-hip v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-backend-hip)
+   Compiling intarsia-backend-metal v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-backend-metal)
+   Compiling log v0.4.34
+   Compiling strsim v0.11.1
+   Compiling smallvec v1.16.3
+   Compiling ident_case v1.0.1
+   Compiling ryu v1.0.23
+   Compiling intarsia-backend-cuda v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-backend-cuda)
+   Compiling unicode-segmentation v1.13.3
+   Compiling rustversion v1.0.23
+   Compiling itertools v0.14.0
+   Compiling version_check v0.9.5
+   Compiling static_assertions v1.1.0
+   Compiling getrandom v0.3.4
+   Compiling once_cell v1.21.4
+   Compiling fnv v1.0.7
+   Compiling indexmap v2.14.2
+   Compiling regex-syntax v0.8.11
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.14
+   Compiling cc v1.8.0
+   Compiling typenum v1.20.1
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling objc2-core-foundation v0.3.2
+   Compiling block2 v0.6.2
+   Compiling ahash v0.8.12
+   Compiling memmap2 v0.9.11
+   Compiling dispatch2 v0.3.1
+   Compiling generic-array v0.14.7
+   Compiling pkg-config v0.3.34
+   Compiling rayon v1.12.0
+   Compiling rand_core v0.9.5
+   Compiling aho-corasick v1.1.5
+   Compiling esaxx-rs v0.1.10
+   Compiling paste v1.0.15
+   Compiling minimal-lexical v0.2.1
+   Compiling base64 v0.13.1
+   Compiling objc2-io-kit v0.3.2
+   Compiling objc2-foundation v0.3.2
+   Compiling nom v7.1.3
+   Compiling pastey v0.2.3
+   Compiling sysinfo v0.37.2
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling castaway v0.2.4
+   Compiling macro_rules_attribute-proc_macro v0.2.3
+   Compiling digest v0.10.7
+   Compiling regex-automata v0.4.18
+   Compiling cpufeatures v0.2.17
+   Compiling unicode-normalization-alignments v0.1.12
+   Compiling unicode_categories v0.1.1
+   Compiling winnow v1.0.4
+   Compiling sha2 v0.10.9
+   Compiling memo-map v0.3.4
+   Compiling toml_parser v1.1.5+spec-1.1.0
+   Compiling serde_spanned v1.1.2
+   Compiling rayon-cond v0.4.0
+   Compiling macro_rules_attribute v0.2.3
+   Compiling toml_datetime v0.7.5+spec-1.1.0
+   Compiling winnow v0.7.15
+   Compiling toml_writer v1.1.3+spec-1.1.0
+   Compiling errno v0.3.14
+   Compiling mio v1.2.4
+   Compiling signal-hook-registry v1.4.8
+   Compiling bytes v1.12.1
+   Compiling darling_core v0.20.11
+   Compiling heck v0.5.0
+   Compiling httparse v1.10.1
+   Compiling http v1.5.0
+   Compiling percent-encoding v2.3.2
+   Compiling parking_lot_core v0.9.12
+   Compiling regex v1.13.1
+   Compiling scopeguard v1.2.0
+   Compiling lock_api v0.4.14
+   Compiling pin-project-lite v0.2.17
+   Compiling anyhow v1.0.104
+   Compiling futures-core v0.3.34
+   Compiling darling_core v0.24.1
+   Compiling toml v0.9.12+spec-1.1.0
+   Compiling parking_lot v0.12.5
+   Compiling socket2 v0.6.5
+   Compiling http-body v1.1.0
+   Compiling hashbrown v0.16.1
+   Compiling unicode-width v0.2.2
+   Compiling signal-hook v0.3.18
+   Compiling unicode-truncate v2.0.1
+   Compiling convert_case v0.10.0
+   Compiling lru v0.18.5
+   Compiling rustix v1.1.5
+   Compiling critical-section v1.2.0
+   Compiling indoc v2.0.8
+   Compiling tower-service v0.3.3
+   Compiling num_threads v0.1.7
+   Compiling atomic-waker v1.1.2
+   Compiling sync_wrapper v1.0.2
+   Compiling slab v0.4.12
+   Compiling httpdate v1.0.3
+   Compiling tower-layer v0.3.3
+   Compiling deranged v0.5.8
+   Compiling litrs v1.0.1
+   Compiling powerfmt v0.2.1
+   Compiling num-conv v0.2.2
+   Compiling futures-task v0.3.34
+   Compiling time-core v0.1.9
+   Compiling signal-hook-mio v0.2.5
+   Compiling futures-util v0.3.34
+   Compiling http-body-util v0.1.5
+   Compiling form_urlencoded v1.2.2
+   Compiling line-clipping v0.3.8
+   Compiling mime v0.3.17
+   Compiling ref-cast v1.0.27
+   Compiling axum-core v0.5.6
+   Compiling onig_sys v69.9.3
+   Compiling serde_path_to_error v0.1.20
+   Compiling time v0.3.55
+   Compiling matchit v0.8.4
+   Compiling document-features v0.2.12
+   Compiling base64 v0.23.1
+   Compiling utf8-zero v0.8.1
+   Compiling borrow-or-share v0.2.4
+   Compiling llguidance v1.9.1
+   Compiling tracing-core v0.1.36
+   Compiling ureq-proto v0.6.4
+   Compiling utf8parse v0.2.2
+   Compiling anstyle v1.0.14
+   Compiling anstyle-parse v1.0.0
+   Compiling anstyle-query v1.1.5
+   Compiling colorchoice v1.0.5
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling clap_lex v1.1.1
+   Compiling anstream v1.0.0
+   Compiling ureq v3.4.2
+   Compiling intarsiaml v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsiaml)
+   Compiling clap_builder v4.6.7
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling bytemuck_derive v1.12.1
+   Compiling tokio-macros v2.7.2
+   Compiling objc2-metal v0.3.2
+   Compiling ref-cast-impl v1.0.27
+   Compiling clap_derive v4.6.7
+   Compiling zerocopy-derive v0.8.62
+   Compiling darling_macro v0.20.11
+   Compiling monostate-impl v0.1.18
+   Compiling strum_macros v0.28.0
+   Compiling derive_more-impl v2.1.1
+   Compiling tracing-attributes v0.1.31
+   Compiling darling_macro v0.24.1
+   Compiling monostate v0.1.18
+   Compiling onig v6.5.3
+   Compiling darling v0.20.11
+   Compiling derive_builder_core v0.20.2
+   Compiling darling v0.24.1
+   Compiling instability v0.3.14
+   Compiling tokio v1.53.2
+   Compiling kasuari v0.4.12
+   Compiling derive_more v2.1.1
+   Compiling crossterm v0.29.0
+   Compiling bytemuck v1.25.2
+   Compiling hyper v1.12.0
+   Compiling compact_str v0.9.1
+   Compiling spm_precompiled v0.1.4
+   Compiling dary_heap v0.3.9
+   Compiling minijinja v2.24.0
+   Compiling hyper-util v0.1.21
+   Compiling serde_urlencoded v0.7.1
+   Compiling tower v0.5.3
+   Compiling strum v0.28.0
+   Compiling fluent-uri v0.3.2
+   Compiling derive_builder_macro v0.20.2
+   Compiling toktrie v1.9.1
+   Compiling tokio-stream v0.1.19
+   Compiling ratatui-core v0.1.2
+   Compiling axum v0.8.9
+   Compiling clap v4.6.7
+   Compiling tracing v0.1.44
+   Compiling ratatui-widgets v0.3.2
+   Compiling derive_builder v0.20.2
+   Compiling ratatui-crossterm v0.1.2
+   Compiling half v2.7.1
+   Compiling ppv-lite86 v0.2.21
+   Compiling referencing v0.29.1
+   Compiling derivre v0.3.13
+   Compiling rand_chacha v0.9.0
+   Compiling intarsia-core v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-core)
+   Compiling ratatui-macros v0.7.2
+   Compiling rand v0.9.5
+   Compiling ratatui v0.30.2
+   Compiling intarsia-bench v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-bench)
+   Compiling tokenizers v0.22.2
+   Compiling minijinja-contrib v2.24.0
+   Compiling intarsia-ui v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-ui)
+   Compiling intarsia-tui v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-tui)
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1222:4
+     |
+1222 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling intarsia-backend-cpu v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-backend-cpu)
+   Compiling intarsia-engram v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-engram)
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-models)
+   Compiling intarsia-server v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-server)
+   Compiling intarsia-cli v0.0.1 (/opt/code/intarsiaml/.worktrees/cuda-pack-flip/crates/intarsia-cli)
+warning: `intarsia-core` (lib test) generated 2 warnings (1 duplicate)
+warning: variable does not need to be mutable
+    --> crates/intarsia-cli/src/cmd/qualify.rs:1889:13
+     |
+1889 |         let mut v: Vec<String> = vec![
+     |             ----^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:265:8
+    |
+265 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unreachable pattern
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:390:13
+    |
+390 |             _ => {}
+    |             ^ no value can reach this
+    |
+note: multiple earlier patterns match some of the same values
+   --> crates/intarsia-models/tests/prefix_reuse_real.rs:390:13
+    |
+387 |             GenEvent::Token { id, .. } => ids.push(id),
+    |             -------------------------- matches some of the same values
+388 |             GenEvent::Done { finish_reason, cached_tokens, .. } => return (Out { ids, reason: Some(finish_reason) }, cached_tokens),
+    |             --------------------------------------------------- matches some of the same values
+389 |             GenEvent::Error { message, .. } => panic!("request failed: {message}"),
+    |             ------------------------------- matches some of the same values
+390 |             _ => {}
+    |             ^ collectively making this unreachable
+    = note: `#[warn(unreachable_patterns)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `run_with_prefill` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:204:8
+    |
+204 | pub fn run_with_prefill(model: &Model, decode_lens: &[usize], prefill_len: usize, chunk: usize, vocab_range: (u32, u32)) -> usize {
+    |        ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `run_overlapped` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:265:8
+    |
+265 | pub fn run_overlapped(
+    |        ^^^^^^^^^^^^^^
+
+warning: `intarsia-models` (test "batch_metal") generated 1 warning
+warning: `intarsia-models` (test "prefix_reuse_real") generated 1 warning
+warning: `intarsia-models` (test "rope_bias") generated 2 warnings
+warning: struct `Cfg` is never constructed
+  --> crates/intarsia-models/tests/common/batch_identity.rs:22:12
+   |
+22 | pub struct Cfg {
+   |            ^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `run` is never used
+   --> crates/intarsia-models/tests/common/batch_identity.rs:170:8
+    |
+170 | pub fn run(model: &Model, cfg: &Cfg) -> usize {
+    |        ^^^
+
+warning: value assigned to `reason` is never read
+    --> crates/intarsia-models/tests/batch_cuda_real.rs:1640:41
+     |
+1640 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+     |                                         ^^^^^^^^^^ this value is reassigned later and never used
+...
+1652 |                             reason = Some(finish_reason);
+     |                             ---------------------------- `reason` is overwritten here before the previous value is read
+     |
+     = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "tp_batch") generated 3 warnings (1 duplicate)
+warning: value assigned to `reason` is never read
+   --> crates/intarsia-models/tests/batch_metal_real.rs:475:41
+    |
+475 |                 let (mut ids, mut text, mut reason) = (vec![], String::new(), None);
+    |                                         ^^^^^^^^^^ this value is reassigned later and never used
+...
+487 |                             reason = Some(finish_reason);
+    |                             ---------------------------- `reason` is overwritten here before the previous value is read
+    |
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `s` is never read
+   --> crates/intarsia-backend-hip/src/kernels.rs:478:21
+    |
+478 |                     s.kv_len = kv;
+    |                     ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "batch_cuda_real") generated 2 warnings (1 duplicate)
+warning: unused import: `intarsia_core::dsv41::graph::WeightShapes`
+ --> crates/intarsia-models/tests/dsv41.rs:7:5
+  |
+7 | use intarsia_core::dsv41::graph::WeightShapes;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: calls to `std::mem::drop` with a value that implements `Copy` does nothing
+   --> crates/intarsia-models/tests/dsv41.rs:623:23
+    |
+623 |     assert!(fails(&|| drop(check_no_unrotated_read(&g)), "unrotated rows"), "q read between wq_b and its rope");
+    |                       ^^^^^---------------------------^
+    |                            |
+    |                            argument has type `(usize, usize)`
+    |
+    = note: use `let _ = ...` to ignore the expression or result
+    = note: `#[warn(dropping_copy_types)]` on by default
+
+warning: calls to `std::mem::drop` with a value that implements `Copy` does nothing
+   --> crates/intarsia-models/tests/dsv41.rs:626:23
+    |
+626 |     assert!(fails(&|| drop(check_no_unrotated_read(&g)), "unrotated rows"), "o read between the attention and its rope");
+    |                       ^^^^^---------------------------^
+    |                            |
+    |                            argument has type `(usize, usize)`
+    |
+    = note: use `let _ = ...` to ignore the expression or result
+
+warning: calls to `std::mem::drop` with a value that implements `Copy` does nothing
+   --> crates/intarsia-models/tests/dsv41.rs:630:23
+    |
+630 |     assert!(fails(&|| drop(check_no_unrotated_read(&g)), "is not the consumer"), "a stray reader of ws:q");
+    |                       ^^^^^---------------------------^
+    |                            |
+    |                            argument has type `(usize, usize)`
+    |
+    = note: use `let _ = ...` to ignore the expression or result
+
+warning: calls to `std::mem::drop` with a value that implements `Copy` does nothing
+   --> crates/intarsia-models/tests/dsv41.rs:632:23
+    |
+632 |     assert!(fails(&|| drop(check_no_unrotated_read(&g)), "is not the consumer"), "a stray reader of ws:o in layer 9");
+    |                       ^^^^^---------------------------^
+    |                            |
+    |                            argument has type `(usize, usize)`
+    |
+    = note: use `let _ = ...` to ignore the expression or result
+
+warning: calls to `std::mem::drop` with a value that implements `Copy` does nothing
+   --> crates/intarsia-models/tests/dsv41.rs:635:23
+    |
+635 |     assert!(fails(&|| drop(check_base_buffers(&g)), "reads the unrotated ws:q"), "base: a late reader of the unrotated q");
+    |                       ^^^^^----------------------^
+    |                            |
+    |                            argument has type `usize`
+    |
+    = note: use `let _ = ...` to ignore the expression or result
+
+warning: calls to `std::mem::drop` with a value that implements `Copy` does nothing
+   --> crates/intarsia-models/tests/dsv41.rs:637:23
+    |
+637 |     assert!(fails(&|| drop(check_base_buffers(&g)), "reads the unrotated ws:o"), "base: a late reader of the unrotated o");
+    |                       ^^^^^----------------------^
+    |                            |
+    |                            argument has type `usize`
+    |
+    = note: use `let _ = ...` to ignore the expression or result
+
+warning: calls to `std::mem::drop` with a value that implements `Copy` does nothing
+   --> crates/intarsia-models/tests/dsv41.rs:642:23
+    |
+642 |     assert!(fails(&|| drop(check_no_unrotated_read(&g)), "not freshly produced"), "a rope applied twice");
+    |                       ^^^^^---------------------------^
+    |                            |
+    |                            argument has type `(usize, usize)`
+    |
+    = note: use `let _ = ...` to ignore the expression or result
+
+warning: `intarsia-models` (test "batch_metal_real") generated 2 warnings (1 duplicate)
+warning: `intarsia-backend-hip` (lib test) generated 1 warning
+warning: value assigned to `s` is never read
+   --> crates/intarsia-backend-cuda/src/kernels.rs:634:21
+    |
+634 |                     s.kv_len = kv;
+    |                     ^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: `intarsia-models` (test "dsv41") generated 8 warnings
+warning: `intarsia-backend-cuda` (lib test) generated 1 warning
+warning: `intarsia-models` (test "lfm2") generated 2 warnings (2 duplicates)
+warning: `intarsia-models` (test "batch") generated 1 warning (1 duplicate)
