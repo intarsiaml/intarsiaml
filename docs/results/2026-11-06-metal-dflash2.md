@@ -75,6 +75,10 @@ on Metal if B / A of the two-visit medians is >= 1.05 at natural-v1 4k and no na
 "correct, measured, slower" and the numbers go to the tree / verify-cost decision. TensorFold's categories: it may not honour
 `min_tokens` / `ignore_eos`; its rows are compared by decode tok/s over whatever length it generated (flagged in the table).
 
+Deviation (noted before reading #8833's results): the window #8833 ran with `ENVS=INTARSIA_METAL_MXFP4_MR=1` (MR is the default on this
+main anyway), not `INTARSIA_METAL_LOGITS_ROWS=1` as written above; #8822 showed LOGITS_ROWS has no effect on the fp8-head main (the head is
+`matmul_fp8_gemv_rows`), so the arms are the shipped default path.
+
 ### First traces (eager, `INTARSIA_SPEC_TRACE=1`, short-0, 256 tokens, fleetq exclusive)
 
 | arm | knobs | tokens a pass | draft ms (head) | verify + rollback ms | pass ms | decode tok/s |
