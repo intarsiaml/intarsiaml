@@ -90,7 +90,10 @@ __device__ __forceinline__ A8First a8_first_load(const A8Rows<OutT>& p) {
 
 // the dot / accumulate / store loop shared by the pre-pass and the fused kernel; xq / xs are global (pre-pass) or LDS (fused).
 // PRE: the first group of this lane was already loaded into `first` (a8_first_load) by the fused kernel.
-template <int M, typename OutT, bool PRE>
+// IL (lane dh item 3, INTARSIA_HIP_A8_ILP): activation rows between two scheduler barriers, so the compiler may interleave the dot
+// chains of IL rows (1: one row at a time, the original schedule). Each (weight row, activation row) chain keeps its instructions
+// and order, so the outputs are bitwise the IL = 1 kernel's.
+template <int M, typename OutT, bool PRE, int IL = 1>
 __device__ __forceinline__ void a8_rows_body(const A8Rows<OutT>& p, const A8First& first, const uint4* __restrict__ xq,
                                              const float* __restrict__ xs, int K) {
     constexpr int R = kRowsR;
@@ -140,7 +143,7 @@ __device__ __forceinline__ void a8_rows_body(const A8Rows<OutT>& p, const A8Firs
         }
 #pragma unroll
         for (int m = 0; m < M; ++m) {
-            __builtin_amdgcn_sched_barrier(0);  // one row at a time: the registers do not grow with M
+            if (m % IL == 0) __builtin_amdgcn_sched_barrier(0);  // IL rows at a time: the registers grow with IL, not with M
             const uint4 xa = qa[0], xc = qc[0];
 #pragma unroll
             for (int d = 0; d + 1 < D; ++d) { qa[d] = qa[d + 1]; qc[d] = qc[d + 1]; }
@@ -167,14 +170,14 @@ __device__ __forceinline__ void a8_rows_body(const A8Rows<OutT>& p, const A8Firs
     }
 }
 
-template <int M, typename OutT>
+template <int M, typename OutT, int IL = 1>
 __global__ void __launch_bounds__(kWarps * IK_WARP)
 mxfp4_a8_rows_kernel(const uint4* __restrict__ xq, const float* __restrict__ xs, const uint8_t* __restrict__ w0,
                      const uint8_t* __restrict__ s0, OutT* __restrict__ o0, int64_t N0, const uint8_t* __restrict__ w1,
                      const uint8_t* __restrict__ s1, OutT* __restrict__ o1, int64_t N1, int K) {
     const A8Rows<OutT> p = a8_rows_setup<OutT>(w0, s0, o0, N0, w1, s1, o1, N1, K);
     const A8First none{};
-    a8_rows_body<M, OutT, false>(p, none, xq, xs, K);
+    a8_rows_body<M, OutT, false, IL>(p, none, xq, xs, K);
 }
 
 // LDS layout of the fused kernel (dynamic shared memory, the scratch layout of ik_mx_a8.h without the slack): xq u8 [M, K] at
@@ -211,10 +214,36 @@ mxfp4_a8_rows_fused_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restr
     a8_rows_body<M, OutT, true>(p, first, reinterpret_cast<const uint4*>(lq), lxs, K);
 }
 
+// INTARSIA_HIP_A8_ILP (lane dh item 3): activation rows the pre-pass kernel lets the scheduler interleave for M >= 2 (1, the default:
+// one at a time; 2 or 4). Bitwise the default (see a8_rows_body). Read once per process; other values are 1.
+static int a8_ilp() {
+    static const int v = [] {
+        const char* e = getenv("INTARSIA_HIP_A8_ILP");
+        if (!e) return 1;
+        if (e[0] == '2' && e[1] == '\0') return 2;
+        if (e[0] == '4' && e[1] == '\0') return 4;
+        return 1;
+    }();
+    return v;
+}
+
 template <int M, typename OutT>
 void a8_launch(const uint4* xq, const float* xs, const uint8_t* w0, const uint8_t* s0, OutT* o0, int64_t N0, const uint8_t* w1,
                const uint8_t* s1, OutT* o1, int64_t N1, int64_t K, hipStream_t s) {
     const unsigned grid = (unsigned)((N0 + N1 + kWarps * kRowsR - 1) / (kWarps * kRowsR));
+    if constexpr (M >= 2) {
+        const int il = a8_ilp();
+        if constexpr (M >= 4) {
+            if (il == 4) {
+                mxfp4_a8_rows_kernel<M, OutT, 4><<<grid, kWarps * IK_WARP, 0, s>>>(xq, xs, w0, s0, o0, N0, w1, s1, o1, N1, (int)K);
+                return;
+            }
+        }
+        if (il >= 2) {
+            mxfp4_a8_rows_kernel<M, OutT, 2><<<grid, kWarps * IK_WARP, 0, s>>>(xq, xs, w0, s0, o0, N0, w1, s1, o1, N1, (int)K);
+            return;
+        }
+    }
     mxfp4_a8_rows_kernel<M, OutT><<<grid, kWarps * IK_WARP, 0, s>>>(xq, xs, w0, s0, o0, N0, w1, s1, o1, N1, (int)K);
 }
 
