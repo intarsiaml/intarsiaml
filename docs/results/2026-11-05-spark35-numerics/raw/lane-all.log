@@ -1,0 +1,52 @@
+dev is already built from 7a7aa47b20da2a7a148b3c38e5d363624000f81a
+== serve main 20:36:10
+16k-1: 1024 tokens
+== serve base 20:38:00
+16k-1: 1024 tokens
+needle-32k base: | Contains expected | 1.000 | 1.0 | 12 | 0 | 0 | Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decod
+needle-64k base: | Contains expected | 1.000 | 1.0 | 8 | 0 | 0 | Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode
+| mmlu | 0.846 | 570 | 0.41 | 6442 | 81.8 | 571 | 0 | 341.3 |
+- mmlu: 570 replies kept; 0 truncated (score 0); thinking verified off; mean output 7.93 tokens
+[localeval] saved /opt/code/deepeval/results/20261105-204255-adhoc-s35-base-mmlu/result.json
+- gsm8k scores: `gsm8k_flexible` 0.500 (primary); `gsm8k_bare_number` 0.500
+- gsm8k: 100 replies kept; 0 truncated (score 0); thinking verified off; mean output 8.22 tokens
+[localeval] saved /opt/code/deepeval/results/20261105-204838-adhoc-s35-base-gsm8k/result.json
+== serve fp8 20:49:07
+16k-1: 1024 tokens
+needle-32k fp8: | Contains expected | 1.000 | 1.0 | 12 | 0 | 0 | Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decod
+needle-64k fp8: | Contains expected | 1.000 | 1.0 | 8 | 0 | 0 | Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode
+| mmlu | 0.851 | 570 | 0.40 | 6466 | 81.5 | 570 | 0 | 329.7 |
+- mmlu: 570 replies kept; 0 truncated (score 0); thinking verified off; mean output 9.14 tokens
+[localeval] saved /opt/code/deepeval/results/20261105-205410-adhoc-s35-fp8-mmlu/result.json
+- gsm8k scores: `gsm8k_flexible` 0.500 (primary); `gsm8k_bare_number` 0.500
+- gsm8k: 100 replies kept; 0 truncated (score 0); thinking verified off; mean output 8.21 tokens
+[localeval] saved /opt/code/deepeval/results/20261105-205943-adhoc-s35-fp8-gsm8k/result.json
+== serve cemu 21:00:14
+16k-1: 1024 tokens
+needle-32k cemu: | Contains expected | 1.000 | 1.0 | 12 | 0 | 0 | Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decod
+needle-64k cemu: | Contains expected | 1.000 | 1.0 | 8 | 0 | 0 | Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode
+| mmlu | 0.839 | 570 | 0.40 | 6478 | 80.8 | 570 | 0 | 320.2 |
+- mmlu: 570 replies kept; 0 truncated (score 0); thinking verified off; mean output 8.53 tokens
+[localeval] saved /opt/code/deepeval/results/20261105-210513-adhoc-s35-cemu-mmlu/result.json
+- gsm8k scores: `gsm8k_flexible` 0.500 (primary); `gsm8k_bare_number` 0.500
+- gsm8k: 100 replies kept; 0 truncated (score 0); thinking verified off; mean output 9.96 tokens
+[localeval] saved /opt/code/deepeval/results/20261105-211035-adhoc-s35-cemu-gsm8k/result.json
+PASS greedy ids main == base (1024 tokens)
+== serve done 21:11:07
+dev is already built from 7a7aa47b20da2a7a148b3c38e5d363624000f81a
+== serve cdemu 21:11:08
+16k-1: 1024 tokens
+needle-32k cdemu: | Contains expected | 1.000 | 1.0 | 12 | 0 | 0 | Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decod
+needle-64k cdemu: | Contains expected | 1.000 | 1.0 | 8 | 0 | 0 | Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode
+| mmlu | 0.844 | 570 | 0.40 | 6470 | 81.6 | 570 | 0 | 348.6 |
+- mmlu: 570 replies kept; 0 truncated (score 0); thinking verified off; mean output 10.18 tokens
+[localeval] saved /opt/code/deepeval/results/20261105-211613-adhoc-s35-cdemu-mmlu/result.json
+- gsm8k scores: `gsm8k_flexible` 0.490 (primary); `gsm8k_bare_number` 0.490
+- gsm8k: 100 replies kept; 0 truncated (score 0); thinking verified off; mean output 12.4 tokens
+[localeval] saved /opt/code/deepeval/results/20261105-212204-adhoc-s35-cdemu-gsm8k/result.json
+== serve creal 21:22:38
+16k-1: 1024 tokens
+needle-32k creal: | Contains expected | 1.000 | 1.0 | 12 | 0 | 0 | Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decod
+needle-64k creal: | Contains expected | 1.000 | 1.0 | 8 | 0 | 0 | Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode
+PASS greedy ids main == base (1024 tokens)
+== serve done 21:27:36

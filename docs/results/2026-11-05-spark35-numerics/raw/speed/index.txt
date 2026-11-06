@@ -1,0 +1,16 @@
+s35-base-single-r1: - result file: `results/20261105-212823-adhoc-s35-base-single-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-212823-adhoc-s35-base-single-r1/result.json 
+s35-base-burst-r1: - result file: `results/20261105-212930-adhoc-s35-base-burst-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-212930-adhoc-s35-base-burst-r1/result.json 
+s35-c-single-r1: - result file: `results/20261105-213101-adhoc-s35-c-single-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-213101-adhoc-s35-c-single-r1/result.json 
+s35-c-burst-r1: - result file: `results/20261105-213209-adhoc-s35-c-burst-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-213209-adhoc-s35-c-burst-r1/result.json 
+s35-d-single-r1: - result file: `results/20261105-213342-adhoc-s35-d-single-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-213342-adhoc-s35-d-single-r1/result.json 
+s35-d-burst-r1: - result file: `results/20261105-213448-adhoc-s35-d-burst-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-213448-adhoc-s35-d-burst-r1/result.json 
+s35-cd-single-r1: - result file: `results/20261105-213614-adhoc-s35-cd-single-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-213614-adhoc-s35-cd-single-r1/result.json 
+s35-cd-burst-r1: - result file: `results/20261105-213725-adhoc-s35-cd-burst-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-213725-adhoc-s35-cd-burst-r1/result.json 
+s35-cd-single-r2: - result file: `results/20261105-213852-adhoc-s35-cd-single-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-213852-adhoc-s35-cd-single-r2/result.json 
+s35-cd-burst-r2: - result file: `results/20261105-213959-adhoc-s35-cd-burst-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-213959-adhoc-s35-cd-burst-r2/result.json 
+s35-d-single-r2: - result file: `results/20261105-214125-adhoc-s35-d-single-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-214125-adhoc-s35-d-single-r2/result.json 
+s35-d-burst-r2: - result file: `results/20261105-214231-adhoc-s35-d-burst-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-214231-adhoc-s35-d-burst-r2/result.json 
+s35-c-single-r2: - result file: `results/20261105-214356-adhoc-s35-c-single-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-214356-adhoc-s35-c-single-r2/result.json 
+s35-c-burst-r2: - result file: `results/20261105-214501-adhoc-s35-c-burst-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-214501-adhoc-s35-c-burst-r2/result.json 
+s35-base-single-r2: - result file: `results/20261105-214625-adhoc-s35-base-single-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-214625-adhoc-s35-base-single-r2/result.json 
+s35-base-burst-r2: - result file: `results/20261105-214735-adhoc-s35-base-burst-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-214735-adhoc-s35-base-burst-r2/result.json 
