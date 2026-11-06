@@ -24,8 +24,8 @@ for spec in ${TREES:?TREES=name=stamp ...}; do
     fi
   done
   echo "== $name: $stamp $(date +%T)"
-  $D env INTARSIA_BUILD_STAMP="$stamp" CARGO_BUILD_JOBS=${JOBS:-20} cargo build --release -p intarsia-cli --features hip > ~/intarsiaml-dh/.dh/logs/build-$name.log 2>&1 < /dev/null
-  echo "build $name exit $? $(date +%T)"; grep -E '^(error|warning: unused)|Finished' ~/intarsiaml-dh/.dh/logs/build-$name.log | tail -5
+  $D env INTARSIA_BUILD_STAMP="$stamp" CARGO_BUILD_JOBS=${JOBS:-20} cargo build --release -p intarsia-cli --features hip > ~/intarsiaml-dh/.dh/logs/build-${BIN:-dh-intarsia}.log 2>&1 < /dev/null
+  echo "build $name exit $? $(date +%T)"; grep -E "^(error|warning: unused)|Finished" ~/intarsiaml-dh/.dh/logs/build-${BIN:-dh-intarsia}.log | tail -5
   $D cp /target/release/intarsia /work/${BIN:-dh-intarsia} < /dev/null
   if [[ "${HIPTEST:-0}" == 1 ]]; then
     $D cargo test --release -p intarsia-backend-hip --no-run > ~/intarsiaml-dh/.dh/logs/hiptest-build-$name.log 2>&1 < /dev/null
