@@ -23,3 +23,12 @@ start_server() {
 # window budget: w1.sh exports S35_DEADLINE (epoch seconds); the arm loops skip an arm that does not fit
 left_min() { echo $(( (${S35_DEADLINE:-$(( $(date +%s) + 99999 ))} - $(date +%s)) / 60 )); }
 fits() { local need=$1 what=$2; if (( $(left_min) < need )); then echo "SKIP $what: $(left_min) min left, needs $need"; return 1; fi; return 0; }
+
+# The commit the "dev" binary is built from: $DEV_REF, else the file scripts/spark35num/DEV_REF (a sha: the lever commit, never the D default-flip commit).
+DEV_REF=${DEV_REF:-$(tr -d '[:space:]' < "$H/DEV_REF")}
+DEV_SHA=$(git -C "$REPO" rev-parse "$DEV_REF^{commit}") || { echo "bad DEV_REF $DEV_REF"; exit 2; }
+# ensure_dev: build bin/dev from $DEV_SHA when it is not already (idempotent), then REFUSE to go on unless bin/dev.ref says exactly that commit.
+ensure_dev() {
+  "$H/build.sh" "$DEV_SHA" dev || { echo "dev build from $DEV_SHA failed: no fallback, this job stops"; return 1; }
+  rsh "test \"\$(cat $L/bin/dev.ref 2>/dev/null)\" = $DEV_SHA" || { echo "bin/dev is not built from $DEV_SHA"; return 1; }
+}

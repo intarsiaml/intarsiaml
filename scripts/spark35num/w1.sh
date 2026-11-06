@@ -13,14 +13,13 @@ case " $STAGES " in *" data "*) ;; *) STAGES="data $STAGES" ;; esac
 case " $STAGES " in *" build "*) ;; *) STAGES="build $STAGES" ;; esac   # idempotent: build.sh keeps a binary already built from the commit
 for st in $STAGES; do case $st in
   build)
-    BASE=$(git -C "$REPO" merge-base HEAD origin/main); echo "main = $BASE" | tee "$RES/main-ref.txt"
+    BASE=$(git -C "$REPO" merge-base "$DEV_SHA" origin/main); echo "main = $BASE, dev = $DEV_SHA" | tee "$RES/main-ref.txt"
     "$H/build.sh" "$BASE" main || { echo "MAIN BUILD FAILED"; exit 1; }
-    if ! "$H/build.sh" "${DEV_REF:-HEAD}" dev; then
-      echo "dev build from HEAD failed: falling back to the emulation-only commit ${FALLBACK_REF:-f7278f38b} (no real bf16 layout in this window)"
-      "$H/build.sh" "${FALLBACK_REF:-f7278f38b}" dev || { echo "BUILD FAILED"; exit 1; }
-    else
-      rsh "cd $L/src && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test gdn_state16 --no-run 2>&1 | grep -E '^error|Finished|could not' | tail -4; cp \$(ls -t target/release/deps/gdn_state16-* | grep -v '\\.d\$' | head -1) $L/bin/gdn_state16 && echo built gdn_state16"
-    fi ;;
+    ensure_dev || exit 1
+    # test binaries: the GDN state test, and the existing bitwise guards of the kernels this lane rewrote
+    for t in gdn_state16 gdn_split gdn_conv16 gdn_lanes rows_exact row_tables; do
+      rsh "cd $L/src && CARGO_BUILD_JOBS=16 cargo test -p intarsia-backend-cuda --release --test $t --no-run > $L/out/build-test-$t.log 2>&1; f=\$(ls -t target/release/deps/$t-* 2>/dev/null | grep -v '\\.d\$' | head -1); [ -n \"\$f\" ] && cp \$f $L/bin/t_$t && echo built t_$t || { echo TEST BUILD FAILED $t; tail -15 $L/out/build-test-$t.log; }"
+    done ;;
   data)
     (cd "$REPO" && uv run --with numpy --with safetensors --with tokenizers scripts/spark35num/mkcarrier.py "$TOK" "$RES/data") > "$RES/data-carriers.log" 2>&1
     (cd "$REPO" && uv run --with tokenizers scripts/spark35num/mkneedle.py "$TOK" "$RES/data") > "$RES/data-needle.log" 2>&1
@@ -39,10 +38,13 @@ for st in $STAGES; do case $st in
     done
     rsh "grep -a -E 'ADMITTED|SKIPPED|FAIL|incomplete' $O/kt-main.log | tail -4; echo ---; grep -a -E 'ADMITTED|SKIPPED|FAIL|incomplete' $O/kt-dev.log | tail -4"
     if rsh "diff <(grep -a -E 'ADMITTED|SKIPPED|FAIL' $O/kt-main.log) <(grep -a -E 'ADMITTED|SKIPPED|FAIL' $O/kt-dev.log) > /dev/null"; then echo "PASS kernels test --quick main == dev (status lines)"; else echo "FAIL kernels test --quick differs"; fails=$((fails+1)); fi
-    if rsh "test -x $L/bin/gdn_state16"; then
-      rsh "$L/bin/gdn_state16 --nocapture --test-threads=1 > $O/gdn_state16.log 2>&1; echo gdn_state16 exit \$?; grep -a -E 'test result|gdn_state16:' $O/gdn_state16.log | tail -12"
-    else echo "gdn_state16: no binary (emulation-only build)"; fi
-    scp -q -o BatchMode=yes "$HOST:intarsiaml-s35/out/plan-35-*" "$HOST:intarsiaml-s35/out/gdn_state16.log" "$HOST:intarsiaml-s35/out/kt-*.log" "$RES/" 2>&1 | tail -1
+    for t in gdn_state16 gdn_split gdn_conv16 gdn_lanes rows_exact row_tables; do
+      if rsh "test -x $L/bin/t_$t"; then
+        rsh "cd $L/src && INTARSIA_REQUIRE_GPU=1 $L/bin/t_$t --nocapture --test-threads=1 > $O/test-$t.log 2>&1; echo \"test $t exit \$?\"; grep -a -E 'test result|gdn_state16:|SKIPPED' $O/test-$t.log | tail -4" | tee -a "$RES/gpu-tests.txt"
+      else echo "FAIL test binary t_$t missing"; fails=$((fails+1)); fi
+    done
+    "$H/idgate.sh" || fails=$((fails+1))
+    scp -q -o BatchMode=yes "$HOST:intarsiaml-s35/out/plan-35-*" "$HOST:intarsiaml-s35/out/test-*.log" "$HOST:intarsiaml-s35/out/kt-*.log" "$RES/" 2>&1 | tail -1
     echo "gates fails=$fails" ;;
   lanes)
     fb=$(free_gb); echo "lanes: MemAvailable $fb GB"

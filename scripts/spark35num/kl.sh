@@ -11,6 +11,7 @@
 # window) and dec8k (16k, 32k: an 8192-token decode window). Needs build.sh to have made bin/dev; carriers in $L/carriers.
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+ensure_dev || exit 1
 ARMS=${ARMS:-"base noise fp8 cemu cdemu"}
 LOOSE="--allow-config-mismatch --allow-unstamped --allow-same-code --self-max-kl 1 --self-max-pos-kl 100 --self-max-flip-pct 100 --self-max-tail 1"
 spec() { case $1 in

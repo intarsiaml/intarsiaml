@@ -5,6 +5,7 @@
 # $RES/data/needle-{32k,64k}.jsonl (w1.sh makes them).
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
+ensure_dev || exit 1
 ARMS=${ARMS:-"main base fp8 cemu cdemu"}; TASKS=${TASKS:-"greedy needle mmlu gsm8k"}
 trap 'stop_server' EXIT INT TERM
 spec() { case $1 in
@@ -33,4 +34,7 @@ for arm in $ARMS; do
   rsh "grep -aE 'graph|eager|spec:|row-table|kv_dtype' $L/out/serve-$arm.log | sort | uniq -c | sort -rn | head -6" > "$RES/serve-$arm-notes.txt"
   stop_server
 done
+if [[ -f $RES/greedy-main.json && -f $RES/greedy-base.json ]]; then   # the env-unset gate at 1024 tokens: dev (no env) == origin/main
+  python3 "$H/../fp8kv/greedy.py" compare "$RES/greedy-main.json" "$RES/greedy-base.json" > "$RES/greedy-main-vs-base.txt" 2>&1 && echo "PASS greedy ids main == base (1024 tokens)" || echo "FAIL greedy ids main != base"
+fi
 echo "== serve done $(date +%T)"
