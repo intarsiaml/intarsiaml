@@ -47,7 +47,10 @@ Coordinator, 2026-11-05, after the first report (copied as asked):
 >
 > The default stays off until the user decides.
 
-User decision, relayed by the coordinator: 2026-11-05, about 20:10 EST: "sampled default on". Implemented as: unset
+Default-on source (to be confirmed by the coordinator): no relayed message with this decision survives in this lane's
+transcript, which was compacted after the message above (which still said the default stays off). The coordinator's own session
+notes (`memory/perf-push-2026-11-05.md`) record: "~20:10 EST (user): 'sampled default on': Qwen sampled speculation default on,
+variant `match` (INTARSIA_SPEC_SAMPLED unset = match; =1 = match; =reject explicit)". The lane implemented that note as: unset
 `INTARSIA_SPEC_SAMPLED` = `match` on the CUDA and Metal backends (wherever `--spec mtp` runs, explicitly or by the recipe default:
 CUDA 35B, Metal 35B, Metal 27B); off on HIP (its captured verify replay was not checked with the logits read-back, and its MTP
 default is tp > 1, which sampled speculation does not cover) and on the cpu reference; `0` / `off` turns it off, `reject` selects
@@ -267,6 +270,10 @@ CUDA (spark1, fleetq #8652, base `602a1fcfe` and branch `c28ad2d3f` built there;
 | CUDA greedy ids 35B `--spec mtp --spec-k 2`, short + 4K | **identical 2 / 2** |
 | CUDA default active, T 0.7 | main: 0 verify passes; branch: `speculation Match (default ...)`, 42 passes, 61.9 % accepted |
 | `~/intarsiaml-ss` on spark1 | removed at the end of #8720 |
+
+Reach: `serve` defaults to `--max-batch 1` (the single-sequence engine), so the default reaches default served traffic. A deployment
+that sets `--max-batch` > 1 (or the batched-MTP default of the bm-default lane, if it moves serving onto the batching engine) gets
+no sampled speculation: there sampled requests decode plainly.
 
 Not rerun after the default change: `kernels test` (no kernel or plan code changed: the change is the env default and one log line;
 the earlier Metal and CUDA runs stand), the speed tables (they already measured `match` explicitly), the statistical gate (the
