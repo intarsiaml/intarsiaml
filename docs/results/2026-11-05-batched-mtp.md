@@ -106,7 +106,7 @@ six concurrent prompts a different greedy continuation from token 2 on; with pac
 together depends on arrival timing, so it is schedule-dependent. Batched MTP (A and B) reproduces the plain batched engine's tokens exactly in
 those runs, so the verify path adds no difference of its own. Raw: `raw/gates-cuda2/` (first set), `raw/gates-cuda3/` (main and no-pack repeats).
 
-## CUDA 35B NVFP4 tp1 on spark1 (fleetq #8654, tree 449b7bc93 binary built from 1e3465568 + scripts)
+## CUDA 35B NVFP4 tp1 on spark1 (fleetq #8654; binary built at 1b72bad12, code identical to the branch head)
 
 localeval speed (`scripts/bm/le-window.sh w1 2 ...`), 1k prompt, 256 generated, thinking off, 3 reps, 2 rounds ABBA, all `--max-batch 16 --max-seq 8192
 --mem-budget 40`, spark1-vllm up (MemAvailable 51 GB with our server up). Arms: plain (no spec), bmtp1 (phase A, drafting at B = 1), bmtp1d (bmtp1 +
