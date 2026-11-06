@@ -1928,3 +1928,132 @@ fn batched_verify_engine_equals_solo() {
     let t = check_batched_mtp_v(&w, reqs, 16, 4, 2, 2, Some(scripted(truth, 77)), false, true);
     assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "drafts accepted and rejected ({t:?})");
 }
+
+// ------------------------------------------------------------------------------------------------------------------
+// sampled speculation (`INTARSIA_SPEC_SAMPLED`, `Model::set_spec_sampled`)
+// ------------------------------------------------------------------------------------------------------------------
+
+/// The fixture engine with `--spec mtp --spec-k k` and the given sampled-speculation variant.
+fn engine_sampled(w: &MemWeights, k: usize, draft_vocab: usize, sampled: intarsia_core::spec::SampledSpec) -> (LocalEngine, Arc<Telemetry>) {
+    let tel = Arc::new(Telemetry::new());
+    let (recipe, dims) = dims();
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        mtp_draft_vocab: Some(draft_vocab),
+        profile_every: 0,
+        ..Default::default()
+    };
+    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    m.enable_verify(k + 1).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    m.set_spec_sampled(Some(sampled));
+    let spec = SpecConfig { mode: SpecMode::Mtp, k };
+    let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+        .unwrap();
+    (e, tel)
+}
+
+fn sampled_req(prompt: &[u32], n: usize, seed: u64, temperature: f32, top_k: usize, top_p: f32) -> GenRequest {
+    GenRequest { prompt: prompt.to_vec(), max_tokens: n, temperature, top_k, top_p, seed: Some(seed), ignore_eos: true, ..Default::default() }
+}
+
+/// Greedy requests keep the greedy acceptance with sampled speculation on (ids identical to sampled speculation off); sampled
+/// requests draft and verify (both variants, full and reduced draft head), reproduce for a seed, and stop at `max_tokens`.
+#[test]
+fn sampled_speculation_drafts_sampled_requests_and_leaves_greedy_ones_alone() {
+    use intarsia_core::spec::SampledSpec;
+    let w = weights(11);
+    let (off, _) = engine_sampled(&w, 2, 0, SampledSpec::Off);
+    for variant in [SampledSpec::Reject, SampledSpec::Match] {
+        for dv in [0usize, 40] {
+            let (e, tel) = engine_sampled(&w, 2, dv, variant);
+            for p in PROMPTS {
+                assert_eq!(run(&e, req(p, 64)).ids, run(&off, req(p, 64)).ids, "{variant:?} dv {dv}: greedy ids changed");
+            }
+            let before = tel.snapshot().spec_steps;
+            for (t, tk, tp) in [(1.0f32, 0usize, 1.0f32), (0.7, 20, 0.8)] {
+                let a = run(&e, sampled_req(PROMPTS[0], 40, 5, t, tk, tp));
+                let b = run(&e, sampled_req(PROMPTS[0], 40, 5, t, tk, tp));
+                assert_eq!(a.ids, b.ids, "{variant:?} dv {dv}: a seed must reproduce");
+                assert_eq!(a.ids.len(), 40);
+                assert!(a.ids.iter().all(|&i| i < V));
+            }
+            let s = tel.snapshot();
+            assert!(s.spec_steps > before, "{variant:?} dv {dv}: sampled requests did not speculate");
+            // off: sampled requests take plain steps
+            let s0 = tel.snapshot().spec_steps;
+            let _ = run(&off, sampled_req(PROMPTS[1], 16, 1, 1.0, 0, 1.0));
+            assert_eq!(tel.snapshot().spec_steps, s0);
+        }
+    }
+}
+
+/// The engine end to end on the fixture: the law of each generated token 2, 3, 4 (the speculative positions; token 1 comes
+/// from prefill) with sampled speculation matches plain sampling. Pearson chi-square of homogeneity per position with pooled
+/// sparse cells, disjoint seed sets, fixed seeds (deterministic); threshold z = 5. About 4 minutes in release (9,000 requests),
+/// so opt-in: `cargo test --release -p intarsia-models --test mtp -- --ignored sampled_speculation_matches`.
+#[test]
+#[ignore]
+fn sampled_speculation_matches_plain_sampling_in_law_on_the_fixture() {
+    use intarsia_core::spec::SampledSpec;
+    use std::collections::BTreeMap;
+    let w = weights(11);
+    let n = 1500u64;
+    // per position 2, 3, 4: token -> count
+    let draw = |e: &LocalEngine, seed0: u64, tk: usize, tp: f32| -> Vec<BTreeMap<u32, u64>> {
+        let mut c = vec![BTreeMap::new(); 3];
+        for s in seed0..seed0 + n {
+            let ids = run(e, sampled_req(PROMPTS[0], 4, s, 1.0, tk, tp)).ids;
+            for p in 0..3 {
+                *c[p].entry(ids[1 + p]).or_insert(0) += 1;
+            }
+        }
+        c
+    };
+    for (tk, tp) in [(0usize, 1.0f32), (4, 0.9)] {
+        let (off, _) = engine_sampled(&w, 2, 0, SampledSpec::Off);
+        let base = draw(&off, 0, tk, tp);
+        for (variant, dv) in [(SampledSpec::Reject, 0usize), (SampledSpec::Reject, 40), (SampledSpec::Match, 0)] {
+            let (e, tel) = engine_sampled(&w, 2, dv, variant);
+            let got = draw(&e, 1_000_000, tk, tp);
+            let s = tel.snapshot();
+            assert!(s.spec_steps > 0 && s.spec_accepted > 0 && s.spec_accepted < s.spec_proposed, "{variant:?}: both branches must run ({s:?})");
+            for pos in 0..3 {
+                let (base, got) = (&base[pos], &got[pos]);
+                // 2 x C homogeneity, cells with expected count < 5 pooled
+                let keys: std::collections::BTreeSet<u32> = base.keys().chain(got.keys()).copied().collect();
+                let (mut stat, mut cells, mut po) = (0.0, 0usize, [0.0f64; 2]);
+                for k in &keys {
+                    let o = [*base.get(k).unwrap_or(&0) as f64, *got.get(k).unwrap_or(&0) as f64];
+                    let e = (o[0] + o[1]) / 2.0;
+                    if e < 5.0 {
+                        po[0] += o[0];
+                        po[1] += o[1];
+                        continue;
+                    }
+                    stat += (o[0] - e).powi(2) / e + (o[1] - e).powi(2) / e;
+                    cells += 1;
+                }
+                let e = (po[0] + po[1]) / 2.0;
+                if e > 0.0 {
+                    stat += (po[0] - e).powi(2) / e + (po[1] - e).powi(2) / e;
+                    cells += 1;
+                }
+                assert!(cells >= 6, "position {}: too few cells ({cells}) for the test", pos + 2);
+                let df = (cells - 1) as f64;
+                let a = 2.0 / (9.0 * df);
+                let crit = df * (1.0 - a + 5.0 * a.sqrt()).powi(3);
+                eprintln!(
+                    "top_k {tk} top_p {tp} {variant:?} dv {dv} position {}: chi2 {stat:.1} on {df} df (crit {crit:.1}); accepted {}/{}",
+                    pos + 2,
+                    s.spec_accepted,
+                    s.spec_proposed
+                );
+                assert!(stat < crit, "{variant:?} dv {dv} top_k {tk} top_p {tp} position {}: chi2 {stat:.1} on {df} df", pos + 2);
+            }
+        }
+    }
+}

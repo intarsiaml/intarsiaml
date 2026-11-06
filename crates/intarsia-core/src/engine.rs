@@ -1186,6 +1186,9 @@ pub(crate) struct Seq {
     /// The model-based drafter is the DFlash block draft (`--spec dflash`), not the MTP head.
     spec_dflash: bool,
     spec_k: usize,
+    /// Speculation for this sampled request ([`crate::spec::SampledSpec`]; `Off` for greedy requests, which keep the greedy
+    /// acceptance). Set by [`Seq::new`] (single-sequence engine only), never by the batching scheduler.
+    spec_sampled: crate::spec::SampledSpec,
     /// `--spec auto` (lane asp): picks the drafter of every pass; `None` for every other mode.
     auto: Option<crate::spec::AutoPolicy>,
     /// The drafter of the pass [`Seq::plan_step`] planned last (`--spec auto`; the fixed one otherwise).
@@ -1268,6 +1271,21 @@ impl Seq {
         // a prewarm computes the whole prompt (no token to sample), a request keeps >= 1 token to compute
         let max_reuse = if req.prewarm.is_some() { plen } else { plen - 1 };
         let mut seq = Seq::build(&sh.env(), req, tx, model.verify_rows(), recurrent);
+        // sampled speculation (opt-in, `INTARSIA_SPEC_SAMPLED`): `--spec mtp` on one rank, the same exclusions as greedy
+        // speculation (logit tracing, constraints)
+        let sampled = model.spec_sampled();
+        if !seq.greedy
+            && sampled != crate::spec::SampledSpec::Off
+            && sh.env().spec.mode == crate::spec::SpecMode::Mtp
+            && seq.req.trace_logits.is_none()
+            && seq.cons.is_none()
+            && model.verify_rows() >= 2
+            && st.peers.is_empty()
+        {
+            seq.spec_on = true;
+            seq.spec_sampled = sampled;
+            seq.ctx = seq.req.prompt.clone();
+        }
         if seq.spec_mtp {
             // the single-sequence loop times its own steps; the batched scheduler shares one step among sequences
             seq.gate.set_cost(model.spec_cost_params());
@@ -1408,6 +1426,7 @@ impl Seq {
             spec_mtp,
             spec_dflash,
             spec_k,
+            spec_sampled: crate::spec::SampledSpec::Off,
             auto: None,
             drafter: if spec_dflash { crate::spec::Drafter::Dflash } else { crate::spec::Drafter::Mtp },
             spec_paused: false,
@@ -1872,7 +1891,7 @@ impl Seq {
     /// token count the pending tokens reach; a stop id among them, the gate's next answer and the end of the request are
     /// taken into account, a stop string or a cancel is not (the draft is then unused, which changes nothing).
     fn next_draft_k(&self, st: &SequenceState) -> Option<usize> {
-        if !self.pipe_solo || !self.spec_on || !self.spec_mtp || self.spec_dflash || self.auto.is_some() {
+        if !self.pipe_solo || !self.spec_on || !self.spec_mtp || self.spec_dflash || self.auto.is_some() || self.spec_sampled != crate::spec::SampledSpec::Off {
             return None;
         }
         if self.spec_paused || self.plain_next || self.pending.is_empty() || self.pending.iter().any(|t| self.stop_ids.contains(t)) {
@@ -1908,6 +1927,58 @@ impl Seq {
         let step = spec_accept(model, st, len0, drafts, out, self.generated, self.req.min_tokens, &self.stop_ids)?;
         self.account_verify(len0, drafts, step);
         Ok(())
+    }
+
+    /// One sampled speculative pass ([`crate::spec::SampledSpec`], eager): draft `k` tokens after `tok` (sampled from the head's
+    /// processed distribution for `Reject`, its argmax for `Match`), run the verify pass with its logits, accept by
+    /// [`crate::spec::accept_sampled`] with every distribution through the request's own sampling pipeline
+    /// ([`crate::sampler::dist`]: temperature, top-k, top-p) and its RNG, roll back the rejected rows. `false`: no draft (the
+    /// caller takes a plain step).
+    fn sampled_pass(&mut self, model: &Model, st: &mut SequenceState, k: usize) -> Result<bool> {
+        let t0 = Instant::now();
+        let len0 = st.len;
+        let params = self.sampler.params.clone();
+        let reject = self.spec_sampled == crate::spec::SampledSpec::Reject;
+        let mut q: Vec<crate::sampler::Dist> = Vec::new();
+        let drafts = if reject {
+            let sampler = &mut self.sampler;
+            model.mtp_draft_sampled(st, self.tok, k, &mut |row| {
+                let d = crate::sampler::dist(row, &params);
+                let x = sampler.sample_dist(&d);
+                q.push(d);
+                x
+            })?
+        } else {
+            model.mtp_draft(st, self.tok, k)?
+        };
+        if drafts.is_empty() {
+            return Ok(false);
+        }
+        let t1 = Instant::now();
+        let mut ids = Vec::with_capacity(1 + drafts.len());
+        ids.push(self.tok);
+        ids.extend_from_slice(&drafts);
+        let (_, rows) = model.forward_verify_logits(st, &ids)?;
+        let t2 = Instant::now();
+        let sampler = &mut self.sampler;
+        let (emit, accepted) = crate::spec::accept_sampled(
+            &drafts,
+            reject.then_some(&q[..]),
+            &mut |i| crate::sampler::dist(&rows[i], &params),
+            &mut || sampler.uniform(),
+        );
+        spec_cut(model, st, len0 + accepted + 1)?;
+        if crate::spec::trace_enabled() {
+            eprintln!(
+                "spec: sampled {:?} draft {:.3} ms, verify {:.3} ms, accept + rollback {:.3} ms",
+                self.spec_sampled,
+                (t1 - t0).as_secs_f64() * 1e3,
+                (t2 - t1).as_secs_f64() * 1e3,
+                t2.elapsed().as_secs_f64() * 1e3
+            );
+        }
+        self.account_verify(len0, &drafts, SpecStep { emit, accepted, plain_next: false });
+        Ok(true)
     }
 
     /// Telemetry, gate and the queue of tokens a verify pass yields.
@@ -1976,6 +2047,17 @@ impl Seq {
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
                     return Ok(Prep::Ready);
+                }
+            }
+            Next::Draft(k) if self.spec_sampled != crate::spec::SampledSpec::Off => {
+                self.predraft = None;
+                self.staged = None;
+                self.cost_begin(true);
+                if self.sampled_pass(model, st, k)? {
+                    if let Some(t) = self.pending.pop_front() {
+                        self.tok = t;
+                        return Ok(Prep::Ready);
+                    }
                 }
             }
             Next::Draft(k) if defer_verify && self.auto.is_none() && !self.spec_dflash && !mtp_verify_check() => {

@@ -724,6 +724,11 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             opts.spec.k,
             picks.join(" ")
         );
+        if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp {
+            let s = model.spec_sampled();
+            let how = if std::env::var("INTARSIA_SPEC_SAMPLED").is_ok_and(|v| !v.is_empty()) { "INTARSIA_SPEC_SAMPLED" } else { "default" };
+            eprintln!("sampled requests (temperature > 0): speculation {s:?} ({how}; single sequence, one rank)");
+        }
     }
     if opts.plan.admit {
         eprintln!(
