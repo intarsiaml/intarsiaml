@@ -1,0 +1,10 @@
+bm-plain-r1: - result file: `results/20261105-202856-adhoc-bm-plain-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-202856-adhoc-bm-plain-r1/result.json 
+bm-bmtp1-r1: - result file: `results/20261105-203038-adhoc-bm-bmtp1-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203038-adhoc-bm-bmtp1-r1/result.json 
+bm-bver5-r1: - result file: `results/20261105-203217-adhoc-bm-bver5-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203217-adhoc-bm-bver5-r1/result.json 
+bm-bver8-r1: - result file: `results/20261105-203357-adhoc-bm-bver8-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203357-adhoc-bm-bver8-r1/result.json 
+bm-bmtp1d-r1: - result file: `results/20261105-203539-adhoc-bm-bmtp1d-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203539-adhoc-bm-bmtp1d-r1/result.json 
+bm-bmtp1d-r2: - result file: `results/20261105-203715-adhoc-bm-bmtp1d-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203715-adhoc-bm-bmtp1d-r2/result.json 
+bm-bver8-r2: - result file: `results/20261105-203852-adhoc-bm-bver8-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203852-adhoc-bm-bver8-r2/result.json 
+bm-bver5-r2: - result file: `results/20261105-204038-adhoc-bm-bver5-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-204038-adhoc-bm-bver5-r2/result.json 
+bm-bmtp1-r2: - result file: `results/20261105-204216-adhoc-bm-bmtp1-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-204216-adhoc-bm-bmtp1-r2/result.json 
+bm-plain-r2: - result file: `results/20261105-204349-adhoc-bm-plain-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-204349-adhoc-bm-plain-r2/result.json 

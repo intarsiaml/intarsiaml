@@ -1,0 +1,10 @@
+intarsia_requests_total 39
+intarsia_decode_eager_steps_total 0
+intarsia_decode_profiled_steps_total 0
+intarsia_spec_steps_total 462
+intarsia_spec_proposed_tokens_total 922
+intarsia_spec_accepted_tokens_total 562
+intarsia_spec_costgate_off_total 0
+intarsia_spec_costgate_on_total 0
+intarsia_spec_costgate_plain_steps_total 0
+intarsia_spec_costgate_probe_steps_total 0
