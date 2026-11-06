@@ -1,0 +1,6 @@
+kind                      on1-t07
+chat          47.9 (median  48.7)
+code          68.9 (median  69.7)
+prose         43.1 (median  43.9)
+recall        54.0 (median  54.9)
+all           51.9 (median  50.4)

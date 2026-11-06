@@ -1,0 +1,12 @@
+c8213be9e dirty=no 1105-1725
+c6c3cba7a0de62bf4f2e8d412b550e5f  ../bin/intarsia
+               total        used        free      shared  buff/cache   available
+Mem:             121          48          43           0          30          72
+35b=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5 8b=/home/nvidia/models/Qwen3-8B
+plan 35b exit 0
+plan 35b json exit 0
+plan 8b exit 0
+plan 8b json exit 0
+avail GB before kernels: 77
+kernels exit 0
+REMOTE_DONE

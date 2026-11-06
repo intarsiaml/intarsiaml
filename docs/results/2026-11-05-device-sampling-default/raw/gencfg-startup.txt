@@ -1,0 +1,8 @@
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json; a request's own values win)
+intarsia_sampling_defaults{source="/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json",temperature="1",top_p="0.95",top_k="20"} 1
+sampling defaults: temperature=1 top_p=1 top_k=0 (built-in; no checkpoint generation_config applied)
+intarsia_sampling_defaults{source="builtin",temperature="1",top_p="1",top_k="0"} 1
+sampling defaults: temperature=1 top_p=0.95 top_k=20 (from /home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json; a request's own values win)
+intarsia_sampling_defaults{source="/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5/generation_config.json",temperature="1",top_p="0.95",top_k="20"} 1
+sampling defaults: temperature=1 top_p=1 top_k=0 (built-in; no checkpoint generation_config applied)
+intarsia_sampling_defaults{source="builtin",temperature="1",top_p="1",top_k="0"} 1

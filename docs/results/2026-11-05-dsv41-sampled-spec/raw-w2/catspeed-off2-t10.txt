@@ -1,0 +1,6 @@
+kind                     off2-t10
+chat          36.4 (median  36.3)
+code          36.5 (median  36.5)
+prose         36.1 (median  36.2)
+recall        36.4 (median  36.4)
+all           36.4 (median  36.3)

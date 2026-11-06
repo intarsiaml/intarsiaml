@@ -1,0 +1,11 @@
+
+
+This document is a **technical design specification and status report** for a new feature being added to a high-performance LLM inference engine (likely named "TensorFold" or "Intarsia" based on the file paths).
+
+Here is a breakdown of what is happening, why, and how it works, structured for a new engineer.
+
+### 1. The Big Picture: What are we building?
+
+We are adding **Speculative Decoding** support for a specific model architecture called **DFlash**, and on top of that, a correction mechanism called **DCOCO**.
+
+*   **Speculative Decoding:** A

@@ -115,7 +115,21 @@ fn sample_row_cmp(logits: &[f32], p: &SamplingParams, u: f32) -> usize {
 }
 
 /// Softmax over the sorted candidates `idx`, top-p cut, then the cumulative walk to `u`.
-fn walk(logits: &[f32], p: &SamplingParams, u: f32, mut idx: Vec<u32>) -> usize {
+fn walk(logits: &[f32], p: &SamplingParams, u: f32, idx: Vec<u32>) -> usize {
+    let (idx, probs) = cut(logits, p, idx);
+    let mut acc = 0.0;
+    let target = u as f64;
+    for (q, &i) in probs.iter().zip(&idx) {
+        acc += q;
+        if target < acc {
+            return i as usize;
+        }
+    }
+    *idx.last().unwrap() as usize
+}
+
+/// Softmax over the sorted candidates `idx` and the top-p cut: the candidates `walk` can return and their probabilities.
+fn cut(logits: &[f32], p: &SamplingParams, mut idx: Vec<u32>) -> (Vec<u32>, Vec<f64>) {
     let maxl = logits[idx[0] as usize] as f64;
     let inv_t = 1.0 / p.temperature as f64;
     let mut probs: Vec<f64> = idx.iter().map(|&i| ((logits[i as usize] as f64 - maxl) * inv_t).exp()).collect();
@@ -140,15 +154,83 @@ fn walk(logits: &[f32], p: &SamplingParams, u: f32, mut idx: Vec<u32>) -> usize 
             *q /= s;
         }
     }
-    let mut acc = 0.0;
-    let target = u as f64;
-    for (q, &i) in probs.iter().zip(&idx) {
-        acc += q;
-        if target < acc {
-            return i as usize;
-        }
+    (idx, probs)
+}
+
+/// A processed next-token distribution: the candidates [`sample_row`] can return for a row and their probabilities (after
+/// temperature, top-k and top-p), in its walk order. Tokens not listed have probability 0.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Dist {
+    pub ids: Vec<u32>,
+    pub probs: Vec<f64>,
+}
+
+impl Dist {
+    /// A single token with probability 1.
+    pub fn point(id: u32) -> Dist {
+        Dist { ids: vec![id], probs: vec![1.0] }
     }
-    *idx.last().unwrap() as usize
+
+    /// The probability of `id` (0 outside the candidates).
+    pub fn prob(&self, id: u32) -> f64 {
+        self.ids.iter().position(|&i| i == id).map_or(0.0, |j| self.probs[j])
+    }
+
+    /// The token at the cumulative position `u` in [0, 1) (the last candidate past the end, as `walk`).
+    pub fn pick(&self, u: f64) -> u32 {
+        let mut acc = 0.0;
+        for (q, &i) in self.probs.iter().zip(&self.ids) {
+            acc += q;
+            if u < acc {
+                return i;
+            }
+        }
+        *self.ids.last().unwrap()
+    }
+}
+
+/// The distribution [`sample_row`] draws from for `logits` under `p` (greedy: the argmax with probability 1). Exactly the
+/// candidates and probabilities `sample_row`'s walk uses, so a token drawn from it has `sample_row`'s law.
+pub fn dist(logits: &[f32], p: &SamplingParams) -> Dist {
+    if p.temperature <= 0.0 {
+        return Dist::point(argmax(logits) as u32);
+    }
+    let n = logits.len();
+    let keep = if p.top_k > 0 && p.top_k < n { p.top_k } else { n };
+    let idx: Vec<u32> = if n > u32::MAX as usize || logits.iter().any(|x| x.is_nan()) {
+        let mut idx: Vec<u32> = (0..n as u32).collect();
+        let cmp = |a: &u32, b: &u32| {
+            logits[*b as usize].partial_cmp(&logits[*a as usize]).unwrap_or(std::cmp::Ordering::Equal).then(a.cmp(b))
+        };
+        if keep < n {
+            idx.select_nth_unstable_by(keep - 1, cmp);
+            idx.truncate(keep);
+        }
+        idx.sort_unstable_by(cmp);
+        idx
+    } else {
+        let mut keys: Vec<u64> = logits.iter().enumerate().map(|(i, &l)| (order_key(l) as u64) << 32 | i as u64).collect();
+        if keep < n {
+            keys.select_nth_unstable(keep - 1);
+            keys.truncate(keep);
+            keys.sort_unstable();
+        } else if p.top_p >= 1.0 {
+            // no top-p cut: the order does not change the distribution, so skip the sort
+        } else {
+            radix_sort_hi(&mut keys, &mut Vec::new());
+        }
+        if keep == n && p.top_p >= 1.0 {
+            // softmax over the whole row, any order; `cut` reads the max from its first candidate, so put it first
+            let mut idx: Vec<u32> = keys.iter().map(|&k| k as u32).collect();
+            let best = argmax(logits);
+            idx.swap(0, best);
+            idx
+        } else {
+            keys.iter().map(|&k| k as u32).collect()
+        }
+    };
+    let (ids, probs) = cut(logits, p, idx);
+    Dist { ids, probs }
 }
 
 /// Per-request sampler: owns the seeded RNG.
@@ -171,6 +253,17 @@ impl Sampler {
     pub fn sample(&mut self, logits: &[f32]) -> usize {
         let u = self.rng.next_f32();
         sample_row(logits, &self.params, u)
+    }
+
+    /// One uniform draw in [0, 1) with 53 bits (speculative sampling's accept tests and draws).
+    pub fn uniform(&mut self) -> f64 {
+        (self.rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64
+    }
+
+    /// A token drawn from `d` with one [`Sampler::uniform`] draw.
+    pub fn sample_dist(&mut self, d: &Dist) -> u32 {
+        let u = self.uniform();
+        d.pick(u)
     }
 
     /// [`Sampler::sample`] from the candidates a device-side top-k selected (`HeadMode::LastTopK`): `ids[j]` / `vals[j]` are
@@ -321,6 +414,60 @@ mod tests {
                             for _ in 0..16 {
                                 let u = rng.next_f32();
                                 assert_eq!(sample_from_topk(&order, &vals, &p, u), sample_row(row, &p, u), "n {n} k {k} t {t} tp {tp} u {u}");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// `dist` lists exactly what `sample_row` draws: every candidate's cumulative interval maps to it, the probabilities sum to
+    /// 1, and the unsorted fast path (no top-k, no top-p) has the sorted path's probabilities.
+    #[test]
+    fn dist_is_what_sample_row_draws() {
+        let mut rng = SplitMix64::new(21);
+        for &(n, scale) in &[(1usize, 1.0f32), (7, 0.5), (300, 2.0), (5000, 3.0)] {
+            let mut rows = vec![bf16_row(&mut rng, n, scale)];
+            let mut r = bf16_row(&mut rng, n, scale);
+            for (i, x) in r.iter_mut().enumerate() {
+                if i % 5 == 3 {
+                    *x = f32::NEG_INFINITY;
+                }
+            }
+            rows.push(r);
+            for row in &rows {
+                for &t in &[0.0f32, 0.7, 1.0, 1.5] {
+                    for &k in &[0usize, 1, 20, n] {
+                        for &tp in &[1.0f32, 0.95, 0.5] {
+                            let p = SamplingParams { temperature: t, top_k: k, top_p: tp };
+                            let d = dist(row, &p);
+                            let s: f64 = d.probs.iter().sum();
+                            assert!((s - 1.0).abs() < 1e-9, "sum {s}");
+                            if t <= 0.0 {
+                                assert_eq!(d.ids, vec![argmax(row) as u32]);
+                                continue;
+                            }
+                            // the fast path (no top-k, no top-p) lists the candidates unsorted: same law, other intervals
+                            let sorted = (k > 0 && k < n) || tp < 1.0;
+                            let mut cum = 0.0f64;
+                            for (&id, &q) in d.ids.iter().zip(&d.probs).filter(|_| sorted) {
+                                let mid = cum + q / 2.0;
+                                cum += q;
+                                if q < 1e-5 {
+                                    continue; // below the f32 draw's resolution
+                                }
+                                assert_eq!(sample_row(row, &p, mid as f32) as u32, id, "n {n} t {t} k {k} tp {tp}");
+                                assert_eq!(d.pick(mid), id);
+                            }
+                            if !sorted {
+                                // against the sorted order
+                                let mut idx: Vec<u32> = (0..n as u32).collect();
+                                idx.sort_by(|a, b| row[*b as usize].partial_cmp(&row[*a as usize]).unwrap().then(a.cmp(b)));
+                                let (ids2, probs2) = cut(row, &p, idx);
+                                for (&id, &q) in ids2.iter().zip(&probs2) {
+                                    assert!((d.prob(id) - q).abs() < 1e-12);
+                                }
                             }
                         }
                     }

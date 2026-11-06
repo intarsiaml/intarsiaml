@@ -553,7 +553,7 @@ pub struct Model {
     row_tab: Option<Buffer>,
     batch_pos: Option<Buffer>,
     /// Device-side top-k sampling buffers (R3b): ids `i32 [BATCH_MAX_ROWS, 64]`, values `f32 [..]`, NaN flags `i32 [BATCH_MAX_ROWS]`
-    /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING` is `1` (opt-in, default off).
+    /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING` is not `0` (default on).
     topk: Option<TopkBufs>,
     /// Batched decode with a vocab-parallel head (`vocab_par`, every rank): the gather tile `f32 [world, BATCH_MAX_ROWS * V /
     /// world]`, rank-major as the all-gather leaves it; rank 0 then copies it into `ws.logits` as row-major `[b, V]`
@@ -570,6 +570,9 @@ pub struct Model {
     /// The pipelined MTP step (`model/spec_pipe.rs`): 0 = the backend's default (Metal with `INTARSIA_METAL_MTP_GPU_ACCEPT`
     /// not `0`), 1 = on, 2 = off ([`Model::set_spec_pipe`]).
     spec_pipe: std::sync::atomic::AtomicU8,
+    /// Speculation for sampled requests ([`crate::spec::SampledSpec`]): 0 = `INTARSIA_SPEC_SAMPLED`, else 1 + the variant's
+    /// index ([`Model::set_spec_sampled`]).
+    spec_sampled: std::sync::atomic::AtomicU8,
     /// Dispatches of a speculative feedback step submitted before the previous token is read (`model/feedback.rs`).
     feedback_hold: usize,
     /// Opt-in prefill tail merge in rows (`INTARSIA_PREFILL_TAIL_MERGE`, already clamped; 0 = off). The workspace holds
@@ -918,12 +921,67 @@ impl Model {
             && tp.comm.as_ref().and_then(|c| c.all_gather_quantum()).is_some_and(|q| dims.vocab % tp.world == 0 && (vh * 4) % q == 0)
             && (!tied || (embed.shape == [dims.vocab, dims.hidden] && (vh * dims.hidden * embed.dtype.size_bytes()) % 16 == 0));
         let dense = |t: TensorRef, n: usize| QTensor { format: crate::quant::BF16, n, k: dims.hidden, parts: vec![t], act_fp8: false, act_quant: false };
+        // opt-in quantised head (`INTARSIA_LMHEAD_QUANT`, a recipe's `lm_head_quant`; docs/tuning.md): quantised at load from the checkpoint's
+        // float rows, so the bf16 head is never loaded. CUDA is not gated for it and keeps the bf16 head.
+        let head_quant = {
+            let env = std::env::var(crate::quant::head::ENV).ok();
+            let q = crate::quant::head::HeadQuant::resolve(env.as_deref(), recipe.lm_head_quant(backend.name()))?;
+            if q.is_some() && backend.name() == "cuda" {
+                eprintln!("{}: not applied on the cuda backend (not gated there); the head stays bf16", crate::quant::head::ENV);
+                None
+            } else {
+                q
+            }
+        };
+        let head_quant_note: std::cell::RefCell<Option<String>> = Default::default();
         let load_head = |vocab_par: bool| -> Result<Option<QTensor>> {
             if tp.rank != 0 && !vocab_par {
                 return Ok(None);
             }
             // the rows this rank's head covers
             let (n, axis) = if vocab_par { (vh, Some(ShardAxis::Rows)) } else { (dims.vocab, None) };
+            if let Some(kind) = head_quant {
+                // the checkpoint's own float head tensor, or the tied embedding table
+                let name = if own.is_some() && !dims.tie_embeddings {
+                    Some(resolve(src, &lh.tensor)?)
+                } else if tied {
+                    Some(resolve(src, &Recipe::expand(&recipe.top.embed, 0))?)
+                } else {
+                    None
+                };
+                let info = name.as_ref().and_then(|nm| src.info(nm));
+                match (name, info) {
+                    (Some(nm), Some(i))
+                        if i.shape == [dims.vocab, dims.hidden] && matches!(i.dtype, DType::Bf16 | DType::F16 | DType::F32) =>
+                    {
+                        let t0 = std::time::Instant::now();
+                        let all = src.bytes(&nm)?;
+                        let q = crate::quant::head::load_rows(kind, b, i.dtype, all, dims.vocab, if vocab_par { tp.rank * vh } else { 0 }, n, dims.hidden)?;
+                        weights_bytes.set(weights_bytes.get() + q.weight_bytes() as u64);
+                        let note = format!(
+                            "lm_head quantised to {} ({} rows x {}, {:.2} GB, was {} {:.2} GB; {} = {}, {:.1} s)",
+                            kind.name(),
+                            n,
+                            dims.hidden,
+                            q.weight_bytes() as f64 / 1e9,
+                            i.dtype,
+                            (n * dims.hidden * i.dtype.size_bytes()) as f64 / 1e9,
+                            crate::quant::head::ENV,
+                            kind.name(),
+                            t0.elapsed().as_secs_f64()
+                        );
+                        eprintln!("{note}");
+                        *head_quant_note.borrow_mut() = Some(note);
+                        return Ok(Some(q));
+                    }
+                    _ => {
+                        let msg = format!("{}: the head of this checkpoint is not a float [vocab, hidden] tensor; it stays as stored", crate::quant::head::ENV);
+                        if head_quant_note.borrow().is_none() {
+                            eprintln!("{msg}");
+                        }
+                    }
+                }
+            }
             Ok(Some(match (&own, &lh.tied_to) {
                 (Some(_), _) if !dims.tie_embeddings => load_qs(&lh.tensor, 0, n, dims.hidden, axis)?,
                 // the config says the head is its own tensor but it is not in the checkpoint (renamed, re-exported):
@@ -1474,6 +1532,9 @@ impl Model {
             opts.kv_fraction,
             opts.mem_budget,
         )?;
+        if let Some(note) = head_quant_note.borrow().as_ref() {
+            plan.notes.push(note.clone());
+        }
         if opts.tp_vocab && tp.world > 1 && !vocab_par {
             plan.notes.push("vocab-parallel lm_head requested but not possible here (the communicator has no in-place all_gather for this size, the vocabulary does not split, or the head format has no row-sharded loader): the head stays on rank 0".into());
         }
@@ -1613,6 +1674,7 @@ impl Model {
             coll_trace: coll_trace::CollTrace::new(std::env::var("INTARSIA_TP_COLL_TRACE").is_ok_and(|v| v == "1")),
             token_feedback: std::sync::atomic::AtomicBool::new(token_feedback),
             spec_pipe: std::sync::atomic::AtomicU8::new(0),
+            spec_sampled: std::sync::atomic::AtomicU8::new(0),
             feedback_hold,
             tail_merge,
             prefill_peel,
@@ -1781,12 +1843,27 @@ impl Model {
     pub fn forward_verify(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<u32>> {
         let pos = st.len;
         self.det_tap_begin();
-        let r = self.forward_verify_inner(st, ids)?;
+        let r = self.forward_verify_run(st, ids, None)?;
         self.det_tap_flush(pos, ids.len())?;
         Ok(r)
     }
 
-    fn forward_verify_inner(&self, st: &mut SequenceState, ids: &[u32]) -> Result<Vec<u32>> {
+    /// [`Model::forward_verify`] that also returns the logits of every row (`[q][V]`, rank 0), read back before the drafter's
+    /// hooks run. For sampled speculation ([`crate::spec::SampledSpec`]): row `t`'s logits are bitwise a single-token decode
+    /// step's at position `st.len + t`, so the processed distribution is plain sampling's there.
+    pub fn forward_verify_logits(&self, st: &mut SequenceState, ids: &[u32]) -> Result<(Vec<u32>, Vec<Vec<f32>>)> {
+        let pos = st.len;
+        self.det_tap_begin();
+        let mut rows = Vec::new();
+        let r = self.forward_verify_run(st, ids, Some(&mut rows))?;
+        self.det_tap_flush(pos, ids.len())?;
+        if rows.len() != ids.len() {
+            return Err(Error::invalid("forward_verify_logits: no logits rows (tensor-parallel verify is not supported)"));
+        }
+        Ok((r, rows))
+    }
+
+    fn forward_verify_run(&self, st: &mut SequenceState, ids: &[u32], rows: Option<&mut Vec<Vec<f32>>>) -> Result<Vec<u32>> {
         Self::check_forward(st, ids, HeadMode::LastArgmax, false)?;
         let q = ids.len();
         let Some(tok) = &self.verify_tok else {
@@ -1831,6 +1908,15 @@ impl Model {
         };
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
+        if let Some(rows) = rows {
+            let v = self.dims.vocab;
+            let mut l = vec![0u8; q * v * 4];
+            self.backend.download(&self.ws.logits, 0, &mut l, self.stream)?;
+            *rows = l
+                .chunks_exact(v * 4)
+                .map(|r| r.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect())
+                .collect();
+        }
         st.commit_verify(ids);
         if recurrent {
             st.spec_rows.saved = q - 1;
@@ -1841,6 +1927,115 @@ impl Model {
         // the DFlash context takes every row too; the caller's rollback shortens it with the target
         self.dflash_after_forward(st, q, profile)?;
         Ok(b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
+    }
+
+    /// Rows one pass of the workspace holds.
+    pub fn ws_rows(&self) -> usize {
+        self.ws.max_tokens
+    }
+
+    /// Lane bm phase B: the verify passes of several sequences as ONE pass over the weights. `ids[i]` (1 to [`Model::verify_rows`]
+    /// tokens, `[next, drafts...]`) is fed to `states[i]` at its current length; returns each sequence's greedy token per row, and
+    /// leaves every state exactly as its own [`Model::forward_verify`] would (rows committed, the recurrent state after every row
+    /// but the last saved for `spec_rollback`, the MTP head's queue holding the rows), so acceptance and rollback run per sequence
+    /// as after a solo pass.
+    ///
+    /// The rows are one ragged list (`Seqs::Packed`, a segment per sequence) under `exact_rows`: the projections, MoE, norms and
+    /// the head run once over all rows on the row-exact kernels (row `r` bitwise the one-row launch), attention and the
+    /// GatedDeltaNet recurrence once per segment on that sequence's own state, through the solo verify pass's code (per-row
+    /// attention where the backend needs it, the delta rule row by row with the state saves). So each row is the solo verify
+    /// row's, which is the decode step's. Single rank only.
+    pub fn forward_verify_batch(&self, states: &mut [&mut SequenceState], ids: &[Vec<u32>]) -> Result<Vec<Vec<u32>>> {
+        let n = states.len();
+        let Some(tok) = &self.verify_tok else {
+            return Err(Error::invalid("forward_verify_batch before enable_verify"));
+        };
+        if !self.peers.is_empty() || self.remote.is_some() || self.tp.world > 1 {
+            return Err(Error::Unsupported("a batched verify pass under tensor parallelism".into()));
+        }
+        if self.layers.iter().flatten().any(|b| matches!(b, Block::Conv(_) | Block::Gemma(_))) || self.dflash.is_some() {
+            return Err(Error::Unsupported("a batched verify pass of short-conv / Gemma layers or with a DFlash draft".into()));
+        }
+        let total: usize = ids.iter().map(Vec::len).sum();
+        if n == 0 || ids.len() != n || total > Self::VERIFY_MAX_ROWS.min(self.ws.max_tokens) {
+            return Err(Error::invalid(format!(
+                "forward_verify_batch of {} states, {} id lists, {total} rows (at most {})",
+                n,
+                ids.len(),
+                Self::VERIFY_MAX_ROWS.min(self.ws.max_tokens)
+            )));
+        }
+        for (st, q) in states.iter().zip(ids) {
+            Self::check_forward(st, q, HeadMode::LastArgmax, false)?;
+            if !(1..=self.verify_rows).contains(&q.len()) {
+                return Err(Error::invalid(format!("a batched verify segment of {} rows (enabled for 1..={})", q.len(), self.verify_rows)));
+            }
+            if st.peers.len() != self.peers.len() || st.remote.is_some() {
+                return Err(Error::invalid("batched verify of a state that does not belong to this model (use Model::new_state)"));
+            }
+        }
+        for (i, a) in states.iter().enumerate() {
+            if states[..i].iter().any(|b| std::ptr::eq(&**a, &**b)) {
+                return Err(Error::invalid("forward_verify_batch names one state twice"));
+            }
+        }
+        if n == 1 && ids[0].len() >= 2 {
+            return Ok(vec![self.forward_verify(states[0], &ids[0])?]);
+        }
+        let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+        for (st, q) in states.iter_mut().zip(ids) {
+            Self::prepare_spec_rows(&*self.backend, st, q.len().max(1))?;
+        }
+        let all: Vec<u32> = ids.iter().flatten().copied().collect();
+        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        let run = (|| -> Result<TensorRef> {
+            let mut lo = 0;
+            let segs: Vec<Seg<'_>> = states
+                .iter()
+                .zip(ids)
+                .map(|(st, q)| {
+                    let s = Seg { st: &**st, lo, len: q.len(), pos: st.len };
+                    lo += q.len();
+                    s
+                })
+                .collect();
+            self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
+            let hn = self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None)?;
+            self.verify_head(&hn, total, profile)?;
+            Ok(hn)
+        })();
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        let hn = match run {
+            Ok(hn) => hn,
+            Err(e) => {
+                for st in states.iter_mut() {
+                    if st.has_recurrent() {
+                        // updated in place part-way: the state matches no token prefix
+                        let _ = st.reset(&*self.backend);
+                    }
+                }
+                return Err(e);
+            }
+        };
+        let mut b = vec![0u8; total * 4];
+        self.backend.download(tok, 0, &mut b, self.stream)?;
+        let flat: Vec<u32> = b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect();
+        let mut out = Vec::with_capacity(n);
+        let mut segs = Vec::with_capacity(n);
+        let mut lo = 0;
+        for (st, q) in states.iter_mut().zip(ids) {
+            st.commit_verify(q);
+            if st.has_recurrent() {
+                st.spec_rows.saved = q.len() - 1;
+            }
+            out.push(flat[lo..lo + q.len()].to_vec());
+            segs.push((lo, q.len()));
+            lo += q.len();
+        }
+        self.telemetry.step();
+        // every head queues its rows (the rollback drops the rejected ones), as after a solo verify pass
+        self.mtp_after_rows(states, &hn, &segs, false, profile)?;
+        Ok(out)
     }
 
     /// [`Model::forward_verify`] with in-process tensor-parallel peers: every rank runs the pass on its own thread (as
@@ -2099,6 +2294,11 @@ impl Model {
         Ok(())
     }
 
+    /// The remote rank's handle, when this shard drives one.
+    pub(crate) fn remote_peer(&self) -> Option<Arc<crate::tp_remote::RemotePeer>> {
+        self.remote.clone()
+    }
+
     /// Every rank must hold the same number of tokens: clamp this shard's KV capacity to `cap` (the smallest any rank of
     /// the group can hold, agreed in `crate::tp_remote::handshake`) and re-resolve the plan for it.
     pub fn clamp_kv_cap(&mut self, cap: usize) -> Result<()> {
@@ -2291,9 +2491,19 @@ impl Model {
         r
     }
 
-    /// Fewest rows a segment of a packed prefill pass may have: below it the kernels a prompt's solo chunk picks (the GEMV-style
-    /// MoE path under 16 tokens, the dense GEMV up to 4 rows) are not the ones the packed call picks.
+    /// Fewest rows a segment of a packed prefill pass may have unless the backend says otherwise ([`Backend::pack_min_rows`]):
+    /// below it the kernels a prompt's solo chunk picks (HIP: the GEMV-style MoE path under 16 tokens, the dense GEMV up to 4 rows)
+    /// are not the ones the packed call picks.
     pub const PACK_MIN_ROWS: usize = 16;
+
+    /// Fewest rows a segment of a packed prefill pass ([`Model::forward_packed`]) or a chunk of a macro pass may have on this
+    /// model's backend ([`Backend::pack_min_rows`]; CUDA 33, lane pf). `INTARSIA_PACK_MIN_ROWS=<n>` overrides it (a diagnostic
+    /// knob: `16` brings back the CUDA rule before lane pf, to reproduce its divergence).
+    pub fn pack_min_rows(&self) -> usize {
+        static V: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
+        let o = *V.get_or_init(|| std::env::var("INTARSIA_PACK_MIN_ROWS").ok().and_then(|v| v.trim().parse().ok()));
+        o.unwrap_or_else(|| self.backend.pack_min_rows()).max(1)
+    }
 
     /// Whether every segment of a packed pass takes the same attention path in every attention block (fused gated prologue or
     /// not: it decides which q buffer holds the block's output, and the output projection reads one buffer for all rows).
@@ -2346,7 +2556,7 @@ impl Model {
     /// prompt's solo prefill would run next (no head: the rows feed no logits). The row-wise kernels run once over the
     /// concatenated rows, attention, KV append and the GatedDeltaNet recurrence once per prompt on its own state, so each
     /// state ends bitwise what `forward(st, ids, HeadMode::None, None)` leaves, when every row-wise kernel is independent of the
-    /// other rows of the call (`tests/packed_rows.rs`; each segment has at least [`Model::PACK_MIN_ROWS`] rows and the total
+    /// other rows of the call (`tests/packed_rows.rs`; each segment has at least [`Model::pack_min_rows`] rows and the total
     /// fits one workspace pass). On an error every recurrent state is reset, as after a failed solo forward.
     pub fn forward_packed(&self, items: &mut [(&mut SequenceState, &[u32])]) -> Result<()> {
         let r = self.forward_packed_inner(items);
@@ -2371,11 +2581,8 @@ impl Model {
         let mut all: Vec<u32> = Vec::with_capacity(total);
         for (st, ids) in items.iter() {
             Self::check_forward(st, ids, HeadMode::None, false)?;
-            if ids.len() < Self::PACK_MIN_ROWS {
-                return Err(Error::invalid(format!("a packed segment has {} rows (at least {})", ids.len(), Self::PACK_MIN_ROWS)));
-            }
-            if st.mtp.is_some() {
-                return Err(Error::Unsupported("packed prefill of a state with an MTP head".into()));
+            if ids.len() < self.pack_min_rows() {
+                return Err(Error::invalid(format!("a packed segment has {} rows (at least {})", ids.len(), self.pack_min_rows())));
             }
             all.extend_from_slice(ids);
         }
@@ -2383,7 +2590,7 @@ impl Model {
             st.spec_rows.saved = 0;
         }
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
-        {
+        let hn = {
             let mut lo = 0;
             let segs: Vec<Seg<'_>> = items
                 .iter()
@@ -2405,12 +2612,26 @@ impl Model {
             if split {
                 *self.macro_ctx.lock().unwrap() = None;
             }
-            r?;
-        }
+            r?
+        };
         for (st, ids) in items.iter_mut() {
             st.commit(ids);
         }
         self.telemetry.step();
+        if self.mtp.is_some() {
+            // lane bm (batched MTP): each prompt's MTP head takes its rows and catches up, as after a solo prefill chunk
+            let mut lo = 0;
+            let segs: Vec<(usize, usize)> = items
+                .iter()
+                .map(|(_, ids)| {
+                    let s = (lo, ids.len());
+                    lo += ids.len();
+                    s
+                })
+                .collect();
+            let mut sts: Vec<&mut SequenceState> = items.iter_mut().map(|(st, _)| &mut **st).collect();
+            self.mtp_after_rows(&mut sts, &hn, &segs, true, profile)?;
+        }
         Ok(())
     }
 
@@ -2776,7 +2997,7 @@ impl Model {
     }
 
     /// The macro schedule of a forward pass over `chunks`: `(k, per)` = the first `k` chunks (all but a trailing chunk too short
-    /// to be a segment, [`Model::PACK_MIN_ROWS`]) are cut into passes of `per` chunks. `(0, 1)` = off: the macro knob is unset, the
+    /// to be a segment, [`Model::pack_min_rows`]) are cut into passes of `per` chunks. `(0, 1)` = off: the macro knob is unset, the
     /// pass is a single chunk, the head wants every row, the state has no recurrence (the packed kernels are validated on
     /// hybrid models only) or cannot be packed (MTP head, tensor parallelism, Gemma layers).
     fn macro_plan(&self, st: &SequenceState, chunks: &[&[u32]], mode: HeadMode) -> (usize, usize) {
@@ -2788,7 +3009,8 @@ impl Model {
         {
             return (0, 1);
         }
-        let k = chunks.iter().take_while(|c| c.len() >= Self::PACK_MIN_ROWS).count();
+        let min = self.pack_min_rows();
+        let k = chunks.iter().take_while(|c| c.len() >= min).count();
         if k < 2 {
             return (0, 1);
         }

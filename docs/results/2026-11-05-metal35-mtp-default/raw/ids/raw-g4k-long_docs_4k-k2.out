@@ -1,0 +1,12 @@
+ chunk.
+2. For each op, query the kernel registry for eligible implementations (backend, arch, dtype/quant, shape predicate, exactness).
+3. If a fused block op is available for the shape, pick it; else fall back to the generic chain.
+4. Select the fastest implementation from the tuning DB; if missing, fall back to `fast` mode and record a warning.
+5. Emit a captured graph (CUDA/HIP) per batch bucket (e.g. `prefill: 1..64`, `decode: 1..32`, `verify: 1..8`).
+6. Write the plan to disk (`plan/<model>/<host>.json`) so the next run skips compilation.
+
+### 3.7 Scheduler, KV manager, speculation
+
+- **Scheduler**: continuous batching, chunked prefill, priorities (system > user > batch), preemption (swap to host), eviction (LRU on host).
+- **KV manager**: paged blocks (like vLLM), radix prefix cache (shared across requests), host tier (swap), per-layer dtype (e.g. FP8 KV, FP16 compute).
+- **Speculation**: MTP (multi-token predict

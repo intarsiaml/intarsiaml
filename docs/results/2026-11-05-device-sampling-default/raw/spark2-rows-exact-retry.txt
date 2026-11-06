@@ -1,0 +1,2 @@
+fleetq: #8681 waiting (#5 in line): in line behind #8667 "spark35 J2: serve evals (greedy 1024, needle 32k/64k, MMLU, GSM8K) main/base/fp8/C/C+D/real" (claude-1943a70c) on spark2
+fleetq: #8681 is cancelled, so it will not run: bash docs/results/2026-11-05-device-sampling-default/raw/scripts/spark2-rows-exact.sh

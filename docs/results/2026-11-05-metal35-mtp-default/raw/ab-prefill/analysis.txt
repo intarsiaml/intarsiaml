@@ -1,0 +1,8 @@
+('filler', 4096) r1-mtp: ptok 4088 ttft 0.788 pre 5188 dec 171.3 | r2-off: ptok 4089 ttft 0.832 pre 4916 dec 109.8 | r3-mtp: ptok 4090 ttft 0.827 pre 4946 dec 182.3 | r4-off: ptok 4090 ttft 0.829 pre 4936 dec 109.7
+('filler', 16384) r1-mtp: ptok 16653 ttft 3.839 pre 4337 dec 114.4 | r2-off: ptok 16633 ttft 4.377 pre 3800 dec 92.5 | r3-mtp: ptok 16655 ttft 3.996 pre 4168 dec 110.7 | r4-off: ptok 16678 ttft 3.953 pre 4219 dec 103.3
+('nat', 4096) r1-mtp: ptok 4073 ttft 0.708 pre 5757 dec 159.3 | r2-off: ptok 4076 ttft 0.767 pre 5315 dec 111.9 | r3-mtp: ptok 4075 ttft 0.708 pre 5761 dec 155.8 | r4-off: ptok 4073 ttft 0.704 pre 5786 dec 119.4
+('nat', 16384) r1-mtp: ptok 16398 ttft 4.007 pre 4093 dec 128.9 | r2-off: ptok 16400 ttft 4.183 pre 3921 dec 104.5 | r3-mtp: ptok 16395 ttft 3.859 pre 4248 dec 129.1 | r4-off: ptok 16395 ttft 3.751 pre 4373 dec 108.0
+r1-mtp 20261105-194717-adhoc-flipmtp-r1-mtp peak_footprint 22.41 GB, max_rss 41.83 GB, sampled footprint max 21 GB
+r2-off 20261105-194840-adhoc-flipmtp-r2-off peak_footprint 20.59 GB, max_rss 38.60 GB, sampled footprint max 19 GB
+r3-mtp 20261105-195022-adhoc-flipmtp-r3-mtp peak_footprint 22.42 GB, max_rss 41.80 GB, sampled footprint max 21 GB
+r4-off 20261105-195146-adhoc-flipmtp-r4-off peak_footprint 20.55 GB, max_rss 38.60 GB, sampled footprint max 19 GB

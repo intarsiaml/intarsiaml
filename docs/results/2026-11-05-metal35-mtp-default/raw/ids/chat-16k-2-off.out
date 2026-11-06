@@ -1,0 +1,10 @@
+This is a highly technical, dense, and rigorous engineering log documenting the integration of Tensor Parallelism (TP) on AMD ROCm/HIP hardware. It reads less like a standard pull request description and more like a forensic audit of a distributed system’s numerical stability and concurrency bugs.
+
+Here is a critical review of the document, broken down by what is convincing, what is questionable, and what is missing.
+
+### 1. What is Convincing (Strengths)
+
+**A. The Rigor of the "Gate" Mechanism**
+The most compelling aspect of this document is the evolution of the acceptance criteria ("the gate"). The authors correctly identified early on that standard metrics (like KL divergence between TP=1 and TP=2) are insufficient for detecting subtle numerical bugs in distributed reductions.
+*   **Direct Partial-Sum Checks:** Moving from high-level output comparison to low-level partial-sum verification (`tp_partial_sum.rs`) is the correct engineering move. It isolates the collective communication layer from the model logic.
+*   **Mutant Testing:** The use of specific mutants (e.g., `drop-captured-allreduce`, `no-peer-upload`) to verify that the system fails *correctly* (i.e., detects the error rather

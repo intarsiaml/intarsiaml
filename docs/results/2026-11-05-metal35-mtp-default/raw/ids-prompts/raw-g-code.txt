@@ -1,0 +1,12 @@
+def fibonacci(n: int) -> list[int]:
+    """Return the first n Fibonacci numbers."""
+    result = []
+    a, b = 0, 1
+    for _ in range(n):
+        result.append(a)
+        a, b = b, a + b
+    return result
+
+
+def is_prime(n: int) -> bool:
+    """Return True if n is prime."""

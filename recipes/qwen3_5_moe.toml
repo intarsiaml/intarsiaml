@@ -82,6 +82,11 @@ prefill_macro = 8192
 # is about 0.7 % below `--spec off` (the noise floor) and decode is 1.17-1.5x in every category on prompts under 4.8k, about 1.13x at 16k and 1.05x at 34k
 # (docs/results/2026-10-27-mpf-macro-prefill-mtp.md, section 9; lane cmtp before it).
 mtp_default_k = 2
+# Batched MTP at N = 1 (lane bm, user decision 2026-11-05 ~19:45 EST "N=1 default"): `serve --max-batch` > 1 drafts while one sequence decodes
+# and runs plain batched decode when more do, and the `--spec mtp` default above also applies to a batched server. Lone stream 80.2 -> 102.7
+# tok/s, 2-16 streams within 0-3 % of plain, greedy ids per sequence equal to solo spec-off (docs/results/2026-11-05-batched-mtp.md).
+# `INTARSIA_BATCHED_MTP=0` (or `--spec off`) turns it off.
+batched_mtp = 1
 
 # 4096 on Metal (lane chunk4k, 2026-10-29): 4096-row chunks give the MoE expert GEMMs 128 rows per expert (64 at 2048) and
 # amortise the fp8 weight decode over twice the rows: served 35B prefill about +7.5 % at 4k (best start against best start; paired median
@@ -102,6 +107,9 @@ mtp_default_k = 2
 [tuning.metal]
 prefill_chunk = 4096
 busy_chunk = 2048
+# Batched MTP at N = 1 for `--max-batch` > 1 (lane bm, user decision 2026-11-05 ~19:45 EST "N=1 default"; with the `mtp_default_k` below it needs
+# no `--spec mtp`): lone stream 111.2 -> 128.7 tok/s, 2-4 streams about 3 % below plain, 8 even (docs/results/2026-11-05-batched-mtp.md).
+batched_mtp = 1
 # Tail peel 8, period 2048: a prefill pass of M <= 8 rows runs the GEMV kernels, a longer one the NAX GEMM, with other bits. The 2048-row busy schedule ends a prompt
 # whose length mod 4096 is 2050..2057 in such a pass ([2048, 2..9]); the 4096 chunk ran those rows inside its big pass, so the stream depended on what else ran.
 # The peel gives both schedules the same short pass. 8 is the boundary: a tail of 10 or more is already bitwise a longer pass. The period is the busy chunk, so the
@@ -110,6 +118,11 @@ busy_chunk = 2048
 # or fewer is never cut (docs/results/2026-11-04-m35-peel-period.md).
 prefill_peel = 8
 prefill_peel_period = 2048
+# `--spec mtp --spec-k 2` is the default at tp=1 on Metal when no `--spec` is given (user decision 2026-11-05 17:06 EST, "flip 1"; same exclusions as on CUDA: `--spec off` or
+# `INTARSIA_SPEC_DEFAULT=0` opts out, a configured prefix store and checkpoints without the MTP head keep plain decode; a `--max-batch` server takes it through `batched_mtp` above). The pipelined step
+# (`INTARSIA_METAL_MTP_GPU_ACCEPT`, docs/results/2026-10-29-mmtp-metal-gpu-accept.md) is on by default. Speed, prefill cost, memory and the greedy-id check against
+# `--spec off`: docs/results/2026-11-05-metal35-mtp-default.md.
+mtp_default_k = 2
 
 # 4096 on HIP: every MoE layer reads all 256 experts once per chunk, so at 256 tokens a 4k prompt re-reads the expert weights 16
 # times. 35B prefill on one R9700 at 128 / 1024 / 4096 tokens goes 1254 / 2112 / 2033 tok/s (256) to 1231 / 3094 / 3585 (4096), 3058

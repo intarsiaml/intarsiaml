@@ -1,0 +1,18 @@
+Hello! Welcome to the team. This document is a technical specification and implementation note for a new speculative decoding feature called **DFlash with the DCOCO Corrector**.
+
+Below is a detailed breakdown designed to help you understand the architecture, the math, and the implementation plan.
+
+---
+
+### 1. High-Level Overview
+**Goal:** Accelerate inference for the **Qwen3-8B** model by using a smaller "draft" model to predict multiple tokens at once, then correcting those predictions using a lightweight neural corrector (DCOCO) before verifying them with the main model.
+
+**Status:**
+*   **Opt-in only:** The feature is disabled by default. You must enable it via flags (`--spec dflash [--dcoco]`).
+*   **Phase 1 (Scope Note):** Accepted.
+*   **Phases 2 & 3 (Implementation):** Completed.
+*   **Cost Gate:** Tested. The overhead is acceptable, so it remains an opt-in feature.
+
+**Key Components:**
+1.  **DFlash (Drafting):** A small, non-causal draft model that predicts 15 tokens in parallel.
+2.  **DCOCO (Corrector):** A lightweight neural network that ref

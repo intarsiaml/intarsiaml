@@ -1,0 +1,10 @@
+Here is a section-by-section summary of the IntarsiaML architecture plan (v0.2) and a list of open questions derived from the document.
+
+### Document Summary
+
+**Overview & Status**
+The document outlines the architecture for IntarsiaML, a modular, high-performance LLM inference engine. It emphasizes a "wood inlay" philosophy where every component (ops, kernels, quant formats) is an interchangeable piece with strict contracts and reference tests. The plan incorporates lessons from AMD R9700, Spark/TensorFold, and an adversarial review by "Fable." A key status table maps every claim in the plan against the current codebase (`origin/main`), categorizing items as **implemented**, **partial**, or **planned**.
+
+**0. Goals, Honest Targets, Anti-Goals**
+*   **Priorities:** Modularity, ease of use, accuracy, and speed (top 3 per platform), followed by reproducibility and API compatibility.
+*   **Targets:** The engine aims to beat competitors like llama.cpp, vLLM, and TensorFold on specific hardware (DGX Spark, R9700, Apple Silicon) at different phases. For example, on DGX Spark, it

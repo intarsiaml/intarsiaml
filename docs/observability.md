@@ -52,7 +52,8 @@ Metric names (see `crates/intarsia-server/src/metrics.rs`): `intarsia_engine_ste
 `intarsia_kv_tokens_{used,capacity}`, `intarsia_device_memory_{total,free}_bytes`,
 `intarsia_weights_bytes`, `intarsia_last_{prefill,decode}_tokens_per_second`,
 `intarsia_op_seconds_total{op}`, `intarsia_op_calls_total{op}`, `intarsia_uptime_seconds`,
-`intarsia_last_step_timestamp_seconds`, `intarsia_info{model,family,backend,device,...}`.
+`intarsia_last_step_timestamp_seconds`, `intarsia_info{model,family,backend,device,...}`,
+`intarsia_sampling_defaults{source,temperature,top_p,top_k}` (what a request without its own sampling values gets; see below).
 
 Robustness metrics: `intarsia_requests_rejected_total` (HTTP 429, queue full),
 `intarsia_engine_failed` (1 after a worker panic), `intarsia_engine_no_progress_seconds` (time with
@@ -109,6 +110,12 @@ Overload: at most one request runs and `--max-queue` (default 64) wait; the next
 the engine checks the flag while queued, between prefill chunks and between decode steps, so a
 cancelled 16k-token prefill frees the worker after the current chunk. `max_tokens` defaults to what is
 left of the context, at most `--default-max-tokens` (4096; 0 = context only).
+
+Sampling defaults: a request that leaves `temperature`, `top_p` or `top_k` out gets the checkpoint's `generation_config.json` values
+(vLLM's `--generation-config auto`; `--generation-config none` or `INTARSIA_GENERATION_CONFIG=none` uses the built-ins: temperature 1.0,
+`top_p` 1.0, `top_k` off). A value the request sends always wins, `temperature: 0` (greedy) and `top_k: 0` (off) included. The server logs
+the applied defaults once at startup (`sampling defaults: ...`) and exports them as `intarsia_sampling_defaults`. Requests with
+`1 <= top_k <= 64` take the device-side top-k sampling on CUDA and HIP (`INTARSIA_DEVICE_SAMPLING=0` turns that off).
 
 `GET /v1/intarsia/plan` returns the engine's execution plan (`Engine::plan()`): model, backend,
 device, exactness, `layers[]` (index, kind, blocks) and `ops[]` (op, kernel, backend, exactness,

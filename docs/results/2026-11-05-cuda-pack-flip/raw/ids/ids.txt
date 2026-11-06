@@ -1,0 +1,20 @@
+ids-solo-off.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes ? packed_chunks ?
+ids-old16-r1.json: MISMATCH per sequence ['=', '=', '@2', '=', '=', '='] pack_passes 1 packed_chunks 2
+  ids-old16-r1.json Pack { iter: 3, segs: [(2, 16), (3, 81)] }
+ids-old16-r2.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 0 packed_chunks 0
+ids-old16-r3.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 1 packed_chunks 2
+  ids-old16-r3.json Pack { iter: 4, segs: [(3, 81), (4, 102)] }
+ids-old16-r4.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 0 packed_chunks 0
+ids-old16-r5.json: MISMATCH per sequence ['=', '=', '@2', '=', '=', '='] pack_passes 1 packed_chunks 2
+  ids-old16-r5.json Pack { iter: 4, segs: [(3, 81), (4, 16)] }
+ids-old16-r6.json: MISMATCH per sequence ['=', '=', '@2', '=', '=', '='] pack_passes 1 packed_chunks 3
+  ids-old16-r6.json Pack { iter: 2, segs: [(1, 16), (2, 81), (3, 102)] }
+ids-fix-r1.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 0 packed_chunks 0
+ids-fix-r2.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 0 packed_chunks 0
+ids-fix-r3.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 0 packed_chunks 0
+ids-fix-r4.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 1 packed_chunks 2
+  ids-fix-r4.json Pack { iter: 3, segs: [(2, 200), (3, 102)] }
+ids-fix-r5.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 0 packed_chunks 0
+ids-fix-r6.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 0 packed_chunks 0
+ids-fix-r7.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 0 packed_chunks 0
+ids-fix-r8.json: ALL per sequence ['=', '=', '=', '=', '=', '='] pack_passes 0 packed_chunks 0

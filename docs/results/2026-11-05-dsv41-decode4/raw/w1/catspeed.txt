@@ -1,0 +1,6 @@
+kind                      w1-base
+chat          50.6 (median  51.7)
+code          74.1 (median  74.3)
+prose         46.2 (median  46.1)
+recall        58.8 (median  57.6)
+all           55.6 (median  55.4)

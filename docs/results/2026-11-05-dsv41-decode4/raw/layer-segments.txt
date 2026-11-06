@@ -1,0 +1,36 @@
+ours 2 rows: 2 passes, layers 40.0
+  gu    median   237.1 us   mean   235.9   per pass (38 layers)   8.96 ms
+  gap1  median     3.6 us   mean     3.6   per pass (38 layers)   0.14 ms
+  dn    median   115.4 us   mean   114.3   per pass (38 layers)   4.34 ms
+  rest  median   374.8 us   mean   427.3   per pass (38 layers)  16.24 ms
+  phases of rest (us, median / mean): {'a>b coll+hc': (59.7, 71.3), 'b>c front proj': (90.4, 128.1), 'c>d attention': (36.8, 35.7), 'd>e out proj': (91.3, 93.2), 'e>f coll+hc': (41.9, 48.5), 'f>g router chain': (50.0, 50.5)} layers 76
+tf 2 rows: 3 passes, layers 40
+  gu    median   269.0 us   mean   267.6   per pass (38 layers)  10.27 ms
+  gap1  median   -72.0 us   mean   -71.1   per pass (38 layers)  -2.72 ms
+  dn    median   133.5 us   mean   131.3   per pass (38 layers)   5.15 ms
+  rest  median   275.4 us   mean   305.6   per pass (38 layers)  11.75 ms
+  phases of rest (us, median / mean): {'a>b coll+hc': (24.9, 30.1), 'b>c front proj': (72.9, 95.7), 'c>d attention': (43.5, 43.8), 'd>e out proj': (75.3, 71.3), 'e>f coll+hc': (36.1, 41.6), 'f>g router chain': (21.6, 23.1)} layers 114
+ours 3 rows: 19 passes, layers 40
+  gu    median   303.4 us   mean   300.2   per pass (38 layers)  11.35 ms
+  gap1  median     4.1 us   mean     4.6   per pass (38 layers)   0.16 ms
+  dn    median   147.6 us   mean   146.3   per pass (38 layers)   5.53 ms
+  rest  median   404.9 us   mean   461.7   per pass (38 layers)  17.25 ms
+  phases of rest (us, median / mean): {'a>b coll+hc': (67.4, 77.2), 'b>c front proj': (89.2, 128.2), 'c>d attention': (44.0, 45.2), 'd>e out proj': (102.2, 105.5), 'e>f coll+hc': (43.4, 53.3), 'f>g router chain': (50.9, 52.4)} layers 722
+tf 3 rows: 12 passes, layers 40.0
+  gu    median   339.6 us   mean   333.7   per pass (38 layers)  12.74 ms
+  gap1  median   -69.2 us   mean   -68.3   per pass (38 layers)  -2.60 ms
+  dn    median   164.0 us   mean   162.9   per pass (38 layers)   6.20 ms
+  rest  median   285.2 us   mean   316.2   per pass (38 layers)  12.05 ms
+  phases of rest (us, median / mean): {'a>b coll+hc': (27.7, 32.4), 'b>c front proj': (74.6, 96.8), 'c>d attention': (42.5, 44.2), 'd>e out proj': (78.6, 74.1), 'e>f coll+hc': (37.6, 42.7), 'f>g router chain': (25.6, 26.0)} layers 456
+ours 4 rows: 7 passes, layers 40
+  gu    median   381.8 us   mean   374.9   per pass (38 layers)  14.19 ms
+  gap1  median     5.4 us   mean     5.8   per pass (38 layers)   0.21 ms
+  dn    median   185.8 us   mean   182.0   per pass (38 layers)   6.79 ms
+  rest  median   446.4 us   mean   502.8   per pass (38 layers)  19.10 ms
+  phases of rest (us, median / mean): {'a>b coll+hc': (71.6, 83.9), 'b>c front proj': (89.8, 133.1), 'c>d attention': (52.4, 53.9), 'd>e out proj': (113.1, 116.8), 'e>f coll+hc': (50.4, 61.4), 'f>g router chain': (51.6, 53.8)} layers 266
+tf 4 rows: 5 passes, layers 40
+  gu    median   410.9 us   mean   404.4   per pass (38 layers)  15.46 ms
+  gap1  median   -68.6 us   mean   -67.7   per pass (38 layers)  -2.61 ms
+  dn    median   197.0 us   mean   202.1   per pass (38 layers)   7.88 ms
+  rest  median   284.6 us   mean   323.7   per pass (38 layers)  12.10 ms
+  phases of rest (us, median / mean): {'a>b coll+hc': (26.3, 34.7), 'b>c front proj': (72.8, 99.0), 'c>d attention': (46.0, 46.5), 'd>e out proj': (75.4, 72.4), 'e>f coll+hc': (37.6, 44.9), 'f>g router chain': (24.7, 26.2)} layers 190

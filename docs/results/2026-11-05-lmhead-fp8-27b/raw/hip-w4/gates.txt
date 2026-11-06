@@ -1,0 +1,28 @@
+GATES kernels base exit 0
+GATES kernels head exit 0
+GATES plan-27-tp1.json: DIFFER or empty
+GATES plan-27-tp1.json.err: byte-identical (292 B)
+GATES plan-27-tp1.txt: DIFFER or empty
+GATES plan-27-tp1.txt.err: byte-identical (292 B)
+GATES plan-27-tp2.json: DIFFER or empty
+GATES plan-27-tp2.json.err: byte-identical (457 B)
+GATES plan-27-tp2.txt: DIFFER or empty
+GATES plan-27-tp2.txt.err: byte-identical (457 B)
+GATES plan-35-tp1.json: DIFFER or empty
+GATES plan-35-tp1.json.err: byte-identical (210 B)
+GATES plan-35-tp1.txt: DIFFER or empty
+GATES plan-35-tp1.txt.err: byte-identical (210 B)
+GATES plan-35-tp2.json: DIFFER or empty
+GATES plan-35-tp2.json.err: byte-identical (220 B)
+GATES plan-35-tp2.txt: DIFFER or empty
+GATES plan-35-tp2.txt.err: byte-identical (220 B)
+GATES kernels test: DIFFERS
+==> /home/josef/lmh-gates/kernels-base.out <==
+SKIPPED: kernel rmsnorm_add_matmul_fp8_pair_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel sigmoid_mul_matmul_fp8_wmma ran 0 cases on backend 'hip'
+incomplete: 10 kernel(s) had no cases in this sweep (untested, not failed; plan-time admission tests them)
+
+==> /home/josef/lmh-gates/kernels-head.out <==
+SKIPPED: kernel gated_rmsnorm_matmul_fp8_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel rmsnorm_add_matmul_fp8_pair_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel sigmoid_mul_matmul_fp8_wmma ran 0 cases on backend 'hip'

@@ -1,0 +1,39 @@
+fleetq: #8644 waiting (#13 in line): in line behind #8605 "ss: Metal no-op gates (plan, kernels, greedy ids, goldens) base vs branch" (claude-1943a70c) on endor
+fleetq: #8644 waiting (#10 in line): endor is held exclusively by #8605 "ss: Metal no-op gates (plan, kernels, greedy ids, goldens) base vs branch" (claude-1943a70c); then in line behind #8606 "ss: Metal speed, sampled spec (27B, 35B; T0/0.7/1.0; off/mtp/match/reject; localeval speed-spec 1k/4k)" (claude-1943a70c) on endor
+fleetq: #8644 waiting (#9 in line): endor is held exclusively by #8606 "ss: Metal speed, sampled spec (27B, 35B; T0/0.7/1.0; off/mtp/match/reject; localeval speed-spec 1k/4k)" (claude-1943a70c); then in line behind #8611 "sampled-spec(dsv41): metal head+base release builds (requeued)" (claude-1943a70c) on endor
+fleetq: #8644 waiting (#8 in line): in line behind #8613 "flip-metal-mtp: prefill ABAB (MTP default vs off) + no-op gates main vs branch" (claude-1943a70c) on endor
+fleetq: #8644 waiting (#7 in line): endor is held exclusively by #8613 "flip-metal-mtp: prefill ABAB (MTP default vs off) + no-op gates main vs branch" (claude-1943a70c); then in line behind #8616 "bm: Metal no-op, batched MTP ids, localeval ABBA (35B)" (claude-1943a70c) on endor
+fleetq: #8644 waiting (#6 in line): endor is held exclusively by #8616 "bm: Metal no-op, batched MTP ids, localeval ABBA (35B)" (claude-1943a70c); then in line behind #8623 "dsv41/nccl-prefill: Metal builds (base 602a1fcfe, new head) for the no-op gates" (claude-1943a70c) on endor
+fleetq: #8644 waiting (#4 in line): in line behind #8635 "lmhead-fp8: Metal 27B head quality (KL/top-1 bf16 vs fp8 vs mxfp4, 4k/16k)" (claude-1943a70c-lh) on endor
+fleetq: #8644 waiting (#4 in line): in line behind #8639 "lmhead-fp8: Metal no-op gates (plan, kernels, 27B+35B ids) base vs head" (claude-1943a70c-lh) on endor
+fleetq: #8644 waiting (#2 in line): endor is held exclusively by #8639 "lmhead-fp8: Metal no-op gates (plan, kernels, 27B+35B ids) base vs head" (claude-1943a70c-lh); then in line behind #8640 "lmhead-fp8: Metal 27B speed ABAB (fp8/mxfp4 head vs bf16; plain + MTP k2)" (claude-1943a70c-lh) on endor
+fleetq: #8644 waiting (#1 in line): endor is held exclusively by #8640 "lmhead-fp8: Metal 27B speed ABAB (fp8/mxfp4 head vs bf16; plain + MTP k2)" (claude-1943a70c-lh)
+fleetq: #8644 running on endor: zsh docs/results/2026-11-05-device-sampling-default/raw/scripts/endor-build-test.sh
+== build main
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 45.92s
+== build branch
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: `intarsia-cli` (lib) generated 1 warning (run `cargo fix --lib -p intarsia-cli` to apply 1 suggestion)
+    Finished `release` profile [optimized] target(s) in 23.95s
+21f05cf18b7790ea817f2194c652a390ca7bbdb8b026a6fbe507a3f1466c8f0b  /opt/code/intarsiaml/.worktrees/device-sampling/.scratch/intarsia.main
+fc8238e6d338d13d74589bfc27a6dc9577f7e2a371a6e1645d577ed667fd28e5  /opt/code/intarsiaml/.worktrees/device-sampling/.scratch/intarsia.ds
+== cargo test --workspace --no-fail-fast
+cargo test exit 0
+dsv41: the tensor-parallel group failed (backend error: reset after a failed request: memory plan: cudaMalloc of 147456 bytes failed); aborting the communicator and marking the engine failed
+dsv41: the tensor-parallel group failed (backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: memory plan: INTARSIA_DSV41_TEST_RANK0_FAIL_PASS: injected rank 0 failure); aborting the communicator and marking the engine failed
+test dsv41_engine::failpath_tests::a_failed_request_closes_its_telemetry ... ok
+dsv41: the tensor-parallel group failed (backend error: deepseek_v41: this rank's half of a pass failed after the other rank was sent it: model error: deepseek_v41: weight embed.weight not loaded); aborting the communicator and marking the engine failed
+test no_graphs_flag_and_failed_capture_fall_back_to_eager ... ok
+test failed_forward_resets_recurrent_state ... ok
+test failed_forward_resets_the_conv_state ... ok
+test all_gather_concatenates_in_rank_order_and_a_failed_rank_releases_the_others ... ok
+test a_failed_tp_batched_step_marks_the_group_aborted ... ok
+test a_failed_mtp_pass_marks_the_group_aborted ... ok
+test tests::a_failed_engine_exit_needs_the_watchdog_even_without_a_stall_limit ... ok
+test a_failed_engine_exits_87_when_the_bind_retry_ends_first ... ok
+test a_failed_engine_exits_87_during_the_bind_retry ... ok
+test health_503_when_failed_or_stalled ... ok
+passed 1331 failed 0 ignored 29
+fleetq: #8644 done (exit 0)

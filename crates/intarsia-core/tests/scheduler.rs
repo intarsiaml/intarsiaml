@@ -744,7 +744,7 @@ fn check_trace(run: &BatchRun, cfg: &SchedulerConfig) {
                     }
                 }
             }
-            TraceEvent::Finished { .. } => {}
+            TraceEvent::Finished { .. } | TraceEvent::Pack { .. } => {}
         }
     }
     // FIFO: admission and prefill start in submit (= id) order
@@ -1669,7 +1669,7 @@ fn check_fifo(trace: &[TraceEvent], n: usize, arrive: &[u64]) -> FifoCov {
                 }
                 st[i] = St::Gone;
             }
-            TraceEvent::PrefillStart { .. } | TraceEvent::Decode { .. } => {}
+            TraceEvent::PrefillStart { .. } | TraceEvent::Decode { .. } | TraceEvent::Pack { .. } => {}
         }
     }
     assert!(st.iter().all(|&s| s == St::Gone), "requests left unfinished: {st:?}");

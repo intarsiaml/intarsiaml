@@ -1,0 +1,9 @@
+constrained T 0.7 #0: 300 tokens in 8.7 s (34.3 tok/s incl. prefill), valid False, finish length
+constrained T 0.7 #1: 300 tokens in 8.4 s (35.7 tok/s incl. prefill), valid False, finish length
+constrained T 0.7 #2: 300 tokens in 8.4 s (35.7 tok/s incl. prefill), valid False, finish length
+constrained T 0.7 #3: 300 tokens in 8.4 s (35.6 tok/s incl. prefill), valid False, finish length
+constrained T 0.7 #4: 300 tokens in 8.4 s (35.7 tok/s incl. prefill), valid False, finish length
+constrained T 0.7 #5: 300 tokens in 8.4 s (35.6 tok/s incl. prefill), valid False, finish length
+constrained T 0.7 #6: 300 tokens in 8.5 s (35.5 tok/s incl. prefill), valid False, finish length
+constrained T 0.7 #7: 300 tokens in 8.4 s (35.7 tok/s incl. prefill), valid False, finish length
+constrained T 0.7: 0/8 valid

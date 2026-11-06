@@ -1548,7 +1548,7 @@ impl Backend for HipBackend {
     }
 
     /// Device-side top-k for sampling (`ik_topk_f32`, kernels/hip/topk.hip: the CUDA kernel's ABI and exact ordering). The model only
-    /// uses it with `INTARSIA_DEVICE_SAMPLING=1`.
+    /// uses it unless `INTARSIA_DEVICE_SAMPLING=0`.
     fn supports_topk(&self) -> bool {
         true
     }
@@ -1583,6 +1583,14 @@ impl Backend for HipBackend {
     /// 16 rows: the `_rows` GEMV / MoE kernels are proven row-exact up to M = 16 (tests/rows_exact.rs, G-B).
     fn batch_row_cap(&self) -> usize {
         crate::kernels::ROWS_MAX
+    }
+
+    /// Packed prefill on by default (lane fh, user decision 2026-11-05 17:06 EST "flip 2"; lane hg `packed_rows.rs` and the 35B engine
+    /// test: each prompt's state and outputs are its solo prefill's, docs/results/2026-10-25-hg-hip-serve-gap.md section 6,
+    /// docs/results/2026-11-05-hip-pack-default.md). The pass still needs a hybrid model on one rank (`Model::pack_capable`), so
+    /// `--tp 2` and dense models are unchanged. `INTARSIA_PACK_PREFILL=0` turns it off.
+    fn pack_prefill_default(&self) -> bool {
+        true
     }
 
     fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {

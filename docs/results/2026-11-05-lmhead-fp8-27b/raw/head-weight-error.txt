@@ -1,0 +1,5 @@
+scripts/lmhead/wstats.py on /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 lm_head.weight (248320 x 5120 bf16), 20000 random rows, fleetq #8637
+V=248320 K=5120 global amax=0.3418  sample rms=0.01375  median |w|=0.00897  p99.9 |w|=0.0508
+fp8 per-tensor         rel rms err 2.6493%   per-row rel err p50/p99/max [0.0265 0.0273 0.0296]
+fp8 per-row            rel rms err 2.6426%   per-row rel err p50/p99/max [0.0264 0.0272 0.0281]
+mxfp4 per-32 (approx)  rel rms err 11.7111%   per-row rel err p50/p99/max [0.1172 0.1263 0.1734]

@@ -1,0 +1,23 @@
+# Lane lane-ds: private localeval targets (LOCALEVAL_TARGETS=this file). The server is `intarsia serve --backend cuda` on spark1 (spark-4e77) port 8197,
+# started by window.sh. ds-sampled sends temperature 0.7 and top_k 40 on every speed request (the suite pins top_p 1 and seed 0): the shape the device
+# top-k takes. ds-nok sends temperature 1.0 and no top_k, which is what an OpenAI or Anthropic client that omits it sends: the host path in both arms.
+[defaults]
+judge = "spark-capcom"
+
+[targets.ds-sampled]
+url = "http://spark-4e77:8197/v1"
+model = "intarsia"
+host = "spark-4e77"
+engine = "intarsia cuda"
+thinking = "off"
+extra_body = { temperature = 0.7, top_k = 40 }
+notes = "Qwen3.6-35B-A3B NVFP4, tp1, --max-batch 16; sampled speed requests with top_k 40"
+
+[targets.ds-nok]
+url = "http://spark-4e77:8197/v1"
+model = "intarsia"
+host = "spark-4e77"
+engine = "intarsia cuda"
+thinking = "off"
+extra_body = { temperature = 1.0 }
+notes = "same server; sampled speed requests without top_k (default client traffic)"

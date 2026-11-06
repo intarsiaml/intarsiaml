@@ -1,0 +1,149 @@
+{
+ "run_id": "20261105-173204-ds-nok-ds-v1-on-ds-nok",
+ "kind": "speed",
+ "label": "ds-v1-on-ds-nok",
+ "started_at": "2026-11-05T17:32:04-05:00",
+ "finished_at": "2026-11-05T17:32:21-05:00",
+ "target": {
+  "name": "ds-nok",
+  "url": "http://spark-4e77:8197/v1",
+  "model": "intarsia",
+  "host": "spark-4e77",
+  "engine": "intarsia cuda",
+  "key_env": null,
+  "key_env_file": null,
+  "thinking": "off",
+  "thinking_style": "chat_template_kwargs",
+  "structured": "json_schema",
+  "extra_body": {
+   "temperature": 1.0
+  },
+  "max_tokens": null,
+  "timeout_s": 1800.0,
+  "bandwidth_gbs": null,
+  "gb_per_token": null,
+  "notes": "same server; sampled speed requests without top_k (default client traffic)",
+  "api_key_configured": false,
+  "recipe": {
+   "source": "inline",
+   "text": "intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-seq 8192 --mem-budget 40 --max-batch 16; INTARSIA_DEVICE_SAMPLING=default"
+  },
+  "server_reported": {}
+ },
+ "harness": {
+  "localeval": "0.4.0",
+  "deepeval": "4.2.6",
+  "python": "3.12.15",
+  "runner_host": "endor.kuepker.haus",
+  "command": "/opt/code/deepeval/.venv/bin/localeval speed ds-nok --thinking off --sizes 1024 --gen 128 --reps 2 --concurrency 16 --label ds-v1-on-ds-nok --recipe intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-seq 8192 --mem-budget 40 --max-batch 16; INTARSIA_DEVICE_SAMPLING=default",
+  "git": "a43b846"
+ },
+ "method": "Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.",
+ "speed": {
+  "model_info": {
+   "reachable": true,
+   "http_status": 200,
+   "served_models": [
+    "intarsia"
+   ],
+   "root": "nvidia/Qwen3.6-35B-A3B-NVFP4",
+   "owned_by": "intarsia",
+   "max_model_len": 8192
+  },
+  "gen_tokens": 128,
+  "reps": 2,
+  "tokens_per_filler_sentence": 22.07,
+  "rows": [
+   {
+    "target_prompt_tokens": 1024,
+    "prompt_tokens": 989,
+    "completion_tokens": {
+     "median": 128.0,
+     "min": 128,
+     "max": 128,
+     "n": 2,
+     "spread_pct": 0.0
+    },
+    "ttft_s": {
+     "median": 0.19,
+     "min": 0.187,
+     "max": 0.192,
+     "n": 2,
+     "spread_pct": 2.4
+    },
+    "prefill_tok_s": {
+     "median": 5221.383,
+     "min": 5161.57,
+     "max": 5281.197,
+     "n": 2,
+     "spread_pct": 2.3
+    },
+    "decode_tok_s": {
+     "median": 72.836,
+     "min": 71.663,
+     "max": 74.01,
+     "n": 2,
+     "spread_pct": 3.2
+    },
+    "peak_decode_tok_s": {
+     "median": 87.85,
+     "min": 87.6,
+     "max": 88.1,
+     "n": 2,
+     "spread_pct": 0.6
+    },
+    "server_prefill_tok_s": null,
+    "server_decode_tok_s": null,
+    "cached_tokens_max": 0,
+    "prefill_reliable": false,
+    "forced_length": true,
+    "errors": [],
+    "reps": 2,
+    "marginal_prefill_tok_s": null,
+    "note": "prefill overhead-dominated at this size; quote decode only"
+   }
+  ],
+  "skipped": [],
+  "concurrency": [
+   {
+    "streams": 16,
+    "target_prompt_tokens": 1024,
+    "aggregate_decode_tok_s": 166.6,
+    "per_stream_decode_tok_s": {
+     "median": 11.983,
+     "min": 10.735,
+     "max": 13.306,
+     "n": 16,
+     "spread_pct": 21.5
+    },
+    "per_stream_peak_decode_tok_s": {
+     "median": 13.4,
+     "min": 13.4,
+     "max": 14.5,
+     "n": 16,
+     "spread_pct": 8.2
+    },
+    "ttft_s": {
+     "median": 1.6,
+     "min": 0.192,
+     "max": 2.728,
+     "n": 16,
+     "spread_pct": 158.5
+    },
+    "errors": []
+   }
+  ],
+  "dropped_params": [],
+  "server_fingerprint": null,
+  "served_model": "intarsia",
+  "activity_checks": {
+   "idle": 4,
+   "busy": 0,
+   "unknown": 0
+  },
+  "warnings": []
+ },
+ "benchmarks": [],
+ "datasets": [],
+ "warnings": []
+}

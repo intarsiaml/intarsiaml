@@ -1,0 +1,39 @@
+```python
+def fibonacci(n: int) -> int:
+    """
+    Compute the n-th Fibonacci number using memoization.
+    
+    Args:
+        n: A non-negative integer representing the position in the Fibonacci sequence.
+        
+    Returns:
+        The n-th Fibonacci number.
+        
+    Raises:
+        ValueError: If n is negative.
+    """
+    if n < 0:
+        raise ValueError("n must be a non-negative integer")
+    
+    memo: dict[int, int] = {}
+    
+    def fib_helper(k: int) -> int:
+        if k in memo:
+            return memo[k]
+        if k == 0:
+            return 0
+        if k == 1:
+            return 1
+        memo[k] = fib_helper(k - 1) + fib_helper(k - 2)
+        return memo[k]
+    
+    return fib_helper(n)
+```
+
+## Time Complexity Explanation
+
+The time complexity of this memoized Fibonacci function is **O(n)**.
+
+Here's why:
+
+1. **Without memoization**, the naive recursive approach has exponential time complexity O(2^n) because it recomputes the same Fibonacci numbers many

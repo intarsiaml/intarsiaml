@@ -1,0 +1,51 @@
+[localeval] calibrated: 22.1 tokens/sentence, 52 base tokens, ctx=20153
+[localeval]   1024 tok rep 1/2: prompt=991 ttft=0.24s prefill=4064 tok/s decode=57.3 tok/s peak=70.9 tok/s out=128
+[localeval]   1024 tok rep 2/2: prompt=990 ttft=0.23s prefill=4304 tok/s decode=58.7 tok/s peak=62.5 tok/s out=128
+[localeval] 1 streams: aggregate 53.1 tok/s
+[localeval] 4 streams: aggregate 124.8 tok/s
+[localeval] 8 streams: aggregate 167.2 tok/s
+[localeval] 16 streams: aggregate 195.4 tok/s
+# localeval: adhoc — 2026-11-05T19:08
+
+- model: `qwen38-27b` on ? (?), url `http://tatooine:8297/v1`
+- thinking: off; run kind: speed; label: lmh-w2-head.fp8.2.off.16-14
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8297/v1 --model qwen38-27b --thinking off --sizes 1024 --gen 128 --reps 2 --concurrency 1,4,8,16 --label lmh-w2-head.fp8.2.off.16-14 --recipe intarsia serve (lane lmhead-fp8) head q=fp8 tp=2 spec=off mb=16 --wait-idle 60`
+- result file: `results/20261105-190823-adhoc-lmh-w2-head.fp8.2.off.16-14/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve (lane lmhead-fp8) head q=fp8 tp=2 spec=off mb=16
+````
+
+## Speed sweep
+
+served `qwen38-27b`, fingerprint `None`, ctx 20153, 2 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.24 | 4184 (4064–4304) * | - | 58.0 (57.3–58.7) | 66.7 (62.5–70.9) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 1 | 53.1 | 58.8 (58.8–58.8) | 0.23 |
+| 4 | 124.8 | 40.0 (35.4–47.2) | 0.80 |
+| 8 | 167.2 | 29.9 (23.7–40.8) | 1.58 |
+| 16 | 195.4 | 19.0 (14.6–31.4) | 3.15 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-190823-adhoc-lmh-w2-head.fp8.2.off.16-14/result.json
+[localeval] logged to unanimis: 3002d9b2-f31a-4025-8c96-7848eb7e27d6

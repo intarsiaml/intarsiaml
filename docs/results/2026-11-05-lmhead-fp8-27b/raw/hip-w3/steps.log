@@ -1,0 +1,16 @@
+19:37:23 job 8672 window w3: stopping radiance
+19:37:28 job 8672 window w3: stopping radiance
+19:37:31 item 1: starting server base35.off.2.mtp.1
+19:38:22 item 1 base35.off.2.mtp.1 texts: exit 0       18 lines
+19:38:22 item 2: starting server head35.off.2.mtp.1
+19:39:06 item 2 head35.off.2.mtp.1 texts: exit 0       18 lines
+19:39:07 item 3 head.off.2.mtp.1 quality: start
+19:50:05 item 3 head.off.2.mtp.1 quality: exit 0 QUALITY compare mxfp4 exit 0|QUALITY compare off tp=2 19:50:02|QUALITY compare off exit 1|
+19:50:05 item 4: starting server head.mxfp4.2.mtp.1
+lm_head quantised to mxfp4 (124160 rows x 5120, 0.34 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = mxfp4, 0.4 s)
+lm_head quantised to mxfp4 (124160 rows x 5120, 0.34 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = mxfp4, 0.3 s)
+19:54:29 item 4 head.mxfp4.2.mtp.1 mmlu: exit 0 results/20261105-195104-adhoc-lmh-w3-head.mxfp4.2.mtp.1-mmlu-4/result.json
+20:00:23 item 5 head.mxfp4.2.mtp.1 gsm8k: exit 0 results/20261105-195430-adhoc-lmh-w3-head.mxfp4.2.mtp.1-gsm8k-5/result.json
+20:00:23 done
+20:00:24 starting radiance
+20:00:24 radiance answers (after 5 s): {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793926098,"owned_by":"radiance","max_model_len":200

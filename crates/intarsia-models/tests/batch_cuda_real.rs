@@ -1178,7 +1178,7 @@ fn real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference() {
     eprintln!("RIP batched: turns and the busy-chunked long prompt equal the cold reference");
 }
 
-/// Device-side sampling is the host sampling (lane htk, docs/results/2026-10-27-htk-hip-topk.md): `INTARSIA_DEVICE_SAMPLING=1` on a backend with
+/// Device-side sampling is the host sampling (lane htk, docs/results/2026-10-27-htk-hip-topk.md): default on (`INTARSIA_DEVICE_SAMPLING=0` turns it off) on a backend with
 /// `topk_rows`. The same seeded `Sampler`s draw from the whole logits row (`HeadMode::LastLogits`, the host walk) in one arm and from the device's
 /// top-k candidates (`HeadMode::LastTopK`) in the other, over 32 steps of batched decode with 1, 4 and 16 rows and five temperature / top_k /
 /// top_p settings (k from 1 to the 64 maximum); the two arms must draw the same token at every step of every row. Opt-in like the other 35B gates.
@@ -1189,7 +1189,7 @@ fn real_35b_device_sampling_draws_the_host_tokens() {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
     if !m.device_sampling() {
-        skip("INTARSIA_DEVICE_SAMPLING=1 is not set (or the backend has no device top-k)");
+        skip("INTARSIA_DEVICE_SAMPLING=0 is set (or the backend has no device top-k)");
         return;
     }
     let settings = [(0.7f32, 20usize, 1.0f32), (1.0, 40, 0.9), (0.8, 64, 0.5), (1.3, 8, 0.95), (0.6, 1, 1.0)];
@@ -1289,9 +1289,9 @@ fn real_35b_batch_step_timing() {
 }
 
 /// B2 (Fable review): the cost of a batched step whose rows are SAMPLED, on the host path (`LastLogits`: one [B, V] download and a
-/// host top-k/top-p walk per row) against the device path (`LastTopK(40)`: the k candidates only; opt-in: `INTARSIA_DEVICE_SAMPLING=1` turns it on).
+/// host top-k/top-p walk per row) against the device path (`LastTopK(40)`: the k candidates only; default on, `INTARSIA_DEVICE_SAMPLING=0` turns it off).
 /// Same seeds, so the two draw the same tokens when the states are the same; the token parity is gated by the engine test
-/// (`real_35b_batched_engine_equals_the_local_engine`, seeded-sampled requests, run with `INTARSIA_DEVICE_SAMPLING=1`).
+/// (`real_35b_batched_engine_equals_the_local_engine`, seeded-sampled requests, device sampling is the default).
 #[test]
 #[ignore]
 fn real_35b_batch_step_sampled_timing() {
@@ -1786,6 +1786,229 @@ fn real_35b_packed_prefill_equals_the_local_engine() {
         assert!(m.pack_passes > 0 && m.packed_chunks >= 2 * m.pack_passes, "nothing was packed: {m:?}");
     }
 }
+
+// ---- lane pf: forced packs (Model::forward_packed) against solo prefill ---------------------------------------------------
+
+/// The six prompts of the batched-MTP lane's greedy-ids gate (scripts/bm/ids.py on origin/lane-bm/batched-mtp), raw completions
+/// text: 15, 103, 17, 201, 15 and 82 tokens on the 35B tokenizer. A body (prompt minus its last token) packs from
+/// `pack_min_rows` rows; with the rule of 16 the 17-token prompt (body 16) packed beside the 102 / 200 / 81-row bodies and
+/// diverged from token 2 on (docs/results/2026-11-05-cuda-pack-flip.md).
+const GATE_PROMPTS: [&str; 6] = [
+    "Explain how a hash map handles collisions, with an example in Python.",
+    "Write a short story about a lighthouse keeper who finds a message in a bottle. ",
+    "List the first twenty prime numbers and explain the sieve of Eratosthenes.",
+    "Summarise the causes of the French Revolution. ",
+    "def quicksort(xs):\n    # complete this function and add tests\n",
+    "Translate into German: The weather is nice today, so we will go for a long walk by the river and then eat ice cream. ",
+];
+const GATE_REPEATS: [usize; 6] = [1, 6, 1, 20, 1, 3];
+
+/// Every byte of a sequence's state that a later pass reads: each recurrent slot whole, each attention slot's K and V rows
+/// `0..len` per KV head.
+fn state_bytes(be: &dyn intarsia_core::backend::Backend, st: &intarsia_core::state::SequenceState) -> Vec<Vec<u8>> {
+    use intarsia_core::state::StateSlot;
+    let _ = be.synchronize(0);
+    let mut out = Vec::new();
+    for s in &st.slots {
+        match s {
+            StateSlot::Recurrent(r) => {
+                let mut d = vec![0u8; r.bytes];
+                be.download(&r.buf, 0, &mut d, 0).unwrap();
+                out.push(d);
+            }
+            StateSlot::AttnKv(a) => {
+                let row = a.head_dim * a.dtype.size_bytes();
+                for buf in [&a.k, &a.v] {
+                    let mut d = vec![0u8; a.n_kv_heads * a.cap * row];
+                    be.download(buf, 0, &mut d, 0).unwrap();
+                    for h in 0..a.n_kv_heads {
+                        out.push(d[h * a.cap * row..(h * a.cap + st.len) * row].to_vec());
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// Lane pf: `Model::forward_packed` with forced packs on the real 35B against each prompt's solo prefill, bit for bit: the state
+/// right after the body (recurrent slots, K / V rows), then the last prompt token's logits and 8 greedy decode steps (logits
+/// and ids). Packs: the batched-MTP gate's (bodies 102 + 16 + 200 + 81, the 16-row one from the 17-token prompt), and a sweep
+/// of one body of 15..64 rows (corpus text) packed first or second beside a 102-row and a 300-row body, and two equal short
+/// bodies. A pack with a body under `Model::pack_min_rows` must be refused (the scheduler runs it alone); every other pack must
+/// leave every prompt bitwise as its solo prefill. With `INTARSIA_PACK_MIN_ROWS=16` (the rule before lane pf) the short packs
+/// run and the test lists the ones that differ (the reproduction). Opt-in: `INTARSIA_QWEN36_DIR`, a fleetq slot on the Spark.
+#[test]
+#[ignore]
+fn real_35b_forced_packs_are_bitwise_solo_prefill() {
+    let _serial = serial();
+    use intarsia_core::engine::TextCodec;
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    const DECODE: usize = 8;
+    let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
+    let weights = SchemedSource::open(&dir).unwrap();
+    let chunk = recipe.resolve_prefill_chunk(None, be.name()).value;
+    let opts = LoadOptions { max_seq: 2048, prefill_chunk: chunk, profile_every: 0, kv_fraction: 0.2, ..Default::default() };
+    let mut m = Model::load(be.clone(), &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let min = m.pack_min_rows();
+    eprintln!("FORCEDPACK pack_min_rows {min} (backend {}), pack_rows_max {}", be.pack_min_rows(), m.pack_rows_max());
+    let codec = intarsia_models::HfCodec::load(&dir, &intarsia_models::ChatTemplateSource::Auto).unwrap();
+    let gate: Vec<Vec<u32>> =
+        GATE_PROMPTS.iter().zip(GATE_REPEATS).map(|(p, r)| codec.encode(&p.repeat(r), false).unwrap()).collect();
+    eprintln!("FORCEDPACK gate prompt tokens {:?}", gate.iter().map(Vec::len).collect::<Vec<_>>());
+    assert_eq!(gate.iter().map(Vec::len).collect::<Vec<_>>(), [15, 103, 17, 201, 15, 82], "the gate prompts' token counts");
+    let all = corpus_tokens(&dir);
+    let corpus = |at: usize, len: usize| all[at..at + len].to_vec();
+
+    let logits = |o: StepOut| match o {
+        StepOut::Logits(l) => l.iter().map(|x| x.to_bits()).collect::<Vec<u32>>(),
+        o => panic!("expected logits, got {o:?}"),
+    };
+    let argmax = |l: &[u32]| {
+        l.iter().enumerate().fold((0usize, f32::MIN), |b, (i, &v)| if f32::from_bits(v) > b.1 { (i, f32::from_bits(v)) } else { b }).0 as u32
+    };
+    // after the body: the last prompt token with the head, then greedy decode; (logits rows, ids)
+    let finish = |m: &Model, st: &mut intarsia_core::state::SequenceState, last: u32| -> (Vec<Vec<u32>>, Vec<u32>) {
+        let mut rows = vec![logits(m.forward(st, &[last], HeadMode::LastLogits, None).unwrap())];
+        let mut ids = vec![argmax(&rows[0])];
+        for _ in 0..DECODE {
+            let next = *ids.last().unwrap();
+            rows.push(logits(m.forward(st, &[next], HeadMode::LastLogits, None).unwrap()));
+            ids.push(argmax(rows.last().unwrap()));
+        }
+        (rows, ids)
+    };
+    // the solo schedule of a whole prompt (the engine's recurrent prefill): the body headless, then the last token
+    let solo = |m: &Model, p: &[u32]| {
+        let mut st = m.new_state().unwrap();
+        m.forward(&mut st, &p[..p.len() - 1], HeadMode::None, None).unwrap();
+        let state = state_bytes(&*be, &st);
+        let (rows, ids) = finish(m, &mut st, p[p.len() - 1]);
+        (state, rows, ids)
+    };
+
+    let mut cases: Vec<(String, Vec<Vec<u32>>)> = vec![("gate pack: prompts 1, 2, 3, 5".into(), vec![gate[1].clone(), gate[2].clone(), gate[3].clone(), gate[5].clone()])];
+    cases.push(("gate pack: prompts 2, 5".into(), vec![gate[2].clone(), gate[5].clone()]));
+    for body in [15usize, 16, 17, 20, 24, 31, 32, 33, 34, 40, 64] {
+        let p = corpus(5000 + body * 7, body + 1);
+        for partner in [102usize, 300] {
+            let q = corpus(20000 + partner, partner + 1);
+            cases.push((format!("body {body} first, beside {partner}"), vec![p.clone(), q.clone()]));
+            cases.push((format!("body {body} second, after {partner}"), vec![q, p.clone()]));
+        }
+        cases.push((format!("bodies {body} + {body}"), vec![p.clone(), corpus(40000 + body * 3, body + 1)]));
+    }
+
+    let mut bad = Vec::new();
+    let (mut ran, mut refused) = (0usize, 0usize);
+    for (label, prompts) in &cases {
+        let bodies: Vec<usize> = prompts.iter().map(|p| p.len() - 1).collect();
+        let want: Vec<_> = prompts.iter().map(|p| solo(&m, p)).collect();
+        let mut states: Vec<_> = prompts.iter().map(|_| m.new_state().unwrap()).collect();
+        let r = {
+            let mut items: Vec<(&mut intarsia_core::state::SequenceState, &[u32])> =
+                states.iter_mut().zip(prompts).map(|(st, p)| (st, &p[..p.len() - 1])).collect();
+            m.forward_packed(&mut items)
+        };
+        let short = bodies.iter().any(|&b| b < min);
+        match r {
+            Err(e) => {
+                assert!(short, "{label} (bodies {bodies:?}): refused although every body has >= {min} rows: {e}");
+                eprintln!("FORCEDPACK {label} (bodies {bodies:?}): refused ({e})");
+                refused += 1;
+                continue;
+            }
+            Ok(()) => assert!(!short, "{label} (bodies {bodies:?}): a body under {min} rows was packed"),
+        }
+        ran += 1;
+        for (k, (st, p)) in states.iter_mut().zip(prompts).enumerate() {
+            let state = state_bytes(&*be, st);
+            let (rows, ids) = finish(&m, st, p[p.len() - 1]);
+            let (ws, wr, wi) = &want[k];
+            let st_diff = state.iter().zip(ws).filter(|(a, b)| a != b).count();
+            let first_row = rows.iter().zip(wr).position(|(a, b)| a != b);
+            let first_id = ids.iter().zip(wi).position(|(a, b)| a != b);
+            let ok = st_diff == 0 && first_row.is_none() && first_id.is_none();
+            let line = format!(
+                "{label}: segment {k} ({} rows): {} (state blocks differing {st_diff}/{}, first differing logits row {first_row:?}, first differing id {first_id:?}; ids {:?} vs solo {:?})",
+                bodies[k],
+                if ok { "bitwise solo" } else { "DIFFERS" },
+                ws.len(),
+                ids,
+                wi
+            );
+            eprintln!("FORCEDPACK {line}");
+            if !ok {
+                bad.push(line);
+            }
+        }
+    }
+    eprintln!("FORCEDPACK {ran} packs ran, {refused} refused, {} segments differ", bad.len());
+    assert!(ran >= 2, "nothing packed");
+    assert!(bad.is_empty(), "packed segments that are not their solo prefill:\n{}", bad.join("\n"));
+}
+
+/// Lane pb (origin/lane-pb/packed-bitid, docs/results/2026-11-05-pb-packed-bitid.md; copied by lane pf): the macro pass (`Model::macro_rows`: several chunks of one prompt in one pass) takes a trailing chunk of at least
+/// `Model::pack_min_rows` rows into the pass; the plain schedule runs it alone. Prompts of two chunks plus `t` body rows (the
+/// last token runs alone with the head) for `t` around the bound: the logits of the last prompt row and 8 greedy steps must be
+/// the plain schedule's bits. Prints `MACROPROBE t ... equal|DIFF`, fails at the end if any differs.
+#[test]
+#[ignore]
+fn real_35b_macro_trailing_chunk_probe() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    const DECODE_ROWS: usize = 8;
+    let tails = [16usize, 20, 31, 32, 40];
+    let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
+    let weights = SchemedSource::open(&dir).unwrap();
+    let chunk = recipe.resolve_prefill_chunk(None, be.name()).value;
+    let opts = LoadOptions {
+        max_seq: 2 * chunk + 64,
+        prefill_chunk: chunk,
+        profile_every: 0,
+        kv_fraction: 0.3, // lane pf: 0.95 in lane pb; spark1-vllm stays up beside it
+        prefill_macro: Some(8192),
+        ..Default::default()
+    };
+    let mut m = Model::load(be, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let all = corpus_tokens(&dir);
+    let logits = |o: StepOut| match o {
+        StepOut::Logits(l) => l,
+        o => panic!("expected logits, got {o:?}"),
+    };
+    let run = |m: &Model, prompt: &[u32]| -> Vec<Vec<u32>> {
+        let mut st = m.new_state().unwrap();
+        let (head, last) = prompt.split_at(prompt.len() - 1);
+        m.forward(&mut st, head, HeadMode::None, None).unwrap();
+        let mut rows = vec![logits(m.forward(&mut st, last, HeadMode::LastLogits, None).unwrap())];
+        for _ in 0..DECODE_ROWS {
+            let next = rows.last().unwrap().iter().enumerate().fold((0usize, f32::MIN), |b, (i, &v)| if v > b.1 { (i, v) } else { b }).0;
+            rows.push(logits(m.forward(&mut st, &[next as u32], HeadMode::LastLogits, None).unwrap()));
+        }
+        rows.iter().map(|r| r.iter().map(|x| x.to_bits()).collect()).collect()
+    };
+    eprintln!("MACROPROBE chunk {chunk} pack_min_rows {}", m.pack_min_rows());
+    let mut bad = Vec::new();
+    for &t in &tails {
+        let prompt = &all[5000 + t * 11..5000 + t * 11 + 2 * chunk + t + 1];
+        m.set_macro_rows(0);
+        let want = run(&m, prompt);
+        m.set_macro_rows(8192);
+        let before = m.macro_passes();
+        let got = run(&m, prompt);
+        let passes = m.macro_passes() - before;
+        let d = want.iter().zip(&got).position(|(a, b)| a != b);
+        eprintln!("MACROPROBE t {t} ({} prompt tokens): {passes} macro passes, {}", prompt.len(), d.map_or("equal".into(), |r| format!("DIFF@row{r}")));
+        if d.is_some() {
+            bad.push(t);
+        }
+    }
+    assert!(bad.is_empty(), "macro pass differs from the plain schedule for trailing chunks of {bad:?} rows");
+}
+
 
 // ---- macro prefill (INTARSIA_PREFILL_MACRO) on the real 35B ---------------------------------------------------------------
 

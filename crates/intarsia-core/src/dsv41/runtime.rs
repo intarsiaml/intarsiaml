@@ -81,6 +81,13 @@ struct Exec {
     pf_plan: HashMap<(usize, usize), Vec<TensorRef>>,
     /// A prefetch launch since the segment's start (the prefetch stream has to rejoin before the capture ends).
     pf_out: bool,
+    /// `INTARSIA_DSV41_HC_SIDE`, during a capture: the buffers (`pre`, `post`, `comb`) the side half of an `HcSublayer` is still writing on
+    /// [`HC_STREAM`]; the first step that reads one joins the stream.
+    hc_out: Vec<Buf>,
+    /// The side half's own partials (the kernel scratch is used by the kernels running beside it), and the smaller ones it replaced
+    /// (a graph recorded earlier holds the address).
+    hc_scratch: Option<TensorRef>,
+    hc_keep: Vec<TensorRef>,
     /// The graph being run or recorded is a verify pass ([`Dsv41Graph::verify`]).
     verify: bool,
 }
@@ -106,6 +113,8 @@ struct Captured {
 /// The first stream of the lanes ([`Dsv41Runtime::lanes`]; stream 1 is the L2 prefetch's) and the alignment of a lane's scratch slice.
 const LANE_STREAM0: u32 = 2;
 const LANE_STRIDE_ALIGN: usize = 256;
+/// The stream of the `HcSublayer` side halves (`INTARSIA_DSV41_HC_SIDE`), after the four lanes (2..=5).
+const HC_STREAM: u32 = 6;
 const GK_PASS: u8 = 0;
 const GK_VERIFY: u8 = 1;
 const GK_DRAFT: u8 = 2;
@@ -180,6 +189,11 @@ pub struct Dsv41Runtime {
     /// linears read: after a layer's `wq_b` its `wo_a` and `wo_b`, after its experts the next layer's `wq_a`, `wkv`, `wq_b`
     /// (16 MiB a launch). Changes no numbers.
     l2_prefetch: bool,
+    /// `INTARSIA_DSV41_HC_SIDE=1` (default off; `2` = the same with the side stream at the default priority, `device.rs`): in a recorded pass an `HcSublayer` runs as two launches, the main half (the fold of the previous
+    /// sublayer's post and the norm, which the sublayer reads at once) and the side half on [`HC_STREAM`] (the mixing dots on the stored `h` and the
+    /// Sinkhorn: the next sublayer's `pre`, `post`, `comb`), joined where the next `HcSublayer` reads them. Same kernel bodies and
+    /// reduction orders as the fused launches: changes no numbers.
+    hc_side: bool,
     /// `INTARSIA_DSV41_LANES` (default on, `0` = off): in a recorded pass the steps with a lane ([`super::graph::Step::lane`]: the `wo_a`
     /// slice matmuls, `wq_a` with `wkv`, the compressor's pair) fork onto streams 2..=5 and join before the next lane-0 step, so their small launches
     /// run side by side. Same kernels on the same bytes, a scratch of their own each: changes no numbers.
@@ -434,6 +448,7 @@ impl Dsv41Runtime {
             _ => None,
         };
         let l2_prefetch = std::env::var("INTARSIA_DSV41_L2_PREFETCH").map_or(true, |v| v != "0") && backend.stream_fork();
+        let hc_side = std::env::var("INTARSIA_DSV41_HC_SIDE").is_ok_and(|v| v == "1" || v == "2") && backend.stream_fork();
         let lanes = std::env::var("INTARSIA_DSV41_LANES").map_or(true, |v| v != "0") && backend.stream_fork();
         let mut rt = Dsv41Runtime {
             cfg,
@@ -446,7 +461,7 @@ impl Dsv41Runtime {
             consts,
             engram,
             opts,
-            exec: Mutex::new(Exec { ws, pf_plan: HashMap::new(), pf_out: false, scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false, row0: 0, verify: false }),
+            exec: Mutex::new(Exec { ws, pf_plan: HashMap::new(), pf_out: false, hc_out: Vec::new(), hc_scratch: None, hc_keep: Vec::new(), scratch: None, filled: HashMap::new(), kernels: HashMap::new(), scratch_gen: 0, capturing: false, row0: 0, verify: false }),
             slot_specs,
             memory: RuntimeMemory::default(),
             last_pass: Mutex::new(PassStats::default()),
@@ -455,6 +470,7 @@ impl Dsv41Runtime {
             splitk_grid: std::env::var("INTARSIA_DSV41_EXL3_SPLITK").ok().and_then(|v| v.parse().ok()).unwrap_or(16),
             splitk_verify: std::env::var("INTARSIA_DSV41_EXL3_SPLITK_VERIFY").map_or(true, |v| v != "0"),
             l2_prefetch,
+            hc_side,
             lanes,
             cp_grids: std::env::var("INTARSIA_DSV41_EXL3_CP").map_or(Vec::new(), |v| v.split(',').filter_map(|x| x.parse().ok()).collect()),
             dspark,
@@ -1113,12 +1129,17 @@ impl Dsv41Runtime {
     /// warm-up pass), the scratch is grown first, the fills applied; nothing inside the recording uploads or allocates.
     fn capture(&self, ex: &mut Exec, g: &Dsv41Graph, st: &SequenceState, t: usize) -> Result<Vec<(usize, usize, GraphHandle)>> {
         ex.verify = g.verify;
+        ex.hc_out.clear();
         // grow the scratch to the largest need of the graph outside the recording
         let mut need = 0usize;
+        let mut hc_need = 0usize;
         for (si, stage) in g.stages.iter().enumerate() {
             for step in &stage.steps {
                 let (call, ki) = self.bind(ex, si, step, st, t)?;
                 need = need.max(self.step_scratch(self.kernel_list[ki].scratch_bytes(&ShapeInfo::from_call(&call)), step.lane));
+                if self.hc_side && step.op == crate::ops::Op::HcSublayer {
+                    hc_need = hc_need.max(self.kernel_list[ki].scratch_bytes(&ShapeInfo::from_call(&call)));
+                }
             }
             for (_, e) in &stage.extras {
                 if matches!(e, Extra::Fill { .. }) {
@@ -1127,6 +1148,14 @@ impl Dsv41Runtime {
             }
         }
         self.grow_scratch(ex, need)?;
+        if hc_need > 0 && ex.hc_scratch.as_ref().is_none_or(|s| s.nbytes() < hc_need) {
+            let bytes = hc_need.next_power_of_two().max(1 << 16);
+            let b = self.backend.alloc(bytes, MemKind::Device)?;
+            let new = TensorRef::new(b, DType::U8, &[bytes]);
+            if let Some(old) = ex.hc_scratch.replace(new) {
+                ex.hc_keep.push(old);
+            }
+        }
         let engram: Vec<usize> = self.engram.as_ref().map_or(Vec::new(), |e| e.hasher.layout.layer_ids.clone());
         let mut cuts: Vec<usize> = vec![0];
         for (si, stage) in g.stages.iter().enumerate() {
@@ -1148,6 +1177,10 @@ impl Dsv41Runtime {
                 if ex.pf_out {
                     self.backend.stream_wait(0, 1)?;
                     ex.pf_out = false;
+                }
+                if !ex.hc_out.is_empty() {
+                    self.backend.stream_wait(0, HC_STREAM)?;
+                    ex.hc_out.clear();
                 }
                 Ok(())
             });
@@ -1314,6 +1347,11 @@ impl Dsv41Runtime {
                     }
                 }
             }
+            // the side half's outputs are read here: join it first
+            if !ex.hc_out.is_empty() && step.inputs.iter().any(|i| ex.hc_out.contains(&i.buf)) {
+                self.backend.stream_wait(stream, HC_STREAM)?;
+                ex.hc_out.clear();
+            }
             let (mut call, ki) = self.bind(ex, si, step, st, t)?;
             let kimpl = &self.kernel_list[ki];
             let kname = kimpl.name.as_str();
@@ -1324,7 +1362,20 @@ impl Dsv41Runtime {
                 call.scratch = Some(ex.scratch.as_ref().unwrap().reshaped(&[ex.scratch.as_ref().unwrap().numel()]).rows(off, need));
             }
             let op_t0 = self.opprof.as_ref().map(|_| Instant::now());
+            let hc_split = self.hc_side && ex.capturing && lane == 0 && step.op == crate::ops::Op::HcSublayer && kname == "hc_sublayer" && ex.hc_scratch.is_some();
+            if hc_split {
+                call.attrs.dsv.hc_mode = 1;
+                call.scratch = None;
+            }
             self.backend.launch(kname, &call, stream).map_err(|e| Error::backend(format!("deepseek_v41 step {} ({kname}): {e}", step.what)))?;
+            if hc_split {
+                let mut side = call.clone();
+                side.attrs.dsv.hc_mode = 2;
+                side.scratch = ex.hc_scratch.clone();
+                self.backend.stream_wait(HC_STREAM, 0)?;
+                self.backend.launch(kname, &side, HC_STREAM).map_err(|e| Error::backend(format!("deepseek_v41 step {} (side): {e}", step.what)))?;
+                ex.hc_out = step.outputs[1..=3].iter().map(|o| o.buf.clone()).collect();
+            }
             if ex.capturing {
                 if let Some(r) = ex.pf_plan.get(&(si, j)) {
                     self.backend.stream_wait(1, 0)?;

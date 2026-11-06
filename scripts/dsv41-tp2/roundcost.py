@@ -3,7 +3,7 @@
 
 Usage: roundcost.py SERVE.log [--old 31.3,38.1,42.9,47.8,52.7 --old-draft 9.0]
 
-Reads `dsv41: spec round k=K conf=.. ok=N draft_ms=D pass_ms=P period_ms=T` lines. For each k (a pass of k+1 rows): rounds, median
+Reads `dsv41: spec round k=K conf=.. ok=N [pd=..] draft_ms=D pass_ms=P period_ms=T` lines. For each k (a pass of k+1 rows): rounds, median
 and mean pass ms (the figure for INTARSIA_DSV41_SPEC_ROUND_MS), and the round's cost outside its pass (period - pass, the
 figure for INTARSIA_DSV41_SPEC_DRAFT_MS; the draft block's own ms is shown beside it). Then what each table would have chosen
 on the rounds' own confidences where that is known (a smaller k than the one chosen), and the modelled tokens a ms.
@@ -14,7 +14,7 @@ import statistics as st
 import sys
 from collections import defaultdict
 
-PAT = re.compile(r"spec round k=(\d+) conf=([-\d.,einf]*) ok=(\d+) draft_ms=([\d.]+) pass_ms=([\d.]+) period_ms=([\d.]+)")
+PAT = re.compile(r"spec round k=(\d+) conf=([-\d.,einf]*) ok=(\d+)(?: pd=[\d.,]*)? draft_ms=([\d.]+) pass_ms=([\d.]+) period_ms=([\d.]+)")
 
 
 def main():
