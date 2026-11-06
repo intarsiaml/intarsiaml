@@ -10,7 +10,7 @@ if [ "${1:?sync|run}" = sync ]; then
   cd "$(git rev-parse --show-toplevel)"
   for spec in base=$2 dev=$3; do
     n=${spec%%=*}; r=${spec#*=}
-    git archive --format=tar "$r" | ssh -o BatchMode=yes spark1 "rm -rf $P/dhm-src-$n && mkdir -p $P/dhm-src-$n && tar -x -C $P/dhm-src-$n"
+    git archive --format=tar "$r" | ssh -o BatchMode=yes spark1 "rm -rf ~/intarsia-decfuse/dhm-src-$n && mkdir -p ~/intarsia-decfuse/dhm-src-$n && tar -x -C ~/intarsia-decfuse/dhm-src-$n"
     echo "$n=$(git rev-parse --short "$r")"
   done
   exit 0
