@@ -371,7 +371,9 @@ nb_arms() {
 }
 nb_one() { # TAG ENV [extra env for both ranks] [file stem] [timeout s]
   local tag=$1 aenv=$2 xenv=${3:-} stem=${4:-ncclbench} NB="$SPARK_DIR/bin/nccl_bench" to=${5:-${NB_TIMEOUT:-90}}
-  r spark2 "mkdir -p $LOGD; pkill -f '[b]in/nccl_bench'; nohup timeout $to env $NCCLENV $aenv $xenv $NB serve $WIP:29711 0 300 > $LOGD/$stem-r1-$tag.log 2>&1 < /dev/null &"
+  # the kill is its own ssh: its pattern would match the command line of a remote shell that also holds the nccl_bench path
+  r spark2 "pkill -f '[b]in/nccl_bench'; true"
+  r spark2 "mkdir -p $LOGD; nohup timeout $to env $NCCLENV $aenv $xenv $NB serve $WIP:29711 0 300 > $LOGD/$stem-r1-$tag.log 2>&1 < /dev/null &"
   sleep 2
   r spark1 "mkdir -p $LOGD; timeout $to env $NCCLENV $aenv $xenv $NB connect $WIP:29711 0 300 > $LOGD/$stem-r0-$tag.log 2>&1"
   log "nccl_bench $stem $tag: $aenv $xenv (exit $?)"
