@@ -234,6 +234,14 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Fewest rows a segment of a packed prefill pass ([`crate::model::Model::forward_packed`], and a macro pass's chunks) may have:
+    /// from this row count on, every row-wise kernel the prefill does not run per segment ([`Backend::pack_split_gemms`]) picks for
+    /// a segment alone the kernel it picks for the whole packed call, so the segment keeps its solo bits. Default 16
+    /// ([`crate::model::Model::PACK_MIN_ROWS`]: HIP's MoE GEMV / tensor-core switch, `tests/packed_rows.rs`).
+    fn pack_min_rows(&self) -> usize {
+        crate::model::Model::PACK_MIN_ROWS
+    }
+
     /// Whether `serve --max-batch` packs the prefill of prompts waiting together (`BatchedOptions::pack_prefill`) when
     /// `INTARSIA_PACK_PREFILL` is unset. Default false (opt-in); true where the packed pass is measured bitwise and faster (CUDA, HIP).
     fn pack_prefill_default(&self) -> bool {

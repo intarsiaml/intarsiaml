@@ -298,7 +298,7 @@ impl BatchModel for SlotModel {
         }
     }
     fn pack_min_rows(&self) -> usize {
-        Model::PACK_MIN_ROWS
+        self.model.pack_min_rows()
     }
     fn pack_whole_prompts(&self) -> bool {
         self.model.backend.pack_split_gemms()

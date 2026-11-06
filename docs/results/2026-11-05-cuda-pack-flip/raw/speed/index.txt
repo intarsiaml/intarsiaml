@@ -1,0 +1,4 @@
+pf-old16-r1: - result file: `results/20261105-210804-adhoc-pf-old16-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-210804-adhoc-pf-old16-r1/result.json 
+pf-fix-r1: - result file: `results/20261105-210908-adhoc-pf-fix-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-210908-adhoc-pf-fix-r1/result.json 
+pf-fix-r2: - result file: `results/20261105-211005-adhoc-pf-fix-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-211005-adhoc-pf-fix-r2/result.json 
+pf-old16-r2: - result file: `results/20261105-211109-adhoc-pf-old16-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-211109-adhoc-pf-old16-r2/result.json 
