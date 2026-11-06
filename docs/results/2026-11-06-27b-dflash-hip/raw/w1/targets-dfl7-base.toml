@@ -1,0 +1,4 @@
+[targets.dh-dfl7-base]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-dfl7-base"
+extra_body = { ignore_eos = true, min_tokens = 512 }
