@@ -1,0 +1,21 @@
+tp-worker: waiting for rank 0 on 10.100.152.3:29701
+tp-worker: rank 0 connected from 10.100.152.1:33042
+tensor parallel: rank 1 f32 all-reduces over RDMA, up to 256 KiB, the rest over NCCL (INTARSIA_DSV41_RDMA)
+tp-worker: joined NCCL 2.30.7 as rank 1 on device 0
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 17.5 s = 5.90 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.75 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 25.4 s (4.22 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.011 GiB (chunk 2048), constants 0.000 GiB, state 0.203 GiB per sequence at 66000 tokens; MemAvailable 110.13 GiB -> 8.97 GiB
+dsv41: rank 1 serving rank 0's passes
+tp: remote rank reader spins 100 ms after a command
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793920306)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793920306)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793920306)
+dsv41: kernel scratch grew to 16777216 bytes (unix 1793920311)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793920311)
+dsv41: kernel scratch grew to 33554432 bytes (unix 1793920361)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793920361)
+dsv41: rank 1 after warm-up: MemAvailable 8.31 GiB, used since start 101.82 GiB, of which weights 98.90 GiB, non-weight 2.92 GiB (workspace 1.011, scratch 0.031, state 0.203, constants 0.000, rest = CUDA context + NCCL + engram + host)

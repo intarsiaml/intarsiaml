@@ -1,0 +1,6 @@
+kind                      on2-t10
+chat          47.9 (median  48.4)
+code          67.0 (median  70.6)
+prose         42.6 (median  43.2)
+recall        54.8 (median  54.6)
+all           51.6 (median  50.2)

@@ -1,0 +1,7 @@
+position 1: 28 cells (df 27), G 32.83, p 0.2027 (alpha 0.0017: ok); detectable w at power 0.8: 0.114
+position 2: 45 cells (df 44), G 39.26, p 0.6748 (alpha 0.0017: ok); detectable w at power 0.8: 0.125
+position 3: 45 cells (df 44), G 35.86, p 0.8037 (alpha 0.0017: ok); detectable w at power 0.8: 0.125
+position 4: 39 cells (df 38), G 64.78, p 0.0043 (alpha 0.0017: ok); detectable w at power 0.8: 0.122
+position 5: 48 cells (df 47), G 45.00, p 0.5557 (alpha 0.0017: ok); detectable w at power 0.8: 0.127
+position 6: 54 cells (df 53), G 56.23, p 0.3550 (alpha 0.0017: ok); detectable w at power 0.8: 0.129
+N 1500 + 1500; min p 0.0043; all above alpha: True

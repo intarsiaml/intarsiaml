@@ -1,0 +1,6 @@
+kind                        tr-t0
+chat          51.2 (median  52.7)
+code          74.2 (median  73.9)
+prose         45.7 (median  45.3)
+recall        58.7 (median  58.4)
+all           55.6 (median  55.3)
