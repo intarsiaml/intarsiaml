@@ -352,13 +352,19 @@ struct SpecOpts {
     round_ms: [f64; ROUND_MS.len()],
     /// `INTARSIA_DSV41_SPEC_DRAFT_MS`: a round's ms outside its forward pass ([`DRAFT_MS`]).
     draft_ms: f64,
-    /// `INTARSIA_DSV41_SPEC_SAMPLED=1` (default off): speculate for sampled (temperature > 0) and constrained requests too. The verify rows
+    /// `INTARSIA_DSV41_SPEC_SAMPLED` (default on since 2026-11-05, user decision; `0` = greedy requests only, as before): speculate for sampled
+    /// (temperature > 0) and constrained requests too. The verify rows
     /// then come back as logits (`Row::Logits`) and the consumer loop draws from each, accepting the draft iff the draw equals it.
     sampled: bool,
     /// `INTARSIA_DSV41_SPEC_RETENTION` ([`RETENTION`]): the share of the confidence head's (greedy) survival that holds for a sampled or
     /// constrained request, whose draft is accepted with the probability the target gives it, not with certainty. [`choose_k`] scales
     /// each position's survival by it; 1.0 for greedy requests.
     retention: f64,
+}
+
+/// `INTARSIA_DSV41_SPEC_SAMPLED`: on unless it is `0`.
+fn spec_sampled_on(v: Option<&str>) -> bool {
+    v != Some("0")
 }
 
 /// Default of `INTARSIA_DSV41_SPEC_RETENTION`: the share of a draft's greedy acceptance that survives sampling at temperature 0.7 to 1.0.
@@ -1114,10 +1120,10 @@ impl Dsv41Engine {
             if choose {
                 eprintln!("dsv41: speculative decoding: k per round from the confidence head, pass ms {round_ms:?}, round overhead {draft_ms} ms");
             }
-            let sampled = std::env::var("INTARSIA_DSV41_SPEC_SAMPLED").is_ok_and(|v| v == "1");
+            let sampled = spec_sampled_on(std::env::var("INTARSIA_DSV41_SPEC_SAMPLED").ok().as_deref());
             let retention = std::env::var("INTARSIA_DSV41_SPEC_RETENTION").ok().and_then(|v| v.parse().ok()).filter(|r: &f64| *r > 0.0 && *r <= 1.0).unwrap_or(RETENTION);
             if sampled {
-                eprintln!("dsv41: speculative decoding also for sampled and constrained requests (retention {retention})");
+                eprintln!("dsv41: speculative decoding also for sampled and constrained requests (INTARSIA_DSV41_SPEC_SAMPLED=0 turns it off; retention {retention})");
             }
             SpecOpts { k, min_conf, trace: std::env::var("INTARSIA_DSV41_SPEC_TRACE").is_ok_and(|v| v == "1"), choose, round_ms, draft_ms, sampled, retention }
         });
@@ -1241,6 +1247,13 @@ mod choose_k_tests {
         let (r, d) = (&[31.3, 41.0][..], 9.0);
         assert_eq!(choose_k(&[-1.2], 1, r, d, 1.0), 0);
         assert_eq!(choose_k(&[-1.1], 1, r, d, 1.0), 1);
+    }
+
+    #[test]
+    fn sampled_speculation_is_on_unless_the_knob_is_zero() {
+        use super::spec_sampled_on;
+        assert!(spec_sampled_on(None) && spec_sampled_on(Some("1")) && spec_sampled_on(Some("")));
+        assert!(!spec_sampled_on(Some("0")));
     }
 
     /// A sampled draft is accepted with the target's probability, so the same confidence buys fewer tokens: the margin of the test above moves

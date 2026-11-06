@@ -2,14 +2,14 @@
 
 Lane `dsv41/sampled-spec`, branch `dsv41/sampled-spec`, 2026-11-05. Base: `origin/main` 602a1fcfe at the start, rebased onto 0391ab6b3 and later. The window binary was built from `c8213be9e` (602a1fcfe + the first commit of this branch; the rebase brought no engine change that matters here). No go-ahead or course correction arrived except the coordinator's note that fleetq job #8570 (workspace tests) and window #8579 were killed at about 18:02 by another lane's `pkill -f 'fleetq run'`; both were requeued.
 
-**Result.** With `INTARSIA_DSV41_SPEC_SAMPLED=1`, a request with temperature > 0 or a constraint speculates like a greedy one. Decode by text kind at temperature 0.7 and 1.0, 32 requests x 256 tokens, same fixed seeds in both arms, ABAB:
+**Result.** A request with temperature > 0 or a constraint speculates like a greedy one. Decode by text kind at temperature 0.7 and 1.0, 32 requests x 256 tokens, same fixed seeds in both arms, ABAB:
 
 | T | off (main) | on | gain |
 |---|---:|---:|---:|
 | 0.7 | 36.2 / 36.2 tok/s | 51.9 / 52.3 | **+43 % / +44 %** |
 | 1.0 | 36.5 / 36.4 | 51.7 / 51.6 | **+42 % / +42 %** |
 
-The flag is opt-in; making it the default is a user decision. Whether a seed gives main's text is probably yes, but it is not established (section 2). Greedy ids are unchanged (golden 640/640 and 1120/1120 with the flag off and on).
+**Default on.** User decision, 2026-11-05 about 19:20 EST, relayed by the coordinator: "default on". `INTARSIA_DSV41_SPEC_SAMPLED` is on unless it is `0`. The lane measured, tested and wrote the opt-in version first (windows #8579, #8609, #8636 ran with the flag set explicitly); the commit that flips the default changes one line (`spec_sampled_on`) and was checked as section 7 says. Whether a seed gives main's text is probably yes, but it is not established (section 2); the output distribution is unchanged. Greedy ids are unchanged (golden 640/640 and 1120/1120 with the flag off and on).
 
 ## 1. The change (`crates/intarsia-models/src/dsv41_engine.rs`)
 
@@ -49,7 +49,7 @@ Power of the scripted G-test (noncentral chi-square, alpha 0.002, 6000 draws): d
 
 No position rejects at the planned alpha. Two cells are below 0.005 (position 4 of the first run, position 5 of the pooled sets) and are not the same position in the replication; with 6 positions x 3 tests, one or two such p-values are within chance (the smallest, 0.0043, is 0.026 after Bonferroni over its 6 positions), but this test cannot rule out a difference smaller than w of about 0.1. Verify rows run multi-row kernels, so a small numeric difference from the decode row is expected and is the same kind of difference as greedy speculation's near-ties.
 
-**Draws for a given seed: probably identical to main, not shown.** The guarantee is the distribution, not the text. In the scripted test the ids are identical for identical seeds. On the real model: the 32 seeded or greedy constrained requests gave **identical text with the flag on and off, 32 of 32** (about 1950 tokens, 16 of them seeded at T 0.7 with about 970 draws, `raw-w3/cons-*`), and 8 of 8 token counts in window 2. The repo claims verify rows are bitwise the decode row (`docs/tuning.md` rows for `SPEC_K` and `SPEC_CHOOSE`, `commit_verify`), and `forward_rows` is the same pass as `forward_rows_ids` with the logits read back instead of their argmax. If that holds, flag-on sampled output is seed-for-seed main's output. **Not compared:** the 64 sampled catspeed requests of section 3 (`sampcat.py` did not record ids; it now does, `speed.ids`, so one off/on pass of about 10 minutes settles it). Keep the flag opt-in until then; the decision on default-on is the user's.
+**Draws for a given seed: probably identical to main, not shown.** The guarantee is the distribution, not the text. In the scripted test the ids are identical for identical seeds. On the real model: the 32 seeded or greedy constrained requests gave **identical text with the flag on and off, 32 of 32** (about 1950 tokens, 16 of them seeded at T 0.7 with about 970 draws, `raw-w3/cons-*`), and 8 of 8 token counts in window 2. The repo claims verify rows are bitwise the decode row (`docs/tuning.md` rows for `SPEC_K` and `SPEC_CHOOSE`, `commit_verify`), and `forward_rows` is the same pass as `forward_rows_ids` with the logits read back instead of their argmax. If that holds, flag-on sampled output is seed-for-seed main's output. **Not compared:** the 64 sampled catspeed requests of section 3 (`sampcat.py` did not record ids; it now does, `speed.ids`, so one off/on pass of about 10 minutes settles it). The user chose default-on without this comparison.
 
 Greedy requests under a constraint now speculate with the flag on; their ids should equal main's unless a verify row differs numerically at a near-tie, as unconstrained greedy speculation already can (the 16 greedy constrained requests gave identical text).
 
