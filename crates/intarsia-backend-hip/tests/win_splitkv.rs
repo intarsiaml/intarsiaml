@@ -115,7 +115,7 @@ fn window_splitkv_matches_the_reference_and_the_window_kernel() {
                 let (en, mn) = err(&new[0].to_f32(), &want);
                 let (eo, mo) = err(&old[0].to_f32(), &want);
                 // bf16 output: one rounding is ~4e-3 of the value; the split kernel adds f32 reassociation only
-                assert!(en <= 8e-3.max(eo * 2.0) && mn <= 2e-2, "N={n} Nkv={nkv} D={d} pos0={p} window={w}: new rel_l2 {en:.2e} max {mn:.2e} (old {eo:.2e} / {mo:.2e})");
+                assert!(en <= 8e-3f64.max(eo * 2.0) && mn <= 2e-2, "N={n} Nkv={nkv} D={d} pos0={p} window={w}: new rel_l2 {en:.2e} max {mn:.2e} (old {eo:.2e} / {mo:.2e})");
                 assert!(new[0].to_f32().iter().any(|v| *v != 0.0), "N={n} pos0={p} window={w}: all zero");
                 cases += 1;
             }
