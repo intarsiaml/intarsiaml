@@ -68,24 +68,26 @@ if [[ ${PROBE:-0} == 1 ]]; then
 fi
 
 serve() { # serve <arm>
-  local arm=$1 spec ENVX="" base=$1
+  local arm=$1 spec ENVX="" base=$1 BINX=dh-intarsia
   # lane vat: arm "<arm>-old" = the same arm with the lane's new paths off (OLDENV, default the verify attention rows knob)
   if [[ $arm == *-old ]]; then base=${arm%-old}; ENVX="${OLDENV:--e INTARSIA_HIP_VERIFY_ATTN_ROWS=0}"; fi
   # lane dh: arm "<arm>-on" = the same arm with the lane's knob(s) on (ONENV, default the split draft)
   if [[ $arm == *-on ]]; then base=${arm%-on}; ENVX="${ONENV:--e INTARSIA_DFLASH_TP=1}"; fi
   if [[ $arm == *-on2 ]]; then base=${arm%-on2}; ENVX="${ONENV2:--e INTARSIA_DFLASH_TP=1 -e INTARSIA_DFLASH_DEVICE_TOPK=1}"; fi
   if [[ $arm == *-on3 ]]; then base=${arm%-on3}; ENVX="${ONENV3:?ONENV3 for the -on3 arms}"; fi
+  # lane dh: arm "<arm>-base" = the same arm on main's CLI (dh-intarsia-base), the negative control of item 0
+  if [[ $arm == *-base ]]; then base=${arm%-base}; BINX=dh-intarsia-base; fi
   case $base in
     off) spec="--spec off" ;;
     mtp2) spec="--spec mtp --spec-k 2" ;;
     mtp*) spec="--spec mtp --spec-k ${base#mtp}" ;;
     dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${base#dfl}" ;;
   esac
-  RECIPE="HIP_VISIBLE_DEVICES=$GPUS dh-intarsia serve --backend hip --model 27B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq ${MAXSEQ:-20480} (tree $TREE, docker $IMG, lane dh${ENVX:+, $ENVX})"
+  RECIPE="HIP_VISIBLE_DEVICES=$GPUS $BINX serve --backend hip --model 27B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq ${MAXSEQ:-20480} (tree $TREE, docker $IMG, lane dh${ENVX:+, $ENVX})"
   $SSH "docker rm -f dh-serve >/dev/null 2>&1; docker run -d --name dh-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
     --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=$GPUS $ENVX \
-    -v \$HOME/intarsiaml-dh:/work -v /data/models:/models:ro -w /work $IMG /work/dh-intarsia serve --backend hip --model $M27 \
+    -v \$HOME/intarsiaml-dh:/work -v /data/models:/models:ro -w /work $IMG /work/$BINX serve --backend hip --model $M27 \
     --served-model-name qwen38-27b-$arm $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq ${MAXSEQ:-20480} --no-supervisor --host 0.0.0.0 --port $PORT" \
     < /dev/null > "$OUT/docker-$arm.id" 2>&1
   for i in $(seq 1 100); do curl -sf -m 3 "http://tatooine:$PORT/health" > /dev/null 2>&1 && return 0; sleep 3; done
