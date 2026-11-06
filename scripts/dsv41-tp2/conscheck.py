@@ -3,7 +3,7 @@
 
     conscheck.py URL OUT.json TEMPERATURE [--n 8]
 
-Chat requests with a json_schema response_format (thinking off, max_tokens 300, seed 500 + i). Prints per request the tokens, tok/s and
+Chat requests with a json_schema response_format (thinking off, max_tokens 300 (a reply that ends at the limit is invalid), seed 500 + i). Prints per request the tokens, tok/s and
 whether the reply is valid JSON with the schema's keys and types; writes the same to OUT.json. Exit 1 when a reply is invalid.
 """
 import argparse
@@ -35,7 +35,7 @@ def main():
     conn = http.client.HTTPConnection(u.hostname, u.port, timeout=600)
     rows, bad = [], 0
     for i in range(a.n):
-        body = {"model": "dsv41-intarsia", "messages": [{"role": "user", "content": f"Invent a person: {SUBJECTS[i % len(SUBJECTS)]}. Give a long list of tags."}],
+        body = {"model": "dsv41-intarsia", "messages": [{"role": "user", "content": f"Invent a person: {SUBJECTS[i % len(SUBJECTS)]}. Give exactly three short tags."}],
                 "temperature": a.temperature, "seed": 500 + i, "max_tokens": 300, "chat_template_kwargs": {"enable_thinking": False},
                 "response_format": {"type": "json_schema", "json_schema": {"name": "person", "strict": True, "schema": SCHEMA}}}
         t0 = time.time()

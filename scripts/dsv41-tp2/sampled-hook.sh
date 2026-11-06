@@ -51,8 +51,13 @@ abab_run() { catseg "$1-t07" 0.7; catseg "$1-t10" 1.0
   python3 "$S/conscheck.py" "$SURL/v1" "$OUT/cons-$1.json" 0.7 2>&1 | tee "$OUT/cons-$1.txt" | tail -3 | tee -a "$OUT/steps.log"; }
 gt_run() { python3 "$S/gtest.py" run "$SURL/v1" "$OUT/g-$1.jsonl" "$GN" "$2" 2>&1 | tail -2 | tee -a "$OUT/steps.log"; }
 
+# HELPERS_ONLY=1 (sampled-cons-hook.sh): stop after the helpers
+[[ ${HELPERS_ONLY:-0} == 1 ]] && return 0
+# SKIP_GATE=1 SKIP_TRACE=1 RET=<retention>: the second window of the lane (window 1 was killed by another lane's pkill during off1;
+# its gate and trace results stand)
 # ---- gate: greedy ids against main's, flag off and on
 for who in off on; do
+  [[ ${SKIP_GATE:-0} == 1 ]] && break
   e=""; [[ $who == on ]] && e="INTARSIA_DSV41_SPEC_SAMPLED=1"
   arm "gate-$who" "$e" gold "$OUT/gate-tok-$who.st" "sampled-spec gate flag $who"
   lib tokcmp "$REF" "$OUT/gate-tok-$who.st" --name-a main --name-b "flag-$who" --require-identical > "$OUT/gate-compare-$who.txt" 2>&1; rc=$?
@@ -60,8 +65,8 @@ for who in off on; do
   result "gate greedy ids vs main, flag $who: $([[ $rc == 0 ]] && echo PASS || echo FAIL)"
 done
 # ---- kill test: retention
-RET=""
-arm tr "INTARSIA_DSV41_SPEC_SAMPLED=1 INTARSIA_DSV41_SPEC_TRACE=1" trace_run
+RET=${RET:-}
+[[ ${SKIP_TRACE:-0} == 1 ]] || arm tr "INTARSIA_DSV41_SPEC_SAMPLED=1 INTARSIA_DSV41_SPEC_TRACE=1" trace_run
 if [[ -z $RET ]] || python3 -c "import sys; sys.exit(0 if float('${RET:-0}') >= 0.5 else 1)"; then
   result "kill test: retention $RET (>= 0.5): continue"
   RETC=$(python3 -c "print(round(min(1.0, max(0.3, float('$RET'))), 2))")
