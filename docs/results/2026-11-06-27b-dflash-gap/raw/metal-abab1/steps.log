@@ -1,0 +1,4 @@
+10:31:20 visit 1 mtp2 A: starting server
+10:37:42 visit 1 mtp2 A speed-spec: exit 0 results/20261106-103252-adhoc-df-mr-1-mtp2-A-speed-spec/result.json
+10:42:44 visit 1 mtp2 A speed-plain: exit 0 results/20261106-103743-adhoc-df-mr-1-mtp2-A-speed-plain/result.json
+10:42:45 visit 2 mtp2 B: starting server
