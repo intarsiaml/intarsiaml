@@ -81,7 +81,7 @@ under any numerics change, and fp8kv could not clear its divergence for want of 
   rounded after every launch, bitwise outputs, T = 1 and T > 1, four shapes; compiles under `--cfg ik_cuda` on the Mac, **not run yet**).
 - **C, emulation** (dev only, `INTARSIA_CUDA_GDN_STATE_BF16_EMU=1`): the same rounding on the f32 layout. `creal` must equal `cemu` (idgate: greedy ids, MTP on and
   `--spec off`, are an early hard gate in J1).
-- **D patch** (commit `4d9003f67`, **reverted on the branch by `3576701c9`** on 2026-11-06 so the branch merges without D; `git revert 3576701c9` brings it back. Original text: merge the branch with or without it, or `git revert` it alone): new per-backend recipe key
+- **D patch** (commit `4d9003f67`, **reverted on the branch by `8942c0764`** on 2026-11-06 so the branch merges without D; `git revert 8942c0764` brings it back. Original text: merge the branch with or without it, or `git revert` it alone): new per-backend recipe key
   `[tuning.<backend>] kv_dtype` (`Recipe::resolve_kv_dtype`, `--kv-dtype` still wins), `recipes/qwen3_5_moe.toml` sets `fp8_e4m3` under `[tuning.cuda]` only, test
   `recipe_kv_dtype.rs`. **The default stays bf16 until the user decides.** Merging it changes: (1) the 35B CUDA `plan show` (the KV cache bytes and dtype), nothing on
   Metal, HIP, CPU or any other model; (2) CUDA tests and `intarsia accuracy` baselines recorded with a bf16 KV cache of this model (they now load fp8; a recorded
@@ -297,12 +297,12 @@ memory saving at 32k / 128k context was not measured in this lane.
 - **D (fp8 KV default on CUDA 35B): the doc's rules are met as well** (Q1 to Q6 PASS; K / noise 1.12x to 1.23x on prefill, 64k 1.16x; no drift), but D buys no speed here: +0.7 % at 16 streams
   (rounds +4.2 % and -2.7 %) and +3.3 % at 16k single stream (+5.9 % and +0.8 %), against +9.9 % in the fp8kv lane; and, combined with C, it adds up to +35 % (prefill) and +59 % (16k decode window) to the noise-level KL.
   Recommendation: leave bf16 the default unless the halved KV memory at 128K context (spark2) is wanted; then D is allowed by the rules. Its flip commit `4d9003f67` is reverted
-  on the branch (`3576701c9`), and it was never built or run on a GPU as a default (smoke test of `/metrics` `kv_dtype` not run).
+  on the branch (`8942c0764`), and it was never built or run on a GPU as a default (smoke test of `/metrics` `kv_dtype` not run).
 - Nothing else in the doc asks for a decision.
 
 ### Merge readiness
 
-- Branch head = lane commits + revert of D + merge of `origin/main` (`1f4281d4c`) + scripts and this write-up. Without D: merge the branch as it is. With D: `git revert 3576701c9` first
+- Branch head = lane commits + revert of D + merge of `origin/main` (`1f4281d4c`) + scripts and this write-up. Without D: merge the branch as it is. With D: `git revert 8942c0764` first
   (it re-applies the D patch, which then needs its own build and the `/metrics` smoke test).
 - Checks on the merged tree: workspace `cargo test` passes (#8735), CUDA builds of main and dev (#8736), plan show byte-identical, `kernels test --quick` same, six GPU guards pass,
   idgate PASS (#8741). Metal no-op not re-run (see Q7).
