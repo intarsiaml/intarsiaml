@@ -2,11 +2,19 @@
 
 Lane `lane-ss/sampled-spec`, branch `lane-ss/sampled-spec`, 2026-11-05. Base: `origin/main` 602a1fcfe.
 
-**Status (results below; speed round 2 and CUDA are filled in when they finish).** Both variants are exact in law: exhaustive
-enumeration matches plain sampling to < 1e-12 and every statistical test passes (24 / 24 G-tests on Qwen3.5-0.8B, CPU).
-Greedy output is unchanged (workspace tests 1330 / 0 failed, Metal greedy ids 4 / 4 identical, plans identical, goldens PASS).
-Metal served decode (natural-v1, 1k / 4k): the 27B keeps the most with `reject` (x1.08-1.20 over sampled spec-off), the 35B with
-`match` (x1.15-1.23). Opt-in, default off.
+**Result.** Both variants are exact in law: exhaustive enumeration matches plain sampling to < 1e-12, and all 12 pre-registered
+G-tests on Qwen3.5-0.8B (CPU) pass (power 0.77-0.90 against w = 0.1 on the high-entropy config, below the >= 0.93 the rule
+assumed; >= 0.99 on the other). Greedy output is unchanged (workspace 1330 passed / 0 failed; greedy ids identical on Metal 4 / 4
+and CUDA 2 / 2; plans identical; goldens PASS). Served decode on natural-v1 1k / 4k, sampled spec over sampled spec-off:
+
+| backend, model | T 0 greedy MTP (today) | T 0.7 match | T 0.7 reject | T 1.0 match | T 1.0 reject |
+|---|---:|---:|---:|---:|---:|
+| Metal 27B (2 rounds) | x1.115 | x1.076 (66 %) | **x1.117 (102 %)** | x1.029 (25 %) | **x1.090 (78 %)** |
+| Metal 35B (2 rounds) | x1.288 | **x1.187 (65 %)** | x1.025 (9 %) | **x1.102 (35 %)** | x1.086 (30 %) |
+| CUDA 35B tp=1 (1 round) | x1.335 | **x1.222 (66 %)** | x1.161 (48 %) | **x1.150 (45 %)** | x1.106 (32 %) |
+
+(%) = share of the greedy MTP gain that survives. `reject` wins where a decode step is slow (27B); `match` wins where it is fast
+(35B), because `reject` pays k draft-row downloads and k full-vocabulary softmaxes on the host per pass. Opt-in, default off.
 
 ## Messages received during the lane
 
@@ -153,3 +161,105 @@ Metal (endor, fleetq #8605, base binary from `602a1fcfe`, branch binary from `ec
 | greedy ids 27B / 35B, short and 4K (with `INTARSIA_SPEC_SAMPLED=1` on the branch) | **identical 4 / 4** |
 | 8B goldens `qwen3-8b-fp32`, `qwen3-8b-long-fp32` | **PASS** both, base and branch |
 | sampled smoke, 27B T 0.7, 128 tokens | reject: 53 passes, 69.8 % accepted; match: 58 passes, 59.5 %; coherent text (`sampled-27-*.out`) |
+
+CUDA (spark1, fleetq #8652, base `602a1fcfe` and branch `c28ad2d3f` built there; `scripts/sampled-spec/cuda.sh`, `raw/cuda/`):
+`plan show` 35B text and json **identical**; `kernels test --backend cuda --quick` 106 kernels, 918 cases, exit 0; greedy ids 35B
+`--spec mtp --spec-k 2`, short and 4K, base vs branch with `INTARSIA_SPEC_SAMPLED=1`: **identical 2 / 2**.
+
+## 3. Gate 3: speed (reported, no threshold)
+
+Method: one `intarsia serve --max-batch 1` per arm (`scripts/sampled-spec/speed.sh`, `cuda.sh`), `localeval suite --tier adhoc
+--cells speed-spec` on the natural-v1 prompts, 256 forced tokens, 3 reps per size, chat template, thinking off. localeval has no
+temperature option: the targets file `.scratch/suite/targets.toml` sets it in `extra_body`, which the client applies after its
+own `temperature: 0` (checked in the saved request record: `extra_body {'temperature': 0.7}`; localeval's "Method" text still
+says temperature 0). top-p 1, top-k 0 (server defaults); localeval pins seed 0. The stock `speed-spec` cell runs only on a spec
+lane and at 128 / 1k / 4k / 16k, so a suite copy with sizes [1024, 4096] is used, and for the spec-off arms one with the cell's
+lane set to plain; prompts and their sha256 checks are the stock ones. Acceptance: the server's `/metrics` counters over the whole
+arm (probe and warmup requests included). Off arms run `--spec off`; T 0 arms are the greedy baseline (today's path: on Metal the
+pipelined GPU-accept MTP step); the sampled arms take the eager step.
+
+**Metal, endor** (fleetq #8606 round 1, #8674 round 2 in reverse arm order; Qwen3.8-27B Quark MXFP4 with the recipe's MTP k2 and
+65536-row draft head; Qwen3.6-35B-A3B NVFP4 with `--spec mtp --spec-k 2`). Round 2 ran 10-20 % slower in absolute tok/s on every
+arm, off arms included (box state, not the change), so the tables give each round's own ratios and their mean rather than
+pooling medians. Per round: `raw/speed-metal/table.md`, `raw/speed-metal-r2/table.md`; ratios: `raw/speed-metal-ratios.md`.
+
+| model | arm | x off (round 1: 1k, 4k; round 2: 1k, 4k) | mean | greedy gain kept | acceptance r1 / r2 |
+|---|---|---|---:|---:|---|
+| 27B | T0 MTP (greedy) | 1.200, 1.131, 1.090, 1.038 | 1.115 | 100 % | 67.7 / 69.3 % |
+| 27B | T0.7 match | 1.047, 1.124, 1.071, 1.062 | 1.076 | 66 % | 65.8 / 64.2 % |
+| 27B | T0.7 reject | 1.083, 1.175, 1.134, 1.074 | 1.117 | 102 % | 70.3 / 69.8 % |
+| 27B | T1.0 match | 1.033, 1.053, 1.009, 1.022 | 1.029 | 25 % | 60.3 / 55.8 % |
+| 27B | T1.0 reject | 1.154, 1.197, 0.991, 1.018 | 1.090 | 78 % | 63.6 / 65.8 % |
+| 35B | T0 MTP (greedy) | 1.366, 1.302, 1.227, 1.257 | 1.288 | 100 % | 70.5 / 69.6 % |
+| 35B | T0.7 match | 1.229, 1.210, 1.149, 1.160 | 1.187 | 65 % | 66.6 / 65.9 % |
+| 35B | T0.7 reject | 1.125, 1.113, 0.904, 0.958 | 1.025 | 9 % | 70.5 / 71.2 % |
+| 35B | T1.0 match | 1.177, 1.147, 0.916, 1.167 | 1.102 | 35 % | 62.3 / 62.1 % |
+| 35B | T1.0 reject | 1.067, 1.047, 1.109, 1.122 | 1.086 | 30 % | 67.9 / 67.5 % |
+
+Absolute decode tok/s, round 1 (1k / 4k): 27B off T0 28.0 / 27.5, T0.7 27.8 / 27.4, T1.0 27.2 / 26.4; 35B off T0 123.5 / 120.3,
+T0.7 105.4 / 103.5, T1.0 106.3 / 104.1 (host sampling alone costs the 35B ~1.4 ms per token). Spread: m27 T1.0 match round 1 was
+rejected by localeval's spread gate (sampled text varies its acceptance per request); its numbers are kept and marked here.
+localeval runs: `/opt/code/deepeval/results/20261105-19*-ss-*` (round 1) and `20261105-21*`/`22*-ss-*` (round 2), ids in the tables.
+
+**CUDA 35B tp=1, spark1** (fleetq #8652, one round, vLLM left up, `--mem-budget 40`):
+
+| arm | decode 1k / 4k | x off 1k / 4k | greedy gain kept | acceptance |
+|---|---|---|---:|---:|
+| T0 off | 85.5 / 83.0 | | | |
+| T0 MTP | 115.8 / 109.2 | 1.354 / 1.316 | 100 % | 69.0 % |
+| T0.7 off | 73.1 / 71.3 | | | |
+| T0.7 match | 90.1 / 86.4 | 1.233 / 1.212 | 66 % | 68.0 % |
+| T0.7 reject | 85.9 / 81.8 | 1.175 / 1.147 | 48 % | 71.9 % |
+| T1.0 off | 73.3 / 71.6 | | | |
+| T1.0 match | 85.6 / 81.1 | 1.168 / 1.133 | 45 % | 61.1 % |
+| T1.0 reject | 79.1 / 81.1 | 1.079 / 1.133 | 32 % | 66.8 % |
+
+**Reading.** `reject` always accepts more (+4 to +8 points: it drafts from q and keeps min(1, p/q) of the mass, where `match`
+keeps p(argmax)). It pays for it on the host: per pass k draft rows (248k floats each) come back and go through a full-vocabulary
+softmax, plus the residual on a reject. Where a decode step is ~35 ms (27B Metal) that is small and `reject` keeps the greedy gain
+(T0.7) or most of it (T1.0); where a step is ~8-12 ms (35B) it eats most of the extra acceptance and `match` is ahead. Both lose more
+at T1.0 than T0.7 (lower acceptance). The sampled step is the eager one; the greedy T0 arm on Metal uses the pipelined GPU-accept
+step, so part of the gap to the greedy gain is the step, not the sampling.
+
+HIP: **not run** (tatooine belongs to another session).
+
+## 5. Recommendation
+
+- **Not default-on yet.** Exactness is shown, and greedy is untouched, but the sampled output for a seed differs from spec-off
+  (same law, other tokens), the best variant depends on the model and backend, and the Metal numbers drift 10-20 % between rounds.
+- If one variant is to become the default for sampled traffic (the server's default temperature is 1.0), **`match` on the 35B
+  (Metal and CUDA: x1.10-1.22) and `reject` on the 27B (Metal: x1.09-1.12)**; a recipe key per model would express that. `match`
+  alone is the simpler and safer single choice: no draft-side change, no host softmax over draft rows, never slower than off in
+  the means above (27B T1.0 is the weakest, x1.03).
+- Cheap follow-ups for `reject`: keep the draft probabilities on the device (softmax + the drafted token's probability, not the
+  whole row), and use device top-k when the request sets top-k (`HeadMode::LastTopK`, as batched decode does).
+
+## 6. What porting would take (out of scope here)
+
+- **DeepSeek-V4.1** (`crates/intarsia-models/src/dsv41_engine.rs:836`, `spec = self.spec.filter(|_| req.temperature <= 0.0 ...)`):
+  its verify consumer already draws per row and accepts iff the draw equals the draft (lines ~859-925), which is `match`. Porting
+  `match` = lift the temperature filter and make the verify rows of a sampled request come back as logits rows, not device
+  argmax (`Row::Logits` instead of `Row::Tok`). `reject` would also need the drafter's per-position distribution.
+- **DFlash2** (block draft): `match` needs only the verify logits (`Model::forward_verify_logits`) after `dflash_draft`; `reject`
+  needs the block's per-position draft logits (the block predicts all positions in one pass, so q_i does not depend on the earlier
+  sampled drafts; sampling each position from its own q_i is still a valid proposal as long as the accept test uses that q_i).
+  `--spec auto` would then pick per pass between two sampled drafters with the same acceptance rule.
+
+## 7. Not run, or uncertain
+
+- HIP (tatooine): not run, by the brief.
+- Batched decode (`--max-batch` > 1), constrained output, `trace_logits`, tensor parallelism: sampled requests take plain steps there
+  (unchanged); the prefix-store exclusion of drafting requests is unchanged.
+- The captured (HIP graph) and pipelined (Metal GPU-accept) spec steps are bypassed for sampled requests; no device-side version.
+- Statistical power on config A is 0.77-0.90 at w = 0.1 (section 2.3), below the pre-written >= 0.93.
+- Speed: Metal 2 rounds, CUDA 1 round, 3 reps per cell; between-round drift on Metal 10-20 %. Top-p / top-k were not varied in the
+  speed runs (server defaults top-p 1, top-k 0, so `dist` takes its unsorted full-vocabulary path).
+- The spec-trace host timing of a sampled pass (`INTARSIA_SPEC_TRACE=1` prints draft / verify / accept ms) was not collected in
+  the served runs, so the host-cost explanation of `reject` on the 35B is inferred from the ratios, not measured.
+
+## Files
+
+`crates/intarsia-core/src/{sampler.rs,spec.rs,engine.rs,model.rs}`, `crates/intarsia-core/src/model/{mtp.rs,batch.rs,spec_pipe.rs}`
+(comment only), `crates/intarsia-models/tests/{mtp.rs,sampled_spec_real.rs}`, `docs/tuning.md` (`INTARSIA_SPEC_SAMPLED` and the
+harness variables), `docs/decisions/LOG.md`, `scripts/sampled-spec/{stat-run.sh,gtest.py,speed.sh,speed-table.py,speed-ratio.py,
+noop-metal.sh,cuda.sh}`, this doc, `2026-11-05-sampled-spec/raw/`.

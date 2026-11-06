@@ -1,0 +1,13 @@
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
+verify attention rows: engaged (one row-table attention launch per layer)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_decode_v2_rows_bf16 matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 moe_experts=moe_experts_bf16 argmax=argmax_f32
+loaded nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 in 31.8s: 40 layers, hidden 2048, act bf16, kv bf16, weights 21.36 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 4034 tokens
+ids: [271, 248068, 198, 8160, 579, 264, 7047, 1817, 25, 271, 16, 13, 220, 2972, 15771, 2598, 279, 2570, 579, 5952, 64700, 198, 262, 471, 2972, 2425, 64700, 8483, 1970, 364, 1510, 7945, 80, 6971, 63, 318, 64, 2526, 303, 48409, 2531, 6951, 681, 6149, 6813, 11, 321, 264, 9584, 1830, 13, 198, 262, 471, 2972, 45209, 8001, 64700, 198, 285, 220, 16, 13, 357, 6795, 46306, 1141, 9345, 13205, 4162, 303, 1141, 4368, 1238, 279, 11525, 14973, 279, 2531, 430, 4490, 321, 35551, 264, 21979, 13, 1061, 10814, 21814, 8427, 318, 89, 22617, 4368, 478, 21979]
+finish=length prompt=4034 (cached 0) completion=96 | prefill 1142 ms (3531.0 tok/s) | decode 810 ms (117.26 tok/s)
+spec: verify passes=36 proposed=72 accepted=58 (acceptance 80.6%, 2.61 tokens per pass)
+macro prefill passes=1
+steps=40 graph replays=36 (captures 4) eager decode steps=0 (profiled 0) top ops: moe_experts=242ms/1632 matmul=220ms/5958 gdn_delta_rule=110ms/3360 matmul_fp8=101ms/2100 gdn_conv=24ms/3360
