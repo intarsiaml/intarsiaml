@@ -14,7 +14,7 @@ n=0
 for v in $VISITS; do
   n=$((n+1)); mode=${v%.*}; arm=${v#*.}; extra=""; [ $mode = plain ] && extra="--spec off"; envs=""; [ $arm = O ] && envs="INTARSIA_LMHEAD_QUANT=off"
   say "visit $n $v: starting server"; stop
-  $S "cd ~/lmh-cuda && export PATH=\$HOME/.cargo/bin:/usr/local/cuda/bin:\$PATH && nohup env $envs target-head/release/intarsia serve --backend cuda --model models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name qwen38-27b --max-seq 8192 --mem-budget 45 --profile-every 0 --no-supervisor $extra --host 0.0.0.0 --port $PORT > out/serve-$n-$v.log 2>&1 < /dev/null & echo \$! > ~/lmh-cuda/serve.pid"
+  $S "cd ~/lmh-cuda; export PATH=\$HOME/.cargo/bin:/usr/local/cuda/bin:\$PATH; nohup env $envs target-head/release/intarsia serve --backend cuda --model models/Qwen3.8-27B-Quark-AWQ-MXFP4 --served-model-name qwen38-27b --max-seq 8192 --mem-budget 45 --profile-every 0 --no-supervisor $extra --host 0.0.0.0 --port $PORT > out/serve-$n-$v.log 2>&1 < /dev/null & echo \$! > ~/lmh-cuda/serve.pid"
   up=0; for i in $(seq 1 120); do curl -sf -m 3 http://spark1:$PORT/health > /dev/null 2>&1 && { up=1; break; }; sleep 3; done
   [ $up = 1 ] || { say "visit $n $v: server did not come up"; continue; }
   $S "grep -ah 'lm_head quantised\|speculative decoding' ~/lmh-cuda/out/serve-$n-$v.log | head -2 | cut -c1-160" | tee -a "$O/steps.log"
