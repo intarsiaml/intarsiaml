@@ -679,17 +679,7 @@ impl Model {
             };
             let mut drafts: Vec<u32> = if shard {
                 // this rank's candidates: the top `cand` of each row of its shard, as vocabulary ids
-                let mut lb = vec![0u8; (t - 1) * vh * 4];
-                self.backend.download(&ws.logits, 0, &mut lb, self.stream)?;
-                let logits: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
-                let base = self.tp.rank * vh;
-                let mine: Vec<Vec<(f32, usize)>> = (0..t - 1)
-                    .map(|p| {
-                        let mut top = Vec::with_capacity(d2.cand + 1);
-                        super::dflash2::row_topk(&logits[p * vh..(p + 1) * vh], d2.cand, base, &mut top);
-                        top
-                    })
-                    .collect();
+                let mine = self.dflash2_candidates(d2, t - 1, vh, self.tp.rank * vh)?;
                 t_dl = std::time::Instant::now();
                 match link {
                     DraftLink2::Follow(tx) => {
@@ -721,6 +711,11 @@ impl Model {
                         let mut b = vec![0u8; (t - 1) * 4];
                         self.backend.download(tok, 0, &mut b, self.stream)?;
                         b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect()
+                    }
+                    Some(sl) if d2.topk.is_some() => {
+                        let tops = self.dflash2_candidates(d2, t - 1, v, 0)?;
+                        t_dl = std::time::Instant::now();
+                        sl.pick(&tops, &hp(sl)?, next)
                     }
                     Some(sl) => {
                         let mut lb = vec![0u8; (t - 1) * v * 4];
@@ -803,6 +798,73 @@ impl Model {
         let mut drafts: Vec<u32> = b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect();
         drafts.truncate(k);
         Ok(drafts)
+    }
+
+    /// Each of the `rows` draft logits rows' (`ws.logits` `[rows, n]`, the row's columns are vocabulary ids `base ..`) top `d2.cand`
+    /// values as `(value, id)`, largest first, ties by ascending id: on the device when the draft has its top-k buffers (lane dh item
+    /// 2; a row the kernel flags for a NaN is taken on the host instead, as is everything on a backend without it), else from the
+    /// downloaded logits on the host. Both orders are [`super::dflash2::row_topk`]'s.
+    fn dflash2_candidates(&self, d2: &super::dflash2::Draft2, rows: usize, n: usize, base: usize) -> Result<Vec<Vec<(f32, usize)>>> {
+        let k = d2.cand;
+        let host_row = |p: usize| -> Result<Vec<(f32, usize)>> {
+            let mut lb = vec![0u8; n * 4];
+            self.backend.download(&self.ws.logits, p * n * 4, &mut lb, self.stream)?;
+            let row: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+            let mut top = Vec::with_capacity(k + 1);
+            super::dflash2::row_topk(&row, k, base, &mut top);
+            Ok(top)
+        };
+        if let Some([bi, bv, bn, bs]) = &d2.topk {
+            let logits = self.view(&self.ws.logits, DType::F32, &[rows, n]);
+            let (ti, tv, tn, ts) = (
+                self.view(bi, DType::I32, &[rows, k]),
+                self.view(bv, DType::F32, &[rows, k]),
+                self.view(bn, DType::I32, &[rows]),
+                self.view(bs, DType::U8, &[rows * 32 * k * 8]),
+            );
+            match self.backend.topk_rows(&logits, k, &ti, &tv, &tn, &ts, self.stream) {
+                Ok(()) => {
+                    let (mut ib, mut vb, mut nb) = (vec![0u8; rows * k * 4], vec![0u8; rows * k * 4], vec![0u8; rows * 4]);
+                    self.backend.download(bi, 0, &mut ib, self.stream)?;
+                    self.backend.download(bv, 0, &mut vb, self.stream)?;
+                    self.backend.download(bn, 0, &mut nb, self.stream)?;
+                    let word = |b: &[u8], i: usize| [b[4 * i], b[4 * i + 1], b[4 * i + 2], b[4 * i + 3]];
+                    let dev: Vec<Vec<(f32, usize)>> = (0..rows)
+                        .map(|p| {
+                            if i32::from_le_bytes(word(&nb, p)) != 0 {
+                                return host_row(p);
+                            }
+                            Ok((0..k).map(|j| (f32::from_le_bytes(word(&vb, p * k + j)), base + i32::from_le_bytes(word(&ib, p * k + j)) as usize)).collect())
+                        })
+                        .collect::<Result<_>>()?;
+                    if d2.topk_check {
+                        let mut bad = 0;
+                        for (p, d) in dev.iter().enumerate() {
+                            let h = host_row(p)?;
+                            if h.iter().map(|x| (x.0.to_bits(), x.1)).ne(d.iter().map(|x| (x.0.to_bits(), x.1))) {
+                                bad += 1;
+                                eprintln!("dflash2 topk check: rank {} row {p} differs: device {d:?} host {h:?}", self.tp.rank);
+                            }
+                        }
+                        eprintln!("dflash2 topk check: rank {} rows {rows} differing {bad}", self.tp.rank);
+                    }
+                    return Ok(dev);
+                }
+                Err(Error::Unsupported(_)) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        // one download of every row (a row at a time costs a synchronisation each)
+        let mut lb = vec![0u8; rows * n * 4];
+        self.backend.download(&self.ws.logits, 0, &mut lb, self.stream)?;
+        let logits: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        Ok((0..rows)
+            .map(|p| {
+                let mut top = Vec::with_capacity(k + 1);
+                super::dflash2::row_topk(&logits[p * n..(p + 1) * n], k, base, &mut top);
+                top
+            })
+            .collect())
     }
 
     /// Tests: put `rows` context positions into the draft from host features (`[rows, taps * H]` f32, rounded to the activation

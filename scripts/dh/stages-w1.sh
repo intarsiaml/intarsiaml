@@ -2,7 +2,9 @@
 # Lane dh window w1 (ON tatooine, radiance down; PRE=w1 of cat-window.sh): items 0 and 1.
 #   plan show, base (main 982ec8b27, dh-intarsia-base) vs dev (the branch, dh-intarsia), 27B tp2: --spec off, --spec mtp k2 (must be identical),
 #   --spec dflash k7 (item 0: the window kernel planned); dev --spec dflash k7 with INTARSIA_DFLASH_TP=1 (recorded).
-#   generate, short-0 and 4k-1: off; dfl7 A (knob unset) / B (INTARSIA_DFLASH_TP=1) in the order A B A B, INTARSIA_SPEC_TRACE=1; ids against off.
+#   generate, short-0 and 4k-1: off; dfl7 A (knobs unset) / B (INTARSIA_DFLASH_TP=1) / C (B + INTARSIA_DFLASH_DEVICE_TOPK=1) in the order
+#   A B C A B C (item 1: A B A B, item 2: B C B C), INTARSIA_SPEC_TRACE=1; ids against off; one B run with the device top-k in check mode.
+#   Item 3 data: MTP k1..k6 traces at short-0 (verify + rollback against rows); profiled op tables of off, dfl7 A and dfl7 C.
 set -uo pipefail
 export O=${1:?out dir}
 source "$HOME/intarsiaml-dh/.dh/lib.sh"
@@ -33,11 +35,27 @@ for n in short-0 4k-1; do
     grep -a '^ids:' "$O/gen-$tag.err" > "$O/gen-$tag.ids"
   }
   g "$n-off" "" --spec off
+  B="INTARSIA_DFLASH_TP=1"; C="INTARSIA_DFLASH_TP=1 INTARSIA_DFLASH_DEVICE_TOPK=1"
   # shellcheck disable=SC2086
-  { g "$n-A1" "" $DFL; g "$n-B1" "INTARSIA_DFLASH_TP=1" $DFL; g "$n-A2" "" $DFL; g "$n-B2" "INTARSIA_DFLASH_TP=1" $DFL; }
-  for a in A1 B1 A2 B2; do
+  { g "$n-A1" "" $DFL; g "$n-B1" "$B" $DFL; g "$n-C1" "$C" $DFL; g "$n-A2" "" $DFL; g "$n-B2" "$B" $DFL; g "$n-C2" "$C" $DFL; }
+  # shellcheck disable=SC2086
+  g "$n-K" "INTARSIA_DFLASH_TP=1 INTARSIA_DFLASH_DEVICE_TOPK=check" $DFL
+  log "topk check $n: $(grep -a 'dflash2 topk check: rank .* rows' "$O/gen-$n-K.err" | awk '{r+=$7; d+=$9; c++} END{printf "%d calls, %d rows, %d differing", c, r, d}')"
+  for a in A1 B1 C1 A2 B2 C2 K; do
     if cmp -s "$O/gen-$n-off.ids" "$O/gen-$n-$a.ids" && [[ -s "$O/gen-$n-off.ids" ]]; then log "PASS ids $a tp2 $n"; else log "FAIL ids $a tp2 $n"; fi
     log "trace $a $n: $(grep -a 'verify + rollback' "$O/gen-$n-$a.err" | tail -n +5 | awk '{s+=$(NF-1); d+=$4; c++} END{if(c)printf "mean draft %.2f verify+rollback %.2f ms n=%d", d/c, s/c, c}') | $(grep -a 'dflash2 draft flush' "$O/gen-$n-$a.err" | tail -n +5 | awk '{f+=$5; b+=$7; h+=$9; sp+=$11; dl+=$13; se+=$15; t+=$17; c++} END{if(c)printf "dflash2 flush %.2f block %.2f head %.2f selproj %.2f dl %.2f select %.2f total %.2f n=%d", f/c,b/c,h/c,sp/c,dl/c,se/c,t/c,c}') | $(grep -aE 'decode .*tok/s' "$O/gen-$n-$a.err" | tail -1 | cut -c1-160)"
   done
+done
+P=$(cat "$TRK/short-0.txt")
+for kk in 1 2 3 4 5 6; do
+  E="INTARSIA_SPEC_TRACE=1" run "$D" 0,1 420 "gen-mtp$kk" generate -m "$M27" --backend hip --mem-budget 29 --max-seq 8192 --chat --no-think \
+    --profile-every 0 --ignore-eos --show-ids -p "$P" --max-tokens 256 $TP2 --spec mtp --spec-k $kk
+  log "vcurve mtp k$kk ($((kk + 1)) rows): $(grep -a 'verify + rollback' "$O/gen-mtp$kk.err" | tail -n +5 | awk '{s+=$(NF-1); d+=$4; c++} END{if(c)printf "mean draft %.2f verify+rollback %.2f ms n=%d", d/c, s/c, c}') | $(grep -aE 'decode .*tok/s' "$O/gen-mtp$kk.err" | tail -1 | cut -c1-120)"
+done
+for a in "off::--spec off" "dflA::$DFL" "dflC:INTARSIA_DFLASH_TP=1 INTARSIA_DFLASH_DEVICE_TOPK=1:$DFL"; do
+  tag=${a%%:*}; rest=${a#*:}; e=${rest%%:*}; args=${rest#*:}
+  # shellcheck disable=SC2086
+  E="$e" run "$D" 0,1 420 "optable-$tag" generate -m "$M27" --backend hip --mem-budget 29 --max-seq 8192 --chat --no-think \
+    --profile-every 1 --op-table --ignore-eos -p "$P" --max-tokens 128 $TP2 $args
 done
 log "w1 stages done"

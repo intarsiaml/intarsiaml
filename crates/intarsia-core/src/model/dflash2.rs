@@ -170,6 +170,13 @@ pub(super) struct Draft2 {
     /// Candidates per block row the drafts are picked from: the selector's `top_k`, 1 (the argmax) without it. Every rank of a
     /// split draft knows it (each sends rank 0 the top candidates of its vocabulary shard).
     pub(super) cand: usize,
+    /// Lane dh item 2 (`INTARSIA_DFLASH_DEVICE_TOPK=1`, default off, a backend with `Backend::topk_rows`): each row's candidates
+    /// taken on the device (ids i32 `[block, cand]`, values f32 `[block, cand]`, NaN flags i32 `[block]`, the kernel's scratch), so
+    /// only `cand` values a row are downloaded instead of the row's logits. `None`: the host takes them from the downloaded logits.
+    pub(super) topk: Option<[Buffer; 4]>,
+    /// `INTARSIA_DFLASH_DEVICE_TOPK=check`: the device top-k as `1`, and the host's from the downloaded logits as well, every
+    /// difference printed (`dflash2 topk check`): the GPU gate that the device candidates are the host's.
+    pub(super) topk_check: bool,
 }
 
 /// The `[2*K*G, H]` kernel projection split into its two branches (rows `0..K*G` and `K*G..2*K*G`), each its own buffer.
@@ -363,8 +370,24 @@ pub(super) fn load2(
         None
     };
     let sel_out = alloc(t * c.selector_rank.max(1))?;
+    let cand = if has_selector { c.selector_top_k.min(c.vocab) } else { 1 };
+    let topk_env = std::env::var("INTARSIA_DFLASH_DEVICE_TOPK").unwrap_or_default();
+    let topk_check = topk_env.trim() == "check";
+    let device_topk = (topk_env.trim() == "1" || topk_check) && b.supports_topk() && cand <= 64;
+    let topk = if device_topk {
+        let r = t.max(1);
+        let mk = |bytes: usize| -> Result<Buffer> {
+            add_bytes(bytes as u64);
+            b.alloc(bytes.max(16), MemKind::Device)
+        };
+        Some([mk(r * cand * 4)?, mk(r * cand * 4)?, mk(r * 4)?, mk(r * 32 * cand * 8)?])
+    } else {
+        None
+    };
     Ok(Draft2 {
-        cand: if has_selector { c.selector_top_k.min(c.vocab) } else { 1 },
+        cand,
+        topk,
+        topk_check,
         selector,
         sel_out,
         layers,
