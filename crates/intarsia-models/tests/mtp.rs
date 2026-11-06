@@ -1428,7 +1428,7 @@ fn cost_gate_with_scripted_drafts_stays_identical() {
 /// `recipe_dv` and the load option `opt` (`None`: the flag was not given).
 fn drafts_of(w: &MemWeights, recipe_dv: Option<usize>, opt: Option<usize>) -> Vec<Vec<u32>> {
     let (mut recipe, dims) = dims();
-    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_peel_period: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, mxfp4_act: None, busy_chunk: None, tp_partial: None });
+    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_peel_period: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, batched_mtp: None, mxfp4_act: None, busy_chunk: None, tp_partial: None });
     let opts = LoadOptions {
         max_seq: 512,
         prefill_chunk: 8,
@@ -1624,7 +1624,7 @@ fn prefill_peel_period_reaches_the_model_and_the_prefix_store_key() {
             "cpu".into(),
             intarsia_core::recipe::BackendTuning {
                 prefill_chunk: None, mtp_draft_vocab: None, prefill_peel: peel, prefill_peel_period: period, prefill_macro: None,
-                mtp_default_tp_k: None, mtp_default_k: None, mxfp4_act: None, busy_chunk: None, tp_partial: None,
+                mtp_default_tp_k: None, mtp_default_k: None, batched_mtp: None, mxfp4_act: None, busy_chunk: None, tp_partial: None,
             },
         );
         let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), profile_every: 0, ..Default::default() };
