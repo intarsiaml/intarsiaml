@@ -1,0 +1,7 @@
+rank 0: NCCL 2.30.7
+rank 0  bytes/rank   ar_inplace(pipe,sync)  ar_into_bf16(pipe,sync)  ag(pipe,sync)   [us per call]   ar_inplace GB/s
+rank 0   41943040    2683.2  2819.8    2968.9  3382.3    3096.5  3152.6    15.63
+rank 0  cold test (10 rounds, idle 3000 ms, lead 7000 us, 41943040 bytes): median us: after-idle 3245  warm-at-once 2640  after-idle-with-16384-byte-lead 3284 (tiny issue to big done 10517)
+rank 0  cold all: [3113, 3152, 3158, 3159, 3234, 3244, 3451, 8932, 8956, 9168]
+rank 0  lead all: [2679, 2980, 2993, 3074, 3095, 3283, 3495, 9053, 9105, 9310]
+NCCL version 2.30.7+cuda13.3

@@ -1,0 +1,48 @@
+fleetq: #8753 running on spark2: scripts/spark35num/flip.sh
+flip.sh on spark2 09:21:41: main=2abdc24754dcdd6b98f3ba1824306962f8a0ee8d head=bf2213fc8c18cc6f77c67f7dcd783c79c054dcaf; MemAvailable 74 GB
+plan 8b txt: exit main=0 head=0 head-off=0
+PASS plan 8b txt: head with INTARSIA_GDN_STATE=f32 == main (byte-identical)
+PASS plan 8b txt: head default == main (byte-identical)
+plan 8b json: exit main=0 head=0 head-off=0
+PASS plan 8b json: head with INTARSIA_GDN_STATE=f32 == main (byte-identical)
+PASS plan 8b json: head default == main (byte-identical)
+plan 27b txt: exit main=1 head=1 head-off=1
+FAIL plan 27b txt did not run (see /opt/code/intarsiaml/.worktrees/spark35-numerics/docs/results/2026-11-06-gdn-bf16-default-raw/flip/flip-plan-27b-*.err)
+plan 27b json: exit main=1 head=1 head-off=1
+FAIL plan 27b json did not run (see /opt/code/intarsiaml/.worktrees/spark35-numerics/docs/results/2026-11-06-gdn-bf16-default-raw/flip/flip-plan-27b-*.err)
+plan 35b txt: exit main=0 head=0 head-off=0
+PASS plan 35b txt: head with INTARSIA_GDN_STATE=f32 == main (byte-identical)
+PASS plan 35b txt: head default == main (byte-identical)
+plan 35b json: exit main=0 head=0 head-off=0
+PASS plan 35b json: head with INTARSIA_GDN_STATE=f32 == main (byte-identical)
+PASS plan 35b json: head default == main (byte-identical)
+16k-1: 256 tokens
+16k-1: 256 tokens
+16k-1: 256 tokens
+PASS greedy ids: off switch == main (6 prompts x 256)
+greedy ids head default vs main (reported, differs by design):
+1k-0: differ first_diff=27 positional_agreement=0.113 n=256
+4k-0: differ first_diff=22 positional_agreement=0.207 n=256
+16k-0: differ first_diff=2 positional_agreement=0.016 n=256
+1k-1: differ first_diff=49 positional_agreement=0.211 n=256
+4k-1: differ first_diff=27 positional_agreement=0.137 n=256
+16k-1: differ first_diff=26 positional_agreement=0.152 n=256
+== round 1 arm on 09:36:48
+gdn-on-burst-r1: [localeval] 4 streams: aggregate 180.6 tok/s [localeval] 8 streams: aggregate 254.4 tok/s [localeval] 16 streams: aggregate 332.2 tok/s 
+== round 1 arm off 09:38:10
+gdn-off-burst-r1: [localeval] 4 streams: aggregate 174.2 tok/s [localeval] 8 streams: aggregate 233.4 tok/s [localeval] 16 streams: aggregate 307.3 tok/s 
+== round 2 arm off 09:39:33
+gdn-off-burst-r2: [localeval] 4 streams: aggregate 172.4 tok/s [localeval] 8 streams: aggregate 233.0 tok/s [localeval] 16 streams: aggregate 307.8 tok/s 
+== round 2 arm on 09:40:55
+gdn-on-burst-r2: [localeval] 4 streams: aggregate 183.2 tok/s [localeval] 8 streams: aggregate 250.1 tok/s [localeval] 16 streams: aggregate 331.0 tok/s 
+== round 3 arm on 09:42:19
+gdn-on-burst-r3: [localeval] 4 streams: aggregate 179.4 tok/s [localeval] 8 streams: aggregate 247.0 tok/s [localeval] 16 streams: aggregate 332.9 tok/s 
+== round 3 arm off 09:43:38
+gdn-off-burst-r3: [localeval] 4 streams: aggregate 174.7 tok/s [localeval] 8 streams: aggregate 231.1 tok/s [localeval] 16 streams: aggregate 307.1 tok/s 
+
+16-stream aggregate tok/s (on = recipe default bf16 state, off = INTARSIA_GDN_STATE=f32):
+ 4 streams: on [180.6, 183.2, 179.4] mean 181.1 | off [174.2, 172.4, 174.7] mean 173.8 | gain +4.2 % (per round +3.7, +6.3, +2.7)
+ 8 streams: on [254.4, 250.1, 247.0] mean 250.5 | off [233.4, 233.0, 231.1] mean 232.5 | gain +7.7 % (per round +9.0, +7.3, +6.9)
+16 streams: on [332.2, 331.0, 332.9] mean 332.0 | off [307.3, 307.8, 307.1] mean 307.4 | gain +8.0 % (per round +8.1, +7.5, +8.4)
+flip.sh done 09:44:59 fails=2
+fleetq: #8753 done (exit 1)

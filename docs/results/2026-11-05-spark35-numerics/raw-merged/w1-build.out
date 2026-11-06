@@ -1,0 +1,23 @@
+fleetq: #8736 running on spark2: scripts/spark35num/w1.sh
+window 1 on spark2, 07:14:38, head 36a3b4688, MemAvailable 73 GB
+main = af6aa522672970e92c781efd57a55f44f43c4ab3, dev = 1f4281d4cffc47b22781a904b58bafe7245952d6
+build main from af6aa522672970e92c781efd57a55f44f43c4ab3 (ref-af6aa5226729) 07:15:30
+    Finished `release` profile [optimized] target(s) in 3m 21s
+intarsia 0.0.1
+built main 07:18:53
+/dev/nvme0n1p2  3.7T  3.3T  214G  95% /
+4.5G	/home/nvidia/intarsiaml-s35
+build dev from 1f4281d4cffc47b22781a904b58bafe7245952d6 (ref-1f4281d4cffc) 07:19:43
+    Finished `release` profile [optimized] target(s) in 3m 27s
+intarsia 0.0.1
+built dev 07:23:12
+/dev/nvme0n1p2  3.7T  3.3T  214G  95% /
+4.5G	/home/nvidia/intarsiaml-s35
+built t_gdn_state16
+built t_gdn_split
+built t_gdn_conv16
+built t_gdn_lanes
+built t_rows_exact
+built t_row_tables
+window 1 done 07:23:31, 156 min of the budget left
+fleetq: #8736 done (exit 0)

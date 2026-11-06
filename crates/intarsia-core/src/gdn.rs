@@ -135,8 +135,9 @@ pub fn check(call: &OpCall) -> Result<()> {
                     return bad(format!("{what} {:?} must be [Hv={hv}]", i[idx].shape));
                 }
             }
-            if o[1].dtype != DType::F32 {
-                return bad("recurrent state must be f32".into());
+            // bf16 where the model stores it so (`Backend::gdn_state_supported`, lane spark35)
+            if !matches!(o[1].dtype, DType::F32 | DType::Bf16) {
+                return bad("recurrent state must be f32 or bf16".into());
             }
         }
         Op::ShortConv => {

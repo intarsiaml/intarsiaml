@@ -1,0 +1,18 @@
+
+running 2 tests
+test bf16_state_is_the_f32_state_rounded_after_every_launch ... gdn_state16: bf16 state == f32 state rounded after every launch, 56 launches over 4 shapes
+ok
+test bf16_state_stays_near_the_f32_state_over_many_decode_steps ... gdn_state16: step 100: |S16 - S32| / |S32| = 2.768e-3
+gdn_state16: step 200: |S16 - S32| / |S32| = 2.792e-3
+gdn_state16: step 300: |S16 - S32| / |S32| = 2.757e-3
+gdn_state16: step 400: |S16 - S32| / |S32| = 2.767e-3
+gdn_state16: step 500: |S16 - S32| / |S32| = 2.753e-3
+gdn_state16: step 600: |S16 - S32| / |S32| = 2.817e-3
+gdn_state16: step 700: |S16 - S32| / |S32| = 2.831e-3
+gdn_state16: step 800: |S16 - S32| / |S32| = 2.718e-3
+gdn_state16: step 900: |S16 - S32| / |S32| = 2.755e-3
+gdn_state16: step 1000: |S16 - S32| / |S32| = 2.842e-3
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+

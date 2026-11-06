@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/spark35-numerics/docs/results/2026-11-05-spark35-numerics/raw/data/needle-64k.jsonl: 8 rows, judge=none
+# localeval: adhoc — 2026-11-05T20:41
+
+- model: `intarsia` on ? (?), url `http://spark-fa00:8196/v1`
+- thinking: off; run kind: quality; label: s35-base-needle-64k
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --url http://spark-fa00:8196/v1 --model intarsia --thinking off --ignore-busy --no-unim --dataset /opt/code/intarsiaml/.worktrees/spark35-numerics/docs/results/2026-11-05-spark35-numerics/raw/data/needle-64k.jsonl --judge none --max-tokens 256 --label s35-base-needle-64k --recipe spark35 intarsia serve --backend cuda --max-seq 73728 --mem-budget 45 bin=dev env='' `
+- result file: `results/20261105-204100-adhoc-s35-base-needle-64k/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+spark35 intarsia serve --backend cuda --max-seq 73728 --mem-budget 45 bin=dev env=''
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/spark35-numerics/docs/results/2026-11-05-spark35-numerics/raw/data/needle-64k.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | 1.000 | 1.0 | 8 | 0 | 0 |
+| TTFT (s) | 13.8 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | 4809.0 | 1.0 | 8 | 0 | 0 |
+| Decode (tok/s) | 73.6 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| needle-64k-d05-R0080 | yes | 1.0 | 13.88 | 71.3 | The vault code of record R-0080 is glade-dingo-8783, and it … |
+| needle-64k-d17-R0288 | yes | 1.0 | 13.75 | 72.5 | The vault code of record R-0288 is coral-kestrel-3454, and i… |
+| needle-64k-d30-R0495 | yes | 1.0 | 13.74 | 76.0 | The vault code of record R-0495 is glade-marten-3837, and it… |
+| needle-64k-d43-R0703 | yes | 1.0 | 13.73 | 71.2 | The vault code of record R-0703 is violet-egret-5466, and it… |
+| needle-64k-d56-R0910 | yes | 1.0 | 13.75 | 75.6 | The vault code of record R-0910 is quartz-jackal-6048, and i… |
+| needle-64k-d69-R1118 | yes | 1.0 | 13.75 | 72.3 | The vault code of record R-1118 is raven-kestrel-8722, and i… |
+| needle-64k-d82-R1325 | yes | 1.0 | 13.75 | 71.0 | The vault code of record R-1325 is raven-newt-5099, and it i… |
+| needle-64k-d95-R1533 | yes | 1.0 | 13.77 | 79.2 | The vault code of record R-1533 is zinc-tern-6892, and it is… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-204100-adhoc-s35-base-needle-64k/result.json
+[localeval] not logged to unanimis (--no-unim)

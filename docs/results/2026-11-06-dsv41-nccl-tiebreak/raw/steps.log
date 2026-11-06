@@ -1,0 +1,9 @@
+07:23:37 earlyoom on spark1: -m 2,1
+07:23:37 earlyoom on spark2: -m 2,1
+07:23:39 binary 84d7676af dirty=no 1106-0710; out /opt/code/intarsiaml/.worktrees/dsv41-nccl/docs/results/2026-11-06-dsv41-nccl-tiebreak/raw
+07:23:44 vLLM stopped on both
+07:29:12 done
+07:29:12 restore (exit 0)
+07:32:38 vLLM on spark1 up (Up 3 minutes)
+07:32:39 vLLM on spark2 up (Up 3 minutes)
+07:32:39 restored

@@ -1,0 +1,6 @@
+1k-0: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+4k-0: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+16k-0: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+1k-1: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+4k-1: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+16k-1: IDENTICAL first_diff=- positional_agreement=1.000 n=256

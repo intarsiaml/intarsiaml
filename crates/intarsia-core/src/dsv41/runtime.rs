@@ -151,6 +151,9 @@ pub struct Draft {
     pub confidence: Vec<f32>,
 }
 
+/// Forward calls of at least this many rows start with the warm-up all-reduce (`INTARSIA_DSV41_COMM_WARM`).
+const COMM_WARM_ROWS: usize = 256;
+
 pub struct Dsv41Runtime {
     /// DSpark stages loaded (0: no drafting).
     pub dspark: usize,
@@ -211,6 +214,12 @@ pub struct Dsv41Runtime {
     graphs: Mutex<Graphs>,
     /// Largest f32 partial of a reduction (`Comm::reserve` before the first capture).
     max_partial: usize,
+    /// `INTARSIA_DSV41_COMM_WARM=<KiB>` (default 0 = off, TP only, the same value on every rank): a scratch of that many KiB
+    /// (f32) all-reduced in place at the start of every forward call of at least [`COMM_WARM_ROWS`] rows, before the host builds the
+    /// pass. In the 11-05 trace the first 42 MB all-reduce of each prefill request took 8-9 ms on both ranks against 2.9 ms for
+    /// the rest (the collective is cold after the idle gap between requests): this one runs while the GPU would idle through
+    /// the host's build. Sums zeros into a scratch nothing reads: changes no numbers.
+    comm_warm: Option<TensorRef>,
     /// [`replay::resolve`] (default on where supported, `INTARSIA_DSV41_REPLAY=0` off): prefill runs the decoder half on the last `window` rows only
     /// ([`super::replay`]). Both ranks must agree (handshake fingerprint). Changes numerics.
     replay: bool,
@@ -430,6 +439,14 @@ impl Dsv41Runtime {
                 to_f32(&b, t.dtype)?
             }
         };
+        let comm_warm = match (std::env::var("INTARSIA_DSV41_COMM_WARM").ok().and_then(|v| v.parse::<usize>().ok()), comm.as_ref()) {
+            (Some(kib), Some(c)) if kib > 0 && c.world() > 1 => {
+                let buf = backend.alloc(kib * 1024, MemKind::Device)?;
+                backend.zero(&buf, 0)?;
+                Some(TensorRef::new(buf, DType::F32, &[kib * 256]))
+            }
+            _ => None,
+        };
         let l2_prefetch = std::env::var("INTARSIA_DSV41_L2_PREFETCH").map_or(true, |v| v != "0") && backend.stream_fork();
         let hc_side = std::env::var("INTARSIA_DSV41_HC_SIDE").is_ok_and(|v| v == "1" || v == "2") && backend.stream_fork();
         let lanes = std::env::var("INTARSIA_DSV41_LANES").map_or(true, |v| v != "0") && backend.stream_fork();
@@ -463,6 +480,7 @@ impl Dsv41Runtime {
             engram_one_graph: std::env::var("INTARSIA_DSV41_ENGRAM_ONEGRAPH").map_or(true, |v| v != "0"),
             graphs: Mutex::new(Graphs::default()),
             max_partial,
+            comm_warm,
             replay,
             replay_skip: std::env::var(replay::SKIP_ENV).map_or(true, |v| v != "0"),
         };
@@ -602,6 +620,12 @@ impl Dsv41Runtime {
         }
         if st.len + ids.len() > self.opts.cap {
             return Err(Error::BadRequest(format!("deepseek_v41: {} + {} tokens exceed the capacity {}", st.len, ids.len(), self.opts.cap)));
+        }
+        if let (Some(w), Some(c)) = (&self.comm_warm, &self.comm) {
+            if ids.len() >= COMM_WARM_ROWS {
+                // the same condition on every rank: it reads the row count of the call only
+                c.all_reduce_sum(w, 0)?;
+            }
         }
         // bounded replay (opt-in): the prompt's replay floor, for a prefill of more than one row; None: the plain passes below
         let floor = self.replay_floor(st, ids.len())?;

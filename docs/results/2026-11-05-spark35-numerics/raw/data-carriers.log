@@ -1,0 +1,3 @@
+docs 2016259 tokens, code 2587697 tokens
+/opt/code/intarsiaml/.worktrees/spark35-numerics/docs/results/2026-11-05-spark35-numerics/raw/data/std.safetensors [('cmtp-4k-0', 3858), ('cmtp-16k-0', 15469), ('code-16k', 16384), ('docs-32k', 32768), ('docs-64k', 65536)]
+/opt/code/intarsiaml/.worktrees/spark35-numerics/docs/results/2026-11-05-spark35-numerics/raw/data/dec8k.safetensors [('code-16k', 16384)]

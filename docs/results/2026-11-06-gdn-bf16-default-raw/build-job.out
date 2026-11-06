@@ -1,0 +1,14 @@
+fleetq: #8751 running on spark2: bash -c 'scripts/spark35num/build.sh 2abdc2475 main && scripts/spark35num/build.sh bf2213fc8 dev'
+build main from 2abdc2475 (ref-2abdc24754dc) 09:13:43
+    Finished `release` profile [optimized] target(s) in 3m 27s
+intarsia 0.0.1
+built main 09:17:12
+/dev/nvme0n1p2  3.7T  3.3T  214G  95% /
+4.6G	/home/nvidia/intarsiaml-s35
+build dev from bf2213fc8 (ref-bf2213fc8c18) 09:17:50
+    Finished `release` profile [optimized] target(s) in 3m 29s
+intarsia 0.0.1
+built dev 09:21:22
+/dev/nvme0n1p2  3.7T  3.3T  214G  95% /
+4.6G	/home/nvidia/intarsiaml-s35
+fleetq: #8751 done (exit 0)

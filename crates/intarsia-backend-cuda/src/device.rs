@@ -241,6 +241,17 @@ impl Backend for CudaBackend {
             DType::F32
         }
     }
+    /// Lane spark35: the delta-rule state may be stored bf16 (opt-in `INTARSIA_GDN_STATE=bf16` / recipe `gdn_state`): the split and
+    /// decode GatedDeltaNet kernels (solo and row-table) read and write either type, f32 compute, one round to nearest even per launch.
+    fn gdn_state_supported(&self, dt: DType) -> bool {
+        // bf16 only on the kernels that take it: the split / dec ones (not under INTARSIA_CUDA_GDN_SPLIT=0, INTARSIA_CUDA_GDN_LANES=1 or
+        // INTARSIA_CUDA_FAST_PREFILL=1, which select the f32-only kernels)
+        match dt {
+            DType::F32 => true,
+            DType::Bf16 => kernels::gdn_split() && !kernels::gdn_lanes(),
+            _ => false,
+        }
+    }
     fn name(&self) -> &str {
         "cuda"
     }

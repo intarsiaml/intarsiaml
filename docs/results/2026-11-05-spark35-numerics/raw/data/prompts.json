@@ -1,0 +1,27 @@
+[
+ {
+  "name": "cmtp-4k-0",
+  "tokens": 3858,
+  "source": "scripts/cmtp/ids-prompts/4k-0.txt"
+ },
+ {
+  "name": "cmtp-16k-0",
+  "tokens": 15469,
+  "source": "scripts/cmtp/ids-prompts/16k-0.txt"
+ },
+ {
+  "name": "code-16k",
+  "tokens": 16384,
+  "source": "crates/**/*.rs concatenated, tokens 200000..216384"
+ },
+ {
+  "name": "docs-32k",
+  "tokens": 32768,
+  "source": "docs/results/*.md concatenated, tokens 300000..332768"
+ },
+ {
+  "name": "docs-64k",
+  "tokens": 65536,
+  "source": "docs/results/*.md concatenated, tokens 700000..765536"
+ }
+]

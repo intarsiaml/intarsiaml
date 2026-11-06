@@ -1092,6 +1092,7 @@ impl Model {
             recipe: self.recipe.clone(),
             act: self.act,
             kv: self.kv,
+            gdn_state_dt: self.gdn_state_dt,
             plan,
             weights_bytes: self.weights_bytes,
             weight_names: self.weight_names.clone(),

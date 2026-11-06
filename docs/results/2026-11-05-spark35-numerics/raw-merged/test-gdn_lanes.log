@@ -1,0 +1,43 @@
+
+running 2 tests
+test gdn_lanes_is_as_accurate_as_the_rows_kernel ... dk=128 dv=128 T=1 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=128 dv=128 T=1 state: rel_l2 vs f64 reference: rows kernel 7.371e-8, lanes kernel 7.343e-8
+dk=128 dv=128 T=7 o: rel_l2 vs f64 reference: rows kernel 4.235e-6, lanes kernel 4.233e-6
+dk=128 dv=128 T=7 state: rel_l2 vs f64 reference: rows kernel 9.546e-8, lanes kernel 9.565e-8
+dk=128 dv=128 T=16 o: rel_l2 vs f64 reference: rows kernel 2.405e-5, lanes kernel 2.101e-5
+dk=128 dv=128 T=16 state: rel_l2 vs f64 reference: rows kernel 9.695e-8, lanes kernel 9.704e-8
+dk=128 dv=128 T=17 o: rel_l2 vs f64 reference: rows kernel 9.428e-7, lanes kernel 1.498e-5
+dk=128 dv=128 T=17 state: rel_l2 vs f64 reference: rows kernel 9.966e-8, lanes kernel 9.973e-8
+dk=128 dv=128 T=130 o: rel_l2 vs f64 reference: rows kernel 2.396e-5, lanes kernel 1.620e-5
+dk=128 dv=128 T=130 state: rel_l2 vs f64 reference: rows kernel 9.524e-8, lanes kernel 9.530e-8
+dk=128 dv=128 T=513 o: rel_l2 vs f64 reference: rows kernel 2.917e-5, lanes kernel 1.890e-5
+dk=128 dv=128 T=513 state: rel_l2 vs f64 reference: rows kernel 8.385e-8, lanes kernel 8.377e-8
+dk=64 dv=40 T=1 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=64 dv=40 T=1 state: rel_l2 vs f64 reference: rows kernel 6.396e-8, lanes kernel 6.411e-8
+dk=64 dv=40 T=7 o: rel_l2 vs f64 reference: rows kernel 5.039e-6, lanes kernel 5.039e-6
+dk=64 dv=40 T=7 state: rel_l2 vs f64 reference: rows kernel 9.561e-8, lanes kernel 9.543e-8
+dk=64 dv=40 T=16 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=64 dv=40 T=16 state: rel_l2 vs f64 reference: rows kernel 9.517e-8, lanes kernel 9.599e-8
+dk=64 dv=40 T=17 o: rel_l2 vs f64 reference: rows kernel 7.275e-7, lanes kernel 7.275e-7
+dk=64 dv=40 T=17 state: rel_l2 vs f64 reference: rows kernel 9.152e-8, lanes kernel 9.143e-8
+dk=64 dv=40 T=130 o: rel_l2 vs f64 reference: rows kernel 3.069e-8, lanes kernel 2.854e-8
+dk=64 dv=40 T=130 state: rel_l2 vs f64 reference: rows kernel 1.417e-7, lanes kernel 1.416e-7
+dk=64 dv=40 T=513 o: rel_l2 vs f64 reference: rows kernel 5.659e-6, lanes kernel 5.487e-6
+dk=64 dv=40 T=513 state: rel_l2 vs f64 reference: rows kernel 8.010e-8, lanes kernel 7.979e-8
+dk=128 dv=72 T=1 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=128 dv=72 T=1 state: rel_l2 vs f64 reference: rows kernel 5.044e-8, lanes kernel 5.018e-8
+dk=128 dv=72 T=7 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=128 dv=72 T=7 state: rel_l2 vs f64 reference: rows kernel 1.130e-7, lanes kernel 1.130e-7
+dk=128 dv=72 T=16 o: rel_l2 vs f64 reference: rows kernel 0.000e0, lanes kernel 0.000e0
+dk=128 dv=72 T=16 state: rel_l2 vs f64 reference: rows kernel 7.417e-8, lanes kernel 7.373e-8
+dk=128 dv=72 T=17 o: rel_l2 vs f64 reference: rows kernel 4.778e-8, lanes kernel 4.778e-8
+dk=128 dv=72 T=17 state: rel_l2 vs f64 reference: rows kernel 7.732e-8, lanes kernel 7.818e-8
+dk=128 dv=72 T=130 o: rel_l2 vs f64 reference: rows kernel 2.580e-6, lanes kernel 2.580e-6
+dk=128 dv=72 T=130 state: rel_l2 vs f64 reference: rows kernel 7.845e-8, lanes kernel 7.830e-8
+dk=128 dv=72 T=513 o: rel_l2 vs f64 reference: rows kernel 2.485e-6, lanes kernel 1.991e-5
+dk=128 dv=72 T=513 state: rel_l2 vs f64 reference: rows kernel 1.104e-7, lanes kernel 1.084e-7
+ok
+test gdn_lanes_state_carries_across_calls ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.95s
+

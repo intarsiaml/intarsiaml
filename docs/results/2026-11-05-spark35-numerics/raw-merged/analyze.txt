@@ -1,0 +1,67 @@
+
+### Prefill rows, every position (mean 21-way KL in nats against base / top-1 flips %)
+
+| prompt | tokens scored | noise KL21 / flips % | fp8 KL21 / flips % | cemu KL21 / flips % | cdemu KL21 / flips % | creal KL21 / flips % |
+|---|---:|---:|---:|---:|---:|---:|
+| cmtp-4k-0 | 3858 | 7.33e-03 / 4.15 | 9.01e-03 / 4.77 | 3.72e-03 / 1.19 | 9.89e-03 / 4.67 | 3.72e-03 / 1.19 |
+| cmtp-16k-0 | 15469 | 7.89e-03 / 3.23 | 9.06e-03 / 3.64 | 6.27e-03 / 2.58 | 9.66e-03 / 3.67 | 6.27e-03 / 2.58 |
+| code-16k | 16384 | 4.76e-03 / 1.81 | 6.34e-03 / 2.19 | 4.73e-03 / 1.67 | 6.63e-03 / 2.11 | 4.73e-03 / 1.67 |
+| docs-32k | 32768 | 1.06e-02 / 4.82 | 1.18e-02 / 5.10 | 1.04e-02 / 4.63 | 1.31e-02 / 5.37 | 1.04e-02 / 4.63 |
+| docs-64k | 65536 | 1.05e-02 / 4.67 | 1.22e-02 / 5.09 | 1.15e-02 / 4.77 | 1.27e-02 / 5.26 | 1.15e-02 / 4.77 |
+
+### Decode window 2048 (teacher-forced, state rounded every token)
+
+| prompt | tokens scored | noise KL21 / flips % | fp8 KL21 / flips % | cemu KL21 / flips % | cdemu KL21 / flips % | creal KL21 / flips % |
+|---|---:|---:|---:|---:|---:|---:|
+| cmtp-4k-0 | 2048 | 8.88e-03 / 3.37 | 1.17e-02 / 3.52 | 1.00e-02 / 3.71 | 1.14e-02 / 3.76 | 1.00e-02 / 3.71 |
+| cmtp-16k-0 | 2048 | 7.94e-03 / 3.66 | 1.09e-02 / 4.20 | 1.18e-02 / 4.54 | 1.57e-02 / 4.20 | 1.18e-02 / 4.54 |
+| code-16k | 2048 | 5.57e-03 / 1.81 | 5.73e-03 / 1.90 | 5.95e-03 / 2.15 | 5.66e-03 / 1.76 | 5.95e-03 / 2.15 |
+| docs-32k | 2048 | 9.86e-03 / 4.10 | 1.04e-02 / 3.71 | 9.98e-03 / 4.15 | 1.06e-02 / 4.20 | 9.98e-03 / 4.15 |
+| docs-64k | 2048 | 1.01e-02 / 4.79 | 1.12e-02 / 5.03 | 1.12e-02 / 5.62 | 1.28e-02 / 6.01 | 1.12e-02 / 5.62 |
+
+### Decode window 8192
+
+| prompt | tokens scored | noise KL21 / flips % | fp8 KL21 / flips % | cemu KL21 / flips % | cdemu KL21 / flips % | creal KL21 / flips % |
+|---|---:|---:|---:|---:|---:|---:|
+| code-16k | 8192 | 5.11e-03 / 1.86 | 6.12e-03 / 1.88 | 6.03e-03 / 1.92 | 7.04e-03 / 2.00 | n/a |
+
+### Early vs late quarter of the decode windows (mean KL21)
+
+| set | prompt | noise first / last | fp8 first / last | cemu first / last | cdemu first / last | creal first / last |
+|---|---|---|---|---|---|---|
+| std | cmtp-4k-0 | 1.29e-02 / 6.47e-03 | 1.35e-02 / 8.00e-03 | 1.13e-02 / 6.61e-03 | 1.22e-02 / 9.35e-03 | 1.13e-02 / 6.61e-03 |
+| std | cmtp-16k-0 | 7.08e-03 / 9.54e-03 | 1.03e-02 / 1.30e-02 | 8.20e-03 / 1.15e-02 | 7.66e-03 / 1.38e-02 | 8.20e-03 / 1.15e-02 |
+| std | code-16k | 6.70e-03 / 4.38e-03 | 4.59e-03 / 5.18e-03 | 5.56e-03 / 6.24e-03 | 4.56e-03 / 5.26e-03 | 5.56e-03 / 6.24e-03 |
+| std | docs-32k | 9.15e-03 / 8.36e-03 | 9.26e-03 / 1.01e-02 | 9.02e-03 / 8.43e-03 | 1.16e-02 / 6.92e-03 | 9.02e-03 / 8.43e-03 |
+| std | docs-64k | 1.10e-02 / 9.70e-03 | 1.31e-02 / 1.05e-02 | 1.18e-02 / 1.18e-02 | 1.31e-02 / 1.29e-02 | 1.18e-02 / 1.18e-02 |
+| dec8k | code-16k | 6.74e-03 / 4.77e-03 | 8.62e-03 / 5.47e-03 | 7.58e-03 / 5.55e-03 | 8.60e-03 / 6.27e-03 | n/a |
+
+### Verdicts (rules Q1 to Q4 of the results doc)
+
+- fp8: Q1 PASS; Q2 True; Q3 PASS
+    Q4 std/cmtp-4k-0: KL<=bound PASS; no-drift True
+    Q4 std/cmtp-16k-0: KL<=bound PASS; no-drift True
+    Q4 std/code-16k: KL<=bound PASS; no-drift True
+    Q4 std/docs-32k: KL<=bound PASS; no-drift True
+    Q4 std/docs-64k: KL<=bound PASS; no-drift True
+    Q4 dec8k/code-16k: KL<=bound PASS; no-drift True
+- cemu: Q1 PASS; Q2 True; Q3 PASS
+    Q4 std/cmtp-4k-0: KL<=bound PASS; no-drift True
+    Q4 std/cmtp-16k-0: KL<=bound PASS; no-drift True
+    Q4 std/code-16k: KL<=bound PASS; no-drift True
+    Q4 std/docs-32k: KL<=bound PASS; no-drift True
+    Q4 std/docs-64k: KL<=bound PASS; no-drift True
+    Q4 dec8k/code-16k: KL<=bound PASS; no-drift True
+- cdemu: Q1 PASS; Q2 True; Q3 PASS
+    Q4 std/cmtp-4k-0: KL<=bound PASS; no-drift True
+    Q4 std/cmtp-16k-0: KL<=bound PASS; no-drift True
+    Q4 std/code-16k: KL<=bound PASS; no-drift True
+    Q4 std/docs-32k: KL<=bound PASS; no-drift True
+    Q4 std/docs-64k: KL<=bound PASS; no-drift True
+    Q4 dec8k/code-16k: KL<=bound PASS; no-drift True
+- creal: Q1 PASS; Q2 True; Q3 PASS
+    Q4 std/cmtp-4k-0: KL<=bound PASS; no-drift True
+    Q4 std/cmtp-16k-0: KL<=bound PASS; no-drift True
+    Q4 std/code-16k: KL<=bound PASS; no-drift True
+    Q4 std/docs-32k: KL<=bound PASS; no-drift True
+    Q4 std/docs-64k: KL<=bound PASS; no-drift True

@@ -1,0 +1,8 @@
+base r1 single: MemAvailable 50 GB with the server up
+c r1 single: MemAvailable 51 GB with the server up
+d r1 single: MemAvailable 51 GB with the server up
+cd r1 single: MemAvailable 51 GB with the server up
+cd r2 single: MemAvailable 51 GB with the server up
+d r2 single: MemAvailable 51 GB with the server up
+c r2 single: MemAvailable 50 GB with the server up
+base r2 single: MemAvailable 50 GB with the server up

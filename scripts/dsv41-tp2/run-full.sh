@@ -15,7 +15,8 @@ BIN="$SPARK_DIR/bin/intarsia"
 C0='$HOME/intarsia-dsv41-tp2/cache/r0of2'; C1='$HOME/intarsia-dsv41-tp2/cache/r1of2'
 WIP=10.100.152.3; WPORT=29701; SPORT=8899; SURL=http://100.120.88.104:$SPORT
 LOGD="$SPARK_DIR/logs"
-NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-2} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
+# 8 channels (was 2): docs/results/2026-11-05-dsv41-nccl.md, A (+3 % prefill at 1K/4K/16K, ids identical); NCCL_MAX_NCHANNELS=2 restores the old setting
+NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-8} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
 # TP_SPIN_MS (default 100, 0 = off): rank 1 polls instead of blocking, two busy cores on spark2 during decode (user, 2026-11-02)
 # CHUNK=engine leaves INTARSIA_DSV41_CHUNK unset (the engine default, 2048 since 2026-11-04). The script keeps its own explicit 512:
 # its golden / speed / long-prompt steps are compared against runs and reference tokens taken at 512 (chunk 2048 is not bit-for-bit 512),
@@ -300,7 +301,7 @@ if [[ " $STEPS " == *" margin "* ]]; then
 fi
 if [[ " $STEPS " == *" lspeed "* ]]; then
   sn=$(specn)
-  le speed --sizes ${LSIZES:-128,1024,4096,16384} --gen 128 --reps ${LREPS:-3} --label dsv41-intarsia-tp2-speed${LSUF:-}
+  le speed --sizes ${LSIZES:-128,1024,4096,16384} --gen ${LGEN:-128} --reps ${LREPS:-3} --label dsv41-intarsia-tp2-speed${LSUF:-}
   specstep "$sn" lspeed
 fi
 # speed by text kind: localeval's category set (recall, code, prose) plus scripts/dsv41-tp2/chat-rcp.jsonl, decode tok/s per row
@@ -351,18 +352,53 @@ fi
 }
 
 # PRE="ncclbench": before any rank starts (vLLM is down, the GPUs are quiet), nccl_bench between the two Sparks (all-reduce vs
-# all-gather latency through the engine's Comm), once per NCCL_MAX_NCHANNELS in NB_CHANNELS (default "2 1"); output in $OUT.
+# all-gather latency through the engine's Comm), once per arm; output in $OUT (ncclbench-r0-<tag>.txt). Arms (tag|env, the env goes after
+# $NCCLENV so it wins): NB_CHANNELS (default "2 1") = NCCL_MAX_NCHANNELS values; NB_GRID=1 = every NB_PROTOS (default "default Simple
+# LL128") x NB_NCH ("2 4 8") x NB_BUFS (bytes, "1048576 4194304 8388608"). NB_BYTES = payload list (default: nccl_bench's own, up to
+# 41943040). NB_DEBUG=1 adds a second short run per arm (tags matching NB_DEBUG_RE, default all) with NCCL_DEBUG=INFO (INIT,TUNING,COLL) at the 42 MB payload only, kept in
+# ncclbench-dbg-<tag>.txt, to read the algorithm / protocol / channel count NCCL chose. NB_COLD=N adds the idle-start test
+# (nccl_bench NB_COLD) to the arm named NB_COLD_ARM (default: the first arm), once per lead payload of NB_COLD_LEADS (bytes, default "16384 4194304"). Every arm is bounded by NB_TIMEOUT (default 90 s) on both
+# Sparks, so a protocol the library refuses cannot eat the window.
+nb_arms() {
+  if [[ -n ${NB_GRID:-} ]]; then
+    local p c b e
+    for p in ${NB_PROTOS:-default Simple LL128}; do for c in ${NB_NCH:-2 4 8}; do for b in ${NB_BUFS:-1048576 4194304 8388608}; do
+      e="NCCL_MAX_NCHANNELS=$c NCCL_BUFFSIZE=$b"; [[ $p != default ]] && e="$e NCCL_PROTO=$p"
+      echo "p$p-c$c-b$(( b >> 20 ))M|$e"
+    done; done; done
+  else
+    local nch; for nch in ${NB_CHANNELS:-2 1}; do echo "c$nch|NCCL_MAX_NCHANNELS=$nch"; done
+  fi
+}
+nb_one() { # TAG ENV [extra env for both ranks] [file stem] [timeout s]
+  local tag=$1 aenv=$2 xenv=${3:-} stem=${4:-ncclbench} NB="$SPARK_DIR/bin/nccl_bench" to=${5:-${NB_TIMEOUT:-90}}
+  # the kill is its own ssh: its pattern would match the command line of a remote shell that also holds the nccl_bench path
+  r spark2 "pkill -f '[b]in/nccl_bench'; true"
+  r spark2 "mkdir -p $LOGD; nohup timeout $to env $NCCLENV $aenv $xenv $NB serve $WIP:29711 0 300 > $LOGD/$stem-r1-$tag.log 2>&1 < /dev/null &"
+  sleep 2
+  r spark1 "mkdir -p $LOGD; timeout $to env $NCCLENV $aenv $xenv $NB connect $WIP:29711 0 300 > $LOGD/$stem-r0-$tag.log 2>&1"
+  log "nccl_bench $stem $tag: $aenv $xenv (exit $?)"
+  r spark1 "cat $LOGD/$stem-r0-$tag.log" > "$OUT/$stem-r0-$tag.txt"
+  r spark2 "pkill -f '[b]in/nccl_bench'; cat $LOGD/$stem-r1-$tag.log" > "$OUT/$stem-r1-$tag.txt"
+  grep -aE '^rank 0 +[0-9]+ ' "$OUT/$stem-r0-$tag.txt" | tee -a "$OUT/steps.log"
+}
 if [[ " ${PRE:-} " == *" ncclbench "* ]]; then
-  for nch in ${NB_CHANNELS:-2 1}; do
-    NB="$SPARK_DIR/bin/nccl_bench"
-    r spark2 "mkdir -p $LOGD; nohup timeout 200 env $NCCLENV NCCL_MAX_NCHANNELS=$nch $NB serve $WIP:29711 0 300 > $LOGD/ncclbench-r1-c$nch.log 2>&1 < /dev/null &"
-    sleep 2
-    r spark1 "mkdir -p $LOGD; timeout 200 env $NCCLENV NCCL_MAX_NCHANNELS=$nch $NB connect $WIP:29711 0 300 > $LOGD/ncclbench-r0-c$nch.log 2>&1"
-    log "nccl_bench NCCL_MAX_NCHANNELS=$nch (exit $?)"
-    r spark1 "cat $LOGD/ncclbench-r0-c$nch.log" | tee "$OUT/ncclbench-r0-c$nch.txt" | tee -a "$OUT/steps.log"
-    r spark2 "pkill -f '[b]in/nccl_bench'; cat $LOGD/ncclbench-r1-c$nch.log" > "$OUT/ncclbench-r1-c$nch.txt"
-  done
+  first=1
+  while IFS='|' read -r tag aenv; do
+    nb_one "$tag" "$aenv" "${NB_BYTES:+NB_BYTES=$NB_BYTES}"
+    if [[ ${NB_DEBUG:-0} == 1 && $tag =~ ${NB_DEBUG_RE:-.} ]]; then nb_one "$tag" "$aenv" "NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL" ncclbench-dbg; fi
+    if [[ -n ${NB_COLD:-} && ( ( -z ${NB_COLD_ARM:-} && $first == 1 ) || ${NB_COLD_ARM:-} == "$tag" ) ]]; then
+      for lb in ${NB_COLD_LEADS:-16384 4194304}; do
+        nb_one "$tag" "$aenv" "NB_BYTES=41943040 NB_BIG_ITERS=3 NB_COLD=$NB_COLD NB_COLD_LEAD_BYTES=$lb ${NB_COLD_ENV:-}" ncclbench-cold$lb $(( NB_COLD * 7 + 60 ))
+        grep -a 'cold' "$OUT/ncclbench-cold$lb-r0-$tag.txt" | tee -a "$OUT/steps.log"
+      done
+    fi
+    first=0
+  done < <(nb_arms)
 fi
+# PRE_HOOK=file: sourced after the PRE steps and before the configs run; it may set AB / STEPS_ABi / LSUF from the PRE results in $OUT
+# (scripts/dsv41-tp2/nccl-prehook.sh picks the NCCL arm to run against the current one).
+[[ -n ${PRE_HOOK:-} ]] && source "$PRE_HOOK"
 
 # HOOK=file: source it instead of the steps (failure tests: scripts/dsv41-tp2/failtest.sh). It has start_ranks, kill_ours, r, log,
 # $OUT, $SURL and the rest of this script; R0ENV / R1ENV / R0PRE / R1PRE (set before start_ranks) add environment or a shell
