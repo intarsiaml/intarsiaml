@@ -1,0 +1,14 @@
+same plan-base-27.txt
+same plan-base-35.txt
+same plan-base-8.txt
+same plan-base-27.json
+same plan-base-35.json
+same plan-base-8.json
+ids same ids-base-27-4k.err
+ids same ids-base-27-short.err
+ids same ids-base-35-4k.err
+ids same ids-base-35-short.err
+sampled-base-27.err:  | 
+sampled-base-35.err:  | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+sampled-br-27.err: sampled requests (temperature > 0): speculation Match (default; single sequence, one rank) | spec: verify passes=42 proposed=84 accepted=53 (acceptance 63.1%, 2.26 tokens per pass)
+sampled-br-35.err: sampled requests (temperature > 0): speculation Match (default; single sequence, one rank) | spec: verify passes=41 proposed=82 accepted=54 (acceptance 65.9%, 2.32 tokens per pass)

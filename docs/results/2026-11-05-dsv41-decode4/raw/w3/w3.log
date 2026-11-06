@@ -1,0 +1,771 @@
+fleetq: #8529 waiting (#2 in line): spark1 is held exclusively by #8527 "dsv41/validate: replay + dead-chunk hardware checks (vLLM restored after)" (claude-1943a70c); then in line behind #8528 "dsv41 decode4 cuda gates (kernel test, plan show, kernels --quick)" (claude-1943a70c) on spark1, spark2
+fleetq:   #8527 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8527 set, or it will wait for #8527 to be released.
+fleetq: #8529 waiting (#1 in line): needs spark1 to itself; running there: #8528 "dsv41 decode4 cuda gates (kernel test, plan show, kernels --quick)" (claude-1943a70c)
+fleetq:   #8528 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8528 set, or it will wait for #8528 to be released.
+fleetq: #8529 running on spark1, spark2: bash -c 'test -f /opt/code/intarsiaml/.worktrees/dsv41-decode4/.scratch/gates-out/cuda/PASS && exec scripts/dsv41-tp2/run-full.sh'
+16:34:18 earlyoom on spark1: -m 2,1
+16:34:19 earlyoom on spark2: -m 2,1
+16:34:21 binary cc47e4352 dirty=no 1105-1605; out /opt/code/intarsiaml/.worktrees/dsv41-decode4/.scratch/w3
+16:34:25 vLLM stopped on both
+16:34:27 config ab0: INTARSIA_DSV41_SPEC_TRACE=1; steps: golden lcat; nsys 0; bin $HOME/intarsia-dsv41-decode4/bin/intarsia
+16:34:30 ranks started (tag 163427)
+16:34:59 serve up=1 after 29 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 17.3 s = 5.98 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 6.22 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 24.6 s (4.36 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.003 GiB (chunk 2048), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.24 GiB -> 9.12 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793914495)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793914495)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793914496)
+dsv41: warm-up passes in 0.39 s
+dsv41: rank 0 after warm-up: MemAvailable 8.80 GiB, used since start 101.44 GiB, of which weights 98.90 GiB, non-weight 2.54 GiB (workspace 1.003, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 16.7 s = 6.18 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.6 s = 5.97 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 24.0 s (4.46 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.003 GiB (chunk 2048), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.20 GiB -> 9.06 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793914495)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793914495)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793914496)
+Using CPython 3.13.15
+Creating virtual environment at: .venv
+   Building intarsiaml @ file:///opt/code/intarsiaml/.worktrees/dsv41-decode4
+      Built intarsiaml @ file:///opt/code/intarsiaml/.worktrees/dsv41-decode4
+Installed 1 package in 0.81ms
+server max_model_len=32768
+[0] count                  35 prompt tokens, 64 generated, cached=0 head=[223, 907, 14, 223, 929, 14] 1s
+[1] story                  39 prompt tokens, 64 generated, cached=0 head=[34226, 304, 270, 4213, 14, 305] 3s
+[2] code                   80 prompt tokens, 64 generated, cached=0 head=[361, 855, 313, 818, 223, 20] 4s
+[3] science                76 prompt tokens, 64 generated, cached=0 head=[270, 21476, 19105, 40235, 14, 778] 6s
+[4] chat_short             32 prompt tokens, 64 generated, cached=0 head=[19, 16, 2619, 64574, 10935, 7405] 8s
+[5] chat_system            55 prompt tokens, 64 generated, cached=0 head=[671, 12709, 9238, 8295, 1754, 3525] 9s
+[6] chat_multiturn         91 prompt tokens, 64 generated, cached=0 head=[106239, 343, 1805, 114578, 11, 769] 11s
+[7] chat_reasoning         99 prompt tokens, 64 generated, cached=0 head=[5718, 734, 9487, 566, 3132, 513] 12s
+[8] long_prose_300        300 prompt tokens, 64 generated, cached=0 head=[579, 881, 710, 2887, 2624, 270] 14s
+[9] long_prose_700        700 prompt tokens, 64 generated, cached=0 head=[89425, 513, 270, 537, 329, 1045] 16s
+wrote /opt/code/intarsiaml/.worktrees/dsv41-decode4/.scratch/w3/ab0/tok-intarsia-tp2.st (17.8 kB, 10 prompts) in 16s
+spec golden count: 64 tokens in 13 rounds = 4.92 a round
+spec golden story: 64 tokens in 33 rounds = 1.94 a round
+spec golden code: 64 tokens in 19 rounds = 3.37 a round
+spec golden science: 64 tokens in 55 rounds = 1.16 a round
+spec golden chat_short: 64 tokens in 32 rounds = 2.00 a round
+spec golden chat_system: 64 tokens in 30 rounds = 2.13 a round
+spec golden chat_multiturn: 64 tokens in 27 rounds = 2.37 a round
+spec golden chat_reasoning: 64 tokens in 20 rounds = 3.20 a round
+spec golden long_prose_300: 64 tokens in 27 rounds = 2.37 a round
+spec golden long_prose_700: 64 tokens in 27 rounds = 2.37 a round
+spec golden code: 1 requests, 64 tokens in 19 rounds = 3.368 a round; drafts accepted 45/62 = 72.6 %
+spec golden prose: 4 requests, 256 tokens in 142 rounds = 1.803 a round; drafts accepted 111/228 = 48.7 %
+spec golden chat: 4 requests, 256 tokens in 109 rounds = 2.349 a round; drafts accepted 147/257 = 57.2 %
+spec golden other: 1 requests, 64 tokens in 13 rounds = 4.923 a round; drafts accepted 51/52 = 98.1 %
+spec golden all: 10 requests, 640 tokens in 283 rounds = 2.261 a round; drafts accepted 354/599 = 59.1 %
+| code-ts-debounce | yes | 0.0 | 0.18 | 66.5 | # Debounce & Throttle in TypeScript Below are production-rea… |
+| code-go-worker-pool | yes | 0.0 | 0.18 | 74.0 | # Go Worker Pool with Context Cancellation and Error Collect… |
+| code-bash-backup | yes | 0.0 | 0.21 | 67.6 | # Robust Directory Backup Script ```bash #!/usr/bin/env bash… |
+| prose-lighthouse | yes | 0.0 | 0.20 | 47.0 | The salt spray had become a permanent perfume, and the const… |
+| prose-city-essay | yes | 0.0 | 0.15 | 42.8 | # The Geography of Belonging I knew my city had become home … |
+| prose-product-launch | yes | 0.0 | 0.15 | 43.4 | # Fresh from Our Oven to Your Doorstep: Introducing Neighbor… |
+| prose-mountain-letter | yes | 0.0 | 0.16 | 46.9 | Dear Sam, It’s just past nine, and the tent is glowing orang… |
+| prose-ocean-poem | yes | 0.0 | 0.16 | 43.6 | **Nocturne for the Unlit Sea** The sun has gone down like a … |
+| prose-robot-fable | yes | 0.0 | 0.16 | 42.9 | In a city of gleaming chrome and ceaseless motion, there liv… |
+| prose-travel | yes | 0.0 | 0.16 | 49.2 | The morning sun, still soft and buttery, spills over the lip… |
+| prose-history-scene | yes | 0.0 | 0.25 | 48.8 | The air in the workshop was thick with the smell of lamp oil… |
+
+## Dataset `/opt/code/intarsiaml/.worktrees/dsv41-decode4/scripts/dsv41-tp2/chat-rcp.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.254 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 50.7 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| chat-weekend-trip | yes | 0.0 | 0.26 | 51.7 | Here's a relaxed 2-day/2-night plan built around a small coa… |
+| chat-job-offer | yes | 0.0 | 0.26 | 48.2 | Given that time with two young kids is your priority, the 15… |
+| chat-sourdough | yes | 0.0 | 0.26 | 54.8 | Four hours at 19°C is almost certainly your problem. That's … |
+| chat-roommate | yes | 0.0 | 0.24 | 52.0 | Yes — let's make this concrete. Here's a plan that keeps it … |
+| chat-learn-piano | yes | 0.0 | 0.24 | 46.4 | Here's a realistic sketch of six months, assuming ~20–30 min… |
+| chat-houseplants | yes | 0.0 | 0.25 | 54.5 | With a north-facing window and frequent travel, you want pla… |
+| chat-budget | yes | 0.0 | 0.26 | 53.5 | Great — rent at about a third of your pay is on the higher s… |
+| chat-dog-training | yes | 0.0 | 0.26 | 44.3 | Good — that treat-taking tells you a lot. If she'll still ea… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-163519-adhoc-dsv41-intarsia-tp2-cat-ab0/result.json
+[localeval] logged to unanimis: 9d601598-8c5d-494d-a0ea-8330dee55845
+spec lcat recall-tcp-handshake: 256 tokens in 95 rounds = 2.69 a round
+spec lcat recall-photosynthesis: 256 tokens in 90 rounds = 2.84 a round
+spec lcat recall-french-revolution: 256 tokens in 108 rounds = 2.37 a round
+spec lcat recall-git-internals: 256 tokens in 89 rounds = 2.88 a round
+spec lcat recall-vaccines: 256 tokens in 111 rounds = 2.31 a round
+spec lcat recall-cpu-caches: 256 tokens in 105 rounds = 2.44 a round
+spec lcat recall-plate-tectonics: 256 tokens in 107 rounds = 2.39 a round
+spec lcat recall-http2: 256 tokens in 94 rounds = 2.72 a round
+spec lcat code-lru-cache: 256 tokens in 64 rounds = 4.00 a round
+spec lcat code-rate-limiter: 256 tokens in 79 rounds = 3.24 a round
+spec lcat code-json-parser: 256 tokens in 63 rounds = 4.06 a round
+spec lcat code-rust-cli: 256 tokens in 76 rounds = 3.37 a round
+spec lcat code-sql-schema: 256 tokens in 63 rounds = 4.06 a round
+spec lcat code-ts-debounce: 256 tokens in 79 rounds = 3.24 a round
+spec lcat code-go-worker-pool: 256 tokens in 70 rounds = 3.66 a round
+spec lcat code-bash-backup: 256 tokens in 80 rounds = 3.20 a round
+spec lcat prose-lighthouse: 256 tokens in 135 rounds = 1.90 a round
+spec lcat prose-city-essay: 256 tokens in 147 rounds = 1.74 a round
+spec lcat prose-product-launch: 256 tokens in 146 rounds = 1.75 a round
+spec lcat prose-mountain-letter: 256 tokens in 133 rounds = 1.92 a round
+spec lcat prose-ocean-poem: 256 tokens in 150 rounds = 1.71 a round
+spec lcat prose-robot-fable: 256 tokens in 147 rounds = 1.74 a round
+spec lcat prose-travel: 256 tokens in 132 rounds = 1.94 a round
+spec lcat prose-history-scene: 256 tokens in 130 rounds = 1.97 a round
+spec lcat chat-weekend-trip: 256 tokens in 119 rounds = 2.15 a round
+spec lcat chat-job-offer: 256 tokens in 124 rounds = 2.06 a round
+spec lcat chat-sourdough: 256 tokens in 108 rounds = 2.37 a round
+spec lcat chat-roommate: 256 tokens in 115 rounds = 2.23 a round
+spec lcat chat-learn-piano: 256 tokens in 130 rounds = 1.97 a round
+spec lcat chat-houseplants: 256 tokens in 107 rounds = 2.39 a round
+spec lcat chat-budget: 256 tokens in 109 rounds = 2.35 a round
+spec lcat chat-dog-training: 256 tokens in 140 rounds = 1.83 a round
+spec lcat code: 8 requests, 2048 tokens in 574 rounds = 3.568 a round; drafts accepted 1473/1982 = 74.3 %
+spec lcat prose: 8 requests, 2048 tokens in 1120 rounds = 1.829 a round; drafts accepted 924/1775 = 52.1 %
+spec lcat chat: 8 requests, 2048 tokens in 952 rounds = 2.151 a round; drafts accepted 1094/1925 = 56.8 %
+spec lcat other: 8 requests, 2048 tokens in 799 rounds = 2.563 a round; drafts accepted 1245/1938 = 64.2 %
+spec lcat all: 32 requests, 8192 tokens in 3445 rounds = 2.378 a round; drafts accepted 4736/7620 = 62.2 %
+dsv41: spec round k=2 conf=-0.133,0.634 ok=0 draft_ms=4.86 pass_ms=37.65 period_ms=43.58
+dsv41: spec round k=3 conf=-0.233,1.229,0.832 ok=0 draft_ms=5.06 pass_ms=41.88 period_ms=47.34
+dsv41: spec round k=2 conf=1.434,1.149 ok=0 draft_ms=4.88 pass_ms=39.82 period_ms=44.98
+dsv41: spec round k=2 conf=14.166,-0.605 ok=2 draft_ms=4.72 pass_ms=40.18 period_ms=44.91
+dsv41: spec round k=1 conf=-1.104 ok=0 draft_ms=4.97 pass_ms=31.77 period_ms=37.01
+dsv41: spec round k=2 conf=0.713,0.533 ok=0 draft_ms=4.67 pass_ms=35.61 period_ms=40.69
+dsv41: spec round k=3 conf=5.335,0.172,0.308 ok=3 draft_ms=4.91 pass_ms=40.99 period_ms=45.92
+dsv41: spec round k=1 conf=-1.080 ok=0 draft_ms=4.83 pass_ms=32.60 period_ms=37.72
+dsv41: spec round k=1 conf=-1.000 ok=0 draft_ms=4.80 pass_ms=33.19 period_ms=38.19
+dsv41: spec round k=1 conf=-0.185 ok=0 draft_ms=5.07 pass_ms=32.34 period_ms=37.68
+dsv41: spec round k=1 conf=-0.653 ok=0 draft_ms=4.67 pass_ms=33.92 period_ms=39.01
+dsv41: spec 256 tokens in 140 rounds (1.83 a round), 115/235 drafts accepted (49 %), by position 72/137 32/52 11/17
+spec total: 8832 tokens in 3728 rounds = 2.369 a round; drafts accepted 5090/8219 = 61.9 %
+16:37:59 config ab0 done
+16:37:59 config ab1: INTARSIA_DSV41_SPEC_TRACE=1 INTARSIA_DSV41_HC_SIDE=1; steps: golden lcat; nsys 0; bin $HOME/intarsia-dsv41-decode4/bin/intarsia
+16:38:02 ranks started (tag 163759)
+16:38:30 serve up=1 after 28 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 16.0 s = 6.45 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.8 s = 4.87 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.7 s (4.72 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.003 GiB (chunk 2048), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.30 GiB -> 8.82 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793914705)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793914705)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793914706)
+dsv41: warm-up passes in 0.17 s
+dsv41: rank 0 after warm-up: MemAvailable 8.50 GiB, used since start 101.80 GiB, of which weights 98.90 GiB, non-weight 2.89 GiB (workspace 1.003, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.3 s = 6.77 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 6.84 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.3 s (5.04 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.003 GiB (chunk 2048), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.27 GiB -> 8.85 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793914705)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793914705)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793914706)
+server max_model_len=32768
+[0] count                  35 prompt tokens, 64 generated, cached=0 head=[223, 907, 14, 223, 929, 14] 1s
+[1] story                  39 prompt tokens, 64 generated, cached=0 head=[34226, 304, 270, 4213, 14, 305] 3s
+[2] code                   80 prompt tokens, 64 generated, cached=0 head=[361, 855, 313, 818, 223, 20] 4s
+[3] science                76 prompt tokens, 64 generated, cached=0 head=[270, 21476, 19105, 40235, 14, 778] 6s
+[4] chat_short             32 prompt tokens, 64 generated, cached=0 head=[19, 16, 2619, 64574, 10935, 7405] 8s
+[5] chat_system            55 prompt tokens, 64 generated, cached=0 head=[671, 12709, 9238, 8295, 1754, 3525] 9s
+[6] chat_multiturn         91 prompt tokens, 64 generated, cached=0 head=[106239, 343, 1805, 114578, 11, 769] 11s
+[7] chat_reasoning         99 prompt tokens, 64 generated, cached=0 head=[5718, 734, 9487, 566, 3132, 513] 12s
+[8] long_prose_300        300 prompt tokens, 64 generated, cached=0 head=[579, 881, 710, 2887, 2624, 270] 14s
+[9] long_prose_700        700 prompt tokens, 64 generated, cached=0 head=[89425, 513, 270, 537, 329, 1045] 16s
+wrote /opt/code/intarsiaml/.worktrees/dsv41-decode4/.scratch/w3/ab1/tok-intarsia-tp2.st (17.8 kB, 10 prompts) in 16s
+spec golden count: 64 tokens in 13 rounds = 4.92 a round
+spec golden story: 64 tokens in 33 rounds = 1.94 a round
+spec golden code: 64 tokens in 19 rounds = 3.37 a round
+spec golden science: 64 tokens in 55 rounds = 1.16 a round
+spec golden chat_short: 64 tokens in 32 rounds = 2.00 a round
+spec golden chat_system: 64 tokens in 30 rounds = 2.13 a round
+spec golden chat_multiturn: 64 tokens in 27 rounds = 2.37 a round
+spec golden chat_reasoning: 64 tokens in 20 rounds = 3.20 a round
+spec golden long_prose_300: 64 tokens in 27 rounds = 2.37 a round
+spec golden long_prose_700: 64 tokens in 27 rounds = 2.37 a round
+spec golden code: 1 requests, 64 tokens in 19 rounds = 3.368 a round; drafts accepted 45/62 = 72.6 %
+spec golden prose: 4 requests, 256 tokens in 142 rounds = 1.803 a round; drafts accepted 111/228 = 48.7 %
+spec golden chat: 4 requests, 256 tokens in 109 rounds = 2.349 a round; drafts accepted 147/257 = 57.2 %
+spec golden other: 1 requests, 64 tokens in 13 rounds = 4.923 a round; drafts accepted 51/52 = 98.1 %
+spec golden all: 10 requests, 640 tokens in 283 rounds = 2.261 a round; drafts accepted 354/599 = 59.1 %
+| code-ts-debounce | yes | 0.0 | 0.18 | 68.4 | # Debounce & Throttle in TypeScript Below are production-rea… |
+| code-go-worker-pool | yes | 0.0 | 0.18 | 77.0 | # Go Worker Pool with Context Cancellation and Error Collect… |
+| code-bash-backup | yes | 0.0 | 0.22 | 68.7 | # Robust Directory Backup Script ```bash #!/usr/bin/env bash… |
+| prose-lighthouse | yes | 0.0 | 0.15 | 47.2 | The salt spray had become a permanent perfume, and the const… |
+| prose-city-essay | yes | 0.0 | 0.15 | 43.1 | # The Geography of Belonging I knew my city had become home … |
+| prose-product-launch | yes | 0.0 | 0.15 | 43.7 | # Fresh from Our Oven to Your Doorstep: Introducing Neighbor… |
+| prose-mountain-letter | yes | 0.0 | 0.16 | 47.7 | Dear Sam, It’s just past nine, and the tent is glowing orang… |
+| prose-ocean-poem | yes | 0.0 | 0.16 | 44.1 | **Nocturne for the Unlit Sea** The sun has gone down like a … |
+| prose-robot-fable | yes | 0.0 | 0.16 | 42.9 | In a city of gleaming chrome and ceaseless motion, there liv… |
+| prose-travel | yes | 0.0 | 0.17 | 49.7 | The morning sun, still soft and buttery, spills over the lip… |
+| prose-history-scene | yes | 0.0 | 0.18 | 49.6 | The air in the workshop was thick with the smell of lamp oil… |
+
+## Dataset `/opt/code/intarsiaml/.worktrees/dsv41-decode4/scripts/dsv41-tp2/chat-rcp.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.280 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 51.9 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| chat-weekend-trip | yes | 0.0 | 0.32 | 53.0 | Here's a relaxed 2-day/2-night plan built around a small coa… |
+| chat-job-offer | yes | 0.0 | 0.27 | 49.3 | Given that time with two young kids is your priority, the 15… |
+| chat-sourdough | yes | 0.0 | 0.26 | 56.8 | Four hours at 19°C is almost certainly your problem. That's … |
+| chat-roommate | yes | 0.0 | 0.24 | 53.1 | Yes — let's make this concrete. Here's a plan that keeps it … |
+| chat-learn-piano | yes | 0.0 | 0.24 | 47.3 | Here's a realistic sketch of six months, assuming ~20–30 min… |
+| chat-houseplants | yes | 0.0 | 0.26 | 55.3 | With a north-facing window and frequent travel, you want pla… |
+| chat-budget | yes | 0.0 | 0.33 | 55.0 | Great — rent at about a third of your pay is on the higher s… |
+| chat-dog-training | yes | 0.0 | 0.34 | 45.1 | Good — that treat-taking tells you a lot. If she'll still ea… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-163849-adhoc-dsv41-intarsia-tp2-cat-ab1/result.json
+[localeval] logged to unanimis: 45843f39-7a6f-4a1e-a4af-2aed4c6a6363
+spec lcat recall-tcp-handshake: 256 tokens in 95 rounds = 2.69 a round
+spec lcat recall-photosynthesis: 256 tokens in 90 rounds = 2.84 a round
+spec lcat recall-french-revolution: 256 tokens in 108 rounds = 2.37 a round
+spec lcat recall-git-internals: 256 tokens in 89 rounds = 2.88 a round
+spec lcat recall-vaccines: 256 tokens in 111 rounds = 2.31 a round
+spec lcat recall-cpu-caches: 256 tokens in 105 rounds = 2.44 a round
+spec lcat recall-plate-tectonics: 256 tokens in 107 rounds = 2.39 a round
+spec lcat recall-http2: 256 tokens in 94 rounds = 2.72 a round
+spec lcat code-lru-cache: 256 tokens in 64 rounds = 4.00 a round
+spec lcat code-rate-limiter: 256 tokens in 79 rounds = 3.24 a round
+spec lcat code-json-parser: 256 tokens in 63 rounds = 4.06 a round
+spec lcat code-rust-cli: 256 tokens in 76 rounds = 3.37 a round
+spec lcat code-sql-schema: 256 tokens in 63 rounds = 4.06 a round
+spec lcat code-ts-debounce: 256 tokens in 79 rounds = 3.24 a round
+spec lcat code-go-worker-pool: 256 tokens in 70 rounds = 3.66 a round
+spec lcat code-bash-backup: 256 tokens in 80 rounds = 3.20 a round
+spec lcat prose-lighthouse: 256 tokens in 135 rounds = 1.90 a round
+spec lcat prose-city-essay: 256 tokens in 147 rounds = 1.74 a round
+spec lcat prose-product-launch: 256 tokens in 146 rounds = 1.75 a round
+spec lcat prose-mountain-letter: 256 tokens in 133 rounds = 1.92 a round
+spec lcat prose-ocean-poem: 256 tokens in 150 rounds = 1.71 a round
+spec lcat prose-robot-fable: 256 tokens in 147 rounds = 1.74 a round
+spec lcat prose-travel: 256 tokens in 132 rounds = 1.94 a round
+spec lcat prose-history-scene: 256 tokens in 130 rounds = 1.97 a round
+spec lcat chat-weekend-trip: 256 tokens in 119 rounds = 2.15 a round
+spec lcat chat-job-offer: 256 tokens in 124 rounds = 2.06 a round
+spec lcat chat-sourdough: 256 tokens in 108 rounds = 2.37 a round
+spec lcat chat-roommate: 256 tokens in 115 rounds = 2.23 a round
+spec lcat chat-learn-piano: 256 tokens in 130 rounds = 1.97 a round
+spec lcat chat-houseplants: 256 tokens in 107 rounds = 2.39 a round
+spec lcat chat-budget: 256 tokens in 109 rounds = 2.35 a round
+spec lcat chat-dog-training: 256 tokens in 140 rounds = 1.83 a round
+spec lcat code: 8 requests, 2048 tokens in 574 rounds = 3.568 a round; drafts accepted 1473/1982 = 74.3 %
+spec lcat prose: 8 requests, 2048 tokens in 1120 rounds = 1.829 a round; drafts accepted 924/1775 = 52.1 %
+spec lcat chat: 8 requests, 2048 tokens in 952 rounds = 2.151 a round; drafts accepted 1094/1925 = 56.8 %
+spec lcat other: 8 requests, 2048 tokens in 799 rounds = 2.563 a round; drafts accepted 1245/1938 = 64.2 %
+spec lcat all: 32 requests, 8192 tokens in 3445 rounds = 2.378 a round; drafts accepted 4736/7620 = 62.2 %
+dsv41: spec round k=2 conf=-0.133,0.634 ok=0 draft_ms=4.63 pass_ms=36.88 period_ms=41.75
+dsv41: spec round k=3 conf=-0.233,1.229,0.832 ok=0 draft_ms=5.16 pass_ms=41.48 period_ms=46.78
+dsv41: spec round k=2 conf=1.434,1.149 ok=0 draft_ms=4.63 pass_ms=36.73 period_ms=41.63
+dsv41: spec round k=2 conf=14.166,-0.605 ok=2 draft_ms=4.58 pass_ms=37.00 period_ms=41.60
+dsv41: spec round k=1 conf=-1.104 ok=0 draft_ms=4.56 pass_ms=30.44 period_ms=35.17
+dsv41: spec round k=2 conf=0.713,0.533 ok=0 draft_ms=4.58 pass_ms=35.03 period_ms=39.84
+dsv41: spec round k=3 conf=5.335,0.172,0.308 ok=3 draft_ms=4.75 pass_ms=40.28 period_ms=45.04
+dsv41: spec round k=1 conf=-1.080 ok=0 draft_ms=4.92 pass_ms=32.74 period_ms=37.90
+dsv41: spec round k=1 conf=-1.000 ok=0 draft_ms=4.53 pass_ms=32.59 period_ms=37.47
+dsv41: spec round k=1 conf=-0.185 ok=0 draft_ms=4.70 pass_ms=32.69 period_ms=37.76
+dsv41: spec round k=1 conf=-0.653 ok=0 draft_ms=4.54 pass_ms=32.61 period_ms=37.42
+dsv41: spec 256 tokens in 140 rounds (1.83 a round), 115/235 drafts accepted (49 %), by position 72/137 32/52 11/17
+spec total: 8832 tokens in 3728 rounds = 2.369 a round; drafts accepted 5090/8219 = 61.9 %
+16:41:25 config ab1 done
+16:41:25 config ab2: INTARSIA_DSV41_SPEC_TRACE=1; steps: lcat; nsys 0; bin $HOME/intarsia-dsv41-decode4/bin/intarsia
+16:41:28 ranks started (tag 164125)
+16:41:52 serve up=1 after 24 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.5 s = 6.66 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.8 s = 4.84 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.8 s (4.92 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.003 GiB (chunk 2048), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 109.98 GiB -> 8.82 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793914911)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793914911)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793914911)
+dsv41: warm-up passes in 0.18 s
+dsv41: rank 0 after warm-up: MemAvailable 8.51 GiB, used since start 101.47 GiB, of which weights 98.90 GiB, non-weight 2.57 GiB (workspace 1.003, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.2 s = 6.80 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.08 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.2 s (5.06 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.003 GiB (chunk 2048), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.27 GiB -> 8.86 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793914911)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793914911)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793914911)
+| code-ts-debounce | yes | 0.0 | 0.17 | 67.6 | # Debounce & Throttle in TypeScript Below are production-rea… |
+| code-go-worker-pool | yes | 0.0 | 0.18 | 76.3 | # Go Worker Pool with Context Cancellation and Error Collect… |
+| code-bash-backup | yes | 0.0 | 0.31 | 67.8 | # Robust Directory Backup Script ```bash #!/usr/bin/env bash… |
+| prose-lighthouse | yes | 0.0 | 0.15 | 46.3 | The salt spray had become a permanent perfume, and the const… |
+| prose-city-essay | yes | 0.0 | 0.15 | 42.9 | # The Geography of Belonging I knew my city had become home … |
+| prose-product-launch | yes | 0.0 | 0.15 | 43.3 | # Fresh from Our Oven to Your Doorstep: Introducing Neighbor… |
+| prose-mountain-letter | yes | 0.0 | 0.16 | 47.1 | Dear Sam, It’s just past nine, and the tent is glowing orang… |
+| prose-ocean-poem | yes | 0.0 | 0.16 | 43.8 | **Nocturne for the Unlit Sea** The sun has gone down like a … |
+| prose-robot-fable | yes | 0.0 | 0.19 | 42.8 | In a city of gleaming chrome and ceaseless motion, there liv… |
+| prose-travel | yes | 0.0 | 0.16 | 48.8 | The morning sun, still soft and buttery, spills over the lip… |
+| prose-history-scene | yes | 0.0 | 0.18 | 48.7 | The air in the workshop was thick with the smell of lamp oil… |
+
+## Dataset `/opt/code/intarsiaml/.worktrees/dsv41-decode4/scripts/dsv41-tp2/chat-rcp.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.265 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 51.3 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| chat-weekend-trip | yes | 0.0 | 0.31 | 51.9 | Here's a relaxed 2-day/2-night plan built around a small coa… |
+| chat-job-offer | yes | 0.0 | 0.27 | 48.7 | Given that time with two young kids is your priority, the 15… |
+| chat-sourdough | yes | 0.0 | 0.26 | 55.9 | Four hours at 19°C is almost certainly your problem. That's … |
+| chat-roommate | yes | 0.0 | 0.24 | 52.3 | Yes — let's make this concrete. Here's a plan that keeps it … |
+| chat-learn-piano | yes | 0.0 | 0.27 | 47.3 | Here's a realistic sketch of six months, assuming ~20–30 min… |
+| chat-houseplants | yes | 0.0 | 0.25 | 55.2 | With a north-facing window and frequent travel, you want pla… |
+| chat-budget | yes | 0.0 | 0.26 | 54.2 | Great — rent at about a third of your pay is on the higher s… |
+| chat-dog-training | yes | 0.0 | 0.26 | 45.0 | Good — that treat-taking tells you a lot. If she'll still ea… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-164154-adhoc-dsv41-intarsia-tp2-cat-ab2/result.json
+[localeval] logged to unanimis: 29f65b92-8c4b-40cf-88df-f1bf15fec9fd
+spec lcat recall-tcp-handshake: 256 tokens in 95 rounds = 2.69 a round
+spec lcat recall-photosynthesis: 256 tokens in 90 rounds = 2.84 a round
+spec lcat recall-french-revolution: 256 tokens in 108 rounds = 2.37 a round
+spec lcat recall-git-internals: 256 tokens in 89 rounds = 2.88 a round
+spec lcat recall-vaccines: 256 tokens in 111 rounds = 2.31 a round
+spec lcat recall-cpu-caches: 256 tokens in 105 rounds = 2.44 a round
+spec lcat recall-plate-tectonics: 256 tokens in 107 rounds = 2.39 a round
+spec lcat recall-http2: 256 tokens in 94 rounds = 2.72 a round
+spec lcat code-lru-cache: 256 tokens in 64 rounds = 4.00 a round
+spec lcat code-rate-limiter: 256 tokens in 79 rounds = 3.24 a round
+spec lcat code-json-parser: 256 tokens in 63 rounds = 4.06 a round
+spec lcat code-rust-cli: 256 tokens in 76 rounds = 3.37 a round
+spec lcat code-sql-schema: 256 tokens in 63 rounds = 4.06 a round
+spec lcat code-ts-debounce: 256 tokens in 79 rounds = 3.24 a round
+spec lcat code-go-worker-pool: 256 tokens in 70 rounds = 3.66 a round
+spec lcat code-bash-backup: 256 tokens in 80 rounds = 3.20 a round
+spec lcat prose-lighthouse: 256 tokens in 135 rounds = 1.90 a round
+spec lcat prose-city-essay: 256 tokens in 147 rounds = 1.74 a round
+spec lcat prose-product-launch: 256 tokens in 146 rounds = 1.75 a round
+spec lcat prose-mountain-letter: 256 tokens in 133 rounds = 1.92 a round
+spec lcat prose-ocean-poem: 256 tokens in 150 rounds = 1.71 a round
+spec lcat prose-robot-fable: 256 tokens in 147 rounds = 1.74 a round
+spec lcat prose-travel: 256 tokens in 132 rounds = 1.94 a round
+spec lcat prose-history-scene: 256 tokens in 130 rounds = 1.97 a round
+spec lcat chat-weekend-trip: 256 tokens in 119 rounds = 2.15 a round
+spec lcat chat-job-offer: 256 tokens in 124 rounds = 2.06 a round
+spec lcat chat-sourdough: 256 tokens in 108 rounds = 2.37 a round
+spec lcat chat-roommate: 256 tokens in 115 rounds = 2.23 a round
+spec lcat chat-learn-piano: 256 tokens in 130 rounds = 1.97 a round
+spec lcat chat-houseplants: 256 tokens in 107 rounds = 2.39 a round
+spec lcat chat-budget: 256 tokens in 109 rounds = 2.35 a round
+spec lcat chat-dog-training: 256 tokens in 140 rounds = 1.83 a round
+spec lcat code: 8 requests, 2048 tokens in 574 rounds = 3.568 a round; drafts accepted 1473/1982 = 74.3 %
+spec lcat prose: 8 requests, 2048 tokens in 1120 rounds = 1.829 a round; drafts accepted 924/1775 = 52.1 %
+spec lcat chat: 8 requests, 2048 tokens in 952 rounds = 2.151 a round; drafts accepted 1094/1925 = 56.8 %
+spec lcat other: 8 requests, 2048 tokens in 799 rounds = 2.563 a round; drafts accepted 1245/1938 = 64.2 %
+spec lcat all: 32 requests, 8192 tokens in 3445 rounds = 2.378 a round; drafts accepted 4736/7620 = 62.2 %
+dsv41: spec round k=2 conf=-0.133,0.634 ok=0 draft_ms=4.78 pass_ms=37.57 period_ms=42.83
+dsv41: spec round k=3 conf=-0.233,1.229,0.832 ok=0 draft_ms=5.06 pass_ms=41.45 period_ms=46.75
+dsv41: spec round k=2 conf=1.434,1.149 ok=0 draft_ms=4.69 pass_ms=38.44 period_ms=43.47
+dsv41: spec round k=2 conf=14.166,-0.605 ok=2 draft_ms=4.61 pass_ms=38.65 period_ms=43.27
+dsv41: spec round k=1 conf=-1.104 ok=0 draft_ms=4.83 pass_ms=32.22 period_ms=37.31
+dsv41: spec round k=2 conf=0.713,0.533 ok=0 draft_ms=4.62 pass_ms=35.14 period_ms=40.13
+dsv41: spec round k=3 conf=5.335,0.172,0.308 ok=3 draft_ms=4.84 pass_ms=38.71 period_ms=43.56
+dsv41: spec round k=1 conf=-1.080 ok=0 draft_ms=5.11 pass_ms=32.36 period_ms=37.81
+dsv41: spec round k=1 conf=-1.000 ok=0 draft_ms=4.67 pass_ms=31.99 period_ms=36.93
+dsv41: spec round k=1 conf=-0.185 ok=0 draft_ms=4.72 pass_ms=32.61 period_ms=37.97
+dsv41: spec round k=1 conf=-0.653 ok=0 draft_ms=4.63 pass_ms=32.86 period_ms=37.77
+dsv41: spec 256 tokens in 140 rounds (1.83 a round), 115/235 drafts accepted (49 %), by position 72/137 32/52 11/17
+spec total: 8192 tokens in 3445 rounds = 2.378 a round; drafts accepted 4736/7620 = 62.2 %
+16:44:32 config ab2 done
+16:44:32 config ab3: INTARSIA_DSV41_SPEC_TRACE=1 INTARSIA_DSV41_HC_SIDE=1; steps: lcat; nsys 0; bin $HOME/intarsia-dsv41-decode4/bin/intarsia
+16:44:34 ranks started (tag 164432)
+16:44:58 serve up=1 after 24 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.6 s = 6.61 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.8 s = 4.47 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 22.4 s (4.79 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.003 GiB (chunk 2048), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.29 GiB -> 8.78 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793915097)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793915098)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793915098)
+dsv41: warm-up passes in 0.19 s
+dsv41: rank 0 after warm-up: MemAvailable 8.46 GiB, used since start 101.82 GiB, of which weights 98.90 GiB, non-weight 2.92 GiB (workspace 1.003, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.6 s = 6.64 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 6.80 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 22.0 s (4.88 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.003 GiB (chunk 2048), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.25 GiB -> 8.84 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793915098)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793915098)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793915098)
+| code-ts-debounce | yes | 0.0 | 0.18 | 68.3 | # Debounce & Throttle in TypeScript Below are production-rea… |
+| code-go-worker-pool | yes | 0.0 | 0.17 | 75.9 | # Go Worker Pool with Context Cancellation and Error Collect… |
+| code-bash-backup | yes | 0.0 | 0.21 | 68.7 | # Robust Directory Backup Script ```bash #!/usr/bin/env bash… |
+| prose-lighthouse | yes | 0.0 | 0.15 | 47.2 | The salt spray had become a permanent perfume, and the const… |
+| prose-city-essay | yes | 0.0 | 0.15 | 43.4 | # The Geography of Belonging I knew my city had become home … |
+| prose-product-launch | yes | 0.0 | 0.20 | 44.1 | # Fresh from Our Oven to Your Doorstep: Introducing Neighbor… |
+| prose-mountain-letter | yes | 0.0 | 0.16 | 47.7 | Dear Sam, It’s just past nine, and the tent is glowing orang… |
+| prose-ocean-poem | yes | 0.0 | 0.23 | 44.2 | **Nocturne for the Unlit Sea** The sun has gone down like a … |
+| prose-robot-fable | yes | 0.0 | 0.16 | 43.8 | In a city of gleaming chrome and ceaseless motion, there liv… |
+| prose-travel | yes | 0.0 | 0.16 | 49.7 | The morning sun, still soft and buttery, spills over the lip… |
+| prose-history-scene | yes | 0.0 | 0.24 | 49.8 | The air in the workshop was thick with the smell of lamp oil… |
+
+## Dataset `/opt/code/intarsiaml/.worktrees/dsv41-decode4/scripts/dsv41-tp2/chat-rcp.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.273 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 51.7 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| chat-weekend-trip | yes | 0.0 | 0.34 | 50.6 | Here's a relaxed 2-day/2-night plan built around a small coa… |
+| chat-job-offer | yes | 0.0 | 0.26 | 49.3 | Given that time with two young kids is your priority, the 15… |
+| chat-sourdough | yes | 0.0 | 0.26 | 56.1 | Four hours at 19°C is almost certainly your problem. That's … |
+| chat-roommate | yes | 0.0 | 0.25 | 52.3 | Yes — let's make this concrete. Here's a plan that keeps it … |
+| chat-learn-piano | yes | 0.0 | 0.29 | 48.1 | Here's a realistic sketch of six months, assuming ~20–30 min… |
+| chat-houseplants | yes | 0.0 | 0.25 | 56.5 | With a north-facing window and frequent travel, you want pla… |
+| chat-budget | yes | 0.0 | 0.25 | 54.8 | Great — rent at about a third of your pay is on the higher s… |
+| chat-dog-training | yes | 0.0 | 0.28 | 45.6 | Good — that treat-taking tells you a lot. If she'll still ea… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-164500-adhoc-dsv41-intarsia-tp2-cat-ab3/result.json
+[localeval] logged to unanimis: 9a0f8e97-a2e3-462e-8352-91b31bcfe75a
+spec lcat recall-tcp-handshake: 256 tokens in 95 rounds = 2.69 a round
+spec lcat recall-photosynthesis: 256 tokens in 90 rounds = 2.84 a round
+spec lcat recall-french-revolution: 256 tokens in 108 rounds = 2.37 a round
+spec lcat recall-git-internals: 256 tokens in 89 rounds = 2.88 a round
+spec lcat recall-vaccines: 256 tokens in 111 rounds = 2.31 a round
+spec lcat recall-cpu-caches: 256 tokens in 105 rounds = 2.44 a round
+spec lcat recall-plate-tectonics: 256 tokens in 107 rounds = 2.39 a round
+spec lcat recall-http2: 256 tokens in 94 rounds = 2.72 a round
+spec lcat code-lru-cache: 256 tokens in 64 rounds = 4.00 a round
+spec lcat code-rate-limiter: 256 tokens in 79 rounds = 3.24 a round
+spec lcat code-json-parser: 256 tokens in 63 rounds = 4.06 a round
+spec lcat code-rust-cli: 256 tokens in 76 rounds = 3.37 a round
+spec lcat code-sql-schema: 256 tokens in 63 rounds = 4.06 a round
+spec lcat code-ts-debounce: 256 tokens in 79 rounds = 3.24 a round
+spec lcat code-go-worker-pool: 256 tokens in 70 rounds = 3.66 a round
+spec lcat code-bash-backup: 256 tokens in 80 rounds = 3.20 a round
+spec lcat prose-lighthouse: 256 tokens in 135 rounds = 1.90 a round
+spec lcat prose-city-essay: 256 tokens in 147 rounds = 1.74 a round
+spec lcat prose-product-launch: 256 tokens in 146 rounds = 1.75 a round
+spec lcat prose-mountain-letter: 256 tokens in 133 rounds = 1.92 a round
+spec lcat prose-ocean-poem: 256 tokens in 150 rounds = 1.71 a round
+spec lcat prose-robot-fable: 256 tokens in 147 rounds = 1.74 a round
+spec lcat prose-travel: 256 tokens in 132 rounds = 1.94 a round
+spec lcat prose-history-scene: 256 tokens in 130 rounds = 1.97 a round
+spec lcat chat-weekend-trip: 256 tokens in 119 rounds = 2.15 a round
+spec lcat chat-job-offer: 256 tokens in 124 rounds = 2.06 a round
+spec lcat chat-sourdough: 256 tokens in 108 rounds = 2.37 a round
+spec lcat chat-roommate: 256 tokens in 115 rounds = 2.23 a round
+spec lcat chat-learn-piano: 256 tokens in 130 rounds = 1.97 a round
+spec lcat chat-houseplants: 256 tokens in 107 rounds = 2.39 a round
+spec lcat chat-budget: 256 tokens in 109 rounds = 2.35 a round
+spec lcat chat-dog-training: 256 tokens in 140 rounds = 1.83 a round
+spec lcat code: 8 requests, 2048 tokens in 574 rounds = 3.568 a round; drafts accepted 1473/1982 = 74.3 %
+spec lcat prose: 8 requests, 2048 tokens in 1120 rounds = 1.829 a round; drafts accepted 924/1775 = 52.1 %
+spec lcat chat: 8 requests, 2048 tokens in 952 rounds = 2.151 a round; drafts accepted 1094/1925 = 56.8 %
+spec lcat other: 8 requests, 2048 tokens in 799 rounds = 2.563 a round; drafts accepted 1245/1938 = 64.2 %
+spec lcat all: 32 requests, 8192 tokens in 3445 rounds = 2.378 a round; drafts accepted 4736/7620 = 62.2 %
+dsv41: spec round k=2 conf=-0.133,0.634 ok=0 draft_ms=4.76 pass_ms=36.47 period_ms=41.54
+dsv41: spec round k=3 conf=-0.233,1.229,0.832 ok=0 draft_ms=5.01 pass_ms=41.69 period_ms=46.78
+dsv41: spec round k=2 conf=1.434,1.149 ok=0 draft_ms=4.75 pass_ms=37.87 period_ms=42.90
+dsv41: spec round k=2 conf=14.166,-0.605 ok=2 draft_ms=4.65 pass_ms=36.86 period_ms=41.52
+dsv41: spec round k=1 conf=-1.104 ok=0 draft_ms=4.50 pass_ms=30.64 period_ms=35.18
+dsv41: spec round k=2 conf=0.713,0.533 ok=0 draft_ms=4.77 pass_ms=34.02 period_ms=38.94
+dsv41: spec round k=3 conf=5.335,0.172,0.308 ok=3 draft_ms=4.76 pass_ms=38.72 period_ms=43.48
+dsv41: spec round k=1 conf=-1.080 ok=0 draft_ms=4.63 pass_ms=30.59 period_ms=35.37
+dsv41: spec round k=1 conf=-1.000 ok=0 draft_ms=4.59 pass_ms=32.48 period_ms=37.23
+dsv41: spec round k=1 conf=-0.185 ok=0 draft_ms=4.97 pass_ms=31.40 period_ms=36.91
+dsv41: spec round k=1 conf=-0.653 ok=0 draft_ms=4.76 pass_ms=32.77 period_ms=37.93
+dsv41: spec 256 tokens in 140 rounds (1.83 a round), 115/235 drafts accepted (49 %), by position 72/137 32/52 11/17
+spec total: 8192 tokens in 3445 rounds = 2.378 a round; drafts accepted 4736/7620 = 62.2 %
+16:47:38 config ab3 done
+16:47:38 config ab4: INTARSIA_DSV41_SPEC=0 INTARSIA_DSV41_HC_SIDE=1; steps: golden; nsys 0; bin $HOME/intarsia-dsv41-decode4/bin/intarsia
+16:47:41 ranks started (tag 164738)
+16:48:04 serve up=1 after 23 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.4 s = 6.71 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 96.33 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 20.6 s (5.03 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding off (INTARSIA_DSV41_SPEC is set and not 1)
+dsv41: rank 0/2 memory: weights 95.43 GiB, workspace 0.821 GiB (chunk 2048), constants 0.000 GiB, state 0.103 GiB per sequence at 32768 tokens; MemAvailable 110.63 GiB -> 12.87 GiB
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793915283)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793915283)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915283)
+dsv41: warm-up passes in 0.27 s
+dsv41: rank 0 after warm-up: MemAvailable 12.55 GiB, used since start 98.09 GiB, of which weights 95.43 GiB, non-weight 2.66 GiB (workspace 0.821, scratch 0.004, state 0.103, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.7 s = 6.61 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 96.33 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.1 s (4.90 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding off (INTARSIA_DSV41_SPEC is set and not 1)
+dsv41: rank 1/2 memory: weights 95.43 GiB, workspace 0.821 GiB (chunk 2048), constants 0.000 GiB, state 0.103 GiB per sequence at 32768 tokens; MemAvailable 110.23 GiB -> 12.48 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793915283)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793915283)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915283)
+server max_model_len=32768
+[0] count                  35 prompt tokens, 64 generated, cached=0 head=[223, 907, 14, 223, 929, 14] 2s
+[1] story                  39 prompt tokens, 64 generated, cached=0 head=[34226, 304, 270, 4213, 14, 305] 4s
+[2] code                   80 prompt tokens, 64 generated, cached=0 head=[361, 855, 313, 818, 223, 20] 6s
+[3] science                76 prompt tokens, 64 generated, cached=0 head=[270, 21476, 19105, 40235, 14, 778] 8s
+[4] chat_short             32 prompt tokens, 64 generated, cached=0 head=[19, 16, 2619, 64574, 10935, 7405] 9s
+[5] chat_system            55 prompt tokens, 64 generated, cached=0 head=[671, 12709, 9238, 8295, 1754, 3525] 11s
+[6] chat_multiturn         91 prompt tokens, 64 generated, cached=0 head=[106239, 343, 1805, 114578, 11, 769] 13s
+[7] chat_reasoning         99 prompt tokens, 64 generated, cached=0 head=[5718, 734, 9487, 566, 3132, 513] 15s
+[8] long_prose_300        300 prompt tokens, 64 generated, cached=0 head=[579, 881, 710, 2887, 2624, 270] 17s
+[9] long_prose_700        700 prompt tokens, 64 generated, cached=0 head=[89425, 513, 270, 537, 329, 1045] 20s
+wrote /opt/code/intarsiaml/.worktrees/dsv41-decode4/.scratch/w3/ab4/tok-intarsia-tp2.st (17.8 kB, 10 prompts) in 20s
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793915283)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915283)
+dsv41: warm-up passes in 0.27 s
+dsv41: rank 0 after warm-up: MemAvailable 12.55 GiB, used since start 98.09 GiB, of which weights 95.43 GiB, non-weight 2.66 GiB (workspace 0.821, scratch 0.004, state 0.103, constants 0.000, rest = CUDA context + NCCL + engram + host)
+dsv41: kernel scratch grew to 16777216 bytes (unix 1793915286)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915287)
+dsv41: kernel scratch grew to 33554432 bytes (unix 1793915290)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915290)
+dsv41: kernel scratch grew to 134217728 bytes (unix 1793915301)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915302)
+dsv41: kernel scratch grew to 268435456 bytes (unix 1793915304)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915304)
+16:48:29 config ab4 done
+16:48:29 config ab5: INTARSIA_DSV41_SPEC=0; steps: golden; nsys 0; bin $HOME/intarsia-dsv41-decode4/bin/intarsia
+16:48:32 ranks started (tag 164829)
+16:48:55 serve up=1 after 23 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.2 s = 6.82 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 96.33 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.1 s (4.90 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding off (INTARSIA_DSV41_SPEC is set and not 1)
+dsv41: rank 0/2 memory: weights 95.43 GiB, workspace 0.821 GiB (chunk 2048), constants 0.000 GiB, state 0.103 GiB per sequence at 32768 tokens; MemAvailable 110.72 GiB -> 13.95 GiB
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793915334)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793915334)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915334)
+dsv41: warm-up passes in 0.36 s
+dsv41: rank 0 after warm-up: MemAvailable 13.57 GiB, used since start 97.14 GiB, of which weights 95.43 GiB, non-weight 1.72 GiB (workspace 0.821, scratch 0.004, state 0.103, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.6 s = 6.64 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 96.33 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.0 s (4.91 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding off (INTARSIA_DSV41_SPEC is set and not 1)
+dsv41: rank 1/2 memory: weights 95.43 GiB, workspace 0.821 GiB (chunk 2048), constants 0.000 GiB, state 0.103 GiB per sequence at 32768 tokens; MemAvailable 110.26 GiB -> 12.45 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793915334)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793915334)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915334)
+server max_model_len=32768
+[0] count                  35 prompt tokens, 64 generated, cached=0 head=[223, 907, 14, 223, 929, 14] 2s
+[1] story                  39 prompt tokens, 64 generated, cached=0 head=[34226, 304, 270, 4213, 14, 305] 4s
+[2] code                   80 prompt tokens, 64 generated, cached=0 head=[361, 855, 313, 818, 223, 20] 6s
+[3] science                76 prompt tokens, 64 generated, cached=0 head=[270, 21476, 19105, 40235, 14, 778] 8s
+[4] chat_short             32 prompt tokens, 64 generated, cached=0 head=[19, 16, 2619, 64574, 10935, 7405] 10s
+[5] chat_system            55 prompt tokens, 64 generated, cached=0 head=[671, 12709, 9238, 8295, 1754, 3525] 11s
+[6] chat_multiturn         91 prompt tokens, 64 generated, cached=0 head=[106239, 343, 1805, 114578, 11, 769] 13s
+[7] chat_reasoning         99 prompt tokens, 64 generated, cached=0 head=[5718, 734, 9487, 566, 3132, 513] 15s
+[8] long_prose_300        300 prompt tokens, 64 generated, cached=0 head=[579, 881, 710, 2887, 2624, 270] 18s
+[9] long_prose_700        700 prompt tokens, 64 generated, cached=0 head=[89425, 513, 270, 537, 329, 1045] 20s
+wrote /opt/code/intarsiaml/.worktrees/dsv41-decode4/.scratch/w3/ab5/tok-intarsia-tp2.st (17.8 kB, 10 prompts) in 20s
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793915334)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915334)
+dsv41: warm-up passes in 0.36 s
+dsv41: rank 0 after warm-up: MemAvailable 13.57 GiB, used since start 97.14 GiB, of which weights 95.43 GiB, non-weight 1.72 GiB (workspace 0.821, scratch 0.004, state 0.103, constants 0.000, rest = CUDA context + NCCL + engram + host)
+dsv41: kernel scratch grew to 16777216 bytes (unix 1793915337)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915337)
+dsv41: kernel scratch grew to 33554432 bytes (unix 1793915341)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915341)
+dsv41: kernel scratch grew to 134217728 bytes (unix 1793915352)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915353)
+dsv41: kernel scratch grew to 268435456 bytes (unix 1793915354)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1019 steps, 342 EXL3 linears (unix 1793915355)
+16:49:20 config ab5 done
+16:49:20 config ab6: INTARSIA_DSV41_SPEC_TRACE=1 INTARSIA_DSV41_HC_SIDE=1; steps: nsys; nsys 1; bin $HOME/intarsia-dsv41-decode4/bin/intarsia
+16:49:23 ranks started (tag 164920)
+16:49:52 serve up=1 after 29 s
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2: 3278 tensors, 96.33 GiB in 15.2 s = 6.79 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 0 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp: 226 tensors, 3.47 GiB in 0.5 s = 7.33 GB/s (O_DIRECT)
+dsv41: rank 0/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2 in 21.7 s (4.93 GB/s)
+dsv41: engram tier rank 0/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 0/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r0of2/mtp
+dsv41: rank 0/2 memory: weights 98.90 GiB, workspace 1.003 GiB (chunk 2048), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 110.29 GiB -> 10.01 GiB
+dsv41: speculative decoding: up to 4 drafts a round, confidence floor -inf
+dsv41: speculative decoding: k per round from the confidence head, pass ms [31.1, 36.5, 41.2, 46.0, 50.8], round overhead 5.5 ms
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793915386)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793915386)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793915387)
+dsv41: warm-up passes in 0.43 s
+dsv41: rank 0 after warm-up: MemAvailable 9.58 GiB, used since start 100.71 GiB, of which weights 98.90 GiB, non-weight 1.81 GiB (workspace 1.003, scratch 0.004, state 0.104, constants 0.000, rest = CUDA context + NCCL + engram + host)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2: 3278 tensors, 96.33 GiB in 15.2 s = 6.80 GB/s (O_DIRECT)
+[dsv41-cache] loaded rank 1 of 2 cache /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp: 226 tensors, 3.47 GiB in 0.7 s = 5.66 GB/s (O_DIRECT)
+dsv41: rank 1/2: loaded 99.80 GiB of weights from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2 in 21.6 s (4.96 GB/s)
+dsv41: engram tier rank 1/2 from /home/nvidia/dsv41-engram (hot tier 1024 MiB), token map 129280 -> 99092
+dsv41: bounded-replay prefill on (INTARSIA_DSV41_REPLAY=0 turns it off)
+dsv41: rank 1/2: speculative decoding on, 3 DSpark stages loaded from /home/nvidia/intarsia-dsv41-tp2/cache/r1of2/mtp
+dsv41: rank 1/2 memory: weights 98.90 GiB, workspace 1.003 GiB (chunk 2048), constants 0.000 GiB, state 0.104 GiB per sequence at 32768 tokens; MemAvailable 109.58 GiB -> 8.15 GiB
+dsv41: rank 1 serving rank 0's passes
+dsv41: kernel scratch grew to 1048576 bytes (unix 1793915386)
+dsv41: kernel scratch grew to 4194304 bytes (unix 1793915386)
+dsv41: captured the 1-row pass as 1 CUDA graph segment(s), 1037 steps, 346 EXL3 linears (unix 1793915387)
+16:49:58 nsys request: 96 tokens in 2 s: {"id":"cmpl-444ebba40001","object":"text_completion","created":1793915396,"model":"dsv41-intarsia","choices":[{"index":0,"text":" the graph capture of the verify pass is a small win, not the\nbig one the plan expected. The big win is still ahead: the 4-row verify pass costs 52.5 ms of GPU against 31
+Generated:
+	/home/nvidia/intarsia-dsv41-decode4/logs/nsys-r0-164920.nsys-rep
+Generated:
+	/home/nvidia/intarsia-dsv41-decode4/logs/nsys-r1-164920.nsys-rep
+-rw-rw-r-- 1 nvidia nvidia 21503093 Nov  5 16:50 /home/nvidia/intarsia-dsv41-decode4/logs/nsys-r0-164920_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  4825443 Nov  5 16:50 /home/nvidia/intarsia-dsv41-decode4/logs/nsys-r0-164920.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 12746752 Nov  5 16:50 /home/nvidia/intarsia-dsv41-decode4/logs/nsys-r0-164920.sqlite
+16:50:06 rank 0 breakdown:
+108495 GPU ops, 77 passes split at the logits all-gather (one per pass)
+decode steps analysed: 77
+  per token (start to start)         25.10 ms  -> 39.8 tok/s
+  GPU span of a step                  25.41 ms   (1409 GPU ops)
+  GPU busy (union)                    23.52 ms
+    compute kernels (sum)             29.34 ms
+    NCCL kernels (sum, incl. wait)     0.20 ms
+    memcpy / memset (sum)              0.53 ms
+  idle gaps inside the span            1.89 ms   (launch latency, host waits)
+  between steps (host: sample, build, Engram, logits copy)    -0.31 ms
+  top kernels per step:
+    grouped_cp_kernel                                   43.5 calls   10.736 ms  ( 42.8 %)
+    linear_kernel                                       58.9 calls    4.228 ms  ( 16.8 %)
+    ik_l2_prefetch_kernel                               41.5 calls    4.170 ms  ( 16.6 %)
+    split_kernel                                       128.6 calls    1.876 ms  (  7.5 %)
+    dense_f16w_vec_kernel                               27.8 calls    1.175 ms  (  4.7 %)
+    hc_sub_partial                                      43.5 calls    1.140 ms  (  4.5 %)
+    ik_rdma_collect                                     43.5 calls    0.975 ms  (  3.9 %)
+    rot_in_kernel                                      209.3 calls    0.839 ms  (  3.3 %)
+    attn_sparse_mma                                     21.7 calls    0.765 ms  (  3.0 %)
+    [CUDA memcpy Device-to-Host]                         2.0 calls    0.522 ms  (  2.1 %)
+    split_finish_kernel                                128.6 calls    0.477 ms  (  1.9 %)
+    hc_sub_sinkhorn                                     42.4 calls    0.406 ms  (  1.6 %)
+    moe_route_kernel                                    21.7 calls    0.274 ms  (  1.1 %)
+    hc_sub_finish                                       43.5 calls    0.264 ms  (  1.1 %)
+    attn_sparse_merge                                   21.7 calls    0.218 ms  (  0.9 %)
+    transpose01_kernel                                 129.8 calls    0.212 ms  (  0.8 %)
+    hc_sub_post_only                                    39.0 calls    0.203 ms  (  0.8 %)
+    ik_rdma_stage                                       43.5 calls    0.194 ms  (  0.8 %)
+-rw-rw-r-- 1 nvidia nvidia 21333441 Nov  5 16:50 /home/nvidia/intarsia-dsv41-decode4/logs/nsys-r1-164920_cuda_gpu_trace.csv
+-rw-rw-r-- 1 nvidia nvidia  4792488 Nov  5 16:50 /home/nvidia/intarsia-dsv41-decode4/logs/nsys-r1-164920.nsys-rep
+-rw-r--r-- 1 nvidia nvidia 12505088 Nov  5 16:50 /home/nvidia/intarsia-dsv41-decode4/logs/nsys-r1-164920.sqlite
+16:50:09 rank 1 breakdown:
+107772 GPU ops, 77 passes split at the logits all-gather (one per pass)
+decode steps analysed: 77
+  per token (start to start)         25.26 ms  -> 39.6 tok/s
+  GPU span of a step                  25.51 ms   (1400 GPU ops)
+  GPU busy (union)                    22.69 ms
+    compute kernels (sum)             29.00 ms
+    NCCL kernels (sum, incl. wait)     0.20 ms
+    memcpy / memset (sum)              0.01 ms
+  idle gaps inside the span            2.83 ms   (launch latency, host waits)
+  between steps (host: sample, build, Engram, logits copy)    -0.25 ms
+  top kernels per step:
+    grouped_cp_kernel                                   43.5 calls   10.655 ms  ( 42.2 %)
+    linear_kernel                                       58.9 calls    4.239 ms  ( 16.8 %)
+    ik_l2_prefetch_kernel                               41.5 calls    4.189 ms  ( 16.6 %)
+    split_kernel                                       128.6 calls    1.894 ms  (  7.5 %)
+    ik_rdma_collect                                     43.5 calls    1.345 ms  (  5.3 %)
+    hc_sub_partial                                      43.5 calls    1.122 ms  (  4.4 %)
+    rot_in_kernel                                      209.3 calls    0.804 ms  (  3.2 %)
+    attn_sparse_mma                                     21.7 calls    0.765 ms  (  3.0 %)
+    dense_f16w_vec_kernel                               25.8 calls    0.632 ms  (  2.5 %)
+    split_finish_kernel                                128.6 calls    0.480 ms  (  1.9 %)
+    hc_sub_sinkhorn                                     42.4 calls    0.390 ms  (  1.5 %)
+    moe_route_kernel                                    21.7 calls    0.276 ms  (  1.1 %)
+    hc_sub_finish                                       43.5 calls    0.256 ms  (  1.0 %)
+    attn_sparse_merge                                   21.7 calls    0.215 ms  (  0.9 %)
+    transpose01_kernel                                 129.8 calls    0.207 ms  (  0.8 %)
+    hc_sub_post_only                                    39.0 calls    0.199 ms  (  0.8 %)
+    ik_rdma_stage                                       43.5 calls    0.181 ms  (  0.7 %)
+    rmsnorm_kernel                                      50.6 calls    0.146 ms  (  0.6 %)
+dsv41: spec round k=4 conf=4.970,5.435,3.387,1.829 ok=4 draft_ms=8.14 pass_ms=50.03 period_ms=58.18
+dsv41: spec round k=1 conf=0.276 ok=1 draft_ms=7.60 pass_ms=32.91 period_ms=40.51
+dsv41: spec round k=2 conf=1.091,0.177 ok=1 draft_ms=8.29 pass_ms=39.87 period_ms=48.34
+dsv41: spec round k=2 conf=0.111,-0.108 ok=0 draft_ms=9.62 pass_ms=39.73 period_ms=49.51
+dsv41: spec round k=2 conf=0.397,-0.038 ok=2 draft_ms=8.15 pass_ms=42.55 period_ms=50.71
+dsv41: spec round k=2 conf=1.122,0.383 ok=0 draft_ms=5.78 pass_ms=38.60 period_ms=44.77
+dsv41: spec round k=3 conf=1.997,2.001,0.690 ok=0 draft_ms=5.29 pass_ms=42.38 period_ms=47.97
+dsv41: spec round k=2 conf=3.503,0.142 ok=0 draft_ms=4.69 pass_ms=39.73 period_ms=44.67
+dsv41: spec round k=4 conf=5.375,0.657,0.283,1.238 ok=1 draft_ms=4.72 pass_ms=45.00 period_ms=50.08
+dsv41: spec round k=3 conf=8.160,0.839,2.045 ok=1 draft_ms=4.76 pass_ms=40.71 period_ms=45.83
+dsv41: spec round k=4 conf=7.433,2.325,2.594,-0.247 ok=4 draft_ms=4.82 pass_ms=47.81 period_ms=53.18
+dsv41: spec 96 tokens in 38 rounds (2.53 a round), 58/98 drafts accepted (59 %), by position 26/38 18/24 9/12 5/6
+spec total: 112 tokens in 46 rounds = 2.435 a round; drafts accepted 65/114 = 57.0 %
+16:50:15 config ab6 done
+16:50:15 done
+16:50:15 restore (exit 0)
+/opt/code/intarsiaml/.worktrees/dsv41-decode4/scripts/dsv41-tp2/run-full.sh: line 27: 89165 Terminated: 15          ( while true; do
+    line="$(date +%T)"; for h in spark1 spark2;
+    do
+        a=$(ssh -n -o ConnectTimeout=5 $h "awk '/MemAvailable/{printf \"%.1f\", \$2/1048576}' /proc/meminfo" 2>/dev/null || echo NA); line="$line $h=$a"; if [[ "$a" != NA ]] && awk "BEGIN{exit !($a < ${KILL_GIB:-5})}"; then
+            ssh -n $h "pkill -KILL -f '[i]${SPARK_REL:1}/bin/intarsia'"; line="$line KILLED-$h";
+        fi;
+    done; echo "$line"; sleep 5;
+done ) > "$OUT/mem.log" 2>&1
+16:53:51 vLLM on spark1 up (Up 3 minutes)
+16:53:52 vLLM on spark2 up (Up 3 minutes)
+spark1-vllm confirmed back
+spark2-vllm confirmed back
+16:53:52 restored
+fleetq: #8529 done (exit 0); spark1-vllm, spark2-vllm must come back before others can use it

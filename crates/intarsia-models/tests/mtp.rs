@@ -1428,7 +1428,7 @@ fn cost_gate_with_scripted_drafts_stays_identical() {
 /// `recipe_dv` and the load option `opt` (`None`: the flag was not given).
 fn drafts_of(w: &MemWeights, recipe_dv: Option<usize>, opt: Option<usize>) -> Vec<Vec<u32>> {
     let (mut recipe, dims) = dims();
-    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_peel_period: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, mxfp4_act: None, busy_chunk: None, tp_partial: None });
+    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_peel_period: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, batched_mtp: None, mxfp4_act: None, busy_chunk: None, tp_partial: None, lm_head_quant: None });
     let opts = LoadOptions {
         max_seq: 512,
         prefill_chunk: 8,
@@ -1624,7 +1624,7 @@ fn prefill_peel_period_reaches_the_model_and_the_prefix_store_key() {
             "cpu".into(),
             intarsia_core::recipe::BackendTuning {
                 prefill_chunk: None, mtp_draft_vocab: None, prefill_peel: peel, prefill_peel_period: period, prefill_macro: None,
-                mtp_default_tp_k: None, mtp_default_k: None, mxfp4_act: None, busy_chunk: None, tp_partial: None,
+                mtp_default_tp_k: None, mtp_default_k: None, batched_mtp: None, mxfp4_act: None, busy_chunk: None, tp_partial: None, lm_head_quant: None,
             },
         );
         let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), profile_every: 0, ..Default::default() };
@@ -1659,4 +1659,401 @@ fn prefill_peel_period_reaches_the_model_and_the_prefix_store_key() {
     assert!(load(Some(8), Some(4)).is_err());
     assert!(load(Some(300), None).is_err());
     assert!(load(Some(300), Some(2048)).is_ok());
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// lane bm: batched MTP (`INTARSIA_BATCHED_MTP=N`, `BatchedOptions::mtp_max_b`) on the batching engine
+// ------------------------------------------------------------------------------------------------------------------
+
+/// A batching engine of `rows` slots with `--spec mtp --spec-k k`, drafting while at most `mtp_max_b` sequences decode, on the
+/// hybrid fixture (GatedDeltaNet + MoE + gated attention, the opt-in recurrent batch of the cpu reference).
+fn batched_mtp(
+    w: &MemWeights,
+    chunk: usize,
+    rows: usize,
+    k: usize,
+    mtp_max_b: usize,
+    script: Option<DraftScript>,
+    pack: bool,
+    verify: bool,
+) -> (intarsia_core::BatchedEngine, Arc<Telemetry>) {
+    let tel = Arc::new(Telemetry::new());
+    let (recipe, dims) = dims();
+    let opts = LoadOptions { max_seq: 512, prefill_chunk: chunk, fp8_act: Some(Fp8Act::None), mtp: true, profile_every: 0, ..Default::default() };
+    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    m.enable_verify(k + 1).unwrap();
+    m.allow_recurrent_batch().unwrap();
+    m.enable_batch(rows).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    if script.is_some() {
+        m.mtp_script(script).unwrap();
+    }
+    let mut o = intarsia_core::BatchedOptions::new(rows, 64);
+    o.mtp_max_b = mtp_max_b;
+    o.spec_off_at = rows + 1;
+    o.pack_prefill = Some(pack);
+    o.pack_half = false;
+    o.batched_verify = verify;
+    // every request is queued before the first iteration admits anything, so the sequences decode side by side
+    o.hold_start = true;
+    let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k }, ..Default::default() };
+    (intarsia_core::BatchedEngine::new(m, Arc::new(ByteCodec), meta, tel.clone(), o).unwrap(), tel)
+}
+
+/// The spec-off single-sequence reference at a given prefill chunk.
+fn solo_off(w: &MemWeights, chunk: usize) -> LocalEngine {
+    let tel = Arc::new(Telemetry::new());
+    let (recipe, dims) = dims();
+    let opts = LoadOptions { max_seq: 512, prefill_chunk: chunk, fp8_act: Some(Fp8Act::None), profile_every: 0, ..Default::default() };
+    let m = Model::load(CpuBackend::arc(), &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], ..Default::default() }, tel).unwrap()
+}
+
+fn collect_rx(rx: &std::sync::mpsc::Receiver<GenEvent>) -> Out {
+    let mut ids = vec![];
+    loop {
+        match rx.recv_timeout(std::time::Duration::from_secs(300)).expect("the batched engine answers") {
+            GenEvent::Token { id, .. } => ids.push(id),
+            GenEvent::Done { finish_reason, completion_tokens, cached_tokens, .. } => {
+                return Out { ids, reason: finish_reason, completion_tokens, cached_tokens }
+            }
+            GenEvent::Error { message } => panic!("engine error: {message}"),
+        }
+    }
+}
+
+/// Prompts of different lengths and kinds, and different `max_tokens`, so sequences join, drain and leave at different steps.
+fn mixed_reqs(n: usize, lens: &[usize], seed: u64) -> Vec<GenRequest> {
+    (0..n)
+        .map(|i| {
+            let len = lens[i % lens.len()];
+            let mut rng = SplitMix64::new(seed + i as u64);
+            let prompt: Vec<u32> = (0..len).map(|_| (rng.next_u64() % V as u64) as u32).collect();
+            GenRequest { max_tokens: 60 + 23 * (i % 4) + 7 * (i / 4), ..req(&prompt, 0) }
+        })
+        .collect()
+}
+
+/// Run `reqs` on the spec-off solo engine and on the batched-MTP engine (all submitted at once) and compare every sequence's
+/// greedy ids, finish reason and counts. Returns the batched run's telemetry.
+fn check_batched_mtp(w: &MemWeights, reqs: Vec<GenRequest>, chunk: usize, rows: usize, k: usize, mtp_max_b: usize, script: Option<DraftScript>, pack: bool) -> intarsia_core::TelemetrySnapshot {
+    check_batched_mtp_v(w, reqs, chunk, rows, k, mtp_max_b, script, pack, false)
+}
+
+#[allow(clippy::too_many_arguments)]
+fn check_batched_mtp_v(w: &MemWeights, reqs: Vec<GenRequest>, chunk: usize, rows: usize, k: usize, mtp_max_b: usize, script: Option<DraftScript>, pack: bool, verify: bool) -> intarsia_core::TelemetrySnapshot {
+    let off = solo_off(w, chunk);
+    let want: Vec<Out> = reqs.iter().map(|r| run(&off, r.clone())).collect();
+    let (eng, tel) = batched_mtp(w, chunk, rows, k, mtp_max_b, script, pack, verify);
+    let rxs: Vec<_> = reqs.into_iter().map(|r| eng.submit(r).unwrap()).collect();
+    eng.release();
+    for (i, (rx, w)) in rxs.iter().zip(&want).enumerate() {
+        let got = collect_rx(rx);
+        assert_eq!(&got, w, "sequence {i} (rows {rows}, k {k}, drafting at B <= {mtp_max_b}, pack {pack})");
+    }
+    let m = eng.metrics();
+    assert!(!pack || m.pack_passes > 0, "nothing was packed: {m:?}");
+    assert!(!verify || m.verify_hist[2..].iter().sum::<u64>() > 0, "no batched verify pass of several sequences: {m:?}");
+    eprintln!(
+        "rows {rows} k {k} B<={mtp_max_b} pack {pack} batched verify {verify}: decode steps {}, batch hist {:?}, verify passes {} ({} rows, by sequences {:?}), packed passes {}; spec passes {}, drafted {}, accepted {}",
+        m.decode_steps,
+        m.batch_hist,
+        m.verify_steps,
+        m.verify_rows,
+        &m.verify_hist[..5],
+        m.pack_passes,
+        tel.snapshot().spec_steps,
+        tel.snapshot().spec_proposed,
+        tel.snapshot().spec_accepted
+    );
+    tel.snapshot()
+}
+
+/// Truth streams (prompt + spec-off greedy continuation) for scripted drafts.
+fn truth_of(w: &MemWeights, reqs: &[GenRequest], chunk: usize) -> Arc<Mutex<Vec<Vec<u32>>>> {
+    let off = solo_off(w, chunk);
+    let truth = Arc::new(Mutex::new(Vec::new()));
+    for r in reqs {
+        let o = run(&off, GenRequest { max_tokens: r.max_tokens + 8, ..r.clone() });
+        let mut s = r.prompt.clone();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    truth
+}
+
+/// Bit-identity gate of batched MTP: 4 sequences of different prompt lengths and `max_tokens` interleaved on a 4-slot engine,
+/// each with its own scripted accept / reject pattern (every pattern: all, some, none accepted), k = 1..3; greedy ids per
+/// sequence equal the spec-off solo run's.
+#[test]
+fn batched_mtp_interleaved_sequences_equal_solo_with_every_acceptance_pattern() {
+    let w = weights(11);
+    let reqs = mixed_reqs(4, &[13, 6, 21, 30], 900);
+    let truth = truth_of(&w, &reqs, 8);
+    for k in 1..=3 {
+        let t = check_batched_mtp(&w, reqs.clone(), 8, 4, k, 4, Some(scripted(truth.clone(), 31 + k as u64)), false);
+        assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: drafts accepted and rejected ({t:?})");
+    }
+}
+
+/// The per-step choice: with drafting only while at most 2 sequences decode, the wide steps are plain batched decode (the heads
+/// only queue their rows) and drafting resumes as sequences leave, the head catching up over every row queued meanwhile. More
+/// requests than slots (a recycled slot starts empty), the head's own drafts and scripted ones.
+#[test]
+fn batched_mtp_switches_between_plain_batched_steps_and_drafting() {
+    let w = weights(11);
+    let reqs = mixed_reqs(6, &[13, 6, 21, 30, 9, 17], 950);
+    let t = check_batched_mtp(&w, reqs.clone(), 8, 4, 2, 2, None, false);
+    assert!(t.spec_steps > 0 && t.spec_proposed > 0, "the heads drafted ({t:?})");
+    let truth = truth_of(&w, &reqs, 8);
+    let t = check_batched_mtp(&w, reqs, 8, 4, 2, 2, Some(scripted(truth, 77)), false);
+    assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "drafts accepted and rejected ({t:?})");
+}
+
+/// Packed prefill feeds each prompt's MTP head (it used to refuse a state with a head): prompts that prefill together in one
+/// pass still draft afterwards, and every sequence equals its solo spec-off run.
+#[test]
+fn batched_mtp_with_packed_prefill_equals_solo() {
+    let w = weights(11);
+    let reqs = mixed_reqs(5, &[17, 33, 20, 40, 25], 990);
+    let truth = truth_of(&w, &reqs, 64);
+    let t = check_batched_mtp(&w, reqs, 64, 4, 2, 4, Some(scripted(truth, 5)), true);
+    assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "drafts accepted and rejected ({t:?})");
+}
+
+/// Lane bm phase B: `Model::forward_verify_batch` (one ragged pass for the verify rows of several sequences) leaves every
+/// sequence exactly where its own `forward_verify` (a one-row segment: its decode step) does: the same greedy token per row,
+/// the same state after acceptance and rollback (next drafts of the MTP head and logits of a later decode step bitwise), over
+/// rounds of mixed segment lengths 1..4 with drafts accepted and rejected.
+#[test]
+fn batched_verify_pass_equals_each_sequences_solo_verify() {
+    let w = weights(11);
+    let (recipe, dims) = dims();
+    let opts = LoadOptions { max_seq: 512, prefill_chunk: 16, fp8_act: Some(Fp8Act::None), mtp: true, profile_every: 0, ..Default::default() };
+    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.enable_verify(4).unwrap();
+    m.allow_recurrent_batch().unwrap();
+    m.enable_batch(4).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let be = m.backend.clone();
+    let prompts: [&[u32]; 3] = [&[3, 9, 27, 81, 50, 7, 7, 1, 60, 2, 33, 33, 12], &[90, 1, 2, 3, 4, 5], &[44; 21]];
+    let mut bat: Vec<_> = (0..3).map(|_| m.new_state().unwrap()).collect();
+    let mut solo: Vec<_> = (0..3).map(|_| m.new_state().unwrap()).collect();
+    let off = solo_off(&w, 16);
+    let truth: Vec<Vec<u32>> = prompts
+        .iter()
+        .map(|p| {
+            let mut s = p.to_vec();
+            s.extend(run(&off, req(p, 120)).ids);
+            s
+        })
+        .collect();
+    let mut next = vec![0u32; 3];
+    for i in 0..3 {
+        for st in [&mut bat[i], &mut solo[i]] {
+            let StepOut::Token(t) = m.forward(st, prompts[i], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+            next[i] = t;
+        }
+    }
+    let (mut proposed, mut accepted) = (0, 0);
+    let mut rng = SplitMix64::new(4242);
+    for round in 0..24 {
+        // segment lengths 1..=4 per sequence; drafts from the head (solo state), one of them sometimes corrupted
+        let mut ids: Vec<Vec<u32>> = Vec::new();
+        for i in 0..3 {
+            let q = 1 + (rng.next_u64() % 4) as usize;
+            let d1 = if q > 1 { m.mtp_draft(&mut solo[i], next[i], q - 1).unwrap() } else { vec![] };
+            let d2 = if q > 1 { m.mtp_draft(&mut bat[i], next[i], q - 1).unwrap() } else { vec![] };
+            assert_eq!(d1, d2, "round {round} seq {i}: the heads draft the same (their caches and queues match)");
+            // the verified drafts come from the true greedy continuation (the random head rarely guesses it), sometimes corrupted
+            let p = bat[i].len + 1;
+            let mut d: Vec<u32> = truth[i][p..p + q - 1].to_vec();
+            if !d.is_empty() && rng.next_u64() % 3 == 0 {
+                let at = (rng.next_u64() as usize) % d.len();
+                d[at] = (d[at] + 1) % V;
+            }
+            let mut v = vec![next[i]];
+            v.extend(&d);
+            ids.push(v);
+        }
+        let len0: Vec<usize> = bat.iter().map(|s| s.len).collect();
+        let outs = {
+            let mut refs: Vec<&mut intarsia_core::state::SequenceState> = bat.iter_mut().collect();
+            m.forward_verify_batch(&mut refs, &ids).unwrap()
+        };
+        for i in 0..3 {
+            let want = if ids[i].len() > 1 {
+                m.forward_verify(&mut solo[i], &ids[i]).unwrap()
+            } else {
+                let StepOut::Token(t) = m.forward(&mut solo[i], &ids[i], HeadMode::LastArgmax, None).unwrap() else { panic!("token") };
+                vec![t]
+            };
+            assert_eq!(outs[i], want, "round {round} seq {i}: verify rows");
+            let drafts = &ids[i][1..];
+            let j = intarsia_core::spec::accept(drafts, &outs[i]);
+            proposed += drafts.len();
+            accepted += j;
+            if ids[i].len() > 1 {
+                bat[i].spec_rollback(len0[i] + j + 1, &*be).unwrap();
+                solo[i].spec_rollback(len0[i] + j + 1, &*be).unwrap();
+            }
+            next[i] = outs[i][j];
+            assert_eq!(bat[i].len, solo[i].len);
+        }
+    }
+    assert!(accepted > 0 && accepted < proposed, "drafts accepted and rejected ({accepted} of {proposed})");
+    for i in 0..3 {
+        let a = m.forward(&mut bat[i], &[next[i]], HeadMode::LastLogits, None).unwrap();
+        let b = m.forward(&mut solo[i], &[next[i]], HeadMode::LastLogits, None).unwrap();
+        let (StepOut::Logits(a), StepOut::Logits(b)) = (a, b) else { panic!("logits") };
+        assert!(a.iter().zip(&b).all(|(x, y)| x.to_bits() == y.to_bits()), "seq {i}: a later decode step is bitwise the solo state's");
+    }
+    eprintln!("batched verify: {accepted} of {proposed} drafts accepted over 24 rounds");
+}
+
+/// Lane bm phase B on the engine: the drafting sequences of a step verify in ONE ragged pass (`BatchedOptions::batched_verify`);
+/// interleaved sequences of different lengths, per-sequence accept / reject patterns, k = 1..3, the plain/draft switch and slot
+/// reuse, and every sequence still equals its solo spec-off run.
+#[test]
+fn batched_verify_engine_equals_solo() {
+    let w = weights(11);
+    let reqs = mixed_reqs(4, &[13, 6, 21, 30], 900);
+    let truth = truth_of(&w, &reqs, 16);
+    for k in 1..=3 {
+        let t = check_batched_mtp_v(&w, reqs.clone(), 16, 4, k, 4, Some(scripted(truth.clone(), 31 + k as u64)), false, true);
+        assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: drafts accepted and rejected ({t:?})");
+    }
+    let reqs = mixed_reqs(6, &[13, 6, 21, 30, 9, 17], 950);
+    let truth = truth_of(&w, &reqs, 16);
+    let t = check_batched_mtp_v(&w, reqs, 16, 4, 2, 2, Some(scripted(truth, 77)), false, true);
+    assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "drafts accepted and rejected ({t:?})");
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// sampled speculation (`INTARSIA_SPEC_SAMPLED`, `Model::set_spec_sampled`)
+// ------------------------------------------------------------------------------------------------------------------
+
+/// The fixture engine with `--spec mtp --spec-k k` and the given sampled-speculation variant.
+fn engine_sampled(w: &MemWeights, k: usize, draft_vocab: usize, sampled: intarsia_core::spec::SampledSpec) -> (LocalEngine, Arc<Telemetry>) {
+    let tel = Arc::new(Telemetry::new());
+    let (recipe, dims) = dims();
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        fp8_act: Some(Fp8Act::None),
+        mtp: true,
+        mtp_draft_vocab: Some(draft_vocab),
+        profile_every: 0,
+        ..Default::default()
+    };
+    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, w, &opts, tel.clone()).unwrap();
+    m.enable_verify(k + 1).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    m.set_spec_sampled(Some(sampled));
+    let spec = SpecConfig { mode: SpecMode::Mtp, k };
+    let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+        .unwrap();
+    (e, tel)
+}
+
+fn sampled_req(prompt: &[u32], n: usize, seed: u64, temperature: f32, top_k: usize, top_p: f32) -> GenRequest {
+    GenRequest { prompt: prompt.to_vec(), max_tokens: n, temperature, top_k, top_p, seed: Some(seed), ignore_eos: true, ..Default::default() }
+}
+
+/// Greedy requests keep the greedy acceptance with sampled speculation on (ids identical to sampled speculation off); sampled
+/// requests draft and verify (both variants, full and reduced draft head), reproduce for a seed, and stop at `max_tokens`.
+#[test]
+fn sampled_speculation_drafts_sampled_requests_and_leaves_greedy_ones_alone() {
+    use intarsia_core::spec::SampledSpec;
+    let w = weights(11);
+    let (off, _) = engine_sampled(&w, 2, 0, SampledSpec::Off);
+    for variant in [SampledSpec::Reject, SampledSpec::Match] {
+        for dv in [0usize, 40] {
+            let (e, tel) = engine_sampled(&w, 2, dv, variant);
+            for p in PROMPTS {
+                assert_eq!(run(&e, req(p, 64)).ids, run(&off, req(p, 64)).ids, "{variant:?} dv {dv}: greedy ids changed");
+            }
+            let before = tel.snapshot().spec_steps;
+            for (t, tk, tp) in [(1.0f32, 0usize, 1.0f32), (0.7, 20, 0.8)] {
+                let a = run(&e, sampled_req(PROMPTS[0], 40, 5, t, tk, tp));
+                let b = run(&e, sampled_req(PROMPTS[0], 40, 5, t, tk, tp));
+                assert_eq!(a.ids, b.ids, "{variant:?} dv {dv}: a seed must reproduce");
+                assert_eq!(a.ids.len(), 40);
+                assert!(a.ids.iter().all(|&i| i < V));
+            }
+            let s = tel.snapshot();
+            assert!(s.spec_steps > before, "{variant:?} dv {dv}: sampled requests did not speculate");
+            // off: sampled requests take plain steps
+            let s0 = tel.snapshot().spec_steps;
+            let _ = run(&off, sampled_req(PROMPTS[1], 16, 1, 1.0, 0, 1.0));
+            assert_eq!(tel.snapshot().spec_steps, s0);
+        }
+    }
+}
+
+/// The engine end to end on the fixture: the law of each generated token 2, 3, 4 (the speculative positions; token 1 comes
+/// from prefill) with sampled speculation matches plain sampling. Pearson chi-square of homogeneity per position with pooled
+/// sparse cells, disjoint seed sets, fixed seeds (deterministic); threshold z = 5. About 4 minutes in release (9,000 requests),
+/// so opt-in: `cargo test --release -p intarsia-models --test mtp -- --ignored sampled_speculation_matches`.
+#[test]
+#[ignore]
+fn sampled_speculation_matches_plain_sampling_in_law_on_the_fixture() {
+    use intarsia_core::spec::SampledSpec;
+    use std::collections::BTreeMap;
+    let w = weights(11);
+    let n = 1500u64;
+    // per position 2, 3, 4: token -> count
+    let draw = |e: &LocalEngine, seed0: u64, tk: usize, tp: f32| -> Vec<BTreeMap<u32, u64>> {
+        let mut c = vec![BTreeMap::new(); 3];
+        for s in seed0..seed0 + n {
+            let ids = run(e, sampled_req(PROMPTS[0], 4, s, 1.0, tk, tp)).ids;
+            for p in 0..3 {
+                *c[p].entry(ids[1 + p]).or_insert(0) += 1;
+            }
+        }
+        c
+    };
+    for (tk, tp) in [(0usize, 1.0f32), (4, 0.9)] {
+        let (off, _) = engine_sampled(&w, 2, 0, SampledSpec::Off);
+        let base = draw(&off, 0, tk, tp);
+        for (variant, dv) in [(SampledSpec::Reject, 0usize), (SampledSpec::Reject, 40), (SampledSpec::Match, 0)] {
+            let (e, tel) = engine_sampled(&w, 2, dv, variant);
+            let got = draw(&e, 1_000_000, tk, tp);
+            let s = tel.snapshot();
+            assert!(s.spec_steps > 0 && s.spec_accepted > 0 && s.spec_accepted < s.spec_proposed, "{variant:?}: both branches must run ({s:?})");
+            for pos in 0..3 {
+                let (base, got) = (&base[pos], &got[pos]);
+                // 2 x C homogeneity, cells with expected count < 5 pooled
+                let keys: std::collections::BTreeSet<u32> = base.keys().chain(got.keys()).copied().collect();
+                let (mut stat, mut cells, mut po) = (0.0, 0usize, [0.0f64; 2]);
+                for k in &keys {
+                    let o = [*base.get(k).unwrap_or(&0) as f64, *got.get(k).unwrap_or(&0) as f64];
+                    let e = (o[0] + o[1]) / 2.0;
+                    if e < 5.0 {
+                        po[0] += o[0];
+                        po[1] += o[1];
+                        continue;
+                    }
+                    stat += (o[0] - e).powi(2) / e + (o[1] - e).powi(2) / e;
+                    cells += 1;
+                }
+                let e = (po[0] + po[1]) / 2.0;
+                if e > 0.0 {
+                    stat += (po[0] - e).powi(2) / e + (po[1] - e).powi(2) / e;
+                    cells += 1;
+                }
+                assert!(cells >= 6, "position {}: too few cells ({cells}) for the test", pos + 2);
+                let df = (cells - 1) as f64;
+                let a = 2.0 / (9.0 * df);
+                let crit = df * (1.0 - a + 5.0 * a.sqrt()).powi(3);
+                eprintln!(
+                    "top_k {tk} top_p {tp} {variant:?} dv {dv} position {}: chi2 {stat:.1} on {df} df (crit {crit:.1}); accepted {}/{}",
+                    pos + 2,
+                    s.spec_accepted,
+                    s.spec_proposed
+                );
+                assert!(stat < crit, "{variant:?} dv {dv} top_k {tk} top_p {tp} position {}: chi2 {stat:.1} on {df} df", pos + 2);
+            }
+        }
+    }
 }

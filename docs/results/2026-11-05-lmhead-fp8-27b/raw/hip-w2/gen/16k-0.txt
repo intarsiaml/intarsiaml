@@ -1,0 +1,5 @@
+
+
+## Section-by-section summary
+
+**0. Goals, honest targets, anti-goals.** Requirements are prioritized: modular → easy to use → accurate → fast (top 3 per platform) → reproducible → OpenAI/Anthropic APIs → UI/TUI → metrics → live architecture diagram → Spark → R9700 → TP=X → Intel Arc later. "Top 3" is defined per platform with explicit phase gates (e.g., on R9700, beat vLLM or llama.cpp, not radiance, until Phase 4). Anti-goals: no per-family engines (models are

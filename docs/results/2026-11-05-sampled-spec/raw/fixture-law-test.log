@@ -1,0 +1,64 @@
+fleetq: #8585 running on endor: cargo test --release -p intarsia-models --test mtp -- sampled_speculation_matches --nocapture
+fleetq: #8585 went ahead of the line and must end within 2h25m (by Thu 20:11); it is stopped then
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1223:4
+     |
+1223 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+   Compiling intarsia-models v0.0.1 (/opt/code/intarsiaml/.worktrees/spec-sampled/crates/intarsia-models)
+    Finished `release` profile [optimized] target(s) in 3.03s
+     Running tests/mtp.rs (.scratch/target/release/deps/mtp-6228db65af10b8c0)
+
+running 1 test
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+test sampled_speculation_matches_plain_sampling_in_law_on_the_fixture has been running for over 60 seconds
+top_k 0 top_p 1 Reject dv 0 position 2: chi2 95.0 on 91 df (crit 175.5); accepted 929/4045
+top_k 0 top_p 1 Reject dv 0 position 3: chi2 99.1 on 95 df (crit 180.9); accepted 929/4045
+top_k 0 top_p 1 Reject dv 0 position 4: chi2 94.2 on 95 df (crit 180.9); accepted 929/4045
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+top_k 0 top_p 1 Reject dv 40 position 2: chi2 104.1 on 92 df (crit 176.8); accepted 642/4178
+top_k 0 top_p 1 Reject dv 40 position 3: chi2 86.4 on 95 df (crit 180.9); accepted 642/4178
+top_k 0 top_p 1 Reject dv 40 position 4: chi2 105.8 on 95 df (crit 180.9); accepted 642/4178
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+top_k 0 top_p 1 Match dv 0 position 2: chi2 99.4 on 88 df (crit 171.4); accepted 27/4492
+top_k 0 top_p 1 Match dv 0 position 3: chi2 99.6 on 95 df (crit 180.9); accepted 27/4492
+top_k 0 top_p 1 Match dv 0 position 4: chi2 77.9 on 95 df (crit 180.9); accepted 27/4492
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+top_k 4 top_p 0.9 Reject dv 0 position 2: chi2 7.0 on 12 df (crit 55.1); accepted 71/4500
+top_k 4 top_p 0.9 Reject dv 0 position 3: chi2 37.0 on 42 df (crit 105.3); accepted 71/4500
+top_k 4 top_p 0.9 Reject dv 0 position 4: chi2 52.6 on 64 df (crit 137.8); accepted 71/4500
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+top_k 4 top_p 0.9 Reject dv 40 position 2: chi2 7.0 on 12 df (crit 55.1); accepted 93/4500
+top_k 4 top_p 0.9 Reject dv 40 position 3: chi2 35.2 on 42 df (crit 105.3); accepted 93/4500
+top_k 4 top_p 0.9 Reject dv 40 position 4: chi2 42.0 on 63 df (crit 136.3); accepted 93/4500
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+top_k 4 top_p 0.9 Match dv 0 position 2: chi2 19.2 on 12 df (crit 55.1); accepted 12/4500
+top_k 4 top_p 0.9 Match dv 0 position 3: chi2 48.4 on 42 df (crit 105.3); accepted 12/4500
+top_k 4 top_p 0.9 Match dv 0 position 4: chi2 63.2 on 64 df (crit 137.8); accepted 12/4500
+test sampled_speculation_matches_plain_sampling_in_law_on_the_fixture ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 27 filtered out; finished in 234.01s
+
+fleetq: #8585 done (exit 0)

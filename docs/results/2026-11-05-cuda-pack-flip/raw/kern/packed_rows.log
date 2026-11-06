@@ -1,0 +1,428 @@
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1222:4
+     |
+1222 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+warning: function `ik_rdma_available` is never used
+  --> crates/intarsia-backend-cuda/src/ffi.rs:69:12
+   |
+69 |     pub fn ik_rdma_available() -> c_int;
+   |            ^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` on by default
+
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/packed_rows.rs (target/release/deps/packed_rows-33dff274711181f1)
+
+running 3 tests
+test moe_experts_segments_keep_their_solo_bits_from_pack_min_rows ... PACKROWS moe_experts 35B: segment   15 at row    0 of   31: solo moe_experts_bf16 / packed moe_experts_bf16: identical
+PACKROWS moe_experts 35B: segment   15 at row   16 of   31: solo moe_experts_bf16 / packed moe_experts_bf16: identical
+PACKROWS moe_experts 35B: segment   15 at row    0 of  315: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (5/15 rows)
+PACKROWS moe_experts 35B: segment   15 at row  300 of  315: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (4/15 rows)
+PACKROWS moe_experts 35B: segment   15 at row    0 of 1115: solo moe_experts_bf16 / packed moe_experts_w4a16_bf16: DIFFERS (5/15 rows)
+PACKROWS moe_experts 35B: segment   15 at row 1100 of 1115: solo moe_experts_bf16 / packed moe_experts_w4a16_bf16: DIFFERS (4/15 rows)
+PACKROWS moe_experts 35B: segment   16 at row    0 of   32: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (6/16 rows)
+PACKROWS moe_experts 35B: segment   16 at row   16 of   32: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (3/16 rows)
+PACKROWS moe_experts 35B: segment   16 at row    0 of  316: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (6/16 rows)
+PACKROWS moe_experts 35B: segment   16 at row  300 of  316: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (4/16 rows)
+PACKROWS moe_experts 35B: segment   16 at row    0 of 1116: solo moe_experts_bf16 / packed moe_experts_w4a16_bf16: DIFFERS (6/16 rows)
+PACKROWS moe_experts 35B: segment   16 at row 1100 of 1116: solo moe_experts_bf16 / packed moe_experts_w4a16_bf16: DIFFERS (5/16 rows)
+PACKROWS moe_experts 35B: segment   17 at row    0 of   33: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (6/17 rows)
+PACKROWS moe_experts 35B: segment   17 at row   16 of   33: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (3/17 rows)
+PACKROWS moe_experts 35B: segment   17 at row    0 of  317: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (6/17 rows)
+PACKROWS moe_experts 35B: segment   17 at row  300 of  317: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (5/17 rows)
+PACKROWS moe_experts 35B: segment   17 at row    0 of 1117: solo moe_experts_bf16 / packed moe_experts_w4a16_bf16: DIFFERS (6/17 rows)
+PACKROWS moe_experts 35B: segment   17 at row 1100 of 1117: solo moe_experts_bf16 / packed moe_experts_w4a16_bf16: DIFFERS (5/17 rows)
+PACKROWS moe_experts 35B: segment   24 at row    0 of   40: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (7/24 rows)
+PACKROWS moe_experts 35B: segment   24 at row   16 of   40: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (5/24 rows)
+PACKROWS moe_experts 35B: segment   24 at row    0 of  324: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (7/24 rows)
+PACKROWS moe_experts 35B: segment   24 at row  300 of  324: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (8/24 rows)
+PACKROWS moe_experts 35B: segment   24 at row    0 of 1124: solo moe_experts_bf16 / packed moe_experts_w4a16_bf16: DIFFERS (7/24 rows)
+PACKROWS moe_experts 35B: segment   24 at row 1100 of 1124: solo moe_experts_bf16 / packed moe_experts_w4a16_bf16: DIFFERS (9/24 rows)
+PACKROWS moe_experts 35B: segment   31 at row    0 of   47: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (9/31 rows)
+PACKROWS moe_experts 35B: segment   31 at row   16 of   47: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (9/31 rows)
+PACKROWS moe_experts 35B: segment   31 at row    0 of  331: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (9/31 rows)
+PACKROWS moe_experts 35B: segment   31 at row  300 of  331: solo moe_experts_bf16 / packed moe_experts_mma_bf16: DIFFERS (9/31 rows)
+PACKROWS moe_experts 35B: segment   31 at row    0 of 1131: solo moe_experts_bf16 / packed moe_experts_w4a16_bf16: DIFFERS (9/31 rows)
+PACKROWS moe_experts 35B: segment   31 at row 1100 of 1131: solo moe_experts_bf16 / packed moe_experts_w4a16_bf16: DIFFERS (10/31 rows)
+PACKROWS moe_experts 35B: segment   32 at row    0 of   48: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   32 at row   16 of   48: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   32 at row    0 of  332: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   32 at row  300 of  332: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   32 at row    0 of 1132: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment   32 at row 1100 of 1132: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment   33 at row    0 of   49: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   33 at row   16 of   49: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   33 at row    0 of  333: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   33 at row  300 of  333: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   33 at row    0 of 1133: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment   33 at row 1100 of 1133: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment   34 at row    0 of   50: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   34 at row   16 of   50: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   34 at row    0 of  334: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   34 at row  300 of  334: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   34 at row    0 of 1134: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment   34 at row 1100 of 1134: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment   40 at row    0 of   56: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   40 at row   16 of   56: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   40 at row    0 of  340: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   40 at row  300 of  340: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   40 at row    0 of 1140: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment   40 at row 1100 of 1140: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment   64 at row    0 of   80: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   64 at row   16 of   80: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   64 at row    0 of  364: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   64 at row  300 of  364: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment   64 at row    0 of 1164: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment   64 at row 1100 of 1164: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  255 at row    0 of  271: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  255 at row   16 of  271: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  255 at row    0 of  555: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  255 at row  300 of  555: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  255 at row    0 of 1355: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  255 at row 1100 of 1355: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  256 at row    0 of  272: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  256 at row   16 of  272: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  256 at row    0 of  556: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  256 at row  300 of  556: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  256 at row    0 of 1356: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  256 at row 1100 of 1356: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  257 at row    0 of  273: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  257 at row   16 of  273: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  257 at row    0 of  557: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  257 at row  300 of  557: solo moe_experts_mma_bf16 / packed moe_experts_mma_bf16: identical
+PACKROWS moe_experts 35B: segment  257 at row    0 of 1357: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  257 at row 1100 of 1357: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  767 at row    0 of  783: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  767 at row   16 of  783: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  767 at row    0 of 1067: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  767 at row  300 of 1067: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  767 at row    0 of 1867: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  767 at row 1100 of 1867: solo moe_experts_mma_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  768 at row    0 of  784: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  768 at row   16 of  784: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  768 at row    0 of 1068: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  768 at row  300 of 1068: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  768 at row    0 of 1868: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment  768 at row 1100 of 1868: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment 1000 at row    0 of 1016: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment 1000 at row   16 of 1016: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment 1000 at row    0 of 1300: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment 1000 at row  300 of 1300: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment 1000 at row    0 of 2100: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+PACKROWS moe_experts 35B: segment 1000 at row 1100 of 2100: solo moe_experts_w4a16_bf16 / packed moe_experts_w4a16_bf16: identical
+ok
+test moe_topk_segments_keep_their_solo_bits_from_pack_min_rows ... PACKROWS moe_topk: segment   15 at row    0 of   31: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   15 at row   16 of   31: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   15 at row    0 of  315: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   15 at row  300 of  315: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   15 at row    0 of 1115: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   15 at row 1100 of 1115: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   16 at row    0 of   32: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   16 at row   16 of   32: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   16 at row    0 of  316: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   16 at row  300 of  316: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   16 at row    0 of 1116: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   16 at row 1100 of 1116: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   17 at row    0 of   33: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   17 at row   16 of   33: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   17 at row    0 of  317: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   17 at row  300 of  317: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   17 at row    0 of 1117: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   17 at row 1100 of 1117: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   24 at row    0 of   40: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   24 at row   16 of   40: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   24 at row    0 of  324: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   24 at row  300 of  324: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   24 at row    0 of 1124: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   24 at row 1100 of 1124: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   31 at row    0 of   47: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   31 at row   16 of   47: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   31 at row    0 of  331: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   31 at row  300 of  331: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   31 at row    0 of 1131: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   31 at row 1100 of 1131: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   32 at row    0 of   48: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   32 at row   16 of   48: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   32 at row    0 of  332: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   32 at row  300 of  332: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   32 at row    0 of 1132: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   32 at row 1100 of 1132: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   33 at row    0 of   49: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   33 at row   16 of   49: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   33 at row    0 of  333: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   33 at row  300 of  333: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   33 at row    0 of 1133: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   33 at row 1100 of 1133: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   34 at row    0 of   50: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   34 at row   16 of   50: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   34 at row    0 of  334: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   34 at row  300 of  334: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   34 at row    0 of 1134: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   34 at row 1100 of 1134: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   40 at row    0 of   56: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   40 at row   16 of   56: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   40 at row    0 of  340: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   40 at row  300 of  340: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   40 at row    0 of 1140: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   40 at row 1100 of 1140: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   64 at row    0 of   80: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   64 at row   16 of   80: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   64 at row    0 of  364: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   64 at row  300 of  364: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   64 at row    0 of 1164: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment   64 at row 1100 of 1164: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  255 at row    0 of  271: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  255 at row   16 of  271: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  255 at row    0 of  555: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  255 at row  300 of  555: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  255 at row    0 of 1355: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  255 at row 1100 of 1355: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  256 at row    0 of  272: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  256 at row   16 of  272: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  256 at row    0 of  556: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  256 at row  300 of  556: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  256 at row    0 of 1356: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  256 at row 1100 of 1356: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  257 at row    0 of  273: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  257 at row   16 of  273: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  257 at row    0 of  557: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  257 at row  300 of  557: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  257 at row    0 of 1357: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  257 at row 1100 of 1357: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  767 at row    0 of  783: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  767 at row   16 of  783: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  767 at row    0 of 1067: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  767 at row  300 of 1067: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  767 at row    0 of 1867: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  767 at row 1100 of 1867: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  768 at row    0 of  784: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  768 at row   16 of  784: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+ok
+test nvfp4_matmul_segments_keep_their_solo_bits_from_pack_min_rows ... PACKROWS moe_topk: segment  768 at row    0 of 1068: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  768 at row  300 of 1068: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  768 at row    0 of 1868: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment  768 at row 1100 of 1868: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment 1000 at row    0 of 1016: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment 1000 at row   16 of 1016: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment 1000 at row    0 of 1300: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment 1000 at row  300 of 1300: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment 1000 at row    0 of 2100: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS moe_topk: segment 1000 at row 1100 of 2100: solo moe_topk_bf16 / packed moe_topk_bf16: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   15 at row    0 of   31: solo matmul_nvfp4_mma / packed matmul_nvfp4_mma: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   15 at row   16 of   31: solo matmul_nvfp4_mma / packed matmul_nvfp4_mma: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   15 at row    0 of  315: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   15 at row  300 of  315: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   15 at row    0 of 1115: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   15 at row 1100 of 1115: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   16 at row    0 of   32: solo matmul_nvfp4_mma / packed matmul_nvfp4_mma: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   16 at row   16 of   32: solo matmul_nvfp4_mma / packed matmul_nvfp4_mma: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   16 at row    0 of  316: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   16 at row  300 of  316: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   16 at row    0 of 1116: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   16 at row 1100 of 1116: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   17 at row    0 of   33: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   17 at row   16 of   33: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   17 at row    0 of  317: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   17 at row  300 of  317: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   17 at row    0 of 1117: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   17 at row 1100 of 1117: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   24 at row    0 of   40: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   24 at row   16 of   40: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   24 at row    0 of  324: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   24 at row  300 of  324: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   24 at row    0 of 1124: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   24 at row 1100 of 1124: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   31 at row    0 of   47: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   31 at row   16 of   47: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   31 at row    0 of  331: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   31 at row  300 of  331: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   31 at row    0 of 1131: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   31 at row 1100 of 1131: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   32 at row    0 of   48: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   32 at row   16 of   48: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   32 at row    0 of  332: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   32 at row  300 of  332: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   32 at row    0 of 1132: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   32 at row 1100 of 1132: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   33 at row    0 of   49: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   33 at row   16 of   49: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   33 at row    0 of  333: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   33 at row  300 of  333: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   33 at row    0 of 1133: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   33 at row 1100 of 1133: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   34 at row    0 of   50: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   34 at row   16 of   50: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   34 at row    0 of  334: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   34 at row  300 of  334: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   34 at row    0 of 1134: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   34 at row 1100 of 1134: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   40 at row    0 of   56: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   40 at row   16 of   56: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   40 at row    0 of  340: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   40 at row  300 of  340: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   40 at row    0 of 1140: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   40 at row 1100 of 1140: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   64 at row    0 of   80: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   64 at row   16 of   80: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   64 at row    0 of  364: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   64 at row  300 of  364: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   64 at row    0 of 1164: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment   64 at row 1100 of 1164: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  255 at row    0 of  271: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  255 at row   16 of  271: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  255 at row    0 of  555: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  255 at row  300 of  555: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  255 at row    0 of 1355: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  255 at row 1100 of 1355: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  256 at row    0 of  272: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  256 at row   16 of  272: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  256 at row    0 of  556: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  256 at row  300 of  556: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  256 at row    0 of 1356: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  256 at row 1100 of 1356: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  257 at row    0 of  273: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  257 at row   16 of  273: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  257 at row    0 of  557: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  257 at row  300 of  557: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  257 at row    0 of 1357: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  257 at row 1100 of 1357: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  767 at row    0 of  783: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  767 at row   16 of  783: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  767 at row    0 of 1067: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  767 at row  300 of 1067: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  767 at row    0 of 1867: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  767 at row 1100 of 1867: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  768 at row    0 of  784: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  768 at row   16 of  784: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  768 at row    0 of 1068: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  768 at row  300 of 1068: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  768 at row    0 of 1868: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment  768 at row 1100 of 1868: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment 1000 at row    0 of 1016: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment 1000 at row   16 of 1016: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment 1000 at row    0 of 1300: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment 1000 at row  300 of 1300: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment 1000 at row    0 of 2100: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N512 K2048: segment 1000 at row 1100 of 2100: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   15 at row    0 of   31: solo matmul_nvfp4_mma / packed matmul_nvfp4_mma: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   15 at row   16 of   31: solo matmul_nvfp4_mma / packed matmul_nvfp4_mma: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   15 at row    0 of  315: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   15 at row  300 of  315: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   15 at row    0 of 1115: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   15 at row 1100 of 1115: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   16 at row    0 of   32: solo matmul_nvfp4_mma / packed matmul_nvfp4_mma: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   16 at row   16 of   32: solo matmul_nvfp4_mma / packed matmul_nvfp4_mma: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   16 at row    0 of  316: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   16 at row  300 of  316: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   16 at row    0 of 1116: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   16 at row 1100 of 1116: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   17 at row    0 of   33: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   17 at row   16 of   33: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   17 at row    0 of  317: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   17 at row  300 of  317: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   17 at row    0 of 1117: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   17 at row 1100 of 1117: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   24 at row    0 of   40: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   24 at row   16 of   40: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   24 at row    0 of  324: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   24 at row  300 of  324: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   24 at row    0 of 1124: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   24 at row 1100 of 1124: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   31 at row    0 of   47: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   31 at row   16 of   47: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   31 at row    0 of  331: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   31 at row  300 of  331: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   31 at row    0 of 1131: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   31 at row 1100 of 1131: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   32 at row    0 of   48: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   32 at row   16 of   48: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   32 at row    0 of  332: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   32 at row  300 of  332: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   32 at row    0 of 1132: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   32 at row 1100 of 1132: solo matmul_nvfp4_mma / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   33 at row    0 of   49: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   33 at row   16 of   49: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   33 at row    0 of  333: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   33 at row  300 of  333: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   33 at row    0 of 1133: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   33 at row 1100 of 1133: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   34 at row    0 of   50: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   34 at row   16 of   50: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   34 at row    0 of  334: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   34 at row  300 of  334: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   34 at row    0 of 1134: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   34 at row 1100 of 1134: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   40 at row    0 of   56: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   40 at row   16 of   56: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   40 at row    0 of  340: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   40 at row  300 of  340: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   40 at row    0 of 1140: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   40 at row 1100 of 1140: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   64 at row    0 of   80: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   64 at row   16 of   80: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   64 at row    0 of  364: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   64 at row  300 of  364: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   64 at row    0 of 1164: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment   64 at row 1100 of 1164: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  255 at row    0 of  271: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  255 at row   16 of  271: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  255 at row    0 of  555: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  255 at row  300 of  555: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  255 at row    0 of 1355: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  255 at row 1100 of 1355: solo matmul_nvfp4_gemm / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  256 at row    0 of  272: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  256 at row   16 of  272: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  256 at row    0 of  556: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  256 at row  300 of  556: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  256 at row    0 of 1356: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  256 at row 1100 of 1356: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  257 at row    0 of  273: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  257 at row   16 of  273: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  257 at row    0 of  557: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  257 at row  300 of  557: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  257 at row    0 of 1357: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  257 at row 1100 of 1357: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  767 at row    0 of  783: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  767 at row   16 of  783: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  767 at row    0 of 1067: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  767 at row  300 of 1067: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  767 at row    0 of 1867: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  767 at row 1100 of 1867: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  768 at row    0 of  784: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  768 at row   16 of  784: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  768 at row    0 of 1068: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  768 at row  300 of 1068: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  768 at row    0 of 1868: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment  768 at row 1100 of 1868: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment 1000 at row    0 of 1016: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment 1000 at row   16 of 1016: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment 1000 at row    0 of 1300: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment 1000 at row  300 of 1300: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment 1000 at row    0 of 2100: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+PACKROWS matmul_nvfp4 N2048 K512: segment 1000 at row 1100 of 2100: solo matmul_nvfp4_gemm_reg / packed matmul_nvfp4_gemm_reg: identical
+ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.63s
+

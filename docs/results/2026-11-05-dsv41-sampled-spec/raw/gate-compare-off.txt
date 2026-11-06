@@ -1,0 +1,16 @@
+prompt             n_prompt cont main/flag-off  leading    equal  identical
+count                    35    64/64       64/64    64/64   yes
+story                    39    64/64       64/64    64/64   yes
+code                     80    64/64       64/64    64/64   yes
+science                  76    64/64       64/64    64/64   yes
+chat_short               32    64/64       64/64    64/64   yes
+chat_system              55    64/64       64/64    64/64   yes
+chat_multiturn           91    64/64       64/64    64/64   yes
+chat_reasoning           99    64/64       64/64    64/64   yes
+long_prose_300          300    64/64       64/64    64/64   yes
+long_prose_700          700    64/64       64/64    64/64   yes
+d_1200                 1200   160/160     160/160  160/160  yes
+d_4106                 4106   160/160     160/160  160/160  yes
+d_612                   612   160/160     160/160  160/160  yes
+TOTAL main vs flag-off: leading-match 1120/1120 (100.00%), equal positions 1120/1120 (100.00%), identical prompts 13/13; main holds 1120 continuation tokens
+REQUIREMENT MET

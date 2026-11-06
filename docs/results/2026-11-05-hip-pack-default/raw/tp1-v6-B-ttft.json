@@ -1,0 +1,165 @@
+{
+ "url": "http://tatooine:8296/v1",
+ "gen": 64,
+ "rows": [
+  {
+   "streams": 1,
+   "bursts": 3,
+   "ttft_p50": 0.151,
+   "ttft_p95": 0.158,
+   "ttft_max": 0.158,
+   "n": 3,
+   "sha": {
+    "0": [
+     "b393c50a97d0ab91"
+    ],
+    "1": [
+     "1fc8915c9321a4e9"
+    ],
+    "2": [
+     "451100baac0aa517"
+    ]
+   },
+   "pack_passes": 0.0,
+   "packed_chunks": 0.0
+  },
+  {
+   "streams": 4,
+   "bursts": 3,
+   "ttft_p50": 0.353,
+   "ttft_p95": 0.553,
+   "ttft_max": 0.559,
+   "n": 12,
+   "sha": {
+    "0": [
+     "36680646c23fbf7c",
+     "4cfc08dd2c8837a4",
+     "a24ec1dded2b57ad",
+     "ed9c9009a745edc8"
+    ],
+    "1": [
+     "116a27dfc83f23a0",
+     "70fdbcc3aea90f87",
+     "8745f1f9ef149a07",
+     "02e3c33f8cfaad65"
+    ],
+    "2": [
+     "cb16ef158434a25a",
+     "4cfc08dd2c8837a4",
+     "99b0cc09f0f3bd6c",
+     "c8eb21d44b6f4a07"
+    ]
+   },
+   "pack_passes": 0.0,
+   "packed_chunks": 0.0
+  },
+  {
+   "streams": 8,
+   "bursts": 3,
+   "ttft_p50": 0.629,
+   "ttft_p95": 1.093,
+   "ttft_max": 1.142,
+   "n": 24,
+   "sha": {
+    "0": [
+     "354bad46545c2896",
+     "e35dc90a521b0cfb",
+     "f207f49eb6db7ec2",
+     "433ed3363c9d78d1",
+     "c30e1187fcc2ae9a",
+     "265e34d6c413a0ab",
+     "ad8917398e382ba3",
+     "766f0169d08b982d"
+    ],
+    "1": [
+     "97453b5d0596f35c",
+     "e822144952c4f28e",
+     "64e6f07ac659c053",
+     "7f37fc5289282a1a",
+     "82082b4eb8a10eac",
+     "a15c8a75cfc5d0a2",
+     "aed6c667a4f70ecd",
+     "3eebd455da7d2854"
+    ],
+    "2": [
+     "78c215edbd714395",
+     "888582f6649dd558",
+     "c800c8a30be34bd4",
+     "f524e162fd803529",
+     "5f44bf9459532248",
+     "0b852890747625ac",
+     "1d3f0c553d69b4bd",
+     "8fa6a4dba1d42d95"
+    ]
+   },
+   "pack_passes": 0.0,
+   "packed_chunks": 0.0
+  },
+  {
+   "streams": 16,
+   "bursts": 3,
+   "ttft_p50": 1.175,
+   "ttft_p95": 2.257,
+   "ttft_max": 2.284,
+   "n": 48,
+   "sha": {
+    "0": [
+     "84e5e647395e3326",
+     "5e429758c482f194",
+     "99b20dfc7e3d045f",
+     "c09625469c23d712",
+     "958901906da71e62",
+     "aadbe7e5ae5dc06d",
+     "ca8c25dd8d51afaa",
+     "fc4f2daa898cee5c",
+     "5783559b98605c3d",
+     "3f6428a2093cb469",
+     "c1ca72a5155b3976",
+     "4152065d21ec8d49",
+     "824c4acf74412a5a",
+     "c8207f11c0e52a6e",
+     "8a83086a3d367d70",
+     "aa2e23ecb68957dd"
+    ],
+    "1": [
+     "716df8d7af23a15e",
+     "dbb3e31f74249717",
+     "99b20dfc7e3d045f",
+     "6b6130cece8961b9",
+     "3d2a380551a1f50d",
+     "24bb30c86689aea5",
+     "d240cac1b4a114d6",
+     "6b1ee03e43903b04",
+     "f1641c0a0b1c9ad0",
+     "a346602882eda232",
+     "bbbd23c8cfcfa23e",
+     "feff54f585e4a154",
+     "7746c6885a2f0012",
+     "5365651652d0d2de",
+     "2951231bcb3248bb",
+     "0d4ea6530ada81c8"
+    ],
+    "2": [
+     "cfb55133ba4ac999",
+     "e1a5a1f75cdd0c28",
+     "99b20dfc7e3d045f",
+     "5c90c8285cf1b95a",
+     "8762f8a5805b016d",
+     "4a5c2e7b992be966",
+     "ca8c25dd8d51afaa",
+     "bf28d422b101aa9f",
+     "e3489ae402264db5",
+     "e1bb829969638c4c",
+     "c302ef618861acbb",
+     "b94e4b70864e5789",
+     "5edec5b2b90f617a",
+     "95e0a42ebeec938f",
+     "d48fe8e59616353a",
+     "102ea7fa3ffa9e6d"
+    ]
+   },
+   "pack_passes": 0.0,
+   "packed_chunks": 0.0
+  }
+ ]
+}

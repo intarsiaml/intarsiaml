@@ -1,0 +1,19 @@
+kernels base exit 0
+golden base qwen3-8b-fp32 exit 0
+golden base qwen3-8b-long-fp32 exit 0
+kernels br exit 0
+golden br qwen3-8b-fp32 exit 0
+golden br qwen3-8b-long-fp32 exit 0
+same plan-base-27.err
+same plan-base-27.json
+same plan-base-27.txt
+same plan-base-35.err
+same plan-base-35.json
+same plan-base-35.txt
+same plan-base-8.err
+same plan-base-8.json
+same plan-base-8.txt
+same ids-base-27-4k.out
+same ids-base-27-short.out
+same ids-base-35-4k.out
+same ids-base-35-short.out

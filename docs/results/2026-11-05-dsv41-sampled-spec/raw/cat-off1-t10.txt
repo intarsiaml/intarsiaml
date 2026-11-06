@@ -1,0 +1,15 @@
+recall-tcp-handshake         T 1.0  256 tokens   36.6 tok/s ttft 0.17 s
+recall-photosynthesis        T 1.0  256 tokens   36.6 tok/s ttft 0.15 s
+recall-french-revolution     T 1.0  256 tokens   36.6 tok/s ttft 0.17 s
+recall-git-internals         T 1.0  256 tokens   36.3 tok/s ttft 0.18 s
+recall-vaccines              T 1.0  256 tokens   36.3 tok/s ttft 0.16 s
+recall-cpu-caches            T 1.0  256 tokens   35.9 tok/s ttft 0.17 s
+recall-plate-tectonics       T 1.0  256 tokens   36.4 tok/s ttft 0.15 s
+recall-http2                 T 1.0  256 tokens   36.5 tok/s ttft 0.19 s
+code-lru-cache               T 1.0  256 tokens   36.7 tok/s ttft 0.20 s
+code-rate-limiter            T 1.0  256 tokens   36.7 tok/s ttft 0.18 s
+code-json-parser             T 1.0  256 tokens   36.8 tok/s ttft 0.19 s
+code-rust-cli                T 1.0  256 tokens   36.4 tok/s ttft 0.17 s
+code-sql-schema              T 1.0  256 tokens   36.6 tok/s ttft 0.17 s
+code-ts-debounce             T 1.0  256 tokens   36.7 tok/s ttft 0.19 s
+code-go-worker-pool          T 1.0  256 tokens   36.9 tok/s ttft 0.17 s

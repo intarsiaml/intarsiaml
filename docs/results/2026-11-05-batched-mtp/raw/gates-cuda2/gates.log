@@ -1,0 +1,38 @@
+== plan show 18:57:46
+plan show: branch == main (byte-identical)
+== kernels test --quick 18:59:40
+kernels exit 0
+0
+logits         logits_f16w                     2      0    8.208e-8    6.986e-8  ADMITTED
+matmul         matmul_f16w                     4      0     0.000e0     0.000e0  ADMITTED
+106 kernels, 918 cases in 6.7s
+== ids solo-off 18:59:48
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda2/ids-solo-off.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== ids bmtp4 19:00:50
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda2/ids-bmtp4.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 101
+intarsia_spec_accepted_tokens_total 81
+== ids bmtp1 19:01:51
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda2/ids-bmtp1.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 3
+intarsia_spec_accepted_tokens_total 3
+== ids plain16 19:02:53
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda2/ids-plain16.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== ids bver5 19:03:39
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda2/ids-bver5.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 305
+intarsia_spec_accepted_tokens_total 227
+== ids bver8k3 19:04:37
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda2/ids-bver8k3.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 1312
+intarsia_spec_accepted_tokens_total 839
+ids-bmtp4.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-bmtp1.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-plain16.json identical per sequence: [True, True, False, True, True, True] MISMATCH
+ids-bver5.json identical per sequence: [True, True, False, True, True, True] MISMATCH
+ids-bver8k3.json identical per sequence: [True, True, False, True, True, True] MISMATCH
+== done 19:05:36

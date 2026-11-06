@@ -1,0 +1,13 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_vl, metal)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, metal; --mtp-draft-vocab 0 drafts with the full head)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax logits=logits_bf16_gemv argmax=argmax_f32 logits=logits_bf16_gemv_rows
+loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on Apple M5 Max in 0.4s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.88 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 4034 tokens
+ids: [271, 550, 220, 16, 13, 18284, 70523, 271, 13962, 21397, 357, 25, 55085, 14145, 5073, 1923, 66848, 271, 332, 4555, 64700, 1510, 21260, 1385, 9951, 63, 321, 1510, 21260, 1385, 8286, 42173, 63, 271, 4350, 264, 6795, 34105, 1510, 8534, 19912, 7561, 88461, 9951, 63, 24096, 1510, 11895, 7393, 27653, 561, 11525, 1179, 6526, 88461, 8286, 42173, 7561, 864, 14973, 279, 2531, 430, 1510, 35693, 63, 321, 35551, 264, 21979, 13, 4213, 11, 279, 3889, 4368, 369, 1990, 13282, 321, 668, 9297, 1562, 1510, 8556, 3935, 8534, 15884, 44646, 310, 9463, 13, 1368, 279, 6795, 682]
+finish=length prompt=4034 (cached 0) completion=96 | prefill 4659 ms (865.8 tok/s) | decode 3173 ms (29.94 tok/s)
+spec: verify passes=40 proposed=80 accepted=54 (acceptance 67.5%, 2.35 tokens per pass)
+steps=44 graph replays=0 (captures 0) eager decode steps=2 (profiled 0) top ops: matmul_mxfp4=2141ms/21824 gdn_delta_rule=212ms/5952 embedding=182ms/128 silu_glu=83ms/5008 rmsnorm_add=80ms/5792

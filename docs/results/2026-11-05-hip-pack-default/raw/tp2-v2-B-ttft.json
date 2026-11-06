@@ -1,0 +1,165 @@
+{
+ "url": "http://tatooine:8296/v1",
+ "gen": 64,
+ "rows": [
+  {
+   "streams": 1,
+   "bursts": 3,
+   "ttft_p50": 0.126,
+   "ttft_p95": 0.157,
+   "ttft_max": 0.157,
+   "n": 3,
+   "sha": {
+    "0": [
+     "31970d577d091519"
+    ],
+    "1": [
+     "98d8228375695b32"
+    ],
+    "2": [
+     "451100baac0aa517"
+    ]
+   },
+   "pack_passes": 0.0,
+   "packed_chunks": 0.0
+  },
+  {
+   "streams": 4,
+   "bursts": 3,
+   "ttft_p50": 0.317,
+   "ttft_p95": 0.454,
+   "ttft_max": 0.456,
+   "n": 12,
+   "sha": {
+    "0": [
+     "36680646c23fbf7c",
+     "b9ced0154735a0e6",
+     "a24ec1dded2b57ad",
+     "4a079c4ab596a900"
+    ],
+    "1": [
+     "116a27dfc83f23a0",
+     "99e241e36757ed98",
+     "b640ebf01e401323",
+     "4d9b33cdf8b0926e"
+    ],
+    "2": [
+     "cb16ef158434a25a",
+     "3b5fc0b9cc656053",
+     "a24ec1dded2b57ad",
+     "eef597cb222a92b2"
+    ]
+   },
+   "pack_passes": 0.0,
+   "packed_chunks": 0.0
+  },
+  {
+   "streams": 8,
+   "bursts": 3,
+   "ttft_p50": 0.512,
+   "ttft_p95": 0.911,
+   "ttft_max": 0.915,
+   "n": 24,
+   "sha": {
+    "0": [
+     "40d6a43adcc14d93",
+     "5b516cfaaa57e0c4",
+     "ca83b415cb42c586",
+     "4476c23b4f146048",
+     "622792dcdef9d57a",
+     "eaa8fd31e804071c",
+     "03c73c25f616a468",
+     "b04c0bfed779161f"
+    ],
+    "1": [
+     "97453b5d0596f35c",
+     "ab947cdee688dd33",
+     "cd5964fe2cb0db53",
+     "28b2023bdd8d2509",
+     "db6e0c9311a608c8",
+     "da85ba8d1c325887",
+     "18c5035e6c2af001",
+     "a5316de054b4b10e"
+    ],
+    "2": [
+     "97453b5d0596f35c",
+     "47906d9132bb212c",
+     "925b65728d048c8d",
+     "d57f850ac362a6f6",
+     "100e89b4f01e48d9",
+     "48747c8cfefcec52",
+     "a4e02f5cd646c19f",
+     "3eebd455da7d2854"
+    ]
+   },
+   "pack_passes": 0.0,
+   "packed_chunks": 0.0
+  },
+  {
+   "streams": 16,
+   "bursts": 3,
+   "ttft_p50": 0.972,
+   "ttft_p95": 1.857,
+   "ttft_max": 1.862,
+   "n": 48,
+   "sha": {
+    "0": [
+     "84e5e647395e3326",
+     "95f407e30c13a9da",
+     "791553a25200b6e5",
+     "441ad99a92c31846",
+     "341af8ed051b4af0",
+     "aa8e9046e9576fc1",
+     "74b144ad2c3ebec1",
+     "17e8ae9dc066a316",
+     "70500ee6a4f81637",
+     "9fde8c4c1a9cdaeb",
+     "a0514f68c07c4db9",
+     "137a94c5fa3246cd",
+     "e730c32d8c22a54a",
+     "596cb46c317d3d72",
+     "195e880fff953e52",
+     "fdd2ef240146ef3f"
+    ],
+    "1": [
+     "2934ed071adaea6b",
+     "5e429758c482f194",
+     "99b20dfc7e3d045f",
+     "d5045bf05dd63a5e",
+     "6ee72ddc61e3fde8",
+     "29360e60e19bfd2a",
+     "ca8c25dd8d51afaa",
+     "b981a558f7c9ef4a",
+     "adb548f636668c22",
+     "f793b59d91123a7f",
+     "ffc8c09974faa33d",
+     "4043124a69e70ee9",
+     "5edec5b2b90f617a",
+     "9cf91facf21f5195",
+     "94d9bd15e57b2175",
+     "6f252b8690bfb77b"
+    ],
+    "2": [
+     "a7a63d7395dd74db",
+     "e8ddc87c50350038",
+     "99b20dfc7e3d045f",
+     "5c90c8285cf1b95a",
+     "5458a3f167cedfba",
+     "1629aefdd5a5ec57",
+     "772b16b5ec7799d1",
+     "9718acc1b9cad4f8",
+     "c86c726565f5d444",
+     "b7b8168d482f98f6",
+     "aa6a93f7ded5333b",
+     "85eb6bb27dbf5e78",
+     "dc79957cda4fdb55",
+     "6ba95aac16ae8d40",
+     "740b39d0aac33db7",
+     "1b447a66394927f1"
+    ]
+   },
+   "pack_passes": 0.0,
+   "packed_chunks": 0.0
+  }
+ ]
+}

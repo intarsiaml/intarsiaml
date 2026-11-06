@@ -59,6 +59,8 @@ pub struct DsvAttrs {
     pub iters: usize,
     /// `HcMixes`: the epsilon added inside the split and every Sinkhorn normalisation (`hc_eps`).
     pub hc_eps: f32,
+    /// `HcSublayer`: 0 the whole op; 1 and 2 its main and side halves, on two streams (`INTARSIA_DSV41_HC_SIDE`).
+    pub hc_mode: u8,
     /// `ActQdq`: element format, block length along the last dimension, scale format.
     pub qdq_fmt: QdqFmt,
     pub qdq_block: usize,
@@ -86,6 +88,7 @@ impl Default for DsvAttrs {
             ratio: 1,
             iters: 20,
             hc_eps: 1e-6,
+            hc_mode: 0,
             qdq_fmt: QdqFmt::Fp8E4m3,
             qdq_block: 32,
             qdq_scale: QdqScale::Ue8m0,

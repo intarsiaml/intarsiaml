@@ -117,7 +117,7 @@ __global__ void __launch_bounds__(kThreads) hc_sub_partial(const Tx* __restrict_
 }
 
 // Th: dtype of the h read here (h_out with the fold, x without); To: n's dtype; Tw: norm weight dtype
-template <int S, typename Th, typename To, typename Tw>
+template <int S, typename Th, typename To, typename Tw, bool SINK = true>
 __global__ void __launch_bounds__(kThreads) hc_sub_finish(const Th* __restrict__ h, const float* __restrict__ pre_in, const Tw* __restrict__ w,
                                                         const float* __restrict__ part, const float* __restrict__ scale,
                                                         const float* __restrict__ base, int64_t D, int nsplit, float eps, float w_offset,
@@ -145,7 +145,41 @@ __global__ void __launch_bounds__(kThreads) hc_sub_finish(const Th* __restrict__
     ss = ik_block_sum(ss, red);
     const float rs = 1.f / sqrtf(ss / (float)D + eps);
     for (int64_t d = threadIdx.x; d < D; d += kThreads) n[t * D + d] = cvt<To>(ys[d] * rs * (back<Tw>(w[d]) + w_offset));
+    if constexpr (!SINK) return;
     if (warp != 0) return;
+    float v = 0.f;
+    if (lane <= M)
+        for (int sp = 0; sp < nsplit; ++sp) v += part[(t * nsplit + sp) * (M + 1) + lane];
+    sums[lane] = v;
+    __syncwarp();
+    hc_split_sinkhorn_warp<S>(sums, (int64_t)S * D, scale, base, eps, iters, hc_eps, pre + t * S, post + t * S, comb + t * S * S);
+}
+
+// The two halves of the op for INTARSIA_DSV41_HC_SIDE, same bits as the fused launches: the main stream's half needs nothing
+// the dots and the Sinkhorn produce (they are the next sublayer's inputs), so those can run beside the next kernels.
+// h = post_mix x_prev + comb^T res alone: the partial kernel's fold without its dots.
+template <typename Tx, typename Th>
+__global__ void __launch_bounds__(kThreads) hc_sub_post_only(const Tx* __restrict__ x, const Tx* __restrict__ px, const float* __restrict__ pmix,
+                                                            const float* __restrict__ pcomb, Th* __restrict__ hout, int S, int64_t D) {
+    const int64_t sd = (int64_t)S * D, t = blockIdx.y;
+    const int64_t e = (int64_t)blockIdx.x * kThreads + threadIdx.x;
+    if (e >= sd) return;
+    const int k = (int)(e / D);
+    const int64_t d = e % D;
+    float h = pmix[t * S + k] * ld(px, t * D + d);
+    for (int j = 0; j < S; ++j) h = fmaf(pcomb[(t * S + j) * S + k], ld(x, (t * S + j) * D + d), h);
+    hout[t * sd + e] = cvt<Th>(h);
+}
+
+// The finish's Sinkhorn alone: one warp per row.
+template <int S>
+__global__ void __launch_bounds__(32) hc_sub_sinkhorn(const float* __restrict__ part, const float* __restrict__ scale, const float* __restrict__ base,
+                                                      int64_t D, int nsplit, float eps, int iters, float hc_eps, float* __restrict__ pre,
+                                                      float* __restrict__ post, float* __restrict__ comb) {
+    constexpr int M = (2 + S) * S;
+    __shared__ float sums[32];
+    const int64_t t = blockIdx.x;
+    const int lane = threadIdx.x;
     float v = 0.f;
     if (lane <= M)
         for (int sp = 0; sp < nsplit; ++sp) v += part[(t * nsplit + sp) * (M + 1) + lane];
@@ -170,9 +204,37 @@ template <typename Tx, typename Th, typename To, typename Tw, int S>
 static int run_sub(const ik_tensor* x, const ik_tensor* fn, const ik_tensor* scale, const ik_tensor* base, const ik_tensor* pre_in,
                    const ik_tensor* w, const ik_tensor* px, const ik_tensor* pmix, const ik_tensor* pcomb, float eps, float w_offset, int iters,
                    float hc_eps, ik_tensor* n, ik_tensor* pre, ik_tensor* post, ik_tensor* comb, ik_tensor* hout, bool fold, float* part,
-                   int64_t ns, cudaStream_t s) {
+                   int64_t ns, cudaStream_t s, int mode) {
     const int64_t T = x->shape[0], D = x->shape[2];
     const int m = (2 + S) * S;
+    if (mode == 1) {
+        // main half: the post (fold), then n; part, pre, post and comb are not touched
+        if (fold) {
+            dim3 g((unsigned)cdiv((int64_t)S * D, kThreads), (unsigned)T);
+            hc_sub_post_only<Tx, Th><<<g, kThreads, 0, s>>>((const Tx*)x->data, (const Tx*)px->data, (const float*)pmix->data,
+                                                            (const float*)pcomb->data, (Th*)hout->data, S, D);
+            IK_TRY(ik_launch_status());
+        }
+        const size_t bytes = (size_t)D * sizeof(float);
+        if (bytes > 48 * 1024) cudaFuncSetAttribute(hc_sub_finish<S, Th, To, Tw, false>, cudaFuncAttributeMaxDynamicSharedMemorySize, (int)bytes);
+        const void* hs = fold ? hout->data : x->data;
+        hc_sub_finish<S, Th, To, Tw, false><<<(unsigned)T, kThreads, bytes, s>>>((const Th*)hs, (const float*)pre_in->data, (const Tw*)w->data, part,
+                                                                                (const float*)scale->data, (const float*)base->data, D, (int)ns, eps,
+                                                                                w_offset, iters, hc_eps, (To*)n->data, (float*)pre->data,
+                                                                                (float*)post->data, (float*)comb->data);
+        return ik_launch_status();
+    }
+    if (mode == 2) {
+        // side half: the dots of the stored h, then the Sinkhorn
+        const void* hs = fold ? hout->data : x->data;
+        dim3 g((unsigned)ns, (unsigned)cdiv(T, kTileRows));
+        hc_sub_partial<Th, Th, false><<<g, kThreads, 0, s>>>((const Th*)hs, (const float*)fn->data, nullptr, nullptr, nullptr, nullptr,
+                                                            T, S, D, m, (int)ns, part);
+        IK_TRY(ik_launch_status());
+        hc_sub_sinkhorn<S><<<(unsigned)T, 32, 0, s>>>(part, (const float*)scale->data, (const float*)base->data, D, (int)ns, eps, iters, hc_eps,
+                                                      (float*)pre->data, (float*)post->data, (float*)comb->data);
+        return ik_launch_status();
+    }
     dim3 g((unsigned)ns, (unsigned)cdiv(T, kTileRows));
     if (fold)
         hc_sub_partial<Tx, Th, true><<<g, kThreads, 0, s>>>((const Tx*)x->data, (const float*)fn->data, (const Tx*)px->data,
@@ -192,7 +254,7 @@ static int run_sub(const ik_tensor* x, const ik_tensor* fn, const ik_tensor* sca
     return ik_launch_status();
 }
 
-extern "C" int ik_hc_sublayer(const ik_tensor* x, const ik_tensor* fn, const ik_tensor* scale, const ik_tensor* base, const ik_tensor* pre_in,
+extern "C" int ik_hc_sublayer_mode(int mode, const ik_tensor* x, const ik_tensor* fn, const ik_tensor* scale, const ik_tensor* base, const ik_tensor* pre_in,
                               const ik_tensor* norm_w, const ik_tensor* post_x, const ik_tensor* post_mix, const ik_tensor* post_comb,
                               float eps, float w_offset, int64_t iters, float hc_eps, ik_tensor* n, ik_tensor* pre, ik_tensor* post,
                               ik_tensor* comb, ik_tensor* h_out, const ik_scratch* scratch, void* stream) {
@@ -227,8 +289,10 @@ extern "C" int ik_hc_sublayer(const ik_tensor* x, const ik_tensor* fn, const ik_
     if (T == 0) return IK_OK;
     const int64_t ns = hc_sub_nsplit(T, sd);
     const int64_t need = T * ns * (m + 1) * 4;
-    if (!scratch || !scratch->data || scratch->bytes < need) return IK_ERR_INVALID_ARG;
-    float* part = (float*)scratch->data;
+    // mode 0: the whole op; 1: the main half, no scratch; 2: the side half (INTARSIA_DSV41_HC_SIDE)
+    if (mode < 0 || mode > 2) return IK_ERR_INVALID_ARG;
+    if (mode != 1 && (!scratch || !scratch->data || scratch->bytes < need)) return IK_ERR_INVALID_ARG;
+    float* part = mode == 1 ? nullptr : (float*)scratch->data;
     cudaStream_t s = IK_STREAM(stream);
     // dtypes: x, post_x, h_out and n share one float dtype (the model: bf16; the sweep also all-f32); the norm weight is that
     // dtype or f32 (the official RMSNorm keeps its weight in f32)
@@ -237,7 +301,7 @@ extern "C" int ik_hc_sublayer(const ik_tensor* x, const ik_tensor* fn, const ik_
     const bool wf32 = norm_w->dtype == IK_DTYPE_F32;
 #define HC_SUB_RUN(TT, TW, SS)                                                                                                \
     return run_sub<TT, TT, TT, TW, SS>(x, fn, scale, base, pre_in, norm_w, post_x, post_mix, post_comb, eps, w_offset, (int)iters, \
-                                       hc_eps, n, pre, post, comb, h_out, fold, part, ns, s)
+                                       hc_eps, n, pre, post, comb, h_out, fold, part, ns, s, mode)
 #define HC_SUB_S(TT, TW)                \
     switch (S) {                        \
         case 1: HC_SUB_RUN(TT, TW, 1);  \
@@ -260,4 +324,12 @@ extern "C" int ik_hc_sublayer(const ik_tensor* x, const ik_tensor* fn, const ik_
 #undef HC_SUB_RUN
 #undef HC_SUB_W
 #undef HC_SUB_S
+}
+
+extern "C" int ik_hc_sublayer(const ik_tensor* x, const ik_tensor* fn, const ik_tensor* scale, const ik_tensor* base, const ik_tensor* pre_in,
+                              const ik_tensor* norm_w, const ik_tensor* post_x, const ik_tensor* post_mix, const ik_tensor* post_comb,
+                              float eps, float w_offset, int64_t iters, float hc_eps, ik_tensor* n, ik_tensor* pre, ik_tensor* post,
+                              ik_tensor* comb, ik_tensor* h_out, const ik_scratch* scratch, void* stream) {
+    return ik_hc_sublayer_mode(0, x, fn, scale, base, pre_in, norm_w, post_x, post_mix, post_comb, eps, w_offset, iters, hc_eps, n, pre, post, comb,
+                               h_out, scratch, stream);
 }

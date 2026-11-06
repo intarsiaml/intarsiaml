@@ -1,0 +1,7 @@
+4k-0 449 chars {'prompt_tokens': 3858, 'completion_tokens': 128, 'total_tokens': 3986, 'prompt_tokens_details': {'cached_tokens': 0}}
+4k-1 553 chars {'prompt_tokens': 3981, 'completion_tokens': 128, 'total_tokens': 4109, 'prompt_tokens_details': {'cached_tokens': 0}}
+4k-2 544 chars {'prompt_tokens': 4336, 'completion_tokens': 128, 'total_tokens': 4464, 'prompt_tokens_details': {'cached_tokens': 0}}
+16k-0 468 chars {'prompt_tokens': 15469, 'completion_tokens': 128, 'total_tokens': 15597, 'prompt_tokens_details': {'cached_tokens': 0}}
+16k-1 597 chars {'prompt_tokens': 15844, 'completion_tokens': 128, 'total_tokens': 15972, 'prompt_tokens_details': {'cached_tokens': 0}}
+16k-2 535 chars {'prompt_tokens': 16293, 'completion_tokens': 128, 'total_tokens': 16421, 'prompt_tokens_details': {'cached_tokens': 0}}
+wrote /opt/code/intarsiaml/.worktrees/lmhead-fp8/docs/results/2026-11-05-lmhead-fp8-27b/raw/hip-w2/prompts.safetensors: 4k-0=3986, 4k-1=4109, 4k-2=4464, 16k-0=15597, 16k-1=15972, 16k-2=16421

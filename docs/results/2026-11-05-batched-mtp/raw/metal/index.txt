@@ -1,0 +1,6 @@
+bm-metal-plain-r1: - result file: `results/20261105-195949-adhoc-bm-metal-plain-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-195949-adhoc-bm-metal-plain-r1/result.json 
+bm-metal-bmtp1-r1: - result file: `results/20261105-200027-adhoc-bm-metal-bmtp1-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-200027-adhoc-bm-metal-bmtp1-r1/result.json 
+bm-metal-bver5-r1: - result file: `results/20261105-200105-adhoc-bm-metal-bver5-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-200105-adhoc-bm-metal-bver5-r1/result.json 
+bm-metal-bver5-r2: - result file: `results/20261105-200143-adhoc-bm-metal-bver5-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-200143-adhoc-bm-metal-bver5-r2/result.json 
+bm-metal-bmtp1-r2: - result file: `results/20261105-200222-adhoc-bm-metal-bmtp1-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-200222-adhoc-bm-metal-bmtp1-r2/result.json 
+bm-metal-plain-r2: - result file: `results/20261105-200253-adhoc-bm-metal-plain-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-200253-adhoc-bm-metal-plain-r2/result.json 

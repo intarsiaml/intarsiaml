@@ -1,0 +1,9 @@
+
+
+This document is a **technical design note and status report** for a feature called **DFlash** (with an optional add-on called **DCOCO**) being added to a project called **TensorFold**.
+
+Here is a breakdown of what this document tells a new engineer, structured by logical sections.
+
+### 1. The Big Picture: What is DFlash?
+*   **Goal:** Speed up Large Language Model (LLM) inference using **Speculative Decoding**.
+*   **The Problem:** Standard LLMs generate tokens one by one (autoregressive), which is slow because each step requires a full forward

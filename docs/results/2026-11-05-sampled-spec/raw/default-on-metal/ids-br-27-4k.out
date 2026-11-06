@@ -1,0 +1,9 @@
+
+
+## 1. Root Causes
+
+### Problem A: Zombie threads cause double-processing
+
+**Location:** `Worker._execute` and `Worker._record_failure`
+
+When a handler exceeds `job_timeout`, `_execute` raises `JobTimeout`. The worker then calls `_record_failure`, which marks the job as `FAILED` and schedules a retry. However, the original thread is still alive and will eventually call `fn(*job.args)` to completion. If the handler has

@@ -1,0 +1,10 @@
+plain r1: MemAvailable 55415 MB with the server up
+bmtp1 r1: MemAvailable 51319 MB with the server up
+bver5 r1: MemAvailable 51312 MB with the server up
+bver8 r1: MemAvailable 51338 MB with the server up
+bmtp1d r1: MemAvailable 51262 MB with the server up
+bmtp1d r2: MemAvailable 51295 MB with the server up
+bver8 r2: MemAvailable 51267 MB with the server up
+bver5 r2: MemAvailable 51328 MB with the server up
+bmtp1 r2: MemAvailable 51326 MB with the server up
+plain r2: MemAvailable 55392 MB with the server up
