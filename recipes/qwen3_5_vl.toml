@@ -84,6 +84,12 @@ prefix = "mtp"
 # that decode: 4k / 16k prompt prefill 648 / 540 tok/s at 256, 807 / 758 at 2048 (4096: 782 at 4k; 1024: 716 / 688), plain `generate`, 2 reps.
 # `--prefill-chunk N` overrides. `busy_chunk` 256 keeps a prompt that arrives beside decoding streams from stalling them for a 2048-row step.
 [tuning.metal]
+# fp8 lm_head (user decision 2026-11-06: "27B fp8 default", overriding the 1.0 % top-1 flip bound of docs/results/2026-11-05-lmhead-fp8-27b.md): the 2.54 GB bf16
+# head is quantised at load to e4m3 with one f32 scale per tensor (1.27 GB), read once per decoded token. It changes outputs: against the bf16 head 2.0 to 2.5 %
+# of teacher-forced prefill positions change their top-1 token (1.0 to 1.6 % in the Metal decode window), mean KL 6e-4 to 8e-4; MMLU n=570 0.8368 against
+# 0.8316, GSM8K n=100 0.52 against 0.48. Decode on Metal +9 to +11 % plain, +21 to +23 % with MTP k2; on HIP tp2 +5 % plain, +10 to +14 % with MTP, tp1 +6 %,
+# 16 streams +0 %. `INTARSIA_LMHEAD_QUANT=off` (or `none`, `0`) keeps the bf16 head and wins over this key. CUDA is not measured and has no such key.
+lm_head_quant = "fp8"
 prefill_chunk = 2048
 busy_chunk = 256
 # Tail peel 8: a prefill pass of M <= 8 rows runs `matmul_mxfp4_gemv`, a longer one `matmul_mxfp4_nax`, with other bits. The 256-row busy schedule ends a prompt
@@ -102,6 +108,12 @@ mtp_draft_vocab = 65536
 # +11.6%; Chinese acceptance 65.9% -> 51.4% and 16% slower than the full head (docs/results/2026-10-25-sp-hip-spec.md sections 6 and 8).
 # User decision 2026-10-25 11:05. Metal and CUDA have their own [tuning.metal] / [tuning.cuda] tables.
 [tuning.hip]
+# fp8 lm_head (user decision 2026-11-06: "27B fp8 default", overriding the 1.0 % top-1 flip bound of docs/results/2026-11-05-lmhead-fp8-27b.md): the 2.54 GB bf16
+# head is quantised at load to e4m3 with one f32 scale per tensor (1.27 GB), read once per decoded token. It changes outputs: against the bf16 head 2.0 to 2.5 %
+# of teacher-forced prefill positions change their top-1 token (1.0 to 1.6 % in the Metal decode window), mean KL 6e-4 to 8e-4; MMLU n=570 0.8368 against
+# 0.8316, GSM8K n=100 0.52 against 0.48. Decode on Metal +9 to +11 % plain, +21 to +23 % with MTP k2; on HIP tp2 +5 % plain, +10 to +14 % with MTP, tp1 +6 %,
+# 16 streams +0 %. `INTARSIA_LMHEAD_QUANT=off` (or `none`, `0`) keeps the bf16 head and wins over this key. CUDA is not measured and has no such key.
+lm_head_quant = "fp8"
 mtp_draft_vocab = 65536
 # `--spec mtp --spec-k 2` without --spec at in-process tensor parallelism (--tp N, N > 1, one sequence): exact (27B ids 18/18 at tp=2
 # vs --spec off, soak 40/40), 1.43-1.93x decode in every category, interleaved x3 (docs/results/2026-10-26-dfh-hip-dflash.md section 14).
