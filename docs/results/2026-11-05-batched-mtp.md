@@ -106,6 +106,69 @@ six concurrent prompts a different greedy continuation from token 2 on; with pac
 together depends on arrival timing, so it is schedule-dependent. Batched MTP (A and B) reproduces the plain batched engine's tokens exactly in
 those runs, so the verify path adds no difference of its own. Raw: `raw/gates-cuda2/` (first set), `raw/gates-cuda3/` (main and no-pack repeats).
 
+## CUDA 35B NVFP4 tp1 on spark1 (fleetq #8654, tree 449b7bc93 binary built from 1e3465568 + scripts)
+
+localeval speed (`scripts/bm/le-window.sh w1 2 ...`), 1k prompt, 256 generated, thinking off, 3 reps, 2 rounds ABBA, all `--max-batch 16 --max-seq 8192
+--mem-budget 40`, spark1-vllm up (MemAvailable 51 GB with our server up). Arms: plain (no spec), bmtp1 (phase A, drafting at B = 1), bmtp1d (bmtp1 +
+`INTARSIA_BATCHED_VERIFY=1`, which at B = 1 only adds the verified-run drain), bver5 / bver8 (phase B, batched verify, drafting at B <= 5 / 8), k = 2.
+Raw: `raw/w1/` (localeval outputs, `/metrics` spec counters, server logs).
+
+| arm | streams | aggregate r1 / r2 | mean | per-stream (median, r1 / r2) | TTFT p50 s (r1 / r2) |
+|---|---|---|---|---|---|
+| bmtp1 | 1 | 106.0 / 99.4 | 102.7 | 117.0 / 107.2 | 0.23 / 0.19 |
+| bmtp1d | 1 | 98.1 / 95.4 | 96.8 | 105.7 / 102.5 | 0.19 / 0.19 |
+| bver5 | 1 | 104.7 / 91.4 | 98.1 | 113.3 / 98.2 | 0.19 / 0.19 |
+| bver8 | 1 | 103.0 / 98.4 | 100.7 | 127.1 / 108.7 | 0.47 / 0.25 |
+| plain | 1 | 80.1 / 80.3 | 80.2 | 85.1 / 85.1 | 0.19 / 0.19 |
+| bmtp1 | 2 | 121.8 / 122.7 | 122.2 | 65.6 / 66.4 | 0.30 / 0.32 |
+| bmtp1d | 2 | 123.0 / 121.4 | 122.2 | 66.0 / 65.2 | 0.29 / 0.29 |
+| bver5 | 2 | 112.4 / 112.9 | 112.7 | 60.6 / 60.3 | 0.29 / 0.29 |
+| bver8 | 2 | 111.2 / 114.6 | 112.9 | 59.2 / 63.6 | 0.29 / 0.32 |
+| plain | 2 | 122.1 / 122.8 | 122.4 | 65.5 / 65.8 | 0.28 / 0.28 |
+| bmtp1 | 3 | 149.0 / 150.8 | 149.9 | 53.8 / 55.2 | 0.40 / 0.45 |
+| bmtp1d | 3 | 151.3 / 151.4 | 151.4 | 54.7 / 54.8 | 0.40 / 0.40 |
+| bver5 | 3 | 124.0 / 125.9 | 125.0 | 43.6 / 46.2 | 0.32 / 0.48 |
+| bver8 | 3 | 125.3 / 131.7 | 128.5 | 46.1 / 47.7 | 0.40 / 0.40 |
+| plain | 3 | 151.1 / 157.5 | 154.3 | 54.3 / 56.9 | 0.38 / 0.38 |
+| bmtp1 | 4 | 173.6 / 174.2 | 173.9 | 47.7 / 47.8 | 0.53 / 0.52 |
+| bmtp1d | 4 | 173.6 / 173.7 | 173.6 | 47.6 / 47.7 | 0.53 / 0.52 |
+| bver5 | 4 | 134.2 / 138.5 | 136.3 | 36.9 / 37.5 | 0.53 / 0.53 |
+| bver8 | 4 | 142.4 / 140.0 | 141.2 | 39.1 / 37.9 | 0.54 / 0.53 |
+| plain | 4 | 183.2 / 173.6 | 178.4 | 50.4 / 47.5 | 0.51 / 0.52 |
+| bmtp1 | 8 | 234.5 / 228.8 | 231.7 | 32.4 / 31.6 | 0.82 / 0.82 |
+| bmtp1d | 8 | 230.4 / 232.5 | 231.4 | 31.9 / 32.1 | 0.83 / 0.82 |
+| bver5 | 8 | 229.4 / 231.7 | 230.6 | 31.8 / 32.2 | 0.86 / 0.84 |
+| bver8 | 8 | 137.1 / 138.1 | 137.6 | 18.6 / 18.8 | 0.84 / 0.84 |
+| plain | 8 | 234.4 / 234.7 | 234.6 | 32.4 / 32.5 | 0.81 / 0.82 |
+| bmtp1 | 16 | 305.9 / 307.3 | 306.6 | 21.6 / 21.8 | 1.50 / 1.58 |
+| bmtp1d | 16 | 304.0 / 303.2 | 303.6 | 21.6 / 21.4 | 1.59 / 1.59 |
+| bver5 | 16 | 305.8 / 305.0 | 305.4 | 21.8 / 21.7 | 1.62 / 1.62 |
+| bver8 | 16 | 311.7 / 301.6 | 306.6 | 22.5 / 21.6 | 1.72 / 1.69 |
+| plain | 16 | 308.1 / 305.4 | 306.8 | 21.9 / 21.6 | 1.56 / 1.56 |
+
+acceptance bmtp1: 61.0% / 60.8%
+acceptance bmtp1d: 59.9% / 65.8%
+acceptance bver5: 59.3% / 60.2%
+acceptance bver8: 60.7% / 61.5%
+
+run ids bmtp1: 20261105-203038-adhoc-bm-bmtp1-r1, 20261105-204216-adhoc-bm-bmtp1-r2
+run ids bmtp1d: 20261105-203539-adhoc-bm-bmtp1d-r1, 20261105-203715-adhoc-bm-bmtp1d-r2
+run ids bver5: 20261105-203217-adhoc-bm-bver5-r1, 20261105-204038-adhoc-bm-bver5-r2
+run ids bver8: 20261105-203357-adhoc-bm-bver8-r1, 20261105-203852-adhoc-bm-bver8-r2
+run ids plain: 20261105-202856-adhoc-bm-plain-r1, 20261105-204349-adhoc-bm-plain-r2
+
+Reading:
+
+- **1 stream: phase A closes most of the gap.** 80.2 -> 102.7 tok/s aggregate (+28 %), per-stream 85 -> 112. The scoreboard's solo MTP 114 is from another
+  window and a `--max-batch 1` server, so this run does not show whether the last ~10 % is the batching engine's overhead or window-to-window.
+- **The drain does not help on CUDA** (bmtp1d 96.8 vs bmtp1 102.7 at 1 stream): the Metal 1-stream gap between bver5 and bmtp1 is not explained by
+  it here; it stays unexplained.
+- **2 to 16 streams: phase A ties plain** within 0 to 3 % (2: 122.2 vs 122.4; 3: 149.9 vs 154.3; 4: 173.9 vs 178.4; 8: 231.7 vs 234.6; 16: 306.6 vs 306.8).
+- **Batched verify loses on CUDA at every width where it drafts:** 2 streams -8 %, 3 -17 %, 4 -21 to -24 %, and bver8 at 8 streams -41 %
+  (137.6 vs 234.6). The verify rows run the row-exact GEMV kernels (`*_gemv_rows`), whose cost grows about linearly with rows, so on the MoE 35B a
+  3-row verify per sequence costs close to 3 decode rows while yielding ~2.2 tokens; the per-sequence head drafts come on top. The design note's
+  +48 % at 2 streams on the HIP 27B does not carry to this model and these kernels. Acceptance is ~60 % in every arm.
+
 ## Metal 35B NVFP4 on endor (fleetq #8616, one `--exclusive` slot, tree 7fb2a067d)
 
 No-op vs main 602a1fcfe (`raw/metal/noop.txt`): `plan show` text and json byte-identical for Qwen3-8B and the 35B; 256 greedy ids identical on the
@@ -147,6 +210,18 @@ head drafts costs more than the ~1.6 tokens per sequence it yields over a 4-row 
 the arms tie (281 to 292). Phase A at 2 and 4 streams does not draft, yet costs about 3 % against plain in both rounds (2 streams 163.0 / 162.4 vs 166.0 / 169.0; 4 streams
 223.7 / 227.4 vs 231.2 / 232.5); likely the per-step head-queue copy and the head catch-up passes (unverified). At 8 streams it ties.
 
+## Recommendation
+
+- **Default-on for the lone-user case: `INTARSIA_BATCHED_MTP=1` (draft only while one sequence decodes) on CUDA tp1 and Metal**, where `--spec mtp` would
+  be the single-sequence default. It gives +28 % (CUDA) and +16 % (Metal) at 1 stream, costs 0 to 3 % at 2 to 4 streams, and nothing at 8 to 16.
+  Greedy output is bit-identical per sequence. Flipping the default is the coordinator's call; this branch leaves it opt-in.
+- **Batched verify (`INTARSIA_BATCHED_VERIFY`) stays opt-in, effectively off:** it loses 8 to 41 % on CUDA and is break-even to -25 % on Metal at 2 to 8
+  streams. It is worth revisiting only with verify kernels whose cost per extra row is well under a decode row (a real multi-row GEMM for the
+  MoE / NVFP4 projections under a row-exactness guarantee) and a batched draft head.
+- Not run: HIP (tatooine, out of scope); CUDA at tp2; a solo `--max-batch 1` MTP arm in the same window.
+
 ## Status
 
-Phase A built and CPU-tested; CUDA gates and the spark1 speed run are in progress.
+Done for this round: phase A and phase B built, gated and measured. Open: the Metal 1-stream bver5 vs bmtp1 gap (not the drain on CUDA); the CUDA
+packed-prefill flake on main (separate task); rebase onto `lane-ss/sampled-spec` once it merges (then gate the deferred verify path on greedy requests,
+since `forward_verify_batch` returns argmax only).
