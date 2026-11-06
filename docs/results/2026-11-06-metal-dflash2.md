@@ -250,7 +250,7 @@ This is observed behaviour, not a documented guarantee: the MMA kernel is regist
 * Speed: **11-18x of M = 1** at every M (17408x5120: 668 us at M = 2, 789 us at M = 8, vs 60 us at M = 1; the shipped MR p2 is 67 / 240 us).
   The draft is a serial chain (4 dependent MMAs per group, one 8x8 tile per simdgroup, 2-byte strided activation loads, 16 KB of
   threadgroup slots per 64 threads).
-* Ceiling (`raw/p3-probe/mmapeak.swift`, fleetq #8838): fp32 `simdgroup_multiply_accumulate` peaks at **8.07 TFMA/s** (fp16 8.26) vs the plain
+* Ceiling (`raw/p3-probe/mmapeak.swift`, fleetq #8842): fp32 `simdgroup_multiply_accumulate` peaks at **8.07 TFMA/s** (fp16 8.26) vs the plain
   fp32 fma peak of 7.51: on this GPU the simdgroup MMA runs at ALU rate, not on a separate matrix unit. So the MMA form can only remove
   overhead (decode, widening, operand loads), not add FLOPs, and it pads M up to 8: at M = 3 it does 8 rows of work. Its best case at the
   27B shapes is the M = 8 compute bound (17408x5120: 713 M fma = 88 us at 8.07 T, 1.46x M = 1); M = 3 stays with the ALU MR kernel.
@@ -264,7 +264,7 @@ Opened 2026-11-06 for the coordinator (merges on green CI). CPU regression test 
 (#8848): with the fix 0 errors over 88 passes (612 proposed, 232 accepted) and all 4 greedy texts == `--spec off`, without it 4 / 4 requests
 fail; workspace tests 1368 / 0 (#8849).
 
-### Second attempt: table decode of the e2m1 codes (fleetq job after #8848, `raw/p3-k2/p3-k2.log`; reverted)
+### Second attempt: table decode of the e2m1 codes (fleetq #8847, `raw/p3-k2/p3-k2.log`; reverted)
 
 Bitwise (the MR test passes with the arms `12` / `14`), but **slower** than the shipped MR at every shape and M (17408x5120 M = 3: 99.9 / 93.6
 us vs 80.8 us; M = 8: 244 / 287 vs 240). Reverted.
@@ -299,9 +299,12 @@ its ceiling (M = 8 ~1.5x M = 1) would leave DFlash k7 near parity with MTP k2 at
 
 ## Phase 1 ABAB rerun on the merged tree (fleetq #8861, `raw/p1-bench2/`; binary at 3fc8a028d, MR default on, no other knobs)
 
-Gates first (fleetq job after #8854, `raw/noop2/`, `raw/ids2/`): `plan show` 9 / 9 byte-identical vs main (8B / 27B / 35B x default / off
+Gates first (fleetq #8858, `raw/noop2/`, `raw/ids2/`): `plan show` 9 / 9 byte-identical vs main (8B / 27B / 35B x default / off
 / mtp); `kernels test` every existing row identical, 2 new rows ADMITTED; greedy ids == `--spec off` for MTP k2, DFlash2 k3 and k7 at short-0
 and 4k-1.
+
+Deviation from the phase 1 rule as written: #8861 ran with no knobs (MR is default on; `INTARSIA_METAL_LOGITS_ROWS` is not on this branch
+any more and had no effect on the fp8-head main, #8822).
 
 natural-v1 decode tok/s (localeval `speed-spec`, 256 forced tokens, median of 3; visits A B A B then dfl3):
 
@@ -331,8 +334,9 @@ Categories (`localeval quality --judge none`, 512 forced tokens, decode tok/s; o
 
 Verdict, phase 1: correct (bitwise ids, admitted kernels, serve works), slower than MTP k2 everywhere (0.46-0.88x; k3 0.82-0.94x). The
 acceptance half is there (3.6-3.8 tokens a pass vs MTP's 2.5), the cost half is not: an 8-row bitwise verify costs ~3-4x a plain step on
-Metal (the M-row MXFP4 GEMV is 4x of M = 1 at M = 8), plus an 18-25 ms draft. Phase 2 (trees) was stopped by the coordinator before
-implementation (only the host tree builder and the design exist on the branch): at today's per-row cost a 16-row tree would be slower still.
+Metal (the M-row MXFP4 GEMV is 4x of M = 1 at M = 8), plus an 18-25 ms draft. Phase 2 (trees): design and host tree builder (`dflash_tree.rs`, preorder,
+acceptance, unit tests) done; the coordinator deferred tree work until the GEMV result, which was a miss, so the verify plumbing was not
+started and phase 2's pre-registered rule was not run. At today's per-row cost a 16-row tree would be slower than the 8-row chain.
 
 ## Recommendation
 
