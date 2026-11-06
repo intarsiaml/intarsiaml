@@ -1,0 +1,4 @@
+N=1 on 1 server(s): agg(sum) 139.6 tok/s (bursts 139.8, 139.6, 139.6), combined 139.6, per-stream decode median 164.9, ttft p50 0.146 p95 0.153, errors 0, prompt_tokens [993]
+N=8 on 2 server(s): agg(sum) 510.6 tok/s (bursts 508.5, 510.6, 513.7), combined 506.2, per-stream decode median 77.2, ttft p50 0.344 p95 0.486, errors 0, prompt_tokens [985, 988, 994]
+N=16 on 2 server(s): agg(sum) 676.3 tok/s (bursts 680.6, 674.6, 676.3), combined 672.8, per-stream decode median 52.1, ttft p50 0.552 p95 0.922, errors 0, prompt_tokens [986, 989, 990]
+N=32 on 2 server(s): agg(sum) 789.2 tok/s (bursts 798.2, 786.4, 789.2), combined 785.8, per-stream decode median 31.0, ttft p50 1.037 p95 1.710, errors 0, prompt_tokens [984, 987, 989]

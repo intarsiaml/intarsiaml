@@ -1,0 +1,1 @@
+N=32 on 2 server(s): agg(sum) 1035.2 tok/s (bursts 1035.2), combined 1025.6, per-stream decode median 34.3, ttft p50 1.020 p95 1.577, errors 0, prompt_tokens [984, 987, 989]

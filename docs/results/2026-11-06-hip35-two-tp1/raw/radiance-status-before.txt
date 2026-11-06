@@ -1,0 +1,22 @@
+● radiance.service - Radiance native engine on R9700 (stilldeadcode/radiance, Qwen3.8-27B MXFP4 .rad, TP=2) :8080
+     Loaded: loaded (/home/josef/.config/systemd/user/radiance.service; enabled; preset: enabled)
+    Drop-In: /home/josef/.config/systemd/user/radiance.service.d
+             └─50-native.conf
+     Active: active (running) since Fri 2026-11-06 10:46:30 EST; 36min ago
+   Main PID: 838794 (docker)
+      Tasks: 15 (limit: 69994)
+     Memory: 9.9M (peak: 39.4M)
+        CPU: 88ms
+     CGroup: /user.slice/user-1000.slice/user@1000.service/app.slice/radiance.service
+             └─838794 docker run --rm --name radiance --network host --init --device /dev/kfd --device /dev/dri --security-opt seccomp=unconfined --ulimit memlock=-1 --group-add 993 --group-add 44 --user 1000:1000 -v /data/models/rad:/models:ro -v /data/models/rad/state:/data sha256:c2acbaa373c89272ec47a22befa1cf04d2ddf1de51c2baf534f5273e517f7100 --model /models/qwen3.8-27b-mxfp4.rad --tp 2 --max-num-seqs 16 --max-model-len 200000 --kv-cache-dtype fp8 --num-speculative-tokens 7 --served-model-name Qwen3.8 --host :: --port 8080 --tp-wire wht6 --max-num-batched-tokens 4096 --reasoning-effort medium --temp 0.7 --top-p 0.95 --top-k 20 --reasoning-effort-map high=xhigh,max=xhigh --p2p on --prefill-interleave 2 --checkpoint-slots 160 --draft-short-from 8
+
+Nov 06 11:21:43 tatooine radiance-native.sh[838794]: I req chatcmpl-71a6e492c008f0b5d14e92bb done from ::ffff:127.0.0.1:57484 finish=tool_calls prompt=300 (cache 0) gen=27 reason=0 ttft=0.43s 140.5 tok/s 0.61s
+Nov 06 11:21:43 tatooine radiance-native.sh[838794]: I req chatcmpl-ab7cc1cb750ce85c4fcce127 done from ::ffff:127.0.0.1:57496 finish=tool_calls prompt=300 (cache 0) gen=27 reason=0 ttft=0.43s 140.5 tok/s 0.61s
+Nov 06 11:21:43 tatooine radiance-native.sh[838794]: I req chatcmpl-9901b8cf90cf2fc52f181e32 chat from ::ffff:127.0.0.1:57558 model=Qwen3.8 msgs=1 tools=0 prompt=18 tok n=1 max_tokens=200
+Nov 06 11:21:43 tatooine radiance-native.sh[838794]: I req chatcmpl-9901b8cf90cf2fc52f181e32 done from ::ffff:127.0.0.1:57558 finish=stop prompt=18 (cache 0) gen=65 reason=0 ttft=0.02s 201.4 tok/s 0.34s
+Nov 06 11:21:43 tatooine radiance-native.sh[838794]: I req chatcmpl-e623b5480f946c58eed5f71f chat from ::ffff:127.0.0.1:57574 model=Qwen3.8 msgs=1 tools=0 prompt=21 tok n=1 max_tokens=90
+Nov 06 11:21:43 tatooine radiance-native.sh[838794]: I req chatcmpl-e623b5480f946c58eed5f71f done from ::ffff:127.0.0.1:57574 finish=stop prompt=21 (cache 0) gen=56 reason=0 ttft=0.02s 147.9 tok/s 0.39s
+Nov 06 11:21:43 tatooine radiance-native.sh[838794]: I req chatcmpl-211fed1a927700870e86534e chat from ::ffff:127.0.0.1:57584 model=Qwen3.8 msgs=1 tools=0 prompt=21 tok n=1 max_tokens=90
+Nov 06 11:21:44 tatooine radiance-native.sh[838794]: I req chatcmpl-211fed1a927700870e86534e done from ::ffff:127.0.0.1:57584 finish=stop prompt=21 (cache 0) gen=57 reason=0 ttft=0.02s 132.2 tok/s 0.44s
+Nov 06 11:21:44 tatooine radiance-native.sh[838794]: I req chatcmpl-14848b5915859ec6929d9da4 chat from ::ffff:127.0.0.1:57596 model=Qwen3.8 msgs=1 tools=0 prompt=21 tok n=1 max_tokens=90
+Nov 06 11:21:44 tatooine radiance-native.sh[838794]: I req chatcmpl-14848b5915859ec6929d9da4 done from ::ffff:127.0.0.1:57596 finish=stop prompt=21 (cache 0) gen=48 reason=0 ttft=0.02s 177.5 tok/s 0.28s
