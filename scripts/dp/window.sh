@@ -49,6 +49,10 @@ log "fleetq job $FLEETQ_JOB; window.sh $(git -C "$H" rev-parse --short=9 HEAD 2>
 rsh "systemctl --user status radiance --no-pager" > "$OUT/radiance-status-before.txt" 2>&1
 { echo "nproc: $(rsh nproc)"; rsh "lscpu | grep -E 'Model name|^CPU\(s\)|Thread|NUMA node\(s\)'; free -g; pgrep -af 'systemctl --user start radiance' || echo 'no stray radiance-start timers'; for c in card0 card1; do echo \$c \$(grep PCI_SLOT_NAME /sys/class/drm/\$c/device/uevent); done"; } > "$OUT/host.txt" 2>&1
 cat "$OUT/host.txt" | tee -a "$OUT/steps.log" >/dev/null
+# another lane's deadman timer that is still pending would restart radiance inside the window: do not start then (pend.sh lists the seconds left)
+PENDING=$(ssh -o BatchMode=yes tatooine bash -s < "$H/pend.sh")
+log "pending foreign radiance-start timer (seconds until it fires): ${PENDING:-none}"
+if [[ ${DRY:-0} != 1 ]] && [[ -n "$PENDING" ]]; then log "a radiance-start timer fires in ${PENDING} s: not starting (radiance untouched); rerun after it, or have its owner remove it"; exit 6; fi
 if [[ ${DRY:-0} != 1 ]]; then
   log "stopping radiance"
   rsh "FLEETQ_JOB=$FLEETQ_JOB systemctl --user stop radiance" && sleep 5
