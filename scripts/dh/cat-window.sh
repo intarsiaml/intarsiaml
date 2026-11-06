@@ -53,7 +53,7 @@ trap cleanup EXIT
 
 # PRE=ids: first the 27B ids gate (scripts/dh/stages-ids.sh ON tatooine, IDARMS / TPS passed through, at most PRE_CAP s), its
 # output fetched into raw/<W>/ids/
-if [[ ${PRE:-} == ids || ${PRE:-} == ids2 || ${PRE:-} == phase || ${PRE:-} == final ]]; then
+if [[ -n ${PRE:-} ]]; then  # lane dh: any stages-<PRE>.sh
   say "pre: ids gate (arms ${IDARMS:-dfl mtp2}, ${TPS:-tp1 tp2}, cap ${PRE_CAP:-1200} s)"
   $SSH "rm -rf ~/intarsiaml-dh/.dh/out/$W-ids; mkdir -p ~/intarsiaml-dh/.dh/out/$W-ids; IDARMS='${IDARMS:-dfl mtp2}' TPS='${TPS:-tp1 tp2}' IDNAMES='${IDNAMES:-}' VERIFY8='${VERIFY8:-0}' timeout ${PRE_CAP:-1200} bash ~/intarsiaml-dh/.dh/stages-${PRE}.sh ~/intarsiaml-dh/.dh/out/$W-ids" \
     < /dev/null > "$OUT/ids-pre.log" 2>&1
