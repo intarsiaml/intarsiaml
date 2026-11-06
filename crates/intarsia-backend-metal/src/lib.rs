@@ -36,6 +36,7 @@ mod fused;
 mod gdn;
 pub mod gemm_nax;
 mod host;
+mod logits_rows;
 pub mod kernels;
 mod moe;
 pub mod multirow;
