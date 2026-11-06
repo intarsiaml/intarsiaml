@@ -57,16 +57,16 @@ pub const MR_SHADERS: [&str; 28] = [
     "mxfp4_gemv_f32_mr8p4",
 ];
 
-/// `INTARSIA_METAL_MXFP4_MR`: `1` = the M = 2..=8 calls of `matmul_mxfp4_gemv` take `MR_SHADERS` where they measured faster
-/// ([`mr_auto`]); `2` or `4` = every M = 2..=8 call with that P (A/B); unset or `0` = the `_m8` shader (default). Bitwise the same output
-/// in every setting (tests/mxfp4_gemv.rs).
+/// `INTARSIA_METAL_MXFP4_MR`: unset or `1` (default, user decision 2026-11-06) = the M = 2..=8 calls of `matmul_mxfp4_gemv` take
+/// `MR_SHADERS` where they measured faster ([`mr_auto`]); `0` = the `_m8` shader (the pre-2026-11-06 path); `2` or `4` = every M = 2..=8
+/// call with that P (A/B). Bitwise the same output in every setting (tests/mxfp4_gemv.rs).
 pub fn mr_knob() -> usize {
     static P: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
     *P.get_or_init(|| match std::env::var("INTARSIA_METAL_MXFP4_MR").ok().as_deref().map(str::trim) {
-        Some("1") => 1,
+        Some("0") => 0,
         Some("2") => 2,
         Some("4") => 4,
-        _ => 0,
+        _ => 1,
     })
 }
 
