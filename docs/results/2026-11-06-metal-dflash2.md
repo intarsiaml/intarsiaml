@@ -43,6 +43,14 @@ Worktree `/opt/code/intarsiaml/.worktrees/metal-dflash2`.
   rerun the phase 1 ABAB as planned. Continue the table-lookup e2m1 decode for the M-row GEMV. (Sent before my LUT result reached the
   coordinator: the LUT form measured slower and was reverted; see phase 3. Reported back instead of continuing it.)
 
+- 2026-11-06 ~15:00, coordinator (by message): phase 3 option (c) as ONE time-boxed probe (60 min, ALU MR kernel only, bitwise) of the
+  bandwidth assumption: load each activation word once per simdgroup / threadgroup and share it (threadgroup staging or `simd_shuffle`)
+  instead of each lane re-reading it per P weight rows; k-ascending fma order per output kept. Rule (pre-registered below). Meets it:
+  usual gates + MTP k2 ABAB (>= 1.05x), report. Misses: revert, write up, close phase 3 (bandwidth finding + MMA ceiling as the reason).
+  Not (b) (MMA M = 8: ~1.5x M = 1 ceiling puts DFlash k7 at ~60 tok/s, parity with MTP k2 at best, nothing for the default path).
+  Push 3fc8a028d now; finish the queued no-op gates, ids and phase 1 ABAB rerun. Final lane report: Metal DFlash2 vs MTP by category, a
+  recommendation on whether Metal DFlash2 should exist as opt-in, branch head.
+
 ## Goal
 
 Close the acceptance half of the Metal gap against TensorFold (90.3 tok/s at natural-v1 4k vs our MTP k2 31.1, 0.34x;
@@ -269,3 +277,9 @@ pressure. The only form that shares operands across 8 x 8 tiles in registers is 
 rows, its A by 8 activation rows), whose ceiling at M = 8 is ~1.5x M = 1, but it pads M to 8 (no help for MTP's M = 3), and the first
 version was 11-18x slow for structural reasons (serial chain, 2-byte loads). Reported to the coordinator for a decision before more kernel
 work.
+
+### Phase 3 probe: shared activations (pre-registered rule, written before the kernel)
+
+Threadgroup-staged activations in the M-row MXFP4 GEMV (each activation word loaded once per threadgroup, not once per lane per P rows),
+k-ascending fma chain per output unchanged. Rule at 17408x5120 (the df bench, exclusive or quiet slot): **M = 3 <= 68.7 us and M = 8 <= 204
+us (0.85x the shipped MR's 80.8 / 240.2 us)**, every row bitwise the M = 1 call (`tests/mxfp4_gemv.rs`). Time box 60 min.
