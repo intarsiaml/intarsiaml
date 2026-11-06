@@ -1,0 +1,19 @@
+Based on the provided documentation, here is a structured summary of the **IntarsiaML** architecture, design philosophy, and technical specifications.
+
+### 1. Core Philosophy & Goals
+IntarsiaML is designed as a modular, high-performance LLM inference engine. Its name ("wood inlay") reflects its architecture: a system built from interchangeable, precisely fitted pieces (ops, kernels, quant formats, model blocks) that are strictly validated against a reference implementation before deployment.
+
+**Priority Order:**
+1.  **Modular**
+2.  **Easy to use**
+3.  **Accurate**
+4.  **Fast** (Top 3 per platform)
+5.  **Reproducible**
+6.  **APIs** (OpenAI/Anthropic compatible)
+7.  **UI/TUI** (Optional, dark theme)
+8.  **Metrics & Observability**
+9.  **Live Architecture Diagram**
+
+**Anti-Goals (Explicitly Excluded):**
+*   **No per-family engines:** Unlike TensorFold, Intarsia uses a shared block library driven by model *recipes*. New code is only required for genuinely new block types.
+*   **No Python in

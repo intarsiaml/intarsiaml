@@ -1,0 +1,18 @@
+plan 8 json: byte-identical (8973 B)
+plan 8 txt: byte-identical (1548 B)
+plan 35 json: byte-identical (15570 B)
+plan 35 txt: byte-identical (4017 B)
+plan 27 json: head+off == base (byte-identical)
+plan 27 json: base vs head: 54 changed lines
+plan 27 txt: head+off == base (byte-identical)
+plan 27 txt: base vs head: 6 changed lines
+1664 /home/nvidia/lmh-cuda/out/plan-27-base.json.err
+1664 /home/nvidia/lmh-cuda/out/plan-27-base.txt.err
+1779 /home/nvidia/lmh-cuda/out/plan-27-head.json.err
+1664 /home/nvidia/lmh-cuda/out/plan-27-head-off.json.err
+1664 /home/nvidia/lmh-cuda/out/plan-27-head-off.txt.err
+1779 /home/nvidia/lmh-cuda/out/plan-27-head.txt.err
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 256 (default)
+lm_head quantised to fp8 (248320 rows x 5120, 1.27 GB, was bf16 2.54 GB; INTARSIA_LMHEAD_QUANT = fp8, 2.3 s)
+mtp: draf

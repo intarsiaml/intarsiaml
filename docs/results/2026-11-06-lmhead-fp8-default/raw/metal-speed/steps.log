@@ -1,0 +1,15 @@
+07:23:34 visit 1 D: starting server
+lm_head quantised to fp8 (248320 rows x 5120, 1.27 GB, was bf16 2.54 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.8 s)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv gdn_conv
+07:25:26 item 1 D speed: exit 0 results/20261106-072441-adhoc-lmh-default-metal-1-D/result.json
+07:25:27 visit 2 O: starting server
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv gdn_conv
+07:27:54 item 2 O speed: exit 0 results/20261106-072646-adhoc-lmh-default-metal-2-O/result.json
+07:27:55 visit 3 D: starting server
+lm_head quantised to fp8 (248320 rows x 5120, 1.27 GB, was bf16 2.54 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.6 s)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv gdn_conv
+07:30:03 item 3 D speed: exit 0 results/20261106-072903-adhoc-lmh-default-metal-3-D/result.json
+07:30:04 visit 4 O: starting server
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv gdn_conv
+07:32:25 item 4 O speed: exit 0 results/20261106-073121-adhoc-lmh-default-metal-4-O/result.json
+07:32:26 done
