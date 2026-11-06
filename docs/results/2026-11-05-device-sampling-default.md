@@ -129,6 +129,8 @@ Every `auto` visit beat both neighbouring `none` visits by more than 30 percent.
 | 256 greedy ids, Qwen3-8B 4k prompt | the first run (#8696) failed alike on both binaries (the 4096-token prompt did not fit the default 4096 context, empty ids, which the script printed as DIFFERS); redone with `--max-seq 8192`: identical (md5 `e4c33cc722aa`) | #8723 |
 | Goldens `qwen3-8b-fp32` and `qwen3-8b-long-fp32`, `accuracy --gate-class bf16` | PASS on both binaries, same figures | #8696 |
 | In-process CUDA draws test `real_35b_device_sampling_draws_the_host_tokens` | not run: dropped (#8580 released), redundant with the served 21/21 | |
+| After merging origin/main `1a2a246f6` (#309-#314; one conflict, `docs/decisions/LOG.md`, resolved by keeping both sides; `tests/mtp.rs` merged cleanly and already has `batched_mtp` and `lm_head_quant` in its literals): `cargo test --workspace --exclude intarsia-backend-metal --no-run` on spark2 | 0 errors, every test target builds | #8727 |
+| Same tree: `cargo test -p intarsia-server` (25 + 46 + 3), `-p intarsia-core --lib` (192 passed, 2 ignored), `-p intarsia-cli --test docs_env_vars` (2 passed) | ok; the merged tree was not re-run on endor or the GPU | #8727 |
 | `~/intarsiaml-ds` on spark1 (1.2 GB) and spark2 (29 GB) | removed inside fleetq slots #8687, #8688 | |
 
 ## Not run
