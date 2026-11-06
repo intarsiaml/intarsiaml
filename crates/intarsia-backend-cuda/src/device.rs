@@ -219,10 +219,11 @@ impl Backend for CudaBackend {
     fn pack_split_gemms(&self) -> bool {
         true
     }
-    /// Lane pf (docs/results/2026-11-05-cuda-pack-flip.md): the grouped MoE experts switch from the warp-per-row kernel to the
-    /// tensor-core one at 32 tokens and the dense NVFP4 GEMM from the GEMV / mma kernels to the tiled GEMM at 33
-    /// (`quantmoe::pack_min_rows`), and neither pair is bitwise; a 16..32-row segment packed with other prompts ran the big kernels
-    /// and lost its solo bits (a 17-token prompt among six concurrent ones, greedy ids diverged at token 2).
+    /// Lane pf (docs/results/2026-11-05-cuda-pack-flip.md): the grouped MoE experts switch from the warp-per-row kernel
+    /// (`moe_experts_bf16`) to the tensor-core one (`moe_experts_mma_bf16`) at 32 tokens, and the two are not bitwise: a 16..31-row
+    /// segment packed with other prompts ran the tensor-core kernel and lost its solo bits (a 17-token prompt among six concurrent
+    /// ones, greedy ids diverged at token 2). 33, not 32: the dense NVFP4 GEMM's switch to the tiled GEMM is at 33
+    /// (`quantmoe::pack_min_rows`); measured bitwise across it, kept as margin.
     fn pack_min_rows(&self) -> usize {
         crate::quantmoe::pack_min_rows()
     }

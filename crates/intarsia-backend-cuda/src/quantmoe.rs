@@ -143,7 +143,8 @@ pub const W4A16_MIN_TOKENS: usize = 768;
 /// Fewest rows of a packed prefill segment on CUDA (`Backend::pack_min_rows`, lane pf): from here on the MoE experts
 /// (`moe_experts_mma_bf16`, bitwise `moe_experts_w4a16_bf16` above it) and the dense NVFP4 GEMM (`matmul_nvfp4_gemm`, bitwise
 /// `matmul_nvfp4_gemm_reg` / the fused `matmul_nvfp4_glu_gemm` chain) are the kernels every larger call picks too
-/// (tests/packed_rows.rs). Below it a segment alone takes `moe_experts_bf16` / `matmul_nvfp4_gemv` / `matmul_nvfp4_mma`.
+/// (tests/packed_rows.rs). Below 32 a segment alone takes `moe_experts_bf16`, whose rows differ from the tensor-core kernel's
+/// (the root cause); `matmul_nvfp4_gemv` / `matmul_nvfp4_mma` below 33 measured bitwise the tiled GEMM, 33 is margin.
 pub fn pack_min_rows() -> usize {
     MMA_MIN_TOKENS.max(GEMM_MIN_TOKENS)
 }
