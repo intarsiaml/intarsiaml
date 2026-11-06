@@ -1,0 +1,11 @@
+
+
+<think>
+The user wants me to summarize the document section by section, then list its open questions. Let me go through the document carefully.
+
+The document is an architecture plan for "IntarsiaML" (v0.2, 2026-10-12). Let me identify the sections:
+
+1. Section 0: Goals, honest targets, anti-goals
+2. Section 1: Language and build
+3. Section 2: System overview
+4. Section 3: (implied by the status table mentioning "sections 1 to 14" and "sections
