@@ -15,7 +15,8 @@ BIN="$SPARK_DIR/bin/intarsia"
 C0='$HOME/intarsia-dsv41-tp2/cache/r0of2'; C1='$HOME/intarsia-dsv41-tp2/cache/r1of2'
 WIP=10.100.152.3; WPORT=29701; SPORT=8899; SURL=http://100.120.88.104:$SPORT
 LOGD="$SPARK_DIR/logs"
-NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-2} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
+# 8 channels (was 2): docs/results/2026-11-05-dsv41-nccl.md, A (+3 % prefill at 1K/4K/16K, ids identical); NCCL_MAX_NCHANNELS=2 restores the old setting
+NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-8} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
 # TP_SPIN_MS (default 100, 0 = off): rank 1 polls instead of blocking, two busy cores on spark2 during decode (user, 2026-11-02)
 # CHUNK=engine leaves INTARSIA_DSV41_CHUNK unset (the engine default, 2048 since 2026-11-04). The script keeps its own explicit 512:
 # its golden / speed / long-prompt steps are compared against runs and reference tokens taken at 512 (chunk 2048 is not bit-for-bit 512),

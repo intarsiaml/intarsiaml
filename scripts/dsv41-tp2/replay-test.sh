@@ -64,7 +64,8 @@ source "$S/spark-dir.sh"
 BIN_BR="$SPARK_DIR/bin/intarsia"; BIN_MAIN="$SPARK_DIR/bin/intarsia.main"; LOGD="$SPARK_DIR/logs"
 C0='$HOME/intarsia-dsv41-tp2/cache/r0of2'; C1='$HOME/intarsia-dsv41-tp2/cache/r1of2'
 WIP=10.100.152.3; WPORT=29701; SPORT=8899; SURL=http://100.120.88.104:$SPORT
-NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-2} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
+# 8 channels (was 2): docs/results/2026-11-05-dsv41-nccl.md, A (+3 % prefill at 1K/4K/16K, ids identical); NCCL_MAX_NCHANNELS=2 restores the old setting
+NCCLENV="INTARSIA_NCCL_LIB=\$HOME/intarsia-nccl/libnccl.so.2 NCCL_SOCKET_IFNAME=enp1s0f1np1 NCCL_IB_HCA=rocep1s0f1,roceP2p1s0f1 NCCL_IB_GID_INDEX=3 NCCL_DEBUG=${NCCL_DEBUG:-WARN} NCCL_MAX_NCHANNELS=${NCCL_MAX_NCHANNELS:-8} NCCL_BUFFSIZE=${NCCL_BUFFSIZE:-1048576}"
 CAP=${CAP:-66000}                      # 32K prompts at step 3 and 64K items at step 5 (chunk32k-2 used 66000)
 TOK=${TOKENIZER:-/opt/code/intarsiaml/.worktrees/dsv41-official/mia/tokenizer.json}
 MAIN_REF=${MAIN_REF:-c39dcaeb3}; MAIN_WT=${MAIN_WT:-$(dirname "$REPO")/dsv41-replay-main}
