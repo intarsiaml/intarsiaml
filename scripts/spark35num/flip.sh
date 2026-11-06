@@ -12,6 +12,7 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 trap 'stop_server' EXIT INT TERM
 O=$RES/flip; mkdir -p "$O"
 ROUNDS=${ROUNDS:-3}
+STAGES=${STAGES:-"plan greedy speed"}; PLAN_MODELS=${PLAN_MODELS:-"8b 27b 35b"}   # e.g. STAGES=plan PLAN_MODELS=27b M27=/path re-runs one plan check
 HUB=/home/nvidia/.cache/huggingface/hub
 M8=$(rsh "ls -d $HUB/models--Qwen--Qwen3-8B/snapshots/* | head -1")
 M27=${M27:-$(rsh "ls -d $HUB/models--Jundot--Qwen3.8-27B-oQ4e-mtp/snapshots/* | head -1")}
@@ -25,6 +26,7 @@ plan() { # plan <name> <bin> <env> <model> <ext>
 }
 for m in 8b:$M8 27b:$M27 35b:$M35; do
   tag=${m%%:*}; model=${m#*:}
+  [[ " $PLAN_MODELS " == *" $tag "* ]] || continue
   for ext in txt json; do
     rcm=$(plan "$tag-main" main "" "$model" $ext); rch=$(plan "$tag-head" dev "" "$model" $ext); rco=$(plan "$tag-off" dev "INTARSIA_GDN_STATE=f32" "$model" $ext)
     echo "plan $tag $ext: exit main=$rcm head=$rch head-off=$rco"
@@ -40,6 +42,7 @@ for m in 8b:$M8 27b:$M27 35b:$M35; do
 done
 for t in 8b 27b 35b; do scp -q -o BatchMode=yes "$HOST:intarsiaml-s35/out/flip-plan-$t-*" "$O/" 2>&1 | tail -1; done
 
+[[ " $STAGES " == *" greedy "* ]] || { echo "flip.sh done $(date +%T) fails=$fails (plan only)"; exit $(( fails > 0 )); }
 # ---- 2. greedy ids
 G="$H/../fp8kv/greedy.py"; MAXSEQ=20480 MEMB=45; export MAXSEQ MEMB
 arm() { # arm <name> <bin> <env>

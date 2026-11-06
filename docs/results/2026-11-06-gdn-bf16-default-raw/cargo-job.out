@@ -1,0 +1,2 @@
+fleetq: #8750 running on endor: bash -c 'cd /opt/code/intarsiaml/.worktrees/spark35-numerics && cargo test --workspace --no-fail-fast > /opt/code/intarsiaml/.worktrees/spark35-numerics/docs/results/2026-11-06-gdn-bf16-default-raw/cargo-test-workspace-endor.log 2>&1; echo exit $? >> /opt/code/intarsiaml/.worktrees/spark35-numerics/docs/results/2026-11-06-gdn-bf16-default-raw/cargo-test-workspace-endor.log'
+fleetq: #8750 done (exit 0)
