@@ -1,0 +1,42 @@
+prefill chunk 2048 (recipe qwen3_5_vl, hip)
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.1 s)
+dflash: draft of 5 layers (taps [5, 19, 33, 47, 61], block 8, DFlash2) loaded in 0.5 s
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.1 s)
+dflash: draft of 5 layers (taps [5, 19, 33, 47, 61], block 8, DFlash2) loaded in 0.4 s
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'fp8' (the recipe's default on this backend, chosen for accuracy and speed (Qwen3.8-27B, full MMLU n=1425: W4A8 0.8204, W4A16 0.822, W4A4 0.802; against W4A16 prefill +48% and decode +11% at tp2, KL to the W4A16 golden 12x below W4A4's, docs/results/2026-10-27-w4a8-hip-fp8-act.md); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: fp8 (recipe qwen3_5_vl [tuning.hip] mxfp4_act)
+--spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+verify attention rows: engaged (one row-table attention launch per layer)
+speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_bf16 gated_rmsnorm=gated_rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_a8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split_qk_norm_rope_kv=gate_split_qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 add=add_bf16 matmul=matmul_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 matmul=matmul_bf16_gemv_rows dyn_conv=dyn_conv_bf16 attn_decode=attn_decode_bf16_splitkv matmul_fp8=matmul_fp8_gemv_rows attn_decode=attn_decode_bf16_window argmax=argmax_f32
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 5.4s: 64 layers, hidden 5120, act bf16, kv bf16, weights 11.76 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 41 tokens
+finish=length prompt=41 (cached 0) completion=128 | prefill 152 ms (269.1 tok/s) | decode 1443 ms (88.04 tok/s)
+op table (estimated ms over all launches; total 1692.6 ms):
+op                               ms  share%    calls   timed
+matmul_mxfp4_pair            443.18   26.18     5808    5632
+matmul_mxfp4                 303.27   17.92     4752    4608
+matmul                       212.93   12.58     2231     480
+all_reduce                   151.31    8.94     4566    4127
+matmul_fp8                   139.51    8.24       63      31
+rmsnorm_add                   98.74    5.83     4224    4096
+gdn_conv_delta                73.91    4.37     1536    1488
+attn_decode                   73.42    4.34     1752     496
+silu_glu                      45.34    2.68     2267    2048
+gated_rmsnorm                 35.26    2.08     1584    1536
+embedding                     21.12    1.25       64      32
+gate_split_qk_norm_rope_kv      17.15    1.01      528     512
+rmsnorm                       12.06    0.71      407      64
+add                           11.92    0.70      607     288
+kv_append                     11.91    0.70      640     320
+rope                          11.21    0.66      475     160
+sigmoid_mul                   10.75    0.64      528     512
+qk_norm                        9.62    0.57      475     160
+attn_prefill                   2.72    0.16       16      16
+gdn_delta_rule                 2.58    0.15       48      48
+gdn_conv                       2.51    0.15       48      48
+argmax                         2.16    0.13       32      31
+dyn_conv                       0.00    0.00      620       0
+tensor parallel: 4566 all-reduces (138.4 per step), 4127 timed, avg 33.1 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+spec: verify passes=31 proposed=212 accepted=96 (acceptance 45.3%, 4.10 tokens per pass)
+steps=33 graph replays=1 (captures 1) eager decode steps=0 (profiled 0) top ops: matmul_mxfp4_pair=430ms/5808 matmul_mxfp4=294ms/4752 all_reduce=137ms/4566 rmsnorm_add=96ms/4224 gdn_conv_delta=72ms/1536
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1
