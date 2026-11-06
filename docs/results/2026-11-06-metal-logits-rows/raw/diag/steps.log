@@ -1,0 +1,8 @@
+eager knob=0 r1: passes 102 tok/pass 2.49 draft 5.93 verify+rb 36.08 pass 42.01 ms |  | decode 4323 ms (58.99 tok/s)
+pipe knob=0 r1: passes 102 tok/pass 2.49 draft nan verify+rb nan pass nan ms | pipe step 41.06 ms | decode 4239 ms (60.15 tok/s)
+eager knob=1 r1: passes 102 tok/pass 2.49 draft 5.88 verify+rb 35.74 pass 41.62 ms |  | decode 4284 ms (59.53 tok/s)
+pipe knob=1 r1: passes 102 tok/pass 2.49 draft nan verify+rb nan pass nan ms | pipe step 41.23 ms | decode 4254 ms (59.95 tok/s)
+eager knob=0 r2: passes 102 tok/pass 2.49 draft 5.89 verify+rb 35.77 pass 41.66 ms |  | decode 4288 ms (59.47 tok/s)
+pipe knob=0 r2: passes 102 tok/pass 2.49 draft nan verify+rb nan pass nan ms | pipe step 41.02 ms | decode 4229 ms (60.30 tok/s)
+eager knob=1 r2: passes 102 tok/pass 2.49 draft 5.97 verify+rb 36.19 pass 42.16 ms |  | decode 4336 ms (58.81 tok/s)
+pipe knob=1 r2: passes 102 tok/pass 2.49 draft nan verify+rb nan pass nan ms | pipe step 44.97 ms | decode 4628 ms (55.10 tok/s)

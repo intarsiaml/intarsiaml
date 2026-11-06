@@ -43,3 +43,40 @@ fn logits_rows_scalar_is_bitwise_the_one_row_launch() {
         }
     }
 }
+
+/// Timing, not a gate (`-- --ignored --nocapture`, exclusive slot): the 27B head shape (248320 x 5120 bf16) at byte offset 0 (the 16-byte
+/// `gemv_f32o_v`) and 8 (the scalar `gemv_f32o_scalar`, as the real lm_head), M = 1, and `logits_bf16_gemv_rows` at M = 2, 3, 4, 8, 16.
+#[test]
+#[ignore]
+fn bench_head_alignment() {
+    let be = backend();
+    let (n, k) = (248320usize, 5120usize);
+    let w: Vec<u16> = rand_bf16(n * k + 8, 7);
+    let wb = upload(&be, &w);
+    let xb = upload(&be, &rand_bf16(16 * k, 9));
+    let yb = be.alloc(16 * n * 4, MemKind::Device).unwrap();
+    let time = |f: &dyn Fn()| {
+        let mut best = f64::MAX;
+        for _ in 0..3 {
+            be.synchronize(0).unwrap();
+            let t0 = std::time::Instant::now();
+            for _ in 0..10 {
+                f();
+            }
+            be.synchronize(0).unwrap();
+            best = best.min(t0.elapsed().as_secs_f64() * 1e5);
+        }
+        best
+    };
+    for off in [0usize, 8] {
+        let wt = tref(&wb, off, &[n, k]);
+        for m in [1usize, 2, 3, 4, 8, 16] {
+            let x = tref(&xb, 0, &[m, k]);
+            let y = TensorRef { buf: yb.clone(), offset: 0, dtype: DType::F32, shape: vec![m, n] };
+            let c = OpCall::new(Op::Logits, vec![x, wt.clone()], vec![y], OpAttrs::default());
+            let name = if m == 1 { "logits_bf16_gemv" } else { "logits_bf16_gemv_rows" };
+            let us = time(&|| be.launch(name, &c, 0).unwrap());
+            eprintln!("LRBENCH head {n}x{k} offset {off} M={m} {name}: {us:.0} us");
+        }
+    }
+}

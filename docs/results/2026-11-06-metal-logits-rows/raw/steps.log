@@ -1,0 +1,30 @@
+12:40:32 SAME plan 8b
+12:40:36 SAME plan 27b
+12:41:01 SAME plan 35b
+12:41:33 kernels test base exit 0 49 kernels, 980 cases in 31.9s
+12:42:05 kernels test lane exit 0 49 kernels, 980 cases in 31.6s
+12:42:05 SAME kernels list
+12:42:05 SAME kernels test (timing lines dropped)
+12:42:22 ids 8b short-0 lane vs base (default spec): SAME
+12:42:39 ids 8b 4k-1 lane vs base (default spec): SAME
+12:42:49 ids 35b short-0 lane vs base (default spec): SAME
+12:43:00 ids 35b 4k-1 lane vs base (default spec): SAME
+12:43:45 ids 27b short-0 vs --spec off: mtp2 SAME mtp2-knob0 SAME mtp2-eager SAME mtp4 SAME
+12:44:53 ids 27b 4k-1 vs --spec off: mtp2 SAME mtp2-knob0 SAME mtp2-eager SAME mtp4 SAME
+12:45:17 ABAB mtp A1 short-0 52.70 51.49 52.17
+12:45:55 ABAB mtp A1 4k-1 46.46 45.92 48.50
+12:46:19 ABAB mtp B1 short-0 53.06 52.08 53.30
+12:46:56 ABAB mtp B1 4k-1 49.26 48.88 49.46
+12:47:19 ABAB mtp A2 short-0 54.08 53.48 53.75
+12:47:56 ABAB mtp A2 4k-1 50.14 49.14 49.90
+12:48:20 ABAB mtp B2 short-0 52.93 50.58 54.34
+12:48:55 ABAB mtp B2 4k-1 49.59 49.42 47.94
+12:49:30 ABAB off A1 short-0 30.25 28.95 30.28
+12:50:18 ABAB off A1 4k-1 28.80 28.59 28.74
+12:50:52 ABAB off B1 short-0 29.87 30.32 30.29
+12:51:39 ABAB off B1 4k-1 29.14 28.93 28.68
+12:52:14 ABAB off A2 short-0 30.34 30.18 30.63
+12:53:00 ABAB off A2 4k-1 28.37 29.09 28.76
+12:53:35 ABAB off B2 short-0 30.43 30.92 29.90
+12:54:22 ABAB off B2 4k-1 28.27 28.93 29.14
+12:54:22 done

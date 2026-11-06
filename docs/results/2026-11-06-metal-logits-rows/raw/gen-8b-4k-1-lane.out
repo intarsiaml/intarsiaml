@@ -1,0 +1,22 @@
+# Explanation of the DFlash Parallel-Draft Speculation and DCOCO Corrector Project
+
+This document outlines the implementation of **DFlash parallel-draft speculation** combined with the **DCOCO corrector** for the **Qwen3-8B** model. The goal is to improve the efficiency and accuracy of speculative decoding by using a draft model to generate candidate tokens and then correcting them with a dedicated corrector model.
+
+---
+
+## 🧠 Overview
+
+### 📌 Key Components
+
+1. **DFlash Parallel-Draft Speculation**:
+   - A technique that generates multiple candidate tokens in parallel using a draft model.
+   - The draft model is a simplified version of the main model, designed to be faster and more efficient.
+   - It generates a block of tokens (15 tokens) at once, which are then verified against the main model.
+
+2. **DCOCO Corrector**:
+   - A corrector model that takes the draft tokens and the context from the main model to select the most accurate token.
+   - It uses a combination of features from the draft and the main model to make the final decision.
+
+3. **Qwen3-8B**:
+   - The main model used for verification.
+   - It has

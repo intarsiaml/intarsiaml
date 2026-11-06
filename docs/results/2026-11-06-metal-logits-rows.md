@@ -18,3 +18,21 @@ the 1-row launch would take the scalar kernel; the 16-byte M-row shaders and eve
 Same lane binary, 27B, default spec (MTP k2, pipelined, MR default on), `generate` 256 forced tokens, prompts short-0 and 4k-1, visits
 A B A B (A = `INTARSIA_METAL_LOGITS_ROWS=0`, B = unset), 3 runs a visit, decode tok/s. **Ship default-on if B / A of the two-visit
 medians is >= 1.08 at both prompts**; `--spec off` B / A within 0.97..1.03 (M = 1 untouched).
+
+## Result (fleetq #8811 gates + ABAB, #8822 diagnosis; `raw/steps.log`, `raw/diag/steps.log`)
+
+* No-op gates: `plan show` 8B / 27B / 35B byte-identical lane vs base; `kernels list` identical; `kernels test` 49 kernels / 980 cases,
+  identical after dropping timing lines; greedy ids 8B and 35B (short-0, 4k-1) lane == base; 27B MTP k2 (pipelined, eager, knob 0) and
+  MTP k4 == `--spec off` at short-0 and 4k-1. Kernel tests: `tests/logits_rows.rs` (bitwise, M 2..16), `multirow`, `rows_exact`, lib.
+* ABAB (generate, decode tok/s, 3 runs a visit): MTP k2 short-0 A 52.7 / 51.5 / 52.2, 54.1 / 53.5 / 53.8; B 53.1 / 52.1 / 53.3, 52.9 / 50.6 / 54.3;
+  4k-1 A 46.5 / 45.9 / 48.5, 50.1 / 49.1 / 49.9; B 49.3 / 48.9 / 49.5, 49.6 / 49.4 / 47.9. B / A ~1.00: **the pre-registered rule (>= 1.08) is not met.**
+* Why (diagnosis, eager trace, two reps): verify + rollback 36.1 / 35.8 ms with the knob at 0, 35.7 / 36.2 ms with it on: no effect.
+  Main now runs the 27B with an **fp8 lm_head by default** (#320, `INTARSIA_LMHEAD_QUANT`, load log "lm_head quantised to fp8"): a fresh
+  device buffer, verify head `matmul_fp8_gemv_rows`, so the bf16 `Logits` path this kernel speeds up is no longer taken. My +22 %
+  measurement was on a pre-#320 base (bf16 head). The kernel helps only with the bf16 head (`INTARSIA_LMHEAD_QUANT=off`) or other models
+  whose head sits off 16 bytes.
+* The aligned-copy question is moot for the default 27B (the fp8 head is already a device copy). With `INTARSIA_LMHEAD_QUANT=off` an
+  aligned copy would cost +2.54 GB resident (the whole-file buffer keeps the original pages) and change `--spec off` bits (the 16-byte M = 1
+  kernel sums in another order).
+
+**Verdict: not opened as a PR (rule not met on main); reported to the coordinator.**
