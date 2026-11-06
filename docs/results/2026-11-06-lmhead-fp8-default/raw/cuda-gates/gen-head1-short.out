@@ -1,0 +1,22 @@
+Based on the provided text, it appears the document was cut off mid-sentence. Here is the completion of the thought, followed by a structured summary of the **IntarsiaML v0.2 Architecture Plan** based on the available details.
+
+### Completed Sentence
+> "The engine works the s**ame way: a central framework that accepts interchangeable, precisely fitted kernel pieces to build a complete, high-performance system.**"
+
+---
+
+### IntarsiaML Architecture Plan (v0.2) Summary
+
+**Date:** 2026-10-12  
+**Key Update:** Incorporates the *Fable adversarial review*.
+
+#### Core Philosophy
+- **Metaphor:** *Intarsia* (wood inlay).
+- **Concept:** A modular engine where the core framework is stable, and functionality is built from **interchangeable, precisely fitted pieces** (kernels).
+- **Goal:** High performance through strict, well-defined interfaces between the core and specialized kernel packs.
+
+#### Key Architectural Decisions (v0.2)
+
+1. **Torch-Free C Kernel ABI**
+   - The core interface is a **C-based Application Binary Interface (ABI)**.
+   - **Implication
