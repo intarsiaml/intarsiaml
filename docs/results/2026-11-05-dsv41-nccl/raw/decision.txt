@@ -1,0 +1,33 @@
+# arm pLL128-c2-b1M: 42 MB 11.71 GB/s (0.72x), small collectives SLOWER
+# arm pLL128-c2-b4M: 42 MB 11.95 GB/s (0.74x), small collectives ok
+# arm pLL128-c2-b8M: 42 MB 11.91 GB/s (0.73x), small collectives ok
+# arm pLL128-c4-b1M: 42 MB 14.61 GB/s (0.90x), small collectives ok
+# arm pLL128-c4-b4M: 42 MB 14.52 GB/s (0.89x), small collectives SLOWER
+# arm pLL128-c4-b8M: 42 MB 14.70 GB/s (0.90x), small collectives SLOWER
+# arm pLL128-c8-b1M: 42 MB 9.05 GB/s (0.56x), small collectives ok
+# arm pLL128-c8-b4M: 42 MB 9.12 GB/s (0.56x), small collectives ok
+# arm pLL128-c8-b8M: 42 MB 8.77 GB/s (0.54x), small collectives ok
+# arm pSimple-c2-b1M: 42 MB 16.13 GB/s (0.99x), small collectives ok
+# arm pSimple-c2-b4M: 42 MB 19.54 GB/s (1.20x), small collectives ok
+# arm pSimple-c2-b8M: 42 MB 20.09 GB/s (1.24x), small collectives ok
+# arm pSimple-c4-b1M: 42 MB 19.86 GB/s (1.22x), small collectives ok
+# arm pSimple-c4-b4M: 42 MB 21.10 GB/s (1.30x), small collectives ok
+# arm pSimple-c4-b8M: 42 MB 21.27 GB/s (1.31x), small collectives ok
+# arm pSimple-c8-b1M: 42 MB 22.43 GB/s (1.38x), small collectives ok
+# arm pSimple-c8-b4M: 42 MB 21.95 GB/s (1.35x), small collectives ok
+# arm pSimple-c8-b8M: 42 MB 21.38 GB/s (1.32x), small collectives ok
+# arm pdefault-c2-b1M: 42 MB 16.25 GB/s (1.00x), small collectives ok
+# arm pdefault-c2-b4M: 42 MB 19.64 GB/s (1.21x), small collectives ok
+# arm pdefault-c2-b8M: 42 MB 20.09 GB/s (1.24x), small collectives ok
+# arm pdefault-c4-b1M: 42 MB 19.97 GB/s (1.23x), small collectives SLOWER
+# arm pdefault-c4-b4M: 42 MB 21.03 GB/s (1.29x), small collectives SLOWER
+# arm pdefault-c4-b8M: 42 MB 21.38 GB/s (1.32x), small collectives ok
+# arm pdefault-c8-b1M: 42 MB 22.57 GB/s (1.39x), small collectives ok
+# arm pdefault-c8-b4M: 42 MB 22.02 GB/s (1.36x), small collectives ok
+# arm pdefault-c8-b8M: 42 MB 20.99 GB/s (1.29x), small collectives SLOWER
+# baseline pdefault-c2-b1M: 16.25 GB/s (16254 B/us); best ('pdefault-c8-b1M', 22.57, True)
+A=pass pdefault-c8-b1M 1.39x
+YENV=NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=1048576
+# cold ncclbench-cold16384-r0-pdefault-c2-b1M.txt: after-idle 3245 us, warm 2640 us, lead 16384 B 3284 us
+# cold ncclbench-cold4194304-r0-pdefault-c2-b1M.txt: after-idle 3087 us, warm 2687 us, lead 4194304 B 2859 us
+B=not-reproduced-or-not-hidden

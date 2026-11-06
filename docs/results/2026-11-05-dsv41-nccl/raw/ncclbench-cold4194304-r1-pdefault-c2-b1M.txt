@@ -1,0 +1,7 @@
+rank 1: rank 0 connected from 10.100.152.1:54266
+rank 1: NCCL 2.30.7
+rank 1  bytes/rank   ar_inplace(pipe,sync)  ar_into_bf16(pipe,sync)  ag(pipe,sync)   [us per call]   ar_inplace GB/s
+rank 1   41943040    2691.6  2748.6    2891.5  2967.5    3161.7  3080.1    15.58
+rank 1  cold test (10 rounds, idle 3000 ms, lead 7000 us, 41943040 bytes): median us: after-idle 2877  warm-at-once 2696  after-idle-with-4194304-byte-lead 3206 (tiny issue to big done 10578)
+rank 1  cold all: [2727, 2749, 2758, 2767, 2817, 2877, 2978, 8627, 8677, 8876]
+rank 1  lead all: [2729, 2781, 2851, 2915, 2920, 3205, 3669, 8525, 8776, 8863]

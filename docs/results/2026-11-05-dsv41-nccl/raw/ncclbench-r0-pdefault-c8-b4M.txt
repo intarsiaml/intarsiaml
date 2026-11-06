@@ -1,0 +1,9 @@
+rank 0: NCCL 2.30.7
+rank 0  bytes/rank   ar_inplace(pipe,sync)  ar_into_bf16(pipe,sync)  ag(pipe,sync)   [us per call]   ar_inplace GB/s
+rank 0      16384      22.7    62.9      24.8    31.6      19.4    24.6     0.72
+rank 0      32768      25.8    35.1      27.6    37.3      48.8    33.0     1.27
+rank 0      65536      45.7    58.4      34.1    40.7      26.8    32.8     1.43
+rank 0     131072      41.5    44.6      45.0    47.3      31.4    38.7     3.16
+rank 0    1048576     147.1   149.5     150.7   155.2      73.1    76.4     7.13
+rank 0   41943040    1904.9  1890.5    2193.5  2262.2    2213.9  2227.9    22.02
+NCCL version 2.30.7+cuda13.3

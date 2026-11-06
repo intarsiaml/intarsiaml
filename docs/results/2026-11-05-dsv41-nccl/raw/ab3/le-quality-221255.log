@@ -1,0 +1,84 @@
+[localeval] dataset /opt/code/deepeval/datasets/categories-rcp.jsonl: 24 rows, judge=none
+[localeval] dataset /opt/code/intarsiaml/.worktrees/dsv41-nccl/scripts/dsv41-tp2/chat-rcp.jsonl: 8 rows, judge=none
+# localeval: adhoc — 2026-11-05T22:12
+
+- model: `dsv41-intarsia` on ? (?), url `http://100.120.88.104:8899/v1`
+- thinking: off; run kind: quality; label: dsv41-intarsia-tp2-cat-ab3
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality --dataset /opt/code/deepeval/datasets/categories-rcp.jsonl --dataset /opt/code/intarsiaml/.worktrees/dsv41-nccl/scripts/dsv41-tp2/chat-rcp.jsonl --judge none --max-tokens 256 --label dsv41-intarsia-tp2-cat-ab3 --url http://100.120.88.104:8899/v1 --model dsv41-intarsia --thinking off --recipe intarsia e37f6dd66 dirty=no 1105-1731 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000 chunk engine, engram hot 1024 MiB`
+- result file: `results/20261105-221255-adhoc-dsv41-intarsia-tp2-cat-ab3/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia e37f6dd66 dirty=no 1105-1731 scripts/dsv41-tp2/run-full.sh: rank 0 spark1 serve --tp 2 --tp-remote, rank 1 spark2 tp-worker, rank caches r0of2/r1of2, NCCL CX7, cap 66000 chunk engine, engram hot 1024 MiB
+````
+
+## Dataset `/opt/code/deepeval/datasets/categories-rcp.jsonl` (24 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 24 | 0 |
+| TTFT (s) | 0.187 | 1.0 | 24 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 24 | 0 |
+| Decode (tok/s) | 59.6 | 1.0 | 24 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| recall-tcp-handshake | yes | 0.0 | 0.24 | 60.3 | # TCP Three-Way Handshake and Four-Way Teardown TCP is a con… |
+| recall-photosynthesis | yes | 0.0 | 0.16 | 65.1 | # Photosynthesis: The Two Stages Photosynthesis converts lig… |
+| recall-french-revolution | yes | 0.0 | 0.18 | 55.8 | # The French Revolution, 1789–1799: Causes, Phases, and Cons… |
+| recall-git-internals | yes | 0.0 | 0.18 | 62.7 | # How Git Stores Data Internally Git is fundamentally a **co… |
+| recall-vaccines | yes | 0.0 | 0.16 | 54.8 | # How Three Vaccine Platforms Train the Immune System ## mRN… |
+| recall-cpu-caches | yes | 0.0 | 0.18 | 55.0 | # How CPU Caches Work ## The Basic Problem Main memory (DRAM… |
+| recall-plate-tectonics | yes | 0.0 | 0.18 | 55.5 | # Plate Tectonics: A Complete Overview Plate tectonics is th… |
+| recall-http2 | yes | 0.0 | 0.33 | 61.8 | # HTTP/1.1 vs HTTP/2 vs HTTP/3 ## HTTP/1.1 (1997) **Connecti… |
+| code-lru-cache | yes | 0.0 | 0.21 | 82.1 | # LRU Cache Implementation ```python from __future__ import … |
+| code-rate-limiter | yes | 0.0 | 0.18 | 68.2 | # Thread-Safe Token-Bucket Rate Limiter Below is a complete … |
+| code-json-parser | yes | 0.0 | 0.20 | 80.7 | # Recursive-Descent JSON Parser ```python class JSONParseErr… |
+| code-rust-cli | yes | 0.0 | 0.18 | 66.3 | # Word Frequency Counter in Rust Below is a complete, well-c… |
+| code-sql-schema | yes | 0.0 | 0.18 | 82.2 | # PostgreSQL Library System Schema ## Schema Design ```sql -… |
+| code-ts-debounce | yes | 0.0 | 0.17 | 66.0 | # Debounce & Throttle in TypeScript Below are production-rea… |
+| code-go-worker-pool | yes | 0.0 | 0.18 | 77.1 | # Go Worker Pool with Context Cancellation and Error Collect… |
+| code-bash-backup | yes | 0.0 | 0.21 | 68.3 | # Robust Directory Backup Script ```bash #!/usr/bin/env bash… |
+| prose-lighthouse | yes | 0.0 | 0.15 | 46.3 | The salt spray had become a permanent perfume, and the const… |
+| prose-city-essay | yes | 0.0 | 0.16 | 43.5 | # The Geography of Belonging I knew my city had become home … |
+| prose-product-launch | yes | 0.0 | 0.14 | 43.4 | # Fresh from Our Oven to Your Doorstep: Introducing Neighbor… |
+| prose-mountain-letter | yes | 0.0 | 0.16 | 47.6 | Dear Sam, It’s just past nine, and the tent is glowing orang… |
+| prose-ocean-poem | yes | 0.0 | 0.18 | 44.2 | **Nocturne for the Unlit Sea** The sun has gone down like a … |
+| prose-robot-fable | yes | 0.0 | 0.15 | 43.8 | In a city of gleaming chrome and ceaseless motion, there liv… |
+| prose-travel | yes | 0.0 | 0.16 | 49.7 | The morning sun, still soft and buttery, spills over the lip… |
+| prose-history-scene | yes | 0.0 | 0.24 | 49.9 | The air in the workshop was thick with the smell of lamp oil… |
+
+## Dataset `/opt/code/intarsiaml/.worktrees/dsv41-nccl/scripts/dsv41-tp2/chat-rcp.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.281 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 51.9 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| chat-weekend-trip | yes | 0.0 | 0.25 | 52.4 | Here's a relaxed 2-day/2-night plan built around a small coa… |
+| chat-job-offer | yes | 0.0 | 0.26 | 49.2 | Given that time with two young kids is your priority, the 15… |
+| chat-sourdough | yes | 0.0 | 0.26 | 56.4 | Four hours at 19°C is almost certainly your problem. That's … |
+| chat-roommate | yes | 0.0 | 0.24 | 52.6 | Yes — let's make this concrete. Here's a plan that keeps it … |
+| chat-learn-piano | yes | 0.0 | 0.24 | 47.6 | Here's a realistic sketch of six months, assuming ~20–30 min… |
+| chat-houseplants | yes | 0.0 | 0.25 | 55.2 | With a north-facing window and frequent travel, you want pla… |
+| chat-budget | yes | 0.0 | 0.25 | 54.6 | Great — rent at about a third of your pay is on the higher s… |
+| chat-dog-training | yes | 0.0 | 0.50 | 47.3 | Good — that treat-taking tells you a lot. If she'll still ea… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-221255-adhoc-dsv41-intarsia-tp2-cat-ab3/result.json
+[localeval] logged to unanimis: f89d6b4b-5b52-41c0-8c6c-451061eee49f

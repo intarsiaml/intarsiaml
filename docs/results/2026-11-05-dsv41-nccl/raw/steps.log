@@ -1,0 +1,259 @@
+21:52:34 earlyoom on spark1: -m 2,1
+21:52:34 earlyoom on spark2: -m 2,1
+21:52:36 binary e37f6dd66 dirty=no 1105-1731; out /opt/code/intarsiaml/.worktrees/dsv41-nccl/docs/results/2026-11-05-dsv41-nccl/raw
+21:52:42 vLLM stopped on both
+21:52:49 nccl_bench ncclbench pdefault-c2-b1M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=1048576 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      24.4    63.6      25.0    53.7      17.9    25.0     0.67
+rank 0      32768      27.0    36.1      28.3    36.6      21.6    28.2     1.21
+rank 0      65536      31.6    44.9      31.9    44.8      25.9    28.6     2.07
+rank 0     131072      39.6    42.2      43.1    46.3      33.1    35.7     3.31
+rank 0    1048576     114.9   117.8     118.7   121.9      83.3    86.4     9.13
+rank 0   41943040    2580.4  2588.8    2892.7  3006.5    3023.2  3053.4    16.25
+21:52:54 nccl_bench ncclbench-dbg pdefault-c2-b1M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=1048576 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:53:59 nccl_bench ncclbench-cold16384 pdefault-c2-b1M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=1048576 NB_BYTES=41943040 NB_BIG_ITERS=3 NB_COLD=10 NB_COLD_LEAD_BYTES=16384  (exit 0)
+rank 0   41943040    2683.2  2819.8    2968.9  3382.3    3096.5  3152.6    15.63
+rank 0  cold test (10 rounds, idle 3000 ms, lead 7000 us, 41943040 bytes): median us: after-idle 3245  warm-at-once 2640  after-idle-with-16384-byte-lead 3284 (tiny issue to big done 10517)
+rank 0  cold all: [3113, 3152, 3158, 3159, 3234, 3244, 3451, 8932, 8956, 9168]
+21:55:04 nccl_bench ncclbench-cold4194304 pdefault-c2-b1M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=1048576 NB_BYTES=41943040 NB_BIG_ITERS=3 NB_COLD=10 NB_COLD_LEAD_BYTES=4194304  (exit 0)
+rank 0   41943040    2692.5  2748.4    2893.3  2967.3    3159.3  3087.2    15.58
+rank 0  cold test (10 rounds, idle 3000 ms, lead 7000 us, 41943040 bytes): median us: after-idle 3087  warm-at-once 2687  after-idle-with-4194304-byte-lead 2859 (tiny issue to big done 10544)
+rank 0  cold all: [2734, 2742, 2765, 2828, 2944, 3087, 3466, 8502, 8638, 8801]
+21:55:09 nccl_bench ncclbench pdefault-c2-b4M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=4194304 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      22.6    29.3      24.3    31.7      17.1    23.5     0.73
+rank 0      32768      25.4    31.9      27.1    34.5      20.6    25.7     1.29
+rank 0      65536      30.2    37.5      32.1    80.4      26.6    28.4     2.17
+rank 0     131072      39.3    42.0      41.2    44.5      34.2    35.5     3.33
+rank 0    1048576     116.7   118.1     119.2   122.8      83.1    85.9     8.98
+rank 0   41943040    2135.9  2137.5    2401.5  2479.9    2594.3  2729.2    19.64
+21:55:15 nccl_bench ncclbench pdefault-c2-b8M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=8388608 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      21.7    32.6      23.1    29.4      16.4    21.3     0.75
+rank 0      32768      24.1    29.4      26.0    31.9      19.6    23.7     1.36
+rank 0      65536      28.2    34.7      30.1    36.2      25.7    28.4     2.32
+rank 0     131072      39.8    42.6      41.5    49.1      30.9    32.8     3.29
+rank 0    1048576     115.2   118.2     119.2   122.1      83.1    85.8     9.10
+rank 0   41943040    2087.7  2089.3    2359.0  2506.6    2523.5  2667.6    20.09
+21:55:20 nccl_bench ncclbench-dbg pdefault-c2-b8M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=8388608 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:55:25 nccl_bench ncclbench pdefault-c4-b1M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=1048576 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      22.3   100.4      23.2    29.3      17.3    22.1     0.74
+rank 0      32768      24.1    30.1      25.9    32.6      19.9    24.0     1.36
+rank 0      65536      28.0    33.8      29.7    36.3      24.8    31.6     2.34
+rank 0     131072      55.4    43.9      42.9    47.0      31.9    34.4     2.37
+rank 0    1048576     116.3   112.2     112.2   115.2      82.0    83.6     9.02
+rank 0   41943040    2100.4  2071.3    2334.1  2424.0    2333.8  2448.7    19.97
+21:55:30 nccl_bench ncclbench-dbg pdefault-c4-b1M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=1048576 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:55:36 nccl_bench ncclbench pdefault-c4-b4M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=4194304 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      24.8    61.8      25.2    33.3      19.8    26.9     0.66
+rank 0      32768      27.2    35.8      29.0    37.9      23.3    29.8     1.20
+rank 0      65536      42.5   105.2      31.4    39.9      24.8    33.8     1.54
+rank 0     131072      42.4    44.9      43.2    47.0      31.0    39.5     3.09
+rank 0    1048576     110.9   116.3     113.4   115.1      81.3    84.0     9.46
+rank 0   41943040    1994.2  1989.8    2250.6  2294.9    2256.6  2315.4    21.03
+21:55:41 nccl_bench ncclbench pdefault-c4-b8M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=8388608 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      22.7    46.3      24.5    31.5      19.6    24.5     0.72
+rank 0      32768      26.0    34.8      27.6    37.3      21.2    26.8     1.26
+rank 0      65536      40.0    72.4      31.3    36.2      24.9    28.6     1.64
+rank 0     131072      40.8    43.8      43.3    50.5      32.0    33.5     3.21
+rank 0    1048576     110.8   120.0     111.8   114.1      80.6    88.3     9.47
+rank 0   41943040    1962.1  1967.6    2232.9  2289.2    2287.9  2281.2    21.38
+21:55:47 nccl_bench ncclbench-dbg pdefault-c4-b8M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=8388608 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:55:53 nccl_bench ncclbench pdefault-c8-b1M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=1048576 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      23.0    54.8      24.2    34.4      18.7    24.3     0.71
+rank 0      32768      25.8    34.5      27.3    36.6      46.9    32.1     1.27
+rank 0      65536      42.6    37.7      33.5    40.4      26.4    32.6     1.54
+rank 0     131072      42.5    43.9      42.6    46.5      32.6    35.0     3.08
+rank 0    1048576     144.7   145.5     148.3   150.1      73.7    76.3     7.25
+rank 0   41943040    1858.3  1870.6    2112.9  2119.6    1964.2  1984.9    22.57
+21:56:00 nccl_bench ncclbench-dbg pdefault-c8-b1M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=1048576 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:56:06 nccl_bench ncclbench pdefault-c8-b4M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=4194304 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      22.7    62.9      24.8    31.6      19.4    24.6     0.72
+rank 0      32768      25.8    35.1      27.6    37.3      48.8    33.0     1.27
+rank 0      65536      45.7    58.4      34.1    40.7      26.8    32.8     1.43
+rank 0     131072      41.5    44.6      45.0    47.3      31.4    38.7     3.16
+rank 0    1048576     147.1   149.5     150.7   155.2      73.1    76.4     7.13
+rank 0   41943040    1904.9  1890.5    2193.5  2262.2    2213.9  2227.9    22.02
+21:56:12 nccl_bench ncclbench pdefault-c8-b8M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=8388608 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      22.8    40.0      24.4    31.8      18.7    24.4     0.72
+rank 0      32768      26.4    35.1      27.6    37.1      49.7    61.9     1.24
+rank 0      65536      32.0    83.5      35.0    40.0      26.7    34.8     2.04
+rank 0     131072      41.4    44.3      45.9    47.0      31.4    34.6     3.17
+rank 0    1048576     147.0   149.9     150.8   152.8      73.1    87.4     7.13
+rank 0   41943040    1998.0  1993.7    2442.4  2381.0    2604.8  2739.0    20.99
+21:56:17 nccl_bench ncclbench-dbg pdefault-c8-b8M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=8388608 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:56:22 nccl_bench ncclbench pSimple-c2-b1M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=1048576 NCCL_PROTO=Simple NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      33.5    64.9      35.1    39.5      22.4    61.7     0.49
+rank 0      32768      38.2    41.6      40.8    45.3      25.9    28.9     0.86
+rank 0      65536      35.4    38.0      37.1    40.7      28.4    31.1     1.85
+rank 0     131072      38.8    41.7      41.3    44.2      33.0    35.5     3.38
+rank 0    1048576      82.3    85.1      86.3    88.9      83.0    89.2    12.74
+rank 0   41943040    2600.4  2578.4    2849.4  2916.2    3024.7  3029.8    16.13
+21:56:27 nccl_bench ncclbench-dbg pSimple-c2-b1M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=1048576 NCCL_PROTO=Simple NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:56:33 nccl_bench ncclbench pSimple-c2-b4M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=4194304 NCCL_PROTO=Simple NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      33.8    45.2      35.3    39.7      23.8    25.8     0.48
+rank 0      32768      38.1    40.5      39.9    49.1      24.0    41.4     0.86
+rank 0      65536      34.3    36.3      34.8    38.3      26.1    28.7     1.91
+rank 0     131072      38.9    41.6      41.0    44.4      33.1    35.4     3.37
+rank 0    1048576      82.6    85.3      86.2    89.0      83.6    85.9    12.69
+rank 0   41943040    2146.2  2135.3    2426.0  2497.7    2593.0  2687.9    19.54
+21:56:39 nccl_bench ncclbench pSimple-c2-b8M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=8388608 NCCL_PROTO=Simple NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      32.9    56.3      34.4    38.2      21.9    25.1     0.50
+rank 0      32768      37.0    42.1      40.2    41.8      23.9    27.0     0.89
+rank 0      65536      32.5    35.7      34.6    38.4      26.0    28.5     2.01
+rank 0     131072      40.3    42.3      42.0    46.5      29.9    32.7     3.26
+rank 0    1048576      82.4    85.4      85.7    88.6      82.8    85.4    12.72
+rank 0   41943040    2087.4  2115.0    2366.1  2505.1    2527.7  2564.5    20.09
+21:56:44 nccl_bench ncclbench-dbg pSimple-c2-b8M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=8388608 NCCL_PROTO=Simple NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:56:49 nccl_bench ncclbench pSimple-c4-b1M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=1048576 NCCL_PROTO=Simple NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      33.1    35.6      34.7    45.0      21.9    24.9     0.50
+rank 0      32768      36.8    39.6      39.1    42.8      26.5    59.5     0.89
+rank 0      65536      42.4    36.9      38.7    39.5      27.8    30.9     1.54
+rank 0     131072      39.3    44.4      41.6    44.1      31.7    34.4     3.33
+rank 0    1048576      78.3    81.9      82.3    85.5      81.0    83.8    13.39
+rank 0   41943040    2112.3  2135.5    2339.6  2432.8    2372.4  2422.4    19.86
+21:56:54 nccl_bench ncclbench-dbg pSimple-c4-b1M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=1048576 NCCL_PROTO=Simple NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:57:00 nccl_bench ncclbench pSimple-c4-b4M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=4194304 NCCL_PROTO=Simple NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      32.1    60.3      34.7    52.7      21.5    39.5     0.51
+rank 0      32768      36.0    38.7      39.6    41.8      24.0    27.0     0.91
+rank 0      65536      42.8    38.3      37.4    39.6      26.7    29.7     1.53
+rank 0     131072      37.3    43.3      39.2    43.1      30.8    33.6     3.51
+rank 0    1048576      78.0    81.1      82.7    85.6      81.1    84.1    13.44
+rank 0   41943040    1987.4  1981.5    2264.3  2307.3    2262.9  2290.0    21.10
+21:57:06 nccl_bench ncclbench pSimple-c4-b8M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=8388608 NCCL_PROTO=Simple NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      32.9    35.9      34.7    38.6      22.5    46.8     0.50
+rank 0      32768      37.8    52.8      39.0    42.8      24.2    31.1     0.87
+rank 0      65536      46.5    37.1      36.0    39.7      27.1    32.6     1.41
+rank 0     131072      37.6    40.6      39.4    44.3      30.8    33.7     3.49
+rank 0    1048576      78.1    82.3      81.8   102.6      84.6    83.7    13.43
+rank 0   41943040    1971.8  1967.4    2253.5  2295.6    2295.6  2334.4    21.27
+21:57:11 nccl_bench ncclbench-dbg pSimple-c4-b8M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=8388608 NCCL_PROTO=Simple NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:57:16 nccl_bench ncclbench pSimple-c8-b1M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=1048576 NCCL_PROTO=Simple NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      31.9    42.0      33.5    50.0      21.6    33.1     0.51
+rank 0      32768      36.0    38.6      38.0    41.9      26.5    29.1     0.91
+rank 0      65536      43.0    37.0      37.8    39.8      28.6    33.9     1.52
+rank 0     131072      50.3    48.2      41.2    46.2      31.4    35.3     2.61
+rank 0    1048576      72.1    76.4      76.7    79.7      73.7    76.4    14.55
+rank 0   41943040    1869.6  1873.4    2125.9  2176.1    1967.8  1968.4    22.43
+21:57:22 nccl_bench ncclbench-dbg pSimple-c8-b1M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=1048576 NCCL_PROTO=Simple NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:57:27 nccl_bench ncclbench pSimple-c8-b4M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=4194304 NCCL_PROTO=Simple NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      32.0    35.0      33.6    52.2      21.5    39.2     0.51
+rank 0      32768      35.9    40.7      37.6    47.6      24.1    27.0     0.91
+rank 0      65536      42.7    37.2      35.4    39.5      26.8    29.7     1.53
+rank 0     131072      52.0    43.5      41.3    45.9      32.0    36.2     2.52
+rank 0    1048576      72.1    74.6      75.6    78.7      74.7    76.7    14.55
+rank 0   41943040    1911.2  1904.7    2205.3  2264.6    2389.8  2377.8    21.95
+21:57:33 nccl_bench ncclbench pSimple-c8-b8M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=8388608 NCCL_PROTO=Simple NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      32.2    34.5      32.9    37.1      21.4    24.1     0.51
+rank 0      32768      37.2    38.8      37.3    41.1      24.0    26.7     0.88
+rank 0      65536      43.0    36.5      36.8    39.0      26.5    29.6     1.52
+rank 0     131072      51.6    42.8      40.7    45.3      31.1    38.2     2.54
+rank 0    1048576      80.4    84.2      83.1    86.7      73.1    76.0    13.04
+rank 0   41943040    1961.7  1992.5    2437.0  2406.4    2542.2  2629.6    21.38
+21:57:38 nccl_bench ncclbench-dbg pSimple-c8-b8M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=8388608 NCCL_PROTO=Simple NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:57:44 nccl_bench ncclbench pLL128-c2-b1M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=1048576 NCCL_PROTO=LL128 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      31.8    71.0      33.1    39.4      23.7    26.6     0.51
+rank 0      32768      34.4    83.3      34.5    38.7      25.0    27.9     0.95
+rank 0      65536      34.3    37.0      37.5    39.6      27.3    30.3     1.91
+rank 0     131072      40.2    43.1      42.3    52.2      32.9    35.8     3.26
+rank 0    1048576     117.5   132.6     120.5   124.3     112.1   116.8     8.93
+rank 0   41943040    3580.5  3529.8    3825.7  3924.1    3662.4  3657.3    11.71
+21:57:49 nccl_bench ncclbench-dbg pLL128-c2-b1M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=1048576 NCCL_PROTO=LL128 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:57:55 nccl_bench ncclbench pLL128-c2-b4M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=4194304 NCCL_PROTO=LL128 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      31.5    80.1      33.1    37.2      23.6    26.4     0.52
+rank 0      32768      32.5    35.5      34.2    38.1      25.8    49.5     1.01
+rank 0      65536      35.5    36.7      37.7    39.9      27.1    29.7     1.84
+rank 0     131072      40.4    42.7      41.3    45.4      32.8    35.5     3.24
+rank 0    1048576     117.1   118.6     119.4   122.4     111.0   114.1     8.96
+rank 0   41943040    3510.5  3520.9    3778.9  3919.8    3629.1  3717.0    11.95
+21:58:01 nccl_bench ncclbench pLL128-c2-b8M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=8388608 NCCL_PROTO=LL128 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      32.2    35.3      33.9    37.9      24.3    27.1     0.51
+rank 0      32768      33.5    41.1      35.0    39.0      27.9    35.5     0.98
+rank 0      65536      35.5    37.3      35.7    39.0      28.4    30.0     1.85
+rank 0     131072      39.6    46.2      41.2    44.6      32.9    35.6     3.31
+rank 0    1048576     115.8   118.7     119.8   122.5     111.1   113.6     9.06
+rank 0   41943040    3522.8  3510.7    3799.2  3997.6    3628.7  3678.2    11.91
+21:58:06 nccl_bench ncclbench-dbg pLL128-c2-b8M: NCCL_MAX_NCHANNELS=2 NCCL_BUFFSIZE=8388608 NCCL_PROTO=LL128 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:58:11 nccl_bench ncclbench pLL128-c4-b1M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=1048576 NCCL_PROTO=LL128 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      32.4    35.5      34.3    38.3      24.4    27.3     0.51
+rank 0      32768      33.9    36.6      35.4    39.5      26.2    28.4     0.97
+rank 0      65536      49.6    57.4      38.9    42.5      29.9    33.0     1.32
+rank 0     131072      42.4    43.7      43.1    46.7      35.5    38.8     3.09
+rank 0    1048576     108.5   109.7     112.2   115.9     109.9   109.5     9.67
+rank 0   41943040    2870.2  2887.7    3109.9  3155.5    2870.6  2893.5    14.61
+21:58:17 nccl_bench ncclbench-dbg pLL128-c4-b1M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=1048576 NCCL_PROTO=LL128 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:58:22 nccl_bench ncclbench pLL128-c4-b4M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=4194304 NCCL_PROTO=LL128 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      31.1   123.6      32.6    36.3      23.4    25.9     0.53
+rank 0      32768      31.7    34.0      35.0    37.0      24.0    26.7     1.03
+rank 0      65536      46.1    45.4      39.0    42.7      29.8    32.9     1.42
+rank 0     131072      40.8    43.5      43.9    49.8      35.4    38.6     3.22
+rank 0    1048576     107.1   109.7     110.9   115.4     107.7   111.1     9.79
+rank 0   41943040    2889.6  2814.5    3104.6  3306.1    2885.8  2932.7    14.52
+21:58:28 nccl_bench ncclbench pLL128-c4-b8M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=8388608 NCCL_PROTO=LL128 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      31.7   104.8      33.0    37.2      23.7    26.6     0.52
+rank 0      32768      32.6    35.5      34.4    38.1      26.4    27.8     1.00
+rank 0      65536      50.4   125.9      38.9    42.7      29.9    32.9     1.30
+rank 0     131072      40.7    43.6      42.7    51.2      35.9    38.7     3.22
+rank 0    1048576     107.9   109.6     110.3   114.5     107.9   109.7     9.72
+rank 0   41943040    2854.1  2817.7    3096.1  3209.8    2823.6  2951.7    14.70
+21:58:33 nccl_bench ncclbench-dbg pLL128-c4-b8M: NCCL_MAX_NCHANNELS=4 NCCL_BUFFSIZE=8388608 NCCL_PROTO=LL128 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:58:39 nccl_bench ncclbench pLL128-c8-b1M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=1048576 NCCL_PROTO=LL128 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      32.4    64.8      34.4    37.9      24.4    27.3     0.51
+rank 0      32768      34.4    36.6      35.4    39.6      25.9    28.8     0.95
+rank 0      65536      51.1    67.5      39.0    47.0      29.8    32.9     1.28
+rank 0     131072      54.4    49.5      43.2    47.2      34.5    37.6     2.41
+rank 0    1048576     145.7   149.5     149.6   151.7     121.6   125.6     7.20
+rank 0   41943040    4635.8  4674.3    5008.9  5242.8    4780.1  4933.3     9.05
+21:58:45 nccl_bench ncclbench-dbg pLL128-c8-b1M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=1048576 NCCL_PROTO=LL128 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:58:51 nccl_bench ncclbench pLL128-c8-b4M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=4194304 NCCL_PROTO=LL128 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      33.0    70.2      34.2    38.2      24.3    27.3     0.50
+rank 0      32768      33.8    36.7      35.4    39.6      25.9    32.5     0.97
+rank 0      65536      53.9    51.9      39.0    42.8      31.4    32.9     1.22
+rank 0     131072      52.6    44.6      43.5    47.2      35.5    37.7     2.49
+rank 0    1048576     145.8   147.6     150.5   153.8     122.5   125.6     7.19
+rank 0   41943040    4597.2  4455.0    5028.4  4980.6    4698.2  4571.6     9.12
+21:58:58 nccl_bench ncclbench pLL128-c8-b8M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=8388608 NCCL_PROTO=LL128 NB_BYTES=16384,32768,65536,131072,1048576,41943040 (exit 0)
+rank 0      16384      33.1    34.4      33.2    37.1      23.7    26.6     0.49
+rank 0      32768      32.6    52.2      34.5    38.1      26.7    30.2     1.01
+rank 0      65536      48.5    60.2      39.0    42.8      29.9    33.0     1.35
+rank 0     131072      54.3    46.6      43.3    47.0      34.2    37.5     2.42
+rank 0    1048576     145.9   150.2     153.1   154.0     122.2   125.6     7.19
+rank 0   41943040    4784.6  4648.5    5050.5  5020.9    4797.4  4732.8     8.77
+21:59:03 nccl_bench ncclbench-dbg pLL128-c8-b8M: NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=8388608 NCCL_PROTO=LL128 NB_BYTES=41943040 NB_BIG_ITERS=3 NCCL_DEBUG=INFO NCCL_DEBUG_SUBSYS=INIT,TUNING,COLL (exit 0)
+21:59:04 binary stamp ok: e37f6dd66 dirty=no 1105-1731
+# arm pLL128-c2-b1M: 42 MB 11.71 GB/s (0.72x), small collectives SLOWER
+# arm pLL128-c2-b4M: 42 MB 11.95 GB/s (0.74x), small collectives ok
+# arm pLL128-c2-b8M: 42 MB 11.91 GB/s (0.73x), small collectives ok
+# arm pLL128-c4-b1M: 42 MB 14.61 GB/s (0.90x), small collectives ok
+# arm pLL128-c4-b4M: 42 MB 14.52 GB/s (0.89x), small collectives SLOWER
+# arm pLL128-c4-b8M: 42 MB 14.70 GB/s (0.90x), small collectives SLOWER
+# arm pLL128-c8-b1M: 42 MB 9.05 GB/s (0.56x), small collectives ok
+# arm pLL128-c8-b4M: 42 MB 9.12 GB/s (0.56x), small collectives ok
+# arm pLL128-c8-b8M: 42 MB 8.77 GB/s (0.54x), small collectives ok
+# arm pSimple-c2-b1M: 42 MB 16.13 GB/s (0.99x), small collectives ok
+# arm pSimple-c2-b4M: 42 MB 19.54 GB/s (1.20x), small collectives ok
+# arm pSimple-c2-b8M: 42 MB 20.09 GB/s (1.24x), small collectives ok
+# arm pSimple-c4-b1M: 42 MB 19.86 GB/s (1.22x), small collectives ok
+# arm pSimple-c4-b4M: 42 MB 21.10 GB/s (1.30x), small collectives ok
+# arm pSimple-c4-b8M: 42 MB 21.27 GB/s (1.31x), small collectives ok
+# arm pSimple-c8-b1M: 42 MB 22.43 GB/s (1.38x), small collectives ok
+# arm pSimple-c8-b4M: 42 MB 21.95 GB/s (1.35x), small collectives ok
+# arm pSimple-c8-b8M: 42 MB 21.38 GB/s (1.32x), small collectives ok
+# arm pdefault-c2-b1M: 42 MB 16.25 GB/s (1.00x), small collectives ok
+# arm pdefault-c2-b4M: 42 MB 19.64 GB/s (1.21x), small collectives ok
+# arm pdefault-c2-b8M: 42 MB 20.09 GB/s (1.24x), small collectives ok
+# arm pdefault-c4-b1M: 42 MB 19.97 GB/s (1.23x), small collectives SLOWER
+# arm pdefault-c4-b4M: 42 MB 21.03 GB/s (1.29x), small collectives SLOWER
+# arm pdefault-c4-b8M: 42 MB 21.38 GB/s (1.32x), small collectives ok
+# arm pdefault-c8-b1M: 42 MB 22.57 GB/s (1.39x), small collectives ok
+# arm pdefault-c8-b4M: 42 MB 22.02 GB/s (1.36x), small collectives ok
+# arm pdefault-c8-b8M: 42 MB 20.99 GB/s (1.29x), small collectives SLOWER
+# baseline pdefault-c2-b1M: 16.25 GB/s (16254 B/us); best ('pdefault-c8-b1M', 22.57, True)
+A=pass pdefault-c8-b1M 1.39x
+YENV=NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=1048576
+# cold ncclbench-cold16384-r0-pdefault-c2-b1M.txt: after-idle 3245 us, warm 2640 us, lead 16384 B 3284 us
+# cold ncclbench-cold4194304-r0-pdefault-c2-b1M.txt: after-idle 3087 us, warm 2687 us, lead 4194304 B 2859 us
+B=not-reproduced-or-not-hidden
+21:59:04 sessions: ab0=X1[current] ab1=Y1[NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=1048576] ab2=Z1[INTARSIA_DSV41_ENGRAM_HOT_MB=0] ab3=X2[current] ab4=Y2[NCCL_MAX_NCHANNELS=8 NCCL_BUFFSIZE=1048576] ab5=Z2[INTARSIA_DSV41_ENGRAM_HOT_MB=0] 
+22:23:15 done
+22:23:15 restore (exit 0)
+22:26:41 vLLM on spark1 up (Up 3 minutes)
+22:26:52 vLLM on spark2 up (Up 3 minutes)
+22:26:53 restored
