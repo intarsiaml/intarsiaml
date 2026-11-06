@@ -1926,18 +1926,15 @@ fn real_35b_batched_macro_prefill_equals_the_plain_local_engine() {
 /// engine's `prefill_pack` runs it: the body packed, the last token alone with the head) must leave the logits of its last prompt
 /// row and of 8 greedy decode steps bit for bit those of its solo prefill. Sweeps the short body's rows (16 = `PACK_MIN_ROWS`
 /// up), its place in the pack (first / second) and the partner's rows; prints one line per case (`PROBE ... equal|DIFF`) and
-/// fails at the end if any case differs. `INTARSIA_PROBE_SHORT` / `INTARSIA_PROBE_LONG` (comma lists) override the sweep.
+/// fails at the end if any case differs.
 #[test]
 #[ignore]
 fn real_35b_packed_short_segment_probe() {
     let _serial = serial();
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     const DECODE_ROWS: usize = 8;
-    let list = |var: &str, d: &[usize]| -> Vec<usize> {
-        std::env::var(var).ok().map(|v| v.split(',').map(|x| x.trim().parse().unwrap()).collect()).unwrap_or_else(|| d.to_vec())
-    };
-    let shorts = list("INTARSIA_PROBE_SHORT", &[16, 17, 20, 24, 31, 32, 33, 48, 64, 128]);
-    let longs = list("INTARSIA_PROBE_LONG", &[16, 81, 200]);
+    let shorts = [16usize, 17, 20, 24, 31, 32, 33, 48, 64, 128];
+    let longs = [16usize, 81, 200];
     let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
     let weights = SchemedSource::open(&dir).unwrap();
     let chunk = recipe.resolve_prefill_chunk(None, be.name()).value;
