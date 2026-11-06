@@ -1901,6 +1901,115 @@ impl Model {
         Ok(b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
     }
 
+    /// Rows one pass of the workspace holds.
+    pub fn ws_rows(&self) -> usize {
+        self.ws.max_tokens
+    }
+
+    /// Lane bm phase B: the verify passes of several sequences as ONE pass over the weights. `ids[i]` (1 to [`Model::verify_rows`]
+    /// tokens, `[next, drafts...]`) is fed to `states[i]` at its current length; returns each sequence's greedy token per row, and
+    /// leaves every state exactly as its own [`Model::forward_verify`] would (rows committed, the recurrent state after every row
+    /// but the last saved for `spec_rollback`, the MTP head's queue holding the rows), so acceptance and rollback run per sequence
+    /// as after a solo pass.
+    ///
+    /// The rows are one ragged list (`Seqs::Packed`, a segment per sequence) under `exact_rows`: the projections, MoE, norms and
+    /// the head run once over all rows on the row-exact kernels (row `r` bitwise the one-row launch), attention and the
+    /// GatedDeltaNet recurrence once per segment on that sequence's own state, through the solo verify pass's code (per-row
+    /// attention where the backend needs it, the delta rule row by row with the state saves). So each row is the solo verify
+    /// row's, which is the decode step's. Single rank only.
+    pub fn forward_verify_batch(&self, states: &mut [&mut SequenceState], ids: &[Vec<u32>]) -> Result<Vec<Vec<u32>>> {
+        let n = states.len();
+        let Some(tok) = &self.verify_tok else {
+            return Err(Error::invalid("forward_verify_batch before enable_verify"));
+        };
+        if !self.peers.is_empty() || self.remote.is_some() || self.tp.world > 1 {
+            return Err(Error::Unsupported("a batched verify pass under tensor parallelism".into()));
+        }
+        if self.layers.iter().flatten().any(|b| matches!(b, Block::Conv(_) | Block::Gemma(_))) || self.dflash.is_some() {
+            return Err(Error::Unsupported("a batched verify pass of short-conv / Gemma layers or with a DFlash draft".into()));
+        }
+        let total: usize = ids.iter().map(Vec::len).sum();
+        if n == 0 || ids.len() != n || total > Self::VERIFY_MAX_ROWS.min(self.ws.max_tokens) {
+            return Err(Error::invalid(format!(
+                "forward_verify_batch of {} states, {} id lists, {total} rows (at most {})",
+                n,
+                ids.len(),
+                Self::VERIFY_MAX_ROWS.min(self.ws.max_tokens)
+            )));
+        }
+        for (st, q) in states.iter().zip(ids) {
+            Self::check_forward(st, q, HeadMode::LastArgmax, false)?;
+            if !(1..=self.verify_rows).contains(&q.len()) {
+                return Err(Error::invalid(format!("a batched verify segment of {} rows (enabled for 1..={})", q.len(), self.verify_rows)));
+            }
+            if st.peers.len() != self.peers.len() || st.remote.is_some() {
+                return Err(Error::invalid("batched verify of a state that does not belong to this model (use Model::new_state)"));
+            }
+        }
+        for (i, a) in states.iter().enumerate() {
+            if states[..i].iter().any(|b| std::ptr::eq(&**a, &**b)) {
+                return Err(Error::invalid("forward_verify_batch names one state twice"));
+            }
+        }
+        if n == 1 && ids[0].len() >= 2 {
+            return Ok(vec![self.forward_verify(states[0], &ids[0])?]);
+        }
+        let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
+        for (st, q) in states.iter_mut().zip(ids) {
+            Self::prepare_spec_rows(&*self.backend, st, q.len().max(1))?;
+        }
+        let all: Vec<u32> = ids.iter().flatten().copied().collect();
+        self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+        let run = (|| -> Result<TensorRef> {
+            let mut lo = 0;
+            let segs: Vec<Seg<'_>> = states
+                .iter()
+                .zip(ids)
+                .map(|(st, q)| {
+                    let s = Seg { st: &**st, lo, len: q.len(), pos: st.len };
+                    lo += q.len();
+                    s
+                })
+                .collect();
+            self.tail_dead.store(false, std::sync::atomic::Ordering::Relaxed);
+            let hn = self.run_layers(Seqs::Packed(&segs), &all, profile, None, true, None)?;
+            self.verify_head(&hn, total, profile)?;
+            Ok(hn)
+        })();
+        self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+        let hn = match run {
+            Ok(hn) => hn,
+            Err(e) => {
+                for st in states.iter_mut() {
+                    if st.has_recurrent() {
+                        // updated in place part-way: the state matches no token prefix
+                        let _ = st.reset(&*self.backend);
+                    }
+                }
+                return Err(e);
+            }
+        };
+        let mut b = vec![0u8; total * 4];
+        self.backend.download(tok, 0, &mut b, self.stream)?;
+        let flat: Vec<u32> = b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect();
+        let mut out = Vec::with_capacity(n);
+        let mut segs = Vec::with_capacity(n);
+        let mut lo = 0;
+        for (st, q) in states.iter_mut().zip(ids) {
+            st.commit_verify(q);
+            if st.has_recurrent() {
+                st.spec_rows.saved = q.len() - 1;
+            }
+            out.push(flat[lo..lo + q.len()].to_vec());
+            segs.push((lo, q.len()));
+            lo += q.len();
+        }
+        self.telemetry.step();
+        // every head queues its rows (the rollback drops the rejected ones), as after a solo verify pass
+        self.mtp_after_rows(states, &hn, &segs, false, profile)?;
+        Ok(out)
+    }
+
     /// [`Model::forward_verify`] with in-process tensor-parallel peers: every rank runs the pass on its own thread (as
     /// [`Model::forward_tp`] does a chunk), eagerly; rank 0 takes the argmax and feeds its drafter.
     fn forward_verify_tp(&self, st: &mut SequenceState, ids: &[u32], profile: bool) -> Result<Vec<u32>> {
@@ -2354,9 +2463,19 @@ impl Model {
         r
     }
 
-    /// Fewest rows a segment of a packed prefill pass may have: below it the kernels a prompt's solo chunk picks (the GEMV-style
-    /// MoE path under 16 tokens, the dense GEMV up to 4 rows) are not the ones the packed call picks.
+    /// Fewest rows a segment of a packed prefill pass may have unless the backend says otherwise ([`Backend::pack_min_rows`]):
+    /// below it the kernels a prompt's solo chunk picks (HIP: the GEMV-style MoE path under 16 tokens, the dense GEMV up to 4 rows)
+    /// are not the ones the packed call picks.
     pub const PACK_MIN_ROWS: usize = 16;
+
+    /// Fewest rows a segment of a packed prefill pass ([`Model::forward_packed`]) or a chunk of a macro pass may have on this
+    /// model's backend ([`Backend::pack_min_rows`]; CUDA 33, lane pf). `INTARSIA_PACK_MIN_ROWS=<n>` overrides it (a diagnostic
+    /// knob: `16` brings back the CUDA rule before lane pf, to reproduce its divergence).
+    pub fn pack_min_rows(&self) -> usize {
+        static V: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
+        let o = *V.get_or_init(|| std::env::var("INTARSIA_PACK_MIN_ROWS").ok().and_then(|v| v.trim().parse().ok()));
+        o.unwrap_or_else(|| self.backend.pack_min_rows()).max(1)
+    }
 
     /// Whether every segment of a packed pass takes the same attention path in every attention block (fused gated prologue or
     /// not: it decides which q buffer holds the block's output, and the output projection reads one buffer for all rows).
@@ -2409,7 +2528,7 @@ impl Model {
     /// prompt's solo prefill would run next (no head: the rows feed no logits). The row-wise kernels run once over the
     /// concatenated rows, attention, KV append and the GatedDeltaNet recurrence once per prompt on its own state, so each
     /// state ends bitwise what `forward(st, ids, HeadMode::None, None)` leaves, when every row-wise kernel is independent of the
-    /// other rows of the call (`tests/packed_rows.rs`; each segment has at least [`Model::PACK_MIN_ROWS`] rows and the total
+    /// other rows of the call (`tests/packed_rows.rs`; each segment has at least [`Model::pack_min_rows`] rows and the total
     /// fits one workspace pass). On an error every recurrent state is reset, as after a failed solo forward.
     pub fn forward_packed(&self, items: &mut [(&mut SequenceState, &[u32])]) -> Result<()> {
         let r = self.forward_packed_inner(items);
@@ -2434,11 +2553,8 @@ impl Model {
         let mut all: Vec<u32> = Vec::with_capacity(total);
         for (st, ids) in items.iter() {
             Self::check_forward(st, ids, HeadMode::None, false)?;
-            if ids.len() < Self::PACK_MIN_ROWS {
-                return Err(Error::invalid(format!("a packed segment has {} rows (at least {})", ids.len(), Self::PACK_MIN_ROWS)));
-            }
-            if st.mtp.is_some() {
-                return Err(Error::Unsupported("packed prefill of a state with an MTP head".into()));
+            if ids.len() < self.pack_min_rows() {
+                return Err(Error::invalid(format!("a packed segment has {} rows (at least {})", ids.len(), self.pack_min_rows())));
             }
             all.extend_from_slice(ids);
         }
@@ -2446,7 +2562,7 @@ impl Model {
             st.spec_rows.saved = 0;
         }
         let profile = self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0;
-        {
+        let hn = {
             let mut lo = 0;
             let segs: Vec<Seg<'_>> = items
                 .iter()
@@ -2468,12 +2584,26 @@ impl Model {
             if split {
                 *self.macro_ctx.lock().unwrap() = None;
             }
-            r?;
-        }
+            r?
+        };
         for (st, ids) in items.iter_mut() {
             st.commit(ids);
         }
         self.telemetry.step();
+        if self.mtp.is_some() {
+            // lane bm (batched MTP): each prompt's MTP head takes its rows and catches up, as after a solo prefill chunk
+            let mut lo = 0;
+            let segs: Vec<(usize, usize)> = items
+                .iter()
+                .map(|(_, ids)| {
+                    let s = (lo, ids.len());
+                    lo += ids.len();
+                    s
+                })
+                .collect();
+            let mut sts: Vec<&mut SequenceState> = items.iter_mut().map(|(st, _)| &mut **st).collect();
+            self.mtp_after_rows(&mut sts, &hn, &segs, true, profile)?;
+        }
         Ok(())
     }
 
@@ -2839,7 +2969,7 @@ impl Model {
     }
 
     /// The macro schedule of a forward pass over `chunks`: `(k, per)` = the first `k` chunks (all but a trailing chunk too short
-    /// to be a segment, [`Model::PACK_MIN_ROWS`]) are cut into passes of `per` chunks. `(0, 1)` = off: the macro knob is unset, the
+    /// to be a segment, [`Model::pack_min_rows`]) are cut into passes of `per` chunks. `(0, 1)` = off: the macro knob is unset, the
     /// pass is a single chunk, the head wants every row, the state has no recurrence (the packed kernels are validated on
     /// hybrid models only) or cannot be packed (MTP head, tensor parallelism, Gemma layers).
     fn macro_plan(&self, st: &SequenceState, chunks: &[&[u32]], mode: HeadMode) -> (usize, usize) {
@@ -2851,7 +2981,8 @@ impl Model {
         {
             return (0, 1);
         }
-        let k = chunks.iter().take_while(|c| c.len() >= Self::PACK_MIN_ROWS).count();
+        let min = self.pack_min_rows();
+        let k = chunks.iter().take_while(|c| c.len() >= min).count();
         if k < 2 {
             return (0, 1);
         }

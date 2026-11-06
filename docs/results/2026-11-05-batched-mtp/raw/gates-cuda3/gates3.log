@@ -1,0 +1,16 @@
+== ids plain16-main 19:09:38
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda3/ids-plain16-main.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== ids plain16-nopack 19:10:34
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda3/ids-plain16-nopack.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== ids bver5-nopack 19:11:28
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda3/ids-bver5-nopack.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 314
+intarsia_spec_accepted_tokens_total 235
+ids-plain16-main.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-plain16-nopack.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-bver5-nopack.json identical per sequence: [True, True, True, True, True, True] ALL
+== done 19:12:22
