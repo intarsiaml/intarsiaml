@@ -234,6 +234,13 @@ pub trait Backend: Send + Sync {
         false
     }
 
+    /// Fewest rows a segment of a packed prefill pass (`Model::forward_packed`) or a chunk of a macro pass may have: from here up
+    /// the kernels the row-wise ops pick for the segment alone are the ones they pick for the whole pass (or give the same bits).
+    /// Default 16 (`Model::PACK_MIN_ROWS`: HIP's `tests/packed_rows.rs`, a 15-row segment differs); CUDA raises it (see there).
+    fn pack_min_rows(&self) -> usize {
+        16
+    }
+
     /// Whether `serve --max-batch` packs the prefill of prompts waiting together (`BatchedOptions::pack_prefill`) when
     /// `INTARSIA_PACK_PREFILL` is unset. Default false (opt-in); true where the packed pass is measured bitwise and faster (CUDA, HIP).
     fn pack_prefill_default(&self) -> bool {

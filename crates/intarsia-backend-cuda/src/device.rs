@@ -219,6 +219,12 @@ impl Backend for CudaBackend {
     fn pack_split_gemms(&self) -> bool {
         true
     }
+    /// Lane pb: the routed experts (`Op::MoeExperts`, one call over the whole packed pass) switch from the warp-per-row kernel
+    /// to the grouped tensor-core one at `MMA_MIN_TOKENS` rows, and the two round differently, so a segment below it (solo: the
+    /// warp kernel) would not keep its solo bits in a pass of 32 or more rows (docs/results/2026-11-05-pb-packed-bitid.md).
+    fn pack_min_rows(&self) -> usize {
+        crate::quantmoe::MMA_MIN_TOKENS
+    }
     /// Lane srv16: packed prefill on by default (docs/results/2026-10-28-srv16-serve-gap.md: each prompt bitwise its solo prefill).
     fn pack_prefill_default(&self) -> bool {
         true

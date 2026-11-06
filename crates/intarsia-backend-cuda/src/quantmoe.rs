@@ -92,7 +92,7 @@ const GLU_TOL: Tol = Tol::new(1.5e-2, 6e-3);
 
 /// Fewest tokens for which the grouped tensor-core experts kernel is preferred over the warp-per-row one (GB10,
 /// 256 experts, top-8: 1.43 ms vs 1.53 ms at 32 tokens, 0.98 ms vs 0.88 ms at 16).
-const MMA_MIN_TOKENS: usize = 32;
+pub const MMA_MIN_TOKENS: usize = 32;
 
 /// Fewest tokens for which the e4m3 tensor-core GEMM serves (the gemv serves 1..=4).
 const F8_MIN_TOKENS: usize = 5;

@@ -1921,3 +1921,148 @@ fn real_35b_batched_macro_prefill_equals_the_plain_local_engine() {
         assert_eq!(&collect(rx), &reference[i], "prompt of {} tokens, together", lens[i]);
     }
 }
+
+/// Lane pb (packed-prefill bit-identity probe): a short prompt packed beside a longer one (`Model::forward_packed`, as the batched
+/// engine's `prefill_pack` runs it: the body packed, the last token alone with the head) must leave the logits of its last prompt
+/// row and of 8 greedy decode steps bit for bit those of its solo prefill. Sweeps the short body's rows (16 = `PACK_MIN_ROWS`
+/// up), its place in the pack (first / second) and the partner's rows; prints one line per case (`PROBE ... equal|DIFF`) and
+/// fails at the end if any case differs. `INTARSIA_PROBE_SHORT` / `INTARSIA_PROBE_LONG` (comma lists) override the sweep.
+#[test]
+#[ignore]
+fn real_35b_packed_short_segment_probe() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    const DECODE_ROWS: usize = 8;
+    let list = |var: &str, d: &[usize]| -> Vec<usize> {
+        std::env::var(var).ok().map(|v| v.split(',').map(|x| x.trim().parse().unwrap()).collect()).unwrap_or_else(|| d.to_vec())
+    };
+    let shorts = list("INTARSIA_PROBE_SHORT", &[16, 17, 20, 24, 31, 32, 33, 48, 64, 128]);
+    let longs = list("INTARSIA_PROBE_LONG", &[16, 81, 200]);
+    let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
+    let weights = SchemedSource::open(&dir).unwrap();
+    let chunk = recipe.resolve_prefill_chunk(None, be.name()).value;
+    let opts = LoadOptions { max_seq: 2048, prefill_chunk: chunk, profile_every: 0, kv_fraction: 0.95, ..Default::default() };
+    let mut m = Model::load(be, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let all = corpus_tokens(&dir);
+    let logits = |o: StepOut| match o {
+        StepOut::Logits(l) => l,
+        o => panic!("expected logits, got {o:?}"),
+    };
+    let bits = |l: &[f32]| -> Vec<u32> { l.iter().map(|x| x.to_bits()).collect() };
+    let argmax = |l: &[f32]| l.iter().enumerate().fold((0usize, f32::MIN), |b, (i, &v)| if v > b.1 { (i, v) } else { b }).0 as u32;
+    // the last prompt token alone with the head, then greedy decode: logits bits per row
+    let tail = |st: &mut intarsia_core::state::SequenceState, last: u32| -> Vec<Vec<u32>> {
+        let mut rows = vec![logits(m.forward_prefill(st, &[last], HeadMode::LastLogits, None).unwrap())];
+        for _ in 0..DECODE_ROWS {
+            let next = argmax(rows.last().unwrap());
+            rows.push(logits(m.forward(st, &[next], HeadMode::LastLogits, None).unwrap()));
+        }
+        rows.iter().map(|r| bits(r)).collect()
+    };
+    let solo = |p: &[u32]| -> Vec<Vec<u32>> {
+        let mut st = m.new_state().unwrap();
+        m.forward(&mut st, &p[..p.len() - 1], HeadMode::None, None).unwrap();
+        tail(&mut st, p[p.len() - 1])
+    };
+    let first_diff = |a: &[Vec<u32>], b: &[Vec<u32>]| a.iter().zip(b).position(|(x, y)| x != y);
+    let min = m.pack_min_rows();
+    eprintln!("PROBE pack_min_rows {min}");
+    let mut bad = Vec::new();
+    for &s in &shorts {
+        for &l in &longs {
+            if s < min || l < min {
+                eprintln!("PROBE short {s} long {l}: below pack_min_rows {min}, skipped (forward_packed refuses it)");
+                continue;
+            }
+            let ps = &all[3000 + s * 7..3000 + s * 7 + s + 1];
+            let pl = &all[20000 + l * 5..20000 + l * 5 + l + 1];
+            let (want_s, want_l) = (solo(ps), solo(pl));
+            for short_first in [true, false] {
+                let mut ss = m.new_state().unwrap();
+                let mut sl = m.new_state().unwrap();
+                let uniform = {
+                    let rows = if short_first { vec![(&ss, s), (&sl, l)] } else { vec![(&sl, l), (&ss, s)] };
+                    m.pack_uniform(&rows)
+                };
+                if !uniform {
+                    eprintln!("PROBE short {s} long {l} short_first {short_first}: not uniform, skipped");
+                    continue;
+                }
+                {
+                    let (bs, bl) = (&ps[..s], &pl[..l]);
+                    let mut items: Vec<(&mut intarsia_core::state::SequenceState, &[u32])> =
+                        if short_first { vec![(&mut ss, bs), (&mut sl, bl)] } else { vec![(&mut sl, bl), (&mut ss, bs)] };
+                    m.forward_packed(&mut items).unwrap();
+                }
+                let (got_s, got_l) = (tail(&mut ss, ps[s]), tail(&mut sl, pl[l]));
+                let (ds, dl) = (first_diff(&want_s, &got_s), first_diff(&want_l, &got_l));
+                let tag = |d: Option<usize>| d.map_or("equal".to_string(), |r| format!("DIFF@row{r}"));
+                eprintln!("PROBE short {s} long {l} short_first {short_first} total {}: short {} long {}", s + l, tag(ds), tag(dl));
+                if ds.is_some() || dl.is_some() {
+                    bad.push((s, l, short_first, ds, dl));
+                }
+            }
+        }
+    }
+    assert!(bad.is_empty(), "packed prefill differs from solo in {} case(s): {bad:?}", bad.len());
+}
+
+/// Lane pb: the macro pass (`Model::macro_rows`: several chunks of one prompt in one pass) takes a trailing chunk of at least
+/// `Model::pack_min_rows` rows into the pass; the plain schedule runs it alone. Prompts of two chunks plus `t` body rows (the
+/// last token runs alone with the head) for `t` around the bound: the logits of the last prompt row and 8 greedy steps must be
+/// the plain schedule's bits. Prints `MACROPROBE t ... equal|DIFF`, fails at the end if any differs.
+#[test]
+#[ignore]
+fn real_35b_macro_trailing_chunk_probe() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    const DECODE_ROWS: usize = 8;
+    let tails = [16usize, 20, 31, 32, 40];
+    let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
+    let weights = SchemedSource::open(&dir).unwrap();
+    let chunk = recipe.resolve_prefill_chunk(None, be.name()).value;
+    let opts = LoadOptions {
+        max_seq: 2 * chunk + 64,
+        prefill_chunk: chunk,
+        profile_every: 0,
+        kv_fraction: 0.95,
+        prefill_macro: Some(8192),
+        ..Default::default()
+    };
+    let mut m = Model::load(be, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let all = corpus_tokens(&dir);
+    let logits = |o: StepOut| match o {
+        StepOut::Logits(l) => l,
+        o => panic!("expected logits, got {o:?}"),
+    };
+    let run = |m: &Model, prompt: &[u32]| -> Vec<Vec<u32>> {
+        let mut st = m.new_state().unwrap();
+        let (head, last) = prompt.split_at(prompt.len() - 1);
+        m.forward(&mut st, head, HeadMode::None, None).unwrap();
+        let mut rows = vec![logits(m.forward(&mut st, last, HeadMode::LastLogits, None).unwrap())];
+        for _ in 0..DECODE_ROWS {
+            let next = rows.last().unwrap().iter().enumerate().fold((0usize, f32::MIN), |b, (i, &v)| if v > b.1 { (i, v) } else { b }).0;
+            rows.push(logits(m.forward(&mut st, &[next as u32], HeadMode::LastLogits, None).unwrap()));
+        }
+        rows.iter().map(|r| r.iter().map(|x| x.to_bits()).collect()).collect()
+    };
+    eprintln!("MACROPROBE chunk {chunk} pack_min_rows {}", m.pack_min_rows());
+    let mut bad = Vec::new();
+    for &t in &tails {
+        let prompt = &all[5000 + t * 11..5000 + t * 11 + 2 * chunk + t + 1];
+        m.set_macro_rows(0);
+        let want = run(&m, prompt);
+        m.set_macro_rows(8192);
+        let before = m.macro_passes();
+        let got = run(&m, prompt);
+        let passes = m.macro_passes() - before;
+        let d = want.iter().zip(&got).position(|(a, b)| a != b);
+        eprintln!("MACROPROBE t {t} ({} prompt tokens): {passes} macro passes, {}", prompt.len(), d.map_or("equal".into(), |r| format!("DIFF@row{r}")));
+        if d.is_some() {
+            bad.push(t);
+        }
+    }
+    assert!(bad.is_empty(), "macro pass differs from the plain schedule for trailing chunks of {bad:?} rows");
+}
