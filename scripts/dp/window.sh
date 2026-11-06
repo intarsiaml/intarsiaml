@@ -129,23 +129,24 @@ START=$SECONDS
 for v in ${VISITS:-T1 D1 T2 D2}; do visit $v "${v:0:1}" || log "$v failed"; done
 [[ ${DRY:-0} == 1 ]] && { log "DRY done"; exit 0; }
 ctx_try() { # ctx_try <max-seq> [max-batch=16] [mem-budget GiB=29]: one server on card 0 (the second card idle), a ~16k-token prompt
-  local ms=$1 mb=${2:-16} bud=${3:-29} L=ctx-$1
+  local ms=$1 mb=${2:-16} bud=${3:-29} kvf=${4:-} L=ctx-$1
   [[ $mb != 16 || $bud != 29 ]] && L=ctx-$1-mb$mb-b$bud
+  [[ -n $kvf ]] && L=$L-kv$kvf
   radiance_down || { log "radiance is active again: abort"; exit 4; }
   log "== $L"
   vram_start "$OUT/$L-vram.tsv"
-  MEMB=$bud srv dp-c $P0 0 $ms $mb "" || true
+  MEMB=$bud srv dp-c $P0 0 $ms $mb "${kvf:+--kv-fraction $kvf}" || true
   local ok=False
   if wait_health dp-c $P0; then
     drive $L --urls $U0 --ctx-probe 16000
     ok=$(python3 -c "import json;d=json.load(open('$OUT/$L.json'));print(bool(d['ok'] and (d['prompt_tokens'] or 0) >= 15500))")
   fi
   grab dp-c $L; rsh "docker rm -f dp-c >/dev/null 2>&1"; vram_stop
-  log "max-seq $ms max-batch $mb mem-budget $bud: server context $(grep -ao 'context [0-9]* tokens' "$OUT/serve-$L-dp-c.log" | head -1); loads and serves a ~16k prompt = $ok"
+  log "max-seq $ms max-batch $mb mem-budget $bud kv-fraction ${kvf:-0.5 (default)}: server context $(grep -ao 'context [0-9]* tokens' "$OUT/serve-$L-dp-c.log" | head -1); loads and serves a ~16k prompt = $ok"
   [[ $ok == True ]]
 }
-if [[ -n ${CTX_CONFIGS:-} ]]; then   # CTX_CONFIGS="maxseq:maxbatch:budget ...": each tried once, nothing else runs (VISITS="" EXTRA=0)
-  for c in $CTX_CONFIGS; do IFS=: read -r cm cb cg <<< "$c"; ctx_try "$cm" "$cb" "$cg" || true; done
+if [[ -n ${CTX_CONFIGS:-} ]]; then   # CTX_CONFIGS="maxseq:maxbatch:budget[:kv-fraction] ...": each tried once, nothing else runs (VISITS="" EXTRA=0)
+  for c in $CTX_CONFIGS; do IFS=: read -r cm cb cg ck <<< "$c"; ctx_try "$cm" "$cb" "$cg" "$ck" || true; done
 elif [[ ${PROBE:-1} == 1 ]]; then
   if ctx_try 32768; then ctx_try 65536 || true
   else ctx_try 24576 || ctx_try 20480 || ctx_try 18432 || true; fi

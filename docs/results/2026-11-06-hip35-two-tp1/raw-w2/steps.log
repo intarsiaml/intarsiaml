@@ -1,0 +1,44 @@
+11:34:57 fleetq job 8780; window.sh da7d0a578
+nproc: 24
+CPU(s):                                  24
+Model name:                              AMD Ryzen 9 9900X 12-Core Processor
+Thread(s) per core:                      2
+CPU(s) scaling MHz:                      54%
+NUMA node(s):                            1
+               total        used        free      shared  buff/cache   available
+Mem:              61          32           2           0          27          29
+Swap:              7           0           7
+900457 bash -c lscpu | grep -E 'Model name|^CPU\(s\)|Thread|NUMA node\(s\)'; free -g; pgrep -af 'systemctl --user start radiance' || echo 'no stray radiance-start timers'; for c in card0 card1; do echo $c $(grep PCI_SLOT_NAME /sys/class/drm/$c/device/uevent); done
+card0 PCI_SLOT_NAME=0000:03:00.0
+card1 PCI_SLOT_NAME=0000:07:00.0
+11:34:58 pending foreign radiance-start timer (seconds until it fires): none
+11:34:58 stopping radiance
+11:35:04 VRAM used after the stop (card0 card1, bytes): 59912192 59912192 
+11:35:04 == ctx-32768-mb16-b31
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": false, "prompt_tokens": null, "completion_tokens": 32, "ttft_s": null, "wall_s": 0.030244458000000002}
+11:35:23 max-seq 32768 max-batch 16 mem-budget 31: server context context 15410 tokens; loads and serves a ~16k prompt = False
+11:35:23 == ctx-32768-mb8-b29
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.7477965000000002, "wall_s": 1.9704810830000001}
+11:35:40 max-seq 32768 max-batch 8 mem-budget 29: server context context 32768 tokens; loads and serves a ~16k prompt = True
+11:35:40 == ctx-32768-mb4-b29
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.748625, "wall_s": 1.9704113330000002}
+11:35:54 max-seq 32768 max-batch 4 mem-budget 29: server context context 32768 tokens; loads and serves a ~16k prompt = True
+11:35:54 == ctx-32768-mb2-b29
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.7508145000000002, "wall_s": 1.9713971250000002}
+11:36:07 max-seq 32768 max-batch 2 mem-budget 29: server context context 32768 tokens; loads and serves a ~16k prompt = True
+11:36:08 == ctx-32768-mb1-b29
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.7550571249999998, "wall_s": 1.9751124590000002}
+11:36:21 max-seq 32768 max-batch 1 mem-budget 29: server context context 32768 tokens; loads and serves a ~16k prompt = True
+11:36:22 == ctx-32768-mb1-b31
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.7599511669999999, "wall_s": 1.9788903749999998}
+11:36:35 max-seq 32768 max-batch 1 mem-budget 31: server context context 32768 tokens; loads and serves a ~16k prompt = True
+11:36:35 == ctx-65536-mb1-b31
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.7539194999999999, "wall_s": 1.978935458}
+11:36:49 max-seq 65536 max-batch 1 mem-budget 31: server context context 65536 tokens; loads and serves a ~16k prompt = True
+11:36:49 == ctx-131072-mb1-b31
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.7563054999999999, "wall_s": 1.9769055829999997}
+11:37:03 max-seq 131072 max-batch 1 mem-budget 31: server context context 131072 tokens; loads and serves a ~16k prompt = True
+11:37:03 extra max-batch 32 T visit skipped (elapsed 119 s)
+11:37:03 all done in 119 s
+11:37:03 starting radiance
+11:37:14 radiance answers on :8080 (after 15 s)
