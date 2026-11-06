@@ -1,0 +1,33 @@
+18:28:53 job 8633 window w1: stopping radiance
+18:28:58 job 8633 window w1: stopping radiance
+18:29:01 item 1: starting server base.off.2.mtp.1
+18:31:42 item 1 base.off.2.mtp.1 texts: exit 0       18 lines
+18:31:42 item 2: starting server head.off.2.mtp.1
+18:34:18 item 2 head.off.2.mtp.1 texts: exit 0       18 lines
+18:34:51 item 3 head.off.2.mtp.1 speed: exit 0 results/20261105-183419-adhoc-lmh-w1-head.off.2.mtp.1-3/result.json
+18:34:51 item 4: starting server head.fp8.2.mtp.1
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.0 s)
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.1 s)
+18:36:19 item 4 head.fp8.2.mtp.1 speed: exit 0 results/20261105-183550-adhoc-lmh-w1-head.fp8.2.mtp.1-4/result.json
+18:37:32 item 5 head.fp8.2.mtp.1 texts: exit 0       18 lines
+18:37:32 item 6: starting server head.off.2.mtp.1
+18:39:20 item 6 head.off.2.mtp.1 speed: exit 0 results/20261105-183849-adhoc-lmh-w1-head.off.2.mtp.1-6/result.json
+18:39:20 item 7: starting server head.fp8.2.mtp.1
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.1 s)
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.0 s)
+18:40:49 item 7 head.fp8.2.mtp.1 speed: exit 0 results/20261105-184019-adhoc-lmh-w1-head.fp8.2.mtp.1-7/result.json
+18:40:49 item 8: starting server head.off.2.off.1
+18:41:59 item 8 head.off.2.off.1 speed: exit 0 results/20261105-184121-adhoc-lmh-w1-head.off.2.off.1-8/result.json
+18:41:59 item 9: starting server head.fp8.2.off.1
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.1 s)
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.0 s)
+18:42:53 item 9 head.fp8.2.off.1 speed: exit 0 results/20261105-184216-adhoc-lmh-w1-head.fp8.2.off.1-9/result.json
+18:42:53 item 10: starting server head.off.2.off.1
+18:44:03 item 10 head.off.2.off.1 speed: exit 0 results/20261105-184325-adhoc-lmh-w1-head.off.2.off.1-10/result.json
+18:44:03 item 11: starting server head.fp8.2.off.1
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.0 s)
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.0 s)
+18:44:57 item 11 head.fp8.2.off.1 speed: exit 0 results/20261105-184420-adhoc-lmh-w1-head.fp8.2.off.1-11/result.json
+18:44:57 done
+18:44:58 starting radiance
+18:45:14 radiance answers (after 20 s): {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793922310,"owned_by":"radiance","max_model_len":200

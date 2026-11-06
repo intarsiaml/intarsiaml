@@ -1,0 +1,5 @@
+prefill chunk 2048 (recipe qwen3_5_vl, hip)
+Error: loading /models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
+
+Caused by:
+    memory plan: hipMalloc of 2542796800 bytes failed: backend error: : out of memory (hipError 2)

@@ -1,0 +1,5 @@
+
+
+## Section-by-section summary
+
+**Header / status note.** This is the v0.2 architecture plan for IntarsiaML (a modular LLM inference engine), updated 2026-10-25 against `origin/main` (commit cf84efa4, PRs up to #157). Every claim in sections 1–14 is tagged **implemented**, **partial**, or **planned**, with links to the code that does it. The "Status vs plan" table gives a one-line verdict per component: the Rust host/server/CLI/TUI, the cpu-ref/C

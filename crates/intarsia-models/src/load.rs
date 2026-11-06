@@ -416,6 +416,10 @@ fn default_k(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backe
     if !mtp_default_allowed(opts, local) || (store_blocks && prefix_store_given(opts)) {
         return None;
     }
+    // a batched server (`--max-batch` > 1) takes the MTP default only where batched MTP is on for this group (lane bm)
+    if opts.max_batch.is_some_and(|n| n > 1) && batched_mtp_for(recipe, backend, world, local).map_or(true, |n| n == 0) {
+        return None;
+    }
     let rk = if world >= 2 { recipe.resolve_mtp_default_tp(backend) } else { recipe.resolve_mtp_default(backend) }?;
     // `--spec-k 0` alone is no draft length: never `SpecConfig { Mtp, k: 0 }` (the loader refuses it before it gets here)
     if opts.spec_k_given && opts.spec.k == 0 {
@@ -437,8 +441,20 @@ fn mtp_default_allowed(opts: &EngineOptions, local: bool) -> bool {
         && opts.spec.mode == intarsia_core::spec::SpecMode::Off
         && !opts.load.mtp
         && local
-        && !opts.max_batch.is_some_and(|n| n > 1)
         && !std::env::var("INTARSIA_SPEC_DEFAULT").is_ok_and(|v| v == "0")
+}
+
+/// Batched MTP (lane bm) for this group: a sequence drafts while at most this many decode (0: `--spec mtp` stays refused with
+/// `--max-batch` > 1). `INTARSIA_BATCHED_MTP` wins (`0` turns it off); else the recipe's `[tuning.<backend>] batched_mtp` at tp = 1
+/// in-process (user decision 2026-11-05 ~19:45 EST "N=1 default": 1 for the 35B on CUDA and Metal); else 0. Never at tp > 1.
+pub fn batched_mtp_for(recipe: &intarsia_core::recipe::Recipe, backend: &str, world: usize, local: bool) -> Result<usize> {
+    if world != 1 || !local {
+        return Ok(0);
+    }
+    Ok(match intarsia_core::engine::batched_mtp_env_opt()? {
+        Some(n) => n,
+        None => recipe.resolve_batched_mtp(backend).unwrap_or(0),
+    })
 }
 
 fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<Loaded> {
@@ -535,7 +551,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         // MTP drafting and the prefix store stay at one sequence (needs per-row hidden outputs and k x 63 MB of spec rows per
         // sequence): refuse before the weights are read, not after. Lane bm: `INTARSIA_BATCHED_MTP=N` (opt-in) lets `--spec mtp`
         // batch on one rank, each sequence drafting while at most N decode.
-        let batched_mtp = intarsia_core::engine::batched_mtp_env()? > 0 && backends.len() == 1 && local;
+        let batched_mtp = batched_mtp_for(&recipe, backend_name, backends.len(), local)? > 0;
         if opts.spec.mode == intarsia_core::spec::SpecMode::Auto || (opts.spec.mode == intarsia_core::spec::SpecMode::Mtp && !batched_mtp) {
             return Err(Error::Unsupported(
                 "--spec mtp/auto with the batching engine (use --max-batch 1; INTARSIA_BATCHED_MTP=N opts --spec mtp in at --tp 1)".into(),
@@ -758,10 +774,15 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             bo.spec_off_at = n;
         }
         if opts.spec.mode == intarsia_core::spec::SpecMode::Mtp {
-            bo.mtp_max_b = intarsia_core::engine::batched_mtp_env()?;
+            bo.mtp_max_b = batched_mtp_for(&recipe, backend_name, backends.len(), local)?;
             eprintln!(
-                "batched MTP (INTARSIA_BATCHED_MTP={}): a sequence drafts while at most {} sequences decode",
+                "batched MTP N={} ({}): a sequence drafts while at most {} sequences decode; INTARSIA_BATCHED_MTP=0 turns it off",
                 bo.mtp_max_b,
+                if intarsia_core::engine::batched_mtp_env_opt()?.is_some() {
+                    "INTARSIA_BATCHED_MTP".to_string()
+                } else {
+                    format!("recipe {}, [tuning.{backend_name}] batched_mtp", recipe.model.family)
+                },
                 bo.mtp_max_b.min(bo.spec_off_at.saturating_sub(1))
             );
         }

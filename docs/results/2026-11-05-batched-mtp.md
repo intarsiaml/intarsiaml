@@ -7,6 +7,29 @@ Lane `lane-bm/batched-mtp`, 2026-11-05. Base: `origin/main` 602a1fcfe.
 The user approved starting this work on 2026-11-05 at 17:08 EST ("start 2"), reversing their 2026-10-25 deferral (design note
 `docs/results/2026-10-25-sp-batched-mtp-design.md` on `lane-sp/batched-mtp-design`, revision 2).
 
+## User decision: N=1 default (2026-11-05, about 19:45 EST)
+
+Relayed by the coordinator after #309 merged (opt-in, main 196e768b6): the user decided "N=1 default". Implemented on branch
+`lane-bm/batched-mtp-default` as a recipe default, `[tuning.cuda] batched_mtp = 1` and `[tuning.metal] batched_mtp = 1` in `recipes/qwen3_5_moe.toml`
+(the measured model), read only at tp = 1 in-process; HIP and every tp > 1 stay off; `INTARSIA_BATCHED_MTP` wins (`0` off);
+`INTARSIA_BATCHED_VERIFY` stays off. On CUDA the recipe's `--spec mtp` default now also applies to a `--max-batch` > 1 server; on Metal the 35B has
+no `--spec mtp` default, so N = 1 applies to an explicit `--spec mtp --max-batch` > 1 without the env var. Other recipes (the 27B, the 8B) are unchanged.
+
+### Gates of the default (branch `lane-bm/batched-mtp-default`, rebased on main d40d93896 = #310's packed-prefill fix)
+
+| gate | job | result |
+|---|---|---|
+| CPU `batched_mtp_default_only_where_measured_and_env_wins` (`tests/tp_mtp.rs`): 35B cuda / metal tp1 -> 1; hip, tp 2, remote rank -> 0; `=0` off; shipped recipes set exactly `qwen3_5_moe cuda 1`, `qwen3_5_moe metal 1` | local | pass (with the existing MTP-default tests) |
+| `cargo test --workspace --no-fail-fast` (tree 8bd8ff93a) | endor #8718 | 1330 passed, 0 failed (the first run, #8700, did not compile: two test initializers of `BackendTuning` lacked the new field; fixed in 8bd8ff93a) |
+| CUDA `plan show` json (35B, single sequence) vs main d40d93896 | spark1 #8709 | byte-identical; stderr notes differ only in the head's load time (1.1 s vs 0.9 s) |
+| CUDA `--max-batch 16`, no `--spec`, no env var: startup line | #8709 | `--spec mtp --spec-k 2: the default of recipe qwen3_5_moe ...` and `batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp)`; `/metrics` shows drafting (2-4 drafted: 6 concurrent prompts draft only once one is left) |
+| CUDA greedy ids, 6 concurrent prompts vs the solo spec-off server | #8709 | packing on (default, after #310): ALL identical; packing off: ALL; `INTARSIA_BATCHED_MTP=0`: ALL, 0 drafted |
+| Metal no-op vs main 196e768b6: Qwen3-8B and Qwen3.8-27B MXFP4, `plan show` text + json and 256 greedy ids on short and ~3.5k prompts | endor #8699 | all byte-identical |
+| Metal 35B `--spec mtp --max-batch 8`, no env var, vs solo spec-off | #8699 | ALL identical; startup line `batched MTP N=1 (recipe qwen3_5_moe, [tuning.metal] batched_mtp)` |
+| HIP | none | not run on hardware (tatooine out of scope); the CPU test shows HIP resolves to 0 and the HIP batched server keeps no MTP default |
+
+Raw: `raw/default-cuda/`, `raw/default-metal/`.
+
 ## Coordinator direction (2026-11-05, during the lane)
 
 Copied from the coordinator's message: Fable's engine review (`.worktrees/perf-ideas/fable-engine/report.md`, idea 1) recommends two phases.
