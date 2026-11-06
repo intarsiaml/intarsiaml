@@ -47,8 +47,8 @@ Coordinator, 2026-11-05, after the first report (copied as asked):
 >
 > The default stays off until the user decides.
 
-Default-on source (to be confirmed by the coordinator): no relayed message with this decision survives in this lane's
-transcript, which was compacted after the message above (which still said the default stays off). The coordinator's own session
+Default-on source: the user typed "sampled default on" in the coordinator chat at about 20:10 EST on 2026-11-05 (confirmed by the
+coordinator at merge). The relayed message did not survive this lane's transcript compaction; the coordinator's session
 notes (`memory/perf-push-2026-11-05.md`) record: "~20:10 EST (user): 'sampled default on': Qwen sampled speculation default on,
 variant `match` (INTARSIA_SPEC_SAMPLED unset = match; =1 = match; =reject explicit)". The lane implemented that note as: unset
 `INTARSIA_SPEC_SAMPLED` = `match` on the CUDA and Metal backends (wherever `--spec mtp` runs, explicitly or by the recipe default:
