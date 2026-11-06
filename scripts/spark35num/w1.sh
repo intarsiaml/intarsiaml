@@ -9,7 +9,7 @@ STAGES=${STAGES:-"build data gates lanes"}
 export S35_DEADLINE=$(( $(date +%s) + ${BUDGET_MIN:-165} * 60 ))
 TOK=$(ls ~/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/*/tokenizer.json | head -1)
 echo "window 1 on $HOST, $(date +%T), head $(git -C "$REPO" rev-parse --short HEAD), MemAvailable $(free_gb) GB"
-case " $STAGES " in *" data "*) ;; *) STAGES="data $STAGES" ;; esac
+[[ ${SKIP_DATA:-0} = 1 ]] || case " $STAGES " in *" data "*) ;; *) STAGES="data $STAGES" ;; esac   # SKIP_DATA=1: keep the committed carriers (the data stage hashes the CURRENT docs/ and crates/ tree)
 case " $STAGES " in *" build "*) ;; *) STAGES="build $STAGES" ;; esac   # idempotent: build.sh keeps a binary already built from the commit
 for st in $STAGES; do case $st in
   build)
