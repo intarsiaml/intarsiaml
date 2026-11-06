@@ -74,3 +74,70 @@ Reading: acceptance is there (3.6 tokens a pass at k7 vs MTP's 2.4, as on HIP), 
 plain step (2.7x); MTP k2's 3-row verify is 39.5 ms. The jump from 3 to 5 rows (45.7 -> 73.3 ms) is where the MXFP4 M-row GEMV goes from
 its P = 4 to its P = 2 / `_m8` shaders (kernel bench: M = 3 0.95-1.42x of M = 1, M = 8 2.74-4.08x). The verify cost per row, not the draft,
 decides DFlash on Metal; see phase 3 / the tree design.
+
+## Phase 2 design: tree drafts (written before any tree code)
+
+Reference read (not copied): TensorFold's DFlash2 tree (Apache-2.0, `tensorfold/drafters/dflash_tree.py`, `dflash_proposer.py`,
+`kernels/qwen/dense/v1/{lane_tree,lane_multi,stream_gdn,stream_attention}.py`): one draft block pass of 16 rows; a host best-first search
+over the per-row top-k candidates (children = top 4 of the next row, scored with the DFlash2 selector's edge term
+`succ[child] . (pred[parent] * hproj[d])`, path score = summed log-softmax), 15 nodes for the 27B; rows parent-before-child, position =
+len0 + depth; attention by an ancestor-path gather; GDN by a kernel that walks the nodes keeping every node's state in registers; commit
+by gathering the accepted rows' KV and replaying the accepted rows' GDN steps from the pre-round state. Its verify rows are MLX `qmm`
+(simdgroup matrices) and are not bitwise its M = 1 decode; ours must be (greedy ids == `--spec off`).
+
+### Constraint that drives the design: the verify cost per row on Metal
+
+Every verify row here is bitwise the one-row decode step (rows_exact kernels). The MXFP4 M-row GEMV keeps the M = 1 fp32 fma chain per
+row, so its cost grows ~linearly with M (ALU-bound: the 27B is ~26 G weight-row products per row; M = 8 is 2.7-4.1x of M = 1, the 8-row
+verify 89 ms against a 33 ms plain step). A 16-row tree verify on today's kernels would cost ~150-170 ms; at TensorFold's 4.2 tokens a
+round that is ~22 tok/s, below MTP k2 (50.6 short with LOGITS_ROWS). So:
+
+1. **A tree only pays at a fixed row budget**: at R verify rows, a tree of R nodes accepts at least as many tokens as a chain of R - 1
+   drafts (the chain is one of the trees), for the same verify cost (the draft pass is one block pass either way). The tree is the
+   better use of R rows; it does not make R rows cheaper.
+2. **R is chosen by measured cost**, as TensorFold's allocator does: rows per pass from the table pass_ms(R) measured on this box
+   (phase 1: R = 3 45.7, 4 ~55, 5 73.3, 6 83.5, 8 89 ms + draft 19 ms) and the per-depth acceptance EWMA. Today R = 3..4 wins on
+   Metal; R = 8..16 only after the verify GEMV's per-row cost drops (phase 3).
+3. Phase 3 (verify cost) is therefore the gate for wide trees; the tree machinery is built so it works at any R <= 16.
+
+### Tree construction (host, after the existing draft block pass)
+
+* One DFlash2 block pass as today (rows [anchor, MASK x 7]); keep per row the top-k (k = 4, device top-k later) logits and ids and the
+  selector projection `hproj` (already downloaded for the selector).
+* Best-first search: node score = sum over its path of log-softmax over siblings of `logit + selector_edge(parent token, hproj[d])`
+  (the edge term our `Selector::select` already computes greedily); pop up to R - 1 nodes; children of a popped node = top-4 of row d + 1.
+  Depth d uses block row d + 1 (rows only see the anchor and MASKs, so row d's candidates do not depend on the parent: the parent enters
+  only through the selector edge). With R - 1 = 7 and every pop on the best path the result is the existing greedy chain.
+* Output: `TreeDraft { tokens[n], parent[n] (-1 = anchor row), depth[n] }`, parents before children, n <= R - 1.
+
+### Verify pass over a tree (rows = [anchor, nodes...], row i at position len0 + depth(i))
+
+Every row's computation must be bitwise the one-row decode of its own path. Per op family:
+
+* **Row-wise ops** (projections, norms, MLP, head, argmax): unchanged; a row's result depends only on its own input row.
+* **Rope / KV append**: per-row positions (`OpCall::pos` per token already exists for verify rows); a row's K/V are written to the
+  cache slot `len0 + i` (its row index), not its position.
+* **Full attention** (16 of 64 layers): the verify already runs one decode call per row. Tree form: a decode call whose keys are the
+  context `0 .. len0` followed by the row's ancestor rows (cache slots of its path, in depth order) and itself: an index list per row.
+  New Metal kernel `attn_decode_bf16_path` (the split-KV decode with key index `j < len0 -> j`, `j >= len0 -> slot[path[j - len0]]`),
+  tested bitwise against the plain decode over a cache holding the path's keys contiguously (as the window kernel test does).
+* **GatedDeltaNet** (48 layers): the verify runs the conv and the delta rule one row at a time and saves the state after each row
+  (`SpecRows`). Tree form: row i starts from its parent's saved state instead of the live state. Implemented as: before row i, copy
+  snapshot[parent(i)] (or the pre-pass state for the anchor's children... the anchor row itself starts from the live state) into the
+  live slot, run the row (same kernels, bitwise the path's sequential step), save snapshot[i]. Cost: one extra state copy per row whose
+  parent is not the previous row (~3.1 MB a layer, ~150 MB a row for the 27B, ~0.4 ms); a later kernel can read src / write dst
+  directly and drop the copies. The conv state is part of the saved recurrent bytes, so the conv over ancestors comes for free.
+* **Acceptance**: walk from the anchor: target token of the current row; the child whose token equals it is the next row; stop when
+  none does. Emits the path's target tokens (as the chain does).
+* **Commit**: recurrent state = snapshot of the last accepted row (as `spec_rollback` copies saved row m - 1 today, by node index);
+  full-attention KV: move the accepted path's rows from slots `len0 + i` to `len0 + depth` (a few rows x 16 layers x 2 KiB, a gather
+  copy); the DFlash2 context ingest and the tap staging take the accepted rows only (the same gather on the taps' staging rows).
+* MTP is unaffected (`--spec dflash` only); `--spec off` / `mtp` never build a tree.
+
+### Gates for phase 2
+
+* Unit: tree builder (host) property tests (parents before children, budget, chain when the tree degenerates); path attention bitwise
+  test; tree GDN: a tree verify's row logits bitwise equal the sequential decode of each row's path (CPU backend and Metal, small model).
+* End to end: greedy ids == `--spec off` (short-0, 4k-1, 16k), `plan show` / `kernels test` no-op for the other models and spec modes.
+* Speed rule (pre-registered before the ABAB): tree at R rows vs chain at R - 1 drafts, same binary: tokens a pass >= +8 % and tok/s
+  >= +5 % at natural-v1 4k; vs MTP k2 reported, not gated.
