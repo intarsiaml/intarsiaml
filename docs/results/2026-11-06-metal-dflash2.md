@@ -21,6 +21,13 @@ Worktree `/opt/code/intarsiaml/.worktrees/metal-dflash2`.
   head is the user's default on all backends); keep the branch and its results doc (`docs/results/2026-11-06-metal-logits-rows.md` on that
   branch) as the record. Continue DFlash2 phase 1 against the fp8-head main; the bar is MTP k2 at 59 tok/s at short-0.
 
+- 2026-11-06 ~13:30, coordinator (by message): **phase 3 first**: the bitwise M-row verify GEMV; trees after it (cost per verify row is
+  what loses, not acceptance). Constraint, user decision 2026-11-06 "keep bitwise": every verify row stays bit-identical to the M = 1
+  decode; moving M = 1 onto the matrix units is out of scope, do not build it. Cover M 2..8 (MTP k2 verifies 3 rows: a faster M = 2..4
+  speeds the default path). Pre-register a kernel rule (M = 8 <= 2.0x M = 1, M = 3 <= 1.4x M = 1) and an end-to-end rule (MTP k2
+  default >= 1.05x, ids == `--spec off`, plan show unchanged). Ship opt-in first with the usual gates and an ABAB; the coordinator takes
+  default-on to the user. Let #8833 run; keep the tree pieces on the branch, no more tree work until the GEMV result is in.
+
 ## Goal
 
 Close the acceptance half of the Metal gap against TensorFold (90.3 tok/s at natural-v1 4k vs our MTP k2 31.1, 0.34x;
@@ -181,3 +188,14 @@ Verify GEMV headroom (for the phase 2 / 3 decision): fp32 FMA peak on this M5 Ma
 microbench, fleetq #8830); the M-row MXFP4 GEMV at M = 8 reaches 2.75-2.94 TFMA/s (lane df's bench: 8 x 89 M fma in 243-259 us), ~2.6x
 under peak. A bitwise M <= 8 kernel at ~1.5-2x of M = 1 looks reachable; M = 16 is 416 G fma a pass = >= 55 ms at peak by fp32 fma alone
 (more than a plain step), so 16-row trees need M = 1 itself moved onto the matrix units (a change of the plain decode's bits: the user's call).
+
+## Phase 3 (ordered first): bitwise M-row MXFP4 verify GEMV, M = 2..8
+
+### Pre-registered rules (written before any measurement of the new kernel)
+
+* Kernel (27B shapes 17408x5120, 5120x17408, 12288x5120, 5120x6144; the df bench harness, exclusive slot): time at M = 8 <= 2.0x the M = 1
+  call and at M = 3 <= 1.4x, for every shape (the shipped MR auto today: M = 3 0.95-1.42x, M = 8 2.74-4.08x). Every row bitwise the M = 1
+  call (test over M 2..8, tails, both output dtypes; planted faults caught).
+* End to end: the new kernel behind an opt-in knob; same binary ABAB, MTP k2 default path (pipelined), A = knob off, B = on: B / A >= 1.05
+  at natural-v1 1k and 4k (localeval speed-spec), no cell below 0.98; greedy ids == `--spec off` (MTP k1..k4, DFlash2 k3 / k7, short-0 and
+  4k-1); `plan show` 8B / 27B / 35B unchanged with the knob unset; `kernels test` unchanged.
