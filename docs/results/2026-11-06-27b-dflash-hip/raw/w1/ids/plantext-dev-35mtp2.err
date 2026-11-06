@@ -1,0 +1,5 @@
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+Error: loading /models/intarsia/Qwen3.6-35B-A3B-NVFP4 with tp=2
+
+Caused by:
+    unsupported: --spec mtp under tensor parallelism with an MoE head (its experts are not sharded)

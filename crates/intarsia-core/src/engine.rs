@@ -1356,6 +1356,13 @@ impl Seq {
             d.active = drafting;
             d.lazy = drafting && seq.auto.is_some();
         }
+        // a split DFlash2 draft (lane dh): the same switch on every rank
+        for p in st.peers.iter_mut() {
+            if let Some(d) = p.st.dflash.as_mut() {
+                d.active = drafting;
+                d.lazy = drafting && seq.auto.is_some();
+            }
+        }
         if seq.req.prewarm.is_some() {
             // a prewarm is admitted for its prefill only
             seq.req.max_tokens = 1;

@@ -136,10 +136,14 @@ pub(super) fn load_head(
     add_bytes: &dyn Fn(u64),
     rows: usize,
     act: DType,
+    shard: Option<(usize, usize)>,
 ) -> Result<DflashHead> {
     let (c, src) = (&dl.config, &*dl.src);
     if c.v2 {
-        return load_head2(dl, b, dims, add_bytes, rows, act);
+        return load_head2(dl, b, dims, add_bytes, rows, act, shard);
+    }
+    if shard.is_some() {
+        return Err(Error::Unsupported("a DFlash (v1) draft split over tensor-parallel ranks".into()));
     }
     let main_attn = main_attn.ok_or_else(|| Error::model("--spec dflash needs a model with full-attention layers"))?;
     if main_attn.gated || dims.moe.is_some() || dims.gemma.is_some() || dims.intermediate == 0 {
@@ -264,7 +268,15 @@ fn load_fc(src: &dyn WeightSource, b: &dyn Backend, add_bytes: &dyn Fn(u64), h: 
 }
 
 /// A DFlash2 checkpoint (`DflashConfig::v2`): the shared pieces (taps, `fc`, `hidden_norm`, `norm`, staging) and its layers.
-fn load_head2(dl: &DflashLoad, b: &dyn Backend, dims: &ModelDims, add_bytes: &dyn Fn(u64), rows: usize, act: DType) -> Result<DflashHead> {
+fn load_head2(
+    dl: &DflashLoad,
+    b: &dyn Backend,
+    dims: &ModelDims,
+    add_bytes: &dyn Fn(u64),
+    rows: usize,
+    act: DType,
+    shard: Option<(usize, usize)>,
+) -> Result<DflashHead> {
     let (c, src) = (&dl.config, &*dl.src);
     if dl.dcoco {
         return Err(Error::Unsupported("--dcoco with a DFlash2 draft".into()));
@@ -282,7 +294,7 @@ fn load_head2(dl: &DflashLoad, b: &dyn Backend, dims: &ModelDims, add_bytes: &dy
         return Err(Error::model(format!("draft mask token {} outside the vocabulary", c.mask_id)));
     }
     let h = dims.hidden;
-    let v2 = super::dflash2::load2(dl, b, dims, add_bytes, rows, act)?;
+    let v2 = super::dflash2::load2(dl, b, dims, add_bytes, rows, act, shard)?;
     let fc = load_fc(src, b, add_bytes, h, c.layer_ids.len())?;
     let norm_w = |name: &str| -> Result<TensorRef> {
         let t = load_tensor(b, src, &resolve(src, name)?, Some(&[h]))?;
@@ -317,6 +329,14 @@ fn load_head2(dl: &DflashLoad, b: &dyn Backend, dims: &ModelDims, add_bytes: &dy
         // bandwidth). INTARSIA_DFLASH_ROWS_KERNELS=0 restores the generic kernels.
         rows_kernels: std::sync::atomic::AtomicBool::new(std::env::var("INTARSIA_DFLASH_ROWS_KERNELS").map_or(true, |v| v != "0")),
     })
+}
+
+/// A rank's part in [`Model::dflash_draft`] (lane dh): the whole draft on one rank, or rank 0 / a peer of a draft split over the
+/// tensor-parallel ranks (each peer sends rank 0 its vocabulary shard's top candidates per block row, `(logit, token id)`).
+enum DraftLink2 {
+    Solo,
+    Lead(Vec<std::sync::mpsc::Receiver<Vec<Vec<(f32, usize)>>>>),
+    Follow(std::sync::mpsc::Sender<Vec<Vec<(f32, usize)>>>),
 }
 
 impl Model {
@@ -479,16 +499,84 @@ impl Model {
     /// Drafts after `next` (the token the target emits at position `st.len`): one block pass of the draft over the cached
     /// context. Up to `k` tokens (the block holds `dflash_block()`), all from this one pass.
     pub fn dflash_draft(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
+        if self.dflash_tp && !self.peers.is_empty() {
+            return self.dflash_draft_tp(st, next, k);
+        }
+        self.dflash_draft_rank(st, next, k, DraftLink2::Solo)
+    }
+
+    /// [`Model::dflash_draft`] with the DFlash2 draft split over in-process tensor-parallel peers (lane dh, `INTARSIA_DFLASH_TP=1`):
+    /// every rank flushes its context rows and runs the block pass on its heads and ffn columns in lockstep (the o / down
+    /// all-reduces pair up), takes the logits of its vocabulary shard and its top candidates per row; rank 0 merges them and picks
+    /// the drafts. A pass that drafts nothing (rank 0 decides before the peers start) runs no collective.
+    fn dflash_draft_tp(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
         let head = self.dflash.as_ref().ok_or_else(|| Error::invalid("--spec dflash without the draft (LoadOptions::dflash)"))?;
         let d = st.dflash.as_ref().ok_or_else(|| Error::invalid("sequence without DFlash state"))?;
+        if k == 0 || (d.active && !d.synced) || st.len + head.block > d.kv.cap {
+            return Ok(Vec::new());
+        }
+        if st.peers.len() != self.peers.len() || st.peers.iter().any(|p| p.st.dflash.is_none()) {
+            return Err(Error::invalid("this sequence state does not belong to a split DFlash2 draft (use Model::new_state)"));
+        }
+        if let Some(p) = st.peers.iter().find(|p| p.st.len != st.len) {
+            return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", p.st.len, st.len)));
+        }
+        let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
+        let (txs, rxs): (Vec<_>, Vec<_>) = self.peers.iter().map(|_| std::sync::mpsc::channel::<Vec<Vec<(f32, usize)>>>()).unzip();
+        let mut peers = std::mem::take(&mut st.peers);
+        let out = std::thread::scope(|sc| {
+            let handles: Vec<_> = self
+                .peers
+                .iter()
+                .zip(peers.iter_mut())
+                .zip(txs)
+                .map(|((m, ps), tx)| {
+                    sc.spawn(move || {
+                        let r = m.dflash_draft_rank(&mut ps.st, next, k, DraftLink2::Follow(tx));
+                        if r.is_err() {
+                            if let Some(c) = &m.tp.comm {
+                                c.abort();
+                            }
+                        }
+                        r
+                    })
+                })
+                .collect();
+            let r0 = self.dflash_draft_rank(st, next, k, DraftLink2::Lead(rxs));
+            if r0.is_err() {
+                comm0.abort();
+            }
+            let mut res = r0;
+            for h in handles {
+                let e = match h.join() {
+                    Ok(Ok(_)) => continue,
+                    Ok(Err(e)) => e,
+                    Err(_) => Error::backend("a tensor-parallel rank panicked"),
+                };
+                if res.is_ok() {
+                    res = Err(e);
+                }
+            }
+            res
+        });
+        st.peers = peers;
+        self.note_tp_pass(out)
+    }
+
+    /// One rank's share of [`Model::dflash_draft`]: `Solo` (the whole draft on this rank), `Lead` (rank 0 of a split draft: picks
+    /// the drafts from every rank's candidates), `Follow` (a peer: sends its shard's candidates, returns no drafts).
+    fn dflash_draft_rank(&self, st: &mut SequenceState, next: u32, k: usize, link: DraftLink2) -> Result<Vec<u32>> {
+        let head = self.dflash.as_ref().ok_or_else(|| Error::invalid("--spec dflash without the draft (LoadOptions::dflash)"))?;
+        let d = st.dflash.as_ref().ok_or_else(|| Error::invalid("sequence without DFlash state"))?;
+        let lead = !matches!(link, DraftLink2::Follow(_));
         if k == 0 {
             return Ok(Vec::new());
         }
         if d.active && !d.synced {
             return Ok(Vec::new()); // the context cache lost a pass: this request decodes plainly from here
         }
-        // lane dcp: INTARSIA_SPEC_TRACE=1 syncs between the phases of a DFlash2 draft and prints their host times
-        let tr = crate::spec::trace_enabled() && head.v2.is_some();
+        // lane dcp: INTARSIA_SPEC_TRACE=1 syncs between the phases of a DFlash2 draft and prints their host times (rank 0's)
+        let tr = crate::spec::trace_enabled() && head.v2.is_some() && lead;
         let sync = |tr: bool| -> Result<std::time::Instant> {
             if tr {
                 self.backend.synchronize(self.stream)?;
@@ -538,18 +626,32 @@ impl Model {
             let x = self.dflash2_block(d2, &d.kv, t, profile);
             let t_block = sync(tr)?;
             let n = self.view(&ws.n, act, &[t, hd]);
-            // the draft's logits and argmax on this rank alone (the target's verify head would all-gather under a vocab-parallel head)
+            let v = self.dims.vocab;
+            // a split draft with a vocab-parallel head (lane dh): every rank's logits over its shard of the group's head
+            let shard = self.dflash_tp && self.vocab_par && !matches!(link, DraftLink2::Solo);
+            let vh = if shard { v / self.tp.world } else { v };
+            if !lead && !shard {
+                // a peer of a split draft whose head is on rank 0 alone: its part ends with the block pass
+                if rows_k {
+                    self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+                }
+                return x.map(|_| Vec::new());
+            }
+            // the draft's logits (and, unsplit, their argmax) on this rank alone (the target's verify head would all-gather
+            // under a vocab-parallel head)
             let headed = x.and_then(|x| {
                 let eps = OpAttrs { eps: head.eps, w_offset: head.norm_offset, ..Default::default() };
                 self.exec(Op::RmsNorm, vec![x, head.norm.clone()], vec![n.clone()], eps, profile)?;
-                let v = self.dims.vocab;
                 let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("--spec dflash needs verify passes enabled (Model::enable_verify)"))?;
-                let logits = self.view(&ws.logits, DType::F32, &[t - 1, v]);
+                let logits = self.view(&ws.logits, DType::F32, &[t - 1, vh]);
                 let dhead = match &head.full_head {
-                    Some(h) => h,
-                    None => self.head()?,
+                    Some(h) if !shard => h,
+                    _ => self.head()?,
                 };
                 self.proj(&n.rows(1, t - 1), dhead, &logits, profile)?;
+                if shard {
+                    return Ok(()); // the candidates are taken from the downloaded shard
+                }
                 self.exec(Op::Argmax, vec![logits], vec![self.view(tok, DType::I32, &[t - 1])], OpAttrs::default(), profile)
             });
             if rows_k {
@@ -567,23 +669,61 @@ impl Model {
             if self.recorder.lock().unwrap().is_some() {
                 return Ok(Vec::new());
             }
-            let mut drafts: Vec<u32> = match sel {
-                None => {
-                    let mut b = vec![0u8; (t - 1) * 4];
-                    self.backend.download(tok, 0, &mut b, self.stream)?;
-                    b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect()
+            // the selector's projected rows (rank 0)
+            let hp = |sl: &super::dflash2::Selector| -> Result<Vec<f32>> {
+                let mut hb = vec![0u8; (t - 1) * sl.rank * act.size_bytes()];
+                self.backend.download(&d2.sel_out, 0, &mut hb, self.stream)?;
+                let mut hp = vec![0f32; (t - 1) * sl.rank];
+                crate::dtype::decode_to_f32(act, &hb, &mut hp);
+                Ok(hp)
+            };
+            let mut drafts: Vec<u32> = if shard {
+                // this rank's candidates: the top `cand` of each row of its shard, as vocabulary ids
+                let mine = self.dflash2_candidates(d2, t - 1, vh, self.tp.rank * vh)?;
+                t_dl = std::time::Instant::now();
+                match link {
+                    DraftLink2::Follow(tx) => {
+                        // rank 0 may have failed and gone: its error is the one reported
+                        let _ = tx.send(mine);
+                        return Ok(Vec::new());
+                    }
+                    DraftLink2::Lead(rxs) => {
+                        let mut parts = vec![mine];
+                        for rx in &rxs {
+                            parts.push(rx.recv().map_err(|_| Error::backend("a tensor-parallel rank of the split draft sent no candidates"))?);
+                        }
+                        let tops: Vec<Vec<(f32, usize)>> = (0..t - 1)
+                            .map(|p| {
+                                let rows: Vec<&[(f32, usize)]> = parts.iter().map(|r| &r[p][..]).collect();
+                                super::dflash2::merge_topk(&rows, d2.cand)
+                            })
+                            .collect();
+                        match sel {
+                            Some(sl) => sl.pick(&tops, &hp(sl)?, next),
+                            None => tops.iter().map(|c| c[0].1 as u32).collect(),
+                        }
+                    }
+                    DraftLink2::Solo => unreachable!("a shard head is never solo"),
                 }
-                Some(sl) => {
-                    let v = self.dims.vocab;
-                    let mut lb = vec![0u8; (t - 1) * v * 4];
-                    self.backend.download(&ws.logits, 0, &mut lb, self.stream)?;
-                    let logits: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
-                    t_dl = std::time::Instant::now();
-                    let mut hb = vec![0u8; (t - 1) * sl.rank * act.size_bytes()];
-                    self.backend.download(&d2.sel_out, 0, &mut hb, self.stream)?;
-                    let mut hp = vec![0f32; (t - 1) * sl.rank];
-                    crate::dtype::decode_to_f32(act, &hb, &mut hp);
-                    sl.select(&logits, v, &hp, next)
+            } else {
+                match sel {
+                    None => {
+                        let mut b = vec![0u8; (t - 1) * 4];
+                        self.backend.download(tok, 0, &mut b, self.stream)?;
+                        b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect()
+                    }
+                    Some(sl) if d2.topk.is_some() => {
+                        let tops = self.dflash2_candidates(d2, t - 1, v, 0)?;
+                        t_dl = std::time::Instant::now();
+                        sl.pick(&tops, &hp(sl)?, next)
+                    }
+                    Some(sl) => {
+                        let mut lb = vec![0u8; (t - 1) * v * 4];
+                        self.backend.download(&ws.logits, 0, &mut lb, self.stream)?;
+                        let logits: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+                        t_dl = std::time::Instant::now();
+                        sl.select(&logits, v, &hp(sl)?, next)
+                    }
                 }
             };
             drafts.truncate(k);
@@ -658,6 +798,73 @@ impl Model {
         let mut drafts: Vec<u32> = b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect();
         drafts.truncate(k);
         Ok(drafts)
+    }
+
+    /// Each of the `rows` draft logits rows' (`ws.logits` `[rows, n]`, the row's columns are vocabulary ids `base ..`) top `d2.cand`
+    /// values as `(value, id)`, largest first, ties by ascending id: on the device when the draft has its top-k buffers (lane dh item
+    /// 2; a row the kernel flags for a NaN is taken on the host instead, as is everything on a backend without it), else from the
+    /// downloaded logits on the host. Both orders are [`super::dflash2::row_topk`]'s.
+    fn dflash2_candidates(&self, d2: &super::dflash2::Draft2, rows: usize, n: usize, base: usize) -> Result<Vec<Vec<(f32, usize)>>> {
+        let k = d2.cand;
+        let host_row = |p: usize| -> Result<Vec<(f32, usize)>> {
+            let mut lb = vec![0u8; n * 4];
+            self.backend.download(&self.ws.logits, p * n * 4, &mut lb, self.stream)?;
+            let row: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+            let mut top = Vec::with_capacity(k + 1);
+            super::dflash2::row_topk(&row, k, base, &mut top);
+            Ok(top)
+        };
+        if let Some([bi, bv, bn, bs]) = &d2.topk {
+            let logits = self.view(&self.ws.logits, DType::F32, &[rows, n]);
+            let (ti, tv, tn, ts) = (
+                self.view(bi, DType::I32, &[rows, k]),
+                self.view(bv, DType::F32, &[rows, k]),
+                self.view(bn, DType::I32, &[rows]),
+                self.view(bs, DType::U8, &[rows * 32 * k * 8]),
+            );
+            match self.backend.topk_rows(&logits, k, &ti, &tv, &tn, &ts, self.stream) {
+                Ok(()) => {
+                    let (mut ib, mut vb, mut nb) = (vec![0u8; rows * k * 4], vec![0u8; rows * k * 4], vec![0u8; rows * 4]);
+                    self.backend.download(bi, 0, &mut ib, self.stream)?;
+                    self.backend.download(bv, 0, &mut vb, self.stream)?;
+                    self.backend.download(bn, 0, &mut nb, self.stream)?;
+                    let word = |b: &[u8], i: usize| [b[4 * i], b[4 * i + 1], b[4 * i + 2], b[4 * i + 3]];
+                    let dev: Vec<Vec<(f32, usize)>> = (0..rows)
+                        .map(|p| {
+                            if i32::from_le_bytes(word(&nb, p)) != 0 {
+                                return host_row(p);
+                            }
+                            Ok((0..k).map(|j| (f32::from_le_bytes(word(&vb, p * k + j)), base + i32::from_le_bytes(word(&ib, p * k + j)) as usize)).collect())
+                        })
+                        .collect::<Result<_>>()?;
+                    if d2.topk_check {
+                        let mut bad = 0;
+                        for (p, d) in dev.iter().enumerate() {
+                            let h = host_row(p)?;
+                            if h.iter().map(|x| (x.0.to_bits(), x.1)).ne(d.iter().map(|x| (x.0.to_bits(), x.1))) {
+                                bad += 1;
+                                eprintln!("dflash2 topk check: rank {} row {p} differs: device {d:?} host {h:?}", self.tp.rank);
+                            }
+                        }
+                        eprintln!("dflash2 topk check: rank {} rows {rows} differing {bad}", self.tp.rank);
+                    }
+                    return Ok(dev);
+                }
+                Err(Error::Unsupported(_)) => {}
+                Err(e) => return Err(e),
+            }
+        }
+        // one download of every row (a row at a time costs a synchronisation each)
+        let mut lb = vec![0u8; rows * n * 4];
+        self.backend.download(&self.ws.logits, 0, &mut lb, self.stream)?;
+        let logits: Vec<f32> = lb.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect();
+        Ok((0..rows)
+            .map(|p| {
+                let mut top = Vec::with_capacity(k + 1);
+                super::dflash2::row_topk(&logits[p * n..(p + 1) * n], k, base, &mut top);
+                top
+            })
+            .collect())
     }
 
     /// Tests: put `rows` context positions into the draft from host features (`[rows, taps * H]` f32, rounded to the activation
@@ -746,7 +953,13 @@ impl Model {
             self.dflash_ingest(head, &mut kv, &head.feat, t, false)?;
             let mut st = crate::plan::phantom_state(&[], cap, kv.len);
             st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false }));
-            self.dflash_draft(&mut st, 0, t).map(|_| ())
+            // a split draft (lane dh): this rank's part as it runs it (rank 0 or a peer), without starting the other ranks
+            let link = match (self.dflash_tp, self.tp.rank) {
+                (false, _) => DraftLink2::Solo,
+                (true, 0) => DraftLink2::Lead(Vec::new()),
+                (true, _) => DraftLink2::Follow(std::sync::mpsc::channel().0),
+            };
+            self.dflash_draft_rank(&mut st, 0, t, link).map(|_| ())
         };
         // lane dh (bug 0): a DFlash2 draft past its sliding window runs windowed attention calls (`OpAttrs::window > 0`, on HIP
         // the `.ext()` kernel `attn_decode_bf16_window`) that a draft at the start of the context never makes. Record one at

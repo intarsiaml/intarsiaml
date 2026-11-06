@@ -439,6 +439,101 @@ fn dflash2_greedy_ids_equal_spec_off_on_the_hybrid() {
     }
 }
 
+/// Lane dh, bug 0: `serve --spec dflash` at tp2 failed requests longer than the draft's sliding window with `no kernel for
+/// attn_decode on hip/gfx1201 (m=1 n=0 k=128 ...) [admitted kernels only]`. The plan's draft probe ran at the start of the
+/// context only (block 8 of a 2048-key window: no row windowed), so the windowed attention calls (`OpAttrs::window > 0`, on HIP
+/// the `.ext()` kernel `attn_decode_bf16_window`, on CUDA the g4 `.ext()` ones) were never planned, never admitted, and not
+/// selectable under `serve`. A window wider than two blocks here, as the 27B draft's: the plan must hold a windowed call, and
+/// with admission on and admitted kernels only, the shortest request (one prompt token, the fewest context keys a draft can
+/// see) and one far past the window both decode `--spec off`'s ids.
+#[test]
+fn dflash2_plan_covers_the_windowed_draft_and_serves_past_the_window() {
+    use intarsia_core::ops::Op;
+    use intarsia_core::plan::PlanOptions;
+    let wide = 3 * BLOCK + 1;
+    let build = |dflash: bool, admitted: bool| -> (LocalEngine, Arc<Telemetry>) {
+        let (recipe, dims) = target_spec();
+        let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+        let tel = Arc::new(Telemetry::new());
+        let mut dl = dflash_load(draft_weights(5));
+        dl.config.sliding_window = wide;
+        let opts = LoadOptions {
+            max_seq: 512,
+            prefill_chunk: 8,
+            act_dtype: Some(DType::F32),
+            kv_dtype: Some(DType::F32),
+            profile_every: 0,
+            dflash: dflash.then_some(dl),
+            ..Default::default()
+        };
+        let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &src, &opts, tel.clone()).unwrap();
+        let spec = if dflash {
+            m.enable_verify(4).unwrap();
+            let reference = CpuBackend::arc();
+            let po = PlanOptions { admit: admitted, require_admitted: admitted, no_cache: true, ..Default::default() };
+            m.configure_plan(&po, Some(&*reference)).unwrap();
+            let windowed = m.resolved.unique_calls.iter().filter(|c| c.call.op == Op::AttnDecode && c.call.attrs.window > 0).count();
+            assert!(windowed > 0, "the plan has no windowed draft attention call (window {wide}, block {BLOCK})");
+            SpecConfig { mode: SpecMode::Dflash, k: 3 }
+        } else {
+            SpecConfig::default()
+        };
+        let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-dflash2-win".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+            .unwrap();
+        (e, tel)
+    };
+    let (off, _) = build(false, false);
+    let (on, tel) = build(true, true);
+    let long: Vec<u32> = (0..3 * wide as u32).map(|i| (i * 7 + 3) % 90).collect();
+    for p in [&[17u32][..], &[90, 1], &long[..]] {
+        assert_eq!(run(&off, req(p, 40)), run(&on, req(p, 40)), "prompt of {} token(s)", p.len());
+    }
+    assert!(tel.snapshot().spec_steps > 0, "the draft ran");
+}
+
+/// Lane dm: `serve --spec dflash` on Metal failed every request after the first pass that accepted fewer than all drafts with
+/// `no kernel for matmul on metal/applegpu_g17s (m=1 n=5120 k=5120 act=Some(Bf16) w=Some(Bf16)) [admitted kernels only]` (the
+/// draft's per-tap `fc` projection of one context row). A pass ingests as many context rows as it emitted (1 ..= block), but the
+/// plan's draft probe ingested block rows only, and Metal serves the M = 1 bf16 projection with another kernel than M = block, which
+/// was therefore never admitted. The cpu backend runs one kernel at every M, so it cannot fail the way Metal did; this checks the
+/// cause: the calls the draft adds to the plan (those a plan without the draft lacks) include its context ingest's k / v projection
+/// (`[kv heads * head_dim, H]` on the ingest's rows) at every row count 1 ..= block.
+#[test]
+fn dflash2_plan_covers_the_context_ingest_at_every_row_count() {
+    use intarsia_core::plan::PlanOptions;
+    let planned = |dflash: bool| {
+        let (recipe, dims) = target_spec();
+        let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+        let opts = LoadOptions {
+            max_seq: 512,
+            prefill_chunk: 8,
+            act_dtype: Some(DType::F32),
+            kv_dtype: Some(DType::F32),
+            profile_every: 0,
+            dflash: dflash.then(|| dflash_load(draft_weights(5))),
+            ..Default::default()
+        };
+        let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &src, &opts, Arc::new(Telemetry::new())).unwrap();
+        m.enable_verify(4).unwrap();
+        let reference = CpuBackend::arc();
+        let po = PlanOptions { admit: true, require_admitted: true, no_cache: true, ..Default::default() };
+        m.configure_plan(&po, Some(&*reference)).unwrap();
+        m.resolved
+            .unique_calls
+            .iter()
+            .map(|c| (format!("{:?}", c.call.op), c.call.inputs.iter().map(|t| t.shape.clone()).collect::<Vec<_>>()))
+            .collect::<std::collections::BTreeSet<_>>()
+    };
+    let (with, without) = (planned(true), planned(false));
+    let kv = vec![DNKV * DHD, H];
+    let mut rows: Vec<usize> = with.difference(&without).filter(|(_, sh)| sh.get(1) == Some(&kv)).map(|(_, sh)| sh[0][0]).collect();
+    rows.sort_unstable();
+    rows.dedup();
+    for t in 1..=BLOCK {
+        assert!(rows.contains(&t), "the plan has no draft context ingest of {t} row(s) (planned row counts {rows:?})");
+    }
+}
+
 /// Drafts from the true greedy continuation with a mistake at a pseudo-random offset (or none): every pass accepts all, some
 /// or none of its drafts, so the recurrent rollback runs to every length.
 fn scripted(truth: Arc<Mutex<Vec<Vec<u32>>>>, seed: u64) -> DraftScript {
@@ -630,6 +725,116 @@ fn dflash2_tp2_greedy_ids_equal_spec_off() {
             assert!(t.spec_steps > 0, "the verify path ran at tp=2");
             if script {
                 assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "partial acceptance exercised at tp=2");
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// lane dh: the DFlash2 draft split over the ranks (`LoadOptions::dflash_tp`, `INTARSIA_DFLASH_TP=1`): heads and ffn columns per
+// rank, o / down partial sums all-reduced, the drafts' logits on each rank's vocabulary shard, the top candidates merged on rank 0
+// ------------------------------------------------------------------------------------------------------------------
+
+const SEL_RANK: usize = 8;
+const SEL_TOP: usize = 5;
+
+/// A tp=2 model whose draft runs split (`split`) or whole on rank 0; `selector`: with a candidate selector (top 5 of each row, rank 8).
+fn model_split(k: usize, vocab_par: bool, split: bool, selector: bool) -> (Model, Arc<Telemetry>) {
+    let (recipe, dims) = target_spec();
+    let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+    let mut g = draft_weights(5);
+    let mut dl = dflash_load(Gen { w: MemWeights::new(), raw: BTreeMap::new(), rng: SplitMix64::new(0) });
+    if selector {
+        g.mat("candidate_selector.hidden_projection.weight", &[SEL_RANK, H], 0.3);
+        g.mat("candidate_selector.predecessor_codebook", &[V, SEL_RANK], 1.0);
+        g.mat("candidate_selector.successor_codebook", &[V, SEL_RANK], 1.0);
+        dl.config.selector_rank = SEL_RANK;
+        dl.config.selector_top_k = SEL_TOP;
+    }
+    dl.src = Arc::new(g.w);
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        act_dtype: Some(DType::F32),
+        kv_dtype: Some(DType::F32),
+        profile_every: 0,
+        tp_vocab: vocab_par,
+        dflash: Some(dl),
+        dflash_tp: Some(split),
+        ..Default::default()
+    };
+    let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    let tel = Arc::new(Telemetry::new());
+    let mut m = Model::load_tp(backends, comms, &recipe, &dims, &src, &opts, tel.clone()).unwrap();
+    assert_eq!(m.vocab_parallel(), vocab_par);
+    m.enable_verify(k + 1).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    (m, tel)
+}
+
+/// Greedy ids cannot see a broken draft (verify picks every token), so the drafts themselves: the split draft's equal the whole
+/// draft's at every context length (shorter than the window, past it), with and without the selector, both head layouts.
+#[test]
+fn dflash2_split_draft_drafts_equal_the_whole_draft() {
+    let ids: Vec<u32> = (0..48u32).map(|i| (i * 37 + 11) % 90).collect();
+    for selector in [false, true] {
+        for vocab_par in [true, false] {
+            let (whole, split) = (model_split(3, vocab_par, false, selector).0, model_split(3, vocab_par, true, selector).0);
+            let (mut sw, mut ss) = (whole.new_state().unwrap(), split.new_state().unwrap());
+            let mut at = 0;
+            let mut seen = 0;
+            for n in [1usize, 3, 2, 8, 5, 7, 6, 8] {
+                let c = &ids[at..at + n];
+                whole.forward(&mut sw, c, HeadMode::None, None).unwrap();
+                split.forward(&mut ss, c, HeadMode::None, None).unwrap();
+                at += n;
+                let next = ids[at];
+                let (a, b) = (whole.dflash_draft(&mut sw, next, BLOCK - 1).unwrap(), split.dflash_draft(&mut ss, next, BLOCK - 1).unwrap());
+                assert_eq!(a.len(), BLOCK - 1, "drafted at {at}");
+                assert_eq!(a, b, "selector {selector} vocab_par {vocab_par}: drafts at context {at}");
+                seen += 1;
+            }
+            eprintln!("selector {selector} vocab_par {vocab_par}: {seen} drafts equal, context up to {at} (window {WINDOW})");
+        }
+    }
+}
+
+fn engine_split(k: usize, vocab_par: bool, split: bool, script: Option<DraftScript>) -> (LocalEngine, Arc<Telemetry>) {
+    let (m, tel) = model_split(k, vocab_par, split, true);
+    if script.is_some() {
+        m.dflash_script(script).unwrap();
+    }
+    let spec = SpecConfig { mode: SpecMode::Dflash, k };
+    let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-dflash2-split".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+        .unwrap();
+    (e, tel)
+}
+
+#[test]
+fn dflash2_split_draft_greedy_ids_equal_spec_off() {
+    for vocab_par in [true, false] {
+        let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+        let (off, _) = engine_tp(None, vocab_par, None);
+        for p in PROMPTS {
+            let o = run(&off, req(p, 100));
+            let mut s = p.to_vec();
+            s.extend(&o.ids);
+            truth.lock().unwrap().push(s);
+        }
+        for script in [false, true] {
+            let (on, tel) = engine_split(3, vocab_par, true, script.then(|| scripted(truth.clone(), 9)));
+            for p in PROMPTS {
+                assert_eq!(run(&off, req(p, 90)), run(&on, req(p, 90)), "split draft vocab_par {vocab_par} scripted {script} prompt {p:?}");
+                for n in [1usize, 4] {
+                    assert_eq!(run(&off, req(p, n)), run(&on, req(p, n)), "split draft vocab_par {vocab_par} max_tokens {n}");
+                }
+            }
+            let t = tel.snapshot();
+            eprintln!("split vocab_par {vocab_par} scripted {script}: {} passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
+            assert!(t.spec_steps > 0 && t.spec_proposed > 0, "the split draft drafted");
+            if script {
+                assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "partial acceptance exercised");
             }
         }
     }

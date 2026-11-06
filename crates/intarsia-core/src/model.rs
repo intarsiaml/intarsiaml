@@ -184,6 +184,10 @@ pub struct LoadOptions {
     /// Load a DFlash draft checkpoint (`--spec dflash --spec-draft DIR`, `model/dflash.rs`). None: nothing is read, no op is
     /// added and the model is exactly the one without it.
     pub dflash: Option<DflashLoad>,
+    /// Lane dh: split a DFlash2 draft over the tensor-parallel ranks (heads and ffn columns, the drafts' logits on each rank's
+    /// vocabulary shard, top candidates merged on rank 0) instead of running it whole on rank 0. `None` =
+    /// `INTARSIA_DFLASH_TP` (`1` on; unset or anything else off, the default). In-process ranks only; nothing changes at tp=1.
+    pub dflash_tp: Option<bool>,
     /// Macro prefill pass size in rows (see [`Model::macro_rows`]): `None` = `INTARSIA_PREFILL_MACRO` (unset = off); `Some(0)` off.
     pub prefill_macro: Option<usize>,
     /// Row-invariant prefill ([`Model::row_invariant_prefill`], lane rip): `Some` wins over `INTARSIA_ROW_INVARIANT_PREFILL`,
@@ -211,6 +215,7 @@ impl Default for LoadOptions {
             mtp_k: 0,
             mtp_draft_vocab: None,
             dflash: None,
+            dflash_tp: None,
             prefill_macro: None,
             row_invariant_prefill: None,
         }
@@ -614,6 +619,8 @@ pub struct Model {
     mtp: Option<mtp::MtpHead>,
     /// The DFlash block drafter (`LoadOptions::dflash`, `model/dflash.rs`).
     dflash: Option<dflash::DflashHead>,
+    /// Lane dh (`LoadOptions::dflash_tp`): the DFlash2 draft is split over the ranks; every rank holds its part (`dflash`).
+    dflash_tp: bool,
     /// Per-row recurrent state buffers each sequence gets for verify passes (`LoadOptions::mtp_k`, MTP head only).
     mtp_k: usize,
     /// Measured-cost gate of `--spec mtp` (`spec::CostParams`): backend default, recipe `[mtp]`, `INTARSIA_SPEC_COSTGATE`.
@@ -1438,11 +1445,15 @@ impl Model {
             None
         };
         // the DFlash drafter (`--spec dflash`): read only when asked for
+        // lane dh: the DFlash2 draft split over in-process tensor-parallel ranks (`INTARSIA_DFLASH_TP=1`, default off)
+        let dflash_tp = tp.world > 1
+            && opts.dflash.as_ref().is_some_and(|d| d.config.v2)
+            && opts.dflash_tp.unwrap_or_else(|| std::env::var("INTARSIA_DFLASH_TP").is_ok_and(|v| v.trim() == "1"));
         let dflash_head = match &opts.dflash {
             // tensor parallelism (lane dfh): the drafter lives on rank 0 alone (the taps are the residual stream, which every rank
             // holds whole after its all-reduce); with a vocab-parallel head rank 0 also keeps a whole copy of the head for the
             // draft's logits, so drafting needs no collective
-            Some(_) if tp.rank != 0 => None,
+            Some(_) if tp.rank != 0 && !dflash_tp => None,
             Some(dl) if tp.world > 1 && !dl.config.v2 => {
                 return Err(Error::Unsupported("--spec dflash under tensor parallelism with a DFlash (v1) draft".into()));
             }
@@ -1452,7 +1463,8 @@ impl Model {
                     _ => None,
                 });
                 let t0 = Instant::now();
-                let head = dflash::load_head(dl, b, dims, recipe, main_attn, &|n| weights_bytes.set(weights_bytes.get() + n), mt, act)?;
+                let shard = dflash_tp.then_some((tp.rank, tp.world));
+                let head = dflash::load_head(dl, b, dims, recipe, main_attn, &|n| weights_bytes.set(weights_bytes.get() + n), mt, act, shard)?;
                 eprintln!(
                     "dflash: draft of {} layers (taps {:?}, block {}{}) loaded in {:.1} s",
                     head.n_layers(),
@@ -1462,7 +1474,8 @@ impl Model {
                     t0.elapsed().as_secs_f64()
                 );
                 let mut head = head;
-                if vocab_par {
+                // a split draft takes its logits on each rank's vocabulary shard of the group's head (lane dh): no whole copy
+                if vocab_par && !dflash_tp {
                     head.full_head = load_head(false)?;
                 }
                 Some(head)
@@ -1712,6 +1725,7 @@ impl Model {
             mtp: mtp_head,
             dflash: dflash_head,
             mtp_k,
+            dflash_tp,
         };
         let tp_comm = model.tp.comm.clone();
         model.coll_trace.set_comm(tp_comm);
@@ -2193,7 +2207,9 @@ impl Model {
             st.spec_rows.saved = q - 1;
         }
         // the MTP head's share: queue the pass's rows as rank 0 does (no catch-up, so no collective)
-        self.mtp_after_forward(st, &hn, q, false, false)
+        self.mtp_after_forward(st, &hn, q, false, false)?;
+        // a split DFlash2 draft's share (lane dh): ingest the pass's rows as rank 0 does (no collective)
+        self.dflash_after_forward(st, q, false)
     }
 
     /// Recurrent slots (GatedDeltaNet): the delta rule of a verify pass runs row by row and the state after every row but the last
@@ -2287,6 +2303,8 @@ impl Model {
             }
             // the MTP head's share (`--spec mtp` under tensor parallelism, lane dfh): its KV cache of this rank's heads and queue
             ps.mtp = p.new_mtp_state(self.plan.kv_cap_tokens)?;
+            // a split DFlash2 draft's share (lane dh): its context cache of this rank's kv heads
+            ps.dflash = p.new_dflash_state(self.plan.kv_cap_tokens)?;
             if ps.mtp.is_some() && ps.has_recurrent() {
                 let need = ps.recurrent_bytes().max(16);
                 for _ in 0..p.mtp_k {
@@ -2889,6 +2907,8 @@ impl Model {
                 let hn = self.view(&self.ws.n, self.act, &[1, self.dims.hidden]);
                 self.mtp_after_forward(ps, &hn, 1, true, false)?;
             }
+            // a split DFlash2 draft's share (lane dh): ingest as rank 0 does (no collective)
+            self.dflash_after_forward(ps, 1, false)?;
             return Ok(());
         }
         let chunks = self.forward_chunks(ps, ids);
@@ -2904,6 +2924,7 @@ impl Model {
             if ps.mtp.is_some() {
                 self.mtp_after_forward(ps, &hn, chunk.len(), true, false)?;
             }
+            self.dflash_after_forward(ps, chunk.len(), false)?;
         }
         Ok(())
     }
