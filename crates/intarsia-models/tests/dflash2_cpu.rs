@@ -688,6 +688,116 @@ fn dflash2_tp2_greedy_ids_equal_spec_off() {
 }
 
 // ------------------------------------------------------------------------------------------------------------------
+// lane dh: the DFlash2 draft split over the ranks (`LoadOptions::dflash_tp`, `INTARSIA_DFLASH_TP=1`): heads and ffn columns per
+// rank, o / down partial sums all-reduced, the drafts' logits on each rank's vocabulary shard, the top candidates merged on rank 0
+// ------------------------------------------------------------------------------------------------------------------
+
+const SEL_RANK: usize = 8;
+const SEL_TOP: usize = 5;
+
+/// A tp=2 model whose draft runs split (`split`) or whole on rank 0; `selector`: with a candidate selector (top 5 of each row, rank 8).
+fn model_split(k: usize, vocab_par: bool, split: bool, selector: bool) -> (Model, Arc<Telemetry>) {
+    let (recipe, dims) = target_spec();
+    let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+    let mut g = draft_weights(5);
+    let mut dl = dflash_load(Gen { w: MemWeights::new(), raw: BTreeMap::new(), rng: SplitMix64::new(0) });
+    if selector {
+        g.mat("candidate_selector.hidden_projection.weight", &[SEL_RANK, H], 0.3);
+        g.mat("candidate_selector.predecessor_codebook", &[V, SEL_RANK], 1.0);
+        g.mat("candidate_selector.successor_codebook", &[V, SEL_RANK], 1.0);
+        dl.config.selector_rank = SEL_RANK;
+        dl.config.selector_top_k = SEL_TOP;
+    }
+    dl.src = Arc::new(g.w);
+    let opts = LoadOptions {
+        max_seq: 512,
+        prefill_chunk: 8,
+        act_dtype: Some(DType::F32),
+        kv_dtype: Some(DType::F32),
+        profile_every: 0,
+        tp_vocab: vocab_par,
+        dflash: Some(dl),
+        dflash_tp: Some(split),
+        ..Default::default()
+    };
+    let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    let tel = Arc::new(Telemetry::new());
+    let mut m = Model::load_tp(backends, comms, &recipe, &dims, &src, &opts, tel.clone()).unwrap();
+    assert_eq!(m.vocab_parallel(), vocab_par);
+    m.enable_verify(k + 1).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    (m, tel)
+}
+
+/// Greedy ids cannot see a broken draft (verify picks every token), so the drafts themselves: the split draft's equal the whole
+/// draft's at every context length (shorter than the window, past it), with and without the selector, both head layouts.
+#[test]
+fn dflash2_split_draft_drafts_equal_the_whole_draft() {
+    let ids: Vec<u32> = (0..48u32).map(|i| (i * 37 + 11) % 90).collect();
+    for selector in [false, true] {
+        for vocab_par in [true, false] {
+            let (whole, split) = (model_split(3, vocab_par, false, selector).0, model_split(3, vocab_par, true, selector).0);
+            let (mut sw, mut ss) = (whole.new_state().unwrap(), split.new_state().unwrap());
+            let mut at = 0;
+            let mut seen = 0;
+            for n in [1usize, 3, 2, 8, 5, 7, 6, 8] {
+                let c = &ids[at..at + n];
+                whole.forward(&mut sw, c, HeadMode::None, None).unwrap();
+                split.forward(&mut ss, c, HeadMode::None, None).unwrap();
+                at += n;
+                let next = ids[at];
+                let (a, b) = (whole.dflash_draft(&mut sw, next, BLOCK - 1).unwrap(), split.dflash_draft(&mut ss, next, BLOCK - 1).unwrap());
+                assert_eq!(a.len(), BLOCK - 1, "drafted at {at}");
+                assert_eq!(a, b, "selector {selector} vocab_par {vocab_par}: drafts at context {at}");
+                seen += 1;
+            }
+            eprintln!("selector {selector} vocab_par {vocab_par}: {seen} drafts equal, context up to {at} (window {WINDOW})");
+        }
+    }
+}
+
+fn engine_split(k: usize, vocab_par: bool, split: bool, script: Option<DraftScript>) -> (LocalEngine, Arc<Telemetry>) {
+    let (m, tel) = model_split(k, vocab_par, split, true);
+    if script.is_some() {
+        m.dflash_script(script).unwrap();
+    }
+    let spec = SpecConfig { mode: SpecMode::Dflash, k };
+    let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-dflash2-split".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+        .unwrap();
+    (e, tel)
+}
+
+#[test]
+fn dflash2_split_draft_greedy_ids_equal_spec_off() {
+    for vocab_par in [true, false] {
+        let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+        let (off, _) = engine_tp(None, vocab_par, None);
+        for p in PROMPTS {
+            let o = run(&off, req(p, 100));
+            let mut s = p.to_vec();
+            s.extend(&o.ids);
+            truth.lock().unwrap().push(s);
+        }
+        for script in [false, true] {
+            let (on, tel) = engine_split(3, vocab_par, true, script.then(|| scripted(truth.clone(), 9)));
+            for p in PROMPTS {
+                assert_eq!(run(&off, req(p, 90)), run(&on, req(p, 90)), "split draft vocab_par {vocab_par} scripted {script} prompt {p:?}");
+                for n in [1usize, 4] {
+                    assert_eq!(run(&off, req(p, n)), run(&on, req(p, n)), "split draft vocab_par {vocab_par} max_tokens {n}");
+                }
+            }
+            let t = tel.snapshot();
+            eprintln!("split vocab_par {vocab_par} scripted {script}: {} passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
+            assert!(t.spec_steps > 0 && t.spec_proposed > 0, "the split draft drafted");
+            if script {
+                assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "partial acceptance exercised");
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
 // `--spec auto` (lane asp): the MTP head and the DFlash2 draft on one model, the drafter chosen per pass
 // ------------------------------------------------------------------------------------------------------------------
 
