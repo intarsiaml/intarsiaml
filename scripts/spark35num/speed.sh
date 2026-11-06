@@ -12,7 +12,7 @@ ROUNDS=${1:-2}; shift || true
 ARMS=("$@"); [[ ${#ARMS[@]} -gt 0 ]] || ARMS=(base c d cd)
 OUT=$RES/speed; mkdir -p "$OUT"
 trap 'stop_server' EXIT INT TERM
-rsh "test -x $L/bin/dev" || "$H/build.sh" HEAD dev || { echo "no dev binary"; exit 1; }
+rsh "test -x $L/bin/dev" || "$H/build.sh" "${DEV_REF:-HEAD}" dev || { echo "no dev binary"; exit 1; }
 spec() { case $1 in base) echo "||" ;; c) echo "INTARSIA_GDN_STATE=bf16||" ;; d) echo "|--kv-dtype fp8|" ;; cd) echo "INTARSIA_GDN_STATE=bf16|--kv-dtype fp8|" ;; esac; }
 le() { # le <label> <recipe> <sizes> <gen> <conc>
   ( cd /opt/code/deepeval && FLEETQ_JOB=$FLEETQ_JOB uv run localeval speed --url "http://$HN:$PORT/v1" --model intarsia --thinking off --sizes "$3" --gen "$4" --reps 3 --concurrency "$5" \

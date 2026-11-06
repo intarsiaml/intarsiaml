@@ -2,18 +2,20 @@
 # Lane spark35, window 1 (one fleetq slot on $HOST, --quiet gpu,cpu): builds, gates, the KL arms (D, and C by emulation) and the serve arms
 # (greedy ids, needle at 32k / 64k, MMLU, GSM8K). Run from the repo root of the lane worktree:
 #   HOST=spark2 fleetq run --host spark2 --quiet gpu,cpu --mem 74 --expect 170 --label "spark35: ..." -- scripts/spark35num/w1.sh
-# STAGES selects (default: build data gates lanes). BUDGET_MIN (default 165) bounds the window: an arm that does not fit is skipped.
+# DEV_REF pins the commit the "dev" binary is built from (default HEAD; the D default-flip commit must never be the base arm). STAGES selects (default: build data gates lanes; build always runs first and is a no-op for a commit already built). KL1..KL3 / SV1 / SV2 (arm lists, "" skips) split the lanes across jobs. BUDGET_MIN (default 165) bounds the window: an arm that does not fit is skipped.
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 STAGES=${STAGES:-"build data gates lanes"}
 export S35_DEADLINE=$(( $(date +%s) + ${BUDGET_MIN:-165} * 60 ))
 TOK=$(ls ~/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/*/tokenizer.json | head -1)
 echo "window 1 on $HOST, $(date +%T), head $(git -C "$REPO" rev-parse --short HEAD), MemAvailable $(free_gb) GB"
+case " $STAGES " in *" data "*) ;; *) STAGES="data $STAGES" ;; esac
+case " $STAGES " in *" build "*) ;; *) STAGES="build $STAGES" ;; esac   # idempotent: build.sh keeps a binary already built from the commit
 for st in $STAGES; do case $st in
   build)
     BASE=$(git -C "$REPO" merge-base HEAD origin/main); echo "main = $BASE" | tee "$RES/main-ref.txt"
     "$H/build.sh" "$BASE" main || { echo "MAIN BUILD FAILED"; exit 1; }
-    if ! "$H/build.sh" HEAD dev; then
+    if ! "$H/build.sh" "${DEV_REF:-HEAD}" dev; then
       echo "dev build from HEAD failed: falling back to the emulation-only commit ${FALLBACK_REF:-f7278f38b} (no real bf16 layout in this window)"
       "$H/build.sh" "${FALLBACK_REF:-f7278f38b}" dev || { echo "BUILD FAILED"; exit 1; }
     else
@@ -46,15 +48,17 @@ for st in $STAGES; do case $st in
     fb=$(free_gb); echo "lanes: MemAvailable $fb GB"
     # priority order: the D / C evidence first, the noise reference and the combination next, the real-layout equality check last
     KL1=${KL1-"base cemu fp8"}; SV1=${SV1-"main base fp8 cemu"}; KL2=${KL2-"noise cdemu"}; SV2=${SV2-"cdemu creal"}; KL3=${KL3-"creal"}
+    kl() { [[ -n $1 ]] && MEMB=${2:-45} ARMS="$1" "$H/kl.sh"; return 0; }
+    sv() { [[ -n $1 ]] && MEMB=${2:-45} PORT=8196 ARMS="$1" "$H/serve.sh"; return 0; }
     if (( fb >= 100 )); then
       echo "vLLM is down: KL lane and serve lane in parallel (MEMB=40 each)"
-      (for a in "$KL1" "$KL2" "$KL3"; do MEMB=40 ARMS="$a" "$H/kl.sh"; done) > "$RES/lane-kl.log" 2>&1 &
-      (for a in "$SV1" "$SV2"; do MEMB=40 PORT=8196 ARMS="$a" "$H/serve.sh"; done) > "$RES/lane-serve.log" 2>&1 &
+      (kl "$KL1" 40; kl "$KL2" 40; kl "$KL3" 40) > "$RES/lane-kl.log" 2>&1 &
+      (sv "$SV1" 40; sv "$SV2" 40) > "$RES/lane-serve.log" 2>&1 &
       wait
     else
       echo "vLLM is up: sequential, MEMB=45"
-      { ARMS="$KL1" "$H/kl.sh"; ARMS="$SV1" "$H/serve.sh"; ARMS="$KL2" "$H/kl.sh"; ARMS="$SV2" "$H/serve.sh"; ARMS="$KL3" "$H/kl.sh"; } > "$RES/lane-all.log" 2>&1
+      { kl "$KL1"; sv "$SV1"; kl "$KL2"; sv "$SV2"; kl "$KL3"; } > "$RES/lane-all.log" 2>&1
     fi
-    tail -3 "$RES"/lane-*.log ;;
+    tail -3 "$RES"/lane-*.log 2>/dev/null ;;
 esac; done
 echo "window 1 done $(date +%T), $(left_min) min of the budget left"
