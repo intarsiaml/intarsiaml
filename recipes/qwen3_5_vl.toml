@@ -88,7 +88,7 @@ prefix = "mtp"
 # head is quantised at load to e4m3 with one f32 scale per tensor (1.27 GB), read once per decoded token. It changes outputs: against the bf16 head 2.0 to 2.5 %
 # of teacher-forced prefill positions change their top-1 token (1.0 to 1.6 % in the Metal decode window), mean KL 6e-4 to 8e-4; MMLU n=570 0.8368 against
 # 0.8316, GSM8K n=100 0.52 against 0.48. Decode on Metal +9 to +11 % plain, +21 to +23 % with MTP k2; on HIP tp2 +5 % plain, +10 to +14 % with MTP, tp1 +6 %,
-# 16 streams +0 %. `INTARSIA_LMHEAD_QUANT=off` (or `none`, `0`) keeps the bf16 head and wins over this key. CUDA is not measured and has no such key.
+# 16 streams +0 %. `INTARSIA_LMHEAD_QUANT=off` (or `none`, `0`) keeps the bf16 head and wins over this key. CUDA has the same key below (user decision 2026-11-06: "CUDA too").
 lm_head_quant = "fp8"
 prefill_chunk = 2048
 busy_chunk = 256
@@ -112,7 +112,7 @@ mtp_draft_vocab = 65536
 # head is quantised at load to e4m3 with one f32 scale per tensor (1.27 GB), read once per decoded token. It changes outputs: against the bf16 head 2.0 to 2.5 %
 # of teacher-forced prefill positions change their top-1 token (1.0 to 1.6 % in the Metal decode window), mean KL 6e-4 to 8e-4; MMLU n=570 0.8368 against
 # 0.8316, GSM8K n=100 0.52 against 0.48. Decode on Metal +9 to +11 % plain, +21 to +23 % with MTP k2; on HIP tp2 +5 % plain, +10 to +14 % with MTP, tp1 +6 %,
-# 16 streams +0 %. `INTARSIA_LMHEAD_QUANT=off` (or `none`, `0`) keeps the bf16 head and wins over this key. CUDA is not measured and has no such key.
+# 16 streams +0 %. `INTARSIA_LMHEAD_QUANT=off` (or `none`, `0`) keeps the bf16 head and wins over this key. CUDA has the same key below (user decision 2026-11-06: "CUDA too").
 lm_head_quant = "fp8"
 mtp_draft_vocab = 65536
 # `--spec mtp --spec-k 2` without --spec at in-process tensor parallelism (--tp N, N > 1, one sequence): exact (27B ids 18/18 at tp=2
@@ -154,5 +154,9 @@ tp_partial = "bf16"
 # head) together: 1k decode 13.6 -> 22.7 tok/s (x1.67, 6 interleaved rounds), 4k 13.5 -> 23.7, prefill unchanged (64 tok/s)
 # (docs/results/2026-10-27-s27d-cuda-27b-decode.md).
 [tuning.cuda]
+# fp8 lm_head on CUDA too (user decision 2026-11-06: "User 2026-11-06: CUDA too."), the same quantisation as under [tuning.metal] / [tuning.hip]: the 2.54 GB bf16 head
+# is e4m3 with one f32 scale per tensor at load, 1.27 GB. Changes outputs (docs/results/2026-11-06-lmhead-fp8-default.md has the CUDA KL / flip
+# check and the decode numbers on the GB10). `INTARSIA_LMHEAD_QUANT=off` keeps the bf16 head.
+lm_head_quant = "fp8"
 mtp_default_k = 2
 mtp_draft_vocab = 65536

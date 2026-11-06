@@ -921,17 +921,11 @@ impl Model {
             && tp.comm.as_ref().and_then(|c| c.all_gather_quantum()).is_some_and(|q| dims.vocab % tp.world == 0 && (vh * 4) % q == 0)
             && (!tied || (embed.shape == [dims.vocab, dims.hidden] && (vh * dims.hidden * embed.dtype.size_bytes()) % 16 == 0));
         let dense = |t: TensorRef, n: usize| QTensor { format: crate::quant::BF16, n, k: dims.hidden, parts: vec![t], act_fp8: false, act_quant: false };
-        // opt-in quantised head (`INTARSIA_LMHEAD_QUANT`, a recipe's `lm_head_quant`; docs/tuning.md): quantised at load from the checkpoint's
-        // float rows, so the bf16 head is never loaded. CUDA is not gated for it and keeps the bf16 head.
+        // quantised head (`INTARSIA_LMHEAD_QUANT`, a recipe's `lm_head_quant`; docs/tuning.md): quantised at load from the checkpoint's float rows,
+        // so the bf16 head is never loaded. The Qwen3.8-27B recipe turns it on for Metal, HIP and CUDA (user decisions 2026-11-06).
         let head_quant = {
             let env = std::env::var(crate::quant::head::ENV).ok();
-            let q = crate::quant::head::HeadQuant::resolve(env.as_deref(), recipe.lm_head_quant(backend.name()))?;
-            if q.is_some() && backend.name() == "cuda" {
-                eprintln!("{}: not applied on the cuda backend (not gated there); the head stays bf16", crate::quant::head::ENV);
-                None
-            } else {
-                q
-            }
+            crate::quant::head::HeadQuant::resolve(env.as_deref(), recipe.lm_head_quant(backend.name()))?
         };
         let head_quant_note: std::cell::RefCell<Option<String>> = Default::default();
         let load_head = |vocab_par: bool| -> Result<Option<QTensor>> {

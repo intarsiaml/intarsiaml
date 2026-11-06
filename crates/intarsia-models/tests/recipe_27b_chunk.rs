@@ -46,13 +46,13 @@ fn shipped_27b_recipe_tp_partial() {
     assert!(intarsia_models::parse_recipe(&bad).is_err(), "tp_partial = fp16 must be refused");
 }
 
-/// fp8 lm_head by default on Metal and HIP (user decision 2026-11-06, docs/results/2026-11-06-lmhead-fp8-default.md); CUDA unmeasured and unset;
+/// fp8 lm_head by default on Metal, HIP and CUDA (user decisions 2026-11-06, docs/results/2026-11-06-lmhead-fp8-default.md); the cpu backend unset;
 /// every off spelling of `INTARSIA_LMHEAD_QUANT` beats the recipe key, and the other recipes (8B, 35B, Llama) set nothing.
 #[test]
 fn shipped_27b_recipe_lm_head_quant() {
     use intarsia_core::quant::head::HeadQuant;
     let r = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_vl.toml")).unwrap();
-    for b in ["metal", "hip"] {
+    for b in ["metal", "hip", "cuda"] {
         let key = r.lm_head_quant(b);
         assert_eq!(key, Some("fp8"), "{b}");
         assert_eq!(HeadQuant::resolve(None, key).unwrap(), Some(HeadQuant::Fp8), "{b}: default on");
@@ -61,9 +61,7 @@ fn shipped_27b_recipe_lm_head_quant() {
         }
         assert_eq!(HeadQuant::resolve(Some("mxfp4"), key).unwrap(), Some(HeadQuant::Mxfp4), "{b}: the variable also picks another format");
     }
-    for b in ["cuda", "cpu"] {
-        assert_eq!(r.lm_head_quant(b), None, "{b}: not measured, no recipe key");
-    }
+    assert_eq!(r.lm_head_quant("cpu"), None, "cpu: no recipe key");
     for (name, text) in [
         ("qwen3", include_str!("../../../recipes/qwen3.toml")),
         ("qwen3_5_moe", include_str!("../../../recipes/qwen3_5_moe.toml")),
