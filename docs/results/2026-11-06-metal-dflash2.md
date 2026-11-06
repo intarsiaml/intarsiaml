@@ -214,3 +214,18 @@ under peak. A bitwise M <= 8 kernel at ~1.5-2x of M = 1 looks reachable; M = 16 
 * End to end: the new kernel behind an opt-in knob; same binary ABAB, MTP k2 default path (pipelined), A = knob off, B = on: B / A >= 1.05
   at natural-v1 1k and 4k (localeval speed-spec), no cell below 0.98; greedy ids == `--spec off` (MTP k1..k4, DFlash2 k3 / k7, short-0 and
   4k-1); `plan show` 8B / 27B / 35B unchanged with the knob unset; `kernels test` unchanged.
+
+### Probe: is fp32 `simdgroup_multiply_accumulate` a sequential fma chain? (fleetq #8835, `raw/p3-probe/mma.swift`, `mma.out`)
+
+20000 trials of 4 chained 8x8x8 MMAs from C0 (zero or random), inputs as the MXFP4 GEMV sees them (e2m1 * 2^-14 times bf16 over
+2^-20..2^20, every product exact in f32), a quarter of the trials with adversarial cancellation rows (|x| up to 2^40), 1.28 M outputs:
+
+| reference | outputs that differ |
+|---|---:|
+| k ascending, a rounded add per product (= the one-row kernel's fma chain) | **0** |
+| k descending | 511195 |
+| pairwise tree per 8, then added | 547863 |
+| one rounding per 8-wide dot | 537842 |
+
+The test discriminates (the other orders differ on ~40 % of outputs) and the M5 Max's fp32 MMA is the k-ascending chain on every output.
+This is observed behaviour, not a documented guarantee: the MMA kernel is registered for this arch only and keeps a bitwise test.

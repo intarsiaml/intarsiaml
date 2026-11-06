@@ -1,0 +1,37 @@
+[localeval] suite: request failed twice: RuntimeError: stream error: {"message": "no kernel for matmul on metal/applegpu_g17s (m=1 n=5120 k=5120 act=Some(Bf16) w=Some(Bf16)) [admitted kernels only]", "type": "server_error", "param": null, "code": 500}
+# localeval: adhoc — 2026-11-06T13:49
+
+- model: `qwen38-27b-dfl7` on ? (?), url `http://127.0.0.1:8298/v1`
+- thinking: off; run kind: suite; label: dm-p1-v4-dfl7-speed-spec
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval suite --url http://127.0.0.1:8298/v1 --model qwen38-27b-dfl7 --thinking off --tokenizer-repo Vontra/Qwen3.8-27B-MLX-4bit --tokenizer-revision 70ae7fac63274ff2eac54152031433374cb80f2f --lane spec:dflash --drafter dflash2 --max-num-seqs 1 --max-context 20480 --power-mode default --tier adhoc --cells speed-spec --label dm-p1-v4-dfl7-speed-spec --recipe intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec dflash --spec-k 7 --spec-draft z-lab-DFlash2 env INTARSIA_METAL_MXFP4_MR=1 (lane dm, 59bb1c5d0) --wait-idle 60`
+- result file: `results/20261106-134928-adhoc-dm-p1-v4-dfl7-speed-spec/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec dflash --spec-k 7 --spec-draft z-lab-DFlash2 env INTARSIA_METAL_MXFP4_MR=1 (lane dm, 59bb1c5d0)
+````
+
+## Suite
+
+- suite `llm-inference-suite` v1 (sha256 `2721aa3d13e9`), tier **adhoc** (ad hoc: never a suite result); INCOMPLETE
+- cells run: -; skipped: -; rejected: none
+- lane `None` (source None, verified None); probe ratio None; idle check metrics; context 20480 (max_model_len)
+- tokenizer: {"repo": "Vontra/Qwen3.8-27B-MLX-4bit", "revision": "70ae7fac63274ff2eac54152031433374cb80f2f", "sha256": "06b9509352d2af50381ab2247e083b80d32d5c0aba91c272ca9ff729b6a0e523"}
+- protocol compliance: none (incomplete run)
+- exit code 2 (0 pass, 3 rejected, 2 harness error)
+
+
+## Warnings
+
+- INCOMPLETE: request failed twice: RuntimeError: stream error: {"message": "no kernel for matmul on metal/applegpu_g17s (m=1 n=5120 k=5120 act=Some(Bf16) w=Some(Bf16)) [admitted kernels only]", "type": "server_error", "param": null, "code": 500}
+
+## Method
+
+Suite run (PROTOCOL.md): requests are one user message with a fresh nonce first, temperature 0, top_p 1, seed 0, ignore_eos (else logit_bias -100 on the EOS ids) with max_tokens = gen_tokens; t0 is when the last request byte is sent; tokens are counted by re-tokenizing the output with the pinned tokenizer (server counts are kept beside them and may differ by at most 2%); one discarded full-length request per size precedes the first round, and one discarded max_tokens-1 warmup precedes each round; rounds interleave the sizes in a cyclic (Latin-square) order; a cell's statistic is the median of its valid reps, its spread the range normalised to n = 3 with d2; a cell over its gate gets 2 extra reps once, then may drop the one rep farthest from the median, else it is rejected. Concurrency is a closed loop of N clients measured in a window that opens when every client has completed one request.
+
+[localeval] saved /opt/code/deepeval/results/20261106-134928-adhoc-dm-p1-v4-dfl7-speed-spec/result.incomplete.json
+[localeval] not logged to unanimis (incomplete)

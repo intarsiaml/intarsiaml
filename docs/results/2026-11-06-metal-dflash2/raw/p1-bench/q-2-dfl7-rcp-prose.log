@@ -1,0 +1,55 @@
+Traceback (most recent call last):
+  File "/opt/code/deepeval/src/localeval/cli.py", line 222, in _run
+    d = run_dataset(model, judge, ds, {"min_prefill": args.min_prefill, "min_decode": args.min_decode,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/code/deepeval/src/localeval/quality.py", line 227, in run_dataset
+    r = model.call_messages(row["messages"]) if "messages" in row else model.call(prompt)
+                                                                       ^^^^^^^^^^^^^^^^^^
+  File "/opt/code/deepeval/src/localeval/model.py", line 74, in call
+    return self.call_messages([{"role": "user", "content": prompt}], schema=schema,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/code/deepeval/src/localeval/model.py", line 93, in call_messages
+    raise RuntimeError(f"{self.target.name}: {self._consecutive_errors} failed calls in a row; "
+RuntimeError: dm-dfl7: 5 failed calls in a row; last error: RuntimeError: stream error: {"message": "no kernel for matmul on metal/applegpu_g17s (m=1 n=5120 k=5120 act=Some(Bf16) w=Some(Bf16)) [admitted kernels only]", "type": "server_error", "param": null, "code": 500}
+[localeval] RuntimeError: dm-dfl7: 5 failed calls in a row; last error: RuntimeError: stream error: {"message": "no kernel for matmul on metal/applegpu_g17s (m=1 n=5120 k=5120 act=Some(Bf16) w=Some(Bf16)) [admitted kernels only]", "type": "server_error", "param": null, "code": 500}
+[localeval] dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-prose.jsonl: 8 rows, judge=none
+# localeval: dm-dfl7 — 2026-11-06T13:40
+
+- model: `qwen38-27b-dfl7` on ? (?), url `http://127.0.0.1:8298/v1`
+- thinking: off; run kind: quality; label: dm-p1-v2-dfl7-rcp-prose
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dm-dfl7 --thinking off --label dm-p1-v2-dfl7-rcp-prose --recipe intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec dflash --spec-k 7 --spec-draft z-lab-DFlash2 env INTARSIA_METAL_MXFP4_MR=1 (lane dm, e71752452) --dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-prose.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261106-134041-dm-dfl7-dm-p1-v2-dfl7-rcp-prose/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec dflash --spec-k 7 --spec-draft z-lab-DFlash2 env INTARSIA_METAL_MXFP4_MR=1 (lane dm, e71752452)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-prose.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| prose-lighthouse | - | - | - | - | RuntimeError: stream error: {"message": "no kernel for matmu… |
+| prose-city-essay | - | - | - | - | RuntimeError: stream error: {"message": "no kernel for matmu… |
+| prose-product-launch | - | - | - | - | RuntimeError: stream error: {"message": "no kernel for matmu… |
+| prose-mountain-letter | - | - | - | - | RuntimeError: stream error: {"message": "no kernel for matmu… |
+
+## Warnings
+
+- INCOMPLETE: RuntimeError: dm-dfl7: 5 failed calls in a row; last error: RuntimeError: stream error: {"message": "no kernel for matmul on metal/applegpu_g17s (m=1 n=5120 k=5120 act=Some(Bf16) w=Some(Bf16)) [admitted kernels only]", "type": "server_error", "param": null, "code": 500}
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261106-134041-dm-dfl7-dm-p1-v2-dfl7-rcp-prose/result.json
+[localeval] logged to unanimis: df505079-8c95-489f-9075-89fdef921dc0
