@@ -2,6 +2,12 @@
 
 Lane `lane-ss/sampled-spec`, branch `lane-ss/sampled-spec`, 2026-11-05. Base: `origin/main` 602a1fcfe.
 
+**Status (results below; speed round 2 and CUDA are filled in when they finish).** Both variants are exact in law: exhaustive
+enumeration matches plain sampling to < 1e-12 and every statistical test passes (24 / 24 G-tests on Qwen3.5-0.8B, CPU).
+Greedy output is unchanged (workspace tests 1330 / 0 failed, Metal greedy ids 4 / 4 identical, plans identical, goldens PASS).
+Metal served decode (natural-v1, 1k / 4k): the 27B keeps the most with `reject` (x1.08-1.20 over sampled spec-off), the 35B with
+`match` (x1.15-1.23). Opt-in, default off.
+
 ## Messages received during the lane
 
 Coordinator, 2026-11-05 (copied verbatim as asked):
@@ -77,3 +83,73 @@ consumed differently).
    another session).
 4. **Cross-backend no-op.** Metal: `plan show` text and json identical to main (27B, 35B, 8B), `kernels test` 0 FAIL, greedy ids
    identical, 8B goldens PASS. CUDA (spark1, if a slot opens): `plan show` identical, `kernels test --backend cuda --quick` 0 FAIL.
+
+## 1. Gate 1: greedy unchanged
+
+| check | result |
+|---|---|
+| `cargo test --workspace --no-fail-fast` (endor, fleetq #8603, tree `0c019f8fe`; the first attempt #8595 was killed by another lane's `pkill`) | exit 0: **1330 passed, 0 failed, 29 ignored** (`raw/workspace-test-summary.txt`) |
+| existing MTP greedy-identity tests (`tests/mtp.rs`, incl. scripted acceptance patterns, pipelined and captured steps, reduced draft vocab) | pass (part of the run above) |
+| new: with sampled speculation on (both variants, full and reduced draft head), greedy ids = sampled speculation off, 3 prompts x 64 tokens (`sampled_speculation_drafts_sampled_requests_and_leaves_greedy_ones_alone`) | pass |
+| Metal greedy ids, base `602a1fcfe` vs branch with `INTARSIA_SPEC_SAMPLED=1`, 96 tokens: 27B (MTP default) and 35B (`--spec mtp --spec-k 2`), short and 4K natural prompt | **identical 4 / 4**; acceptance identical too (`raw/noop-metal/ids-*.err`) |
+
+## 2. Gate 2: exactness in law
+
+### 2.1 Unit (`crates/intarsia-core/src/spec.rs` tests, `sampler.rs` test)
+
+- `sampled_spec_law_is_the_target_law_exactly`: the law of k + 2 tokens produced by repeated sampled passes (exact enumeration
+  through `accept_prob` / `residual`, or the match rule over argmax drafts; target and draft distributions depend on the whole
+  prefix; V = 4) against plain sampling's law. 7 cases (independent supports; **disjoint supports**; **draft 0 on the target's
+  mode**; **reduced draft vocabulary**; **top-p 0.6** at T 0.8; top-k 2 + top-p 0.9 at T 1.3; draft = target) x **k = 1..4** x
+  both variants: max |difference| **< 1e-12** everywhere.
+- `sampled_spec_driver_samples_the_target_law`: the RNG-driven `accept_sampled` (the code the engine runs), 60,000 draws of
+  the joint law of 3 tokens (k = 2) per case and variant, Pearson chi-square against the exact law: below the z = 5 critical
+  value in all 14 runs. **Positive control:** the same driver drawing a rejected token from p instead of the residual fails it.
+- `sampled_spec_enumeration_catches_a_wrong_residual`: that bug moves the first token's law by > 1e-3 on the plain case.
+- `dist_is_what_sample_row_draws` (`sampler.rs`): `dist` gives exactly `sample_row`'s candidates, order and probabilities (every
+  candidate's cumulative interval maps to it under `sample_row`) across T 0 / 0.7 / 1 / 1.5, top-k 0 / 1 / 20 / n,
+  top-p 1 / 0.95 / 0.5, rows with -inf; the unsorted fast path (no top-k, no top-p) has the sorted path's probabilities.
+- The existing sampler fuzz tests (`keyed_sort_matches_comparator_sort`, `topk_candidates_sample_like_the_whole_row`) pass, so
+  `sample_row` is unchanged after the `walk` / `cut` split.
+
+### 2.2 Engine on the fixture (`crates/intarsia-models/tests/mtp.rs`, CPU, tiny hybrid MoE + random MTP head, V = 96)
+
+`sampled_speculation_matches_plain_sampling_in_law_on_the_fixture`: 1,500 seeded requests per arm, disjoint seed sets,
+per-position chi-square of tokens 2, 3, 4 vs plain sampling; configs (T 1, full) and (T 1, top-k 4, top-p 0.9) x (reject,
+reject with a 40-id draft head, match). All 18 below the z = 5 critical value (`raw/fixture-law-test.log`). The random head
+accepts little (match 27 / 4492 drafts, reject 929 / 4045), so this is a wiring check; 2.3 is the real-model test.
+
+### 2.3 Statistical test, real model (Qwen3.5-0.8B-Base, CPU backend, fleetq #8551 + #8602)
+
+Prompt "Once upon a time, in a small village by the sea, there lived", `--spec mtp --spec-k 2`, 4 tokens per run, n = 3000 runs
+per arm and config, seed ranges 0.., 1,000,000.., 2,000,000.. (off, reject, match). Config A: T 1.0, full draft head; config B:
+T 0.7, top-k 20, top-p 0.8, draft head reduced to the first 4096 ids. Token 1 is " a" in every run (prefill, not speculative).
+`scripts/sampled-spec/gtest.py` (`raw/stat/gtest.md`, per-run ids in `raw/stat/*.txt`):
+
+| config | variant | drafts accepted | G-test p, position 2 / 3 / 4 | df | power at w = 0.1 |
+|---|---|---|---|---|---|
+| A (T 1.0) | reject | 4012 / 6959 = 57.7 % | 0.629 / 0.018 / 0.138 | 58 / 50 / 78 | 0.86 / 0.90 / 0.77 |
+| A (T 1.0) | match | 2291 / 8149 = 28.1 % | 0.296 / 0.032 / 0.593 | 53 / 48 / 68 | 0.88 / 0.90 / 0.81 |
+| B (T 0.7, k 20, p 0.8, draft vocab 4096) | reject | 4527 / 7057 = 64.1 % | 0.465 / 0.624 / 0.288 | 3 / 7 / 20 | 1.00 / 1.00 / 0.99 |
+| B | match | 4519 / 6834 = 66.1 % | 0.686 / 0.946 / 0.210 | 3 / 7 / 20 | 1.00 / 1.00 / 0.99 |
+
+**All 12 p-values are above the Bonferroni alpha 0.01 / 12 = 8.3e-4: PASS.** Both branches ran (acceptance well inside 0..1).
+The joint law of tokens 2-4 (supplementary, not in the rule): p 0.018 / 0.357 / 0.180 / 0.062.
+
+**Power shortfall, stated against the pre-written rule:** the rule assumed at most 40 df; config A's high-entropy positions
+realised 48-78 df, so the power against Cohen's w = 0.1 is 0.77-0.90 there, not the >= 0.93 the rule promised (B: >= 0.99).
+Against w = 0.12 it is >= 0.97 at every cell (same calculation, lambda = 6000 w^2). The CPU backend has no row-exact verify kernels, so its verify rows can differ
+from single-row decode in the last bits; that is far below what this test can see and does not apply to the unit tests.
+
+## 4. Gate 4: cross-backend no-op
+
+Metal (endor, fleetq #8605, base binary from `602a1fcfe`, branch binary from `ecf818a37`, whose engine code equals the head's;
+`scripts/sampled-spec/noop-metal.sh`, `raw/noop-metal/`):
+
+| check | result |
+|---|---|
+| `plan show` text, json and stderr, 27B / 35B / 8B | **identical 9 / 9** |
+| `kernels test --backend metal` | 49 kernels, 980 cases, 0 FAIL, base and branch logs identical but for the wall time |
+| greedy ids 27B / 35B, short and 4K (with `INTARSIA_SPEC_SAMPLED=1` on the branch) | **identical 4 / 4** |
+| 8B goldens `qwen3-8b-fp32`, `qwen3-8b-long-fp32` | **PASS** both, base and branch |
+| sampled smoke, 27B T 0.7, 128 tokens | reject: 53 passes, 69.8 % accepted; match: 58 passes, 59.5 %; coherent text (`sampled-27-*.out`) |
