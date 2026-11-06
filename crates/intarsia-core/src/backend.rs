@@ -271,6 +271,12 @@ pub trait Backend: Send + Sync {
     fn gdn_conv_dtype(&self) -> DType {
         DType::F32
     }
+    /// Whether the delta-rule state `[Hv, dv, dk]` of a GatedDeltaNet layer may be stored as `dt` in the recurrent slot (lane spark35:
+    /// `INTARSIA_GDN_STATE=bf16`, recipe `[tuning.<backend>] gdn_state = "bf16"`; the kernels still compute in f32 and round once per
+    /// launch). f32 everywhere; bf16 on CUDA only. A request the backend does not support is a load error.
+    fn gdn_state_supported(&self, dt: DType) -> bool {
+        dt == DType::F32
+    }
 
     /// Device description with memory figures measured at call time.
     fn info(&self) -> DeviceInfo;

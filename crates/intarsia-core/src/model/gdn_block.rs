@@ -16,9 +16,10 @@ use super::*;
 use crate::quant::{BF16, FP8_E4M3, MXFP4};
 
 /// Bytes the recurrent slot of one GatedDeltaNet layer holds: conv state `[C, K-1]` in `conv_dt` (`Backend::gdn_conv_dtype`:
-/// f32, bf16 on CUDA), then (256-byte aligned) the delta-rule state `[Hv, dv, dk]` f32.
-pub(super) fn state_bytes(l: &LinearDims, conv_dt: DType) -> usize {
-    state_s_offset(l, conv_dt) + l.v_heads * l.v_head_dim * l.k_head_dim * 4
+/// f32, bf16 on CUDA), then (256-byte aligned) the delta-rule state `[Hv, dv, dk]` in `state_dt` (f32; bf16 under
+/// `Model::gdn_state_dt`).
+pub(super) fn state_bytes(l: &LinearDims, conv_dt: DType, state_dt: DType) -> usize {
+    state_s_offset(l, conv_dt) + l.v_heads * l.v_head_dim * l.k_head_dim * state_dt.size_bytes()
 }
 
 pub(super) fn state_s_offset(l: &LinearDims, conv_dt: DType) -> usize {
@@ -149,7 +150,7 @@ impl Model {
             StateSlot::AttnKv(_) | StateSlot::Ring(_) | StateSlot::Shared(_) => return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot")),
         };
         let conv_state = TensorRef::new(rec.buf.clone(), conv_dt, &[c, ks - 1]);
-        let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
+        let mut s_state = TensorRef::new(rec.buf.clone(), self.gdn_state_dt, &[hv, dv, dk]);
         s_state.offset = state_s_offset(l, conv_dt);
 
         let qkv = self.view(&x.qkv, act, &[t, c]);
@@ -227,7 +228,7 @@ impl Model {
                     StateSlot::AttnKv(_) | StateSlot::Ring(_) | StateSlot::Shared(_) => return Err(Error::invalid("GatedDeltaNet block bound to an attention state slot")),
                 };
                 let conv_state = TensorRef::new(rec.buf.clone(), conv_dt, &[c, ks - 1]);
-                let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
+                let mut s_state = TensorRef::new(rec.buf.clone(), self.gdn_state_dt, &[hv, dv, dk]);
                 s_state.offset = state_s_offset(l, conv_dt);
                 let (lo, len) = (sg.lo, sg.len);
                 if self.verifying() && len > 1 {

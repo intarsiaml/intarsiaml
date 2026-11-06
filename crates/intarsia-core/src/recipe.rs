@@ -397,6 +397,10 @@ pub struct BackendTuning {
     /// the unsharded matmul's; `"bf16"`: each rank rounds its partial first, half the all-reduce bytes) when `INTARSIA_TP_PARTIAL` is not
     /// set ([`Recipe::resolve_tp_partial`]). Unset: `"f32"`. Per backend only, set only where an accuracy gate passed.
     pub tp_partial: Option<String>,
+    /// The dtype of the GatedDeltaNet delta-rule state in the recurrent slot (`"f32"` or `"bf16"`) when `INTARSIA_GDN_STATE` is not set
+    /// ([`Recipe::resolve_gdn_state`]). Unset: `"f32"`. Per backend only (CUDA is the one that supports `"bf16"`), set only where an
+    /// accuracy gate passed (lane spark35, `docs/results/2026-11-05-spark35-numerics.md`).
+    pub gdn_state: Option<String>,
     /// Quantise the `lm_head` at load on this backend (`"fp8"` or `"mxfp4"`, [`crate::quant::head`]) when `INTARSIA_LMHEAD_QUANT` is not
     /// set. It changes outputs: opt-in, no shipped recipe sets it (lane lmhead-fp8). Per backend only; CUDA ignores it (not gated there).
     pub lm_head_quant: Option<String>,
@@ -530,6 +534,12 @@ impl Recipe {
     /// engine's default (f32). `INTARSIA_TP_PARTIAL` wins over it.
     pub fn resolve_tp_partial(&self, backend: &str) -> Option<&str> {
         self.tuning.backends.get(backend).and_then(|b| b.tp_partial.as_deref())
+    }
+
+    /// The recipe's GatedDeltaNet delta-rule state dtype for `backend` (`[tuning.<backend>] gdn_state`, `"f32"` or `"bf16"`); `None`:
+    /// not set (f32). `INTARSIA_GDN_STATE` wins over it.
+    pub fn resolve_gdn_state(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.gdn_state.as_deref())
     }
 
     /// The recipe's busy prefill chunk for `backend` (`[tuning.<backend>] busy_chunk`): the rows of a prefill chunk that runs beside decoding
@@ -695,6 +705,9 @@ impl Recipe {
         }
         if let Some(v) = self.tuning.backends.values().filter_map(|b| b.tp_partial.as_deref()).find(|v| !matches!(*v, "f32" | "bf16")) {
             return Err(Error::model(format!("recipe [tuning.<backend>] tp_partial = \"{v}\" (f32 or bf16)")));
+        }
+        if let Some(v) = self.tuning.backends.values().filter_map(|b| b.gdn_state.as_deref()).find(|v| !matches!(*v, "f32" | "bf16")) {
+            return Err(Error::model(format!("recipe [tuning.<backend>] gdn_state = \"{v}\" (f32 or bf16)")));
         }
         for v in self.tuning.backends.values().filter_map(|b| b.lm_head_quant.as_deref()) {
             crate::quant::head::HeadQuant::parse(v)?;

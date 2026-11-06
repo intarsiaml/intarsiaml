@@ -428,6 +428,8 @@ pub struct Model {
     pub recipe: Recipe,
     pub act: DType,
     pub kv: DType,
+    /// Dtype of the GatedDeltaNet delta-rule state in the recurrent slot (f32 unless `INTARSIA_GDN_STATE=bf16` or the recipe's `gdn_state`).
+    pub gdn_state_dt: DType,
     pub plan: MemoryPlan,
     pub weights_bytes: u64,
     embed: TensorRef,
@@ -1036,6 +1038,23 @@ impl Model {
 
         let qdim = dims.n_heads * dims.head_dim;
         let kvdim = dims.n_kv_heads * dims.head_dim;
+        // the delta-rule state dtype of the GatedDeltaNet layers (lane spark35): `INTARSIA_GDN_STATE`, then the recipe's
+        // `[tuning.<backend>] gdn_state`, else f32; a backend that cannot store it so refuses at load
+        let gdn_state_dt = match std::env::var("INTARSIA_GDN_STATE").ok().as_deref() {
+            None | Some("") => match recipe.resolve_gdn_state(b.name()) {
+                Some("bf16") => DType::Bf16,
+                _ => DType::F32,
+            },
+            Some("f32") => DType::F32,
+            Some("bf16") => DType::Bf16,
+            Some(v) => return Err(Error::invalid(format!("INTARSIA_GDN_STATE={v} (f32 or bf16)"))),
+        };
+        if !b.gdn_state_supported(gdn_state_dt) {
+            return Err(Error::Unsupported(format!(
+                "delta-rule state dtype {gdn_state_dt} on backend '{}' (INTARSIA_GDN_STATE / recipe gdn_state; Backend::gdn_state_supported)",
+                b.name()
+            )));
+        }
         let mut layers = Vec::new();
         let mut slot_specs = Vec::new();
         for li in 0..dims.n_layers {
@@ -1145,9 +1164,15 @@ impl Model {
                         let lin: LinearDims = dims.linear.ok_or_else(|| {
                             Error::model("the recipe has a gdn block but config.json has no linear attention dimensions")
                         })?;
+                        if gdn_state_dt != DType::F32 && !matches!(lin.k_head_dim, 64 | 128) {
+                            return Err(Error::Unsupported(format!(
+                                "delta-rule state dtype {gdn_state_dt} with a key head dim of {} (the split / decode kernels take 64 and 128)",
+                                lin.k_head_dim
+                            )));
+                        }
                         let (c, vdim, hv) = (lin.conv_dim(), lin.v_heads * lin.v_head_dim, lin.v_heads);
                         let slot = slot_specs.len();
-                        slot_specs.push(SlotSpec::Recurrent { bytes: gdn_block::state_bytes(&lin, b.gdn_conv_dtype()) });
+                        slot_specs.push(SlotSpec::Recurrent { bytes: gdn_block::state_bytes(&lin, b.gdn_conv_dtype(), gdn_state_dt) });
                         // tensor parallelism (docs/design/35b-tp2.md): by key-head group. `lin` is this rank's (heads
                         // divided); the fused q/k/v projection and the conv channels are `[q | k | v]` of the checkpoint's
                         // widths, each group split on its own. v head h reads k head h / (Hv / Hk), so a contiguous run of
@@ -1612,6 +1637,7 @@ impl Model {
             recipe: recipe.clone(),
             act,
             kv,
+            gdn_state_dt,
             plan,
             weights_bytes: weights_bytes.get(),
             weight_names: Arc::new(weight_names.into_inner()),

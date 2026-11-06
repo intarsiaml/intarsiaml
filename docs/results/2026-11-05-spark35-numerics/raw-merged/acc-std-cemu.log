@@ -1,0 +1,59 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_moe, cuda)
+mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)
+verify attention rows: engaged (one row-table attention launch per layer)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_decode_v2_rows_bf16 matmul_nvfp4=matmul_nvfp4_gemv_rows silu_glu=silu_glu_bf16 moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+accuracy: nvidia/Qwen3.6-35B-A3B-NVFP4 on NVIDIA GB10 (vocab 248320, weights/act/kv bf16/bf16)
+golden: /home/nvidia/intarsiaml-s35/out/dump-std-base.st (5 prompts, 134015 positions, top-64 log-probs: KL(supp) over the top-64 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine intarsia UNSTAMPED (built without INTARSIA_BUILD_STAMP) | model nvidia/Qwen3.6-35B-A3B-NVFP4 | revision - | dtype - | KV dtype bf16 | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+prefill chunk 2048; longest prompt 65536; prompts spanning more than one chunk: 5/5
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: the self-golden does not record the code that produced it (written by a build without INTARSIA_BUILD_STAMP, or by an older tool): record it again from the pre-change build (--allow-unstamped)
+self-golden written by: UNSTAMPED (built without INTARSIA_BUILD_STAMP) (top-64, modes prefill,decode)
+WARNING: this run resolved exactly the same kernels and flags as the self-golden's run: a kernel or graph change cannot show up in this comparison
+self-golden budgets: mean KL(21-way) <= 1.0e0, max position KL <= 1.0e2, top-1 flips <= 100% (>= 1 position), mean |tail diff| <= 1.0e0, prompt KL <= x5
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+cmtp-4k-0           3858  3858    98.81   3.942e-3   3.724e-3   3.724e-3    2.469e0   0.0672   0.0675    96.67 2048/3858      0
+cmtp-16k-0         15469 15469    97.42   6.645e-3   6.267e-3   6.267e-3    2.469e0   0.0380   0.0383    92.94 2048/15469      0
+code-16k           16384 16384    98.33   4.947e-3   4.731e-3   4.731e-3    4.103e0   0.0171   0.0173    92.75 2154/16384      0
+docs-32k           32768 32768    95.37   1.103e-2   1.042e-2   1.042e-2    7.113e0   0.0377   0.0380    93.28 2072/32768      0
+docs-64k           65536 65536    95.23   1.210e-2   1.145e-2   1.145e-2    1.829e1   0.0363   0.0367    92.89 2058/65536      0
+OVERALL                  134015    96.00   1.010e-2   9.555e-3   9.555e-3    1.829e1   0.0354   0.0357    93.09      7.7%      0
+prefill vs the other build's logits (same weights):
+  mean KL(21-way)                                 9.5548e-3  (limit 1.0000e0)  ok
+  max position KL(21-way)                          1.8282e1  (limit 1.0000e2)  ok
+  top-1 flips                                      5.3640e3  (limit 1.3402e5)  ok
+  mean |tail diff|                                2.2869e-3  (limit 1.0000e0)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [docs-64k]              1.1446e-2  (limit 5.0000e0)  ok
+SELF-STATS mode=prefill positions=134015 mean_kl21=9.554824e-3 max_kl21=1.828228e1 flips=5364 flip_pct=4.0025 tail_abs=2.286927e-3 worst_prompt_kl21=1.144631e-2
+prefill self-golden => PASS
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+cmtp-4k-0           3858  2048    96.29   1.073e-2   1.000e-2   1.000e-2    3.053e0   0.0506   0.0511    92.03   60/2048      0
+cmtp-16k-0         15469  2048    95.46   1.256e-2   1.181e-2   1.181e-2    5.962e0   0.0382   0.0388    91.06   10/2048      0
+code-16k           16384  2048    97.85   6.224e-3   5.951e-3   5.951e-3   8.878e-1   0.0131   0.0134    91.44   57/2048      0
+docs-32k           32768  2048    95.85   1.046e-2   9.978e-3   9.978e-3    1.685e0   0.0253   0.0256    92.83   64/2048      0
+docs-64k           65536  2048    94.38   1.222e-2   1.122e-2   1.122e-2   2.674e-1   0.0421   0.0430    92.60   11/2048      0
+OVERALL                  10240    95.97   1.044e-2   9.795e-3   9.795e-3    5.962e0   0.0338   0.0344    91.99      2.0%      0
+decode (teacher-forced) vs the other build's logits (same weights):
+  mean KL(21-way)                                 9.7946e-3  (limit 1.0000e0)  ok
+  max position KL(21-way)                          5.9489e0  (limit 1.0000e2)  ok
+  top-1 flips                                      4.1300e2  (limit 1.0240e4)  ok
+  mean |tail diff|                                2.5741e-3  (limit 1.0000e0)  ok
+  non-finite rows                                  0.0000e0  (limit 0.0000e0)  ok
+  worst prompt KL(21-way) [cmtp-16k-0]            1.1814e-2  (limit 5.0000e0)  ok
+SELF-STATS mode=decode positions=10240 mean_kl21=9.794583e-3 max_kl21=5.948868e0 flips=413 flip_pct=4.0332 tail_abs=2.574135e-3 worst_prompt_kl21=1.181412e-2
+decode (teacher-forced) self-golden => PASS
+greedy-match [prefill]: mean 17.8% of positions before the first argmax divergence, worst prompt 3.1% (informational)
+greedy-match [decode (teacher-forced)]: mean 2.0% of positions before the first argmax divergence, worst prompt 0.5% (informational)
+
+self-golden verdict (same weights, tight budgets, against the other build's logits): PASS
+golden gate: PASS

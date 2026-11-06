@@ -115,7 +115,7 @@ impl Model {
         ) {
             if let StateSlot::Recurrent(rec) = &sts[0].slots[g.slot] {
                 let conv_state = TensorRef::new(rec.buf.clone(), conv_dt, &[c, ks - 1]);
-                let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
+                let mut s_state = TensorRef::new(rec.buf.clone(), self.gdn_state_dt, &[hv, dv, dk]);
                 s_state.offset = state_s_offset(l, conv_dt);
                 let mut cc = OpCall::new(
                     Op::GdnConv,
@@ -158,7 +158,7 @@ impl Model {
                     }
                 };
                 let conv_state = TensorRef::new(rec.buf.clone(), conv_dt, &[c, ks - 1]);
-                let mut s_state = TensorRef::new(rec.buf.clone(), DType::F32, &[hv, dv, dk]);
+                let mut s_state = TensorRef::new(rec.buf.clone(), self.gdn_state_dt, &[hv, dv, dk]);
                 s_state.offset = state_s_offset(l, conv_dt);
                 let (qkv_r, a_r, b_r, conv_r, core_r) =
                     (qkv.rows(r, 1), a.rows(r, 1), bg.rows(r, 1), conv.rows(r, 1), core.rows(r, 1));
