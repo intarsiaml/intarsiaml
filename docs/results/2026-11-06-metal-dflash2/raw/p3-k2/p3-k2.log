@@ -1,0 +1,28 @@
+fleetq: #8847 waiting (#2 in line): in line behind #8845 "dm-ff: debug plan calls" (claude-1943a70c) on endor
+fleetq:   #8845 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8845 set, or it will wait for #8845 to be released.
+fleetq: #8847 waiting (#1 in line): needs cpu quiet on endor, but #8845 "dm-ff: debug plan calls" (claude-1943a70c) loads it
+fleetq:   #8845 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8845 set, or it will wait for #8845 to be released.
+fleetq: #8847 running on endor: zsh .dm/p3-k1.sh
+test a_rows_bits_do_not_depend_on_the_calls_m ... ok
+test an_unaligned_x_takes_the_prepass_and_gives_the_same_bits ... ok
+test gemv_bits_are_pinned ... ok
+test gemv_matches_the_f64_reference ... ok
+test m_row_shaders_are_bitwise_the_one_row_call_per_row ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.45s
+DFBENCH mxfp4 17408x5120 M=2: rows launch 102.4 us (1.71x M=1, 462 GB/s), 2 one-row launches 108.3 us; mr p1 67.4 us (1.13x M=1), mr p2 67.4 us (1.13x M=1), mr p4 72.4 us (1.21x M=1), mr mma 670.7 us (11.20x M=1), mr p2lut 87.5 us (1.46x M=1), mr p4lut 81.6 us (1.36x M=1)
+DFBENCH mxfp4 17408x5120 M=3: rows launch 135.0 us (2.25x M=1, 351 GB/s), 3 one-row launches 161.6 us; mr p1 80.8 us (1.35x M=1), mr p2 81.8 us (1.37x M=1), mr p4 88.1 us (1.47x M=1), mr mma 696.5 us (11.63x M=1), mr p2lut 99.9 us (1.67x M=1), mr p4lut 93.6 us (1.56x M=1)
+DFBENCH mxfp4 17408x5120 M=4: rows launch 166.9 us (2.79x M=1, 284 GB/s), 4 one-row launches 214.2 us; mr p1 103.0 us (1.72x M=1), mr p2 103.0 us (1.72x M=1), mr p4 130.7 us (2.18x M=1), mr mma 747.5 us (12.48x M=1), mr p2lut 114.8 us (1.92x M=1), mr p4lut 133.5 us (2.23x M=1)
+DFBENCH mxfp4 17408x5120 M=8: rows launch 293.2 us (4.90x M=1, 162 GB/s), 8 one-row launches 424.5 us; mr p1 240.8 us (4.02x M=1), mr p2 240.2 us (4.01x M=1), mr p4 270.4 us (4.52x M=1), mr mma 789.9 us (13.19x M=1), mr p2lut 244.1 us (4.08x M=1), mr p4lut 287.4 us (4.80x M=1)
+DFBENCH mxfp4 5120x17408 M=2: rows launch 105.2 us (1.67x M=1, 450 GB/s), 2 one-row launches 118.4 us; mr p1 69.7 us (1.11x M=1), mr p2 74.5 us (1.18x M=1), mr p4 68.7 us (1.09x M=1), mr mma 1032.7 us (16.40x M=1), mr p2lut 88.5 us (1.40x M=1), mr p4lut 79.8 us (1.27x M=1)
+DFBENCH mxfp4 5120x17408 M=3: rows launch 138.6 us (2.20x M=1, 342 GB/s), 3 one-row launches 175.9 us; mr p1 82.2 us (1.31x M=1), mr p2 90.5 us (1.44x M=1), mr p4 82.8 us (1.32x M=1), mr mma 1030.3 us (16.36x M=1), mr p2lut 103.3 us (1.64x M=1), mr p4lut 92.2 us (1.46x M=1)
+DFBENCH mxfp4 5120x17408 M=4: rows launch 172.1 us (2.73x M=1, 275 GB/s), 4 one-row launches 231.2 us; mr p1 109.4 us (1.74x M=1), mr p2 110.1 us (1.75x M=1), mr p4 131.2 us (2.08x M=1), mr mma 1049.7 us (16.67x M=1), mr p2lut 120.7 us (1.92x M=1), mr p4lut 132.1 us (2.10x M=1)
+DFBENCH mxfp4 5120x17408 M=8: rows launch 328.2 us (5.21x M=1, 144 GB/s), 8 one-row launches 458.3 us; mr p1 257.6 us (4.09x M=1), mr p2 257.1 us (4.08x M=1), mr p4 280.9 us (4.46x M=1), mr mma 1078.9 us (17.13x M=1), mr p2lut 275.7 us (4.38x M=1), mr p4lut 298.3 us (4.74x M=1)
+DFBENCH mxfp4 12288x5120 M=2: rows launch 73.4 us (1.58x M=1, 455 GB/s), 2 one-row launches 78.3 us; mr p1 49.6 us (1.07x M=1), mr p2 49.5 us (1.06x M=1), mr p4 54.7 us (1.17x M=1), mr mma 541.7 us (11.63x M=1), mr p2lut 64.0 us (1.38x M=1), mr p4lut 60.8 us (1.31x M=1)
+DFBENCH mxfp4 12288x5120 M=3: rows launch 96.3 us (2.07x M=1, 347 GB/s), 3 one-row launches 114.9 us; mr p1 59.9 us (1.29x M=1), mr p2 60.2 us (1.29x M=1), mr p4 67.1 us (1.44x M=1), mr mma 567.1 us (12.18x M=1), mr p2lut 73.4 us (1.58x M=1), mr p4lut 70.1 us (1.51x M=1)
+DFBENCH mxfp4 12288x5120 M=4: rows launch 119.8 us (2.57x M=1, 279 GB/s), 4 one-row launches 152.4 us; mr p1 76.3 us (1.64x M=1), mr p2 75.7 us (1.63x M=1), mr p4 97.2 us (2.09x M=1), mr mma 592.5 us (12.72x M=1), mr p2lut 83.0 us (1.78x M=1), mr p4lut 98.3 us (2.11x M=1)
+DFBENCH mxfp4 12288x5120 M=8: rows launch 208.6 us (4.48x M=1, 160 GB/s), 8 one-row launches 301.8 us; mr p1 172.9 us (3.71x M=1), mr p2 173.3 us (3.72x M=1), mr p4 197.8 us (4.25x M=1), mr mma 610.5 us (13.11x M=1), mr p2lut 176.6 us (3.79x M=1), mr p4lut 209.6 us (4.50x M=1)
+DFBENCH mxfp4 5120x6144 M=2: rows launch 41.1 us (1.74x M=1, 406 GB/s), 2 one-row launches 43.2 us; mr p1 26.8 us (1.13x M=1), mr p2 28.6 us (1.21x M=1), mr p4 27.0 us (1.14x M=1), mr mma 315.7 us (13.33x M=1), mr p2lut 34.8 us (1.47x M=1), mr p4lut 32.7 us (1.38x M=1)
+DFBENCH mxfp4 5120x6144 M=3: rows launch 52.5 us (2.22x M=1, 318 GB/s), 3 one-row launches 62.7 us; mr p1 32.0 us (1.35x M=1), mr p2 34.4 us (1.45x M=1), mr p4 32.4 us (1.37x M=1), mr mma 324.3 us (13.70x M=1), mr p2lut 40.7 us (1.72x M=1), mr p4lut 38.8 us (1.64x M=1)
+DFBENCH mxfp4 5120x6144 M=4: rows launch 64.3 us (2.72x M=1, 260 GB/s), 4 one-row launches 83.7 us; mr p1 45.8 us (1.93x M=1), mr p2 45.9 us (1.94x M=1), mr p4 51.9 us (2.19x M=1), mr mma 331.6 us (14.00x M=1), mr p2lut 45.0 us (1.90x M=1), mr p4lut 52.7 us (2.23x M=1)
+DFBENCH mxfp4 5120x6144 M=8: rows launch 109.2 us (4.61x M=1, 153 GB/s), 8 one-row launches 163.0 us; mr p1 91.9 us (3.88x M=1), mr p2 92.1 us (3.89x M=1), mr p4 104.4 us (4.41x M=1), mr mma 349.3 us (14.75x M=1), mr p2lut 94.6 us (3.99x M=1), mr p4lut 109.6 us (4.63x M=1)
+fleetq: #8847 done (exit 0)

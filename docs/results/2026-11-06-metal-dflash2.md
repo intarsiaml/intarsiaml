@@ -250,3 +250,17 @@ Opened 2026-11-06 for the coordinator (merges on green CI). CPU regression test 
 12/12); Metal no-op vs main (#8844): plan show 9/9 identical, kernels list / test identical; Metal serve 27B with this lane's binary
 (#8848): with the fix 0 errors over 88 passes (612 proposed, 232 accepted) and all 4 greedy texts == `--spec off`, without it 4 / 4 requests
 fail; workspace tests 1368 / 0 (#8849).
+
+### Second attempt: table decode of the e2m1 codes (fleetq job after #8848, `raw/p3-k2/p3-k2.log`; reverted)
+
+Bitwise (the MR test passes with the arms `12` / `14`), but **slower** than the shipped MR at every shape and M (17408x5120 M = 3: 99.9 / 93.6
+us vs 80.8 us; M = 8: 244 / 287 vs 240). Reverted.
+
+Two attempts failed; the assumption that was wrong: "the M-row kernel is ALU-issue-bound by the e2m1 decode". What the numbers fit
+instead is the **activation re-read bandwidth**: every lane re-loads each activation word for every M row once per P weight rows, so the
+kernel reads 4M/P times the weight bytes of activations from L1/L2 (P = 2: M = 3 6x, M = 8 16x). 17408x5120: M = 3 267 MB in 81 us, M = 8
+713 MB in 240 us, both ~3.0-3.3 TB/s, and the four shapes sit on the same line. Larger P cuts it but P = 4 already loses to register
+pressure. The only form that shares operands across 8 x 8 tiles in registers is the simdgroup MMA (its B fragment is shared by 8 weight
+rows, its A by 8 activation rows), whose ceiling at M = 8 is ~1.5x M = 1, but it pads M to 8 (no help for MTP's M = 3), and the first
+version was 11-18x slow for structural reasons (serial chain, 2-byte loads). Reported to the coordinator for a decision before more kernel
+work.
