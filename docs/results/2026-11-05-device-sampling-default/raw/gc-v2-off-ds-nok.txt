@@ -1,0 +1,47 @@
+[localeval] calibrated: 22.1 tokens/sentence, 54 base tokens, ctx=8192
+[localeval]   1024 tok rep 1/2: prompt=991 ttft=0.20s prefill=5005 tok/s decode=72.8 tok/s peak=84.5 tok/s out=128
+[localeval]   1024 tok rep 2/2: prompt=992 ttft=0.19s prefill=5241 tok/s decode=72.5 tok/s peak=85.3 tok/s out=128
+[localeval] 4 streams: aggregate 116.4 tok/s
+[localeval] 16 streams: aggregate 166.5 tok/s
+# localeval: ds-nok — 2026-11-05T19:53
+
+- model: `intarsia` on spark-4e77 (intarsia cuda), url `http://spark-4e77:8197/v1`
+- thinking: off; run kind: speed; label: gc-v2-off-ds-nok
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval speed ds-nok --thinking off --sizes 1024 --gen 128 --reps 2 --concurrency 4,16 --label gc-v2-off-ds-nok --recipe intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-seq 8192 --mem-budget 40 --max-batch 16; --generation-config none`
+- result file: `results/20261105-195338-ds-nok-gc-v2-off-ds-nok/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend cuda --model Qwen3.6-35B-A3B-NVFP4 --max-seq 8192 --mem-budget 40 --max-batch 16; --generation-config none
+````
+
+## Speed sweep
+
+served `intarsia`, fingerprint `None`, ctx 8192, 2 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 991 | 0.19 | 5123 (5005–5241) * | - | 72.7 (72.5–72.8) | 84.9 (84.5–85.3) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+| streams | aggregate decode tok/s | per-stream decode | TTFT s |
+|---:|---:|---:|---:|
+| 4 | 116.4 | 32.9 (30.5–34.6) | 0.52 |
+| 16 | 166.5 | 12.0 (10.8–13.3) | 1.61 |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-195338-ds-nok-gc-v2-off-ds-nok/result.json
+[localeval] logged to unanimis: 7c833b5a-0bdd-471f-969b-925b32e903ec

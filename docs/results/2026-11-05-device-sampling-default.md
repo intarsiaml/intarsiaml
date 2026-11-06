@@ -97,7 +97,18 @@ Server MemAvailable with the server up: 54 to 55 GB in all four visits (`raw/mem
 
 ### Speed: default requests, new defaults against `--generation-config none`
 
-GCSPEED_PLACEHOLDER
+fleetq #8650 (`--quiet gpu,cpu --mem 46`), spark1, Qwen3.6-35B-A3B NVFP4, `serve --backend cuda --max-batch 16 --max-seq 8192 --mem-budget 40`, one binary built from the committed source in the job, one fresh server per visit, order `auto`, `none`, `auto`, `none` (ABAB; A = the new default), page cache dropped before each. localeval 0.4.0 `speed` (target `ds-nok`, `raw/scripts/targets.toml`): 1024-token prompts, 128 forced tokens, 2 reps, a burst at 4 and one at 16 streams. localeval always sends `temperature`, so the requests carry `temperature 1.0` and no `top_p` or `top_k`: with the 35B's checkpoint temperature of 1.0 that is the same as sending nothing, and the 0.95 and 20 are applied by the server (startup line and `/metrics` line in `raw/gencfg-startup.txt`: `temperature=1 top_p=0.95 top_k=20` in the `auto` visits, `temperature=1 top_p=1 top_k=0 (built-in)` in the `none` visits).
+
+| aggregate decode tok/s | visit 1 auto | visit 2 none | visit 3 auto | visit 4 none | auto mean | none mean | ratio |
+|---|---|---|---|---|---|---|---|
+| 4 streams | 154.4 | 116.4 | 152.4 | 115.9 | 153.4 | 116.2 | **1.32** |
+| 16 streams | 250.3 | 166.5 | 256.7 | 166.1 | 253.5 | 166.3 | **1.52** |
+
+Every `auto` visit beat both neighbouring `none` visits by more than 30 percent. The gain is the smaller host sort (`top_k 20` instead of the whole vocabulary) plus the device top-k path, which the defaulted `top_k 20` now reaches (the two parts: 1.31x and 1.12x at 16 streams in the earlier measurements). Run ids: `raw/gc-v*-ds-nok.txt`; MemAvailable with the server up 55 GB in every visit (`raw/gc-mem.txt`).
+
+### Equality: new defaults against `none`, served, 16 concurrent
+
+`scripts/htk/equal.py`, 7 settings x 1 / 4 / 16 streams, seeded, 64 forced tokens (`raw/gc-ids-compare.txt`): **19 / 21 cells identical**. The two that differ are the two cells that send `top_p 0.9` and no `top_k` at 4 and 16 streams (`t0.8-p0.9-nok/n4` and `/n16`; the 1-stream cell of the same setting happened to match): with `auto` they are sampled with the checkpoint's `top_k 20`, with `none` over the whole vocabulary, which is the intended change in the distribution (2 of 4 and 11 of 16 rows diverge, from token 0 to 62). Every other cell sends its own `top_k` or is greedy, and is identical: the three **greedy** cells (temperature 0, ids unchanged), the 15 cells with `top_k` 1 to 64, and the 1-stream no-`top_k` cell.
 
 ## Gates
 
