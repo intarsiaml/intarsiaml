@@ -760,6 +760,12 @@ impl Model {
                 Ok(())
             }
         });
+        // lane dm: a pass ingests as many context rows as it emitted (1 ..= block); those projections are M = 1 .. block calls, which
+        // some backends (Metal: `matmul_bf16_gemv` at M = 1) serve with other kernels than the block's M rows. Record each, or `serve`
+        // (admitted kernels only) fails on the first such pass (`no kernel for matmul ... m=1 ... [admitted kernels only]`).
+        let r = r.and_then(|_| {
+            (1..t).try_for_each(|n| self.dflash_ingest(head, &mut crate::plan::phantom_state(&specs, cap, 0), &head.feat, n, false))
+        });
         self.exact_rows.store(exact, std::sync::atomic::Ordering::Relaxed);
         if let Some(r) = self.recorder.lock().unwrap().as_mut() {
             r.extra = extra;
