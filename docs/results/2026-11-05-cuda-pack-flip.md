@@ -152,10 +152,15 @@ HIP's `tests/packed_rows.rs` covers exactly these with a 16-row and a 17-row seg
 | macro trailing-chunk probe (pb) | spark1 #8669 | pass under both rules |
 | CUDA `plan show` (35B, `--max-seq 8192 --mem-budget 40 --json`), dev against `~/intarsiaml-bm/bin/main` | spark1 #8669 | byte-identical |
 | CUDA `kernels test --quick` | spark1 #8669 | 106 kernels, 918 cases, 0 not admitted or failed |
-| `cargo test --workspace --no-fail-fast` | endor #8670 | see section 9 |
-| Metal no-op against main 5390e65b4 (plan show, 256 greedy ids, 8B + 35B; kernels test; goldens) | endor #8670 | see section 9 |
+| `cargo test --workspace --no-fail-fast` | endor #8670 | 1324 passed, 0 failed, 31 ignored (231 test binaries) |
+| Metal no-op against main 5390e65b4 (plan show, 256 greedy ids, 8B + 35B; kernels test; goldens) | endor #8670 | identical; kernels test passes; goldens pass (section 9) |
 | local: `cargo test -p intarsia-core --test scheduler`, `-p intarsia-cli --test docs_env_vars` | endor (Mac) | pass |
 
 ## 9. Metal no-op and workspace tests
 
-Pending (#8670).
+These ran on endor, fleetq #8670, comparing the branch with main 5390e65b4. Raw logs: `raw/metal/`.
+- **Greedy ids:** 256 each, Qwen3-8B and the 35B, short and ~4k prompts. All identical.
+- **`plan show`:** 8B and 35B, json and text. Byte-identical.
+- **`kernels test --backend metal`:** 49 kernels, 980 cases, exit 0.
+- **Goldens** `qwen3-8b-fp32` and `-long` (bf16 class): PASS.
+- **`cargo test --workspace --no-fail-fast`:** 1324 passed, 0 failed, 31 ignored, 231 binaries.
