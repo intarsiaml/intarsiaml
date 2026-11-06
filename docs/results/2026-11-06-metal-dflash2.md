@@ -243,3 +243,10 @@ This is observed behaviour, not a documented guarantee: the MMA kernel is regist
   27B shapes is the M = 8 compute bound (17408x5120: 713 M fma = 88 us at 8.07 T, 1.46x M = 1); M = 3 stays with the ALU MR kernel.
 * Bound for the ALU form: M = 1 is bandwidth-bound (17408x5120: 44.6 MB in 60 us, ~740 GB/s); M = 3 needs 267 M fma = 36 us at the fma peak,
   so M = 3 ~ 1.0-1.1x is not excluded by arithmetic: the shipped 1.30-1.44x is instruction overhead (e2m1 decode, bf16 widening, loads).
+
+### Dry-run ingest fix: PR #324 (branch `lane-dm/dflash-dryrun-ingest`)
+
+Opened 2026-11-06 for the coordinator (merges on green CI). CPU regression test fails without the fix, passes with it (#8854: dflash2_cpu
+12/12); Metal no-op vs main (#8844): plan show 9/9 identical, kernels list / test identical; Metal serve 27B with this lane's binary
+(#8848): with the fix 0 errors over 88 passes (612 proposed, 232 accepted) and all 4 greedy texts == `--spec off`, without it 4 / 4 requests
+fail; workspace tests 1368 / 0 (#8849).
