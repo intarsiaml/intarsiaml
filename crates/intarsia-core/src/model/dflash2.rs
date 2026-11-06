@@ -134,7 +134,7 @@ pub(super) struct Draft2 {
     eps: f32,
     theta: f32,
     /// `sliding_window` (0 = full context)
-    window: usize,
+    pub(super) window: usize,
     conv_k: usize,
     conv_g: usize,
     bufs: Bufs2,

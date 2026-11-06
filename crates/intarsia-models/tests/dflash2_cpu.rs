@@ -439,6 +439,58 @@ fn dflash2_greedy_ids_equal_spec_off_on_the_hybrid() {
     }
 }
 
+/// Lane dh, bug 0: `serve --spec dflash` at tp2 failed requests longer than the draft's sliding window with `no kernel for
+/// attn_decode on hip/gfx1201 (m=1 n=0 k=128 ...) [admitted kernels only]`. The plan's draft probe ran at the start of the
+/// context only (block 8 of a 2048-key window: no row windowed), so the windowed attention calls (`OpAttrs::window > 0`, on HIP
+/// the `.ext()` kernel `attn_decode_bf16_window`, on CUDA the g4 `.ext()` ones) were never planned, never admitted, and not
+/// selectable under `serve`. A window wider than two blocks here, as the 27B draft's: the plan must hold a windowed call, and
+/// with admission on and admitted kernels only, the shortest request (one prompt token, the fewest context keys a draft can
+/// see) and one far past the window both decode `--spec off`'s ids.
+#[test]
+fn dflash2_plan_covers_the_windowed_draft_and_serves_past_the_window() {
+    use intarsia_core::ops::Op;
+    use intarsia_core::plan::PlanOptions;
+    let wide = 3 * BLOCK + 1;
+    let build = |dflash: bool, admitted: bool| -> (LocalEngine, Arc<Telemetry>) {
+        let (recipe, dims) = target_spec();
+        let src = SafeTensors::open_dir(&fixture_dir()).unwrap();
+        let tel = Arc::new(Telemetry::new());
+        let mut dl = dflash_load(draft_weights(5));
+        dl.config.sliding_window = wide;
+        let opts = LoadOptions {
+            max_seq: 512,
+            prefill_chunk: 8,
+            act_dtype: Some(DType::F32),
+            kv_dtype: Some(DType::F32),
+            profile_every: 0,
+            dflash: dflash.then_some(dl),
+            ..Default::default()
+        };
+        let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &src, &opts, tel.clone()).unwrap();
+        let spec = if dflash {
+            m.enable_verify(4).unwrap();
+            let reference = CpuBackend::arc();
+            let po = PlanOptions { admit: admitted, require_admitted: admitted, no_cache: true, ..Default::default() };
+            m.configure_plan(&po, Some(&*reference)).unwrap();
+            let windowed = m.resolved.unique_calls.iter().filter(|c| c.call.op == Op::AttnDecode && c.call.attrs.window > 0).count();
+            assert!(windowed > 0, "the plan has no windowed draft attention call (window {wide}, block {BLOCK})");
+            SpecConfig { mode: SpecMode::Dflash, k: 3 }
+        } else {
+            SpecConfig::default()
+        };
+        let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-dflash2-win".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+            .unwrap();
+        (e, tel)
+    };
+    let (off, _) = build(false, false);
+    let (on, tel) = build(true, true);
+    let long: Vec<u32> = (0..3 * wide as u32).map(|i| (i * 7 + 3) % 90).collect();
+    for p in [&[17u32][..], &[90, 1], &long[..]] {
+        assert_eq!(run(&off, req(p, 40)), run(&on, req(p, 40)), "prompt of {} token(s)", p.len());
+    }
+    assert!(tel.snapshot().spec_steps > 0, "the draft ran");
+}
+
 /// Drafts from the true greedy continuation with a mistake at a pseudo-random offset (or none): every pass accepts all, some
 /// or none of its drafts, so the recurrent rollback runs to every length.
 fn scripted(truth: Arc<Mutex<Vec<Vec<u32>>>>, seed: u64) -> DraftScript {

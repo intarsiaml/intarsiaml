@@ -734,17 +734,31 @@ impl Model {
             return Ok(()); // verify passes not enabled: the draft cannot run either
         }
         let specs = self.dflash_slot_specs(head);
-        let mut kv = crate::plan::phantom_state(&specs, self.plan.kv_cap_tokens, 0);
+        let kv = crate::plan::phantom_state(&specs, self.plan.kv_cap_tokens, 0);
         let extra = self.recorder.lock().unwrap().as_ref().is_some_and(|r| r.extra);
         if let Some(r) = self.recorder.lock().unwrap().as_mut() {
             r.extra = true;
         }
         let exact = self.exact_rows.swap(false, std::sync::atomic::Ordering::Relaxed);
         let t = head.block;
-        let r = self.dflash_ingest(head, &mut kv, &head.feat, t, false).and_then(|_| {
-            let mut st = crate::plan::phantom_state(&[], self.plan.kv_cap_tokens, kv.len);
+        let cap = self.plan.kv_cap_tokens;
+        let one = |mut kv: SequenceState| -> Result<()> {
+            self.dflash_ingest(head, &mut kv, &head.feat, t, false)?;
+            let mut st = crate::plan::phantom_state(&[], cap, kv.len);
             st.dflash = Some(Box::new(DflashState { kv, active: true, synced: true, pending: 0, store: Vec::new(), lazy: false }));
             self.dflash_draft(&mut st, 0, t).map(|_| ())
+        };
+        // lane dh (bug 0): a DFlash2 draft past its sliding window runs windowed attention calls (`OpAttrs::window > 0`, on HIP
+        // the `.ext()` kernel `attn_decode_bf16_window`) that a draft at the start of the context never makes. Record one at
+        // the end of the context too, or `serve` (admitted kernels only) has no kernel for them once a request outgrows the
+        // window (`no kernel for attn_decode ... [admitted kernels only]`).
+        let window = head.v2.as_ref().map_or(0, |d2| d2.window);
+        let r = one(kv).and_then(|_| {
+            if window > 0 && cap >= window + 2 * t {
+                one(crate::plan::phantom_state(&specs, cap, cap - 2 * t))
+            } else {
+                Ok(())
+            }
         });
         self.exact_rows.store(exact, std::sync::atomic::Ordering::Relaxed);
         if let Some(r) = self.recorder.lock().unwrap().as_mut() {
