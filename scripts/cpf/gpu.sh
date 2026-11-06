@@ -7,7 +7,8 @@
 #   ids     the batched-MTP lane's 6-prompt greedy gate (scripts/cpf/ids.py): solo spec-off reference, the old rule (repro, CB trace),
 #           then the fix 8 times, each with its pack passes and Pack trace events
 #   plan    plan show json, dev vs ~/intarsiaml-bm/bin/main;  kernels  kernels test --backend cuda --quick
-#   speed   localeval speed ABBA at 16 streams: old rule vs fix, prompts of 24 and 1024 tokens
+#   speed   localeval speed ABBA at 16 streams: old rule vs fix (the 16-stream rows use the largest of SIZES, default 24,1024;
+#           SIZES=24 TAG=short measures 16 streams of 24-token prompts, bodies in the 16..32 range this lane stops packing)
 set -uo pipefail
 : "${FLEETQ_JOB:?run under fleetq}"
 HOST=spark1; HN=spark-4e77; PORT=8196
@@ -83,7 +84,7 @@ if has kernels; then
 fi
 
 le() { # le <label> <recipe>
-  ( cd /opt/code/deepeval && FLEETQ_JOB=$FLEETQ_JOB uv run localeval speed --url http://$HN:$PORT/v1 --model m --thinking off --sizes 24,1024 --gen 128 --reps 3 --concurrency 16 \
+  ( cd /opt/code/deepeval && FLEETQ_JOB=$FLEETQ_JOB uv run localeval speed --url http://$HN:$PORT/v1 --model m --thinking off --sizes ${SIZES:-24,1024} --gen 128 --reps 3 --concurrency 16 \
       --label "$1" --recipe "$2" ) > $O/speed/$1.out 2>&1
   echo "$1: $(grep -aE 'run_id|Run id|results/' $O/speed/$1.out | head -2 | tr '\n' ' ')" | tee -a $O/speed/index.txt
   grep -aE 'streams: aggregate|aggregate' $O/speed/$1.out | head -4
@@ -95,9 +96,9 @@ if has speed; then
     for a in $arms; do
       env=""; [[ $a == old16 ]] && env="INTARSIA_PACK_MIN_ROWS=16"
       echo "== speed r$r $a $(date +%T)"
-      serve speed-$a-r$r "$env" --max-batch 16 || continue
-      le "pf-$a-r$r" "intarsia serve --backend cuda --max-seq 8192 --mem-budget 40 --max-batch 16 bin=$BIN env='$env' (lane pf)"
-      curl -sf http://$HN:$PORT/metrics | grep -E '^intarsia_batch_(pack_passes|packed_chunks|prefill_chunks)' > $O/speed/metrics-$a-r$r.txt
+      serve speed-$a${TAG:+-$TAG}-r$r "$env" --max-batch 16 || continue
+      le "pf-$a${TAG:+-$TAG}-r$r" "intarsia serve --backend cuda --max-seq 8192 --mem-budget 40 --max-batch 16 bin=$BIN env='$env' (lane pf)"
+      curl -sf http://$HN:$PORT/metrics | grep -E '^intarsia_batch_(pack_passes|packed_chunks|prefill_chunks)' > $O/speed/metrics-$a${TAG:+-$TAG}-r$r.txt
       stop
     done
   done
