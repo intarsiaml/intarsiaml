@@ -1168,6 +1168,7 @@ impl Model {
             tail_dead: std::sync::atomic::AtomicBool::new(false),
             mtp: None,
             dflash: None,
+            dflash_tp: false,
             mtp_k: self.mtp_k,
             spec_cost: self.spec_cost,
             spec_auto: std::sync::Mutex::new(self.spec_auto_params()),

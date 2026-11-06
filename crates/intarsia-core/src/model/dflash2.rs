@@ -82,33 +82,59 @@ fn bf(b: u16) -> f32 {
     f32::from_bits((b as u32) << 16)
 }
 
+/// The `k` largest values of `row` as `(value, base + index)`, largest first, ties in index order (a later equal value at the
+/// floor stays out). Appends to `out` after clearing it.
+pub(super) fn row_topk(row: &[f32], k: usize, base: usize, out: &mut Vec<(f32, usize)>) {
+    out.clear();
+    let mut floor = f32::NEG_INFINITY;
+    for (i, &x) in row.iter().enumerate() {
+        if out.len() < k || x > floor {
+            let at = out.partition_point(|e| e.0 >= x);
+            out.insert(at, (x, base + i));
+            if out.len() > k {
+                out.pop();
+            }
+            if out.len() == k {
+                floor = out[k - 1].0;
+            }
+        }
+    }
+}
+
+/// One block row's candidates from every vocabulary shard (each its shard's [`row_topk`], shards in vocabulary order) as the
+/// whole row's [`row_topk`]: largest first, ties in index order, `k` of them.
+pub(super) fn merge_topk(parts: &[&[(f32, usize)]], k: usize) -> Vec<(f32, usize)> {
+    let mut all: Vec<(f32, usize)> = parts.iter().flat_map(|p| p.iter().copied()).collect();
+    // stable: equal values keep the shard order, which is index order
+    all.sort_by(|a, b| b.0.total_cmp(&a.0));
+    all.truncate(k);
+    all
+}
+
 impl Selector {
     /// Drafts for `rows = logits.len() / v` block rows: `logits` `[rows, v]`, `hp` `[rows, rank]`, `anchor` the token before row 0.
     pub(super) fn select(&self, logits: &[f32], v: usize, hp: &[f32], anchor: u32) -> Vec<u32> {
         let rows = logits.len() / v;
+        let tops: Vec<Vec<(f32, usize)>> = (0..rows)
+            .map(|p| {
+                let mut top = Vec::with_capacity(self.top_k + 1);
+                row_topk(&logits[p * v..(p + 1) * v], self.top_k, 0, &mut top);
+                top
+            })
+            .collect();
+        self.pick(&tops, hp, anchor)
+    }
+
+    /// Drafts from each block row's candidates (`tops[p]`: its `top_k` largest logits, largest first): walking from `anchor`,
+    /// `argmax(logit + sum_r pred[prev][r] * hp[p][r] * succ[cand][r])`.
+    pub(super) fn pick(&self, tops: &[Vec<(f32, usize)>], hp: &[f32], anchor: u32) -> Vec<u32> {
         let mut prev = anchor as usize;
-        let mut out = Vec::with_capacity(rows);
-        let mut top: Vec<(f32, usize)> = Vec::with_capacity(self.top_k + 1);
-        for p in 0..rows {
-            let row = &logits[p * v..(p + 1) * v];
-            top.clear();
-            let mut floor = f32::NEG_INFINITY;
-            for (i, &x) in row.iter().enumerate() {
-                if top.len() < self.top_k || x > floor {
-                    let at = top.partition_point(|e| e.0 >= x);
-                    top.insert(at, (x, i));
-                    if top.len() > self.top_k {
-                        top.pop();
-                    }
-                    if top.len() == self.top_k {
-                        floor = top[self.top_k - 1].0;
-                    }
-                }
-            }
+        let mut out = Vec::with_capacity(tops.len());
+        for (p, top) in tops.iter().enumerate() {
             let (r, h) = (self.rank, &hp[p * self.rank..(p + 1) * self.rank]);
             let pc = &self.pred[prev * r..(prev + 1) * r];
             let mut best = (f32::NEG_INFINITY, top[0].1);
-            for &(u, c) in &top {
+            for &(u, c) in top {
                 let sc = &self.succ[c * r..(c + 1) * r];
                 let mut e = 0f32;
                 for j in 0..r {
@@ -134,13 +160,25 @@ pub(super) struct Draft2 {
     eps: f32,
     theta: f32,
     /// `sliding_window` (0 = full context)
-    window: usize,
+    pub(super) window: usize,
     conv_k: usize,
     conv_g: usize,
     bufs: Bufs2,
     pub(super) selector: Option<Selector>,
     /// `[block, rank]` the selector's projected hidden rows
     pub(super) sel_out: Buffer,
+    /// Candidates per block row the drafts are picked from: the selector's `top_k`, 1 (the argmax) without it. Every rank of a
+    /// split draft knows it (each sends rank 0 the top candidates of its vocabulary shard).
+    pub(super) cand: usize,
+    /// Lane dh item 2 (`INTARSIA_DFLASH_DEVICE_TOPK`, default on since 2026-11-06, `=0` off; only a backend with `Backend::topk_rows`,
+    /// `supports_topk()`: HIP and CUDA, and CUDA refuses DFlash2 drafts at load, so HIP is the only backend it runs on and the only one the
+    /// evidence covers; the CPU backend always takes the host path): each row's candidates
+    /// taken on the device (ids i32 `[block, cand]`, values f32 `[block, cand]`, NaN flags i32 `[block]`, the kernel's scratch), so
+    /// only `cand` values a row are downloaded instead of the row's logits. `None`: the host takes them from the downloaded logits.
+    pub(super) topk: Option<[Buffer; 4]>,
+    /// `INTARSIA_DFLASH_DEVICE_TOPK=check`: the device top-k as unset, and the host's from the downloaded logits as well, every
+    /// difference printed (`dflash2 topk check`): the GPU gate that the device candidates are the host's.
+    pub(super) topk_check: bool,
 }
 
 /// The `[2*K*G, H]` kernel projection split into its two branches (rows `0..K*G` and `K*G..2*K*G`), each its own buffer.
@@ -178,8 +216,66 @@ fn base2(src: &dyn WeightSource, b: &dyn Backend, bytes: &dyn Fn(u64), name: &st
 
 /// The DFlash2 draft's layers onto the device (`dflash::load_head`, a `DFlash2DraftModel` checkpoint). `rows`: the most context
 /// rows one ingest takes (the target's chunk).
-pub(super) fn load2(dl: &super::dflash::DflashLoad, b: &dyn Backend, dims: &ModelDims, add_bytes: &dyn Fn(u64), rows: usize, act: DType) -> Result<Draft2> {
+/// A bf16 `[n, k]` draft linear, whole (`shard` None) or this rank's part of it: `(Rows, rank, world)` its `n / world` output rows,
+/// `(Cols, rank, world)` its `k / world` input columns (lane dh, `INTARSIA_DFLASH_TP`).
+fn lin_part(
+    src: &dyn WeightSource,
+    b: &dyn Backend,
+    bytes: &dyn Fn(u64),
+    prefix: &str,
+    n: usize,
+    k: usize,
+    shard: Option<(ShardAxis, usize, usize)>,
+) -> Result<QTensor> {
+    let Some((axis, rank, world)) = shard else { return super::dflash::lin(src, b, bytes, prefix, n, k) };
+    let name = resolve(src, prefix)?;
+    let info = src.info(&name).ok_or_else(|| Error::model(format!("draft tensor '{prefix}' missing")))?;
+    if info.dtype != DType::Bf16 || info.shape != [n, k] {
+        return Err(Error::model(format!("draft '{name}' is {} {:?}, expected bf16 [{n}, {k}]", info.dtype, info.shape)));
+    }
+    let raw = src.bytes(&name)?;
+    let (pn, pk, part): (usize, usize, Vec<u8>) = match axis {
+        ShardAxis::Rows if n % world == 0 => {
+            let rn = n / world;
+            (rn, k, raw[rank * rn * k * 2..(rank + 1) * rn * k * 2].to_vec())
+        }
+        ShardAxis::Cols if k % world == 0 => {
+            let ck = k / world;
+            let mut v = Vec::with_capacity(n * ck * 2);
+            for r in 0..n {
+                let row = &raw[r * k * 2..(r + 1) * k * 2];
+                v.extend_from_slice(&row[rank * ck * 2..(rank + 1) * ck * 2]);
+            }
+            (n, ck, v)
+        }
+        _ => return Err(Error::model(format!("draft '{name}' [{n}, {k}] does not split {world} ways along {axis:?}"))),
+    };
+    let buf = crate::backend::upload_new(b, &part)?;
+    bytes(part.len() as u64);
+    Ok(QTensor { format: crate::quant::BF16, n: pn, k: pk, parts: vec![TensorRef::new(buf, DType::Bf16, &[pn, pk])], act_fp8: false, act_quant: false })
+}
+
+/// `shard`: `(rank, world)` of a tensor-parallel group to load this rank's part of a draft split over the ranks (lane dh,
+/// `INTARSIA_DFLASH_TP=1`): q / k / v / gate / up by output rows (whole heads, `n_kv_heads` a multiple of `world`), o / down
+/// by input columns (their partial sums all-reduced); norms, the conv kernel projections and base kernels replicated. `None`:
+/// the whole draft (rank 0 alone, the default).
+pub(super) fn load2(
+    dl: &super::dflash::DflashLoad,
+    b: &dyn Backend,
+    dims: &ModelDims,
+    add_bytes: &dyn Fn(u64),
+    rows: usize,
+    act: DType,
+    shard: Option<(usize, usize)>,
+) -> Result<Draft2> {
     let (c, src) = (&dl.config, &*dl.src);
+    let world = shard.map_or(1, |s| s.1);
+    if world > 1 && (c.n_kv_heads % world != 0 || c.intermediate % world != 0) {
+        return Err(Error::Unsupported(format!(
+            "a DFlash2 draft with {} kv heads / ffn {} split {world} ways (INTARSIA_DFLASH_TP=0 keeps it on rank 0)",
+            c.n_kv_heads, c.intermediate
+        )));
+    }
     if c.hidden != dims.hidden || c.vocab != dims.vocab {
         return Err(Error::model(format!(
             "the DFlash2 draft's hidden {} / vocab {} differ from the target's {} / {}",
@@ -195,15 +291,19 @@ pub(super) fn load2(dl: &super::dflash::DflashLoad, b: &dyn Backend, dims: &Mode
     if act != DType::Bf16 && act != DType::F32 {
         return Err(Error::Unsupported(format!("the DFlash2 draft with {act} activations")));
     }
-    let (h, hd, nh, nkv, inter) = (c.hidden, c.head_dim, c.n_heads, c.n_kv_heads, c.intermediate);
+    let (h, hd) = (c.hidden, c.head_dim);
+    // this rank's heads and ffn columns (the whole draft without a shard)
+    let (nh, nkv, inter) = (c.n_heads / world, c.n_kv_heads / world, c.intermediate / world);
     let (qdim, kvdim) = (nh * hd, nkv * hd);
+    let part = |axis: ShardAxis| shard.map(|(r, w)| (axis, r, w));
     let (kk, g) = (c.conv_kernel, c.hidden / c.conv_group);
     let norm_w = |name: &str, n: usize| -> Result<TensorRef> {
         let t = load_tensor(b, src, &resolve(src, name)?, Some(&[n]))?;
         add_bytes(t.nbytes() as u64);
         Ok(t)
     };
-    let lin = |p: &str, n: usize, k: usize| super::dflash::lin(src, b, add_bytes, p, n, k);
+    let lin = |p: &str, n: usize, k: usize, axis: ShardAxis| lin_part(src, b, add_bytes, p, n * world, k, part(axis));
+    let lin_in = |p: &str, n: usize, k: usize| lin_part(src, b, add_bytes, p, n, k * world, part(ShardAxis::Cols));
     let mut layers = Vec::with_capacity(c.n_layers);
     for l in 0..c.n_layers {
         let p = format!("layers.{l}");
@@ -216,15 +316,15 @@ pub(super) fn load2(dl: &super::dflash::DflashLoad, b: &dyn Backend, dims: &Mode
         layers.push(Layer2 {
             ln1: norm_w(&format!("{p}.input_layernorm"), h)?,
             ln2: norm_w(&format!("{p}.post_attention_layernorm"), h)?,
-            wq: lin(&format!("{p}.self_attn.q_proj"), qdim, h)?,
-            wk: lin(&format!("{p}.self_attn.k_proj"), kvdim, h)?,
-            wv: lin(&format!("{p}.self_attn.v_proj"), kvdim, h)?,
-            wo: lin(&format!("{p}.self_attn.o_proj"), h, qdim)?,
+            wq: lin(&format!("{p}.self_attn.q_proj"), qdim, h, ShardAxis::Rows)?,
+            wk: lin(&format!("{p}.self_attn.k_proj"), kvdim, h, ShardAxis::Rows)?,
+            wv: lin(&format!("{p}.self_attn.v_proj"), kvdim, h, ShardAxis::Rows)?,
+            wo: lin_in(&format!("{p}.self_attn.o_proj"), h, qdim)?,
             q_norm: norm_w(&format!("{p}.self_attn.q_norm"), hd)?,
             k_norm: norm_w(&format!("{p}.self_attn.k_norm"), hd)?,
-            gate: lin(&format!("{p}.mlp.gate_proj"), inter, h)?,
-            up: lin(&format!("{p}.mlp.up_proj"), inter, h)?,
-            down: lin(&format!("{p}.mlp.down_proj"), h, inter)?,
+            gate: lin(&format!("{p}.mlp.gate_proj"), inter, h, ShardAxis::Rows)?,
+            up: lin(&format!("{p}.mlp.up_proj"), inter, h, ShardAxis::Rows)?,
+            down: lin_in(&format!("{p}.mlp.down_proj"), h, inter)?,
             aconv: conv("attention_conv")?,
             mconv: conv("mlp_conv")?,
         });
@@ -251,7 +351,9 @@ pub(super) fn load2(dl: &super::dflash::DflashLoad, b: &dyn Backend, dims: &Mode
         ik: [alloc(rows * kvdim)?, alloc(rows * kvdim)?],
         iv: alloc(rows * kvdim)?,
     };
-    let selector = if c.selector_rank > 0 && c.selector_top_k > 0 {
+    let has_selector = c.selector_rank > 0 && c.selector_top_k > 0;
+    // a split draft (lane dh): rank 0 alone picks the drafts, so only it holds the selector and its host codebooks
+    let selector = if has_selector && shard.is_none_or(|s| s.0 == 0) {
         let codebook = |name: &str| -> Result<Vec<u16>> {
             let info = src.info(name).ok_or_else(|| Error::model(format!("draft tensor '{name}' missing")))?;
             if info.dtype != DType::Bf16 || info.shape != [c.vocab, c.selector_rank] {
@@ -270,7 +372,25 @@ pub(super) fn load2(dl: &super::dflash::DflashLoad, b: &dyn Backend, dims: &Mode
         None
     };
     let sel_out = alloc(t * c.selector_rank.max(1))?;
+    let cand = if has_selector { c.selector_top_k.min(c.vocab) } else { 1 };
+    let topk_env = std::env::var("INTARSIA_DFLASH_DEVICE_TOPK").unwrap_or_default();
+    let topk_check = topk_env.trim() == "check";
+    // On unless `=0`: the device top-k is the default where the backend has one (HIP; CPU has none and always takes the host path).
+    let device_topk = topk_env.trim() != "0" && b.supports_topk() && cand <= 64;
+    let topk = if device_topk {
+        let r = t.max(1);
+        let mk = |bytes: usize| -> Result<Buffer> {
+            add_bytes(bytes as u64);
+            b.alloc(bytes.max(16), MemKind::Device)
+        };
+        Some([mk(r * cand * 4)?, mk(r * cand * 4)?, mk(r * 4)?, mk(r * 32 * cand * 8)?])
+    } else {
+        None
+    };
     Ok(Draft2 {
+        cand,
+        topk,
+        topk_check,
         selector,
         sel_out,
         layers,
@@ -336,6 +456,26 @@ impl Model {
         self.exec(Op::KvAppend, vec![v.clone()], vec![vc], append, profile)
     }
 
+    /// `out = x @ w^T` for the draft's output projections (o, down). A split draft (lane dh, `dflash_tp`): `w` holds this rank's
+    /// input columns, so the products are partial sums, summed over the group (into the f32 partial when the target's partials
+    /// are f32, as its dense FFN does).
+    fn d2_proj_out(&self, x: &TensorRef, w: &QTensor, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
+        if !self.dflash_tp {
+            return self.proj(x, w, out, profile);
+        }
+        match &self.ws.part {
+            Some(part) => {
+                let part = self.view(part, DType::F32, &[t, self.dims.hidden]);
+                self.exec(Op::Logits, vec![x.clone(), w.parts[0].clone()], vec![part.clone()], OpAttrs::default(), profile)?;
+                self.all_reduce(&part, out, profile)
+            }
+            None => {
+                self.proj(x, w, out, profile)?;
+                self.all_reduce(out, out, profile)
+            }
+        }
+    }
+
     /// `conv(x, dyn, base)` of one branch.
     fn d2_conv(&self, d2: &Draft2, x: &TensorRef, dyn_: &TensorRef, base: &TensorRef, out: &TensorRef, profile: bool) -> Result<()> {
         let _ = d2;
@@ -396,7 +536,7 @@ impl Model {
                 };
                 self.exec(Op::AttnDecode, vec![q3(0).rows(r, 1), kc.clone(), vc.clone()], vec![ao.rows(r, 1)], attrs, profile)?;
             }
-            self.proj(&ao.reshaped(&[t, nh * hd]), &l.wo, &o, profile)?;
+            self.d2_proj_out(&ao.reshaped(&[t, nh * hd]), &l.wo, &o, t, profile)?;
             self.d2_conv(d2, &o, &dyn1, &l.aconv.base[1], &cbuf, profile)?;
             add(&x, &cbuf, &xn)?;
             std::mem::swap(&mut x, &mut xn);
@@ -408,7 +548,7 @@ impl Model {
             self.proj(&cbuf, &l.gate, &g, profile)?;
             self.proj(&cbuf, &l.up, &u, profile)?;
             self.exec(Op::SiluGlu, vec![g.clone(), u.clone()], vec![a.clone()], OpAttrs::default(), profile)?;
-            self.proj(&a, &l.down, &o, profile)?;
+            self.d2_proj_out(&a, &l.down, &o, t, profile)?;
             self.d2_conv(d2, &o, &dyn1, &l.mconv.base[1], &cbuf, profile)?;
             add(&x, &cbuf, &xn)?;
             std::mem::swap(&mut x, &mut xn);

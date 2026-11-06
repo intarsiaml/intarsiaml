@@ -1,0 +1,18 @@
+11:47:26 guard: [guard] radiance stopped 2026-11-06 11:47:26
+11:47:26 pre: ids gate (arms dfl mtp2, tp1 tp2, cap 4500 s)
+11:53:06 pre: ids exit 0
+11:53:09 pre: 
+11:53:09 round 1 arm dfl7-base: starting server
+11:54:02 arm dfl7-base suite speed-plain: exit 2 results/20261106-115335-adhoc-dh-w1-dfl7-base-speed-plain/result.incomplete.json
+11:54:27 arm dfl7-base suite speed-spec: exit 2 results/20261106-115403-adhoc-dh-w1-dfl7-base-speed-spec/result.incomplete.json
+11:54:28 round 1 arm dfl7: starting server
+11:56:23 arm dfl7 suite speed-plain: exit 0 results/20261106-115453-adhoc-dh-w1-dfl7-speed-plain/result.json
+11:58:24 arm dfl7 suite speed-spec: exit 3 results/20261106-115624-adhoc-dh-w1-dfl7-speed-spec/result.json
+11:58:24 round 1 arm dfl7-on: starting server
+12:00:08 arm dfl7-on suite speed-plain: exit 0 results/20261106-115847-adhoc-dh-w1-dfl7-on-speed-plain/result.json
+12:01:35 arm dfl7-on suite speed-spec: exit 3 results/20261106-120009-adhoc-dh-w1-dfl7-on-speed-spec/result.json
+12:01:36 round 1 arm dfl7-on2: starting server
+12:03:19 arm dfl7-on2 suite speed-plain: exit 0 results/20261106-120159-adhoc-dh-w1-dfl7-on2-speed-plain/result.json
+12:04:46 arm dfl7-on2 suite speed-spec: exit 3 results/20261106-120320-adhoc-dh-w1-dfl7-on2-speed-spec/result.json
+12:04:46 done, time left 5556s
+12:05:07 guard: [guard] radiance answers 2026-11-06 12:05:06 (after 25 s)
