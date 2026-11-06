@@ -73,6 +73,8 @@ serve() { # serve <arm>
   if [[ $arm == *-old ]]; then base=${arm%-old}; ENVX="${OLDENV:--e INTARSIA_HIP_VERIFY_ATTN_ROWS=0}"; fi
   # lane dh: arm "<arm>-on" = the same arm with the lane's knob(s) on (ONENV, default the split draft)
   if [[ $arm == *-on ]]; then base=${arm%-on}; ENVX="${ONENV:--e INTARSIA_DFLASH_TP=1}"; fi
+  if [[ $arm == *-on2 ]]; then base=${arm%-on2}; ENVX="${ONENV2:--e INTARSIA_DFLASH_TP=1 -e INTARSIA_DFLASH_DEVICE_TOPK=1}"; fi
+  if [[ $arm == *-on3 ]]; then base=${arm%-on3}; ENVX="${ONENV3:?ONENV3 for the -on3 arms}"; fi
   case $base in
     off) spec="--spec off" ;;
     mtp2) spec="--spec mtp --spec-k 2" ;;
