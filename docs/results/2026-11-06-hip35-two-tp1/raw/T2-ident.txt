@@ -1,0 +1,1 @@
+ident: solo/dual sha per prompt {"http://tatooine:8300/v1": ["42f44761f6d5b640", "0fca7fafc64b8afb", "e26a333c5a82530b", "7b54f33ac80a1fc0"]} {"http://tatooine:8300/v1": ["42f44761f6d5b640", "0fca7fafc64b8afb", "e26a333c5a82530b", "7b54f33ac80a1fc0"]} identical: True

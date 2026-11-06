@@ -1,0 +1,7 @@
+build exit 0
+    Finished `release` profile [optimized] target(s) in 1m 27s
+total 54584
+drwxrwxr-x   2 josef josef     4096 Nov  6 10:01 .
+drwxr-x--- 108 josef josef    16384 Nov  6 09:59 ..
+-rw-rw-r--   1 josef josef     2677 Nov  6 10:01 build.log
+-rwxr-xr-x   1 josef josef 55898496 Nov  6 10:01 intarsia

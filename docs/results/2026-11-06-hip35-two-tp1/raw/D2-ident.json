@@ -1,0 +1,31 @@
+{
+ "solo": {
+  "http://tatooine:8301/v1": [
+   "e440ff2fa0b35d80",
+   "2eba017375420963",
+   "e32bb467766f4bc6",
+   "7b54f33ac80a1fc0"
+  ],
+  "http://tatooine:8302/v1": [
+   "e440ff2fa0b35d80",
+   "2eba017375420963",
+   "e32bb467766f4bc6",
+   "7b54f33ac80a1fc0"
+  ]
+ },
+ "dual": {
+  "http://tatooine:8301/v1": [
+   "e440ff2fa0b35d80",
+   "2eba017375420963",
+   "e32bb467766f4bc6",
+   "7b54f33ac80a1fc0"
+  ],
+  "http://tatooine:8302/v1": [
+   "e440ff2fa0b35d80",
+   "2eba017375420963",
+   "e32bb467766f4bc6",
+   "7b54f33ac80a1fc0"
+  ]
+ },
+ "same_across_servers_and_load": true
+}

@@ -1,0 +1,56 @@
+599,625d598
+<       "op": "logits",
+<       "kernel": "logits_bf16",
+<       "backend": "cuda",
+<       "exactness": "fast",
+<       "admitted": false,
+<       "calls_per_decode_step": 0,
+<       "scratch_bytes": 0
+<     },
+<     {
+<       "op": "logits",
+<       "kernel": "logits_bf16_gemv",
+<       "backend": "cuda",
+<       "exactness": "deterministic",
+<       "admitted": false,
+<       "calls_per_decode_step": 1,
+<       "scratch_bytes": 0
+<     },
+<     {
+<       "op": "logits",
+<       "kernel": "logits_bf16_gemv_rows",
+<       "backend": "cuda",
+<       "exactness": "deterministic",
+<       "admitted": false,
+<       "calls_per_decode_step": 0,
+<       "scratch_bytes": 0
+<     },
+<     {
+685a659,685
+>       "scratch_bytes": 0
+>     },
+>     {
+>       "op": "matmul_fp8",
+>       "kernel": "matmul_fp8_gemv",
+>       "backend": "cuda",
+>       "exactness": "deterministic",
+>       "admitted": false,
+>       "calls_per_decode_step": 1,
+>       "scratch_bytes": 0
+>     },
+>     {
+>       "op": "matmul_fp8",
+>       "kernel": "matmul_fp8_gemv_rows",
+>       "backend": "cuda",
+>       "exactness": "deterministic",
+>       "admitted": false,
+>       "calls_per_decode_step": 0,
+>       "scratch_bytes": 0
+>     },
+>     {
+>       "op": "matmul_fp8",
+>       "kernel": "matmul_fp8_mma",
+>       "backend": "cuda",
+>       "exactness": "deterministic",
+>       "admitted": false,
+>       "calls_per_decode_step": 0,

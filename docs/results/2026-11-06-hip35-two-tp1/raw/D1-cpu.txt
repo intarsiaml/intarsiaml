@@ -1,0 +1,39 @@
+--- sample 1 11:26:58
+dp-d1 cpu=202.81% mem=358.3MiB / 61.9GiB
+dp-d0 cpu=200.79% mem=359.4MiB / 61.9GiB
+    PID NLWP %CPU COMMAND
+ 858119   57  184 dp-intarsia
+ 858246   61  144 dp-intarsia
+ 846675    1  0.2 kworker/14:1-events
+ 838697    1  0.2 kworker/2:0-cgroup_release
+ 770962    1  0.1 kworker/0:3-rcu_gp
+top - 11:27:01 up 5 days, 13:22,  4 users,  load average: 3.07, 1.58, 1.40
+Tasks: 497 total,   1 running, 496 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 10.0 us,  6.8 sy,  0.0 ni, 83.3 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st 
+MiB Mem :  63383.9 total,  20277.6 free,   6010.9 used,  37793.8 buff/cache     
+--- sample 2 11:27:02
+dp-d1 cpu=200.76% mem=357.7MiB / 61.9GiB
+dp-d0 cpu=200.45% mem=358.9MiB / 61.9GiB
+    PID NLWP %CPU COMMAND
+ 858119   47  185 dp-intarsia
+ 858246   47  146 dp-intarsia
+ 846675    1  0.2 kworker/14:1-events
+ 838697    1  0.2 kworker/2:0-cgroup_release
+ 770962    1  0.1 kworker/0:3-rcu_gp
+top - 11:27:04 up 5 days, 13:22,  4 users,  load average: 3.14, 1.62, 1.41
+Tasks: 498 total,   1 running, 497 sleeping,   0 stopped,   0 zombie
+%Cpu(s): 10.2 us,  6.5 sy,  0.0 ni, 83.3 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st 
+MiB Mem :  63383.9 total,  20260.3 free,   6027.8 used,  37794.2 buff/cache     
+--- sample 3 11:27:05
+dp-d1 cpu=0.02% mem=355.9MiB / 61.9GiB
+dp-d0 cpu=199.54% mem=358.3MiB / 61.9GiB
+    PID NLWP %CPU COMMAND
+ 858119   31  184 dp-intarsia
+ 858246   31  146 dp-intarsia
+ 846675    1  0.2 kworker/14:1-events
+ 838697    1  0.2 kworker/2:0-cgroup_release
+ 770962    1  0.1 kworker/0:3-rcu_gp
+top - 11:27:08 up 5 days, 13:22,  4 users,  load average: 2.89, 1.60, 1.40
+Tasks: 498 total,   1 running, 497 sleeping,   0 stopped,   0 zombie
+%Cpu(s):  0.0 us,  0.4 sy,  0.0 ni, 99.6 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st 
+MiB Mem :  63383.9 total,  20261.3 free,   6026.7 used,  37794.2 buff/cache     

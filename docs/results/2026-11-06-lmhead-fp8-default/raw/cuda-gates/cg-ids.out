@@ -1,0 +1,17 @@
+[ids] head1 short: 256 ids 08:15:20
+[ids] head2 short: 256 ids 08:16:03
+[ids] off short: 256 ids 08:16:47
+[ids] base short: 256 ids 08:17:35
+[ids] head1 4k: 256 ids 08:18:24
+[ids] head2 4k: 256 ids 08:19:12
+[ids] off 4k: 256 ids 08:20:07
+[ids] base 4k: 256 ids 08:21:00
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on cuda at tp=1 ([tuning.cuda] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+lm_head quantised to fp8 (248320 rows x 5120, 1.27 GB, was bf16 2.54 GB; INTARSIA_LMHEAD_QUANT = fp8, 2.3 s)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+ids short: head1 == head2 (256 ids, sha e94b8a9f)
+ids short: off == base (256 ids, sha 6d1d4ebc)
+ids short: head1 vs base DIFFER or empty
+ids 4k: head1 == head2 (256 ids, sha 06f2648f)
+ids 4k: off == base (256 ids, sha d2e0487f)
+ids 4k: head1 vs base DIFFER or empty

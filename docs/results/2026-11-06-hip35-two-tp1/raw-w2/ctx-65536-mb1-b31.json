@@ -1,0 +1,21 @@
+{
+ "url": "http://tatooine:8301/v1",
+ "target_prompt_tokens": 16000,
+ "sentences": 746,
+ "ok": true,
+ "prompt_tokens": 16738,
+ "completion_tokens": 32,
+ "ttft_s": 1.7539194999999999,
+ "wall_s": 1.978935458,
+ "stream": {
+  "server": "http://tatooine:8301/v1",
+  "status": 200,
+  "ttft_s": 1.7539194999999999,
+  "end_s": 1.9696391249999998,
+  "tokens": 32,
+  "chunks": 32,
+  "prompt_tokens": 16738,
+  "decode_tok_s": 143.70505233355567,
+  "sha": "4c0769b65aee47eb"
+ }
+}
