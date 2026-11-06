@@ -42,6 +42,7 @@ restore() {
   done
   log "RADIANCE DID NOT ANSWER within 180 s"; return 1
 }
+rsh 'test -x $HOME/intarsiaml-dp/dp-intarsia' || { echo 'no ~/intarsiaml-dp/dp-intarsia: run scripts/dp/build.sh first (radiance untouched)'; exit 5; }
 trap restore EXIT
 trap 'exit 130' HUP INT TERM
 log "fleetq job $FLEETQ_JOB; window.sh $(git -C "$H" rev-parse --short=9 HEAD 2>/dev/null)"
