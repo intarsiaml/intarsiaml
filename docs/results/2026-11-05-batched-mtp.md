@@ -106,6 +106,44 @@ six concurrent prompts a different greedy continuation from token 2 on; with pac
 together depends on arrival timing, so it is schedule-dependent. Batched MTP (A and B) reproduces the plain batched engine's tokens exactly in
 those runs, so the verify path adds no difference of its own. Raw: `raw/gates-cuda2/` (first set), `raw/gates-cuda3/` (main and no-pack repeats).
 
+## Metal 35B NVFP4 on endor (fleetq #8616, one `--exclusive` slot, tree 7fb2a067d)
+
+No-op vs main 602a1fcfe (`raw/metal/noop.txt`): `plan show` text and json byte-identical for Qwen3-8B and the 35B; 256 greedy ids identical on the
+short and ~3.5k prompts for both models; `kernels test --backend metal` 49 kernels, 980 cases, all admitted; goldens qwen3-8b-fp32 and -long PASS
+(bf16 class). Batched-MTP greedy ids, 6 concurrent prompts vs the solo spec-off server: phase A (`=4`, 36 drafted / 26 accepted), phase B (`=5` +
+batched verify, 254 / 197) and plain `--max-batch 8` all ALL identical.
+
+localeval speed, 1k prompt, 256 generated, thinking off, 3 reps, 2 rounds ABBA (`--max-batch 8`; plain = no spec, bmtp1 = phase A drafting only at
+B = 1, bver5 = phase B drafting at B <= 5 with batched verify, k = 2):
+
+| arm | streams | aggregate r1 / r2 | mean | per-stream (median, r1 / r2) | TTFT p50 s (r1 / r2) |
+|---|---|---|---|---|---|
+| bmtp1 | 1 | 129.6 / 127.7 | 128.7 | 145.4 / 142.8 | 0.22 / 0.22 |
+| bver5 | 1 | 137.7 / 140.6 | 139.1 | 155.4 / 159.2 | 0.22 / 0.22 |
+| plain | 1 | 111.1 / 111.2 | 111.2 | 122.2 / 122.4 | 0.22 / 0.22 |
+| bmtp1 | 2 | 163.0 / 162.4 | 162.7 | 91.4 / 91.0 | 0.34 / 0.34 |
+| bver5 | 2 | 170.2 / 166.1 | 168.1 | 96.8 / 93.8 | 0.34 / 0.34 |
+| plain | 2 | 166.0 / 169.0 | 167.5 | 92.9 / 94.8 | 0.33 / 0.33 |
+| bmtp1 | 4 | 223.7 / 227.4 | 225.6 | 64.1 / 65.3 | 0.58 / 0.58 |
+| bver5 | 4 | 173.3 / 175.6 | 174.4 | 48.5 / 49.9 | 0.57 / 0.57 |
+| plain | 4 | 231.2 / 232.5 | 231.8 | 66.2 / 66.6 | 0.56 / 0.56 |
+| bmtp1 | 8 | 287.8 / 293.8 | 290.8 | 42.3 / 43.2 | 1.04 / 1.03 |
+| bver5 | 8 | 281.7 / 280.0 | 280.9 | 42.4 / 42.0 | 1.19 / 1.19 |
+| plain | 8 | 292.1 / 291.2 | 291.6 | 42.8 / 42.7 | 1.01 / 1.01 |
+
+acceptance bmtp1: 59.7% / 56.9%
+acceptance bver5: 61.9% / 60.8%
+
+run ids bmtp1: 20261105-200027-adhoc-bm-metal-bmtp1-r1, 20261105-200222-adhoc-bm-metal-bmtp1-r2
+run ids bver5: 20261105-200105-adhoc-bm-metal-bver5-r1, 20261105-200143-adhoc-bm-metal-bver5-r2
+run ids plain: 20261105-195949-adhoc-bm-metal-plain-r1, 20261105-200253-adhoc-bm-metal-plain-r2
+
+Reading: drafting pays only for a lone stream. At 1 stream phase A gives +16 % aggregate (111.2 -> 128.7) and phase B's arm +25 % (139.1; at B = 1
+both run the same solo MTP step, so the gap between them is run-to-run and spec-gate state, not the batched verify). At 2 streams the batched verify
+is break-even (168.1 vs 167.5) and at 4 streams it loses 25 % (174.4 vs 231.8): on Metal a 4-sequence verify pass of 12 rows plus 4 per-sequence
+head drafts costs more than the ~1.6 tokens per sequence it yields over a 4-row decode step. At 8 streams the B <= 5 rule falls back to plain and
+the arms tie (281 to 292). Phase A at 2 to 8 streams equals plain (it does not draft there).
+
 ## Status
 
 Phase A built and CPU-tested; CUDA gates and the spark1 speed run are in progress.
