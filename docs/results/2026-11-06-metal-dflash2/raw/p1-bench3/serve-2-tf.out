@@ -1,0 +1,271 @@
+[tensorfold] TensorFold 1.2.3 is available (this is 0.6.0): run `tensorfold update`, then restart the server
+[tensorfold] memory budget 89.6 GiB: MLX's buffers up to 86.6 GiB, 3 GiB for the rest of the process; TENSORFOLD_MEMORY_LIMIT_GB can raise it to 117.2
+[tensorfold] loading bench: Qwen3.8 dense (qwen3_5)
+[tensorfold] lane kernels on: 9 matmul shapes warmed, fused projections {'zba': 48, 'kv': 16, 'gu': 64}
+[tensorfold] drafter /Users/josef/.cache/huggingface/hub/models--z-lab--Qwen3.8-27B-DFlash2/snapshots/50307d4c4cde6860d4eee73e2547cd786fe8e8a4 block=8 bits=4
+[tensorfold] lane kernels: windows of up to 32 rows reproduce one-row steps here (ms by rows 1: 35.5, 2: 36.4, 4: 36.7, 8: 36.9, 16: 42.1, 17: 59.2, 32: 57.0, 64: 105.3, 128: 184.6)
+[tensorfold] 18.3 GiB of weights kept resident
+[tensorfold] prompt chunks of up to 2,048 tokens, cut at replies 256+ tokens apart
+[tensorfold] prompt cache up to 63.7 GiB: the memory the weights, a 20,480-token request and a shared round leave idle, freed whenever a request needs it
+[tensorfold] serving bench at http://127.0.0.1:8298/v1 (sampling: temperature 1.0, top_k 20, top_p 0.95; drafts: on; context: 20480; loaded in 16.0s)
+[tensorfold] 127.0.0.1 "GET /v1/models HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /v1/models HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /props HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /get_server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /version HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /v1/models HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-98bd299e5f5c prompt=393 cached=0 thinking=False effort=none tokens=1 sha=d59eced1ded0 finish=length tok/s=0.0 ttft=0.58s prefill=0.57s rounds=0 accepted=0/0 checkpoints=1 (0.19 GiB, hits=0 misses=1 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-bd59c981aef7 prompt=395 cached=0 thinking=False effort=none tokens=256 sha=ceb404eccdf2 finish=length tok/s=92.5 ttft=0.55s prefill=0.55s rounds=61 accepted=194/713 ms/round=43.9 forward=43.9 draft=0.0 post=0.0 rows=12.7 checkpoints=2 (0.39 GiB, hits=0 misses=2 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-d04e188cf0bf prompt=126 cached=0 thinking=False effort=none tokens=256 sha=50e5d2157107 finish=length tok/s=63.3 ttft=0.16s prefill=0.16s rounds=90 accepted=165/851 ms/round=44.7 forward=44.7 draft=0.0 post=0.0 rows=10.5 checkpoints=2 (0.39 GiB, hits=0 misses=3 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-8f5c23eef8a5 prompt=128 cached=0 thinking=False effort=none tokens=256 sha=fa6cefa5b543 finish=length tok/s=70.3 ttft=0.19s prefill=0.19s rounds=80 accepted=175/789 ms/round=45.2 forward=45.2 draft=0.0 post=0.0 rows=10.9 checkpoints=2 (0.39 GiB, hits=0 misses=4 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-03bfe2106d09 prompt=394 cached=0 thinking=False effort=none tokens=256 sha=f609af427798 finish=length tok/s=306.6 ttft=0.66s prefill=0.66s rounds=16 accepted=239/275 ms/round=51.1 forward=51.1 draft=0.0 post=0.0 rows=18.2 checkpoints=3 (0.58 GiB, hits=0 misses=5 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-cf5e53640ccd prompt=394 cached=0 thinking=False effort=none tokens=256 sha=d5a66196863d finish=length tok/s=309.7 ttft=0.73s prefill=0.73s rounds=16 accepted=239/288 ms/round=50.6 forward=50.6 draft=0.0 post=0.0 rows=19.0 checkpoints=4 (0.77 GiB, hits=0 misses=6 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-e9b41e18482b prompt=123 cached=0 thinking=False effort=none tokens=256 sha=f6f5fda9111d finish=length tok/s=70.1 ttft=0.18s prefill=0.18s rounds=82 accepted=173/770 ms/round=44.2 forward=44.2 draft=0.0 post=0.0 rows=10.4 checkpoints=4 (0.77 GiB, hits=0 misses=7 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-1aecd7eaa273 prompt=134 cached=0 thinking=False effort=none tokens=256 sha=d4a7363f5c01 finish=length tok/s=138.2 ttft=0.31s prefill=0.31s rounds=41 accepted=214/514 ms/round=44.7 forward=44.7 draft=0.0 post=0.0 rows=13.5 checkpoints=4 (0.77 GiB, hits=0 misses=8 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-8831d64d92b3 prompt=1027 cached=0 thinking=False effort=none tokens=256 sha=8cc540ae067e finish=length tok/s=93.1 ttft=1.46s prefill=1.46s rounds=60 accepted=195/702 ms/round=45.3 forward=45.3 draft=0.0 post=0.0 rows=12.7 checkpoints=5 (1.03 GiB, hits=0 misses=9 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-dcb2aca0a410 prompt=4075 cached=0 thinking=False effort=none tokens=256 sha=245eba61994a finish=length tok/s=90.3 ttft=5.26s prefill=5.26s rounds=60 accepted=195/724 ms/round=46.6 forward=46.6 draft=0.0 post=0.0 rows=13.1 checkpoints=6 (1.52 GiB, hits=0 misses=10 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-5386b06e4424 prompt=16399 cached=0 thinking=False effort=none tokens=256 sha=b8c30a830b08 finish=length tok/s=61.0 ttft=21.24s prefill=21.22s rounds=83 accepted=172/932 ms/round=50.0 forward=50.0 draft=0.0 post=0.0 rows=12.2 checkpoints=7 (2.76 GiB, hits=0 misses=11 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-44b933be4157 prompt=136 cached=0 thinking=False effort=none tokens=1 sha=cb9dd231c6f8 finish=length tok/s=0.0 ttft=0.32s prefill=0.32s rounds=0 accepted=0/0 checkpoints=7 (2.76 GiB, hits=0 misses=12 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-48f924776e5a prompt=140 cached=0 thinking=False effort=none tokens=256 sha=d4a7363f5c01 finish=length tok/s=135.4 ttft=0.36s prefill=0.36s rounds=42 accepted=213/538 ms/round=44.5 forward=44.5 draft=0.0 post=0.0 rows=13.8 checkpoints=7 (2.76 GiB, hits=0 misses=13 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-e58f616a20e2 prompt=1027 cached=0 thinking=False effort=none tokens=256 sha=b930dbaa05e4 finish=length tok/s=80.5 ttft=1.53s prefill=1.53s rounds=69 accepted=186/755 ms/round=45.6 forward=45.6 draft=0.0 post=0.0 rows=11.9 checkpoints=8 (3.01 GiB, hits=0 misses=14 evictions=0)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-91a10ce622d2 prompt=4078 cached=0 thinking=False effort=none tokens=256 sha=3880d6df6dc7 finish=length tok/s=90.7 ttft=5.29s prefill=5.28s rounds=60 accepted=196/708 ms/round=46.4 forward=46.4 draft=0.0 post=0.0 rows=12.8 checkpoints=8 (3.31 GiB, hits=0 misses=15 evictions=1)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-9a62a09de3c2 prompt=16399 cached=0 thinking=False effort=none tokens=256 sha=6fe605e3ca22 finish=length tok/s=61.6 ttft=21.32s prefill=21.30s rounds=82 accepted=173/921 ms/round=50.1 forward=50.1 draft=0.0 post=0.0 rows=12.2 checkpoints=8 (4.36 GiB, hits=0 misses=16 evictions=2)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-c9ea44714f27 prompt=1031 cached=0 thinking=False effort=none tokens=1 sha=e83faad6630f finish=length tok/s=0.0 ttft=1.43s prefill=1.42s rounds=0 accepted=0/0 checkpoints=8 (4.42 GiB, hits=0 misses=17 evictions=3)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-d1ccffe2093a prompt=1028 cached=0 thinking=False effort=none tokens=256 sha=f9c1d33240e9 finish=length tok/s=89.4 ttft=1.39s prefill=1.39s rounds=63 accepted=192/733 ms/round=45.0 forward=45.0 draft=0.0 post=0.0 rows=12.6 checkpoints=8 (4.48 GiB, hits=0 misses=18 evictions=4)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-e8d0f252a8ec prompt=4078 cached=0 thinking=False effort=none tokens=256 sha=a690eb866435 finish=length tok/s=86.2 ttft=5.30s prefill=5.30s rounds=64 accepted=191/663 ms/round=45.8 forward=45.8 draft=0.0 post=0.0 rows=11.4 checkpoints=8 (4.72 GiB, hits=0 misses=19 evictions=5)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-28ee62ebace2 prompt=16397 cached=0 thinking=False effort=none tokens=256 sha=f01e1658f9bd finish=length tok/s=64.2 ttft=21.47s prefill=21.44s rounds=79 accepted=176/879 ms/round=49.9 forward=49.9 draft=0.0 post=0.0 rows=12.1 checkpoints=8 (5.47 GiB, hits=0 misses=20 evictions=6)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-21b9ee60af5e prompt=137 cached=0 thinking=False effort=none tokens=256 sha=e7b4aba39a48 finish=length tok/s=147.8 ttft=0.31s prefill=0.31s rounds=38 accepted=217/498 ms/round=45.0 forward=45.0 draft=0.0 post=0.0 rows=14.1 checkpoints=8 (5.47 GiB, hits=0 misses=21 evictions=6)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-8d3ecb3443e2 prompt=4079 cached=0 thinking=False effort=none tokens=1 sha=d4735e3a265e finish=length tok/s=0.0 ttft=5.36s prefill=5.32s rounds=0 accepted=0/0 checkpoints=8 (4.72 GiB, hits=0 misses=22 evictions=7)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-8edd632af9bb prompt=4077 cached=0 thinking=False effort=none tokens=256 sha=ccb624286fde finish=length tok/s=88.8 ttft=5.06s prefill=5.05s rounds=61 accepted=195/735 ms/round=46.6 forward=46.6 draft=0.0 post=0.0 rows=13.0 checkpoints=8 (4.96 GiB, hits=0 misses=23 evictions=8)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-55e90b32143e prompt=16397 cached=0 thinking=False effort=none tokens=256 sha=c3de62d9b1bc finish=length tok/s=66.9 ttft=21.36s prefill=21.34s rounds=76 accepted=180/823 ms/round=49.8 forward=49.8 draft=0.0 post=0.0 rows=11.8 checkpoints=8 (5.71 GiB, hits=0 misses=24 evictions=9)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-425ee9bdd96e prompt=133 cached=0 thinking=False effort=none tokens=256 sha=2dc755f0effc finish=length tok/s=136.2 ttft=0.32s prefill=0.32s rounds=41 accepted=215/513 ms/round=45.3 forward=45.3 draft=0.0 post=0.0 rows=13.5 checkpoints=8 (5.71 GiB, hits=0 misses=25 evictions=9)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-1a78fdde0bd5 prompt=1029 cached=0 thinking=False effort=none tokens=256 sha=0cc0ec71d022 finish=length tok/s=83.0 ttft=1.51s prefill=1.51s rounds=67 accepted=188/769 ms/round=45.5 forward=45.5 draft=0.0 post=0.0 rows=12.5 checkpoints=8 (4.72 GiB, hits=0 misses=26 evictions=10)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-03f01794844a prompt=1028 cached=0 thinking=False effort=none tokens=1 sha=e83faad6630f finish=length tok/s=0.0 ttft=1.51s prefill=1.49s rounds=0 accepted=0/0 checkpoints=8 (4.72 GiB, hits=0 misses=27 evictions=11)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-1a781abb815c prompt=1027 cached=0 thinking=False effort=none tokens=256 sha=d5d2aa13d23e finish=length tok/s=92.7 ttft=1.37s prefill=1.36s rounds=60 accepted=195/676 ms/round=45.5 forward=45.5 draft=0.0 post=0.0 rows=12.3 checkpoints=8 (4.72 GiB, hits=0 misses=28 evictions=12)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-389a2efb94ec prompt=1027 cached=0 thinking=False effort=none tokens=1 sha=e83faad6630f finish=length tok/s=0.0 ttft=1.58s prefill=1.56s rounds=0 accepted=0/0 checkpoints=8 (4.48 GiB, hits=0 misses=29 evictions=13)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-090a26a10844 prompt=1026 cached=0 thinking=False effort=none tokens=256 sha=98b63d7b875c finish=length tok/s=89.2 ttft=1.39s prefill=1.38s rounds=63 accepted=192/711 ms/round=45.0 forward=45.0 draft=0.0 post=0.0 rows=12.3 checkpoints=8 (3.50 GiB, hits=0 misses=30 evictions=14)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /props HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /get_server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /version HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-7ef0dedba70e prompt=51 cached=0 thinking=False effort=none tokens=512 sha=8dae65c32924 finish=length tok/s=96.4 ttft=0.23s prefill=0.23s rounds=128 accepted=384/1307 ms/round=41.4 forward=41.4 draft=0.0 post=0.0 rows=11.2 checkpoints=8 (3.50 GiB, hits=0 misses=31 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-042be6c14a13 prompt=43 cached=0 thinking=False effort=none tokens=512 sha=ed77fdc3f5b3 finish=length tok/s=85.2 ttft=0.09s prefill=0.09s rounds=132 accepted=379/1441 ms/round=45.3 forward=45.3 draft=0.0 post=0.0 rows=11.9 checkpoints=8 (3.50 GiB, hits=0 misses=32 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-fbd44279bc27 prompt=47 cached=0 thinking=False effort=none tokens=512 sha=d1b3fc896708 finish=length tok/s=90.4 ttft=0.11s prefill=0.11s rounds=125 accepted=387/1352 ms/round=45.2 forward=45.2 draft=0.0 post=0.0 rows=11.8 checkpoints=8 (3.50 GiB, hits=0 misses=33 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-5d3611266631 prompt=46 cached=0 thinking=False effort=none tokens=512 sha=d586a1568259 finish=length tok/s=68.6 ttft=0.11s prefill=0.11s rounds=165 accepted=346/1614 ms/round=45.1 forward=45.1 draft=0.0 post=0.0 rows=10.8 checkpoints=8 (3.50 GiB, hits=0 misses=34 evictions=14)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /props HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /get_server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /version HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-eb5b9155e6fa prompt=56 cached=0 thinking=False effort=none tokens=512 sha=b799206e5444 finish=length tok/s=145.0 ttft=0.10s prefill=0.10s rounds=82 accepted=429/1151 ms/round=42.9 forward=42.9 draft=0.0 post=0.0 rows=15.0 checkpoints=8 (3.50 GiB, hits=0 misses=35 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-8ca2d0b8dd26 prompt=35 cached=0 thinking=False effort=none tokens=512 sha=74e941cd93a8 finish=length tok/s=126.4 ttft=0.10s prefill=0.10s rounds=88 accepted=424/1124 ms/round=45.9 forward=45.9 draft=0.0 post=0.0 rows=13.8 checkpoints=8 (3.50 GiB, hits=0 misses=36 evictions=14)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /props HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /get_server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /version HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-c3925dd5ffb0 prompt=48 cached=0 thinking=False effort=none tokens=512 sha=cc61abd0d221 finish=length tok/s=73.3 ttft=0.11s prefill=0.11s rounds=161 accepted=350/1516 ms/round=43.2 forward=43.2 draft=0.0 post=0.0 rows=10.4 checkpoints=8 (3.50 GiB, hits=0 misses=37 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-d031ca561920 prompt=41 cached=0 thinking=False effort=none tokens=512 sha=c6643e394bf5 finish=length tok/s=68.8 ttft=0.11s prefill=0.11s rounds=165 accepted=346/1586 ms/round=45.0 forward=45.0 draft=0.0 post=0.0 rows=10.6 checkpoints=8 (3.50 GiB, hits=0 misses=38 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-5ad2fa0c57c1 prompt=38 cached=0 thinking=False effort=none tokens=512 sha=5d90fcfeb6a2 finish=length tok/s=66.4 ttft=0.11s prefill=0.11s rounds=170 accepted=341/1679 ms/round=45.2 forward=45.2 draft=0.0 post=0.0 rows=10.9 checkpoints=8 (3.50 GiB, hits=0 misses=39 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-e245e253adc1 prompt=45 cached=0 thinking=False effort=none tokens=512 sha=f1c3a2b90960 finish=length tok/s=63.8 ttft=0.11s prefill=0.11s rounds=178 accepted=333/1675 ms/round=44.9 forward=44.9 draft=0.0 post=0.0 rows=10.4 checkpoints=8 (3.50 GiB, hits=0 misses=40 evictions=14)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /props HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /get_server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /version HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-f3026863e945 prompt=44 cached=0 thinking=False effort=none tokens=512 sha=a20cbf935ac7 finish=length tok/s=103.9 ttft=0.11s prefill=0.11s rounds=116 accepted=395/1291 ms/round=42.3 forward=42.3 draft=0.0 post=0.0 rows=12.1 checkpoints=8 (3.50 GiB, hits=0 misses=41 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-fb5b4661790e prompt=35 cached=0 thinking=False effort=none tokens=512 sha=9efd270d2d26 finish=length tok/s=95.2 ttft=0.11s prefill=0.11s rounds=118 accepted=393/1312 ms/round=45.4 forward=45.4 draft=0.0 post=0.0 rows=12.1 checkpoints=8 (3.50 GiB, hits=0 misses=42 evictions=14)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /props HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /get_server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /version HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-6fc1d3fc9d41 prompt=53 cached=0 thinking=False effort=none tokens=512 sha=1a1c18cf01b3 finish=length tok/s=187.6 ttft=0.10s prefill=0.10s rounds=64 accepted=447/924 ms/round=42.4 forward=42.4 draft=0.0 post=0.0 rows=15.4 checkpoints=8 (3.50 GiB, hits=0 misses=43 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-d2706c0c1d23 prompt=45 cached=0 thinking=False effort=none tokens=512 sha=411f6e43efec finish=length tok/s=140.2 ttft=0.09s prefill=0.09s rounds=81 accepted=430/1062 ms/round=44.9 forward=44.9 draft=0.0 post=0.0 rows=14.1 checkpoints=8 (3.50 GiB, hits=0 misses=44 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-c17994ea349b prompt=51 cached=0 thinking=False effort=none tokens=512 sha=2784f4bf34b0 finish=length tok/s=184.2 ttft=0.11s prefill=0.11s rounds=59 accepted=452/901 ms/round=46.9 forward=46.9 draft=0.0 post=0.0 rows=16.3 checkpoints=8 (3.50 GiB, hits=0 misses=45 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-b095c96c0351 prompt=47 cached=0 thinking=False effort=none tokens=512 sha=524c513c6d0a finish=length tok/s=136.6 ttft=0.12s prefill=0.12s rounds=82 accepted=430/1052 ms/round=45.5 forward=45.5 draft=0.0 post=0.0 rows=13.8 checkpoints=8 (3.50 GiB, hits=0 misses=46 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-c150ae0f764f prompt=47 cached=0 thinking=False effort=none tokens=512 sha=5da058002f78 finish=length tok/s=137.7 ttft=0.11s prefill=0.11s rounds=81 accepted=431/1044 ms/round=45.7 forward=45.7 draft=0.0 post=0.0 rows=13.9 checkpoints=8 (3.50 GiB, hits=0 misses=47 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-9ddbdd9f5320 prompt=43 cached=0 thinking=False effort=none tokens=512 sha=06ad7842e386 finish=length tok/s=110.3 ttft=0.11s prefill=0.11s rounds=102 accepted=409/1216 ms/round=45.3 forward=45.3 draft=0.0 post=0.0 rows=12.9 checkpoints=8 (3.50 GiB, hits=0 misses=48 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-c8dba0580651 prompt=45 cached=0 thinking=False effort=none tokens=512 sha=7155a5c0ac02 finish=length tok/s=125.8 ttft=0.11s prefill=0.11s rounds=89 accepted=422/1096 ms/round=45.5 forward=45.5 draft=0.0 post=0.0 rows=13.3 checkpoints=8 (3.50 GiB, hits=0 misses=49 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-e5f7f2e779d9 prompt=54 cached=0 thinking=False effort=none tokens=512 sha=f5fb7e0b17e4 finish=length tok/s=119.9 ttft=0.11s prefill=0.11s rounds=92 accepted=419/1136 ms/round=46.2 forward=46.2 draft=0.0 post=0.0 rows=13.3 checkpoints=8 (3.50 GiB, hits=0 misses=50 evictions=14)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /props HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /get_server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /version HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-c041faf6c0f5 prompt=39 cached=0 thinking=False effort=none tokens=512 sha=be9a08a2df4e finish=length tok/s=71.3 ttft=0.11s prefill=0.10s rounds=167 accepted=345/1585 ms/round=42.9 forward=42.9 draft=0.0 post=0.0 rows=10.5 checkpoints=8 (3.50 GiB, hits=0 misses=51 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-4c2778404e8f prompt=38 cached=0 thinking=False effort=none tokens=512 sha=97d42128b2ca finish=length tok/s=64.1 ttft=0.11s prefill=0.11s rounds=177 accepted=334/1649 ms/round=45.0 forward=45.0 draft=0.0 post=0.0 rows=10.3 checkpoints=8 (3.50 GiB, hits=0 misses=52 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-0810a933cb27 prompt=36 cached=0 thinking=False effort=none tokens=512 sha=1766e8efcd0a finish=length tok/s=70.0 ttft=0.11s prefill=0.11s rounds=162 accepted=350/1610 ms/round=45.0 forward=45.0 draft=0.0 post=0.0 rows=10.9 checkpoints=8 (3.50 GiB, hits=0 misses=53 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-78daa8e77eae prompt=40 cached=0 thinking=False effort=none tokens=512 sha=a8e060e141da finish=length tok/s=68.5 ttft=0.11s prefill=0.11s rounds=165 accepted=346/1637 ms/round=45.2 forward=45.2 draft=0.0 post=0.0 rows=10.9 checkpoints=8 (3.50 GiB, hits=0 misses=54 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-fd79321cf528 prompt=40 cached=0 thinking=False effort=none tokens=512 sha=485985920156 finish=length tok/s=67.5 ttft=0.11s prefill=0.11s rounds=168 accepted=344/1706 ms/round=45.0 forward=45.0 draft=0.0 post=0.0 rows=11.2 checkpoints=8 (3.50 GiB, hits=0 misses=55 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-190e60a93ecf prompt=39 cached=0 thinking=False effort=none tokens=512 sha=5d7f88aa967c finish=length tok/s=72.6 ttft=0.12s prefill=0.12s rounds=156 accepted=355/1548 ms/round=45.0 forward=45.0 draft=0.0 post=0.0 rows=10.9 checkpoints=8 (3.50 GiB, hits=0 misses=56 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-548265ec94c2 prompt=42 cached=0 thinking=False effort=none tokens=512 sha=476624a832c8 finish=length tok/s=63.6 ttft=0.11s prefill=0.11s rounds=169 accepted=343/1749 ms/round=47.4 forward=47.4 draft=0.0 post=0.0 rows=11.3 checkpoints=8 (3.50 GiB, hits=0 misses=57 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-3dbdd32d8e4d prompt=47 cached=0 thinking=False effort=none tokens=512 sha=1d88ae3c220e finish=length tok/s=64.3 ttft=0.11s prefill=0.11s rounds=171 accepted=341/1668 ms/round=46.4 forward=46.4 draft=0.0 post=0.0 rows=10.8 checkpoints=8 (3.50 GiB, hits=0 misses=58 evictions=14)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /props HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /get_server_info HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /version HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[tensorfold] 127.0.0.1 "GET /slots HTTP/1.1" 404 -
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-2651f7cf4e21 prompt=43 cached=0 thinking=False effort=none tokens=512 sha=941d13bd8b11 finish=length tok/s=139.6 ttft=0.11s prefill=0.11s rounds=85 accepted=426/1120 ms/round=42.9 forward=42.9 draft=0.0 post=0.0 rows=14.2 checkpoints=8 (3.50 GiB, hits=0 misses=59 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-86062bcde338 prompt=43 cached=0 thinking=False effort=none tokens=512 sha=3ea9e1a6e7b5 finish=length tok/s=114.0 ttft=0.11s prefill=0.11s rounds=96 accepted=415/1196 ms/round=46.6 forward=46.6 draft=0.0 post=0.0 rows=13.5 checkpoints=8 (3.50 GiB, hits=0 misses=60 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-9a636e43a21e prompt=50 cached=0 thinking=False effort=none tokens=512 sha=847db08e3849 finish=length tok/s=100.9 ttft=0.11s prefill=0.11s rounds=104 accepted=408/1228 ms/round=48.6 forward=48.6 draft=0.0 post=0.0 rows=12.8 checkpoints=8 (3.50 GiB, hits=0 misses=61 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-794e8ddfaba4 prompt=47 cached=0 thinking=False effort=none tokens=512 sha=e663a47bd10a finish=length tok/s=105.0 ttft=0.11s prefill=0.11s rounds=106 accepted=405/1225 ms/round=45.8 forward=45.8 draft=0.0 post=0.0 rows=12.6 checkpoints=8 (3.50 GiB, hits=0 misses=62 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-c1934aca9b29 prompt=42 cached=0 thinking=False effort=none tokens=512 sha=75e6ded32b23 finish=length tok/s=104.4 ttft=0.11s prefill=0.11s rounds=106 accepted=406/1318 ms/round=46.1 forward=46.1 draft=0.0 post=0.0 rows=13.4 checkpoints=8 (3.50 GiB, hits=0 misses=63 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-03c29cec91d9 prompt=48 cached=0 thinking=False effort=none tokens=512 sha=9522ab88d43d finish=length tok/s=97.6 ttft=0.11s prefill=0.11s rounds=112 accepted=400/1260 ms/round=46.6 forward=46.6 draft=0.0 post=0.0 rows=12.2 checkpoints=8 (3.50 GiB, hits=0 misses=64 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-dbbf14ddde21 prompt=49 cached=0 thinking=False effort=none tokens=512 sha=a197dc5afcf8 finish=length tok/s=90.1 ttft=0.11s prefill=0.11s rounds=122 accepted=389/1406 ms/round=46.4 forward=46.4 draft=0.0 post=0.0 rows=12.5 checkpoints=8 (3.50 GiB, hits=0 misses=65 evictions=14)
+[tensorfold] 127.0.0.1 "POST /v1/chat/completions HTTP/1.1" 200 -
+[tensorfold] done req-74835d99723c prompt=54 cached=0 thinking=False effort=none tokens=512 sha=d6692653ad4a finish=length tok/s=90.3 ttft=0.10s prefill=0.10s rounds=123 accepted=388/1461 ms/round=45.9 forward=45.9 draft=0.0 post=0.0 rows=12.9 checkpoints=8 (3.50 GiB, hits=0 misses=66 evictions=14)
+[tensorfold] 127.0.0.1 "GET /metrics HTTP/1.1" 200 -
+[lanes] saved conversation checkpoint tokens=16384 (1.2 GiB) in 0.2s
+[lanes] saved conversation checkpoint tokens=4072 (0.5 GiB) in 0.1s

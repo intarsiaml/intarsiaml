@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-recall.jsonl: 8 rows, judge=none
+# localeval: dm-mtp2 — 2026-11-06T16:00
+
+- model: `qwen38-27b-mtp2` on ? (?), url `http://127.0.0.1:8298/v1`
+- thinking: off; run kind: quality; label: dm-p1-v1-mtp2-rcp-recall
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dm-mtp2 --thinking off --label dm-p1-v1-mtp2-rcp-recall --recipe intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec mtp --spec-k 2 env  (lane dm, 377d492f7) --dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-recall.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261106-160052-dm-mtp2-dm-p1-v1-mtp2-rcp-recall/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec mtp --spec-k 2 env  (lane dm, 377d492f7)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-recall.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.326 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 55.0 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| recall-tcp-handshake | yes | 0.0 | 0.33 | 60.2 | The Transmission Control Protocol (TCP) is a connection-orie… |
+| recall-photosynthesis | yes | 0.0 | 0.32 | 57.4 | Photosynthesis is the process by which plants, algae, and so… |
+| recall-french-revolution | yes | 0.0 | 0.33 | 53.2 | The French Revolution (1789–1799) was a radical political an… |
+| recall-git-internals | yes | 0.0 | 0.33 | 54.1 | Git is a content-addressable file system. This means that ev… |
+| recall-vaccines | yes | 0.0 | 0.32 | 54.8 | Here is a detailed explanation of how mRNA, viral-vector, an… |
+| recall-cpu-caches | yes | 0.0 | 0.32 | 51.7 | CPU caches are a critical component of modern processor perf… |
+| recall-plate-tectonics | yes | 0.0 | 0.33 | 55.0 | Plate tectonics is the scientific theory that explains the l… |
+| recall-http2 | yes | 0.0 | 0.33 | 53.2 | To understand the evolution from HTTP/1.1 to HTTP/3, it is h… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261106-160052-dm-mtp2-dm-p1-v1-mtp2-rcp-recall/result.json
+[localeval] logged to unanimis: fc75c5f1-5559-4337-b80a-17ed6218a6b8

@@ -315,22 +315,25 @@ natural-v1 decode tok/s (localeval `speed-spec`, 256 forced tokens, median of 3;
 | 3 | MTP k2 | 63.8 | 55.2 | 53.7 | 45.6 | 0.702 |
 | 4 | DFlash2 k7 | 54.2 | 30.4 | 28.3 | 20.1 | 0.372 |
 | 5 | DFlash2 k3 | 59.1 | 44.5 | 41.7 | 32.1 | 0.638 |
-| #8833 v6 | TensorFold (DFlash2 tree, MLX 4-bit) | 118.1 | 77.6 | 78.3 | 51.4 | |
+| #8866 v1 | MTP k2 (same window as TF) | 61.3 | 52.3 | 50.0 | 40.4 | 0.706 |
+| #8866 v2 | TensorFold (DFlash2 tree, MLX 4-bit) | 135.0 | 88.1 | 87.3 | 63.3 | |
 
 B / A of the two-visit medians (DFlash2 k7 / MTP k2): 128 0.88, 1k 0.57, 4k **0.54**, 16k 0.46. **Pre-registered rule (>= 1.05 at 4k,
-no cell < 0.95): not met.** DFlash2 k3 (one visit): 4k 0.82x of MTP k2. TensorFold / MTP k2 at 4k: 1.53x (cross-window: TF ran in #8833).
+no cell < 0.95): not met.** DFlash2 k3 (one visit): 4k 0.82x of MTP k2. TensorFold / MTP k2 at 4k, same window (#8866): **1.75x** (128 2.20x, 1k 1.68x, 16k 1.57x). The #8833 TF visit (78.3 at 4k) is not used:
+that window ran both engines slow (MTP 33.6 / 39.6 at 4k vs 48.5-53.7 elsewhere).
 
-Categories (`localeval quality --judge none`, 512 forced tokens, decode tok/s; ours from #8861, TensorFold from #8833 v6):
+Categories (`localeval quality --judge none`, 512 forced tokens, decode tok/s; MTP / DFlash2 from #8861; TensorFold and its same-window MTP k2
+from #8866, so TF / MTP uses #8866's MTP):
 
-| category | MTP k2 | DFlash2 k7 | DFlash2 k3 | TensorFold | k7 / MTP | TF / MTP |
-|---|---:|---:|---:|---:|---:|---:|
-| ho-chat | 50.3 | 27.4 | 41.9 | 73.4 | 0.54 | 1.46 |
-| ho-code | 58.5 | 42.3 | 52.2 | 121.2 | 0.72 | 2.07 |
-| ho-prose | 44.2 | 21.8 | 36.2 | 61.3 | 0.49 | 1.39 |
-| ho-recall | 52.3 | 33.2 | 45.6 | 88.1 | 0.63 | 1.68 |
-| rcp-code | 58.4 | 47.6 | 54.8 | 121.4 | 0.82 | 2.08 |
-| rcp-prose | 44.5 | 22.7 | 36.5 | 60.6 | 0.51 | 1.36 |
-| rcp-recall | 53.2 | 36.2 | 47.6 | 93.3 | 0.68 | 1.75 |
+| category | MTP k2 (#8861) | DFlash2 k7 | DFlash2 k3 | MTP k2 (#8866) | TensorFold (#8866) | k7 / MTP | k3 / MTP | TF / MTP |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| ho-chat | 50.3 | 27.4 | 41.9 | 52.1 | 83.6 | 0.54 | 0.83 | 1.60 |
+| ho-code | 58.5 | 42.3 | 52.2 | 60.9 | 134.6 | 0.72 | 0.89 | 2.21 |
+| ho-prose | 44.2 | 21.8 | 36.2 | 46.2 | 67.8 | 0.49 | 0.82 | 1.47 |
+| ho-recall | 52.3 | 33.2 | 45.6 | 55.1 | 99.1 | 0.63 | 0.87 | 1.80 |
+| rcp-code | 58.4 | 47.6 | 54.8 | 61.4 | 137.9 | 0.82 | 0.94 | 2.25 |
+| rcp-prose | 44.5 | 22.7 | 36.5 | 46.4 | 67.5 | 0.51 | 0.82 | 1.45 |
+| rcp-recall | 53.2 | 36.2 | 47.6 | 54.9 | 103.2 | 0.68 | 0.89 | 1.88 |
 
 Verdict, phase 1: correct (bitwise ids, admitted kernels, serve works), slower than MTP k2 everywhere (0.46-0.88x; k3 0.82-0.94x). The
 acceptance half is there (3.6-3.8 tokens a pass vs MTP's 2.5), the cost half is not: an 8-row bitwise verify costs ~3-4x a plain step on
@@ -343,4 +346,5 @@ started and phase 2's pre-registered rule was not run. At today's per-row cost a
 Keep Metal DFlash2 opt-in only as a correctness-complete port (it costs nothing when `--spec dflash` is not passed: plan show identical),
 but do not recommend it to users on Metal: MTP k2 is faster in every category and context length measured. It becomes worth revisiting
 only if the verify cost per row drops (a non-bitwise M-row path, which the user has ruled out, or new hardware matrix units reachable from
-a bitwise path). The TensorFold gap on Metal (1.4-2.1x by category) is a verify-cost gap under our bitwise constraint, not an acceptance gap.
+a bitwise path). The TensorFold gap on Metal (same window: 1.75x at natural-v1 4k, 1.45-2.25x by category) is a verify-cost gap under our bitwise constraint,
+not an acceptance gap.

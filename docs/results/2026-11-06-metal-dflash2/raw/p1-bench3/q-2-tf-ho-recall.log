@@ -1,0 +1,39 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/ho-recall.jsonl: 2 rows, judge=none
+# localeval: dm-tf — 2026-11-06T16:06
+
+- model: `bench` on ? (?), url `http://127.0.0.1:8298/v1`
+- thinking: off; run kind: quality; label: dm-p1-v2-tf-ho-recall
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dm-tf --thinking off --label dm-p1-v2-tf-ho-recall --recipe tensorfold Vontra/Qwen3.8-27B-MLX-4bit --context 20480 (endor service binary, tensorfold; DFlash2 tree drafter default; lane dm) --dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/ho-recall.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261106-160659-dm-tf-dm-p1-v2-tf-ho-recall/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+tensorfold Vontra/Qwen3.8-27B-MLX-4bit --context 20480 (endor service binary, tensorfold; DFlash2 tree drafter default; lane dm)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/ho-recall.jsonl` (2 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 2 | 0 |
+| TTFT (s) | 0.107 | 1.0 | 2 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 2 | 0 |
+| Decode (tok/s) | 99.3 | 1.0 | 2 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| recall-tls | yes | 0.0 | 0.11 | 103.7 | TLS 1.3 represents a significant overhaul of the Transport L… |
+| recall-raft | yes | 0.0 | 0.11 | 95.0 | The **Raft** consensus algorithm is a method for managing a … |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261106-160659-dm-tf-dm-p1-v2-tf-ho-recall/result.json
+[localeval] logged to unanimis: f90c83ac-5e65-4bc6-8a6b-2d51720d82d8
