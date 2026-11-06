@@ -1,0 +1,35 @@
+fleetq: #8807 running on endor: env INTARSIA_METAL_MXFP4_MR=1 .dm/bin/intarsia-p1a generate -m /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4 --backend metal --max-seq 20480 --chat --no-think --profile-every 1 --op-table --ignore-eos -p 'Write a short, friendly email to my landlord asking whether the heating can be repaired this week, since the apartment has been cold for several days.' --max-tokens 96 --spec dflash --spec-k 7 --spec-draft /Users/josef/.cache/huggingface/hub/models--z-lab--Qwen3.8-27B-DFlash2/snapshots/50307d4c4cde6860d4eee73e2547cd786fe8e8a4
+prefill chunk 2048 (recipe qwen3_5_vl, metal)
+dflash: draft of 5 layers (taps [5, 19, 33, 47, 61], block 8, DFlash2) loaded in 0.1 s
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+--spec dflash on metal: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Dflash, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv sigmoid_mul=sigmoid_mul_bf16 add=add_bf16 matmul=matmul_bf16_nax qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 matmul=matmul_bf16_gemv_rows dyn_conv=dyn_conv_bf16 logits=logits_bf16_gemv_rows argmax=argmax_f32 attn_decode=attn_decode_bf16_window
+loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on Apple M5 Max in 0.5s: 64 layers, hidden 5120, act bf16, kv bf16, weights 21.74 GB, context 20480 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 41 tokens
+finish=length prompt=41 (cached 0) completion=96 | prefill 810 ms (50.6 tok/s) | decode 13161 ms (7.22 tok/s)
+op table (estimated ms over all launches; total 13288.3 ms):
+op                               ms  share%    calls   timed
+matmul_mxfp4                4395.40   33.08    14880   14880
+logits                      2338.23   17.60       57      29
+gdn_delta_rule              1602.72   12.06    10320   10320
+gdn_conv                    1473.15   11.09    10320   10320
+attn_decode                  764.50    5.75     4544    3424
+rmsnorm_add                  604.56    4.55     3840    3840
+matmul                       533.12    4.01     2018     435
+silu_glu                     501.22    3.77     3500    3360
+rmsnorm                      278.55    2.10     1808    1499
+embedding                    252.70    1.90       58      30
+qk_norm_rope_kv               90.55    0.68      480     480
+kv_append                     89.93    0.68      580     290
+add                           82.43    0.62      550     266
+gate_split                    69.97    0.53      480     480
+sigmoid_mul                   67.19    0.51      480     480
+qk_norm                       63.98    0.48      430     145
+rope                          63.83    0.48      430     145
+argmax                        13.61    0.10       57      29
+attn_prefill                   2.69    0.02       16      16
+dyn_conv                       0.00    0.00      560       0
+spec: verify passes=28 proposed=185 accepted=67 (acceptance 36.2%, 3.39 tokens per pass)
+steps=30 graph replays=0 (captures 0) eager decode steps=1 (profiled 1) top ops: matmul_mxfp4=4395ms/14880 gdn_delta_rule=1603ms/10320 gdn_conv=1473ms/10320 logits=1190ms/57 rmsnorm_add=605ms/3840
+fleetq: #8807 done (exit 0)
