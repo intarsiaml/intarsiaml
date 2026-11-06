@@ -83,14 +83,14 @@ fn df_verify_kernels_27b() {
             let rows = intarsia_backend_metal::mxfp4::with_mr(0, || {
                 time_us(&be, 50, || be.launch("matmul_mxfp4_gemv", &cm, 0).unwrap())
             });
-            let mr: Vec<String> = [1usize, 2, 4, 8, 12, 14]
+            let mr: Vec<String> = [1usize, 2, 4, 8]
                 .iter()
                 .filter(|_| m >= 2)
                 .map(|&p| {
                     let us = intarsia_backend_metal::mxfp4::with_mr(p, || {
                         time_us(&be, 50, || be.launch("matmul_mxfp4_gemv", &cm, 0).unwrap())
                     });
-                    format!("mr {} {us:.1} us ({:.2}x M=1)", match p { 8 => "mma".to_string(), 12 | 14 => format!("p{}lut", p - 10), _ => format!("p{p}") }, us / t1)
+                    format!("mr {} {us:.1} us ({:.2}x M=1)", if p == 8 { "mma".to_string() } else { format!("p{p}") }, us / t1)
                 })
                 .collect();
             let serial = time_us(&be, 50, || {
