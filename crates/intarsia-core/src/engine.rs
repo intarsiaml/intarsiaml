@@ -384,7 +384,7 @@ impl StopMatcher {
 }
 
 mod batch;
-pub use batch::{BatchedEngine, BatchedOptions, BUSY_PREFILL_CHUNK};
+pub use batch::{batched_mtp_env, BatchedEngine, BatchedOptions, BUSY_PREFILL_CHUNK};
 
 // ---------------------------------------------------------------------------
 // LocalEngine
@@ -414,8 +414,8 @@ struct Shared {
     codec: Arc<dyn TextCodec>,
     eos: Vec<u32>,
     spec: crate::spec::SpecConfig,
-    /// Set when the worker panicked: the engine accepts no more work.
-    failed: Mutex<Option<String>>,
+    /// Set when the worker panicked or a remote rank was lost: the engine accepts no more work.
+    failed: Arc<Mutex<Option<String>>>,
     /// The prefix store and how requests use it (`EngineMeta::prefix_store`).
     store: Option<StorePolicy>,
 }
@@ -740,13 +740,23 @@ impl LocalEngine {
             );
             drop(g);
         }
+        let failed = Arc::new(Mutex::new(None));
+        if let Some(peer) = model.remote_peer() {
+            // the engine thread may sit in a kernel that never returns once the other rank is gone: the peer's reader thread
+            // marks the engine failed (health 503, then the server exits for a restart) without waiting for it
+            let f = Arc::clone(&failed);
+            peer.on_lost(move |why| {
+                eprintln!("tensor parallel: {why}; marking the engine failed");
+                f.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert(format!("tensor-parallel group failed: {why}"));
+            });
+        }
         let shared = Arc::new(Shared {
             inner: Mutex::new(Inner { model, state }),
             telemetry,
             codec,
             eos: meta.eos_ids,
             spec: meta.spec,
-            failed: Mutex::new(None),
+            failed,
             store,
         });
         let (tx, rx) = channel::<Job>();
@@ -1112,6 +1122,16 @@ pub(crate) enum PrefillStep {
     Finished(Outcome),
 }
 
+/// What [`Seq::prepare_with`] leaves for the caller to run.
+pub(crate) enum Prep {
+    /// `self.tok` is the next token already (a verified run): no forward pass.
+    Ready,
+    /// One plain decode step of this token, head in this mode ([`Seq::accept_plain`]).
+    Plain(u32, HeadMode),
+    /// Lane bm: a verify pass over these ids `[tok, drafts...]`, run batched with other sequences' ([`Seq::accept_verify`]).
+    Verify(Vec<u32>),
+}
+
 /// What [`Seq::plan_step`] wants next for a decoding sequence.
 pub(crate) enum Next {
     /// A token already known (a verified speculative run): no forward pass.
@@ -1201,6 +1221,8 @@ pub(crate) struct Seq {
     predraft: Option<Predraft>,
     /// The next pass's ids, already in `ws.ids` (`Model::spec_pipe_step`).
     staged: Option<Staged>,
+    /// Lane bm: the drafts of a verify pass handed to the batching engine ([`Prep::Verify`]), and the length it starts at.
+    deferred: Option<(usize, Vec<u32>)>,
 }
 
 /// The outcome of a request of `plen` prompt tokens that ended before it held any state.
@@ -1424,6 +1446,7 @@ impl Seq {
             pipe_solo: false,
             predraft: None,
             staged: None,
+            deferred: None,
         }
     }
 
@@ -1997,6 +2020,17 @@ impl Seq {
     /// speculative run) becomes `self.tok`, a verify pass runs; `Some((token, mode))` when a plain step is still needed
     /// ([`Seq::plain_input`]), which the caller runs alone or inside a batch and hands to [`Seq::accept_plain`].
     pub(crate) fn prepare(&mut self, model: &Model, st: &mut SequenceState) -> Result<Option<(u32, HeadMode)>> {
+        match self.prepare_with(model, st, false)? {
+            Prep::Ready => Ok(None),
+            Prep::Plain(t, m) => Ok(Some((t, m))),
+            Prep::Verify(_) => Err(Error::Other("a deferred verify pass outside the batching engine".into())),
+        }
+    }
+
+    /// [`Seq::prepare`]; with `defer_verify` (lane bm, the batching engine's batched verify pass) an MTP draft is not verified
+    /// here: the pass's ids `[tok, drafts...]` come back as [`Prep::Verify`], and its rows' greedy tokens go to
+    /// [`Seq::accept_verify`].
+    pub(crate) fn prepare_with(&mut self, model: &Model, st: &mut SequenceState, defer_verify: bool) -> Result<Prep> {
         let plan = self.plan_step(st);
         if !matches!(plan, Next::Emit(_) | Next::Draft(_)) {
             // anything else runs on the workspace: what the last pipelined pass left there is gone
@@ -2006,13 +2040,13 @@ impl Seq {
         match plan {
             Next::Emit(t) => {
                 self.tok = t;
-                return Ok(None);
+                return Ok(Prep::Ready);
             }
             Next::Verify(drafts) => {
                 self.verify(model, st, &drafts)?;
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
-                    return Ok(None);
+                    return Ok(Prep::Ready);
                 }
             }
             Next::Draft(k) if self.spec_sampled != crate::spec::SampledSpec::Off => {
@@ -2022,9 +2056,26 @@ impl Seq {
                 if self.sampled_pass(model, st, k)? {
                     if let Some(t) = self.pending.pop_front() {
                         self.tok = t;
-                        return Ok(None);
+                        return Ok(Prep::Ready);
                     }
                 }
+            }
+            Next::Draft(k) if defer_verify && self.auto.is_none() && !self.spec_dflash && !mtp_verify_check() => {
+                self.predraft = None;
+                self.staged = None;
+                self.cost_begin(true);
+                let drafts = model.mtp_draft(st, self.tok, k)?;
+                if drafts.is_empty() {
+                    // no room for a draft block near the end of the context window: a plain step
+                    self.cost_begin(false);
+                    let (t, m) = self.plain_input();
+                    return Ok(Prep::Plain(t, m));
+                }
+                let mut ids = Vec::with_capacity(drafts.len() + 1);
+                ids.push(self.tok);
+                ids.extend_from_slice(&drafts);
+                self.deferred = Some((st.len, drafts));
+                return Ok(Prep::Verify(ids));
             }
             Next::Draft(k)
                 if self.pipe_solo
@@ -2061,7 +2112,7 @@ impl Seq {
                 }
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
-                    return Ok(None);
+                    return Ok(Prep::Ready);
                 }
             }
             Next::Draft(k) if self.auto.is_none() && !mtp_verify_check() && model.spec_step_ok(st, self.tok, k) => {
@@ -2085,11 +2136,11 @@ impl Seq {
                         }
                         if let Some(t) = self.pending.pop_front() {
                             self.tok = t;
-                            return Ok(None);
+                            return Ok(Prep::Ready);
                         }
                     }
                     // capture failed (graph steps are off now): the eager path below
-                    None => return self.prepare(model, st),
+                    None => return self.prepare_with(model, st, defer_verify),
                 }
             }
             Next::Draft(k) => {
@@ -2108,7 +2159,8 @@ impl Seq {
                 if drafts.is_empty() {
                     // no room for a draft block near the end of the context window: a plain step
                     self.cost_begin(false);
-                    return Ok(Some(self.plain_input()));
+                    let (t, m) = self.plain_input();
+                    return Ok(Prep::Plain(t, m));
                 }
                 if mtp_verify_check() {
                     let mut ids = vec![self.tok];
@@ -2142,13 +2194,45 @@ impl Seq {
                 }
                 if let Some(t) = self.pending.pop_front() {
                     self.tok = t;
-                    return Ok(None);
+                    return Ok(Prep::Ready);
                 }
             }
             Next::Plain => {}
         }
         self.cost_begin(false);
-        Ok(Some(self.plain_input()))
+        let (t, m) = self.plain_input();
+        Ok(Prep::Plain(t, m))
+    }
+
+    /// Lane bm: make the next verified token (queued by a verify pass) `self.tok`, as [`Seq::plan_step`]'s `Emit` would; `false`
+    /// when none is queued or the request already ended.
+    pub(crate) fn next_pending(&mut self) -> bool {
+        if self.reason.is_some() {
+            return false;
+        }
+        match self.pending.pop_front() {
+            Some(t) => {
+                self.tok = t;
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Lane bm: the greedy tokens of the rows of this sequence's verify pass ([`Prep::Verify`]), run batched by the caller and
+    /// committed to `st`: the same acceptance and rollback as a solo pass ([`Seq::verify_pass`]), then the first verified token
+    /// becomes `self.tok`.
+    pub(crate) fn accept_verify(&mut self, model: &Model, st: &mut SequenceState, out: Vec<u32>) -> Result<()> {
+        let (len0, drafts) = self.deferred.take().ok_or_else(|| Error::Other("verify rows without a deferred pass".into()))?;
+        self.verify_pass(model, st, len0, &drafts, out)?;
+        match self.pending.pop_front() {
+            Some(t) => {
+                self.tok = t;
+                Ok(())
+            }
+            // MTP never drafts inside a min_tokens window that masks stop ids (`plan_step`), so a pass always emits
+            None => Err(Error::Other("a batched verify pass emitted no token".into())),
+        }
     }
 
     /// Produce the next `self.tok` on this sequence alone (plan, run the forward pass, sample).

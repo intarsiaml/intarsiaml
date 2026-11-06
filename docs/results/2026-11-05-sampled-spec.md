@@ -35,6 +35,18 @@ Coordinator, 2026-11-05 (copied verbatim as asked):
 >
 > DeepSeek-V4.1 stays out of your scope; a separate lane may take it. Copy this message into your results doc.
 
+Coordinator, 2026-11-05, after the first report (copied as asked):
+
+> 1. `INTARSIA_SPEC_SAMPLED=1` means `match`. `=reject` and `=match` select a variant explicitly. Update the tuning row, the LOG row, the tests and the doc.
+> 2. Rebase or merge onto `origin/main` (now `d40d93896`). It includes #309, batched MTP inside `--max-batch`: `INTARSIA_BATCHED_MTP`, with solo MTP at low occupancy. #310 changes the packed-prefill minimum on CUDA.
+>    - Resolve conflicts.
+>    - Make sure sampled requests on the batched phase-A path either use your sampled accept correctly or fall back to plain decode. Say which in the doc.
+>    - Make sure greedy stays bitwise.
+>    - Then run `cargo test --workspace --no-fail-fast` through fleetq with `--load cpu`.
+> 3. Remove `~/intarsiaml-ss` on spark1 inside a fleetq slot (`--load none`).
+>
+> The default stays off until the user decides.
+
 ## The change
 
 `INTARSIA_SPEC_SAMPLED` (default off; `Model::set_spec_sampled` for tests):
@@ -42,8 +54,8 @@ Coordinator, 2026-11-05 (copied verbatim as asked):
 | value | variant | draft | accept rule at verify row i | on reject |
 |---|---|---|---|---|
 | unset, `0`, `off` | off | - | sampled requests take plain steps (main's behaviour) | - |
-| `match` | `SampledSpec::Match` | the MTP head's argmax (main's draft path, unchanged) | draw x from the processed target distribution p_i; accept iff x == d_i | emit x, stop |
-| `1`, `reject` | `SampledSpec::Reject` | drawn from the head's processed distribution q_i with the request's RNG | accept d_i with probability min(1, p_i(d_i) / q_i(d_i)) | emit a draw from normalize(max(0, p_i - q_i)), stop |
+| `1`, `match` | `SampledSpec::Match` | the MTP head's argmax (main's draft path, unchanged) | draw x from the processed target distribution p_i; accept iff x == d_i | emit x, stop |
+| `reject` | `SampledSpec::Reject` | drawn from the head's processed distribution q_i with the request's RNG | accept d_i with probability min(1, p_i(d_i) / q_i(d_i)) | emit a draw from normalize(max(0, p_i - q_i)), stop |
 
 All k accepted: a bonus token is drawn from p_k. Both rules are exact in law (section 2).
 
@@ -62,6 +74,13 @@ trace. Sampled requests take the eager draft + verify step (`Seq::sampled_pass`)
 pipelined Metal GPU-accept step (`spec_pipe`) are bypassed, because both keep the logits on the device. Speed numbers below are
 therefore for the eager step. The batching scheduler builds its sequences with `Seq::build` only and never turns it on.
 Greedy requests are untouched: `spec_on` for them is computed exactly as on main, and the greedy accept (`spec_accept`) is unchanged.
+
+**Batched engine after the merge with `d40d93896` (#309 batched MTP inside `--max-batch`, `INTARSIA_BATCHED_MTP`).** Sampled
+requests there **fall back to plain decode**, as on main. The batching engine builds its sequences with `Seq::build` only, whose
+`spec_on` still requires a greedy request; the sampled switch (`spec_sampled`) is set only by the single-sequence `Seq::new`. So
+on the batched phase-A path (solo MTP passes at low occupancy, and the deferred batched verify) a sampled request never drafts,
+never reaches the sampled accept, and greedy requests keep main's acceptance unchanged. In `Seq::prepare` the sampled arm comes
+first and matches only when `spec_sampled` is not `Off`, so the deferred-verify arm of #309 is untouched for every batched sequence.
 
 **RNG.** The request's seeded `Sampler` RNG (SplitMix64) drives the draft draws, accept tests and residual/bonus draws (53-bit
 uniforms), so a seed reproduces a sampled run. It is not the same token stream as spec-off for the same seed (the draws are
@@ -230,8 +249,9 @@ CUDA (spark1, fleetq #8652, base `602a1fcfe` and branch `c28ad2d3f` built there;
 
 ## 5. Recommendation
 
-- **Single recommendation: `match`, opt-in for now.** Note: `INTARSIA_SPEC_SAMPLED=1` currently selects `reject` (the brief's
-  spelling); `match` must be named explicitly. The mapping is left for the coordinator to decide.
+- **Single recommendation: `match`, opt-in for now.** Per the coordinator's decision below, `INTARSIA_SPEC_SAMPLED=1` now
+  selects `match` (the gates above ran with `1` = `reject`; every speed and statistical arm named its variant explicitly, so
+  only the no-op greedy-id runs used `1`, and greedy requests never reach either variant).
 - **Not default-on yet.** Exactness is shown, and greedy is untouched, but the sampled output for a seed differs from spec-off
   (same law, other tokens), the best variant depends on the model and backend, and the Metal numbers drift 10-20 % between rounds.
 - If one variant is to become the default for sampled traffic (the server's default temperature is 1.0), **`match` on the 35B
@@ -269,7 +289,7 @@ CUDA (spark1, fleetq #8652, base `602a1fcfe` and branch `c28ad2d3f` built there;
 ## Remote work folder
 
 `cuda.sh` created `~/intarsiaml-ss` on spark1 (source tree, cargo target, the two CLI binaries: 2.7 GB; spark1's disk is 91 % full).
-It is left in place for the coordinator to keep or remove.
+Removed on the coordinator's instruction (fleetq, `--load none`).
 
 ## Files
 

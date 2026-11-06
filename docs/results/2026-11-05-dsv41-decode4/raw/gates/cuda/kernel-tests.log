@@ -1,0 +1,25 @@
+ok   rmsnorm (separate path) T=3                                max_abs=0.000e0 rel_l2=0.000e0
+ok   moe_route T=3 E=384 K=6                                    max_abs=2.980e-8 rel_l2=7.152e-8
+ok   silu_glu_clamp T=3 I=1152                                  max_abs=0.000e0 rel_l2=0.000e0
+ok   act_qdq kv e4m3/32 T=3                                     max_abs=0.000e0 rel_l2=0.000e0
+ok   act_qdq o e4m3/32 T=3                                      max_abs=0.000e0 rel_l2=0.000e0
+ok   act_qdq index_q e2m1/32 T=3                                max_abs=0.000e0 rel_l2=0.000e0
+ok   act_qdq latent e2m1/16 e4m3 T=3                            max_abs=0.000e0 rel_l2=0.000e0
+ok   rope_tail q T=3                                            max_abs=0.000e0 rel_l2=0.000e0
+ok   rope_tail o inverse T=3                                    max_abs=0.000e0 rel_l2=0.000e0
+ok   rope_tail kv T=3                                           max_abs=0.000e0 rel_l2=0.000e0
+ok   rope_tail index_q T=3                                      max_abs=0.000e0 rel_l2=0.000e0
+ok   window_kv T=3 pos0=4094                                    max_abs=0.000e0 rel_l2=0.000e0
+ok   attn_sparse T=3 H=32 D=512 Nc=2048 Kc=512 pos0=4094        max_abs=1.953e-3 rel_l2=1.852e-3
+ok   compress_pool ratio=2 T=3 pos0=4094 G=1                    max_abs=0.000e0 rel_l2=0.000e0
+ok   indexer_blocks T=3 Nk=4096 keep=2048                       max_abs=0.000e0 rel_l2=0.000e0
+ok   indexer_topk T=3 Nk=4096 top512                            max_abs=0.000e0 rel_l2=0.000e0
+ok   indexer_topk T=3 Nk=4096 top512 in candidates              max_abs=0.000e0 rel_l2=0.000e0
+ok   attn_sparse T=1 H=32 D=512 Nc=65536 Kc=512 pos0=131071     max_abs=1.953e-3 rel_l2=1.913e-3
+ok   indexer_blocks T=1 Nk=131072 keep=2048                     max_abs=0.000e0 rel_l2=0.000e0
+ok   indexer_topk T=1 Nk=131072 top512                          max_abs=0.000e0 rel_l2=0.000e0
+ok   indexer_topk T=1 Nk=131072 top512 in candidates            max_abs=0.000e0 rel_l2=0.000e0
+test real_shapes_against_the_cpu_reference ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 2.13s
+

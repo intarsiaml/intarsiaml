@@ -1585,6 +1585,14 @@ impl Backend for HipBackend {
         crate::kernels::ROWS_MAX
     }
 
+    /// Packed prefill on by default (lane fh, user decision 2026-11-05 17:06 EST "flip 2"; lane hg `packed_rows.rs` and the 35B engine
+    /// test: each prompt's state and outputs are its solo prefill's, docs/results/2026-10-25-hg-hip-serve-gap.md section 6,
+    /// docs/results/2026-11-05-hip-pack-default.md). The pass still needs a hybrid model on one rank (`Model::pack_capable`), so
+    /// `--tp 2` and dense models are unchanged. `INTARSIA_PACK_PREFILL=0` turns it off.
+    fn pack_prefill_default(&self) -> bool {
+        true
+    }
+
     fn graph_capture(&self, stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
         // see `graph_lock`
         let _lock = graph_lock();

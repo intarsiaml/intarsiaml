@@ -1,0 +1,7 @@
+ids-plain16-main.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-plain16-nopack.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-bver5-nopack.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-plain16-main-r2.json identical per sequence: [True, True, False, True, True, True] MISMATCH
+ids-plain16-main-r3.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-plain16-main-r4.json identical per sequence: [True, True, False, True, True, True] MISMATCH
+ids-plain16-r2.json identical per sequence: [True, True, False, True, True, True] MISMATCH

@@ -1,0 +1,6 @@
+kind                           A1                       B1                       A2                       B2
+chat          50.4 (median  51.9)      51.6 (median  53.1)      51.1 (median  52.1)      51.4 (median  51.5)
+code          73.0 (median  71.5)      74.8 (median  73.9)      74.1 (median  73.5)      74.8 (median  73.3)
+prose         45.5 (median  45.2)      45.8 (median  45.7)      45.3 (median  45.0)      46.1 (median  45.7)
+recall        58.0 (median  57.8)      59.3 (median  58.9)      58.4 (median  57.6)      58.8 (median  57.8)
+all           55.0 (median  54.6)      56.0 (median  55.4)      55.4 (median  55.3)      55.9 (median  55.9)

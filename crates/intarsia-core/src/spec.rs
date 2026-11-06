@@ -157,12 +157,13 @@ pub enum SampledSpec {
 }
 
 impl SampledSpec {
-    /// `INTARSIA_SPEC_SAMPLED`: unset, `0` or `off`: off; `1` or `reject`: [`SampledSpec::Reject`]; `match`: [`SampledSpec::Match`].
+    /// `INTARSIA_SPEC_SAMPLED`: unset, `0` or `off`: off; `1` or `match`: [`SampledSpec::Match`]; `reject`: [`SampledSpec::Reject`]
+    /// (coordinator decision 2026-11-05: `1` is the recommended variant, `match`).
     pub fn parse(v: &str) -> Option<SampledSpec> {
         match v {
             "" | "0" | "off" => Some(SampledSpec::Off),
-            "1" | "reject" => Some(SampledSpec::Reject),
-            "match" => Some(SampledSpec::Match),
+            "1" | "match" => Some(SampledSpec::Match),
+            "reject" => Some(SampledSpec::Reject),
             _ => None,
         }
     }
@@ -173,7 +174,7 @@ impl SampledSpec {
         *V.get_or_init(|| {
             let v = std::env::var("INTARSIA_SPEC_SAMPLED").unwrap_or_default();
             SampledSpec::parse(&v).unwrap_or_else(|| {
-                eprintln!("INTARSIA_SPEC_SAMPLED={v}: unknown (0, 1 / reject, match); sampled speculation stays off");
+                eprintln!("INTARSIA_SPEC_SAMPLED={v}: unknown (0, 1 / match, reject); sampled speculation stays off");
                 SampledSpec::Off
             })
         })
@@ -1418,7 +1419,7 @@ mod tests {
     fn sampled_spec_parse() {
         assert_eq!(SampledSpec::parse(""), Some(SampledSpec::Off));
         assert_eq!(SampledSpec::parse("0"), Some(SampledSpec::Off));
-        assert_eq!(SampledSpec::parse("1"), Some(SampledSpec::Reject));
+        assert_eq!(SampledSpec::parse("1"), Some(SampledSpec::Match));
         assert_eq!(SampledSpec::parse("reject"), Some(SampledSpec::Reject));
         assert_eq!(SampledSpec::parse("match"), Some(SampledSpec::Match));
         assert_eq!(SampledSpec::parse("yes"), None);

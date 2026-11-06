@@ -1,0 +1,18 @@
+Admitted { iter: 1, id: 0, slot: 0, cached: 0 }
+Admitted { iter: 1, id: 1, slot: 1, cached: 0 }
+PrefillStart { iter: 1, id: 0, chunk: 2048, decoding: 0 }
+Chunk { iter: 1, id: 0, start: 0, len: 15, last: true }
+Admitted { iter: 2, id: 2, slot: 2, cached: 0 }
+Admitted { iter: 2, id: 3, slot: 3, cached: 0 }
+Admitted { iter: 2, id: 4, slot: 4, cached: 0 }
+Admitted { iter: 2, id: 5, slot: 5, cached: 0 }
+PrefillStart { iter: 2, id: 1, chunk: 2048, decoding: 1 }
+Chunk { iter: 2, id: 1, start: 0, len: 15, last: true }
+PrefillStart { iter: 3, id: 2, chunk: 2048, decoding: 2 }
+Chunk { iter: 3, id: 2, start: 0, len: 82, last: true }
+PrefillStart { iter: 4, id: 3, chunk: 2048, decoding: 3 }
+Chunk { iter: 4, id: 3, start: 0, len: 17, last: true }
+PrefillStart { iter: 5, id: 4, chunk: 2048, decoding: 4 }
+Chunk { iter: 5, id: 4, start: 0, len: 103, last: true }
+PrefillStart { iter: 6, id: 5, chunk: 2048, decoding: 5 }
+Chunk { iter: 6, id: 5, start: 0, len: 201, last: true }
