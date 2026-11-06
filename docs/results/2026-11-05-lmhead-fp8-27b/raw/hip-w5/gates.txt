@@ -1,0 +1,28 @@
+GATES kernels base exit 0
+GATES kernels head exit 0
+GATES plan-27-tp1.json: byte-identical (14161 B)
+GATES plan-27-tp1.json.err: byte-identical (607 B)
+GATES plan-27-tp1.txt: byte-identical (3079 B)
+GATES plan-27-tp1.txt.err: byte-identical (607 B)
+GATES plan-27-tp2.json: byte-identical (17032 B)
+GATES plan-27-tp2.json.err: byte-identical (1939 B)
+GATES plan-27-tp2.txt: byte-identical (3998 B)
+GATES plan-27-tp2.txt.err: byte-identical (1939 B)
+GATES plan-35-tp1.json: byte-identical (12961 B)
+GATES plan-35-tp1.json.err: byte-identical (268 B)
+GATES plan-35-tp1.txt: byte-identical (3184 B)
+GATES plan-35-tp1.txt.err: byte-identical (268 B)
+GATES plan-35-tp2.json: byte-identical (13541 B)
+GATES plan-35-tp2.json.err: byte-identical (339 B)
+GATES plan-35-tp2.txt: byte-identical (3346 B)
+GATES plan-35-tp2.txt.err: byte-identical (339 B)
+GATES kernels test: identical output (timing lines excluded)
+==> /home/josef/lmh-gates/kernels-base.out <==
+SKIPPED: kernel gated_rmsnorm_matmul_fp8_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel rmsnorm_add_matmul_fp8_pair_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel sigmoid_mul_matmul_fp8_wmma ran 0 cases on backend 'hip'
+
+==> /home/josef/lmh-gates/kernels-head.out <==
+SKIPPED: kernel gated_rmsnorm_matmul_fp8_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel rmsnorm_add_matmul_fp8_pair_wmma ran 0 cases on backend 'hip'
+SKIPPED: kernel sigmoid_mul_matmul_fp8_wmma ran 0 cases on backend 'hip'

@@ -397,6 +397,9 @@ pub struct BackendTuning {
     /// the unsharded matmul's; `"bf16"`: each rank rounds its partial first, half the all-reduce bytes) when `INTARSIA_TP_PARTIAL` is not
     /// set ([`Recipe::resolve_tp_partial`]). Unset: `"f32"`. Per backend only, set only where an accuracy gate passed.
     pub tp_partial: Option<String>,
+    /// Quantise the `lm_head` at load on this backend (`"fp8"` or `"mxfp4"`, [`crate::quant::head`]) when `INTARSIA_LMHEAD_QUANT` is not
+    /// set. It changes outputs: opt-in, no shipped recipe sets it (lane lmhead-fp8). Per backend only; CUDA ignores it (not gated there).
+    pub lm_head_quant: Option<String>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -456,6 +459,11 @@ impl Recipe {
             return DraftVocab { value, source: format!("recipe {family}, base") };
         }
         DraftVocab { value: 0, source: "default".into() }
+    }
+
+    /// The recipe's `lm_head_quant` for `backend` (`[tuning.<backend>]`), unparsed; the env var is resolved by the loader.
+    pub fn lm_head_quant(&self, backend: &str) -> Option<&str> {
+        self.tuning.backends.get(backend).and_then(|b| b.lm_head_quant.as_deref())
     }
 
     /// The MXFP4 activation mode the recipe picks for `backend` when `--mxfp4-act` is absent: `[tuning.<backend>] mxfp4_act`, else
@@ -687,6 +695,9 @@ impl Recipe {
         }
         if let Some(v) = self.tuning.backends.values().filter_map(|b| b.tp_partial.as_deref()).find(|v| !matches!(*v, "f32" | "bf16")) {
             return Err(Error::model(format!("recipe [tuning.<backend>] tp_partial = \"{v}\" (f32 or bf16)")));
+        }
+        for v in self.tuning.backends.values().filter_map(|b| b.lm_head_quant.as_deref()) {
+            crate::quant::head::HeadQuant::parse(v)?;
         }
         self.accuracy.ppl_form()?;
         if self.accuracy.max_ppl.is_some_and(|m| !(m.is_finite() && m > 0.0)) {

@@ -1,0 +1,33 @@
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+4k-0                3858  3858     0.03    5.930e0    1.446e1    1.446e1    2.085e1   0.0000   0.8688     0.18    0/3858      0
+4k-1                3981  3981     0.00    6.157e0    1.350e1    1.350e1    2.087e1   0.0000   0.8250     0.04    0/3981      0
+4k-2                4336  4336     0.00    6.585e0    1.226e1    1.226e1    1.948e1   0.0000   0.7400     0.12    0/4336      0
+16k-0              15469 15469     0.01    5.877e0    1.599e1    1.599e1    2.298e1   0.0000   0.8952     0.23   0/15469      0
+16k-1              15844 15844     0.00    6.580e0    1.426e1    1.426e1    2.207e1   0.0000   0.8052     0.11   0/15844      0
+16k-2              16293 16293     0.00    6.828e0    1.383e1    1.383e1    2.341e1   0.0000   0.7539     0.16   0/16293      0
+OVERALL                  59781     0.01    6.396e0    1.441e1    1.441e1    2.341e1   0.0000   0.8152     0.16      0.0%      0
+prefill floor [4bit]: top-1 (all rows) 0.01% (not gated for this class) ok | 21-way KL (scored rows, n=59781) 1.441e1 (need <= 3.0e-2) FAIL [all rows, n=59781: 1.441e1, reported only] | tail mass (all rows) ours 0.8152 vs ref 0.0000, excess +0.8152 (|.| <= 0.02) FAIL | non-finite rows 0 ok => FAIL
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.441e1 FAIL
+gate-definition: kl_floor [prefill]: old def: FAIL 1.441e1 (21-way KL over all rows <= static floor) | current def: FAIL 1.441e1 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+4k-0                3858   128     0.00    5.412e0    1.435e1    1.435e1    1.787e1   0.0000   0.8363     0.00     0/128      0
+4k-1                3981   128     0.00    7.002e0    1.379e1    1.379e1    1.985e1   0.0000   0.7916     0.16     0/128      0
+4k-2                4336   128     0.00    7.112e0    1.256e1    1.256e1    1.713e1   0.0000   0.7368     0.16     0/128      0
+16k-0              15469   128     0.00    6.601e0    1.379e1    1.379e1    1.739e1   0.0000   0.8316     0.00     0/128      0
+16k-1              15844   128     0.00    4.163e0    1.790e1    1.790e1    1.958e1   0.0000   0.8976     0.47     0/128      0
+16k-2              16293   128     0.00    5.982e0    1.719e1    1.719e1    2.290e1   0.0000   0.7840     0.47     0/128      0
+OVERALL                    768     0.00    6.046e0    1.493e1    1.493e1    2.290e1   0.0000   0.8130     0.21      0.0%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 0.00% (not gated for this class) ok | 21-way KL (scored rows, n=768) 1.493e1 (need <= 3.0e-2) FAIL [all rows, n=768: 1.493e1, reported only] | tail mass (all rows) ours 0.8130 vs ref 0.0000, excess +0.8130 (|.| <= 0.02) FAIL | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.493e1 FAIL
+gate-definition: kl_floor [decode]: old def: FAIL 1.493e1 (21-way KL over all rows <= static floor) | current def: FAIL 1.493e1 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 0.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 0.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden /opt/code/intarsiaml/.worktrees/lmhead-fp8/docs/results/2026-11-05-lmhead-fp8-27b/raw/metal-quality/self-bf16.safetensors (top-64 rows of modes prefill,decode for 6 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL

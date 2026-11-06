@@ -70,10 +70,12 @@ pub fn gemv_ok(s: &ShapeInfo) -> bool {
     (1..=GEMV_MB).contains(&s.m) && s.k % 16 == 0 && s.m * s.k * 2 <= GEMV_TG_BYTES
 }
 
-/// The row-exact multi-row GEMV serves 2..=8 rows; 4 rows of activations must fit threadgroup memory (K <= 4096), 8 rows
-/// are staged in one pass up to K = 2048 and in two passes of 4 (the `_m4` shader) above.
+/// The row-exact multi-row GEMV serves 2..=8 rows. The staged form needs 4 rows of activations in threadgroup memory (K <= 4096;
+/// 8 rows are staged in one pass up to K = 2048 and in two passes of 4 (the `_m4` shader) above); the `_xd` form (the default,
+/// `INTARSIA_METAL_FP8_ROWS_XD`) and the simdgroup-matrix form read q(x) from the scratch in device memory and have no K cap
+/// (lane lmhead-fp8: the quantised 27B head is K = 5120).
 pub fn rows_ok(s: &ShapeInfo) -> bool {
-    (2..=crate::CHUNK_ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && 4 * s.k * 2 <= GEMV_TG_BYTES
+    (2..=crate::CHUNK_ROWS_MAX).contains(&s.m) && s.k % 16 == 0 && (4 * s.k * 2 <= GEMV_TG_BYTES || xd_on())
 }
 
 /// GEMM scratch: the QDQ'd activations as bf16 `[M,K]`.
