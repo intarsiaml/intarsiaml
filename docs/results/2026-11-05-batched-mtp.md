@@ -20,6 +20,7 @@ no `--spec mtp` default, so N = 1 applies to an explicit `--spec mtp --max-batch
 | gate | job | result |
 |---|---|---|
 | CPU `batched_mtp_default_only_where_measured_and_env_wins` (`tests/tp_mtp.rs`): 35B cuda / metal tp1 -> 1; hip, tp 2, remote rank -> 0; `=0` off; shipped recipes set exactly `qwen3_5_moe cuda 1`, `qwen3_5_moe metal 1` | local | pass (with the existing MTP-default tests) |
+| `cargo test --workspace --no-fail-fast` (tree 8bd8ff93a) | endor #8718 | 1330 passed, 0 failed (the first run, #8700, did not compile: two test initializers of `BackendTuning` lacked the new field; fixed in 8bd8ff93a) |
 | CUDA `plan show` json (35B, single sequence) vs main d40d93896 | spark1 #8709 | byte-identical; stderr notes differ only in the head's load time (1.1 s vs 0.9 s) |
 | CUDA `--max-batch 16`, no `--spec`, no env var: startup line | #8709 | `--spec mtp --spec-k 2: the default of recipe qwen3_5_moe ...` and `batched MTP N=1 (recipe qwen3_5_moe, [tuning.cuda] batched_mtp)`; `/metrics` shows drafting (2-4 drafted: 6 concurrent prompts draft only once one is left) |
 | CUDA greedy ids, 6 concurrent prompts vs the solo spec-off server | #8709 | packing on (default, after #310): ALL identical; packing off: ALL; `INTARSIA_BATCHED_MTP=0`: ALL, 0 drafted |
