@@ -33,6 +33,8 @@ struct Mock {
     queue_full: bool,
     /// A request that asks for `logprobs` gets this many traced logits rows of this many entries (`trace_logits`).
     trace: Option<(usize, usize)>,
+    /// The threads `detokenize` ran on.
+    detokenized_on: Mutex<Vec<std::thread::ThreadId>>,
     /// The engine dies after this many tokens: the stream ends with an `Error` event instead of `Done`.
     die_after: Option<usize>,
     /// Structured output: a byte-level `tokenizer.json` (token 0 = EOS, 256 = `<tool_call>`, 257 = `</tool_call>`),
@@ -179,6 +181,7 @@ impl Engine for Mock {
         self.structured.then(mock_tokenizer_json)
     }
     fn detokenize(&self, ids: &[u32]) -> Result<String> {
+        self.detokenized_on.lock().unwrap().push(std::thread::current().id());
         Ok(ids.iter().map(|i| *i as u8 as char).collect())
     }
     fn apply_chat_template(&self, messages: &[Value], opts: &ChatOpts) -> Result<String> {
@@ -200,12 +203,8 @@ impl Engine for Mock {
         let plen = req.prompt.len();
         let max = req.max_tokens;
         let constrained = req.constraint.is_some().then(|| constrained_gen(&req, self.want.unwrap_or("")));
-        if let (Some((rows, vocab)), Some(tr)) = (self.trace, &req.trace_logits) {
-            let mut tr = tr.lock().unwrap();
-            for r in 0..rows {
-                tr.push((0..vocab).map(|j| ((j * 7 + r * 3) % 101) as f32 * 0.05).collect());
-            }
-        }
+        // filled on the worker thread before Done, as an engine traces during decode: not on the caller's thread
+        let trace = self.trace.zip(req.trace_logits.clone());
         self.reqs.lock().unwrap().push(req);
         let slow = self.slow;
         let die_after = self.die_after;
@@ -217,6 +216,12 @@ impl Engine for Mock {
             (toks, n, f)
         }));
         std::thread::spawn(move || {
+            if let Some(((rows, vocab), tr)) = trace {
+                let mut tr = tr.lock().unwrap();
+                for r in 0..rows {
+                    tr.push((0..vocab).map(|j| ((j * 7 + r * 3) % 101) as f32 * 0.05).collect());
+                }
+            }
             if let Some((toks, completion_tokens, finish_reason)) = script {
                 for (id, text) in toks {
                     tx.send(GenEvent::Token { id, text: text.to_string() }).ok();
@@ -1840,17 +1845,20 @@ async fn completions_logprobs_shape() {
 #[tokio::test(flavor = "current_thread")]
 async fn completions_logprobs_do_not_stall_the_async_threads() {
     let mock = Arc::new(Mock { trace: Some((2, 1_500_000)), ..Default::default() });
-    let app = app_with(mock);
+    let app = app_with(mock.clone());
+    let async_thread = std::thread::current().id();
     let ticking = Arc::new(AtomicBool::new(true));
     let t2 = ticking.clone();
     let ticker = tokio::spawn(async move {
-        let (mut worst, mut last) = (std::time::Duration::ZERO, std::time::Instant::now());
+        let (mut best, mut worst) = (std::time::Duration::MAX, std::time::Duration::ZERO);
+        let mut last = std::time::Instant::now();
         while t2.load(Ordering::Relaxed) {
-            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-            worst = worst.max(last.elapsed());
+            tokio::time::sleep(std::time::Duration::from_millis(1)).await;
+            let gap = last.elapsed();
+            (best, worst) = (best.min(gap), worst.max(gap));
             last = std::time::Instant::now();
         }
-        worst
+        (best, worst)
     });
     tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     let t = std::time::Instant::now();
@@ -1858,6 +1866,17 @@ async fn completions_logprobs_do_not_stall_the_async_threads() {
     let total = t.elapsed();
     assert_eq!(st, StatusCode::OK, "{}", &body[..body.len().min(300)]);
     ticking.store(false, Ordering::Relaxed);
-    let worst = ticker.await.unwrap();
-    assert!(worst < total / 3, "the timer stood still for {worst:?} of the request's {total:?}");
+    let (best, worst) = ticker.await.unwrap();
+    // the token texts of the logprobs are its last step, in the same call as the full-vocabulary work
+    let on = mock.detokenized_on.lock().unwrap().clone();
+    assert!(!on.is_empty(), "the logprobs named no token");
+    assert!(!on.contains(&async_thread), "the logprobs were built on the async thread");
+    // The timer catches full-vocabulary work left inline when the text lookup moved off. Every gap is a period plus
+    // the timer's rounding even on an idle thread, so only what the worst gap adds to the shortest is a stall. A release
+    // build does this vocabulary in about 5 ms, inside the timer's own jitter, so only a debug build (about 85 ms) can
+    // tell a stall from noise.
+    let stall = worst - best;
+    if cfg!(debug_assertions) {
+        assert!(stall < total / 3, "the timer stood still for {stall:?} beyond its {best:?} period, of the request's {total:?}");
+    }
 }
