@@ -1,0 +1,3 @@
+warning: `intarsia-backend-cuda` (lib) generated 1 warning
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 26s
+  Executable tests/rows_exact.rs (target/debug/deps/rows_exact-7e6449bebac5eeef)

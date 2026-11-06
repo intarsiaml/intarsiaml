@@ -215,7 +215,7 @@ impl Model {
         if self.tp.rank == 0
             && self.topk.is_none()
             && self.backend.supports_topk()
-            && std::env::var("INTARSIA_DEVICE_SAMPLING").is_ok_and(|v| v == "1")
+            && std::env::var("INTARSIA_DEVICE_SAMPLING").ok().as_deref().map_or(true, device_sampling_switch)
         {
             let m = Self::BATCH_MAX_ROWS;
             self.topk = Some(TopkBufs {
@@ -1240,8 +1240,22 @@ fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
     Ok(())
 }
 
+/// `INTARSIA_DEVICE_SAMPLING`: device-side top-k sampling is on unless the variable is `0`.
+fn device_sampling_switch(v: &str) -> bool {
+    v != "0"
+}
+
 #[cfg(test)]
 mod hip_guard_tests {
+    use super::device_sampling_switch;
+
+    #[test]
+    fn device_sampling_is_on_unless_set_to_zero() {
+        // unset takes `map_or(true, ..)` at the call site
+        assert!(device_sampling_switch("1") && device_sampling_switch(""));
+        assert!(!device_sampling_switch("0"));
+    }
+
     use super::hip_batch_needs_hybrid;
 
     #[test]

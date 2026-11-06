@@ -553,7 +553,7 @@ pub struct Model {
     row_tab: Option<Buffer>,
     batch_pos: Option<Buffer>,
     /// Device-side top-k sampling buffers (R3b): ids `i32 [BATCH_MAX_ROWS, 64]`, values `f32 [..]`, NaN flags `i32 [BATCH_MAX_ROWS]`
-    /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING` is `1` (opt-in, default off).
+    /// and the kernel's scratch. `Some` when the backend has `topk_rows` and `INTARSIA_DEVICE_SAMPLING` is not `0` (default on).
     topk: Option<TopkBufs>,
     /// Batched decode with a vocab-parallel head (`vocab_par`, every rank): the gather tile `f32 [world, BATCH_MAX_ROWS * V /
     /// world]`, rank-major as the all-gather leaves it; rank 0 then copies it into `ws.logits` as row-major `[b, V]`

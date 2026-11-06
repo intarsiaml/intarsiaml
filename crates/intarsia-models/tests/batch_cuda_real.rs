@@ -1178,7 +1178,7 @@ fn real_qwen3_8b_reuse_and_busy_chunks_equal_the_cold_reference() {
     eprintln!("RIP batched: turns and the busy-chunked long prompt equal the cold reference");
 }
 
-/// Device-side sampling is the host sampling (lane htk, docs/results/2026-10-27-htk-hip-topk.md): `INTARSIA_DEVICE_SAMPLING=1` on a backend with
+/// Device-side sampling is the host sampling (lane htk, docs/results/2026-10-27-htk-hip-topk.md): default on (`INTARSIA_DEVICE_SAMPLING=0` turns it off) on a backend with
 /// `topk_rows`. The same seeded `Sampler`s draw from the whole logits row (`HeadMode::LastLogits`, the host walk) in one arm and from the device's
 /// top-k candidates (`HeadMode::LastTopK`) in the other, over 32 steps of batched decode with 1, 4 and 16 rows and five temperature / top_k /
 /// top_p settings (k from 1 to the 64 maximum); the two arms must draw the same token at every step of every row. Opt-in like the other 35B gates.
@@ -1189,7 +1189,7 @@ fn real_35b_device_sampling_draws_the_host_tokens() {
     let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
     let m = load(&dir, be, 16, 2048);
     if !m.device_sampling() {
-        skip("INTARSIA_DEVICE_SAMPLING=1 is not set (or the backend has no device top-k)");
+        skip("INTARSIA_DEVICE_SAMPLING=0 is set (or the backend has no device top-k)");
         return;
     }
     let settings = [(0.7f32, 20usize, 1.0f32), (1.0, 40, 0.9), (0.8, 64, 0.5), (1.3, 8, 0.95), (0.6, 1, 1.0)];
@@ -1289,9 +1289,9 @@ fn real_35b_batch_step_timing() {
 }
 
 /// B2 (Fable review): the cost of a batched step whose rows are SAMPLED, on the host path (`LastLogits`: one [B, V] download and a
-/// host top-k/top-p walk per row) against the device path (`LastTopK(40)`: the k candidates only; opt-in: `INTARSIA_DEVICE_SAMPLING=1` turns it on).
+/// host top-k/top-p walk per row) against the device path (`LastTopK(40)`: the k candidates only; default on, `INTARSIA_DEVICE_SAMPLING=0` turns it off).
 /// Same seeds, so the two draw the same tokens when the states are the same; the token parity is gated by the engine test
-/// (`real_35b_batched_engine_equals_the_local_engine`, seeded-sampled requests, run with `INTARSIA_DEVICE_SAMPLING=1`).
+/// (`real_35b_batched_engine_equals_the_local_engine`, seeded-sampled requests, device sampling is the default).
 #[test]
 #[ignore]
 fn real_35b_batch_step_sampled_timing() {

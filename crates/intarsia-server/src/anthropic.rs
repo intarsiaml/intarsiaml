@@ -340,7 +340,7 @@ async fn messages_inner(
     })
     .await?;
     let input_tokens = prompt.len();
-    let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens)?;
+    let mut gen = sampling.into_request(prompt, F, info.context_len, st.default_max_tokens, &st.sampling_defaults)?;
     structured::attach(&st, F, &mut gen, plan, think).await?;
     let rx = start(&st, F, gen)?;
     let id = st.new_id("msg").replacen("msg-", "msg_", 1);
