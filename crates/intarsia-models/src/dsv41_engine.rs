@@ -362,7 +362,9 @@ struct SpecOpts {
 }
 
 /// Default of `INTARSIA_DSV41_SPEC_RETENTION`: the share of a draft's greedy acceptance that survives sampling at temperature 0.7 to 1.0.
-const RETENTION: f64 = 0.8;
+/// Measured 1.0 (docs/results/2026-11-05-dsv41-sampled-spec.md): the draft is accepted as often under sampling as under argmax (68 / 76 / 88 / 95 %
+/// by position at T 0.7 against 67 / 73 / 81 / 84 % greedy), and 0.8 was not faster than 1.0 (51.5 against 51.9 and 52.3 tok/s).
+const RETENTION: f64 = 1.0;
 
 /// Measured at TP=2 on the shipped binary (docs/results/2026-11-02-dsv41-decode2.md, window 2, `INTARSIA_DSV41_SPEC_TRACE=1`): the
 /// median whole-pass ms on rank 0 of a pass of 1 .. 4 rows over the 32 requests of the category set (1300 rounds or more each

@@ -1,0 +1,268 @@
+{
+ "temperature": 0.7,
+ "tokens": 256,
+ "seed0": 1000,
+ "datasets": [
+  {
+   "name": "categories-rcp+chat-rcp",
+   "cases": [
+    {
+     "name": "recall-tcp-handshake",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.24587106704711914,
+      "decode_tps": 56.80543910087491
+     }
+    },
+    {
+     "name": "recall-photosynthesis",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.18606090545654297,
+      "decode_tps": 57.4838447743944
+     }
+    },
+    {
+     "name": "recall-french-revolution",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.16349124908447266,
+      "decode_tps": 51.92710777549493
+     }
+    },
+    {
+     "name": "recall-git-internals",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.1778700351715088,
+      "decode_tps": 56.80786489730025
+     }
+    },
+    {
+     "name": "recall-vaccines",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.155609130859375,
+      "decode_tps": 47.681216347952294
+     }
+    },
+    {
+     "name": "recall-cpu-caches",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.18009018898010254,
+      "decode_tps": 52.32756155884292
+     }
+    },
+    {
+     "name": "recall-plate-tectonics",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.16850805282592773,
+      "decode_tps": 47.72127196637038
+     }
+    },
+    {
+     "name": "recall-http2",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.19113707542419434,
+      "decode_tps": 53.446099342664674
+     }
+    },
+    {
+     "name": "code-lru-cache",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.19841313362121582,
+      "decode_tps": 72.30312015169798
+     }
+    },
+    {
+     "name": "code-rate-limiter",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.17418599128723145,
+      "decode_tps": 62.93542864772278
+     }
+    },
+    {
+     "name": "code-json-parser",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.2497560977935791,
+      "decode_tps": 73.7652809594371
+     }
+    },
+    {
+     "name": "code-rust-cli",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.20644116401672363,
+      "decode_tps": 67.89679916523976
+     }
+    },
+    {
+     "name": "code-sql-schema",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.17570185661315918,
+      "decode_tps": 71.3796250957609
+     }
+    },
+    {
+     "name": "code-ts-debounce",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.16959714889526367,
+      "decode_tps": 61.07408525563494
+     }
+    },
+    {
+     "name": "code-go-worker-pool",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.19259214401245117,
+      "decode_tps": 72.07272694437277
+     }
+    },
+    {
+     "name": "code-bash-backup",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.19964098930358887,
+      "decode_tps": 60.102005345384896
+     }
+    },
+    {
+     "name": "prose-lighthouse",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.14260077476501465,
+      "decode_tps": 42.35045972658143
+     }
+    },
+    {
+     "name": "prose-city-essay",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.14606094360351562,
+      "decode_tps": 43.677681120784435
+     }
+    },
+    {
+     "name": "prose-product-launch",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.13715195655822754,
+      "decode_tps": 43.04223746910815
+     }
+    },
+    {
+     "name": "prose-mountain-letter",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.1514420509338379,
+      "decode_tps": 44.12926796572453
+     }
+    },
+    {
+     "name": "prose-ocean-poem",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.15398287773132324,
+      "decode_tps": 40.74795986372842
+     }
+    },
+    {
+     "name": "prose-robot-fable",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.26604580879211426,
+      "decode_tps": 44.28287963305346
+     }
+    },
+    {
+     "name": "prose-travel",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.15469598770141602,
+      "decode_tps": 42.68741306492904
+     }
+    },
+    {
+     "name": "prose-history-scene",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.16863799095153809,
+      "decode_tps": 39.650181932309415
+     }
+    },
+    {
+     "name": "chat-weekend-trip",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.2997901439666748,
+      "decode_tps": 45.5262117383451
+     }
+    },
+    {
+     "name": "chat-job-offer",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.2555370330810547,
+      "decode_tps": 44.954316338904924
+     }
+    },
+    {
+     "name": "chat-sourdough",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.2565488815307617,
+      "decode_tps": 49.75825262921951
+     }
+    },
+    {
+     "name": "chat-roommate",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.23922181129455566,
+      "decode_tps": 48.452243612946155
+     }
+    },
+    {
+     "name": "chat-learn-piano",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.2275691032409668,
+      "decode_tps": 47.45772013391401
+     }
+    },
+    {
+     "name": "chat-houseplants",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.26377010345458984,
+      "decode_tps": 51.44783356521109
+     }
+    },
+    {
+     "name": "chat-budget",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.2750990390777588,
+      "decode_tps": 49.69680118296829
+     }
+    },
+    {
+     "name": "chat-dog-training",
+     "speed": {
+      "completion_tokens": 256,
+      "ttft_s": 0.25648999214172363,
+      "decode_tps": 40.94023228980125
+     }
+    }
+   ]
+  }
+ ]
+}

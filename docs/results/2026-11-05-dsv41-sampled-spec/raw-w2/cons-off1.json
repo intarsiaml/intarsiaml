@@ -1,0 +1,74 @@
+[
+ {
+  "i": 0,
+  "tokens": 300,
+  "wall_s": 8.73,
+  "tps_wall": 34.3,
+  "valid": false,
+  "finish": "length",
+  "text": "{\"name\": \"Elias Thornbury\", \"age\": 71, \"tags\": [\"retired lighthouse keeper\", \"widower\", \"lives in a converted keeper's cottage\", \"collects driftwood\", \"hand-carves model ships\", \"keeps a daily weather log\", \"walks the shore at dawn\", \"talks to seagulls\", \"superstitious about whistling indoors\", \"expert at splicing rope\", \"makes his own chowder\", \"knows every rock by name\", \"keeps a brass barometer polished\", \"hates foghorns that aren't his own\", \"tends a small vegetable patch\", \"salty white beard\", \"wears a cable-knit sweater year-round\", \"owns three pairs of identical boots\", \"reads maritime history\", \"plays solitaire with a worn deck\", \"writes letters to his late wife\", \"distrusts smartphones\", \"keeps a hurricane lamp lit at night\", \"volunteers at the coastal museum\", \"tells tall tales to tourists\", \"can predict weather by smell\", \"has a scar from a snapped cable\", \"keeps a jar of sea glass\", \"refuses to eat farmed fish\", \"hums old sea shanties\", \"naps in a wicker chair\", \"feeds a one-legged gull named Pip\", \"owns a battered telescope\", \"keeps tide tables on the wall\", \"distrusts calm seas\","
+ },
+ {
+  "i": 1,
+  "tokens": 300,
+  "wall_s": 8.41,
+  "tps_wall": 35.7,
+  "valid": false,
+  "finish": "length",
+  "text": "{\"name\": \"Priya Raghunathan\", \"age\": 22, \"tags\": [\"robotics\", \"undergraduate\", \"mechanical engineering\", \"electrical engineering\", \"double major\", \"third year\", \"haptic feedback\", \"soft robotics\", \"prosthetics\", \"biomimicry\", \"ROS\", \"Python\", \"C++\", \"MATLAB\", \"SolidWorks\", \"KiCad\", \"3D printing\", \"laser cutting\", \"Arduino\", \"Raspberry Pi\", \"Jetson Nano\", \"servo motors\", \"PID control\", \"computer vision\", \"OpenCV\", \"reinforcement learning\", \"sim-to-real\", \"Gazebo\", \"motion planning\", \"SLAM\", \"sensor fusion\", \"IMU calibration\", \"tactile sensors\", \"flex sensors\", \"EMG signals\", \"human-in-the-loop\", \"accessibility\", \"assistive tech\", \"prosthetics research lab\", \"undergrad research assistant\", \"competition robotics\", \"FIRST alumni\", \"RoboCup\", \"battlebots spectator\", \"drone pilot\", \"quadcopter\", \"FPV\", \"soldering\", \"wire management\", \"cable harnesses\", \"debugging at 2am\", \"coffee dependency\", \"tea snob\", \"chai\", \"vegetarian\", \"home cook\", \"meal prep\", \"budget groceries\","
+ },
+ {
+  "i": 2,
+  "tokens": 300,
+  "wall_s": 8.41,
+  "tps_wall": 35.7,
+  "valid": false,
+  "finish": "length",
+  "text": "{\"name\": \"Curtis \\\"Curt\\\" Delacroix\", \"age\": 67, \"tags\": [\"jazz pianist\", \"bebop devotee\", \"New Orleans native\", \"French Creole heritage\", \"self-taught by ear\", \"blind in left eye\", \"plays a 1962 Steinway B\", \"smokes a pipe between sets\", \"fedora wearer\", \"late-night jam session regular\", \"mentor to young players\", \"vinyl collector\", \"Monk obsessive\", \"Bill Evans ballads specialist\", \"stride piano chops\", \"improviser\", \"bandleader\", \"club residencies\", \"touring sideman history\", \"recorded three albums\", \"unreleased live tapes hoarder\", \"coffee-black-no-sugar\", \"bourbon neat\", \"storyteller\", \"dry wit\", \"calls everyone 'baby'\", \"superstitious about setlists\", \"hates drum machines\", \"loves ragtime\", \"church gospel roots\", \"second-line parade veteran\", \"hand-me-down suits\", \"cufflinks from his father\", \"widower\", \"lives above a record shop\", \"cat named Thelonious\", \"chess player\", \"reads biographies of composers\", \"insomniac\", \"night owl\", \"hums while comping\", \"perfect pitch\", \"relative pitch purist\", \"avoids sheet music on gigs\", \"tells jokes"
+ },
+ {
+  "i": 3,
+  "tokens": 300,
+  "wall_s": 8.42,
+  "tps_wall": 35.6,
+  "valid": false,
+  "finish": "length",
+  "text": "{\"name\": \"Marguerite \\\"Rita\\\" Okonkwo-Vance\", \"age\": 47, \"tags\": [\"long-haul pilot\", \"airline captain\", \"A350 type rating\", \"former cargo pilot\", \"flew freight dogs in her twenties\", \"Nigerian-British\", \"grew up in Croydon\", \"father was a mechanic\", \"mother ran a market stall\", \"first in family to fly\", \"cadet scholarship\", \"18 years at the airline\", \"senior captain\", \"line check airman\", \"instructor pilot\", \"CRM facilitator\", \"fatigue-risk management nerd\", \"circadian rhythm obsessive\", \"blackout curtains evangelist\", \"melatonin skeptic\", \"layover runner\", \"hotel-gym regular\", \"packed her own resistance bands\", \"collects airport coffee mugs\", \"never checks a bag\", \"one-bag traveler\", \"carry-on minimalist\", \"wears the same merino layers\", \"superstitious about the number 12\", \"always boards last\", \"left-seat ritual: wipes the yoke\", \"keeps a worn lucky pen\", \"writes paper flight logs\", \"annotates charts in green ink\", \"fluent in Yoruba and English\", \"conversational French\", \"learning Japanese for Tokyo layovers\", \"amateur astronomer\", \"knows the constellations over the North Atlantic\", \"shoots film photography on lay"
+ },
+ {
+  "i": 4,
+  "tokens": 300,
+  "wall_s": 8.4,
+  "tps_wall": 35.7,
+  "valid": false,
+  "finish": "length",
+  "text": "{\"name\": \"Marguerite \\\"Margot\\\" Delacroix-Vance\", \"age\": 38, \"tags\": [\"pastry chef\", \"French-American\", \"New Orleans native\", \"classically trained\", \"Cordon Bleu alumna\", \"sourdough whisperer\", \"lamination obsessive\", \"croissant perfectionist\", \"sugar-work sculptor\", \"chocolate tempering expert\", \"macaron matriarch\", \"early riser\", \"3 AM starter feeder\", \"flour-dusted apron\", \"butter-stained notebook\", \"recipe hoarder\", \"vintage pastry tools\", \"cast-iron skillet devotee\", \"farmers-market regular\", \"honey purveyor\", \"seasonal menu architect\", \"fig enthusiast\", \"cardamom lover\", \"brown butter evangelist\", \"sea salt finisher\", \"cr\u00e8me br\u00fbl\u00e9e torch wielder\", \"entremet architect\", \"petit four pipeline\", \"wedding cake engineer\", \"sugar flower artisan\", \"isomalt glassblower\", \"piping bag callouses\", \"marzipan menagerie maker\", \"tarte tatin defender\", \"canel\u00e9 custard custodian\", \"kouign-amann crusader\", \"pain au chocolat purist\", \"\u00e9clair innovator\", \"choux puff pilot\", \"dacquoise diplomat\", \"opera cake traditionalist\", \"mille-feuille precisionist\","
+ },
+ {
+  "i": 5,
+  "tokens": 300,
+  "wall_s": 8.42,
+  "tps_wall": 35.6,
+  "valid": false,
+  "finish": "length",
+  "text": "{\"name\": \"Dr. Ingrid Vossberg\", \"age\": 47, \"tags\": [\"glaciologist\", \"ice-core specialist\", \"polar scientist\", \"Norwegian\", \"field researcher\", \"climate scientist\", \"paleoclimatologist\", \"Svalbard veteran\", \"Antarctic expeditioner\", \"Greenland ice sheet expert\", \"drill operator\", \"ice-penetrating radar user\", \"firn core analyst\", \"isotope geochemist\", \"meltwater hydrologist\", \"crevasse navigator\", \"snow-pit digger\", \"cold-weather survivalist\", \"kayaker\", \"cross-country skier\", \"tent-dweller\", \"satellite data interpreter\", \"remote sensing analyst\", \"ice-flow modeler\", \"glacial retreat documentarian\", \"permafrost observer\", \"sea-ice thickness surveyor\", \"science communicator\", \"PhD supervisor\", \"grant writer\", \"conference speaker\", \"peer reviewer\", \"journal author\", \"field logistics coordinator\", \"helicopter traveler\", \"snowmobile driver\", \"Arctic Circle resident\", \"Troms\u00f8-based\", \"coffee addict\", \"wool-layer enthusiast\", \"mending-kit carrier\", \"amateur photographer\", \"journal keeper\", \"sauna devotee\", \"German-speaking\", \"English-speaking\", \"Norwegian-speaking\", \"divorced\", \"mother of one\", \"dog"
+ },
+ {
+  "i": 6,
+  "tokens": 300,
+  "wall_s": 8.46,
+  "tps_wall": 35.5,
+  "valid": false,
+  "finish": "length",
+  "text": "{\"name\": \"Marisol \", \"age\": 34, \"tags\": [\"bike courier\", \"urban cyclist\", \"fixed-gear\", \"messenger bag\", \"rain-or-shine\", \"all-weather rider\", \"traffic ninja\", \"shortcut specialist\", \"delivery route optimizer\", \"stair-sprinter\", \"elevator dodger\", \"package handler\", \"signature-on-delivery\", \"proof-of-dropoff\", \"time-window juggler\", \"same-day delivery\", \"rush-hour veteran\", \"cargo-bike curious\", \"flat-bar loyalist\", \"brakeless (sometimes)\", \"helmet always\", \"high-vis vest\", \"reflective ankle straps\", \"bike lights\", \"bell skeptic\", \"air-horn appreciator\", \"pothole cartographer\", \"street-grid memorizer\", \"one-way street rebel\", \"loading-zone lurker\", \"curb-hopper\", \"stairwell sprinter\", \"coffee-powered\", \"banana-fueled\", \"water-bottle collector\", \"energy-bar hoarder\", \"hydration discipline\", \"stretch-at-red-lights\", \"quad burn\", \"calf definition\", \"saddle-sore stoic\", \"chain-grease fingernails\", \"tool-roll carrier\", \"multi-tool owner\", \"spare-tube prepper\", \"patch-kit veteran\", \"tire-pressure obsessive\", \""
+ },
+ {
+  "i": 7,
+  "tokens": 300,
+  "wall_s": 8.4,
+  "tps_wall": 35.7,
+  "valid": false,
+  "finish": "length",
+  "text": "{\"name\": \"Marguerite \", \"age\": 47, \"tags\": [\"high-school chemistry teacher\", \"AP Chemistry instructor\", \"twenty-two years in the classroom\", \"safety-goggle evangelist\", \"demonstrates the thermite reaction every October\", \"keeps a jar of mercury on her desk just to watch students squirm\", \"meticulous lab notebook keeper\", \"color-codes her whiteboard notes\", \"owns seventeen cardigans\", \"cardigan rotation is a running joke among students\", \"drives a 2009 Honda Civic with a 'Honk if you love stoichiometry' bumper sticker\", \"brings homemade mole-shaped cookies on Mole Day\", \"celebrates Mole Day at 6:02 a.m. on 10/23\", \"has a pet corn snake named Avogadro\", \"Avogadro lives in the classroom during the school year\", \"weekend beekeeper\", \"sells honey to colleagues\", \"honey labels feature a tiny hexagon logo she drew herself\", \"amateur radio operator\", \"call sign contains her initials and 'chem'\", \"lifelong Cleveland Browns fan despite the suffering\", \"bakes sourdough with a starter she named 'Yeastie Boys'\", \"volunteers at the regional science fair as a judge\", \"mentors the school's Chemistry Olympiad team\", \"keeps a 'wall of shame' of cautionary lab-safety posters"
+ }
+]
