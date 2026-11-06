@@ -8,9 +8,7 @@
 | HIP tp2 mxfp4 | prefill | 16k (3) | 47990 | 1.001e-02 | 94.01 % | 5.99 % | 2.203e-01 |
 | HIP tp2 mxfp4 | decode | 4k (3) | 384 | 6.311e-03 | 96.09 % | 3.91 % | 1.280e-01 |
 | HIP tp2 mxfp4 | decode | 16k (3) | 384 | 7.350e-03 | 97.14 % | 2.86 % | 7.981e-02 |
-| HIP tp2 bf16 control (same build) | prefill | 4k (3) | 12559 | 1.694e-12 | 100.00 % | 0.00 % | 9.594e-15 |
-| HIP tp2 bf16 control (same build) | prefill | 16k (3) | 47990 | 1.744e-12 | 100.00 % | 0.00 % | 9.594e-15 |
-| HIP tp2 bf16 control (same build) | decode | 4k (3) | 384 | 2.610e-12 | 100.00 % | 0.00 % | 5.208e-15 |
-| HIP tp2 bf16 control (same build) | decode | 16k (3) | 384 | 8.060e-13 | 100.00 % | 0.00 % | 5.818e-15 |
-| HIP tp2 bf16 at --prefill-chunk 256 | decode | 4k (3) | 384 | 2.610e-12 | 100.00 % | 0.00 % | 5.208e-15 |
-| HIP tp2 bf16 at --prefill-chunk 256 | decode | 16k (3) | 384 | 8.060e-13 | 100.00 % | 0.00 % | 5.818e-15 |
+| HIP tp2 bf16 control (same build; see section 6) | prefill | 4k (3) | 12559 | 1.694e-12 | 100.00 % | 0.00 % | 9.594e-15 |
+| HIP tp2 bf16 control (same build; see section 6) | prefill | 16k (3) | 47990 | 1.744e-12 | 100.00 % | 0.00 % | 9.594e-15 |
+| HIP tp2 bf16 control (same build; see section 6) | decode | 4k (3) | 384 | 2.610e-12 | 100.00 % | 0.00 % | 5.208e-15 |
+| HIP tp2 bf16 control (same build; see section 6) | decode | 16k (3) | 384 | 8.060e-13 | 100.00 % | 0.00 % | 5.818e-15 |
