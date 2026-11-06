@@ -154,3 +154,28 @@ Every row's computation must be bitwise the one-row decode of its own path. Per 
 * End to end: greedy ids == `--spec off` (short-0, 4k-1, 16k), `plan show` / `kernels test` no-op for the other models and spec modes.
 * Speed rule (pre-registered before the ABAB): tree at R rows vs chain at R - 1 drafts, same binary: tokens a pass >= +8 % and tok/s
   >= +5 % at natural-v1 4k; vs MTP k2 reported, not gated.
+
+### Phase 1 on the fp8-head main (merged `551c56181`; fleetq #8829, `raw/noop/`, `raw/p1-fp8/`)
+
+No-op gates (lane `986530693` vs main `551c56181`): `plan show --json` byte-identical for 8B / 27B / 35B, each with the default spec, `--spec off`
+and `--spec mtp` (9 / 9 SAME); `kernels list`: only the two new rows (`dyn_conv_bf16`, `attn_decode_bf16_window`); `kernels test`: 49 -> 51
+kernels, 980 -> 1031 cases, every existing row identical, the new rows ADMITTED (`dyn_conv` 12 cases max_abs 0, `attn_decode_bf16_window` 39
+cases max_abs 1.4e-3 vs the cpu reference, the admission's sliding-window cases).
+
+Traces (eager, short-0 / 4k-1, 256 tokens; ids equal `--spec off` in every arm):
+
+| arm | tokens a pass | draft ms | verify + rollback ms | pass ms | decode tok/s short-0 / 4k-1 |
+|---|---:|---:|---:|---:|---:|
+| off | | | | 30.0 / 35.9 | 33.3 / 27.8 |
+| MTP k2 eager | 2.49 / 2.55 | 5.9 / 7.1 | 36.0 / 47.0 | 42.0 / 54.0 | 59.1 / 47.1 |
+| MTP k2 pipelined (default) | 2.49 / 2.55 | | | | 59.8 / 49.1 |
+| DFlash2 k3 | 2.91 / 2.87 | 17.7 / 20.9 | 45.3 / 57.0 | 62.9 / 77.9 | 46.1 / 36.8 |
+| DFlash2 k5 | 3.51 / 3.54 | 18.1 / 20.4 | 91.9 / 106.6 | 110.1 / 127.0 | 32.0 / 27.9 |
+| DFlash2 k7 | 3.83 / 3.70 | 17.6 / 20.2 | 93.2 / 113.2 | 110.8 / 133.3 | 34.6 / 27.7 |
+
+DFlash2 draft (k7, short-0): flush 2.5, block 9.0, head 4.0 (fp8 head rows), selector projection 0.3, logits download 0.9, host select 0.7 ms.
+
+Verify GEMV headroom (for the phase 2 / 3 decision): fp32 FMA peak on this M5 Max measured 7.51 TFMA/s (fp16 9.61; `.dm`-local Swift
+microbench, fleetq #8830); the M-row MXFP4 GEMV at M = 8 reaches 2.75-2.94 TFMA/s (lane df's bench: 8 x 89 M fma in 243-259 us), ~2.6x
+under peak. A bitwise M <= 8 kernel at ~1.5-2x of M = 1 looks reachable; M = 16 is 416 G fma a pass = >= 55 ms at peak by fp32 fma alone
+(more than a plain step), so 16-row trees need M = 1 itself moved onto the matrix units (a change of the plain decode's bits: the user's call).
