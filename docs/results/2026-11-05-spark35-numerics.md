@@ -3,7 +3,9 @@
 Lane `lane-sn/spark35-numerics`, 2026-11-05, branch `lane-sn/spark35-numerics` from `main` 5390e65b4. CUDA only, `nvidia/Qwen3.6-35B-A3B-NVFP4`,
 the model both Sparks serve through vLLM for Mission Control (spark1 at 32K context, spark2 at 128K). Raw: `docs/results/2026-11-05-spark35-numerics/raw/`.
 
-**Status: in progress (this file is rewritten as results arrive; the pass rules below were written before any data was collected).**
+**Status (2026-11-05 19:30 EST): code, harness and gates scripts are done and pushed; NO quality or speed data exists yet.** spark1 and spark2 are held
+exclusively by the dsv41 windows (#8609, #8624, #8636), so the GPU jobs below are queued (fleetq estimated start for the first one: about 22:00 on
+spark2). The pass rules below were written before any data was collected and are not to be edited after data arrives.
 
 ## Authority
 
@@ -65,6 +67,40 @@ top-1 flip rate of the same rows.
 An arm passes a lever if it passes Q1 to Q6. "Reported" rows (greedy first-divergence token, per-prompt KL) have no rule: greedy output diverges
 under any numerics change, and fp8kv could not clear its divergence for want of a same-window reference; the **noise** arm is that reference here.
 
+## What was built
+
+- **C, real layout** (commit `3ed867cfd`): `INTARSIA_GDN_STATE=bf16` or recipe `[tuning.<backend>] gdn_state = "bf16"` stores the delta-rule state `[Hv, dv, dk]`
+  bf16 in the recurrent slot (`Model::gdn_state_dt`, slot bytes follow, `Backend::gdn_state_supported`: CUDA only, a backend that cannot refuses at load).
+  `kernels/cuda/gdn.cu`: the decode kernel and the split (prefill) kernel, solo and row-table, are templated on the state type; they load 4 elements as one
+  8-byte access, compute in f32 and round to nearest even once per launch (after each decode token, at the end of each prefill chunk). The opt-in
+  `gdn_delta_rule_bf16_lanes` and the dk != 128 paths keep f32 and reject a bf16 state. Test: `crates/intarsia-backend-cuda/tests/gdn_state16.rs` (bf16 state ==
+  f32 state rounded after every launch, bitwise outputs, T = 1 and T > 1, four shapes). **Not run yet** (needs the GPU; queued).
+- **C, emulation** (dev only, `INTARSIA_CUDA_GDN_STATE_BF16_EMU=1`): the same rounding on the f32 layout. Arm `cemu` and arm `creal` must give the same numbers.
+- **D patch** (commit `4bbb338e2`, its own commit, merge it or not): new per-backend recipe key `[tuning.<backend>] kv_dtype` (`Recipe::resolve_kv_dtype`,
+  `--kv-dtype` still wins), `recipes/qwen3_5_moe.toml` sets `fp8_e4m3` under `[tuning.cuda]` only, test `recipe_kv_dtype.rs`. Reverting that commit alone restores bf16.
+  The doc rows (`docs/tuning.md`, `docs/recipes.md`) mention it. **The default stays bf16 until the user decides.**
+- No default changed in the lever commits: `INTARSIA_GDN_STATE` unset gives the f32 layout and the same kernel instantiations (the CUDA gates below check it).
+
+## Queue (fleetq, all owner claude-1943a70c, all pinned to commit `4845dabe6` for the `dev` binary so the flip commit can never be the base arm)
+
+| job | what | host | state at 19:30 |
+|---|---|---|---|
+| #8659 J1 | CUDA builds (main = `5390e65b4`, dev), gates (plan show 35B main vs dev, `kernels test --quick`, `gdn_state16`), KL arms base, cemu, fp8, noise, cdemu, creal | spark2, `--quiet gpu,cpu --mem 70 --expect 130` | queued |
+| #8660 J2 | serve arms main, base, fp8, cemu, cdemu, creal: greedy ids 1k/4k/16k, needle 32k and 64k, MMLU, GSM8K | spark2, `--mem 70 --expect 120` | queued |
+| #8661 J3 | speed ABAB, 2 rounds (a b c d / d c b a): base, C, D, C+D; single stream 1k/4k/16k, 4/8/16 streams at 1k | spark2, `--mem 55 --expect 120` | queued |
+| #8632 | Metal no-op (plan show, 256 greedy ids 8B and 35B, kernels test) main vs branch (shared files changed) | endor | queued |
+| #8662 | `cargo test --workspace --no-fail-fast` on the final head | endor, `--load cpu` | queued |
+
+Earlier jobs: #8646 (main CUDA build, 3m37s, OK; dev from HEAD failed in nvcc: `gdn_dec_run<true,...>` could not deduce the state type from `nullptr`, fixed in
+`6699ec3eb`), #8653 (the diagnosing rebuild), #8643 (`cargo test --workspace --no-fail-fast` on `1016c7e5e`: 231 binaries, 1324 passed, 0 failed, 29 ignored;
+`raw/cargo-test-workspace-endor.log`). #8619, #8630, #8641, #8642, #8645, #8658: cancelled by me and resubmitted (a queued job of mine was blocking the
+backfill of another). Harness checks done on the Mac: the carrier goldens load in `intarsia accuracy` (Qwen3.5-0.8B on the CPU backend: self-golden write, noise-arm
+compare with `--prefill-chunk`, position dump, `analyze.py` tables), the needle rows are 33.1k to 33.2k and 66.1k to 66.2k tokens.
+
 ## Results
 
-(to be filled)
+None yet. Fill the tables with `python3 scripts/spark35num/analyze.py docs/results/2026-11-05-spark35-numerics/raw` after J1 (KL), read needle, MMLU and GSM8K from
+`raw/needle-*.out`, `raw/quality-*.out`, the greedy first-divergence from `scripts/fp8kv/greedy.py compare`, and the speed tables from `raw/speed/`.
+
+Existing evidence for D (not re-measured): `docs/results/2026-10-29-fp8kv-opt-in.md`: +9.9 % single-stream decode at 16k, +1.4 % at 16 streams, MMLU 0.846 to 0.851,
+GSM8K 0.500 to 0.500, both inside noise; the long-context (32k, 64k) quality is the gap this lane fills. vLLM at 16 streams: 340 tok/s; the engine: 301 tok/s (0.88x).
