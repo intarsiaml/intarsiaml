@@ -138,11 +138,14 @@ run ids bmtp1: 20261105-200027-adhoc-bm-metal-bmtp1-r1, 20261105-200222-adhoc-bm
 run ids bver5: 20261105-200105-adhoc-bm-metal-bver5-r1, 20261105-200143-adhoc-bm-metal-bver5-r2
 run ids plain: 20261105-195949-adhoc-bm-metal-plain-r1, 20261105-200253-adhoc-bm-metal-plain-r2
 
-Reading: drafting pays only for a lone stream. At 1 stream phase A gives +16 % aggregate (111.2 -> 128.7) and phase B's arm +25 % (139.1; at B = 1
-both run the same solo MTP step, so the gap between them is run-to-run and spec-gate state, not the batched verify). At 2 streams the batched verify
+Reading: drafting pays only for a lone stream. At 1 stream phase A gives +16 % aggregate (111.2 -> 128.7) and phase B's arm +25 % (139.1). At B = 1
+both run the same solo MTP step; the one code difference is the verified-run drain (`BatchSeq::next_ready`, on whenever batched verify is on), which
+delivers a whole accepted run in one scheduler iteration instead of one token per iteration. The gap held in both rounds (137.7 / 140.6 vs
+129.6 / 127.7), so it is not noise; the CUDA run has an arm (`bmtp1d`: N = 1 with the flag) that isolates the drain. At 2 streams the batched verify
 is break-even (168.1 vs 167.5) and at 4 streams it loses 25 % (174.4 vs 231.8): on Metal a 4-sequence verify pass of 12 rows plus 4 per-sequence
 head drafts costs more than the ~1.6 tokens per sequence it yields over a 4-row decode step. At 8 streams the B <= 5 rule falls back to plain and
-the arms tie (281 to 292). Phase A at 2 to 8 streams equals plain (it does not draft there).
+the arms tie (281 to 292). Phase A at 2 and 4 streams does not draft, yet costs about 3 % against plain in both rounds (2 streams 163.0 / 162.4 vs 166.0 / 169.0; 4 streams
+223.7 / 227.4 vs 231.2 / 232.5); likely the per-step head-queue copy and the head catch-up passes (unverified). At 8 streams it ties.
 
 ## Status
 

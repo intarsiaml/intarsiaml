@@ -40,6 +40,9 @@ run_arm() { # run_arm <round> <spec>
   stop_server
 }
 ARMS=("$@")
+# bmtp1d: phase A at B = 1 plus the batched-verify flag, which at B = 1 only switches on the verified-run drain (`next_ready`); it separates the
+# drain from batched verify (on Metal bver5 beat bmtp1 at 1 stream by ~8 % in both rounds)
+ARMS+=("bmtp1d:bm:INTARSIA_BATCHED_MTP=1,INTARSIA_BATCHED_VERIFY=1:--max-batch_16_--spec_mtp_--spec-k_2")
 for r in $(seq 1 $ROUNDS); do
   if (( r % 2 == 0 )); then for ((k=${#ARMS[@]}-1; k>=0; k--)); do run_arm $r "${ARMS[k]}"; done
   else for a in "${ARMS[@]}"; do run_arm $r "$a"; done; fi
