@@ -1950,6 +1950,66 @@ fn real_35b_forced_packs_are_bitwise_solo_prefill() {
     assert!(bad.is_empty(), "packed segments that are not their solo prefill:\n{}", bad.join("\n"));
 }
 
+/// Lane pb (origin/lane-pb/packed-bitid, docs/results/2026-11-05-pb-packed-bitid.md; copied by lane pf): the macro pass (`Model::macro_rows`: several chunks of one prompt in one pass) takes a trailing chunk of at least
+/// `Model::pack_min_rows` rows into the pass; the plain schedule runs it alone. Prompts of two chunks plus `t` body rows (the
+/// last token runs alone with the head) for `t` around the bound: the logits of the last prompt row and 8 greedy steps must be
+/// the plain schedule's bits. Prints `MACROPROBE t ... equal|DIFF`, fails at the end if any differs.
+#[test]
+#[ignore]
+fn real_35b_macro_trailing_chunk_probe() {
+    let _serial = serial();
+    let (Some(dir), Some(be)) = (model_dir("INTARSIA_QWEN36_DIR"), cuda()) else { return };
+    const DECODE_ROWS: usize = 8;
+    let tails = [16usize, 20, 31, 32, 40];
+    let (_, recipe, dims, _) = read_model_spec(&dir, &EngineOptions::default()).unwrap();
+    let weights = SchemedSource::open(&dir).unwrap();
+    let chunk = recipe.resolve_prefill_chunk(None, be.name()).value;
+    let opts = LoadOptions {
+        max_seq: 2 * chunk + 64,
+        prefill_chunk: chunk,
+        profile_every: 0,
+        kv_fraction: 0.3, // lane pf: 0.95 in lane pb; spark1-vllm stays up beside it
+        prefill_macro: Some(8192),
+        ..Default::default()
+    };
+    let mut m = Model::load(be, &recipe, &dims, &weights, &opts, Arc::new(Telemetry::new())).unwrap();
+    m.configure_plan(&Default::default(), None).unwrap();
+    let all = corpus_tokens(&dir);
+    let logits = |o: StepOut| match o {
+        StepOut::Logits(l) => l,
+        o => panic!("expected logits, got {o:?}"),
+    };
+    let run = |m: &Model, prompt: &[u32]| -> Vec<Vec<u32>> {
+        let mut st = m.new_state().unwrap();
+        let (head, last) = prompt.split_at(prompt.len() - 1);
+        m.forward(&mut st, head, HeadMode::None, None).unwrap();
+        let mut rows = vec![logits(m.forward(&mut st, last, HeadMode::LastLogits, None).unwrap())];
+        for _ in 0..DECODE_ROWS {
+            let next = rows.last().unwrap().iter().enumerate().fold((0usize, f32::MIN), |b, (i, &v)| if v > b.1 { (i, v) } else { b }).0;
+            rows.push(logits(m.forward(&mut st, &[next as u32], HeadMode::LastLogits, None).unwrap()));
+        }
+        rows.iter().map(|r| r.iter().map(|x| x.to_bits()).collect()).collect()
+    };
+    eprintln!("MACROPROBE chunk {chunk} pack_min_rows {}", m.pack_min_rows());
+    let mut bad = Vec::new();
+    for &t in &tails {
+        let prompt = &all[5000 + t * 11..5000 + t * 11 + 2 * chunk + t + 1];
+        m.set_macro_rows(0);
+        let want = run(&m, prompt);
+        m.set_macro_rows(8192);
+        let before = m.macro_passes();
+        let got = run(&m, prompt);
+        let passes = m.macro_passes() - before;
+        let d = want.iter().zip(&got).position(|(a, b)| a != b);
+        eprintln!("MACROPROBE t {t} ({} prompt tokens): {passes} macro passes, {}", prompt.len(), d.map_or("equal".into(), |r| format!("DIFF@row{r}")));
+        if d.is_some() {
+            bad.push(t);
+        }
+    }
+    assert!(bad.is_empty(), "macro pass differs from the plain schedule for trailing chunks of {bad:?} rows");
+}
+
+
 // ---- macro prefill (INTARSIA_PREFILL_MACRO) on the real 35B ---------------------------------------------------------------
 
 /// Macro prefill (several chunks of one prompt in one layer-by-layer pass, `Model::macro_rows`) must leave the bits of the plain

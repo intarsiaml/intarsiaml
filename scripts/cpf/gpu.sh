@@ -43,6 +43,12 @@ if has model; then
     rsh "cd $P/src && env $env INTARSIA_QWEN36_DIR=$M35 INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_35b_forced_packs -- --ignored --test-threads=1 --nocapture" > $O/model/forced-$arm.log 2>&1
     echo "-- $arm"; grep -aE '^test |test result|FORCEDPACK (pack_min|gate prompt|.*DIFFERS|[0-9]+ packs ran)' $O/model/forced-$arm.log | head -40
   done
+  # lane pb's probe: a trailing 16..40-row chunk after two 2048-row chunks, macro pass vs the plain schedule (fix, and main's rule)
+  for arm in fix old16; do
+    env=""; [[ $arm == old16 ]] && env="INTARSIA_PACK_MIN_ROWS=16"
+    rsh "cd $P/src && env $env INTARSIA_QWEN36_DIR=$M35 INTARSIA_REQUIRE_GPU=1 cargo test -p intarsia-models --release --test batch_cuda_real real_35b_macro_trailing_chunk_probe -- --ignored --test-threads=1 --nocapture" > $O/model/macro-probe-$arm.log 2>&1
+    echo "-- macro probe $arm"; grep -aE '^test |test result|MACROPROBE' $O/model/macro-probe-$arm.log | head -20
+  done
 fi
 
 ids_run() { # ids_run <name> <env> <conc> <args...>
