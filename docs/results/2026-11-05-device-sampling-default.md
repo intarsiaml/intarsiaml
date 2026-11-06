@@ -7,6 +7,10 @@ Lane `lane-ds/device-sampling-default`, 2026-11-05. Branch `lane-ds/device-sampl
 * 2026-10-23 17:57: device sampling was made opt-in, default off (`docs/decisions/LOG.md`, row "Device sampling (`INTARSIA_DEVICE_SAMPLING`, `HeadMode::LastTopK`) opt-in, default off"; the row records no reason). It had been default on from 17:07 that day.
 * 2026-11-05 17:06 EST, the user: ignore what was deferred previously and build the largest performance wins. This lane carries that out for the one switch Fable's engine review ranks first among the unbooked served gains (`perf-ideas/fable-engine/report.md`, section 2, idea 4).
 
+## Decision on omit-`top_k` traffic: option (b)
+
+The user chose (b), about 18:40 EST on 2026-11-05: **"use checkpoint defaults"** (relayed by the coordinator). Built below under "Checkpoint sampling defaults". The next section is the analysis that led to it; O15 in `docs/decisions/LOG.md` is closed by the 18:40 row.
+
 ## What default traffic sends, and whether it takes the device path
 
 No, for clients that omit `top_k`, which is what plain OpenAI and Anthropic clients do.
@@ -23,7 +27,7 @@ Options for the omit-`top_k` case:
 | (b) server or recipe default `top_k` (for example 20 or 40) | Exact on the device path, but it changes which tokens can be drawn from every omit-`top_k` request (the mass beyond the top 64 at temperature 1.0 is removed) | a user decision, not built |
 | (c) leave it | exact | what this lane does |
 
-Recommendation for the user: (b) is the cheapest way to make default traffic fast and the checkpoint already ships the value (`top_k 20`); it would be a per-recipe default read from `generation_config.json` rather than a global constant, and it needs the user's OK because it changes the sampled distribution of every omit-`top_k` request. Recorded as open decision O15 in `docs/decisions/LOG.md`.
+Recommendation for the user: (b) is the cheapest way to make default traffic fast and the checkpoint already ships the value (`top_k 20`); it would be a per-recipe default read from `generation_config.json` rather than a global constant, and it needs the user's OK because it changes the sampled distribution of every omit-`top_k` request. Chosen by the user, see above.
 
 ## The change
 
@@ -57,6 +61,43 @@ localeval 0.4.0 `speed`, 1024-token prompts, 128 forced tokens, 2 reps, burst at
 Every default visit beat both neighbouring `=0` visits at 4 and 16 streams. The no-`top_k` row is the point of the first section: default API traffic is unchanged by the flip, and costs about a third of the throughput of the same server when the request carries `top_k`.
 
 Server MemAvailable with the server up: 54 to 55 GB in all four visits (`raw/mem.txt`). Job: fleetq #8568 (`--quiet gpu,cpu --mem 46`), both sections.
+
+## Checkpoint sampling defaults (option b, built)
+
+`serve` now applies the checkpoint's `generation_config.json` to a request that leaves a field out, like vLLM's `--generation-config auto`.
+
+* **Fields.** `temperature`, `top_p`, `top_k`. `min_p` and `repetition_penalty` are not supported by the engine and are ignored with a startup warning when the file sets a non-neutral value (Qwen2.5-7B's `repetition_penalty 1.05` is the only such file among the checkpoints on endor). `do_sample` is ignored, as in vLLM.
+* **Precedence.** A value the request sends wins, `temperature: 0` (greedy), `top_p: 1` and `top_k: 0` or negative (off) included. Else the file's value. Else the built-in: temperature 1.0, `top_p` 1.0, `top_k` off. A value in the file outside what the API accepts (temperature outside [0, 10], `top_p` outside (0, 1]) is dropped with a warning. No file, or an unreadable one: the built-ins, with a warning for the latter.
+* **Off switch.** `serve --generation-config none`, or `INTARSIA_GENERATION_CONFIG=none` when the flag is absent: the built-ins, as before. `--generation-config DIR` reads that folder's file instead; `auto` (default) reads the model directory's.
+* **Visibility.** One startup line (`sampling defaults: temperature=1 top_p=0.95 top_k=20 (from <path>; a request's own values win)`, or `(built-in; ...)`) and `/metrics` `intarsia_sampling_defaults{source,temperature,top_p,top_k} 1` with the effective values (`source="builtin"` when no file applies). `intarsia_info` is left alone: its labels are parsed by `intarsia-bench`.
+* **Code.** `SamplingDefaults` in `crates/intarsia-server/src/api.rs`, passed through `ServerConfig::sampling_defaults` and `AppState`; `Sampling::into_request` takes it (OpenAI chat and completions, Anthropic messages); `serve.rs` reads it after load. The greedy gate (`req.temperature <= 0.0`) is untouched.
+* **Docs.** `docs/tuning.md` rows (flag and `INTARSIA_GENERATION_CONFIG`; the env-var table is checked by `docs_env_vars`), `docs/observability.md` (metric and a paragraph). There is no `docs/api`.
+
+### What the checkpoints ship (`raw/gencfg/`)
+
+| checkpoint | temperature | top_p | top_k | other |
+|---|---|---|---|---|
+| Qwen3.6-35B-A3B-NVFP4 (spark1 and endor copies) | 1.0 | 0.95 | 20 | |
+| Qwen3.8-27B-Quark-AWQ-MXFP4 | 1.0 | 0.95 | 20 | |
+| Qwen3-8B | **0.6** | 0.95 | 20 | |
+| Llama-3.1-8B-Instruct | **0.6** | 0.9 | none | |
+| Qwen2.5-7B-Instruct | **0.7** | 0.8 | 20 | `repetition_penalty 1.05` (ignored) |
+| MiniCPM-V-4.7-35B-A3B (MLX 4-bit) | 1.0 | 0.95 | 20 | |
+
+**Default temperature changes** for Qwen3-8B (1.0 to 0.6), Llama-3.1-8B (1.0 to 0.6) and Qwen2.5-7B (1.0 to 0.7), for requests that send no `temperature`. It does not change for the 35B and the 27B (1.0 stays 1.0), the models the sampled-speculation lanes (`lane-ss/sampled-spec`, `dsv41/sampled-spec`) use, but their `top_p` and `top_k` defaults do change (1.0 and off to 0.95 and 20) for requests that send none. Requests that send `temperature` explicitly, which every gate and benchmark in this repo does, are unaffected except for `top_p` and `top_k` when those are left out: a gate that sends only `temperature` and expects the full-vocabulary distribution must pass `top_k: 0` and `top_p: 1` or start the server with `--generation-config none`.
+
+### vLLM on the fleet
+
+`~/missioncntrl-guidance-run.sh` (spark1, flight/guidance/capcom, vLLM nightly `65b7662d`) does not pass `--generation-config` (`raw/gencfg/vllm-launcher.txt`, fleetq #8647). In that image `--generation-config` defaults to `"auto"`: "the generation config will be loaded from model path" (`raw/gencfg/vllm-generation-config-help.txt`, #8648). So the fleet's vLLM already serves Qwen3.6-35B with temperature 1.0, `top_p` 0.95, `top_k` 20 for requests that omit them, and now our default behaviour matches it for those three fields. Differences: vLLM also applies `min_p` and `repetition_penalty` from the file and `max_new_tokens`; we do not (the 35B file has none of them).
+
+### Tests
+
+* Unit (`sampling_defaults_tests` in `api.rs`): checkpoint beats built-in; request beats checkpoint (greedy, `top_p` 1, `top_k` 0 and -1, partial overrides); the off switch is the built-in behaviour; bad and unsupported values; file read, missing file, broken file.
+* Integration (`tests/api.rs`): `checkpoint_sampling_defaults_reach_every_endpoint_and_the_request_wins` (completions, chat and Anthropic messages, with `/metrics`) and `without_checkpoint_defaults_a_bare_request_is_what_it_was`.
+
+### Speed: default requests, new defaults against `--generation-config none`
+
+GCSPEED_PLACEHOLDER
 
 ## Gates
 
