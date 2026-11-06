@@ -23,7 +23,7 @@ else
 fi
 rsh "cd $L/src && find . -path ./target -prune -o -type f \( -name '*.rs' -o -name '*.cu' -o -name '*.cuh' -o -name '*.h' -o -name '*.toml' \) -print0 | xargs -0 touch"
 echo "build $name from $ref ($STAMP) $(date +%T)"
-rsh "rm -f $L/src/target/release/intarsia; cd $L/src && env CARGO_BUILD_JOBS=${JOBS:-16} cargo build --release --features cuda -p intarsia-cli 2>&1 | grep -E '^error|warning: unused|Finished|could not' | tail -6; cp $L/src/target/release/intarsia $L/bin/$name && $L/bin/$name --version | head -1"
+rsh "rm -f $L/src/target/release/intarsia; cd $L/src && env CARGO_BUILD_JOBS=${JOBS:-16} cargo build --release --features cuda -p intarsia-cli > $L/out/build-$name.log 2>&1; grep -E '^error|Finished|could not' $L/out/build-$name.log | tail -6; grep -a -B2 -A12 -E 'error( |:)|nvcc' $L/out/build-$name.log | grep -a -v '^warning' | tail -40; cp $L/src/target/release/intarsia $L/bin/$name && $L/bin/$name --version | head -1"
 rsh "test -x $L/bin/$name" || { echo "BUILD FAILED: $name"; exit 1; }
 [[ ${SHA:-} ]] && rsh "echo $SHA > $L/bin/$name.ref"
 echo "built $name $(date +%T)"
