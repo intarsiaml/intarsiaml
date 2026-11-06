@@ -1,0 +1,18 @@
+fleetq:   #8861 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8861 set, or it will wait for #8861 to be released.
+fleetq:   #8861 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8861 set, or it will wait for #8861 to be released.
+fleetq: #8863 running on endor: zsh .dm/p3-k1.sh
+test a_rows_bits_do_not_depend_on_the_calls_m ... ok
+test an_unaligned_x_takes_the_prepass_and_gives_the_same_bits ... ok
+test gemv_bits_are_pinned ... ok
+test gemv_matches_the_f64_reference ... ok
+test m_row_shaders_are_bitwise_the_one_row_call_per_row ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+DFBENCH mxfp4 17408x5120 M=3: rows launch 132.8 us (2.28x M=1, 357 GB/s), 3 one-row launches 161.5 us; mr p1 81.6 us (1.40x M=1), mr p2 81.2 us (1.39x M=1), mr p4 87.8 us (1.50x M=1), mr tgx 102.1 us (1.75x M=1)
+DFBENCH mxfp4 17408x5120 M=8: rows launch 335.7 us (5.76x M=1, 141 GB/s), 8 one-row launches 551.0 us; mr p1 278.5 us (4.78x M=1), mr p2 274.0 us (4.70x M=1), mr p4 316.1 us (5.42x M=1), mr tgx 359.1 us (6.16x M=1)
+DFBENCH mxfp4 5120x17408 M=3: rows launch 171.6 us (2.67x M=1, 276 GB/s), 3 one-row launches 203.8 us; mr p1 97.7 us (1.52x M=1), mr p2 108.3 us (1.69x M=1), mr p4 98.0 us (1.53x M=1), mr tgx 135.0 us (2.10x M=1)
+DFBENCH mxfp4 5120x17408 M=8: rows launch 356.5 us (5.55x M=1, 133 GB/s), 8 one-row launches 459.0 us; mr p1 283.4 us (4.41x M=1), mr p2 284.0 us (4.42x M=1), mr p4 304.8 us (4.74x M=1), mr tgx 313.2 us (4.87x M=1)
+DFBENCH mxfp4 12288x5120 M=3: rows launch 105.7 us (1.40x M=1, 316 GB/s), 3 one-row launches 123.0 us; mr p1 67.8 us (0.90x M=1), mr p2 66.7 us (0.88x M=1), mr p4 72.2 us (0.96x M=1), mr tgx 80.5 us (1.07x M=1)
+DFBENCH mxfp4 12288x5120 M=8: rows launch 255.9 us (3.39x M=1, 131 GB/s), 8 one-row launches 354.7 us; mr p1 219.6 us (2.91x M=1), mr p2 218.4 us (2.90x M=1), mr p4 239.7 us (3.18x M=1), mr tgx 234.6 us (3.11x M=1)
+DFBENCH mxfp4 5120x6144 M=3: rows launch 61.5 us (2.34x M=1, 272 GB/s), 3 one-row launches 73.7 us; mr p1 35.9 us (1.36x M=1), mr p2 38.5 us (1.46x M=1), mr p4 37.1 us (1.41x M=1), mr tgx 44.4 us (1.68x M=1)
+DFBENCH mxfp4 5120x6144 M=8: rows launch 115.8 us (4.40x M=1, 144 GB/s), 8 one-row launches 186.3 us; mr p1 98.4 us (3.74x M=1), mr p2 96.8 us (3.67x M=1), mr p4 109.8 us (4.17x M=1), mr tgx 105.5 us (4.01x M=1)
+fleetq: #8863 done (exit 0)

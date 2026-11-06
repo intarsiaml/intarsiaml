@@ -1,0 +1,11 @@
+fleetq: #8835 waiting (#2 in line): in line behind #8833 "dm: phase 1 ABAB mtp2 vs dfl7 + cats + TF" (claude-1943a70c) on endor
+fleetq:   #8833 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8833 set, or it will wait for #8833 to be released.
+fleetq: #8835 waiting (#1 in line): endor is held exclusively by #8833 "dm: phase 1 ABAB mtp2 vs dfl7 + cats + TF" (claude-1943a70c)
+fleetq:   #8833 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8833 set, or it will wait for #8833 to be released.
+fleetq: #8835 running on endor: zsh -c 'cd /opt/code/intarsiaml/.worktrees/metal-dflash2/.dm/fma && swiftc -O mma.swift -o mma && ./mma'
+k ascending fma: 0 / 1280000 differ
+k descending fma: 511195 / 1280000 differ
+pairwise tree per 8: 547863 / 1280000 differ
+one rounding per 8: 537842 / 1280000 differ
+Apple M5 Max
+fleetq: #8835 done (exit 0)

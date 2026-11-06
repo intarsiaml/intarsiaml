@@ -1,0 +1,41 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/ho-prose.jsonl: 4 rows, judge=none
+# localeval: dm-dfl3 — 2026-11-06T13:49
+
+- model: `qwen38-27b-dfl3` on ? (?), url `http://127.0.0.1:8298/v1`
+- thinking: off; run kind: quality; label: dm-p1-v5-dfl3-ho-prose
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dm-dfl3 --thinking off --label dm-p1-v5-dfl3-ho-prose --recipe intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec dflash --spec-k 3 --spec-draft z-lab-DFlash2 env INTARSIA_METAL_MXFP4_MR=1 (lane dm, 59bb1c5d0) --dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/ho-prose.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261106-134952-dm-dfl3-dm-p1-v5-dfl3-ho-prose/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec dflash --spec-k 3 --spec-draft z-lab-DFlash2 env INTARSIA_METAL_MXFP4_MR=1 (lane dm, 59bb1c5d0)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/ho-prose.jsonl` (4 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 4 | 0 |
+| TTFT (s) | - | - | 0 | 4 | 0 |
+| Prefill (tok/s) | - | - | 0 | 4 | 0 |
+| Decode (tok/s) | - | - | 0 | 4 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| prose-bakery | yes | 0.0 | - | - | RuntimeError: stream error: {"message": "no kernel for matmu… |
+| prose-glacier | yes | 0.0 | - | - | RuntimeError: stream error: {"message": "no kernel for matmu… |
+| prose-market | yes | 0.0 | - | - | RuntimeError: stream error: {"message": "no kernel for matmu… |
+| prose-duel | yes | 0.0 | - | - | RuntimeError: stream error: {"message": "no kernel for matmu… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261106-134952-dm-dfl3-dm-p1-v5-dfl3-ho-prose/result.json
+[localeval] logged to unanimis: 074ad9a9-791c-4051-8f88-0234d920a687

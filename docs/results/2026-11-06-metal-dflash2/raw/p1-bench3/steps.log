@@ -1,0 +1,19 @@
+15:50:56 visit 1 arm mtp2: serve
+15:55:58 visit 1 arm mtp2 suite speed-spec exit 0 results/20261106-155202-adhoc-dm-p1-v1-mtp2-speed-spec/result.json
+15:56:40 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261106-155558-dm-mtp2-dm-p1-v1-mtp2-ho-chat/result.json
+15:56:59 round 1 arm mtp2 ho-code: localeval exit 0 results/20261106-155641-dm-mtp2-dm-p1-v1-mtp2-ho-code/result.json
+15:57:47 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261106-155700-dm-mtp2-dm-p1-v1-mtp2-ho-prose/result.json
+15:58:08 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261106-155747-dm-mtp2-dm-p1-v1-mtp2-ho-recall/result.json
+15:59:19 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261106-155808-dm-mtp2-dm-p1-v1-mtp2-rcp-code/result.json
+16:00:51 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261106-155919-dm-mtp2-dm-p1-v1-mtp2-rcp-prose/result.json
+16:02:10 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261106-160052-dm-mtp2-dm-p1-v1-mtp2-rcp-recall/result.json
+16:02:11 visit 2 arm tf: serve
+16:05:50 visit 2 arm tf suite speed-spec exit 0 results/20261106-160230-adhoc-dm-p1-v2-tf-speed-spec/result.json
+16:06:17 round 2 arm tf ho-chat: localeval exit 0 results/20261106-160551-dm-tf-dm-p1-v2-tf-ho-chat/result.json
+16:06:26 round 2 arm tf ho-code: localeval exit 0 results/20261106-160617-dm-tf-dm-p1-v2-tf-ho-code/result.json
+16:06:59 round 2 arm tf ho-prose: localeval exit 0 results/20261106-160627-dm-tf-dm-p1-v2-tf-ho-prose/result.json
+16:07:11 round 2 arm tf ho-recall: localeval exit 0 results/20261106-160659-dm-tf-dm-p1-v2-tf-ho-recall/result.json
+16:07:43 round 2 arm tf rcp-code: localeval exit 0 results/20261106-160712-dm-tf-dm-p1-v2-tf-rcp-code/result.json
+16:08:47 round 2 arm tf rcp-prose: localeval exit 0 results/20261106-160744-dm-tf-dm-p1-v2-tf-rcp-prose/result.json
+16:09:29 round 2 arm tf rcp-recall: localeval exit 0 results/20261106-160847-dm-tf-dm-p1-v2-tf-rcp-recall/result.json
+16:09:30 done

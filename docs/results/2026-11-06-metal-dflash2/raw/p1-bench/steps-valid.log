@@ -1,0 +1,21 @@
+13:22:47 visit 1 arm mtp2: serve
+13:31:13 visit 1 arm mtp2 suite speed-spec exit 0 results/20261106-132410-adhoc-dm-p1-v1-mtp2-speed-spec/result.json
+13:32:15 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261106-133114-dm-mtp2-dm-p1-v1-mtp2-ho-chat/result.json
+13:32:44 round 1 arm mtp2 ho-code: localeval exit 0 results/20261106-133216-dm-mtp2-dm-p1-v1-mtp2-ho-code/result.json
+13:33:54 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261106-133245-dm-mtp2-dm-p1-v1-mtp2-ho-prose/result.json
+13:34:24 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261106-133354-dm-mtp2-dm-p1-v1-mtp2-ho-recall/result.json
+13:36:08 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261106-133424-dm-mtp2-dm-p1-v1-mtp2-rcp-code/result.json
+13:38:16 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261106-133608-dm-mtp2-dm-p1-v1-mtp2-rcp-prose/result.json
+13:40:05 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261106-133817-dm-mtp2-dm-p1-v1-mtp2-rcp-recall/result.json
+13:40:54 visit 3 arm mtp2: serve
+13:49:16 visit 3 arm mtp2 suite speed-spec exit 3 results/20261106-134206-adhoc-dm-p1-v3-mtp2-speed-spec/result.json
+13:50:15 visit 6 arm tf: serve
+13:56:25 visit 6 arm tf suite speed-spec exit 3 results/20261106-135035-adhoc-dm-p1-v6-tf-speed-spec/result.json
+13:56:55 round 6 arm tf ho-chat: localeval exit 0 results/20261106-135625-dm-tf-dm-p1-v6-tf-ho-chat/result.json
+13:57:05 round 6 arm tf ho-code: localeval exit 0 results/20261106-135655-dm-tf-dm-p1-v6-tf-ho-code/result.json
+13:57:41 round 6 arm tf ho-prose: localeval exit 0 results/20261106-135706-dm-tf-dm-p1-v6-tf-ho-prose/result.json
+13:57:55 round 6 arm tf ho-recall: localeval exit 0 results/20261106-135742-dm-tf-dm-p1-v6-tf-ho-recall/result.json
+13:58:31 round 6 arm tf rcp-code: localeval exit 0 results/20261106-135755-dm-tf-dm-p1-v6-tf-rcp-code/result.json
+13:59:41 round 6 arm tf rcp-prose: localeval exit 0 results/20261106-135832-dm-tf-dm-p1-v6-tf-rcp-prose/result.json
+14:00:28 round 6 arm tf rcp-recall: localeval exit 0 results/20261106-135942-dm-tf-dm-p1-v6-tf-rcp-recall/result.json
+14:00:29 done

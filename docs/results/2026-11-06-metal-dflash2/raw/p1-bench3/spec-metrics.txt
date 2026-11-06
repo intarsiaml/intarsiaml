@@ -1,0 +1,28 @@
+mtp2 ho-chat r1 before: intarsia_spec_steps_total 2322 intarsia_spec_proposed_tokens_total 4633 intarsia_spec_accepted_tokens_total 3271 
+mtp2 ho-chat r1 after:  intarsia_spec_steps_total 3196 intarsia_spec_proposed_tokens_total 6380 intarsia_spec_accepted_tokens_total 4439 
+mtp2 ho-code r1 before: intarsia_spec_steps_total 3196 intarsia_spec_proposed_tokens_total 6380 intarsia_spec_accepted_tokens_total 4439 
+mtp2 ho-code r1 after:  intarsia_spec_steps_total 3576 intarsia_spec_proposed_tokens_total 7140 intarsia_spec_accepted_tokens_total 5080 
+mtp2 ho-prose r1 before: intarsia_spec_steps_total 3576 intarsia_spec_proposed_tokens_total 7140 intarsia_spec_accepted_tokens_total 5080 
+mtp2 ho-prose r1 after:  intarsia_spec_steps_total 4562 intarsia_spec_proposed_tokens_total 9109 intarsia_spec_accepted_tokens_total 6137 
+mtp2 ho-recall r1 before: intarsia_spec_steps_total 4562 intarsia_spec_proposed_tokens_total 9109 intarsia_spec_accepted_tokens_total 6137 
+mtp2 ho-recall r1 after:  intarsia_spec_steps_total 4981 intarsia_spec_proposed_tokens_total 9947 intarsia_spec_accepted_tokens_total 6736 
+mtp2 rcp-code r1 before: intarsia_spec_steps_total 4981 intarsia_spec_proposed_tokens_total 9947 intarsia_spec_accepted_tokens_total 6736 
+mtp2 rcp-code r1 after:  intarsia_spec_steps_total 6465 intarsia_spec_proposed_tokens_total 12914 intarsia_spec_accepted_tokens_total 9337 
+mtp2 rcp-prose r1 before: intarsia_spec_steps_total 6465 intarsia_spec_proposed_tokens_total 12914 intarsia_spec_accepted_tokens_total 9337 
+mtp2 rcp-prose r1 after:  intarsia_spec_steps_total 8412 intarsia_spec_proposed_tokens_total 16801 intarsia_spec_accepted_tokens_total 11468 
+mtp2 rcp-recall r1 before: intarsia_spec_steps_total 8412 intarsia_spec_proposed_tokens_total 16801 intarsia_spec_accepted_tokens_total 11468 
+mtp2 rcp-recall r1 after:  intarsia_spec_steps_total 10065 intarsia_spec_proposed_tokens_total 20102 intarsia_spec_accepted_tokens_total 13899 
+tf ho-chat r2 before: 
+tf ho-chat r2 after:  
+tf ho-code r2 before: 
+tf ho-code r2 after:  
+tf ho-prose r2 before: 
+tf ho-prose r2 after:  
+tf ho-recall r2 before: 
+tf ho-recall r2 after:  
+tf rcp-code r2 before: 
+tf rcp-code r2 after:  
+tf rcp-prose r2 before: 
+tf rcp-prose r2 after:  
+tf rcp-recall r2 before: 
+tf rcp-recall r2 after:  

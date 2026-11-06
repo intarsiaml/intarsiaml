@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-prose.jsonl: 8 rows, judge=none
+# localeval: dm-tf — 2026-11-06T13:58
+
+- model: `bench` on ? (?), url `http://127.0.0.1:8298/v1`
+- thinking: off; run kind: quality; label: dm-p1-v6-tf-rcp-prose
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dm-tf --thinking off --label dm-p1-v6-tf-rcp-prose --recipe tensorfold Vontra/Qwen3.8-27B-MLX-4bit --context 20480 (endor service binary, tensorfold; DFlash2 tree drafter default; lane dm) --dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-prose.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261106-135832-dm-tf-dm-p1-v6-tf-rcp-prose/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+tensorfold Vontra/Qwen3.8-27B-MLX-4bit --context 20480 (endor service binary, tensorfold; DFlash2 tree drafter default; lane dm)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-prose.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.141 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 60.7 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| prose-lighthouse | yes | 0.0 | 0.11 | 65.6 | The wind on Blackrock Island didn’t just blow; it screamed. … |
+| prose-city-essay | yes | 0.0 | 0.14 | 57.5 | We often define "home" by the walls that enclose us, the add… |
+| prose-product-launch | yes | 0.0 | 0.13 | 59.5 | **Fresh from the Oven, Straight to Your Door: Introducing Ou… |
+| prose-mountain-letter | yes | 0.0 | 0.18 | 61.3 | The wind is howling outside the tent, a low, mournful moan t… |
+| prose-ocean-poem | yes | 0.0 | 0.13 | 60.8 | The sun has bled out its last copper vein, leaving the horiz… |
+| prose-robot-fable | yes | 0.0 | 0.13 | 63.7 | Unit 734 was not built for waiting. His internal clock ticke… |
+| prose-travel | yes | 0.0 | 0.16 | 59.4 | The fog has not yet lifted from the harbor, hanging low and … |
+| prose-history-scene | yes | 0.0 | 0.15 | 58.3 | The air in the workshop always tasted of iron and ink. It wa… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261106-135832-dm-tf-dm-p1-v6-tf-rcp-prose/result.json
+[localeval] logged to unanimis: 54f512cf-eb2d-44cf-8ae5-0cda3b199edb

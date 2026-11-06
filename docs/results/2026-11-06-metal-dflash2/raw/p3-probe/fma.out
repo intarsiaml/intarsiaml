@@ -1,0 +1,6 @@
+fleetq: #8830 waiting (#1 in line): endor is held exclusively by #8829 "dm: noop gates + dflash traces (fp8-head main)" (claude-1943a70c)
+fleetq:   #8829 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8829 set, or it will wait for #8829 to be released.
+fleetq: #8830 running on endor: ./fma
+fp32 7.51 TFMA/s Apple M5 Max
+fp16 9.61 TFMA/s Apple M5 Max
+fleetq: #8830 done (exit 0)

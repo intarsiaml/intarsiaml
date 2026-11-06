@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-code.jsonl: 8 rows, judge=none
+# localeval: dm-mtp2 — 2026-11-06T13:34
+
+- model: `qwen38-27b-mtp2` on ? (?), url `http://127.0.0.1:8298/v1`
+- thinking: off; run kind: quality; label: dm-p1-v1-mtp2-rcp-code
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dm-mtp2 --thinking off --label dm-p1-v1-mtp2-rcp-code --recipe intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec mtp --spec-k 2 env INTARSIA_METAL_MXFP4_MR=1 (lane dm, d2dd97a11) --dataset /opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-code.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261106-133424-dm-mtp2-dm-p1-v1-mtp2-rcp-code/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve --backend metal --model Qwen3.8-27B-Quark-AWQ-MXFP4 --max-seq 20480 --max-batch 1 --spec mtp --spec-k 2 env INTARSIA_METAL_MXFP4_MR=1 (lane dm, d2dd97a11)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/metal-dflash2/scripts/dfh/cats/rcp-code.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.363 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 41.3 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| code-lru-cache | yes | 0.0 | 0.33 | 43.7 | ```python """ LRU (Least Recently Used) Cache implementation… |
+| code-rate-limiter | yes | 0.0 | 0.36 | 39.3 | ```python """ Thread-safe token-bucket rate limiter with con… |
+| code-json-parser | yes | 0.0 | 0.35 | 42.3 | ```python class JSONParseError(Exception): def __init__(self… |
+| code-rust-cli | yes | 0.0 | 0.38 | 40.3 | ```rust use std::collections::HashMap; use std::env; use std… |
+| code-sql-schema | yes | 0.0 | 0.38 | 40.7 | # PostgreSQL Library System Schema & Queries ## Schema Desig… |
+| code-ts-debounce | yes | 0.0 | 0.37 | 41.9 | ```typescript // debounce.ts /** * Creates a debounced funct… |
+| code-go-worker-pool | yes | 0.0 | 0.36 | 41.7 | ```go package main import ( "context" "errors" "fmt" "sync" … |
+| code-bash-backup | yes | 0.0 | 0.36 | 40.7 | ```bash #!/usr/bin/env bash # # backup.sh - Robust directory… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261106-133424-dm-mtp2-dm-p1-v1-mtp2-rcp-code/result.json
+[localeval] logged to unanimis: 1c8a63e4-1fde-4b90-9e74-42bab7a8c59b

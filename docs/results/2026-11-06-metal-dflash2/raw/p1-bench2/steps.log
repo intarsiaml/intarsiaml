@@ -1,0 +1,32 @@
+14:56:02 visit 1 arm mtp2: serve
+15:01:48 visit 1 arm mtp2 suite speed-spec exit 0 results/20261106-145724-adhoc-dm-p1-v1-mtp2-speed-spec/result.json
+15:02:32 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261106-150148-dm-mtp2-dm-p1-v1-mtp2-ho-chat/result.json
+15:02:51 round 1 arm mtp2 ho-code: localeval exit 0 results/20261106-150232-dm-mtp2-dm-p1-v1-mtp2-ho-code/result.json
+15:03:41 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261106-150252-dm-mtp2-dm-p1-v1-mtp2-ho-prose/result.json
+15:04:03 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261106-150341-dm-mtp2-dm-p1-v1-mtp2-ho-recall/result.json
+15:05:17 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261106-150403-dm-mtp2-dm-p1-v1-mtp2-rcp-code/result.json
+15:06:54 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261106-150518-dm-mtp2-dm-p1-v1-mtp2-rcp-prose/result.json
+15:08:16 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261106-150655-dm-mtp2-dm-p1-v1-mtp2-rcp-recall/result.json
+15:08:17 visit 2 arm dfl7: serve
+15:13:55 visit 2 arm dfl7 suite speed-spec exit 0 results/20261106-150830-adhoc-dm-p1-v2-dfl7-speed-spec/result.json
+15:15:13 round 2 arm dfl7 ho-chat: localeval exit 0 results/20261106-151356-dm-dfl7-dm-p1-v2-dfl7-ho-chat/result.json
+15:15:40 round 2 arm dfl7 ho-code: localeval exit 0 results/20261106-151513-dm-dfl7-dm-p1-v2-dfl7-ho-code/result.json
+15:17:16 round 2 arm dfl7 ho-prose: localeval exit 0 results/20261106-151540-dm-dfl7-dm-p1-v2-dfl7-ho-prose/result.json
+15:17:49 round 2 arm dfl7 ho-recall: localeval exit 0 results/20261106-151717-dm-dfl7-dm-p1-v2-dfl7-ho-recall/result.json
+15:19:20 round 2 arm dfl7 rcp-code: localeval exit 0 results/20261106-151750-dm-dfl7-dm-p1-v2-dfl7-rcp-code/result.json
+15:22:24 round 2 arm dfl7 rcp-prose: localeval exit 0 results/20261106-151920-dm-dfl7-dm-p1-v2-dfl7-rcp-prose/result.json
+15:24:21 round 2 arm dfl7 rcp-recall: localeval exit 0 results/20261106-152224-dm-dfl7-dm-p1-v2-dfl7-rcp-recall/result.json
+15:24:22 visit 3 arm mtp2: serve
+15:30:45 visit 3 arm mtp2 suite speed-spec exit 0 results/20261106-152529-adhoc-dm-p1-v3-mtp2-speed-spec/result.json
+15:30:46 visit 4 arm dfl7: serve
+15:36:39 visit 4 arm dfl7 suite speed-spec exit 0 results/20261106-153058-adhoc-dm-p1-v4-dfl7-speed-spec/result.json
+15:36:41 visit 5 arm dfl3: serve
+15:41:07 visit 5 arm dfl3 suite speed-spec exit 0 results/20261106-153653-adhoc-dm-p1-v5-dfl3-speed-spec/result.json
+15:41:59 round 5 arm dfl3 ho-chat: localeval exit 0 results/20261106-154108-dm-dfl3-dm-p1-v5-dfl3-ho-chat/result.json
+15:42:21 round 5 arm dfl3 ho-code: localeval exit 0 results/20261106-154159-dm-dfl3-dm-p1-v5-dfl3-ho-code/result.json
+15:43:20 round 5 arm dfl3 ho-prose: localeval exit 0 results/20261106-154221-dm-dfl3-dm-p1-v5-dfl3-ho-prose/result.json
+15:43:45 round 5 arm dfl3 ho-recall: localeval exit 0 results/20261106-154321-dm-dfl3-dm-p1-v5-dfl3-ho-recall/result.json
+15:45:04 round 5 arm dfl3 rcp-code: localeval exit 0 results/20261106-154346-dm-dfl3-dm-p1-v5-dfl3-rcp-code/result.json
+15:47:01 round 5 arm dfl3 rcp-prose: localeval exit 0 results/20261106-154505-dm-dfl3-dm-p1-v5-dfl3-rcp-prose/result.json
+15:48:31 round 5 arm dfl3 rcp-recall: localeval exit 0 results/20261106-154701-dm-dfl3-dm-p1-v5-dfl3-rcp-recall/result.json
+15:48:32 done

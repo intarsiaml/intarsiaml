@@ -57,15 +57,20 @@ pub const MR_SHADERS: [&str; 28] = [
     "mxfp4_gemv_f32_mr8p4",
 ];
 
+/// Lane dm: M = 2..=8 on the simdgroup matrix instructions (`mxfp4_gemv_*_mma`, knob value 8; bitwise only on archs where fp32
+/// `simdgroup_multiply_accumulate` is a sequential k-ascending chain, see mxfp4.metal), bf16 then f32 out.
+pub const MMA_SHADERS: [&str; 2] = ["mxfp4_gemv_bf16_mma", "mxfp4_gemv_f32_mma"];
+
 /// `INTARSIA_METAL_MXFP4_MR`: unset or `1` (default, user decision 2026-11-06) = the M = 2..=8 calls of `matmul_mxfp4_gemv` take
 /// `MR_SHADERS` where they measured faster ([`mr_auto`]); `0` = the `_m8` shader (the pre-2026-11-06 path); `2` or `4` = every M = 2..=8
-/// call with that P (A/B). Bitwise the same output in every setting (tests/mxfp4_gemv.rs).
+/// call with that P (A/B); `8` = every M = 2..=8 call on `MMA_SHADERS` (lane dm, opt-in). Bitwise the same output in every setting (tests/mxfp4_gemv.rs).
 pub fn mr_knob() -> usize {
     static P: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
     *P.get_or_init(|| match std::env::var("INTARSIA_METAL_MXFP4_MR").ok().as_deref().map(str::trim) {
         Some("0") => 0,
         Some("2") => 2,
         Some("4") => 4,
+        Some("8") => 8,
         _ => 1,
     })
 }
@@ -220,8 +225,9 @@ impl MetalBackend {
             1 => mr_auto(m, n),
             p => p,
         };
-        let mr = if (2..=M_BLOCK).contains(&m) && matches!(mr, 2 | 4) { mr } else { 0 };
+        let mr = if (2..=M_BLOCK).contains(&m) && matches!(mr, 2 | 4 | 8) { mr } else { 0 };
         let gemv = match (f32_out, m == 1) {
+            _ if mr == 8 => MMA_SHADERS[usize::from(f32_out)],
             _ if mr > 0 => mr_shader(f32_out, m, mr),
             (false, true) => SHADERS[1],
             (false, false) => SHADERS[2],
@@ -270,10 +276,15 @@ impl MetalBackend {
                 enc.setBuffer_offset_atIndex(Some(&xb.mtl), xb.off, 5);
             }
             // the M-row shader: P output rows per simdgroup, one grid row (M <= 8)
-            let (gx, gy) = if mr > 0 { (n.div_ceil(ROWS_PER_TG * mr), 1) } else { (n.div_ceil(ROWS_PER_TG), m_blocks) };
+            // the MMA shader: 8 output rows per simdgroup, MMA_SG = 2 simdgroups per threadgroup
+            let (gx, gy, tw) = match mr {
+                8 => (n.div_ceil(16), 1, 64),
+                1.. => (n.div_ceil(ROWS_PER_TG * mr), 1, ROWS_PER_TG * 32),
+                0 => (n.div_ceil(ROWS_PER_TG), m_blocks, ROWS_PER_TG * 32),
+            };
             enc.dispatchThreadgroups_threadsPerThreadgroup(
                 MTLSize { width: gx, height: gy, depth: 1 },
-                MTLSize { width: ROWS_PER_TG * 32, height: 1, depth: 1 },
+                MTLSize { width: tw, height: 1, depth: 1 },
             );
         })
     }

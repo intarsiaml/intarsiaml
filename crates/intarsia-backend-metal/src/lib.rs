@@ -28,6 +28,7 @@ pub mod bench;
 mod buffer;
 pub mod decode;
 mod dense;
+mod dflash;
 mod fill;
 pub mod flash;
 pub mod flash_nax;
@@ -1091,6 +1092,9 @@ impl MetalBackend {
         ) && call.op == Op::MatmulNvfp4
         {
             return self.launch_nvfp4(kernel, call);
+        }
+        if matches!(kernel, dflash::DYN_CONV_BF16 | dflash::ATTN_DECODE_BF16_WINDOW) {
+            return self.launch_dflash(kernel, call);
         }
         if call.rows.is_some() {
             return self.launch_rowtab(kernel, call);

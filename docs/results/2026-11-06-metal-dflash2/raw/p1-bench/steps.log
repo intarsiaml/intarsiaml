@@ -1,0 +1,41 @@
+13:22:47 visit 1 arm mtp2: serve
+13:31:13 visit 1 arm mtp2 suite speed-spec exit 0 results/20261106-132410-adhoc-dm-p1-v1-mtp2-speed-spec/result.json
+13:32:15 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261106-133114-dm-mtp2-dm-p1-v1-mtp2-ho-chat/result.json
+13:32:44 round 1 arm mtp2 ho-code: localeval exit 0 results/20261106-133216-dm-mtp2-dm-p1-v1-mtp2-ho-code/result.json
+13:33:54 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261106-133245-dm-mtp2-dm-p1-v1-mtp2-ho-prose/result.json
+13:34:24 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261106-133354-dm-mtp2-dm-p1-v1-mtp2-ho-recall/result.json
+13:36:08 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261106-133424-dm-mtp2-dm-p1-v1-mtp2-rcp-code/result.json
+13:38:16 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261106-133608-dm-mtp2-dm-p1-v1-mtp2-rcp-prose/result.json
+13:40:05 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261106-133817-dm-mtp2-dm-p1-v1-mtp2-rcp-recall/result.json
+13:40:06 visit 2 arm dfl7: serve
+13:40:19 visit 2 arm dfl7 suite speed-spec exit 2 results/20261106-134017-adhoc-dm-p1-v2-dfl7-speed-spec/result.incomplete.json
+13:40:24 round 2 arm dfl7 ho-chat: localeval exit 0 results/20261106-134020-dm-dfl7-dm-p1-v2-dfl7-ho-chat/result.json
+13:40:27 round 2 arm dfl7 ho-code: localeval exit 0 results/20261106-134024-dm-dfl7-dm-p1-v2-dfl7-ho-code/result.json
+13:40:31 round 2 arm dfl7 ho-prose: localeval exit 0 results/20261106-134027-dm-dfl7-dm-p1-v2-dfl7-ho-prose/result.json
+13:40:34 round 2 arm dfl7 ho-recall: localeval exit 0 results/20261106-134031-dm-dfl7-dm-p1-v2-dfl7-ho-recall/result.json
+13:40:39 round 2 arm dfl7 rcp-code: localeval exit 2 results/20261106-134034-dm-dfl7-dm-p1-v2-dfl7-rcp-code/result.json
+13:40:46 round 2 arm dfl7 rcp-prose: localeval exit 2 results/20261106-134041-dm-dfl7-dm-p1-v2-dfl7-rcp-prose/result.json
+13:40:53 round 2 arm dfl7 rcp-recall: localeval exit 2 results/20261106-134047-dm-dfl7-dm-p1-v2-dfl7-rcp-recall/result.json
+13:40:54 visit 3 arm mtp2: serve
+13:49:16 visit 3 arm mtp2 suite speed-spec exit 3 results/20261106-134206-adhoc-dm-p1-v3-mtp2-speed-spec/result.json
+13:49:17 visit 4 arm dfl7: serve
+13:49:31 visit 4 arm dfl7 suite speed-spec exit 2 results/20261106-134928-adhoc-dm-p1-v4-dfl7-speed-spec/result.incomplete.json
+13:49:32 visit 5 arm dfl3: serve
+13:49:44 visit 5 arm dfl3 suite speed-spec exit 2 results/20261106-134942-adhoc-dm-p1-v5-dfl3-speed-spec/result.incomplete.json
+13:49:49 round 5 arm dfl3 ho-chat: localeval exit 0 results/20261106-134945-dm-dfl3-dm-p1-v5-dfl3-ho-chat/result.json
+13:49:52 round 5 arm dfl3 ho-code: localeval exit 0 results/20261106-134949-dm-dfl3-dm-p1-v5-dfl3-ho-code/result.json
+13:49:56 round 5 arm dfl3 ho-prose: localeval exit 0 results/20261106-134952-dm-dfl3-dm-p1-v5-dfl3-ho-prose/result.json
+13:49:59 round 5 arm dfl3 ho-recall: localeval exit 0 results/20261106-134957-dm-dfl3-dm-p1-v5-dfl3-ho-recall/result.json
+13:50:04 round 5 arm dfl3 rcp-code: localeval exit 2 results/20261106-135000-dm-dfl3-dm-p1-v5-dfl3-rcp-code/result.json
+13:50:09 round 5 arm dfl3 rcp-prose: localeval exit 2 results/20261106-135004-dm-dfl3-dm-p1-v5-dfl3-rcp-prose/result.json
+13:50:14 round 5 arm dfl3 rcp-recall: localeval exit 2 results/20261106-135009-dm-dfl3-dm-p1-v5-dfl3-rcp-recall/result.json
+13:50:15 visit 6 arm tf: serve
+13:56:25 visit 6 arm tf suite speed-spec exit 3 results/20261106-135035-adhoc-dm-p1-v6-tf-speed-spec/result.json
+13:56:55 round 6 arm tf ho-chat: localeval exit 0 results/20261106-135625-dm-tf-dm-p1-v6-tf-ho-chat/result.json
+13:57:05 round 6 arm tf ho-code: localeval exit 0 results/20261106-135655-dm-tf-dm-p1-v6-tf-ho-code/result.json
+13:57:41 round 6 arm tf ho-prose: localeval exit 0 results/20261106-135706-dm-tf-dm-p1-v6-tf-ho-prose/result.json
+13:57:55 round 6 arm tf ho-recall: localeval exit 0 results/20261106-135742-dm-tf-dm-p1-v6-tf-ho-recall/result.json
+13:58:31 round 6 arm tf rcp-code: localeval exit 0 results/20261106-135755-dm-tf-dm-p1-v6-tf-rcp-code/result.json
+13:59:41 round 6 arm tf rcp-prose: localeval exit 0 results/20261106-135832-dm-tf-dm-p1-v6-tf-rcp-prose/result.json
+14:00:28 round 6 arm tf rcp-recall: localeval exit 0 results/20261106-135942-dm-tf-dm-p1-v6-tf-rcp-recall/result.json
+14:00:29 done

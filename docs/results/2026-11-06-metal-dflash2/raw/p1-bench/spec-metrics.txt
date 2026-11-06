@@ -1,0 +1,56 @@
+mtp2 ho-chat r1 before: intarsia_spec_steps_total 2744 intarsia_spec_proposed_tokens_total 5474 intarsia_spec_accepted_tokens_total 3877 
+mtp2 ho-chat r1 after:  intarsia_spec_steps_total 3618 intarsia_spec_proposed_tokens_total 7221 intarsia_spec_accepted_tokens_total 5045 
+mtp2 ho-code r1 before: intarsia_spec_steps_total 3618 intarsia_spec_proposed_tokens_total 7221 intarsia_spec_accepted_tokens_total 5045 
+mtp2 ho-code r1 after:  intarsia_spec_steps_total 3998 intarsia_spec_proposed_tokens_total 7981 intarsia_spec_accepted_tokens_total 5686 
+mtp2 ho-prose r1 before: intarsia_spec_steps_total 3998 intarsia_spec_proposed_tokens_total 7981 intarsia_spec_accepted_tokens_total 5686 
+mtp2 ho-prose r1 after:  intarsia_spec_steps_total 4984 intarsia_spec_proposed_tokens_total 9950 intarsia_spec_accepted_tokens_total 6743 
+mtp2 ho-recall r1 before: intarsia_spec_steps_total 4984 intarsia_spec_proposed_tokens_total 9950 intarsia_spec_accepted_tokens_total 6743 
+mtp2 ho-recall r1 after:  intarsia_spec_steps_total 5403 intarsia_spec_proposed_tokens_total 10788 intarsia_spec_accepted_tokens_total 7342 
+mtp2 rcp-code r1 before: intarsia_spec_steps_total 5403 intarsia_spec_proposed_tokens_total 10788 intarsia_spec_accepted_tokens_total 7342 
+mtp2 rcp-code r1 after:  intarsia_spec_steps_total 6887 intarsia_spec_proposed_tokens_total 13755 intarsia_spec_accepted_tokens_total 9943 
+mtp2 rcp-prose r1 before: intarsia_spec_steps_total 6887 intarsia_spec_proposed_tokens_total 13755 intarsia_spec_accepted_tokens_total 9943 
+mtp2 rcp-prose r1 after:  intarsia_spec_steps_total 8834 intarsia_spec_proposed_tokens_total 17642 intarsia_spec_accepted_tokens_total 12074 
+mtp2 rcp-recall r1 before: intarsia_spec_steps_total 8834 intarsia_spec_proposed_tokens_total 17642 intarsia_spec_accepted_tokens_total 12074 
+mtp2 rcp-recall r1 after:  intarsia_spec_steps_total 10487 intarsia_spec_proposed_tokens_total 20943 intarsia_spec_accepted_tokens_total 14505 
+dfl7 ho-chat r2 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 ho-chat r2 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 ho-code r2 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 ho-code r2 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 ho-prose r2 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 ho-prose r2 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 ho-recall r2 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 ho-recall r2 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 rcp-code r2 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 rcp-code r2 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 rcp-prose r2 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 rcp-prose r2 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 rcp-recall r2 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl7 rcp-recall r2 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 ho-chat r5 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 ho-chat r5 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 ho-code r5 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 ho-code r5 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 ho-prose r5 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 ho-prose r5 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 ho-recall r5 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 ho-recall r5 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 rcp-code r5 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 rcp-code r5 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 rcp-prose r5 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 rcp-prose r5 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 rcp-recall r5 before: intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+dfl3 rcp-recall r5 after:  intarsia_spec_steps_total 0 intarsia_spec_proposed_tokens_total 0 intarsia_spec_accepted_tokens_total 0 
+tf ho-chat r6 before: 
+tf ho-chat r6 after:  
+tf ho-code r6 before: 
+tf ho-code r6 after:  
+tf ho-prose r6 before: 
+tf ho-prose r6 after:  
+tf ho-recall r6 before: 
+tf ho-recall r6 after:  
+tf rcp-code r6 before: 
+tf rcp-code r6 after:  
+tf rcp-prose r6 before: 
+tf rcp-prose r6 after:  
+tf rcp-recall r6 before: 
+tf rcp-recall r6 after:  

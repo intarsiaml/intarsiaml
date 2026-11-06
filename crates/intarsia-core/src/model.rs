@@ -47,6 +47,7 @@ pub use verify_attn::{verify_rows_pos_bytes, verify_rows_pos_stale, verify_rows_
 pub(crate) mod dcoco;
 pub(crate) mod dflash;
 mod dflash2;
+pub mod dflash_tree;
 pub(crate) mod mtp;
 pub use dflash::{DflashConfig, DflashLoad};
 pub use mtp::DraftScript;

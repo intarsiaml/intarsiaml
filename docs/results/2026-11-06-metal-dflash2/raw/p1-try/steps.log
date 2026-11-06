@@ -1,0 +1,4 @@
+12:28:58 short-0 off exit 0 ids-vs-off PASS | no spec passes | finish=length prompt=41 (cached 0) completion=256 | prefill 2526 ms (16.2 tok/s) | decode 8514 ms (29.95 tok/s)
+12:29:14 short-0 dfl7 exit 0 ids-vs-off PASS | passes 70 tok/pass 3.60 draft 52.76 verify+rb 145.59 pass 198.35 ms [flush 2.35 block 8.95 head 39.45 selproj 0.33 dl 0.87 select 0.71 total 52.66] | finish=length prompt=41 (cached 0) completion=256 | prefill 562 ms (72.9 tok/s) | decode 13995 ms (18.22 tok/s)
+12:29:28 4k-1 off exit 0 ids-vs-off PASS | no spec passes | finish=length prompt=3135 (cached 0) completion=256 | prefill 4428 ms (707.9 tok/s) | decode 9513 ms (26.80 tok/s)
+12:29:49 4k-1 dfl7 exit 0 ids-vs-off PASS | passes 70 tok/pass 3.64 draft 63.16 verify+rb 164.59 pass 227.75 ms [flush 2.72 block 9.73 head 48.74 selproj 0.33 dl 0.86 select 0.70 total 63.08] | finish=length prompt=3135 (cached 0) completion=256 | prefill 4234 ms (740.5 tok/s) | decode 15917 ms (16.02 tok/s)

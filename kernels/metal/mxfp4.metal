@@ -240,6 +240,83 @@ inline void mxfp4_gemv_mr_impl(device const ushort* xs, device const uchar* w, d
     }
 }
 
+// M = 2..8 on the simdgroup matrix instructions (lane dm, `INTARSIA_METAL_MXFP4_MR=8`, opt-in). Bitwise `mxfp4_gemv1_impl` per row ONLY
+// because fp32 `simdgroup_multiply_accumulate` was measured to be a sequential k-ascending chain of rounded adds on the arch this is
+// registered for (lane dm probe, docs/results/2026-11-06-metal-dflash2.md; every MXFP4 product is exact in f32, so a rounded add per
+// product is the fma chain of the one-row kernel). Tile: 8 weight rows (A, n x k) x 8 activation rows (B, k x m; rows >= M are zero
+// and never stored); one group u = 4 chained MMAs from C = 0 (t of the one-row kernel for all 64 (n, m) pairs at once), then per
+// element acc = fma(t * MX_FOLD, s[n], acc). The one-row kernel's reduction is kept exactly: its lane l sums groups u = l, l + 32, ..
+// in order and then `simd_sum`s over lanes; here the simdgroup walks class l = 0..31 (groups l, l + 32, ..), parks class l's 8 x 8
+// accumulator in threadgroup slot l, and at the end lane l reads slot l for each pair and the same `simd_sum` runs.
+// Fragment coordinates are not assumed: an index matrix loaded once tells each thread which (row, col) its two elements are.
+constant constexpr uint MMA_SG = 2;  // simdgroups (8 output rows each) per threadgroup
+
+template <typename OutT>
+inline void mxfp4_gemv_mma_impl(device const ushort* xs, device const uchar* w, device const uchar* sc, device OutT* out,
+                                constant OpP& p, device const ushort* x, uint2 tg, uint sg, uint lane,
+                                threadgroup float* slots, threadgroup float* idx) {
+    // slots: [MMA_SG][32][64] accumulators; idx: [64] = 0..63
+    for (uint i = sg * 32 + lane; i < 64; i += MMA_SG * 32) idx[i] = (float)i;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    simdgroup_float8x8 im;
+    simdgroup_load(im, idx, 8);
+    const uint e0 = (uint)im.thread_elements()[0], e1 = (uint)im.thread_elements()[1];
+    const uint r0 = e0 / 8, c0 = e0 % 8, r1 = e1 / 8, c1 = e1 % 8;
+    const ulong n0 = ((ulong)tg.x * MMA_SG + sg) * 8;
+    if (n0 >= p.b) return;  // whole simdgroup exits together (no barrier follows)
+    const uint M = p.a, K = p.c, ng = K / 32;
+    device const ushort* xsrc = p.d == 1u ? x : xs;  // see mxfp4_gemv1_impl
+    // A elements: weight rows n0 + r (rows past N read row n0, never stored); B elements: activation rows c (>= M give 0)
+    const ulong na0 = n0 + r0 < p.b ? n0 + r0 : n0, na1 = n0 + r1 < p.b ? n0 + r1 : n0;
+    device const uint* wa0 = (device const uint*)(w + na0 * (K / 2));
+    device const uint* wa1 = (device const uint*)(w + na1 * (K / 2));
+    // C / acc elements: (n = r, m = c); their scales are rows n0 + r
+    const ulong ns0 = na0, ns1 = na1;
+    threadgroup float* myslots = slots + sg * 32 * 64;
+    for (uint l = 0; l < 32; ++l) {
+        float a0 = 0.f, a1 = 0.f;
+        for (uint u = l; u < ng; u += 32) {
+            simdgroup_float8x8 c = make_filled_simdgroup_matrix<float, 8, 8>(0.f);
+            for (int q = 0; q < 4; ++q) {
+                simdgroup_float8x8 A, B;
+                // A[r][c] = element u*32 + q*8 + c of weight row n0 + r (word q of the group, nibble c)
+                const uint wd0 = wa0[u * 4 + q], wd1 = wa1[u * 4 + q];
+                const float2 d0 = mx_x2(((wd0 >> (4 * c0)) & 0xFu) | (((wd1 >> (4 * c1)) & 0xFu) << 16));
+                A.thread_elements()[0] = d0.x;
+                A.thread_elements()[1] = d0.y;
+                // B[r][c] = x[c][u*32 + q*8 + r]
+                const ulong kk0 = (ulong)u * 32 + q * 8 + r0, kk1 = (ulong)u * 32 + q * 8 + r1;
+                const float b0 = c0 < M ? as_type<float>((uint)xsrc[(ulong)c0 * K + kk0] << 16) : 0.f;
+                const float b1 = c1 < M ? as_type<float>((uint)xsrc[(ulong)c1 * K + kk1] << 16) : 0.f;
+                B.thread_elements()[0] = b0;
+                B.thread_elements()[1] = b1;
+                simdgroup_multiply_accumulate(c, A, B, c);
+            }
+            a0 = fma(c.thread_elements()[0] * MX_FOLD, mx_e8m0(sc[p.s0 + ns0 * ng + u]), a0);
+            a1 = fma(c.thread_elements()[1] * MX_FOLD, mx_e8m0(sc[p.s0 + ns1 * ng + u]), a1);
+        }
+        myslots[l * 64 + e0] = a0;
+        myslots[l * 64 + e1] = a1;
+    }
+    simdgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint n = 0; n < 8; ++n) {
+        for (uint m = 0; m < M; ++m) {
+            const float r = simd_sum(myslots[lane * 64 + n * 8 + m]);
+            if (lane == 0 && n0 + n < p.b) store_out(out + p.s1, (ulong)m * p.b + n0 + n, r);
+        }
+    }
+}
+
+#define MX_GEMV_MMA(NAME, OUT)                                                                                     \
+    kernel void NAME(device const ushort* xs [[buffer(0)]], device const uchar* w [[buffer(1)]],                    \
+                     device const uchar* sc [[buffer(2)]], device OUT* out [[buffer(3)]],                           \
+                     constant OpP& p [[buffer(4)]], device const ushort* x [[buffer(5)]],                            \
+                     uint2 tg [[threadgroup_position_in_grid]], uint sg [[simdgroup_index_in_threadgroup]], uint lane [[thread_index_in_simdgroup]]) {         \
+        threadgroup float slots[MMA_SG * 32 * 64];                                                                  \
+        threadgroup float idx[64];                                                                                  \
+        mxfp4_gemv_mma_impl<OUT>(xs, w, sc, out, p, x, tg, sg, lane, slots, idx);                                   \
+    }
+
 #define MX_GEMV(NAME, IMPL, OUT)                                                                                  \
     kernel void NAME(device const ushort* xs [[buffer(0)]], device const uchar* w [[buffer(1)]],                    \
                      device const uchar* sc [[buffer(2)]], device OUT* out [[buffer(3)]],                           \
@@ -307,3 +384,6 @@ kernel void mxfp4_w_to_bf16(device const uchar* w [[buffer(0)]], device const uc
     }
     for (int i = 0; i < 4; ++i) wb[4 * (ulong)g + i] = uint4(o[4 * i], o[4 * i + 1], o[4 * i + 2], o[4 * i + 3]);
 }
+// lane dm: M = 2..8 on simdgroup matrices (`INTARSIA_METAL_MXFP4_MR=8`)
+MX_GEMV_MMA(mxfp4_gemv_bf16_mma, ushort)
+MX_GEMV_MMA(mxfp4_gemv_f32_mma, float)

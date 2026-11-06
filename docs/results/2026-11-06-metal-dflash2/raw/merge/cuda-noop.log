@@ -1,0 +1,15 @@
+fleetq: #8868 running on spark1: ssh spark1 'bash ~/intarsia-dmm/dmm-src-dev/scripts/dm/cuda-noop.sh run'
+free GB: 78
+== build base 16:14:33
+    Finished `release` profile [optimized] target(s) in 5m 48s
+== build dev 16:21:28
+    Finished `release` profile [optimized] target(s) in 5m 49s
+plan 35b json: byte-identical (15570 B)
+plan 8b json: byte-identical (8973 B)
+== kernels test --quick (dev) 16:28:30
+exit 0 FAIL lines: 0
+logits         logits_f16w                     2      0    8.208e-8    6.986e-8  ADMITTED
+matmul         matmul_f16w                     4      0     0.000e0     0.000e0  ADMITTED
+106 kernels, 954 cases in 7.2s
+== done 16:28:37
+fleetq: #8868 done (exit 0)
