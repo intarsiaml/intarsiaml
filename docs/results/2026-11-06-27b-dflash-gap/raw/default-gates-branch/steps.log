@@ -1,0 +1,13 @@
+12:14:19 SAME plan 8b lane vs base
+12:14:20 SAME plan 27b lane vs base
+12:14:26 SAME plan 35b lane vs base
+12:14:58 kernels test lane exit 0: FAIL lines 0, 49 kernels, 980 cases in 31.6s
+12:15:34 PASS ids 27b-short-0-lane-off == 27b-short-0-lane-default
+12:16:09 PASS ids 27b-short-0-base-default == 27b-short-0-lane-mr0
+12:16:36 PASS ids 8b-short-0-base-default == 8b-short-0-lane-default
+12:16:48 PASS ids 35b-short-0-base-default == 35b-short-0-lane-default
+12:17:42 PASS ids 27b-4k-1-lane-off == 27b-4k-1-lane-default
+12:18:36 PASS ids 27b-4k-1-base-default == 27b-4k-1-lane-mr0
+12:19:07 PASS ids 8b-4k-1-base-default == 8b-4k-1-lane-default
+12:19:23 PASS ids 35b-4k-1-base-default == 35b-4k-1-lane-default
+12:19:23 done

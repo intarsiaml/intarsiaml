@@ -105,12 +105,12 @@ pub fn mid_tile(m: usize) -> Option<&'static NaxVariant> {
     const W2: &str = "gemm_nax_t64x64w2";
     let steps = m.div_ceil(64);
     let shader = match steps {
-        11..=12 => W4,  // 641..=768
-        13 => W2,       // 769..=832
-        14..=17 => W4,  // 833..=1088
-        19 => W4,       // 1153..=1216
-        20 => W2,       // 1217..=1280
-        21 => W4,       // 1281..=1344
+        11..=12 => W4, // 641..=768
+        13 => W2,      // 769..=832
+        14..=17 => W4, // 833..=1088
+        19 => W4,      // 1153..=1216
+        20 => W2,      // 1217..=1280
+        21 => W4,      // 1281..=1344
         _ => return None,
     };
     Some(variant(shader))
@@ -130,7 +130,8 @@ fn pick_by_ranges(m: usize, n: usize, chunk_max: usize, mid: bool) -> &'static N
         v
     } else {
         let big = variant("gemm_nax_t128x64w4");
-        if m >= NAX_BIG_TILE_MIN_M && m.div_ceil(big.bm as usize) * n.div_ceil(big.bn as usize) >= NAX_BIG_TILE_MIN_TGS {
+        if m >= NAX_BIG_TILE_MIN_M && m.div_ceil(big.bm as usize) * n.div_ceil(big.bn as usize) >= NAX_BIG_TILE_MIN_TGS
+        {
             big
         } else {
             variant("gemm_nax_t64x64w4")
@@ -233,7 +234,11 @@ pub fn encode_nax_pair(
     }
     set_bytes(enc, p, 5);
     enc.dispatchThreadgroups_threadsPerThreadgroup(
-        MTLSize { width: (p.n0.div_ceil(v.bn) + p.n1.div_ceil(v.bn)) as usize, height: p.m.div_ceil(v.bm) as usize, depth: 1 },
+        MTLSize {
+            width: (p.n0.div_ceil(v.bn) + p.n1.div_ceil(v.bn)) as usize,
+            height: p.m.div_ceil(v.bm) as usize,
+            depth: 1,
+        },
         MTLSize { width: v.threads() as usize, height: 1, depth: 1 },
     );
 }
@@ -255,15 +260,12 @@ impl MetalBackend {
             return Err(Error::invalid("matmul_bf16_nax: shape mismatch"));
         }
         let v = pick_variant(m, n);
-        let pso = self
-            .pso(v.shader)
-            .ok_or_else(|| Error::backend(format!("metal: no pipeline '{}' (metal4.0 library not loaded)", v.shader)))?;
+        let pso = self.pso(v.shader).ok_or_else(|| {
+            Error::backend(format!("metal: no pipeline '{}' (metal4.0 library not loaded)", v.shader))
+        })?;
         let bf = DType::Bf16;
-        let (x, w, y) = (
-            self.bind(&i[0], bf, false, "x")?,
-            self.bind(&i[1], bf, false, "w")?,
-            self.bind(&o[0], bf, true, "y")?,
-        );
+        let (x, w, y) =
+            (self.bind(&i[0], bf, false, "x")?, self.bind(&i[1], bf, false, "w")?, self.bind(&o[0], bf, true, "y")?);
         let p = NaxParams {
             m: dim(m, "M")?,
             n: dim(n, "N")?,

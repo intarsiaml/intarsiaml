@@ -285,7 +285,9 @@ impl MetalBackend {
         let name = shader(set, m, per_tg).expect("compiled row count");
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         let params = GemvParams { k: k as u32, n: n as u32, y_skip: ((yo & 3) / 2) as u32, ..Default::default() };
-        self.with_encoder(|enc| encode_matmul_rows(enc, pso, (&wb.mtl, wo), (&xb.mtl, xo), (&yb.mtl, yo & !3), &params, per_tg))
+        self.with_encoder(|enc| {
+            encode_matmul_rows(enc, pso, (&wb.mtl, wo), (&xb.mtl, xo), (&yb.mtl, yo & !3), &params, per_tg)
+        })
     }
 
     /// `MatmulPair` with `M` rows on the multi-row pair GEMV when both halves share a GEMV family (16-byte or 8-byte
@@ -418,6 +420,8 @@ impl MetalBackend {
         let name = shader(Family::Logits, m, per_sg).expect("compiled row count");
         let pso = self.pso(name).ok_or_else(|| Error::backend(format!("metal: no pipeline '{name}'")))?;
         let params = GemvParams { k: k as u32, n: n as u32, ..Default::default() };
-        self.with_encoder(|enc| encode_logits_rows(enc, pso, (&wb.mtl, wo), (&xb.mtl, xo), (&yb.mtl, yo), &params, per_sg))
+        self.with_encoder(|enc| {
+            encode_logits_rows(enc, pso, (&wb.mtl, wo), (&xb.mtl, xo), (&yb.mtl, yo), &params, per_sg)
+        })
     }
 }

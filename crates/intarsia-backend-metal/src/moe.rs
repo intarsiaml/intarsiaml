@@ -177,7 +177,9 @@ impl MetalBackend {
         let (t, h, k) = (x.shape[0], x.shape[1], ids.shape[1]);
         let (e, i) = (guw.shape[0], guw.shape[1] / 2);
         if e > MAX_EXPERTS || h % 16 != 0 || i % 16 != 0 {
-            return Err(Error::invalid(format!("metal moe_experts: E = {e} (<= {MAX_EXPERTS}), H = {h}, I = {i} (multiples of 16)")));
+            return Err(Error::invalid(format!(
+                "metal moe_experts: E = {e} (<= {MAX_EXPERTS}), H = {h}, I = {i} (multiples of 16)"
+            )));
         }
         let pairs = t * k;
         if pairs == 0 || h == 0 {
@@ -260,9 +262,21 @@ impl MetalBackend {
         // tile slots: at most ceil(P / tm) full tiles plus one partial tile per non-empty expert (the rest exit early)
         let max_tiles = pairs.div_ceil(tm) + pairs.min(e);
         let ggu = MTLSize { width: i.div_ceil(GU_COLS), height: max_tiles, depth: 1 };
-        self.moe_dispatch(if nax { NAX_MM_GU[ti] } else { MM_GU[ti] }, &[&xb, &pb, &offb, &tb, &guwb, &gusb, &gb, &hb], &p, ggu, 128)?;
+        self.moe_dispatch(
+            if nax { NAX_MM_GU[ti] } else { MM_GU[ti] },
+            &[&xb, &pb, &offb, &tb, &guwb, &gusb, &gb, &hb],
+            &p,
+            ggu,
+            128,
+        )?;
         let gdn = MTLSize { width: h.div_ceil(DN_COLS), height: max_tiles, depth: 1 };
-        self.moe_dispatch(if nax { NAX_MM_DN[ti] } else { MM_DN[ti] }, &[&hb, &pb, &offb, &tb, &dwb, &dsb, &gb, &yb], &p, gdn, 128)?;
+        self.moe_dispatch(
+            if nax { NAX_MM_DN[ti] } else { MM_DN[ti] },
+            &[&hb, &pb, &offb, &tb, &dwb, &dsb, &gb, &yb],
+            &p,
+            gdn,
+            128,
+        )?;
         let gg = MTLSize { width: (t * h).div_ceil(256), height: 1, depth: 1 };
         self.moe_dispatch(GATHER[o32], &[&yb, &ib, &wb, &ob], &p, gg, 256)
     }

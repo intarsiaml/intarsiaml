@@ -1,0 +1,21 @@
+10:31:20 visit 1 mtp2 A: starting server
+10:37:42 visit 1 mtp2 A speed-spec: exit 0 results/20261106-103252-adhoc-df-mr-1-mtp2-A-speed-spec/result.json
+10:42:44 visit 1 mtp2 A speed-plain: exit 0 results/20261106-103743-adhoc-df-mr-1-mtp2-A-speed-plain/result.json
+10:42:45 visit 2 mtp2 B: starting server
+10:50:26 visit 2 mtp2 B speed-spec: exit 0 results/20261106-104402-adhoc-df-mr-2-mtp2-B-speed-spec/result.json
+10:57:32 visit 2 mtp2 B speed-plain: exit 3 results/20261106-105027-adhoc-df-mr-2-mtp2-B-speed-plain/result.json
+10:57:33 visit 3 mtp2 A: starting server
+11:03:39 visit 3 mtp2 A speed-spec: exit 0 results/20261106-105850-adhoc-df-mr-3-mtp2-A-speed-spec/result.json
+11:10:55 visit 3 mtp2 A speed-plain: exit 3 results/20261106-110340-adhoc-df-mr-3-mtp2-A-speed-plain/result.json
+11:10:56 visit 4 mtp2 B: starting server
+11:18:51 visit 4 mtp2 B speed-spec: exit 0 results/20261106-111216-adhoc-df-mr-4-mtp2-B-speed-spec/result.json
+11:23:26 visit 4 mtp2 B speed-plain: exit 0 results/20261106-111852-adhoc-df-mr-4-mtp2-B-speed-plain/result.json
+11:23:27 visit 5 off A: starting server
+11:29:33 visit 5 off A speed-plain: exit 0 results/20261106-112344-adhoc-df-mr-5-off-A-speed-plain/result.json
+11:29:34 visit 6 off B: starting server
+11:35:17 visit 6 off B speed-plain: exit 0 results/20261106-112951-adhoc-df-mr-6-off-B-speed-plain/result.json
+11:35:18 visit 7 off A: starting server
+11:41:02 visit 7 off A speed-plain: exit 0 results/20261106-113536-adhoc-df-mr-7-off-A-speed-plain/result.json
+11:41:03 visit 8 off B: starting server
+11:50:30 visit 8 off B speed-plain: exit 0 results/20261106-114120-adhoc-df-mr-8-off-B-speed-plain/result.json
+11:50:31 done

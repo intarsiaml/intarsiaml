@@ -1,0 +1,406 @@
+{
+ "urls": [
+  "http://tatooine:8301/v1",
+  "http://tatooine:8302/v1"
+ ],
+ "gen": 512,
+ "sentences": 45,
+ "bursts": 1,
+ "rows": [
+  {
+   "streams": 32,
+   "servers": 2,
+   "bursts": [
+    {
+     "streams": [
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 1.5773829579999998,
+       "end_s": 15.968708542,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 993,
+       "decode_tok_s": 35.50750047432184,
+       "sha": "cbf51030dc524cb3"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 1.5513970000000001,
+       "end_s": 15.678467875,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 993,
+       "decode_tok_s": 36.17168799685802,
+       "sha": "5bb2a075fdcbe6cb"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 0.7377469999999999,
+       "end_s": 15.923997792,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 1000,
+       "decode_tok_s": 33.64885823360634,
+       "sha": "d4df1a7c75794fe7"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 0.720676125,
+       "end_s": 15.656794125,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 989,
+       "decode_tok_s": 34.21237030934009,
+       "sha": "15bbc82e8794ec6b"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 0.44741558299999995,
+       "end_s": 15.901215833,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 996,
+       "decode_tok_s": 33.06630031017775,
+       "sha": "c60eea2cdd1da568"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 0.13203729199999992,
+       "end_s": 15.651688583,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 994,
+       "decode_tok_s": 32.92599752523653,
+       "sha": "59c3cf8a9d1b6804"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 1.348876083,
+       "end_s": 15.957691041999999,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 993,
+       "decode_tok_s": 34.97888099987126,
+       "sha": "7f3ef743a70e9628"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 0.720716667,
+       "end_s": 15.656530125000002,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 992,
+       "decode_tok_s": 34.21306790131979,
+       "sha": "3fd843702eb925ba"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 0.145131958,
+       "end_s": 15.877005917,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 987,
+       "decode_tok_s": 32.481826471007516,
+       "sha": "9dbe97cbf0dcc74a"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 0.44734054199999995,
+       "end_s": 15.656025999999999,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 993,
+       "decode_tok_s": 33.599222063679825,
+       "sha": "5f2f4e5dbbe0aedc"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 0.44737791699999996,
+       "end_s": 15.903563125,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 993,
+       "decode_tok_s": 33.06119803323206,
+       "sha": "036a1088998b9ffc"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 0.447308917,
+       "end_s": 15.656414667000002,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 992,
+       "decode_tok_s": 33.598293574886874,
+       "sha": "e044e3d65ec12151"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 1.348846458,
+       "end_s": 15.957607167,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 998,
+       "decode_tok_s": 34.97901089482484,
+       "sha": "37243028dbe7ea3e"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 0.720700833,
+       "end_s": 15.655823083,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 992,
+       "decode_tok_s": 34.214651306252286,
+       "sha": "9f5210d8bb2ff34f"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 1.348896292,
+       "end_s": 15.957486083000001,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 990,
+       "decode_tok_s": 34.979420143264946,
+       "sha": "f6bbac7c8792d28f"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 1.020274833,
+       "end_s": 15.656938333000001,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 994,
+       "decode_tok_s": 34.9123282092261,
+       "sha": "6975ba7b6df216db"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 1.7283781669999998,
+       "end_s": 15.974461291999999,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 990,
+       "decode_tok_s": 35.869508517977295,
+       "sha": "b1018bd2cfb5b9d7"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 1.020247375,
+       "end_s": 15.656631124999999,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 993,
+       "decode_tok_s": 34.912995499998424,
+       "sha": "b6d347c2003d6a99"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 1.042051958,
+       "end_s": 15.942485332999999,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 995,
+       "decode_tok_s": 34.2943045440113,
+       "sha": "30d4b5073ef4c0e5"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 1.323033583,
+       "end_s": 15.665734041999999,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 993,
+       "decode_tok_s": 35.62787924496807,
+       "sha": "e0021e9485a058b3"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 0.4474034579999999,
+       "end_s": 15.90368525,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 989,
+       "decode_tok_s": 33.0609914387358,
+       "sha": "ad7c4b079f3a20f0"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 1.020292417,
+       "end_s": 15.656316208000002,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 996,
+       "decode_tok_s": 34.913854151714666,
+       "sha": "340fac587992b186"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 1.042085,
+       "end_s": 15.944809375,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 997,
+       "decode_tok_s": 34.28903247095047,
+       "sha": "b84693e71e1a5aa2"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 1.322992125,
+       "end_s": 15.665840874999999,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 998,
+       "decode_tok_s": 35.6275108876122,
+       "sha": "7e3a8472af01cd4b"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 1.5773622079999998,
+       "end_s": 15.968652167,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 993,
+       "decode_tok_s": 35.50758837156441,
+       "sha": "42451249645a5559"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 1.551373292,
+       "end_s": 15.678554792000002,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 998,
+       "decode_tok_s": 36.17140474906477,
+       "sha": "cb25c1a6dfb16f5f"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 0.7378282919999999,
+       "end_s": 15.926403625,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 984,
+       "decode_tok_s": 33.64370843193947,
+       "sha": "63affa541a1e16a6"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 1.32301575,
+       "end_s": 15.665918875000001,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 984,
+       "decode_tok_s": 35.627375821099676,
+       "sha": "44d006b7f3c631d1"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 1.042101833,
+       "end_s": 15.942557917,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 994,
+       "decode_tok_s": 34.29425227786873,
+       "sha": "660fbc52b8707b72"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 1.7027100000000002,
+       "end_s": 15.682749291999999,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 989,
+       "decode_tok_s": 36.552114720622924,
+       "sha": "d824e98744d273eb"
+      },
+      {
+       "server": "http://tatooine:8301/v1",
+       "status": 200,
+       "ttft_s": 0.7378108749999999,
+       "end_s": 15.9240585,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 993,
+       "decode_tok_s": 33.64886525087201,
+       "sha": "0b7a77ec62505f0f"
+      },
+      {
+       "server": "http://tatooine:8302/v1",
+       "status": 200,
+       "ttft_s": 0.447391458,
+       "end_s": 15.655966167,
+       "tokens": 512,
+       "chunks": 512,
+       "prompt_tokens": 1003,
+       "decode_tok_s": 33.59946673356608,
+       "sha": "8e83601a463f6054"
+      }
+     ],
+     "per_server": {
+      "http://tatooine:8301/v1": {
+       "tokens": 8192,
+       "wall": 15.974461291999999,
+       "streams": 16,
+       "errors": 0,
+       "agg_tok_s": 512.8185451926663
+      },
+      "http://tatooine:8302/v1": {
+       "tokens": 8192,
+       "wall": 15.682749291999999,
+       "streams": 16,
+       "errors": 0,
+       "agg_tok_s": 522.3573907528356
+      }
+     },
+     "agg_sum_tok_s": 1035.1759359455018,
+     "agg_combined_tok_s": 1025.6370903853326,
+     "errors": 0
+    }
+   ],
+   "agg_sum_median": 1035.1759359455018,
+   "agg_combined_median": 1025.6370903853326,
+   "pack_passes": 10.0,
+   "errors": 0,
+   "ttft_p50": 1.020283625,
+   "ttft_p95": 1.5773829579999998,
+   "ttft_max": 1.7283781669999998,
+   "n_streams": 32,
+   "stream_decode_median": 34.29427841094001,
+   "prompt_tokens": [
+    984,
+    987,
+    989
+   ]
+  }
+ ]
+}

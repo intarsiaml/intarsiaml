@@ -9,7 +9,8 @@ fn main() {
             let mut line = format!("{f:?} P={p}:");
             for &r in &MR_ROWS {
                 let pso = be.pso(shader(f, r, p).unwrap()).unwrap();
-                line += &format!(" R{r}:{}/{}", pso.maxTotalThreadsPerThreadgroup(), pso.staticThreadgroupMemoryLength());
+                line +=
+                    &format!(" R{r}:{}/{}", pso.maxTotalThreadsPerThreadgroup(), pso.staticThreadgroupMemoryLength());
             }
             println!("{line}");
         }

@@ -20,7 +20,8 @@ impl HostMemory for MmapHost {
 }
 
 fn mapped_file(bytes: usize, seed: u32) -> (Arc<dyn HostMemory>, Vec<u8>) {
-    let data: Vec<u8> = (0..bytes as u32).map(|i| (i.wrapping_mul(2654435761).wrapping_add(seed) >> 11) as u8).collect();
+    let data: Vec<u8> =
+        (0..bytes as u32).map(|i| (i.wrapping_mul(2654435761).wrapping_add(seed) >> 11) as u8).collect();
     let path = std::env::temp_dir().join(format!("intarsia-keepwarm-{}-{seed}.bin", std::process::id()));
     std::fs::File::create(&path).unwrap().write_all(&data).unwrap();
     let mmap = unsafe { Mmap::map(&std::fs::File::open(&path).unwrap()).unwrap() };

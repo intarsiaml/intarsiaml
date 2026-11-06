@@ -1,0 +1,32 @@
+11:41:31 fleetq job 8782; window.sh 5a21c0e7c
+nproc: 24
+CPU(s):                                  24
+Model name:                              AMD Ryzen 9 9900X 12-Core Processor
+Thread(s) per core:                      2
+CPU(s) scaling MHz:                      61%
+NUMA node(s):                            1
+               total        used        free      shared  buff/cache   available
+Mem:              61          33           2           0          27          28
+Swap:              7           0           7
+919021 bash -c lscpu | grep -E 'Model name|^CPU\(s\)|Thread|NUMA node\(s\)'; free -g; pgrep -af 'systemctl --user start radiance' || echo 'no stray radiance-start timers'; for c in card0 card1; do echo $c $(grep PCI_SLOT_NAME /sys/class/drm/$c/device/uevent); done
+card0 PCI_SLOT_NAME=0000:03:00.0
+card1 PCI_SLOT_NAME=0000:07:00.0
+11:41:31 pending foreign radiance-start timer (seconds until it fires): none
+11:41:31 stopping radiance
+11:41:38 VRAM used after the stop (card0 card1, bytes): 59912192 59912192 
+11:41:38 == ctx-32768-kv0.8
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.748497125, "wall_s": 1.9734520410000003}
+11:41:58 max-seq 32768 max-batch 16 mem-budget 29 kv-fraction 0.8: server context context 24162 tokens; loads and serves a ~16k prompt = True
+11:41:58 == ctx-32768-mb12-b29
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.748344291, "wall_s": 1.975718083}
+11:42:17 max-seq 32768 max-batch 12 mem-budget 29 kv-fraction 0.5 (default): server context context 21619 tokens; loads and serves a ~16k prompt = True
+11:42:17 == ctx-20480-kv0.8
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.755520916, "wall_s": 1.9781065830000002}
+11:42:36 max-seq 20480 max-batch 16 mem-budget 29 kv-fraction 0.8: server context context 20480 tokens; loads and serves a ~16k prompt = True
+11:42:36 == ctx-65536-mb16-b31-kv0.9
+11:42:51 dp-c is not running (load failed)
+11:42:52 max-seq 65536 max-batch 16 mem-budget 31 kv-fraction 0.9: server context ; loads and serves a ~16k prompt = False
+11:42:52 extra max-batch 32 T visit skipped (elapsed 74 s)
+11:42:52 all done in 74 s
+11:42:52 starting radiance
+11:43:03 radiance answers on :8080 (after 15 s)

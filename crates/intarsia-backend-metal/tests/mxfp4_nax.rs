@@ -67,7 +67,16 @@ impl<'a> Run<'a> {
     }
 
     /// Output bytes of `kernel` for rows `r0..r0+m` of x, written at byte `y_off` of a fresh buffer.
-    fn go(&self, kernel: &str, act: f32, r0: usize, m: usize, y_off: usize, f32_out: bool, tile: Option<usize>) -> Vec<u8> {
+    fn go(
+        &self,
+        kernel: &str,
+        act: f32,
+        r0: usize,
+        m: usize,
+        y_off: usize,
+        f32_out: bool,
+        tile: Option<usize>,
+    ) -> Vec<u8> {
         let (n, k) = (self.n, self.k);
         let esz = if f32_out { 4 } else { 2 };
         let ysz = y_off + m * n * esz + 16;
@@ -86,7 +95,8 @@ impl<'a> Run<'a> {
             vec![t(&yb, y_off, odt, &[m, n])],
             OpAttrs::default(),
         );
-        let need = self.be.kernels().iter().find(|q| q.name == kernel).unwrap().scratch_bytes(&ShapeInfo::from_call(&cl));
+        let need =
+            self.be.kernels().iter().find(|q| q.name == kernel).unwrap().scratch_bytes(&ShapeInfo::from_call(&cl));
         let b = self.be.alloc(need + 8, MemKind::Device).unwrap();
         self.be.upload(&b, 0, &vec![0xEEu8; need + 8], 0).unwrap();
         // an unaligned scratch start (4-byte aligned only) must work: the launcher pads to 16 itself
@@ -112,7 +122,8 @@ fn f32s(raw: &[u8]) -> Vec<f32> {
 }
 
 /// M, N, K tails and the 27B's projection widths (hidden 5120).
-const SHAPES: &[(usize, usize, usize)] = &[(9, 64, 64), (37, 130, 96), (130, 100, 160), (300, 1000, 512), (257, 5120, 5120), (64, 6144, 5120)];
+const SHAPES: &[(usize, usize, usize)] =
+    &[(9, 64, 64), (37, 130, 96), (130, 100, 160), (300, 1000, 512), (257, 5120, 5120), (64, 6144, 5120)];
 
 #[test]
 fn nax_w4a16_equals_the_bf16_nax_gemm_on_decoded_weights() {
@@ -151,7 +162,11 @@ fn nax_rows_do_not_depend_on_the_call() {
         for (r0, rows) in [(0usize, 9usize), (7, 10), (40, 11), (600, 15), (100, 64), (219, 205), (3, 697)] {
             for tile in [None, Some(0), Some(2)] {
                 let got = bf(&r.go(NAX, act, r0, rows, 2 * (r0 % 3), false, tile));
-                assert!(got == want[r0 * n..(r0 + rows) * n], "rows {r0}..{} (act {act}, tile {tile:?}) differ", r0 + rows);
+                assert!(
+                    got == want[r0 * n..(r0 + rows) * n],
+                    "rows {r0}..{} (act {act}, tile {tile:?}) differ",
+                    r0 + rows
+                );
             }
         }
     }

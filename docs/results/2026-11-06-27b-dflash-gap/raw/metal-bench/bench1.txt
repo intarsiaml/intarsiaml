@@ -1,0 +1,75 @@
+fleetq: #8767 running on endor: cargo test --release -p intarsia-backend-metal --test df_verify_bench -- --ignored --nocapture
+warning: function `hip_batch_needs_hybrid` is never used
+    --> crates/intarsia-core/src/model/batch.rs:1235:4
+     |
+1235 | fn hip_batch_needs_hybrid(backend: &str, hybrid_block: bool) -> Result<()> {
+     |    ^^^^^^^^^^^^^^^^^^^^^^
+     |
+     = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `max_tokens` is never read
+  --> crates/intarsia-core/src/model/gemma.rs:61:9
+   |
+60 | pub(super) struct GemmaWs {
+   |                   ------- field in this struct
+61 |     pub max_tokens: usize,
+   |         ^^^^^^^^^^
+
+warning: field `state_id` is never read
+  --> crates/intarsia-core/src/model/graph_step.rs:37:16
+   |
+36 | pub(super) struct Captured {
+   |                   -------- field in this struct
+37 |     pub(super) state_id: u64,
+   |                ^^^^^^^^
+
+warning: `intarsia-core` (lib) generated 3 warnings
+    Finished `release` profile [optimized] target(s) in 0.03s
+     Running tests/df_verify_bench.rs (target/release/deps/df_verify_bench-a952650ea5b143b5)
+
+running 1 test
+DFBENCH mxfp4 17408x5120 M=1: rows launch 57.6 us (0.95x M=1, 823 GB/s), 1 one-row launches 57.1 us
+DFBENCH mxfp4 17408x5120 M=2: rows launch 102.2 us (1.68x M=1, 463 GB/s), 2 one-row launches 110.0 us
+DFBENCH mxfp4 17408x5120 M=3: rows launch 134.4 us (2.21x M=1, 352 GB/s), 3 one-row launches 163.6 us
+DFBENCH mxfp4 17408x5120 M=4: rows launch 165.7 us (2.73x M=1, 286 GB/s), 4 one-row launches 217.1 us
+DFBENCH mxfp4 17408x5120 M=5: rows launch 198.2 us (3.26x M=1, 239 GB/s), 5 one-row launches 270.5 us
+DFBENCH mxfp4 17408x5120 M=6: rows launch 229.9 us (3.79x M=1, 206 GB/s), 6 one-row launches 322.6 us
+DFBENCH mxfp4 17408x5120 M=7: rows launch 261.5 us (4.30x M=1, 181 GB/s), 7 one-row launches 376.6 us
+DFBENCH mxfp4 17408x5120 M=8: rows launch 292.6 us (4.82x M=1, 162 GB/s), 8 one-row launches 431.9 us
+DFBENCH mxfp4 5120x17408 M=1: rows launch 60.4 us (0.96x M=1, 784 GB/s), 1 one-row launches 59.3 us
+DFBENCH mxfp4 5120x17408 M=2: rows launch 104.4 us (1.65x M=1, 454 GB/s), 2 one-row launches 118.6 us
+DFBENCH mxfp4 5120x17408 M=3: rows launch 138.3 us (2.19x M=1, 342 GB/s), 3 one-row launches 173.9 us
+DFBENCH mxfp4 5120x17408 M=4: rows launch 171.0 us (2.71x M=1, 277 GB/s), 4 one-row launches 229.6 us
+DFBENCH mxfp4 5120x17408 M=5: rows launch 205.9 us (3.26x M=1, 230 GB/s), 5 one-row launches 286.2 us
+DFBENCH mxfp4 5120x17408 M=6: rows launch 244.7 us (3.87x M=1, 194 GB/s), 6 one-row launches 341.9 us
+DFBENCH mxfp4 5120x17408 M=7: rows launch 285.9 us (4.53x M=1, 166 GB/s), 7 one-row launches 399.5 us
+DFBENCH mxfp4 5120x17408 M=8: rows launch 329.8 us (5.22x M=1, 144 GB/s), 8 one-row launches 455.7 us
+DFBENCH mxfp4 12288x5120 M=1: rows launch 40.7 us (0.67x M=1, 821 GB/s), 1 one-row launches 40.8 us
+DFBENCH mxfp4 12288x5120 M=2: rows launch 73.3 us (1.21x M=1, 456 GB/s), 2 one-row launches 77.9 us
+DFBENCH mxfp4 12288x5120 M=3: rows launch 96.8 us (1.60x M=1, 345 GB/s), 3 one-row launches 114.9 us
+DFBENCH mxfp4 12288x5120 M=4: rows launch 118.4 us (1.95x M=1, 282 GB/s), 4 one-row launches 151.7 us
+DFBENCH mxfp4 12288x5120 M=5: rows launch 142.5 us (2.35x M=1, 234 GB/s), 5 one-row launches 188.2 us
+DFBENCH mxfp4 12288x5120 M=6: rows launch 165.3 us (2.72x M=1, 202 GB/s), 6 one-row launches 224.6 us
+DFBENCH mxfp4 12288x5120 M=7: rows launch 187.8 us (3.10x M=1, 178 GB/s), 7 one-row launches 261.8 us
+DFBENCH mxfp4 12288x5120 M=8: rows launch 209.6 us (3.46x M=1, 159 GB/s), 8 one-row launches 299.7 us
+DFBENCH mxfp4 5120x6144 M=1: rows launch 23.7 us (1.03x M=1, 705 GB/s), 1 one-row launches 23.5 us
+DFBENCH mxfp4 5120x6144 M=2: rows launch 40.4 us (1.76x M=1, 413 GB/s), 2 one-row launches 43.2 us
+DFBENCH mxfp4 5120x6144 M=3: rows launch 51.4 us (2.23x M=1, 325 GB/s), 3 one-row launches 62.5 us
+DFBENCH mxfp4 5120x6144 M=4: rows launch 64.5 us (2.80x M=1, 259 GB/s), 4 one-row launches 83.7 us
+DFBENCH mxfp4 5120x6144 M=5: rows launch 75.6 us (3.28x M=1, 221 GB/s), 5 one-row launches 103.0 us
+DFBENCH mxfp4 5120x6144 M=6: rows launch 87.3 us (3.79x M=1, 191 GB/s), 6 one-row launches 122.7 us
+DFBENCH mxfp4 5120x6144 M=7: rows launch 99.0 us (4.30x M=1, 169 GB/s), 7 one-row launches 142.8 us
+DFBENCH mxfp4 5120x6144 M=8: rows launch 109.2 us (4.74x M=1, 153 GB/s), 8 one-row launches 162.7 us
+DFBENCH logits 248320x5120 M=1: logits_bf16_gemv 4316.1 us (589 GB/s)
+DFBENCH logits 248320x5120 M=2: logits_bf16_gemv_rows 4294.8 us (1.00x M=1), logits_bf16 (generic) 12554.6 us
+DFBENCH logits 248320x5120 M=3: logits_bf16_gemv_rows 4304.2 us (1.00x M=1), logits_bf16 (generic) 12640.3 us
+DFBENCH logits 248320x5120 M=4: logits_bf16_gemv_rows 4295.9 us (1.00x M=1), logits_bf16 (generic) 12728.6 us
+DFBENCH logits 248320x5120 M=5: logits_bf16_gemv_rows 4374.1 us (1.01x M=1), logits_bf16 (generic) 12882.9 us
+DFBENCH logits 248320x5120 M=6: logits_bf16_gemv_rows 4420.3 us (1.02x M=1), logits_bf16 (generic) 12982.1 us
+DFBENCH logits 248320x5120 M=7: logits_bf16_gemv_rows 4690.4 us (1.09x M=1), logits_bf16 (generic) 13131.1 us
+DFBENCH logits 248320x5120 M=8: logits_bf16_gemv_rows 5158.2 us (1.20x M=1), logits_bf16 (generic) 13246.4 us
+test df_verify_kernels_27b ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.81s
+
+fleetq: #8767 done (exit 0)

@@ -13,7 +13,8 @@ use intarsia_backend_metal::kernels::{
     LOGITS_BF16, LOGITS_BF16_GEMV, MATMUL_BF16, MATMUL_BF16_GEMV, MATMUL_PAIR_BF16_GEMV,
 };
 use intarsia_backend_metal::multirow::{
-    self, shader, shader_split, MR_SPLITS, Family, LOGITS_BF16_GEMV_ROWS, MATMUL_BF16_GEMV_ROWS, MATMUL_PAIR_BF16_GEMV_ROWS, MR_PER_TG, MR_ROWS,
+    self, shader, shader_split, Family, LOGITS_BF16_GEMV_ROWS, MATMUL_BF16_GEMV_ROWS, MATMUL_PAIR_BF16_GEMV_ROWS,
+    MR_PER_TG, MR_ROWS, MR_SPLITS,
 };
 use intarsia_backend_metal::{GemvParams, MetalBackend, MetalBuffer};
 use intarsia_core::backend::{Backend, Buffer, HostMemory, MemKind, TensorRef};
@@ -405,7 +406,10 @@ fn check_pair_variants(be: &MetalBackend, k: usize, n0: usize, n1: usize, w_off:
             let what = format!("{fam:?} R={r} P={p} K={k} N=({n0},{n1}) w_off={w_off}");
             same(&ref0[..r * n0 * 2], &g0[..r * n0 * 2], &format!("{what} y0"));
             same(&ref1[..r * n1 * 2], &g1[..r * n1 * 2], &format!("{what} y1"));
-            assert!(g0[r * n0 * 2..].iter().all(|b| *b == 0xEE) && g1[r * n1 * 2..].iter().all(|b| *b == 0xEE), "{what}: stray store");
+            assert!(
+                g0[r * n0 * 2..].iter().all(|b| *b == 0xEE) && g1[r * n1 * 2..].iter().all(|b| *b == 0xEE),
+                "{what}: stray store"
+            );
         }
     }
 }
@@ -452,7 +456,9 @@ fn check_logits_variants(be: &MetalBackend, k: usize, n: usize) {
             let pso = be.pso(name).unwrap();
             let params = GemvParams { k: k as u32, n: n as u32, ..Default::default() };
             let cb = be
-                .encode_and_commit(|enc| multirow::encode_logits_rows(enc, pso, (wm, wo), (xm, xo), (ymm, yo), &params, p))
+                .encode_and_commit(|enc| {
+                    multirow::encode_logits_rows(enc, pso, (wm, wo), (xm, xo), (ymm, yo), &params, p)
+                })
                 .unwrap();
             MetalBackend::wait(&cb).unwrap();
             let got = dl(be, &ym, MAXR * n * 4);

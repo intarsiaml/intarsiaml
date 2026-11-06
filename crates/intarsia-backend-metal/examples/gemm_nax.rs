@@ -28,10 +28,12 @@ fn main() {
 #[cfg(target_os = "macos")]
 mod imp {
     use intarsia_backend_metal::bench::{self, stats, Rng};
-    use intarsia_backend_metal::gemm_nax::{encode_nax, encode_nax_pair, pick_variant, pick_variant_p45, NaxPairParams, NaxParams, NaxVariant, NAX_VARIANTS};
+    use intarsia_backend_metal::gemm_nax::{
+        encode_nax, encode_nax_pair, pick_variant, pick_variant_p45, NaxPairParams, NaxParams, NaxVariant, NAX_VARIANTS,
+    };
     use intarsia_backend_metal::{MetalBackend, MtlBuffer};
-    use std::time::Instant;
     use objc2_metal::{MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue};
+    use std::time::Instant;
 
     struct Shape {
         label: &'static str,
@@ -82,7 +84,14 @@ mod imp {
     }
 
     impl Operands {
-        fn new(be: &MetalBackend, m: usize, n: usize, k: usize, pool_bytes: usize, offs: (usize, usize, usize)) -> Operands {
+        fn new(
+            be: &MetalBackend,
+            m: usize,
+            n: usize,
+            k: usize,
+            pool_bytes: usize,
+            offs: (usize, usize, usize),
+        ) -> Operands {
             let (aoff, woff, coff) = offs;
             let a = be.new_mtl_buffer(m * k * 2 + aoff + 64, true).unwrap();
             let c = be.new_mtl_buffer(m * n * 2 + coff + 64, true).unwrap();
@@ -149,22 +158,23 @@ mod imp {
         }
     }
 
-    fn dispatch_chain(be: &MetalBackend, v: &NaxVariant, m: usize, n: usize, k: usize, swz: u32, op: &Operands, count: usize) -> f64 {
+    fn dispatch_chain(
+        be: &MetalBackend,
+        v: &NaxVariant,
+        m: usize,
+        n: usize,
+        k: usize,
+        swz: u32,
+        op: &Operands,
+        count: usize,
+    ) -> f64 {
         let pso = be.pso(v.shader).unwrap_or_else(|| panic!("no pipeline {}", v.shader));
         let p = params(m, n, k, swz, op);
         let cb = be.queue().commandBuffer().unwrap();
         let enc = cb.computeCommandEncoder().unwrap();
         for i in 0..count {
             let w = &op.ws[i % op.ws.len()];
-            encode_nax(
-                &enc,
-                pso,
-                v,
-                (&op.a, op.aoff & !3),
-                (w, op.woff & !3),
-                (&op.c, op.coff & !3),
-                &p,
-            );
+            encode_nax(&enc, pso, v, (&op.a, op.aoff & !3), (w, op.woff & !3), (&op.c, op.coff & !3), &p);
         }
         enc.endEncoding();
         be.commit(&cb);
@@ -174,7 +184,17 @@ mod imp {
 
     /// Chain of `count` dispatches of either the pair kernel (`pair`) or the two single kernels, tile `v`.
     #[allow(clippy::too_many_arguments)]
-    fn pair_chain(be: &MetalBackend, v: &NaxVariant, pair: bool, m: usize, n: usize, k: usize, o0: &Operands, o1: &Operands, count: usize) -> f64 {
+    fn pair_chain(
+        be: &MetalBackend,
+        v: &NaxVariant,
+        pair: bool,
+        m: usize,
+        n: usize,
+        k: usize,
+        o0: &Operands,
+        o1: &Operands,
+        count: usize,
+    ) -> f64 {
         let cb = be.queue().commandBuffer().unwrap();
         let enc = cb.computeCommandEncoder().unwrap();
         for i in 0..count {
@@ -208,8 +228,11 @@ mod imp {
                 let flop = 2.0 * m as f64 * (2 * n) as f64 * k as f64;
                 // (variant, pair?) grid
                 let pair_only = std::env::var_os("NAX_PAIR_ONLY").is_some();
-                let grid: Vec<(NaxVariant, bool)> =
-                    candidates().iter().flat_map(|v| [(*v, true), (*v, false)]).filter(|(_, pr)| *pr || !pair_only).collect();
+                let grid: Vec<(NaxVariant, bool)> = candidates()
+                    .iter()
+                    .flat_map(|v| [(*v, true), (*v, false)])
+                    .filter(|(_, pr)| *pr || !pair_only)
+                    .collect();
                 let mut samples: Vec<Vec<f64>> = vec![Vec::new(); grid.len()];
                 for (v, pr) in &grid {
                     pair_chain(be, v, *pr, m, n, k, &o0, &o1, 2);
@@ -254,7 +277,12 @@ mod imp {
         let reps = env_usize("NAX_REPS", 10);
         let pool = env_usize("NAX_POOL_MIB", 3072) << 20;
         // (label, columns per matrix, k, pair)
-        for (label, n, k, pair) in [("qo", 4096usize, 4096usize, false), ("kv", 1024, 4096, true), ("gu", 12288, 4096, true), ("down", 4096, 12288, false)] {
+        for (label, n, k, pair) in [
+            ("qo", 4096usize, 4096usize, false),
+            ("kv", 1024, 4096, true),
+            ("gu", 12288, 4096, true),
+            ("down", 4096, 12288, false),
+        ] {
             for &m in &ms {
                 let o0 = Operands::new(be, m, n, k, pool, (0, 0, 0));
                 let o1 = if pair { Some(Operands::new(be, m, n, k, pool, (0, 0, 0))) } else { None };
@@ -303,9 +331,13 @@ mod imp {
         let cands = candidates();
         let mmax = *ms.iter().max().unwrap();
         // (label, columns per matrix, k, pair)
-        for (label, n, k, pair) in
-            [("qo", 4096usize, 4096usize, false), ("kv", 1024, 4096, true), ("gu", 12288, 4096, true), ("down", 4096, 12288, false), ("lm", 151936, 4096, false)]
-        {
+        for (label, n, k, pair) in [
+            ("qo", 4096usize, 4096usize, false),
+            ("kv", 1024, 4096, true),
+            ("gu", 12288, 4096, true),
+            ("down", 4096, 12288, false),
+            ("lm", 151936, 4096, false),
+        ] {
             if want.as_ref().is_some_and(|w| !w.split(',').any(|t| t == label)) {
                 continue;
             }
@@ -319,7 +351,9 @@ mod imp {
             let per_m: Vec<(usize, Operands, Option<Operands>)> =
                 ms.iter().map(|&m| (m, share(&base0, m), base1.as_ref().map(|b| share(b, m)))).collect();
             let ntot = if pair { 2 * n } else { n };
-            let reps_of = |m: usize| ((chain_ms * 1e-3 / (2.0 * m as f64 * ntot as f64 * k as f64 / 55e12)).round() as usize).clamp(2, 60);
+            let reps_of = |m: usize| {
+                ((chain_ms * 1e-3 / (2.0 * m as f64 * ntot as f64 * k as f64 / 55e12)).round() as usize).clamp(2, 60)
+            };
             let run = |mi: usize, v: &NaxVariant, count: usize| {
                 let (m, o0, o1) = &per_m[mi];
                 match o1 {
@@ -332,7 +366,8 @@ mod imp {
             while warm.elapsed().as_secs_f64() < 1.0 {
                 run(per_m.len() - 1, &cands[0], reps_of(per_m[per_m.len() - 1].0));
             }
-            let cells: Vec<(usize, usize)> = (0..per_m.len()).flat_map(|mi| (0..cands.len()).map(move |vi| (mi, vi))).collect();
+            let cells: Vec<(usize, usize)> =
+                (0..per_m.len()).flat_map(|mi| (0..cands.len()).map(move |vi| (mi, vi))).collect();
             let mut samples: Vec<Vec<f64>> = vec![Vec::new(); cells.len()];
             for r in 0..rounds {
                 for j in 0..cells.len() {
@@ -361,10 +396,12 @@ mod imp {
     fn waves_mode(be: &MetalBackend) {
         let rounds = env_usize("NAX_ROUNDS", 11);
         let k = env_usize("NAX_K", 4096);
-        let tgs: Vec<usize> = env_list("NAX_TGS", &[8, 16, 24, 32, 40, 48, 64, 80, 96, 120, 160, 200, 240, 320, 400, 480, 640]);
+        let tgs: Vec<usize> =
+            env_list("NAX_TGS", &[8, 16, 24, 32, 40, 48, 64, 80, 96, 120, 160, 200, 240, 320, 400, 480, 640]);
         for v in candidates() {
             let (bm, bn) = (v.bm as usize, v.bn as usize);
-            let ops: Vec<(usize, Operands)> = tgs.iter().map(|&t| (t, Operands::new(be, 8 * bm, (t / 8) * bn, k, 0, (0, 0, 0)))).collect();
+            let ops: Vec<(usize, Operands)> =
+                tgs.iter().map(|&t| (t, Operands::new(be, 8 * bm, (t / 8) * bn, k, 0, (0, 0, 0)))).collect();
             let mut samples: Vec<Vec<f64>> = vec![Vec::new(); ops.len()];
             for (_, op) in &ops {
                 let n = op.c.length() / 2 / (8 * bm);
@@ -381,7 +418,14 @@ mod imp {
             }
             for (i, (t, _)) in ops.iter().enumerate() {
                 let st = stats(&mut samples[i]);
-                println!("WAVES tile={}x{}w{} tgs={t} us={:.1} us_per_tg_per_core={:.2}", v.bm, v.bn, v.sg, st.median * 1e6, st.median * 1e6 * 40.0 / *t as f64);
+                println!(
+                    "WAVES tile={}x{}w{} tgs={t} us={:.1} us_per_tg_per_core={:.2}",
+                    v.bm,
+                    v.bn,
+                    v.sg,
+                    st.median * 1e6,
+                    st.median * 1e6 * 40.0 / *t as f64
+                );
             }
         }
     }
@@ -390,13 +434,24 @@ mod imp {
     /// 512 rows that are not a multiple of 128), per Qwen3-8B shape, with the kernels the engine launches. All M, both
     /// picks and every shape's rounds interleaved. `PICK3` lines.
     fn pick3_mode(be: &MetalBackend) {
-        let ms: Vec<usize> = env_list("NAX_M", &[600, 700, 800, 900, 952, 1000, 1100, 1200, 1300, 1366, 1433, 1500, 1600, 1700, 1800, 1850, 1900, 2000, 2040]);
+        let ms: Vec<usize> = env_list(
+            "NAX_M",
+            &[
+                600, 700, 800, 900, 952, 1000, 1100, 1200, 1300, 1366, 1433, 1500, 1600, 1700, 1800, 1850, 1900, 2000,
+                2040,
+            ],
+        );
         let rounds = env_usize("NAX_ROUNDS", 15);
         let chain_ms = env_usize("NAX_CHAIN_MS", 25) as f64;
         let pool = env_usize("NAX_POOL_MIB", 3072) << 20;
         let want: Option<String> = std::env::var("NAX_SHAPES").ok();
         let mmax = *ms.iter().max().unwrap();
-        for (label, n, k, pair) in [("qo", 4096usize, 4096usize, false), ("kv", 1024, 4096, true), ("gu", 12288, 4096, true), ("down", 4096, 12288, false)] {
+        for (label, n, k, pair) in [
+            ("qo", 4096usize, 4096usize, false),
+            ("kv", 1024, 4096, true),
+            ("gu", 12288, 4096, true),
+            ("down", 4096, 12288, false),
+        ] {
             if want.as_ref().is_some_and(|w| !w.split(',').any(|t| t == label)) {
                 continue;
             }
@@ -410,7 +465,9 @@ mod imp {
             let per_m: Vec<(usize, Operands, Option<Operands>)> =
                 ms.iter().map(|&m| (m, share(&base0, m), base1.as_ref().map(|b| share(b, m)))).collect();
             let ntot = if pair { 2 * n } else { n };
-            let reps_of = |m: usize| ((chain_ms * 1e-3 / (2.0 * m as f64 * ntot as f64 * k as f64 / 55e12)).round() as usize).clamp(2, 60);
+            let reps_of = |m: usize| {
+                ((chain_ms * 1e-3 / (2.0 * m as f64 * ntot as f64 * k as f64 / 55e12)).round() as usize).clamp(2, 60)
+            };
             let run = |mi: usize, v: &NaxVariant, count: usize| {
                 let (m, o0, o1) = &per_m[mi];
                 match o1 {
@@ -475,7 +532,13 @@ mod imp {
                 let med: Vec<f64> = samples.iter_mut().map(|x| stats(x).median).collect();
                 println!(
                     "PICK shape={} M={m} N={} K={} t64x64={:.2} t128x64={:.2} picked={}x{} best={}",
-                    s.label, s.n, s.k, med[0], med[1], picked.bm, picked.bn,
+                    s.label,
+                    s.n,
+                    s.k,
+                    med[0],
+                    med[1],
+                    picked.bm,
+                    picked.bn,
                     if med[0] >= med[1] { "64x64" } else { "128x64" }
                 );
             }
@@ -512,7 +575,8 @@ mod imp {
             for &m in &ms {
                 let op = Operands::new(be, m, s.n, s.k, pool, (0, 0, 0));
                 let flop = 2.0 * m as f64 * s.n as f64 * s.k as f64;
-                let grid: Vec<(NaxVariant, u32)> = cands.iter().flat_map(|c| swzs.iter().map(move |&z| (*c, z))).collect();
+                let grid: Vec<(NaxVariant, u32)> =
+                    cands.iter().flat_map(|c| swzs.iter().map(move |&z| (*c, z))).collect();
                 let mut samples: Vec<Vec<f64>> = vec![Vec::new(); grid.len()];
                 for (v, z) in &grid {
                     dispatch_chain(be, v, m, s.n, s.k, *z, &op, 3);
@@ -565,7 +629,8 @@ mod imp {
                 let wf = &wf;
                 sc.spawn(move || {
                     for (ri, &r) in rows.iter().enumerate() {
-                        let ar: Vec<f64> = a[r * k..(r + 1) * k].iter().map(|&x| bench::bf16_to_f32(x) as f64).collect();
+                        let ar: Vec<f64> =
+                            a[r * k..(r + 1) * k].iter().map(|&x| bench::bf16_to_f32(x) as f64).collect();
                         for j in n0..n1 {
                             let wr = &wf[j * k..(j + 1) * k];
                             let mut s = 0f64;
@@ -600,9 +665,16 @@ mod imp {
                 // host copies of the bf16 inputs
                 let (a, w) = unsafe {
                     (
-                        std::slice::from_raw_parts((op.a.contents().as_ptr() as *const u8).add(op.aoff) as *const u16, m * s.k).to_vec(),
-                        std::slice::from_raw_parts((op.ws[0].contents().as_ptr() as *const u8).add(op.woff) as *const u16, s.n * s.k)
-                            .to_vec(),
+                        std::slice::from_raw_parts(
+                            (op.a.contents().as_ptr() as *const u8).add(op.aoff) as *const u16,
+                            m * s.k,
+                        )
+                        .to_vec(),
+                        std::slice::from_raw_parts(
+                            (op.ws[0].contents().as_ptr() as *const u8).add(op.woff) as *const u16,
+                            s.n * s.k,
+                        )
+                        .to_vec(),
                     )
                 };
                 let rows = sample_rows(m);
@@ -612,12 +684,18 @@ mod imp {
                 for v in &cands {
                     for &z in &swzs {
                         // SAFETY: c holds m*n u16 past coff.
-                        unsafe { std::ptr::write_bytes(op.c.contents().as_ptr() as *mut u8, 0xff, m * s.n * 2 + op.coff) };
+                        unsafe {
+                            std::ptr::write_bytes(op.c.contents().as_ptr() as *mut u8, 0xff, m * s.n * 2 + op.coff)
+                        };
                         dispatch_chain(be, v, m, s.n, s.k, z, &op, 1);
                         let c = unsafe {
-                            std::slice::from_raw_parts((op.c.contents().as_ptr() as *const u8).add(op.coff) as *const u16, m * s.n)
+                            std::slice::from_raw_parts(
+                                (op.c.contents().as_ptr() as *const u8).add(op.coff) as *const u16,
+                                m * s.n,
+                            )
                         };
-                        let (mut max_abs, mut max_ulp, mut num, mut den, mut nonfinite) = (0f64, 0f64, 0f64, 0f64, 0usize);
+                        let (mut max_abs, mut max_ulp, mut num, mut den, mut nonfinite) =
+                            (0f64, 0f64, 0f64, 0f64, 0usize);
                         let (mut bias, mut cnt, mut hash) = (0f64, 0usize, 0xcbf2_9ce4_8422_2325u64);
                         let mut max_rel_big = 0f64;
                         for (ri, &r) in rows.iter().enumerate() {
@@ -657,7 +735,8 @@ mod imp {
         assert!(be.has_metal4(), "metal4.0 library not loaded");
         let mut args: Vec<String> = std::env::args().skip(1).collect();
         let mode = if args.is_empty() { "bench".to_string() } else { args.remove(0) };
-        let shapes: Vec<&Shape> = SHAPES.iter().filter(|s| args.is_empty() || args.iter().any(|a| a == s.label)).collect();
+        let shapes: Vec<&Shape> =
+            SHAPES.iter().filter(|s| args.is_empty() || args.iter().any(|a| a == s.label)).collect();
         match mode.as_str() {
             "bench" => bench_mode(&be, &shapes),
             "err" => err_mode(&be, &shapes),

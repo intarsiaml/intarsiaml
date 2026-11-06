@@ -7,7 +7,9 @@
 mod common;
 use common::*;
 use intarsia_backend_metal::bench::{bf16_to_f32, f32_to_bf16};
-use intarsia_backend_metal::kernels::{GATE_SPLIT_BF16, GDN_CONV_BF16, SHORT_CONV_BF16, GDN_DELTA_RULE_BF16, GDN_DELTA_RULE_BF16_PRE, SIGMOID_MUL_BF16};
+use intarsia_backend_metal::kernels::{
+    GATE_SPLIT_BF16, GDN_CONV_BF16, GDN_DELTA_RULE_BF16, GDN_DELTA_RULE_BF16_PRE, SHORT_CONV_BF16, SIGMOID_MUL_BF16,
+};
 use intarsia_backend_metal::MetalBackend;
 use intarsia_core::backend::{Backend, Buffer, MemKind, TensorRef};
 use intarsia_core::gdn::{self, DeltaDims};
@@ -73,7 +75,15 @@ fn rel_l2(got: &[f64], want: &[f64]) -> f64 {
 }
 
 /// Runs the conv over `chunks` (token counts) and returns (y, final state).
-fn run_conv(be: &MetalBackend, x: &[u16], w: &[u16], t: usize, c: usize, k: usize, chunks: &[usize]) -> (Vec<f64>, Vec<f32>) {
+fn run_conv(
+    be: &MetalBackend,
+    x: &[u16],
+    w: &[u16],
+    t: usize,
+    c: usize,
+    k: usize,
+    chunks: &[usize],
+) -> (Vec<f64>, Vec<f32>) {
     assert_eq!(chunks.iter().sum::<usize>(), t);
     let (xb, wb) = (upload_off(be, x), upload_off(be, w));
     let yb = upload_off(be, &vec![0xEEEEu16; t * c]);
@@ -99,7 +109,9 @@ fn conv_chunked_prefill_equals_one_call_and_the_reference() {
     let c = 300usize;
     // tap counts: 2 (shortest), 4 (the checkpoint's), 8 (longest registered)
     for (t, split, k) in [2usize, 4, 8].into_iter().flat_map(|k| {
-        [(37usize, vec![1usize, 20, 16]), (100, vec![1, 70, 29]), (5, vec![1, 1, 1, 1, 1]), (2, vec![2])].into_iter().map(move |(t, s)| (t, s, k))
+        [(37usize, vec![1usize, 20, 16]), (100, vec![1, 70, 29]), (5, vec![1, 1, 1, 1, 1]), (2, vec![2])]
+            .into_iter()
+            .map(move |(t, s)| (t, s, k))
     }) {
         let x = rand_bf16(t * c, 11 + t as u64);
         let w = rand_bf16(c * k, 5);
@@ -117,7 +129,15 @@ fn conv_chunked_prefill_equals_one_call_and_the_reference() {
 }
 
 /// `ShortConv` (LFM2): like `run_conv`, on a `[T,3C]` projection.
-fn run_short_conv(be: &MetalBackend, bcx: &[u16], w: &[u16], t: usize, c: usize, k: usize, chunks: &[usize]) -> (Vec<f64>, Vec<f32>) {
+fn run_short_conv(
+    be: &MetalBackend,
+    bcx: &[u16],
+    w: &[u16],
+    t: usize,
+    c: usize,
+    k: usize,
+    chunks: &[usize],
+) -> (Vec<f64>, Vec<f32>) {
     assert_eq!(chunks.iter().sum::<usize>(), t);
     let (xb, wb) = (upload_off(be, bcx), upload_off(be, w));
     let yb = upload_off(be, &vec![0xEEEEu16; t * c]);
@@ -144,7 +164,15 @@ fn short_conv_chunked_prefill_equals_one_call_and_the_reference() {
     let be = backend();
     let c = 300usize;
     for (t, split, k) in [2usize, 3, 4, 8].into_iter().flat_map(|k| {
-        [(37usize, vec![1usize, 20, 16]), (100, vec![1, 70, 29]), (5, vec![1, 1, 1, 1, 1]), (2, vec![2]), (65, vec![32, 33])].into_iter().map(move |(t, s)| (t, s, k))
+        [
+            (37usize, vec![1usize, 20, 16]),
+            (100, vec![1, 70, 29]),
+            (5, vec![1, 1, 1, 1, 1]),
+            (2, vec![2]),
+            (65, vec![32, 33]),
+        ]
+        .into_iter()
+        .map(move |(t, s)| (t, s, k))
     }) {
         let bcx = rand_bf16(t * 3 * c, 21 + t as u64);
         let w = rand_bf16(c * k, 9);
@@ -212,7 +240,8 @@ fn run_delta_with(be: &MetalBackend, kernel: &str, i: &Delta, d: &DeltaDims, chu
             vec![rows(&ob, hv * dv, lo, &[n, hv, dv]), f32_tref(&sb, &[hv, dv, dk])],
             OpAttrs { eps: EPS, ..OpAttrs::default() },
         );
-        let need = be.kernels().iter().find(|k| k.name == kernel).map_or(0, |k| k.scratch_bytes(&ShapeInfo::from_call(&call)));
+        let need =
+            be.kernels().iter().find(|k| k.name == kernel).map_or(0, |k| k.scratch_bytes(&ShapeInfo::from_call(&call)));
         if need > 0 {
             let b = be.alloc(need, MemKind::Device).unwrap();
             be.upload(&b, 0, &vec![0xEEu8; need], 0).unwrap();
@@ -227,7 +256,16 @@ fn run_delta_with(be: &MetalBackend, kernel: &str, i: &Delta, d: &DeltaDims, chu
 
 fn reference_delta(i: &Delta, d: &DeltaDims) -> (Vec<f64>, Vec<f64>) {
     let mut st = vec![0.0f64; d.hv * d.dv * d.dk];
-    let o = gdn::delta_rule(d, EPS as f64, &f64s(&i.qkv), &f64s(&i.a), &f64s(&i.b), &f64s(&i.a_log), &f64s(&i.dt_bias), &mut st);
+    let o = gdn::delta_rule(
+        d,
+        EPS as f64,
+        &f64s(&i.qkv),
+        &f64s(&i.a),
+        &f64s(&i.b),
+        &f64s(&i.a_log),
+        &f64s(&i.dt_bias),
+        &mut st,
+    );
     (o, st)
 }
 
@@ -236,7 +274,16 @@ fn check_delta(be: &MetalBackend, dk: usize, t: usize, split: &[usize], o_tol: f
 }
 
 #[allow(clippy::too_many_arguments)]
-fn check_delta_heads(be: &MetalBackend, hk: usize, hv: usize, dk: usize, t: usize, split: &[usize], o_tol: f64, st_tol: f64) {
+fn check_delta_heads(
+    be: &MetalBackend,
+    hk: usize,
+    hv: usize,
+    dk: usize,
+    t: usize,
+    split: &[usize],
+    o_tol: f64,
+    st_tol: f64,
+) {
     let d = DeltaDims { t, hk, hv, dk, dv: 128 };
     let i = delta_inputs(t, &d, 100 + t as u64);
     let (o, st) = run_delta(be, &i, &d, split);

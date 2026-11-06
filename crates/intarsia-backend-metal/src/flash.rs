@@ -181,7 +181,10 @@ mod tests {
             }
         }
         assert!(flash_ok(&ShapeInfo { m: 4, n_heads: 28, n_kv_heads: 4, head_dim: 128, ..Default::default() }));
-        assert!(!flash_ok(&ShapeInfo { m: 4, n_heads: 36, n_kv_heads: 4, head_dim: 128, ..Default::default() }), "group 9");
+        assert!(
+            !flash_ok(&ShapeInfo { m: 4, n_heads: 36, n_kv_heads: 4, head_dim: 128, ..Default::default() }),
+            "group 9"
+        );
         assert!(flash_ok(&ShapeInfo { m: 4, n_heads: 32, n_kv_heads: 8, head_dim: 128, ..Default::default() }));
     }
 }

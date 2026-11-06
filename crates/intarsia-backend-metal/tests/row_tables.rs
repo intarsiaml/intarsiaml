@@ -69,7 +69,12 @@ impl Rig {
 
     fn launch(&self, kernel: &str, mut call: OpCall) {
         call.check().unwrap_or_else(|e| panic!("{kernel}: check: {e}"));
-        let k = self.be.kernels().into_iter().find(|k| k.name == kernel && k.op == call.op).unwrap_or_else(|| panic!("{kernel} not registered"));
+        let k = self
+            .be
+            .kernels()
+            .into_iter()
+            .find(|k| k.name == kernel && k.op == call.op)
+            .unwrap_or_else(|| panic!("{kernel} not registered"));
         let need = k.scratch_bytes(&ShapeInfo::from_call(&call));
         if need > 0 {
             let buf = self.be.alloc(need.max(16), MemKind::Device).unwrap();
@@ -131,7 +136,12 @@ fn nasty(rng: &mut SplitMix64, n: usize, scale: f32) -> Vec<f32> {
 fn same(what: &str, got: &[u8], want: &[u8]) -> usize {
     assert_eq!(got.len(), want.len(), "{what}: length");
     if let Some(i) = got.iter().zip(want).position(|(a, b)| a != b) {
-        panic!("{what}: first differing byte {i} of {} (row-table launch {:#04x} vs solo {:#04x})", got.len(), got[i], want[i]);
+        panic!(
+            "{what}: first differing byte {i} of {} (row-table launch {:#04x} vs solo {:#04x})",
+            got.len(),
+            got[i],
+            want[i]
+        );
     }
     got.len()
 }
@@ -158,7 +168,12 @@ fn gdn_conv_rows_are_the_solo_conv() {
                 let y = rig.poison(c * 2, DType::Bf16, &[1, c]);
                 rig.launch(
                     "gdn_conv_bf16",
-                    OpCall::new(Op::GdnConv, vec![rows_of(&xt, r), wt.clone()], vec![y.clone(), st.clone()], OpAttrs::default()),
+                    OpCall::new(
+                        Op::GdnConv,
+                        vec![rows_of(&xt, r), wt.clone()],
+                        vec![y.clone(), st.clone()],
+                        OpAttrs::default(),
+                    ),
                 );
                 want_y.extend(rig.down(&y));
                 want_s.push(rig.down(&st));
@@ -168,7 +183,12 @@ fn gdn_conv_rows_are_the_solo_conv() {
             let entries: Vec<Vec<&TensorRef>> = sts.iter().zip(&decoys).map(|(s, d)| vec![d, s]).collect();
             let ptrs = rig.table(&entries, 2);
             let y = rig.poison(m * c * 2, DType::Bf16, &[m, c]);
-            let mut call = OpCall::new(Op::GdnConv, vec![xt.clone(), wt.clone()], vec![y.clone(), sts[0].clone()], OpAttrs::default());
+            let mut call = OpCall::new(
+                Op::GdnConv,
+                vec![xt.clone(), wt.clone()],
+                vec![y.clone(), sts[0].clone()],
+                OpAttrs::default(),
+            );
             call.rows = Some(rig.tab(ptrs, 1, 0));
             rig.launch("gdn_conv_bf16_rows", call);
             total += same(&format!("conv c={c} k={ks} m={m} y"), &rig.down(&y), &want_y);
@@ -207,7 +227,9 @@ fn gdn_delta_rows_are_the_solo_delta_rule() {
             let init: Vec<Vec<u8>> = (0..m)
                 .map(|_| {
                     let mut v = vec![0x11u8; off];
-                    v.extend(HostTensor::from_f32_as(DType::F32, &[hv * dv * dk], &rng.normal_vec(hv * dv * dk, 0.3)).data);
+                    v.extend(
+                        HostTensor::from_f32_as(DType::F32, &[hv * dv * dk], &rng.normal_vec(hv * dv * dk, 0.3)).data,
+                    );
                     v
                 })
                 .collect();
@@ -267,15 +289,26 @@ fn kv_append_rows_are_the_solo_append() {
             let newkv = nasty(&mut rng, m * nkv * d, 1.0);
             let nt = rig.bf16(&newkv, &[m, nkv, d]);
             // positions: the start, a middle, the last slot, one past the cache (dropped), and the rest spread
-            let pos: Vec<usize> = (0..m).map(|r| [0usize, 1, 63, 64, 79, CAP - 1, 40, CAP, 17, 900, 2, 511, 512, 1023, 1024, 5][r % 16]).collect();
+            let pos: Vec<usize> = (0..m)
+                .map(|r| [0usize, 1, 63, 64, 79, CAP - 1, 40, CAP, 17, 900, 2, 511, 512, 1023, 1024, 5][r % 16])
+                .collect();
             let init: Vec<Vec<f32>> = (0..m).map(|_| nasty(&mut rng, nkv * CAP * d, 1.0)).collect();
             let mut want = Vec::new();
             for r in 0..m {
                 let cache = rig.bf16(&init[r], &[nkv, CAP, d]);
-                let attrs = OpAttrs { pos0: pos[r].min(CAP - 1), kv_cap: CAP, n_kv_heads: nkv, head_dim: d, ..Default::default() };
+                let attrs = OpAttrs {
+                    pos0: pos[r].min(CAP - 1),
+                    kv_cap: CAP,
+                    n_kv_heads: nkv,
+                    head_dim: d,
+                    ..Default::default()
+                };
                 // a position past the cache is not a valid host call: the solo step never makes one; skip the solo launch
                 if pos[r] < CAP {
-                    rig.launch("kv_append_bf16", OpCall::new(Op::KvAppend, vec![rows_of(&nt, r)], vec![cache.clone()], attrs));
+                    rig.launch(
+                        "kv_append_bf16",
+                        OpCall::new(Op::KvAppend, vec![rows_of(&nt, r)], vec![cache.clone()], attrs),
+                    );
                 }
                 want.push(rig.down(&cache));
             }
@@ -312,8 +345,11 @@ fn qk_norm_rope_kv_rows_are_the_solo_prologue() {
             let (qw, kw) = (rng.normal_vec(d, 0.3), rng.normal_vec(d, 0.3));
             let (qt, kt, vt) = (rig.bf16(&q, &[m, n, d]), rig.bf16(&k, &[m, nkv, d]), rig.bf16(&v, &[m, nkv, d]));
             let (qwt, kwt) = (rig.bf16(&qw, &[d]), rig.bf16(&kw, &[d]));
-            let pos: Vec<usize> = (0..m).map(|r| [0usize, 1, 977, 31, 1023, 1024, 7, 500, 1199, 63, 64, 65, 2, 300, 900, 128][(r * 7 + m) % 16]).collect();
-            let init: Vec<(Vec<f32>, Vec<f32>)> = (0..m).map(|_| (nasty(&mut rng, nkv * CAP * d, 1.0), nasty(&mut rng, nkv * CAP * d, 1.0))).collect();
+            let pos: Vec<usize> = (0..m)
+                .map(|r| [0usize, 1, 977, 31, 1023, 1024, 7, 500, 1199, 63, 64, 65, 2, 300, 900, 128][(r * 7 + m) % 16])
+                .collect();
+            let init: Vec<(Vec<f32>, Vec<f32>)> =
+                (0..m).map(|_| (nasty(&mut rng, nkv * CAP * d, 1.0), nasty(&mut rng, nkv * CAP * d, 1.0))).collect();
             let attrs = |p: usize| OpAttrs {
                 eps: 1e-6,
                 w_offset: 1.0,
@@ -370,7 +406,15 @@ fn qk_norm_rope_kv_rows_are_the_solo_prologue() {
 
 /// The attention rows with the given (nh, nkv, d), positions per row; returns (row-table output, solo-host-position outputs,
 /// solo-device-position outputs).
-fn attn_case(rig: &Rig, rng: &mut SplitMix64, nh: usize, nkv: usize, d: usize, pos: &[usize], cancel: bool) -> (Vec<u8>, Vec<u8>, Vec<u8>, usize) {
+fn attn_case(
+    rig: &Rig,
+    rng: &mut SplitMix64,
+    nh: usize,
+    nkv: usize,
+    d: usize,
+    pos: &[usize],
+    cancel: bool,
+) -> (Vec<u8>, Vec<u8>, Vec<u8>, usize) {
     let m = pos.len();
     // `cancel`: q = 0 (every key weighs the same) and V alternating +-1e6 per key with unit noise: the output is a sum with
     // heavy cancellation, so the accumulation order (the simdgroup count) shows in the bf16 result
@@ -383,7 +427,15 @@ fn attn_case(rig: &Rig, rng: &mut SplitMix64, nh: usize, nkv: usize, d: usize, p
                 // key k mod 3: +2^20, -2^20, or a small value: the bigs cancel exactly when the visible count is a multiple of
                 // 3, and every small value is rounded at the granularity of the running big sum, whatever the order
                 let noise = rng.normal_vec(nkv * CAP * d, 0.1);
-                noise.iter().enumerate().map(|(i, x)| match (i / d) % 3 { 0 => 1048576.0, 1 => -1048576.0, _ => *x }).collect()
+                noise
+                    .iter()
+                    .enumerate()
+                    .map(|(i, x)| match (i / d) % 3 {
+                        0 => 1048576.0,
+                        1 => -1048576.0,
+                        _ => *x,
+                    })
+                    .collect()
             } else {
                 nasty(rng, nkv * CAP * d, 1.0)
             };
@@ -391,7 +443,15 @@ fn attn_case(rig: &Rig, rng: &mut SplitMix64, nh: usize, nkv: usize, d: usize, p
         })
         .collect();
     let scale = 1.0 / (d as f32).sqrt();
-    let mk = |p: usize| OpAttrs { pos0: p, scale, n_heads: nh, n_kv_heads: nkv, head_dim: d, kv_cap: CAP, ..Default::default() };
+    let mk = |p: usize| OpAttrs {
+        pos0: p,
+        scale,
+        n_heads: nh,
+        n_kv_heads: nkv,
+        head_dim: d,
+        kv_cap: CAP,
+        ..Default::default()
+    };
     let mut want_host = Vec::new();
     let mut want_dev = Vec::new();
     for r in 0..m {
@@ -414,7 +474,8 @@ fn attn_case(rig: &Rig, rng: &mut SplitMix64, nh: usize, nkv: usize, d: usize, p
     let entries: Vec<Vec<&TensorRef>> = (0..m).map(|r| vec![&kcs[r], &vcs[r]]).collect();
     let ptrs = rig.table(&entries, 2);
     let o = rig.poison(m * nh * d * 2, DType::Bf16, &[m, nh, d]);
-    let mut call = OpCall::new(Op::AttnDecode, vec![qt.clone(), kcs[0].clone(), vcs[0].clone()], vec![o.clone()], mk(0));
+    let mut call =
+        OpCall::new(Op::AttnDecode, vec![qt.clone(), kcs[0].clone(), vcs[0].clone()], vec![o.clone()], mk(0));
     call.rows = Some(rig.tab(ptrs, 0, 0));
     call.pos = Some(rig.i32s(pos));
     rig.launch("attn_decode_bf16_splitkv_rows", call);
@@ -450,7 +511,10 @@ fn attn_decode_rows_are_the_solo_decode() {
         let (got, want, dev, _) = attn_case(&rig, &mut rng, nh, nkv, d, &pos, true);
         total += same(&format!("attn cancelling data nh={nh} boundary rows"), &got, &want);
         let n_diff = got.iter().zip(&dev).filter(|(a, b)| a != b).count();
-        eprintln!("negative control nh={nh}: {n_diff} of {} output bytes differ from the device-position launch", got.len());
+        eprintln!(
+            "negative control nh={nh}: {n_diff} of {} output bytes differ from the device-position launch",
+            got.len()
+        );
         dev_differs += (n_diff > 0) as usize;
     }
     assert!(dev_differs > 0, "negative control: no case differed from the device-position launch");
@@ -466,15 +530,24 @@ fn a_swapped_table_entry_is_seen() {
     let pos = [700usize, 701];
     let q = nasty(&mut rng, m * nh * d, 1.0);
     let qt = rig.bf16(&q, &[m, nh, d]);
-    let kv: Vec<(Vec<f32>, Vec<f32>)> = (0..m).map(|_| (nasty(&mut rng, nkv * CAP * d, 1.0), nasty(&mut rng, nkv * CAP * d, 1.0))).collect();
+    let kv: Vec<(Vec<f32>, Vec<f32>)> =
+        (0..m).map(|_| (nasty(&mut rng, nkv * CAP * d, 1.0), nasty(&mut rng, nkv * CAP * d, 1.0))).collect();
     let kcs: Vec<TensorRef> = (0..m).map(|r| rig.bf16(&kv[r].0, &[nkv, CAP, d])).collect();
     let vcs: Vec<TensorRef> = (0..m).map(|r| rig.bf16(&kv[r].1, &[nkv, CAP, d])).collect();
     let run = |order: [usize; 2]| {
         let entries: Vec<Vec<&TensorRef>> = order.iter().map(|&r| vec![&kcs[r], &vcs[r]]).collect();
         let ptrs = rig.table(&entries, 2);
         let o = rig.poison(m * nh * d * 2, DType::Bf16, &[m, nh, d]);
-        let attrs = OpAttrs { scale: 1.0 / (d as f32).sqrt(), n_heads: nh, n_kv_heads: nkv, head_dim: d, kv_cap: CAP, ..Default::default() };
-        let mut call = OpCall::new(Op::AttnDecode, vec![qt.clone(), kcs[0].clone(), vcs[0].clone()], vec![o.clone()], attrs);
+        let attrs = OpAttrs {
+            scale: 1.0 / (d as f32).sqrt(),
+            n_heads: nh,
+            n_kv_heads: nkv,
+            head_dim: d,
+            kv_cap: CAP,
+            ..Default::default()
+        };
+        let mut call =
+            OpCall::new(Op::AttnDecode, vec![qt.clone(), kcs[0].clone(), vcs[0].clone()], vec![o.clone()], attrs);
         call.rows = Some(rig.tab(ptrs, 0, 0));
         call.pos = Some(rig.i32s(&pos));
         rig.launch("attn_decode_bf16_splitkv_rows", call);
@@ -530,7 +603,15 @@ fn swapped_state_entries_are_seen() {
             .map(|r| {
                 let st = rig.f32s(&states[r], &[c, ks - 1]);
                 let y = rig.poison(c * 2, DType::Bf16, &[1, c]);
-                rig.launch("gdn_conv_bf16", OpCall::new(Op::GdnConv, vec![rows_of(&xt, r), wt.clone()], vec![y, st.clone()], OpAttrs::default()));
+                rig.launch(
+                    "gdn_conv_bf16",
+                    OpCall::new(
+                        Op::GdnConv,
+                        vec![rows_of(&xt, r), wt.clone()],
+                        vec![y, st.clone()],
+                        OpAttrs::default(),
+                    ),
+                );
                 rig.down(&st)
             })
             .collect();
@@ -538,7 +619,8 @@ fn swapped_state_entries_are_seen() {
             let sts: Vec<TensorRef> = (0..m).map(|r| rig.f32s(&states[r], &[c, ks - 1])).collect();
             let entries: Vec<Vec<&TensorRef>> = order.iter().map(|&r| vec![&sts[r], &sts[r]]).collect();
             let y = rig.poison(m * c * 2, DType::Bf16, &[m, c]);
-            let mut call = OpCall::new(Op::GdnConv, vec![xt.clone(), wt.clone()], vec![y, sts[0].clone()], OpAttrs::default());
+            let mut call =
+                OpCall::new(Op::GdnConv, vec![xt.clone(), wt.clone()], vec![y, sts[0].clone()], OpAttrs::default());
             call.rows = Some(rig.tab(rig.table(&entries, 2), 1, 0));
             rig.launch("gdn_conv_bf16_rows", call);
             (0..m).map(|r| rig.down(&sts[r])).collect::<Vec<_>>()
@@ -566,7 +648,10 @@ fn swapped_state_entries_are_seen() {
             (0..m).map(|r| rig.down(&caches[r])).collect::<Vec<_>>()
         };
         let (ok, bad) = (run([0, 1]), run([1, 0]));
-        assert!(ok.iter().zip(&bad).any(|(a, b)| differs(a, b)), "kv_append: swapping the table entries changed nothing");
+        assert!(
+            ok.iter().zip(&bad).any(|(a, b)| differs(a, b)),
+            "kv_append: swapping the table entries changed nothing"
+        );
     }
     // delta rule
     {
@@ -575,7 +660,13 @@ fn swapped_state_entries_are_seen() {
         let qkv = nasty(&mut rng, m * c, 1.0);
         let (a, b) = (rng.normal_vec(m * hv, 1.0), rng.normal_vec(m * hv, 1.0));
         let (al, dt) = (rng.normal_vec(hv, 0.5), rng.normal_vec(hv, 0.5));
-        let (qt, at, bt, alt, dtt) = (rig.bf16(&qkv, &[m, c]), rig.bf16(&a, &[m, hv]), rig.bf16(&b, &[m, hv]), rig.bf16(&al, &[hv]), rig.bf16(&dt, &[hv]));
+        let (qt, at, bt, alt, dtt) = (
+            rig.bf16(&qkv, &[m, c]),
+            rig.bf16(&a, &[m, hv]),
+            rig.bf16(&b, &[m, hv]),
+            rig.bf16(&al, &[hv]),
+            rig.bf16(&dt, &[hv]),
+        );
         let init: Vec<Vec<f32>> = (0..m).map(|_| rng.normal_vec(hv * dv * dk, 0.3)).collect();
         let run = |order: [usize; 2]| {
             let sts: Vec<TensorRef> = (0..m).map(|r| rig.f32s(&init[r], &[hv, dv, dk])).collect();
@@ -592,7 +683,10 @@ fn swapped_state_entries_are_seen() {
             (0..m).map(|r| rig.down(&sts[r])).collect::<Vec<_>>()
         };
         let (ok, bad) = (run([0, 1]), run([1, 0]));
-        assert!(ok.iter().zip(&bad).any(|(a, b)| differs(a, b)), "delta rule: swapping the table entries changed nothing");
+        assert!(
+            ok.iter().zip(&bad).any(|(a, b)| differs(a, b)),
+            "delta rule: swapping the table entries changed nothing"
+        );
     }
     eprintln!("G-B negative controls: swapped table entries change the conv state, the KV cache and the delta state");
 }

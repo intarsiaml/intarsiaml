@@ -1,0 +1,15 @@
+11:57:51 plan 8b base exit 0
+11:57:52 plan 8b lane exit 0
+11:57:52 SAME plan 8b
+11:57:52 plan 27b base exit 0
+11:57:52 plan 27b lane exit 0
+11:57:52 SAME plan 27b
+11:58:14 plan 35b base exit 0
+11:58:17 plan 35b lane exit 0
+11:58:17 SAME plan 35b
+11:58:17 SAME plan 27b knob unset vs 1
+11:58:49 kernels test base exit 0 moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED|49 kernels, 980 cases in 31.4s|
+11:59:21 kernels test lane exit 0 moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED|49 kernels, 980 cases in 32.0s|
+11:59:21 SAME kernels list
+11:59:21 SAME kernels test (timing lines dropped)
+11:59:21 done

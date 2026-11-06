@@ -57,7 +57,12 @@ impl Case {
         let vb = upload(&be, &rand_bf16(nkv * cap * d, 12 + d as u64));
         let qb = upload(&be, &rand_bf16(16 * n * d, 13 + n as u64));
         let more = (1..3u64)
-            .map(|i| (upload(&be, &rand_bf16(nkv * cap * d, 21 + i + d as u64)), upload(&be, &rand_bf16(nkv * cap * d, 31 + i + d as u64))))
+            .map(|i| {
+                (
+                    upload(&be, &rand_bf16(nkv * cap * d, 21 + i + d as u64)),
+                    upload(&be, &rand_bf16(nkv * cap * d, 31 + i + d as u64)),
+                )
+            })
             .collect();
         Case { be, n, nkv, d, cap, kb, vb, more, qb }
     }
@@ -96,7 +101,12 @@ impl Case {
         let out = self.be.alloc(len * 2, MemKind::Device).unwrap();
         let mut inputs = vec![tr(&self.qb, qr * self.n * self.d * 2, &[1, self.n, self.d])];
         inputs.extend(self.kv_of(ci));
-        let mut cl = OpCall::new(Op::AttnDecode, inputs, vec![tr(&out, 0, &[1, self.n, self.d])], self.attrs(if dev { 0 } else { pos }));
+        let mut cl = OpCall::new(
+            Op::AttnDecode,
+            inputs,
+            vec![tr(&out, 0, &[1, self.n, self.d])],
+            self.attrs(if dev { 0 } else { pos }),
+        );
         cl.scratch = scratch_for(&self.be, ATTN_DECODE_BF16_SPLITKV, &cl);
         if dev {
             cl.pos = Some(self.dev_pos(pos as i32));
@@ -146,7 +156,12 @@ impl Case {
         let out = self.be.alloc(len * 2, MemKind::Device).unwrap();
         let mut inputs = vec![tr(&self.qb, 0, &[k, self.n, self.d])];
         inputs.extend(self.kv());
-        let mut cl = OpCall::new(Op::AttnPrefill, inputs, vec![tr(&out, 0, &[k, self.n, self.d])], self.attrs(if dev { 0 } else { pos0 }));
+        let mut cl = OpCall::new(
+            Op::AttnPrefill,
+            inputs,
+            vec![tr(&out, 0, &[k, self.n, self.d])],
+            self.attrs(if dev { 0 } else { pos0 }),
+        );
         cl.scratch = scratch_for(&self.be, ATTN_PREFILL_BF16_SPLITKV_ROWS, &cl);
         if dev {
             cl.pos = Some(self.dev_pos(pos0 as i32));
@@ -185,7 +200,10 @@ fn bitwise_head_split_is_bit_identical_to_the_unsplit_launch() {
             let want = c.one(pos, dev);
             for hsb in [2usize, 3, 6] {
                 set_hsb_for_test(Some(hsb));
-                assert!(c.one(pos, dev) == want, "1-row dev={dev} pos {pos} HSB={hsb}: differs from the unsplit launch");
+                assert!(
+                    c.one(pos, dev) == want,
+                    "1-row dev={dev} pos {pos} HSB={hsb}: differs from the unsplit launch"
+                );
                 windows += 1;
             }
         }
@@ -197,7 +215,10 @@ fn bitwise_head_split_is_bit_identical_to_the_unsplit_launch() {
                 let want = c.rows(k, pos, dev);
                 for hsb in [2usize, 3, 6] {
                     set_hsb_for_test(Some(hsb));
-                    assert!(c.rows(k, pos, dev) == want, "rows k {k} dev={dev} pos {pos} HSB={hsb}: differs from the unsplit launch");
+                    assert!(
+                        c.rows(k, pos, dev) == want,
+                        "rows k {k} dev={dev} pos {pos} HSB={hsb}: differs from the unsplit launch"
+                    );
                     windows += 1;
                 }
             }
@@ -215,11 +236,17 @@ fn bitwise_head_split_is_bit_identical_to_the_unsplit_launch() {
             let want = c.rowtab(&pos);
             let rl = c.n * c.d;
             for (i, p) in pos.iter().enumerate() {
-                assert!(want[i * rl..(i + 1) * rl] == c.one_on(i, i, *p, false)[..], "rowtab R={r} row {i} pos {p}: unsplit row-table row differs from its solo launch");
+                assert!(
+                    want[i * rl..(i + 1) * rl] == c.one_on(i, i, *p, false)[..],
+                    "rowtab R={r} row {i} pos {p}: unsplit row-table row differs from its solo launch"
+                );
             }
             for hsb in [2usize, 3, 6] {
                 set_hsb_for_test(Some(hsb));
-                assert!(c.rowtab(&pos) == want, "rowtab R={r} pos {pos:?} HSB={hsb}: differs from the unsplit row-table launch");
+                assert!(
+                    c.rowtab(&pos) == want,
+                    "rowtab R={r} pos {pos:?} HSB={hsb}: differs from the unsplit row-table launch"
+                );
                 rt_windows += 1;
             }
         }

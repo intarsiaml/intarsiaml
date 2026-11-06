@@ -1,0 +1,28 @@
+prefill chunk 2048 (recipe qwen3_5_vl, hip)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'fp8' (the recipe's default on this backend, chosen for accuracy and speed (Qwen3.8-27B, full MMLU n=1425: W4A8 0.8204, W4A16 0.822, W4A4 0.802; against W4A16 prefill +48% and decode +11% at tp2, KL to the W4A16 golden 12x below W4A4's, docs/results/2026-10-27-w4a8-hip-fp8-act.md); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: fp8 (recipe qwen3_5_vl [tuning.hip] mxfp4_act)
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) in 2.1s: 64 layers, hidden 5120, act bf16, kv bf16, weights 10.29 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 41 tokens
+finish=length prompt=41 (cached 0) completion=128 | prefill 123 ms (334.5 tok/s) | decode 2495 ms (50.90 tok/s)
+op table (estimated ms over all launches; total 4348.3 ms):
+op                               ms  share%    calls   timed
+matmul_mxfp4_pair           1604.57   36.90    22704    2992
+matmul_mxfp4                 990.13   22.77    18576    2448
+all_reduce                   402.59    9.26    16640    2192
+rmsnorm_add                  385.27    8.86    16512    2176
+logits                       286.91    6.60      128      16
+gdn_conv_delta               176.61    4.06     6144     768
+silu_glu                     163.67    3.76     8256    1088
+gated_rmsnorm                131.53    3.02     6192     816
+attn_decode                   68.15    1.57     2048     256
+gate_split_qk_norm_rope_kv      55.83    1.28     2064     272
+sigmoid_mul                   39.92    0.92     2064     272
+embedding                     18.27    0.42      129      17
+argmax                         9.14    0.21      128      16
+rmsnorm                        7.45    0.17      129      17
+attn_prefill                   3.20    0.07       16      16
+gdn_conv                       2.56    0.06       48      48
+gdn_delta_rule                 2.55    0.06       48      48
+tensor parallel: 16640 all-reduces (129.0 per step), 2192 timed, avg 24.2 us each when timed (a timed call synchronises both sides, so it includes the ranks' skew)
+steps=129 graph replays=112 (captures 1) eager decode steps=16 (profiled 16) top ops: matmul_mxfp4_pair=211ms/22704 matmul_mxfp4=130ms/18576 all_reduce=53ms/16640 rmsnorm_add=51ms/16512 logits=36ms/128
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=112

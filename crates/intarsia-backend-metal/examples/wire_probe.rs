@@ -57,14 +57,19 @@ fn main() {
     let mut shards: Vec<_> = files
         .iter()
         .map(|p| {
-            let mem: Arc<dyn HostMemory> = Arc::new(MmapHost(unsafe { Mmap::map(&std::fs::File::open(p).unwrap()).unwrap() }));
+            let mem: Arc<dyn HostMemory> =
+                Arc::new(MmapHost(unsafe { Mmap::map(&std::fs::File::open(p).unwrap()).unwrap() }));
             let len = mem.as_slice().len();
             let b = be.wrap_host(mem.clone(), 0, len).expect("wrap");
             mems.push(mem);
             (p.file_name().unwrap().to_string_lossy().to_string(), len, b)
         })
         .collect();
-    println!("mapped and wrapped {} shards in {:.1} ms (mode {mode}, sleep {sleep_ms} ms, gap {gap_ms} ms)", shards.len(), t0.elapsed().as_secs_f64() * 1e3);
+    println!(
+        "mapped and wrapped {} shards in {:.1} ms (mode {mode}, sleep {sleep_ms} ms, gap {gap_ms} ms)",
+        shards.len(),
+        t0.elapsed().as_secs_f64() * 1e3
+    );
     std::thread::sleep(std::time::Duration::from_millis(sleep_ms));
     if matches!(mode.as_str(), "blitref" | "copyshared" | "copyprivate" | "residencycpu") {
         raw_modes(&be, &mode, &mems, &shards, sleep_ms, gap_ms);
@@ -97,11 +102,17 @@ fn main() {
             let t = Instant::now();
             loop {
                 std::thread::sleep(std::time::Duration::from_millis(5));
-                if t.elapsed().as_secs() > 20 || set.allocatedSize() >= shards.iter().map(|s| s.1 as u64).sum::<u64>() / 2 {
+                if t.elapsed().as_secs() > 20
+                    || set.allocatedSize() >= shards.iter().map(|s| s.1 as u64).sum::<u64>() / 2
+                {
                     break;
                 }
             }
-            println!("residency set allocatedSize {} MB after {:.0} ms", set.allocatedSize() >> 20, t.elapsed().as_secs_f64() * 1e3);
+            println!(
+                "residency set allocatedSize {} MB after {:.0} ms",
+                set.allocatedSize() >> 20,
+                t.elapsed().as_secs_f64() * 1e3
+            );
             std::mem::forget(set); // keep the set alive for the whole process
         }
         "touch" | "keep" => {
@@ -128,7 +139,11 @@ fn main() {
                     std::hint::black_box(sum);
                     rc
                 };
-                println!("{mode} {name}: rc {rc} errno {} in {:.1} ms", std::io::Error::last_os_error(), t1.elapsed().as_secs_f64() * 1e3);
+                println!(
+                    "{mode} {name}: rc {rc} errno {} in {:.1} ms",
+                    std::io::Error::last_os_error(),
+                    t1.elapsed().as_secs_f64() * 1e3
+                );
             }
             println!("{mode} pass: {:.1} ms", t.elapsed().as_secs_f64() * 1e3);
         }
@@ -167,7 +182,10 @@ fn main() {
             busy += t1.elapsed().as_secs_f64() * 1e3;
             n += 1;
         }
-        println!("keep-warm ({what}, every {period} ms): {n} touches over {gap_ms} ms, {:.2} ms mean round trip", busy / n.max(1) as f64);
+        println!(
+            "keep-warm ({what}, every {period} ms): {n} touches over {gap_ms} ms, {:.2} ms mean round trip",
+            busy / n.max(1) as f64
+        );
         let rest = gap_ms.saturating_sub(t.elapsed().as_millis() as u64);
         std::thread::sleep(std::time::Duration::from_millis(rest));
     } else if gap_ms > 0 {
@@ -211,12 +229,13 @@ fn raw_modes(
     use intarsia_core::backend::{Backend, MemKind};
     use objc2::runtime::ProtocolObject;
     use objc2_metal::{
-        MTLAllocation, MTLBlitCommandEncoder, MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue, MTLDevice,
-        MTLResidencySet, MTLResidencySetDescriptor, MTLResourceOptions,
+        MTLAllocation, MTLBlitCommandEncoder, MTLBuffer, MTLCommandBuffer, MTLCommandEncoder, MTLCommandQueue,
+        MTLDevice, MTLResidencySet, MTLResidencySetDescriptor, MTLResourceOptions,
     };
     use std::time::Instant;
     let scratch = be.new_mtl_buffer(16, true).unwrap();
-    let wrapped: Vec<_> = shards.iter().map(|(_, _, b)| objc2::rc::Retained::from(b.downcast::<MetalBuffer>().unwrap().mtl())).collect();
+    let wrapped: Vec<_> =
+        shards.iter().map(|(_, _, b)| objc2::rc::Retained::from(b.downcast::<MetalBuffer>().unwrap().mtl())).collect();
     let mut owned_shared = Vec::new(); // keeps backend allocations alive
     let t = Instant::now();
     let bufs: Vec<objc2::rc::Retained<ProtocolObject<dyn MTLBuffer>>> = match mode {
@@ -236,7 +255,10 @@ fn raw_modes(
             let mut v = Vec::new();
             for ((name, len, _), src) in shards.iter().zip(&wrapped) {
                 let t1 = Instant::now();
-                let dst = be.device().newBufferWithLength_options(*len, MTLResourceOptions::StorageModePrivate).expect("private buffer");
+                let dst = be
+                    .device()
+                    .newBufferWithLength_options(*len, MTLResourceOptions::StorageModePrivate)
+                    .expect("private buffer");
                 let cb = be.queue().commandBuffer().unwrap();
                 let enc = cb.blitCommandEncoder().unwrap();
                 unsafe { enc.copyFromBuffer_sourceOffset_toBuffer_destinationOffset_size(src, 0, &dst, 0, *len) };
@@ -281,7 +303,10 @@ fn raw_modes(
             max = max.max(d);
             n += 1;
         }
-        println!("requestResidency x{n} (CPU only, every {period} ms): mean {:.3} ms, max {max:.3} ms per call", sum / n.max(1) as f64);
+        println!(
+            "requestResidency x{n} (CPU only, every {period} ms): mean {:.3} ms, max {max:.3} ms per call",
+            sum / n.max(1) as f64
+        );
     }
     let rest = gap_ms.saturating_sub(t.elapsed().as_millis() as u64);
     std::thread::sleep(std::time::Duration::from_millis(rest));
