@@ -1,0 +1,11 @@
+20:16:08 job 8685 window w5: stopping radiance
+20:16:12 job 8685 window w5: stopping radiance
+20:16:15 item 1 gates: start
+20:22:31 item 1 gates: exit 0 GATES kernels base exit 0|GATES kernels head exit 0|GATES plan-27-tp1.json: byte-identical (14161 B)|GATES plan-27-tp1.json.err: byte-identical (607 B)|GATES plan-27-tp1.txt: byte-identical (3079 B)|GATES plan-27-tp1.txt.err: byte-identical (607 B)|GATES plan-27-tp2.json: byte-identical (17032 B)|GATES plan-27-tp2.json.err: byte-identical (1939 B)|GATES plan-27-tp2.txt: byte-identical (3998 B)|GATES plan-27-tp2.txt.err: byte-identical (1939 B)|GATES plan-35-tp1.json: byte-identical (12961 B)|GATES plan-35-tp1.json.err: byte-identical (268 B)|GATES plan-35-tp1.txt: byte-identical (3184 B)|GATES plan-35-tp1.txt.err: byte-identical (268 B)|GATES plan-35-tp2.json: byte-identical (13541 B)|GATES plan-35-tp2.json.err: byte-identical (339 B)|GATES plan-35-tp2.txt: byte-identical (3346 B)|GATES plan-35-tp2.txt.err: byte-identical (339 B)|GATES kernels test: identical output (timing lines excluded)|
+20:22:32 item 2: starting server base.off.1.off.1
+20:26:12 item 2 base.off.1.off.1 texts: exit 0       18 lines
+20:26:12 item 3: starting server head.off.1.off.1
+20:29:53 item 3 head.off.1.off.1 texts: exit 0       18 lines
+20:29:53 done
+20:29:54 starting radiance
+20:30:10 radiance answers (after 20 s): {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793928608,"owned_by":"radiance","max_model_len":200

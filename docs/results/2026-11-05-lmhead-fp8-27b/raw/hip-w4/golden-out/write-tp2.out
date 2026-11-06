@@ -1,0 +1,57 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on hip at tp=2 ([tuning.hip] mtp_default_tp_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_vl, hip)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+verify attention rows: engaged (one row-table attention launch per layer)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (opt-in --mxfp4-act): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (--mxfp4-act)
+--spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_gemv_rows gdn_conv_delta=gdn_conv_delta_bf16 gated_rmsnorm=gated_rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split_qk_norm_rope_kv=gate_split_qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 logits=logits_bf16_gemv argmax=argmax_f32 logits=logits_bf16_gemv_rows
+accuracy: amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics x2 (tp=2, hip-p2p comm) (vocab 248320, weights/act/kv bf16/bf16)
+KL row mask: no turn format (the golden names no known `template` and the recipe has no `[accuracy] chat_turns`): ALL rows are scored
+golden: /g/prompts.safetensors (6 prompts, 60549 positions, top-20 log-probs: KL(supp) over the top-20 support renormalised, KL(21-way) with an explicit other bucket)
+  reference: engine hf (older golden) - | model - | revision - | dtype - | KV dtype - | template -
+  sampling/prompts: - | prompt files - | add_special_tokens - | max_model_len - | launch flags: -
+WARNING: the golden does not record the reference's KV cache dtype (it predates the metadata, or the server did not say); we run a bf16 KV cache, and a KV precision difference (e.g. an fp8 reference cache) would be indistinguishable from model error
+gates: class 4bit (weights: 4bit (quantization metadata names a 4-bit format), kv cache: bf16); top-1 (all rows) not gated, 21-way KL (scored rows: outside system and user turns) <= 3.0e-2, |tail excess| (all rows) <= 0.02
+prefill chunk 2048; longest prompt 16421; prompts spanning more than one chunk: 6/6
+reference noise: none measured for this golden: the KL floor is the class floor alone (docs/accuracy.md, "Reference noise")
+
+== mode: prefill ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+this build: UNSTAMPED (built without INTARSIA_BUILD_STAMP)
+WARNING: this build carries no code stamp, so what it writes will be refused as a 'before': build through scripts/phase1b-acceptance.sh
+4k-0                3986  3986     0.03    6.016e0    1.466e1    1.466e1    2.161e1   0.0000   0.8643     0.21    0/3986      0
+4k-1                4109  4109     0.00    6.134e0    1.365e1    1.365e1    2.083e1   0.0000   0.8287     0.04    0/4109      0
+4k-2                4464  4464     0.00    6.576e0    1.242e1    1.242e1    1.952e1   0.0000   0.7435     0.13    0/4464      0
+16k-0              15597 15597     0.01    5.892e0    1.601e1    1.601e1    2.268e1   0.0000   0.8949     0.24   0/15597      0
+16k-1              15972 15972     0.00    6.576e0    1.430e1    1.430e1    2.228e1   0.0000   0.8059     0.12   0/15972      0
+16k-2              16421 16421     0.00    6.824e0    1.386e1    1.386e1    2.324e1   0.0000   0.7548     0.17   0/16421      0
+OVERALL                  60549     0.00    6.400e0    1.446e1    1.446e1    2.324e1   0.0000   0.8158     0.16      0.0%      0
+prefill floor [4bit]: top-1 (all rows) 0.00% (not gated for this class) ok | 21-way KL (scored rows, n=60549) 1.446e1 (need <= 3.0e-2) FAIL [all rows, n=60549: 1.446e1, reported only] | tail mass (all rows) ours 0.8158 vs ref 0.0000, excess +0.8158 (|.| <= 0.02) FAIL | non-finite rows 0 ok => FAIL
+prefill KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.446e1 FAIL
+gate-definition: kl_floor [prefill]: old def: FAIL 1.446e1 (21-way KL over all rows <= static floor) | current def: FAIL 1.446e1 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+
+== mode: decode (teacher-forced) ==
+prompt                 n   pos  top-1 %   KL(supp) KL(21-way) KL21 scored     max KL tail ref  tail us  top-5 %    greedy nonfin
+4k-0                3986   128     0.00    8.568e0    2.085e1    2.085e1    2.167e1   0.0000   0.7273     0.62     0/128      0
+4k-1                4109   128     0.00    5.399e0    1.832e1    1.832e1    1.803e1   0.0000   0.9432     0.16     0/128      0
+4k-2                4464   128     0.00    6.393e0    1.783e1    1.783e1    1.880e1   0.0000   0.8617     0.47     0/128      0
+16k-0              15597   128     0.00    7.170e0    1.706e1    1.706e1    2.128e1   0.0000   0.8533     0.31     0/128      0
+16k-1              15972   128     0.00    6.341e0    1.851e1    1.851e1    1.910e1   0.0000   0.8816     0.47     0/128      0
+16k-2              16421   128     0.00    6.529e0    1.776e1    1.776e1    1.848e1   0.0000   0.8699     0.94     0/128      0
+OVERALL                    768     0.00    6.733e0    1.839e1    1.839e1    2.167e1   0.0000   0.8562     0.49      0.0%      0
+decode (teacher-forced) floor [4bit]: top-1 (all rows) 0.00% (not gated for this class) ok | 21-way KL (scored rows, n=768) 1.839e1 (need <= 3.0e-2) FAIL [all rows, n=768: 1.839e1, reported only] | tail mass (all rows) ours 0.8562 vs ref 0.0000, excess +0.8562 (|.| <= 0.02) FAIL | non-finite rows 0 ok => FAIL
+decode KL threshold [21-way KL]: static floor 3.000e-2 | no ref noise measured for this golden => effective 3.000e-2 bound by static floor; KL 1.839e1 FAIL
+gate-definition: kl_floor [decode]: old def: FAIL 1.839e1 (21-way KL over all rows <= static floor) | current def: FAIL 1.839e1 (21-way KL over scored rows <= max(static floor, factor x reference noise), bound by static floor) [changed 2026-10-21; LOG 2026-10-21 10:43; 2026-10-21 11:23]
+greedy-match [prefill]: mean 0.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+greedy-match [decode (teacher-forced)]: mean 0.0% of positions before the first argmax divergence, worst prompt 0.0% (informational)
+
+wrote self-golden /g/self-tp2.safetensors (top-64 rows of modes prefill,decode for 6 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+
+floor verdict (class thresholds, absolute): FAIL   baseline verdict: not requested
+golden gate: FAIL
+tensor-parallel rank 1: decode graph enabled=true captures=1 replays=762
+Error: accuracy gate FAILED
