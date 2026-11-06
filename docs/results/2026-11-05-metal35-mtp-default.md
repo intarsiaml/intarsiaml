@@ -59,6 +59,44 @@ Every MTP run beats every off run at every size and text. Acceptance in the gene
 
 **48 of 48 comparisons are identical** (24 default against off, 24 explicit k2 against off); no divergence anywhere, including 12k, 16k and 32k contexts (acceptance 62 to 100 %).
 
-## Prefill window, gates
+## Prefill window (fleetq #8613): the filler-4k cost was noise
 
-PENDING (queued behind other lanes on endor): the prefill-focused ABAB (4k and 16k, 5 reps, filler and natural-v1) and the no-op gates (plan show and kernels test main against branch, 8B and 27B ids). Workspace tests are done: `cargo test --workspace --no-fail-fast` 1322 passed, 0 failed, 29 ignored (debug, fleetq #8562, `raw/cargo-test-workspace.txt`; the first attempt #8544 was stopped by fleetq's backfill deadline, exit -15, and rerun).
+The first window showed filler prefill at 4k 0.77x of off (TTFT 0.93 to 0.97 s against 0.70 to 0.76 s) while natural text showed 1.07x. A second ABAB (r1 mtp, r2 off, r3 mtp, r4 off; 4k and 16k, 5 reps per size, filler and natural-v1, `GEN=16`; raw `raw/ab-prefill/`, localeval runs `20261105-194717-adhoc-flipmtp-r1-mtp` (cf12224c), `...-194840-...-r2-off` (dcd8c3d2), `...-195022-...-r3-mtp` (4112b513), `...-195146-...-r4-off` (cd73d996)):
+
+| text | context | TTFT s, MTP | TTFT s, off | prefill tok/s, MTP | prefill tok/s, off | ratio |
+|---|---|---|---|---|---|---|
+| filler | 4k | 0.788 / 0.827 | 0.832 / 0.829 | 5188 / 4946 | 4916 / 4936 | 1.03 |
+| filler | 16k | 3.84 / 4.00 | 4.38 / 3.95 | 4337 / 4168 | 3800 / 4219 | 1.06 |
+| natural-v1 | 4k | 0.708 / 0.708 | 0.767 / 0.704 | 5757 / 5761 | 5315 / 5786 | 1.04 |
+| natural-v1 | 16k | 4.01 / 3.86 | 4.18 / 3.75 | 4093 / 4248 | 3921 / 4373 | 1.01 |
+
+**Verdict: no measurable prefill cost.** With 5 reps per cell the arms are within 6 % of each other in both directions (MTP ahead in 3 of 4 cells on both runs), and the whole window ran about 25 % faster than the first one (natural 4k: 5760 against 4350 tok/s with MTP), so the first window's filler 4k off arm was a fast outlier (0.70 s, against 0.83 s here), not an MTP cost. Decode figures of this window (`GEN=16`) are not used. The first window's other prefill cells (natural 1k/4k/16k, filler 16k) agreed with this one.
+
+## Gates
+
+| gate | result |
+|---|---|
+| `cargo test --workspace --no-fail-fast` on the merged head | **PASS**: 1353 passed, 0 failed, 32 ignored (debug, fleetq #8725, `raw/cargo-test-workspace.txt`; on the pre-merge head 1322 / 0 / 29, #8562) |
+| greedy ids, 24 prompts x (default, explicit k2) against `--spec off`, pre-merge binary | **48 / 48 identical** (#8542, `raw/ids-summary.txt`) |
+| same, merged head `1cb31e6bb` + recipe-comment edit | **48 / 48 identical** (#8726, `raw/ids-merged-summary.txt`) |
+| served greedy ids, natural-v1 1k / 4k / 16k, mtp against off | identical (#8542) |
+| `plan show` (text and JSON), main against branch: 8B, Llama-3.1-8B, Qwen2.5-7B, 27B | **byte-identical** (#8613, `raw/gates/plan/`) |
+| `plan show` 35B | differs by **8 added lines and 0 removed**: the MTP head's ops (`add_bf16`, `matmul_bf16_gemv`, `matmul_bf16_nax`, `attn_prefill_bf16_splitkv_rows`, `matmul_fp8_gemv_rows`) now appear because the head loads by default; expected, and the stderr shows `--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal` |
+| `kernels test --backend metal`, main and branch | both 49 kernels, 980 cases, 0 FAIL |
+| greedy ids 256, 8B and 27B, short and ~3.5k prompt, main against branch | **identical** (4 of 4), plan json and txt byte-identical (`raw/gates/noop/`) |
+| CUDA `plan show` on spark1 | **not run**: the footprint check lists only `crates/intarsia-models/tests/tp_mtp.rs` (a test) and `recipes/` (a `[tuning.metal]` key, embedded recipe), spark1 was held exclusively by another job and has no git checkout to build the two CUDA binaries from |
+
+## Merge with main 1a2a246f6 (#312 batched MTP N=1, #313 sampled speculation)
+
+`git merge origin/main` was automatic, no conflicts; main added `batched_mtp = 1` to `[tuning.cuda]` and `[tuning.metal]` of the same recipe beside the keys here. Two comment lines were stale after it and are rewritten: main's "Metal has no `--spec mtp` default here" and this branch's "`--max-batch` above 1 keeps plain decode" (a `--max-batch` server now takes the default through `batched_mtp`; main's test `batched_mtp_default_only_where_measured_and_env_wins` covers it and passes). The combination, run with no flags on the merged binary (`raw/comb/`, `raw/comb.log`, fleetq #8726):
+
+* `serve`: startup lines `--spec mtp --spec-k 2: the default of recipe qwen3_5_moe on metal at tp=1`, `speculative decoding: Mtp, up to 2 drafts per verify pass` and `sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)`; a T=0 and a T=0.7 chat request both complete.
+* `generate` with no flags at T=0.7 (seed 3): `spec: verify passes=41 proposed=82 accepted=54 (acceptance 65.9 %)`, so a sampled request speculates.
+* `serve --max-batch 4` with no `--spec`: the same default line and `batched MTP N=1 (recipe qwen3_5_moe, [tuning.metal] batched_mtp)`.
+* Greedy ids against `--spec off`: 48 / 48 identical, as before the merge.
+
+Not run on the merged head: the served ABAB speed (the speed table is from the pre-merge binary; the merge adds no kernel change to the `--max-batch 1` path) and the CUDA plan-show.
+
+## Recommendation
+
+Ready to merge. Decode x1.17 to x1.39 on natural text (x1.12 to x1.19 on filler), prefill unchanged within noise, +2.0 GB peak footprint, greedy ids identical on 48 of 48 prompts including 12k, 16k and 32k contexts. Opt-outs: `--spec off`, `INTARSIA_SPEC_DEFAULT=0`.

@@ -1,0 +1,89 @@
+fleetq: #8613 waiting (#8 in line): in line behind #8602 "ss: sampled-spec statistical gate (resume, 8 shards)" (claude-1943a70c) on endor
+fleetq: #8613 waiting (#5 in line): in line behind #8605 "ss: Metal no-op gates (plan, kernels, greedy ids, goldens) base vs branch" (claude-1943a70c) on endor
+fleetq: #8613 waiting (#3 in line): endor is held exclusively by #8605 "ss: Metal no-op gates (plan, kernels, greedy ids, goldens) base vs branch" (claude-1943a70c); then in line behind #8606 "ss: Metal speed, sampled spec (27B, 35B; T0/0.7/1.0; off/mtp/match/reject; localeval speed-spec 1k/4k)" (claude-1943a70c) on endor
+fleetq: #8613 waiting (#2 in line): endor is held exclusively by #8606 "ss: Metal speed, sampled spec (27B, 35B; T0/0.7/1.0; off/mtp/match/reject; localeval speed-spec 1k/4k)" (claude-1943a70c); then in line behind #8611 "sampled-spec(dsv41): metal head+base release builds (requeued)" (claude-1943a70c) on endor
+fleetq: #8613 waiting (#1 in line): needs endor to itself; running there: #8611 "sampled-spec(dsv41): metal head+base release builds (requeued)" (claude-1943a70c); if it only needs gpu quiet, --quiet gpu instead of --exclusive would start it now
+fleetq: #8613 running on endor: zsh .scratch/window3.sh
+#### window2 19:47:05
+## r1-mtp 19:47:05
+server pid 55041
+default-line count: 1
+localeval speed exit 0
+nat exit 0
+         41833070592  maximum resident set size
+         22408345792  peak memory footprint
+## r2-off 19:48:34
+server pid 62168
+default-line count: 0
+localeval speed exit 0
+nat exit 0
+         38600720384  maximum resident set size
+         20593209208  peak memory footprint
+## r3-mtp 19:50:10
+server pid 72725
+default-line count: 1
+localeval speed exit 0
+nat exit 0
+         41795665920  maximum resident set size
+         22419404992  peak memory footprint
+## r4-off 19:51:41
+server pid 82144
+default-line count: 0
+localeval speed exit 0
+nat exit 0
+         38604963840  maximum resident set size
+         20547153856  peak memory footprint
+## done 19:53:09
+#### gates 19:53:09
+== plan show
+plan show Qwen3.6-35B-A3B-NVFP4 : DIFFERS
+30a31,33
+> add            add_bf16                   deterministic no        0 0
+> matmul         matmul_bf16_gemv           deterministic no        0 0
+> matmul         matmul_bf16_nax            deterministic no        0 0
+31a35
+> attn_prefill   attn_prefill_bf16_splitkv_rows deterministic no        0 3170304
+35a40
+> matmul_fp8     matmul_fp8_gemv_rows       deterministic no        0 65552
+plan show Qwen3.6-35B-A3B-NVFP4 --json: DIFFERS
+358a359,385
+>       "scratch_bytes": 0
+>     },
+>     {
+>       "op": "add",
+>       "kernel": "add_bf16",
+>       "backend": "metal",
+>       "exactness": "deterministic",
+plan show Qwen3-8B : identical
+plan show Qwen3-8B --json: identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 : identical
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 --json: identical
+plan show Llama-3.1-8B-Instruct : identical
+plan show Llama-3.1-8B-Instruct --json: identical
+plan show Qwen2.5-7B-Instruct : identical
+plan show Qwen2.5-7B-Instruct --json: identical
+== kernels test
+main kernels test exit 0
+branch kernels test exit 0
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 980 cases in 30.8s
+FAIL lines: main 0 branch 0
+== noop ids (8B, 27B)
+[noop] main 8 short:      256 ids
+[noop] main 8 4k:      256 ids
+[noop] main 35 short:      256 ids
+[noop] main 35 4k:      256 ids
+[noop] branch 8 short:      256 ids
+[noop] branch 8 4k:      256 ids
+[noop] branch 35 short:      256 ids
+[noop] branch 35 4k:      256 ids
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha 23616218)
+ids 35 4k: identical (256 ids, sha a5975325)
+plan 35 json: byte-identical (14784 B)
+plan 35 txt: byte-identical (3263 B)
+#### done 19:55:50
+fleetq: #8613 done (exit 0)

@@ -1,0 +1,9 @@
+Here is a section-by-section summary of the IntarsiaML architecture plan (v0.2), followed by a list of open questions derived from the "planned" and "partial" status items.
+
+### Section-by-Section Summary
+
+**0. Goals, Honest Targets, Anti-Goals**
+The project aims for modularity, ease of use, and accuracy, with speed as a top priority per platform. It targets beating specific competitors (llama.cpp, vLLM, TensorFold) on DGX Spark, R9700, and Apple Silicon by specific phases. Key anti-goals include avoiding per-family engines (using a shared block library instead), keeping Python out of the serving path, avoiding scope sprawl (text-only initially), and enforcing strict reference tests for all kernels.
+
+**1. Language and Build**
+The host (server, scheduler, CLI, UI) is written in Rust for memory safety and native speed. GPU kernels are written in CUDA C++ (for NVIDIA) and HIP C++ (for AMD), compiled ahead-of-time (AOT) to avoid JIT latency. A shared portable header (`ik_portable.h`) handles simple kernels across both backends. Offline tools (golden references, converters) use Python
