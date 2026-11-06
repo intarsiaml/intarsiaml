@@ -1725,8 +1725,10 @@ fn sampled_speculation_drafts_sampled_requests_and_leaves_greedy_ones_alone() {
 
 /// The engine end to end on the fixture: the law of each generated token 2, 3, 4 (the speculative positions; token 1 comes
 /// from prefill) with sampled speculation matches plain sampling. Pearson chi-square of homogeneity per position with pooled
-/// sparse cells, disjoint seed sets, fixed seeds (deterministic); threshold z = 5.
+/// sparse cells, disjoint seed sets, fixed seeds (deterministic); threshold z = 5. About 4 minutes in release (9,000 requests),
+/// so opt-in: `cargo test --release -p intarsia-models --test mtp -- --ignored sampled_speculation_matches`.
 #[test]
+#[ignore]
 fn sampled_speculation_matches_plain_sampling_in_law_on_the_fixture() {
     use intarsia_core::spec::SampledSpec;
     use std::collections::BTreeMap;

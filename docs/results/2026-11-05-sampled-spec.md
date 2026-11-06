@@ -125,7 +125,8 @@ consumed differently).
 `sampled_speculation_matches_plain_sampling_in_law_on_the_fixture`: 1,500 seeded requests per arm, disjoint seed sets,
 per-position chi-square of tokens 2, 3, 4 vs plain sampling; configs (T 1, full) and (T 1, top-k 4, top-p 0.9) x (reject,
 reject with a 40-id draft head, match). All 18 below the z = 5 critical value (`raw/fixture-law-test.log`). The random head
-accepts little (match 27 / 4492 drafts, reject 929 / 4045), so this is a wiring check; 2.3 is the real-model test.
+accepts little (match 27 / 4492 drafts, reject 929 / 4045), so this is a wiring check; 2.3 is the real-model test. It takes about
+4 minutes in release, so it is `#[ignore]` (run with `--ignored`); the other new fixture test runs by default.
 
 ### 2.3 Statistical test, real model (Qwen3.5-0.8B-Base, CPU backend, fleetq #8551 + #8602)
 
@@ -142,29 +143,14 @@ T 0.7, top-k 20, top-p 0.8, draft head reduced to the first 4096 ids. Token 1 is
 | B | match | 4519 / 6834 = 66.1 % | 0.686 / 0.946 / 0.210 | 3 / 7 / 20 | 1.00 / 1.00 / 0.99 |
 
 **All 12 p-values are above the Bonferroni alpha 0.01 / 12 = 8.3e-4: PASS.** Both branches ran (acceptance well inside 0..1).
-The joint law of tokens 2-4 (supplementary, not in the rule): p 0.018 / 0.357 / 0.180 / 0.062.
+The joint law of tokens 2-4 (supplementary, not in the rule): p 0.018 / 0.357 / 0.180 / 0.062. The two lowest per-position
+p-values (config A position 3: 0.018 reject, 0.032 match) are compared against the same spec-off sample, so they are correlated,
+not two independent signals; Bonferroni holds under that dependence.
 
 **Power shortfall, stated against the pre-written rule:** the rule assumed at most 40 df; config A's high-entropy positions
 realised 48-78 df, so the power against Cohen's w = 0.1 is 0.77-0.90 there, not the >= 0.93 the rule promised (B: >= 0.99).
 Against w = 0.12 it is >= 0.97 at every cell (same calculation, lambda = 6000 w^2). The CPU backend has no row-exact verify kernels, so its verify rows can differ
 from single-row decode in the last bits; that is far below what this test can see and does not apply to the unit tests.
-
-## 4. Gate 4: cross-backend no-op
-
-Metal (endor, fleetq #8605, base binary from `602a1fcfe`, branch binary from `ecf818a37`, whose engine code equals the head's;
-`scripts/sampled-spec/noop-metal.sh`, `raw/noop-metal/`):
-
-| check | result |
-|---|---|
-| `plan show` text, json and stderr, 27B / 35B / 8B | **identical 9 / 9** |
-| `kernels test --backend metal` | 49 kernels, 980 cases, 0 FAIL, base and branch logs identical but for the wall time |
-| greedy ids 27B / 35B, short and 4K (with `INTARSIA_SPEC_SAMPLED=1` on the branch) | **identical 4 / 4** |
-| 8B goldens `qwen3-8b-fp32`, `qwen3-8b-long-fp32` | **PASS** both, base and branch |
-| sampled smoke, 27B T 0.7, 128 tokens | reject: 53 passes, 69.8 % accepted; match: 58 passes, 59.5 %; coherent text (`sampled-27-*.out`) |
-
-CUDA (spark1, fleetq #8652, base `602a1fcfe` and branch `c28ad2d3f` built there; `scripts/sampled-spec/cuda.sh`, `raw/cuda/`):
-`plan show` 35B text and json **identical**; `kernels test --backend cuda --quick` 106 kernels, 918 cases, exit 0; greedy ids 35B
-`--spec mtp --spec-k 2`, short and 4K, base vs branch with `INTARSIA_SPEC_SAMPLED=1`: **identical 2 / 2**.
 
 ## 3. Gate 3: speed (reported, no threshold)
 
@@ -176,7 +162,8 @@ says temperature 0). top-p 1, top-k 0 (server defaults); localeval pins seed 0. 
 lane and at 128 / 1k / 4k / 16k, so a suite copy with sizes [1024, 4096] is used, and for the spec-off arms one with the cell's
 lane set to plain; prompts and their sha256 checks are the stock ones. Acceptance: the server's `/metrics` counters over the whole
 arm (probe and warmup requests included). Off arms run `--spec off`; T 0 arms are the greedy baseline (today's path: on Metal the
-pipelined GPU-accept MTP step); the sampled arms take the eager step.
+pipelined GPU-accept MTP step); the sampled arms take the eager step. Metal binary: `.scratch/intarsia.br` built from `ecf818a37`
+(engine code identical to the head; later commits touch tests, scripts and docs only).
 
 **Metal, endor** (fleetq #8606 round 1, #8674 round 2 in reverse arm order; Qwen3.8-27B Quark MXFP4 with the recipe's MTP k2 and
 65536-row draft head; Qwen3.6-35B-A3B NVFP4 with `--spec mtp --spec-k 2`). Round 2 ran 10-20 % slower in absolute tok/s on every
@@ -201,7 +188,8 @@ T0.7 105.4 / 103.5, T1.0 106.3 / 104.1 (host sampling alone costs the 35B ~1.4 m
 rejected by localeval's spread gate (sampled text varies its acceptance per request); its numbers are kept and marked here.
 localeval runs: `/opt/code/deepeval/results/20261105-19*-ss-*` (round 1) and `20261105-21*`/`22*-ss-*` (round 2), ids in the tables.
 
-**CUDA 35B tp=1, spark1** (fleetq #8652, one round, vLLM left up, `--mem-budget 40`):
+**CUDA 35B tp=1, spark1** (fleetq #8652, one round, `--quiet gpu,cpu` with spark1-vllm up and serving its roles: its live traffic
+is an unmeasured noise source for these numbers; `--mem-budget 40`):
 
 | arm | decode 1k / 4k | x off 1k / 4k | greedy gain kept | acceptance |
 |---|---|---|---:|---:|
@@ -223,8 +211,27 @@ step, so part of the gap to the greedy gain is the step, not the sampling.
 
 HIP: **not run** (tatooine belongs to another session).
 
+## 4. Gate 4: cross-backend no-op
+
+Metal (endor, fleetq #8605, base binary from `602a1fcfe`, branch binary from `ecf818a37`, whose engine code equals the head's;
+`scripts/sampled-spec/noop-metal.sh`, `raw/noop-metal/`):
+
+| check | result |
+|---|---|
+| `plan show` text, json and stderr, 27B / 35B / 8B | **identical 9 / 9** |
+| `kernels test --backend metal` | 49 kernels, 980 cases, 0 FAIL, base and branch logs identical but for the wall time |
+| greedy ids 27B / 35B, short and 4K (with `INTARSIA_SPEC_SAMPLED=1` on the branch) | **identical 4 / 4** |
+| 8B goldens `qwen3-8b-fp32`, `qwen3-8b-long-fp32` | **PASS** both, base and branch |
+| sampled smoke, 27B T 0.7, 128 tokens | reject: 53 passes, 69.8 % accepted; match: 58 passes, 59.5 %; coherent text (`sampled-27-*.out`) |
+
+CUDA (spark1, fleetq #8652, base `602a1fcfe` and branch `c28ad2d3f` built there; `scripts/sampled-spec/cuda.sh`, `raw/cuda/`):
+`plan show` 35B text and json **identical**; `kernels test --backend cuda --quick` 106 kernels, 918 cases, exit 0; greedy ids 35B
+`--spec mtp --spec-k 2`, short and 4K, base vs branch with `INTARSIA_SPEC_SAMPLED=1`: **identical 2 / 2**.
+
 ## 5. Recommendation
 
+- **Single recommendation: `match`, opt-in for now.** Note: `INTARSIA_SPEC_SAMPLED=1` currently selects `reject` (the brief's
+  spelling); `match` must be named explicitly. The mapping is left for the coordinator to decide.
 - **Not default-on yet.** Exactness is shown, and greedy is untouched, but the sampled output for a seed differs from spec-off
   (same law, other tokens), the best variant depends on the model and backend, and the Metal numbers drift 10-20 % between rounds.
 - If one variant is to become the default for sampled traffic (the server's default temperature is 1.0), **`match` on the 35B
@@ -247,7 +254,9 @@ HIP: **not run** (tatooine belongs to another session).
 
 ## 7. Not run, or uncertain
 
-- HIP (tatooine): not run, by the brief.
+- HIP (tatooine): not run, by the brief. The HIP verify graph replay (`verify_replay`) was not exercised with the logits download;
+  sampled speculation runs only at tp=1, so the HIP tp>1 MTP default never reaches it.
+- CUDA `plan show` was run for the 35B only (the reference no-op also did the 8B).
 - Batched decode (`--max-batch` > 1), constrained output, `trace_logits`, tensor parallelism: sampled requests take plain steps there
   (unchanged); the prefix-store exclusion of drafting requests is unchanged.
 - The captured (HIP graph) and pipelined (Metal GPU-accept) spec steps are bypassed for sampled requests; no device-side version.
@@ -256,6 +265,11 @@ HIP: **not run** (tatooine belongs to another session).
   speed runs (server defaults top-p 1, top-k 0, so `dist` takes its unsorted full-vocabulary path).
 - The spec-trace host timing of a sampled pass (`INTARSIA_SPEC_TRACE=1` prints draft / verify / accept ms) was not collected in
   the served runs, so the host-cost explanation of `reject` on the 35B is inferred from the ratios, not measured.
+
+## Remote work folder
+
+`cuda.sh` created `~/intarsiaml-ss` on spark1 (source tree, cargo target, the two CLI binaries: 2.7 GB; spark1's disk is 91 % full).
+It is left in place for the coordinator to keep or remove.
 
 ## Files
 
