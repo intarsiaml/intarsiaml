@@ -1,0 +1,11 @@
+prefill chunk 4096 (recipe qwen3_5_moe, metal)
+mtp: drafter head 'mtp' loaded in 0.4 s (routed experts quantised to nvfp4)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul_pair=matmul_pair_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 moe_topk=moe_topk_bf16 moe_experts=moe_experts_bf16_rows matmul_nvfp4=matmul_nvfp4_gemv_rows moe_combine=moe_combine_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax moe_experts=moe_experts_bf16 argmax=argmax_f32
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+loaded Qwen3.6-35B-A3B-NVFP4 on Apple M5 Max in 2.8s: 40 layers, hidden 2048, act bf16, kv bf16, weights 21.36 GB, context 8192 tokens (recipe builtin:qwen3_5_moe, chat template chat_template.jinja)
+prompt: 4034 tokens
+ids: [271, 248068, 198, 8160, 579, 264, 7047, 1817, 25, 271, 16, 13, 220, 2972, 15771, 2598, 279, 2570, 579, 5952, 64700, 198, 256, 471, 2972, 2425, 64700, 8483, 1970, 364, 1510, 7945, 80, 6971, 63, 318, 64, 2526, 303, 48409, 2531, 6951, 681, 6149, 6813, 11, 321, 264, 9584, 1830, 13, 198, 256, 471, 2972, 45209, 8001, 64700, 198, 257, 471, 21397, 220, 16, 25, 357, 6795, 46306, 1141, 9345, 13205, 4162, 303, 1141, 4368, 1238, 279, 11525, 14973, 279, 2531, 430, 4490, 321, 35551, 264, 21979, 13, 1061, 10814, 21814, 8427, 318, 89, 22617, 4368]
+finish=length prompt=4034 (cached 0) completion=96 | prefill 1259 ms (3203.7 tok/s) | decode 794 ms (119.61 tok/s)
+spec: verify passes=36 proposed=71 accepted=59 (acceptance 83.1%, 2.64 tokens per pass)
+steps=38 graph replays=0 (captures 0) eager decode steps=1 (profiled 0) top ops: moe_experts=393ms/1591 matmul_fp8=285ms/4940 gdn_delta_rule=172ms/3270 rmsnorm_add=168ms/3182 embedding=148ms/111

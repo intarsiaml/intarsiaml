@@ -1,0 +1,17 @@
+constrained T 0.7 #0: 61 tokens in 2.2 s (28.0 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #1: 56 tokens in 1.6 s (33.9 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #2: 58 tokens in 1.7 s (33.2 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #3: 65 tokens in 1.9 s (34.3 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #4: 62 tokens in 1.8 s (34.3 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #5: 60 tokens in 1.8 s (33.9 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #6: 52 tokens in 1.5 s (33.7 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #7: 74 tokens in 2.2 s (34.3 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #8: 65 tokens in 1.9 s (34.3 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #9: 61 tokens in 1.8 s (34.1 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #10: 59 tokens in 1.7 s (34.3 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #11: 56 tokens in 1.7 s (33.3 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #12: 57 tokens in 1.7 s (34.1 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #13: 59 tokens in 1.7 s (34.1 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #14: 68 tokens in 2.0 s (34.6 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7 #15: 58 tokens in 1.7 s (34.4 tok/s incl. prefill), valid True, finish stop
+constrained T 0.7: 16/16 valid

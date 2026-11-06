@@ -1,0 +1,42 @@
+fleetq: #8547 running on spark1, spark2: scripts/dsv41-tp2/decode4-gates.sh .scratch/gates-out/cuda2
+ok   rmsnorm (separate path) T=3                                max_abs=0.000e0 rel_l2=0.000e0
+ok   moe_route T=3 E=384 K=6                                    max_abs=2.980e-8 rel_l2=7.152e-8
+ok   silu_glu_clamp T=3 I=1152                                  max_abs=0.000e0 rel_l2=0.000e0
+ok   act_qdq kv e4m3/32 T=3                                     max_abs=0.000e0 rel_l2=0.000e0
+ok   act_qdq o e4m3/32 T=3                                      max_abs=0.000e0 rel_l2=0.000e0
+ok   act_qdq index_q e2m1/32 T=3                                max_abs=0.000e0 rel_l2=0.000e0
+ok   act_qdq latent e2m1/16 e4m3 T=3                            max_abs=0.000e0 rel_l2=0.000e0
+ok   rope_tail q T=3                                            max_abs=0.000e0 rel_l2=0.000e0
+ok   rope_tail o inverse T=3                                    max_abs=0.000e0 rel_l2=0.000e0
+ok   rope_tail kv T=3                                           max_abs=0.000e0 rel_l2=0.000e0
+ok   rope_tail index_q T=3                                      max_abs=0.000e0 rel_l2=0.000e0
+ok   window_kv T=3 pos0=4094                                    max_abs=0.000e0 rel_l2=0.000e0
+ok   attn_sparse T=3 H=32 D=512 Nc=2048 Kc=512 pos0=4094        max_abs=1.953e-3 rel_l2=1.852e-3
+ok   compress_pool ratio=2 T=3 pos0=4094 G=1                    max_abs=0.000e0 rel_l2=0.000e0
+ok   indexer_blocks T=3 Nk=4096 keep=2048                       max_abs=0.000e0 rel_l2=0.000e0
+ok   indexer_topk T=3 Nk=4096 top512                            max_abs=0.000e0 rel_l2=0.000e0
+ok   indexer_topk T=3 Nk=4096 top512 in candidates              max_abs=0.000e0 rel_l2=0.000e0
+ok   attn_sparse T=1 H=32 D=512 Nc=65536 Kc=512 pos0=131071     max_abs=1.953e-3 rel_l2=1.913e-3
+ok   indexer_blocks T=1 Nk=131072 keep=2048                     max_abs=0.000e0 rel_l2=0.000e0
+ok   indexer_topk T=1 Nk=131072 top512                          max_abs=0.000e0 rel_l2=0.000e0
+ok   indexer_topk T=1 Nk=131072 top512 in candidates            max_abs=0.000e0 rel_l2=0.000e0
+test real_shapes_against_the_cpu_reference ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 2.17s
+
+9d1c91feb dirty=no 1105-1654
+               total        used        free      shared  buff/cache   available
+Mem:             121          42          57           0          23          79
+plan 35b exit 0
+plan 35b json exit 0
+plan 8b exit 0
+plan 8b json exit 0
+kernels exit 0
+REMOTE_DONE
+plan show 35b txt: identical to main's (4017 bytes)
+plan show 35b json: identical to main's (15570 bytes)
+plan show 8b txt: identical to main's (1543 bytes)
+plan show 8b json: identical to main's (8968 bytes)
+kernels: 0 FAIL lines; 106 kernels, 918 cases in 6.7s
+kernels log identical to main's apart from wall time
+fleetq: #8547 done (exit 0)

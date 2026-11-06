@@ -1,0 +1,34 @@
+fleetq: #8526 running on endor: zsh docs/results/2026-11-05-dsv41-decode4/raw/gates/scripts/gates-metal.sh .scratch/gates-out/metal .scratch/gates/intarsia.new .scratch/gates/intarsia.base
+== 1/5 plan show (text and --json), base vs new
+plan show Qwen3.6-35B-A3B-NVFP4 : identical (2762 bytes)
+plan show Qwen3.6-35B-A3B-NVFP4 --json: identical (11384 bytes)
+plan show Qwen3-8B : identical (1342 bytes)
+plan show Qwen3-8B --json: identical (8371 bytes)
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 : identical (3263 bytes)
+plan show Qwen3.8-27B-Quark-AWQ-MXFP4 --json: identical (14784 bytes)
+== 2/5 kernels test --backend metal
+base kernels test exit 0
+new kernels test exit 0
+FAIL lines: base 0 new 0
+matmul_nvfp4   matmul_nvfp4_gemv_rows         18      0    1.330e-3    2.214e-5  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 980 cases in 30.8s
+kernels logs identical
+== 3/5 single-stream generate ids: 27B and 8B, short and 4K, --spec off, base vs new
+ident 27b short: text same, ids same (256 base ids, 256 new ids)
+ident 27b 4k: text same, ids same (256 base ids, 256 new ids)
+ident 8b short: text same, ids same (256 base ids, 256 new ids)
+ident 8b 4k: text same, ids same (256 base ids, 256 new ids)
+== 5/5 accuracy 8B goldens (new vs base byte-compare)
+accuracy qwen3-8b-fp32 base exit 0
+accuracy qwen3-8b-fp32 new exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy qwen3-8b-fp32: base and new byte-identical
+accuracy qwen3-8b-long-fp32 base exit 0
+accuracy qwen3-8b-long-fp32 new exit 0
+floor verdict (class thresholds, absolute): PASS   baseline verdict (no worse than the recorded run + margins; per-prompt limits fixed margins only): PASS
+golden gate: PASS
+accuracy qwen3-8b-long-fp32: base and new byte-identical
+== done
+fleetq: #8526 done (exit 0)

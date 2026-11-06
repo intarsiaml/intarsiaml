@@ -1,0 +1,106 @@
+fleetq: #8616 waiting (#10 in line): in line behind #8602 "ss: sampled-spec statistical gate (resume, 8 shards)" (claude-1943a70c) on endor
+fleetq:   #8602 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8602 set, or it will wait for #8602 to be released.
+fleetq: #8616 waiting (#7 in line): in line behind #8605 "ss: Metal no-op gates (plan, kernels, greedy ids, goldens) base vs branch" (claude-1943a70c) on endor
+fleetq:   #8605 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8605 set, or it will wait for #8605 to be released.
+fleetq: #8616 waiting (#4 in line): endor is held exclusively by #8605 "ss: Metal no-op gates (plan, kernels, greedy ids, goldens) base vs branch" (claude-1943a70c); then in line behind #8606 "ss: Metal speed, sampled spec (27B, 35B; T0/0.7/1.0; off/mtp/match/reject; localeval speed-spec 1k/4k)" (claude-1943a70c) on endor
+fleetq:   #8605 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8605 set, or it will wait for #8605 to be released.
+fleetq: #8616 waiting (#3 in line): endor is held exclusively by #8606 "ss: Metal speed, sampled spec (27B, 35B; T0/0.7/1.0; off/mtp/match/reject; localeval speed-spec 1k/4k)" (claude-1943a70c); then in line behind #8611 "sampled-spec(dsv41): metal head+base release builds (requeued)" (claude-1943a70c) on endor
+fleetq:   #8606 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8606 set, or it will wait for #8606 to be released.
+fleetq: #8616 waiting (#2 in line): in line behind #8613 "flip-metal-mtp: prefill ABAB (MTP default vs off) + no-op gates main vs branch" (claude-1943a70c) on endor
+fleetq:   #8613 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8613 set, or it will wait for #8613 to be released.
+fleetq: #8616 waiting (#1 in line): endor is held exclusively by #8613 "flip-metal-mtp: prefill ABAB (MTP default vs off) + no-op gates main vs branch" (claude-1943a70c)
+fleetq:   #8613 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8613 set, or it will wait for #8613 to be released.
+fleetq: #8616 running on endor: scripts/bm/metal-noop.sh
+== build base 19:55:56
+    Finished `release` profile [optimized] target(s) in 20.92s
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+== build dev 19:56:50
+    Finished `release` profile [optimized] target(s) in 19.67s
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 35 short: identical (256 ids, sha 311ec3d6)
+ids 35 4k: identical (256 ids, sha 59a73d6c)
+plan 35 json: byte-identical (11384 B)
+plan 35 txt: byte-identical (2762 B)
+== kernels test metal 19:57:43
+matmul_nvfp4   matmul_nvfp4_gemv_rows         18      0    1.330e-3    2.214e-5  ADMITTED
+moe_experts    moe_experts_bf16_rows           2      0     0.000e0     0.000e0  ADMITTED
+49 kernels, 980 cases in 32.4s
+== goldens 19:58:16
+qwen3-8b-fp32 exit 0
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+qwen3-8b-long-fp32 exit 0
+greedy-match [decode (teacher-forced)]: mean 100.0% of positions before the first argmax divergence, worst prompt 100.0% (informational)
+
+floor verdict (class thresholds, absolute): PASS   baseline verdict: not requested
+golden gate: PASS
+== ids solo-off 19:58:34
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/metal/ids-solo-off.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== ids bmtp4 19:58:54
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/metal/ids-bmtp4.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 36
+intarsia_spec_accepted_tokens_total 26
+== ids bver5 19:59:13
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/metal/ids-bver5.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 254
+intarsia_spec_accepted_tokens_total 197
+== ids plain8 19:59:30
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/metal/ids-plain8.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+ids-bmtp4.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-bver5.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-plain8.json identical per sequence: [True, True, True, True, True, True] ALL
+== speed 19:59:42
+== round 1 arm plain 19:59:42
+bm-metal-plain-r1: - result file: `results/20261105-195949-adhoc-bm-metal-plain-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-195949-adhoc-bm-metal-plain-r1/result.json 
+[localeval] 1 streams: aggregate 111.1 tok/s
+[localeval] 2 streams: aggregate 166.0 tok/s
+[localeval] 4 streams: aggregate 231.2 tok/s
+[localeval] 8 streams: aggregate 292.1 tok/s
+== round 1 arm bmtp1 20:00:15
+bm-metal-bmtp1-r1: - result file: `results/20261105-200027-adhoc-bm-metal-bmtp1-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-200027-adhoc-bm-metal-bmtp1-r1/result.json 
+[localeval] 1 streams: aggregate 129.6 tok/s
+[localeval] 2 streams: aggregate 163.0 tok/s
+[localeval] 4 streams: aggregate 223.7 tok/s
+[localeval] 8 streams: aggregate 287.8 tok/s
+== round 1 arm bver5 20:00:52
+bm-metal-bver5-r1: - result file: `results/20261105-200105-adhoc-bm-metal-bver5-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-200105-adhoc-bm-metal-bver5-r1/result.json 
+[localeval] 1 streams: aggregate 137.7 tok/s
+[localeval] 2 streams: aggregate 170.2 tok/s
+[localeval] 4 streams: aggregate 173.3 tok/s
+[localeval] 8 streams: aggregate 281.7 tok/s
+== round 2 arm bver5 20:01:31
+bm-metal-bver5-r2: - result file: `results/20261105-200143-adhoc-bm-metal-bver5-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-200143-adhoc-bm-metal-bver5-r2/result.json 
+[localeval] 1 streams: aggregate 140.6 tok/s
+[localeval] 2 streams: aggregate 166.1 tok/s
+[localeval] 4 streams: aggregate 175.6 tok/s
+[localeval] 8 streams: aggregate 280.0 tok/s
+== round 2 arm bmtp1 20:02:09
+bm-metal-bmtp1-r2: - result file: `results/20261105-200222-adhoc-bm-metal-bmtp1-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-200222-adhoc-bm-metal-bmtp1-r2/result.json 
+[localeval] 1 streams: aggregate 127.7 tok/s
+[localeval] 2 streams: aggregate 162.4 tok/s
+[localeval] 4 streams: aggregate 227.4 tok/s
+[localeval] 8 streams: aggregate 293.8 tok/s
+== round 2 arm plain 20:02:47
+bm-metal-plain-r2: - result file: `results/20261105-200253-adhoc-bm-metal-plain-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-200253-adhoc-bm-metal-plain-r2/result.json 
+[localeval] 1 streams: aggregate 111.2 tok/s
+[localeval] 2 streams: aggregate 169.0 tok/s
+[localeval] 4 streams: aggregate 232.5 tok/s
+[localeval] 8 streams: aggregate 291.2 tok/s
+== done 20:03:19
+fleetq: #8616 done (exit 0)

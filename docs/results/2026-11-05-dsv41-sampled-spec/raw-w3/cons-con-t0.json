@@ -1,0 +1,146 @@
+[
+ {
+  "i": 0,
+  "tokens": 75,
+  "wall_s": 1.75,
+  "tps_wall": 43.0,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marta Voss\", \"age\": 71, \"tags\": [\"keeps a logbook of every ship she sees\", \"collects sea glass in old jam jars\", \"still wakes at 4 a.m. to check the light\"], \"address\": {\"city\": \"Bod\u00f8\", \"zip\": \"8006\"}}"
+ },
+ {
+  "i": 1,
+  "tokens": 58,
+  "wall_s": 1.27,
+  "tps_wall": 45.5,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Maya Chen\", \"age\": 21, \"tags\": [\"builds battle bots\", \"sleeps 4 hours\", \"solders in dorm\"], \"address\": {\"city\": \"Pasadena\", \"zip\": \"91106\"}}"
+ },
+ {
+  "i": 2,
+  "tokens": 55,
+  "wall_s": 1.27,
+  "tps_wall": 43.4,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Curtis Vale\", \"age\": 67, \"tags\": [\"blind since birth\", \"plays by ear only\", \"mentors street kids\"], \"address\": {\"city\": \"New Orleans\", \"zip\": \"70119\"}}"
+ },
+ {
+  "i": 3,
+  "tokens": 59,
+  "wall_s": 1.25,
+  "tps_wall": 47.1,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marguerite \\\"Margo\\\" Okafor\", \"age\": 47, \"tags\": [\"night-owl\", \"unflappable\", \"crossword addict\"], \"address\": {\"city\": \"Lagos\", \"zip\": \"101233\"}}"
+ },
+ {
+  "i": 4,
+  "tokens": 57,
+  "wall_s": 1.28,
+  "tps_wall": 44.5,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marguerite Okafor\", \"age\": 34, \"tags\": [\"lamination perfectionist\", \"cinnamon-obsessed\", \"early riser\"], \"address\": {\"city\": \"Lyon\", \"zip\": \"69002\"}}"
+ },
+ {
+  "i": 5,
+  "tokens": 60,
+  "wall_s": 1.29,
+  "tps_wall": 46.6,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Dr. Elin Vasquez\", \"age\": 41, \"tags\": [\"ice-core specialist\", \"Antarctic field veteran\", \"climate data archivist\"], \"address\": {\"city\": \"Reykjavik\", \"zip\": \"101\"}}"
+ },
+ {
+  "i": 6,
+  "tokens": 54,
+  "wall_s": 1.12,
+  "tps_wall": 48.0,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marisol Vega\", \"age\": 29, \"tags\": [\"fixed-gear purist\", \"rain-proof\", \"knows every alley\"], \"address\": {\"city\": \"San Francisco\", \"zip\": \"94110\"}}"
+ },
+ {
+  "i": 7,
+  "tokens": 75,
+  "wall_s": 1.65,
+  "tps_wall": 45.5,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marta Kowalski\", \"age\": 47, \"tags\": [\"demonstrates reactions with a fire extinguisher nearby\", \"keeps a drawer of confiscated fidget spinners\", \"bakes molarity-themed cupcakes for finals week\"], \"address\": {\"city\": \"Riverton\", \"zip\": \"60512\"}}"
+ },
+ {
+  "i": 8,
+  "tokens": 64,
+  "wall_s": 1.36,
+  "tps_wall": 46.9,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marta Voss\", \"age\": 47, \"tags\": [\"20-year harbour veteran\", \"reads tides like sheet music\", \"unflappable in fog\"], \"address\": {\"city\": \"Halifax\", \"zip\": \"B3H 1A1\"}}"
+ },
+ {
+  "i": 9,
+  "tokens": 61,
+  "wall_s": 1.31,
+  "tps_wall": 46.7,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marguerite Osei\", \"age\": 58, \"tags\": [\"third-generation luthier\", \"obsessed with varnish chemistry\", \"hums Bach while carving\"], \"address\": {\"city\": \"Cremona\", \"zip\": \"26100\"}}"
+ },
+ {
+  "i": 10,
+  "tokens": 75,
+  "wall_s": 1.72,
+  "tps_wall": 43.5,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marta Voss\", \"age\": 71, \"tags\": [\"keeps a logbook of every ship she sees\", \"collects sea glass in old jam jars\", \"still wakes at 4 a.m. to check the light\"], \"address\": {\"city\": \"Bod\u00f8\", \"zip\": \"8006\"}}"
+ },
+ {
+  "i": 11,
+  "tokens": 58,
+  "wall_s": 1.27,
+  "tps_wall": 45.6,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Maya Chen\", \"age\": 21, \"tags\": [\"builds battle bots\", \"sleeps 4 hours\", \"solders in dorm\"], \"address\": {\"city\": \"Pasadena\", \"zip\": \"91106\"}}"
+ },
+ {
+  "i": 12,
+  "tokens": 55,
+  "wall_s": 1.27,
+  "tps_wall": 43.5,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Curtis Vale\", \"age\": 67, \"tags\": [\"blind since birth\", \"plays by ear only\", \"mentors street kids\"], \"address\": {\"city\": \"New Orleans\", \"zip\": \"70119\"}}"
+ },
+ {
+  "i": 13,
+  "tokens": 59,
+  "wall_s": 1.27,
+  "tps_wall": 46.6,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marguerite \\\"Margo\\\" Okafor\", \"age\": 47, \"tags\": [\"night-owl\", \"unflappable\", \"crossword addict\"], \"address\": {\"city\": \"Lagos\", \"zip\": \"101233\"}}"
+ },
+ {
+  "i": 14,
+  "tokens": 57,
+  "wall_s": 1.28,
+  "tps_wall": 44.6,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marguerite Okafor\", \"age\": 34, \"tags\": [\"lamination perfectionist\", \"cinnamon-obsessed\", \"early riser\"], \"address\": {\"city\": \"Lyon\", \"zip\": \"69002\"}}"
+ },
+ {
+  "i": 15,
+  "tokens": 60,
+  "wall_s": 1.3,
+  "tps_wall": 46.2,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Dr. Elin Vasquez\", \"age\": 41, \"tags\": [\"ice-core specialist\", \"Antarctic field veteran\", \"climate data archivist\"], \"address\": {\"city\": \"Reykjavik\", \"zip\": \"101\"}}"
+ }
+]

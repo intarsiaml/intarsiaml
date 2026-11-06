@@ -1,0 +1,6 @@
+plan show json identical
+ids short identical
+ids 4k identical
+sampled main:  | spec: verify passes=0 proposed=0 accepted=0 (acceptance 0.0%, 0.00 tokens per pass)
+sampled br: sampled requests (temperature > 0): speculation Match (default; single sequence, one rank) | spec: verify passes=42 proposed=84 accepted=52 (acceptance 61.9%, 2.24 tokens per pass)
+removed /home/nvidia/intarsiaml-ss

@@ -1,0 +1,12 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_vl, metal)
+lm_head quantised to fp8 (248320 rows x 5120, 1.27 GB, was bf16 2.54 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.7 s)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, metal; --mtp-draft-vocab 0 drafts with the full head)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (opt-in --mxfp4-act): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (--mxfp4-act)
+Error: loading /Users/josef/models/Qwen3.8-27B-Quark-AWQ-MXFP4
+
+Caused by:
+    no kernel for 1 op(s) of this model have no kernel on metal/applegpu_g17s:
+      - matmul_fp8: 2 shape(s) without a kernel, e.g. no kernel for matmul_fp8 on metal/applegpu_g17s (m=2 n=248320 k=5120 act=Some(Bf16) w=Some(Fp8E4m3)) [row-exact verify kernels only] (heads 0/0 head_dim 0 kv_len 0); needed by Verify t=2, Verify t=3

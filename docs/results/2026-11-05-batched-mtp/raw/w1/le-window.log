@@ -1,0 +1,133 @@
+fleetq: #8654 waiting (#5 in line): in line behind #8624 "dsv41/nccl-prefill: NCCL arms, cold all-reduce, Engram hot tier ABAB; vLLM restored after" (claude-1943a70c) on spark1
+fleetq:   #8624 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8624 set, or it will wait for #8624 to be released.
+fleetq: #8654 waiting (#4 in line): spark1 is held exclusively by #8624 "dsv41/nccl-prefill: NCCL arms, cold all-reduce, Engram hot tier ABAB; vLLM restored after" (claude-1943a70c); then in line behind #8636 "dsv41 sampled-spec window 3: constrained validity + retention 0.8; vLLM restored by run-full.sh" (claude-1943a70c) on spark1
+fleetq:   #8624 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8624 set, or it will wait for #8624 to be released.
+fleetq: #8654 waiting (#3 in line): spark1 is held exclusively by #8636 "dsv41 sampled-spec window 3: constrained validity + retention 0.8; vLLM restored by run-full.sh" (claude-1943a70c); then in line behind #8650 "lane-ds: generation-config defaults, equality + ABAB (35B, 4/16 streams)" (claude-1943a70c-ds) on spark1
+fleetq:   #8636 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8636 set, or it will wait for #8636 to be released.
+fleetq: #8654 waiting (#2 in line): in line behind #8652 "ss: CUDA 35B tp=1 sampled spec: builds, plan show, kernels --quick, greedy ids, localeval speed" (claude-1943a70c) on spark1
+fleetq:   #8652 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8652 set, or it will wait for #8652 to be released.
+fleetq: #8654 waiting (#1 in line): needs gpu quiet on spark1, but #8652 "ss: CUDA 35B tp=1 sampled spec: builds, plan show, kernels --quick, greedy ids, localeval speed" (claude-1943a70c) loads it
+fleetq:   #8652 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8652 set, or it will wait for #8652 to be released.
+fleetq: #8654 running on spark1: scripts/bm/le-window.sh w1 2 plain:bm::--max-batch_16 bmtp1:bm:INTARSIA_BATCHED_MTP=1:--max-batch_16_--spec_mtp_--spec-k_2 bver5:bm:INTARSIA_BATCHED_MTP=5,INTARSIA_BATCHED_VERIFY=1:--max-batch_16_--spec_mtp_--spec-k_2_--spec-off-at_9 bver8:bm:INTARSIA_BATCHED_MTP=8,INTARSIA_BATCHED_VERIFY=1:--max-batch_16_--spec_mtp_--spec-k_2_--spec-off-at_9
+== round 1 arm plain 20:28:16
+plain r1: MemAvailable 55415 MB with the server up
+bm-plain-r1: - result file: `results/20261105-202856-adhoc-bm-plain-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-202856-adhoc-bm-plain-r1/result.json 
+[localeval] 1 streams: aggregate 80.1 tok/s
+[localeval] 2 streams: aggregate 122.1 tok/s
+[localeval] 3 streams: aggregate 151.1 tok/s
+[localeval] 4 streams: aggregate 183.2 tok/s
+[localeval] 8 streams: aggregate 234.4 tok/s
+[localeval] 16 streams: aggregate 308.1 tok/s
+intarsia_spec_steps_total 0
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== round 1 arm bmtp1 20:29:50
+bmtp1 r1: MemAvailable 51319 MB with the server up
+bm-bmtp1-r1: - result file: `results/20261105-203038-adhoc-bm-bmtp1-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203038-adhoc-bm-bmtp1-r1/result.json 
+[localeval] 1 streams: aggregate 106.0 tok/s
+[localeval] 2 streams: aggregate 121.8 tok/s
+[localeval] 3 streams: aggregate 149.0 tok/s
+[localeval] 4 streams: aggregate 173.6 tok/s
+[localeval] 8 streams: aggregate 234.5 tok/s
+[localeval] 16 streams: aggregate 305.9 tok/s
+intarsia_spec_steps_total 462
+intarsia_spec_proposed_tokens_total 922
+intarsia_spec_accepted_tokens_total 562
+== round 1 arm bver5 20:31:29
+bver5 r1: MemAvailable 51312 MB with the server up
+bm-bver5-r1: - result file: `results/20261105-203217-adhoc-bm-bver5-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203217-adhoc-bm-bver5-r1/result.json 
+[localeval] 1 streams: aggregate 104.7 tok/s
+[localeval] 2 streams: aggregate 112.4 tok/s
+[localeval] 3 streams: aggregate 124.0 tok/s
+[localeval] 4 streams: aggregate 134.2 tok/s
+[localeval] 8 streams: aggregate 229.4 tok/s
+[localeval] 16 streams: aggregate 305.8 tok/s
+intarsia_spec_steps_total 1523
+intarsia_spec_proposed_tokens_total 3040
+intarsia_spec_accepted_tokens_total 1804
+== round 1 arm bver8 20:33:11
+bver8 r1: MemAvailable 51338 MB with the server up
+bm-bver8-r1: - result file: `results/20261105-203357-adhoc-bm-bver8-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203357-adhoc-bm-bver8-r1/result.json 
+[localeval] 1 streams: aggregate 103.0 tok/s
+[localeval] 2 streams: aggregate 111.2 tok/s
+[localeval] 3 streams: aggregate 125.3 tok/s
+[localeval] 4 streams: aggregate 142.4 tok/s
+[localeval] 8 streams: aggregate 137.1 tok/s
+[localeval] 16 streams: aggregate 311.7 tok/s
+intarsia_spec_steps_total 2433
+intarsia_spec_proposed_tokens_total 4855
+intarsia_spec_accepted_tokens_total 2949
+== round 1 arm bmtp1d 20:34:57
+bmtp1d r1: MemAvailable 51262 MB with the server up
+bm-bmtp1d-r1: - result file: `results/20261105-203539-adhoc-bm-bmtp1d-r1/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203539-adhoc-bm-bmtp1d-r1/result.json 
+[localeval] 1 streams: aggregate 98.1 tok/s
+[localeval] 2 streams: aggregate 123.0 tok/s
+[localeval] 3 streams: aggregate 151.3 tok/s
+[localeval] 4 streams: aggregate 173.6 tok/s
+[localeval] 8 streams: aggregate 230.4 tok/s
+[localeval] 16 streams: aggregate 304.0 tok/s
+intarsia_spec_steps_total 467
+intarsia_spec_proposed_tokens_total 933
+intarsia_spec_accepted_tokens_total 559
+== round 2 arm bmtp1d 20:36:30
+bmtp1d r2: MemAvailable 51295 MB with the server up
+bm-bmtp1d-r2: - result file: `results/20261105-203715-adhoc-bm-bmtp1d-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203715-adhoc-bm-bmtp1d-r2/result.json 
+[localeval] 1 streams: aggregate 95.4 tok/s
+[localeval] 2 streams: aggregate 121.4 tok/s
+[localeval] 3 streams: aggregate 151.4 tok/s
+[localeval] 4 streams: aggregate 173.7 tok/s
+[localeval] 8 streams: aggregate 232.5 tok/s
+[localeval] 16 streams: aggregate 303.2 tok/s
+intarsia_spec_steps_total 447
+intarsia_spec_proposed_tokens_total 891
+intarsia_spec_accepted_tokens_total 586
+== round 2 arm bver8 20:38:06
+bver8 r2: MemAvailable 51267 MB with the server up
+bm-bver8-r2: - result file: `results/20261105-203852-adhoc-bm-bver8-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-203852-adhoc-bm-bver8-r2/result.json 
+[localeval] 1 streams: aggregate 98.4 tok/s
+[localeval] 2 streams: aggregate 114.6 tok/s
+[localeval] 3 streams: aggregate 131.7 tok/s
+[localeval] 4 streams: aggregate 140.0 tok/s
+[localeval] 8 streams: aggregate 138.1 tok/s
+[localeval] 16 streams: aggregate 301.6 tok/s
+intarsia_spec_steps_total 2417
+intarsia_spec_proposed_tokens_total 4820
+intarsia_spec_accepted_tokens_total 2963
+== round 2 arm bver5 20:39:51
+bver5 r2: MemAvailable 51328 MB with the server up
+bm-bver5-r2: - result file: `results/20261105-204038-adhoc-bm-bver5-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-204038-adhoc-bm-bver5-r2/result.json 
+[localeval] 1 streams: aggregate 91.4 tok/s
+[localeval] 2 streams: aggregate 112.9 tok/s
+[localeval] 3 streams: aggregate 125.9 tok/s
+[localeval] 4 streams: aggregate 138.5 tok/s
+[localeval] 8 streams: aggregate 231.7 tok/s
+[localeval] 16 streams: aggregate 305.0 tok/s
+intarsia_spec_steps_total 1513
+intarsia_spec_proposed_tokens_total 3020
+intarsia_spec_accepted_tokens_total 1818
+== round 2 arm bmtp1 20:41:32
+bmtp1 r2: MemAvailable 51326 MB with the server up
+bm-bmtp1-r2: - result file: `results/20261105-204216-adhoc-bm-bmtp1-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-204216-adhoc-bm-bmtp1-r2/result.json 
+[localeval] 1 streams: aggregate 99.4 tok/s
+[localeval] 2 streams: aggregate 122.7 tok/s
+[localeval] 3 streams: aggregate 150.8 tok/s
+[localeval] 4 streams: aggregate 174.2 tok/s
+[localeval] 8 streams: aggregate 228.8 tok/s
+[localeval] 16 streams: aggregate 307.3 tok/s
+intarsia_spec_steps_total 461
+intarsia_spec_proposed_tokens_total 921
+intarsia_spec_accepted_tokens_total 560
+== round 2 arm plain 20:43:07
+plain r2: MemAvailable 55392 MB with the server up
+bm-plain-r2: - result file: `results/20261105-204349-adhoc-bm-plain-r2/result.json` [localeval] saved /opt/code/deepeval/results/20261105-204349-adhoc-bm-plain-r2/result.json 
+[localeval] 1 streams: aggregate 80.3 tok/s
+[localeval] 2 streams: aggregate 122.8 tok/s
+[localeval] 3 streams: aggregate 157.5 tok/s
+[localeval] 4 streams: aggregate 173.6 tok/s
+[localeval] 8 streams: aggregate 234.7 tok/s
+[localeval] 16 streams: aggregate 305.4 tok/s
+intarsia_spec_steps_total 0
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== done 20:44:43
+fleetq: #8654 done (exit 0)

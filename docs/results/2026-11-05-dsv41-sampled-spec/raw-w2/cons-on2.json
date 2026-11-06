@@ -1,0 +1,74 @@
+[
+ {
+  "i": 0,
+  "tokens": 61,
+  "wall_s": 1.77,
+  "tps_wall": 34.5,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Elias Thorn\", \"age\": 71, \"tags\": [\"salt-weathered\", \"keeps a logbook still\", \"talks to gulls\"], \"address\": {\"city\": \"Porthallow\", \"zip\": \"TR12 6LH\"}}"
+ },
+ {
+  "i": 1,
+  "tokens": 56,
+  "wall_s": 1.27,
+  "tps_wall": 44.1,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Priya Raman\", \"age\": 21, \"tags\": [\"tinkerer\", \"control-theory nerd\", \"solder-scented\"], \"address\": {\"city\": \"Chennai\", \"zip\": \"600036\"}}"
+ },
+ {
+  "i": 2,
+  "tokens": 58,
+  "wall_s": 1.41,
+  "tps_wall": 41.2,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Mireille Fontaine\", \"age\": 34, \"tags\": [\"plays with eyes closed\", \"collects antique sheet music\", \"late-night diner regular\"], \"address\": {\"city\": \"New Orleans\", \"zip\": \"70116\"}}"
+ },
+ {
+  "i": 3,
+  "tokens": 65,
+  "wall_s": 1.55,
+  "tps_wall": 41.9,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marguerite \\\"Margo\\\" Delacroix\", \"age\": 47, \"tags\": [\"logs 14 time zones\", \"keeps a paper map\", \"sleeps in hotel gyms\"], \"address\": {\"city\": \"Lyon\", \"zip\": \"69003\"}}"
+ },
+ {
+  "i": 4,
+  "tokens": 62,
+  "wall_s": 1.47,
+  "tps_wall": 42.3,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marguerite Osei\", \"age\": 34, \"tags\": [\"lamination perfectionist\", \"crack-of-dawn croissant runs\", \"cocoa-dusted fingertips\"], \"address\": {\"city\": \"Lyon\", \"zip\": \"69002\"}}"
+ },
+ {
+  "i": 5,
+  "tokens": 60,
+  "wall_s": 1.42,
+  "tps_wall": 42.3,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Dr. Elin Vasquez\", \"age\": 41, \"tags\": [\"ice-core specialist\", \"Antarctic field veteran\", \"climate data archivist\"], \"address\": {\"city\": \"Troms\u00f8\", \"zip\": \"9008\"}}"
+ },
+ {
+  "i": 6,
+  "tokens": 52,
+  "wall_s": 1.18,
+  "tps_wall": 44.2,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Marisol Vega\", \"age\": 29, \"tags\": [\"night-owl\", \"fixie-purist\", \"rainproof\"], \"address\": {\"city\": \"Portland\", \"zip\": \"97209\"}}"
+ },
+ {
+  "i": 7,
+  "tokens": 74,
+  "wall_s": 1.91,
+  "tps_wall": 38.8,
+  "valid": true,
+  "finish": "stop",
+  "text": "{\"name\": \"Dolores Vance\", \"age\": 51, \"tags\": [\"demonstrates reactions with a fire extinguisher on her desk\", \"keeps a shelf of student mugs labeled by element\", \"quotes safety rules like scripture\"], \"address\": {\"city\": \"Tacoma\", \"zip\": \"98405\"}}"
+ }
+]

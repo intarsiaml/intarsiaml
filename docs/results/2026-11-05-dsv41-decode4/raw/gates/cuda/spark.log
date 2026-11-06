@@ -1,0 +1,9 @@
+cc47e4352 dirty=no 1105-1605
+               total        used        free      shared  buff/cache   available
+Mem:             121          43          56           0          23          78
+plan 35b exit 0
+plan 35b json exit 0
+plan 8b exit 0
+plan 8b json exit 0
+kernels exit 0
+REMOTE_DONE

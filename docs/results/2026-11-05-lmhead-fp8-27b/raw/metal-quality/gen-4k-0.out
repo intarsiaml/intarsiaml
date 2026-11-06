@@ -1,0 +1,12 @@
+
+
+<think>
+The user wants me to summarize the IntarsiaML architecture plan document section by section, then list its open questions. Let me go through the document carefully.
+
+The document is a v0.2 architecture plan for "IntarsiaML" - a modular LLM inference engine. Let me identify the sections:
+
+1. Section 0: Goals, honest targets, anti-goals
+2. Section 1: Language and build
+3. Section 2: System overview
+4. Section 3: (implied by the status table - backend trait, kernel registry, etc.)
+5. Section
