@@ -15,7 +15,7 @@ O=$REPO/docs/results/2026-11-05-pb-packed-bitid/raw; mkdir -p $O
 M35=/home/nvidia/.cache/huggingface/hub/models--nvidia--Qwen3.6-35B-A3B-NVFP4/snapshots/1355db6a052410cfd62085d94b58866fd0f2c3c5
 RPATH='export PATH=$HOME/.cargo/bin:/usr/local/cuda/bin:$PATH;'
 rsh() { ssh -n -o BatchMode=yes $HOST "$RPATH export FLEETQ_JOB=$FLEETQ_JOB; $*"; }
-DISABLE=moe_experts_mma_bf16,moe_experts_w4a16_bf16
+DISABLE=moe_experts_mma_bf16  # moe_experts_w4a16_bf16 serves from 768 rows: above every probe total
 PROBE_ENVS=${PROBE_ENVS:-"INTARSIA_PACK_MIN_ROWS=16;INTARSIA_PACK_MIN_ROWS=16 INTARSIA_CUDA_DISABLE=$DISABLE;"}
 SPID=""
 stop() { [[ -n "$SPID" ]] && { rsh "kill $SPID; for i in \$(seq 1 15); do kill -0 $SPID 2>/dev/null || exit 0; sleep 1; done; kill -9 $SPID"; SPID=""; }; }
@@ -47,7 +47,7 @@ serve)
       SPID=$(rsh "nohup env INTARSIA_CB_TRACE=1 ${SERVE_ENV:-} $B serve --backend cuda --model $M35 --port $PORT --host 0.0.0.0 --served-model-name m --max-seq 8192 --mem-budget 40 --profile-every 0 --max-batch 16 > ~/intarsiaml-pb/out/serve-$name.log 2>&1 < /dev/null & echo \$!")
       up=0; for i in $(seq 1 150); do curl -sf http://$HN:$PORT/health >/dev/null && { up=1; break; }; sleep 2; done
       [[ $up == 1 ]] && python3 $REPO/scripts/pb/ids.py http://$HN:$PORT/v1 m $O/ids-$name.json 6
-      curl -sf http://$HN:$PORT/metrics | grep -E '^intarsia_(pack|prefill)' > $O/metrics-$name.txt
+      curl -sf http://$HN:$PORT/metrics | grep -E '^intarsia_batch_(pack|packed|prefill)' > $O/metrics-$name.txt
       stop
       rsh "cat ~/intarsiaml-pb/out/serve-$name.log" > $O/serve-$name.log
       [[ $up == 1 ]] || { echo "server $name did not come up"; tail -5 $O/serve-$name.log; continue; }
@@ -57,7 +57,7 @@ a, b = (json.load(open(p)) for p in sys.argv[1:3])
 same = [x == y for x, y in zip(a, b)]
 print(sys.argv[2].split('/')[-1], "identical per sequence:", same, "ALL" if all(same) and len(a) == len(b) else "MISMATCH")
 PY
-      grep -aE "cb-trace.*(Admitted|Chunk)" $O/serve-$name.log | head -16
+      python3 $REPO/scripts/pb/packs.py $O/serve-$name.log 15:p0/p4 103:p1 17:p2 201:p3 82:p5 | tee $O/packs-$name.txt
     done
   done
   ;;
