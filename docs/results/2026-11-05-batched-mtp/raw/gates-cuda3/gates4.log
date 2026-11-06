@@ -1,0 +1,21 @@
+== ids plain16-main-r2 19:13:16
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda3/ids-plain16-main-r2.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== ids plain16-main-r3 19:14:06
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda3/ids-plain16-main-r3.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== ids plain16-main-r4 19:14:58
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda3/ids-plain16-main-r4.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== ids plain16-r2 19:15:44
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/gates-cuda3/ids-plain16-r2.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+ids-plain16-main-r2.json identical per sequence: [True, True, False, True, True, True] MISMATCH
+ids-plain16-main-r3.json identical per sequence: [True, True, True, True, True, True] ALL
+ids-plain16-main-r4.json identical per sequence: [True, True, False, True, True, True] MISMATCH
+ids-plain16-r2.json identical per sequence: [True, True, False, True, True, True] MISMATCH
+== done 19:16:30

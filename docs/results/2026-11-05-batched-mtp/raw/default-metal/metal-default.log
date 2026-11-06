@@ -1,0 +1,40 @@
+fleetq: #8699 waiting (#6 in line): endor is held exclusively by #8670 "pf (cuda-pack-flip): Metal no-op vs main + cargo test --workspace" (claude-1943a70c); then in line behind #8674 "ss: Metal speed round 2 (reverse order)" (claude-1943a70c) on endor
+fleetq:   #8670 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8670 set, or it will wait for #8670 to be released.
+fleetq: #8699 waiting (#5 in line): endor is held exclusively by #8674 "ss: Metal speed round 2 (reverse order)" (claude-1943a70c); then in line behind #8686 "lmhead-fp8: Metal 27B fp8-head quality re-run after rows_ok K=5120 fix" (claude-1943a70c-lh) on endor
+fleetq:   #8674 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8674 set, or it will wait for #8674 to be released.
+fleetq: #8699 waiting (#3 in line): in line behind #8695 "lmhead-fp8: cargo test --workspace --no-fail-fast (rerun after mtp.rs literal fix)" (claude-1943a70c-lh) on endor
+fleetq: #8699 waiting (#2 in line): in line behind #8696 "lane-ds: Metal no-op (plan show, kernels test, greedy ids, goldens) main vs branch" (claude-1943a70c-ds) on endor
+fleetq: #8699 waiting (#1 in line): endor is held exclusively by #8696 "lane-ds: Metal no-op (plan show, kernels test, greedy ids, goldens) main vs branch" (claude-1943a70c-ds)
+fleetq: #8699 running on endor: scripts/bm/metal-default.sh
+== build base 22:23:39
+    Finished `release` profile [optimized] target(s) in 12.63s
+[noop] base 8 short:      256 ids
+[noop] base 8 4k:      256 ids
+[noop] base 35 short:      256 ids
+[noop] base 35 4k:      256 ids
+== build dev 22:24:34
+    Finished `release` profile [optimized] target(s) in 12.67s
+[noop] dev 8 short:      256 ids
+[noop] dev 8 4k:      256 ids
+[noop] dev 35 short:      256 ids
+[noop] dev 35 4k:      256 ids
+ids 8 short: identical (256 ids, sha d619ede5)
+ids 8 4k: identical (256 ids, sha feb11f5c)
+plan 8 json: byte-identical (8371 B)
+plan 8 txt: byte-identical (1342 B)
+ids 27B short: identical (256 ids, sha 23616218)
+ids 27B 4k: identical (256 ids, sha a5975325)
+plan 27B json: byte-identical (14784 B)
+plan 27B txt: byte-identical (3263 B)
+== ids solo-off 22:25:28
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/default-metal/ids-solo-off.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 0
+intarsia_spec_accepted_tokens_total 0
+== ids mtp8-default 22:25:50
+/opt/code/intarsiaml/.worktrees/batched-mtp/docs/results/2026-11-05-batched-mtp/raw/default-metal/ids-mtp8-default.json [256, 192, 256, 160, 224, 200]
+intarsia_spec_proposed_tokens_total 2
+intarsia_spec_accepted_tokens_total 1
+batched MTP N=1 (recipe qwen3_5_moe, [tuning.metal] batched_mtp): a sequence drafts while at most 1 sequences decode; INTARSIA_BATCHED_MTP=0 turns it off
+ids-mtp8-default.json identical per sequence: [True, True, True, True, True, True] ALL
+== done 22:26:08
+fleetq: #8699 done (exit 0)

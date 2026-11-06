@@ -1,0 +1,13 @@
+--spec mtp --spec-k 2: the default of recipe qwen3_5_vl on metal at tp=1 ([tuning.metal] mtp_default_k; --spec off or INTARSIA_SPEC_DEFAULT=0 turns it off)
+prefill chunk 2048 (recipe qwen3_5_vl, metal)
+mtp: drafter head 'mtp' loaded in 0.0 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, metal; --mtp-draft-vocab 0 drafts with the full head)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (opt-in --mxfp4-act): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (--mxfp4-act)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16 silu_glu=silu_glu_bf16 rmsnorm_add=rmsnorm_add_bf16 gate_split=gate_split_bf16 qk_norm_rope_kv=qk_norm_rope_kv_bf16 attn_prefill=attn_prefill_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_nax add=add_bf16 matmul_pair=matmul_pair_bf16_nax attn_prefill=attn_prefill_bf16_flash_nax logits=logits_bf16_gemv argmax=argmax_f32 logits=logits_bf16_gemv_rows
+loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on Apple M5 Max in 0.5s: 64 layers, hidden 5120, act bf16, kv bf16, weights 18.88 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 4336 tokens
+ids: [271, 1919, 369, 264, 27044, 11, 1496, 1284, 24900, 10597, 2128, 13, 1049, 15339, 1040, 264, 328, 37116, 1433, 1, 364, 264, 3050, 11436, 76035, 20619, 318, 24531, 47614, 2074, 383, 23547, 423, 24, 22, 15, 15, 82, 553, 561, 4237, 1647, 369, 48834, 11, 22825, 11, 321, 32530, 16421, 383, 279, 6396, 8396, 279, 2193, 314, 279, 328, 36597, 1, 318, 64, 3050, 4257, 8602, 466, 9064, 553, 271, 8160, 369, 264, 8751, 3286, 314, 279, 2128, 11, 10548, 1441, 539, 1092, 4138, 11, 1092, 369, 7234, 11, 321, 1092, 369, 7167, 13, 271, 13962, 220, 16, 13, 3437, 369, 28041, 2747, 286, 271, 332, 32, 13, 561, 328, 40912, 1, 34906, 369, 49795, 19628, 321, 9815, 7415, 26167, 286, 332, 198, 760, 1379, 15506, 12523, 314]
+finish=length prompt=4336 (cached 0) completion=128 | prefill 5126 ms (845.9 tok/s) | decode 3634 ms (34.94 tok/s)
+spec: verify passes=51 proposed=102 accepted=75 (acceptance 73.5%, 2.47 tokens per pass)
+steps=56 graph replays=0 (captures 0) eager decode steps=2 (profiled 0) top ops: add=0ms/107 argmax=0ms/155 attn_decode=0ms/92 attn_prefill=0ms/906 embedding=0ms/163

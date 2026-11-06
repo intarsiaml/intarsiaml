@@ -1,0 +1,49 @@
+[localeval] calibrated: 22.1 tokens/sentence, 49 base tokens, ctx=20480
+[localeval]   1024 tok rep 1/3: prompt=989 ttft=0.38s prefill=2629 tok/s decode=36.2 tok/s peak=38.7 tok/s out=128
+[localeval]   1024 tok rep 2/3: prompt=991 ttft=0.34s prefill=2932 tok/s decode=35.8 tok/s peak=38.9 tok/s out=128
+[localeval]   1024 tok rep 3/3: prompt=990 ttft=0.34s prefill=2927 tok/s decode=35.8 tok/s peak=38.7 tok/s out=128
+[localeval]   4096 tok rep 1/3: prompt=4089 ttft=1.42s prefill=2882 tok/s decode=35.2 tok/s peak=38.1 tok/s out=128
+[localeval]   4096 tok rep 2/3: prompt=4085 ttft=1.43s prefill=2863 tok/s decode=35.3 tok/s peak=38.3 tok/s out=128
+[localeval]   4096 tok rep 3/3: prompt=4091 ttft=1.40s prefill=2915 tok/s decode=35.1 tok/s peak=38.0 tok/s out=128
+[localeval]  16384 tok rep 1/3: prompt=16657 ttft=6.47s prefill=2575 tok/s decode=33.8 tok/s peak=35.9 tok/s out=128
+[localeval]  16384 tok rep 2/3: prompt=16659 ttft=6.39s prefill=2606 tok/s decode=33.3 tok/s peak=35.6 tok/s out=128
+[localeval]  16384 tok rep 3/3: prompt=16652 ttft=6.44s prefill=2584 tok/s decode=33.5 tok/s peak=35.8 tok/s out=128
+# localeval: adhoc — 2026-11-05T18:49
+
+- model: `qwen38-27b` on ? (?), url `http://tatooine:8297/v1`
+- thinking: off; run kind: speed; label: lmh-w2-head.fp8.1.off.1-4
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval speed --url http://tatooine:8297/v1 --model qwen38-27b --thinking off --sizes 1024,4096,16384 --gen 128 --reps 3 --label lmh-w2-head.fp8.1.off.1-4 --recipe intarsia serve (lane lmhead-fp8) head q=fp8 tp=1 spec=off mb=1 --wait-idle 60`
+- result file: `results/20261105-184944-adhoc-lmh-w2-head.fp8.1.off.1-4/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+intarsia serve (lane lmhead-fp8) head q=fp8 tp=1 spec=off mb=1
+````
+
+## Speed sweep
+
+served `qwen38-27b`, fingerprint `None`, ctx 20480, 3 reps, 128 forced output tokens
+
+| prompt tok | TTFT s | prefill tok/s | marginal prefill | decode tok/s | peak decode | server prefill | server decode | out tok |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 990 | 0.34 | 2927 (2629–2932) * | - | 35.8 (35.8–36.2) | 38.7 (38.7–38.9) | - | - | 128 |
+| 4089 | 1.42 | 2882 (2863–2915) | 2867 | 35.2 (35.1–35.3) | 38.1 (38.0–38.3) | - | - | 128 |
+| 16657 | 6.45 | 2584 (2575–2606) | 2501 | 33.5 (33.3–33.8) | 35.8 (35.6–35.9) | - | - | 128 |
+
+\* under 1024 uncached prompt tokens: TTFT is per-request overhead, not prefill throughput.
+
+Marginal prefill = Δprompt tokens / ΔTTFT from the previous row; fixed request overhead cancels, so it is the cleanest prefill throughput figure.
+
+Peak decode = fastest 32-token stretch of each call (burst speed, e.g. a run of accepted speculative drafts); median and range over reps. '-' = older run or output too short.
+
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261105-184944-adhoc-lmh-w2-head.fp8.1.off.1-4/result.json
+[localeval] logged to unanimis: 80d1ea2d-4187-4793-962c-af5bab31c949

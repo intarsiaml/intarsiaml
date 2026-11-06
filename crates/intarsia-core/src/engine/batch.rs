@@ -19,6 +19,7 @@ use std::time::Instant;
 use serde_json::Value;
 
 use super::{
+    Prep,
     build_info, report_done, report_error, ChatOpts, Engine, EngineMeta, FinishReason, GenEvent, GenRequest, ModelInfo,
     ScriptStep, Seq, SeqEnv, TextCodec,
 };
@@ -33,6 +34,23 @@ use crate::telemetry::{Telemetry, TelemetrySnapshot};
 
 /// Prefill chunk used while other sequences decode (design 8.1: 256 while others decode, the model's chunk alone).
 pub const BUSY_PREFILL_CHUNK: usize = 256;
+
+/// `INTARSIA_BATCHED_MTP=N` (lane bm, opt-in): `--spec mtp` with `--max-batch` > 1, drafting while at most `N` sequences decode
+/// ([`BatchedOptions::mtp_max_b`]). Unset, empty or `0`: off (`--spec mtp` stays refused with the batching engine).
+pub fn batched_mtp_env() -> Result<usize> {
+    Ok(batched_mtp_env_opt()?.unwrap_or(0))
+}
+
+/// [`batched_mtp_env`], `None` when the variable is unset or empty (the recipe's `[tuning.<backend>] batched_mtp` default then applies).
+pub fn batched_mtp_env_opt() -> Result<Option<usize>> {
+    match std::env::var("INTARSIA_BATCHED_MTP") {
+        Err(_) => Ok(None),
+        Ok(v) if v.is_empty() => Ok(None),
+        Ok(v) => v.parse::<usize>().ok().filter(|&n| n <= MAX_BATCH_CAP).map(Some).ok_or_else(|| {
+            Error::invalid(format!("INTARSIA_BATCHED_MTP={v}: a sequence count 0..={MAX_BATCH_CAP} (draft while at most that many decode)"))
+        }),
+    }
+}
 
 /// Knobs of [`BatchedEngine::new`].
 #[derive(Clone, Debug)]
@@ -70,6 +88,12 @@ pub struct BatchedOptions {
     /// A packed pass takes at most half of the waiting prompts (default on, `INTARSIA_PACK_HALF=0` off); see
     /// [`SchedulerConfig::pack_half`].
     pub pack_half: bool,
+    /// Batched MTP speculation (lane bm, opt-in, [`batched_mtp_env`]): `--spec mtp` drafts while at most this many sequences
+    /// decode (and `spec_off_at` allows it); wider steps run plain batched decode. 0: `--spec mtp` is refused here (the default).
+    pub mtp_max_b: usize,
+    /// Lane bm phase B (`INTARSIA_BATCHED_VERIFY=1`, opt-in): with batched MTP, the sequences that draft in a step verify in ONE
+    /// ragged pass (`Model::forward_verify_batch`) instead of one solo pass each.
+    pub batched_verify: bool,
     /// Tests only: start the scheduler thread held, so that a whole workload is submitted before its first iteration admits
     /// anything (see [`BatchedEngine::release`]). Always false from [`BatchedOptions::new`].
     #[doc(hidden)]
@@ -113,6 +137,8 @@ impl BatchedOptions {
             pack_prefill: std::env::var("INTARSIA_PACK_PREFILL").ok().map(|v| v == "1"),
             pack_rows: std::env::var("INTARSIA_PACK_ROWS").ok().and_then(|v| v.parse().ok()).unwrap_or(PACK_ROWS_DEFAULT),
             pack_half: std::env::var("INTARSIA_PACK_HALF").map(|v| v != "0").unwrap_or(true),
+            mtp_max_b: 0,
+            batched_verify: env("INTARSIA_BATCHED_VERIFY"),
             hold_start: false,
         }
     }
@@ -129,6 +155,8 @@ pub(crate) struct SlotModel {
     row_fault: Option<(usize, usize, u32)>,
     /// The prefill chunk running in the background (`BatchModel::prefill_begin`), if any.
     inflight: Option<Inflight>,
+    /// Lane bm phase B: drafting sequences verify in one batched pass ([`BatchModel::verify_step`]).
+    batched_verify: bool,
 }
 
 /// A prefill chunk on its own thread. The slot's state travels with it (a placeholder holds the slot meanwhile) and comes back
@@ -275,7 +303,7 @@ impl BatchModel for SlotModel {
         }
     }
     fn pack_min_rows(&self) -> usize {
-        Model::PACK_MIN_ROWS
+        self.model.pack_min_rows()
     }
     fn pack_whole_prompts(&self) -> bool {
         self.model.backend.pack_split_gemms()
@@ -321,6 +349,45 @@ impl BatchModel for SlotModel {
         }
         Ok(out)
     }
+    fn batched_verify(&self) -> bool {
+        self.batched_verify
+    }
+
+    fn verify_step(&mut self, rows: &[(usize, Vec<u32>)]) -> Result<Vec<Result<Vec<u32>>>> {
+        let m: &Model = &self.model;
+        let mut by_slot: Vec<Option<&mut SequenceState>> = self.states.iter_mut().map(Some).collect();
+        let mut refs: Vec<&mut SequenceState> = Vec::with_capacity(rows.len());
+        for (slot, _) in rows {
+            refs.push(
+                by_slot
+                    .get_mut(*slot)
+                    .and_then(Option::take)
+                    .ok_or_else(|| Error::Other(format!("verify row names slot {slot} twice or out of range")))?,
+            );
+        }
+        // passes of at most `cap` rows (the workspace and the head's logits rows), sequences in order
+        let cap = Model::VERIFY_MAX_ROWS.min(m.ws_rows());
+        let mut out: Vec<Result<Vec<u32>>> = Vec::with_capacity(rows.len());
+        let mut i = 0;
+        while i < rows.len() {
+            let mut j = i;
+            let mut n = 0;
+            while j < rows.len() && n + rows[j].1.len() <= cap {
+                n += rows[j].1.len();
+                j += 1;
+            }
+            if j == i {
+                return Err(Error::invalid(format!("a verify segment of {} rows exceeds the pass's {cap}", rows[i].1.len())));
+            }
+            let ids: Vec<Vec<u32>> = rows[i..j].iter().map(|(_, v)| v.clone()).collect();
+            // an error here is a device / pass failure: fatal for the whole batch, as a decode step's
+            let res = m.forward_verify_batch(&mut refs[i..j], &ids)?;
+            out.extend(res.into_iter().map(Ok));
+            i = j;
+        }
+        Ok(out)
+    }
+
     fn decode_step(&mut self, rows: &[Row<HeadMode>]) -> Result<Vec<Result<StepOut>>> {
         let dm: &Model = self.twin.as_ref().unwrap_or(&self.model);
         // split borrows: one `&mut SequenceState` per row, in row order, from the slot vector
@@ -435,12 +502,15 @@ impl BatchSeq<SlotModel> for SeqAdapter {
         spec_allowed: bool,
         busy: bool,
     ) -> Result<SeqStep<HeadMode>> {
-        let SlotModel { model, twin, states, .. } = model;
+        let SlotModel { model, twin, states, batched_verify, .. } = model;
         let model: &Model = twin.as_ref().unwrap_or(&**model);
+        let defer = *batched_verify && busy;
         let seq = self.seq()?;
-        seq.set_spec_allowed(spec_allowed, busy);
-        Ok(match seq.prepare(model, &mut states[slot])? {
-            Some((tok, mode)) => {
+        // the busy-batch drafter check exists because a solo verify pass beside a batched step is a whole extra weight pass; a
+        // batched verify pass shares the weights with the other drafting sequences, so it does not apply there
+        seq.set_spec_allowed(spec_allowed, busy && !defer);
+        Ok(match seq.prepare_with(model, &mut states[slot], defer)? {
+            Prep::Plain(tok, mode) => {
                 // device-side sampling: a sampled row asks for the top-k candidates instead of the whole logits row
                 let mode = match (mode, model.device_sampling()) {
                     (HeadMode::LastLogits, true) => seq.topk_for(seq.generated + 1).map_or(mode, HeadMode::LastTopK),
@@ -448,8 +518,19 @@ impl BatchSeq<SlotModel> for SeqAdapter {
                 };
                 SeqStep::Plain(tok, mode)
             }
-            None => SeqStep::Ready,
+            Prep::Ready => SeqStep::Ready,
+            Prep::Verify(ids) => SeqStep::Verify(ids),
         })
+    }
+
+    fn next_ready(&mut self) -> bool {
+        self.seq.as_mut().is_some_and(|s| s.next_pending())
+    }
+
+    fn accept_verify(&mut self, model: &mut SlotModel, slot: usize, out: Vec<u32>) -> Result<()> {
+        let SlotModel { model, states, .. } = model;
+        let seq = self.seq()?;
+        seq.accept_verify(model, &mut states[slot], out)
     }
 
     fn accept(&mut self, out: StepOut) -> Result<()> {
@@ -556,8 +637,14 @@ impl BatchedEngine {
                 opts.max_batch
             )));
         }
-        if meta.spec.mode == crate::spec::SpecMode::Mtp {
-            return Err(Error::Unsupported("--spec mtp with the batching engine (use --max-batch 1)".into()));
+        let mtp = meta.spec.mode == crate::spec::SpecMode::Mtp;
+        if mtp && opts.mtp_max_b == 0 {
+            return Err(Error::Unsupported(
+                "--spec mtp with the batching engine (use --max-batch 1, or opt in with INTARSIA_BATCHED_MTP=N)".into(),
+            ));
+        }
+        if mtp && !model.has_mtp() {
+            return Err(Error::invalid("--spec mtp needs the model loaded with its MTP head (LoadOptions::mtp)"));
         }
         if meta.spec.enabled() && model.verify_rows() < meta.spec.verify_rows() {
             return Err(Error::invalid(format!(
@@ -578,7 +665,8 @@ impl BatchedEngine {
             if !model.recurrent_batch() {
                 return Err(Error::Unsupported("continuous batching on a model with recurrent state".into()));
             }
-            if meta.spec.enabled() {
+            // batched MTP rolls a sequence's recurrent state back through its verify pass's per-row copies (lane bm)
+            if meta.spec.enabled() && !mtp {
                 return Err(Error::Unsupported(
                     "speculative decoding on a model with recurrent state needs the single-sequence engine (--max-batch 1)".into(),
                 ));
@@ -602,6 +690,13 @@ impl BatchedEngine {
         if opts.pack_prefill.is_none() {
             cfg.pack_prefill = model.backend.pack_prefill_default();
         }
+        if mtp {
+            // lane bm: the per-step choice. A sequence drafts (its own draft and verify pass on its slot, `Seq::prepare`) only while
+            // at most `mtp_max_b` sequences decode; a wider step is plain batched decode, which only queues the heads' rows
+            cfg.spec_off_at = cfg.spec_off_at.min(opts.mtp_max_b + 1);
+            // a reused prefix would need the head's cache to cover it: every request starts its slot empty (which also syncs the head)
+            cfg.prefix_reuse = false;
+        }
         if recurrent && model.batch_snapshots() == 0 {
             // the prefix store stays at batch 1 on this backend: a recurrent slot cannot be rewound, so no slot is a reuse
             // candidate (every request starts from an empty slot)
@@ -621,7 +716,9 @@ impl BatchedEngine {
         } else {
             None
         };
-        let slots = SlotModel { model: Arc::new(model), twin, states, row_fault: opts.row_fault, inflight: None };
+        // lane bm phase B: `INTARSIA_BATCHED_VERIFY=1` (opt-in, with batched MTP) verifies the drafting sequences in one pass
+        let batched_verify = mtp && twin.is_none() && opts.batched_verify;
+        let slots = SlotModel { model: Arc::new(model), twin, states, row_fault: opts.row_fault, inflight: None, batched_verify };
         let engine = if opts.hold_start { BatchEngine::spawn_held(slots, cfg)? } else { BatchEngine::spawn(slots, cfg)? };
         Ok(BatchedEngine { env, engine, info, plan, vocab, verify_rows, recurrent })
     }

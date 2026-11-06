@@ -1,0 +1,8 @@
+
+
+This document is a **technical specification and implementation log** for adding a new speculative decoding method called **DFlash** (and its enhancement, **DCOCO**) to the `intarsia` inference engine.
+
+Here is a detailed breakdown for a new engineer, structured by context, architecture, implementation, and results.
+
+### 1. Context & Goal
+*   **The Problem:** Standard autoregressive decoding (generating one token at a time) is slow because it is memory-bound. Speculative decoding speeds this up by using a smaller, faster "draft" model to propose multiple tokens at once, which a larger "
