@@ -452,7 +452,7 @@ pub struct OpAttrs {
     /// `QTensor::act_fp8`). Read by kernel selection (`ShapeInfo::mxfp4_a8`): only kernels registered for W4A8 serve it, every
     /// other MXFP4 kernel declines it, because they read any nonzero `act` as W4A4; false for every other op.
     pub mxfp4_a8: bool,
-    /// `AttnDecode` (lane dw, `INTARSIA_DFLASH_WIN_SPLIT=1`): the DFlash2 draft's block attention asks for a split-KV kernel over its window. Read by
+    /// `AttnDecode` (lane dw, `INTARSIA_DFLASH_WIN_SPLIT`, on unless `=0`): the DFlash2 draft's block attention asks for a split-KV kernel over its window. Read by
     /// kernel selection only (`ShapeInfo::win_split`): a kernel registered for it (HIP `attn_decode_bf16_window_splitkv`) may take the call, every other
     /// kernel ignores it, so the results of the target's attention (and any call that leaves it false) are untouched. False for every other call.
     pub win_split: bool,

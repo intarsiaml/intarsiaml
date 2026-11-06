@@ -93,7 +93,7 @@ pub const TABLE: &[(&str, Op)] = &[
     ("attn_decode_bf16_splitkv", Op::AttnDecode),
     // lane dfh (DFlash2): the sliding-window decode (`.ext()`) and the draft's dynamic conv
     ("attn_decode_bf16_window", Op::AttnDecode),
-    // lane dw: the split-KV twin for the DFlash2 draft's windowed block attention (`OpAttrs::win_split`, INTARSIA_DFLASH_WIN_SPLIT=1)
+    // lane dw: the split-KV twin for the DFlash2 draft's windowed block attention (`OpAttrs::win_split`, INTARSIA_DFLASH_WIN_SPLIT, on unless `=0`)
     ("attn_decode_bf16_window_splitkv", Op::AttnDecode),
     ("dyn_conv_bf16", Op::DynConv),
     ("silu_glu_bf16", Op::SiluGlu),

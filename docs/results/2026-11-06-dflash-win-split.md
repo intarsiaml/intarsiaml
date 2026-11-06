@@ -143,3 +143,12 @@ Run-to-run noise (lane dh's table reads 0.3-0.5 % between repeated visits); ho-c
   (1.7 G for `~/intarsiaml-dh` with both CLIs) and growth inside the existing volume `intarsia-cargo-dh`; no new volumes.
 * Not done: `INTARSIA_DFLASH_WIN_SPLIT` on a context in the 1k-2k range (window 0, plain split-KV already; unchanged by design) and a serve suite cell
   at 4k+ (the category files are short; the 4k effect is in the trace table). A row-batched variant (8 rows in one launch) was not needed.
+
+## Default flip (user decision 2026-11-06, "flip both")
+
+`INTARSIA_DFLASH_TP` and `INTARSIA_DFLASH_WIN_SPLIT` are default on in the same PR: unset = on, `=0` = off. TP acts only at tp>1 with in-process ranks and a
+DFlash2 draft (left unset, a draft whose kv heads or ffn do not divide by the world stays whole on rank 0; `=1` forces the split and refuses it at load);
+WIN_SPLIT only where the backend registers the kernel (HIP; `ShapeInfo::win_split` is read by no other backend's kernel selection). The measurements above
+used explicit `=1`. After the flip the arms are: A = both `=0`, B = `INTARSIA_DFLASH_TP=0`, C = `INTARSIA_DFLASH_WIN_SPLIT=0`, D = knobs unset.
+Merged with main e45bd5e3c (#324, `dflash_dry_run`) before the flip. Window t2 (below, filled when run) checks the plans and one ids run on the flipped head.
+
