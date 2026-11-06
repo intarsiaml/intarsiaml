@@ -815,8 +815,9 @@ mod tests {
 
     #[test]
     fn attention_is_registered_for_both_ops() {
-        // decode has the single-pass kernel (any even head_dim), the split-KV one (ATTN_DECODE_BF16_SPLITKV) and its row-table twin
-        for (op, n) in [(Op::AttnPrefill, 4), (Op::AttnDecode, 3)] {
+        // decode has the single-pass kernel (any even head_dim), the split-KV one (ATTN_DECODE_BF16_SPLITKV), its row-table twin and
+        // lane dm's sliding-window one (`.ext()`, DFlash2 draft)
+        for (op, n) in [(Op::AttnPrefill, 4), (Op::AttnDecode, 4)] {
             assert_eq!(TABLE.iter().filter(|(_, o)| *o == op).count(), n, "{op}");
         }
         assert!(shader_names().contains(&ATTN_PREFILL_BF16) && shader_names().contains(&ATTN_DECODE_BF16));

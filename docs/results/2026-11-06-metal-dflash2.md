@@ -348,3 +348,19 @@ but do not recommend it to users on Metal: MTP k2 is faster in every category an
 only if the verify cost per row drops (a non-bitwise M-row path, which the user has ruled out, or new hardware matrix units reachable from
 a bitwise path). The TensorFold gap on Metal (same window: 1.75x at natural-v1 4k, 1.45-2.25x by category) is a verify-cost gap under our bitwise constraint,
 not an acceptance gap.
+
+## Merge gates (branch merged with main ea5c6dcda, #325; raw: `raw/merge/`)
+
+Merge commit `ceeb504eb` (textually clean, no `LOG.md` conflict). Semantics against #325 (DFlash TP, window split default on): `INTARSIA_DFLASH_TP` is read
+in `model.rs` only for `tp.world > 1` (Metal runs tp = 1) and `OpAttrs::win_split` is consumed only by the HIP kernel registered for it, so neither reaches the Metal path
+(`grep win_split` finds no Metal reader); every new `INTARSIA_*` name has a row in `docs/tuning.md`. Lane binary at the merged head vs a base binary at
+origin/main `ea5c6dcda`, both `--release --features metal`.
+
+| Gate | Result | fleetq |
+|---|---|---|
+| Metal `plan show --json`, 8B / 27B / 35B x default / `--spec off` / `--spec mtp` (`scripts/dm/noop.sh`) | 9 / 9 byte-identical | #8869 (endor, exclusive) |
+| Metal `kernels test` (base 49 kernels / 1010 cases, lane 51 / 1136) | no FAIL; diff is exactly the 2 known rows `dyn_conv_bf16` and `attn_decode_bf16_window` (ADMITTED) | #8869 |
+| Greedy ids == `--spec off` (256 tokens, short-0 and 4k-1): MTP k2, DFlash2 k3, DFlash2 k7 | 6 / 6 PASS | #8869 |
+| `cargo test --workspace --features metal --no-fail-fast` | all pass except `intarsia-backend-metal --lib` `attention_is_registered_for_both_ops` (counted 3 `attn_decode` kernels; the lane's window kernel makes 4): a stale count in the lane's own test, fixed in this PR (13 / 13 pass after) | #8869 |
+| CUDA (spark1, vLLM left up, `scripts/dm/cuda-noop.sh`): `plan show --json` 35B and 8B base vs lane | byte-identical; `kernels test --quick` exit 0, 0 FAIL | #8868 |
+| HIP (tatooine) | not run: radiance holds both R9700s and the box has no free memory, and a HIP build needs the dev image and a cpu slot; the HIP-visible change is nil (no HIP file touched; shared `model.rs` / `load.rs` / `dflash_tree.rs` changes are covered by the CUDA plan check) | - |
