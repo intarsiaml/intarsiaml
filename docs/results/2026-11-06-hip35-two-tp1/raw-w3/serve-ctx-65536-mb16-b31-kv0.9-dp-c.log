@@ -1,0 +1,7 @@
+[supervisor] started server pid 7
+prefill chunk 4096 (recipe qwen3_5_moe, hip)
+quantisation scheme note: checkpoint declares kv_cache_quant_algo FP8 (its k/v scales are not used); the KV cache runs as bf16 here: a deviation from the declared scheme (and from a reference that runs the quantised cache)
+admission on plan shapes: 40 kernel(s) checked, 606 case(s) run, 0 cached
+continuous batching: up to 16 sequences (--max-batch), busy prefill chunk 4096
+Error: loading /models/Qwen3.6-35B-A3B-NVFP4: memory plan: hipMalloc of 30874624 bytes failed: backend error: : out of memory (hipError 2)
+[supervisor] server failed to start (exit 78); not restarting
