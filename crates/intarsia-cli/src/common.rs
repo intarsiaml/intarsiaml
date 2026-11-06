@@ -336,6 +336,7 @@ impl ModelArgs {
                 mtp_k: 0, // set from --spec-k by the loader
                 mtp_draft_vocab: self.mtp_draft_vocab,
                 dflash: None, // set from --spec-draft by the loader
+                dflash_tp: None, // INTARSIA_DFLASH_TP (lane dh)
                 prefill_macro: None, // INTARSIA_PREFILL_MACRO (Model::load)
                 row_invariant_prefill: None, // INTARSIA_ROW_INVARIANT_PREFILL (Model::load)
             },
