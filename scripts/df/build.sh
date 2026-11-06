@@ -30,4 +30,4 @@ for spec in ${TREES:?TREES=name=stamp ...}; do
     echo "models gpu tests build $name exit $? $(date +%T)"; grep -E '^error|Finished' ~/intarsiaml-df/.df/logs/models-build-$name.log | tail -3
   fi
 done
-ls -la ~/intarsiaml-df-*/df-intarsia
+ls -la ~/intarsiaml-df/df-intarsia
