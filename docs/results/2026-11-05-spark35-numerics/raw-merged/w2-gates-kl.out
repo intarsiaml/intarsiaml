@@ -1,0 +1,118 @@
+fleetq: #8741 waiting (#1 in line): spark2 is held exclusively by #8737 "dsv41/nccl-prefill: Y tiebreak X/Y/X/Y prefill 1K/4K/16K; vLLM restored after" (claude-1943a70c)
+fleetq:   #8737 has your owner name. If this work belongs inside it, stop and rerun with FLEETQ_JOB=8737 set, or it will wait for #8737 to be released.
+fleetq: #8741 running on spark2: bash -c 'scripts/spark35num/w1.sh && scripts/spark35num/kl.sh'
+window 1 on spark2, 07:32:39, head 36a3b4688, MemAvailable 74 GB
+main = af6aa522672970e92c781efd57a55f44f43c4ab3, dev = 1f4281d4cffc47b22781a904b58bafe7245952d6
+main is already built from af6aa522672970e92c781efd57a55f44f43c4ab3
+dev is already built from 1f4281d4cffc47b22781a904b58bafe7245952d6
+built t_gdn_state16
+built t_gdn_split
+built t_gdn_conv16
+built t_gdn_lanes
+built t_rows_exact
+built t_row_tables
+kernels-test-main exit 0
+kernels-test-dev exit 0
+PASS plan show 35B json byte-identical
+PASS plan show 35B txt byte-identical
+engram_gather  engram_gather                   2      0     0.000e0     0.000e0  ADMITTED
+engram_merge   engram_merge                    2      0     0.000e0     0.000e0  ADMITTED
+logits         logits_f16w                     2      0    8.208e-8    6.986e-8  ADMITTED
+matmul         matmul_f16w                     4      0     0.000e0     0.000e0  ADMITTED
+---
+engram_gather  engram_gather                   2      0     0.000e0     0.000e0  ADMITTED
+engram_merge   engram_merge                    2      0     0.000e0     0.000e0  ADMITTED
+logits         logits_f16w                     2      0    8.208e-8    6.986e-8  ADMITTED
+matmul         matmul_f16w                     4      0     0.000e0     0.000e0  ADMITTED
+PASS kernels test --quick main == dev (status lines)
+test gdn_state16 exit 0
+gdn_state16: step 800: |S16 - S32| / |S32| = 2.718e-3
+gdn_state16: step 900: |S16 - S32| / |S32| = 2.755e-3
+gdn_state16: step 1000: |S16 - S32| / |S32| = 2.842e-3
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+test gdn_split exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+test gdn_conv16 exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+test gdn_lanes exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.95s
+test rows_exact exit 0
+test result: ok. 12 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 36.56s
+test row_tables exit 0
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 68.19s
+16k-1: 256 tokens
+16k-1: 256 tokens
+16k-1: 256 tokens
+16k-1: 256 tokens
+16k-1: 256 tokens
+16k-1: 256 tokens
+PASS ids main == base
+PASS ids cemu == creal
+PASS ids cemu-nospec == creal-nospec
+gates fails=0
+window 1 done 07:44:11, 153 min of the budget left
+dev is already built from 1f4281d4cffc47b22781a904b58bafe7245952d6
+== kl std base 07:44:12
+exit 1
+wrote self-golden /home/nvidia/intarsiaml-s35/out/dump-std-base.st (top-64 rows of modes prefill,decode for 5 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+Error: accuracy gate FAILED
+6941 acc-std-base.log
+1564718 pos-std-base.tsv.gz
+== kl dec8k base 07:53:01
+exit 1
+wrote self-golden /home/nvidia/intarsiaml-s35/out/dump-dec8k-base.st (top-64 rows of modes decode for 1 prompts; written by UNSTAMPED (built without INTARSIA_BUILD_STAMP))
+Error: accuracy gate FAILED
+4638 acc-dec8k-base.log
+87482 pos-dec8k-base.tsv.gz
+== kl std noise 07:55:40
+exit 0
+SELF-STATS mode=prefill positions=134015 mean_kl21=9.412828e-3 max_kl21=5.766293e0 flips=5595 flip_pct=4.1749 tail_abs=2.539428e-3 worst_prompt_kl21=1.055031e-2
+SELF-STATS mode=decode positions=10240 mean_kl21=8.464305e-3 max_kl21=1.061891e0 flips=363 flip_pct=3.5449 tail_abs=2.465863e-3 worst_prompt_kl21=1.007648e-2
+6647 acc-std-noise.log
+2951662 pos-std-noise.tsv.gz
+== kl dec8k noise 08:03:06
+exit 0
+SELF-STATS mode=decode positions=8192 mean_kl21=5.109961e-3 max_kl21=2.567077e0 flips=152 flip_pct=1.8555 tail_abs=9.376406e-4 worst_prompt_kl21=5.109961e-3
+4358 acc-dec8k-noise.log
+171559 pos-dec8k-noise.tsv.gz
+== kl std fp8 08:05:46
+exit 0
+SELF-STATS mode=prefill positions=134015 mean_kl21=1.094235e-2 max_kl21=4.986892e0 flips=6110 flip_pct=4.5592 tail_abs=2.793917e-3 worst_prompt_kl21=1.219674e-2
+SELF-STATS mode=decode positions=10240 mean_kl21=9.975928e-3 max_kl21=3.600169e0 flips=376 flip_pct=3.6719 tail_abs=2.714873e-3 worst_prompt_kl21=1.164828e-2
+6552 acc-std-fp8.log
+2952265 pos-std-fp8.tsv.gz
+== kl dec8k fp8 08:12:59
+exit 0
+SELF-STATS mode=decode positions=8192 mean_kl21=6.123116e-3 max_kl21=2.574076e0 flips=154 flip_pct=1.8799 tail_abs=1.036479e-3 worst_prompt_kl21=6.123116e-3
+4263 acc-dec8k-fp8.log
+171500 pos-dec8k-fp8.tsv.gz
+== kl std cemu 08:15:32
+exit 0
+SELF-STATS mode=prefill positions=134015 mean_kl21=9.554824e-3 max_kl21=1.828228e1 flips=5364 flip_pct=4.0025 tail_abs=2.286927e-3 worst_prompt_kl21=1.144631e-2
+SELF-STATS mode=decode positions=10240 mean_kl21=9.794583e-3 max_kl21=5.948868e0 flips=413 flip_pct=4.0332 tail_abs=2.574135e-3 worst_prompt_kl21=1.181412e-2
+6521 acc-std-cemu.log
+2924885 pos-std-cemu.tsv.gz
+== kl dec8k cemu 08:22:51
+exit 0
+SELF-STATS mode=decode positions=8192 mean_kl21=6.029209e-3 max_kl21=1.429526e0 flips=157 flip_pct=1.9165 tail_abs=1.033519e-3 worst_prompt_kl21=6.029209e-3
+4227 acc-dec8k-cemu.log
+171846 pos-dec8k-cemu.tsv.gz
+== kl std cdemu 08:25:28
+exit 0
+SELF-STATS mode=prefill positions=134015 mean_kl21=1.160602e-2 max_kl21=6.658935e0 flips=6299 flip_pct=4.7002 tail_abs=2.867779e-3 worst_prompt_kl21=1.306820e-2
+SELF-STATS mode=decode positions=10240 mean_kl21=1.120963e-2 max_kl21=1.143009e1 flips=408 flip_pct=3.9844 tail_abs=2.748893e-3 worst_prompt_kl21=1.564712e-2
+6552 acc-std-cdemu.log
+2952791 pos-std-cdemu.tsv.gz
+== kl dec8k cdemu 08:32:38
+exit 0
+SELF-STATS mode=decode positions=8192 mean_kl21=7.042110e-3 max_kl21=1.513483e0 flips=164 flip_pct=2.0020 tail_abs=1.238835e-3 worst_prompt_kl21=7.042110e-3
+4263 acc-dec8k-cdemu.log
+171593 pos-dec8k-cdemu.tsv.gz
+== kl std creal 08:35:09
+exit 0
+SELF-STATS mode=prefill positions=134015 mean_kl21=9.554824e-3 max_kl21=1.828228e1 flips=5364 flip_pct=4.0025 tail_abs=2.286927e-3 worst_prompt_kl21=1.144631e-2
+SELF-STATS mode=decode positions=10240 mean_kl21=9.794583e-3 max_kl21=5.948868e0 flips=413 flip_pct=4.0332 tail_abs=2.574135e-3 worst_prompt_kl21=1.181412e-2
+6521 acc-std-creal.log
+2924886 pos-std-creal.tsv.gz
+== kl done 08:42:23
+fleetq: #8741 done (exit 0)

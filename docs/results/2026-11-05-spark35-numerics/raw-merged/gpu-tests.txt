@@ -1,0 +1,15 @@
+test gdn_state16 exit 0
+gdn_state16: step 800: |S16 - S32| / |S32| = 2.718e-3
+gdn_state16: step 900: |S16 - S32| / |S32| = 2.755e-3
+gdn_state16: step 1000: |S16 - S32| / |S32| = 2.842e-3
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+test gdn_split exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+test gdn_conv16 exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+test gdn_lanes exit 0
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.95s
+test rows_exact exit 0
+test result: ok. 12 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 36.56s
+test row_tables exit 0
+test result: ok. 7 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 68.19s

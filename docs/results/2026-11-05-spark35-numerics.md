@@ -3,9 +3,9 @@
 Lane `lane-sn/spark35-numerics`, 2026-11-05, branch `lane-sn/spark35-numerics` from `main` 5390e65b4. CUDA only, `nvidia/Qwen3.6-35B-A3B-NVFP4`,
 the model both Sparks serve through vLLM for Mission Control (spark1 at 32K context, spark2 at 128K). Raw: `docs/results/2026-11-05-spark35-numerics/raw/`.
 
-**Status (2026-11-06, written up from the raw data after the lane agent died): all queued GPU jobs have run (J1 #8666, J2 #8667, J3 #8668 on spark2). The
-KL arms (rules Q1 to Q4) produced NO data: `kl.sh` passed `--golden` together with `--self-golden` and the CLI refuses that, so every non-base KL run stopped at
-startup (see Results, section "KL"). Q5 to Q8 are measured. By the rule below ("An arm passes a lever if it passes Q1 to Q6") neither D nor C has passed yet.**
+**Status (2026-11-06 08:45 EST): all rules are now measured. Round 1 (J1 to J3, 2026-11-05 evening, dev `7a7aa47b2`) gave Q5 to Q8 but no KL data (kl.sh bug, fixed). Round 2
+(2026-11-06 morning, branch merged with `origin/main`, dev `1f4281d4c`) re-ran the gates and the KL arms: Q1 to Q4 PASS for D, C and C+D. By the rule below ("An arm passes a lever
+if it passes Q1 to Q6") D, C and C+D each pass, and C passes Q8. Only the user flips a default; none is flipped on this branch (the D flip commit `4d9003f67` is reverted).**
 The pass rules below were written before any data was collected and were not edited after data arrived.
 
 ## Authority
@@ -81,7 +81,7 @@ under any numerics change, and fp8kv could not clear its divergence for want of 
   rounded after every launch, bitwise outputs, T = 1 and T > 1, four shapes; compiles under `--cfg ik_cuda` on the Mac, **not run yet**).
 - **C, emulation** (dev only, `INTARSIA_CUDA_GDN_STATE_BF16_EMU=1`): the same rounding on the f32 layout. `creal` must equal `cemu` (idgate: greedy ids, MTP on and
   `--spec off`, are an early hard gate in J1).
-- **D patch** (the LAST commit of the branch, `git log -1`; merge the branch with or without it, or `git revert` it alone): new per-backend recipe key
+- **D patch** (commit `4d9003f67`, **reverted on the branch by `3576701c9`** on 2026-11-06 so the branch merges without D; `git revert 3576701c9` brings it back. Original text: merge the branch with or without it, or `git revert` it alone): new per-backend recipe key
   `[tuning.<backend>] kv_dtype` (`Recipe::resolve_kv_dtype`, `--kv-dtype` still wins), `recipes/qwen3_5_moe.toml` sets `fp8_e4m3` under `[tuning.cuda]` only, test
   `recipe_kv_dtype.rs`. **The default stays bf16 until the user decides.** Merging it changes: (1) the 35B CUDA `plan show` (the KV cache bytes and dtype), nothing on
   Metal, HIP, CPU or any other model; (2) CUDA tests and `intarsia accuracy` baselines recorded with a bf16 KV cache of this model (they now load fp8; a recorded
@@ -100,6 +100,15 @@ under any numerics change, and fp8kv could not clear its divergence for want of 
 | #8632 | Metal no-op (plan show, 256 greedy ids 8B and 35B, kernels test) main vs branch (shared files changed) | endor | raw in `raw/metal/`: all identical (ids 8B and 35B short and 4k, plan json and txt); fleetq record not read here |
 | #8662 | `cargo test --workspace --no-fail-fast` on the final head | endor, `--load cpu` | **no result in raw** (the only cargo log is #8643 on `1016c7e5e`) |
 
+Round 2 (2026-11-06, owner claude-1943a70c, after the merge of `origin/main` into the branch; results in `raw-merged/`):
+
+| job | what | host | state |
+|---|---|---|---|
+| #8735 | `cargo test --workspace --no-fail-fast` on the merged head (`1f4281d4c` + scripts), `--load cpu --expect 30` | endor | done, exit 0, about 9 min: 234 test binaries, 1362 passed, 0 failed, 32 ignored (`raw-merged/cargo-test-workspace-endor.log`) |
+| #8736 | builds: main (`af6aa5226`, origin/main tip) and dev (`1f4281d4c`, merged head, `DEV_REF` env) and the six GPU test binaries, `--load cpu --mem 40 --expect 30` | spark2 | done, exit 0, 07:14 to 07:23 (main 3m21s, dev 3m27s) |
+| #8741 | gates (plan show, `kernels test --quick`, six GPU bitwise guards, idgate main == base and cemu == creal MTP on and off) then the KL rerun, arms `base noise fp8 cemu cdemu creal` (base rerun because the merged binary differs from the one that wrote the old dumps), `--quiet gpu,cpu --mem 70 --expect 90` | spark2 | done, exit 0, started 07:32 (waited for #8737), gates 07:32 to 07:44, KL 07:44 to 08:42; `gates fails=0` |
+
+
 Earlier jobs: #8646 (main CUDA build, 3m37s, OK; dev from HEAD failed in nvcc: `gdn_dec_run<true,...>` could not deduce the state type from `nullptr`, fixed in
 `6699ec3eb`; the lane head has therefore **never been through nvcc yet**), #8653 (the diagnosing rebuild), #8643 (`cargo test --workspace --no-fail-fast` on `1016c7e5e`: 231 binaries,
 1324 passed, 0 failed, 29 ignored; `raw/cargo-test-workspace-endor.log`). #8619, #8630, #8641, #8642, #8645, #8658, #8659 to #8661: cancelled by me and resubmitted (a queued job of
@@ -109,51 +118,89 @@ self-golden write, noise-arm compare with `--prefill-chunk`, position dump, `ana
 
 ## Results
 
-Written 2026-11-06 from `raw/` only (no new runs). Arms: base (bf16 KV, f32 state), fp8 (D), cemu (C emulated), cdemu (C+D), creal (C real layout). The `dev` binary is
-`7a7aa47b2` (`scripts/spark35num/DEV_REF`); `7a7aa47b2..3860aba95` changes only scripts and this doc, so the measured code is the lane code up to `3860aba95`. The D commit
-`4d9003f67` was never built or run on a GPU (D was measured with `--kv-dtype fp8` on the `dev` binary).
+Round 1 (J1 to J3) used dev `7a7aa47b2`; Q5, Q6, Q8 (needle, MMLU / GSM8K, speed) and the greedy ids are from it and were not re-run after the merge. Round 2 re-ran the gates and the
+whole KL set on the merged dev `1f4281d4c`; Q1 to Q4 are from it. Arms: base (bf16 KV, f32 state), noise (base, `--prefill-chunk 1024`), fp8 (D), cemu (C emulated), cdemu (C+D),
+creal (C real layout). The D commit `4d9003f67` is reverted on the branch; D was measured with `--kv-dtype fp8` on the dev binary.
 
 ### Verdict per rule
 
-| rule | D (fp8 KV) | C (bf16 state) | C+D | what the data is |
+| rule | D (fp8 KV) | C (bf16 state) | C+D | numbers |
 |---|---|---|---|---|
-| Q1 KL vs noise, prefill 4k to 64k | **not measured** | **not measured** | **not measured** | no KL data (section KL) |
-| Q2 growth with length | **not measured** | **not measured** | **not measured** | same |
-| Q3 top-1 flips | **not measured** | **not measured** | **not measured** | same |
-| Q4 decode windows 2048 / 8192, no drift | **not measured** | **not measured** | **not measured** | same |
-| Q5 needle recall (arm >= base - 1) | PASS 12/12, 8/8 | PASS 12/12, 8/8 | PASS 12/12, 8/8 | base 12/12 and 8/8; at ceiling, so it cannot resolve a small loss |
-| Q6 MMLU / GSM8K inside 2 SE | PASS | PASS | PASS | table below |
-| Q7 env-unset gate (the branch) | PASS | PASS | n/a | table below |
-| Q8 C worth shipping (16-stream gain >= +3 %) | n/a | **PASS, +8.3 %** (+9.0 %, +7.5 %) | n/a | C+D +10.8 %, reported only |
-| **Lever passes (Q1 to Q6)** | **NO: Q1 to Q4 open** | **NO: Q1 to Q4 open** | **NO** | |
+| Q1 KL, prefill, per length class | PASS | PASS | PASS | K / noise: D 1.12x to 1.23x, C 0.51x to 1.09x, C+D 1.21x to 1.35x (bound 5x; table below) |
+| Q2 growth 64k vs 4k | PASS | PASS | PASS | K_64k D 1.22e-2, C 1.15e-2, C+D 1.27e-2 against bounds 2.70e-2, 2.20e-2, 2.97e-2 |
+| Q3 top-1 flips, prefill | PASS | PASS | PASS | flips at most +0.6 percentage points above noise per class (noise 2.5 to 4.8 %; bound 3x noise); C at or below noise except 64k (+0.1) |
+| Q4 decode windows 2048 and 8192, no drift | PASS | PASS | PASS | K / noise 1.01x to 1.59x (largest: C+D on the 16k window); last / first quarter at most 1.56x (C+D, 16k), under the 2x + 5e-4 bound; the 8192 window falls (e.g. D 8.6e-3 to 5.5e-3) |
+| Q5 needle recall | PASS 12/12, 8/8 | PASS 12/12, 8/8 | PASS 12/12, 8/8 | base 12/12 and 8/8: at the ceiling, cannot resolve a small loss |
+| Q6 MMLU / GSM8K | PASS 0.851 / 0.500 | PASS 0.839 / 0.500 | PASS 0.844 / 0.490 | base 0.846 / 0.500; bounds +-0.043 / +-0.141 |
+| Q7 env-unset gate (the branch) | n/a | PASS | n/a | round 1 and round 2 (merged binary): see the Q7 table |
+| Q8 C worth shipping | n/a | PASS +8.3 % at 16 streams | +10.8 % (reported) | rounds +9.0 % and +7.5 %; measured on the pre-merge dev |
+| **Lever passes (Q1 to Q6)** | **YES** | **YES** | **YES** | |
 
-Nothing here fails a rule; the open rules are the ones that carry the long-context quality question this lane was written to answer (D at 32k and 64k, C over thousands of
-decode steps). Needle at 12 and 8 rows is at its ceiling for every arm, so it is weak evidence next to KL.
+The noise reference is large: a benign change of the prefill chunk schedule (1024 vs 2048, bf16 against bf16) already moves the mean 21-way KL to 9.4e-3 (prefill, 134015 positions) with
+4.2 % top-1 flips and 8.5e-3 / 3.5 % on the 2048-token decode windows. The pre-registered bound (5 x noise) is therefore loose, and a pass means "no larger than a few
+times a benign perturbation". The more useful reading is the ratio column: on prefill no lever adds more than 35 % to the noise-level KL at any length (D at 64k: 1.16x, C at 64k: 1.09x, C+D 1.21x to 1.35x),
+on the decode windows up to 59 % (C+D, 16k window), and the 8192-token decode window shows no drift for any arm (last quarter below the first).
 
-### KL (Q1 to Q4): no data, and why
+### Q1 to Q4 by length class (`scripts/spark35num/classes.py raw-merged`; per-prompt tables: `raw-merged/analyze.txt`)
 
-`python3 scripts/spark35num/analyze.py docs/results/2026-11-05-spark35-numerics/raw` was run on the final raw data: every table is empty and the verdict section prints
-`no prefill data` for fp8, cemu, cdemu and creal. That output is correct, not an analyzer fault:
+#### Prefill rows by length class: K (mean 21-way KL, nats) / flips %, bound = max(5 x noise, 2e-3) and max(3 x noise flips, 1.5)
 
-- The 10 non-base logs (`acc-{std,dec8k}-{noise,fp8,cemu,cdemu}.log` and `acc-std-creal.log`) end at startup with
-  `Error: --golden and --self-golden are separate runs (the self-golden carries its own prompts)` (`crates/intarsia-cli/src/cmd/accuracy.rs:2662`).
-  `scripts/spark35num/kl.sh` (`run_acc`) passes `--golden $carrier` on every arm and adds `--self-golden` for the non-base ones.
-- The two base logs ran (`acc-std-base.log`, `acc-dec8k-base.log`) and wrote the self-golden dumps (`wrote self-golden .../dump-std-base.st`, `dump-dec8k-base.st` on
-  spark2, `~/intarsiaml-s35/out/`, not copied to `raw/`; whether they still exist was not checked). Their printed KL (about 5.5 nats) and the `pos-*-base.tsv.gz` rows are
-  against the carrier's dummy reference rows, so they say nothing about numerics. The two base runs exit with `Error: accuracy gate FAILED` for that reason (expected, and the
-  script does not stop on it).
-- Consequence: the noise arm, the fp8 / C / C+D arms and every number of Q1 to Q4 are missing. No inference is drawn from the unrelated numbers below.
+| class | prompts | positions | noise K / flips | fp8 K / flips (K/noise) | cemu K / flips (K/noise) | cdemu K / flips (K/noise) | creal K / flips (K/noise) |
+|---|---|---:|---|---|---|---|---|
+| 4k | cmtp-4k-0 | 3858 | 7.33e-03 / 4.15 | 9.01e-03 / 4.77 (1.23x) | 3.72e-03 / 1.19 (0.51x) | 9.89e-03 / 4.67 (1.35x) | 3.72e-03 / 1.19 (0.51x) |
+| 16k | cmtp-16k-0, code-16k | 31853 | 6.28e-03 / 2.50 | 7.66e-03 / 2.89 (1.22x) | 5.48e-03 / 2.11 (0.87x) | 8.10e-03 / 2.87 (1.29x) | 5.48e-03 / 2.11 (0.87x) |
+| 32k | docs-32k | 32768 | 1.06e-02 / 4.82 | 1.18e-02 / 5.10 (1.12x) | 1.04e-02 / 4.63 (0.99x) | 1.31e-02 / 5.37 (1.24x) | 1.04e-02 / 4.63 (0.99x) |
+| 64k | docs-64k | 65536 | 1.05e-02 / 4.67 | 1.22e-02 / 5.09 (1.16x) | 1.15e-02 / 4.77 (1.09x) | 1.27e-02 / 5.26 (1.21x) | 1.15e-02 / 4.77 (1.09x) |
 
-### What fills it (not run; no fleetq or GPU job was started for this write-up)
+#### Q2: K_64k <= 3 x max(K_4k, N_4k)
 
-1. `scripts/spark35num/kl.sh`: leave out `--golden $L/carriers/$gold.safetensors` when `--self-golden` is given. One line in `run_acc`. Not changed here (no code changes in this task).
-2. Re-run on spark2: `fleetq run --host spark2 --quiet gpu,cpu --mem 70 --expect 80 --label "spark35: KL arms" -- env ARMS="noise fp8 cemu cdemu creal" scripts/spark35num/kl.sh`
-   (add `base` first if the two base dumps are gone). Expected time: from the file times in J1, one std arm (5 prompts, 134 k prefill positions + 5 x 2048 decode) took
-   about 9 min (20:18 to 20:27) and the dec8k base about 3 min (20:27 to 20:30); the five arms are 4 x (9 + 3) + 9 = 57 min, plus 12 for base if its dump must be redone;
-   about 60 to 70 min, `--expect 80`. Then `python3 scripts/spark35num/analyze.py <raw>` fills Q1 to Q4.
-3. Also not run and not in the raw data: `#8662` (`cargo test --workspace --no-fail-fast` on the final head, endor, `--load cpu`; the committed log `cargo-test-workspace-endor.log`
-   is #8643 on `1016c7e5e`, 1324 passed, 0 failed, 29 ignored, and `1016c7e5e..` changes `gdn.cu`, `device.rs`, `model.rs`, `prefix_store.rs`), and the D smoke test
-   (`/metrics` `intarsia_info{kv_dtype=...}` with the D commit built). Expected time is a guess, not read from a log: cargo about 20 min on endor with `--load cpu` (#8643's wall time is not recorded in `raw/`); smoke test about 10 min on a spark.
+- fp8: K_64k 1.22e-02 <= 3 x max(9.01e-03, 7.33e-03) = 2.70e-02: PASS
+- cemu: K_64k 1.15e-02 <= 3 x max(3.72e-03, 7.33e-03) = 2.20e-02: PASS
+- cdemu: K_64k 1.27e-02 <= 3 x max(9.89e-03, 7.33e-03) = 2.97e-02: PASS
+
+#### Q4: decode windows (teacher-forced), K bound = max(5 x noise, 2e-3), no drift: last quarter <= 2 x first quarter + 5e-4
+
+| window | arm | K (noise K) | flips % (noise) | first / last quarter | verdict |
+|---|---|---|---|---|---|
+| std 4k | fp8 | 1.17e-02 (8.88e-03) | 3.52 (3.37) | 1.35e-02 / 8.00e-03 | PASS |
+| std 4k | cemu | 1.00e-02 (8.88e-03) | 3.71 (3.37) | 1.13e-02 / 6.61e-03 | PASS |
+| std 4k | cdemu | 1.14e-02 (8.88e-03) | 3.76 (3.37) | 1.22e-02 / 9.35e-03 | PASS |
+| std 4k | creal | 1.00e-02 (8.88e-03) | 3.71 (3.37) | 1.13e-02 / 6.61e-03 | PASS |
+| std 16k | fp8 | 8.33e-03 (6.75e-03) | 3.05 (2.73) | 7.42e-03 / 9.08e-03 | PASS |
+| std 16k | cemu | 8.88e-03 (6.75e-03) | 3.35 (2.73) | 6.88e-03 / 8.88e-03 | PASS |
+| std 16k | cdemu | 1.07e-02 (6.75e-03) | 2.98 (2.73) | 6.11e-03 / 9.54e-03 | PASS |
+| std 16k | creal | 8.88e-03 (6.75e-03) | 3.35 (2.73) | 6.88e-03 / 8.88e-03 | PASS |
+| std 32k | fp8 | 1.04e-02 (9.86e-03) | 3.71 (4.10) | 9.26e-03 / 1.01e-02 | PASS |
+| std 32k | cemu | 9.98e-03 (9.86e-03) | 4.15 (4.10) | 9.02e-03 / 8.43e-03 | PASS |
+| std 32k | cdemu | 1.06e-02 (9.86e-03) | 4.20 (4.10) | 1.16e-02 / 6.92e-03 | PASS |
+| std 32k | creal | 9.98e-03 (9.86e-03) | 4.15 (4.10) | 9.02e-03 / 8.43e-03 | PASS |
+| std 64k | fp8 | 1.12e-02 (1.01e-02) | 5.03 (4.79) | 1.31e-02 / 1.05e-02 | PASS |
+| std 64k | cemu | 1.12e-02 (1.01e-02) | 5.62 (4.79) | 1.18e-02 / 1.18e-02 | PASS |
+| std 64k | cdemu | 1.28e-02 (1.01e-02) | 6.01 (4.79) | 1.31e-02 / 1.29e-02 | PASS |
+| std 64k | creal | 1.12e-02 (1.01e-02) | 5.62 (4.79) | 1.18e-02 / 1.18e-02 | PASS |
+| dec8k code-16k 8192 | fp8 | 6.12e-03 (5.11e-03) | 1.88 (1.86) | 8.62e-03 / 5.47e-03 | PASS |
+| dec8k code-16k 8192 | cemu | 6.03e-03 (5.11e-03) | 1.92 (1.86) | 7.58e-03 / 5.55e-03 | PASS |
+| dec8k code-16k 8192 | cdemu | 7.04e-03 (5.11e-03) | 2.00 (1.86) | 8.60e-03 / 6.27e-03 | PASS |
+
+#### Verdict by arm (all classes and windows)
+
+- fp8: Q1 PASS; Q2 PASS; Q3 PASS; Q4 PASS
+- cemu: Q1 PASS; Q2 PASS; Q3 PASS; Q4 PASS
+- cdemu: Q1 PASS; Q2 PASS; Q3 PASS; Q4 PASS
+
+`creal` (the real bf16 layout) gives exactly the same SELF-STATS as `cemu` (prefill mean KL 9.554824e-3, 5364 flips; decode 9.794583e-3, 413 flips; identical to the last digit),
+so the emulation is the real layout bit for bit on the std carrier as well (the creal rows in the tables above equal the cemu rows). The first run's `analyze.py` output ("no prefill data") was the empty
+result of the invalid round-1 logs, kept in `raw/`.
+
+### How round 1 failed and what round 2 changed
+
+- Round 1: `kl.sh` passed `--golden` together with `--self-golden`; the CLI refuses that (`accuracy.rs:2662`), so every non-base KL run stopped at startup. The base logs ran against
+  the carrier's dummy reference rows (KL about 5.5, `accuracy gate FAILED`, expected, and the dumps were written anyway). Kept in `raw/` as `acc-*.log`, not used.
+- Round 2: `kl.sh` drops `--golden` for every arm except base (`a7a93ea91`); `DRY=1` prints the command lines. Checked on the Mac CPU backend with the same flag shapes
+  (Qwen3.5-0.8B-Base, a 300-token carrier): base writes the dump, a `--prefill-chunk` arm reads it with `--self-golden` only and prints SELF-STATS, `analyze.py` parses the log.
+  `w1.sh` got `SKIP_DATA=1` (the data stage hashes the current `docs/` and `crates/`, which the merge changed; the committed carriers are kept).
+- Base was re-run with the merged binary (the 2026-11-05 dumps on spark2 were written by `7a7aa47b2` and would have mixed two builds into the comparison).
+- The Q1 to Q3 checks of `analyze.py` are per prompt; `classes.py` pools the 16k class (cmtp-16k-0 and code-16k) as the rule says. Both give PASS for every arm.
 
 ### Q5: needle recall (`localeval quality --judge none`, Contains expected)
 
@@ -177,7 +224,7 @@ decode steps). Needle at 12 and 8 rows is at its ceiling for every arm, so it is
 Bounds from the rule (2 SE of the difference): MMLU +-0.043, GSM8K +-0.141. All inside. creal has no MMLU / GSM8K run: it is bitwise equal to cemu (idgate below), so it adds
 nothing. GSM8K scores 0.500 with a mean output of 8 to 12 tokens (thinking off, no chain of thought), so it has little power; MMLU is the more useful one.
 
-### Q7: the env-unset gate and the other safety checks (dev `7a7aa47b2`, main `5390e65b4`)
+### Q7: the env-unset gate and the other safety checks (round 1: dev `7a7aa47b2`, main `5390e65b4`; round 2 rows below)
 
 | check | result |
 |---|---|
@@ -188,6 +235,12 @@ nothing. GSM8K scores 0.500 with a mean output of 8 to 12 tokens (thinking off, 
 | `kernels test --quick` main vs dev | 106 kernels, 918 cases, same rows and numbers (only the wall time differs) |
 | GPU bitwise guards (`INTARSIA_REQUIRE_GPU=1`): gdn_state16 2, gdn_split 2, gdn_conv16 2, gdn_lanes 2, rows_exact 12 (2 ignored), row_tables 7 (2 ignored) | all passed; gdn_state16 relative state error S16 vs S32 2.7e-3 to 2.8e-3 after 1000 steps |
 | Metal no-op, main vs branch: plan 8B and 35B (json + txt), 256 ids 8B and 35B (short, 4k) | all identical |
+| **Round 2, merged binary** (main `af6aa5226` vs dev `1f4281d4c`): plan show 35B json + txt | byte-identical |
+| round 2: `kernels test --quick` main vs dev | same status lines |
+| round 2: six GPU bitwise guards | all passed (gdn_state16 2, gdn_split 2, gdn_conv16 2, gdn_lanes 2, rows_exact 12 + 2 ignored, row_tables 7 + 2 ignored) |
+| round 2: idgate 256 ids x 6 prompts: main == base, cemu == creal (MTP on), cemu == creal (`--spec off`) | PASS all three (`raw-merged/idgate/`, `gates fails=0`) |
+| round 2: `cargo test --workspace --no-fail-fast` on `1f4281d4c` + scripts (endor, #8735) | 234 binaries, 1362 passed, 0 failed, 32 ignored (the two "panicked" lines in the log are the dsv41 scripted-panic tests) |
+| round 2: Metal no-op after the merge | not re-run (the workspace tests, which include the Metal crate, pass; the merge touches no Metal kernel of this lane) |
 | base-vs-base determinism rerun | not run separately; the idgate main == base and the 1024-token main == base agreement is the evidence |
 
 ### Greedy first-divergence (reported only; no noise arm, so it cannot be read against a reference)
@@ -232,22 +285,27 @@ Q8: C passes (+8.3 %, both rounds above +3 %). D at 16 streams is +0.7 % with th
 streams. The engine's 16-stream number against vLLM's 340 tok/s: base 305 (0.90x), C 331 (0.97x), C+D 338 (0.995x). Memory: `MemAvailable` 50 to 51 GB with each server up (`speed/mem.txt`); D's KV
 memory saving at 32k / 128k context was not measured in this lane.
 
-### Decisions
+### Decisions (the user decides; no default is flipped on this branch)
 
-- **D (fp8 KV default on CUDA 35B): do not flip yet; merge without `4d9003f67`.** D has not passed (Q1 to Q4 unmeasured), and the speed it would buy is within noise at 16 streams
-  (+0.7 %) and about +3 % at 16k single stream. What is known: needle 12/12 and 8/8, MMLU +0.005, GSM8K 0.000, which are the same ceiling-level checks that fp8kv already passed
-  on 2026-10-29. The 32k and 64k KL, which is the gap this lane was to close, is missing. Reconsider after the KL rerun above if the KV memory at 128K (spark2) is the reason to
-  flip, since the speed is not. The D commit itself was never built or run on a GPU.
-- **C (bf16 delta-rule state): ship as opt-in (default off), as the lane said; no default decision is asked for or made.** Q5 to Q8 and the equality gates pass, +8.3 % at 16
-  streams. It is not "passed" by the doc's rule until Q1 to Q4 exist; those are the numbers to read before anyone proposes a default.
+- **C (bf16 delta-rule state default on CUDA 35B): the doc's rules are met.** Q1 to Q6 PASS (Q1 to Q4 on the merged binary, K / noise 0.51x to 1.09x on prefill and 1.01x to 1.32x on the decode windows, no drift over 8192
+  decode tokens), Q7 PASS, Q8 PASS (+8.3 % at 16 streams, both rounds above +3 %; +4.9 % at 4 and +5.4 % at 8 streams). The real layout equals the emulation bit for bit
+  (greedy ids with MTP on and off, and KL to the last digit). Caveats a flip should weigh: (1) the noise reference is large, so the pre-registered bound would also pass a lever that is several times
+  worse than what was observed; (2) needle is at its ceiling and GSM8K has little power; (3) the speed gain was measured before the merge (the merge brings the batched-MTP default
+  and other main changes) and was not re-measured; (4) the longest decode window is 8192 tokens, and the state is rounded at every token, so a 30k-token generation is not covered.
+  Recommendation: flip it, as its own small commit (`[tuning.cuda] gdn_state = "bf16"` in `recipes/qwen3_5_moe.toml`), after one cheap re-measure of the 16-stream gain on the merged
+  binary (J3 shape, base vs C, about 25 min on spark2) if (3) matters; the quality rules do not stand in the way. Not done: the doc says only the user flips a default.
+- **D (fp8 KV default on CUDA 35B): the doc's rules are met as well** (Q1 to Q6 PASS; K / noise 1.12x to 1.23x on prefill, 64k 1.16x; no drift), but D buys no speed here: +0.7 % at 16 streams
+  (rounds +4.2 % and -2.7 %) and +3.3 % at 16k single stream (+5.9 % and +0.8 %), against +9.9 % in the fp8kv lane; and, combined with C, it adds up to +35 % (prefill) and +59 % (16k decode window) to the noise-level KL.
+  Recommendation: leave bf16 the default unless the halved KV memory at 128K context (spark2) is wanted; then D is allowed by the rules. Its flip commit `4d9003f67` is reverted
+  on the branch (`3576701c9`), and it was never built or run on a GPU as a default (smoke test of `/metrics` `kv_dtype` not run).
 - Nothing else in the doc asks for a decision.
 
 ### Merge readiness
 
-- Without D: lane commits up to `3860aba95` (code unchanged since `7a7aa47b2`, the measured dev), plus this write-up. GPU-tested at `7a7aa47b2`: bitwise guards, idgate, plan, kernels test,
-  Metal no-op. Not tested on the final head: the workspace `cargo test` (#8662). The gates were measured against `main` `5390e65b4`; the branch is behind `origin/main` and was not rebased.
-- With D: also `4d9003f67` (changes `model.rs`, `recipe.rs`, `recipes/qwen3_5_moe.toml`, two tests, two docs). Never built on a GPU; the `plan show` change and the `/metrics` smoke test are not run.
-  Revert it alone (`git revert 4d9003f67`) to keep bf16; it is no longer the last commit because this write-up is committed after it.
+- Branch head = lane commits + revert of D + merge of `origin/main` (`1f4281d4c`) + scripts and this write-up. Without D: merge the branch as it is. With D: `git revert 3576701c9` first
+  (it re-applies the D patch, which then needs its own build and the `/metrics` smoke test).
+- Checks on the merged tree: workspace `cargo test` passes (#8735), CUDA builds of main and dev (#8736), plan show byte-identical, `kernels test --quick` same, six GPU guards pass,
+  idgate PASS (#8741). Metal no-op not re-run (see Q7).
 
 Existing evidence for D (not re-measured): `docs/results/2026-10-29-fp8kv-opt-in.md`: +9.9 % single-stream decode at 16k, +1.4 % at 16 streams, MMLU 0.846 to 0.851,
 GSM8K 0.500 to 0.500, both inside noise; the long-context (32k, 64k) quality is the gap this lane fills. vLLM at 16 streams: 340 tok/s; the engine: 301 tok/s (0.88x).

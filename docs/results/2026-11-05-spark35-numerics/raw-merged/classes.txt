@@ -1,0 +1,44 @@
+### Prefill rows by length class: K (mean 21-way KL, nats) / flips %, bound = max(5 x noise, 2e-3) and max(3 x noise flips, 1.5)
+
+| class | prompts | positions | noise K / flips | fp8 K / flips (K/noise) | cemu K / flips (K/noise) | cdemu K / flips (K/noise) | creal K / flips (K/noise) |
+|---|---|---:|---|---|---|---|---|
+| 4k | cmtp-4k-0 | 3858 | 7.33e-03 / 4.15 | 9.01e-03 / 4.77 (1.23x) | 3.72e-03 / 1.19 (0.51x) | 9.89e-03 / 4.67 (1.35x) | 3.72e-03 / 1.19 (0.51x) |
+| 16k | cmtp-16k-0, code-16k | 31853 | 6.28e-03 / 2.50 | 7.66e-03 / 2.89 (1.22x) | 5.48e-03 / 2.11 (0.87x) | 8.10e-03 / 2.87 (1.29x) | 5.48e-03 / 2.11 (0.87x) |
+| 32k | docs-32k | 32768 | 1.06e-02 / 4.82 | 1.18e-02 / 5.10 (1.12x) | 1.04e-02 / 4.63 (0.99x) | 1.31e-02 / 5.37 (1.24x) | 1.04e-02 / 4.63 (0.99x) |
+| 64k | docs-64k | 65536 | 1.05e-02 / 4.67 | 1.22e-02 / 5.09 (1.16x) | 1.15e-02 / 4.77 (1.09x) | 1.27e-02 / 5.26 (1.21x) | 1.15e-02 / 4.77 (1.09x) |
+
+### Q2: K_64k <= 3 x max(K_4k, N_4k)
+
+- fp8: K_64k 1.22e-02 <= 3 x max(9.01e-03, 7.33e-03) = 2.70e-02: PASS
+- cemu: K_64k 1.15e-02 <= 3 x max(3.72e-03, 7.33e-03) = 2.20e-02: PASS
+- cdemu: K_64k 1.27e-02 <= 3 x max(9.89e-03, 7.33e-03) = 2.97e-02: PASS
+
+### Q4: decode windows (teacher-forced), K bound = max(5 x noise, 2e-3), no drift: last quarter <= 2 x first quarter + 5e-4
+
+| window | arm | K (noise K) | flips % (noise) | first / last quarter | verdict |
+|---|---|---|---|---|---|
+| std 4k | fp8 | 1.17e-02 (8.88e-03) | 3.52 (3.37) | 1.35e-02 / 8.00e-03 | PASS |
+| std 4k | cemu | 1.00e-02 (8.88e-03) | 3.71 (3.37) | 1.13e-02 / 6.61e-03 | PASS |
+| std 4k | cdemu | 1.14e-02 (8.88e-03) | 3.76 (3.37) | 1.22e-02 / 9.35e-03 | PASS |
+| std 4k | creal | 1.00e-02 (8.88e-03) | 3.71 (3.37) | 1.13e-02 / 6.61e-03 | PASS |
+| std 16k | fp8 | 8.33e-03 (6.75e-03) | 3.05 (2.73) | 7.42e-03 / 9.08e-03 | PASS |
+| std 16k | cemu | 8.88e-03 (6.75e-03) | 3.35 (2.73) | 6.88e-03 / 8.88e-03 | PASS |
+| std 16k | cdemu | 1.07e-02 (6.75e-03) | 2.98 (2.73) | 6.11e-03 / 9.54e-03 | PASS |
+| std 16k | creal | 8.88e-03 (6.75e-03) | 3.35 (2.73) | 6.88e-03 / 8.88e-03 | PASS |
+| std 32k | fp8 | 1.04e-02 (9.86e-03) | 3.71 (4.10) | 9.26e-03 / 1.01e-02 | PASS |
+| std 32k | cemu | 9.98e-03 (9.86e-03) | 4.15 (4.10) | 9.02e-03 / 8.43e-03 | PASS |
+| std 32k | cdemu | 1.06e-02 (9.86e-03) | 4.20 (4.10) | 1.16e-02 / 6.92e-03 | PASS |
+| std 32k | creal | 9.98e-03 (9.86e-03) | 4.15 (4.10) | 9.02e-03 / 8.43e-03 | PASS |
+| std 64k | fp8 | 1.12e-02 (1.01e-02) | 5.03 (4.79) | 1.31e-02 / 1.05e-02 | PASS |
+| std 64k | cemu | 1.12e-02 (1.01e-02) | 5.62 (4.79) | 1.18e-02 / 1.18e-02 | PASS |
+| std 64k | cdemu | 1.28e-02 (1.01e-02) | 6.01 (4.79) | 1.31e-02 / 1.29e-02 | PASS |
+| std 64k | creal | 1.12e-02 (1.01e-02) | 5.62 (4.79) | 1.18e-02 / 1.18e-02 | PASS |
+| dec8k code-16k 8192 | fp8 | 6.12e-03 (5.11e-03) | 1.88 (1.86) | 8.62e-03 / 5.47e-03 | PASS |
+| dec8k code-16k 8192 | cemu | 6.03e-03 (5.11e-03) | 1.92 (1.86) | 7.58e-03 / 5.55e-03 | PASS |
+| dec8k code-16k 8192 | cdemu | 7.04e-03 (5.11e-03) | 2.00 (1.86) | 8.60e-03 / 6.27e-03 | PASS |
+
+### Verdict by arm (all classes and windows)
+
+- fp8: Q1 PASS; Q2 PASS; Q3 PASS; Q4 PASS
+- cemu: Q1 PASS; Q2 PASS; Q3 PASS; Q4 PASS
+- cdemu: Q1 PASS; Q2 PASS; Q3 PASS; Q4 PASS
