@@ -396,6 +396,10 @@ pub struct BackendTuning {
     /// ([`Recipe::resolve_gdn_state`]). Unset: `"f32"`. Per backend only (CUDA is the one that supports `"bf16"`), set only where an
     /// accuracy gate passed (lane spark35, `docs/results/2026-11-05-spark35-numerics.md`).
     pub gdn_state: Option<String>,
+    /// The KV cache dtype on this backend when `--kv-dtype` is not given (`"bf16"`, `"f16"`, `"f32"` or `"fp8_e4m3"`); wins over
+    /// `[defaults] kv_dtype` ([`Recipe::resolve_kv_dtype`]). Per backend only: the Qwen3.6-35B-A3B on CUDA sets `"fp8_e4m3"`
+    /// (docs/results/2026-11-05-spark35-numerics.md), so Metal and HIP keep the `[defaults]` bf16.
+    pub kv_dtype: Option<String>,
 }
 
 /// A resolved MTP draft-head width and where it came from.
@@ -643,6 +647,15 @@ impl Recipe {
         DType::parse(&self.defaults.kv_dtype)
     }
 
+    /// The KV cache dtype for `backend`: the recipe's `[tuning.<backend>] kv_dtype`, else `[defaults] kv_dtype`. `--kv-dtype` wins over both
+    /// (the loader applies it first).
+    pub fn resolve_kv_dtype(&self, backend: &str) -> Result<DType> {
+        match self.tuning.backends.get(backend).and_then(|b| b.kv_dtype.as_deref()) {
+            Some(v) => DType::parse(v),
+            None => self.kv_dtype(),
+        }
+    }
+
     /// Expand `{i}` in a tensor name template.
     pub fn expand(template: &str, layer: usize) -> String {
         template.replace("{i}", &layer.to_string())
@@ -685,6 +698,9 @@ impl Recipe {
         }
         if let Some(v) = self.tuning.backends.values().filter_map(|b| b.tp_partial.as_deref()).find(|v| !matches!(*v, "f32" | "bf16")) {
             return Err(Error::model(format!("recipe [tuning.<backend>] tp_partial = \"{v}\" (f32 or bf16)")));
+        }
+        for v in self.tuning.backends.values().filter_map(|b| b.kv_dtype.as_deref()) {
+            DType::parse(v).map_err(|e| Error::model(format!("recipe [tuning.<backend>] kv_dtype = \"{v}\": {e}")))?;
         }
         if let Some(v) = self.tuning.backends.values().filter_map(|b| b.gdn_state.as_deref()).find(|v| !matches!(*v, "f32" | "bf16")) {
             return Err(Error::model(format!("recipe [tuning.<backend>] gdn_state = \"{v}\" (f32 or bf16)")));
