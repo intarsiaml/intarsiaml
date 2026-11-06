@@ -3,6 +3,8 @@
 Lane `lane-sn/spark35-numerics`, 2026-11-05, branch `lane-sn/spark35-numerics` from `main` 5390e65b4. CUDA only, `nvidia/Qwen3.6-35B-A3B-NVFP4`,
 the model both Sparks serve through vLLM for Mission Control (spark1 at 32K context, spark2 at 128K). Raw: `docs/results/2026-11-05-spark35-numerics/raw/`.
 
+**User decision 2026-11-06: flip the C default and keep D opt-in.** The C flip is branch `lane-sn/gdn-bf16-default` (recipe `[tuning.cuda] gdn_state = "bf16"`; off switch `INTARSIA_GDN_STATE=f32`); D stays opt-in (`--kv-dtype fp8_e4m3`).
+
 **Status (2026-11-06 08:45 EST): all rules are now measured. Round 1 (J1 to J3, 2026-11-05 evening, dev `7a7aa47b2`) gave Q5 to Q8 but no KL data (kl.sh bug, fixed). Round 2
 (2026-11-06 morning, branch merged with `origin/main`, dev `1f4281d4c`) re-ran the gates and the KL arms: Q1 to Q4 PASS for D, C and C+D. By the rule below ("An arm passes a lever
 if it passes Q1 to Q6") D, C and C+D each pass, and C passes Q8. Only the user flips a default; none is flipped on this branch (the D flip commit `4d9003f67` is reverted).**
@@ -306,6 +308,26 @@ memory saving at 32k / 128k context was not measured in this lane.
   (it re-applies the D patch, which then needs its own build and the `/metrics` smoke test).
 - Checks on the merged tree: workspace `cargo test` passes (#8735), CUDA builds of main and dev (#8736), plan show byte-identical, `kernels test --quick` same, six GPU guards pass,
   idgate PASS (#8741). Metal no-op not re-run (see Q7).
+
+### C default flip (branch `lane-sn/gdn-bf16-default`, from `origin/main` `2abdc2475`, #318 merged)
+
+User decision 2026-11-06: flip the C default and keep D opt-in. Change: `gdn_state = "bf16"` under `[tuning.cuda]` of `recipes/qwen3_5_moe.toml` (commit `bf2213fc8`; the Qwen3.6-35B-A3B on CUDA only; no other recipe or
+backend sets it, test `recipe_gdn_state.rs`). **Off switch: `INTARSIA_GDN_STATE=f32`** (the env var wins over the recipe key, `Model::load`). The debug switches `INTARSIA_CUDA_GDN_SPLIT=0`, `INTARSIA_CUDA_GDN_LANES=1`
+and `INTARSIA_CUDA_FAST_PREFILL=1` select f32-only kernels and now need `INTARSIA_GDN_STATE=f32` as well, otherwise the load refuses (documented in `docs/tuning.md`, `docs/recipes.md`, the recipe comment). Raw: `docs/results/2026-11-06-gdn-bf16-default-raw/`.
+
+Gates, each through fleetq (main = `2abdc2475`, head = `bf2213fc8`; scripts after it only add `flip.sh`):
+
+| gate | job | result |
+|---|---|---|
+| `cargo test --workspace --no-fail-fast`, endor, `--load cpu` | #8750 | exit 0: 235 binaries, 1363 passed, 0 failed, 32 ignored |
+| CUDA builds of main and head | #8751 | OK (3m to 4m each) |
+| `plan show` (text and JSON), main vs head default and vs head with `INTARSIA_GDN_STATE=f32`, `scripts/spark35num/flip.sh` | #8753 (8B, 35B), #8760 (27B) | byte-identical in all 18 comparisons, 8B (Qwen3-8B), 27B (ThinkingCap-Qwen3.8-27B-NVFP4) and 35B. The plan does not print the state dtype or the slot bytes, so the 35B plan is identical too (no GDN state line differs, none exists); the flip shows in the greedy ids and the speed below |
+| greedy ids 6 prompts x 256 tokens, off switch vs main | #8753 | IDENTICAL, all 6 |
+| greedy ids, head default vs main (differs by design) | #8753 | first differing token 27, 22, 2, 49, 27, 26 for 1k-0, 4k-0, 16k-0, 1k-1, 4k-1, 16k-1: the same indices as the cemu / creal arms of the first round |
+| speed, 16 streams (1k prompts, gen 256, `--max-batch 16`), head default (on) vs `INTARSIA_GDN_STATE=f32` (off), 3 rounds, order on/off, off/on, on/off | #8753 | on 332.2 / 331.0 / 332.9 (mean 332.0) vs off 307.3 / 307.8 / 307.1 (mean 307.4): **+8.0 %** (rounds +8.1, +7.5, +8.4); 8 streams +7.7 %, 4 streams +4.2 % |
+
+The +8.0 % on the merged binary (main brings batched MTP at N = 1 and other changes) agrees with the +8.3 % measured before the merge. The Jundot Qwen3.8-27B-oQ4e checkpoint did not plan (`only 20039 MiB free`), so the 27B plan uses the NVFP4 27B on spark2 instead.
+The MMLU / GSM8K / needle / KL results above were measured with the same code path (`INTARSIA_GDN_STATE=bf16`, real layout equal to the emulation bit for bit); they were not repeated for the default.
 
 Existing evidence for D (not re-measured): `docs/results/2026-10-29-fp8kv-opt-in.md`: +9.9 % single-stream decode at 16k, +1.4 % at 16 streams, MMLU 0.846 to 0.851,
 GSM8K 0.500 to 0.500, both inside noise; the long-context (32k, 64k) quality is the gap this lane fills. vLLM at 16 streams: 340 tok/s; the engine: 301 tok/s (0.88x).
