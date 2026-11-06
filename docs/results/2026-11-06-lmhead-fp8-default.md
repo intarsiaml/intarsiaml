@@ -6,7 +6,7 @@
 
 Lane `lane-lh/lmhead-fp8-default`, worktree `.worktrees/lmhead-fp8-default`, base `origin/main` `af6aa5226`. This is the follow-up to `docs/results/2026-11-05-lmhead-fp8-27b.md`, which shipped the quantised head opt-in. The user's decision overrides the 1.0 % top-1 flip bound that doc set (fp8 measured 2.0 to 2.5 % flips in prefill on both backends and 1.0 to 1.6 % in the Metal decode window; MMLU 0.8368 against 0.8316 and GSM8K 0.52 against 0.48 for bf16).
 
-**Status: Metal and CUDA done; HIP window pending (section "HIP" below).**
+**Status: done. Metal, HIP and CUDA gates pass; quality is the first lane's (Metal, HIP) plus a CUDA run; fp8 is the default by user decision, not by the quality rule.**
 
 ## What changed
 
@@ -46,7 +46,13 @@ CUDA (spark1, jobs #8745, #8752; raw `raw/cuda-gates/`):
 - 35B ids head vs base: identical, short (`4e8fc691`) and 4k (`905cb3f0`), 256 ids each.
 - `kernels test` was not run on CUDA (no change to a CUDA kernel in this lane).
 
-HIP (tatooine): {HIP_GATES}
+HIP (tatooine) (job #8743, one window, radiance down 10:01:25 to 10:17:46 = 16 min, back and answering `http://tatooine:8080/v1/models` after 20 s, slot released; raw `raw/hip-window/`):
+
+- Builds of this branch (`head`) and of main `af6aa5226` (`base`, taken from `.scratch/base`) in the dev image, both exit 0.
+- 27B texts (18 prompts x 256 greedy tokens, `scripts/hdc/texts.py` over `scripts/cmtp/ids-prompts`), tp=2, vocab-parallel head, MTP k2 default: head with `INTARSIA_LMHEAD_QUANT=none` == base (18 of 18 identical); head default == base with `INTARSIA_LMHEAD_QUANT=fp8` (18 of 18), i.e. the default is exactly the old opt-in; head default vs base default: 6 of 18 prompts identical, as intended. The load log shows each rank quantising its own 124160 rows (0.64 GB, was 1.27 GB).
+- `plan show` (text and JSON, tp1 and tp2): the 35B is byte-identical base vs head. The 27B differs only in the `logits_bf16*` lines (out), the `matmul_fp8_*` lines (in), the per-rank weight MiB (10264 to 9657 at tp2) and one load-note line on stderr; `raw/hip-window/gates/`.
+- `kernels test --backend hip`: base and head both exit 0, 0 FAIL lines; the only difference in the output is the position of the "incomplete: 10 kernel(s) had no cases" line (`gates/kernels.diff`). Those 10 kernels are untested in both builds, not failed.
+- The 27B at tp1 and the 35B ids were not run on HIP in this window; the 35B plan is byte-identical, and the 35B recipe has no `lm_head_quant`. The first lane ran the HIP tp1 27B speed and texts.
 
 Workspace: `cargo test --workspace --no-fail-fast` on endor, jobs #8729 and #8742: exit 0, 1363 passed, 0 failed (log `.scratch/ws-final.log`, not committed).
 
@@ -63,9 +69,13 @@ CUDA (spark1, 27B, 1024 prompt, 128 tokens, 3 reps per visit, ABAB, `raw/cuda-sp
 
 Visit spread was under 1.5 % within each arm. 4k and 16k were not measured on CUDA.
 
-HIP: {HIP_SPEED}
+HIP: not re-measured; the code and kernels are the first lane's, so its numbers stand (`docs/results/2026-11-05-lmhead-fp8-27b.md`, jobs #8633, #8638): tp2 plain +5 %, tp2 MTP k2 +10 to +14 %, tp1 +6 %, 16 streams 0.997 (no gain).
 
 ## Not done
 
-{NOT_DONE}
+- CUDA: `kernels test`, 16k quality, MMLU and GSM8K, speed at 4k and 16k, and tp2 (single GB10 only). The CUDA speed is one prompt size (1k).
+- HIP: no new speed run (first lane's numbers stand); the 27B tp1 and the 35B greedy ids were not run in this window.
+- Metal: no new quality run (first lane's numbers stand); the speed sanity is noisy at 1k and 4k.
+- Cleanup: tatooine trees, bin dirs and cargo volumes removed (#8765); spark1 `~/lmh-cuda`, including the 18 GB copied checkpoint, removed (#8766). The Metal gate tree `.scratch/base` in the worktree stays.
+- `origin/main` is 44 commits ahead of this branch's base; the coordinator rebases or merges. `docs/decisions/LOG.md` is the likely conflict.
 
