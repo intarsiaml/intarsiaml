@@ -229,3 +229,17 @@ under peak. A bitwise M <= 8 kernel at ~1.5-2x of M = 1 looks reachable; M = 16 
 
 The test discriminates (the other orders differ on ~40 % of outputs) and the M5 Max's fp32 MMA is the k-ascending chain on every output.
 This is observed behaviour, not a documented guarantee: the MMA kernel is registered for this arch only and keeps a bitwise test.
+
+### First MMA kernel (`mxfp4_gemv_*_mma`, `INTARSIA_METAL_MXFP4_MR=8`; fleetq #8836, `raw/p3-k1/p3-k1.log`)
+
+* Bitwise: `tests/mxfp4_gemv.rs` `m_row_shaders_are_bitwise_the_one_row_call_per_row` passes with the MMA arm added (M 2..8, N 37 / 130 /
+  515 / 64 tails, K 32 .. 17408, bf16 and f32 out, act 0 and 1, x offset 0 and 4: every row bitwise the M = 1 call).
+* Speed: **11-18x of M = 1** at every M (17408x5120: 668 us at M = 2, 789 us at M = 8, vs 60 us at M = 1; the shipped MR p2 is 67 / 240 us).
+  The draft is a serial chain (4 dependent MMAs per group, one 8x8 tile per simdgroup, 2-byte strided activation loads, 16 KB of
+  threadgroup slots per 64 threads).
+* Ceiling (`raw/p3-probe/mmapeak.swift`, fleetq #8838): fp32 `simdgroup_multiply_accumulate` peaks at **8.07 TFMA/s** (fp16 8.26) vs the plain
+  fp32 fma peak of 7.51: on this GPU the simdgroup MMA runs at ALU rate, not on a separate matrix unit. So the MMA form can only remove
+  overhead (decode, widening, operand loads), not add FLOPs, and it pads M up to 8: at M = 3 it does 8 rows of work. Its best case at the
+  27B shapes is the M = 8 compute bound (17408x5120: 713 M fma = 88 us at 8.07 T, 1.46x M = 1); M = 3 stays with the ALU MR kernel.
+* Bound for the ALU form: M = 1 is bandwidth-bound (17408x5120: 44.6 MB in 60 us, ~740 GB/s); M = 3 needs 267 M fma = 36 us at the fma peak,
+  so M = 3 ~ 1.0-1.1x is not excluded by arithmetic: the shipped 1.30-1.44x is instruction overhead (e2m1 decode, bf16 widening, loads).
