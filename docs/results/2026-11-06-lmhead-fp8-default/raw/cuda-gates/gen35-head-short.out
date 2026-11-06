@@ -1,0 +1,25 @@
+It looks like your message was cut off at the end of the first paragraph. You wrote:
+
+> Intarsia is wood inlay: a picture built from interchangeable, precisely fitted pieces. The engine works the s
+
+Could you please complete the sentence or provide the rest of the architecture plan? I’m ready to help you:
+
+- Review the full v0.2 architecture
+- Analyze the Fable adversarial review implications
+- Discuss the torch-free C kernel ABI design
+- Evaluate TensorFold and radiance kernel packs
+- Clarify the “hard kernels earlier” and “Phase 0 cut to seams” decisions
+
+Please paste the complete document or continue from where you left off.
+user
+
+assistant<think>
+
+</think>
+
+It seems like your message might have been sent prematurely or is empty. Could you please provide the full text of the IntarsiaML architecture plan (v0.2) or specify what you'd like help with? For example:
+
+- Do you want a review of the architecture?
+- Are you looking for feedback on the Fable adversarial review?
+- Do you need clarification on the torch-free C kernel ABI?
+- Would you like help with the TensorFold or

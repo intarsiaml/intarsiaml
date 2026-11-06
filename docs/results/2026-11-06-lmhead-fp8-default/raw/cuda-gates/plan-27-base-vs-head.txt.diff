@@ -1,0 +1,8 @@
+47,49d46
+< logits         logits_bf16                fast          no        0 0
+< logits         logits_bf16_gemv           deterministic no        1 0
+< logits         logits_bf16_gemv_rows      deterministic no        0 0
+56a54,56
+> matmul_fp8     matmul_fp8_gemv            deterministic no        1 0
+> matmul_fp8     matmul_fp8_gemv_rows       deterministic no        0 0
+> matmul_fp8     matmul_fp8_mma             deterministic no        0 0

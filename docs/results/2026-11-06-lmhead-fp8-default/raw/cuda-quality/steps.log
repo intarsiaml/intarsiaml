@@ -1,0 +1,9 @@
+08:22:45 gen 4k-0:      128 ids
+08:23:35 gen 4k-1:      128 ids
+08:24:23 gen 4k-2:      128 ids
+Installed 1 package in 0.80ms
+wrote docs/results/2026-11-06-lmhead-fp8-default/raw/cuda-quality/prompts.safetensors: 4k-0=3858, 4k-1=3981, 4k-2=4336
+08:26:20 write exit 1
+08:28:14 compare fp8 exit 0
+08:30:14 compare off exit 0
+08:30:14 done

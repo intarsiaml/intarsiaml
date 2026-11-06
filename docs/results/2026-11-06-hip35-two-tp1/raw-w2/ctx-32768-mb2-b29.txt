@@ -1,0 +1,1 @@
+ctx-probe: {"url": "http://tatooine:8301/v1", "target_prompt_tokens": 16000, "sentences": 746, "ok": true, "prompt_tokens": 16738, "completion_tokens": 32, "ttft_s": 1.7508145000000002, "wall_s": 1.9713971250000002}

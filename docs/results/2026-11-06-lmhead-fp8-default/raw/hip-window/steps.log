@@ -1,0 +1,19 @@
+10:01:25 job 8743 window def: stopping radiance
+10:01:30 job 8743 window def: stopping radiance
+10:01:33 item 1: starting server base.off.2.mtp.1
+10:04:18 item 1 base.off.2.mtp.1 texts: exit 0       18 lines
+10:04:18 item 2: starting server base.fp8.2.mtp.1
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.1 s)
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.1 s)
+10:06:31 item 2 base.fp8.2.mtp.1 texts: exit 0       18 lines
+10:06:31 item 3: starting server head.off.2.mtp.1
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.1 s)
+lm_head quantised to fp8 (124160 rows x 5120, 0.64 GB, was bf16 1.27 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.0 s)
+10:08:43 item 3 head.off.2.mtp.1 texts: exit 0       18 lines
+10:08:43 item 4: starting server head.none.2.mtp.1
+10:11:19 item 4 head.none.2.mtp.1 texts: exit 0       18 lines
+10:11:19 item 5 gates: start
+10:17:45 item 5 gates: exit 0 GATES kernels base exit 0|GATES kernels head exit 0|GATES plan-27-tp1.json: DIFFER or empty|GATES plan-27-tp1.json.err: DIFFER or empty|GATES plan-27-tp1.txt: DIFFER or empty|GATES plan-27-tp1.txt.err: DIFFER or empty|GATES plan-27-tp2.json: DIFFER or empty|GATES plan-27-tp2.json.err: DIFFER or empty|GATES plan-27-tp2.txt: DIFFER or empty|GATES plan-27-tp2.txt.err: DIFFER or empty|GATES plan-35-tp1.json: byte-identical (12961 B)|GATES plan-35-tp1.json.err: byte-identical (268 B)|GATES plan-35-tp1.txt: byte-identical (3184 B)|GATES plan-35-tp1.txt.err: byte-identical (268 B)|GATES plan-35-tp2.json: byte-identical (13541 B)|GATES plan-35-tp2.json.err: byte-identical (339 B)|GATES plan-35-tp2.txt: byte-identical (3346 B)|GATES plan-35-tp2.txt.err: byte-identical (339 B)|GATES kernels test: DIFFERS|
+10:17:46 done
+10:17:46 starting radiance
+10:18:02 radiance answers (after 20 s): {"object":"list","data":[{"id":"Qwen3.8","object":"model","created":1793978282,"owned_by":"radiance","max_model_len":200

@@ -1,0 +1,10 @@
+fleetq: #8760 running on spark2: scripts/spark35num/flip.sh
+flip.sh on spark2 09:45:27: main=2abdc24754dcdd6b98f3ba1824306962f8a0ee8d head=bf2213fc8c18cc6f77c67f7dcd783c79c054dcaf; MemAvailable 75 GB
+plan 27b txt: exit main=0 head=0 head-off=0
+PASS plan 27b txt: head with INTARSIA_GDN_STATE=f32 == main (byte-identical)
+PASS plan 27b txt: head default == main (byte-identical)
+plan 27b json: exit main=0 head=0 head-off=0
+PASS plan 27b json: head with INTARSIA_GDN_STATE=f32 == main (byte-identical)
+PASS plan 27b json: head default == main (byte-identical)
+flip.sh done 09:49:27 fails=0 (plan only)
+fleetq: #8760 done (exit 0)

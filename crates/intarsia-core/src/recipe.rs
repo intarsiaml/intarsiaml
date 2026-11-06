@@ -402,7 +402,7 @@ pub struct BackendTuning {
     /// accuracy gate passed (lane spark35, `docs/results/2026-11-05-spark35-numerics.md`).
     pub gdn_state: Option<String>,
     /// Quantise the `lm_head` at load on this backend (`"fp8"` or `"mxfp4"`, [`crate::quant::head`]) when `INTARSIA_LMHEAD_QUANT` is not
-    /// set. It changes outputs: opt-in, no shipped recipe sets it (lane lmhead-fp8). Per backend only; CUDA ignores it (not gated there).
+    /// set. It changes outputs: only `recipes/qwen3_5_vl.toml` (Qwen3.8-27B) sets it, on Metal, HIP and CUDA (user decisions 2026-11-06, lane lmhead-fp8-default).
     pub lm_head_quant: Option<String>,
 }
 

@@ -1,0 +1,13 @@
+12:08:34 DIFF plan 8b lane vs base (474 lines)
+12:08:35 DIFF plan 27b lane vs base (789 lines)
+12:08:55 DIFF plan 35b lane vs base (673 lines)
+12:08:55 kernels test lane exit 1: FAIL lines 0, Error: this binary was built without the Metal backend (macOS only: cargo build -p intarsia-cli --features metal)
+12:08:55 FAIL ids 27b-short-0-lane-off vs 27b-short-0-lane-default
+12:09:05 FAIL ids 27b-short-0-base-default vs 27b-short-0-lane-mr0
+12:09:15 FAIL ids 8b-short-0-base-default vs 8b-short-0-lane-default
+12:09:20 FAIL ids 35b-short-0-base-default vs 35b-short-0-lane-default
+12:09:20 FAIL ids 27b-4k-1-lane-off vs 27b-4k-1-lane-default
+12:09:34 FAIL ids 27b-4k-1-base-default vs 27b-4k-1-lane-mr0
+12:09:43 FAIL ids 8b-4k-1-base-default vs 8b-4k-1-lane-default
+12:09:50 FAIL ids 35b-4k-1-base-default vs 35b-4k-1-lane-default
+12:09:50 done
