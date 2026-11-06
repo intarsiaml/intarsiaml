@@ -8,10 +8,17 @@ set -uo pipefail
 S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 n=$#; i=0
 for pair in "$@"; do
-  i=$((i + 1)); rev=${pair%%:*}; bin=${pair#*:}
+  i=$((i + 1)); rev=${pair%%:*}; bin=${pair#*:}; mark=""
+  [[ $bin == *:* ]] && { mark=${bin#*:}; bin=${bin%%:*}; }
   stamp=$("$S/sync.sh" "$rev" | tail -1) || { echo "sync $rev failed"; exit 2; }
   ht=0; [[ $i == "$n" ]] && ht=${HIPTEST:-0}
   echo "== $rev -> $bin ($stamp) $(date +%T)"
   ssh -o BatchMode=yes tatooine "mkdir -p ~/intarsiaml-dh/.dh && FLEETQ_JOB=$FLEETQ_JOB TREES='dev=$stamp' BIN=$bin HIPTEST=$ht MTESTS='${MTESTS:-}' bash -s" < "$S/build.sh" || exit 3
+  # "<rev>:<bin>:<marker>": the built CLI must contain <marker> (a string only that rev has), or the build was stale
+  if [[ -n $mark ]]; then
+    n=$(ssh -o BatchMode=yes tatooine "grep -c '$mark' ~/intarsiaml-dh/$bin" < /dev/null)
+    if [[ ${n:-0} == 0 ]]; then echo "STALE: $bin lacks '$mark'"; exit 4; fi
+    echo "$bin has '$mark'"
+  fi
 done
 scp -q "$S"/lib.sh "$S"/guard.sh "$S"/stages-*.sh tatooine:intarsiaml-dh/.dh/
