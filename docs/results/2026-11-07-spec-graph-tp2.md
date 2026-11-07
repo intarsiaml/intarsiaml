@@ -57,3 +57,47 @@ off + mtp2, 35B tp1/tp2 off + mtp2.
 without it at 4k, and the knob arm >= 1.15x tp2 off at 4k. Arms ABAB (tp2off / tp2m / tp2mg, then reversed), fresh
 `serve --max-batch 1` per arm, `localeval speed --sizes 1024,4096,16384 --gen 128 --reps 3`; 27B tp2 mtp2 vs mtp2 + knob at 4k
 (reported, no rule).
+
+## Results
+
+Code: branch `lane-gt2/spec-graph-tp2` (code at 6dc65a632, tree identical to the PR head for `crates/`), base origin/main 7489a48aa.
+Binaries built on tatooine in fleetq #8991 (`gt2-intarsia-base`, `gt2-intarsia`).
+
+### Gates
+
+| gate | result | where |
+| --- | --- | --- |
+| CPU: `tp_spec_graph` (new, 2 tests), `tp_mtp`, `mtp`, `tp`, `dflash2_cpu`, `tp_batch`, `tp_hybrid`, `graphs`, `cargo test -p intarsia-core` (198), `docs_env_vars`, `cargo build --workspace` | all pass | endor, fleetq #8992, #8994 |
+| HIP plan show JSON, main vs branch, knob unset: 8B tp1 off; 27B tp1/tp2 off + mtp2; 35B tp1/tp2 off + mtp2 | 9/9 SAME | raw/w1/ids/steps.log (#8995) |
+| **(a) ids** 256 greedy, tp2 mtp k2 + `INTARSIA_SPEC_GRAPH_TP=1` == tp2 `--spec off` | **4/4 PASS**: 35B short-0 (106 graph steps), 35B 4k-1 (108), 27B short-0 (107), 27B 4k-1 (99); 0 capture failures | raw/w1/ids (#8995) |
+| Metal no-op (endor): plan show JSON 8B/27B/35B x default/off/mtp, kernels list, kernels test | 9/9 SAME, kernels SAME (51 kernels, 1136 cases) | `scripts/dm/noop.sh`, #8999 |
+| CUDA no-op (spark1): plan show JSON 35B/8B, kernels test --quick | see PR / below | `scripts/gt2/cuda-noop.sh`, #8997 |
+
+The 35B row is the whole-head (MoE, lane mt2) path, which has no CPU fixture: its ids gate passed with the step engaged.
+
+### Speed (window w2, fleetq #9000; decode tok/s, median of 6 = 2 ABAB rounds x 3 reps, `localeval speed --gen 128`, `serve --max-batch 1`)
+
+| model, tp2 | arm | 1k | 4k | 16k |
+| --- | --- | --- | --- | --- |
+| 35B | `--spec off` | 192.7 | 190.9 | 180.2 |
+| 35B | mtp k2 (eager step) | 207.9 | 223.7 | 193.3 |
+| 35B | mtp k2 + `INTARSIA_SPEC_GRAPH_TP=1` | 211.6 | 219.1 | 203.2 |
+| 27B | mtp k2 (eager step) | | 95.2 | |
+| 27B | mtp k2 + knob | | 94.1 | |
+
+Acceptance per arm is the same within noise (35B: 637-654 accepted of 967-1002 drafted per arm run; 27B: 206-214 of 330-346; `raw/w2/spec-metrics.txt`).
+
+**Rule (b): FAILS.** At 4k the knob arm is 0.98x the eager-step arm (wanted >= 1.05x). It is 1.15x tp2 off (219.1 / 190.9; the
+eager step is 1.17x in this window, against 1.04-1.07x in lane mh2's window: run-to-run spread at k2 is large, single reps range
+188-230 tok/s). At 1k +1.8%, at 16k +5.1%; 27B at 4k -1.2%. Verdict: the captured step at tp2 is correct but not measurably faster
+than the eager tp2 step on HIP; **no default flip recommended**. Likely reason: at tp2 on HIP the eager step's host launch cost is
+hidden behind the two GPUs' work (the step is GPU-bound, the per-step all-reduces and the cross-rank handshake dominate), and the
+captured step adds k (sharded head) or 1 (whole head) id gathers plus a thread barrier per step. Engagement in the serve arms was
+not traced (no `INTARSIA_SPEC_TRACE` there, no capture failure in the serve logs); engagement was shown in the ids runs with the
+same binary and flags.
+
+### Radiance downtime
+
+w1 (#8995): stopped 02:28:38, answers 02:33:11 (4.5 min; plans + ids, then the knob speed arms failed at localeval: the recipe string
+of that arm passed 255 bytes and localeval stats it as a path; window stopped by PID, recipe shortened). w2 (#9000): stopped 02:33:58,
+answers 02:41:59 (8 min, speed arms only). Total 12.5 min.
