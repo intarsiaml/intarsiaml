@@ -59,6 +59,11 @@ if [[ ${DRY:-0} == 1 ]]; then
   echo "DRY PRE=${PRE:-} IDARMS=${IDARMS:-} TPS=${TPS:-} IDNAMES=${IDNAMES:-} VERIFY8=${VERIFY8:-0} SOAK=${SOAK:-0} SOAK_ARMS=${SOAK_ARMS:-mtp2} SOAK_REF=${SOAK_REF:-2} CAP=$CAP GEN=$GEN"
   exit 0
 fi
+# NEED_MARKER=<string>: the built CLI must contain it (a string only the wanted rev has), checked before radiance goes down
+if [[ -n ${NEED_MARKER:-} ]]; then
+  n=$($SSH "grep -c '$NEED_MARKER' ~/intarsiaml-au1/au1-intarsia" < /dev/null)
+  if [[ ${n:-0} == 0 ]]; then echo "STALE: au1-intarsia lacks '$NEED_MARKER', not starting"; exit 4; fi
+fi
 mkdir -p "$REPO/target"; FIFO=$(mktemp -u "$REPO/target/au1guard.XXXXXX"); mkfifo "$FIFO"
 $SSH 'mkdir -p ~/intarsiaml-au1/.au1' < /dev/null; scp -q "$HERE/guard.sh" "$HERE/lib.sh" "$HERE"/stages-*.sh tatooine:intarsiaml-au1/.au1/
 $SSH 'bash ~/intarsiaml-au1/.au1/guard.sh' > "$OUT/guard.log" 2>&1 < "$FIFO" &
