@@ -10,7 +10,7 @@ CAP=${CAP:-2400}; PORT=8095; MINLEFT=${MINLEFT:-200}
 M35=/models/intarsia/Qwen3.6-35B-A3B-NVFP4
 IMG=intarsia-hip-dev:rocm7.2.4-rust1.90.0
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; REPO="$(cd "$HERE/../.." && pwd)"
-OUT=$REPO/docs/results/2026-11-07-spec-graph-tp2/raw/$W; mkdir -p "$OUT"
+OUT=$REPO/docs/results/2026-11-07-spec-graph-tp2-traced/raw/$W; mkdir -p "$OUT"
 T0=$(date +%s); left() { echo $(( CAP - ($(date +%s) - T0) )); }
 say() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
 SSH="ssh -o BatchMode=yes tatooine"
