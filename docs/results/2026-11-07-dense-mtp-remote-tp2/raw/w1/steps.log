@@ -1,0 +1,25 @@
+spark1: head=a5832a4 code-tree=2ba7efe9a660 dirty=nodevice
+Mem:             121          37          27           0          58          83
+spark2: head=a5832a4 code-tree=2ba7efe9a660 dirty=nodevice
+Mem:             121          45          12           0          64          76
+spark1 memwatch up
+spark2 memwatch up
+03:54:31 ids-short-0-tp1m: rc=0|prefill 532 ms (77.0 tok/s) | decode 8565 ms (29.77 tok/s)|spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)|avail 83| worker: 
+03:54:53 ids-short-0-tp2off: rc=0|prefill 609 ms (67.4 tok/s) | decode 10614 ms (24.02 tok/s)|avail 83| worker: tensor-parallel rank 1 of 2: serving rank 0 (4096 tokens of context)|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+03:55:12 ids-short-0-tp2m: rc=0|prefill 719 ms (57.1 tok/s) | decode 6217 ms (41.01 tok/s)|spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)|avail 83| worker: tensor-parallel rank 1 of 2: serving rank 0 (4096 tokens of context)|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=2|
+03:55:13 IDS short-0: tp2m == tp2off (1433 B, md5 b594fdcc7955)
+03:56:02 ids-4k-1-tp1m: rc=0|prefill 5007 ms (797.5 tok/s) | decode 9103 ms (28.01 tok/s)|spec: verify passes=106 proposed=212 accepted=149 (acceptance 70.3%, 2.41 tokens per pass)|avail 83| worker: 
+03:56:27 ids-4k-1-tp2off: rc=0|prefill 4133 ms (966.2 tok/s) | decode 10840 ms (23.52 tok/s)|avail 83| worker: tensor-parallel rank 1 of 2: serving rank 0 (8192 tokens of context)|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=256|
+03:56:49 ids-4k-1-tp2m: rc=0|prefill 3734 ms (1069.3 tok/s) | decode 6556 ms (38.89 tok/s)|spec: verify passes=105 proposed=210 accepted=150 (acceptance 71.4%, 2.43 tokens per pass)|avail 83| worker: tensor-parallel rank 1 of 2: serving rank 0 (8192 tokens of context)|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1|
+03:56:50 IDS 4k-1: tp2m == tp2off (1425 B, md5 56eefb4d9f43)
+03:57:30 r1-1k-tp1m: rc=0|prefill 1507 ms (667.6 tok/s) | decode 6006 ms (31.80 tok/s)|spec: verify passes=72 proposed=143 accepted=119 (acceptance 83.2%, 2.65 tokens per pass)|avail 83| worker: 
+03:57:49 r1-1k-tp2off: rc=0|prefill 1296 ms (776.4 tok/s) | decode 7950 ms (24.03 tok/s)|avail 83| worker: tensor-parallel rank 1 of 2: serving rank 0 (8192 tokens of context)|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=192|
+03:58:06 r1-1k-tp2m: rc=0|prefill 1346 ms (747.3 tok/s) | decode 4562 ms (41.87 tok/s)|spec: verify passes=74 proposed=148 accepted=116 (acceptance 78.4%, 2.57 tokens per pass)|avail 83| worker: tensor-parallel rank 1 of 2: serving rank 0 (8192 tokens of context)|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=2|
+03:58:50 r1-4k-tp1m: rc=0|prefill 5237 ms (804.0 tok/s) | decode 6613 ms (28.88 tok/s)|spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)|avail 83| worker: 
+03:59:12 r1-4k-tp2off: rc=0|prefill 3868 ms (1088.6 tok/s) | decode 8008 ms (23.85 tok/s)|avail 83| worker: tensor-parallel rank 1 of 2: serving rank 0 (8192 tokens of context)|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=192|
+03:59:32 r1-4k-tp2m: rc=0|prefill 3908 ms (1077.4 tok/s) | decode 4800 ms (39.79 tok/s)|spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)|avail 83| worker: tensor-parallel rank 1 of 2: serving rank 0 (8192 tokens of context)|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=1|
+04:00:33 r1-16k-tp1m: rc=0|prefill 19588 ms (818.2 tok/s) | decode 7596 ms (25.15 tok/s)|spec: verify passes=76 proposed=152 accepted=113 (acceptance 74.3%, 2.49 tokens per pass)|avail 83| worker: 
+04:01:05 r1-16k-tp2off: rc=0|prefill 13622 ms (1176.5 tok/s) | decode 8540 ms (22.36 tok/s)|avail 83| worker: tensor-parallel rank 1 of 2: serving rank 0 (20480 tokens of context)|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=192|
+04:01:36 r1-16k-tp2m: rc=0|prefill 13795 ms (1161.7 tok/s) | decode 5286 ms (36.14 tok/s)|spec: verify passes=76 proposed=152 accepted=113 (acceptance 74.3%, 2.49 tokens per pass)|avail 83| worker: tensor-parallel rank 1 of 2: serving rank 0 (20480 tokens of context)|tensor-parallel rank 1: decode graph enabled=true captures=1 replays=3|
+04:01:36 done
+04:01:36 cleanup (exit 0)

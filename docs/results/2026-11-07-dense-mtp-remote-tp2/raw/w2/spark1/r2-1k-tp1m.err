@@ -1,0 +1,16 @@
+prefill chunk 256 (default)
+lm_head quantised to fp8 (248320 rows x 5120, 1.27 GB, was bf16 2.54 GB; INTARSIA_LMHEAD_QUANT = fp8, 2.3 s)
+mtp: drafter head 'mtp' loaded in 1.5 s (routed experts quantised to nvfp4)
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, cuda; --mtp-draft-vocab 0 drafts with the full head)
+verify attention rows: engaged (one row-table attention launch per layer)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'none' (the recipe's default, chosen for accuracy (Qwen3.8-27B, full MMLU n=1425: W4A16 0.822 vs W4A4 0.802, docs/results/2026-10-27-act27-27b-w4a16-mmlu.md; costs prefill and decode speed); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: none (recipe qwen3_5_vl [defaults] mxfp4_act)
+--spec mtp on cuda: verify rows run the row-exact kernels (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_gemv_mr_rows gdn_conv=gdn_conv_bf16 gdn_delta_rule=gdn_delta_rule_bf16_split gated_rmsnorm=gated_rmsnorm_bf16 rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split=gate_split_bf16 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 matmul=matmul_bf16_gemv add=add_bf16 matmul_fp8=matmul_fp8_gemv argmax=argmax_f32 matmul_fp8=matmul_fp8_gemv_rows
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+loaded Qwen3.8-27B-Quark-AWQ-MXFP4 on NVIDIA GB10 in 30.7s: 64 layers, hidden 5120, act bf16, kv bf16, weights 17.61 GB, context 8192 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 1006 tokens
+ids: [27775, 383, 279, 3766, 47801, 314, 279, 2972, 1037, 1506, 667, 2581, 17120, 3019, 318, 85, 15, 13, 17, 221719, 1532, 369, 264, 31838, 11782, 321, 6157, 314, 279, 1428, 1528, 11, 8578, 11, 321, 85188, 10856, 13, 271, 13962, 220, 16, 13, 9237, 44340, 25, 328, 1037, 1506, 667, 1, 318, 46779, 733, 6442, 8, 198, 760, 4560, 369, 5995, 430, 264, 42441, 1785, 1332, 1396, 3566, 318, 445, 11, 9705, 11, 9966, 3443, 11, 1558, 2424, 11, 27502, 11, 5165, 8, 369, 449, 87030, 6365, 440, 264, 7077, 4954, 13, 198, 9, 256, 2972, 1536, 78193, 64700, 6983, 6365, 1902, 381, 9770, 2272, 264, 5604, 1518, 17066, 13, 198, 9, 256, 2972, 31566, 12, 38663, 64700, 2233, 791, 16683, 20459, 13, 26012, 513, 348, 48181, 9, 888, 264, 5904, 2424, 6522, 13, 1478, 1970, 369, 1132, 5158, 364, 34032, 491, 2424, 4346, 13, 271, 13962, 220, 17, 13, 30871, 32666, 318, 1421, 12, 28401, 8, 198, 16, 13, 220, 2972, 4312, 1231, 332, 198, 17, 13, 220, 2972, 35512, 310, 958, 332, 198, 18, 13, 220, 2972, 14182, 59098, 332, 198, 19, 13, 220, 2972, 31114, 332, 318, 5198, 220]
+finish=length prompt=1006 (cached 0) completion=192 | prefill 1513 ms (665.1 tok/s) | decode 6018 ms (31.74 tok/s)
+spec: verify passes=72 proposed=143 accepted=119 (acceptance 83.2%, 2.65 tokens per pass)
+steps=77 graph replays=72 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/148 argmax=0ms/216 attn_decode=0ms/3699 attn_prefill=0ms/64 embedding=0ms/225

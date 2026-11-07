@@ -1,0 +1,15 @@
+Based on the provided excerpt of the **IntarsiaML architecture plan (v0.2)**, here is a structured summary and analysis of the key architectural decisions, goals, and constraints.
+
+### 1. Core Philosophy: "Intarsia" (Wood Inlay)
+The engine is designed as a modular system where every component (op, kernel, quant format, model block, benchmark, API) is an interchangeable piece with a strict contract.
+*   **Verification:** Every piece must pass a reference test before integration.
+*   **Modularity:** New model support is achieved by creating a *recipe* over a shared block library, rather than writing a new engine per model family.
+
+### 2. Goals & Targets
+**Priority Order:**
+1.  Modular
+2.  Easy to use
+3.  Accurate
+4.  Fast (Top 3 per platform)
+5.  Reproducible
+NCCL version 2.30.7+cuda13.3
