@@ -1,5 +1,5 @@
-//! The speculative MTP step as one captured graph (`--spec mtp` on a backend that records graphs and runs the verify
-//! attention one decode call per row: HIP).
+//! The speculative MTP step as one captured graph (`--spec mtp`, and the passes the MTP head drafts inside `--spec auto`, on a
+//! backend that records graphs and runs the verify attention one decode call per row: HIP).
 //!
 //! One step is the draft and the verify together, from the token the main model just emitted to the verify outputs:
 //!
@@ -218,6 +218,10 @@ impl Model {
             st.spec_rows.saved = q - 1;
         }
         self.telemetry.step();
+        // `--spec auto` (lane ag1): the replayed verify pass left the DFlash taps' features in the staging buffers (the
+        // recording holds the tap launches), so the draft's context takes the rows as after an eager verify pass. Nothing
+        // without the draft.
+        self.dflash_after_forward(st, q, false)?;
         Ok(Some(SpecPass { drafts, out }))
     }
 

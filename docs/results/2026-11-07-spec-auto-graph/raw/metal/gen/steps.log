@@ -1,0 +1,4 @@
+23:42:30 short-0 off exit 0 ids-vs-off PASS | no spec passes | finish=length prompt=41 (cached 0) completion=256 | prefill 2233 ms (18.4 tok/s) | decode 7768 ms (32.83 tok/s)
+23:42:37 short-0 mtp2 exit 0 ids-vs-off PASS | passes 102 tok/pass 2.49 draft nan verify+rb nan pass nan ms | finish=length prompt=41 (cached 0) completion=256 | prefill 524 ms (78.3 tok/s) | decode 4269 ms (59.73 tok/s)
+23:42:52 4k-1 off exit 0 ids-vs-off PASS | no spec passes | finish=length prompt=3135 (cached 0) completion=256 | prefill 4172 ms (751.5 tok/s) | decode 8280 ms (30.80 tok/s)
+23:43:04 4k-1 mtp2 exit 0 ids-vs-off PASS | passes 100 tok/pass 2.55 draft nan verify+rb nan pass nan ms | finish=length prompt=3135 (cached 0) completion=256 | prefill 4284 ms (731.8 tok/s) | decode 4590 ms (55.56 tok/s)
