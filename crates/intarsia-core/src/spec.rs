@@ -235,17 +235,114 @@ pub fn residual(p: &crate::sampler::Dist, q: &crate::sampler::Dist) -> Option<cr
     Some(crate::sampler::Dist { ids, probs })
 }
 
+/// mb-MTP ("mode-biased", after llamAmpere v0.6, `common_sampler_verify_pq`): on a rejected draft, keep the draft instead of
+/// the replacement token when the target rates it at least as likely, `p(d) >= p(replacement)`, and neither is a stop token.
+/// Not exact: the output leans toward the target's likelier tokens (llamAmpere measured 0.009 KL per token at draft depth 6),
+/// in exchange for more accepted drafts per pass. `INTARSIA_SPEC_MB=1` (read once) turns it on for sampled speculation
+/// ([`SampledSpec`]); off by default.
+pub fn mb_from_env() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| matches!(std::env::var("INTARSIA_SPEC_MB").as_deref(), Ok("1" | "on")))
+}
+
+/// `INTARSIA_SPEC_MB_AUDIT=1` (read once): each sampled pass logs how far the token law of its deciding rows is from the
+/// target ([`mb_row_law`], [`law_divergence`]); for measuring mb-MTP, costs host time.
+pub fn mb_audit_enabled() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| matches!(std::env::var("INTARSIA_SPEC_MB_AUDIT").as_deref(), Ok("1" | "on")))
+}
+
+/// The law of the token one verify row of [`accept_sampled`] emits, given the target `p` of the row. `q: None` ([`SampledSpec::Match`]):
+/// conditional on the greedy draft `d`. `q: Some` ([`SampledSpec::Reject`]): marginal over the draft drawn from `q` (`d` unused).
+/// `mb`: the stop test of mb-MTP, `None` for exact acceptance (the law is then `p`). The rescue moves the mass of every
+/// non-stop replacement `x` with `p(x) <= p(d)` onto a non-stop draft `d`.
+pub fn mb_row_law(p: &crate::sampler::Dist, q: Option<&crate::sampler::Dist>, d: u32, mb: Option<&dyn Fn(u32) -> bool>) -> crate::sampler::Dist {
+    let stop = |t: u32| mb.is_none_or(|f| f(t));
+    let mut law: std::collections::HashMap<u32, f64> = std::collections::HashMap::new();
+    match q {
+        None => {
+            let pd = p.prob(d);
+            for (&x, &px) in p.ids.iter().zip(&p.probs) {
+                let to = if x != d && !stop(d) && !stop(x) && px <= pd { d } else { x };
+                *law.entry(to).or_default() += px;
+            }
+        }
+        Some(q) => {
+            // accepted drafts: q(d') min(1, p(d') / q(d')) = min(p(d'), q(d')); rejected weight w(d') = q(d') - that
+            let mut w: Vec<(f64, u32, f64)> = Vec::new(); // (p(d'), d', w(d')) of the non-stop drafts
+            let mut w_all = 0.0;
+            for (&dd, &qd) in q.ids.iter().zip(&q.probs) {
+                let pd = p.prob(dd);
+                *law.entry(dd).or_default() += pd.min(qd);
+                let wd = qd - pd.min(qd);
+                w_all += wd;
+                if wd > 0.0 && !stop(dd) {
+                    w.push((pd, dd, wd));
+                }
+            }
+            if let Some(r) = residual(p, q).filter(|_| w_all > 0.0) {
+                // x keeps the weight of the drafts that do not rescue it; a draft d' rescues every non-stop x with p(x) <= p(d')
+                let mut by_p: Vec<(f64, f64)> = r.ids.iter().zip(&r.probs).filter(|(x, _)| !stop(**x)).map(|(&x, &rx)| (p.prob(x), rx)).collect();
+                by_p.sort_by(|a, b| a.0.total_cmp(&b.0));
+                let mut cum = vec![0.0; by_p.len() + 1];
+                for (i, &(_, rx)) in by_p.iter().enumerate() {
+                    cum[i + 1] = cum[i] + rx;
+                }
+                w.sort_by(|a, b| b.0.total_cmp(&a.0));
+                let mut wcum = vec![0.0; w.len() + 1];
+                for (i, &(_, _, wd)) in w.iter().enumerate() {
+                    wcum[i + 1] = wcum[i] + wd;
+                }
+                for &(pd, dd, wd) in &w {
+                    let n = by_p.partition_point(|&(px, _)| px <= pd);
+                    *law.entry(dd).or_default() += wd * cum[n];
+                }
+                for (&x, &rx) in r.ids.iter().zip(&r.probs) {
+                    let px = p.prob(x);
+                    let kept = if stop(x) { w_all } else { w_all - wcum[w.partition_point(|&(pd, _, _)| pd >= px)] };
+                    *law.entry(x).or_default() += rx * kept;
+                }
+            }
+        }
+    }
+    let (ids, probs) = law.into_iter().filter(|&(_, v)| v > 0.0).unzip();
+    crate::sampler::Dist { ids, probs }
+}
+
+/// `(KL(s || p), total variation)` of the law `s` against the target `p`, in nats. KL(p || s) is not reported: mb-MTP gives some
+/// tokens of `p` no mass, so it is infinite.
+pub fn law_divergence(s: &crate::sampler::Dist, p: &crate::sampler::Dist) -> (f64, f64) {
+    let mut kl = 0.0;
+    let mut tv = 0.0;
+    for (&x, &sx) in s.ids.iter().zip(&s.probs) {
+        let px = p.prob(x);
+        kl += if px > 0.0 { sx * (sx / px).ln() } else { f64::INFINITY };
+        tv += (sx - px).abs();
+    }
+    for (&x, &px) in p.ids.iter().zip(&p.probs) {
+        if s.prob(x) == 0.0 {
+            tv += px;
+        }
+    }
+    (kl, tv / 2.0)
+}
+
 /// One sampled verify pass ([`SampledSpec`]). `drafts` = `d_1..d_m`; `q[i]` is the distribution `d_{i+1}` was drawn from
 /// ([`SampledSpec::Reject`]) or `None` (greedy drafts, [`SampledSpec::Match`]); `target(i)` is the processed target
 /// distribution of verify row `i` (row 0 was fed the last emitted token, row `i` was fed `d_i`), asked for only for the rows
 /// that decide a token, in order; `u()` is the request's uniform draw. Returns the tokens to emit (`d_1..d_j`, then one
 /// residual, rejection or bonus token) and `j`, the drafts accepted. The KV rows to keep are those of rows `0..=j`.
+/// `mb`: the stop-token test of [mb-MTP](mb_from_env) (`None`: exact acceptance); `rescued` counts the drafts it kept.
 pub fn accept_sampled(
     drafts: &[u32],
     q: Option<&[crate::sampler::Dist]>,
     target: &mut dyn FnMut(usize) -> crate::sampler::Dist,
     u: &mut dyn FnMut() -> f64,
+    mb: Option<&dyn Fn(u32) -> bool>,
+    rescued: &mut usize,
 ) -> (Vec<u32>, usize) {
+    // the mb-MTP rescue of draft `d` against replacement `x`
+    let keep = |p: &crate::sampler::Dist, d: u32, x: u32| mb.is_some_and(|stop| !stop(d) && !stop(x) && p.prob(d) >= p.prob(x));
     if let Some(q) = q {
         assert_eq!(q.len(), drafts.len(), "one draft distribution per draft");
     }
@@ -255,6 +352,11 @@ pub fn accept_sampled(
         match q {
             None => {
                 let x = p.pick(u());
+                if x != d && keep(&p, d, x) {
+                    *rescued += 1;
+                    emit.push(d);
+                    continue;
+                }
                 emit.push(x);
                 if x != d {
                     return (emit, i);
@@ -265,8 +367,13 @@ pub fn accept_sampled(
                     emit.push(d);
                     continue;
                 }
-                let r = residual(&p, &q[i]).unwrap_or(p);
-                emit.push(r.pick(u()));
+                let x = residual(&p, &q[i]).unwrap_or_else(|| p.clone()).pick(u());
+                if keep(&p, d, x) {
+                    *rescued += 1;
+                    emit.push(d);
+                    continue;
+                }
+                emit.push(x);
                 return (emit, i);
             }
         }
@@ -1405,7 +1512,7 @@ mod tests {
                     here.extend(&ds[..i]);
                     dist(&(c.target)(&here), &c.params)
                 };
-                accept_sampled(&drafts, (variant == SampledSpec::Reject).then_some(&qs[..]), &mut { target }, &mut u)
+                accept_sampled(&drafts, (variant == SampledSpec::Reject).then_some(&qs[..]), &mut { target }, &mut u, None, &mut 0)
             };
             hist.extend(&emit);
             out.extend(emit);
@@ -1445,6 +1552,82 @@ mod tests {
         }
         let (stat, df) = chi2(&counts, &want, n);
         assert!(stat > chi2_crit(df, z), "the wrong residual passed: chi2 {stat:.1} on {df} df");
+    }
+
+    /// mb-MTP keeps a rejected draft the target rates at least as likely as the replacement, never a stop token, and with
+    /// `mb` off the same draws reject as before.
+    #[test]
+    fn mb_rescues_likely_drafts() {
+        // target: 0 -> 0.5, 1 -> 0.3, 2 -> 0.2 at every row; u = 0.6 picks 1, u = 0.9 picks 2, u = 0.1 picks 0
+        let p = Dist { ids: vec![0, 1, 2], probs: vec![0.5, 0.3, 0.2] };
+        let run = |drafts: &[u32], us: &[f64], mb: Option<&dyn Fn(u32) -> bool>| {
+            let mut it = us.iter().copied();
+            let mut rescued = 0;
+            let r = accept_sampled(drafts, None, &mut |_| p.clone(), &mut || it.next().unwrap(), mb, &mut rescued);
+            (r, rescued)
+        };
+        let none = |_: u32| false;
+        let eos = |t: u32| t == 0;
+        // exact: draft 0, target draws 1: reject, emit 1
+        assert_eq!(run(&[0, 1], &[0.6], None), ((vec![1], 0), 0));
+        // mb: p(0) = 0.5 >= p(1): keep 0; then draft 1 vs draw 2 (0.3 >= 0.2): keep; bonus draw 0
+        assert_eq!(run(&[0, 1], &[0.6, 0.9, 0.1], Some(&none)), ((vec![0, 1, 0], 2), 2));
+        // mb: draft 2 vs draw 1: p(2) = 0.2 < 0.3: reject
+        assert_eq!(run(&[2], &[0.6], Some(&none)), ((vec![1], 0), 0));
+        // mb: draft 0 is a stop token: never rescued
+        assert_eq!(run(&[0], &[0.6], Some(&eos)), ((vec![1], 0), 0));
+        // mb: replacement 0 is a stop token: never rescued
+        assert_eq!(run(&[1], &[0.1], Some(&eos)), ((vec![0], 0), 0));
+        // Reject variant: q = point mass at the draft, residual = p without the draft; same rescue
+        let q = [Dist::point(0)];
+        let mut us = [0.99, 0.9, 0.1].into_iter();
+        let mut rescued = 0;
+        let r = accept_sampled(&[0], Some(&q), &mut |_| p.clone(), &mut || us.next().unwrap(), Some(&none), &mut rescued);
+        // u = 0.99 >= p(0)/q(0) = 0.5 rejects; residual {1: 0.6, 2: 0.4}, u = 0.9 picks 2; p(0) >= p(2): kept, then a bonus draw
+        assert_eq!((r.0[0], r.1, rescued), (0, 1, 1));
+    }
+
+    /// [`mb_row_law`] is the law of the first token [`accept_sampled`] emits (one draft), exact and mb, both variants: Monte
+    /// Carlo against the computed law; exact laws equal the target.
+    #[test]
+    fn mb_row_law_matches_the_driver() {
+        let n = 200_000u64;
+        let none = |_: u32| false;
+        let eos = |t: u32| t == 3;
+        let t1 = SamplingParams { temperature: 1.0, top_k: 0, top_p: 1.0 };
+        let mut moved = 0f64;
+        for (ci, ctx) in [[0u32, 1], [2, 3], [1, 1]].iter().enumerate() {
+            let p = dist(&hashed_row(ctx, 1, V, 1.5), &t1);
+            let q = dist(&hashed_row(ctx, 2, V, 1.5), &t1);
+            let d = crate::sampler::argmax(&hashed_row(ctx, 2, V, 1.5)) as u32;
+            for reject in [false, true] {
+                for (mi, mb) in [None, Some(&none as &dyn Fn(u32) -> bool), Some(&eos as &dyn Fn(u32) -> bool)].into_iter().enumerate() {
+                    let law = mb_row_law(&p, reject.then_some(&q), d, mb);
+                    let (kl, tv) = law_divergence(&law, &p);
+                    if mb.is_none() {
+                        assert!(kl.abs() < 1e-12 && tv < 1e-12, "exact law is the target");
+                    } else {
+                        moved = moved.max(tv);
+                    }
+                    let mut rng = crate::rng::SplitMix64::new(0x1a7 ^ (ci * 8 + mi * 2 + reject as usize) as u64);
+                    let mut u = || (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64;
+                    let mut counts = [0u64; V];
+                    for _ in 0..n {
+                        let (dd, qs) = if reject { (q.pick(u()), vec![q.clone()]) } else { (d, vec![]) };
+                        let (emit, _) =
+                            accept_sampled(&[dd], reject.then_some(&qs[..]), &mut |_| p.clone(), &mut u, mb, &mut 0);
+                        counts[emit[0] as usize] += 1;
+                    }
+                    for t in 0..V as u32 {
+                        let want = law.prob(t);
+                        let got = counts[t as usize] as f64 / n as f64;
+                        let sd = (want * (1.0 - want) / n as f64).sqrt().max(1e-9);
+                        assert!((got - want).abs() < 5.0 * sd + 1e-9, "ctx {ci} reject {reject} mb {mi} token {t}: {got} vs {want}");
+                    }
+                }
+            }
+        }
+        assert!(moved > 0.05, "the cases must exercise the rescue (largest total variation {moved})");
     }
 
     #[test]
