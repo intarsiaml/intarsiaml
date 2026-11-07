@@ -1,0 +1,51 @@
+10:27:44 guard: [guard] radiance stopped 2026-11-07 10:27:43
+10:27:44 round 1 arm mtp2-on: starting server
+10:30:03 round 1 arm mtp2-on ho-chat: localeval exit 0 results/20261107-102926-dt1-mtp2-on-dt1-adk1-mtp2-on-ho-chat-r1/result.json
+10:30:19 round 1 arm mtp2-on ho-code: localeval exit 0 results/20261107-103003-dt1-mtp2-on-dt1-adk1-mtp2-on-ho-code-r1/result.json
+10:30:56 round 1 arm mtp2-on ho-prose: localeval exit 0 results/20261107-103019-dt1-mtp2-on-dt1-adk1-mtp2-on-ho-prose-r1/result.json
+10:31:15 round 1 arm mtp2-on ho-recall: localeval exit 0 results/20261107-103057-dt1-mtp2-on-dt1-adk1-mtp2-on-ho-recall-r1/result.json
+10:32:14 round 1 arm mtp2-on rcp-code: localeval exit 0 results/20261107-103115-dt1-mtp2-on-dt1-adk1-mtp2-on-rcp-code-r1/result.json
+10:33:29 round 1 arm mtp2-on rcp-prose: localeval exit 0 results/20261107-103215-dt1-mtp2-on-dt1-adk1-mtp2-on-rcp-prose-r1/result.json
+10:34:33 round 1 arm mtp2-on rcp-recall: localeval exit 0 results/20261107-103329-dt1-mtp2-on-dt1-adk1-mtp2-on-rcp-recall-r1/result.json
+10:34:34 round 1 arm mtp4-on: starting server
+10:36:46 round 1 arm mtp4-on ho-chat: localeval exit 0 results/20261107-103612-dt1-mtp4-on-dt1-adk1-mtp4-on-ho-chat-r1/result.json
+10:37:00 round 1 arm mtp4-on ho-code: localeval exit 0 results/20261107-103647-dt1-mtp4-on-dt1-adk1-mtp4-on-ho-code-r1/result.json
+10:37:40 round 1 arm mtp4-on ho-prose: localeval exit 0 results/20261107-103701-dt1-mtp4-on-dt1-adk1-mtp4-on-ho-prose-r1/result.json
+10:37:58 round 1 arm mtp4-on ho-recall: localeval exit 0 results/20261107-103741-dt1-mtp4-on-dt1-adk1-mtp4-on-ho-recall-r1/result.json
+10:38:48 round 1 arm mtp4-on rcp-code: localeval exit 0 results/20261107-103758-dt1-mtp4-on-dt1-adk1-mtp4-on-rcp-code-r1/result.json
+10:40:05 round 1 arm mtp4-on rcp-prose: localeval exit 0 results/20261107-103849-dt1-mtp4-on-dt1-adk1-mtp4-on-rcp-prose-r1/result.json
+10:41:05 round 1 arm mtp4-on rcp-recall: localeval exit 0 results/20261107-104006-dt1-mtp4-on-dt1-adk1-mtp4-on-rcp-recall-r1/result.json
+10:41:06 round 1 arm mtp4-on2: starting server
+10:43:17 round 1 arm mtp4-on2 ho-chat: localeval exit 0 results/20261107-104244-dt1-mtp4-on2-dt1-adk1-mtp4-on2-ho-chat-r1/result.json
+10:43:33 round 1 arm mtp4-on2 ho-code: localeval exit 0 results/20261107-104318-dt1-mtp4-on2-dt1-adk1-mtp4-on2-ho-code-r1/result.json
+10:44:11 round 1 arm mtp4-on2 ho-prose: localeval exit 0 results/20261107-104333-dt1-mtp4-on2-dt1-adk1-mtp4-on2-ho-prose-r1/result.json
+10:44:28 round 1 arm mtp4-on2 ho-recall: localeval exit 0 results/20261107-104411-dt1-mtp4-on2-dt1-adk1-mtp4-on2-ho-recall-r1/result.json
+10:45:19 round 1 arm mtp4-on2 rcp-code: localeval exit 0 results/20261107-104429-dt1-mtp4-on2-dt1-adk1-mtp4-on2-rcp-code-r1/result.json
+10:46:34 round 1 arm mtp4-on2 rcp-prose: localeval exit 0 results/20261107-104520-dt1-mtp4-on2-dt1-adk1-mtp4-on2-rcp-prose-r1/result.json
+10:47:34 round 1 arm mtp4-on2 rcp-recall: localeval exit 0 results/20261107-104634-dt1-mtp4-on2-dt1-adk1-mtp4-on2-rcp-recall-r1/result.json
+10:47:35 round 2 arm mtp4-on2: starting server
+10:49:46 round 2 arm mtp4-on2 ho-chat: localeval exit 0 results/20261107-104913-dt1-mtp4-on2-dt1-adk1-mtp4-on2-ho-chat-r2/result.json
+10:50:00 round 2 arm mtp4-on2 ho-code: localeval exit 0 results/20261107-104947-dt1-mtp4-on2-dt1-adk1-mtp4-on2-ho-code-r2/result.json
+10:50:39 round 2 arm mtp4-on2 ho-prose: localeval exit 0 results/20261107-105001-dt1-mtp4-on2-dt1-adk1-mtp4-on2-ho-prose-r2/result.json
+10:50:56 round 2 arm mtp4-on2 ho-recall: localeval exit 0 results/20261107-105039-dt1-mtp4-on2-dt1-adk1-mtp4-on2-ho-recall-r2/result.json
+10:51:49 round 2 arm mtp4-on2 rcp-code: localeval exit 0 results/20261107-105057-dt1-mtp4-on2-dt1-adk1-mtp4-on2-rcp-code-r2/result.json
+10:53:02 round 2 arm mtp4-on2 rcp-prose: localeval exit 0 results/20261107-105149-dt1-mtp4-on2-dt1-adk1-mtp4-on2-rcp-prose-r2/result.json
+10:54:02 round 2 arm mtp4-on2 rcp-recall: localeval exit 0 results/20261107-105303-dt1-mtp4-on2-dt1-adk1-mtp4-on2-rcp-recall-r2/result.json
+10:54:03 round 2 arm mtp4-on: starting server
+10:56:16 round 2 arm mtp4-on ho-chat: localeval exit 0 results/20261107-105541-dt1-mtp4-on-dt1-adk1-mtp4-on-ho-chat-r2/result.json
+10:56:30 round 2 arm mtp4-on ho-code: localeval exit 0 results/20261107-105616-dt1-mtp4-on-dt1-adk1-mtp4-on-ho-code-r2/result.json
+10:57:11 round 2 arm mtp4-on ho-prose: localeval exit 0 results/20261107-105631-dt1-mtp4-on-dt1-adk1-mtp4-on-ho-prose-r2/result.json
+10:57:28 round 2 arm mtp4-on ho-recall: localeval exit 0 results/20261107-105711-dt1-mtp4-on-dt1-adk1-mtp4-on-ho-recall-r2/result.json
+10:58:18 round 2 arm mtp4-on rcp-code: localeval exit 0 results/20261107-105728-dt1-mtp4-on-dt1-adk1-mtp4-on-rcp-code-r2/result.json
+10:59:37 round 2 arm mtp4-on rcp-prose: localeval exit 0 results/20261107-105819-dt1-mtp4-on-dt1-adk1-mtp4-on-rcp-prose-r2/result.json
+11:00:38 round 2 arm mtp4-on rcp-recall: localeval exit 0 results/20261107-105938-dt1-mtp4-on-dt1-adk1-mtp4-on-rcp-recall-r2/result.json
+11:00:38 round 2 arm mtp2-on: starting server
+11:02:51 round 2 arm mtp2-on ho-chat: localeval exit 0 results/20261107-110217-dt1-mtp2-on-dt1-adk1-mtp2-on-ho-chat-r2/result.json
+11:03:07 round 2 arm mtp2-on ho-code: localeval exit 0 results/20261107-110252-dt1-mtp2-on-dt1-adk1-mtp2-on-ho-code-r2/result.json
+11:03:46 round 2 arm mtp2-on ho-prose: localeval exit 0 results/20261107-110307-dt1-mtp2-on-dt1-adk1-mtp2-on-ho-prose-r2/result.json
+11:04:04 round 2 arm mtp2-on ho-recall: localeval exit 0 results/20261107-110347-dt1-mtp2-on-dt1-adk1-mtp2-on-ho-recall-r2/result.json
+11:05:03 round 2 arm mtp2-on rcp-code: localeval exit 0 results/20261107-110405-dt1-mtp2-on-dt1-adk1-mtp2-on-rcp-code-r2/result.json
+11:06:17 round 2 arm mtp2-on rcp-prose: localeval exit 0 results/20261107-110503-dt1-mtp2-on-dt1-adk1-mtp2-on-rcp-prose-r2/result.json
+11:07:20 round 2 arm mtp2-on rcp-recall: localeval exit 0 results/20261107-110617-dt1-mtp2-on-dt1-adk1-mtp2-on-rcp-recall-r2/result.json
+11:07:21 done, time left 319s
+11:07:36 guard: [guard] radiance answers 2026-11-07 11:07:36 (after 20 s)

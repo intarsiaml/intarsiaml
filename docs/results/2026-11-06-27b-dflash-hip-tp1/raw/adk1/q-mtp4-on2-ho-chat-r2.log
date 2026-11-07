@@ -1,0 +1,41 @@
+[localeval] dataset /opt/code/intarsiaml/scripts/dt1/../dfh/cats/ho-chat.jsonl: 4 rows, judge=none
+# localeval: dt1-mtp4-on2 — 2026-11-07T10:49
+
+- model: `qwen38-27b-mtp4-on2` on ? (?), url `http://tatooine:8095/v1`
+- thinking: off; run kind: quality; label: dt1-adk1-mtp4-on2-ho-chat-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dt1-mtp4-on2 --thinking off --label dt1-adk1-mtp4-on2-ho-chat-r2 --recipe dt1-intarsia serve --backend hip --model 27B --spec mtp --spec-k 4  --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (gpus 0, tree dev, intarsia-hip-dev:rocm7.2.4-rust1.90.0, SAMPLED=reject K_MIN=2) --dataset /opt/code/intarsiaml/scripts/dt1/../dfh/cats/ho-chat.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261107-104913-dt1-mtp4-on2-dt1-adk1-mtp4-on2-ho-chat-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+dt1-intarsia serve --backend hip --model 27B --spec mtp --spec-k 4  --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (gpus 0, tree dev, intarsia-hip-dev:rocm7.2.4-rust1.90.0, SAMPLED=reject K_MIN=2)
+````
+
+## Dataset `/opt/code/intarsiaml/scripts/dt1/../dfh/cats/ho-chat.jsonl` (4 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 4 | 0 |
+| TTFT (s) | 0.110 | 1.0 | 4 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 4 | 0 |
+| Decode (tok/s) | 64.9 | 1.0 | 4 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| chat-sleep | yes | 0.0 | 0.11 | 63.1 | Waking up at 3 AM is a very specific and common complaint, o… |
+| chat-career | yes | 0.0 | 0.10 | 64.7 | Moving from a backend engineering role to Product Management… |
+| chat-budget | yes | 0.0 | 0.12 | 70.7 | This is one of the most common financial dilemmas, and there… |
+| chat-travel | yes | 0.0 | 0.11 | 60.9 | Here is a relaxed, four-day itinerary for Lisbon tailored fo… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261107-104913-dt1-mtp4-on2-dt1-adk1-mtp4-on2-ho-chat-r2/result.json
+[localeval] logged to unanimis: 9b69dc56-14f0-4010-ad45-49362545ec3f
