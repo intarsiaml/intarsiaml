@@ -21,13 +21,14 @@ vg() { curl -s -m 5 http://100.120.88.104:8000/metrics | grep -a '^vllm:generati
 echo "vllm gen tokens before: $(vg)"
 for sz in ${SIZES:-1k 4k 16k}; do for mode in ${MODES:-plain mtp mtp3}; do [ $sz = 16k ] && [ $mode = mtp3 ] && continue; gen $sz $mode a; free -g | awk '/Mem:/ {print "  avail " $7}'; done; done
 if [ "${NSYS:-1}" = 1 ]; then
-  for mode in plain mtp; do
+  nsz=${NSZ:-4k}
+  for mode in ${NMODES:-plain mtp}; do
     spec="--spec off"; [ $mode = mtp ] && spec="--spec mtp --spec-k 2"
-    head -c 14035 $CORP > $O/p-4k.txt
-    env ${ENVX:-A=1} nsys profile -t cuda --cuda-graph-trace=node --force-overwrite true -o $O/nsys-$mode $B generate -m $M --backend cuda --mem-budget 45 --max-seq 8192 $spec \
-      --chat --no-think --temperature 0 --ignore-eos --profile-every 0 -p "$(cat $O/p-4k.txt)" --max-tokens ${NTOK:-192} < /dev/null > $O/n-$mode.out 2> $O/n-$mode.err
-    nsys stats -r cuda_gpu_trace --format csv --output $O/tr-$mode $O/nsys-$mode.nsys-rep > /dev/null 2>&1
-    echo "nsys $mode: $(grep -a 'finish=' $O/n-$mode.err | tail -1 | cut -c1-200)"; ls $O | grep "tr-$mode"
+    head -c $(chars $nsz) $CORP > $O/p-$nsz.txt
+    env ${ENVX:-A=1} nsys profile -t cuda --cuda-graph-trace=node --force-overwrite true -o $O/nsys-$mode-$nsz $B generate -m $M --backend cuda --mem-budget 45 --max-seq $([ $nsz = 16k ] && echo 20480 || echo 8192) $spec \
+      --chat --no-think --temperature 0 --ignore-eos --profile-every 0 -p "$(cat $O/p-$nsz.txt)" --max-tokens ${NTOK:-192} < /dev/null > $O/n-$mode-$nsz.out 2> $O/n-$mode-$nsz.err
+    nsys stats -r cuda_gpu_trace --format csv --output $O/tr-$mode-$nsz $O/nsys-$mode-$nsz.nsys-rep > /dev/null 2>&1
+    echo "nsys $mode $nsz: $(grep -a 'finish=' $O/n-$mode-$nsz.err | tail -1 | cut -c1-200)"; ls $O | grep "tr-$mode-$nsz"
   done
 fi
 echo "vllm gen tokens after: $(vg)"
