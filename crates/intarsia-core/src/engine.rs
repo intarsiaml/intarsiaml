@@ -1968,16 +1968,21 @@ impl Seq {
         let (_, rows) = model.forward_verify_logits(st, &ids)?;
         let t2 = Instant::now();
         let sampler = &mut self.sampler;
+        let stop_ids = &self.stop_ids;
+        let stop = |t: u32| stop_ids.contains(&t);
+        let mut rescued = 0;
         let (emit, accepted) = crate::spec::accept_sampled(
             &drafts,
             reject.then_some(&q[..]),
             &mut |i| crate::sampler::dist(&rows[i], &params),
             &mut || sampler.uniform(),
+            crate::spec::mb_from_env().then_some(&stop as &dyn Fn(u32) -> bool),
+            &mut rescued,
         );
         spec_cut(model, st, len0 + accepted + 1)?;
         if crate::spec::trace_enabled() {
             eprintln!(
-                "spec: sampled {:?} draft {:.3} ms, verify {:.3} ms, accept + rollback {:.3} ms",
+                "spec: sampled {:?} draft {:.3} ms, verify {:.3} ms, accept + rollback {:.3} ms, mb rescued {rescued}",
                 self.spec_sampled,
                 (t1 - t0).as_secs_f64() * 1e3,
                 (t2 - t1).as_secs_f64() * 1e3,

@@ -235,17 +235,32 @@ pub fn residual(p: &crate::sampler::Dist, q: &crate::sampler::Dist) -> Option<cr
     Some(crate::sampler::Dist { ids, probs })
 }
 
+/// mb-MTP ("mode-biased", after llamAmpere v0.6, `common_sampler_verify_pq`): on a rejected draft, keep the draft instead of
+/// the replacement token when the target rates it at least as likely, `p(d) >= p(replacement)`, and neither is a stop token.
+/// Not exact: the output leans toward the target's likelier tokens (llamAmpere measured 0.009 KL per token at draft depth 6),
+/// in exchange for more accepted drafts per pass. `INTARSIA_SPEC_MB=1` (read once) turns it on for sampled speculation
+/// ([`SampledSpec`]); off by default.
+pub fn mb_from_env() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| matches!(std::env::var("INTARSIA_SPEC_MB").as_deref(), Ok("1" | "on")))
+}
+
 /// One sampled verify pass ([`SampledSpec`]). `drafts` = `d_1..d_m`; `q[i]` is the distribution `d_{i+1}` was drawn from
 /// ([`SampledSpec::Reject`]) or `None` (greedy drafts, [`SampledSpec::Match`]); `target(i)` is the processed target
 /// distribution of verify row `i` (row 0 was fed the last emitted token, row `i` was fed `d_i`), asked for only for the rows
 /// that decide a token, in order; `u()` is the request's uniform draw. Returns the tokens to emit (`d_1..d_j`, then one
 /// residual, rejection or bonus token) and `j`, the drafts accepted. The KV rows to keep are those of rows `0..=j`.
+/// `mb`: the stop-token test of [mb-MTP](mb_from_env) (`None`: exact acceptance); `rescued` counts the drafts it kept.
 pub fn accept_sampled(
     drafts: &[u32],
     q: Option<&[crate::sampler::Dist]>,
     target: &mut dyn FnMut(usize) -> crate::sampler::Dist,
     u: &mut dyn FnMut() -> f64,
+    mb: Option<&dyn Fn(u32) -> bool>,
+    rescued: &mut usize,
 ) -> (Vec<u32>, usize) {
+    // the mb-MTP rescue of draft `d` against replacement `x`
+    let keep = |p: &crate::sampler::Dist, d: u32, x: u32| mb.is_some_and(|stop| !stop(d) && !stop(x) && p.prob(d) >= p.prob(x));
     if let Some(q) = q {
         assert_eq!(q.len(), drafts.len(), "one draft distribution per draft");
     }
@@ -255,6 +270,11 @@ pub fn accept_sampled(
         match q {
             None => {
                 let x = p.pick(u());
+                if x != d && keep(&p, d, x) {
+                    *rescued += 1;
+                    emit.push(d);
+                    continue;
+                }
                 emit.push(x);
                 if x != d {
                     return (emit, i);
@@ -265,8 +285,13 @@ pub fn accept_sampled(
                     emit.push(d);
                     continue;
                 }
-                let r = residual(&p, &q[i]).unwrap_or(p);
-                emit.push(r.pick(u()));
+                let x = residual(&p, &q[i]).unwrap_or_else(|| p.clone()).pick(u());
+                if keep(&p, d, x) {
+                    *rescued += 1;
+                    emit.push(d);
+                    continue;
+                }
+                emit.push(x);
                 return (emit, i);
             }
         }
@@ -1389,7 +1414,7 @@ mod tests {
                     here.extend(&ds[..i]);
                     dist(&(c.target)(&here), &c.params)
                 };
-                accept_sampled(&drafts, (variant == SampledSpec::Reject).then_some(&qs[..]), &mut { target }, &mut u)
+                accept_sampled(&drafts, (variant == SampledSpec::Reject).then_some(&qs[..]), &mut { target }, &mut u, None, &mut 0)
             };
             hist.extend(&emit);
             out.extend(emit);
@@ -1429,6 +1454,39 @@ mod tests {
         }
         let (stat, df) = chi2(&counts, &want, n);
         assert!(stat > chi2_crit(df, z), "the wrong residual passed: chi2 {stat:.1} on {df} df");
+    }
+
+    /// mb-MTP keeps a rejected draft the target rates at least as likely as the replacement, never a stop token, and with
+    /// `mb` off the same draws reject as before.
+    #[test]
+    fn mb_rescues_likely_drafts() {
+        // target: 0 -> 0.5, 1 -> 0.3, 2 -> 0.2 at every row; u = 0.6 picks 1, u = 0.9 picks 2, u = 0.1 picks 0
+        let p = Dist { ids: vec![0, 1, 2], probs: vec![0.5, 0.3, 0.2] };
+        let run = |drafts: &[u32], us: &[f64], mb: Option<&dyn Fn(u32) -> bool>| {
+            let mut it = us.iter().copied();
+            let mut rescued = 0;
+            let r = accept_sampled(drafts, None, &mut |_| p.clone(), &mut || it.next().unwrap(), mb, &mut rescued);
+            (r, rescued)
+        };
+        let none = |_: u32| false;
+        let eos = |t: u32| t == 0;
+        // exact: draft 0, target draws 1: reject, emit 1
+        assert_eq!(run(&[0, 1], &[0.6], None), ((vec![1], 0), 0));
+        // mb: p(0) = 0.5 >= p(1): keep 0; then draft 1 vs draw 2 (0.3 >= 0.2): keep; bonus draw 0
+        assert_eq!(run(&[0, 1], &[0.6, 0.9, 0.1], Some(&none)), ((vec![0, 1, 0], 2), 2));
+        // mb: draft 2 vs draw 1: p(2) = 0.2 < 0.3: reject
+        assert_eq!(run(&[2], &[0.6], Some(&none)), ((vec![1], 0), 0));
+        // mb: draft 0 is a stop token: never rescued
+        assert_eq!(run(&[0], &[0.6], Some(&eos)), ((vec![1], 0), 0));
+        // mb: replacement 0 is a stop token: never rescued
+        assert_eq!(run(&[1], &[0.1], Some(&eos)), ((vec![0], 0), 0));
+        // Reject variant: q = point mass at the draft, residual = p without the draft; same rescue
+        let q = [Dist::point(0)];
+        let mut us = [0.99, 0.9, 0.1].into_iter();
+        let mut rescued = 0;
+        let r = accept_sampled(&[0], Some(&q), &mut |_| p.clone(), &mut || us.next().unwrap(), Some(&none), &mut rescued);
+        // u = 0.99 >= p(0)/q(0) = 0.5 rejects; residual {1: 0.6, 2: 0.4}, u = 0.9 picks 2; p(0) >= p(2): kept, then a bonus draw
+        assert_eq!((r.0[0], r.1, rescued), (0, 1, 1));
     }
 
     #[test]
