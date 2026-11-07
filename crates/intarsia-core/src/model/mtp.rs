@@ -17,6 +17,7 @@
 //! verify row's argmax), so the head's numerics only move the acceptance rate.
 
 use super::*;
+use crate::quant::head::HeadQuant;
 use crate::quant::moe::{Experts, MoeConfig, MoeScratch, SharedExpert};
 use crate::quant::{nvfp4, BF16};
 use crate::recipe::MtpSpec;
@@ -87,6 +88,24 @@ fn bf16_f32(b: &[u8]) -> Vec<f32> {
     b.chunks_exact(2).map(|c| f32::from_bits((u16::from_le_bytes([c[0], c[1]]) as u32) << 16)).collect()
 }
 
+/// `INTARSIA_MTP_QUANT` (lane c27, docs/tuning.md): quantises the dense head's projections at load, from the checkpoint's bf16 rows, into the formats
+/// the quantised `lm_head` uses (`quant::head`): `fp8` = e4m3 with one f32 scale per tensor for all of them (fc halves, q / k / v / o, gate / up / down;
+/// 0.85 GB bf16 -> 0.43 GB on the 27B), `mxfp4` = e2m1 + e8m0 per 32 for all of them, `mix` = fp8 for fc and attention, mxfp4 for the feed-forward.
+/// Drafts never change the output, so this only moves acceptance and the draft cost. Off by default; only for a single rank (a sharded head keeps bf16) and for
+/// checkpoints that store the head as bf16. Returns (fc + attention format, feed-forward format).
+fn mtp_quant() -> Result<Option<(HeadQuant, HeadQuant)>> {
+    match std::env::var("INTARSIA_MTP_QUANT") {
+        Ok(v) => match v.trim().to_ascii_lowercase().as_str() {
+            "fp8" | "fp8_e4m3" | "e4m3" => Ok(Some((HeadQuant::Fp8, HeadQuant::Fp8))),
+            "mxfp4" => Ok(Some((HeadQuant::Mxfp4, HeadQuant::Mxfp4))),
+            "mix" => Ok(Some((HeadQuant::Fp8, HeadQuant::Mxfp4))),
+            "" | "off" | "0" | "none" | "bf16" => Ok(None),
+            other => Err(Error::model(format!("INTARSIA_MTP_QUANT = '{other}' (fp8 | mxfp4 | mix | off)"))),
+        },
+        Err(_) => Ok(None),
+    }
+}
+
 /// Weight bytes and device tensors of the head, for `Model::load_shard` (`opts.mtp`).
 #[allow(clippy::too_many_arguments)]
 pub(super) fn load_head(
@@ -115,8 +134,9 @@ pub(super) fn load_head(
     let main_attn = main_attn.ok_or_else(|| Error::model("[mtp] needs a model with full-attention layers"))?;
     // tensor parallelism, a dense head (lane dfh): the head's layer is sharded as the model's own layers are (`dims` is this rank's
     // share: q / k / v / gate / up by rows, o / down by columns, its KV cache holds this rank's heads), so every rank runs it in
-    // lockstep with the same all-reduces; fc and the norms are replicated. An MoE head (lane mt2) is loaded whole on rank 0
-    // (`whole_rows`; `dims` are then the global dims and `load_q` shards nothing) and runs there alone.
+    // lockstep with the same all-reduces; fc and the norms are replicated. An MoE head (lane mt2), or a dense one with a rank in
+    // another process (lane d2r), is loaded whole on rank 0 (`whole_rows`; `dims` are then the global dims and `load_q` shards
+    // nothing) and runs there alone.
     if tp_world > 1 && dims.moe.is_some() && whole_rows.is_none() {
         return Err(Error::Unsupported("--spec mtp under tensor parallelism with a sharded MoE head (it runs whole on rank 0)".into()));
     }
@@ -126,6 +146,26 @@ pub(super) fn load_head(
     let qdim = dims.n_heads * dims.head_dim;
     let kvdim = dims.n_kv_heads * dims.head_dim;
     let gate = usize::from(a.gated);
+    let mq = if (tp_world == 1 || whole_rows.is_some()) && dims.moe.is_none() { mtp_quant()? } else { None };
+    if let Some((a, f)) = mq {
+        eprintln!("mtp head quantised (INTARSIA_MTP_QUANT): fc and attention {}, feed-forward {}; drafts only, verified output unchanged", a.name(), f.name());
+    }
+    // the head's projection loader: the checkpoint's bf16 rows quantised when `INTARSIA_MTP_QUANT` is set (`ffn`: the feed-forward's format), else `load_q`
+    let load_qq = |name: &str, n: usize, k: usize, ax: Option<ShardAxis>, ffn: bool| -> Result<QTensor> {
+        if let Some((qa, qf)) = mq {
+            let nm = resolve(src, name)?;
+            if let Some(i) = src.info(&nm) {
+                if i.dtype == DType::Bf16 && i.shape == [n, k] && (if ffn { qf } else { qa } != HeadQuant::Mxfp4 || k % 32 == 0) {
+                    let q = crate::quant::head::load_rows(if ffn { qf } else { qa }, b, i.dtype, src.bytes(&nm)?, n, 0, n, k)?;
+                    add_bytes(q.weight_bytes() as u64);
+                    return Ok(q);
+                }
+            }
+        }
+        load_q(name, n, k, ax)
+    };
+    let load_q_attn = |name: &str, n: usize, k: usize, ax: Option<ShardAxis>| load_qq(name, n, k, ax, false);
+    let load_q_ffn = |name: &str, n: usize, k: usize, ax: Option<ShardAxis>| load_qq(name, n, k, ax, true);
 
     // fc [H, 2H] bf16, split by columns
     let fc_name = resolve(src, &format!("{p}.fc"))?;
@@ -156,15 +196,24 @@ pub(super) fn load_head(
             act_fp8: false, act_quant: false,
         })
     };
-    let (fc_e, fc_h) = (dense(&e)?, dense(&hh)?);
+    let (fc_e, fc_h) = if let Some((qa, _)) = mq {
+        let upq = |bytes: &[u8]| -> Result<QTensor> {
+            let q = crate::quant::head::load_rows(qa, b, DType::Bf16, bytes, h, 0, h, h)?;
+            add_bytes(q.weight_bytes() as u64);
+            Ok(q)
+        };
+        (upq(&e)?, upq(&hh)?)
+    } else {
+        (dense(&e)?, dense(&hh)?)
+    };
     drop((e, hh));
 
     let attn = AttnBlock {
         pre_norm: load(&format!("{l}.input_layernorm"), Some(&[h]))?,
-        wq: load_q(&format!("{l}.self_attn.q_proj"), qdim * (1 + gate), h, rows)?,
-        wk: load_q(&format!("{l}.self_attn.k_proj"), kvdim, h, rows)?,
-        wv: load_q(&format!("{l}.self_attn.v_proj"), kvdim, h, rows)?,
-        wo: load_q(&format!("{l}.self_attn.o_proj"), h, qdim, cols)?,
+        wq: load_q_attn(&format!("{l}.self_attn.q_proj"), qdim * (1 + gate), h, rows)?,
+        wk: load_q_attn(&format!("{l}.self_attn.k_proj"), kvdim, h, rows)?,
+        wv: load_q_attn(&format!("{l}.self_attn.v_proj"), kvdim, h, rows)?,
+        wo: load_q_attn(&format!("{l}.self_attn.o_proj"), h, qdim, cols)?,
         q_norm: a
             .q_norm
             .as_ref()
@@ -193,9 +242,9 @@ pub(super) fn load_head(
             }
             HeadFfn::Dense(FfnBlock {
                 pre_norm,
-                gate: load_q(&format!("{l}.mlp.gate_proj"), i, h, rows)?,
-                up: load_q(&format!("{l}.mlp.up_proj"), i, h, rows)?,
-                down: load_q(&format!("{l}.mlp.down_proj"), h, i, cols)?,
+                gate: load_q_ffn(&format!("{l}.mlp.gate_proj"), i, h, rows)?,
+                up: load_q_ffn(&format!("{l}.mlp.up_proj"), i, h, rows)?,
+                down: load_q_ffn(&format!("{l}.mlp.down_proj"), h, i, cols)?,
             })
         }
     };

@@ -1,0 +1,16 @@
+fleetq: #9017 running on spark1: bash -c 'ssh -n spark1 true; ssh spark1 "export FLEETQ_JOB=$FLEETQ_JOB; bash -s" < scripts/d2r/gates.sh'
+free GB: 83
+base: head=e8621e9 code-tree=35cb7db2b438 dirty=nodevice
+dev: head=a5832a4 code-tree=2ba7efe9a660 dirty=nodevice
+plan 35b: byte-identical (15570 B)
+plan 8b: byte-identical (8973 B)
+plan 27b: byte-identical (15461 B)
+plan 27b-tp2-off: DIFFER or empty (base 14980 B, dev 14980 B)
+plan 35b-tp2-off: DIFFER or empty (base 14774 B, dev 14774 B)
+== kernels test --quick (dev) 03:53:13
+exit 0 FAIL lines: 0
+logits         logits_f16w                     2      0    8.208e-8    6.986e-8  ADMITTED
+matmul         matmul_f16w                     4      0     0.000e0     0.000e0  ADMITTED
+106 kernels, 954 cases in 7.6s
+== done 03:53:21
+fleetq: #9017 done (exit 0)

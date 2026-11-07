@@ -1,0 +1,17 @@
+Welcome to the team! This document is a technical specification and implementation note for a new speculative decoding feature called **DFlash with the DCOCO Corrector**.
+
+Here is a detailed breakdown for you, structured by what the feature is, how it works, the math behind it, and where we are in the development process.
+
+---
+
+### 1. High-Level Summary
+**Goal:** Speed up the generation of Qwen3-8B models using speculative decoding.
+**Method:**
+1.  **DFlash (Drafting):** A specialized, lightweight "draft model" generates 15 candidate tokens in parallel.
+2.  **DCOCO (Correction):** A small neural network corrects these drafts to ensure they match the target model's distribution, improving acceptance rates.
+**Status:** Phase 1 (Scope) accepted. Phases 2 & 3 (Implementation/Testing) are done. The feature is **opt-in** (`--spec dflash [--dcoco]`) and currently stays off by default due to cost/performance trade-offs.
+
+---
+
+### 2. The Architecture: DFlash Draft Model
+The draft model is not a full copy of the 8B target. It is a smaller, specialized model designed to

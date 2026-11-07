@@ -177,6 +177,10 @@ pub struct LoadOptions {
     /// verify pass are reserved in the memory plan and allocated with each sequence for this many rows. 0: the
     /// largest k ([`crate::spec::SPEC_K_MAX`]).
     pub mtp_k: usize,
+    /// Run a dense MTP head whole on rank 0 under tensor parallelism (lane d2r), as an MoE head always does (lane mt2): rank 0 loads the
+    /// head unsharded and drafts alone, no other rank keeps a head. Set for a group with a rank in another process (the engine loader and
+    /// `tp-worker` both), where the lockstep dense head of lane dfh cannot run. Off: a dense head is sharded over in-process ranks.
+    pub mtp_whole: bool,
     /// `--mtp-draft-vocab N`: the MTP drafter's argmax runs over the first N rows of the lm_head (token ids 0..N, the
     /// frequent end of a BPE vocabulary) instead of all of them, so a draft costs N/V of a head sweep. The verify pass keeps
     /// the full head, so output stays the spec-off output and only acceptance can change. 0: the full head.
@@ -214,6 +218,7 @@ impl Default for LoadOptions {
             tp_arnorm: false,
             mtp: false,
             mtp_k: 0,
+            mtp_whole: false,
             mtp_draft_vocab: None,
             dflash: None,
             dflash_tp: None,
@@ -1424,11 +1429,12 @@ impl Model {
         let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::SPEC_K_MAX) };
         // an MoE head under tensor parallelism (lane mt2) runs whole on rank 0: unsharded against the global dims, no collective; the
         // other ranks keep no head (`mtp::load_head`)
-        let mtp_whole = opts.mtp && tp.world > 1 && dims.moe.is_some();
+        // (a dense head too when `LoadOptions::mtp_whole` asks: a group with a rank in another process, lane d2r)
+        let mtp_whole = opts.mtp && tp.world > 1 && (dims.moe.is_some() || opts.mtp_whole);
         let mtp_head = if opts.mtp && !(mtp_whole && tp.rank != 0) {
             let spec = recipe.mtp.as_ref().ok_or_else(|| Error::Unsupported("--spec mtp: the recipe has no [mtp] head".into()))?;
             // tensor parallelism (lane dfh, a dense head): every rank loads its share of the head (`mtp::load_head`) and runs it in
-            // lockstep with rank 0, which drafts; in-process ranks only (a rank in another process is refused by the engine loader)
+            // lockstep with rank 0, which drafts; in-process ranks only (with a rank in another process the head is whole on rank 0: `LoadOptions::mtp_whole`)
             let main_attn = layers.iter().flatten().find_map(|b| match b {
                 Block::Attn(a) => Some(a),
                 _ => None,
@@ -1853,7 +1859,7 @@ impl Model {
             || self.lm_head.is_none()
         {
             return Err(Error::Unsupported(
-                "speculative verify needs a single-rank model, in-process tensor-parallel ranks, or (a remote rank) an MoE MTP head".into(),
+                "speculative verify needs a single-rank model, in-process tensor-parallel ranks, or (a remote rank) an MTP head whole on rank 0".into(),
             ));
         }
         let most = Self::VERIFY_MAX_ROWS.min(self.ws.max_tokens);
@@ -4381,7 +4387,7 @@ impl Model {
     fn ffn_act(&self, f: &FfnBlock, n: &TensorRef, t: usize, r0: usize, rows: usize, profile: bool) -> Result<TensorRef> {
         let act = self.act;
         let ws = &self.ws;
-        let i = self.ldims.intermediate;
+        let i = self.adims().intermediate;
         let part_rows = |b: &Buffer| {
             let v = self.view(b, act, &[t, i]);
             if rows == t { v } else { v.rows(r0, rows) }
@@ -4412,6 +4418,10 @@ impl Model {
 
     fn ffn_block(&self, f: &FfnBlock, n: &TensorRef, out: &TensorRef, t: usize, profile: bool) -> Result<()> {
         let a = self.ffn_act(f, n, t, 0, t, profile)?;
+        if self.head_whole.load(std::sync::atomic::Ordering::Relaxed) {
+            // a dense MTP head whole on rank 0 (lane d2r): the full down projection, as at tp = 1, no reduce
+            return self.proj(&a, &f.down, out, profile);
+        }
         let bf16 = |q: &QTensor| q.format == crate::quant::BF16;
         match &self.ws.part {
             Some(part) => {

@@ -1,0 +1,3 @@
+[supervisor] started server pid 7
+Error: loading /models/intarsia/Qwen3.6-35B-A3B-NVFP4 with tp=2: unsupported: --spec mtp/auto with the batching engine (use --max-batch 1; INTARSIA_BATCHED_MTP=N opts --spec mtp in at --tp 1)
+[supervisor] server failed to start (exit 78); not restarting

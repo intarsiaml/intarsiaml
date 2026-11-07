@@ -1,0 +1,19 @@
+Based on the provided architecture plan, here is the **Phase 0 (Seams)** implementation checklist and code structure. This phase focuses on proving the core abstractions (Backend trait, Kernel Registry, C ABI, Recipe Loader) and establishing the accuracy baseline on `cpu-ref` and `cuda`.
+
+### 1. Repository Structure (Phase 0 Focus)
+
+```text
+crates/
+  intarsia-core/
+    src/
+      lib.rs
+      backend.rs          # Backend trait, DeviceInfo, Buffer, StreamId
+      registry.rs         # KernelRegistry, KernelImpl, AdmissionTest
+      plan.rs             # PlanCompiler, OpGraph
+      telemetry.rs        # TelemetrySnapshot
+      ops.rs              # Op definitions (Matmul, RmsNorm, etc.)
+      quant/
+        mod.rs            # QuantFormat trait
+        bf16.rs
+        fp8.rs
+        nvfp4

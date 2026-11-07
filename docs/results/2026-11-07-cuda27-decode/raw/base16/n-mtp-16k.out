@@ -1,0 +1,24 @@
+Based on the provided architecture plan, here is the **Phase 0 (Seams)** implementation checklist and code structure. This phase focuses on proving the core abstractions (Backend trait, Kernel Registry, C ABI, Recipe Loader) and establishing the accuracy baseline on `cpu-ref` and `cuda`.
+
+### 1. Repository Structure (Phase 0 Focus)
+
+```text
+crates/
+  intarsia-core/
+    src/
+      lib.rs
+      backend.rs          # Backend trait, DeviceInfo, Buffer, StreamId
+      registry.rs         # KernelRegistry, KernelImpl, AdmissionTest
+      plan.rs             # PlanCompiler, OpGraph
+      telemetry.rs        # TelemetrySnapshot
+      ops.rs              # Op definitions (Matmul, RmsNorm, etc.)
+      quant/
+        mod.rs            # QuantFormat trait
+        bf16.rs
+        fp8.rs
+        nvfp4
+Collecting data...
+Generating '/tmp/nsys-report-70e4.qdstrm'
+[1/1] [0%                          ] nsys-mtp-16k.nsys-rep[1/1] [0%                          ] nsys-mtp-16k.nsys-rep[1/1] [14%                         ] nsys-mtp-16k.nsys-rep[1/1] [12%                         ] nsys-mtp-16k.nsys-rep[1/1] [11%                         ] nsys-mtp-16k.nsys-rep[1/1] [10%                         ] nsys-mtp-16k.nsys-rep[1/1] [9%                          ] nsys-mtp-16k.nsys-rep[1/1] [8%                          ] nsys-mtp-16k.nsys-rep[1/1] [=15%                        ] nsys-mtp-16k.nsys-rep[1/1] [14%                         ] nsys-mtp-16k.nsys-rep[1/1] [13%                         ] nsys-mtp-16k.nsys-rep[1/1] [12%                         ] nsys-mtp-16k.nsys-rep[1/1] [11%                         ] nsys-mtp-16k.nsys-rep[1/1] [10%                         ] nsys-mtp-16k.nsys-rep[1/1] [9%                          ] nsys-mtp-16k.nsys-rep[1/1] [8%                          ] nsys-mtp-16k.nsys-rep[1/1] [11%                         ] nsys-mtp-16k.nsys-rep[1/1] [=15%                        ] nsys-mtp-16k.nsys-rep[1/1] [==19%                       ] nsys-mtp-16k.nsys-rep[1/1] [===22%                      ] nsys-mtp-16k.nsys-rep[1/1] [====26%                     ] nsys-mtp-16k.nsys-rep[1/1] [=====30%                    ] nsys-mtp-16k.nsys-rep[1/1] [======34%                   ] nsys-mtp-16k.nsys-rep[1/1] [=======37%                  ] nsys-mtp-16k.nsys-rep[1/1] [========41%                 ] nsys-mtp-16k.nsys-rep[1/1] [=========45%                ] nsys-mtp-16k.nsys-rep[1/1] [==========49%               ] nsys-mtp-16k.nsys-rep[1/1] [===========52%              ] nsys-mtp-16k.nsys-rep[1/1] [============55%             ] nsys-mtp-16k.nsys-rep[1/1] [============57%             ] nsys-mtp-16k.nsys-rep[1/1] [=============60%            ] nsys-mtp-16k.nsys-rep[1/1] [==============62%           ] nsys-mtp-16k.nsys-rep[1/1] [==============64%           ] nsys-mtp-16k.nsys-rep[1/1] [===============67%          ] nsys-mtp-16k.nsys-rep[1/1] [================69%         ] nsys-mtp-16k.nsys-rep[1/1] [================71%         ] nsys-mtp-16k.nsys-rep[1/1] [=================73%        ] nsys-mtp-16k.nsys-rep[1/1] [========================100%] nsys-mtp-16k.nsys-rep[1/1] [========================100%] nsys-mtp-16k.nsys-rep
+Generated:
+	/home/nvidia/intarsia-c27/out/base16/nsys-mtp-16k.nsys-rep

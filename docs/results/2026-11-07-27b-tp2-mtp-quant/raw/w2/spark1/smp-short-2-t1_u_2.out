@@ -1,0 +1,23 @@
+```python
+from functools import lru_cache
+from typing import Union
+
+@lru_cache(maxsize=None)
+def fibonacci(n: int) -> int:
+    """Return the n-th Fibonacci number using memoization."""
+    if n < 0:
+        raise ValueError("n must be a non-negative integer")
+    if n < 2:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+```
+
+**Time Complexity Explanation:**
+
+With memoization (via `lru_cache`), each unique subproblem `fibonacci(k)` for `k` in `[0, n]` is computed at most once. The first time `fibonacci(k)` is called, it takes O(1) time (after the initial recursion setup), and subsequent calls retrieve the result in O(1) from the cache.
+
+- There are `n + 1` distinct subproblems (for `k = 0, 1, ..., n`).
+- Each subproblem does O(1) work (two recursive calls that hit the cache, plus one addition).
+- Therefore, the total time complexity is **O(n)**.
+
+The space complexity is also **O(n)** due

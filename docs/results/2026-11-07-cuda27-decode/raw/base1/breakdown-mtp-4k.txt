@@ -1,0 +1,13 @@
+decode window 6665 ms, 77 passes: 86.56 ms per pass; launches per pass 1608
+class                                 ms/pass  share calls/pass  us/call
+body MXFP4 GEMV (verify rows)           63.08  72.9%      496.0    127.2
+MTP layer bf16 GEMV                      6.99   8.1%       15.6    447.8
+lm_head fp8 rows (verify)                5.41   6.3%        1.0   5410.6
+attention                                3.61   4.2%      102.0     35.4
+draft head fp8 GEMV                      2.77   3.2%        2.0   1395.2
+GDN (delta, conv, state)                 2.33   2.7%      430.1      5.4
+D2D memcpy (GDN state rows)              1.64   1.9%      116.8     14.1
+norms, rope, kv append, glue             1.20   1.4%      440.9      2.7
+other memops                             0.00   0.0%        3.3      1.4
+idle (span - union busy)                 1.37   1.6%
+sum of class times 87.05 ms/pass (concurrent side-stream work counts twice)

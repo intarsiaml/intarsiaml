@@ -1,0 +1,42 @@
+02:28:40 stages start, VRAM in use 57 MiB
+02:28:46 plan-8b-tp1-off-base exit 0: 
+02:28:47 plan-8b-tp1-off-head exit 0: 
+02:28:47 SAME plan 8b-tp1-off (plan-8b-tp1-off-base.out == plan-8b-tp1-off-head.out)
+02:28:54 plan-27b-tp1-off-base exit 0: 
+02:28:58 plan-27b-tp1-off-head exit 0: 
+02:28:58 SAME plan 27b-tp1-off (plan-27b-tp1-off-base.out == plan-27b-tp1-off-head.out)
+02:29:02 plan-27b-tp1-mtp2-base exit 0: --spec mtp on hip: verify rows run the row-exact kernels (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+02:29:05 plan-27b-tp1-mtp2-head exit 0: --spec mtp on hip: verify rows run the row-exact kernels (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+02:29:05 SAME plan 27b-tp1-mtp2 (plan-27b-tp1-mtp2-base.out == plan-27b-tp1-mtp2-head.out)
+02:29:10 plan-27b-tp2-off-base exit 0: 
+02:29:15 plan-27b-tp2-off-head exit 0: 
+02:29:15 SAME plan 27b-tp2-off (plan-27b-tp2-off-base.out == plan-27b-tp2-off-head.out)
+02:29:20 plan-27b-tp2-mtp2-base exit 0: --spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+02:29:25 plan-27b-tp2-mtp2-head exit 0: --spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+02:29:25 SAME plan 27b-tp2-mtp2 (plan-27b-tp2-mtp2-base.out == plan-27b-tp2-mtp2-head.out)
+02:29:31 plan-35b-tp1-off-base exit 0: 
+02:29:34 plan-35b-tp1-off-head exit 0: 
+02:29:34 SAME plan 35b-tp1-off (plan-35b-tp1-off-base.out == plan-35b-tp1-off-head.out)
+02:29:38 plan-35b-tp1-mtp2-base exit 0: --spec mtp on hip: verify rows run the row-exact kernels (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv_delta=gdn|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+02:29:42 plan-35b-tp1-mtp2-head exit 0: --spec mtp on hip: verify rows run the row-exact kernels (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv_delta=gdn|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+02:29:42 SAME plan 35b-tp1-mtp2 (plan-35b-tp1-mtp2-base.out == plan-35b-tp1-mtp2-head.out)
+02:29:46 plan-35b-tp2-off-base exit 0: 
+02:29:50 plan-35b-tp2-off-head exit 0: 
+02:29:50 SAME plan 35b-tp2-off (plan-35b-tp2-off-base.out == plan-35b-tp2-off-head.out)
+02:29:55 plan-35b-tp2-mtp2-base exit 0: --spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv_delta=gdn|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+02:30:00 plan-35b-tp2-mtp2-head exit 0: --spec mtp on hip with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8=matmul_fp8_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv_delta=gdn|sampled requests (temperature > 0): speculation Off (default; single sequence, one rank)|
+02:30:00 SAME plan 35b-tp2-mtp2 (plan-35b-tp2-mtp2-base.out == plan-35b-tp2-mtp2-head.out)
+02:30:06 gen-35b-tp2-short-0-off exit 0: finish=length prompt=41 (cached 0) completion=256 | prefill 98 ms (418.0 tok/s) | decode 1312 ms (194.42 tok/s)|
+02:30:12 gen-35b-tp2-short-0-mtp2g exit 0 [INTARSIA_SPEC_GRAPH_TP=1 INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 293 drafted 2 accepted 2 emits 3|spec: mtp graph step 10.281 ms gap 0.003 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 80 ms (514.0 tok/s) | decode 1127 ms (226.25 tok/s)|spec: verify passes=106 proposed=212 accepted=149 (acceptance 70.3%, 2.41 tokens per pass)|
+02:30:12 PASS ids 35b tp2 short-0 (prompt=41; 106 graph steps, 0 capture failures)
+02:30:18 gen-35b-tp2-4k-1-off exit 0: finish=length prompt=3135 (cached 0) completion=256 | prefill 277 ms (11304.6 tok/s) | decode 1335 ms (191.02 tok/s)|
+02:30:24 gen-35b-tp2-4k-1-mtp2g exit 0 [INTARSIA_SPEC_GRAPH_TP=1 INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 3387 drafted 2 accepted 2 emits 3|spec: mtp graph step 10.545 ms gap 0.004 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 272 ms (11546.1 tok/s) | decode 1172 ms (217.62 tok/s)|spec: verify passes=108 proposed=216 accepted=147 (acceptance 68.1%, 2.36 tokens per pass)|
+02:30:24 PASS ids 35b tp2 4k-1 (prompt=3135; 108 graph steps, 0 capture failures)
+02:30:33 gen-27b-tp2-short-0-off exit 0: finish=length prompt=41 (cached 0) completion=256 | prefill 94 ms (437.2 tok/s) | decode 4329 ms (58.90 tok/s)|
+02:30:41 gen-27b-tp2-short-0-mtp2g exit 0 [INTARSIA_SPEC_GRAPH_TP=1 INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 294 drafted 1 accepted 1 emits 2|spec: mtp graph step 31.259 ms gap 0.002 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 95 ms (432.0 tok/s) | decode 2479 ms (102.87 tok/s)|spec: verify passes=107 proposed=213 accepted=148 (acceptance 69.5%, 2.38 tokens per pass)|
+02:30:41 PASS ids 27b tp2 short-0 (prompt=41; 107 graph steps, 0 capture failures)
+02:30:51 gen-27b-tp2-4k-1-off exit 0: finish=length prompt=3135 (cached 0) completion=256 | prefill 691 ms (4535.7 tok/s) | decode 4427 ms (57.60 tok/s)|
+02:30:59 gen-27b-tp2-4k-1-mtp2g exit 0 [INTARSIA_SPEC_GRAPH_TP=1 INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 3388 drafted 1 accepted 1 emits 2|spec: mtp draft 1.628 ms, verify + rollback 19.699 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 698 ms (4489.4 tok/s) | decode 2387 ms (106.83 tok/s)|spec: verify passes=100 proposed=199 accepted=155 (acceptance 77.9%, 2.55 tokens per pass)|
+02:30:59 PASS ids 27b tp2 4k-1 (prompt=3135; 99 graph steps, 0 capture failures)
+02:30:59 ids summary: 4 PASS, 0 FAIL, 0 not engaged
+02:30:59 stages done

@@ -1,0 +1,14 @@
+Based on the provided architecture plan for **IntarsiaML (v0.2)**, here is a structured analysis and summary of the key architectural decisions, goals, and technical components.
+
+### 1. Core Philosophy: "Intarsia" (Wood Inlay)
+The engine is designed as a modular system where every component (op, kernel, quant format, model block) is an interchangeable "piece" with a strict contract.
+*   **Verification First:** No kernel is allowed into the system without passing a reference test against a CPU oracle.
+*   **Modularity over Monolith:** Rejects per-family engines (like TensorFold’s CUDA engine per model). Instead, models are "recipes" over a shared block library.
+*   **Native Speed:** No Python in the serving path to ensure fast startup (11s vs 160s) and low per-step overhead.
+
+### 2. Goals &
+Collecting data...
+Generating '/tmp/nsys-report-5c20.qdstrm'
+[1/1] [0%                          ] nsys-mtp.nsys-rep[1/1] [0%                          ] nsys-mtp.nsys-rep[1/1] [8%                          ] nsys-mtp.nsys-rep[1/1] [14%                         ] nsys-mtp.nsys-rep[1/1] [==20%                       ] nsys-mtp.nsys-rep[1/1] [====26%                     ] nsys-mtp.nsys-rep[1/1] [=====32%                    ] nsys-mtp.nsys-rep[1/1] [=======37%                  ] nsys-mtp.nsys-rep[1/1] [========41%                 ] nsys-mtp.nsys-rep[1/1] [=========45%                ] nsys-mtp.nsys-rep[1/1] [==========48%               ] nsys-mtp.nsys-rep[1/1] [===========52%              ] nsys-mtp.nsys-rep[1/1] [============56%             ] nsys-mtp.nsys-rep[1/1] [=============60%            ] nsys-mtp.nsys-rep[1/1] [==============64%           ] nsys-mtp.nsys-rep[1/1] [===============67%          ] nsys-mtp.nsys-rep[1/1] [========================100%] nsys-mtp.nsys-rep[1/1] [========================100%] nsys-mtp.nsys-rep
+Generated:
+	/home/nvidia/intarsia-c27/out/base1/nsys-mtp.nsys-rep
