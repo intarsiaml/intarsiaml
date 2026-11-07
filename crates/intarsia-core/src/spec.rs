@@ -273,6 +273,89 @@ pub fn mb_ratio_from_env() -> f64 {
     })
 }
 
+/// `INTARSIA_SPEC_K_MIN` (read once): with a value below `--spec-k`, MTP drafts adapt their depth per request in
+/// `[k_min, --spec-k]` ([`Depth`]); unset, 0 or not below `--spec-k`: fixed depth.
+pub fn k_min_from_env() -> Option<usize> {
+    static V: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
+    *V.get_or_init(|| {
+        let v = std::env::var("INTARSIA_SPEC_K_MIN").ok()?;
+        match v.parse::<usize>() {
+            Ok(0) => None,
+            Ok(n) => Some(n),
+            Err(_) => {
+                eprintln!("INTARSIA_SPEC_K_MIN={v}: not a number; fixed draft depth");
+                None
+            }
+        }
+    })
+}
+
+/// Adaptive draft depth (after llamAmpere's `common_speculative_adaptive`, `draft-mtp-adaptive`): a per-request depth in
+/// `[min, max]` that starts at `min`. It climbs one step after [`Depth::climb_after`] passes in a row accepted every
+/// draft: few at the ends, most around 3, where prose acceptance falls off. Every miss adds the drafts it rejected to a
+/// drop pressure; at [`Depth::drop_at`] the depth falls one step. No pressure builds at `min`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Depth {
+    cur: usize,
+    climb: usize,
+    drop: usize,
+    min: usize,
+    max: usize,
+}
+
+impl Depth {
+    /// `None` unless `1 <= min < max`.
+    pub fn new(min: usize, max: usize) -> Option<Depth> {
+        (min >= 1 && min < max).then_some(Depth { cur: min, climb: 0, drop: 0, min, max })
+    }
+
+    pub fn cur(&self) -> usize {
+        self.cur
+    }
+
+    fn climb_after(depth: usize) -> usize {
+        match depth {
+            1 => 2,
+            2 => 4,
+            3 => 6,
+            4 => 5,
+            5 => 4,
+            6 => 3,
+            _ => 2,
+        }
+    }
+
+    fn drop_at(depth: usize) -> usize {
+        (5 * depth).max(20)
+    }
+
+    /// Feed one verify pass: `drafted` drafts, `accepted` of them accepted.
+    pub fn update(&mut self, drafted: usize, accepted: usize) {
+        if drafted == 0 {
+            return;
+        }
+        if accepted >= drafted {
+            self.drop = 0;
+            if self.cur < self.max {
+                self.climb += 1;
+                if self.climb >= Depth::climb_after(self.cur) {
+                    self.cur += 1;
+                    self.climb = 0;
+                }
+            }
+        } else {
+            self.climb = 0;
+            if self.cur > self.min {
+                self.drop += drafted - accepted;
+                if self.drop >= Depth::drop_at(self.cur) {
+                    self.cur -= 1;
+                    self.drop = 0;
+                }
+            }
+        }
+    }
+}
+
 /// `INTARSIA_SPEC_MB_AUDIT=1` (read once): each sampled pass logs how far the token law of its deciding rows is from the
 /// target ([`mb_row_law`], [`law_divergence`]); for measuring mb-MTP, costs host time.
 pub fn mb_audit_enabled() -> bool {
@@ -361,14 +444,15 @@ pub fn law_divergence(s: &crate::sampler::Dist, p: &crate::sampler::Dist) -> (f6
 /// distribution of verify row `i` (row 0 was fed the last emitted token, row `i` was fed `d_i`), asked for only for the rows
 /// that decide a token, in order; `u()` is the request's uniform draw. Returns the tokens to emit (`d_1..d_j`, then one
 /// residual, rejection or bonus token) and `j`, the drafts accepted. The KV rows to keep are those of rows `0..=j`.
-/// `mb`: the [mb-MTP](mb_from_env) rule (`None`: exact acceptance); `rescued` counts the drafts it kept.
+/// `mb`: the [mb-MTP](mb_from_env) rule (`None`: exact acceptance); `rescued` gets the index of every draft it kept (the first
+/// one is where exact acceptance would have stopped).
 pub fn accept_sampled(
     drafts: &[u32],
     q: Option<&[crate::sampler::Dist]>,
     target: &mut dyn FnMut(usize) -> crate::sampler::Dist,
     u: &mut dyn FnMut() -> f64,
     mb: Option<Mb>,
-    rescued: &mut usize,
+    rescued: &mut Vec<usize>,
 ) -> (Vec<u32>, usize) {
     // the mb-MTP rescue of draft `d` against replacement `x`
     let keep = |p: &crate::sampler::Dist, d: u32, x: u32| mb.is_some_and(|m| m.keeps(p, d, x));
@@ -382,7 +466,7 @@ pub fn accept_sampled(
             None => {
                 let x = p.pick(u());
                 if x != d && keep(&p, d, x) {
-                    *rescued += 1;
+                    rescued.push(i);
                     emit.push(d);
                     continue;
                 }
@@ -398,7 +482,7 @@ pub fn accept_sampled(
                 }
                 let x = residual(&p, &q[i]).unwrap_or_else(|| p.clone()).pick(u());
                 if keep(&p, d, x) {
-                    *rescued += 1;
+                    rescued.push(i);
                     emit.push(d);
                     continue;
                 }
@@ -1541,7 +1625,7 @@ mod tests {
                     here.extend(&ds[..i]);
                     dist(&(c.target)(&here), &c.params)
                 };
-                accept_sampled(&drafts, (variant == SampledSpec::Reject).then_some(&qs[..]), &mut { target }, &mut u, None, &mut 0)
+                accept_sampled(&drafts, (variant == SampledSpec::Reject).then_some(&qs[..]), &mut { target }, &mut u, None, &mut Vec::new())
             };
             hist.extend(&emit);
             out.extend(emit);
@@ -1591,9 +1675,9 @@ mod tests {
         let p = Dist { ids: vec![0, 1, 2], probs: vec![0.5, 0.3, 0.2] };
         let run = |drafts: &[u32], us: &[f64], mb: Option<Mb>| {
             let mut it = us.iter().copied();
-            let mut rescued = 0;
+            let mut rescued = Vec::new();
             let r = accept_sampled(drafts, None, &mut |_| p.clone(), &mut || it.next().unwrap(), mb, &mut rescued);
-            (r, rescued)
+            (r, rescued.len())
         };
         let none = Mb { stop: &|_: u32| false, ratio: 1.0 };
         let eos = Mb { stop: &|t: u32| t == 0, ratio: 1.0 };
@@ -1610,8 +1694,9 @@ mod tests {
         // Reject variant: q = point mass at the draft, residual = p without the draft; same rescue
         let q = [Dist::point(0)];
         let mut us = [0.99, 0.9, 0.1].into_iter();
-        let mut rescued = 0;
+        let mut rescued = Vec::new();
         let r = accept_sampled(&[0], Some(&q), &mut |_| p.clone(), &mut || us.next().unwrap(), Some(none), &mut rescued);
+        let rescued = rescued.len();
         // u = 0.99 >= p(0)/q(0) = 0.5 rejects; residual {1: 0.6, 2: 0.4}, u = 0.9 picks 2; p(0) >= p(2): kept, then a bonus draw
         assert_eq!((r.0[0], r.1, rescued), (0, 1, 1));
         // ratio 2: draft 0 (0.5) against draw 1 (0.3) is not kept (0.5 < 0.6), against draw 2 (0.2) it is (0.5 >= 0.4)
@@ -1649,7 +1734,7 @@ mod tests {
                     for _ in 0..n {
                         let (dd, qs) = if reject { (q.pick(u()), vec![q.clone()]) } else { (d, vec![]) };
                         let (emit, _) =
-                            accept_sampled(&[dd], reject.then_some(&qs[..]), &mut |_| p.clone(), &mut u, mb, &mut 0);
+                            accept_sampled(&[dd], reject.then_some(&qs[..]), &mut |_| p.clone(), &mut u, mb, &mut Vec::new());
                         counts[emit[0] as usize] += 1;
                     }
                     for t in 0..V as u32 {
@@ -1662,6 +1747,53 @@ mod tests {
             }
         }
         assert!(moved > 0.05, "the cases must exercise the rescue (largest total variation {moved})");
+    }
+
+    /// Depth climbs after the full-accept streaks of its level, falls after enough rejected drafts, stays in range, and
+    /// builds no pressure at the floor.
+    #[test]
+    fn depth_climbs_and_falls() {
+        assert_eq!(Depth::new(2, 2), None);
+        assert_eq!(Depth::new(0, 4), None);
+        let mut d = Depth::new(2, 4).unwrap();
+        assert_eq!(d.cur(), 2);
+        // 4 full accepts at depth 2 climb to 3; a miss resets the streak
+        for _ in 0..3 {
+            d.update(2, 2);
+        }
+        d.update(2, 1);
+        assert_eq!(d.cur(), 2);
+        for _ in 0..4 {
+            d.update(2, 2);
+        }
+        assert_eq!(d.cur(), 3);
+        // 6 at depth 3 climb to 4, the ceiling
+        for _ in 0..6 {
+            d.update(3, 3);
+        }
+        assert_eq!(d.cur(), 4);
+        for _ in 0..20 {
+            d.update(4, 4);
+        }
+        assert_eq!(d.cur(), 4);
+        // 20 rejected drafts at depth 4 (5 total misses of 4) drop to 3; a full accept clears the pressure
+        for _ in 0..4 {
+            d.update(4, 0);
+        }
+        d.update(4, 4);
+        for _ in 0..4 {
+            d.update(4, 0);
+        }
+        assert_eq!(d.cur(), 4);
+        d.update(4, 0);
+        assert_eq!(d.cur(), 3);
+        // falls to the floor and holds there
+        for _ in 0..100 {
+            d.update(3, 0);
+        }
+        assert_eq!(d.cur(), 2);
+        d.update(0, 0);
+        assert_eq!(d.cur(), 2);
     }
 
     #[test]

@@ -1,0 +1,45 @@
+[localeval] dataset /opt/code/intarsiaml/scripts/dt1/../dfh/cats/rcp-prose.jsonl: 8 rows, judge=none
+# localeval: dt1-mtp4-on — 2026-11-07T10:58
+
+- model: `qwen38-27b-mtp4-on` on ? (?), url `http://tatooine:8095/v1`
+- thinking: off; run kind: quality; label: dt1-adk1-mtp4-on-rcp-prose-r2
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality dt1-mtp4-on --thinking off --label dt1-adk1-mtp4-on-rcp-prose-r2 --recipe dt1-intarsia serve --backend hip --model 27B --spec mtp --spec-k 4  --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (gpus 0, tree dev, intarsia-hip-dev:rocm7.2.4-rust1.90.0, SAMPLED=reject) --dataset /opt/code/intarsiaml/scripts/dt1/../dfh/cats/rcp-prose.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261107-105819-dt1-mtp4-on-dt1-adk1-mtp4-on-rcp-prose-r2/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+dt1-intarsia serve --backend hip --model 27B --spec mtp --spec-k 4  --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (gpus 0, tree dev, intarsia-hip-dev:rocm7.2.4-rust1.90.0, SAMPLED=reject)
+````
+
+## Dataset `/opt/code/intarsiaml/scripts/dt1/../dfh/cats/rcp-prose.jsonl` (8 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 8 | 0 |
+| TTFT (s) | 0.112 | 1.0 | 8 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 8 | 0 |
+| Decode (tok/s) | 54.2 | 1.0 | 8 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| prose-lighthouse | yes | 0.0 | 0.18 | 48.9 | The wind on Cape Aethel was never truly still; it merely cha… |
+| prose-city-essay | yes | 0.0 | 0.10 | 56.5 | Home is often defined by the physical structure of a house, … |
+| prose-product-launch | yes | 0.0 | 0.11 | 56.6 | # From Oven to Doorstep: Fresh Bakes, Delivered to Your Door… |
+| prose-mountain-letter | yes | 0.0 | 0.10 | 54.8 | Base Camp, 12,000 ft October 14, 2023 Dearest Sam, I’m writi… |
+| prose-ocean-poem | yes | 0.0 | 0.10 | 56.0 | The sun retreats like a dying ember, sinking into the bruise… |
+| prose-robot-fable | yes | 0.0 | 0.10 | 55.1 | Bolt was a small, dexterous robot designed for speed and pre… |
+| prose-travel | yes | 0.0 | 0.10 | 53.2 | The fog hasn’t fully lifted yet when the market at Port Sole… |
+| prose-history-scene | yes | 0.0 | 0.10 | 52.5 | The air in the shop smelled of ink, damp paper, and the meta… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261107-105819-dt1-mtp4-on-dt1-adk1-mtp4-on-rcp-prose-r2/result.json
+[localeval] logged to unanimis: 02ef09cb-55ee-43d1-afb4-7936adbeea9d
