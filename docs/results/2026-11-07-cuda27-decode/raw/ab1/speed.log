@@ -1,0 +1,14 @@
+free GB: 81  vllm gen tokens before: 0.0  00:41:34
+r1-4k-base: prefill 5236 ms (804.1 tok/s) | decode 6601 ms (28.93 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r1-4k-quant: prefill 5217 ms (807.0 tok/s) | decode 6336 ms (30.15 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r2-4k-quant: prefill 5199 ms (809.8 tok/s) | decode 6347 ms (30.09 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r2-4k-base: prefill 5222 ms (806.2 tok/s) | decode 6605 ms (28.92 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r3-4k-base: prefill 5230 ms (805.0 tok/s) | decode 6604 ms (28.92 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r3-4k-quant: prefill 5215 ms (807.2 tok/s) | decode 6338 ms (30.13 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r1-1k-base: prefill 1500 ms (670.8 tok/s) | decode 6013 ms (31.76 tok/s) | spec: verify passes=72 proposed=143 accepted=119 (acceptance 83.2%, 2.65 tokens per pass)
+r1-1k-quant: prefill 1494 ms (673.5 tok/s) | decode 5761 ms (33.15 tok/s) | spec: verify passes=72 proposed=143 accepted=119 (acceptance 83.2%, 2.65 tokens per pass)
+r2-1k-quant: prefill 1497 ms (671.9 tok/s) | decode 5757 ms (33.18 tok/s) | spec: verify passes=72 proposed=143 accepted=119 (acceptance 83.2%, 2.65 tokens per pass)
+r2-1k-base: prefill 1503 ms (669.3 tok/s) | decode 6013 ms (31.77 tok/s) | spec: verify passes=72 proposed=143 accepted=119 (acceptance 83.2%, 2.65 tokens per pass)
+r3-1k-base: prefill 1501 ms (670.1 tok/s) | decode 6016 ms (31.75 tok/s) | spec: verify passes=72 proposed=143 accepted=119 (acceptance 83.2%, 2.65 tokens per pass)
+r3-1k-quant: prefill 1492 ms (674.4 tok/s) | decode 5752 ms (33.21 tok/s) | spec: verify passes=72 proposed=143 accepted=119 (acceptance 83.2%, 2.65 tokens per pass)
+vllm gen tokens after: 0.0  00:50:24

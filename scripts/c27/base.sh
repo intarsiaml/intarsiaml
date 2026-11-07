@@ -19,7 +19,7 @@ gen() { # gen <size> <mode> <tag> [pre-cmd...]
 echo "free GB: $(free -g | awk '/Mem:/ {print $7}')  $(date +%T)"
 vg() { curl -s -m 5 http://100.120.88.104:8000/metrics | grep -a '^vllm:generation_tokens_total' | awk '{print $2}'; }
 echo "vllm gen tokens before: $(vg)"
-for sz in ${SIZES:-1k 4k 16k}; do for mode in ${MODES:-plain mtp mtp3}; do [ $sz = 16k ] && [ $mode = mtp3 ] && continue; gen $sz $mode a; free -g | awk '/Mem:/ {print "  avail " $7}'; done; done
+for sz in ${SIZES-1k 4k 16k}; do for mode in ${MODES:-plain mtp mtp3}; do [ $sz = 16k ] && [ $mode = mtp3 ] && continue; gen $sz $mode a; free -g | awk '/Mem:/ {print "  avail " $7}'; done; done
 if [ "${NSYS:-1}" = 1 ]; then
   nsz=${NSZ:-4k}
   for mode in ${NMODES:-plain mtp}; do
