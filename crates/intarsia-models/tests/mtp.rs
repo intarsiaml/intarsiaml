@@ -471,6 +471,21 @@ fn engine_pipe(
     cost: Option<(f64, u32, u32, u32)>,
     pipe: Option<bool>,
 ) -> (LocalEngine, Arc<Telemetry>) {
+    engine_depth(backend, w, k, None, script, draft_vocab, cost, pipe)
+}
+
+/// [`engine_pipe`] with an adaptive draft depth floor (`SpecConfig::k_min`).
+#[allow(clippy::too_many_arguments)]
+fn engine_depth(
+    backend: Arc<dyn Backend>,
+    w: &MemWeights,
+    k: Option<usize>,
+    k_min: Option<usize>,
+    script: Option<DraftScript>,
+    draft_vocab: usize,
+    cost: Option<(f64, u32, u32, u32)>,
+    pipe: Option<bool>,
+) -> (LocalEngine, Arc<Telemetry>) {
     let tel = Arc::new(Telemetry::new());
     let (mut recipe, dims) = dims();
     if let Some((sp, win, probe, re)) = cost {
@@ -498,7 +513,7 @@ fn engine_pipe(
             if script.is_some() {
                 m.mtp_script(script).unwrap();
             }
-            SpecConfig { mode: SpecMode::Mtp, k }
+            SpecConfig { mode: SpecMode::Mtp, k, k_min }
         }
         None => SpecConfig::default(),
     };
@@ -614,6 +629,34 @@ fn scripted_drafts_hit_every_acceptance_pattern_and_stay_identical() {
         let t = tel.snapshot();
         eprintln!("scripted k {k}: {} passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
         assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "k {k}: partial acceptance exercised");
+    }
+}
+
+/// Adaptive draft depth (`SpecConfig::k_min`, `spec::Depth`) with scripted drafts (all, some or none accepted, so the depth climbs
+/// and falls): the output of MTP off, eager and pipelined, and the passes draft between the floor and k.
+#[test]
+fn adaptive_depth_keeps_greedy_output_and_varies_the_draft_length() {
+    let w = weights(11);
+    let (off, _) = engine(&w, None);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for p in PROMPTS {
+        let o = run(&off, req(p, 300));
+        let mut s = p.to_vec();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    for pipe in [false, true] {
+        let (on, tel) = engine_depth(CpuBackend::arc(), &w, Some(3), Some(1), Some(scripted(truth.clone(), 5)), 0, None, Some(pipe));
+        for p in PROMPTS {
+            assert_eq!(run(&off, req(p, 256)), run(&on, req(p, 256)), "pipe {pipe} prompt {p:?}");
+            for n in [1usize, 2, 5, 13] {
+                assert_eq!(run(&off, req(p, n)), run(&on, req(p, n)), "pipe {pipe} max_tokens {n}");
+            }
+        }
+        let t = tel.snapshot();
+        let per_pass = t.spec_proposed as f64 / t.spec_steps as f64;
+        eprintln!("adaptive 1..3 pipe {pipe}: {} passes, {} drafted ({per_pass:.2} per pass), {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
+        assert!(per_pass > 1.05 && per_pass < 2.95, "pipe {pipe}: the depth moved inside 1..3 ({per_pass:.2} drafts per pass)");
     }
 }
 
@@ -1034,7 +1077,7 @@ fn dense_engine(
             if script.is_some() {
                 m.mtp_script(script).unwrap();
             }
-            SpecConfig { mode: SpecMode::Mtp, k }
+            SpecConfig { mode: SpecMode::Mtp, k, k_min: None }
         }
         None => SpecConfig::default(),
     };
@@ -1428,7 +1471,7 @@ fn cost_gate_with_scripted_drafts_stays_identical() {
 /// `recipe_dv` and the load option `opt` (`None`: the flag was not given).
 fn drafts_of(w: &MemWeights, recipe_dv: Option<usize>, opt: Option<usize>) -> Vec<Vec<u32>> {
     let (mut recipe, dims) = dims();
-    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_peel_period: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, batched_mtp: None, mxfp4_act: None, busy_chunk: None, tp_partial: None, lm_head_quant: None, gdn_state: None });
+    recipe.tuning.backends.insert("cpu".into(), intarsia_core::recipe::BackendTuning { prefill_chunk: None, mtp_draft_vocab: recipe_dv, prefill_peel: None, prefill_peel_period: None, prefill_macro: None, mtp_default_tp_k: None, mtp_default_k: None, mtp_default_k_min: None, batched_mtp: None, mxfp4_act: None, busy_chunk: None, tp_partial: None, lm_head_quant: None, gdn_state: None });
     let opts = LoadOptions {
         max_seq: 512,
         prefill_chunk: 8,
@@ -1583,7 +1626,7 @@ fn mtp_model_takes_the_macro_prefill_pass_and_the_head_follows() {
             Some(k) => {
                 m.enable_verify(k + 1).unwrap();
                 m.configure_plan(&Default::default(), None).unwrap();
-                SpecConfig { mode: SpecMode::Mtp, k }
+                SpecConfig { mode: SpecMode::Mtp, k, k_min: None }
             }
             None => SpecConfig::default(),
         };
@@ -1624,7 +1667,7 @@ fn prefill_peel_period_reaches_the_model_and_the_prefix_store_key() {
             "cpu".into(),
             intarsia_core::recipe::BackendTuning {
                 prefill_chunk: None, mtp_draft_vocab: None, prefill_peel: peel, prefill_peel_period: period, prefill_macro: None,
-                mtp_default_tp_k: None, mtp_default_k: None, batched_mtp: None, mxfp4_act: None, busy_chunk: None, tp_partial: None, lm_head_quant: None, gdn_state: None,
+                mtp_default_tp_k: None, mtp_default_k: None, mtp_default_k_min: None, batched_mtp: None, mxfp4_act: None, busy_chunk: None, tp_partial: None, lm_head_quant: None, gdn_state: None,
             },
         );
         let opts = LoadOptions { max_seq: 512, prefill_chunk: 8, fp8_act: Some(Fp8Act::None), profile_every: 0, ..Default::default() };
@@ -1696,7 +1739,7 @@ fn batched_mtp(
     o.batched_verify = verify;
     // every request is queued before the first iteration admits anything, so the sequences decode side by side
     o.hold_start = true;
-    let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k }, ..Default::default() };
+    let meta = EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Mtp, k, k_min: None }, ..Default::default() };
     (intarsia_core::BatchedEngine::new(m, Arc::new(ByteCodec), meta, tel.clone(), o).unwrap(), tel)
 }
 
@@ -1950,7 +1993,7 @@ fn engine_sampled(w: &MemWeights, k: usize, draft_vocab: usize, sampled: intarsi
     m.enable_verify(k + 1).unwrap();
     m.configure_plan(&Default::default(), None).unwrap();
     m.set_spec_sampled(Some(sampled));
-    let spec = SpecConfig { mode: SpecMode::Mtp, k };
+    let spec = SpecConfig { mode: SpecMode::Mtp, k, k_min: None };
     let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
         .unwrap();
     (e, tel)
@@ -2208,7 +2251,7 @@ fn tp2_engine(w: &MemWeights, k: Option<usize>, remote: bool, script: Option<Dra
         m.mtp_script(script).unwrap();
     }
     let spec = match k {
-        Some(k) => SpecConfig { mode: SpecMode::Mtp, k },
+        Some(k) => SpecConfig { mode: SpecMode::Mtp, k, k_min: None },
         None => SpecConfig::default(),
     };
     let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp-moe-tp2".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())

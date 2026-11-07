@@ -184,7 +184,7 @@ fn engine(k: Option<usize>) -> (LocalEngine, Arc<Telemetry>) {
 fn engine_ls(k: Option<usize>, ls: f32, tie: bool) -> (LocalEngine, Arc<Telemetry>) {
     let (m, tel) = model_ls(1, 2, k.is_some(), k, ls, tie);
     let spec = match k {
-        Some(k) => SpecConfig { mode: SpecMode::Dflash, k },
+        Some(k) => SpecConfig { mode: SpecMode::Dflash, k, k_min: None },
         None => SpecConfig::default(),
     };
     let e = LocalEngine::new(
@@ -332,7 +332,7 @@ fn dflash_off_loads_nothing() {
     let r = LocalEngine::new(
         m,
         Arc::new(ByteCodec),
-        EngineMeta { id: "x".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Dflash, k: 3 }, ..Default::default() },
+        EngineMeta { id: "x".into(), eos_ids: vec![], spec: SpecConfig { mode: SpecMode::Dflash, k: 3, k_min: None }, ..Default::default() },
         tel,
     );
     assert!(r.is_err(), "dflash mode without the draft was accepted");

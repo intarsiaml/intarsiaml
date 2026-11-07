@@ -56,11 +56,14 @@ pub struct SpecConfig {
     pub mode: SpecMode,
     /// Most draft tokens per verify pass, 1..=[`SPEC_K_MAX`].
     pub k: usize,
+    /// Adaptive MTP draft depth ([`Depth`]): the floor below `k`, or `None` for fixed depth. Set by a recipe default
+    /// (`[tuning.<backend>] mtp_default_k_min`); `INTARSIA_SPEC_K_MIN` wins ([`k_min_for`]).
+    pub k_min: Option<usize>,
 }
 
 impl Default for SpecConfig {
     fn default() -> Self {
-        SpecConfig { mode: SpecMode::Off, k: SPEC_K_DEFAULT }
+        SpecConfig { mode: SpecMode::Off, k: SPEC_K_DEFAULT, k_min: None }
     }
 }
 
@@ -88,7 +91,7 @@ impl SpecConfig {
         if !(1..=kmax).contains(&k) {
             return Err(crate::error::Error::invalid(format!("--spec-k {k} outside 1..={kmax}")));
         }
-        Ok(SpecConfig { mode, k })
+        Ok(SpecConfig { mode, k, k_min: None })
     }
 }
 
@@ -274,20 +277,28 @@ pub fn mb_ratio_from_env() -> f64 {
 }
 
 /// `INTARSIA_SPEC_K_MIN` (read once): with a value below `--spec-k`, MTP drafts adapt their depth per request in
-/// `[k_min, --spec-k]` ([`Depth`]); unset, 0 or not below `--spec-k`: fixed depth.
+/// `[k_min, --spec-k]` ([`Depth`]); 0 (or not below `--spec-k`): fixed depth, also over a recipe default. `None`: unset.
 pub fn k_min_from_env() -> Option<usize> {
     static V: std::sync::OnceLock<Option<usize>> = std::sync::OnceLock::new();
     *V.get_or_init(|| {
         let v = std::env::var("INTARSIA_SPEC_K_MIN").ok()?;
         match v.parse::<usize>() {
-            Ok(0) => None,
             Ok(n) => Some(n),
             Err(_) => {
-                eprintln!("INTARSIA_SPEC_K_MIN={v}: not a number; fixed draft depth");
+                eprintln!("INTARSIA_SPEC_K_MIN={v}: not a number; ignored");
                 None
             }
         }
     })
+}
+
+/// The adaptive depth floor of `spec`: `INTARSIA_SPEC_K_MIN` when set (0: fixed depth), else the recipe's `spec.k_min`.
+pub fn k_min_for(spec: &SpecConfig) -> Option<usize> {
+    match k_min_from_env() {
+        Some(0) => None,
+        Some(n) => Some(n),
+        None => spec.k_min,
+    }
 }
 
 /// Adaptive draft depth (after llamAmpere's `common_speculative_adaptive`, `draft-mtp-adaptive`): a per-request depth in
@@ -1877,7 +1888,7 @@ mod tests {
         assert!(SpecConfig::parse("ngram", 7).is_err());
         assert!(SpecConfig::parse("ngram", 0).is_err());
         assert!(SpecConfig::parse("draft", 4).is_err());
-        assert_eq!(SpecConfig::parse("mtp", 2).unwrap(), SpecConfig { mode: SpecMode::Mtp, k: 2 });
+        assert_eq!(SpecConfig::parse("mtp", 2).unwrap(), SpecConfig { mode: SpecMode::Mtp, k: 2, k_min: None });
     }
 
     fn gate(fails: u32, skip0: u32, skip_max: u32) -> SpecGate {
@@ -2486,6 +2497,6 @@ mod tests {
         assert_eq!(&seq[..7], &[Drafter::Mtp, Drafter::Mtp, Drafter::Mtp, Drafter::Dflash, Drafter::Dflash, Drafter::Dflash, Drafter::Mtp]);
         let mut p = AutoPolicy::new(AutoParams::default().with_env(Some("dflash")));
         assert!((0..9).all(|_| p.pick() == Drafter::Dflash));
-        assert_eq!(SpecConfig::parse("auto", 7).unwrap(), SpecConfig { mode: SpecMode::Auto, k: 7 });
+        assert_eq!(SpecConfig::parse("auto", 7).unwrap(), SpecConfig { mode: SpecMode::Auto, k: 7, k_min: None });
     }
 }

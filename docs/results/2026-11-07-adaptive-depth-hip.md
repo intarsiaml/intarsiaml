@@ -97,6 +97,29 @@ Adaptive 2-4 against fixed k4:
 
 geomean gain +1.0%
 
+## Tensor parallel, greedy (window adk3)
+
+27B at tp2 over both R9700s (the recipe's MTP default applies only here on HIP), greedy, 2 rounds, arms `--spec-k 2`, `--spec-k 4`,
+`--spec-k 4` with `INTARSIA_SPEC_K_MIN=2`. Per-round medians agree within 1 %.
+
+| category | k2 tok/s | k4 tok/s | adaptive 2..4 tok/s | adaptive vs k2 | adaptive vs k4 |
+|---|---|---|---|---|---|
+| ho-chat | 100.7 | 100.5 | 102.1 | +1.4% | +1.6% |
+| ho-code | 121.3 | 149.0 | 148.3 | +22.2% | -0.5% |
+| ho-prose | 89.7 | 83.6 | 89.3 | -0.5% | +6.9% |
+| ho-recall | 106.3 | 111.4 | 111.1 | +4.5% | -0.4% |
+| rcp-code | 119.0 | 139.7 | 137.2 | +15.3% | -1.8% |
+| rcp-prose | 90.9 | 85.3 | 91.0 | +0.1% | +6.7% |
+| rcp-recall | 108.0 | 117.5 | 115.2 | +6.7% | -1.9% |
+| geomean | | | | **+6.8%** | **+1.5%** |
+
+The tp1 picture holds at tp2: adaptive keeps k4's code gain within 2 % and k2's prose speed. On this basis the recipe's HIP tp default
+became adaptive 2..4 (`[tuning.hip] mtp_default_tp_k = 4`, `mtp_default_k_min = 2`; user decision 2026-11-07 "Yes, flip the default").
+
+**Served default check (window adk4, branch of PR #341):** `serve --tp 2` with no `--spec` flags logs "--spec mtp default drafts
+2..4 tokens per pass" and runs +6.6 % geomean over `--spec-k 2` (code +15 to +21 %, prose -0.5 to -0.7 %, 1 round); all 36 greedy
+outputs are byte-identical to `--spec-k 2`.
+
 ## Limits
 
 - One model (27B), tp1, batch 1, 512-token outputs at short context. Longer outputs should favour adaptive more (less of
@@ -105,4 +128,4 @@ geomean gain +1.0%
   (the depth is per sequence, so it applies there too, untested).
 - Not combined with mb-MTP in a window (mb-MTP alone: docs/results/2026-11-06-mb-mtp-hip.md).
 
-Raw: `docs/results/2026-11-06-27b-dflash-hip-tp1/raw/adk1`, `.../raw/adk2`; localeval runs `results/*dt1-adk{1,2}-*`.
+Raw: `docs/results/2026-11-06-27b-dflash-hip-tp1/raw/adk1`, `.../raw/adk2`, `.../raw/adk3`, `.../raw/adk4`; localeval runs `results/*dt1-adk{1,2,3}-*`.

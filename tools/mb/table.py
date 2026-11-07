@@ -10,7 +10,7 @@ RAW = f"docs/results/2026-11-06-27b-dflash-hip-tp1/raw/{W}"
 rates, rounds = collections.defaultdict(list), collections.defaultdict(list)
 for f in glob.glob(f"/opt/code/deepeval/results/*dt1-{W}-*/result.json"):
     d = json.load(open(f))
-    m = re.search(rf"dt1-{W}-(mtp\d(?:-on\d?|-old|-base)?)-(.+)-r(\d)$", d["label"])
+    m = re.search(rf"dt1-{W}-(def|mtp\d(?:-on\d?|-old|-base)?)-(.+)-r(\d)$", d["label"])
     if not m or m.group(1) not in (A, B):
         continue
     arm, cat, _ = m.groups()

@@ -119,7 +119,12 @@ mtp_draft_vocab = 65536
 # vs --spec off, soak 40/40), 1.43-1.93x decode in every category, interleaved x3 (docs/results/2026-10-26-dfh-hip-dflash.md section 14).
 # User decision 2026-10-26 11:07: "turn MTP on by default at tp2 if it passes". tp=1 is unchanged. --spec off or INTARSIA_SPEC_DEFAULT=0
 # opts out.
-mtp_default_tp_k = 2
+# Adaptive draft depth 2..4 (user decision 2026-11-07: "Yes, flip the default"): each request starts at 2 drafts, climbs after runs of full
+# accepts, drops after rejected drafts (llamAmpere draft-mtp-adaptive). tp2 greedy, 2 rounds: +6.8 % geomean over fixed k2 (code +15 to
+# +22 %, prose 0 %), +1.5 % over fixed k4 (prose +7 %, code -0.5 to -1.8 %); greedy outputs identical to k2 and k4
+# (docs/results/2026-11-07-adaptive-depth-hip.md). A lone `--spec-k N` fixes the length at N; INTARSIA_SPEC_K_MIN=0 fixes it at 4.
+mtp_default_tp_k = 4
+mtp_default_k_min = 2
 # MXFP4 projections on HIP run fp8 (e4m3) per-token activations (W4A8), not the [defaults] W4A16: full MMLU n=1425 0.8204 (W4A16 0.822,
 # W4A4 0.802, within 0.2 SE of W4A16); against W4A16 at tp2 with MTP k2: prefill +48% (1432 -> 2122 tok/s at 4k), decode +11% (all category
 # rows, median 81.0 -> 90.2 tok/s); KL to the W4A16 golden 12x below W4A4's; MTP ids 18/18 at tp2.

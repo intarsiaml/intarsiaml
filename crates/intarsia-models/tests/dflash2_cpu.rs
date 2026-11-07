@@ -392,7 +392,7 @@ fn engine(k: Option<usize>, script: Option<DraftScript>) -> (LocalEngine, Arc<Te
         m.dflash_script(script).unwrap();
     }
     let spec = match k {
-        Some(k) => SpecConfig { mode: SpecMode::Dflash, k },
+        Some(k) => SpecConfig { mode: SpecMode::Dflash, k, k_min: None },
         None => SpecConfig::default(),
     };
     let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-dflash2".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
@@ -475,7 +475,7 @@ fn dflash2_plan_covers_the_windowed_draft_and_serves_past_the_window() {
             m.configure_plan(&po, Some(&*reference)).unwrap();
             let windowed = m.resolved.unique_calls.iter().filter(|c| c.call.op == Op::AttnDecode && c.call.attrs.window > 0).count();
             assert!(windowed > 0, "the plan has no windowed draft attention call (window {wide}, block {BLOCK})");
-            SpecConfig { mode: SpecMode::Dflash, k: 3 }
+            SpecConfig { mode: SpecMode::Dflash, k: 3, k_min: None }
         } else {
             SpecConfig::default()
         };
@@ -671,7 +671,7 @@ fn engine_tp(k: Option<usize>, vocab_par: bool, script: Option<DraftScript>) -> 
         m.dflash_script(script).unwrap();
     }
     let spec = match k {
-        Some(k) => SpecConfig { mode: SpecMode::Dflash, k },
+        Some(k) => SpecConfig { mode: SpecMode::Dflash, k, k_min: None },
         None => SpecConfig::default(),
     };
     let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-dflash2-tp2".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
@@ -806,7 +806,7 @@ fn engine_split(k: usize, vocab_par: bool, split: bool, script: Option<DraftScri
     if script.is_some() {
         m.dflash_script(script).unwrap();
     }
-    let spec = SpecConfig { mode: SpecMode::Dflash, k };
+    let spec = SpecConfig { mode: SpecMode::Dflash, k, k_min: None };
     let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-dflash2-split".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
         .unwrap();
     (e, tel)
@@ -924,7 +924,7 @@ fn auto_engine_on(
                 m.dflash_script(Some(scripted(truth.clone(), 3))).unwrap();
                 m.mtp_script(Some(scripted(truth, 4))).unwrap();
             }
-            SpecConfig { mode: SpecMode::Auto, k }
+            SpecConfig { mode: SpecMode::Auto, k, k_min: None }
         }
         None => SpecConfig::default(),
     };
