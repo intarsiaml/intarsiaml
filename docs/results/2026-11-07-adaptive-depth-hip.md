@@ -120,6 +120,22 @@ became adaptive 2..4 (`[tuning.hip] mtp_default_tp_k = 4`, `mtp_default_k_min = 
 2..4 tokens per pass" and runs +6.6 % geomean over `--spec-k 2` (code +15 to +21 %, prose -0.5 to -0.7 %, 1 round); all 36 greedy
 outputs are byte-identical to `--spec-k 2`.
 
+## tp1 default against plain (window adk5, PR #342)
+
+One R9700, greedy, 2 rounds, `--spec off` against `serve` with no spec flags (the recipe default: `--spec mtp --spec-k 4`, adaptive from 2).
+The server logs "default drafts 2..4". All 72 outputs are byte-identical to `--spec off`.
+
+| category | off tok/s | default tok/s | gain |
+|---|---|---|---|
+| ho-chat | 35.9 | 67.6 | +88% |
+| ho-code | 35.9 | 94.2 | +163% |
+| ho-prose | 35.9 | 58.9 | +64% |
+| ho-recall | 35.8 | 73.2 | +104% |
+| rcp-code | 35.8 | 89.8 | +151% |
+| rcp-prose | 35.9 | 59.7 | +67% |
+| rcp-recall | 35.8 | 75.7 | +111% |
+| geomean | | | **+104% (2.04x)** |
+
 ## Limits
 
 - One model (27B), tp1, batch 1, 512-token outputs at short context. Longer outputs should favour adaptive more (less of
@@ -128,4 +144,4 @@ outputs are byte-identical to `--spec-k 2`.
   (the depth is per sequence, so it applies there too, untested).
 - Not combined with mb-MTP in a window (mb-MTP alone: docs/results/2026-11-06-mb-mtp-hip.md).
 
-Raw: `docs/results/2026-11-06-27b-dflash-hip-tp1/raw/adk1`, `.../raw/adk2`, `.../raw/adk3`, `.../raw/adk4`; localeval runs `results/*dt1-adk{1,2,3}-*`.
+Raw: `docs/results/2026-11-06-27b-dflash-hip-tp1/raw/adk1`, `.../raw/adk2`, `.../raw/adk3`, `.../raw/adk4`, `.../raw/adk5`; localeval runs `results/*dt1-adk{1,2,3}-*`.
