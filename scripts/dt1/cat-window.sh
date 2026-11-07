@@ -81,6 +81,7 @@ serve() { # serve <arm>
   if [[ $arm == *-base ]]; then base=${arm%-base}; BINX=dt1-intarsia-base; fi
   case $base in
     off) spec="--spec off" ;;
+    def) spec="" ;;  # the recipe default (no --spec flags)
     mtp2) spec="--spec mtp --spec-k 2" ;;
     mtp*) spec="--spec mtp --spec-k ${base#mtp}" ;;
     dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${base#dfl}" ;;
@@ -139,7 +140,7 @@ for r in $(seq "$R0" $(( R0 + ROUNDS - 1 ))); do
       say "round $r arm $arm speed $SPEEDSIZES: exit $? $(grep -aoE 'results/[^ ]+' "$OUT/speed-$arm-r$r.log" | tail -1)"
     fi
     if [[ ${SUITE:-0} == 1 && $r == "$R0" ]]; then  # lane df: the scoreboard's localeval suite cells (speed-plain = filler 1k/4k/16k, speed-spec = natural-v1), as rad1 ran them for radiance
-      case ${arm%-*} in off) lane=plain ;; mtp*) lane=spec:mtp ;; dfl*) lane=spec:dflash ;; esac
+      case ${arm%-*} in off) lane=plain ;; def|mtp*) lane=spec:mtp ;; dfl*) lane=spec:dflash ;; esac
       for cell in ${SUITE_CELLS:-speed-plain speed-spec}; do
         [[ $lane == plain && $cell == speed-spec ]] && continue
         ( cd /opt/code/deepeval && uv run localeval suite --url "http://tatooine:$PORT/v1" --model "qwen38-27b-$arm" --thinking off \
