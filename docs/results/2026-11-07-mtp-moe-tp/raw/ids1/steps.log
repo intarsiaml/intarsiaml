@@ -1,0 +1,37 @@
+spark1: head=450dfa9 code-tree=e9ca6d215ae7 dirty=nodevice base: head=0174e1f code-tree=dfbab040f9be dirty=nodevice
+Mem:             121          41          25           0          57          80
+spark2: head=450dfa9 code-tree=e9ca6d215ae7 dirty=nodevice base: head=0174e1f code-tree=dfbab040f9be dirty=nodevice
+Mem:             121          46          27           0          49          75
+spark1 memwatch up
+spark2 memwatch up
+00:28:49 up ids-tp2off (dev tp2 --spec off): 
+00:28:49   spark1 Mem:             121          54          11           0          57          67
+00:28:49   spark2 Mem:             121          59          15           0          49          62
+00:29:10 ids tp2off: 16k-1: 256 tokens
+00:29:36 up ids-tp2m (dev tp2 --spec mtp --spec-k 2): mtp: drafter head 'mtp' loaded in 0.9 s (routed experts quantised to nvfp4)|verify attention rows: engaged (one row-table attention launch per layer)|--spec mtp on cuda with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)|speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv=gdn_conv_bf16 gdn_d|sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)|
+00:29:36   spark1 Mem:             121          56          10           0          57          65
+00:29:36   spark2 Mem:             121          58          15           0          49          62
+00:29:54 ids tp2m: 16k-1: 256 tokens
+--spec mtp on cuda with tp=2: verify rows run the row-exact kernels on every rank (bitwise the single-row decode per row)
+speculative decoding: Mtp, up to 2 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_fp8_pair=matmul_fp8_pair_gemv_rows matmul=matmul_bf16_gemv_rows gdn_conv
+sampled requests (temperature > 0): speculation Match (default; single sequence, one rank)
+00:30:10 up ids-basetp2off (base tp2 --spec off): 
+00:30:11   spark1 Mem:             121          54          11           0          57          67
+00:30:11   spark2 Mem:             121          59          15           0          49          62
+00:30:32 ids basetp2off: 16k-1: 256 tokens
+00:30:36 PASS ids tp2off == tp2m
+1k-0: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+4k-0: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+16k-0: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+1k-1: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+4k-1: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+16k-1: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+00:30:36 PASS ids basetp2off == tp2off
+1k-0: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+4k-0: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+16k-0: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+1k-1: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+4k-1: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+16k-1: IDENTICAL first_diff=- positional_agreement=1.000 n=256
+00:30:36 == done
+00:30:36 cleanup (exit 0)
