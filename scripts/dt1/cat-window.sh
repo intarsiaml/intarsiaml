@@ -87,7 +87,7 @@ serve() { # serve <arm>
   esac
   ARM_AUDIT=0; [[ $ENVX == *INTARSIA_SPEC_MB_AUDIT=1* ]] && ARM_AUDIT=1  # lane mb: save the server's mb-audit lines per category
   # lane mb: under 255 characters (localeval stat()s the recipe as a file name first: a longer one fails every request)
-  RECIPE="$BINX serve --backend hip --model 27B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq ${MAXSEQ:-20480} (gpus $GPUS, tree $TREE, $IMG${ENVX:+, ${ENVX//-e /}})"
+  RECIPE="$BINX serve --backend hip --model 27B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq ${MAXSEQ:-20480} (gpus $GPUS, tree $TREE, $IMG${ENVX:+, ${ENVX//-e INTARSIA_/}})"
   (( ${#RECIPE} < 255 )) || { echo "recipe too long (${#RECIPE}): $RECIPE"; return 1; }
   $SSH "docker rm -f dt1-serve >/dev/null 2>&1; docker run -d --name dt1-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
