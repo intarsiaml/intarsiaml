@@ -85,6 +85,7 @@ serve() { # serve <arm>
     mtp*) spec="--spec mtp --spec-k ${base#mtp}" ;;
     dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${base#dfl}" ;;
   esac
+  ARM_AUDIT=0; [[ $ENVX == *INTARSIA_SPEC_MB_AUDIT=1* ]] && ARM_AUDIT=1  # lane mb: save the server's mb-audit lines per category
   # lane mb: under 255 characters (localeval stat()s the recipe as a file name first: a longer one fails every request)
   RECIPE="$BINX serve --backend hip --model 27B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq ${MAXSEQ:-20480} (gpus $GPUS, tree $TREE, $IMG${ENVX:+, ${ENVX//-e /}})"
   (( ${#RECIPE} < 255 )) || { echo "recipe too long (${#RECIPE}): $RECIPE"; return 1; }
@@ -127,6 +128,8 @@ for r in $(seq "$R0" $(( R0 + ROUNDS - 1 ))); do
           --recipe "$RECIPE" --dataset "$f" --judge none --max-tokens "$GEN" --wait-idle 60 ) > "$OUT/q-$arm-$c-r$r.log" 2>&1 < /dev/null
       rc=$?; m1=$(metric)
       echo "$arm $c r$r before: $m0" >> "$OUT/spec-metrics.txt"; echo "$arm $c r$r after:  $m1" >> "$OUT/spec-metrics.txt"
+      # lane mb: the server's mb-audit lines so far (cumulative: a category's lines are those past the previous file's count)
+      (( ${ARM_AUDIT:-0} )) && $SSH "docker logs dt1-serve 2>&1 | grep -a 'mb-audit'" < /dev/null > "$OUT/mbaudit-$arm-$c-r$r.cum" 2>&1
       say "round $r arm $arm $c: localeval exit $rc $(grep -aoE 'results/[^ ]+' "$OUT/q-$arm-$c-r$r.log" | tail -1)"
     done
     if [[ -n ${SPEEDSIZES:-} && ${arm%-old} == off ]]; then  # lane vat: plain decode at the given context sizes (the spec-off no-regression gate)
