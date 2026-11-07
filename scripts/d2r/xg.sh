@@ -69,8 +69,8 @@ if want speed && grep -q "IDS .*DIFFERS" "$L/steps.log"; then log "speed skipped
   for sz in ${SIZES:-1k 4k 16k}; do
     ms=8192; [[ $sz == 16k ]] && ms=20480
     r spark1 "head -c $(chars $sz) $CORP > $XO/p-$sz.txt"
-    for rd in $(seq 1 ${ROUNDS:-2}); do
-      order="$ARMS"; [[ $((rd % 2)) == 0 ]] && order=$(echo $ARMS | tr ' ' '\n' | tac | tr '\n' ' ')
+    for rd in $(seq ${ROUND_FROM:-1} ${ROUNDS:-2}); do
+      order="$ARMS"; [[ $((rd % 2)) == 0 ]] && order=$(echo $ARMS | tr ' ' '\n' | awk '{a[NR]=$0} END {for (i=NR; i>=1; i--) print a[i]}' | tr '\n' ' ')
       for a in $order; do visit r$rd-$sz-$a $a $XO/p-$sz.txt $ms ${NTOK:-192}; done
     done
   done
