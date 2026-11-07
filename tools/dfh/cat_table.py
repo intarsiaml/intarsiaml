@@ -5,7 +5,7 @@ several dirs pool their rounds, e.g. two speed windows and the radiance referenc
 Checks every case for exactly GEN completion tokens and every arm for the same set of rows; prints decode tok/s pooled per
 category (tokens / sum of decode times), x vs off, and tokens per verify pass from the counters."""
 import glob, json, os, re, statistics as st, sys
-raws = sys.argv[1:]; res = "/opt/code/deepeval/results"
+raws = sys.argv[1:]; res = "/opt/code/deepeval/results"; PREC = int(os.environ.get("PREC", "1"))  # lane au1: decimals of tok/s
 W = "+".join(os.path.basename(r.rstrip("/")) for r in raws); GEN = 512
 runs = []
 for raw in raws:
@@ -37,11 +37,13 @@ for raw in raws:
 arms = sorted({a for a, _ in data}, key=lambda a: (a != "off", a))
 cats = sorted({c for _, c in data})
 names = {k: sorted(x["name"] for x in v[0]) for k, v in data.items()}
+# lane au1: without an off arm (spec windows) the rows are compared with mtp2 and the x column is vs mtp2
+REF = "off" if any(a == "off" for a in arms) else ("mtp2" if "mtp2" in arms else arms[0])
 for c in cats:
-    ref = names.get(("off", c))
+    ref = names.get((REF, c))
     for a in arms:
         if names.get((a, c)) != ref:
-            problems.append(f"{a} {c}: rows differ from off ({len(names.get((a, c)) or [])} vs {len(ref or [])})")
+            problems.append(f"{a} {c}: rows differ from {REF} ({len(names.get((a, c)) or [])} vs {len(ref or [])})")
 def pooled(cases):
     toks = sum(x["speed"]["completion_tokens"] - 1 for x in cases)
     secs = sum((x["speed"]["completion_tokens"] - 1) / x["speed"]["decode_tok_s"] for x in cases if x["speed"]["decode_tok_s"])
@@ -51,7 +53,7 @@ for p in problems[:20]:
     print("  PROBLEM", p)
 print(f"{'category':12} " + " ".join(f"{a:>22}" for a in arms))
 for c in cats:
-    off = st.median(pooled(x) for x in data[("off", c)]) if ("off", c) in data else None
+    off = st.median(pooled(x) for x in data[(REF, c)]) if (REF, c) in data else None
     row = []
     for a in arms:
         if (a, c) not in data:
@@ -60,5 +62,5 @@ for c in cats:
         tp = ""
         if (a, c) in spec and spec[(a, c)][0]["intarsia_spec_steps"] > 0:
             s = spec[(a, c)][0]; tp = f" {(s['intarsia_spec_accepted_tokens'] + s['intarsia_spec_steps']) / s['intarsia_spec_steps']:.2f}t/p"
-        row.append(f"{v:6.1f} {v / off:5.2f}x{tp:>9}" if off else f"{v:6.1f}")
+        row.append(f"{v:6.{PREC}f} {v / off:5.2f}x{tp:>9}" if off else f"{v:6.{PREC}f}")
     print(f"{c:12} " + " ".join(f"{x:>22}" for x in row))

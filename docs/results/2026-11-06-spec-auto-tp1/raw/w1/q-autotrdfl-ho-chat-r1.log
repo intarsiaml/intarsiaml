@@ -1,0 +1,41 @@
+[localeval] dataset /opt/code/intarsiaml/.worktrees/spec-auto-tp1/scripts/au1/../dfh/cats/ho-chat.jsonl: 4 rows, judge=none
+# localeval: au1-autotrdfl — 2026-11-06T21:22
+
+- model: `qwen38-27b-autotrdfl` on ? (?), url `http://tatooine:8095/v1`
+- thinking: off; run kind: quality; label: au1-w1-autotrdfl-ho-chat-r1
+- harness: localeval 0.4.0, deepeval 4.2.6, runner endor.kuepker.haus, git a43b846
+- command: `/opt/code/deepeval/.venv/bin/localeval quality au1-autotrdfl --thinking off --label au1-w1-autotrdfl-ho-chat-r1 --recipe HIP_VISIBLE_DEVICES=0 au1-intarsia serve --backend hip --model 27B --spec auto --spec-draft /models/tensorfold/Qwen3.8-27B-DFlash2 --spec-k 7  --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane au1, -e INTARSIA_SPEC_AUTO=dflash,pass,log) --dataset /opt/code/intarsiaml/.worktrees/spec-auto-tp1/scripts/au1/../dfh/cats/ho-chat.jsonl --judge none --max-tokens 512 --wait-idle 60`
+- result file: `results/20261106-212205-au1-autotrdfl-au1-w1-autotrdfl-ho-chat-r1/result.json`
+
+## Launch recipe
+
+from inline command (secrets redacted):
+
+````
+HIP_VISIBLE_DEVICES=0 au1-intarsia serve --backend hip --model 27B --spec auto --spec-draft /models/tensorfold/Qwen3.8-27B-DFlash2 --spec-k 7  --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (tree dev, docker intarsia-hip-dev:rocm7.2.4-rust1.90.0, lane au1, -e INTARSIA_SPEC_AUTO=dflash,pass,log)
+````
+
+## Dataset `/opt/code/intarsiaml/.worktrees/spec-auto-tp1/scripts/au1/../dfh/cats/ho-chat.jsonl` (4 rows, judge none)
+
+| metric | mean | pass rate | n | n/a | errors |
+|---|---:|---:|---:|---:|---:|
+| Contains expected | - | - | 0 | 4 | 0 |
+| TTFT (s) | 0.212 | 1.0 | 4 | 0 | 0 |
+| Prefill (tok/s) | - | - | 0 | 4 | 0 |
+| Decode (tok/s) | 62.9 | 1.0 | 4 | 0 | 0 |
+
+Per-row speed is incidental: dataset prompts are short, so prefill here is mostly request overhead. Speed metrics pass unless --min-prefill/--min-decode/--max-ttft is set.
+
+| row | pass | correctness | TTFT (s) | decode tok/s | output |
+|---|---|---:|---:|---:|---|
+| chat-sleep | yes | 0.0 | 0.41 | 68.3 | Waking up at 3:00 AM and being unable to return to sleep is … |
+| chat-career | yes | 0.0 | 0.17 | 66.2 | Moving from backend engineering to Product Management (PM) i… |
+| chat-budget | yes | 0.0 | 0.14 | 62.9 | This is a classic financial dilemma, and the "right" answer … |
+| chat-travel | yes | 0.0 | 0.13 | 54.2 | Here is a relaxed, food-focused, and culturally rich four-da… |
+
+## Method
+
+Streamed OpenAI-compatible calls, temperature 0. TTFT = request start to first content/reasoning token; prefill tok/s = uncached prompt_tokens / TTFT; decode tok/s = (completion_tokens - 1) / (last - first token), counts from server usage. Speed sweep: fresh nonce first in every prompt (no prefix-cache hits), ignore_eos+min_tokens forces the full length, 1 discarded warmup, median of reps. Other clients' in-flight requests checked before every sweep call. Quality-run speed is incidental (varying prompts), not a sweep.
+
+[localeval] saved /opt/code/deepeval/results/20261106-212205-au1-autotrdfl-au1-w1-autotrdfl-ho-chat-r1/result.json
+[localeval] logged to unanimis: c9550d6b-373c-4488-ac19-b8799bd99ffd
