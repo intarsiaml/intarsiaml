@@ -4,7 +4,7 @@ Coordinator go-ahead 2026-11-07 03:30 EST (user: 'keep building overnight'): 27B
 
 ## Status
 
-In progress (written 2026-11-07 03:45 EST). Code and CPU tests done; rules below pre-registered before any Spark measurement.
+In progress (written 2026-11-07 03:36 EST). Code and CPU tests done; rules below pre-registered before any Spark measurement.
 
 ## Why it was refused
 
@@ -27,7 +27,7 @@ remote rank only runs verify passes and rollbacks, wire protocol v3).
 * The two refusals (`load_engine_group`, `serve_remote_rank`) are removed. Opt-in only: `--spec mtp` has to be asked for; `mtp_head_usable` and the
   recipe defaults are untouched, and the default path (no `--spec`, remote group) loads exactly what it did.
 
-## Pre-registered rules (written 2026-11-07 03:45 EST, before any measurement; not edited after data)
+## Pre-registered rules (written 2026-11-07 03:36 EST, before any measurement; not edited after data)
 
 Setup: Qwen3.8-27B-Quark-AWQ-MXFP4 (W4A16), CUDA, recipe defaults (fp8 lm_head, 65536-row draft head). tp2 = rank 0 on spark1 (`generate --tp-remote`) +
 rank 1 on spark2 (`tp-worker`), NCCL over CX-7, `--max-seq 8192` (20480 at 16k) `--mem-budget 24` per rank; tp1 on spark1 `--mem-budget 45`.
