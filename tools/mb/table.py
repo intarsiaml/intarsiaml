@@ -10,7 +10,7 @@ RAW = f"docs/results/2026-11-06-27b-dflash-hip-tp1/raw/{W}"
 rates, rounds = collections.defaultdict(list), collections.defaultdict(list)
 for f in glob.glob(f"/opt/code/deepeval/results/*dt1-{W}-*/result.json"):
     d = json.load(open(f))
-    m = re.search(rf"dt1-{W}-(def|mtp\d(?:-on\d?|-old|-base)?)-(.+)-r(\d)$", d["label"])
+    m = re.search(rf"dt1-{W}-(off|def|mtp\d(?:-on\d?|-old|-base)?)-(.+)-r(\d)$", d["label"])
     if not m or m.group(1) not in (A, B):
         continue
     arm, cat, _ = m.groups()
@@ -32,7 +32,9 @@ for cat in sorted({c for _, c in rates}):
     a, b = (sum(rates[(x, cat)]) / len(rates[(x, cat)]) for x in (A, B))
     g.append(b / a)
     (sa, pa, aa), (sb, pb, ab) = acc[(A, cat)], acc[(B, cat)]
-    print(f"| {cat} | {a:.1f} | {b:.1f} | {100 * (b / a - 1):+.1f}% | {aa / sa:.2f} / {ab / sb:.2f} | "
-          f"{100 * aa / pa:.1f}% / {100 * ab / pb:.1f}% | {len(rates[(A, cat)])} / {len(rates[(B, cat)])} |")
+    per_pass = lambda x, s: f"{x / s:.2f}" if s else "-"  # an arm without drafting (off) has no spec counters
+    rate = lambda x, p: f"{100 * x / p:.1f}%" if p else "-"
+    print(f"| {cat} | {a:.1f} | {b:.1f} | {100 * (b / a - 1):+.1f}% | {per_pass(aa, sa)} / {per_pass(ab, sb)} | "
+          f"{rate(aa, pa)} / {rate(ab, pb)} | {len(rates[(A, cat)])} / {len(rates[(B, cat)])} |")
 print(f"\ngeomean gain {100 * (math.exp(sum(map(math.log, g)) / len(g)) - 1):+.1f}%")
 print("per-round medians:", {f"{k[0]} {k[1]}": [round(v, 1) for v in vs] for k, vs in sorted(rounds.items())})

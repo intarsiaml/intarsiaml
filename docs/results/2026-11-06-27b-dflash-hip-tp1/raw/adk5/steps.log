@@ -1,0 +1,35 @@
+13:18:43 guard: [guard] radiance stopped 2026-11-07 13:18:42
+13:18:43 round 1 arm off: starting server
+13:20:05 round 1 arm off ho-chat: localeval exit 0 results/20261107-131907-dt1-off-dt1-adk5-off-ho-chat-r1/result.json
+13:20:36 round 1 arm off ho-code: localeval exit 0 results/20261107-132006-dt1-off-dt1-adk5-off-ho-code-r1/result.json
+13:21:36 round 1 arm off ho-prose: localeval exit 0 results/20261107-132037-dt1-off-dt1-adk5-off-ho-prose-r1/result.json
+13:22:07 round 1 arm off ho-recall: localeval exit 0 results/20261107-132136-dt1-off-dt1-adk5-off-ho-recall-r1/result.json
+13:24:04 round 1 arm off rcp-code: localeval exit 0 results/20261107-132208-dt1-off-dt1-adk5-off-rcp-code-r1/result.json
+13:26:01 round 1 arm off rcp-prose: localeval exit 0 results/20261107-132405-dt1-off-dt1-adk5-off-rcp-prose-r1/result.json
+13:27:58 round 1 arm off rcp-recall: localeval exit 0 results/20261107-132602-dt1-off-dt1-adk5-off-rcp-recall-r1/result.json
+13:27:58 round 1 arm def: starting server
+13:30:11 round 1 arm def ho-chat: localeval exit 0 results/20261107-132939-dt1-def-dt1-adk5-def-ho-chat-r1/result.json
+13:30:24 round 1 arm def ho-code: localeval exit 0 results/20261107-133012-dt1-def-dt1-adk5-def-ho-code-r1/result.json
+13:31:01 round 1 arm def ho-prose: localeval exit 0 results/20261107-133025-dt1-def-dt1-adk5-def-ho-prose-r1/result.json
+13:31:18 round 1 arm def ho-recall: localeval exit 0 results/20261107-133102-dt1-def-dt1-adk5-def-ho-recall-r1/result.json
+13:32:06 round 1 arm def rcp-code: localeval exit 0 results/20261107-133118-dt1-def-dt1-adk5-def-rcp-code-r1/result.json
+13:33:18 round 1 arm def rcp-prose: localeval exit 0 results/20261107-133207-dt1-def-dt1-adk5-def-rcp-prose-r1/result.json
+13:34:15 round 1 arm def rcp-recall: localeval exit 0 results/20261107-133318-dt1-def-dt1-adk5-def-rcp-recall-r1/result.json
+13:34:16 round 2 arm def: starting server
+13:36:29 round 2 arm def ho-chat: localeval exit 0 results/20261107-133557-dt1-def-dt1-adk5-def-ho-chat-r2/result.json
+13:36:42 round 2 arm def ho-code: localeval exit 0 results/20261107-133630-dt1-def-dt1-adk5-def-ho-code-r2/result.json
+13:37:19 round 2 arm def ho-prose: localeval exit 0 results/20261107-133643-dt1-def-dt1-adk5-def-ho-prose-r2/result.json
+13:37:35 round 2 arm def ho-recall: localeval exit 0 results/20261107-133720-dt1-def-dt1-adk5-def-ho-recall-r2/result.json
+13:38:24 round 2 arm def rcp-code: localeval exit 0 results/20261107-133736-dt1-def-dt1-adk5-def-rcp-code-r2/result.json
+13:39:35 round 2 arm def rcp-prose: localeval exit 0 results/20261107-133825-dt1-def-dt1-adk5-def-rcp-prose-r2/result.json
+13:40:33 round 2 arm def rcp-recall: localeval exit 0 results/20261107-133936-dt1-def-dt1-adk5-def-rcp-recall-r2/result.json
+13:40:33 round 2 arm off: starting server
+13:41:55 round 2 arm off ho-chat: localeval exit 0 results/20261107-134056-dt1-off-dt1-adk5-off-ho-chat-r2/result.json
+13:42:25 round 2 arm off ho-code: localeval exit 0 results/20261107-134155-dt1-off-dt1-adk5-off-ho-code-r2/result.json
+13:43:25 round 2 arm off ho-prose: localeval exit 0 results/20261107-134226-dt1-off-dt1-adk5-off-ho-prose-r2/result.json
+13:43:55 round 2 arm off ho-recall: localeval exit 0 results/20261107-134325-dt1-off-dt1-adk5-off-ho-recall-r2/result.json
+13:45:52 round 2 arm off rcp-code: localeval exit 0 results/20261107-134356-dt1-off-dt1-adk5-off-rcp-code-r2/result.json
+13:47:49 round 2 arm off rcp-prose: localeval exit 0 results/20261107-134553-dt1-off-dt1-adk5-off-rcp-prose-r2/result.json
+13:49:46 round 2 arm off rcp-recall: localeval exit 0 results/20261107-134750-dt1-off-dt1-adk5-off-rcp-recall-r2/result.json
+13:49:47 done, time left 532s
+13:49:57 guard: [guard] radiance answers 2026-11-07 13:49:57 (after 15 s)
