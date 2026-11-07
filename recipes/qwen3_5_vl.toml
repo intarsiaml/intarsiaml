@@ -124,6 +124,10 @@ mtp_draft_vocab = 65536
 # +22 %, prose 0 %), +1.5 % over fixed k4 (prose +7 %, code -0.5 to -1.8 %); greedy outputs identical to k2 and k4
 # (docs/results/2026-11-07-adaptive-depth-hip.md). A lone `--spec-k N` fixes the length at N; INTARSIA_SPEC_K_MIN=0 fixes it at 4.
 mtp_default_tp_k = 4
+# One rank too (user decision 2026-11-07 "yes" to the tp1 default): `--spec mtp --spec-k 4`, adaptive from 2 by the floor below. tp1 greedy
+# window adk2: adaptive 59 (prose) to 94 (code) tok/s against plain 35.9 (docs/results/2026-11-06-27b-dflash-hip-tp1.md), outputs identical
+# to k2 and k4; plain vs default at tp1: docs/results/2026-11-07-adaptive-depth-hip.md.
+mtp_default_k = 4
 mtp_default_k_min = 2
 # MXFP4 projections on HIP run fp8 (e4m3) per-token activations (W4A8), not the [defaults] W4A16: full MMLU n=1425 0.8204 (W4A16 0.822,
 # W4A4 0.802, within 0.2 SE of W4A16); against W4A16 at tp2 with MTP k2: prefill +48% (1432 -> 2122 tok/s at 4k), decode +11% (all category
