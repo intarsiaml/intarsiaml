@@ -187,7 +187,7 @@ fn engine(k: Option<usize>, vocab_par: bool, script: Option<DraftScript>) -> (Lo
         m.mtp_script(script).unwrap();
     }
     let spec = match k {
-        Some(k) => SpecConfig { mode: SpecMode::Mtp, k },
+        Some(k) => SpecConfig { mode: SpecMode::Mtp, k, k_min: None },
         None => SpecConfig::default(),
     };
     let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp-tp2".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
@@ -361,7 +361,7 @@ fn engine_whole(k: Option<usize>, remote: bool, script: Option<DraftScript>) -> 
         m.mtp_script(script).unwrap();
     }
     let spec = match k {
-        Some(k) => SpecConfig { mode: SpecMode::Mtp, k },
+        Some(k) => SpecConfig { mode: SpecMode::Mtp, k, k_min: None },
         None => SpecConfig::default(),
     };
     let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp-whole-tp2".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
@@ -461,7 +461,7 @@ fn mtp_tp2_loads_through_the_engine_loader_and_matches_spec_off() {
             let comms = intarsia_core::HostCommGroup::new(backends.clone());
             let o = intarsia_models::EngineOptions {
                 load: LoadOptions { max_seq: 256, act_dtype: Some(DType::F32), kv_dtype: Some(DType::F32), tp_vocab, ..Default::default() },
-                spec: SpecConfig { mode: spec, k: 2 },
+                spec: SpecConfig { mode: spec, k: 2, k_min: None },
                 ..Default::default()
             };
             intarsia_models::load_engine_tp(&dir, backends, comms, &o).unwrap_or_else(|e| panic!("tp=2 load with --spec {spec:?} (tp_vocab {tp_vocab}): {e}"))
@@ -485,7 +485,7 @@ fn a_lone_spec_k_zero_is_refused_by_the_loader() {
         load: LoadOptions { max_seq: 256, act_dtype: Some(DType::F32), kv_dtype: Some(DType::F32), ..Default::default() },
         spec_auto: true,
         spec_k_given: true,
-        spec: SpecConfig { mode: SpecMode::Off, k: 0 },
+        spec: SpecConfig { mode: SpecMode::Off, k: 0, k_min: None },
         ..Default::default()
     };
     let one = intarsia_models::load_engine(&dir, CpuBackend::arc(), &o);
@@ -498,6 +498,21 @@ fn a_lone_spec_k_zero_is_refused_by_the_loader() {
 
 /// `INTARSIA_SPEC_DEFAULT` is process-wide: the tests that read or set it take this lock for their whole body.
 static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// The recipe default's adaptive depth (`[tuning.<backend>] mtp_default_k_min`, `intarsia_models::load::default_spec`): a floor below
+/// k makes the default adaptive on that backend only; a lone `--spec-k` and a floor not below k keep a fixed length.
+#[test]
+fn default_spec_takes_the_recipe_floor_unless_spec_k_is_given() {
+    use intarsia_models::load::default_spec;
+    let r = intarsia_models::parse_recipe(&format!("{}\n[tuning.hip]\nmtp_default_tp_k = 4\nmtp_default_k_min = 2\n", include_str!("../../../recipes/qwen3_5.toml"))).unwrap();
+    let auto = intarsia_models::EngineOptions { spec_auto: true, ..Default::default() };
+    let mtp = |k, k_min| SpecConfig { mode: SpecMode::Mtp, k, k_min };
+    assert_eq!(default_spec(&auto, &r, "hip", 4), mtp(4, Some(2)), "recipe floor 2 under k 4");
+    assert_eq!(default_spec(&auto, &r, "cuda", 4), mtp(4, None), "another backend: fixed");
+    assert_eq!(default_spec(&auto, &r, "hip", 2), mtp(2, None), "floor not below k: fixed");
+    let lone = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, ..Default::default() };
+    assert_eq!(default_spec(&lone, &r, "hip", 3), mtp(3, None), "a lone --spec-k fixes the length");
+}
 
 /// The recipe's tensor-parallel MTP default (`[tuning.<backend>] mtp_default_tp_k`, `intarsia_models::load::tp_mtp_default`): on only
 /// without --spec, at tp > 1 on in-process ranks of that backend, one sequence, and not with INTARSIA_SPEC_DEFAULT=0.
@@ -517,17 +532,17 @@ fn tp_mtp_default_needs_no_spec_tp_the_backend_one_sequence_and_no_opt_out() {
     assert_eq!(tp_mtp_default(&explicit, &with, "hip", 2, true), None, "--spec off given (or a library caller)");
     let batch = intarsia_models::EngineOptions { spec_auto: true, max_batch: Some(4), ..Default::default() };
     assert_eq!(tp_mtp_default(&batch, &with, "hip", 2, true), None, "--max-batch 4");
-    let dfl = intarsia_models::EngineOptions { spec_auto: true, spec: SpecConfig { mode: SpecMode::Dflash, k: 7 }, ..Default::default() };
+    let dfl = intarsia_models::EngineOptions { spec_auto: true, spec: SpecConfig { mode: SpecMode::Dflash, k: 7, k_min: None }, ..Default::default() };
     assert_eq!(tp_mtp_default(&dfl, &with, "hip", 2, true), None, "another --spec");
     // a lone --spec-k N (spec_auto, no --spec) keeps the default and sets only its draft length
-    let lone = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..Default::default() };
+    let lone = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3, k_min: None }, ..Default::default() };
     assert_eq!(tp_mtp_default(&lone, &with, "hip", 2, true), Some(3), "lone --spec-k 3: default applies with k = 3");
     assert_eq!(tp_mtp_default(&lone, &without, "hip", 2, true), None, "lone --spec-k, no recipe key: off (the loader warns)");
     assert_eq!(tp_mtp_default(&lone, &with, "cuda", 2, true), None, "lone --spec-k, another backend: off");
     assert_eq!(tp_mtp_default(&lone, &with, "hip", 1, true), None, "lone --spec-k, tp 1: off");
-    let lone0 = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 0 }, ..Default::default() };
+    let lone0 = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 0, k_min: None }, ..Default::default() };
     assert_eq!(tp_mtp_default(&lone0, &with, "hip", 2, true), None, "lone --spec-k 0: no drafting, the default is not applied (not SpecConfig{{Mtp, k: 0}})");
-    let explicit_k = intarsia_models::EngineOptions { spec_auto: false, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..Default::default() };
+    let explicit_k = intarsia_models::EngineOptions { spec_auto: false, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3, k_min: None }, ..Default::default() };
     assert_eq!(tp_mtp_default(&explicit_k, &with, "hip", 2, true), None, "--spec off --spec-k 3: unchanged, off");
     // a prefix store (explicit caching intent; a drafting request bypasses it) skips the default; an explicit --spec mtp is not this function's
     let stored = intarsia_models::EngineOptions {
@@ -575,15 +590,15 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
     assert_eq!(mtp_default(&batch, &with, "cuda", 1, true), None, "--max-batch 4");
     let one = intarsia_models::EngineOptions { spec_auto: true, max_batch: Some(1), ..Default::default() };
     assert_eq!(mtp_default(&one, &with, "cuda", 1, true), Some(2), "--max-batch 1 keeps it");
-    let dfl = intarsia_models::EngineOptions { spec_auto: true, spec: SpecConfig { mode: SpecMode::Dflash, k: 7 }, ..Default::default() };
+    let dfl = intarsia_models::EngineOptions { spec_auto: true, spec: SpecConfig { mode: SpecMode::Dflash, k: 7, k_min: None }, ..Default::default() };
     assert_eq!(mtp_default(&dfl, &with, "cuda", 1, true), None, "another --spec");
     // a lone `--spec-k N` (no `--spec`) keeps the default and sets only its draft length
-    let lone = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..Default::default() };
+    let lone = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3, k_min: None }, ..Default::default() };
     assert_eq!(mtp_default(&lone, &with, "cuda", 1, true), Some(3), "a lone --spec-k 3 sets k");
     assert_eq!(mtp_default(&lone, &without, "cuda", 1, true), None, "a lone --spec-k where no default applies stays off");
     assert_eq!(mtp_default(&lone, &with, "hip", 1, true), None, "a lone --spec-k on another backend stays off");
     // a lone `--spec-k 0` is no draft length: the default is not applied with k = 0 (the loader refuses it outright, next test)
-    let lone0 = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 0 }, ..Default::default() };
+    let lone0 = intarsia_models::EngineOptions { spec_auto: true, spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 0, k_min: None }, ..Default::default() };
     assert_eq!(mtp_default(&lone0, &with, "cuda", 1, true), None, "a lone --spec-k 0 is not SpecConfig {{ Mtp, k: 0 }}");
     let zero = intarsia_models::parse_recipe(&format!("{base}\n[tuning.cuda]\nmtp_default_k = 0\n")).unwrap();
     assert_eq!(mtp_default(&auto, &zero, "cuda", 1, true), None, "k = 0 is unset");
@@ -593,7 +608,7 @@ fn single_rank_mtp_default_needs_no_spec_one_rank_the_backend_one_sequence_and_n
         ..Default::default()
     };
     assert_eq!(mtp_default(&stored, &with, "cuda", 1, true), None, "--prefix-store on: no default at cuda tp 1");
-    let lone_stored = intarsia_models::EngineOptions { spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3 }, ..stored.clone() };
+    let lone_stored = intarsia_models::EngineOptions { spec_k_given: true, spec: SpecConfig { mode: SpecMode::Off, k: 3, k_min: None }, ..stored.clone() };
     assert_eq!(mtp_default(&lone_stored, &with, "cuda", 1, true), None, "a lone --spec-k does not bring it back");
     std::env::set_var("INTARSIA_PREFIX_STORE", "on");
     let env_store = mtp_default(&auto, &with, "cuda", 1, true);
@@ -687,7 +702,7 @@ fn loader_default_matches_off() {
             recipe: Some(recipe.clone()),
             spec_auto: auto,
             spec_k_given: k_given,
-            spec: SpecConfig { mode: SpecMode::Off, k: if k_given { 3 } else { SpecConfig::default().k } },
+            spec: SpecConfig { mode: SpecMode::Off, k: if k_given { 3 } else { SpecConfig::default().k }, k_min: None },
             ..Default::default()
         };
         intarsia_models::load_engine_tp(dir, backends, comms, &o).unwrap()

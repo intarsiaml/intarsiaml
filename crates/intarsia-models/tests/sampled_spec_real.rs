@@ -40,7 +40,7 @@ fn sampled_spec_real_model_runs() {
     let out = var("INTARSIA_SS_OUT").map(PathBuf::from);
     let k = 2;
     let mut opts = intarsia_models::EngineOptions {
-        spec: SpecConfig { mode: SpecMode::Mtp, k },
+        spec: SpecConfig { mode: SpecMode::Mtp, k, k_min: None },
         max_batch: Some(1),
         ..Default::default()
     };

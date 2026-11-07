@@ -27,7 +27,7 @@ fn engine(seed: u64, eos: Vec<u32>, spec_k: Option<usize>) -> (LocalEngine, Arc<
         Some(k) => {
             m.enable_verify(k + 1).unwrap();
             m.configure_plan(&Default::default(), None).unwrap();
-            SpecConfig { mode: SpecMode::Ngram, k }
+            SpecConfig { mode: SpecMode::Ngram, k, k_min: None }
         }
         None => SpecConfig::default(),
     };

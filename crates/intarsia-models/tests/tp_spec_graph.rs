@@ -216,7 +216,7 @@ fn engine(k: Option<usize>, vocab_par: bool, captured: bool, script: Option<Draf
         m.mtp_script(script).unwrap();
     }
     let spec = match k {
-        Some(k) => SpecConfig { mode: SpecMode::Mtp, k },
+        Some(k) => SpecConfig { mode: SpecMode::Mtp, k, k_min: None },
         None => SpecConfig::default(),
     };
     let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp-tp2-graph".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())

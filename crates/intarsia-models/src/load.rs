@@ -444,6 +444,14 @@ fn default_k(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backe
     Some(if opts.spec_k_given { opts.spec.k } else { rk })
 }
 
+/// The [`intarsia_core::spec::SpecConfig`] of the recipe's MTP default with `k` drafts on `backend`: adaptive in
+/// `[mtp_default_k_min, k]` when the recipe sets a floor below `k` and `--spec-k` did not set k (a lone `--spec-k` asks for that
+/// fixed length), else fixed at `k`.
+pub fn default_spec(opts: &EngineOptions, recipe: &intarsia_core::recipe::Recipe, backend: &str, k: usize) -> intarsia_core::spec::SpecConfig {
+    let k_min = if opts.spec_k_given { None } else { recipe.resolve_mtp_default_k_min(backend).filter(|&m| m < k) };
+    intarsia_core::spec::SpecConfig { mode: intarsia_core::spec::SpecMode::Mtp, k, k_min }
+}
+
 /// A prefix store is configured: `--prefix-store SPEC` (anything but `off`) or `INTARSIA_PREFIX_STORE`, as the engine setup reads them.
 fn prefix_store_given(opts: &EngineOptions) -> bool {
     opts.prefix_store.is_some() || intarsia_core::prefix_store::PrefixStoreConfig::from_env().ok().flatten().is_some()
@@ -531,8 +539,12 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
                 b0.name(),
                 if backends.len() > 1 { "mtp_default_tp_k" } else { "mtp_default_k" }
             );
+            let spec = default_spec(opts, &recipe, b0.name(), k);
+            if let Some(m) = spec.k_min {
+                eprintln!("--spec mtp default drafts {m}..{k} tokens per pass, adapting per request ([tuning.{}] mtp_default_k_min; INTARSIA_SPEC_K_MIN=0 fixes it at {k})", b0.name());
+            }
             let mut o = opts.clone();
-            o.spec = intarsia_core::spec::SpecConfig { mode: intarsia_core::spec::SpecMode::Mtp, k };
+            o.spec = spec;
             o.load.mtp = true;
             defaulted = o;
             &defaulted

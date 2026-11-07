@@ -1446,7 +1446,7 @@ impl Seq {
             spec_mtp,
             spec_dflash,
             spec_k,
-            depth: if spec_mtp && !spec_dflash { crate::spec::k_min_from_env().and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
+            depth: if spec_mtp && !spec_dflash { crate::spec::k_min_for(&env.spec).and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
             auto: None,
             drafter: if spec_dflash { crate::spec::Drafter::Dflash } else { crate::spec::Drafter::Mtp },

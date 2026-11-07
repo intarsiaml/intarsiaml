@@ -32,7 +32,7 @@ fn model(seed: u64, rows: usize, spec_k: Option<usize>, tel: &Arc<Telemetry>) ->
     let spec = match spec_k {
         Some(k) => {
             m.enable_verify(k + 1).unwrap();
-            SpecConfig { mode: SpecMode::Ngram, k }
+            SpecConfig { mode: SpecMode::Ngram, k, k_min: None }
         }
         None => SpecConfig::default(),
     };
