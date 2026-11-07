@@ -934,6 +934,18 @@ impl Default for AutoParams {
 }
 
 impl AutoParams {
+    /// The values for the Qwen3.8-27B on HIP at tp=1 (lane au1, 2026-11-06, `docs/results/2026-11-06-spec-auto-tp1.md`). There a DFlash2
+    /// pass costs 50.2 ms against 35.4 ms for an MTP k2 pass (tp=2: 38.0 / 25.5), so the priors follow; `tools/asa/replay.py --au1` on the
+    /// window-1 per-pass logs picked a slower MTP EWMA (0.04: less DFlash on prose), a shorter DFlash dwell (8) and a wider hysteresis (1.2).
+    /// `theta`, the DFlash EWMA, the MTP dwell and the probe cadence stay at the tp=2 values.
+    pub fn hip_tp1() -> AutoParams {
+        AutoParams { alpha_mtp: 0.04, dwell_dflash: 8, hyst: 1.2, prior: [(2.2, 35.4), (3.6, 50.2)], ..AutoParams::default() }
+    }
+    /// The defaults for a target: [`AutoParams::hip_tp1`] on HIP with one rank, [`AutoParams::default`] elsewhere (every other measurement of
+    /// the policy is the tp=2 HIP one).
+    pub fn for_target(backend: &str, tp: usize) -> AutoParams {
+        if backend == "hip" && tp == 1 { AutoParams::hip_tp1() } else { AutoParams::default() }
+    }
     /// `INTARSIA_SPEC_AUTO`: comma-separated `mtp`, `dflash`, `alt:N` (force a drafter), `log` (a summary line per request), `pass`
     /// (a line per pass) and `key=value` knobs for A/B runs (`theta`, `alpha_mtp`, `alpha_dflash`, `dwell_mtp`, `dwell_dflash`,
     /// `hyst`, `probe_mtp`, `w`, `priorw`, `seed`); unset or empty: the defaults.
@@ -972,6 +984,10 @@ impl AutoParams {
 
     pub fn from_env() -> AutoParams {
         AutoParams::default().with_env(std::env::var("INTARSIA_SPEC_AUTO").ok().as_deref())
+    }
+    /// [`AutoParams::for_target`] with `INTARSIA_SPEC_AUTO` applied on top.
+    pub fn from_env_for(backend: &str, tp: usize) -> AutoParams {
+        AutoParams::for_target(backend, tp).with_env(std::env::var("INTARSIA_SPEC_AUTO").ok().as_deref())
     }
 }
 
@@ -2233,6 +2249,26 @@ mod tests {
             }
             println!("replay {name}: {:.1} tok/s dflash share {:.0}%", tok as f64 / ms * 1000.0, 100.0 * dfl as f64 / passes as f64);
         }
+    }
+
+    #[test]
+    fn auto_params_follow_the_target_and_the_env_wins() {
+        // HIP with one rank: the tp=1 values; every other target (HIP tp=2, other backends): the tp=2 defaults
+        let t = AutoParams::for_target("hip", 1);
+        assert_eq!(t, AutoParams::hip_tp1());
+        assert_ne!(t, AutoParams::default());
+        assert_eq!((t.alpha_mtp, t.dwell_dflash, t.hyst, t.prior), (0.04, 8, 1.2, [(2.2, 35.4), (3.6, 50.2)]));
+        // what the tp=1 change leaves alone
+        assert_eq!((t.theta, t.alpha_dflash, t.dwell_mtp, t.probe_mtp, t.seed_passes), (2.5, 0.1, 4, 8, 2));
+        assert_eq!(AutoParams::for_target("hip", 2), AutoParams::default());
+        assert_eq!(AutoParams::for_target("cuda", 1), AutoParams::default());
+        assert_eq!(AutoParams::for_target("metal", 1), AutoParams::default());
+        // the env is applied on top of the target's values
+        let e = AutoParams::hip_tp1().with_env(Some("hyst=1.1,theta=2.4,pass"));
+        assert_eq!((e.hyst, e.theta, e.dwell_dflash, e.alpha_mtp, e.log_pass), (1.1, 2.4, 8, 0.04, true));
+        // and a tp=1 policy starts from the tp=1 priors: before any pass its rates are the priors'
+        let p = AutoPolicy::new(AutoParams::hip_tp1());
+        assert_eq!(p.params().prior[0], (2.2, 35.4));
     }
 
     #[test]
