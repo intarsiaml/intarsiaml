@@ -116,6 +116,10 @@ geomean gain +1.0%
 The tp1 picture holds at tp2: adaptive keeps k4's code gain within 2 % and k2's prose speed. On this basis the recipe's HIP tp default
 became adaptive 2..4 (`[tuning.hip] mtp_default_tp_k = 4`, `mtp_default_k_min = 2`; user decision 2026-11-07 "Yes, flip the default").
 
+**Served default check (window adk4, branch of PR #341):** `serve --tp 2` with no `--spec` flags logs "--spec mtp default drafts
+2..4 tokens per pass" and runs +6.6 % geomean over `--spec-k 2` (code +15 to +21 %, prose -0.5 to -0.7 %, 1 round); all 36 greedy
+outputs are byte-identical to `--spec-k 2`.
+
 ## Limits
 
 - One model (27B), tp1, batch 1, 512-token outputs at short context. Longer outputs should favour adaptive more (less of
@@ -124,4 +128,4 @@ became adaptive 2..4 (`[tuning.hip] mtp_default_tp_k = 4`, `mtp_default_k_min = 
   (the depth is per sequence, so it applies there too, untested).
 - Not combined with mb-MTP in a window (mb-MTP alone: docs/results/2026-11-06-mb-mtp-hip.md).
 
-Raw: `docs/results/2026-11-06-27b-dflash-hip-tp1/raw/adk1`, `.../raw/adk2`, `.../raw/adk3`; localeval runs `results/*dt1-adk{1,2,3}-*`.
+Raw: `docs/results/2026-11-06-27b-dflash-hip-tp1/raw/adk1`, `.../raw/adk2`, `.../raw/adk3`, `.../raw/adk4`; localeval runs `results/*dt1-adk{1,2,3}-*`.
