@@ -26,7 +26,7 @@ Rerun of `docs/results/2026-10-26-dfh-hip-dflash.md` section 10, window 5 (lane 
 | rcp-recall | 33.0 | 35.9 | 48.5, 1.47x, 3.94 t/p | 80.6, 2.25x, 4.10 t/p | 54.1, 1.64x, 2.43 t/p | 70.1, 1.95x, 2.46 t/p | **1.15** |
 
 Round to round the spec arms differ by 0.0-0.5 tok/s (e.g. rcp-code DFlash2 102.1 / 101.7, MTP 78.0 / 77.9), so no ratio in the last column is inside the noise.
-Tokens per pass are nearly unchanged since 10-26 (DFlash2 draft quality did not change; code 4.8-5.2 against 5.1-5.6, the 7 vs 8 drafts and the selector are the same), so the whole change is pass cost.
+Tokens per pass moved by -14 percent (ho-code 5.58 to 4.82) to +12 percent (ho-recall 3.51 to 3.93) since 10-26 (the other categories within 6 percent; the fp8 `lm_head` default changes the target's greedy text, so acceptance shifts per category), so the gain is mostly pass cost, with acceptance shifting a little either way.
 
 ## Pass cost
 
@@ -59,6 +59,6 @@ The 4k-1 draft is only 0.6 ms above short-0's (draft block with the split-KV win
 
 Against `--spec off`, DFlash2 k7 now wins in every category at tp=1 (1.38x on prose to 2.84x on code, against 0.92x-2.08x on 10-26): its pass fell from 88.5 to about 50 ms, so the break-even dropped from 2.9 to 1.9 tokens per pass and prose (2.5 t/p) clears it.
 MTP k2 also sped up (1.64x-2.23x against 1.41x-1.90x) and its pass (about 35 ms for 2.1-2.8 t/p) is still much cheaper, so DFlash2 beats MTP k2 only where it accepts many drafts: code (1.19x and 1.31x of MTP's speed), recall (1.11x and 1.15x), and not on prose (0.84x, 0.85x) or chat (0.95x; 3.08 t/p against about 3.2 needed to tie).
-DFlash2 therefore still does not win everywhere against the default MTP, so nothing changes: it stays opt-in and no default is touched. The remaining gap on prose and chat is the pass cost (50 against 35 ms), mostly the 43 ms row-exact verify8; a per-prompt choice between the two (acceptance-driven) would collect the code and recall wins, but that is a feature, not part of this rerun.
+DFlash2 therefore still does not win everywhere against MTP k2, so nothing changes: it stays opt-in and no default is touched. The remaining gap on prose and chat is the pass cost (50 against 35 ms), mostly the 43 ms row-exact verify8; a per-prompt choice between the two (acceptance-driven) would collect the code and recall wins, but that is a feature, not part of this rerun.
 
 Limits: one window, two rounds (off once), tp=1 card 0 only, 36 rows over 7 categories, ids on two prompts. The off arm ran at 35.9 tok/s here against 33.0 on 10-26, so ratios to off use each window's own off.
