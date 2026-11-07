@@ -10,6 +10,11 @@ Usage: replay.py <raw/W> [--grid]
 import sys, glob, re, itertools, statistics, os
 
 NEAREST = os.environ.get('NEAREST', '1') == '1'
+# lane au1: pass-log arm names (real auto, auto pinned to MTP, auto pinned to DFlash) and the (tokens, ms) priors of Policy2 are configurable:
+#   REPLAY_ARMS=auto,autotrmtp,autotrdfl  PRIOR_M=2.2,25.5  PRIOR_D=3.6,38.0 (the tp=2 values, lane asa)
+ARM_A, ARM_M, ARM_D = os.environ.get('REPLAY_ARMS', 'autotr,autotrmtp,autotrdfl').split(',')
+PRIOR_M = tuple(float(x) for x in os.environ.get('PRIOR_M', '2.2,25.5').split(','))
+PRIOR_D = tuple(float(x) for x in os.environ.get('PRIOR_D', '3.6,38.0').split(','))
 CATS = [("ho-chat", 4), ("ho-code", 2), ("ho-prose", 4), ("ho-recall", 2), ("rcp-code", 8), ("rcp-prose", 8), ("rcp-recall", 8)]
 
 
@@ -169,7 +174,7 @@ def simulate(pol, mt, df, extra):
 
 def run(args):
     raw = args[0]
-    rounds = sorted({int(re.search(r"-r(\d+)\.log", f).group(1)) for f in glob.glob(f"{raw}/pass-autotr-r*.log")})
+    rounds = sorted({int(re.search(r"-r(\d+)\.log", f).group(1)) for f in glob.glob(f"{raw}/pass-{ARM_A}-r*.log")})
     global REAL, ROUNDS_G
     REAL = {}
     ROUNDS_G = rounds
@@ -177,7 +182,7 @@ def run(args):
     extra_acc = {0: [], 1: []}
     base_ms = {0: [], 1: []}
     for r in rounds:
-        a, m, d = (load(f"{raw}/pass-{x}-r{r}.log") for x in ("autotr", "autotrmtp", "autotrdfl"))
+        a, m, d = (load(f"{raw}/pass-{x}-r{r}.log") for x in (ARM_A, ARM_M, ARM_D))
         assert len(a) == len(m) == len(d) == 36, (len(a), len(m), len(d))
         data[r] = {}
         REAL[r] = {}
@@ -334,7 +339,7 @@ class Policy2:
     """MTP acceptance as the free covariate: DFlash is entered when MTP's tokens per pass reach `theta` (DFlash wins 96% of the
     time above 2.6 and loses 87% below 2.4 per 96-token block), left when its measured rate falls under MTP's (last known) rate."""
     def __init__(self, theta=2.5, alpha_m=0.12, alpha_d=0.12, dwell_m=8, dwell_d=8, hyst=1.0, probe_mtp=24, probe_w=0.3,
-                 m0=(2.2, 25.5), d0=(3.6, 38.0), prior_w=2.0, seed_m=2, probe_dfl=0, dfl_win=1.6, bump=0.0, decay=0.005):
+                 m0=PRIOR_M, d0=PRIOR_D, prior_w=2.0, seed_m=2, probe_dfl=0, dfl_win=1.6, bump=0.0, decay=0.005):
         self.__dict__.update(locals())
         del self.__dict__["self"]
         self.n = [0, 0]
