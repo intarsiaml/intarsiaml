@@ -1,0 +1,15 @@
+Based on the text provided, here is the breakdown of the **IntarsiaML architecture plan (v0.2)** and its current status as of **2026-10-25**.
+
+### Core Concept
+**Intarsia** (wood inlay) is an engine where every component (op, kernel, quant format, model block, benchmark, API) is a **piece with a strict contract**. Every piece is validated against a reference implementation before integration.
+
+### Key Architectural Decisions (v0.2)
+1.  **Torch-Free C Kernel ABI**: The core kernel interface is decoupled from PyTorch, using a C ABI for portability and isolation.
+2.  **First Kernel Packs**:
+    *   **TensorFold** (MIT License)
+    *   **Radiance** (Apache-2.0 License)
+3.  **Hard Kernels First**: Prioritizing robust, high-performance kernels before higher-level abstractions.
+4.  **Phase 0 Scope**: Reduced to focus on **seams** (interfaces/contracts) rather than full implementations.
+
+### Research & Review Inputs
+*   **AMD R9700 Lessons**: Insights from
