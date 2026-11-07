@@ -1,0 +1,35 @@
+01:19:25 guard: [guard] radiance stopped 2026-11-07 01:19:25
+01:19:25 round 1 arm mtp4-on: starting server
+01:21:41 round 1 arm mtp4-on ho-chat: localeval exit 0 results/20261107-012107-dt1-mtp4-on-dt1-mb6-mtp4-on-ho-chat-r1/result.json
+01:21:54 round 1 arm mtp4-on ho-code: localeval exit 0 results/20261107-012141-dt1-mtp4-on-dt1-mb6-mtp4-on-ho-code-r1/result.json
+01:22:36 round 1 arm mtp4-on ho-prose: localeval exit 0 results/20261107-012155-dt1-mtp4-on-dt1-mb6-mtp4-on-ho-prose-r1/result.json
+01:22:52 round 1 arm mtp4-on ho-recall: localeval exit 0 results/20261107-012236-dt1-mtp4-on-dt1-mb6-mtp4-on-ho-recall-r1/result.json
+01:23:43 round 1 arm mtp4-on rcp-code: localeval exit 0 results/20261107-012253-dt1-mtp4-on-dt1-mb6-mtp4-on-rcp-code-r1/result.json
+01:25:01 round 1 arm mtp4-on rcp-prose: localeval exit 0 results/20261107-012343-dt1-mtp4-on-dt1-mb6-mtp4-on-rcp-prose-r1/result.json
+01:26:01 round 1 arm mtp4-on rcp-recall: localeval exit 0 results/20261107-012502-dt1-mtp4-on-dt1-mb6-mtp4-on-rcp-recall-r1/result.json
+01:26:01 round 1 arm mtp4-on2: starting server
+01:28:12 round 1 arm mtp4-on2 ho-chat: localeval exit 0 results/20261107-012739-dt1-mtp4-on2-dt1-mb6-mtp4-on2-ho-chat-r1/result.json
+01:28:26 round 1 arm mtp4-on2 ho-code: localeval exit 0 results/20261107-012813-dt1-mtp4-on2-dt1-mb6-mtp4-on2-ho-code-r1/result.json
+01:29:05 round 1 arm mtp4-on2 ho-prose: localeval exit 0 results/20261107-012826-dt1-mtp4-on2-dt1-mb6-mtp4-on2-ho-prose-r1/result.json
+01:29:22 round 1 arm mtp4-on2 ho-recall: localeval exit 0 results/20261107-012906-dt1-mtp4-on2-dt1-mb6-mtp4-on2-ho-recall-r1/result.json
+01:30:11 round 1 arm mtp4-on2 rcp-code: localeval exit 0 results/20261107-012923-dt1-mtp4-on2-dt1-mb6-mtp4-on2-rcp-code-r1/result.json
+01:31:27 round 1 arm mtp4-on2 rcp-prose: localeval exit 0 results/20261107-013012-dt1-mtp4-on2-dt1-mb6-mtp4-on2-rcp-prose-r1/result.json
+01:32:24 round 1 arm mtp4-on2 rcp-recall: localeval exit 0 results/20261107-013128-dt1-mtp4-on2-dt1-mb6-mtp4-on2-rcp-recall-r1/result.json
+01:32:25 round 1 arm mtp4-on3: starting server
+01:34:36 round 1 arm mtp4-on3 ho-chat: localeval exit 0 results/20261107-013403-dt1-mtp4-on3-dt1-mb6-mtp4-on3-ho-chat-r1/result.json
+01:34:50 round 1 arm mtp4-on3 ho-code: localeval exit 0 results/20261107-013437-dt1-mtp4-on3-dt1-mb6-mtp4-on3-ho-code-r1/result.json
+01:35:29 round 1 arm mtp4-on3 ho-prose: localeval exit 0 results/20261107-013451-dt1-mtp4-on3-dt1-mb6-mtp4-on3-ho-prose-r1/result.json
+01:35:46 round 1 arm mtp4-on3 ho-recall: localeval exit 0 results/20261107-013530-dt1-mtp4-on3-dt1-mb6-mtp4-on3-ho-recall-r1/result.json
+01:36:38 round 1 arm mtp4-on3 rcp-code: localeval exit 0 results/20261107-013547-dt1-mtp4-on3-dt1-mb6-mtp4-on3-rcp-code-r1/result.json
+01:37:52 round 1 arm mtp4-on3 rcp-prose: localeval exit 0 results/20261107-013638-dt1-mtp4-on3-dt1-mb6-mtp4-on3-rcp-prose-r1/result.json
+01:38:50 round 1 arm mtp4-on3 rcp-recall: localeval exit 0 results/20261107-013753-dt1-mtp4-on3-dt1-mb6-mtp4-on3-rcp-recall-r1/result.json
+01:38:51 round 1 arm mtp4-old: starting server
+01:41:03 round 1 arm mtp4-old ho-chat: localeval exit 0 results/20261107-014029-dt1-mtp4-old-dt1-mb6-mtp4-old-ho-chat-r1/result.json
+01:41:18 round 1 arm mtp4-old ho-code: localeval exit 0 results/20261107-014104-dt1-mtp4-old-dt1-mb6-mtp4-old-ho-code-r1/result.json
+01:41:58 round 1 arm mtp4-old ho-prose: localeval exit 0 results/20261107-014118-dt1-mtp4-old-dt1-mb6-mtp4-old-ho-prose-r1/result.json
+01:42:15 round 1 arm mtp4-old ho-recall: localeval exit 0 results/20261107-014159-dt1-mtp4-old-dt1-mb6-mtp4-old-ho-recall-r1/result.json
+01:43:06 round 1 arm mtp4-old rcp-code: localeval exit 0 results/20261107-014216-dt1-mtp4-old-dt1-mb6-mtp4-old-rcp-code-r1/result.json
+01:44:22 round 1 arm mtp4-old rcp-prose: localeval exit 0 results/20261107-014306-dt1-mtp4-old-dt1-mb6-mtp4-old-rcp-prose-r1/result.json
+01:45:22 round 1 arm mtp4-old rcp-recall: localeval exit 0 results/20261107-014423-dt1-mtp4-old-dt1-mb6-mtp4-old-rcp-recall-r1/result.json
+01:45:23 done, time left 539s
+01:45:33 guard: [guard] radiance answers 2026-11-07 01:45:33 (after 15 s)
