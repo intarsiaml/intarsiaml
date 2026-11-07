@@ -14,20 +14,23 @@ OUT=$REPO/docs/results/2026-11-07-spec-graph-tp2/raw/$W; mkdir -p "$OUT"
 T0=$(date +%s); left() { echo $(( CAP - ($(date +%s) - T0) )); }
 say() { echo "$(date +%T) $*" | tee -a "$OUT/steps.log"; }
 SSH="ssh -o BatchMode=yes tatooine"
-ARMSEQ=${ARMSEQ:-"tp1m tp2off tp2m;tp2m tp2off tp1m"}
-armcfg() { # armcfg <arm>: sets GPUS TPA spec
+ARMSEQ=${ARMSEQ:-"tp2off tp2m tp2mg;tp2mg tp2m tp2off;q27m q27mg;q27mg q27m"}
+M27=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0
+armcfg() { # armcfg <arm>: sets GPUS TPA spec MODEL ENVS SZ (lane gt2: tp2mg / q27mg = the captured step at tp2, INTARSIA_SPEC_GRAPH_TP=1)
+  MODEL=$M35; ENVS=""; SZ=${SIZES:-1024,4096,16384}
   case $1 in
     tp1m) GPUS=0; TPA=""; spec="--spec mtp --spec-k 2" ;;
-    tp1off) GPUS=0; TPA=""; spec="--spec off" ;;
     tp2off) GPUS=0,1; TPA="--tp 2 --devices 0,1"; spec="--spec off" ;;
     tp2m) GPUS=0,1; TPA="--tp 2 --devices 0,1"; spec="--spec mtp --spec-k 2" ;;
-    tp2m3) GPUS=0,1; TPA="--tp 2 --devices 0,1"; spec="--spec mtp --spec-k 3" ;;
+    tp2mg) GPUS=0,1; TPA="--tp 2 --devices 0,1"; spec="--spec mtp --spec-k 2"; ENVS="-e INTARSIA_SPEC_GRAPH_TP=1" ;;
+    q27m) GPUS=0,1; TPA="--tp 2 --devices 0,1"; spec="--spec mtp --spec-k 2"; MODEL=$M27; SZ=${SIZES27:-4096} ;;
+    q27mg) GPUS=0,1; TPA="--tp 2 --devices 0,1"; spec="--spec mtp --spec-k 2"; MODEL=$M27; SZ=${SIZES27:-4096}; ENVS="-e INTARSIA_SPEC_GRAPH_TP=1" ;;
     *) echo "unknown arm $1" >&2; exit 2 ;;
   esac
 }
 if [[ ${DRY:-0} == 1 ]]; then
   IFS=';' read -r -a rounds <<< "$ARMSEQ"
-  for i in "${!rounds[@]}"; do for arm in ${rounds[$i]}; do armcfg "$arm"; echo "DRY round $((i+1)) arm $arm: HIP_VISIBLE_DEVICES=$GPUS gt2-intarsia serve --backend hip --model $M35 $spec $TPA --max-batch 1 --mem-budget 29 --max-seq 20480"; done; done
+  for i in "${!rounds[@]}"; do for arm in ${rounds[$i]}; do armcfg "$arm"; echo "DRY round $((i+1)) arm $arm: HIP_VISIBLE_DEVICES=$GPUS $ENVS gt2-intarsia serve --backend hip --model $MODEL $spec $TPA sizes $SZ --max-batch 1 --mem-budget 29 --max-seq 20480"; done; done
   echo "DRY PRE=${PRE-ids} CAP=$CAP"; exit 0
 fi
 n=$($SSH "grep -c 'ids' ~/intarsiaml-gt2/gt2-intarsia" < /dev/null); [[ ${n:-0} == 0 ]] && { echo "no binary"; exit 4; }
@@ -51,13 +54,13 @@ for stage in ${PRE-ids}; do
   if [[ ${STOP_ON_FAIL:-1} == 1 ]] && grep -q 'FAIL ids' "$OUT/$stage/steps.log"; then say "STOP: an ids gate failed (STOP_ON_FAIL), no speed arms"; exit 6; fi
 done
 serve() { # serve <arm>
-  local arm=$1 spec TPA GPUS
+  local arm=$1 spec TPA GPUS MODEL ENVS SZ
   armcfg "$arm"
-  RECIPE="HIP_VISIBLE_DEVICES=$GPUS gt2-intarsia serve --backend hip --model 35B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (docker $IMG, lane gt2)"
+  RECIPE="HIP_VISIBLE_DEVICES=$GPUS ${ENVS#-e } gt2-intarsia serve --backend hip --model $(basename "$MODEL") $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (docker $IMG, lane gt2)"
   $SSH "docker rm -f gt2-serve >/dev/null 2>&1; docker run -d --name gt2-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
-    --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=$GPUS \
-    -v \$HOME/intarsiaml-gt2:/work -v /data/models:/models:ro -w /work $IMG /work/gt2-intarsia serve --backend hip --model $M35 \
+    --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=$GPUS $ENVS \
+    -v \$HOME/intarsiaml-gt2:/work -v /data/models:/models:ro -w /work $IMG /work/gt2-intarsia serve --backend hip --model $MODEL \
     --served-model-name q35-$arm $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 --no-supervisor --host 0.0.0.0 --port $PORT" \
     < /dev/null > "$OUT/docker-$arm.id" 2>&1
   for i in $(seq 1 100); do curl -sf -m 3 "http://tatooine:$PORT/health" > /dev/null 2>&1 && return 0; sleep 3; done
@@ -70,9 +73,10 @@ for i in "${!rounds[@]}"; do
   for arm in ${rounds[$i]}; do
     if (( $(left) < MINLEFT )); then say "SKIPPED round $r arm $arm (time left $(left)s)"; continue; fi
     say "round $r arm $arm: starting server"
+    armcfg "$arm"
     if ! serve "$arm"; then say "round $r arm $arm: server did not come up"; $SSH 'docker rm -f gt2-serve' >/dev/null 2>&1 < /dev/null; continue; fi
     m0=$(metric)
-    ( cd /opt/code/deepeval && uv run localeval speed --url "http://tatooine:$PORT/v1" --model "q35-$arm" --thinking off --sizes "${SIZES:-1024,4096,16384}" --gen 128 --reps 3 \
+    ( cd /opt/code/deepeval && uv run localeval speed --url "http://tatooine:$PORT/v1" --model "q35-$arm" --thinking off --sizes "$SZ" --gen 128 --reps 3 \
         --label "gt2-$W-$arm-r$r" --no-unim --recipe "$RECIPE" --wait-idle 60 ) > "$OUT/speed-$arm-r$r.log" 2>&1 < /dev/null
     say "round $r arm $arm speed: exit $? $(grep -aE 'decode' "$OUT/speed-$arm-r$r.log" | head -4 | tr '\n' '|' | cut -c1-400)"
     echo "$arm r$r before: $m0 after: $(metric)" >> "$OUT/spec-metrics.txt"
