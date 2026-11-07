@@ -228,14 +228,19 @@ fn hello_from(version_text: String, cap: u64) -> TcpStream {
 fn ranks_of_different_protocol_versions_refuse_to_pair() {
     // an unversioned rank (protocol 1: the bare fingerprint, otherwise identical)
     let mut s = hello_from("fp".into(), 100);
-    let e = tp_remote::handshake(&mut s, "fp", 50).expect_err("protocol 1 vs 2");
+    let e = tp_remote::handshake(&mut s, "fp", 50).expect_err("protocol 1 vs 3");
     let msg = e.to_string();
-    assert!(msg.contains("different protocols") && msg.contains("version 2") && msg.contains("version 1"), "{msg}");
+    assert!(msg.contains("different protocols") && msg.contains("version 3") && msg.contains("version 1"), "{msg}");
 
     // a newer rank
-    let mut s = hello_from("tp-protocol=3;fp".into(), 100);
-    let msg = tp_remote::handshake(&mut s, "fp", 50).expect_err("protocol 3 vs 2").to_string();
-    assert!(msg.contains("different protocols") && msg.contains("version 3"), "{msg}");
+    let mut s = hello_from("tp-protocol=4;fp".into(), 100);
+    let msg = tp_remote::handshake(&mut s, "fp", 50).expect_err("protocol 4 vs 3").to_string();
+    assert!(msg.contains("different protocols") && msg.contains("version 4"), "{msg}");
+
+    // the previous protocol (2: no speculative rollback) does not pair with this one
+    let mut s = hello_from("tp-protocol=2;fp".into(), 100);
+    let msg = tp_remote::handshake(&mut s, "fp", 50).expect_err("protocol 2 vs 3").to_string();
+    assert!(msg.contains("different protocols") && msg.contains("version 2"), "{msg}");
 
     // same version, different start-up options: the fingerprint check still names both
     let mut s = hello_from(format!("tp-protocol={};other", PROTOCOL_VERSION), 100);
