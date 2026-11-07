@@ -1,0 +1,5 @@
+tensor parallel: rank 0 joining NCCL 2.30.7 with the worker at 10.100.152.3:29556
+Error: loading /home/nvidia/intarsia-c27/models/Qwen3.8-27B-Quark-AWQ-MXFP4 with tp=2 (rank 1 at 10.100.152.3:29556)
+
+Caused by:
+    unsupported: --spec mtp with a tensor-parallel rank in another process: the MTP drafter runs on in-process ranks only (--tp N on one host)
