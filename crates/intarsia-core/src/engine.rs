@@ -1037,6 +1037,9 @@ struct SpecStep {
     emit: Vec<u32>,
     /// Drafts accepted.
     accepted: usize,
+    /// Drafts exact acceptance would have accepted (`accepted` unless mb-MTP kept some): what the adaptive depth sees, so
+    /// mb-MTP does not change the depth choices (llamAmpere's MBFIX).
+    accepted_exact: usize,
     /// The token after `emit` must come from a plain (masked) step.
     plain_next: bool,
 }
@@ -1094,8 +1097,8 @@ fn spec_accept(
     );
     let step = match masked_stop {
         // rows 0..i emitted d_1..d_i; row i (fed d_i) is recomputed by the plain step, so its KV row goes too
-        Some(i) => SpecStep { emit: out[..i].to_vec(), accepted: i, plain_next: true },
-        None => SpecStep { emit: out[..=j].to_vec(), accepted: j, plain_next: false },
+        Some(i) => SpecStep { emit: out[..i].to_vec(), accepted: i, accepted_exact: i, plain_next: true },
+        None => SpecStep { emit: out[..=j].to_vec(), accepted: j, accepted_exact: j, plain_next: false },
     };
     let keep = len0 + if step.plain_next { step.accepted } else { step.accepted + 1 };
     spec_cut(model, st, keep)?;
@@ -1193,6 +1196,8 @@ pub(crate) struct Seq {
     /// The model-based drafter is the DFlash block draft (`--spec dflash`), not the MTP head.
     spec_dflash: bool,
     spec_k: usize,
+    /// Adaptive draft depth in `[INTARSIA_SPEC_K_MIN, spec_k]` (MTP drafts only); `None`: every pass drafts `spec_k`.
+    depth: Option<crate::spec::Depth>,
     /// Speculation for this sampled request ([`crate::spec::SampledSpec`]; `Off` for greedy requests, which keep the greedy
     /// acceptance). Set by [`Seq::new`] (single-sequence engine only), never by the batching scheduler.
     spec_sampled: crate::spec::SampledSpec,
@@ -1441,6 +1446,7 @@ impl Seq {
             spec_mtp,
             spec_dflash,
             spec_k,
+            depth: if spec_mtp && !spec_dflash { crate::spec::k_min_from_env().and_then(|m| crate::spec::Depth::new(m, spec_k)) } else { None },
             spec_sampled: crate::spec::SampledSpec::Off,
             auto: None,
             drafter: if spec_dflash { crate::spec::Drafter::Dflash } else { crate::spec::Drafter::Mtp },
@@ -1880,7 +1886,7 @@ impl Seq {
                 // MTP drafts are always available. Not inside a min_tokens window that masks stop ids (a masked stop on
                 // row 0 would have to roll the recurrent state back to before the pass; with no stop ids, e.g.
                 // ignore_eos, nothing is masked), and no drafts past max_tokens (a pass emits up to k + 1 tokens).
-                let mut k = self.spec_k;
+                let mut k = self.draft_k();
                 if let Some(a) = self.auto.as_mut() {
                     self.drafter = a.pick();
                     if self.drafter == crate::spec::Drafter::Mtp {
@@ -1917,8 +1923,14 @@ impl Seq {
         }
         let generated = self.generated + self.pending.len();
         let room = st.cap.saturating_sub(st.len + 1);
-        let k = self.spec_k.min(room).min(self.max_new.saturating_sub(generated + 1));
+        let k = self.draft_k().min(room).min(self.max_new.saturating_sub(generated + 1));
         (k > 0 && (generated >= self.req.min_tokens || self.stop_ids.is_empty())).then_some(k)
+    }
+
+    /// The depth the next MTP draft asks for before the room and max_tokens limits: the adaptive [`crate::spec::Depth`] or
+    /// `spec_k`.
+    fn draft_k(&self) -> usize {
+        self.depth.map_or(self.spec_k, |d| d.cur())
     }
 
     /// Run the verify pass for `drafts` ([`Next::Verify`]); the verified tokens queue up for [`Seq::plan_step`].
@@ -1979,15 +1991,16 @@ impl Seq {
         let stop_ids = &self.stop_ids;
         let stop = |t: u32| stop_ids.contains(&t);
         let mb = crate::spec::mb_from_env().then_some(crate::spec::Mb { stop: &stop, ratio: crate::spec::mb_ratio_from_env() });
-        let mut rescued = 0;
+        let mut rescues = Vec::new();
         let (emit, accepted) = crate::spec::accept_sampled(
             &drafts,
             reject.then_some(&q[..]),
             &mut |i| crate::sampler::dist(&rows[i], &params),
             &mut || sampler.uniform(),
             mb,
-            &mut rescued,
+            &mut rescues,
         );
+        let rescued = rescues.len();
         if crate::spec::mb_audit_enabled() {
             // the draft rows that decided a token (the bonus row, if any, samples the target exactly)
             let (mut kl, mut tv) = (0.0, 0.0);
@@ -2011,7 +2024,8 @@ impl Seq {
                 t2.elapsed().as_secs_f64() * 1e3
             );
         }
-        self.account_verify(len0, &drafts, SpecStep { emit, accepted, plain_next: false });
+        let accepted_exact = rescues.first().copied().unwrap_or(accepted);
+        self.account_verify(len0, &drafts, SpecStep { emit, accepted, accepted_exact, plain_next: false });
         Ok(true)
     }
 
@@ -2019,6 +2033,9 @@ impl Seq {
     fn account_verify(&mut self, pos: usize, drafts: &[u32], step: SpecStep) {
         self.telemetry.spec_step(drafts.len(), step.accepted);
         self.gate.record(step.accepted);
+        if let Some(d) = self.depth.as_mut().filter(|_| self.spec_mtp) {
+            d.update(drafts.len(), step.accepted_exact);
+        }
         if crate::spec::trace_enabled() {
             eprintln!(
                 "spec: token {} pos {} drafted {} accepted {} emits {}{}",
