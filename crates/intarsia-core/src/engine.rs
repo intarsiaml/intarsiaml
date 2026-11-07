@@ -1978,7 +1978,7 @@ impl Seq {
         let sampler = &mut self.sampler;
         let stop_ids = &self.stop_ids;
         let stop = |t: u32| stop_ids.contains(&t);
-        let mb = crate::spec::mb_from_env().then_some(&stop as &dyn Fn(u32) -> bool);
+        let mb = crate::spec::mb_from_env().then_some(crate::spec::Mb { stop: &stop, ratio: crate::spec::mb_ratio_from_env() });
         let mut rescued = 0;
         let (emit, accepted) = crate::spec::accept_sampled(
             &drafts,
