@@ -4,7 +4,7 @@
 # Layout on spark1: ~/intarsia-c27/<name>, target ~/intarsia-c27/target-<name> (seeded from ~/intarsiaml-m1/target), models ~/intarsia-c27/models, out ~/intarsia-c27/out.
 # Build load capped for the 121 GB unified memory: CARGO_BUILD_JOBS=4, MAX_JOBS=4, FLASHINFER_NVCC_THREADS=1.
 set -euo pipefail
-S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; T="$(cd "$S/../.." && pwd)"
+S="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"; T="${SRC:-$(cd "$S/../.." && pwd)}"  # SRC: ship another checkout (the base tree of a gate)
 N=${1:-src}
 SHA=$(git -C "$T" rev-parse --short=9 HEAD)
 X=(--exclude target --exclude .git --exclude .worktrees --exclude .scratch --exclude .c27 --exclude golden --exclude 'docs/results/*/raw' --exclude .claude)
