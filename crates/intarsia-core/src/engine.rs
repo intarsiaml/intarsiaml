@@ -689,6 +689,13 @@ pub struct LocalEngine {
 }
 
 impl LocalEngine {
+    /// Tests: how often the model captured and replayed the speculative step (`Model::spec_step`).
+    #[doc(hidden)]
+    pub fn spec_graph_counts(&self) -> (u64, u64) {
+        let g = self.shared.inner.lock().unwrap().model.graph_stats();
+        (g.spec_captures, g.spec_replays)
+    }
+
     pub fn new(
         model: Model,
         codec: Arc<dyn TextCodec>,
@@ -1281,6 +1288,7 @@ impl Seq {
             && seq.cons.is_none()
             && model.verify_rows() >= 2
             && st.peers.is_empty()
+            && st.remote.is_none()
         {
             seq.spec_on = true;
             seq.spec_sampled = sampled;
@@ -1968,16 +1976,35 @@ impl Seq {
         let (_, rows) = model.forward_verify_logits(st, &ids)?;
         let t2 = Instant::now();
         let sampler = &mut self.sampler;
+        let stop_ids = &self.stop_ids;
+        let stop = |t: u32| stop_ids.contains(&t);
+        let mb = crate::spec::mb_from_env().then_some(&stop as &dyn Fn(u32) -> bool);
+        let mut rescued = 0;
         let (emit, accepted) = crate::spec::accept_sampled(
             &drafts,
             reject.then_some(&q[..]),
             &mut |i| crate::sampler::dist(&rows[i], &params),
             &mut || sampler.uniform(),
+            mb,
+            &mut rescued,
         );
+        if crate::spec::mb_audit_enabled() {
+            // the draft rows that decided a token (the bonus row, if any, samples the target exactly)
+            let (mut kl, mut tv) = (0.0, 0.0);
+            let n = (accepted + 1).min(drafts.len());
+            for i in 0..n {
+                let p = crate::sampler::dist(&rows[i], &params);
+                let law = crate::spec::mb_row_law(&p, reject.then(|| &q[i]), drafts[i], mb);
+                let (k, t) = crate::spec::law_divergence(&law, &p);
+                kl += k;
+                tv += t;
+            }
+            eprintln!("spec: mb-audit rows {n} emitted {} kl {kl:.6} tv {tv:.6} rescued {rescued}", emit.len());
+        }
         spec_cut(model, st, len0 + accepted + 1)?;
         if crate::spec::trace_enabled() {
             eprintln!(
-                "spec: sampled {:?} draft {:.3} ms, verify {:.3} ms, accept + rollback {:.3} ms",
+                "spec: sampled {:?} draft {:.3} ms, verify {:.3} ms, accept + rollback {:.3} ms, mb rescued {rescued}",
                 self.spec_sampled,
                 (t1 - t0).as_secs_f64() * 1e3,
                 (t2 - t1).as_secs_f64() * 1e3,
@@ -2122,7 +2149,14 @@ impl Seq {
                     return Ok(Prep::Ready);
                 }
             }
-            Next::Draft(k) if self.auto.is_none() && !mtp_verify_check() && model.spec_step_ok(st, self.tok, k) => {
+            // `--spec auto` takes the captured step for the passes the MTP head drafts (lane ag1): the DFlash draft runs eagerly
+            // (`Model::spec_step` stashes the verify rows' taps for it as the eager pass does), and a pass that follows DFlash
+            // passes with more queued head rows than the step takes (`spec_step_ok`) drafts eagerly, which empties the queue
+            Next::Draft(k)
+                if (self.auto.is_none() || self.drafter == crate::spec::Drafter::Mtp)
+                    && !mtp_verify_check()
+                    && model.spec_step_ok(st, self.tok, k) =>
+            {
                 self.predraft = None;
                 self.staged = None;
                 // draft and verify as one replay of a captured graph (`Model::spec_step`), then the same acceptance
@@ -2132,6 +2166,13 @@ impl Seq {
                 match model.spec_step(st, self.tok, k)? {
                     Some(pass) => {
                         self.verify_pass(model, st, len0, &pass.drafts, pass.out)?;
+                        if let Some(a) = self.auto.as_mut() {
+                            let ms = t0.elapsed().as_secs_f64() * 1e3;
+                            a.record(crate::spec::Drafter::Mtp, self.pending.len(), ms);
+                            if crate::spec::trace_enabled() {
+                                eprintln!("spec: auto Mtp k {} emits {} {ms:.2} ms (graph step; mtp, dflash tok/ms {:?})", pass.drafts.len(), self.pending.len(), a.rates());
+                            }
+                        }
                         if crate::spec::trace_enabled() {
                             // step = the graph replay and its download; gap = host time since the previous step ended (acceptance,
                             // rollback, token emission, stop checks)

@@ -107,6 +107,11 @@ fn alloc(backend: &dyn Backend, dtype: DType, shape: &[usize]) -> Result<TensorR
 }
 
 impl MoeScratch {
+    /// The activation dtype the workspace holds.
+    pub fn act_dtype(&self) -> DType {
+        self.act
+    }
+
     pub fn new(backend: &dyn Backend, cfg: &MoeConfig, max_tokens: usize, act: DType) -> Result<MoeScratch> {
         let (t, h, e, k) = (max_tokens, cfg.hidden, cfg.experts, cfg.top_k);
         let si = cfg.shared_inter.max(1);

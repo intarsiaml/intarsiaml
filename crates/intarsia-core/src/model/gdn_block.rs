@@ -100,8 +100,8 @@ pub(super) fn alloc_extra(
 impl Model {
     /// `(q+gate projection [T, Nh*2*hd], gate [T, Nh, hd])` workspace views of a gated-attention block.
     pub(super) fn gated_q_buffers(&self, t: usize) -> (TensorRef, TensorRef) {
-        // this rank's heads (equal to the model's without tensor parallelism)
-        let d = &self.ldims;
+        // this rank's heads (equal to the model's without tensor parallelism; all of them in a whole MTP head pass, lane mt2)
+        let d = self.adims();
         let x = &self.ws.x;
         let qg = x.qg.as_ref().expect("gated attention workspace is allocated at load");
         let gate = x.gate.as_ref().expect("gated attention workspace is allocated at load");

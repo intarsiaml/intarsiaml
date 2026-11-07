@@ -17,8 +17,8 @@
 //! verify row's argmax), so the head's numerics only move the acceptance rate.
 
 use super::*;
-use crate::quant::moe::{Experts, MoeConfig, SharedExpert};
 use crate::quant::head::HeadQuant;
+use crate::quant::moe::{Experts, MoeConfig, MoeScratch, SharedExpert};
 use crate::quant::{nvfp4, BF16};
 use crate::recipe::MtpSpec;
 use crate::state::MtpState;
@@ -38,8 +38,32 @@ pub(super) struct MtpHead {
     pub(super) chain: Buffer,
     /// Rows of the pending buffer a sequence's [`MtpState`] gets.
     pending_rows: usize,
+    /// Lane mt2: an MoE head under tensor parallelism runs whole on rank 0 (global dims, no collective; the other ranks keep no
+    /// head), its passes at most this many rows. None: a single rank, or a head sharded over the ranks (lane dfh).
+    whole_rows: Option<usize>,
+    /// The whole head's MoE activations (the model's MoE workspace holds this rank's share of the experts' width only).
+    scratch: Option<MoeScratch>,
     /// Tests: replaces the head's drafts (after the head ran, so its state advances as usual), see [`Model::mtp_script`].
     pub(super) script: Mutex<Option<DraftScript>>,
+}
+
+impl MtpHead {
+    /// Whether the head runs whole on rank 0 under tensor parallelism (lane mt2).
+    pub(super) fn whole(&self) -> bool {
+        self.whole_rows.is_some()
+    }
+
+    /// Device bytes of the whole head's own MoE workspace (0 otherwise).
+    pub(super) fn scratch_bytes(&self) -> u64 {
+        match (&self.scratch, &self.ffn) {
+            (Some(s), HeadFfn::Moe(m)) => {
+                let c = &m.w.cfg;
+                let esz = s.act_dtype().size_bytes();
+                (s.max_tokens * (c.experts * esz + c.top_k * 8 + 2 * c.hidden * esz + 3 * c.shared_inter.max(1) * esz + 2 * esz)) as u64
+            }
+            _ => 0,
+        }
+    }
 }
 
 /// The head's feed-forward block.
@@ -96,6 +120,8 @@ pub(super) fn load_head(
     add_bytes: &dyn Fn(u64),
     pending_rows: usize,
     tp_world: usize,
+    whole_rows: Option<usize>,
+    act: DType,
 ) -> Result<MtpHead> {
     if spec.kind != "qwen3_5_mtp" {
         return Err(Error::Unsupported(format!("[mtp] kind '{}' (this build has qwen3_5_mtp)", spec.kind)));
@@ -106,11 +132,12 @@ pub(super) fn load_head(
         .as_ref()
         .ok_or_else(|| Error::model("[mtp] needs the recipe's [layer.attn] (the head is an attention layer)"))?;
     let main_attn = main_attn.ok_or_else(|| Error::model("[mtp] needs a model with full-attention layers"))?;
-    // tensor parallelism (lane dfh): the head's layer is sharded as the model's own layers are (`dims` is this rank's share:
-    // q / k / v / gate / up by rows, o / down by columns, its KV cache holds this rank's heads), so every rank runs it in
-    // lockstep with the same all-reduces; fc and the norms are replicated. The MoE head's experts are not sharded.
-    if tp_world > 1 && dims.moe.is_some() {
-        return Err(Error::Unsupported("--spec mtp under tensor parallelism with an MoE head (its experts are not sharded)".into()));
+    // tensor parallelism, a dense head (lane dfh): the head's layer is sharded as the model's own layers are (`dims` is this rank's
+    // share: q / k / v / gate / up by rows, o / down by columns, its KV cache holds this rank's heads), so every rank runs it in
+    // lockstep with the same all-reduces; fc and the norms are replicated. An MoE head (lane mt2) is loaded whole on rank 0
+    // (`whole_rows`; `dims` are then the global dims and `load_q` shards nothing) and runs there alone.
+    if tp_world > 1 && dims.moe.is_some() && whole_rows.is_none() {
+        return Err(Error::Unsupported("--spec mtp under tensor parallelism with a sharded MoE head (it runs whole on rank 0)".into()));
     }
     let (h, p) = (dims.hidden, spec.prefix.as_str());
     let l = format!("{p}.layers.0");
@@ -221,6 +248,10 @@ pub(super) fn load_head(
         }
     };
     let chain = b.alloc((h * 4).max(16), MemKind::Device)?;
+    let scratch = match (whole_rows, &ffn) {
+        (Some(rows), HeadFfn::Moe(m)) => Some(MoeScratch::new(b, &m.w.cfg, rows, act)?),
+        _ => None,
+    };
     Ok(MtpHead {
         fc_e,
         fc_h,
@@ -231,6 +262,8 @@ pub(super) fn load_head(
         norm: load(&format!("{p}.norm"), Some(&[h]))?,
         chain,
         pending_rows,
+        whole_rows,
+        scratch,
         script: Mutex::new(None),
     })
 }
@@ -372,11 +405,17 @@ impl Model {
         Ok(())
     }
 
+    /// The head's attention cache slot: this rank's KV heads, or all of them for a head whole on rank 0 (lane mt2).
+    fn mtp_kv_spec(&self, head: &MtpHead) -> SlotSpec {
+        let d = if head.whole() { &self.dims } else { &self.ldims };
+        SlotSpec::AttnKv { n_kv_heads: d.n_kv_heads, head_dim: d.head_dim, dtype: self.kv }
+    }
+
     /// The drafter state a new sequence gets (`None` without the head).
     pub(super) fn new_mtp_state(&self, cap: usize) -> Result<Option<Box<MtpState>>> {
         let Some(head) = &self.mtp else { return Ok(None) };
-        // this rank's KV heads (under tensor parallelism the head's attention is sharded as the model's)
-        let spec = SlotSpec::AttnKv { n_kv_heads: self.ldims.n_kv_heads, head_dim: self.ldims.head_dim, dtype: self.kv };
+        // this rank's KV heads (under tensor parallelism a dense head's attention is sharded as the model's; a whole head keeps all)
+        let spec = self.mtp_kv_spec(head);
         let row_bytes = self.dims.hidden * self.act.size_bytes();
         Ok(Some(Box::new(MtpState {
             kv: SequenceState::new(&*self.backend, &[spec], cap)?,
@@ -457,7 +496,7 @@ impl Model {
             if ids.len() != n {
                 return Err(Error::invalid(format!("MTP catch-up of {n} rows has {} tokens", ids.len())));
             }
-            let chunk = self.ws.max_tokens;
+            let chunk = head.whole_rows.unwrap_or(self.ws.max_tokens);
             let mut done = 0;
             let mut tok = 0;
             while done < n {
@@ -544,7 +583,7 @@ impl Model {
     /// queue holds one row again (`--spec auto`, lane asp: before a pass could overflow the queue, which would run the head's
     /// collectives inside a peer's verify pass). Exact as any catch-up: drafts only propose.
     pub fn mtp_catch_up(&self, st: &mut SequenceState) -> Result<()> {
-        if self.peers.is_empty() {
+        if self.peers.is_empty() || self.mtp.as_ref().is_some_and(|h| h.whole()) {
             return self.mtp_catch_up_rank(st);
         }
         if st.peers.len() != self.peers.len() {
@@ -609,7 +648,8 @@ impl Model {
     /// over the queued rows (the last of which pairs with `next`), its argmax is draft 1; drafts 2.. chain the head on its
     /// own output. Afterwards the head's cache holds the committed positions only (`kv.len == st.len`, empty queue).
     pub fn mtp_draft(&self, st: &mut SequenceState, next: u32, k: usize) -> Result<Vec<u32>> {
-        if self.peers.is_empty() {
+        // a head whole on rank 0 (lane mt2) drafts there alone: no other rank (in-process or remote) takes part
+        if self.peers.is_empty() || self.mtp.as_ref().is_some_and(|h| h.whole()) {
             return self.mtp_draft_rank(st, next, k, DraftLink::Solo, None);
         }
         self.mtp_draft_tp(st, next, k)
@@ -619,7 +659,7 @@ impl Model {
     /// `pick(row)` of the head's logits row (`[V]`, the reduced draft head's rows past its prefix at `-inf`, so the draft
     /// distribution is 0 there), and the next chained pass embeds that token. The head's cache ends as in `mtp_draft`.
     pub fn mtp_draft_sampled(&self, st: &mut SequenceState, next: u32, k: usize, pick: &mut dyn FnMut(&[f32]) -> u32) -> Result<Vec<u32>> {
-        if !self.peers.is_empty() {
+        if self.is_tp() {
             return Err(Error::Unsupported("sampled MTP drafts under tensor parallelism".into()));
         }
         self.mtp_draft_rank(st, next, k, DraftLink::Solo, Some(pick))
@@ -816,8 +856,9 @@ impl Model {
         if self.recorder.lock().unwrap().is_none() {
             return Err(Error::invalid("mtp_dry_run outside a dry run"));
         }
-        let spec = SlotSpec::AttnKv { n_kv_heads: self.ldims.n_kv_heads, head_dim: self.ldims.head_dim, dtype: self.kv };
+        let spec = self.mtp_kv_spec(head);
         let kv = crate::plan::phantom_state(&[spec], self.plan.kv_cap_tokens, pos0);
+        let t = t.min(head.whole_rows.unwrap_or(t)).max(1);
         let ids = vec![0u32; t];
         let hid = self.view(&self.ws.blk, self.act, &[t, self.dims.hidden]);
         let extra = self.recorder.lock().unwrap().as_ref().is_some_and(|r| r.extra);
@@ -952,6 +993,7 @@ impl Model {
         self.mtp_layer_core(head, kv, ids.len(), Some(ids), hid, None, None, true, profile).map(|_| ())
     }
 
+    /// [`Model::mtp_layer_core_rows`] with the whole-head switch ([`Model::adims`]) on for a head whole on rank 0 (lane mt2).
     #[allow(clippy::too_many_arguments)]
     fn mtp_layer_core(
         &self,
@@ -965,9 +1007,31 @@ impl Model {
         kv_only: bool,
         profile: bool,
     ) -> Result<TensorRef> {
+        if !head.whole() {
+            return self.mtp_layer_core_rows(head, kv, t, ids, hid, ids_dev, dpos, kv_only, profile);
+        }
+        self.head_whole.store(true, std::sync::atomic::Ordering::Relaxed);
+        let r = self.mtp_layer_core_rows(head, kv, t, ids, hid, ids_dev, dpos, kv_only, profile);
+        self.head_whole.store(false, std::sync::atomic::Ordering::Relaxed);
+        r
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn mtp_layer_core_rows(
+        &self,
+        head: &MtpHead,
+        kv: &SequenceState,
+        t: usize,
+        ids: Option<&[u32]>,
+        hid: &TensorRef,
+        ids_dev: Option<&TensorRef>,
+        dpos: Option<&TensorRef>,
+        kv_only: bool,
+        profile: bool,
+    ) -> Result<TensorRef> {
         let (d, act, ws) = (&self.dims, self.act, &self.ws);
         let h = d.hidden;
-        if t == 0 || t > ws.max_tokens || (dpos.is_none() && kv.len + t > kv.cap) {
+        if t == 0 || t > head.whole_rows.unwrap_or(ws.max_tokens) || (dpos.is_none() && kv.len + t > kv.cap) {
             return Err(Error::invalid(format!(
                 "MTP pass of {t} rows at {} (cap {}, chunk {})",
                 kv.len, kv.cap, ws.max_tokens
@@ -1027,7 +1091,8 @@ impl Model {
         )?;
         match &head.ffn {
             HeadFfn::Moe(m) => {
-                let mws = ws.moe.as_ref().ok_or_else(|| Error::invalid("MTP MoE block without the MoE workspace"))?;
+                // a whole head (lane mt2) has its own workspace: the model's holds this rank's share of the experts' width
+                let mws = head.scratch.as_ref().or(ws.moe.as_ref()).ok_or_else(|| Error::invalid("MTP MoE block without the MoE workspace"))?;
                 m.w.forward(&ExecRunner { m: self, profile }, mws, &n, &blk)?;
             }
             HeadFfn::Dense(f) => self.ffn_block(f, &n, &blk, t, profile)?,
