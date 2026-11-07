@@ -2251,6 +2251,11 @@ fn moe_mtp_tp2_greedy_ids_equal_spec_off() {
             if script {
                 assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "partial acceptance exercised at tp=2");
             }
+            if remote && k == 2 && !script {
+                // a sampled request on a tp=2 MTP group takes the plain path (sampled speculation is single-rank)
+                let r = GenRequest { prompt: PROMPTS[0].to_vec(), max_tokens: 24, temperature: 0.8, ignore_eos: true, ..Default::default() };
+                assert_eq!(run(&on, r).completion_tokens, 24, "a sampled request on the remote tp=2 MTP group");
+            }
             drop(on);
             if let Some(s) = server {
                 assert!(s.join().unwrap() > 0, "the remote rank served passes");
