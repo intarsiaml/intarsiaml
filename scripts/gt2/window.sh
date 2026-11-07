@@ -56,7 +56,8 @@ done
 serve() { # serve <arm>
   local arm=$1 spec TPA GPUS MODEL ENVS SZ
   armcfg "$arm"
-  RECIPE="HIP_VISIBLE_DEVICES=$GPUS ${ENVS#-e } gt2-intarsia serve --backend hip --model $(basename "$MODEL") $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (docker $IMG, lane gt2)"
+  # localeval treats the recipe as a path first: keep it under 255 bytes (the knob arm's env pushed it over, w1)
+  RECIPE="HIP_VISIBLE_DEVICES=$GPUS ${ENVS#-e } gt2-intarsia serve --backend hip --model $(basename "$MODEL") $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq 20480 (rocm7.2.4)"
   $SSH "docker rm -f gt2-serve >/dev/null 2>&1; docker run -d --name gt2-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
     --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=$GPUS $ENVS \
