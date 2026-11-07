@@ -95,7 +95,7 @@ Per round (`tools/au1/rounds.py`; the policy is deterministic given the text, so
 Why the two miss (`tools/au1/pass_stats.py`, per-pass logs in `raw/w2/pass-auto-r*.log`):
 
 * ho-chat: 20 percent of the passes are DFlash passes (166 of 843, 3.15 tokens against the 3.19 needed to tie with MTP at 2.25), so they cost about nothing; the loss is the floor: auto's MTP passes are eager, the captured graph step of `--spec mtp` is not used (section 1: pinned to MTP, auto is at 0.995 of mtp2 on chat). No parameter set can put auto above 0.995 of MTP k2 there, and the DFlash excursions take the remaining 0.5 percent.
-* ho-code (two requests of about 512 tokens): 79 percent DFlash passes, but the 50 MTP passes (seeds, dwell, probes, one 11 percent probe share while on DFlash) cost 3 percent against pure DFlash; DFlash passes average 4.77 tokens (pure DFlash 4.82), so the policy did not find lucky passes to skip as it happened to do in window 1 (5.07 tokens on 174 D passes, 1.010 of best). With 2 requests a category moves by several points on which passes the policy happens to skip; rcp-code (8 requests) is steady at 0.980-0.981 in both windows.
+* ho-code (two requests of about 512 tokens): 79 percent DFlash passes, but the 50 MTP passes (seeds, dwell, probes, the MTP probes every 8 DFlash passes) cost 3 percent against pure DFlash; DFlash passes average 4.77 tokens (pure DFlash 4.82), so the policy did not find lucky passes to skip as it happened to do in window 1 (5.07 tokens on 174 D passes, 1.010 of best). With 2 requests a category moves by several points on which passes the policy happens to skip; rcp-code (8 requests) is steady at 0.980-0.981 in both windows.
 
 Greedy ids (window-2 binary, stage `ids`, `raw/w2/ids/`): `--spec auto` (retuned defaults) and `INTARSIA_SPEC_AUTO=alt:1` equal `--spec off` on short-0 and 4k-1 (256 ids): **4 of 4 PASS** (alt:1: 76 and 79 switches).
 
@@ -115,10 +115,30 @@ auto / max(MTP k2, DFlash2 k7) per category, each window against its own mtp2 an
 | mean of the 7 | 0.9854 | **0.9875** |
 | worst | 0.9638 | **0.9686** |
 
-The mean rises and the worst does not fall: by the pre-registered criterion the retuned params improve auto, so they are merged, **gated to HIP with one rank** (`AutoParams::for_target`). The gain is small and uneven: recall +3.5 and +1.5 points, prose +0.2 and +0.5, chat and rcp-code unchanged, ho-code -4.2 points (the two-request category above). Auto / MTP k2 is 0.990-1.282 in window 2 against 0.989-1.289 in window 1.
+The mean rises and the worst does not fall: by the pre-registered criterion the retuned params improve auto, so they are merged, **gated to HIP with one rank** (`AutoParams::for_target`). The gain is small and uneven: recall +3.5 and +1.5 points, prose +0.1 and +0.5, chat and rcp-code unchanged, ho-code -4.2 points (the two-request category above). Auto / MTP k2 is 0.990-1.282 in window 2 against 0.989-1.289 in window 1.
 
 ## 4. Decision
 
 * `--spec auto` is **not** the 27B default on HIP at tp=1: the rule is missed in window 2 by 0.0003 (ho-chat vs MTP k2) and 0.0014 (ho-code vs the best). The 27B tp=1 default stays `--spec mtp --spec-k 2`. No recipe change, no new recipe key: the recipe still has no way to name the DFlash2 draft checkpoint, which a default would need.
 * Merged: the tp=1 policy values for `--spec auto` (`AutoParams::hip_tp1`, applied by the loader only on HIP with one rank, `INTARSIA_SPEC_AUTO` on top); tp=2, every other backend and every other model default are untouched (`AutoParams::default` is the 10-28 value set, the tp=2 replay does not support changing it: section 1).
 * What would clear the two misses, not done (outside this lane's scope and window budget): (1) give auto's MTP passes the captured graph step / pipe step of `--spec mtp` (`engine.rs`: `self.auto.is_none()` guards `spec_step`, `spec_pipe_step`, the deferred verify): that lifts the 0.995 floor on chat and prose to about 1.0 and removes the reason ho-chat misses; it must keep the lazy DFlash stash and the MTP queue valid across graph steps. (2) A cheaper return to DFlash on code: the MTP probes every 8 DFlash passes cost about 1.5 percent of a code request (probe_mtp 12 gave ho-code +4.0 against +3.3 in the replay but lost rcp-recall); a per-request prior for the first pass choice (the 6-9 passes of seeds and dwell cost ho-code 1 percent).
+
+## 5. Gates
+
+| gate | result |
+|---|---|
+| ids, `--spec auto` and `INTARSIA_SPEC_AUTO=alt:1` vs `--spec off`, tp=1 HIP, short-0 and 4k-1, 256 ids | window 1 (10-28 params) 4 / 4, window 2 (retuned) 4 / 4 (`raw/w1/ids/`, `raw/w2/ids/`) |
+| `cargo test -p intarsia-core` (Mac) | 196 passed, 0 failed, 2 ignored (incl. the new `auto_params_follow_the_target_and_the_env_wins`) |
+| CPU forced-switch test `tests/dflash2_cpu.rs` (`spec_auto_greedy_ids_equal_spec_off_with_forced_switches_and_the_policy` and 11 more) | 12 passed |
+| `cargo test -p intarsia-cli --test docs_env_vars` | 2 passed (`docs/tuning.md` row `INTARSIA_SPEC_AUTO` updated; no new `INTARSIA_*` name) |
+| cross-backend no-op (`plan show` Metal / CUDA, HIP 35B / 8B) | not run: no default changed and no plan, memplan, recipe or kernel file touched. The only behaviour change is `AutoParams` values selected in `load.rs` inside the `--spec dflash` / `--spec auto` branch (`spec_auto` = `--spec auto` given), only for `backend == "hip" && tp == 1`; no `--spec auto` is ever the implicit default, so a run without `--spec auto` cannot reach the changed code |
+
+## 6. Fleet and tooling
+
+* fleetq (owner `claude-e7360a-au1`): builds #8877 (cpu, 20:58-21:00) and #8882 (cpu, 21:52-21:54), ids dry run #8879, window 1 #8880 (radiance down 32 min 8 s), window 2 #8883 (37 min 2 s, no wait in line behind its own build), cleanup #8885. Radiance answered at the end of each window (`raw/downtime.log`: 21:33:21 and 22:31:27); a following job of another lane (#8884) took it down again right after window 2.
+* Cleanup: `~/intarsiaml-au1` and the volume `intarsia-cargo-au1` removed on tatooine (`df -h /`: 87G used with the tree and volume, 84G after; 80G used before the first build, the rest is other lanes' growth, not measured separately).
+* Tools: `scripts/au1/` (copy of `scripts/dt1/` with the arms `auto`, `autoa`, `autob`, `autotrmtp`, `autotrdfl`, a pass-log fetch, `NEED_MARKER`, an ids stage for auto / alt:N / pinned arms), `tools/au1/win_table.py` (window table and rule verdict), `tools/au1/rounds.py` (per round), `tools/au1/pass_stats.py`, `tools/au1/calibrated_grid.py` and `tools/au1/cmp_params.py` (replay variants), `tools/asa/replay.py` (arm names and priors configurable, `--au1` grid with a parity split), `tools/dfh/cat_table.py` (no `off` arm needed, `PREC`).
+
+## 7. Limits
+
+One round per arm in window 1 (five arms in the 45 min), two in window 2; 36 rows over 7 categories, two requests in ho-code and ho-recall (those two categories move by several points on a few passes; the verdict on ho-code rests on two requests); one tp=1 card (card 0), the 27B only; the replay is a counterfactual with a 4-5 point optimism on code and recall (section 1), so the choice of params is a plateau argument and window 2 is the only measurement of them. The 0.99 bar of the rule sits 0.5 percent above the machinery floor on chat and prose (section 1), so a miss of 0.0003 on ho-chat is a miss of the floor, not of the tuning.
