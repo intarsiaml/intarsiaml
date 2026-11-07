@@ -1138,6 +1138,7 @@ impl Model {
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),
             verify_rows_attn: false,
             verify_attn_rows: false,
+            verify_attn_rows_captured: false,
             verify_tab: Mutex::new(Default::default()),
             verify_tok: None,
             verify_tile: None,

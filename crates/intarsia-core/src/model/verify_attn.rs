@@ -96,14 +96,17 @@ impl Model {
         attrs: &OpAttrs,
         t: usize,
         pos0: usize,
+        dpos: Option<&TensorRef>,
         profile: bool,
     ) -> Result<bool> {
+        let capturing = self.capture_ops.lock().unwrap().is_some();
         if !self.verify_attn_rows
             || t < 2
             || t > VERIFY_ATTN_ROWS_MAX
             || !self.backend.verify_attn_per_row()
             || !self.backend.supports_row_tables()
-            || self.capture_ops.lock().unwrap().is_some()
+            // a captured pass only with the opt-in, and only with the step's device positions (row r reads entry r)
+            || (capturing && !(self.verify_attn_rows_captured && dpos.is_some()))
         {
             return Ok(false);
         }
@@ -126,18 +129,33 @@ impl Model {
                     note_once("no device address for a KV cache buffer");
                     return Ok(false);
                 };
-                if st.filled[a.slot] != Some((ka, va)) {
+                if capturing {
+                    // no host write inside a capture: the region must hold this slot's addresses already (an eager verify pass wrote them)
+                    if st.filled[a.slot] != Some((ka, va)) {
+                        note_once("captured row-table attention: K / V address region not filled yet, per-row launches");
+                        return Ok(false);
+                    }
+                } else if st.filled[a.slot] != Some((ka, va)) {
                     self.backend.upload(&buf, POS_BYTES + a.slot * REGION_BYTES, &verify_rows_tab_bytes(ka, va, VERIFY_ATTN_ROWS_MAX), self.stream)?;
                     st.filled[a.slot] = Some((ka, va));
                 }
-                if verify_rows_pos_stale(st.pos_key, pos0, t) {
+                if !capturing && verify_rows_pos_stale(st.pos_key, pos0, t) {
                     self.backend.upload(&buf, 0, &verify_rows_pos_bytes(pos0, t), self.stream)?;
                     st.pos_key = Some((pos0, t));
                 }
             }
             let mut tab = self.view(&buf, DType::U8, &[t, 2, 8]);
             tab.offset = POS_BYTES + a.slot * REGION_BYTES;
-            (tab, self.view(&buf, DType::I32, &[t]))
+            let pos = match dpos.filter(|_| capturing) {
+                // the captured step's position table: entry r is row r's position, the value the per-row launch reads
+                Some(d) => {
+                    let mut p = d.clone();
+                    p.shape = vec![t];
+                    p
+                }
+                None => self.view(&buf, DType::I32, &[t]),
+            };
+            (tab, pos)
         };
         // the positions are the call's `pos` tensor; `attrs.pos0` stays 0 as in the batched row-table calls (`check` would otherwise
         // bound `pos0 + t` by the cache capacity, which the last rows of a full cache exceed in the call's own terms)
@@ -159,7 +177,7 @@ impl Model {
             note_once("scratch smaller than the row-table call needs");
             return Ok(false);
         }
-        note_once("engaged (one row-table attention launch per layer)");
+        note_once(if capturing { "engaged in the captured step (one row-table attention launch per layer)" } else { "engaged (one row-table attention launch per layer)" });
         self.exec_call(call, profile)?;
         Ok(true)
     }
