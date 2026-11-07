@@ -71,7 +71,7 @@ Binaries built on tatooine in fleetq #8991 (`gt2-intarsia-base`, `gt2-intarsia`)
 | HIP plan show JSON, main vs branch, knob unset: 8B tp1 off; 27B tp1/tp2 off + mtp2; 35B tp1/tp2 off + mtp2 | 9/9 SAME | raw/w1/ids/steps.log (#8995) |
 | **(a) ids** 256 greedy, tp2 mtp k2 + `INTARSIA_SPEC_GRAPH_TP=1` == tp2 `--spec off` | **4/4 PASS**: 35B short-0 (106 graph steps), 35B 4k-1 (108), 27B short-0 (107), 27B 4k-1 (99); 0 capture failures | raw/w1/ids (#8995) |
 | Metal no-op (endor): plan show JSON 8B/27B/35B x default/off/mtp, kernels list, kernels test | 9/9 SAME, kernels SAME (51 kernels, 1136 cases) | `scripts/dm/noop.sh`, #8999 |
-| CUDA no-op (spark1): plan show JSON 35B/8B, kernels test --quick | see PR / below | `scripts/gt2/cuda-noop.sh`, #8997 |
+| CUDA no-op (spark1, vLLM up, MAX_JOBS=4): plan show JSON 35B/8B, kernels test --quick | 2/2 byte-identical, kernels 0 FAIL (106 kernels, 954 cases); min available memory 64 GB (earlyoom active) | `scripts/gt2/cuda-noop.sh`, #8997 |
 
 The 35B row is the whole-head (MoE, lane mt2) path, which has no CPU fixture: its ids gate passed with the step engaged.
 
