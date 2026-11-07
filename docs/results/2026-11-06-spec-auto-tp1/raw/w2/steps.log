@@ -1,0 +1,54 @@
+21:54:26 guard: [guard] radiance stopped 2026-11-06 21:54:25
+21:54:26 pre: ids gate (arms auto alt1, tp1, cap 420 s)
+21:54:58 pre: ids exit 0
+21:54:59 pre: ids summary auto tp1: 2 PASS, 0 FAIL|ids summary alt1 tp1: 2 PASS, 0 FAIL|
+21:54:59 round 1 arm auto: starting server
+21:57:18 round 1 arm auto ho-chat: localeval exit 0 results/20261106-215643-au1-auto-au1-w2-auto-ho-chat-r1/result.json
+21:57:32 round 1 arm auto ho-code: localeval exit 0 results/20261106-215719-au1-auto-au1-w2-auto-ho-code-r1/result.json
+21:58:09 round 1 arm auto ho-prose: localeval exit 0 results/20261106-215732-au1-auto-au1-w2-auto-ho-prose-r1/result.json
+21:58:25 round 1 arm auto ho-recall: localeval exit 0 results/20261106-215810-au1-auto-au1-w2-auto-ho-recall-r1/result.json
+21:59:09 round 1 arm auto rcp-code: localeval exit 0 results/20261106-215825-au1-auto-au1-w2-auto-rcp-code-r1/result.json
+22:00:21 round 1 arm auto rcp-prose: localeval exit 0 results/20261106-215910-au1-auto-au1-w2-auto-rcp-prose-r1/result.json
+22:01:17 round 1 arm auto rcp-recall: localeval exit 0 results/20261106-220022-au1-auto-au1-w2-auto-rcp-recall-r1/result.json
+22:01:18 round 1 arm mtp2: starting server
+22:03:31 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261106-220258-au1-mtp2-au1-w2-mtp2-ho-chat-r1/result.json
+22:03:46 round 1 arm mtp2 ho-code: localeval exit 0 results/20261106-220332-au1-mtp2-au1-w2-mtp2-ho-code-r1/result.json
+22:04:23 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261106-220347-au1-mtp2-au1-w2-mtp2-ho-prose-r1/result.json
+22:04:40 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261106-220424-au1-mtp2-au1-w2-mtp2-ho-recall-r1/result.json
+22:05:35 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261106-220441-au1-mtp2-au1-w2-mtp2-rcp-code-r1/result.json
+22:06:47 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261106-220536-au1-mtp2-au1-w2-mtp2-rcp-prose-r1/result.json
+22:07:48 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261106-220648-au1-mtp2-au1-w2-mtp2-rcp-recall-r1/result.json
+22:07:49 round 1 arm dfl7: starting server
+22:08:56 round 1 arm dfl7 ho-chat: localeval exit 0 results/20261106-220820-au1-dfl7-au1-w2-dfl7-ho-chat-r1/result.json
+22:09:09 round 1 arm dfl7 ho-code: localeval exit 0 results/20261106-220856-au1-dfl7-au1-w2-dfl7-ho-code-r1/result.json
+22:09:52 round 1 arm dfl7 ho-prose: localeval exit 0 results/20261106-220909-au1-dfl7-au1-w2-dfl7-ho-prose-r1/result.json
+22:10:08 round 1 arm dfl7 ho-recall: localeval exit 0 results/20261106-220953-au1-dfl7-au1-w2-dfl7-ho-recall-r1/result.json
+22:10:51 round 1 arm dfl7 rcp-code: localeval exit 0 results/20261106-221008-au1-dfl7-au1-w2-dfl7-rcp-code-r1/result.json
+22:12:14 round 1 arm dfl7 rcp-prose: localeval exit 0 results/20261106-221051-au1-dfl7-au1-w2-dfl7-rcp-prose-r1/result.json
+22:13:09 round 1 arm dfl7 rcp-recall: localeval exit 0 results/20261106-221215-au1-dfl7-au1-w2-dfl7-rcp-recall-r1/result.json
+22:13:10 round 2 arm dfl7: starting server
+22:14:16 round 2 arm dfl7 ho-chat: localeval exit 0 results/20261106-221341-au1-dfl7-au1-w2-dfl7-ho-chat-r2/result.json
+22:14:29 round 2 arm dfl7 ho-code: localeval exit 0 results/20261106-221417-au1-dfl7-au1-w2-dfl7-ho-code-r2/result.json
+22:15:13 round 2 arm dfl7 ho-prose: localeval exit 0 results/20261106-221430-au1-dfl7-au1-w2-dfl7-ho-prose-r2/result.json
+22:15:28 round 2 arm dfl7 ho-recall: localeval exit 0 results/20261106-221513-au1-dfl7-au1-w2-dfl7-ho-recall-r2/result.json
+22:16:11 round 2 arm dfl7 rcp-code: localeval exit 0 results/20261106-221529-au1-dfl7-au1-w2-dfl7-rcp-code-r2/result.json
+22:17:34 round 2 arm dfl7 rcp-prose: localeval exit 0 results/20261106-221612-au1-dfl7-au1-w2-dfl7-rcp-prose-r2/result.json
+22:18:28 round 2 arm dfl7 rcp-recall: localeval exit 0 results/20261106-221735-au1-dfl7-au1-w2-dfl7-rcp-recall-r2/result.json
+22:18:29 round 2 arm mtp2: starting server
+22:20:41 round 2 arm mtp2 ho-chat: localeval exit 0 results/20261106-222007-au1-mtp2-au1-w2-mtp2-ho-chat-r2/result.json
+22:20:56 round 2 arm mtp2 ho-code: localeval exit 0 results/20261106-222041-au1-mtp2-au1-w2-mtp2-ho-code-r2/result.json
+22:21:33 round 2 arm mtp2 ho-prose: localeval exit 0 results/20261106-222056-au1-mtp2-au1-w2-mtp2-ho-prose-r2/result.json
+22:21:51 round 2 arm mtp2 ho-recall: localeval exit 0 results/20261106-222134-au1-mtp2-au1-w2-mtp2-ho-recall-r2/result.json
+22:22:47 round 2 arm mtp2 rcp-code: localeval exit 0 results/20261106-222152-au1-mtp2-au1-w2-mtp2-rcp-code-r2/result.json
+22:23:59 round 2 arm mtp2 rcp-prose: localeval exit 0 results/20261106-222248-au1-mtp2-au1-w2-mtp2-rcp-prose-r2/result.json
+22:25:00 round 2 arm mtp2 rcp-recall: localeval exit 0 results/20261106-222359-au1-mtp2-au1-w2-mtp2-rcp-recall-r2/result.json
+22:25:01 round 2 arm auto: starting server
+22:27:20 round 2 arm auto ho-chat: localeval exit 0 results/20261106-222645-au1-auto-au1-w2-auto-ho-chat-r2/result.json
+22:27:33 round 2 arm auto ho-code: localeval exit 0 results/20261106-222720-au1-auto-au1-w2-auto-ho-code-r2/result.json
+22:28:10 round 2 arm auto ho-prose: localeval exit 0 results/20261106-222734-au1-auto-au1-w2-auto-ho-prose-r2/result.json
+22:28:25 round 2 arm auto ho-recall: localeval exit 0 results/20261106-222811-au1-auto-au1-w2-auto-ho-recall-r2/result.json
+22:29:09 round 2 arm auto rcp-code: localeval exit 0 results/20261106-222826-au1-auto-au1-w2-auto-rcp-code-r2/result.json
+22:30:21 round 2 arm auto rcp-prose: localeval exit 0 results/20261106-222910-au1-auto-au1-w2-auto-rcp-prose-r2/result.json
+22:31:15 round 2 arm auto rcp-recall: localeval exit 0 results/20261106-223021-au1-auto-au1-w2-auto-rcp-recall-r2/result.json
+22:31:16 done, time left 425s
+22:31:27 guard: [guard] radiance answers 2026-11-06 22:31:27 (after 15 s)

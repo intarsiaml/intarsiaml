@@ -28,13 +28,13 @@ Binary: `origin/main` code tree `c227c1d909c0` (`71e504101`), built on tatooine 
 
 | category | mtp2 | dfl7 | auto (current params) | auto / mtp2 | auto / best | rule | DFlash passes of auto |
 |---|---:|---:|---:|---:|---:|---|---:|
-| ho-chat | 64.1 | 60.7 | **63.4** | 0.989 | 0.989 | FAIL | 38% |
-| ho-code | 79.8 | 95.7 | **96.6** | 1.211 | 1.010 | pass | 77% |
-| ho-prose | 59.0 | 49.6 | **58.7** | 0.995 | 0.995 | pass | 0% |
-| ho-recall | 69.7 | 77.6 | **74.8** | 1.073 | 0.964 | FAIL | 56% |
-| rcp-code | 78.0 | 102.6 | **100.6** | 1.289 | 0.980 | pass | 77% |
-| rcp-prose | 59.8 | 50.7 | **59.2** | 0.989 | 0.989 | FAIL | 4% |
-| rcp-recall | 70.1 | 80.8 | **78.4** | 1.118 | 0.970 | FAIL | 63% |
+| ho-chat | 64.1 | 60.7 | **63.4** | 0.9894 | 0.9894 | FAIL | 38% |
+| ho-code | 79.8 | 95.7 | **96.6** | 1.2106 | 1.0102 | pass | 77% |
+| ho-prose | 59.0 | 49.6 | **58.7** | 0.9949 | 0.9949 | pass | 0% |
+| ho-recall | 69.7 | 77.6 | **74.8** | 1.0731 | 0.9638 | FAIL | 56% |
+| rcp-code | 78.0 | 102.6 | **100.6** | 1.2887 | 0.9804 | pass | 77% |
+| rcp-prose | 59.8 | 50.7 | **59.2** | 0.9891 | 0.9891 | FAIL | 4% |
+| rcp-recall | 70.1 | 80.8 | **78.4** | 1.1176 | 0.9698 | FAIL | 63% |
 
 Rule on window 1 (not binding, the decision is window 2): **not met** with the current params: ho-chat 0.989 of MTP k2, ho-recall 0.964 of the best, rcp-prose 0.989, rcp-recall 0.970 (borderline).
 
@@ -62,3 +62,63 @@ The replay (CPU, per-pass logs of `auto`, `autotrmtp`, `autotrdfl`, one round = 
 * Plateau: theta 2.5 is best on the worst-category score (lower theta gains recall but loses prose: theta 2.4 costs rcp-prose 2.5 percent in the sim); a slower MTP EWMA (0.04) protects prose (fewer DFlash excursions: rcp-prose 4 percent of passes on DFlash in the real run, all of them losing); a shorter DFlash dwell (8) and a wider hysteresis (1.2) cut the time spent on DFlash after its rate fell. Chosen (frozen before window 2): **alpha_mtp 0.04 (was 0.06), dwell_dflash 8 (16), hyst 1.2 (1.1), priors (2.2 tok, 35.4 ms) / (3.6 tok, 50.2 ms) (were 25.5 / 38.0 ms); theta 2.5, alpha_dflash 0.1, dwell_mtp 4, probe_mtp 8, probe weight 0.3, seed 2 unchanged.**
 * In the sim, vs the current params, % vs the best pure mode (ho-chat .. rcp-recall): current -0.8 +0.9 0.0 +0.3 +0.7 -1.2 +0.7; chosen +0.5 +3.3 0.0 +1.2 +0.7 -0.2 +2.0. Worst category vs MTP: -0.8 to -0.2.
 * tp=2 check: the same chosen params replayed on the 10-28 tp=2 logs (`docs/results/2026-10-28-asa-auto-priors/raw/w1`, 2 rounds, tp=2 priors): -0.6 +0.9 0.0 +2.6 -0.7 0.0 +1.1 against the current -0.4 +2.1 0.0 +3.1 -0.2 -0.2 +0.4: no gain, not worse beyond the sim's resolution. The tp=2 data does not support the new values on its own, so they are **gated to HIP with one rank** (`AutoParams::for_target("hip", 1)`, set by the loader; `INTARSIA_SPEC_AUTO` still wins); tp=2 and every other backend keep the 10-28 values.
+
+## 2. Window 2 (confirmation, binary with the retuned params; fleetq #8883, radiance down 21:54:25 to 22:31:27 = 37 min 2 s, guard confirmed it answering 10 s after the start)
+
+Binary: branch head `0481ba7` (code tree `541c1062786b` = main plus the tp=1 `AutoParams`, built as `au1-intarsia`, build #8882, checked for the new load line before radiance went down). `auto` runs with `INTARSIA_SPEC_AUTO=pass,log` only: the retuned values are the code defaults (the serve log carries `--spec auto: policy values for hip with one rank (alpha_mtp 0.04, dwell_dflash 8, hyst 1.2, priors [(2.2, 35.4), (3.6, 50.2)])`). Two rounds, order `auto, mtp2, dfl7` then `dfl7, mtp2, auto`; 42 localeval runs, 0 problems (36 rows of 512 tokens in every arm and round). Decode tok/s pooled per category (`tools/dfh/cat_table.py`, `tools/au1/win_table.py`), mean of the two rounds:
+
+| category | mtp2 | dfl7 | auto (retuned) | auto / mtp2 | auto / best | rule | DFlash passes of auto |
+|---|---:|---:|---:|---:|---:|---|---:|
+| ho-chat | 64.1 | 61.1 | **63.4** | 0.9897 | 0.9897 | FAIL | 20% |
+| ho-code | 80.0 | 95.4 | **92.4** | 1.1553 | 0.9686 | FAIL | 79% |
+| ho-prose | 59.0 | 49.3 | **58.8** | 0.9961 | 0.9961 | pass | 0% |
+| ho-recall | 69.5 | 77.4 | **77.3** | 1.1112 | 0.9985 | pass | 68% |
+| rcp-code | 77.9 | 101.8 | **99.9** | 1.2824 | 0.9809 | pass | 77% |
+| rcp-prose | 59.9 | 50.8 | **59.5** | 0.9937 | 0.9937 | pass | 1% |
+| rcp-recall | 70.1 | 80.7 | **79.5** | 1.1342 | 0.9848 | pass | 72% |
+
+
+Per round (`tools/au1/rounds.py`; the policy is deterministic given the text, so rounds differ only by timing noise of 0.1-0.5 tok/s):
+
+| category | auto r1 | auto r2 | dfl7 r1 | dfl7 r2 | mtp2 r1 | mtp2 r2 | auto / mtp2 per round | auto / best per round |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| ho-chat | 63.42 | 63.45 | 60.98 | 61.13 | 64.15 | 64.04 | 0.989 / 0.991 | 0.989 / 0.991 |
+| ho-code | 92.41 | 92.38 | 95.68 | 95.11 | 79.79 | 80.16 | 1.158 / 1.152 | 0.966 / 0.971 |
+| ho-prose | 58.85 | 58.73 | 49.43 | 49.23 | 59.01 | 59.03 | 0.997 / 0.995 | 0.997 / 0.995 |
+| ho-recall | 77.29 | 77.26 | 77.21 | 77.57 | 69.68 | 69.40 | 1.109 / 1.113 | 1.001 / 0.996 |
+| rcp-code | 99.90 | 99.86 | 101.77 | 101.88 | 77.86 | 77.90 | 1.283 / 1.282 | 0.982 / 0.980 |
+| rcp-prose | 59.45 | 59.59 | 50.79 | 50.83 | 59.86 | 59.94 | 0.993 / 0.994 | 0.993 / 0.994 |
+| rcp-recall | 79.55 | 79.38 | 80.77 | 80.61 | 70.02 | 70.11 | 1.136 / 1.132 | 0.985 / 0.985 |
+
+**Verdict of the pre-registered rule: NOT MET.** Two categories miss, both narrowly: ho-chat auto / mtp2 = 0.9897 (rounds 0.989 and 0.991; the bar is 0.99) and ho-code auto / best = 0.9686 (rounds 0.966 and 0.971; the bar is 0.97). The other five pass (ho-prose 0.996, ho-recall 0.999 of the best, rcp-code 0.981, rcp-prose 0.994, rcp-recall 0.985). `--spec auto` stays opt-in.
+
+Why the two miss (`tools/au1/pass_stats.py`, per-pass logs in `raw/w2/pass-auto-r*.log`):
+
+* ho-chat: 20 percent of the passes are DFlash passes (166 of 843, 3.15 tokens against the 3.19 needed to tie with MTP at 2.25), so they cost about nothing; the loss is the floor: auto's MTP passes are eager, the captured graph step of `--spec mtp` is not used (section 1: pinned to MTP, auto is at 0.995 of mtp2 on chat). No parameter set can put auto above 0.995 of MTP k2 there, and the DFlash excursions take the remaining 0.5 percent.
+* ho-code (two requests of about 512 tokens): 79 percent DFlash passes, but the 50 MTP passes (seeds, dwell, probes, one 11 percent probe share while on DFlash) cost 3 percent against pure DFlash; DFlash passes average 4.77 tokens (pure DFlash 4.82), so the policy did not find lucky passes to skip as it happened to do in window 1 (5.07 tokens on 174 D passes, 1.010 of best). With 2 requests a category moves by several points on which passes the policy happens to skip; rcp-code (8 requests) is steady at 0.980-0.981 in both windows.
+
+Greedy ids (window-2 binary, stage `ids`, `raw/w2/ids/`): `--spec auto` (retuned defaults) and `INTARSIA_SPEC_AUTO=alt:1` equal `--spec off` on short-0 and 4k-1 (256 ids): **4 of 4 PASS** (alt:1: 76 and 79 switches).
+
+## 3. Window 1 (current params) against window 2 (retuned): the rule-4 comparison
+
+auto / max(MTP k2, DFlash2 k7) per category, each window against its own mtp2 and dfl7:
+
+| category | window 1, current params | window 2, retuned |
+|---|---:|---:|
+| ho-chat | 0.9894 | 0.9897 |
+| ho-code | 1.0101 | 0.9686 |
+| ho-prose | 0.9949 | 0.9961 |
+| ho-recall | 0.9638 | 0.9985 |
+| rcp-code | 0.9804 | 0.9809 |
+| rcp-prose | 0.9891 | 0.9937 |
+| rcp-recall | 0.9698 | 0.9848 |
+| mean of the 7 | 0.9854 | **0.9875** |
+| worst | 0.9638 | **0.9686** |
+
+The mean rises and the worst does not fall: by the pre-registered criterion the retuned params improve auto, so they are merged, **gated to HIP with one rank** (`AutoParams::for_target`). The gain is small and uneven: recall +3.5 and +1.5 points, prose +0.2 and +0.5, chat and rcp-code unchanged, ho-code -4.2 points (the two-request category above). Auto / MTP k2 is 0.990-1.282 in window 2 against 0.989-1.289 in window 1.
+
+## 4. Decision
+
+* `--spec auto` is **not** the 27B default on HIP at tp=1: the rule is missed in window 2 by 0.0003 (ho-chat vs MTP k2) and 0.0014 (ho-code vs the best). The 27B tp=1 default stays `--spec mtp --spec-k 2`. No recipe change, no new recipe key: the recipe still has no way to name the DFlash2 draft checkpoint, which a default would need.
+* Merged: the tp=1 policy values for `--spec auto` (`AutoParams::hip_tp1`, applied by the loader only on HIP with one rank, `INTARSIA_SPEC_AUTO` on top); tp=2, every other backend and every other model default are untouched (`AutoParams::default` is the 10-28 value set, the tp=2 replay does not support changing it: section 1).
+* What would clear the two misses, not done (outside this lane's scope and window budget): (1) give auto's MTP passes the captured graph step / pipe step of `--spec mtp` (`engine.rs`: `self.auto.is_none()` guards `spec_step`, `spec_pipe_step`, the deferred verify): that lifts the 0.995 floor on chat and prose to about 1.0 and removes the reason ho-chat misses; it must keep the lazy DFlash stash and the MTP queue valid across graph steps. (2) A cheaper return to DFlash on code: the MTP probes every 8 DFlash passes cost about 1.5 percent of a code request (probe_mtp 12 gave ho-code +4.0 against +3.3 in the replay but lost rcp-recall); a per-request prior for the first pass choice (the 6-9 passes of seeds and dwell cost ho-code 1 percent).

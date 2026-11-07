@@ -1,0 +1,18 @@
+switch extra ms: to MTP 1.3, to DFlash 0.0; pass ms mtp 35.4 dfl 50.2
+calibration factor real/sim (current params): {'ho-chat': 1.003, 'ho-code': 0.998, 'ho-prose': 1.002, 'ho-recall': 0.956, 'rcp-code': 0.972, 'rcp-prose': 1.003, 'rcp-recall': 0.961}
+current calibrated: [0.999, 1.038, 1.006, 0.988, 1.008, 0.995, 0.998]
+min 1.001 mean 1.015 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 8, 'hyst': 1.2, 'probe_mtp': 8, 'alpha_d': 0.15} 1.006 1.068 1.006 1.001 1.010 1.005 1.011
+min 1.000 mean 1.017 {'theta': 2.5, 'alpha_m': 0.06, 'dwell_m': 2, 'dwell_d': 4, 'hyst': 1.2, 'probe_mtp': 16, 'alpha_d': 0.15} 1.024 1.068 1.006 1.014 1.005 1.000 1.002
+min 0.999 mean 1.017 {'theta': 2.5, 'alpha_m': 0.1, 'dwell_m': 4, 'dwell_d': 4, 'hyst': 1.1, 'probe_mtp': 6, 'alpha_d': 0.1} 1.027 1.072 1.000 1.008 1.012 0.999 1.002
+min 0.999 mean 1.016 {'theta': 2.35, 'alpha_m': 0.04, 'dwell_m': 8, 'dwell_d': 4, 'hyst': 1.2, 'probe_mtp': 12, 'alpha_d': 0.15} 1.026 1.050 1.010 1.028 1.001 1.000 0.999
+min 0.998 mean 1.016 {'theta': 2.5, 'alpha_m': 0.06, 'dwell_m': 2, 'dwell_d': 4, 'hyst': 1.1, 'probe_mtp': 16, 'alpha_d': 0.1} 1.027 1.068 1.006 1.014 1.002 1.000 0.998
+min 1.001 mean 1.010 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 16, 'hyst': 1.2, 'probe_mtp': 8, 'alpha_d': 0.15} 1.002 1.038 1.006 1.001 1.010 1.003 1.008
+min 0.998 mean 1.016 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 4, 'hyst': 1.2, 'probe_mtp': 8, 'alpha_d': 0.1} 1.005 1.084 1.006 0.998 1.008 1.004 1.010
+min 0.997 mean 1.019 {'theta': 2.4, 'alpha_m': 0.04, 'dwell_m': 2, 'dwell_d': 8, 'hyst': 1.0, 'probe_mtp': 8, 'alpha_d': 0.1} 1.010 1.050 1.006 1.051 1.001 0.997 1.017
+min 0.996 mean 1.018 {'theta': 2.4, 'alpha_m': 0.04, 'dwell_m': 2, 'dwell_d': 4, 'hyst': 1.2, 'probe_mtp': 8, 'alpha_d': 0.1} 1.025 1.062 1.006 1.038 0.997 0.996 1.004
+min 0.999 mean 1.013 {'theta': 2.5, 'alpha_m': 0.1, 'dwell_m': 4, 'dwell_d': 4, 'hyst': 1.2, 'probe_mtp': 6, 'alpha_d': 0.1} 1.010 1.057 1.002 0.999 1.010 0.999 1.010
+min 0.996 mean 1.018 {'theta': 2.5, 'alpha_m': 0.1, 'dwell_m': 4, 'dwell_d': 4, 'hyst': 1.2, 'probe_mtp': 12, 'alpha_d': 0.1} 1.011 1.091 0.998 1.021 1.004 0.996 1.004
+min 0.997 mean 1.016 {'theta': 2.4, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 4, 'hyst': 1.2, 'probe_mtp': 8, 'alpha_d': 0.1} 0.997 1.062 1.006 1.040 1.006 0.999 0.999
+min 0.995 mean 1.019 {'theta': 2.4, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 8, 'hyst': 1.2, 'probe_mtp': 8, 'alpha_d': 0.1} 1.002 1.077 1.006 1.041 1.006 0.995 1.008
+min 0.998 mean 1.015 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 8, 'hyst': 1.2, 'probe_mtp': 8, 'alpha_d': 0.1} 1.012 1.062 1.006 0.998 1.008 1.005 1.011
+min 0.999 mean 1.012 {'theta': 2.5, 'alpha_m': 0.1, 'dwell_m': 8, 'dwell_d': 4, 'hyst': 1.2, 'probe_mtp': 12, 'alpha_d': 0.15} 1.018 1.055 1.001 1.007 0.999 1.000 1.005

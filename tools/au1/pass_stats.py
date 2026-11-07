@@ -1,10 +1,10 @@
+# Lane au1: per category, mean tokens per pass and ms per pass of the real auto arm (M / D passes) against the pure runs of window 1 (RAW=<raw/W> picks the window; w2 has no pure arms, so the pure columns repeat the auto arm)
 import sys, os
-sys.argv=['x','docs/results/2026-11-06-spec-auto-tp1/raw/w1']
+raw=os.environ.get('RAW','docs/results/2026-11-06-spec-auto-tp1/raw/w1'); sys.argv=['x',raw]
 sys.path.insert(0,'tools/asa')
 os.environ['REPLAY_ARMS']='auto,autotrmtp,autotrdfl'
 import replay as R
-raw='docs/results/2026-11-06-spec-auto-tp1/raw/w1'
-A=R.load(f'{raw}/pass-auto-r1.log'); M=R.load(f'{raw}/pass-autotrmtp-r1.log'); D=R.load(f'{raw}/pass-autotrdfl-r1.log')
+A=R.load(f'{raw}/pass-auto-r1.log'); M=R.load(f'{raw}/pass-autotrmtp-r1.log') if os.path.exists(f'{raw}/pass-autotrmtp-r1.log') else A; D=R.load(f'{raw}/pass-autotrdfl-r1.log') if os.path.exists(f'{raw}/pass-autotrdfl-r1.log') else A
 import statistics as st
 def stats(reqs, mode, skipfresh=True):
     t=ms=n=0

@@ -40,7 +40,7 @@ for c, _ in cats:
     d = data[c]; m, f, a = d["mtp2"][0], d["dfl7"][0], d[auto][0]
     best = max(m, f); r1, r2 = a / m, a / best
     ok = r1 >= 0.99 and r2 >= 0.97; allok &= ok
-    print(f"| {c} | {m:.1f} | {f:.1f} | **{a:.1f}** | {r1:.3f} | {r2:.3f} | {'pass' if ok else 'FAIL'} | {100 * D[c][0] / max(D[c][1], 1):.0f}% |")
+    print(f"| {c} | {m:.1f} | {f:.1f} | **{a:.1f}** | {r1:.4f} | {r2:.4f} | {'pass' if ok else 'FAIL'} | {100 * D[c][0] / max(D[c][1], 1):.0f}% |")
 print(f"\nrule (every category auto/mtp2 >= 0.99 and auto/best >= 0.97): {'MET' if allok else 'NOT MET'}", file=sys.stderr)
 extra = [a for a in hdr if a not in ("mtp2", "dfl7", auto)]
 if extra:
