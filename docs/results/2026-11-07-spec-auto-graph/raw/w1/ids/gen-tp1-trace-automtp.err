@@ -1,0 +1,324 @@
+prefill chunk 2048 (recipe qwen3_5_vl, hip)
+lm_head quantised to fp8 (248320 rows x 5120, 1.27 GB, was bf16 2.54 GB; INTARSIA_LMHEAD_QUANT = fp8, 1.8 s)
+mtp: drafter head 'mtp' loaded in 0.1 s (routed experts quantised to nvfp4)
+dflash: draft of 5 layers (taps [5, 19, 33, 47, 61], block 8, DFlash2) loaded in 0.3 s
+--mtp-draft-vocab 65536 (recipe qwen3_5_vl, hip; --mtp-draft-vocab 0 drafts with the full head)
+verify attention rows: engaged (one row-table attention launch per layer)
+quantisation scheme note: checkpoint declares MXFP4 activations 'dynamic' (MXFP4_W4A4); running 'fp8' (the recipe's default on this backend, chosen for accuracy and speed (Qwen3.8-27B, full MMLU n=1425: W4A8 0.8204, W4A16 0.822, W4A4 0.802; against W4A16 prefill +48% and decode +11% at tp2, KL to the W4A16 golden 12x below W4A4's, docs/results/2026-10-27-w4a8-hip-fp8-act.md); --mxfp4-act dynamic runs the declared scheme): a deviation from the declared scheme and from a reference that runs it
+mxfp4 activations: fp8 (recipe qwen3_5_vl [tuning.hip] mxfp4_act)
+--spec auto: policy values for hip with one rank (alpha_mtp 0.04, dwell_dflash 8, hyst 1.2, priors [(2.2, 35.4), (3.6, 50.2)])
+--spec dflash on hip: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)
+speculative decoding: Auto, up to 7 drafts per verify pass; verify kernels: embedding=embedding_bf16 rmsnorm=rmsnorm_bf16 matmul_mxfp4_pair=matmul_mxfp4_pair_a8_gemv_rows gdn_conv_delta=gdn_conv_delta_bf16 gated_rmsnorm=gated_rmsnorm_bf16 matmul_mxfp4=matmul_mxfp4_a8_gemv_rows rmsnorm_add=rmsnorm_add_bf16 silu_glu=silu_glu_bf16 gate_split_qk_norm_rope_kv=gate_split_qk_norm_rope_kv_bf16 attn_decode=attn_decode_bf16_splitkv_rows sigmoid_mul=sigmoid_mul_bf16 add=add_bf16 matmul=matmul_bf16 matmul_fp8=matmul_fp8_gemv_v2 argmax=argmax_f32 qk_norm=qk_norm_bf16 rope=rope_bf16 kv_append=kv_append_bf16 matmul=matmul_bf16_gemv_rows dyn_conv=dyn_conv_bf16 attn_decode=attn_decode_bf16_splitkv matmul_fp8=matmul_fp8_gemv_rows attn_decode=attn_decode_bf16_window_splitkv matmul=matmul_bf16_gemv
+loaded amd/Qwen3.8-27B-Quark-AWQ-MXFP4 on AMD Radeon Graphics in 3.8s: 64 layers, hidden 5120, act bf16, kv bf16, weights 21.32 GB, context 20480 tokens (recipe builtin:qwen3_5_vl, chat template chat_template.jinja)
+prompt: 41 tokens
+spec: token 2 pos 41 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 38.67 ms (graph step; mtp, dflash tok/ms (Some(0.06026365348399247), None))
+spec: mtp graph step 38.678 ms gap 0.000 ms
+spec: token 4 pos 43 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 38.47 ms (graph step; mtp, dflash tok/ms (Some(0.05115117622993781), None))
+spec: mtp graph step 38.473 ms gap 0.009 ms
+spec: token 5 pos 44 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 35.39 ms (graph step; mtp, dflash tok/ms (Some(0.05220554429100606), None))
+spec: mtp graph step 35.391 ms gap 0.006 ms
+spec: token 7 pos 46 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 35.41 ms (graph step; mtp, dflash tok/ms (Some(0.05290811471387062), None))
+spec: mtp graph step 35.413 ms gap 0.004 ms
+spec: token 9 pos 48 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.45 ms (graph step; mtp, dflash tok/ms (Some(0.05739016983150139), None))
+spec: mtp graph step 35.449 ms gap 0.003 ms
+spec: token 12 pos 51 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 38.48 ms (graph step; mtp, dflash tok/ms (Some(0.060124711921426995), None))
+spec: mtp graph step 38.488 ms gap 0.005 ms
+spec: token 15 pos 54 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.81 ms (graph step; mtp, dflash tok/ms (Some(0.06292305945030188), None))
+spec: mtp graph step 34.809 ms gap 0.007 ms
+spec: token 18 pos 57 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.06517083411777387), None))
+spec: mtp graph step 34.853 ms gap 0.004 ms
+spec: token 21 pos 60 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.79 ms (graph step; mtp, dflash tok/ms (Some(0.06703114938781582), None))
+spec: mtp graph step 34.793 ms gap 0.004 ms
+spec: token 24 pos 63 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.84 ms (graph step; mtp, dflash tok/ms (Some(0.06858183413521672), None))
+spec: mtp graph step 34.840 ms gap 0.003 ms
+spec: token 27 pos 66 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.79 ms (graph step; mtp, dflash tok/ms (Some(0.06990632860504116), None))
+spec: mtp graph step 34.795 ms gap 0.004 ms
+spec: token 30 pos 69 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.07103754471898725), None))
+spec: mtp graph step 34.853 ms gap 0.004 ms
+spec: token 33 pos 72 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.80 ms (graph step; mtp, dflash tok/ms (Some(0.07202760408407545), None))
+spec: mtp graph step 34.804 ms gap 0.110 ms
+spec: token 36 pos 75 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.81 ms (graph step; mtp, dflash tok/ms (Some(0.07113481457733356), None))
+spec: mtp graph step 34.809 ms gap 0.003 ms
+spec: token 38 pos 77 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.44 ms (graph step; mtp, dflash tok/ms (Some(0.0719288465000595), None))
+spec: mtp graph step 35.441 ms gap 0.003 ms
+spec: token 41 pos 80 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.79 ms (graph step; mtp, dflash tok/ms (Some(0.07270811322773674), None))
+spec: mtp graph step 34.796 ms gap 0.004 ms
+spec: token 44 pos 83 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.79 ms (graph step; mtp, dflash tok/ms (Some(0.07340737855365156), None))
+spec: mtp graph step 34.791 ms gap 0.004 ms
+spec: token 47 pos 86 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.86 ms (graph step; mtp, dflash tok/ms (Some(0.07261811313850319), None))
+spec: mtp graph step 34.858 ms gap 0.003 ms
+spec: token 49 pos 88 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.40 ms (graph step; mtp, dflash tok/ms (Some(0.07319620155039645), None))
+spec: mtp graph step 35.398 ms gap 0.002 ms
+spec: token 52 pos 91 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.81 ms (graph step; mtp, dflash tok/ms (Some(0.0724922950523091), None))
+spec: mtp graph step 34.808 ms gap 0.004 ms
+spec: token 54 pos 93 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.40 ms (graph step; mtp, dflash tok/ms (Some(0.07302525367190522), None))
+spec: mtp graph step 35.406 ms gap 0.002 ms
+spec: token 57 pos 96 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.77 ms (graph step; mtp, dflash tok/ms (Some(0.07356860084570407), None))
+spec: mtp graph step 34.773 ms gap 0.003 ms
+spec: token 60 pos 99 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 34.79 ms (graph step; mtp, dflash tok/ms (Some(0.07180240316595686), None))
+spec: mtp graph step 34.794 ms gap 0.004 ms
+spec: token 61 pos 100 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.40 ms (graph step; mtp, dflash tok/ms (Some(0.07232146779263365), None))
+spec: mtp graph step 35.400 ms gap 0.001 ms
+spec: token 64 pos 103 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 34.76 ms (graph step; mtp, dflash tok/ms (Some(0.07060601137494432), None))
+spec: mtp graph step 34.763 ms gap 0.006 ms
+spec: token 65 pos 104 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.35 ms (graph step; mtp, dflash tok/ms (Some(0.0711768628257455), None))
+spec: mtp graph step 35.357 ms gap 0.001 ms
+spec: token 68 pos 107 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.74 ms (graph step; mtp, dflash tok/ms (Some(0.07177510532282813), None))
+spec: mtp graph step 34.738 ms gap 0.005 ms
+spec: token 71 pos 110 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.77 ms (graph step; mtp, dflash tok/ms (Some(0.07121272576096475), None))
+spec: mtp graph step 34.774 ms gap 0.003 ms
+spec: token 73 pos 112 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.38 ms (graph step; mtp, dflash tok/ms (Some(0.07175743428653115), None))
+spec: mtp graph step 35.387 ms gap 0.003 ms
+spec: token 76 pos 115 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.78 ms (graph step; mtp, dflash tok/ms (Some(0.07119490327723998), None))
+spec: mtp graph step 34.782 ms gap 0.003 ms
+spec: token 78 pos 117 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.39 ms (graph step; mtp, dflash tok/ms (Some(0.07174025113966048), None))
+spec: mtp graph step 35.390 ms gap 0.002 ms
+spec: token 81 pos 120 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.79 ms (graph step; mtp, dflash tok/ms (Some(0.07231302521547191), None))
+spec: mtp graph step 34.788 ms gap 0.003 ms
+spec: token 84 pos 123 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.81 ms (graph step; mtp, dflash tok/ms (Some(0.07286129828212087), None))
+spec: mtp graph step 34.814 ms gap 0.003 ms
+spec: token 87 pos 126 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.76 ms (graph step; mtp, dflash tok/ms (Some(0.07339202978092073), None))
+spec: mtp graph step 34.767 ms gap 0.003 ms
+spec: token 90 pos 129 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.83 ms (graph step; mtp, dflash tok/ms (Some(0.07275957079990052), None))
+spec: mtp graph step 34.833 ms gap 0.003 ms
+spec: token 92 pos 131 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.44 ms (graph step; mtp, dflash tok/ms (Some(0.07323884847827657), None))
+spec: mtp graph step 35.439 ms gap 0.002 ms
+spec: token 95 pos 134 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.79 ms (graph step; mtp, dflash tok/ms (Some(0.07375264612682156), None))
+spec: mtp graph step 34.795 ms gap 0.005 ms
+spec: token 98 pos 137 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.84 ms (graph step; mtp, dflash tok/ms (Some(0.07310472161498863), None))
+spec: mtp graph step 34.843 ms gap 0.003 ms
+spec: token 100 pos 139 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.43 ms (graph step; mtp, dflash tok/ms (Some(0.07357123007694097), None))
+spec: mtp graph step 35.428 ms gap 0.003 ms
+spec: token 103 pos 142 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.80 ms (graph step; mtp, dflash tok/ms (Some(0.07407116716487601), None))
+spec: mtp graph step 34.807 ms gap 0.003 ms
+spec: token 106 pos 145 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.07340961238234753), None))
+spec: mtp graph step 34.851 ms gap 0.002 ms
+spec: token 108 pos 147 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.42 ms (graph step; mtp, dflash tok/ms (Some(0.07386464459229848), None))
+spec: mtp graph step 35.421 ms gap 0.002 ms
+spec: token 111 pos 150 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.82 ms (graph step; mtp, dflash tok/ms (Some(0.07435147980524014), None))
+spec: mtp graph step 34.827 ms gap 0.003 ms
+spec: token 114 pos 153 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.79 ms (graph step; mtp, dflash tok/ms (Some(0.07482178820540548), None))
+spec: mtp graph step 34.796 ms gap 0.003 ms
+spec: token 117 pos 156 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.83 ms (graph step; mtp, dflash tok/ms (Some(0.07527066135574562), None))
+spec: mtp graph step 34.831 ms gap 0.003 ms
+spec: token 120 pos 159 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.81 ms (graph step; mtp, dflash tok/ms (Some(0.075703862307096), None))
+spec: mtp graph step 34.808 ms gap 0.003 ms
+spec: token 123 pos 162 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.81 ms (graph step; mtp, dflash tok/ms (Some(0.07611923610110066), None))
+spec: mtp graph step 34.817 ms gap 0.003 ms
+spec: token 126 pos 165 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.07651530734513771), None))
+spec: mtp graph step 34.850 ms gap 0.004 ms
+spec: token 129 pos 168 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.88 ms (graph step; mtp, dflash tok/ms (Some(0.0757526376621641), None))
+spec: mtp graph step 34.881 ms gap 0.003 ms
+spec: token 131 pos 170 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 35.47 ms (graph step; mtp, dflash tok/ms (Some(0.07382992145563137), None))
+spec: mtp graph step 35.470 ms gap 0.003 ms
+spec: token 132 pos 171 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 35.45 ms (graph step; mtp, dflash tok/ms (Some(0.07198708802076333), None))
+spec: mtp graph step 35.453 ms gap 0.002 ms
+spec: token 133 pos 172 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 35.42 ms (graph step; mtp, dflash tok/ms (Some(0.07022198889749584), None))
+spec: mtp graph step 35.421 ms gap 0.001 ms
+spec: token 134 pos 173 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 35.45 ms (graph step; mtp, dflash tok/ms (Some(0.0685260598716282), None))
+spec: mtp graph step 35.455 ms gap 0.001 ms
+spec: token 135 pos 174 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.40 ms (graph step; mtp, dflash tok/ms (Some(0.0691799705174796), None))
+spec: mtp graph step 35.398 ms gap 0.001 ms
+spec: token 138 pos 177 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.06985069422846636), None))
+spec: mtp graph step 34.853 ms gap 0.003 ms
+spec: token 141 pos 180 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.84 ms (graph step; mtp, dflash tok/ms (Some(0.07049603967422635), None))
+spec: mtp graph step 34.840 ms gap 0.003 ms
+spec: token 144 pos 183 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.07111478993790403), None))
+spec: mtp graph step 34.855 ms gap 0.003 ms
+spec: token 147 pos 186 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.83 ms (graph step; mtp, dflash tok/ms (Some(0.07171056939411473), None))
+spec: mtp graph step 34.837 ms gap 0.003 ms
+spec: token 150 pos 189 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.87 ms (graph step; mtp, dflash tok/ms (Some(0.07114014992890329), None))
+spec: mtp graph step 34.870 ms gap 0.003 ms
+spec: token 152 pos 191 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.43 ms (graph step; mtp, dflash tok/ms (Some(0.07168625139203476), None))
+spec: mtp graph step 35.437 ms gap 0.002 ms
+spec: token 155 pos 194 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.79 ms (graph step; mtp, dflash tok/ms (Some(0.07226290898339933), None))
+spec: mtp graph step 34.795 ms gap 0.002 ms
+spec: token 158 pos 197 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.84 ms (graph step; mtp, dflash tok/ms (Some(0.07281324053069375), None))
+spec: mtp graph step 34.839 ms gap 0.004 ms
+spec: token 161 pos 200 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.07105983511673392), None))
+spec: mtp graph step 34.849 ms gap 0.003 ms
+spec: token 162 pos 201 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 35.49 ms (graph step; mtp, dflash tok/ms (Some(0.06932485844911876), None))
+spec: mtp graph step 35.492 ms gap 0.001 ms
+spec: token 163 pos 202 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.44 ms (graph step; mtp, dflash tok/ms (Some(0.06994387873062645), None))
+spec: mtp graph step 35.441 ms gap 0.001 ms
+spec: token 166 pos 205 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.83 ms (graph step; mtp, dflash tok/ms (Some(0.07058681989654816), None))
+spec: mtp graph step 34.830 ms gap 0.002 ms
+spec: token 169 pos 208 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.07006214431429235), None))
+spec: mtp graph step 34.855 ms gap 0.002 ms
+spec: token 171 pos 210 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 35.47 ms (graph step; mtp, dflash tok/ms (Some(0.0683697998032155), None))
+spec: mtp graph step 35.469 ms gap 0.002 ms
+spec: token 172 pos 211 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 35.47 ms (graph step; mtp, dflash tok/ms (Some(0.06674650171475885), None))
+spec: mtp graph step 35.469 ms gap 0.001 ms
+spec: token 173 pos 212 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 35.45 ms (graph step; mtp, dflash tok/ms (Some(0.06519091908914551), None))
+spec: mtp graph step 35.450 ms gap 0.001 ms
+spec: token 174 pos 213 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.45 ms (graph step; mtp, dflash tok/ms (Some(0.06597552432096869), None))
+spec: mtp graph step 35.449 ms gap 0.001 ms
+spec: token 177 pos 216 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.06677318001240631), None))
+spec: mtp graph step 34.857 ms gap 0.003 ms
+spec: token 180 pos 219 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.0664006444659648), None))
+spec: mtp graph step 34.852 ms gap 0.002 ms
+spec: token 182 pos 221 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.43 ms (graph step; mtp, dflash tok/ms (Some(0.06713765885228042), None))
+spec: mtp graph step 35.435 ms gap 0.002 ms
+spec: token 185 pos 224 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 34.88 ms (graph step; mtp, dflash tok/ms (Some(0.06560931727702593), None))
+spec: mtp graph step 34.883 ms gap 0.002 ms
+spec: token 186 pos 225 drafted 2 accepted 1 emits 2
+spec: auto Mtp k 2 emits 2 35.46 ms (graph step; mtp, dflash tok/ms (Some(0.06523789101655911), None))
+spec: mtp graph step 35.458 ms gap 0.002 ms
+spec: token 188 pos 227 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.43 ms (graph step; mtp, dflash tok/ms (Some(0.06602170548722727), None))
+spec: mtp graph step 35.432 ms gap 0.003 ms
+spec: token 191 pos 230 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.84 ms (graph step; mtp, dflash tok/ms (Some(0.0668184503397347), None))
+spec: mtp graph step 34.843 ms gap 0.002 ms
+spec: token 194 pos 233 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.83 ms (graph step; mtp, dflash tok/ms (Some(0.06758437970043554), None))
+spec: mtp graph step 34.836 ms gap 0.003 ms
+spec: token 197 pos 236 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.83 ms (graph step; mtp, dflash tok/ms (Some(0.06832065742434608), None))
+spec: mtp graph step 34.830 ms gap 0.003 ms
+spec: token 200 pos 239 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.84 ms (graph step; mtp, dflash tok/ms (Some(0.06902710594792534), None))
+spec: mtp graph step 34.840 ms gap 0.003 ms
+spec: token 203 pos 242 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.83 ms (graph step; mtp, dflash tok/ms (Some(0.06970605444528147), None))
+spec: mtp graph step 34.836 ms gap 0.002 ms
+spec: token 206 pos 245 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.83 ms (graph step; mtp, dflash tok/ms (Some(0.07035865745226011), None))
+spec: mtp graph step 34.831 ms gap 0.003 ms
+spec: token 209 pos 248 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.83 ms (graph step; mtp, dflash tok/ms (Some(0.07098558319119033), None))
+spec: mtp graph step 34.830 ms gap 0.003 ms
+spec: token 212 pos 251 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.84 ms (graph step; mtp, dflash tok/ms (Some(0.07158656291955393), None))
+spec: mtp graph step 34.845 ms gap 0.003 ms
+spec: token 215 pos 254 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.07216345035105176), None))
+spec: mtp graph step 34.849 ms gap 0.002 ms
+spec: token 218 pos 257 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.84 ms (graph step; mtp, dflash tok/ms (Some(0.07271807201128652), None))
+spec: mtp graph step 34.842 ms gap 0.004 ms
+spec: token 221 pos 260 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.07325009508101857), None))
+spec: mtp graph step 34.850 ms gap 0.003 ms
+spec: token 224 pos 263 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 34.88 ms (graph step; mtp, dflash tok/ms (Some(0.07147397121642521), None))
+spec: mtp graph step 34.887 ms gap 0.002 ms
+spec: token 225 pos 264 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.45 ms (graph step; mtp, dflash tok/ms (Some(0.07200626689402127), None))
+spec: mtp graph step 35.451 ms gap 0.001 ms
+spec: token 228 pos 267 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.87 ms (graph step; mtp, dflash tok/ms (Some(0.07256441029816767), None))
+spec: mtp graph step 34.876 ms gap 0.003 ms
+spec: token 231 pos 270 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 34.87 ms (graph step; mtp, dflash tok/ms (Some(0.07081711849973141), None))
+spec: mtp graph step 34.871 ms gap 0.003 ms
+spec: token 232 pos 271 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.44 ms (graph step; mtp, dflash tok/ms (Some(0.07137674566372287), None))
+spec: mtp graph step 35.441 ms gap 0.001 ms
+spec: token 235 pos 274 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 34.87 ms (graph step; mtp, dflash tok/ms (Some(0.06967685362531492), None))
+spec: mtp graph step 34.875 ms gap 0.002 ms
+spec: token 236 pos 275 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.44 ms (graph step; mtp, dflash tok/ms (Some(0.07028266701763876), None))
+spec: mtp graph step 35.439 ms gap 0.001 ms
+spec: token 239 pos 278 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 34.86 ms (graph step; mtp, dflash tok/ms (Some(0.06862749415908828), None))
+spec: mtp graph step 34.865 ms gap 0.002 ms
+spec: token 240 pos 279 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.47 ms (graph step; mtp, dflash tok/ms (Some(0.069273211162434), None))
+spec: mtp graph step 35.469 ms gap 0.001 ms
+spec: token 243 pos 282 drafted 2 accepted 0 emits 1
+spec: auto Mtp k 2 emits 1 34.88 ms (graph step; mtp, dflash tok/ms (Some(0.06765713348241868), None))
+spec: mtp graph step 34.884 ms gap 0.003 ms
+spec: token 244 pos 283 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 35.45 ms (graph step; mtp, dflash tok/ms (Some(0.06834299746849706), None))
+spec: mtp graph step 35.455 ms gap 0.001 ms
+spec: token 247 pos 286 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.84 ms (graph step; mtp, dflash tok/ms (Some(0.06904910953076526), None))
+spec: mtp graph step 34.842 ms gap 0.003 ms
+spec: token 250 pos 289 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.06972685499456108), None))
+spec: mtp graph step 34.848 ms gap 0.003 ms
+spec: token 253 pos 292 drafted 2 accepted 2 emits 3
+spec: auto Mtp k 2 emits 3 34.85 ms (graph step; mtp, dflash tok/ms (Some(0.07037757480650537), None))
+spec: mtp graph step 34.851 ms gap 0.002 ms
+spec auto: 256 tokens, passes mtp 102 dflash 0 switches 0 probes 0 (tokens/ms mtp 0.070 dflash 0.000; tokens/pass mtp 2.47 dflash 3.60)
+ids: [12646, 25, 65565, 12368, 25066, 471, 498, 7525, 51014, 5447, 14, 4146, 60, 271, 12675, 498, 40571, 24783, 579, 3855, 1089, 271, 40, 3769, 488, 3029, 3322, 264, 1603, 1936, 13, 271, 40, 4110, 4237, 310, 1732, 685, 383, 279, 22842, 4125, 303, 821, 12772, 13, 1049, 682, 978, 4847, 8981, 364, 279, 3162, 2342, 2756, 11, 321, 353, 557, 19677, 413, 424, 2493, 381, 3102, 310, 615, 279, 12368, 13145, 33855, 411, 1936, 30, 271, 5328, 1042, 728, 1366, 413, 1017, 369, 264, 3050, 854, 421, 4138, 1786, 364, 279, 51715, 11, 466, 413, 488, 1144, 866, 4945, 1928, 494, 821, 809, 13, 271, 12295, 748, 1691, 364, 678, 1438, 0, 271, 14055, 23187, 11, 271, 58, 7525, 3855, 60, 198, 58, 7525, 13897, 5447, 60, 248046, 198, 248044, 248045, 248045, 248045, 248068, 198, 760, 1156, 6587, 728, 310, 3165, 264, 2716, 11, 11321, 2469, 310, 836, 38815, 883, 264, 22842, 12368, 13, 6558, 728, 10453, 264, 61446, 11, 46193, 11, 321, 11321, 2469, 421, 25, 198, 12, 2091, 2716, 318, 1856, 2166, 1248, 8, 198, 12, 2091, 11321, 303, 15754, 318, 1856, 18608, 466, 24339, 8, 198, 12, 1577, 2699, 3315, 279, 22842, 628, 381, 49992, 411, 1936, 198, 12, 46973, 880, 279, 12772, 682, 978, 8981, 364, 3679, 2756, 198, 12, 2091, 6376, 694, 7948, 271, 9764, 728, 3165, 411, 303, 264, 5629, 11, 7281, 1605, 694, 46448, 15754, 13, 198, 248069, 271, 12646, 25, 65565, 26293, 1317, 498, 10296, 3093, 5447, 14, 4146, 60, 271, 12675, 498, 40571, 24783, 579, 3855, 1089]
+finish=length prompt=41 (cached 0) completion=256 | prefill 117 ms (351.0 tok/s) | decode 3612 ms (70.59 tok/s)
+spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+steps=105 graph replays=104 (captures 4) eager decode steps=0 (profiled 0) top ops: add=0ms/736 argmax=0ms/308 attn_decode=0ms/5282 attn_prefill=0ms/16 embedding=0ms/312
