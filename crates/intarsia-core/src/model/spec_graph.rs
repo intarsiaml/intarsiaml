@@ -35,6 +35,10 @@ use super::graph_step::Captured;
 const CATCH_IDS: usize = 48;
 /// First entry of the scripted drafts in `ws.pos` (tests: [`Model::mtp_script`] replaces the drafts the verify pass takes).
 const SCRIPT_IDS: usize = 64;
+/// First entry of the id gather's receive buffer in `ws.pos` (tensor parallelism, lane gt2): `world` segments of the verify ids
+/// rounded up to 4 entries (16 bytes, the HIP gather's quantum), so at two ranks up to 8 verify rows.
+const GATHER_AT: usize = 80;
+const GATHER_ENTRIES: usize = POS_TAB_ENTRIES - GATHER_AT;
 
 /// `INTARSIA_SPEC_GRAPH` (`0` turns the captured step off), read once.
 fn spec_graph_env_on() -> bool {
@@ -68,7 +72,7 @@ impl Model {
             // scripted drafts (tests) the recording cannot take: fewer than k, the eager path verifies exactly those
             && self.scripted_drafts(st, next, k).map_or(true, |d| d.len() == k)
             && self.recorder.lock().unwrap().is_none()
-            && self.tp.world == 1
+            && self.spec_step_tp_ok(st, n, k)
             && st.id != 0
             && (2..=self.verify_rows).contains(&q)
             && self.verify_tok.is_some()
@@ -83,6 +87,172 @@ impl Model {
             && st.len + k <= m.kv.cap
             && spec_graph_env_on()
             && !(self.profile_every > 0 && self.telemetry.steps_total() % self.profile_every as u64 == 0)
+    }
+
+    /// The tensor-parallel part of [`Model::spec_step_ok`] (lane gt2): true at one rank; with in-process peers only under
+    /// `INTARSIA_SPEC_GRAPH_TP=1`, every peer able to record and replay, its state in step with rank 0's (same length; with a
+    /// sharded head, the same queue and head cache), and the verify ids small enough for the in-graph id gather
+    /// ([`GATHER_AT`]). A rank in another process (`tp-worker`) keeps the eager step.
+    fn spec_step_tp_ok(&self, st: &SequenceState, n: usize, k: usize) -> bool {
+        if self.tp.world == 1 {
+            return true;
+        }
+        let q = k + 1;
+        let g = q.next_multiple_of(4);
+        let whole = self.mtp.as_ref().is_some_and(|h| h.whole());
+        spec_graph_tp_env_on()
+            && self.remote.is_none()
+            && !self.peers.is_empty()
+            && self.peers.len() + 1 == self.tp.world
+            && st.peers.len() == self.peers.len()
+            && self.tp.world * g <= GATHER_ENTRIES
+            && self.ws.max_tokens >= g
+            && self.peers.iter().zip(&st.peers).all(|(pm, ps)| {
+                let p = &ps.st;
+                pm.graphs.usable(pm)
+                    && pm.recorder.lock().unwrap().is_none()
+                    && pm.ws.max_tokens >= g
+                    && p.id != 0
+                    && p.len == st.len
+                    && p.len + q <= p.cap
+                    && match (pm.mtp.as_ref(), p.mtp.as_ref()) {
+                        // a head whole on rank 0 (lane mt2): the peers hold none
+                        (None, None) => whole,
+                        // a sharded head: the peer's share of it is where rank 0's is
+                        (Some(_), Some(pm_)) => {
+                            !whole
+                                && pm_.active
+                                && pm_.synced
+                                && pm_.pending_rows == n
+                                && pm_.kv.len + n == p.len
+                                && p.len + k <= pm_.kv.cap
+                        }
+                        _ => false,
+                    }
+            })
+    }
+
+    /// The step's ids from rank 0 to every rank inside a recording (lane gt2): all-gather `ws.ids[0..g]` into the spare
+    /// entries of the position table ([`GATHER_AT`]), and a peer copies rank 0's segment over its own `ws.ids[0..g]`. A
+    /// capturable collective at a fixed address, so the drafts rank 0's argmax leaves on its device reach the peers' head and
+    /// verify passes without a host round trip. Both ranks call it at the same points of the step (the collectives pair up).
+    fn spec_gather_ids(&self, g: usize) -> Result<()> {
+        let send = self.view(&self.ws.ids, DType::I32, &[g]);
+        let mut recv = self.view(&self.ws.pos, DType::I32, &[self.tp.world * g]);
+        recv.offset = 4 * GATHER_AT;
+        self.all_gather(&send, &recv, false)?;
+        if self.tp.rank != 0 {
+            self.backend.copy(&self.ws.ids, 0, &self.ws.pos, 4 * GATHER_AT, 4 * g, self.stream)?;
+        }
+        Ok(())
+    }
+
+    /// A peer's share of the captured step (lane gt2), recorded for (`st`, `n` catch-up rows, `k` drafts): with a sharded head
+    /// its catch-up and chained passes (their all-reduces pair with rank 0's; each chained pass reads the draft rank 0's argmax
+    /// left, gathered), then the gather of the verify ids, the verify pass's layers on the row-exact kernels (and its slice of a
+    /// vocab-parallel head) and, with a sharded head, the rows into the head's queue: what [`Model::mtp_draft`] and
+    /// [`Model::forward_verify`] run on this rank eagerly. Executes nothing.
+    fn capture_spec_peer(&self, st: &SequenceState, n: usize, k: usize) -> Result<Captured> {
+        let h = self.dims.hidden;
+        let q = k + 1;
+        let g = q.next_multiple_of(4);
+        let ws = &self.ws;
+        let ids_at = |i: usize, len: usize| {
+            let mut v = self.view(&ws.ids, DType::I32, &[len]);
+            v.offset = 4 * i;
+            v
+        };
+        let pos_at = |i: usize| {
+            let mut v = self.view(&ws.pos, DType::I32, &[1]);
+            v.offset = 4 * i;
+            v
+        };
+        let head = match (self.mtp.as_ref(), st.mtp.as_ref()) {
+            (Some(h), Some(m)) => Some((h, m)),
+            _ => None,
+        };
+        *self.capture_ops.lock().unwrap() = Some(Vec::new());
+        self.capture_comms.store(0, Ordering::Relaxed);
+        let graph = self.backend.graph_capture(self.stream, &mut || {
+            if let Some((head, m)) = head {
+                let pending = TensorRef::new(m.pending.clone(), self.act, &[m.cap_rows, h]);
+                let mut tab_ids = self.view(&ws.pos, DType::I32, &[n]);
+                tab_ids.offset = 4 * CATCH_IDS;
+                let out = self.mtp_layer_at(head, &m.kv, n, None, &pending.rows(0, n), Some(&tab_ids), Some(&pos_at(POS_CATCH_UP)), false)?;
+                self.backend.copy(&head.chain, 0, &out.buf, out.offset + (n - 1) * m.row_bytes, m.row_bytes, self.stream)?;
+                for i in 1..k {
+                    self.spec_gather_ids(g)?;
+                    let hid = TensorRef::new(head.chain.clone(), self.act, &[1, h]);
+                    let out = self.mtp_layer_at(head, &m.kv, 1, None, &hid, Some(&ids_at(i, 1)), Some(&pos_at(POS_CHAIN + i - 1)), false)?;
+                    self.backend.copy(&head.chain, 0, &out.buf, out.offset, m.row_bytes, self.stream)?;
+                }
+            }
+            self.spec_gather_ids(g)?;
+            self.exact_rows.store(true, Ordering::Relaxed);
+            let run = (|| -> Result<TensorRef> {
+                let hn = self.run_layers(Seqs::One(st), &vec![0u32; q], false, Some(&pos_at(POS_VERIFY)), false, None)?;
+                if self.vocab_par {
+                    self.verify_head(&hn, q, false)?;
+                }
+                Ok(hn)
+            })();
+            self.exact_rows.store(false, Ordering::Relaxed);
+            let hn = run?;
+            if let Some((_, m)) = head {
+                self.backend.copy(&m.pending, 0, &hn.buf, hn.offset, q * m.row_bytes, self.stream)?;
+            }
+            Ok(())
+        });
+        let ops = self.capture_ops.lock().unwrap().take().unwrap_or_default();
+        let comms = self.capture_comms.swap(0, Ordering::Relaxed) as usize;
+        Ok(Captured { state_id: st.id, graph: graph?, ops, comms })
+    }
+
+    /// A peer's part of [`Model::spec_step`] on its own thread: the per-row recurrent copies and the position table, the
+    /// recording for this step's shape (captured now if missing; `ok` falls to false on a failure), then, once every rank has
+    /// passed `gate` and all recordings exist, the replay. `Ok(false)`: nothing ran (some rank has no recording).
+    fn spec_step_peer(
+        &self,
+        st: &mut SequenceState,
+        key: (u64, usize, usize, bool),
+        tab: &[u8],
+        gate: &std::sync::Barrier,
+        ok: &std::sync::atomic::AtomicBool,
+    ) -> Result<bool> {
+        let (_, n, q, _) = key;
+        let prep = (|| -> Result<()> {
+            Self::prepare_spec_rows(&*self.backend, st, q)?;
+            self.backend.upload(&self.ws.pos, 0, tab, self.stream)?;
+            let mut cache = self.graphs.spec.lock().unwrap();
+            if !cache.contains_key(&key) {
+                if cache.len() >= 96 {
+                    cache.clear();
+                }
+                let c = self.capture_spec_peer(st, n, q - 1)?;
+                cache.insert(key, c);
+                self.graphs.spec_captures.fetch_add(1, Ordering::Relaxed);
+                self.telemetry.graph_event(false);
+            }
+            Ok(())
+        })();
+        if let Err(e) = &prep {
+            eprintln!("tensor-parallel rank {}: speculative step graph capture failed ({e})", self.tp.rank);
+            ok.store(false, Ordering::Relaxed);
+        }
+        gate.wait();
+        if !ok.load(Ordering::Relaxed) {
+            return Ok(false);
+        }
+        let cache = self.graphs.spec.lock().unwrap();
+        let c = cache.get(&key).expect("captured before the gate");
+        self.backend.graph_replay(&c.graph, self.stream)?;
+        self.graphs.spec_replays.fetch_add(1, Ordering::Relaxed);
+        self.telemetry.graph_event(true);
+        self.telemetry.record_ops(&c.ops);
+        for _ in 0..c.comms {
+            self.telemetry.record_comm(None);
+        }
+        Ok(true)
     }
 
     /// One speculative step: draft `k` tokens after `next` (the token the main model emits at position `st.len`) with the
@@ -151,6 +321,7 @@ impl Model {
         self.backend.upload(&self.ws.pos, 0, &tab_bytes, self.stream)?;
 
         let key = (st.id, n, q, scripted.is_some());
+        let tp = !self.peers.is_empty();
         let run = (|| -> Result<Option<Vec<u8>>> {
             let mut cache = self.graphs.spec.lock().unwrap();
             if !cache.contains_key(&key) {
@@ -175,11 +346,25 @@ impl Model {
                 }
             }
             let c = cache.get(&key).expect("captured above");
-            self.backend.graph_replay(&c.graph, self.stream)?;
+            if tp {
+                // the peers replay their share in lockstep; a peer without a recording (its capture failed) means nobody replays
+                if !self.spec_replay_tp(st, c, key, &tab_bytes)? {
+                    let n = self.graphs.spec_fail.fetch_add(1, Ordering::Relaxed) + 1;
+                    if n >= SPEC_CAPTURE_FAILURES_MAX {
+                        eprintln!("speculative steps run eagerly from here on (a tensor-parallel peer cannot record them)");
+                    }
+                    return Ok(None);
+                }
+            } else {
+                self.backend.graph_replay(&c.graph, self.stream)?;
+            }
             self.graphs.spec_replays.fetch_add(1, Ordering::Relaxed);
             self.telemetry.graph_event(true);
             for &op in &c.ops {
                 self.telemetry.record_op(op, None);
+            }
+            for _ in 0..c.comms {
+                self.telemetry.record_comm(None);
             }
             drop(cache);
             // outputs [argmax of each row | the pass's input ids]
@@ -217,6 +402,18 @@ impl Model {
         if recurrent {
             st.spec_rows.saved = q - 1;
         }
+        // the peers' host mirrors (lane gt2): what their eager draft and verify passes leave (`mtp_draft_tp`, `verify_peer`)
+        for (pm, p) in self.peers.iter().zip(st.peers.iter_mut()) {
+            if let Some(m) = p.st.mtp.as_mut() {
+                m.kv.commit(&catch);
+                m.pending_rows = q;
+            }
+            p.st.commit_verify(&vids);
+            if p.st.has_recurrent() {
+                p.st.spec_rows.saved = q - 1;
+            }
+            pm.dflash_after_forward(&mut p.st, q, false)?;
+        }
         self.telemetry.step();
         // `--spec auto` (lane ag1): the replayed verify pass left the DFlash taps' features in the staging buffers (the
         // recording holds the tap launches), so the draft's context takes the rows as after an eager verify pass. Nothing
@@ -232,6 +429,11 @@ impl Model {
         let h = self.dims.hidden;
         let q = k + 1;
         let ws = &self.ws;
+        // tensor parallelism (lane gt2): the ids go to the peers through the in-graph gather; with a sharded head after every
+        // draft a chained pass embeds, else once (the verify ids)
+        let tp = !self.peers.is_empty();
+        let split_tp = tp && !head.whole();
+        let g = q.next_multiple_of(4);
         let ids_at = |i: usize, len: usize| {
             let mut v = self.view(&ws.ids, DType::I32, &[len]);
             v.offset = 4 * i;
@@ -266,6 +468,10 @@ impl Model {
             self.backend.copy(&head.chain, 0, &out.buf, out.offset + (n - 1) * m.row_bytes, m.row_bytes, self.stream)?;
             // chain: drafts 2..k, each head row reading the previous draft (ws.ids[i]) and the previous head output
             for i in 1..k {
+                if split_tp {
+                    // the peers' shares of the chained pass embed this draft too (lane gt2)
+                    self.spec_gather_ids(g)?;
+                }
                 let hid = TensorRef::new(head.chain.clone(), self.act, &[1, h]);
                 let out = self.mtp_layer_at(
                     head,
@@ -282,6 +488,10 @@ impl Model {
             }
             if scripted {
                 self.backend.copy(&ws.ids, 4, &ws.pos, 4 * SCRIPT_IDS, 4 * k, self.stream)?;
+            }
+            if tp {
+                // the verify ids to the peers (lane gt2)
+                self.spec_gather_ids(g)?;
             }
             // verify: [next, d_1 .. d_k] from ws.ids, every op on its row-exact kernel
             self.exact_rows.store(true, Ordering::Relaxed);
@@ -300,8 +510,59 @@ impl Model {
             Ok(())
         });
         let ops = self.capture_ops.lock().unwrap().take().unwrap_or_default();
-        self.capture_comms.swap(0, Ordering::Relaxed);
-        Ok(Captured { state_id: st.id, graph: graph?, ops, comms: 0 })
+        let comms = self.capture_comms.swap(0, Ordering::Relaxed) as usize;
+        Ok(Captured { state_id: st.id, graph: graph?, ops, comms })
+    }
+
+    /// Rank 0's replay of the captured step with in-process peers (lane gt2): each peer, on its own thread, prepares and
+    /// records its share if missing ([`Model::spec_step_peer`]); once every rank has passed the gate, all replay (or, when a
+    /// peer could not record, none: nothing ran anywhere and the step runs eagerly, `Ok(false)`). A failure after the gate
+    /// aborts the group, as an eager pass's does.
+    fn spec_replay_tp(&self, st: &mut SequenceState, c: &Captured, key: (u64, usize, usize, bool), tab: &[u8]) -> Result<bool> {
+        if st.peers.len() != self.peers.len() {
+            return Err(Error::invalid("this sequence state does not belong to a tensor-parallel model (use Model::new_state)"));
+        }
+        let comm0 = self.tp.comm.clone().ok_or_else(|| Error::invalid("tensor-parallel model without a communicator"))?;
+        let gate = std::sync::Barrier::new(self.peers.len() + 1);
+        let ok = std::sync::atomic::AtomicBool::new(true);
+        let mut peers = std::mem::take(&mut st.peers);
+        let out = std::thread::scope(|sc| {
+            let handles: Vec<_> = self
+                .peers
+                .iter()
+                .zip(peers.iter_mut())
+                .map(|(m, ps)| {
+                    let (gate, ok) = (&gate, &ok);
+                    sc.spawn(move || {
+                        let r = m.spec_step_peer(&mut ps.st, key, tab, gate, ok);
+                        if r.is_err() {
+                            if let Some(c) = &m.tp.comm {
+                                c.abort();
+                            }
+                        }
+                        r
+                    })
+                })
+                .collect();
+            gate.wait();
+            let mut res = if ok.load(Ordering::Relaxed) { self.backend.graph_replay(&c.graph, self.stream).map(|_| true) } else { Ok(false) };
+            if res.is_err() {
+                comm0.abort();
+            }
+            for h in handles {
+                let e = match h.join() {
+                    Ok(Ok(_)) => continue,
+                    Ok(Err(e)) => e,
+                    Err(_) => Error::backend("a tensor-parallel rank panicked"),
+                };
+                if res.is_ok() {
+                    res = Err(e);
+                }
+            }
+            res
+        });
+        st.peers = peers;
+        self.note_tp_pass(out)
     }
 
     /// Whether [`Model::forward_verify`] can run its `q` rows on `st` as the replay of a captured verify-only pass: graphs
@@ -404,6 +665,13 @@ impl Model {
         let hn = out.ok_or_else(|| Error::invalid("verify capture produced no output"))?;
         Ok((Captured { state_id: st.id, graph, ops, comms: 0 }, hn))
     }
+}
+
+/// `INTARSIA_SPEC_GRAPH_TP=1` (lane gt2) lets the captured step run with in-process tensor-parallel peers (default off: the
+/// step drafts and verifies eagerly at tp > 1, as before), read once.
+fn spec_graph_tp_env_on() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var("INTARSIA_SPEC_GRAPH_TP").is_ok_and(|v| v == "1"))
 }
 
 /// `INTARSIA_VERIFY_GRAPH=1` turns the captured verify-only pass on (default off: at tp=1 on HIP it gains 0.2-2% over the eager
