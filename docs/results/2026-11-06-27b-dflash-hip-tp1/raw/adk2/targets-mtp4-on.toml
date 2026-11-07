@@ -1,0 +1,4 @@
+[targets.dt1-mtp4-on]
+url = "http://tatooine:8095/v1"
+model = "qwen38-27b-mtp4-on"
+extra_body = { ignore_eos = true, min_tokens = 512 }
