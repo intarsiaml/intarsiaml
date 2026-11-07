@@ -2,9 +2,10 @@
 # Lane d2r (docs/results/2026-11-07-dense-mtp-remote-tp2.md): the Qwen3.8-27B (MXFP4 W4A16) on CUDA, `--spec mtp` at tp=2 across the two Sparks
 # (rank 0 = spark1 `generate --tp-remote`, rank 1 = spark2 `tp-worker`, NCCL over CX-7 port f1), against tp=1 on spark1. vLLM stays UP on both
 # boxes. Same `generate` method as lane c27 (scripts/c27/tp2.sh, ab.sh). Runs HERE (the Mac) as the one command of ONE fleetq job holding both:
-#   STEPS=ids   fleetq run --host spark1,spark2 --mem spark1=50,spark2=30 --load gpu --expect 15 --label "..." -- scripts/d2r/xg.sh
-#   STEPS=speed fleetq run --host spark1,spark2 --mem spark1=50,spark2=30 --quiet gpu,cpu --expect 40 --label "..." -- scripts/d2r/xg.sh
-# Steps: ids    256 greedy ids, prompts IDSP (short-0 4k-1; scripts/cmx/ids-prompts), tp2 `--spec off` vs tp2 `--spec mtp --spec-k 2` (rule a)
+#   STEPS="ids speed" fleetq run --host spark1,spark2 --mem spark1=50,spark2=30 --quiet gpu,cpu --expect 75 --label "..." -- scripts/d2r/xg.sh
+# (speed skips itself when an ids comparison DIFFERS)
+# Steps: ids    256 greedy ids, prompts IDSP (short-0 4k-1; scripts/cmx/ids-prompts), tp2 `--spec off` vs tp2 `--spec mtp --spec-k 2` (rule a); tp1 MTP k2
+#               recorded for its acceptance (the ids cannot see a bad head: every emitted token is a verify row's argmax)
 #        speed  decode tok/s at SIZES (1k 4k 16k), ARMS (tp1m tp2off tp2m), ROUNDS (2; even rounds reversed = ABAB), NTOK (192) tokens
 # A memory watcher on each box kills this lane's processes if MemAvailable drops below 10 GB. Every process started here is killed on exit.
 set -uo pipefail
@@ -51,19 +52,19 @@ visit() {
   fi
   r spark1 "env $NCCLENV timeout 900 $BIN generate $gen --chat --no-think --temperature 0 --ignore-eos --show-ids -p \"\$(cat $pf)\" --max-tokens $nt < /dev/null > $XO/$tag.out 2> $XO/$tag.err; echo rc=\$? > $XO/$tag.rc; grep -a '^ids:' $XO/$tag.err | head -1 > $XO/$tag.ids"
   [[ $tp == 2 ]] && r spark2 "for i in \$(seq 1 30); do pgrep -f '[t]p-worker --listen $WIP:$WPORT' >/dev/null || exit 0; sleep 1; done; pkill -TERM -f '[t]p-worker --listen $WIP:$WPORT'; sleep 3; pkill -KILL -f '[t]p-worker --listen $WIP:$WPORT'; true"
-  log "$tag: $(r spark1 "cat $XO/$tag.rc; grep -a 'finish=' $XO/$tag.err | tail -1 | grep -oE 'prefill [0-9]+ ms \([0-9.]+ tok/s\) \| decode [0-9]+ ms \([0-9.]+ tok/s\)'; grep -a 'spec:' $XO/$tag.err | tail -1 | cut -c1-160; grep -a -m2 -iE 'unsupported|^error|panicked' $XO/$tag.err | cut -c1-200; echo avail \$(free -g | awk '/Mem:/ {print \$7}')" | tr '\n' '|')"
+  log "$tag: $(r spark1 "cat $XO/$tag.rc; grep -a 'finish=' $XO/$tag.err | tail -1 | grep -oE 'prefill [0-9]+ ms \([0-9.]+ tok/s\) \| decode [0-9]+ ms \([0-9.]+ tok/s\)'; grep -a 'spec:' $XO/$tag.err | tail -1 | cut -c1-160; grep -a -m2 -iE 'unsupported|^error|panicked' $XO/$tag.err | cut -c1-200; echo avail \$(free -g | awk '/Mem:/ {print \$7}')" | tr '\n' '|') worker: $([[ $tp == 2 ]] && r spark2 "grep -a -E 'decode graph|serving' $XO/worker-$tag.log | tail -2 | cut -c1-140 | tr '\n' '|'")"
 }
 if want ids; then
   for p in ${IDSP:-short-0 4k-1}; do
     ms=4096; [[ $p == 4k* ]] && ms=8192
     pf=$IDP/$p.txt
-    for a in tp2off tp2m; do visit ids-$p-$a $a $pf $ms 256; done
+    for a in tp1m tp2off tp2m; do visit ids-$p-$a $a $pf $ms 256; done
     h0=$(r spark1 "cut -d: -f2- $XO/ids-$p-tp2off.ids | md5sum | cut -c1-12"); h1=$(r spark1 "cut -d: -f2- $XO/ids-$p-tp2m.ids | md5sum | cut -c1-12")
     n1=$(r spark1 "wc -c < $XO/ids-$p-tp2m.ids")
     if [[ $h0 == "$h1" && ${n1:-0} -gt 100 ]]; then log "IDS $p: tp2m == tp2off ($n1 B, md5 $h0)"; else log "IDS $p: tp2m DIFFERS from tp2off or empty (off $h0, mtp $h1, $n1 B)"; fi
   done
 fi
-if want speed; then
+if want speed && grep -q "IDS .*DIFFERS" "$L/steps.log"; then log "speed skipped: rule (a) failed"; elif want speed; then
   ARMS=${ARMS:-tp1m tp2off tp2m}
   for sz in ${SIZES:-1k 4k 16k}; do
     ms=8192; [[ $sz == 16k ]] && ms=20480

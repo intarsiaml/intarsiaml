@@ -9,7 +9,7 @@ In progress (written 2026-11-07 03:36 EST). Code and CPU tests done; rules below
 ## Why it was refused
 
 `load_engine_group` refused `--spec mtp` for a `Group::Remote` whenever `dims.moe.is_none()`, and `serve_remote_rank` (the `tp-worker`)
-refused it for a dense model. The reason (git blame, lane dfh / mt2 comments in `load.rs`): the dense head of lane dfh is *sharded* like the
+refused it for a dense model. The reason (git blame: the dense refusal predates mt2's `6ba33d00f`, which narrowed it to dense heads; comments in `load.rs`): the dense head of lane dfh is *sharded* like the
 trunk (q/k/v/gate/up by rows, o/down by columns) and every rank runs it in lockstep with rank 0 (`Model::mtp_draft_tp`, threads and channels,
 the head's own all-reduces), which a rank in another process (`tp_remote`, commands over TCP) does not take part in. Nothing in the head itself
 needs in-process ranks; lane mt2 already made the *whole-on-rank-0* head work over remote ranks (rank 0 drafts alone, no collective, the
@@ -36,6 +36,10 @@ corpus prompts of lane c27 (`head -c 3300 | 14035 | 54000` of `tools/prompts/cor
 
 * **(a) ids, gates the merge.** 256 greedy ids (`scripts/cmx/ids-prompts` short-0 and 4k-1) from dev tp2 `--spec mtp --spec-k 2` must be identical to dev
   tp2 `--spec off`, both prompts, every token. Also recorded: acceptance and tokens per verify pass.
+* **(a2) head diagnostic, recorded, added 03:48 EST before any measurement (advisor review).** The ids of (a) cannot see a bad head (every emitted
+  token is a verify row's argmax), so the drafts are judged by acceptance: the same two prompts also run tp1 MTP k2 on dev. tp2 MTP acceptance
+  should be within 3 points of tp1 MTP (lane c27 #8988 reference on the same binary family: 74.5 % short-0, 70.3 % 4k-1). If it is far below, the
+  whole head is broken at tp2 on CUDA (TP fusion, the dense FFN under the whole-head switch) and the branch does not merge even with ids equal.
 * **(b) speed, decides the recommendation only (stays opt-in either way).** Decode tok/s at 4k, mean of an ABAB (round 1 tp1m, tp2off, tp2m; round 2
   reversed): tp2 MTP k2 must be **>= 1.30x tp2 `--spec off` and >= 1.20x tp1 MTP k2**. Both hold: recommend; else not. 1k and 16k are reported, not gating.
   Reference (lane c27, #336): tp2 off 23.67 / 23.27 tok/s at 1k / 4k, tp1 MTP k2 31.0 / 29.1 / 25.1 at 1k / 4k / 16k.
