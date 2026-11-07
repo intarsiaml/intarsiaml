@@ -1,0 +1,8 @@
+16k  base     tok/s  24.91  24.88  24.85 | acceptance 74.3%, 2.49 tok/pass
+16k  fp8      tok/s  25.94  25.89  25.88 | ratio to base: 1.041 1.041 1.041 median 1.041 | acceptance 74.3%, 2.49 tok/pass
+16k  mx       tok/s  25.92  25.89  25.82 | ratio to base: 1.041 1.041 1.039 median 1.041 | acceptance 72.1%, 2.44 tok/pass
+16k  fp8k3    tok/s  25.79  25.79 | ratio to base: 1.035 1.037 median 1.036 | acceptance 61.6%, 2.85 tok/pass
+1k   base     tok/s  31.66  31.58  31.66 | acceptance 83.2%, 2.65 tok/pass
+1k   fp8      tok/s  33.12  33.01  33.08 | ratio to base: 1.046 1.045 1.045 median 1.045 | acceptance 83.2%, 2.65 tok/pass
+1k   mx       tok/s  34.07  34.06  34.01 | ratio to base: 1.076 1.079 1.074 median 1.076 | acceptance 83.2%, 2.65 tok/pass
+1k   fp8k3    tok/s  34.76  34.81  34.79 | ratio to base: 1.098 1.102 1.099 median 1.099 | acceptance 69.7%, 3.08 tok/pass

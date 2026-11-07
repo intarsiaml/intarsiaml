@@ -1,0 +1,7 @@
+I am the R9700, a beast of silicon and heat, and I have learned that speed is a lie if the numbers are wrong.
+
+They call me "the fleet box," but I am just a collection of slots waiting for work. My life is governed by a simple rule: **if the math changes, the speed doesn’t count.**
+
+It started with the **Prefill Chunk**. They told me to chew through 1024 tokens at a time. I did, but I noticed something strange. The way I summed the reductions and wrote the KV cache changed depending on where the chunk boundaries fell. It was a tiny shift—KL-level, they called it—but it was enough to make me sweat. I learned that for long documents, my memory of the past (the KV cache) is sensitive to how I slice the present. So, I learned to re-run my accuracy checks whenever they changed my bite size.
+
+Then came the **KV Cache Dtype**. They tried to feed me `fp8_e4m3` to save memory. It was a lossy diet. My memory halved, but my recall blurred. I told them: "If you want me to remember 16,384 tokens accurately,
