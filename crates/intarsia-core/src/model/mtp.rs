@@ -45,6 +45,28 @@ pub(super) struct MtpHead {
     scratch: Option<MoeScratch>,
     /// Tests: replaces the head's drafts (after the head ran, so its state advances as usual), see [`Model::mtp_script`].
     pub(super) script: Mutex<Option<DraftScript>>,
+    /// Dev path (`Engine::mtp_dump`, `intarsia mtp-dump`): while `Some`, every catch-up over prompt rows runs the full layer and
+    /// records what the head saw and said ([`MtpRows`]); `None` (always, in serving) costs one uncontended mutex check per catch-up.
+    dump: Mutex<Option<MtpRows>>,
+}
+
+/// What the MTP head saw and said over the rows a dump ran ([`Model::mtp_dump_begin`]): row `p` is the position-`p` row of the
+/// head's pending queue (the main model's final-normed hidden state of position `p`, the exact `hn` row `mtp_queue` copied), paired
+/// with token `p + 1`; the head's prediction is for token `p + 2`. Hidden and output rows are bf16 bits, `[rows, hidden]` row-major.
+#[derive(Clone, Debug, Default)]
+pub struct MtpRows {
+    pub rows: usize,
+    pub hidden: usize,
+    /// `[rows, hidden]` bf16 bits of the queued hidden rows.
+    pub hidden_rows: Vec<u16>,
+    /// `[rows, hidden]` bf16 bits of the head's final normed output rows (the input of a chained draft); `Some` when asked for.
+    pub head_out: Option<Vec<u16>>,
+    /// The head's argmax over the full vocabulary, per row (the serving 1-row lm_head and argmax kernels).
+    pub top1: Vec<i64>,
+    /// The argmax over the reduced draft head's rows (`--mtp-draft-vocab`), per row; `Some` when the head drafts over a prefix.
+    pub top1_dv: Option<Vec<i64>>,
+    /// Rows of the reduced draft head (0: the head drafts over the full vocabulary).
+    pub draft_vocab: usize,
 }
 
 impl MtpHead {
@@ -266,6 +288,7 @@ pub(super) fn load_head(
         whole_rows,
         scratch,
         script: Mutex::new(None),
+        dump: Mutex::new(None),
     })
 }
 
@@ -498,19 +521,25 @@ impl Model {
                 return Err(Error::invalid(format!("MTP catch-up of {n} rows has {} tokens", ids.len())));
             }
             let chunk = head.whole_rows.unwrap_or(self.ws.max_tokens);
+            let dumping = next.is_none() && head.dump.lock().unwrap().is_some();
             let mut done = 0;
             let mut tok = 0;
             while done < n {
                 let c = chunk.min(n - done);
                 let hid = TensorRef::new(m.pending.clone(), self.act, &[m.cap_rows, self.dims.hidden]).rows(done, c);
                 // only the piece that reaches the last queued row of a drafting catch-up (`next` given) has its output read
-                if next.is_none() || done + c < n {
+                // (a dump, `Model::mtp_dump_begin`, reads every row's: it runs the full layer over the same pieces)
+                if !dumping && (next.is_none() || done + c < n) {
                     self.mtp_layer_kv_only(head, &m.kv, &ids[done..done + c], &hid, profile)?;
                     m.kv.commit(&ids[done..done + c]);
                     done += c;
                     continue;
                 }
+                let hid_dump = if dumping { Some(self.mtp_dump_download(&hid, c)?) } else { None };
                 let out = self.mtp_layer(head, &m.kv, &ids[done..done + c], &hid, profile)?;
+                if let Some(hd) = hid_dump {
+                    self.mtp_dump_rows(head, hd, &out, c, m.kv.len, profile)?;
+                }
                 m.kv.commit(&ids[done..done + c]);
                 done += c;
                 if done == n {
@@ -547,6 +576,79 @@ impl Model {
         })();
         st.mtp = Some(m);
         r
+    }
+
+    /// Dev path: start recording the head's rows ([`MtpRows`]) for the next prefill of a fresh sequence (`SequenceState` at length 0);
+    /// `head_out` also keeps the head's output rows. While recording, each catch-up over prompt rows runs the full layer instead of
+    /// the K / V-only shortcut (the cache is bitwise the same) and takes the head's argmax of every row. Collect with
+    /// [`Model::mtp_dump_take`]. One rank only.
+    pub fn mtp_dump_begin(&self, head_out: bool) -> Result<()> {
+        let head = self.mtp.as_ref().ok_or_else(|| Error::invalid("no MTP head"))?;
+        if self.is_tp() {
+            return Err(Error::Unsupported("the MTP dump under tensor parallelism".into()));
+        }
+        let rows = MtpRows {
+            hidden: self.dims.hidden,
+            head_out: head_out.then(Vec::new),
+            top1_dv: self.draft_head.is_some().then(Vec::new),
+            draft_vocab: self.draft_head.as_ref().map_or(0, |h| h.n),
+            ..Default::default()
+        };
+        *head.dump.lock().unwrap() = Some(rows);
+        Ok(())
+    }
+
+    /// Stop recording and return the rows ([`Model::mtp_dump_begin`]); an error without a recording.
+    pub fn mtp_dump_take(&self) -> Result<MtpRows> {
+        let head = self.mtp.as_ref().ok_or_else(|| Error::invalid("no MTP head"))?;
+        head.dump.lock().unwrap().take().ok_or_else(|| Error::invalid("no MTP dump in progress"))
+    }
+
+    /// `rows` hidden rows of `t` (activation dtype, device) as bf16 bits.
+    fn mtp_dump_download(&self, t: &TensorRef, rows: usize) -> Result<Vec<u16>> {
+        let h = self.dims.hidden;
+        let mut bytes = vec![0u8; rows * h * self.act.size_bytes()];
+        self.backend.download(&t.buf, t.offset, &mut bytes, self.stream)?;
+        if self.act == DType::Bf16 {
+            return Ok(bytes.chunks_exact(2).map(|b| u16::from_le_bytes([b[0], b[1]])).collect());
+        }
+        let v = crate::tensor::HostTensor::new(self.act, vec![rows, h], bytes)?.to_f32();
+        let b = crate::tensor::HostTensor::from_f32_as(DType::Bf16, &[rows, h], &v);
+        Ok(b.data.chunks_exact(2).map(|b| u16::from_le_bytes([b[0], b[1]])).collect())
+    }
+
+    /// Record one piece of a dumping catch-up: its `c` queued hidden rows `hid` (already read back), the head's output `out`
+    /// (`[c, H]` in `ws.n`) and, per row, the serving argmax kernels over the output row (the 1-row lm_head, and the reduced draft head
+    /// when there is one). `pos0`: the position of the piece's first row, checked against the rows recorded so far.
+    fn mtp_dump_rows(&self, head: &MtpHead, hid: Vec<u16>, out: &TensorRef, c: usize, pos0: usize, profile: bool) -> Result<()> {
+        let want_out = {
+            let g = head.dump.lock().unwrap();
+            let d = g.as_ref().ok_or_else(|| Error::invalid("MTP dump stopped mid-pass"))?;
+            if d.rows != pos0 {
+                return Err(Error::invalid(format!("MTP dump has {} rows, the head is at position {pos0} (dump a fresh sequence)", d.rows)));
+            }
+            d.head_out.is_some()
+        };
+        let head_out = if want_out { Some(self.mtp_dump_download(out, c)?) } else { None };
+        let (mut top1, mut top1_dv) = (Vec::with_capacity(c), Vec::with_capacity(c));
+        for r in 0..c {
+            top1.push(self.head_argmax(out, r, profile)? as i64);
+            if self.draft_head.is_some() {
+                top1_dv.push(self.draft_head_argmax(out, r, profile)? as i64);
+            }
+        }
+        let mut g = head.dump.lock().unwrap();
+        let d = g.as_mut().ok_or_else(|| Error::invalid("MTP dump stopped mid-pass"))?;
+        d.rows += c;
+        d.hidden_rows.extend_from_slice(&hid);
+        if let (Some(a), Some(b)) = (d.head_out.as_mut(), head_out) {
+            a.extend_from_slice(&b);
+        }
+        d.top1.extend_from_slice(&top1);
+        if let Some(a) = d.top1_dv.as_mut() {
+            a.extend_from_slice(&top1_dv);
+        }
+        Ok(())
     }
 
     /// Speculation for sampled requests on this model: `Some(v)` sets it, `None` returns to `INTARSIA_SPEC_SAMPLED`. Read when

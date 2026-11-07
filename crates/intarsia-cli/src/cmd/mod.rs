@@ -7,6 +7,7 @@ pub mod doctor;
 pub mod dsv41_cache;
 pub mod generate;
 pub mod kernels;
+pub mod mtp_dump;
 pub mod onboard;
 pub mod plan;
 pub mod qualify;

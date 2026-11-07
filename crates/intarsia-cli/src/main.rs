@@ -16,6 +16,8 @@ enum Command {
     Generate(cmd::generate::GenerateArgs),
     /// Kernel registry tools: admission tests against the cpu-ref oracle.
     Kernels(cmd::kernels::KernelsArgs),
+    /// Dump what the MTP head sees (hidden rows, tokens) and says (its argmax) over given token sequences, for offline fine-tuning.
+    MtpDump(cmd::mtp_dump::MtpDumpArgs),
     /// Serve OpenAI / Anthropic compatible APIs.
     Serve(cmd::serve::ServeArgs),
     /// Golden-logit accuracy gate.
@@ -50,6 +52,7 @@ fn main() -> Result<()> {
         Command::Generate(a) => cmd::generate::run(a),
         Command::Kernels(a) => cmd::kernels::run(a),
         Command::Onboard(a) => cmd::onboard::run(a),
+        Command::MtpDump(a) => cmd::mtp_dump::run(a),
         Command::Serve(a) => cmd::serve::run(a),
         Command::Accuracy(a) => cmd::accuracy::run(a),
         Command::RefNoise(a) => cmd::accuracy::run_ref_noise(a),

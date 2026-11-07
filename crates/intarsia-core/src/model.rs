@@ -50,7 +50,7 @@ mod dflash2;
 pub mod dflash_tree;
 pub(crate) mod mtp;
 pub use dflash::{DflashConfig, DflashLoad};
-pub use mtp::DraftScript;
+pub use mtp::{DraftScript, MtpRows};
 pub use batch::TpBatchMutant;
 use gdn_block::{ExtraWs, GdnBlock};
 use short_conv::ConvBlock;

@@ -58,6 +58,29 @@ Two of these have recipe defaults you can change permanently instead of passing 
 Only commit a recipe tuning value together with the measurement behind it (a comment citing `docs/results/...`), as
 `recipes/qwen3_5_moe.toml` does.
 
+## MTP head dump (`intarsia mtp-dump`)
+
+Dev tool for fine-tuning the checkpoint's MTP head offline (PyTorch): the engine's own inputs to the head, and the stock head's depth-1 prediction, for token sequences you give it. Single rank only (`--tp` > 1 is refused); `--spec mtp` is implied.
+
+```sh
+intarsia mtp-dump --backend <b> --model <dir> [--recipe FILE] [--mtp-draft-vocab N] [--max-seq N] \
+    --input tokens.jsonl --out dump/ [--head-out]
+```
+
+`--input` is JSON lines `{"id": "...", "tokens": [u32, ...]}` (already tokenized, prompt + response; at least 2 tokens each, ids unique and usable as file names; `--max-seq` must cover the longest). Each sequence is prefilled on a fresh sequence through the normal path with the head loaded (teacher forcing, nothing is generated), so the head catches up over every position as in serving. `<out>/<id>.safetensors` then holds, for `n` tokens (position `p` in `0..n-1`; the head pairs row `p` with token `p+1` and predicts token `p+2`, so the last position has no row):
+
+| tensor | dtype, shape | content |
+|---|---|---|
+| `tokens` | I64 `[n]` | the input tokens |
+| `hidden` | BF16 `[n-1, H]` | row `p`: the main model's final-normed hidden row the engine queued for the head at position `p` (read back from the head's pending queue, not recomputed; rounded to bf16 when the model's activation dtype is f32/f16) |
+| `head_top1` | I64 `[n-1]` | the stock head's argmax at row `p` over the full vocabulary (serving's 1-row lm_head kernels), ignoring `--mtp-draft-vocab` |
+| `head_top1_dv` | I64 `[n-1]` | argmax over the draft-vocab rows; only when the head drafts over a prefix (`--mtp-draft-vocab N`, N > 0, or the recipe's default, e.g. 65536 on the 27B recipe's HIP and CUDA) |
+| `head_out` | BF16 `[n-1, H]` | with `--head-out`: the head's final normed output at row `p` (the input of a chained draft) |
+
+Metadata: `model`, `backend`, `hidden_size`, `vocab_size`, `draft_vocab` (0 = full head), `act_dtype`, `git_rev` (`+dirty` with uncommitted tracked changes). One line per sequence (rows, ms) and a total are printed.
+
+The head's cache and rows are the serving ones: the K / V-only shortcut a prompt catch-up normally takes runs the full layer here so each row's output exists (the cache is bitwise the same), and the lm_head runs for every row (the serving catch-up does it for the last row only, so a dump is slower than a prefill). Serving is unchanged when no dump is running. Tests: `crates/intarsia-models/tests/mtp.rs` (`mtp_dump_*`, `engine_mtp_dump_*`: row p equals the engine's own `mtp_draft` at that position; the dumped hidden rows through the head alone give the same argmax), `crates/intarsia-cli/src/cmd/mtp_dump.rs` (file format).
+
 ## Environment variables
 
 Every `INTARSIA_*` name that appears in `crates/`, `kernels/`, `scripts/`, `tools/` or `.github/` has a row. A test
