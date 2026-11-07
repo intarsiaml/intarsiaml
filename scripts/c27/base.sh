@@ -10,14 +10,16 @@ CORP=$R/$T/tools/prompts/corpus_docs.txt
 chars() { case $1 in 1k) echo 3300;; 4k) echo 14035;; 16k) echo 54000;; esac; }
 gen() { # gen <size> <mode> <tag> [pre-cmd...]
   local sz=$1 mode=$2 tag=$3 spec; shift 3
-  [ $mode = plain ] && spec="--spec off" || spec="--spec mtp --spec-k 2"
+  case $mode in plain) spec="--spec off";; mtp) spec="--spec mtp --spec-k 2";; mtp3) spec="--spec mtp --spec-k 3";; esac
   head -c $(chars $sz) $CORP > $O/p-$sz.txt
   env ${ENVX:-A=1} "$@" $B generate -m $M --backend cuda --mem-budget 45 --max-seq $([ $sz = 16k ] && echo 20480 || echo 8192) $spec --chat --no-think --temperature 0 \
     --profile-every 0 --ignore-eos --show-ids -p "$(cat $O/p-$sz.txt)" --max-tokens ${NTOK:-192} < /dev/null > $O/g-$sz-$mode-$tag.out 2> $O/g-$sz-$mode-$tag.err
   echo "$sz $mode $tag: $(grep -a 'finish=' $O/g-$sz-$mode-$tag.err | tail -1 | cut -c1-200)"
 }
 echo "free GB: $(free -g | awk '/Mem:/ {print $7}')  $(date +%T)"
-for sz in ${SIZES:-1k 4k 16k}; do for mode in ${MODES:-plain mtp}; do gen $sz $mode a; free -g | awk '/Mem:/ {print "  avail " $7}'; done; done
+vg() { curl -s -m 5 http://100.120.88.104:8000/metrics | grep -a '^vllm:generation_tokens_total' | awk '{print $2}'; }
+echo "vllm gen tokens before: $(vg)"
+for sz in ${SIZES:-1k 4k 16k}; do for mode in ${MODES:-plain mtp mtp3}; do [ $sz = 16k ] && [ $mode = mtp3 ] && continue; gen $sz $mode a; free -g | awk '/Mem:/ {print "  avail " $7}'; done; done
 if [ "${NSYS:-1}" = 1 ]; then
   for mode in plain mtp; do
     spec="--spec off"; [ $mode = mtp ] && spec="--spec mtp --spec-k 2"
@@ -28,4 +30,5 @@ if [ "${NSYS:-1}" = 1 ]; then
     echo "nsys $mode: $(grep -a 'finish=' $O/n-$mode.err | tail -1 | cut -c1-200)"; ls $O | grep "tr-$mode"
   done
 fi
+echo "vllm gen tokens after: $(vg)"
 echo "done $(date +%T)"
