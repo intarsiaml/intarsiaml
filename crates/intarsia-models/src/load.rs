@@ -270,19 +270,17 @@ pub fn serve_remote_rank(
     let (recipe_source, recipe, dims, _cfg) = read_model_spec(dir, opts)?;
     let weights = SchemedSource::open(dir)?;
     let prefill_chunk = recipe.resolve_prefill_chunk(opts.prefill_chunk, backend.name());
-    // `--spec mtp` (lane mt2, an MoE head whole on rank 0): this rank loads no head but runs every verify pass and rollback, with the
-    // same load options as rank 0 (the handshake fingerprint compares them)
+    // `--spec mtp` (lane mt2, an MoE head whole on rank 0; lane d2r, a dense one too): this rank loads no head but runs every verify pass
+    // and rollback, with the same load options as rank 0 (the handshake fingerprint compares them)
     let mtp = opts.spec.mode == intarsia_core::spec::SpecMode::Mtp;
     if opts.spec.enabled() && !mtp {
         return Err(Error::Unsupported(format!("--spec {:?} with a tensor-parallel rank in another process", opts.spec.mode)));
-    }
-    if (mtp || opts.load.mtp) && dims.moe.is_none() {
-        return Err(Error::Unsupported("--spec mtp with a tensor-parallel rank in another process needs an MoE MTP head".into()));
     }
     let load_opts = LoadOptions {
         prefill_chunk: prefill_chunk.value,
         mtp: opts.load.mtp || mtp,
         mtp_k: if mtp { opts.spec.k } else { opts.load.mtp_k },
+        mtp_whole: true,
         ..opts.load.clone()
     };
     let group_comm = comm.clone();
@@ -482,11 +480,11 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         Group::Local(b, _) => b.clone(),
         Group::Remote { backend, .. } => vec![backend.clone()],
     };
-    // `--spec mtp` under tensor parallelism (lane dfh): a dense head on in-process ranks only. Every rank loads its shard of the head and
+    // `--spec mtp` under tensor parallelism (lane dfh): a dense head on in-process ranks (with a rank in another process it runs whole on rank 0, lane d2r). Every rank loads its shard of the head and
     // runs it in lockstep with rank 0, which drafts (from its share of a vocab-parallel head, or a whole copy) and verifies across the
     // group; a rank in another process is not driven through the drafting passes, so that group is refused before any weight is read.
-    // An MoE head (lane mt2, opt-in) runs whole on rank 0, so a remote rank only runs the verify passes and rollbacks: allowed below,
-    // once the dims are read.
+    // An MoE head (lane mt2, opt-in), and a dense one with a rank in another process (lane d2r, opt-in), runs whole on rank 0, so a
+    // remote rank only runs the verify passes and rollbacks (`LoadOptions::mtp_whole`).
     if matches!(group, Group::Remote { .. }) && opts.spec.mode == intarsia_core::spec::SpecMode::Auto {
         return Err(Error::Unsupported("--spec auto with a tensor-parallel rank in another process (--tp N on one host)".into()));
     }
@@ -496,13 +494,6 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         return Err(Error::invalid("--spec-k 0: a draft length is 1 or more (--spec off turns speculation off)"));
     }
     let (recipe_source, recipe, dims, cfg) = read_model_spec(dir, opts)?;
-    if matches!(group, Group::Remote { .. }) && (opts.spec.mode == intarsia_core::spec::SpecMode::Mtp || opts.load.mtp) && dims.moe.is_none() {
-        return Err(Error::Unsupported(
-            "--spec mtp with a tensor-parallel rank in another process: a dense MTP head runs on in-process ranks only (--tp N on one host); \
-             an MoE head runs whole on rank 0"
-                .into(),
-        ));
-    }
     // The recipe's tensor-parallel MTP default (lane dfh; the Qwen3.8-27B on HIP at tp > 1, user decision 2026-10-26 11:07 EDT, "turn MTP on by default at tp2 if it passes"): only
     // without --spec, on in-process ranks, at one sequence (MTP does not batch), unless INTARSIA_SPEC_DEFAULT=0.
     let defaulted;
@@ -615,6 +606,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         prefill_chunk: prefill_chunk.value,
         mtp: opts.load.mtp || mtp || spec_auto,
         mtp_k: if mtp { opts.spec.k } else if spec_auto { intarsia_core::spec::AUTO_MTP_K } else { opts.load.mtp_k },
+        // a rank in another process (lane d2r): a dense MTP head runs whole on rank 0 (`serve_remote_rank` sets the same)
+        mtp_whole: opts.load.mtp_whole || matches!(group, Group::Remote { .. }),
         dflash,
         ..opts.load.clone()
     };
@@ -696,7 +689,7 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             );
         } else if mtp && model.tp_world() > 1 {
             // in-process tensor parallelism (lane dfh): every rank runs the verify pass on the row-exact kernels and the drafter's
-            // passes in lockstep with rank 0 (`Model::mtp_draft`); a rank in another process was refused above
+            // passes in lockstep with rank 0 (`Model::mtp_draft`), or whole on rank 0 with a rank in another process (`LoadOptions::mtp_whole`)
             if !model.has_mtp() {
                 return Err(Error::Unsupported("--spec mtp under tensor parallelism without the MTP head".into()));
             }
