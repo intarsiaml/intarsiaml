@@ -26,11 +26,12 @@ echo "free GB: $(free -g | awk '/Mem:/ {print $7}')  vllm gen tokens before: $(v
 if [ "${IDS:-0}" = 1 ]; then
   first=${ARMS%% *}; IFS='|' read -r t0 e0 s0 <<< "$(arm $first)"
   for p in ${IDSP:-short-0 4k-1}; do
-    ms=4096; [ ${p#4k} != $p ] && ms=8192
+    ms=4096; [ ${p#4k} != $p ] && ms=8192; [ ${p#16k} != $p ] && ms=20480
+    pf=$IDP/$p.txt; [ -f $pf ] || pf=$R/src/scripts/cmtp/ids-prompts/$p.txt
     ARM_off="$t0|$e0|--spec off"
-    run ids-$p-off off $IDP/$p.txt $ms 256
+    run ids-$p-off off $pf $ms 256
     for a in $ARMS; do
-      run ids-$p-$a $a $IDP/$p.txt $ms 256
+      run ids-$p-$a $a $pf $ms 256
       cmp -s <(cut -d: -f2- $O/ids-$p-off.ids) <(cut -d: -f2- $O/ids-$p-$a.ids) && [ -s $O/ids-$p-$a.ids ] && echo "IDS $p: $a == off ($(wc -c < $O/ids-$p-$a.ids) B, md5 $(md5sum < $O/ids-$p-$a.ids | cut -c1-8))" || echo "IDS $p: $a DIFFERS from off"
     done
   done
