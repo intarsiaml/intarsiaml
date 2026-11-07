@@ -4,7 +4,7 @@ Coordinator go-ahead 2026-11-07 03:30 EST (user: 'keep building overnight'): 27B
 
 ## Status
 
-**Done, opt-in, merged on passing gates** (measured 2026-11-07 03:54 to 04:07 EST on spark1 + spark2 with both vLLMs up). Rule (a) PASS, (a2) PASS,
+**Done, opt-in; PR opened, merges on rule (a) + gates + 6 SUCCESS checks** (measured 2026-11-07 03:54 to 04:07 EST on spark1 + spark2 with both vLLMs up). Rule (a) PASS, (a2) PASS,
 rule (b) PASS (recommendation: use `--spec mtp --spec-k 2` for the 27B at tp2 across the Sparks; no default flips, the default is the user's call).
 
 ## Why it was refused
@@ -85,7 +85,7 @@ Cells: decode tok/s, mean of the two rounds (round 1 / round 2). `scripts/d2r/ta
 | tp2m / tp1m | 1.315x | **1.375x** | 1.438x | 1.33x | 1.42x |
 
 * **Rule (b), as pre-registered (4k, mean of the ABAB): PASS.** tp2m / tp2off = 1.661 (>= 1.30) and tp2m / tp1m = 1.375 (>= 1.20), both rounds individually
-  (round 1: 1.668 / 1.378; round 2: about 1.65 / 1.37). Spread between rounds under 1 % in every cell.
+  (round 1: 1.668 / 1.378; round 2: 1.653 / 1.372). Spread between rounds under 1 % in every cell.
 * Acceptance (mean of the visits): 4k and 16k tp2m = tp1m (74.5 % / 74.3 %, 2.48 / 2.49 tokens per pass). At 1k the arms generate different text (tp1 and tp2
   round differently), so tp1m 83.2 % vs tp2m 78.4 % is not a head difference (short-0 and 4k-1 above agree pass for pass).
 * tp2 MTP decodes 1.6 to 1.7x tp2 plain across context, where tp1 MTP gains about 1.9x over tp1 plain at 4k (lane c27: 14.8 plain on 4k-1): the tp2 verify pass is eager (the
