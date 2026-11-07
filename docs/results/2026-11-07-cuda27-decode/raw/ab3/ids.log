@@ -1,0 +1,12 @@
+free GB: 82  vllm gen tokens before: 0.0  01:23:57
+ids-short-0-off: prefill 444 ms (92.4 tok/s) | decode 16925 ms (15.07 tok/s) | 
+ids-short-0-base: prefill 688 ms (59.6 tok/s) | decode 8570 ms (29.75 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+IDS short-0: base == off (1433 B, md5 7179d861)
+ids-short-0-capt: prefill 598 ms (68.5 tok/s) | decode 8577 ms (29.73 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+IDS short-0: capt == off (1433 B, md5 7179d861)
+ids-4k-1-off: prefill 5035 ms (793.0 tok/s) | decode 17246 ms (14.79 tok/s) | 
+ids-4k-1-base: prefill 5022 ms (795.0 tok/s) | decode 9117 ms (27.97 tok/s) | spec: verify passes=106 proposed=212 accepted=149 (acceptance 70.3%, 2.41 tokens per pass)
+IDS 4k-1: base == off (1425 B, md5 6d3eb261)
+Terminated
+ids-4k-1-capt:  | 
+IDS 4k-1: capt DIFFERS from off

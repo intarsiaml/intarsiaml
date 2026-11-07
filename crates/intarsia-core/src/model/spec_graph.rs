@@ -243,6 +243,7 @@ impl Model {
             v.offset = 4 * i;
             v
         };
+        self.capt_tabs_begin(st, Some(&m.kv))?;
         *self.capture_ops.lock().unwrap() = Some(Vec::new());
         self.capture_comms.store(0, Ordering::Relaxed);
         let graph = self.backend.graph_capture(self.stream, &mut || {
@@ -295,6 +296,7 @@ impl Model {
             self.backend.copy(tok, Self::VERIFY_MAX_ROWS * 4, &ws.ids, 0, q * 4, self.stream)?;
             Ok(())
         });
+        self.capt_tabs_end(st.id);
         let ops = self.capture_ops.lock().unwrap().take().unwrap_or_default();
         self.capture_comms.swap(0, Ordering::Relaxed);
         Ok(Captured { state_id: st.id, graph: graph?, ops, comms: 0 })

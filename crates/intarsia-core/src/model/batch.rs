@@ -1140,6 +1140,7 @@ impl Model {
             verify_attn_rows: false,
             verify_attn_rows_captured: false,
             verify_tab: Mutex::new(Default::default()),
+            capt_tabs: Mutex::new(Default::default()),
             verify_tok: None,
             verify_tile: None,
             verify_rows: 0,

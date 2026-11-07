@@ -541,6 +541,8 @@ pub struct Model {
     /// step's device position table instead of the shared host-written one, and the layer's K / V address region must already be filled (an eager pass did).
     verify_attn_rows_captured: bool,
     verify_tab: Mutex<verify_attn::VerifyAttnTab>,
+    /// Lane c27: the K / V address tables of captured speculative steps (`INTARSIA_VERIFY_ATTN_ROWS_CAPTURED`).
+    capt_tabs: Mutex<verify_attn::CaptTabs>,
     /// `i32 [max rows]` argmax output of a verify pass; allocated by [`Model::enable_verify`] (spec on only).
     verify_tok: Option<Buffer>,
     /// Verify passes with a vocab-parallel head (every rank): the gather tile `f32 [world, VERIFY_MAX_ROWS * V / world]`,
@@ -1706,6 +1708,7 @@ impl Model {
             verify_attn_rows: std::env::var("INTARSIA_HIP_VERIFY_ATTN_ROWS").map_or(true, |v| v != "0"),
             verify_attn_rows_captured: std::env::var("INTARSIA_VERIFY_ATTN_ROWS_CAPTURED").map_or(false, |v| v == "1"),
             verify_tab: Mutex::new(Default::default()),
+            capt_tabs: Mutex::new(Default::default()),
             verify_tok: None,
             verify_tile: None,
             verify_rows: 0,
