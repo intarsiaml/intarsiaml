@@ -85,7 +85,9 @@ serve() { # serve <arm>
     mtp*) spec="--spec mtp --spec-k ${base#mtp}" ;;
     dfl*) spec="--spec dflash --spec-draft $DRAFT --spec-k ${base#dfl}" ;;
   esac
-  RECIPE="HIP_VISIBLE_DEVICES=$GPUS $BINX serve --backend hip --model 27B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq ${MAXSEQ:-20480} (tree $TREE, docker $IMG, lane dh${ENVX:+, $ENVX})"
+  # lane mb: under 255 characters (localeval stat()s the recipe as a file name first: a longer one fails every request)
+  RECIPE="$BINX serve --backend hip --model 27B $spec $TPA --max-batch 1 --profile-every 0 --mem-budget 29 --max-seq ${MAXSEQ:-20480} (gpus $GPUS, tree $TREE, $IMG${ENVX:+, ${ENVX//-e /}})"
+  (( ${#RECIPE} < 255 )) || { echo "recipe too long (${#RECIPE}): $RECIPE"; return 1; }
   $SSH "docker rm -f dt1-serve >/dev/null 2>&1; docker run -d --name dt1-serve --network host --device /dev/kfd --device /dev/dri \
     --group-add \$(stat -c %g /dev/kfd) --group-add \$(stat -c %g /dev/dri/renderD128) --group-add video --ipc host \
     --security-opt seccomp=unconfined --user \$(id -u):\$(id -g) -e HOME=/tmp -e GPU_MAX_HW_QUEUES=1 -e HIP_VISIBLE_DEVICES=$GPUS $ENVX \
