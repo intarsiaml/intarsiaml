@@ -1,0 +1,6 @@
+free GB: 81  vllm gen tokens before: 0.0  00:36:34
+ids-short-0-off: prefill 553 ms (74.1 tok/s) | decode 16903 ms (15.09 tok/s) | 
+ids-short-0-base: prefill 553 ms (74.2 tok/s) | decode 8542 ms (29.85 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+IDS short-0: base == off (1433 B, md5 7179d861)
+ids-short-0-quant: prefill 550 ms (74.6 tok/s) | decode 8169 ms (31.21 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+IDS short-0: quant == off (1433 B, md5 7179d861)

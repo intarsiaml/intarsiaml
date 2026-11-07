@@ -6,7 +6,7 @@
 //! (op, shape) has a kernel; the admission harness grades all of them against the cpu `ref_*` kernels.
 
 use crate::kernels::{
-    ROWS_MAX, mxfp4_gemv_mr_priority, mxfp4_mma_priority, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_gemm_lt_serves, fp8_pair_reg, fp8_pair_reg_yields_to_lt, moe_nvfp4_priority, moe_w4a16_priority,
+    ROWS_MAX, mxfp4_gemv_mr_priority, mxfp4_mma_priority, mxfp4_pair, fp8_gemm_f8_priority, fp8_gemm_lt_priority, fp8_cublas_priority, fp8_gemm_reg_priority, fp8_gemm_lt_serves, fp8_pair_reg, fp8_pair_reg_yields_to_lt, moe_nvfp4_priority, moe_w4a16_priority,
     nvfp4_reg, ARCH,
 };
 use intarsia_core::quant::ops::{moe_experts_decode_scratch, moe_experts_mma_scratch, moe_experts_scratch};
@@ -58,6 +58,10 @@ pub const TABLE: &[(&str, Op)] = &[
     // replaces; the model falls back to that chain when the registry has no kernel for the exact call
     ("matmul_pair_bf16_gemv", Op::MatmulPair),
     ("matmul_fp8_pair_gemv", Op::MatmulFp8Pair),
+    // two W4A16 MXFP4 projections of one activation in one launch (M = 1..=4; kernels/cuda/mxfp4.cu), bitwise two single GEMVs;
+    // `_rows` is the rows_exact twin. INTARSIA_CUDA_MXFP4_PAIR=0 leaves the model its two launches.
+    ("matmul_mxfp4_pair_gemv_mr", Op::MatmulMxfp4Pair),
+    ("matmul_mxfp4_pair_gemv_mr_rows", Op::MatmulMxfp4Pair),
     // row-exact twin (`rows_exact`, M = 1..=16): bitwise two `matmul_fp8_gemv_rows` calls, one launch where both take the
     // e4m3-staged kernel (lane gdnx: the batched-decode GDN qkv + z and attention k + v)
     ("matmul_fp8_pair_gemv_rows", Op::MatmulFp8Pair),
@@ -517,6 +521,24 @@ pub fn all() -> Vec<KernelImpl> {
                     .exact(Exactness::Deterministic)
                     .tol(TOL)
                     .priority(10),
+                // W4A16 only (the pair carries the op's single `act` input and the kernel does not read it), 1..=4 rows, both outputs one dtype
+                "matmul_mxfp4_pair_gemv_mr" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| mxfp4_pair() && s.mxfp4_w4a16 && !s.mxfp4_a8 && (1..=4).contains(&s.m) && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(10),
+                "matmul_mxfp4_pair_gemv_mr_rows" => k
+                    .acts(bf)
+                    .weights([DType::U8])
+                    .when(|s| mxfp4_pair() && s.mxfp4_w4a16 && !s.mxfp4_a8 && (1..=4).contains(&s.m) && s.k % 32 == 0)
+                    .exact(Exactness::Deterministic)
+                    .tol(TOL)
+                    .tol_f32(F32_OUT_TOL)
+                    .priority(-1)
+                    .rows_exact(),
                 "matmul_fp8_pair_gemv" => k
                     .acts(bf)
                     .weights([DType::Fp8E4m3])

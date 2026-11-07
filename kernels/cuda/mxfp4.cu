@@ -114,12 +114,8 @@ mxfp4_gemv_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, 
 // unpacked at each use. Does not read `act` (W4A16 only; the registry routes only W4A16 calls here). When N is not a multiple of R the
 // tail warp re-reads the last row for the missing ones and does not store them.
 template <typename OutT, int MT, int R>
-__global__ void __launch_bounds__(kWarps * IK_WARP)
-mxfp4_gemv_mr_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
-                     OutT* __restrict__ out, int64_t N, int K) {
-    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
-    const int64_t n0 = ((int64_t)blockIdx.x * kWarps + warp) * R;
-    if (n0 >= N) return;  // whole warp exits together
+IK_DEVI void mxfp4_mr_warp(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
+                           OutT* __restrict__ out, int64_t N, int64_t n0, int K, int lane) {
     const uint4* wr[R];
     const uint8_t* sr[R];
 #pragma unroll
@@ -177,6 +173,35 @@ mxfp4_gemv_mr_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ 
             const float t = ik_warp_sum(acc[r][m]);
             if (lane == 0 && n0 + r < N) ik_store(out + (int64_t)m * N + n0 + r, t);
         }
+}
+
+template <typename OutT, int MT, int R>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+mxfp4_gemv_mr_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w, const uint8_t* __restrict__ sc,
+                     OutT* __restrict__ out, int64_t N, int K) {
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t n0 = ((int64_t)blockIdx.x * kWarps + warp) * R;
+    if (n0 >= N) return;  // whole warp exits together
+    mxfp4_mr_warp<OutT, MT, R>(x, w, sc, out, N, n0, K, lane);
+}
+
+// Two W4A16 projections of the same activation rows in ONE launch (`Op::MatmulMxfp4Pair`: GDN qkv + z, b + a, attention k + v, FFN gate + up),
+// M = 1..4 rows. Bitwise two single launches of `mxfp4_gemv_mr_kernel` (and so of `mxfp4_gemv_kernel`): each output element is computed by the
+// same warp code (`mxfp4_mr_warp`). A warp owns R rows of ONE of the two weights: the first ceil(N0 / R) warp groups take w0, the next
+// ceil(N1 / R) take w1, so a group never straddles the two. Fewer launches: each launch pays a ramp and a tail of about one block's duration.
+template <typename OutT, int MT, int R>
+__global__ void __launch_bounds__(kWarps * IK_WARP)
+mxfp4_pair_mr_kernel(const ik_bf16* __restrict__ x, const uint8_t* __restrict__ w0, const uint8_t* __restrict__ sc0,
+                     const uint8_t* __restrict__ w1, const uint8_t* __restrict__ sc1, OutT* __restrict__ out0,
+                     OutT* __restrict__ out1, int64_t N0, int64_t N1, int K) {
+    const int warp = threadIdx.x / IK_WARP, lane = threadIdx.x % IK_WARP;
+    const int64_t g = (int64_t)blockIdx.x * kWarps + warp;
+    const int64_t g0 = (N0 + R - 1) / R, g1 = (N1 + R - 1) / R;
+    if (g >= g0 + g1) return;  // whole warp exits together
+    if (g < g0)
+        mxfp4_mr_warp<OutT, MT, R>(x, w0, sc0, out0, N0, g * R, K, lane);
+    else
+        mxfp4_mr_warp<OutT, MT, R>(x, w1, sc1, out1, N1, (g - g0) * R, K, lane);
 }
 
 int launch(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const ik_tensor* act, ik_tensor* out, void* stream) {
@@ -254,6 +279,55 @@ int launch_mr(const ik_tensor* x, const ik_tensor* w, const ik_tensor* sc, const
     return ik_launch_status();
 }
 
+template <typename OutT, int MT, int R>
+void launch_pair_t(const ik_bf16* x, const uint8_t* w0, const uint8_t* s0, const uint8_t* w1, const uint8_t* s1, OutT* o0, OutT* o1, int64_t N0,
+                   int64_t N1, int K, cudaStream_t s) {
+    const int64_t groups = (N0 + R - 1) / R + (N1 + R - 1) / R;
+    const dim3 grid((unsigned)((groups + kWarps - 1) / kWarps));
+    mxfp4_pair_mr_kernel<OutT, MT, R><<<grid, kWarps * IK_WARP, 0, s>>>(x, w0, s0, w1, s1, o0, o1, N0, N1, K);
+}
+
+template <typename OutT>
+void launch_pair_m(int M, const ik_bf16* x, const uint8_t* w0, const uint8_t* s0, const uint8_t* w1, const uint8_t* s1, OutT* o0, OutT* o1,
+                   int64_t N0, int64_t N1, int K, cudaStream_t s) {
+    switch (M) {
+        case 1: launch_pair_t<OutT, 1, 2>(x, w0, s0, w1, s1, o0, o1, N0, N1, K, s); break;
+        case 2: launch_pair_t<OutT, 2, 2>(x, w0, s0, w1, s1, o0, o1, N0, N1, K, s); break;
+        case 3: launch_pair_t<OutT, 3, 2>(x, w0, s0, w1, s1, o0, o1, N0, N1, K, s); break;
+        default: launch_pair_t<OutT, 4, 4>(x, w0, s0, w1, s1, o0, o1, N0, N1, K, s); break;
+    }
+}
+
+int launch_pair(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1, const ik_tensor* act,
+                ik_tensor* out0, ik_tensor* out1, void* stream) {
+    IK_TRY(ik_check_a(x, IK_DTYPE_BF16, 2, 16));
+    IK_TRY(ik_check_a(w0, IK_DTYPE_U8, 2, 16));
+    IK_TRY(ik_check_a(w1, IK_DTYPE_U8, 2, 16));
+    IK_TRY(ik_check_a(sc0, IK_DTYPE_U8, 2, 1));
+    IK_TRY(ik_check_a(sc1, IK_DTYPE_U8, 2, 1));
+    IK_TRY(ik_check_a(act, IK_DTYPE_F32, 1, 4));
+    if (!out0 || !out1 || out0->dtype != out1->dtype || (out0->dtype != IK_DTYPE_BF16 && out0->dtype != IK_DTYPE_F32)) return IK_ERR_DTYPE;
+    IK_TRY(ik_check(out0, out0->dtype, 2));
+    IK_TRY(ik_check(out1, out1->dtype, 2));
+    const int64_t M = x->shape[0], K = x->shape[1], N0 = w0->shape[0], N1 = w1->shape[0];
+    if (K % kG != 0 || w0->shape[1] != K / 2 || w1->shape[1] != K / 2 || sc0->shape[0] != N0 || sc0->shape[1] != K / kG || sc1->shape[0] != N1 ||
+        sc1->shape[1] != K / kG || act->shape[0] != 1 || out0->shape[0] != M || out0->shape[1] != N0 || out1->shape[0] != M || out1->shape[1] != N1 ||
+        M < 1 || M > 4)
+        return IK_ERR_SHAPE;
+    if (N0 == 0 && N1 == 0) return IK_OK;
+    if (K == 0) return IK_ERR_SHAPE;
+    if (K > 0x7fffffffLL) return IK_ERR_SHAPE;
+    cudaStream_t s = IK_STREAM(stream);
+    const ik_bf16* xp = (const ik_bf16*)x->data;
+    if (out0->dtype == IK_DTYPE_F32)
+        launch_pair_m<float>((int)M, xp, (const uint8_t*)w0->data, (const uint8_t*)sc0->data, (const uint8_t*)w1->data, (const uint8_t*)sc1->data,
+                             (float*)out0->data, (float*)out1->data, N0, N1, (int)K, s);
+    else
+        launch_pair_m<ik_bf16>((int)M, xp, (const uint8_t*)w0->data, (const uint8_t*)sc0->data, (const uint8_t*)w1->data, (const uint8_t*)sc1->data,
+                               (ik_bf16*)out0->data, (ik_bf16*)out1->data, N0, N1, (int)K, s);
+    return ik_launch_status();
+}
+
 }  // namespace
 
 extern "C" {
@@ -283,6 +357,18 @@ int ik_matmul_mxfp4_gemv_mr(const ik_tensor* x, const ik_tensor* w, const ik_ten
 int ik_matmul_mxfp4_gemv_mr_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                                  ik_tensor* out, void* stream) {
     return launch_mr(x, w, scales, act, out, stream);
+}
+
+// W4A16 pair of MXFP4 projections, M = 1..4 rows, one launch: bitwise two `ik_matmul_mxfp4_gemv` calls per element (see `mxfp4_pair_mr_kernel`). `act` is accepted
+// for the op's signature and not read (the caller routes W4A16 calls only); the `_rows` twin is the same launcher (the rows_exact registry entry).
+int ik_matmul_mxfp4_pair_gemv_mr(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1,
+                                 const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, void* stream) {
+    return launch_pair(x, w0, sc0, w1, sc1, act, out0, out1, stream);
+}
+
+int ik_matmul_mxfp4_pair_gemv_mr_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* sc0, const ik_tensor* w1, const ik_tensor* sc1,
+                                      const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, void* stream) {
+    return launch_pair(x, w0, sc0, w1, sc1, act, out0, out1, stream);
 }
 
 }  // extern "C"

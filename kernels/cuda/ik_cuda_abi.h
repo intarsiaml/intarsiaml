@@ -149,6 +149,14 @@ int ik_matmul_mxfp4_gemv_mr(const ik_tensor* x, const ik_tensor* w, const ik_ten
 int ik_matmul_mxfp4_gemv_mr_rows(const ik_tensor* x, const ik_tensor* w, const ik_tensor* scales, const ik_tensor* act,
                                  ik_tensor* out, void* stream);
 
+/* matmul_mxfp4_pair_gemv_mr / _mr_rows (kernels/cuda/mxfp4.cu): Op::MatmulMxfp4Pair, two W4A16 MXFP4 projections of the same x rows in one
+ * launch, M = 1..4 (other M: IK_ERR_SHAPE), bf16 or f32 outputs (both the same). Bitwise two ik_matmul_mxfp4_gemv calls per element;
+ * `act` is not read (the caller routes W4A16 calls only). The _rows name is the rows_exact twin. */
+int ik_matmul_mxfp4_pair_gemv_mr(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                                 const ik_tensor* scales1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, void* stream);
+int ik_matmul_mxfp4_pair_gemv_mr_rows(const ik_tensor* x, const ik_tensor* w0, const ik_tensor* scales0, const ik_tensor* w1,
+                                      const ik_tensor* scales1, const ik_tensor* act, ik_tensor* out0, ik_tensor* out1, void* stream);
+
 /* matmul_exl3_gemv: x[M,K] (bf16 / f16 / f32), trellis i16 [K/16,N/16,8*k2] (k2 = 2 * bits: 2, 4, .., 16 with any codebook,
  * 3 / 5 / 7 with mul1), suh f16 [K], svh f16 [N], codebook i32 [1] ON THE DEVICE (0 = 3inst, 1 = mcg, 2 = mul1; any other
  * value, or a codebook that does not exist at the width, fills out with NaN) -> out[M,N] (bf16 / f16 / f32) =

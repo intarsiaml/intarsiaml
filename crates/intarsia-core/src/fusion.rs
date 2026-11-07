@@ -60,6 +60,12 @@ pub const FUSIONS: &[Fusion] = &[
     },
     Fusion {
         backend: "cuda",
+        fused: Op::MatmulMxfp4Pair,
+        chain: &[Op::MatmulMxfp4, Op::MatmulMxfp4],
+        tests: &[cuda_test!("matmul_mxfp4_pair_is_bitwise_two_gemvs")],
+    },
+    Fusion {
+        backend: "cuda",
         fused: Op::MatmulNvfp4Glu,
         chain: &[Op::MatmulNvfp4, Op::MatmulNvfp4, Op::SiluGlu],
         tests: &[cuda_test!("matmul_nvfp4_glu_is_bitwise_gate_up_silu")],
