@@ -286,15 +286,6 @@ pub fn mxfp4_gemv_mr() -> bool {
     *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_MXFP4_GEMV_MR").map_or(true, |v| v != "0"))
 }
 
-/// Two W4A16 MXFP4 projections of one activation in one launch (`matmul_mxfp4_pair_gemv_mr` and its `exact_rows` twin, kernels/cuda/mxfp4.cu;
-/// `Op::MatmulMxfp4Pair`: GDN qkv + z and b + a, attention k + v, FFN gate + up), M = 1..=4: bitwise two single GEMVs, fewer launches
-/// (lane c27, docs/results/2026-11-07-cuda27-decode.md). `INTARSIA_CUDA_MXFP4_PAIR=0` leaves the model its two launches. Read once.
-pub fn mxfp4_pair() -> bool {
-    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var("INTARSIA_CUDA_MXFP4_PAIR").map_or(PAIR_DEFAULT, |v| v == "1" || (PAIR_DEFAULT && v != "0")))
-}
-const PAIR_DEFAULT: bool = false;
-
 /// Priority of `matmul_mxfp4_gemv_mr[_rows]`: `on` unless switched off, below everything then.
 pub fn mxfp4_gemv_mr_priority(on: i32) -> i32 {
     if mxfp4_gemv_mr() {
@@ -1038,8 +1029,8 @@ mod tests {
         // (`RmsNormAddMatmulFp8Pair`, `SigmoidMulMatmulFp8`, `SharedDownCombine`) are HIP-only so far: CUDA keeps the unfused ops.
         // `RopeScaled` (llama3 / yarn rope) and `AddBias` (q / k / v projection bias) are Metal and cpu so far: a model that needs
         // them fails at load with `NoKernel`, it never runs the unscaled rope.
-        // So are the phase-2 folds (`GateSplitQkNormRopeKv`, `GdnConvDelta`) and P2' (`MoeBlock`). The MXFP4 pair (`MatmulMxfp4Pair`) has CUDA
-        // kernels since lane c27 (`matmul_mxfp4_pair_gemv_mr[_rows]`, W4A16, 1..=4 rows).
+        // So are the phase-2 folds (`GateSplitQkNormRopeKv`, `GdnConvDelta`) and P2' (`MoeBlock`), and the MXFP4 k/v-style
+        // pair (`MatmulMxfp4Pair`, HIP-only so far: the model keeps two `MatmulMxfp4` launches here).
         // `DynConv` (the DFlash2 draft's conv, lane dfh) is cpu and HIP only: DFlash2 drafts are refused on CUDA at load.
         // `ShortConv` (LFM2's gated short conv, lane nab2) is cpu and Metal so far: an LFM2 model fails at load with `NoKernel` naming `short_conv`.
         // The DeepSeek-V4.1 ops (`intarsia_core::dsv41::ops::OPS`, lane 1a) without a CUDA kernel yet (dsv41.rs has the rest): the
@@ -1049,7 +1040,7 @@ mod tests {
             .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
             .copied()
             .collect();
-        const NOT_ON_CUDA: [Op; 12] = [
+        const NOT_ON_CUDA: [Op; 13] = [
             Op::ShortConv,
             Op::DynConv,
             Op::RopeScaled,
@@ -1062,6 +1053,7 @@ mod tests {
             Op::GateSplitQkNormRopeKv,
             Op::GdnConvDelta,
             Op::MoeBlock,
+            Op::MatmulMxfp4Pair,
         ];
         for op in Op::ALL {
             if !not_on_cuda.contains(&op) {
@@ -1206,8 +1198,6 @@ mod tests {
         "matmul_mxfp4_gemv_mr_rows:matmul_mxfp4",
         "matmul_mxfp4_gemv_rows:matmul_mxfp4",
         "matmul_mxfp4_mma:matmul_mxfp4",
-        "matmul_mxfp4_pair_gemv_mr:matmul_mxfp4_pair",
-        "matmul_mxfp4_pair_gemv_mr_rows:matmul_mxfp4_pair",
         "matmul_nvfp4_gemm:matmul_nvfp4",
         "matmul_nvfp4_gemm_reg:matmul_nvfp4",
         "matmul_nvfp4_gemv:matmul_nvfp4",

@@ -22,10 +22,9 @@ use intarsia_backend_cpu::CpuBackend;
 use intarsia_core::backend::Backend;
 use intarsia_core::exec::{run_host, HostCall, OutSpec};
 use intarsia_core::quant::cases::{
-    gated_rmsnorm_case, gated_rmsnorm_matmul_fp8_case, matmul_fp8_pair_case, matmul_mxfp4_pair_case, matmul_nvfp4_glu_case, matmul_pair_case,
+    gated_rmsnorm_case, gated_rmsnorm_matmul_fp8_case, matmul_fp8_pair_case, matmul_nvfp4_glu_case, matmul_pair_case,
     rmsnorm_add_matmul_pair_case,
 };
-use intarsia_core::quant::Mxfp4Act;
 use intarsia_core::quant::fp8::scales_tensor;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::{DType, HostTensor, Op, OpAttrs};
@@ -155,50 +154,6 @@ fn matmul_fp8_pair_is_bitwise_two_gemvs() {
                 bits_eq(&label, &format!("output {j}"), &got[j], &want[0]);
             }
             near_reference(Op::MatmulFp8Pair, &hc, &got, 1e-3, &label);
-        }
-    }
-}
-
-/// Lane c27: `matmul_mxfp4_pair_gemv_mr[_rows]` (W4A16, M = 1..=4) is bitwise two `matmul_mxfp4_gemv` calls per element, for widths that are not
-/// a multiple of the rows a warp owns (R = 2, or 4 at M = 4), a second segment shorter than a block, different weights per segment (random
-/// scales), K past the 32-element group window, bf16 and f32 outputs, and the `_rows` twin (the verify pass's name for the same launcher).
-#[test]
-fn matmul_mxfp4_pair_is_bitwise_two_gemvs() {
-    let Some(cuda) = device("matmul_mxfp4_pair_is_bitwise_two_gemvs") else { return };
-    let mut rng = SplitMix64::new(64);
-    // (n0, n1, k): GDN qkv + z (scaled), b + a (48 + 48), attention k + v, gate + up, odd and tiny widths, a long K
-    for (n0, n1, k) in [
-        (2560usize, 1536usize, 512usize),
-        (48, 48, 1280),
-        (256, 256, 640),
-        (1024, 1024, 5120),
-        (130, 7, 160),
-        (17, 33, 96),
-        (1, 1, 32),
-        (3, 5, 64),
-        (64, 48, 64),
-        (9, 4097, 96),
-        (4097, 9, 96),
-    ] {
-        for m in 1..=4usize {
-            for odt in [DType::Bf16, DType::F32] {
-                let mut hc = matmul_mxfp4_pair_case(&mut rng, m, n0, n1, k, Mxfp4Act::None, DType::Bf16, odt);
-                hc.attrs.mxfp4_w4a16 = true;
-                let label = format!("mxfp4 pair m={m} n0={n0} n1={n1} k={k} out={odt:?}");
-                let got = run_host(&*cuda, "matmul_mxfp4_pair_gemv_mr", &hc).unwrap();
-                let got_rows = run_host(&*cuda, "matmul_mxfp4_pair_gemv_mr_rows", &hc).unwrap();
-                for (j, w, sc) in [(0usize, 1usize, 2usize), (1, 3, 4)] {
-                    let one = call(
-                        Op::MatmulMxfp4,
-                        vec![hc.inputs[0].clone(), hc.inputs[w].clone(), hc.inputs[sc].clone(), hc.inputs[5].clone()],
-                        vec![hc.outputs[j].clone()],
-                        OpAttrs { mxfp4_w4a16: true, ..OpAttrs::default() },
-                    );
-                    let want = run_host(&*cuda, "matmul_mxfp4_gemv", &one).unwrap();
-                    bits_eq(&label, &format!("output {j}"), &got[j], &want[0]);
-                    bits_eq(&label, &format!("rows twin, output {j}"), &got_rows[j], &want[0]);
-                }
-            }
         }
     }
 }
