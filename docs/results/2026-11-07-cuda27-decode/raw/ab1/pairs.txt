@@ -1,0 +1,4 @@
+1k   base     tok/s  31.76  31.77  31.75 | acceptance 83.2%, 2.65 tok/pass
+1k   quant    tok/s  33.15  33.18  33.21 | ratio to base: 1.044 1.044 1.046 median 1.044 | acceptance 83.2%, 2.65 tok/pass
+4k   base     tok/s  28.93  28.92  28.92 | acceptance 74.5%, 2.48 tok/pass
+4k   quant    tok/s  30.15  30.09  30.13 | ratio to base: 1.042 1.040 1.042 median 1.042 | acceptance 74.5%, 2.48 tok/pass

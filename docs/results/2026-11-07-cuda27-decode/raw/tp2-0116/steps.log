@@ -1,0 +1,21 @@
+spark1 free=83GB
+spark2 free=75GB
+01:16:45 tp2 off 1k
+rc=0
+finish=length prompt=1006 (cached 0) completion=192 | prefill 1416 ms (710.4 tok/s) | decode 8070 ms (23.67 tok/s)
+avail 83
+01:17:19 tp2 off 4k
+rc=0
+finish=length prompt=4210 (cached 0) completion=192 | prefill 3978 ms (1058.4 tok/s) | decode 8209 ms (23.27 tok/s)
+avail 83
+01:17:44 tp2 mtp 1k
+rc=1
+Error: loading /home/nvidia/intarsia-c27/models/Qwen3.8-27B-Quark-AWQ-MXFP4 with tp=2 (rank 1 at 10.100.152.3:29556)
+    unsupported: --spec mtp with a tensor-parallel rank in another process: the MTP drafter runs on in-process ranks only (--tp N on one host)
+avail 83
+01:17:53 tp2 mtp 4k
+rc=1
+Error: loading /home/nvidia/intarsia-c27/models/Qwen3.8-27B-Quark-AWQ-MXFP4 with tp=2 (rank 1 at 10.100.152.3:29556)
+    unsupported: --spec mtp with a tensor-parallel rank in another process: the MTP drafter runs on in-process ranks only (--tp N on one host)
+avail 83
+01:17:58 done

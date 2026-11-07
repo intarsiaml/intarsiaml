@@ -1,0 +1,11 @@
+free GB: 83  vllm gen tokens before: 0.0  01:09:34
+r1-4k-base: prefill 5468 ms (769.9 tok/s) | decode 6615 ms (28.87 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r1-4k-pair: prefill 5404 ms (779.1 tok/s) | decode 6744 ms (28.32 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r1-4k-both: prefill 5231 ms (804.8 tok/s) | decode 6424 ms (29.73 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r2-4k-both: prefill 5215 ms (807.3 tok/s) | decode 6434 ms (29.69 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r2-4k-pair: prefill 5261 ms (800.3 tok/s) | decode 6732 ms (28.37 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r2-4k-base: prefill 5224 ms (806.0 tok/s) | decode 6617 ms (28.87 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r3-4k-base: prefill 5221 ms (806.4 tok/s) | decode 6622 ms (28.84 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r3-4k-pair: prefill 5230 ms (805.0 tok/s) | decode 6732 ms (28.37 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+r3-4k-both: prefill 5259 ms (800.5 tok/s) | decode 6445 ms (29.64 tok/s) | spec: verify passes=77 proposed=153 accepted=114 (acceptance 74.5%, 2.48 tokens per pass)
+vllm gen tokens after: 0.0  01:16:39

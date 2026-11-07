@@ -1,0 +1,12 @@
+Welcome to the project. This document is a technical specification and status report for a new feature branch: **`lane-dc/dflash-dcoco`**.
+
+Here is a detailed breakdown of what this feature is, how it works, and where we stand, explained for a new engineer.
+
+### 1. The Big Picture: What are we building?
+
+We are adding **Speculative Decoding** support to our inference engine (Intarsia) using a specific method called **DFlash**, enhanced by a correction mechanism called **DCOCO**.
+
+*   **Goal:** Speed up text generation for the `Qwen3-8B` model.
+*   **Method:** Instead of generating one token at a time (slow), we use a smaller "draft" model to guess the next 15 tokens at once. Then, the large "target" model verifies these guesses in parallel. If they match, we accept them; if not, we roll back.
+*   **The Twist (DCOCO):** Standard DFlash drafts can be inaccurate. DCOCO adds a lightweight "corrector" module that looks at the draft's hidden states and candidates to adjust the probability of the drafted tokens *before* verification, improving the acceptance rate.
+

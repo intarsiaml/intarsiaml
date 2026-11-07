@@ -1,0 +1,16 @@
+free GB: 82  vllm gen tokens before: 0.0  01:03:10
+ids-short-0-off: prefill 417 ms (98.3 tok/s) | decode 16918 ms (15.07 tok/s) | 
+ids-short-0-base: prefill 610 ms (67.2 tok/s) | decode 8554 ms (29.81 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+IDS short-0: base == off (1433 B, md5 7179d861)
+ids-short-0-pair: prefill 832 ms (49.3 tok/s) | decode 8692 ms (29.34 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+IDS short-0: pair == off (1433 B, md5 7179d861)
+ids-short-0-both: prefill 410 ms (100.1 tok/s) | decode 8349 ms (30.54 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+IDS short-0: both == off (1433 B, md5 7179d861)
+ids-4k-1-off: prefill 5116 ms (780.5 tok/s) | decode 17233 ms (14.80 tok/s) | 
+ids-4k-1-base: prefill 5037 ms (792.8 tok/s) | decode 9106 ms (28.00 tok/s) | spec: verify passes=106 proposed=212 accepted=149 (acceptance 70.3%, 2.41 tokens per pass)
+IDS 4k-1: base == off (1425 B, md5 6d3eb261)
+ids-4k-1-pair: prefill 5003 ms (798.2 tok/s) | decode 9257 ms (27.55 tok/s) | spec: verify passes=106 proposed=212 accepted=149 (acceptance 70.3%, 2.41 tokens per pass)
+IDS 4k-1: pair == off (1425 B, md5 6d3eb261)
+ids-4k-1-both: prefill 4992 ms (799.9 tok/s) | decode 8848 ms (28.82 tok/s) | spec: verify passes=106 proposed=212 accepted=149 (acceptance 70.3%, 2.41 tokens per pass)
+IDS 4k-1: both == off (1425 B, md5 6d3eb261)
+vllm gen tokens after: 0.0  01:09:33

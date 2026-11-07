@@ -1,0 +1,6 @@
+prompt                          off                      base                       fp8                       mix                        mx
+short-0                 15.1 tok/s   29.7 tok/s 74.5% 2.49tpp  31.0 tok/s 74.5% 2.49tpp  31.3 tok/s 73.3% 2.47tpp  31.3 tok/s 72.1% 2.44tpp   ids==off: base:yes fp8:yes mix:yes mx:yes
+short-1                 15.1 tok/s   27.0 tok/s 63.1% 2.26tpp  28.5 tok/s 64.1% 2.28tpp  29.0 tok/s 63.8% 2.28tpp  28.3 tok/s 59.9% 2.20tpp   ids==off: base:yes fp8:yes mix:yes mx:yes
+mid-0                   15.1 tok/s   31.5 tok/s 81.9% 2.63tpp  32.9 tok/s 81.9% 2.63tpp  33.6 tok/s 81.9% 2.63tpp  34.6 tok/s 84.7% 2.68tpp   ids==off: base:yes fp8:yes mix:yes mx:yes
+4k-1                    14.8 tok/s   27.9 tok/s 70.3% 2.41tpp  29.2 tok/s 70.3% 2.41tpp  29.7 tok/s 71.0% 2.42tpp  30.0 tok/s 70.3% 2.41tpp   ids==off: base:yes fp8:yes mix:yes mx:yes
+16k-4                   14.1 tok/s   21.1 tok/s 55.2% 2.10tpp  21.8 tok/s 55.2% 2.10tpp  22.0 tok/s 54.3% 2.08tpp  22.2 tok/s 54.3% 2.08tpp   ids==off: base:yes fp8:yes mix:yes mx:yes
