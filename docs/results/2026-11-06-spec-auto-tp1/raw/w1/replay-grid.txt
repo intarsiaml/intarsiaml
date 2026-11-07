@@ -1,0 +1,34 @@
+switch extra ms: to MTP 1.3, to DFlash 0.0; pass ms mtp 35.4 dfl 50.2
+tok/s (sim)   ho-chat  ho-code  ho-prose  ho-recall  rcp-code  rcp-prose  rcp-recall
+mtp      63.8    79.5    58.7    69.3    77.7    59.6    69.8
+dfl      61.6    96.1    49.9    78.1   102.7    51.2    81.3
+rows: % vs per-category best of pure mtp/dfl
+                                  ho-cha ho-cod ho-pro ho-rec rcp-co rcp-pr rcp-re
+current [round 1]                   +1.0 -18.3  -4.8  -3.8  -7.5  -2.5  -5.3 | minVsMTP  -4.8 dflshare 13  8 30 38 48 23 40
+P1 priors w3 a.1 leave1.08 dwell8 [round 1]  +1.2  -7.1  -3.5  +1.4  -2.3  -1.9  -5.7 | minVsMTP  -3.5 dflshare 22 34 20 70 68 11 41
+REAL auto (logged)                  -0.5  +0.7  +0.2  -4.1  -2.2  -0.9  -3.2 | minVsMTP  -0.9 dflshare 38 77  0 56 77  4 63
+current                             +1.0 -18.3  -4.8  -3.8  -7.5  -2.5  -5.3 | minVsMTP  -4.8 dflshare 13  8 30 38 48 23 40
+P1 priors w3 a.1 leave1.08 dwell8   +1.2  -7.1  -3.5  +1.4  -2.3  -1.9  -5.7 | minVsMTP  -3.5 dflshare 22 34 20 70 68 11 41
+P1 with probe_w .5                  +1.5  -7.1  -3.2  +1.4  -3.5  -1.7  -6.3 | minVsMTP  -3.2 dflshare 25 34 22 70 63 10 35
+P1 no dwell                         +1.5  -7.1  -3.0  -1.7  -4.8  -1.9  -6.2 | minVsMTP  -3.0 dflshare 24 34 24 53 59 17 38
+P1 alpha .2                         -1.5 -11.3  -2.1  -9.2  -4.9  -2.7  -7.2 | minVsMTP  -2.7 dflshare 24 25 19 10 58 16 40
+P1 no priors                        +0.9  -8.2  -1.4  +1.3  -6.4  -1.2  -8.9 | minVsMTP  -1.4 dflshare 18 24 17 62 56  6 22
+P1 seed 4,2                         -0.7  -4.0  -4.1  -4.9  -3.2  -2.1  -6.4 | minVsMTP  -4.1 dflshare 17 36 22 38 67 12 43
+P1 pe 96                            +1.2  -7.1  -2.3  -2.3  -5.6  -1.6  -5.1 | minVsMTP  -2.3 dflshare 19 34 20 55 55 11 45
+current params: {'theta': 2.5, 'alpha_m': 0.06, 'dwell_m': 4, 'dwell_d': 16, 'hyst': 1.1, 'probe_mtp': 8, 'alpha_d': 0.1} score 0.992 mean 1.020 0.996 1.041 1.004 1.034 1.038 0.992 1.039
+categories: ho-chat ho-code ho-prose ho-recall rcp-code rcp-prose rcp-recall
+foldmin 1.002 all 1.002 mean 1.032 folds 1.003/1.002 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 8, 'hyst': 1.0, 'probe_mtp': 16, 'alpha_d': 0.1} 1.013 1.102 1.004 1.037 1.035 1.002 1.030
+foldmin 1.002 all 1.003 mean 1.031 folds 1.002/1.003 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 2, 'dwell_d': 16, 'hyst': 1.1, 'probe_mtp': 6, 'alpha_d': 0.15} 1.026 1.086 1.004 1.046 1.025 1.003 1.027
+foldmin 1.002 all 1.002 mean 1.030 folds 1.003/1.002 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 8, 'hyst': 1.2, 'probe_mtp': 8, 'alpha_d': 0.1} 1.009 1.065 1.004 1.043 1.038 1.002 1.052
+foldmin 1.002 all 1.002 mean 1.029 folds 1.003/1.002 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 8, 'hyst': 1.1, 'probe_mtp': 8, 'alpha_d': 0.15} 1.015 1.079 1.004 1.027 1.024 1.002 1.054
+foldmin 0.996 all 0.998 mean 1.033 folds 0.999/0.996 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 2, 'dwell_d': 16, 'hyst': 1.0, 'probe_mtp': 12, 'alpha_d': 0.15} 1.033 1.069 1.004 1.065 1.031 0.998 1.034
+foldmin 1.002 all 1.002 mean 1.028 folds 1.003/1.002 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 8, 'hyst': 1.1, 'probe_mtp': 8, 'alpha_d': 0.1} 1.010 1.070 1.004 1.028 1.036 1.002 1.043
+foldmin 0.999 all 1.001 mean 1.030 folds 1.003/0.999 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 2, 'dwell_d': 8, 'hyst': 1.1, 'probe_mtp': 16, 'alpha_d': 0.1} 1.026 1.062 1.004 1.052 1.034 1.001 1.031
+foldmin 0.993 all 0.994 mean 1.036 folds 0.993/0.994 {'theta': 2.4, 'alpha_m': 0.04, 'dwell_m': 2, 'dwell_d': 16, 'hyst': 1.0, 'probe_mtp': 8, 'alpha_d': 0.1} 1.024 1.063 1.004 1.103 1.033 0.994 1.030
+foldmin 0.998 all 1.002 mean 1.031 folds 0.998/1.002 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 8, 'hyst': 1.2, 'probe_mtp': 8, 'alpha_d': 0.15} 1.003 1.070 1.004 1.047 1.039 1.002 1.052
+foldmin 0.998 all 1.002 mean 1.030 folds 0.998/1.002 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 8, 'hyst': 1.2, 'probe_mtp': 12, 'alpha_d': 0.1} 1.016 1.072 1.004 1.060 1.028 1.002 1.030
+foldmin 0.997 all 0.999 mean 1.031 folds 0.997/1.000 {'theta': 2.35, 'alpha_m': 0.04, 'dwell_m': 8, 'dwell_d': 8, 'hyst': 1.0, 'probe_mtp': 8, 'alpha_d': 0.15} 1.041 1.065 1.008 1.077 1.011 0.999 1.016
+foldmin 0.999 all 1.001 mean 1.029 folds 1.003/0.999 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 2, 'dwell_d': 8, 'hyst': 1.2, 'probe_mtp': 16, 'alpha_d': 0.1} 1.022 1.049 1.004 1.037 1.032 1.001 1.059
+foldmin 0.999 all 1.001 mean 1.029 folds 1.003/0.999 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 2, 'dwell_d': 8, 'hyst': 1.2, 'probe_mtp': 16, 'alpha_d': 0.15} 1.030 1.062 1.004 1.039 1.027 1.001 1.036
+foldmin 0.993 all 0.996 mean 1.035 folds 0.993/1.000 {'theta': 2.4, 'alpha_m': 0.06, 'dwell_m': 4, 'dwell_d': 8, 'hyst': 1.0, 'probe_mtp': 6, 'alpha_d': 0.15} 1.028 1.060 1.004 1.085 1.051 0.996 1.019
+foldmin 0.998 all 0.999 mean 1.029 folds 0.998/1.000 {'theta': 2.5, 'alpha_m': 0.04, 'dwell_m': 4, 'dwell_d': 16, 'hyst': 1.2, 'probe_mtp': 16, 'alpha_d': 0.15} 1.016 1.080 1.004 1.041 1.016 0.999 1.044
