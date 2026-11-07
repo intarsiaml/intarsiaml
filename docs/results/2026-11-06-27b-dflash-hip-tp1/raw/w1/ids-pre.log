@@ -1,0 +1,14 @@
+19:48:54 ids start (arms dfl mtp2, tp1), VRAM in use 57 MiB
+19:49:10 gen-tp1-short-0-off exit 0: finish=length prompt=41 (cached 0) completion=256 | prefill 112 ms (365.6 tok/s) | decode 7077 ms (36.03 tok/s)|
+19:49:11 gen-tp1-4k-1-off exit 0: finish=length prompt=3135 (cached 0) completion=256 | prefill 1146 ms (2735.4 tok/s) | decode 7209 ms (35.37 tok/s)|
+19:49:18 gen-tp1-short-0-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 255 pos 294 drafted 1 accepted 1 emits 2|spec: mtp draft 11.393 ms, verify + rollback 30.278 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 117 ms (350.9 tok/s) | decode 3340 ms (76.34 tok/s)|spec: verify passes=66 proposed=456 accepted=187 (acceptance 41.0%, 3.83 tokens per pass)|
+19:49:18 PASS ids dfl tp1 short-0 (prompt=41)
+19:49:20 gen-tp1-4k-1-dfl exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 253 pos 3386 drafted 3 accepted 3 emits 4|spec: mtp draft 12.329 ms, verify + rollback 33.844 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 1171 ms (2677.8 tok/s) | decode 3739 ms (68.19 tok/s)|spec: verify passes=69 proposed=479 accepted=186 (acceptance 38.8%, 3.70 tokens per pass)|
+19:49:20 PASS ids dfl tp1 4k-1 (prompt=3135)
+19:49:27 gen-tp1-short-0-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 253 pos 292 drafted 2 accepted 2 emits 3|spec: mtp graph step 34.765 ms gap 0.002 ms|finish=length prompt=41 (cached 0) completion=256 | prefill 113 ms (363.8 tok/s) | decode 3605 ms (70.74 tok/s)|spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)|
+19:49:27 PASS ids mtp2 tp1 short-0 (prompt=41)
+19:49:29 gen-tp1-4k-1-mtp2 exit 0 [INTARSIA_SPEC_TRACE=1]: spec: token 254 pos 3387 drafted 2 accepted 2 emits 3|spec: mtp graph step 36.074 ms gap 0.002 ms|finish=length prompt=3135 (cached 0) completion=256 | prefill 1162 ms (2698.7 tok/s) | decode 3750 ms (68.00 tok/s)|spec: verify passes=103 proposed=206 accepted=152 (acceptance 73.8%, 2.48 tokens per pass)|
+19:49:29 PASS ids mtp2 tp1 4k-1 (prompt=3135)
+19:49:29 ids summary dfl tp1: 2 PASS, 0 FAIL
+19:49:29 ids summary mtp2 tp1: 2 PASS, 0 FAIL
+19:49:29 ids done

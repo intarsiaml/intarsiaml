@@ -1,0 +1,48 @@
+19:48:54 guard: [guard] radiance stopped 2026-11-06 19:48:53
+19:48:54 pre: ids gate (arms dfl mtp2, tp1, cap 600 s)
+19:49:29 pre: ids exit 0
+19:49:31 pre: ids summary dfl tp1: 2 PASS, 0 FAIL|ids summary mtp2 tp1: 2 PASS, 0 FAIL|
+19:49:31 probe: tests/dflash2_real.rs on card 0
+19:49:38 probe: 19:49:37 mtest probe27 exit 0 [INTARSIA_DFLASH2_TARGET=/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0 INTARSIA_DFLASH2_DRAFT=/models/tensorfold/Qwen3.8-27B-DFlash2 INTARSIA_DFLASH2_LEN=3000]: PROBE_CONFIG target=Some("/models/radiance/hf-cache/hub/models--amd--Qwen3.8-27B-Quark-AWQ-MXFP4/snapshots/5233554c5fa56afda40150556b95573c2d7d29c0") draft=Some("/models/tensorfold/Qwen3.8-27B-DFlash2|PROBE_TAP 0: rms 0.4807 finite true|PROBE_TAP 1: rms 1.0238 finite true|PROBE_TAP 2: rms 1.0748 finite true|PROBE_TAP 3: rms 1.3502 finite true|PROBE_TAP 4: rms 4.4802 finite true|PROBE_DRAFTS [220, 16, 220, 220, 220, 220, 220]|PROBE_DRAFT_PROFILE wall 14.18 ms (profiled), ops 13.27 ms, host/other 0.91 ms|PROBE_DRAFT_OP matmul                   calls   56    6.660 ms|PROBE_DRAFT_OP matmul_fp8               calls    1    3.222 ms|PROBE_DRAFT_OP attn_decode              calls   40    1.667 ms|PROBE_DRAFT_OP dyn_conv                 calls   20    0.414 ms|PROBE_DRAFT_OP rope                     calls   10    0.252 ms|PROBE_DRAFT_OP rmsnorm                  calls   11    0.249 ms||PROBE_DRAFT_PROFILE wall 14.18 ms (profiled), ops 13.27 ms, host/other 0.91 ms|PROBE_TIME decode1 28.39 ms (n 12), draft7 11.10 ms, verify8 43.35 ms|
+19:49:38 round 1 arm off: starting server
+19:51:00 round 1 arm off ho-chat: localeval exit 0 results/20261106-195000-dt1-off-dt1-w1-off-ho-chat-r1/result.json
+19:51:30 round 1 arm off ho-code: localeval exit 0 results/20261106-195100-dt1-off-dt1-w1-off-ho-code-r1/result.json
+19:52:30 round 1 arm off ho-prose: localeval exit 0 results/20261106-195131-dt1-off-dt1-w1-off-ho-prose-r1/result.json
+19:53:00 round 1 arm off ho-recall: localeval exit 0 results/20261106-195230-dt1-off-dt1-w1-off-ho-recall-r1/result.json
+19:54:57 round 1 arm off rcp-code: localeval exit 0 results/20261106-195301-dt1-off-dt1-w1-off-rcp-code-r1/result.json
+19:56:54 round 1 arm off rcp-prose: localeval exit 0 results/20261106-195458-dt1-off-dt1-w1-off-rcp-prose-r1/result.json
+19:58:51 round 1 arm off rcp-recall: localeval exit 0 results/20261106-195654-dt1-off-dt1-w1-off-rcp-recall-r1/result.json
+19:58:51 round 1 arm mtp2: starting server
+20:01:04 round 1 arm mtp2 ho-chat: localeval exit 0 results/20261106-200030-dt1-mtp2-dt1-w1-mtp2-ho-chat-r1/result.json
+20:01:19 round 1 arm mtp2 ho-code: localeval exit 0 results/20261106-200104-dt1-mtp2-dt1-w1-mtp2-ho-code-r1/result.json
+20:01:55 round 1 arm mtp2 ho-prose: localeval exit 0 results/20261106-200119-dt1-mtp2-dt1-w1-mtp2-ho-prose-r1/result.json
+20:02:12 round 1 arm mtp2 ho-recall: localeval exit 0 results/20261106-200156-dt1-mtp2-dt1-w1-mtp2-ho-recall-r1/result.json
+20:03:07 round 1 arm mtp2 rcp-code: localeval exit 0 results/20261106-200213-dt1-mtp2-dt1-w1-mtp2-rcp-code-r1/result.json
+20:04:19 round 1 arm mtp2 rcp-prose: localeval exit 0 results/20261106-200308-dt1-mtp2-dt1-w1-mtp2-rcp-prose-r1/result.json
+20:05:20 round 1 arm mtp2 rcp-recall: localeval exit 0 results/20261106-200419-dt1-mtp2-dt1-w1-mtp2-rcp-recall-r1/result.json
+20:05:20 round 1 arm dfl7: starting server
+20:06:27 round 1 arm dfl7 ho-chat: localeval exit 0 results/20261106-200552-dt1-dfl7-dt1-w1-dfl7-ho-chat-r1/result.json
+20:06:40 round 1 arm dfl7 ho-code: localeval exit 0 results/20261106-200628-dt1-dfl7-dt1-w1-dfl7-ho-code-r1/result.json
+20:07:24 round 1 arm dfl7 ho-prose: localeval exit 0 results/20261106-200641-dt1-dfl7-dt1-w1-dfl7-ho-prose-r1/result.json
+20:07:39 round 1 arm dfl7 ho-recall: localeval exit 0 results/20261106-200724-dt1-dfl7-dt1-w1-dfl7-ho-recall-r1/result.json
+20:08:22 round 1 arm dfl7 rcp-code: localeval exit 0 results/20261106-200740-dt1-dfl7-dt1-w1-dfl7-rcp-code-r1/result.json
+20:09:45 round 1 arm dfl7 rcp-prose: localeval exit 0 results/20261106-200823-dt1-dfl7-dt1-w1-dfl7-rcp-prose-r1/result.json
+20:10:40 round 1 arm dfl7 rcp-recall: localeval exit 0 results/20261106-200946-dt1-dfl7-dt1-w1-dfl7-rcp-recall-r1/result.json
+20:10:41 round 2 arm dfl7: starting server
+20:11:47 round 2 arm dfl7 ho-chat: localeval exit 0 results/20261106-201112-dt1-dfl7-dt1-w1-dfl7-ho-chat-r2/result.json
+20:12:00 round 2 arm dfl7 ho-code: localeval exit 0 results/20261106-201148-dt1-dfl7-dt1-w1-dfl7-ho-code-r2/result.json
+20:12:44 round 2 arm dfl7 ho-prose: localeval exit 0 results/20261106-201201-dt1-dfl7-dt1-w1-dfl7-ho-prose-r2/result.json
+20:12:59 round 2 arm dfl7 ho-recall: localeval exit 0 results/20261106-201244-dt1-dfl7-dt1-w1-dfl7-ho-recall-r2/result.json
+20:13:42 round 2 arm dfl7 rcp-code: localeval exit 0 results/20261106-201300-dt1-dfl7-dt1-w1-dfl7-rcp-code-r2/result.json
+20:15:05 round 2 arm dfl7 rcp-prose: localeval exit 0 results/20261106-201343-dt1-dfl7-dt1-w1-dfl7-rcp-prose-r2/result.json
+20:15:59 round 2 arm dfl7 rcp-recall: localeval exit 0 results/20261106-201506-dt1-dfl7-dt1-w1-dfl7-rcp-recall-r2/result.json
+20:16:00 round 2 arm mtp2: starting server
+20:18:12 round 2 arm mtp2 ho-chat: localeval exit 0 results/20261106-201738-dt1-mtp2-dt1-w1-mtp2-ho-chat-r2/result.json
+20:18:26 round 2 arm mtp2 ho-code: localeval exit 0 results/20261106-201812-dt1-mtp2-dt1-w1-mtp2-ho-code-r2/result.json
+20:19:04 round 2 arm mtp2 ho-prose: localeval exit 0 results/20261106-201827-dt1-mtp2-dt1-w1-mtp2-ho-prose-r2/result.json
+20:19:20 round 2 arm mtp2 ho-recall: localeval exit 0 results/20261106-201904-dt1-mtp2-dt1-w1-mtp2-ho-recall-r2/result.json
+20:20:16 round 2 arm mtp2 rcp-code: localeval exit 0 results/20261106-201921-dt1-mtp2-dt1-w1-mtp2-rcp-code-r2/result.json
+20:21:27 round 2 arm mtp2 rcp-prose: localeval exit 0 results/20261106-202016-dt1-mtp2-dt1-w1-mtp2-rcp-prose-r2/result.json
+20:22:28 round 2 arm mtp2 rcp-recall: localeval exit 0 results/20261106-202127-dt1-mtp2-dt1-w1-mtp2-rcp-recall-r2/result.json
+20:22:28 done, time left 382s
+20:22:44 guard: [guard] radiance answers 2026-11-06 20:22:43 (after 20 s)
