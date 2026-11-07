@@ -89,7 +89,7 @@ def main():
     ap.add_argument("--dumps", required=True)
     ap.add_argument("--meta", default=None)
     ap.add_argument("--all-rows", action="store_true")
-    ap.add_argument("--lm-head", default="nvfp4")
+    ap.add_argument("--lm-head", default="auto")
     ap.add_argument("--mtp-file", default=None)
     ap.add_argument("--draft-vocab", type=int, default=None)
     ap.add_argument("--max-files", type=int, default=0)

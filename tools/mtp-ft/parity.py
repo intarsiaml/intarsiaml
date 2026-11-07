@@ -22,7 +22,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--dumps", required=True)
-    ap.add_argument("--lm-head", default="nvfp4")
+    ap.add_argument("--lm-head", default="auto")
     ap.add_argument("--mtp-file", default=None, help="tuned mtp.* tensors to use instead of the checkpoint's")
     ap.add_argument("--draft-vocab", type=int, default=None, help="override the dump metadata's draft_vocab")
     ap.add_argument("--max-files", type=int, default=0)

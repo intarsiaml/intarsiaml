@@ -128,7 +128,7 @@ def main():
     ap.add_argument("--dumps", required=True)
     ap.add_argument("--meta", default=None)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--lm-head", default="nvfp4")
+    ap.add_argument("--lm-head", default="auto")
     ap.add_argument("--init", default=None, help="start from these mtp.* tensors instead of the checkpoint's")
     ap.add_argument("--lr", type=float, default=2e-5)
     ap.add_argument("--wd", type=float, default=0.0)

@@ -155,7 +155,11 @@ def load_lm_head(ck: Checkpoint, spec: str, device) -> tuple[torch.Tensor, float
         spec, fp8 = spec[: -len("+fp8")], True
     if spec == "fp8":
         spec, fp8 = "nvfp4", True  # per-tensor fp8 of the dequantised head: only a stand-in, say so in the report
-    if spec == "nvfp4":
+    if spec == "auto":  # the checkpoint's own head: NVFP4 when it carries NVFP4 scales, else its float tensor
+        spec = "nvfp4" if "lm_head.weight_scale" in ck.weight_map else "ckpt"
+    if spec == "ckpt":
+        W, s = ck.get("lm_head.weight", device).to(torch.bfloat16), 1.0
+    elif spec == "nvfp4":
         w = ck.get("lm_head.weight", device)
         scale = ck.get("lm_head.weight_scale", device)
         gs = float(ck.get("lm_head.weight_scale_2"))
@@ -167,7 +171,7 @@ def load_lm_head(ck: Checkpoint, spec: str, device) -> tuple[torch.Tensor, float
                 raise ValueError(f"{spec[5:]}: expected exactly one lm_head tensor, found {keys}")
             W, s = f.get_tensor(keys[0]).to(torch.bfloat16), 1.0
     else:
-        raise ValueError(f"--lm-head {spec!r}: nvfp4 | bf16:<file> | <either>+fp8")
+        raise ValueError(f"--lm-head {spec!r}: auto | ckpt | nvfp4 | bf16:<file> | <any>+fp8")
     if fp8:
         W = W.float() * s
         sc = W.abs().max().item() / 448.0
