@@ -1,0 +1,14 @@
+23:40:12 SAME plan 8b spec default
+23:40:12 SAME plan 8b spec off
+23:40:12 SAME plan 8b spec mtp
+23:40:17 SAME plan 27b spec default
+23:40:20 SAME plan 27b spec off
+23:40:24 SAME plan 27b spec mtp
+23:40:48 SAME plan 35b spec default
+23:40:54 SAME plan 35b spec off
+23:41:00 SAME plan 35b spec mtp
+23:41:39 kernels test base exit 0 51 kernels, 1136 cases in 38.7s
+23:42:17 kernels test lane exit 0 51 kernels, 1136 cases in 38.0s
+23:42:17 SAME kernels list
+23:42:17 SAME kernels test
+23:42:17 done
