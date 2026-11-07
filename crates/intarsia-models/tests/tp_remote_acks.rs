@@ -25,7 +25,7 @@ const REJECT_UNSUPPORTED: u8 = 1;
 const REJECT_INVALID: u8 = 2;
 const FAILED: u8 = 3;
 /// `tp_remote::PROTOCOL_VERSION` (a literal here so the test compiles against code without it).
-const PROTOCOL_VERSION: u32 = 2;
+const PROTOCOL_VERSION: u32 = 3;
 
 fn write_frame(w: &mut impl Write, tag: u8, body: &[u8]) {
     w.write_all(&((body.len() + 1) as u32).to_le_bytes()).unwrap();

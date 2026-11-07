@@ -1281,6 +1281,7 @@ impl Seq {
             && seq.cons.is_none()
             && model.verify_rows() >= 2
             && st.peers.is_empty()
+            && st.remote.is_none()
         {
             seq.spec_on = true;
             seq.spec_sampled = sampled;
