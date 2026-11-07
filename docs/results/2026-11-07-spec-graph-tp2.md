@@ -60,7 +60,7 @@ without it at 4k, and the knob arm >= 1.15x tp2 off at 4k. Arms ABAB (tp2off / t
 
 ## Results
 
-Code: branch `lane-gt2/spec-graph-tp2` (code at 6dc65a632, tree identical to the PR head for `crates/`), base origin/main 7489a48aa.
+Code: branch `lane-gt2/spec-graph-tp2`; the HIP binaries are 6dc65a632, whose `crates/*/src` equals the PR head (the head only adds `crates/intarsia-models/tests/tp_spec_graph.rs`); base origin/main 7489a48aa.
 Binaries built on tatooine in fleetq #8991 (`gt2-intarsia-base`, `gt2-intarsia`).
 
 ### Gates
@@ -87,14 +87,16 @@ The 35B row is the whole-head (MoE, lane mt2) path, which has no CPU fixture: it
 
 Acceptance per arm is the same within noise (35B: 637-654 accepted of 967-1002 drafted per arm run; 27B: 206-214 of 330-346; `raw/w2/spec-metrics.txt`).
 
-**Rule (b): FAILS.** At 4k the knob arm is 0.98x the eager-step arm (wanted >= 1.05x). It is 1.15x tp2 off (219.1 / 190.9; the
+**Rule (b): FAILS.** At 4k the knob arm is 0.98x the eager-step arm (wanted >= 1.05x). Clause 2 also fails narrowly: 1.148x tp2 off (219.1 / 190.9, wanted >= 1.15x; the
 eager step is 1.17x in this window, against 1.04-1.07x in lane mh2's window: run-to-run spread at k2 is large, single reps range
 188-230 tok/s). At 1k +1.8%, at 16k +5.1%; 27B at 4k -1.2%. Verdict: the captured step at tp2 is correct but not measurably faster
 than the eager tp2 step on HIP; **no default flip recommended**. Likely reason: at tp2 on HIP the eager step's host launch cost is
 hidden behind the two GPUs' work (the step is GPU-bound, the per-step all-reduces and the cross-rank handshake dominate), and the
-captured step adds k (sharded head) or 1 (whole head) id gathers plus a thread barrier per step. Engagement in the serve arms was
-not traced (no `INTARSIA_SPEC_TRACE` there, no capture failure in the serve logs); engagement was shown in the ids runs with the
-same binary and flags.
+captured step adds k (sharded head) or 1 (whole head) id gathers plus a thread barrier per step. **Caveat: engagement in the serve arms
+was not shown** (no `INTARSIA_SPEC_TRACE` there; the serve-log grep is too narrow to rule out a capture failure). The engine path is
+the same `Next::Draft ... spec_step_ok` branch `generate` takes (the pipelined step is Metal-only), and the ids runs with the same binary
+and flags engaged on every pass, but rule (b) stays **provisional**. Morning follow-up: one traced `tp2mg` serve arm
+(`INTARSIA_SPEC_TRACE=1`, count `mtp graph step` lines) before any further tp2 graph work.
 
 ### Radiance downtime
 
