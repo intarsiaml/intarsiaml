@@ -1869,7 +1869,7 @@ impl Model {
         *self.spec_auto.lock().unwrap()
     }
 
-    /// Replace the `--spec auto` policy parameters (tests, A/B runs); requests started afterwards use them.
+    /// Replace the `--spec auto` policy parameters (tests, A/B runs, the loader's per-target defaults); requests started afterwards use them.
     pub fn set_spec_auto_params(&self, p: crate::spec::AutoParams) {
         *self.spec_auto.lock().unwrap() = p;
     }

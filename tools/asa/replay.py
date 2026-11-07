@@ -286,6 +286,9 @@ def main():
     for n, kw in cands.items():
         table(n, evaluate(lambda kw=kw: Policy(**kw)), ref)
 
+    if "--au1" in sys.argv:
+        au1_grid(evaluate, ROUNDS_G)
+        return
     if "--c" in sys.argv:
         C = dict(theta=2.5, alpha_m=0.06, dwell_m=4, dwell_d=16, hyst=1.1, probe_mtp=8, alpha_d=0.1, probe_w=0.3)
         for n, kw in [("C", C), ("theta2.4", dict(C, theta=2.4)), ("theta2.6", dict(C, theta=2.6)), ("probe_w.15", dict(C, probe_w=0.15)),
@@ -333,6 +336,43 @@ def main():
             print(f"  heldout: minVsBest {min(tv) * 100 - 100:+.1f} meanVsBest {sum(tv) / 7 * 100 - 100:+.1f} minVsMTP {min(tm) * 100 - 100:+.1f}")
             print(f"minVsBest {mn * 100 - 100:+.1f} meanVsBest {mean * 100 - 100:+.1f} minVsMTP {mm * 100 - 100:+.1f}", {k: v for k, v in kw.items() if v not in (None, False)})
 
+
+
+FLOOR = float(os.environ.get('FLOOR', '0.994'))  # measured auto-pinned-to-MTP / real mtp2 (lane au1, window 1)
+
+
+def au1_grid(evaluate, rounds):
+    """Lane au1: grid over Policy2 with a parity split (tune on even requests, test on odd, and back). Score per fold =
+    min over categories of min(FLOOR * auto / MTP / 0.99, auto / best / 0.97): >= 1.0 means the pre-registered rule would hold in the sim
+    (MTP / best = the pure runs through the auto machinery)."""
+    refs = {par: {"mtp": evaluate(pure(0), None, par), "dfl": evaluate(pure(1), None, par)} for par in (0, 1, None)}
+
+    def score(res, ref):
+        vals = []
+        for c, _ in CATS:
+            m, d = ref["mtp"][c][0], ref["dfl"][c][0]
+            vals.append(min(FLOOR * res[c][0] / m / 0.99, res[c][0] / max(m, d) / 0.97))
+        return min(vals), sum(vals) / len(vals), vals
+
+    grid = dict(theta=(2.2, 2.3, 2.35, 2.4, 2.5), alpha_m=(0.04, 0.06, 0.1), dwell_m=(2, 4, 8), dwell_d=(8, 16, 24), hyst=(1.0, 1.1, 1.2),
+                probe_mtp=(6, 8, 12, 16), alpha_d=(0.1, 0.15))
+    keys = list(grid)
+    out = []
+    for vals in itertools.product(*(grid[k] for k in keys)):
+        kw = dict(zip(keys, vals))
+        sc = {}
+        for par in (0, 1, None):
+            sc[par] = score(evaluate(lambda kw=kw: Policy2(**kw), None, par), refs[par])
+        out.append((min(sc[0][0], sc[1][0]), sc[None][0], sc[None][1], kw, sc[None][2], sc[0][0], sc[1][0]))
+    out.sort(key=lambda r: -(r[0] + r[2]))
+    cur = dict(theta=2.5, alpha_m=0.06, dwell_m=4, dwell_d=16, hyst=1.1, probe_mtp=8, alpha_d=0.1)
+    sc = score(evaluate(lambda: Policy2(**cur), None, None), refs[None])
+    print("current params:", cur, f"score {sc[0]:.3f} mean {sc[1]:.3f}", " ".join(f"{v:.3f}" for v in sc[2]))
+    print("categories:", " ".join(c for c, _ in CATS))
+    for o in out[:15]:
+        print(f"foldmin {o[0]:.3f} all {o[1]:.3f} mean {o[2]:.3f} folds {o[5]:.3f}/{o[6]:.3f}", o[3], " ".join(f"{v:.3f}" for v in o[4]))
+    import pickle
+    pickle.dump(out, open(os.environ.get("GRID_OUT", "/dev/null"), "wb")) if os.environ.get("GRID_OUT") else None
 
 
 class Policy2:

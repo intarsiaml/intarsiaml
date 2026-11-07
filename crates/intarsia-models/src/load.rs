@@ -656,6 +656,10 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
             if model.tp_world() != 1 && !model.has_dflash() {
                 return Err(Error::Unsupported("--spec dflash under tensor parallelism without the draft on rank 0".into()));
             }
+            if spec_auto {
+                // the policy's values are per target (HIP at tp=1: lane au1); `INTARSIA_SPEC_AUTO` still wins
+                model.set_spec_auto_params(intarsia_core::spec::AutoParams::from_env_for(model.backend.name(), model.tp_world()));
+            }
             eprintln!(
                 "--spec dflash on {}: verify rows run the row-exact GEMV kernels and the attention one decode call per row (bitwise the single-row decode per row)",
                 model.backend.name()

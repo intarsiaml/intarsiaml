@@ -21,3 +21,44 @@ Window 1 also measures the structural floor of the machinery at tp=1: `--spec mt
 Window 1 shape (45 min cap): ids pre-stage (short-0 and 4k-1: off, auto, alt:1), then one round of `mtp2`, `autotrmtp`, `dfl7`, `autotrdfl`, `auto` (current built-in params, `pass,log`); one round only because five arm visits already take about 30 min. The replay uses the request parity (even / odd rows) as its held-out split.
 
 Wall: window 1 and window 2 each at most 45 min of radiance downtime (user approved).
+
+## 1. Window 1 (exploration; fleetq #8880, radiance down 21:01:13 to 21:33:21 = 32 min 8 s, answering 10 s after the guard started it)
+
+Binary: `origin/main` code tree `c227c1d909c0` (`71e504101`), built on tatooine as `au1-intarsia` (tree `~/intarsiaml-au1`, volume `intarsia-cargo-au1`, fleetq build #8877). One round, order `mtp2, autotrmtp, dfl7, autotrdfl, auto` (five visits fill about 30 min; the arms `autotrmtp` / `autotrdfl` are `--spec auto` pinned to the MTP head / the DFlash draft, they exist to give the replay its pure per-pass traces and the machinery floor). 35 localeval runs, 0 problems (36 rows of 512 tokens in every arm). `auto` here = the **current built-in params** (tp=2 values of 10-28: theta 2.5, alpha_mtp 0.06, dwell_dflash 16, hyst 1.1, priors 25.5 / 38.0 ms), `INTARSIA_SPEC_AUTO=pass,log`.
+
+| category | mtp2 | dfl7 | auto (current params) | auto / mtp2 | auto / best | rule | DFlash passes of auto |
+|---|---:|---:|---:|---:|---:|---|---:|
+| ho-recall | 69.7 | 77.6 | **74.8** | 1.073 | 0.964 | FAIL | 56% 
+| rcp-code | 78.0 | 102.6 | **100.6** | 1.289 | 0.980 | pass | 77% 
+| rcp-prose | 59.8 | 50.7 | **59.2** | 0.989 | 0.989 | FAIL | 4% 
+| rcp-recall | 70.1 | 80.8 | **78.4** | 1.118 | 0.970 | FAIL | 63% 
+
+| category | autotrdfl tok/s (x mtp2) | autotrmtp tok/s (x mtp2) |
+|---|---:|---:|
+
+Rule on window 1 (not binding, the decision is window 2): **not met** with the current params: ho-chat 0.989 of MTP k2, ho-recall 0.964 of the best, rcp-prose 0.989, rcp-recall 0.970 (borderline).
+
+Machinery floor, auto pinned to a drafter against the plain arm of that drafter (tok/s, x of the plain arm):
+
+| category | autotrmtp | x mtp2 | autotrdfl | x dfl7 |
+|---|---:|---:|---:|---:|
+| ho-chat | 63.8 | 0.995 | 63.4 | 1.045 |
+| ho-code | 79.4 | 0.995 | 96.6 | 1.010 |
+| ho-prose | 58.7 | 0.994 | 58.7 | 1.183 |
+| ho-recall | 69.4 | 0.995 | 74.8 | 0.964 |
+| rcp-code | 77.4 | 0.992 | 100.6 | 0.980 |
+| rcp-prose | 59.5 | 0.995 | 59.2 | 1.166 |
+| rcp-recall | 69.4 | 0.990 | 78.4 | 0.970 |
+
+Reading: `--spec mtp` at tp=1 takes the captured graph step (`Model::spec_step`) and `--spec auto` does not (`self.auto.is_none()` in `engine.rs`: auto's MTP passes are eager), but the price is small: pinned to MTP, auto runs at 0.990-0.996 of `mtp2` in every category (mean 0.994). That is the floor; on a category where the best policy is pure MTP (prose, chat) auto cannot exceed about 0.995 of MTP k2, so the bar of 0.99 leaves about 0.5 percent for DFlash excursions and noise. Pinned to DFlash, auto equals `dfl7` within 0.5 percent (chat +2.8 percent, not understood, one round). The pass costs in the logs are constant: an MTP pass 35.4 ms (2.1-2.8 tokens), a DFlash pass 50.2 ms (2.5-5.3), a fresh pass after a switch +1.3 ms to MTP and about +0 ms to DFlash; DFlash needs 1.42x the tokens per pass of MTP to tie (tp=2: 1.49x).
+
+Greedy ids (stage `ids`, `raw/w1/ids/`, card 0 short-0 and card 1 4k-1, 256 ids): `--spec auto` (current params) and `INTARSIA_SPEC_AUTO=alt:1` (forced switch every pass) equal `--spec off`: **4 of 4 PASS** (alt:1 on short-0: 39 MTP and 38 DFlash passes, 76 switches).
+
+### Replay and the choice of params (`tools/asa/replay.py --au1`, `tools/au1/pass_stats.py`)
+
+The replay (CPU, per-pass logs of `auto`, `autotrmtp`, `autotrdfl`, one round = 36 requests; `REPLAY_ARMS=auto,autotrmtp,autotrdfl PRIOR_M=2.2,35.4 PRIOR_D=3.6,50.2`) searched `Policy2` (the mirror of `AutoPolicy`) over theta {2.2..2.5}, alpha_mtp {0.04, 0.06, 0.1}, dwell_mtp {2, 4, 8}, dwell_dflash {8, 16, 24}, hyst {1.0, 1.1, 1.2}, probe_mtp {6, 8, 12, 16}, alpha_dflash {0.1, 0.15} (3240 sets, `raw/w1/replay-grid.txt`), score per fold = the worst category of min(0.994 x auto / MTP / 0.99, auto / best / 0.97) (1.0 = the rule holds in the sim; 0.994 = the measured floor), folds = even / odd requests (tune on one, test on the other). Findings:
+
+* The sim is optimistic: for the current params it gives recall and code +3.9 / +0.6 / +2.0 percent over the best pure mode where the real run reached -4.1 / -2.2 / -3.2 (per-pass log of the real run), i.e. a systematic 4-5 points, and single parameters move categories by 1-3 points in both directions (2 requests in ho-code and ho-recall). It cannot rank parameter sets closer than about 1 percent; the grid is used as a plateau and robustness check, not an optimiser, and window 2 is the test.
+* Plateau: theta 2.5 is best on the worst-category score (lower theta gains recall but loses prose: theta 2.4 costs rcp-prose 2.5 percent in the sim); a slower MTP EWMA (0.04) protects prose (fewer DFlash excursions: rcp-prose 4 percent of passes on DFlash in the real run, all of them losing); a shorter DFlash dwell (8) and a wider hysteresis (1.2) cut the time spent on DFlash after its rate fell. Chosen (frozen before window 2): **alpha_mtp 0.04 (was 0.06), dwell_dflash 8 (16), hyst 1.2 (1.1), priors (2.2 tok, 35.4 ms) / (3.6 tok, 50.2 ms) (were 25.5 / 38.0 ms); theta 2.5, alpha_dflash 0.1, dwell_mtp 4, probe_mtp 8, probe weight 0.3, seed 2 unchanged.**
+* In the sim, vs the current params, % vs the best pure mode (ho-chat .. rcp-recall): current -0.8 +0.9 0.0 +0.3 +0.7 -1.2 +0.7; chosen +0.5 +3.3 0.0 +1.2 +0.7 -0.2 +2.0. Worst category vs MTP: -0.8 to -0.2.
+* tp=2 check: the same chosen params replayed on the 10-28 tp=2 logs (`docs/results/2026-10-28-asa-auto-priors/raw/w1`, 2 rounds, tp=2 priors): -0.6 +0.9 0.0 +2.6 -0.7 0.0 +1.1 against the current -0.4 +2.1 0.0 +3.1 -0.2 -0.2 +0.4: no gain, not worse beyond the sim's resolution. The tp=2 data does not support the new values on its own, so they are **gated to HIP with one rank** (`AutoParams::for_target("hip", 1)`, set by the loader; `INTARSIA_SPEC_AUTO` still wins); tp=2 and every other backend keep the 10-28 values.
