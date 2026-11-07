@@ -16,12 +16,13 @@
 mod common;
 use common::ByteCodec;
 use intarsia_backend_cpu::CpuBackend;
+use intarsia_core::backend::{Backend, Buffer, DeviceInfo, GraphHandle, GraphImpl, MemKind, StreamId};
 use intarsia_core::model::{DflashConfig, DflashLoad, DraftScript, HeadMode, LoadOptions, Model};
 use intarsia_core::recipe::ModelDims;
 use intarsia_core::rng::SplitMix64;
 use intarsia_core::spec::{SpecConfig, SpecMode};
 use intarsia_core::weights::{MemWeights, WeightSource};
-use intarsia_core::{DType, Engine, EngineMeta, FinishReason, GenEvent, GenRequest, HostTensor, LocalEngine, Telemetry};
+use intarsia_core::{DType, Engine, EngineMeta, Error, FinishReason, GenEvent, GenRequest, HostTensor, KernelImpl, LocalEngine, OpCall, Result, Telemetry};
 use intarsia_models::SafeTensors;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -889,6 +890,15 @@ fn auto_engine(
     auto: Option<(usize, intarsia_core::spec::AutoParams, Option<Arc<Mutex<Vec<Vec<u32>>>>>)>,
     chunk: usize,
 ) -> (LocalEngine, Arc<Telemetry>) {
+    auto_engine_on(CpuBackend::arc(), auto, chunk)
+}
+
+/// [`auto_engine`] on `backend` (the recording backend below: `--spec auto` with the captured MTP step).
+fn auto_engine_on(
+    backend: Arc<dyn Backend>,
+    auto: Option<(usize, intarsia_core::spec::AutoParams, Option<Arc<Mutex<Vec<Vec<u32>>>>>)>,
+    chunk: usize,
+) -> (LocalEngine, Arc<Telemetry>) {
     let (recipe, dims) = target_spec();
     let w = auto_weights(21);
     let tel = Arc::new(Telemetry::new());
@@ -903,7 +913,7 @@ fn auto_engine(
         mtp_k: 2,
         ..Default::default()
     };
-    let mut m = Model::load(CpuBackend::arc(), &recipe, &dims, &w, &opts, tel.clone()).unwrap();
+    let mut m = Model::load(backend, &recipe, &dims, &w, &opts, tel.clone()).unwrap();
     let spec = match auto {
         Some((k, params, script)) => {
             m.enable_verify(k + 1).unwrap();
@@ -959,6 +969,181 @@ fn spec_auto_greedy_ids_equal_spec_off_with_forced_switches_and_the_policy() {
                 if scripted_drafts && m == "alt:2" {
                     assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "partial acceptance exercised");
                 }
+            }
+        }
+    }
+}
+
+// ------------------------------------------------------------------------------------------------------------------
+// `--spec auto` with the captured MTP step (lane ag1)
+// ------------------------------------------------------------------------------------------------------------------
+
+enum Step {
+    Launch(String, OpCall),
+    Copy(Buffer, usize, Buffer, usize, usize),
+}
+struct Recording(Vec<Step>);
+impl GraphImpl for Recording {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+/// The cpu backend with graph capture the way a GPU does it (as `tests/mtp.rs` `RecCpu`): while capturing, launches and
+/// device copies are recorded, not executed; allocation, host transfers and synchronisation are errors. It claims the HIP
+/// verify-attention contract (`verify_attn_per_row`), so `Model::spec_step_ok` holds as on HIP.
+struct RecCpu {
+    inner: Arc<dyn Backend>,
+    recording: Mutex<Option<Vec<Step>>>,
+    replays: std::sync::atomic::AtomicUsize,
+}
+impl RecCpu {
+    fn arc() -> Arc<RecCpu> {
+        Arc::new(RecCpu { inner: CpuBackend::arc(), recording: Mutex::new(None), replays: Default::default() })
+    }
+    fn forbid(&self, what: &str) -> Result<()> {
+        if self.recording.lock().unwrap().is_some() {
+            return Err(Error::backend(format!("{what} while capturing: a graph capture would reject it")));
+        }
+        Ok(())
+    }
+}
+impl Backend for RecCpu {
+    fn name(&self) -> &str {
+        self.inner.name()
+    }
+    fn info(&self) -> DeviceInfo {
+        self.inner.info()
+    }
+    fn alloc(&self, bytes: usize, kind: MemKind) -> Result<Buffer> {
+        self.forbid("alloc")?;
+        self.inner.alloc(bytes, kind)
+    }
+    fn upload(&self, dst: &Buffer, o: usize, src: &[u8], s: StreamId) -> Result<()> {
+        self.forbid("upload")?;
+        self.inner.upload(dst, o, src, s)
+    }
+    fn download(&self, src: &Buffer, o: usize, dst: &mut [u8], s: StreamId) -> Result<()> {
+        self.forbid("download")?;
+        self.inner.download(src, o, dst, s)
+    }
+    fn copy(&self, d: &Buffer, d_o: usize, s: &Buffer, s_o: usize, n: usize, st: StreamId) -> Result<()> {
+        if let Some(rec) = self.recording.lock().unwrap().as_mut() {
+            rec.push(Step::Copy(d.clone(), d_o, s.clone(), s_o, n));
+            return Ok(());
+        }
+        self.inner.copy(d, d_o, s, s_o, n, st)
+    }
+    fn kernels(&self) -> Vec<KernelImpl> {
+        self.inner.kernels()
+    }
+    fn launch(&self, kernel: &str, call: &OpCall, stream: StreamId) -> Result<()> {
+        if let Some(rec) = self.recording.lock().unwrap().as_mut() {
+            call.check()?;
+            rec.push(Step::Launch(kernel.to_string(), call.clone()));
+            return Ok(());
+        }
+        self.inner.launch(kernel, call, stream)
+    }
+    fn synchronize(&self, s: StreamId) -> Result<()> {
+        self.forbid("synchronize")?;
+        self.inner.synchronize(s)
+    }
+    fn supports_graphs(&self) -> bool {
+        true
+    }
+    fn verify_attn_per_row(&self) -> bool {
+        true
+    }
+    fn graph_capture(&self, _stream: StreamId, body: &mut dyn FnMut() -> Result<()>) -> Result<GraphHandle> {
+        *self.recording.lock().unwrap() = Some(Vec::new());
+        let ran = body();
+        let rec = self.recording.lock().unwrap().take().unwrap();
+        ran?;
+        Ok(GraphHandle::new(Recording(rec)))
+    }
+    fn graph_replay(&self, g: &GraphHandle, stream: StreamId) -> Result<()> {
+        let r = g.downcast::<Recording>().expect("our graph");
+        self.replays.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        for step in &r.0 {
+            match step {
+                Step::Launch(k, c) => self.inner.launch(k, c, stream)?,
+                Step::Copy(d, d_o, s, s_o, n) => self.inner.copy(d, *d_o, s, *s_o, *n, stream)?,
+            }
+        }
+        Ok(())
+    }
+}
+
+/// `--spec auto` on a backend that records graphs: the passes the MTP head drafts replay the captured step (the DFlash
+/// passes stay eager, the verify rows' DFlash taps reach the draft's context from the replay too), and with every
+/// switching pattern, the head's and the draft's own drafts and scripted ones that hit every acceptance pattern, `max_tokens`
+/// and follow-up requests, the greedy ids equal `--spec off`'s. The MTP-only run replays on (nearly) every pass; the
+/// switching runs replay on the MTP passes and run the first MTP pass after DFlash passes eagerly (more queued rows than the
+/// step takes).
+#[test]
+fn spec_auto_with_the_captured_mtp_step_keeps_greedy_ids_equal_spec_off() {
+    use intarsia_core::spec::AutoParams;
+    let (off, _) = auto_engine(None, 8);
+    let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+    for p in PROMPTS {
+        let o = run(&off, req(p, 140));
+        let mut s = p.to_vec();
+        s.extend(&o.ids);
+        truth.lock().unwrap().push(s);
+    }
+    for scripted_drafts in [false, true] {
+        for m in ["mtp", "dflash", "alt:1", "alt:2", "alt:5", ""] {
+            let rec = RecCpu::arc();
+            let params = AutoParams::default().with_env(Some(m));
+            let script = scripted_drafts.then(|| truth.clone());
+            let (on, tel) = auto_engine_on(rec.clone(), Some((3, params, script.clone())), 8);
+            // the same run with every pass eager (the cpu backend records no graphs): the drafts, so the acceptance counts
+            // below, are the same bit for bit only if the replayed passes leave the head's queue and the draft's context as the
+            // eager passes do (a draft context that missed the replayed rows would draft differently, or not at all)
+            let (eager, eager_tel) = auto_engine_on(CpuBackend::arc(), Some((3, params, script)), 8);
+            for p in PROMPTS {
+                let o = run(&off, req(p, 120));
+                assert_eq!(o, run(&on, req(p, 120)), "mode {m:?} scripted {scripted_drafts} prompt {p:?}");
+                assert_eq!(o, run(&eager, req(p, 120)), "eager: mode {m:?} scripted {scripted_drafts} prompt {p:?}");
+                for n in [1usize, 3, 8] {
+                    let (a, b) = (run(&off, req(p, n)), run(&on, req(p, n)));
+                    assert_eq!(a, b, "mode {m:?} max_tokens {n}");
+                    assert_eq!(a, run(&eager, req(p, n)), "eager: mode {m:?} max_tokens {n}");
+                    let mut next = p.to_vec();
+                    next.extend(&a.ids);
+                    next.push(11);
+                    let c = run(&off, req(&next, 9));
+                    assert_eq!(c, run(&on, req(&next, 9)), "mode {m:?} follow-up after max_tokens {n}");
+                    assert_eq!(c, run(&eager, req(&next, 9)), "eager: mode {m:?} follow-up after max_tokens {n}");
+                }
+            }
+            let t = tel.snapshot();
+            let te = eager_tel.snapshot();
+            if !m.is_empty() {
+                // (the scored policy times its passes, so its choices differ run to run)
+                assert_eq!(
+                    (t.spec_steps, t.spec_proposed, t.spec_accepted),
+                    (te.spec_steps, te.spec_proposed, te.spec_accepted),
+                    "mode {m:?} scripted {scripted_drafts}: replayed and eager passes draft and accept alike"
+                );
+            }
+            // the speculative step's own counter (plain decode steps replay their graph too: `rec.replays` counts both)
+            let (spec_captures, spec_replays) = on.spec_graph_counts();
+            eprintln!(
+                "auto {m:?} scripted {scripted_drafts}: {} passes, {} drafted, {} accepted, {} spec captures, {} spec replays ({} replays in all)",
+                t.spec_steps,
+                t.spec_proposed,
+                t.spec_accepted,
+                spec_captures,
+                spec_replays,
+                rec.replays.load(std::sync::atomic::Ordering::Relaxed)
+            );
+            assert!(t.spec_steps > 0, "mode {m:?}: passes ran");
+            if m == "dflash" {
+                assert_eq!(spec_replays, 0, "DFlash-only: no captured MTP step");
+            } else {
+                assert!(spec_replays > 0, "mode {m:?}: the captured MTP step ran inside --spec auto");
             }
         }
     }
