@@ -10,3 +10,20 @@ IDS 4k-1: base == off (1425 B, md5 6d3eb261)
 Terminated
 ids-4k-1-capt:  | 
 IDS 4k-1: capt DIFFERS from off
+free GB: 83  vllm gen tokens before: 0.0  01:34:25
+ids-short-0-off: prefill 441 ms (93.0 tok/s) | decode 16920 ms (15.07 tok/s) | 
+ids-short-0-base: prefill 660 ms (62.1 tok/s) | decode 8568 ms (29.76 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+IDS short-0: base == off (1433 B, md5 7179d861)
+ids-short-0-capt: prefill 645 ms (63.6 tok/s) | decode 8562 ms (29.78 tok/s) | spec: verify passes=102 proposed=204 accepted=152 (acceptance 74.5%, 2.49 tokens per pass)
+IDS short-0: capt == off (1433 B, md5 7179d861)
+ids-4k-1-off: prefill 4967 ms (803.9 tok/s) | decode 17253 ms (14.78 tok/s) | 
+ids-4k-1-base: prefill 5025 ms (794.6 tok/s) | decode 9117 ms (27.97 tok/s) | spec: verify passes=106 proposed=212 accepted=149 (acceptance 70.3%, 2.41 tokens per pass)
+IDS 4k-1: base == off (1425 B, md5 6d3eb261)
+ids-4k-1-capt: prefill 5018 ms (795.7 tok/s) | decode 9205 ms (27.70 tok/s) | spec: verify passes=106 proposed=212 accepted=149 (acceptance 70.3%, 2.41 tokens per pass)
+IDS 4k-1: capt == off (1425 B, md5 6d3eb261)
+ids-16k-4-off: prefill 19864 ms (820.1 tok/s) | decode 18211 ms (14.00 tok/s) | 
+ids-16k-4-base: prefill 19980 ms (815.3 tok/s) | decode 12030 ms (21.20 tok/s) | spec: verify passes=121 proposed=241 accepted=133 (acceptance 55.2%, 2.10 tokens per pass)
+IDS 16k-4: base == off (1411 B, md5 865bbb3c)
+ids-16k-4-capt: prefill 20152 ms (808.4 tok/s) | decode 11873 ms (21.48 tok/s) | spec: verify passes=121 proposed=241 accepted=133 (acceptance 55.2%, 2.10 tokens per pass)
+IDS 16k-4: capt == off (1411 B, md5 865bbb3c)
+vllm gen tokens after: 0.0  01:42:47

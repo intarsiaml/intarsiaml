@@ -30,20 +30,6 @@ pub(super) struct VerifyAttnTab {
     pos_key: Option<(usize, usize)>,
 }
 
-/// Lane c27: the K / V address tables of the captured speculative step (`INTARSIA_VERIFY_ATTN_ROWS_CAPTURED=1`). The shared region of [`VerifyAttnTab`]
-/// is rewritten by every eager verify pass of any sequence, so a graph that read it would replay another sequence's addresses; each capture instead owns
-/// a table buffer, written eagerly before the capture starts (one 16-row region per attention cache of the sequence and of its MTP head, found by
-/// the cache's addresses) and kept alive here for as long as the graph can replay (graphs are bound to their sequence; the oldest tables go first).
-#[derive(Default)]
-pub(super) struct CaptTabs {
-    /// The table the capture in progress reads: its buffer and the (K, V) addresses of each region.
-    cur: Option<(Buffer, Vec<(u64, u64)>)>,
-    /// Tables of finished captures, by sequence id, oldest first.
-    keep: std::collections::VecDeque<(u64, Buffer)>,
-}
-
-const CAPT_TABS_KEEP: usize = 256;
-
 /// Planted faults for the byte-equality test (`INTARSIA_HIP_VAT_MUT`): 1 = every row reads `pos0` (no `+ r`); 2 = the last row's
 /// position is one too small; 3 = the region's rows past the first hold the K address as their V address; 4 = the position vector is not rewritten
 /// when only `t` changes. Unset (every real run): none.
@@ -96,46 +82,6 @@ fn note_once(what: &str) {
 }
 
 impl Model {
-    /// Before a capture of the speculative step of `st` (and its MTP head cache `head`): write the K / V address regions the capture's row-table
-    /// attention launches will read (`INTARSIA_VERIFY_ATTN_ROWS_CAPTURED=1`; nothing otherwise). Eager host writes, so they cannot happen inside the capture.
-    pub(super) fn capt_tabs_begin(&self, st: &SequenceState, head: Option<&SequenceState>) -> Result<()> {
-        if !self.verify_attn_rows_captured || !self.backend.verify_attn_per_row() || !self.backend.supports_row_tables() {
-            return Ok(());
-        }
-        let mut addrs: Vec<(u64, u64)> = Vec::new();
-        for s in st.slots.iter().chain(head.into_iter().flat_map(|h| h.slots.iter())) {
-            if let StateSlot::AttnKv(a) = s {
-                match (self.backend.device_address(&a.k), self.backend.device_address(&a.v)) {
-                    (Some(k), Some(v)) => addrs.push((k, v)),
-                    _ => {
-                        note_once("no device address for a KV cache buffer");
-                        return Ok(());
-                    }
-                }
-            }
-        }
-        if addrs.is_empty() {
-            return Ok(());
-        }
-        let buf = self.backend.alloc(addrs.len() * REGION_BYTES, MemKind::Device)?;
-        for (i, &(k, v)) in addrs.iter().enumerate() {
-            self.backend.upload(&buf, i * REGION_BYTES, &verify_rows_tab_bytes(k, v, VERIFY_ATTN_ROWS_MAX), self.stream)?;
-        }
-        self.capt_tabs.lock().unwrap().cur = Some((buf, addrs));
-        Ok(())
-    }
-
-    /// After the capture: the table now belongs to the graph (kept for `st_id`).
-    pub(super) fn capt_tabs_end(&self, st_id: u64) {
-        let mut ct = self.capt_tabs.lock().unwrap();
-        if let Some((buf, _)) = ct.cur.take() {
-            ct.keep.push_back((st_id, buf));
-            while ct.keep.len() > CAPT_TABS_KEEP {
-                ct.keep.pop_front();
-            }
-        }
-    }
-
     /// The verify pass's `t` attention rows of layer `a` as one row-table launch. `Ok(false)` (nothing launched): the knob is off, the
     /// backend has no such kernel, or the pass is captured or exceeds the table; the caller launches per row.
     #[allow(clippy::too_many_arguments)]
@@ -150,44 +96,23 @@ impl Model {
         attrs: &OpAttrs,
         t: usize,
         pos0: usize,
-        dpos: Option<&TensorRef>,
         profile: bool,
     ) -> Result<bool> {
-        let capturing = self.capture_ops.lock().unwrap().is_some();
         if !self.verify_attn_rows
             || t < 2
             || t > VERIFY_ATTN_ROWS_MAX
             || !self.backend.verify_attn_per_row()
             || !self.backend.supports_row_tables()
-            // a captured pass only with the opt-in, and only with the step's device positions (row r reads entry r)
-            || (capturing && !(self.verify_attn_rows_captured && dpos.is_some()))
+            || self.capture_ops.lock().unwrap().is_some()
         {
             return Ok(false);
         }
+        let n_slots = self.slot_specs.len().max(1);
+        if a.slot >= n_slots {
+            return Ok(false);
+        }
         let recording = self.recorder.lock().unwrap().is_some();
-        let (tab, pos) = if capturing {
-            // the capture's own table (see `CaptTabs`) and the step's device positions (entry r is row r's position, the value the per-row launch reads)
-            let (Some(ka), Some(va)) = (self.backend.device_address(&slot.k), self.backend.device_address(&slot.v)) else {
-                return Ok(false);
-            };
-            let found = {
-                let ct = self.capt_tabs.lock().unwrap();
-                ct.cur.as_ref().and_then(|(buf, addrs)| addrs.iter().position(|&x| x == (ka, va)).map(|i| (buf.clone(), i)))
-            };
-            let Some((buf, i)) = found else {
-                note_once("captured row-table attention: no table for this cache, per-row launches");
-                return Ok(false);
-            };
-            let mut tab = self.view(&buf, DType::U8, &[t, 2, 8]);
-            tab.offset = i * REGION_BYTES;
-            let mut pos = dpos.expect("checked above").clone();
-            pos.shape = vec![t];
-            (tab, pos)
-        } else {
-            let n_slots = self.slot_specs.len().max(1);
-            if a.slot >= n_slots {
-                return Ok(false);
-            }
+        let (tab, pos) = {
             let mut st = self.verify_tab.lock().unwrap();
             if st.buf.is_none() {
                 st.buf = Some(self.backend.alloc(POS_BYTES + n_slots * REGION_BYTES, MemKind::Device)?);
@@ -234,7 +159,7 @@ impl Model {
             note_once("scratch smaller than the row-table call needs");
             return Ok(false);
         }
-        note_once(if capturing { "engaged in the captured step (one row-table attention launch per layer)" } else { "engaged (one row-table attention launch per layer)" });
+        note_once("engaged (one row-table attention launch per layer)");
         self.exec_call(call, profile)?;
         Ok(true)
     }

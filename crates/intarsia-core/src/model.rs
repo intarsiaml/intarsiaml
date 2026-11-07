@@ -537,12 +537,7 @@ pub struct Model {
     /// Lane vat: the verify pass's attention rows as one row-table launch per layer (`INTARSIA_HIP_VERIFY_ATTN_ROWS`, default on; `0`
     /// keeps the per-row launches) and the tables it reads ([`verify_attn`]).
     verify_attn_rows: bool,
-    /// Lane c27: the same row-table launch inside the CAPTURED speculative step (`INTARSIA_VERIFY_ATTN_ROWS_CAPTURED=1`, default off): the rows read the
-    /// step's device position table instead of the shared host-written one, and the layer's K / V address region must already be filled (an eager pass did).
-    verify_attn_rows_captured: bool,
     verify_tab: Mutex<verify_attn::VerifyAttnTab>,
-    /// Lane c27: the K / V address tables of captured speculative steps (`INTARSIA_VERIFY_ATTN_ROWS_CAPTURED`).
-    capt_tabs: Mutex<verify_attn::CaptTabs>,
     /// `i32 [max rows]` argmax output of a verify pass; allocated by [`Model::enable_verify`] (spec on only).
     verify_tok: Option<Buffer>,
     /// Verify passes with a vocab-parallel head (every rank): the gather tile `f32 [world, VERIFY_MAX_ROWS * V / world]`,
@@ -1706,9 +1701,7 @@ impl Model {
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),
             verify_rows_attn: dflash_head.is_some(),
             verify_attn_rows: std::env::var("INTARSIA_HIP_VERIFY_ATTN_ROWS").map_or(true, |v| v != "0"),
-            verify_attn_rows_captured: std::env::var("INTARSIA_VERIFY_ATTN_ROWS_CAPTURED").map_or(false, |v| v == "1"),
             verify_tab: Mutex::new(Default::default()),
-            capt_tabs: Mutex::new(Default::default()),
             verify_tok: None,
             verify_tile: None,
             verify_rows: 0,
@@ -4064,8 +4057,8 @@ impl Model {
             && (self.backend.verify_attn_per_row() || self.verify_rows_attn)
         {
             // lane vat: all rows of the layer in one row-table launch (bitwise the per-row launches below); eager passes only
-            if (dpos.is_none() || self.verify_attn_rows_captured)
-                && self.verify_attn_rows(a, slot, &bufs.q[qc], &kcache, &vcache, &attn_out, &attrs, t, pos0, dpos, profile)?
+            if dpos.is_none()
+                && self.verify_attn_rows(a, slot, &bufs.q[qc], &kcache, &vcache, &attn_out, &attrs, t, pos0, profile)?
             {
                 return Ok((attn_out, qc));
             }
