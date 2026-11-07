@@ -1,0 +1,5 @@
+prefill chunk 2048 (recipe qwen3, metal)
+Error: loading /Users/josef/models/Qwen3-8B
+
+Caused by:
+    unsupported: --spec mtp: the recipe has no [mtp] head
