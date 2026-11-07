@@ -126,6 +126,7 @@ Against lane au1's window 2 (same rule, same params, eager MTP passes): auto / M
 | CUDA, spark1, vLLM left up (`scripts/ag1/cuda-noop.sh`, MAX_JOBS=4): `plan show --json` 35B and 8B base vs lane | byte-identical (15570 B, 8973 B); `kernels test --quick` exit 0, 0 FAIL | #8892 |
 | HIP `plan show --json` base vs lane (`scripts/ag1/hip-noop.sh`, radiance down, `raw/hip-noop/`): 8B tp1 default / off, 35B tp1 and tp2 default / off, 35B tp1 mtp2, 27B tp1 and tp2 default / off / mtp2 | **13 / 13 byte-identical**; 35B tp2 mtp2 refuses identically on both (MoE head under tp). First attempt with one card (`raw/hip-noop-1/`): tp1 plans identical, tp2 runs needed both cards | #8925, #8927 |
 | HIP ids (above) | 8 / 8 PASS | #8898 |
+| after merging `origin/main` `0174e1f05` (PR #330, opt-in sampled mb-MTP in `engine.rs` / `spec.rs`, merged without conflict): `cargo test -p intarsia-core` 198 passed, `dflash2_cpu` 13 passed, `mtp` 32 passed 1 ignored, `docs_env_vars` 2 passed, `cargo build --workspace` ok | the Metal / CUDA / HIP gates above ran on the head before that merge (code tree `89e19a38e789` against base `406ac001a`); the merged change is in the sampled-speculation path, which the greedy arm of this change does not reach, and was not re-gated on the boxes | local |
 
 ## 6. Operations
 
