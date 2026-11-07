@@ -244,6 +244,178 @@ fn mtp_tp2_greedy_ids_equal_spec_off() {
     }
 }
 
+// ---- the dense head whole on rank 0 (lane d2r: a rank in another process cannot run the lockstep head) ----
+
+/// `opts` with the head whole on rank 0 (`LoadOptions::mtp_whole`, what the engine loader sets for a group with a remote rank).
+fn opts_whole(k: Option<usize>, vocab_par: bool, draft_vocab: usize, act: DType) -> LoadOptions {
+    LoadOptions { mtp_whole: true, act_dtype: Some(act), kv_dtype: Some(act), ..opts(k, vocab_par, draft_vocab) }
+}
+
+/// In-process tp=2 with the dense head whole on rank 0.
+fn model_tp2_whole(k: Option<usize>, vocab_par: bool, draft_vocab: usize, act: DType) -> (Model, Arc<Telemetry>) {
+    let (recipe, dims) = spec();
+    let tel = Arc::new(Telemetry::new());
+    let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    let m = Model::load_tp(backends, comms, &recipe, &dims, &weights(), &opts_whole(k, vocab_par, draft_vocab, act), tel.clone()).unwrap();
+    (finish(m, k), tel)
+}
+
+/// Rank 0 here, rank 1 behind a localhost TCP connection running `tp_remote::serve` on another thread (as `intarsia tp-worker` does),
+/// joined by the host communicator; `--spec mtp` on both when `k` is given (rank 1 loads no head and enables its verify rows).
+fn model_tp2_remote(k: Option<usize>, draft_vocab: usize, act: DType) -> (Model, Arc<Telemetry>, std::thread::JoinHandle<u64>) {
+    use intarsia_core::model::TpRank;
+    use intarsia_core::tp_remote;
+    let (recipe, dims) = spec();
+    let tel = Arc::new(Telemetry::new());
+    let backends: Vec<Arc<dyn intarsia_core::backend::Backend>> = (0..2).map(|_| CpuBackend::arc()).collect();
+    let comms = intarsia_core::HostCommGroup::new(backends.clone());
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (b1, c1, r1, d1) = (backends[1].clone(), comms[1].clone(), recipe.clone(), dims.clone());
+    let server = std::thread::spawn(move || {
+        let (mut s, _) = listener.accept().unwrap();
+        let mut m = Model::load_shard(
+            b1,
+            &r1,
+            &d1,
+            &weights(),
+            &opts_whole(k, false, draft_vocab, act),
+            Arc::new(Telemetry::new()),
+            TpRank { rank: 1, world: 2, comm: Some(c1) },
+        )
+        .unwrap();
+        assert!(!m.has_mtp(), "rank 1 keeps no head");
+        if let Some(k) = k {
+            m.enable_verify_served(k + 1).unwrap();
+        }
+        let cap = tp_remote::handshake(&mut s, "fixture", m.plan.kv_cap_tokens).unwrap();
+        m.clamp_kv_cap(cap).unwrap();
+        m.configure_plan(&Default::default(), None).unwrap();
+        tp_remote::serve(&m, s).unwrap()
+    });
+    let mut s = std::net::TcpStream::connect(addr).unwrap();
+    let tp = TpRank { rank: 0, world: 2, comm: Some(comms[0].clone()) };
+    let mut m = Model::load_shard(backends[0].clone(), &recipe, &dims, &weights(), &opts_whole(k, false, draft_vocab, act), tel.clone(), tp).unwrap();
+    let cap = tp_remote::handshake(&mut s, "fixture", m.plan.kv_cap_tokens).unwrap();
+    m.clamp_kv_cap(cap).unwrap();
+    m.attach_remote(tp_remote::RemotePeer::new(s, comms[0].clone()).unwrap()).unwrap();
+    (finish(m, k), tel, server)
+}
+
+/// The whole dense head on rank 0 computes what the tp=1 head computes, bit for bit, from the same hidden rows (same weights, same
+/// kernels, no collective), up to the cap of a whole head's pass (`prefill_chunk / world` rows).
+#[test]
+fn dense_mtp_head_whole_on_rank0_is_bitwise_the_tp1_head() {
+    for act in [DType::F32, DType::Bf16] {
+        let (recipe, dims) = spec();
+        let o1 = LoadOptions { act_dtype: Some(act), kv_dtype: Some(act), ..opts(Some(2), false, 0) };
+        let m1 = finish(Model::load(CpuBackend::arc(), &recipe, &dims, &weights(), &o1, Arc::new(Telemetry::new())).unwrap(), Some(2));
+        let (m2, _) = model_tp2_whole(Some(2), false, 0, act);
+        assert!(m2.has_mtp());
+        let mut rng = SplitMix64::new(99);
+        for t in 1..=4usize {
+            let ids: Vec<u32> = (0..t as u32).map(|i| (i * 31 + 5) % V as u32).collect();
+            let hidden = rng.normal_vec(t * H, 1.0);
+            let (a, b) = (m1.mtp_reference_pass(&ids, &hidden).unwrap(), m2.mtp_reference_pass(&ids, &hidden).unwrap());
+            for (r, (x, y)) in a.iter().zip(&b).enumerate() {
+                assert!(x.iter().zip(y).all(|(p, q)| p.to_bits() == q.to_bits()), "act {act} t {t}: row {r} differs from tp=1");
+            }
+        }
+        assert!(m2.mtp_reference_pass(&[1; 5], &vec![0.5; 5 * H]).is_err(), "a pass over the whole head's row cap is refused");
+    }
+}
+
+/// Through the model (prefill, the head's catch-up, chained drafts): the whole head at tp=2, in-process and with the other rank in
+/// another "process", drafts what tp=1 drafts on this fixture (f32: the trunk's two-way sums move the hidden rows by rounding only).
+#[test]
+fn dense_mtp_whole_head_tp2_drafts_equal_tp1_drafts() {
+    for dv in [0usize, 40] {
+        let (m1, _) = model_tp1(Some(3), dv);
+        let (mi, _) = model_tp2_whole(Some(3), false, dv, DType::F32);
+        let (mv, _) = model_tp2_whole(Some(3), true, dv, DType::F32);
+        let (mr, _, server) = model_tp2_remote(Some(3), dv, DType::F32);
+        for p in PROMPTS {
+            let a = drafts(&m1, p, 3);
+            let (b, v, c) = (drafts(&mi, p, 3), drafts(&mv, p, 3), drafts(&mr, p, 3));
+            eprintln!("draft vocab {dv} prompt {p:?}: tp1 {a:?} in-process {b:?} vocab-par {v:?} remote {c:?}");
+            assert_eq!(a, b, "in-process whole-head tp=2 drafts (draft vocab {dv}) differ from tp=1 for {p:?}");
+            assert_eq!(a, v, "vocab-parallel whole-head tp=2 drafts (draft vocab {dv}) differ from tp=1 for {p:?}");
+            assert_eq!(a, c, "remote whole-head tp=2 drafts (draft vocab {dv}) differ from tp=1 for {p:?}");
+            assert!(a.iter().all(|d| d.len() == 3));
+        }
+        drop(mr);
+        server.join().unwrap();
+    }
+}
+
+fn engine_whole(k: Option<usize>, remote: bool, script: Option<DraftScript>) -> (LocalEngine, Arc<Telemetry>, Option<std::thread::JoinHandle<u64>>) {
+    let (m, tel, server) = if remote {
+        let (m, tel, s) = model_tp2_remote(k, 40, DType::F32);
+        (m, tel, Some(s))
+    } else {
+        let (m, tel) = model_tp2_whole(k, false, 40, DType::F32);
+        (m, tel, None)
+    };
+    if script.is_some() {
+        m.mtp_script(script).unwrap();
+    }
+    let spec = match k {
+        Some(k) => SpecConfig { mode: SpecMode::Mtp, k },
+        None => SpecConfig::default(),
+    };
+    let e = LocalEngine::new(m, Arc::new(ByteCodec), EngineMeta { id: "tiny-mtp-whole-tp2".into(), eos_ids: vec![], spec, ..Default::default() }, tel.clone())
+        .unwrap();
+    (e, tel, server)
+}
+
+/// Greedy output with the whole dense head at tp=2 (`--spec mtp`) equals `--spec off` at tp=2, in-process and with the other rank in
+/// another "process" (the verify pass and the rollback over the connection), with the head's own drafts and with scripted drafts that
+/// hit every acceptance pattern, at k = 1..3, 256 tokens and short budgets.
+#[test]
+fn dense_mtp_whole_head_tp2_greedy_ids_equal_spec_off() {
+    for remote in [false, true] {
+        let (off, _, off_server) = engine_whole(None, remote, None);
+        let truth: Arc<Mutex<Vec<Vec<u32>>>> = Arc::new(Mutex::new(Vec::new()));
+        let mut want = Vec::new();
+        for p in PROMPTS {
+            let o = run(&off, req(p, 256));
+            let mut s = p.to_vec();
+            s.extend(&o.ids);
+            truth.lock().unwrap().push(s);
+            want.push(o);
+        }
+        for (k, script) in [(1usize, false), (2, false), (3, false), (2, true), (3, true)] {
+            let (on, tel, server) = engine_whole(Some(k), remote, script.then(|| scripted(truth.clone(), 11)));
+            for (p, o) in PROMPTS.iter().zip(&want) {
+                assert_eq!(&run(&on, req(p, 256)), o, "remote {remote} k {k} scripted {script} prompt {p:?}");
+                for n in [1usize, 4, 7] {
+                    assert_eq!(run(&off, req(p, n)), run(&on, req(p, n)), "remote {remote} k {k} scripted {script} max_tokens {n}");
+                }
+            }
+            let t = tel.snapshot();
+            eprintln!("remote {remote} k {k} scripted {script}: {} passes, {} drafted, {} accepted", t.spec_steps, t.spec_proposed, t.spec_accepted);
+            assert!(t.spec_steps > 0, "the verify path ran at tp=2");
+            if script {
+                assert!(t.spec_accepted > 0 && t.spec_accepted < t.spec_proposed, "partial acceptance exercised at tp=2");
+            }
+            if remote && k == 2 && !script {
+                // a sampled request on a tp=2 MTP group takes the plain path (sampled speculation is single-rank)
+                let r = GenRequest { prompt: PROMPTS[0].to_vec(), max_tokens: 24, temperature: 0.8, ignore_eos: true, ..Default::default() };
+                assert_eq!(run(&on, r).completion_tokens, 24, "a sampled request on the remote tp=2 MTP group");
+            }
+            drop(on);
+            if let Some(s) = server {
+                assert!(s.join().unwrap() > 0, "the remote rank served passes");
+            }
+        }
+        drop(off);
+        if let Some(s) = off_server {
+            s.join().unwrap();
+        }
+    }
+}
+
 /// The model as a checkpoint directory (config, weights with the MTP head, a word-level tokenizer) for the engine loader.
 ///
 /// Written once per process: tests run in parallel threads, and rewriting `model.safetensors` under an engine that has it mapped is a SIGBUS.

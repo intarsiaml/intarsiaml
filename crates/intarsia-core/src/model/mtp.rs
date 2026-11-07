@@ -134,8 +134,9 @@ pub(super) fn load_head(
     let main_attn = main_attn.ok_or_else(|| Error::model("[mtp] needs a model with full-attention layers"))?;
     // tensor parallelism, a dense head (lane dfh): the head's layer is sharded as the model's own layers are (`dims` is this rank's
     // share: q / k / v / gate / up by rows, o / down by columns, its KV cache holds this rank's heads), so every rank runs it in
-    // lockstep with the same all-reduces; fc and the norms are replicated. An MoE head (lane mt2) is loaded whole on rank 0
-    // (`whole_rows`; `dims` are then the global dims and `load_q` shards nothing) and runs there alone.
+    // lockstep with the same all-reduces; fc and the norms are replicated. An MoE head (lane mt2), or a dense one with a rank in
+    // another process (lane d2r), is loaded whole on rank 0 (`whole_rows`; `dims` are then the global dims and `load_q` shards
+    // nothing) and runs there alone.
     if tp_world > 1 && dims.moe.is_some() && whole_rows.is_none() {
         return Err(Error::Unsupported("--spec mtp under tensor parallelism with a sharded MoE head (it runs whole on rank 0)".into()));
     }
@@ -145,7 +146,7 @@ pub(super) fn load_head(
     let qdim = dims.n_heads * dims.head_dim;
     let kvdim = dims.n_kv_heads * dims.head_dim;
     let gate = usize::from(a.gated);
-    let mq = if tp_world == 1 && dims.moe.is_none() { mtp_quant()? } else { None };
+    let mq = if (tp_world == 1 || whole_rows.is_some()) && dims.moe.is_none() { mtp_quant()? } else { None };
     if let Some((a, f)) = mq {
         eprintln!("mtp head quantised (INTARSIA_MTP_QUANT): fc and attention {}, feed-forward {}; drafts only, verified output unchanged", a.name(), f.name());
     }

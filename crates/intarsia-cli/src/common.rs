@@ -334,6 +334,7 @@ impl ModelArgs {
                 tp_arnorm: tp_arnorm(std::env::var_os("INTARSIA_TP_ARNORM").as_deref(), &self.backend, self.tp),
                 mtp: self.spec_mode() == "mtp",
                 mtp_k: 0, // set from --spec-k by the loader
+                mtp_whole: false, // the loader sets it for a group with a rank in another process
                 mtp_draft_vocab: self.mtp_draft_vocab,
                 dflash: None, // set from --spec-draft by the loader
                 dflash_tp: None, // INTARSIA_DFLASH_TP (lane dh)
