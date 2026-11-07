@@ -27,12 +27,14 @@ REPLY_OPENER = re.compile(r"^\s*(yes|yep|yeah|no|nope|ok|okay|go|do it|sure|cont
                           r"that|this|it|those|these|same|again|now|also|and|but|then)\b", re.I)
 SKIP_PREFIX = ("<", "```", "Caveat:", "[Request interrupted", "The auto-handoff", "[auto-handoff]", "[fast-", "[Image", "\U000f0142")  # tags, pastes, plugins, shell prompt glyph
 PASTE = re.compile(r"<pasted_content[^>]*>.*?</pasted_content[^>]*>|```.*?```", re.S)
+SHELL_PASTE = re.compile(r"^(\(\w+\) )?(\S+@\S+:\S*[$#]|PS [A-Z]:\\|[A-Z]:\\\S*>)")  # pasted terminal: user@host:~$, PowerShell, cmd
 
 
 def scrub(t: str, home: str, email: str) -> str:
     t = t.replace(home, "~")
     if email:
         t = t.replace(email, "user@example.com")
+    t = re.sub(r"[A-Z]:\\Users\\[A-Za-z0-9._-]+", "~", t)
     return re.sub(r"/Users/[A-Za-z0-9._-]+", "~", t)
 
 
@@ -48,7 +50,7 @@ def text_of(content) -> str:
 
 def keep(t: str, first: bool, a) -> bool:
     s = t.strip()
-    if len(s) < a.min_chars or len(s) > a.max_chars or s.startswith(SKIP_PREFIX):
+    if len(s) < a.min_chars or len(s) > a.max_chars or s.startswith(SKIP_PREFIX) or SHELL_PASTE.match(s):
         return False
     own = PASTE.sub("", s).strip()  # the person's own words, without pasted logs or code blocks
     if len(own) < a.min_chars or len(own) < 0.3 * len(s):
