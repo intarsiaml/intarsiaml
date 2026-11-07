@@ -18,6 +18,7 @@
 
 use super::*;
 use crate::quant::moe::{Experts, MoeConfig, SharedExpert};
+use crate::quant::head::HeadQuant;
 use crate::quant::{nvfp4, BF16};
 use crate::recipe::MtpSpec;
 use crate::state::MtpState;
@@ -63,18 +64,21 @@ fn bf16_f32(b: &[u8]) -> Vec<f32> {
     b.chunks_exact(2).map(|c| f32::from_bits((u16::from_le_bytes([c[0], c[1]]) as u32) << 16)).collect()
 }
 
-/// `INTARSIA_MTP_QUANT` (lane c27, docs/tuning.md): `fp8` quantises the dense head's projections (fc, q / k / v / o, gate / up / down)
-/// at load into the e4m3 per-tensor-scale format the quantised `lm_head` uses (W8A16), halving the bytes each draft step streams
-/// (0.85 GB bf16 -> 0.43 GB on the 27B). Drafts never change the output, so this only moves acceptance and the draft cost. Off by default;
-/// only for a single rank (a sharded head keeps bf16) and for checkpoints that store the head as bf16.
-fn mtp_quant_fp8() -> Result<bool> {
+/// `INTARSIA_MTP_QUANT` (lane c27, docs/tuning.md): quantises the dense head's projections at load, from the checkpoint's bf16 rows, into the formats
+/// the quantised `lm_head` uses (`quant::head`): `fp8` = e4m3 with one f32 scale per tensor for all of them (fc halves, q / k / v / o, gate / up / down;
+/// 0.85 GB bf16 -> 0.43 GB on the 27B), `mxfp4` = e2m1 + e8m0 per 32 for all of them, `mix` = fp8 for fc and attention, mxfp4 for the feed-forward.
+/// Drafts never change the output, so this only moves acceptance and the draft cost. Off by default; only for a single rank (a sharded head keeps bf16) and for
+/// checkpoints that store the head as bf16. Returns (fc + attention format, feed-forward format).
+fn mtp_quant() -> Result<Option<(HeadQuant, HeadQuant)>> {
     match std::env::var("INTARSIA_MTP_QUANT") {
         Ok(v) => match v.trim().to_ascii_lowercase().as_str() {
-            "fp8" | "fp8_e4m3" | "e4m3" => Ok(true),
-            "" | "off" | "0" | "none" | "bf16" => Ok(false),
-            other => Err(Error::model(format!("INTARSIA_MTP_QUANT = '{other}' (fp8 | off)"))),
+            "fp8" | "fp8_e4m3" | "e4m3" => Ok(Some((HeadQuant::Fp8, HeadQuant::Fp8))),
+            "mxfp4" => Ok(Some((HeadQuant::Mxfp4, HeadQuant::Mxfp4))),
+            "mix" => Ok(Some((HeadQuant::Fp8, HeadQuant::Mxfp4))),
+            "" | "off" | "0" | "none" | "bf16" => Ok(None),
+            other => Err(Error::model(format!("INTARSIA_MTP_QUANT = '{other}' (fp8 | mxfp4 | mix | off)"))),
         },
-        Err(_) => Ok(false),
+        Err(_) => Ok(None),
     }
 }
 
@@ -114,17 +118,17 @@ pub(super) fn load_head(
     let qdim = dims.n_heads * dims.head_dim;
     let kvdim = dims.n_kv_heads * dims.head_dim;
     let gate = usize::from(a.gated);
-    let q_fp8 = tp_world == 1 && dims.moe.is_none() && mtp_quant_fp8()?;
-    if q_fp8 {
-        eprintln!("mtp head quantised to fp8 (INTARSIA_MTP_QUANT=fp8): drafts only, verified output unchanged");
+    let mq = if tp_world == 1 && dims.moe.is_none() { mtp_quant()? } else { None };
+    if let Some((a, f)) = mq {
+        eprintln!("mtp head quantised (INTARSIA_MTP_QUANT): fc and attention {}, feed-forward {}; drafts only, verified output unchanged", a.name(), f.name());
     }
-    // the head's projection loader: the checkpoint's bf16 rows quantised to fp8 when `INTARSIA_MTP_QUANT=fp8`, else `load_q`
-    let load_q = |name: &str, n: usize, k: usize, ax: Option<ShardAxis>| -> Result<QTensor> {
-        if q_fp8 {
+    // the head's projection loader: the checkpoint's bf16 rows quantised when `INTARSIA_MTP_QUANT` is set (`ffn`: the feed-forward's format), else `load_q`
+    let load_qq = |name: &str, n: usize, k: usize, ax: Option<ShardAxis>, ffn: bool| -> Result<QTensor> {
+        if let Some((qa, qf)) = mq {
             let nm = resolve(src, name)?;
             if let Some(i) = src.info(&nm) {
-                if i.dtype == DType::Bf16 && i.shape == [n, k] {
-                    let q = crate::quant::head::load_rows(crate::quant::head::HeadQuant::Fp8, b, i.dtype, src.bytes(&nm)?, n, 0, n, k)?;
+                if i.dtype == DType::Bf16 && i.shape == [n, k] && (if ffn { qf } else { qa } != HeadQuant::Mxfp4 || k % 32 == 0) {
+                    let q = crate::quant::head::load_rows(if ffn { qf } else { qa }, b, i.dtype, src.bytes(&nm)?, n, 0, n, k)?;
                     add_bytes(q.weight_bytes() as u64);
                     return Ok(q);
                 }
@@ -132,6 +136,8 @@ pub(super) fn load_head(
         }
         load_q(name, n, k, ax)
     };
+    let load_q_attn = |name: &str, n: usize, k: usize, ax: Option<ShardAxis>| load_qq(name, n, k, ax, false);
+    let load_q_ffn = |name: &str, n: usize, k: usize, ax: Option<ShardAxis>| load_qq(name, n, k, ax, true);
 
     // fc [H, 2H] bf16, split by columns
     let fc_name = resolve(src, &format!("{p}.fc"))?;
@@ -162,13 +168,13 @@ pub(super) fn load_head(
             act_fp8: false, act_quant: false,
         })
     };
-    let (fc_e, fc_h) = if q_fp8 {
-        let up8 = |bytes: &[u8]| -> Result<QTensor> {
-            let q = crate::quant::head::load_rows(crate::quant::head::HeadQuant::Fp8, b, DType::Bf16, bytes, h, 0, h, h)?;
+    let (fc_e, fc_h) = if let Some((qa, _)) = mq {
+        let upq = |bytes: &[u8]| -> Result<QTensor> {
+            let q = crate::quant::head::load_rows(qa, b, DType::Bf16, bytes, h, 0, h, h)?;
             add_bytes(q.weight_bytes() as u64);
             Ok(q)
         };
-        (up8(&e)?, up8(&hh)?)
+        (upq(&e)?, upq(&hh)?)
     } else {
         (dense(&e)?, dense(&hh)?)
     };
@@ -176,10 +182,10 @@ pub(super) fn load_head(
 
     let attn = AttnBlock {
         pre_norm: load(&format!("{l}.input_layernorm"), Some(&[h]))?,
-        wq: load_q(&format!("{l}.self_attn.q_proj"), qdim * (1 + gate), h, rows)?,
-        wk: load_q(&format!("{l}.self_attn.k_proj"), kvdim, h, rows)?,
-        wv: load_q(&format!("{l}.self_attn.v_proj"), kvdim, h, rows)?,
-        wo: load_q(&format!("{l}.self_attn.o_proj"), h, qdim, cols)?,
+        wq: load_q_attn(&format!("{l}.self_attn.q_proj"), qdim * (1 + gate), h, rows)?,
+        wk: load_q_attn(&format!("{l}.self_attn.k_proj"), kvdim, h, rows)?,
+        wv: load_q_attn(&format!("{l}.self_attn.v_proj"), kvdim, h, rows)?,
+        wo: load_q_attn(&format!("{l}.self_attn.o_proj"), h, qdim, cols)?,
         q_norm: a
             .q_norm
             .as_ref()
@@ -208,9 +214,9 @@ pub(super) fn load_head(
             }
             HeadFfn::Dense(FfnBlock {
                 pre_norm,
-                gate: load_q(&format!("{l}.mlp.gate_proj"), i, h, rows)?,
-                up: load_q(&format!("{l}.mlp.up_proj"), i, h, rows)?,
-                down: load_q(&format!("{l}.mlp.down_proj"), h, i, cols)?,
+                gate: load_q_ffn(&format!("{l}.mlp.gate_proj"), i, h, rows)?,
+                up: load_q_ffn(&format!("{l}.mlp.up_proj"), i, h, rows)?,
+                down: load_q_ffn(&format!("{l}.mlp.down_proj"), h, i, cols)?,
             })
         }
     };
