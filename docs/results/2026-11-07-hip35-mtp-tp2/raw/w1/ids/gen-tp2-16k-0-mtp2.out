@@ -1,0 +1,10 @@
+Here is a section-by-section summary of the IntarsiaML architecture plan (v0.2) and a list of open questions derived from the document.
+
+### Document Summary
+
+**Overview & Status**
+The document outlines the architecture for IntarsiaML, a modular, high-performance LLM inference engine. It emphasizes modularity ("wood inlay"), accuracy via reference testing, and performance via specific kernel packs. The plan is accompanied by a detailed status table comparing the design intent against the codebase on `origin/main` (as of Oct 25, 2026). Key implemented components include the Rust host, CPU/CUDA/HIP/Metal backends, and core quant formats (BF16, FP8, NVFP4, MXFP4, EXL3). Significant gaps remain in autotuning, paged KV storage, and certain API endpoints.
+
+**0. Goals, Honest Targets, Anti-Goals**
+*   **Priorities:** Modularity, ease of use, and accuracy are top priorities, followed by speed (top 3 per platform), reproducibility, and API compatibility.
+*   **Targets:** The engine aims to beat competitors like vLLM, llama.cpp, and TensorFold on specific
