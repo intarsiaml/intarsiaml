@@ -43,13 +43,17 @@ const T_TRUNCATE: u8 = 3;
 const T_SNAPSHOT: u8 = 4;
 const T_DROP: u8 = 5;
 const T_SHUTDOWN: u8 = 6;
+/// Roll the sequence back to `keep` tokens after a speculative verify pass ([`RankModel::spec_rollback`]). Not answered (like
+/// `NewState`): the primary checked it can make the rollback itself first, and a failure here is reported by the next answered
+/// command, so a speculative step pays no extra round trip (lane mt2).
+const T_SPEC_ROLLBACK: u8 = 7;
 const T_REPLY: u8 = 0x80;
 /// Answer to `Truncate` / `Snapshot` (protocol 2): `[status u8][remote len u64][message]`.
 const T_ACK: u8 = 0x81;
 const T_HELLO: u8 = 0x40;
-/// Wire protocol version. 1: only `Forward` answered. 2: `Truncate` and `Snapshot` answered with [`T_ACK`].
+/// Wire protocol version. 1: only `Forward` answered. 2: `Truncate` and `Snapshot` answered with [`T_ACK`]. 3: `SpecRollback`.
 /// Bump it on any change to the commands, their bodies or their answers.
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: u32 = 3;
 /// Marks the version at the start of the handshake fingerprint (protocol 1 sent the bare fingerprint).
 const PROTO_TAG: &str = "tp-protocol=";
 /// [`T_ACK`] statuses.
@@ -405,6 +409,14 @@ impl RemoteSeq {
         Ok(())
     }
 
+    /// Roll the remote copy back to `keep` tokens after a verify pass ([`SequenceState::spec_rollback`](crate::state::SequenceState::spec_rollback)),
+    /// without waiting: the remote rank applies it before its next command and reports a failure in that command's answer.
+    pub fn spec_rollback(&mut self, keep: usize) -> Result<()> {
+        self.peer.send(T_SPEC_ROLLBACK, &RemotePeer::sid_body(self.sid, &[keep as u64]))?;
+        self.len = keep;
+        Ok(())
+    }
+
     /// Snapshot the remote copy's recurrent state and wait for it to confirm.
     pub fn snapshot(&self, keep: usize) -> Result<()> {
         self.command(T_SNAPSHOT, &RemotePeer::sid_body(self.sid, &[keep as u64]), "snapshot").map(|_| ())
@@ -454,6 +466,10 @@ pub trait RankModel {
     fn verify_rank(&self, _st: &mut Self::State, _ids: &[u32]) -> Result<()> {
         Err(Error::Unsupported("this model does not verify".into()))
     }
+    /// The primary's rollback after a verify pass ([`T_SPEC_ROLLBACK`]): the sequence keeps its first `keep` tokens.
+    fn spec_rollback(&self, _st: &mut Self::State, _keep: usize) -> Result<()> {
+        Err(Error::Unsupported("this model does not roll back a verify pass".into()))
+    }
     /// Waits for what this rank's passes left queued on the device, for [`serve_group`] when the primary closes the connection
     /// (see [`drain_failure`]). `None`: a pass leaves nothing queued.
     fn drain(&self) -> Option<Drain> {
@@ -480,6 +496,14 @@ impl RankModel for Model {
     }
     fn state_len(st: &SequenceState) -> usize {
         st.len
+    }
+    /// `--spec mtp` with an MoE head whole on rank 0 (lane mt2): this rank's share of the verify pass (row-exact kernels, the
+    /// recurrent state saved per row) and of the rollback after it. The head itself never runs here.
+    fn verify_rank(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+        self.verify_served(st, ids)
+    }
+    fn spec_rollback(&self, st: &mut SequenceState, keep: usize) -> Result<()> {
+        st.spec_rollback(keep, &*self.backend)
     }
     fn drain(&self) -> Option<Drain> {
         Some(self.peer_drain())
@@ -816,6 +840,17 @@ fn serve_inner<M: RankModel>(model: &M, stream: TcpStream, comm: Option<Arc<dyn 
                 ack(&mut w, status, seqs.get(&sid).map_or(0, M::state_len), &msg)?;
                 if status >= ACK_FAILED {
                     return Err(Error::backend(msg));
+                }
+            }
+            T_SPEC_ROLLBACK => {
+                let keep = u64_at(&b, 1)? as usize;
+                // not answered: a failure fails the next answered command (as a failed `NewState` does)
+                let r = match seqs.get_mut(&sid) {
+                    None => Err(Error::invalid(format!("unknown sequence {sid}"))),
+                    Some(st) => model.spec_rollback(st, keep),
+                };
+                if let Err(e) = r {
+                    pending = pending.or(Some(format!("speculative rollback to {keep}: {e}")));
                 }
             }
             T_DROP => {

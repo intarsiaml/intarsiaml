@@ -541,12 +541,17 @@ impl SequenceState {
         if keep > self.len {
             return Err(Error::invalid("spec rollback beyond the current length"));
         }
-        if self.remote.is_some() {
-            return Err(Error::Unsupported("speculative rollback of a state with a rank in another process".into()));
-        }
         // tensor parallelism (in-process peers, lane dfh): every rank ran the same verify pass and saved its own slice of the
         // recurrent state per row; all check before any changes, so a refusal leaves every rank as it was
         self.check_spec_rollback(keep)?;
+        // a rank in another process (lane mt2): it ran the same verify pass; the rollback is sent unanswered and applied before its next
+        // command (a failure there fails that command, and the group)
+        if let Some(r) = &mut self.remote {
+            if r.len != self.len {
+                return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", r.len, self.len)));
+            }
+            r.spec_rollback(keep)?;
+        }
         for p in &self.peers {
             if p.st.len != self.len {
                 return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", p.st.len, self.len)));

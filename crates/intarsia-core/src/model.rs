@@ -524,6 +524,10 @@ pub struct Model {
     /// Inside an MTP head pass over several rows ([`Model::mtp_layer_at`]): attention runs one decode call per row on a backend
     /// that asks for it ([`Backend::verify_attn_per_row`]), so the eager head's rows are the captured step's bit for bit.
     head_rows_attn: std::sync::atomic::AtomicBool,
+    /// Inside a pass of an MTP head that runs whole on rank 0 under tensor parallelism (an MoE head, lane mt2,
+    /// [`Model::mtp_layer_at`]): the attention helpers read the global dims ([`Model::adims`]) and the output projection is not
+    /// reduced (no other rank runs the head).
+    head_whole: std::sync::atomic::AtomicBool,
     /// Inside an MTP head's KV-only ingest ([`Model::mtp_layer_kv_only`], lane mpf): the attention block skips the q projection (the
     /// rows' queries are never read; their K / V are what the cache needs).
     kv_only_skip_q: std::sync::atomic::AtomicBool,
@@ -1418,10 +1422,13 @@ impl Model {
         let esz = act.size_bytes();
         // the MTP drafter head (`--spec mtp`): read only when asked for, so without it the model is unchanged
         let mtp_k = if opts.mtp_k == 0 { crate::spec::SPEC_K_MAX } else { opts.mtp_k.min(crate::spec::SPEC_K_MAX) };
-        let mtp_head = if opts.mtp {
+        // an MoE head under tensor parallelism (lane mt2) runs whole on rank 0: unsharded against the global dims, no collective; the
+        // other ranks keep no head (`mtp::load_head`)
+        let mtp_whole = opts.mtp && tp.world > 1 && dims.moe.is_some();
+        let mtp_head = if opts.mtp && !(mtp_whole && tp.rank != 0) {
             let spec = recipe.mtp.as_ref().ok_or_else(|| Error::Unsupported("--spec mtp: the recipe has no [mtp] head".into()))?;
-            // tensor parallelism (lane dfh): every rank loads its share of the head (`mtp::load_head`) and runs it in lockstep
-            // with rank 0, which drafts; in-process ranks only (a rank in another process is refused by the engine loader)
+            // tensor parallelism (lane dfh, a dense head): every rank loads its share of the head (`mtp::load_head`) and runs it in
+            // lockstep with rank 0, which drafts; in-process ranks only (a rank in another process is refused by the engine loader)
             let main_attn = layers.iter().flatten().find_map(|b| match b {
                 Block::Attn(a) => Some(a),
                 _ => None,
@@ -1431,14 +1438,18 @@ impl Model {
                 spec,
                 b,
                 src,
-                dims,
+                if mtp_whole { global } else { dims },
                 recipe,
                 main_attn,
                 &|name, shape| load(name, 0, shape),
-                &|name, n, k, axis| load_qs(name, 0, n, k, axis),
+                &|name, n, k, axis| load_qs(name, 0, n, k, if mtp_whole { None } else { axis }),
                 &|n| weights_bytes.set(weights_bytes.get() + n),
                 mt + Self::VERIFY_MAX_ROWS + 1,
                 tp.world,
+                // the whole head's passes: at most `chunk / world` rows, so the shared activation buffers (this rank's share at
+                // `mt` rows) hold its full-width rows
+                mtp_whole.then(|| (chunk / tp.world).max(1)),
+                act,
             )?;
             eprintln!("mtp: drafter head '{}' loaded in {:.1} s (routed experts quantised to nvfp4)", spec.prefix, t0.elapsed().as_secs_f64());
             Some(head)
@@ -1549,6 +1560,10 @@ impl Model {
             // per-row recurrent states of a verify pass (up to SPEC_K_MAX saved rows) and the drafter's hidden-row queue
             ws_bytes += rec_bytes * mtp_k as u64;
             ws_bytes += ((mt + Self::VERIFY_MAX_ROWS + 1) * dims.hidden * esz) as u64;
+            ws_bytes += mtp_head.as_ref().map_or(0, |h| h.scratch_bytes());
+        } else if mtp_whole {
+            // a rank without the whole head still runs every verify pass (its per-row recurrent states)
+            ws_bytes += rec_bytes * mtp_k as u64;
         }
 
         let kv_per_tok: u64 = slot_specs
@@ -1561,7 +1576,7 @@ impl Model {
             })
             .sum::<u64>()
             // the drafter head's own attention cache
-            + if mtp_head.is_some() { (2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64 } else { 0 }
+            + mtp_head.as_ref().map_or(0, |h| (2 * if h.whole() { global } else { dims }.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64)
             // the DFlash draft layers' context caches
             + dflash_head.as_ref().map_or(0, |h| (h.layers.len() * 2 * dims.n_kv_heads * dims.head_dim * kv.size_bytes()) as u64);
         let mut plan = MemoryPlan::compute_budgeted(
@@ -1638,7 +1653,7 @@ impl Model {
         }
         .with_env(std::env::var("INTARSIA_SPEC_COSTGATE").ok().as_deref());
         // `--spec mtp`: verify attention per row where the multi-row call is not bitwise the decode step (CUDA; the user can opt out)
-        if mtp_head.is_some() {
+        if mtp_head.is_some() || mtp_whole {
             b.prefer_verify_attn_per_row();
         }
         // lane rip: row-invariant prefill for attention-only models on one rank (a recurrent state reuses only its snapshots, and
@@ -1697,6 +1712,7 @@ impl Model {
             inv_on: std::sync::atomic::AtomicBool::new(inv_want),
             reuse_exact: std::sync::atomic::AtomicBool::new(false),
             head_rows_attn: std::sync::atomic::AtomicBool::new(false),
+            head_whole: std::sync::atomic::AtomicBool::new(false),
             kv_only_skip_q: std::sync::atomic::AtomicBool::new(false),
             noncausal_rows: std::sync::atomic::AtomicBool::new(false),
             verify_rows_attn: dflash_head.is_some(),
@@ -1827,9 +1843,18 @@ impl Model {
     /// count, at the start and the end of the context), so a verify op without a row-exact kernel fails the load,
     /// admission covers the verify kernels and the scratch workspace is sized for them. Single-rank models only.
     pub fn enable_verify(&mut self, max_rows: usize) -> Result<()> {
-        // tensor parallelism: in-process ranks only (lane dfh); every rank runs the pass, rank 0 owns the drafter and the argmax
-        if self.remote.is_some() || self.tp.rank != 0 || self.peers.len() + 1 != self.tp.world || self.lm_head.is_none() {
-            return Err(Error::Unsupported("speculative verify needs a single-rank model or in-process tensor-parallel ranks".into()));
+        // tensor parallelism: in-process ranks (lane dfh), or a rank in another process when the drafter is an MoE head whole on rank 0
+        // (lane mt2: the remote rank runs the verify pass and the rollback, never the head); every rank runs the pass, rank 0 owns the
+        // drafter and the argmax
+        let remote_ok = self.remote.is_some() && self.mtp.as_ref().is_some_and(|h| h.whole());
+        if (self.remote.is_some() && !remote_ok)
+            || self.tp.rank != 0
+            || self.peers.len() + 1 + usize::from(remote_ok) != self.tp.world
+            || self.lm_head.is_none()
+        {
+            return Err(Error::Unsupported(
+                "speculative verify needs a single-rank model, in-process tensor-parallel ranks, or (a remote rank) an MoE MTP head".into(),
+            ));
         }
         let most = Self::VERIFY_MAX_ROWS.min(self.ws.max_tokens);
         if !(2..=most).contains(&max_rows) {
@@ -1840,6 +1865,16 @@ impl Model {
         }
         self.enable_verify_rank(max_rows)?;
         Ok(())
+    }
+
+    /// [`Model::enable_verify`] on rank 1.. of a group driven from another process (`intarsia tp-worker`, lane mt2): this rank runs the
+    /// verify passes rank 0 sends ([`crate::tp_remote::RankModel::verify_rank`]).
+    pub fn enable_verify_served(&mut self, max_rows: usize) -> Result<()> {
+        let most = Self::VERIFY_MAX_ROWS.min(self.ws.max_tokens);
+        if self.tp.rank == 0 || self.tp.world < 2 || !self.peers.is_empty() || !(2..=most).contains(&max_rows) {
+            return Err(Error::invalid(format!("enable_verify_served on rank {} of {} for {max_rows} rows", self.tp.rank, self.tp.world)));
+        }
+        self.enable_verify_rank(max_rows)
     }
 
     /// This rank's share of [`Model::enable_verify`]: the argmax buffer, the gather tile of a vocab-parallel head.
@@ -1923,6 +1958,9 @@ impl Model {
         Self::prepare_spec_rows(&*self.backend, st, q)?;
         if !self.peers.is_empty() {
             return self.forward_verify_tp(st, ids, profile);
+        }
+        if self.remote.is_some() {
+            return self.forward_verify_remote(st, ids, profile);
         }
         // the same pass as one graph replay where the backend allows it (HIP: an eager pass pays every launch on the host)
         let replayed = if self.verify_graph_ok(st, q, profile) { self.verify_replay(st, ids) } else { Ok(None) };
@@ -2149,6 +2187,13 @@ impl Model {
                 return Err(e);
             }
         };
+        self.verify_tail(st, ids, &hn, profile)
+    }
+
+    /// After a tensor-parallel verify pass on every rank: rank 0 reads the rows' argmax, commits the rows (the recurrent state after
+    /// every row but the last saved) and hands them to the drafters.
+    fn verify_tail(&self, st: &mut SequenceState, ids: &[u32], hn: &TensorRef, profile: bool) -> Result<Vec<u32>> {
+        let q = ids.len();
         let tok = self.verify_tok.as_ref().ok_or_else(|| Error::invalid("forward_verify before enable_verify"))?;
         let mut b = vec![0u8; q * 4];
         self.backend.download(tok, 0, &mut b, self.stream)?;
@@ -2157,9 +2202,58 @@ impl Model {
             st.spec_rows.saved = q - 1;
         }
         self.telemetry.step();
-        self.mtp_after_forward(st, &hn, q, false, profile)?;
+        self.mtp_after_forward(st, hn, q, false, profile)?;
         self.dflash_after_forward(st, q, profile)?;
         Ok(b.chunks_exact(4).map(|c| i32::from_le_bytes([c[0], c[1], c[2], c[3]]) as u32).collect())
+    }
+
+    /// [`Model::forward_verify`] with the other rank in another process (lane mt2, an MoE MTP head whole on rank 0): send it the pass
+    /// ([`crate::tp_remote::FWD_VERIFY`]: its share on the row-exact kernels, the recurrent state saved per row), run rank 0's here,
+    /// then read its answer. A failure on either side leaves the group unusable, as a forward's does.
+    fn forward_verify_remote(&self, st: &mut SequenceState, ids: &[u32], profile: bool) -> Result<Vec<u32>> {
+        let q = ids.len();
+        let mut rs = st
+            .remote
+            .take()
+            .ok_or_else(|| Error::invalid("this sequence state does not belong to a tensor-parallel model (use Model::new_state)"))?;
+        let r = (|| -> Result<TensorRef> {
+            if rs.len != st.len {
+                return Err(Error::backend(format!("tensor-parallel ranks diverged ({} vs {} tokens)", rs.len, st.len)));
+            }
+            rs.start_verify(ids)?;
+            self.exact_rows.store(true, std::sync::atomic::Ordering::Relaxed);
+            let r0 = (|| -> Result<TensorRef> {
+                let hn = self.run_chunk(st, ids, profile)?;
+                self.verify_head(&hn, q, profile)?;
+                Ok(hn)
+            })();
+            self.exact_rows.store(false, std::sync::atomic::Ordering::Relaxed);
+            if r0.is_err() {
+                // the remote rank waits in a collective this rank will not join: the group is gone
+                if let Some(c) = &self.tp.comm {
+                    c.abort();
+                }
+                rs.mark_unusable();
+                self.tp_aborted.store(true, std::sync::atomic::Ordering::Relaxed);
+                return r0;
+            }
+            if let Err(e) = rs.finish() {
+                self.tp_aborted.store(true, std::sync::atomic::Ordering::Relaxed);
+                return Err(e);
+            }
+            r0
+        })();
+        st.remote = Some(rs);
+        let hn = match r {
+            Ok(hn) => hn,
+            Err(e) => {
+                if st.has_recurrent() {
+                    let _ = st.reset(&*self.backend);
+                }
+                return Err(e);
+            }
+        };
+        self.verify_tail(st, ids, &hn, profile)
     }
 
     /// lm_head of rows `[0, q)` into `ws.logits` (`[q, V]` f32) and their argmax into `verify_tok` (`i32 [q]`).
@@ -2198,6 +2292,18 @@ impl Model {
 
     /// A tensor-parallel peer's share of a verify pass ([`Model::forward_verify`] on rank 0): the same layers on its slice, with
     /// its own recurrent rows saved, and its slice of a vocab-parallel head with the gather. Commits the rows as rank 0 does.
+    /// A remote rank's share of a verify pass ([`crate::tp_remote::RankModel::verify_rank`], lane mt2): as an in-process peer's.
+    pub(crate) fn verify_served(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
+        if self.verify_rows == 0 {
+            return Err(Error::invalid("a verify pass on a rank without enable_verify_served"));
+        }
+        Self::check_forward(st, ids, HeadMode::LastArgmax, false)?;
+        if !(2..=self.verify_rows).contains(&ids.len()) {
+            return Err(Error::invalid(format!("a verify pass of {} rows (enabled for 2..={})", ids.len(), self.verify_rows)));
+        }
+        self.verify_peer(st, ids)
+    }
+
     fn verify_peer(&self, st: &mut SequenceState, ids: &[u32]) -> Result<()> {
         let q = ids.len();
         Self::prepare_spec_rows(&*self.backend, st, q)?;
@@ -3731,7 +3837,7 @@ impl Model {
         if self.rope_table.is_some() {
             return Ok(false);
         }
-        let d = &self.ldims;
+        let d = self.adims();
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
         let attrs = OpAttrs {
             eps: d.rms_eps,
@@ -3798,7 +3904,7 @@ impl Model {
         if !a.gated || self.rope_table.is_some() {
             return None;
         }
-        let d = &self.ldims;
+        let d = self.adims();
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
         let (qg, gate) = self.gated_q_buffers(total);
         let (qg, gate) = (qg.rows(lo, t), gate.rows(lo, t));
@@ -3845,7 +3951,7 @@ impl Model {
         split_folded: bool,
         profile: bool,
     ) -> Result<(usize, Option<TensorRef>)> {
-        let d = &self.ldims;
+        let d = self.adims();
         let act = self.act;
         let ws = &self.ws;
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
@@ -3910,7 +4016,7 @@ impl Model {
 
     /// Views of the attention scratch for `t` rows.
     fn attn_bufs(&self, t: usize) -> AttnBufs {
-        let (d, act, ws) = (&self.ldims, self.act, &self.ws);
+        let (d, act, ws) = (self.adims(), self.act, &self.ws);
         let q3 = [t, d.n_heads, d.head_dim];
         let k3 = [t, d.n_kv_heads, d.head_dim];
         AttnBufs {
@@ -3958,7 +4064,7 @@ impl Model {
         core: bool,
         profile: bool,
     ) -> Result<(TensorRef, usize)> {
-        let d = &self.ldims;
+        let d = self.adims();
         let (nh, nkv, hd) = (d.n_heads, d.n_kv_heads, d.head_dim);
         let eps = OpAttrs { eps: d.rms_eps, w_offset: self.recipe.model.norm_offset, ..Default::default() };
         let mut rope = OpAttrs { pos0, theta: d.rope_theta, head_dim: hd, rotary_dim: a.rotary_dim, ..Default::default() };
@@ -4112,7 +4218,8 @@ impl Model {
         t: usize,
         profile: bool,
     ) -> Result<()> {
-        let d = &self.ldims;
+        let d = self.adims();
+        let whole = self.head_whole.load(std::sync::atomic::Ordering::Relaxed);
         let qshape = [t, d.n_heads * d.head_dim];
         // the output gate folded into the fp8 o_proj's input (`SigmoidMulMatmulFp8`) when the backend has it; the gated
         // product is then never stored
@@ -4126,7 +4233,7 @@ impl Model {
                     profile,
                 )?;
                 if fused {
-                    return self.all_reduce(out, out, profile);
+                    return if whole { Ok(()) } else { self.all_reduce(out, out, profile) };
                 }
             }
         }
@@ -4145,12 +4252,25 @@ impl Model {
             }
             None => attn_out.reshaped(&qshape),
         };
+        if whole {
+            // an MTP head whole on rank 0 (lane mt2): the full o projection, as at tp = 1
+            return self.proj(&o_in, &a.wo, out, profile);
+        }
         match &self.ws.part {
             Some(part) => {
                 let part = self.view(part, DType::F32, &[t, d.hidden]);
                 self.proj_then_reduce(&o_in, &a.wo, &part, out, t, profile)
             }
             None => self.proj_then_reduce(&o_in, &a.wo, out, out, t, profile),
+        }
+    }
+
+    /// The dims the attention helpers run: the global ones inside a whole MTP head pass ([`Model::head_whole`]), else this rank's.
+    pub(super) fn adims(&self) -> &ModelDims {
+        if self.head_whole.load(std::sync::atomic::Ordering::Relaxed) {
+            &self.dims
+        } else {
+            &self.ldims
         }
     }
 
