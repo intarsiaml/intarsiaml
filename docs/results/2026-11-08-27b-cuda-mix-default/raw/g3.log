@@ -1,0 +1,43 @@
+fleetq: #9120 running on spark1: bash -c 'ssh spark1 "bash -s" < .mxd/g3.sh'
+plan 35b json: main vs dev byte-identical (15570 B)
+plan 8b json: main vs dev byte-identical (8973 B)
+plan 27b json: main vs dev DIFFER or empty (15748 B)
+plan 27b: main vs dev with INTARSIA_MTP_QUANT=off byte-identical
+== 27b main vs dev diff (json split at commas)
+16c16
+<   "exactness": "fast"
+---
+>   "exactness": "deterministic"
+886,917d885
+<       "op": "matmul"
+< 
+<       "kernel": "matmul_bf16"
+< 
+<       "backend": "cuda"
+< 
+<       "exactness": "fast"
+< 
+<       "admitted": false
+< 
+<       "calls_per_decode_step": 0
+< 
+<       "scratch_bytes": 0
+<     }
+< 
+<     {
+<       "op": "matmul"
+< 
+<       "kernel": "matmul_bf16_gemv"
+< 
+<       "backend": "cuda"
+< 
+<       "exactness": "deterministic"
+< 
+<       "admitted": false
+== kernels test --quick (dev) 13:37:45
+exit 0 FAIL lines: 0
+logits         logits_f16w                     2      0    8.208e-8    6.986e-8  ADMITTED
+matmul         matmul_f16w                     4      0     0.000e0     0.000e0  ADMITTED
+106 kernels, 954 cases in 7.8s
+== done 13:37:54
+fleetq: #9120 done (exit 0)

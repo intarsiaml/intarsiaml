@@ -88,22 +88,15 @@ fn bf16_f32(b: &[u8]) -> Vec<f32> {
     b.chunks_exact(2).map(|c| f32::from_bits((u16::from_le_bytes([c[0], c[1]]) as u32) << 16)).collect()
 }
 
-/// `INTARSIA_MTP_QUANT` (lane c27, docs/tuning.md): quantises the dense head's projections at load, from the checkpoint's bf16 rows, into the formats
-/// the quantised `lm_head` uses (`quant::head`): `fp8` = e4m3 with one f32 scale per tensor for all of them (fc halves, q / k / v / o, gate / up / down;
-/// 0.85 GB bf16 -> 0.43 GB on the 27B), `mxfp4` = e2m1 + e8m0 per 32 for all of them, `mix` = fp8 for fc and attention, mxfp4 for the feed-forward.
-/// Drafts never change the output, so this only moves acceptance and the draft cost. Off by default; only for a single rank (a sharded head keeps bf16) and for
-/// checkpoints that store the head as bf16. Returns (fc + attention format, feed-forward format).
-fn mtp_quant() -> Result<Option<(HeadQuant, HeadQuant)>> {
-    match std::env::var("INTARSIA_MTP_QUANT") {
-        Ok(v) => match v.trim().to_ascii_lowercase().as_str() {
-            "fp8" | "fp8_e4m3" | "e4m3" => Ok(Some((HeadQuant::Fp8, HeadQuant::Fp8))),
-            "mxfp4" => Ok(Some((HeadQuant::Mxfp4, HeadQuant::Mxfp4))),
-            "mix" => Ok(Some((HeadQuant::Fp8, HeadQuant::Mxfp4))),
-            "" | "off" | "0" | "none" | "bf16" => Ok(None),
-            other => Err(Error::model(format!("INTARSIA_MTP_QUANT = '{other}' (fp8 | mxfp4 | mix | off)"))),
-        },
-        Err(_) => Ok(None),
-    }
+/// `INTARSIA_MTP_QUANT` (lane c27, docs/tuning.md) or the recipe's `[tuning.<backend>] mtp_quant`: quantises the dense head's projections at load, from the
+/// checkpoint's bf16 rows, into the formats the quantised `lm_head` uses (`quant::head`): `fp8` = e4m3 with one f32 scale per tensor for all of them (fc halves,
+/// q / k / v / o, gate / up / down; 0.85 GB bf16 -> 0.43 GB on the 27B), `mxfp4` = e2m1 + e8m0 per 32 for all of them, `mix` = fp8 for fc and attention, mxfp4 for
+/// the feed-forward. Drafts never change the output, so this only moves acceptance and the draft cost. The variable wins over the recipe; the Qwen3.8-27B recipe
+/// sets `mix` on CUDA only (user decision 2026-11-08), every other recipe and backend is off by default. Only for a single rank (a sharded head keeps bf16) and
+/// for checkpoints that store the head as bf16. Returns (fc + attention format, feed-forward format).
+fn mtp_quant(recipe: Option<&str>) -> Result<Option<crate::quant::head::MtpQuant>> {
+    let env = std::env::var(crate::quant::head::MTP_ENV).ok();
+    crate::quant::head::resolve_mtp_quant(env.as_deref(), recipe)
 }
 
 /// Weight bytes and device tensors of the head, for `Model::load_shard` (`opts.mtp`).
@@ -146,9 +139,9 @@ pub(super) fn load_head(
     let qdim = dims.n_heads * dims.head_dim;
     let kvdim = dims.n_kv_heads * dims.head_dim;
     let gate = usize::from(a.gated);
-    let mq = if (tp_world == 1 || whole_rows.is_some()) && dims.moe.is_none() { mtp_quant()? } else { None };
+    let mq = if (tp_world == 1 || whole_rows.is_some()) && dims.moe.is_none() { mtp_quant(recipe.mtp_quant(b.name()))? } else { None };
     if let Some((a, f)) = mq {
-        eprintln!("mtp head quantised (INTARSIA_MTP_QUANT): fc and attention {}, feed-forward {}; drafts only, verified output unchanged", a.name(), f.name());
+        eprintln!("mtp head quantised (INTARSIA_MTP_QUANT / recipe mtp_quant): fc and attention {}, feed-forward {}; drafts only, verified output unchanged", a.name(), f.name());
     }
     // the head's projection loader: the checkpoint's bf16 rows quantised when `INTARSIA_MTP_QUANT` is set (`ffn`: the feed-forward's format), else `load_q`
     let load_qq = |name: &str, n: usize, k: usize, ax: Option<ShardAxis>, ffn: bool| -> Result<QTensor> {
