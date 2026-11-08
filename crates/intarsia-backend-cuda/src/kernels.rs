@@ -1035,12 +1035,13 @@ mod tests {
         // `ShortConv` (LFM2's gated short conv, lane nab2) is cpu and Metal so far: an LFM2 model fails at load with `NoKernel` naming `short_conv`.
         // The DeepSeek-V4.1 ops (`intarsia_core::dsv41::ops::OPS`, lane 1a) without a CUDA kernel yet (dsv41.rs has the rest): the
         // layout helpers and grouped matmul, the base checkpoint's fp8 linear, the EXL3 experts (lane cuda-moe) and Engram.
+        // The DSpine bridge ops (lane dspine) are cpu, Metal and HIP: a DSpine draft is refused on CUDA at load.
         let not_on_cuda: Vec<Op> = NOT_ON_CUDA
             .iter()
             .chain(intarsia_core::dsv41::ops::OPS.iter().filter(|op| !crate::dsv41::TABLE.iter().any(|(_, o)| o == *op)))
             .copied()
             .collect();
-        const NOT_ON_CUDA: [Op; 13] = [
+        const NOT_ON_CUDA: [Op; 17] = [
             Op::ShortConv,
             Op::DynConv,
             Op::RopeScaled,
@@ -1054,6 +1055,10 @@ mod tests {
             Op::GdnConvDelta,
             Op::MoeBlock,
             Op::MatmulMxfp4Pair,
+            Op::BridgeNorm,
+            Op::BridgeCode,
+            Op::BridgeGate,
+            Op::BridgeWrite,
         ];
         for op in Op::ALL {
             if !not_on_cuda.contains(&op) {
