@@ -411,10 +411,16 @@ Effort is coding hours. Every GPU window goes through fleetq on tatooine, with `
 Two adversarial checks of this plan against the code (6/12 speed claims held, 21/31 tp=2 claims held) and the category sweep
 (`docs/results/2026-11-08-dspine-cats.md`) change it as follows.
 
-* **The sweep overturns the ranking's premise.** On the 7 category files (39-47 token prompts) DFlash2 k7 leads (geomean 72.1 tok/s) over MTP k2
-  (68.3), DSpine k7 (65.8) and DSpine k3 (63.9). DSpine accepts less than DFlash2 at the same k on chat, prose and recall. Lever 7 (acceptance:
-  real-weight parity against MLX, f32 fc partial sums) moves to the top; the pass-cost levers 3-6 (about +5.6 % combined at 4k, [E]) only matter
-  once acceptance is at least DFlash2's.
+* **On short prompts the sweep overturns the ranking's premise; at 4k it does not test it.** On the 7 category files (39-47 token prompts only)
+  DFlash2 k7 leads (geomean 72.1 tok/s) over MTP k2 (68.3), DSpine k7 (65.8) and DSpine k3 (63.9), and DSpine accepts less than DFlash2 at the same
+  k on chat, prose and recall. At 4k the only data is still one prompt, where DSpine accepts more (4.19 vs 3.57 t/p). For short prompts, lever 7
+  (acceptance) moves to the top and the pass-cost levers 3-6 matter only once acceptance reaches DFlash2's; the 4k ranking stands until a
+  long-prompt sweep.
+* **Lever 7 is a hypothesis with a test, not a finding.** Tencent's DSpine-over-DFlash2 numbers are b16 vs b8, bf16 target, H-class GPU; ours is k7
+  truncation on an MXFP4 target. Test: dump our engine's real taps on a few sweep prompts, feed the same taps to the MLX reference, compare per-row
+  draft argmax. Agreement means the gap is the model or the quantized target; disagreement means a port bug, and that is the lever.
+* **Lever 1 loses DFlash2's short-prompt wins.** `--spec auto --spec-draft <DSpine>` puts DSpine in DFlash2's slot; on short prompts DFlash2 k7
+  beats MTP on code (+24-33 %) and recall (+12-16 %), and DSpine k7 matches it only on code. Auto with DFlash2 stays the better short-prompt pairing.
 * Lever 2: a prompt-length k cannot be a load-time default (`load.rs:814-821`). Load at k7 so the dry run admits 8 rows, lower k per request at
   `engine.rs:1424`. `spec::Depth` runs under `--spec mtp` and `--spec auto` (and acts on DSpine passes under auto), not under `--spec dflash`.
 * Lever 4 (`INTARSIA_VERIFY_GRAPH=1`): about 0 at 4k k7, about +1 % at short k3. The combined tp=1 estimate is 54.0 ms / 77.6 tok/s at 4k k7
@@ -426,4 +432,5 @@ Two adversarial checks of this plan against the code (6/12 speed claims held, 21
 * tp=2 numbers with the context correction: A 4k k7 about 41.2 ms / 102 tok/s, B about 36.0 ms / 116 tok/s; k3 rows about 0.7 ms longer than
   §3.4. DFlash2 split k7 on DSpine's prompt is about 103 tok/s. Short-prompt tp=2 rows carry about ±7 % from acceptance drift (measured up to
   −0.27 t/p tp=1 → tp=2). The 8-row shard cliff is already measured absent on this target.
-* Order of work: L7 (acceptance) first. L1 (tp2-A) stays cheap and independent but is only worth shipping if L7 shows DSpine can beat DFlash2.
+* Order of work: the tap-replay test (lever 7) or a long-prompt served sweep gates everything. L1 (tp2-A) and L4 (tp2-B) inherit the single 4k
+  data point (102 / 116 tok/s [E]) and are only worth building if served traffic is long-context and DSpine beats DFlash2 there.

@@ -30,13 +30,13 @@ off, MTP k2 and DFlash2 k7 reproduce the "now" columns of `2026-11-06-27b-dflash
   DSpine k3 (the default). DSpine k7 wins only code, by 2 %.
 * The gap is acceptance, not pass cost. At the same k=7, DSpine accepts less than DFlash2 on chat (2.72 vs 3.08 t/p), prose (2.11-2.25 vs
   2.51-2.58) and recall (3.66-3.75 vs 3.93-4.10), and slightly more on code (5.03-5.35 vs 4.82-5.15). Its pass is about 1 ms longer.
-* Tencent reports DSpine above DFlash2 in acceptance. Our port's parity gap (rel-L2 2e-2 against a 2e-3 target, `2026-11-07-dspine.md`) and the
-  unrun real-weight parity are the first suspects; prompt length is the second (DSpine's one measured win was a 4420-token prompt).
+* Tencent reports DSpine above DFlash2 in acceptance, but with b16 vs b8, a bf16 target and an H-class GPU; ours is k7 on an MXFP4 target.
+  Hypotheses, untested: our port's parity gap (rel-L2 2e-2 against a 2e-3 target, `2026-11-07-dspine.md`), the quantized target, or prompt
+  length (DSpine's one measured win was a 4420-token prompt). This sweep says nothing about long prompts.
 * No default changes. DSpine stays opt-in.
 
 ## Next
 
-1. Acceptance before speed: real-weight parity against Tencent's MLX reference on these prompts (per-row draft agreement, not only rel-L2), and
-   f32 fc partial sums. If our drafts differ from the reference's, that is the lever, worth more than every pass-cost lever in
-   `docs/plans/2026-11-08-dspine-speed-tp2.md` combined.
+1. Tap-replay test: dump our engine's real taps on a few of these prompts, feed the same taps to Tencent's MLX reference, compare per-row draft
+   argmax. Disagreement is a port bug and the biggest lever; agreement puts the gap on the model or the MXFP4 target.
 2. A long-prompt category set (2k-8k tokens) before concluding DSpine has a niche: the only DSpine win so far is one 4k prompt.
