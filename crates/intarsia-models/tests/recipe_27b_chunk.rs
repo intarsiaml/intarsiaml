@@ -74,3 +74,41 @@ fn shipped_27b_recipe_lm_head_quant() {
         }
     }
 }
+
+/// `mix` MTP draft head by default on CUDA only (user decision 2026-11-08, docs/results/2026-11-08-27b-cuda-mix-default.md); Metal, HIP and cpu unset;
+/// every off spelling of `INTARSIA_MTP_QUANT` beats the recipe key, and the other recipes (8B, 35B, Llama) set nothing.
+#[test]
+fn shipped_27b_recipe_mtp_quant() {
+    use intarsia_core::quant::head::{resolve_mtp_quant, HeadQuant};
+    let r = intarsia_models::parse_recipe(include_str!("../../../recipes/qwen3_5_vl.toml")).unwrap();
+    let key = r.mtp_quant("cuda");
+    assert_eq!(key, Some("mix"), "cuda");
+    let mix = Some((HeadQuant::Fp8, HeadQuant::Mxfp4));
+    assert_eq!(resolve_mtp_quant(None, key).unwrap(), mix, "cuda: default on, fc + attention fp8, feed-forward mxfp4");
+    for off in ["off", "none", "0", "", "bf16", "OFF"] {
+        assert_eq!(resolve_mtp_quant(Some(off), key).unwrap(), None, "INTARSIA_MTP_QUANT={off:?} beats the recipe");
+    }
+    assert_eq!(resolve_mtp_quant(Some("fp8"), key).unwrap(), Some((HeadQuant::Fp8, HeadQuant::Fp8)), "the variable also picks another format");
+    assert_eq!(resolve_mtp_quant(Some("mix"), None).unwrap(), mix, "the variable alone still works");
+    assert_eq!(resolve_mtp_quant(None, None).unwrap(), None, "unset on both: off");
+    assert!(resolve_mtp_quant(Some("fp9"), key).is_err() && resolve_mtp_quant(None, Some("fp9")).is_err());
+    for b in ["metal", "hip", "cpu"] {
+        assert_eq!(r.mtp_quant(b), None, "27B on {b}: no recipe key");
+    }
+    // a bad value is refused when the recipe is read
+    let text = include_str!("../../../recipes/qwen3_5_vl.toml");
+    let bad = text.replace("mtp_quant = \"mix\"", "mtp_quant = \"fp9\"");
+    assert_ne!(bad, text);
+    assert!(intarsia_models::parse_recipe(&bad).is_err(), "mtp_quant = fp9 must be refused");
+    for (name, text) in [
+        ("qwen3", include_str!("../../../recipes/qwen3.toml")),
+        ("qwen3_5_moe", include_str!("../../../recipes/qwen3_5_moe.toml")),
+        ("llama", include_str!("../../../recipes/llama.toml")),
+        ("qwen3_5", include_str!("../../../recipes/qwen3_5.toml")),
+    ] {
+        let o = intarsia_models::parse_recipe(text).unwrap();
+        for b in ["metal", "hip", "cuda", "cpu"] {
+            assert_eq!(o.mtp_quant(b), None, "{name} on {b}");
+        }
+    }
+}

@@ -167,5 +167,11 @@ tp_partial = "bf16"
 # is e4m3 with one f32 scale per tensor at load, 1.27 GB. Changes outputs (docs/results/2026-11-06-lmhead-fp8-default.md has the CUDA KL / flip
 # check and the decode numbers on the GB10). `INTARSIA_LMHEAD_QUANT=off` keeps the bf16 head.
 lm_head_quant = "fp8"
+# `mix` MTP draft head (user decision 2026-11-08 ~13:05 EST: "yes, make mix the 27B CUDA default"): the dense MTP head's fc and attention projections are quantised at
+# load to fp8 (e4m3, one f32 scale per tensor), its feed-forward to mxfp4 (e2m1, e8m0 per 32); 0.85 GB bf16 -> about 0.3 GB, read twice per MTP k2 pass. Drafts only: every
+# emitted token is a verify row's argmax, so greedy ids equal `--spec off` (checked tp1 and tp2). tp1 +6.1 % at 4k (docs/results/2026-11-07-cuda27-decode.md); tp2 over the
+# Sparks +9.0 / +9.4 / +7.0 % at 1k / 4k / 16k, sampled acceptance 67.5 % against 68.2 % unset (docs/results/2026-11-07-27b-tp2-mtp-quant.md). `INTARSIA_MTP_QUANT=off`
+# (or `none`, `0`, `bf16`, empty) keeps the bf16 head and wins over this key; an in-process sharded head and an MoE head stay bf16. Metal and HIP do not set it.
+mtp_quant = "mix"
 mtp_default_k = 2
 mtp_draft_vocab = 65536
