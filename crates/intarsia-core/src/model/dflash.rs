@@ -454,6 +454,7 @@ impl Model {
                 }
                 Ok(())
             } else {
+                self.dspine_dump_taps(head, d.kv.len, &head.feat, t)?;
                 self.dflash_ingest(head, &mut d.kv, &head.feat, t, profile)
             }
         })();
@@ -490,6 +491,7 @@ impl Model {
         if n == 0 {
             return Ok(());
         }
+        self.dspine_dump_taps(head, d.kv.len, &d.store, n)?;
         self.dflash_ingest(head, &mut d.kv, &d.store, n, profile)?;
         d.pending = 0;
         Ok(())
@@ -653,7 +655,7 @@ impl Model {
             let rows_k = head.rows_kernels.load(std::sync::atomic::Ordering::Relaxed);
             if let Some(sp) = d2.spine.as_deref() {
                 // DSpine: the block, the live head's logits, host candidates and the greedy tail (`model/dspine.rs`)
-                let mut drafts = self.dspine_draft(d2, sp, &d.kv, next, t, rows_k, profile)?;
+                let mut drafts = self.dspine_draft(d2, sp, &d.kv, &st.tokens, next, t, rows_k, profile)?;
                 drafts.truncate(k);
                 if self.recorder.lock().unwrap().is_some() {
                     return Ok(Vec::new());

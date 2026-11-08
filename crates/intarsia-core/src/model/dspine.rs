@@ -22,6 +22,7 @@
 //! Drafts never change the output (every emitted token is a verify row's argmax); the numerics only move the acceptance rate.
 //! The block runs `t = min(block, k + 1)` rows: it is causal, so the first rows of a shorter block equal those of the full one.
 
+mod dump;
 use super::dflash2::{bf, row_topk, Draft2};
 use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -630,7 +631,8 @@ impl Model {
         let add = |a: &TensorRef, b: &TensorRef, out: &TensorRef| self.exec(Op::Add, vec![a.clone(), b.clone()], vec![out.clone()], OpAttrs::default(), profile);
         self.exec(Op::Embedding, vec![self.view(&ws.ids, DType::I32, &[t]), self.embed.clone()], vec![x.clone()], OpAttrs::default(), profile)?;
         self.d2_norm(d2, &x, &d2.layers[0].ln1, &n, profile)?;
-        if sp.trace.load(Ordering::Relaxed) {
+        let tracing = sp.trace.load(Ordering::Relaxed) || dump::layers_on();
+        if tracing {
             sp.layers_log.lock().unwrap().clear();
         }
         for (li, l) in d2.layers.iter().enumerate() {
@@ -684,7 +686,7 @@ impl Model {
             let (w_next, eps_n, nout) = if li + 1 < nl { (d2.layers[li + 1].ln1.clone(), d2.eps, n.clone()) } else { (self.dspine_final_norm()?, d2.eps, final_n.clone()) };
             self.exec(Op::BridgeWrite, vec![raw.clone(), rms.clone(), dlt.clone(), w_next], vec![xn.clone(), nout], OpAttrs { eps: eps_n, ..Default::default() }, profile)?;
             std::mem::swap(&mut x, &mut xn);
-            if sp.trace.load(Ordering::Relaxed) && self.recorder.lock().unwrap().is_none() {
+            if tracing && self.recorder.lock().unwrap().is_none() {
                 let nrm_t = if li + 1 < nl { &n } else { &final_n };
                 let dl = |tr: &TensorRef| -> Result<Vec<f32>> {
                     let b = self.dl_bytes(tr)?;
@@ -705,7 +707,7 @@ impl Model {
     /// Drafts of one DSpine pass: the block, the pass-1 logits on the live head, host candidates and the greedy tail. `t` rows
     /// (`2 ..= block`), the ids already in `ws.ids`.
     #[allow(clippy::too_many_arguments)]
-    pub(super) fn dspine_draft(&self, d2: &Draft2, sp: &Spine, kv: &SequenceState, next: u32, t: usize, rows_k: bool, profile: bool) -> Result<Vec<u32>> {
+    pub(super) fn dspine_draft(&self, d2: &Draft2, sp: &Spine, kv: &SequenceState, seq: &[u32], next: u32, t: usize, rows_k: bool, profile: bool) -> Result<Vec<u32>> {
         let (h, v, act, ws) = (self.dims.hidden, self.dims.vocab, self.act, &self.ws);
         let recording = self.recorder.lock().unwrap().is_some();
         // INTARSIA_SPEC_TRACE=1: sync between the phases and print their host times
@@ -796,9 +798,10 @@ impl Model {
             raw: raw.iter().map(|&b| bf(b)).collect(),
             rms: rms.clone(),
             packed: packed.iter().map(|&b| bf(b)).collect(),
-            cand,
+            cand: cand.clone(),
             drafts: drafts.clone(),
         });
+        self.dspine_dump_pass(sp, seq, next, kv.len, t, &cand, &logits, &drafts)?;
         Ok(drafts)
     }
 }
