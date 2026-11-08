@@ -1,0 +1,1 @@
+[localeval] fleetq is not installed (uv tool install /opt/code/fleetq); install it, or pass --no-queue to run without a slot
