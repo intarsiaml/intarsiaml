@@ -313,6 +313,43 @@ pub fn sweep(op: Op, cfg: &SweepConfig) -> Vec<Case> {
                 }
             }
         }
+        Op::BridgeNorm | Op::BridgeCode | Op::BridgeGate | Op::BridgeWrite => {
+            // the DSpine draft's code bridge: block rows (1 ..= 16, the odd counts included), the 27B draft's widths (code 1024,
+            // hidden 5120, message rank 512) and small ones
+            let trows: &[usize] = if quick { &[1, 2, 9] } else { &[1, 2, 8, 9, 15, 16] };
+            let mut widths = vec![16, 64];
+            if !quick {
+                widths.extend([1024, 5120]);
+            }
+            for &t in trows {
+                for &d in &widths {
+                    for dt in act_dtypes() {
+                        let a = OpAttrs { eps: 1e-6, scale: (d as f32).sqrt(), ..attrs() };
+                        let (inputs, outputs, label) = match op {
+                            Op::BridgeNorm => (vec![rand_t(&mut rng, dt, &[t, d], 2.0)], vec![OutSpec::new(dt, &[t, d]), OutSpec::new(DType::F32, &[t])], format!("T={t} D={d} {dt}")),
+                            Op::BridgeCode => (vec![rand_t(&mut rng, dt, &[t, d], 1.0)], vec![OutSpec::new(dt, &[t, d])], format!("T={t} C={d} {dt}")),
+                            Op::BridgeGate => {
+                                let r = d.min(512);
+                                (
+                                    vec![rand_t(&mut rng, dt, &[t, 3 * r], 1.5), rand_t(&mut rng, dt, &[r], 0.5), rand_t(&mut rng, dt, &[2 * r], 1.5)],
+                                    vec![OutSpec::new(dt, &[t, r])],
+                                    format!("T={t} R={r} {dt}"),
+                                )
+                            }
+                            _ => {
+                                let rms: Vec<f32> = (0..t).map(|_| 0.1 + rng.normal().abs()).collect();
+                                (
+                                    vec![rand_t(&mut rng, dt, &[t, d], 2.0), HostTensor::from_f32(&[t], &rms), rand_t(&mut rng, dt, &[t, d], 0.3), norm_w(&mut rng, dt, d)],
+                                    vec![OutSpec::new(dt, &[t, d]), OutSpec::new(dt, &[t, d])],
+                                    format!("T={t} H={d} {dt}"),
+                                )
+                            }
+                        };
+                        push(label, HostCall { op, inputs, outputs, attrs: a });
+                    }
+                }
+            }
+        }
         Op::AddBias => {
             let mut widths = hs.clone();
             if !quick {

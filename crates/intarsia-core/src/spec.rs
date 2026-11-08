@@ -41,6 +41,9 @@ pub const SPEC_K_MAX: usize = 6;
 pub const DFLASH_K_MAX: usize = 15;
 /// `--spec-k` default with `--spec dflash` (the checkpoint's block).
 pub const DFLASH_K_DEFAULT: usize = 15;
+/// `--spec-k` default with a DSpine draft (b16 block, so the DFlash default of 15 would run a 16-row verify): k = 3 was the best arm
+/// on Metal and the 16-row verify has never been gated there; DSpine's draft cost also grows with the rows it runs.
+pub const DSPINE_K_DEFAULT: usize = 3;
 /// `--spec auto`: drafts per DFlash pass by default (Qwen3.8-27B tp=2 HIP sweet spot, docs/results/2026-10-27-dcp-dflash-cost.md).
 pub const AUTO_DFLASH_K_DEFAULT: usize = 7;
 /// `--spec auto`: drafts per MTP pass (the recipe's k for the 27B, [`MTP_K_DEFAULT`]).

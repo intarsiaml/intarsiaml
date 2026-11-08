@@ -96,6 +96,11 @@ pub const TABLE: &[(&str, Op)] = &[
     // lane dw: the split-KV twin for the DFlash2 draft's windowed block attention (`OpAttrs::win_split`, INTARSIA_DFLASH_WIN_SPLIT, on unless `=0`)
     ("attn_decode_bf16_window_splitkv", Op::AttnDecode),
     ("dyn_conv_bf16", Op::DynConv),
+    // the DSpine draft's code bridge (kernels/hip/bridge.hip)
+    ("bridge_norm_bf16", Op::BridgeNorm),
+    ("bridge_code_bf16", Op::BridgeCode),
+    ("bridge_gate_bf16", Op::BridgeGate),
+    ("bridge_write_bf16", Op::BridgeWrite),
     ("silu_glu_bf16", Op::SiluGlu),
     ("gdn_conv_bf16", Op::GdnConv),
     ("gdn_delta_rule_bf16", Op::GdnDeltaRule),
@@ -374,7 +379,9 @@ pub fn all() -> Vec<KernelImpl> {
                 .tol(BF16_TOL)
                 .priority(5)
                 .scratch(splitkv_scratch),
-            "dyn_conv_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
+            "dyn_conv_bf16" | "bridge_norm_bf16" | "bridge_code_bf16" | "bridge_gate_bf16" | "bridge_write_bf16" => {
+                k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL)
+            }
             "gate_split_bf16" | "sigmoid_mul_bf16" => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
             "gdn_conv_bf16" => k.acts(bf).weights(bf).when(|s| (2..=8).contains(&s.k)).exact(Exactness::Deterministic).tol(BF16_TOL),
             // sequential recurrence, state rows in registers: fixed reduction order

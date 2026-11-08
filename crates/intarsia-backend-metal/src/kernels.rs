@@ -321,6 +321,7 @@ pub fn shader_names() -> Vec<&'static str> {
     v.extend(crate::mxfp4::MMA_SHADERS);
     v.extend(crate::gdn::shader_names());
     v.extend(crate::dflash::shader_names());
+    v.extend(crate::bridge::shader_names());
     v.extend(crate::moe::SHADERS);
     v.extend(crate::fp8::SHADERS);
     v.extend(crate::nvfp4::SHADERS);
@@ -407,6 +408,11 @@ pub const TABLE: &[(&str, Op)] = &[
     // lane dm: the DFlash2 draft's conv and its sliding-window decode (`.ext()`, never picked by plain calls)
     (crate::dflash::DYN_CONV_BF16, Op::DynConv),
     (crate::dflash::ATTN_DECODE_BF16_WINDOW, Op::AttnDecode),
+    // the DSpine draft's code bridge (bridge.rs)
+    (crate::bridge::BRIDGE_NORM_BF16, Op::BridgeNorm),
+    (crate::bridge::BRIDGE_CODE_BF16, Op::BridgeCode),
+    (crate::bridge::BRIDGE_GATE_BF16, Op::BridgeGate),
+    (crate::bridge::BRIDGE_WRITE_BF16, Op::BridgeWrite),
 ];
 
 /// Every kernel implementation this backend registers. Tolerances and exactness match the hip entries of the same ops.
@@ -593,6 +599,10 @@ pub fn all() -> Vec<KernelImpl> {
                 GATE_SPLIT_BF16 | SIGMOID_MUL_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
                 // lane dm (DFlash2 draft, the hip entries): f32 conv along the block rows, one rounding
                 crate::dflash::DYN_CONV_BF16 => k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL),
+                // the DSpine draft's code bridge: f32 math, bf16 stores at the oracle's rounding points
+                crate::bridge::BRIDGE_NORM_BF16 | crate::bridge::BRIDGE_CODE_BF16 | crate::bridge::BRIDGE_GATE_BF16 | crate::bridge::BRIDGE_WRITE_BF16 => {
+                    k.acts(bf).exact(Exactness::Deterministic).tol(BF16_TOL)
+                }
                 // the sliding-window decode: the plain decode shaders over the window's keys (dflash.rs). `.ext()`: the only Metal
                 // kernel that takes `OpAttrs::window > 0`; priority -1 keeps every plain call on the kernel it had.
                 crate::dflash::ATTN_DECODE_BF16_WINDOW => k
@@ -907,6 +917,10 @@ mod tests {
         "attn_prefill_bf16_flash:attn_prefill",
         "attn_prefill_bf16_flash_nax:attn_prefill",
         "attn_prefill_bf16_splitkv_rows:attn_prefill",
+        "bridge_code_bf16:bridge_code",
+        "bridge_gate_bf16:bridge_gate",
+        "bridge_norm_bf16:bridge_norm",
+        "bridge_write_bf16:bridge_write",
         "dyn_conv_bf16:dyn_conv",
         "embedding_bf16:embedding",
         "gate_split_bf16:gate_split",

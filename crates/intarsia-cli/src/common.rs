@@ -118,7 +118,8 @@ pub struct ModelArgs {
     pub spec_k: Option<usize>,
     /// With `--spec dflash`: the draft checkpoint directory (`TD-Labs/Qwen3-8B-DCOCO` layout: `config.json` with
     /// `dflash_config`, `model.safetensors`). CUDA and the CPU backend, single sequence, greedy requests; the target's
-    /// embedding and lm_head are used for the draft.
+    /// embedding and lm_head are used for the draft. A DSpine draft (`tencent/Qwen3.8-27B-DSpine-b16`; cpu and Metal) defaults
+    /// `--spec-k` to 3, not the b16 block's 15 (k = 3 measured fastest on Metal; a 16-row verify has not been gated there).
     #[arg(long)]
     pub spec_draft: Option<PathBuf>,
     /// With `--spec dflash`: the DCOCO corrector (arXiv 2610.12570) picks each block's tokens from the draft's top-16

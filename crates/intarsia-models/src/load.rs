@@ -351,7 +351,8 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
     let config = intarsia_core::model::DflashConfig {
         layer_ids,
         mask_id,
-        block: dn("block_size"),
+        // the block size is `dflash_config.block_size` (DFlash, DFlash2), or the top-level `block_size` (DSpine)
+        block: if dn("block_size") > 0 { dn("block_size") } else { cfg.get("block_size").and_then(Value::as_u64).unwrap_or(0) as usize },
         hidden: top("hidden_size")?,
         n_layers: top("num_hidden_layers")?,
         intermediate: top("intermediate_size")?,
@@ -379,8 +380,31 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
         conv_group: dn("conv_group_size"),
         selector_rank: dn("selector_rank"),
         selector_top_k: dn("selector_top_k"),
+        spine: None,
     };
-    if config.v2 {
+    let src: Arc<dyn WeightSource> = Arc::new(SchemedSource::open(dir)?);
+    let mut config = config;
+    // DSpine: `architectures` is `DFlashDraftModel`, as for DFlash (v1), so the checkpoint is told apart by its bridge, which must
+    // be present both in the config and in the tensors
+    let flash_arch = cfg.get("architectures").and_then(Value::as_array).is_some_and(|a| a.iter().any(|x| x.as_str() == Some("DFlashDraftModel")));
+    let bridge_cfg = d.get("selected_prefix_code_bridge").is_some();
+    let bridge_tensor = ["selected_prefix_bridge.codebook", "model.selected_prefix_bridge.codebook"].iter().any(|n| src.info(n).is_some());
+    if config.v2 && (bridge_cfg || bridge_tensor) {
+        return Err(Error::Unsupported(format!("{}: a DSpine bridge in a DFlash2DraftModel checkpoint", cfg_path.display())));
+    }
+    if flash_arch && (bridge_cfg || bridge_tensor) {
+        if bridge_cfg != bridge_tensor {
+            return Err(Error::model(format!(
+                "{}: not a complete DSpine draft: {} is present but {} is missing",
+                cfg_path.display(),
+                if bridge_cfg { "dflash_config.selected_prefix_code_bridge" } else { "the tensor selected_prefix_bridge.codebook" },
+                if bridge_cfg { "the tensor selected_prefix_bridge.codebook" } else { "dflash_config.selected_prefix_code_bridge" },
+            )));
+        }
+        config.spine = Some(parse_spine(&cfg, d, &config, &*src, &cfg_path)?);
+        config.v2 = true;
+    }
+    if config.v2 && config.spine.is_none() {
         // what this port implements (docs/results/2026-10-26-dfh-hip-dflash.md): non-causal sliding-window layers, default rope
         let types = cfg.get("layer_types").and_then(Value::as_array);
         let all_sliding = types.is_some_and(|a| a.iter().all(|x| x.as_str() == Some("sliding_attention")));
@@ -398,8 +422,184 @@ pub fn open_dflash(dir: Option<&Path>, dcoco: bool) -> Result<intarsia_core::mod
             )));
         }
     }
-    let src: Arc<dyn WeightSource> = Arc::new(SchemedSource::open(dir)?);
     Ok(intarsia_core::model::DflashLoad { src, config, dcoco })
+}
+
+/// A DSpine draft's configuration, checked against what this port implements (docs/plans/2026-11-07-dspine-port.md section 2):
+/// every key it relies on is read (the norm eps values and the rope theta have no defaults), the combinations the reference
+/// supports and we do not are refused naming the key, and the bridge tensors' shapes, version scalars and the zero `out.weight`
+/// are checked against the checkpoint. Training-only keys (`kappa`, the teacher schedule, checkpointing flags) are ignored.
+fn parse_spine(
+    cfg: &Value,
+    d: &Value,
+    c: &intarsia_core::model::DflashConfig,
+    src: &dyn WeightSource,
+    path: &Path,
+) -> Result<intarsia_core::model::SpineConfig> {
+    let bad = |m: String| Error::model(format!("{}: DSpine draft: {m}", path.display()));
+    let unsup = |m: String| Error::Unsupported(format!("{}: DSpine draft: {m}", path.display()));
+    let num = |v: Option<&Value>, key: &str| -> Result<f64> { v.and_then(Value::as_f64).ok_or_else(|| bad(format!("'{key}' missing"))) };
+    let flag = |v: Option<&Value>, key: &str, want: bool| -> Result<()> {
+        match v.and_then(Value::as_bool) {
+            Some(b) if b == want => Ok(()),
+            other => Err(unsup(format!("{key} must be {want}, got {other:?}"))),
+        }
+    };
+    let l = c.n_layers;
+    // geometry
+    if c.block < 2 || c.block > 16 {
+        return Err(bad(format!("block_size {} outside 2..=16", c.block)));
+    }
+    if c.layer_ids.is_empty() {
+        return Err(bad("dflash_config.target_layer_ids is empty".into()));
+    }
+    if c.mask_id as usize >= c.vocab {
+        return Err(bad(format!("dflash_config.mask_token_id {} outside the vocabulary {}", c.mask_id, c.vocab)));
+    }
+    if l == 0 || c.hidden == 0 || c.vocab == 0 || c.head_dim == 0 || c.n_heads == 0 || c.n_kv_heads == 0 || c.n_heads % c.n_kv_heads != 0 {
+        return Err(bad(format!("geometry: {l} layers, hidden {}, heads {}/{}, head_dim {}", c.hidden, c.n_heads, c.n_kv_heads, c.head_dim)));
+    }
+    // the bridge
+    let br = d.get("selected_prefix_code_bridge").ok_or_else(|| bad("selected_prefix_code_bridge missing".into()))?;
+    let code = num(br.get("code_size"), "selected_prefix_code_bridge.code_size")? as usize;
+    let rank = num(br.get("rank"), "selected_prefix_code_bridge.rank")? as usize;
+    let eps_b = num(br.get("eps"), "selected_prefix_code_bridge.eps")? as f32;
+    if code == 0 || rank == 0 || !(eps_b > 0.0) {
+        return Err(bad(format!("code bridge code_size {code} / rank {rank} / eps {eps_b}")));
+    }
+    flag(d.get("selected_prefix_terminal"), "dflash_config.selected_prefix_terminal", false)?;
+    flag(d.get("selected_prefix_feature_writes"), "dflash_config.selected_prefix_feature_writes", true)?;
+    flag(d.get("draft_block_causal"), "dflash_config.draft_block_causal", true)?;
+    for (key, want) in [("selected_prefix_decode_mode", "serial"), ("selected_prefix_feature_write_mode", "independent")] {
+        match d.get(key).and_then(Value::as_str) {
+            Some(v) if v == want => {}
+            other => return Err(unsup(format!("dflash_config.{key} must be \"{want}\", got {other:?}"))),
+        }
+    }
+    let layers: Option<Vec<u64>> = d.get("selected_prefix_feature_layers").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_u64).collect());
+    if layers.as_deref() != Some(&(1..=l as u64).collect::<Vec<_>>()[..]) {
+        return Err(unsup(format!("dflash_config.selected_prefix_feature_layers must be 1..={l} (every layer writes), got {layers:?}")));
+    }
+    if d.get("selected_prefix_terminal_residual_rank").and_then(Value::as_u64).unwrap_or(0) != 0 {
+        return Err(unsup("a terminal residual (selected_prefix_terminal_residual_rank)".into()));
+    }
+    // the refinement tail's width
+    let mut ks = Vec::new();
+    if let Some(sp) = cfg.get("code_bridge_second_pass").or_else(|| d.get("code_bridge_second_pass")) {
+        if sp.get("mode").and_then(Value::as_str) != Some("serial_table") {
+            return Err(unsup(format!("code_bridge_second_pass.mode must be \"serial_table\", got {:?}", sp.get("mode"))));
+        }
+        if sp.get("first_exact").and_then(Value::as_u64) != Some(l as u64 - 1) {
+            return Err(unsup(format!("code_bridge_second_pass.first_exact must be {} (only the last write is redone), got {:?}", l - 1, sp.get("first_exact"))));
+        }
+        ks.push(num(sp.get("head_topk"), "code_bridge_second_pass.head_topk")? as usize);
+    }
+    if let Some(r) = d.get("selected_prefix_last_write_refine") {
+        if r.get("kind").and_then(Value::as_str) != Some("exact_sender") || r.get("version").and_then(Value::as_u64) != Some(1) {
+            return Err(unsup(format!("selected_prefix_last_write_refine must be exact_sender version 1, got {r}")));
+        }
+        ks.push(num(r.get("head_topk"), "selected_prefix_last_write_refine.head_topk")? as usize);
+    }
+    let Some(&head_topk) = ks.first() else {
+        return Err(bad("neither code_bridge_second_pass nor dflash_config.selected_prefix_last_write_refine gives head_topk".into()));
+    };
+    if ks.iter().any(|&k| k != head_topk) {
+        return Err(bad(format!("head_topk disagrees between code_bridge_second_pass and selected_prefix_last_write_refine: {ks:?}")));
+    }
+    if !head_topk.is_power_of_two() || !(2..=64).contains(&head_topk) {
+        return Err(unsup(format!("head_topk {head_topk} (a power of two in 2..=64)")));
+    }
+    // features this port does not carry
+    if c.conv_kernel != 0 {
+        return Err(unsup(format!("conv_kernel_size {}", c.conv_kernel)));
+    }
+    let has = |k: &str| cfg.get(k).is_some_and(|v| !v.is_null()) || d.get(k).is_some_and(|v| !v.is_null());
+    for k in ["projector", "attention_sink_bias", "attention_value_scale"] {
+        if has(k) {
+            return Err(unsup(format!("{k}")));
+        }
+    }
+    if d.as_object().is_some_and(|o| o.keys().any(|k| k.starts_with("selector_"))) {
+        return Err(unsup("a candidate selector (dflash_config.selector_*)".into()));
+    }
+    // attention: all sliding (window > 0) or all full (no window)
+    flag(cfg.get("is_causal"), "is_causal", true)?;
+    flag(cfg.get("tie_word_embeddings"), "tie_word_embeddings", false)?;
+    let types: Vec<&str> = cfg.get("layer_types").and_then(Value::as_array).map_or(Vec::new(), |a| a.iter().filter_map(Value::as_str).collect());
+    if types.len() != l {
+        return Err(bad(format!("layer_types has {} entries for {l} layers", types.len())));
+    }
+    let window = c.sliding_window;
+    if types.iter().all(|t| *t == "sliding_attention") {
+        if window == 0 {
+            return Err(unsup("sliding_attention layers without a sliding_window".into()));
+        }
+    } else if types.iter().all(|t| *t == "full_attention") {
+        if window != 0 {
+            return Err(unsup("full_attention layers with a sliding_window".into()));
+        }
+    } else {
+        return Err(unsup(format!("layer_types {types:?}: all sliding_attention or all full_attention")));
+    }
+    let rope_default = cfg
+        .get("rope_parameters")
+        .or_else(|| cfg.get("rope_scaling").filter(|v| !v.is_null()))
+        .and_then(|r| r.get("rope_type"))
+        .and_then(Value::as_str)
+        .is_none_or(|t| t == "default");
+    if !rope_default {
+        return Err(unsup("a rope_type other than default".into()));
+    }
+    if cfg.get("partial_rotary_factor").and_then(Value::as_f64).is_some_and(|f| f != 1.0) {
+        return Err(unsup("partial_rotary_factor".into()));
+    }
+    num(cfg.get("rms_norm_eps"), "rms_norm_eps")?;
+    num(cfg.get("rope_theta").or_else(|| cfg.get("rope_parameters").and_then(|r| r.get("rope_theta"))), "rope_theta")?;
+    // tensors
+    let name = |n: &str| format!("selected_prefix_bridge.{n}");
+    let find = |n: &str| -> Result<(String, WeightInfo)> {
+        [n.to_string(), format!("model.{n}")]
+            .into_iter()
+            .find_map(|k| src.info(&k).map(|i| (k, i)))
+            .ok_or_else(|| bad(format!("tensor '{n}' missing")))
+    };
+    let (h, v) = (c.hidden, c.vocab);
+    for (n, shape) in [
+        ("codebook", vec![v, code]),
+        ("read_weight", vec![code, h]),
+        ("early_read_weights", vec![l - 1, code, h]),
+        ("feature_write_weights", vec![l, h, rank]),
+        ("gate.weight", vec![rank, code]),
+        ("gate.bias", vec![rank]),
+        ("predecessor_gate.weight", vec![rank, code]),
+        ("prev.weight", vec![rank, code]),
+        ("out.weight", vec![code, rank]),
+    ] {
+        let (k, i) = find(&name(n))?;
+        if i.dtype != intarsia_core::DType::Bf16 || i.shape != shape {
+            return Err(bad(format!("tensor '{k}' is {} {:?}, expected bf16 {shape:?}", i.dtype, i.shape)));
+        }
+    }
+    // the terminal projection is disabled: it must be all zero
+    let (k, _) = find(&name("out.weight"))?;
+    if src.bytes(&k)?.iter().any(|&b| b != 0) {
+        return Err(unsup("a nonzero selected_prefix_bridge.out.weight (the terminal projection is disabled)".into()));
+    }
+    // format version markers (I64 scalars, carried as 8 raw bytes): all must be 1
+    // The two bridge scalars are required (both references refuse a checkpoint without them); the two top-level ones are checked
+    // only when present (the MLX reference does the same).
+    for n in ["selected_prefix_bridge.independent_write_version", "selected_prefix_bridge.terminal_disabled_version"] {
+        find(n)?;
+    }
+    for n in ["draft_block_causal_version", "last_write_refine_version", "selected_prefix_bridge.independent_write_version", "selected_prefix_bridge.terminal_disabled_version"] {
+        if let Ok((k, i)) = find(n) {
+            let b = src.bytes(&k)?;
+            if i.shape != [8] || b.len() != 8 || i64::from_le_bytes(b.try_into().unwrap()) != 1 {
+                return Err(unsup(format!("tensor '{k}' (format version) is not 1")));
+            }
+        }
+    }
+    Ok(intarsia_core::model::SpineConfig { code, rank, eps_b, head_topk })
 }
 
 /// Whether the checkpoint holds an MTP head the recipe default can load: the recipe's `[mtp]` prefix has its `fc` weight and, at
@@ -586,6 +786,8 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
     }
     // `--spec dflash`: the draft checkpoint, read and checked before the target's weights
     let spec_auto = opts.spec.mode == intarsia_core::spec::SpecMode::Auto;
+    let dspine_opts: EngineOptions;
+    let mut opts = opts;
     let dflash = if opts.spec.mode == intarsia_core::spec::SpecMode::Dflash || spec_auto {
         if max_batch.value > 1 {
             return Err(Error::Unsupported("--spec dflash with the batching engine (use --max-batch 1)".into()));
@@ -593,13 +795,32 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         let dl = open_dflash(opts.spec_draft.as_deref(), opts.dcoco)?;
         // DFlash (dense Qwen3 targets): cpu and CUDA. DFlash2 (lane dfh): cpu, HIP and Metal (lane dm), which have its conv and
         // sliding-window kernels.
-        let ok = if dl.config.v2 { matches!(backend_name, "cpu" | "hip" | "metal") } else { matches!(backend_name, "cpu" | "cuda") };
+        // DSpine (lane dspine): cpu, HIP and Metal like DFlash2 (HIP: bridge kernels admitted and greedy ids gate passed on the
+        // R9700, tatooine 2026-11-07).
+        let is_spine = dl.config.spine.is_some();
+        let ok = if dl.config.v2 || is_spine {
+            matches!(backend_name, "cpu" | "hip" | "metal")
+        } else {
+            matches!(backend_name, "cpu" | "cuda")
+        };
         if !ok {
             return Err(Error::Unsupported(format!(
                 "--spec dflash with a {} draft on the {backend_name} backend ({} only so far)",
-                if dl.config.v2 { "DFlash2" } else { "DFlash" },
-                if dl.config.v2 { "cpu, hip and metal" } else { "cpu and cuda" }
+                if is_spine { "DSpine" } else if dl.config.v2 { "DFlash2" } else { "DFlash" },
+                if dl.config.v2 || is_spine { "cpu, hip and metal" } else { "cpu and cuda" }
             )));
+        }
+        // a DSpine draft's own default depth (not the DFlash block's 15) when `--spec-k` was not given
+        if dl.config.spine.is_some() && !opts.spec_k_given && opts.spec.mode == intarsia_core::spec::SpecMode::Dflash {
+            let k = intarsia_core::spec::DSPINE_K_DEFAULT;
+            eprintln!("--spec dflash with a DSpine draft: --spec-k defaults to {k} (the b16 block's {} would run a {}-row verify)", dl.config.block - 1, dl.config.block);
+            let mut o = opts.clone();
+            o.spec.k = k;
+            dspine_opts = o;
+            opts = &dspine_opts;
+        }
+        if dl.config.spine.is_some() && backend_name == "metal" && opts.spec.k + 1 > 8 {
+            eprintln!("warning: --spec-k {} runs a {}-row verify with a DSpine draft; the Metal gates cover at most 8 rows and k = 3 measured fastest", opts.spec.k, opts.spec.k + 1);
         }
         Some(dl)
     } else {
@@ -749,6 +970,11 @@ fn load_engine_group(dir: &Path, group: Group, opts: &EngineOptions) -> Result<L
         model.enable_batch(max_batch.value)?;
     }
     let summary = model.configure_plan(&opts.plan, Some(&*oracle))?;
+    if model.has_dspine() {
+        // the DSpine tail's tables (about a second on the 27B): at load, not inside the first request; an unsupported head
+        // (mxfp4) is refused here
+        model.dspine_prepare()?;
+    }
     if opts.spec.enabled() {
         let rec = model.dry_run(intarsia_core::plan::Phase::Verify, opts.spec.verify_rows(), 0)?;
         let mut picks: Vec<String> = Vec::new();
